@@ -48,9 +48,9 @@ def step(lat, at, width):
     return 0.5 * (1.0 + np.tanh((lat - at) / width))
 
 
-def sectors(sharp, broad=6.0):
-    """Per-longitude sector index, step width and wind speed on the 0.5 deg ring."""
-    sector = (JB.LON // 90).astype(int)
+def sectors(sharp, broad=6.0, lon=JB.LON):
+    """Per-longitude sector index, step width and wind speed on a ring of longitudes."""
+    sector = (lon // 90).astype(int)
     return sector, np.where(sector == 3, broad, sharp), np.where(sector == 2, 20.0, 40.0)
 
 
@@ -59,10 +59,9 @@ def column(theta_t, p_t, p):
     return np.where(p >= p_t, theta_t - 0.1 * (p - p_t), theta_t + 0.6 * (p_t - p))
 
 
-def synthetic(sharp=1.0):
-    """Temperature and wind on the nine levels over the 0.5 deg band."""
-    lat, lon = JB.BAND, JB.LON
-    sector, w, speed = sectors(sharp)
+def synthetic(sharp=1.0, lat=JB.BAND, lon=JB.LON):
+    """Temperature and wind on the nine levels over a band (by default the 0.5 deg one)."""
+    sector, w, speed = sectors(sharp, lon=lon)
     p = np.asarray(JB.LEVS, float)[:, None, None]
     la = lat[:, None]
     s30, s50, s40 = step(la, 30, w), step(la, 50, w), step(la, 40, w)
@@ -175,6 +174,33 @@ def test_groups():
     check(JB.groups([40.0], [10.0]).tolist() == [0], "one point is one group")
 
 
+def test_near():
+    m = np.zeros((JB.LAT.size, JB.LON.size), bool)
+    pts = [(45.0, 180.0), (75.0, 359.5), (12.0, 3.0)]  # mid-latitude, high latitude across the seam, low latitude
+    for la, lo in pts:
+        m[np.isclose(JB.LAT, la), np.isclose(JB.LON, lo)] = True
+    got = JB.near(m)
+    d = np.min([JB.great_circle_km(JB.LAT[:, None], JB.LON[None, :], la, lo) for la, lo in pts], axis=0)
+    check(np.array_equal(got, d <= JB.NEAR_KM), f"near: {int((got != (d <= JB.NEAR_KM)).sum())} columns differ")
+    check(np.array_equal(JB.near(np.stack([m, ~m]))[0], got), "near over a stack")
+    check(not JB.near(np.zeros_like(m)).any(), "near of nothing")
+
+
+def test_masks_025():
+    # the whole path from 0.25 deg fields, as the forecasts and the ERA5 reference take it
+    lat025 = np.round(np.arange(90.0, -90.0 - 1e-6, -0.25), 3)
+    lat = lat025[JB.band_rows025(lat025)]
+    t, u, v, _, _ = synthetic(lat=lat, lon=np.round(np.arange(0.0, 360.0, 0.25), 3))
+    m = JB.masks_025(t, u, v)
+    check(m.shape == (3, JB.LAT.size, JB.LON.size) and m.dtype == bool, f"masks_025 {m.shape} {m.dtype}")
+    cols = (JB.LON >= 20) & (JB.LON <= 70)
+    rows = {b: JB.LAT[m[i][:, cols].any(axis=1)] for i, b in enumerate(JB.BRANCHES)}
+    check(rows["stj"].size and np.all(np.abs(rows["stj"] - 30) <= 1.5), f"0.25 deg: subtropical rows {rows['stj']}")
+    check(rows["polar"].size and np.all(np.abs(rows["polar"] - 50) <= 1.5), f"0.25 deg: polar rows {rows['polar']}")
+    weak = (JB.LON >= 200) & (JB.LON <= 250)
+    check(not m[:, :, weak].any(), "0.25 deg: jets under a weak wind")
+
+
 def test_identification_isentropic():
     iso, vbar, lat = synthetic_isentropic()
     g = JB.layer_gradients(iso, lat)
@@ -223,7 +249,7 @@ def test_events():
     m = np.zeros((JB.LAT.size, JB.LON.size), bool)
     m[JB.LAT == 35.0, (JB.LON >= 140) & (JB.LON <= 149.5)] = True  # 20 columns in a row over ~800 km
     m[JB.LAT == 35.0, (JB.LON >= 170) & (JB.LON <= 171)] = True  # 3 columns ~1,800 km further east
-    g = B.groups_of(m, JB.region_mask(JB.LAT, JB.LON, "wnp"))
+    g = JB.groups_of(m, JB.region_mask(JB.LAT, JB.LON, "wnp"))
     check([x[0] for x in g] == [20, 3] and abs(g[0][2] - 144.75) < 1e-6 and g[0][1] == 35.0, f"groups {g}")
     t = pd.date_range("2000-01-01", periods=8, freq="12h")
     found = [
@@ -236,7 +262,7 @@ def test_events():
         [],
         [(22, 37.0, 175.0), (21, 37.0, 300.0)],  # 48 h after the last: two new events
     ]
-    ev = B.track(t, found, thr=20)
+    ev = JB.track(t, found, thr=20)
     check(len(ev) == 3, f"events {ev}")
     check(ev[0]["analyses"] == 3 and ev[0]["peak_columns"] == 30 and ev[0]["end"] == t[3], f"first event {ev[0]}")
     check(ev[1]["onset"] == ev[2]["onset"] == t[7] and ev[1]["lon"] == 175.0, f"the last two {ev[1:]}")

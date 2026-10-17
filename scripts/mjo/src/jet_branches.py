@@ -33,6 +33,11 @@ isentropes.
 The layers are the cold-season (November-March) ones; outside it the jets live on other isentropes and the scheme
 does not apply. Day-of-season helpers (season_slot, smooth_season) index the climatology on a 152-slot season
 (1 November to 31 March with 29 February as its own slot) so leap and common years line up.
+
+Maps and events. A 0.5 deg column mask is a ribbon one to three columns wide, with isolated columns scattered around
+it, so the maps are of the neighbourhood: a branch counts at a column when it is identified within NEAR_KM of it
+(near), in the forecasts and in the ERA5 reference alike. A superposition event in a region is a group of superposed
+columns, each within LINK_KM of another, at least as large as the region's threshold (groups_of; Winters et al. 2020).
 """
 
 from __future__ import annotations
@@ -66,6 +71,8 @@ REGIONS = {
     "na": dict(label="North America", lat=(10.0, 80.0), lon=(220.0, 310.0)),
 }
 LINK_KM = 1000.0  # superposed columns within this distance of each other form one group (Winters et al. 2020)
+TRACK_KM, TRACK_H = 1500.0, 30.0  # an event continues one whose centre was this close this recently (Winters et al.)
+NEAR_KM = 300.0  # the maps' neighbourhood: a branch within this distance of the column
 SMOOTH_HALF = 15  # days: the climatology is a centred 31-day window over the season
 
 
@@ -137,6 +144,15 @@ def identify(vbar, g_polar, g_stj, thresh=THRESH) -> dict:
     return {"polar": polar, "stj": stj, "sup": polar & stj}
 
 
+def masks_025(t, u, v) -> np.ndarray:
+    """t, u, v (lev, rows, 1440) on the 0.25 deg rows of band_rows025 -> (3, LAT, LON) boolean masks of BRANCHES: the
+    whole identification of one analysis or one member, as the ERA5 reference makes it."""
+    d = diagnose(*(to_half(x) for x in (t, u, v)), BAND, LON)
+    sl = output_rows(BAND)
+    m = identify(d["vbar"][sl], d["grad"]["polar"][sl], d["grad"]["stj"][sl])
+    return np.stack([m[b] for b in BRANCHES])
+
+
 def output_rows(lat) -> slice:
     """The slice of `lat` (south to north) that is the 10-80N output."""
     lat = np.round(np.asarray(lat, float), 3)
@@ -178,6 +194,76 @@ def great_circle_km(lat1, lon1, lat2, lon2):
     return A_EARTH / 1000.0 * np.arccos(np.clip(c, -1.0, 1.0))
 
 
+def groups_of(mask, in_region, lat=LAT, lon=LON) -> list:
+    """The superposed columns of one analysis inside a region -> [(columns, centre lat, centre lon)], largest first
+    (groups by `groups`; the centre longitude is the circular mean)."""
+    ii, jj = np.nonzero(mask & in_region)
+    if not ii.size:
+        return []
+    la, lo = np.asarray(lat)[ii], np.asarray(lon)[jj]
+    lab = groups(la, lo)
+    out = []
+    for g in range(lab.max() + 1):
+        sel = lab == g
+        z = np.exp(1j * np.deg2rad(lo[sel])).mean()
+        out.append((int(sel.sum()), float(la[sel].mean()), float(np.rad2deg(np.angle(z)) % 360)))
+    return sorted(out, reverse=True)
+
+
+def track(times, found, thr) -> list:
+    """Events from per-analysis groups (`found`, one groups_of list per time). A group of >= thr columns is an event at
+    its analysis; it continues the event of a group up to TRACK_H earlier whose centre is within TRACK_KM (the
+    nearest), else starts one. -> [{onset, end, analyses, peak_columns, lat, lon}] (lat/lon: the first centre)."""
+    rows, recent = [], []  # recent: (time, lat, lon, event index)
+    window = np.timedelta64(int(TRACK_H), "h")
+    for t, gs in zip(times, found):
+        recent = [r for r in recent if (t - r[0]) <= window]
+        now = []
+        for size, la, lo in gs:
+            if size < thr:
+                continue
+            near_ = [(great_circle_km(la, lo, r[1], r[2]), r[3]) for r in recent if r[0] < t]
+            near_ = [x for x in near_ if x[0] <= TRACK_KM]
+            if near_:
+                e = min(near_)[1]
+                ev = rows[e]
+                if ev["end"] != t:  # two groups of one analysis joining one event count it once
+                    ev["end"], ev["analyses"] = t, ev["analyses"] + 1
+                ev["peak_columns"] = max(ev["peak_columns"], size)
+            else:
+                e = len(rows)
+                rows.append(dict(onset=t, end=t, analyses=1, peak_columns=size, lat=round(la, 2), lon=round(lo, 2)))
+            now.append((t, la, lo, e))
+        recent += now
+    return rows
+
+
+def near(mask, lat=LAT, km=NEAR_KM) -> np.ndarray:
+    """(..., lat, lon) boolean -> True at the columns with the mask within `km` (great circle) of them. Longitudes are
+    a global ring; rows beyond the given ones do not count. Each target row takes the source rows within `km`
+    meridionally, each widened by the half-width in columns the great circle allows between the two latitudes."""
+    from scipy.ndimage import maximum_filter1d
+
+    mask = np.asarray(mask, bool)
+    lat = np.asarray(lat, float)
+    phi = np.deg2rad(lat)
+    dlon = 360.0 / mask.shape[-1]
+    ang = km / (A_EARTH / 1000.0)
+    reach = int(np.floor(np.rad2deg(ang) / (lat[1] - lat[0]) + 1e-9))
+    out = np.zeros_like(mask)
+    n = lat.size
+    for k in range(-reach, reach + 1):
+        tgt = np.arange(max(0, -k), min(n, n - k))
+        src = tgt + k
+        c = (np.cos(ang) - np.sin(phi[tgt]) * np.sin(phi[src])) / (np.cos(phi[tgt]) * np.cos(phi[src]))
+        half = np.floor(np.rad2deg(np.arccos(np.clip(c, -1.0, 1.0))) / dlon + 1e-9).astype(int)
+        for h in np.unique(half):
+            rows = half == h
+            grown = maximum_filter1d(mask[..., src[rows], :], size=2 * h + 1, axis=-1, mode="wrap")
+            out[..., tgt[rows], :] |= grown
+    return out
+
+
 # ── the season ──────────────────────────────────────────────────────────────────────────────────────────────────────
 def season_slot(times) -> np.ndarray:
     """0..151: 1 November = 0, 31 December = 60, 1 January = 61, 29 February = 120, 1 March = 121, 31 March = 151 in
@@ -193,12 +279,15 @@ def slot_position() -> np.ndarray:
     return np.where(x < 120, x, np.where(x == 120, 119.5, x - 1))
 
 
-def smooth_season(counts, samples, half=SMOOTH_HALF) -> np.ndarray:
+def smooth_season(counts, samples, half=SMOOTH_HALF, at=None) -> np.ndarray:
     """Frequency (0..1) per slot from per-slot counts (152, ...) and the number of analyses per slot (152,): the
     counts over all slots within `half` days (common-year calendar, so 29 February adds its own few analyses) divided
-    by their analyses. The window is cut at 1 November and 31 March; the season's ends rest on fewer analyses."""
+    by their analyses. The window is cut at 1 November and 31 March; the season's ends rest on fewer analyses.
+    `at`: only these slots (in that order), instead of all 152."""
     x = slot_position()
     w = (np.abs(x[:, None] - x[None, :]) <= half).astype(float)  # (slot, slot)
+    if at is not None:
+        w = w[np.asarray(at, int)]
     n = w @ np.asarray(samples, float)
     c = np.tensordot(w, np.asarray(counts, float), axes=(1, 0))
     return c / n.reshape((-1,) + (1,) * (c.ndim - 1))

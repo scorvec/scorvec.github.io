@@ -11,8 +11,9 @@ three chunks, ~115 MB; a season ~35 GB.
              400-100 hPa wind under each branch, histograms of the in-channel PV gradient of the windy columns, and the
              sensitivity variants below as season counts and per-analysis region counts
   combine  parts -> the reference files:
-             jet_branches_clim.nc     per-slot counts of each branch (152-slot season, jet_branches.season_slot), the
-                                      analyses per slot, monthly counts and mean 400-100 hPa wind of each branch
+             jet_branches_clim.nc     per-slot counts of each branch (152-slot season, jet_branches.season_slot) at
+                                      the column and within NEAR_KM of it (jet_branches.near, what the forecast maps
+                                      show), the analyses per slot, monthly counts and mean 400-100 hPa wind
              jet_branches_calib.nc    the variants' cold-season counts
              reference/jet_branches_regions.nc   per analysis and region: superposed columns, the largest group
              reference/jet_branches_events.csv   the superposition events
@@ -41,6 +42,9 @@ and
 
     python build_jet_branches_ref.py fetch --winter 2010 --out parts/jb_2010.npz
     python build_jet_branches_ref.py combine parts/jb_*.npz --release-dir out --figure out/jet_branches_check.png
+
+The combine reads only the parts, so a change to it is re-run from a build's part artifacts (the workflow's
+recombine_run) without reading ERA5 again.
 """
 
 from __future__ import annotations
@@ -79,8 +83,8 @@ R1_LAT = R1_BAND[JB.output_rows(R1_BAND)]
 METHODS = ("mean", "iso", "mass")
 R1_NAMES = ("r1", "r1_iso", "r1_mass")  # the METHODS on the 2.5 deg grid
 HIST_EDGES = np.linspace(-7.0, -3.0, 401)  # log10 of the in-channel |grad PV| (PVU/m)
-TRACK_KM, TRACK_H = 1500.0, 30.0
 # one row per event: its first and last analysis, how many analyses it held, its largest group, its first centre
+NEAR_BATCH = 64  # analyses dilated at once in the combine
 EVENT_COLUMNS = ("region", "event", "onset", "end", "analyses", "peak_columns", "lat", "lon")
 # The published cold-season superposition climatology, for the validation: frequency maxima (percent of analyses) by
 # area, from Christenson et al. (2017) Fig. 3c as reproduced in Handlos & Martin (2021) Fig. 1f and its text (NCEP-NCAR,
@@ -141,6 +145,8 @@ def analyses(winter, days=None):
 
 
 def reader(ds):
+    """read(ts) -> (ts, [t, u, v]): the nine levels on the 0.25 deg rows of jet_branches.band_rows025, south to north,
+    from a WeatherBench 2 or ARCO-ERA5 zarr store (both name the variables as VARS does), retried on a transport error."""
     lat = ds.latitude.values
     rows = JB.band_rows025(lat)
     sl = slice(int(rows.min()), int(rows.max()) + 1)
@@ -164,10 +170,24 @@ def reader(ds):
     return read
 
 
+def stream(store, times, workers=8):
+    """(ts, t, u, v) for each analysis in `times`, in order, read `workers` at a time with a bounded read-ahead (2 x
+    workers fields in memory) and screened."""
+    read = reader(xr.open_zarr(store, chunks=None, storage_options={"token": "anon"}))
+    with ThreadPoolExecutor(workers) as ex:
+        it = iter(times)
+        pending = deque(ex.submit(read, ts) for ts in islice(it, 2 * workers))
+        while pending:
+            ts, (t, u, v) = pending.popleft().result()
+            nxt = next(it, None)
+            if nxt is not None:
+                pending.append(ex.submit(read, nxt))
+            screen(t, u, v, f"{ts:%Y-%m-%d %H}")
+            yield ts, t, u, v
+
+
 def fetch(winter, out, workers=8, days=None):
     times = analyses(winter, days)
-    ds = xr.open_zarr(WB2, chunks=None, storage_options={"token": "anon"})
-    read = reader(ds)
     sl = JB.output_rows(JB.BAND)
     reg = {r: JB.region_mask(JB.LAT, JB.LON, r) for r in JB.REGIONS}
     reg1 = {r: JB.region_mask(R1_LAT, R1_LON, r) for r in JB.REGIONS}
@@ -187,42 +207,34 @@ def fetch(winter, out, workers=8, days=None):
                 x = gs[m][name][windy & np.isfinite(gs[m][name])]
                 hist[k, j, i] += np.histogram(np.log10(x), HIST_EDGES)[0]
 
-    with ThreadPoolExecutor(workers) as ex:
-        it = iter(times)
-        pending = deque(ex.submit(read, ts) for ts in islice(it, 2 * workers))  # a bounded read-ahead
-        while pending:
-            ts, (t, u, v) = pending.popleft().result()
-            nxt = next(it, None)
-            if nxt is not None:
-                pending.append(ex.submit(read, nxt))
-            screen(t, u, v, f"{ts:%Y-%m-%d %H}")
-            t05, u05, v05 = (JB.to_half(x) for x in (t, u, v))
-            d = JB.diagnose(t05, u05, v05, JB.BAND, JB.LON)
-            vb = d["vbar"][sl]
-            gs = gradient_sets(d, JB.BAND, sl)
-            g = gs["mean"]
-            ms = [JB.identify(vb, g["polar"], g["stj"])]
-            ms += [JB.identify(vb, g["polar"], g["stj"], {k: x * c for k, c in JB.THRESH.items()}) for x in SCAN]
-            ms += [JB.identify(vb, gs[m]["polar"], gs[m]["stj"]) for m in METHODS[1:]]
-            main = masks_of(ms[0])
-            packed.append(np.packbits(main.reshape(3, -1), axis=-1))
-            vsum[MONTHS.index(ts.month)] += main * vb
-            for k, m in enumerate(ms):
-                var_maps[k] += masks_of(m)
-            var_reg.append([[int(m["sup"][reg[r]].sum()) for r in JB.REGIONS] for m in ms])
-            histogram(0, vb, gs)
-            # the 2.5 deg grid of the published climatology
-            d1 = JB.diagnose(*(to_r1(x) for x in (t05, u05, v05)), R1_BAND, R1_LON)
-            s1 = JB.output_rows(R1_BAND)
-            gs1 = gradient_sets(d1, R1_BAND, s1)
-            vb1 = d1["vbar"][s1]
-            m1 = [JB.identify(vb1, gs1[m]["polar"], gs1[m]["stj"], R1_THRESH) for m in METHODS]
-            for k, m in enumerate(m1):
-                r1_maps[k] += masks_of(m)
-            r1_reg.append([[int(m["sup"][reg1[r]].sum()) for r in JB.REGIONS] for m in m1])
-            histogram(1, vb1, gs1)
-            if ts.hour == 0 and ts.day == 1:
-                print(f"  {ts:%Y-%m}: {len(packed)} analyses, {time.time() - t0:.0f} s", flush=True)
+    for ts, t, u, v in stream(WB2, times, workers):
+        t05, u05, v05 = (JB.to_half(x) for x in (t, u, v))
+        d = JB.diagnose(t05, u05, v05, JB.BAND, JB.LON)
+        vb = d["vbar"][sl]
+        gs = gradient_sets(d, JB.BAND, sl)
+        g = gs["mean"]
+        ms = [JB.identify(vb, g["polar"], g["stj"])]
+        ms += [JB.identify(vb, g["polar"], g["stj"], {k: x * c for k, c in JB.THRESH.items()}) for x in SCAN]
+        ms += [JB.identify(vb, gs[m]["polar"], gs[m]["stj"]) for m in METHODS[1:]]
+        main = masks_of(ms[0])
+        packed.append(np.packbits(main.reshape(3, -1), axis=-1))
+        vsum[MONTHS.index(ts.month)] += main * vb
+        for k, m in enumerate(ms):
+            var_maps[k] += masks_of(m)
+        var_reg.append([[int(m["sup"][reg[r]].sum()) for r in JB.REGIONS] for m in ms])
+        histogram(0, vb, gs)
+        # the 2.5 deg grid of the published climatology
+        d1 = JB.diagnose(*(to_r1(x) for x in (t05, u05, v05)), R1_BAND, R1_LON)
+        s1 = JB.output_rows(R1_BAND)
+        gs1 = gradient_sets(d1, R1_BAND, s1)
+        vb1 = d1["vbar"][s1]
+        m1 = [JB.identify(vb1, gs1[m]["polar"], gs1[m]["stj"], R1_THRESH) for m in METHODS]
+        for k, m in enumerate(m1):
+            r1_maps[k] += masks_of(m)
+        r1_reg.append([[int(m["sup"][reg1[r]].sum()) for r in JB.REGIONS] for m in m1])
+        histogram(1, vb1, gs1)
+        if ts.hour == 0 and ts.day == 1:
+            print(f"  {ts:%Y-%m}: {len(packed)} analyses, {time.time() - t0:.0f} s", flush=True)
     print(f"winter {winter}: {len(packed)} analyses in {time.time() - t0:.0f} s", flush=True)
     np.savez_compressed(
         out,
@@ -284,48 +296,6 @@ def region_stats(counts):
     return {"share_any": round(100 * pos.size / max(counts.size, 1), 2), "threshold": thr}
 
 
-def groups_of(mask, region_mask):
-    """Superposed columns of a region at one analysis -> [(size, centre lat, centre lon)], largest first."""
-    ii, jj = np.nonzero(mask & region_mask)
-    if not ii.size:
-        return []
-    la, lo = JB.LAT[ii], JB.LON[jj]
-    lab = JB.groups(la, lo)
-    out = []
-    for g in range(lab.max() + 1):
-        sel = lab == g
-        z = np.exp(1j * np.deg2rad(lo[sel])).mean()
-        out.append((int(sel.sum()), float(la[sel].mean()), float(np.rad2deg(np.angle(z)) % 360)))
-    return sorted(out, reverse=True)
-
-
-def track(times, found, thr):
-    """found: per analysis, its groups -> event rows. A group of >= thr columns is an event at its analysis; it
-    continues the event of a group up to TRACK_H earlier whose centre is within TRACK_KM (the nearest), else starts
-    one."""
-    rows, recent = [], []  # recent: (time, lat, lon, event index)
-    for t, gs in zip(times, found):
-        recent = [r for r in recent if (t - r[0]) <= pd.Timedelta(hours=TRACK_H)]
-        now = []
-        for size, la, lo in gs:
-            if size < thr:
-                continue
-            near = [(JB.great_circle_km(la, lo, r[1], r[2]), r[3]) for r in recent if r[0] < t]
-            near = [x for x in near if x[0] <= TRACK_KM]
-            if near:
-                e = min(near)[1]
-                ev = rows[e]
-                if ev["end"] != t:  # two groups of one analysis joining one event count it once
-                    ev["end"], ev["analyses"] = t, ev["analyses"] + 1
-                ev["peak_columns"] = max(ev["peak_columns"], size)
-            else:
-                e = len(rows)
-                rows.append(dict(onset=t, end=t, analyses=1, peak_columns=size, lat=round(la, 2), lon=round(lo, 2)))
-            now.append((t, la, lo, e))
-        recent += now
-    return rows
-
-
 def hist_median(h):
     c = np.cumsum(h)
     if not c[-1]:
@@ -348,16 +318,22 @@ def combine(paths, release_dir, figure=None, allow_partial=False):
     month = np.array([MONTHS.index(m) for m in times.month])
     month_samples = np.bincount(month, minlength=len(MONTHS))
     mcount = np.zeros((len(MONTHS), 3, JB.LAT.size, JB.LON.size), np.uint16)
+    near = np.zeros_like(counts)
     regmask = {r: JB.region_mask(JB.LAT, JB.LON, r) for r in JB.REGIONS}
     found = {r: [] for r in JB.REGIONS}
     nsup = {r: np.zeros(len(times), np.int16) for r in JB.REGIONS}
+    for k0 in range(0, len(times), NEAR_BATCH):
+        ks = np.arange(k0, min(k0 + NEAR_BATCH, len(times)))
+        grown = JB.near(np.stack([unpack(packed[k]) for k in ks]))
+        for k, g in zip(ks, grown):
+            near[slot[k]] += g
     for k in range(len(times)):
         m = unpack(packed[k])
         counts[slot[k]] += m
         mcount[month[k]] += m
         for r in JB.REGIONS:
             nsup[r][k] = int((m[2] & regmask[r]).sum())
-            found[r].append(groups_of(m[2], regmask[r]))
+            found[r].append(JB.groups_of(m[2], regmask[r]))
     vsum = sum(f["vsum"].astype(np.float64) for f in parts)
     with np.errstate(invalid="ignore", divide="ignore"):
         speed = np.where(mcount > 0, vsum / mcount, np.nan).astype(np.float32)
@@ -365,7 +341,7 @@ def combine(paths, release_dir, figure=None, allow_partial=False):
     stats = {r: region_stats(nsup[r]) for r in JB.REGIONS}
     events = []
     for r in JB.REGIONS:
-        ev = track(times, found[r], max(stats[r]["threshold"], 1))
+        ev = JB.track(times, found[r], max(stats[r]["threshold"], 1))
         stats[r]["events"] = len(ev)
         stats[r]["events_per_season"] = round(len(ev) / len(got), 2)
         events += [dict(region=r, event=i + 1, **e) for i, e in enumerate(ev)]
@@ -386,6 +362,7 @@ def combine(paths, release_dir, figure=None, allow_partial=False):
     clim = xr.Dataset(
         {
             "count": (("slot", "branch", "latitude", "longitude"), counts),
+            "near_count": (("slot", "branch", "latitude", "longitude"), near),
             "samples": (("slot",), samples.astype(np.int16)),
             "month_count": (("month", "branch", "latitude", "longitude"), mcount),
             "month_samples": (("month",), month_samples.astype(np.int16)),
@@ -396,6 +373,7 @@ def combine(paths, release_dir, figure=None, allow_partial=False):
             attrs,
             slots="jet_branches.season_slot: 1 November = 0 ... 29 February = 120 ... 31 March = 151",
             frequency="jet_branches.smooth_season(count, samples): the centred 31-day window",
+            near_km=JB.NEAR_KM,
         ),
     )
     clim["month_wind"].attrs = dict(units="m s-1", long_name="mean 400-100 hPa wind of the columns holding the branch")
