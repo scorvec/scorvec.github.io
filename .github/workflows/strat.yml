@@ -345,7 +345,7 @@ jobs:
 
       # North Pacific jet: 250 hPa u from the AAM pull above and v from the zonal-mean
       # u step's 250 hPa fetch (control + 25 members). Maps, loop, jet axis, phase diagram, the torque
-      # research view (which reads the committed torque_ranges.json from aam.yml) and the phase-impact figures (drawn
+      # research view (which reads the committed torque_ranges.json from aam-ifs.yml) and the phase-impact figures (drawn
       # from the committed ERA5 composites in scripts/mjo/data/reference/pacjet_impacts.npz).
       - name: North Pacific jet (AIFS-ENS)
         run: |
