@@ -7,7 +7,7 @@
 #     FORCE=1 ...                              # rebuild a cycle already published
 #     GEPS_OFFLINE=1 WANT=... ...              # no network at all: rebuild from files already held
 #
-# Expects the reference set in $GEPS_REF (release geps-ref-v1, scripts/geps/make_reference.py) and the state carried
+# Expects the reference set in $GEPS_REF (release geps-ref-v2, scripts/geps/make_reference.py) and the state carried
 # between runs in $GEPS_STATE (frames branch). Writes the page assets into assets/geps and the frames into
 # assets/geps/anim; publishing (frames branch, main) is the workflow's job. Sets new=1 in $GITHUB_OUTPUT when it built.
 #

@@ -20,12 +20,16 @@ shipped in gefs_patterns_ref.npz. They are applied on the same 2.5 deg grid and 
              the tail, CPC's monthly SOI/EQSOI as bars, all rescaled to seasonal sd (telecon_geps.py verbatim).
 
 Calibration (gefs_patterns_calib.npz, build_gefs_patterns_hindcast.py): the GEFSv12 reforecast 2000-2019 (Wednesday
-starts, 4 members) scored with the same projectors against NCEP/NCAR R1 on the valid dates; for the starts within
-+-45 days of the init day of year, per index and week, the anomaly correlation r, the regression obs = a*fcst + b and
-its residual sd s. The live ensemble-mean weekly index m becomes P(week >= +0.5) = 1 - Phi((0.5 - a m - b) / s). A
+starts, 4 members) scored with the same projectors against NCEP/NCAR R1 on the valid dates, each start de-drifted
+LEAVE-SEASON-OUT (a climatology and an ERA5 re-basing normal without its own season, as a live forecast's never saw
+its year), so r is out of sample; for the starts within +-45 days of the init day of year, per index and week, the
+anomaly correlation r, the regression obs = a*fcst + b, its residual sd s and the forecast's mean xbar and sum of
+squares sxx. The live ensemble-mean weekly index m becomes P(week >= +0.5) from the regression's predictive
+distribution (cal_cdf: Student t on n_eff - 2 dof, s widened for the fit's own uncertainty - telecon_geps.cal_cdf). A
 week counts as skilful only when r >= 0.25 AND r is significant at 5% (one-sided t-test on the effective sample size
 n (1 - r1 r2) / (1 + r1 r2), r1 r2 = the week-to-week lag-1 autocorrelations of the forecast and observed series of
-consecutive weekly starts, Bretherton et al. 1999); otherwise the cell is hatched "no skill".
+consecutive weekly starts, Bretherton et al. 1999) AND it passes Benjamini-Hochberg at FDR_Q over every index x week
+cell of the init; otherwise the cell is hatched "no skill".
 
 Units: seasonal standard deviations of the DAILY index over 1991-2020 (std within +-15 d of the day of year).
 
@@ -42,7 +46,6 @@ import json
 import re
 import sys
 import textwrap
-from math import erf, sqrt
 from pathlib import Path
 
 import numpy as np
@@ -57,7 +60,6 @@ P_MAX = 0.05  # ... and so is a correlation not significant at this level
 FDR_Q = 0.10  # ... or one that fails Benjamini-Hochberg at this rate over every index x week cell of the init
 THR = 0.5  # +-0.5 seasonal sd = positive / negative phase
 TAIL_DAYS = GP.TAIL_DAYS
-FIT_COLS = ["n", "r", "a", "b", "s", "obs_sd", "fc_sd", "n_eff", "p"]
 CPC_URL = {
     "ao": "cwlinks/norm.daily.ao.cdas.z1000.19500101_current.csv",
     "nao": "cwlinks/norm.daily.nao.cdas.z500.19500101_current.csv",
@@ -75,8 +77,14 @@ LONGPADDOCK_URL = (
 )
 
 
-def phi(x):
-    return 0.5 * (1.0 + erf(x / sqrt(2.0)))
+def cal_cdf(x, c: dict, m):
+    """P(observed weekly index <= x) for the ensemble mean m under the hindcast regression c: Student t on n_eff - 2
+    degrees of freedom centred on a*m + b, scale s * sqrt(1 + 1/n_eff + (m - xbar)^2 / (sxx n_eff / n)) - the fit's own
+    uncertainty, counted on the effective sample (telecon_geps.cal_cdf)."""
+    from scipy.stats import t as tdist
+
+    w = np.sqrt(1.0 + 1.0 / c["n_eff"] + (m - c["xbar"]) ** 2 / (c["sxx"] * c["n_eff"] / c["n"]))
+    return float(tdist.cdf((x - (c["a"] * m + c["b"])) / (c["s"] * w), max(c["n_eff"] - 2.0, 1.0)))
 
 
 # ── published indices (telecon_geps / build_telecon_patterns parsers without pandas) ─────────────────────────
@@ -221,9 +229,14 @@ def calibration(ref: GP.Ref, base: dt.date):
     """{sid: [row per week or None]} from the calibration file's fit table at the init day of year."""
     if ref.calib is None or "fit" not in ref.calib.files:
         return {}
+    if ref.calib_meta.get("dedrift") != "leave-season-out":
+        print(
+            "::warning::gefs_patterns_calib.npz is de-drifted in sample - no calibration (gefs-calib.yml rebuilds it)"
+        )
+        return {}
     ids = ref.calib_meta["fit_ids"]
-    F = ref.calib["fit"]  # (index, 366 doy keys, 5 weeks, FIT_COLS)
-    cols = ref.calib_meta.get("fit_cols", FIT_COLS)
+    F = ref.calib["fit"]  # (index, 366 doy keys, 5 weeks, meta fit_cols)
+    cols = ref.calib_meta["fit_cols"]
     out = {}
     for i, sid in enumerate(ids):
         rows = []
@@ -241,8 +254,10 @@ def calibration(ref: GP.Ref, base: dt.date):
                     s=round(v["s"], 2),
                     obs_sd=round(v["obs_sd"], 2),
                     fc_sd=round(v["fc_sd"], 2),
-                    n_eff=int(np.rint(v["n_eff"])),
+                    n_eff=round(v["n_eff"], 1),
                     p=round(v["p"], 4),
+                    xbar=round(v["xbar"], 3),
+                    sxx=round(v["sxx"], 3),
                 )
             )
         out[sid] = rows
@@ -296,7 +311,7 @@ def weekly_stats(t, M, base, prev=None, cal=None):
                 )
         if cal and k < len(cal) and cal[k]:
             c = cal[k]
-            mu = c["a"] * row["mean"] + c["b"]
+            m = row["mean"]
             row.update(
                 skill_r=c["r"],
                 skill_p=c["p"],
@@ -306,11 +321,11 @@ def weekly_stats(t, M, base, prev=None, cal=None):
                 cal_a=c["a"],
                 cal_b=c["b"],
                 cal_s=c["s"],
-                cal_mean=round(float(mu), 2),
-                cal_p_pos=round(1.0 - phi((THR - mu) / c["s"]), 3),
-                cal_p_neg=round(phi((-THR - mu) / c["s"]), 3),
-                cal_p_strong_pos=round(1.0 - phi((1.0 - mu) / c["s"]), 3),
-                cal_p_strong_neg=round(phi((-1.0 - mu) / c["s"]), 3),
+                cal_mean=round(float(c["a"] * m + c["b"]), 2),
+                cal_p_pos=round(1.0 - cal_cdf(THR, c, m), 3),
+                cal_p_neg=round(cal_cdf(-THR, c, m), 3),
+                cal_p_strong_pos=round(1.0 - cal_cdf(1.0, c, m), 3),
+                cal_p_strong_neg=round(cal_cdf(-1.0, c, m), 3),
             )
         rows.append(row)
     return rows
@@ -674,7 +689,8 @@ def plot_probs(ref, base, prev_date, weeks, n_members, out: Path):
         + (
             "\nthin lower bar: hindcast-calibrated probabilities — observed weekly index (NCEP/NCAR R1) regressed on the "
             "forecast one over\n2000–2019 GEFSv12 reforecast starts within ±45 d of this date (Wednesday starts, 4-member "
-            "mean); skill r = anomaly correlation of the hindcast mean;\n"
+            "mean, each de-drifted without its own season); skill r = anomaly correlation of the hindcast mean, out of "
+            "sample;\n"
             f"hatched = r below {SKILL_MIN} or not significant at 5% (t-test on the effective sample size of "
             f"consecutive weekly starts, false discovery rate {FDR_Q:.0%} over all cells): no usable skill"
             if has_cal
@@ -751,7 +767,10 @@ def main() -> int:
         "units": "seasonal sd: std of the 1991-2020 daily index within +-15 d of the day of year",
         "n_members": n_members,
         "valid_convention": "day d valid on init + (d - 1)",
-        "hindcast": "GEFSv12 reforecast 2000-2019, Wednesday starts, 4-member mean, vs NCEP/NCAR R1" if cal else None,
+        "hindcast": "GEFSv12 reforecast 2000-2019, Wednesday starts, 4-member mean, de-drifted leave-season-out, vs "
+        "NCEP/NCAR R1"
+        if cal
+        else None,
         "test": bool(GP.TEST_NOTE),
         "indices": {},
     }
