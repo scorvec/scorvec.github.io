@@ -51,7 +51,7 @@ WRITTEN = ARCH / "written.txt"
 OFFSETS = ARCH / "offset_era5.npz"  # per lattice day: the analysis less ERA5, each field
 MIN_PAIRS = 6
 DIR = "hbranch_hist"
-FIRST = pd.Timestamp("2025-07-01")  # the AIFS-ENS open data begins here
+FIRST = pd.Timestamp("2025-07-02")  # the first 00Z AIFS-ENS run on the Google mirror
 WIN, DAYS = 7, 120
 SMOOTH_DEG = (
     3.0  # Gaussian sigma of the mapped omega (a week of 1.5 deg omega is mostly convective and mountain-wave noise)
@@ -69,7 +69,7 @@ SECTOR_NAME = {
 }
 LEV = {
     "out": [-4, -3, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 3, 4],
-    "desc": [-40, -30, -20, -15, -10, -5, 5, 10, 15, 20, 30, 40],
+    "desc": [-60, -45, -30, -20, -10, -5, 5, 10, 20, 30, 45, 60],
     "msl": [-12, -8, -6, -4, -2, -1, 1, 2, 4, 6, 8, 12],
 }
 
