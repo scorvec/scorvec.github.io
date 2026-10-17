@@ -42,12 +42,9 @@ import xarray as xr
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from paths import LOCAL_STORE as ARCHIVE  # offline builds only
+from paths import local_store  # offline builds only
 from refpack import noleap_doy  # the climatologies' day-of-year key
 
-STORE = ARCHIVE / "geps8_hindcast"
-CLIM = ARCHIVE / "climatology"
-MANIFEST = ARCHIVE / "manifest.csv"
 HALFWIN = 15  # +/- days of year pooled into each climatological day
 DOY_STEP = 5  # climatology evaluated every 5 days of year, interpolated later
 EXPECTED_MONTHS = 240  # 2001-2020
@@ -58,7 +55,7 @@ STARTS = "unique"  # each start pooled once (attrs["starts"])
 def entries(tag: str) -> list[tuple[Path, np.ndarray]]:
     """The monthly hindcast files of one field and, for each, the positions on its S axis to read, so that every start
     is read once: from the file of its own month, else (never so far) the first file holding it. In file order."""
-    files = sorted(STORE.glob(f"geps8_{tag}_*.nc"))
+    files = sorted(local_store("geps8_hindcast").glob(f"geps8_{tag}_*.nc"))
     held = []
     for f in files:
         with xr.open_dataset(f, decode_timedelta=False) as d:
@@ -80,9 +77,10 @@ def entries(tag: str) -> list[tuple[Path, np.ndarray]]:
 
 
 def complete_tags():
-    if not MANIFEST.exists():
+    manifest = local_store("manifest.csv")
+    if not manifest.exists():
         return []
-    m = pd.read_csv(MANIFEST)
+    m = pd.read_csv(manifest)
     out = []
     for tag, g in m.groupby("tag"):
         if len(g) >= EXPECTED_MONTHS:
@@ -168,8 +166,9 @@ def build(tag: str, halfwin: int) -> Path | None:
             "Anomalies must use the same lead L and the same member treatment (ensemble mean) as this climatology."
         ),
     }
-    CLIM.mkdir(parents=True, exist_ok=True)
-    dst = CLIM / f"geps8_clim_{tag}.nc"
+    clim = local_store("climatology")
+    clim.mkdir(parents=True, exist_ok=True)
+    dst = clim / f"geps8_clim_{tag}.nc"
     lo, hi = float(np.nanmin(mean)), float(np.nanmax(mean))
     enc = {
         name: dict(

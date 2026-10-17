@@ -67,14 +67,12 @@ import xarray as xr
 HERE = Path(__file__).resolve().parent
 
 _sys.path[:0] = [str(HERE), str(HERE.parent)]
-from paths import LOCAL_STORE as _LS  # offline-build inputs/outputs
+from paths import local_store  # offline-build inputs/outputs
 from refpack import noleap_doy, at_doy  # the climatologies' read key
 from telecon_io import period_shift
 import build_clim  # the climatology's pool rules (calendar, each start once)
 import build_era5_clim as era5  # the ERA5 normal's store and units
 
-CLIM = _LS / "climatology"
-TC = _LS / "telecon"
 LAT25 = np.arange(90.0, -90.1, -2.5)
 LON25 = np.arange(0.0, 360.0, 2.5)
 Y0, Y1 = 2001, 2020
@@ -100,7 +98,7 @@ def patterns():
 def ncep_normal(field):
     """The NCEP 1991-2020 day-of-year normal of z500 or slp the patterns were built against (the full pattern file of
     the offline store: the published reference drops these)."""
-    return xr.open_dataset(TC / "patterns.nc")[f"clim_doy_{field}"].values
+    return xr.open_dataset(local_store("telecon", "patterns.nc"))[f"clim_doy_{field}"].values
 
 
 def pooled(doy, centre, half):
@@ -121,7 +119,7 @@ class ModelClim:
     taken out of it: centre k is the mean of the N_k starts whose common-year day is within CLIM_HALF of it."""
 
     def __init__(self, tag):
-        c = xr.open_dataset(CLIM / f"geps8_clim_{tag}.nc")
+        c = xr.open_dataset(local_store("climatology", f"geps8_clim_{tag}.nc"))
         if (c.attrs.get("doy_key"), c.attrs.get("starts")) != (build_clim.CALENDAR, build_clim.STARTS):
             raise SystemExit(
                 f"geps8_clim_{tag}.nc predates the common-year, each-start-once pools: rerun build_clim.py"
@@ -175,7 +173,7 @@ def era5_leave_out(tag, dates):
     step = ERA5_SAMPLE[tag]
     days, fields = [], []
     for y in range(Y0, Y1 + 1):
-        d = xr.open_dataset(era5.STORE / var / f"{var}_{y}.nc")
+        d = xr.open_dataset(era5.store() / var / f"{var}_{y}.nc")
         v = d[var].transpose("time", "latitude", "longitude")  # the store's own order varies: by name
         t = pd.DatetimeIndex(v.time.values)
         keep = ((t - pd.Timestamp(y, 1, 1)).days % step) == 0
@@ -186,7 +184,7 @@ def era5_leave_out(tag, dates):
         d.close()
     days = pd.DatetimeIndex(np.concatenate(days))
     out, E = season_left_out(days, np.concatenate(fields), noleap_doy(days), dates)
-    ref = xr.open_dataset(CLIM / ERA5_NORMAL[tag])[tag]
+    ref = xr.open_dataset(local_store("climatology", ERA5_NORMAL[tag]))[tag]
     ref = ref.sortby("lat", ascending=False)
     ref = xr.concat([ref, ref.isel(lon=0).assign_coords(lon=360.0)], dim="lon").interp(lat=LAT25, lon=LON25)
     err = E - ref.values
@@ -356,6 +354,7 @@ def main() -> int:
         "year; obs at the valid date of each lead",
         dedrift="leave-one-year-out",
     )
+    TC = local_store("telecon")
     TC.mkdir(exist_ok=True)
     q = TC / "hindcast_indices.nc"
     if a.merge and q.exists():

@@ -53,10 +53,12 @@ import xarray as xr
 HERE = Path(__file__).resolve().parent
 
 _sys.path[:0] = [str(HERE), str(HERE.parent)]
-from telecon_hindcast import LAT25, LON25, TC, anomalies
+from telecon_hindcast import LAT25, LON25, anomalies
 from build_telecon_patterns import doy_clim
 from refpack import noleap_doy, at_doy  # day-of-year key
+from paths import local_store
 
+TC = local_store("telecon")
 NCEP, CPCP = TC / "ncep", TC / "cpc_precip"
 WEEKS = [(1, 7), (8, 14), (15, 21), (22, 28), (29, 35)]
 Y0, Y1 = 2001, 2020

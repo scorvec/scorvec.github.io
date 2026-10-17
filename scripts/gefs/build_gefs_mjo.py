@@ -49,9 +49,12 @@ import gefs_daily as G
 import gefs_mjo as GM
 
 MJOREF = HERE.parent / "mjo" / "data" / "reference"
-BOM = Path.home() / "data_archive" / "geps_subx" / "telecon" / "bom" / "rmm.74toRealtime.txt"
-RF = Path.home() / "data_archive" / "gefs_rf"
-OUT = Path.home() / "data_archive" / "gefs_ref" / "mjo"
+sys.path.insert(0, str(HERE.parent / "lib"))
+from localdirs import env_dir
+
+BOM = env_dir("DATA_ARCHIVE", "geps_subx", "telecon", "bom", "rmm.74toRealtime.txt")
+RF = env_dir("DATA_ARCHIVE", "gefs_rf")
+OUT = env_dir("DATA_ARCHIVE", "gefs_ref", "mjo")
 TAGS = GM.TAGS
 CENTRES = list(range(1, 366, 5))
 EXCLUDE_DAYS = 60
@@ -295,12 +298,12 @@ def main() -> int:
     sp = ap.add_subparsers(dest="cmd", required=True)
     r = sp.add_parser("ref")
     r.add_argument("--clim", choices=("v1", "v2"), default="v1")
-    r.add_argument("--clim-dir", default=str(Path.home() / "data_archive" / "gefs_port_test" / "mjo" / "cache"))
+    r.add_argument("--clim-dir", default=str(env_dir("DATA_ARCHIVE", "gefs_port_test", "mjo", "cache")))
     h = sp.add_parser("hindcast")
     h.add_argument("--rf", nargs="+", default=[str(RF)])
     p = sp.add_parser("plot")
     p.add_argument("--doy-now", type=int, required=True)
-    p.add_argument("--site", default=str(Path.home() / "data_archive" / "gefs_port_test" / "mjo" / "site"))
+    p.add_argument("--site", default=str(env_dir("DATA_ARCHIVE", "gefs_port_test", "mjo", "site")))
     p.add_argument("--members", type=int, default=31)
     a = ap.parse_args()
     return {"ref": cmd_ref, "hindcast": cmd_hindcast, "plot": cmd_plot}[a.cmd](a)

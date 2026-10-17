@@ -49,8 +49,11 @@ import mjo_geps as mg
 import refpack  # (the day-of-year key)
 
 # the full pass (no --replot) reads the offline hindcast store; --replot needs only REF/telecon/mjo_hindcast.nc
-CLIM = paths.LOCAL_STORE / "climatology"
-TC = paths.TC_REF if (paths.TC_REF / "mjo_hindcast.nc").exists() else paths.LOCAL_STORE / "telecon"
+TC = (
+    paths.TC_REF
+    if (paths.TC_REF / "mjo_hindcast.nc").exists() or paths.LOCAL_STORE is None
+    else paths.LOCAL_STORE / "telecon"
+)
 TC_OUT = paths.TC_STATE
 FIGS = paths.FIGS
 SITE = paths.SITE_ASSETS
@@ -69,7 +72,7 @@ ECMWF_REF = {"COR 0.6": (27, 30), "COR 0.5": (31, 34)}
 def bom_rmm():
     """BoM RMM1/RMM2 by date (WH04 method 1974-2013, Gottschalck 2010 after)."""
     rows = []
-    for ln in (paths.LOCAL_STORE / "telecon" / "bom" / "rmm.74toRealtime.txt").read_text().splitlines():
+    for ln in paths.local_store("telecon", "bom", "rmm.74toRealtime.txt").read_text().splitlines():
         p = ln.split()
         if len(p) < 7 or not p[0].isdigit():
             continue
@@ -94,7 +97,7 @@ def band_of(a, lon):
 
 def model_clim_band(tag, lon):
     """Model climatology band mean on (doy, L, lon), day-of-year axis wrapped."""
-    c = xr.open_dataset(CLIM / f"geps8_clim_{tag}.nc")
+    c = xr.open_dataset(paths.local_store("climatology", f"geps8_clim_{tag}.nc"))
     cv = c[next(v for v in c.data_vars if v != "n_starts")].squeeze(drop=True)
     lat = cv.Y
     w = np.cos(np.deg2rad(lat)).where((lat >= mg.LAT_MIN) & (lat <= mg.LAT_MAX), 0.0)
@@ -209,7 +212,7 @@ def main() -> int:
         source="GEPS8 hindcast ensemble mean projected as mjo_geps.py; obs = BoM RMM",
         note="120-day mean from the hindcast day-1 channels of the preceding 120 days",
     )
-    ds.to_netcdf(paths.LOCAL_STORE / "telecon" / "mjo_hindcast.nc")  # then make_reference.py
+    ds.to_netcdf(paths.local_store("telecon", "mjo_hindcast.nc"))  # then make_reference.py
 
     return score_and_plot(a, f1, f2, o1, o2, amp0, starts, Lref, ok, t0)
     return 0

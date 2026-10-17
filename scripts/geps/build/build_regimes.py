@@ -42,10 +42,11 @@ from scipy.cluster.vq import kmeans2
 HERE = Path(__file__).resolve().parent
 
 _sys.path[:0] = [str(HERE), str(HERE.parent)]
-from paths import LOCAL_STORE as _LS  # offline-build inputs/outputs
-from build_telecon_patterns import daily, doy_clim, doy_anom, TC
+from paths import local_store  # offline-build inputs/outputs
+from build_telecon_patterns import daily, doy_clim, doy_anom
 
-FIGS = _LS / "figs"
+TC = local_store("telecon")
+FIGS = local_store("figs")
 Y0, Y1 = 1991, 2020
 K = 4
 NEOF = 14
