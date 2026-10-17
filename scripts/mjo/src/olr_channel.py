@@ -144,11 +144,13 @@ def anomaly_and_map120(clim: xr.Dataset):
     "anomaly" that is mostly source offset (the first version of this produced a
     120-day map of +0.8 to +27 W/m2, all of it bias, which subtracted into a
     forecast is a spurious basin-wide OLR shift). frame_offset takes it out. It is
-    a climatological offset on purpose: an ERA5-minus-NOAA mean over the recent
-    record would also take out that record's mean anomaly, a few W/m2 at some
-    longitudes over a multi-year El Nino or La Nina. That cancels on the observed
-    track, which subtracts the same map from the same anomalies, but not in the
-    forecast, whose OLR anomaly comes from the model and keeps it.
+    a climatological offset on purpose, by day of year: an ERA5-minus-NOAA mean
+    over the recent record would also take out that record's mean anomaly, a few
+    W/m2 at some longitudes over a multi-year El Nino or La Nina, and would miss
+    the offset's seasonal cycle (up to 11.6 W/m2 at a longitude). A constant part
+    cancels on the observed track, which subtracts the same map from the same
+    anomalies, and the GEPS forecast is filtered with GEPS's own OLR
+    (scripts/geps/mjo_geps.py forecast_olr_map), where it cancels as well.
 
     Returns (times, anom[time, lon], mean120[lon])."""
     t, olr, _ = band_series()

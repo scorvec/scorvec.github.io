@@ -9,7 +9,7 @@ name: GEPS days 1-35 (subseasonal)
 # build reads from them was reduced ONCE, offline, to the release asset geps-ref-v3 (scripts/geps/make_reference.py,
 # 0.48 GB). A run downloads only the new cycle's fields from the MSC Datamart - the variables, levels and steps the
 # products use, each file once (the ledger in the step summary says exactly what) - plus small incremental refreshes
-# (ARCO ERA5 band means, CPC/PSL index files).
+# (ARCO ERA5 band means, CPC/PSL index files, the first-day OLR of each day's 00Z run for the MJO filter map).
 #
 # SCHEDULE. The day-35 step lands ~06:40-06:51 UTC on Mondays and Thursdays (5-15 Oct 2026). The laptop's readiness
 # dispatcher sends `cycle` as soon as the last five days' steps are all up. 07:20 (the script waits up to 2 h for a
@@ -108,8 +108,9 @@ jobs:
           du -sh scripts/geps/ref; ls scripts/strat/data scripts/strat/data/geps_s2s
 
       # publish_frames_ci.sh swaps directories WHOLESALE, so both are seeded from the branch first: the loops (a
-      # product that fails keeps its previous frames) and the state (observed-tail caches, refreshed index files, the
-      # previous cycle for the change maps, the vortex series). First run only: the offline seed (release asset).
+      # product that fails keeps its previous frames) and the state (observed-tail caches, GEPS's day-1 OLR history,
+      # refreshed index files, the previous cycle for the change maps, the vortex series). First run only: the offline
+      # seed (release asset).
       - name: Seed frames and state from the frames branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
