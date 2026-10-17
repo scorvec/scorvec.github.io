@@ -33,6 +33,7 @@ jobs:
         with:
           sparse-checkout: |
             scripts/gefs
+            scripts/lib
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"

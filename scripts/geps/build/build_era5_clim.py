@@ -31,13 +31,20 @@ import xarray as xr
 
 HERE = Path(__file__).resolve().parent
 
-_sys.path[:0] = [str(HERE), str(HERE.parent)]
-from paths import LOCAL_STORE as _LS  # offline-build inputs/outputs
+_sys.path[:0] = [str(HERE), str(HERE.parent), str(HERE.parents[1] / "lib")]
+from paths import local_store  # offline-build inputs/outputs
+from localdirs import env_dir
 from refpack import noleap_doy  # the climatologies' day-of-year key
 from build_clim import CALENDAR  # ... and its name in the files' attributes
 
-STORE = Path.home() / "era5_store" / "wb2_1p5_daily_global"
 OUTFMT = "era5_clim_{y0}-{y1}.nc"
+
+
+def store():
+    """The ERA5 daily store's global 1.5 deg layer ($ERA5_STORE)."""
+    return env_dir("ERA5_STORE", "wb2_1p5_daily_global")
+
+
 # our tag -> (store var, unit conversion to match the GEPS live fields)
 VARS = {
     "t2m": ("t2m", 1.0, 0.0),
@@ -59,10 +66,10 @@ def main() -> int:
     centres = np.arange(1, 366, STEP)
     out, coords = {}, None
     for tag, (var, mul, add) in VARS.items():
-        fs = [STORE / var / f"{var}_{y}.nc" for y in range(a.y0, a.y1 + 1)]
+        fs = [store() / var / f"{var}_{y}.nc" for y in range(a.y0, a.y1 + 1)]
         fs = [f for f in fs if f.exists()]
         if not fs:
-            print(f"  {tag}: no files under {STORE / var} — skipped")
+            print(f"  {tag}: no files under {store() / var} — skipped")
             continue
         acc = None
         cnt = np.zeros(len(centres), dtype=int)
@@ -96,14 +103,14 @@ def main() -> int:
         coords={"doy": centres, **coords},
         attrs={
             "title": f"ERA5 {a.y0}-{a.y1} day-of-year normal (WMO base)",
-            "source": str(STORE),
+            "source": str(store()),
             "note": "daily means of the 4 synoptic hours, 1.5 deg; used to "
             "re-reference GEPS anomalies onto the observed normal",
             "units": "t2m K, mslp Pa, zg500 m, winds m/s",
             "doy_key": CALENDAR,  # +-HALFWIN windows on the common-year day (refpack.noleap_doy)
         },
-    ).to_netcdf(_LS / "climatology" / OUTFMT.format(y0=a.y0, y1=a.y1))
-    OUT = _LS / "climatology" / OUTFMT.format(y0=a.y0, y1=a.y1)
+    ).to_netcdf(local_store("climatology", OUTFMT.format(y0=a.y0, y1=a.y1)))
+    OUT = local_store("climatology", OUTFMT.format(y0=a.y0, y1=a.y1))
     print(f"\nwrote {OUT.name} ({OUT.stat().st_size / 1e6:.0f} MB)")
     return 0
 

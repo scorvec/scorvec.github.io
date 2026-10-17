@@ -38,7 +38,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          sparse-checkout: scripts/gefs
+          sparse-checkout: |
+            scripts/gefs
+            scripts/lib
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
@@ -60,7 +62,9 @@ jobs:
         run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL; df -h / | tail -1
       - uses: actions/checkout@v7
         with:
-          sparse-checkout: scripts/gefs
+          sparse-checkout: |
+            scripts/gefs
+            scripts/lib
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"

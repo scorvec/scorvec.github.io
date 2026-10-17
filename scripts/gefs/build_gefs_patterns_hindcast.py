@@ -76,8 +76,10 @@ import gefs_patterns as GP
 import gefs_daily as G
 import gefs_reforecast as R  # (at_key: day-of-year lookups)
 
-GEPS = Path.home() / "data_archive" / "geps_subx"
-OUT = Path.home() / "data_archive" / "gefs_ref" / "patterns"
+sys.path.insert(0, str(HERE.parent / "lib"))
+from localdirs import env_dir, env_dir_if_set
+
+OUT = env_dir_if_set("DATA_ARCHIVE", "gefs_ref", "patterns")  # offline default; a runner passes --ref and --out
 TRUTH = HERE / "data" / "gefs_hindcast_truth.npz"
 FIT_COLS = ["n", "r", "a", "b", "s", "obs_sd", "fc_sd", "n_eff", "p", "xbar", "sxx"]
 WINDOW_DOY = 45
@@ -358,10 +360,11 @@ def cluster_power(ref, members, trials, workers, mode="gauss"):
     observed weekly maps of one season window (+-21 d of Jan 15), to see what real non-Gaussianity does to it."""
     import xarray as xr
 
-    sys.path.insert(0, str(GEPS))
+    geps = env_dir("DATA_ARCHIVE", "geps_subx")
+    sys.path.insert(0, str(geps))
     import build_telecon_patterns as b
 
-    pat = xr.open_dataset(GEPS / "telecon" / "patterns.nc")
+    pat = xr.open_dataset(geps / "telecon" / "patterns.nc")
     a = b.daily("hgt", range(1991, 2021), 500)
     t = [dt.date(int(str(x)[:4]), int(str(x)[5:7]), int(str(x)[8:10])) for x in a.time.values]
     an = a.values.astype("float64") - R.at_key(pat["clim_doy_z500"].values, np.array([GP.doy(d) for d in t]))
@@ -423,11 +426,12 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--hind", help="directory of gefs_hind2_MM.npz (release gefs-clim-v3)")
     ap.add_argument("--rf2", help="directory of rf2_<start>.npz (testing)")
-    ap.add_argument("--ref", default=str(OUT / GP.REF_NAME))
-    ap.add_argument("--out", default=str(OUT / GP.CALIB_NAME))
+    ap.add_argument("--ref", default=OUT and str(OUT / GP.REF_NAME), required=OUT is None)
+    ap.add_argument("--out", default=OUT and str(OUT / GP.CALIB_NAME), required=OUT is None)
     ap.add_argument("--truth", default=str(TRUTH), help="the observed side (built by --make-truth)")
     ap.add_argument("--make-truth", action="store_true", help="build --truth from the NCEP/ERA5 stores and stop")
-    ap.add_argument("--work", default=str(Path.home() / "data_archive" / "gefs_port_test" / "patterns" / "work"))
+    work = env_dir_if_set("DATA_ARCHIVE", "gefs_port_test", "patterns", "work")
+    ap.add_argument("--work", default=work and str(work), required=work is None)
     ap.add_argument("--workers", type=int, default=2)
     ap.add_argument(
         "--check",

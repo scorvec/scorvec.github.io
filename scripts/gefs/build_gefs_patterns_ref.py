@@ -39,9 +39,12 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import gefs_patterns as GP
 
-TC = Path.home() / "data_archive" / "geps_subx" / "telecon"
-SHIFT = Path.home() / "data_archive" / "gefs_ref" / "era5_shift.npz"
-ERA5 = Path.home() / "era5_store" / "wb2_1p5_daily" / "zplev"
+sys.path.insert(0, str(HERE.parent / "lib"))
+from localdirs import env_dir
+
+TC = env_dir("DATA_ARCHIVE", "geps_subx", "telecon")
+SHIFT = env_dir("DATA_ARCHIVE", "gefs_ref", "era5_shift.npz")
+ERA5 = env_dir("ERA5_STORE", "wb2_1p5_daily", "zplev")
 
 
 def defined_months(meta):
@@ -102,7 +105,7 @@ def shift_z100():
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default=str(Path.home() / "data_archive" / "gefs_ref" / "patterns"))
+    ap.add_argument("--out", default=str(env_dir("DATA_ARCHIVE", "gefs_ref", "patterns")))
     a = ap.parse_args()
     ds = xr.open_dataset(TC / "patterns.nc")
     assert np.allclose(ds.lat.values, GP.LAT25) and np.allclose(ds.lon.values, GP.LON25), "pattern grid differs"

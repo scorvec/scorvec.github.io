@@ -24,7 +24,7 @@ LON25 = np.arange(0.0, 360.0, 2.5)
 
 def _find(rel: str):
     """A file under STATE (refreshed), else REF (static), else the original offline store."""
-    for root in (paths.TC_STATE, paths.TC_REF, paths.LOCAL_STORE / "telecon"):
+    for root in (paths.TC_STATE, paths.TC_REF, *([paths.LOCAL_STORE / "telecon"] if paths.LOCAL_STORE else [])):
         p = root / rel
         if p.exists():
             return p
