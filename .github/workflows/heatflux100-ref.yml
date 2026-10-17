@@ -106,6 +106,14 @@ jobs:
           pattern: hf100-*
           path: parts
           merge-multiple: true
+      # The packs merge new parts INTO the committed series and archive, so they must start from main's latest copies,
+      # not this run's checkout: a run that waited behind another writer would otherwise publish over its additions.
+      - name: Latest committed references
+        run: |
+          git fetch -q origin main
+          for f in vt100_era5.nc heatflux100_archive.npz; do
+            git checkout origin/main -- "scripts/strat/reference/$f" 2>/dev/null || echo "no $f on main yet"
+          done
       # Separate steps: a failed part leaves a gap that the climatology step refuses, while the archive, the series
       # (whatever arrived) and the bias test on them are still committed, and a rerun of the failed part tops them up.
       - name: Archived runs
