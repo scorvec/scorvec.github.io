@@ -69,6 +69,7 @@ HOURS = (0, 6, 12, 18)
 PC = ccrs.PlateCarree()
 EXTENT = (-50.0, 50.0)
 ROWS = ("nh", "npac", "natl", "sh", "spac", "satl", "sind")
+POOL_LON = 2  # release points pooled along longitude in the transit-time map
 SECTOR_NAME = {
     "nh": "Northern Hemisphere",
     "sh": "Southern Hemisphere",
@@ -579,9 +580,9 @@ def draw_map(F: dict, cl: xr.Dataset, mid: float, idx: dict, end: pd.Timestamp, 
 
 
 def draw_transit(off: Offsets, latest: pd.Timestamp, out: Path):
-    """The week's releases ending `latest`: at each release point the median transit time of the seven (where at least
-    four were traced to the outflow layer, else grey), and a sample of the latest release's parcels traced back to
-    where they left it."""
+    """The week's releases ending `latest`: in cells of POOL_LON release points, the median transit time of the cell's
+    parcels over the seven days (where at least four were traced to the outflow layer, else grey), and a sample of the
+    latest release's parcels traced back to where they left it."""
     days = pd.date_range(latest - pd.Timedelta(days=WIN - 1), latest)
     W = winds(pd.date_range(days[0] - pd.Timedelta(days=T.DAYS_BACK), latest), off)
     taus = []
@@ -589,20 +590,22 @@ def draw_transit(off: Offsets, latest: pd.Timestamp, out: Path):
         tau, slat, slon, tracks = T.trace(W, d.timestamp(), keep_tracks=d == latest)
         taus.append(tau)
     taus = np.stack(taus)
-    med = np.full(taus.shape[1], np.nan)
-    enough = np.isfinite(taus).sum(0) >= 4
-    med[enough] = np.nanmedian(taus[:, enough], axis=0)
     lat, lon, _, _ = T.release_points()
-    nlo = T.RELEASE_LON.size
-    order = np.argsort(_xn(T.RELEASE_LON))
-    xe = np.r_[_xn(T.RELEASE_LON)[order] - T.RES / 2, _xn(T.RELEASE_LON)[order][-1] + T.RES / 2]
-    grid = med.reshape(-1, nlo)[:, order]
+    nla, nlo, k = 2 * T.RELEASE_LAT.size, T.RELEASE_LON.size, POOL_LON
+    pool = taus.reshape(len(days), nla, nlo // k, k).transpose(1, 2, 0, 3).reshape(nla, nlo // k, -1)
+    med = np.full(pool.shape[:2], np.nan)
+    enough = np.isfinite(pool).sum(-1) >= 4
+    med[enough] = np.nanmedian(pool[enough], axis=-1)
+    xc = _xn(T.RELEASE_LON[::k] + T.RES * (k - 1) / 2)
+    order = np.argsort(xc)
+    xe = np.r_[xc[order] - k * T.RES / 2, xc[order][-1] + k * T.RES / 2]
+    grid = med[:, order]
     size, rects, left = _layout(1)
     fig = plt.figure(figsize=size)
     ax = fig.add_axes(rects[0][0], projection=PROJ)
     cmap = plt.get_cmap("viridis")
     norm = matplotlib.colors.BoundaryNorm(np.arange(6.0, 25.0, 2.0), cmap.N, extend="both")
-    rows = lat.reshape(-1, nlo)[:, 0]
+    rows = lat.reshape(nla, nlo)[:, 0]
     for h in (rows > 0, rows < 0):  # each hemisphere's band of cells, edges half a cell either side of the rows
         la = np.sort(rows[h])
         ye = np.r_[la - T.RES / 2, la[-1] + T.RES / 2]
@@ -632,8 +635,9 @@ def draw_transit(off: Offsets, latest: pd.Timestamp, out: Path):
     fig.text(
         left / Wi,
         0.12 / H,
-        f"each {T.RES:.0f}° cell: the median of its seven daily releases traced back {T.DAYS_BACK} days, grey where fewer "
-        f"than four were traced to the outflow layer (equatorward of {T.OUTFLOW_LAT:.0f}°, within "
+        f"each {POOL_LON * T.RES:.0f}° × {T.RES:.0f}° cell: the median of its {POOL_LON * WIN} parcels of the week "
+        f"({POOL_LON} release points, {WIN} days) traced back {T.DAYS_BACK} days, grey where fewer than four were traced "
+        "to the outflow layer (equatorward of {T.OUTFLOW_LAT:.0f}°, within "
         f"{HB.OUT_DEPTH:.0f} hPa below the tropopause)\nlines: one in twelve of the latest release's traced parcels, back "
         "to where it left the layer (dot)",
         fontsize=8.2,
