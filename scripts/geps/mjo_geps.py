@@ -341,8 +341,9 @@ def observed(base: pd.Timestamp, clim, eofs, days: int = 30):
     """Three-field observed RMM track, and the fixed 120-day filter maps.
 
     Winds: GEPS lead-0 analysis (see above). OLR: olr_channel.py. Filter maps:
-    the site's wind_map120.nc plus the new olr_map120.nc, both from ERA5-grade
-    analysis — a 120-day mean tolerates a few days of latency, unlike the track."""
+    the site's wind_map120.nc plus the OLR channel's own 120-day mean, both from
+    ERA5-grade analysis — a 120-day mean tolerates a few days of latency, unlike
+    the track."""
     lon = eofs.longitude.values.astype(float)
     t, lm850, lm200 = geps_analysis_winds(base, days, lon)
     a850 = lm850 - sel_doy(clim["clim_u850"], t)
@@ -683,9 +684,9 @@ def plot_hovmoller(cycle: str, base: pd.Timestamp):
         return None
     lon = np.arange(0, 360, 2.5)
     # Same offset removal the OLR maps use: the live operational GEPS radiates
-    # ~7.6 W/m2 differently from the GEPS8 reforecast at EVERY lead, so without
-    # this the whole panel is tinted green. (It is irrelevant to the RMM — a
-    # uniform offset moves the projection by <0.05 — but it dominates a plot.)
+    # 7.6-8.4 W/m2 less than the GEPS8 reforecast at EVERY lead, so without this
+    # the whole panel is tinted green. rmm() and rmm_members() keep it: a uniform
+    # 1 W/m2 moves the RMM by 0.0095, so it shifts the forecast track by ~0.08.
     olr = olr - xr.DataArray(olr.global_mean.values, dims="L", coords={"L": olr.L})
     O = band_mean(olr, lon)
     U = band_mean(u850, lon)  # m/s

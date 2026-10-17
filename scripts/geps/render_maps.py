@@ -78,7 +78,7 @@ FIELDS = {
     "t2m": ("2 m temperature", "°C", "RdBu_r", False, 1.0),
     "pr": ("Precipitation", "mm/day", "BrBG", False, 86400.0),
     "zg500": ("500 hPa height", "m", "RdBu_r", True, 1.0),
-    # demean: the live operational GEPS radiates ~7.6 W/m2 differently from the
+    # demean: the live operational GEPS radiates 7.6-8.4 W/m2 less than the
     # GEPS8 reforecast the climatology was built on — flat across all 35 leads, so
     # it is a model-version offset, not signal, and it tinted every map green.
     "olr": ("Outgoing longwave", "W m⁻²", "BrBG_r", True, 1.0),

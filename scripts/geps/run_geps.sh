@@ -64,7 +64,7 @@ step "forecast: fetch + de-drifted anomalies" "$PY" forecast.py --date "$CYCLE" 
 
 # observed OLR / wind channels for the MJO: ERA5 (ARCO, incremental) to ~6 days back, GMGSI proxy for the tail
 if [ "${GEPS_OFFLINE:-0}" != "1" ]; then
-  step "MJO observed channels (ARCO ERA5, new days only)" bash -c "cd '$SITE/scripts/mjo' && '$PY' src/fetch_arco_olr_band.py --days 400 --workers 4 && '$PY' src/fetch_arco_eq_uv.py --days 55 --workers 4" \
+  step "MJO observed channels (ARCO ERA5, new days only)" bash -c "cd '$SITE/scripts/mjo' && '$PY' src/fetch_arco_olr_band.py --workers 4 && '$PY' src/fetch_arco_eq_uv.py --days 55 --workers 4" \
     || echo "::warning::OLR/wind refresh failed - MJO uses the committed channel"
 fi
 

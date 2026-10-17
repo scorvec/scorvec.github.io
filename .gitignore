@@ -112,9 +112,6 @@ scripts/strat/*
 !scripts/strat/heatflux100_bias.py
 !scripts/strat/build_strat_history.py
 !scripts/strat/strat_history.py
-!scripts/strat/build_cmip6_drip.py
-!scripts/strat/build_cmip6_follow.py
-!scripts/strat/cmip6_follow_extract.py
 !scripts/strat/forecast_drip.py
 !scripts/strat/geosfp_cap.py
 !scripts/strat/build_drip_ref.py
