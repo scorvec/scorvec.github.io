@@ -1,0 +1,119 @@
+name: Hadley outflow and subtropical descent (analysed 7-day means against ERA5 1991-2020)
+
+# scripts/mjo/src/hadley_branch_maps.py. The archive lives in the release hbranch-archive: one AIFS-ENS 00 UTC analysis a
+# day as monthly files, and the analysis less ERA5 on the overturn lattice days (offset_era5.npz). Each run adds the days
+# not yet held, pairs the lattice days ARCO has published, draws the new weeks' frames (frames branch) and commits the
+# manifest, the map still and the two trackers. The first run backfills from July 2025; the archive steps have their own
+# timeouts, and whatever they wrote is uploaded either way, so a re-run carries on where one stopped.
+on:
+  schedule:
+    - cron: '55 9 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Run even if today is already drawn'
+        required: false
+        default: 'false'
+      rebuild_frames:
+        description: 'Redraw every frame (after a climatology or offset change)'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hbranch
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  ECMWF_SOURCES: google
+  ARCH: scripts/mjo/data/hbranch
+
+jobs:
+  tracker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v7
+      - name: Which day
+        id: run
+        env:
+          FORCE: ${{ inputs.force }}
+        run: |
+          if [ ! -f scripts/mjo/data/reference/branch_clim.nc ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"; echo "::warning::no ERA5 climatology yet (branch-clim.yml)"; exit 0
+          fi
+          last=$(python3 -c "import json; print(json.load(open('assets/sst/anim/hbranch_hist_manifest.json'))['regions']['hbranch_hist']['frames'][-1]['date'])" 2>/dev/null || echo none)
+          if [ "$last" = "$(date -u +%Y-%m-%d)" ] && [ "$FORCE" != "true" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; echo "week ending $last already drawn"; fi
+      - uses: actions/setup-python@v7
+        if: steps.run.outputs.skip != 'true'
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        if: steps.run.outputs.skip != 'true'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - name: The archive (release)
+        if: steps.run.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$ARCH"
+          if ! gh release view hbranch-archive -R "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create hbranch-archive -R "$GITHUB_REPOSITORY" --title "Hadley outflow and subtropical descent: analysis archive" \
+              --notes "AIFS-ENS 00 UTC analyses on the 1.5 deg grid (monthly hb_YYYY-MM.npz) and their offset from ERA5 on the overturn lattice (offset_era5.npz), for scripts/mjo/src/hadley_branch_maps.py."
+          fi
+          gh release download hbranch-archive -R "$GITHUB_REPOSITORY" -p '*.npz' -D "$ARCH" --clobber \
+            || echo "::warning::the archive release holds no files yet; backfilling from the start"
+      - name: Archive the new days
+        if: steps.run.outputs.skip != 'true'
+        timeout-minutes: 240
+        run: python scripts/mjo/src/hadley_branch_maps.py update
+      - name: Pair the lattice days with ERA5
+        if: steps.run.outputs.skip != 'true'
+        timeout-minutes: 60
+        run: python scripts/mjo/src/hadley_branch_maps.py truth
+      - name: Upload what was written
+        if: always() && steps.run.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -s "$ARCH/written.txt" ]; then
+            sort -u "$ARCH/written.txt" | sed "s#^#$ARCH/#" | xargs gh release upload hbranch-archive -R "$GITHUB_REPOSITORY" --clobber
+          fi
+      - name: Frames, still and trackers
+        if: steps.run.outputs.skip != 'true'
+        run: |
+          scripts/lib/fetch_frames_ci.sh assets/sst/anim/hbranch_hist || echo "::warning::no frames on the frames branch yet"
+          python scripts/mjo/src/hadley_branch_maps.py render $([ "${{ inputs.rebuild_frames }}" = "true" ] && echo --rebuild)
+      - name: Publish the frames (frames branch)
+        if: steps.run.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/hbranch_hist
+      - name: Commit & push (manifest, still, trackers)
+        if: steps.run.outputs.skip != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/sst/anim/hbranch_hist_manifest.json assets/sst/hbranch_map.webp assets/sst/hbranch_flow.webp assets/sst/hbranch_ridges.webp"
+          last=$(python3 -c "import json; print(json.load(open('assets/sst/anim/hbranch_hist_manifest.json'))['regions']['hbranch_hist']['frames'][-1]['date'])")
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" $OUT
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            perl -0pi -e "s/(hbranch_(?:flow|ridges)\.webp)\?v=\w+/\${1}?v=$(date -u +%Y%m%d%H%M)/g" circulation.html
+            git add circulation.html $OUT
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "Hadley outflow and subtropical descent: week ending $last"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
