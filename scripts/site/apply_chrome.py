@@ -582,6 +582,9 @@ PAGES = [
     dict(
         path="midterms/legislatures.html", mode="after-body", footer=True, synced=True
     ),  # state legislative chambers (experimental)
+    dict(
+        path="midterms/early-vote.html", mode="after-body", footer=True, synced=True
+    ),  # the early vote against earlier elections, and how banked ballots enter the forecast
     # the 404 body is a centring flexbox: stack it so the header spans the top and the message centres below
     dict(
         path="404.html",
