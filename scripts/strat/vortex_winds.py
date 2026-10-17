@@ -105,8 +105,9 @@ BARBS = dict(half=5, full=10, flag=50)
 HEMIS = ("nh", "sh")
 # Speed shading, speed contours and barbs stop here: the grid's pole row has no direction (see the docstring).
 POLE_MASK_LAT = 86.0
-# Geopotential height contours (dam): the interval per level, chosen for about ten lines across a winter cap.
-HEIGHT_STEP = {10: 24, 100: 12}
+# Geopotential height contours (dam): the interval per level, chosen for seven or eight lines across a winter cap
+# (the 100 hPa map carries dense barbs as well, so its lines are the sparser).
+HEIGHT_STEP = {10: 24, 100: 16}
 # The u = 0 vortex edge stops at this latitude. u is the eastward component, which has no fixed direction at the pole:
 # a flow across the pole changes the sign of u from one side of it to the other and draws a false ring around it.
 EDGE_LAT_MAX = 80.0
@@ -277,13 +278,13 @@ def panel(ax, u, v, z, lev, hemi):
     cf.set_edgecolor("face")
     # the same speed levels as thin lines, so a core and its gradient read without comparing shades
     ax.contour(
-        lon_c, la, spd_c, levels=cfg["levels"], colors="#1b3a4d", linewidths=0.45, alpha=0.55, transform=PC, zorder=2
+        lon_c, la, spd_c, levels=cfg["levels"], colors="#1b3a4d", linewidths=0.35, alpha=0.4, transform=PC, zorder=2
     )
     # geopotential height: the flow follows these, so the vortex's shape and centre read from them directly
     step = HEIGHT_STEP[lev]
     Zc, _ = add_cyclic_point(Z, coord=lon)
     zlev = np.arange(np.floor(np.nanmin(Zc) / step) * step, np.nanmax(Zc) + step, step)
-    cz = ax.contour(lon_c, la, Zc, levels=zlev, colors="#111111", linewidths=0.9, transform=PC, zorder=5)
+    cz = ax.contour(lon_c, la, Zc, levels=zlev, colors="#111111", linewidths=0.7, transform=PC, zorder=5)
     ax.clabel(cz, fontsize=7, fmt="%d", inline=True, inline_spacing=2)
 
     # Barbs from a coarsened grid. cartopy regrids the vectors onto a regular grid in map space (regrid_shape),
