@@ -734,6 +734,8 @@ def render(rebuild: bool = False):
             name = f"D{end:%Y%m%d}.webp"
             draw_map(F, cl, mid, idx, end, frame_dir / name)
             drawn[key] = {"file": name, "date": key, "label": f"week ending {end:%a %b %d, %Y}"}
+    if not ends:
+        raise SystemExit("no complete week to draw")
     o = off.off2(mid)  # what the correction does to the latest week (corrected less raw)
     raw = HB.indices({f: F[f] + o[f] for f in HB.FIELDS})
     keys = ("out_nh", "out_sh", "desc_nh", "desc_sh", "r588_npac", "r588_spac", "high_npac", "high_spac")
