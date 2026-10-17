@@ -1,10 +1,14 @@
-name: Month-ahead outlook (statistical, monthly on the 15th)
+name: Month-ahead outlook (statistical + GEFS, monthly on the 15th)
 
 # monthly-outlook.html (Claude's month-ahead forecast): the next calendar month's mean 2 m temperature, precipitation
 # and 500 hPa height over the Northern Hemisphere, as anomalies and tercile probabilities, issued on the 15th of the
-# month before from ERA5 alone - trend, RONI/QBO/vortex regression, a tropical constructed analogue, local persistence
-# and analogue years, consolidated with weights from a cross-validated 1981-onward hindcast
-# (scripts/monthly/mo_method.py). No dynamical model is read; the C3S multi-system mean is only scored beside it.
+# month before. The statistical forecast is built from ERA5 alone - trend, RONI/QBO/vortex regression, a tropical
+# constructed analogue, local persistence and analogue years, consolidated with weights from a cross-validated
+# 1981-onward hindcast (scripts/monthly/mo_method.py) - and then blended with the whole 35-day GEFS run of the 15th
+# (scripts/monthly/blend.py, gefs_guide.py) where the 2000-2019 reforecast shows the blend beats it. The live GEFS run
+# is the GEFS page's own (gefs.yml writes gefs_run_<YYYYMMDD>.npz to the frames branch; the 00Z run of the 15th is
+# normally there by ~07Z, hence 10:23; the run of the 14th stands in if not). The C3S multi-system mean is only scored
+# beside the forecast.
 #
 # ORDER. build_archive --tail appends the newest ERA5T half-month blocks (ARCO, anonymous Google Cloud reads) to
 # scripts/monthly/data/era5_<YYYY>.npz; forecast.py issues the outlook for next month once (an issued outlook is never
@@ -14,7 +18,7 @@ name: Month-ahead outlook (statistical, monthly on the 15th)
 
 on:
   schedule:
-    - cron: "23 6 15 * *"
+    - cron: "23 10 15 * *"
   workflow_dispatch:
     inputs:
       target:
@@ -45,6 +49,7 @@ jobs:
         with:
           sparse-checkout: |
             scripts/monthly
+            scripts/gefs/gefs_reforecast.py
             assets/monthly
             assets/sst/data/c3s_maps.json
             scripts/constraints.txt
