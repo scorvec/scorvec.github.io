@@ -31,7 +31,10 @@ from scipy import stats
 sys.path.insert(0, str(Path(__file__).parent))
 import torque_enso_study as S
 
-CACHE = Path.home() / "mjo" / "aam_validation"
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+from localdirs import env_dir
+
+CACHE = env_dir("MJO_CACHE", "aam_validation")
 URL = "https://datacenter.iers.org/products/geofluids/atmosphere/eamf/GGFC2010/GFZ/ESMGFZ_AAM_v1.0_03h_{year}.asc"
 CHI3_MEAN = 2.734436408977633e-8  # aam.py GFZ_CHI3_MEAN
 TO_KGM2S = 5.2092e33  # C_m * Omega

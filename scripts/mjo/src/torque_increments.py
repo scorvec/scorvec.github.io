@@ -32,6 +32,8 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+from localdirs import env_dir
 import torque_enso_study as S
 
 REF = S.REF
@@ -176,7 +178,7 @@ def maps_analysis(od: Path):
     return out
 
 
-ERA5_U = Path.home() / "era5_store" / "arco_0p25" / "u"  # ERA5 u at 14 levels, 12 UTC, sampled days
+ERA5_U = env_dir("ERA5_STORE", "arco_0p25", "u")  # ERA5 u at 14 levels, 12 UTC, sampled days
 SIGN_LEVELS = (1000, 975, 950, 925, 900, 875, 850, 825, 800, 775, 750, 700)
 
 

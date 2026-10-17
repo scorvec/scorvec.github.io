@@ -393,7 +393,10 @@ def era5_daily_clim():
     sys.path.insert(0, str(REPO / "scripts" / "mjo" / "src"))
     from doycal import noleap_doy  # common-year day key, 29 Feb = 59.5
 
-    W = Path("~/era5_store/wb2_1p5_daily").expanduser()
+    sys.path.insert(0, str(REPO / "scripts" / "lib"))
+    from localdirs import env_dir
+
+    W = env_dir("ERA5_STORE", "wb2_1p5_daily")
     out = {}
     for v in ("t2m", "z500"):
         das = []

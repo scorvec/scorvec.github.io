@@ -17,6 +17,7 @@ and renders a latitude×month seasonal-cycle figure (friction | mountain | GWD |
 
 from __future__ import annotations
 import argparse
+import sys
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -30,7 +31,10 @@ import matplotlib.pyplot as plt
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
 OROG = REF / "era5_orography.nc"
 NC_OUT = REF / "torque_seasonal.nc"
-CACHE = Path.home() / "mjo" / "era5_cache"  # reduced ERA5 samples, kept for re-use
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+from localdirs import env_dir
+
+CACHE = env_dir("MJO_CACHE", "era5_cache")  # reduced ERA5 samples, kept for re-use
 STORE = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"
 A = 6.371e6
 HU = 1e18

@@ -11,6 +11,9 @@ import xarray as xr
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from c2 import OUT
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "lib"))
+from localdirs import env_dir
+
 YRS = list(range(1991, 2026))
 GLAT = np.arange(-90.0, 90.0 + 1e-6, 1.5)
 GLON = np.arange(0.0, 360.0 - 1e-6, 1.5)
@@ -21,7 +24,7 @@ SEAS = {9: ((10, 11, 12), (11, 12, 13)), 10: ((11, 12, 13), (12, 13, 14))}  # mo
 def monthly(sub, v, lat):
     out = {}
     for y in range(1991, 2027):
-        f = os.path.expanduser("~/era5_store") + f"/{sub}/{v}/{v}_{y}.nc"
+        f = env_dir("ERA5_STORE", sub, v, f"{v}_{y}.nc")
         if not os.path.exists(f):
             continue
         da = xr.open_dataset(f)[v].transpose("time", "latitude", "longitude")

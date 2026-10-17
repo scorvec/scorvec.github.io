@@ -35,6 +35,8 @@ env:
   ECMWF_RANGE_GAP_MB: "0.5"
   MPLBACKEND: Agg
   PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  ERA5_STORE: /tmp/era5_store   # ARCO-ERA5 fields fetched on a miss (scripts/era5/era5_store.py); scratch on the runner
+  MJO_CACHE: /tmp/mjo_cache     # the builders' download cache (scripts/lib/localdirs.py); scratch on the runner
 
 jobs:
   check:

@@ -22,6 +22,7 @@ Packing: u is int16 with scale_factor 0.01 m/s (±327 m/s range, 0.01 precision)
 from __future__ import annotations
 
 import os
+import sys
 import threading
 from pathlib import Path
 
@@ -29,8 +30,10 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+from localdirs import env_dir
+
 ARCO = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"
-STORE = Path(os.environ.get("ERA5_STORE", "~/era5_store")).expanduser()
 
 _ds = None
 _lock = threading.Lock()
@@ -55,15 +58,16 @@ def _arco():
     with _lock:
         if _ds is None:
             _ds = xr.open_zarr(ARCO, chunks=None, storage_options={"token": "anon"})
-            STORE.mkdir(parents=True, exist_ok=True)
-            rd = STORE / "README.md"
+            store = env_dir("ERA5_STORE")
+            store.mkdir(parents=True, exist_ok=True)
+            rd = store / "README.md"
             if not rd.exists():
                 rd.write_text(_README)
     return _ds
 
 
 def _path(var: str, t: pd.Timestamp) -> Path:
-    return STORE / "arco_0p25" / var / f"{t.year}" / f"{var}_{t:%Y%m%dT%H}.nc"
+    return env_dir("ERA5_STORE", "arco_0p25", var, f"{t.year}", f"{var}_{t:%Y%m%dT%H}.nc")
 
 
 def _write_atomic(ds: xr.Dataset, path: Path, encoding: dict) -> None:

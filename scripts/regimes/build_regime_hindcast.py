@@ -41,6 +41,9 @@ REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 import regime_core as RC
 
+sys.path.insert(0, str(HERE.parent / "lib"))
+from localdirs import env_dir
+
 NDAYS = 35
 
 
@@ -80,7 +83,7 @@ def gefs_starts(hind: Path):
     import gefs_patterns as GP
     import gefs_daily as G
 
-    gref = GP.Ref(Path.home() / "data_archive" / "gefs_ref" / "patterns" / GP.REF_NAME)
+    gref = GP.Ref(env_dir("DATA_ARCHIVE", "gefs_ref", "patterns", GP.REF_NAME))
     files = sorted(Path(hind).glob("gefs_hind2_*.npz"))
     if len(files) != 12:
         raise SystemExit(f"need the 12 monthly gefs_hind2 files, found {len(files)}")

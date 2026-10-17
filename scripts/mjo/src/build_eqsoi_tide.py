@@ -25,7 +25,10 @@ REF = Path(__file__).resolve().parent.parent / "data" / "reference"
 CLIM = json.loads((REF / "eqsoi_clim.json").read_text())
 B = CLIM["boxes"]
 YEAR = 2019
-STORE = Path.home() / "era5_store" / "wb2_1p5_daily_global" / "slp"
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+from localdirs import env_dir
+
+STORE = env_dir("ERA5_STORE", "wb2_1p5_daily_global", "slp")
 
 
 def boxmean(da, b):

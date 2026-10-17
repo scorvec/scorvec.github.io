@@ -62,7 +62,10 @@ from quantmet.stats import benjamini_hochberg
 
 HERE = Path(__file__).resolve().parent
 REF = HERE.parent / "data" / "reference"
-ARC = Path.home() / "data_archive" / "cmip6_mjo"
+sys.path.insert(0, str(HERE.parents[1] / "lib"))
+from localdirs import env_dir
+
+ARC = env_dir("DATA_ARCHIVE", "cmip6_mjo")
 RED, OBS, COMP = ARC / "red", ARC / "obs", ARC / "comp"
 LAGS = (0, 10)
 SITE_LAGS = (0, 10)
@@ -482,7 +485,7 @@ def validate():
 
     eofs = load_eofs()
     bom = pd.read_csv(OBS / "rmm_bom.csv").set_index("date")
-    store = Path.home() / "era5_store" / "wb2_1p5_daily_global"
+    store = env_dir("ERA5_STORE", "wb2_1p5_daily_global")
 
     def band(var, y):
         a = xr.open_dataset(store / var / f"{var}_{y}.nc")

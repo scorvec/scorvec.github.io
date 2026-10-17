@@ -71,6 +71,7 @@ concurrency:
 env:
   ECMWF_SOURCES: google
   PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  ERA5_STORE: /tmp/era5_store   # ARCO-ERA5 fields fetched on a miss (scripts/era5/era5_store.py); scratch on the runner
 
 jobs:
   check:

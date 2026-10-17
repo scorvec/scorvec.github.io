@@ -12,13 +12,17 @@ overlap so live values sit on CPC's scale. Writes data/reference/eqsoi_clim.json
 
 from __future__ import annotations
 import json
+import sys
 import urllib.request
 from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
 
-STORE = Path.home() / "era5_store" / "wb2_1p5_daily_global" / "slp"
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+from localdirs import env_dir
+
+STORE = env_dir("ERA5_STORE", "wb2_1p5_daily_global", "slp")
 OUT = Path(__file__).resolve().parent.parent / "data" / "reference" / "eqsoi_clim.json"
 EAST = dict(lat=(-5, 5), lon=(230, 280))
 WEST = dict(lat=(-5, 5), lon=(90, 140))

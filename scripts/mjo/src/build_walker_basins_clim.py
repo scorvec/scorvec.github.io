@@ -41,9 +41,11 @@ from doycal import noleap_doy
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "sst"))
 from gill_model import LAT2, LON2, C_WAVE, EPS
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+from localdirs import env_dir
+
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
 OUT = REF / "walker_basins_clim.nc"
-STORE = Path.home() / "era5_store" / "wb2_1p5_daily_global"
 ERSST = Path(__file__).resolve().parents[2] / "sst" / "data" / "ersst_v6_mnmean.nc"
 Y0, Y1 = 1991, 2020
 BAND = 5.0
@@ -65,7 +67,11 @@ CONV_SST = 27.0
 
 # ── leg A inputs ──────────────────────────────────────────────────────────────
 def monthly_uv(var: str):
-    files = [f for f in sorted((STORE / var).glob(f"{var}_*.nc")) if Y0 <= int(f.stem.split("_")[-1]) <= Y1]
+    files = [
+        f
+        for f in sorted(env_dir("ERA5_STORE", "wb2_1p5_daily_global", var).glob(f"{var}_*.nc"))
+        if Y0 <= int(f.stem.split("_")[-1]) <= Y1
+    ]
     parts = []
     for f in files:
         ds = xr.open_dataset(f)

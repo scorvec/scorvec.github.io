@@ -31,12 +31,13 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+from localdirs import env_dir
 import torque_enso_study as S
 from doycal import noleap_doy
 
 REF = S.REF
 H1 = REF / "torque_1h_2026.csv.gz"
-GFZ = Path.home() / "mjo" / "aam_validation" / "esmgfz_2026.asc"
 GFZ_CHI3_MEAN = 2.734436408977633e-8  # aam.py: add to chi3_motion
 GFZ_TO_KGM2S = 5.2092e33  # C_m * Omega
 PER_H = 1e25 / 1e18 / 3600.0  # (1e25 kg m2/s per hour) -> Hadley
@@ -91,7 +92,7 @@ def welch(x, fs=24.0, nper=24 * 32):
 
 def load_gfz():
     rows = []
-    for line in GFZ.read_text().splitlines():
+    for line in env_dir("MJO_CACHE", "aam_validation", "esmgfz_2026.asc").read_text().splitlines():
         c = line.split()
         if len(c) < 10 or not (c[0].isdigit() and len(c[0]) == 4):
             continue

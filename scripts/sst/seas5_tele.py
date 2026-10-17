@@ -60,12 +60,13 @@ import numpy as np
 import xarray as xr
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+from localdirs import env_dir
 from seas5_outlook import ASSETS, DATA, fc_path, hc_path, previous_issues
 from seas5_build import G0, _summ, detrend_pair, load_field, valid_months
 import seas5_ref as R
 
 # the GEPS telecon store: read by derive_obs only (offline, once) — never by the build
-TC = Path(os.environ.get("TELECON_DIR", str(Path.home() / "data_archive" / "geps_subx" / "telecon")))
 CPC_DIR = DATA / "cpc_tele"  # CPC's published index files, re-read every run in Actions
 OUT_JSON = ASSETS / "data" / "seas5_tele.json"
 UA = "scorvec.com SEAS5 outlook (https://github.com/scorvec/scorvec.github.io)"
@@ -93,8 +94,13 @@ TELE_LABEL = {
 def derive_obs_patterns() -> None:
     """obs_tele_patterns: the projectors the page uses (TELE_ORDER only), the per-month z500 σ and the
     validation meta, from the GEPS telecon store (offline, once)."""
-    ds = xr.open_dataset(TC / "patterns.nc")
-    meta = json.loads((TC / "validation.json").read_text())
+    tc = (
+        Path(os.environ["TELECON_DIR"])
+        if os.environ.get("TELECON_DIR")
+        else env_dir("DATA_ARCHIVE", "geps_subx", "telecon")
+    )
+    ds = xr.open_dataset(tc / "patterns.nc")
+    meta = json.loads((tc / "validation.json").read_text())
     ids = [i for i in TELE_ORDER if i in meta and i in ds.index.values]
     R.save(
         R.obs_ref("tele_patterns"),

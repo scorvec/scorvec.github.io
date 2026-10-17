@@ -28,6 +28,7 @@ build_torque_hemi_sd.py's: daily means, ERA5's own stress.)
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -37,7 +38,10 @@ import xarray as xr
 from doycal import noleap_doy
 
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
-BASIS = Path.home() / "mjo" / "era5_cache" / "torque_basis_1991-2020_s5.nc"
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+from localdirs import env_dir
+
+BASIS = env_dir("MJO_CACHE", "era5_cache", "torque_basis_1991-2020_s5.nc")
 DRAG = REF / "drag_cd_field.nc"  # per-cell, per-month C_d — same object the live product uses
 OUT = REF / "torque_map_clim_coeffs.nc"
 

@@ -31,12 +31,14 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT / "scripts" / "lib"))
+from localdirs import env_dir
+
 REF = ROOT / "scripts/mjo/data/reference"
 ERA5_CSV = REF / "torque_daily_era5.csv.gz"
 CMIP_CSV = REF / "torque_cmip6_monthly.csv.gz"
 ONI_JSON = ROOT / "assets/sst/data/cpc_official.json"
 N34_FILE = REF / "nina34.anom.data"
-STORE = Path.home() / "era5_store"
 
 RANGES = ["HIM", "ROC", "AND", "GRL", "ANT", "ALP"]
 RNAME = {
@@ -760,7 +762,7 @@ def store_field(var, years, region, glob=True):
     for NH 1959-2026) over a lat/lon box; returns (time, lat, lon) DataArray, transposed by name."""
     import xarray as xr
 
-    base = STORE / ("wb2_1p5_daily_global" if glob else "wb2_1p5_daily") / var
+    base = env_dir("ERA5_STORE", "wb2_1p5_daily_global" if glob else "wb2_1p5_daily", var)
     la0, la1, lo0, lo1 = region
     parts = []
     for y in years:
@@ -1231,7 +1233,7 @@ def u200_zonal(glob):
     """Daily zonal-mean u200 (time, lat) from the ERA5 daily store: NH 1959-2023 or global 1991-2020."""
     import xarray as xr
 
-    base = STORE / ("wb2_1p5_daily_global" if glob else "wb2_1p5_daily") / "u200"
+    base = env_dir("ERA5_STORE", "wb2_1p5_daily_global" if glob else "wb2_1p5_daily", "u200")
     yrs = range(1991, 2021) if glob else range(1979, 2024)
     parts = []
     for y in yrs:

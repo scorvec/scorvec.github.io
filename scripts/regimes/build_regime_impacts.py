@@ -46,8 +46,11 @@ REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 import regime_core as RC
 
-STORE = Path.home() / "era5_store"
-FIGS = Path.home() / "data_archive" / "geps_subx" / "figs"
+sys.path.insert(0, str(HERE.parent / "lib"))
+from localdirs import env_dir
+
+STORE = env_dir("ERA5_STORE")
+FIGS = env_dir("DATA_ARCHIVE", "geps_subx", "figs")
 SITE = REPO / "assets" / "geps"
 
 OUTS = [Path(x) for x in os.environ["REGIME_FIG_OUT"].split(",")] if os.environ.get("REGIME_FIG_OUT") else [FIGS, SITE]

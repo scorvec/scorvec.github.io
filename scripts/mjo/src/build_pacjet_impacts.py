@@ -38,11 +38,12 @@ from quantmet.stats import benjamini_hochberg
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE.parents[1] / "lib"))
+from localdirs import env_dir
 import pacjet_core as PC
 
 REF = HERE.parent / "data" / "reference"
 SITE = REPO / "assets" / "sst"
-STORE = Path.home() / "era5_store"
 Y0, Y1 = 1991, 2020
 ALPHA = 0.10
 DOM = dict(lat=(15.0, 75.0), lon=(160.0, 310.0))  # 160E-50W
@@ -57,7 +58,7 @@ def load(var):
     layer = "wb2_1p5_daily_global" if var == "t2m" else "wb2_1p5_daily"
     parts, tt = [], []
     for y in range(Y0, Y1 + 1):
-        with xr.open_dataset(STORE / layer / var / f"{var}_{y}.nc") as d:
+        with xr.open_dataset(env_dir("ERA5_STORE", layer, var, f"{var}_{y}.nc")) as d:
             a = d[var].transpose("time", "latitude", "longitude")
             a = a.assign_coords(
                 longitude=np.round(a.longitude.values % 360, 3), latitude=np.round(a.latitude.values, 3)
