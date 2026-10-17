@@ -62,7 +62,7 @@ SCRIPT = r"""
   ];
   var D = { obs: null, dn34: null, c: null, models: {} };
   var S = { on: { aifs: true, ifs: true, gefs: true, geps: true }, members: false, clean: box.dataset.clean === '1', horizon: 15, obsDays: 40 };
-  var REGION = [['West. Hem. and Africa', -3.55, 0, -Math.PI / 2], ['Indian Ocean', 0, -3.55, 0], ['Maritime Continent', 3.55, 0, Math.PI / 2], ['Western Pacific', 0, 3.55, 0]];
+  var REGION = [['West. Hem. and Africa', -3.75, 0, -Math.PI / 2], ['Indian Ocean', 0, -3.75, 0], ['Maritime Continent', 3.75, 0, Math.PI / 2], ['Western Pacific', 0, 3.75, 0]];
   var PHASE = { 1: 202.5, 2: 247.5, 3: 292.5, 4: 337.5, 5: 22.5, 6: 67.5, 7: 112.5, 8: 157.5 };
   var pts = [];   // hover targets
 
@@ -76,9 +76,9 @@ SCRIPT = r"""
     cv.style.width = size + 'px'; cv.style.height = size + 'px';
     cv.width = Math.round(size * dpr); cv.height = Math.round(size * dpr);
     var x = cv.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0);
-    var pad = 34, R = (size - 2 * pad) / 2, cx = pad + R, cy = pad + R, lim = 4.2, k = R / lim;
+    var fs = Math.max(0.85, size / 700), pad = Math.round(38 * fs), R = (size - 2 * pad) / 2, cx = pad + R, cy = pad + R, lim = 4.2, k = R / lim;
     var X = function (v) { return cx + v * k; }, Y = function (v) { return cy - v * k; };
-    pts = [];
+    pts = []; window.__mmfs = fs;
     x.clearRect(0, 0, size, size);
     x.fillStyle = '#fff'; x.fillRect(0, 0, size, size);
     x.save(); x.beginPath(); x.rect(pad, pad, 2 * R, 2 * R); x.clip();
@@ -93,14 +93,14 @@ SCRIPT = r"""
     [2, 3, 4].forEach(function (r) { x.beginPath(); x.arc(cx, cy, r * k, 0, 2 * Math.PI); x.stroke(); });
     x.setLineDash([]);
     x.strokeStyle = '#8a857c'; x.lineWidth = 1.2; x.beginPath(); x.arc(cx, cy, k, 0, 2 * Math.PI); x.stroke();
-    x.font = '600 13px "Source Sans 3", sans-serif'; x.fillStyle = '#8a857c'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = '600 ' + Math.round(17 * fs) + 'px "Source Sans 3", sans-serif'; x.fillStyle = '#8a857c'; x.textAlign = 'center'; x.textBaseline = 'middle';
     Object.keys(PHASE).forEach(function (p) { var a = PHASE[p] * Math.PI / 180; x.fillText(p, X(3.1 * Math.cos(a)), Y(3.1 * Math.sin(a))); });
-    x.font = '400 11px "Source Sans 3", sans-serif'; x.fillStyle = '#6f6b64';
-    [1, 2, 3, 4].forEach(function (r) { var a = -Math.PI / 4; x.fillText(r, X(r * Math.cos(a)) + 9, Y(r * Math.sin(a)) + 9); });
-    x.font = 'italic 12px "Source Sans 3", sans-serif'; x.fillStyle = '#7a756c';
+    x.font = '400 ' + Math.round(13 * fs) + 'px "Source Sans 3", sans-serif'; x.fillStyle = '#6f6b64';
+    [1, 2, 3, 4].forEach(function (r) { var a = -Math.PI / 4; x.lineWidth = 3; x.strokeStyle = 'rgba(255,255,255,0.9)'; x.strokeText(r, X(r * Math.cos(a)) + 10, Y(r * Math.sin(a)) + 10); x.fillText(r, X(r * Math.cos(a)) + 10, Y(r * Math.sin(a)) + 10); });
+    x.font = 'italic ' + Math.round(14 * fs) + 'px "Source Sans 3", sans-serif'; x.fillStyle = '#7a756c';
     REGION.forEach(function (r) { x.save(); x.translate(X(r[1]), Y(r[2])); x.rotate(r[3]); x.fillText(r[0], 0, 0); x.restore(); });
     x.restore();
-    x.font = '500 12px "Source Sans 3", sans-serif'; x.fillStyle = '#4a4744'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = '500 ' + Math.round(14 * fs) + 'px "Source Sans 3", sans-serif'; x.fillStyle = '#4a4744'; x.textAlign = 'center'; x.textBaseline = 'middle';
     x.fillText('RMM1', cx, size - 12); x.save(); x.translate(12, cy); x.rotate(-Math.PI / 2); x.fillText('RMM2', 0, 0); x.restore();
 
     // the observed track: the last obsDays days, older points fainter, a label at each month's first point
@@ -155,7 +155,7 @@ SCRIPT = r"""
   }
   function hexa(h, a) { var n = parseInt(h.slice(1), 16); return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'; }
   function label(x, px, py, s, col, dy) {
-    x.font = '600 11px "Source Sans 3", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = '600 ' + Math.round(13 * (window.__mmfs || 1)) + 'px "Source Sans 3", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
     x.lineWidth = 3; x.strokeStyle = 'rgba(255,255,255,0.9)'; x.strokeText(s, px, py + dy); x.fillStyle = col; x.fillText(s, px, py + dy);
   }
 
@@ -226,7 +226,7 @@ CSS = """
   #mjo-models .mm-tog:disabled { color: var(--muted); cursor: default; }
   #mjo-models .mm-box { position: relative; max-width: 760px; margin: 0 auto; }
   #mjo-models canvas { display: block; width: 100%; border: 1px solid var(--rule); border-radius: 6px; touch-action: pan-y; }
-  #mjo-models .mm-tip { position: absolute; pointer-events: none; background: rgba(28,28,26,0.92); color: #fff; font-size: 0.82rem; line-height: 1.35; padding: 0.3rem 0.5rem; border-radius: 4px; max-width: 18rem; }
+  #mjo-models .mm-tip { position: absolute; pointer-events: none; background: rgba(28,28,26,0.92); color: #fff; font-size: 0.9rem; line-height: 1.35; padding: 0.3rem 0.5rem; border-radius: 4px; max-width: 18rem; }
   #mjo-models .mm-idx { color: var(--ink2); font-size: 0.92rem; margin: 0.6rem 0 0; max-width: 90ch; }
 """
 
