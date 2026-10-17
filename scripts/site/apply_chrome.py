@@ -173,6 +173,12 @@ PRODUCTS = [
                         "Daily",
                     ),
                     (
+                        "/circulation.html#hbranch",
+                        "Hadley outflow and descent",
+                        "The Hadley cells' outflow beneath the tropopause, their descent and the subtropical ridges and highs it builds, mapped every analysed week and tracked basin by basin against ERA5, with back-trajectories timing how fast the cells turn over and a map to drop a particle in the tropics and follow it.",
+                        "Daily",
+                    ),
+                    (
                         "/circulation.html#vpot",
                         "Velocity potential",
                         "200 hPa velocity potential and the irrotational wind: where the tropics are venting and where they are subsiding.",
@@ -824,6 +830,7 @@ HOME = {
             "/circulation.html#tcshear",
             "/circulation.html#walker",
             "/circulation.html#hadley",
+            "/circulation.html#hbranch",
             "/circulation.html#jets",
             "/circulation.html#aam",
         ],
