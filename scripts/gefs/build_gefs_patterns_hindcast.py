@@ -22,6 +22,10 @@ season, so each scored start is too -
                  the forecast (on the GEPS hindcast +0.035-0.055 on the week 3-5 correlations). Applied to the
                  indices, which are linear in the field, as a per-date index table from the truth file; the regime
                  labels (a nonlinear classification) get the leave-season-out climatology only.
+In sample -> leave-season-out (gefs-calib.yml): weekly r averaged over indices and init days +0.966/+0.684/+0.337/
++0.219/+0.182 -> +0.965/+0.666/+0.297/+0.169/+0.130 in weeks 1-5; index x init-day cells with r >= 0.25 and p <= 0.05
+in weeks 3/4/5 3677/1761/1213 -> 2959/1248/964; daily r at day 28 NAO +0.187 -> +0.141, PNA +0.192 -> +0.150, SOI
++0.348 -> +0.328, NAM 100 +0.350 -> +0.313; regime hit rates unchanged (to 0.01).
 
 Observed (truth file, --make-truth, built offline from the stores the patterns were built on): NCEP/NCAR R1 daily
 means, anomalies against the pattern file's 1991-2020 day-of-year climatology, on each valid date; regimes from the
