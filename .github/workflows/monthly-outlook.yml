@@ -4,7 +4,7 @@ name: Month-ahead outlook (statistical + GEFS, monthly on the 15th)
 # and 500 hPa height over the Northern Hemisphere, as anomalies and tercile probabilities, issued on the 15th of the
 # month before. The statistical forecast is built from ERA5 alone - trend, RONI/QBO/vortex regression, a tropical
 # constructed analogue, local persistence and analogue years, consolidated with weights from a cross-validated
-# 1981-onward hindcast (scripts/monthly/mo_method.py) - and then blended with GEFS's forecast of target days 1-15
+# 1981-onward hindcast (scripts/monthly/mo_method.py) - and then blended with the whole 35-day GEFS run of the 15th
 # (scripts/monthly/blend.py, gefs_guide.py) where the 2000-2019 reforecast shows the blend beats it. The live GEFS run
 # is the GEFS page's own (gefs.yml writes gefs_run_<YYYYMMDD>.npz to the frames branch; the 00Z run of the 15th is
 # normally there by ~07Z, hence 10:23; the run of the 14th stands in if not). The C3S multi-system mean is only scored

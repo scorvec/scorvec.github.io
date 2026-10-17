@@ -1,17 +1,21 @@
-"""Blend Claude's statistical month-ahead forecast with GEFS's forecast of the first half of the target month.
+"""Blend Claude's statistical month-ahead forecast with the whole 35-day GEFS run.
 
-GEFS (gefs_guide.py) reaches about the 18th of the target month from the run on the 15th; its mean anomaly over
-target days 1-15 is the dynamical predictor. Per variable the blend is
+The GEFS run of the 15th (gefs_guide.py) reaches the 18th or 19th of the target month. It gives two predictors: its
+mean over the target month's days it reaches, and its mean over its days before the month (the lead-in: the state
+the month starts from). Per variable the blend is
 
-    forecast = a(x) * statistical + b(x) * GEFS days 1-15,     a, b >= 0
+    forecast = a(x) * statistical + b(x) * GEFS in the month + c(x) * GEFS lead-in,     a, b, c >= 0
 
-with a and b from the same spatially smoothed non-negative regression as the statistical consolidation, fitted on
-the years both exist (the GEFS reforecast, 2000-2019, against the statistical forecast's cross-validated hindcast)
-and against the whole target month: b says how much of the first-half forecast carries into the monthly mean. The
-statistical forecast is already calibrated on its own 1981-onward hindcast, so a is pulled toward 1 (a ridge
-penalty as strong as the 20 years' own data, PRIOR) rather than toward 0: refitted freely on 20 years it fell to
-~0.3, damping the whole forecast for a sampling accident of those years, and the anchored fit scored the same (and
-better for precipitation) in cross-validation. b is damped toward 0 like any consolidation weight.
+with the weights from the same spatially smoothed non-negative regression as the statistical consolidation, fitted
+on the years both exist (the GEFS reforecast, 2000-2019, against the statistical forecast's cross-validated
+hindcast) and against the whole target month: b and c say how much of each part of the run carries into the
+monthly mean. The statistical forecast is already calibrated on its own 1981-onward hindcast, so a is pulled toward
+1 (a ridge penalty as strong as the 20 years' own data, PRIOR) rather than toward 0: refitted freely on 20 years it
+fell to ~0.3, damping the whole forecast for a sampling accident of those years, and the anchored fit scored the
+same (and better for precipitation) in cross-validation. b and c are damped toward 0 like any consolidation weight.
+The lead-in enters for temperature only (LEAD): in cross-validation over all twelve months it earned weight there
+(c ~0.09, the correlation 0.290 -> 0.299), and for height and precipitation it earned little (~0.06, ~0.02) and made
+the blend slightly worse. The month's days scored the same whether cut at day 15 or run to the end of the forecast.
 
 Its skill is cross-validated the same way (each year's weights fitted without that year), on the same years as the
 statistical forecast it is compared with. The blend is issued only where it beats the statistical forecast in that
@@ -36,16 +40,17 @@ import gefs_guide as GG
 import mo_method as M
 
 PRIOR = 1.0  # ridge pulling the statistical weight toward 1, in units of its own smoothed sum of squares
+LEAD = ("t2m",)  # variables that also take the run's lead-in (the days before the target month)
 
 
 def anchored_weights(X: np.ndarray, Y: np.ndarray, K: np.ndarray) -> np.ndarray:
-    """X (n, 2, P) [statistical, GEFS], Y (n, P) -> (P, 2) >= 0 from the smoothed normal equations, the statistical
-    weight ridge-pulled toward 1 (PRIOR) and GEFS's toward 0 (the consolidation ridge)."""
+    """X (n, k, P) [statistical, GEFS predictors...], Y (n, P) -> (P, k) >= 0 from the smoothed normal equations,
+    the statistical weight ridge-pulled toward 1 (PRIOR) and the others toward 0 (the consolidation ridge)."""
     A = np.einsum("qp,pij->qij", K, np.einsum("nip,njp->pij", X, X))
     b = K @ np.einsum("nip,np->pi", X, Y)
     lam = np.zeros_like(A)
-    lam[:, 0, 0] = PRIOR * A[:, 0, 0]
-    lam[:, 1, 1] = M.CONS_RIDGE * A[:, 1, 1]
+    for i in range(A.shape[1]):
+        lam[:, i, i] = (PRIOR if i == 0 else M.CONS_RIDGE) * A[:, i, i]
     b[:, 0] += PRIOR * A[:, 0, 0]
     return M.nnls_batched(A + lam, b)
 
@@ -88,7 +93,7 @@ def scores(cv: np.ndarray, Y: np.ndarray, clim: np.ndarray, lo, hi, w) -> dict:
 def apply(res: dict, A: M.Archive, target_year: int, month: int, realtime: bool = True) -> dict:
     """Add the blend to a forecast.run() result: res['blend'][v] holds the comparison; where the blend wins (and,
     for a live forecast, the GEFS run is in), res['vars'][v] is switched to the blend and the statistical forecast
-    is kept under stat_* keys (the GEFS input under models_fc)."""
+    is kept under stat_* keys (GEFS's two predictors under models_fc and lead_fc)."""
     K = M.sphere_kernel()
     w = F.hemi_weights()
     hy = np.array(res["hindcast_years"])
@@ -101,7 +106,7 @@ def apply(res: dict, A: M.Archive, target_year: int, month: int, realtime: bool 
         hc = GG.hindcast(month, v)
         if hc is None:
             continue
-        hc_years, table = hc
+        hc_years, table, lead = hc
         use = [y for y in hc_years if y in hy]
         if len(use) < 15:
             continue
@@ -110,7 +115,7 @@ def apply(res: dict, A: M.Archive, target_year: int, month: int, realtime: bool 
         gm = table[im]
         stat = o["hind_cv"][ih]
         Y = o["hind_obs"][ih]
-        X = np.stack([stat, gm], 1)  # (n, 2, P)
+        X = np.stack([stat, gm, lead[im]] if v in LEAD else [stat, gm], 1)  # (n, 2 or 3, P)
         n = len(use)
         cv = np.zeros_like(Y)
         for j in range(n):
@@ -124,7 +129,6 @@ def apply(res: dict, A: M.Archive, target_year: int, month: int, realtime: bool 
         use_blend = sc["blend"]["mse"] < sc["stat"]["mse"]
         rec = {
             "models": [GG.NAME],
-            "days": [1, GG.NDAYS],
             "years": [int(use[0]), int(use[-1])],
             "n": n,
             "scores": {k: {kk: round(vv, 3) for kk, vv in d.items() if kk != "r_map"} for k, d in sc.items()},
@@ -134,11 +138,16 @@ def apply(res: dict, A: M.Archive, target_year: int, month: int, realtime: bool 
             },
             "issued": False,
         }
+        if v in LEAD:
+            rec["weight_nh"]["lead"] = round(float((w * beta[:, 2]).sum() / w.sum()), 3)
         if realtime and "fc" in o:
-            live = g[v].astype(np.float64)
-            fc_b = beta[:, 0] * o["fc"] + beta[:, 1] * live
+            live, live_lead = g[v].astype(np.float64), g[f"{v}_lead"].astype(np.float64)
+            fc_b = beta[:, 0] * o["fc"] + beta[:, 1] * live + (beta[:, 2] * live_lead if v in LEAD else 0.0)
             rec["init"] = g["init"]
+            rec["days"] = [1, int(g["ndays"])]
             o["models_fc"] = live.astype(np.float32)
+            if v in LEAD:
+                o["lead_fc"] = live_lead.astype(np.float32)
             o["blend_fc"] = fc_b.astype(np.float32)
             o["blend_beta"] = beta.astype(np.float32)
             if use_blend:

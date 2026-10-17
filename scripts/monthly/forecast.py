@@ -253,7 +253,7 @@ def save(res: dict, summary: dict) -> None:
     arrs = {}
     for v, o in res["vars"].items():
         keys = ("fc", "p_below", "p_above", "p_below_raw", "p_above_raw", "tlo", "thi", "r", "sig", "rmse", "rpss")
-        keys = (*keys, "msss_trend", "comp", "contrib", "models_fc", "blend_fc", "blend_beta")
+        keys = (*keys, "msss_trend", "comp", "contrib", "models_fc", "lead_fc", "blend_fc", "blend_beta")
         keys = (*keys, *(f"stat_{k}" for k in ("fc", "p_below", "p_above", "p_below_raw", "p_above_raw", "sig", "r")))
         for key in (*keys, "beta"):
             if key in o:

@@ -7,8 +7,8 @@ For each assets/monthly/data/outlook_<YYYYMM>.npz with a complete target month, 
 (area-weighted): the anomaly correlation (uncentred) and RMSE of the outlook, the same for the trend component
 alone (the no-skill-beyond-warming reference), the share of the area where the outlook had the sign right, and the
 ranked probability skill score of its tercile probabilities against climatology (1/3 each). Where the issued
-forecast was the blend with GEFS (blend.py), its two inputs are scored too (stat_acc, and models_acc for GEFS days
-1-15 against the whole month).
+forecast was the blend with GEFS (blend.py), its inputs are scored too (stat_acc, and models_acc for GEFS's forecast of
+the month's days it reaches, against the whole month).
 
 Benchmark: the C3S multi-system seasonal forecast issued in the same month (published around the 13th, two days
 before this outlook), at its lead month 2, which is the same target month. Its ensemble-mean anomalies per system

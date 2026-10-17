@@ -44,7 +44,7 @@ ASSETS = REPO / "assets" / "monthly"
 DATA = ASSETS / "data"
 LAT0 = 20.0
 INK, MUTED = "#1a1a1a", "#5b6470"
-CREDIT = "scorvec.com · Claude's month-ahead forecast · ERA5 statistics, blended with GEFS days 1–15 where it adds skill · anomalies vs 1991–2020"
+CREDIT = "scorvec.com · Claude's month-ahead forecast · ERA5 statistics, blended with the 35-day GEFS where it adds skill · anomalies vs 1991–2020"
 
 LEVELS = {
     "z500": np.array([-90, -75, -60, -48, -36, -24, -15, -8, 8, 15, 24, 36, 48, 60, 75, 90], float),
@@ -191,7 +191,7 @@ def outlook_map(o: dict, s: dict, var: str, region: str, kind: str, path: Path, 
     b = s.get("blend", {}).get(var, {})
     if b.get("issued"):
         init = datetime.date.fromisoformat(b["init"])
-        sub += f" and GEFS days {b['days'][0]}–{b['days'][1]} ({init.day} {init:%b} run)"
+        sub += f" and the GEFS run of {init.day} {init:%b}"
     if var == "z500" and kind == "anom":
         sub += " · contours: forecast height (dam)"
     if kind == "prob":
@@ -246,40 +246,57 @@ def components_fig(o: dict, s: dict, var: str, path: Path) -> None:
 
 
 def blend_fig(o: dict, s: dict, var: str, path: Path) -> None:
-    """The statistical forecast, GEFS's first half of the month and their blend, with the weights and the
-    shared-years cross-validated scores (against the whole month); the issued one is marked."""
+    """The statistical forecast, the GEFS run's two parts (the target month's days it reaches, and its days before
+    the month) and the blend, with the weights and the shared-years cross-validated scores (against the whole
+    month); the issued one is marked."""
     b = s["blend"][var]
     sc = b["scores"]
+    wn = b["weight_nh"]
     issued = "blend" if b["issued"] else "stat"
-    stat = o.get(f"{var}_stat_fc", o[f"{var}_fc"])
+    init = datetime.date.fromisoformat(b["init"])
+    first = datetime.date(int(s["target"][:4]), int(s["target"][5:]), 1)
+    last_lead = first - datetime.timedelta(days=1)
+    mon = f"{first:%b}"
     panels = [
-        ("stat", stat, "Statistical (this page's method)"),
-        ("models", o[f"{var}_models_fc"], f"GEFS, days {b['days'][0]}–{b['days'][1]} ({b['init']} run)"),
-        ("blend", o[f"{var}_blend_fc"], "Blend"),
+        ("stat", o.get(f"{var}_stat_fc", o[f"{var}_fc"]), "Statistical (this page's method)", wn["stat"]),
+        ("models", o[f"{var}_models_fc"], f"GEFS, {b['days'][0]}–{b['days'][1]} {mon}", wn["models"]),
+        ("blend", o[f"{var}_blend_fc"], "Blend", None),
     ]
-    fig = plt.figure(figsize=(13.2, 5.9))
-    for j, (k, fld, lab) in enumerate(panels):
-        ax = polar_ax(fig, [0.01 + j * 0.33, 0.17, 0.31, 0.66])
+    if "lead" in wn:  # temperature: the run's days before the month enter too
+        lab = f"GEFS lead-in, {init.day} {init:%b}–{last_lead.day} {last_lead:%b}"
+        panels.insert(2, ("lead", o[f"{var}_lead_fc"], lab, wn["lead"]))
+    npan = len(panels)
+    fig = plt.figure(figsize=(15.6, 5.5) if npan == 4 else (13.2, 5.9))
+    for j, (k, fld, lab, wt) in enumerate(panels):
+        rect = [0.005 + j * 0.249, 0.19, 0.24, 0.62] if npan == 4 else [0.01 + j * 0.33, 0.17, 0.31, 0.66]
+        ax = polar_ax(fig, rect)
         shade(ax, fld, var)
-        line = f"ACC {sc[k]['acc']:+.2f} · RPSS {sc[k]['rpss']:+.2f}"
-        if k == "blend":
-            line += f" · weights {b['weight_nh']['stat']:.2f} / {b['weight_nh']['models']:.2f}"
+        if k in sc:
+            line = f"ACC {sc[k]['acc']:+.2f}" + (f" · RPSS {sc[k]['rpss']:+.2f}" if k != "models" else "")
+        else:
+            line = ""
+        if wt is not None:
+            line += f"{' · ' if line else ''}weight {wt:.2f}"
         mark = "  ← issued" if k == issued else ""
-        ax.set_title(f"{lab}{mark}\n{line}", fontsize=9.5, fontweight="bold", pad=4)
+        ax.set_title(f"{lab}{mark}\n{line}", fontsize=9.2, fontweight="bold", pad=4)
     cax = fig.add_axes([0.25, 0.1, 0.5, 0.025])
     sm = plt.cm.ScalarMappable(cmap=CMAP[var], norm=mcolors.BoundaryNorm(LEVELS[var], 256, extend="both"))
     cb = fig.colorbar(sm, cax=cax, orientation="horizontal", extend="both", ticks=LEVELS[var])
     cb.ax.tick_params(labelsize=7)
-    cb.set_label(f"{TITLE[var]} ({UNIT[var]}); scores: cross-validated, {b['years'][0]}–{b['years'][1]}", fontsize=8)
+    cb.set_label(
+        f"{TITLE[var]} ({UNIT[var]}); scores and weights: cross-validated against the whole month, "
+        f"{b['years'][0]}–{b['years'][1]}",
+        fontsize=8,
+    )
     fig.text(
         0.01,
         0.95,
-        f"{s['target_label']}: {NAME[var]}, statistical forecast and GEFS",
+        f"{s['target_label']}: {NAME[var]}, statistical forecast and the {init.day} {init:%b} GEFS run",
         fontsize=12.5,
         fontweight="bold",
     )
     fig.text(0.5, 0.012, CREDIT, ha="center", fontsize=7.5, color=MUTED)
-    fig.savefig(path, dpi=92, facecolor="white", pil_kwargs={"quality": 85, "method": 6})
+    fig.savefig(path, dpi=88, facecolor="white", pil_kwargs={"quality": 85, "method": 6})
     plt.close(fig)
 
 
