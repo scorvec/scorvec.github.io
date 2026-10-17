@@ -39,7 +39,9 @@ ROOT = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(ROOT / "scripts" / "mjo" / "src"))
 sys.path.insert(0, str(ROOT / "scripts" / "ecmwf"))
+sys.path.insert(0, str(ROOT / "scripts" / "lib"))
 import imerg_tropics as IT
+from localdirs import env_dir
 import gill_model as GM
 from gill_rain import to1deg_025, to_gill, chi_anom, gill_fields, harm_basis, harmonic_day
 
@@ -48,7 +50,7 @@ IMERG = HERE / "data" / "imerg_trop"
 REF = ROOT / "scripts" / "mjo" / "data" / "reference"
 OUT_NC = REF / "gill_rain_ref.nc"
 OUT_JSON = REF / "gill_rain_calibration.json"
-STORE = Path.home() / "era5_store" / "wb2_1p5_daily_global"
+STORE = env_dir("ERA5_STORE", "wb2_1p5_daily_global")
 CLIM_Y0, CLIM_Y1 = 2001, 2025
 CAL_Y0, CAL_Y1 = 2001, 2020
 NHARM = 4

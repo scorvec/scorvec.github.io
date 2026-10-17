@@ -42,7 +42,10 @@ from doycal import noleap_doy
 
 REF = HERE.parent / "data" / "reference"
 OUT = REF / "pacjet_ref.nc"
-STORE = Path.home() / "era5_store" / "wb2_1p5_daily"
+sys.path.insert(0, str(HERE.parents[1] / "lib"))
+from localdirs import env_dir
+
+STORE = env_dir("ERA5_STORE", "wb2_1p5_daily")
 Y0, Y1 = 1991, 2020
 EXIT = dict(lat=(30.0, 40.0), lon=(170.0, 210.0))
 CANON = (11, 12, 1, 2, 3)

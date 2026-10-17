@@ -22,11 +22,12 @@ import gcsfs
 import sys
 
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+from localdirs import env_dir
 from doycal import noleap_doy
 
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
 OUT = REF / "jet_clim.nc"
-CACHE = Path.home() / "mjo" / "era5_cache"
 STORE = "gs://weatherbench2/datasets/era5/1959-2023_01_10-6h-240x121_equiangular_with_poles_conservative.zarr"
 LEVELS = [50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 850, 925, 1000]
 JET_BAND = (15.0, 45.0)  # |lat| window of the subtropical core
@@ -61,8 +62,9 @@ def jet_metrics(ubar_200: np.ndarray, lat: np.ndarray):
 
 
 def _samples(a):
-    CACHE.mkdir(parents=True, exist_ok=True)
-    cpath = CACHE / f"jet_ubar_{a.y0}-{a.y1}_s{a.stride}.nc"
+    cache = env_dir("MJO_CACHE", "era5_cache")
+    cache.mkdir(parents=True, exist_ok=True)
+    cpath = cache / f"jet_ubar_{a.y0}-{a.y1}_s{a.stride}.nc"
     if cpath.exists():
         print(f"reusing cached ERA5 samples: {cpath}", flush=True)
         c = xr.open_dataset(cpath)

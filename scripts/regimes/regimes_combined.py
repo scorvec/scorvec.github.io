@@ -13,8 +13,8 @@ otherwise it is left out and the figure says so. The axis starts at the newest i
 contributes the same valid DATES (at its own, longer leads). The combined probability of a regime on a date is the
 EQUAL-WEIGHT mean of the models that cover that date: skill weighting would need hindcasts of all four models, and
 AIFS-ENS and IFS-ENS have none in open data; GEPS and GEFS, which do, are within each other's 95% intervals at nearly
-every lead (overlapping 95% intervals in 829 of 840 month x sector x lead combinations, all
-the exceptions at days 1-4, where GEPS is slightly higher). Days 16-35 are GEPS and GEFS only; the axis ends at the last date two models cover.
+every lead (overlapping 95% intervals in 827 of 840 month x sector x lead combinations at mid-month inits; GEPS is
+higher at the exceptions at days 1-4, GEFS at those after day 13). Days 16-35 are GEPS and GEFS only; the axis ends at the last date two models cover.
 
 Observed tail: GEFS analyses (daily; GEPS's when the GEFS file is missing). Previous issue: the combined view of the
 previous day, kept in regimes_combined_history.json (10 issues).
@@ -230,7 +230,7 @@ def main() -> int:
         foot = (
             "Combined = equal-weight mean of the models covering each date (skill weighting would need hindcasts of "
             "every model; AIFS-ENS and IFS-ENS have none, and the GEPS and GEFS hindcast hit rates have overlapping 95% "
-            "intervals at 99% of month × lead × sector combinations). "
+            "intervals at 98% of month × lead × sector combinations). "
             "Each model: members' 5-day-mean 500 hPa anomalies\nassigned to k-means regimes (NCEP/NCAR R1 1991–2020; "
             "cold set Oct–Mar, warm Apr–Sep, each day in its own season's set; 'no regime' below pattern correlation "
             "0.25). GEPS/GEFS de-drifted with their hindcasts; AIFS-ENS/IFS-ENS against ERA5 1991–2020 "

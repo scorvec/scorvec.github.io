@@ -9,14 +9,14 @@ of freely-available daily ENSO component indices, then drive that regression dai
 
 Predictors (raw physical units — OLS is scale-invariant, so coefficients learned on
 bimonthly means apply directly to daily trailing means of the same quantity):
-  SST  — Nino1+2 / 3 / 4 / 3.4 anomalies   (CPC ERSST5 monthly for the fit;
-                                             OISST daily-anom boxes for the live tail)
+  SST  — Nino-3.4 anomaly                  (CPC ERSST5 monthly for the fit;
+                                             OISST daily-anom box for the live tail)
   SLP  — SOI                               (DailySOI.txt: monthly mean for fit, daily for apply)
-  OLR  — central-Pacific OLR anomaly box   (PSL interp-OLR: monthly for fit, daily for apply)
   wind — eq. 850-hPa zonal-wind anomaly box (ERA5 eq-band series for fit, 2026 ARCO for apply)
+(PREDICTORS below says why OLR and the other Nino boxes are left out.)
 
-Fit window 1999-2022 (limited by daily-SOI start and monthly-OLR end); the satellite
-era fits MEI.v2 best (R ~ 0.945). Two daily curves are produced: a faithful 30-day
+Fit window 1999-2023 (from the daily-SOI start); the satellite era fits MEI.v2 best
+(R 0.943, mei_fit.json). Two daily curves are produced: a faithful 30-day
 trailing mean (hugs the official value) and a responsive ~14-day mean (leading edge).
 
     python src/build_mei_nowcast.py --fit --apply 2026
@@ -44,7 +44,6 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent  # scripts/mjo
 REF = ROOT / "data" / "reference"
 MEI_IN = ROOT / "data" / "mei"  # cached external inputs
-CACHE = Path.home() / "mjo" / "era5_cache"
 OISST = ROOT.parent / "sst" / "data"  # repo's live OISST cache (scripts/sst/data),
 #                                                      refreshed daily
 OUT = ROOT.parent.parent / "assets" / "sst" / "mei"  # repo/assets/sst/mei
@@ -53,13 +52,10 @@ FIT_JSON = REF / "mei_fit.json"
 URLS = {
     "meiv2.data": "https://psl.noaa.gov/enso/mei/data/meiv2.data",
     "nino.ascii": "https://www.cpc.ncep.noaa.gov/data/indices/ersst5.nino.mth.91-20.ascii",
-    "olr.mon.mean.nc": "https://downloads.psl.noaa.gov/Datasets/interp_OLR/olr.mon.mean.nc",
 }
-OLR_DAY = CACHE / "olr.day.mean.nc"  # ~350 MB, downloaded separately
 
 # Nino SST boxes (lat0,lat1, lon0,lon1) in 0-360
 BOXES = {"n12": (-10, 0, 270, 280), "n3": (-5, 5, 210, 270), "n4": (-5, 5, 160, 210), "n34": (-5, 5, 190, 240)}
-OLR_BOX = (-5, 5, 160, 200)  # central-Pacific convection (PSL interp-OLR; discontinued 2022)
 U850_LON = (135, 180)  # west-central Pacific westerly box (eq band already 5S-5N)
 # Lean, stable predictor set — one box per MEI component we can source daily and currently:
 #   SST = Niño3.4, SLP = SOI, wind = eq-u850.  Leave-one-year-out CV-RMSE (0.296) matches the
@@ -127,17 +123,6 @@ def _deseason_daily(s: pd.Series) -> pd.Series:
     m = s[(s.index.year >= CLIM[0]) & (s.index.year <= CLIM[1])]
     clim = m.groupby(m.index.month).mean()
     return s - s.index.month.map(clim).to_numpy()
-
-
-def load_olr_box(daily: bool) -> pd.Series:
-    """Central-Pacific OLR anomaly. daily=False → monthly (fit), True → daily (apply)."""
-    f = OLR_DAY if daily else _ensure("olr.mon.mean.nc")
-    if daily and (not f.exists() or f.stat().st_size < 1_000_000):
-        raise FileNotFoundError(f"daily OLR not available at {f} (PSL download pending)")
-    d = xr.open_dataset(f)
-    la0, la1, lo0, lo1 = OLR_BOX
-    box = d.olr.sel(lat=slice(la1, la0), lon=slice(lo0, lo1)).mean(("lat", "lon")).to_series()
-    return _deseason_daily(box)
 
 
 def load_u850_box(daily: bool) -> pd.Series:

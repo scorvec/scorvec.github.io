@@ -15,6 +15,7 @@ Usage:
     python src/setup_reference.py
 """
 
+import os
 from pathlib import Path
 
 import requests
@@ -138,10 +139,11 @@ def download_obs_rmm() -> None:
 
     # The BoM website does not permit automated downloads ("does not support web scraping"), so RMM is read from a
     # copy downloaded by hand in a browser. Never fetch bom.gov.au/climate from a script.
-    cands = [
-        REF_DIR / "rmm.74toRealtime.txt",
-        Path.home() / "data_archive" / "geps_subx" / "telecon" / "bom" / "rmm.74toRealtime.txt",
-    ]
+    cands = [REF_DIR / "rmm.74toRealtime.txt"]
+    if os.environ.get("DATA_ARCHIVE"):  # the archived copy, where an archive is set up
+        cands.append(
+            Path(os.environ["DATA_ARCHIVE"]).expanduser() / "geps_subx" / "telecon" / "bom" / "rmm.74toRealtime.txt"
+        )
     txt = next((c for c in cands if c.exists()), None)
     if txt is None:
         raise SystemExit(

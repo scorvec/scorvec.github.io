@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """MJO (RMM) skill of GEPS from the GEPS8 hindcast, 2001-2020, days 1-35.
 
-Every hindcast start (four a week, ensemble mean) is projected onto the site's
+Every hindcast start (four a week, ensemble mean, each once) is projected onto the site's
 Wheeler-Hendon reference EOFs with exactly the arithmetic mjo_geps.py uses for
 the live forecast — 15S-15N band means of OLR, u850 and u200; the lead-matched
 GEPS8 model climatology removed (de-drift); the model-to-observed frame shift
@@ -49,7 +49,6 @@ import mjo_geps as mg
 import refpack  # (the day-of-year key)
 
 # the full pass (no --replot) reads the offline hindcast store; --replot needs only REF/telecon/mjo_hindcast.nc
-STORE = paths.LOCAL_STORE / "geps8_hindcast"
 CLIM = paths.LOCAL_STORE / "climatology"
 TC = paths.TC_REF if (paths.TC_REF / "mjo_hindcast.nc").exists() else paths.LOCAL_STORE / "telecon"
 TC_OUT = paths.TC_STATE
@@ -121,6 +120,9 @@ def main() -> int:
     t0 = time.time()
     if a.replot and (TC / "mjo_hindcast.nc").exists():
         return replot(a)
+    sys.path.insert(0, str(HERE / "build"))
+    from build_clim import entries  # the store's monthly files, each start once
+
     clim = xr.open_dataset(mg.REF / "climatology.nc")
     eofs = xr.open_dataset(mg.REF / "eofs.nc")
     lon = eofs.longitude.values.astype(float)
@@ -139,9 +141,9 @@ def main() -> int:
         )
         parts = []
         S_all = []
-        for f in sorted(STORE.glob(f"geps8_{tag}_*.nc")):
+        for f, keep in entries(tag):
             ds = xr.open_dataset(f)
-            v = ds[next(iter(ds.data_vars))]
+            v = ds[next(iter(ds.data_vars))].isel(S=keep)
             if "P" in v.dims:
                 v = v.isel(P=0)
             v = v.load().astype("float32")

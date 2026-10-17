@@ -30,7 +30,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-OUT = Path.home() / "data_archive" / "cmip6_mjo" / "red"
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+from localdirs import env_dir
+
+OUT = env_dir("DATA_ARCHIVE", "cmip6_mjo", "red")
 CAT = Path(__file__).resolve().parents[2] / "strat" / "data" / "cmip6" / "pangeo_cmip6.csv"
 Y0, Y1 = 1979, 2014
 GRIDS = {

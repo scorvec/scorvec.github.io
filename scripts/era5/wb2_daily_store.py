@@ -29,13 +29,17 @@ re-running is always safe and only missing pieces stream. Var-major loop order
 from __future__ import annotations
 import argparse
 import os
+import sys
 import time
 from pathlib import Path
 
 import numpy as np
 import xarray as xr
 
-STORE = Path(os.environ.get("ERA5_STORE", "~/era5_store")).expanduser()
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+from localdirs import env_dir
+
+STORE = env_dir("ERA5_STORE")
 LAYER = STORE / "wb2_1p5_daily"
 
 WB2 = "gs://weatherbench2/datasets/era5/1959-2023_01_10-6h-240x121_equiangular_with_poles_conservative.zarr"

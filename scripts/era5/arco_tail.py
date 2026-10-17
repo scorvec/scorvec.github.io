@@ -25,6 +25,7 @@ files assembled from them. ~19 s per z timestep, 3 parallel fetchers.
 
 from __future__ import annotations
 import os
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -33,7 +34,10 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-STORE = Path(os.environ.get("ERA5_STORE", "~/era5_store")).expanduser()
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+from localdirs import env_dir
+
+STORE = env_dir("ERA5_STORE")
 LAYER = STORE / "wb2_1p5_daily"
 TOWER = Path(__file__).resolve().parent.parent / "telecon" / "data" / "nam_tower_era5.nc"
 ARCO = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"

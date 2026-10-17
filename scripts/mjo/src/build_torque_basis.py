@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import argparse
 import functools
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -57,7 +58,10 @@ import gcsfs
 
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
 OROG = REF / "era5_orography.nc"
-CACHE = Path.home() / "mjo" / "era5_cache"
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+from localdirs import env_dir
+
+CACHE = env_dir("MJO_CACHE", "era5_cache")
 STORE = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"
 A = 6.371e6
 HU = 1e18

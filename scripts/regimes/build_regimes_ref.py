@@ -32,9 +32,12 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import regime_core as RC
 
-GEPS = Path.home() / "data_archive" / "geps_subx"
+sys.path.insert(0, str(HERE.parent / "lib"))
+from localdirs import env_dir
+
+GEPS = env_dir("DATA_ARCHIVE", "geps_subx")
 sys.path.insert(0, str(GEPS))
-ERA5 = Path.home() / "era5_store" / "wb2_1p5_daily_global" / "z500"
+ERA5 = env_dir("ERA5_STORE", "wb2_1p5_daily_global", "z500")
 NHARM = 10
 
 

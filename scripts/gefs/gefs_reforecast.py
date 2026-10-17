@@ -15,9 +15,17 @@ Daily values, identical to what the live pipeline computes (gefs_live.py), so th
 Everything is box-averaged to 1.5 deg and reduced to weekly means (days 1-7 ... 29-35); u10 is kept daily as the 60N
 zonal mean (the vortex panel), and OLR/u200/u850 daily as 15S-15N means by longitude (the MJO index).
 
-    python gefs_reforecast.py year 2019 --out out/            # one year of starts -> out/rf_YYYYMMDD.npz
-    python gefs_reforecast.py year 2019 --tags t2m,pr ...     # those weekly fields only (no vortex or MJO band)
-    python gefs_reforecast.py combine --inp out/ --out clim/  # every year -> clim/gefs_clim_DDD.npz per 5-day doy centre
+The climatology pools, for each 5-day centre, the starts within +-15 days of it on the common-year calendar
+(noleap_doy: 1 March is day 60 in every year). Releases gefs-clim-v1 and v2 pooled on the raw day of year, which puts
+every leap-year start after 28 February one day later, so a leap-year start 16 days before a centre was pooled with
+it and one 15 days after was left out (65 of the 73 centres, 89 leap-year starts). Release gefs-clim-v3
+(gefs-reforecast.yml) holds both climatologies rebuilt on the common-year calendar: this file's weekly one and
+gefs_daily.py's daily one, both fetched in one pass (gefs_daily.py month), plus the per-member weekly hindcast fields
+of every start (gefs_hindw_MM.npz) that the tercile maps' skill pass scores (build_gefs_mapskill.py).
+
+    python gefs_reforecast.py year 2019 --out out/              # one year of starts -> out/rf_YYYYMMDD.npz
+    python gefs_reforecast.py combine 1 --inp out/ --out clim/  # the centres of January -> clim/gefs_clim_DDD.npz,
+                                                                # January's starts -> clim/gefs_hindw_01.npz
 """
 
 from __future__ import annotations
@@ -33,6 +41,8 @@ from pathlib import Path
 import numpy as np
 
 S3 = "https://noaa-gefs-retrospective.s3.amazonaws.com/GEFSv12/reforecast"
+CLIM_TAG = "gefs-clim-v3"  # the release every reader takes both climatologies from (clim_file)
+CLIM_URL = f"https://github.com/scorvec/scorvec.github.io/releases/download/{CLIM_TAG}/{{name}}"
 MEMBERS = ("c00", "p01", "p02", "p03")
 DAYS = range(1, 36)
 WEEKS = [(1, 7), (8, 14), (15, 21), (22, 28), (29, 35)]
@@ -53,6 +63,7 @@ FIELDS = {
     "olr": ("ulwrf_tatm", "ulwrf_tatm", "top of atmosphere", "ave"),
 }
 WEEKLY = ("t2m", "zg500", "mslp", "u200", "u850", "pr", "olr")
+HINDW = ("t2m", "pr", "zg500", "mslp")  # the per-member weekly fields kept per start (the skill-masked map fields)
 # storage as int16: q = round((value - offset) * factor). float16 overflowed on MSLP in Pa and kept 500 hPa height to
 # only 4 m; these keep 0.02 K, 0.2 m, 0.02 hPa, 0.01 m/s, 0.01 mm/day and 0.01 W/m2 in the same two bytes
 SCALE = {
@@ -124,6 +135,33 @@ def get(url: str, rng: tuple[int, int] | None = None, tries: int = 4) -> bytes:
             time.sleep(2 * (k + 1))
 
 
+_PRUNED: set[Path] = set()
+
+
+def clim_file(name: str, cache: Path) -> Path:
+    """A file of the climatology release CLIM_TAG through the cache (cache/CLIM_TAG/name), downloaded when missing.
+    The first call per cache deletes the climatology files of every other release there - the flat gefs_clim_DDD.npz
+    and gefs_clim2_DDD.npz of v1/v2 and other gefs-clim-* directories - so a release bump can never read a stale file
+    of the same name, and the run cache does not carry the old ones."""
+    cache = Path(cache)
+    if cache not in _PRUNED:
+        _PRUNED.add(cache)
+        for p in [*cache.glob("gefs_clim_[0-9][0-9][0-9].npz"), *cache.glob("gefs_clim2_[0-9][0-9][0-9].npz")]:
+            p.unlink()
+        for d in cache.glob("gefs-clim-*"):
+            if d.is_dir() and d.name != CLIM_TAG:
+                for p in d.iterdir():
+                    p.unlink()
+                d.rmdir()
+    p = cache / CLIM_TAG / name
+    if not p.exists():
+        p.parent.mkdir(parents=True, exist_ok=True)
+        tmp = p.with_suffix(".part")
+        tmp.write_bytes(get(CLIM_URL.format(name=name)))
+        tmp.replace(p)
+    return p
+
+
 def index(url: str) -> list[tuple[int, int, str, str, str]]:
     """(start, end, level, step text, variable) per message from a .idx. The live files hold every variable in one
     file, so a match must use the variable too: "10 mb" alone finds the geopotential height first."""
@@ -182,15 +220,42 @@ def wanted(tag: str):
     return out
 
 
-def one_member(start: str, mem: str, tags=tuple(FIELDS)):
-    """Everything one member of one start contributes for `tags` - weekly means, and the 60N 10 hPa wind and the
-    15S-15N band when all their fields are among the tags - or None if its files are incomplete."""
-    y = start[:4]
-    base = f"{S3}/{y}/{start}00/{mem}"
+class Weekly:
+    """One member of one start, message by message: the daily 1.5 deg box mean of every weekly field, the 60N 10 hPa
+    zonal wind, and from those (finish) the weekly means and the 15S-15N band of olr, u200 and u850."""
+
+    def __init__(self):
+        self.daily = {t: np.zeros((35, len(LAT), len(LON))) for t in FIELDS if t != "u10"}
+        self.cnt = {t: np.zeros(35) for t in self.daily}
+        self.u60 = np.zeros(35)
+        self.u60n = np.zeros(35)
+
+    def add(self, tag: str, day: int, v):
+        """One decoded native field (90 -> -90 rows) of `tag` sampled on lead day `day` (1..35)."""
+        if tag == "u10":
+            self.u60[day - 1] += zonal60(v)
+            self.u60n[day - 1] += 1
+        else:
+            self.daily[tag][day - 1] += coarsen(v)
+            self.cnt[tag][day - 1] += 1
+
+    def finish(self):
+        """-> weekly {tag: (5, lat, lon) int16}, u60 (35,) float32, band (3, 35, lon) int16. Precipitation's four 6-h
+        accumulations stay summed (mm/day); every other field is the mean of its samples."""
+        daily = {
+            t: d if FIELDS[t][3] == "acc" else d / np.maximum(self.cnt[t], 1)[:, None, None]
+            for t, d in self.daily.items()
+        }
+        weekly = {t: pack(t, np.stack([daily[t][a - 1 : b].mean(0) for a, b in WEEKS])) for t in WEEKLY}
+        band = np.stack([pack(t, daily[t][:, BAND, :].mean(1)) for t in BANDF])
+        return weekly, (self.u60 / np.maximum(self.u60n, 1)).astype("float32"), band
+
+
+def one_member(start: str, mem: str):
+    """One member's Weekly reduction of one start, or None if its files are incomplete."""
+    base = f"{S3}/{start[:4]}/{start}00/{mem}"
     idx_cache, jobs = {}, []
     for tag, (f1, f2, lev, _kind) in FIELDS.items():
-        if tag not in tags:
-            continue
         for d, which, stext in wanted(tag):
             f = f"{base}/Days:{'1-10' if which == 1 else '10-35'}/{f1 if which == 1 else f2}_{start}00_{mem}.grib2"
             if f not in idx_cache:
@@ -202,28 +267,24 @@ def one_member(start: str, mem: str, tags=tuple(FIELDS)):
             if not hit:
                 return None
             jobs.append((tag, d, f, hit[0][0], hit[0][1]))
+    acc = Weekly()
     with ThreadPoolExecutor(24) as ex:
-        bufs = list(ex.map(lambda j: get(j[2], (j[3], j[4])), jobs))
-    daily = {t: np.zeros((35, len(LAT), len(LON)), "float64") for t in tags if t != "u10"}
-    cnt = {t: np.zeros(35) for t in daily}
-    u60 = np.zeros(35)
-    u60n = np.zeros(35)
-    for (tag, d, _, _, _), b in zip(jobs, bufs):
-        v = decode(b)
-        if tag == "u10":
-            u60[d - 1] += zonal60(v)
-            u60n[d - 1] += 1
-            continue
-        daily[tag][d - 1] += coarsen(v)
-        cnt[tag][d - 1] += 1
-    for t in daily:
-        if FIELDS[t][3] == "acc":
-            daily[t] = daily[t]  # four 6-h accumulations summed: mm/day
-        else:
-            daily[t] /= np.maximum(cnt[t], 1)[:, None, None]
-    weekly = {t: pack(t, np.stack([daily[t][a - 1 : b].mean(0) for a, b in WEEKS])) for t in WEEKLY if t in tags}
-    band = np.stack([pack(t, daily[t][:, BAND, :].mean(1)) for t in BANDF]) if set(BANDF) <= set(tags) else None
-    return weekly, (u60 / np.maximum(u60n, 1)).astype("float32") if "u10" in tags else None, band  # band (3, 35, 240)
+        for (tag, d, *_), b in zip(jobs, ex.map(lambda j: get(j[2], (j[3], j[4])), jobs)):
+            acc.add(tag, d, decode(b))
+    return acc.finish()
+
+
+def save_weekly(dest: Path, res: dict) -> None:
+    """rf_<start>.npz from {member: Weekly.finish()}: members, w_<tag> (m, 5, lat, lon) int16, u60 (m, 35), band (m, 3,
+    35, lon) int16."""
+    ms = list(res)
+    np.savez_compressed(
+        dest,
+        members=np.array(ms),
+        **{f"w_{t}": np.stack([res[m][0][t] for m in ms]) for t in WEEKLY},
+        u60=np.stack([res[m][1] for m in ms]),
+        band=np.stack([res[m][2] for m in ms]),
+    )
 
 
 def wednesdays(year: int):
@@ -236,7 +297,7 @@ def wednesdays(year: int):
 
 
 def run_start(args):
-    start, out, tags = args
+    start, out = args
     dest = Path(out) / f"rf_{start}.npz"
     if dest.exists():
         return f"{start}: exists"
@@ -244,7 +305,7 @@ def run_start(args):
     res = {}
     for m in MEMBERS:
         try:
-            r = one_member(start, m, tags)
+            r = one_member(start, m)
         except Exception as e:  # noqa: BLE001
             r = None
             print(f"  {start} {m}: {str(e)[:120]}", flush=True)
@@ -252,33 +313,39 @@ def run_start(args):
             res[m] = r
     if not res:
         return f"{start}: no complete member"
-    ms = list(res)
-    extra = {k: np.stack([res[m][i] for m in ms]) for i, k in ((1, "u60"), (2, "band")) if res[ms[0]][i] is not None}
-    np.savez_compressed(
-        dest, members=np.array(ms), **{f"w_{t}": np.stack([res[m][0][t] for m in ms]) for t in res[ms[0]][0]}, **extra
-    )
-    return f"{start}: {len(ms)} members in {time.time() - t0:.0f} s"
+    save_weekly(dest, res)
+    return f"{start}: {len(res)} members in {time.time() - t0:.0f} s"
 
 
 def cmd_year(a) -> int:
     Path(a.out).mkdir(parents=True, exist_ok=True)
     starts = list(wednesdays(a.year))
     with ProcessPoolExecutor(a.procs) as ex:
-        for msg in ex.map(run_start, [(s, a.out, tuple(a.tags.split(","))) for s in starts]):
+        for msg in ex.map(run_start, [(s, a.out) for s in starts]):
             print(msg, flush=True)
     return 0
 
 
+def centres_in(month: int):
+    """The 5-day centres (1, 6, ..., 361) whose common-year day falls in `month`."""
+    return [c for c in range(1, 366, 5) if (dt.date(2001, 1, 1) + dt.timedelta(days=c - 1)).month == month]
+
+
+def pool(doy, c: int, half: int = 15):
+    """Mask of the day-of-year keys `doy` (noleap_doy) within `half` days of centre c, the year wrapped at 365."""
+    dd = np.abs(np.asarray(doy, dtype="float64") - c)
+    return np.minimum(dd, 365 - dd) <= half
+
+
 def cmd_combine(a) -> int:
-    """Climatology per 5-day day-of-year centre from the starts within +-15 days (any year), all members."""
+    """The weekly climatology of the 5-day centres in a.month from every start within +-15 days of each (any year, all
+    members), and the per-member weekly hindcast fields (HINDW) of the month's own starts -> gefs_hindw_MM.npz."""
     files = sorted(Path(a.inp).rglob("rf_*.npz"))
     doy = noleap_doy([dt.datetime.strptime(f.stem[3:], "%Y%m%d").date() for f in files])  # common-year day key
     print(f"{len(files)} starts, years {files[0].stem[3:7]}-{files[-1].stem[3:7]}", flush=True)
     Path(a.out).mkdir(parents=True, exist_ok=True)
-    for c in range(1, 366, 5):
-        dd = np.abs(doy - c)
-        dd = np.minimum(dd, 365 - dd)
-        sel = [f for f, x in zip(files, dd) if x <= 15]
+    for c in centres_in(a.month):
+        sel = [f for f, x in zip(files, pool(doy, c)) if x]
         acc = {t: np.zeros((5, len(LAT), len(LON))) for t in WEEKLY}
         u60 = np.zeros(35)
         band = np.zeros((3, 35, len(LON)))
@@ -303,6 +370,17 @@ def cmd_combine(a) -> int:
             lon=LON,
         )
         print(f"doy {c:3d}: {len(sel)} starts, {n} member-runs", flush=True)
+    own = [f for f in files if int(f.stem[7:9]) == a.month]
+    if own:
+        keep = {}
+        for f in own:
+            with np.load(f) as z:
+                st = f.stem[3:]
+                keep[f"{st}_members"] = z["members"]
+                for t in HINDW:
+                    keep[f"{st}_w_{t}"] = z[f"w_{t}"]
+        np.savez_compressed(Path(a.out) / f"gefs_hindw_{a.month:02d}.npz", **keep)
+        print(f"weekly hindcast members: {len(own)} starts of month {a.month}", flush=True)
     return 0
 
 
@@ -313,8 +391,8 @@ def main() -> int:
     y.add_argument("year", type=int)
     y.add_argument("--out", default="out")
     y.add_argument("--procs", type=int, default=4)
-    y.add_argument("--tags", default=",".join(FIELDS), help="fields to fetch (default all)")
     c = sp.add_parser("combine")
+    c.add_argument("month", type=int)
     c.add_argument("--inp", default="out")
     c.add_argument("--out", default="clim")
     a = ap.parse_args()

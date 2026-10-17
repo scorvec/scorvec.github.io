@@ -13,6 +13,14 @@ whose day-of-year falls within +/- HALFWIN days, across all 20 years. Starts run
 4x/week, so a +/-15 day window pools roughly 20 yr * 4/wk * 30 d/7 ~ 340 starts
 per cell -- enough to be stable without smearing the seasonal cycle.
 
+Two rules on what is pooled, shared by every hindcast reader (entries()):
+  calendar    the day of year is the common-year day (refpack.noleap_doy: 1 March = 60 in every year, 29 Feb =
+              59.5), the key the live products read the climatology with;
+  each start  once. The monthly files repeat 154 starts: the first start of a month is also the last entry of the
+              month before (2001-03-02 in both 200102 and 200103), the same forecast to within the packing step.
+              Each is read from the file of its own month. The files hold the ensemble mean only, so a start is
+              the unit; there is no member axis to deduplicate.
+
 The output carries `n_starts` alongside the mean so downstream code can refuse
 to use thin cells rather than silently trusting them.
 
@@ -43,6 +51,32 @@ MANIFEST = ARCHIVE / "manifest.csv"
 HALFWIN = 15  # +/- days of year pooled into each climatological day
 DOY_STEP = 5  # climatology evaluated every 5 days of year, interpolated later
 EXPECTED_MONTHS = 240  # 2001-2020
+CALENDAR = "noleap_doy"  # the pool key (attrs["doy_key"]); readers that mirror the pools check it
+STARTS = "unique"  # each start pooled once (attrs["starts"])
+
+
+def entries(tag: str) -> list[tuple[Path, np.ndarray]]:
+    """The monthly hindcast files of one field and, for each, the positions on its S axis to read, so that every start
+    is read once: from the file of its own month, else (never so far) the first file holding it. In file order."""
+    files = sorted(STORE.glob(f"geps8_{tag}_*.nc"))
+    held = []
+    for f in files:
+        with xr.open_dataset(f, decode_timedelta=False) as d:
+            held.append(pd.DatetimeIndex(d.S.values))
+    home = {}
+    for k, (f, S) in enumerate(zip(files, held)):
+        own = f.stem.rsplit("_", 1)[-1]
+        for s in S:
+            if s.strftime("%Y%m") == own or s not in home:
+                home[s] = k
+    out = [
+        (f, np.array([i for i, s in enumerate(S) if home[s] == k], dtype=int))
+        for k, (f, S) in enumerate(zip(files, held))
+    ]
+    n = sum(len(i) for _, i in out)
+    if n != len(home):
+        raise SystemExit(f"{tag}: {n} entries kept for {len(home)} distinct starts")
+    return out
 
 
 def complete_tags():
@@ -67,28 +101,30 @@ def build(tag: str, halfwin: int) -> Path | None:
     every bin whose +/-halfwin window covers it, so the cost is one read of the
     archive and a bounded accumulator (74 x 39 x 181 x 360 float32 ~ 750 MB).
     """
-    fs = sorted(STORE.glob(f"geps8_{tag}_*.nc"))
-    if not fs:
+    todo = entries(tag)
+    if not todo:
         print(f"{tag}: nothing ingested")
         return None
+    fs = [f for f, _ in todo]
     centres = np.arange(1, 367, DOY_STEP)
     acc = cnt = None
     name = None
     nstart = np.zeros(len(centres), dtype=int)
     t0 = time.time()
-    for k, f in enumerate(fs):
+    for k, (f, keep) in enumerate(todo):
         d = xr.open_dataset(f, decode_timedelta=False)
         if name is None:
             name = next(iter(d.data_vars))
-        a = d[name].astype("float32")
         # zg/ua/va keep a singleton P dimension from the level selection, so the
-        # first axis is NOT always S. Drop singletons and order the dims explicitly.
-        a = a.squeeze(drop=True)
-        a = a.transpose("S", *[x for x in a.dims if x != "S"])
+        # first axis is NOT always S. Drop it and order the dims explicitly.
+        a = d[name].isel(S=keep)
+        if "P" in a.dims:
+            a = a.isel(P=0, drop=True)
+        a = a.transpose("S", "L", "Y", "X").astype("float32")
         v = a.values  # (S, L, Y, X)
         # common-year day of the start (29 Feb = 59.5), so 1 March pools with 1 March in every year; centre 366
         # is 1 January again on this 365-day calendar
-        doy = noleap_doy(pd.DatetimeIndex(pd.to_datetime(d.S.values)))
+        doy = noleap_doy(pd.DatetimeIndex(a.S.values))
         if acc is None:
             acc = np.zeros((len(centres), *v.shape[1:]), dtype="float64")
             cnt = np.zeros(len(centres), dtype="int64")
@@ -118,13 +154,15 @@ def build(tag: str, halfwin: int) -> Path | None:
         "title": f"GEPS8 hindcast model climatology — {tag}",
         "summary": (
             "Lead-dependent model climatology: mean over hindcast starts whose "
-            f"day-of-year lies within +/-{halfwin} days of each centre, 2001-2020. "
-            "Subtract from a live GEPS forecast at the SAME lead for an anomaly "
+            f"common-year day of year lies within +/-{halfwin} days of each centre, 2001-2020, "
+            "each start once. Subtract from a live GEPS forecast at the SAME lead for an anomaly "
             "free of the model's own drift."
         ),
         "source": "IRI Data Library, SOURCES/.Models/.SubC/.ECCC/.GEPS8/.hindcast",
         "halfwin_days": halfwin,
         "doy_step": DOY_STEP,
+        "doy_key": CALENDAR,
+        "starts": STARTS,
         "n_months_used": len(fs),
         "caution": (
             "Anomalies must use the same lead L and the same member treatment (ensemble mean) as this climatology."

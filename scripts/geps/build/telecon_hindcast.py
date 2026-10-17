@@ -15,19 +15,26 @@ which the forecast then appears to predict: it lifted the weekly correlations of
 about a quarter of the week 3-4 cells pass the skill gate that do not pass out of sample. So every start is scored
 against
 
-  M without its season       every file entry of M's pools (starts within +-15 days of a 5-day centre) that lies
-                             within SEASON days of the scored start: (N M - their sum) / (N - n), at the two centres
-                             the live read interpolates between. The pools are mirrored as the climatology file holds
-                             them - raw day of year, and the 154 starts that sit in two consecutive monthly files
-                             (e.g. 2001-03-02 in both 200102 and 200103) counted twice, as build_clim.py counted them;
-  E_0120 without its season  the days of the ERA5 normal's windows (+-7 days of a 5-day centre) within SEASON days of
-                             the valid date, removed the same way. 500 hPa height: the 1.5 deg daily store the normal
-                             was built from, every day. Sea-level pressure: its normal is the 1 deg ARCO one averaged
-                             every fifth day of each year (1, 6, 11 ... January); the same days are taken from the
-                             1.5 deg daily store (a daily mean of the same four synoptic hours).
+  M without its season       every start in M's pools (starts within +-15 days of a 5-day centre) that lies within
+                             SEASON days of the scored start: (N M - their sum) / (N - n), at the two centres the live
+                             read interpolates between. The pools are mirrored as build_clim.py fills them - the
+                             common-year day of year, each start once (build_clim.entries) - and the file must say so;
+  E_0120 without its season  the days of the ERA5 normal's windows (+-7 days of a 5-day centre, common-year day) within
+                             SEASON days of the valid date, removed the same way. 500 hPa height: the 1.5 deg daily
+                             store the normal is built from, every day. Sea-level pressure and 2 m temperature: their
+                             normal is the 1 deg ARCO one averaged every fifth day of each year (1, 6, 11 ... January);
+                             the same days are taken from the 1.5 deg daily store (a daily mean of the same four
+                             synoptic hours). On that 5-day lattice a common-year-day window holds exactly the days the
+                             raw-day window held (a leap year's days after February move one key down, which never
+                             carries a lattice day across a window edge: lattice distances 0, 5, 10 become 1, 4-6, 9-11
+                             against the +-7 cut), so that normal is already on the common-year calendar.
 
 The re-basing target E_9120 is the definition of the anomaly (the observed index is taken against the 1991-2020 NCEP
 normal, which holds the scored year too), not a fitted part of the forecast, and stays as it is.
+
+anomalies() is that arithmetic for any field, shared by the gridpoint skill maps (hindcast_maps.py) and the regime hit
+rates (scripts/regimes/build_regime_hindcast.py). It needs the reference set being built in GEPS_REF (era5_shift.nc
+and telecon/patterns.nc: make_reference.py --only shift,telecon) and the rebuilt climatology files in the store.
 
 The output is the raw paired series, not summary skill: telecon_geps.py pools the starts within +-45 days of the
 current init day-of-year and, per index and week, fits obs = a * fcst + b on the weekly means, giving the anomaly
@@ -63,9 +70,9 @@ _sys.path[:0] = [str(HERE), str(HERE.parent)]
 from paths import LOCAL_STORE as _LS  # offline-build inputs/outputs
 from refpack import noleap_doy, at_doy  # the climatologies' read key
 from telecon_io import period_shift
+import build_clim  # the climatology's pool rules (calendar, each start once)
 import build_era5_clim as era5  # the ERA5 normal's store and units
 
-STORE = _LS / "geps8_hindcast"
 CLIM = _LS / "climatology"
 TC = _LS / "telecon"
 LAT25 = np.arange(90.0, -90.1, -2.5)
@@ -73,7 +80,13 @@ LON25 = np.arange(0.0, 360.0, 2.5)
 Y0, Y1 = 2001, 2020
 SEASON = 60  # days: a pooled start or day this close to the scored one is its own season (other years are ~365 away)
 CLIM_HALF, ERA5_HALF = 15, 7  # pool half-widths of the GEPS8 climatology and the ERA5 normal, days of year
-ERA5_SAMPLE = {"zg500": 1, "mslp": 5}  # every n-th day of each year in the ERA5 2001-2020 normal (see the docstring)
+# every n-th day of each year in the ERA5 2001-2020 normal of each re-based field, and the file it is in (docstring)
+ERA5_SAMPLE = {"zg500": 1, "mslp": 5, "t2m": 5}
+ERA5_NORMAL = {
+    "zg500": "era5_clim_2001-2020.nc",
+    "mslp": "era5_clim_sfc_2001-2020.nc",
+    "t2m": "era5_clim_sfc_2001-2020.nc",
+}
 
 
 @functools.cache
@@ -88,11 +101,6 @@ def ncep_normal(field):
     """The NCEP 1991-2020 day-of-year normal of z500 or slp the patterns were built against (the full pattern file of
     the offline store: the published reference drops these)."""
     return xr.open_dataset(TC / "patterns.nc")[f"clim_doy_{field}"].values
-
-
-def raw_doy(t):
-    """Day of the year as the climatology files were pooled (1 March = 61 in a leap year)."""
-    return pd.DatetimeIndex(t).dayofyear.values.astype("float64")
 
 
 def pooled(doy, centre, half):
@@ -110,10 +118,14 @@ def bracket(key, centres):
 
 class ModelClim:
     """The lead-dependent GEPS8 climatology on the 2.5 deg grid with the size of each pool, so that a season can be
-    taken out of it: centre k is the mean of the N_k file entries whose raw day of year is within CLIM_HALF of it."""
+    taken out of it: centre k is the mean of the N_k starts whose common-year day is within CLIM_HALF of it."""
 
     def __init__(self, tag):
         c = xr.open_dataset(CLIM / f"geps8_clim_{tag}.nc")
+        if (c.attrs.get("doy_key"), c.attrs.get("starts")) != (build_clim.CALENDAR, build_clim.STARTS):
+            raise SystemExit(
+                f"geps8_clim_{tag}.nc predates the common-year, each-start-once pools: rerun build_clim.py"
+            )
         cv = c[next(v for v in c.data_vars if v != "n_starts")].squeeze(drop=True).load()
         cv = xr.concat([cv, cv.isel(X=0).assign_coords(X=360.0)], dim="X")
         cv = cv.interp(Y=LAT25, X=LON25).transpose("doy", "L", "Y", "X")
@@ -121,11 +133,11 @@ class ModelClim:
         self.L = cv.L.values
         self.centres = cv.doy.values.astype("float64")
         self.N = c["n_starts"].values.astype("float64")
-        self.seen = np.zeros_like(self.N)  # entries met while scoring: must equal N
+        self.seen = np.zeros_like(self.N)  # starts met while scoring: must equal N
         c.close()
 
     def at(self, s0, mates):
-        """(in-sample, leave-one-year-out) climatology for a start: mates = [(raw doy, field)] of the file entries
+        """(in-sample, leave-one-year-out) climatology for a start: mates = [(day-of-year key, field)] of the starts
         within SEASON days of it."""
         k0, k1, w = bracket(float(noleap_doy(s0)), self.centres)
         full, out = 0.0, 0.0
@@ -157,8 +169,8 @@ def season_left_out(days, X, keys, dates):
 
 def era5_leave_out(tag, dates):
     """E_0120 without the valid date's own season, minus E_0120, on the 2.5 deg grid, for every date in `dates`
-    (season_left_out), from the store and days the normal in use was built from: windows on the raw day of year,
-    2001-2020; checked against that normal."""
+    (season_left_out), from the store and days the normal in use was built from: common-year-day windows, 2001-2020;
+    checked against that normal."""
     var, mul, _ = era5.VARS[tag]
     step = ERA5_SAMPLE[tag]
     days, fields = [], []
@@ -173,58 +185,38 @@ def era5_leave_out(tag, dates):
         days.append(t[keep])
         d.close()
     days = pd.DatetimeIndex(np.concatenate(days))
-    out, E = season_left_out(days, np.concatenate(fields), raw_doy(days), dates)
-    ref = xr.open_dataset(CLIM / ("era5_clim_2001-2020.nc" if tag == "zg500" else "era5_clim_sfc_2001-2020.nc"))[tag]
+    out, E = season_left_out(days, np.concatenate(fields), noleap_doy(days), dates)
+    ref = xr.open_dataset(CLIM / ERA5_NORMAL[tag])[tag]
     ref = ref.sortby("lat", ascending=False)
     ref = xr.concat([ref, ref.isel(lon=0).assign_coords(lon=360.0)], dim="lon").interp(lat=LAT25, lon=LON25)
     err = E - ref.values
     print(
         f"  ERA5 2001-2020 {tag} normal rebuilt from {len(days)} store days: vs the normal in use "
-        f"rms {np.sqrt(np.nanmean(err**2)):.3g}, max |d| {np.nanmax(np.abs(err)):.3g} (Pa or m)",
+        f"rms {np.sqrt(np.nanmean(err**2)):.3g}, max |d| {np.nanmax(np.abs(err)):.3g} (file units)",
         flush=True,
     )
     return out
 
 
-@functools.cache
-def regimes():
-    from regimes_geps import Regimes
-
-    return Regimes()
-
-
-def regime_labels(an, S, L):
-    """Regime of the hindcast ensemble mean at every lead, per sector, using
-    the regime set of the START's season (held for the whole forecast, as
-    in the live product). an: (L, 73, 144) de-drifted, re-based z500."""
-    from regimes_geps import sector_cut, running_partial, season_of, SECTORS
-
-    rg = regimes()
-    season = season_of(S.month)
-    da = xr.DataArray(an, dims=("L", "latitude", "longitude"), coords={"L": L, "latitude": LAT25, "longitude": LON25})
-    out = {}
-    for sk in SECTORS:
-        sec = sector_cut(da, SECTORS[sk])
-        v = running_partial(sec.values, 5, axis=0)
-        lab, _ = rg.classify(v, sk, season)
-        out[sk] = lab.astype("int8")
-    return out
-
-
-def coarse(path):
-    """One monthly hindcast file on the 2.5 deg grid: (starts, leads, (S, L, 73, 144) float32 in the file's units)."""
+def coarse(job):
+    """The starts `keep` of one monthly hindcast file on the 2.5 deg grid: (starts, leads, (S, L, 73, 144) float32 in
+    the file's units)."""
+    path, keep = job
     ds = xr.open_dataset(path)
-    a = ds[next(iter(ds.data_vars))].squeeze(drop=True).transpose("S", "L", "Y", "X").load().astype("float32")
+    a = ds[next(iter(ds.data_vars))].isel(S=keep)
+    if "P" in a.dims:
+        a = a.isel(P=0, drop=True)
+    a = a.transpose("S", "L", "Y", "X").load().astype("float32")
     ds.close()
     a = xr.concat([a, a.isel(X=0).assign_coords(X=360.0)], dim="X")
     return pd.DatetimeIndex(a.S.values), a.L.values, a.interp(Y=LAT25, X=LON25).values.astype("float32")
 
 
-def in_order(paths, workers):
+def in_order(jobs, workers):
     """coarse() over the files in order, at most 2 x workers in flight (each result is ~30 MB)."""
     with ProcessPoolExecutor(max_workers=workers) as ex:
-        it = iter(paths)
-        pend = deque(ex.submit(coarse, p) for p in itertools.islice(it, 2 * workers))
+        it = iter(jobs)
+        pend = deque(ex.submit(coarse, j) for j in itertools.islice(it, 2 * workers))
         while pend:
             r = pend.popleft().result()
             nxt = next(it, None)
@@ -233,62 +225,73 @@ def in_order(paths, workers):
             yield r
 
 
-def score_tag(tag, workers, want_regimes):
-    """{index: {start: (L,) leave-one-year-out index}}, the same in sample, regime labels by start, leads."""
-    pat = patterns()
-    ids = [i for i in pat.ids if pat.meta[i]["field"] == ("z500" if tag == "zg500" else "slp")]
+def anomalies(tag, workers, rebase=True, limit=0):
+    """Every hindcast start of one field once, in date order, de-drifted as the live product does it, on the 2.5 deg
+    grid in the file's units: yields (start, leads L, valid dates, in-sample anomaly, leave-one-year-out anomaly), the
+    anomalies (L, 73, 144) float64. In sample F - M + shift; leave-one-year-out F - M_out + shift + (E_0120 out -
+    E_0120), the ERA5 terms at the valid date and only when `rebase` (the field is re-based to 1991-2020 live).
+    limit: the first `limit` monthly files only (a smoke test; the pool sizes then go unchecked)."""
     mc = ModelClim(tag)
-    shift = period_shift(tag)
-    files = sorted(STORE.glob(f"geps8_{tag}_*.nc"))
+    jobs = build_clim.entries(tag)
+    if limit:
+        jobs = jobs[:limit]
     d0 = pd.Timestamp(Y0, 1, 1)
-    vdates = pd.date_range(d0, pd.Timestamp(Y1 + 1, 3, 1))
-    t0 = time.time()
-    dE = era5_leave_out(tag, vdates)
-    print(f"  {tag}: ERA5 leave-out fields for {len(vdates)} valid dates ({time.time() - t0:.0f} s)", flush=True)
-    cv, ins, reg, done = {i: {} for i in ids}, {i: {} for i in ids}, {}, set()
+    shift = dE = None
+    if rebase:
+        shift = period_shift(tag)
+        t0 = time.time()
+        dE = era5_leave_out(tag, pd.date_range(d0, pd.Timestamp(Y1 + 1, 3, 1)))
+        print(f"  {tag}: ERA5 leave-out fields ({time.time() - t0:.0f} s)", flush=True)
     months = deque(maxlen=3)  # the month being scored and its neighbours: every pool mate is within 20 days
 
-    def score(m):
+    def month(m):
         S, L, X = months[m]
-        mates = [(s, d, x) for S_, _, X_ in months for s, d, x in zip(S_, raw_doy(S_), X_)]
+        mates = [(s, k, x) for S_, _, X_ in months for s, k, x in zip(S_, noleap_doy(S_), X_)]
         for si, s0 in enumerate(S):
-            if s0 in done:  # the second file entry of a start that two monthly files both hold
-                continue
-            done.add(s0)
-            own = [(d, x) for s, d, x in mates if abs((s - s0).days) <= SEASON]
-            full, out = mc.at(s0, own)
+            full, out = mc.at(s0, [(k, x) for s, k, x in mates if abs((s - s0).days) <= SEASON])
             valid = s0 + pd.to_timedelta(np.floor(L).astype(int), unit="D")  # L = 0.5 is the start date itself
-            sh = at_doy(shift, valid) if shift is not None else 0.0
-            pair = np.stack([X[si] - full + sh, X[si] - out + sh + dE[(valid - d0).days]])  # (2, L, 73, 144)
-            if tag == "mslp":
-                pair = pair * 0.01  # Pa -> hPa, the patterns' units
-            ok = np.isfinite(pair).all(axis=(0, 2, 3))
-            if not ok.any():
-                continue
-            mo = np.tile(valid.month.values[ok], 2)
-            dy = np.tile(noleap_doy(valid)[ok], 2)
-            for i in ids:
-                v = np.full((2, L.size), np.nan, "float32")
-                v[:, ok] = pat.index(i, pair[:, ok].reshape(-1, *pair.shape[2:]), mo, dy).reshape(2, -1)
-                ins[i][s0], cv[i][s0] = v
-            if want_regimes and tag == "zg500" and ok.all():
-                reg[s0] = regime_labels(pair[1], s0, L)
+            a_in, a_out = X[si] - full, X[si] - out
+            if rebase:
+                sh = at_doy(shift, valid)
+                a_in, a_out = a_in + sh, a_out + sh + dE[(valid - d0).days]
+            yield s0, L, valid, a_in, a_out
 
-    for n, (S, L, X) in enumerate(in_order(files, workers), 1):
+    t0 = time.time()
+    for n, (S, L, X) in enumerate(in_order(jobs, workers), 1):
         months.append((S, L, X))
-        mc.seen += [pooled(raw_doy(S), c, CLIM_HALF).sum() for c in mc.centres]
+        mc.seen += [pooled(noleap_doy(S), c, CLIM_HALF).sum() for c in mc.centres]
         if len(months) >= 2:
-            score(len(months) - 2)
-        if n % 20 == 0 or n == len(files):
+            yield from month(len(months) - 2)
+        if n % 20 == 0 or n == len(jobs):
             el = time.time() - t0
             print(
-                f"  {tag} {n}/{len(files)}  {el / 60:.1f} min  ~{(len(files) - n) * el / n / 60:.0f} min left",
-                flush=True,
+                f"  {tag} {n}/{len(jobs)}  {el / 60:.1f} min  ~{(len(jobs) - n) * el / n / 60:.0f} min left", flush=True
             )
-    score(len(months) - 1)
-    if not np.array_equal(mc.seen, mc.N):
+    yield from month(len(months) - 1)
+    if not limit and not np.array_equal(mc.seen, mc.N):
         raise SystemExit(f"{tag}: pool sizes {mc.seen} differ from the climatology's n_starts {mc.N}")
-    return cv, ins, reg, mc.L
+
+
+def score_tag(tag, workers):
+    """{index: {start: (L,) leave-one-year-out index}}, the same in sample, leads."""
+    pat = patterns()
+    ids = [i for i in pat.ids if pat.meta[i]["field"] == ("z500" if tag == "zg500" else "slp")]
+    cv, ins, L_ref = {i: {} for i in ids}, {i: {} for i in ids}, None
+    for s0, L, valid, a_in, a_out in anomalies(tag, workers):
+        L_ref = L
+        pair = np.stack([a_in, a_out])  # (2, L, 73, 144)
+        if tag == "mslp":
+            pair = pair * 0.01  # Pa -> hPa, the patterns' units
+        ok = np.isfinite(pair).all(axis=(0, 2, 3))
+        if not ok.any():
+            continue
+        mo = np.tile(valid.month.values[ok], 2)
+        dy = np.tile(noleap_doy(valid)[ok], 2)
+        for i in ids:
+            v = np.full((2, L.size), np.nan, "float32")
+            v[:, ok] = pat.index(i, pair[:, ok].reshape(-1, *pair.shape[2:]), mo, dy).reshape(2, -1)
+            ins[i][s0], cv[i][s0] = v
+    return cv, ins, L_ref
 
 
 def observed_series(pat, years):
@@ -309,71 +312,10 @@ def observed_series(pat, years):
     return out
 
 
-def write_regime_hindcast(regs, L):
-    """Pair the hindcast-mean regimes with the observed regime on the valid
-    day (NCEP daily z500, classified with the START's season set) and the
-    observed regime at init, for hit rates by lead."""
-    from regimes_geps import Regimes, sector_cut, running_partial, season_of, SECTORS, K
-    import build_telecon_patterns as b
-
-    rg = Regimes()
-    zd = b.daily("hgt", list(range(Y0, Y1 + 2)), 500)
-    t = pd.DatetimeIndex(zd.time.values)
-    an = zd.values - at_doy(ncep_normal("z500"), t)
-    da = xr.DataArray(
-        an,
-        dims=("time", "latitude", "longitude"),
-        coords={"time": t, "latitude": zd.lat.values, "longitude": zd.lon.values},
-    )
-    obs = {}
-    for sk in SECTORS:
-        sec = sector_cut(da, SECTORS[sk])
-        v = running_partial(sec.values, 5, axis=0)
-        for season in ("cold", "warm"):
-            lab, _ = rg.classify(v, sk, season)
-            obs[(sk, season)] = pd.Series(lab.astype("int8"), index=t)
-    starts = pd.DatetimeIndex(sorted(regs))
-    valid_day = np.ceil(L).astype(int)
-    data = {}
-    for sk in SECTORS:
-        F = np.full((len(starts), len(L)), -1, "int8")
-        O = F.copy()
-        O0 = np.full(len(starts), -1, "int8")
-        for i, s0 in enumerate(starts):
-            season = season_of(s0.month)
-            F[i] = regs[s0][sk]
-            o = obs[(sk, season)]
-            vd = s0 + pd.to_timedelta(valid_day - 1, unit="D")
-            O[i] = o.reindex(vd).fillna(-1).values.astype("int8")
-            O0[i] = int(o.get(s0, -1))
-        data[f"fc_{sk}"] = (("S", "L"), F)
-        data[f"ob_{sk}"] = (("S", "L"), O)
-        data[f"ob0_{sk}"] = (("S",), O0)
-    ds = xr.Dataset(data, coords={"S": starts.values, "L": L})
-    ds.attrs.update(
-        note=f"regime index 0..{K - 1} per telecon/regime_names.json, {K} = no regime, -1 = missing; "
-        "season set of the start held for the whole forecast; obs = NCEP R1 daily z500; hindcast mean de-drifted "
-        "leave-one-year-out"
-    )
-    ds.to_netcdf(TC / "regime_hindcast.nc")
-    for sk in SECTORS:
-        F, O = data[f"fc_{sk}"][1], data[f"ob_{sk}"][1]
-        ok = (F >= 0) & (O >= 0)
-        hit = [np.mean((F[:, k] == O[:, k])[ok[:, k]]) for k in (0, 6, 13, 20, 27)]
-        print(f"  regimes {sk}: hit rate day 1/7/14/21/28 " + " ".join(f"{h:.2f}" for h in hit), flush=True)
-
-
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--tags", default="zg500,mslp")
-    ap.add_argument(
-        "--regimes",
-        action="store_true",
-        help="also record the ensemble-mean weather regime per sector and lead, and the "
-        "observed regime on the valid day -> telecon/regime_hindcast.nc",
-    )
-    ap.add_argument("--regimes-only", action="store_true", help="skip the index file (zg500 only)")
     ap.add_argument(
         "--merge",
         action="store_true",
@@ -381,18 +323,15 @@ def main() -> int:
         "not recompute (e.g. --tags mslp after adding an slp index)",
     )
     a = ap.parse_args()
-    if a.regimes_only:
-        a.regimes, a.tags = True, "zg500"
     pat = patterns()
     t0 = time.time()
     obs = observed_series(pat, list(range(Y0, Y1 + 2)))
     print(f"observed indices: {len(obs)} series, {time.time() - t0:.0f} s", flush=True)
-    fc, fc_in, regs, L_ref = {}, {}, {}, None
+    fc, fc_in, L_ref = {}, {}, None
     for tag in a.tags.split(","):
-        cv, ins, reg, L_ref = score_tag(tag, a.workers, a.regimes)
+        cv, ins, L_ref = score_tag(tag, a.workers)
         fc.update(cv)
         fc_in.update(ins)
-        regs.update(reg)
     ids = list(fc)
     S_union = np.array(sorted({s for i in ids for s in fc[i]}), dtype="datetime64[ns]")
     F = np.full((len(ids), S_union.size, L_ref.size), np.nan, "float32")
@@ -413,7 +352,8 @@ def main() -> int:
         source="GEPS8 hindcast ensemble mean vs NCEP/NCAR R1, indices per telecon/patterns.nc",
         note="anomalies de-drifted against the lead-matched GEPS8 climatology and re-based to 1991-2020 as in the "
         "live product, LEAVE-ONE-YEAR-OUT: the climatology and the ERA5 2001-2020 normal of the re-basing without "
-        f"the scored start's own season (pool members within {SEASON} days); obs at the valid date of each lead",
+        f"the scored start's own season (pool members within {SEASON} days); each start once, common-year day of "
+        "year; obs at the valid date of each lead",
         dedrift="leave-one-year-out",
     )
     TC.mkdir(exist_ok=True)
@@ -433,10 +373,7 @@ def main() -> int:
             # concat keeps the first file's fixed-width string dtype ('eqsoi' became 'eqso')
             ds = ds.assign_coords(index=np.array([str(i) for i in keep] + list(ids), dtype=object))
             print(f"  merged: kept {keep} from the existing file, recomputed {ids}")
-    if not a.regimes_only:
-        ds.to_netcdf(q)
-    if a.regimes and regs:
-        write_regime_hindcast(regs, L_ref)
+    ds.to_netcdf(q)
     print("  daily r, in sample -> leave-one-year-out, days 1/7/14/21/28/35")
     for ii, i in enumerate(ids):
         r = []

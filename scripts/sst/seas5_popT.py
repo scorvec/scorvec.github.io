@@ -52,12 +52,13 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+from localdirs import env_dir
 from seas5_outlook import ASSETS, DATA, CENTRE, SYSTEM, _client, hc_path, nleads, previous_issues
 from seas5_build import valid_months
 import seas5_ref as R
 
 SIXH = DATA / "sixh"
-POP_FILE = Path.home() / "c3s" / "data" / "pop" / "cities15000.txt"  # obs_popT_pop derivation only (offline)
 OUT_JSON = ASSETS / "data" / "seas5_popT.json"
 
 REGIONS = {
@@ -197,7 +198,7 @@ def pop_grid_from_file(region: str, lat: np.ndarray, lon: np.ndarray) -> np.ndar
     _, cc, area, _ = REGIONS[region]
     grid = np.zeros((lat.size, lon.size))
     n = 0
-    with open(POP_FILE, encoding="utf-8") as fh:
+    with open(env_dir("DATA_ARCHIVE", "geonames", "cities15000.txt"), encoding="utf-8") as fh:
         for line in fh:
             f = line.rstrip("\n").split("\t")
             if len(f) < 15 or f[8] != cc or f[6] != "P" or f[7] not in PPL_CODES:

@@ -13,6 +13,7 @@ permissions:
 
 env:
   PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  MJO_CACHE: /tmp/mjo_cache     # the builders' download cache (scripts/lib/localdirs.py); scratch on the runner
 
 jobs:
   part:

@@ -13,7 +13,6 @@ conservative WB2 grid approximates. First use: DJF 2023/24 for the SEAS5 case st
 """
 
 from __future__ import annotations
-import os
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -22,7 +21,10 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-STORE = Path(os.environ.get("ERA5_STORE", "~/era5_store")).expanduser()
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+from localdirs import env_dir
+
+STORE = env_dir("ERA5_STORE")
 OUT = STORE / "wb2_1p5_daily" / "prcp" / "tail_pieces"
 ARCO = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"
 LAT = np.arange(0.0, 90.01, 1.5)

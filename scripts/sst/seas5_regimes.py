@@ -74,6 +74,8 @@ from quantmet.stats import benjamini_hochberg as bh  # BH-FDR mask
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE.parent / "lib"))
+from localdirs import env_dir
 from seas5_outlook import ASSETS
 from seas5_regimes_fetch import DIR, HC_YEARS, fc_file, fetch_hindcast, hc_files
 import seas5_ref as R
@@ -90,11 +92,6 @@ SECTORS = {
 SEASONS = {"cold": (10, 11, 12, 1, 2, 3), "warm": (4, 5, 6, 7, 8, 9)}
 BOX_LAT = np.arange(80.0, 19.99, -2.5)  # 25
 BOX_LON = np.arange(-170.0, 30.01, 2.5)  # 81
-# offline stores: read only by the OBS_UNITS derivations (seas5_ref.py obs), never by the build
-REG_NC = Path.home() / "data_archive" / "geps_subx" / "telecon" / "regimes.nc"
-REG_NAMES = Path.home() / "data_archive" / "geps_subx" / "telecon" / "regime_names.json"
-REG_NPZ = Path.home() / "data_archive" / "gefs_ref" / "gefs_patterns_ref.npz"
-ERA5 = Path.home() / "era5_store" / "wb2_1p5_daily" / "z500"
 ERA5_Y0 = 1959
 TREND_YEARS = (1979, 2025)
 STRONG = [1965, 1972, 1982, 1986, 1991, 1997, 2009, 2015]  # RONI >= 1.5 in NDJ or DJF (cpc_official.json)
@@ -131,36 +128,38 @@ def load_regimes():
 
 def derive_obs_centroids() -> None:
     """obs_regimes_centroids from the subseasonal regime store (offline, once)."""
-    cent, names = _load_regimes_store()
+    cent, names, src = _load_regimes_store()
     arrs = {}
     for (sk, s), (c, lat, lon) in cent.items():
         arrs[f"c_{sk}_{s}"], arrs[f"lat_{sk}_{s}"], arrs[f"lon_{sk}_{s}"] = c, lat, lon
     R.save(
         R.obs_ref("regimes_centroids"),
-        meta=dict(
-            names={f"{sk}_{s}": v for (sk, s), v in names.items()}, source=str(REG_NC if REG_NC.exists() else REG_NPZ)
-        ),
+        meta=dict(names={f"{sk}_{s}": v for (sk, s), v in names.items()}, source=str(src)),
         **arrs,
     )
 
 
 def _load_regimes_store():
-    """{(sector, set): (centroids (K, lat, lon), lat, lon)}, names {(sector, set): [K names]}."""
+    """{(sector, set): (centroids (K, lat, lon), lat, lon)}, names {(sector, set): [K names]}, and the file read: the
+    subseasonal regime store (offline, under $DATA_ARCHIVE; read only by the OBS_UNITS derivations, never by the build)."""
+    reg_nc = env_dir("DATA_ARCHIVE", "geps_subx", "telecon", "regimes.nc")
+    reg_npz = env_dir("DATA_ARCHIVE", "gefs_ref", "gefs_patterns_ref.npz")
+    reg_names = env_dir("DATA_ARCHIVE", "geps_subx", "telecon", "regime_names.json")
     cent = {}
-    if REG_NC.exists():
+    if reg_nc.exists():
         import xarray as xr
 
-        ds = xr.open_dataset(REG_NC)
+        ds = xr.open_dataset(reg_nc)
         for sk in SECTORS:
             for s in SEASONS:
                 c = ds[f"{sk}_{s}"]
                 cent[(sk, s)] = (c.values.astype("float64"), c[f"lat_{sk}"].values, c[f"lon_{sk}"].values)
     else:
-        d = np.load(REG_NPZ)
+        d = np.load(reg_npz)
         for sk in SECTORS:
             for s in SEASONS:
                 cent[(sk, s)] = (d[f"reg_{sk}_{s}"].astype("float64"), d[f"reg_lat_{sk}"], d[f"reg_lon_{sk}"])
-    raw = json.loads(REG_NAMES.read_text()) if REG_NAMES.exists() else {}
+    raw = json.loads(reg_names.read_text()) if reg_names.exists() else {}
     names = {(sk, s): [raw.get(f"{sk}_{s}_{k}", f"R{k + 1}") for k in range(K)] for sk in SECTORS for s in SEASONS}
     for (sk, s), (_c, lat, lon) in cent.items():  # the box must contain the sector grid exactly
         assert np.allclose(lat, BOX_LAT) and np.isin(np.round(lon, 3), np.round(BOX_LON, 3)).all(), (sk, s)
@@ -231,7 +230,7 @@ def era5_box(any_cache: bool = False):
     if any_cache and cache.exists():
         d = np.load(cache, allow_pickle=True)
         return pd.DatetimeIndex(d["dates"]), d["z"]
-    files = sorted(ERA5.glob("z500_*.nc"))
+    files = sorted(env_dir("ERA5_STORE", "wb2_1p5_daily", "z500").glob("z500_*.nc"))
     stamp = f"{len(files)}:{int(files[-1].stat().st_mtime)}"
     if cache.exists():
         d = np.load(cache, allow_pickle=True)

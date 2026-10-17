@@ -11,7 +11,10 @@ import xarray as xr
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from c2 import YEARS, MONTHS, OUT, weekly
 
-ED = os.path.expanduser("~/era5_store") + "/wb2_1p5_daily/{v}/{v}_{y}.nc"
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "lib"))
+from localdirs import env_dir
+
+ED = str(env_dir("ERA5_STORE", "wb2_1p5_daily")) + "/{v}/{v}_{y}.nc"
 EV = {"t2m": "t2m", "z500": "z500", "pr": "prcp"}
 LAT = np.arange(0.0, 90.0 + 1e-6, 1.5)
 LON = np.arange(0.0, 360.0 - 1e-6, 1.5)

@@ -17,12 +17,16 @@ Grid: the GEFS page's 1.5 deg grid (gefs_reforecast.LAT 90..-90, LON 0..358.5), 
 
 import argparse
 import datetime as dt
+import sys
 from pathlib import Path
 
 import numpy as np
 import xarray as xr
 
-STORE = Path("~/era5_store").expanduser()
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+from localdirs import env_dir
+
+STORE = env_dir("ERA5_STORE")
 WEEKS = [(1, 7), (8, 14), (15, 21), (22, 28), (29, 35), (36, 42)]
 YEARS = list(range(1991, 2026))
 LAT = np.arange(90.0, -90.0 - 1e-6, -1.5)
