@@ -285,7 +285,7 @@
 <main id="main">
   <div class="page-header">
   <h1>MJO forecast from the AIFS ensemble</h1>
-    <p class="sub" style="margin-bottom:1rem">Latest init: <strong>2026-10-16 12Z</strong>. ENSO is changing fast (&Delta;Ni&ntilde;o-3.4 +0.97&nbsp;&deg;C over the 120-day filter window), which projects onto the standard RMM, so the forecast with the ENSO signal removed comes first. The rail also has the standard AIFS-ENS forecast and what each phase has meant for temperature, rain and the flow.</p>
+    <p class="sub" style="margin-bottom:1rem">Latest init: <strong>2026-10-17 00Z</strong>. ENSO is changing fast (&Delta;Ni&ntilde;o-3.4 +0.97&nbsp;&deg;C over the 120-day filter window), which projects onto the standard RMM, so the forecast with the ENSO signal removed comes first. The rail also has the standard AIFS-ENS forecast and what each phase has meant for temperature, rain and the flow.</p>
 
   </div>
   <div class="ss-layout">
@@ -305,11 +305,11 @@
 
   <section id="mjo-clean" style="max-width:min(100%, calc((88vh - 70px) * 1259 / 1140));margin:2.5rem auto 0">
   <h2>MJO with the El Ni&ntilde;o signal removed</h2>
-  <p style="font-size:0.95rem;line-height:1.55;margin:0.4rem 0 0.8rem"><b>No coherent MJO in the ENSO-removed forecast:</b> ensemble-mean amplitude 0.6 (max 1.5) and a phase speed of +5.3&deg;/day, where a real MJO moves at about +7&deg;/day. NOAA&rsquo;s OLR-based ROMI on 2026-10-12: amplitude 1.27, phase 2; over the last 60 days 26&nbsp;% of days reached amplitude 1. Correction applied: &Delta;Ni&ntilde;o-3.4 = +0.97&nbsp;&deg;C.</p>
+  <p style="font-size:0.95rem;line-height:1.55;margin:0.4rem 0 0.8rem"><b>No coherent MJO in the ENSO-removed forecast:</b> ensemble-mean amplitude 0.7 (max 1.4) and a phase speed of -1.5&deg;/day, where a real MJO moves at about +7&deg;/day. NOAA&rsquo;s OLR-based ROMI on 2026-10-12: amplitude 1.27, phase 2; over the last 60 days 26&nbsp;% of days reached amplitude 1. Correction applied: &Delta;Ni&ntilde;o-3.4 = +0.97&nbsp;&deg;C.</p>
   <p style="color:var(--muted);font-size:0.95rem;line-height:1.55;margin:0 0 1rem">Since 2014 the standard RMM no longer removes ENSO; in a strong El Ni&ntilde;o its standing
   convection projects onto phases 7&ndash;8 and masquerades as a stalled MJO. This is the same AIFS-ENS forecast
   (wind-only), observed track and IFS overlay with the part tied to the Ni&ntilde;o-3.4 change removed. Latest init:
-  <strong>2026-10-16 12Z</strong>.</p>
+  <strong>2026-10-17 00Z</strong>.</p>
   <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;base=assets&amp;manifest=mjo/rmmclean_manifest.json&amp;region=mjo"
     title="ENSO-removed wind-only RMM — successive runs animation" loading="lazy"></iframe>
   <details style="margin-top:1rem;font-size:0.92rem"><summary style="cursor:pointer;color:var(--accent)">How the El Ni&ntilde;o signal is removed</summary>
@@ -468,12 +468,12 @@
   The observed track is ERA5 up to mid-July 2026 and, since then, the AIFS-ENS
   control at step 0 of each 00Z and 12Z run (wind-only, verified within a few
   degrees of the official BoM RMM phase).</p>
-  <p class="chart-sources">Updated 2026-10-16 21:31Z · Auto-generated from the AIFS-ENS and IFS-ENS open data, &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use.
+  <p class="chart-sources">Updated 2026-10-17 08:53Z · Auto-generated from the AIFS-ENS and IFS-ENS open data, &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use.
   Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
   NCEP wind with the 120-day low-frequency filter removed; pseudo-OLR from
   &minus;standardized daily precip vs an ERA5 1991&ndash;2020 band climatology.</p>
   </template>
-  <p class="meta">Updated 2026-10-16 21:31Z · Auto-generated from the AIFS-ENS open-data feed.</p>
+  <p class="meta">Updated 2026-10-17 08:53Z · Auto-generated from the AIFS-ENS open-data feed.</p>
 </main>
 <script>
 window.STAGE = { groups: [{"label": "Forecast", "items": [["clean", "ENSO-removed index", "the ENSO signal taken out"], ["rmm", "RMM forecast", "standard index, ENSO not removed"]]}, {"label": "Impacts", "items": [["mi", "Impacts by phase and season", "CMIP6 and observed composites"]]}],
@@ -482,7 +482,7 @@ window.STAGE = { groups: [{"label": "Forecast", "items": [["clean", "ENSO-remove
     rmm: { label: "AIFS-ENS RMM forecast (ENSO not removed), successive runs", about: "about-rmm",
            frame: function () { return "sst_anim.html?embed=1&base=assets&manifest=mjo/rmm_manifest.json&region=mjo"; },
            ratio: function () { return "1259/1210"; },
-           cap: function () { return "<b>ENSO not removed.</b> With the ENSO signal taken out (&Delta;Ni&ntilde;o-3.4 +0.97&nbsp;&deg;C) there is no coherent MJO in this forecast: ensemble-mean amplitude 0.6 and a phase speed of +5.3&deg;/day, where a real MJO moves at about +7&deg;/day. A large or slow track in this diagram is most likely the ENSO change projecting onto the index, not an MJO. Drag the slider to step through successive forecast runs (oldest to latest) and watch the predicted MJO track evolve."; } },
+           cap: function () { return "<b>ENSO not removed.</b> With the ENSO signal taken out (&Delta;Ni&ntilde;o-3.4 +0.97&nbsp;&deg;C) there is no coherent MJO in this forecast: ensemble-mean amplitude 0.7 and a phase speed of -1.5&deg;/day, where a real MJO moves at about +7&deg;/day. A large or slow track in this diagram is most likely the ENSO change projecting onto the index, not an MJO. Drag the slider to step through successive forecast runs (oldest to latest) and watch the predicted MJO track evolve."; } },
     clean: { label: "MJO with the El Niño signal removed", dom: function () { return "mjo-clean"; } },
     mi: { label: "MJO impacts by phase and season", ownHash: true, dom: function () { return "mjo-impacts"; } }
   }
