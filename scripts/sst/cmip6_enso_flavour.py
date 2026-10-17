@@ -271,7 +271,7 @@ def own_ec(f: np.ndarray, months: list[str], nd: np.ndarray, eof: dict) -> tuple
     ok = np.isfinite(X).all(1)
     _, _, Vt = np.linalg.svd(X[ok], full_matrices=False)
     pc = X @ Vt[:2].T
-    pc *= np.sign([Vt[0] @ eof["e1"], Vt[1] @ eof["e2"]])
+    pc *= np.where(np.array([Vt[0] @ eof["e1"], Vt[1] @ eof["e2"]]) < 0, -1.0, 1.0)
     pc = (pc - np.nanmean(pc, 0)) / np.nanstd(pc, 0)
     E, C = (pc[:, 0] - pc[:, 1]) / np.sqrt(2), (pc[:, 0] + pc[:, 1]) / np.sqrt(2)
     return djf(E, months, nd), djf(C, months, nd)

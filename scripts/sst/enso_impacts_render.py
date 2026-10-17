@@ -2,15 +2,17 @@
 """ENSO impacts on the Americas for the El Nino monitor (enso.html, "Impacts on the Americas").
 
 Draws the committed reference scripts/sst/reference/enso_impacts_site.{npz,json} (written offline by
-cmip6_enso_site.py from the CMIP6 study cmip6_enso_impacts.py) into one map per view, so the stage viewer switches
-variable / season / class instead of shrinking a poster. Runs in .github/workflows/enso-impacts.yml on a push of the
-reference or this file - never on a schedule.
+cmip6_enso_site.py from the CMIP6 study cmip6_enso_impacts.py), and the other enso_*_site and enso_flavour_impacts_*
+references beside it, into one map per view, so the stage viewer switches variable / season / class instead of
+shrinking a poster. Runs in .github/workflows/enso-impacts.yml on a push of a reference or this file - never on a
+schedule. A figure of a view it no longer draws is deleted.
 
 Significance: a map is shaded only where its test passes; everything else is left blank and the
 test is printed on the figure. CMIP6: across-model one-sample t-test, Benjamini-Hochberg FDR 10 % over the map, AND
->= 80 % of the models agreeing on the sign. Observed composites: Welch t-test against neutral seasons, FDR 10 %, drawn
-only for classes with >= 8 observed events. Observed regressions: OLS t-test, FDR 10 %. Observed super El Nino
-lifecycle: the 3-event observed composite placed among 100,000 3-event composites drawn from the models, FDR 10 %.
+>= 80 % of the models agreeing on the sign; a single model's map (east-based vs central): its own test across its
+events, FDR 10 %. Observed composites: Welch t-test against neutral seasons, FDR 10 %, drawn only for classes with >= 8
+observed events. Observed regressions: OLS t-test, FDR 10 %. Observed super El Nino lifecycle: the 3-event observed
+composite placed among 100,000 3-event composites drawn from the models, FDR 10 %.
 
     python scripts/sst/enso_impacts_render.py            # -> assets/sst/enso_imp_*.webp + assets/sst/data/enso_impacts.json
 """
@@ -78,13 +80,33 @@ def _plt():
     return plt
 
 
+def _colours(cmap, levels):
+    """The site's map colours: the colormap without its two darkest ends, binned on `levels`."""
+    from matplotlib.colors import BoundaryNorm, ListedColormap
+
+    cm = ListedColormap(_plt().get_cmap(cmap)(np.linspace(0.06, 0.94, 256)))
+    return cm, BoundaryNorm(levels, cm.N, extend="both")
+
+
+def _upsampled(field, sig, lat, lon, factor):
+    """The field where `sig`, NaN elsewhere, bilinearly upsampled `factor` times together with its pass/fail mask, so the
+    edge of the tested region follows the grid-cell boundaries smoothly instead of as a staircase; a point is kept where
+    the interpolated mask is >= 0.5, i.e. nearer to passing cells than to failing ones. -> (lon, lat, field)."""
+    from scipy.ndimage import zoom
+
+    fz = zoom(np.where(np.isfinite(field), field, 0.0), factor, order=1)
+    mz = zoom((sig & np.isfinite(field)).astype(float), factor, order=1)
+    show = np.where(mz >= 0.5, fz, np.nan)
+    return np.linspace(lon[0], lon[-1], fz.shape[1]), np.linspace(lat[0], lat[-1], fz.shape[0]), show
+
+
 def draw_map(path, field, sig, lat, lon, levels, cmap, unit, title, sub, foot, dry=None, extent=None, note_empty=None):
     """One map: the field shaded only where `sig`, blank elsewhere; dry cells (no % of normal) hatched."""
     plt = _plt()
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
     import textwrap
-    from matplotlib.colors import BoundaryNorm, ListedColormap
+    from scipy.ndimage import zoom
 
     ext = extent or EXT
     pc = ccrs.PlateCarree()
@@ -103,21 +125,8 @@ def draw_map(path, field, sig, lat, lon, levels, cmap, unit, title, sub, foot, d
     ax = fig.add_axes([AX0, bot / H, AXW, mh / H], projection=pc)
     ax.set_extent(ext, crs=pc)
     ax.add_feature(cfeature.LAND, facecolor="#f1f0eb", zorder=0)
-    lo = np.where(lon > 180, lon - 360, lon)
-    base = plt.get_cmap(cmap)(np.linspace(0.06, 0.94, 256))
-    cm = ListedColormap(base)
-    norm = BoundaryNorm(levels, cm.N, extend="both")
-    # 4x bilinear upsampling of the field and of the pass/fail mask, so the edge of the tested region follows the
-    # grid-cell boundaries smoothly instead of as a 2.5-degree staircase; a point is shaded where the interpolated mask
-    # is >= 0.5, i.e. nearer to passing cells than to failing ones
-    from scipy.ndimage import zoom
-
-    ok = sig & np.isfinite(field)
-    fz = zoom(np.where(np.isfinite(field), field, 0.0), 4, order=1)
-    mz = zoom(ok.astype(float), 4, order=1)
-    la = np.linspace(lat[0], lat[-1], fz.shape[0])
-    lz = np.linspace(lo[0], lo[-1], fz.shape[1])
-    show = np.where(mz >= 0.5, fz, np.nan)
+    cm, norm = _colours(cmap, levels)
+    lz, la, show = _upsampled(field, sig, lat, np.where(lon > 180, lon - 360, lon), 4)
     mappable = ax.contourf(lz, la, show, levels=levels, cmap=cm, norm=norm, extend="both", transform=pc, zorder=1)
     if dry is not None:
         dry = ~np.isfinite(field)
@@ -466,7 +475,7 @@ def main() -> int:
         )
         rec(name, key)
     table_figs(meta, made, index)
-    if (REF / "enso_modes_site.npz").exists():
+    if PDO_VIEWS and (REF / "enso_modes_site.npz").exists():
         render_modes(made, index)
     if (REF / "enso_z500_site.npz").exists():
         render_z500(made, index)
@@ -474,13 +483,19 @@ def main() -> int:
         render_pdo_causal(made, index)
     if (REF / "enso_pdo_monthly_site.npz").exists():
         render_pdo_monthly(made, index)
+    if (REF / "enso_flavour_impacts_cmip6.npz").exists() and (REF / "enso_flavour_impacts_obs.npz").exists():
+        render_flavour(made, index)
     import datetime as dt
 
     index["made"] = dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%MZ")
     index["models"], index["members"] = nmod, nmem
     (OUT / "data").mkdir(parents=True, exist_ok=True)
     (OUT / "data" / "enso_impacts.json").write_text(json.dumps(index, separators=(",", ":")))
-    print(f"{len(made)} figures -> {OUT}/enso_imp_*.webp")
+    # a view this run did not draw is retired: its old figure goes (the workflow commits the deletion)
+    stale = [p for p in OUT.glob("enso_imp_*.webp") if p.stem not in set(made)]
+    for p in stale:
+        p.unlink()
+    print(f"{len(made)} figures -> {OUT}/enso_imp_*.webp; {len(stale)} retired")
     return 0
 
 
@@ -503,8 +518,6 @@ def draw_nh(path, field, sig, clim, lat, lon, levels, unit, title, sub, foot, no
     import cartopy.feature as cfeature
     import textwrap
     from cartopy.util import add_cyclic_point
-    from matplotlib.colors import BoundaryNorm, ListedColormap
-    from scipy.ndimage import zoom
 
     pc = ccrs.PlateCarree()
     proj = ccrs.PlateCarree(central_longitude=180)
@@ -523,20 +536,14 @@ def draw_nh(path, field, sig, clim, lat, lon, levels, unit, title, sub, foot, no
     ax = fig.add_axes([AX0, bot / H, AXW, mh / H], projection=proj)
     ax.set_extent([-180, 180, 0, 90], crs=proj)
     ax.add_feature(cfeature.LAND, facecolor="#f1f0eb", zorder=0)
-    base = plt.get_cmap("RdBu_r")(np.linspace(0.06, 0.94, 256))
-    cm = ListedColormap(base)
-    norm = BoundaryNorm(levels, cm.N, extend="both")
+    cm, norm = _colours("RdBu_r", levels)
     ok = sig & np.isfinite(field)
-    f_c, lon_c = add_cyclic_point(np.where(np.isfinite(field), field, 0.0), coord=lon)
-    m_c, _ = add_cyclic_point(ok.astype(float), coord=lon)
-    fz = zoom(f_c, 3, order=1)
-    mz = zoom(m_c, 3, order=1)
-    la = np.linspace(lat[0], lat[-1], fz.shape[0])
-    lz = np.linspace(lon_c[0], lon_c[-1], fz.shape[1])
+    f_c, lon_c = add_cyclic_point(field, coord=lon)
+    lz, la, show = _upsampled(f_c, add_cyclic_point(ok, coord=lon)[0], lat, lon_c, 3)
     mappable = ax.contourf(
         lz,
         la,
-        np.where(mz >= 0.5, fz, np.nan),
+        show,
         levels=levels,
         cmap=cm,
         norm=norm,
@@ -1343,50 +1350,6 @@ def render_z500(made, index):
                 MOD_T,
                 note="No significant signal",
             )
-        for nm in ("E", "C"):
-            lab = "east-based (E)" if nm == "E" else "central-Pacific (C)"
-            for src in ("cmip6", "obs"):
-                key = f"cmip6|{nm}|{s}" if src == "cmip6" else f"obs|{nm}|{s}"
-                f, sg = get(key)
-                e = M.get(key, {})
-                who = "CMIP6" if src == "cmip6" else "ERA5"
-                out(
-                    f"enso_imp_ec_z500_{s}_{nm}_{src}",
-                    key,
-                    f,
-                    sg,
-                    s,
-                    "reg",
-                    "gpm per standard deviation",
-                    f"{who} · {s} 500 hPa height and the {lab} ENSO index",
-                    f"Partial regression on Takahashi's E and C together, per 1 sd of {nm} · "
-                    + (
-                        f"{e['models']} models"
-                        if src == "cmip6"
-                        else f"{e['n']} seasons, {e['span'][0]}–{e['span'][1]}"
-                    )
-                    + f" · {100 * e['sig_frac']:.0f} % of 20–90°N "
-                    + ("robust" if src == "cmip6" else "significant"),
-                    MOD_T if src == "cmip6" else OBS_T,
-                    note="No significant signal",
-                )
-        key = f"cmip6|cmp|{s}|epcp"
-        f, sg = get(key)
-        e = M.get(key, {})
-        out(
-            f"enso_imp_ec_z500_{s}_diff",
-            key,
-            f,
-            sg,
-            s,
-            "comp",
-            "500 hPa height (gpm)",
-            f"CMIP6 · {s} 500 hPa height: east-based minus central-Pacific El Niño",
-            f"Same-strength events: Niño-3.4 {e['x_a']:+.2f} K (east, E > C) vs {e['x_b']:+.2f} K (central) · {e['n_a']:,} vs "
-            f"{e['n_b']:,} events, {e['models']} models · {100 * e['sig_frac']:.0f} % of 20–90°N robust",
-            MOD_T + " Events matched in Niño-3.4 bins (0.5–1, 1–1.5, 1.5–2, ≥ 2 K).",
-            note="No significant difference",
-        )
         for nm in ("free", "raw") if PDO_VIEWS else ():
             for src in ("cmip6", "obs"):
                 key = f"cmip6|{nm}|{s}" if src == "cmip6" else f"obs|{nm}|{s}"
@@ -1628,8 +1591,356 @@ def wave_fig(meta, made, index):
     index["maps"][name] = {"position": pos_out}
 
 
+FLAV = {"east": "east-based", "basin": "basin-wide", "central": "central"}
+FLAV_RULE = {"east": "E − C ≥ 1", "basin": "E − C between −1 and 1", "central": "E − C ≤ −1"}
+FLAV_COL = {"east": "#c0561a", "basin": "#8f8a81", "central": "#1f4e79"}
+FLAV_VAR = {"tas": "temperature", "pr": "precipitation", "z500": "500 hPa height"}
+FLAV_OBS = {"tas": "ERA5", "pr": "GPCP v2.3", "z500": "ERA5"}
+FLAV_UNIT = {
+    "comp": {"tas": UNIT["comp_tas"], "pr": UNIT["comp_pr"], "z500": "500 hPa height anomaly (gpm)"},
+    "reg": {
+        "tas": "K per standard deviation",
+        "pr": "% of normal per standard deviation",
+        "z500": "gpm per standard deviation",
+    },
+}
+FLAV_HOW = (
+    "Classes as on the ENSO forecasts page: Takahashi et al. (2011) E and C on the observed ERSSTv6 patterns; an El Niño "
+    "winter (DJF Niño-3.4 ≥ +0.5 K) is east-based when E − C ≥ 1, central when E − C ≤ −1 and basin-wide between. Every "
+    "run's anomalies are from its own mean of the other winters within ±10 years."
+)
+FLAV_TEST = CMIP_TEST + " A model with fewer than 8 events of a class has no map and does not count."
+FLAV_FIT = (
+    "OLS on an east-based dummy with Niño-3.4 bin effects (0.5–1, 1–1.5, 1.5–2, ≥ 2 K) and a linear Niño-3.4 term"
+)
+FLAV_DIFF = f" Per model: {FLAV_FIT}, so the difference is the kind of event, not its size."
+
+
+def draw_models(path, v, k, z, meta, title, sub, foot):
+    """Every model's own map of one class (or east minus central): each shaded where that model's own test across its
+    events passes, a model with too few events left empty."""
+    plt = _plt()
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+    import textwrap
+    from cartopy.util import add_cyclic_point
+
+    nh = v == "z500"
+    lat, lon = (z["zlat"], z["zlon"]) if nh else (z["lat"], z["lon"])
+    levels = ZLEV["comp"] if nh else LEV[f"comp_{v}"]
+    cm, norm = _colours("RdBu_r" if v != "pr" else "BrBG", levels)
+    pc = ccrs.PlateCarree()
+    proj = ccrs.PlateCarree(central_longitude=180) if nh else pc
+    ext = [-180, 180, 0, 90] if nh else EXT
+    names, per = meta["models"], meta["per_model"][f"{v}|{k}"]
+    ncol = 2 if nh else 4
+    nrow = -(-len(names) // ncol)
+    W, ml, gx = (11.0, 0.25, 0.2) if nh else (10.0, 0.2, 0.12)
+    pw = (W - 2 * ml - (ncol - 1) * gx) / ncol
+    ph = pw * (ext[3] - ext[2]) / (ext[1] - ext[0])
+    rh = ph + 0.24
+    titl = textwrap.wrap(title, 95)
+    subl = textwrap.wrap(sub, 135)
+    footl = textwrap.wrap(foot, 160)
+    top = 0.42 + 0.24 * (len(titl) - 1) + 0.19 * len(subl) + 0.1
+    fh = 0.14 * len(footl) + 0.1
+    bar_y = fh + 0.46
+    bot = bar_y + 0.12 + 0.3
+    H = top + nrow * rh + bot
+    fig = plt.figure(figsize=(W, H))
+    mappable = None
+    for i, n in enumerate(names):
+        r, c = divmod(i, ncol)
+        ax = fig.add_axes([(ml + c * (pw + gx)) / W, (bot + (nrow - 1 - r) * rh) / H, pw / W, ph / H], projection=proj)
+        ax.set_extent(ext, crs=proj if nh else pc)
+        ax.add_feature(cfeature.LAND, facecolor="#f1f0eb", zorder=0)
+        e = per.get(n, {})
+        key = f"{v}|{k}|{n}"
+        if key + "|f" in z:
+            f, s = z[key + "|f"], z[key + "|s"]
+            if nh:
+                f, lo = add_cyclic_point(f, coord=lon)
+                s = add_cyclic_point(s, coord=lon)[0]
+            else:
+                lo = np.where(lon > 180, lon - 360, lon)
+            lz, la, show = _upsampled(f, s, lat, lo, 3)
+            mappable = ax.contourf(
+                lz, la, show, levels=levels, cmap=cm, norm=norm, extend="both", transform=pc, zorder=1
+            )
+        else:
+            ax.text(
+                0.5,
+                0.5,
+                "too few events, no map",
+                transform=ax.transAxes,
+                ha="center",
+                va="center",
+                fontsize=8,
+                color="#3d3a36",
+                bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#ccc", lw=0.5),
+            )
+        ax.coastlines(resolution="110m", linewidth=0.35, color="#222", zorder=3)
+        n_a = e.get("n", 0)
+        cnt = (
+            f"{n_a:,} east / {e.get('n_b', 0):,} central" if k == "diff" else f"{n_a:,} event{'' if n_a == 1 else 's'}"
+        )
+        ax.set_title(f"{n} · {cnt}", fontsize=7.6, loc="left", pad=2.5)
+    fig.text(0.02, 1 - 0.12 / H, "\n".join(titl), fontsize=12.5, fontweight="bold", va="top", linespacing=1.15)
+    fig.text(0.02, 1 - (0.44 + 0.24 * (len(titl) - 1)) / H, "\n".join(subl), fontsize=8.6, color="#3d3a36", va="top")
+    if mappable is not None:
+        cax = fig.add_axes([0.25, bar_y / H, 0.5, 0.12 / H])
+        cb = fig.colorbar(mappable, cax=cax, orientation="horizontal", extend="both", spacing="uniform", ticks=levels)
+        cb.set_label(FLAV_UNIT["comp"][v], fontsize=8.4, labelpad=2)
+        cb.ax.tick_params(labelsize=6.8, pad=1.5)
+        cb.ax.set_xticklabels([f"{t:g}" for t in levels])
+    fig.text(0.02, fh / H, "\n".join(footl), fontsize=7.2, color=MUTED, va="top", linespacing=1.35)
+    fig.savefig(path, dpi=100, facecolor="white", pil_kwargs={"quality": 84, "method": 6})
+    plt.close(fig)
+
+
+def render_flavour(made, index):
+    """East-based, basin-wide and central El Niño on the site's one rule, December–February: CMIP6 composites by class,
+    east minus central at the same strength, every model's own map, the CMIP6 and observed regressions on E and C, and
+    where the winters fall, from reference/enso_flavour_impacts_{cmip6,obs}.{npz,json} (cmip6_enso_flavour.py,
+    build_enso_flavour_impacts_obs.py)."""
+    z = np.load(REF / "enso_flavour_impacts_cmip6.npz")
+    meta = json.loads((REF / "enso_flavour_impacts_cmip6.json").read_text())
+    zo = np.load(REF / "enso_flavour_impacts_obs.npz")
+    mo = json.loads((REF / "enso_flavour_impacts_obs.json").read_text())
+    M, cnt = meta["maps"], meta["counts"]
+    nmod = len(meta["models"])
+
+    def runs(v, models):
+        """The members behind `models` (z500: the zg subset, up to 10 per model)."""
+        key = "zg_members" if v == "z500" else "members"
+        return f"{sum(cnt[n][key] for n in models)} members" + (", up to 10 per model" if v == "z500" else "")
+
+    def draw(name, v, src, key, lev, title, sub, foot, note, info):
+        lat, lon = (src["zlat"], src["zlon"]) if v == "z500" else (src["lat"], src["lon"])
+        if key + "|f" in src:
+            f, s = src[key + "|f"], src[key + "|s"]
+        else:
+            f, s = np.full((len(lat), len(lon)), np.nan), np.zeros((len(lat), len(lon)), bool)
+        if v == "z500":
+            foot += " Contours: ERA5 DJF mean height every 100 m."
+            draw_nh(
+                OUT / f"{name}.webp", f, s, zo["zclim"], lat, lon, ZLEV[lev], FLAV_UNIT[lev][v], title, sub, foot, note
+            )
+        else:
+            cmap = "RdBu_r" if v == "tas" else "BrBG"
+            dry = np.zeros(f.shape, bool) if v == "pr" else None
+            foot += " Hatched: normal under 0.3 mm/day, not scored." if v == "pr" else ""
+            unit = FLAV_UNIT[lev][v]
+            draw_map(
+                OUT / f"{name}.webp", f, s, lat, lon, LEV[f"{lev}_{v}"], cmap, unit, title, sub, foot, dry, None, note
+            )
+        index["maps"][name] = info
+        made.append(name)
+
+    for v in ("tas", "pr", "z500"):
+        area = "20–90°N" if v == "z500" else "land"
+        for k in (*FLAV, "diff"):
+            e = M[f"{v}|{k}"]
+            if k == "diff":
+                title = f"CMIP6 · DJF {FLAV_VAR[v]}: east-based minus central El Niño at the same strength"
+                what = (
+                    f"{e['events']:,} east-based (Niño-3.4 {e['x']:+.2f} K) against {e['events_b']:,} central "
+                    f"({e['x_b']:+.2f} K) winters, Niño-3.4 held fixed"
+                    if e["n_models"]
+                    else "No model has 8 of each"
+                )
+                extra, few = FLAV_DIFF, "8 east-based and 8 central winters"
+            else:
+                title = f"CMIP6 · DJF {FLAV_VAR[v]} in {FLAV[k]} El Niño winters"
+                what = f"{FLAV_RULE[k]}, minus neutral winters · {e['events']:,} events" + (
+                    f", mean Niño-3.4 {e['x']:+.2f} K" if e["n_models"] else ""
+                )
+                extra, few = "", f"8 {FLAV[k]} winters"
+            if e["tested"]:
+                sub = (
+                    f"{what} · the {e['n_models']} of {nmod} models with 8 or more ({runs(v, e['models'])}) · "
+                    f"{100 * e['sig_frac']:.0f} % of {area} robust"
+                )
+                note = "No significant difference" if k == "diff" else "No significant signal"
+            else:
+                sub = f"{what} · only {e['n_models']} of {nmod} models have {few}; a map needs 5"
+                note = "Not tested: fewer than 5 models"
+            foot = FLAV_TEST + extra + " " + FLAV_HOW
+            draw(f"enso_imp_ec_{v}_DJF_{k}", v, z, f"{v}|{k}", "comp", title, sub, foot, note, dict(e))
+            name = f"enso_imp_ec_{v}_DJF_{k}_models"
+            draw_models(
+                OUT / f"{name}.webp",
+                v,
+                k,
+                z,
+                meta,
+                f"Every model on its own · DJF {FLAV_VAR[v]}"
+                + (": east-based minus central El Niño" if k == "diff" else f" in {FLAV[k]} El Niño winters"),
+                f"{FLAV_RULE[k] + ' minus neutral winters' if k != 'diff' else 'Niño-3.4 held fixed'} · each model's "
+                f"members pooled ({runs(v, meta['models'])}); a model with fewer than 8 events has no map",
+                "Each model shaded only where its own test passes: "
+                + (
+                    f"the t-test of the east-based coefficient ({FLAV_FIT})"
+                    if k == "diff"
+                    else "Welch t-test of the class against neutral winters per grid point, across the model's events"
+                )
+                + ", Benjamini–Hochberg FDR 10 % over the map; blank = not significant"
+                + (" or a normal under 0.3 mm/day (not scored). " if v == "pr" else ". ")
+                + FLAV_HOW,
+            )
+            index["maps"][name] = {"per_model": meta["per_model"][f"{v}|{k}"]}
+            made.append(name)
+        for k, other in (("E", "C"), ("C", "E")):
+            e = M[f"{v}|{k}"]
+            draw(
+                f"enso_imp_ec_{v}_DJF_{k}_cmip6",
+                v,
+                z,
+                f"{v}|{k}",
+                "reg",
+                f"CMIP6 · DJF {FLAV_VAR[v]} per standard deviation of {k}",
+                f"{k} and {other} fitted together, the other held fixed · {e['n_models']} models ({runs(v, e['models'])}), 1950–2014 · "
+                f"{100 * e['sig_frac']:.0f} % of {area} robust",
+                CMIP_TEST + " Per model, OLS of every winter on its E and C. " + FLAV_HOW,
+                "No significant signal",
+                dict(e),
+            )
+            o = mo["maps"][f"{v}|{k}"]
+            draw(
+                f"enso_imp_ec_{v}_DJF_{k}_obs",
+                v,
+                zo,
+                f"{v}|{k}",
+                "reg",
+                f"{FLAV_OBS[v]} · DJF {FLAV_VAR[v]} per standard deviation of {k}",
+                f"{k} and {other} fitted together, the other held fixed · {o['n']} winters, {o['span'][0]}–{o['span'][1]} · "
+                f"{100 * o['sig_frac']:.0f} % of {area} significant",
+                "Shaded only where the coefficient is significant: t-test per grid point, Benjamini–Hochberg FDR 10 % over "
+                "the map; blank = not significant. E and C from ERSSTv6 on the observed patterns of the ENSO forecasts "
+                "page; indices and fields as anomalies from the mean of the other winters within ±10 years.",
+                "No significant signal",
+                dict(o),
+            )
+    flavour_place_fig(z, meta, mo, made, index)
+
+
+def flavour_place_fig(z, meta, mo, made, index):
+    """Where El Niño winters fall on the site's rule: the CMIP6 winters (density) and the observed ones on E and C, and
+    each model's share of east-based, basin-wide and central winters against the observed share. Descriptive."""
+    plt = _plt()
+    from matplotlib.colors import ListedColormap
+
+    ev, names, cnt = z["events"], meta["models"], meta["counts"]
+    obs = mo["events"]
+    fig = plt.figure(figsize=(12.4, 6.6))
+    ax = fig.add_axes([0.055, 0.17, 0.38, 0.64])
+    light = ListedColormap(plt.get_cmap("Greys")(np.linspace(0.08, 0.45, 256)))
+    ax.hexbin(
+        ev[:, 1], ev[:, 0], gridsize=45, extent=(-2, 4.5, -2, 5.5), cmap=light, mincnt=3, bins="log", linewidths=0
+    )
+    xx = np.array([-2.0, 4.5])
+    for d, ls in ((1.0, "--"), (-1.0, "--"), (0.0, ":")):
+        ax.plot(xx, xx + d, color=MUTED, lw=0.9, ls=ls)
+    ax.text(-1.85, 5.3, "east-based\nE − C ≥ 1", color=FLAV_COL["east"], fontsize=9, va="top", fontweight="bold")
+    ax.text(4.35, -1.85, "central\nE − C ≤ −1", color=FLAV_COL["central"], fontsize=9, ha="right", fontweight="bold")
+    ax.set_xlim(-2, 4.5)
+    ax.set_ylim(-2, 5.5)
+    ang = ax.transData.transform_angles(np.array([45.0]), np.array([[3.4, 3.4]]))[0]  # E = C as drawn
+    ax.text(
+        3.4, 3.4, "basin-wide", color="#5c5851", fontsize=9, rotation=ang, ha="center", va="center", fontweight="bold"
+    )
+    named = {"1982–83", "1997–98", "2009–10", "2015–16", "2023–24", "1972–73", "2002–03"}
+    for o in obs:
+        big = o["label"] in named
+        ax.scatter(
+            o["C"], o["E"], s=40 if big else 18, c=FLAV_COL[o["klass"]], edgecolors="white", linewidths=0.6, zorder=5
+        )
+        if big:
+            ax.annotate(
+                o["label"],
+                (o["C"], o["E"]),
+                xytext=(6, -3),
+                textcoords="offset points",
+                fontsize=8.4,
+                color=FLAV_COL[o["klass"]],
+                zorder=6,
+                bbox=dict(boxstyle="round,pad=0.12", fc="white", ec="none", alpha=0.8),
+            )
+    ax.set_xlabel("C, central-Pacific index (sd)", fontsize=9)
+    ax.set_ylabel("E, eastern-Pacific index (sd)", fontsize=9)
+    ax.set_title("December–February El Niño winters on E and C", fontsize=10.5, fontweight="bold", loc="left")
+    ax.tick_params(labelsize=8)
+    ax.grid(lw=0.3, color="#ddd")
+    # class shares: observed, the models counted once each, then every model by its east-based share
+    oc = mo["counts"]
+    rows = [(f"Observed, {len(obs)} winters", oc), ("CMIP6, each model once", None)]
+    order = sorted(names, key=lambda n: (cnt[n]["east"] / cnt[n]["el_nino"], -cnt[n]["central"] / cnt[n]["el_nino"]))
+    rows += [(f"{n} ({cnt[n]['el_nino']:,})", cnt[n]) for n in reversed(order)]
+    share = {}
+    for lab, c in rows:
+        if c is None:
+            share[lab] = {k: float(np.mean([cnt[n][k] / cnt[n]["el_nino"] for n in names])) for k in FLAV}
+        else:
+            share[lab] = {k: c[k] / sum(c[q] for q in FLAV) for k in FLAV}
+    bx = fig.add_axes([0.62, 0.17, 0.35, 0.64])
+    y = np.arange(len(rows))[::-1].astype(float)
+    y[:2] += 0.6  # a gap under the two summary bars
+    for yi, (lab, _) in zip(y, rows):
+        left = 0.0
+        for k in FLAV:
+            w = 100 * share[lab][k]
+            bx.barh(yi, w, left=left, color=FLAV_COL[k], height=0.78, edgecolor="white", linewidth=0.4)
+            if w >= 9:
+                bx.text(left + w / 2, yi, f"{w:.0f}", ha="center", va="center", fontsize=7, color="white")
+            left += w
+    bx.set_yticks(y)
+    bx.set_yticklabels([r[0] for r in rows], fontsize=7.8)
+    for t in bx.get_yticklabels()[:2]:
+        t.set_fontweight("bold")
+    bx.set_xlim(0, 100)
+    bx.set_xlabel("% of El Niño winters", fontsize=9)
+    bx.tick_params(axis="x", labelsize=8)
+    bx.set_title("East-based, basin-wide, central", fontsize=10.5, fontweight="bold", loc="left")
+    for spine in ("top", "right"):
+        bx.spines[spine].set_visible(False)
+    fig.text(
+        0.02,
+        0.975,
+        "Where El Niño winters fall: east-based, basin-wide or central",
+        fontsize=13,
+        fontweight="bold",
+        va="top",
+    )
+    fig.text(
+        0.02,
+        0.925,
+        f"Grey: {len(ev):,} CMIP6 El Niño winters (DJF Niño-3.4 ≥ +0.5 K, {len(names)} models, log density); dots: the "
+        f"observed El Niño winters since 1951, coloured by class. Dashed: E − C = ±1, the class boundaries.",
+        fontsize=8.8,
+        color="#3d3a36",
+        va="top",
+    )
+    fig.text(
+        0.02,
+        0.025,
+        "Takahashi et al. (2011) E and C on the observed ERSSTv6 patterns of the ENSO forecasts page, in standard "
+        "deviations of the observed indices. Models: anomalies from each run's own mean of the winters within ±10 years; "
+        "observed: the monitor's fixed 1991–2020 base and CPC's ONI for the events. Descriptive: no test is implied by "
+        "the positions or the shares.",
+        fontsize=7.2,
+        color=MUTED,
+        va="bottom",
+        wrap=True,
+    )
+    name = "enso_imp_ec_place"
+    fig.savefig(OUT / f"{name}.webp", dpi=110, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
+    plt.close(fig)
+    made.append(name)
+    index["maps"][name] = {"counts": cnt, "observed": mo["counts"], "observed_events": obs}
+
+
 def render_modes(made, index):
-    """East-based vs central El Nino (Takahashi E and C), the PDO without ENSO, and El Nino / La Nina by PDO phase, from
+    """The PDO without ENSO and El Nino / La Nina by PDO phase (drawn only with ENSO_IMPACTS_PDO=1), from
     reference/enso_modes_site.{npz,json} (cmip6_enso_modes.py --site)."""
     z = np.load(REF / "enso_modes_site.npz")
     meta = json.loads((REF / "enso_modes_site.json").read_text())
@@ -1651,81 +1962,8 @@ def render_modes(made, index):
         dry = np.zeros((len(lat), len(lon)), bool) if v == "pr" else None
         dry_txt = " Hatched: normal under 0.3 mm/day, not scored." if v == "pr" else ""
         for s in SEASONS:
-            # E and C, joint (partial) regression
-            for nm, lab in (("E", "east-based (E)"), ("C", "central-Pacific (C)")):
-                for src in ("cmip6", "obs"):
-                    key = f"ec|{v}|{s}|{nm}|{src}"
-                    f, sg = get(key)
-                    e = M.get(key, {})
-                    if f is None:
-                        continue
-                    name = f"enso_imp_ec_{v}_{s}_{nm}_{src}"
-                    if src == "cmip6":
-                        title = f"CMIP6 · {s} {VNAME[v]} and the {lab} ENSO index"
-                        sub = (
-                            f"Partial regression on Takahashi's E and C together, per 1 sd of {nm} · {e['models']} models, "
-                            f"{e['members']} members, 1950–2014 · {100 * e['land_sig']:.0f} % of land robust"
-                        )
-                        foot = (
-                            CMIP_TEST
-                            + " E and C from each member's own tropical Pacific EOFs (Takahashi et al. 2011), "
-                            "fitted jointly so each map is that pattern with the other held fixed." + dry_txt
-                        )
-                    else:
-                        title = f"{OBSNAME[v]} · {s} {VNAME[v]} and the {lab} ENSO index"
-                        sub = (
-                            f"Partial regression on observed E and C together (ERSST v6), per 1 sd of {nm} · {e['n']} seasons, "
-                            f"{e['span'][0]}–{e['span'][1]} · {100 * e['land_sig']:.0f} % of land significant"
-                        )
-                        foot = (
-                            "Shaded only where the coefficient is significant: t-test per grid point, Benjamini–Hochberg FDR "
-                            "10 % over the map; blank = not significant." + dry_txt
-                        )
-                    draw_map(
-                        OUT / f"{name}.webp", f, sg, lat, lon, LEV[f"reg_{v}"], cmap, per[v], title, sub, foot, dry=dry
-                    )
-                    rec(name, key)
-            # EP minus CP at matched Nino-3.4 strength
-            key = f"cmp|{v}|{s}|diff"
-            f, sg = get(key)
-            e = M.get(key, {})
-            name = f"enso_imp_ec_{v}_{s}_diff"
-            if f is not None:
-                draw_map(
-                    OUT / f"{name}.webp",
-                    f,
-                    sg,
-                    lat,
-                    lon,
-                    LEV[f"comp_{v}"],
-                    cmap,
-                    UNIT[f"comp_{v}"],
-                    f"CMIP6 · {s} {VNAME[v]}: east-based minus central-Pacific El Niño",
-                    f"Same-strength events: Niño-3.4 {e['x_a']:+.2f} K (east, E > C) vs {e['x_b']:+.2f} K (central) · "
-                    f"{e['n_a']:,} vs {e['n_b']:,} events, {e['models']} models",
-                    CMIP_TEST
-                    + " Events matched in Niño-3.4 bins (0.5–1, 1–1.5, 1.5–2, ≥ 2 K), each bin weighted by its "
-                    "smaller class, so the difference is the type of event, not its size." + dry_txt,
-                    dry=dry,
-                )
-            else:
-                draw_map(
-                    OUT / f"{name}.webp",
-                    np.full((len(lat), len(lon)), np.nan),
-                    np.zeros((len(lat), len(lon)), bool),
-                    lat,
-                    lon,
-                    LEV[f"comp_{v}"],
-                    cmap,
-                    UNIT[f"comp_{v}"],
-                    f"CMIP6 · {s} {VNAME[v]}: east-based minus central-Pacific El Niño",
-                    "Too few matched events",
-                    "Fewer than 5 models have both kinds of event at matched strength.",
-                    note_empty="Not tested",
-                )
-            rec(name, key)
             # PDO: without ENSO (partial on N34 + ENSO-free PDO) and raw
-            for nm in ("free", "raw") if PDO_VIEWS else ():
+            for nm in ("free", "raw"):
                 for src in ("cmip6", "obs"):
                     key = f"pdo|{v}|{s}|{nm}|{src}"
                     f, sg = get(key)
@@ -1791,25 +2029,21 @@ def render_modes(made, index):
                     rec(name, key)
             # El Nino / La Nina by ENSO-free PDO phase, matched strength; and the interaction
             for nm, lab, sub0 in (
-                ()
-                if not PDO_VIEWS
-                else (
-                    (
-                        "en",
-                        "El Niño",
-                        "Co-variability, not a PDO effect: El Niño seasons with the same season's ENSO-free PDO ≥ +0.5 sd minus ≤ −0.5 sd",
-                    ),
-                    (
-                        "ln",
-                        "La Niña",
-                        "Co-variability, not a PDO effect: La Niña seasons with the same season's ENSO-free PDO ≥ +0.5 sd minus ≤ −0.5 sd",
-                    ),
-                    (
-                        "int",
-                        "El Niño",
-                        "El Niño's same-winter PDO difference minus the neutral-winter one (co-variability)",
-                    ),
-                )
+                (
+                    "en",
+                    "El Niño",
+                    "Co-variability, not a PDO effect: El Niño seasons with the same season's ENSO-free PDO ≥ +0.5 sd minus ≤ −0.5 sd",
+                ),
+                (
+                    "ln",
+                    "La Niña",
+                    "Co-variability, not a PDO effect: La Niña seasons with the same season's ENSO-free PDO ≥ +0.5 sd minus ≤ −0.5 sd",
+                ),
+                (
+                    "int",
+                    "El Niño",
+                    "El Niño's same-winter PDO difference minus the neutral-winter one (co-variability)",
+                ),
             ):
                 key = f"cmp|{v}|{s}|{nm}"
                 f, sg = get(key)
@@ -1870,162 +2104,7 @@ def render_modes(made, index):
                     note_empty="No significant difference",
                 )
                 rec(name, key)
-    place_fig(z, meta, made, index)
-    if PDO_VIEWS:
-        share_fig(meta, made, index)
-
-
-def place_fig(z, meta, made, index):
-    """Where El Nino events sit on Takahashi's E and C: models (density) against the observed events, DJF and the JJA
-    before, with 2026."""
-    plt = _plt()
-    djf, jja = z["djf_events"], z["jja_before"]
-    od, oj = meta["obs_djf"], meta["obs_jja"]
-    pl = meta["placement"]
-    fig = plt.figure(figsize=(11.2, 6.3))
-    for k, (arr, obs, ttl, key) in enumerate(
-        ((djf, od, "December–February: El Niño peaks", "DJF"), (jja, oj, "June–August before the peak", "JJA"))
-    ):
-        ax = fig.add_axes([0.06 + k * 0.49, 0.19, 0.41, 0.62])
-        from matplotlib.colors import ListedColormap
-
-        light = ListedColormap(plt.get_cmap("Greys")(np.linspace(0.08, 0.45, 256)))
-        ax.hexbin(
-            arr[:, 1], arr[:, 0], gridsize=45, extent=(-2, 4, -2, 5.5), cmap=light, mincnt=3, bins="log", linewidths=0
-        )
-        sup = (arr[:, 2] >= 2.0) if key == "DJF" else (arr[:, 3] >= 2.0)
-        H2, xe, ye = np.histogram2d(arr[sup, 1], arr[sup, 0], bins=[np.linspace(-2, 4, 31), np.linspace(-2, 5.5, 38)])
-        from scipy.ndimage import gaussian_filter
-
-        H2 = gaussian_filter(H2, 1.0).T
-        lv = np.quantile(H2[H2 > 0], [0.55, 0.8, 0.93]) if (H2 > 0).any() else []
-        if len(lv):
-            ax.contour(
-                0.5 * (xe[1:] + xe[:-1]),
-                0.5 * (ye[1:] + ye[:-1]),
-                H2,
-                levels=np.unique(lv),
-                colors="#c0561a",
-                linewidths=[0.8, 1.1, 1.5][: len(np.unique(lv))],
-            )
-        ax.plot(
-            [],
-            [],
-            color="#c0561a",
-            lw=1.1,
-            label="CMIP6 super El Niños" + (" (DJF ≥ 2 K)" if key == "DJF" else ", the summer before"),
-        )
-        ax.scatter(
-            [],
-            [],
-            marker="h",
-            s=60,
-            c="#bbb",
-            label="all CMIP6 El Niños" + ("" if key == "DJF" else ", the summer before"),
-        )
-        ax.plot([-2, 4], [-2, 4], color="#6f6b64", lw=0.8, ls="--")
-        ax.text(3.9, 3.5, "E = C", color=MUTED, fontsize=8, ha="right", va="top", rotation=0)
-        ax.text(-1.85, 5.3, "east-based", color="#333", fontsize=9, va="top")
-        ax.text(3.9, -1.85, "central-Pacific", color="#333", fontsize=9, ha="right")
-        yrs = [
-            y
-            for y in obs
-            if (
-                obs[y]["n34"] >= 0.5
-                if key == "DJF"
-                else int(y) in (1972, 1982, 1987, 1991, 1994, 1997, 2002, 2004, 2009, 2015, 2023, 2026)
-            )
-        ]
-        hi = {
-            "DJF": {"1983": "1982/83", "1998": "1997/98", "2016": "2015/16", "2010": "2009/10", "2024": "2023/24"},
-            "JJA": {"1982": "1982", "1997": "1997", "2015": "2015", "2023": "2023", "2026": "2026"},
-        }[key]
-        for y in yrs:
-            o = obs[y]
-            if y == "2026":
-                ax.scatter(o["C"], o["E"], s=170, marker="*", c="#c0392b", edgecolors="white", linewidths=0.8, zorder=6)
-                ax.annotate(
-                    "2026",
-                    (o["C"], o["E"]),
-                    xytext=(8, 4),
-                    textcoords="offset points",
-                    fontsize=10,
-                    fontweight="bold",
-                    color="#c0392b",
-                )
-            else:
-                big = y in hi
-                ax.scatter(
-                    o["C"],
-                    o["E"],
-                    s=34 if big else 14,
-                    c="#1f4e79" if big else "#7f95ad",
-                    edgecolors="white",
-                    linewidths=0.5,
-                    zorder=5,
-                )
-                if big:
-                    ax.annotate(
-                        hi[y],
-                        (o["C"], o["E"]),
-                        xytext=(6, -3),
-                        textcoords="offset points",
-                        fontsize=8.6,
-                        color="#1f4e79",
-                        zorder=7,
-                        bbox=dict(boxstyle="round,pad=0.12", fc="white", ec="none", alpha=0.8),
-                    )
-        ax.set_xlim(-2, 4)
-        ax.set_ylim(-2, 5.5)
-        ax.set_xlabel("C, central-Pacific index (sd)", fontsize=9)
-        ax.set_ylabel("E, eastern-Pacific index (sd)", fontsize=9)
-        ax.set_title(ttl, fontsize=10.5, fontweight="bold", loc="left")
-        ax.tick_params(labelsize=8)
-        ax.grid(lw=0.3, color="#ddd")
-        ax.legend(loc="upper right", fontsize=7.6, frameon=True, framealpha=0.9, edgecolor="none")
-    fig.text(
-        0.02,
-        0.975,
-        "Where El Niño events fall on the east-based and central-Pacific indices",
-        fontsize=13,
-        fontweight="bold",
-        va="top",
-    )
-    fig.text(
-        0.02,
-        0.928,
-        (
-            f"Grey: {pl['n_djf']:,} CMIP6 El Niño winters (log density) and the summers before them; orange: the "
-            f"{pl['n_super']:,} super El Niños; blue: observed (ERSST v6); star: summer 2026.\n"
-            f"{100 * pl['ep_share_super']:.0f} % of the models' super El Niños are east-based (E > C), "
-            f"{100 * pl['ep_share_strong']:.0f} % of their strong ones and {100 * pl['ep_share_all']:.0f} % of all "
-            "their El Niños."
-        ),
-        fontsize=8.8,
-        color="#3d3a36",
-        va="top",
-        linespacing=1.35,
-    )
-    fig.text(
-        0.02,
-        0.03,
-        (
-            "Takahashi et al. (2011): E = (PC1 − PC2)/√2 and C = (PC1 + PC2)/√2 from the first two EOFs of tropical "
-            "Pacific SST (here 10°S–10°N, 140°E–80°W; Takahashi et al. used HadISST from coast to coast), each dataset its own EOFs, "
-            "in standard deviations of the monthly index. "
-            "Observed: ERSST v6, linear trend 1950–2025 removed per grid point and extrapolated for 2026. Descriptive: no "
-            "test is implied by the positions."
-        ),
-        fontsize=7.2,
-        color=MUTED,
-        va="bottom",
-        wrap=True,
-    )
-    name = "enso_imp_ec_place"
-    fig.savefig(OUT / f"{name}.webp", dpi=110, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
-    plt.close(fig)
-    made.append(name)
-    index["maps"][name] = {"placement": pl}
+    share_fig(meta, made, index)
 
 
 def share_fig(meta, made, index):

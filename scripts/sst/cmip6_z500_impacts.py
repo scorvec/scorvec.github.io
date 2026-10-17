@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """ENSO and 500 hPa height over the Northern Hemisphere. Offline analysis: the CMIP6 members with z500 extracts
 (cmip6_z500_extract.py; <= 10 per model, 147 members of the 16 study models) and ERA5, with exactly the tas/pr study's
-definitions (cmip6_enso_impacts.py) and the E/C and ENSO-free PDO indices of cmip6_enso_modes.py:
+definitions (cmip6_enso_impacts.py) and the ENSO-free PDO index of cmip6_enso_modes.py (the east-based / central El Nino
+composites at 500 hPa are cmip6_enso_flavour.py's):
 
   regression   per K of the same season's Nino-3.4 (member's own quadratic trend removed from index and field)
   classes      El Nino / strong / super / La Nina / strong La Nina minus neutral; members event-weighted within a model,
                models equal; asymmetry; super El Nino lifecycle (JJA before -> MAM after) and beyond-linear
-  E/C          partial regression on Takahashi's E and C (per sd), east- minus central-based at matched Nino-3.4
   PDO          partial regression on [Nino-3.4, ENSO-free PDO] (per sd), raw PDO; El Nino / La Nina by ENSO-free PDO phase,
                the interaction
 Tests: CMIP6 across-model t-test, BH-FDR 10 % over the map (0-90N) AND >= 80 % of models agreeing on the sign. ERA5
@@ -107,7 +107,7 @@ def process(name, ref, acc, Sm, n_ev):
     Z = z["z"].astype("float64") + 5000.0
     SF = seasonal_fields(Z, [str(m) for m in z["months"]], MO.member_calendar(z, model))
     mi = MO.member_indices(MO.PAC / f"{name}.npz", ref)
-    sea = {k: MO.seasonal(mi[k], mi["months"], mi["calendar"]) for k in ("E", "C", "pdo", "pdo_free")}
+    sea = {k: MO.seasonal(mi[k], mi["months"], mi["calendar"]) for k in ("pdo", "pdo_free")}
     per = {}
     for s in SEAS:
         yrs = np.array(sorted(y for y in SF[s] if y in idx34[s] and 1950 <= y <= 2014))
@@ -138,13 +138,10 @@ def process(name, ref, acc, Sm, n_ev):
                 (Cp, npos, xp), (Cn, nneg, xn) = comps[pair[0]], comps[pair[1]]
                 m = 0.5 * (xp + abs(xn))
                 acc.add(("x", s, key), model, Cp * m / xp + Cn * m / abs(xn), min(npos, nneg))
-        # E/C, PDO: years with the Pacific indices
+        # PDO: years with the Pacific indices
         ok = np.array([all(y in sea[k][s] for k in sea) for y in yrs])
         yy, xx, AA = yrs[ok], x[ok], A[ok]
         I = {k: np.array([sea[k][s][y] for y in yy]) for k in sea}
-        B = MO.ols(np.column_stack([I["E"], I["C"]]), AA)[0]
-        acc.add(("E", s), model, B[0], 1.0)
-        acc.add(("C", s), model, B[1], 1.0)
         acc.add(("free", s), model, MO.ols(np.column_stack([xx, I["pdo_free"]]), AA)[0][1], 1.0)
         acc.add(("raw", s), model, MO.ols(I["pdo"][:, None], AA)[0][0], 1.0)
         neu2 = np.abs(xx) < E.NEUTRAL
@@ -152,14 +149,11 @@ def process(name, ref, acc, Sm, n_ev):
             continue
         An = AA - AA[neu2].mean(0)
         en, ln = xx >= 0.5, xx <= -0.5
-        ep, cp = en & (I["E"] > I["C"]), en & (I["E"] <= I["C"])
         pp, pm = I["pdo_free"] >= MO.PHASE, I["pdo_free"] <= -MO.PHASE
         b = MO.bin_of(xx)
         for k in range(4):
             bk = b == k
             for nm, m in (
-                ("ep", ep),
-                ("cp", cp),
                 ("en+", en & pp),
                 ("en-", en & pm),
                 ("ln+", ln & pp),
@@ -252,7 +246,6 @@ def main() -> int:
         put("cmip6|" + "|".join(key), mm, sg, info)
     for s in SEAS:
         for nm, a, b, bins in (
-            ("epcp", "ep{k}", "cp{k}", range(4)),
             ("en_pdo", "en+{k}", "en-{k}", range(4)),
             ("ln_pdo", "ln+{k}", "ln-{k}", range(4)),
             ("neu_pdo", "neu+0", "neu-0", (0,)),
@@ -288,7 +281,7 @@ def main() -> int:
     em = era5_monthly()
     oni = E.oni_table()
     OS = E.obs_seasons(em, oni)
-    osea = {k: MO.seasonal(np.asarray(ref[k], float), ref["months"]) for k in ("E", "C", "pdo", "pdo_free")}
+    osea = {k: MO.seasonal(np.asarray(ref[k], float), ref["months"]) for k in ("pdo", "pdo_free")}
     obs = {}
     for s in SEAS:
         yrs, x, A, clim = OS[s]
@@ -316,8 +309,6 @@ def main() -> int:
         yy, xx, AA = yrs[ok], x[ok], A[ok]
         I = {k: np.array([osea[k][s][y] for y in yy]) for k in osea}
         for key, X, j in (
-            ("E", np.column_stack([I["E"], I["C"]]), 0),
-            ("C", np.column_stack([I["E"], I["C"]]), 1),
             ("free", np.column_stack([xx, I["pdo_free"]]), 1),
             ("raw", I["pdo"][:, None], 0),
         ):

@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-"""East-based vs central-Pacific El Nino, and the PDO with ENSO removed, over the Americas.
+"""The PDO with ENSO removed, over the Americas.
 
 Offline analysis on the same 429 CMIP6 historical members (16 models, 1950-2014) and the same seasonal Americas tas/pr
-fields as cmip6_enso_impacts.py, plus the monthly Pacific ts from cmip6_pacific_ts_extract.py.
+fields as cmip6_enso_impacts.py, plus the monthly Pacific ts from cmip6_pacific_ts_extract.py. The east-based / central
+El Nino composites are cmip6_enso_flavour.py's (the site's one E/C rule); E and C here only enter the PDO robustness
+variant V3 and, observed, the controls of cmip6_pdo_causality.py.
 
 E and C (Takahashi et al. 2011, GRL 38, L10704)
   per member: monthly ts anomalies over 10S-10N, 140E-80W (own monthly climatology and own quadratic trend removed),
   EOF1/EOF2 (sqrt-cos weighted), PCs standardised, signs fixed by pattern correlation with the observed ERSSTv6 EOFs
   (EOF1 warm over Nino-3.4; EOF2 warm in Nino-4 and cold in Nino-1+2, as Takahashi); E = (PC1 - PC2)/sqrt2 (east),
-  C = (PC1 + PC2)/sqrt2 (central). Seasonal means, in monthly standard deviations.
-  Cross-check (Kug et al. 2009, J. Climate 22, 1499): standardised Nino-3 > standardised Nino-4 -> EP, else CP.
+  C = (PC1 + PC2)/sqrt2 (central), in monthly standard deviations.
 PDO (Mantua et al. 1997; Zhang et al. 1997), ENSO removed (Newman et al. 2016, J. Climate 29, 4399)
   per member: monthly ts anomalies over 20-70N, 110E-100W minus that month's 60S-60N ocean-mean anomaly; ice months at
   the freezing point (271.35 K), boxes iced > 50 % of months dropped; EOF1, PC standardised, sign fixed against the
@@ -17,8 +18,7 @@ PDO (Mantua et al. 1997; Zhang et al. 1997), ENSO removed (Newman et al. 2016, J
   N34_t fitted by OLS; the ENSO part is that recursion driven by N34 alone, P_E(t) = a P_E(t-1) + b N34_t, and the
   ENSO-free PDO = PDO - P_E (standardised). Robustness: PDO regressed on N34 at lags 0-12 months, residual.
 Tests: CMIP6 across-model one-sample t-test (each model counts once), Benjamini-Hochberg FDR 10 % over
-  the map AND >= 80 % of models agreeing on the sign. Observed: OLS t-test per grid point, FDR 10 %; observed classes
-  with < 8 events are not tested.
+  the map AND >= 80 % of models agreeing on the sign. Observed: OLS t-test per grid point, FDR 10 %.
 
     python scripts/sst/cmip6_enso_modes.py            -> data/cmip6_enso/results/enso_modes_state.pkl + summary
 """
@@ -52,7 +52,6 @@ TROP = ((-10, 10), (140, 280))
 NPAC = ((20, 70), (110, 260))
 BOX = {
     "n34": ((-5, 5), (190, 240)),
-    "n3": ((-5, 5), (210, 270)),
     "n4": ((-5, 5), (160, 210)),
     "n12": ((-10, 0), (270, 280)),
 }
@@ -296,8 +295,6 @@ def obs_indices():
         E=Ei,
         C=Ci,
         n34=n34,
-        n3=idx["n3"],
-        n4=idx["n4"],
         pdo=P,
         pdo_free=free,
         pdo_lag=lagr,
@@ -344,19 +341,13 @@ def member_indices(npz, ref):
     # E, C
     m = sel(LAT, LON, TROP) & np.isfinite(a).all(0)
     w = np.sqrt(np.cos(np.deg2rad(np.broadcast_to(LAT[:, None], m.shape)[m])))
-    pcs, pats, var = eofs(a[:, m], w)
+    pcs, pats, _ = eofs(a[:, m], w)
     P1, P2 = _put(m, pats[0]), _put(m, pats[1])
-    r1, r2 = pattern_r(P1, ref["P1"]), pattern_r(P2, ref["P2"])
-    if r1 < 0:
-        pcs[:, 0] *= -1
-        r1 = -r1
-    if r2 < 0:
-        pcs[:, 1] *= -1
-        r2 = -r2
+    for j, (P, R) in enumerate(((P1, ref["P1"]), (P2, ref["P2"]))):
+        if pattern_r(P, R) < 0:  # the signs of the observed patterns
+            pcs[:, j] *= -1
     out["E"] = (pcs[:, 0] - pcs[:, 1]) / np.sqrt(2)
     out["C"] = (pcs[:, 0] + pcs[:, 1]) / np.sqrt(2)
-    out["eof_r"] = (r1, r2)
-    out["eof_var"] = var.tolist()
     # PDO: raw ts anomalies (global-mean anomaly removed), before the per-box detrend
     ga = z["gm"].astype("float64")
     ga = ga - np.tile(ga.reshape(ny, 12).mean(0), ny)
@@ -386,15 +377,11 @@ def process(name, ref, R, Sm, info):
     idx34, _ = E.season_index(ds)
     ds.close()
     mi = member_indices(PAC / f"{name}.npz", ref)
-    sea = {
-        k: seasonal(mi[k], mi["months"], mi["calendar"]) for k in ("E", "C", "n3", "n4", "pdo", "pdo_free", "pdo_lag")
-    }
+    sea = {k: seasonal(mi[k], mi["months"], mi["calendar"]) for k in ("pdo", "pdo_free", "pdo_lag")}
     info["members"].append(
         dict(
             model=model,
             member=name,
-            eof_r=mi["eof_r"],
-            eof_var=mi["eof_var"],
             pdo_r=mi["pdo_r"],
             pdo_var=mi["pdo_var"],
             a=mi["a"],
@@ -412,32 +399,14 @@ def process(name, ref, R, Sm, info):
             continue
         x = E.detrend(np.array([idx34[s][y] for y in yrs]), yrs.astype(float)).astype(float)
         I = {k: np.array([sea[k][s][y] for y in yrs]) for k in sea}
-        n3 = (I["n3"] - I["n3"].mean()) / I["n3"].std()
-        n4 = (I["n4"] - I["n4"].mean()) / I["n4"].std()
-        info["idx"].append(
-            dict(
-                model=model,
-                member=name,
-                season=s,
-                years=yrs.tolist(),
-                n34=x.tolist(),
-                E=I["E"].tolist(),
-                C=I["C"].tolist(),
-                pdo=I["pdo"].tolist(),
-                pdo_free=I["pdo_free"].tolist(),
-            )
-        )
         neu = np.abs(x) < E.NEUTRAL
         en, ln = x >= 0.5, x <= -0.5
-        ep, cp = en & (I["E"] > I["C"]), en & (I["E"] <= I["C"])
-        kep, kcp = en & (n3 > n4), en & (n3 <= n4)
         pp, pm = I["pdo_free"] >= PHASE, I["pdo_free"] <= -PHASE
         b = bin_of(x)
         for v in E.VARS:
             A = E.detrend(F[v][si][ok], yrs.astype(float)).astype("float64")
             # partial / simple regressions
             for key, X, one in (
-                ("EC", np.column_stack([I["E"], I["C"]]), False),
                 ("NP", np.column_stack([x, I["pdo_free"]]), False),
                 ("NPlag", np.column_stack([x, I["pdo_lag"]]), False),
                 ("Praw", I["pdo"][:, None], True),
@@ -455,10 +424,6 @@ def process(name, ref, R, Sm, info):
             for k in range(4):
                 bk = b == k
                 for nm, m in (
-                    ("ep", ep),
-                    ("cp", cp),
-                    ("kep", kep),
-                    ("kcp", kcp),
                     ("en+", en & pp),
                     ("en-", en & pm),
                     ("ln+", ln & pp),
@@ -471,11 +436,11 @@ def process(name, ref, R, Sm, info):
 
 
 def obs_part(ref, W):
-    """Observed regressions (ERA5 tas 1960-, GPCP pr 1980-) on [E, C], [ONI, ENSO-free PDO], raw and ENSO-free PDO."""
+    """Observed regressions (ERA5 tas 1960-, GPCP pr 1980-) on [ONI, ENSO-free PDO], raw and ENSO-free PDO."""
     oni = E.oni_table()
     lat, lon = E.STATE_LAT, E.STATE_LON
     OS = {"tas": E.obs_seasons(E.era5_monthly(lat, lon), oni), "pr": E.obs_seasons(E.gpcp_monthly(lat, lon), oni)}
-    sea = {k: seasonal(np.asarray(ref[k], float), ref["months"]) for k in ("E", "C", "pdo", "pdo_free", "n3", "n4")}
+    sea = {k: seasonal(np.asarray(ref[k], float), ref["months"]) for k in ("pdo", "pdo_free")}
     out = {}
     for v in E.VARS:
         for s in SEAS:
@@ -485,7 +450,6 @@ def obs_part(ref, W):
             I = {k: np.array([sea[k][s][y] for y in yy]) for k in sea}
             ent = dict(n=int(ok.sum()), span=[int(yy[0]), int(yy[-1])], clim=clim)
             for key, X in (
-                ("EC", np.column_stack([I["E"], I["C"]])),
                 ("NP", np.column_stack([xx, I["pdo_free"]])),
                 ("Praw", I["pdo"][:, None]),
                 ("Pfree", I["pdo_free"][:, None]),
@@ -493,20 +457,12 @@ def obs_part(ref, W):
                 B, t, dof = ols(X, AA)
                 p = 2 * stats.t.sf(np.abs(t), dof)
                 ent[key] = dict(coef=B, sig=np.stack([E.fdr(p[i]) for i in range(len(B))]), p=p)
-            # observed EP / CP counts (tested only with >= 8 of each)
             en = xx >= 0.5
-            ent["n_ep"] = int((en & (I["E"] > I["C"])).sum())
-            ent["n_cp"] = int((en & (I["E"] <= I["C"])).sum())
             ent["n_en_pos"] = int((en & (I["pdo_free"] >= PHASE)).sum())
             ent["n_en_neg"] = int((en & (I["pdo_free"] <= -PHASE)).sum())
             ln = xx <= -0.5
             ent["n_ln_pos"] = int((ln & (I["pdo_free"] >= PHASE)).sum())
             ent["n_ln_neg"] = int((ln & (I["pdo_free"] <= -PHASE)).sum())
-            if ent["n_ep"] >= E.OBS_TEST_N and ent["n_cp"] >= E.OBS_TEST_N:
-                _, p = stats.ttest_ind(AA[en & (I["E"] > I["C"])], AA[en & (I["E"] <= I["C"])], axis=0, equal_var=False)
-                ent["epcp"] = dict(
-                    diff=AA[en & (I["E"] > I["C"])].mean(0) - AA[en & (I["E"] <= I["C"])].mean(0), sig=E.fdr(p)
-                )
             out[(v, s)] = ent
     return out, sea
 
@@ -709,16 +665,6 @@ def site() -> int:
     share = {}
     for v in E.VARS:
         for s in SEAS:
-            e = st["maps"][(v, s, "EC")]
-            for j, nm in enumerate(("E", "C")):
-                put(
-                    f"ec|{v}|{s}|{nm}|cmip6",
-                    e["mm"][j],
-                    e["sig"][j],
-                    dict(models=len(e["models"]), members=e["n_members"]),
-                    v,
-                    s,
-                )
             e = st["maps"][(v, s, "NP")]
             put(
                 f"pdo|{v}|{s}|free|cmip6",
@@ -767,8 +713,6 @@ def site() -> int:
                 lag_vs_reddened_pattern_r=round(float(rl), 3),
             )
             for key, nm in (
-                ("epcp", "diff"),
-                ("kepcp", "kug"),
                 ("en_pdo", "en"),
                 ("ln_pdo", "ln"),
                 ("en_pdo_int", "int"),
@@ -782,40 +726,31 @@ def site() -> int:
                     if k2 in c:
                         inf[k2] = round(c[k2], 3) if isinstance(c[k2], float) else c[k2]
                 put(f"cmp|{v}|{s}|{nm}", c["mm"], c["sig"], inf, v, s)
-            # Kug vs Takahashi composite agreement
-            a_, b_ = st["comps"].get((v, s, "epcp")), st["comps"].get((v, s, "kepcp"))
-            if a_ and b_ and a_.get("tested") and b_.get("tested"):
-                share[f"{v}|{s}"]["epcp_takahashi_vs_kug_r"] = round(pattern_r(a_["mm"], b_["mm"]), 3)
             # observed
             o = st["obs"][(v, s)]
-            for key, j, nm in (("EC", 0, "E"), ("EC", 1, "C"), ("NP", 1, "free"), ("Praw", 0, "raw")):
+            for key, j, nm in (("NP", 1, "free"), ("Praw", 0, "raw")):
                 f = o[key]["coef"][j]
                 sg = o[key]["sig"][j]
                 if v == "pr":
                     cl = o["clim"]
                     f = np.where(cl >= CS.DRY, 100.0 * f / np.maximum(cl, 1e-6), np.nan)
                     sg = sg & np.isfinite(f)
-                pref = "ec" if key == "EC" else "pdo"
-                npz[f"{pref}|{v}|{s}|{nm}|obs|f"] = f.astype("float32")
-                npz[f"{pref}|{v}|{s}|{nm}|obs|s"] = sg
-                meta["maps"][f"{pref}|{v}|{s}|{nm}|obs"] = dict(
+                npz[f"pdo|{v}|{s}|{nm}|obs|f"] = f.astype("float32")
+                npz[f"pdo|{v}|{s}|{nm}|obs|s"] = sg
+                meta["maps"][f"pdo|{v}|{s}|{nm}|obs"] = dict(
                     n=o["n"], span=o["span"], land_sig=round(float(sg[land & np.isfinite(f)].mean()), 3)
                 )
             meta.setdefault("obs_counts", {})[f"{v}|{s}"] = {
-                k: o[k] for k in ("n_ep", "n_cp", "n_en_pos", "n_en_neg", "n_ln_pos", "n_ln_neg")
+                k: o[k] for k in ("n_en_pos", "n_en_neg", "n_ln_pos", "n_ln_neg")
             }
     meta["pdo_share"] = share
-    # indices: EOF quality, reddened ENSO, and the E-C placement (models vs observed)
+    # the PDO index and its reddened-ENSO part, models and observed
     mem = st["info"]["members"]
 
-    def q(k, i=None):
-        return [round(float(np.percentile([m[k] if i is None else m[k][i] for m in mem], p)), 3) for p in (10, 50, 90)]
+    def q(k):
+        return [round(float(np.percentile([m[k] for m in mem], p)), 3) for p in (10, 50, 90)]
 
     meta["quality"] = dict(
-        eof1_r=q("eof_r", 0),
-        eof2_r=q("eof_r", 1),
-        eof1_var=q("eof_var", 0),
-        eof2_var=q("eof_var", 1),
         pdo_r=q("pdo_r"),
         a=q("a"),
         b=q("b"),
@@ -823,85 +758,7 @@ def site() -> int:
         r_free_lag=q("r_free_lag"),
     )
     ref = st["ref"]
-    meta["obs_ref"] = dict(
-        a=round(ref["a"], 3), b=round(ref["b"], 3), r2=round(ref["r2"], 3), eof_var=[round(x, 3) for x in ref["var"]]
-    )
-    osea = {k: seasonal(np.asarray(ref[k], float), ref["months"]) for k in ("E", "C", "n34", "pdo", "pdo_free")}
-    meta["obs_djf"] = {
-        str(y): dict(
-            E=round(osea["E"]["DJF"][y], 2),
-            C=round(osea["C"]["DJF"][y], 2),
-            n34=round(osea["n34"]["DJF"][y], 2),
-            pdo=round(osea["pdo"]["DJF"].get(y, np.nan), 2),
-            pdo_free=round(osea["pdo_free"]["DJF"].get(y, np.nan), 2),
-        )
-        for y in sorted(osea["E"]["DJF"])
-        if y in osea["n34"]["DJF"]
-    }
-    meta["obs_jja"] = {
-        str(y): dict(
-            E=round(osea["E"]["JJA"][y], 2), C=round(osea["C"]["JJA"][y], 2), n34=round(osea["n34"]["JJA"][y], 2)
-        )
-        for y in sorted(osea["E"]["JJA"])
-    }
-    meta["obs_months"] = {
-        m: dict(
-            E=round(float(ref["E"][i]), 2),
-            C=round(float(ref["C"][i]), 2),
-            n34=round(float(ref["n34"][i]), 2),
-            pdo=None if not np.isfinite(ref["pdo"][i]) else round(float(ref["pdo"][i]), 2),
-            pdo_free=None if not np.isfinite(ref["pdo_free"][i]) else round(float(ref["pdo_free"][i]), 2),
-        )
-        for i, m in enumerate(ref["months"])
-        if m >= "2025-06"
-    }
-    # model DJF El Nino events and the JJA before them, pooled over members: (E, C, N34), and the super subset
-    djf, jja = [], []
-    by = defaultdict(dict)
-    for d in st["info"]["idx"]:
-        by[d["member"]][d["season"]] = d
-    for dd in by.values():
-        if "DJF" not in dd or "JJA" not in dd:
-            continue
-        D, J = dd["DJF"], dd["JJA"]
-        jrow = {y: i for i, y in enumerate(J["years"])}
-        for i, y in enumerate(D["years"]):
-            if D["n34"][i] >= 0.5:
-                djf.append((D["E"][i], D["C"][i], D["n34"][i], D["pdo_free"][i]))
-                if (y - 1) in jrow:
-                    k = jrow[y - 1]
-                    jja.append((J["E"][k], J["C"][k], J["n34"][k], D["n34"][i]))
-    djf, jja = np.array(djf, "float32"), np.array(jja, "float32")
-    npz["djf_events"] = djf
-    npz["jja_before"] = jja
-    sup = djf[:, 2] >= 2.0
-    supj = jja[:, 3] >= 2.0
-    e26 = meta["obs_jja"].get("2026", {})
-    meta["placement"] = dict(
-        n_djf=len(djf),
-        n_super=int(sup.sum()),
-        ep_share_all=round(float(np.mean(djf[:, 0] > djf[:, 1])), 3),
-        ep_share_super=round(float(np.mean(djf[sup, 0] > djf[sup, 1])), 3),
-        ep_share_strong=round(float(np.mean(djf[djf[:, 2] >= 1.5, 0] > djf[djf[:, 2] >= 1.5, 1])), 3),
-        n_jja_super=int(supj.sum()),
-        jja2026_E_pct_among_super_jja=round(float(100 * np.mean(jja[supj, 0] < e26.get("E", np.nan))), 1)
-        if e26
-        else None,
-        jja2026_C_pct_among_super_jja=round(float(100 * np.mean(jja[supj, 1] < e26.get("C", np.nan))), 1)
-        if e26
-        else None,
-        super_given_jja_like_2026=None,
-    )
-    if e26:
-        near = (np.abs(jja[:, 0] - e26["E"]) < 0.5) & (np.abs(jja[:, 1] - e26["C"]) < 0.5)
-        meta["placement"]["n_jja_near_2026"] = int(near.sum())
-        if near.sum() >= 20:
-            dn = jja[near, 3]
-            meta["placement"]["djf_after_jja_near_2026"] = dict(
-                p10_50_90=[round(float(x), 2) for x in np.percentile(dn, [10, 50, 90])],
-                p_super=round(float(np.mean(dn >= 2.0)), 3),
-                p_strong=round(float(np.mean(dn >= 1.5)), 3),
-            )
+    meta["obs_ref"] = dict(a=round(ref["a"], 3), b=round(ref["b"], 3), r2=round(ref["r2"], 3))
     out = HERE / "reference"
     np.savez_compressed(out / "enso_modes_site.npz", **npz)
     (out / "enso_modes_site.json").write_text(json.dumps(meta, separators=(",", ":"), default=float))
@@ -930,7 +787,7 @@ def main() -> int:
     names = [n for n in names if (PAC / f"{n}.npz").exists()]
     R = defaultdict(dict)
     Sm = Sums()
-    info = {"members": [], "idx": []}  # R[key][model] = [sum of member maps, n]
+    info = {"members": []}  # R[key][model] = [sum of member maps, n]
     members = defaultdict(int)
     for i, n in enumerate(names):
         members[process(n, ref, R, Sm, info)] += 1
@@ -955,8 +812,6 @@ def main() -> int:
     for v in E.VARS:
         for s in SEAS:
             for key, a, b, bins in (
-                ("epcp", "ep{k}", "cp{k}", range(4)),
-                ("kepcp", "kep{k}", "kcp{k}", range(4)),
                 ("en_pdo", "en+{k}", "en-{k}", range(4)),
                 ("ln_pdo", "ln+{k}", "ln-{k}", range(4)),
                 ("neu_pdo", "neu+0", "neu-0", (0,)),

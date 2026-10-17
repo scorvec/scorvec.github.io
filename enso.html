@@ -324,8 +324,8 @@ Is La Ni&ntilde;a the mirror image of El Ni&ntilde;o? The two class composites a
 Is the real world consistent with the models? The observed composite of <i>n</i> events is placed among composites of <i>n</i> events drawn from the models &mdash; a model at random, then <i>n</i> of its events &mdash; 20,000 times for each region and 100,000 times for each grid point, giving a two-sided p. The regional list uses a false-discovery rate of 10&nbsp;% within each season &times; class row of 20 regions; the maps use it over the whole map.</p>
 <p><a href="#imp_regions"><b>By region</b></a> &middot; 20 regions, significant values only<br>
 Land-weighted means over 20 regions (land fraction from Natural Earth &times; cos&nbsp;latitude), for each class minus neutral seasons: the five CMIP6 classes and the observed El Ni&ntilde;o and La Ni&ntilde;a. A CMIP6 value is printed only where it is robust &mdash; the across-model t-test passes a false-discovery rate of 10&nbsp;% within the row of 20 regions and at least 80&nbsp;% of the models agree on the sign; an observed value only where a Welch t-test against neutral seasons passes 10&nbsp;% within its column. <i>n.s.</i> = not significant; <i>n=</i> marks an observed class with too few seasons to test. Precipitation is in % of normal.</p>
-<p><a href="#imp_ec"><b>East-based vs central</b></a> &middot; Takahashi E and C, 2026 placed<br>
-<b>East-based and central-Pacific El Ni&ntilde;os are not the same event.</b> Takahashi et al. (2011) showed that the first two patterns of tropical Pacific sea-surface temperature (EOFs over 10&deg;S&ndash;10&deg;N; Takahashi et al. used HadISST from coast to coast, here ERSST v6 and each model over 140&deg;E&ndash;80&deg;W) combine into two physically distinct indices: <b>E = (PC1 &minus; PC2)/&radic;2</b>, warming centred on the far eastern Pacific and the coast of Peru, and <b>C = (PC1 + PC2)/&radic;2</b>, warming centred near the dateline. Here each CMIP6 member gets its own EOFs from its own monthly sea-surface temperature (own climatology and quadratic trend removed; the second pattern matches the observed one at a median pattern correlation of 0.83), and the signs are fixed against the observed ERSST v6 patterns. The indices are in standard deviations of the monthly index.</p>
+<p><a href="#imp_ec"><b>East-based vs central</b></a> &middot; one rule with the forecasts page, DJF<br>
+<b>One rule for east-based and central El Ni&ntilde;o, here and on the forecasts page.</b> Takahashi et al. (2011) combine the first two patterns of tropical Pacific sea-surface temperature (EOFs of ERSST v6 over 10&deg;S&ndash;10&deg;N, 140&deg;E&ndash;80&deg;W, trained on 1979&ndash;2020) into <b>E = (PC1 &minus; PC2)/&radic;2</b>, warming centred on the far eastern Pacific and the coast of Peru, and <b>C = (PC1 + PC2)/&radic;2</b>, warming centred near the dateline, each in standard deviations of the observed index. An El Ni&ntilde;o winter (December&ndash;February Ni&ntilde;o-3.4 &ge; +0.5&nbsp;K) is <b>east-based</b> when E &minus; C &ge; 1, <b>central</b> when E &minus; C &le; &minus;1 and <b>basin-wide</b> in between: the rule of the <a href="/enso-forecasts.html#flavour">ENSO forecasts page</a> and of the monitor&rsquo;s east-or-central reading. Every December&ndash;February of 429 CMIP6 historical runs (16 models, 1950&ndash;2014) is projected on the same observed patterns, so a model winter is measured with the ruler used for an observed winter or a forecast member. Each run&rsquo;s anomalies are taken from its own mean of the other winters within &plusmn;10 years at every grid point, so its forced warming neither moves winters between classes nor enters the maps, and each winter mean weights its months by their days on the model&rsquo;s own calendar.</p>
 <p><a href="#imp_wave"><b>Wave train position</b></a> &middot; 500 hPa, models vs observed<br>
 <b>Do the models put the ENSO wave train in the right place?</b> Two centres are tracked on the 500 hPa height maps: the <b>Aleutian low</b> (the minimum over 30&ndash;65&deg;N, 150&deg;E&ndash;130&deg;W) and the <b>Canadian ridge</b> (the maximum over 40&ndash;70&deg;N, 130&ndash;60&deg;W), each as the area-weighted centroid of the strongest 20&nbsp;% of the anomaly, on the regression per K of Ni&ntilde;o-3.4 for ERA5 (1959&ndash;2026, CPC&rsquo;s ONI) and for each CMIP6 model, and on the super El Ni&ntilde;o composites. The positions are descriptive: ERA5 is one realisation and the CMIP6 range is the spread between models, so no test is implied.</p>
 <p><a href="#imp_pdocause"><b>The PDO: driven by the atmosphere</b></a> &middot; its own effect is small<br>
@@ -717,42 +717,67 @@ Land-weighted means over 20 regions (land fraction from Natural Earth &times; co
 <p class="chart-sources">Written by Claude, Anthropic&rsquo;s AI model, at the direction of <a href="/about.html">Shawn Corvec</a>, meteorologist. Not peer reviewed.</p>
 </template>
 <template id="about-imp_ec">
-<p><b>East-based and central-Pacific El Ni&ntilde;os are not the same event.</b> Takahashi et al. (2011) showed that the
-        first two patterns of tropical Pacific sea-surface temperature (EOFs over 10&deg;S&ndash;10&deg;N; Takahashi et al. used HadISST from coast to coast, here ERSST v6 and each model over 140&deg;E&ndash;80&deg;W)
-        combine into two physically distinct indices: <b>E = (PC1 &minus; PC2)/&radic;2</b>, warming centred on the far eastern
-        Pacific and the coast of Peru, and <b>C = (PC1 + PC2)/&radic;2</b>, warming centred near the dateline. Here each CMIP6
-        member gets its own EOFs from its own monthly sea-surface temperature (own climatology and quadratic trend removed; the
-        second pattern matches the observed one at a median pattern correlation of 0.83), and the signs are fixed against the
-        observed ERSST v6 patterns. The indices are in standard deviations of the monthly index.</p>
-<p><b>Views.</b> <i>East</i> and <i>Central</i>: the season&rsquo;s temperature or rainfall regressed on E and C together, so each
-        map is one pattern with the other held fixed. <i>East minus central</i>: El Ni&ntilde;o seasons with E &gt; C minus those
-        with C &ge; E, matched in Ni&ntilde;o-3.4 strength (bins 0.5&ndash;1, 1&ndash;1.5, 1.5&ndash;2 and &ge; 2&nbsp;K, each
-        weighted by its smaller class), so the difference is the kind of event, not its size. Kug et al.&rsquo;s (2009) test
-        (standardised Ni&ntilde;o-3 against Ni&ntilde;o-4) gives the same difference maps to a pattern correlation of 0.96&ndash;0.99.
-        <i>Where events fall</i>: the models&rsquo; El Ni&ntilde;os and the observed ones on E and C. The
-        <a href="/enso-forecasts.html#flavour">ENSO forecasts page</a> uses a three-way rule instead (east-based or central only
-        when E and C differ by at least 1, basin-wide in between) on a fixed 1991&ndash;2020 base without detrending, so its
-        labels and numbers for the same season can differ from these.</p>
-<p><b>What the models agree on</b> (December&ndash;February, matched strength, regional means robust by the same test):
-        an east-based El Ni&ntilde;o is <b>cooler over the southern and eastern US</b> than a central one of the same size
-        (US Southwest &minus;0.23&nbsp;K, Gulf Coast &minus;0.24, Southeast &minus;0.25, Ohio Valley &minus;0.28), <b>colder
-        in Alaska</b> (&minus;0.36) and <b>warmer over Quebec and Labrador</b> (+0.45); it is <b>drier in the US Southwest</b>
-        (&minus;8&nbsp;%) and wetter on the Peru/Ecuador coast (+9&nbsp;%). Per standard deviation, the central index warms
-        Alaska (+0.8&nbsp;K) and wets Mexico and the Southwest; the eastern index cools the Gulf Coast and warms Quebec.
-        In the models 70&nbsp;% of super El Ni&ntilde;os (Ni&ntilde;o-3.4 &ge; 2&nbsp;K in winter) are east-based, against
-        38&nbsp;% of all El Ni&ntilde;os.</p>
-<p><b>Observed.</b> 1982/83 and 1997/98 were strongly east-based (E +3.6 and +3.8, C about +0.5); 2015/16 was mixed
-        (E and C both +1.8); 2009/10 was central. <b>Summer 2026 was east-based</b>: June&ndash;August E +2.3, C +1.2, the
-        largest summer E since 1997 (+3.3), and August alone E +3.1. With no detrending (a 1991&ndash;2020 base) the numbers
-        move to E +2.5, C +1.6: the placement does not depend on the trend. The observed record has 5 east-based and 17
-        central El Ni&ntilde;o winters since 1960 (C &ge; E counts as central here, basin-wide events included) &mdash; too few east-based ones to test the difference directly, so the
-        observed side is the E/C regression. A CMIP6 map is shaded only where it is <i>robust</i>: an across-model t-test (each of the 16 models counts once) passes a Benjamini&ndash;Hochberg false-discovery rate of 10&nbsp;% over the map <i>and</i> at least 80&nbsp;% of the models agree on the sign. Observed maps are shaded where the regression coefficient&rsquo;s t-test passes the same false-discovery rate. Blank = not significant.</p>
-<p><b>500 hPa.</b> The two indices place the ridge differently. East-based warming (E) puts the Canadian ridge over
-        eastern Canada (78&deg;W in the models, 82&deg;W observed); central-Pacific warming (C) puts it over western Canada
-        (117&deg;W and 112&deg;W) with the Aleutian low further south. East minus central at matched strength: +16&nbsp;gpm over
-        Labrador and &minus;14&nbsp;gpm over the southern US, robust over 20&nbsp;% of 20&ndash;90&deg;N in winter &mdash; the
-        height pattern behind the warmer Quebec and cooler south of east-based events.</p>
-<p class="chart-sources">CMIP6 historical runs (Eyring et al. 2016, <i>Geosci. Model Dev.</i> 9, 1937&ndash;1958; CC&nbsp;BY&nbsp;4.0), 1950&ndash;2014, 16 models, 429 members, via the Pangeo archive on Google Cloud (Amon <code>ts</code>, <code>tas</code>, <code>pr</code>) &middot; ERSST v6 (NOAA NCEI; Huang et al. 2025, <i>J. Climate</i> 38, 1105&ndash;1121) &middot; ERA5 2&nbsp;m temperature (Copernicus C3S, CC&nbsp;BY&nbsp;4.0; Hersbach et al. 2020, <i>Q. J. R. Meteorol. Soc.</i> 146, 1999&ndash;2049), 1960&ndash;2026 &middot; GPCP v2.3 precipitation (NOAA NCEI; Adler et al. 2018, <i>Atmosphere</i> 9, 138), 1980&ndash;2026 &middot; CPC ONI &middot; FDR: Benjamini &amp; Hochberg 1995, <i>J. R. Stat. Soc. B</i> 57, 289&ndash;300 &middot; static reference, redrawn only when the analysis changes &middot; Takahashi et al. 2011, <i>Geophys. Res. Lett.</i> 38, L10704 &middot; Kug, Jin &amp; An 2009, <i>J. Climate</i> 22, 1499&ndash;1515</p>
+<p><b>One rule for east-based and central El Ni&ntilde;o, here and on the forecasts page.</b> Takahashi et al. (2011)
+        combine the first two patterns of tropical Pacific sea-surface temperature (EOFs of ERSST v6 over 10&deg;S&ndash;10&deg;N,
+        140&deg;E&ndash;80&deg;W, trained on 1979&ndash;2020) into <b>E = (PC1 &minus; PC2)/&radic;2</b>, warming centred on the
+        far eastern Pacific and the coast of Peru, and <b>C = (PC1 + PC2)/&radic;2</b>, warming centred near the dateline, each in
+        standard deviations of the observed index. An El Ni&ntilde;o winter (December&ndash;February Ni&ntilde;o-3.4 &ge;
+        +0.5&nbsp;K) is <b>east-based</b> when E &minus; C &ge; 1, <b>central</b> when E &minus; C &le; &minus;1 and
+        <b>basin-wide</b> in between: the rule of the <a href="/enso-forecasts.html#flavour">ENSO forecasts page</a> and of the
+        monitor&rsquo;s east-or-central reading. Every December&ndash;February of 429 CMIP6 historical runs (16 models,
+        1950&ndash;2014) is projected on the same observed patterns, so a model winter is measured with the ruler used for an
+        observed winter or a forecast member. Each run&rsquo;s anomalies are taken from its own mean of the other winters within
+        &plusmn;10 years at every grid point, so its forced warming neither moves winters between classes nor enters the maps,
+        and each winter mean weights its months by their days on the model&rsquo;s own calendar.</p>
+<p><b>Views.</b> <i>Composites by class</i>: the winters of each class minus neutral winters (|Ni&ntilde;o-3.4| &lt;
+        0.5&nbsp;K). <i>East minus central</i>: the two classes at the same strength, with Ni&ntilde;o-3.4 held fixed by bins
+        (0.5&ndash;1, 1&ndash;1.5, 1.5&ndash;2 and &ge; 2&nbsp;K) and a linear term, because east-based winters are the stronger
+        ones (+2.41 against +1.46&nbsp;K on average): the difference is the kind of event, not its size. <i>Model by model</i>:
+        each model&rsquo;s own map, tested across its own events. <i>E and C regressions</i>: the winter regressed on both indices
+        together, per standard deviation of one with the other held fixed, for CMIP6 and for observations (ERA5
+        1960&ndash;2026, GPCP 1980&ndash;2026, with the same &plusmn;10-year anomalies). <i>Where events fall</i>: the models&rsquo;
+        and the observed El Ni&ntilde;o winters on E and C, and each model&rsquo;s share of the three classes.</p>
+<p><b>Tests.</b> Each model&rsquo;s members are pooled. A class map is a Welch t-test of the class against neutral winters
+        at every grid point, east minus central the t-test of the east-based coefficient in the fit above, each with a
+        Benjamini&ndash;Hochberg false-discovery rate of 10&nbsp;% over the map; a model with fewer than 8 winters of a class has
+        no map. The multi-model map counts each model that has a map once and is shaded only where it is <i>robust</i>: an
+        across-model t-test passes the same false-discovery rate <i>and</i> at least 80&nbsp;% of those models agree on the sign;
+        with fewer than 5 such models there is no map. Observed maps are shaded where the regression coefficient&rsquo;s t-test
+        passes the false-discovery rate. Blank = not significant.</p>
+<p><b>The models make few east-based El Ni&ntilde;os.</b> Of their 8,767 El Ni&ntilde;o winters 778 are east-based
+        (9&nbsp;%), 4,964 basin-wide (57&nbsp;%) and 3,025 central (35&nbsp;%), or 6, 60 and 33&nbsp;% with each model counted
+        once, against 2, 19 and 6 of the 27 observed El Ni&ntilde;o winters since 1951&ndash;52. Only 10 of the 16 models have
+        8 or more east-based winters, and 456 of the 778 come from one model (GISS-E2-1-G); CanESM5, CNRM-ESM2-1, INM-CM5-0,
+        IPSL-CM6A-LR and both MPI-ESM1-2 models have between 0 and 5. That fits the models&rsquo; El Ni&ntilde;o warming and
+        rainfall sitting too far west (see the wave-train view), which on the observed ruler reads central or basin-wide. With
+        each model&rsquo;s own EOFs instead of the observed ones, 72&nbsp;% of the model El Ni&ntilde;o winters keep their class
+        (from 46&nbsp;% in MIROC6 to 90&nbsp;% in GISS-E2-1-G).</p>
+<p><b>What the models agree on</b> (December&ndash;February, regional means robust by the same test). East-based winters
+        (10 models, mean Ni&ntilde;o-3.4 +2.38&nbsp;K) are <b>cold across the southern US</b> (Gulf Coast &minus;1.6&nbsp;K,
+        Southeast and US Southwest &minus;1.3, Mexico &minus;1.0) and <b>warm over Quebec and Labrador</b> (+2.0&nbsp;K), very wet
+        in the Southeast (+39&nbsp;%) and on the Peru/Ecuador coast (+47&nbsp;%), and dry over Venezuela, the Amazon, northeast
+        Brazil and Central America (&minus;24 to &minus;31&nbsp;%). Central winters (16 models, +1.20&nbsp;K) warm
+        <b>Alaska</b> most (+1.1&nbsp;K) and wet the US Southwest, California and Mexico (+14 to +15&nbsp;%). <b>At the same
+        strength</b> (7 models, 632 east-based against 1,018 central winters) an east-based El Ni&ntilde;o is colder over the US
+        Southwest (&minus;0.74&nbsp;K), Gulf Coast (&minus;0.68), Southeast and Ohio Valley (&minus;0.6), California
+        (&minus;0.46) and Mexico (&minus;0.43), warmer over Quebec and Labrador (+1.1&nbsp;K), and drier over the US Southwest
+        (&minus;26&nbsp;%) and Mexico (&minus;23&nbsp;%); Alaska shows no significant difference. That difference is robust over
+        31&nbsp;% of land for temperature and 12&nbsp;% for rainfall.</p>
+<p><b>500 hPa</b> (147 members, up to 10 per model). East-based winters deepen the Aleutian low near 149&deg;W
+        (&minus;60&nbsp;gpm, 7 models), build a ridge over eastern Canada near 74&deg;W (+69&nbsp;gpm) and a trough over the
+        southeastern US (&minus;66&nbsp;gpm); central winters have a weaker low further south, near 40&deg;N (&minus;41&nbsp;gpm),
+        and their ridge over western Canada near 105&deg;W (+22&nbsp;gpm). Per standard deviation, E puts the Canadian ridge at
+        75&deg;W (observed 81&deg;W) and C at 120&deg;W (observed 109&deg;W); centres are the area-weighted centroids of the
+        robust cells within 20&nbsp;% of the extreme. Only 4 models have 8 east-based and 8 central winters among their 500 hPa
+        members, so there is no 500 hPa east-minus-central map.</p>
+<p><b>Observed.</b> 1982&ndash;83 and 1997&ndash;98 are the two east-based winters (E +3.4 and +3.6, C +0.3 and +0.5 on the
+        monitor&rsquo;s fixed 1991&ndash;2020 base); 2015&ndash;16 and 2023&ndash;24 were basin-wide; 1968&ndash;69,
+        2002&ndash;03, 2004&ndash;05, 2009&ndash;10, 2014&ndash;15 and 2019&ndash;20 central. Two east-based winters leave nothing
+        to test as a composite, so the observations test the two indices instead: in ERA5, E and C are significant over 38 and
+        33&nbsp;% of land for temperature. On the composites&rsquo; moving &plusmn;10-year base three borderline winters
+        (1977&ndash;78, 1979&ndash;80 and 1987&ndash;88) would be central rather than basin-wide; the event list keeps the
+        monitor&rsquo;s base.</p>
+<p class="chart-sources">CMIP6 historical runs (Eyring et al. 2016, <i>Geosci. Model Dev.</i> 9, 1937&ndash;1958; CC&nbsp;BY&nbsp;4.0), 1950&ndash;2014, 16 models, 429 members, via the Pangeo archive on Google Cloud (Amon <code>ts</code>, <code>tas</code>, <code>pr</code>; <code>zg</code> for 147) &middot; ERSST v6 (NOAA NCEI; Huang et al. 2025, <i>J. Climate</i> 38, 1105&ndash;1121) &middot; ERA5 2&nbsp;m temperature and 500 hPa height (Copernicus C3S, CC&nbsp;BY&nbsp;4.0; Hersbach et al. 2020, <i>Q. J. R. Meteorol. Soc.</i> 146, 1999&ndash;2049), 1960&ndash;2026 &middot; GPCP v2.3 precipitation (NOAA NCEI; Adler et al. 2018, <i>Atmosphere</i> 9, 138), 1980&ndash;2026 &middot; CPC ONI &middot; FDR: Benjamini &amp; Hochberg 1995, <i>J. R. Stat. Soc. B</i> 57, 289&ndash;300 &middot; static reference, redrawn only when the analysis changes &middot; Takahashi et al. 2011, <i>Geophys. Res. Lett.</i> 38, L10704</p>
 <p class="chart-sources">Written by Claude, Anthropic&rsquo;s AI model, at the direction of <a href="/about.html">Shawn Corvec</a>, meteorologist. Not peer reviewed.</p>
 </template>
 <template id="about-imp_wave">
@@ -902,6 +927,9 @@ Land-weighted means over 20 regions (land fraction from Natural Earth &times; co
 var IMP_V = {label: "Variable", items: [["tas","Temperature"],["pr","Precipitation"],["z500","500 hPa height"]]},
     IMP_VT = {label: "Variable", items: [["tas","Temperature"],["pr","Precipitation"]]},
     IMP_S = {label: "Season", items: [["DJF","DJF"],["MAM","MAM"],["JJA","JJA"],["SON","SON"]]},
+    IMP_EC = {label: "Class", items: [["east","East-based"],["basin","Basin-wide"],["central","Central"]]},
+    IMP_ECM = {label: "Class", items: [["east","East-based"],["basin","Basin-wide"],["central","Central"],["diff","East minus central"]]},
+    IMP_ECR = {label: "Index", items: [["E","E, CMIP6"],["C","C, CMIP6"],["Eo","E, observed"],["Co","C, observed"]]},
     IMP_PH = {label: "Phase", items: [["JJA0","JJA before"],["SON0","SON before"],["DJF","DJF peak"],["MAM1","MAM after"]]},
     IMP_VN = {tas: "temperature", pr: "precipitation", z500: "500 hPa height"};
 window.STAGE = {
@@ -912,7 +940,7 @@ window.STAGE = {
   {label: "Convection & waves", ico: "\u{1F30A}", items: [["olr","OLR Hovmöller","satellite proxy, equatorial"],["waves","Wave decomposition","Kelvin, Rossby, MJO bands"],["trackers","Kelvin and Rossby trackers","along the equator"],["kelvin","Kelvin wave tracker, AIFS-ENS","map + 15-day forecast"]]},
   {label: "Atmospheric response", ico: "\u{1F32C}", items: [["soi","Southern Oscillation Index","hourly, forecast, equatorial"],["soirec","SOI against the record","monthly and daily records"],["soi_seas","Seasonal SOI outlook","SEAS5, SOI and Equatorial SOI"],["mei","MEI.v2 nowcast","daily, analogs, history"],["ascat","ASCAT wind map","scatterometer, daily"],["eqwind","Zonal wind Hovmöller","equatorial strip, since 1 March"],["wwb","Westerly wind bursts","Tarawa monitor, past onsets"],["wind10","10 m wind forecast","ensembles and single runs, to day 15"]]},
   {label: "Subsurface", ico: "\u{1F30A}", items: [["subtemp","Temperature section","TAO/TRITON, raw and detrended"],["hc","Heat content vs analogs","0–300 m, 1997 · 2015 · 2023"],["okelvin","Ocean Kelvin waves","sea level, arrival dates"],["xsec","Cross-section vs analogs","same week of each event"],["cur_map","Surface currents","tropical Pacific"],["cur_sec","Undercurrent section","zonal current with depth"],["cur_hov","Current Hovmöller","equatorial strip"]]},
-  {label: "Impacts on the Americas", ico: "\u{1F30E}", items: [["imp_reg","Regression on Niño-3.4","CMIP6 and observed, per K"],["imp_comp","Composites by event class","CMIP6, El Niño to strong La Niña"],["imp_obs","Observed composites","ERA5 and GPCP"],["imp_super","Super El Niño","lifecycle, beyond linear, by month"],["imp_asym","Asymmetry","what does not flip sign"],["imp_ovm","Observed vs the models","where the real world differs"],["imp_regions","By region","20 regions, significant values only"],["imp_ec","East-based vs central","Takahashi E and C, 2026 placed"],["imp_wave","Wave train position","500 hPa, models vs observed"],["imp_pdocause","The PDO: driven by the atmosphere","its own effect is small"],["imp_pdomonth","PDO: small effects by month","only coastal warming is robust"]]}
+  {label: "Impacts on the Americas", ico: "\u{1F30E}", items: [["imp_reg","Regression on Niño-3.4","CMIP6 and observed, per K"],["imp_comp","Composites by event class","CMIP6, El Niño to strong La Niña"],["imp_obs","Observed composites","ERA5 and GPCP"],["imp_super","Super El Niño","lifecycle, beyond linear, by month"],["imp_asym","Asymmetry","what does not flip sign"],["imp_ovm","Observed vs the models","where the real world differs"],["imp_regions","By region","20 regions, significant values only"],["imp_ec","East-based vs central","one rule with the forecasts page, DJF"],["imp_wave","Wave train position","500 hPa, models vs observed"],["imp_pdocause","The PDO: driven by the atmosphere","its own effect is small"],["imp_pdomonth","PDO: small effects by month","only coastal warming is robust"]]}
 ],
   products: {
   sstmaps: {label: "SST anomaly maps", a: {label: "Field", items: [["anomaly","Anomaly"],["absolute","Absolute SST"],["relative","Global mean removed"],["tropical_rel","Tropics, tropical mean removed"]]},
@@ -1012,15 +1040,22 @@ window.STAGE = {
           about: "about-imp_ovm", fit: false,
           cap: function (a) { return a === "map" ? "The three observed super El Niños, shown only where they fall outside the spread of the CMIP6 models."
                                                   : "Every season, class and region where the observed temperature response falls outside the models' spread."; }},
-  imp_ec: {label: "East-based vs central-Pacific El Niño", a: {label: "View", items: [["E","East (E), CMIP6"],["C","Central (C), CMIP6"],["Eo","East, observed"],["Co","Central, observed"],["diff","East minus central"],["place","Where events fall"]]},
-          b: function (a) { return a === "place" ? null : IMP_V; }, c: function (a) { return a === "place" ? null : IMP_S; },
+  imp_ec: {label: "East-based, basin-wide and central El Niño", a: {label: "View", items: [["comp","Composites by class"],["diff","East minus central"],["models","Model by model"],["reg","E and C regressions"],["place","Where events fall"]]},
+          b: function (a) { return a === "place" ? null : IMP_V; },
+          c: function (a) { return a === "comp" ? IMP_EC : a === "models" ? IMP_ECM : a === "reg" ? IMP_ECR : null; },
           img: function (a, b, c) { if (a === "place") return "assets/sst/enso_imp_ec_place.webp?v=87c965a0c000";
-                                    if (a === "diff") return "assets/sst/enso_imp_ec_" + b + "_" + c + "_diff.webp?v=87c965a0c000";
-                                    return "assets/sst/enso_imp_ec_" + b + "_" + c + "_" + a.charAt(0) + "_" + (a.length > 1 ? "obs" : "cmip6") + ".webp?v=87c965a0c000"; },
+                                    var f = "assets/sst/enso_imp_ec_" + b + "_DJF_";
+                                    if (a === "diff") return f + "diff.webp?v=87c965a0c000";
+                                    if (a === "models") return f + c + "_models.webp?v=87c965a0c000";
+                                    if (a === "reg") return f + c.charAt(0) + "_" + (c.length > 1 ? "obs" : "cmip6") + ".webp?v=87c965a0c000";
+                                    return f + c + ".webp?v=87c965a0c000"; },
           about: "about-imp_ec", fit: false,
-          cap: function (a, b, c) { return a === "place" ? "CMIP6 and observed El Niños on Takahashi's east-based (E) and central-Pacific (C) indices, with summer 2026."
-                                  : a === "diff" ? c + " " + IMP_VN[b] + ": east-based minus central-Pacific El Niños of the same Niño-3.4 strength, CMIP6, shaded only where robust."
-                                  : c + " " + IMP_VN[b] + " per standard deviation of the " + (a.charAt(0) === "E" ? "east-based (E)" : "central-Pacific (C)") + " index, the other held fixed, " + (a.length > 1 ? "observed" : "CMIP6") + ", shaded only where significant."; }},
+          cap: function (a, b, c) { var cls = {east: "east-based", basin: "basin-wide", central: "central"};
+                                    return a === "place" ? "Where CMIP6 and observed El Niño winters fall on E and C, and each model's share of east-based, basin-wide and central winters against the observed share."
+                                  : a === "diff" ? "December–February " + IMP_VN[b] + ": east-based minus central El Niño winters at the same Niño-3.4 strength, CMIP6, shaded only where robust."
+                                  : a === "models" ? "Every CMIP6 model's own December–February " + IMP_VN[b] + " map, " + (c === "diff" ? "east-based minus central" : cls[c] + " El Niño minus neutral winters") + ", each tested across its own events; a model with fewer than 8 events has no map."
+                                  : a === "reg" ? "December–February " + IMP_VN[b] + " per standard deviation of " + c.charAt(0) + ", the other index held fixed, " + (c.length > 1 ? "observed" : "CMIP6") + ", shaded only where significant."
+                                  : "December–February " + IMP_VN[b] + " in " + cls[c] + " El Niño winters minus neutral winters, CMIP6, on the site's east/central rule, shaded only where robust."; }},
   imp_pdocause: {label: "The PDO: mostly driven by the atmosphere, not driving it",
           a: {label: "View", items: [["all","Side by side"],["table","Numbers"],["covar_cmip6","Co-variability, CMIP6"],["covar_era5","Co-variability, ERA5"],["lag","Lagged"],["frank2","Frankignoul"],["amip","AMIP"],["dcpp_ipsl","IPSL pacemaker"],["dcpp_hadgem","HadGEM3 pacemaker"]]},
           img: function (a) { return "assets/sst/enso_imp_pdocause_" + a + ".webp?v=87c965a0c000"; }, about: "about-imp_pdocause", fit: false,

@@ -2,13 +2,12 @@ name: ENSO impacts on the Americas (static CMIP6 reference)
 
 # The "Impacts on the Americas" items on enso.html: CMIP6 and observed ENSO regression maps,
 # event-class composites, super El Nino lifecycle, asymmetry, observed-vs-models and the
-# regional table, east-based vs central (Takahashi E/C), the PDO without ENSO and El Nino by PDO phase. Static
-# products: the analysis runs once offline
-# (scripts/sst/cmip6_enso_impacts.py over 429 CMIP6 members, then scripts/sst/cmip6_enso_site.py; and
-# cmip6_pacific_ts_extract.py + cmip6_enso_modes.py [--site] for the E/C and PDO views; cmip6_z500_extract.py +
-# cmip6_z500_impacts.py for the 500 hPa views), which commits three
-# small references; this job only draws them. It runs when the renderer or the
-# reference changes, or on dispatch - never on a schedule.
+# regional table, east-based vs central El Nino on the site's one E/C rule, the PDO views. Static products: the analyses
+# run once (scripts/sst/cmip6_enso_impacts.py over 429 CMIP6 members, then scripts/sst/cmip6_enso_site.py;
+# cmip6_pacific_ts_extract.py + cmip6_enso_modes.py [--site] for the PDO views; cmip6_z500_extract.py +
+# cmip6_z500_impacts.py for the 500 hPa views; cmip6-enso-flavour.yml and build_enso_flavour_impacts_obs.py for
+# east-based vs central) and commit small references; this job only draws them. It runs when the renderer or a
+# reference changes, or on dispatch - never on a schedule. Figures of views it no longer draws are deleted.
 on:
   workflow_dispatch:
   push:
@@ -25,6 +24,10 @@ on:
       - scripts/sst/reference/enso_pdo_causal_site.json
       - scripts/sst/reference/enso_pdo_monthly_site.npz
       - scripts/sst/reference/enso_pdo_monthly_site.json
+      - scripts/sst/reference/enso_flavour_impacts_cmip6.npz
+      - scripts/sst/reference/enso_flavour_impacts_cmip6.json
+      - scripts/sst/reference/enso_flavour_impacts_obs.npz
+      - scripts/sst/reference/enso_flavour_impacts_obs.json
       - .github/workflows/enso-impacts.yml
 
 env:
@@ -64,16 +67,20 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # snapshot + clean resync each attempt (tao-subsurface.yml / sst.yml pattern)
+          # snapshot + clean resync each attempt (tao-subsurface.yml / sst.yml pattern); the quoted pathspec lets git
+          # see the figures the renderer retired, and their deletion is replayed after each resync
+          OUTS=("assets/sst/enso_imp_*.webp" assets/sst/data/enso_impacts.json)
           SNAP=$(mktemp -d)
-          git add -A assets/sst/enso_imp_*.webp assets/sst/data/enso_impacts.json 2>/dev/null || true
-          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git add -A -- "${OUTS[@]}"
+          git diff --staged --name-only --diff-filter=d -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git diff --staged --name-only --diff-filter=D -z > "$SNAP/retired"
           git reset -q
           for i in 1 2 3 4 5; do
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar" 2>/dev/null || true
-            git add -A assets/sst/enso_imp_*.webp assets/sst/data/enso_impacts.json
+            xargs -0 -r rm -f < "$SNAP/retired"
+            git add -A -- "${OUTS[@]}"
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -q -m "enso impacts: render $(date -u +%Y-%m-%dT%H:%MZ)"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
