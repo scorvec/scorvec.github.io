@@ -5,7 +5,8 @@ name: CMIP6 east-based / central El Niño composites (static reference)
 # streams Amon ts, tas and pr (and zg for the members flagged in scripts/sst/reference/cmip6_enso_members.csv, up to 10
 # per model) from the Pangeo CMIP6 archive on Google Cloud and keeps only DJF means. Those per-model tables go to the
 # release cmip6-enso-djf-v1, so `extract: false` rebuilds from them without streaming CMIP6 again, and `models: X`
-# re-extracts one model into it. The build job writes scripts/sst/reference/enso_flavour_impacts_cmip6.{npz,json},
+# re-extracts one model into it (a model whose job failed: its tables are the only ones missing, and the full build
+# refuses to run without every model). The build job writes scripts/sst/reference/enso_flavour_impacts_cmip6.{npz,json},
 # commits it and dispatches enso-impacts.yml to draw it. A validation run (max_members > 0) keeps everything as an
 # artifact: no release upload, no commit. Dispatch only.
 on:
@@ -100,7 +101,7 @@ jobs:
 
   build:
     needs: [plan, extract]
-    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.extract.result != 'failure' }}
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}   # also after a failed model: the others reach the release
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
