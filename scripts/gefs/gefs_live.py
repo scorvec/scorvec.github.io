@@ -10,10 +10,11 @@ Daily values use EXACTLY the reforecast's sampling (gefs_reforecast.py): instant
 1.5 deg box means; weekly means over days 1-7 ... 29-35. So forecast and climatology are the same arithmetic, and the
 anomaly carries no sampling artefact.
 
-Reference: the GEFSv12 reforecast 2000-2019 (release gefs-clim-v1), read at the INIT day of year and the same week of
-lead - the model's drift and mean bias removed together. Anomalies are therefore against GEFS's 2000-2019 climate,
-not a 1991-2020 normal; 500 hPa height has its per-week global mean removed (otherwise two decades of warming sit over
-every map as a uniform ridge); temperature and precipitation keep theirs, since that is part of the signal.
+Reference: the GEFSv12 reforecast 2000-2019 (release gefs-clim-v3: the daily climatology, and the weekly one the
+tercile maps read), read at the INIT day of year and the same day of lead - the model's drift and mean bias removed
+together - then re-based to 1991-2020 with the ERA5 1991-2020 minus 2001-2020 normal difference at the valid date
+(anomalies); 500 hPa height has its daily global mean removed (otherwise decades of warming sit over every map as a
+uniform ridge); temperature and precipitation keep theirs, since that is part of the signal.
 
 The vortex panel: 60N 10 hPa zonal wind per member, bias-corrected as raw - model_clim(lead) + MERRA-2(valid date),
 both 2000-2019 (data/merra2_u60_10_clim.json).
@@ -37,10 +38,9 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import gefs_reforecast as R  # (decode, grid, weeks, v1 packing)
-import gefs_daily as G  # (v2: the shared daily reduction)
+import gefs_daily as G  # (the shared daily reduction)
 
 S3 = "https://noaa-gefs-pds.s3.amazonaws.com"
-CLIM_URL = "https://github.com/scorvec/scorvec.github.io/releases/download/gefs-clim-v1/gefs_clim_{c:03d}.npz"
 
 
 def zero_ticks(levels, every=4):
@@ -154,7 +154,6 @@ def fetch(date: str, n_members: int, work: Path, procs: int = 1):
     return dest
 
 
-CLIM2_URL = "https://github.com/scorvec/scorvec.github.io/releases/download/gefs-clim-v2/gefs_clim2_{c:03d}.npz"
 REF_URL = "https://github.com/scorvec/scorvec.github.io/releases/download/gefs-ref-v1/{name}"
 CENTRES = list(range(1, 366, 5))
 
@@ -177,24 +176,25 @@ def _cached(url: str, p: Path) -> Path:
 
 
 def clim_at(init: dt.date, cache: Path):
-    """v1 WEEKLY reforecast climatology at the init day of year (linear between the two centres around it)."""
+    """WEEKLY reforecast climatology (gefs_reforecast.py) at the init day of year (linear between the two centres
+    around it)."""
     lo, hi, w = _bracket(init)
     out = {}
     for c, wt in ((lo, 1 - w), (hi, w)):
-        z = np.load(_cached(CLIM_URL.format(c=c), cache / f"gefs_clim_{c:03d}.npz"))
+        z = np.load(R.clim_file(f"gefs_clim_{c:03d}.npz", cache))
         for k in [f"w_{t}" for t in R.WEEKLY] + ["u60", "band"]:
             out[k] = out.get(k, 0) + wt * z[k].astype("float64")
     return out
 
 
 def clim2_at(init: dt.date, cache: Path):
-    """v2 DAILY reforecast climatology at the init day of year: d_<tag> (35, 121, 240) for every reforecast field,
-    c25_<tag> on the 2.5 deg grid, s (16, 35) vortex scalars. None when the release is not there yet."""
+    """DAILY reforecast climatology (gefs_daily.py) at the init day of year: d_<tag> (35, 121, 240) for every
+    reforecast field, c25_<tag> on the 2.5 deg grid, s (16, 35) vortex scalars. None when the release is not there."""
     lo, hi, w = _bracket(init)
     out = {}
     try:
         for c, wt in ((lo, 1 - w), (hi, w)):
-            z = np.load(_cached(CLIM2_URL.format(c=c), cache / f"gefs_clim2_{c:03d}.npz"))
+            z = np.load(R.clim_file(f"gefs_clim2_{c:03d}.npz", cache))
             for k in z.files:
                 if k.startswith("d_"):
                     v = G.unpack(k[2:], z[k])
@@ -207,7 +207,7 @@ def clim2_at(init: dt.date, cache: Path):
                 out[k] = out.get(k, 0) + wt * v
             out["scalars"] = [str(x) for x in z["scalars"]]
     except Exception as e:  # noqa: BLE001
-        print(f"  daily climatology v2 unavailable ({str(e)[:80]}) - daily products skipped", flush=True)
+        print(f"  daily climatology ({R.CLIM_TAG}) unavailable ({str(e)[:80]}) - daily products skipped", flush=True)
         return None
     return out
 
@@ -996,7 +996,7 @@ def render(
     z = np.load(npz)
     C2 = clim2_at(base, cache)
     if C2 is None:
-        raise SystemExit("the daily reforecast climatology (release gefs-clim-v2) is required")
+        raise SystemExit(f"the daily reforecast climatology (release {R.CLIM_TAG}) is required")
     sh = np.load(ref("era5_shift.npz", cache, ref_dir))
     import gefs_drift as GD
 

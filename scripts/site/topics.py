@@ -401,9 +401,12 @@ would fade with lead time. Zonal wavenumbers 1–72 are kept, and the climatolog
 analysed part of each panel is the AIFS control's initial state, ECMWF's operational analysis. Each model's own mean error
 against ERA5, measured on a year or more of its archived runs by season and lead, is removed where it is statistically
 significant: AIFS-ENS, for one, runs about a quarter low in the northern winter by its second week (95 % interval
-8–34 %). The panels show the daily flux, its wave-1 and wave-2 parts, the trailing 40-day mean standardized, and the
-flux by latitude through the forecast. The stratosphere page also carries an IFS-ENS version and GEPS and GEFS versions
-to day 35.</p>
+8–34 %). The panels show the daily flux, its wave-1 and wave-2 parts, the trailing 40-day mean standardized, the
+flux by latitude through the forecast, and an SSW warning meter: every member's trailing 10-day mean against
+27.5 K m/s, the level that best separates the 30 days before the 21 sudden warmings on record since
+1998 from quiet winter windows (20 of them reached it, a median 13 days
+ahead; on such a day the chance of a warming within 30 days is 35 % against 12 % on
+any winter day). The stratosphere page also carries an IFS-ENS version and GEPS and GEFS versions to day 35.</p>
 """,
         figures=[
             img(

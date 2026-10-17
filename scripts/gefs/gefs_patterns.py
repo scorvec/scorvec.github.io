@@ -7,7 +7,7 @@ Everything here is numpy + the standard library (the daily Actions job has no pa
 Member anomalies (the forecast side)
   Every GEFS member's DAILY 2.5 deg field (m_<tag> of gefs2_<date>.npz: 500 hPa height, sea-level pressure, 100 hPa
   height; day d = the mean of the 24d-12 h and 24d h samples, the reforecast's own sampling) minus the lead-matched
-  GEFSv12 reforecast climatology c25_<tag> read at the INIT day of year (release gefs-clim-v2, 2000-2019, 4 members,
+  GEFSv12 reforecast climatology c25_<tag> read at the INIT day of year (release gefs-clim-v3, 2000-2019, 4 members,
   +-15 d pooling), then re-based to 1991-2020 with the ERA5 period shift (1991-2020 minus 2001-2020 normal) at the
   VALID date - the GEPS page's anomaly, [F - M(init doy, lead)] - shift(valid doy). 2001-2020 stands in for the
   reforecast's 2000-2019. As on the GEPS page, the per-member anomalies keep their global mean (only the maps remove
@@ -49,14 +49,13 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-import gefs_reforecast as R  # (get, index, decode)
+import gefs_reforecast as R  # (get, index, decode, the climatology release)
 import gefs_daily as G  # (to_half, box, pack/unpack, grids)
 
 S3 = "https://noaa-gefs-pds.s3.amazonaws.com"
-CLIM2_URL = "https://github.com/scorvec/scorvec.github.io/releases/download/gefs-clim-v2/gefs_clim2_{c:03d}.npz"
 REF_URL = "https://github.com/scorvec/scorvec.github.io/releases/download/gefs-ref-v1/{name}"
-REF_NAME = "gefs_patterns_ref.npz"  # projectors, sigmas, regime centroids, ERA5 shifts (v2-independent)
-CALIB_NAME = "gefs_patterns_calib.npz"  # hindcast fits, regime hindcast labels, day-1 climatology (from v2)
+REF_NAME = "gefs_patterns_ref.npz"  # projectors, sigmas, regime centroids, ERA5 shifts (climatology-independent)
+CALIB_NAME = "gefs_patterns_calib.npz"  # hindcast fits, regime hindcast labels, day-1 climatology (gefs_hind2)
 CENTRES = list(range(1, 366, 5))
 TAGS = ("zg500", "mslp", "zg100")
 FIELD = {"zg500": "z500", "mslp": "slp", "zg100": "z100"}  # the pattern file's field names
@@ -164,7 +163,7 @@ def refresh(url: str, dest: Path, max_age_h: float = 12.0) -> Path:
 
 # ── climatology ───────────────────────────────────────────────────────────────────────────────────────────────
 def clim25_at(init: dt.date, cache: Path, test: Path | None = None):
-    """c25_<tag> (35, 73, 144) of the v2 daily reforecast climatology at the init day of year, linear between the two
+    """c25_<tag> (35, 73, 144) of the daily reforecast climatology at the init day of year, linear between the two
     5-day centres around it, in GEFS units. None when the release is not there yet. `test` = a stand-in file."""
     if test is not None:
         z = np.load(test)
@@ -173,12 +172,12 @@ def clim25_at(init: dt.date, cache: Path, test: Path | None = None):
     out = {}
     try:
         for c, wt in ((lo, 1 - w), (hi, w)):
-            z = np.load(cached(CLIM2_URL.format(c=c), Path(cache) / f"gefs_clim2_{c:03d}.npz"))
+            z = np.load(R.clim_file(f"gefs_clim2_{c:03d}.npz", cache))
             for t in TAGS:
                 if f"c25_{t}" in z.files:
                     out[t] = out.get(t, 0) + wt * G.unpack(t, z[f"c25_{t}"])
     except Exception as e:  # noqa: BLE001
-        print(f"  daily climatology v2 unavailable ({str(e)[:80]})", flush=True)
+        print(f"  daily climatology ({R.CLIM_TAG}) unavailable ({str(e)[:80]})", flush=True)
         return None
     return out or None
 

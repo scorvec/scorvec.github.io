@@ -10,6 +10,7 @@
 <meta name="twitter:card" content="summary">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="mt.css">
 <style>
 :root{--ink:#1b1d22;--muted:#6f6b64;--rule:#e3e1db;--bg:#fcfcfa;--card:#fff;--d:#1f5fbf;--dd:#0b3d91;--r:#b3261e;--rd:#a32215;--sh:#8a8577;--focus:#1f5fbf;--soft:#f4f2ed}
 *{box-sizing:border-box}
@@ -152,7 +153,7 @@ path.so{fill:none;stroke:#5c5a55;stroke-width:.8;vector-effect:non-scaling-strok
         </li>
         <li class="sh-item sh-has-menu">
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
-          <div class="sh-menu sh-menu--cols" id="sh-g2">
+          <div class="sh-menu sh-menu--cols sh-menu--one" id="sh-g2">
             <div class="sh-col">
               <div>
                 <h3>By timescale</h3>
@@ -250,7 +251,8 @@ path.so{fill:none;stroke:#5c5a55;stroke-width:.8;vector-effect:non-scaling-strok
   </div>
 </header>
 <!-- sh:end --><main class="wi" id="main">
-<div class="head"><h1>State legislatures, 2026</h1><a href="index.html">&larr; Congress and governors</a></div>
+<div class="head"><h1>State legislatures, 2026</h1></div>
+<nav class="mt-nav" aria-label="Forecast pages"><a href="./">Forecast</a><a href="polls.html">Every poll and its weight</a><a href="about.html">How it works</a><a href="whatif.html">What if? Test the assumptions</a><a href="legislatures.html" aria-current="page">State legislatures</a></nav>
 <p class="lede" id="lede">Chances of control of twenty-two state legislative chambers.</p>
 <div class="xp"><b>Experimental.</b> This part of the forecast is new and rests on less evidence than the Congress and governor forecasts.
 Tested on 2018 and 2022 with only what was known on October 1, on the fourteen original chambers (<span data-bt="original.n">24</span> chamber elections): the
@@ -337,7 +339,7 @@ const $=s=>document.querySelector(s), svg=d3.select("#lmap"), tip=$("#tip");
 const NEU="#e6e6e6", DC="#0b3d91", RC="#a32215", mix=(a,b,t)=>d3.interpolateRgb(a,b)(t);
 const CLS=[{lo:.95,lab:"Safe D",c:DC,t:"≥95"},{lo:.85,lab:"Likely D",c:mix(NEU,DC,.68),t:"85–95"},{lo:.65,lab:"Lean D",c:mix(NEU,DC,.38),t:"65–85"},
   {lo:.35,lab:"Toss-up",c:NEU,t:"35–65"},{lo:.15,lab:"Lean R",c:mix(NEU,RC,.38),t:"65–85"},{lo:.05,lab:"Likely R",c:mix(NEU,RC,.68),t:"85–95"},{lo:-1,lab:"Safe R",c:RC,t:"≥95"}];
-const cls=p=>CLS.find(c=>p>=c.lo&&(c.lo!==.35||p<=.65))||CLS[6];
+const cls=p=>p>=.95?CLS[0]:p>=.85?CLS[1]:p>.65?CLS[2]:p>=.35?CLS[3]:p>=.15?CLS[4]:p>=.05?CLS[5]:CLS[6];  // toss-up 35-65 inclusive, as the legend says
 const pct=x=>x==null?"–":(x<0.005?"<1":x>0.995?">99":Math.min(99,Math.max(1,Math.round(100*x))))+"%";
 const mg=(v,d=1)=>Math.abs(v)<0.05?"even":(v>0?"D+":"R+")+Math.abs(v).toFixed(d);
 const who=t=>esc(t).replace(/\((O)\)/g,"(independent)");

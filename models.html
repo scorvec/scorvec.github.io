@@ -36,7 +36,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=aca24cbfc1">
+<link rel="stylesheet" href="/assets/site.css?v=aeb29dffe4">
 <script src="/assets/site.js?v=fe84a7e3e0" defer></script>
 <script src="/assets/frames_root.js?v=9d2de66ccd"></script>
 <style>
@@ -264,7 +264,14 @@
     .mv-fields { display: none; }
     .runsel.mv-fsel { display: inline-flex; flex: 1 1 12rem; }
     .mv-fsel select { flex: 1 1 auto; min-width: 0; }
-    .mv-map { height: clamp(300px, calc(100svh - 215px), 640px); }
+    /* phones: the map first (the introduction and the data note move under it), a taller map, smaller map buttons */
+    main.mv { display: flex; flex-direction: column; }
+    main.mv > .lede, main.mv > .mv-data { order: 1; }
+    main.mv > .mv-mapwrap ~ * { order: 2; }
+    main.mv > .lede { margin-top: 0.9rem; }
+    .mv-map { height: clamp(340px, calc(100svh - 180px), 700px); }
+    .mv-zoom button { width: 36px; height: 36px; font-size: 1.15rem; }
+    .mv-zoom button.txt { font-size: 0.82rem; }
     .mv-time { margin: 0 0 0.35rem; padding: 0.2rem 0 0.25rem; }
     .mv-panel { padding: 0.5rem 0.55rem 0.05rem; }
     .mv-mapwrap { flex-direction: column; gap: 0.3rem; }
@@ -372,7 +379,7 @@
         </li>
         <li class="sh-item sh-has-menu">
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
-          <div class="sh-menu sh-menu--cols" id="sh-g2">
+          <div class="sh-menu sh-menu--cols sh-menu--one" id="sh-g2">
             <div class="sh-col">
               <div>
                 <h3>By timescale</h3>
@@ -1934,13 +1941,14 @@
   }
   // the map box takes the domain's shape when that is shorter than the CSS height, so the map fits the window on open
   // (a portrait phone would show the wide HRRR domain in a band across a tall box). Applied on open, on "fit" and when
-  // the window's width changes; never taller than CSS.
+  // the window's width changes; never taller than CSS. Phones keep a 280 px floor: the floating badge and buttons sit
+  // in the margins above and below the domain instead of over it.
   function fitBox(g) {
     mapEl.style.height = "";
     var r = mapEl.getBoundingClientRect(), bw, bh;
     if (st.model === "rdps") { bw = 7600000; bh = 5200000; } else { var bb = g._bb; bw = bb[1] - bb[0]; bh = bb[3] - bb[2]; }
     var need = Math.ceil(r.width * bh / bw * 1.03);
-    if (need < r.height) mapEl.style.height = Math.max(220, need) + "px";
+    if (need < r.height) mapEl.style.height = Math.max(window.innerWidth <= 640 ? 280 : 220, need) + "px";
   }
   var fitBoxW = 0;
   window.addEventListener("resize", function () {

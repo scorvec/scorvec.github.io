@@ -37,12 +37,26 @@ ARCHIVE = STATE / "runs"  # the previous cycle, compact (change panels, previous
 LIVE = WORK / "live"
 FIGS = WORK / "figs"
 
-# Inputs of the one-off offline reference builds (never read in Actions, never downloaded again).
-LOCAL_STORE = Path(os.environ.get("GEPS_LOCAL_STORE", Path.home() / "data_archive" / "geps_subx"))
+# Inputs of the one-off offline reference builds (never read in Actions, never downloaded again): $GEPS_LOCAL_STORE,
+# else $DATA_ARCHIVE/geps_subx (scripts/lib/localdirs.py); None where neither is set, as on a runner. The builds take
+# it through local_store().
+_LOCAL = os.environ.get("GEPS_LOCAL_STORE") or (
+    str(Path(os.environ["DATA_ARCHIVE"]) / "geps_subx") if os.environ.get("DATA_ARCHIVE") else ""
+)
+LOCAL_STORE = Path(_LOCAL).expanduser() if _LOCAL else None
 
 # Honest identification for every upstream request.
 USER_AGENT = "scorvec.com data pipeline (+https://scorvec.com)"
 UA = {"User-Agent": USER_AGENT}
+
+
+def local_store(*parts: str) -> Path:
+    """LOCAL_STORE joined with `parts`, for an offline build; stops with a message when no archive is set."""
+    if LOCAL_STORE is None:
+        raise SystemExit(
+            "DATA_ARCHIVE is not set: point it at the archive that holds geps_subx/ (or set GEPS_LOCAL_STORE)"
+        )
+    return LOCAL_STORE.joinpath(*parts)
 
 
 def ensure() -> None:

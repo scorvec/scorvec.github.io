@@ -71,7 +71,7 @@ def main() -> int:
     a = ap.parse_args()
     base, out, data, runs, _cache, gref, clim, z = GP.setup(a)
     if clim is None:
-        print("no daily climatology (gefs-clim-v2): regimes skipped")
+        print("no daily reforecast climatology: regimes skipped")
         return 0
     ref = RC.Ref()
     n_members = len(z["members"])

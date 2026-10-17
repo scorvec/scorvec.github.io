@@ -62,7 +62,7 @@ import paths
 import refpack
 import build_clim  # the pool rules the climatology files must state
 
-SRC = paths.LOCAL_STORE
+SRC = paths.local_store()
 TAG = "geps-ref-v3"  # the release the archive is published as
 
 # scripts/strat/data is gitignored: its copy lives outside this tree (STRAT_LOCAL_DATA)

@@ -37,8 +37,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/outlook.css?v=7548d602a3">
-<link rel="stylesheet" href="/assets/stage.css?v=a5475c5605">
+<link rel="stylesheet" href="/assets/outlook.css?v=9f59b995d1">
+<link rel="stylesheet" href="/assets/stage.css?v=015d15550d">
 <style>
   /* gefs.html — page-specific rules on top of /assets/outlook.css (shared with seas5 and sfs). */
   table.tele { width: 100%; border-collapse: collapse; margin: 0.9rem 0 0.3rem; font-size: 0.78rem; }
@@ -60,7 +60,7 @@
   #tele-table, #mjo-table { padding: 0 1.2rem; overflow-x: auto; }   /* phones: the five-week table scrolls inside the card (it was clipped) */
   @media (max-width: 640px) { #tele-table, #mjo-table { padding: 0 0.5rem; } }
 </style>
-<link rel="stylesheet" href="/assets/site.css?v=aca24cbfc1">
+<link rel="stylesheet" href="/assets/site.css?v=aeb29dffe4">
 <script src="/assets/site.js?v=fe84a7e3e0" defer></script>
 <script>
 // The polar-vortex products live on the stratosphere page: forward old deep links (#vortex/nh, #vloop, #drip)
@@ -153,7 +153,7 @@
         </li>
         <li class="sh-item sh-has-menu">
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
-          <div class="sh-menu sh-menu--cols" id="sh-g2">
+          <div class="sh-menu sh-menu--cols sh-menu--one" id="sh-g2">
             <div class="sh-col">
               <div>
                 <h3>By timescale</h3>
@@ -315,7 +315,8 @@
     day is the mean of the 12Z and following 00Z fields (precipitation summed and outgoing longwave averaged over the four
     six-hour windows), so day 1 is the start date itself; fields are box-averaged to 1.5&deg;. Exactly the same arithmetic
     is applied to the <b>GEFSv12 reforecast</b> &mdash; the 35-day Wednesday runs of 2000&ndash;2019, four members each,
-    pooled within &plusmn;15 days of the start date &mdash; and every day of the forecast is differenced from the reforecast
+    pooled within &plusmn;15 days of the start date in any year, counted on a 365-day calendar so that leap years line
+    up &mdash; and every day of the forecast is differenced from the reforecast
     mean at the same lead, which removes the model's drift and its mean bias together. Today's GEFS does not drift
     quite as its reforecast did &mdash; checked against its own analyses it runs cooler at long lead in the northern
     mid-latitudes and in the stratosphere &mdash; so the difference, measured daily from the 45 most recent runs whose 35
@@ -325,7 +326,7 @@
     2000&ndash;2019), with no model in that step. 500 hPa height has its global mean removed so the circulation shows.
     Because GEFS's reforecast reaches 10 hPa, the polar vortex is corrected the same way at every lead, against ERA5.
     Tercile probabilities are calibrated on the same reforecasts, each start verified against a
-    climatology that leaves its own season out, and the MJO is scored the same way; the teleconnection calibration is fitted on every reforecast start within &plusmn;45 days, each de-drifted against a climatology and re-based with an ERA5 normal that leave its own season out, so its skill is out of sample (left in, the shared normal had lifted the week-3 to week-5 correlations by 0.04&ndash;0.05). The skill masks hatch wherever the
+    climatology and an ERA5 normal that both leave its own season out, and the MJO is scored the same way; the teleconnection calibration is fitted on every reforecast start within &plusmn;45 days, each de-drifted against a climatology and re-based with an ERA5 normal that leave its own season out, so its skill is out of sample (left in, the shared normal had lifted the week-3 to week-5 correlations by 0.04&ndash;0.05). The skill masks hatch wherever the
     reforecast's anomaly correlation is not significantly above zero (one-sided 5&nbsp;% test on the 20 reforecast years, false-discovery rate 10&nbsp;% across the map). The <a href="/subseasonal-method.html">GEPS page's method</a>
     gives the rest in full; where the two differ (reforecast years and members, start days, the day convention, the
     season left out, the drift correction), this note describes GEFS.</p>
@@ -361,7 +362,7 @@ var P = {
         img: function (a,b,c) { return "assets/gefs/gefs_" + a + "_" + b + "_prob_" + c + ".webp"; },
         cap: function (a,b,c) { return (c==="raw"
           ? "Most likely tercile by week: colour is the category (blue below, grey near, red above normal), intensity its probability, from the fraction of the 31 members in each tercile of the 2016–2025 weekly anomaly — a recent-decade normal, not the maps’ 1991–2020, so the warming since then is not counted as a forecast."
-          : "Most likely tercile by week, calibrated: the ensemble-mean departure scaled by the gridpoint regression fitted on 2000–2019 GEFS reforecasts for this month and week (each start verified against a climatology that leaves its own season out), the residual spread giving the three tercile probabilities — one third each where the model has no skill, amplitude restored where it has some. Out of sample (every 2000–2019 reforecast start scored with its own season left out, 4-member means), the calibrated probabilities beat one third each by an RPSS of 0.46 in week 1 and 0.08 in week 5 for temperature, and 0.18 in week 1 and about zero from week 3 for precipitation. The 2016–2025 categories were checked on the four reforecast years inside that decade, every 2016–2019 start scored exactly as a live map: for temperature the calibrated probabilities match the observed tercile frequencies to within 0.005 in every week (no significant bias); for precipitation those years were drier than the decade, falling in the lower tercile 35 % of the time and the upper 32 % (both significantly off a third, false-discovery rate 10 %), so from week 2 the maps give “below” 0.016–0.019 too little and “above” 0.011–0.014 too much — small, and significant.")
+          : "Most likely tercile by week, calibrated: the ensemble-mean departure scaled by the gridpoint regression fitted on 2000–2019 GEFS reforecasts for this month and week (each start verified against a climatology that leaves its own season out), the residual spread giving the three tercile probabilities — one third each where the model has no skill, amplitude restored where it has some. Out of sample (every 2000–2019 reforecast start scored with its own season left out, 4-member means), the calibrated probabilities beat one third each by an RPSS of 0.45 in week 1 and 0.07 in week 5 for temperature, and 0.18 in week 1 and about zero from week 3 for precipitation. The 2016–2025 categories were checked on the four reforecast years inside that decade, every 2016–2019 start scored exactly as a live map: for temperature the calibrated probabilities match the observed tercile frequencies to within 0.005 in every week (no significant bias); for precipitation those years were drier than the decade, falling in the lower tercile 35 % of the time and the upper 32 % (both significantly off a third, false-discovery rate 10 %), so from week 2 the maps give “below” 0.016–0.019 too little and “above” 0.011–0.014 too much — small, and significant.")
           + " Hatched: reforecast skill not significantly above zero (one-sided 5 % test, false-discovery rate 10 %)." + (b==="pr" ? " Cross-hatched: no gauge truth over the ocean, or a dry climatological week where terciles are undefined." : ""); }},
   change: {label: "Change vs previous run, weeks 1–5", fit: false, a: DOMAINS, b: {label:"Field", items: FIELDS},
         img: function (a,b) { return "assets/gefs/gefs_" + a + "_" + b + "_change.webp"; },

@@ -13,7 +13,7 @@
 .rail-group.open .rail-title .car::before { content: "\25BE"; }
 .rail-title .ico { font-size: 0.85rem; opacity: 0.85; }
 .rail-title .lbl { flex: 1; }
-.rail-title .n { font-size: 0.7rem; font-weight: 500; color: var(--muted); }
+.rail-title .n { font-size: 0.78rem; font-weight: 500; color: var(--muted); }
 .rail-group:not(.open) button[data-p] { display: none; }
 .rail-group button[data-p] { display: flex; align-items: center; gap: 0.55rem; width: 100%; text-align: left; font: 500 0.86rem var(--sans); color: var(--ink2); background: transparent; border: 0; border-left: 3px solid transparent; border-radius: 0 3px 3px 0; padding: 0.3rem 0.55rem 0.3rem 1.3rem; cursor: pointer; transition: background .15s, color .15s; }
 .rail-group button[data-p] .ico { display: none; }
@@ -26,19 +26,24 @@
 .crumb .path { font-family: var(--serif); font-size: 1.1rem; color: var(--ink); }
 .crumb .path span { color: var(--muted); margin: 0 0.35rem; }
 .crumb .nav { display: flex; gap: 0.3rem; }
-.crumb .nav button { font: 600 0.78rem var(--sans); color: var(--accent); background: var(--accent-light); border: 1.5px solid var(--accent); border-radius: 999px; padding: 0.28rem 0.7rem; cursor: pointer; }
+.crumb .nav button { font: 600 0.82rem var(--sans); color: var(--accent); background: var(--accent-light); border: 1.5px solid var(--accent); border-radius: 999px; padding: 0.28rem 0.7rem; cursor: pointer; }
 .crumb .nav button:hover { background: var(--accent); color: #fff; }
 .opts { padding: 0.75rem 1.2rem 0; }
-.opts .controls { margin-bottom: 0.45rem; display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
+.opts .controls { margin-bottom: 0.3rem; display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; }
 .opts .controls:empty { display: none; }
-.seg-label { font-size: 0.72rem; font-weight: 600; color: var(--muted); margin-right: 0.35rem; min-width: 5.2rem; }
+.seg-label { font-size: 0.78rem; font-weight: 600; color: var(--muted); margin-right: 0.35rem; min-width: 5.2rem; }
 .stage { padding: 0.8rem 1.2rem 0.6rem; min-height: 320px; }
 /* the element IS the picture: it spans the stage and its height follows the aspect ratio. A figure
    too tall for the height budget is narrowed by stage.js (an explicit px width), never letterboxed
    inside an oversized box, which would make tall figures read as thumbnails on short screens. */
 .stage img { display: block; width: 100%; max-width: 100%; height: auto; margin: 0 auto; cursor: zoom-in; }
 .stage iframe { width: 100%; border: 0; display: block; background: #fff; margin: 0 auto; }
-.stage > .card, .stage > .chart-card { border: 0; box-shadow: none; margin: 0; padding: 0; }
+.stage > .card, .stage > .chart-card { border: 0; box-shadow: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+/* a mounted card (a dom product) keeps the rules of the frame products: its maps fit the window (never taller than the
+   viewport less the header, title and option rows), its explanatory text follows the figure, and its sources close it */
+.ss-main .stage > :not(img) img { width: auto; max-width: 100%; height: auto; max-height: max(320px, calc(100svh - 14rem)); margin: 0 auto; }
+.stage > .card > .note, .stage > .card > .lede, .stage > .chart-card > .note, .stage > .chart-card > .lede { order: 5; margin: 0.8rem 0 0; }
+.stage > .card > .chart-card-footer, .stage > .chart-card > .chart-card-footer { order: 6; }
 .stage > .card h2, .stage > .chart-card h2 { font-size: 1.15rem; margin-bottom: 0.4rem; }
 .ss-main .cap { font-size: 0.9rem; color: var(--ink2); margin: 0.6rem 1.2rem 0; max-width: 110ch; }
 .ss-main .about { margin: 0.7rem 1.2rem 0.4rem; border-top: 1px solid var(--rule); padding-top: 0.5rem; }
@@ -156,9 +161,9 @@
 @media (prefers-reduced-motion: reduce) { .ss-sheet-box { animation: none; } }
 /* The option pills, for stage pages that do not load outlook.css (navigation phase 2: qbo, ar …). Same look as
    outlook.css's .pill; scoped to the option rows so outlook.css pages are unaffected. */
-.opts .pill { font: 600 0.72rem var(--sans); letter-spacing: 0.02em; color: var(--accent);
+.opts .pill { font: 600 0.78rem var(--sans); letter-spacing: 0.02em; color: var(--accent);
               background: var(--accent-light); border: 1.5px solid var(--accent); border-radius: 999px;
-              padding: 0.34rem 0.85rem; cursor: pointer; transition: all .15s; }
+              padding: 0.22rem 0.7rem; cursor: pointer; transition: all .15s; }
 .opts .pill:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
 .opts .pill.on { color: #fff; background: var(--accent); border-color: var(--accent); }
 .opts .pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

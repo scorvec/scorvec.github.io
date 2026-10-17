@@ -112,12 +112,9 @@ import xarray as xr
 HERE = Path(__file__).resolve().parent
 
 _sys.path[:0] = [str(HERE), str(HERE.parent)]
-from paths import LOCAL_STORE as _LS  # offline-build inputs/outputs
+from paths import local_store  # offline-build inputs/outputs
 from refpack import noleap_doy, at_doy  # the climatologies' day-of-year key
 
-TC = _LS / "telecon"
-NCEP, CPC = TC / "ncep", TC / "cpc"
-FIGS = _LS / "figs"
 Y0, Y1 = 1991, 2020
 HALF = 1  # +-1 calendar month window for the seasonal regression
 SPLIT = 2005  # fit <= SPLIT, validate after, then refit on everything
@@ -137,7 +134,7 @@ CPC_NAMES = {
 
 # ── data ────────────────────────────────────────────────────────────────────
 def monthly(var, level=None):
-    d = xr.open_dataset(NCEP / f"{var}.mon.mean.nc")
+    d = xr.open_dataset(local_store("telecon", "ncep", f"{var}.mon.mean.nc"))
     a = d[var]
     if level is not None:
         a = a.sel(level=level)
@@ -147,7 +144,7 @@ def monthly(var, level=None):
 def daily(var, years, level=None, lat=None):
     parts = []
     for y in years:
-        p = NCEP / f"{var}.{y}.nc"
+        p = local_store("telecon", "ncep", f"{var}.{y}.nc")
         if not p.exists():
             continue
         d = xr.open_dataset(p)
@@ -278,6 +275,7 @@ def rpca(Z, nmodes):
 
 # ── main ────────────────────────────────────────────────────────────────────
 def main() -> int:
+    TC = local_store("telecon")
     TC.mkdir(exist_ok=True)
     years = list(range(Y0, Y1 + 1))
     out_proj, out_attrs, regmaps, validation, out_sigdoy = {}, {}, {}, {}, {}
@@ -676,6 +674,7 @@ def main() -> int:
         va="top",
     )
     fig.subplots_adjust(left=0.02, right=0.98, top=0.905, bottom=0.03, hspace=0.42, wspace=0.08)
+    FIGS = local_store("figs")
     FIGS.mkdir(exist_ok=True)
     fig.savefig(
         FIGS / "geps_telecon_patterns.webp", dpi=110, facecolor="white", pil_kwargs={"quality": 88, "method": 6}

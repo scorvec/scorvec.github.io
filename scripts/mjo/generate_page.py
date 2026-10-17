@@ -1,11 +1,9 @@
 """
-Regenerate /mjo.html from the archived RMM plots in assets/mjo/.
+Regenerate /mjo.html: the multi-model phase diagram (models_section.py), the ECMWF successive-runs animator from the
+archived RMM plots in assets/mjo/, and the impacts composites, on the shared stage viewer.
 
 Run from the repo root (the GitHub Action does this after each forecast):
     python scripts/mjo/generate_page.py
-
-Shows the most recent plot as the hero, the latest 00Z and 12Z, and a dated
-archive grid. Styled to match the rest of scorvec.com.
 """
 
 import json
@@ -16,7 +14,11 @@ from pathlib import Path
 import sys as _sys
 
 _sys.path[:0] = [str(Path(__file__).resolve().parent), str(Path(__file__).resolve().parent / "src")]
-from clean_section import clean_section, load_status  # the ENSO-removed RMM section and its diagnosis
+from models_section import (
+    CSS as MODELS_CSS,
+    load_status,
+    models_section,
+)  # the multi-model diagram and the ENSO-removed diagnosis
 
 ASSETS = Path("assets/mjo")
 OUT = Path("mjo.html")
@@ -209,9 +211,9 @@ def impacts_section():
   years: 4 over the 36 model years, {kn.get("tas_na", 5)} over ERA5 1979&ndash;2024, {kn.get("pr_na", 3)} over GPCP
   1997&ndash;2024), so, for example, the Arctic&rsquo;s faster winter warming is not left in the anomalies. (2) The same
   regression&rsquo;s time-varying mean is the forced trend, smooth and nonlinear rather than a straight line. A model
-  with two members is fitted on both together, that is on its ensemble mean, so the forced part is the model&rsquo;s and
-  not one member&rsquo;s decade of weather; the daily ensemble mean is not subtracted, because with two members it holds
-  half of each member&rsquo;s own MJO. (3) A high-pass at {ff.get("highpass_days", 120)}&nbsp;days: every Fourier
+  with several members is fitted on all of them together, that is on its ensemble mean, so the forced part is the
+  model&rsquo;s and not one member&rsquo;s decade of weather; the daily ensemble mean is not subtracted, because with few
+  members it holds much of each member&rsquo;s own MJO (half of it with two). (3) A high-pass at {ff.get("highpass_days", 120)}&nbsp;days: every Fourier
   component with a longer period is removed from what is left, which takes out ENSO and the rest of the interannual
   variability the same way the index filter does; the first and last {ff.get("edge_days_dropped", 60)} days of each
   record are dropped. (A 121-day running mean was tried first and left too much: a running mean cuts off gradually and
@@ -227,8 +229,9 @@ def impacts_section():
   GPCP itself gives E/W&nbsp;{obs.get("ew", float("nan")):.1f}. Used: {", ".join(row(r) for r in passed) or "none"}.
   {("Passed but left out as a near-duplicate of a family member: " + ", ".join(r["model"] for r in fam) + ". ") if fam else ""}
   Failed: {", ".join(row(r) for r in failed) or "none"}. {m.get("members_note", "")}</p>
-  <p><b>Tests.</b> CMIP6: each model&rsquo;s composite (members pooled; at least 30 active days), across-model
-  one-sample t-test with a Benjamini&ndash;Hochberg false-discovery rate of 10&nbsp;% over the map, and at least
+  <p><b>Tests.</b> CMIP6: each model&rsquo;s composite (members pooled, so a model counts once however many members it
+  has; at least 30 active days), across-model one-sample t-test with a Benjamini&ndash;Hochberg false-discovery rate
+  of 10&nbsp;% over the map, and at least
   {agree} of the models agreeing on the sign. Observed: an MJO passage lasts days and daily anomalies are
   correlated, so the unit is the event (a run of consecutive active days in one phase), resampled with the whole lag
   window of every one of its days: an event-block bootstrap (2,000 resamples), the same 10&nbsp;% false-discovery rate,
@@ -296,20 +299,18 @@ def main():
     items = discover()
     updated = datetime.now(UTC).strftime("%Y-%m-%d %H:%MZ")
 
-    # One figure at a time on the shared stage viewer (assets/stage.js): the forecast animator is a frame product;
-    # the ENSO-removed and impacts sections mount whole, with their own controls (the impacts keep their
-    # #mi/f/d/m/l/v hash: ownHash). The section anchors #mjo-clean / #mjo-impacts are kept as aliases.
-    clean, impacts = clean_section(), impacts_section()
-    # The standard RMM keeps a changing ENSO in it. Its view always opens with the ENSO-removed verdict, and while
-    # the ENSO change over the filter window is large the ENSO-removed index is the page's first (default) figure.
-    st = load_status() if clean else None
-    verdict, clean_first = "", False
+    # One figure at a time on the shared stage viewer (assets/stage.js): the successive-runs animator is a frame
+    # product; the multi-model diagram and the impacts sections mount whole, with their own controls (the impacts keep
+    # their #mi/f/d/m/l/v hash: ownHash). The old anchors #mjo-clean / #mjo-impacts are kept as aliases.
+    models, impacts = models_section(), impacts_section()
+    # The standard RMM keeps a changing ENSO in it, so the successive-runs view opens with the ENSO-removed verdict.
+    st = load_status() if models else None
+    verdict = ""
     if st:
         try:
-            from enso_rmm import ENSO_STRONG_DN34, raw_caption
+            from enso_rmm import raw_caption
 
             verdict = raw_caption(st) + " "
-            clean_first = abs(st["dn34"]) >= ENSO_STRONG_DN34
         except Exception as e:  # noqa: BLE001
             print(f"  WARNING: no ENSO-removed verdict ({type(e).__name__}: {e})", flush=True)
 
@@ -318,21 +319,18 @@ def main():
         write_manifest(items)
         # Animator only (with the slider) — no separate static hero image. The iframe auto-sizes
         # to fit the plot + slider via the sstAnimHeight postMessage listener below.
-        body = f'  <p class="sub" style="margin-bottom:1rem">Latest init: <strong>{label(d, h)}</strong>.' + (
-            f" ENSO is changing fast (&Delta;Ni&ntilde;o-3.4 {st['dn34']:+.2f}&nbsp;&deg;C over the 120-day filter window),"
-            " which projects onto the standard RMM, so the forecast with the ENSO signal removed comes first. The rail"
-            " also has the standard AIFS-ENS forecast and what each phase has meant for temperature, rain and the"
-            " flow.</p>\n"
-            if clean_first
-            else " Pick a figure from the rail: the AIFS-ENS forecast, the same forecast with the El Ni&ntilde;o"
-            " signal removed, and what each phase has meant for temperature, rain and the flow.</p>\n"
+        body = (
+            f'  <p class="sub" style="margin-bottom:1rem">Latest ECMWF init: <strong>{label(d, h)}</strong>. The'
+            " ensembles&rsquo; MJO forecasts on one phase diagram (AIFS-ENS, IFS-ENS, GEFS and GEPS, each switchable,"
+            " standard or ENSO-removed index), the ECMWF runs one after another, and what each phase has meant for"
+            " temperature, rain and the flow.</p>\n"
         )
     else:
         body = '<p class="empty">No forecasts yet — the first scheduled run will populate this page.</p>'
 
-    fc_items = [["rmm", "RMM forecast", "standard index, ENSO not removed"]]
-    if clean:
-        fc_items.insert(0 if clean_first else 1, ["clean", "ENSO-removed index", "the ENSO signal taken out"])
+    fc_items = [["rmm", "ECMWF successive runs", "AIFS-ENS and IFS-ENS, run by run"]]
+    if models:
+        fc_items.insert(0, ["models", "All ensembles", "AIFS-ENS, IFS-ENS, GEFS, GEPS on one diagram"])
     groups = [{"label": "Forecast", "items": fc_items}]
     if impacts:
         groups.append(
@@ -340,9 +338,9 @@ def main():
         )
     stage_spec = (
         "window.STAGE = { groups: " + json.dumps(groups) + ",\n"
-        '  aliases: { "mjo-clean": "clean", "mjo-impacts": "mi" },\n'
+        '  aliases: { "mjo-clean": "models", "clean": "models", "mjo-models": "models", "mjo-impacts": "mi" },\n'
         "  products: {\n"
-        '    rmm: { label: "AIFS-ENS RMM forecast (ENSO not removed), successive runs", about: "about-rmm",\n'
+        '    rmm: { label: "AIFS-ENS and IFS-ENS RMM forecast (ENSO not removed), successive runs", about: "about-rmm",\n'
         '           frame: function () { return "sst_anim.html?embed=1&base=assets&manifest=mjo/rmm_manifest.json&region=mjo"; },\n'
         '           ratio: function () { return "1259/1210"; },\n'
         "           cap: function () { return "
@@ -352,7 +350,7 @@ def main():
             " MJO track evolve."
         )
         + "; } },\n"
-        '    clean: { label: "MJO with the El Ni\u00f1o signal removed", dom: function () { return "mjo-clean"; } },\n'
+        '    models: { label: "MJO forecasts from the global ensembles", dom: function () { return "mjo-models"; } },\n'
         '    mi: { label: "MJO impacts by phase and season", ownHash: true, dom: function () { return "mjo-impacts"; } }\n'
         "  }\n};"
     )
@@ -362,11 +360,11 @@ def main():
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MJO Forecast — AIFS-ENS RMM | Shawn Corvec</title>
-<meta name="description" content="Real-time Multivariate MJO (RMM) forecast from the ECMWF AIFS-ENS ensemble: winds plus a precipitation-based pseudo-OLR, after Wheeler &amp; Hendon (2004).">
+<title>MJO Forecast — AIFS-ENS, IFS-ENS, GEFS and GEPS RMM | Shawn Corvec</title>
+<meta name="description" content="Real-time Multivariate MJO (RMM) forecasts from the ECMWF AIFS-ENS and IFS-ENS, NOAA GEFS and ECCC GEPS ensembles on one phase diagram, standard or ENSO-removed, after Wheeler &amp; Hendon (2004).">
 <meta name="robots" content="index, follow">
-<meta property="og:title" content="MJO Forecast — AIFS-ENS RMM">
-<meta property="og:description" content="Real-time MJO (RMM) phase-space forecast from the ECMWF AIFS-ENS ensemble.">
+<meta property="og:title" content="MJO Forecast — four global ensembles">
+<meta property="og:description" content="Real-time MJO (RMM) phase-space forecasts from the AIFS-ENS, IFS-ENS, GEFS and GEPS ensembles.">
 <meta property="og:type" content="website">
 <link rel="canonical" href="https://scorvec.com/mjo.html">\n<link rel="icon" href="/favicon.svg" type="image/svg+xml">\n<meta property="og:url" content="https://scorvec.com/mjo.html">
 <meta name="twitter:card" content="summary">
@@ -374,9 +372,9 @@ def main():
 {{
  "@context": "https://schema.org",
  "@type": "WebPage",
- "name": "MJO forecast: AIFS-ENS RMM",
+ "name": "MJO forecasts from the global ensembles",
  "url": "https://scorvec.com/mjo.html",
- "description": "Real-time Multivariate MJO (RMM) forecast from the ECMWF AIFS-ENS ensemble: winds plus a precipitation-based pseudo-OLR, after Wheeler & Hendon (2004).",
+ "description": "Real-time Multivariate MJO (RMM) forecasts from the ECMWF AIFS-ENS and IFS-ENS, NOAA GEFS and ECCC GEPS ensembles on one phase diagram, after Wheeler & Hendon (2004).",
  "isPartOf": {{
   "@type": "WebSite",
   "name": "Shawn Corvec",
@@ -450,7 +448,8 @@ def main():
   :root {{ --surface: #ffffff; --edge: #d9d5cc; --ink2: #444; --accent-light: rgba(44, 74, 114, 0.08); }}
   .page-header {{ margin-bottom: 1rem; }}
   .stage section h2 {{ margin-top: 0.2rem; }}
-  .stage #mjo-clean {{ margin-top: 0 !important; }}
+  .stage #mjo-models h2 {{ margin-top: 0.2rem; }}
+{MODELS_CSS}
 </style>
 <link rel="stylesheet" href="/assets/stage.css">
 <link rel="stylesheet" href="/assets/lightbox.css">
@@ -460,7 +459,7 @@ def main():
 {NAV}
 <main>
   <div class="page-header">
-  <h1>MJO forecast from the AIFS ensemble</h1>
+  <h1>MJO forecasts from the global ensembles</h1>
   {body}
   </div>
   <div class="ss-layout">
@@ -472,12 +471,12 @@ def main():
       <div class="stage" id="stage"></div>
       <p class="cap" id="cap"></p>
       <div id="about"></div>
-      <p class="hint">With the list of plots focused: <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; the impacts keep their own selectors</p>
+      <p class="hint">With the list of plots focused: <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; the diagram and the impacts keep their own controls</p>
     </section>
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>
   <div class="dom-holder">
-{clean}
+{models}
 {impacts}
   </div>
   <template id="about-rmm">
@@ -503,7 +502,7 @@ def main():
   NCEP wind with the 120-day low-frequency filter removed; pseudo-OLR from
   &minus;standardized daily precip vs an ERA5 1991&ndash;2020 band climatology.</p>
   </template>
-  <p class="meta">Updated {updated} · Auto-generated from the AIFS-ENS open-data feed.</p>
+  <p class="meta">Updated {updated} · Auto-generated from the ECMWF, NOAA and ECCC open-data feeds.</p>
 </main>
 <script>
 {stage_spec}

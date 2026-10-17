@@ -52,7 +52,7 @@
   :root {
     --bg: #0b0b12; --panel: #11111c; --ink: #e8e8f0; --muted: #8b8ba3;
     --accent: #64d2ff; --rule: #23233a;
-    --serif: 'Lora', Georgia, serif; --sans: 'Inter', sans-serif;
+    --serif: 'Source Serif 4', Georgia, serif; --sans: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif;
   }
   html { font-size: 115%; }
   html, body { height: 100%; }
@@ -183,7 +183,7 @@
      #11111c card it would measure ~3.5:1, so the key uses #e8e8f0, 15.6:1) */
   .maplegend { background: rgba(17,17,28,0.95); color: #e8e8f0; padding: 10px 14px;
     border-radius: 9px; border: 1px solid #2e2e48; max-width: min(380px, 80vw);
-    font: 15px/1.5 Inter, sans-serif; }
+    font: 15px/1.5 var(--sans); }
   .maplegend .leg-body > span, .maplegend .leg-body > label { display: flex; align-items: center; gap: 0; margin: 3px 0; }
   .maplegend .leg-body > label { margin-top: 6px; cursor: pointer; }
   .maplegend input, .key input { margin: 0 8px 0 1px; }
@@ -420,7 +420,7 @@
     .topbar { padding: 6px 0.8rem; }
   }
 </style>
-<link rel="stylesheet" href="/assets/site.css?v=aca24cbfc1">
+<link rel="stylesheet" href="/assets/site.css?v=aeb29dffe4">
 <script src="/assets/site.js?v=fe84a7e3e0" defer></script>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>
@@ -504,7 +504,7 @@
         </li>
         <li class="sh-item sh-has-menu">
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
-          <div class="sh-menu sh-menu--cols" id="sh-g2">
+          <div class="sh-menu sh-menu--cols sh-menu--one" id="sh-g2">
             <div class="sh-col">
               <div>
                 <h3>By timescale</h3>
@@ -849,6 +849,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=1d57107862" defer></script>
-<script src="app.js?v=c1452f7262" defer></script>
+<script src="app.js?v=e9e4e325f7" defer></script>
 </body>
 </html>

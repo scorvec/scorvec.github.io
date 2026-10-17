@@ -4,8 +4,10 @@
   ref       -> gefs_mjo_ref.npz: the WH04 observed climatology, normalisers and EOFs (from the site's
                scripts/mjo/data/reference climatology.nc and eofs.nc - read here with xarray, so the daily job needs
                neither xarray nor those files), and the GEFS reforecast band climatology (3 fields x 35 days x 240
-               longitudes per 5-day centre, int16 as gefs_reforecast.pack) from release gefs-clim-v1 `band`, or from
-               the 15S-15N rows of v2's daily fields (--clim v2). With both on disk it prints how far they differ.
+               longitudes per 5-day centre, int16 as gefs_reforecast.pack) from the weekly climatology's `band`
+               (gefs_clim_DDD.npz, --clim v1), or from the 15S-15N rows of the daily one (gefs_clim2_DDD.npz, --clim
+               v2). With both on disk it prints how far they differ. The reference in use was built from release
+               gefs-clim-v1, whose pools were on the raw day of year (gefs_reforecast.py); rebuild from gefs-clim-v3.
   hindcast  -> gefs_mjo_hindcast.npz: every GEFSv12 reforecast start 2000-2019 (Wednesdays, 4 members; the per-start
                files RF/rf-YYYY/rf_YYYYMMDD.npz) projected with EXACTLY gefs_mjo.py's arithmetic,
                per member, and BoM's RMM on each valid date. The daily job only rescores these (seconds).
@@ -47,9 +49,12 @@ import gefs_daily as G
 import gefs_mjo as GM
 
 MJOREF = HERE.parent / "mjo" / "data" / "reference"
-BOM = Path.home() / "data_archive" / "geps_subx" / "telecon" / "bom" / "rmm.74toRealtime.txt"
-RF = Path.home() / "data_archive" / "gefs_rf"
-OUT = Path.home() / "data_archive" / "gefs_ref" / "mjo"
+sys.path.insert(0, str(HERE.parent / "lib"))
+from localdirs import env_dir
+
+BOM = env_dir("DATA_ARCHIVE", "geps_subx", "telecon", "bom", "rmm.74toRealtime.txt")
+RF = env_dir("DATA_ARCHIVE", "gefs_rf")
+OUT = env_dir("DATA_ARCHIVE", "gefs_ref", "mjo")
 TAGS = GM.TAGS
 CENTRES = list(range(1, 366, 5))
 EXCLUDE_DAYS = 60
@@ -293,12 +298,12 @@ def main() -> int:
     sp = ap.add_subparsers(dest="cmd", required=True)
     r = sp.add_parser("ref")
     r.add_argument("--clim", choices=("v1", "v2"), default="v1")
-    r.add_argument("--clim-dir", default=str(Path.home() / "data_archive" / "gefs_port_test" / "mjo" / "cache"))
+    r.add_argument("--clim-dir", default=str(env_dir("DATA_ARCHIVE", "gefs_port_test", "mjo", "cache")))
     h = sp.add_parser("hindcast")
     h.add_argument("--rf", nargs="+", default=[str(RF)])
     p = sp.add_parser("plot")
     p.add_argument("--doy-now", type=int, required=True)
-    p.add_argument("--site", default=str(Path.home() / "data_archive" / "gefs_port_test" / "mjo" / "site"))
+    p.add_argument("--site", default=str(env_dir("DATA_ARCHIVE", "gefs_port_test", "mjo", "site")))
     p.add_argument("--members", type=int, default=31)
     a = ap.parse_args()
     return {"ref": cmd_ref, "hindcast": cmd_hindcast, "plot": cmd_plot}[a.cmd](a)

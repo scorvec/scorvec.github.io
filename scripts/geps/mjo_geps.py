@@ -59,6 +59,7 @@ filter can remove.
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 import numpy as np
@@ -446,8 +447,18 @@ def _model_clim_band(tag, lon, L, init_doy):
     return np.stack(out)
 
 
+def _project_wind(f850, f200, eofs):
+    """Wind-only projection -> (rmm1, rmm2): the index the MJO page's multi-model diagram shares with the ECMWF
+    ensembles (scripts/mjo/src/rmm.py), normalised by the wind-only projection's own standard deviation."""
+    e1 = np.concatenate([eofs["eof_u850"].sel(mode=1).values, eofs["eof_u200"].sel(mode=1).values])
+    e2 = np.concatenate([eofs["eof_u850"].sel(mode=2).values, eofs["eof_u200"].sel(mode=2).values])
+    comb = np.concatenate([f850, f200], axis=1)
+    return (comb @ e1) / float(eofs["pc_wind_std"].sel(mode=1)), (comb @ e2) / float(eofs["pc_wind_std"].sel(mode=2))
+
+
 def rmm_members(cycle, base, clim, eofs, maps):
-    """Per-member three-field RMM, days 1-35, in the same frame as the mean track."""
+    """Per-member three-field RMM, days 1-35, in the same frame as the mean track, and the wind-only RMM of the same
+    members: -> L, r1, r2, w1, w2 (each (lead, member))."""
     lon = eofs.longitude.values.astype(float)
     bands, L = member_bands(cycle, base, lon)
     valid = pd.DatetimeIndex([base + pd.Timedelta(days=int(x) - 1) for x in L])  # day L = the UTC day base + L - 1
@@ -458,11 +469,25 @@ def rmm_members(cycle, base, clim, eofs, maps):
         ch[tag] = (bands[tag] - mc[:, None, :] + rr[:, None, :] - maps[tag]) / clim.attrs[f"std_{tag}"]
     n = ch["u850"].shape[1]
     r1 = np.empty((len(L), n))
-    r2 = np.empty_like(r1)
+    r2, w1, w2 = np.empty_like(r1), np.empty_like(r1), np.empty_like(r1)
     for m in range(n):
         a, b = _project(ch["olr"][:, m, :], ch["u850"][:, m, :], ch["u200"][:, m, :], eofs)
         r1[:, m], r2[:, m] = a, b
-    return L, r1, r2
+        w1[:, m], w2[:, m] = _project_wind(ch["u850"][:, m, :], ch["u200"][:, m, :], eofs)
+    return L, r1, r2, w1, w2
+
+
+def write_wind_track(L, w1, w2, base: pd.Timestamp) -> None:
+    """The wind-only track for the MJO page's multi-model diagram (assets/geps/data/geps_rmm_wind.json), in the
+    layout of scripts/mjo/src/rmm_export.track. GEPS day L is the UTC day base + L - 1."""
+    sys.path.insert(0, str(_MJO / "src"))
+    from rmm_export import track
+
+    valid = [base + pd.Timedelta(days=int(x) - 1) for x in L]
+    d = paths.SITE_ASSETS / "data"
+    d.mkdir(parents=True, exist_ok=True)
+    t = track(w1.T, w2.T, L, valid, "GEPS", f"{base:%Y-%m-%d} 00Z", note="wind-only RMM (U850 + U200)")
+    (d / "geps_rmm_wind.json").write_text(json.dumps(t, separators=(",", ":")))
 
 
 def nino34_now() -> float | None:
@@ -565,7 +590,8 @@ def plot_phase(cycle: str, base: pd.Timestamp):
 
     # ensemble plume: every member, faint, under the mean
     try:
-        _Lm, m1, m2 = rmm_members(cycle, base, clim, eofs, maps)
+        Lm, m1, m2, w1, w2 = rmm_members(cycle, base, clim, eofs, maps)
+        write_wind_track(Lm, w1, w2, base)
         for k in range(m1.shape[1]):
             ax.plot(np.r_[or1[-1], m1[:, k]], np.r_[or2[-1], m2[:, k]], color="#4a7bb5", alpha=0.42, lw=0.9, zorder=3)
         amp = np.hypot(m1, m2)

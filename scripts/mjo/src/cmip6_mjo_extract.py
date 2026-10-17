@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Extract CMIP6 daily fields for the MJO impact composites (by RMM phase and calendar month).
 
-Offline job: streams the public Pangeo CMIP6 zarr stores (anonymous GCS) and keeps only small reductions.
+Streams the public Pangeo CMIP6 zarr stores (anonymous GCS) and keeps only small reductions. The members of the
+screened models run in Actions, one job each (.github/workflows/mjo-impacts-ref.yml).
 
 Per (model, member, variable), 1979-2014 of the historical run, regridded bilinearly (cyclic in longitude) to:
   band   15S-15N x 144 at 2.5 deg      rlut, pr, u850, u250  (the W&H RMM grid; spectra and propagation)
@@ -14,13 +15,23 @@ calendars kept: 360-day and noleap models carry their own month/day). Units: pr 
 The daily `day` table carries ua and zg on plev8 (1000, 850, 700, 500, 250, 100, 50, 10 hPa) in chunks that hold all 8
 levels, so one level costs the full 3-D read (~11-19 GB a member for 1979-2014); 250 hPa stands in for RMM's 200 hPa.
 
-    python cmip6_mjo_extract.py screen            # one member per candidate model: rlut + pr
-    python cmip6_mjo_extract.py full M1 M2 ...    # screened models: tas/ua/zg for member 1, rlut/pr/tas/ua for member 2
+Members: every historical member of the screened models that has daily rlut, pr, tas and ua (z500 too where it has zg),
+with its store, in data/reference/cmip6_mjo_members.csv (written from the Pangeo catalogue). The reductions of the
+first build (up to two members a model) are fingerprinted in data/reference/cmip6_mjo_red_digest.json, and a member
+extracted again is checked against it.
+
+    python cmip6_mjo_extract.py screen             # one member per candidate model: rlut + pr (Pangeo catalogue)
+    python cmip6_mjo_extract.py members M1 M2 ...  # every member of the screened models -> cmip6_mjo_members.csv
+    python cmip6_mjo_extract.py member MODEL MEM   # one listed member: rlut, pr, tas, ua (+ z500), checked on its digest
+    python cmip6_mjo_extract.py digest             # fingerprint the listed members' reductions in red/ -> the digest
     python cmip6_mjo_extract.py list
 """
 
 from __future__ import annotations
 
+import functools
+import hashlib
+import json
 import os
 import sys
 import time
@@ -35,6 +46,11 @@ from localdirs import env_dir
 
 OUT = env_dir("DATA_ARCHIVE", "cmip6_mjo", "red")
 CAT = Path(__file__).resolve().parents[2] / "strat" / "data" / "cmip6" / "pangeo_cmip6.csv"
+MEMBERS = Path(__file__).resolve().parents[1] / "data" / "reference" / "cmip6_mjo_members.csv"
+# catalogue members whose stores do not cover Y0-Y1 (found by the extraction), left out of MEMBERS
+SHORT = {("CESM2", "r9i1p1f1"): "its ua store ends in 1889"}
+DIGEST = MEMBERS.with_name("cmip6_mjo_red_digest.json")
+NEED = ["rlut", "pr", "ua", "tas"]  # daily variables a member must have to be used (zg is optional: z500 only)
 Y0, Y1 = 1979, 2014
 GRIDS = {
     "band": (np.arange(-15.0, 15.01, 2.5), np.arange(0.0, 360.0, 2.5)),
@@ -54,6 +70,7 @@ SRC = {
 }
 
 
+@functools.cache
 def catalog():
     c = pd.read_csv(CAT)
     return c[(c.table_id == "day") & (c.experiment_id == "historical")]
@@ -83,11 +100,74 @@ def members(model, need):
 
 
 def zstore(model, member, var):
+    """The catalogue's latest store of (model, member, variable), or None."""
     d = catalog()
     s = d[(d.source_id == model) & (d.member_id == member) & (d.variable_id == var)]
     if not len(s):
         return None
     return s.sort_values("version").zstore.iloc[-1]
+
+
+def write_members(models):
+    """Every member of `models` with all of NEED, and its stores (zg empty where the member has none) -> MEMBERS."""
+    rows = [
+        {"model": m, "member": mem, **{v: zstore(m, mem, v) for v in NEED}, "zg": zstore(m, mem, "zg") or ""}
+        for m in models
+        for mem in members(m, NEED)
+        if (m, mem) not in SHORT
+    ]
+    df = pd.DataFrame(rows)
+    df.to_csv(MEMBERS, index=False)
+    print(df.groupby("model").agg(members=("member", "size"), with_zg=("zg", lambda z: int((z != "").sum()))))
+    print(f"{len(df)} members, {int((df.zg != '').sum())} with zg -> {MEMBERS.name}")
+
+
+def listed(model, member):
+    """The MEMBERS row of (model, member): its store per variable."""
+    df = pd.read_csv(MEMBERS, keep_default_na=False)
+    r = df[(df.model == model) & (df.member == member)]
+    if not len(r):
+        raise SystemExit(f"{model} {member} is not in {MEMBERS.name}")
+    return r.iloc[0]
+
+
+def fingerprint(path):
+    """sha256 (16 hex digits) of every array of a reduction file, over its dtype, shape and bytes."""
+    out = {}
+    with np.load(path) as z:
+        for k in sorted(z.files):
+            a = np.ascontiguousarray(z[k])
+            out[k] = hashlib.sha256(f"{a.dtype}{a.shape}".encode() + a.tobytes()).hexdigest()[:16]
+    return out
+
+
+def write_digest():
+    """Fingerprints of the listed members' reductions present in red/ -> DIGEST."""
+    df = pd.read_csv(MEMBERS, keep_default_na=False)
+    out = {
+        f.name: fingerprint(f)
+        for model, member in zip(df.model, df.member)
+        for f in sorted(OUT.glob(f"{model}_{member}_*.npz"))
+        if f.stem.rsplit("_", 1)[1] in SRC
+    }
+    DIGEST.write_text(json.dumps(out, indent=1) + "\n")
+    print(f"{len(out)} reductions fingerprinted -> {DIGEST.name}")
+
+
+def check_digest(names):
+    """Compare fresh reductions with the fingerprints of the same files from the first build (a warning per file
+    that differs)."""
+    ref = json.loads(DIGEST.read_text())
+    for name in names:
+        if name not in ref:
+            print(f"{name}: not in the first build")
+            continue
+        got = fingerprint(OUT / name)
+        diff = sorted(k for k in set(ref[name]) | set(got) if ref[name].get(k) != got.get(k))
+        if diff:
+            print(f"::warning::{name} differs from the first build's reduction in {diff}")
+        else:
+            print(f"{name}: identical to the first build's reduction")
 
 
 def _interp(block, lat, lon, glat, glon):
@@ -112,20 +192,27 @@ def _interp(block, lat, lon, glat, glon):
     return (a * (1 - fx) * (1 - fy) + b * fx * (1 - fy) + c * (1 - fx) * fy + d * fx * fy).astype(np.float32)
 
 
-def extract(model, member, var):
-    """Stream one (model, member, variable) and write its reductions. Resumable: a finished file is skipped."""
+def extract(model, member, var, z):
+    """Stream one (model, member, variable) from store `z` and write its reductions. Resumable: a finished file is
+    skipped."""
     import xarray as xr
 
     dest = OUT / f"{model}_{member}_{var}.npz"
     if dest.exists():
         return f"{dest.name} exists"
     src, outv = SRC[var]
-    z = zstore(model, member, src)
-    if z is None:
+    if not z:
         return f"{model} {member} {var}: no store"
     t0 = time.time()
-    ds = xr.open_zarr(z, storage_options={"token": "anon"}, consolidated=True, use_cftime=True)
+    ds = xr.open_zarr(
+        z,
+        storage_options={"token": "anon"},
+        consolidated=True,
+        decode_times=xr.coders.CFDatetimeCoder(use_cftime=True),
+    )
     da = ds[src]
+    # bytes decoded per day: a plev8 chunk is decoded whole, whichever levels are kept
+    per_day = np.prod([s for d_, s in zip(da.dims, da.shape) if d_ != "time"]) * 4
     latn = "lat" if "lat" in da.dims else "latitude"
     lonn = "lon" if "lon" in da.dims else "longitude"
     kidx = {}
@@ -154,9 +241,8 @@ def extract(model, member, var):
     outs = {(n, g): [] for n in outv for g in PLAN[var]}
     nt = len(times)
     # Blocks ALIGNED to the zarr time chunks (a 180-day block over a 1,135-day chunk re-read the chunk six times),
-    # several chunks per block so dask fetches them concurrently, capped near 1.5 GB decoded.
+    # several chunks per block so dask fetches them concurrently, capped near 1.5 GB of decoded chunks.
     csz = da.chunks[0] if da.chunks else (nt,)
-    per_day = np.prod([s for d_, s in zip(da.dims, da.shape) if d_ != "time"]) * 4
     cap = max(1, int(1.5e9 // per_day))
     bounds, cur, start = [], 0, 0
     for c in csz:
@@ -194,6 +280,7 @@ def extract(model, member, var):
 
 
 def run(jobs, workers=2):
+    """jobs: (model, member, variable, store)."""
     os.environ.setdefault("OMP_NUM_THREADS", "2")
     import dask
 
@@ -204,13 +291,13 @@ def run(jobs, workers=2):
             print(f.result(), flush=True)
 
 
-def _safe(model, member, var):
+def _safe(model, member, var, z):
     import dask
 
     dask.config.set(scheduler="threads", num_workers=8)
     for attempt in range(3):
         try:
-            return extract(model, member, var)
+            return extract(model, member, var, z)
         except Exception as e:  # noqa: BLE001
             err = f"{model} {member} {var}: FAILED ({type(e).__name__}: {str(e)[:160]})"
             time.sleep(20 * (attempt + 1))
@@ -219,30 +306,38 @@ def _safe(model, member, var):
 
 def main() -> int:
     cmd = sys.argv[1] if len(sys.argv) > 1 else "list"
-    ok = candidates()
+    workers = int(os.environ.get("W", "2"))
     if cmd == "list":
-        print(ok.to_string())
+        print(candidates().to_string())
         return 0
     if cmd == "screen":
         jobs = []
-        for m in ok.index:
-            mem = members(m, ["rlut", "pr", "ua", "tas"])
+        for m in candidates().index:
+            mem = members(m, NEED)
             if not mem:
                 print(m, "no member with rlut/pr/ua/tas")
                 continue
-            jobs += [(m, mem[0], "rlut"), (m, mem[0], "pr")]
-        run(jobs, workers=int(os.environ.get("W", "2")))
+            jobs += [(m, mem[0], v, zstore(m, mem[0], v)) for v in ("rlut", "pr")]
+        run(jobs, workers=workers)
         return 0
-    if cmd == "full":
-        jobs = []
-        for m in sys.argv[2:]:
-            mem = members(m, ["rlut", "pr", "ua", "tas"])
-            jobs += [(m, mem[0], "tas"), (m, mem[0], "ua")]
-            if zstore(m, mem[0], "zg"):
-                jobs.append((m, mem[0], "z500"))
-            if len(mem) > 1:
-                jobs += [(m, mem[1], v) for v in ("rlut", "pr", "tas", "ua")]
-        run(jobs, workers=int(os.environ.get("W", "2")))
+    if cmd == "members" and len(sys.argv) > 2:
+        write_members(sys.argv[2:])
+        return 0
+    if cmd == "member" and len(sys.argv) == 4:
+        model, member = sys.argv[2:]
+        r = listed(model, member)
+        # the two plev8 reads (ua, z500) at the ends of the queue, so they overlap as little as possible
+        jobs = [(model, member, v, r[SRC[v][0]]) for v in ("ua", "rlut", "pr", "tas", "z500") if r[SRC[v][0]]]
+        run(jobs, workers=workers)
+        names = [f"{model}_{member}_{j[2]}.npz" for j in jobs]
+        missing = [n for n in names if not (OUT / n).exists()]
+        if missing:
+            print(f"{model} {member}: not written: {missing}")
+            return 1
+        check_digest(names)
+        return 0
+    if cmd == "digest":
+        write_digest()
         return 0
     print(__doc__)
     return 2

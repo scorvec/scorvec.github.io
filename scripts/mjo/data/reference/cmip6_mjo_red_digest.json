@@ -1,0 +1,749 @@
+{
+ "BCC-ESM1_r1i1p1f1_pr.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_band": "eb38b0087ac7a654",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_band": "66c7b545abcdac70",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "pr_band": "9510fe9cca606416",
+  "pr_na": "720fceb28bcb73db",
+  "pr_sa": "ba8403c12ca0632d"
+ },
+ "BCC-ESM1_r1i1p1f1_rlut.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "rlut_band": "03937364226c29b8"
+ },
+ "BCC-ESM1_r1i1p1f1_tas.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "tas_na": "f50bc57d109dc254",
+  "tas_sa": "ca6e99a4835a10bb"
+ },
+ "BCC-ESM1_r1i1p1f1_ua.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "u250_band": "f9fc0a6509811d5c",
+  "u850_band": "5a82353d25623cba"
+ },
+ "BCC-ESM1_r1i1p1f1_z500.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_nh": "8aa8d328bc2910d2",
+  "lon_nh": "66c7b545abcdac70",
+  "z500_nh": "6622a8a8b625a775"
+ },
+ "BCC-ESM1_r2i1p1f1_pr.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_band": "eb38b0087ac7a654",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_band": "66c7b545abcdac70",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "pr_band": "aac201c880e4815d",
+  "pr_na": "a78872a3420e8b07",
+  "pr_sa": "c3df92a3cc6b15c9"
+ },
+ "BCC-ESM1_r2i1p1f1_rlut.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "rlut_band": "0b19467dfafc856b"
+ },
+ "BCC-ESM1_r2i1p1f1_tas.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "tas_na": "f4e7e3721cfd1320",
+  "tas_sa": "bad0ca7179fd01f7"
+ },
+ "BCC-ESM1_r2i1p1f1_ua.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "u250_band": "166d863626f4fd1e",
+  "u850_band": "cc489cff578b65c7"
+ },
+ "CAMS-CSM1-0_r2i1p1f1_pr.npz": {
+  "calendar": "dae73bd5fe1a418c",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_band": "66c7b545abcdac70",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "pr_band": "6e3a595c096906e6",
+  "pr_na": "f3e74b1948ea90d4",
+  "pr_sa": "b0624b9407f2aa87"
+ },
+ "CAMS-CSM1-0_r2i1p1f1_rlut.npz": {
+  "calendar": "dae73bd5fe1a418c",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "rlut_band": "290089a38a9448f6"
+ },
+ "CAMS-CSM1-0_r2i1p1f1_tas.npz": {
+  "calendar": "dae73bd5fe1a418c",
+  "dates": "a47f08691a6d9eda",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "tas_na": "3c695b77b51bac23",
+  "tas_sa": "b8a782760cc2b879"
+ },
+ "CAMS-CSM1-0_r2i1p1f1_ua.npz": {
+  "calendar": "dae73bd5fe1a418c",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "u250_band": "5e0137708171a20a",
+  "u850_band": "4ce65b9b29879fda"
+ },
+ "CESM2_r1i1p1f1_pr.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_band": "eb38b0087ac7a654",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_band": "66c7b545abcdac70",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "pr_band": "43a1241f4d364579",
+  "pr_na": "35934352df079327",
+  "pr_sa": "8c661d89cf4b1a02"
+ },
+ "CESM2_r1i1p1f1_rlut.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "rlut_band": "d9859a21885cb9e3"
+ },
+ "CESM2_r1i1p1f1_tas.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "tas_na": "3e7a3e93b816f5c6",
+  "tas_sa": "95b683a9d6676f3f"
+ },
+ "CESM2_r1i1p1f1_ua.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "u250_band": "30c847914f10ff8f",
+  "u850_band": "e982c8d7cf9c3758"
+ },
+ "CESM2_r1i1p1f1_z500.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_nh": "8aa8d328bc2910d2",
+  "lon_nh": "66c7b545abcdac70",
+  "z500_nh": "8b684653723becca"
+ },
+ "CESM2_r2i1p1f1_pr.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_band": "eb38b0087ac7a654",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_band": "66c7b545abcdac70",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "pr_band": "4fd550fe314460bd",
+  "pr_na": "b955bbc02b299a16",
+  "pr_sa": "e2710ded29e4ba02"
+ },
+ "CESM2_r2i1p1f1_rlut.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "rlut_band": "9a044ef09f2c8544"
+ },
+ "CESM2_r2i1p1f1_tas.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "tas_na": "05d2a50549129a6f",
+  "tas_sa": "04d0936d7968e3d9"
+ },
+ "CESM2_r2i1p1f1_ua.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "u250_band": "cda31f3f95d627b2",
+  "u850_band": "85dfce5bf7a345f9"
+ },
+ "CESM2-FV2_r1i1p1f1_pr.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_band": "eb38b0087ac7a654",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_band": "66c7b545abcdac70",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "pr_band": "be52d63f51b19891",
+  "pr_na": "0b46441f8a3fd665",
+  "pr_sa": "cafca009d43c6cf0"
+ },
+ "CESM2-FV2_r1i1p1f1_rlut.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "rlut_band": "a881fd33b05b00bd"
+ },
+ "CESM2-FV2_r1i1p1f1_tas.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "tas_na": "b945c31fcababb2f",
+  "tas_sa": "7af680f9823782b5"
+ },
+ "CESM2-FV2_r1i1p1f1_ua.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "u250_band": "4c72b8c4d03be5e3",
+  "u850_band": "f7e5df27cdf32729"
+ },
+ "CESM2-FV2_r1i1p1f1_z500.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_nh": "8aa8d328bc2910d2",
+  "lon_nh": "66c7b545abcdac70",
+  "z500_nh": "e969a07cf9f435fa"
+ },
+ "CESM2-FV2_r2i1p1f1_pr.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_band": "eb38b0087ac7a654",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_band": "66c7b545abcdac70",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "pr_band": "13cc576dd6bb6cb7",
+  "pr_na": "2f74c3aaa36c1da4",
+  "pr_sa": "1260a9a72334a482"
+ },
+ "CESM2-FV2_r2i1p1f1_rlut.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "rlut_band": "d200edaf58eff095"
+ },
+ "CESM2-FV2_r2i1p1f1_tas.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "tas_na": "c60809e0d41f608c",
+  "tas_sa": "f85d8d3917972762"
+ },
+ "CESM2-FV2_r2i1p1f1_ua.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "u250_band": "3bff726498a1050d",
+  "u850_band": "23a6850faca7c02e"
+ },
+ "CNRM-CM6-1_r1i1p1f2_pr.npz": {
+  "calendar": "dae73bd5fe1a418c",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_band": "66c7b545abcdac70",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "pr_band": "903395b0a9dad803",
+  "pr_na": "631a7f182c71bd1b",
+  "pr_sa": "a830b6873d58876e"
+ },
+ "CNRM-CM6-1_r1i1p1f2_rlut.npz": {
+  "calendar": "dae73bd5fe1a418c",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "rlut_band": "f7e99707e1a738b7"
+ },
+ "CNRM-CM6-1_r1i1p1f2_tas.npz": {
+  "calendar": "dae73bd5fe1a418c",
+  "dates": "a47f08691a6d9eda",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "tas_na": "e4575da8dff1d07d",
+  "tas_sa": "2d2d1abb1d0d60d1"
+ },
+ "CNRM-CM6-1_r1i1p1f2_ua.npz": {
+  "calendar": "dae73bd5fe1a418c",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "u250_band": "4431e5aef91da542",
+  "u850_band": "b1ed71f5501c3b2f"
+ },
+ "CNRM-CM6-1_r1i1p1f2_z500.npz": {
+  "calendar": "dae73bd5fe1a418c",
+  "dates": "a47f08691a6d9eda",
+  "lat_nh": "8aa8d328bc2910d2",
+  "lon_nh": "66c7b545abcdac70",
+  "z500_nh": "a39013cdf8e8ad56"
+ },
+ "CNRM-CM6-1_r2i1p1f2_pr.npz": {
+  "calendar": "dae73bd5fe1a418c",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_band": "66c7b545abcdac70",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "pr_band": "94875584cf716e88",
+  "pr_na": "92a09a835b4de7f5",
+  "pr_sa": "2bba2bdd41d532c4"
+ },
+ "CNRM-CM6-1_r2i1p1f2_rlut.npz": {
+  "calendar": "dae73bd5fe1a418c",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "rlut_band": "88b5d0f7c96fcc28"
+ },
+ "CNRM-CM6-1_r2i1p1f2_tas.npz": {
+  "calendar": "dae73bd5fe1a418c",
+  "dates": "a47f08691a6d9eda",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "tas_na": "677229eae185c5ce",
+  "tas_sa": "eca306d838fcbf9d"
+ },
+ "CNRM-CM6-1_r2i1p1f2_ua.npz": {
+  "calendar": "dae73bd5fe1a418c",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "u250_band": "ffb6f0b788586e3a",
+  "u850_band": "64d7021691f58a4a"
+ },
+ "CNRM-ESM2-1_r1i1p1f2_pr.npz": {
+  "calendar": "dae73bd5fe1a418c",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_band": "66c7b545abcdac70",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "pr_band": "feb318932c6f3672",
+  "pr_na": "81a90a54fc0f2015",
+  "pr_sa": "7549c4650d579461"
+ },
+ "CNRM-ESM2-1_r1i1p1f2_rlut.npz": {
+  "calendar": "dae73bd5fe1a418c",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "rlut_band": "6668f2a413a87c7a"
+ },
+ "CNRM-ESM2-1_r1i1p1f2_tas.npz": {
+  "calendar": "dae73bd5fe1a418c",
+  "dates": "a47f08691a6d9eda",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "tas_na": "690e12b0625fbe68",
+  "tas_sa": "21edd3ca53d7d1f5"
+ },
+ "CNRM-ESM2-1_r1i1p1f2_ua.npz": {
+  "calendar": "dae73bd5fe1a418c",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "u250_band": "4a53e1786e2ae825",
+  "u850_band": "6d919185baccd5fc"
+ },
+ "CNRM-ESM2-1_r1i1p1f2_z500.npz": {
+  "calendar": "dae73bd5fe1a418c",
+  "dates": "a47f08691a6d9eda",
+  "lat_nh": "8aa8d328bc2910d2",
+  "lon_nh": "66c7b545abcdac70",
+  "z500_nh": "b83b832b8be97d70"
+ },
+ "CNRM-ESM2-1_r2i1p1f2_pr.npz": {
+  "calendar": "dae73bd5fe1a418c",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_band": "66c7b545abcdac70",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "pr_band": "f625f241db3ebfaf",
+  "pr_na": "e1732872b146ba85",
+  "pr_sa": "81bd23cdd8f29e55"
+ },
+ "CNRM-ESM2-1_r2i1p1f2_rlut.npz": {
+  "calendar": "dae73bd5fe1a418c",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "rlut_band": "d210aa8b0b8238ef"
+ },
+ "CNRM-ESM2-1_r2i1p1f2_tas.npz": {
+  "calendar": "dae73bd5fe1a418c",
+  "dates": "a47f08691a6d9eda",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "tas_na": "609d4599a124afe9",
+  "tas_sa": "9ec6a341d09ffa89"
+ },
+ "CNRM-ESM2-1_r2i1p1f2_ua.npz": {
+  "calendar": "dae73bd5fe1a418c",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "u250_band": "f436697a2921ad67",
+  "u850_band": "cf057d05f19755e4"
+ },
+ "EC-Earth3_r1i1p1f1_pr.npz": {
+  "calendar": "388e2c253e49f616",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_band": "66c7b545abcdac70",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "pr_band": "35c0abc69e5c6a0d",
+  "pr_na": "562ae3ca1dc662a1",
+  "pr_sa": "09a92c17f03077c5"
+ },
+ "EC-Earth3_r1i1p1f1_rlut.npz": {
+  "calendar": "388e2c253e49f616",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "rlut_band": "0536864235bf92b3"
+ },
+ "EC-Earth3_r1i1p1f1_tas.npz": {
+  "calendar": "388e2c253e49f616",
+  "dates": "a47f08691a6d9eda",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "tas_na": "f88baf9eedf6c5ef",
+  "tas_sa": "bd15336bfb7d2c79"
+ },
+ "EC-Earth3_r1i1p1f1_ua.npz": {
+  "calendar": "388e2c253e49f616",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "u250_band": "2a546d83c94a691b",
+  "u850_band": "692e7038a104c6d1"
+ },
+ "EC-Earth3_r1i1p1f1_z500.npz": {
+  "calendar": "388e2c253e49f616",
+  "dates": "a47f08691a6d9eda",
+  "lat_nh": "8aa8d328bc2910d2",
+  "lon_nh": "66c7b545abcdac70",
+  "z500_nh": "80e03817f700dab7"
+ },
+ "EC-Earth3_r4i1p1f1_pr.npz": {
+  "calendar": "388e2c253e49f616",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_band": "66c7b545abcdac70",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "pr_band": "53fa125f90b36f33",
+  "pr_na": "27c2aff0eb0e431f",
+  "pr_sa": "cef5923db5c3f482"
+ },
+ "EC-Earth3_r4i1p1f1_rlut.npz": {
+  "calendar": "388e2c253e49f616",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "rlut_band": "a4e0cbb564f956f1"
+ },
+ "EC-Earth3_r4i1p1f1_tas.npz": {
+  "calendar": "388e2c253e49f616",
+  "dates": "a47f08691a6d9eda",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "tas_na": "49d06ea971371bc0",
+  "tas_sa": "6af0a84ecec7d7b1"
+ },
+ "EC-Earth3_r4i1p1f1_ua.npz": {
+  "calendar": "388e2c253e49f616",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "u250_band": "e98da212836485d1",
+  "u850_band": "d232073be402bc48"
+ },
+ "EC-Earth3-CC_r1i1p1f1_pr.npz": {
+  "calendar": "388e2c253e49f616",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_band": "66c7b545abcdac70",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "pr_band": "3c6f6b8c7b5d200f",
+  "pr_na": "232e464436c6317c",
+  "pr_sa": "712714a27a42055a"
+ },
+ "EC-Earth3-CC_r1i1p1f1_rlut.npz": {
+  "calendar": "388e2c253e49f616",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "rlut_band": "db283896e09cdb7b"
+ },
+ "EC-Earth3-CC_r1i1p1f1_tas.npz": {
+  "calendar": "388e2c253e49f616",
+  "dates": "a47f08691a6d9eda",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "tas_na": "9add0da7435da844",
+  "tas_sa": "7238ae9b0c5b4a0d"
+ },
+ "EC-Earth3-CC_r1i1p1f1_ua.npz": {
+  "calendar": "388e2c253e49f616",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "u250_band": "725bdcba52d8743c",
+  "u850_band": "c7d05b068091a798"
+ },
+ "GFDL-CM4_r1i1p1f1_pr.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_band": "eb38b0087ac7a654",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_band": "66c7b545abcdac70",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "pr_band": "75c614cc72524e4b",
+  "pr_na": "f272ff7d9865c46a",
+  "pr_sa": "7d0e6d75de46b092"
+ },
+ "GFDL-CM4_r1i1p1f1_rlut.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "rlut_band": "2ec2be207ce10960"
+ },
+ "GFDL-CM4_r1i1p1f1_tas.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "tas_na": "78e9d4b83d92bdee",
+  "tas_sa": "98166b73049892b2"
+ },
+ "GFDL-CM4_r1i1p1f1_ua.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "u250_band": "75a4cfe1436bfea4",
+  "u850_band": "518e50a137abdb7e"
+ },
+ "GFDL-CM4_r1i1p1f1_z500.npz": {
+  "calendar": "1d0d05005b263b05",
+  "dates": "e6ebed870aebbcc1",
+  "lat_nh": "8aa8d328bc2910d2",
+  "lon_nh": "66c7b545abcdac70",
+  "z500_nh": "9776b2835b07b277"
+ },
+ "IITM-ESM_r1i1p1f1_pr.npz": {
+  "calendar": "055fde6044ec728b",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_band": "66c7b545abcdac70",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "pr_band": "d4c5b60720b43798",
+  "pr_na": "bf4f7fee0e78c216",
+  "pr_sa": "1e06a5e7b4464461"
+ },
+ "IITM-ESM_r1i1p1f1_rlut.npz": {
+  "calendar": "055fde6044ec728b",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "rlut_band": "511181fb07da4ceb"
+ },
+ "IITM-ESM_r1i1p1f1_tas.npz": {
+  "calendar": "055fde6044ec728b",
+  "dates": "a47f08691a6d9eda",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "tas_na": "cb79961e292ac3b7",
+  "tas_sa": "947833363c150f3a"
+ },
+ "IITM-ESM_r1i1p1f1_ua.npz": {
+  "calendar": "055fde6044ec728b",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "u250_band": "a6fb699e6826d883",
+  "u850_band": "0ac4dc8a2552f78e"
+ },
+ "IITM-ESM_r1i1p1f1_z500.npz": {
+  "calendar": "055fde6044ec728b",
+  "dates": "a47f08691a6d9eda",
+  "lat_nh": "8aa8d328bc2910d2",
+  "lon_nh": "66c7b545abcdac70",
+  "z500_nh": "1f938c9b0a208139"
+ },
+ "MPI-ESM1-2-HR_r1i1p1f1_pr.npz": {
+  "calendar": "388e2c253e49f616",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_band": "66c7b545abcdac70",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "pr_band": "c425d7911b671227",
+  "pr_na": "ed9ddd4cde4e6c6c",
+  "pr_sa": "ef27ed5ed7f6a7d9"
+ },
+ "MPI-ESM1-2-HR_r1i1p1f1_rlut.npz": {
+  "calendar": "388e2c253e49f616",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "rlut_band": "592b3ea6e97380ed"
+ },
+ "MPI-ESM1-2-HR_r1i1p1f1_tas.npz": {
+  "calendar": "388e2c253e49f616",
+  "dates": "a47f08691a6d9eda",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "tas_na": "70937a183b78271b",
+  "tas_sa": "6eeb4517b8d01acb"
+ },
+ "MPI-ESM1-2-HR_r1i1p1f1_ua.npz": {
+  "calendar": "388e2c253e49f616",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "u250_band": "fe11ed987bf01ec9",
+  "u850_band": "43bba4ac0793f165"
+ },
+ "MPI-ESM1-2-HR_r1i1p1f1_z500.npz": {
+  "calendar": "388e2c253e49f616",
+  "dates": "a47f08691a6d9eda",
+  "lat_nh": "8aa8d328bc2910d2",
+  "lon_nh": "66c7b545abcdac70",
+  "z500_nh": "d9eea4b31f5bcb82"
+ },
+ "MPI-ESM1-2-HR_r2i1p1f1_pr.npz": {
+  "calendar": "388e2c253e49f616",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_band": "66c7b545abcdac70",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "pr_band": "7022251244a370c8",
+  "pr_na": "a0110d8e3d544190",
+  "pr_sa": "72faf41c176b55ea"
+ },
+ "MPI-ESM1-2-HR_r2i1p1f1_rlut.npz": {
+  "calendar": "388e2c253e49f616",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "rlut_band": "6c24702d7ef3ed13"
+ },
+ "MPI-ESM1-2-HR_r2i1p1f1_tas.npz": {
+  "calendar": "388e2c253e49f616",
+  "dates": "a47f08691a6d9eda",
+  "lat_na": "da4155a5bbd0d62f",
+  "lat_sa": "3ea3d947ef5993df",
+  "lon_na": "bfe9f809f5841aac",
+  "lon_sa": "3ec5657a83f2d99b",
+  "tas_na": "3af27888355a2fe8",
+  "tas_sa": "588722d5d24ddb1e"
+ },
+ "MPI-ESM1-2-HR_r2i1p1f1_ua.npz": {
+  "calendar": "388e2c253e49f616",
+  "dates": "a47f08691a6d9eda",
+  "lat_band": "eb38b0087ac7a654",
+  "lon_band": "66c7b545abcdac70",
+  "u250_band": "9d51697748bca41a",
+  "u850_band": "2c7eb0bc09b4babb"
+ }
+}

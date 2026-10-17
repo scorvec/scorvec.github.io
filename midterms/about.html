@@ -9,13 +9,13 @@
 <meta property="og:url" content="https://scorvec.com/midterms/about.html">
 <meta name="twitter:card" content="summary">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="mt.css">
 <style>
 :root{--ink:#1b1d22;--muted:#6f6b64;--rule:#e3e1db;--bg:#fcfcfa;--d:#1f5fbf}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 "Source Serif 4",Georgia,serif}
 .ab{max-width:1180px;margin:0 auto;padding:22px 24px 60px}
 .ab h1{font:600 30px/1.2 "Source Serif 4",Georgia,serif;margin:0 0 6px}
-.ab .back{font:17px "Source Sans 3",-apple-system,Helvetica,Arial,sans-serif}
 .ab a{color:var(--d)}
 .ab nav{display:flex;flex-wrap:wrap;gap:2px 14px;font:17px/1.7 "Source Sans 3",-apple-system,Helvetica,Arial,sans-serif;margin:16px 0 8px;padding:10px 14px;border:1px solid var(--rule);border-radius:8px;background:#fff}
 .ab nav a{white-space:nowrap}
@@ -113,7 +113,7 @@ a:focus-visible{outline:2px solid var(--d);outline-offset:2px}
         </li>
         <li class="sh-item sh-has-menu">
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
-          <div class="sh-menu sh-menu--cols" id="sh-g2">
+          <div class="sh-menu sh-menu--cols sh-menu--one" id="sh-g2">
             <div class="sh-col">
               <div>
                 <h3>By timescale</h3>
@@ -212,8 +212,8 @@ a:focus-visible{outline:2px solid var(--d);outline-offset:2px}
 </header>
 <!-- sh:end -->
 <main class="ab" id="main">
-<p class="back"><a href="./">Back to the forecast</a></p>
 <h1>How the forecast works</h1>
+<nav class="mt-nav" aria-label="Forecast pages"><a href="./">Forecast</a><a href="polls.html">Every poll and its weight</a><a href="about.html" aria-current="page">How it works</a><a href="whatif.html">What if? Test the assumptions</a><a href="legislatures.html">State legislatures</a></nav>
 <p id="lede">The forecast simulates the 2026 House, Senate and governor elections 20,000 times. Each simulation draws a national polling miss shared by every race, regional and demographic swings shared by similar places, and each race's own uncertainty, so close races tend to break together, as they do in real elections.</p>
 <nav><a href="whatif.html">What if? Test the assumptions</a><a href="polls.html">Every poll and its weight</a><a href="legislatures.html">State legislatures</a><a href="#mood">The national mood</a><a href="#polls">Polls</a><a href="#house">House</a><a href="#senate">Senate</a><a href="#gov">Governors</a><a href="#tests">Track record</a><a href="#sources">Sources</a></nav>
 
@@ -278,7 +278,7 @@ they have announced their retirement.</p>
 <p><b>Election results and fundamentals.</b> <a href="https://electionlab.mit.edu/data">MIT Election Data and Science Lab</a> (Senate and presidential returns); the <a href="https://www.fec.gov/">Federal Election Commission</a> (official House results and candidate fundraising through the <a href="https://api.open.fec.gov/developers/">OpenFEC API</a>); district partisan leans of our own, from the precinct returns of the MIT Election Data and Science Lab (2024, CC0) and the <a href="https://dataverse.harvard.edu/dataverse/electionscience">Voting and Election Science Team</a> (2016 and 2020, CC BY 4.0) on the Census Bureau's district lines and 2020 blocks (public domain), with Wikipedia's 2012 county results (CC BY-SA 4.0); Wikipedia yearly results for governors and the national House vote; race ratings from the <a href="https://www.cookpolitical.com/">Cook Political Report</a>, <a href="https://centerforpolitics.org/crystalball/">Sabato's Crystal Ball</a>, <a href="https://insideelections.com/">Inside Elections</a> and others, shown for comparison only; county presidential results compiled by <a href="https://github.com/tonmcg/US_County_Level_Election_Results_08-24">Tony McGovern</a>.</p>
 <p><b>Early voting.</b> Ballots cast so far: <a href="https://election.lab.ufl.edu/early-vote/">UF Election Lab</a> 2026 early vote statistics (Michael McDonald, University of Florida; CC BY-NC-ND 4.0), read once a day and used only to compute each state's scaling; the counts themselves are not republished here. Each state's 2022 share of ballots cast before Election Day: the U.S. Election Assistance Commission's <a href="https://www.eac.gov/research-and-data/studies-and-reports">2022 Election Administration and Voting Survey</a> (public domain). The national share voting before Election Day in past elections: U.S. Census Bureau Current Population Survey voting supplement, as compiled by the <a href="https://electionlab.mit.edu/">MIT Election Data and Science Lab</a>.</p>
 <p><b>Approval and special elections.</b> Gallup presidential approval via <a href="https://www.presidency.ucsb.edu/statistics/data/presidential-job-approval-all-data">The American Presidency Project (UC Santa Barbara)</a>; <a href="https://www.the-downballot.com/">The Downballot</a> special-elections Big Board.</p>
-<p><b>Demographics and maps.</b> <a href="https://www.census.gov/">U.S. Census Bureau</a>: American Community Survey 2020-2024 5-year estimates (citizen voting-age population, education, age, home heating fuel), 2020 cartographic block groups, and block equivalency files for the 119th and 120th Congresses. District shapes are the 2020 block groups assigned to the 2026 (120th Congress) districts. This site is not endorsed or certified by the Census Bureau.</p>
+<p><b>Demographics and maps.</b> <a href="https://www.census.gov/">U.S. Census Bureau</a>: American Community Survey 2020-2024 5-year estimates (citizen voting-age population, education, age, home heating fuel), 2020 cartographic block groups, and block equivalency files for the 119th and 120th Congresses. District shapes are the 2020 block groups assigned to the districts in force for 2026: the 120th-Congress file, except Missouri, whose 2025 map the U.S. Supreme Court blocked on September 25, 2026 and which votes on its 2022 lines (the 119th-Congress file). This site is not endorsed or certified by the Census Bureau.</p>
 <p><b>Ranked-choice counts.</b> Round-by-round tabulations from the <a href="https://www.maine.gov/sos/elections-voting/election-results-data/previous-election-results">Maine Secretary of State</a> (Bureau of Corporations, Elections and Commissions: 2nd Congressional District 2018 and 2022) and the <a href="https://www.elections.alaska.gov/election-results/">State of Alaska Division of Elections</a> (RCV Detailed Reports and Election Summary Reports, August 2022 special general, 2022 and 2024 general elections), public records; only the transfer shares derived from them are republished.</p>
 <p><b>Heating oil.</b> <a href="https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&amp;s=W_EPD2F_PRS_SME_DPG&amp;f=W">U.S. Energy Information Administration</a> weekly Maine No. 2 heating oil residential price (State Heating Oil and Propane Program; public domain). The survey runs from October to March; outside the season the last published week is used.</p>
 <p><b>State legislatures (experimental).</b> Precinct returns 2022 and 2024 from the

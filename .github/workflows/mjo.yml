@@ -213,17 +213,17 @@ jobs:
           cp "scripts/mjo/plots/rmm_${{ needs.check.outputs.compact }}.webp" \
              "assets/mjo/rmm_${{ needs.check.outputs.compact }}.webp"
           # frames are WebP since 2026-10-16: a re-plotted PNG-era cycle keeps one file
-          rm -f "assets/mjo/rmm_${{ needs.check.outputs.compact }}.png" "assets/mjo/rmmclean_${{ needs.check.outputs.compact }}.png"
-          # the ENSO-removed wind-only RMM (src/enso_rmm.py) and its status line, when that best-effort stage ran
-          if [ -f "scripts/mjo/plots/rmmclean_${{ needs.check.outputs.compact }}.webp" ]; then
-            cp "scripts/mjo/plots/rmmclean_${{ needs.check.outputs.compact }}.webp" assets/mjo/
-            cp scripts/mjo/plots/rmm_clean_status.json assets/mjo/ \
-              || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "ENSO-removed RMM status" "the homepage keeps the previous status line"
-          fi
-          # keep the most recent 60 archived plots of each, by cycle name (either format): checkout mtimes tie, and
-          # `ls -t`'s name tie-break would prune the newest cycles
+          rm -f "assets/mjo/rmm_${{ needs.check.outputs.compact }}.png"
+          # the multi-model phase diagram's data (src/rmm_export.py) and the ENSO-removed diagnosis (src/enso_rmm.py),
+          # when those best-effort stages ran
+          [ -f scripts/mjo/plots/rmm_models.json ] && cp scripts/mjo/plots/rmm_models.json assets/mjo/
+          [ -f scripts/mjo/plots/rmm_clean_status.json ] && cp scripts/mjo/plots/rmm_clean_status.json assets/mjo/ \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "ENSO-removed RMM status" "the homepage keeps the previous status line"
+          # the ENSO-removed frames retired 2026-10-17 (the diagram above draws that index live)
+          rm -f assets/mjo/rmmclean_*z.webp assets/mjo/rmmclean_*z.png assets/mjo/rmmclean_manifest.json
+          # keep the most recent 60 archived plots, by cycle name (either format): checkout mtimes tie, and `ls -t`'s
+          # name tie-break would prune the newest cycles
           ls assets/mjo/rmm_*z.webp assets/mjo/rmm_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm
-          ls assets/mjo/rmmclean_*z.webp assets/mjo/rmmclean_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm
 
       - name: Regenerate MJO page
         run: python scripts/mjo/generate_page.py
@@ -242,7 +242,7 @@ jobs:
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar"
             ls assets/mjo/rmm_*z.webp assets/mjo/rmm_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm
-            ls assets/mjo/rmmclean_*z.webp assets/mjo/rmmclean_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm
+            rm -f assets/mjo/rmmclean_*z.webp assets/mjo/rmmclean_*z.png assets/mjo/rmmclean_manifest.json
             scripts/lib/mjo_page_at_tip.sh "$GITHUB_SHA"   # never restore a page built from a stale generator
             git add $OUT
             if git diff --staged --quiet; then echo "No changes."; exit 0; fi

@@ -1,17 +1,18 @@
-name: Hadley outflow and subtropical descent (analysed 7-day means against ERA5 1991-2020)
+name: Hadley outflow and subtropical descent (IFS HRES analyses and back-trajectories against ERA5 1991-2020)
 
-# scripts/mjo/src/hadley_branch_maps.py. The archive lives in the release hbranch-archive: one AIFS-ENS 00 UTC analysis a
-# day as monthly files, and the analysis less ERA5 on the overturn lattice days (offset_era5.npz). Each run adds the days
-# not yet held, pairs the lattice days ARCO has published, draws the new weeks' frames (frames branch) and commits the
-# manifest, the map still and the two trackers. The first run backfills from July 2025; the archive steps have their own
-# timeouts, and whatever they wrote is uploaded either way, so a re-run carries on where one stopped.
+# scripts/mjo/src/hadley_branch_maps.py. The archive lives in the release hbranch-hres: the last weeks of 6-hourly 3-D
+# fields (w3_*), the six daily fields by month (hb_*), each day's trajectory histograms (traj.npz) and the analysis's
+# offset from ERA5 (offset_era5.npz, first filled by hbranch-offsets.yml). Each run pairs the lattice days ARCO has
+# newly published, adds yesterday (the last day with all four analyses), releases its trajectories, draws the new
+# weeks' frames (frames branch) and commits the manifest, the still and the figures. The archive steps have their own
+# timeouts and whatever they wrote is uploaded either way, so a re-run carries on where one stopped.
 on:
   schedule:
-    - cron: '55 9 * * *'
+    - cron: '25 2 * * *'
   workflow_dispatch:
     inputs:
       force:
-        description: 'Run even if today is already drawn'
+        description: 'Run even if yesterday is already drawn'
         required: false
         default: 'false'
       rebuild_frames:
@@ -42,11 +43,8 @@ jobs:
         env:
           FORCE: ${{ inputs.force }}
         run: |
-          if [ ! -f scripts/mjo/data/reference/branch_clim.nc ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"; echo "::warning::no ERA5 climatology yet (branch-clim.yml)"; exit 0
-          fi
           last=$(python3 -c "import json; print(json.load(open('assets/sst/anim/hbranch_hist_manifest.json'))['regions']['hbranch_hist']['frames'][-1]['date'])" 2>/dev/null || echo none)
-          if [ "$last" = "$(date -u +%Y-%m-%d)" ] && [ "$FORCE" != "true" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; echo "week ending $last already drawn"; fi
+          if [ "$last" = "$(date -u -d yesterday +%Y-%m-%d)" ] && [ "$FORCE" != "true" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; echo "week ending $last already drawn"; fi
       - uses: actions/setup-python@v7
         if: steps.run.outputs.skip != 'true'
         with:
@@ -62,29 +60,30 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p "$ARCH"
-          if ! gh release view hbranch-archive -R "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            gh release create hbranch-archive -R "$GITHUB_REPOSITORY" --title "Hadley outflow and subtropical descent: analysis archive" \
-              --notes "AIFS-ENS 00 UTC analyses on the 1.5 deg grid (monthly hb_YYYY-MM.npz) and their offset from ERA5 on the overturn lattice (offset_era5.npz), for scripts/mjo/src/hadley_branch_maps.py."
-          fi
-          gh release download hbranch-archive -R "$GITHUB_REPOSITORY" -p '*.npz' -D "$ARCH" --clobber \
-            || echo "::warning::the archive release holds no files yet; backfilling from the start"
-      - name: Archive the new days
-        if: steps.run.outputs.skip != 'true'
-        timeout-minutes: 240
-        run: python scripts/mjo/src/hadley_branch_maps.py update
-      - name: Pair the lattice days with ERA5
+          gh release download hbranch-hres -R "$GITHUB_REPOSITORY" -p '*.npz' -D "$ARCH" --clobber \
+            || echo "::warning::the archive release holds no files yet (hbranch-offsets.yml fills the offsets first)"
+      - name: Pair the newly published lattice days with ERA5
         if: steps.run.outputs.skip != 'true'
         timeout-minutes: 60
         run: python scripts/mjo/src/hadley_branch_maps.py truth
-      - name: Upload what was written
+      - name: Archive the new days and release their trajectories
+        if: steps.run.outputs.skip != 'true'
+        timeout-minutes: 240
+        run: python scripts/mjo/src/hadley_branch_maps.py update
+      - name: Upload what was written, delete what was pruned
         if: always() && steps.run.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -s "$ARCH/written.txt" ]; then
-            sort -u "$ARCH/written.txt" | sed "s#^#$ARCH/#" | xargs gh release upload hbranch-archive -R "$GITHUB_REPOSITORY" --clobber
+            sort -u "$ARCH/written.txt" | sed "s#^#$ARCH/#" | xargs -r -n 20 gh release upload hbranch-hres -R "$GITHUB_REPOSITORY" --clobber
           fi
-      - name: Frames, still and trackers
+          if [ -s "$ARCH/removed.txt" ]; then
+            for f in $(sort -u "$ARCH/removed.txt"); do
+              gh release delete-asset hbranch-hres "$f" -R "$GITHUB_REPOSITORY" -y || echo "::warning::could not delete $f from the release"
+            done
+          fi
+      - name: Frames, still and figures
         if: steps.run.outputs.skip != 'true'
         run: |
           scripts/lib/fetch_frames_ci.sh assets/sst/anim/hbranch_hist || echo "::warning::no frames on the frames branch yet"
@@ -94,12 +93,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: scripts/lib/publish_frames_ci.sh assets/sst/anim/hbranch_hist
-      - name: Commit & push (manifest, still, trackers)
+      - name: Commit & push (manifest, still, figures)
         if: steps.run.outputs.skip != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          OUT="assets/sst/anim/hbranch_hist_manifest.json assets/sst/hbranch_map.webp assets/sst/hbranch_flow.webp assets/sst/hbranch_ridges.webp"
+          OUT="assets/sst/anim/hbranch_hist_manifest.json assets/sst/hbranch_map.webp assets/sst/hbranch_flow.webp \
+               assets/sst/hbranch_ridges.webp assets/sst/hbranch_turnover.webp assets/sst/hbranch_traj.webp"
           last=$(python3 -c "import json; print(json.load(open('assets/sst/anim/hbranch_hist_manifest.json'))['regions']['hbranch_hist']['frames'][-1]['date'])")
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" $OUT
@@ -107,7 +107,7 @@ jobs:
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar"
-            perl -0pi -e "s/(hbranch_(?:flow|ridges)\.webp)\?v=\w+/\${1}?v=$(date -u +%Y%m%d%H%M)/g" circulation.html
+            perl -0pi -e "s/(hbranch_(?:flow|ridges|turnover|traj)\.webp)\?v=\w+/\${1}?v=$(date -u +%Y%m%d%H%M)/g" circulation.html
             git add circulation.html $OUT
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -m "Hadley outflow and subtropical descent: week ending $last"

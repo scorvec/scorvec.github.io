@@ -112,7 +112,7 @@ PRODUCTS = [
                     (
                         "/mjo.html",
                         "MJO forecast",
-                        "Real-time multivariate MJO index from the ECMWF AIFS ensemble, with the observed phase-space track, an ENSO-removed version, and what each phase has meant for temperature and rain.",
+                        "Real-time multivariate MJO index from the AIFS-ENS, IFS-ENS, GEFS and GEPS ensembles on one phase diagram, standard or ENSO-removed, with the observed track and what each phase has meant for temperature and rain.",
                         "Twice daily",
                     ),
                     (
@@ -759,8 +759,10 @@ def header_html(page: str, skin: str, skip: bool = False) -> str:
             f"{' aria-current=page' if in_group else ''}>{label}</button>"
         )
         if columns:
-            out.append(f'          <div class="sh-menu sh-menu--cols" id="{mid}">')
-            for col in _split_columns(items):
+            cols = _split_columns(items)
+            one = " sh-menu--one" if len(cols) == 1 else ""  # a group with one column: a narrow panel, no empty half
+            out.append(f'          <div class="sh-menu sh-menu--cols{one}" id="{mid}">')
+            for col in cols:
                 out.append('            <div class="sh-col">')
                 for sub, its in col:
                     out.append(f"              <div>\n                <h3>{sub}</h3>\n                <ul>")

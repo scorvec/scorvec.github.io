@@ -2,7 +2,7 @@ name: GEFS extended outlook
 
 # The GEFS extended page (gefs.html): every day's 00Z GEFS run to 35 days (its days 17-35 are published the following
 # day, 03:00-04:00 UTC, so the first slot is 04:40 UTC), anomalies
-# against the GEFSv12 reforecast climatology (release gefs-clim-v1, gefs-reforecast.yml), weekly and change maps and
+# against the GEFSv12 reforecast climatology (release gefs-clim-v3, gefs-reforecast.yml), weekly and change maps and
 # the bias-corrected polar-vortex panel, all by scripts/gefs/gefs_live.py. Byte-ranged from NOAA's S3 (us-east-1).
 # Several schedule slots because Actions honours only some cron firings; the script exits early once the cycle is
 # already rendered.

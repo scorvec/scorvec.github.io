@@ -8,7 +8,7 @@
                  2.5 deg grid, the climatology and the ERA5 2001-2020 normal both WITHOUT the start's own season (a
                  live forecast never sees its own year in either). Needs the reference set being built in GEPS_REF.
   --model gefs   GEFSv12 reforecast 2000-2019 (Wednesday starts, 4 members; the per-member daily 2.5 deg 500 hPa
-                 height of release gefs-clim-v2, gefs_hind2_MM.npz). Anomalies exactly as the live GEFS product:
+                 height of release gefs-clim-v3, gefs_hind2_MM.npz). Anomalies exactly as the live GEFS product:
                  member mean minus the lead-matched reforecast climatology at the start's day of year (recomputed from
                  the same starts, +-15 d pooling, linear between 5-day centres - build_gefs_patterns_hindcast.py's
                  arithmetic), minus the ERA5 shift at the valid date (gefs_patterns_ref.npz).

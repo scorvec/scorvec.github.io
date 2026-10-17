@@ -11,7 +11,8 @@ A builder resolves its folders at start and stops with a clear message when a va
     STORE = env_dir("ERA5_STORE", "wb2_1p5_daily")
 
 A module that also runs in Actions calls env_dir where the folder is used, never at import, and a workflow whose run
-reaches that code sets the variable itself (ERA5_STORE: ${{ runner.temp }}/era5).
+reaches that code sets the variable itself (ERA5_STORE: ${{ runner.temp }}/era5). Where a module only needs the folder
+as a default (a runner passes every path explicitly), env_dir_if_set gives None instead of stopping.
 """
 
 from __future__ import annotations
@@ -32,3 +33,9 @@ def env_dir(var: str, *parts: str) -> Path:
     if not d:
         raise SystemExit(f"{var} is not set: point it at {WHAT.get(var, 'the folder it names')}")
     return Path(d).expanduser().joinpath(*parts)
+
+
+def env_dir_if_set(var: str, *parts: str) -> Path | None:
+    """$var joined with `parts`, or None when the variable is unset."""
+    d = os.environ.get(var, "")
+    return Path(d).expanduser().joinpath(*parts) if d else None

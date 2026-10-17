@@ -15,7 +15,7 @@ Model drift - never shown as signal:
            control + 3 members, start dates within 8 days of the init's day of year), as (reforecast cap - MERRA-2
            reference) - so it includes GEPS's analysis offset. Levels whose reforecast part has not arrived are drawn
            but HATCHED as uncorrected.
-  GEFS     from the GEFSv12 reforecast daily climatology (gefs-clim-v2, 2000-2019): (model climate cap at that lead -
+  GEFS     from the GEFSv12 reforecast daily climatology (gefs-clim-v3, 2000-2019): (model climate cap at that lead -
            MERRA-2 reference at the reforecast epoch). It holds 10, 100 and 500 hPa; the other levels are hatched.
   AIFS-ENS no reforecast exists, so the control's cap forecasts from recent 00Z cycles are verified against the GEOS FP
            analyses (plus the GEOS FP - MERRA-2 offset) and the mean error per level and lead is removed

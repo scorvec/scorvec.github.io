@@ -181,14 +181,14 @@ function drawClimo(key) {
   const py = v => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
 
   // grid
-  x.strokeStyle = "#2a2a40"; x.fillStyle = "#b6b6cc"; x.font = "15px Inter";
+  x.strokeStyle = "#2a2a40"; x.fillStyle = "#b6b6cc"; x.font = "15px 'Source Sans 3', sans-serif";
   x.textAlign = "right";
   for (let i = 0; i <= 4; i++) {
     const v = lo + (hi - lo) * i / 4, yy = py(v);
     x.beginPath(); x.moveTo(L, yy); x.lineTo(W - R, yy); x.stroke();
     x.fillText(Math.round(v), L - 8, yy + 5);
   }
-  x.textAlign = "center"; x.font = "600 14px Inter";
+  x.textAlign = "center"; x.font = "600 14px 'Source Sans 3', sans-serif";
   const MSTART = [1, 32, 61, 92, 122, 153, 183, 214, 245, 275, 306, 336];
   MSTART.forEach((d, m) => x.fillText(MON[m], px(d + 14), H - 16));
 
@@ -228,7 +228,7 @@ function drawClimo(key) {
   }
 
   // legend
-  x.textAlign = "left"; x.font = "600 12px Inter";
+  x.textAlign = "left"; x.font = "600 12px 'Source Sans 3', sans-serif";
   const key3 = [["#e0603a", "record high"], ["#4a7ab5", "record low"],
                 ["#9fc4f5", "median"], ["rgba(74,122,181,0.55)", "10–90 / 25–75 %ile"]];
   let lx = L + 6;
@@ -402,7 +402,7 @@ function drawFogCharts(prof) {
   const cv = document.getElementById("fog-canvas");
   const { W, H, ctx } = fitCanvas(cv);
   ctx.fillStyle = TH.panel; ctx.fillRect(0, 0, W, H);
-  ctx.font = "10px Inter, sans-serif";
+  ctx.font = "10px 'Source Sans 3', sans-serif";
   const z0 = prof.H[0], pts = [];
   for (let i = 0; i < prof.P.length; i++) {
     const z = prof.H[i] - z0;
@@ -643,7 +643,7 @@ function drawCloudChart(prof, res) {
   const cv = document.getElementById("cloud-canvas");
   const { W, H, ctx } = fitCanvas(cv);
   ctx.fillStyle = TH.panel; ctx.fillRect(0, 0, W, H);
-  ctx.font = "10px Inter, sans-serif";
+  ctx.font = "10px 'Source Sans 3', sans-serif";
   const { layers, levs, thr } = res;
   if (levs.length < 3) {
     ctx.fillStyle = TH.muted; ctx.fillText("not enough moisture data", 12, 20); return;
@@ -930,7 +930,7 @@ async function drawClimoDist(key) {
     x.fillRect(L + i * bw + 1, H - B - h, bw - 2, h);
   });
   x.strokeStyle = "#3a3a5c"; x.strokeRect(L, T, W - L - R, H - T - B);
-  x.fillStyle = "#8b8ba3"; x.font = "20px Inter"; x.textAlign = "center";
+  x.fillStyle = "#8b8ba3"; x.font = "20px 'Source Sans 3', sans-serif"; x.textAlign = "center";
   for (let i = 0; i <= 4; i++) {
     const v = lo + span * i / 4;
     x.fillText(v.toFixed(Math.abs(span) > 20 ? 0 : 1), L + (W - L - R) * i / 4, H - B + 26);
@@ -1498,7 +1498,7 @@ function feedBanner(msg) {
     el = document.createElement("div");
     el.id = "feed-banner";
     el.style.cssText = "position:absolute; top:10px; left:50%; transform:translateX(-50%);" +
-      "z-index:950; background:rgba(120,35,35,0.94); color:#ffe0dc; font:600 13px Inter;" +
+      "z-index:950; background:rgba(120,35,35,0.94); color:#ffe0dc; font:600 13px 'Source Sans 3', sans-serif;" +
       "padding:8px 16px; border-radius:9px; cursor:pointer; max-width:min(92%,640px)";
     el.title = "click to reload";
     el.addEventListener("click", () => location.reload());
@@ -1856,7 +1856,7 @@ async function drawRecordMap() {
   }
   if (!pts.length) {
     ctx.fillStyle = "#f4f5f7"; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = "#5b6270"; ctx.font = "600 16px Inter"; ctx.textAlign = "center";
+    ctx.fillStyle = "#5b6270"; ctx.font = "600 16px 'Source Sans 3', sans-serif"; ctx.textAlign = "center";
     ctx.fillText("nothing unusual on the record watch right now", W / 2, H / 2);
     ctx.textAlign = "left";
     return;
@@ -1965,7 +1965,7 @@ async function drawRecordMap() {
     const lines = [p.name + (hh ? "  ·  " + hh : "")].concat(shown.map(f => f.rec
       ? `${f.lab} ${f.v} · ${f.rec.tier === "all" ? "ALL-TIME" : "date rec"} (prev ${f.rec.prev} '${String(f.rec.y).slice(2)})`
       : `${f.lab} ${f.v} · P${f.pct} ${f.sense}`));
-    ctx.font = "600 10.5px Inter";
+    ctx.font = "600 10.5px 'Source Sans 3', sans-serif";
     const wpx = Math.max(...lines.map(s => ctx.measureText(s).width)) + 10;
     const hpx = lines.length * lineH + 7;
     // candidate anchor points around the station, nearest first
@@ -1993,7 +1993,7 @@ async function drawRecordMap() {
     ctx.strokeStyle = col; ctx.lineWidth = 0.8; ctx.strokeRect(spot.x, spot.y, wpx, hpx);
     lines.forEach((s, i) => {
       ctx.fillStyle = i ? (s.includes("ALL-TIME") ? "#9a6b00" : "#2a2d35") : col;
-      ctx.font = i ? "10px Inter" : "600 10.5px Inter";
+      ctx.font = i ? "10px 'Source Sans 3', sans-serif" : "600 10.5px 'Source Sans 3', sans-serif";
       ctx.fillText(s, spot.x + 5, spot.y + 11.5 + i * lineH);
     });
   }
@@ -2003,16 +2003,16 @@ async function drawRecordMap() {
   const newest = pts.map(p => p.dt).sort().pop() || "";
   const nRec = labeled.length;
   const nAll = labeled.filter(p => p.recs.some(r => r.rec.tier === "all")).length;
-  ctx.fillStyle = "#1c1f26"; ctx.font = "700 17px Inter"; ctx.textAlign = "left";
+  ctx.fillStyle = "#1c1f26"; ctx.font = "700 17px 'Source Sans 3', sans-serif"; ctx.textAlign = "left";
   ctx.fillText(`⚡ Radiosonde record watch — newest sounding ${newest}Z`, 14, 25);
-  ctx.fillStyle = "#5b6270"; ctx.font = "11.5px Inter";
+  ctx.fillStyle = "#5b6270"; ctx.font = "11.5px 'Source Sans 3', sans-serif";
   ctx.fillText(fallback
     ? `no station records today — ${pts.length} stations at climatological extremes (P95+)`
     : `${nRec} station(s) set records vs their own sounding archives` +
       (nAll ? ` — ${nAll} ALL-TIME` : "") + ` · ${pts.length} stations flagged P95+` +
       (aged.length ? ` · ${aged.length} older record(s) faded (>48 h)` : "") +
       ` · each label shows its station's latest launch`, 14, 41);
-  ctx.font = "11px Inter";
+  ctx.font = "11px 'Source Sans 3', sans-serif";
   ctx.fillText("scorvec.com/skewt · records vs each station's full IGRA archive, ±10-day time-of-year window",
     14, H - 7);
 }
@@ -2078,7 +2078,7 @@ function buildExportCanvas(fscale = 1) {
     const m = /^(.*?)\s*((?:P\d{1,3})|(?:\u2605\s*\S*))$/.exec(txt);
     if (!m || !m[1]) { x.fillText(txt, xr, yb); return; }
     const prevFont = x.font, prevFill = x.fillStyle;
-    x.font = `600 ${F(basePx - 3.5)}px Inter, sans-serif`;
+    x.font = `600 ${F(basePx - 3.5)}px 'Source Sans 3', sans-serif`;
     x.fillStyle = m[2][0] === "\u2605" ? "#ffd60a" : "#7f8ab8";
     const tw = x.measureText(m[2]).width;
     x.fillText(m[2], xr, yb);
@@ -2116,9 +2116,9 @@ function buildExportCanvas(fscale = 1) {
         if (cells.length > 2) {                       // the wide parcels grid
           const step = cw / cells.length;
           let fpx = 12.5;                             // shrink to the column step
-          x.font = `${F(fpx)}px Inter, sans-serif`;
+          x.font = `${F(fpx)}px 'Source Sans 3', sans-serif`;
           while (fpx > 8 && Math.max(...cells.map(c => x.measureText(c).width)) > step - F(6)) {
-            fpx -= 0.5; x.font = `${F(fpx)}px Inter, sans-serif`;
+            fpx -= 0.5; x.font = `${F(fpx)}px 'Source Sans 3', sans-serif`;
           }
           cells.forEach((c, i) => {
             x.fillStyle = rows.indexOf(cells) === 0 ? "#8b8ba3" : "#e8e8f0";
@@ -2128,10 +2128,10 @@ function buildExportCanvas(fscale = 1) {
           });
         } else {
           let fpx = 12.5;               // shrink to fit: long label + long value
-          x.font = `${F(fpx)}px Inter, sans-serif`;
+          x.font = `${F(fpx)}px 'Source Sans 3', sans-serif`;
           while (fpx > 8.5 && x.measureText(cells[0] || "").width +
                  x.measureText(cells[1] || "").width + F(10) > cw) {
-            fpx -= 0.5; x.font = `${F(fpx)}px Inter, sans-serif`;
+            fpx -= 0.5; x.font = `${F(fpx)}px 'Source Sans 3', sans-serif`;
           }
           x.fillStyle = "#8b8ba3";
           x.textAlign = "left"; x.fillText(cells[0] || "", cx, cy + F(6));
@@ -2145,10 +2145,10 @@ function buildExportCanvas(fscale = 1) {
     cx += totalW * weights[ci] / wSum;
   });
 
-  x.fillStyle = "#64d2ff"; x.font = `700 ${F(26)}px Inter, sans-serif`;
+  x.fillStyle = "#64d2ff"; x.font = `700 ${F(26)}px 'Source Sans 3', sans-serif`;
   x.textAlign = "left";
   x.fillText("scorvec.com/skewt", pad, H - F(20));
-  x.fillStyle = "#8b8ba3"; x.font = `${F(20)}px Inter, sans-serif`;
+  x.fillStyle = "#8b8ba3"; x.font = `${F(20)}px 'Source Sans 3', sans-serif`;
   x.textAlign = "right";
   x.fillText(plotTitle, W - pad, H - F(20));
   return cv;
@@ -3418,7 +3418,7 @@ function drawSkewT(prof, res) {
   // watermark and off the edge. Compact mode truncates the title to the space
   // that exists and drops the watermark (it's in the page footer anyway).
   const compact = W < 560;
-  ctx.fillStyle = TH.ink; ctx.font = compact ? "700 13px Inter" : "700 16px Inter";
+  ctx.fillStyle = TH.ink; ctx.font = compact ? "700 13px 'Source Sans 3', sans-serif" : "700 16px 'Source Sans 3', sans-serif";
   {
     const maxW = W - SK.l - (compact ? 10 : 200);
     let title = plotTitle;
@@ -3441,15 +3441,15 @@ function drawSkewT(prof, res) {
     ctx.fillText(title, SK.l, 22);
   }
   if (plotCoords) {
-    ctx.fillStyle = TH.muted; ctx.font = compact ? "11px Inter" : "12px Inter";
+    ctx.fillStyle = TH.muted; ctx.font = compact ? "11px 'Source Sans 3', sans-serif" : "12px 'Source Sans 3', sans-serif";
     ctx.fillText(plotCoords, SK.l, 38);
   }
   if (!compact) {
-    ctx.fillStyle = TH.muted; ctx.font = "12px Inter";
+    ctx.fillStyle = TH.muted; ctx.font = "12px 'Source Sans 3', sans-serif";
     ctx.fillText("SHARPlib · scorvec.com/skewt", W - 190, 22);
   }
   if (plotNote) {
-    ctx.fillStyle = "#ffd60a"; ctx.font = "700 15px Inter";
+    ctx.fillStyle = "#ffd60a"; ctx.font = "700 15px 'Source Sans 3', sans-serif";
     ctx.fillText(plotNote, SK.l, SK.t + 4);
   }
 
@@ -3462,7 +3462,7 @@ function drawSkewT(prof, res) {
     ctx.beginPath();
     ctx.moveTo(xOf(T, SK.t + ph), SK.t + ph); ctx.lineTo(xOf(T, SK.t), SK.t); ctx.stroke();
     if (hot) {
-      ctx.fillStyle = TH.isotherm0; ctx.font = "600 12px Inter";
+      ctx.fillStyle = TH.isotherm0; ctx.font = "600 12px 'Source Sans 3', sans-serif";
       ctx.fillText(T + "°", xOf(T, yOf(30000)) + 4, yOf(30000));
     }
   }
@@ -3535,7 +3535,7 @@ function drawSkewT(prof, res) {
     };
     line(pp.T, []);
     line(pp.D, [3, 4]);
-    ctx.fillStyle = "#9a9ab0"; ctx.font = "600 13px Inter";
+    ctx.fillStyle = "#9a9ab0"; ctx.font = "600 13px 'Source Sans 3', sans-serif";
     ctx.fillText("vs " + pinned.title, SK.l + 150, 22);
   }
 
@@ -3572,20 +3572,20 @@ function drawSkewT(prof, res) {
     }
     ctx.stroke(); ctx.setLineDash([]);
     if (fBase) {
-      ctx.fillStyle = "#7dd8ff"; ctx.font = "600 10px Inter";
+      ctx.fillStyle = "#7dd8ff"; ctx.font = "600 10px 'Source Sans 3', sans-serif";
       ctx.fillText("Tf", fBase[0] + 5, fBase[1] - 3);
     }
     drawProf(prof.D.map(v => v - 273.15), TH.dwpt, 2.8);
     drawProf(prof.T.map(v => v - 273.15), TH.temp, 2.8);
   } else {
-    ctx.fillStyle = TH.muted; ctx.font = "600 17px Inter"; ctx.textAlign = "center";
+    ctx.fillStyle = TH.muted; ctx.font = "600 17px 'Source Sans 3', sans-serif"; ctx.textAlign = "center";
     ctx.fillText("pilot balloon — winds only (see hodograph →)", SK.l + pw / 2, SK.t + ph / 2);
     ctx.textAlign = "left";
   }
 
   // MU parcel levels, labeled with height AGL
 
-  ctx.font = "700 12px Inter";
+  ctx.font = "700 12px 'Source Sans 3', sans-serif";
   ctx.textAlign = "right";
   const marks = [["LCL", o[12], TH.lcl], ["LFC", o[13], TH.lfc], ["EL", o[14], TH.el]];
   const usedY = [];                     // coincident levels (LCL=LFC) stagger down
@@ -3611,13 +3611,13 @@ function drawSkewT(prof, res) {
     ctx.strokeStyle = "rgba(191,90,242,0.5)"; ctx.lineWidth = 1.2; ctx.setLineDash([7, 5]);
     ctx.beginPath(); ctx.moveTo(SK.l + 2, yT); ctx.lineTo(SK.l + pw - 2, yT); ctx.stroke();
     ctx.setLineDash([]); ctx.lineWidth = 1;
-    ctx.fillStyle = "rgba(214,150,255,0.95)"; ctx.font = "600 11px Inter";
+    ctx.fillStyle = "rgba(214,150,255,0.95)"; ctx.font = "600 11px 'Source Sans 3', sans-serif";
     // the longest form that fits the diagram (on a phone the full line ran past the frame and was clipped)
     const tKm = (tpM.wmoZ / 1000).toFixed(1), tHpa = Math.round(tpM.wmoP / 100);
     const tTxt = [`TROP ${tKm} km · ${(tpM.wmoZ * 3.28084 / 1000).toFixed(1)} kft · ${tHpa} hPa`, `TROP ${tKm} km · ${tHpa} hPa`, `TROP ${tKm} km`]
       .find(t => ctx.measureText(t).width <= pw - 56) || `TROP ${tKm} km`;
     ctx.fillText(tTxt, SK.l + 48, yT < SK.t + 20 ? yT + 14 : yT - 5);
-    ctx.font = "700 12px Inter";
+    ctx.font = "700 12px 'Source Sans 3', sans-serif";
   }
   let eilLabY = null;                                // the EIL label's y: a km tick label there is skipped (they overlapped)
   if (o[28] !== MISSING && o[29] !== MISSING) {
@@ -3632,7 +3632,7 @@ function drawSkewT(prof, res) {
 
   // frame + axes
   ctx.strokeStyle = TH.grid; ctx.strokeRect(SK.l, SK.t, pw, ph);
-  ctx.fillStyle = TH.muted; ctx.font = "12px Inter";
+  ctx.fillStyle = TH.muted; ctx.font = "12px 'Source Sans 3', sans-serif";
   for (const pp of (SK.pTop < 10000 ? [70, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
                                      : [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000])) {
     if (pp * 100 < SK.pTop) continue;                // zoomed (low-level dropsonde): only isobars inside the frame
@@ -3642,7 +3642,7 @@ function drawSkewT(prof, res) {
     ctx.textAlign = "right"; ctx.fillText(pp, SK.l - 6, y + 4); ctx.textAlign = "left";
   }
   // height ticks (km AGL) on the left inside
-  ctx.font = "600 12px Inter"; ctx.fillStyle = "#a8a8c2";
+  ctx.font = "600 12px 'Source Sans 3', sans-serif"; ctx.fillStyle = "#a8a8c2";
   for (const km of [1, 3, 6, 9, 12, 15]) {
     const hTarget = prof.H[0] + km * 1000;
     let pAt = null;
@@ -3659,7 +3659,7 @@ function drawSkewT(prof, res) {
       if (eilLabY === null || Math.abs(y + 3.5 - eilLabY) > 13) ctx.fillText(km + "km", SK.l + 10, y + 3.5);
     }
   }
-  ctx.font = "12px Inter"; ctx.fillStyle = TH.muted;
+  ctx.font = "12px 'Source Sans 3', sans-serif"; ctx.fillStyle = TH.muted;
   for (let T = -30; T <= 40; T += 10)
     ctx.fillText(T, xOf(T, SK.t + ph) - 8, SK.t + ph + 16);
   ctx.fillText("°C", SK.l + pw / 2, H - 5);
@@ -3679,7 +3679,7 @@ function drawTempAdv(prof, ctx, x0, yOf) {
   if (Math.abs(lat) < 10) return;
   const f = 2 * 7.292e-5 * Math.sin(lat * Math.PI / 180), Rd = 287.05;
   const pSfc = prof.P[0], half = 12;   // 14 grazed the barbs in the packed margin
-  ctx.font = "600 9px Inter"; ctx.textAlign = "center";
+  ctx.font = "600 9px 'Source Sans 3', sans-serif"; ctx.textAlign = "center";
   ctx.fillStyle = TH.muted;
   ctx.fillText("T-adv", x0, SK.t - 6);
   for (let pb = Math.floor(pSfc / 2500) * 2500; pb - 7500 >= 25000; pb -= 7500) {
@@ -3747,7 +3747,7 @@ function drawHodo(prof, res) {
   // storm-motion labels never run under the legend text in the narrow panels)
   const segs = [[0, 1000, "#ff453a"], [1000, 3000, "#ff9f0a"],
                 [3000, 6000, "#30d158"], [6000, 9000, "#ffd60a"], [9000, 12000, "#bf5af2"]];
-  ctx.font = "600 15px Inter";
+  ctx.font = "600 15px 'Source Sans 3', sans-serif";
   let legRows = 1;
   { let lx = 12 + ctx.measureText("km AGL:").width + 10;
     for (const [b2, t2] of segs) { const wItem = 20 + ctx.measureText(`${b2 / 1000}–${t2 / 1000}`).width;
@@ -3759,7 +3759,7 @@ function drawHodo(prof, res) {
   const X = u => cx + u * scale, Y = v => cy - v * scale;
 
   // rings + crosshair
-  ctx.strokeStyle = "#2c2c48"; ctx.fillStyle = "#9d9dbb"; ctx.font = "14px Inter";
+  ctx.strokeStyle = "#2c2c48"; ctx.fillStyle = "#9d9dbb"; ctx.font = "14px 'Source Sans 3', sans-serif";
   const rMax = Math.ceil((span * 0.75) / 10) * 10 + 20;
   for (let r = 10; r <= rMax; r += 10) {
     ctx.beginPath(); ctx.arc(X(0), Y(0), r * scale, 0, 7); ctx.stroke();
@@ -3834,7 +3834,7 @@ function drawHodo(prof, res) {
     ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(X(u), Y(v), 6, 0, 7);
     hollow ? ctx.stroke() : ctx.fill();
-    ctx.font = "700 15px Inter";
+    ctx.font = "700 15px 'Source Sans 3', sans-serif";
     const txt = `${Math.round(dirOf(uMs, vMs))}/${Math.round(Math.hypot(u, v))} ${lab}`;
     const tw = ctx.measureText(txt).width;
     let tx = X(u) + 9, ty = Y(v) + 4.5;
@@ -3866,12 +3866,12 @@ function drawHodo(prof, res) {
     const mag = Math.hypot(shU, shV) * Math.hypot(srU, srV);
     if (mag > 0.1) {
       const ang = Math.acos(Math.max(-1, Math.min(1, dot / mag))) * 180 / Math.PI;
-      ctx.fillStyle = "#ffd60a"; ctx.font = "700 16px Inter";
+      ctx.fillStyle = "#ffd60a"; ctx.font = "700 16px 'Source Sans 3', sans-serif";
       halo(`Critical angle = ${ang.toFixed(0)}°`, 12, H - 12);
     }
   }
   // height-band legend (labeled colors); wraps onto a second row in a narrow panel instead of running off the edge
-  ctx.font = "600 15px Inter";
+  ctx.font = "600 15px 'Source Sans 3', sans-serif";
   let lx = 12, ly = 22;
   ctx.fillStyle = "#9d9dbb"; halo("km AGL:", lx, ly);
   lx += ctx.measureText("km AGL:").width + 10;
@@ -3883,9 +3883,9 @@ function drawHodo(prof, res) {
     halo(lab2, lx + 20, ly);
     lx += wItem + 14;
   }
-  ctx.fillStyle = "#9d9dbb"; ctx.font = "13px Inter";
+  ctx.fillStyle = "#9d9dbb"; ctx.font = "13px 'Source Sans 3', sans-serif";
   halo("rings: knots", 12, ly + 18);
-  ctx.fillStyle = "rgba(100,210,255,0.85)"; ctx.font = "600 13px Inter";
+  ctx.fillStyle = "rgba(100,210,255,0.85)"; ctx.font = "600 13px 'Source Sans 3', sans-serif";
   const eilLab = ["▬ effective inflow layer (air the storm ingests)", "▬ effective inflow layer", "▬ eff. inflow layer"]
     .find(t => ctx.measureText(t).width <= W - 20) || "▬ eff. inflow layer";
   halo(eilLab, 12, ly + 38);
@@ -4351,7 +4351,7 @@ function clearPlot(msg) {
     const cv = document.getElementById(id);
     const ctx = cv.getContext("2d");
     ctx.fillStyle = "#0a0a14"; ctx.fillRect(0, 0, cv.width, cv.height);
-    ctx.fillStyle = "#8b8ba3"; ctx.font = "600 16px Inter"; ctx.textAlign = "center";
+    ctx.fillStyle = "#8b8ba3"; ctx.font = "600 16px 'Source Sans 3', sans-serif"; ctx.textAlign = "center";
     ctx.fillText(msg || "no data", cv.width / 2, cv.height / 2);
     ctx.textAlign = "left";
   }

@@ -125,11 +125,13 @@ sys.path.insert(0, str(HERE))
 import gefs_reforecast as R  # (grid, unpack, weeks, the climatology release)
 import gefs_skill as SK  # (dates, centres, shift)
 
-TC = Path.home() / "data_archive" / "geps_subx" / "telecon"
-NCEP, CPCP = TC / "ncep", TC / "cpc_precip"
-REF = Path.home() / "data_archive" / "gefs_ref" / "probs"
-WORK = Path.home() / "data_archive" / "gefs_port_test" / "probs" / "work"
-SHIFT = Path.home() / "data_archive" / "gefs_ref" / "era5_shift.npz"
+sys.path.insert(0, str(HERE.parent / "lib"))
+from localdirs import env_dir, env_dir_if_set
+
+# the offline defaults, under $DATA_ARCHIVE; a runner, where it is unset, passes every path on the command line
+REF = env_dir_if_set("DATA_ARCHIVE", "gefs_ref", "probs")
+WORK = env_dir_if_set("DATA_ARCHIVE", "gefs_port_test", "probs", "work")
+SHIFT = env_dir_if_set("DATA_ARCHIVE", "gefs_ref", "era5_shift.npz")
 ARCO = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"
 EY0, EY1 = 2001, 2020  # the normal era5_shift re-bases from
 ERA5_HALF = 7  # its pool: days within +-7 of each 5-day centre
@@ -247,13 +249,13 @@ def daily_year(tag, y):
     import xarray as xr
 
     if tag == "pr":
-        p = CPCP / f"precip.{y}.nc"
+        p = env_dir("DATA_ARCHIVE", "geps_subx", "telecon", "cpc_precip", f"precip.{y}.nc")
         var, kind = "precip", "box"
     elif tag == "t2m":
-        p = NCEP / f"air.2m.gauss.{y}.nc"
+        p = env_dir("DATA_ARCHIVE", "geps_subx", "telecon", "ncep", f"air.2m.gauss.{y}.nc")
         var, kind = "air", "lin"
     else:
-        p = NCEP / (f"hgt.{y}.nc" if tag == "zg500" else f"slp.{y}.nc")
+        p = env_dir("DATA_ARCHIVE", "geps_subx", "telecon", "ncep", f"hgt.{y}.nc" if tag == "zg500" else f"slp.{y}.nc")
         var, kind = ("hgt" if tag == "zg500" else "slp"), "lin"
     if not p.exists():
         return None
@@ -626,7 +628,8 @@ def cmd_era5_days(a) -> int:
     lat, lon = ds.latitude.values, ds.longitude.values
     if not (np.allclose(lat, np.arange(90.0, -90.1, -0.25)) and np.allclose(lon, np.arange(0.0, 360.0, 0.25))):
         raise SystemExit("unexpected ARCO grid")
-    lim = {"t2m": (180.0, 340.0), "mslp": (85000.0, 110000.0), "pr": (0.0, 3000.0)}
+    # ERA5's precipitation rate carries packing noise just below zero (to -4e-5 mm/day): kept as it is
+    lim = {"t2m": (180.0, 340.0), "mslp": (85000.0, 110000.0), "pr": (-1e-3, 3000.0)}
 
     def day(d):
         t = [pd.Timestamp(d) + pd.Timedelta(hours=h) for h in SFC_HOURS]
@@ -1287,6 +1290,20 @@ def cmd_step(a) -> int:
     return 0
 
 
+# the folders each command reads or writes (their defaults exist only where DATA_ARCHIVE is set)
+NEEDS = {
+    "truth": ("work",),
+    "recent": ("ref", "work"),
+    "step-truth": ("ref", "work"),
+    "era5-normal": ("shift", "work"),
+    "era5-days": (),
+    "era5-loso": ("work",),
+    "skill": ("ref", "shift", "work"),
+    "assess": ("ref", "work"),
+    "step": ("ref", "shift", "work"),
+}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     sp = ap.add_subparsers(dest="cmd", required=True)
@@ -1306,15 +1323,17 @@ def main() -> int:
         p = sp.add_parser(name)
         if name not in ("era5-normal", "era5-days"):  # those two cover the surface fields of SFC
             p.add_argument("--tags", default=tags.get(name, "t2m,pr"))
-        p.add_argument("--work", default=str(WORK), help="observed weeks, ERA5 leave-out files, pairs, diagnostics")
-        p.add_argument("--ref", default=str(REF), help="gefs_terciles_* (read) and gefs_mapskill_* (written)")
+        p.add_argument(
+            "--work", default=WORK and str(WORK), help="observed weeks, ERA5 leave-out files, pairs, diagnostics"
+        )
+        p.add_argument("--ref", default=REF and str(REF), help="gefs_terciles_* (read) and gefs_mapskill_* (written)")
         if name in ("skill", "assess"):
             p.add_argument("--partial", action="store_true", help="run on the reforecast starts present")
         if name in ("skill", "step"):
             p.add_argument("--rf", required=True, help="the weekly hindcast bundles gefs_hindw_MM.npz")
             p.add_argument("--clim", help="gefs_clim_DDD.npz of the release (default: downloaded into WORK/clim)")
         if name in ("skill", "step", "era5-normal"):
-            p.add_argument("--shift", default=str(SHIFT), help="era5_shift.npz (release gefs-ref-v1)")
+            p.add_argument("--shift", default=SHIFT and str(SHIFT), help="era5_shift.npz (release gefs-ref-v1)")
         if name == "step":
             p.add_argument("--obs", default=str(STEP_OBS))
             p.add_argument("--out", required=True)
@@ -1332,6 +1351,9 @@ def main() -> int:
             p.add_argument("--store", help="the 1.5 deg global daily ERA5 store, z500/z500_YYYY.nc (zg500)")
             p.add_argument("--days", help="era5_days_*.npz (the surface fields)")
     a = ap.parse_args()
+    missing = [f"--{k}" for k in NEEDS[a.cmd] if getattr(a, k) is None]
+    if missing:
+        raise SystemExit(f"{a.cmd} needs {', '.join(missing)} (or DATA_ARCHIVE set, for their defaults)")
     return cmds[a.cmd](a)
 
 
