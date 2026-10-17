@@ -1290,6 +1290,20 @@ def cmd_step(a) -> int:
     return 0
 
 
+# the folders each command reads or writes (their defaults exist only where DATA_ARCHIVE is set)
+NEEDS = {
+    "truth": ("work",),
+    "recent": ("ref", "work"),
+    "step-truth": ("ref", "work"),
+    "era5-normal": ("shift", "work"),
+    "era5-days": (),
+    "era5-loso": ("work",),
+    "skill": ("ref", "shift", "work"),
+    "assess": ("ref", "work"),
+    "step": ("ref", "shift", "work"),
+}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     sp = ap.add_subparsers(dest="cmd", required=True)
@@ -1337,8 +1351,9 @@ def main() -> int:
             p.add_argument("--store", help="the 1.5 deg global daily ERA5 store, z500/z500_YYYY.nc (zg500)")
             p.add_argument("--days", help="era5_days_*.npz (the surface fields)")
     a = ap.parse_args()
-    if a.cmd != "era5-days" and None in (a.work, a.ref, getattr(a, "shift", "")):
-        raise SystemExit("pass --work, --ref and --shift, or set DATA_ARCHIVE for their defaults")
+    missing = [f"--{k}" for k in NEEDS[a.cmd] if getattr(a, k) is None]
+    if missing:
+        raise SystemExit(f"{a.cmd} needs {', '.join(missing)} (or DATA_ARCHIVE set, for their defaults)")
     return cmds[a.cmd](a)
 
 
