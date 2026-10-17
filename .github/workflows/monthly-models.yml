@@ -1,0 +1,97 @@
+name: Month-ahead outlook, model guidance (C3S, monthly on the 14th)
+
+# The dynamical guidance Claude's month-ahead forecast blends with its statistical forecast (monthly-outlook.yml, the
+# 15th): ECMWF SEAS5, UKMO GloSea and ECCC CanSIPS (its two C3S components) at lead month 2 of this month's C3S issue,
+# which is next month. scripts/monthly/models.py:
+#   * the live ensemble-mean anomalies of 2 m temperature, precipitation and 500 hPa height (C3S post-processed
+#     anomaly sets; published around the 13th) -> scripts/monthly/data/c3s_live_<YYYYMM>.npz
+#   * the 1993-2016 hindcast of the same start month and lead when its table is missing, then other start months
+#     under a time budget -> scripts/monthly/data/c3s_hc_<centre>_<system>_<MM>.npz (each start month once, ever)
+# Every request is limited to lead month 2 and 0-90N at 1 deg, so a request is tens of MB.
+#
+# CDS: one key for the repository, so this shares the `seas5` concurrency group with seas5.yml and c3s.yml (never two
+# jobs requesting at once). Secrets: CDSAPI_URL, CDSAPI_KEY (as seas5.yml). Licence: Copernicus.
+
+on:
+  schedule:
+    - cron: "41 7 14 * *"
+    - cron: "41 1 15 * *"    # a second chance before the outlook (06:23 on the 15th) when an issue lands late
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: "C3S issue YYYYMM (empty = this month)"
+        required: false
+        default: ""
+      months:
+        description: "hindcast start months, comma-separated (empty = the issue month, then the rest)"
+        required: false
+        default: ""
+      budget:
+        description: "minutes of hindcast fetching"
+        required: false
+        default: "90"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: seas5
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  models:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/monthly
+            scripts/sst/c3s_grib.py
+            assets/sst/data/c3s_maps.json
+            scripts/constraints.txt
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy eccodes eccodeslib cdsapi
+      - name: CDS credentials
+        env:
+          CDSAPI_URL: ${{ secrets.CDSAPI_URL }}
+          CDSAPI_KEY: ${{ secrets.CDSAPI_KEY }}
+        run: |
+          if [ -z "$CDSAPI_KEY" ]; then echo "::error::secret CDSAPI_KEY is not set"; exit 1; fi
+          umask 077
+          printf 'url: %s\nkey: %s\n' "${CDSAPI_URL:-https://cds.climate.copernicus.eu/api}" "$CDSAPI_KEY" > ~/.cdsapirc
+      - name: Live issue
+        run: python scripts/monthly/models.py --fetch-live ${{ inputs.issue && format('--issue {0}', inputs.issue) || '' }}
+      - name: Hindcast tables
+        run: |
+          python scripts/monthly/models.py --fetch-hindcast --budget-min "${{ inputs.budget || '90' }}" \
+            ${{ inputs.issue && format('--issue {0}', inputs.issue) || '' }} \
+            ${{ inputs.months && format('--months {0}', inputs.months) || '' }}
+      # snapshot + clean resync each attempt (mjo.yml / gefs.yml pattern); never rebase
+      - name: Commit & push
+        if: always()
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "26825570+scorvec@users.noreply.github.com"
+          git add -A scripts/monthly/data 2>/dev/null || true
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          SNAP=$(mktemp -d)
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T -
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add -A scripts/monthly/data
+            if git diff --staged --quiet; then echo "no changes after resync"; exit 0; fi
+            git commit -q -m "monthly outlook: model guidance $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
+            echo "push $i rejected; resyncing"; sleep 5
+          done
+          echo "push failed after retries"; exit 1

@@ -207,7 +207,7 @@ def summarise(res: dict, issued: str) -> dict:
         "components": {c: M.NAMES[c] for c in M.COMPONENTS},
         "vars": {},
     }
-    for key in ("analogs", "ca_top", "indices"):
+    for key in ("analogs", "ca_top", "indices", "blend"):
         if key in res:
             s[key] = res[key]
     for v, o in res["vars"].items():
@@ -253,10 +253,11 @@ def save(res: dict, summary: dict) -> None:
     arrs = {}
     for v, o in res["vars"].items():
         keys = ("fc", "p_below", "p_above", "p_below_raw", "p_above_raw", "tlo", "thi", "r", "sig", "rmse", "rpss")
-        keys = (*keys, "msss_trend", "comp", "contrib")
+        keys = (*keys, "msss_trend", "comp", "contrib", "models_fc", "blend_fc", "blend_beta")
+        keys = (*keys, *(f"stat_{k}" for k in ("fc", "p_below", "p_above", "p_below_raw", "p_above_raw", "sig", "r")))
         for key in (*keys, "beta"):
             if key in o:
-                arrs[f"{v}_{key}"] = np.asarray(o[key]).astype(np.float32 if key != "sig" else np.bool_)
+                arrs[f"{v}_{key}"] = np.asarray(o[key]).astype(np.bool_ if key.endswith("sig") else np.float32)
     arrs["z500_clim"] = res["z500_clim"].astype(np.float32)
     np.savez_compressed(OUT / f"outlook_{tag}.npz", **arrs)
     (OUT / f"outlook_{tag}.json").write_text(json.dumps(summary, indent=1))
@@ -271,8 +272,10 @@ def main() -> int:
     a = ap.parse_args()
     A = M.load_archive()
     if a.skill_all:
+        import blend as B  # blend imports this module
+
         for m in map(int, a.skill_all.split(",")):
-            res = run(9999, m, A, realtime=False)
+            res = B.apply(run(9999, m, A, realtime=False), A, 9999, m, realtime=False)
             line = [f"{m:2d}"]
             for v in M.TARGETS:
                 s = summarise(res, "")["vars"][v]
@@ -280,6 +283,14 @@ def main() -> int:
                     f"{v}: acc {s['nh_acc_mean']:+.3f} (trend {s['acc_trend_mean']:+.3f}) r {s['skill_r_nh']:+.3f} "
                     f"sig {s['skill_area_sig']:.2f} rpss {s['rpss_nh']:+.3f} msss_tr {s['msss_trend_nh']:+.3f} "
                     + " ".join(f"{c}{s['comp_r_nh'][c]:+.2f}" for c in M.COMPONENTS)
+                )
+            for v, b in res.get("blend", {}).items():
+                sc = b["scores"]
+                line.append(
+                    f"blend {v} {b['years'][0]}-{b['years'][1]}: "
+                    + " ".join(
+                        f"{k} acc {d['acc']:+.3f} rpss {d['rpss']:+.3f} mse {d['mse']:.3g}" for k, d in sc.items()
+                    )
                 )
             print(" | ".join(line), flush=True)
         return 0
@@ -294,6 +305,9 @@ def main() -> int:
     res = run(ty, tm, A)
     if "analogs" not in res:
         raise SystemExit(f"the predictor window for {ty}-{tm:02d} is not complete in the archive")
+    import blend as B  # blend imports this module
+
+    res = B.apply(res, A, ty, tm)
     summary = summarise(res, now.strftime("%Y-%m-%d"))
     save(res, summary)
     print(json.dumps(summary, indent=1)[:3000])

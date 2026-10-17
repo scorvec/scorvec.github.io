@@ -9,6 +9,7 @@ Figures (assets/monthly/, webp), for each variable (z500, t2m, prcp):
                                                  probabilities), with and without the skill mask
     outlook_<YYYYMM>_<var>_<kind>.webp           the hemispheric maps of every issue, kept (skill mask on)
     components_<var>.webp                        each component's weighted contribution and the sum
+    blend_<var>.webp                             statistical forecast, model mean and blend (when there is guidance)
     skill_<var>.webp                             cross-validated hindcast skill of this target month
 """
 
@@ -41,9 +42,7 @@ ASSETS = REPO / "assets" / "monthly"
 DATA = ASSETS / "data"
 LAT0 = 20.0
 INK, MUTED = "#1a1a1a", "#5b6470"
-CREDIT = (
-    "scorvec.com · Claude's month-ahead forecast: statistical, from ERA5 (no dynamical model) · anomalies vs 1991–2020"
-)
+CREDIT = "scorvec.com · Claude's month-ahead forecast · ERA5 statistics, blended with SEAS5, UKMO and CanSIPS where they add skill · anomalies vs 1991–2020"
 
 LEVELS = {
     "z500": np.array([-90, -75, -60, -48, -36, -24, -15, -8, 8, 15, 24, 36, 48, 60, 75, 90], float),
@@ -187,26 +186,31 @@ def outlook_map(o: dict, s: dict, var: str, region: str, kind: str, path: Path, 
     where = "" if nh else f" · {REGIONS[region][0]}"
     fig.text(0.04, 0.965, f"{s['target_label']}: {what}{where}", fontsize=13.5, fontweight="bold", color=INK)
     sub = f"Issued {s['issued']} from ERA5 through {s['window'].split('–')[1].strip()}"
+    b = s.get("blend", {}).get(var, {})
+    if b.get("issued"):
+        sub += f", blended with {' + '.join(b['models'])} (C3S issue {b['issue']})"
     if var == "z500" and kind == "anom":
         sub += " · contours: forecast monthly-mean height (dam)"
     if kind == "prob":
         sub += " · blank: near normal, equal chances, or no category above 40%"
     fig.text(0.04, 0.937, sub, fontsize=8.6, color=MUTED)
-    fig.text(
-        0.04,
-        0.912,
-        f"Hindcast {s['hindcast'][0]}–{s['hindcast'][1]} (cross-validated): NH ACC {sv['nh_acc_mean']:+.2f}, "
-        f"RPSS {sv['rpss_nh']:+.2f}; skill significant over {100 * sv['skill_area_sig']:.0f}% of 20–90N"
-        + (" (hatched: not significant)" if mask else " (skill mask off)"),
-        fontsize=8,
-        color=MUTED,
-    )
+    if b.get("issued"):
+        bs = b["scores"]["blend"]
+        skill = f"Blend hindcast {b['years'][0]}–{b['years'][1]} (cross-validated): NH ACC {bs['acc']:+.2f}, RPSS {bs['rpss']:+.2f}"
+    else:
+        skill = (
+            f"Hindcast {s['hindcast'][0]}–{s['hindcast'][1]} (cross-validated): NH ACC {sv['nh_acc_mean']:+.2f}, "
+            f"RPSS {sv['rpss_nh']:+.2f}; skill significant over {100 * sv['skill_area_sig']:.0f}% of 20–90N"
+        )
+    skill += " (hatched: not significant)" if mask else " (skill mask off)"
+    fig.text(0.04, 0.912, skill, fontsize=8, color=MUTED)
     fig.text(0.5, 0.012, CREDIT, ha="center", fontsize=7.5, color=MUTED)
     fig.savefig(path, dpi=105 if nh else 100, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
     plt.close(fig)
 
 
 def components_fig(o: dict, s: dict, var: str, path: Path) -> None:
+    """The statistical forecast's five weighted components and their sum (before any blend with the models)."""
     contrib = o[f"{var}_contrib"]
     beta = o[f"{var}_beta"]
     w = np.cos(np.deg2rad(G.LAT_NH))[:, None] * np.ones(len(G.LON))
@@ -216,13 +220,13 @@ def components_fig(o: dict, s: dict, var: str, path: Path) -> None:
     for j, (i, c) in enumerate(panels):
         r, col = divmod(j, 3)
         ax = polar_ax(fig, [0.01 + col * 0.33, 0.52 - r * 0.44, 0.31, 0.37])
-        v = contrib[i] if i is not None else o[f"{var}_fc"]
+        v = contrib[i] if i is not None else o.get(f"{var}_stat_fc", o[f"{var}_fc"])
         shade(ax, v, var)
         if i is not None:
             wb = float((w * beta[:, i]).sum() / w.sum())
             lab = f"{M.NAMES[c]}\nmean weight {wb:.2f}"
         else:
-            lab = "Forecast (sum of the five)"
+            lab = "Statistical forecast (sum of the five)"
         ax.set_title(lab, fontsize=9.5, fontweight="bold", pad=3)
     cax = fig.add_axes([0.25, 0.05, 0.5, 0.018])
     sm = plt.cm.ScalarMappable(cmap=CMAP[var], norm=mcolors.BoundaryNorm(LEVELS[var], 256, extend="both"))
@@ -232,6 +236,44 @@ def components_fig(o: dict, s: dict, var: str, path: Path) -> None:
     fig.text(0.01, 0.965, f"{s['target_label']}: how the {NAME[var]} forecast is built", fontsize=13, fontweight="bold")
     fig.text(0.5, 0.012, CREDIT, ha="center", fontsize=7.5, color=MUTED)
     fig.savefig(path, dpi=95, facecolor="white", pil_kwargs={"quality": 82, "method": 6})
+    plt.close(fig)
+
+
+def blend_fig(o: dict, s: dict, var: str, path: Path) -> None:
+    """The statistical forecast, the dynamical model mean and their blend, with the weights and the shared-years
+    cross-validated scores; the issued one is marked."""
+    b = s["blend"][var]
+    sc = b["scores"]
+    issued = "blend" if b["issued"] else "stat"
+    stat = o.get(f"{var}_stat_fc", o[f"{var}_fc"])
+    panels = [
+        ("stat", stat, "Statistical (this page's method)"),
+        ("models", o[f"{var}_models_fc"], "Model mean: " + " + ".join(b["models"])),
+        ("blend", o[f"{var}_blend_fc"], "Blend"),
+    ]
+    fig = plt.figure(figsize=(13.2, 5.9))
+    for j, (k, fld, lab) in enumerate(panels):
+        ax = polar_ax(fig, [0.01 + j * 0.33, 0.17, 0.31, 0.66])
+        shade(ax, fld, var)
+        line = f"ACC {sc[k]['acc']:+.2f} · RPSS {sc[k]['rpss']:+.2f}"
+        if k == "blend":
+            line += f" · weights {b['weight_nh']['stat']:.2f} / {b['weight_nh']['models']:.2f}"
+        mark = "  ← issued" if k == issued else ""
+        ax.set_title(f"{lab}{mark}\n{line}", fontsize=9.5, fontweight="bold", pad=4)
+    cax = fig.add_axes([0.25, 0.1, 0.5, 0.025])
+    sm = plt.cm.ScalarMappable(cmap=CMAP[var], norm=mcolors.BoundaryNorm(LEVELS[var], 256, extend="both"))
+    cb = fig.colorbar(sm, cax=cax, orientation="horizontal", extend="both", ticks=LEVELS[var])
+    cb.ax.tick_params(labelsize=7)
+    cb.set_label(f"{TITLE[var]} ({UNIT[var]}); scores: cross-validated, {b['years'][0]}–{b['years'][1]}", fontsize=8)
+    fig.text(
+        0.01,
+        0.95,
+        f"{s['target_label']}: {NAME[var]}, statistical and model guidance (C3S issue {b.get('issue', '')})",
+        fontsize=12.5,
+        fontweight="bold",
+    )
+    fig.text(0.5, 0.012, CREDIT, ha="center", fontsize=7.5, color=MUTED)
+    fig.savefig(path, dpi=92, facecolor="white", pil_kwargs={"quality": 85, "method": 6})
     plt.close(fig)
 
 
@@ -323,6 +365,8 @@ def main() -> int:
                     if region == "nh" and mask:
                         shutil.copyfile(p, ASSETS / f"outlook_{tag}_{var}_{kind}.webp")
         components_fig(o, s, var, ASSETS / f"components_{var}.webp")
+        if var in s.get("blend", {}) and f"{var}_blend_fc" in o:
+            blend_fig(o, s, var, ASSETS / f"blend_{var}.webp")
         skill_fig(o, s, var, ASSETS / f"skill_{var}.webp")
         print(f"drew {var}", flush=True)
     return 0

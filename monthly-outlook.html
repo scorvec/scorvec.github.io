@@ -228,7 +228,7 @@
 
 <main id="main">
   <div class="page-header">
-    <p class="eyebrow">Next month, issued on the 15th, from ERA5 alone</p>
+    <p class="eyebrow">Next month, issued on the 15th: ERA5 statistics and three seasonal models</p>
     <h1>Claude&rsquo;s month-ahead forecast</h1>
     <p class="sub">The coming calendar month's mean <b>2&nbsp;m temperature</b>, <b>precipitation</b> and
     <b>500&nbsp;hPa height</b> over the Northern Hemisphere, as expected anomalies against the <b>1991&ndash;2020
@@ -236,10 +236,12 @@
     runs unattended on the 15th of every month. It is a statistical forecast and reads no dynamical model: five
     empirical components &mdash; the trend, a RONI, QBO and polar-vortex regression, a constructed analogue on the
     tropical oceans, local persistence of temperature, sea ice, snow and soil moisture, and the closest analogue
-    years &mdash; are blended with weights learned from a cross-validated hindcast back to 1981, and each forecast
-    is scored against ERA5 and against the C3S multi-system seasonal forecast once its month is over. For what the
-    dynamical models say, see the <a href="/subseasonal.html">GEPS</a> and <a href="/gefs.html">GEFS</a> outlooks
-    and the <a href="/seasonal.html">seasonal models</a>.</p>
+    years &mdash; are blended with weights learned from a cross-validated hindcast back to 1981. That statistical
+    forecast is then blended with three dynamical seasonal models, ECMWF SEAS5, UKMO GloSea and ECCC CanSIPS,
+    wherever their 1993&ndash;2016 hindcasts show the blend beats it, and each forecast is scored against ERA5 and
+    against the C3S multi-system seasonal forecast once its month is over. More from the models on the
+    <a href="/seasonal.html">seasonal page</a> and the <a href="/subseasonal.html">GEPS</a> and
+    <a href="/gefs.html">GEFS</a> outlooks.</p>
     <div class="chips">
       <div class="chip"><div class="l">target</div><div class="v" data-k="target">&ndash;</div><div class="s">calendar-month mean</div></div>
       <div class="chip"><div class="l">issued</div><div class="v" data-k="issued">&ndash;</div><div class="s" data-k="window">predictors</div></div>
@@ -283,8 +285,19 @@
       <div class="disc" id="disc"><p>Loading&hellip;</p></div>
     </section>
 
+    <section class="chart-card" id="guidance" hidden>
+      <div class="chart-card-header"><h2>Statistical and model guidance</h2>
+        <p>The statistical forecast, the mean of three dynamical seasonal models (ECMWF SEAS5, UKMO GloSea and ECCC
+        CanSIPS, from this month's C3S issue, whose second month is the target month), and their blend. The blend's
+        weights come from the 1993&ndash;2016 hindcasts both exist for, at each point and smoothed over about
+        2500&nbsp;km, and the blend is issued only where it beat the statistical forecast in that cross-validated
+        hindcast; the scores above each map are on those same years.</p></div>
+      <div class="fig-toggle" data-fig="blend"><button type="button" class="on" data-v="t2m">2 m temperature</button><button type="button" data-v="prcp">Precipitation</button><button type="button" data-v="z500">500 hPa height</button></div>
+      <div class="img-wrap"><img id="img_blend" alt="Statistical forecast, model mean and blend"></div>
+    </section>
+
     <section class="chart-card" id="components">
-      <div class="chart-card-header"><h2>How the outlook is built</h2>
+      <div class="chart-card-header"><h2>How the statistical forecast is built</h2>
         <p>Each component's forecast multiplied by its consolidation weight at each point, and their sum (the outlook,
         before the skill mask). The weights come from a non-negative regression of the observed anomalies on the five
         components' cross-validated hindcasts, smoothed over about 2500&nbsp;km; a component that never helped in a
@@ -375,6 +388,18 @@
     the components and the weights are fitted on the hindcast, the skill shown is cross-validated twice over: each
     hindcast year's components leave out that year and its neighbours, and its consolidation weights leave out that
     year.</p>
+    <p><b>Model guidance.</b> The statistical forecast is blended with the mean of three dynamical seasonal models,
+    ECMWF SEAS5, UKMO GloSea and ECCC CanSIPS (its two component models, GEM5-NEMO and CanESM5, merged), from the C3S
+    issue of the month before the target (published around the 13th, two days before this forecast), whose second
+    month is the target month. Each model's anomaly is against its own 1993&ndash;2016 hindcast (that removes its
+    drift and bias), moved to the 1991&ndash;2020 base with ERA5. At each point the blend is a non-negative
+    regression of the observed anomaly on the statistical forecast and the model mean, fitted on the 1993&ndash;2016
+    years both exist for and smoothed over about 2500&nbsp;km, and cross-validated the same way as everything else
+    (each year's weights, error spread and skill mask without that year). The blend is issued for a variable only
+    when it beats the statistical forecast on those years; its probabilities and skill mask then come from its own
+    hindcast. The model data are fetched on the 14th by a separate job (scripts/monthly/models.py), and if an issue
+    is late the statistical forecast is issued alone. The other C3S systems remain the independent benchmark in the
+    record.</p>
     <p><b>Probabilities.</b> Each point's tercile boundaries are the 33rd and 67th percentiles of its 1991&ndash;2020
     monthly anomalies. The forecast distribution is that point's own 1991&ndash;2020 climatology, shifted by the
     forecast anomaly and narrowed by the hindcast's error relative to the climatological spread, so a skill-less
@@ -409,8 +434,8 @@
     <i>Extratropical SST</i> in the analogue (left out for the reason above), <i>weighting the blend toward ENSO-like
     years</i> (slightly worse, strong El Ni&ntilde;o years included), and <i>dressing the probabilities with the
     hindcast's own errors</i> (worse than either way above).</p>
-    <p><b>What it is not.</b> No dynamical-model input: the forecast is meant as an independent, model-free baseline
-    to set beside the ensembles. Anomalies are against 1991&ndash;2020; skill is reported for the calendar month being
+    <p><b>What it is not.</b> No subseasonal ensemble (GEFS, GEPS) enters: from the 15th they reach only about the
+    first three weeks of the target month. Anomalies are against 1991&ndash;2020; skill is reported for the calendar month being
     forecast, so it changes from issue to issue (summer temperature scores best, late-autumn 500&nbsp;hPa height
     worst).</p>
   </section>
@@ -447,7 +472,7 @@
   function toggles(fig, imgId, ver) {
     var box = document.querySelector('.fig-toggle[data-fig="' + fig + '"]');
     function show(v) {
-      $(imgId).src = A + (fig === "comp" ? "components_" : "skill_") + v + ".webp?v=" + ver;
+      $(imgId).src = A + ({ comp: "components_", skill: "skill_", blend: "blend_" })[fig] + v + ".webp?v=" + ver;
       box.querySelectorAll("button").forEach(function (b) { b.classList.toggle("on", b.dataset.v === v); });
     }
     box.addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) show(b.dataset.v); });
@@ -488,14 +513,25 @@
         sgn(v.nh_acc_mean, 2) + " (the trend alone " + sgn(v.acc_trend_mean, 2) + "), an RPSS of " + sgn(v.rpss_nh, 2) +
         " for the tercile probabilities, and a skill score of " + sgn(v.msss_trend_nh, 2) +
         " against the trend alone; its skill is significant over " + Math.round(100 * v.skill_area_sig) +
-        "&nbsp;% of the hemisphere north of 20N.</p>");
+        "&nbsp;% of the hemisphere north of 20N." + guidance(s, k) + "</p>");
     });
     return p.join("");
+  }
+
+  function guidance(s, k) {
+    var b = (s.blend || {})[k];
+    if (!b) return "";
+    var sc = b.scores;
+    return " <b>Model guidance</b> (" + b.models.join(", ") + ", C3S issue " + b.issue + "): on the " + b.years[0] + "&ndash;" +
+      b.years[1] + " hindcast the statistical forecast scores ACC " + sgn(sc.stat.acc, 2) + ", the model mean " + sgn(sc.models.acc, 2) +
+      " and the blend " + sgn(sc.blend.acc, 2) + ", so the " + (b.issued ? "<b>blend</b> (weights " + b.weight_nh.stat.toFixed(2) + " statistical, " +
+      b.weight_nh.models.toFixed(2) + " models) is" : "<b>statistical forecast</b> is") + " issued.";
   }
 
   function cell(x) {
     if (!x) return "&ndash;";
     var t = "ACC <b>" + sgn(x.acc, 2) + "</b><br><small>trend " + sgn(x.acc_trend, 2);
+    if (x.stat_acc !== undefined) t += " &middot; statistical " + sgn(x.stat_acc, 2) + " &middot; 3 models " + sgn(x.models_acc, 2);
     if (x.c3s_acc !== undefined) t += " &middot; C3S " + sgn(x.c3s_acc, 2);
     if (x.rpss !== undefined) t += " &middot; RPSS " + sgn(x.rpss, 2);
     return t + "</small>";
@@ -540,6 +576,7 @@
     draw(ver);
     $("img_main").addEventListener("click", function () { window.open($("img_main").src, "_blank", "noopener"); });
     toggles("comp", "img_comp", ver);
+    if (s.blend && Object.keys(s.blend).length) { $("guidance").hidden = false; toggles("blend", "img_blend", ver); }
     toggles("skill", "img_skill", ver);
     $("disc").innerHTML = discussion(s, r[1]);
     $("rec").innerHTML = record(r[2]);

@@ -402,16 +402,13 @@ def sphere_kernel(L_km: float | None = None) -> np.ndarray:
     return (K / K.sum(1, keepdims=True)).astype(np.float32)
 
 
-_SUBSETS = [s for r in range(1, len(COMPONENTS) + 1) for s in combinations(range(len(COMPONENTS)), r)]
-
-
 def nnls_batched(A: np.ndarray, b: np.ndarray) -> np.ndarray:
     """Non-negative solution of A β = b for every point: A (P, k, k) normal matrix, b (P, k). Exhaustive over the
     active sets (k = 5: 31 subsets), choosing the feasible subset of least quadratic loss ½βᵀAβ − bᵀβ."""
     P, k = b.shape
     best = np.zeros((P, k))
     best_loss = np.zeros(P)  # β = 0 has loss 0
-    for s in _SUBSETS:
+    for s in (s for r in range(1, k + 1) for s in combinations(range(k), r)):
         idx = list(s)
         As = A[:, idx][:, :, idx]
         bs = b[:, idx]

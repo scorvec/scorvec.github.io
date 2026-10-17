@@ -288,7 +288,7 @@ PRODUCTS = [
                     (
                         "/monthly-outlook.html",
                         "Claude's month-ahead forecast",
-                        "A statistical forecast designed and run by Claude: next month's mean 500 hPa height and 2 m temperature anomalies over the Northern Hemisphere, issued on the 15th from ERA5 alone (trend, RONI, QBO and vortex regression, tropical SST constructed analogues, persistence of temperature, sea ice, snow and soil moisture, analogue years), blended on a cross-validated hindcast, with an optional skill mask and a running record.",
+                        "A forecast designed and run by Claude: next month's 2 m temperature, precipitation and 500 hPa height over the Northern Hemisphere, issued on the 15th as anomalies and tercile probabilities. A statistical forecast from ERA5 (trend, RONI, QBO and vortex regression, tropical constructed analogues, persistence, analogue years) is blended with SEAS5, UKMO and CanSIPS where their hindcasts show it helps, with skill masks and a running record against ERA5 and the C3S models.",
                         "Monthly, on the 15th",
                     ),
                 ],
