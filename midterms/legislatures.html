@@ -336,7 +336,7 @@ const $=s=>document.querySelector(s), svg=d3.select("#lmap"), tip=$("#tip");
 const NEU="#e6e6e6", DC="#0b3d91", RC="#a32215", mix=(a,b,t)=>d3.interpolateRgb(a,b)(t);
 const CLS=[{lo:.95,lab:"Safe D",c:DC,t:"≥95"},{lo:.85,lab:"Likely D",c:mix(NEU,DC,.68),t:"85–95"},{lo:.65,lab:"Lean D",c:mix(NEU,DC,.38),t:"65–85"},
   {lo:.35,lab:"Toss-up",c:NEU,t:"35–65"},{lo:.15,lab:"Lean R",c:mix(NEU,RC,.38),t:"65–85"},{lo:.05,lab:"Likely R",c:mix(NEU,RC,.68),t:"85–95"},{lo:-1,lab:"Safe R",c:RC,t:"≥95"}];
-const cls=p=>CLS.find(c=>p>=c.lo&&(c.lo!==.35||p<=.65))||CLS[6];
+const cls=p=>p>=.95?CLS[0]:p>=.85?CLS[1]:p>.65?CLS[2]:p>=.35?CLS[3]:p>=.15?CLS[4]:p>=.05?CLS[5]:CLS[6];  // toss-up 35-65 inclusive, as the legend says
 const pct=x=>x==null?"–":(x<0.005?"<1":x>0.995?">99":Math.min(99,Math.max(1,Math.round(100*x))))+"%";
 const mg=(v,d=1)=>Math.abs(v)<0.05?"even":(v>0?"D+":"R+")+Math.abs(v).toFixed(d);
 const who=t=>esc(t).replace(/\((O)\)/g,"(independent)");
