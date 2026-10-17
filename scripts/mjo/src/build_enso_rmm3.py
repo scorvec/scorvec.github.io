@@ -193,7 +193,9 @@ def main() -> int:
         f"c = {c[0]:+.4f}, {c[1]:+.4f} (OLR part {part['olr'][0]:+.4f}, {part['olr'][1]:+.4f}); 95 %: RMM1 "
         f"{lo[0]:+.3f}..{hi[0]:+.3f}, RMM2 {lo[1]:+.3f}..{hi[1]:+.3f} -> applied {applied['olr'] + applied['wind']}"
     )
-    print(f"wind-only check: {wind_only[0]:+.4f}, {wind_only[1]:+.4f} (enso_rmm_correction.json: {enso_rmm.load_c()})")
+    print(
+        f"wind-only check: {wind_only[0]:+.4f}, {wind_only[1]:+.4f} (enso_rmm_correction.json: {enso_rmm.load_c(fitted=True)})"
+    )
 
     # validation against BoM; the out-of-sample fit uses the years after CV_SPLIT only
     r = rmm(ch, clim, eofs)
@@ -243,7 +245,7 @@ def main() -> int:
             "significant": {"rmm1": bool(sig[0]), "rmm2": bool(sig[1])},
         },
         "applied": {"c": comp(c_ap), "olr": comp(applied["olr"]), "wind": comp(applied["wind"])},
-        "wind_only_check": {"c": comp(wind_only), "enso_rmm_correction": comp(enso_rmm.load_c())},
+        "wind_only_check": {"c": comp(wind_only), "enso_rmm_correction": comp(enso_rmm.load_c(fitted=True))},
         "longitude": [float(x) for x in lon],
         "beta_olr_wm2_per_K": [round(float(x), 4) for x in beta["olr"]],
         "beta_u850_ms_per_K": [round(float(x), 4) for x in beta["u850"]],

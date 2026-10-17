@@ -43,9 +43,12 @@ WINDOW = 120  # days of the RMM's low-frequency filter, over which dN34 takes it
 BOM_ENSO_REMOVED_TO = pd.Timestamp("2013-12-31")  # BoM's RMM had its ENSO (SST1) part removed up to this day
 
 
-def load_c():
-    d = json.loads(CORR.read_text())
-    return np.array([d["c"]["rmm1"], d["c"]["rmm2"]], float)
+def load_c(fitted: bool = False):
+    """The wind-only correction, (RMM1, RMM2) per kelvin of dN34. As applied, RMM2's slope is 0: its fit (+0.068) is not
+    significant (95 % interval -0.32..+0.32, 2,000 whole-year resamples over 2003-2022, build_enso_rmm3.py), as for the
+    three-field RMM. fitted=True gives the fitted pair."""
+    c = json.loads(CORR.read_text())["c"]
+    return np.array([c["rmm1"], c["rmm2"] if fitted else 0.0], float)
 
 
 def load_c3() -> dict[str, np.ndarray]:
