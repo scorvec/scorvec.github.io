@@ -628,7 +628,9 @@ def cmd_era5_days(a) -> int:
     lat, lon = ds.latitude.values, ds.longitude.values
     if not (np.allclose(lat, np.arange(90.0, -90.1, -0.25)) and np.allclose(lon, np.arange(0.0, 360.0, 0.25))):
         raise SystemExit("unexpected ARCO grid")
-    lim = {"t2m": (180.0, 340.0), "mslp": (85000.0, 110000.0), "pr": (0.0, 3000.0)}
+    # ERA5's precipitation rate carries packing noise just below zero (to -4e-5 mm/day): tolerated, not clipped, as in the
+    # normal it must reproduce
+    lim = {"t2m": (180.0, 340.0), "mslp": (85000.0, 110000.0), "pr": (-1e-3, 3000.0)}
 
     def day(d):
         t = [pd.Timestamp(d) + pd.Timedelta(hours=h) for h in SFC_HOURS]
