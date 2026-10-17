@@ -26,6 +26,12 @@ This product computes the flux itself from the AIFS-ENS forecast.
     against ERA5 removed where heatflux100_bias.py found it significant (by season
     and lead, measured on the model's archived runs; reference/heatflux100_bias.json),
     and nothing elsewhere.
+  * SSW warning meter (Northern Hemisphere): every member's trailing 10-day mean flux through the forecast, read
+    against the level that preceded the sudden warmings on record (reference/heatflux100_warning.json,
+    build_hf_warning.py: ERA5 1990-2026 and the stratosphere history's CP07 central dates). The meter quotes the
+    share of members crossing it, the day they first do, and the record's odds: how many SSWs had a crossing in
+    the 30 days before, how far ahead, and the chance of an SSW within 30 days of a warning day against the
+    base rate. Nothing on the record for the Southern Hemisphere, so no meter there.
   * Observed tail: the AIFS control's step-0 fields, which are the analysis, appended
     every cycle to assets/sst/data/heatflux100_history.json (a committed seed,
     reference/heatflux100_history_seed.json, carries the months before the product
@@ -61,6 +67,7 @@ except Exception:  # noqa: BLE001
 
 CLIM = Path(__file__).resolve().parent / "reference" / "vt100_clim.nc"
 BIAS = Path(__file__).resolve().parent / "reference" / "heatflux100_bias.json"
+WARN = Path(__file__).resolve().parent / "reference" / "heatflux100_warning.json"
 MEMBERS = 25
 K_MAX = 72
 BAND = (45.0, 75.0)
@@ -200,6 +207,153 @@ def bias_at(tab, hemi: str, key: str, valid, lead_days) -> np.ndarray:
     return np.array([np.interp(s, xs, per[:, j]) for j, s in enumerate(_doy366(valid))])
 
 
+def load_warning() -> dict | None:
+    """The SSW warning reference (build_hf_warning.py), or None without the file."""
+    return json.loads(WARN.read_text()) if WARN.exists() else None
+
+
+def member_paths(obs: pd.DataFrame, mem_tot: np.ndarray, valid) -> pd.DataFrame | None:
+    """One daily series per member: the analysed tail, a linear bridge over any gap to the first forecast day, then
+    the member's forecast at its daily valid times (the 12Z cycles' half-day offsets are kept as given)."""
+    if obs is None or len(obs) < 5:
+        return None
+    fc0 = valid[valid > obs.index[-1]]
+    if not len(fc0):
+        return None
+    gap = pd.date_range(obs.index[-1] + pd.Timedelta(days=1), fc0[0] - pd.Timedelta(days=1))
+    cols = {}
+    for k in range(mem_tot.shape[0]):
+        fc = pd.Series(mem_tot[k], index=valid)
+        fc = fc[fc.index > obs.index[-1]]
+        bridge = (
+            pd.Series(
+                np.interp(
+                    [g.value for g in gap], [obs.index[-1].value, fc.index[0].value], [obs["tot"].iloc[-1], fc.iloc[0]]
+                ),
+                index=gap,
+            )
+            if len(gap)
+            else pd.Series(dtype=float)
+        )
+        cols[k] = pd.concat([x for x in (obs["tot"], bridge, fc) if len(x)])
+    return pd.DataFrame(cols)
+
+
+def warning_meter(obs, mem_tot, valid, ref: dict | None, init) -> dict | None:
+    """The SSW warning meter's numbers: the current W-day mean, each member's maximum W-day mean through the
+    forecast and the day it first reaches the threshold, and the ensemble mean's path."""
+    if ref is None:
+        return None
+    paths = member_paths(obs, mem_tot, valid)
+    if paths is None:
+        return None
+    W, T = int(ref["window_days"]), float(ref["threshold"])
+    roll = paths.rolling(W, min_periods=W).mean()
+    now = obs["tot"].rolling(W, min_periods=W).mean().dropna()
+    if now.empty:
+        return None
+    fc = roll[roll.index > obs.index[-1]]
+    if fc.empty:
+        return None
+    mx = fc.max(axis=0)
+    first = fc.ge(T).idxmax().where(fc.ge(T).any())  # NaT where a member never crosses
+    lead_days = (first.dropna() - init.normalize()) / pd.Timedelta(days=1)
+    ens = fc.mean(axis=1)
+    return {
+        "window_days": W,
+        "threshold": T,
+        "now": round(float(now.iloc[-1]), 2),
+        "now_date": now.index[-1].strftime("%Y-%m-%d"),
+        "horizon_days": round((fc.index[-1] - init.normalize()) / pd.Timedelta(days=1)),
+        "members_crossing": round(float(fc.ge(T).any().mean()), 3),
+        "first_crossing_day_median": None if lead_days.empty else round(float(lead_days.median())),
+        "member_max": {k: round(float(mx.quantile(q)), 2) for k, q in (("p10", 0.1), ("p50", 0.5), ("p90", 0.9))},
+        "ens_mean_max": round(float(ens.max()), 2),
+        "ens_mean_end": round(float(ens.iloc[-1]), 2),
+        "ens_mean_path": {d.strftime("%Y-%m-%d"): round(float(v), 2) for d, v in ens.items()},
+        "record": {
+            k: ref[k]
+            for k in (
+                "n_events",
+                "hit_rate",
+                "false_alarm_rate",
+                "peirce_skill",
+                "precision",
+                "precision_ci90",
+                "base_rate",
+                "lead_days_first_warning",
+                "winter_metric_quantiles",
+                "record",
+            )
+        },
+    }
+
+
+def draw_meter(ax, warn: dict | None, north: bool, n_mem: int):
+    """The SSW warning meter: a gauge of the W-day mean flux with the record's warning level, where the analysis
+    stands now, the members' maxima through the forecast and the record's odds."""
+    ax.set_facecolor("#ffffff")
+    for sp in ("top", "right", "left"):
+        ax.spines[sp].set_visible(False)
+    ax.spines["bottom"].set_color("#c9cfd6")
+    ax.tick_params(axis="x", colors=MUTED, labelsize=8.5)
+    ax.set_yticks([])
+    if not north or warn is None:
+        ax.set_xticks([])
+        ax.spines["bottom"].set_visible(False)
+        ax.text(
+            0.0,
+            0.5,
+            "No SSW warning meter: the record of sudden warmings used for it is Northern Hemisphere only."
+            if not north
+            else "SSW warning meter needs the analysed tail and the warning reference.",
+            transform=ax.transAxes,
+            fontsize=9.5,
+            color=MUTED,
+            va="center",
+        )
+        return None
+    T, W, rec = warn["threshold"], warn["window_days"], warn["record"]
+    q = rec["winter_metric_quantiles"]
+    hi = max(45.0, float(np.ceil(max(warn["member_max"]["p90"], warn["now"], T) / 5.0) * 5.0 + 5.0))
+    ax.set_xlim(0, hi)
+    ax.set_ylim(0, 1)
+    ax.axvspan(0, T, color="#eef0f3", lw=0, zorder=0)
+    ax.axvspan(T, hi, color="#fbe9e4", lw=0, zorder=0)
+    for key, lab, y, va in (("p50", "winter median", 0.97, "top"), ("p90", "winter p90", 0.04, "bottom")):
+        ax.axvline(q[key], color="#9aa3ad", lw=0.9, ls=(0, (3, 3)), zorder=1)
+        ax.text(q[key] - 0.3, y, lab, fontsize=7.5, color=MUTED, ha="right", va=va)
+    ax.axvline(T, color="#b3261e", lw=2.0, zorder=3)
+    ax.text(
+        T + 0.4, 0.97, f"SSW warning level {T:g}", fontsize=8.5, color="#b3261e", ha="left", va="top", fontweight="bold"
+    )
+    # members' maxima through the forecast: a 10-90 % bar with the median, the ensemble mean's maximum as a square
+    mm = warn["member_max"]
+    ax.plot([mm["p10"], mm["p90"]], [0.42, 0.42], color=C_MEAN, lw=7, solid_capstyle="butt", alpha=0.45, zorder=4)
+    ax.plot([mm["p50"]], [0.42], marker="|", ms=16, mew=2.2, color=C_MEAN, zorder=5)
+    ax.plot([warn["ens_mean_max"]], [0.42], marker="s", ms=8, color=C_MEAN, mec="white", mew=1.2, zorder=6)
+    ax.plot([warn["now"]], [0.42], marker="D", ms=8, color=C_OBS, mec="white", mew=1.2, zorder=7)
+    ax.set_xlabel(f"trailing {W}-day mean [v′T′], K m s⁻¹", fontsize=9, color=INK, labelpad=2)
+    pct = round(100 * warn["members_crossing"])
+    when = warn["first_crossing_day_median"]
+    lead = rec["lead_days_first_warning"]
+    line1 = (
+        f"◆ now {warn['now']:.1f} ({warn['now_date'][5:]}) · ■ ensemble-mean maximum {warn['ens_mean_max']:.1f} · "
+        f"bar: members' maxima, 10–90 % · {pct} % of {n_mem} members reach the level by day {warn['horizon_days']}"
+        + (f", median first crossing day {when}" if when is not None else "")
+    )
+    line2 = (
+        f"Record 1991–2026: {round(rec['hit_rate'] * rec['n_events'])} of {rec['n_events']} SSWs had the {W}-day mean at this level in the 30 days before "
+        f"(median {lead['median']:.0f} days ahead); {100 * rec['false_alarm_rate']:.0f} % of quiet Nov–Mar windows reach it too."
+    )
+    line3 = (
+        f"On a warning day the chance of an SSW within 30 days is {100 * rec['precision']:.0f} % "
+        f"[{100 * rec['precision_ci90'][0]:.0f}–{100 * rec['precision_ci90'][1]:.0f}] against {100 * rec['base_rate']:.0f} % on any Nov–Mar day: "
+        "three times the odds, not a forecast of a warming."
+    )
+    return line1, line2, line3
+
+
 def style(ax):
     ax.grid(color=GRID, lw=0.6)
     ax.set_axisbelow(True)
@@ -219,11 +373,20 @@ def bias_note(tab, corrected: bool) -> str:
     return "no significant mean error against ERA5 at these dates and leads"
 
 
-def render(hemi, north, valid, mem, ctrl, lat, hov, obs, clim, init, n_mem, out, note, model="AIFS-ENS"):
+def render(hemi, north, valid, mem, ctrl, lat, hov, obs, clim, init, n_mem, out, note, model="AIFS-ENS", warn=None):
     H = "Northern" if north else "Southern"
-    fig = plt.figure(figsize=(13.2, 8.6), dpi=130)
+    fig = plt.figure(figsize=(13.2, 10.6), dpi=130)
     gs = fig.add_gridspec(
-        2, 2, width_ratios=[1.55, 1], hspace=0.30, wspace=0.16, left=0.055, right=0.955, top=0.865, bottom=0.07
+        3,
+        2,
+        width_ratios=[1.55, 1],
+        height_ratios=[1, 1, 0.3],
+        hspace=0.36,
+        wspace=0.16,
+        left=0.055,
+        right=0.955,
+        top=0.89,
+        bottom=0.125,
     )  # right margin: room for the colour bar's label (the figure is saved uncropped)
     fig.suptitle(
         f"{model} · 100 hPa eddy heat flux [v′T′], {int(BAND[0])}–{int(BAND[1])}°{'N' if north else 'S'} · {H} Hemisphere",
@@ -237,7 +400,7 @@ def render(hemi, north, valid, mem, ctrl, lat, hov, obs, clim, init, n_mem, out,
     sub_obs = "" if obs is not None else " · no analysed tail yet"
     fig.text(
         0.055,
-        0.938,
+        0.948,
         f"init {init:%Y-%m-%d %H} UTC · {n_mem} members, flux per member then averaged · positive = poleward = wave activity going up\n"
         f"climatology ERA5 1991–2020, waves 1–{K_MAX} · {note}{sub_obs}",
         fontsize=10,
@@ -422,6 +585,20 @@ def render(hemi, north, valid, mem, ctrl, lat, hov, obs, clim, init, n_mem, out,
             loc = matplotlib.dates.AutoDateLocator(minticks=4, maxticks=7)
             a_.xaxis.set_major_locator(loc)
             a_.xaxis.set_major_formatter(matplotlib.dates.DateFormatter("%b %-d"))
+
+    # E: the SSW warning meter
+    ax = fig.add_subplot(gs[2, :])
+    lines = draw_meter(ax, warn, north, n_mem)
+    if lines:
+        for y, txt, col in zip((0.058, 0.040, 0.022), lines, (INK, MUTED, MUTED)):
+            fig.text(0.055, y, txt, fontsize=8.6, color=col, va="top")
+    ax.set_title(
+        "SSW warning meter: the 10-day mean flux against the level that preceded the warmings on record",
+        loc="left",
+        fontsize=11.5,
+        fontweight="bold",
+        color=INK,
+    )
     fig.savefig(out, format="webp", pil_kwargs={"quality": 88})
     plt.close(fig)
     return z_last
@@ -492,6 +669,7 @@ def main() -> int:
         "hemispheres": {},
     }
     tab = load_bias("aifs")
+    wref = load_warning()
     lead = (valid - init) / pd.Timedelta(days=1)
     for hemi, north in (("nh", True), ("sh", False)):
         err = {k: bias_at(tab, hemi, k, valid, lead) for k in fm}  # zero where no significant error was found
@@ -508,6 +686,7 @@ def main() -> int:
             obs = obs.asfreq("D").interpolate(limit=1).iloc[-(OBS_DAYS + 40) :]
             if len(obs) < 5:
                 obs = None
+        warn = warning_meter(obs, mem["tot"], valid, wref, init) if north else None
         z_last = render(
             hemi,
             north,
@@ -522,6 +701,7 @@ def main() -> int:
             int(v.sizes["number"]),
             out_dir / f"heatflux100_{hemi}.webp",
             bias_note(tab, any(np.any(e != 0) for e in err.values())),
+            warn=warn,
         )
         h = {
             k: {
@@ -549,6 +729,8 @@ def main() -> int:
                 "tot": np.round(obs["tot"].values[-OBS_DAYS:], 2).tolist(),
             }
         h["z40_end_of_forecast"] = None if z_last is None else round(z_last, 2)
+        if warn is not None:
+            h["ssw_warning"] = warn
         doc["hemispheres"][hemi] = h
         print(
             f"  {hemi}: mean flux d1-5 {mem['tot'].mean(0)[1:6].mean():+.1f}, d6-15 {mem['tot'].mean(0)[6:].mean():+.1f} K m/s"

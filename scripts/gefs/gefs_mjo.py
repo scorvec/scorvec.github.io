@@ -229,6 +229,42 @@ def channels_rmm(ch: np.ndarray, ref: dict):
     return project(ch[..., 0, :], ch[..., 2, :], ch[..., 1, :], ref)
 
 
+def channels_rmm_wind(ch: np.ndarray, ref: dict, pc_wind_std) -> tuple[np.ndarray, np.ndarray]:
+    """The wind-only RMM (U850 + U200 on the wind parts of the EOFs, normalised by the wind-only projection's own
+    standard deviation): the index the MJO page's multi-model diagram shares with the ECMWF ensembles."""
+    comb = np.concatenate([ch[..., 2, :], ch[..., 1, :]], axis=-1)
+    e1 = np.concatenate([ref["eof_u850"][0], ref["eof_u200"][0]])
+    e2 = np.concatenate([ref["eof_u850"][1], ref["eof_u200"][1]])
+    return (comb @ e1) / float(pc_wind_std[0]), (comb @ e2) / float(pc_wind_std[1])
+
+
+def write_wind_track(m1: np.ndarray, m2: np.ndarray, init: dt.date, out: Path) -> None:
+    """One model's track in the layout of scripts/mjo/src/rmm_export.track (the MJO page reads it): the ensemble mean,
+    the members, lead days and valid times. GEFS day d is the UTC day init + d - 1."""
+
+    def r(a, nd=3):
+        return [None if not np.isfinite(v) else round(float(v), nd) for v in np.asarray(a, float).ravel()]
+
+    n_lead = m1.shape[1]
+    out.write_text(
+        json.dumps(
+            {
+                "label": "GEFS",
+                "init": f"{init:%Y-%m-%d} 00Z",
+                "n": int(m1.shape[0]),
+                "lead": list(range(1, n_lead + 1)),
+                "t": [(init + dt.timedelta(days=k)).strftime("%Y-%m-%dT00") for k in range(n_lead)],
+                "r1": r(m1.mean(0)),
+                "r2": r(m2.mean(0)),
+                "m1": [r(x, 2) for x in m1],
+                "m2": [r(x, 2) for x in m2],
+                "note": "wind-only RMM (U850 + U200), GEFS analyses for the 120-day filter",
+            },
+            separators=(",", ":"),
+        )
+    )
+
+
 # ── GEFS's own analysis ───────────────────────────────────────────────────────────────────────────────────────
 def _band(v) -> np.ndarray:
     """A native 0.5 deg field -> the live run's 15S-15N band (gefs_daily: 3x3 box to 1.5 deg, the BAND rows)."""
@@ -919,6 +955,13 @@ def main() -> int:
     )
     ch, anom = forecast_channels(band, init, ref, map_now)
     m1, m2 = channels_rmm(ch, ref)  # (M, 35)
+    norm = HERE / "data" / "mjo_wind_norm.json"
+    if norm.exists():
+        data.mkdir(parents=True, exist_ok=True)
+        w1, w2 = channels_rmm_wind(ch, ref, json.loads(norm.read_text())["pc_wind_std"])
+        write_wind_track(w1, w2, init, data / "gefs_rmm_wind.json")
+    else:
+        print("::warning::data/mjo_wind_norm.json missing: no wind-only track for the MJO page", flush=True)
     warn = track_check(ref_path(HIND_FILE, dirs), m1.mean(0), m2.mean(0), nino34_now(Path(a.site)))
     if warn:
         print("  mean track flagged: " + " ".join(warn), flush=True)
