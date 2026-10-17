@@ -40,6 +40,14 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
           pip install -r scripts/mjo/requirements-mjo.txt
+      # A run checks out the commit it was triggered at, and a queued run can start well after main has moved on.
+      # The run record accumulates, so it is read from main as it is now, or this run's publish would lay a stale
+      # copy over it (2026-10-17: a queued run dropped the 14 backfilled runs).
+      - name: The run record as main has it now
+        run: |
+          git fetch -q --depth 1 origin main
+          git checkout origin/main -- assets/sst/data/vortex_runs.json || echo "::warning::vortex_runs.json not on main yet"
+
       - name: Past runs
         env:
           DAYS: ${{ inputs.days }}
