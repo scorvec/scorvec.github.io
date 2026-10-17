@@ -111,6 +111,27 @@ def _advance(lat, lon, p, k, h):
     return lat, lon, np.clip(p + h * k[2], P_ASC[0], P_ASC[-1])
 
 
+def _rk2(W: Winds, flat, t, lat, lon, p, h):
+    """One midpoint (second-order Runge-Kutta) step of h seconds from time t."""
+    k1 = _velocity(W, flat, t, lat, lon, p)
+    mid = _advance(lat, lon, p, k1, 0.5 * h)
+    return _advance(lat, lon, p, _velocity(W, flat, t + 0.5 * h, *mid), h)
+
+
+def paths(W: Winds, t_start: float, lat, lon, p, hours: float) -> np.ndarray:
+    """Forward trajectories of parcels from (lat, lon, p) at t_start (s) for `hours`: (record, 3, parcel), the
+    6-hourly (lat, lon, p), the first record the release point."""
+    flat = (W.u.reshape(-1), W.v.reshape(-1), W.w.reshape(-1))
+    lat, lon, p = (np.asarray(x, float) for x in (lat, lon, p))
+    rec, t = [np.stack([lat, lon, p])], t_start
+    for s in range(1, int(hours * 3600 / STEP_S) + 1):
+        lat, lon, p = _rk2(W, flat, t, lat, lon, p, STEP_S)
+        t += STEP_S
+        if (s * STEP_S) % DT_DATA == 0:
+            rec.append(np.stack([lat, lon, p]))
+    return np.stack(rec)
+
+
 def trace(W: Winds, t_release: float, keep_tracks: bool = False):
     """Back-trajectories of release_points() from t_release (s): the transit time (days; NaN if the parcel was not in
     the outflow layer within DAYS_BACK), the source latitude and longitude, and with keep_tracks the 6-hourly
@@ -123,12 +144,8 @@ def trace(W: Winds, t_release: float, keep_tracks: bool = False):
     h = -STEP_S
     n = int(DAYS_BACK * 86400 / STEP_S)
     for s in range(1, n + 1):
-        t = t_release + (s - 1) * h
-        k1 = _velocity(W, flat, t, lat, lon, p)
-        mid = _advance(lat, lon, p, k1, 0.5 * h)
-        k2 = _velocity(W, flat, t + 0.5 * h, *mid)
-        lat, lon, p = _advance(lat, lon, p, k2, h)
-        t = t + h
+        lat, lon, p = _rk2(W, flat, t_release + (s - 1) * h, lat, lon, p, h)
+        t = t_release + s * h
         new = np.isnan(tau) & (np.abs(lat) <= OUTFLOW_LAT)
         if new.any():
             ptrop = _gather(tp, _corners(W, t, lat, lon))

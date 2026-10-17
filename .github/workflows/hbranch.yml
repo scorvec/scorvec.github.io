@@ -4,7 +4,8 @@ name: Hadley outflow and subtropical descent (IFS HRES analyses and back-traject
 # fields (w3_*), the six daily fields by month (hb_*), each day's trajectory histograms (traj.npz) and the analysis's
 # offset from ERA5 (offset_era5.npz, first filled by hbranch-offsets.yml). Each run pairs the lattice days ARCO has
 # newly published, adds yesterday (the last day with all four analyses), releases its trajectories, draws the new
-# weeks' frames (frames branch) and commits the manifest, the still and the figures. The archive steps have their own
+# weeks' frames and the interactive map's forward paths (frames branch) and commits the manifests, the still and the
+# figures. The archive steps have their own
 # timeouts and whatever they wrote is uploaded either way, so a re-run carries on where one stopped.
 on:
   schedule:
@@ -96,14 +97,15 @@ jobs:
         if: steps.run.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/hbranch_hist
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/hbranch_hist assets/sst/anim/hbranch_drop
       - name: Commit & push (manifest, still, figures)
         if: steps.run.outputs.skip != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          OUT="assets/sst/anim/hbranch_hist_manifest.json assets/sst/hbranch_map.webp assets/sst/hbranch_flow.webp \
-               assets/sst/hbranch_ridges.webp assets/sst/hbranch_turnover.webp assets/sst/hbranch_traj.webp"
+          OUT="assets/sst/anim/hbranch_hist_manifest.json assets/sst/anim/hbranch_drop_manifest.json assets/sst/hbranch_map.webp \
+               assets/sst/hbranch_flow.webp assets/sst/hbranch_ridges.webp assets/sst/hbranch_turnover.webp assets/sst/hbranch_traj.webp \
+               assets/sst/hbranch_basemap.webp"
           last=$(python3 -c "import json; print(json.load(open('assets/sst/anim/hbranch_hist_manifest.json'))['regions']['hbranch_hist']['frames'][-1]['date'])")
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" $OUT
