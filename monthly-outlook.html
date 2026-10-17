@@ -9,7 +9,7 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Claude's month-ahead forecast">
-<meta property="og:description" content="Next month's 500 hPa height and 2 m temperature anomalies over the Northern Hemisphere from a cross-validated statistical scheme built by Claude, no dynamical model.">
+<meta property="og:description" content="Next month's 500 hPa height and 2 m temperature anomalies over the Northern Hemisphere from a cross-validated statistical scheme built by Claude, blended with GEFS's forecast of the month's first half.">
 <meta property="og:url" content="https://scorvec.com/monthly-outlook.html">
 <meta property="og:image" content="https://scorvec.com/assets/monthly/latest_t2m.webp">
 <meta name="twitter:card" content="summary_large_image">
@@ -228,18 +228,18 @@
 
 <main id="main">
   <div class="page-header">
-    <p class="eyebrow">Next month, issued on the 15th: ERA5 statistics and three seasonal models</p>
+    <p class="eyebrow">Next month, issued on the 15th: ERA5 statistics and GEFS</p>
     <h1>Claude&rsquo;s month-ahead forecast</h1>
     <p class="sub">The coming calendar month's mean <b>2&nbsp;m temperature</b>, <b>precipitation</b> and
     <b>500&nbsp;hPa height</b> over the Northern Hemisphere, as expected anomalies against the <b>1991&ndash;2020
     normal</b> and as tercile probabilities. The method was designed and built by Claude (Anthropic's AI model) and
-    runs unattended on the 15th of every month. It is a statistical forecast and reads no dynamical model: five
+    runs unattended on the 15th of every month. Its core is a statistical forecast that reads no dynamical model: five
     empirical components &mdash; the trend, a RONI, QBO and polar-vortex regression, a constructed analogue on the
     tropical oceans, local persistence of temperature, sea ice, snow and soil moisture, and the closest analogue
     years &mdash; are blended with weights learned from a cross-validated hindcast back to 1981. That statistical
-    forecast is then blended with three dynamical seasonal models, ECMWF SEAS5, UKMO GloSea and ECCC CanSIPS,
-    wherever their 1993&ndash;2016 hindcasts show the blend beats it, and each forecast is scored against ERA5 and
-    against the C3S multi-system seasonal forecast once its month is over. More from the models on the
+    forecast is then blended with GEFS's forecast of the first half of the target month (the run of the 15th reaches
+    about the 18th) wherever the 2000&ndash;2019 GEFS reforecast shows the blend beats it, and each forecast is scored
+    against ERA5 and against the C3S multi-system seasonal forecast once its month is over. More from the models on the
     <a href="/seasonal.html">seasonal page</a> and the <a href="/subseasonal.html">GEPS</a> and
     <a href="/gefs.html">GEFS</a> outlooks.</p>
     <div class="chips">
@@ -286,14 +286,14 @@
     </section>
 
     <section class="chart-card" id="guidance" hidden>
-      <div class="chart-card-header"><h2>Statistical and model guidance</h2>
-        <p>The statistical forecast, the mean of three dynamical seasonal models (ECMWF SEAS5, UKMO GloSea and ECCC
-        CanSIPS, from this month's C3S issue, whose second month is the target month), and their blend. The blend's
-        weights come from the 1993&ndash;2016 hindcasts both exist for, at each point and smoothed over about
-        2500&nbsp;km, and the blend is issued only where it beat the statistical forecast in that cross-validated
-        hindcast; the scores above each map are on those same years.</p></div>
+      <div class="chart-card-header"><h2>Statistical forecast and GEFS</h2>
+        <p>The statistical forecast, GEFS's forecast of days 1&ndash;15 of the target month (the run of the 15th, 31
+        members), and their blend. The blend's weights come from the 2000&ndash;2019 GEFS reforecast, at each point and
+        smoothed over about 2500&nbsp;km, fitted against the whole month, so they also say how much of the first half
+        carries into the monthly mean; the blend is issued only where it beat the statistical forecast in that
+        cross-validated hindcast. The scores above each map are on those same years, all against the whole month.</p></div>
       <div class="fig-toggle" data-fig="blend"><button type="button" class="on" data-v="t2m">2 m temperature</button><button type="button" data-v="prcp">Precipitation</button><button type="button" data-v="z500">500 hPa height</button></div>
-      <div class="img-wrap"><img id="img_blend" alt="Statistical forecast, model mean and blend"></div>
+      <div class="img-wrap"><img id="img_blend" alt="Statistical forecast, GEFS days 1-15 and blend"></div>
     </section>
 
     <section class="chart-card" id="components">
@@ -388,18 +388,26 @@
     the components and the weights are fitted on the hindcast, the skill shown is cross-validated twice over: each
     hindcast year's components leave out that year and its neighbours, and its consolidation weights leave out that
     year.</p>
-    <p><b>Model guidance.</b> The statistical forecast is blended with the mean of three dynamical seasonal models,
-    ECMWF SEAS5, UKMO GloSea and ECCC CanSIPS (its two component models, GEM5-NEMO and CanESM5, merged), from the C3S
-    issue of the month before the target (published around the 13th, two days before this forecast), whose second
-    month is the target month. Each model's anomaly is against its own 1993&ndash;2016 hindcast (that removes its
-    drift and bias), moved to the 1991&ndash;2020 base with ERA5. At each point the blend is a non-negative
-    regression of the observed anomaly on the statistical forecast and the model mean, fitted on the 1993&ndash;2016
-    years both exist for and smoothed over about 2500&nbsp;km, and cross-validated the same way as everything else
-    (each year's weights, error spread and skill mask without that year). The blend is issued for a variable only
-    when it beats the statistical forecast on those years; its probabilities and skill mask then come from its own
-    hindcast. The model data are fetched on the 14th by a separate job (scripts/monthly/models.py), and if an issue
-    is late the statistical forecast is issued alone. The other C3S systems remain the independent benchmark in the
-    record.</p>
+    <p><b>GEFS guidance.</b> GEFS runs to 35 days from 00Z every day, so the run of the 15th reaches about the 18th
+    of the target month. Its ensemble-mean forecast of target days 1&ndash;15 is the dynamical input: the
+    <a href="/gefs.html">GEFS page</a>'s own anomalies (against the model's 2000&ndash;2019 reforecast climatology at
+    the same start date and lead, which removes its drift and bias, re-based to 1991&ndash;2020 with ERA5; 500&nbsp;hPa
+    height with its global mean removed), its weekly means weighted by how many of those 15 days each holds. The
+    hindcast is the 2000&ndash;2019 GEFSv12 reforecast (four members, the Wednesday start nearest the 15th of each
+    year, anomalies against the other years), reduced the same way. At each point the blend is a non-negative
+    regression of the observed monthly anomaly on the statistical forecast and GEFS's first half, fitted on those
+    20 years and smoothed over about 2500&nbsp;km, and cross-validated the same way as everything else (each year's
+    weights without that year). The statistical forecast's weight is pulled toward 1, since it is already
+    calibrated on its own 1981-onward hindcast: refitted freely on 20 years it fell to about 0.3, a sampling accident
+    of those years that would have damped the whole forecast, and the anchored fit scored as well or better. Over
+    the twelve calendar months the blend raised the hindcast's temperature anomaly correlation on those years from
+    0.20 to 0.29 (RPSS 0.02 to 0.05), the 500&nbsp;hPa height's from 0.09 to 0.15 and precipitation's from 0.12 to
+    0.15 (its mean-square error fell by under 1&nbsp;%). It is issued for a variable only when it beats the
+    statistical forecast on those years; its probabilities then use the statistical forecast's error spread scaled
+    by the blend's error ratio, and its skill mask adds the points where the blend's own 20-year hindcast is
+    significant. The live run has 31 members, the reforecast four, so the live GEFS signal is cleaner than the one
+    the weights were fitted on and the blend leans toward the statistical forecast a little more than it needs to.
+    If no GEFS run of the 12th&ndash;15th is available, the statistical forecast is issued alone.</p>
     <p><b>Probabilities.</b> Each point's tercile boundaries are the 33rd and 67th percentiles of its 1991&ndash;2020
     monthly anomalies. The forecast distribution is that point's own 1991&ndash;2020 climatology, shifted by the
     forecast anomaly and narrowed by the hindcast's error relative to the climatological spread, so a skill-less
@@ -434,8 +442,8 @@
     <i>Extratropical SST</i> in the analogue (left out for the reason above), <i>weighting the blend toward ENSO-like
     years</i> (slightly worse, strong El Ni&ntilde;o years included), and <i>dressing the probabilities with the
     hindcast's own errors</i> (worse than either way above).</p>
-    <p><b>What it is not.</b> No subseasonal ensemble (GEFS, GEPS) enters: from the 15th they reach only about the
-    first three weeks of the target month. Anomalies are against 1991&ndash;2020; skill is reported for the calendar month being
+    <p><b>What it is not.</b> No seasonal model enters (C3S is only the yardstick), and GEFS speaks only for the first
+    half of the month: beyond about the 18th the forecast is the statistics' alone. Anomalies are against 1991&ndash;2020; skill is reported for the calendar month being
     forecast, so it changes from issue to issue (summer temperature scores best, late-autumn 500&nbsp;hPa height
     worst).</p>
   </section>
@@ -522,16 +530,16 @@
     var b = (s.blend || {})[k];
     if (!b) return "";
     var sc = b.scores;
-    return " <b>Model guidance</b> (" + b.models.join(", ") + ", C3S issue " + b.issue + "): on the " + b.years[0] + "&ndash;" +
-      b.years[1] + " hindcast the statistical forecast scores ACC " + sgn(sc.stat.acc, 2) + ", the model mean " + sgn(sc.models.acc, 2) +
+    return " <b>GEFS</b> (days " + b.days[0] + "&ndash;" + b.days[1] + ", run of " + b.init + "): on the " + b.years[0] + "&ndash;" +
+      b.years[1] + " reforecast years the statistical forecast scores ACC " + sgn(sc.stat.acc, 2) + ", GEFS's first half alone " + sgn(sc.models.acc, 2) +
       " and the blend " + sgn(sc.blend.acc, 2) + ", so the " + (b.issued ? "<b>blend</b> (weights " + b.weight_nh.stat.toFixed(2) + " statistical, " +
-      b.weight_nh.models.toFixed(2) + " models) is" : "<b>statistical forecast</b> is") + " issued.";
+      b.weight_nh.models.toFixed(2) + " GEFS) is" : "<b>statistical forecast</b> is") + " issued.";
   }
 
   function cell(x) {
     if (!x) return "&ndash;";
     var t = "ACC <b>" + sgn(x.acc, 2) + "</b><br><small>trend " + sgn(x.acc_trend, 2);
-    if (x.stat_acc !== undefined) t += " &middot; statistical " + sgn(x.stat_acc, 2) + " &middot; 3 models " + sgn(x.models_acc, 2);
+    if (x.stat_acc !== undefined) t += " &middot; statistical " + sgn(x.stat_acc, 2) + " &middot; GEFS " + sgn(x.models_acc, 2);
     if (x.c3s_acc !== undefined) t += " &middot; C3S " + sgn(x.c3s_acc, 2);
     if (x.rpss !== undefined) t += " &middot; RPSS " + sgn(x.rpss, 2);
     return t + "</small>";

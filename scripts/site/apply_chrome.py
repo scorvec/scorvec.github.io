@@ -284,11 +284,11 @@ PRODUCTS = [
                         "NOAA's experimental SFS beta2, 31 members from the first of each month, up to six weeks in the same layout against its own 1991–2020 reforecast, with its hindcast skill against GEFS, GEPS and CFSv2.",
                         "Monthly",
                     ),
-                    # the model-free baseline: ERA5 statistics only (scripts/monthly, monthly-outlook.yml)
+                    # ERA5 statistics blended with GEFS days 1-15 (scripts/monthly, monthly-outlook.yml)
                     (
                         "/monthly-outlook.html",
                         "Claude's month-ahead forecast",
-                        "A forecast designed and run by Claude: next month's 2 m temperature, precipitation and 500 hPa height over the Northern Hemisphere, issued on the 15th as anomalies and tercile probabilities. A statistical forecast from ERA5 (trend, RONI, QBO and vortex regression, tropical constructed analogues, persistence, analogue years) is blended with SEAS5, UKMO and CanSIPS where their hindcasts show it helps, with skill masks and a running record against ERA5 and the C3S models.",
+                        "A forecast designed and run by Claude: next month's 2 m temperature, precipitation and 500 hPa height over the Northern Hemisphere, issued on the 15th as anomalies and tercile probabilities. A statistical forecast from ERA5 (trend, RONI, QBO and vortex regression, tropical constructed analogues, persistence, analogue years) is blended with GEFS's forecast of the first half of the month where its reforecast shows it helps, with skill masks and a running record against ERA5 and the C3S models.",
                         "Monthly, on the 15th",
                     ),
                 ],

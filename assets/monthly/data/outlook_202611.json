@@ -131,7 +131,7 @@
     "PE": 0.073,
     "AN": 0.14
    },
-   "fc_nh_mean": 4.822,
+   "fc_nh_mean": 4.003,
    "contrib_rms": {
     "TR": 7.104,
     "IX": 2.444,
@@ -241,7 +241,7 @@
    "msss_trend_nh": 0.052,
    "r_beyond_nh": 0.234,
    "rpss_nh": 0.077,
-   "skill_area_sig": 0.755,
+   "skill_area_sig": 0.762,
    "comp_r_nh": {
     "TR": 0.282,
     "IX": 0.009,
@@ -256,7 +256,7 @@
     "PE": 0.478,
     "AN": 0.108
    },
-   "fc_nh_mean": 0.558,
+   "fc_nh_mean": 0.704,
    "contrib_rms": {
     "TR": 0.864,
     "IX": 0.102,
@@ -366,7 +366,7 @@
    "msss_trend_nh": 0.059,
    "r_beyond_nh": 0.257,
    "rpss_nh": 0.001,
-   "skill_area_sig": 0.028,
+   "skill_area_sig": 0.029,
    "comp_r_nh": {
     "TR": -0.037,
     "IX": 0.013,
@@ -381,7 +381,7 @@
     "PE": 0.181,
     "AN": 0.091
    },
-   "fc_nh_mean": 0.026,
+   "fc_nh_mean": 0.003,
    "contrib_rms": {
     "TR": 0.042,
     "IX": 0.159,
@@ -476,5 +476,130 @@
   "u50v": 1.7364420890808105,
   "u50eq_raw": 10.91889762878418,
   "u50v_raw": 8.643113136291504
+ },
+ "blend": {
+  "z500": {
+   "models": [
+    "GEFS"
+   ],
+   "days": [
+    1,
+    15
+   ],
+   "years": [
+    2000,
+    2019
+   ],
+   "n": 20,
+   "scores": {
+    "stat": {
+     "acc": 0.04,
+     "r": 0.025,
+     "mse": 2353.491,
+     "rpss": 0.0
+    },
+    "models": {
+     "acc": 0.096,
+     "r": 0.108,
+     "mse": 3063.644,
+     "rpss": -0.001
+    },
+    "blend": {
+     "acc": 0.057,
+     "r": 0.026,
+     "mse": 2346.008,
+     "rpss": -0.0
+    }
+   },
+   "weight_nh": {
+    "stat": 0.574,
+    "models": 0.132
+   },
+   "issued": true,
+   "init": "2026-10-15",
+   "mse_ratio": 0.997
+  },
+  "t2m": {
+   "models": [
+    "GEFS"
+   ],
+   "days": [
+    1,
+    15
+   ],
+   "years": [
+    2000,
+    2019
+   ],
+   "n": 20,
+   "scores": {
+    "stat": {
+     "acc": 0.15,
+     "r": 0.124,
+     "mse": 3.127,
+     "rpss": 0.004
+    },
+    "models": {
+     "acc": 0.236,
+     "r": 0.246,
+     "mse": 3.896,
+     "rpss": 0.001
+    },
+    "blend": {
+     "acc": 0.218,
+     "r": 0.213,
+     "mse": 2.998,
+     "rpss": 0.015
+    }
+   },
+   "weight_nh": {
+    "stat": 0.684,
+    "models": 0.206
+   },
+   "issued": true,
+   "init": "2026-10-15",
+   "mse_ratio": 0.959
+  },
+  "prcp": {
+   "models": [
+    "GEFS"
+   ],
+   "days": [
+    1,
+    15
+   ],
+   "years": [
+    2000,
+    2019
+   ],
+   "n": 20,
+   "scores": {
+    "stat": {
+     "acc": 0.075,
+     "r": 0.055,
+     "mse": 1.17,
+     "rpss": 0.0
+    },
+    "models": {
+     "acc": 0.098,
+     "r": 0.077,
+     "mse": 1.885,
+     "rpss": -0.002
+    },
+    "blend": {
+     "acc": 0.113,
+     "r": 0.071,
+     "mse": 1.161,
+     "rpss": -0.0
+    }
+   },
+   "weight_nh": {
+    "stat": 0.828,
+    "models": 0.102
+   },
+   "issued": true,
+   "init": "2026-10-15",
+   "mse_ratio": 0.992
+  }
  }
 }

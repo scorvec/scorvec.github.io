@@ -15,6 +15,8 @@ Figures (assets/monthly/, webp), for each variable (z500, t2m, prcp):
 
 from __future__ import annotations
 
+import datetime
+
 import argparse
 import json
 import shutil
@@ -42,7 +44,7 @@ ASSETS = REPO / "assets" / "monthly"
 DATA = ASSETS / "data"
 LAT0 = 20.0
 INK, MUTED = "#1a1a1a", "#5b6470"
-CREDIT = "scorvec.com · Claude's month-ahead forecast · ERA5 statistics, blended with SEAS5, UKMO and CanSIPS where they add skill · anomalies vs 1991–2020"
+CREDIT = "scorvec.com · Claude's month-ahead forecast · ERA5 statistics, blended with GEFS days 1–15 where it adds skill · anomalies vs 1991–2020"
 
 LEVELS = {
     "z500": np.array([-90, -75, -60, -48, -36, -24, -15, -8, 8, 15, 24, 36, 48, 60, 75, 90], float),
@@ -188,15 +190,19 @@ def outlook_map(o: dict, s: dict, var: str, region: str, kind: str, path: Path, 
     sub = f"Issued {s['issued']} from ERA5 through {s['window'].split('–')[1].strip()}"
     b = s.get("blend", {}).get(var, {})
     if b.get("issued"):
-        sub += f", blended with {' + '.join(b['models'])} (C3S issue {b['issue']})"
+        init = datetime.date.fromisoformat(b["init"])
+        sub += f" and GEFS days {b['days'][0]}–{b['days'][1]} ({init.day} {init:%b} run)"
     if var == "z500" and kind == "anom":
-        sub += " · contours: forecast monthly-mean height (dam)"
+        sub += " · contours: forecast height (dam)"
     if kind == "prob":
-        sub += " · blank: near normal, equal chances, or no category above 40%"
+        sub += " · blank: no category above 40% (or equal chances)"
     fig.text(0.04, 0.937, sub, fontsize=8.6, color=MUTED)
     if b.get("issued"):
-        bs = b["scores"]["blend"]
-        skill = f"Blend hindcast {b['years'][0]}–{b['years'][1]} (cross-validated): NH ACC {bs['acc']:+.2f}, RPSS {bs['rpss']:+.2f}"
+        bs, ss = b["scores"]["blend"], b["scores"]["stat"]
+        skill = (
+            f"Cross-validated NH ACC {sv['nh_acc_mean']:+.2f} ({s['hindcast'][0]}–{s['hindcast'][1]}); "
+            f"{b['years'][0]}–{b['years'][1]}: blend {bs['acc']:+.2f}, statistical alone {ss['acc']:+.2f}"
+        )
     else:
         skill = (
             f"Hindcast {s['hindcast'][0]}–{s['hindcast'][1]} (cross-validated): NH ACC {sv['nh_acc_mean']:+.2f}, "
@@ -210,7 +216,7 @@ def outlook_map(o: dict, s: dict, var: str, region: str, kind: str, path: Path, 
 
 
 def components_fig(o: dict, s: dict, var: str, path: Path) -> None:
-    """The statistical forecast's five weighted components and their sum (before any blend with the models)."""
+    """The statistical forecast's five weighted components and their sum (before any blend with GEFS)."""
     contrib = o[f"{var}_contrib"]
     beta = o[f"{var}_beta"]
     w = np.cos(np.deg2rad(G.LAT_NH))[:, None] * np.ones(len(G.LON))
@@ -240,15 +246,15 @@ def components_fig(o: dict, s: dict, var: str, path: Path) -> None:
 
 
 def blend_fig(o: dict, s: dict, var: str, path: Path) -> None:
-    """The statistical forecast, the dynamical model mean and their blend, with the weights and the shared-years
-    cross-validated scores; the issued one is marked."""
+    """The statistical forecast, GEFS's first half of the month and their blend, with the weights and the
+    shared-years cross-validated scores (against the whole month); the issued one is marked."""
     b = s["blend"][var]
     sc = b["scores"]
     issued = "blend" if b["issued"] else "stat"
     stat = o.get(f"{var}_stat_fc", o[f"{var}_fc"])
     panels = [
         ("stat", stat, "Statistical (this page's method)"),
-        ("models", o[f"{var}_models_fc"], "Model mean: " + " + ".join(b["models"])),
+        ("models", o[f"{var}_models_fc"], f"GEFS, days {b['days'][0]}–{b['days'][1]} ({b['init']} run)"),
         ("blend", o[f"{var}_blend_fc"], "Blend"),
     ]
     fig = plt.figure(figsize=(13.2, 5.9))
@@ -268,7 +274,7 @@ def blend_fig(o: dict, s: dict, var: str, path: Path) -> None:
     fig.text(
         0.01,
         0.95,
-        f"{s['target_label']}: {NAME[var]}, statistical and model guidance (C3S issue {b.get('issue', '')})",
+        f"{s['target_label']}: {NAME[var]}, statistical forecast and GEFS",
         fontsize=12.5,
         fontweight="bold",
     )
