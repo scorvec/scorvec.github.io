@@ -31,8 +31,10 @@ import matplotlib.pyplot as plt
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "era5"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
 import store as ecmwf  # shared ECMWF download manager
 import era5_store  # persistent ARCO-ERA5 cache
+from localdirs import env_dir
 from doycal import noleap_doy  # common-year day of year (29 Feb = 59.5)
 
 # 14 levels incl. 10 hPa: with midpoint layer edges the top layer spans 0–30 hPa,
@@ -136,7 +138,6 @@ HIST_PATH = Path(__file__).resolve().parent.parent / "data" / "reference" / "aam
 GFZ_URL = "https://datacenter.iers.org/products/geofluids/atmosphere/eamf/GGFC2010/GFZ/ESMGFZ_AAM_v1.0_03h_{year}.asc"
 GFZ_CHI3_MEAN = 2.734436408977633e-8
 GFZ_TO_KGM2S = 5.2092e33
-GFZ_CACHE = Path.home() / "mjo" / "aam_validation"
 
 
 def gfz_series(year):
@@ -146,8 +147,8 @@ def gfz_series(year):
     or None; network failure falls back to the cached copy."""
     import requests
 
-    GFZ_CACHE.mkdir(parents=True, exist_ok=True)
-    cache = GFZ_CACHE / f"esmgfz_{year}.asc"
+    cache = env_dir("MJO_CACHE", "aam_validation", f"esmgfz_{year}.asc")
+    cache.parent.mkdir(parents=True, exist_ok=True)
     try:
         r = requests.get(GFZ_URL.format(year=year), timeout=25)
         r.raise_for_status()

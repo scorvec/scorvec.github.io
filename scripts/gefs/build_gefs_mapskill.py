@@ -14,16 +14,34 @@ Each against its own 1991-2020 day-of-year climatology (daily means by day of ye
 GEPS's doy_clim). Observed week k of reforecast start S = the mean of the daily anomalies over S + 7k-7 ... S + 7k-1
 (>= 5 valid days), GEFS's day convention (day d = the UTC calendar day init + d - 1).
 
-FORECAST - every GEFSv12 reforecast start 2000-2019 (Wednesdays, 4 members, weekly means, RF):
+FORECAST - every GEFSv12 reforecast start 2000-2019 (Wednesdays, 4 members, weekly means: the per-member weekly
+fields of release gefs-clim-v3, gefs_hindw_MM.npz):
   anomaly = [F - M(start doy, week)] - shift(valid dates)
   M is the reforecast climatology read as gefs_live.clim_at reads it (5-day centres pooling the starts within +-15
-  days of any year, linear in between) but LEAVE-SEASON-OUT: every start within 40 days of the verified start - its
-  own season, including the neighbouring calendar year across New Year - is removed from the pool, so the
-  forecast being verified is never inside its own climatology, as a live forecast never is. (GEPS de-drifted its
-  hindcasts against the full 2001-2020 climatology, the verified year included; in-sample by ~5 % of the pool.) Pass 1
-  rebuilds the full-pool climatology from the same files and checks it against the release gefs-clim-v1.
+  days of any year on the common-year calendar, linear in between) but LEAVE-SEASON-OUT: every start within 40 days
+  of the verified start - its own season, including the neighbouring calendar year across New Year - is removed from
+  the pool, so the forecast being verified is never inside its own climatology, as a live forecast never is. (GEPS
+  de-drifted its hindcasts against the full 2001-2020 climatology, the verified year included; in-sample by ~5 % of
+  the pool.) Pass 1 rebuilds the full-pool climatology from the same starts and checks it against the release.
   shift = the 7-day mean over the week's valid dates of era5_shift.npz (ERA5 1991-2020 minus 2001-2020), the maps'
-  re-basing - applied to precipitation too (GEPS left its precipitation un-shifted; here all fields share one rule).
+  re-basing - applied to precipitation too (GEPS left its precipitation un-shifted; here all fields share one rule) -
+  with its 2001-2020 normal LEAVE-SEASON-OUT too: the days of that normal within 40 days of each valid date are taken
+  out of it (ERA5 NORMAL below). Left in, the normal's day-to-day shape holds a twentieth of each scored year's
+  observed weather, which a correlation pooled over +-45 days of starts credits to the forecast. The 1991-2020 normal
+  is the anomaly's definition, as the observed side's own 1991-2020 normal is, and stays whole (the teleconnection
+  calibration, build_gefs_patterns_hindcast.py, and the GEPS page's telecon_hindcast.py treat the normals alike).
+
+ERA5 NORMAL (era5-normal, era5-days, era5-loso) - the 2001-2020 normal inside era5_shift rebuilt per 5-day centre
+(+-7 days) from the days it was built from, and for every centre and every season of its pool (the run of pool days
+in one year, or across New Year) the normal without that season minus the normal, D, on the 1.5 deg grid:
+  zg500          the 1.5 deg daily store (WeatherBench2 ERA5, daily mean of the four synoptic hours), every day, pooled
+                 on the common-year calendar (build_era5_clim.py) - offline, from the local store
+  t2m mslp pr    the GEPS page's 1 deg ARCO surface normal: the 00/06/12/18Z mean of every fifth day from 1 January,
+                 0.25 deg box-filtered onto whole degrees ([1, 2, 2, 2, 1] / 8), pooled on the raw day of year, then
+                 interpolated to 1.5 deg as era5_shift was (bilinear) - streamed from ARCO in Actions
+  The rebuilt normal must reproduce the normal in use, else the run stops (era5-normal writes the surface one at 1.5
+  deg, offline). A valid date takes D of the season within 40 days of it at the two centres around its day-of-year
+  key, linear between them, as the re-basing reads era5_shift; dates outside the normal's years take none.
 
 STATISTICS - GEPS's recipe: pairs pooled by calendar month (starts within +-45 days of the 15th), reduced at every
 gridpoint and week to the anomaly correlation r, the regression obs = a*fcst + b, its residual sd s (n-2
@@ -38,16 +56,17 @@ skill and members are all on one grid and one box size (GEPS computed them at 2.
 members; for t2m the two agree to r 0.98-0.997 and within 0.01 K in the mean).
 
 CALIBRATION TEST (assess) - every start scored with its own init month's table refitted without its season, RPSS of
-the calibrated terciles vs one third each (2026-09-26, 1043 starts; area-weighted, cells with truth):
+the calibrated terciles vs one third each (the 2026-09-26 build: 1043 starts, the ERA5 normal still in sample and
+the climatology pooled on the raw day of year; area-weighted, cells with truth):
     t2m  weeks 1-5  +0.46 +0.24 +0.13 +0.10 +0.08  (cells with r >= 0.25 +0.46 ... +0.14, the rest +0.02 ... +0.04);
          reliable: P >= 0.4 bins forecast 0.71/0.60/0.54/0.53/0.52 vs observed 0.72/0.61/0.55/0.54/0.53
     pr   weeks 1-5  +0.18 +0.04 +0.01 +0.00 +0.00  (cells with r < 0.25 ~0); the split was the mask of the time, r >= 0.25,
          not the significance test (gefs_skill.noskill) the maps hatch with now - a rerun of assess splits by that
          GEPS's prob_maps form on the same pairs: +0.14 -0.00 -0.04 -0.04 -0.05 (worse than climatology from week 2 -
          the skewed-terciles artefact gefs_probs.py explains). t2m: the two forms agree to 0.003.
-Other checks: pass 1 reproduces gefs-clim-v1 exactly (n and means, max |d| 0.004 Pa); the re-based hindcast
-anomalies are unbiased against the observed ones (2000-2019 mean forecast minus observed: t2m +0.01 K, pr -0.03
-mm/day, zg500 -0.5 m, mslp +3 Pa); the 2-member -> 4-member skill predicted from the member spread matches the
+Other checks (2026-09-26): pass 1 reproduced its release exactly (n and means, max |d| 0.004 Pa); the re-based
+hindcast anomalies are unbiased against the observed ones (2000-2019 mean forecast minus observed: t2m +0.01 K, pr
+-0.03 mm/day, zg500 -0.5 m, mslp +3 Pa); the 2-member -> 4-member skill predicted from the member spread matches the
 measured 4-member skill to 0.01 (t2m week 3: 0.400 vs 0.406), so a 31-member mean would score higher still
 (t2m week 3 r ~0.47 vs 0.41) - not applied, the per-cell estimate amplifies sampling noise where skill is small.
 
@@ -61,30 +80,39 @@ terciles, committed as data/gefs_tercile_obs.npz). Reported per field and week, 
 truth: the observed frequency of each 2016-2025 tercile, the mean calibrated probability of each, their difference
 (the step's bias; per-start area means, t on the effective number of weekly starts from their lag-1
 autocorrelation, Benjamini-Hochberg at FDR 10 % over every field, week and category), the RPSS against one third each
-with its one-sided p, and the reliability of P(below) and P(above). The published r and forecast sd were fitted on all
-20 reforecast years, the four scored ones included, and the ERA5 2001-2020 re-basing normal holds them too: the
-sharpness and RPSS are therefore not fully out of sample, while the bias test of the step (categories and centring)
-does not depend on either to first order. The observed frequencies are also tested against a third (same t, their own
-Benjamini-Hochberg family). Result (gefs-tercile-step.yml, 208 starts 2016-01-06 .. 2019-12-25):
+with its one-sided p, and the reliability of P(below) and P(above). The ERA5 2001-2020 re-basing normal leaves each
+valid date's season out, as in `skill`; the published r and forecast sd were fitted on all 20 reforecast years, the
+four scored ones included, so the sharpness and RPSS are not fully out of sample, while the bias test of the step
+(categories and centring) does not depend on them to first order. The observed frequencies are also tested against a
+third (same t, their own Benjamini-Hochberg family). Result (2026-10-17, 208 starts 2016-01-06 .. 2019-12-25, the
+ERA5 normal still in sample and the climatology pooled on the raw day of year):
     t2m  observed below/near/above 0.325/0.331/0.345 (none off a third); calibrated 0.319-0.324/0.333-0.336/
          0.342-0.345; bias within 0.005 in every week, none significant; RPSS +0.42/+0.20/+0.10/+0.08/+0.06
     pr   the four years were drier than the decade: observed 0.351/0.328/0.321, all three off a third (FDR 10 %), so
          the calibrated maps, a third each from week 3, give "below" 0.011-0.019 too little (weeks 1-5) and "above"
          0.011-0.014 too much (weeks 2-5), all significant; RPSS +0.20/+0.04/+0.01/0.00/-0.00
 
-    python build_gefs_mapskill.py truth  --tags t2m,pr,zg500,mslp     # ~1-2 min a tag; work/obs*_{tag}.np*
-    python build_gefs_mapskill.py recent --tags t2m,pr                # -> REF/gefs_terciles_{tag}.npz
-    python build_gefs_mapskill.py skill  --tags t2m,pr,zg500,mslp     # ~1.5 min -> REF/gefs_mapskill_{tag}.npz
-    python build_gefs_mapskill.py assess --tags t2m,pr                # ~4 min; adds the test to the skill files' meta
-    python build_gefs_mapskill.py step-truth                          # after truth -> data/gefs_tercile_obs.npz
-    python build_gefs_mapskill.py step --rf RF --clim CLIM --ref REF --out step.json   # Actions: gefs-tercile-step.yml
-Memory: one year of CPC (0.4 GB) or the recent decade of one field (~1.5 GB); the skill pass ~3.8 GB (four fields).
+Offline, from the local stores (obsweek_<tag>, era5_loso_zg500 and era5_normal_0120 in WORK are published as
+release gefs-truth-v1):
+    python build_gefs_mapskill.py truth  --tags t2m,pr,zg500,mslp   # ~1-2 min a tag; WORK/obsclim_, obsweek_{tag}
+    python build_gefs_mapskill.py recent --tags t2m,pr              # -> REF/gefs_terciles_{tag}.npz
+    python build_gefs_mapskill.py step-truth                        # after truth -> data/gefs_tercile_obs.npz
+    python build_gefs_mapskill.py era5-loso --tags zg500 --store STORE --normals NORMALS  # -> WORK/era5_loso_zg500
+    python build_gefs_mapskill.py era5-normal --normals NORMALS     # -> WORK/era5_normal_0120.npz
+In Actions (gefs-mapskill.yml; the reforecast from release gefs-clim-v3):
+    python build_gefs_mapskill.py era5-days --years 2001,2005 --out DAYS            # ARCO -> DAYS/era5_days_2001.npz
+    python build_gefs_mapskill.py era5-loso --tags t2m,mslp,pr --days DAYS --work W # -> W/era5_loso_{tag}.npz
+    python build_gefs_mapskill.py skill  --rf HINDW --clim CLIM --shift S --ref OUT --work W   # OUT/gefs_mapskill_*
+    python build_gefs_mapskill.py assess --ref OUT --work W                         # the test into their meta
+    python build_gefs_mapskill.py step   --rf HINDW --clim CLIM --shift S --ref OUT --work W --out step.json
+Memory: one year of CPC (0.4 GB) or the recent decade of one field (~1.5 GB); the skill pass ~4 GB (four fields).
 """
 
 from __future__ import annotations
 
 import argparse
 import datetime as dt
+import functools
 import json
 import sys
 import time
@@ -94,19 +122,23 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-import gefs_reforecast as R  # (grid, unpack, weeks)
+import gefs_reforecast as R  # (grid, unpack, weeks, the climatology release)
 import gefs_skill as SK  # (dates, centres, shift)
 
 TC = Path.home() / "data_archive" / "geps_subx" / "telecon"
 NCEP, CPCP = TC / "ncep", TC / "cpc_precip"
-RF = (
-    Path.home() / "data_archive" / "gefs_rf",  # rf-YYYY/rf_YYYYMMDD.npz, first hit wins
-    Path.home() / "data_archive" / "gefs_port_test" / "probs" / "rf",
-)
 REF = Path.home() / "data_archive" / "gefs_ref" / "probs"
 WORK = Path.home() / "data_archive" / "gefs_port_test" / "probs" / "work"
 SHIFT = Path.home() / "data_archive" / "gefs_ref" / "era5_shift.npz"
-CLIM_URL = "https://github.com/scorvec/scorvec.github.io/releases/download/gefs-clim-v1/gefs_clim_{c:03d}.npz"
+ARCO = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"
+EY0, EY1 = 2001, 2020  # the normal era5_shift re-bases from
+ERA5_HALF = 7  # its pool: days within +-7 of each 5-day centre
+SFC = {"t2m": "2m_temperature", "mslp": "mean_sea_level_pressure", "pr": "mean_total_precipitation_rate"}
+SFC_SCALE = {"t2m": 1.0, "mslp": 1.0, "pr": 86400.0}  # -> GEFS units (pr kg m-2 s-1 -> mm/day)
+SFC_HOURS = (0, 6, 12, 18)
+SFC_STRIDE = 5  # every fifth day from 1 January
+# rebuilt normal vs the normal in use, largest tolerated |difference| (float32 rounding is ~1e-4 of these)
+NORMAL_TOL = {"t2m": 0.01, "mslp": 1.0, "pr": 0.01, "zg500": 0.01}
 CY0, CY1 = 1991, 2020  # observed normal
 HY0, HY1 = 2000, 2019  # reforecast years
 RY0, RY1 = 2016, 2025  # recent decade for the terciles
@@ -257,7 +289,8 @@ def doy_clim(sums, cnt):
 
 
 def cmd_truth(a) -> int:
-    WORK.mkdir(parents=True, exist_ok=True)
+    work = Path(a.work)
+    work.mkdir(parents=True, exist_ok=True)
     last = dt.date(HY1, 12, 31)
     while last.weekday() != 2:
         last -= dt.timedelta(days=1)
@@ -280,7 +313,7 @@ def cmd_truth(a) -> int:
                 sums[j] += np.where(ok, v[i], 0.0)
                 cnt[j] += ok
         clim = doy_clim(sums, cnt)
-        np.save(WORK / f"obsclim_{tag}.npy", clim)
+        np.save(work / f"obsclim_{tag}.npy", clim)
         del sums, cnt
         print(f"  {tag}: 1991-2020 clim ({time.time() - t0:.0f} s)", flush=True)
         bs = np.zeros((nblk, NY, NX), "float32")
@@ -296,22 +329,23 @@ def cmd_truth(a) -> int:
                 bs[b // 7] += np.where(ok, an, 0.0)
                 bc[b // 7] += ok
         with np.errstate(invalid="ignore", divide="ignore"):
-            wk = np.where(bc >= 5, bs / np.maximum(bc, 1), np.nan).astype("float32")
-        np.savez(WORK / f"obsweek_{tag}.npz", wk=wk, b0=np.array(B0.isoformat()), nblk=nblk)
+            wk = np.where(bc >= 5, bs / np.maximum(bc, 1), np.nan).astype("float16")  # 3 digits: the skill pass's input
+        np.savez_compressed(work / f"obsweek_{tag}.npz", wk=wk, b0=np.array(B0.isoformat()), nblk=nblk)
         fin = np.isfinite(wk)
         print(
             f"  {tag}: {nblk} observed weeks from {B0}, {fin.mean() * 100:.0f}% finite, "
-            f"sd {np.nanstd(wk):.2f} {UNITS[tag]}  ({time.time() - t0:.0f} s)",
+            f"sd {np.nanstd(wk.astype('float32')):.2f} {UNITS[tag]}  ({time.time() - t0:.0f} s)",
             flush=True,
         )
     return 0
 
 
 def cmd_recent(a) -> int:
-    REF.mkdir(parents=True, exist_ok=True)
+    ref = Path(a.ref)
+    ref.mkdir(parents=True, exist_ok=True)
     for tag in a.tags.split(","):
         t0 = time.time()
-        clim = np.load(WORK / f"obsclim_{tag}.npy")
+        clim = np.load(Path(a.work) / f"obsclim_{tag}.npy")
         days, parts = [], []
         for y in range(RY0, RY1 + 1):
             r = daily_year(tag, y)
@@ -383,59 +417,324 @@ def cmd_recent(a) -> int:
             "the recent decade, windows centred within +-15 d of each 5-day centre (doy); GEFS 1.5 deg "
             "grid, lat 90 -> -90; read linearly between centres (gefs_skill.at_doy)",
         )
-        np.savez_compressed(REF / f"gefs_terciles_{tag}.npz", meta=np.array(json.dumps(meta)), **out)
+        np.savez_compressed(ref / f"gefs_terciles_{tag}.npz", meta=np.array(json.dumps(meta)), **out)
         print(
             f"  {tag}: terciles {RY0}-{RY1}, median of median {np.nanmedian(med):+.3f}, "
             f"mean q67-q33 {np.nanmean(q67 - q33):.2f} {UNITS[tag]} "
-            f"({(REF / f'gefs_terciles_{tag}.npz').stat().st_size / 1e6:.1f} MB, {time.time() - t0:.0f} s)",
+            f"({(ref / f'gefs_terciles_{tag}.npz').stat().st_size / 1e6:.1f} MB, {time.time() - t0:.0f} s)",
             flush=True,
         )
     return 0
 
 
 # ── the reforecast ───────────────────────────────────────────────────────────────────────────────────────────────
-def starts():
-    """(date, path) of every reforecast start on disk, 2000-2019, chronological (duplicates: the first root wins)."""
-    seen = {}
-    for root in RF:
-        for y in range(HY0, HY1 + 1):
-            for f in sorted((root / f"rf-{y}").glob("rf_*.npz")):
-                d = dt.date(int(f.stem[3:7]), int(f.stem[7:9]), int(f.stem[9:11]))
-                seen.setdefault(d, f)
-    return sorted(seen.items())
+def starts(rf_dir):
+    """(date, (bundle, key prefix)) of every reforecast start in the weekly hindcast bundles gefs_hindw_MM.npz under
+    rf_dir (release gefs-clim-v3), chronological."""
+    out = []
+    for f in sorted(Path(rf_dir).glob("gefs_hindw_*.npz")):
+        with np.load(f) as z:
+            sts = sorted({k.split("_")[0] for k in z.files if k.endswith("_members")})
+        out += [(dt.date(int(s[:4]), int(s[4:6]), int(s[6:])), (str(f), f"{s}_")) for s in sts]
+    return sorted(out)
 
 
-def circ(doy, c):
-    """gefs_reforecast.cmd_combine's pool distance: |doy - c| folded at 365."""
-    d = abs(doy - c)
-    return min(d, 365 - d)
+@functools.cache
+def _bundle(path: str):
+    return np.load(path)  # kept open: every start of a month is read from it
 
 
-def member_sums(f, tags):
-    z = np.load(f)
-    n = len(z["members"])
-    return n, {t: R.unpack(t, z[f"w_{t}"]).astype("float32") for t in tags}
+def member_sums(src, tags):
+    """(members, {tag: (m, 5, lat, lon) float32 weekly fields}) of one start, src = (bundle, key prefix)."""
+    z, pre = _bundle(src[0]), src[1]
+    return len(z[f"{pre}members"]), {t: R.unpack(t, z[f"{pre}w_{t}"]).astype("float32") for t in tags}
+
+
+def pools_of(dates):
+    """{date: [indices of the 5-day centres whose pool holds that start]} - gefs_reforecast.cmd_combine's pools."""
+    return {d: [ci for ci, c in enumerate(SK.CENTRES) if R.pool(SK.noleap_doy(d), c)] for d in dates}
+
+
+def clim_week(c: int, clim_dir: Path | None, work: Path) -> Path:
+    """gefs_clim_DDD.npz of the release: from clim_dir when it holds it, else downloaded into the work cache."""
+    p = Path(clim_dir) / f"gefs_clim_{c:03d}.npz" if clim_dir else None
+    return p if p is not None and p.exists() else R.clim_file(f"gefs_clim_{c:03d}.npz", work / "clim")
+
+
+# ── the ERA5 2001-2020 normal, leave-season-out ──────────────────────────────────────────────────────────────────
+def normal_days(tag: str) -> list[dt.date]:
+    """The days the 2001-2020 normal of `tag` averages: every day (zg500), every fifth day from 1 January (surface)."""
+    if tag == "zg500":
+        return [
+            dt.date(EY0, 1, 1) + dt.timedelta(days=i)
+            for i in range((dt.date(EY1, 12, 31) - dt.date(EY0, 1, 1)).days + 1)
+        ]
+    out = []
+    for y in range(EY0, EY1 + 1):
+        d = dt.date(y, 1, 1)
+        while d.year == y:
+            out.append(d)
+            d += dt.timedelta(days=SFC_STRIDE)
+    return out
+
+
+def normal_keys(tag: str, days) -> np.ndarray:
+    """The pool key the normal was built on: the common-year day (zg500, build_era5_clim.py) or the raw day of year
+    (the surface normal) - on every fifth day from 1 January the two give the same pools."""
+    if tag == "zg500":
+        return SK.noleap_doy(days)
+    return np.array([d.timetuple().tm_yday for d in days], dtype="float64")
+
+
+class Loso:
+    """One field's 2001-2020 normal per 5-day centre (the mean of its pool days) and, for every season of each pool -
+    a run of pool days at most a few days apart, one per year (across New Year for the first and last centres) - the
+    normal without that season minus the normal: D = (S - S_run) / (n - n_run) - S / n."""
+
+    def __init__(self, days, keys):
+        self.days = list(days)
+        ords = np.array([d.toordinal() for d in self.days])
+        self.member = [[] for _ in self.days]  # per day: (centre index, run index) of every pool holding it
+        self.first, self.last, self.n_run, self.n = [], [], [], np.zeros(len(SK.CENTRES))
+        for ci, c in enumerate(SK.CENTRES):
+            idx = np.where(R.pool(keys, c, ERA5_HALF))[0]
+            idx = idx[np.argsort(ords[idx])]
+            cut = np.where(np.diff(ords[idx]) > LOSO)[0] + 1  # seasons are a year apart, their days within 15
+            runs = np.split(idx, cut)
+            for r, run in enumerate(runs):
+                for i in run:
+                    self.member[i].append((ci, r))
+            self.first.append([int(ords[run[0]]) for run in runs])
+            self.last.append([int(ords[run[-1]]) for run in runs])
+            self.n_run.append([len(run) for run in runs])
+            self.n[ci] = len(idx)
+        self.R = max(len(f) for f in self.first)
+        self.S = self.S_run = None
+
+    def add(self, i: int, x) -> None:
+        """Day i (index into days) of the field, (lat, lon) on the 1.5 deg grid."""
+        if self.S is None:
+            self.S = np.zeros((len(SK.CENTRES), *x.shape))
+            self.S_run = np.zeros((len(SK.CENTRES), self.R, *x.shape))
+        for ci, r in self.member[i]:
+            self.S[ci] += x
+            self.S_run[ci, r] += x
+
+    def finish(self) -> dict:
+        """-> normal E (73, lat, lon), D (73, R, lat, lon) float16 (0 in padding), first / last ordinal day and
+        size of every season (73, R; 0 in padding), pool size n (73)."""
+        E = self.S / self.n[:, None, None]
+
+        def pad(v, fill):
+            return np.array([x + [fill] * (self.R - len(x)) for x in v])
+
+        n_run = pad(self.n_run, 0)
+        D = np.zeros_like(self.S_run)
+        for ci in range(len(SK.CENTRES)):
+            for r in range(len(self.first[ci])):
+                D[ci, r] = (self.S[ci] - self.S_run[ci, r]) / (self.n[ci] - n_run[ci, r]) - E[ci]
+        return dict(E=E, D=D.astype("float16"), first=pad(self.first, 0), last=pad(self.last, 0), n_run=n_run, n=self.n)
+
+
+class EraLeaveOut:
+    """era5_loso_<tag>.npz: the weekly leave-season-out term added to a re-based hindcast anomaly."""
+
+    def __init__(self, path: Path):
+        z = np.load(path)
+        self.D, self.first, self.last, self.n_run = z["D"], z["first"], z["last"], z["n_run"]
+
+    def day(self, d: dt.date) -> np.ndarray:
+        """(normal without d's season - normal) at d, linear between the two centres around its day-of-year key."""
+        v = d.toordinal()
+        i_lo, w_lo, i_hi, w_hi = SK.bracket(SK.noleap_doy(d))
+        out = np.zeros(self.D.shape[2:])
+        for ci, w in ((i_lo, w_lo), (i_hi, w_hi)):
+            near = np.where((self.n_run[ci] > 0) & (self.last[ci] >= v - LOSO) & (self.first[ci] <= v + LOSO))[0]
+            if w == 0 or not near.size:
+                continue
+            r = near[0]
+            if near.size > 1 or self.first[ci, r] < v - LOSO or self.last[ci, r] > v + LOSO:
+                raise ValueError(f"{d}: centre {SK.CENTRES[ci]} has no single season inside the {LOSO}-day window")
+            out += w * self.D[ci, r].astype("float64")
+        return out
+
+    def weekly(self, init: dt.date) -> np.ndarray:
+        """(5, lat, lon): the 7-day mean over each week's valid dates (as gefs_skill.weekly_shift reads the shift)."""
+        return np.stack([np.mean([self.day(d) for d in SK.week_dates(init, k)], axis=0) for k in range(1, 6)])
+
+
+def check_normal(tag: str, E: np.ndarray, ref: np.ndarray) -> None:
+    """The rebuilt normal must reproduce the normal in use (NORMAL_TOL), else stop."""
+    d = np.abs(E - ref)
+    print(
+        f"  {tag}: rebuilt 2001-2020 normal vs the one in use: max |d| {d.max():.3g}, rms {np.sqrt((d**2).mean()):.3g}"
+    )
+    if not d.max() <= NORMAL_TOL[tag]:
+        raise SystemExit(f"{tag}: the rebuilt normal does not reproduce the normal in use (max |d| {d.max():.3g})")
+
+
+def to_1deg(v):
+    """0.25 deg (lat 90 -> -90, lon from 0E) -> whole degrees, as the GEPS page's ARCO surface normal: a [1, 2, 2, 2, 1]
+    / 8 box in each direction (edge-padded in latitude, wrapped in longitude), then every fourth point."""
+    k = np.array([1.0, 2.0, 2.0, 2.0, 1.0]) / 8.0
+    a = v
+    for ax in (0, 1):
+        pad = [(0, 0), (0, 0)]
+        pad[ax] = (2, 2)
+        b = np.pad(a, pad, mode=("wrap" if ax == 1 else "edge"))
+        a = sum(k[i] * np.take(b, range(i, i + a.shape[ax]), axis=ax) for i in range(5))
+    return a[::4, ::4]
+
+
+LAT1, LON1 = np.arange(90.0, -90.5, -1.0), np.arange(0.0, 360.0, 1.0)
+
+
+def cmd_era5_normal(a) -> int:
+    """The surface normal in use (GEPS climatology era5_clim_sfc_2001-2020.nc, 1 deg) on the 1.5 deg grid, bilinear
+    as era5_shift.npz was made, in GEFS units -> WORK/era5_normal_0120.npz (the check of era5-loso's ARCO rebuild)."""
+    import xarray as xr
+
+    work = Path(a.work)
+    work.mkdir(parents=True, exist_ok=True)
+    nrm = xr.open_dataset(Path(a.normals) / "era5_clim_sfc_2001-2020.nc")
+    if not (np.allclose(nrm.lat.values, LAT1) and np.allclose(nrm.lon.values, LON1)):
+        raise SystemExit("the surface normal is not on the 1 deg grid 90 -> -90, 0 -> 359")
+    out = {t: regrid(nrm[t].values.astype("float64") * SFC_SCALE[t], LAT1, LON1, "lin") for t in SFC}
+    nrm91 = xr.open_dataset(Path(a.normals) / "era5_clim_sfc_1991-2020.nc")
+    sh = np.load(Path(a.shift))
+    for t in SFC:  # the same interpolation must give era5_shift's difference back
+        d = regrid(nrm91[t].values.astype("float64") * SFC_SCALE[t], LAT1, LON1, "lin") - out[t]
+        err = np.abs(d - sh[f"s15_{t}"]).max()
+        print(f"  {t}: interpolated 1991-2020 minus 2001-2020 vs era5_shift: max |d| {err:.2g}")
+    p = work / "era5_normal_0120.npz"
+    np.savez_compressed(p, **out, centres=SK.CENTRES)
+    print(f"{p}  {p.stat().st_size / 1e6:.1f} MB")
+    return 0
+
+
+def cmd_era5_days(a) -> int:
+    """ERA5 from ARCO on the surface normal's days of years a.years (first,last): per day the mean of the four hours,
+    to_1deg, bilinear to the 1.5 deg grid, GEFS units -> OUT/era5_days_<first>.npz (Actions; anonymous GCS)."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    import pandas as pd
+    import xarray as xr
+
+    y0, y1 = (int(x) for x in a.years.split(","))
+    days = [d for d in normal_days("t2m") if y0 <= d.year <= y1]
+    ds = xr.open_zarr(ARCO, storage_options={"token": "anon"}, chunks=None)
+    lat, lon = ds.latitude.values, ds.longitude.values
+    if not (np.allclose(lat, np.arange(90.0, -90.1, -0.25)) and np.allclose(lon, np.arange(0.0, 360.0, 0.25))):
+        raise SystemExit("unexpected ARCO grid")
+    lim = {"t2m": (180.0, 340.0), "mslp": (85000.0, 110000.0), "pr": (0.0, 3000.0)}
+
+    def day(d):
+        t = [pd.Timestamp(d) + pd.Timedelta(hours=h) for h in SFC_HOURS]
+        for attempt in range(4):
+            try:
+                out = {}
+                for tag, var in SFC.items():
+                    x = to_1deg(ds[var].sel(time=t).values.astype("float64").mean(0)) * SFC_SCALE[tag]
+                    lo, hi = lim[tag]
+                    if not (np.isfinite(x).all() and x.min() >= lo - 1e-6 and x.max() <= hi):
+                        raise ValueError(
+                            f"{d} {tag}: missing or out of range ({np.nanmin(x):.4g} .. {np.nanmax(x):.4g})"
+                        )
+                    out[tag] = regrid(x[None], LAT1, LON1, "lin")[0]
+                return out
+            except ValueError:
+                raise
+            except Exception:  # noqa: BLE001  (transient storage errors)
+                if attempt == 3:
+                    raise
+                time.sleep(5 * (attempt + 1))
+
+    t0 = time.time()
+    with ThreadPoolExecutor(a.workers) as ex:
+        got = list(ex.map(day, days))
+    out = Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
+    p = out / f"era5_days_{y0}.npz"
+    np.savez(p, days=np.array([d.toordinal() for d in days]), **{t: np.stack([g[t] for g in got]) for t in SFC})
+    print(f"{p}: {len(days)} days {days[0]} .. {days[-1]} ({time.time() - t0:.0f} s)", flush=True)
+    return 0
+
+
+def cmd_era5_loso(a) -> int:
+    """era5_loso_<tag>.npz for every tag: zg500 from the local daily store, the surface fields from the era5-days
+    files in a.days; each rebuilt normal checked against the normal in use."""
+    work = Path(a.work)
+    work.mkdir(parents=True, exist_ok=True)
+    for tag in a.tags.split(","):
+        t0 = time.time()
+        days = normal_days(tag)
+        L = Loso(days, normal_keys(tag, days))
+        if tag == "zg500":
+            import xarray as xr
+
+            if not (a.store and a.normals):
+                raise SystemExit("zg500 is built offline: give --store and --normals")
+            i = 0
+            for y in range(EY0, EY1 + 1):
+                with xr.open_dataset(Path(a.store) / "z500" / f"z500_{y}.nc") as d:
+                    v = d["z500"].transpose("time", "latitude", "longitude")  # the store's order varies: by name
+                    if not np.allclose(v.latitude.values, R.LAT[::-1]):
+                        raise SystemExit("the z500 store is not on the 1.5 deg grid -90 -> 90")
+                    t = [dt.date.fromisoformat(str(x)[:10]) for x in v.time.values]
+                    if t != days[i : i + len(t)]:
+                        raise SystemExit(f"z500 {y}: days do not follow on")
+                    x = v.values.astype("float64")[:, ::-1]  # -> 90 -> -90
+                for k in range(len(t)):
+                    L.add(i + k, x[k])
+                i += len(t)
+            ref = xr.open_dataset(Path(a.normals) / "era5_clim_2001-2020.nc")["zg500"].values[:, ::-1]
+        else:
+            got = {}
+            for f in sorted(Path(a.days).glob("era5_days_*.npz")):
+                with np.load(f) as z:
+                    for o, x in zip(z["days"], z[tag]):
+                        got[int(o)] = x
+            missing = [d for d in days if d.toordinal() not in got]
+            if missing:
+                raise SystemExit(f"{tag}: {len(missing)} of the normal's days missing from {a.days}")
+            for i, d in enumerate(days):
+                L.add(i, got[d.toordinal()].astype("float64"))
+            ref = np.load(work / "era5_normal_0120.npz")[tag]
+        res = L.finish()
+        check_normal(tag, res.pop("E"), ref)
+        key = "common-year" if tag == "zg500" else "raw"
+        meta = dict(
+            tag=tag,
+            normal=f"ERA5 {EY0}-{EY1}, {len(days)} days, +-{ERA5_HALF} d pools on the {key} day of year",
+            season_days=LOSO,
+            D="normal without the season minus the normal, GEFS units, 1.5 deg 90 -> -90",
+        )
+        p = work / f"era5_loso_{tag}.npz"
+        np.savez_compressed(p, meta=np.array(json.dumps(meta)), centres=SK.CENTRES, **res)
+        rms = np.sqrt(np.mean(res["D"][res["n_run"] > 0].astype("float64") ** 2))
+        print(f"{p}: {L.R} seasons a centre, rms D {rms:.3g} {UNITS[tag]} ({time.time() - t0:.0f} s)", flush=True)
+    return 0
 
 
 def cmd_skill(a) -> int:
     tags = a.tags.split(",")
-    out_dir = REF if not a.partial else WORK / "partial"  # a partial run never lands in the reference
+    work = Path(a.work)
+    out_dir = Path(a.ref) if not a.partial else work / "partial"  # a partial run never lands in the reference
     out_dir.mkdir(parents=True, exist_ok=True)
-    S = starts()
-    years = sorted({s.year for s, _ in S})
-    print(f"{len(S)} reforecast starts, {len(years)} years {years[0]}-{years[-1]}", flush=True)
-    if len(years) < HY1 - HY0 + 1 and not a.partial:
-        raise SystemExit(f"only {len(years)} reforecast years on disk ({years}); --partial to run anyway")
+    S = starts(a.rf)
+    want = {dt.date.fromisoformat(f"{s[:4]}-{s[4:6]}-{s[6:]}") for y in range(HY0, HY1 + 1) for s in R.wednesdays(y)}
+    have = {s for s, _ in S}
+    print(f"{len(S)} reforecast starts {min(have)} .. {max(have)}", flush=True)
+    if have != want and not a.partial:
+        raise SystemExit(f"{len(want - have)} of the {len(want)} reforecast starts missing; --partial to run anyway")
     t0 = time.time()
     # pass 1: the full-pool climatology sums per 5-day centre
     Ssum = {t: np.zeros((len(SK.CENTRES), 5, NY, NX)) for t in tags}
     Nn = np.zeros(len(SK.CENTRES))
-    pools = []
-    for s, f in S:
+    pool = pools_of(have)
+    pools = [pool[s] for s, _ in S]
+    for (_s, f), cs in zip(S, pools):
         n, F = member_sums(f, tags)
-        doy = SK.noleap_doy(s)  # common-year day key, as the centres
-        cs = [ci for ci, c in enumerate(SK.CENTRES) if circ(doy, c) <= 15]
-        pools.append(cs)
         for t in tags:
             fs = F[t].sum(0, dtype="float64")
             for ci in cs:
@@ -443,20 +742,16 @@ def cmd_skill(a) -> int:
         Nn[cs] += n
     print(f"  pass 1: climatology sums ({time.time() - t0:.0f} s)", flush=True)
     if not a.partial:  # check against the published climatology
-        cache = WORK / "clim_v1"
-        cache.mkdir(parents=True, exist_ok=True)
-        for c in (1, 91, 181, 266, 361):
-            p = cache / f"gefs_clim_{c:03d}.npz"
-            if not p.exists():
-                p.write_bytes(R.get(CLIM_URL.format(c=c)))
-            z = np.load(p)
-            ci = (c - 1) // 5
-            msg = [f"n {int(z['n'])}/{int(Nn[ci])}"]
-            msg.extend(f"{t} max|d| {np.abs(Ssum[t][ci] / Nn[ci] - z[f'w_{t}']).max():.4f}" for t in tags)
-            print(f"  check vs gefs-clim-v1 doy {c}: " + ", ".join(msg), flush=True)
-    shift = np.load(SHIFT)
+        for c in (1, 61, 91, 181, 266, 361):
+            with np.load(clim_week(c, a.clim, work)) as z:
+                ci = (c - 1) // 5
+                msg = [f"n {int(z['n'])}/{int(Nn[ci])}"]
+                msg.extend(f"{t} max|d| {np.abs(Ssum[t][ci] / Nn[ci] - z[f'w_{t}']).max():.4f}" for t in tags)
+            print(f"  check vs {R.CLIM_TAG} doy {c}: " + ", ".join(msg), flush=True)
+    shift = np.load(a.shift)
     shifts = {t: shift[f"s15_{t}"].astype("float64") for t in tags}
-    wk_obs = {t: np.load(WORK / f"obsweek_{t}.npz")["wk"] for t in tags}
+    loso = {t: EraLeaveOut(work / f"era5_loso_{t}.npz") for t in tags}  # the ERA5 normal without the season
+    wk_obs = {t: np.load(work / f"obsweek_{t}.npz")["wk"].astype("float32") for t in tags}  # float16 on disk
     mid = np.array([dt.date(2001, m, 15).timetuple().tm_yday for m in range(1, 13)])
     shp = (12, 5, NY, NX)
     keys = ("n", "sf", "so", "sff", "soo", "sfo", "sw", "sinv", "f2", "ff2", "fo2")
@@ -464,7 +759,7 @@ def cmd_skill(a) -> int:
     cache = {}
     dates = [s for s, _ in S]
     # the paired weekly anomalies of the tercile fields, for the cross-validated test of the calibration (assess)
-    pdir = WORK if not a.partial else WORK / "partial"
+    pdir = work if not a.partial else work / "partial"
     PAIR = {
         t: {
             w: np.lib.format.open_memmap(
@@ -501,7 +796,7 @@ def cmd_skill(a) -> int:
                         num -= cache[j][1][t]
                         den -= cache[j][0]
                 C = C + wgt * num / den
-            an = F[t] - C[None] - SK.weekly_shift(shifts[t], s)[None]  # (m, 5, lat, lon)
+            an = F[t] - C[None] - (SK.weekly_shift(shifts[t], s) - loso[t].weekly(s))[None]  # (m, 5, lat, lon)
             fm = an.mean(0)
             w = an.var(0, ddof=1) if n_m > 1 else np.zeros_like(fm)
             f2 = an[1:3].mean(0) if n_m >= 3 else an[:2].mean(0)
@@ -563,11 +858,13 @@ def cmd_skill(a) -> int:
             tag=t,
             units=UNITS[t],
             truth=TRUTH[t],
-            hindcast=f"GEFSv12 reforecast {HY0}-{HY1}, Wednesday starts, 4 members (c00 p01-p03), {len(S)} starts",
+            hindcast=f"GEFSv12 reforecast {HY0}-{HY1}, Wednesday starts, 4 members (c00 p01-p03), {len(S)} starts "
+            f"(release {R.CLIM_TAG})",
             pool=f"init month: starts within +-{WIN} d of the 15th",
             min_pairs=MIN_PAIRS,
-            model_clim=f"leave-season-out (starts within {LOSO} d of the verified start removed)",
-            rebase="minus the 7-day valid-date mean of era5_shift.npz (ERA5 1991-2020 - 2001-2020)",
+            model_clim=f"leave-season-out (starts within {LOSO} d of the verified start removed), common-year pools",
+            rebase="minus the 7-day valid-date mean of era5_shift.npz (ERA5 1991-2020 - 2001-2020), its 2001-2020 "
+            f"normal leave-season-out (its days within {LOSO} d of the valid date removed)",
             grid="GEFS 1.5 deg, lat 90 -> -90, lon 0 -> 358.5",
             skill_test=SK.test_note(),
             weeks="week k = init + 7k-7 ... init + 7k-1",
@@ -579,7 +876,7 @@ def cmd_skill(a) -> int:
             pub.update(fsd=fsd.astype("float16"))
         np.savez_compressed(out_dir / f"gefs_mapskill_{t}.npz", meta=np.array(json.dumps(meta)), **pub)
         np.savez_compressed(
-            WORK / f"diag_mapskill_{t}.npz",
+            work / f"diag_mapskill_{t}.npz",
             r=r,
             a=slope,
             b=icpt,
@@ -631,7 +928,8 @@ def cmd_assess(a) -> int:
     residual sd s). Score: RPSS against the one-third climatology, per cell (month, week) and pooled; reliability of
     P(below) and P(above) in 10 bins. The hindcast has 4 members; the live mean has 31, so live skill is at least this.
     -> WORK/assess_{tag}.npz, printed summary."""
-    pdir = WORK if not a.partial else WORK / "partial"
+    work = Path(a.work)
+    pdir = work if not a.partial else work / "partial"
     dates = [dt.date.fromisoformat(str(x)) for x in np.load(pdir / "pairs_starts.npy")]
     ords = np.array([d.toordinal() for d in dates])
     doy = SK.noleap_doy(dates)
@@ -710,7 +1008,7 @@ def cmd_assess(a) -> int:
             rpss_new = 1 - acc["rps_new"] / acc["rps_clim"]
             rpss_geps = 1 - acc["rps_geps"] / acc["rps_clim"]
         np.savez_compressed(
-            WORK / f"assess_{t}.npz",
+            work / f"assess_{t}.npz",
             rpss_new=rpss_new.astype("float32"),
             rpss_geps=rpss_geps.astype("float32"),
             n=acc["n"].astype("int16"),
@@ -749,7 +1047,7 @@ def cmd_assess(a) -> int:
                 }
             )
         if not a.partial:  # the result travels with the published skill file
-            q = REF / f"gefs_mapskill_{t}.npz"
+            q = Path(a.ref) / f"gefs_mapskill_{t}.npz"
             z = dict(np.load(q))
             meta = json.loads(str(z.pop("meta")))
             meta["calibration_test"] = test
@@ -793,8 +1091,8 @@ def cmd_step_truth(a) -> int:
     b0, b1 = step_blocks()
     out = {}
     for tag in a.tags.split(","):
-        wk = np.load(WORK / f"obsweek_{tag}.npz")["wk"][b0:b1]
-        terc = np.load(REF / f"gefs_terciles_{tag}.npz")
+        wk = np.load(Path(a.work) / f"obsweek_{tag}.npz")["wk"][b0:b1].astype("float32")
+        terc = np.load(Path(a.ref) / f"gefs_terciles_{tag}.npz")
         cat = np.full(wk.shape, -1, "int8")
         for i in range(len(wk)):
             doy = SK.noleap_doy(B0 + dt.timedelta(days=7 * (b0 + i) + 3))  # the week's centre, as gefs_probs reads
@@ -838,22 +1136,23 @@ def cmd_step(a) -> int:
     from quantmet.stats import benjamini_hochberg
 
     tags = a.tags.split(",")
-    files = {dt.date(int(f.stem[3:7]), int(f.stem[7:9]), int(f.stem[9:11])): f for f in Path(a.rf).glob("rf_*.npz")}
+    work, ref = Path(a.work), Path(a.ref)
+    files = dict(starts(a.rf))
     dates = sorted(files)
-    pools = {d: [ci for ci, c in enumerate(SK.CENTRES) if circ(SK.noleap_doy(d), c) <= 15] for d in dates}
+    pools = pools_of(dates)
     scored = [d for d in dates if STEP_Y0 <= d.year <= STEP_Y1]
-    print(f"{len(scored)} scored starts {scored[0]} .. {scored[-1]}, {len(dates)} fetched", flush=True)
-    ref = Path(a.ref)
-    shift = {t: np.load(ref / "era5_shift.npz")[f"s15_{t}"].astype("float64") for t in tags}
+    print(f"{len(scored)} scored starts {scored[0]} .. {scored[-1]}, {len(dates)} in the bundles", flush=True)
+    shift = {t: np.load(a.shift)[f"s15_{t}"].astype("float64") for t in tags}
+    loso = {t: EraLeaveOut(work / f"era5_loso_{t}.npz") for t in tags}
     terc = {t: np.load(ref / f"gefs_terciles_{t}.npz") for t in tags}
     sk = {t: SK.load(t, ref) for t in tags}
     obs = np.load(a.obs)
     b_first = dt.date.fromisoformat(json.loads(str(obs["meta"]))["first_week"])
     clim, sums = {}, {}
 
-    def centre(ci):  # gefs-clim-v1: member-runs and the member-run mean weekly fields of a 5-day centre
+    def centre(ci):  # the release's member-runs and member-run mean weekly fields of a 5-day centre
         if ci not in clim:
-            with np.load(Path(a.clim) / f"gefs_clim_{int(SK.CENTRES[ci]):03d}.npz") as z:
+            with np.load(clim_week(int(SK.CENTRES[ci]), a.clim, work)) as z:
                 clim[ci] = (float(z["n"]), {t: z[f"w_{t}"].astype("float64") for t in tags})
         return clim[ci]
 
@@ -883,7 +1182,7 @@ def cmd_step(a) -> int:
                 n_c, w_c = centre(ci)
                 own = [member_sum(d) for d in mates if ci in pools[d]]
                 C = C + wgt * (n_c * w_c[t] - sum(v[1][t] for v in own)) / (n_c - sum(v[0] for v in own))
-            an = F[t].mean(0) - C - SK.weekly_shift(shift[t], s)  # (5, lat, lon) ensemble-mean anomaly vs 1991-2020
+            an = F[t].mean(0) - C - SK.weekly_shift(shift[t], s) + loso[t].weekly(s)  # (5, lat, lon) vs 1991-2020
             for k in range(5):
                 doy = SK.noleap_doy(s + dt.timedelta(days=7 * k + 3))  # the week's centre (gefs_probs)
                 r, fsd = (sk[t][n][mi, k].astype("float64") for n in ("r", "fsd"))
@@ -914,7 +1213,7 @@ def cmd_step(a) -> int:
         "climatology, against the observed tercile of each week (scripts/gefs/data/gefs_tercile_obs.npz); "
         "area-weighted over cells with truth; per-start area means tested with t on the effective number of weekly "
         "starts (lag-1 autocorrelation), bias flagged by Benjamini-Hochberg at FDR 10 % over fields, weeks and "
-        "categories; r, sd and the ERA5 re-basing normal include the scored years",
+        "categories; the ERA5 re-basing normal leaves the season out, r and sd include the scored years",
         "starts": len(scored),
         "fields": {},
     }
@@ -991,21 +1290,49 @@ def cmd_step(a) -> int:
 def main() -> int:
     ap = argparse.ArgumentParser()
     sp = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("truth", "recent", "skill", "assess", "step-truth", "step"):
+    cmds = {
+        "truth": cmd_truth,
+        "recent": cmd_recent,
+        "step-truth": cmd_step_truth,
+        "era5-normal": cmd_era5_normal,
+        "era5-days": cmd_era5_days,
+        "era5-loso": cmd_era5_loso,
+        "skill": cmd_skill,
+        "assess": cmd_assess,
+        "step": cmd_step,
+    }
+    tags = {"truth": "t2m,pr,zg500,mslp", "skill": "t2m,pr,zg500,mslp", "era5-loso": "zg500"}
+    for name in cmds:
         p = sp.add_parser(name)
-        p.add_argument("--tags", default="t2m,pr,zg500,mslp" if name in ("truth", "skill") else "t2m,pr")
-        p.add_argument("--partial", action="store_true", help="skill: run on the reforecast years present")
+        if name not in ("era5-normal", "era5-days"):  # those two cover the surface fields of SFC
+            p.add_argument("--tags", default=tags.get(name, "t2m,pr"))
+        p.add_argument("--work", default=str(WORK), help="observed weeks, ERA5 leave-out files, pairs, diagnostics")
+        p.add_argument("--ref", default=str(REF), help="gefs_terciles_* (read) and gefs_mapskill_* (written)")
+        if name in ("skill", "assess"):
+            p.add_argument("--partial", action="store_true", help="run on the reforecast starts present")
+        if name in ("skill", "step"):
+            p.add_argument("--rf", required=True, help="the weekly hindcast bundles gefs_hindw_MM.npz")
+            p.add_argument("--clim", help="gefs_clim_DDD.npz of the release (default: downloaded into WORK/clim)")
+        if name in ("skill", "step", "era5-normal"):
+            p.add_argument("--shift", default=str(SHIFT), help="era5_shift.npz (release gefs-ref-v1)")
         if name == "step":
-            p.add_argument("--rf", required=True, help="rf_YYYYMMDD.npz of the scored years and their season mates")
-            p.add_argument("--clim", required=True, help="gefs_clim_DDD.npz (release gefs-clim-v1)")
-            p.add_argument(
-                "--ref", required=True, help="era5_shift.npz, gefs_mapskill_*, gefs_terciles_* (gefs-ref-v1)"
-            )
             p.add_argument("--obs", default=str(STEP_OBS))
             p.add_argument("--out", required=True)
+        if name == "era5-days":
+            p.add_argument("--years", required=True, help="first,last")
+            p.add_argument("--out", required=True)
+            p.add_argument("--workers", type=int, default=8)
+        if name in ("era5-normal", "era5-loso"):
+            p.add_argument(
+                "--normals",
+                required=name == "era5-normal",
+                help="the GEPS page's ERA5 normals era5_clim{,_sfc}_{1991,2001}-2020.nc (zg500, era5-normal)",
+            )
+        if name == "era5-loso":
+            p.add_argument("--store", help="the 1.5 deg global daily ERA5 store, z500/z500_YYYY.nc (zg500)")
+            p.add_argument("--days", help="era5_days_*.npz (the surface fields)")
     a = ap.parse_args()
-    cmds = {"truth": cmd_truth, "recent": cmd_recent, "skill": cmd_skill, "assess": cmd_assess}
-    return {**cmds, "step-truth": cmd_step_truth, "step": cmd_step}[a.cmd](a)
+    return cmds[a.cmd](a)
 
 
 if __name__ == "__main__":

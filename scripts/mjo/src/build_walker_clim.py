@@ -22,13 +22,14 @@ import xarray as xr
 import gcsfs
 
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+from localdirs import env_dir
 from walker import LEVELS, LMAX, BAND, streamfunction
 from wind200_vpot import velocity_potential, irrotational_wind
 from doycal import noleap_doy
 
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
 OUT = REF / "walker_clim_coeffs.nc"
-CACHE = Path.home() / "mjo" / "era5_cache"
 STORE = "gs://weatherbench2/datasets/era5/1959-2023_01_10-6h-240x121_equiangular_with_poles_conservative.zarr"
 
 
@@ -46,8 +47,9 @@ def _ud_of(u_da: xr.DataArray, v_da: xr.DataArray):
 
 
 def _samples(a):
-    CACHE.mkdir(parents=True, exist_ok=True)
-    cpath = CACHE / f"walker_ud_{a.y0}-{a.y1}_s{a.stride}_00z.nc"
+    cache = env_dir("MJO_CACHE", "era5_cache")
+    cache.mkdir(parents=True, exist_ok=True)
+    cpath = cache / f"walker_ud_{a.y0}-{a.y1}_s{a.stride}_00z.nc"
     if cpath.exists():
         print(f"reusing cached ERA5 samples: {cpath}", flush=True)
         c = xr.open_dataset(cpath)

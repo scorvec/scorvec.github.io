@@ -27,8 +27,11 @@ import xarray as xr
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from cmip6_mjo_extract import GRIDS, _interp
 
-OBS = Path.home() / "data_archive" / "cmip6_mjo" / "obs"
-STORE = Path.home() / "era5_store"
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+from localdirs import env_dir
+
+OBS = env_dir("DATA_ARCHIVE", "cmip6_mjo", "obs")
+STORE = env_dir("ERA5_STORE")
 UA = {"User-Agent": "scorvec.com data pipeline (+https://scorvec.com)"}
 Y0, Y1 = 1979, 2024
 
@@ -36,7 +39,7 @@ Y0, Y1 = 1979, 2024
 def rmm():
     # The BoM website does not permit automated downloads ("does not support web scraping"), so RMM is read from a
     # copy downloaded by hand in a browser. Never fetch bom.gov.au/climate from a script.
-    src = Path.home() / "data_archive" / "geps_subx" / "telecon" / "bom" / "rmm.74toRealtime.txt"
+    src = env_dir("DATA_ARCHIVE", "geps_subx", "telecon", "bom", "rmm.74toRealtime.txt")
     if not src.exists():
         raise SystemExit(f"{src} missing: download rmm.74toRealtime.txt by hand (browser) from the BoM MJO page")
     txt = src.read_text()

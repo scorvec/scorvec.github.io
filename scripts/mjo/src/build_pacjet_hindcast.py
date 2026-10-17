@@ -37,10 +37,16 @@ os.environ.setdefault("ECMWF_RPS", "60")
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parents[1] / "ecmwf"))
+sys.path.insert(0, str(HERE.parents[1] / "lib"))
+from localdirs import env_dir
 import pacjet_core as PC
 from doycal import noleap_doy
 
-ROOT = Path(os.environ.get("PACJET_HINDCAST", str(Path.home() / "mjo" / "pacjet_hindcast")))
+ROOT = (
+    Path(os.environ["PACJET_HINDCAST"]).expanduser()
+    if os.environ.get("PACJET_HINDCAST")
+    else env_dir("MJO_CACHE", "pacjet_hindcast")
+)
 REF = HERE.parent / "data" / "reference"
 LEADS = list(range(1, 16))
 SRC = ["google"]

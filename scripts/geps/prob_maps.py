@@ -302,6 +302,9 @@ def main() -> int:
             print(f"  {tag}: need map_skill and recent_median files")
             continue
         skill, recent = xr.open_dataset(q), xr.open_dataset(qr)
+        if skill.attrs.get("dedrift") != "leave-one-year-out":
+            print(f"::warning::{q.name} is scored in sample - no tercile maps (rebuild hindcast_maps.py)")
+            continue
         weeks = weekly_probs(tag, a.cycle, base, skill, recent)
         if weeks is None:
             print(f"  {tag}: no member file for {a.cycle}")

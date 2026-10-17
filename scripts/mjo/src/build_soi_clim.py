@@ -31,9 +31,11 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parents[1] / "era5"))
 sys.path.insert(0, str(HERE.parents[1] / "lib"))
+from localdirs import env_dir
+
 REF = HERE.parent / "data" / "reference"
 OUT = REF / "soi_clim.json"
-STORE = Path.home() / "era5_store" / "wb2_1p5_daily_global" / "slp"
+STORE = env_dir("ERA5_STORE", "wb2_1p5_daily_global", "slp")
 TAHITI = dict(latitude=-17.5, longitude=210.4)
 DARWIN = dict(latitude=-12.4, longitude=130.9)
 

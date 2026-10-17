@@ -46,6 +46,7 @@ from __future__ import annotations
 import glob
 import json
 import re
+import sys
 from pathlib import Path
 
 import pyproj  # noqa: F401  (load pyproj's libproj before xarray/eccodes)
@@ -55,9 +56,11 @@ import xarray as xr
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
+sys.path.insert(0, str(REPO / "scripts" / "lib"))
+from localdirs import env_dir
+
 TD = REPO / "scripts" / "telecon" / "data"
 M2 = TD / "m2_strat"
-ERA5 = Path.home() / "era5_store" / "wb2_1p5_daily"
 OUT_NC = HERE / "reference" / "strat_history.nc"
 OUT_JS = HERE / "reference" / "strat_history_events.json"
 
@@ -306,7 +309,7 @@ def vortex_count(f: np.ndarray, lat: np.ndarray, level: float, frac: float = 0.2
 # ------------------------------------------------------------------ ERA5 surface
 def era5_anoms(var: str, lat0: float):
     """Daily anomalies 1979-2026 against per-gridpoint harmonics(3) + linear trend, lat >= lat0."""
-    fs = sorted(ERA5.glob(f"{var}/{var}_*.nc"))
+    fs = sorted(env_dir("ERA5_STORE", "wb2_1p5_daily").glob(f"{var}/{var}_*.nc"))
     fs = [f for f in fs if int(f.stem.split("_")[-1]) >= 1979]
     pieces = []
     for f in fs:

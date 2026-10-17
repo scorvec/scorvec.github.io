@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Calibration file of the GEFS pattern products: gefs_patterns_calib.npz for release gefs-ref-v1, built in Actions
-(gefs-calib.yml). The GEPS page's telecon_hindcast.py (+ --regimes) ported to the GEFSv12 reforecast.
+(gefs-calib.yml). The GEPS page's teleconnection and regime hindcasts (telecon_hindcast.py,
+scripts/regimes/build_regime_hindcast.py) ported to the GEFSv12 reforecast.
 
 Source: the per-member DAILY 2.5 deg reforecast fields of release gefs-clim-v2 (gefs_hind2_MM.npz: every Wednesday
 start 2000-2019, members c00 p01-p03, 500 hPa height, sea-level pressure, 100 hPa height). Every start is treated

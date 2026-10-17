@@ -271,10 +271,14 @@
     of the weather.</p>
     <h2>The model climatology and its corrections</h2>
     <p><b>The climatology.</b> The GEPS8 reforecast (2001&ndash;2020, four starts a week, four
-    members, 39 leads) was pulled from the IRI Data Library for eight variables &mdash; 1,920
-    monthly files, 116&nbsp;GB &mdash; and reduced to a lead-dependent model climatology: for each
+    members, 39 leads) was pulled from the IRI Data Library for nine variables &mdash; 2,160
+    monthly files, 132&nbsp;GB &mdash; and reduced to a lead-dependent model climatology: for each
     variable, lead and day-of-year, the mean over hindcast starts within &plusmn;15 days of that
-    date across all twenty years, roughly 340&ndash;560 starts per cell. Anomalies are taken against
+    date across all twenty years, roughly 340&ndash;540 starts per cell. Days of the year are counted on a
+    365-day calendar (1&nbsp;March is day 60 in leap years too, 29&nbsp;February sits halfway between 28&nbsp;February
+    and 1&nbsp;March), so a date pools with the same date in every year, and each start counts once: the monthly
+    files repeat the first start of a month as the last of the month before (154 starts), and those copies are
+    dropped. The ERA5 normals of the re-basing below are built the same way. Anomalies are taken against
     that, at matching lead, so what the maps show is departure from how GEPS itself normally behaves
     that far into a forecast.</p>
     <p><b>Two details that matter.</b> The climatology is indexed by the day-of-year of the
@@ -437,10 +441,14 @@
     <h2>Skill masks and tercile probabilities</h2>
     <p><b>Skill mask and probability maps.</b> The same hindcast that calibrates the indices
     is scored gridpoint by gridpoint: every 2001&ndash;2020 start&rsquo;s weekly-mean anomaly,
-    de-drifted and re-based exactly as the live maps, against an independent analysis on the same
-    2.5&deg; grid &mdash; NCEP/NCAR R1 2&nbsp;m temperature, 500&nbsp;hPa height and sea-level
+    de-drifted and re-based as the live maps but, like the indices, <b>leave-one-year-out</b>
+    (precipitation, which the tercile maps take un-re-based, is only de-drifted), against an independent analysis
+    on the same 2.5&deg; grid &mdash; NCEP/NCAR R1 2&nbsp;m temperature, 500&nbsp;hPa height and sea-level
     pressure, and the CPC unified gauge analysis for precipitation, which exists over land only
-    &mdash; pooled by calendar month. The anomaly correlation from that is the skill mask (hatched
+    &mdash; pooled by calendar month. Scored in sample, the week-3 to week-5 correlations of temperature, height and
+    pressure came out 0.02&ndash;0.04 higher, and 8&ndash;16&nbsp;% of the temperature and height cells that passed
+    the test below in those weeks (72&nbsp;% of the week-3 pressure cells) do not pass out of sample; precipitation
+    is unchanged. The anomaly correlation from that is the skill mask (hatched
     where it is not significantly above zero: a one-sided 5&nbsp;% test on the 20 hindcast years, with a 10&nbsp;%
     false-discovery rate across the map; cross-hatched where there is no truth), and the gridpoint regression of observed on
     forecast weekly anomaly, with its residual spread, turns the ensemble mean into calibrated
@@ -490,6 +498,10 @@
     they are not independent), against two baselines: persistence of the pattern observed over the three days
     before day 1, and always forecasting the most common regime. A week of the weekly grid is marked skilful only
     when the bootstrap interval of [hit rate &minus; the better baseline] lies above zero; otherwise it is hatched.
+    The hindcast is scored out of sample like the indices: each start&rsquo;s 500&nbsp;hPa anomaly is de-drifted
+    against the climatology, and re-based with the ERA5 normal, without its own season. In sample the hit rates
+    beyond day 10 were 0.01&ndash;0.02 higher, enough to pass week 3 at four of the twelve mid-month dates in the
+    Euro-Atlantic sector, where none passes out of sample.
     The forecast figure gives the number of hindcast starts in the window, and the weekly grid marks the weeks that
     pass for the current date.</p>
     <p><b>Multi-model view.</b> GEPS (21 members, days 1&ndash;35), GEFS (31, days 1&ndash;35) and, for days
@@ -497,7 +509,7 @@
     are de-drifted with their hindcasts; AIFS-ENS and IFS-ENS have no open reforecast, so they are taken against
     ERA5 1991&ndash;2020 and their lead-dependent drift is measured on their own verified runs as they accrue. The
     combined probability is the equal-weight mean over the models covering each date: skill weighting would
-    need hindcasts of all four, and the two that have them have overlapping 95% intervals at 99% of month
+    need hindcasts of all four, and the two that have them have overlapping 95% intervals at 98% of month
     &times; lead &times; sector combinations.</p>
     <p><b>What each regime brings.</b> ERA5 1991&ndash;2020 composites of 2&nbsp;m temperature and
     precipitation over the days R1 was in each regime, with each season&rsquo;s linear trend removed, tested on
@@ -532,7 +544,7 @@
     memoranda), not a like-for-like computation &mdash; the S2S reforecasts sit behind a research
     licence and are not on this site, and ECMWF&rsquo;s open data stops at day 15, so no live
     comparison beyond that is possible either.</p>
-    <p><b>Reading the MJO score honestly.</b> Over all 4,794 starts the bivariate correlation falls
+    <p><b>Reading the MJO score honestly.</b> Over all 4,640 starts the bivariate correlation falls
     through 0.6 at day 15 and 0.5 at day 19; winter (DJF) starts hold on longest (0.6 at day 17) and
     autumn (SON) starts are the weakest (0.6 at day 14). Against the published
     ECMWF figures of day 27&ndash;30 that is about two weeks of skill less, and the following

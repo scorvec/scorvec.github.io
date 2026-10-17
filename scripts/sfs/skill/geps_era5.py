@@ -11,9 +11,12 @@ import xarray as xr
 sys.path.insert(0, __import__("os").path.dirname(__import__("os").path.abspath(__file__)))
 from common import YEARS, MONTHS, OUT, weekly, regrid
 
-GD = os.path.expanduser("~/data_archive/geps_subx/geps8_hindcast/geps8_{t}_{ym}.nc")
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "lib"))
+from localdirs import env_dir
+
+GD = str(env_dir("DATA_ARCHIVE", "geps_subx", "geps8_hindcast")) + "/geps8_{t}_{ym}.nc"
 GV = {"t2m": ("t2m", "tas", 1.0), "z500": ("zg500", "zg", 1.0), "pr": ("pr", "pr", 86400.0)}
-ED = os.path.expanduser("~/era5_store/wb2_1p5_daily/{v}/{v}_{y}.nc")
+ED = str(env_dir("ERA5_STORE", "wb2_1p5_daily")) + "/{v}/{v}_{y}.nc"
 EV = {"t2m": "t2m", "z500": "z500", "pr": "prcp"}
 
 

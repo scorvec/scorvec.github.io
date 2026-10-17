@@ -315,9 +315,10 @@
     removes the model's drift and its mean bias together; the reference is then moved to
     1991&ndash;2020 by the observed ERA5 shift between the two periods, with no model in that step.
     The stratosphere, which that hindcast does not cover, is taken against ERA5 and de-drifted with
-    the GEPS reforecasts in the ECMWF S2S archive. Teleconnection probabilities, tercile maps and the MJO score are
-    calibrated on the same hindcast, and the skill masks hatch wherever its anomaly correlation
-    is not significantly above zero (one-sided 5&nbsp;% test on the 20 hindcast years, false-discovery rate 10&nbsp;% across the map). <a href="/subseasonal-method.html">Read the full method &rarr;</a></p>
+    the GEPS reforecasts in the ECMWF S2S archive. Teleconnection probabilities, tercile maps, regime hit rates and the MJO
+    score are calibrated on the same hindcast &mdash; all but the MJO score out of sample, each hindcast start de-drifted
+    and re-based without its own year, as a live forecast is &mdash; and the skill masks hatch wherever its anomaly
+    correlation is not significantly above zero (one-sided 5&nbsp;% test on the 20 hindcast years, false-discovery rate 10&nbsp;% across the map). <a href="/subseasonal-method.html">Read the full method &rarr;</a></p>
   </section>
 </main>
 
@@ -345,7 +346,7 @@ var P = {
         c: function (a,b) { return MASKABLE.indexOf(b) >= 0 ? {label:"Skill mask", items:[["off","Off"],["on","On"]]} : null; },
         img: function (a,b,c) { return "assets/geps/geps_" + a + "_" + b + "_weekly" + (c==="on" ? "_masked" : "") + ".webp"; },
         cap: function (a,b,c) { return "Five seven-day means, anomaly vs the lead-matched GEPS hindcast."
-          + (c==="on" ? " Hatched where the 2001\u20132020 hindcast's anomaly correlation for this week and season is not significantly above zero (one-sided 5 % test, 20 years, false-discovery rate 10 % across the map); cross-hatched where there is no verification data." : ""); }},
+          + (c==="on" ? " Hatched where the 2001\u20132020 hindcast's anomaly correlation for this week and season, scored out of sample (each hindcast start de-drifted and re-based without its own year), is not significantly above zero (one-sided 5 % test, 20 years, false-discovery rate 10 % across the map); cross-hatched where there is no verification data." : ""); }},
   probs: {label: "Weekly terciles \u2014 temperature & precipitation", fit: false,
         a: {label:"Domain", items:[["na","North America"],["sa","South America"],
                                    ["glb","Global (Mercator)"]]},
@@ -354,7 +355,7 @@ var P = {
         img: function (a,b,c) { return "assets/geps/geps_" + a + "_" + b + "_prob_" + c + ".webp"; },
         cap: function (a,b,c) { return (c==="raw"
           ? "Most likely tercile by week: colour is the category (blue below, grey near, red above normal), intensity its probability, from the fraction of the 21 members in each tercile of the 2016\u20132025 weekly anomaly \u2014 a recent-decade normal, not the maps\u2019 1991\u20132020, so the warming since then is not counted as a forecast."
-          : "Most likely tercile by week, calibrated: the ensemble-mean departure from the 2016\u20132025 mean, in units of the hindcast ensemble mean\u2019s spread, weighted by the gridpoint anomaly correlation fitted on 2001\u20132020 hindcasts for this month and week, with the residual spread giving the three tercile probabilities \u2014 exactly one third each where the model has no skill, amplitude restored where it has some.")
+          : "Most likely tercile by week, calibrated: the ensemble-mean departure from the 2016\u20132025 mean, in units of the hindcast ensemble mean\u2019s spread, weighted by the gridpoint anomaly correlation fitted on 2001\u20132020 hindcasts for this month and week (out of sample: each start de-drifted and re-based without its own year), with the residual spread giving the three tercile probabilities \u2014 exactly one third each where the model has no skill, amplitude restored where it has some.")
           + " Hatched: hindcast skill not significantly above zero (one-sided 5 % test, false-discovery rate 10 %)." + (b==="pr" ? " Cross-hatched: no gauge truth over the ocean, or a dry climatological week where terciles are undefined." : ""); }},
   change: {label: "Change vs previous run, weeks 1\u20135", fit: false,
         a: {label:"Domain", items:[["na","North America"],["sa","South America"],
@@ -382,7 +383,7 @@ var P = {
                                                     : "assets/geps/geps_regimes_" + a + ".webp")); },
         cap: function (a,b) { return b==="multi"
           ? "GEPS (21 members, days 1\u201335), GEFS (31, days 1\u201335), AIFS-ENS (26 of its 51 members) and IFS-ENS (50), both days 1\u201315, each run\u2019s members assigned to the regime of each day\u2019s season, then averaged with equal weight per model over the models that cover each date. The strip under the chart shows each model\u2019s most likely regime by day, and the heat-grid gives the model range and how many models agree on the top regime each week. Hatched weeks: neither the GEPS nor the GEFS hindcast beats persistence or climatology significantly (year-block bootstrap, 95%). A model whose newest run is too old is left out and named in the footnote. Updated daily; built in Actions."
-          : (b==="fc" ? "Share of the 21 GEPS members in each regime by day (each day classified with its own season\u2019s regime set; \u201Cno regime\u201D grey at the bottom), the last 14 observed days (GEPS analyses) running into the forecast, the previous run as a thin outline, the weekly probabilities as a heat-grid (outlined: the most likely regime; hatched: weeks where the 2001\u20132020 GEPS8 hindcast hit rate is not significantly above persistence or climatology), and that hit rate by lead with its 95% interval."
+          : (b==="fc" ? "Share of the 21 GEPS members in each regime by day (each day classified with its own season\u2019s regime set; \u201Cno regime\u201D grey at the bottom), the last 14 observed days (GEPS analyses) running into the forecast, the previous run as a thin outline, the weekly probabilities as a heat-grid (outlined: the most likely regime; hatched: weeks where the 2001\u20132020 GEPS8 hindcast hit rate is not significantly above persistence or climatology), and that hit rate by lead with its 95% interval, scored out of sample (each hindcast start de-drifted and re-based without its own year)."
           : (b==="impacts" ? "ERA5 1991\u20132020 composites of 2 m temperature and precipitation over the days NCEP/NCAR R1 was in each regime (anomalies against the day-of-year normal, each season\u2019s linear trend removed), with the regime\u2019s 500 hPa pattern as contours. Colour is shown only where the composite is significant: a t-test on regime-episode means, false discovery rate held at 10% over the map (Benjamini\u2013Hochberg, Wilks 2016); white means no significant difference from normal."
                            : "The four cold-season (Oct\u2013Mar) and four warm-season (Apr\u2013Sep) regimes: k-means on 5-day-mean 500 hPa anomalies, NCEP/NCAR R1 1991\u20132020, named by inspection, with the share of days in each regime by calendar month. Frame colours pair cold and warm regimes whose patterns correlate \u2265 0.6; the forecasts keep those colours across the October and April switch.")); }},
   clusters: {label: "500 hPa scenarios \u2014 ensemble clusters by week", fit: false,

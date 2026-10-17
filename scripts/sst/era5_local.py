@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read the ERA5 daily store (ERA5_STORE) for the SEAS5 page — before any CDS pull.
+"""Read the ERA5 daily store ($ERA5_STORE; unset = no store) for the SEAS5 page — before any CDS pull.
 
 The store holds 100+ GB of ERA5 already streamed from WeatherBench-2 and ARCO
 (scripts/era5/*.py manage it; layout in the store's README.md). Anything the
@@ -34,7 +34,7 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 
-STORE = Path(os.environ.get("ERA5_STORE", str(Path.home() / "era5_store")))
+STORE = Path(os.environ["ERA5_STORE"]).expanduser() if os.environ.get("ERA5_STORE") else None  # None: no local store
 CACHE = Path(__file__).resolve().parent / "data" / "seas5" / "era5"
 
 SOURCES = {
@@ -47,7 +47,7 @@ SOURCES = {
 
 
 def available() -> bool:
-    return STORE.exists()
+    return STORE is not None and STORE.exists()
 
 
 def _files(sub: str, stem: str) -> list[Path]:

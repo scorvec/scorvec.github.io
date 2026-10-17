@@ -9,8 +9,8 @@
 #   frames_store_ready   -> 0 when the store is configured, else 1
 #   FRAMES_PY            -> python with boto3 (installed on demand on a runner)
 FRAMES_LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-_ENVF="${FRAMES_STORE_ENV:-$HOME/.config/scorvec/frames_store.env}"
-if [ -z "${FRAMES_S3_BUCKET:-}" ] && [ -f "$_ENVF" ]; then
+_ENVF="${FRAMES_STORE_ENV:-}"
+if [ -z "${FRAMES_S3_BUCKET:-}" ] && [ -n "$_ENVF" ] && [ -f "$_ENVF" ]; then
   set -a; . "$_ENVF"; set +a
 fi
 : "${FRAMES_PY:=$(command -v python3)}"

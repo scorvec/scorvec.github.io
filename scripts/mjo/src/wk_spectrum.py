@@ -32,18 +32,25 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from quantmet.stats import benjamini_hochberg as bh  # BH-FDR mask
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+from localdirs import env_dir
+
 NSEG = 96  # WK99 window
 KMAX, FMAX = 15, 0.5  # daily data: 0.5 cycles per day is the Nyquist frequency
 SHORT = "FLASH_TISA_NOAA20"
 VAR = "Fluxes/TOA/All_Sky/toa_lw_all"
-CACHE = Path(os.environ.get("WK_CACHE", str(Path.home() / "data_archive" / "wk" / "flashflux")))  # transient downloads
-ARCHIVE = Path(os.environ.get("WK_ARCHIVE", str(Path.home() / "data_archive" / "wk" / "archive")))
+# $WK_CACHE / $WK_ARCHIVE (olr-waves.yml sets both), else folders under $DATA_ARCHIVE
+CACHE = (
+    Path(os.environ["WK_CACHE"]) if os.environ.get("WK_CACHE") else env_dir("DATA_ARCHIVE", "wk", "flashflux")
+)  # transient downloads
+ARCHIVE = Path(os.environ["WK_ARCHIVE"]) if os.environ.get("WK_ARCHIVE") else env_dir("DATA_ARCHIVE", "wk", "archive")
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
 BG = REF / "wk_bg_ceres.nc"
 STEP = 36  # segments overlap by 60 days

@@ -34,6 +34,7 @@ HERE = Path(__file__).resolve().parent
 _sys.path[:0] = [str(HERE), str(HERE.parent)]
 from paths import LOCAL_STORE as _LS  # offline-build inputs/outputs
 from refpack import noleap_doy  # the climatologies' day-of-year key
+from build_clim import CALENDAR  # ... and its name in the files' attributes
 
 STORE = Path.home() / "era5_store" / "wb2_1p5_daily_global"
 OUTFMT = "era5_clim_{y0}-{y1}.nc"
@@ -99,6 +100,7 @@ def main() -> int:
             "note": "daily means of the 4 synoptic hours, 1.5 deg; used to "
             "re-reference GEPS anomalies onto the observed normal",
             "units": "t2m K, mslp Pa, zg500 m, winds m/s",
+            "doy_key": CALENDAR,  # +-HALFWIN windows on the common-year day (refpack.noleap_doy)
         },
     ).to_netcdf(_LS / "climatology" / OUTFMT.format(y0=a.y0, y1=a.y1))
     OUT = _LS / "climatology" / OUTFMT.format(y0=a.y0, y1=a.y1)

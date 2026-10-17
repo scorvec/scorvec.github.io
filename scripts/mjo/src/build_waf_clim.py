@@ -26,7 +26,10 @@ from doycal import noleap_doy
 
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
 OUT_TMPL = "waf_clim_coeffs{suffix}.nc"  # 200 hPa (legacy, no suffix) or _250
-CACHE = Path.home() / "mjo" / "era5_cache"
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+from localdirs import env_dir
+
+CACHE = env_dir("MJO_CACHE", "era5_cache")
 STORE = "gs://weatherbench2/datasets/era5/1959-2023_01_10-6h-240x121_equiangular_with_poles_conservative.zarr"
 
 
