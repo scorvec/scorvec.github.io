@@ -115,7 +115,7 @@ def coarse15(f: np.ndarray, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
     if lat.size == LAT.size and lon.size == LON.size and np.allclose(lat, LAT) and np.allclose(lon % 360, LON):
         return np.asarray(f, float)
     Wa, Wo = _weights(tuple(np.round(lat, 6)), tuple(np.round(lon % 360, 6)))
-    return np.einsum("ja,...ab,ib->...ji", Wa, np.asarray(f, float), Wo)
+    return Wa @ np.asarray(f, float) @ Wo.T  # matmul broadcasts over any leading axes
 
 
 def _da(f: np.ndarray) -> xr.DataArray:
