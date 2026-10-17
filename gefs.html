@@ -314,7 +314,8 @@
     day is the mean of the 12Z and following 00Z fields (precipitation summed and outgoing longwave averaged over the four
     six-hour windows), so day 1 is the start date itself; fields are box-averaged to 1.5&deg;. Exactly the same arithmetic
     is applied to the <b>GEFSv12 reforecast</b> &mdash; the 35-day Wednesday runs of 2000&ndash;2019, four members each,
-    pooled within &plusmn;15 days of the start date &mdash; and every day of the forecast is differenced from the reforecast
+    pooled within &plusmn;15 days of the start date in any year, counted on a 365-day calendar so that leap years line
+    up &mdash; and every day of the forecast is differenced from the reforecast
     mean at the same lead, which removes the model's drift and its mean bias together. Today's GEFS does not drift
     quite as its reforecast did &mdash; checked against its own analyses it runs cooler at long lead in the northern
     mid-latitudes and in the stratosphere &mdash; so the difference, measured daily from the 45 most recent runs whose 35

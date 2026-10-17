@@ -6,7 +6,7 @@
                  telecon_hindcast.py: minus the lead-dependent GEPS8 climatology at the start's day of year, plus the
                  ERA5 1991-2020 minus 2001-2020 shift at the valid date, on the 2.5 deg grid.
   --model gefs   GEFSv12 reforecast 2000-2019 (Wednesday starts, 4 members; the per-member daily 2.5 deg 500 hPa
-                 height of release gefs-clim-v2, gefs_hind2_MM.npz). Anomalies exactly as the live GEFS product:
+                 height of release gefs-clim-v3, gefs_hind2_MM.npz). Anomalies exactly as the live GEFS product:
                  member mean minus the lead-matched reforecast climatology at the start's day of year (recomputed from
                  the same starts, +-15 d pooling, linear between 5-day centres - build_gefs_patterns_hindcast.py's
                  arithmetic), minus the ERA5 shift at the valid date (gefs_patterns_ref.npz).

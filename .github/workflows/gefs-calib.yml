@@ -1,7 +1,7 @@
 name: GEFS pattern calibration (reforecast -> gefs_patterns_calib.npz, release gefs-ref-v1)
 
 # Rebuilds the GEFS page's teleconnection fit table and regime hindcast (scripts/gefs/build_gefs_patterns_hindcast.py)
-# from the per-member daily reforecast fields of release gefs-clim-v2 (gefs_hind2_MM.npz, 7.2 GB) and the observed side
+# from the per-member daily reforecast fields of release gefs-clim-v3 (gefs_hind2_MM.npz, 7.2 GB) and the observed side
 # committed in scripts/gefs/data/gefs_hindcast_truth.npz (NCEP/NCAR R1 indices and regimes, and the ERA5 normal's
 # leave-season-out term, built offline from the stores the patterns were built on). The cluster-test power is carried
 # over from the calibration file already published. `publish` replaces that file in gefs-ref-v1, which gefs.yml
@@ -37,11 +37,11 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install --quiet numpy scipy
-      - name: Inputs (releases gefs-clim-v2, gefs-ref-v1)
+      - name: Inputs (releases gefs-clim-v3, gefs-ref-v1)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release download gefs-clim-v2 --repo "$GITHUB_REPOSITORY" -p 'gefs_hind2_*.npz' -D /tmp/hind
+          gh release download gefs-clim-v3 --repo "$GITHUB_REPOSITORY" -p 'gefs_hind2_*.npz' -D /tmp/hind
           gh release download gefs-ref-v1 --repo "$GITHUB_REPOSITORY" -p gefs_patterns_ref.npz -p gefs_patterns_calib.npz -D /tmp/ref
           mkdir -p /tmp/work /tmp/out
           python -c "import json, numpy as np; m = json.loads(str(np.load('/tmp/ref/gefs_patterns_calib.npz')['meta_json'])); json.dump(m['cluster_power'], open('/tmp/work/cluster_power.json', 'w'), indent=1)"

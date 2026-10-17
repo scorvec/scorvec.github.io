@@ -4,8 +4,10 @@
   ref       -> gefs_mjo_ref.npz: the WH04 observed climatology, normalisers and EOFs (from the site's
                scripts/mjo/data/reference climatology.nc and eofs.nc - read here with xarray, so the daily job needs
                neither xarray nor those files), and the GEFS reforecast band climatology (3 fields x 35 days x 240
-               longitudes per 5-day centre, int16 as gefs_reforecast.pack) from release gefs-clim-v1 `band`, or from
-               the 15S-15N rows of v2's daily fields (--clim v2). With both on disk it prints how far they differ.
+               longitudes per 5-day centre, int16 as gefs_reforecast.pack) from the weekly climatology's `band`
+               (gefs_clim_DDD.npz, --clim v1), or from the 15S-15N rows of the daily one (gefs_clim2_DDD.npz, --clim
+               v2). With both on disk it prints how far they differ. The reference in use was built from release
+               gefs-clim-v1, whose pools were on the raw day of year (gefs_reforecast.py); rebuild from gefs-clim-v3.
   hindcast  -> gefs_mjo_hindcast.npz: every GEFSv12 reforecast start 2000-2019 (Wednesdays, 4 members; the per-start
                files RF/rf-YYYY/rf_YYYYMMDD.npz) projected with EXACTLY gefs_mjo.py's arithmetic,
                per member, and BoM's RMM on each valid date. The daily job only rescores these (seconds).

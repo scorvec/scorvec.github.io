@@ -2,15 +2,18 @@
 """Calibration file of the GEFS pattern products: gefs_patterns_calib.npz for release gefs-ref-v1, built in Actions
 (gefs-calib.yml). The GEPS page's telecon_hindcast.py (+ --regimes) ported to the GEFSv12 reforecast.
 
-Source: the per-member DAILY 2.5 deg reforecast fields of release gefs-clim-v2 (gefs_hind2_MM.npz: every Wednesday
+Source: the per-member DAILY 2.5 deg reforecast fields of release gefs-clim-v3 (gefs_hind2_MM.npz: every Wednesday
 start 2000-2019, members c00 p01-p03, 500 hPa height, sea-level pressure, 100 hPa height). Every start is treated
 like a live run (gefs_patterns.member_anoms): member mean minus the lead-matched reforecast climatology at the start's
 day of year (c25, linear between the two 5-day centres), minus the ERA5 1991-2020 shift at the valid date (day d =
 start + d - 1), projected with the same patterns; the ensemble-mean regime per sector and lead likewise.
 
 The c25 climatology is recomputed here from the same starts with the release's own arithmetic (gefs_daily.cmd_combine:
-all member-runs of the starts within +-15 days of each centre, packed to int16) and checked against the released
-gefs_clim2_<c>.npz (--check). The fit is LEAVE-SEASON-OUT, as the tercile maps' skill pass (build_gefs_mapskill.py):
+all member-runs of the starts within +-15 days of each centre on the common-year calendar, packed to int16) and
+checked against the released gefs_clim2_<c>.npz (--check). Release gefs-clim-v2 pooled on the raw day of year and
+differed from it at centre 266 by up to 8.6 m in 500 and 100 hPa height and 58 Pa in sea-level pressure with the same
+348 member-runs (2016-09-07 pooled in place of 2008-10-08); gefs-clim-v3 pools as here.
+The fit is LEAVE-SEASON-OUT, as the tercile maps' skill pass (build_gefs_mapskill.py):
 a live forecast is de-drifted with a climatology and re-based with an ERA5 2001-2020 normal that never saw its own
 season, so each scored start is too -
   climatology    without the member-runs of every pooled start within SEASON days of it, (n c25 - their sum) / (n -
@@ -417,7 +420,7 @@ def cluster_power(ref, members, trials, workers, mode="gauss"):
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--hind", help="directory of gefs_hind2_MM.npz (release gefs-clim-v2)")
+    ap.add_argument("--hind", help="directory of gefs_hind2_MM.npz (release gefs-clim-v3)")
     ap.add_argument("--rf2", help="directory of rf2_<start>.npz (testing)")
     ap.add_argument("--ref", default=str(OUT / GP.REF_NAME))
     ap.add_argument("--out", default=str(OUT / GP.CALIB_NAME))
@@ -466,7 +469,7 @@ def main() -> int:
         flush=True,
     )
     for c in a.check:
-        rel = GP.cached(GP.CLIM2_URL.format(c=c), work / f"gefs_clim2_{c:03d}.npz")
+        rel = R.clim_file(f"gefs_clim2_{c:03d}.npz", work)
         with np.load(rel) as z:
             print(
                 f"  check centre {c}: member-runs released {int(z['n'])}, recomputed {int(n[GP.centre_index(c)])}",

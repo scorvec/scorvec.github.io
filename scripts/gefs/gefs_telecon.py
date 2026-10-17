@@ -714,7 +714,7 @@ def main() -> int:
     a = ap.parse_args()
     base, out, data, runs, cache, ref, clim, z = GP.setup(a)
     if clim is None:
-        print("no daily climatology (gefs-clim-v2): teleconnections skipped")
+        print("no daily reforecast climatology: teleconnections skipped")
         return 0
     days = GP.valid_days(base)
     n_members = len(z["members"])
