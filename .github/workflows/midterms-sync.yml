@@ -1,6 +1,6 @@
 # Pulls the published forecast from the public model repository (scorvec/midterms-2026, built daily by its own
 # .github/workflows/daily.yml) into the site's midterms/ folder and re-applies the site chrome:
-#   * copy web/index.html, about.html, polls.html, whatif.html, whatif_engine.js and web/data/{model, summary, polls,
+#   * copy web/index.html, about.html, polls.html, whatif.html, whatif_engine.js, mt.css and web/data/{model, summary, polls,
 #     race_history, whatif, districts_2026.topo}.json into midterms/ and midterms/data/; legislatures.html, its
 #     data/stateleg_seats.json and data/stateleg_geo/ (index.json + the per-state TopoJSON it lists) when published;
 #   * drop any robots noindex tag (a guard; the model repo's pages carry none);
@@ -52,7 +52,7 @@ jobs:
           echo "model repo at $sha"
           base="https://raw.githubusercontent.com/$MODEL_REPO/$sha/web"
           tmp=$(mktemp -d); mkdir -p "$tmp/data"
-          for f in index.html about.html polls.html whatif.html whatif_engine.js; do
+          for f in index.html about.html polls.html whatif.html whatif_engine.js mt.css; do
             curl -fsSL --retry 3 -o "$tmp/$f" "$base/$f"
           done
           # legislatures.html (state legislative chambers, experimental) - optional until the model repo publishes it
@@ -94,6 +94,7 @@ jobs:
             sed 's|<meta name="robots" content="noindex">||' "$tmp/$f" > "midterms/$f"
           done
           cp "$tmp/whatif_engine.js" midterms/whatif_engine.js
+          cp "$tmp/mt.css" midterms/mt.css
           # compact copies (the model repo writes compact JSON already; this keeps the site files minified either way)
           for f in "$tmp"/data/*.json; do
             python -c "import json,sys; json.dump(json.load(open(sys.argv[1])), open(sys.argv[2], 'w'), separators=(',', ':'))" "$f" "midterms/data/$(basename "$f")"

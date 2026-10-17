@@ -10,6 +10,7 @@
 <meta name="twitter:card" content="summary">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="mt.css">
 <style>
 :root{--ink:#1b1d22;--muted:#6f6b64;--rule:#e3e1db;--bg:#fcfcfa;--card:#fff;--d:#1f5fbf;--dd:#0b3d91;--r:#b3261e;--rd:#a32215;--focus:#1f5fbf;--soft:#f4f2ed}
 *{box-sizing:border-box}
@@ -17,7 +18,6 @@ body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 "Source Sans 
 .wi{max-width:1180px;margin:0 auto;padding:18px 20px 56px}
 .wi-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px}
 .wi-head h1{font:600 31px/1.15 "Source Serif 4",Georgia,serif;margin:0}
-.wi-head a{color:var(--d);font-size:17px}
 .lede{max-width:820px;margin:6px 0 18px;font-size:18px}
 .lede b{font-weight:600}
 a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
@@ -256,8 +256,8 @@ td.nm{min-width:180px}td.nm small{display:block;color:var(--muted);font-size:14p
 </header>
 <!-- sh:end -->
 <main class="wi" id="main">
-<header class="wi-head"><h1>What if? Change the forecast's assumptions</h1>
- <div><a href="index.html">The forecast</a> &nbsp;<a href="about.html">How it works</a> &nbsp;<a href="legislatures.html">State legislatures</a></div></header>
+<header class="wi-head"><h1>What if? Change the forecast's assumptions</h1></header>
+<nav class="mt-nav" aria-label="Forecast pages"><a href="./">Forecast</a><a href="polls.html">Every poll and its weight</a><a href="about.html">How it works</a><a href="whatif.html" aria-current="page">What if? Test the assumptions</a><a href="legislatures.html">State legislatures</a></nav>
 <p class="lede">A forecast is a set of assumptions plus the polls. Move a slider and every race is <b>simulated again in your browser</b>, 5,000 times, to show how much each assumption matters. The starting position is the model's own forecast; nothing here changes it. It is meant for exploring, not as a prediction.</p>
 
 <section class="res" aria-live="polite" aria-label="Results with your assumptions">
