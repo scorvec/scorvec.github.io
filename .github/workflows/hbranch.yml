@@ -75,12 +75,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ -s "$ARCH/written.txt" ]; then
-            sort -u "$ARCH/written.txt" | sed "s#^#$ARCH/#" | xargs -r -n 20 gh release upload hbranch-hres -R "$GITHUB_REPOSITORY" --clobber
+          if [ -s "$ARCH/written.txt" ]; then  # a file written and then pruned in the same run is not there to upload
+            sort -u "$ARCH/written.txt" | while read -r f; do if [ -f "$ARCH/$f" ]; then echo "$ARCH/$f"; fi; done \
+              | xargs -r -n 20 gh release upload hbranch-hres -R "$GITHUB_REPOSITORY" --clobber
           fi
-          if [ -s "$ARCH/removed.txt" ]; then
+          if [ -s "$ARCH/removed.txt" ]; then  # only what the release holds (a pruned file may never have been uploaded)
+            have=$(gh release view hbranch-hres -R "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
             for f in $(sort -u "$ARCH/removed.txt"); do
-              gh release delete-asset hbranch-hres "$f" -R "$GITHUB_REPOSITORY" -y || echo "::warning::could not delete $f from the release"
+              if grep -qx "$f" <<< "$have"; then
+                gh release delete-asset hbranch-hres "$f" -R "$GITHUB_REPOSITORY" -y || echo "::warning::could not delete $f from the release"
+              fi
             done
           fi
       - name: Frames, still and figures
