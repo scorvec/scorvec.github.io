@@ -284,6 +284,13 @@ PRODUCTS = [
                         "NOAA's experimental SFS beta2, 31 members from the first of each month, up to six weeks in the same layout against its own 1991–2020 reforecast, with its hindcast skill against GEFS, GEPS and CFSv2.",
                         "Monthly",
                     ),
+                    # the model-free baseline: ERA5 statistics only (scripts/monthly, monthly-outlook.yml)
+                    (
+                        "/monthly-outlook.html",
+                        "Claude's month-ahead forecast",
+                        "A statistical forecast designed and run by Claude: next month's mean 500 hPa height and 2 m temperature anomalies over the Northern Hemisphere, issued on the 15th from ERA5 alone (trend, RONI, QBO and vortex regression, tropical SST constructed analogues, persistence of temperature, sea ice, snow and soil moisture, analogue years), blended on a cross-validated hindcast, with an optional skill mask and a running record.",
+                        "Monthly, on the 15th",
+                    ),
                 ],
             ),
             (
@@ -480,6 +487,7 @@ PAGES = [
     ),  # styled by /assets/outlook.css; no padding patches needed
     dict(path="gefs.html", mode="site-header"),  # GEFS extended page (scripts/gefs, gefs.yml), GEPS layout
     dict(path="sfs-subseasonal.html", mode="site-header"),  # SFS beta2 page (scripts/sfs/sfs_sub.py), GEFS layout
+    dict(path="monthly-outlook.html", mode="site-header"),  # statistical month-ahead outlook (scripts/monthly)
     dict(
         path="subseasonal-method.html", mode="site-header"
     ),  # methodology note split out of subseasonal.html; linked from there only, not in PRODUCTS
