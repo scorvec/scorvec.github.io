@@ -146,6 +146,7 @@
 .sh-item:nth-last-child(-n + 4) > .sh-menu--list { left: auto; right: 0; }
 .sh-menu--list a { padding: 0.3rem 0; white-space: nowrap; }
 .sh-menu--cols { left: 0; right: auto; width: max-content; min-width: 30rem; max-width: 48rem; grid-template-columns: repeat(2, minmax(14rem, auto)); gap: 0 2.2rem; padding: 0.8rem 1.2rem 0.7rem; }
+.sh-menu--one { min-width: 17rem; max-width: 28rem; grid-template-columns: 1fr; }
 /* each column stacks its groups on its own (apply_chrome._split_columns), so a short group leaves no hole beside a long one */
 .sh-col { display: grid; align-content: start; gap: 0.7rem; }
 .sh-menu--cols a { padding: 0.26rem 0; white-space: nowrap; }
