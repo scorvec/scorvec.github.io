@@ -103,25 +103,29 @@ SCRIPT = r"""
     x.font = '500 ' + Math.round(14 * fs) + 'px "Source Sans 3", sans-serif'; x.fillStyle = '#4a4744'; x.textAlign = 'center'; x.textBaseline = 'middle';
     x.fillText('RMM1', cx, size - 12); x.save(); x.translate(12, cy); x.rotate(-Math.PI / 2); x.fillText('RMM2', 0, 0); x.restore();
 
-    // the observed track: the last obsDays days, older points fainter, a label at each month's first point
+    // the observed track: the daily 00Z values of the last obsDays days (the archive is 12-hourly; the 12Z points
+    // zigzag about the daily path), older points fainter, a label at each month's first point
     var o = D.obs;
     if (o && o.t.length) {
-      var n = o.t.length, cut = Math.max(0, n - S.obsDays * 2), lastMonth = '';
-      for (var i = cut + 1; i < n; i++) {
-        var f = (i - cut) / (n - cut);
-        x.strokeStyle = 'rgba(40,40,40,' + (0.25 + 0.7 * f).toFixed(2) + ')'; x.lineWidth = 1.6;
-        x.beginPath(); x.moveTo(X(clean1(o.r1[i - 1], o.dn && o.dn[i - 1])), Y(clean2(o.r2[i - 1], o.dn && o.dn[i - 1])));
-        x.lineTo(X(clean1(o.r1[i], o.dn && o.dn[i])), Y(clean2(o.r2[i], o.dn && o.dn[i]))); x.stroke();
+      var idx = []; for (var q = 0; q < o.t.length; q++) if (o.t[q].slice(11) === '00') idx.push(q);
+      idx = idx.slice(-S.obsDays);
+      var n = idx.length, lastMonth = '';
+      var ox = function (q) { return X(clean1(o.r1[q], o.dn && o.dn[q])); }, oy = function (q) { return Y(clean2(o.r2[q], o.dn && o.dn[q])); };
+      for (var i = 1; i < n; i++) {
+        x.strokeStyle = 'rgba(40,40,40,' + (0.25 + 0.7 * i / n).toFixed(2) + ')'; x.lineWidth = 1.8;
+        x.beginPath(); x.moveTo(ox(idx[i - 1]), oy(idx[i - 1])); x.lineTo(ox(idx[i]), oy(idx[i])); x.stroke();
       }
-      for (var j = cut; j < n; j++) {
-        var px = X(clean1(o.r1[j], o.dn && o.dn[j])), py = Y(clean2(o.r2[j], o.dn && o.dn[j])), mo = o.t[j].slice(0, 7);
-        pts.push({ x: px, y: py, s: 'Observed ' + fmtDate(o.t[j]), r1: clean1(o.r1[j], o.dn && o.dn[j]), r2: clean2(o.r2[j], o.dn && o.dn[j]) });
-        if (o.t[j].slice(11) === '00') { x.fillStyle = 'rgba(40,40,40,' + (0.35 + 0.65 * (j - cut) / (n - cut)).toFixed(2) + ')'; x.beginPath(); x.arc(px, py, 2.2, 0, 2 * Math.PI); x.fill(); }
-        if (mo !== lastMonth && j > cut) { lastMonth = mo; label(x, px, py, new Date(o.t[j] + ':00Z').toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' }), '#444', -9); }
-        if (j === cut) lastMonth = mo;
+      for (var j = 0; j < n; j++) {
+        var q2 = idx[j], px = ox(q2), py = oy(q2), mo = o.t[q2].slice(0, 7);
+        pts.push({ x: px, y: py, s: 'Observed ' + fmtDate(o.t[q2]), r1: clean1(o.r1[q2], o.dn && o.dn[q2]), r2: clean2(o.r2[q2], o.dn && o.dn[q2]) });
+        x.fillStyle = 'rgba(40,40,40,' + (0.35 + 0.65 * j / n).toFixed(2) + ')'; x.beginPath(); x.arc(px, py, 2.4, 0, 2 * Math.PI); x.fill();
+        if (j && mo !== lastMonth) label(x, px, py, new Date(o.t[q2] + ':00Z').toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' }), '#444', -11);
+        lastMonth = mo;
       }
-      var lx = X(clean1(o.r1[n - 1], o.dn && o.dn[n - 1])), ly = Y(clean2(o.r2[n - 1], o.dn && o.dn[n - 1]));
-      x.fillStyle = '#111'; x.strokeStyle = '#fff'; x.lineWidth = 1.5; x.beginPath(); x.arc(lx, ly, 5, 0, 2 * Math.PI); x.fill(); x.stroke();
+      if (n) {
+        var lq = idx[n - 1];
+        x.fillStyle = '#111'; x.strokeStyle = '#fff'; x.lineWidth = 1.5; x.beginPath(); x.arc(ox(lq), oy(lq), 5.5, 0, 2 * Math.PI); x.fill(); x.stroke();
+      }
     }
 
     // the models: members faint under the means; a marker every 5 days on the mean, the end point squared
