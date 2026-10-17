@@ -2,7 +2,7 @@
 """Operational-minus-reforecast drift correction for the GEFS page: removes the part of today's operational drift that
 the reforecast does not share.
 
-The page removes GEFS's lead-dependent drift with its own 2000-2019 reforecast (gefs_daily / gefs-clim-v2). That is
+The page removes GEFS's lead-dependent drift with its own 2000-2019 reforecast (gefs_daily / gefs-clim-v3). That is
 only right if today's operational runs drift the way the reforecast did. They do not: verified against GEFS's own
 analyses (21 August 2026 runs, control), from day 1 to day 35 the operational run cools the NH 30-70 surface by
 0.59 K where the reforecast cooled 0.14 K, lowers 500 hPa there by 14 m where the reforecast raised it 6 m, and warms

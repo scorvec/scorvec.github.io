@@ -866,9 +866,9 @@ def skill(hind_path: Path, doy_now: int, out: Path, data: Path, n_live: int = 31
 # ── driver ────────────────────────────────────────────────────────────────────────────────────────────────────
 def live_olr_offset(z, init, cache: Path) -> np.ndarray:
     """The live run's uniform OLR offset against the reforecast, per lead, for the Hovmoller only (GEPS removes its
-    ~7.6 W/m2): the global-mean weekly OLR anomaly of the ensemble mean against the v1 weekly climatology (the file
-    gefs_live.py has already put in the cache, else none). ~1.4 W/m2 on 2026-09-25 (GEPS: 7.6); in the RMM it would
-    be 0.09 sd of uniform OLR, which projects to about 0.01 - so the RMM keeps it, the Hovmoller does not."""
+    ~7.6 W/m2): the global-mean weekly OLR anomaly of the ensemble mean against the weekly reforecast climatology
+    (gefs_live.clim_at, through the shared cache). ~1.4 W/m2 on 2026-09-25 (GEPS: 7.6); in the RMM it would be 0.09
+    sd of uniform OLR, which projects to about 0.01 - so the RMM keeps it, the Hovmoller does not."""
     try:
         import gefs_live as GL
 

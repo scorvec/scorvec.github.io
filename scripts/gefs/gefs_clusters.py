@@ -111,7 +111,7 @@ def main() -> int:
     a = ap.parse_args()
     base, out, data, _runs, _cache, ref, clim, z = GP.setup(a)
     if clim is None:
-        print("no daily climatology (gefs-clim-v2): clusters skipped")
+        print("no daily reforecast climatology: clusters skipped")
         return 0
     season = GP.season_of(base.month)
     n_members = len(z["members"])

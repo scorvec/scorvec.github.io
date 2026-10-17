@@ -3,7 +3,7 @@
 hindcast-calibrated, with the skill mask - the GEFS port of the GEPS page's prob_maps.py.
 
 Anomaly     every member's weekly mean minus the GEFSv12 reforecast climatology at the INIT day of year and the same
-            week of lead (release gefs-clim-v1, read as gefs_live.clim_at reads it), re-based to 1991-2020 by
+            week of lead (release gefs-clim-v3, read as gefs_live.clim_at reads it), re-based to 1991-2020 by
             subtracting the ERA5 1991-2020 minus 2001-2020 normal difference averaged over the week's valid dates
             (era5_shift.npz; 2001-2020 stands in for the reforecast's 2000-2019) - the weekly maps' convention.
 Categories  below / near / above normal: the terciles of the observed 7-day-mean anomaly for that time of year over
@@ -48,16 +48,15 @@ import argparse
 import datetime as dt
 import json
 import sys
-import urllib.request
 from pathlib import Path
 
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import gefs_reforecast as R  # (the climatology release)
 import gefs_skill as SK
 
-CLIM_URL = "https://github.com/scorvec/scorvec.github.io/releases/download/gefs-clim-v1/gefs_clim_{c:03d}.npz"
 LAT, LON = SK.LAT, SK.LON
 DRY_MM = 0.5  # climatological weekly mean below this: terciles undefined
 P_LO, P_HI = 0.33, 0.70  # colour ramp of the most likely tercile
@@ -82,19 +81,12 @@ def phi(x):
 
 # ── data ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 def clim_at(init: dt.date, cache: Path, tags):
-    """gefs-clim-v1 weekly climatology at the init day of year, linear between the two 5-day centres (gefs_live.clim_at's
-    arithmetic; the files are shared with it through the same cache directory)."""
+    """The weekly reforecast climatology at the init day of year, linear between the two 5-day centres
+    (gefs_live.clim_at's arithmetic; the files are shared with it through the same cache directory)."""
     i, wi, j, wj = SK.bracket(SK.noleap_doy(init))
     out = {}
     for ci, wt in ((i, wi), (j, wj)):
-        c = int(SK.CENTRES[ci])
-        p = cache / f"gefs_clim_{c:03d}.npz"
-        if not p.exists():
-            cache.mkdir(parents=True, exist_ok=True)
-            req = urllib.request.Request(CLIM_URL.format(c=c), headers={"User-Agent": "scorvec-gefs"})
-            with urllib.request.urlopen(req, timeout=120) as r:
-                p.write_bytes(r.read())
-        z = np.load(p)
+        z = np.load(R.clim_file(f"gefs_clim_{int(SK.CENTRES[ci]):03d}.npz", cache))
         for t in tags:
             out[t] = out.get(t, 0) + wt * z[f"w_{t}"].astype("float64")
     return out
@@ -379,7 +371,7 @@ def main() -> int:
     ap.add_argument("--npz", required=True, help="gefs2_<date>.npz from gefs_live.fetch")
     ap.add_argument("--date", required=True, help="init YYYYMMDD (00Z)")
     ap.add_argument("--site", required=True)
-    ap.add_argument("--cache", required=True, help="gefs-clim-v1 cache (shared with gefs_live)")
+    ap.add_argument("--cache", required=True, help="climatology cache (shared with gefs_live)")
     ap.add_argument("--ref", default=None, help="reference files (default: CACHE/../ref)")
     a = ap.parse_args()
     base = SK.as_date(a.date)
