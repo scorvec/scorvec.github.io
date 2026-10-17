@@ -111,6 +111,7 @@ scripts/strat/*
 !scripts/strat/momentum_budget.py
 !scripts/strat/build_vt100_clim.py
 !scripts/strat/heatflux100_bias.py
+!scripts/strat/build_hf_warning.py
 !scripts/strat/build_strat_history.py
 !scripts/strat/strat_history.py
 !scripts/strat/forecast_drip.py
