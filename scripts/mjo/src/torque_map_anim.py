@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AAM surface-torque budget products (forecast days), AIFS-ENS ENSEMBLE MEAN.
+"""AAM surface-torque budget products (forecast days), IFS-ENS ENSEMBLE MEAN.
 
 Two outputs:
   1. Frame-based applet: per-day 2-panel maps (friction + mountain torque-density
@@ -8,16 +8,20 @@ Two outputs:
   2. Torque ANOMALY time-series: Global | NH | SH, one row. Absolute values are
      deliberately not shown -- see the note above the figure block.
 
-Ensemble mean: friction τ_λ=ρC_d|V|u is NONLINEAR, so we average the per-member
-friction (dask streams member-by-member); mountain (∝p_s) and MSLP are linear, so
-their ensemble mean is just the member mean. We REUSE the perturbed members the
-other products already download — sp (AAM, --sp-dir), 10u (Hovmöller, --u10-dir),
-msl (SOI, --msl-dir) — and download only 10v ourselves. The observed d(AAM)/dt is
-the ensemble-mean AAM tendency read from aam.py's forecast archive (AAM ∝ u, linear).
+IFS-ENS, a physics model, so the torques are its own and its budget closes (aifs-aam-budget.html): the 50 perturbed
+members of the 00/12 UTC run (open data, Google Cloud mirror). Every quantity is a mean over a forecast DAY, the
+window from day d-1 to day d:
+  friction  -a cosφ τ, τ = the window difference of the accumulated eastward turbulent surface stress ewss / 86400 s
+            (the model's own stress, turbulent orographic form drag included; linear, so the member mean is exact);
+  mountain  h ∂p_s/∂λ on the ERA5 orography (the climatology's) from the members' mean surface pressure, the
+            trapezoid of its 12-hourly values over the window - the 00/12 UTC sampling of the ERA5 climatology, so its
+            aliasing of the semidiurnal pressure tide cancels in the anomaly;
+  d(AAM)/dt the window difference of the ensemble-mean AAM in aam.py's archive of the same runs.
+The parameterised gravity-wave and blocking drag stresses are not in open data, so their torque sits in the gap.
 
     python src/torque_map_anim.py --date 20260602 --time 00 \
         --anim-dir assets/sst/anim/torque --manifest assets/sst/anim/torque_manifest.json \
-        --ts-out assets/sst/torque_timeseries.webp
+        --ts-out assets/sst/torque_timeseries.webp --ranges-out assets/sst/torque_ranges.webp
 """
 
 from __future__ import annotations
@@ -43,27 +47,25 @@ from cartopy.util import add_cyclic_point
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
 import store as ecmwf  # shared ECMWF download manager
+from aam import ARCHIVE_PATH as AAM_ARCHIVE, DAILY_STEPS, SP_STEPS, member_mean
 from doycal import noleap_doy  # common-year day of year (29 Feb = 59.5)
 
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
 OROG = REF / "era5_orography.nc"
-AAM_ARCHIVE = REF / "aam_forecast_archive.nc"
 AAM_CLIM = REF / "aam_clim.nc"  # ERA5 AAM seasonal cycle -> climatological dM/dt
 MAP_CLIM = REF / "torque_map_clim_coeffs.nc"
 RANGE_SD = REF / "torque_range_sd.nc"  # per-barrier 1-sigma, for scale context
-DRAG = REF / "drag_cd_field.nc"  # per-cell, per-month C_d from ERA5 stress
-HEMI_SD = REF / "torque_hemi_sd.nc"  # net-torque anomaly 1-sigma, G/NH/SH    # ERA5 per-gridcell torque-density clim
-DAILY_STEPS = list(range(24, 361, 24))  # days 1..15 (matches reused 10u/msl)
+HEMI_SD = REF / "torque_hemi_sd.nc"  # net-torque anomaly 1-sigma, G/NH/SH, by day of year (build_torque_hemi_sd.py)
+DAYS = list(range(1, 16))  # forecast days: the windows ending 24, 48 ... 360 h
 COARSEN = 20  # ~5°
 
 
-def _map_clim(coef_da, clat, clon, doys, hour=12):
+def _map_clim(coef_da, clat, clon, doys):
     """Evaluate the ERA5 harmonic torque-density clim on the map grid for each
-    forecast day's common-year day (doycal.noleap_doy) → (day, clat, clon). Per-hour coeffs (00Z/12Z; the
-    friction density has a strong land diurnal cycle) are selected at the run's
-    valid hour; a legacy hour-less coeff file is used as-is."""
+    forecast day's common-year day (doycal.noleap_doy) → (day, clat, clon). The coeffs are per hour (00Z/12Z; the
+    friction density has a strong land diurnal cycle); a forecast DAY's mean takes the mean of the two."""
     if "hour" in coef_da.dims:
-        coef_da = coef_da.sel(hour=hour, method="nearest")
+        coef_da = coef_da.mean("hour")
     c = coef_da.reindex(latitude=clat, longitude=clon, method="nearest").values
     out = np.empty((len(doys), len(clat), len(clon)))
     for i, doy in enumerate(doys):
@@ -83,41 +85,33 @@ RANGES = {
     "Alps/Europe": (0, 45, 36, 50),
 }
 A = 6.371e6
-RHO = 1.225
-CD = 1.3e-3
 HU = 1e18
 AAM_SCALE = 1e25  # Hadley unit; archive units
-RD = 287.05
-TREF = 288.0  # rho = p_s/(R*TREF), as build_drag_field.py used
+DAY_S = 86400.0
 
 
-def _open_cf_pf(cf_path: Path, pf_path: Path, short: str | None = None) -> xr.DataArray:
-    """cf+pf GRIB -> (number, step, lat, lon) on a 0..360 ascending-lat grid,
-    members renumbered 0..N, steps restricted to DAILY_STEPS. Lazy (chunked).
+def _open_ifs(path: Path, short: str | None = None) -> xr.DataArray:
+    """An IFS-ENS GRIB -> (number, step, lat, lon) on a 0..360, ascending-latitude grid. Lazy, one member a chunk.
     `short` filters one field out of a batched multi-param surface file."""
-    parts = []
-    for p in (cf_path, pf_path):
-        bk = {"indexpath": ""}
-        if short:
-            bk["filter_by_keys"] = {"shortName": short}
-        ds = xr.open_dataset(p, engine="cfgrib", backend_kwargs=bk, chunks={"number": 1})
-        da = ds[next(iter(ds.data_vars))]
-        if "number" not in da.dims:
-            da = da.expand_dims("number")
-        parts.append(da)
-    da = xr.concat(parts, dim="number")
-    da = da.assign_coords(number=np.arange(da.sizes["number"])).sortby("latitude")
+    bk = {"indexpath": ""}
+    if short:
+        bk["filter_by_keys"] = {"shortName": short}
+    ds = xr.open_dataset(path, engine="cfgrib", backend_kwargs=bk, chunks={"number": 1})
+    da = ds[next(iter(ds.data_vars))].sortby("latitude")
     if float(da.longitude.min()) < 0:
         da = da.assign_coords(longitude=da.longitude % 360).sortby("longitude")
+    return da
+
+
+def _at(da: xr.DataArray, hours) -> xr.DataArray:
+    """The steps at `hours` (forecast hours)."""
     hrs = (da.step / np.timedelta64(1, "h")).values.astype(int)
-    da = da.isel(step=np.isin(hrs, DAILY_STEPS))
-    hrs = (da.step / np.timedelta64(1, "h")).values.astype(int)
-    return da.assign_coords(day=("step", hrs // 24))
+    return da.isel(step=[int(np.flatnonzero(hrs == h)[0]) for h in hours])
 
 
 def _aam_dmdt(date: str, time: str):
-    """Ensemble-mean d(AAM)/dt (Hadley) per lead day from aam.py's forecast archive
-    (fc_mean, ×10²⁵ kg m²/s). Returns {G,NH,SH: {lead: dmdt}} or None."""
+    """Ensemble-mean d(AAM)/dt (Hadley) over each forecast day d (the window d-1 to d) from aam.py's archive of the
+    same runs (fc_mean, ×10²⁵ kg m²/s). Returns {G,NH,SH: {d: dmdt}} or None."""
     if not AAM_ARCHIVE.exists():
         return None
     ds = xr.open_dataset(AAM_ARCHIVE)
@@ -130,8 +124,8 @@ def _aam_dmdt(date: str, time: str):
     out = {}
     for reg, key in (("global", "G"), ("nh", "NH"), ("sh", "SH")):
         M = fc.sel(region=reg).values * AAM_SCALE  # kg m²/s
-        dmdt = np.gradient(M, lead * 86400.0) / HU  # Hadley
-        out[key] = dict(zip(lead.tolist(), dmdt.tolist()))
+        dmdt = np.diff(M) / (np.diff(lead) * DAY_S) / HU  # Hadley, the window ending at lead[1:]
+        out[key] = dict(zip(lead[1:].tolist(), dmdt.tolist()))
     return out
 
 
@@ -157,10 +151,6 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True)
     ap.add_argument("--time", default="00")
-    ap.add_argument("--data-dir", default="data/torque")  # where we put 10v
-    ap.add_argument("--sp-dir", default="data/aam")  # AAM's sp (cf+pf)
-    ap.add_argument("--u10-dir", default="data/u10")  # Hovmöller's 10u (cf+pf)
-    ap.add_argument("--msl-dir", default="data/msl")  # SOI's msl (cf+pf)
     ap.add_argument("--anim-dir", default="assets/sst/anim/torque")
     ap.add_argument("--manifest", default="assets/sst/anim/torque_manifest.json")
     ap.add_argument("--ts-out", default="assets/sst/torque_timeseries.webp")
@@ -172,8 +162,6 @@ def main() -> int:
     )
     args = ap.parse_args()
     init = pd.Timestamp(f"{args.date}T{args.time}:00")
-    dd = Path(args.data_dir)
-    dd.mkdir(parents=True, exist_ok=True)
     D, T = args.date, args.time
 
     o = xr.open_dataarray(OROG)
@@ -184,71 +172,53 @@ def main() -> int:
     def grid(da):
         return da.reindex(latitude=lat, longitude=lon, method="nearest")
 
-    # --- shared store: sp (16-step, shared with AAM) + 10u (shared with Hovmöller) +
-    # msl (shared with SOI) + 10v (torque-only); fetch-once, deduped across the pipeline ---
+    # --- shared store: sp (12-hourly, aam.py's file), ewss (daily, accumulated) and msl (the shared IFS surface batch,
+    # days 1-15) of the 50 IFS-ENS members ---
     cyc = ecmwf.Cycle(D, T)
-
-    def sf(short, typ):  # batched surface file (sp/2t analysis, 10u/10v/msl fc)
-        return ecmwf.sfc_path(cyc, "aifs-ens", typ, short)
-
-    sp = _open_cf_pf(sf("sp", "cf"), sf("sp", "pf"), "sp")
-    u10 = _open_cf_pf(sf("10u", "cf"), sf("10u", "pf"), "10u")
-    msl = _open_cf_pf(sf("msl", "cf"), sf("msl", "pf"), "msl")
-    v10 = _open_cf_pf(sf("10v", "cf"), sf("10v", "pf"), "10v")
+    sp = _open_ifs(ecmwf.ensure(cyc, ecmwf.Spec("ifs", "pf", "sp", "sfc", (), SP_STEPS)))
+    ewss = _open_ifs(ecmwf.ensure(cyc, ecmwf.Spec("ifs", "pf", "ewss", "sfc", (), tuple(DAILY_STEPS))))
+    msl = _open_ifs(ecmwf.sfc_path(cyc, "ifs", "pf", "msl"), "msl")
     print(
-        f"  members: sp={sp.sizes['number']} 10u={u10.sizes['number']} 10v={v10.sizes['number']} msl={msl.sizes['number']}",
-        flush=True,
+        f"  IFS-ENS members: sp={sp.sizes['number']} ewss={ewss.sizes['number']} msl={msl.sizes['number']}", flush=True
     )
+    days = DAYS
+    end_h = [24 * d for d in days]  # each day's window ends here
 
-    days = [int(d) for d in np.unique(sp.day.values) if 1 <= d <= 15]
-    cosn = np.cos(np.deg2rad(u10.latitude.values))[:, None]
-    # Drag: a per-grid-cell, per-month C_d solved against ERA5's own boundary-layer
-    # stress (build_drag_field.py), not one global constant. The old constant carried
-    # 72% of the true variability and had the wrong sign in the global mean; the field
-    # reproduces ERA5's stress with a median r2 of 0.95. rho likewise comes from the
-    # forecast's own surface pressure, matching how the field was derived.
-    cd_t = None
-    if DRAG.exists():
-        _c = xr.open_dataset(DRAG)["cd"]
-        mons = [pd.Timestamp(init + pd.Timedelta(days=int(d))).month for d in days]
-        cd_t = (
-            _c.sel(month=mons)
-            .interp(latitude=u10.latitude.values, longitude=u10.longitude.values, kwargs={"fill_value": None})
-            .transpose("month", "latitude", "longitude")
-            .values
-        )
-        print(
-            f"  drag field: C_d {np.nanmin(cd_t):.2e}..{np.nanmax(cd_t):.2e} over {len(days)} forecast days", flush=True
-        )
-    else:
-        print(f"  WARN: {DRAG.name} missing — falling back to the constant C_d", flush=True)
+    # Linear in every member field, so the means are taken first, one member at a time (aam.member_mean).
+    def mean(da):
+        return grid(da.isel(number=0, drop=True).copy(data=member_mean(da)))
 
-    # friction is nonlinear → per-member then mean over members (dask streams these)
-    rho = sp / (RD * TREF)  # forecast-computable density
-    kern = (-(A * cosn) * rho * np.hypot(u10, v10) * u10).mean("number")
-    kern = grid(kern).sel(step=kern.step).load()
-    if cd_t is not None:
-        # kern is (step, lat, lon); cd_t is (day, lat, lon) on the same day ordering
-        kd = np.stack([cd_t[i] for i, _ in enumerate(days)])
-        fric = kern.copy(data=kern.values * kd)
-    else:
-        fric = kern * (RHO / (101325.0 / (RD * TREF))) * CD  # legacy constant path
-    spm = grid(sp.mean("number")).load()
-    mslm = grid(msl.mean("number")).load()
+    spm = mean(sp)
+    ewm = mean(ewss)
+    mslm = mean(_at(msl, end_h))
+
+    # friction: the model's own surface stress, the window mean from the accumulated ewss (N m^-2 s)
+    cosn = np.cos(np.deg2rad(lat))[:, None]
+    tau = (_at(ewm, end_h).values - _at(ewm, [h - 24 for h in end_h]).values) / DAY_S
+    fricD = xr.DataArray(
+        -(A * cosn)[None] * tau,
+        dims=("day", "latitude", "longitude"),
+        coords={"day": days, "latitude": lat, "longitude": lon},
+    )
     # mountain (form-drag) torque density as h·∂p_s/∂λ — identical net to -p_s ∂h/∂λ
     # (integration by parts in λ) but NO dipole: single-signed over each range, reading
     # directly with the cross-mountain pressure gradient (high-west/low-east ⇒ blue/braking).
+    # Each day: the trapezoid of the 12-hourly values over its window (weights 1/4, 1/2, 1/4).
     lonax = spm.get_axis_num("longitude")
     dpdlam = (np.roll(spm.values, -1, axis=lonax) - np.roll(spm.values, 1, axis=lonax)) / (2 * dlam)  # periodic
-    mtn = spm.copy(data=o.values[None] * dpdlam)
-
-    def by_day(arr):
-        a = arr.assign_coords(day=("step", (arr.step / np.timedelta64(1, "h")).values.astype(int) // 24))
-        return a.swap_dims({"step": "day"}).sel(day=days)
-
-    fricD = by_day(fric)
-    mtnD = by_day(mtn)
-    mslD = by_day(mslm)
+    mtn12 = spm.copy(data=o.values[None] * dpdlam)
+    mtnD = xr.concat(
+        [
+            0.25 * _at(mtn12, [h - 24]).squeeze("step", drop=True)
+            + 0.5 * _at(mtn12, [h - 12]).squeeze("step", drop=True)
+            + 0.25 * _at(mtn12, [h]).squeeze("step", drop=True)
+            for h in end_h
+        ],
+        dim=xr.DataArray(days, dims="day", name="day"),
+    )
+    # the contours: the day's end
+    mslD = mslm.assign_coords(day=("step", days)).swap_dims({"step": "day"})
+    spmD = _at(spm, end_h).assign_coords(day=("step", days)).swap_dims({"step": "day"})
 
     obs = _aam_dmdt(D, T)
 
@@ -263,9 +233,9 @@ def main() -> int:
     clat = fricC.latitude.values
     if MAP_CLIM.exists():
         cc = xr.open_dataset(MAP_CLIM)
-        doys = noleap_doy([init + pd.Timedelta(days=int(d)) for d in days])
-        fa = fricC.copy(data=fricC.values - _map_clim(cc["friction"], clat, clon, doys, hour=init.hour))
-        ma = mtnC.copy(data=mtnC.values - _map_clim(cc["mountain"], clat, clon, doys, hour=init.hour))
+        doys = noleap_doy([init + pd.Timedelta(hours=24 * int(d) - 12) for d in days])  # each window's midpoint
+        fa = fricC.copy(data=fricC.values - _map_clim(cc["friction"], clat, clon, doys))
+        ma = mtnC.copy(data=mtnC.values - _map_clim(cc["mountain"], clat, clon, doys))
         base_lbl = "ERA5 1991–2020 climatology"
     else:
         print(f"  WARN: {MAP_CLIM.name} missing — anomaly vs forecast-period mean", flush=True)
@@ -291,7 +261,6 @@ def main() -> int:
     zm = float(np.nanpercentile(np.abs(np.nanmean(ma.values, axis=2)[:, mm] * cosw), 98)) or ml
     import scipy.ndimage as ndi
 
-    spmD = by_day(spm)  # ens-mean surface pressure, per day
     # STANDARDIZED pressure anomaly z = (p − clim_mean_month)/clim_std_month — equalises
     # the huge latitude dependence of pressure variability so tropical signals show, not
     # just storm-track ones (σ floored at 0.5 hPa). Prefer MSLP (continuous → no terrain
@@ -381,7 +350,12 @@ def main() -> int:
         )
         for row, (arr, lim, zlim, ttl) in enumerate(
             [
-                (fa.sel(day=d).values, fl, zf, "Friction torque density anomaly  (−ρC$_d$|V|u·a cosφ)"),
+                (
+                    fa.sel(day=d).values,
+                    fl,
+                    zf,
+                    "Friction torque density anomaly  (−τ a cosφ, the model's surface stress)",
+                ),
                 (
                     ma.sel(day=d).values,
                     ml,
@@ -508,8 +482,8 @@ def main() -> int:
             inset(fig.add_subplot(gs[row, 1]), np.nanmean(arr, axis=1)[mm] * cosw, zlim)
         valid = init + pd.Timedelta(days=d)
         fig.suptitle(
-            f"AIFS-ENS (ensemble mean) · AAM surface-torque anomalies — "
-            f"init {init:%Y-%m-%d %HZ} · valid {valid:%Y-%m-%d} (forecast day {d})",
+            f"IFS-ENS (ensemble mean) · AAM surface-torque anomalies — "
+            f"init {init:%Y-%m-%d %HZ} · forecast day {d}, the 24 h to {valid:%Y-%m-%d %HZ}",
             fontsize=12,
             fontweight="bold",
             y=0.99,
@@ -541,7 +515,7 @@ def main() -> int:
     print(f"wrote {len(entries)} frames + {args.manifest}")
 
     # --- torque ANOMALY time-series: Global | NH | SH ---
-    valid = [init + pd.Timedelta(days=d) for d in days]
+    valid = [init + pd.Timedelta(hours=24 * d - 12) for d in days]  # each day's mean, at its window's midpoint
     cols = ("G", "NH", "SH")
     titles = {"G": "Global budget", "NH": "Northern Hemisphere", "SH": "Southern Hemisphere"}
     obs_by_day = {h: {d: obs[h].get(d, np.nan) for d in days} for h in cols} if obs else {}
@@ -573,16 +547,20 @@ def main() -> int:
     # pressure tide at all -- both samples sit at the same S2 phase. Showing
     # absolute numbers invited reading a level that none of that supports. The
     # anomalies are robust, because every one of those errors sits in the mean and
-    # cancels in the difference. The "implied GWD" residual went with it: it was
-    # dominated by bulk-formula error, not gravity-wave drag.
+    # cancels in the difference.
     fig, axes = plt.subplots(1, 3, figsize=(14.5, 5.4), sharex=True, sharey=True)
     hsd = {}
-    if HEMI_SD.exists():
-        _h = xr.open_dataset(HEMI_SD)
-        hsd = {str(k): float(v) for k, v in zip(_h["region"].values, _h["sd"].values)}
+    if HEMI_SD.exists():  # each day's sigma at its window's midpoint (common-year day; 29 Feb takes its neighbours')
+        _h = xr.open_dataset(HEMI_SD)["sd"]
+        x = noleap_doy(valid)
+        hsd = {
+            str(k): 0.5
+            * (_h.sel(region=k, doy=np.floor(x).astype(int)) + _h.sel(region=k, doy=np.ceil(x).astype(int))).values
+            for k in _h.region.values
+        }
     for c, hemi in enumerate(cols):
         ax = axes[c]
-        # climatological spread of the NET anomaly, built from the same drag field —
+        # climatological spread of the NET anomaly: ERA5's daily means at this time of year, the same quantity —
         # without it there is no way to tell a routine swing from a real event
         if hemi in hsd:
             for k, al in ((2, 0.09), (1, 0.16)):
@@ -608,24 +586,25 @@ def main() -> int:
         ax.grid(True, alpha=0.25)
         ax.set_xlim(valid[0], valid[-1])
         ax.set_title(titles[hemi], fontsize=11, fontweight="bold")
-        if c == 0:
-            ax.legend(fontsize=7.8, loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=5, frameon=False)
-        for lb in ax.get_xticklabels():
-            lb.set_rotation(45)
-            lb.set_ha("right")
-            lb.set_fontsize(8)
+        if c == 0:  # under the panels; out of the layout, which would otherwise widen this panel's slot by its width
+            leg = ax.legend(fontsize=8, loc="upper left", bbox_to_anchor=(0.0, -0.09), ncol=5, frameon=False)
+            leg.set_in_layout(False)
+        ax.xaxis.set_major_locator(mdates.DayLocator(interval=3))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%-d %b"))
+        ax.tick_params(axis="x", labelsize=8.5)
     axes[0].set_ylabel("torque anomaly vs ERA5 1991–2020\n(Hadley = 10¹⁸ N m)", fontsize=9.5)
     fig.suptitle(
-        f"AAM torque anomalies (ensemble mean) — AIFS-ENS init {init:%Y-%m-%d %HZ}", fontsize=13, fontweight="bold"
+        f"AAM torque anomalies (ensemble mean) — IFS-ENS init {init:%Y-%m-%d %HZ}", fontsize=13, fontweight="bold"
     )
     fig.text(
         0.5,
-        -0.02,
+        -0.07,
         "Anomalies against the ERA5 1991–2020 climatology, everything on the same footing: the forecast tendency has its own "
-        "climatological tendency removed too. Shaded = ±1σ and ±2σ of the net anomaly over 1991–2020.\n"
-        "Each hemisphere's gap between net surface torque (black) and d(AAM)/dt (dashed) is the unresolved gravity-wave-drag "
-        "torque, cross-equatorial momentum transport (an internal flux, not a torque) and any non-closure of the forecast's "
-        "own budget.",
+        "climatological tendency removed too. Shaded = ±1σ and ±2σ of ERA5's daily net anomaly at this time of year, 1991–2020.\n"
+        "Each day is its 24 h mean: friction from the model's own surface stress, mountain torque from its surface "
+        "pressure, d(AAM)/dt from its winds.\nEach hemisphere's gap between net surface torque (black) and d(AAM)/dt "
+        "(dashed) is the gravity-wave-drag torque (not in ECMWF open data), cross-equatorial momentum transport (an "
+        "internal flux, not a torque) and any non-closure of the forecast's own budget.",
         ha="center",
         va="top",
         fontsize=8.5,
@@ -668,8 +647,9 @@ def main() -> int:
         Path(args.series_out).write_text(
             _json.dumps(
                 {
+                    "model": "IFS-ENS",
                     "init": init.strftime("%Y-%m-%dT%HZ"),
-                    "valid": [v.strftime("%Y-%m-%d") for v in valid],
+                    "valid": [v.strftime("%Y-%m-%dT%H:00") for v in valid],  # each day's window midpoint
                     "units": "Hadley (1e18 N m), ensemble-mean mountain-torque anomaly vs ERA5 1991-2020",
                     "ranges": {nm: [round(float(x), 2) for x in series[nm]] for nm in series},
                     "global": [round(float(x), 2) for x in gtot],
@@ -736,7 +716,7 @@ def main() -> int:
         if k % 3 == 0:
             a.set_ylabel("Hadley", fontsize=8)
     fig.suptitle(
-        f"Which barriers are driving the mountain torque — AIFS-ENS ensemble mean, init {init:%Y-%m-%d %HZ}",
+        f"Which barriers are driving the mountain torque — IFS-ENS ensemble mean, init {init:%Y-%m-%d %HZ}",
         fontsize=12.5,
         fontweight="bold",
         y=0.975,

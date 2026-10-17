@@ -202,17 +202,18 @@ PRODUCTS = [
         "Circulation/tropics",
     ),
     # one hub: stratosphere.html holds every stratosphere product by timescale (including the GEPS/GEFS/SEAS5 vortex
-    # products and the QBO tracker), and this menu lists its sections
+    # products and the QBO tracker), and this menu lists its sections; the one group heading must not repeat the
+    # menu button or the hub link
     (
         "Stratosphere",
         "The polar vortex and the waves going up into it, from today's analysis to the season, and the QBO",
         [
             (
-                "Polar vortex and QBO",
+                "By timescale",
                 [
                     (
                         "/stratosphere.html",
-                        "Stratosphere and polar vortex",
+                        "Every stratosphere product",
                         "Every stratosphere product in one place, by timescale: analyses and the QBO now; AIFS-ENS, IFS-ENS, GEFS and the Canadian models' vortex, heat flux and wave driving for the next two weeks; GEPS and GEFS to day 35; the C3S models and SEAS5 for the season; and every sudden warming since 1980 with what followed.",
                         "Twice daily",
                     ),
@@ -543,6 +544,7 @@ PAGES = [
         anchor="<nav>",
         tabs="skewt",
         footer=False,
+        local_assets=("sharplib.js", "app.js"),  # the explorer's own scripts, versioned like the shared ones
         drop=[
             r'\s*<a href="\.\./index\.html" class="nav-name">Shawn Corvec</a>',
             r'\s*<a href="\.\./index\.html" class="back">← HOME</a>',
@@ -652,6 +654,14 @@ def asset_hash(name: str) -> str:
 
 def version_assets(html: str) -> str:
     return _ASSET_REF.sub(lambda m: f"{m[1]}{m[2]}?v={asset_hash(m[3])}{m[1]}", html)
+
+
+def version_local(html: str, page: str, names: tuple) -> str:
+    """Stamp a page's own scripts (`src="name"` beside the page, not under /assets/) with their content hash."""
+    for name in names:
+        digest = hashlib.sha256((REPO / page).parent.joinpath(name).read_bytes()).hexdigest()[:10]
+        html = re.sub(r'src="' + re.escape(name) + r'(?:\?v=\w*)?"', f'src="{name}?v={digest}"', html)
+    return html
 
 
 # the loop embeds (in an iframe on most pages): no chrome, but their shared scripts carry the same versions
@@ -1020,6 +1030,8 @@ def stamp(cfg: dict) -> tuple[str, str]:
     if not cfg.get("synced"):
         html = head_tags(html)
         html = version_assets(with_fonts(html, cfg["path"]))
+        if cfg.get("local_assets"):
+            html = version_local(html, cfg["path"], cfg["local_assets"])
 
     if cfg.get("footer", True):
         foot = footer_html(dark)

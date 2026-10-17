@@ -2,7 +2,6 @@
 """Verify the Skew-T explorer's fog / ceiling estimate against METARs (runs in GitHub Actions only).
 
 Stages (skewt-fog-verify.yml runs them in order):
-    probe    OUT            what the sources look like (formats, level counts, timing)
     stations OUT            candidate raob sites, co-location check against the METAR site (<= 5 km)
     metar    OUT            IEM ASOS routine METARs 2010-2025, one station at a time, polite + backed off
     build    OUT            IGRA v2 POR files -> faithful port of the app's profile handling (fogport.py) ->

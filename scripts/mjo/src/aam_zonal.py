@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Anatomy of the AIFS-ENS angular-momentum forecast: WHERE (latitude) and at WHAT
+"""Anatomy of the IFS-ENS angular-momentum forecast: WHERE (latitude) and at WHAT
 LEVEL the relative AAM is changing over the forecast.
 
 The global relative AAM is  M = (a³/g) ∫∫∫ u·cos²φ dλ dφ dp.  Keep the integrand
@@ -7,17 +7,16 @@ zonally-summed but resolved in (latitude, pressure) and you get the AAM *density
 m(φ,p) whose full integral is the global AAM. The forecast CHANGE Δm(φ,p) = m(lead) −
 m(analysis) shows exactly where/at what level the wind field is adding or removing
 angular momentum — the spatial breakdown of the global-AAM tendency the timeseries
-shows. Ensemble mean of AIFS-ENS (the 13-level u already pulled by aam.py).
+shows. Ensemble mean of the 50 IFS-ENS members (the 14-level u aam.py pulls; 50-1000 hPa shown).
 
 Each frame is a 2×2 of (φ,p) cross-sections — absolute density, anomaly vs the ERA5
 clim, tendency vs the analysis, and de-seasonalised tendency — with the header
 printing the global AAM / anomaly / ΔAAM totals. Those totals CLOSELY TRACK (but do
-not exactly equal) the aam.py timeseries: this product uses the pf ensemble mean
-(50 members, mean taken before the nonlinear surface-pressure clipping), while the
-timeseries averages per-member cf+pf AAM (51) after it.
+not exactly equal) the aam.py timeseries: this product takes the ensemble mean before
+the nonlinear surface-pressure clipping, the timeseries averages each member's AAM after it.
 
-    python src/aam_zonal.py --date 20260603 --time 00 --data-dir data/aam \
-        --out ../../assets/sst/aam_zonal.webp
+    python src/aam_zonal.py --date 20260603 --time 00 \
+        --anim-dir ../../assets/sst/anim/aam_zonal --manifest ../../assets/sst/anim/aam_zonal_manifest.json
 """
 
 from __future__ import annotations
@@ -35,7 +34,7 @@ import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 
 sys.path.insert(0, str(Path(__file__).parent))
-from aam import A, G, _vert_weights
+from aam import A, G, _vert_weights, fields, member_mean
 from doycal import sel_doy
 
 DENS = 1e20  # plot density unit: 10²⁰ kg m² s⁻¹ per (° lat · hPa)
@@ -50,23 +49,11 @@ def _interp_lat(field, lat_src, lat_dst):
     return np.stack([np.interp(lat_dst, ls, field[i][o]) for i in range(field.shape[0])])
 
 
-def zonal_aam_density(up_rest: Path, up_rmm: Path, sp_path: Path):
+def zonal_aam_density(u, sp):
     """Ensemble-mean AAM per (step, lev, lat) zonal band [kg m² s⁻¹], computed exactly
     as aam.py so Σ_lev,lat = the global AAM. Also returns zonal-mean u for the jet
-    contour. (a³/g)·cos²φ·dλ·dφ · Σ_lon(u·Δp), dλ/dφ in radians, Δp surface-clipped."""
-    kw = dict(engine="cfgrib", backend_kwargs={"indexpath": ""}, chunks={"number": 1})
-    du_rest = xr.open_dataset(up_rest, **kw)  # 11 AAM-only levels
-    du_rmm = xr.open_dataset(up_rmm, **kw)  # 200/850 (shared with the RMM)
-    dsp = xr.open_dataset(
-        sp_path,
-        engine="cfgrib",
-        backend_kwargs={"filter_by_keys": {"shortName": "sp"}, "indexpath": ""},
-        chunks={"number": 1},
-    )  # sp out of the batched surface file
-    ur, um = du_rest["u"], du_rmm["u"]
-    if "number" in ur.dims and "number" in um.dims:  # rest file may be a member subset
-        um = um.sel(number=ur.number)
-    u = xr.concat([ur, um], dim="isobaricInhPa").sortby("isobaricInhPa")
+    contour. (a³/g)·cos²φ·dλ·dφ · Σ_lon(u·Δp), dλ/dφ in radians, Δp surface-clipped.
+    u, sp: aam.fields."""
     u = u.sel(isobaricInhPa=slice(50, 1000))  # display stays 50–1000 hPa: the zonal
     # density clim (WB2 1.5°) has no 10 hPa
     p_hpa = u.isobaricInhPa.values.astype(float)
@@ -77,20 +64,8 @@ def zonal_aam_density(up_rest: Path, up_rmm: Path, sp_path: Path):
     steps_h = (u.step / np.timedelta64(1, "h")).values.astype(int)
     cos2 = np.cos(np.deg2rad(lat)) ** 2
 
-    # Sequential scheduler, not dask's default threaded one. The member mean is
-    # over 25 chunks of a (step, lev, lat, lon) field; threaded evaluation holds
-    # several in flight at once, and the 2026-08-29 Actions trial peaked at
-    # 14.5-14.7 GB on a 15 GB runner. Single-threaded costs a little wall time
-    # and bounds concurrent chunks to one. The result is identical - same
-    # reduction, just not computed in parallel.
-    ubar = (
-        u.mean("number")
-        .transpose("step", "isobaricInhPa", "latitude", "longitude")
-        .compute(scheduler="single-threaded")
-        .values
-    )
-    spv = dsp[next(iter(dsp.data_vars))]
-    spbar = spv.mean("number").transpose("step", "latitude", "longitude").compute(scheduler="single-threaded").values
+    ubar = member_mean(u.transpose("number", "step", "isobaricInhPa", "latitude", "longitude"))
+    spbar = member_mean(sp.transpose("number", "step", "latitude", "longitude"))
     ubar_zm = ubar.mean(axis=3)  # (step,lev,lat) jet context
 
     nstep, nlev, nlat = ubar.shape[0], len(p_hpa), len(lat)
@@ -223,7 +198,7 @@ def animate(aam, p_hpa, lat, steps_h, ubar_zm, init, anim_dir: Path, manifest: P
             return f"{x:+.1f}"
 
         head = (
-            f"AIFS-ENS relative angular momentum — absolute, tendency & anomalies\n"
+            f"IFS-ENS relative angular momentum — absolute, tendency & anomalies\n"
             f"init {init:%Y-%m-%d %HZ} · Day {steps_h[k] // 24} (valid {valid:%a %d %b}) · "
             f"AAM {glob:.0f} · anomaly {sgn(aAAM)} · ΔAAM {sgn(dAAM)}  (10²⁴ kg m² s⁻¹)"
         )
@@ -259,22 +234,9 @@ def main() -> int:
     ap.add_argument("--anim-dir", default="../../assets/sst/anim/aam_zonal")
     ap.add_argument("--manifest", default="../../assets/sst/anim/aam_zonal_manifest.json")
     a = ap.parse_args()
-    # shared store: the AAM-only 11 u-levels + the RMM 200/850 file (concatenated back to
-    # 13 in zonal_aam_density) + sp — fetch-once, no duplicate of 200/850.
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
-    import store as ecmwf
-    from aam import DAILY_STEPS
-
-    cyc = ecmwf.Cycle(a.date, a.time)
-    steps = tuple(DAILY_STEPS)
-    up_rest = ecmwf.ensure(
-        cyc, ecmwf.Spec("aifs-ens", "pf", "u", "pl", ecmwf.LEVELS_AAM_REST, steps, ecmwf.AAM_PF_MEMBERS)
-    )
-    up_rmm = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", "u", "pl", ecmwf.LEVELS_RMM, steps))
-    sp = ecmwf.sfc_path(cyc, "aifs-ens", "pf", "sp")  # sp out of the batched surface file
     init = pd.Timestamp(f"{a.date}T{a.time}:00")
-    print("== AAM zonal anatomy (AIFS-ENS ens-mean) ==", flush=True)
-    m, p_hpa, lat, steps_h, ubar_zm = zonal_aam_density(up_rest, up_rmm, sp)
+    print("== AAM zonal anatomy (IFS-ENS ens-mean) ==", flush=True)
+    m, p_hpa, lat, steps_h, ubar_zm = zonal_aam_density(*fields(a.date, a.time))
     animate(m, p_hpa, lat, steps_h, ubar_zm, init, Path(a.anim_dir), Path(a.manifest))
     return 0
 

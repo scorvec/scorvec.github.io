@@ -375,9 +375,9 @@
           <div class="sh-menu sh-menu--cols" id="sh-g2">
             <div class="sh-col">
               <div>
-                <h3>Polar vortex and QBO</h3>
+                <h3>By timescale</h3>
                 <ul>
-                  <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                  <li><a href="/stratosphere.html">Every stratosphere product</a></li>
                   <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
                   <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
                   <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
@@ -701,7 +701,7 @@
     [S(5, "#fde3bd"), S(15, "#f8bb72"), S(25, "#ef8c35"), S(35, "#d45f16"), S(48, "#8f3406")],
     [S(5, "#e6d3f7"), S(15, "#c09ae8"), S(25, "#9660d2"), S(35, "#6c35b0"), S(48, "#40157a")]];
   PT_RAMPS[0] = PT_RAMPS[1];                   // echo with no surface type flag: drawn as rain, hover says so
-  // radar.html (US Radar Explorer) draws the observed composite with the same NWS table: keep the two in step
+  // rain rate -> reflectivity on the NWS colour table (the same table the observed radar products use)
   function rateEq(mmh) { return 10 * Math.log10(200 * Math.pow(Math.max(mmh, 1e-6), 1.6)); }   // colour index only (Marshall-Palmer)
   // precipitation accumulation, with a selector for the precipitation types: the files hold the total since the run
   // started (16-bit, 0.01 in / snow 0.1 in); the page subtracts two hours for the window and bins the result on a

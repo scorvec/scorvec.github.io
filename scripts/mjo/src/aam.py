@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Global & hemispheric atmospheric angular momentum (AAM) from AIFS-ENS.
+"""Global & hemispheric atmospheric angular momentum (AAM) from IFS-ENS.
 
 Relative (wind) AAM:  M = (a³/g) ∫∫∫ u·cos²φ dλ dφ dp  — the axial angular
 momentum carried by the winds. Computed globally and per hemisphere from the
-13-level zonal wind, mass-weighted in the vertical with surface pressure as the
-lower bound (so sub-surface levels over terrain are excluded), for every AIFS-ENS
-member (the IFS-ENS pressure-level set on open data differs) → an absolute
-forecast plume.
+14-level zonal wind, mass-weighted in the vertical with surface pressure as the
+lower bound (so sub-surface levels over terrain are excluded), for each of the 50
+IFS-ENS perturbed members (open data, Google Cloud mirror; there is no control at
+pressure levels) → an absolute forecast plume. A physics model: its change of AAM
+closes against its own torques, where AIFS-ENS's does not (aifs-aam-budget.html),
+so the torque budget (torque_map_anim.py) is read from the same runs.
 
     python src/aam.py --date 20260601 --time 00 --out plots/aam.webp
 """
@@ -40,27 +42,34 @@ from doycal import noleap_doy  # common-year day of year (29 Feb = 59.5)
 # levels between 10 and 50).
 LEVELS = [10, 50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 850, 925, 1000]
 DAILY_STEPS = [0, *range(24, 361, 24)]  # analysis + days 1..15
+# 12-hourly sp: the AAM's daily steps and the torque's window means at the climatology's 00/12 UTC sampling
+SP_STEPS = tuple(range(0, 361, 12))
 A = 6.371e6
 G = 9.80665
 SCALE = 1e25  # plot units: 10²⁵ kg m² s⁻¹
 
 
-def download(date: str, time: str, out_dir: Path | None = None) -> dict:
-    """Ensure the AAM u-levels + surface pressure (cf+pf) via the shared store. To avoid
-    re-downloading 200/850 (the RMM already pulls those), the heavy AAM-only 11 levels and
-    the light RMM 200/850 file are fetched SEPARATELY and concatenated back to 13 in
-    compute(). Returns {typ: (u_rest_path, u_rmm_path, sp_path)} of canonical cache paths."""
+def fields(date: str, time: str):
+    """IFS-ENS u on LEVELS (number, step, isobaricInhPa, latitude, longitude) at DAILY_STEPS and sp (number, step,
+    latitude, longitude) at the same steps, both lazy, one member a chunk, through the shared store. The sp file is
+    12-hourly (SP_STEPS) and shared with the torque budget."""
     cyc = ecmwf.Cycle(date, time)
-    steps = tuple(DAILY_STEPS)
-    paths = {}
-    for typ in ("cf", "pf"):
-        u_rest = ecmwf.ensure(
-            cyc, ecmwf.Spec("aifs-ens", typ, "u", "pl", ecmwf.LEVELS_AAM_REST, steps, ecmwf.AAM_PF_MEMBERS)
-        )
-        u_rmm = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", typ, "u", "pl", ecmwf.LEVELS_RMM, steps))
-        sp = ecmwf.sfc_path(cyc, "aifs-ens", typ, "sp")  # sp out of the batched surface file
-        paths[typ] = (u_rest, u_rmm, sp)
-    return paths
+    up = ecmwf.ensure(cyc, ecmwf.Spec("ifs", "pf", "u", "pl", tuple(LEVELS), tuple(DAILY_STEPS)))
+    spp = ecmwf.ensure(cyc, ecmwf.Spec("ifs", "pf", "sp", "sfc", (), SP_STEPS))
+    kw = dict(engine="cfgrib", backend_kwargs={"indexpath": ""}, chunks={"number": 1})
+    u = xr.open_dataset(up, **kw)["u"].sortby("isobaricInhPa")
+    sp = xr.open_dataset(spp, **kw)["sp"].sel(step=u.step)
+    return u, sp
+
+
+def member_mean(da: xr.DataArray) -> np.ndarray:
+    """The members' mean of a lazy (number, ...) field, one member at a time: a dask mean over 50 chunks of a
+    (step, lev, lat, lon) field holds several at once and ran a 16 GB runner out of memory."""
+    acc = None
+    for m in da.number.values:
+        x = da.sel(number=m).values.astype(np.float64)
+        acc = x if acc is None else acc + x
+    return acc / da.sizes["number"]
 
 
 def _vert_weights(p_pa: np.ndarray, sp: np.ndarray) -> np.ndarray:
@@ -87,48 +96,22 @@ def aam_of(u, p_pa, sp, lat, dlon, dlat):
     return (dens.sum(), dens[lat > 0].sum() + eq_half, dens[lat < 0].sum() + eq_half)
 
 
-def compute(paths: dict):
+def compute(u, sp):
     """-> members×steps arrays for global/NH/SH, and valid step hours."""
+    p_pa = u.isobaricInhPa.values * 100.0
+    lat = u.latitude.values
+    dlon = np.deg2rad(abs(float(u.longitude[1] - u.longitude[0])))
+    dlat = np.deg2rad(abs(float(lat[1] - lat[0])))
+    steps_h = (u.step / np.timedelta64(1, "h")).values.astype(int)
     rows = {"global": [], "nh": [], "sh": []}
-    steps_h = None
-    for typ, (up_rest, up_rmm, sp_path) in paths.items():
-        kw = dict(engine="cfgrib", backend_kwargs={"indexpath": ""}, chunks={"number": 1})
-        du_rest = xr.open_dataset(up_rest, **kw)  # 11 AAM-only levels
-        du_rmm = xr.open_dataset(up_rmm, **kw)  # 200/850 (shared with the RMM)
-        ds = xr.open_dataset(
-            sp_path,
-            engine="cfgrib",
-            backend_kwargs={"filter_by_keys": {"shortName": "sp"}, "indexpath": ""},
-            chunks={"number": 1},
-        )  # sp out of the batched surface file
-        # concatenate the two u files back to the full 13 levels; the rest file may
-        # carry a member SUBSET (AAM_PF_MEMBERS) — align the full-ensemble RMM file
-        # to it so the concat doesn't outer-join NaN members
-        ur, um = du_rest["u"], du_rmm["u"]
-        if "number" in ur.dims and "number" in um.dims:
-            um = um.sel(number=ur.number)
-        u = xr.concat([ur, um], dim="isobaricInhPa").sortby("isobaricInhPa")
-        p_pa = u.isobaricInhPa.values * 100.0
-        lat = u.latitude.values
-        dlon = np.deg2rad(abs(float(u.longitude[1] - u.longitude[0])))
-        dlat = np.deg2rad(abs(float(lat[1] - lat[0])))
-        spvar = ds[next(iter(ds.data_vars))]
-        members = u.number.values if "number" in u.dims else [None]
-        if steps_h is None:
-            steps_h = (u.step / np.timedelta64(1, "h")).values.astype(int)
-        for m in members:  # one member at a time
-            um = (u if m is None else u.sel(number=m)).values  # (step,lev,lat,lon)
-            spm = (spvar if m is None else spvar.sel(number=m)).values  # (step,lat,lon)
-            g, n, s = [], [], []
-            for k in range(um.shape[0]):
-                G_, N_, S_ = aam_of(um[k], p_pa, spm[k], lat, dlon, dlat)
-                g.append(G_)
-                n.append(N_)
-                s.append(S_)
-            rows["global"].append(g)
-            rows["nh"].append(n)
-            rows["sh"].append(s)
-        print(f"  {typ}: processed {len(members)} member(s)", flush=True)
+    for m in u.number.values:  # one member at a time
+        um = u.sel(number=m).values  # (step,lev,lat,lon)
+        spm = sp.sel(number=m).values  # (step,lat,lon)
+        g, n, s = zip(*(aam_of(um[k], p_pa, spm[k], lat, dlon, dlat) for k in range(um.shape[0])))
+        rows["global"].append(g)
+        rows["nh"].append(n)
+        rows["sh"].append(s)
+    print(f"  IFS-ENS: processed {u.sizes['number']} members", flush=True)
     return {k: np.array(v) / SCALE for k, v in rows.items()}, steps_h
 
 
@@ -325,7 +308,7 @@ def plot(data, steps_h, init, hist, out: Path, gfz=None):
     if axes[1, 0].get_legend_handles_labels()[0]:
         axes[1, 0].legend(fontsize=7, loc="lower left", framealpha=0.9)
     fig.suptitle(
-        f"Atmospheric angular momentum (relative/wind term) — AIFS-ENS init {init:%Y-%m-%d %HZ}\n"
+        f"Atmospheric angular momentum (relative/wind term) — IFS-ENS init {init:%Y-%m-%d %HZ}\n"
         f"top: {init.year} observed + forecast on the seasonal cycle (mean, ±1σ, record range)   ·   "
         f"bottom: anomaly vs. 1991–2020",
         fontsize=12,
@@ -348,7 +331,8 @@ def plot(data, steps_h, init, hist, out: Path, gfz=None):
     print(f"saved {out} (global AAM init {g0[0]:.1f} → day15 {g0[-1]:.1f} ×10²⁵)")
 
 
-ARCHIVE_PATH = Path(__file__).resolve().parent.parent / "data" / "reference" / "aam_forecast_archive.nc"
+# IFS-ENS runs only (the AIFS-ENS runs before 2026-10-17 are not mixed in)
+ARCHIVE_PATH = Path(__file__).resolve().parent.parent / "data" / "reference" / "aam_forecast_archive_ifs.nc"
 
 
 def archive_forecast(init, data, steps_h):
@@ -422,7 +406,7 @@ def plot_trend(out: Path, n_runs: int = 14):
             lab.set_fontsize(7.5)
     axes[0].set_ylabel("AAM anomaly (10²⁵ kg m² s⁻¹)")
     fig.suptitle(
-        f"AAM anomaly forecast trend — successive AIFS-ENS ensemble-mean runs "
+        f"AAM anomaly forecast trend — successive IFS-ENS ensemble-mean runs "
         f"through {inits[-1]:%Y-%m-%d %HZ} (newest = bold)",
         fontsize=12,
         fontweight="bold",
@@ -450,12 +434,10 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True)
     ap.add_argument("--time", default="00")
-    ap.add_argument("--data-dir", default="data/aam")
     ap.add_argument("--out", default="plots/aam.webp")
     args = ap.parse_args()
     init = pd.Timestamp(f"{args.date}T{args.time}:00")
-    paths = download(args.date, args.time, Path(args.data_dir))
-    data, steps_h = compute(paths)
+    data, steps_h = compute(*fields(args.date, args.time))
     hist = observed_history(init.year)
     plot(data, steps_h, init, hist, Path(args.out), gfz=gfz_series(init.year))
     archive_forecast(init, data, steps_h)

@@ -15,7 +15,7 @@ the step between two analysis trajectories. Inputs (committed by torque-history.
   torque_bands5_jumps_2025_2026.csv.gz  5-degree band motion/mass AAM and torques at 08-11 and 20-23 UTC, daily
   torque_u37_jumps_2025_2026.nc         37-level relative-AAM density jumps per layer and band (no torque term)
   torque_1h_2026.csv.gz                 the hourly 2026 global budget (in-window residual vs range torques)
-  aam_forecast_archive.nc               AIFS-ENS ensemble-mean AAM forecasts (forecast drift)
+  aam_forecast_archive.nc               AIFS-ENS ensemble-mean AAM forecasts to 2026-10-16 (forecast drift)
 
     python scripts/mjo/src/torque_increments.py --out <dir>
     python scripts/mjo/src/torque_increments.py --out <dir> --wind-sign     # only the strengthen / weaken test

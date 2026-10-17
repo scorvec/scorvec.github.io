@@ -50,10 +50,6 @@
         padding: 0.7rem 1.4rem; border-bottom: 1px solid var(--rule);
         position: sticky; top: 0; background: rgba(11,11,18,0.92);
         backdrop-filter: blur(8px); z-index: 10; }
-  .nav-name { font-family: var(--serif); font-size: 1rem; text-decoration: none; color: var(--ink); }
-  nav a.back { font-size: 0.9rem; letter-spacing: 0.05em; color: var(--muted); text-decoration: none; }
-  nav a.back:hover { color: var(--accent); }
-
   .wrap { font-size: clamp(1.06rem, 0.78rem + 0.5vw, 1.35rem); max-width: 112ch; margin: 0 auto; padding: 2.5rem 1.3rem 5rem; }
   .wrap .lede { font-size: 1.06em; }   /* beats site.css "html .lede" (rem) */
   .eyebrow { font-size: 0.76em; letter-spacing: 0.16em; text-transform: uppercase;
@@ -180,9 +176,9 @@
           <div class="sh-menu sh-menu--cols" id="sh-g2">
             <div class="sh-col">
               <div>
-                <h3>Polar vortex and QBO</h3>
+                <h3>By timescale</h3>
                 <ul>
-                  <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                  <li><a href="/stratosphere.html">Every stratosphere product</a></li>
                   <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
                   <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
                   <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
@@ -326,7 +322,7 @@
   each sounding came from. Stations neither real-time feed carries still appear from NOAA NCEI's IGRA v2
   once-a-day update (the job reads only the file listing; opening such a station fetches its file from
   NOAA directly) — those are about a day behind and never drawn as live. Complete UTC days of the North
-  American launches are also bundled into a permanent, growing archive (the 📅 date picker reaches it);
+  American launches are also bundled into a permanent, growing archive (the Archive date picker reaches it);
   the rest of the world's past launches come from IGRA v2.</p>
 
   <h2>2. The physics engine</h2>
@@ -422,17 +418,26 @@
   qualify for the climatology only with a real surface dewpoint, ascent to 400 hPa, and dewpoint on
   ≥60% of levels — gaps are never filled with invented data, and calm no-CAPE days count as ECAPE
   zeros rather than being skipped, so the percentiles describe all days, not just convective ones.</p>
-  <p>The <b>📊 Climatology</b> button opens the annual curve for any ranked variable: shaded
+  <p>The <b>Climatology</b> button opens the annual curve for any ranked variable: shaded
   25–75% and 10–90% bands, the median, red/blue record envelopes, and a gold dot marking the
   sounding on display.</p>
 
   <h2>5. The record watch</h2>
-  <p>Every hour, with each update of the mirror, every station's newest sounding is compared against its climatology. The 🏆
-  map features stations whose latest launch broke a station record (all-time or for the time of
-  year), with near-record (P95+) stations as context dots. Each label carries its sounding's launch
-  time — records persist until the station launches again, so labels older than 48 h fade to
-  unlabeled stars rather than pinning stale text to the map. The drill-down table under a station
-  lists what stands and what this sounding broke. Humidity is the least homogeneous part of the archive: older
+  <p>Every hour, with each update of the mirror, every station's newest sounding is compared against its
+  climatology for the same time of year (±10 days) and synoptic hour. A station is flagged when a value falls
+  outside its own 5th–95th percentile; a record is a value that ties or beats the station's stored extreme for
+  the date window, or over its whole archive (all-time). The <b>★ Records</b> button on the map (its badge
+  counts the stations that set a record in the last 48 h) opens the record watch: an interactive map, where
+  stars are records (gold for all-time, red or blue for a warm or cold record for the date) and dots are the
+  other flagged stations, beside a ranked list, most
+  extreme first, of every flagged station with its values, percentiles and the marks it broke. Filters narrow
+  both to a variable group, a direction (warm/high or cold/low), records only, and how recently the station
+  launched (24 h, 48 h, any). A record stands until the station launches again, so a quiet station can carry a
+  days-old record; the age filter keeps those out of the default view. Clicking a station opens its sounding,
+  and the Records table there lists what stands and what this sounding broke. <b>Download map</b> saves a
+  labelled snapshot as an image: record-holders launched within 48 h of the newest sounding are starred and
+  labelled with their launch time and marks, older record-holders show as faded stars without a label, and the
+  remaining flagged stations are context dots. Humidity is the least homogeneous part of the archive: older
   humidity sensors, and the limits on the dew-point depression the old TEMP code could report, make the dry tail of early
   decades unreliable, so treat a low-dewpoint record set against an early year with care.</p>
 

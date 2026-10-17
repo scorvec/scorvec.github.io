@@ -219,8 +219,8 @@ Two profiles matter:
 A parcel lifted from the boundary layer conserves its h. It is **buoyant wherever its h exceeds the
 environment's h\*** — the layer where BL h > h\* is precisely the layer that generates CAPE, and
 the gap between them *is* the instability. (An h / h\* profile panel used to sit beside the
-hodograph; it was retired in favour of larger skew-T and hodograph plots — `drawMSE()` in app.js
-still draws it if a `<canvas id="mse">` is present.)
+hodograph; it was retired in favour of larger skew-T and hodograph plots, and the table below
+carries the numbers.)
 
 The scalars in the table:
 

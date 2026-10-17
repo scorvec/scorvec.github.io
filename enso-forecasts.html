@@ -530,9 +530,9 @@
           <div class="sh-menu sh-menu--cols" id="sh-g2">
             <div class="sh-col">
               <div>
-                <h3>Polar vortex and QBO</h3>
+                <h3>By timescale</h3>
                 <ul>
-                  <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                  <li><a href="/stratosphere.html">Every stratosphere product</a></li>
                   <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
                   <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
                   <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
@@ -795,10 +795,11 @@ window.plotlyP = new Promise(function (ok, no) {
     <div class="ef-brief-grid">
       <div class="ef-odds">
         <table id="ef-odds">
-          <caption>Share of members whose peak 3-month value reaches each level (each model weighted equally; raw, not calibrated)</caption>
+          <caption id="ef-odds-cap">Share of members whose peak 3-month value reaches each level (each model weighted equally; raw, not calibrated)</caption>
           <thead><tr><th scope="col">Level</th><th scope="col">ONI</th><th scope="col">RONI</th></tr></thead>
           <tbody><tr><td colspan="3">&hellip;</td></tr></tbody>
         </table>
+        <p class="ef-def" id="ef-odds-cal" hidden></p>
         <p class="ef-def"><b>ONI</b> is the three-month average of the sea-surface temperature anomaly in the Ni&ntilde;o-3.4 region of the equatorial Pacific. <b>RONI</b> first subtracts the warming of the whole tropics, so a warmer world does not inflate it; NOAA&rsquo;s Climate Prediction Center made RONI its official ENSO index in February 2026.</p>
       </div>
       <ul class="ef-facts" id="ef-facts"></ul>
@@ -1035,6 +1036,18 @@ window.STAGE = {
       model line is moved onto the models&rsquo; base by that difference. A fixed-base ONI can run well above CPC&rsquo;s: from April&ndash;June to July&ndash;September
       2026, this site&rsquo;s fixed-base OISST estimate ran 0.06&ndash;0.39&nbsp;&deg;C above CPC&rsquo;s ONI, while the two
       RONIs agreed to within 0.08&nbsp;&deg;C. RONI is the fairer comparison with what CPC publishes.</p>
+      <h3>The peak-strength odds, and their calibration test</h3>
+      <p>The odds in the brief are the share of members whose own peak (the highest of the four three-month averages
+      lying wholly inside the six months) reaches each level, each model weighted equally. Raw ensemble shares are often
+      overconfident or biased, so they were tested on the same models&rsquo; hindcasts for each start month,
+      1993&ndash;2016, built exactly as the forecast is (each member against its model&rsquo;s own hindcast average,
+      leaving out the year being verified) and verified against CPC&rsquo;s official ONI and RONI over the same four
+      seasons. The calibration tried is a shift and scale of the members&rsquo; peaks (a new centre, a rescaled signal and
+      a rescaled spread: three numbers per index), fitted with each year left out in turn and scored with the ranked
+      probability skill score over +0.5, +1.0, +1.5, +2.0 and +2.5&nbsp;&deg;C, with a 95% block-bootstrap interval and
+      a permutation test. Calibrated odds replace the raw shares only if they score better with the interval above zero
+      and p below 0.05/24, allowing for the 24 tests (twelve start months, two indices).
+      <span id="m-peakcal">The calibration test has not been run for this start month yet.</span></p>
       <h3>East or central: the E and C indices</h3>
       <p>Following Takahashi, Montecinos, Goubanova and Dewitte (2011, <i>Geophysical Research Letters</i> 38, L10704):
       the two leading patterns (EOFs) of monthly sea-surface temperature anomalies over 10&deg;S&ndash;10&deg;N,
@@ -1351,20 +1364,33 @@ window.STAGE = {
     var b = bridgeFor(key);
     return function (arr) { return roll3(b.concat(arr)).slice(b.length); };
   }
+  // The hindcast calibration of the peak odds for this issue's start month (scripts/sst/enso_peak_calib.py), only for
+  // an index whose test passed: every member's peak x becomes a + b·m + c·(x − m), m the model-weighted mean peak.
+  function peakCal(key) {
+    var P = D.pc, I = P && P.issue === D.fc.issue && P.indices && P.indices[key === "n34" ? "oni" : "roni"];
+    return I && I.applied ? I.calibration : null;
+  }
   // member peaks over the four 3-month seasons fully inside the forecast (SON..DJF)
   function peakOdds(key, thresholds) {
-    var out = thresholds.map(function () { return 0; }), nm = labels().length;
-    labels().forEach(function (m) {
-      var byLead = D.fc.models[m][key], n = byLead[0].length, hit = thresholds.map(function () { return 0; });
-      for (var i = 0; i < n; i++) {
-        var pk = -99;
+    var out = thresholds.map(function () { return 0; }), nm = labels().length, cal = peakCal(key);
+    var peaks = labels().map(function (m) {
+      var byLead = D.fc.models[m][key], pk = [];
+      for (var i = 0; i < byLead[0].length; i++) {
+        var best = -99;
         for (var L = 1; L + 1 < byLead.length; L++) {
           var v = (byLead[L - 1][i] + byLead[L][i] + byLead[L + 1][i]) / 3;
-          if (v > pk) pk = v;
+          if (v > best) best = v;
         }
-        thresholds.forEach(function (t, k) { if (pk >= t) hit[k]++; });
+        pk.push(best);
       }
-      hit.forEach(function (h, k) { out[k] += h / n / nm; });
+      return pk;
+    });
+    var mu = mean(peaks.map(mean));
+    peaks.forEach(function (pk) {
+      pk.forEach(function (v) {
+        var x = cal ? cal.a + cal.b * mu + cal.c * (v - mu) : v;
+        thresholds.forEach(function (t, k) { if (x >= t) out[k] += 1 / pk.length / nm; });
+      });
     });
     return out;
   }
@@ -1448,6 +1474,13 @@ window.STAGE = {
         "<td><span class=\"ef-p\" style=\"--p:" + on[k].toFixed(3) + "\">" + pctTxt(on[k]) + "</span></td>" +
         "<td><span class=\"ef-p\" style=\"--p:" + ro[k].toFixed(3) + "\">" + pctTxt(ro[k]) + "</span></td></tr>";
     }).join("");
+    var cO = !!peakCal("n34"), cR = !!peakCal("rnino"), pc = D.pc && D.pc.issue === F.issue ? D.pc : null;
+    el("ef-odds-cap").textContent = cO || cR
+      ? "Chance that the peak 3-month value reaches each level (each model weighted equally; " + (cO && cR
+        ? "calibrated on the hindcasts)" : (cO ? "ONI" : "RONI") + " calibrated on the hindcasts, " + (cO ? "RONI" : "ONI") + " the raw share of members)")
+      : "Share of members whose peak 3-month value reaches each level (each model weighted equally; raw, not calibrated)";
+    el("ef-odds-cal").hidden = !pc;
+    if (pc) el("ef-odds-cal").textContent = pc.text;
 
     // facts
     var facts = [];
@@ -2484,10 +2517,13 @@ window.STAGE = {
     get("assets/sst/data/cpc_official.json?v=87c965a0c000", true),
     get("assets/sst/data/enso_flavour_obs.json?v=87c965a0c000", true),
     get("assets/sst/data/cansips_dd.json?h=" + Math.floor(Date.now() / 3.6e6), true),   // written monthly by cansips.yml, not by the page build
+    get("assets/sst/data/enso_peak_calib.json?v=87c965a0c000", true),
     window.plotlyP   // the chart library, loading since the top of the page
   ]).then(function (res) {
     D.fc = res[0]; D.hist = res[1]; D.daily = res[2]; D.evo = res[3]; D.fl = res[4]; D.cpc = res[5]; D.flo = res[6]; D.cd = res[7];
+    D.pc = res[8];
     if (cdCheckText()) el("m-cdcheck").innerHTML = cdCheckText();
+    if (D.pc && D.pc.issue === D.fc.issue && D.pc.method) el("m-peakcal").textContent = D.pc.method;
     if (!roniSeries()) {
       // no RONI anywhere: hide the history chart's RONI choice rather than relabel ONI
       document.querySelectorAll('button[data-set="histIdx"][data-v="roni"]').forEach(function (b) { b.hidden = true; });

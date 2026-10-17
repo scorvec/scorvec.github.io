@@ -114,10 +114,10 @@ def candidates(t, product, sector_tag):
 
 
 def fetch(bkt, key):
+    data = TM.get(f"https://{bkt}.s3.amazonaws.com/{key}", binary=True)
+    if not data:
+        return None
     with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as f:
-        data = TM.get(f"https://{bkt}.s3.amazonaws.com/{key}", binary=True)
-        if not data:
-            return None
         f.write(data)
         return f.name
 

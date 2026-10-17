@@ -5,11 +5,11 @@ phase orbits, with an auto-generated plain-language phase headline
 
 Top    — band-integrated relative-AAM anomaly by latitude × time: ~90 days
          observed (ERA5 via the era5_store cache, 3-day steps, 13 tropospheric
-         levels to match the density climatology) + the 15-day AIFS-ENS
+         levels to match the density climatology) + the 15-day IFS-ENS
          ensemble-mean forecast, "today" line at the seam.
 Bottom — NH & SH phase orbits: x = hemispheric AAM anomaly (14-level, from
          aam_history/aam_clim), y = centred tendency; observed trail + the
-         latest forecast from aam_forecast_archive.nc (no refetch).
+         latest forecast from aam.py's archive of IFS-ENS runs (no refetch).
 
     python src/aam_phase.py --date 20260718 --time 00 --out ../../assets/sst/aam_phase.webp
 """
@@ -33,7 +33,7 @@ from matplotlib.gridspec import GridSpec
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "era5"))
 import era5_store
-from aam import A, G, CLIM_PATH, HIST_PATH, ARCHIVE_PATH, _vert_weights, eval_clim
+from aam import A, G, CLIM_PATH, HIST_PATH, ARCHIVE_PATH, _vert_weights, eval_clim, fields, member_mean
 from doycal import noleap_doy, sel_doy
 
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
@@ -114,70 +114,14 @@ def observed_latbands(end_day, latc):
 
 
 def forecast_latbands(date, time, latc):
-    """AIFS-ENS ens-mean band AAM per forecast day (13 levels), from the
-    cached u/sp files (cache-hits when the AAM products ran this cycle)."""
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
-    import store as ecmwf
-    from aam import DAILY_STEPS
-
-    cyc = ecmwf.Cycle(date, time)
-    steps = tuple(DAILY_STEPS)
-    acc, spacc, n = None, None, 0
-    for typ in ("cf", "pf"):
-        up_rest = ecmwf.ensure(
-            cyc, ecmwf.Spec("aifs-ens", typ, "u", "pl", ecmwf.LEVELS_AAM_REST, steps, ecmwf.AAM_PF_MEMBERS)
-        )
-        up_rmm = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", typ, "u", "pl", ecmwf.LEVELS_RMM, steps))
-        sp_path = ecmwf.sfc_path(cyc, "aifs-ens", typ, "sp")
-        kw = dict(engine="cfgrib", backend_kwargs={"indexpath": ""}, chunks={"number": 1})
-        ur = xr.open_dataset(up_rest, **kw)["u"]
-        um_ = xr.open_dataset(up_rmm, **kw)["u"]
-        if "number" in ur.dims and "number" in um_.dims:  # rest file may be a member subset
-            um_ = um_.sel(number=ur.number)
-        u = xr.concat([ur, um_], dim="isobaricInhPa").sortby("isobaricInhPa")
-        u = u.sel(isobaricInhPa=LEVELS13)
-        sp = xr.open_dataset(
-            sp_path,
-            engine="cfgrib",
-            backend_kwargs={"filter_by_keys": {"shortName": "sp"}, "indexpath": ""},
-            chunks={"number": 1},
-        )
-        spv = sp[next(iter(sp.data_vars))]
-        # Sequential scheduler: see the note in aam_zonal.py. Threaded evaluation
-        # of a 25-member mean holds several full chunks at once.
-        um = (
-            (u.mean("number") if "number" in u.dims else u)
-            .transpose("step", "isobaricInhPa", "latitude", "longitude")
-            .compute(scheduler="single-threaded")
-            .values
-        )
-        spm = (
-            (spv.mean("number") if "number" in spv.dims else spv)
-            .transpose("step", "latitude", "longitude")
-            .compute(scheduler="single-threaded")
-            .values
-        )
-        w = 50 if typ == "pf" else 1
-        # In-place accumulation. `acc + um * w` builds two full-size float64
-        # temporaries on top of the two live arrays; at (16, 13, 721, 1440) that
-        # is 1.73 GB each. An Actions run peaked at 14.72 GB on a 15 GB runner -
-        # about 2% of headroom - and this is the cheapest part of that to give
-        # back without touching the arithmetic. Results are bit-identical: same
-        # operations, same order, just no intermediates.
-        if acc is None:
-            acc = um * w
-            spacc = spm * w
-        else:
-            acc += um * w
-            spacc += spm * w
-        n += w
-        # Capture the coordinate metadata before the references are dropped below.
-        lat = u.latitude.values
-        steps_h = (u.step / np.timedelta64(1, "h")).values.astype(int)
-        # The per-iteration arrays are dead now; dropping the references lets the
-        # next open_dataset reuse the memory instead of stacking on top.
-        del um, spm, u, ur, um_, spv, sp
-    um, spm = acc / n, spacc / n
+    """IFS-ENS ens-mean band AAM per forecast day (13 levels), from the cached u/sp
+    files (aam.fields: cache hits when the AAM products ran this cycle)."""
+    u, sp = fields(date, time)
+    u = u.sel(isobaricInhPa=LEVELS13)
+    um = member_mean(u.transpose("number", "step", "isobaricInhPa", "latitude", "longitude"))
+    spm = member_mean(sp.transpose("number", "step", "latitude", "longitude"))
+    lat = u.latitude.values
+    steps_h = (u.step / np.timedelta64(1, "h")).values.astype(int)
     dlon = np.deg2rad(0.25)
     dlat = np.deg2rad(0.25)
     cos2 = np.cos(np.deg2rad(lat)) ** 2
@@ -241,7 +185,7 @@ def main() -> int:
     for key in ("nh", "sh"):
         coef = clim["coeffs"].sel(region=key).values
         obs_m = hist[key].values[sel] - eval_clim(coef, noleap_doy(ht[sel]))
-        # ERA5 lags ~5-6 days — bridge to today with the archived AIFS
+        # ERA5 lags ~5-6 days — bridge to today with the archived IFS-ENS
         # lead-0 (analysis) values so the trail meets the forecast seamlessly
         bmask = (a_inits > ht[sel][-1]) & (a_inits <= a_init)
         b_t = a_inits[bmask]
@@ -315,8 +259,7 @@ def main() -> int:
         )
     ax.set_ylabel("latitude")
     ax.set_title(
-        f"Relative-AAM anomaly by latitude — observed (ERA5, 3-day) + "
-        f"AIFS-ENS mean forecast · init {init:%Y-%m-%d %HZ}",
+        f"Relative-AAM anomaly by latitude — observed (ERA5, 3-day) + IFS-ENS mean forecast · init {init:%Y-%m-%d %HZ}",
         fontsize=11,
         fontweight="bold",
     )
@@ -374,7 +317,7 @@ def main() -> int:
     fig.text(
         0.5,
         0.008,
-        "orbit: grey = observed trail (75 days, darker = recent, ● = today) · red = AIFS-ENS mean forecast (★ = day 15) · "
+        "orbit: grey = observed trail (75 days, darker = recent, ● = today) · red = IFS-ENS mean forecast (★ = day 15) · "
         "headline bands from the forecast day-12–15 minus day-0–2 band-AAM change",
         ha="center",
         fontsize=7.5,
