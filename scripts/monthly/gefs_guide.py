@@ -53,6 +53,7 @@ SHIFT_URL = "https://github.com/scorvec/scorvec.github.io/releases/download/gefs
 RUN_URL = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/assets/gefs/anim/runs/gefs_run_{d}.npz"
 TAGS = {"z500": "zg500", "t2m": "t2m", "prcp": "pr"}  # outlook variable -> GEFS field
 DEMEAN = ("zg500",)  # global mean removed (the GEFS page's rule)
+LEAD = ("t2m",)  # variables that also take the run's lead-in (blend.py: it earned weight only for temperature)
 LAST = GR.WEEKS[-1][1]  # 35
 MIN_DAYS = 14  # a run must reach at least this many days of the target month
 ISSUE_DAY = 15
@@ -131,8 +132,9 @@ def predictors(wk: np.ndarray, wt: np.ndarray, wl: np.ndarray) -> tuple[np.ndarr
 # ------------------------------------------------------------------------------------------------- the hindcast
 def build(month: int, cache: Path, weekly: Path | None = None) -> Path:
     """data/gefs_hc_<MM>.npz for target month `month`: years (target years), init (start dates), ndays (target
-    window length), and per outlook variable v the (n, P) target and v_lead lead-in anomalies. `weekly`: also write
-    the per-year weekly anomalies there (for testing other windows)."""
+    window length), and per outlook variable v the (n, P) target anomalies, and v_lead the lead-in's for LEAD
+    (float16: ample for anomalies). `weekly`: also write the per-year weekly anomalies there (for testing other
+    windows)."""
     mi = issue_month(month)
     url = HINDW_URL.format(mm=mi)
     with tempfile.TemporaryDirectory(dir=cache) as tmp:
@@ -176,7 +178,9 @@ def build(month: int, cache: Path, weekly: Path | None = None) -> Path:
         out_arrs[v] = np.stack([t for t, _ in tl])
         out_arrs[f"{v}_lead"] = np.stack([lead for _, lead in tl])
     out = DATA / f"gefs_hc_{month:02d}.npz"
-    np.savez_compressed(out, **out_arrs)
+    meta = {k: out_arrs[k] for k in ("years", "init", "ndays")}
+    fields = {k: out_arrs[k].astype(np.float16) for k in (*TAGS, *(f"{v}_lead" for v in LEAD))}
+    np.savez_compressed(out, **meta, **fields)
     if weekly is not None:
         np.savez_compressed(
             weekly / f"gefs_wk_{month:02d}.npz", **out_arrs, **{f"{v}_wk": np.stack(w) for v, w in wks.items()}
@@ -191,14 +195,16 @@ def build(month: int, cache: Path, weekly: Path | None = None) -> Path:
 
 
 def hindcast(month: int, v: str) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
-    """(target years, (n, P) target-window anomalies, (n, P) lead-in anomalies) of the reforecast table, or None."""
+    """(target years, (n, P) target-window anomalies, (n, P) lead-in anomalies or None) of the reforecast table,
+    or None."""
     p = DATA / f"gefs_hc_{month:02d}.npz"
     if not p.exists():
         return None
     with np.load(p) as f:
         if v not in f.files:
             return None
-        return f["years"], f[v].astype(np.float64), f[f"{v}_lead"].astype(np.float64)
+        lead = f[f"{v}_lead"].astype(np.float64) if f"{v}_lead" in f.files else None
+        return f["years"], f[v].astype(np.float64), lead
 
 
 # ------------------------------------------------------------------------------------------------- the live run

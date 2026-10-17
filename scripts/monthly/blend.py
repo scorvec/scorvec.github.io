@@ -13,7 +13,7 @@ monthly mean. The statistical forecast is already calibrated on its own 1981-onw
 1 (a ridge penalty as strong as the 20 years' own data, PRIOR) rather than toward 0: refitted freely on 20 years it
 fell to ~0.3, damping the whole forecast for a sampling accident of those years, and the anchored fit scored the
 same (and better for precipitation) in cross-validation. b and c are damped toward 0 like any consolidation weight.
-The lead-in enters for temperature only (LEAD): in cross-validation over all twelve months it earned weight there
+The lead-in enters for temperature only (gefs_guide.LEAD): in cross-validation over all twelve months it earned weight there
 (c ~0.09, the correlation 0.290 -> 0.299), and for height and precipitation it earned little (~0.06, ~0.02) and made
 the blend slightly worse. The month's days scored the same whether cut at day 15 or run to the end of the forecast.
 
@@ -40,7 +40,6 @@ import gefs_guide as GG
 import mo_method as M
 
 PRIOR = 1.0  # ridge pulling the statistical weight toward 1, in units of its own smoothed sum of squares
-LEAD = ("t2m",)  # variables that also take the run's lead-in (the days before the target month)
 
 
 def anchored_weights(X: np.ndarray, Y: np.ndarray, K: np.ndarray) -> np.ndarray:
@@ -115,7 +114,8 @@ def apply(res: dict, A: M.Archive, target_year: int, month: int, realtime: bool 
         gm = table[im]
         stat = o["hind_cv"][ih]
         Y = o["hind_obs"][ih]
-        X = np.stack([stat, gm, lead[im]] if v in LEAD else [stat, gm], 1)  # (n, 2 or 3, P)
+        uses_lead = v in GG.LEAD and lead is not None
+        X = np.stack([stat, gm, lead[im]] if uses_lead else [stat, gm], 1)  # (n, 2 or 3, P)
         n = len(use)
         cv = np.zeros_like(Y)
         for j in range(n):
@@ -138,15 +138,15 @@ def apply(res: dict, A: M.Archive, target_year: int, month: int, realtime: bool 
             },
             "issued": False,
         }
-        if v in LEAD:
+        if uses_lead:
             rec["weight_nh"]["lead"] = round(float((w * beta[:, 2]).sum() / w.sum()), 3)
         if realtime and "fc" in o:
             live, live_lead = g[v].astype(np.float64), g[f"{v}_lead"].astype(np.float64)
-            fc_b = beta[:, 0] * o["fc"] + beta[:, 1] * live + (beta[:, 2] * live_lead if v in LEAD else 0.0)
+            fc_b = beta[:, 0] * o["fc"] + beta[:, 1] * live + (beta[:, 2] * live_lead if uses_lead else 0.0)
             rec["init"] = g["init"]
             rec["days"] = [1, int(g["ndays"])]
             o["models_fc"] = live.astype(np.float32)
-            if v in LEAD:
+            if uses_lead:
                 o["lead_fc"] = live_lead.astype(np.float32)
             o["blend_fc"] = fc_b.astype(np.float32)
             o["blend_beta"] = beta.astype(np.float32)
