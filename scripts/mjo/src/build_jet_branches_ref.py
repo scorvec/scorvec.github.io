@@ -16,8 +16,9 @@ three chunks, ~115 MB; a season ~35 GB.
              jet_branches_calib.nc    the variants' cold-season counts
              reference/jet_branches_regions.nc   per analysis and region: superposed columns, the largest group
              reference/jet_branches_events.csv   the superposition events
-             reference/jet_branches_ref.json     thresholds, each region's event threshold, the threshold rule's
-                                                 medians, the variants against the published climatologies
+             reference/jet_branches_ref.json     thresholds, each region's event threshold, the median in-channel
+                                                 gradients (the published thresholds lie above them), the variants
+                                                 against the published climatologies
            and, with --figure, the validation maps (scratch: cold-season frequency of each branch and of the
            superposition on the 2.5 deg grid of the published climatology)
 
@@ -82,13 +83,13 @@ TRACK_KM, TRACK_H = 1500.0, 30.0
 # one row per event: its first and last analysis, how many analyses it held, its largest group, its first centre
 EVENT_COLUMNS = ("region", "event", "onset", "end", "analyses", "peak_columns", "lat", "lon")
 # The published cold-season superposition climatology, for the validation: frequency maxima (percent of analyses) by
-# area, read off Christenson et al. (2017) Fig. 3c as reproduced in Handlos & Martin (2021) Fig. 1f (NCEP-NCAR, 2.5
-# deg, NDJFM 1960-2010), and the western North Pacific box counts of Handlos & Martin (2016, Table 2.1 of Handlos's
+# area, from Christenson et al. (2017) Fig. 3c as reproduced in Handlos & Martin (2021) Fig. 1f and its text (NCEP-NCAR,
+# 2.5 deg, NDJFM 1960-2010), and the western North Pacific box counts of Handlos & Martin (2016, Table 2.1 of Handlos's
 # thesis; DJF 1979/80-2009/10, 6-hourly).
 CHECK_BOXES = {
     "wnp": dict(label="western North Pacific", lat=(25.0, 45.0), lon=(120.0, 180.0), published="1-2 %"),
     "na": dict(label="southern North America and the western Atlantic", lat=(20.0, 50.0), lon=(230.0, 310.0),
-               published="0.5-1 %"),
+               published="about 0.5 %"),
     "naf": dict(label="northern Africa and the eastern Mediterranean", lat=(20.0, 40.0), lon=(350.0, 50.0),
                 published="about 0.5 %"),
 }  # fmt: skip
@@ -448,7 +449,7 @@ def combine(paths, release_dir, figure=None, allow_partial=False):
 
 
 def validation(parts, names, var_maps, r1_maps, n, times):
-    """The threshold rule's medians, and each variant against the published climatologies."""
+    """The median in-channel gradients, and each variant against the published climatologies."""
     hist = sum(f["hist"] for f in parts)
     med = {
         grid: {
@@ -472,7 +473,7 @@ def validation(parts, names, var_maps, r1_maps, n, times):
             sup_max=box_max(r1_maps[k, 2] / n, R1_LAT, R1_LON),
             wnp_djf_at_least={x: round(100 * float((wnp >= x).mean()), 3) if wnp.size else None for x in HANDLOS_DJF},
         )
-    print("Threshold rule (Christenson et al. 2017): the median in-channel |grad PV| of the windy columns, PVU/m")
+    print("Median in-channel |grad PV| of the windy columns, PVU/m (Christenson et al. set their threshold above it)")
     for grid, by in med.items():
         for method, v in by.items():
             print(f"  {grid} {method:5s} polar {v['polar']:.2e}  stj {v['stj']:.2e}")

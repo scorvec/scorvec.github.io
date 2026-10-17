@@ -17,10 +17,12 @@ How the papers' wording is applied here (they name the quantities, not the arith
   channel         1 <= layer PV <= 3 PVU at the column; the gradient is the centred-difference |grad PV| on the sphere.
   wind            the trapezoid integral of the speed |V| over 400, 300, 250, 200, 150, 100 hPa divided by 300 hPa
                   (the "integral average" / "pressure-weighted" 400-100 hPa wind of Koch et al. 2006).
-The thresholds are empirical and grid-dependent: Christenson et al. set them just above the median |grad PV| of the
-channel columns with wind above 30 m/s (0.64e-5 PVU/m on the 2.5 deg NCEP-NCAR grid); Winters et al. (2020) used the
-values above on the 0.5 deg CFSR grid, which this grid matches. The ERA5 reference (build_jet_branches_ref.py) measures
-how much the other readings of the layer and channel wording, and the thresholds, change the climatology.
+The thresholds are empirical and grid-dependent: Christenson et al. chose theirs from cross-sections through jets,
+above the median |grad PV| of the channel columns with wind above 30 m/s (0.64e-5 PVU/m on the 2.5 deg NCEP-NCAR
+grid); Winters et al. (2020) used the values above on the 0.5 deg CFSR grid, which this grid matches. On ERA5
+1991-2020 they give the North American superposition count threshold (the top 10 %) of Winters et al., 18 columns.
+The ERA5 reference (build_jet_branches_ref.py) measures how much the other readings of the layer and channel wording,
+and the thresholds, change the climatology.
 
 Grid. ERA5 and ECMWF open data come at 0.25 deg; both are reduced to 0.5 deg by the area-conservative [1/4, 1/2, 1/4]
 average of pacjet_core (every source gets the same operation) over the band BAND_LAT, wider than the 10-80N output
