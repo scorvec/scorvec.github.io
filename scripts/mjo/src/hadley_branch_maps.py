@@ -70,9 +70,7 @@ HOURS = (0, 6, 12, 18)
 PC = ccrs.PlateCarree()
 EXTENT = (-50.0, 50.0)
 ROWS = ("nh", "npac", "natl", "sh", "spac", "satl", "sind")
-DT_KM = np.arange(13.0, 17.51, 0.5)  # the daily map's colours: the dynamic tropopause's height (km)
-EDGE_LAT = 20.0  # the deep-tropical ascent the Hadley cell edges are looked for from lies within this of the equator
-EDGE_SMOOTH = 5  # grid columns (7.5 deg) each edge is averaged over along longitude, where most of them have one
+DT_KM = np.arange(8.0, 17.51, 0.5)  # the daily map's colours: the dynamic tropopause's height (km)
 W_EFOLD = 12.0  # spherical-harmonic degree damped by 1/e in the mapped vertical motion (a strong Gaussian filter)
 # the interactive map's forward paths: seeds over the deep tropics at DROP_P, released DROP_BACK days before the last
 # analysis and followed for up to DAYS_BACK days (or to the last analysis), 6-hourly, as int16 files per release and level
@@ -529,52 +527,12 @@ def height_km(p: np.ndarray) -> np.ndarray:
     return np.where(p >= 226.32, 44.3308 * (1.0 - (p / 1013.25) ** 0.190263), 11.0 + 6.34162 * np.log(226.32 / p))
 
 
-def hc_edges(wmid: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Per longitude, the latitudes (north, south) where descent starts either side of the deep-tropical ascent: from
-    the strongest ascent within EDGE_LAT of the equator, the first latitude each way where the 700-300 hPa omega,
-    strongly filtered (W_EFOLD), turns to descent, interpolated to the zero; NaN where there is no ascent there, or no
-    descent before the map's edge (EXTENT). Each edge is then averaged over EDGE_SMOOTH longitudes where most of them
-    have one, so a lone column neither breaks it nor sticks out of it."""
-    w = HB.large_scale(wmid, efold=W_EFOLD)
-    band = np.flatnonzero(np.abs(HB.LAT) <= EDGE_LAT)
-    rows = np.flatnonzero((EXTENT[0] <= HB.LAT) & (EXTENT[1] >= HB.LAT))
-    north, south = np.full(HB.LON.size, np.nan), np.full(HB.LON.size, np.nan)
-    for j in range(HB.LON.size):
-        i0 = band[np.argmin(w[band, j])]
-        if w[i0, j] >= 0.0:
-            continue
-        for step, out in ((-1, north), (1, south)):  # rows run north to south
-            i = i0
-            while rows[0] <= i + step <= rows[-1] and w[i + step, j] < 0.0:
-                i += step
-            if rows[0] <= i + step <= rows[-1]:
-                a, b = w[i, j], w[i + step, j]
-                out[j] = HB.LAT[i] + (HB.LAT[i + step] - HB.LAT[i]) * a / (a - b)
-    return _along(north), _along(south)
-
-
-def _along(edge: np.ndarray) -> np.ndarray:
-    ok, h = np.isfinite(edge), EDGE_SMOOTH // 2
-    k = np.ones(EDGE_SMOOTH)
-    total = np.convolve(np.pad(np.where(ok, edge, 0.0), h, mode="wrap"), k, "valid")
-    count = np.convolve(np.pad(ok.astype(float), h, mode="wrap"), k, "valid")
-    return np.where(count > EDGE_SMOOTH / 2, total / np.maximum(count, 1.0), np.nan)
-
-
 def draw_dt(F: dict, day: pd.Timestamp, out: Path):
-    """The day's outflow on the dynamic tropopause: the surface's height inside the Hadley cells (between the latitudes
-    where descent starts either side of the deep-tropical ascent), the divergent wind on it as arrows."""
-    north, south = hc_edges(F["wmid"])
-    inside = (HB.LAT[:, None] <= north[None, :]) & (HB.LAT[:, None] >= south[None, :])
+    """The day's outflow on the dynamic tropopause: the surface's height, and the divergent wind on it as arrows."""
     size, rects, left = _layout(1)
     fig = plt.figure(figsize=size)
     ax = fig.add_axes(rects[0][0], projection=PROJ)
-    cf = ax.contourf(
-        XN, HB.LAT, _native(np.where(inside, height_km(F["pdt"]), np.nan)), levels=DT_KM, cmap="viridis", extend="both"
-    )
-    order = np.argsort(_xn(HB.LON))
-    for edge in (north, south):
-        ax.plot(_xn(HB.LON)[order], edge[order], color="#111", lw=1.1)
+    cf = ax.contourf(XN, HB.LAT, _native(height_km(F["pdt"])), levels=DT_KM, cmap="viridis", extend="both")
     s = 5
     ax.quiver(
         XN[:-1:s],
@@ -585,7 +543,7 @@ def draw_dt(F: dict, day: pd.Timestamp, out: Path):
         width=0.0012,
         color="#222",
     )
-    _geo(ax, "Divergent wind on the dynamic tropopause · its height inside the Hadley cells")
+    _geo(ax, "Divergent wind on the dynamic tropopause · the surface's height")
     cb = fig.colorbar(cf, cax=fig.add_axes(rects[0][1]), orientation="vertical")
     cb.set_label("height of the dynamic tropopause (km)", fontsize=8)
     cb.ax.tick_params(labelsize=7.5)
@@ -603,8 +561,7 @@ def draw_dt(F: dict, day: pd.Timestamp, out: Path):
         0.12 / H,
         f"dynamic tropopause = the {HB.DT_PVU:.0f}-PVU surface, or the {HB.DT_THETA:.0f} K isentrope where that lies lower "
         "(the deep tropics); height from its pressure in the standard atmosphere · arrows = the divergent wind on it\n"
-        "black lines = the Hadley cell edges: where 700-300 hPa motion turns to descent either side of the deep-tropical "
-        "ascent (strongly smoothed); colour only between them\nthe analysis less its mean offset from ERA5",
+        "the analysis less its mean offset from ERA5",
         fontsize=8.2,
         color="#555",
     )
