@@ -4,8 +4,8 @@
 run_rmm.py is deliberately CDS-free and only *reads* data/reference/wind_map120.nc, so the
 Wheeler & Hendon low-frequency filter must be kept current by something else — this script,
 run daily by the MJO workflow (mjo.yml). CDS is unreliable and NCEP/NCAR
-R1 lags ~3 months, so the source here is ARCO-ERA5 on Google Cloud (anonymous, no CDS, ~5-7
-day latency).
+R1 stopped updating in March 2026, so the source here is ARCO-ERA5 on Google Cloud (anonymous, no CDS,
+~5-7 day latency).
 
 ARCO's realtime store is chunked one-hour × all-37-levels × globe (≈154 MB/timestep), so we
 keep a small persistent cache of the daily band-mean U850/U200 on the EOF grid and pull only

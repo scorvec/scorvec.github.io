@@ -1,17 +1,16 @@
 """
 Top-level driver: download AIFS-ENS, compute wind-only RMM, and plot.
 
-CDS-free: reads the committed 120-day filter map (data/reference/wind_map120.nc)
-and observed-RMM history (data/reference/obs_history.nc), and extends the history
-with today's AIFS analysis.  Those committed files are refreshed with
-src/seed_recent.py (needs CDS credentials), which keeps ERA5/CDS out of automated runs.
+CDS-free: reads the committed 120-day filter map (data/reference/wind_map120.nc, kept current from ARCO-ERA5
+by src/refresh_map120.py in mjo.yml) and observed-RMM history (data/reference/obs_history.nc), and extends the
+history with today's AIFS analysis.
 
 Usage:
     python run_rmm.py --date 20240601 --time 00
 
 Prerequisites (run once / occasionally):
-    python src/setup_reference.py    # W&H reference EOFs + climatology
-    python src/seed_recent.py        # wind_map120.nc + obs_history.nc (needs CDS)
+    python src/setup_reference.py            # W&H reference EOFs + climatology
+    python src/refresh_map120.py --force     # wind_map120.nc from ARCO-ERA5
 """
 
 import argparse
@@ -47,7 +46,7 @@ def main() -> None:
         print("ERROR: Run src/setup_reference.py first.")
         sys.exit(1)
     if not recent_analysis.MAP120_PATH.exists():
-        print("ERROR: Missing wind_map120.nc — run src/seed_recent.py first.")
+        print("ERROR: Missing wind_map120.nc — run src/refresh_map120.py --force first.")
         sys.exit(1)
 
     # 1. Download AIFS-ENS

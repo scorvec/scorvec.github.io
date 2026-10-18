@@ -5,10 +5,8 @@ fetch_arco_eq_u.py builds the long 2003-2024 record used to calibrate pc_wind_st
 This is its short operational sibling: the last N days only, two levels, for the
 observed RMM track the phase diagram draws.
 
-Why not NCEP: _load_recent_ncep in recent_analysis.py pulls PSL's NCEP/NCAR R1
-daily uwnd, and that stream stopped updating in March 2026 (last day 2026-03-17) —
-fine for the historical calibration it was added for, useless for a live track.
-ERA5 via ARCO is about six days behind instead.
+Why not NCEP: PSL's NCEP/NCAR R1 daily uwnd stopped updating in March 2026 (last day 2026-03-17), useless for a
+live track. ERA5 via ARCO is about six days behind instead.
 
 Cost note: the ARCO chunk is (1 hour, 37 levels, 721, 1440) = 154 MB, so
 selecting two levels saves decode but nothing on the wire. One 00Z snapshot per
