@@ -33,6 +33,9 @@ on:
       verify_run:
         description: 'Score the run and ERA5 artifacts of this earlier run instead of fetching (blank = fetch)'
         default: ''
+      min_bss:
+        description: 'The Brier skill a significant product-lead must also reach to be shown (0 = any)'
+        default: '0'
       commit:
         description: 'Commit the skill file the forecast reads'
         type: boolean
@@ -192,7 +195,7 @@ jobs:
         run: |
           ls parts | head; echo "  $(ls parts/fc_*.npz | wc -l) runs, $(ls parts/scan_*.npz | wc -l) ERA5 scans"
           python scripts/mjo/src/jet_branches_verify.py verify --runs 'parts/fc_*.npz' --scans 'parts/scan_*.npz' \
-            --clim /tmp/ref/jet_branches_clim.nc --members "${{ inputs.members }}" --out-dir out \
+            --clim /tmp/ref/jet_branches_clim.nc --members "${{ inputs.members }}" --min-bss "${{ inputs.min_bss }}" --out-dir out \
             --json scripts/mjo/data/reference/jet_branches_skill.json
       - uses: actions/upload-artifact@v7
         if: always()

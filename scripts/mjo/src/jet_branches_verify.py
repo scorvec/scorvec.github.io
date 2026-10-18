@@ -23,9 +23,10 @@ training runs' reliability, the observed frequency at each member count made mon
 without a fold and scored on it, every fold in turn, the folds being the seasons when the runs span two or more and the
 calendar months of the start dates otherwise. It is adopted for a product-lead only where its cross-validated Brier
 score is lower than the raw one with a p-value that survives Benjamini-Hochberg at FDR_Q over all product-leads; the
-live product then applies the table fitted on all runs. The scores of the adopted forecast (recalibrated or raw) are then tested for BSS > 0, again with
-Benjamini-Hochberg at FDR_Q over all product-leads. A product shows the passing leads from its shortest one up to the
-first that fails.
+live product then applies the table fitted on all runs. The scores of the adopted forecast (recalibrated or raw) are
+then tested for BSS > 0, again with Benjamini-Hochberg at FDR_Q over all product-leads, and a product-lead passes when
+it survives and its skill reaches --min-bss (0: any significant skill). A product shows the passing leads from its
+shortest one up to the first that fails.
 
     python jet_branches_verify.py plan --seasons 2026 --every 1 --chunk 8 --probe --github-output
     python jet_branches_verify.py runs --inits 20250105,20250107 --members 10 --out-dir parts
@@ -316,7 +317,7 @@ def calibrated(W, O, fold, members, train=None):
     return out
 
 
-def verify(run_paths, scan_paths, clim_path, out_dir, json_path=None, members=10, workers=4, seed=1):
+def verify(run_paths, scan_paths, clim_path, out_dir, json_path=None, members=10, workers=4, seed=1, min_bss=0.0):
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     jobs = [(p, scan_paths, clim_path, members) for p in sorted(run_paths)]
@@ -368,8 +369,8 @@ def verify(run_paths, scan_paths, clim_path, out_dir, json_path=None, members=10
         sk_m[3][:] = 1.0
         sk_e[3][:] = 1.0
     pass_flat = bh(np.concatenate([sk_m[3].ravel(), sk_e[3].ravel()]))
-    pass_m = pass_flat[: sk_m[3].size].reshape(sk_m[3].shape) & (sk_m[0] > 0)
-    pass_e = pass_flat[sk_m[3].size :].reshape(sk_e[3].shape) & (sk_e[0] > 0)
+    pass_m = pass_flat[: sk_m[3].size].reshape(sk_m[3].shape) & (sk_m[0] > max(min_bss, 0.0))
+    pass_e = pass_flat[sk_m[3].size :].reshape(sk_e[3].shape) & (sk_e[0] > max(min_bss, 0.0))
     # 3. drift: the members' mean identified area against ERA5's, by lead day, branch and area
     af, ae = c["area_fc"], c["area_era"]
     baf, bae = block_sums(af, block, nblock), block_sums(ae, block, nblock)
@@ -406,6 +407,7 @@ def verify(run_paths, scan_paths, clim_path, out_dir, json_path=None, members=10
         cross_validation=f"{np.unique(fold).size} folds: {folds}",
         bootstrap=BOOT,
         fdr_q=FDR_Q,
+        min_bss=min_bss,
         near_km=JB.NEAR_KM,
         lead_days=list(LEAD_DAYS),
         maps={},
@@ -575,6 +577,7 @@ def main() -> int:
     s.add_argument("--out-dir", required=True)
     s.add_argument("--json", help="also write the skill json here (the committed reference)")
     s.add_argument("--members", type=int, default=10)
+    s.add_argument("--min-bss", type=float, default=0.0, help="the skill a passing product-lead must also reach")
     a = ap.parse_args()
     if a.cmd == "plan":
         chunks, windows = plan(
@@ -594,7 +597,7 @@ def main() -> int:
     elif a.cmd == "runs":
         runs(a.inits.split(","), a.members, a.last_step, a.out_dir)
     else:
-        verify(glob.glob(a.runs), glob.glob(a.scans), a.clim, a.out_dir, a.json, a.members)
+        verify(glob.glob(a.runs), glob.glob(a.scans), a.clim, a.out_dir, a.json, a.members, min_bss=a.min_bss)
     return 0
 
 
