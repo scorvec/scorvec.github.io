@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
-"""The northern Hadley cell each winter against ENSO's strength and flavour: every DJF since 1959/60 in ERA5.
+"""The northern Hadley cell and the Pacific Walker cell each winter against ENSO's strength and flavour: every DJF since
+1959/60 in ERA5.
 
-For each winter, the DJF mean of the daily cell metrics of ERA5's centred 7-day-mean zonal-mean v at 00 UTC - the
-climatology's statistic (build_hadley_clim.metrics, on its 1.5 deg bands; WeatherBench2 to January 2023, ARCO-ERA5
-after) - less the 1991-2020 climatology at each day, against the winter's DJF RONI (CPC's official index) and its DJF E
-and C indices (Takahashi et al. 2011: the eastern- and central-Pacific modes, from ERSSTv6 on the site's own EOFs,
+For each winter, the DJF mean of the daily cell metrics of ERA5's centred 7-day-mean circulation at 00 UTC - the
+climatologies' statistic: the Hadley cell's from zonal-mean v (build_hadley_clim.metrics, on its 1.5 deg bands), the
+Walker cell's from the equatorial divergent zonal wind (build_walker_metrics.metrics); WeatherBench2 to January 2023,
+ARCO-ERA5 after - less the 1991-2020 climatology at each day, against the winter's DJF RONI (CPC's official index) and
+its DJF E and C indices (Takahashi et al. 2011: the eastern- and central-Pacific modes, from ERSSTv6 on the site's own EOFs,
 c3s_enso_flavour). The cells' edges drift poleward over the decades, so each relation is a partial correlation on the
 winter's year (the linear trend removed from both series), tested on the effective sample size of two lag-1
 autocorrelated series (Bretherton et al. 1999) and Holm-adjusted across the figure's tests; a fit is drawn only where
 the adjusted p is below ALPHA, and a panel without one says so.
 
     python src/hadley_djf.py plan                                     # the fetch parts (JSON, for hadley-djf.yml)
-    python src/hadley_djf.py fetch --windows 1959-11-28:1960-03-03:wb2,... --out part.npz
-    python src/hadley_djf.py build part*.npz                          # -> data/reference/hadley_djf.nc
-    python src/hadley_djf.py plot --out assets/sst/hadley_djf_enso.webp
+    python src/hadley_djf.py fetch [--cell walker] --windows 1959-11-28:1960-03-03:wb2,... --out part.npz
+    python src/hadley_djf.py build [--cell walker] part*.npz          # -> CELLS[cell]["out"]
+    python src/hadley_djf.py plot [--cell walker]                     # -> CELLS[cell]["fig"]
 """
 
 from __future__ import annotations
@@ -34,22 +36,43 @@ from scipy import stats
 
 sys.path.insert(0, str(Path(__file__).parent))
 import build_hadley_clim as B
+import build_walker_metrics as W
 import hadley_enso as E
 from doycal import noleap_doy
 
 sys.path.insert(0, str(E.REPO / "scripts" / "sst"))
 import c3s_enso_flavour as FL
 
-OUT = B.REF / "hadley_djf.nc"
 FIRST = 1959  # DJF 1959/60, WeatherBench2's first winter
-KEYS = ("nh_edge_pole", "nh_psi")
 HALF = E.HALF
 ALPHA = 0.05
 VOLCANIC = {1963: "Agung", 1982: "El Chichón", 1991: "Pinatubo"}  # winters after a major tropical eruption
-PANELS = (
-    ("nh_edge_pole", "Northern cell poleward edge", "DJF anomaly (° latitude; − = equatorward)"),
-    ("nh_psi", "Northern cell intensity", "DJF anomaly of |Ψ|max (10¹⁰ kg s⁻¹)"),
-)
+CELLS = {
+    "hadley": {
+        "out": B.REF / "hadley_djf.nc",
+        "fig": E.REPO / "assets" / "sst" / "hadley_djf_enso.webp",
+        "clim": B.OUT,
+        "keys": E.KEYS,
+        "panels": (
+            ("nh_edge_pole", "Northern cell poleward edge", "DJF anomaly (° latitude; − = equatorward)"),
+            ("nh_psi", "Northern cell intensity", "DJF anomaly of |Ψ|max (10¹⁰ kg s⁻¹)"),
+        ),
+        "title": "Northern Hadley cell in winter",
+        "what": "the 7-day-mean cells at 00 UTC",
+    },
+    "walker": {
+        "out": B.REF / "walker_djf.nc",
+        "fig": E.REPO / "assets" / "sst" / "walker_djf_enso.webp",
+        "clim": W.CLIM_OUT,
+        "keys": W.KEYS,
+        "panels": (
+            ("pac", "Pacific Walker cell strength", "DJF anomaly of Ψ_W (10¹⁰ kg s⁻¹)"),
+            ("asc_lon", "Indo-Pacific ascent longitude", "DJF anomaly (° longitude; + = east)"),
+        ),
+        "title": "Pacific Walker cell in winter",
+        "what": "the 7-day-mean equatorial overturning at 00 UTC",
+    },
+}
 INDICES = (("roni", "DJF RONI (CPC)"), ("E", "DJF E index (eastern-Pacific mode)"))
 
 
@@ -77,29 +100,40 @@ def plan() -> list[dict]:
     ]
 
 
-def fetch(windows: str) -> dict:
+def fetch(windows: str, cell: str) -> dict:
+    """The daily 00 UTC field the cell's metrics read: zonal-mean v (Hadley) or the equatorial divergent u (Walker)."""
     days, rows = [], []
     for w in windows.split(","):
         t0, t1, src = w.split(":")
-        doc = (B.fetch_arco if src == "arco" else B.fetch_wb2)(pd.Timestamp(t0), pd.Timestamp(t1))
+        t0, t1 = pd.Timestamp(t0), pd.Timestamp(t1)
+        if cell == "walker":
+            doc = W.fetch(t0, t1, src)
+            rows.append(doc["ud"])
+        else:
+            doc = (B.fetch_arco if src == "arco" else B.fetch_wb2)(t0, t1)
+            rows.append(doc["vbar"])
         days.append(doc["date"])
-        rows.append(doc["vbar"])
-    return {"date": np.concatenate(days), "vbar": np.concatenate(rows)}
+    return {"date": np.concatenate(days), "x": np.concatenate(rows)}
 
 
-def build(paths) -> xr.Dataset:
-    """Each winter's DJF-mean anomalies of the four metrics, its DJF RONI and its DJF E and C."""
-    acc_d, acc_v = [], []
+def metrics(x: np.ndarray, cell: str) -> dict:
+    return W.metrics(x) if cell == "walker" else B.metrics(x, B.LAT15)
+
+
+def build(paths, cell: str) -> xr.Dataset:
+    """Each winter's DJF-mean anomalies of the cell's metrics, its DJF RONI and its DJF E and C."""
+    acc_d, acc_x = [], []
     for p in paths:
         with np.load(p) as f:
             acc_d.append(f["date"])
-            acc_v.append(f["vbar"])
+            acc_x.append(f["x"])
     date, first = np.unique(np.concatenate(acc_d), return_index=True)
-    vbar = np.concatenate(acc_v)[first]
+    field = np.concatenate(acc_x)[first]
     pos = {d: i for i, d in enumerate(pd.DatetimeIndex(date))}
-    cl = xr.open_dataset(B.OUT)
+    cfg = CELLS[cell]
+    cl = xr.open_dataset(cfg["clim"])
     ys = winters()
-    anom = {k: np.full(len(ys), np.nan) for k in E.KEYS}
+    anom = {k: np.full(len(ys), np.nan) for k in cfg["keys"]}
     ndays = np.zeros(len(ys), int)
     for n, y in enumerate(ys):
         djf = pd.date_range(f"{y}-12-01", pd.Timestamp(f"{y + 1}-03-01") - pd.Timedelta(days=1))
@@ -107,17 +141,18 @@ def build(paths) -> xr.Dataset:
         for d in djf:
             w = [pos.get(d + pd.Timedelta(days=k)) for k in range(-HALF, HALF + 1)]
             if all(i is not None for i in w):
-                rows.append(B.metrics(vbar[w].mean(0), B.LAT15))
+                rows.append(metrics(field[w].mean(0), cell))
                 days.append(d)
         ndays[n] = len(days)
         if not days:
             continue
         doy = noleap_doy(pd.DatetimeIndex(days))
-        for k in E.KEYS:
+        for k in cfg["keys"]:
             v = np.array([r[k] for r in rows], float) - E.clim_at(cl, k, doy, "mean")
             if np.isfinite(v).sum() >= 0.8 * djf.size:  # a cell the finder cannot bound on a few days is skipped
                 anom[k][n] = np.nanmean(v)
-        print(f"  {y}/{str(y + 1)[2:]}: {ndays[n]} days, NH edge {anom['nh_edge_pole'][n]:+.2f}", flush=True)
+        k0 = cfg["panels"][0][0]
+        print(f"  {y}/{str(y + 1)[2:]}: {ndays[n]} days, {k0} {anom[k0][n]:+.2f}", flush=True)
     roni = json.loads(E.CPC.read_text())["roni"]  # keyed by the season's centre month: DJF = January
     ec = FL.obs_seasons(FL.load_obs(), FL.load_eof_reference()[1])["DJF"]  # indexed by the December's year
     return xr.Dataset(
@@ -130,8 +165,8 @@ def build(paths) -> xr.Dataset:
         },
         coords={"winter": ys},
         attrs={
-            "basis": "DJF means of the daily metrics of ERA5's centred 7-day-mean zonal-mean v at 00 UTC, less the "
-            "1991-2020 climatology (build_hadley_clim) at each day; winter = the December's year",
+            "basis": f"DJF means of the daily metrics of ERA5's centred 7-day-mean {'equatorial divergent u' if cell == 'walker' else 'zonal-mean v'} "
+            f"at 00 UTC, less the 1991-2020 climatology ({cfg['clim'].name}) at each day; winter = the December's year",
             "indices": "roni: CPC official DJF RONI; E, C: Takahashi et al. (2011) DJF indices from ERSSTv6 "
             "(c3s_enso_flavour)",
         },
@@ -164,18 +199,20 @@ def holm(ps: list[float]) -> list[float]:
     return list(adj)
 
 
-def plot(out: Path):
-    ds = xr.open_dataset(OUT)
+def plot(cell: str):
+    cfg = CELLS[cell]
+    panels = cfg["panels"]
+    ds = xr.open_dataset(cfg["out"])
     year = ds.winter.values.astype(float)
-    tests = {(k, xk): partial(ds[xk].values, ds[k].values, year) for k, *_ in PANELS for xk, _ in INDICES}
+    tests = {(k, xk): partial(ds[xk].values, ds[k].values, year) for k, *_ in panels for xk, _ in INDICES}
     for (k, xk), t, p in zip(tests, tests.values(), holm([t["p"] for t in tests.values()])):
         t["p_holm"] = p
         # robustness: the test with each winter left out in turn; the winter whose removal weakens it most
         x, y = ds[xk].values, ds[k].values
         loo = [partial(np.delete(x, i), np.delete(y, i), np.delete(year, i))["p"] for i in range(len(year))]
         t["loo_p"], t["loo_winter"] = max(loo), int(ds.winter.values[int(np.argmax(loo))])
-    fig, axes = plt.subplots(len(PANELS), len(INDICES), figsize=(11.6, 8.4))
-    for row, (k, title, ylab) in zip(axes, PANELS):
+    fig, axes = plt.subplots(len(panels), len(INDICES), figsize=(11.6, 8.4))
+    for row, (k, title, ylab) in zip(axes, panels):
         X = np.column_stack([np.ones_like(year), year])
         ok = np.isfinite(ds[k].values)
         trend = np.full_like(year, np.nan)
@@ -247,13 +284,13 @@ def plot(out: Path):
     E.finish(
         fig,
         axes,
-        f"Northern Hadley cell in winter against ENSO's strength and flavour, DJF {w0}/{str(w0 + 1)[2:]}–{w1}/{str(w1 + 1)[2:]} (ERA5)",
-        "each point one winter: DJF mean of the 7-day-mean cells at 00 UTC, less ERA5's 1991–2020 climatology, with the "
+        f"{cfg['title']} against ENSO's strength and flavour, DJF {w0}/{str(w0 + 1)[2:]}–{w1}/{str(w1 + 1)[2:]} (ERA5)",
+        f"each point one winter: DJF mean of {cfg['what']}, less ERA5's 1991–2020 climatology, with the "
         "linear trend over the winters removed · E index: Takahashi et al. (2011), ERSSTv6\npartial correlation on the "
         "year, effective sample size from the lag-1 autocorrelation of both series, Holm-adjusted across the four panels\n"
         "a line is drawn only where significant (p < 0.05); a result that one winter carries is flagged (each winter "
         "left out in turn) · labelled: |RONI| ≥ 1.8",
-        out,
+        cfg["fig"],
     )
 
 
@@ -267,18 +304,19 @@ def main() -> int:
     b = sub.add_parser("build")
     b.add_argument("parts", nargs="+")
     p = sub.add_parser("plot")
-    p.add_argument("--out", default="assets/sst/hadley_djf_enso.webp")
+    for s in (f, b, p):
+        s.add_argument("--cell", choices=sorted(CELLS), default="hadley")
     a = ap.parse_args()
     if a.cmd == "plan":
         print(json.dumps(plan()))
     elif a.cmd == "fetch":
-        np.savez_compressed(a.out, **fetch(a.windows))
+        np.savez_compressed(a.out, **fetch(a.windows, a.cell))
     elif a.cmd == "build":
-        ds = build(a.parts)
-        ds.to_netcdf(OUT)
-        print(f"wrote {OUT}: {ds.winter.size} winters")
+        ds = build(a.parts, a.cell)
+        ds.to_netcdf(CELLS[a.cell]["out"])
+        print(f"wrote {CELLS[a.cell]['out']}: {ds.winter.size} winters")
     else:
-        plot(Path(a.out))
+        plot(a.cell)
     return 0
 
 
