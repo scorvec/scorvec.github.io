@@ -513,36 +513,56 @@ def observed_history(ym: str, months: int = OBS_MONTHS) -> dict | None:
 
 # ── plotting ──────────────────────────────────────────────────────────────────
 def _panel(ax, results, key, valid, smooth3, title, ylab, want_labels=False, obs=None, obs_key=None):
-    """One panel: member plume + per-model means + multi-model mean.
+    """One panel: member plume + per-model means + multi-model mean. The 3-month panels smooth every member's own
+    trajectory, as the interactive chart does, so the plume is the spread of the members' 3-month means: a centred
+    window, Niño-3.4's first one closed by the observed month before the issue when the record has it, and a window
+    running past the forecast's end averaging the months it has.
     Returns (handles, labels) once, for a shared figure legend."""
 
-    def ident(a):
-        return np.asarray(a, float)
+    bridge = np.array([])
+    if smooth3 and key == "n34" and obs is not None and len(obs["dates"]):
+        y = np.asarray(obs["n34"], float)
+        if obs["dates"][-1] == valid[0] - pd.DateOffset(months=1) and np.isfinite(y[-1]):
+            bridge = y[-1:]  # on the models' 1993-2016 base (observed_history)
 
-    roll = (lambda a: pd.Series(a).rolling(3, center=True, min_periods=1).mean().values) if smooth3 else ident
+    def roll(x):
+        """(member, lead) -> each member's centred 3-month running mean."""
+        if bridge.size:
+            x = np.column_stack([np.full(len(x), bridge[0]), x])
+        return pd.DataFrame(x.T).rolling(3, center=True, min_periods=1).mean().to_numpy().T[:, bridge.size :]
 
     means, pooled = {}, [[] for _ in range(MAXLEAD)]
     for label, (r, colour) in results.items():
         mem = r[key]
-        means[label] = (np.array([mem[L].mean() for L in range(1, MAXLEAD + 1)]), colour)
-        for i, L in enumerate(range(1, MAXLEAD + 1)):
-            pooled[i].append(mem[L])
+        cols = [mem[L] for L in range(1, MAXLEAD + 1)]
+        if smooth3:
+            if len({c.size for c in cols}) != 1:  # members ordered by (number, start) at every lead, none missing
+                print(f"  {label}: member count changes with lead; left out of the 3-month panels", flush=True)
+                continue
+            x = roll(np.stack(cols, axis=1))
+            cols = [x[:, i] for i in range(MAXLEAD)]
+        means[label] = (np.array([c.mean() for c in cols]), colour)
+        for i, c in enumerate(cols):
+            pooled[i].append(c)
+    if not means:
+        ax.set_title(title, fontsize=10.5, fontweight="bold", loc="left")
+        return None
     pooled = [np.concatenate(p) for p in pooled]
 
-    lo = roll([np.min(p) for p in pooled])
-    hi = roll([np.max(p) for p in pooled])
-    p10 = roll([np.percentile(p, 10) for p in pooled])
-    p90 = roll([np.percentile(p, 90) for p in pooled])
-    p25 = roll([np.percentile(p, 25) for p in pooled])
-    p75 = roll([np.percentile(p, 75) for p in pooled])
-    mmm = roll(np.mean([m for m, _ in means.values()], axis=0))
+    lo = np.array([np.min(p) for p in pooled])
+    hi = np.array([np.max(p) for p in pooled])
+    p10 = np.array([np.percentile(p, 10) for p in pooled])
+    p90 = np.array([np.percentile(p, 90) for p in pooled])
+    p25 = np.array([np.percentile(p, 25) for p in pooled])
+    p75 = np.array([np.percentile(p, 75) for p in pooled])
+    mmm = np.mean([m for m, _ in means.values()], axis=0)
 
     h_range = ax.fill_between(valid, lo, hi, color="#5a6b7b", alpha=0.10, lw=0, zorder=1)
     h_10_90 = ax.fill_between(valid, p10, p90, color="#5a6b7b", alpha=0.16, lw=0, zorder=1)
     h_25_75 = ax.fill_between(valid, p25, p75, color="#5a6b7b", alpha=0.24, lw=0, zorder=1)
     handles, labels = [], []
     for label, (m, colour) in means.items():
-        (hln,) = ax.plot(valid, roll(m), color=colour, lw=1.3, marker="o", ms=2.8, alpha=0.9, zorder=3)
+        (hln,) = ax.plot(valid, m, color=colour, lw=1.3, marker="o", ms=2.8, alpha=0.9, zorder=3)
         handles.append(hln)
         labels.append(label)
     (h_mmm,) = ax.plot(valid, mmm, color="k", lw=2.8, zorder=5)
