@@ -103,6 +103,12 @@ def test_step():
         # 24-bit packing leaves the identification unchanged up to a few columns where a gradient sits on its threshold
         check(np.mean(got != want) < 1e-4 and got.sum() > 100, f"member {m}: {int((got != want).sum())} columns differ")
     check(r["cost"]["messages"] == 54 and r["cost"]["bytes"] == len(blob), f"cost {r['cost']}")
+    # a run without one of the nine levels is skipped at once, not retried
+    rf.fetch_index = lambda *a, **k: [e for e in index if e["levelist"] != "100"]
+    try:
+        check(FC.step_masks(("20250110", 24, 2)) is None, "a run lacking 100 hPa")
+    finally:
+        rf.fetch_index = orig[0]
 
 
 def fake_run(path, init, steps, members=6):
@@ -246,6 +252,8 @@ def test_verify_statistics():
     chunks, windows = V.plan([2026], 2, ["20260101", "20260325", "20251103"], 2)
     check(chunks == [["20251103", "20260101"], ["20260325"]], f"plan chunks {chunks}")
     check(windows == {2026: ["2025-11-03", "2026-03-31"]}, f"plan windows {windows}")
+    chunks, windows = V.plan([2026], 2, ["20260101", "20260325", "20251103"], 8, probe=lambda i: i >= "20251201")
+    check(chunks == [["20260101", "20260325"]] and windows == {2026: ["2026-01-01", "2026-03-31"]}, "plan probe")
 
 
 def test_verify_end_to_end():
@@ -275,6 +283,7 @@ def test_verify_end_to_end():
         m = doc["maps"]["polar"]
         check(m["bss_raw"][0] > 0.5 and len(m["table"]) == len(V.LEAD_DAYS), f"polar day 0 BSS {m['bss_raw'][0]}")
         check(json.loads((d / "skill.json").read_text())["members"] == 3, "the committed copy")
+        check(not any(m["passed"]) and doc["cross_validation"].endswith("seasons"), "4 weeks: nothing can pass")
         check((d / "out" / "verify_skill.png").exists() and (d / "out" / "verify_reliability.png").exists(), "figures")
 
 

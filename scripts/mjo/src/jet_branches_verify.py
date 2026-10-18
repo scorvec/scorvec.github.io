@@ -2,7 +2,8 @@
 """Skill of the jet-branch forecasts (jet_branches_fc.py) on archived IFS-ENS runs against ERA5: the evidence that
 gates the jet-branch view of the circulation page (what the forecast shows: reference/jet_branches_skill.json).
 
-ARCHIVE. Every other 00 UTC IFS-ENS run of the cold seasons from the Google Cloud mirror, perturbed members 1..n,
+ARCHIVE. Every Nth 00 UTC IFS-ENS run of the cold seasons from the Google Cloud mirror that carries all nine levels
+(jet_branches_fc.carries_levels: the open data gained 600, 400, 150 and 100 hPa during 2025), perturbed members 1..n,
 12-hourly to day 10, identified as the live forecast is (jet_branches_fc.run); ERA5 at 00 and 12 UTC from ARCO,
 identified as the reference is (jet_branches_hindcast.scan). Leads valid after 31 March are not verified: the product
 drops them. Runs are labelled by the year of their season's January.
@@ -17,15 +18,16 @@ and for each region the share of members with a superposition event, ERA5's outc
 
 TESTS. Brier skill against the normal, BSS = 1 - sum BS / sum BS_normal, by lead day for the maps (10-80N) and by lead
 group for the event odds. Intervals and one-sided p-values by bootstrap over whole weeks of start dates (runs of one
-week share valid times), BOOT resamples. A recalibration - the training season's reliability, the observed frequency
-at each member count made monotone - is fitted on one season and scored on the other, both ways (leave one season
-out), and adopted for a product-lead only where its out-of-season Brier score is lower than the raw one with a p-value
-that survives Benjamini-Hochberg at FDR_Q over all product-leads; the live product then applies the table fitted on
-all seasons. The scores of the adopted forecast (recalibrated or raw) are then tested for BSS > 0, again with
+week share valid times), BOOT resamples; with fewer than MIN_BLOCKS weeks nothing passes. A recalibration - the
+training runs' reliability, the observed frequency at each member count made monotone - is cross-validated: fitted
+without a fold and scored on it, every fold in turn, the folds being the seasons when the runs span two or more and the
+calendar months of the start dates otherwise. It is adopted for a product-lead only where its cross-validated Brier
+score is lower than the raw one with a p-value that survives Benjamini-Hochberg at FDR_Q over all product-leads; the
+live product then applies the table fitted on all runs. The scores of the adopted forecast (recalibrated or raw) are then tested for BSS > 0, again with
 Benjamini-Hochberg at FDR_Q over all product-leads. A product shows the passing leads from its shortest one up to the
 first that fails.
 
-    python jet_branches_verify.py plan --seasons 2025,2026 --every 2 --chunk 8 --github-output
+    python jet_branches_verify.py plan --seasons 2026 --every 1 --chunk 8 --probe --github-output
     python jet_branches_verify.py runs --inits 20250105,20250107 --members 10 --out-dir parts
     python jet_branches_verify.py verify --runs 'parts/*.npz' --scans 'scans/*.npz' --clim jet_branches_clim.nc \
         --out-dir out [--json ../data/reference/jet_branches_skill.json]
@@ -60,6 +62,7 @@ EVENT_GROUPS = {"0-2": (0, 1, 2), "3-5": (3, 4, 5), "6-10": (6, 7, 8, 9, 10)}  #
 BOOT = 2000
 FDR_Q = 0.10
 MIN_EVENTS = 10  # an event lead group is tested only with at least this many ERA5 event analyses
+MIN_BLOCKS = 10  # weeks of start dates the bootstrap needs before anything can pass
 SKILL = FC.REF / "jet_branches_skill.json"
 
 
@@ -73,9 +76,14 @@ def season_inits(season, every):
     return [f"{d:%Y%m%d}" for d in pd.date_range(f"{season - 1}-11-01", f"{season}-03-31", freq=f"{every}D")]
 
 
-def plan(seasons, every, inits, chunk):
-    """-> (chunks of inits for the matrix, {season: [first day, last day]} of the ERA5 each season's runs need)."""
+def plan(seasons, every, inits, chunk, probe=None):
+    """-> (chunks of inits for the matrix, {season: [first day, last day]} of the ERA5 each season's runs need). probe:
+    a test of each run (jet_branches_fc.carries_levels); the runs it rejects are left out."""
     inits = sorted(inits or [i for s in seasons for i in season_inits(s, every)])
+    if probe is not None:
+        ok = [i for i in inits if probe(i)]
+        print(f"{len(ok)} of {len(inits)} runs carry the nine levels; the first is {ok[0] if ok else None}", flush=True)
+        inits = ok
     chunks = [inits[i : i + chunk] for i in range(0, len(inits), chunk)]
     windows = {}
     for i in inits:
@@ -286,10 +294,10 @@ def skill_test(fc, ref, block, nblock, counts):
         return s, np.nanpercentile(bs, 5, axis=0), np.nanpercentile(bs, 95, axis=0), p
 
 
-def calibrated(W, O, season, members, train=None):
+def calibrated(W, O, fold, members, train=None):
     """Recalibrated Brier sums per run, (run, day, ..., k) inputs: each run scored with the table fitted on the runs of
-    the other seasons (leave one season out). With train=all, the table fitted on every run (the live product's) is
-    returned instead, (day, ..., k)."""
+    the other folds. With train=all, the table fitted on every run (the live product's) is returned instead,
+    (day, ..., k)."""
     shape = W.shape[1:]
 
     def fit(sel):
@@ -302,8 +310,8 @@ def calibrated(W, O, season, members, train=None):
     if train == "all":
         return fit(np.ones(W.shape[0], bool))
     out = np.zeros(W.shape[:-1])
-    for s in np.unique(season):
-        sel = season == s
+    for f in np.unique(fold):
+        sel = fold == f
         out[sel] = brier_levels(W[sel], O[sel], fit(~sel)[None])
     return out
 
@@ -319,6 +327,10 @@ def verify(run_paths, scan_paths, clim_path, out_dir, json_path=None, members=10
     if not stats:
         raise SystemExit("no run could be scored")
     season = np.array([s["season"] for s in stats])
+    if np.unique(season).size >= 2:
+        fold, folds = season, "seasons"
+    else:
+        fold, folds = np.array([pd.Timestamp(s["init"]).month for s in stats]), "months of the start date"
     block, nblock = blocks_of(stats)
     counts = boot_counts(nblock, np.random.default_rng(seed))
     c = collect(stats)
@@ -327,14 +339,14 @@ def verify(run_paths, scan_paths, clim_path, out_dir, json_path=None, members=10
     # maps over 10-80N: raw, recalibrated out of season, the normal
     W, O = c["W"][:, :, :, 0], c["O"][:, :, :, 0]  # (run, day, branch, k)
     bs_raw = brier_levels(W, O, levels)
-    bs_cal = calibrated(W, O, season, members)
+    bs_cal = calibrated(W, O, fold, members)
     bs_norm = c["BN"][:, :, :, 0]
     # events by lead group
     eW, eO = event_levels(stats, members)  # (run, day, region, k)
     gW = np.stack([eW[:, list(d)].sum(1) for d in EVENT_GROUPS.values()], axis=1)  # (run, group, region, k)
     gO = np.stack([eO[:, list(d)].sum(1) for d in EVENT_GROUPS.values()], axis=1)
     ev_raw = brier_levels(gW, gO, levels)
-    ev_cal = calibrated(gW, gO, season, members)
+    ev_cal = calibrated(gW, gO, fold, members)
     ev_norm = np.stack([c["ev_normal2"][:, list(d)].sum(1) for d in EVENT_GROUPS.values()], axis=1)
 
     # 1. adopt the recalibration where it beats the raw forecast out of season
@@ -352,6 +364,9 @@ def verify(run_paths, scan_paths, clim_path, out_dir, json_path=None, members=10
     sk_e[3][n_ev < MIN_EVENTS] = 1.0  # too few events to judge
     raw_m = skill_test(bs_raw, bs_norm, block, nblock, counts)
     raw_e = skill_test(ev_raw, ev_norm, block, nblock, counts)
+    if nblock < MIN_BLOCKS:  # too few independent weeks to judge anything
+        sk_m[3][:] = 1.0
+        sk_e[3][:] = 1.0
     pass_flat = bh(np.concatenate([sk_m[3].ravel(), sk_e[3].ravel()]))
     pass_m = pass_flat[: sk_m[3].size].reshape(sk_m[3].shape) & (sk_m[0] > 0)
     pass_e = pass_flat[sk_m[3].size :].reshape(sk_e[3].shape) & (sk_e[0] > 0)
@@ -361,8 +376,8 @@ def verify(run_paths, scan_paths, clim_path, out_dir, json_path=None, members=10
     with np.errstate(invalid="ignore", divide="ignore"):
         ratio = af.sum(0) / ae.sum(0)
         bratio = np.tensordot(counts, baf, axes=(1, 0)) / np.tensordot(counts, bae, axes=(1, 0))
-    table_all = calibrated(W, O, season, members, train="all")
-    etable_all = calibrated(gW, gO, season, members, train="all")
+    table_all = calibrated(W, O, fold, members, train="all")
+    etable_all = calibrated(gW, gO, fold, members, train="all")
 
     def shown(passes):
         """Leads shown: from the first passing one up to the first failure after it."""
@@ -388,6 +403,7 @@ def verify(run_paths, scan_paths, clim_path, out_dir, json_path=None, members=10
         seasons=sorted(int(s) for s in np.unique(season)),
         runs=len(stats),
         blocks=f"{nblock} weeks of start dates",
+        cross_validation=f"{np.unique(fold).size} folds: {folds}",
         bootstrap=BOOT,
         fdr_q=FDR_Q,
         near_km=JB.NEAR_KM,
@@ -541,8 +557,9 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("plan")
-    s.add_argument("--seasons", default="2025,2026", help="cold seasons by the year of January")
-    s.add_argument("--every", type=int, default=2, help="every Nth day's 00 UTC run")
+    s.add_argument("--seasons", default="2026", help="cold seasons by the year of January")
+    s.add_argument("--every", type=int, default=1, help="every Nth day's 00 UTC run")
+    s.add_argument("--probe", action="store_true", help="leave out the runs without the nine levels (index lookups)")
     s.add_argument("--inits", default="", help="JSON list of runs (YYYYMMDD) instead of the seasons'")
     s.add_argument("--chunk", type=int, default=8)
     s.add_argument("--github-output", action="store_true")
@@ -561,7 +578,11 @@ def main() -> int:
     a = ap.parse_args()
     if a.cmd == "plan":
         chunks, windows = plan(
-            [int(x) for x in a.seasons.split(",")], a.every, json.loads(a.inits) if a.inits else None, a.chunk
+            [int(x) for x in a.seasons.split(",")],
+            a.every,
+            json.loads(a.inits) if a.inits else None,
+            a.chunk,
+            probe=FC.carries_levels if a.probe else None,
         )
         print(f"{sum(map(len, chunks))} runs in {len(chunks)} chunks; ERA5 windows {windows}", flush=True)
         if a.github_output and os.environ.get("GITHUB_OUTPUT"):

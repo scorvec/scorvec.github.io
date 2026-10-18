@@ -109,6 +109,11 @@ def step_masks(job):
                 rf.select(idx, param=list(PARAMS), levelist=list(JB.LEVS), numbers=list(range(1, n + 1)), type="pf"),
                 key=lambda e: e["_offset"],
             )
+            have = {(e["param"], int(e["levelist"])) for e in want}
+            lacking = sorted({(p, lev) for p in PARAMS for lev in JB.LEVS} - have)
+            if lacking:  # not a transport failure: the run does not carry these fields
+                print(f"  step {step:3d}: the run lacks {lacking}; skipped", flush=True)
+                return None
             ranges = rf.coalesce(want)
             wire = {}
             blob = rf.fetch_ranges(
@@ -140,6 +145,9 @@ def step_masks(job):
                 members.append(num)
                 packed.append(np.packbits(JB.masks_025(t, u, v).reshape(3, -1), axis=-1))
             del blob
+            if not members:
+                print(f"  step {step:3d}: no member complete; skipped", flush=True)
+                return None
             cost = dict(
                 messages=len(want),
                 bytes=pos,
@@ -159,6 +167,18 @@ def step_masks(job):
             print(f"  step {step:3d}: attempt {attempt} failed ({type(e).__name__}: {str(e)[:120]})", flush=True)
             time.sleep(20 * attempt)
     return None
+
+
+def carries_levels(date) -> bool:
+    """Whether the run's open data has t, u and v on all of LEVS (step 0's index): IFS-ENS open data gained 600, 400,
+    150 and 100 hPa during 2025, so older runs cannot be identified."""
+    import rangefetch as rf
+
+    idx = rf.fetch_index(date, HOUR, MODEL, 0, "ef", sources=SOURCES)
+    have = {
+        (e["param"], int(e["levelist"])) for e in rf.select(idx, param=list(PARAMS), type="pf") if e.get("levelist")
+    }
+    return {(p, lev) for p in PARAMS for lev in JB.LEVS} <= have
 
 
 def run(date, last_step, out, workers=3, wait_min=0.0, members=MEMBERS):

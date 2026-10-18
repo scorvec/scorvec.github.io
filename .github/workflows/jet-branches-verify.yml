@@ -1,25 +1,26 @@
 name: Jet branches skill (archived IFS-ENS runs against ERA5)
 
-# Dispatch-only verification of the jet-branch forecasts (scripts/mjo/src/jet_branches_verify.py): every other 00 UTC
-# IFS-ENS run of the given cold seasons, perturbed members 1..members to day 10, byte-ranged from the Google Cloud
-# mirror of ECMWF open data only and identified as the live forecast is; ERA5 (ARCO) at 00/12 UTC over the days the
-# runs reach, identified as the reference is. The verify job scores them (drift, a leave-one-season-out recalibration,
-# Brier skill against the ERA5 normal with week-block bootstrap intervals and Benjamini-Hochberg at 10 %) and, with
-# commit=true, commits scripts/mjo/data/reference/jet_branches_skill.json, which the forecast (jet-branches.yml) reads
-# to recalibrate and to show only the leads that passed. With 10 members a run is ~4 GB on the wire; the 152 runs of
-# two seasons ~0.6 TB.
+# Dispatch-only verification of the jet-branch forecasts (scripts/mjo/src/jet_branches_verify.py): every Nth 00 UTC
+# IFS-ENS run of the given cold seasons that carries all nine levels (the open data gained 600, 400, 150 and 100 hPa
+# during 2025; the plan job checks each run's index), perturbed members 1..members to day 10, byte-ranged from the
+# Google Cloud mirror of ECMWF open data only and identified as the live forecast is; ERA5 (ARCO) at 00/12 UTC over the
+# days the runs reach, identified as the reference is. The verify job scores them (drift, a cross-validated
+# recalibration, Brier skill against the ERA5 normal with week-block bootstrap intervals and Benjamini-Hochberg at
+# 10 %) and, with commit=true, commits scripts/mjo/data/reference/jet_branches_skill.json, which the forecast
+# (jet-branches.yml) reads to recalibrate and to show only the leads that passed. With 10 members a run is ~3.75 GB on
+# the wire and ~3.5 min; every run of the 2025/26 season, ~150 runs, ~0.57 TB.
 #
-# A trial: inits='["20250105","20250107","20260110","20260112"]'. verify_run scores an earlier run's artifacts (kept
-# 30 days) without fetching anything again.
+# A trial: inits='["20260110","20260112"]'. verify_run scores an earlier run's artifacts (kept 30 days) without
+# fetching anything again.
 on:
   workflow_dispatch:
     inputs:
       seasons:
         description: 'Cold seasons by the year of January, comma-separated'
-        default: '2025,2026'
+        default: '2026'
       every:
         description: 'Every Nth day''s 00 UTC run'
-        default: '2'
+        default: '1'
       inits:
         description: 'JSON list of runs (YYYYMMDD) instead of the seasons'' (a trial)'
         default: ''
@@ -83,7 +84,7 @@ jobs:
           INITS: ${{ inputs.inits }}
         run: |
           python scripts/mjo/src/jet_branches_verify.py plan --seasons "${{ inputs.seasons }}" \
-            --every "${{ inputs.every }}" --inits "$INITS" --chunk "${{ inputs.chunk }}" --github-output
+            --every "${{ inputs.every }}" --inits "$INITS" --chunk "${{ inputs.chunk }}" --probe --github-output
 
   era5:
     needs: plan
