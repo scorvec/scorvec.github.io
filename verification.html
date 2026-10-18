@@ -59,6 +59,7 @@
   .pair > div { min-width: 0; }
   .pair h3 { font: 600 0.95rem var(--sans); margin: 0.2rem 0; color: var(--ink2); }
   .pair .chart { height: 340px; }
+  .pair .chart.prof { height: 460px; }
   .tblwrap { overflow-x: auto; }
   table.sc { border-collapse: separate; border-spacing: 2px; font-size: 0.86rem; font-variant-numeric: tabular-nums; }
   table.sc th { font-size: 0.78rem; color: var(--muted); font-weight: 600; padding: 0.2rem 0.4rem; text-align: center; white-space: nowrap; }
@@ -281,10 +282,10 @@ window.plotlyP = new Promise(function (ok, no) {
   <h1>How the global models score</h1>
   <p class="lede">NOAA's GFS, ECMWF's physics model (IFS), ECMWF's AI model (AIFS) and Environment Canada's global model (GDPS)
     are scored here against the same observations:
-    hourly surface stations, radiosondes and, for rain over the US, the Stage IV radar and gauge analysis. Every model gets
-    the same treatment. Forecasts are interpolated to each station over land only, 2 m temperature is moved to the height of
-    the station, and stations where the model's terrain is more than 100 m off are left out. Upper-air scores against
-    radiosondes will appear once a few weeks of soundings have been collected.</p>
+    hourly surface stations, about 650 radiosondes a day through the whole troposphere and, for rain over the US, the Stage IV
+    radar and gauge analysis. Every model gets the same treatment. Forecasts are interpolated to each station over land only,
+    2 m temperature is moved to the height of the station, and stations where the model's terrain is more than 100 m off are
+    left out. Each radiosonde level is compared with the model where and when the balloon actually was.</p>
 
   <div class="tiles" id="tiles"></div>
   <p class="src" id="asof">Loading the scores…</p>
@@ -301,6 +302,21 @@ window.plotlyP = new Promise(function (ok, no) {
     <div class="chart" id="c-lead"></div>
   </section>
 
+  <section class="card" id="profile-card" hidden>
+    <h2>Upper-air profiles</h2>
+    <p class="note" id="prof-note">Error against radiosondes at every standard level from 1000 to 100 hPa (humidity to
+      300 hPa, above which sonde humidity is unreliable).</p>
+    <div class="controls">
+      <label>Quantity<select id="p-qty"></select></label>
+      <label>Region<select id="p-region"></select></label>
+      <label>Lead<select id="p-day"></select></label>
+    </div>
+    <div class="pair">
+      <div><h3>RMSE</h3><div class="chart prof" id="c-prof-rmse"></div></div>
+      <div><h3 id="prof-bias-h">Bias (forecast − observed)</h3><div class="chart prof" id="c-prof-bias"></div></div>
+    </div>
+  </section>
+
   <section class="card">
     <h2>Scorecard</h2>
     <p class="note">RMSE of one model against another, by day. A coloured cell means the difference holds up in a paired
@@ -309,6 +325,7 @@ window.plotlyP = new Promise(function (ok, no) {
       <label>Model<select id="s-model"></select></label>
       <label>against<select id="s-ref"></select></label>
       <label>Region<select id="s-region"></select></label>
+      <label>Rows<select id="s-rows"></select></label>
     </div>
     <div class="tblwrap"><table class="sc" id="scorecard"></table></div>
     <div class="key" id="s-key"></div>
@@ -333,8 +350,9 @@ window.plotlyP = new Promise(function (ok, no) {
     <summary>How the scores are made</summary>
     <ul>
       <li><b>Observations.</b> Surface stations come from NOAA's GHCNh hourly archive (METAR and synoptic reports), screened
-        for range, spikes and stuck sensors. Radiosondes are reduced to the mandatory levels, each level at the position
-        and time the balloon reached it. Precipitation is NCEP's Stage IV analysis.</li>
+        for range, spikes and stuck sensors. Radiosondes come from NOAA's IGRA2 archive and the scorvec.com sounding
+        mirror and are reduced to the standard levels from 1000 to 100 hPa, each level at the position the balloon reached
+        it. Specific humidity is computed from the reported dew point. Precipitation is NCEP's Stage IV analysis.</li>
       <li><b>Matching.</b> Forecasts are interpolated bilinearly to each station from land points only, so coastal stations
         are not scored against sea temperatures. 2 m temperature is moved to station height with a standard lapse rate,
         10 m wind is adjusted to the anemometer height, and stations where model and station heights differ by more than
@@ -362,19 +380,20 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
   "use strict";
   const COLORS = { GFS: "#2c5f8a", IFS: "#b3372f", AIFS: "#7b4fb0", GDPS: "#3f8f5a" };
   const FALLBACK = ["#2c5f8a", "#b3372f", "#7b4fb0", "#3f8f5a", "#b8892b"];
-  // Surface first, then upper air; precipitation has its own card.
-  // Surface first, then upper air by quantity and from the ground up (1000 to 200 hPa).
+  // Surface first, then upper air by quantity and from the ground up (1000 to 100 hPa); precipitation has its own card.
   const SURFACE = ["t2m", "td2m", "msl", "ws10", "wind10", "u10", "v10"];
-  const UPPER = ["z", "t", "wind", "u", "v"];
+  const UPPER = ["z", "t", "wind", "q", "u", "v"];
+  const QTY = { z: "Geopotential height", t: "Temperature", wind: "Vector wind", q: "Specific humidity" };
+  const split = v => { const m = /^([a-z]+?)(\d+)$/.exec(v); return m && UPPER.includes(m[1]) ? [m[1], +m[2]] : null; };
   function rank(v) {
     const i = SURFACE.indexOf(v);
     if (i >= 0) return i;
-    const m = /^([a-z]+?)(\d+)$/.exec(v);
-    return m && UPPER.includes(m[1]) ? 100 + 10000 * UPPER.indexOf(m[1]) + (1100 - +m[2]) : 1e6;
+    const q = split(v);
+    return q ? 100 + 10000 * UPPER.indexOf(q[0]) + (1100 - q[1]) : 1e6;
   }
   const STAT_NAMES = { rmse: "RMSE", bias: "Bias (forecast − observed)", mae: "MAE", corr: "Correlation",
                        rmse_oc: "RMSE with observation error removed", n: "Pairs" };
-  const UNITS = { degC: "°C", hPa: "hPa", "m s-1": "m/s", m: "m", mm: "mm" };
+  const UNITS = { degC: "°C", hPa: "hPa", "m s-1": "m/s", m: "m", mm: "mm", "g kg-1": "g/kg" };
   const $ = id => document.getElementById(id);
   const color = (m, i) => COLORS[m] || FALLBACK[i % FALLBACK.length];
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -415,7 +434,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     if (t2 && i120 >= 0) {
       $("tiles").innerHTML = models.map((m, i) => {
         const v = t2.scores[m]?.rmse?.[i120];
-        const z = row("z500", "Northern Hemisphere") || row("z500", "Global");
+        const z = row("z500", "NH 20-90N") || row("z500", "Global");
         const zv = z?.scores[m]?.rmse?.[i120];
         return `<div class="tile" style="--c:${color(m, i)}"><div class="k">${esc(m)}</div>
           <div class="v">${v == null ? "–" : v.toFixed(2)}<small>°C</small></div>
@@ -453,6 +472,47 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     [lv, lr, ls].forEach(el => el.addEventListener("change", leadChart));
     leadChart();
 
+    // upper-air profiles: error against pressure at one lead
+    const qtys = Object.keys(QTY).filter(q => surface.some(r => split(r.var)?.[0] === q));
+    if (qtys.length) {
+      $("profile-card").hidden = false;
+      const pq = $("p-qty"), pg = $("p-region"), pd = $("p-day");
+      fill(pq, qtys, q => QTY[q]);
+      const upRegions = [...new Set(surface.filter(r => split(r.var)).map(r => r.region))];
+      fill(pg, upRegions);
+      pg.value = upRegions.includes("Global") ? "Global" : upRegions[0];
+      const pdays = leads.filter(h => h % 24 === 0);
+      fill(pd, pdays.map(String), h => h === "0" ? "Analysis (hour 0)" : `Day ${+h / 24}`);
+      pd.value = pdays.includes(120) ? "120" : String(pdays[0]);
+      function profiles() {
+        const q = pq.value, region = pg.value, i = leads.indexOf(+pd.value);
+        const rows = surface.filter(r => r.region === region && split(r.var)?.[0] === q)
+          .map(r => ({ r, p: split(r.var)[1] })).sort((x, y) => y.p - x.p);
+        if (!rows.length) return;
+        const u = unit(rows[0].r.unit);
+        const lines = s => models.map((m, k) => ({
+          x: rows.map(x => x.r.scores[m]?.[s]?.[i] ?? null), y: rows.map(x => x.p), name: m,
+          mode: "lines+markers", line: { color: color(m, k), width: 2.4 }, marker: { size: 6 },
+          hovertemplate: `${m} %{x:.3~f} ${u} at %{y} hPa<extra></extra>`,
+        }));
+        const yaxis = { type: "log", autorange: "reversed", tickvals: rows.map(x => x.p), title: { text: "Pressure (hPa)" },
+                        gridcolor: "#ece9e2" };
+        const ext = { hovermode: "closest", yaxis, margin: { l: 62, r: 12, t: 34, b: 50 } };
+        Plotly.react("c-prof-rmse", lines("rmse"), layout("", Object.assign({}, ext, {
+          xaxis: { title: { text: `RMSE (${u})` }, rangemode: "tozero", gridcolor: "#ece9e2", zeroline: false } })), CONFIG);
+        Plotly.react("c-prof-bias", q === "wind" ? [] : lines("bias"), layout("", Object.assign({}, ext, {
+          xaxis: { title: { text: `Bias (${u})` }, gridcolor: "#ece9e2", zeroline: true, zerolinecolor: "#9a958b" } })), CONFIG);
+        $("prof-bias-h").textContent = q === "wind" ? "Bias (not defined for vector wind)" : "Bias (forecast − observed)";
+        const n = rows[0].r.scores[models[0]]?.n?.[i];
+        $("prof-note").innerHTML = `${esc(QTY[q])} against radiosondes, ${esc(region)}, ` +
+          (+pd.value === 0 ? "at the start of the forecast" : `day ${+pd.value / 24}`) +
+          (n ? ` (${n.toLocaleString()} soundings at ${rows[0].p} hPa)` : "") +
+          ". Every model is scored on the same soundings. Humidity is verified up to 300 hPa, above which sonde humidity is unreliable.";
+      }
+      [pq, pg, pd].forEach(el => el.addEventListener("change", profiles));
+      profiles();
+    }
+
     // scorecard
     const sm = $("s-model"), sr = $("s-ref"), sg = $("s-region");
     fill(sm, models); fill(sr, models);
@@ -460,13 +520,20 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     sr.value = models.includes("GFS") ? "GFS" : models[models.length - 1];
     fill(sg, [...new Set(surface.map(r => r.region))]);
     sg.value = wide;
+    const sw = $("s-rows");
+    fill(sw, ["all", "surface", "upper"], v => ({ all: "Surface and radiosondes", surface: "Surface stations",
+                                                  upper: "Radiosondes, every level" })[v]);
     const days = leads.filter(h => h > 0 && h % 24 === 0);
     function scorecard() {
       const a = sm.value, b = sr.value, region = sg.value;
       let html = `<tr><th></th>${days.map(h => `<th>Day ${h / 24}</th>`).join("")}</tr>`;
       let group = "";
       for (const v of vars) {
-        const g = SURFACE.includes(v) ? "Surface stations" : "Radiosondes";
+        const up = split(v);
+        // the vector wind stands for its components at upper levels, keeping the card to one row per level
+        if (up && (up[0] === "u" || up[0] === "v")) continue;
+        if ((sw.value === "surface" && up) || (sw.value === "upper" && !up)) continue;
+        const g = up ? `Radiosondes · ${QTY[up[0]] || up[0]}` : "Surface stations";
         const r = row(v, region);
         if (!r || a === b || !r.scores[a]?.rmse || !r.scores[b]?.rmse) continue;
         if (g !== group) {
@@ -474,7 +541,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
           group = g;
         }
         const t = r.p;
-        html += `<tr><th class="r">${esc(r.label)}</th>` + days.map(h => {
+        html += `<tr><th class="r">${esc(up ? `${up[1]} hPa` : r.label)}</th>` + days.map(h => {
           const i = leads.indexOf(h);
           const ra = r.scores[a]?.rmse?.[i], rb = r.scores[b]?.rmse?.[i];
           if (ra == null || rb == null) return "<td>–</td>";
@@ -494,7 +561,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
         `<span><i style="background:var(--worse)"></i>${esc(a)} has the larger error</span>` +
         `<span>Numbers: ${esc(a)}'s RMSE relative to ${esc(b)}'s</span>`;
     }
-    [sm, sr, sg].forEach(el => el.addEventListener("change", scorecard));
+    [sm, sr, sg, sw].forEach(el => el.addEventListener("change", scorecard));
     scorecard();
 
     // precipitation
@@ -532,7 +599,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
       precipCharts();
       void amount;
     }
-    $("src").innerHTML = "Sources: NOAA NCEI GHCNh; radiosondes via the scorvec.com sounding mirror; NCEP Stage IV (Iowa " +
+    $("src").innerHTML = "Sources: NOAA NCEI GHCNh; radiosondes from NOAA NCEI IGRA2 and the scorvec.com sounding mirror; NCEP Stage IV (Iowa " +
       "Environmental Mesonet archive); NOAA GFS on AWS; ECMWF open data (CC BY 4.0); ECCC Datamart (Open Government Licence – Canada).";
   }
 

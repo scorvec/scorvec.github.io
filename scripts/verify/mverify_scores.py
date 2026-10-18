@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """GFS, ECMWF IFS, AIFS and ECCC GDPS scored with mverify for verification.html.
 
-Downloads only the fields that are scored (byte ranges from each file's index): 2 m temperature and dew point,
-MSLP, 10 m wind, precipitation, 500 hPa height, 850 hPa temperature and 250 hPa wind every 12 h to day 10,
-plus orography and the land-sea mask at step 0. ECMWF comes from the Google Cloud mirror only (as everywhere on
-the site, see scripts/ecmwf/rangefetch.py); GFS from NOAA on AWS; GDPS from the ECCC Datamart, which keeps
-about 30 days and has one file per field. Then
-
-    mverify score GFS=... IFS=... AIFS=... GDPS=...   (one sample for all, paired significance tests)
-
-against an mverify observation database, and the scorecard goes to assets/verification/scores.json.
+Downloads only the fields that are scored (byte ranges from each file's index), every 12 h to day 10:
+  * surface: 2 m temperature and dew point, MSLP, 10 m wind and precipitation, plus orography and the
+    land-sea mask at step 0;
+  * upper air: height, temperature and wind at 1000-100 hPa and specific humidity at 1000-300 hPa
+    (mverify.variables.LEVELS, HUMIDITY_LEVELS), scored against radiosondes. These are some 50 fields a
+    step, so each run is downloaded, matched to the soundings and deleted before the next; its pairs are
+    kept as Parquet and scored level by level at the end (mverify.verify.score_pair_files).
+ECMWF comes from the Google Cloud mirror only (as everywhere on the site, see scripts/ecmwf/rangefetch.py);
+GFS from NOAA on AWS; GDPS from the ECCC Datamart, which keeps about 30 days and has one file per field.
+All models are scored on one sample with paired significance tests, and the scorecard goes to
+assets/verification/scores.json.
 
     python scripts/verify/mverify_scores.py --db obs.duckdb --inits 2026092600 2026100500 --work /tmp/fc
 """
@@ -25,12 +27,14 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pandas as pd
+from mverify import variables as V
 
 REPO = Path(__file__).resolve().parents[2]
 OUT = REPO / "assets" / "verification" / "scores.json"
 LEADS = range(0, 241, 12)
 GOOGLE = "https://storage.googleapis.com/ecmwf-open-data"
 GFS = "https://noaa-gfs-bdp-pds.s3.amazonaws.com"
+UPPER = [(b, lv) for lv in V.LEVELS for b in "ztuv"] + [("q", lv) for lv in V.HUMIDITY_LEVELS]
 ECMWF_FIELDS = {
     ("2t", "sfc", None),
     ("2d", "sfc", None),
@@ -38,11 +42,8 @@ ECMWF_FIELDS = {
     ("10u", "sfc", None),
     ("10v", "sfc", None),
     ("tp", "sfc", None),
-    ("gh", "pl", "500"),
-    ("t", "pl", "850"),
-    ("u", "pl", "250"),
-    ("v", "pl", "250"),
 }
+ECMWF_UPPER = {({"z": "gh"}.get(b, b), "pl", str(lv)) for b, lv in UPPER}
 ECMWF_STATIC = {("lsm", "sfc", None), ("z", "sfc", None)}
 GFS_FIELDS = [
     ":TMP:2 m above ground:",
@@ -51,11 +52,8 @@ GFS_FIELDS = [
     ":UGRD:10 m above ground:",
     ":VGRD:10 m above ground:",
     ":APCP:surface:",
-    ":HGT:500 mb:",
-    ":TMP:850 mb:",
-    ":UGRD:250 mb:",
-    ":VGRD:250 mb:",
 ]
+GFS_UPPER = [f":{dict(z='HGT', t='TMP', u='UGRD', v='VGRD', q='SPFH')[b]}:{lv} mb:" for b, lv in UPPER]
 GFS_STATIC = [":HGT:surface:", ":LAND:surface:", ":SFCR:surface:"]
 DATAMART = "https://dd.weather.gc.ca"
 GDPS_FIELDS = [
@@ -65,10 +63,10 @@ GDPS_FIELDS = [
     "WindU_AGL-10m",
     "WindV_AGL-10m",
     "Precip-Accum_Sfc",
-    "GeopotentialHeight_IsbL-0500",
-    "AirTemp_IsbL-0850",
-    "WindU_IsbL-0250",
-    "WindV_IsbL-0250",
+]
+GDPS_UPPER = [
+    f"{dict(z='GeopotentialHeight', t='AirTemp', u='WindU', v='WindV', q='SpecificHumidity')[b]}_IsbL-{lv:04d}"
+    for b, lv in UPPER
 ]
 GDPS_STATIC = ["GeopotentialHeight_Sfc", "LandWaterProportion_Sfc"]
 MODELS = {"GFS": "gfs", "IFS": "ifs", "AIFS": "aifs-single", "GDPS": "gdps"}
@@ -100,36 +98,36 @@ def merged(spans: list[tuple[int, int]]) -> list[tuple[int, int]]:
     return [(a, b) for a, b in out]
 
 
-def fetch(model: str, init: str, lead: int, work: Path) -> None:
-    dest = work / MODELS[model] / f"{init}_{lead:03d}.grib2"
+def fetch(model: str, init: str, lead: int, dest: Path, upper: bool) -> None:
+    """The surface fields (``upper`` False) or the pressure-level fields of one model step, into ``dest``."""
     if dest.exists():
         return
     day, hh = init[:8], init[8:]
     dest.parent.mkdir(parents=True, exist_ok=True)
     part = dest.with_suffix(".part")
     if model == "GDPS":
-        names = GDPS_FIELDS + (GDPS_STATIC if lead == 0 else [])
+        names = GDPS_UPPER if upper else GDPS_FIELDS + (GDPS_STATIC if lead == 0 else [])
         base = f"{DATAMART}/{day}/WXO-DD/model_gdps/15km/{hh}/{lead:03d}/{day}T{hh}Z_MSC_GDPS"
-        # no accumulation at step 0
-        part.write_bytes(
-            b"".join(
-                get(f"{base}_{n}_LatLon0.15_PT{lead:03d}H.grib2")
-                for n in names
-                if not (lead == 0 and n == "Precip-Accum_Sfc")
-            )
-        )
+        urls = [
+            f"{base}_{n}_LatLon0.15_PT{lead:03d}H.grib2"
+            for n in names
+            if not (lead == 0 and n == "Precip-Accum_Sfc")  # no accumulation at step 0
+        ]
+        # one file per field, so the fields of a step are fetched side by side
+        with ThreadPoolExecutor(8) as ex:
+            part.write_bytes(b"".join(ex.map(get, urls)))
         part.rename(dest)
         return
     if model == "GFS":
         url = f"{GFS}/gfs.{day}/{hh}/atmos/gfs.t{hh}z.pgrb2.0p25.f{lead:03d}"
         lines = get(url + ".idx").decode().splitlines()
         offsets = [int(line.split(":")[1]) for line in lines]
-        want = GFS_FIELDS + (GFS_STATIC if lead == 0 else [])
+        want = GFS_UPPER if upper else GFS_FIELDS + (GFS_STATIC if lead == 0 else [])
         # the index gives no end for the last message, which is never one of these
         spans = [(offsets[i], offsets[i + 1] - 1) for i, line in enumerate(lines[:-1]) if any(f in line for f in want)]
     else:
         url = f"{GOOGLE}/{day}/{hh}z/{MODELS[model]}/0p25/oper/{day}{hh}0000-{lead}h-oper-fc"
-        want = ECMWF_FIELDS | (ECMWF_STATIC if lead == 0 else set())
+        want = ECMWF_UPPER if upper else ECMWF_FIELDS | (ECMWF_STATIC if lead == 0 else set())
         spans = []
         for line in get(url + ".index").decode().splitlines():
             d = json.loads(line)
@@ -140,6 +138,36 @@ def fetch(model: str, init: str, lead: int, work: Path) -> None:
         for a, b in merged(spans):
             fh.write(get(url, f"{a}-{b}"))
     part.rename(dest)
+
+
+def download(jobs: list[tuple[str, str, int]], root: Path, upper: bool) -> None:
+    with ThreadPoolExecutor(6) as ex:
+        list(ex.map(lambda j: fetch(*j, root / MODELS[j[0]] / f"{j[1]}_{j[2]:03d}.grib2", upper), jobs))
+
+
+def upper_pairs(init: str, work: Path, store) -> Path:
+    """Radiosonde pairs of every model for one run, saved as Parquet; the run's files are deleted after."""
+    from mverify.io.open import open_forecast
+    from mverify.match import match
+
+    out = work / "pairs" / f"{init}.parquet"
+    if out.exists():
+        return out
+    root = work / "upper"
+    download([(m, init, ld) for m in MODELS for ld in LEADS], root, upper=True)
+    pairs = pd.concat(
+        [
+            match(open_forecast(sorted((root / d).glob(f"{init}_*.grib2")), name=m), store, networks=["RAOB"])
+            for m, d in MODELS.items()
+        ],
+        ignore_index=True,
+    )
+    out.parent.mkdir(parents=True, exist_ok=True)
+    pairs.to_parquet(out.with_suffix(".part"))
+    out.with_suffix(".part").rename(out)
+    for f in root.glob(f"*/{init}_*.grib2"):
+        f.unlink()
+    return out
 
 
 def main() -> None:
@@ -154,18 +182,23 @@ def main() -> None:
             pd.to_datetime(a.inits[0], format="%Y%m%d%H"), pd.to_datetime(a.inits[1], format="%Y%m%d%H"), freq="1D"
         )
     ]
-    jobs = [(m, i, ld) for m in MODELS for i in inits for ld in LEADS]
-    with ThreadPoolExecutor(6) as ex:
-        list(ex.map(lambda j: fetch(*j, a.work), jobs))
+    download([(m, i, ld) for m in MODELS for i in inits for ld in LEADS], a.work, upper=False)
 
     from mverify import report
     from mverify.db.store import ObsStore
-    from mverify.verify import verify
+    from mverify.verify import Result, score_pair_files, verify
 
     with ObsStore.open(a.db, read_only=True) as store:
-        res = verify({m: sorted((a.work / d).glob("*.grib2")) for m, d in MODELS.items()}, store)
+        surface = verify(
+            {m: sorted((a.work / d).glob("*.grib2")) for m, d in MODELS.items()}, store, networks=["GHCNH"]
+        )
+        files = []
+        for init in inits:
+            files.append(upper_pairs(init, a.work, store))
+            print(f"{init}: radiosonde pairs saved", flush=True)
+    res = Result.concat([surface, score_pair_files(files)])
     report.write_json(res.scorecard(), OUT)
-    print(f"{len(res.pairs):,} pairs, {OUT.relative_to(REPO)}")
+    print(f"{len(surface.pairs):,} surface pairs, {OUT.relative_to(REPO)}")
 
 
 if __name__ == "__main__":
