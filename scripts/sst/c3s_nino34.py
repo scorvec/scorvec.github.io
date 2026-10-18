@@ -42,6 +42,7 @@ Requires a CDS API key (.cdsapirc, or CDSAPI_URL/CDSAPI_KEY).
 
 from __future__ import annotations
 
+import pyproj  # noqa: F401  before eccodes (c3s_grib): c3s_ref, imported later, brings pyproj (libproj double-free trap)
 import argparse
 import json
 import os
