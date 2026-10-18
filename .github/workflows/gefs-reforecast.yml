@@ -5,8 +5,8 @@ name: GEFS reforecast climatology (release gefs-clim-v3)
 # One fetch per (year, month) feeds both reductions (scripts/gefs/gefs_daily.py month: rf2_ daily and rf_ weekly
 # per-start files); each combine job then builds the 5-day centres of one month from the starts of that month and its
 # neighbours (gefs_daily.py combine, gefs_reforecast.py combine) and the per-member hindcast fields of the month's own
-# starts, compares every centre with the releases it replaces (gefs-clim-v1 weekly, gefs-clim-v2 daily: both pooled on
-# the raw day of year) and uploads to release gefs-clim-v3. The combine runs only when every month succeeded (a pool
+# starts, compares every centre with the copy the release holds (none on a first build) and uploads to release
+# gefs-clim-v3. The combine runs only when every month succeeded (a pool
 # must not lose starts silently): re-run the failed month jobs and the combine follows.
 on:
   workflow_dispatch:
@@ -101,17 +101,15 @@ jobs:
           mkdir -p log
           python scripts/gefs/gefs_daily.py combine ${{ matrix.m }} --inp in --out clim | tee log/combine.log
           python scripts/gefs/gefs_reforecast.py combine ${{ matrix.m }} --inp in --out clim | tee -a log/combine.log
-      - name: Differences from the releases replaced (gefs-clim-v1 weekly, gefs-clim-v2 daily)
+      - name: Differences from the release's current copy
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -o pipefail
           mkdir -p old
           for c in $(cd scripts/gefs && python -c "import gefs_reforecast as R; print(' '.join(f'{c:03d}' for c in R.centres_in(${{ matrix.m }})))"); do
-            gh release download gefs-clim-v1 -R "$GITHUB_REPOSITORY" -p "gefs_clim_$c.npz" -D old \
-              || echo "::warning::gefs-clim-v1 gefs_clim_$c.npz not found"
-            gh release download gefs-clim-v2 -R "$GITHUB_REPOSITORY" -p "gefs_clim2_$c.npz" -D old \
-              || echo "::warning::gefs-clim-v2 gefs_clim2_$c.npz not found"
+            gh release download "$RELEASE" -R "$GITHUB_REPOSITORY" -p "gefs_clim_$c.npz" -p "gefs_clim2_$c.npz" -D old \
+              || echo "::warning::$RELEASE has no gefs_clim(2)_$c.npz yet"
           done
           mm=$(printf %02d ${{ matrix.m }})
           python scripts/gefs/gefs_daily.py compare --old old --new clim --json "log/compare_$mm.json" | tee "log/compare_$mm.log"
@@ -128,6 +126,6 @@ jobs:
           ls -la clim
           gh release view "$RELEASE" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
             || gh release create "$RELEASE" -R "$GITHUB_REPOSITORY" --title "GEFS reforecast climatology v3" \
-                 --notes "GEFSv12 reforecast 2000-2019 (Wednesday 35-day starts, 4 members), pooled on the common-year day-of-year calendar (29 Feb = day 59.5, 1 March = 60 in every year), +-15 d around each 5-day centre: gefs_clim_DDD weekly and gefs_clim2_DDD daily lead-dependent climatologies; per start month the per-member hindcast fields for the calibrations, gefs_hind2_MM (daily 2.5 deg z500/mslp/z100 and vortex scalars) and gefs_hindw_MM (weekly 1.5 deg t2m/pr/z500/mslp). Replaces gefs-clim-v1 and gefs-clim-v2, which pooled on the raw day of year. Built by .github/workflows/gefs-reforecast.yml from scripts/gefs/gefs_daily.py and gefs_reforecast.py. Not a site page." \
+                 --notes "GEFSv12 reforecast 2000-2019 (Wednesday 35-day starts, 4 members), pooled on the common-year day-of-year calendar (29 Feb = day 59.5, 1 March = 60 in every year), +-15 d around each 5-day centre: gefs_clim_DDD weekly and gefs_clim2_DDD daily lead-dependent climatologies; per start month the per-member hindcast fields for the calibrations, gefs_hind2_MM (daily 2.5 deg z500/mslp/z100 and vortex scalars) and gefs_hindw_MM (weekly 1.5 deg t2m/pr/z500/mslp). Built by .github/workflows/gefs-reforecast.yml from scripts/gefs/gefs_daily.py and gefs_reforecast.py. Not a site page." \
             || echo "::warning::release create raced with another month (it exists now)"
           gh release upload "$RELEASE" clim/*.npz -R "$GITHUB_REPOSITORY" --clobber
