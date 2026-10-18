@@ -1,8 +1,7 @@
 name: MJO RMM (AIFS-ENS)
 
-# The scheduled RMM builder. The "check" job skips a cycle whose RMM PNG
-# already exists and honours a fresh claim by scripts/mjo/run_local.sh, so a
-# one-off manual run cannot double-publish. `force=true` rebuilds regardless.
+# The scheduled RMM builder. The "check" job skips a cycle whose RMM figure
+# already exists, so a repeated trigger cannot double-publish. `force=true` rebuilds regardless.
 on:
   # backstop crons: the dispatcher (scripts/lib/dispatch_workflows.sh) fires this on time; these only matter when
   # it is off
@@ -111,27 +110,14 @@ jobs:
             exit 1
           fi
           COMPACT="${DATE}_${TIME}z"
-          # Claim: run_local.sh publishes assets/mjo/claim.json before its
-          # long u-fetch. A claim on this cycle younger than 3 h means that run
-          # is alive and mid-run — defer instead of racing the same download.
-          # A stale claim (run crashed mid-run) is ignored, and a
-          # run that never starts never claims at all, so the fallback still fires.
-          # Manual dispatches bypass the claim.
-          CLAIM_CYCLE=$(python -c "import json;print(json.load(open('assets/mjo/claim.json')).get('cycle',''))" 2>/dev/null || echo "")
-          CLAIM_AGE=$(python -c "import json;from datetime import datetime,timezone;t=datetime.fromisoformat(json.load(open('assets/mjo/claim.json'))['started'].replace('Z','+00:00'));print(int((datetime.now(timezone.utc)-t).total_seconds()//60))" 2>/dev/null || echo 99999)
           if [ "${{ inputs.force }}" = "true" ]; then
             echo "force=true — rebuilding ${COMPACT} regardless."
             echo "should_run=true" >> "$GITHUB_OUTPUT"
           elif [ -f "assets/mjo/rmm_${COMPACT}.webp" ] || [ -f "assets/mjo/rmm_${COMPACT}.png" ]; then
             echo "Already plotted (assets/mjo/rmm_${COMPACT}) — skipping."
             echo "should_run=false" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" != "workflow_dispatch" ] \
-               && [ "$CLAIM_CYCLE" = "$COMPACT" ] \
-               && [ "$CLAIM_AGE" -ge -15 ] && [ "$CLAIM_AGE" -lt 180 ]; then
-            echo "run_local.sh claimed ${COMPACT} ${CLAIM_AGE} min ago — deferring to that run."
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
           else
-            echo "Not yet plotted, no fresh claim — will run."
+            echo "Not yet plotted — will run."
             echo "should_run=true" >> "$GITHUB_OUTPUT"
           fi
           echo "date=$DATE" >> "$GITHUB_OUTPUT"
