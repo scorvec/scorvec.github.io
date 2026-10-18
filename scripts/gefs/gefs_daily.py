@@ -10,8 +10,8 @@ regime assignments and vortex diagnostics are all daily and lead-dependent, so t
   s            every member's daily vortex scalars: u(60) and the 65-90 polar-cap T and Z at 10 and 100 hPa, NH/SH
 
 and the combine step turns the starts within +-15 days of each 5-day day-of-year centre into the lead-dependent daily
-climatology. The pools are on the common-year calendar (gefs_reforecast.noleap_doy); release gefs-clim-v2 pooled on
-the raw day of year and is replaced by gefs-clim-v3 (see gefs_reforecast.py). The month pass also feeds every decoded
+climatology. The pools are on the common-year calendar (gefs_reforecast.noleap_doy); the retired gefs-clim-v2 pooled on
+the raw day of year and was replaced by gefs-clim-v3 (see gefs_reforecast.py). The month pass also feeds every decoded
 message to gefs_reforecast.Weekly, so the weekly climatology's per-start files (rf_YYYYMMDD.npz) come out of the same
 fetch. One reduction function (Acc) serves both sides, so forecast and climatology are the same arithmetic by
 construction:

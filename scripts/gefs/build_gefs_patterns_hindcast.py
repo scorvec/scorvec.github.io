@@ -11,7 +11,7 @@ start + d - 1), projected with the same patterns; the ensemble-mean regime per s
 
 The c25 climatology is recomputed here from the same starts with the release's own arithmetic (gefs_daily.cmd_combine:
 all member-runs of the starts within +-15 days of each centre on the common-year calendar, packed to int16) and
-checked against the released gefs_clim2_<c>.npz (--check). Release gefs-clim-v2 pooled on the raw day of year and
+checked against the released gefs_clim2_<c>.npz (--check). The retired gefs-clim-v2 pooled on the raw day of year and
 differed from it at centre 266 by up to 8.6 m in 500 and 100 hPa height and 58 Pa in sea-level pressure with the same
 348 member-runs (2016-09-07 pooled in place of 2008-10-08); gefs-clim-v3 pools as here.
 The fit is LEAVE-SEASON-OUT, as the tercile maps' skill pass (build_gefs_mapskill.py):

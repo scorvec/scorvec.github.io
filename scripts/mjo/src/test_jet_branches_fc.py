@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Offline checks of jet_branches_fc.py and jet_branches_hindcast.py: a step of the IFS-ENS stream decoded from real
-GRIB2 messages (encoded here, served by a stand-in for the range fetcher), the products, the renders, the season rule,
-and the hindcast's scan events and comparison.
+"""Offline checks of jet_branches_fc.py, jet_branches_hindcast.py and jet_branches_verify.py: a step of the IFS-ENS
+stream decoded from real GRIB2 messages (encoded here, served by a stand-in for the range fetcher), the products, the
+renders, the season rule, the hindcast's scan events and comparison, and the skill verification's statistics.
 
     python scripts/mjo/src/test_jet_branches_fc.py
 
@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import jet_branches as JB
 import jet_branches_fc as FC
 import jet_branches_hindcast as HC
+import jet_branches_verify as V
 import test_jet_branches as T
 
 LAT025 = np.round(np.arange(90.0, -90.0 - 1e-6, -0.25), 3)
@@ -90,7 +91,7 @@ def test_step():
         blob[e["_offset"] : e["_offset"] + e["_length"]] for _, _, es in ranges for e in es
     )
     try:
-        r = FC.step_masks(("20260110", 24))
+        r = FC.step_masks(("20260110", 24, 2))
     finally:
         rf.fetch_index, rf.fetch_ranges = orig
     check(r is not None and r["members"].tolist() == [1, 2], f"members {None if r is None else r['members']}")
@@ -102,6 +103,12 @@ def test_step():
         # 24-bit packing leaves the identification unchanged up to a few columns where a gradient sits on its threshold
         check(np.mean(got != want) < 1e-4 and got.sum() > 100, f"member {m}: {int((got != want).sum())} columns differ")
     check(r["cost"]["messages"] == 54 and r["cost"]["bytes"] == len(blob), f"cost {r['cost']}")
+    # a run without one of the nine levels is skipped at once, not retried
+    rf.fetch_index = lambda *a, **k: [e for e in index if e["levelist"] != "100"]
+    try:
+        check(FC.step_masks(("20250110", 24, 2)) is None, "a run lacking 100 hPa")
+    finally:
+        rf.fetch_index = orig[0]
 
 
 def fake_run(path, init, steps, members=6):
@@ -154,16 +161,52 @@ def test_products_and_render():
             "events",
         )
         check(all(0 < x < 1 for r in pr["event_normal"].values() for x in r), f"event normals {pr['event_normal']}")
+        skill, FC.SKILL = FC.SKILL, d / "skill.json"  # no verification yet: every lead drawn
         doc = FC.render(d / "fc.npz", d / "clim.nc", d / "out")
         mani = json.loads((d / "out" / "anim" / f"{FC.NAME}_manifest.json").read_text())
         frames = mani["regions"][FC.NAME]["frames"]
         check(len(frames) == 4 and all((d / "out" / "anim" / FC.NAME / f["file"]).exists() for f in frames), "frames")
         check((d / "out" / f"{FC.NAME}_events.webp").exists() and doc["in_season"], "the events still")
         check(len(doc["regions"]["wnp"]["share"]) == 4, "json leads")
+        # verified: only the polar maps on day 0 pass, no event odds -> two frames (0 and 12 h), the still greyed
+        maps = {b: dict(calibrated=[False] * 11, table=[[0.0, 1.0]] * 11, show=[0, 0] if b == "polar" else None)
+                for b in JB.BRANCHES}  # fmt: skip
+        ev = {r: dict(groups=["0-2", "3-5", "6-10"], calibrated=[False] * 3, table=[[0.0, 1.0]] * 3, show=None)
+              for r in JB.REGIONS}  # fmt: skip
+        FC.SKILL.write_text(json.dumps(dict(maps=maps, events=ev)))
+        doc = FC.render(d / "fc.npz", d / "clim.nc", d / "out")
+        FC.SKILL = skill
+        files = sorted(p.name for p in (d / "out" / "anim" / FC.NAME).glob("*.webp"))
+        check(files == ["F00.webp", "F01.webp"] and doc["verified"], f"gated frames {files}")
+        check(doc["map_shown"]["polar"] == [True, True, False, False] and not any(doc["event_shown"]["na"]), "shown")
         # outside the season: the note, a one-frame loop, in_season false, the old frames gone
         doc = FC.render_off_season(pd.Timestamp("2026-10-17 00:00"), d / "out")
         files = sorted(p.name for p in (d / "out" / "anim" / FC.NAME).glob("*.webp"))
         check(not doc["in_season"] and files == ["F00.webp"], f"off season {files}")
+
+
+def test_gate():
+    steps = np.array([0, 24, 48, 96])
+    pr = dict(
+        steps=steps,
+        share=np.full((4, 3, 2, 2), 0.5, np.float32),
+        events={r: np.full(4, 0.5) for r in JB.REGIONS},
+    )
+    check(FC.gate(pr, None)["map_shown"].all() and FC.gate(pr, None)["share"] is pr["share"], "no skill file: as is")
+    lev = [0.0, 0.1, 0.2, 0.4]  # a 3-member table: share 0.5 lies between 1/3 (0.1) and 2/3 (0.2) -> 0.15
+    maps = {
+        b: dict(calibrated=[True] + [False] * 10, table=[lev] * 11, show=([1, 2] if b == "polar" else None))
+        for b in JB.BRANCHES
+    }
+    ev = {r: dict(groups=["0-2", "3-5", "6-10"], calibrated=[False, True, False], table=[lev] * 3, show=[1, 1])
+          for r in JB.REGIONS}  # fmt: skip
+    g = FC.gate(pr, dict(maps=maps, events=ev))
+    check(np.allclose(g["share"][0], 0.15) and np.allclose(g["share"][1:], 0.5), "the recalibration at day 0 only")
+    check(g["map_cal"][0].all() and not g["map_cal"][1:].any(), "map_cal")
+    check(g["map_shown"][:, 0].tolist() == [False, True, True, False] and not g["map_shown"][:, 1:].any(), "map_shown")
+    r0 = next(iter(JB.REGIONS))
+    check(np.allclose(g["events"][r0], [0.5, 0.5, 0.5, 0.15]), f"event recalibration {g['events'][r0]}")
+    check(g["event_shown"][:, 0].tolist() == [False, False, False, True], "event_shown: days 3-5 only")
 
 
 def test_hindcast():
@@ -188,6 +231,60 @@ def test_hindcast():
               for r in JB.REGIONS}  # fmt: skip
         np.savez_compressed(d / "scan2.npz", time=np.array(times, "datetime64[s]"), masks=packed, events=json.dumps(ev))
         check(HC.pick(d / "scan2.npz", [3, 6]) == ["20260106", "20260109"], "pick")
+
+
+def test_verify_statistics():
+    # pool adjacent violators: monotone input kept, a violation pooled, levels without weight interpolated
+    check(np.allclose(V.pav([0.1, 0.2, 0.5], [1, 1, 1]), [0.1, 0.2, 0.5]), "pav keeps a monotone fit")
+    check(np.allclose(V.pav([0.1, 0.4, 0.2], [1, 1, 1]), [0.1, 0.3, 0.3]), "pav pools a violation")
+    check(np.allclose(V.pav([0.0, 9.0, 0.6], [1, 0, 1]), [0.0, 0.3, 0.6]), "pav interpolates an empty level")
+    # Benjamini-Hochberg at 10 %: 0.01 and 0.03 pass (0.03 <= 2/4 x 0.1); 0.08 and 0.5 do not
+    check(V.bh([0.5, 0.01, 0.08, 0.03]).tolist() == [False, True, False, True], "Benjamini-Hochberg")
+    # the level sums give the Brier score of any forecast of the levels
+    rng = np.random.default_rng(5)
+    k = rng.integers(0, 11, 500)
+    o = rng.random(500) < k / 12
+    w = rng.random(500)
+    W, O = np.bincount(k, weights=w, minlength=11), np.bincount(k, weights=w * o, minlength=11)
+    t = np.sort(rng.random(11))
+    check(np.isclose(V.brier_levels(W, O, t), np.sum(w * (t[k] - o) ** 2)), "Brier from level sums")
+    check(V.season_of("2025-11-03") == 2026 and V.season_of("2026-03-01") == 2026, "season labels")
+    chunks, windows = V.plan([2026], 2, ["20260101", "20260325", "20251103"], 2)
+    check(chunks == [["20251103", "20260101"], ["20260325"]], f"plan chunks {chunks}")
+    check(windows == {2026: ["2025-11-03", "2026-03-31"]}, f"plan windows {windows}")
+    chunks, windows = V.plan([2026], 2, ["20260101", "20260325", "20251103"], 8, probe=lambda i: i >= "20251201")
+    check(chunks == [["20260101", "20260325"]] and windows == {2026: ["2026-01-01", "2026-03-31"]}, "plan probe")
+
+
+def test_verify_end_to_end():
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        fake_clim(d / "clim.nc")
+        times, packed = [], []
+        for init in ("2025-01-10", "2025-01-20", "2026-01-10", "2026-01-20"):
+            t0 = pd.Timestamp(f"{init} 00:00")
+            fake_run(d / f"fc_{t0:%Y%m%d}.npz", t0, [0, 12, 24], members=3)
+            _, steps, masks, _ = FC.load_run(d / f"fc_{t0:%Y%m%d}.npz")
+            for s, m in zip(steps, masks):
+                times.append(t0 + pd.Timedelta(hours=int(s)))
+                packed.append(np.packbits(m[0].reshape(3, -1), axis=-1))  # ERA5 = member 1
+        for season in (2025, 2026):
+            sel = [i for i, t in enumerate(times) if t.year == season]
+            np.savez_compressed(
+                d / f"scan_{season}.npz",
+                time=np.array([times[i] for i in sel], "datetime64[s]"),
+                masks=np.stack([packed[i] for i in sel]),
+                events=json.dumps({}),
+            )
+        runs = sorted(str(p) for p in d.glob("fc_*.npz"))
+        scans = sorted(str(p) for p in d.glob("scan_*.npz"))
+        doc = V.verify(runs, scans, d / "clim.nc", d / "out", d / "skill.json", members=3, workers=2)
+        check(doc["runs"] == 4 and doc["seasons"] == [2025, 2026], f"runs {doc['runs']} seasons {doc['seasons']}")
+        m = doc["maps"]["polar"]
+        check(m["bss_raw"][0] > 0.5 and len(m["table"]) == len(V.LEAD_DAYS), f"polar day 0 BSS {m['bss_raw'][0]}")
+        check(json.loads((d / "skill.json").read_text())["members"] == 3, "the committed copy")
+        check(not any(m["passed"]) and doc["cross_validation"].endswith("seasons"), "4 weeks: nothing can pass")
+        check((d / "out" / "verify_skill.png").exists() and (d / "out" / "verify_reliability.png").exists(), "figures")
 
 
 if __name__ == "__main__":

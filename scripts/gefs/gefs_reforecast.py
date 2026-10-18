@@ -16,7 +16,7 @@ Everything is box-averaged to 1.5 deg and reduced to weekly means (days 1-7 ... 
 zonal mean (the vortex panel), and OLR/u200/u850 daily as 15S-15N means by longitude (the MJO index).
 
 The climatology pools, for each 5-day centre, the starts within +-15 days of it on the common-year calendar
-(noleap_doy: 1 March is day 60 in every year). Releases gefs-clim-v1 and v2 pooled on the raw day of year, which puts
+(noleap_doy: 1 March is day 60 in every year). The retired gefs-clim-v1 and v2 pooled on the raw day of year, which put
 every leap-year start after 28 February one day later, so a leap-year start 16 days before a centre was pooled with
 it and one 15 days after was left out (65 of the 73 centres, 89 leap-year starts). Release gefs-clim-v3
 (gefs-reforecast.yml) holds both climatologies rebuilt on the common-year calendar: this file's weekly one and

@@ -70,8 +70,7 @@ HOURS = (0, 6, 12, 18)
 PC = ccrs.PlateCarree()
 EXTENT = (-50.0, 50.0)
 ROWS = ("nh", "npac", "natl", "sh", "spac", "satl", "sind")
-DT_KM = np.arange(13.0, 17.51, 0.5)  # the daily map's colours: the dynamic tropopause's height (km)
-EDGE_LAT = 20.0  # the deep-tropical ascent the Hadley cell edges are looked for from lies within this of the equator
+DT_KM = np.arange(8.0, 17.51, 0.5)  # the daily map's colours: the dynamic tropopause's height (km)
 W_EFOLD = 12.0  # spherical-harmonic degree damped by 1/e in the mapped vertical motion (a strong Gaussian filter)
 # the interactive map's forward paths: seeds over the deep tropics at DROP_P, released DROP_BACK days before the last
 # analysis and followed for up to DAYS_BACK days (or to the last analysis), 6-hourly, as int16 files per release and level
@@ -528,40 +527,12 @@ def height_km(p: np.ndarray) -> np.ndarray:
     return np.where(p >= 226.32, 44.3308 * (1.0 - (p / 1013.25) ** 0.190263), 11.0 + 6.34162 * np.log(226.32 / p))
 
 
-def hc_edges(wmid: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Per longitude, the latitudes (north, south) where descent starts either side of the deep-tropical ascent: from
-    the strongest ascent within EDGE_LAT of the equator, the first latitude each way where the 700-300 hPa omega,
-    strongly filtered (W_EFOLD), turns to descent, interpolated to the zero; NaN where there is no ascent there."""
-    w = HB.large_scale(wmid, efold=W_EFOLD)
-    band = np.flatnonzero(np.abs(HB.LAT) <= EDGE_LAT)
-    north, south = np.full(HB.LON.size, np.nan), np.full(HB.LON.size, np.nan)
-    for j in range(HB.LON.size):
-        i0 = band[np.argmin(w[band, j])]
-        if w[i0, j] >= 0.0:
-            continue
-        for step, out in ((-1, north), (1, south)):  # rows run north to south
-            i = i0
-            while 0 < i < HB.LAT.size - 1 and w[i + step, j] < 0.0:
-                i += step
-            a, b = w[i, j], w[i + step, j]
-            out[j] = HB.LAT[i] + (HB.LAT[i + step] - HB.LAT[i]) * a / (a - b)
-    return north, south
-
-
 def draw_dt(F: dict, day: pd.Timestamp, out: Path):
-    """The day's outflow on the dynamic tropopause: the surface's height inside the Hadley cells (between the latitudes
-    where descent starts either side of the deep-tropical ascent), the divergent wind on it as arrows."""
-    north, south = hc_edges(F["wmid"])
-    inside = (HB.LAT[:, None] <= north[None, :]) & (HB.LAT[:, None] >= south[None, :])
+    """The day's outflow on the dynamic tropopause: the surface's height, and the divergent wind on it as arrows."""
     size, rects, left = _layout(1)
     fig = plt.figure(figsize=size)
     ax = fig.add_axes(rects[0][0], projection=PROJ)
-    cf = ax.contourf(
-        XN, HB.LAT, _native(np.where(inside, height_km(F["pdt"]), np.nan)), levels=DT_KM, cmap="viridis", extend="both"
-    )
-    order = np.argsort(_xn(HB.LON))
-    for edge in (north, south):
-        ax.plot(_xn(HB.LON)[order], edge[order], color="#111", lw=1.1)
+    cf = ax.contourf(XN, HB.LAT, _native(height_km(F["pdt"])), levels=DT_KM, cmap="viridis", extend="both")
     s = 5
     ax.quiver(
         XN[:-1:s],
@@ -572,7 +543,7 @@ def draw_dt(F: dict, day: pd.Timestamp, out: Path):
         width=0.0012,
         color="#222",
     )
-    _geo(ax, "Divergent wind on the dynamic tropopause · its height inside the Hadley cells")
+    _geo(ax, "Divergent wind on the dynamic tropopause · the surface's height")
     cb = fig.colorbar(cf, cax=fig.add_axes(rects[0][1]), orientation="vertical")
     cb.set_label("height of the dynamic tropopause (km)", fontsize=8)
     cb.ax.tick_params(labelsize=7.5)
@@ -590,8 +561,7 @@ def draw_dt(F: dict, day: pd.Timestamp, out: Path):
         0.12 / H,
         f"dynamic tropopause = the {HB.DT_PVU:.0f}-PVU surface, or the {HB.DT_THETA:.0f} K isentrope where that lies lower "
         "(the deep tropics); height from its pressure in the standard atmosphere · arrows = the divergent wind on it\n"
-        "black lines = the Hadley cell edges: where 700-300 hPa motion turns to descent either side of the deep-tropical "
-        "ascent (strongly smoothed); colour only between them\nthe analysis less its mean offset from ERA5",
+        "the analysis less its mean offset from ERA5",
         fontsize=8.2,
         color="#555",
     )
@@ -863,12 +833,13 @@ TRACKERS = (
     (
         "hbranch_turnover.webp",
         "How fast the Hadley cells turn over",
-        (("transit_{}_500", "Transit to 500 hPa", "days"), ("share_{}_500", "Air from the outflow", "%")),
+        (("transit_{}_500", "Transit to 500 hPa", "days"), ("share_{}_500", "Share from the outflow", "%")),
         ROWS,
-        f"the air at 500 hPa over 15–33°, released daily at 00 UTC on a {T.RES:.0f}° grid and traced back {T.DAYS_BACK} "
-        "days: transit = median time since it last left the tropical outflow layer (equatorward of "
-        f"{T.OUTFLOW_LAT:.0f}°,\nwithin {HB.OUT_DEPTH:.0f} hPa below the dynamic tropopause), of the share traced to it; "
-        "shorter = a faster-turning cell",
+        f"parcels at 500 hPa over 15–33°, released daily at 00 UTC on a {T.RES:.0f}° grid and traced back {T.DAYS_BACK} "
+        f"days · tropical outflow layer = equatorward of {T.OUTFLOW_LAT:.0f}°, within {HB.OUT_DEPTH:.0f} hPa below the "
+        "dynamic tropopause\n% = the area-weighted share of the parcels that were in that layer at some time "
+        f"in the {T.DAYS_BACK} days · transit = their median time since they last left it; shorter = a faster-turning "
+        "cell",
     ),
 )
 
@@ -886,7 +857,7 @@ def draw_trackers(series: pd.DataFrame, cl: xr.Dataset):
                 now = series[key].iloc[-1]
                 mu, sd = (clim_index(cl, key, doy[-1:], st)[0] for st in ("mean", "sd"))
                 ax.set_title(
-                    f"{SECTOR_NAME[s]} · {label} · latest {now:.1f} ({(now - mu) / sd:+.1f}σ)",
+                    f"{SECTOR_NAME[s]} · {label} · latest {now:.1f} {unit} ({(now - mu) / sd:+.1f}σ)",
                     fontsize=9,
                     loc="left",
                     fontweight="bold",
