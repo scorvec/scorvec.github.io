@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Equatorial SOI (CPC definition) for the El Niño monitor: observed monthly series from CPC, a
-daily tail from the ensembles' day-1 values archived cycle by cycle, and a 15-day AIFS-ENS +
+daily tail from the ensembles' 0-h (starting analysis) values archived cycle by cycle, and a 15-day AIFS-ENS +
 IFS-ENS member forecast.
 
 EQSOI = standardised anomaly of the east (5°N–5°S, 130–80°W) minus west (5°N–5°S, 90–140°E)
@@ -120,7 +120,7 @@ def main() -> int:
     )  # (member, day)
     mean = np.nanmean(idx, 0)
     p10, p90 = np.nanpercentile(idx, 10, 0), np.nanpercentile(idx, 90, 0)
-    # daily tail: the day-1 ensemble mean of each cycle, archived
+    # daily tail: each cycle's 0-h ensemble mean (step 0, the starting analysis), archived
     hist = json.loads(HIST.read_text()) if HIST.exists() else {}
     hist[valid[0].strftime("%Y-%m-%d")] = round(float(mean[0]), 3)
     hist = dict(sorted(hist.items())[-400:])
@@ -141,7 +141,7 @@ def main() -> int:
     axm.set_title("CPC monthly Equatorial SOI", fontsize=9.5, loc="left", fontweight="bold")
     axm.set_ylabel("Equatorial SOI (standardised, CPC scale)")
     if len(tail) > 1:
-        axf.plot(tail.index, tail.values, color=INK, lw=1.4, label="day-1 ensemble mean, archived per cycle", zorder=3)
+        axf.plot(tail.index, tail.values, color=INK, lw=1.4, label="0-h ensemble mean, archived per cycle", zorder=3)
     axf.fill_between(valid, p10, p90, color=RED, alpha=0.18, lw=0, label="P10–P90", zorder=3)
     for j in range(idx.shape[0]):
         axf.plot(valid, idx[j], color=RED, lw=0.4, alpha=0.12, zorder=3)
@@ -212,13 +212,13 @@ def main() -> int:
                 "p10": np.round(p10, 3).tolist(),
                 "p90": np.round(p90, 3).tolist(),
                 "cpc_latest": {"month": c.index[-1].strftime("%Y-%m"), "value": float(c.values[-1])},
-                "day1_history": hist,
+                "analysis_history": hist,
             },
             separators=(",", ":"),
         )
     )
     print(
-        f"  EQSOI: CPC {c.index[-1]:%Y-%m} {c.values[-1]:+.1f}; forecast day 1 {mean[0]:+.2f}, day 15 {mean[-1]:+.2f} ({idx.shape[0]} members) → {out}",
+        f"  EQSOI: CPC {c.index[-1]:%Y-%m} {c.values[-1]:+.1f}; 0 h {mean[0]:+.2f}, day 15 {mean[-1]:+.2f} ({idx.shape[0]} members) → {out}",
         flush=True,
     )
     return 0
