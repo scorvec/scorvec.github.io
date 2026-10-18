@@ -179,7 +179,6 @@ d, p = TR.welch({"x": np.zeros((5, 3))}, {"x": np.zeros((5, 3))}, {"x": 1.0})
 check(np.isnan(p).all(), "cells where no member varies are not tested")
 
 print("grid: 0.5° GRIB2 messages")
-G.use_domain("global")
 lat = np.linspace(90, -90, 361)
 lon = np.arange(0, 360, 0.5)
 field = (5 + 3 * np.cos(np.deg2rad(lat))[:, None] * (1 + np.sin(np.deg2rad(2 * lon)))[None, :]).astype("float64")

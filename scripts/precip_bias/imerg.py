@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
-"""IMERG V07 daily rainfall over the Americas on the bias-field 1° grid (grid.py) - the observed half (2026-10-13).
+"""IMERG V07 daily rainfall on the global 1° band of grid.py (60°S-60°N): the observed half of the tropical rainfall
+forecast's bias correction.
 
 Two products, kept apart:
   late   GPM_3IMERGDL  ~1 day latency, satellite-only with a climatological gauge calibration: the record that keeps
-                       up with the forecasts, so the bias field is measured against it;
+                       up with the forecasts, so the bias is measured against it;
   final  GPM_3IMERGDF  monthly GPCC gauge adjustment over land, but it lags (V07 Final ended 2025-09-30 on 2026-10-13):
-                       used over the overlap to measure Late's own error, which the bias page shows beside the model bias.
+                       over the overlap it scales Late to Final, season by season (build_bias.truth_terms).
 Days are UTC days, as the 00Z model accumulations are. Access: GES DISC OPeNDAP, one request per day for `precipitation`
-over 60°S-60°N, 170°W-30°W at 0.1° (~4 MB), and when OPeNDAP answers 5xx (it did for a whole month on 2026-10-13) the
-whole daily file over HTTPS (~27 MB) cut to the same box; 1° box means. Earthdata login from a .netrc file or
+over 60°S-60°N at 0.1°, and when OPeNDAP answers 5xx (it did for a whole month on 2026-10-13) the whole daily file over
+HTTPS (~27 MB) cut to the same band; 1° box means. Earthdata login from a .netrc file or
 EARTHDATA_USERNAME / EARTHDATA_PASSWORD (earthaccess), over IPv4 only: on the Actions runner the login host resolved to an
 IPv6 route that is not there ("Network is unreachable", 2026-10-13).
 
-    python scripts/precip_bias/imerg_americas.py --product late --month 2024-03 --out DIR
+    python scripts/precip_bias/imerg.py --product late --month 2024-03 --out DIR
 -> DIR/imerg_{product}_{YYYYMM}.npz: dates (YYYYMMDD), pr (day, lat, lon) float32 mm/day, missing
 """
 
@@ -34,10 +35,7 @@ import grid as G
 PRODUCTS = {"late": ("GPM_3IMERGDL", "3B-DAY-L."), "final": ("GPM_3IMERGDF", "3B-DAY.")}
 DATA = "https://data.gesdisc.earthdata.nasa.gov/data/"
 OPENDAP = "https://gpm1.gesdisc.eosdis.nasa.gov/opendap/"
-
-
-def query() -> str:
-    return f"precipitation[0:0][{G.IM_LON0}:1:{G.IM_LON1}][{G.IM_LAT0}:1:{G.IM_LAT1}]"  # read at call time (--domain)
+QUERY = f"precipitation[0:0][{G.IM_LON0}:1:{G.IM_LON1}][{G.IM_LAT0}:1:{G.IM_LAT1}]"  # the 60S-60N band
 
 
 def _ipv4_only():
@@ -119,7 +117,7 @@ def fetch_day(urls, tries: int = 4):
         try:
             if not use_full:
                 try:
-                    r = _session().get(dap + ".nc4?" + query(), timeout=120)
+                    r = _session().get(dap + ".nc4?" + QUERY, timeout=120)
                     r.raise_for_status()
                     a = _read(r.content, subset=True)
                 except (requests.HTTPError, requests.Timeout, requests.ConnectionError) as ex:
@@ -187,14 +185,7 @@ def main() -> int:
     ap.add_argument("--month", required=True, help="YYYY-MM")
     ap.add_argument("--out", required=True)
     ap.add_argument("--last", help="last date to include (YYYY-MM-DD)")
-    ap.add_argument(
-        "--domain",
-        default="americas",
-        choices=["americas", "global"],
-        help="global = 60°S-60°N at all longitudes (2026-10-14, tropical rainfall forecast)",
-    )
     a = ap.parse_args()
-    G.use_domain(a.domain)
     return 0 if month(a.product, a.month, Path(a.out), date.fromisoformat(a.last) if a.last else None) else 1
 
 

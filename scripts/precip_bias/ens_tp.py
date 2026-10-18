@@ -16,7 +16,7 @@ the runner (exit 139, scripts/mjo/src/overturn.py).
 
 Two products:
   archive  the bias reference of global_bias.py and blend.py: members 1-6 of each 00Z run at 168 h and 336 h (weeks 1
-           and 2), one file a month in ecmwf_tp.py's global format, {model}_{YYYYMM}.npz. GEFS from 2024-10, the start of
+           and 2), one file a month in ecmwf_tp.py's format, {model}_{YYYYMM}.npz. GEFS from 2024-10, the start of
            the IMERG archive the bias is measured against; GEPS only as far back as the Datamart still reaches. A month
            is merged with the file already in the release (--have), so only new runs are fetched and the GEPS runs that
            have left the Datamart are kept.
@@ -415,7 +415,6 @@ def main() -> int:
     a2.add_argument("--date", required=True, help="init YYYYMMDD (00Z)")
     a2.add_argument("--out", required=True)
     a = ap.parse_args()
-    G.use_domain("global")
     if a.cmd == "month":
         last = date.fromisoformat(a.last) if a.last else None
         return month(a.model, a.month, Path(a.out), last, Path(a.have) if a.have else None)

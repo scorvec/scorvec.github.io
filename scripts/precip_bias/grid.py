@@ -1,16 +1,14 @@
-"""The Americas 1° grid shared by the model-rain bias work.
+"""The global 1° band of the tropical rainfall forecast's rain archive and bias correction (scripts/precip_bias).
 
 Cells are 1° boxes with centres at half degrees: latitude 59.5°S..59.5°N (120 rows, ascending), longitude
-169.5°W..30.5°W (140 columns). Poleward of 60° IMERG is unreliable (snow and ice surfaces, few passive-microwave
-retrievals), so the domain stops there: Alaska and northern Canada are left out on purpose.
+179.5°W..179.5°E (360 columns). Poleward of 60° IMERG is unreliable (snow and ice surfaces, few passive-microwave
+retrievals), so the band stops there.
 
   Model grids (regular, every 1/k degree with points on whole degrees: ECMWF open data 0.25°, GEFS and GEPS 0.5°): each box
   is the trapezoid-weighted mean of the (k+1) x (k+1) points on its edges and inside (edge points half weight), so the box
   is centred exactly on its cell centre. canonical() first brings a decoded field to rows 90°N -> 90°S, columns from 180°W.
+  The box at 179.5°E takes its eastern edge points from the 180°W column (the seam wraps).
   IMERG (0.1° cells, centres 89.95°S.. / 179.95°W..): the plain mean of the 10 x 10 cells inside, a cell needing >= 50 % valid.
-
-use_domain("global") (the tropical rainfall forecast) switches every function here to the global band: the same 120 rows,
-360 columns 179.5°W..179.5°E; the box at 179.5°E takes its eastern edge points from the 180°W column (the seam wraps).
 """
 
 from __future__ import annotations
@@ -18,10 +16,8 @@ from __future__ import annotations
 import numpy as np
 
 LAT = np.arange(-59.5, 60.0, 1.0)  # 120 rows, ascending
-LON = np.arange(-169.5, -30.0, 1.0)  # 140 columns
+LON = np.arange(-179.5, 180.0, 1.0)  # 360 columns
 NY, NX = len(LAT), len(LON)
-
-DOMAIN = "americas"
 
 
 def canonical(v: np.ndarray, lat_first: float, lon_first: float) -> np.ndarray:
@@ -40,10 +36,7 @@ def to_1deg(full: np.ndarray, res: float) -> np.ndarray:
     w = np.r_[0.5, np.ones(k - 1), 0.5] / k  # trapezoid weights of the k + 1 points across a box
     full = np.asarray(full, dtype="float64")
     j0, j1 = round(30 / res), round(150 / res)  # rows of 60°N .. 60°S
-    if DOMAIN == "global":  # 180°W .. 180°E: the 180°E column is the 180°W one again
-        a = np.concatenate([full[j0 : j1 + 1], full[j0 : j1 + 1, :1]], axis=1)
-    else:
-        a = full[j0 : j1 + 1, round(10 / res) : round(150 / res) + 1]  # 170°W .. 30°W
+    a = np.concatenate([full[j0 : j1 + 1], full[j0 : j1 + 1, :1]], axis=1)  # 180°W .. 180°E: 180°E is 180°W again
     rows = sum(w[i] * a[i::k][:NY] for i in range(k + 1))
     box = sum(w[i] * rows[:, i::k][:, :NX] for i in range(k + 1))
     return box[::-1].astype("float32")  # north-first -> ascending
@@ -56,31 +49,18 @@ def ecmwf_to_1deg(v: np.ndarray) -> np.ndarray:
 
 # IMERG 0.1° cells: lat index k = (lat + 89.95) / 0.1, lon index m = (lon + 179.95) / 0.1
 IM_LAT0, IM_LAT1 = 300, 1499  # 59.95°S .. 59.95°N
-IM_LON0, IM_LON1 = 100, 1499  # 169.95°W .. 30.05°W
+IM_LON0, IM_LON1 = 0, 3599  # 179.95°W .. 179.95°E
 
 
 def imerg_to_1deg(p: np.ndarray) -> np.ndarray:
-    """(lon 1400, lat 1200) IMERG 0.1° subset in mm/day -> (NY, NX) 1° box means (NaN where < 50 % valid)."""
-    p = np.where(np.isfinite(p) & (p >= 0), p, np.nan).T  # (1200, 1400)
+    """(lon 3600, lat 1200) IMERG 0.1° subset in mm/day -> (NY, NX) 1° box means (NaN where < 50 % valid)."""
+    p = np.where(np.isfinite(p) & (p >= 0), p, np.nan).T  # (1200, 3600)
     blk = p.reshape(NY, 10, NX, 10)
     n = np.isfinite(blk).sum((1, 3))
     with np.errstate(invalid="ignore"):
         m = np.nanmean(blk, axis=(1, 3))
     m[n < 50] = np.nan
     return m.astype("float32")
-
-
-def use_domain(name: str) -> None:
-    """Rebind the grid to "americas" (the default) or "global" (60°S-60°N, all longitudes). Call before anything else."""
-    global DOMAIN, LON, NX, IM_LON0, IM_LON1  # noqa: PLW0603  module grid rebound once at start-up (--domain)
-    if name == "americas":
-        return
-    if name != "global":
-        raise ValueError(f"unknown domain {name!r}")
-    DOMAIN = "global"
-    LON = np.arange(-179.5, 180.0, 1.0)
-    NX = len(LON)
-    IM_LON0, IM_LON1 = 0, 3599  # 179.95°W .. 179.95°E
 
 
 def area_weights() -> np.ndarray:

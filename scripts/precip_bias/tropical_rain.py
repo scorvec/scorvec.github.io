@@ -94,11 +94,11 @@ def ratio(B, bmeta: dict, model: str, wk: str) -> tuple[np.ndarray, str | None]:
 
 def blend_weights(W: dict | None, wk: str, have: list[str]) -> dict:
     """{model: weight} of the blend for one lead week over the models in this run (blend.py's weights, else equal),
-    renormalised when one is missing."""
+    renormalised when one is missing; equal when none of the models in this run carries weight."""
     fitted = ((W or {}).get("weeks", {}).get(wk) or {}).get("weights", {})
     w = {m: float(fitted.get(m, 1.0)) for m in have}
     s = sum(w.values())
-    return {m: v / s for m, v in w.items()}
+    return {m: v / s for m, v in w.items()} if s > 0 else dict.fromkeys(have, 1.0 / len(have))
 
 
 def tercile_test(X: np.ndarray, cl: dict, weights: np.ndarray):
@@ -341,7 +341,6 @@ def main() -> int:
         help="exit 0 without work when that run is already published with every model",
     )
     a = ap.parse_args()
-    G.use_domain("global")
     ref, out, state = Path(a.ref), Path(a.out), Path(a.state)
     (out / "data").mkdir(parents=True, exist_ok=True)
     state.mkdir(parents=True, exist_ok=True)

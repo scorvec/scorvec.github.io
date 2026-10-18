@@ -2,7 +2,7 @@
 # maps from a blend of four ensembles over the global tropics). Three things, all in Actions:
 #   archive  00Z week-1/2 rain (members 1-6) of ECMWF IFS-ENS / AIFS-ENS (scripts/precip_bias/ecmwf_tp.py, Google Cloud
 #            mirror only), NOAA GEFS (ens_tp.py, AWS Open Data bucket noaa-gefs-pds, byte ranges via the .idx) and ECCC
-#            GEPS (ens_tp.py, MSC Datamart), and IMERG V07 Late / Final daily rain (imerg_americas.py), all on the GLOBAL 1°
+#            GEPS (ens_tp.py, MSC Datamart), and IMERG V07 Late / Final daily rain (imerg.py), all on the GLOBAL 1°
 #            band, month by month into release precip-global-arch-v1 - resumable: complete months already there are
 #            skipped, the last two are rebuilt (GEFS and GEPS merged with the release's file, fetching only new runs).
 #            ECMWF from 2026-05 (the current cycles began 2026-05-13; older cycles are never pooled), GEFS v12 from 2024-10
@@ -114,14 +114,14 @@ jobs:
               echo "skip $f (in the release)"
             else
               if [ "$src" = "ifs" ] || [ "$src" = "aifs-ens" ]; then
-                python scripts/precip_bias/ecmwf_tp.py --model "$src" --month "$m" --out out --last "$last" --domain global || fails=$((fails + 1))
+                python scripts/precip_bias/ecmwf_tp.py --model "$src" --month "$m" --out out --last "$last" || fails=$((fails + 1))
               elif [ "$src" = "gefs" ] || [ "$src" = "geps" ]; then
                 # merged with the release's file: only new runs are fetched, and GEPS runs gone from the Datamart are kept
                 have=""
                 if grep -qx "$f" have.txt; then gh release download "$ARCH" -p "$f" -D have --clobber && have="have/$f"; fi
                 python scripts/precip_bias/ens_tp.py month --model "$src" --month "$m" --out out --last "$last" ${have:+--have "$have"} || fails=$((fails + 1))
               else
-                python scripts/precip_bias/imerg_americas.py --product "$src" --month "$m" --out out --last "$last" --domain global || fails=$((fails + 1))
+                python scripts/precip_bias/imerg.py --product "$src" --month "$m" --out out --last "$last" || fails=$((fails + 1))
               fi
               if [ -s "out/$f" ]; then gh release upload "$ARCH" "out/$f" --clobber && rm -f "out/$f"; fi
             fi

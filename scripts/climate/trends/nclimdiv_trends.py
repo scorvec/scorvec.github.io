@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """US climate trends by county and month from NOAA nClimDiv (1895 → last month).
 
-Inputs (downloaded to scripts/climate/data, gitignored): the county, division and state
-monthly files for average / maximum / minimum temperature, precipitation, heating and cooling
-degree days. County values are area means of the 5 km nClimGrid (homogenised station data), so
-they are consistent with the division and state files in the same directory.
+Inputs (downloaded to scripts/climate/data, gitignored): the county and state monthly files for
+average / maximum / minimum temperature, precipitation, heating and cooling degree days. County
+values are area means of the 5 km nClimGrid (homogenised station data), so they are consistent
+with the state files in the same directory.
 
 For every county, month and season (DJF MAM JJA SON, annual) and each variable:
   normal        1991–2020 mean (°F, inches, degree days)
@@ -203,14 +203,14 @@ def latest_files(download: bool) -> dict:
             print(f"  listing failed ({e}); using cached files", flush=True)
     out = {}
     for var, (stem, _) in VARS.items():
-        for scope in ("cy", "dv", "st"):
+        for scope in ("cy", "st"):
             name = None
             if listing:
                 names = sorted(set(re.findall(rf"climdiv-{stem}{scope}-v1\.0\.0-\d+", listing)))
                 name = names[-1] if names else None
             if name and not (DATA / name).exists():
                 print(f"  downloading {name}", flush=True)
-                urllib.request.urlretrieve(BASE + name, DATA / name) if not UA else _dl(BASE + name, DATA / name)
+                _dl(BASE + name, DATA / name)
             if not name:
                 cached = sorted(DATA.glob(f"climdiv-{stem}{scope}-v1.0.0-*"))
                 name = cached[-1].name if cached else None
@@ -224,8 +224,8 @@ def _dl(url, dest):
         f.write(r.read())
 
 
-def parse(path: Path, county: bool, var: str = "tavg", scope: str = "cy") -> dict:
-    """{key: {year: [12 values]}} with key = FIPS county (5) / division (state fips + 2) / state fips.
+def parse(path: Path, county: bool, var: str = "tavg") -> dict:
+    """{key: {year: [12 values]}} with key = FIPS county (5) or state fips (state files).
     Missing sentinels differ by element: −99.90 for temperatures (real monthly means reach −20 °F
     in the northern Plains, so only the sentinel itself is missing), −9.99 for precipitation and
     −9999 for degree days (neither can be negative)."""
@@ -242,22 +242,13 @@ def parse(path: Path, county: bool, var: str = "tavg", scope: str = "cy") -> dic
                 if key is None:
                     continue
                 key = key + cty
-            elif scope == "st":  # state files: 3-digit code, element, year
+            else:  # state files: 3-digit code, element, year
                 st = int(line[0:3])
                 yr = int(line[6:10])
                 vals = line[10:]  # code(3) division(1) element(2) year(4)
                 key = NOAA2FIPS.get(st)
                 if key is None:  # 101–110 are regions / national
                     continue
-            else:  # division files: state 2, division 2
-                st = int(line[0:2])
-                div = line[2:4]
-                yr = int(line[6:10])
-                vals = line[10:]
-                key = NOAA2FIPS.get(st)
-                if key is None:
-                    continue
-                key = key + div
             v = np.array([float(vals[i * 7 : (i + 1) * 7]) for i in range(12)])
             if temp:
                 v[v <= -99.0] = np.nan
@@ -396,6 +387,16 @@ def load_tdew():
     return cy, st
 
 
+def last_month(series: dict) -> tuple[int, int]:
+    """(year, month) of the newest month with a value in any unit of {unit: {year: [12 values]}}."""
+    for yr in sorted({y for s in series.values() for y in s}, reverse=True):
+        months = [np.flatnonzero(np.isfinite(s[yr])) for s in series.values() if yr in s]
+        months = [m for m in months if m.size]
+        if months:
+            return yr, int(max(m.max() for m in months)) + 1
+    raise SystemExit("no values in the series")
+
+
 def build_units(var: str, normal: float, slope_dec: float):
     """Precipitation trends as % of normal per decade; the rest in native units per decade."""
     if var == "pcpn":
@@ -430,8 +431,8 @@ def main() -> int:
         years_all = sorted({y for s in cy.values() for y in s})
         y0, ylast = years_all[0], years_all[-1]
         # last complete year: the current year is partial (values through last month only)
-        sample = next(iter(cy.values()))
-        last_full = ylast if np.isfinite(sample.get(ylast, np.full(12, np.nan))).all() else ylast - 1
+        mlast = last_month(cy)
+        last_full = mlast[0] if mlast[1] == 12 else mlast[0] - 1
         years = np.arange(y0, ylast + 1)
         print(
             f"  {var}: {len(cy)} counties, {y0}–{ylast}, last complete year {last_full} ({time.time() - t0:.0f}s)",
@@ -505,7 +506,7 @@ def main() -> int:
         # states (from the state files; dewpoint: cell-weighted county mean) for the heatmap and the degree-day table,
         # tested like the counties, the FDR family being the states of one map
         if var == "tdew" or (var, "st") in files:
-            stt = st_series if var == "tdew" else parse(files[(var, "st")], county=False, var=var, scope="st")
+            stt = st_series if var == "tdew" else parse(files[(var, "st")], county=False, var=var)
             spv = {s0: {} for s0 in STARTS}
             snow = {}
             for st, ser in stt.items():
@@ -536,11 +537,7 @@ def main() -> int:
                         regions[st][f"{var}_adjusted_1970"] = [
                             _r(snow[st][c], 2) if fl[c] == 1 else None for c in range(17)
                         ]
-        meta[f"last_month_{var}"] = (
-            f"{ylast}-{int(np.where(np.isfinite(sample.get(ylast, np.full(12, np.nan))))[0].max() + 1):02d}"
-            if ylast in sample
-            else None
-        )
+        meta[f"last_month_{var}"] = f"{mlast[0]}-{mlast[1]:02d}"
         meta[f"last_full_year_{var}"] = int(last_full)
     doc = {"states": regions, "regions": REGION, "test": TEST}
     with open(OUT / "regions.json", "w") as f:

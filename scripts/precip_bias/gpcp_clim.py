@@ -24,7 +24,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import grid as G
-import imerg_americas as IM  # (Earthdata session, IPv4-only login)
+import imerg as IM  # (Earthdata session, IPv4-only login)
 
 URL = "https://measures.gesdisc.eosdis.nasa.gov/data/GPCP/GPCPDAY.3.2/{y}/GPCPDAY_L3_{d}_V3.2.nc4"
 Y0, Y1 = 2001, 2020
@@ -76,7 +76,6 @@ def main() -> int:
     ap.add_argument("--out", required=True)
     ap.add_argument("--threads", type=int, default=6)
     a = ap.parse_args()
-    G.use_domain("global")
     days = [
         d
         for y in range(Y0, Y1 + 2)

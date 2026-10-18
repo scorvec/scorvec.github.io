@@ -12,9 +12,10 @@ Score  the fair ranked probability score of the weekly tercile forecast: the cum
        is that of each model's full distribution and the six archived members do not reward spreading weight for its own
        sake. The score is then a quadratic form in w: per run A, b, c with score(w) = w'Aw - 2b'w + c.
 Data   the bias archive (members 1-6 of every 00Z run, current model cycles: build_bias.VERSIONS), the runs all fitted
-       models share and IMERG has verified. Each run is corrected with ratios estimated WITHOUT its own 21-day block
-       (global_bias.estimate: the same estimator and significance gate, its season kernel centred on that block), so no
-       run is scored with a correction its own block of observations shaped.
+       models share and IMERG has verified. Each run is corrected with ratios estimated WITHOUT its own 21-day block and
+       the runs within BUFFER_DAYS of it, whose verifying weeks overlap or adjoin the block's (global_bias.estimate: the
+       same estimator and significance gate, its season kernel centred on that block), so no run is scored with a
+       correction its own block of observations shaped.
 Fit    per lead week, one weight per model on the simplex in steps of STEP, minimising the summed score. A model joins the
        fit once the archive it shares with the models already in holds FIT_BLOCKS 21-day blocks of verified runs (one
        more than global_bias.MIN_BLOCKS, so its bias can still be estimated with any block left out); until then it stays
@@ -133,7 +134,8 @@ def bias_summary(F: dict, T: np.ndarray, lat: np.ndarray) -> dict:
     """Descriptive bias of each model's weekly rain and of their equal-weight blend over the verified runs. F: model ->
     members (run, member, NY, NX) mm; T: the verifying weeks (run, NY, NX) mm; lat: the rows' latitudes. Per entry: the
     30°S-30°N area-weighted forecast/observed ratio, and the area-weighted mean of |forecast/observed - 1| over the cells
-    whose verifying weeks average >= WET_MM (local biases of opposite sign cancel in the ratio, not here)."""
+    whose verifying weeks average >= WET_MM (local biases of opposite sign cancel in the ratio, not here); null without
+    any such cell."""
     ok = np.isfinite(T).all(0)
     for x in F.values():
         ok &= np.isfinite(x).all((0, 1))
@@ -143,11 +145,15 @@ def bias_summary(F: dict, T: np.ndarray, lat: np.ndarray) -> dict:
     wet = band & (tbar >= WET_MM)
     means = {m: np.nanmean(x, (0, 1)) for m, x in F.items()}
     means["blend"] = np.mean(list(means.values()), 0)
+
+    def ratio(num: float, den: float) -> float | None:
+        return round(float(num / den), 3) if den > 0 else None
+
     out = {}
     for m, f in means.items():
         out[m] = {
-            "band_ratio": round(float((w * f)[band].sum() / (w * tbar)[band].sum()), 3),
-            "local_abs_bias": round(float((w * np.abs(f / tbar - 1))[wet].sum() / w[wet].sum()), 3),
+            "band_ratio": ratio((w * f)[band].sum(), (w * tbar)[band].sum()),
+            "local_abs_bias": ratio((w * np.abs(f / np.where(wet, tbar, 1.0) - 1))[wet].sum(), w[wet].sum()),
         }
     out["wet_cells"] = int(wet.sum())
     return out
@@ -206,7 +212,8 @@ def week(wk, data, arch, obs1, obs2, C, rng) -> dict:
         raise SystemExit(f"{wk}: no 1° Late-to-Final ratio for some season")
     T = T[(slice(None), *cells)] * 7.0
     area = np.cos(np.deg2rad(G.LAT[cells[0]]))[:, None] * np.ones((1, len(G.LON[cells[1]])))
-    # members of each fitted model, corrected block by block with ratios estimated without that block
+    # members of each fitted model, corrected block by block with ratios estimated without that block and its buffer
+    buf = np.timedelta64(BUFFER_DAYS, "D")
     X, RAW = {}, {}
     for m in fitted:
         ini, F, Tm, se = ver[m]
@@ -217,8 +224,7 @@ def week(wk, data, arch, obs1, obs2, C, rng) -> dict:
         idays = np.array(ini, dtype="datetime64[D]")
         for k in np.unique(blk):
             sel = blk == k
-            lo, hi = days[sel][0], days[sel][-1]
-            keep = (idays < lo) | (idays > hi)
+            keep = (idays < days[sel][0] - buf) | (idays > days[sel][-1] + buf)
             ki = [d for d, x in zip(ini, keep) if x]
             centre = runs[int(np.flatnonzero(sel)[sel.sum() // 2])]
             r = GB.estimate(ki, F[keep], Tm[keep], se, wk, centre, lat2, lon2, rng, cyc)["ratio"]
@@ -285,7 +291,6 @@ def main() -> int:
     ap.add_argument("--ref", required=True, help="dir with gpcp_clim_week_global.npz")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
-    G.use_domain("global")
     data = Path(a.data)
     rng = np.random.default_rng(20261016)
     C = np.load(Path(a.ref) / "gpcp_clim_week_global.npz")
@@ -305,7 +310,7 @@ def main() -> int:
         "weeks": {wk: week(wk, data, arch, obs[1], obs[GB.K], C, rng) for wk in GB.WEEKS},
     }
     Path(a.out).mkdir(parents=True, exist_ok=True)
-    (Path(a.out) / "blend_weights_global.json").write_text(json.dumps(res, indent=1))
+    (Path(a.out) / "blend_weights_global.json").write_text(json.dumps(res, indent=1, allow_nan=False))  # published
     return 0
 
 

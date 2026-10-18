@@ -1,23 +1,17 @@
 #!/usr/bin/env python3
-"""ECMWF ensemble rainfall archive over the Americas - the forecast half of the model-rain bias field.
+"""ECMWF ensemble rainfall archive on the global 1° band (grid.py) - the forecast half of the tropical rainfall
+forecast's bias correction (global_bias.py, blend.py).
 
 ECMWF publishes no reforecast in its open data, so the IFS and AIFS ensembles' own rain climate has to be built from
 the operational archive on the Google Cloud mirror (the only ECMWF host this site may use): IFS-ENS 0.25° from
 2024-03-01, AIFS-ENS from 2025-07-02. Per 00Z run we keep six perturbed members (1-6: the bias is a mean, and its
-noise is set by the weather sampled across runs, not by the member count) and only the accumulated total
-precipitation at the six steps that bound the lead bands below, so a run costs ~31 MB instead of ~140 MB for every
-day of all members:
+noise is set by the weather sampled across runs, not by the member count) and only the total precipitation
+accumulated to the ends of weeks 1 and 2 (168 h, 336 h), ~10 MB a run.
 
-    day 1 (0-24 h), days 2-3, days 4-7, days 8-10, days 11-14 (with 4-7: weeks 1 and 2), day 15
+Each global field is reduced at once to the 60°S-60°N 1° band and stored as accumulations in mm. UNIT TRAP: IFS tp
+arrives in m, AIFS tp in kg m-2 (= mm); the GRIB `units` key decides, nothing is assumed.
 
-Each global field is reduced at once to the Americas 1° grid (grid.py) and stored as accumulations in mm. UNIT TRAP:
-IFS tp arrives in m, AIFS tp in kg m-2 (= mm); the GRIB `units` key decides, nothing is assumed.
-
-    python scripts/precip_bias/ecmwf_tp.py --model ifs --month 2024-03 --out DIR
-    python scripts/precip_bias/ecmwf_tp.py --model ifs --month 2026-05 --out DIR --domain global
-
---domain global (the tropical rainfall forecast on circulation.html): the 60°S-60°N band at all longitudes and
-only the week-1 / week-2 bounds (168 h, 336 h) - ~10 MB a run.
+    python scripts/precip_bias/ecmwf_tp.py --model ifs --month 2026-05 --out DIR
 -> DIR/{model}_{YYYYMM}.npz: inits (YYYYMMDD), acc (run, step, member, lat, lon) float32 mm, steps, members, missing
 """
 
@@ -40,16 +34,7 @@ import rangefetch as R
 import grid as G
 import ens_tp as ET
 
-STEPS = (24, 72, 168, 240, 336, 360)
-STEPS_GLOBAL = (168, 336)
-BANDS = (
-    (0, 24, "day 1"),
-    (24, 72, "days 2-3"),
-    (72, 168, "days 4-7"),
-    (168, 240, "days 8-10"),
-    (240, 336, "days 11-14"),
-    (336, 360, "day 15"),
-)
+STEPS = (168, 336)  # the ends of weeks 1 and 2
 MEMBERS = (1, 2, 3, 4, 5, 6)
 FIRST = {"ifs": date(2024, 3, 1), "aifs-ens": date(2025, 7, 2)}
 
@@ -158,12 +143,7 @@ def main() -> int:
     ap.add_argument("--out", required=True)
     ap.add_argument("--threads", type=int, default=2)
     ap.add_argument("--last", help="last init date to include (YYYY-MM-DD); default: end of month")
-    ap.add_argument("--domain", default="americas", choices=["americas", "global"])
     a = ap.parse_args()
-    if a.domain == "global":
-        global STEPS  # noqa: PLW0603  set once from --domain before any use
-        G.use_domain("global")
-        STEPS = STEPS_GLOBAL
     f = month(a.model, a.month, Path(a.out), a.threads, date.fromisoformat(a.last) if a.last else None)
     return 0 if f else 1
 

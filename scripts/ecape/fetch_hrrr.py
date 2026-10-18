@@ -11,8 +11,8 @@ levels, so no hybrid-coordinate height reconstruction is needed - we read
 geopotential height directly.
 
 Only 6 of the ~1100 messages per level-set are wanted, so we byte-range them out
-of the 693 MB file using the published .idx inventory (same trick the CPTEC
-ingest uses). That is ~360 MB instead of 693 MB.
+of the 693 MB file using the published .idx inventory. That is ~360 MB instead
+of 693 MB.
 
 Output:
   <out>.f32   float32, C order, shape (NVAR, NLEV, ny, nx)

@@ -3,8 +3,8 @@
 ensembles: ECMWF IFS-ENS and AIFS-ENS, NOAA GEFS, ECCC GEPS).
 
 For each ensemble and lead week, a multiplicative correction per 2° box:  R = sum(w * truth) / sum(w * forecast)
-  forecast  ensemble mean (members 1-6) of the week's rain from the global archive (ecmwf_tp.py / ens_tp.py --domain
-            global), runs of the CURRENT model cycle only (build_bias.VERSIONS: runs are never pooled across cycles);
+  forecast  ensemble mean (members 1-6) of the week's rain from the global archive (ecmwf_tp.py / ens_tp.py month),
+            runs of the CURRENT model cycle only (build_bias.VERSIONS: runs are never pooled across cycles);
   truth     IMERG Late over the same 7 days, scaled to IMERG Final by its seasonal ratio (build_bias.truth_terms, from the
             days Late and Final share) - so the corrected forecast speaks the same language as the GPCP climatology;
   w         a season kernel: Gaussian in day-of-year distance between each run's verifying week and the target week
@@ -38,7 +38,7 @@ import grid as G
 import build_bias as BB
 
 MODELS = ("ifs", "aifs-ens", "gefs", "geps")
-STEPS = (168, 336)  # = ecmwf_tp.STEPS_GLOBAL = ens_tp.ARCH_STEPS
+STEPS = (168, 336)  # = ecmwf_tp.STEPS = ens_tp.ARCH_STEPS
 WEEKS = {"wk1": (0, 7), "wk2": (7, 14)}
 K, SD_DAYS, DRY, CLIP, NB = 2, 30.0, 0.2, (1 / 3, 3.0), 1000
 MIN_BLOCKS = 6  # 21-day blocks of verified runs (about four months) before a bias is estimated at all
@@ -138,16 +138,16 @@ def estimate(ini, F, T, se_adj, wk, target: date, lat, lon, rng, cyc: str) -> di
     aw = (np.cos(np.deg2rad(lat))[:, None] * np.ones((1, len(lon))))[band]
     st = ST.reshape(len(ub), *shape)[:, band] * aw
     sf = SF.reshape(len(ub), *shape)[:, band] * aw
-    with np.errstate(invalid="ignore"):
+    with np.errstate(invalid="ignore", divide="ignore"):
         draws = (W @ np.nansum(sf, axis=1)) / (W @ np.nansum(st, axis=1))  # forecast / truth: > 1 = too wet
-    bandr = float(np.nansum(sf) / np.nansum(st))
-    lo, hi = np.nanpercentile(draws, [5, 95])
+        trop = [float(np.nansum(sf) / np.nansum(st)), *np.nanpercentile(draws, [5, 95]).tolist()]
     meta.update(
         corrected=bool(sig[usable].any()),
         eff_n=round(float(w.sum() ** 2 / (w**2).sum()), 1),
-        sig_frac=round(float(sig[usable].mean()), 3),
-        tropics_fc_over_obs=[round(bandr, 3), round(float(lo), 3), round(float(hi), 3)],
+        sig_frac=round(float(sig[usable].mean()), 3) if usable.any() else 0.0,
     )
+    if np.isfinite(trop).all():  # no band ratio without rain in the band (never written as NaN)
+        meta["tropics_fc_over_obs"] = [round(v, 3) for v in trop]
     if not meta["corrected"]:
         meta["note"] = "no box with a significant bias"
     return {
@@ -169,10 +169,11 @@ def one(model, inits, acc, li, lp, D, target, rng):
         out[wk] = r = estimate(ini, F, T, se_adj, wk, target, G.LAT, G.LON, rng, cyc)
         m = r["meta"]
         if "eff_n" in m:
-            bandr, lo, hi = m["tropics_fc_over_obs"]
+            trop = m.get("tropics_fc_over_obs")
+            band = f"forecast/obs {trop[0]:.2f} [{trop[1]:.2f}, {trop[2]:.2f}]" if trop else "no ratio"
             print(
                 f"{model} {wk} ({cyc}): {m['runs']} runs {m['first']}..{m['last']}, eff n {m['eff_n']}, "
-                f"{100 * m['sig_frac']:.0f} % of boxes sig.; 30S-30N forecast/obs {bandr:.2f} [{lo:.2f}, {hi:.2f}]",
+                f"{100 * m['sig_frac']:.0f} % of boxes sig.; 30S-30N {band}",
                 flush=True,
             )
         else:
@@ -186,7 +187,6 @@ def main() -> int:
     ap.add_argument("--out", required=True)
     ap.add_argument("--target", help="first day of the forecasts the correction is for (default: today)")
     a = ap.parse_args()
-    G.use_domain("global")
     data = Path(a.data)
     target = date.fromisoformat(a.target) if a.target else date.today()
     rng = np.random.default_rng(20261014)
@@ -206,8 +206,9 @@ def main() -> int:
                     res[f"{model}_{wk}_{k2}"] = arr
             meta[f"{model}_{wk}"] = v["meta"]
     Path(a.out).mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(Path(a.out) / "bias_ratio_global.npz", lat=G.LAT, lon=G.LON, meta=json.dumps(meta), **res)
-    (Path(a.out) / "bias_ratio_global.json").write_text(json.dumps(meta, indent=1))
+    doc = json.dumps(meta, allow_nan=False)  # the meta is published (tropical_rain.py): never NaN
+    np.savez_compressed(Path(a.out) / "bias_ratio_global.npz", lat=G.LAT, lon=G.LON, meta=doc, **res)
+    (Path(a.out) / "bias_ratio_global.json").write_text(json.dumps(meta, indent=1, allow_nan=False))
     return 0
 
 
