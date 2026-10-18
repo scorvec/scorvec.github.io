@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Global model verification &middot; Shawn Corvec</title>
-<meta name="description" content="GFS, ECMWF IFS and AIFS scored against surface stations, radiosondes and the Stage IV precipitation analysis out to day 10, with mverify, an open-source verification package.">
+<meta name="description" content="GFS, ECMWF IFS, AIFS and Canada's GDPS scored against surface stations, radiosondes and the Stage IV precipitation analysis out to day 10, with mverify, an open-source verification package.">
 <link rel="canonical" href="https://scorvec.com/verification.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Global model verification: GFS, IFS and AIFS">
-<meta property="og:description" content="GFS, ECMWF IFS and AIFS scored against surface stations, radiosondes and the Stage IV precipitation analysis out to day 10.">
+<meta property="og:title" content="Global model verification: GFS, IFS, AIFS and GDPS">
+<meta property="og:description" content="GFS, ECMWF IFS, AIFS and Canada's GDPS scored against surface stations, radiosondes and the Stage IV precipitation analysis out to day 10.">
 <meta property="og:url" content="https://scorvec.com/verification.html">
 <meta name="twitter:card" content="summary">
 <script type="application/ld+json">
@@ -18,7 +18,7 @@
  "@type": "WebPage",
  "name": "Global model verification",
  "url": "https://scorvec.com/verification.html",
- "description": "GFS, ECMWF IFS and AIFS scored against surface stations, radiosondes and the Stage IV precipitation analysis out to day 10, with mverify, an open-source verification package.",
+ "description": "GFS, ECMWF IFS, AIFS and Canada's GDPS scored against surface stations, radiosondes and the Stage IV precipitation analysis out to day 10, with mverify, an open-source verification package.",
  "isPartOf": {
   "@type": "WebSite",
   "name": "Shawn Corvec",
@@ -279,7 +279,8 @@ window.plotlyP = new Promise(function (ok, no) {
   <p class="ai-note"><b>Made with Claude Code.</b> The verification package behind this page, mverify, was written by Claude,
     Anthropic's AI model, with guidance from Shawn Corvec. The scores are a first sample and will grow as new runs are added.</p>
   <h1>How the global models score</h1>
-  <p class="lede">NOAA's GFS, ECMWF's physics model (IFS) and ECMWF's AI model (AIFS) are scored here against the same observations:
+  <p class="lede">NOAA's GFS, ECMWF's physics model (IFS), ECMWF's AI model (AIFS) and Environment Canada's global model (GDPS)
+    are scored here against the same observations:
     hourly surface stations, radiosondes and, for rain over the US, the Stage IV radar and gauge analysis. Every model gets
     the same treatment. Forecasts are interpolated to each station over land only, 2 m temperature is moved to the height of
     the station, and stations where the model's terrain is more than 100 m off are left out. Upper-air scores against
@@ -345,7 +346,8 @@ window.plotlyP = new Promise(function (ok, no) {
       <li><b>Significance.</b> The scorecard tests each model pair with a paired t-test on the per-run mean squared errors.
         Runs a day apart share much of their weather, so the test counts fewer effective runs when the run-to-run
         differences are correlated (Geer 2016).</li>
-      <li><b>Data.</b> GFS from NOAA on AWS; IFS and AIFS from ECMWF open data (Google Cloud mirror), all at 0.25°.</li>
+      <li><b>Data.</b> GFS from NOAA on AWS; IFS and AIFS from ECMWF open data (Google Cloud mirror), all at 0.25°;
+        GDPS from the ECCC Datamart at 0.15°.</li>
     </ul>
     <p>The package is open source (<a href="https://github.com/scorvec/nwp_verification">github.com/scorvec/nwp_verification</a>),
       so anyone can score their own model against the same observations. It reads GRIB, netCDF and Zarr:</p>
@@ -358,7 +360,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
 <script>
 (function () {
   "use strict";
-  const COLORS = { GFS: "#2c5f8a", IFS: "#b3372f", AIFS: "#7b4fb0" };
+  const COLORS = { GFS: "#2c5f8a", IFS: "#b3372f", AIFS: "#7b4fb0", GDPS: "#3f8f5a" };
   const FALLBACK = ["#2c5f8a", "#b3372f", "#7b4fb0", "#3f8f5a", "#b8892b"];
   // Surface first, then upper air; precipitation has its own card.
   // Surface first, then upper air by quantity and from the ground up (1000 to 200 hPa).
@@ -531,7 +533,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
       void amount;
     }
     $("src").innerHTML = "Sources: NOAA NCEI GHCNh; radiosondes via the scorvec.com sounding mirror; NCEP Stage IV (Iowa " +
-      "Environmental Mesonet archive); NOAA GFS on AWS; ECMWF open data (CC BY 4.0).";
+      "Environmental Mesonet archive); NOAA GFS on AWS; ECMWF open data (CC BY 4.0); ECCC Datamart (Open Government Licence – Canada).";
   }
 
   Promise.all([

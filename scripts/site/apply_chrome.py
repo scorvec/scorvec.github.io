@@ -364,7 +364,7 @@ PRODUCTS = [
                     (
                         "/verification.html",
                         "Global models against observations",
-                        "GFS, ECMWF IFS and AIFS scored on the same surface stations, radiosondes and Stage IV rain analyses out to day 10, with a scorecard of the differences that pass a significance test. Scored with mverify, an open-source verification package.",
+                        "GFS, ECMWF IFS, AIFS and Canada's GDPS scored on the same surface stations, radiosondes and Stage IV rain analyses out to day 10, with a scorecard of the differences that pass a significance test. Scored with mverify, an open-source verification package.",
                         "First sample, 10 runs",
                     ),
                 ],

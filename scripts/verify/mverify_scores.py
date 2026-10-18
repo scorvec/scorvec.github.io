@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""GFS, ECMWF IFS and AIFS scored with mverify for verification.html.
+"""GFS, ECMWF IFS, AIFS and ECCC GDPS scored with mverify for verification.html.
 
 Downloads only the fields that are scored (byte ranges from each file's index): 2 m temperature and dew point,
 MSLP, 10 m wind, precipitation, 500 hPa height, 850 hPa temperature and 250 hPa wind every 12 h to day 10,
 plus orography and the land-sea mask at step 0. ECMWF comes from the Google Cloud mirror only (as everywhere on
-the site, see scripts/ecmwf/rangefetch.py); GFS from NOAA on AWS. Then
+the site, see scripts/ecmwf/rangefetch.py); GFS from NOAA on AWS; GDPS from the ECCC Datamart, which keeps
+about 30 days and has one file per field. Then
 
-    mverify score GFS=... IFS=... AIFS=...   (one sample for all three, paired significance tests)
+    mverify score GFS=... IFS=... AIFS=... GDPS=...   (one sample for all, paired significance tests)
 
 against an mverify observation database, and the scorecard goes to assets/verification/scores.json.
 
@@ -56,7 +57,21 @@ GFS_FIELDS = [
     ":VGRD:250 mb:",
 ]
 GFS_STATIC = [":HGT:surface:", ":LAND:surface:", ":SFCR:surface:"]
-MODELS = {"GFS": "gfs", "IFS": "ifs", "AIFS": "aifs-single"}
+DATAMART = "https://dd.weather.gc.ca"
+GDPS_FIELDS = [
+    "AirTemp_AGL-2m",
+    "DewPoint_AGL-2m",
+    "Pressure_MSL",
+    "WindU_AGL-10m",
+    "WindV_AGL-10m",
+    "Precip-Accum_Sfc",
+    "GeopotentialHeight_IsbL-0500",
+    "AirTemp_IsbL-0850",
+    "WindU_IsbL-0250",
+    "WindV_IsbL-0250",
+]
+GDPS_STATIC = ["GeopotentialHeight_Sfc", "LandWaterProportion_Sfc"]
+MODELS = {"GFS": "gfs", "IFS": "ifs", "AIFS": "aifs-single", "GDPS": "gdps"}
 
 
 def get(url: str, rng: str | None = None) -> bytes:
@@ -90,6 +105,21 @@ def fetch(model: str, init: str, lead: int, work: Path) -> None:
     if dest.exists():
         return
     day, hh = init[:8], init[8:]
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    part = dest.with_suffix(".part")
+    if model == "GDPS":
+        names = GDPS_FIELDS + (GDPS_STATIC if lead == 0 else [])
+        base = f"{DATAMART}/{day}/WXO-DD/model_gdps/15km/{hh}/{lead:03d}/{day}T{hh}Z_MSC_GDPS"
+        # no accumulation at step 0
+        part.write_bytes(
+            b"".join(
+                get(f"{base}_{n}_LatLon0.15_PT{lead:03d}H.grib2")
+                for n in names
+                if not (lead == 0 and n == "Precip-Accum_Sfc")
+            )
+        )
+        part.rename(dest)
+        return
     if model == "GFS":
         url = f"{GFS}/gfs.{day}/{hh}/atmos/gfs.t{hh}z.pgrb2.0p25.f{lead:03d}"
         lines = get(url + ".idx").decode().splitlines()
@@ -106,8 +136,6 @@ def fetch(model: str, init: str, lead: int, work: Path) -> None:
             if (d["param"], d["levtype"], d.get("levelist")) in want:
                 spans.append((d["_offset"], d["_offset"] + d["_length"] - 1))
         url += ".grib2"
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    part = dest.with_suffix(".part")
     with open(part, "wb") as fh:
         for a, b in merged(spans):
             fh.write(get(url, f"{a}-{b}"))
