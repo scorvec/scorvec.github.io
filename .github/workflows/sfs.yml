@@ -1,0 +1,174 @@
+name: NOAA SFS seasonal outlook (monthly)
+
+# sfs.html: the NOAA SFS beta (UFS coupled, 31 members, 12 monthly leads) outlook.
+#
+# SOURCE. NOAA's public SFS beta zarr on S3, read anonymously, with no credentials.
+#
+# WHAT IT BUILDS, AND IN WHICH ORDER. sfs_maps must run before sfs_indices: indices reads the
+# SST field climatology that maps caches. The day-16-46 products (MJO, 100 hPa polar view,
+# subseasonal loops) are not built: they read atm_daily/ocn_daily, which are unreliable (for the
+# September 2026 issue NOAA had not published them ten days after the monthly stores). Their scripts
+# stay in scripts/sfs/ in case the feed is fixed.
+#
+# THE CLIMATOLOGY. Each month needs its own 30-year x 11-member hindcast pool
+# (scripts/sfs/data/clim_*_{MM}.npy, ~10 MB per field, ~20 min to build). It is cached by
+# month so a re-run in the same month is quick, and it is never committed.
+
+on:
+  schedule:
+  - cron: '40 14 17 * *'    # the monthly stores land mid-month (Aug 2026 issue: the 16th)
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: 'Issue month YYYYMM (empty = current UTC month)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sfs
+  cancel-in-progress: false
+
+# ECMWF open data comes from the Google Cloud mirror only. The shared store already defaults to Google and ignores
+# any other mirror name; pinning it here is belt and braces.
+env:
+  ECMWF_SOURCES: google
+  # NOAA SFS experiment: beta2 (beta1 stopped at the 2026-09 issue). The scripts default to it as well and keep
+  # model-derived climatologies under scripts/sfs/data/<experiment>/. beta2's daily forecast stores are not used: in both the
+  # 2026-09 and 2026-10 issues they hold 24 consecutive days written into every other slot of a 47-day axis (their seasonal
+  # cooling runs at half the reforecast's rate; the "November" half matches late October).
+  SFS_EXP: beta2
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - name: Resolve the issue month
+        id: iss
+        run: |
+          I="${{ inputs.issue }}"
+          [ -n "$I" ] || I=$(date -u +%Y%m)
+          echo "issue=$I" >> "$GITHUB_OUTPUT"
+          echo "month=${I:4:2}" >> "$GITHUB_OUTPUT"
+          echo "Issue $I"
+
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libgeos-dev libproj-dev proj-bin
+          # dask is not optional: without it xarray.open_zarr loads eagerly, so each 4.8 GB
+          # reforecast variable is materialised whole and the climatology step is OOM-killed
+          # (exit 143). With dask it streams 11 MB chunks.
+          # The full transitive import closure of scripts/sfs, computed with ast: the chi200 loop
+          # reaches wind200_vpot (pyshtools), which reaches the shared ECMWF store
+          # (ecmwf-opendata, multiurl, cfgrib/eccodes).
+          pip install --quiet numpy pandas xarray 'dask[array]' zarr s3fs fsspec \
+            matplotlib==3.10.9 cartopy==0.25.0 pyshtools ecmwf-opendata multiurl requests cfgrib eccodes \
+            netCDF4 h5netcdf scipy
+          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag
+          # netCDF4/h5netcdf are xarray backend plugins: nothing imports them by name, so an
+          # import-closure scan cannot see them, and xr.open_dataset on a .nc dies with
+          # "found the following matches ... in xarray's IO backends". The chi200 daily loop
+          # reads a committed netCDF climatology, so they are required.
+
+      # The hindcast pool is per calendar month and costs ~20 min to build; keep it between runs.
+      - name: Cache the SFS hindcast climatology
+        uses: actions/cache@v6
+        with:
+          path: scripts/sfs/data
+          key: sfs-clim-${{ env.SFS_EXP }}-${{ steps.iss.outputs.month }}-v2
+
+      # Two seeds. The frames: publish_frames_ci.sh swaps the directories it is handed in
+      # wholesale, so a run that renders only some loops must start from the branch's existing
+      # frames, or it deletes every loop it did not rebuild.
+      # And scripts/sfs/data, which carries the ERA5 1991-2020 daily climatology sfs_daily.py
+      # needs: it derives that from an ERA5 daily store (103 GB, not on the runner), and caches it as
+      # a 31 MB npz — seeding the cache is what lets the subseasonal loops run here.
+      - name: Seed the SFS frames and the ERA5 climatology cache from the frames branch
+        run: scripts/lib/fetch_frames_ci.sh assets/sfs/anim scripts/sfs/data || true
+
+      - name: Which stores has NOAA published for this issue?
+        id: stores
+        run: |
+          ROOT="https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/${SFS_EXP}/forecast"
+          B="$ROOT/${{ steps.iss.outputs.issue }}"
+          # NB: a bare `[ x = y ] && echo ...` as the last statement returns 1 when the test is
+          # false, and the step dies under `bash -e`. Use an if, not a short-circuit.
+          for s in atm_monthly ocn_monthly; do
+            c=$(curl -s -o /dev/null -w '%{http_code}' "$B/$s.zarr/.zmetadata")
+            echo "  $s -> $c"
+          done
+
+      # ── monthly products: available as soon as the monthly stores land ──
+      - name: Monthly anomaly maps (caches the field climatology indices needs)
+        run: python scripts/sfs/sfs_maps.py --issue "${{ steps.iss.outputs.issue }}"
+
+      - name: Derived climate indices
+        run: python scripts/sfs/sfs_indices.py --issue "${{ steps.iss.outputs.issue }}"
+
+      - name: Niño-3.4 plume
+        run: python scripts/sfs/sfs_nino.py --issue "${{ steps.iss.outputs.issue }}"
+
+      # ── the SFS subseasonal page (sfs-subseasonal.html). sfs_sub.py checks the issue's daily forecast store first
+      # and draws weeks 1-6 only when it passes (beta2's first two issues failed: 24 days spread over 47 slots); it always writes
+      # assets/sfs/data/sfs_sub.json, which the page reads. The ERA5 truth for its skill masks is the release sfs-ref-v1.
+      - name: Subseasonal page (up to 6 weeks, gated on the daily-store check)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/sfs/sfs_sub.py --issue "${{ steps.iss.outputs.issue }}" --site . --procs 4 --cache /tmp/sfs_ref || echo "::warning::SFS subseasonal page failed"
+      - name: Hindcast skill figure (SFS vs GEFS and GEPS, from the committed table)
+        run: python scripts/sfs/sfs_skillfig.py --site . || echo "::warning::SFS hindcast skill figure failed"
+      - name: Hindcast skill figures (SFS vs CFSv2, weekly and seasonal, from the committed tables)
+        run: python scripts/sfs/sfs_cfsfig.py --site . || echo "::warning::SFS vs CFSv2 skill figures failed"
+      - name: Publish the loop frames to the frames branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # the day-16-46 products are not on the page: their loop dirs come back with the seed
+          # step, so drop them before the directory is swapped in wholesale
+          rm -rf assets/sfs/anim/sfs_t2md assets/sfs/anim/sfs_z500d assets/sfs/anim/sfs_chid assets/sfs/anim/sfs_prcpd assets/sfs/anim/sfs_z100d
+          scripts/lib/publish_frames_ci.sh assets/sfs/anim
+
+      - name: Commit & push (generated outputs)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # snapshot + clean resync each attempt, the mjo.yml pattern: a rebase recovery that
+          # reset --hard could silently discard the render and still report success.
+          SNAP=$(mktemp -d)
+          git add -A assets/sfs 2>/dev/null || true
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -A assets/sfs
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "data update: SFS ${{ steps.iss.outputs.issue }}"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+
+      - name: Deploy the site
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "site deploy is batched - the dispatcher deploys within 15 min (pages.yml)"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### NOAA SFS ${{ steps.iss.outputs.issue }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Page: [/sfs.html](https://scorvec.com/sfs.html)" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,99 @@
+{
+ "generated": "2026-10-08",
+ "audit_run": "37715694938",
+ "fill": {
+  "use": true,
+  "source": "Copernicus Marine GLORYS12 reanalysis (my) + analysis (anfc), 0.25S-0.25N",
+  "anfc_offset": {
+   "165E": 0.2089,
+   "180": 0.3288,
+   "170W": 0.3874,
+   "155W": 0.4316,
+   "140W": 0.4919,
+   "125W": 0.4748,
+   "110W": 0.2999,
+   "95W": 0.2006
+  },
+  "withheld_rmse": {
+   "west3 (165E,180,170W)": 0.068,
+   "sep14 set (165E,180,155W,95W)": 0.073,
+   "2026-09 (165E,180,170W,155W,95W)": 0.092,
+   "single 165E": 0.032,
+   "single 180": 0.03,
+   "single 170W": 0.033,
+   "single 155W": 0.031,
+   "single 140W": 0.037,
+   "single 125W": 0.036,
+   "single 110W": 0.034,
+   "single 95W": 0.032
+  },
+  "lon_interp_rmse": {
+   "west3 (165E,180,170W)": 0.374,
+   "sep14 set (165E,180,155W,95W)": 0.221,
+   "2026-09 (165E,180,170W,155W,95W)": 0.56,
+   "single 165E": 0.09,
+   "single 180": 0.046,
+   "single 170W": 0.044,
+   "single 155W": 0.048,
+   "single 140W": 0.056,
+   "single 125W": 0.052,
+   "single 110W": 0.051,
+   "single 95W": 0.066
+  },
+  "carry_rmse": {
+   "1": 0.031,
+   "3": 0.046,
+   "5": 0.051,
+   "7": 0.057,
+   "10": 0.067,
+   "15": 0.078
+  }
+ },
+ "validation": {
+  "cpc_fit": {
+   "column": "160E-80W",
+   "slope": 0.968,
+   "intercept": -0.032,
+   "r": 0.991,
+   "n_months": 238,
+   "rmse_after_fit": 0.109,
+   "lag1_autocorr": 0.869,
+   "n_eff": 16.6
+  },
+  "cpc_180_100W": {
+   "n": 238,
+   "r": 0.987,
+   "bias": -0.021,
+   "rmse": 0.236,
+   "slope": 0.8,
+   "intercept": -0.002,
+   "rmse_after_fit": 0.127
+  },
+  "glorys_daily_all8": {
+   "n": 1704,
+   "r": 0.99,
+   "bias": -0.015,
+   "rmse": 0.139,
+   "slope": 1.03,
+   "intercept": -0.022,
+   "rmse_after_fit": 0.135
+  },
+  "old_index_vs_cpc_180_100W": {
+   "n": 354,
+   "r": 0.981,
+   "bias": -0.027,
+   "rmse": 0.227,
+   "slope": 0.846,
+   "intercept": -0.015,
+   "rmse_after_fit": 0.165
+  },
+  "flags_gt_3sd": {},
+  "trough_1998": {
+   "raw_min": -2.2,
+   "date": "1998-11-11",
+   "smoothed_min": -2.08,
+   "cpc160_implied_min": -1.94
+  },
+  "summary_line": "Check vs NOAA CPC GODAS 0\u2013300 m index (160\u00b0E\u201380\u00b0W), 238 months 1992\u20132026: r 0.99, RMSE 0.11 \u00b0C after a linear fit. GLORYS12 fill, moorings withheld on fully covered days: RMSE 0.03\u20130.09 \u00b0C (1\u20135 moorings)."
+ }
+}

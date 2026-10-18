@@ -1,0 +1,573 @@
+part,var,start,period,region,metric,system,n_years,anom,value,lo,hi,sig
+nino34,nino34,Sep,lead0,5S-5N 170-120W,acc,sfs,35,loo,0.988,0.974,0.995,
+nino34,nino34,Sep,lead0,5S-5N 170-120W,acc,cfs,35,loo,0.922,0.849,0.961,
+nino34,nino34,Sep,lead0,5S-5N 170-120W,acc,cfs_split,35,loo,0.958,0.918,0.981,
+nino34,nino34,Sep,lead0,5S-5N 170-120W,acc,cfs24,35,loo,0.922,0.847,0.962,
+nino34,nino34,Sep,lead0,5S-5N 170-120W,acc,cfs24_split,35,loo,0.959,0.92,0.982,
+nino34,nino34,Sep,lead0,5S-5N 170-120W,acc,sfs-cfs,35,loo,0.066,0.028,0.133,yes
+nino34,nino34,Sep,lead0,5S-5N 170-120W,acc,sfs-cfs_split,35,loo,0.031,0.008,0.065,yes
+nino34,nino34,Sep,lead0,5S-5N 170-120W,rmse,sfs,35,loo,0.223,0.17,0.279,
+nino34,nino34,Sep,lead0,5S-5N 170-120W,rmse,cfs,35,loo,0.341,0.264,0.415,
+nino34,nino34,Sep,lead0,5S-5N 170-120W,rmse,cfs_split,35,loo,0.262,0.205,0.313,
+nino34,nino34,Sep,lead0,5S-5N 170-120W,rmse,cfs24,35,loo,0.341,0.263,0.419,
+nino34,nino34,Sep,lead0,5S-5N 170-120W,rmse,cfs24_split,35,loo,0.258,0.199,0.31,
+nino34,nino34,Sep,lead0,5S-5N 170-120W,rmse,sfs-cfs,35,loo,-0.118,-0.215,-0.023,yes
+nino34,nino34,Sep,lead0,5S-5N 170-120W,rmse,sfs-cfs_split,35,loo,-0.039,-0.115,0.04,no
+nino34,nino34,Sep,lead1,5S-5N 170-120W,acc,sfs,35,loo,0.953,0.904,0.979,
+nino34,nino34,Sep,lead1,5S-5N 170-120W,acc,cfs,35,loo,0.925,0.864,0.959,
+nino34,nino34,Sep,lead1,5S-5N 170-120W,acc,cfs_split,35,loo,0.953,0.913,0.976,
+nino34,nino34,Sep,lead1,5S-5N 170-120W,acc,cfs24,35,loo,0.927,0.865,0.96,
+nino34,nino34,Sep,lead1,5S-5N 170-120W,acc,cfs24_split,35,loo,0.955,0.914,0.977,
+nino34,nino34,Sep,lead1,5S-5N 170-120W,acc,sfs-cfs,35,loo,0.028,-0.01,0.074,no
+nino34,nino34,Sep,lead1,5S-5N 170-120W,acc,sfs-cfs_split,35,loo,0.0,-0.036,0.031,no
+nino34,nino34,Sep,lead1,5S-5N 170-120W,rmse,sfs,35,loo,0.323,0.254,0.39,
+nino34,nino34,Sep,lead1,5S-5N 170-120W,rmse,cfs,35,loo,0.46,0.375,0.542,
+nino34,nino34,Sep,lead1,5S-5N 170-120W,rmse,cfs_split,35,loo,0.395,0.302,0.486,
+nino34,nino34,Sep,lead1,5S-5N 170-120W,rmse,cfs24,35,loo,0.459,0.372,0.543,
+nino34,nino34,Sep,lead1,5S-5N 170-120W,rmse,cfs24_split,35,loo,0.393,0.296,0.487,
+nino34,nino34,Sep,lead1,5S-5N 170-120W,rmse,sfs-cfs,35,loo,-0.137,-0.26,-0.016,yes
+nino34,nino34,Sep,lead1,5S-5N 170-120W,rmse,sfs-cfs_split,35,loo,-0.072,-0.181,0.037,no
+nino34,nino34,Sep,lead2,5S-5N 170-120W,acc,sfs,35,loo,0.953,0.913,0.975,
+nino34,nino34,Sep,lead2,5S-5N 170-120W,acc,cfs,35,loo,0.921,0.853,0.958,
+nino34,nino34,Sep,lead2,5S-5N 170-120W,acc,cfs_split,35,loo,0.944,0.894,0.971,
+nino34,nino34,Sep,lead2,5S-5N 170-120W,acc,cfs24,35,loo,0.922,0.854,0.959,
+nino34,nino34,Sep,lead2,5S-5N 170-120W,acc,cfs24_split,35,loo,0.945,0.895,0.972,
+nino34,nino34,Sep,lead2,5S-5N 170-120W,acc,sfs-cfs,35,loo,0.032,-0.004,0.084,no
+nino34,nino34,Sep,lead2,5S-5N 170-120W,acc,sfs-cfs_split,35,loo,0.009,-0.026,0.045,no
+nino34,nino34,Sep,lead2,5S-5N 170-120W,rmse,sfs,35,loo,0.346,0.283,0.402,
+nino34,nino34,Sep,lead2,5S-5N 170-120W,rmse,cfs,35,loo,0.554,0.438,0.67,
+nino34,nino34,Sep,lead2,5S-5N 170-120W,rmse,cfs_split,35,loo,0.507,0.37,0.639,
+nino34,nino34,Sep,lead2,5S-5N 170-120W,rmse,cfs24,35,loo,0.553,0.434,0.671,
+nino34,nino34,Sep,lead2,5S-5N 170-120W,rmse,cfs24_split,35,loo,0.506,0.369,0.639,
+nino34,nino34,Sep,lead2,5S-5N 170-120W,rmse,sfs-cfs,35,loo,-0.208,-0.345,-0.074,yes
+nino34,nino34,Sep,lead2,5S-5N 170-120W,rmse,sfs-cfs_split,35,loo,-0.161,-0.293,-0.022,yes
+nino34,nino34,Sep,lead3,5S-5N 170-120W,acc,sfs,35,loo,0.915,0.846,0.955,
+nino34,nino34,Sep,lead3,5S-5N 170-120W,acc,cfs,35,loo,0.893,0.801,0.947,
+nino34,nino34,Sep,lead3,5S-5N 170-120W,acc,cfs_split,35,loo,0.923,0.859,0.96,
+nino34,nino34,Sep,lead3,5S-5N 170-120W,acc,cfs24,35,loo,0.894,0.801,0.948,
+nino34,nino34,Sep,lead3,5S-5N 170-120W,acc,cfs24_split,35,loo,0.924,0.859,0.962,
+nino34,nino34,Sep,lead3,5S-5N 170-120W,acc,sfs-cfs,35,loo,0.022,-0.024,0.082,no
+nino34,nino34,Sep,lead3,5S-5N 170-120W,acc,sfs-cfs_split,35,loo,-0.008,-0.05,0.032,no
+nino34,nino34,Sep,lead3,5S-5N 170-120W,rmse,sfs,35,loo,0.477,0.377,0.565,
+nino34,nino34,Sep,lead3,5S-5N 170-120W,rmse,cfs,35,loo,0.613,0.492,0.723,
+nino34,nino34,Sep,lead3,5S-5N 170-120W,rmse,cfs_split,35,loo,0.545,0.445,0.635,
+nino34,nino34,Sep,lead3,5S-5N 170-120W,rmse,cfs24,35,loo,0.611,0.488,0.725,
+nino34,nino34,Sep,lead3,5S-5N 170-120W,rmse,cfs24_split,35,loo,0.543,0.441,0.635,
+nino34,nino34,Sep,lead3,5S-5N 170-120W,rmse,sfs-cfs,35,loo,-0.135,-0.267,-0.014,yes
+nino34,nino34,Sep,lead3,5S-5N 170-120W,rmse,sfs-cfs_split,35,loo,-0.067,-0.189,0.056,no
+nino34,nino34,Sep,lead4,5S-5N 170-120W,acc,sfs,35,loo,0.904,0.807,0.953,
+nino34,nino34,Sep,lead4,5S-5N 170-120W,acc,cfs,35,loo,0.86,0.761,0.923,
+nino34,nino34,Sep,lead4,5S-5N 170-120W,acc,cfs_split,35,loo,0.901,0.828,0.945,
+nino34,nino34,Sep,lead4,5S-5N 170-120W,acc,cfs24,35,loo,0.862,0.759,0.925,
+nino34,nino34,Sep,lead4,5S-5N 170-120W,acc,cfs24_split,35,loo,0.904,0.831,0.947,
+nino34,nino34,Sep,lead4,5S-5N 170-120W,acc,sfs-cfs,35,loo,0.044,-0.021,0.108,no
+nino34,nino34,Sep,lead4,5S-5N 170-120W,acc,sfs-cfs_split,35,loo,0.003,-0.063,0.052,no
+nino34,nino34,Sep,lead4,5S-5N 170-120W,rmse,sfs,35,loo,0.494,0.386,0.597,
+nino34,nino34,Sep,lead4,5S-5N 170-120W,rmse,cfs,35,loo,0.629,0.509,0.738,
+nino34,nino34,Sep,lead4,5S-5N 170-120W,rmse,cfs_split,35,loo,0.542,0.449,0.632,
+nino34,nino34,Sep,lead4,5S-5N 170-120W,rmse,cfs24,35,loo,0.625,0.499,0.738,
+nino34,nino34,Sep,lead4,5S-5N 170-120W,rmse,cfs24_split,35,loo,0.535,0.438,0.628,
+nino34,nino34,Sep,lead4,5S-5N 170-120W,rmse,sfs-cfs,35,loo,-0.135,-0.27,-0.008,yes
+nino34,nino34,Sep,lead4,5S-5N 170-120W,rmse,sfs-cfs_split,35,loo,-0.049,-0.178,0.078,no
+nino34,nino34,Sep,lead5,5S-5N 170-120W,acc,sfs,35,loo,0.842,0.686,0.927,
+nino34,nino34,Sep,lead5,5S-5N 170-120W,acc,cfs,35,loo,0.785,0.631,0.883,
+nino34,nino34,Sep,lead5,5S-5N 170-120W,acc,cfs_split,35,loo,0.849,0.734,0.921,
+nino34,nino34,Sep,lead5,5S-5N 170-120W,acc,cfs24,35,loo,0.789,0.634,0.886,
+nino34,nino34,Sep,lead5,5S-5N 170-120W,acc,cfs24_split,35,loo,0.854,0.741,0.924,
+nino34,nino34,Sep,lead5,5S-5N 170-120W,acc,sfs-cfs,35,loo,0.058,-0.038,0.145,no
+nino34,nino34,Sep,lead5,5S-5N 170-120W,acc,sfs-cfs_split,35,loo,-0.007,-0.111,0.068,no
+nino34,nino34,Sep,lead5,5S-5N 170-120W,rmse,sfs,35,loo,0.526,0.397,0.65,
+nino34,nino34,Sep,lead5,5S-5N 170-120W,rmse,cfs,35,loo,0.655,0.509,0.787,
+nino34,nino34,Sep,lead5,5S-5N 170-120W,rmse,cfs_split,35,loo,0.553,0.424,0.669,
+nino34,nino34,Sep,lead5,5S-5N 170-120W,rmse,cfs24,35,loo,0.649,0.499,0.781,
+nino34,nino34,Sep,lead5,5S-5N 170-120W,rmse,cfs24_split,35,loo,0.543,0.413,0.66,
+nino34,nino34,Sep,lead5,5S-5N 170-120W,rmse,sfs-cfs,35,loo,-0.129,-0.273,0.008,no
+nino34,nino34,Sep,lead5,5S-5N 170-120W,rmse,sfs-cfs_split,35,loo,-0.027,-0.171,0.116,no
+nino34,nino34,Sep,lead6,5S-5N 170-120W,acc,sfs,35,loo,0.757,0.563,0.879,
+nino34,nino34,Sep,lead6,5S-5N 170-120W,acc,cfs,35,loo,0.771,0.61,0.874,
+nino34,nino34,Sep,lead6,5S-5N 170-120W,acc,cfs_split,35,loo,0.842,0.733,0.911,
+nino34,nino34,Sep,lead6,5S-5N 170-120W,acc,cfs24,35,loo,0.779,0.62,0.879,
+nino34,nino34,Sep,lead6,5S-5N 170-120W,acc,cfs24_split,35,loo,0.851,0.745,0.917,
+nino34,nino34,Sep,lead6,5S-5N 170-120W,acc,sfs-cfs,35,loo,-0.014,-0.147,0.1,no
+nino34,nino34,Sep,lead6,5S-5N 170-120W,acc,sfs-cfs_split,35,loo,-0.085,-0.241,0.03,no
+nino34,nino34,Sep,lead6,5S-5N 170-120W,rmse,sfs,35,loo,0.487,0.362,0.604,
+nino34,nino34,Sep,lead6,5S-5N 170-120W,rmse,cfs,35,loo,0.529,0.415,0.638,
+nino34,nino34,Sep,lead6,5S-5N 170-120W,rmse,cfs_split,35,loo,0.437,0.348,0.521,
+nino34,nino34,Sep,lead6,5S-5N 170-120W,rmse,cfs24,35,loo,0.52,0.406,0.627,
+nino34,nino34,Sep,lead6,5S-5N 170-120W,rmse,cfs24_split,35,loo,0.424,0.333,0.509,
+nino34,nino34,Sep,lead6,5S-5N 170-120W,rmse,sfs-cfs,35,loo,-0.043,-0.196,0.1,no
+nino34,nino34,Sep,lead6,5S-5N 170-120W,rmse,sfs-cfs_split,35,loo,0.049,-0.101,0.198,no
+nino34,nino34,Sep,lead7,5S-5N 170-120W,acc,sfs,35,loo,0.631,0.345,0.828,
+nino34,nino34,Sep,lead7,5S-5N 170-120W,acc,cfs,35,loo,0.746,0.565,0.869,
+nino34,nino34,Sep,lead7,5S-5N 170-120W,acc,cfs_split,35,loo,0.817,0.694,0.902,
+nino34,nino34,Sep,lead7,5S-5N 170-120W,acc,cfs24,35,loo,0.755,0.577,0.875,
+nino34,nino34,Sep,lead7,5S-5N 170-120W,acc,cfs24_split,35,loo,0.83,0.711,0.911,
+nino34,nino34,Sep,lead7,5S-5N 170-120W,acc,sfs-cfs,35,loo,-0.114,-0.297,0.029,no
+nino34,nino34,Sep,lead7,5S-5N 170-120W,acc,sfs-cfs_split,35,loo,-0.186,-0.42,-0.018,yes
+nino34,nino34,Sep,lead7,5S-5N 170-120W,rmse,sfs,35,loo,0.452,0.314,0.581,
+nino34,nino34,Sep,lead7,5S-5N 170-120W,rmse,cfs,35,loo,0.441,0.332,0.548,
+nino34,nino34,Sep,lead7,5S-5N 170-120W,rmse,cfs_split,35,loo,0.367,0.281,0.45,
+nino34,nino34,Sep,lead7,5S-5N 170-120W,rmse,cfs24,35,loo,0.429,0.322,0.534,
+nino34,nino34,Sep,lead7,5S-5N 170-120W,rmse,cfs24_split,35,loo,0.35,0.267,0.429,
+nino34,nino34,Sep,lead7,5S-5N 170-120W,rmse,sfs-cfs,35,loo,0.011,-0.114,0.122,no
+nino34,nino34,Sep,lead7,5S-5N 170-120W,rmse,sfs-cfs_split,35,loo,0.085,-0.044,0.213,no
+nino34,nino34,Sep,lead8,5S-5N 170-120W,acc,sfs,35,loo,0.352,-0.013,0.652,
+nino34,nino34,Sep,lead8,5S-5N 170-120W,acc,cfs,35,loo,0.525,0.245,0.723,
+nino34,nino34,Sep,lead8,5S-5N 170-120W,acc,cfs_split,35,loo,0.629,0.411,0.795,
+nino34,nino34,Sep,lead8,5S-5N 170-120W,acc,cfs24,35,loo,0.536,0.252,0.737,
+nino34,nino34,Sep,lead8,5S-5N 170-120W,acc,cfs24_split,35,loo,0.643,0.425,0.807,
+nino34,nino34,Sep,lead8,5S-5N 170-120W,acc,sfs-cfs,35,loo,-0.173,-0.404,0.054,no
+nino34,nino34,Sep,lead8,5S-5N 170-120W,acc,sfs-cfs_split,35,loo,-0.277,-0.592,0.0,no
+nino34,nino34,Sep,lead8,5S-5N 170-120W,rmse,sfs,35,loo,0.539,0.402,0.679,
+nino34,nino34,Sep,lead8,5S-5N 170-120W,rmse,cfs,35,loo,0.528,0.416,0.628,
+nino34,nino34,Sep,lead8,5S-5N 170-120W,rmse,cfs_split,35,loo,0.456,0.356,0.549,
+nino34,nino34,Sep,lead8,5S-5N 170-120W,rmse,cfs24,35,loo,0.518,0.408,0.616,
+nino34,nino34,Sep,lead8,5S-5N 170-120W,rmse,cfs24_split,35,loo,0.444,0.344,0.535,
+nino34,nino34,Sep,lead8,5S-5N 170-120W,rmse,sfs-cfs,35,loo,0.011,-0.095,0.113,no
+nino34,nino34,Sep,lead8,5S-5N 170-120W,rmse,sfs-cfs_split,35,loo,0.083,-0.051,0.215,no
+nino34,nino34,Oct,lead0,5S-5N 170-120W,acc,sfs,35,loo,0.978,0.959,0.988,
+nino34,nino34,Oct,lead0,5S-5N 170-120W,acc,cfs,35,loo,0.961,0.931,0.978,
+nino34,nino34,Oct,lead0,5S-5N 170-120W,acc,cfs_split,35,loo,0.968,0.949,0.98,
+nino34,nino34,Oct,lead0,5S-5N 170-120W,acc,cfs24,35,loo,0.962,0.933,0.978,
+nino34,nino34,Oct,lead0,5S-5N 170-120W,acc,cfs24_split,35,loo,0.969,0.95,0.981,
+nino34,nino34,Oct,lead0,5S-5N 170-120W,acc,sfs-cfs,35,loo,0.017,0.003,0.038,yes
+nino34,nino34,Oct,lead0,5S-5N 170-120W,acc,sfs-cfs_split,35,loo,0.01,-0.006,0.025,no
+nino34,nino34,Oct,lead0,5S-5N 170-120W,rmse,sfs,35,loo,0.237,0.184,0.284,
+nino34,nino34,Oct,lead0,5S-5N 170-120W,rmse,cfs,35,loo,0.273,0.233,0.311,
+nino34,nino34,Oct,lead0,5S-5N 170-120W,rmse,cfs_split,35,loo,0.257,0.2,0.312,
+nino34,nino34,Oct,lead0,5S-5N 170-120W,rmse,cfs24,35,loo,0.268,0.229,0.306,
+nino34,nino34,Oct,lead0,5S-5N 170-120W,rmse,cfs24_split,35,loo,0.253,0.196,0.308,
+nino34,nino34,Oct,lead0,5S-5N 170-120W,rmse,sfs-cfs,35,loo,-0.036,-0.095,0.018,no
+nino34,nino34,Oct,lead0,5S-5N 170-120W,rmse,sfs-cfs_split,35,loo,-0.02,-0.084,0.043,no
+nino34,nino34,Oct,lead1,5S-5N 170-120W,acc,sfs,35,loo,0.978,0.963,0.988,
+nino34,nino34,Oct,lead1,5S-5N 170-120W,acc,cfs,35,loo,0.93,0.876,0.961,
+nino34,nino34,Oct,lead1,5S-5N 170-120W,acc,cfs_split,35,loo,0.944,0.907,0.968,
+nino34,nino34,Oct,lead1,5S-5N 170-120W,acc,cfs24,35,loo,0.931,0.878,0.961,
+nino34,nino34,Oct,lead1,5S-5N 170-120W,acc,cfs24_split,35,loo,0.946,0.909,0.969,
+nino34,nino34,Oct,lead1,5S-5N 170-120W,acc,sfs-cfs,35,loo,0.048,0.019,0.096,yes
+nino34,nino34,Oct,lead1,5S-5N 170-120W,acc,sfs-cfs_split,35,loo,0.034,0.008,0.067,yes
+nino34,nino34,Oct,lead1,5S-5N 170-120W,rmse,sfs,35,loo,0.236,0.187,0.283,
+nino34,nino34,Oct,lead1,5S-5N 170-120W,rmse,cfs,35,loo,0.455,0.365,0.542,
+nino34,nino34,Oct,lead1,5S-5N 170-120W,rmse,cfs_split,35,loo,0.425,0.323,0.52,
+nino34,nino34,Oct,lead1,5S-5N 170-120W,rmse,cfs24,35,loo,0.451,0.36,0.538,
+nino34,nino34,Oct,lead1,5S-5N 170-120W,rmse,cfs24_split,35,loo,0.421,0.318,0.516,
+nino34,nino34,Oct,lead1,5S-5N 170-120W,rmse,sfs-cfs,35,loo,-0.219,-0.324,-0.114,yes
+nino34,nino34,Oct,lead1,5S-5N 170-120W,rmse,sfs-cfs_split,35,loo,-0.189,-0.296,-0.072,yes
+nino34,nino34,Oct,lead2,5S-5N 170-120W,acc,sfs,35,loo,0.956,0.926,0.977,
+nino34,nino34,Oct,lead2,5S-5N 170-120W,acc,cfs,35,loo,0.888,0.792,0.947,
+nino34,nino34,Oct,lead2,5S-5N 170-120W,acc,cfs_split,35,loo,0.911,0.836,0.956,
+nino34,nino34,Oct,lead2,5S-5N 170-120W,acc,cfs24,35,loo,0.887,0.789,0.947,
+nino34,nino34,Oct,lead2,5S-5N 170-120W,acc,cfs24_split,35,loo,0.911,0.835,0.956,
+nino34,nino34,Oct,lead2,5S-5N 170-120W,acc,sfs-cfs,35,loo,0.068,0.022,0.144,yes
+nino34,nino34,Oct,lead2,5S-5N 170-120W,acc,sfs-cfs_split,35,loo,0.045,0.01,0.1,yes
+nino34,nino34,Oct,lead2,5S-5N 170-120W,rmse,sfs,35,loo,0.348,0.269,0.419,
+nino34,nino34,Oct,lead2,5S-5N 170-120W,rmse,cfs,35,loo,0.611,0.475,0.735,
+nino34,nino34,Oct,lead2,5S-5N 170-120W,rmse,cfs_split,35,loo,0.567,0.456,0.669,
+nino34,nino34,Oct,lead2,5S-5N 170-120W,rmse,cfs24,35,loo,0.613,0.474,0.74,
+nino34,nino34,Oct,lead2,5S-5N 170-120W,rmse,cfs24_split,35,loo,0.565,0.452,0.668,
+nino34,nino34,Oct,lead2,5S-5N 170-120W,rmse,sfs-cfs,35,loo,-0.263,-0.381,-0.145,yes
+nino34,nino34,Oct,lead2,5S-5N 170-120W,rmse,sfs-cfs_split,35,loo,-0.219,-0.329,-0.105,yes
+nino34,nino34,Oct,lead3,5S-5N 170-120W,acc,sfs,35,loo,0.941,0.896,0.969,
+nino34,nino34,Oct,lead3,5S-5N 170-120W,acc,cfs,35,loo,0.838,0.727,0.908,
+nino34,nino34,Oct,lead3,5S-5N 170-120W,acc,cfs_split,35,loo,0.871,0.784,0.927,
+nino34,nino34,Oct,lead3,5S-5N 170-120W,acc,cfs24,35,loo,0.837,0.723,0.908,
+nino34,nino34,Oct,lead3,5S-5N 170-120W,acc,cfs24_split,35,loo,0.872,0.785,0.928,
+nino34,nino34,Oct,lead3,5S-5N 170-120W,acc,sfs-cfs,35,loo,0.103,0.048,0.186,yes
+nino34,nino34,Oct,lead3,5S-5N 170-120W,acc,sfs-cfs_split,35,loo,0.07,0.024,0.135,yes
+nino34,nino34,Oct,lead3,5S-5N 170-120W,rmse,sfs,35,loo,0.392,0.308,0.487,
+nino34,nino34,Oct,lead3,5S-5N 170-120W,rmse,cfs,35,loo,0.675,0.553,0.792,
+nino34,nino34,Oct,lead3,5S-5N 170-120W,rmse,cfs_split,35,loo,0.616,0.515,0.709,
+nino34,nino34,Oct,lead3,5S-5N 170-120W,rmse,cfs24,35,loo,0.675,0.549,0.797,
+nino34,nino34,Oct,lead3,5S-5N 170-120W,rmse,cfs24_split,35,loo,0.611,0.508,0.706,
+nino34,nino34,Oct,lead3,5S-5N 170-120W,rmse,sfs-cfs,35,loo,-0.283,-0.398,-0.173,yes
+nino34,nino34,Oct,lead3,5S-5N 170-120W,rmse,sfs-cfs_split,35,loo,-0.224,-0.344,-0.108,yes
+nino34,nino34,Oct,lead4,5S-5N 170-120W,acc,sfs,35,loo,0.905,0.833,0.95,
+nino34,nino34,Oct,lead4,5S-5N 170-120W,acc,cfs,35,loo,0.778,0.619,0.881,
+nino34,nino34,Oct,lead4,5S-5N 170-120W,acc,cfs_split,35,loo,0.84,0.718,0.915,
+nino34,nino34,Oct,lead4,5S-5N 170-120W,acc,cfs24,35,loo,0.776,0.613,0.883,
+nino34,nino34,Oct,lead4,5S-5N 170-120W,acc,cfs24_split,35,loo,0.841,0.716,0.916,
+nino34,nino34,Oct,lead4,5S-5N 170-120W,acc,sfs-cfs,35,loo,0.127,0.054,0.234,yes
+nino34,nino34,Oct,lead4,5S-5N 170-120W,acc,sfs-cfs_split,35,loo,0.065,0.007,0.144,yes
+nino34,nino34,Oct,lead4,5S-5N 170-120W,rmse,sfs,35,loo,0.426,0.319,0.534,
+nino34,nino34,Oct,lead4,5S-5N 170-120W,rmse,cfs,35,loo,0.656,0.51,0.802,
+nino34,nino34,Oct,lead4,5S-5N 170-120W,rmse,cfs_split,35,loo,0.56,0.443,0.682,
+nino34,nino34,Oct,lead4,5S-5N 170-120W,rmse,cfs24,35,loo,0.656,0.502,0.808,
+nino34,nino34,Oct,lead4,5S-5N 170-120W,rmse,cfs24_split,35,loo,0.557,0.435,0.683,
+nino34,nino34,Oct,lead4,5S-5N 170-120W,rmse,sfs-cfs,35,loo,-0.23,-0.34,-0.116,yes
+nino34,nino34,Oct,lead4,5S-5N 170-120W,rmse,sfs-cfs_split,35,loo,-0.134,-0.247,-0.02,yes
+nino34,nino34,Oct,lead5,5S-5N 170-120W,acc,sfs,35,loo,0.834,0.72,0.915,
+nino34,nino34,Oct,lead5,5S-5N 170-120W,acc,cfs,35,loo,0.776,0.614,0.879,
+nino34,nino34,Oct,lead5,5S-5N 170-120W,acc,cfs_split,35,loo,0.86,0.756,0.925,
+nino34,nino34,Oct,lead5,5S-5N 170-120W,acc,cfs24,35,loo,0.777,0.611,0.883,
+nino34,nino34,Oct,lead5,5S-5N 170-120W,acc,cfs24_split,35,loo,0.863,0.758,0.928,
+nino34,nino34,Oct,lead5,5S-5N 170-120W,acc,sfs-cfs,35,loo,0.058,-0.035,0.171,no
+nino34,nino34,Oct,lead5,5S-5N 170-120W,acc,sfs-cfs_split,35,loo,-0.026,-0.129,0.076,no
+nino34,nino34,Oct,lead5,5S-5N 170-120W,rmse,sfs,35,loo,0.416,0.305,0.519,
+nino34,nino34,Oct,lead5,5S-5N 170-120W,rmse,cfs,35,loo,0.52,0.404,0.631,
+nino34,nino34,Oct,lead5,5S-5N 170-120W,rmse,cfs_split,35,loo,0.404,0.324,0.476,
+nino34,nino34,Oct,lead5,5S-5N 170-120W,rmse,cfs24,35,loo,0.516,0.393,0.631,
+nino34,nino34,Oct,lead5,5S-5N 170-120W,rmse,cfs24_split,35,loo,0.398,0.317,0.471,
+nino34,nino34,Oct,lead5,5S-5N 170-120W,rmse,sfs-cfs,35,loo,-0.104,-0.237,0.032,no
+nino34,nino34,Oct,lead5,5S-5N 170-120W,rmse,sfs-cfs_split,35,loo,0.011,-0.12,0.146,no
+nino34,nino34,Oct,lead6,5S-5N 170-120W,acc,sfs,35,loo,0.761,0.583,0.885,
+nino34,nino34,Oct,lead6,5S-5N 170-120W,acc,cfs,35,loo,0.79,0.64,0.899,
+nino34,nino34,Oct,lead6,5S-5N 170-120W,acc,cfs_split,35,loo,0.889,0.808,0.941,
+nino34,nino34,Oct,lead6,5S-5N 170-120W,acc,cfs24,35,loo,0.792,0.64,0.904,
+nino34,nino34,Oct,lead6,5S-5N 170-120W,acc,cfs24_split,35,loo,0.898,0.818,0.947,
+nino34,nino34,Oct,lead6,5S-5N 170-120W,acc,sfs-cfs,35,loo,-0.029,-0.156,0.078,no
+nino34,nino34,Oct,lead6,5S-5N 170-120W,acc,sfs-cfs_split,35,loo,-0.128,-0.289,-0.003,yes
+nino34,nino34,Oct,lead6,5S-5N 170-120W,rmse,sfs,35,loo,0.379,0.266,0.486,
+nino34,nino34,Oct,lead6,5S-5N 170-120W,rmse,cfs,35,loo,0.408,0.303,0.508,
+nino34,nino34,Oct,lead6,5S-5N 170-120W,rmse,cfs_split,35,loo,0.287,0.226,0.344,
+nino34,nino34,Oct,lead6,5S-5N 170-120W,rmse,cfs24,35,loo,0.4,0.291,0.502,
+nino34,nino34,Oct,lead6,5S-5N 170-120W,rmse,cfs24_split,35,loo,0.269,0.21,0.325,
+nino34,nino34,Oct,lead6,5S-5N 170-120W,rmse,sfs-cfs,35,loo,-0.029,-0.154,0.093,no
+nino34,nino34,Oct,lead6,5S-5N 170-120W,rmse,sfs-cfs_split,35,loo,0.092,-0.03,0.214,no
+nino34,nino34,Oct,lead7,5S-5N 170-120W,acc,sfs,35,loo,0.459,0.132,0.714,
+nino34,nino34,Oct,lead7,5S-5N 170-120W,acc,cfs,35,loo,0.604,0.365,0.774,
+nino34,nino34,Oct,lead7,5S-5N 170-120W,acc,cfs_split,35,loo,0.747,0.579,0.859,
+nino34,nino34,Oct,lead7,5S-5N 170-120W,acc,cfs24,35,loo,0.61,0.368,0.781,
+nino34,nino34,Oct,lead7,5S-5N 170-120W,acc,cfs24_split,35,loo,0.76,0.59,0.872,
+nino34,nino34,Oct,lead7,5S-5N 170-120W,acc,sfs-cfs,35,loo,-0.145,-0.369,0.066,no
+nino34,nino34,Oct,lead7,5S-5N 170-120W,acc,sfs-cfs_split,35,loo,-0.288,-0.583,-0.026,yes
+nino34,nino34,Oct,lead7,5S-5N 170-120W,rmse,sfs,35,loo,0.501,0.372,0.619,
+nino34,nino34,Oct,lead7,5S-5N 170-120W,rmse,cfs,35,loo,0.492,0.392,0.585,
+nino34,nino34,Oct,lead7,5S-5N 170-120W,rmse,cfs_split,35,loo,0.379,0.304,0.451,
+nino34,nino34,Oct,lead7,5S-5N 170-120W,rmse,cfs24,35,loo,0.48,0.379,0.572,
+nino34,nino34,Oct,lead7,5S-5N 170-120W,rmse,cfs24_split,35,loo,0.364,0.287,0.436,
+nino34,nino34,Oct,lead7,5S-5N 170-120W,rmse,sfs-cfs,35,loo,0.008,-0.115,0.121,no
+nino34,nino34,Oct,lead7,5S-5N 170-120W,rmse,sfs-cfs_split,35,loo,0.122,-0.021,0.256,no
+nino34,nino34,Oct,lead8,5S-5N 170-120W,acc,sfs,35,loo,0.573,0.201,0.79,
+nino34,nino34,Oct,lead8,5S-5N 170-120W,acc,cfs,35,loo,0.679,0.431,0.823,
+nino34,nino34,Oct,lead8,5S-5N 170-120W,acc,cfs_split,35,loo,0.683,0.446,0.832,
+nino34,nino34,Oct,lead8,5S-5N 170-120W,acc,cfs24,35,loo,0.697,0.449,0.836,
+nino34,nino34,Oct,lead8,5S-5N 170-120W,acc,cfs24_split,35,loo,0.71,0.464,0.858,
+nino34,nino34,Oct,lead8,5S-5N 170-120W,acc,sfs-cfs,35,loo,-0.106,-0.38,0.102,no
+nino34,nino34,Oct,lead8,5S-5N 170-120W,acc,sfs-cfs_split,35,loo,-0.11,-0.448,0.153,no
+nino34,nino34,Oct,lead8,5S-5N 170-120W,rmse,sfs,35,loo,0.492,0.38,0.603,
+nino34,nino34,Oct,lead8,5S-5N 170-120W,rmse,cfs,35,loo,0.44,0.348,0.525,
+nino34,nino34,Oct,lead8,5S-5N 170-120W,rmse,cfs_split,35,loo,0.432,0.333,0.523,
+nino34,nino34,Oct,lead8,5S-5N 170-120W,rmse,cfs24,35,loo,0.425,0.334,0.51,
+nino34,nino34,Oct,lead8,5S-5N 170-120W,rmse,cfs24_split,35,loo,0.416,0.313,0.51,
+nino34,nino34,Oct,lead8,5S-5N 170-120W,rmse,sfs-cfs,35,loo,0.051,-0.068,0.163,no
+nino34,nino34,Oct,lead8,5S-5N 170-120W,rmse,sfs-cfs_split,35,loo,0.06,-0.08,0.193,no
+seasonal,t2m,Sep,OND,Global,acc,sfs,35,loo,0.458,0.383,0.527,
+seasonal,t2m,Sep,OND,Global,acc,cfs24,35,loo,0.346,0.293,0.4,
+seasonal,t2m,Sep,OND,Global,acc,cfs,35,loo,0.335,0.283,0.388,
+seasonal,t2m,Sep,OND,Global,acc,sfs-cfs,35,loo,0.123,0.08,0.161,yes
+seasonal,t2m,Sep,OND,Global,msss,sfs,35,loo,0.222,0.14,0.295,
+seasonal,t2m,Sep,OND,Global,msss,cfs24,35,loo,0.022,-0.053,0.093,
+seasonal,t2m,Sep,OND,Global,msss,cfs,35,loo,-0.011,-0.089,0.062,
+seasonal,t2m,Sep,OND,Global,msss,sfs-cfs,35,loo,0.232,0.187,0.276,yes
+seasonal,t2m,Sep,OND,NH 20-90N,acc,sfs,35,loo,0.434,0.344,0.519,
+seasonal,t2m,Sep,OND,NH 20-90N,acc,cfs24,35,loo,0.292,0.222,0.36,
+seasonal,t2m,Sep,OND,NH 20-90N,acc,cfs,35,loo,0.28,0.213,0.347,
+seasonal,t2m,Sep,OND,NH 20-90N,acc,sfs-cfs,35,loo,0.154,0.094,0.21,yes
+seasonal,t2m,Sep,OND,NH 20-90N,msss,sfs,35,loo,0.204,0.108,0.29,
+seasonal,t2m,Sep,OND,NH 20-90N,msss,cfs24,35,loo,0.022,-0.065,0.101,
+seasonal,t2m,Sep,OND,NH 20-90N,msss,cfs,35,loo,-0.011,-0.103,0.072,
+seasonal,t2m,Sep,OND,NH 20-90N,msss,sfs-cfs,35,loo,0.215,0.158,0.27,yes
+seasonal,t2m,Sep,OND,CONUS land,acc,sfs,35,loo,0.437,0.251,0.595,
+seasonal,t2m,Sep,OND,CONUS land,acc,cfs24,35,loo,0.163,-0.04,0.342,
+seasonal,t2m,Sep,OND,CONUS land,acc,cfs,35,loo,0.14,-0.044,0.307,
+seasonal,t2m,Sep,OND,CONUS land,acc,sfs-cfs,35,loo,0.297,0.132,0.456,yes
+seasonal,t2m,Sep,OND,CONUS land,msss,sfs,35,loo,0.161,-0.041,0.319,
+seasonal,t2m,Sep,OND,CONUS land,msss,cfs24,35,loo,-0.016,-0.222,0.134,
+seasonal,t2m,Sep,OND,CONUS land,msss,cfs,35,loo,-0.083,-0.306,0.077,
+seasonal,t2m,Sep,OND,CONUS land,msss,sfs-cfs,35,loo,0.244,0.094,0.411,yes
+seasonal,t2m,Sep,OND,Global,acc,sfs,35,loo_detrended,0.312,0.25,0.373,
+seasonal,t2m,Sep,OND,Global,acc,cfs24,35,loo_detrended,0.277,0.235,0.321,
+seasonal,t2m,Sep,OND,Global,acc,cfs,35,loo_detrended,0.26,0.22,0.304,
+seasonal,t2m,Sep,OND,Global,acc,sfs-cfs,35,loo_detrended,0.051,0.008,0.093,yes
+seasonal,t2m,Sep,OND,Global,msss,sfs,35,loo_detrended,0.079,0.021,0.139,
+seasonal,t2m,Sep,OND,Global,msss,cfs24,35,loo_detrended,-0.009,-0.055,0.036,
+seasonal,t2m,Sep,OND,Global,msss,cfs,35,loo_detrended,-0.052,-0.098,-0.005,
+seasonal,t2m,Sep,OND,Global,msss,sfs-cfs,35,loo_detrended,0.131,0.085,0.177,yes
+seasonal,t2m,Sep,OND,NH 20-90N,acc,sfs,35,loo_detrended,0.238,0.165,0.313,
+seasonal,t2m,Sep,OND,NH 20-90N,acc,cfs24,35,loo_detrended,0.204,0.155,0.255,
+seasonal,t2m,Sep,OND,NH 20-90N,acc,cfs,35,loo_detrended,0.186,0.14,0.234,
+seasonal,t2m,Sep,OND,NH 20-90N,acc,sfs-cfs,35,loo_detrended,0.052,-0.013,0.116,no
+seasonal,t2m,Sep,OND,NH 20-90N,msss,sfs,35,loo_detrended,0.019,-0.038,0.082,
+seasonal,t2m,Sep,OND,NH 20-90N,msss,cfs24,35,loo_detrended,-0.049,-0.092,-0.006,
+seasonal,t2m,Sep,OND,NH 20-90N,msss,cfs,35,loo_detrended,-0.092,-0.138,-0.047,
+seasonal,t2m,Sep,OND,NH 20-90N,msss,sfs-cfs,35,loo_detrended,0.112,0.051,0.171,yes
+seasonal,t2m,Sep,OND,CONUS land,acc,sfs,35,loo_detrended,0.289,0.116,0.444,
+seasonal,t2m,Sep,OND,CONUS land,acc,cfs24,35,loo_detrended,0.059,-0.155,0.245,
+seasonal,t2m,Sep,OND,CONUS land,acc,cfs,35,loo_detrended,0.054,-0.124,0.212,
+seasonal,t2m,Sep,OND,CONUS land,acc,sfs-cfs,35,loo_detrended,0.235,0.049,0.436,yes
+seasonal,t2m,Sep,OND,CONUS land,msss,sfs,35,loo_detrended,0.016,-0.11,0.141,
+seasonal,t2m,Sep,OND,CONUS land,msss,cfs24,35,loo_detrended,-0.105,-0.272,0.03,
+seasonal,t2m,Sep,OND,CONUS land,msss,cfs,35,loo_detrended,-0.18,-0.357,-0.042,
+seasonal,t2m,Sep,OND,CONUS land,msss,sfs-cfs,35,loo_detrended,0.196,0.028,0.392,yes
+seasonal,t2m,Sep,NDJ,Global,acc,sfs,35,loo,0.422,0.351,0.489,
+seasonal,t2m,Sep,NDJ,Global,acc,cfs24,35,loo,0.284,0.23,0.338,
+seasonal,t2m,Sep,NDJ,Global,acc,cfs,35,loo,0.273,0.22,0.325,
+seasonal,t2m,Sep,NDJ,Global,acc,sfs-cfs,35,loo,0.15,0.103,0.19,yes
+seasonal,t2m,Sep,NDJ,Global,msss,sfs,35,loo,0.175,0.098,0.243,
+seasonal,t2m,Sep,NDJ,Global,msss,cfs24,35,loo,-0.064,-0.138,0.003,
+seasonal,t2m,Sep,NDJ,Global,msss,cfs,35,loo,-0.099,-0.177,-0.03,
+seasonal,t2m,Sep,NDJ,Global,msss,sfs-cfs,35,loo,0.274,0.225,0.321,yes
+seasonal,t2m,Sep,NDJ,NH 20-90N,acc,sfs,35,loo,0.399,0.32,0.472,
+seasonal,t2m,Sep,NDJ,NH 20-90N,acc,cfs24,35,loo,0.226,0.165,0.286,
+seasonal,t2m,Sep,NDJ,NH 20-90N,acc,cfs,35,loo,0.213,0.154,0.271,
+seasonal,t2m,Sep,NDJ,NH 20-90N,acc,sfs-cfs,35,loo,0.186,0.118,0.248,yes
+seasonal,t2m,Sep,NDJ,NH 20-90N,msss,sfs,35,loo,0.153,0.071,0.226,
+seasonal,t2m,Sep,NDJ,NH 20-90N,msss,cfs24,35,loo,-0.052,-0.128,0.016,
+seasonal,t2m,Sep,NDJ,NH 20-90N,msss,cfs,35,loo,-0.088,-0.167,-0.019,
+seasonal,t2m,Sep,NDJ,NH 20-90N,msss,sfs-cfs,35,loo,0.241,0.179,0.301,yes
+seasonal,t2m,Sep,NDJ,CONUS land,acc,sfs,35,loo,0.343,0.197,0.474,
+seasonal,t2m,Sep,NDJ,CONUS land,acc,cfs24,35,loo,0.238,0.078,0.383,
+seasonal,t2m,Sep,NDJ,CONUS land,acc,cfs,35,loo,0.233,0.09,0.365,
+seasonal,t2m,Sep,NDJ,CONUS land,acc,sfs-cfs,35,loo,0.11,-0.04,0.256,no
+seasonal,t2m,Sep,NDJ,CONUS land,msss,sfs,35,loo,0.098,-0.031,0.213,
+seasonal,t2m,Sep,NDJ,CONUS land,msss,cfs24,35,loo,0.01,-0.153,0.142,
+seasonal,t2m,Sep,NDJ,CONUS land,msss,cfs,35,loo,-0.021,-0.191,0.11,
+seasonal,t2m,Sep,NDJ,CONUS land,msss,sfs-cfs,35,loo,0.119,-0.017,0.267,no
+seasonal,t2m,Sep,NDJ,Global,acc,sfs,35,loo_detrended,0.294,0.234,0.354,
+seasonal,t2m,Sep,NDJ,Global,acc,cfs24,35,loo_detrended,0.233,0.182,0.285,
+seasonal,t2m,Sep,NDJ,Global,acc,cfs,35,loo_detrended,0.219,0.169,0.268,
+seasonal,t2m,Sep,NDJ,Global,acc,sfs-cfs,35,loo_detrended,0.075,0.026,0.121,yes
+seasonal,t2m,Sep,NDJ,Global,msss,sfs,35,loo_detrended,0.07,0.017,0.126,
+seasonal,t2m,Sep,NDJ,Global,msss,cfs24,35,loo_detrended,-0.044,-0.092,0.006,
+seasonal,t2m,Sep,NDJ,Global,msss,cfs,35,loo_detrended,-0.086,-0.134,-0.035,
+seasonal,t2m,Sep,NDJ,Global,msss,sfs-cfs,35,loo_detrended,0.156,0.107,0.206,yes
+seasonal,t2m,Sep,NDJ,NH 20-90N,acc,sfs,35,loo_detrended,0.241,0.182,0.301,
+seasonal,t2m,Sep,NDJ,NH 20-90N,acc,cfs24,35,loo_detrended,0.16,0.11,0.211,
+seasonal,t2m,Sep,NDJ,NH 20-90N,acc,cfs,35,loo_detrended,0.146,0.099,0.194,
+seasonal,t2m,Sep,NDJ,NH 20-90N,acc,sfs-cfs,35,loo_detrended,0.095,0.025,0.16,yes
+seasonal,t2m,Sep,NDJ,NH 20-90N,msss,sfs,35,loo_detrended,0.031,-0.015,0.077,
+seasonal,t2m,Sep,NDJ,NH 20-90N,msss,cfs24,35,loo_detrended,-0.063,-0.104,-0.02,
+seasonal,t2m,Sep,NDJ,NH 20-90N,msss,cfs,35,loo_detrended,-0.105,-0.149,-0.061,
+seasonal,t2m,Sep,NDJ,NH 20-90N,msss,sfs-cfs,35,loo_detrended,0.136,0.076,0.195,yes
+seasonal,t2m,Sep,NDJ,CONUS land,acc,sfs,35,loo_detrended,0.216,0.04,0.385,
+seasonal,t2m,Sep,NDJ,CONUS land,acc,cfs24,35,loo_detrended,0.205,0.049,0.346,
+seasonal,t2m,Sep,NDJ,CONUS land,acc,cfs,35,loo_detrended,0.192,0.061,0.312,
+seasonal,t2m,Sep,NDJ,CONUS land,acc,sfs-cfs,35,loo_detrended,0.024,-0.162,0.207,no
+seasonal,t2m,Sep,NDJ,CONUS land,msss,sfs,35,loo_detrended,0.028,-0.097,0.151,
+seasonal,t2m,Sep,NDJ,CONUS land,msss,cfs24,35,loo_detrended,-0.016,-0.154,0.096,
+seasonal,t2m,Sep,NDJ,CONUS land,msss,cfs,35,loo_detrended,-0.051,-0.19,0.058,
+seasonal,t2m,Sep,NDJ,CONUS land,msss,sfs-cfs,35,loo_detrended,0.079,-0.082,0.25,no
+seasonal,t2m,Oct,NDJ,Global,acc,sfs,35,loo,0.416,0.343,0.481,
+seasonal,t2m,Oct,NDJ,Global,acc,cfs24,35,loo,0.33,0.271,0.386,
+seasonal,t2m,Oct,NDJ,Global,acc,cfs,35,loo,0.317,0.259,0.374,
+seasonal,t2m,Oct,NDJ,Global,acc,sfs-cfs,35,loo,0.098,0.048,0.148,yes
+seasonal,t2m,Oct,NDJ,Global,msss,sfs,35,loo,0.155,0.077,0.224,
+seasonal,t2m,Oct,NDJ,Global,msss,cfs24,35,loo,-0.016,-0.1,0.058,
+seasonal,t2m,Oct,NDJ,Global,msss,cfs,35,loo,-0.054,-0.143,0.024,
+seasonal,t2m,Oct,NDJ,Global,msss,sfs-cfs,35,loo,0.209,0.152,0.268,yes
+seasonal,t2m,Oct,NDJ,NH 20-90N,acc,sfs,35,loo,0.371,0.288,0.446,
+seasonal,t2m,Oct,NDJ,NH 20-90N,acc,cfs24,35,loo,0.284,0.216,0.347,
+seasonal,t2m,Oct,NDJ,NH 20-90N,acc,cfs,35,loo,0.268,0.202,0.33,
+seasonal,t2m,Oct,NDJ,NH 20-90N,acc,sfs-cfs,35,loo,0.103,0.031,0.174,yes
+seasonal,t2m,Oct,NDJ,NH 20-90N,msss,sfs,35,loo,0.111,0.024,0.19,
+seasonal,t2m,Oct,NDJ,NH 20-90N,msss,cfs24,35,loo,-0.016,-0.098,0.06,
+seasonal,t2m,Oct,NDJ,NH 20-90N,msss,cfs,35,loo,-0.057,-0.145,0.024,
+seasonal,t2m,Oct,NDJ,NH 20-90N,msss,sfs-cfs,35,loo,0.168,0.096,0.24,yes
+seasonal,t2m,Oct,NDJ,CONUS land,acc,sfs,35,loo,0.256,0.097,0.41,
+seasonal,t2m,Oct,NDJ,CONUS land,acc,cfs24,35,loo,0.292,0.134,0.432,
+seasonal,t2m,Oct,NDJ,CONUS land,acc,cfs,35,loo,0.244,0.101,0.373,
+seasonal,t2m,Oct,NDJ,CONUS land,acc,sfs-cfs,35,loo,0.012,-0.111,0.142,no
+seasonal,t2m,Oct,NDJ,CONUS land,msss,sfs,35,loo,-0.082,-0.269,0.08,
+seasonal,t2m,Oct,NDJ,CONUS land,msss,cfs24,35,loo,0.038,-0.116,0.174,
+seasonal,t2m,Oct,NDJ,CONUS land,msss,cfs,35,loo,-0.04,-0.205,0.1,
+seasonal,t2m,Oct,NDJ,CONUS land,msss,sfs-cfs,35,loo,-0.042,-0.185,0.105,no
+seasonal,t2m,Oct,NDJ,Global,acc,sfs,35,loo_detrended,0.274,0.213,0.332,
+seasonal,t2m,Oct,NDJ,Global,acc,cfs24,35,loo_detrended,0.281,0.223,0.338,
+seasonal,t2m,Oct,NDJ,Global,acc,cfs,35,loo_detrended,0.263,0.208,0.32,
+seasonal,t2m,Oct,NDJ,Global,acc,sfs-cfs,35,loo_detrended,0.011,-0.049,0.069,no
+seasonal,t2m,Oct,NDJ,Global,msss,sfs,35,loo_detrended,0.034,-0.024,0.087,
+seasonal,t2m,Oct,NDJ,Global,msss,cfs24,35,loo_detrended,-0.012,-0.07,0.05,
+seasonal,t2m,Oct,NDJ,Global,msss,cfs,35,loo_detrended,-0.057,-0.117,0.007,
+seasonal,t2m,Oct,NDJ,Global,msss,sfs-cfs,35,loo_detrended,0.09,0.026,0.154,yes
+seasonal,t2m,Oct,NDJ,NH 20-90N,acc,sfs,35,loo_detrended,0.183,0.114,0.247,
+seasonal,t2m,Oct,NDJ,NH 20-90N,acc,cfs24,35,loo_detrended,0.217,0.153,0.284,
+seasonal,t2m,Oct,NDJ,NH 20-90N,acc,cfs,35,loo_detrended,0.198,0.137,0.261,
+seasonal,t2m,Oct,NDJ,NH 20-90N,acc,sfs-cfs,35,loo_detrended,-0.015,-0.097,0.066,no
+seasonal,t2m,Oct,NDJ,NH 20-90N,msss,sfs,35,loo_detrended,-0.032,-0.092,0.023,
+seasonal,t2m,Oct,NDJ,NH 20-90N,msss,cfs24,35,loo_detrended,-0.032,-0.092,0.029,
+seasonal,t2m,Oct,NDJ,NH 20-90N,msss,cfs,35,loo_detrended,-0.081,-0.143,-0.018,
+seasonal,t2m,Oct,NDJ,NH 20-90N,msss,sfs-cfs,35,loo_detrended,0.049,-0.031,0.128,no
+seasonal,t2m,Oct,NDJ,CONUS land,acc,sfs,35,loo_detrended,0.081,-0.111,0.261,
+seasonal,t2m,Oct,NDJ,CONUS land,acc,cfs24,35,loo_detrended,0.208,0.009,0.379,
+seasonal,t2m,Oct,NDJ,CONUS land,acc,cfs,35,loo_detrended,0.176,0.014,0.32,
+seasonal,t2m,Oct,NDJ,CONUS land,acc,sfs-cfs,35,loo_detrended,-0.094,-0.256,0.064,no
+seasonal,t2m,Oct,NDJ,CONUS land,msss,sfs,35,loo_detrended,-0.184,-0.33,-0.043,
+seasonal,t2m,Oct,NDJ,CONUS land,msss,cfs24,35,loo_detrended,0.007,-0.133,0.142,
+seasonal,t2m,Oct,NDJ,CONUS land,msss,cfs,35,loo_detrended,-0.075,-0.224,0.064,
+seasonal,t2m,Oct,NDJ,CONUS land,msss,sfs-cfs,35,loo_detrended,-0.11,-0.26,0.043,no
+seasonal,t2m,Oct,DJF,Global,acc,sfs,35,loo,0.368,0.294,0.439,
+seasonal,t2m,Oct,DJF,Global,acc,cfs24,35,loo,0.248,0.186,0.307,
+seasonal,t2m,Oct,DJF,Global,acc,cfs,35,loo,0.238,0.178,0.295,
+seasonal,t2m,Oct,DJF,Global,acc,sfs-cfs,35,loo,0.13,0.079,0.182,yes
+seasonal,t2m,Oct,DJF,Global,msss,sfs,35,loo,0.111,0.03,0.187,
+seasonal,t2m,Oct,DJF,Global,msss,cfs24,35,loo,-0.095,-0.185,-0.015,
+seasonal,t2m,Oct,DJF,Global,msss,cfs,35,loo,-0.133,-0.226,-0.049,
+seasonal,t2m,Oct,DJF,Global,msss,sfs-cfs,35,loo,0.243,0.179,0.317,yes
+seasonal,t2m,Oct,DJF,NH 20-90N,acc,sfs,35,loo,0.333,0.249,0.412,
+seasonal,t2m,Oct,DJF,NH 20-90N,acc,cfs24,35,loo,0.196,0.127,0.267,
+seasonal,t2m,Oct,DJF,NH 20-90N,acc,cfs,35,loo,0.185,0.119,0.252,
+seasonal,t2m,Oct,DJF,NH 20-90N,acc,sfs-cfs,35,loo,0.148,0.077,0.221,yes
+seasonal,t2m,Oct,DJF,NH 20-90N,msss,sfs,35,loo,0.078,-0.01,0.159,
+seasonal,t2m,Oct,DJF,NH 20-90N,msss,cfs24,35,loo,-0.07,-0.156,0.01,
+seasonal,t2m,Oct,DJF,NH 20-90N,msss,cfs,35,loo,-0.109,-0.198,-0.026,
+seasonal,t2m,Oct,DJF,NH 20-90N,msss,sfs-cfs,35,loo,0.187,0.112,0.266,yes
+seasonal,t2m,Oct,DJF,CONUS land,acc,sfs,35,loo,0.189,0.021,0.348,
+seasonal,t2m,Oct,DJF,CONUS land,acc,cfs24,35,loo,0.169,0.008,0.32,
+seasonal,t2m,Oct,DJF,CONUS land,acc,cfs,35,loo,0.155,0.009,0.292,
+seasonal,t2m,Oct,DJF,CONUS land,acc,sfs-cfs,35,loo,0.034,-0.1,0.173,no
+seasonal,t2m,Oct,DJF,CONUS land,msss,sfs,35,loo,-0.063,-0.237,0.077,
+seasonal,t2m,Oct,DJF,CONUS land,msss,cfs24,35,loo,-0.016,-0.159,0.108,
+seasonal,t2m,Oct,DJF,CONUS land,msss,cfs,35,loo,-0.078,-0.235,0.055,
+seasonal,t2m,Oct,DJF,CONUS land,msss,sfs-cfs,35,loo,0.015,-0.127,0.146,no
+seasonal,t2m,Oct,DJF,Global,acc,sfs,35,loo_detrended,0.231,0.159,0.301,
+seasonal,t2m,Oct,DJF,Global,acc,cfs24,35,loo_detrended,0.201,0.136,0.266,
+seasonal,t2m,Oct,DJF,Global,acc,cfs,35,loo_detrended,0.19,0.129,0.251,
+seasonal,t2m,Oct,DJF,Global,acc,sfs-cfs,35,loo_detrended,0.041,-0.022,0.103,no
+seasonal,t2m,Oct,DJF,Global,msss,sfs,35,loo_detrended,0.023,-0.043,0.085,
+seasonal,t2m,Oct,DJF,Global,msss,cfs24,35,loo_detrended,-0.064,-0.129,0.003,
+seasonal,t2m,Oct,DJF,Global,msss,cfs,35,loo_detrended,-0.106,-0.174,-0.037,
+seasonal,t2m,Oct,DJF,Global,msss,sfs-cfs,35,loo_detrended,0.129,0.065,0.195,yes
+seasonal,t2m,Oct,DJF,NH 20-90N,acc,sfs,35,loo_detrended,0.166,0.086,0.244,
+seasonal,t2m,Oct,DJF,NH 20-90N,acc,cfs24,35,loo_detrended,0.143,0.065,0.217,
+seasonal,t2m,Oct,DJF,NH 20-90N,acc,cfs,35,loo_detrended,0.133,0.064,0.202,
+seasonal,t2m,Oct,DJF,NH 20-90N,acc,sfs-cfs,35,loo_detrended,0.032,-0.053,0.118,no
+seasonal,t2m,Oct,DJF,NH 20-90N,msss,sfs,35,loo_detrended,-0.018,-0.082,0.042,
+seasonal,t2m,Oct,DJF,NH 20-90N,msss,cfs24,35,loo_detrended,-0.057,-0.121,0.009,
+seasonal,t2m,Oct,DJF,NH 20-90N,msss,cfs,35,loo_detrended,-0.101,-0.168,-0.032,
+seasonal,t2m,Oct,DJF,NH 20-90N,msss,sfs-cfs,35,loo_detrended,0.083,0.009,0.155,yes
+seasonal,t2m,Oct,DJF,CONUS land,acc,sfs,35,loo_detrended,0.106,-0.079,0.294,
+seasonal,t2m,Oct,DJF,CONUS land,acc,cfs24,35,loo_detrended,0.173,-0.009,0.335,
+seasonal,t2m,Oct,DJF,CONUS land,acc,cfs,35,loo_detrended,0.152,-0.012,0.299,
+seasonal,t2m,Oct,DJF,CONUS land,acc,sfs-cfs,35,loo_detrended,-0.045,-0.209,0.126,no
+seasonal,t2m,Oct,DJF,CONUS land,msss,sfs,35,loo_detrended,-0.095,-0.23,0.025,
+seasonal,t2m,Oct,DJF,CONUS land,msss,cfs24,35,loo_detrended,0.001,-0.132,0.112,
+seasonal,t2m,Oct,DJF,CONUS land,msss,cfs,35,loo_detrended,-0.061,-0.205,0.06,
+seasonal,t2m,Oct,DJF,CONUS land,msss,sfs-cfs,35,loo_detrended,-0.033,-0.169,0.092,no
+seasonal,pr,Sep,OND,NH 20-90N,acc,sfs,32,loo,0.143,0.097,0.191,
+seasonal,pr,Sep,OND,NH 20-90N,acc,cfs24,32,loo,0.145,0.097,0.189,
+seasonal,pr,Sep,OND,NH 20-90N,acc,cfs,32,loo,0.128,0.085,0.168,
+seasonal,pr,Sep,OND,NH 20-90N,acc,sfs-cfs,32,loo,0.015,-0.023,0.053,no
+seasonal,pr,Sep,OND,NH 20-90N,msss,sfs,32,loo,-0.052,-0.089,-0.013,
+seasonal,pr,Sep,OND,NH 20-90N,msss,cfs24,32,loo,-0.061,-0.099,-0.026,
+seasonal,pr,Sep,OND,NH 20-90N,msss,cfs,32,loo,-0.123,-0.162,-0.088,
+seasonal,pr,Sep,OND,NH 20-90N,msss,sfs-cfs,32,loo,0.072,0.037,0.106,yes
+seasonal,pr,Sep,OND,CONUS land,acc,sfs,32,loo,0.222,0.106,0.338,
+seasonal,pr,Sep,OND,CONUS land,acc,cfs24,32,loo,0.236,0.127,0.338,
+seasonal,pr,Sep,OND,CONUS land,acc,cfs,32,loo,0.202,0.111,0.29,
+seasonal,pr,Sep,OND,CONUS land,acc,sfs-cfs,32,loo,0.02,-0.067,0.102,no
+seasonal,pr,Sep,OND,CONUS land,msss,sfs,32,loo,0.059,-0.046,0.155,
+seasonal,pr,Sep,OND,CONUS land,msss,cfs24,32,loo,0.06,-0.023,0.131,
+seasonal,pr,Sep,OND,CONUS land,msss,cfs,32,loo,0.011,-0.079,0.086,
+seasonal,pr,Sep,OND,CONUS land,msss,sfs-cfs,32,loo,0.047,-0.018,0.112,no
+seasonal,pr,Sep,OND,NH 20-90N,acc,sfs,32,loo_detrended,0.133,0.085,0.184,
+seasonal,pr,Sep,OND,NH 20-90N,acc,cfs24,32,loo_detrended,0.152,0.103,0.2,
+seasonal,pr,Sep,OND,NH 20-90N,acc,cfs,32,loo_detrended,0.132,0.089,0.176,
+seasonal,pr,Sep,OND,NH 20-90N,acc,sfs-cfs,32,loo_detrended,0.001,-0.034,0.037,no
+seasonal,pr,Sep,OND,NH 20-90N,msss,sfs,32,loo_detrended,-0.054,-0.092,-0.014,
+seasonal,pr,Sep,OND,NH 20-90N,msss,cfs24,32,loo_detrended,-0.039,-0.074,-0.005,
+seasonal,pr,Sep,OND,NH 20-90N,msss,cfs,32,loo_detrended,-0.102,-0.138,-0.067,
+seasonal,pr,Sep,OND,NH 20-90N,msss,sfs-cfs,32,loo_detrended,0.049,0.017,0.08,yes
+seasonal,pr,Sep,OND,CONUS land,acc,sfs,32,loo_detrended,0.214,0.086,0.332,
+seasonal,pr,Sep,OND,CONUS land,acc,cfs24,32,loo_detrended,0.21,0.082,0.33,
+seasonal,pr,Sep,OND,CONUS land,acc,cfs,32,loo_detrended,0.179,0.073,0.281,
+seasonal,pr,Sep,OND,CONUS land,acc,sfs-cfs,32,loo_detrended,0.035,-0.055,0.118,no
+seasonal,pr,Sep,OND,CONUS land,msss,sfs,32,loo_detrended,0.058,-0.054,0.156,
+seasonal,pr,Sep,OND,CONUS land,msss,cfs24,32,loo_detrended,0.066,-0.019,0.141,
+seasonal,pr,Sep,OND,CONUS land,msss,cfs,32,loo_detrended,0.017,-0.075,0.096,
+seasonal,pr,Sep,OND,CONUS land,msss,sfs-cfs,32,loo_detrended,0.042,-0.025,0.105,no
+seasonal,pr,Sep,NDJ,NH 20-90N,acc,sfs,31,loo,0.178,0.119,0.237,
+seasonal,pr,Sep,NDJ,NH 20-90N,acc,cfs24,31,loo,0.196,0.146,0.247,
+seasonal,pr,Sep,NDJ,NH 20-90N,acc,cfs,31,loo,0.172,0.126,0.221,
+seasonal,pr,Sep,NDJ,NH 20-90N,acc,sfs-cfs,31,loo,0.006,-0.048,0.055,no
+seasonal,pr,Sep,NDJ,NH 20-90N,msss,sfs,31,loo,-0.03,-0.077,0.019,
+seasonal,pr,Sep,NDJ,NH 20-90N,msss,cfs24,31,loo,-0.019,-0.059,0.022,
+seasonal,pr,Sep,NDJ,NH 20-90N,msss,cfs,31,loo,-0.081,-0.127,-0.036,
+seasonal,pr,Sep,NDJ,NH 20-90N,msss,sfs-cfs,31,loo,0.051,0.005,0.099,yes
+seasonal,pr,Sep,NDJ,CONUS land,acc,sfs,31,loo,0.233,0.102,0.353,
+seasonal,pr,Sep,NDJ,CONUS land,acc,cfs24,31,loo,0.235,0.128,0.342,
+seasonal,pr,Sep,NDJ,CONUS land,acc,cfs,31,loo,0.196,0.099,0.295,
+seasonal,pr,Sep,NDJ,CONUS land,acc,sfs-cfs,31,loo,0.037,-0.049,0.125,no
+seasonal,pr,Sep,NDJ,CONUS land,msss,sfs,31,loo,-0.004,-0.107,0.093,
+seasonal,pr,Sep,NDJ,CONUS land,msss,cfs24,31,loo,0.03,-0.051,0.112,
+seasonal,pr,Sep,NDJ,CONUS land,msss,cfs,31,loo,-0.039,-0.127,0.046,
+seasonal,pr,Sep,NDJ,CONUS land,msss,sfs-cfs,31,loo,0.035,-0.039,0.115,no
+seasonal,pr,Sep,NDJ,NH 20-90N,acc,sfs,31,loo_detrended,0.17,0.109,0.232,
+seasonal,pr,Sep,NDJ,NH 20-90N,acc,cfs24,31,loo_detrended,0.208,0.157,0.261,
+seasonal,pr,Sep,NDJ,NH 20-90N,acc,cfs,31,loo_detrended,0.182,0.133,0.232,
+seasonal,pr,Sep,NDJ,NH 20-90N,acc,sfs-cfs,31,loo_detrended,-0.012,-0.06,0.036,no
+seasonal,pr,Sep,NDJ,NH 20-90N,msss,sfs,31,loo_detrended,-0.031,-0.079,0.02,
+seasonal,pr,Sep,NDJ,NH 20-90N,msss,cfs24,31,loo_detrended,0.005,-0.032,0.043,
+seasonal,pr,Sep,NDJ,NH 20-90N,msss,cfs,31,loo_detrended,-0.058,-0.1,-0.016,
+seasonal,pr,Sep,NDJ,NH 20-90N,msss,sfs-cfs,31,loo_detrended,0.027,-0.014,0.069,no
+seasonal,pr,Sep,NDJ,CONUS land,acc,sfs,31,loo_detrended,0.252,0.137,0.368,
+seasonal,pr,Sep,NDJ,CONUS land,acc,cfs24,31,loo_detrended,0.243,0.135,0.352,
+seasonal,pr,Sep,NDJ,CONUS land,acc,cfs,31,loo_detrended,0.199,0.105,0.299,
+seasonal,pr,Sep,NDJ,CONUS land,acc,sfs-cfs,31,loo_detrended,0.054,-0.019,0.127,no
+seasonal,pr,Sep,NDJ,CONUS land,msss,sfs,31,loo_detrended,0.009,-0.09,0.106,
+seasonal,pr,Sep,NDJ,CONUS land,msss,cfs24,31,loo_detrended,0.041,-0.036,0.12,
+seasonal,pr,Sep,NDJ,CONUS land,msss,cfs,31,loo_detrended,-0.03,-0.114,0.053,
+seasonal,pr,Sep,NDJ,CONUS land,msss,sfs-cfs,31,loo_detrended,0.039,-0.028,0.108,no
+seasonal,pr,Oct,NDJ,NH 20-90N,acc,sfs,31,loo,0.211,0.16,0.265,
+seasonal,pr,Oct,NDJ,NH 20-90N,acc,cfs24,31,loo,0.203,0.151,0.256,
+seasonal,pr,Oct,NDJ,NH 20-90N,acc,cfs,31,loo,0.178,0.132,0.227,
+seasonal,pr,Oct,NDJ,NH 20-90N,acc,sfs-cfs,31,loo,0.033,-0.008,0.075,no
+seasonal,pr,Oct,NDJ,NH 20-90N,msss,sfs,31,loo,-0.021,-0.072,0.031,
+seasonal,pr,Oct,NDJ,NH 20-90N,msss,cfs24,31,loo,-0.024,-0.073,0.023,
+seasonal,pr,Oct,NDJ,NH 20-90N,msss,cfs,31,loo,-0.089,-0.14,-0.039,
+seasonal,pr,Oct,NDJ,NH 20-90N,msss,sfs-cfs,31,loo,0.067,0.026,0.111,yes
+seasonal,pr,Oct,NDJ,CONUS land,acc,sfs,31,loo,0.241,0.12,0.354,
+seasonal,pr,Oct,NDJ,CONUS land,acc,cfs24,31,loo,0.203,0.108,0.301,
+seasonal,pr,Oct,NDJ,CONUS land,acc,cfs,31,loo,0.172,0.089,0.26,
+seasonal,pr,Oct,NDJ,CONUS land,acc,sfs-cfs,31,loo,0.069,-0.033,0.169,no
+seasonal,pr,Oct,NDJ,CONUS land,msss,sfs,31,loo,0.018,-0.095,0.118,
+seasonal,pr,Oct,NDJ,CONUS land,msss,cfs24,31,loo,0.022,-0.06,0.094,
+seasonal,pr,Oct,NDJ,CONUS land,msss,cfs,31,loo,-0.039,-0.127,0.038,
+seasonal,pr,Oct,NDJ,CONUS land,msss,sfs-cfs,31,loo,0.058,-0.036,0.15,no
+seasonal,pr,Oct,NDJ,NH 20-90N,acc,sfs,31,loo_detrended,0.204,0.151,0.256,
+seasonal,pr,Oct,NDJ,NH 20-90N,acc,cfs24,31,loo_detrended,0.214,0.16,0.269,
+seasonal,pr,Oct,NDJ,NH 20-90N,acc,cfs,31,loo_detrended,0.186,0.137,0.237,
+seasonal,pr,Oct,NDJ,NH 20-90N,acc,sfs-cfs,31,loo_detrended,0.018,-0.022,0.057,no
+seasonal,pr,Oct,NDJ,NH 20-90N,msss,sfs,31,loo_detrended,-0.019,-0.069,0.029,
+seasonal,pr,Oct,NDJ,NH 20-90N,msss,cfs24,31,loo_detrended,0.0,-0.046,0.045,
+seasonal,pr,Oct,NDJ,NH 20-90N,msss,cfs,31,loo_detrended,-0.065,-0.114,-0.016,
+seasonal,pr,Oct,NDJ,NH 20-90N,msss,sfs-cfs,31,loo_detrended,0.046,0.005,0.087,yes
+seasonal,pr,Oct,NDJ,CONUS land,acc,sfs,31,loo_detrended,0.287,0.168,0.405,
+seasonal,pr,Oct,NDJ,CONUS land,acc,cfs24,31,loo_detrended,0.215,0.118,0.314,
+seasonal,pr,Oct,NDJ,CONUS land,acc,cfs,31,loo_detrended,0.178,0.096,0.26,
+seasonal,pr,Oct,NDJ,CONUS land,acc,sfs-cfs,31,loo_detrended,0.109,-0.004,0.227,no
+seasonal,pr,Oct,NDJ,CONUS land,msss,sfs,31,loo_detrended,0.062,-0.039,0.161,
+seasonal,pr,Oct,NDJ,CONUS land,msss,cfs24,31,loo_detrended,0.038,-0.036,0.103,
+seasonal,pr,Oct,NDJ,CONUS land,msss,cfs,31,loo_detrended,-0.022,-0.103,0.047,
+seasonal,pr,Oct,NDJ,CONUS land,msss,sfs-cfs,31,loo_detrended,0.084,-0.016,0.189,no
+seasonal,pr,Oct,DJF,NH 20-90N,acc,sfs,31,loo,0.236,0.166,0.308,
+seasonal,pr,Oct,DJF,NH 20-90N,acc,cfs24,31,loo,0.179,0.123,0.241,
+seasonal,pr,Oct,DJF,NH 20-90N,acc,cfs,31,loo,0.163,0.11,0.223,
+seasonal,pr,Oct,DJF,NH 20-90N,acc,sfs-cfs,31,loo,0.073,0.024,0.122,yes
+seasonal,pr,Oct,DJF,NH 20-90N,msss,sfs,31,loo,-0.004,-0.077,0.072,
+seasonal,pr,Oct,DJF,NH 20-90N,msss,cfs24,31,loo,-0.072,-0.14,0.0,
+seasonal,pr,Oct,DJF,NH 20-90N,msss,cfs,31,loo,-0.131,-0.203,-0.055,
+seasonal,pr,Oct,DJF,NH 20-90N,msss,sfs-cfs,31,loo,0.127,0.073,0.183,yes
+seasonal,pr,Oct,DJF,CONUS land,acc,sfs,31,loo,0.3,0.185,0.417,
+seasonal,pr,Oct,DJF,CONUS land,acc,cfs24,31,loo,0.185,0.058,0.308,
+seasonal,pr,Oct,DJF,CONUS land,acc,cfs,31,loo,0.176,0.064,0.287,
+seasonal,pr,Oct,DJF,CONUS land,acc,sfs-cfs,31,loo,0.124,0.026,0.225,yes
+seasonal,pr,Oct,DJF,CONUS land,msss,sfs,31,loo,0.069,-0.068,0.21,
+seasonal,pr,Oct,DJF,CONUS land,msss,cfs24,31,loo,-0.047,-0.196,0.1,
+seasonal,pr,Oct,DJF,CONUS land,msss,cfs,31,loo,-0.093,-0.25,0.056,
+seasonal,pr,Oct,DJF,CONUS land,msss,sfs-cfs,31,loo,0.162,0.056,0.274,yes
+seasonal,pr,Oct,DJF,NH 20-90N,acc,sfs,31,loo_detrended,0.222,0.152,0.296,
+seasonal,pr,Oct,DJF,NH 20-90N,acc,cfs24,31,loo_detrended,0.184,0.124,0.251,
+seasonal,pr,Oct,DJF,NH 20-90N,acc,cfs,31,loo_detrended,0.167,0.11,0.231,
+seasonal,pr,Oct,DJF,NH 20-90N,acc,sfs-cfs,31,loo_detrended,0.055,0.006,0.103,yes
+seasonal,pr,Oct,DJF,NH 20-90N,msss,sfs,31,loo_detrended,-0.009,-0.079,0.065,
+seasonal,pr,Oct,DJF,NH 20-90N,msss,cfs24,31,loo_detrended,-0.052,-0.118,0.016,
+seasonal,pr,Oct,DJF,NH 20-90N,msss,cfs,31,loo_detrended,-0.111,-0.18,-0.04,
+seasonal,pr,Oct,DJF,NH 20-90N,msss,sfs-cfs,31,loo_detrended,0.102,0.052,0.154,yes
+seasonal,pr,Oct,DJF,CONUS land,acc,sfs,31,loo_detrended,0.295,0.176,0.418,
+seasonal,pr,Oct,DJF,CONUS land,acc,cfs24,31,loo_detrended,0.182,0.055,0.306,
+seasonal,pr,Oct,DJF,CONUS land,acc,cfs,31,loo_detrended,0.175,0.065,0.285,
+seasonal,pr,Oct,DJF,CONUS land,acc,sfs-cfs,31,loo_detrended,0.121,0.013,0.228,yes
+seasonal,pr,Oct,DJF,CONUS land,msss,sfs,31,loo_detrended,0.07,-0.063,0.204,
+seasonal,pr,Oct,DJF,CONUS land,msss,cfs24,31,loo_detrended,-0.046,-0.196,0.091,
+seasonal,pr,Oct,DJF,CONUS land,msss,cfs,31,loo_detrended,-0.09,-0.249,0.048,
+seasonal,pr,Oct,DJF,CONUS land,msss,sfs-cfs,31,loo_detrended,0.161,0.056,0.273,yes

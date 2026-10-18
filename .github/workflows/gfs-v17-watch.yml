@@ -1,0 +1,38 @@
+name: GFS v17 watch
+
+# Daily check for news of the GFS v17 upgrade: NWS notices, the NCO implementation schedule, the EMC evaluation page,
+# and new output directories in the GFS cycles on AWS Open Data (scripts/watch/gfs_v17.py). Anything new opens one issue
+# labelled gfs-v17 that mentions the repository owner, so GitHub notifies them. Three slots a day, because scheduled
+# runs of this repository start hours late and some are dropped; repeats are harmless (an id is reported once).
+on:
+  schedule:
+    - cron: '23 2 * * *'
+    - cron: '23 10 * * *'
+    - cron: '23 18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: gfs-v17-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/watch
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Check the sources; open an issue for anything new
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          WATCH_MENTION: ${{ github.repository_owner }}
+        run: python scripts/watch/gfs_v17.py --issues

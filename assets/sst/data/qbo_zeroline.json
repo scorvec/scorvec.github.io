@@ -1,0 +1,62 @@
+{
+ "as_of": "2026-10-17",
+ "merra2_end": "2026-09-01",
+ "geosfp_days": 127,
+ "rule": "first zero crossing of [u] (sigma 2 deg smoothing) scanning equatorward from the strongest 25-45 deg westerlies whose easterly region reaches 1 m/s; censored at 45 deg in the other hemisphere",
+ "levels": {
+  "70": {
+   "nh": 23.19,
+   "sh": 13.13,
+   "nh_flag": 0,
+   "nh_30d": 28.93
+  },
+  "50": {
+   "nh": 28.91,
+   "sh": -30.2,
+   "nh_flag": 0,
+   "nh_30d": 33.73
+  },
+  "30": {
+   "nh": 30.37,
+   "sh": -34.31,
+   "nh_flag": 0,
+   "nh_30d": 35.93
+  },
+  "10": {
+   "nh": 23.37,
+   "sh": -36.43,
+   "nh_flag": 0,
+   "nh_30d": 29.43
+  }
+ },
+ "forecasts": {
+  "aifs_50": {
+   "init": "2026-10-18 00Z",
+   "day15_p50": 26.7,
+   "day15_p10": 25.43,
+   "day15_p90": 27.98,
+   "day15_across": 0.92
+  },
+  "ifs_50": {
+   "init": "2026-10-18 00Z",
+   "day15_p50": 24.13,
+   "day15_p10": 24.13,
+   "day15_p90": 24.13,
+   "day15_across": 0.98
+  },
+  "aifs_10": {
+   "init": "2026-10-18 00Z",
+   "day15_p50": 22.08,
+   "day15_p10": 21.04,
+   "day15_p90": 22.84,
+   "day15_across": 0.0
+  },
+  "ifs_10": {
+   "init": "2026-10-18 00Z",
+   "day15_p50": 21.57,
+   "day15_p10": 21.14,
+   "day15_p90": 22.34,
+   "day15_across": 0.0
+  }
+ }
+}

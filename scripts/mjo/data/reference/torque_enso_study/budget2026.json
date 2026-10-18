@@ -1,0 +1,432 @@
+{
+ "span": [
+  "2026-03-01 00:00:00",
+  "2026-10-03 23:00:00",
+  5208
+ ],
+ "hourly_gaps": 0,
+ "closure_by_step": {
+  "1": {
+   "mean_R": 15.584490727527582,
+   "sd_R": 43.30235139729265,
+   "mean_Rmotion_only": 14.404781794057195,
+   "sd_Rmotion_only": 65.2344225086969,
+   "n": 5184,
+   "corr_dMdt_T": 0.5039231381267487,
+   "sd_dMdt": 49.99023092744235,
+   "sd_T": 28.457534864725574
+  },
+  "3": {
+   "mean_R": 15.79114954395561,
+   "sd_R": 23.283564903025567,
+   "mean_Rmotion_only": 14.581069382775796,
+   "sd_Rmotion_only": 43.318754003667124,
+   "n": 1728,
+   "corr_dMdt_T": 0.7569655391412602,
+   "sd_dMdt": 35.61342022536461,
+   "sd_T": 27.699459590792294
+  },
+  "6": {
+   "mean_R": 15.67650162592817,
+   "sd_R": 12.509572919747265,
+   "mean_Rmotion_only": 14.43393368182669,
+   "sd_Rmotion_only": 33.87237881784822,
+   "n": 864,
+   "corr_dMdt_T": 0.9088236962326363,
+   "sd_dMdt": 29.927386300589635,
+   "sd_T": 26.416914927912707
+  },
+  "12": {
+   "mean_R": 13.848604562605361,
+   "sd_R": 8.498264846450391,
+   "mean_Rmotion_only": 12.572396786542267,
+   "sd_Rmotion_only": 16.936791188865495,
+   "n": 432,
+   "corr_dMdt_T": 0.953100371069507,
+   "sd_dMdt": 27.739698876221603,
+   "sd_T": 25.121377655652182
+  },
+  "24": {
+   "mean_R": 16.868505733225085,
+   "sd_R": 8.460130004108791,
+   "mean_Rmotion_only": 15.551767264432218,
+   "sd_Rmotion_only": 14.041746031739953,
+   "n": 216,
+   "corr_dMdt_T": 0.9481982738298996,
+   "sd_dMdt": 25.682552328001112,
+   "sd_T": 22.114384557679216
+  }
+ },
+ "hourly_residual_by_end_hour": [
+  {
+   "time": 0,
+   "mean": 5.281,
+   "std": 2.301,
+   "count": 216
+  },
+  {
+   "time": 1,
+   "mean": 5.362,
+   "std": 2.041,
+   "count": 217
+  },
+  {
+   "time": 2,
+   "mean": 5.914,
+   "std": 2.035,
+   "count": 217
+  },
+  {
+   "time": 3,
+   "mean": 6.157,
+   "std": 2.118,
+   "count": 217
+  },
+  {
+   "time": 4,
+   "mean": 6.599,
+   "std": 1.983,
+   "count": 217
+  },
+  {
+   "time": 5,
+   "mean": 6.935,
+   "std": 1.846,
+   "count": 217
+  },
+  {
+   "time": 6,
+   "mean": 6.921,
+   "std": 2.21,
+   "count": 217
+  },
+  {
+   "time": 7,
+   "mean": 6.444,
+   "std": 1.843,
+   "count": 217
+  },
+  {
+   "time": 8,
+   "mean": 6.257,
+   "std": 1.925,
+   "count": 217
+  },
+  {
+   "time": 9,
+   "mean": 5.816,
+   "std": 1.894,
+   "count": 217
+  },
+  {
+   "time": 10,
+   "mean": 172.561,
+   "std": 86.895,
+   "count": 217
+  },
+  {
+   "time": 11,
+   "mean": 5.13,
+   "std": 3.538,
+   "count": 217
+  },
+  {
+   "time": 12,
+   "mean": 5.183,
+   "std": 2.732,
+   "count": 217
+  },
+  {
+   "time": 13,
+   "mean": 6.291,
+   "std": 2.822,
+   "count": 217
+  },
+  {
+   "time": 14,
+   "mean": 6.695,
+   "std": 2.648,
+   "count": 217
+  },
+  {
+   "time": 15,
+   "mean": 7.135,
+   "std": 2.443,
+   "count": 217
+  },
+  {
+   "time": 16,
+   "mean": 7.413,
+   "std": 2.359,
+   "count": 217
+  },
+  {
+   "time": 17,
+   "mean": 7.714,
+   "std": 2.394,
+   "count": 217
+  },
+  {
+   "time": 18,
+   "mean": 7.281,
+   "std": 2.343,
+   "count": 217
+  },
+  {
+   "time": 19,
+   "mean": 6.565,
+   "std": 1.864,
+   "count": 217
+  },
+  {
+   "time": 20,
+   "mean": 6.733,
+   "std": 2.019,
+   "count": 217
+  },
+  {
+   "time": 21,
+   "mean": 6.293,
+   "std": 2.048,
+   "count": 217
+  },
+  {
+   "time": 22,
+   "mean": 61.574,
+   "std": 92.755,
+   "count": 217
+  },
+  {
+   "time": 23,
+   "mean": 5.119,
+   "std": 2.772,
+   "count": 217
+  }
+ ],
+ "window_test": {
+  "jump_end_hours": [
+   22,
+   10
+  ],
+  "inside_mean": 6.329165862435155,
+  "inside_sd": 2.432158882381928,
+  "across_mean": 117.06759995931255,
+  "across_sd": 105.5703789968459,
+  "note": "end hour h = the interval (h-1, h] UTC"
+ },
+ "three_hourly_residual_by_end_hour": [
+  {
+   "time": 0,
+   "mean": 23.351,
+   "std": 30.376,
+   "count": 216
+  },
+  {
+   "time": 3,
+   "mean": 8.178,
+   "std": 1.749,
+   "count": 217
+  },
+  {
+   "time": 6,
+   "mean": 6.483,
+   "std": 1.882,
+   "count": 217
+  },
+  {
+   "time": 9,
+   "mean": 4.962,
+   "std": 1.93,
+   "count": 217
+  },
+  {
+   "time": 12,
+   "mean": 60.778,
+   "std": 28.563,
+   "count": 217
+  },
+  {
+   "time": 15,
+   "mean": 10.611,
+   "std": 2.499,
+   "count": 217
+  },
+  {
+   "time": 18,
+   "mean": 7.154,
+   "std": 2.54,
+   "count": 217
+  },
+  {
+   "time": 21,
+   "mean": 4.731,
+   "std": 2.209,
+   "count": 217
+  }
+ ],
+ "three_hourly_window_test": {
+  "inside_mean": 7.01991883621354,
+  "inside_sd": 2.939143252702303,
+  "across_mean": 42.10742105625101,
+  "across_sd": 34.902120344946916
+ },
+ "increment_per_window_1e25": {
+  "22": 0.019888119614721905,
+  "10": 0.059843552935029805
+ },
+ "residual_by_month": {
+  "2026-03": 17.78,
+  "2026-04": 17.1,
+  "2026-05": 15.02,
+  "2026-06": 14.36,
+  "2026-07": 13.7,
+  "2026-08": 14.77,
+  "2026-09": 15.83,
+  "2026-10": 19.41
+ },
+ "daily_from_hourly": {
+  "mean_R": 15.58449072752758,
+  "sd_R": 4.415936248431512,
+  "n": 216,
+  "lag1": 0.09919139642224105
+ },
+ "sampling_offset_24x_minus_4x_2026": {
+  "mtn_glob": -0.069,
+  "fric_glob": 0.19,
+  "gwd_glob": -0.012,
+  "aam_glob": -0.0,
+  "aamm_glob": 0.001
+ },
+ "window_variants": {
+  "12Z daily, motion only, anomaly": {
+   "torque": 0.7630132058657728,
+   "dM": 4.51605503697154,
+   "residual": 3.7530418311057674,
+   "residual_mean_hadley": 2.749239503564352
+  },
+  "12Z daily, motion+mass, anomaly": {
+   "torque": 0.7630132058657728,
+   "dM": 6.000180969453783,
+   "residual": 5.23716776358801,
+   "residual_mean_hadley": 3.836415673045601
+  },
+  "4x daily, motion+mass, anomaly": {
+   "torque": -1.1626658878050762,
+   "dM": 5.9984559662763655,
+   "residual": 7.161121854081442,
+   "residual_mean_hadley": 5.245781948899323
+  },
+  "1-hourly, motion+mass, absolute": {
+   "torque": -17.412607610885445,
+   "dM": 2.8563646000000062,
+   "residual": 20.26897221088545,
+   "residual_mean_hadley": 14.847758593299824
+  },
+  "3-hourly, motion+mass, absolute": {
+   "torque": -17.80480054454443,
+   "dM": 2.9086356000002525,
+   "residual": 20.713436144544684,
+   "residual_mean_hadley": 15.173344573769844
+  },
+  "hourly daily-means, motion+mass, anomaly vs 4x clim": {
+   "torque": -0.8926912335027676,
+   "dM": 5.974619675537978,
+   "residual": 6.867310909040746,
+   "residual_mean_hadley": 5.030554756388264
+  }
+ },
+ "gfz": {
+  "dM_window_total": 1.7291191247649316,
+  "dMr_window": 0.8306950728513911,
+  "dMm_window": 0.8984240519135422,
+  "corr_daily_dMdt_vs_era5": 0.9040292154981922,
+  "note": "GFZ removes the surface-pressure tides and applies an inverted-barometer correction over the ocean to the mass term; ERA5 here is the atmosphere's own mass term",
+  "era5_dM_window_total_absolute": 2.791304941666567
+ },
+ "attribution": {
+  "Andes": {
+   "v2026": 5.5603119535390455,
+   "hist_mean": -0.8773561121168758,
+   "hist_sd": 3.5407399331446143,
+   "z": 1.8181702658795607,
+   "rank_of_48": 47,
+   "en_onset_mean": 1.0097258855219111,
+   "n_en": 13,
+   "v2026_detrended": 4.4161232753425175,
+   "trend_hadley_per_decade": 0.5460246290305318
+  },
+  "other ranges": {
+   "v2026": -3.91019250926216,
+   "hist_mean": -0.34827643705708894,
+   "hist_sd": 2.0118772456087872,
+   "z": -1.7704440367718595,
+   "rank_of_48": 3,
+   "en_onset_mean": 0.7256158569481674,
+   "n_en": 13,
+   "v2026_detrended": -3.6945780269674002,
+   "trend_hadley_per_decade": 0.021511731247810143
+  },
+  "rest of mountain": {
+   "v2026": 3.430975945133065,
+   "hist_mean": -0.1543575409786548,
+   "hist_sd": 2.0375257877224087,
+   "z": 1.7596506055118373,
+   "rank_of_48": 46,
+   "en_onset_mean": -1.1013318949917712,
+   "n_en": 13,
+   "v2026_detrended": 3.8756578302968916,
+   "trend_hadley_per_decade": -0.042724865545404014
+  },
+  "friction tropics": {
+   "v2026": -4.53020811625666,
+   "hist_mean": -0.6551256187852217,
+   "hist_sd": 4.620058691123838,
+   "z": -0.8387517900836055,
+   "rank_of_48": 12,
+   "en_onset_mean": -3.0873300208929972,
+   "n_en": 13,
+   "v2026_detrended": -7.951295448034539,
+   "trend_hadley_per_decade": 1.406873515751884
+  },
+  "friction NH ext": {
+   "v2026": -0.5547358955924984,
+   "hist_mean": -0.012750845222983576,
+   "hist_sd": 1.3434453192775648,
+   "z": -0.4034291850902918,
+   "rank_of_48": 19,
+   "en_onset_mean": -0.17953930432808443,
+   "n_en": 13,
+   "v2026_detrended": 0.040180086223012154,
+   "trend_hadley_per_decade": -0.1595080180266323
+  },
+  "friction SH ext": {
+   "v2026": -1.045065944744564,
+   "hist_mean": 0.10574077427599173,
+   "hist_sd": 3.6069415622382284,
+   "z": -0.3190533306856354,
+   "rank_of_48": 20,
+   "en_onset_mean": 1.1829857539035982,
+   "n_en": 13,
+   "v2026_detrended": 0.43810933685602965,
+   "trend_hadley_per_decade": -0.48679715572788845
+  },
+  "GWD": {
+   "v2026": 0.1562232162970428,
+   "hist_mean": -0.042997424855532394,
+   "hist_sd": 0.314563674884379,
+   "z": 0.6333237339810477,
+   "rank_of_48": 33,
+   "en_onset_mean": 0.149161245256148,
+   "n_en": 13,
+   "v2026_detrended": -0.03981701294704166,
+   "trend_hadley_per_decade": 0.09376699670097424
+  }
+ },
+ "attribution_total_torque": -0.892691350886729,
+ "attribution_dM_hourly_anomaly": 5.974619675537978,
+ "history_window_residual": {
+  "mean": 2.1571809198519927,
+  "sd": 4.57205093779639,
+  "r2026_4x": 7.161121854081442
+ }
+}

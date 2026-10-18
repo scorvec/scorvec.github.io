@@ -1,0 +1,94 @@
+name: Tropical sea-level pressure forecasts (AIFS-ENS, IFS-ENS, GEFS against ERA5)
+
+# scripts/mjo/src/hadley_slp_fc.py: every perturbed member of the 00Z AIFS-ENS, IFS-ENS (Google mirror) and GEFS (NOAA
+# S3) runs, daily means of lead days 0-14, less its model's drift against ERA5 (hslp_drift.npz in release hslp-ref-v1,
+# from hslp-ref.yml), against the ERA5 normals; loops in sigma and hPa per ensemble and pooled, led in by the analysed
+# days that hbranch.yml draws, and cut to the lead days whose skill passed (scripts/mjo/data/reference/hslp_skill.json).
+# IFS-ENS reaches its last step on the Google mirror around 08:50 UTC.
+on:
+  schedule:
+    - cron: '10 10 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: '00Z run, YYYYMMDD (empty = today)'
+        required: false
+        default: ''
+      force:
+        description: 'Run even if this run is already drawn'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hslp
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  ECMWF_SOURCES: google
+  ECMWF_RANGE_GAP_MB: '0.5'   # IFS-ENS ef files scatter a member's messages: a 3 MB gap fetches ~2x the bytes
+
+jobs:
+  forecast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - name: Which run
+        id: run
+        env:
+          DATE: ${{ inputs.date }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          d="${DATE:-$(date -u +%Y%m%d)}"
+          echo "date=$d" >> "$GITHUB_OUTPUT"
+          have=$(python3 -c "import json; print(json.load(open('assets/sst/anim/hslp_fc_manifest.json'))['ver'])" 2>/dev/null || echo none)
+          if [ "$have" = "${d}00" ] && [ "$FORCE" != "true" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; echo "run $d 00Z already drawn"; fi
+      - uses: actions/setup-python@v7
+        if: steps.run.outputs.skip != 'true'
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        if: steps.run.outputs.skip != 'true'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - name: The drift
+        if: steps.run.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release download hslp-ref-v1 -R "$GITHUB_REPOSITORY" -p hslp_drift.npz -D scripts/mjo/data/reference --clobber
+      - name: Forecast loops
+        if: steps.run.outputs.skip != 'true'
+        run: python scripts/mjo/src/hadley_slp_fc.py --date "${{ steps.run.outputs.date }}"
+      - name: Publish the frames (frames branch)
+        if: steps.run.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # each loop is replaced whole; the analysed lead-in frames are hbranch.yml's
+          scripts/lib/publish_frames_ci.sh $(ls -d assets/sst/anim/hslp_fc_*/ | sed 's#/$##')
+      - name: Commit & push (manifests)
+        if: steps.run.outputs.skip != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/sst/anim/hslp_fc_manifest.json assets/sst/anim/hslp_fc_hpa_manifest.json"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" $OUT
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add $OUT
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "Tropical sea-level pressure forecasts: ${{ steps.run.outputs.date }}"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

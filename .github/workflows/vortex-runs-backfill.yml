@@ -1,0 +1,82 @@
+name: Polar vortex run record, backfill (AIFS-ENS and IFS-ENS past runs -> vortex_runs.json)
+
+# Adds past 00/12 UTC runs of AIFS-ENS and IFS-ENS to the run-to-run record (scripts/strat/vortex_runs.py) that
+# strat-ifs.yml extends every cycle: nh_vortex.py --record-only per run, IFS pulled light (u at 10/100 hPa and gh at
+# 100 hPa at the daily steps, ~2 GB a run), ECMWF open data from the Google Cloud mirror only. GEPS keeps no archive,
+# so its record starts with the first live run. Then the figure is redrawn and both are committed.
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: days of runs to add, ending yesterday
+        default: '7'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: strat-ifs  # one writer of the record at a time
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  ECMWF_SOURCES: google
+  ECMWF_MULTISOURCE: "0"
+  ECMWF_RPS_GOOGLE: "60"
+  ECMWF_RPS: "60"
+  ECMWF_RANGE_GAP_MB: "0.5"
+  MPLBACKEND: Agg
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      # A run checks out the commit it was triggered at, and a queued run can start well after main has moved on.
+      # The run record accumulates, so it is read from main as it is now, or this run's publish would lay a stale
+      # copy over it (2026-10-17: a queued run dropped the 14 backfilled runs).
+      - name: The run record as main has it now
+        run: |
+          git fetch -q --depth 1 origin main
+          git checkout origin/main -- assets/sst/data/vortex_runs.json || echo "::warning::vortex_runs.json not on main yet"
+
+      - name: Past runs
+        env:
+          DAYS: ${{ inputs.days }}
+        run: |
+          for k in $(seq "$DAYS" -1 1); do
+            d=$(date -u -d "$k days ago" +%Y%m%d)
+            for t in 00 12; do
+              python scripts/strat/nh_vortex.py --cycle "$d$t" --models aifs,ifs --record-only \
+                || echo "::warning::run $d ${t}Z not recorded"
+              rm -rf scripts/ecmwf/cache/* scripts/strat/data/vortex_dl  # one run's files at a time
+            done
+          done
+          python scripts/strat/vortex_runs.py render
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/sst/data/vortex_runs.json assets/sst/nh_vortex_runs.webp"
+          SNAP=$(mktemp -d); tar cf "$SNAP/outs.tar" $OUT
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add $OUT
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "Polar vortex run record: backfill"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

@@ -1,0 +1,96 @@
+name: Month-ahead outlook (statistical + GEFS, monthly on the 15th)
+
+# monthly-outlook.html (Claude's month-ahead forecast): the next calendar month's mean 2 m temperature, precipitation
+# and 500 hPa height over the Northern Hemisphere, as anomalies and tercile probabilities, issued on the 15th of the
+# month before. The statistical forecast is built from ERA5 alone - trend, RONI/QBO/vortex regression, a tropical
+# constructed analogue, local persistence and analogue years, consolidated with weights from a cross-validated
+# 1981-onward hindcast (scripts/monthly/mo_method.py) - and then blended with the whole 35-day GEFS run of the 15th
+# (scripts/monthly/blend.py, gefs_guide.py) where the 2000-2019 reforecast shows the blend beats it. The live GEFS run
+# is the GEFS page's own (gefs.yml writes gefs_run_<YYYYMMDD>.npz to the frames branch; the 00Z run of the 15th is
+# normally there by ~07Z, hence 10:23; the run of the 14th stands in if not). The C3S multi-system mean is only scored
+# beside the forecast.
+#
+# ORDER. build_archive --tail appends the newest ERA5T half-month blocks (ARCO, anonymous Google Cloud reads) to
+# scripts/monthly/data/era5_<YYYY>.npz; forecast.py issues the outlook for next month once (an issued outlook is never
+# overwritten unless dispatched with force); verify.py scores every outlook whose target month is now complete, and
+# the C3S benchmark from the c3s-ref-v1 release (public downloads); render.py draws the figures. The predictors end
+# on the 7th of this month, so the run does not depend on the hour ERA5T lands (ARCO trails real time by ~six days).
+
+on:
+  schedule:
+    - cron: "23 10 15 * *"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "target month YYYY-MM (empty = next month)"
+        required: false
+        default: ""
+      force:
+        description: "re-issue the target's outlook even if it exists"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: monthly-outlook
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  outlook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/monthly
+            scripts/gefs/gefs_reforecast.py
+            assets/monthly
+            assets/sst/data/c3s_maps.json
+            scripts/constraints.txt
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy scipy pandas xarray zarr gcsfs h5netcdf h5py matplotlib cartopy pillow
+      - name: Extend the ERA5 archive
+        run: python scripts/monthly/build_archive.py --tail --workers 8
+      - name: Issue the outlook
+        run: |
+          python scripts/monthly/forecast.py \
+            ${{ inputs.target && format('--target {0}', inputs.target) || '' }} \
+            ${{ inputs.force && '--force' || '' }}
+      - name: Verify past outlooks
+        run: python scripts/monthly/verify.py
+      - name: Draw
+        run: python scripts/monthly/render.py
+      # snapshot + clean resync each attempt (mjo.yml / gefs.yml pattern); never rebase
+      - name: Commit & push
+        id: commit
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "26825570+scorvec@users.noreply.github.com"
+          git add -A scripts/monthly/data assets/monthly 2>/dev/null || true
+          if git diff --staged --quiet; then echo "no changes"; echo "pushed=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+          SNAP=$(mktemp -d)
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T -
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add -A scripts/monthly/data assets/monthly
+            if git diff --staged --quiet; then echo "no changes after resync"; echo "pushed=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+            git commit -q -m "monthly outlook: $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; echo "pushed=1" >> "$GITHUB_OUTPUT"; exit 0; fi
+            echo "push $i rejected; resyncing"; sleep 5
+          done
+          echo "push failed after retries"; exit 1
+      - name: Deploy the site
+        if: steps.commit.outputs.pushed == '1'
+        run: echo "site deploy is batched - the dispatcher deploys within 15 min (pages.yml)"

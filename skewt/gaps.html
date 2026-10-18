@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>US Sounding Gap Report &mdash; Missed 00Z/12Z Launches &middot; Shawn Corvec</title>
+<meta name="description" content="Which US radiosonde stations are missing their routine 00Z/12Z launches? Slot-by-slot compliance for the current year from the IGRA archive, updated weekly.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="US sounding gap report: missed 00Z/12Z radiosonde launches">
+<meta property="og:description" content="Which US radiosonde stations are missing their routine 00Z/12Z launches? Slot-by-slot compliance for the current year from the IGRA archive, updated weekly.">
+<meta property="og:url" content="https://scorvec.com/skewt/gaps.html">
+<meta property="og:image" content="https://scorvec.com/skewt/og-card.png">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://scorvec.com/skewt/gaps.html">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "WebPage",
+ "name": "US sounding gap report: missed 00Z/12Z radiosonde launches",
+ "url": "https://scorvec.com/skewt/gaps.html",
+ "description": "Which US radiosonde stations are missing their routine 00Z/12Z launches? Slot-by-slot compliance for the current year from the IGRA archive, updated weekly.",
+ "image": "https://scorvec.com/skewt/og-card.png",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "Shawn Corvec",
+  "url": "https://scorvec.com/"
+ },
+ "author": {
+  "@id": "https://scorvec.com/#person"
+ }
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --bg:#0b0b12; --panel:#11111c; --ink:#e8e8f0; --muted:#8b8ba3;
+          --accent:#64d2ff; --rule:#23233a;
+          --serif:'Lora',Georgia,serif; --sans:'Inter',sans-serif; }
+  body { background:var(--bg); color:var(--ink); font-family:var(--sans); line-height:1.5;
+         -webkit-font-smoothing:antialiased; }
+  nav { display:flex; justify-content:space-between; align-items:center; gap:1.5rem;
+        padding:0.7rem 1.4rem; border-bottom:1px solid var(--rule); }
+  .wrap { max-width:1050px; margin:0 auto; padding:1.8rem 1.2rem 3rem; }
+  .eyebrow { font-size:0.74rem; letter-spacing:0.16em; text-transform:uppercase; color:var(--accent); }
+  h1 { font-family:var(--serif); font-weight:600; font-size:clamp(1.5rem,3.4vw,2.2rem);
+       margin:0.35rem 0 0.5rem; text-wrap:balance; }
+  .lede { color:#c3c3d4; max-width:112ch; margin-bottom:1.3rem; font-size:0.93rem; }
+  .cards { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:1.3rem; }
+  .card { background:var(--panel); border:1px solid var(--rule); border-radius:12px;
+          padding:0.75rem 1.05rem; min-width:150px; }
+  .card .k { font-size:0.7rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); }
+  .card .v { font-size:1.4rem; font-weight:600; margin-top:2px; }
+  .panel { background:var(--panel); border:1px solid var(--rule); border-radius:12px;
+           padding:12px; overflow-x:auto; }
+  table { border-collapse:collapse; font-size:0.84rem; width:100%; min-width:760px; }
+  th, td { padding:5px 9px; text-align:right; border-bottom:1px solid var(--rule); white-space:nowrap; }
+  th:first-child, td:first-child { text-align:left; }
+  th { color:var(--muted); font-weight:500; cursor:default; }
+  .bad { color:#ff7a6e; font-weight:600; } .warn { color:#ffd60a; } .okc { color:#33c495; }
+  .strip { display:inline-flex; gap:1px; vertical-align:middle; }
+  .strip i { width:3px; height:14px; border-radius:1px; display:inline-block; }
+  .note { color:var(--muted); font-size:0.78rem; max-width:112ch; margin-top:0.9rem; }
+  footer { max-width:1050px; margin:0 auto; padding:0.8rem 1.2rem 2.5rem; color:var(--muted);
+           font-size:0.75rem; border-top:1px solid var(--rule); }
+  footer a { color:var(--accent); }
+</style>
+<link rel="stylesheet" href="/assets/site.css?v=aeb29dffe4">
+<script src="/assets/site.js?v=fe84a7e3e0" defer></script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
+</head>
+<body>
+<!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
+<header class="sh sh--dark" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Mid-latitude weather</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div class="sh-col">
+              <div>
+                <h3>Surface and hazards</h3>
+                <ul>
+                  <li><a href="/models.html">Short-range model maps</a></li>
+                  <li><a href="/ar.html">Atmospheric rivers</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Upper air</h3>
+                <ul>
+                  <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                  <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                  <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1"><span class="sh-lf">Global circulation and tropics</span><span class="sh-ls">Circulation/tropics</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div class="sh-col">
+              <div>
+                <h3>ENSO and the MJO</h3>
+                <ul>
+                  <li><a href="/enso.html">El Niño monitor</a></li>
+                  <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+                  <li><a href="/circulation.html#gdps_ir">Simulated satellite (GDPS)</a></li>
+                  <li><a href="/mjo.html">MJO forecast</a></li>
+                  <li><a href="/tropical-waves.html">Tropical waves</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tropical cyclones</h3>
+                <ul>
+                  <li><a href="/circulation.html#tcshear">Shear and environment</a></li>
+                  <li><a href="/recon.html">Hurricane reconnaissance</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Jets and momentum</h3>
+                <ul>
+                  <li><a href="/circulation.html#jets">Subtropical jets</a></li>
+                  <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tropical overturning</h3>
+                <ul>
+                  <li><a href="/circulation.html#walker">Walker circulation</a></li>
+                  <li><a href="/circulation.html#hadley">Hadley cells</a></li>
+                  <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                  <li><a href="/circulation.html#gdps150">Upper-level outflow (GDPS)</a></li>
+                  <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+                  <li><a href="/circulation.html#rainfc">Rain forecast, weeks 1–2</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols sh-menu--one" id="sh-g2">
+            <div class="sh-col">
+              <div>
+                <h3>By timescale</h3>
+                <ul>
+                  <li><a href="/stratosphere.html">Every stratosphere product</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div class="sh-col">
+              <div>
+                <h3>Extended range</h3>
+                <ul>
+                  <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                  <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+                  <li><a href="/sfs-subseasonal.html">SFS extended (experimental)</a></li>
+                  <li><a href="/monthly-outlook.html">Claude's month-ahead forecast</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Seasons</h3>
+                <ul>
+                  <li><a href="/seasonal.html">Seasonal model forecasts</a></li>
+                  <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div class="sh-col">
+              <div>
+                <h3>Studies</h3>
+                <ul>
+                  <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                  <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                  <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
+                  <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
+                  <li><a href="/topics/">Explainers</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Verification</h3>
+                <ul>
+                  <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+                  <li><a href="/verification.html">Global models against observations</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+              <li><a href="/fci.html">US credit conditions</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main class="wrap" id="main">
+  <div class="eyebrow">Updated weekly from the IGRA archive</div>
+  <h1>US sounding gap report</h1>
+  <p class="lede">Every US radiosonde site is supposed to launch at 00Z and 12Z, every day. Of
+  late, many haven't — releases skipped outright or shifted to off-hours. This page grades
+  <b>every routine slot since <span id="since">the start of the year</span></b> for every active US station:
+  <span class="okc">■ on time</span> · <span class="warn">■ off-hour launch instead</span> ·
+  <span class="bad">■ missed</span> (no sounding in IGRA: not launched, or launched but not archived). Stations
+  with a clean 60-day record are collapsed at the bottom.</p>
+  <div class="cards" id="cards"></div>
+  <div class="panel"><table id="tbl"></table></div>
+  <p class="note" id="foot-note"></p>
+</main>
+<footer>
+  Data: NOAA <a href="https://www.ncei.noaa.gov/products/weather-balloon/integrated-global-radiosonde-archive">IGRA v2</a>
+  year-to-date files (≈2-day lag) · a slot counts as "off-hour instead" when no 00Z/12Z launch
+  exists but a non-routine launch fell nearer that slot than the other one. Built by Claude
+  (Anthropic's Claude Fable 5), directed by Shawn Corvec.
+</footer>
+<script>
+// station names come from the IGRA station list: escaped before they go into HTML
+const esc = x => String(x == null ? "" : x).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+fetch("gaps.json").then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(d => {
+  let st = Object.entries(d.stations);
+  const dayN = Math.floor(st[0][1].g.length / 2);
+  const MON = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  document.getElementById("since").textContent = `${MON[+d.start.slice(5, 7) - 1]} ${d.start.slice(0, 4)}`;
+  const STATE = { "1": ["#1f7a5e", "on time"], "2": ["#b58a00", "off-hour launch instead"], "0": ["#c0392b", "missed"] };
+  const endMs = Date.parse(d.end + "T00:00:00Z");
+  const strip = g => {                    // the last 60 days, two cells per day; each cell says its slot and state
+    const cells = g.slice(-120).split("").map((c, i) => {
+      const day = new Date(endMs - (59 - Math.floor(i / 2)) * 864e5).toISOString().slice(0, 10);
+      const [col, lab] = STATE[c] || STATE["0"];
+      return `<i style="background:${col}" title="${day} ${i % 2 ? "12" : "00"}Z: ${lab}"></i>`;
+    });
+    return `<span class="strip">${cells.join("")}</span>`;
+  };
+  const special = st.filter(([, v]) => !v.routine);
+  st = st.filter(([, v]) => v.routine);
+  const offenders = st.filter(([, v]) => v.miss60 + v.off60 > 0)
+    .sort((a, b) => (b[1].miss60 * 2 + b[1].off60) - (a[1].miss60 * 2 + a[1].off60));
+  const clean = st.length - offenders.length;
+  const totMiss = st.reduce((s, [, v]) => s + v.miss60, 0);
+  const chronic = st.filter(([, v]) => v.miss60 >= 12).length;
+  document.getElementById("cards").innerHTML = `
+    <div class="card"><div class="k">Stations tracked</div><div class="v">${st.length}</div></div>
+    <div class="card"><div class="k">Slots missed · last 60 d</div>
+      <div class="v ${totMiss ? "bad" : "okc"}">${totMiss}</div></div>
+    <div class="card"><div class="k">Chronic (≥10% missed)</div>
+      <div class="v ${chronic ? "bad" : "okc"}">${chronic}</div></div>
+    <div class="card"><div class="k">Fully compliant · 60 d</div>
+      <div class="v okc">${clean}</div></div>`;
+  const rows = offenders.map(([id, v]) => {
+    const pct = (100 * (1 - v.miss60 / 120)).toFixed(0);
+    return `<tr><td><a href="./#${encodeURIComponent(id)}" style="color:var(--accent); text-decoration:none">${esc(v.n)}</a>
+      <span style="color:var(--muted)">${esc(id)}</span></td>
+      <td class="${v.miss60 >= 12 ? "bad" : v.miss60 ? "warn" : ""}">${v.miss60}</td>
+      <td class="${v.off60 ? "warn" : ""}">${v.off60}</td>
+      <td class="${v.miss14 >= 6 ? "bad" : v.miss14 ? "warn" : ""}">${v.miss14}</td>
+      <td>${pct}%</td><td>${strip(v.g)}</td></tr>`;
+  });
+  document.getElementById("tbl").innerHTML =
+    `<tr><th>Station</th><th>missed 60d<br>(of 120)</th><th>off-hour 60d</th>
+      <th>missed 14d<br>(of 28)</th><th>on-time 60d</th><th>last 60 days (00Z|12Z per day)</th></tr>` +
+    (rows.length ? rows.join("") :
+      `<tr><td colspan="6" style="text-align:center; color:var(--muted)">no gaps — every station made every slot</td></tr>`);
+  document.getElementById("foot-note").textContent =
+    `Record ${d.start} — ${d.end} (${dayN} days) · updated ${d.updated} · ` +
+    `${clean} stations with a perfect last-60-day record are not listed. ` +
+    `Excluded as non-routine sites (research/range, never on the 00Z/12Z schedule): ` +
+    special.map(([id, v]) => `${v.n} ${id}`).join(", ") + ". " +
+    `Station links open the live sounding explorer.`;
+}).catch(() => {
+  document.getElementById("cards").innerHTML = "<p class='note'>The gap report could not be loaded. Reload the page to try again.</p>";
+});
+</script>
+<!-- sf:start -->
+<footer class="sf sf--dark">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

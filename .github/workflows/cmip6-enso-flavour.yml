@@ -1,0 +1,180 @@
+name: CMIP6 east-based / central El Niño composites (static reference)
+
+# The CMIP6 side of enso.html's "East-based vs central" item: every December-February of the ENSO-impact study's 429
+# CMIP6 historical runs placed on the site's one east/central rule (scripts/sst/cmip6_enso_flavour.py). One job per model
+# streams Amon ts, tas and pr (and zg for the members flagged in scripts/sst/reference/cmip6_enso_members.csv, up to 10
+# per model) from the Pangeo CMIP6 archive on Google Cloud and keeps only DJF means. Those per-model tables go to the
+# release cmip6-enso-djf-v1, so `extract: false` rebuilds from them without streaming CMIP6 again, and `models: X`
+# re-extracts one model into it (a model whose job failed: its tables are the only ones missing, and the full build
+# refuses to run without every model). The build job writes scripts/sst/reference/enso_flavour_impacts_cmip6.{npz,json},
+# commits it and dispatches enso-impacts.yml to draw it. A validation run (max_members > 0) keeps everything as an
+# artifact: no release upload, no commit. Dispatch only.
+on:
+  workflow_dispatch:
+    inputs:
+      extract:
+        description: "Stream CMIP6 (false: rebuild from the release's DJF tables)"
+        type: boolean
+        default: true
+      models:
+        description: "Models to extract, comma-separated (empty: all 16)"
+        default: ""
+      max_members:
+        description: "Members per model, for a validation run (0: all; any other value never commits)"
+        default: "0"
+      commit:
+        description: "Commit the reference and draw it"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: cmip6-enso-flavour
+  cancel-in-progress: false
+
+env:
+  REL: cmip6-enso-djf-v1
+  MPLBACKEND: Agg
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      models: ${{ steps.m.outputs.models }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/sst/reference/cmip6_enso_members.csv
+          sparse-checkout-cone-mode: false
+      - id: m
+        env:
+          MODELS: ${{ inputs.models }}
+        run: |
+          python3 - >> "$GITHUB_OUTPUT" <<'EOF'
+          import csv, json, os
+          with open("scripts/sst/reference/cmip6_enso_members.csv") as fh:
+              have = sorted({r["source_id"] for r in csv.DictReader(fh)})
+          want = [m.strip() for m in os.environ["MODELS"].split(",") if m.strip()] or have
+          if set(want) - set(have):
+              raise SystemExit(f"not in the member list: {sorted(set(want) - set(have))}")
+          print("models=" + json.dumps(want))
+          EOF
+
+  extract:
+    needs: plan
+    if: inputs.extract
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        model: ${{ fromJSON(needs.plan.outputs.models) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-cmip6-${{ runner.os }}-${{ hashFiles('scripts/sst/requirements-sst.txt') }}
+          restore-keys: |
+            pip-cmip6-${{ runner.os }}-
+      - name: Install
+        run: |
+          pip install -r scripts/sst/requirements-sst.txt
+          pip install dask zarr cftime "gcsfs==2026.5.0"   # the Pangeo zarr stores on Google Cloud
+      - name: Extract ${{ matrix.model }}
+        run: |
+          python scripts/sst/cmip6_enso_flavour.py extract --model "${{ matrix.model }}" --out djf \
+            --max-members "${{ inputs.max_members }}" --workers 2
+      - uses: actions/upload-artifact@v7
+        with:
+          name: djf-${{ matrix.model }}
+          path: djf/${{ matrix.model }}.npz
+          retention-days: 7
+
+  build:
+    needs: [plan, extract]
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}   # also after a failed model: the others reach the release
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-sst-${{ runner.os }}-${{ hashFiles('scripts/sst/requirements-sst.txt') }}
+          restore-keys: |
+            pip-sst-${{ runner.os }}-
+      - name: Install
+        run: pip install -r scripts/sst/requirements-sst.txt
+      - name: This run's tables
+        if: inputs.extract
+        uses: actions/download-artifact@v7
+        with:
+          pattern: djf-*
+          path: fresh
+          merge-multiple: true
+      - name: Gather the DJF tables
+        run: |
+          mkdir -p djf
+          if [ "${{ inputs.max_members }}" != "0" ]; then
+            cp fresh/*.npz djf/   # validation: this run's tables only
+          else
+            gh release view "$REL" >/dev/null 2>&1 \
+              || gh release create "$REL" --title "CMIP6 DJF tables for the east-based / central El Niño composites" \
+                   --notes "December-February means of the CMIP6 historical runs (Eyring et al. 2016, CC BY 4.0; Pangeo archive on Google Cloud) behind the east-based vs central El Niño composites on enso.html, one file per model: ts on the ENSO EOF cells, tas and pr on the 2.5-degree Americas grid, z500 on the 2.5-degree Northern Hemisphere grid, and own-EOF E and C (scripts/sst/cmip6_enso_flavour.py extract)."
+            if [ -d fresh ]; then gh release upload "$REL" fresh/*.npz --clobber; fi
+            gh release download "$REL" -p '*.npz' -D djf --clobber
+          fi
+          ls -la djf
+      - name: Build the reference
+        run: |
+          all=""
+          if [ "${{ inputs.max_members }}" = "0" ]; then all="--require-all"; fi   # a full run needs every model
+          python scripts/sst/cmip6_enso_flavour.py build --src djf $all
+      - uses: actions/upload-artifact@v7
+        with:
+          name: enso-flavour-impacts-cmip6
+          path: scripts/sst/reference/enso_flavour_impacts_cmip6.*
+          retention-days: 14
+      - name: Commit & push
+        id: commit
+        if: inputs.commit && inputs.max_members == '0'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUTS="scripts/sst/reference/enso_flavour_impacts_cmip6.npz scripts/sst/reference/enso_flavour_impacts_cmip6.json"
+          # snapshot + clean resync each attempt (the enso-impacts.yml pattern); merges, never rebases
+          SNAP=$(mktemp -d)
+          git add -A $OUTS
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -A $OUTS
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "data update: CMIP6 east-based / central El Niño composites"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; echo "pushed=1" >> "$GITHUB_OUTPUT"; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+      # a push made with the workflow token does not trigger enso-impacts.yml's push filter
+      - name: Draw it
+        if: success() && steps.commit.outputs.pushed == '1'
+        run: gh workflow run enso-impacts.yml --repo "$GITHUB_REPOSITORY" || echo "::warning::could not dispatch enso-impacts.yml"

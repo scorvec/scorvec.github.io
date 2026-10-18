@@ -1,0 +1,240 @@
+# Python bytecode caches
+__pycache__/
+*.pyc
+
+# MJO pipeline runtime artifacts (large / regenerated; reference .nc are kept)
+scripts/mjo/data/aifs/
+scripts/mjo/plots/
+scripts/mjo/data/reference/era5_recent/
+scripts/mjo/data/reference/overturn_ref.npz
+scripts/mjo/data/reference/hslp_ref.npz
+scripts/mjo/data/reference/hslp_drift.npz
+scripts/mjo/data/reference/hbranch_ref_*.npz
+scripts/mjo/data/reference/hbranch_drift.npz
+scripts/mjo/data/reference/overturn_rf_drift.npz
+
+# SST pipeline data cache (large OISST netCDFs, re-downloaded each run)
+scripts/sst/data/
+
+# Hovmöller 10u download cache
+scripts/mjo/data/u10/
+
+# SOI msl download cache + LongPaddock SOI text
+scripts/mjo/data/msl/
+scripts/mjo/data/soi/
+
+# MJO builder logs
+scripts/mjo/*.log
+
+# AAM 13-level download cache
+scripts/mjo/data/aam/
+
+# torque 6-hourly sp cache
+scripts/mjo/data/torque/
+scripts/mjo/data/hbranch/
+
+# SST builder logs
+scripts/sst/*.log
+
+
+# synoptic builder logs
+scripts/synoptic/*.log
+
+# ens change-product archive (run-to-run state, regenerable)
+scripts/ens/data/archive/
+
+# ens climatology netCDFs — large, build/keep untracked (README stays tracked)
+scripts/ens/data/reference/*.nc
+
+# shared ECMWF GRIB cache (large, regenerable per cycle)
+scripts/ecmwf/cache/
+
+# u850 analog Hovmöller band series (large, untracked; rebuilt by build_u850_bandseries.py)
+scripts/mjo/data/reference/eq_u850_bandseries.nc
+scripts/mjo/data/reference/eq_u850_*_arco.nc
+scripts/ecmwf/.mirror_rotation.json
+
+# MEI nowcast cached inputs (regenerated daily; fit json is committed separately)
+scripts/mjo/data/mei/
+
+# shared cross-pipeline git lock (runtime mutex dir)
+.gitlock/
+
+# Stray artifacts from scripts run in the wrong cwd (real outputs live under repo-root assets/)
+scripts/sst/assets/
+scripts/mjo/assets/
+scripts/sst/sst.html
+scripts/mjo/run_local.log.prev
+scripts/mjo/data/.cycle_done_*
+scripts/mjo/data/.u850_analogs_day
+
+
+assets/sst/enso_maps/
+scripts/sst/enso_tmaps_cache/
+scripts/sst/data/glm_hourly/
+
+# synoptic frames live on the synoptic-frames orphan branch (CDN), not main
+assets/synoptic/*/*/*.webp
+
+# transient: IFS-leg completeness flags for hovmoller/soi self-heal
+assets/sst/*.webp.missing
+scripts/sst/data/imerg/
+
+scripts/climate/data/
+scripts/ecmwf/.budget_state.json*
+
+# telecon engine: large untracked data (built from an ERA5 daily store)
+scripts/telecon/data/olr/
+scripts/telecon/data/ibtracs_wp.csv
+scripts/telecon/data/gwd_daily/
+scripts/telecon/data/merra2_gwd_events/
+scripts/telecon/data/outcomes/
+scripts/strat/data/
+
+# untracked working outputs and data (not published)
+assets/strat/
+scripts/telecon/
+scripts/verify/data/
+# scripts/strat is excluded by contents (trailing /*), not as a directory: git
+# cannot re-include a file whose parent directory is excluded, so the
+# negations below would silently do nothing under `scripts/strat/`.
+# Only the scripts behind published products are re-included; anything else
+# here writes to the untracked assets/strat/.
+scripts/strat/*
+!scripts/strat/nh_vortex.py
+!scripts/strat/vortex_runs.py
+!scripts/strat/qbo_duct.py
+!scripts/strat/vortex_winds.py
+!scripts/strat/wave1_maps.py
+!scripts/strat/build_m2_reference.py
+!scripts/strat/build_wave1_clim.py
+!scripts/strat/heatflux100.py
+!scripts/strat/heatflux100_ext.py
+!scripts/strat/bdc_dc.py
+!scripts/strat/geos_pv.py
+!scripts/strat/momentum_budget.py
+!scripts/strat/build_vt100_clim.py
+!scripts/strat/heatflux100_bias.py
+!scripts/strat/build_hf_warning.py
+!scripts/strat/build_strat_history.py
+!scripts/strat/strat_history.py
+!scripts/strat/forecast_drip.py
+!scripts/strat/geosfp_cap.py
+!scripts/strat/build_drip_ref.py
+!scripts/strat/upperstrat.py
+!scripts/strat/upperstrat_data.py
+!scripts/strat/build_upperstrat_clim.py
+!scripts/strat/build_ssw_precursors.py
+!scripts/strat/ssw_precursors.py
+!scripts/strat/build_mbudget_history.py
+!scripts/strat/fetch_m2gmi_aoa.py
+!scripts/strat/build_age_of_air.py
+!scripts/strat/age_of_air.py
+!scripts/strat/fetch_mls_h2o.py
+!scripts/strat/tape_recorder.py
+!scripts/strat/ifs_ens.py
+!scripts/strat/qbo_zeroline.py
+!scripts/strat/build_qbo_zeroline.py
+!scripts/strat/fetch_m2_zmu.py
+# GEPS subseasonal vortex products (subseasonal.html, built with scripts/geps)
+!scripts/strat/strat_maps.py
+!scripts/strat/strat_series.py
+!scripts/strat/strat_frames.py
+!scripts/strat/geps_s2s_hindcast.py
+# The MERRA-2 reference cache (282 KB) that replaces the 690 MB offline
+# archive for nh_vortex on a runner. The directory itself must be re-included
+# first - git will not descend into an excluded directory to find the file.
+!scripts/strat/reference/
+!scripts/strat/reference/m2_strat_daily.nc
+!scripts/strat/reference/vt100_clim.nc
+!scripts/strat/reference/vt100_era5.nc
+!scripts/strat/reference/heatflux100_archive.npz
+!scripts/strat/reference/heatflux100_bias.json
+!scripts/strat/reference/heatflux100_history_seed.json
+!scripts/strat/reference/strat_history.nc
+!scripts/strat/reference/strat_history_events.json
+!scripts/strat/reference/cmip6_drip.nc
+!scripts/strat/reference/cmip6_follow.nc
+!scripts/strat/reference/drip_std.json
+!scripts/strat/reference/mbudget_clim.npz
+!scripts/strat/reference/geosfp_cap_offset.json
+!scripts/strat/reference/geosfp_cap_seed.json
+!scripts/strat/reference/aifs_capdrift.json
+!scripts/strat/reference/ssw_precursors.json
+!scripts/strat/reference/mbudget_history.json
+!scripts/strat/reference/age_of_air.nc
+!scripts/strat/reference/tape_mls.npz
+!scripts/strat/reference/tape_geosfp_seed.npz
+!scripts/strat/reference/qbo_zeroline_ref.nc
+!scripts/strat/reference/qbo_zeroline_test.json
+
+# local archives, caches and runtime state
+local_archive/
+scripts/mjo/data/reference/arco_eq_u/
+scripts/sfs/data/*.npy
+scripts/sst/.run.lock/
+scripts/sst/data/region_weights_energy.npz
+scripts/verify/*.log
+
+# state stamp for scripts/lib/publish_frames.sh
+scripts/lib/.frames_published
+scripts/lib/.frames_published.at
+scripts/lib/.frames.lock
+scripts/lib/frames.log
+
+# ── animation frames ────────────────────────────────────────────────────────
+# Frame webp are served from the orphan `frames` branch, not from main — the
+# daily churn would be ~6 GB/month of permanent history. Published by
+# scripts/lib/publish_frames.sh (a separate scheduled job, every 15 min). The
+# *_manifest.json files stay tracked, so the viewers still fetch them
+# same-origin.
+assets/*/anim/**/*.webp
+assets/mjo/impacts/anim/**/*.webp
+# Except the dirs built only by GitHub workflows. The frames branch has a
+# single publisher (publish_frames.sh) because several producers force-pushing one
+# orphan branch would clobber each other — so these must stay on main for that
+# publisher to pull and republish. They are ~10% of the churn.
+!assets/sst/anim/gdps_ir/*.webp
+!assets/sst/anim/gdps_wind/*.webp
+!assets/sst/anim/gdps_outflow/*.webp
+!assets/sst/anim/mur_ct/*.webp
+!assets/sst/anim/pacsat/*.webp
+!assets/sst/anim/samsat/*.webp
+
+# asos5 runner log
+scripts/asos5/asos5.log
+
+# local cache directory
+.cache/
+
+# the tropical velocity-potential history rides on the frames branch, never on main
+assets/sst/anim/walker/*.nc
+assets/sst/anim/overturn_hist/
+assets/sst/anim/wk_olr/
+assets/sst/anim/gillrain/*.nc
+assets/sst/anim/waf/*.nc
+
+# build residue (it carries absolute paths)
+scripts/mjo/data/*.log
+
+# ocean Kelvin tracker: yearly altimetry downloads behind build_sla_clim.py (~60 MB each; only sla_clim.nc is committed)
+scripts/mjo/data/sla_raw/
+
+# product freshness, generated at deploy time by scripts/site/status.py (pages.yml)
+/status.json
+assets/gefs/anim/runs/
+scripts/site/.private_terms
+scripts/fci/data/
+
+# GEPS subseasonal pipeline (scripts/geps): reference set from the geps-ref release, state carried on the frames
+# branch, per-run scratch - none of it belongs on main
+scripts/geps/ref/
+scripts/geps/state/
+scripts/geps/work/
+scripts/geps/data/
+
+# TC shear (tcshear.yml): per-storm JSON + maps live on the frames branch only
+assets/sst/anim/tcshear/
+assets/sst/anim/tcshear_hc/
+scripts/tcshear/__pycache__/
+assets/sst/anim/.aifs_anim.lock

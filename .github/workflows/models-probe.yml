@@ -1,0 +1,70 @@
+name: Short-range models (probe)
+
+# Dispatch-only checks for models.html work that must run in Actions (2026-10-06). Nothing is published.
+#   bytes    run scripts/models/models.py on a few forecast hours of one model and print the file sizes per field
+#   dtcheck  scripts/models/dt_check.py: the dynamic tropopause (upper.py) vs the GFS's own 2-PVU fields
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "bytes or dtcheck"
+        default: bytes
+      model:
+        description: "hrrr, rrfs or rdps (bytes)"
+        default: hrrr
+      cycle:
+        description: "YYYYMMDDHH (00/06/12/18Z)"
+        required: true
+      leads:
+        description: "forecast hours (bytes: comma list; dtcheck: one lead)"
+        default: "0,3,6"
+
+permissions:
+  contents: read
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/models/
+            /scripts/snowband/
+            /scripts/lib/
+            /data/models_airports.json
+            /data/models_cities.json
+            /scripts/constraints.txt
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy pillow eccodes
+      - name: Bytes per field
+        if: inputs.mode == 'bytes'
+        env:
+          MV_LEADS: ${{ inputs.leads }}
+          MV_UA: "1"
+        run: |
+          set -euo pipefail
+          /usr/bin/time -v python scripts/models/models.py run --model "${{ inputs.model }}" --cycle "${{ inputs.cycle }}" --site . --procs 4 --lists "$RUNNER_TEMP/l" 2>&1 | tee "$RUNNER_TEMP/run.log" | grep -v "^\s*\(Page\|Socket\|Signals\|Swaps\|File system\|Average\|Exit\|Volun\|Invol\|Minor\|Major\)" || true
+          d="assets/models/data/${{ inputs.model }}/${{ inputs.cycle }}"
+          for f in "$d"/*/; do n=$(basename "$f"); printf "%-8s %s\n" "$n" "$(ls -l "$f" | awk 'NR>1{s+=$5; c++} END{printf "%d files %.1f KB", c, s/1024}')"; done
+          for f in ua925 ua250 dt z500; do ls -l "$d/$f" 2>/dev/null | awk -v f=$f 'NR>1{printf "  %s %s %d\n", f, $9, $5}' || true; done
+          python - "$d" <<'PY'
+          import sys, numpy as np
+          from PIL import Image
+          from pathlib import Path
+          d = Path(sys.argv[1])
+          for f in ("ua925", "ua250", "dt", "z500"):
+              for p in sorted((d / f).glob("*.webp"))[:2]:
+                  a = np.asarray(Image.open(p).convert("RGB"))
+                  print(f, p.name, a.shape, "R", np.percentile(a[..., 0], [1, 50, 99]), "G", np.percentile(a[..., 1], [1, 50, 99]), "B", np.percentile(a[..., 2], [1, 50, 99]), "255s", int((a[..., 0] == 255).sum()))
+          PY
+      - name: Dynamic tropopause check
+        if: inputs.mode == 'dtcheck'
+        run: python scripts/models/dt_check.py --cycle "${{ inputs.cycle }}" --lead "${{ inputs.leads }}"

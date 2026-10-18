@@ -1,0 +1,124 @@
+name: SST event comparisons (daily)
+
+# Subsurface El Niño analog products (enso-subsurface.html, enso.html): the equatorial
+# 0-300 m heat-content index (tao_hc.py) and the matching-phase cross-sections, current
+# event vs 1997/2015/2023, from PMEL TAO DISDEL + the GLORYS12 fill for silent moorings.
+# (The OISST event products this workflow was built for retired 2026-08-28.)
+on:
+  # DAILY since 2026-10-07: the heat-content chart had looked frozen for a week at a time (built
+  # Mondays only, and PMEL's DISDEL lag was ~6 days on the 2026-10-06 build, so the line ended
+  # Sep 30 until the following Monday). tao-subsurface.yml also dispatches this after each TAO
+  # refresh; the cron is the backstop.
+  schedule:
+  - cron: '41 15 * * *'
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: 'commit the charts (false = build and upload them as an artifact only)'
+        required: false
+        default: 'true'
+
+permissions:
+  contents: write
+  actions: write   # scripts/lib/cache_prune.sh deletes the superseded cache entries
+
+concurrency:
+  group: sst-events
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      MPLBACKEND: Agg
+      SST_SITE_ROOT: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-sst-${{ runner.os }}-${{ hashFiles('scripts/sst/requirements-sst.txt') }}
+          restore-keys: |
+            pip-sst-${{ runner.os }}-
+      # GLORYS12 analysis (anfc) anomaly store for the heat-content fill: each run adds only new days. Restored from the
+      # newest entry, saved under a hash of the store when it changed, older entries deleted.
+      - name: Restore the anfc store
+        id: anfc_cache
+        uses: actions/cache/restore@v6
+        with:
+          path: scripts/sst/data/cmems_hc/anfc_store.csv
+          key: hc-anfc-store-v1-
+          restore-keys: |
+            hc-anfc-store-v1-
+      - name: Install cartopy system libs
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libgeos-dev libproj-dev proj-bin
+      - name: Install Python dependencies
+        run: pip install -r scripts/sst/requirements-sst.txt
+
+      # 1982-83 (pre-TAO) is drawn from scripts/sst/reference/reanalysis_hc_monthly.csv (ORAS5 + GODAS, built once
+      # offline by reanalysis_hc.py) - nothing is fetched for it here.
+      - name: Build subsurface analog comparison (TAO moorings, 1997/2015/2023; 1982 from reanalyses)
+        working-directory: scripts/sst
+        env:
+          # the GLORYS12 analysis fill for silent moorings (tao_hc_validation.json switches it on)
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+        run: python sst_subsurface_events.py || echo "::warning::subsurface analog build failed; previous charts kept"
+      - name: Save the anfc store (when it changed)
+        if: >-
+          hashFiles('scripts/sst/data/cmems_hc/anfc_store.csv') != '' &&
+          steps.anfc_cache.outputs.cache-matched-key != format('hc-anfc-store-v1-{0}', hashFiles('scripts/sst/data/cmems_hc/anfc_store.csv'))
+        uses: actions/cache/save@v6
+        with:
+          path: scripts/sst/data/cmems_hc/anfc_store.csv
+          key: hc-anfc-store-v1-${{ hashFiles('scripts/sst/data/cmems_hc/anfc_store.csv') }}
+      - name: Drop superseded caches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/cache_prune.sh hc-anfc-store-v1-
+
+      - name: Upload the charts (validation runs)
+        if: inputs.commit == 'false'
+        uses: actions/upload-artifact@v7
+        with:
+          name: subsurface-hc
+          path: |
+            assets/sst/subsurface_events_*.webp
+            assets/sst/data/subsurface_hc.json
+
+      - name: Commit & push
+        if: inputs.commit != 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Snapshot the built outputs, then commit on a clean sync of origin/main each
+          # attempt. The old rebase recovery could silently DISCARD the build: leftover
+          # unstaged files failed the rebase, and its reset --hard fallback reverted the
+          # webps before re-adding them (bit us 2026-07-17 — ran "successfully", pushed
+          # nothing). Snapshot+restore makes losing the outputs structurally impossible.
+          OUT="assets/sst/events_nino34.webp assets/sst/events_bars.webp assets/sst/events_maps.webp \
+               assets/sst/subsurface_events_hc.webp assets/sst/subsurface_events_xsec.webp \
+               assets/sst/subsurface_events_hc_detrended.webp assets/sst/subsurface_events_xsec_detrended.webp \
+               assets/sst/data/subsurface_hc.json"
+          SNAP=$(mktemp -d)
+          for f in $OUT; do [ -f "$f" ] && install -D "$f" "$SNAP/$f"; done
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi   # falling through would hit "no changes" and fake success
+            git reset --hard origin/main
+            (cd "$SNAP" && find . -type f -exec install -D {} "$GITHUB_WORKSPACE/{}" \;)
+            for f in $OUT; do if [ -f "$f" ]; then git add "$f"; fi; done
+            if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+            git commit -m "data update: subsurface heat content $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push; then echo "pushed (attempt $i)"; exit 0; fi
+            sleep 5
+          done
+          echo "push failed"; exit 1

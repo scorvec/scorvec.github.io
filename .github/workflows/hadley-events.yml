@@ -1,0 +1,100 @@
+name: Hadley cells in El Nino events (ERA5 July-March metrics -> hadley_events.nc)
+
+# Builder of scripts/mjo/data/reference/hadley_events.nc (scripts/mjo/src/hadley_enso.py): for every July-March whose
+# RONI peaks at +1.0 or more since 1963, the Hadley cell metrics of ERA5's centred 7-day means, the climatology's
+# statistic (build_hadley_clim.py). Each event's window comes from WeatherBench2 or, after January 2023, from
+# ARCO-ERA5 (anonymous GCS); the build job forms the table and commits it. Rerun when a new event has ended.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      events: ${{ steps.list.outputs.events }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - name: The events
+        id: list
+        run: echo "events=$(python scripts/mjo/src/hadley_enso.py list)" >> "$GITHUB_OUTPUT"
+
+  part:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        event: ${{ fromJSON(needs.plan.outputs.events) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - name: Daily zonal-mean v for the event
+        run: |
+          mkdir -p out
+          python scripts/mjo/src/build_hadley_clim.py fetch --start ${{ matrix.event.start }} --end ${{ matrix.event.end }} \
+            --source ${{ matrix.event.source }} --out out/event_${{ matrix.event.year }}.npz
+      - uses: actions/upload-artifact@v7
+        with:
+          name: hadevent-${{ matrix.event.year }}
+          path: out/*.npz
+          retention-days: 5
+
+  build:
+    needs: part
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: hadevent-*
+          path: parts
+          merge-multiple: true
+      - name: The events table
+        run: python scripts/mjo/src/hadley_enso.py events parts/*.npz
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT=scripts/mjo/data/reference/hadley_events.nc
+          SNAP=$(mktemp -d); cp "$OUT" "$SNAP/"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            cp "$SNAP/hadley_events.nc" "$OUT"
+            git add "$OUT"
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "Hadley cells in El Nino events: ERA5 July-March metrics"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

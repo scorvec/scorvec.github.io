@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subseasonal Outlook &mdash; ECCC GEPS Weeks 1&ndash;5 &middot; Shawn Corvec</title>
+<meta name="description" content="Days 1–35 anomaly forecasts for the Americas from the ECCC GEPS extended ensemble against the 1991–2020 normal, model drift removed, plus the MJO and regimes.">
+<link rel="canonical" href="https://scorvec.com/subseasonal.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Subseasonal Outlook &mdash; GEPS Weeks 1&ndash;5 for the Americas">
+<meta property="og:description" content="Days 1-35 anomalies for the Americas from the GEPS extended ensemble, expressed against the 1991-2020 normal, with model drift removed using a 2001-2020 GEPS hindcast.">
+<meta property="og:url" content="https://scorvec.com/subseasonal.html">
+<meta property="og:image" content="https://scorvec.com/assets/geps/geps_na_t2m_weekly.webp">
+<meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Subseasonal Outlook &mdash; GEPS Weeks 1&ndash;5 for the Americas">
+<meta name="twitter:description" content="Days 1-35 anomalies for the Americas from the GEPS extended ensemble, expressed against the 1991-2020 normal, with model drift removed using a 2001-2020 GEPS hindcast.">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "WebPage",
+ "name": "Subseasonal outlook: ECCC GEPS weeks 1–5 for the Americas",
+ "url": "https://scorvec.com/subseasonal.html",
+ "description": "Days 1–35 anomaly forecasts for the Americas from the ECCC GEPS extended ensemble against the 1991–2020 normal, model drift removed, plus the MJO and regimes.",
+ "image": "https://scorvec.com/assets/geps/geps_na_t2m_weekly.webp",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "Shawn Corvec",
+  "url": "https://scorvec.com/"
+ },
+ "author": {
+  "@id": "https://scorvec.com/#person"
+ }
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/outlook.css?v=9f59b995d1">
+<link rel="stylesheet" href="/assets/stage.css?v=015d15550d">
+<style>
+  /* subseasonal.html — page-specific rules on top of /assets/outlook.css (shared with seas5 and sfs). */
+  table.tele { width: 100%; border-collapse: collapse; margin: 0.9rem 0 0.3rem; font-size: 0.78rem; }
+  table.tele th, table.tele td { padding: 0.35rem 0.4rem; text-align: center; border-bottom: 1px solid var(--rule); }
+  table.tele thead th { font-weight: 600; color: var(--ink); }
+  table.tele tbody th { text-align: left; font-weight: 600; white-space: nowrap; }
+  table.tele th span, table.tele td span { display: block; font-weight: 400; font-size: 0.7rem; color: var(--muted); }
+  table.tele td i { font-style: normal; color: #4a4640; }
+  table.tele td.r { color: var(--muted); font-size: 0.72rem; white-space: nowrap; }
+  table.tele td.noskill { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.55) 0 4px, rgba(140,136,128,0.35) 4px 6px) !important; color: var(--muted); }
+  table.tele td.noskill b { color: var(--muted); }
+  .method-note { margin-top: 2rem; border-top: 1px solid var(--rule); padding-top: 1.2rem; }
+  .method-note h2 { font-family: var(--serif); font-weight: 500; font-size: 1rem; color: var(--ink); margin-bottom: 0.5rem; }
+  .method-note p { font-size: 0.82rem; color: var(--ink2); line-height: 1.7; max-width: 62rem; }
+  .method-note b { color: var(--ink); font-weight: 500; }
+  .method-note a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); white-space: nowrap; }
+  .method-note a:hover { border-bottom-color: var(--accent); }
+  /* the viewer is /assets/stage.css; the number tables sit under the caption */
+  #tele-table, #mjo-table { padding: 0 1.2rem; overflow-x: auto; }   /* phones: the five-week table scrolls inside the card (it was clipped) */
+  @media (max-width: 640px) { #tele-table, #mjo-table { padding: 0 0.5rem; } }
+</style>
+<link rel="stylesheet" href="/assets/site.css?v=aeb29dffe4">
+<script src="/assets/site.js?v=fe84a7e3e0" defer></script>
+<script>
+// The polar-vortex products live on the stratosphere page: forward old deep links (#vortex/nh, #vloop, #drip)
+(function () { var m = {vortex: "vortex35/geps", vloop: "vloop35/geps", drip: "fdrip/geps"};
+  var h = location.hash.replace(/^#/, "").split("/"); if (!m[h[0]]) return;
+  var rest = h[0] === "vortex" ? h.slice(1, 2) : [];
+  location.replace("/stratosphere.html#" + [m[h[0]]].concat(rest).join("/")); })();
+</script>
+<style>.strat-links { margin: 0.6rem 0 0.2rem 1.1rem; line-height: 1.9; font-size: 0.95rem; }</style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
+</head>
+<body>
+
+<!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Mid-latitude weather</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div class="sh-col">
+              <div>
+                <h3>Surface and hazards</h3>
+                <ul>
+                  <li><a href="/models.html">Short-range model maps</a></li>
+                  <li><a href="/ar.html">Atmospheric rivers</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Upper air</h3>
+                <ul>
+                  <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                  <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                  <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1"><span class="sh-lf">Global circulation and tropics</span><span class="sh-ls">Circulation/tropics</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div class="sh-col">
+              <div>
+                <h3>ENSO and the MJO</h3>
+                <ul>
+                  <li><a href="/enso.html">El Niño monitor</a></li>
+                  <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+                  <li><a href="/circulation.html#gdps_ir">Simulated satellite (GDPS)</a></li>
+                  <li><a href="/mjo.html">MJO forecast</a></li>
+                  <li><a href="/tropical-waves.html">Tropical waves</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tropical cyclones</h3>
+                <ul>
+                  <li><a href="/circulation.html#tcshear">Shear and environment</a></li>
+                  <li><a href="/recon.html">Hurricane reconnaissance</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Jets and momentum</h3>
+                <ul>
+                  <li><a href="/circulation.html#jets">Subtropical jets</a></li>
+                  <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tropical overturning</h3>
+                <ul>
+                  <li><a href="/circulation.html#walker">Walker circulation</a></li>
+                  <li><a href="/circulation.html#hadley">Hadley cells</a></li>
+                  <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                  <li><a href="/circulation.html#gdps150">Upper-level outflow (GDPS)</a></li>
+                  <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+                  <li><a href="/circulation.html#rainfc">Rain forecast, weeks 1–2</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols sh-menu--one" id="sh-g2">
+            <div class="sh-col">
+              <div>
+                <h3>By timescale</h3>
+                <ul>
+                  <li><a href="/stratosphere.html">Every stratosphere product</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3" aria-current="page">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div class="sh-col">
+              <div>
+                <h3>Extended range</h3>
+                <ul>
+                  <li><a href="/subseasonal.html" aria-current="page">GEPS extended ensemble</a></li>
+                  <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+                  <li><a href="/sfs-subseasonal.html">SFS extended (experimental)</a></li>
+                  <li><a href="/monthly-outlook.html">Claude's month-ahead forecast</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Seasons</h3>
+                <ul>
+                  <li><a href="/seasonal.html">Seasonal model forecasts</a></li>
+                  <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div class="sh-col">
+              <div>
+                <h3>Studies</h3>
+                <ul>
+                  <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                  <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                  <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
+                  <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
+                  <li><a href="/topics/">Explainers</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Verification</h3>
+                <ul>
+                  <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+                  <li><a href="/verification.html">Global models against observations</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+              <li><a href="/fci.html">US credit conditions</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+
+<main id="main">
+  <div class="page-header">
+    <p class="eyebrow">Days 1 to 35, from the ECCC GEPS extended ensemble, twice a week</p>
+    <h1>GEPS subseasonal outlook</h1>
+    <p class="sub">Anomalies against the <b>1991&ndash;2020 normal</b>, with the model's own drift removed first using
+    ECCC's GEPS8 hindcast (2001&ndash;2020), reduced here to a climatology for each lead and time of year. Weekly maps, tercile odds, the change since the last run, teleconnection
+    plumes, weather regimes and the MJO &mdash; one figure at a time, picked from the menu; its polar vortex is on the
+    <a href="/stratosphere.html#vortex35/geps">stratosphere page</a>. The same products for NOAA's models: the
+    <a href="/gefs.html">GEFS subseasonal outlook</a> and the experimental <a href="/sfs-subseasonal.html">SFS outlook</a>.</p>
+    <div class="chips">
+      <div class="chip"><div class="l">cycle</div><div class="v" data-cycle>&ndash;</div><div class="s">extended run</div></div>
+      <div class="chip"><div class="l">valid</div><div class="v"><b data-valid>&ndash;</b></div><div class="s">days 1&ndash;35</div></div>
+      <div class="chip"><div class="l">members</div><div class="v">21</div><div class="s">GEPS extended</div></div>
+      <div class="chip"><div class="l">anomaly base</div><div class="v">1991&ndash;2020</div><div class="s">via the 2001&ndash;2020 GEPS8 hindcast</div></div>
+    </div>
+  </div>
+
+  <div class="ss-layout">
+    <aside class="ss-rail" id="rail" aria-label="Products"></aside>
+    <section class="ss-main">
+      <div class="crumb">
+        <div class="path" id="crumb"></div>
+        <div class="nav"><button type="button" id="prevBtn" title="previous (←)">&larr; prev</button><button type="button" id="nextBtn" title="next (→)">next &rarr;</button></div>
+      </div>
+      <div class="opts">
+        <div class="controls" id="opts-a"></div>
+        <div class="controls" id="opts-b"></div>
+        <div class="controls" id="opts-c"></div>
+      </div>
+      <div class="stage" id="stage"></div>
+      <p class="cap" id="cap"></p>
+      <div id="tele-table" hidden></div>
+      <div id="mjo-table" hidden></div>
+      <div id="about"></div>
+      <p class="hint">With the list of products focused: <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change product, <span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the last option row &middot; click a map to enlarge &middot; the address bar carries the selection, so a view can be linked.</p>
+      <div class="chart-card-footer">
+        <span class="chart-sources">Data Source: Environment and Climate Change Canada, GEPS extended ensemble (MSC Datamart), under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a> &middot; GEPS8 hindcast 2001&ndash;2020 (ECCC, via the IRI Data Library) &middot; ECMWF AIFS-ENS and IFS-ENS open data (multi-model regimes): &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use &middot; ERA5: Copernicus Climate Change Service (C3S) / ECMWF, CC&nbsp;BY&nbsp;4.0; contains modified Copernicus Climate Change Service information 2026; neither the European Commission nor ECMWF is responsible for any use of this information &middot; NCEP/NCAR Reanalysis 1, CPC teleconnection indices and CPC unified gauge precipitation (NOAA); PSL EPO/WPO; Long Paddock (Queensland Government) daily SOI &middot; NOAA GMGSI satellite OLR proxy &middot; BoM RMM</span>
+        <span class="chart-updated" data-init>&ndash;</span>
+      </div>
+    </section>
+  </div>
+  <div class="lightbox" id="lightbox"><img alt=""></div>
+  <div class="dom-holder">
+    <div id="dom-stratlink" class="card" hidden>
+      <h2>GEPS stratosphere: on the stratosphere page</h2>
+      <p class="note">This page&rsquo;s polar-vortex products are on the <a href="/stratosphere.html#vortex35/geps">stratosphere page</a>,
+      under &ldquo;Weeks 3&ndash;5&rdquo;, side by side with the other model there and with every other model&rsquo;s vortex forecast from the
+      next two weeks out to the season. The figures are the same files, updated by the same GEPS run.</p>
+      <ul class="strat-links">
+        <li><a href="/stratosphere.html#vortex35/geps">Polar vortex diagnostics, days 1&ndash;35 &rarr;</a></li>
+        <li><a href="/stratosphere.html#vloop35/geps">Polar vortex loop, 10 and 100&nbsp;hPa &rarr;</a></li>
+        <li><a href="/stratosphere.html#fdrip/geps">Dripping paint, ground to 10&nbsp;hPa &rarr;</a></li>
+        <li><a href="/stratosphere.html#heatflux35/nh/geps">100&nbsp;hPa eddy heat flux &rarr;</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <section class="method-note">
+    <h2>How it is built</h2>
+    <p>Anomalies are against the <b>1991&ndash;2020 normal</b>. Each forecast is differenced from a
+    lead-dependent GEPS8 hindcast climatology (2001&ndash;2020, read at the init day-of-year), which
+    removes the model's drift and its mean bias together; the reference is then moved to
+    1991&ndash;2020 by the observed ERA5 shift between the two periods, with no model in that step.
+    The stratosphere, which that hindcast does not cover, is taken against ERA5 and de-drifted with
+    the GEPS reforecasts in the ECMWF S2S archive. Teleconnection probabilities, tercile maps, regime hit rates and the MJO
+    score are calibrated on the same hindcast &mdash; all but the MJO score out of sample, each hindcast start de-drifted
+    and re-based without its own year, as a live forecast is &mdash; and the skill masks hatch wherever its anomaly
+    correlation is not significantly above zero (one-sided 5&nbsp;% test on the 20 hindcast years, false-discovery rate 10&nbsp;% across the map). <a href="/subseasonal-method.html">Read the full method &rarr;</a></p>
+  </section>
+</main>
+
+<footer><span class="counter">GEPS days 1&ndash;35</span></footer>
+
+<script>
+// A menu rail picks the product; the option rows pick that product's settings. Only one
+// figure is ever in the DOM. The selection lives in the URL hash (#product/a/b/c) so any
+// view can be linked; arrow keys step through options and products.
+var FIELDS = [["t2m","2 m temp"],["pr","Precip"],["mslp","MSLP"],["zg500","500 hPa Z"],
+              ["olr","OLR"],["u850","850 u"],["u200","200 u"],["v850","850 v"],
+              ["v200","200 v"]];
+var P = {
+  mjo: {label: "MJO", a: {label:"View", items:[["phase","Phase diagram"],["hov","Propagation"],["skill","Hindcast skill"]]},
+        img: function (a) { return a==="skill" ? "assets/geps/geps_mjo_skill.webp"
+                                  : "assets/geps/geps_mjo_" + (a==="phase"?"phase":"hovmoller") + ".webp"; },
+        cap: function (a) { return a==="phase"
+          ? "Three-field RMM (OLR + U850 + U200), 21-member plume, days 1\u201335; the observed track is the last 30 days, winds from GEPS\u2019s own day-0 analyses and OLR from ERA5 spliced with the offset-corrected GMGSI satellite proxy. ENSO is removed from every track, as the Bureau of Meteorology did before 2014: the part that follows the change of Ni\u00F1o-3.4 over the 120-day filter window, which a growing El Ni\u00F1o otherwise leaves in the index (the forecast holds the latest Ni\u00F1o-3.4; the footer gives the shift). In the 2001\u20132020 hindcasts the ensemble-mean amplitude shrinks with lead, to about 0.83 of the observed by day 35 (Hindcast skill view), so a mean track that keeps growing without moving eastward is a standing pattern in the model, such as drift, not a propagating MJO; the figure says so when the peak is beyond the hindcast\u2019s range."
+          : (a==="hov" ? "OLR and 850 hPa zonal wind anomaly, 15\u00B0S\u201315\u00B0N, lead \u00D7 longitude."
+                       : "Bivariate RMM correlation, RMSE and amplitude ratio of the 2001\u20132020 GEPS8 hindcasts against BoM\u2019s RMM, by lead, with ENSO removed from both as from the live tracks: all starts, by season, strong initial MJO, and the starts within \u00B145 days of today. Red marks: ECMWF\u2019s published extended-range values for reference."); }},
+  weekly: {label: "Weekly means, weeks 1\u20135", fit: false,
+        a: {label:"Domain", items:[["na","North America"],["sa","South America"],
+                                   ["glb","Global (Mercator)"]]},
+        b: {label:"Field", items: FIELDS},
+        c: function (a,b) { return MASKABLE.indexOf(b) >= 0 ? {label:"Skill mask", items:[["off","Off"],["on","On"]]} : null; },
+        img: function (a,b,c) { return "assets/geps/geps_" + a + "_" + b + "_weekly" + (c==="on" ? "_masked" : "") + ".webp"; },
+        cap: function (a,b,c) { return "Five seven-day means, anomaly vs the lead-matched GEPS hindcast."
+          + (c==="on" ? " Hatched where the 2001\u20132020 hindcast's anomaly correlation for this week and season, scored out of sample (each hindcast start de-drifted and re-based without its own year), is not significantly above zero (one-sided 5 % test, 20 years, false-discovery rate 10 % across the map); cross-hatched where there is no verification data." : ""); }},
+  probs: {label: "Weekly terciles \u2014 temperature & precipitation", fit: false,
+        a: {label:"Domain", items:[["na","North America"],["sa","South America"],
+                                   ["glb","Global (Mercator)"]]},
+        b: {label:"Field", items:[["t2m","2 m temp"],["pr","Precip"]]},
+        c: {label:"Probability", items:[["raw","Raw members"],["cal","Hindcast-calibrated"]]},
+        img: function (a,b,c) { return "assets/geps/geps_" + a + "_" + b + "_prob_" + c + ".webp"; },
+        cap: function (a,b,c) { return (c==="raw"
+          ? "Most likely tercile by week: colour is the category (blue below, grey near, red above normal), intensity its probability, from the fraction of the 21 members in each tercile of the 2016\u20132025 weekly anomaly \u2014 a recent-decade normal, not the maps\u2019 1991\u20132020, so the warming since then is not counted as a forecast."
+          : "Most likely tercile by week, calibrated: the ensemble-mean departure from the 2016\u20132025 mean, in units of the hindcast ensemble mean\u2019s spread, weighted by the gridpoint anomaly correlation fitted on 2001\u20132020 hindcasts for this month and week (out of sample: each start de-drifted and re-based without its own year), with the residual spread giving the three tercile probabilities \u2014 exactly one third each where the model has no skill, amplitude restored where it has some.")
+          + " Hatched: hindcast skill not significantly above zero (one-sided 5 % test, false-discovery rate 10 %)." + (b==="pr" ? " Cross-hatched: no gauge truth over the ocean, or a dry climatological week where terciles are undefined." : ""); }},
+  change: {label: "Change vs previous run, weeks 1\u20135", fit: false,
+        a: {label:"Domain", items:[["na","North America"],["sa","South America"],
+                                   ["glb","Global (Mercator)"]]},
+        b: {label:"Field", items: FIELDS},
+        img: function (a,b) { return "assets/geps/geps_" + a + "_" + b + "_change.webp"; },
+        cap: function () { return "This run minus the previous extended run (3\u20134 days earlier), weekly means over the valid days both forecast. Week 5 is a partial week and says so."; }},
+  telecon: {label: "Teleconnections \u2014 AO, NAO, PNA, EPO, WPO, NAM \u2026", fit: false,
+        a: {label:"View", items:[["series","Index plumes"],["probs","Weekly probabilities"],["reliability","Calibration check"],["patterns","Loading patterns"]]},
+        b: function (a) { return a === "series" ? {label:"Index", items: teleIds()} : null; },
+        img: function (a,b) { return a === "series" && b && b !== "board"
+          ? "assets/geps/geps_telecon_plume_" + b + ".webp" : "assets/geps/geps_telecon_" + a + ".webp"; },
+        cap: function (a) { return a==="series"
+          ? "Every member projected on CPC-style loading patterns (EPO/WPO on PSL\u2019s box definitions, NAM at 100 hPa as the annular EOF); the tail is GEPS\u2019s own day-0 analyses on the same projection, the published daily index as crosses, previous run dashed. Pick one index for a full-size plume. Units: seasonal standard deviations of the daily index, i.e. relative to this time of year."
+          : (a==="probs" ? "Upper bar: member fractions of the weekly-mean index at or beyond \u00B10.5 seasonal sd. Thin lower bar: the same probabilities calibrated on 20 years of GEPS8 hindcasts, with the hindcast skill (anomaly correlation) for that index and week, scored out of sample: each hindcast start is de-drifted and re-based without its own year. Hatched cells: skill not significantly above zero (one-sided 5 % test on the hindcast's effective sample) \u2014 the members\u2019 opinion is shown but should not be trusted."
+          : (a==="reliability" ? "Does a calibrated 70 % come true 70 % of the time? Each hindcast year is forecast with the calibration refitted on the other nineteen, and the outcomes are pooled over the indices: the reliability diagrams compare the calibrated phase probabilities with how often the phase was observed, and the PIT histograms show where each observed weekly index fell in its forecast distribution (flat = calibrated, U-shaped = over-confident, dome = under-confident). The footnote names any index and week whose bias or spread is significantly off (bootstrap over hindcast years, false-discovery rate 10 %)."
+                         : "Regression of the monthly field on each index (m or hPa per +1 sd), NCEP/NCAR R1 1991\u20132020, with the correlation of this reproduction against CPC\u2019s own index.")); }},
+  regimes: {label: "Weather regimes \u2014 Euro-Atlantic & North America", fit: false,
+        a: {label:"Sector", items:[["ea","Euro-Atlantic"],["na","North America / Pacific"]]},
+        b: {label:"View", items:[["multi","Multi-model forecast"],["fc","GEPS forecast"],["centroids","Regime patterns"],["impacts","What each regime brings"]]},
+        c: function (a,b) { return b==="impacts" ? {label:"Season", items:[["cold","Oct\u2013Mar set"],["warm","Apr\u2013Sep set"]]} : null; },
+        img: function (a,b,c) { return b==="multi" ? "assets/regimes/regimes_" + a + "_combined.webp"
+                                   : (b==="fc" ? "assets/geps/geps_regimes_" + a + "_fc.webp"
+                                   : (b==="impacts" ? "assets/geps/regimes_impacts_" + a + "_" + (c || "cold") + ".webp"
+                                                    : "assets/geps/geps_regimes_" + a + ".webp")); },
+        cap: function (a,b) { return b==="multi"
+          ? "GEPS (21 members, days 1\u201335), GEFS (31, days 1\u201335), AIFS-ENS (26 of its 51 members) and IFS-ENS (50), both days 1\u201315, each run\u2019s members assigned to the regime of each day\u2019s season, then averaged with equal weight per model over the models that cover each date. The strip under the chart shows each model\u2019s most likely regime by day, and the heat-grid gives the model range and how many models agree on the top regime each week. Hatched weeks: neither the GEPS nor the GEFS hindcast beats persistence or climatology significantly (year-block bootstrap, 95%). A model whose newest run is too old is left out and named in the footnote. Updated daily; built in Actions."
+          : (b==="fc" ? "Share of the 21 GEPS members in each regime by day (each day classified with its own season\u2019s regime set; \u201Cno regime\u201D grey at the bottom), the last 14 observed days (GEPS analyses) running into the forecast, the previous run as a thin outline, the weekly probabilities as a heat-grid (outlined: the most likely regime; hatched: weeks where the 2001\u20132020 GEPS8 hindcast hit rate is not significantly above persistence or climatology), and that hit rate by lead with its 95% interval, scored out of sample (each hindcast start de-drifted and re-based without its own year)."
+          : (b==="impacts" ? "ERA5 1991\u20132020 composites of 2 m temperature and precipitation over the days NCEP/NCAR R1 was in each regime (anomalies against the day-of-year normal, each season\u2019s linear trend removed), with the regime\u2019s 500 hPa pattern as contours. Colour is shown only where the composite is significant: a t-test on regime-episode means, false discovery rate held at 10% over the map (Benjamini\u2013Hochberg, Wilks 2016); white means no significant difference from normal."
+                           : "The four cold-season (Oct\u2013Mar) and four warm-season (Apr\u2013Sep) regimes: k-means on 5-day-mean 500 hPa anomalies, NCEP/NCAR R1 1991\u20132020, named by inspection, with the share of days in each regime by calendar month. Frame colours pair cold and warm regimes whose patterns correlate \u2265 0.6; the forecasts keep those colours across the October and April switch.")); }},
+  clusters: {label: "500 hPa scenarios \u2014 ensemble clusters by week", fit: false,
+        a: {label:"Sector", items:[["ea","Euro-Atlantic"],["na","North America / Pacific"]]},
+        img: function (a) { return "assets/geps/geps_clusters_" + a + ".webp"; },
+        cap: function () { return "For each week the 21 members\u2019 weekly 500 hPa patterns are clustered with k = 2, 3 and 4, each tested against random rotations of the same members; the k that beats its null by most is shown as scenario means with member counts and nearest regime. If none does, the ensemble is one scenario with spread and the two-way split is drawn faded."; }},
+  daily: {label: "Daily animation",
+        a: {label:"Domain", items:[["na","North America"],["sa","South America"],
+                                   ["glb","Global (Mercator)"]]},
+        frame: function (a) { return "sst_anim.html?base=assets/geps/anim&manifest=geps_" + a + "_manifest.json&embed=1"; },
+        ratio: function (a) { return a==="na" ? "760/640"
+                             : (a==="sa" ? "760/1041" : "1191/700"); },
+        cap: function () { return "One frame per forecast day, nine fields. 24-hour means."; }},
+  stratlink: {label: "Stratosphere: moved to the stratosphere page", dom: function () { return "dom-stratlink"; }}
+};
+var MASKABLE = ["t2m","pr","zg500","mslp"];   // fields with a hindcast skill file
+var TELE_IDS = [["board","All indices (board)"],["ao","AO \u2014 Arctic Oscillation"],["nao","NAO \u2014 North Atlantic Oscillation"],
+  ["pna","PNA \u2014 Pacific / North American"],["epo","EPO \u2014 Eastern Pacific Oscillation"],["wpo","WPO \u2014 Western Pacific Oscillation"],
+  ["soi","SOI \u2014 Southern Oscillation Index"],["eqsoi","EQSOI \u2014 Equatorial SOI"],
+  ["ea","EA \u2014 East Atlantic"],["wp","WP \u2014 West Pacific"],["epnp","EP/NP \u2014 East Pacific / North Pacific"],
+  ["eawr","EA/WR \u2014 East Atlantic / West Russia"],["sca","SCA \u2014 Scandinavia"],["tnh","TNH \u2014 Tropical / N. Hemisphere (Dec\u2013Feb)"],
+  ["pol","POL \u2014 Polar / Eurasia"],["nam100","NAM 100 hPa \u2014 Northern Annular Mode"],["aao","AAO \u2014 Antarctic Oscillation (SAM)"]];
+// Only the indices this run drew: telecon.json lists them (scripts/geps/telecon_geps.py leaves out a pattern CPC does
+// not define in the valid months, e.g. TNH outside December-February), so no option points at a plume that is not there.
+function teleIds() { return TELE ? TELE_IDS.filter(function (t) { return t[0] === "board" || TELE.indices[t[0]]; }) : TELE_IDS; }
+var GROUPS = [["Maps", "\u{1F5FA}", [["weekly","Weekly means","weeks 1\u20135, nine fields"],["probs","Weekly terciles","temperature and precipitation"],["change","Change vs previous run","this run minus the last"],["daily","Daily animation","nine fields, day by day"]]],
+              ["Patterns", "\u2699", [["telecon","Teleconnections","AO, NAO, PNA, EPO \u2026"],["regimes","Weather regimes","Euro-Atlantic, N. America"],["clusters","500 hPa scenarios","ensemble clusters by week"]]],
+              ["Tropics", "\u{1F30A}", [["mjo","MJO","RMM plume, propagation, skill"]]],
+              ["Stratosphere", "\u2744", [["stratlink","Polar vortex","on the stratosphere page"]]]];
+// One viewer for the site (assets/stage.js): the selection lives in the #product/a/b/c hash, also followed on
+// hashchange (the finder's same-page jumps); the tables follow the selection.
+var sel = { p: null, a: null, b: null, c: null };
+var $ = function (id) { return document.getElementById(id); };
+window.STAGE = {
+  groups: GROUPS.map(function (g) { return { label: g[0], ico: g[1], items: g[2] }; }),
+  products: P,
+  onRender: function (s) { sel = s; teleTable(s.p === "telecon"); mjoTable(s.p === "mjo" && s.a === "skill"); }
+};
+
+// The numbers behind the teleconnection figures: one row per index, one cell
+// per week with P(<= -0.5) / P(>= +0.5), the weekly mean and its change since
+// the previous run. Rendered from telecon.json so it never drifts from the plots.
+var TELE = null;
+function teleTable(show) {
+  var host = $("tele-table");
+  host.hidden = !show;
+  if (!show) return;
+  if (TELE === null) {
+    TELE = false;
+    fetch("assets/geps/telecon.json").then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (j) {
+        if (!j || !j.indices || !Object.keys(j.indices).length) throw new Error("no indices");   // stays false
+        TELE = j;
+        // the index list may have shrunk (teleIds): redraw the options, which redraws this table too
+        if (sel.p === "telecon" && sel.a === "series" && window.STAGE.refresh) window.STAGE.refresh();
+        else teleTable(sel.p === "telecon");
+      })
+      .catch(function () { host.innerHTML = ""; });
+    return;
+  }
+  if (!TELE) return;
+  var ids = Object.keys(TELE.indices);
+  var wk = TELE.indices[ids[0]].weeks;
+  var h = '<table class="tele"><thead><tr><th>index</th>';
+  wk.forEach(function (w) {
+    h += "<th>week " + w.week + "<span>" + w.d0.slice(5).replace("-", "/") + " \u2013 " + w.d1.slice(5).replace("-", "/") + (w.ndays < 7 ? " (" + w.ndays + " d)" : "") + "</span></th>";
+  });
+  h += "<th>vs CPC<span>out of sample</span></th></tr></thead><tbody>";
+  ids.forEach(function (id) {
+    var x = TELE.indices[id];
+    h += "<tr><th>" + id.toUpperCase() + "<span>" + x.name + "</span></th>";
+    x.weeks.forEach(function (w) {
+      var tilt = w.p_pos - w.p_neg;
+      var bg = tilt > 0 ? "rgba(180,69,60," + (0.08 + 0.55 * tilt) + ")"
+                        : "rgba(44,95,168," + (0.08 - 0.55 * tilt) + ")";
+      var d = ("prev_mean" in w) ? " <i>\u0394" + (w.mean - w.prev_mean >= 0 ? "+" : "") + (w.mean - w.prev_mean).toFixed(1) + "</i>" : "";
+      var off = w.cal_cv && (w.cal_cv.miscal_bias || w.cal_cv.miscal_spread) ? " \u2020" : "";
+      var cal = ("skill_r" in w) ? "<span>cal " + Math.round(w.cal_p_neg * 100) + "% / " + Math.round(w.cal_p_pos * 100) + "%" + off + " \u00B7 skill r " + w.skill_r.toFixed(2) + "</span>"
+                                 : (x.has_hindcast ? "" : "<span><i>no hindcast</i></span>");
+      var cls = w.no_skill ? ' class="noskill"' : "";
+      h += '<td' + cls + ' style="background:' + bg + '"><b>' + Math.round(w.p_neg * 100) + "% / " + Math.round(w.p_pos * 100) + "%</b><span>mean " + (w.mean >= 0 ? "+" : "") + w.mean.toFixed(1) + d + "</span>" + cal + "</td>";
+    });
+    var r = x.r_daily != null ? "r " + x.r_daily.toFixed(2) + " daily" : (x.r_monthly != null ? "r " + x.r_monthly.toFixed(2) + " monthly" : "\u2014");
+    h += "<td class=\"r\">" + r + "</td></tr>";
+  });
+  h += "</tbody></table><p class=\"cap\">P(weekly mean \u2264 \u2212" + TELE.threshold + " seasonal sd) / P(\u2265 +" + TELE.threshold + " seasonal sd) over " + TELE.n_members + " members; cells tilt red toward the positive phase, blue toward the negative. \u0394 is the change in the weekly mean since the " + TELE.prev_cycle.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3") + " run. \u201Ccal\u201D is the calibrated probability: the observed weekly index regressed on the hindcast ensemble-mean index over 2001\u20132020 starts within \u00B145 days of this date, applied to today\u2019s ensemble mean, with the regression\u2019s residual spread widened for the uncertainty of its own fit; skill r is the anomaly correlation of the hindcast ensemble mean, out of sample (each hindcast start is de-drifted against a climatology, and re-based with an ERA5 normal, that leave out its own year), so a cal near 31% / 31% with r near 0 is climatology. \u2020 marks a calibration the cross-validated check finds significantly biased or over- or under-confident (the Calibration check view). Hatched cells have skill r below " + TELE.skill_min + " or not significant (one-sided 5%, effective sample size, and a false discovery rate of 10% over every index and week); NAM 100 hPa has no hindcast (the GEPS8 archive has no 100 hPa height) and is uncalibrated. r is the correlation of this index reproduction with CPC\u2019s published index, scored out of sample (patterns fitted 1991\u20132005, scored 2006\u20132020; AO/AAO are EOFs with no fit to CPC).</p>";
+  host.innerHTML = h;
+}
+
+// MJO hindcast skill numbers, from mjo_skill.json: the forecast day at which
+// the bivariate correlation falls through 0.6 and 0.5, and the correlation at
+// fixed leads, per subset of starts.
+var MJOS = null;
+function mjoTable(show) {
+  var host = $("mjo-table");
+  host.hidden = !show;
+  if (!show) return;
+  if (MJOS === null) {
+    MJOS = false;
+    fetch("assets/geps/mjo_skill.json").then(function (r) { return r.json(); })
+      .then(function (j) { MJOS = j; mjoTable(sel.p === "mjo" && sel.a === "skill"); })
+      .catch(function () { host.innerHTML = ""; });
+    return;
+  }
+  if (!MJOS) return;
+  var days = [5, 10, 15, 20, 25, 30];
+  var h = '<table class="tele"><thead><tr><th>starts</th><th>n</th><th>day COR = 0.6</th><th>day COR = 0.5</th>';
+  days.forEach(function (d) { h += "<th>COR day " + d + "</th>"; });
+  h += "</tr></thead><tbody>";
+  Object.keys(MJOS.subsets).forEach(function (k) {
+    var x = MJOS.subsets[k];
+    h += "<tr><th>" + k + "</th><td>" + x.n_starts + "</td><td><b>" + (x["day_cor_0.6"] == null ? "\u2014" : x["day_cor_0.6"].toFixed(1)) + "</b></td><td><b>" + (x["day_cor_0.5"] == null ? "\u2014" : x["day_cor_0.5"].toFixed(1)) + "</b></td>";
+    days.forEach(function (d) { h += "<td>" + x.cor[d - 1].toFixed(2) + "</td>"; });
+    h += "</tr>";
+  });
+  var e = MJOS.ecmwf_reference;
+  h += '<tr><th>ECMWF extended range, published</th><td>\u2014</td><td><b>' + e["COR 0.6"][0] + "\u2013" + e["COR 0.6"][1] + '</b></td><td><b>' + e["COR 0.5"][0] + "\u2013" + e["COR 0.5"][1] + "</b></td><td colspan=\"6\"><span>Vitart (2017, QJRMS) and ECMWF verification memoranda; 11-member reforecast mean, own analysis as truth \u2014 a reference, not a like-for-like score</span></td></tr>";
+  h += "</tbody></table><p class=\"cap\">GEPS8 hindcast, 2001\u20132020, four-member ensemble mean, verified against BoM\u2019s RMM on the valid date, ENSO removed from both. \u201Cnow\u201D is the starts within \u00B145 days of day-of-year " + MJOS.doy_now + ". The operational 21-member mean should reach each threshold two to three days later than these hindcast numbers.</p>";
+  host.innerHTML = h;
+}
+
+// Cycle stamp. geps.yml writes assets/geps/cycle.json and never commits this page (a run that started before a page
+// edit would commit its stale copy of the whole page and revert the edit). The text in the markup is only the no-JS
+// fallback.
+(function () {
+  var M = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  function md(iso) { var d = new Date(iso + "T00:00:00Z"); return M[d.getUTCMonth()] + " " + d.getUTCDate(); }
+  fetch("assets/geps/cycle.json", { cache: "no-cache" }).then(function (r) { if (!r.ok) throw r.status; return r.json(); })
+    .then(function (j) {
+      if (!j || !/^\d{4}-\d{2}-\d{2}$/.test(j.init_date || "")) return;
+      var t = j.init_date + " " + (j.init_hour || "00") + "Z";
+      document.querySelectorAll("[data-cycle]").forEach(function (e) { e.textContent = t; });
+      document.querySelectorAll("[data-init]").forEach(function (e) { e.textContent = "init " + t; });
+      if (j.valid_from && j.valid_to)
+        document.querySelectorAll("[data-valid]").forEach(function (e) { e.textContent = md(j.valid_from) + " \u2013 " + md(j.valid_to); });
+    }).catch(function () {});
+})();
+
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+<script src="/assets/stage.js?v=9b0ca26c66" defer></script>
+</body>
+</html>

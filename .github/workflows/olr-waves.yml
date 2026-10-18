@@ -1,0 +1,94 @@
+name: OLR wave decomposition (Wheeler-Kiladis)
+
+# Real-time Wheeler-Kiladis decomposition of equatorial OLR (MJO / Kelvin / ER / low-freq).
+# Daily: add the days the rolling store still lacks (to yesterday, once all four synoptic GMGSI
+# images are posted; the whole window when the store was sampled at other hours), then re-filter
+# + render. The committed baseline (metar/olr_baseline.nc: the ERA5 1991-2020 climatology and the
+# proxy's offset from ERA5, olr-baseline.yml) and rolling store (metar/olr_rt.nc) travel with the repo.
+on:
+  schedule:
+  - cron: '40 2 * * *'    # daily, after the prior day's GMGSI is complete
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: olr-waves
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy pandas xarray netcdf4 scipy matplotlib "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+      - run: python scripts/sst/build_olr_realtime.py
+      - run: python scripts/sst/olr_waves.py --realtime --out assets/sst/olr_waves.webp
+      # The Kelvin/Rossby trackers (wave_tracker.webp) are drawn in mjo.yml, which has the AIFS-ENS rain for their
+      # forecast strip; they read the olr_rt.nc this job commits.
+      # Wheeler-Kiladis spectrum for tropical-waves.html: last 96 days of observed OLR (NASA CERES FLASHFlux, NOAA-20,
+      # ~4 days behind; Earthdata login) divided by a background from the whole CERES record (committed
+      # scripts/mjo/data/reference/wk_bg_ceres.nc), only bins significant at BH FDR 10 % shaded.
+      # The 15S-15N daily OLR ARCHIVE lives on the frames branch (assets/sst/anim/wk_olr, monthly npz, ~1 MB each) and
+      # grows every run; it is what the background is rebuilt from (wk_spectrum.py --build-bg, run offline). The publish
+      # swaps the directory in WHOLESALE, so a run that could not seed it backfills the whole record first and never
+      # publishes a short archive over a long one.
+      # The Wheeler-Kiladis spectrum is not shown on tropical-waves.html, so its three steps are disabled (if: false),
+      # not deleted; wk_spectrum.py and the frames-branch archive remain.
+      - name: Seed the OLR archive from the frames branch
+        if: false
+        run: scripts/lib/fetch_frames_ci.sh assets/sst/anim/wk_olr || true
+      - name: Wheeler-Kiladis spectrum
+        if: false
+        id: wk
+        env:
+          EARTHDATA_USERNAME: ${{ secrets.EARTHDATA_USERNAME }}
+          EARTHDATA_PASSWORD: ${{ secrets.EARTHDATA_PASSWORD }}
+          WK_ARCHIVE: ${{ github.workspace }}/assets/sst/anim/wk_olr
+          WK_CACHE: /home/runner/wk_flashflux
+        working-directory: scripts/mjo/src
+        run: |
+          pip install --quiet earthaccess
+          n=$(python -c "import wk_spectrum as w; print(len(w.archive_read()[0]))" 2>/dev/null || echo 0)
+          echo "archive days before: $n"
+          if [ "$n" -lt 900 ]; then
+            echo "::warning::OLR archive short ($n days); backfilling from 2023-12-01"
+            python wk_spectrum.py --backfill 2023-12-01 || { echo "::warning::backfill failed; archive not published"; exit 0; }
+          fi
+          python wk_spectrum.py --out ../../../assets/sst/wk_spectrum.webp || echo "::warning::Wheeler-Kiladis spectrum failed; continuing"
+          m=$(python -c "import wk_spectrum as w; print(len(w.archive_read()[0]))" 2>/dev/null || echo 0)
+          echo "archive days after: $m"
+          if [ "$m" -ge 900 ] && [ "$m" -ge "$n" ]; then echo "publish=1" >> "$GITHUB_OUTPUT"; fi
+      - name: Publish the OLR archive
+        if: steps.wk.outputs.publish == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/wk_olr || echo "::warning::OLR archive publish failed"
+      - name: Commit & push
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "26825570+scorvec@users.noreply.github.com"
+          # Snapshot the outputs, then commit on a clean sync of origin/main each attempt (the mjo.yml pattern), never
+          # a rebase: a collided rebase can drop the build.
+          OUT="assets/sst/olr_waves.webp scripts/sst/metar/olr_rt.nc"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add $OUT
+            if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+            git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push; then echo "pushed (attempt $i)"; exit 0; fi
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1

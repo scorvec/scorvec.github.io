@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Primary SEO metadata -->
+<title>Shawn Corvec — Meteorologist & Atmospheric Scientist</title>
+<meta name="description" content="Meteorologist and atmospheric scientist Shawn Corvec: numerical weather prediction, forecasting and energy markets, with live products from open model data.">
+<meta name="author" content="Shawn Corvec">
+<link rel="canonical" href="https://scorvec.com/">
+<meta name="robots" content="index, follow">
+
+<!-- Open Graph (link previews on social, Slack, iMessage) -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Shawn Corvec — Meteorologist &amp; Atmospheric Scientist">
+<meta property="og:description" content="Quantitative meteorologist working on numerical weather prediction, operational forecasting, and energy markets. Live weather and climate products from open model data.">
+<meta property="og:url" content="https://scorvec.com/">
+<meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
+<meta property="og:image:alt" content="A supercell thunderstorm over green prairie under a blue sky">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta property="og:locale" content="en_US">
+
+<!-- Twitter card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Shawn Corvec — Meteorologist &amp; Atmospheric Scientist">
+<meta name="twitter:description" content="Meteorologist working on numerical weather prediction, operational forecasting, and energy markets.">
+<meta name="twitter:image" content="https://scorvec.com/hero-supercell-1280.webp">
+
+<!-- Structured data: a person, and the site itself -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Person",
+      "@id": "https://scorvec.com/#person",
+      "name": "Shawn Corvec",
+      "givenName": "Shawn",
+      "familyName": "Corvec",
+      "alternateName": "S. Corvec",
+      "url": "https://scorvec.com/",
+      "image": "https://scorvec.com/profile.jpg",
+      "jobTitle": "Meteorologist & Atmospheric Scientist",
+      "worksFor": { "@type": "Organization", "name": "bp", "url": "https://www.bp.com/" },
+      "alumniOf": [
+        { "@type": "CollegeOrUniversity", "name": "University of Waterloo", "url": "https://uwaterloo.ca/" },
+        { "@type": "CollegeOrUniversity", "name": "Dalhousie University", "url": "https://www.dal.ca/" }
+      ],
+      "description": "Quantitative meteorologist with experience in numerical weather prediction, operational forecasting, and energy markets.",
+      "knowsAbout": [
+        "Numerical weather prediction",
+        "Operational forecasting",
+        "Energy markets",
+        "Atmospheric science",
+        "El Niño–Southern Oscillation",
+        "Madden–Julian Oscillation",
+        "Wind generation forecasting"
+      ],
+      "sameAs": [
+        "https://www.linkedin.com/in/shawn-corvec-35895b231/",
+        "https://www.researchgate.net/profile/Shawn-Corvec",
+        "https://scholar.google.com/citations?user=EYLRCJIAAAAJ&hl=en",
+        "https://github.com/scorvec",
+        "https://orcid.org/0000-0002-6948-5697"
+      ]
+    },
+    {
+      "@type": "ProfilePage",
+      "@id": "https://scorvec.com/#profilepage",
+      "url": "https://scorvec.com/",
+      "name": "Shawn Corvec — Meteorologist & Atmospheric Scientist",
+      "mainEntity": { "@id": "https://scorvec.com/#person" },
+      "isPartOf": { "@id": "https://scorvec.com/#website" }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://scorvec.com/#website",
+      "url": "https://scorvec.com/",
+      "name": "Shawn Corvec",
+      "author": { "@id": "https://scorvec.com/#person" },
+      "inLanguage": "en"
+    }
+  ]
+}
+</script>
+
+<!-- The hero photograph is the largest contentful paint: fetch it before the stylesheet parses. -->
+<link rel="preload" as="image"
+      imagesrcset="/hero-supercell-800.webp 800w, /hero-supercell-1280.webp 1280w, /hero-supercell-1920.webp 1920w"
+      imagesizes="100vw">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+
+<style>
+  /* Palette sampled from the photograph: sky, cloud, storm base, hills, prairie. */
+  :root {
+    --sky: #4878af;
+    --sky-deep: #274b7a;
+    --cloud: #eef0eb;
+    --cloud-2: #e3e6df;
+    --storm: #5c6b73;
+    --prairie: #29321f;
+    --grass: #9a8342;       /* outline / underline accent (non-text, 3:1 is enough) */
+    --grass-ink: #74622f;   /* the same gold as text: 5.2:1 on the row background */
+    --serif: 'Newsreader', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+    --sans: 'Schibsted Grotesk', 'Helvetica Neue', Arial, sans-serif;
+    --measure: 66rem;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    background: var(--cloud);
+    color: var(--prairie);
+    font-family: var(--sans);
+    font-size: 1.0625rem;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  a:focus-visible { outline: 2px solid var(--sky); outline-offset: 3px; }
+
+  /* ── Hero: the photograph, full viewport, nothing on top of the storm ── */
+  .hero {
+    position: relative;
+    height: clamp(24rem, 58vh, 38rem);     /* fallback for browsers without svh (Safari < 15.4) */
+    height: clamp(24rem, 58svh, 38rem);
+    overflow: hidden;
+    background: var(--sky);
+  }
+  .hero img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    /* keep the updraft in frame when the viewport is narrower than 4:3 */
+    object-position: 42% 58%;
+  }
+  /* a low band of shade over the fields so the name reads; the sky stays untouched */
+  .hero::after {
+    content: '';
+    position: absolute; left: 0; right: 0; bottom: 0; height: 64%;
+    background: linear-gradient(to top, rgba(14, 20, 11, 0.92) 0%, rgba(14, 20, 11, 0.72) 32%, rgba(14, 20, 11, 0.36) 66%, rgba(14, 20, 11, 0) 100%);
+    pointer-events: none;
+  }
+  /* a second, narrower band at the top so the menu reads against a bright sky */
+  .hero::before {
+    content: '';
+    position: absolute; left: 0; right: 0; top: 0; height: 150px; z-index: 1;
+    background: linear-gradient(to bottom, rgba(10, 16, 24, 0.62) 0%, rgba(10, 16, 24, 0.28) 55%, rgba(10, 16, 24, 0) 100%);
+    pointer-events: none;
+  }
+  .hero-text {
+    position: absolute; z-index: 2;
+    left: 50%; transform: translateX(-50%);
+    bottom: clamp(2rem, 6vh, 4.5rem);
+    width: min(44rem, calc(100% - 2.5rem));
+    text-align: center;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55), 0 6px 24px rgba(0, 0, 0, 0.35);
+  }
+  .hero-text h1 {
+    font-family: var(--serif);
+    font-size: clamp(2.6rem, 6.2vw, 4.6rem);
+    font-weight: 400; line-height: 1.02; letter-spacing: -0.012em;
+    font-variation-settings: 'opsz' 72;
+    margin-bottom: 0.55rem;
+  }
+  .hero-text .role {
+    font-family: var(--serif); font-style: italic;
+    font-size: clamp(1.35rem, 2.2vw, 1.7rem);
+    font-variation-settings: 'opsz' 24;
+    line-height: 1.3;
+    color: rgba(255, 255, 255, 0.92);
+    margin-bottom: 1.1rem;
+  }
+  .hero-text p {
+    font-size: 1.2rem; line-height: 1.55; max-width: 36rem;
+    margin: 0 auto;                       /* the paragraph is narrower than the block: centre it too */
+    color: rgba(255, 255, 255, 0.95);
+  }
+  /* the hub's one call to action: the catalogue, as a quiet outlined pill on the photograph */
+  .hero-text .hero-find {
+    display: inline-block; margin-left: 0.4rem; padding: 0.12rem 0.75rem; border-radius: 999px;
+    color: #fff; text-decoration: none; border: 1px solid rgba(255, 255, 255, 0.6); background: rgba(255, 255, 255, 0.1);
+    font-size: 1rem; text-shadow: none; white-space: nowrap;
+  }
+  .hero-text .hero-find:hover { background: rgba(255, 255, 255, 0.22); }
+
+  .wrap { max-width: 74rem; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3rem); }
+  /* wide screens: the content takes the header's width and padding (site.css .sh-in), so its edges line up with the search
+     box and the About menu instead of a 74rem column with ~430 px empty on each side at 2160 px */
+  @media (min-width: 1100px) { .wrap { max-width: min(94vw, 2000px); padding: 0 clamp(1rem, 3vw, 2.5rem); } }
+
+  /* ── Right now: compact live readings, few and uncluttered. Every number is read live (midterms summary.json, the
+     ENSO feeds); on any failure the dashes stay and the card still links. ── */
+  .now { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: clamp(1.75rem, 4vw, 2.75rem); }
+  .nc {
+    position: relative; display: flex; flex-direction: column; min-width: 0;
+    padding: 1.05rem 1.2rem 1rem; background: #fff; text-decoration: none;
+    border: 1px solid var(--cloud-2); border-top: 4px solid var(--acc, var(--sky-deep)); border-radius: 10px;
+    transition: box-shadow .15s;
+  }
+  .nc:hover { box-shadow: 0 2px 14px rgba(39, 75, 122, 0.13); }
+  .nc:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
+  .nc .k { font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--storm); font-weight: 500; }
+  .nc .v { display: flex; flex-wrap: wrap; gap: 0.2rem 1.4rem; margin-top: 0.45rem; }
+  .nc .v span { display: flex; flex-direction: column; min-width: 0; }
+  .nc b {
+    font-family: var(--serif); font-weight: 400; font-size: clamp(2rem, 3.2vw, 2.6rem); line-height: 1.05;
+    font-variation-settings: 'opsz' 72; color: var(--acc, var(--sky-deep)); font-variant-numeric: tabular-nums;
+  }
+  .nc .v small { font-size: 0.86rem; color: var(--prairie); line-height: 1.3; }
+  .nc .s { margin-top: 0.55rem; font-size: 0.88rem; line-height: 1.4; color: var(--storm); }
+  .nc .s.src { margin-top: 0.4rem; font-size: 0.76rem; }
+  .nc .go { margin-top: auto; padding-top: 0.6rem; font-size: 0.9rem; font-weight: 500; color: var(--acc, var(--sky-deep));
+            text-decoration: underline; text-underline-offset: 0.2em; text-decoration-color: transparent; }
+  .nc:hover .go { text-decoration-color: currentColor; }
+  .nc--mt { --acc: #274b7a; }
+  .nc--en { --acc: #9a3f14; }
+  /* drawn at its real pixel width (viewBox = the element's width, height fixed): a fixed 320-wide viewBox stretched to
+     a 560 px card would blow the labels up to ~17 px and the chart to 160 px */
+  .spark { display: block; width: 100%; height: 92px; margin-top: 0.5rem; }
+  .spark text { font-family: var(--sans); font-size: 12px; fill: var(--storm); }
+  .spark.seats { height: 68px; }
+
+  /* ── The themes: the menus' six groups as tiles, their key pages as plain links (the descriptions are tooltips and
+     live on the pages and in the catalogue); the rest of a theme's pages sit behind "n more". ── */
+  .themes { padding: clamp(2.5rem, 6vw, 4rem) 0 clamp(2rem, 5vw, 3rem); }
+  /* heading with its note underneath (spread to opposite ends, the note would float ~1,000 px from its heading once
+     the content takes the header's width) */
+  .themes-head { display: flex; flex-direction: column; align-items: flex-start; gap: 0.35rem; margin-bottom: 1.25rem; }
+  .themes-head h2 {
+    font-family: var(--serif); font-weight: 400; font-size: clamp(1.7rem, 3vw, 2.3rem); line-height: 1.1;
+    letter-spacing: -0.01em; font-variation-settings: 'opsz' 60;
+  }
+  .themes-head p { color: var(--storm); font-size: 0.98rem; max-width: 38rem; }
+  .themes-head p a { text-underline-offset: 0.2em; text-decoration-color: rgba(92, 107, 115, 0.5); }
+  .sgs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; align-items: start; }   /* each tile as tall as its list: no half-empty boxes */
+  .sg {
+    display: flex; flex-direction: column; min-width: 0;
+    padding: 1.1rem 1.25rem 0.95rem; background: #fff;
+    border: 1px solid var(--cloud-2); border-top: 4px solid var(--acc, var(--sky-deep)); border-radius: 10px;
+  }
+  .sg[data-topic="weather"] { --acc: #274b7a; }
+  .sg[data-topic="drivers"] { --acc: #9a3f14; }
+  .sg[data-topic="circulation"] { --acc: #5b4a8a; }
+  .sg[data-topic="outlooks"] { --acc: #3f6b3a; }
+  .sg[data-topic="research"] { --acc: #4f5d65; }
+  .sg[data-topic="tools"] { --acc: #74622f; }
+  .sg h3 {
+    font-family: var(--serif); font-weight: 500; font-size: 1.32rem; line-height: 1.2;
+    font-variation-settings: 'opsz' 24; color: var(--acc, var(--sky-deep));
+  }
+  .sg > p { margin-top: 0.25rem; font-size: 0.92rem; line-height: 1.4; color: var(--storm); }
+  .sg ul { list-style: none; margin-top: 0.7rem; }
+  .sg li { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; border-top: 1px solid var(--cloud-2); }
+  .sg li a {
+    flex: 1 1 auto; min-width: 0; padding: 0.5rem 0; font-size: 1rem; line-height: 1.3; text-decoration: none; color: var(--prairie);
+  }
+  .sg li a:hover { text-decoration: underline; text-underline-offset: 0.18em; text-decoration-color: var(--acc); }
+  .sg-more { border-top: 1px solid var(--cloud-2); }
+  .sg-more summary {                      /* block, not flex: Safari ignored display:flex on <summary> before 16 */
+    display: block; cursor: pointer; padding: 0.5rem 0; font-size: 0.92rem; color: var(--storm); list-style: none;
+  }
+  .sg-more summary::-webkit-details-marker { display: none; }
+  .sg-more summary::before { content: '+'; display: inline-block; width: 1em; margin-right: 0.35rem; text-align: center; font-weight: 500; color: var(--acc); }
+  .sg-more[open] summary::before { content: '−'; }
+  .sg-more summary:hover { color: var(--prairie); }
+  .sg-more ul { margin-top: 0; }
+  .sg-all {
+    margin-top: auto; padding-top: 0.7rem; align-self: flex-start;
+    font-size: 0.9rem; font-weight: 500; color: var(--acc); text-underline-offset: 0.2em; text-decoration-color: transparent;
+  }
+  .sg-all::after { content: ' →'; }
+  .sg-all:hover { text-decoration-color: currentColor; }
+  .sg a:focus-visible, .sg-more summary:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; border-radius: 3px; }
+  .note { margin-top: 1.75rem; max-width: 72ch; font-size: 0.9rem; line-height: 1.5; color: var(--storm);
+          border-left: 3px solid var(--cloud-2); padding-left: 0.9rem; }
+
+  @media (max-width: 1020px) {
+    .sgs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 640px) {
+    .sgs, .now { grid-template-columns: 1fr; }
+    .sg li a { padding: 0.62rem 0; }        /* 44 px touch rows */
+  }
+
+  footer { border-top: 1px solid var(--cloud-2); padding: 1.4rem 0 2rem; font-size: 0.9rem; color: var(--storm); }
+  footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 2rem; }
+  footer a { text-decoration: underline; text-underline-offset: 0.2em; text-decoration-color: rgba(92,107,115,0.45); }
+
+  @media (max-width: 520px) {
+    .hero img { object-position: 40% 55%; }
+    /* narrow phones: the text sets the hero's height (never below the usual one), so the title cannot rise under
+       the menu; 84 px = the overlay header's row */
+    .hero {
+      height: auto; min-height: clamp(24rem, 58vh, 38rem); min-height: clamp(24rem, 58svh, 38rem);
+      display: flex; flex-direction: column; justify-content: flex-end; padding-top: 84px;
+    }
+    .hero-text { position: relative; left: auto; bottom: auto; transform: none; margin: 0 auto clamp(2rem, 6vh, 4.5rem); }
+  }
+  /* wide screens: the homepage scales as a whole - rem-sized type and spacing together - up from site.css's 110 %
+     (html:root:root outranks its html:root, which loads after this block) */
+  @media (min-width: 1700px) { html:root:root { font-size: 122%; } .spark text { font-size: 13.5px; } }
+  @media (min-width: 2000px) { html:root:root { font-size: 130%; } .spark text { font-size: 14.5px; } }
+</style>
+<link rel="stylesheet" href="/assets/site.css?v=aeb29dffe4">
+<script src="/assets/site.js?v=fe84a7e3e0" defer></script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
+</head>
+
+<body>
+<!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
+<header class="sh sh--overlay" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Mid-latitude weather</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div class="sh-col">
+              <div>
+                <h3>Surface and hazards</h3>
+                <ul>
+                  <li><a href="/models.html">Short-range model maps</a></li>
+                  <li><a href="/ar.html">Atmospheric rivers</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Upper air</h3>
+                <ul>
+                  <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                  <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                  <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1"><span class="sh-lf">Global circulation and tropics</span><span class="sh-ls">Circulation/tropics</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div class="sh-col">
+              <div>
+                <h3>ENSO and the MJO</h3>
+                <ul>
+                  <li><a href="/enso.html">El Niño monitor</a></li>
+                  <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+                  <li><a href="/circulation.html#gdps_ir">Simulated satellite (GDPS)</a></li>
+                  <li><a href="/mjo.html">MJO forecast</a></li>
+                  <li><a href="/tropical-waves.html">Tropical waves</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tropical cyclones</h3>
+                <ul>
+                  <li><a href="/circulation.html#tcshear">Shear and environment</a></li>
+                  <li><a href="/recon.html">Hurricane reconnaissance</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Jets and momentum</h3>
+                <ul>
+                  <li><a href="/circulation.html#jets">Subtropical jets</a></li>
+                  <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tropical overturning</h3>
+                <ul>
+                  <li><a href="/circulation.html#walker">Walker circulation</a></li>
+                  <li><a href="/circulation.html#hadley">Hadley cells</a></li>
+                  <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                  <li><a href="/circulation.html#gdps150">Upper-level outflow (GDPS)</a></li>
+                  <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+                  <li><a href="/circulation.html#rainfc">Rain forecast, weeks 1–2</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols sh-menu--one" id="sh-g2">
+            <div class="sh-col">
+              <div>
+                <h3>By timescale</h3>
+                <ul>
+                  <li><a href="/stratosphere.html">Every stratosphere product</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div class="sh-col">
+              <div>
+                <h3>Extended range</h3>
+                <ul>
+                  <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                  <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+                  <li><a href="/sfs-subseasonal.html">SFS extended (experimental)</a></li>
+                  <li><a href="/monthly-outlook.html">Claude's month-ahead forecast</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Seasons</h3>
+                <ul>
+                  <li><a href="/seasonal.html">Seasonal model forecasts</a></li>
+                  <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div class="sh-col">
+              <div>
+                <h3>Studies</h3>
+                <ul>
+                  <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                  <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                  <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
+                  <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
+                  <li><a href="/topics/">Explainers</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Verification</h3>
+                <ul>
+                  <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+                  <li><a href="/verification.html">Global models against observations</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+              <li><a href="/fci.html">US credit conditions</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+
+<header class="hero">
+  <img src="/hero-supercell-1920.webp"
+       srcset="/hero-supercell-800.webp 800w, /hero-supercell-1280.webp 1280w, /hero-supercell-1920.webp 1920w"
+       sizes="100vw" fetchpriority="high" decoding="async"
+       alt="A supercell thunderstorm builds over green prairie under a blue sky, its anvil spreading downwind.">
+  <div class="hero-text">
+    <h1>Weather and climate diagnostics</h1>
+    <p class="role">Forecasts, climate drivers and studies</p>
+    <p>Live products computed from open model and observation data and rebuilt as new runs arrive, from the next two weeks to the coming seasons. <a class="hero-find" href="/catalog.html">Browse every plot</a></p>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+  <section class="now" aria-label="Right now">
+    <a class="nc nc--mt" href="/midterms/">
+      <span class="k">2026 midterm forecast</span>
+      <span class="v" aria-live="polite">
+        <span><b id="mt-h">–</b><small>win the House</small></span>
+        <span><b id="mt-s">–</b><small>control the Senate</small></span>
+      </span>
+      <svg class="spark seats" id="mt-seats" viewBox="0 0 320 68" role="img" aria-label="Democratic House seats: the forecast range and the majority line" hidden></svg>
+      <span class="s src" id="mt-seats-cap" hidden>Democratic House seats: the bar is 10–90 % of the model's outcomes, the dashed line the 218 needed for a majority.</span>
+      <span class="s" id="mt-sub">Democrats' chances, from the polls, fundraising and the national mood.</span>
+      <span class="go">Every race</span>
+    </a>
+    <a class="nc nc--en" href="/enso.html">
+      <span class="k">El Niño and La Niña</span>
+      <span class="v" aria-live="polite">
+        <span><b id="en-now">–</b><small>Niño-3.4 today, °C</small></span>
+        <span><b id="en-pk">–</b><small id="en-pkl">expected Niño-3.4 peak, models</small></span>
+      </span>
+      <svg class="spark" id="en-spark" viewBox="0 0 320 92" role="img" aria-label="Niño-3.4 over the past year and the model forecast" hidden></svg>
+      <span class="s" id="en-sub">Sea temperatures, the official indices and the seasonal models.</span>
+      <span class="s src">NOAA OISST v2.1 and CPC; C3S seasonal forecasts. Contains modified Copernicus Climate Change Service information 2026.</span>
+      <span class="go">El Niño monitor</span>
+    </a>
+  </section>
+
+  <section class="themes" id="products" aria-labelledby="themes-title">
+    <div class="themes-head">
+      <!-- one plain heading; "Browse every plot" and "Find a plot" stay in the hero/header -->
+      <h2 id="themes-title">Weather analysis and model data &mdash; charts and maps</h2>
+    </div>
+
+    <!-- hp:start -->
+    <div class="sgs">
+      <section class="sg" data-topic="weather">
+        <h3>Mid-latitude weather</h3>
+        <p>Storms, hazards and the flow aloft over the next two weeks</p>
+        <ul>
+          <li><a href="/models.html" title="Zoomable maps of the newest HRRR, RRFS and RDPS runs for aviation, severe and winter weather and renewables: radar with precipitation type, accumulation, snow-band diagnostics (frontogenesis, EPV*, dendritic-zone lift), ceiling, visibility, temperature, dewpoint, wind, HRRR entraining CAPE (ECAPE), smoke and sunshine, with contours and hover values.">Short-range model maps</a></li>
+          <li><a href="/ar.html" title="Integrated vapour transport maps to day 7 from AIFS, IFS, GFS and GDPS; West Coast landfall and AR-scale ranks; AR probabilities to day 15 from four ensembles and their blend; GEFS weeks 3–5 AR-frequency anomalies where significant.">Atmospheric rivers</a></li>
+          <li><a href="/circulation.html#dt" title="The 2-PVU surface and PV on the 330 and 350 K isentropes from the AIFS-ENS control run: the hemisphere and five regions.">Dynamic tropopause</a></li>
+          <li><a href="/circulation.html#pacjet" title="250 hPa jet maps, the jet axis from every member, and the jet's extension and shift phases with what they usually bring downstream.">North Pacific jet</a></li>
+          <li><a href="/circulation.html#waf" title="Takaya–Nakamura wave activity flux at 250 hPa, the ensemble's quasi-stationary wave trains.">Wave activity flux</a></li>
+        </ul>
+        <a class="sg-all" href="/catalog.html?topic=weather">All plots in this theme</a>
+      </section>
+      <section class="sg" data-topic="drivers">
+        <h3>Global circulation and tropics</h3>
+        <p>El Niño, the MJO, cyclones, the overturning cells, the jets and the atmosphere's momentum</p>
+        <ul>
+          <li><a href="/enso.html" title="Daily ONI and RONI, Niño-region sea surface temperatures, the subsurface, winds and convection, with SST anomaly maps and animation.">El Niño monitor</a></li>
+          <li><a href="/mjo.html" title="Real-time multivariate MJO index from the AIFS-ENS, IFS-ENS, GEFS and GEPS ensembles on one phase diagram, standard or ENSO-removed, with the observed track and what each phase has meant for temperature and rain.">MJO forecast</a></li>
+          <li><a href="/tropical-waves.html" title="Where the equatorial waves are now: Kelvin and Rossby wave trackers along the equator with the forecast, the OLR wave decomposition and ocean Kelvin waves.">Tropical waves</a></li>
+          <li><a href="/circulation.html#tcshear" title="Each storm's full environmental wind profile with the storm removed: layer and generalized shear, vortex tilt against the shear and the radar, the ventilation index and the trough causing the shear, across 51 ensemble members and four models.">Shear and environment</a></li>
+          <li><a href="/circulation.html#walker" title="The equatorial Walker circulation: every analysed week since July 2025 and the AIFS-ENS, IFS-ENS and GEFS forecasts to day 15 against ERA5, the circulation by ocean basin, and its weekly departure from Pacific forcing.">Walker circulation</a></li>
+          <li><a href="/circulation.html#hadley" title="The meridional overturning in four parts: the cells themselves (every analysed week since July 2025, three ensembles' forecasts to day 15 against ERA5, each cell's strength and poleward edge, El Niño years); their outflow on the dynamic tropopause, their descent and the subtropical ridges and highs it builds, tracked basin by basin; back-trajectories timing how fast the cells turn over, with a map to drop a particle in the tropics and follow it; and the tropical sea-level pressure against ERA5, daily analyses and three ensembles' forecasts to day 14, in hPa or normalised by the day's spread.">Hadley cells</a></li>
+          <li><a href="/circulation.html#jets" title="Speed and latitude of each hemisphere's subtropical jet core in the AIFS ensemble against the normal, and the zonal-mean wind cross-section through the 15-day forecast.">Subtropical jets</a></li>
+          <li><a href="/circulation.html#aam" title="Global atmospheric angular momentum and the mountain and friction torques that change it.">Angular momentum and torques</a></li>
+        </ul>
+        <details class="sg-more"><summary>7 more</summary>
+          <ul>
+            <li><a href="/circulation.html#mslp" title="Sea-level pressure and 10 m wind over the tropical and subtropical Pacific to day 15: the AIFS and IFS ensembles, separately and blended, and the AIFS, IFS and GDPS single runs.">Pacific pressure and wind</a></li>
+            <li><a href="/circulation.html#gdps_ir" title="Environment Canada's GDPS forecast drawn as an infrared satellite loop over the tropical Pacific, 3-hourly to day 10: the cold cloud tops are deep convection.">Simulated satellite (GDPS)</a></li>
+            <li><a href="/recon.html" title="Atlantic hurricane hunter flights decoded and mapped: the track by SFMR or flight-level wind, dropsonde skew-Ts, vortex fixes, best track and forecast, with the aircraft's quality flags respected.">Hurricane reconnaissance</a></li>
+            <li><a href="/circulation.html#vpot" title="200 hPa velocity potential and the irrotational wind: where the tropics are venting and where they are subsiding.">Velocity potential</a></li>
+            <li><a href="/circulation.html#gdps150" title="Environment Canada's GDPS 150 hPa wind and height to day 10: the outflow layer of the Hadley and Walker cells and the subtropical jets.">Upper-level outflow (GDPS)</a></li>
+            <li><a href="/circulation.html#gillrain" title="How much of the tropical upper-level circulation the rain itself explains: the Gill (1980) model forced by IMERG and AIFS-ENS rainfall against the observed and forecast velocity potential.">Rain-forced circulation (Gill model)</a></li>
+            <li><a href="/circulation.html#rainfc" title="Bias-adjusted rain for weeks 1 and 2 from four ensembles (IFS-ENS, AIFS-ENS, GEFS, GEPS) and their verified blend over the tropics and the globe: corrected rain, its anomaly, the favoured tercile against the GPCP normal and the change since the previous day's runs, where significant.">Rain forecast, weeks 1–2</a></li>
+          </ul>
+        </details>
+        <a class="sg-all" href="/catalog.html?topic=drivers">All plots in this theme</a>
+      </section>
+      <section class="sg" data-topic="circulation">
+        <h3>Stratosphere</h3>
+        <p>The polar vortex from today's analysis to the season, and the QBO</p>
+        <ul>
+          <li><a href="/stratosphere.html" title="Every stratosphere product in one place, by timescale: analyses and the QBO now; AIFS-ENS, IFS-ENS, GEFS and the Canadian models' vortex, heat flux and wave driving for the next two weeks; GEPS and GEFS to day 35; the C3S models and SEAS5 for the season; and every sudden warming since 1980 with what followed.">Every stratosphere product</a></li>
+          <li><a href="/stratosphere.html#vortex" title="AIFS-ENS, IFS-ENS, GEFS and the Canadian models to day 15: vortex winds and polar-cap heights, 100 hPa heat flux, E–P flux, wave-1, the upper stratosphere and the dripping paint.">Next two weeks</a></li>
+          <li><a href="/stratosphere.html#vortex35" title="GEPS and GEFS to day 35: drift-corrected vortex diagnostics, loops and dripping paint, and the 100 hPa heat flux.">Weeks 3–5</a></li>
+          <li><a href="/stratosphere.html#s5vortex" title="The C3S multi-model December vortex, calibrated on its hindcasts; SEAS5's vortex, QBO and annular mode, sudden-warming risk and polar-cap heights; and this winter's odds from the QBO and ENSO.">Season</a></li>
+          <li><a href="/stratosphere.html#qbo" title="Equatorial stratospheric winds at 10 to 100 hPa from radiosondes, from the 1950s to the present.">QBO tracker</a></li>
+          <li><a href="/stratosphere.html#pv" title="GEOS FP potential vorticity, the momentum budget and the Brewer–Dobson circulation, the water-vapour tape recorder and the QBO zero-wind line.">Now: analyses and observations</a></li>
+        </ul>
+        <details class="sg-more"><summary>1 more</summary>
+          <ul>
+            <li><a href="/stratosphere.html#shwinters" title="Every winter and sudden warming since 1980 in MERRA-2 and 15,000 more in CMIP6, with what followed at the surface.">History and studies</a></li>
+          </ul>
+        </details>
+        <a class="sg-all" href="/catalog.html?topic=circulation">All plots in this theme</a>
+      </section>
+      <section class="sg" data-topic="outlooks">
+        <h3>Weeks to seasons</h3>
+        <p>Extended ensembles to day 35 and the seasonal models</p>
+        <ul>
+          <li><a href="/subseasonal.html" title="Environment Canada's extended ensemble to day 35 for the Americas and the tropics: weekly anomalies against its own reforecast, terciles, teleconnections, regimes and change since the previous run (its polar vortex is on the stratosphere page).">GEPS extended ensemble</a></li>
+          <li><a href="/gefs.html" title="NOAA's GEFS extended ensemble to day 35 in the same layout: weekly anomalies against its own reforecast and the change since a week earlier (its drift-corrected polar vortex is on the stratosphere page).">GEFS extended ensemble</a></li>
+          <li><a href="/seasonal.html" title="Eight C3S systems from seven centres plus NOAA's SFS beta: anomaly maps and tercile probabilities for every C3S model and their mean, the member-level ECMWF SEAS5 outlook (indices, teleconnections, impacts; its stratosphere is on the stratosphere page) and the 31-member SFS plumes and monthly maps.">Seasonal model forecasts</a></li>
+          <li><a href="/enso-forecasts.html" title="Every member of five centres' seasonal models for Niño-3.4, with percentile fans and a record of how past forecasts did.">ENSO forecasts</a></li>
+        </ul>
+        <details class="sg-more"><summary>2 more</summary>
+          <ul>
+            <li><a href="/sfs-subseasonal.html" title="NOAA's experimental SFS beta2, 31 members from the first of each month, up to six weeks in the same layout against its own 1991–2020 reforecast, with its hindcast skill against GEFS, GEPS and CFSv2.">SFS extended (experimental)</a></li>
+            <li><a href="/monthly-outlook.html" title="A forecast designed and run by Claude: next month's 2 m temperature, precipitation and 500 hPa height over the Northern Hemisphere, issued on the 15th as anomalies and tercile probabilities. A statistical forecast from ERA5 (trend, RONI, QBO and vortex regression, tropical constructed analogues, persistence, analogue years) is blended with the 35-day GEFS run of the 15th where its reforecast shows it helps, with skill masks and a running record against ERA5 and the C3S models.">Claude's month-ahead forecast</a></li>
+          </ul>
+        </details>
+        <a class="sg-all" href="/catalog.html?topic=outlooks">All plots in this theme</a>
+      </section>
+      <section class="sg" data-topic="research">
+        <h3>Studies and verification</h3>
+        <p>What the record and the models say, and how forecasts score</p>
+        <ul>
+          <li><a href="/enso.html#imp_reg" title="Thousands of El Niño and La Niña events in 16 CMIP6 models against the observed record: regressions, composites, super and east-based El Niños, 500 hPa wave trains, and why the PDO mostly follows the atmosphere rather than driving it. Significant results only.">ENSO impacts on the Americas</a></li>
+          <li><a href="/mjo.html#mi" title="What each MJO phase has meant for temperature and rain, season by season, in CMIP6 models and the observed record. Significant results only.">MJO impacts</a></li>
+          <li><a href="/aifs-aam-budget.html" title="Do AI weather models obey the conservation laws? ECMWF's AI ensemble (AIFS-ENS), the single AIFS and the physics ensemble against angular momentum and its torques, dry-air mass, water and energy. Winter 2025–26, days 1–15.">AI models and conservation laws</a></li>
+          <li><a href="/torque-enso.html" title="Why the atmosphere spins up in El Niño: a standing shift in the Andes mountain torque supplies the extra angular momentum, and ERA5's model loses westerly momentum that its analysis puts back, mostly over the oceans. ERA5 1959–2026, 41 CMIP6 models, the 2026 budget hour by hour. Significant results only.">El Niño and angular momentum</a></li>
+          <li><a href="/aifs-verify.html" title="The two ECMWF AIFS configurations compared as deterministic models against radiosondes and ERA5, with the ensemble member spectrally matched to the single model and the ensemble mean for reference.">AIFS single versus ensemble control</a></li>
+          <li><a href="/verification.html" title="GFS, ECMWF IFS, AIFS and Canada's GDPS scored on the same surface stations, radiosondes and Stage IV rain analyses out to day 10, with a scorecard of the differences that pass a significance test. Scored with mverify, an open-source verification package.">Global models against observations</a></li>
+          <li><a href="/topics/" title="How to read the products: the equations and the physics behind each diagnostic.">Explainers</a></li>
+        </ul>
+        <a class="sg-all" href="/catalog.html?topic=research">All plots in this theme</a>
+      </section>
+      <section class="sg" data-topic="tools">
+        <h3>Tools</h3>
+        <p>Explore the data yourself</p>
+        <ul>
+          <li><a href="/catalog.html" title="One searchable sheet of every figure and loop, filterable by topic, model, forecast range and region, each linked to its exact view.">Every plot on the site</a></li>
+          <li><a href="/skewt/" title="Real-time and archived radiosondes worldwide, drawn and analysed in the browser, with launch history and record rings.">Sounding explorer</a></li>
+          <li><a href="/asos5.html" title="Five-minute ASOS observations at 22 major US airports: temperature, dewpoint, wind, visibility, ceiling and weather, with running daily highs and lows.">Five-minute airport observations</a></li>
+          <li><a href="/climate.html" title="Every US county and calendar month since 1895: temperature, precipitation and degree-day trends per decade with significance, the 1991–2020 normal and what normal is now.">US climate trends</a></li>
+          <li><a href="/fci.html" title="How tight credit is in the US, weekly since 1990: corporate bond spreads, commercial paper, bank lending and the loan officer survey, mortgage rates, the fed funds rate, the yield curve, stocks and the dollar, with sub-indices for companies, mortgages, rates, markets, liquidity and private credit.">US credit conditions</a></li>
+        </ul>
+      </section>
+    </div>
+    <!-- hp:end -->
+
+    <p class="note"><strong>A note on reliability.</strong> The site is under constant development: products change without
+      notice and pipelines break. Products are generated automatically and published without review by a person; each page
+      describes its automated quality checks and significance tests. Nothing here should be relied on for decisions of any
+      kind.</p>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Unique viewers: <span id="count">—</span>, <a href="/stats.html">by location</a></span>
+    <span>Photograph and site by Shawn Corvec</span>
+  </div>
+</footer>
+
+<script>
+  const $set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+  const getJSON = u => fetch(u, { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).catch(() => null);
+  const day = iso => new Date(iso.slice(0, 10) + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+  // midterm card: the model's chamber odds; on any failure the dashes stay and the card still links
+  getJSON('/midterms/data/summary.json').then(s => {
+    if (!s || !s.house) return;
+    const pct = p => Math.round(100 * p) + '%';
+    $set('mt-h', pct(s.house.p)); $set('mt-s', pct(s.senate.p));
+    $set('mt-sub', `Democrats' chances: ${Math.round(s.house.mean)} House seats expected (218 needed), ` +
+                   `${Math.round(s.senate.mean)} Senate seats (51 needed; a 50–50 Senate stays Republican). Forecast of ${day(s.asof)}.`);
+    // the House seat range: the model's 10–90 % of outcomes, the expected count and the majority line
+    const H = s.house, MAJ = 218;
+    if (H.p10 == null || H.p90 == null) return;
+    const svg = document.getElementById('mt-seats');
+    svg.hidden = false;
+    document.getElementById('mt-seats-cap').hidden = false;
+    const lo0 = Math.min(H.p10, MAJ), hi0 = Math.max(H.p90, MAJ), pad = 0.15 * (hi0 - lo0), x0 = lo0 - pad, x1 = hi0 + pad;
+    const draw = () => {
+      const W = Math.max(200, Math.round(svg.getBoundingClientRect().width) || 320);
+      svg.setAttribute('viewBox', `0 0 ${W} 68`);
+      const X = v => (4 + (W - 8) * (v - x0) / (x1 - x0)).toFixed(1);
+      svg.innerHTML =
+        `<rect x="${X(H.p10)}" y="22" width="${(X(H.p90) - X(H.p10)).toFixed(1)}" height="22" rx="3" fill="#c9d6e6"/>` +
+        `<line x1="${X(MAJ)}" x2="${X(MAJ)}" y1="16" y2="50" stroke="#6f6b64" stroke-width="1.2" stroke-dasharray="3 2"/>` +
+        `<line x1="${X(H.mean)}" x2="${X(H.mean)}" y1="17" y2="49" stroke="#274b7a" stroke-width="2.4"/>` +
+        `<text x="${X(H.mean)}" y="13" text-anchor="middle" fill="#274b7a">${Math.round(H.mean)} expected</text>` +
+        `<text x="${X(H.p10)}" y="62" text-anchor="middle">${H.p10}</text>` +
+        `<text x="${X(H.p90)}" y="62" text-anchor="middle">${H.p90}</text>`;
+    };
+    draw();
+    let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(draw, 150); });
+  });
+
+  // El Niño card: Niño-3.4 today; the model-mean Niño-3.4 peak with the range of the model means (DWD and BoM left
+  // out, as on the ENSO forecasts page) and its value on the RONI scale; our RONI estimate beside CPC's latest
+  // official season; a year-plus-forecast sparkline
+  Promise.all(['/assets/sst/data/enso_daily.json', '/assets/sst/data/enso_forecast.json', '/assets/sst/data/cpc_official.json'].map(getJSON)).then(([D, F, O]) => {
+    const sg = v => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1);
+    const SEAS = 'JFMAMJJASONDJF';
+    const season = ym => { const m = +ym.slice(5, 7), k = m - 2 < 0 ? 11 : m - 2; return SEAS.slice(k, k + 3); };
+    const nextMonth = ym => { const y = +ym.slice(0, 4), m = +ym.slice(5, 7); return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`; };
+    const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
+    let sub = '';
+    if (D && D.latest) {
+      const L = D.latest;
+      $set('en-now', sg(L.nino34));
+      sub = `${day(L.date)}, ${L.nino34_d30 >= 0 ? 'up' : 'down'} ${Math.abs(L.nino34_d30).toFixed(1)} in 30 days` +
+            (D.final_through && L.date > D.final_through ? ' (preliminary)' : '');
+      // a centred season is still open until its last month has closed
+      if (L.roni != null) sub += `; RONI est. ${sg(L.roni)} for ${season(L.oni_month)}` +
+                                 `${L.date.slice(0, 7) <= nextMonth(L.oni_month) ? ' to date' : ''} (OISST, not CPC)`;
+      sub += '.';
+    }
+    if (O && O.roni) {
+      const k = Object.keys(O.roni).sort().pop();
+      if (k) sub += ` CPC's official RONI: ${sg(O.roni[k])} for ${season(k)}.`;
+    }
+    let mmm = null;
+    if (F && F.models) {
+      const models = Object.entries(F.models).filter(([k]) => !/^(DWD|BoM)\b/.test(k)).map(([, v]) => v), nL = F.valid_months.length;
+      const per = models.map(m => m.n34.map(mean));  // each model's ensemble mean by lead
+      mmm = [...Array(nL).keys()].map(l => mean(per.map(p => p[l])));
+      const s3 = (p, l) => (p[l] + p[l + 1] + p[l + 2]) / 3;
+      let best = -1, bv = -9;
+      for (let l = 0; l + 2 < nL; l++) { const v = s3(mmm, l); if (v > bv) { bv = v; best = l; } }
+      if (best >= 0) {
+        const pk = per.map(p => s3(p, best));
+        $set('en-pk', sg(bv));
+        $set('en-pkl', `expected Niño-3.4 peak, ${season(F.valid_months[best + 1])} (models ${sg(Math.min(...pk))} to ${sg(Math.max(...pk))})`);
+        let rel = '';
+        if (models.every(m => m.rnino)) {
+          const rp = models.map(m => m.rnino.map(mean)), rm = [...Array(nL).keys()].map(l => mean(rp.map(p => p[l])));
+          let rb = 0;
+          for (let l = 1; l + 2 < nL; l++) if (s3(rm, l) > s3(rm, rb)) rb = l;
+          rel = `; ${sg(s3(rm, rb))} on the RONI scale` + (rb !== best ? ` (${season(F.valid_months[rb + 1])})` : '');
+        }
+        sub += ` Peak: 3-month mean of ${models.length} models' Niño-3.4, each against its own 1993–2016 hindcast${rel}.`;
+      }
+    }
+    if (sub) $set('en-sub', sub.trim());
+    if (D && D.daily && D.daily.nino34) {
+      const dd = D.daily.dates, v = D.daily.nino34, n = dd.length, k0 = Math.max(0, n - 365);
+      const t = s => Date.parse(s.length === 7 ? s + '-15' : s);
+      const obs = dd.slice(k0).map((s, i) => [t(s), v[k0 + i]]).filter(p => p[1] != null);
+      if (obs.length < 2) return;
+      const fc = mmm ? F.valid_months.map((m, i) => [t(m), mmm[i]]) : [];
+      const last = obs[obs.length - 1], fcp = fc.length ? [last].concat(fc.filter(p => p[0] > last[0])) : [];
+      const all = obs.concat(fcp), x0 = all[0][0], x1 = all[all.length - 1][0];
+      const ys = all.map(p => p[1]), y0 = Math.min(-0.5, ...ys), y1 = Math.max(1, ...ys);
+      const svg = document.getElementById('en-spark');
+      svg.hidden = false;
+      const draw = () => {
+      const W = Math.max(200, Math.round(svg.getBoundingClientRect().width) || 320);
+      svg.setAttribute('viewBox', `0 0 ${W} 92`);
+      const X = x => 4 + (W - 8) * (x - x0) / (x1 - x0), Y = y => 8 + 64 * (y1 - y) / (y1 - y0);
+      const path = pts => pts.map((p, i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1)).join('');
+      svg.innerHTML =
+        `<line x1="4" x2="${W - 4}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}" stroke="#c9ccc4" stroke-width="1"/>` +
+        `<path d="${path(obs)}" fill="none" stroke="#9a3f14" stroke-width="1.6" stroke-linejoin="round"/>` +
+        (fcp.length > 1 ? `<path d="${path(fcp)}" fill="none" stroke="#9a3f14" stroke-width="1.6" stroke-dasharray="4 3"/>` : '') +
+        `<circle cx="${X(last[0]).toFixed(1)}" cy="${Y(last[1]).toFixed(1)}" r="2.8" fill="#9a3f14"/>` +
+        `<text x="4" y="88">${new Date(x0).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })}</text>` +
+        (fcp.length > 1 ? `<text x="${W - 4}" y="88" text-anchor="end">models to ${new Date(x1).toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })}</text>` : '') +
+        `<text x="8" y="${(Y(0) - 3).toFixed(1)}">0</text>`;
+      };
+      draw();
+      let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(draw, 150); });
+    }
+  });
+
+  fetch('https://scorvec.goatcounter.com/counter/TOTAL.json')
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById('count').textContent = data.count_unique || data.count;
+    })
+    .catch(() => {
+      document.getElementById('count').textContent = '—';
+    });
+</script>
+</body>
+</html>

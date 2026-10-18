@@ -1,0 +1,120 @@
+name: AR ensemble probabilities (AIFS-ENS, IFS-ENS, GEFS, GEPS, days 1-15)
+
+# ar.html, second section: P(IVT >= 250 / 500) 6-hourly to +360 h per system and equally weighted across systems, the
+# coastal landfall charts, member plumes and AR-scale odds. IVT per member is the proxy k * W * |V850| with k refitted
+# every cycle on each system's own exact IVT for one member (scripts/ar/ar_ens.py). One job per system, each on its
+# newest complete 00/12Z cycle (ECMWF from the Google Cloud mirror ONLY; GEFS from AWS S3; GEPS from the MSC Datamart),
+# then a combine job renders, publishes the frames and commits. Also the precipitable-water loops (AIFS-ENS, IFS-ENS).
+# Fired by the dispatcher at 09:05/21:05 (the IFS-ENS cycle lands on the mirror ~08:50/20:55).
+on:
+  schedule:
+    - cron: '5 9 * * *'
+    - cron: '5 21 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ar-ens
+  cancel-in-progress: false
+
+env:
+  ECMWF_SOURCES: google
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  system:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        sys: [aifs, ifs, gefs, geps]
+    env:
+      MPLBACKEND: Agg
+      SST_SITE_ROOT: ${{ github.workspace }}
+      AR_WAIT_MIN: '30'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: System libs
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+      - name: Members of ${{ matrix.sys }}
+        run: python scripts/ar/ar_ens.py system --sys ${{ matrix.sys }} --work out
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ens-${{ matrix.sys }}
+          path: out/ens_${{ matrix.sys }}.npz
+          retention-days: 2
+
+  publish:
+    needs: system
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      MPLBACKEND: Agg
+      SST_SITE_ROOT: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: System libs
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: ens-*
+          path: out
+          merge-multiple: true
+      - name: Combine and render
+        run: python scripts/ar/ar_ens.py combine --work out --procs 4
+      - name: Publish frames
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          D="assets/ar/anim/ens_mm_p250 assets/ar/anim/ens_mm_p500 assets/ar/anim/ens_data"
+          for s in aifs ifs gefs geps; do D="$D assets/ar/anim/ens_${s}_p250"; done
+          for s in aifs ifs; do D="$D assets/ar/anim/pwat_${s} assets/ar/anim/pwatanom_${s}"; done
+          # the retired AIFS-ENS-only monitor's loops (ar_monitor.py, removed 2026-10-07) are pruned from the branch
+          PRUNE="assets/ar/anim/ar_ivt assets/ar/anim/ar_prob assets/ar/anim/ar_ctrl" scripts/lib/publish_frames_ci.sh $D
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/ar/anim/ar_ens_manifest.json assets/ar/ar_ens.json $(ls assets/ar/ens_coast_*.webp 2>/dev/null | tr '\n' ' ')"
+          SNAP=$(mktemp -d); tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            for f in $OUT; do [ -e "$f" ] && git add "$f"; done
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "data update: AR ensembles $(date -u +%Y-%m-%dT%H%MZ)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1

@@ -1,0 +1,552 @@
+#!/usr/bin/env python3
+"""Build for seas5_extremes: threshold-day frequencies as % of the CPC normal.
+
+Per region (us: cold days, T min ≤ 0/−10/−20 °C; br: hot days, T max > 35/37/40 °C), per
+forecast month, per member: the count of threshold days in each 1° cell from the 6-hourly
+extremes chunks, after per-cell quantile mapping (SEAS5 hindcast 1993–2016 quantiles onto the
+CPC 1993–2016 quantiles of the same cell and calendar month). Normal = NOAA CPC 1991–2020
+daily extremes (0.5°, land, coarsened to the 1° cells) counted the same way. Outputs:
+  assets/sst/data/seas5_extremes.json   population-weighted expected days, normal, % of normal,
+                                        member p10/p90, per region × threshold × month
+  assets/sst/seas5_xdays_{region}_{thr}_{YYYY_MM}.webp   map: % of normal (hatched where the
+                                        normal is under half a day a month)
+
+Derived tables (seas5_ref.py; the build reads neither the raw hindcast nor the CPC store):
+  hc_xdays_{region}_{MM}.npz    the 41 hindcast quantiles (1 %…99 %) of daily Tmax/Tmin per 1° cell and
+                                lead, pooled over 25 members × 24 years × the month's days — all the
+                                quantile mapping ever used from the 2.5 GB of hindcast extremes
+  obs_xdays_cpc_{region}.npz    the 41 CPC 1993–2016 quantiles per cell and calendar month (the mapping's
+                                target) and the CPC 1991–2020 mean threshold-day counts (the normal)
+"""
+
+from __future__ import annotations
+import pyproj  # noqa: F401  first, before eccodes/xarray/cartopy load another libproj: "double free or corruption" abort at exit
+import calendar
+import json
+import sys
+import time
+from pathlib import Path
+import numpy as np
+import xarray as xr
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from seas5_outlook import ASSETS, L7_STATE
+from seas5_popT import REGIONS, month_span, pop_grid, region_grid
+import seas5_ref as R
+from seas5_extremes import xchunk_path, hchunk_path, cpc_path, THRESH, YEARS, RAW_HC  # noqa: F401  (RAW_HC: seas5_ref reads it from this module)
+from seas5_build import valid_months
+
+OUT_JSON = ASSETS / "data" / "seas5_extremes.json"
+PCT_LEVELS = [0, 25, 50, 75, 90, 110, 125, 150, 200, 300, 500]
+_CPC_NORMAL: dict = {}
+
+
+def daily_extremes(region: str, ym: str, k: int):
+    """→ (tx[member, day, lat, lon], tn[...], lat, lon) in °C for forecast month k."""
+    ds = xr.open_dataset(xchunk_path(region, ym, k), engine="cfgrib", backend_kwargs={"indexpath": ""})
+    tx = (
+        ds[next(v for v in ds.data_vars if v.startswith("mx"))]
+        .transpose("number", "step", "latitude", "longitude")
+        .values
+    )
+    tn = (
+        ds[next(v for v in ds.data_vars if v.startswith("mn"))]
+        .transpose("number", "step", "latitude", "longitude")
+        .values
+    )
+    lat, lon = ds.latitude.values, ds.longitude.values
+    ds.close()
+    # the CDS serves the 24-hour extremes at daily steps only (one per forecast day)
+    return (tx - 273.15).astype(np.float32), (tn - 273.15).astype(np.float32), lat, lon
+
+
+def cpc_daily(stat: str, region: str, years, lat, lon):
+    """CPC daily field on the 1° SEAS5 cells (2×2 box mean of the 0.5° grid) → (vals[time, lat, lon] °C, months[time]), years used."""
+    parts, used = [], []
+    for y in years:
+        p = cpc_path(stat, region, y)
+        if not p.exists():
+            continue
+        da = xr.open_dataset(p)[next(iter(xr.open_dataset(p).data_vars))]
+        c = da.coarsen(lat=2, lon=2, boundary="trim").mean()
+        c = c.sel(lat=xr.DataArray(lat, dims="y"), lon=xr.DataArray(lon, dims="x"), method="nearest")
+        parts.append(c)
+        used.append(y)
+    if not parts:
+        return None, None, []
+    allv = xr.concat(parts, "time")
+    return allv.values.astype(np.float32), allv.time.dt.month.values, used
+
+
+def hindcast_extremes(region: str, ym: str, k: int, stat: str):
+    """Hindcast daily Tmin or Tmax for forecast month k → [sample, day, lat, lon] °C (25 members × 24 years), each
+    start year on its own calendar: the daily steps of its own month k (a leap February moves the later months by a
+    day); a year whose month is shorter is NaN on the missing last day."""
+    p = hchunk_path(region, ym[4:], k)
+    if not p.exists():
+        return None
+    ds = xr.open_dataset(p, engine="cfgrib", backend_kwargs={"indexpath": ""})
+    v = next(x for x in ds.data_vars if x.startswith("mn" if stat == "tn" else "mx"))
+    da = ds[v]
+    dims = [d for d in ("number", "time", "step", "latitude", "longitude") if d in da.dims]
+    da = da.transpose(*dims)
+    a = da.values.astype(np.float32)
+    hours = list((da.step.values / np.timedelta64(1, "h")).astype(int)) if "step" in dims else []
+    years = np.atleast_1d(da["time"].values).astype("datetime64[Y]").astype(int) + 1970
+    ds.close()
+    if "time" in dims and "number" in dims:  # [member, year, day, lat, lon] → [sample, day, lat, lon]
+        a = a.reshape(-1, *a.shape[2:])
+        years = np.tile(years, a.shape[0] // years.size)
+    years = np.broadcast_to(years, (a.shape[0],))
+    out = np.full_like(a, np.nan)
+    for y in sorted(set(years.tolist())):
+        h0, h1 = month_span(f"{y}{ym[4:]}", k)
+        want = list(range(h0 + 24, min(h1, 5160) + 1, 24))
+        if any(h not in hours for h in want):
+            raise ValueError(
+                f"{p.name}: start year {y} lacks steps of its own month {k} (a request on one calendar) — refetch"
+            )
+        out[years == y, : len(want)] = a[years == y][:, [hours.index(h) for h in want]]
+    return out - 273.15
+
+
+NQ = 41
+QS = np.linspace(0.01, 0.99, NQ)
+
+
+def hc_quantiles(hc: np.ndarray) -> np.ndarray:
+    """hc [sample, day, lat, lon] → [q, lat, lon], pooled over samples and days."""
+    return np.nanquantile(hc.reshape(-1, *hc.shape[2:]), QS, axis=0)
+
+
+def quantile_map(fc: np.ndarray, hc: np.ndarray, obs: np.ndarray, nq: int = 41) -> np.ndarray:
+    """Per cell: map each forecast value through the hindcast → observed quantile relation.
+    fc [member, day, lat, lon]; hc [sample, day, lat, lon]; obs [day', lat, lon] (CPC, same calendar
+    month, 1993–2016). Tails beyond the hindcast range carry the end-quantile offset."""
+    assert nq == NQ
+    return quantile_map_q(fc, hc_quantiles(hc), np.nanquantile(obs, QS, axis=0))
+
+
+def quantile_map_q(fc: np.ndarray, hq: np.ndarray, oq: np.ndarray) -> np.ndarray:
+    """quantile_map from the quantile tables themselves: hq, oq [q, lat, lon]."""
+    out = np.empty_like(fc)
+    ny, nx = fc.shape[2], fc.shape[3]
+    for iy in range(ny):
+        for ix in range(nx):
+            h = hq[:, iy, ix]
+            o = oq[:, iy, ix]
+            if not (np.all(np.isfinite(h)) and np.all(np.isfinite(o))):
+                out[:, :, iy, ix] = np.nan
+                continue
+            x = fc[:, :, iy, ix]
+            out[:, :, iy, ix] = x + np.interp(x, h, o - h)  # offset at the value's hindcast quantile
+    return out
+
+
+def cpc_normal(region: str, stat: str, lat, lon) -> tuple[dict, list[int]]:
+    """Mean monthly count of threshold days per 1° cell, CPC 1991–2020 → ({thr: [12, lat, lon]}, years),
+    from the derived table obs_xdays_cpc_{region}."""
+    key = (region, stat)
+    if key in _CPC_NORMAL:
+        return _CPC_NORMAL[key]
+    _, _, _, thrs, _op = next(t for t in THRESH[region] if t[1] == stat)
+    t = obs_table(region, lat, lon)
+    if t is None:
+        acc, used = {th: np.full((12, lat.size, lon.size), np.nan) for th in thrs}, []
+    else:
+        used = [int(y) for y in t[f"used_{stat}"]]
+        acc = {th: t[f"normal_{stat}_{th}"] for th in thrs}
+    _CPC_NORMAL[key] = (acc, used)
+    return acc, used
+
+
+def _cpc_normal_from_store(region: str, stat: str, lat, lon) -> tuple[dict, list[int]]:
+    """The original count over the local CPC files (derivation only)."""
+    _, _, _, thrs, op = next(t for t in THRESH[region] if t[1] == stat)
+    vals, months, used = cpc_daily(stat, region, YEARS, lat, lon)
+    acc = {t: np.full((12, lat.size, lon.size), np.nan) for t in thrs}
+    if used:
+        for m in range(1, 13):
+            sel = months == m
+            nyr = len(used)
+            for t in thrs:
+                hit = (vals[sel] <= t) if op == "le" else (vals[sel] >= t)
+                acc[t][m - 1] = np.where(np.isfinite(vals[sel]).all(0), hit.sum(0) / nyr, np.nan)
+    return acc, used
+
+
+# ── derived tables ───────────────────────────────────────────────────────────
+_TABLES: dict = {}
+
+
+def obs_table(region: str, lat=None, lon=None) -> dict | None:
+    if ("obs", region) not in _TABLES:
+        t = R.load(R.obs_ref(f"xdays_cpc_{region}"))
+        if t is None:
+            print(f"  obs_xdays_cpc_{region} missing — no CPC reference", flush=True)
+        _TABLES[("obs", region)] = t
+    t = _TABLES[("obs", region)]
+    if t is not None and lat is not None and not (np.allclose(t["lat"], lat) and np.allclose(t["lon"], lon)):
+        raise ValueError(f"{region}: chunk grid differs from obs_xdays_cpc_{region}")
+    return t
+
+
+def hc_table(region: str, month: str) -> dict | None:
+    if ("hc", region, month) not in _TABLES:
+        t = R.load(R.hc_ref(f"xdays_{region}", month))
+        if t is None:
+            print(f"  hc_xdays_{region}_{month} missing — no quantile mapping", flush=True)
+        _TABLES[("hc", region, month)] = t
+    return _TABLES[("hc", region, month)]
+
+
+def mapped(region: str, ym: str, k: int, stat: str, raw: np.ndarray, lat, lon, mo: int) -> np.ndarray | None:
+    """Quantile-map raw [member, day, lat, lon] °C from the derived tables; None when a table is missing."""
+    h, o = hc_table(region, ym[4:]), obs_table(region, lat, lon)
+    if h is None or o is None or f"hq_{stat}_m{k}" not in h or f"oq_{stat}_{mo:02d}" not in o:
+        return None
+    return quantile_map_q(raw, h[f"hq_{stat}_m{k}"], o[f"oq_{stat}_{mo:02d}"])
+
+
+def derive_hc(region: str, month: str) -> None:
+    """hc_xdays_{region}_{MM} from the raw hindcast chunks sixh/hc_{region}_{MM}_m{k}_x.grib."""
+    ym = f"2000{month}"  # only ym[4:] is used to find the files
+    arrs = {}
+    # leads 1–6 for the base table; while seas5_ref derives the lead-7 table (L7_STATE) only the 7th month's chunk
+    ks = [7] if L7_STATE["on"] else range(1, 7)
+    for k in ks:
+        for stat in ("tx", "tn"):
+            hc = hindcast_extremes(region, ym, k, stat)
+            if hc is None:
+                raise FileNotFoundError(f"hindcast extremes {region} {month} m{k} missing")
+            arrs[f"hq_{stat}_m{k}"] = hc_quantiles(hc)
+            del hc
+    R.save(
+        R.hc_ref(f"xdays_{region}", month),
+        meta={"source": "SEAS5 hindcast 1993-2016 daily Tmax/Tmin (C3S)", "q": QS.tolist(), "units": "degC"},
+        **arrs,
+    )
+
+
+def derive_obs(region: str) -> None:
+    """obs_xdays_cpc_{region} from the local CPC store (data/seas5/cpc), on the region's 1° grid."""
+    lat, lon = region_grid(region)
+    arrs = {"lat": lat, "lon": lon}
+    for stat in ("tx", "tn"):
+        ov, om, oyrs = cpc_daily(stat, region, range(1993, 2017), lat, lon)
+        if ov is not None and len(oyrs) >= 20:
+            for mo in range(1, 13):
+                arrs[f"oq_{stat}_{mo:02d}"] = np.nanquantile(ov[om == mo], QS, axis=0)
+        acc, used = _cpc_normal_from_store(region, stat, lat, lon)
+        arrs[f"used_{stat}"] = np.array(used, dtype=np.int32)
+        for t, v in acc.items():
+            arrs[f"normal_{stat}_{t}"] = v
+    R.save(
+        R.obs_ref(f"xdays_cpc_{region}"),
+        meta={
+            "source": "NOAA CPC Global Unified daily Tmax/Tmin (PSL), 0.5 deg coarsened to 1 deg",
+            "q": QS.tolist(),
+            "quantile_years": "1993-2016",
+            "normal_years": "1991-2020",
+        },
+        **arrs,
+    )
+
+
+REF_UNITS = {f"xdays_{r}": dict(raw=[f"x:{r}"], fn=(lambda month, r=r: derive_hc(r, month))) for r in REGIONS}
+OBS_UNITS = {f"xdays_cpc_{r}": (lambda r=r: derive_obs(r)) for r in REGIONS}
+
+
+# City labels on the threshold-day maps and the clickable city distributions on the page
+# (name, lat, lon, label side: "r" right of the dot, "l" left).
+CITIES = {
+    "br": [
+        ("Manaus", -3.12, -60.02, "r"),
+        ("Belém", -1.46, -48.50, "r"),
+        ("Fortaleza", -3.72, -38.54, "l"),
+        ("Recife", -8.05, -34.88, "l"),
+        ("Salvador", -12.97, -38.51, "l"),
+        ("Brasília", -15.79, -47.88, "r"),
+        ("Cuiabá", -15.60, -56.10, "l"),
+        ("Goiânia", -16.68, -49.25, "l"),
+        ("Belo Horizonte", -19.92, -43.94, "r"),
+        ("Campo Grande", -20.45, -54.62, "l"),
+        ("Rio de Janeiro", -22.91, -43.17, "r"),
+        ("São Paulo", -23.55, -46.63, "l"),
+        ("Curitiba", -25.43, -49.27, "l"),
+        ("Porto Alegre", -30.03, -51.23, "l"),
+    ],
+    "us": [
+        ("Seattle", 47.61, -122.33, "r"),
+        ("Portland", 45.52, -122.68, "r"),
+        ("San Francisco", 37.77, -122.42, "r"),
+        ("Los Angeles", 34.05, -118.24, "l"),
+        ("Phoenix", 33.45, -112.07, "r"),
+        ("Salt Lake City", 40.76, -111.89, "r"),
+        ("Denver", 39.74, -104.99, "r"),
+        ("Dallas", 32.78, -96.80, "r"),
+        ("Houston", 29.76, -95.37, "r"),
+        ("Kansas City", 39.10, -94.58, "l"),
+        ("Minneapolis", 44.98, -93.27, "r"),
+        ("St. Louis", 38.63, -90.20, "r"),
+        ("Chicago", 41.88, -87.63, "l"),
+        ("Detroit", 42.33, -83.05, "r"),
+        ("Nashville", 36.16, -86.78, "r"),
+        ("Atlanta", 33.75, -84.39, "r"),
+        ("Miami", 25.76, -80.19, "r"),
+        ("Washington", 38.90, -77.04, "l", -0.2),
+        ("Philadelphia", 39.95, -75.17, "l", 0.35),
+        ("New York", 40.71, -74.01, "r", 0.3),
+        ("Boston", 42.36, -71.06, "r", 0.2),
+        ("Toronto", 43.65, -79.38, "l"),
+        ("Montréal", 45.50, -73.57, "r"),
+    ],
+}
+MAP_W = 11.0  # figure width (in); the axes box is fixed so the page can overlay cities
+
+
+def map_geometry(region):
+    area = REGIONS[region][2]
+    W = MAP_W
+    H = W * (area[0] - area[2]) / (area[3] - area[1]) + 2.1
+    return area, W, H, [0.03, 0.95 / H, 0.94, (H - 2.1) / H]
+
+
+def city_fractions(region, lat, lon):
+    """Position of a point as fractions of the saved image (x from the left, y from the top)."""
+    area, _W, _H, box = map_geometry(region)
+    fx = box[0] + box[2] * (lon - area[1]) / (area[3] - area[1])
+    fy = 1.0 - (box[1] + box[3] * (lat - area[2]) / (area[0] - area[2]))
+    return round(float(fx), 4), round(float(fy), 4)
+
+
+_CITY_PX = {}  # region -> {name: (x, y)} measured on the drawn axes
+
+
+def draw_cities(ax, region, pc):
+    import matplotlib.patheffects as pe
+
+    halo = [pe.withStroke(linewidth=3.0, foreground="white")]
+    if region not in _CITY_PX:  # measure once from the real transform (cartopy may
+        fig = ax.figure
+        px = {}  # re-fit the view to the box, so the nominal geometry drifts)
+        ax.apply_aspect()  # the equal-aspect box shrink happens at draw time — apply it now
+        for name, la, lo, _side in (c[:4] for c in CITIES.get(region, [])):
+            x, y = ax.transData.transform((lo, la))
+            px[name] = (round(float(x / fig.bbox.width), 4), round(float(1.0 - y / fig.bbox.height), 4))
+        _CITY_PX[region] = px
+    for city in CITIES.get(region, []):
+        name, la, lo, side = city[:4]
+        dy = city[4] if len(city) > 4 else 0.0  # optional label nudge (deg lat)
+        ax.plot(lo, la, "o", ms=5.0, mfc="#111", mec="white", mew=0.9, transform=pc, zorder=6)
+        ax.text(
+            lo + (0.55 if side == "r" else -0.55),
+            la + dy,
+            name,
+            fontsize=10.5,
+            fontweight="semibold",
+            color="#111",
+            ha="left" if side == "r" else "right",
+            va="center",
+            transform=pc,
+            zorder=6,
+            path_effects=halo,
+        )
+
+
+def pct_map(ratio, lat, lon, normal, region, thr_label, plabel, issue_lbl, out: Path, cold: bool = False):
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import BoundaryNorm, ListedColormap
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+
+    pc = ccrs.PlateCarree()
+    area, W, H, box = map_geometry(region)
+    # cold-day sets: fewer cold days than normal reads warm (red), more reads blue; hot-day sets the reverse
+    warm_side = ["#fde4cf", "#f59d68", "#e8703c", "#c8451c", "#8f2a0d"]
+    cool_side = ["#1f4f8f", "#3672b6", "#8ab6df", "#dbe9f6"]
+    cols = ([*warm_side[::-1], "#f4f4f1", *cool_side[::-1]]) if cold else ([*cool_side, "#f4f4f1", *warm_side])
+    fig = plt.figure(figsize=(W, H))
+    ax = fig.add_axes(box, projection=pc)
+    ax.set_extent([area[1], area[3], area[2], area[0]], crs=pc)
+    ax.add_feature(cfeature.LAND, facecolor="#f4f4f1", zorder=0)
+    r = np.where(normal >= 0.5, np.clip(ratio * 100, 0, 499.9), np.nan)
+    m = ax.pcolormesh(
+        lon,
+        lat,
+        r,
+        cmap=ListedColormap(cols),
+        norm=BoundaryNorm(PCT_LEVELS, len(cols)),
+        transform=pc,
+        shading="auto",
+        zorder=1,
+    )
+    thin = np.where(normal < 0.5, 1.0, np.nan)
+    ax.contourf(
+        lon, lat, np.ma.masked_invalid(thin), levels=[0.5, 1.5], colors="none", hatches=["////"], transform=pc, zorder=2
+    )
+    ax.add_feature(cfeature.OCEAN, facecolor="#ffffff", zorder=2)
+    ax.add_feature(cfeature.LAKES, facecolor="#ffffff", zorder=2)
+    ax.coastlines(resolution="50m", linewidth=0.5, color="#333", zorder=3)
+    ax.add_feature(cfeature.BORDERS.with_scale("50m"), linewidth=0.3, edgecolor="#666", zorder=3)
+    ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.2, edgecolor="#6f6b64", zorder=3)
+    draw_cities(ax, region, pc)
+    fig.text(
+        0.03, 1 - 0.14 / H, f"SEAS5 {thr_label} · {plabel} · {issue_lbl}", fontsize=13, fontweight="bold", va="top"
+    )
+    import textwrap
+
+    fig.text(
+        0.03,
+        1 - 0.50 / H,
+        "\n".join(
+            textwrap.wrap(
+                "Ensemble-mean count of threshold days as % of the CPC 1991–2020 count for the month, on 1° cells; members quantile-mapped per cell from the SEAS5 hindcast onto the CPC record. Hatched: normal under half a day a month.",
+                int(W * 13),
+            )
+        ),
+        fontsize=8.4,
+        color="#444",
+        va="top",
+        linespacing=1.3,
+    )
+    cax = fig.add_axes([0.25, 0.40 / H, 0.50, 0.14 / H])
+    cb = fig.colorbar(m, cax=cax, orientation="horizontal", extend="max")
+    cb.set_label("% of normal frequency", fontsize=8.5)
+    cb.ax.tick_params(labelsize=7)
+    fig.savefig(out, dpi=120, pil_kwargs={"quality": 86, "method": 6})
+    plt.close(fig)
+
+
+def build(ym: str) -> dict:
+    t0 = time.time()
+    doc = {"generated": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()), "issue": ym, "regions": {}}
+    issue_lbl = f"{calendar.month_name[int(ym[4:])]} {ym[:4]} issue"
+    for region, (label, _cc, _area, _unit) in REGIONS.items():
+        entry = {"label": label, "sets": {}, "normal_years": None, "cities": {}}
+        for name, la, lo, side in (c[:4] for c in CITIES.get(region, [])):
+            fx, fy = city_fractions(region, la, lo)
+            entry["cities"][name] = {"lat": la, "lon": lo, "x": fx, "y": fy, "side": side, "sets": {}}
+        w = None
+        cache = {}
+        for set_key, stat, thr_label, thrs, op in THRESH[region]:
+            sub = {"kind": thr_label, "stat": stat, "thresholds": thrs, "months": {}}
+            for k in range(1, len(valid_months(ym)) + 1):
+                if not xchunk_path(region, ym, k).exists():
+                    continue
+                if k not in cache:
+                    cache.clear()
+                    cache[k] = daily_extremes(region, ym, k)
+                tx, tn, lat, lon = cache[k]
+                if w is None:
+                    w = pop_grid(region, lat, lon)
+                    wn = w / w.sum()
+                vm = valid_months(ym)[k - 1]
+                mo = int(vm[5:])
+                plabel = f"{calendar.month_abbr[mo]} {vm[:4]}"
+                raw = tn if stat == "tn" else tx
+                field = mapped(region, ym, k, stat, raw, lat, lon, mo)
+                corr = "quantile-mapped (hindcast → CPC 1993–2016)"
+                if field is None:  # no table for this start month: skip, never draw uncorrected
+                    print(f"  {region} {set_key} {vm}: quantile tables missing — skipped", flush=True)
+                    continue
+                normal, used = cpc_normal(region, stat, lat, lon)
+                entry["normal_years"] = [min(used), max(used), len(used)] if used else None
+                # the CPC normal is the mean count over its years' own month lengths (February 28.27 days on average in
+                # 1991–2020): scaled to this month's length, so a 29-day February is not read as 2.6 % more threshold days
+                if used:
+                    dscale = calendar.monthrange(int(vm[:4]), mo)[1] / np.mean(
+                        [calendar.monthrange(int(y), mo)[1] for y in used]
+                    )
+                    normal = {t: v * dscale for t, v in normal.items()}
+                mrec = {}
+                ci = []
+                ref = normal[thrs[0]][mo - 1] if used else None  # CPC is land-only: a coastal city whose
+                for name, la, lo, _ in (c[:4] for c in CITIES.get(region, [])):  # nearest cell is sea takes the nearest
+                    i, j = (
+                        int(np.abs(lat - la).argmin()),
+                        int(np.abs(lon - lo).argmin()),
+                    )  # land cell within one step (Miami, Recife)
+                    if ref is not None and not np.isfinite(ref[i, j]):
+                        cand = [
+                            (abs(di) + abs(dj), i + di, j + dj)
+                            for di in (-1, 0, 1)
+                            for dj in (-1, 0, 1)
+                            if 0 <= i + di < ref.shape[0]
+                            and 0 <= j + dj < ref.shape[1]
+                            and np.isfinite(ref[i + di, j + dj])
+                        ]
+                        if cand:
+                            _, i, j = min(cand)
+                    ci.append((name, i, j))
+                for t in thrs:
+                    hit = (field <= t) if op == "le" else (field >= t)
+                    cnt = hit.sum(1).astype(np.float32)  # [member, lat, lon] days
+                    for name, i, j in ci:  # member counts at the city's cell
+                        cs = entry["cities"][name]["sets"].setdefault(set_key, {}).setdefault(vm, {})
+                        nv = float(normal[t][mo - 1][i, j]) if used else float("nan")
+                        cs[str(t)] = {
+                            "m": [int(v) for v in cnt[:, i, j]],
+                            "n": (round(nv, 2) if np.isfinite(nv) else None),
+                        }
+                    pop_days = np.tensordot(cnt, wn, axes=([1, 2], [0, 1]))  # [member]
+                    nrm = normal[t][mo - 1] if used else np.full(cnt.shape[1:], np.nan)
+                    pop_norm = (
+                        float(
+                            np.nansum(np.where(np.isfinite(nrm), nrm, 0) * wn) / max(np.sum(wn[np.isfinite(nrm)]), 1e-9)
+                        )
+                        if used
+                        else None
+                    )
+                    mean_cnt = cnt.mean(0)
+                    out = (
+                        ASSETS
+                        / f"seas5_xdays_{region}_{stat}_{abs(t)}{'m' if t < 0 else ''}_{vm.replace('-', '_')}.webp"
+                    )
+                    if used:
+                        ratio = np.where(nrm > 0, mean_cnt / np.maximum(nrm, 1e-6), np.nan)
+                        pct_map(
+                            ratio,
+                            lat,
+                            lon,
+                            nrm,
+                            region,
+                            f"{thr_label} {t} °C, % of normal",
+                            plabel,
+                            issue_lbl,
+                            out,
+                            cold=(op == "le"),
+                        )
+                    mrec[str(t)] = {
+                        "days": round(float(pop_days.mean()), 2),
+                        "p10": round(float(np.percentile(pop_days, 10)), 2),
+                        "p90": round(float(np.percentile(pop_days, 90)), 2),
+                        "normal": round(pop_norm, 2) if pop_norm is not None else None,
+                        "pct": round(100 * float(pop_days.mean()) / pop_norm, 1) if pop_norm else None,
+                        "map": out.name if used else None,
+                        "correction": corr,
+                    }
+                sub["months"][vm] = mrec
+                print(
+                    f"  {region} {set_key} {vm} [{corr}]: "
+                    + ", ".join(
+                        f"{t}°C {v['days']:.1f} d (normal {v['normal']}, {v['pct']}%)" for t, v in mrec.items()
+                    ),
+                    flush=True,
+                )
+            entry["sets"][set_key] = sub
+        for name, (fx, fy) in _CITY_PX.get(region, {}).items():
+            entry["cities"][name]["x"], entry["cities"][name]["y"] = fx, fy
+        doc["regions"][region] = entry
+    OUT_JSON.write_text(json.dumps(doc, separators=(",", ":")))
+    print(f"wrote {OUT_JSON} in {(time.time() - t0) / 60:.1f} min", flush=True)
+    return doc
+
+
+if __name__ == "__main__":
+    import datetime as _dt
+
+    build(sys.argv[1] if len(sys.argv) > 1 else _dt.datetime.utcnow().strftime("%Y%m"))

@@ -1,0 +1,53 @@
+# Dispatch-only: rebuild the whole MUR Nino-3.4 daily series from 2002-06 (about 40 min on a healthy ERDDAP) and publish it
+# to release mur-series-v1, which sst.yml restores from when its Actions cache has been evicted (2026-10-07).
+name: MUR series backfill
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mur-backfill
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      MPLBACKEND: Agg
+      SST_SITE_ROOT: ${{ github.workspace }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r scripts/sst/requirements-sst.txt
+      - name: Start from the release copy if there is one
+        run: |
+          mkdir -p scripts/sst/data/mur
+          gh release download mur-series-v1 -p nino34_series.json -D scripts/sst/data/mur --clobber || true
+      # The series is saved after every 60-day chunk, so a step that hits its limit keeps what it fetched; Publish runs
+      # regardless and the next dispatch resumes (chunks already complete are skipped). 2026-10-07: the first run reached
+      # mid-2025 against a slow ERDDAP, hit the 300-min job cap and published nothing.
+      - name: Backfill
+        timeout-minutes: 270
+        continue-on-error: true
+        run: python scripts/sst/mur_nino34.py --backfill
+      - name: Publish
+        if: always()
+        run: |
+          f=scripts/sst/data/mur/nino34_series.json
+          [ -s "$f" ] || { echo "::error::no series built"; exit 1; }
+          gh release view mur-series-v1 >/dev/null 2>&1 \
+            || gh release create mur-series-v1 --title "MUR Nino-3.4 daily series" --notes "Daily area-weighted Nino-3.4 MUR SST (scripts/sst/mur_nino34.py)."
+          gh release upload mur-series-v1 "$f" --clobber

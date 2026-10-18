@@ -1,0 +1,64 @@
+name: Site visitor stats & map
+
+# Daily visitor-location map + stats JSON from the GoatCounter API for the
+# stats dashboard (stats.html). No-ops gracefully until the GOATCOUNTER_TOKEN
+# repo secret exists (GoatCounter → Settings → API tokens, "read statistics").
+# Also keeps the GitHub traffic of the public repositories past GitHub's 14-day
+# window (scripts/site/github_traffic.py); that step no-ops until the
+# GH_TRAFFIC_TOKEN secret exists (fine-grained token, "Administration: read").
+on:
+  schedule:
+  - cron: '17 5 * * *'      # daily ~05:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: site-stats
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20   # room for the bounded git-retry loop in Commit & push
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install deps (cartopy needs libgeos/proj)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libgeos-dev libproj-dev proj-bin
+          pip install --quiet requests numpy matplotlib cartopy==0.25.0
+      - name: Build visitor map
+        env:
+          GOATCOUNTER_TOKEN: ${{ secrets.GOATCOUNTER_TOKEN }}
+        run: python scripts/visitor_map.py
+      - name: GitHub traffic
+        env:
+          GH_TRAFFIC_TOKEN: ${{ secrets.GH_TRAFFIC_TOKEN }}
+        run: python scripts/site/github_traffic.py || echo "::warning::GitHub traffic not updated"
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # snapshot the outputs, then commit on a clean sync of origin/main each attempt (never a rebase)
+          [ -d assets/site_stats ] || { echo "no outputs"; exit 0; }
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" assets/site_stats
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add assets/site_stats
+            if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+            git commit -m "data update: $(date -u +%Y-%m-%d)"
+            if timeout 180 git push; then echo "pushed (attempt $i)"; exit 0; fi
+            sleep 5
+          done
+          echo "push failed after 5 attempts"; exit 1

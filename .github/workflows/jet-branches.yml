@@ -1,0 +1,249 @@
+name: Jet branches (IFS-ENS polar jet, subtropical jet and superposition)
+
+# The polar jet, the subtropical jet and their superposition in every IFS-ENS member (scripts/mjo/src/jet_branches_fc.py,
+# the ERA5 reference's identification, jet_branches.py): the 00 UTC run's 50 perturbed members, t, u and v on the nine
+# levels 700-100 hPa, 12-hourly to last_step, byte-ranged step by step from the Google Cloud mirror of ECMWF open data
+# only and never cached. The ERA5 normals: release jet-branches-ref-v1 (jet_branches_clim.nc) and the committed
+# reference files (jet-branches-ref.yml). Cold season only: a run started outside 1 November - 31 March renders the
+# season note, with nothing fetched.
+#
+#   forecast   the 00 UTC run of `date` (blank = today) -> frames assets/sst/anim/jetbr_ifs (frames store) + the
+#              manifest, assets/sst/jetbr_ifs_events.webp and assets/sst/data/jetbr_ifs.json; with publish=true the
+#              frames are published and the rest committed, otherwise all of it is an artifact. Waits up to 45 min
+#              for the run on the mirror.
+#   hindcast   archived runs against ERA5 (scripts/mjo/src/jet_branches_hindcast.py), artifacts only: ERA5 (ARCO) is
+#              identified at 00/12 UTC from scan_start to scan_end; the runs started leads_before days ahead of each
+#              region's largest event in it (or the `inits` given) are fetched exactly as the forecast is, which
+#              measures the fetch, and compared with ERA5 at their valid times.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'forecast (the 00 UTC run) or hindcast (archived runs against ERA5, artifacts only)'
+        type: choice
+        options: [forecast, hindcast]
+        default: forecast
+      date:
+        description: 'forecast: the 00 UTC run, YYYYMMDD (blank = today)'
+        default: ''
+      last_step:
+        description: 'Last lead in hours (12-hourly from 0)'
+        default: '240'
+      publish:
+        description: 'forecast: publish the frames and commit the outputs (false = artifacts only)'
+        type: boolean
+        default: false
+      scan_start:
+        description: 'hindcast: first day of the ERA5 scan'
+        default: '2025-11-15'
+      scan_end:
+        description: 'hindcast: last day of the ERA5 scan'
+        default: '2026-03-31'
+      inits:
+        description: 'hindcast: JSON list of 00 UTC runs, YYYYMMDD (blank = picked from the scan)'
+        default: ''
+      leads_before:
+        description: 'hindcast: days before each picked event onset to start a run'
+        default: '3,6'
+
+permissions:
+  contents: write
+
+env:
+  ECMWF_SOURCES: google
+  ECMWF_MULTISOURCE: "0"
+  ECMWF_RPS_GOOGLE: "60"           # the ef files are in arrival order: many small ranges (see strat-ifs.yml)
+  ECMWF_RPS: "60"
+  ECMWF_RANGE_GAP_MB: "0.5"
+  MPLBACKEND: Agg
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  # ------------------------------------------------------------- forecast ---
+  forecast:
+    if: inputs.mode == 'forecast'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    concurrency:
+      group: jet-branches
+      cancel-in-progress: false
+    env:
+      FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}
+      FRAMES_S3_ENDPOINT: ${{ secrets.FRAMES_S3_ENDPOINT }}
+      FRAMES_S3_REGION: ${{ secrets.FRAMES_S3_REGION }}
+      FRAMES_S3_ACL: ${{ secrets.FRAMES_S3_ACL }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.FRAMES_S3_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.FRAMES_S3_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: System libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+      - name: Unit tests
+        run: |
+          python scripts/mjo/src/test_jet_branches.py
+          python scripts/mjo/src/test_jet_branches_fc.py
+      - name: The ERA5 normals (release jet-branches-ref-v1)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release download jet-branches-ref-v1 -R "$GITHUB_REPOSITORY" -p jet_branches_clim.nc -D /tmp/ref
+      - name: Fetch, identify and render
+        env:
+          D: ${{ inputs.date }}
+          LAST: ${{ inputs.last_step }}
+        run: |
+          [ -n "$D" ] || D=$(date -u +%Y%m%d)
+          start=$(date +%s)
+          python scripts/mjo/src/jet_branches_fc.py forecast --date "$D" --last-step "$LAST" --wait-min 45 \
+            --clim /tmp/ref/jet_branches_clim.nc --out-dir assets/sst --out /tmp/jetbr_fc.npz
+          echo "  wall time $(( $(date +%s) - start )) s"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: jet-branches-forecast
+          path: |
+            assets/sst/anim/jetbr_ifs
+            assets/sst/anim/jetbr_ifs_manifest.json
+            assets/sst/jetbr_ifs_events.webp
+            assets/sst/data/jetbr_ifs.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Publish loop frames
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/jetbr_ifs
+      # Never rebase: snapshot, reset to a fresh origin/main each attempt, lay the snapshot back on, commit, push.
+      - name: Commit & push
+        if: inputs.publish
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUTS="assets/sst/anim/jetbr_ifs_manifest.json assets/sst/jetbr_ifs_events.webp assets/sst/data/jetbr_ifs.json"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" $OUTS
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add $OUTS
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "Jet branches (IFS-ENS): $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push origin HEAD:main; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+
+  # ------------------------------------------------------------- hindcast ---
+  scan:
+    if: inputs.mode == 'hindcast'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    outputs:
+      inits: ${{ steps.pick.outputs.inits }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: System libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+      - name: ERA5 (ARCO) identified at 00 and 12 UTC
+        run: |
+          python scripts/mjo/src/jet_branches_hindcast.py scan --start "${{ inputs.scan_start }}" \
+            --end "${{ inputs.scan_end }}" --out /tmp/scan.npz
+      - name: The runs to check
+        id: pick
+        env:
+          INITS: ${{ inputs.inits }}
+        run: |
+          if [ -n "$INITS" ]; then
+            echo "inits=$INITS" >> "$GITHUB_OUTPUT"
+          else
+            python scripts/mjo/src/jet_branches_hindcast.py pick --scan /tmp/scan.npz \
+              --leads "${{ inputs.leads_before }}" --github-output
+          fi
+      - uses: actions/upload-artifact@v7
+        with:
+          name: jet-branches-scan
+          path: /tmp/scan.npz
+          retention-days: 14
+
+  hind:
+    needs: scan
+    if: needs.scan.outputs.inits != '' && needs.scan.outputs.inits != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        init: ${{ fromJSON(needs.scan.outputs.inits) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: System libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+      - uses: actions/download-artifact@v7
+        with:
+          name: jet-branches-scan
+          path: /tmp
+      - name: The ERA5 normals (release jet-branches-ref-v1)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release download jet-branches-ref-v1 -R "$GITHUB_REPOSITORY" -p jet_branches_clim.nc -D /tmp/ref
+      - name: Fetch and identify the archived run (as the forecast does)
+        run: |
+          mkdir -p /tmp/out
+          start=$(date +%s)
+          python scripts/mjo/src/jet_branches_fc.py run --date "${{ matrix.init }}" --last-step "${{ inputs.last_step }}" \
+            --out "/tmp/out/fc_${{ matrix.init }}.npz"
+          echo "  wall time $(( $(date +%s) - start )) s"
+      - name: Against ERA5, and the maps the site would show
+        run: |
+          python scripts/mjo/src/jet_branches_hindcast.py compare --fc "/tmp/out/fc_${{ matrix.init }}.npz" \
+            --scan /tmp/scan.npz --clim /tmp/ref/jet_branches_clim.nc --out-dir /tmp/out
+          python scripts/mjo/src/jet_branches_fc.py render --fc "/tmp/out/fc_${{ matrix.init }}.npz" \
+            --clim /tmp/ref/jet_branches_clim.nc --out-dir "/tmp/out/site_${{ matrix.init }}"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: jet-branches-hind-${{ matrix.init }}
+          path: /tmp/out
+          retention-days: 14

@@ -1,0 +1,426 @@
+name: C3S multi-system seasonal (monthly)
+
+# The Copernicus C3S multi-system seasonal products: the ENSO forecasts page (enso_forecast.json plume, issue-by-issue
+# evolution, east/central flavour, the static c3s_nino34.webp) and the C3S groups of seasonal.html (anomaly maps for
+# every system + the multi-model mean, ocean indices, tercile maps, population-weighted monthly and daily temperature).
+#
+# DESIGN. Everything runs in Actions and nothing is downloaded twice:
+#   * every large input is reduced to a compact table the moment it lands and the raw GRIB is deleted (c3s_ref.py):
+#     per hindcast START MONTH (hc_terc_*: tercile bounds, population-weighted hindcast means; hc_anom_*: the
+#     hindcast spread the anomaly maps are tested against -- ~17 GB of raw hindcast paid once per calendar month,
+#     ever) and per ISSUE (is_terc_*: tercile probabilities + member series; is_anom_*: ensemble-mean anomaly and
+#     member spread; is_sixh_*: each member's population-weighted daily mean), kept as assets of the release
+#     `c3s-ref-v1`;
+#   * the static references (geonames places, the CPC 1993-2016 base) were built once offline from existing data stores;
+#   * the ENSO plume's hindcast climatology stays the committed c3s_nino34_clim.csv (a new start month adds rows);
+#     the flavour's hindcast test result is committed per start month (reference/enso_flavour_hindcast_MM.json), and
+#     so is the peak-odds calibration test (reference/enso_peak_calib_MM.json; sst.yml writes the page's verdict).
+#
+# WHEN. The C3S centres publish around the 10th-13th. Cron 9th-16th twice a day + the dispatcher (window=true);
+# each part is gated on assets/sst/data/c3s_status.json, so a run after the issue is complete exits in ~30 s, and an
+# incomplete issue keeps being continued to the 20th. Until QUORUM (4) systems have published the issue, the plume
+# step answers "not yet" and nothing else runs.
+#
+# CDS: one key, so this shares the `seas5` concurrency group with seas5.yml and seas5-lead7.yml (never two jobs
+# requesting at once) and every request inside the job is sequential. The heavy fetches (tercile members/hindcasts,
+# 6-hourly members, ~7 h of CDS time for a new start month) run under a time budget and resume on the next run.
+#
+# ECMWF: its tercile forecast and 6-hourly members come from seas5.yml's own cache of the issue when that is still
+# there (restored read-only below), else from the CDS. Its tercile HINDCAST (t2m + precipitation, ~1 GB) is fetched
+# once per start month: seas5.yml reduces its raw hindcast to its own tables (different periods) and deletes it.
+#
+# CanSIPS (cansips.yml) extends the plume past month 6 only with the Datamart issue that matches enso_forecast.json; that
+# entry is built by cansips.yml already (it posts on the last day of the previous month). After a new C3S issue is
+# committed here, cansips.yml is dispatched (maps=false, ~2 min) so its C3S validation block follows the new issue.
+#
+# Secrets: CDSAPI_URL, CDSAPI_KEY (the same as seas5.yml). Licence: Copernicus; NOAA CPC/OISST via PSL; GeoNames CC BY.
+
+on:
+  schedule:
+  - cron: '20 3 9-16 * *'
+  - cron: '20 9 9-16 * *'
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: 'Issue month YYYYMM (empty = current UTC month)'
+        required: false
+        default: ''
+      force:
+        description: 'Rebuild the selected parts even if this issue is already complete'
+        required: false
+        default: 'false'
+      window:
+        description: 'true = behave like the cron (9th-16th, or while the issue is incomplete to the 20th); the dispatcher sets it'
+        required: false
+        default: 'false'
+      parts:
+        description: 'Comma list of enso,maps,terc,sixh'
+        required: false
+        default: 'enso,maps,terc,sixh'
+      budget_min:
+        description: 'Minutes the map-hindcast, tercile and 6-hourly steps may each spend starting downloads (each capped by the job time left)'
+        required: false
+        default: '150'
+      sixh_only:
+        description: '6-hourly fetch for one system only, centre_system (validation)'
+        required: false
+        default: ''
+      commit:
+        description: 'false = build and upload the outputs as an artifact, commit nothing (validation)'
+        required: false
+        default: 'true'
+
+permissions:
+  contents: write   # commit outputs, upload tables to the c3s-ref-v1 release
+  actions: write    # dispatch cansips.yml after a new issue
+
+concurrency:
+  group: seas5
+  cancel-in-progress: false
+
+env:
+  REF_TAG: c3s-ref-v1
+  MPLBACKEND: Agg
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    env:
+      SST_SITE_ROOT: ${{ github.workspace }}
+      C3S_REF_DIR: ${{ github.workspace }}/c3s_ref
+      C3S_DISCARD_RAW: '1'
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve the issue and decide whether to run
+        id: gate
+        run: |
+          echo "JOB_T0=$(date +%s)" >> "$GITHUB_ENV"
+          I="${{ inputs.issue }}"; [ -n "$I" ] || I=$(date -u +%Y%m)
+          D=$((10#$(date -u +%d)))
+          prev() { local y=${1:0:4} m=$((10#${1:4:2})); m=$((m-1)); [ $m -eq 0 ] && { y=$((y-1)); m=12; }; printf '%04d%02d' $y $m; }
+          P1=$(prev "$I")
+          read -r SISSUE COMPLETE < <(python3 - <<'EOF'
+          import json
+          try:
+              st = json.load(open("assets/sst/data/c3s_status.json"))
+              print(st.get("issue", "-").replace("-", "") or "-", "1" if st.get("complete") else "0")
+          except Exception:
+              print("-", "0")
+          EOF
+          )
+          RUN=1; WHY="manual dispatch"
+          if [ "${{ inputs.force }}" = "true" ]; then WHY="forced"
+          elif [ "$SISSUE" = "$I" ] && [ "$COMPLETE" = "1" ]; then RUN=0; WHY="$I already complete"
+          elif [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.window }}" = "true" ]; then
+            if [ $D -ge 9 ] && [ $D -le 16 ]; then WHY="release window, day $D"
+            elif [ "$SISSUE" = "$I" ] && [ $D -le 20 ]; then WHY="$I started but incomplete - continuing (day $D)"
+            else RUN=0; WHY="outside the 9th-16th window (day $D)"; fi
+          fi
+          PARTS="${{ inputs.parts }}"; [ -n "$PARTS" ] || PARTS="enso,maps,terc,sixh"
+          echo "Issue $I (previous $P1); status issue=$SISSUE complete=$COMPLETE -> run=$RUN ($WHY); parts $PARTS"
+          { echo "issue=$I"; echo "month=${I:4:2}"; echo "p1=$P1"; echo "run=$RUN"; echo "why=$WHY"; echo "parts=,$PARTS,"; } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@v7
+        if: steps.gate.outputs.run == '1'
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        if: steps.gate.outputs.run == '1'
+        run: |
+          for i in 1 2 3; do
+            if sudo timeout 240 apt-get update -qq -o Acquire::Retries=3 && \
+               sudo timeout 300 apt-get install -y --no-install-recommends -o Acquire::Retries=3 \
+                 libgeos-dev libproj-dev proj-bin libeccodes0; then break; fi
+            echo "apt attempt $i failed; retrying"; sleep 10
+          done
+          # cartopy 0.25 (0.26 collapses dateline-centred global extents), matplotlib 3.10 as on the SEAS5 job.
+          # dask: the tercile reader opens GRIBs chunked; netCDF4/h5netcdf are xarray backend plugins (OPeNDAP, CPC files).
+          pip install --quiet numpy pandas scipy xarray dask cfgrib eccodes cdsapi requests \
+            matplotlib==3.10.9 cartopy==0.25.0 'shapely>=2.1.2' 'pyproj>=3.7.2' Pillow netCDF4 h5netcdf
+          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag
+
+      - name: Free runner disk (a raw hindcast is up to ~0.9 GB; reduced and deleted one at a time)
+        if: steps.gate.outputs.run == '1'
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /usr/local/.ghcup 2>/dev/null || true
+          df -h "$GITHUB_WORKSPACE" | tail -1
+
+      - name: CDS credentials
+        if: steps.gate.outputs.run == '1'
+        env:
+          CDSAPI_URL: ${{ secrets.CDSAPI_URL }}
+          CDSAPI_KEY: ${{ secrets.CDSAPI_KEY }}
+        run: |
+          if [ -z "$CDSAPI_KEY" ]; then echo "::error::secret CDSAPI_KEY is not set"; exit 1; fi
+          umask 077
+          printf 'url: %s\nkey: %s\n' "${CDSAPI_URL:-https://cds.climate.copernicus.eu/api}" "$CDSAPI_KEY" > ~/.cdsapirc
+
+      - name: Download the tables (release ${{ env.REF_TAG }})
+        if: steps.gate.outputs.run == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$C3S_REF_DIR"
+          if ! gh release view "$REF_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::release $REF_TAG not found - bootstrap it offline (c3s_ref.py obs / hc)"; exit 1
+          fi
+          I=${{ steps.gate.outputs.issue }}; M=${{ steps.gate.outputs.month }}
+          gh release download "$REF_TAG" --repo "$GITHUB_REPOSITORY" -D "$C3S_REF_DIR" --clobber \
+            -p 'obs_*' -p "hc_terc_*_${M}.npz" -p "hc_anom_*_${M}.npz" -p "is_*_${I}*.npz" \
+            || echo "::warning::not every $REF_TAG pattern downloaded (none published yet for this issue, or a fetch error)"
+          touch "$RUNNER_TEMP/ref_marker"
+          ls "$C3S_REF_DIR" | sed 's/_[0-9]*\.npz$//' | sort | uniq -c | head -40
+          du -sh "$C3S_REF_DIR"
+
+      - name: Which parts are still to do
+        if: steps.gate.outputs.run == '1'
+        id: parts
+        run: |
+          ST=$(python scripts/sst/c3s_status.py --issue "${{ steps.gate.outputs.issue }}")
+          echo "$ST" | tee -a "$GITHUB_OUTPUT"
+          F="${{ inputs.force }}"; P="${{ steps.gate.outputs.parts }}"
+          for k in enso maps terc sixh; do
+            key=$k; [ $k = enso ] && key=plume
+            d=$(echo "$ST" | sed -n "s/^${key}_done=//p")
+            if [[ "$P" == *",$k,"* ]] && { [ "$d" != "1" ] || [ "$F" = "true" ]; }; then echo "do_$k=1"; else echo "do_$k=0"; fi
+          done | tee -a "$GITHUB_OUTPUT"
+
+      # the issue's small forecast files (plume boxes, flavour strips, postprocessed maps) between runs of one issue
+      - name: Restore this issue's small C3S files from earlier runs
+        if: steps.gate.outputs.run == '1'
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            scripts/sst/data/c3s/forecast/*_${{ steps.gate.outputs.issue }}*.grib
+            scripts/sst/data/c3s/strip/${{ steps.gate.outputs.issue }}
+            scripts/sst/data/c3s/strip/${{ steps.gate.outputs.p1 }}
+            scripts/sst/data/c3s/maps/${{ steps.gate.outputs.issue }}
+          key: c3s-fc-${{ steps.gate.outputs.issue }}-${{ github.run_id }}
+          restore-keys: |
+            c3s-fc-${{ steps.gate.outputs.issue }}-
+
+      # ECMWF's tercile forecast (fc_gl) and 6-hourly members (sixh): seas5.yml's cache of this issue, read-only. The path
+      # list must stay IDENTICAL to seas5.yml's (the cache version is a hash of it); a miss just means the CDS below.
+      - name: Restore SEAS5's copy of this issue (ECMWF members)
+        if: steps.gate.outputs.run == '1' && (steps.parts.outputs.do_terc == '1' || steps.parts.outputs.do_sixh == '1')
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            scripts/sst/data/seas5/forecast/*_${{ steps.gate.outputs.issue }}.grib
+            scripts/sst/data/seas5/forecast/*_${{ steps.gate.outputs.issue }}_L7.npz
+            scripts/sst/data/seas5/sixh/*_${{ steps.gate.outputs.issue }}*.grib
+            scripts/sst/data/seas5/regimes/fc_*_${{ steps.gate.outputs.issue }}.grib
+            scripts/sst/data/seas5/ssw/fc_*_${{ steps.gate.outputs.issue }}.grib
+          key: seas5-fc-${{ steps.gate.outputs.issue }}-c3s-read-only
+          restore-keys: |
+            seas5-fc-${{ steps.gate.outputs.issue }}-
+
+      - name: ENSO plume, evolution and east/central flavour
+        id: enso
+        if: steps.gate.outputs.run == '1'
+        run: |
+          I=${{ steps.gate.outputs.issue }}; M=${{ steps.gate.outputs.month }}
+          if [ "${{ steps.parts.outputs.do_enso }}" != "1" ]; then
+            # already built: the other parts may proceed if the published plume is this issue
+            if [ "${{ steps.parts.outputs.plume_done }}" = "1" ] || python3 -c "import json,sys; sys.exit(0 if json.load(open('assets/sst/data/enso_forecast.json'))['issue']=='${I:0:4}-${I:4:2}' else 1)"; then
+              echo "ready=1" >> "$GITHUB_OUTPUT"; else echo "ready=0" >> "$GITHUB_OUTPUT"; fi
+            exit 0
+          fi
+          # the static figure's monthly relative-index line: extend the OISST box series (PSL OPeNDAP, sequential)
+          python scripts/sst/c3s_ref.py oisst || echo "::warning::OISST monthly update failed; the figure keeps the months it has"
+          set +e
+          python scripts/sst/c3s_nino34.py --issue "$I" --require-quorum
+          rc=$?
+          set -e
+          if [ $rc -eq 3 ]; then echo "ready=0" >> "$GITHUB_OUTPUT"; echo "Issue $I is not on the CDS for enough systems yet - the next run retries."; exit 0; fi
+          [ $rc -eq 0 ] || { echo "::error::C3S plume failed"; exit 1; }
+          echo "ready=1" >> "$GITHUB_OUTPUT"
+          python scripts/sst/c3s_evolution.py || echo "::warning::evolution store update failed"
+          # the flavour's hindcast test runs once per start month; its result is committed
+          if [ ! -f "scripts/sst/reference/enso_flavour_hindcast_${M}.json" ]; then
+            python scripts/sst/c3s_enso_flavour.py --issue "$I" --fetch-hindcast || echo "::warning::hindcast strips incomplete; the test waits for them"
+          fi
+          python scripts/sst/c3s_enso_flavour.py --issue "$I" || echo "::warning::east/central build failed; keeping the previous issue"
+          # the peak-odds calibration test runs once per start month on the plume's own hindcast files (any the
+          # climatology step did not just fetch are fetched one at a time); its result is committed, then the verdict
+          # for this issue is written
+          python scripts/sst/enso_peak_calib.py --fetch || echo "::warning::peak-odds calibration step failed; the page keeps the previous verdict"
+          # the strips are reduced to the committed JSON; never kept
+          rm -rf scripts/sst/data/c3s/strip/hindcast
+
+      - name: Anomaly maps and ocean indices (postprocessed members, tested against each system's hindcast spread)
+        id: maps
+        if: steps.gate.outputs.run == '1' && steps.enso.outputs.ready == '1' && steps.parts.outputs.do_maps == '1'
+        run: |
+          I=${{ steps.gate.outputs.issue }}
+          # members first (one small request per system and field), then the hindcast spread each map is tested with
+          # (once per start month: t2m and precipitation shared with the tercile tables, sea-level pressure and SST for
+          # the test alone) under the same budget rule as the tercile step; a field without it is left off the maps
+          LEFT=$(( 340 - ( $(date +%s) - JOB_T0 ) / 60 - 90 ))
+          B="${{ inputs.budget_min || '150' }}"; [ "$LEFT" -lt "$B" ] && B=$LEFT
+          [ "$B" -ge 1 ] || B=0.01
+          TL=$(( 340 - ( $(date +%s) - JOB_T0 ) / 60 - 60 ))
+          echo "map hindcast budget ${B} min, hard stop ${TL} min"
+          if timeout --signal=INT "${TL}m" python scripts/sst/c3s_maps.py --issue "$I" --budget-min "$B"; then
+            python scripts/sst/c3s_maps_render.py --issue "$I" || echo "::warning::c3s map render failed; keeping the previous issue"
+            python scripts/sst/c3s_indices.py --issue "$I" || echo "::warning::c3s indices failed; keeping the previous issue"
+          else
+            echo "::warning::under 75% of the map fields are on the CDS yet; keeping the previous issue"
+          fi
+
+      # also after a cancelled or failed step, so whatever was fetched is kept (e.g. by a run cancelled mid-plume)
+      - name: Save this issue's small C3S files now
+        if: always() && steps.gate.outputs.run == '1'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            scripts/sst/data/c3s/forecast/*_${{ steps.gate.outputs.issue }}*.grib
+            scripts/sst/data/c3s/strip/${{ steps.gate.outputs.issue }}
+            scripts/sst/data/c3s/strip/${{ steps.gate.outputs.p1 }}
+            scripts/sst/data/c3s/maps/${{ steps.gate.outputs.issue }}
+          key: c3s-fc-${{ steps.gate.outputs.issue }}-${{ github.run_id }}
+
+      - name: Observed months for the population-weighted cards (CPC daily, PSL OPeNDAP)
+        if: steps.gate.outputs.run == '1' && steps.enso.outputs.ready == '1' && (steps.parts.outputs.do_terc == '1' || steps.parts.outputs.do_sixh == '1')
+        run: python scripts/sst/c3s_ref.py cpc --issue "${{ steps.gate.outputs.issue }}" || echo "::warning::CPC fetch failed; the observed months are left off"
+
+      - name: Tercile maps + population-weighted monthly temperature (members + hindcast tables)
+        id: terc
+        if: steps.gate.outputs.run == '1' && steps.enso.outputs.ready == '1' && steps.parts.outputs.do_terc == '1'
+        run: |
+          I=${{ steps.gate.outputs.issue }}
+          # budget: the input, capped by the job time left minus 90 min (in-flight request, 6-hourly, render, commit)
+          LEFT=$(( 340 - ( $(date +%s) - JOB_T0 ) / 60 - 90 ))
+          B="${{ inputs.budget_min || '150' }}"; [ "$LEFT" -lt "$B" ] && B=$LEFT
+          TL=$(( 340 - ( $(date +%s) - JOB_T0 ) / 60 - 45 ))
+          echo "tercile download budget ${B} min, hard stop ${TL} min"
+          # a forced run re-derives the issue tables (and re-fetches the raw forecast the tables were made from)
+          FORCE=""; [ "${{ inputs.force }}" = "true" ] && FORCE="--force"
+          if [ "$B" -gt 5 ]; then
+            timeout --signal=INT "${TL}m" python scripts/sst/c3s_terciles.py --issue "$I" --budget-min "$B" $FORCE \
+              || echo "::warning::tercile tables incomplete (the next run continues)"
+          fi
+          n=$(ls "$C3S_REF_DIR"/is_terc_*_"$I".npz 2>/dev/null | wc -l)
+          echo "tercile issue tables: $n"
+          if [ "$n" -ge 12 ]; then
+            python scripts/sst/c3s_terciles_render.py --issue "$I" || echo "::warning::c3s tercile render failed; keeping the previous issue"
+            python scripts/sst/c3s_popt_monthly.py --issue "$I" || echo "::warning::c3s population-weighted build failed; keeping the previous issue"
+          else
+            echo "::warning::only $n/16 tercile tables; the maps wait for 12"
+          fi
+
+      - name: 6-hourly members -> population-weighted daily temperature
+        id: sixh
+        if: always() && steps.gate.outputs.run == '1' && steps.enso.outputs.ready == '1' && steps.parts.outputs.do_sixh == '1'
+        run: |
+          I=${{ steps.gate.outputs.issue }}
+          LEFT=$(( 340 - ( $(date +%s) - JOB_T0 ) / 60 - 50 ))
+          B="${{ inputs.budget_min || '150' }}"; [ "$LEFT" -lt "$B" ] && B=$LEFT
+          TL=$(( 340 - ( $(date +%s) - JOB_T0 ) / 60 - 30 ))
+          echo "6-hourly download budget ${B} min, hard stop ${TL} min"
+          ONLY=""; [ -n "${{ inputs.sixh_only }}" ] && ONLY="--only ${{ inputs.sixh_only }}"
+          if [ "$B" -gt 5 ]; then
+            timeout --signal=INT "${TL}m" python scripts/sst/c3s_sixh.py --issue "$I" --budget-min "$B" $ONLY \
+              || echo "::warning::6-hourly tables incomplete (the next run continues)"
+          fi
+          n=$(ls "$C3S_REF_DIR"/is_sixh_*_"$I"_m*.npz 2>/dev/null | wc -l)
+          echo "6-hourly tables: $n"
+          if [ "$n" -gt 0 ]; then
+            python scripts/sst/c3s_popt_daily.py --issue "$I" || echo "::warning::c3s daily distribution build failed; keeping the previous issue"
+          fi
+
+      - name: Upload new tables
+        if: always() && steps.gate.outputs.run == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          [ -f "$RUNNER_TEMP/ref_marker" ] || exit 0
+          NEW=$(find "$C3S_REF_DIR" -name '*.npz' -newer "$RUNNER_TEMP/ref_marker" | sort)
+          if [ -z "$NEW" ]; then echo "no new tables"; exit 0; fi
+          echo "$NEW"
+          gh release upload "$REF_TAG" --repo "$GITHUB_REPOSITORY" --clobber $NEW
+
+      - name: Status
+        if: always() && steps.gate.outputs.run == '1' && steps.enso.outputs.ready == '1'
+        run: python scripts/sst/c3s_status.py --issue "${{ steps.gate.outputs.issue }}" --write
+
+      - name: Keep the outputs as an artifact (validation, commit=false)
+        if: always() && steps.gate.outputs.run == '1' && inputs.commit == 'false'
+        uses: actions/upload-artifact@v7
+        with:
+          name: c3s-outputs-${{ steps.gate.outputs.issue }}
+          path: |
+            assets/sst/c3s_nino34.webp
+            assets/sst/data/enso_forecast.json
+            assets/sst/data/c3s_evolution.json
+            assets/sst/data/enso_flavour.json
+            assets/sst/data/c3s_maps.json
+            assets/sst/data/c3s_indices.json
+            assets/sst/data/c3s_popt.json
+            assets/sst/data/c3s_popt_daily.json
+            assets/sst/data/c3s_status.json
+            assets/sst/c3s/
+            scripts/sst/c3s_nino34_clim.csv
+            scripts/sst/reference/oisst_box_monthly.json
+            scripts/sst/reference/enso_flavour_hindcast_*.json
+            scripts/sst/reference/enso_peak_calib_*.json
+            assets/sst/data/enso_peak_calib.json
+            c3s_ref/is_*.npz
+          retention-days: 14
+
+      - name: Commit & push (generated outputs)
+        id: commit
+        if: always() && steps.gate.outputs.run == '1' && steps.enso.outputs.ready == '1' && inputs.commit != 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUTS="assets/sst/c3s_nino34.webp scripts/sst/c3s_nino34_clim.csv assets/sst/data/enso_forecast.json
+                assets/sst/data/c3s_evolution.json assets/sst/data/enso_flavour.json scripts/sst/reference/enso_flavour_eof.npz
+                scripts/sst/reference/enso_flavour_hindcast_*.json scripts/sst/reference/enso_peak_calib_*.json
+                assets/sst/data/enso_peak_calib.json scripts/sst/reference/oisst_box_monthly.json assets/sst/c3s
+                assets/sst/data/c3s_maps.json assets/sst/data/c3s_indices.json assets/sst/data/c3s_popt.json
+                assets/sst/data/c3s_popt_daily.json assets/sst/data/c3s_status.json"
+          # snapshot + clean resync each attempt (the mjo.yml pattern); merges, never rebases
+          # `git add` aborts on a pathspec that matches nothing, so only existing paths are passed
+          have() { for f in $OUTS; do [ -e "$f" ] && echo "$f"; done; }
+          SNAP=$(mktemp -d)
+          git add -A $(have)
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          NEWPLUME=0; git diff --staged --quiet -- assets/sst/data/enso_forecast.json || NEWPLUME=1
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -A $(have)
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; echo "newplume=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+            I="${{ steps.gate.outputs.issue }}"
+            git commit -q -m "data update: C3S multi-system ${I:0:4}-${I:4:2} issue"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; echo "newplume=$NEWPLUME" >> "$GITHUB_OUTPUT"; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+
+      # cansips.yml's validation block compares its Datamart copy with the C3S copy of the SAME issue; refresh it now
+      - name: Refresh CanSIPS's C3S validation for the new plume
+        if: success() && steps.commit.outputs.newplume == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run cansips.yml --repo "$GITHUB_REPOSITORY" -f maps=false || echo "::warning::could not dispatch cansips.yml"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### C3S multi-system ${{ steps.gate.outputs.issue }}"
+            echo "- gate: ${{ steps.gate.outputs.why }}"
+            echo "- issue on the CDS (quorum): ${{ steps.enso.outputs.ready || 'not checked' }}"
+            [ -f assets/sst/data/c3s_status.json ] && echo "- status: $(cat assets/sst/data/c3s_status.json)"
+            echo "- Pages: [/enso-forecasts.html](https://scorvec.com/enso-forecasts.html), [/seasonal.html](https://scorvec.com/seasonal.html)"
+          } >> "$GITHUB_STEP_SUMMARY"

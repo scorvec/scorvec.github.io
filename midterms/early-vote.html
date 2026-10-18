@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Early Vote: 2026 Midterms</title>
+<meta name="description" content="The 2026 early vote against earlier elections at the same number of days out - North Carolina by party, age, race, county and vote history, Georgia, Florida and Nevada's Clark County - and how ballots already cast enter the midterm forecast.">
+<link rel="canonical" href="https://scorvec.com/midterms/early-vote.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Early Vote: 2026 Midterms">
+<meta property="og:description" content="The 2026 early vote against earlier elections at the same point, and how ballots already cast enter the midterm forecast.">
+<meta property="og:url" content="https://scorvec.com/midterms/early-vote.html">
+<meta name="twitter:card" content="summary">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="mt.css">
+<style>
+/* early-vote.html: the early vote against earlier elections (midterms/nc_tracker.py, ga_early.py, fl_early.py ->
+   data/early_vote.json, assembled by midterms/early_page.py) and how banked ballots enter the forecast (model.json). */
+:root{--ink:#1b1d22;--muted:#6f6b64;--rule:#e3e1db;--bg:#fcfcfa;--d:#1f5fbf;--dem:#2a78d6;--rep:#e34948;--una:#8a8f98;--grid:#ebe9e3}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 "Source Serif 4",Georgia,serif}
+.ab{max-width:1180px;margin:0 auto;padding:22px 24px 60px}
+.ab h1{font:600 30px/1.2 "Source Serif 4",Georgia,serif;margin:0 0 6px}
+.ab a{color:var(--d)}
+.ab h2{font:600 24px/1.3 "Source Serif 4",Georgia,serif;margin:40px 0 8px;padding-top:8px;border-top:1px solid var(--rule)}
+.ab h3{font:600 18px/1.3 "Source Sans 3",-apple-system,Helvetica,Arial,sans-serif;margin:22px 0 4px}
+.ab p{margin:10px 0;max-width:110ch}
+.sans{font-family:"Source Sans 3",-apple-system,Helvetica,Arial,sans-serif}
+.chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px;margin:14px 0 6px}
+.chip{background:#fff;border:1px solid var(--rule);border-radius:8px;padding:9px 13px;font-family:"Source Sans 3",-apple-system,Helvetica,Arial,sans-serif}
+.chip .l{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.chip .v{font-size:25px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.25}
+.chip .s{font-size:14px;color:var(--muted)}
+.find{font-family:"Source Sans 3",-apple-system,Helvetica,Arial,sans-serif;font-size:17px;background:#fff;border:1px solid var(--rule);border-radius:8px;padding:4px 18px 4px 34px;margin:12px 0}
+.find li{margin:9px 0;line-height:1.55}
+.find b{font-weight:600}
+.box{background:#fff;border:1px solid var(--rule);border-radius:8px;padding:12px 16px;margin:12px 0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:14px}
+.fig{background:#fff;border:1px solid var(--rule);border-radius:8px;padding:10px 12px 6px;margin:12px 0}
+.fig .t{font:600 16px/1.3 "Source Sans 3",-apple-system,Helvetica,Arial,sans-serif;margin:0 0 2px}
+.fig .st{font:14px/1.4 "Source Sans 3",-apple-system,Helvetica,Arial,sans-serif;color:var(--muted);margin:0 0 4px}
+.fig svg{width:100%;height:auto;display:block;font-family:"Source Sans 3",-apple-system,Helvetica,Arial,sans-serif}
+.leg{display:flex;flex-wrap:wrap;gap:4px 14px;font:14px "Source Sans 3",-apple-system,Helvetica,Arial,sans-serif;color:var(--muted);margin:4px 0 2px}
+.leg i{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font:15.5px "Source Sans 3",-apple-system,Helvetica,Arial,sans-serif;margin:8px 0}
+th,td{padding:5px 8px;border-bottom:1px solid var(--rule);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600}
+tr.now td{font-weight:600}
+.caveat{font-size:16px;color:#3d3f44}
+small{color:var(--muted)}
+a:focus-visible{outline:2px solid var(--d);outline-offset:2px}
+@media(max-width:640px){.ab{padding:14px 14px 40px}.ab h1{font-size:25px}.chip .v{font-size:21px}.grid2{grid-template-columns:1fr}}
+</style><script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+</head><body>
+<!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Mid-latitude weather</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div class="sh-col">
+              <div>
+                <h3>Surface and hazards</h3>
+                <ul>
+                  <li><a href="/models.html">Short-range model maps</a></li>
+                  <li><a href="/ar.html">Atmospheric rivers</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Upper air</h3>
+                <ul>
+                  <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                  <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                  <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1"><span class="sh-lf">Global circulation and tropics</span><span class="sh-ls">Circulation/tropics</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div class="sh-col">
+              <div>
+                <h3>ENSO and the MJO</h3>
+                <ul>
+                  <li><a href="/enso.html">El Niño monitor</a></li>
+                  <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+                  <li><a href="/circulation.html#gdps_ir">Simulated satellite (GDPS)</a></li>
+                  <li><a href="/mjo.html">MJO forecast</a></li>
+                  <li><a href="/tropical-waves.html">Tropical waves</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tropical cyclones</h3>
+                <ul>
+                  <li><a href="/circulation.html#tcshear">Shear and environment</a></li>
+                  <li><a href="/recon.html">Hurricane reconnaissance</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Jets and momentum</h3>
+                <ul>
+                  <li><a href="/circulation.html#jets">Subtropical jets</a></li>
+                  <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tropical overturning</h3>
+                <ul>
+                  <li><a href="/circulation.html#walker">Walker circulation</a></li>
+                  <li><a href="/circulation.html#hadley">Hadley cells</a></li>
+                  <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                  <li><a href="/circulation.html#gdps150">Upper-level outflow (GDPS)</a></li>
+                  <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+                  <li><a href="/circulation.html#rainfc">Rain forecast, weeks 1–2</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols sh-menu--one" id="sh-g2">
+            <div class="sh-col">
+              <div>
+                <h3>By timescale</h3>
+                <ul>
+                  <li><a href="/stratosphere.html">Every stratosphere product</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div class="sh-col">
+              <div>
+                <h3>Extended range</h3>
+                <ul>
+                  <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                  <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+                  <li><a href="/sfs-subseasonal.html">SFS extended (experimental)</a></li>
+                  <li><a href="/monthly-outlook.html">Claude's month-ahead forecast</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Seasons</h3>
+                <ul>
+                  <li><a href="/seasonal.html">Seasonal model forecasts</a></li>
+                  <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div class="sh-col">
+              <div>
+                <h3>Studies</h3>
+                <ul>
+                  <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                  <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                  <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
+                  <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
+                  <li><a href="/topics/">Explainers</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Verification</h3>
+                <ul>
+                  <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+                  <li><a href="/verification.html">Global models against observations</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+              <li><a href="/fci.html">US credit conditions</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/" aria-current="page">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main class="ab" id="main">
+<h1>Early vote</h1>
+<nav class="mt-nav" aria-label="Forecast pages"><a href="./">Forecast</a><a href="polls.html">Every poll and its weight</a><a href="about.html">How it works</a><a href="whatif.html">What if? Test the assumptions</a><a href="legislatures.html">State legislatures</a><a href="early-vote.html" aria-current="page">Early vote</a></nav>
+<p class="mt-lede">Ballots already cast, against earlier elections at the same number of days before Election Day, and how
+they enter the forecast. Early ballots are counted, not opened: nothing here says how anyone voted.</p>
+<p class="mt-stamp" id="stamp">Loading&hellip;</p>
+
+<h2 id="forecast">How banked votes enter the forecast</h2>
+<div class="box sans" id="fc"><p>Loading&hellip;</p></div>
+<div class="tw"><table id="ktab"></table></div>
+
+<h2 id="nc">North Carolina</h2>
+<p class="sans" style="color:var(--muted)">Every absentee and early in-person ballot the State Board of Elections has accepted, against the 2018 and
+2022 midterms and the 2020 and 2024 presidential years on the same day before the election. Rates are per registered
+voter of the same group on that year's rolls.</p>
+<div class="chips" id="ncchips"></div>
+<ul class="find" id="ncfind"><li>Loading&hellip;</li></ul>
+<p class="caveat"><b>Reading these with care.</b> Registration is not a vote: unaffiliated voters are the largest group on
+North Carolina's rolls and registered Democrats and Republicans both cross over. Who votes <i>early</i> also depends on
+habit and on what each party tells its voters: Republicans moved strongly toward early voting in 2024, and if more of them
+wait for Election Day this year their share of the early vote will understate them. The first days of early voting are a
+small part of the total and the busiest for the most habitual voters. The comparison with 2022 is the cleanest: a midterm
+with the same 17-day early-voting calendar starting on the third Thursday before the election.</p>
+<div class="grid2">
+  <div class="fig"><p class="t">Midterms: ballots accepted</p><p class="st">Cumulative, thousands, by days before Election Day</p><div id="pace1"></div></div>
+  <div class="fig"><p class="t">All five: share of registered voters</p><p class="st">Cumulative, %; dashed: presidential years</p><div id="pace2"></div></div>
+</div>
+<div class="leg" id="yleg"></div>
+<div class="tw"><table id="nctab"></table></div>
+<div class="grid2">
+  <div class="fig"><p class="t">Turned out so far, % of each party's registered voters</p><p class="st">Same day before the election; hatched: presidential years</p><div id="party1"></div></div>
+  <div class="fig"><p class="t">Party registration of the ballots so far</p><p class="st">Share of ballots, same day</p><div id="party2"></div></div>
+</div>
+<div class="grid2">
+  <div class="fig"><p class="t">Turned out so far by age, % of registered</p><p class="st">Same day; hatched: presidential years</p><div id="age"></div></div>
+  <div class="fig"><p class="t">Turned out so far by race, % of registered</p><p class="st">As registered (Hispanic voters sit in their registered race)</p><div id="race"></div></div>
+</div>
+<div class="fig"><p class="t">Where turnout is running ahead of 2022</p><p class="st">Each county's early turnout so far (share of its registered voters) over its own 2022 figure on the same day, against its 2024 presidential margin; circles sized by registered voters, line: the combined ratio of each band of counties</p><div id="county"></div></div>
+<div class="fig"><p class="t">New and returning voters</p><p class="st">Whether this year's early voters voted in the 2022 and 2024 generals, against whether 2022's had voted in 2018 and 2020</p><div id="hist"></div></div>
+
+<h2 id="ga">Georgia</h2>
+<div class="chips" id="gachips"></div>
+<ul class="find" id="gafind"><li>Loading&hellip;</li></ul>
+<div class="fig"><p class="t">Who has voted so far, 2026 against 2022 at the same point</p><p class="st">Share of ballots</p><div id="gacomp"></div></div>
+
+<h2 id="fl">Florida</h2>
+<div class="chips" id="flchips"></div>
+<ul class="find" id="flfind"><li>Loading&hellip;</li></ul>
+
+<h2 id="nv">Nevada (Clark County)</h2>
+<div class="chips" id="nvchips"></div>
+<ul class="find" id="nvfind"><li>Loading&hellip;</li></ul>
+<div class="tw"><table id="nvcd"></table></div>
+<p class="sans" id="nvcdnote"></p>
+
+<h2 id="gate">Why the early-vote mix is not in the forecast</h2>
+<p>Whether a party's registrants are over- or under-represented among early ballots is the most quoted early-vote reading.
+It would enter the forecast only if it had foretold the polls' misses. North Carolina has the longest public record:
+the table scores the change in that reading from the previous cycle of the same kind against the state's polling miss
+(result minus the polls of the last three weeks, statewide races).</p>
+<div class="tw"><table id="gatetab"></table></div>
+<p class="sans" id="gatenote"></p>
+
+<h2 id="sources">Method and sources</h2>
+<p><b>North Carolina.</b> The State Board of Elections' public files (<a href="https://dl.ncsbe.gov/?prefix=ENRS/">dl.ncsbe.gov</a>):
+each election's absentee file (one row per mail or one-stop ballot with the voter's county, party, race, age, ballot type,
+return date and status), the registration statistics on each earlier election day, this week's statewide registration
+file for 2026, voter history, and the 2024 precinct results for each county's presidential margin. A ballot counts once
+it is accepted, once per voter, on the day it came back; the last complete day is the day before the file was written.
+Earlier years come from their final files, which keep each ballot's return date. Only counts are kept: no voter's row,
+name or address is stored or published (<code>midterms/nc_tracker.py</code>).</p>
+<p><b>Georgia.</b> Counts compiled by <a href="https://georgiavotes.com/">georgiavotes.com</a> from the Secretary of State's
+absentee voter files, read once a day; 2022 at the same point from the Internet Archive's captures of the same site
+(<code>midterms/ga_early.py</code>). <b>Florida.</b> The Division of Elections' daily mail-ballot and early-voting statistics
+files, by party, against month-end active registration and against 2024 at the same days out from the Internet Archive's captures
+(<code>midterms/fl_early.py</code>). <b>Nevada.</b> Clark County only, about 70% of the state's voters: the Secretary of
+State's statewide files turn away automated requests, the Clark County Election Department's do not. Its nightly mail ballot
+return file (each returned ballot with the voter's registered party and the day it came back; the 2022 and 2024 files the same
+way, for the same days out) and its daily in-person early vote files, joined on the voter id to the county's active voter list
+for party (a general election's file carries none; voters registered since the list was written are left unmatched). 2024's
+in-person voters are compared on turnout only. The county's daily files are unaudited (corrections reach its later cumulative files),
+and its last day is left out until a night's file holds all of it. Only counts are kept (<code>midterms/nv_clark_early.py</code>). <b>Every state.</b> How much of each state's vote is already in comes from the
+<a href="https://election.lab.ufl.edu/early-vote/">UF Election Lab</a> (CC BY-NC-ND 4.0), used only to compute each
+state's factor above; its counts are not republished here.</p>
+</main>
+<script>
+(function () {
+  "use strict";
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  var NS = "http://www.w3.org/2000/svg";
+  var YC = { 2026: "#1b1d22", 2022: "#eb6834", 2018: "#1baf7a", 2024: "#6250d6", 2020: "#c98500" };
+  var MID = { 2018: 1, 2022: 1, 2026: 1 };
+  var PC = { DEM: "#2a78d6", REP: "#e34948", UNA: "#8a8f98", OTH: "#c9ccd1" };
+  var PN = { DEM: "Democrats", REP: "Republicans", UNA: "Unaffiliated", OTH: "Other parties" };
+  var YEARS = ["2018", "2020", "2022", "2024", "2026"];
+  function $(id) { return document.getElementById(id); }
+  function n0(x) { return Math.round(x).toLocaleString("en-US"); }
+  function pc(x, d) { return (+x).toFixed(d === undefined ? 1 : d) + "%"; }
+  function times(r) { return "&times;" + r.toFixed(2); }
+  function chg(r) { var p = Math.round(100 * (r - 1)); return (p >= 0 ? "+" : "&minus;") + Math.abs(p) + "%"; }
+  function vs(r, b) { var p = Math.abs(Math.round(100 * (r - 1))) + "%"; return Math.abs(r - 1) < 0.02 ? "level with " + b : p + (r > 1 ? " ahead of " : " behind ") + b; }
+  function sgn(x, d) { return (x >= 0 ? "+" : "&minus;") + Math.abs(x).toFixed(d === undefined ? 1 : d); }
+  function date(s) { return new Date(s + "T12:00:00Z").toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "UTC" }); }
+  function chip(l, v, s) { return '<div class="chip"><div class="l">' + l + '</div><div class="v">' + v + '</div><div class="s">' + s + "</div></div>"; }
+  function el(tag, at, parent, text) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in at) e.setAttribute(k, at[k]);
+    if (text !== undefined) e.textContent = text;
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function tip(e, s) { el("title", {}, e, s); return e; }
+  function svg(host, w, h) {
+    var s = el("svg", { viewBox: "0 0 " + w + " " + h, role: "img" });
+    var d = el("defs", {}, s);
+    var p = el("pattern", { id: host + "-h", width: 6, height: 6, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" }, d);
+    el("rect", { width: 6, height: 6, fill: "#fff", "fill-opacity": 0.0 }, p);
+    el("line", { x1: 0, y1: 0, x2: 0, y2: 6, stroke: "#fff", "stroke-width": 2.2 }, p);
+    $(host).innerHTML = ""; $(host).appendChild(s); return s;
+  }
+  function ticks(lo, hi, n) {
+    var span = hi - lo, step = Math.pow(10, Math.floor(Math.log10(span / n))), m = span / n / step;
+    step *= m > 5 ? 10 : m > 2 ? 5 : m > 1 ? 2 : 1;
+    var out = []; for (var v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10)); return out;
+  }
+  function axes(s, x0, x1, y0, y1, yt, fmt, W, H, m) {
+    yt.forEach(function (v) {
+      var y = m.t + (H - m.t - m.b) * (1 - (v - y0) / (y1 - y0));
+      el("line", { x1: m.l, x2: W - m.r, y1: y, y2: y, stroke: "#ebe9e3" }, s);
+      el("text", { x: m.l - 6, y: y + 4, "text-anchor": "end", "font-size": 12, fill: "#6f6b64" }, s, fmt(v));
+    });
+  }
+
+  // line chart: xs (days before, descending), series [{k, ys, color, dash, w}]
+  function lines(host, xs, series, fmt, now) {
+    var W = 560, H = 300, m = { l: 48, r: 50, t: 12, b: 34 }, s = svg(host, W, H);
+    var all = []; series.forEach(function (q) { all = all.concat(q.ys); });
+    var y1 = Math.max.apply(null, all) * 1.08, x0 = xs[0], x1 = 0;
+    function X(v) { return m.l + (W - m.l - m.r) * (x0 - v) / (x0 - x1); }
+    function Y(v) { return m.t + (H - m.t - m.b) * (1 - v / y1); }
+    axes(s, x0, x1, 0, y1, ticks(0, y1, 5), fmt, W, H, m);
+    [30, 25, 20, 15, 10, 5, 0].forEach(function (v) { el("text", { x: X(v), y: H - m.b + 16, "text-anchor": "middle", "font-size": 12, fill: "#6f6b64" }, s, v); });
+    el("text", { x: (m.l + W - m.r) / 2, y: H - 3, "text-anchor": "middle", "font-size": 12, fill: "#6f6b64" }, s, "days before Election Day");
+    el("line", { x1: X(now), x2: X(now), y1: m.t, y2: H - m.b, stroke: "#6f6b64", "stroke-dasharray": "2 3" }, s);
+    var ends = [];
+    series.forEach(function (q) {
+      var d = q.ys.map(function (v, i) { return (i ? "L" : "M") + X(xs[i]).toFixed(1) + " " + Y(v).toFixed(1); }).join("");
+      tip(el("path", { d: d, fill: "none", stroke: q.color, "stroke-width": q.w || 2, "stroke-dasharray": q.dash ? "6 4" : "none", "stroke-linejoin": "round", "stroke-linecap": "round" }, s), q.k);
+      var i = q.ys.length - 1;
+      if (q.k === "2026") {
+        tip(el("circle", { cx: X(xs[i]), cy: Y(q.ys[i]), r: 5, fill: q.color, stroke: "#fff", "stroke-width": 2 }, s), "2026: " + fmt(q.ys[i]));
+        el("text", { x: X(xs[i]) + 8, y: Y(q.ys[i]) - 8, "font-size": 13, "font-weight": 600, fill: "#1b1d22" }, s, "2026: " + fmt(q.ys[i]));
+      } else ends.push({ k: q.k, y: Y(q.ys[i]) });
+    });
+    ends.sort(function (a, b) { return a.y - b.y; });
+    for (var j = 1; j < ends.length; j++) if (ends[j].y - ends[j - 1].y < 14) ends[j].y = ends[j - 1].y + 14;
+    ends.forEach(function (e) { el("text", { x: W - m.r + 6, y: e.y + 4, "font-size": 12, fill: "#6f6b64" }, s, e.k); });
+  }
+
+  // grouped bars: cats [labels], groups [{k, vals, color, hatch}]
+  function bars(host, cats, groups, fmt, label2026, wide) {
+    var W = wide ? 1100 : 560, H = wide ? 300 : 270, m = { l: 40, r: 8, t: 14, b: 30 }, s = svg(host, W, H);
+    var mx = 0; groups.forEach(function (g) { g.vals.forEach(function (v) { mx = Math.max(mx, v); }); });
+    var y1 = mx * 1.12, cw = (W - m.l - m.r) / cats.length, bw = cw * 0.8 / groups.length;
+    function Y(v) { return m.t + (H - m.t - m.b) * (1 - v / y1); }
+    axes(s, 0, 0, 0, y1, ticks(0, y1, 5), fmt, W, H, m);
+    cats.forEach(function (c, i) {
+      el("text", { x: m.l + cw * (i + 0.5), y: H - m.b + 18, "text-anchor": "middle", "font-size": 13, fill: "#1b1d22" }, s, c);
+      groups.forEach(function (g, j) {
+        var v = g.vals[i], x = m.l + cw * i + cw * 0.1 + bw * j;
+        tip(el("rect", { x: x + 1, y: Y(v), width: bw - 2, height: Y(0) - Y(v), rx: 2, fill: g.color }, s), g.k + ", " + c + ": " + fmt(v));
+        if (g.hatch) el("rect", { x: x + 1, y: Y(v), width: bw - 2, height: Y(0) - Y(v), fill: "url(#" + host + "-h)" }, s);
+        if (label2026 && g.k === "2026") el("text", { x: x + bw / 2, y: Y(v) - 4, "text-anchor": "middle", "font-size": 12, "font-weight": 600, fill: "#1b1d22" }, s, fmt(v));
+      });
+    });
+  }
+
+  // 100% stacked rows: rows [{label, parts:[{k, v, color}]}]
+  function stack(host, rows, legend, wide) {
+    var W = wide ? 1100 : 560, rh = 30, m = { l: 128, r: 8, t: 6, b: 6 }, H = m.t + m.b + rows.length * rh, s = svg(host, W, H);
+    rows.forEach(function (r, i) {
+      var y = m.t + i * rh, x = m.l, tot = r.parts.reduce(function (a, p) { return a + p.v; }, 0) || 1;
+      el("text", { x: m.l - 8, y: y + rh / 2 + 4, "text-anchor": "end", "font-size": 13, fill: "#1b1d22" }, s, r.label);
+      r.parts.forEach(function (p) {
+        var w = (W - m.l - m.r) * p.v / tot;
+        tip(el("rect", { x: x, y: y + 3, width: Math.max(w - 2, 0), height: rh - 6, rx: 2, fill: p.color }, s), r.label + " - " + p.k + ": " + pc(100 * p.v / tot, 1));
+        if (w > 34) el("text", { x: x + w / 2, y: y + rh / 2 + 4, "text-anchor": "middle", "font-size": 12, fill: p.light ? "#1b1d22" : "#fff" }, s, Math.round(100 * p.v / tot) + "%");
+        x += w;
+      });
+    });
+    if (legend) { var d = document.createElement("div"); d.className = "leg"; d.innerHTML = legend.map(function (l) { return '<span><i style="background:' + l[1] + '"></i>' + l[0] + "</span>"; }).join(""); $(host).appendChild(d); }
+  }
+
+  function scatter(host, pts, band) {
+    var W = 1100, H = 420, m = { l: 62, r: 12, t: 10, b: 44 }, s = svg(host, W, H);
+    var x0 = -70, x1 = 75, lo = Math.log(0.5), hi = Math.log(2.5);
+    function X(v) { return m.l + (W - m.l - m.r) * (v - x0) / (x1 - x0); }
+    function Y(v) { return m.t + (H - m.t - m.b) * (1 - (Math.log(Math.min(Math.max(v, 0.5), 2.5)) - lo) / (hi - lo)); }
+    [0.5, 0.67, 0.8, 1, 1.25, 1.5, 2, 2.5].forEach(function (v) {
+      el("line", { x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v), stroke: v === 1 ? "#6f6b64" : "#ebe9e3" }, s);
+      el("text", { x: m.l - 6, y: Y(v) + 4, "text-anchor": "end", "font-size": 12, fill: "#6f6b64" }, s, "×" + v);
+    });
+    [-60, -40, -20, 0, 20, 40, 60].forEach(function (v) { el("text", { x: X(v), y: H - m.b + 16, "text-anchor": "middle", "font-size": 12, fill: "#6f6b64" }, s, (v < 0 ? "D+" + (-v) : v > 0 ? "R+" + v : "0")); });
+    el("text", { x: (m.l + W - m.r) / 2, y: H - 4, "text-anchor": "middle", "font-size": 12, fill: "#6f6b64" }, s, "2024 presidential margin (Harris won left, Trump won right)");
+    var mxr = Math.max.apply(null, pts.map(function (p) { return p.reg; }));
+    pts.slice().sort(function (a, b) { return b.reg - a.reg; }).forEach(function (p) {
+      tip(el("circle", { cx: X(p.m), cy: Y(p.x), r: 3 + 22 * Math.sqrt(p.reg / mxr), fill: "#8a8f98", "fill-opacity": 0.5, stroke: "#fff", "stroke-width": 1 }, s),
+        p.c + ": " + times(p.x) + " its 2022 rate; 2024 " + (p.m < 0 ? "Harris +" + (-p.m).toFixed(0) : "Trump +" + p.m.toFixed(0)));
+    });
+    var big = pts.slice().sort(function (a, b) { return b.reg - a.reg; }).slice(0, 6).map(function (p) { return p.c; });
+    var placed = [];
+    pts.filter(function (p) { return big.indexOf(p.c) >= 0; }).forEach(function (p) {
+      var y = Y(p.x) - 8; placed.forEach(function (q) { if (Math.abs(q.x - X(p.m)) < 90 && Math.abs(q.y - y) < 14) y = q.y - 14; });
+      placed.push({ x: X(p.m), y: y });
+      el("text", { x: X(p.m) + 6, y: y, "font-size": 12, fill: "#1b1d22" }, s, p.c);
+    });
+    if (band && band.length) {
+      var d = band.map(function (b, i) { return (i ? "L" : "M") + X(Math.max(Math.min((b.lo + b.hi) / 2, 65), -60)).toFixed(1) + " " + Y(b.x).toFixed(1); }).join("");
+      el("path", { d: d, fill: "none", stroke: "#1b1d22", "stroke-width": 2.2 }, s);
+      band.forEach(function (b) { tip(el("circle", { cx: X(Math.max(Math.min((b.lo + b.hi) / 2, 65), -60)), cy: Y(b.x), r: 4, fill: "#1b1d22" }, s), "margin " + b.lo + " to " + b.hi + ": " + times(b.x)); });
+    }
+  }
+
+  function forecast(M, E) {
+    var ev = M && M.mood && M.mood.early_vote;
+    if (!ev || !ev.k) { $("fc").innerHTML = "<p>The forecast's early-vote factors are not available today.</p>"; return; }
+    var k = ev.k, ks = Object.keys(k).sort(function (a, b) { return k[a] - k[b]; });
+    $("fc").innerHTML = "<p>An early ballot is not counted until Election Day, so it says nothing about who is ahead, and the forecast reads nothing into " +
+      "who has voted. What a ballot already cast does change is how far a late swing can move the result: opinion that shifts next week cannot change a vote cast last week. " +
+      (ev.m_race ? "Two parts of the forecast's error are that kind of late movement: the national swing (" + ev.m.toFixed(1) + " points at " + ev.lead + " days out) and " +
+      "each race's own swing (" + ev.m_race.toFixed(1) + " points: a debate, a scandal, a late ad buy). Each state's share of both is scaled by how much of its vote " :
+      "Part of the forecast's error is that kind of late movement: the national swing (" + ev.m.toFixed(1) + " points at " + ev.lead + " days out). Each state's share of it is scaled by how much of its vote ") +
+      "will already be in when a shift happens, against past elections, which also had early voting: below 1, a state is banking faster than usual and its races are " +
+      "slightly less uncertain; above 1, it is banking more slowly. The factors move every day with the counts so far, and reach their full effect in the final two weeks.</p>" +
+      (E && E.nc && E.nc.gate ? "<p>The composition of the early vote (which party's voters are turning out) is <b>not</b> in the forecast: it has not foretold polling misses (below).</p>" : "");
+    var lo = ks.slice(0, 8), hi = ks.slice(-8).reverse();
+    var rows = "<thead><tr><th>Banking fastest against past elections</th><th>factor</th><th>Banking slowest</th><th>factor</th></tr></thead><tbody>";
+    for (var i = 0; i < lo.length; i++) rows += "<tr><td>" + esc(lo[i]) + "</td><td>" + k[lo[i]].toFixed(2) + "</td><td>" + esc(hi[i]) + "</td><td>" + k[hi[i]].toFixed(2) + "</td></tr>";
+    $("ktab").innerHTML = rows + "</tbody>";
+  }
+
+  function northCarolina(N) {
+    var Y = N.years, a = Y["2026"], b = Y["2022"], c = Y["2018"], p24 = Y["2024"];
+    var r = function (g, k) { return a[g][k].pct_registered / b[g][k].pct_registered; };
+    var evday = N.onestop_out - N.dbe + 1;
+    $("ncchips").innerHTML = chip("ballots accepted", n0(a.ballots), n0(a.in_person) + " in person, " + n0(a.mail) + " by mail") +
+      chip("vs 2022, same day", chg(a.ballots / b.ballots), n0(b.ballots) + " in 2022") +
+      chip("of registered voters", pc(a.pct_registered), pc(b.pct_registered) + " in 2022, " + pc(p24.pct_registered) + " in 2024") +
+      ["DEM", "REP", "UNA"].map(function (p) { return chip(PN[p] + " vs 2022", chg(r("party", p)), "turnout rate, same day"); }).join("");
+    var f = [];
+    f.push("<b>Pace.</b> " + n0(a.ballots) + " ballots by " + date(N.asof) + " (" + N.dbe + " days out" + (evday > 0 && N.dbe > 3 ? ", day " + evday + " of in-person early voting" : "") + "), " +
+      vs(a.ballots / b.ballots, "2022's " + n0(b.ballots)) + " at the same point and " + vs(a.ballots / c.ballots, "2018's " + n0(c.ballots)) +
+      ". Per registered voter (" + pc(a.pct_registered) + " against " + pc(b.pct_registered) + ") it is " + vs(a.pct_registered / b.pct_registered, "2022") +
+      ", and " + Math.round(100 * a.ballots / p24.ballots) + "% of 2024's presidential-year pace. In person it is " + vs(a.in_person / b.in_person, "2022") +
+      "; by mail " + vs(a.mail / b.mail, "2022") + ".");
+    f.push("<b>Party.</b> Share of each party's registered voters who have voted: " + ["DEM", "REP", "UNA"].map(function (p) {
+      return PN[p] + " " + pc(a.party[p].pct_registered) + " (" + pc(b.party[p].pct_registered) + " in 2022, " + times(r("party", p)) + ")"; }).join("; ") +
+      ". Democrats are " + pc(a.party.DEM.share, 0) + " of the ballots (" + pc(b.party.DEM.share, 0) + " at this point in 2022) on " + pc(a.party.DEM.reg_share, 0) +
+      " of the rolls; Republicans " + pc(a.party.REP.share, 0) + " (" + pc(b.party.REP.share, 0) + " in 2022, " + pc(p24.party.REP.share, 0) + " in 2024) on " + pc(a.party.REP.reg_share, 0) + ".");
+    var young = (a.age["18-25"].ballots + a.age["26-40"].ballots) / (a.age["18-25"].ballots / a.age["18-25"].pct_registered + a.age["26-40"].ballots / a.age["26-40"].pct_registered) /
+      ((b.age["18-25"].ballots + b.age["26-40"].ballots) / (b.age["18-25"].ballots / b.age["18-25"].pct_registered + b.age["26-40"].ballots / b.age["26-40"].pct_registered));
+    f.push("<b>Who.</b> Against 2022 on the same day, early turnout among registered Black voters is " + vs(r("race", "Black"), "2022") + " (" + pc(a.race.Black.share, 0) +
+      " of ballots, " + pc(b.race.Black.share, 0) + " in 2022) and among White voters " + vs(r("race", "White"), "2022") + "; voters 18&ndash;40 are " + vs(young, "2022") +
+      " and 66 and over " + vs(r("age", "66+"), "2022") + ". Over-65s are still " + pc(a.age["66+"].share, 0) + " of the ballots.");
+    var cb = N.county_bands, ahead = N.counties.filter(function (q) { return q.x > 1; }).length;
+    if (cb.length) {
+      var lo = cb[0].x, hi = cb[cb.length - 1].x;
+      f.push("<b>Where.</b> " + ahead + " of " + N.counties.length + " counties are ahead of their own 2022 pace. Counties Harris won by 20 points or more are at " + times(lo) +
+        " their 2022 rate and counties Trump won by 40 or more at " + times(hi) + (lo - hi > 0.1 ? ": the rise is largest where Democrats are strongest." : hi - lo > 0.1 ? ": the rise is largest where Republicans are strongest." : ": about the same everywhere."));
+    }
+    if (a.history && b.history) {
+      var h = a.history.ALL, h0 = b.history.ALL, nw = h.neither || 0, nw0 = h0.neither || 0;
+      f.push("<b>New or returning?</b> " + pc(nw) + " of this year's early voters voted in neither the 2022 nor the 2024 general (2022's early voters: " + pc(nw0) +
+        " had skipped both 2018 and 2020); " + pc(h["presidential only"] || 0) + " voted in 2024 but not 2022 (" + pc(h0["presidential only"] || 0) + " a cycle earlier). " +
+        (nw - nw0 > 1.5 ? "More of this year's early voters are new to recent generals than in 2022." : "So far the rise is mostly regular voters voting earlier or more often, not a wave of new ones."));
+    }
+    $("ncfind").innerHTML = f.map(function (x) { return "<li>" + x + "</li>"; }).join("");
+
+    var xs = N.pace.days;
+    lines("pace1", xs, ["2018", "2022", "2026"].map(function (y) { return { k: y, ys: N.pace[y].n.map(function (v) { return v / 1000; }), color: YC[y], w: y === "2026" ? 3 : 1.8 }; }),
+      function (v) { return Math.round(v) + "k"; }, N.dbe);
+    lines("pace2", xs, YEARS.map(function (y) { return { k: y, ys: N.pace[y].pct, color: YC[y], dash: !MID[y], w: y === "2026" ? 3 : 1.8 }; }),
+      function (v) { return (+v).toFixed(v < 10 ? 1 : 0) + "%"; }, N.dbe);
+    $("yleg").innerHTML = YEARS.map(function (y) { return '<span><i style="background:' + YC[y] + '"></i>' + y + (MID[y] ? "" : " (presidential)") + "</span>"; }).join("");
+    var rows = ["2026", "2022", "2018", "2024", "2020"].map(function (y) {
+      var d = Y[y];
+      return "<tr" + (y === "2026" ? ' class="now"' : "") + "><td>" + y + (MID[y] ? "" : " (presidential)") + "</td><td>" + n0(d.ballots) + "</td><td>" + n0(d.in_person) + "</td><td>" + n0(d.mail) +
+        "</td><td>" + pc(d.pct_registered) + "</td><td>" + [d.party.DEM.share, d.party.UNA.share, d.party.REP.share].map(function (x) { return x.toFixed(0); }).join(" / ") +
+        "</td><td>" + (d.share_of_final_by_now ? pc(d.share_of_final_by_now, 0) : "&ndash;") + "</td><td>" + (d.final_early ? n0(d.final_early) : "&ndash;") + "</td></tr>";
+    });
+    $("nctab").innerHTML = "<thead><tr><th>On the same day</th><th>Ballots</th><th>In person</th><th>Mail</th><th>% of registered</th><th>Dem / Una / Rep %</th><th>Share of its final early vote</th><th>Final early vote</th></tr></thead><tbody>" + rows.join("") + "</tbody>";
+
+    function grp(col, cats) { return YEARS.map(function (y) { return { k: y, color: YC[y], hatch: !MID[y], vals: cats.map(function (c) { return Y[y][col][c] ? Y[y][col][c].pct_registered : 0; }) }; }); }
+    var pf = function (v) { return (+v).toFixed(1); };
+    bars("party1", ["Democrats", "Republicans", "Unaffiliated"], grp("party", ["DEM", "REP", "UNA"]), pf, true);
+    stack("party2", ["2026", "2024", "2022", "2020", "2018"].map(function (y) {
+      return { label: y + (MID[y] ? "" : " (pres.)"), parts: ["DEM", "UNA", "REP", "OTH"].map(function (p) { return { k: PN[p], v: Y[y].party[p] ? Y[y].party[p].share : 0, color: PC[p], light: p === "UNA" || p === "OTH" }; }) };
+    }), ["DEM", "UNA", "REP"].map(function (p) { return [PN[p], PC[p]]; }));
+    bars("age", ["18-25", "26-40", "41-65", "66+"], grp("age", ["18-25", "26-40", "41-65", "66+"]), pf, false);
+    bars("race", ["White", "Black", "Other"], grp("race", ["White", "Black", "Other"]), pf, false);
+    scatter("county", N.counties, N.county_bands);
+    var HC = [["both", "#3c4148", "voted in both previous generals"], ["presidential only", "#8a8f98", "previous presidential only"], ["midterm only", "#c2c6cc", "previous midterm only"], ["neither", "#eb6834", "neither"]];
+    var hrows = [];
+    ["2026", "2022"].forEach(function (y) {
+      ["ALL", "DEM", "REP", "UNA"].forEach(function (p) {
+        var h = Y[y].history && Y[y].history[p]; if (!h) return;
+        hrows.push({ label: (p === "ALL" ? "All" : PN[p]) + ", " + y, parts: HC.map(function (c) { return { k: c[2], v: h[c[0]] || 0, color: c[1], light: c[0] === "midterm only" }; }) });
+      });
+    });
+    stack("hist", hrows, HC.map(function (c) { return [c[2], c[1]]; }), true);
+
+    var G = N.gate;
+    if (G) {
+      var gr = G.rows.map(function (q) {
+        return "<tr><td>" + q.year + " vs " + q.previous + "</td><td>" + sgn(q.change_17) + "</td><td>" + sgn(q.change_10) + "</td><td>" + sgn(q.change_5) + "</td><td>" + (q.poll_miss == null ? "no statewide polls" : sgn(q.poll_miss)) + "</td></tr>";
+      });
+      gr.push('<tr class="now"><td>2026 vs 2022</td><td colspan="3">' + sgn(N.composition.change) + " at " + N.composition.lead + " days out</td><td>&ndash;</td></tr>");
+      $("gatetab").innerHTML = "<thead><tr><th>Cycle</th><th>Change, 17 days out</th><th>10 days</th><th>5 days</th><th>Poll miss (D &minus; R)</th></tr></thead><tbody>" + gr.join("") + "</tbody>";
+      $("gatenote").innerHTML = "Change: the Democratic-minus-Republican share of ballots banked by that day, minus the same on the rolls, against the previous cycle of the same kind (points). Correlation with the poll miss over the " +
+        G.leads["17"].n + " scoreable cycles: " + ["17", "10", "5"].map(function (L) { return sgn(G.leads[L].r, 2) + " at " + L + " days (p " + G.leads[L].p.toFixed(2) + ")"; }).join(", ") +
+        ". Nothing is significant, and the sign is the opposite of the usual reading: a more Democratic early vote than last time came before polls that ran too Democratic (2016, 2020). " +
+        "This year's reading is larger than any of them, which is another reason not to extrapolate from five cycles. The test is rerun when 2026 adds a sixth.";
+    }
+  }
+
+  function georgia(G) {
+    if (!G) { $("gachips").innerHTML = ""; $("gafind").innerHTML = "<li>Georgia's counts are not available today.</li>"; return; }
+    $("gachips").innerHTML = chip("ballots so far", n0(G.total), n0(G.in_person) + " in person, " + n0(G.mail) + " by mail") +
+      (G.vs_2022_same_ev_day_pct != null ? chip("vs 2022, same voting day", sgn(G.vs_2022_same_ev_day_pct, 0) + "%", "day " + G.ev_day + " of in-person voting") : "") +
+      (G.vs_2022_pct != null ? chip("vs 2022, same days out", sgn(G.vs_2022_pct, 0) + "%", G.days_out + " days before Election Day") : "") +
+      (G.county_mix_shift ? chip("county mix", sgn(G.county_mix_shift.pres24_margin) + " D", "points, 2024 county margins") : "");
+    var f = ["<b>Turnout.</b> Through " + date(G.through) + ": " + n0(G.total) + " ballots" +
+      (G.vs_2022_same_ev_day_pct != null ? ", " + Math.abs(G.vs_2022_same_ev_day_pct).toFixed(0) + "% " + (G.vs_2022_same_ev_day_pct >= 0 ? "more" : "fewer") + " than on the same day of in-person voting in 2022" : "") +
+      (G.vs_2022_pct != null ? " (" + Math.abs(G.vs_2022_pct).toFixed(0) + "% " + (G.vs_2022_pct >= 0 ? "more" : "fewer") + " than 2022 at the same number of days out; 2022's in-person voting began earlier in the calendar)" : "") + "."];
+    if (G.metro_vs_2022_pct != null) f.push("<b>Where.</b> Metro Atlanta (10 core counties) is " + sgn(G.metro_vs_2022_pct, 0) + "% against 2022 at the same point and the rest of the state " + sgn(G.rest_vs_2022_pct, 0) +
+      "%; metro Atlanta is " + pc(100 * G.metro_atlanta_share["2026"], 1) + " of ballots (" + pc(100 * G.metro_atlanta_share["2022"], 1) + " in 2022).");
+    if (G.county_mix_shift) f.push("<b>County mix.</b> If every county voted as it did in 2024 and only the geography of who has voted changed, the margin would be " +
+      sgn(G.county_mix_shift.pres24_margin) + " points toward " + (G.county_mix_shift.pres24_margin >= 0 ? "Democrats" : "Republicans") + " (" + sgn(G.county_mix_shift.gov22_margin) + " on 2022 governor margins). A reading, not a forecast.");
+    var cv = G.composition_vs_2022;
+    if (cv && cv.skipped_previous_midterm) f.push("<b>New voters.</b> " + pc(100 * cv.skipped_previous_midterm["2026"], 1) + " of this year's early voters skipped the 2022 general (" + pc(100 * cv.skipped_previous_midterm["2022"], 1) + " of 2022's skipped 2018).");
+    $("gafind").innerHTML = f.map(function (x) { return "<li>" + x + "</li>"; }).join("");
+    if (cv && cv.race) {
+      var rc = ["White", "Black", "Hispanic", "Asian"], ac = ["18-29", "30-39", "40-49", "50-64", "65+"];
+      bars("gacomp", rc.concat(ac), [
+        { k: "2022", color: YC[2022], vals: rc.map(function (c) { return 100 * cv.race[c]["2022"]; }).concat(ac.map(function (c) { return 100 * cv.age[c]["2022"]; })) },
+        { k: "2026", color: YC[2026], vals: rc.map(function (c) { return 100 * cv.race[c]["2026"]; }).concat(ac.map(function (c) { return 100 * cv.age[c]["2026"]; })) }
+      ], function (v) { return (+v).toFixed(0) + "%"; }, true, true);
+      var d = document.createElement("div"); d.className = "leg"; d.innerHTML = '<span><i style="background:' + YC[2022] + '"></i>2022</span><span><i style="background:' + YC[2026] + '"></i>2026</span><span>race (left), age (right)</span>'; $("gacomp").appendChild(d);
+    }
+  }
+
+  function florida(F) {
+    if (!F) { $("flchips").innerHTML = ""; $("flfind").innerHTML = "<li>Florida's counts are not available today.</li>"; return; }
+    var R = F.returned;
+    $("flchips").innerHTML = chip("mail ballots returned", n0(R.total), F.days_out + " days out") +
+      chip("Rep &minus; Dem, returned", sgn(F.R_minus_D_pct) + " pts", "share of ballots returned") +
+      (F.registration ? chip("Rep &minus; Dem, registered", sgn(F.registration.R_minus_D_pct) + " pts", "active voters, " + esc(F.registration.date)) : "") +
+      (F.vs_requests_pts != null ? chip("vs ballots sent", sgn(F.vs_requests_pts) + " pts", "Rep &minus; Dem, returned minus sent") : "");
+    var f = ["<b>Mail ballots.</b> " + n0(R.total) + " returned by " + esc(F.compiled.slice(0, 10)) + ": " + n0(R.DEM) + " from registered Democrats, " + n0(R.REP) + " Republicans, " + n0(R.NPA) +
+      " no party. Republicans are " + sgn(F.R_minus_D_pct) + " points against Democrats among the ballots returned, against " + (F.registration ? sgn(F.registration.R_minus_D_pct) + " on the rolls" : "the rolls") +
+      ": Democrats vote by mail more, so the cleanest read is against the ballots sent (" + (F.vs_requests_pts != null ? sgn(F.vs_requests_pts) : "&ndash;") + " points: each party returning its ballots at about the same rate" +
+      (F.requests && F.requests.return_rate_pct ? ", Republicans " + pc(F.requests.return_rate_pct.REP) + ", Democrats " + pc(F.requests.return_rate_pct.DEM) : "") + ")."];
+    if (F.vs_2024) f.push("<b>Against 2024.</b> At " + F.vs_2024.days_out + " days out (the last matched day), Republicans were " + sgn(F.vs_2024.R_minus_D_2026) + " among returned ballots against " +
+      sgn(F.vs_2024.R_minus_D_2024) + " in 2024, " + (F.vs_2024.vs_registration_change_pts != null ? sgn(F.vs_2024.vs_registration_change_pts) + " points relative to registration, " : "") +
+      "with " + Math.abs(F.vs_2024.returned_change_pct).toFixed(0) + "% " + (F.vs_2024.returned_change_pct >= 0 ? "more" : "fewer") + " ballots returned. Hurricanes Helene and Milton disrupted 2024's mail period.");
+    var E = F.early;
+    if (E) {
+      $("flchips").innerHTML += chip("voted early in person", n0(E.voted.total), E.days_out + " days out") +
+        chip("Rep &minus; Dem, in person", sgn(E.R_minus_D_pct) + " pts", "share of early voters");
+      f.push("<b>In person.</b> " + n0(E.voted.total) + " voted early by " + esc(E.compiled.slice(0, 10)) + ": " + n0(E.voted.DEM) + " registered Democrats, " + n0(E.voted.REP) + " Republicans, " + n0(E.voted.NPA) +
+        " no party. Republicans are " + sgn(E.R_minus_D_pct) + " points against Democrats among them" + (E.vs_registration_pts != null ? " (" + sgn(E.vs_registration_pts) + " relative to the rolls)" : "") +
+        ": Republicans vote early in person more, as Democrats do by mail" + (E.with_mail ? "; mail and in person together, " + n0(E.with_mail.total) + " ballots, are " + sgn(E.with_mail.R_minus_D_pct) + " points" : "") + ".");
+      if (E.vs_2024) f.push("<b>In person against 2024.</b> At " + E.vs_2024.days_out + " days out, Republicans were " + sgn(E.vs_2024.R_minus_D_2026) + " among early voters against " + sgn(E.vs_2024.R_minus_D_2024) + " in 2024, " +
+        (E.vs_2024.vs_registration_change_pts != null ? sgn(E.vs_2024.vs_registration_change_pts) + " points relative to registration, " : "") + "with " + Math.abs(E.vs_2024.returned_change_pct).toFixed(0) + "% " + (E.vs_2024.returned_change_pct >= 0 ? "more" : "fewer") + " early voters.");
+    }
+    $("flfind").innerHTML = f.map(function (x) { return "<li>" + x + "</li>"; }).join("");
+  }
+
+  function nevada(V) {
+    if (!V || !V.mail) { $("nvchips").innerHTML = ""; $("nvfind").innerHTML = "<li>Clark County's files are not available today.</li>"; return; }
+    var M = V.mail, R = M.returned, G = V.registration, P = V.in_person;
+    $("nvchips").innerHTML = chip("mail ballots returned", n0(R.total), M.days_out + " days out") +
+      chip("Rep &minus; Dem, returned", sgn(M.R_minus_D_pct) + " pts", "share of mail ballots returned") +
+      chip("Rep &minus; Dem, registered", sgn(G.R_minus_D_pct) + " pts", "active voters, list of " + esc(G.as_of)) +
+      (P ? chip("voted early in person", n0(P.voted.total + P.unmatched), P.days_out + " days out") +
+        chip("Rep &minus; Dem, in person", sgn(P.R_minus_D_pct) + " pts", "share of early voters") : "");
+    var f = ["<b>Mail ballots.</b> " + n0(R.total) + " returned by " + date(M.through) + ": " + n0(R.DEM) + " from registered Democrats, " + n0(R.REP) + " Republicans, " + n0(R.NP) +
+      " non-partisan, " + n0(R.OTH) + " other parties. Republicans are " + sgn(M.R_minus_D_pct) + " points against Democrats among them, against " + sgn(G.R_minus_D_pct) +
+      " on the active rolls. Every active voter is sent a ballot, so relative to the rolls the returns are " + sgn(M.vs_registration_pts) + " points Rep &minus; Dem (" +
+      n0(M.signature_missing) + " returned without a signature, awaiting cure, are counted)."];
+    ["2024", "2022"].forEach(function (y) {
+      var b = M["vs_" + y], from = M["vs_" + y + "_from"];
+      if (!b && from != null) { f.push("<b>Against " + y + ".</b> Matched from " + from + " days out: the county logged " + y + "'s first weeks of returns in one batch that day, so earlier days have almost nothing to compare with."); return; }
+      if (!b) return;
+      f.push("<b>Against " + y + ".</b> At the same " + M.days_out + " days out, " + n0(b.returned.total) + " mail ballots had come back, Republicans " + sgn(b.R_minus_D_pct) +
+        " against Democrats; 2026 has " + Math.abs(b.returned_change_pct).toFixed(0) + "% " + (b.returned_change_pct >= 0 ? "more" : "fewer") + ".");
+    });
+    if (P) {
+      f.push("<b>In person.</b> " + n0(P.voted.total + P.unmatched) + " voted early in person over " + P.days + " day" + (P.days > 1 ? "s" : "") + " through " + date(P.through) + ": " + n0(P.voted.DEM) +
+        " registered Democrats, " + n0(P.voted.REP) + " Republicans, " + n0(P.voted.NP) + " non-partisan, " + n0(P.voted.OTH) + " other" + (P.unmatched ? ", " + n0(P.unmatched) + " not yet on the voter list" : "") +
+        ". Republicans are " + sgn(P.R_minus_D_pct) + " points against Democrats among them (" + sgn(P.vs_registration_pts) + " relative to the rolls)" +
+        (V.combined ? "; mail and in person together, " + n0(V.combined.total) + " ballots, are " + sgn(V.combined.R_minus_D_pct) + " points" : "") + ".");
+      if (P.vs_2024) f.push("<b>In person against 2024.</b> " + n0(P.vs_2024.total_2026) + " early voters against " + n0(P.vs_2024.total_2024) + " at the same point in 2024 (" +
+        (P.vs_2024.change_pct >= 0 ? "+" : "&minus;") + Math.abs(P.vs_2024.change_pct).toFixed(0) + "%); 2024's party mix at the time is not published, so it is compared on turnout only.");
+    }
+    $("nvfind").innerHTML = f.map(function (x) { return "<li>" + x + "</li>"; }).join("");
+    var C = V.districts || {}, ks = Object.keys(C).sort();
+    if (!ks.length) { $("nvcd").innerHTML = ""; $("nvcdnote").innerHTML = ""; return; }
+    var cell = function (c) { return c ? n0(c.total) + "</td><td>" + sgn(c.R_minus_D_pct) + (c.vs_registration_pts != null ? " (" + sgn(c.vs_registration_pts) + ")" : "") : "&ndash;</td><td>&ndash;"; };
+    $("nvcd").innerHTML = "<tr><th>District</th><th>Registered, Rep &minus; Dem</th><th>Mail returned</th><th>Rep &minus; Dem (vs rolls)</th><th>In person</th><th>Rep &minus; Dem (vs rolls)</th><th>Together, Rep &minus; Dem</th></tr>" +
+      ks.map(function (k) { var d = C[k]; return "<tr><td>" + esc(k) + "</td><td>" + sgn(d.registration.R_minus_D_pct) + "</td><td>" + cell(d.mail) + "</td><td>" + cell(d.in_person) + "</td><td>" + (d.combined ? sgn(d.combined.R_minus_D_pct) : "&ndash;") + "</td></tr>"; }).join("");
+    $("nvcdnote").innerHTML = "By congressional district, each against its own active voters (points; in brackets, the ballots' Rep &minus; Dem less the rolls'). NV-4 is only its Clark County part; its rural counties are not in these files.";
+  }
+
+  function get(u) { return fetch(u, { cache: "no-cache" }).then(function (r) { if (!r.ok) throw new Error(u); return r.json(); }); }
+  Promise.all([get("data/early_vote.json"), get("data/model.json").catch(function () { return null; })]).then(function (res) {
+    var E = res[0], M = res[1];
+    $("stamp").textContent = "Updated " + E.generated.replace("T", " ").replace("Z", " UTC") + (E.nc ? "; North Carolina data through " + date(E.nc.asof) + "." : ".");
+    forecast(M, E);
+    if (E.nc) northCarolina(E.nc); else { $("ncfind").innerHTML = "<li>North Carolina's file is not available today.</li>"; }
+    georgia(E.ga);
+    florida(E.fl);
+    nevada(E.nv);
+  }).catch(function () { $("stamp").textContent = "The early-vote data could not be loaded."; });
+})();
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

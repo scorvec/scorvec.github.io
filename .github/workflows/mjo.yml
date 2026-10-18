@@ -1,0 +1,543 @@
+name: MJO RMM (AIFS-ENS)
+
+# The scheduled RMM builder. The "check" job skips a cycle whose RMM figure
+# already exists, so a repeated trigger cannot double-publish. `force=true` rebuilds regardless.
+on:
+  # backstop crons: the dispatcher (scripts/lib/dispatch_workflows.sh) fires this on time; these only matter when
+  # it is off
+  schedule:
+    - cron: '37 8 * * *'
+    - cron: '37 20 * * *'
+  # One slot per cycle: the dispatcher fires each slot on time and re-opens a
+  # slot whose run failed after 120 min, so the retry belongs to the trigger
+  # rather than to a second cron.
+  # date/time must be declared here, not only under workflow_dispatch. The job
+  # body reads ${{ inputs.date }} / ${{ inputs.time }}, and under workflow_call
+  # the `inputs` context holds only the workflow_call inputs — an undeclared
+  # reference is invalid and the run dies with startup_failure before a single
+  # step runs.
+  workflow_call:
+    inputs:
+      date:
+        description: 'Init date YYYYMMDD (empty = latest available)'
+        type: string
+        required: false
+        default: ''
+      time:
+        description: 'Init hour 00 or 12 (empty = latest available)'
+        type: string
+        required: false
+        default: ''
+      force:
+        description: 'Run even if the cycle is already plotted (rebuild every product)'
+        type: string
+        required: false
+        default: 'false'
+      rmm_only:
+        description: 'Rebuild only the RMM plots + MJO page for this cycle (re-plotting a past cycle; skips every map/loop product)'
+        type: string
+        required: false
+        default: 'false'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Init date YYYYMMDD (empty = latest available)'
+        required: false
+        default: ''
+      time:
+        description: 'Init hour 00 or 12 (empty = latest available)'
+        required: false
+        default: ''
+      force:
+        description: 'Run even if the cycle is already plotted (rebuild every product)'
+        required: false
+        default: 'false'
+      rmm_only:
+        description: 'Rebuild only the RMM plots + MJO page for this cycle (re-plotting a past cycle; skips every map/loop product)'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+  actions: write   # gh run cancel: the u-fetch cancels its own run when ECMWF is too slow
+
+concurrency:
+  group: mjo-rmm
+  cancel-in-progress: false
+
+# ECMWF open data comes from the Google Cloud mirror only. The shared store already defaults to Google and ignores
+# any other mirror name; pinning it here is belt and braces.
+env:
+  ECMWF_SOURCES: google
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  ERA5_STORE: /tmp/era5_store   # ARCO-ERA5 fields fetched on a miss (scripts/era5/era5_store.py); scratch on the runner
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      should_run: ${{ steps.decide.outputs.should_run }}
+      date: ${{ steps.decide.outputs.date }}
+      time: ${{ steps.decide.outputs.time }}
+      compact: ${{ steps.decide.outputs.compact }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install open-data client
+        run: pip install ecmwf-opendata
+      - name: Decide target cycle
+        id: decide
+        run: |
+          if [ -n "${{ inputs.date }}" ] && [ -n "${{ inputs.time }}" ]; then
+            DATE="${{ inputs.date }}"; TIME="${{ inputs.time }}"
+            echo "Manual dispatch: $DATE ${TIME}Z"
+          else
+            # Availability, not the clock: the shared resolver takes the newest cycle whose every step
+            # is on the Google mirror (scripts/ecmwf/cycles.py) and logs why it passed over a newer one. An early
+            # dispatch therefore lands on the previous (already plotted) cycle and skips below instead of racing
+            # the upload. The cycle goes through a file; the resolver's reasoning goes to the log.
+            python scripts/ecmwf/cycles.py --profile aifs-ens --out /tmp/aifs_cycle || true
+            DATE=$(awk '{print $1}' /tmp/aifs_cycle 2>/dev/null || true)
+            TIME=$(awk '{print $2}' /tmp/aifs_cycle 2>/dev/null || true)
+            echo "Latest available AIFS-ENS: $DATE ${TIME}Z"
+          fi
+          if ! echo "$DATE" | grep -qE '^[0-9]{8}$' || ! echo "$TIME" | grep -qE '^(00|12)$'; then
+            echo "ERROR: could not determine cycle (DATE='$DATE' TIME='$TIME')" >&2
+            echo "(no ready cycle within two of the newest - see the resolver's lines above)" >&2
+            exit 1
+          fi
+          COMPACT="${DATE}_${TIME}z"
+          if [ "${{ inputs.force }}" = "true" ]; then
+            echo "force=true — rebuilding ${COMPACT} regardless."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          elif [ -f "assets/mjo/rmm_${COMPACT}.webp" ] || [ -f "assets/mjo/rmm_${COMPACT}.png" ]; then
+            echo "Already plotted (assets/mjo/rmm_${COMPACT}) — skipping."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Not yet plotted — will run."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+          echo "time=$TIME" >> "$GITHUB_OUTPUT"
+          echo "compact=$COMPACT" >> "$GITHUB_OUTPUT"
+
+  run:
+    needs: check
+    if: ${{ needs.check.outputs.should_run == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90   # step timeouts (45m self-cancelling u-fetch, 20m bulk fetch) bound the slow parts
+    env:
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      # SOI inputs (LongPaddock daily, BoM monthly) + ETag sidecars, kept between runs: fetched only when new. Restored
+      # from the newest entry, saved under a hash of the files after "SOI history" when they changed, older entries
+      # deleted at the end of the job.
+      - name: Restore the SOI inputs
+        id: soi_cache
+        uses: actions/cache/restore@v6
+        with:
+          path: scripts/mjo/data/soi
+          key: soi-inputs-
+          restore-keys: soi-inputs-
+      - name: Install eccodes (GRIB decoder)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Install Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+
+      # Two stages: the light RMM u-wind pull (~1 GB) builds and commits the
+      # MJO forecast first; the heavy multi-product ENS fetch (~5 GB) comes
+      # after, guarded, so a slow mirror or a fetch crash (e.g. a segfault at
+      # interpreter exit) cannot take the RMM down too.
+      # A healthy u-pull takes ~25 min. If it cannot finish in 45 min (slow ECMWF
+      # dissemination) the run cancels itself — grey, not a red failure — and
+      # the next scheduled run retries the cycle from scratch.
+      - name: Fetch RMM u-wind (light — self-cancels when ECMWF is too slow)
+        timeout-minutes: 55   # backstop only; the 45 m `timeout` below acts first
+        working-directory: scripts/mjo
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          timeout 45m python src/download_aifs.py --date "${{ needs.check.outputs.date }}" \
+                                                  --time "${{ needs.check.outputs.time }}" \
+                                                  --out-dir data/aifs
+          rc=$?
+          set -e
+          if [ "$rc" -eq 124 ]; then
+            echo "u-wind fetch exceeded 45 m — cancelling this run; a later cron retries."
+            gh run cancel "${{ github.run_id }}" --repo "${{ github.repository }}"
+            sleep 300   # wait to be killed by the cancellation
+            exit 1      # safety net if the cancel didn't land
+          fi
+          exit "$rc"
+
+      - name: Run RMM pipeline (computes + plots from the cached cycle)
+        working-directory: scripts/mjo
+        run: |
+          python run_rmm.py --skip-download \
+                            --date "${{ needs.check.outputs.date }}" \
+                            --time "${{ needs.check.outputs.time }}"
+
+      - name: Publish plot to assets/mjo
+        run: |
+          mkdir -p assets/mjo
+          cp "scripts/mjo/plots/rmm_${{ needs.check.outputs.compact }}.webp" \
+             "assets/mjo/rmm_${{ needs.check.outputs.compact }}.webp"
+          # frames are WebP since 2026-10-16: a re-plotted PNG-era cycle keeps one file
+          rm -f "assets/mjo/rmm_${{ needs.check.outputs.compact }}.png"
+          # the multi-model phase diagram's data (src/rmm_export.py) and the ENSO-removed diagnosis (src/enso_rmm.py),
+          # when those best-effort stages ran
+          [ -f scripts/mjo/plots/rmm_models.json ] && cp scripts/mjo/plots/rmm_models.json assets/mjo/
+          [ -f scripts/mjo/plots/rmm_clean_status.json ] && cp scripts/mjo/plots/rmm_clean_status.json assets/mjo/ \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "ENSO-removed RMM status" "the homepage keeps the previous status line"
+          # the ENSO-removed frames retired 2026-10-17 (the diagram above draws that index live)
+          rm -f assets/mjo/rmmclean_*z.webp assets/mjo/rmmclean_*z.png assets/mjo/rmmclean_manifest.json
+          # keep the most recent 60 archived plots, by cycle name (either format): checkout mtimes tie, and `ls -t`'s
+          # name tie-break would prune the newest cycles
+          ls assets/mjo/rmm_*z.webp assets/mjo/rmm_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm
+
+      - name: Regenerate MJO page
+        run: python scripts/mjo/generate_page.py
+      - name: Re-apply the site chrome to the regenerated page
+        run: python scripts/site/apply_chrome.py || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Site chrome re-stamp" "mjo.html keeps the chrome generate_page.py stamped"
+
+      - name: Commit & push (RMM forecast — goes live before the heavy fetches)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/mjo mjo.html scripts/mjo/data/reference/obs_history.nc scripts/mjo/data/reference/ensmean_history.json"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi   # falling through would hit "No changes" and fake success
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            ls assets/mjo/rmm_*z.webp assets/mjo/rmm_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm
+            rm -f assets/mjo/rmmclean_*z.webp assets/mjo/rmmclean_*z.png assets/mjo/rmmclean_manifest.json
+            scripts/lib/mjo_page_at_tip.sh "$GITHUB_SHA"   # never restore a page built from a stale generator
+            git add $OUT
+            if git diff --staged --quiet; then echo "No changes."; exit 0; fi
+            git commit -m "data update: ${{ needs.check.outputs.compact }}"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            sleep 5
+          done
+          echo "ERROR: could not push RMM." >&2
+          exit 1
+
+      - name: Fetch remaining ENS cycle (heavy — Hovmöller 10u + SOI msl)
+        if: ${{ inputs.rmm_only != 'true' }}
+        timeout-minutes: 20
+        continue-on-error: true
+        working-directory: scripts/mjo
+        run: |
+          python src/ens_cycle.py --date "${{ needs.check.outputs.date }}" \
+                                  --time "${{ needs.check.outputs.time }}" \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "ENS cycle fetch (heavy pass)" "the builders use whatever is cached"
+
+      - name: Build equatorial 10m-wind Hovmöller (El Niño page)
+        if: ${{ inputs.rmm_only != 'true' }}
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst
+          python src/eq_hovmoller.py \
+            --date "${{ needs.check.outputs.date }}" \
+            --time "${{ needs.check.outputs.time }}" \
+            --data-dir data/u10 \
+            --out ../../assets/sst/eq_wind_hovmoller.webp \
+            --det-out ../../assets/sst/eq_wind_hovmoller_det.webp \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Equatorial 10 m wind Hovmöller"
+
+      # Ocean Kelvin waves: altimetry sea level (NOAA CoastWatch ERDDAP, anonymous) + the equatorial 10 m wind
+      # the Hovmöller above just fetched (store cache) + the AIFS 0-h wind history it appends to.
+      - name: Ocean Kelvin wave tracker (sea level + equatorial wind)
+        if: ${{ inputs.rmm_only != 'true' }}
+        timeout-minutes: 15
+        working-directory: scripts/mjo
+        env:
+          ECMWF_SOURCES: google
+          ECMWF_MULTISOURCE: "0"
+        run: |
+          python src/ocean_kelvin.py --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" \
+            --out ../../assets/sst/ocean_kelvin.webp --anim-dir ../../assets/sst/anim/okelvin \
+            --manifest ../../assets/sst/anim/okelvin_manifest.json --json ../../assets/sst/data/ocean_kelvin.json \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Ocean Kelvin wave tracker" "the previous figures stay"
+
+      - name: Build SOI forecast (El Niño page)
+        if: ${{ inputs.rmm_only != 'true' }}
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst
+          python src/soi_forecast.py \
+            --date "${{ needs.check.outputs.date }}" \
+            --time "${{ needs.check.outputs.time }}" \
+            --data-dir data/msl \
+            --out ../../assets/sst/soi_forecast.webp \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "SOI forecast"
+
+      - name: Build the Equatorial SOI (CPC boxes, ensembles' daily forecast)
+        if: ${{ inputs.rmm_only != 'true' }}
+        working-directory: scripts/mjo
+        run: |
+          python src/eqsoi_forecast.py \
+            --date "${{ needs.check.outputs.date }}" \
+            --time "${{ needs.check.outputs.time }}" \
+            --out ../../assets/sst/eqsoi_forecast.webp \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Equatorial SOI"
+
+      - name: Build 200 hPa velocity potential (El Niño page)
+        if: ${{ inputs.rmm_only != 'true' }}
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst/anim/wind200
+          # Light: u@200 is already cached from the RMM pull above; only v@200 is fetched.
+          python src/wind200_vpot.py \
+            --date "${{ needs.check.outputs.date }}" \
+            --time "${{ needs.check.outputs.time }}" \
+            --anim-dir ../../assets/sst/anim/wind200 \
+            --manifest ../../assets/sst/anim/wind200_manifest.json \
+            --out ../../assets/sst/wind200.webp \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "200 hPa velocity potential"
+
+      - name: Build wave-activity flux (same u+v@200, clim is committed)
+        if: ${{ inputs.rmm_only != 'true' }}
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst/anim/waf
+          python src/waf.py \
+            --date "${{ needs.check.outputs.date }}" \
+            --time "${{ needs.check.outputs.time }}" \
+            --anim-dir ../../assets/sst/anim/waf \
+            --manifest ../../assets/sst/anim/waf_manifest.json \
+            --out ../../assets/sst/waf.webp \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Wave-activity flux"
+
+      # ── Products from the same data the steps above already pulled
+      # (ens_cycle light: sfc + step-0 winds); every builder self-fetches
+      # anything missing through store.ensure(). Each is non-fatal so one
+      # upstream hiccup does not sink the cycle. The AAM / torque / jets heavy
+      # leg lives in aam.yml (needs the ~3 GB 14-level pull); the AIFS
+      # comparison loops live in aifs-compare.yml (they take 30+ min and would
+      # hold up this cycle's figures).
+      - name: MSLP + 10 m wind loops (blend, AIFS-ENS, IFS-ENS, and single runs AIFS-ENS m0, AIFS single, IFS HRES)
+        if: ${{ inputs.rmm_only != 'true' }}
+        timeout-minutes: 40
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst/anim/mslp_wind
+          # waits up to 20 min for IFS-ENS day 15 on the Google mirror (never another mirror); else AIFS-ENS only, said so in the title
+          python src/mslp_wind_anim.py --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" --wait-ifs 20 \
+            --anim-dir ../../assets/sst/anim/mslp_wind --manifest ../../assets/sst/anim/mslp_wind_manifest.json \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "MSLP and 10 m wind loops"
+
+      - name: SOI history
+        if: ${{ inputs.rmm_only != 'true' }}
+        working-directory: scripts/mjo
+        run: python src/soi_history.py --out ../../assets/sst/soi_history.webp || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "SOI history"
+
+      - name: Save the SOI inputs (when they changed)
+        if: >-
+          hashFiles('scripts/mjo/data/soi/**') != '' &&
+          steps.soi_cache.outputs.cache-matched-key != format('soi-inputs-{0}', hashFiles('scripts/mjo/data/soi/**'))
+        uses: actions/cache/save@v6
+        with:
+          path: scripts/mjo/data/soi
+          key: soi-inputs-${{ hashFiles('scripts/mjo/data/soi/**') }}
+
+      # The Walker loop dir carries walker_chi_history.nc (tropical velocity potential per analysis)
+      # and the WAF dir waf_basic_history.nc (0-h control u/v/ψ for the low-passed basic state);
+      # seed both so the appends have a past.
+      - name: Seed the Walker and WAF frame dirs and their analysis histories from the frames branch
+        if: ${{ inputs.rmm_only != 'true' }}
+        run: |
+          scripts/lib/fetch_frames_ci.sh assets/sst/anim/walker assets/sst/anim/waf assets/sst/anim/gillrain \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Frame seeds (Walker, WAF, Gill rain)" "the loops rebuild what they do not find"
+
+      # The analysis histories only: the Hadley and Walker loops (analysed 7-day means since July 2025, and the
+      # forecasts) are drawn from them by overturn.yml (scripts/mjo/src/overturn_hist.py, overturn_fc.py).
+      - name: Walker + MMSF analysis histories
+        if: ${{ inputs.rmm_only != 'true' }}
+        timeout-minutes: 15
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst/anim/walker
+          python src/walker.py --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" \
+            --anim-dir ../../assets/sst/anim/walker || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Walker analysis history"
+          python src/mmsf.py --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" --data-dir data/mmsf \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "MMSF analysis history"
+
+      # Kelvin wave tracker: reads the chi history walker.py just appended to and the ensemble-mean
+      # u/v@200 wind200_vpot already fetched (store cache), so it downloads nothing new.
+      - name: Kelvin wave tracker (200 hPa velocity potential)
+        if: ${{ inputs.rmm_only != 'true' }}
+        timeout-minutes: 10
+        working-directory: scripts/mjo
+        env:
+          ECMWF_SOURCES: google
+          ECMWF_MULTISOURCE: "0"
+        run: |
+          python src/kelvin_tracker.py --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" \
+            --history ../../assets/sst/anim/walker/walker_chi_history.nc \
+            --anim-dir ../../assets/sst/anim/kelvin --manifest ../../assets/sst/anim/kelvin_manifest.json \
+            --hov ../../assets/sst/kelvin_hov.webp --json ../../assets/sst/data/kelvin_tracker.json \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Kelvin wave tracker" "the previous figures stay"
+
+      # Kelvin and equatorial Rossby trackers (tropical-waves.html): the GMGSI OLR proxy store olr-waves.yml extends
+      # daily (scripts/sst/metar/olr_rt.nc), with this cycle's AIFS-ENS ensemble-mean rain as the forecast strip, read
+      # from the pf tp the RMM pull above put in data/aifs (no new download). Without that file the figure says it
+      # shows the constant-phase-speed extrapolation only.
+      - name: Equatorial wave trackers (OLR proxy + AIFS-ENS rain forecast)
+        if: ${{ inputs.rmm_only != 'true' }}
+        timeout-minutes: 10
+        run: |
+          tp="scripts/mjo/data/aifs/aifs_${{ needs.check.outputs.compact }}.pf.tp.grib2"
+          if [ ! -s "$tp" ]; then echo "::warning::no AIFS-ENS tp for this cycle; the wave trackers show the extrapolation only"; fi
+          python scripts/sst/wave_trackers.py --out assets/sst/wave_tracker.webp \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Equatorial wave trackers" "the previous figure stays"
+
+      # The Gill (1980) model forced by the observed (IMERG Late) and forecast (AIFS-ENS) tropical rain, against the
+      # observed chi200: reads the chi history walker.py just appended, the AIFS-ENS tp and u/v 200 the RMM pull and
+      # wind200_vpot already put in the store cache (no new ECMWF download), and a 1-degree IMERG Late cache that rides
+      # the frames branch in assets/sst/anim/gillrain (seeded above; a cold cache costs ~2 min of GES DISC OPeNDAP).
+      # Best-effort: without Earthdata, or on any failure, the previous figure stays up. Success is judged by the
+      # product itself: a new gill_rain.json whose last analysis is this cycle's (walker.py appended it above).
+      - name: Rain-forced circulation (Gill model vs observed chi200)
+        if: ${{ inputs.rmm_only != 'true' }}
+        timeout-minutes: 15
+        env:
+          SST_SITE_ROOT: ${{ github.workspace }}
+          ECMWF_SOURCES: google
+          ECMWF_MULTISOURCE: "0"
+          EARTHDATA_USERNAME: ${{ secrets.EARTHDATA_USERNAME }}
+          EARTHDATA_PASSWORD: ${{ secrets.EARTHDATA_PASSWORD }}
+        run: |
+          pip install --quiet earthaccess || echo "::warning::earthaccess did not install; the IMERG fetch below needs it"
+          J=assets/sst/data/gill_rain.json
+          stamp() { python -c "import json, sys; d = json.load(open(sys.argv[1])); print(d['generated'].replace(' ', '_'), d['last_analysis'])" "$J" 2>/dev/null || echo "none none"; }
+          read -r gen0 _ <<< "$(stamp)"
+          rc=0
+          python scripts/sst/gill_rain.py --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" || rc=$?
+          read -r gen1 last <<< "$(stamp)"
+          D="${{ needs.check.outputs.date }}"; want="${D:0:4}-${D:4:2}-${D:6:2}T${{ needs.check.outputs.time }}Z"
+          if [ "$gen1" = "$gen0" ] || [ "$gen1" = "none" ]; then
+            "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Rain-forced circulation (Gill)" "exit $rc, nothing written; the previous figure stays"
+          elif [ "$last" != "$want" ]; then
+            "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Rain-forced circulation (Gill)" "it reached only the $last analysis, not this cycle's $want (chi history not appended)"
+          else
+            echo "gill_rain updated through the $last analysis"
+            if [ "$rc" -ne 0 ]; then echo "::warning::gill_rain wrote its outputs but exited $rc"; fi
+          fi
+
+      # RMM low-frequency filter map: ARCO-ERA5 band means, persistent cache
+      # arco_uwind_cache.nc is tracked so only the new days are read.
+      - name: Refresh the RMM 120-day filter map (ARCO-ERA5)
+        if: ${{ inputs.rmm_only != 'true' }}
+        working-directory: scripts/mjo
+        run: |
+          python src/refresh_map120.py || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "RMM 120-day filter map" "the map is left untouched"
+
+      # Cache-bust the static <img>s this run rebuilt (enso.html / circulation.html
+      # only re-stamp their own ?v= on the SST build otherwise).
+      - name: Cache-bust the rebuilt figures
+        if: ${{ inputs.rmm_only != 'true' }}
+        run: |
+          CB=$(date -u +%Y%m%d%H%M)
+          perl -0pi -e "s/((?:eq_wind_hovmoller_det|eq_wind_hovmoller|soi_forecast|eqsoi_forecast|soi_history)\.webp)\?v=\w+/\${1}?v=$CB/g" enso.html circulation.html
+          perl -0pi -e "s/(gill_rain\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
+          perl -0pi -e "s/((?:kelvin_hov|ocean_kelvin)\.webp)\?v=\w+/\${1}?v=$CB/g" enso.html
+
+      # The loop frames are gitignored on main; without this they never leave
+      # the runner.
+      - name: Publish loop frames to the frames branch
+        if: ${{ inputs.rmm_only != 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          scripts/lib/publish_frames_ci.sh assets/sst/anim/wind200 assets/sst/anim/waf assets/sst/anim/mslp_wind \
+            assets/sst/anim/mslp_wind_aifs assets/sst/anim/mslp_wind_ifs \
+            assets/sst/anim/mslp_wind_aifs0 assets/sst/anim/mslp_wind_aifs1 assets/sst/anim/mslp_wind_hres \
+            assets/sst/anim/walker assets/sst/anim/kelvin assets/sst/anim/okelvin assets/sst/anim/gillrain
+
+      - name: Commit & push (generated outputs)
+        if: ${{ inputs.rmm_only != 'true' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Snapshot outputs, then commit on a clean sync of origin/main each attempt.
+          # A rebase-based recovery can silently discard the build (leftover unstaged
+          # files fail the rebase, and a reset --hard fallback reverts the outputs
+          # before re-adding them); snapshot+restore makes losing the outputs
+          # structurally impossible.
+          # enso.html / circulation.html are not snapshotted: this job only cache-busts them, and restoring a copy taken
+          # at checkout would overwrite page edits pushed while the run was going. The cache-bust is re-applied to main's
+          # current pages instead.
+          CB=$(date -u +%Y%m%d%H%M)
+          OUT="assets/mjo mjo.html \
+               scripts/mjo/data/reference/obs_history.nc scripts/mjo/data/reference/ensmean_history.json \
+               scripts/mjo/data/reference/wind_map120.nc scripts/mjo/data/reference/arco_uwind_cache.nc \
+               scripts/mjo/data/reference/mmsf_vbar_history.nc scripts/mjo/data/reference/walker_ud_history.nc \
+               assets/sst/eq_wind_hovmoller.webp assets/sst/eq_wind_hovmoller_det.webp assets/sst/soi_forecast.webp assets/sst/soi_history.webp \
+               assets/sst/eqsoi_forecast.webp assets/sst/data/eqsoi_forecast.json scripts/mjo/data/reference/eqsoi_history.json \
+               assets/sst/anim/wind200 assets/sst/anim/wind200_manifest.json assets/sst/wind200.webp \
+               assets/sst/anim/waf assets/sst/anim/waf_manifest.json assets/sst/waf.webp \
+               assets/sst/anim/mslp_wind_manifest.json \
+               assets/sst/anim/kelvin_manifest.json assets/sst/kelvin_hov.webp assets/sst/data/kelvin_tracker.json \
+               assets/sst/anim/okelvin_manifest.json assets/sst/ocean_kelvin.webp assets/sst/data/ocean_kelvin.json \
+               assets/sst/gill_rain.webp assets/sst/data/gill_rain.json assets/sst/wave_tracker.webp \
+               scripts/mjo/data/reference/eq_u10_analysis_history.nc"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi   # falling through would hit "No changes" and fake success
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            perl -0pi -e "s/((?:eq_wind_hovmoller_det|eq_wind_hovmoller|soi_forecast|eqsoi_forecast|soi_history)\.webp)\?v=\w+/\${1}?v=$CB/g" enso.html circulation.html
+            perl -0pi -e "s/(gill_rain\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
+            perl -0pi -e "s/((?:kelvin_hov|ocean_kelvin)\.webp)\?v=\w+/\${1}?v=$CB/g" enso.html
+            git add enso.html circulation.html
+            ls assets/mjo/rmm_*z.webp assets/mjo/rmm_*z.png 2>/dev/null | sort -r | tail -n +61 | xargs -r rm   # re-apply pruning
+            scripts/lib/mjo_page_at_tip.sh "$GITHUB_SHA"   # never restore a page built from a stale generator
+            for f in $OUT; do [ -e "$f" ] && git add "$f"; done
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "data update: ${{ needs.check.outputs.compact }}"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+
+      # A commit pushed with GITHUB_TOKEN does not trigger the Pages deploy; deploys
+      # are batched and the dispatcher runs pages.yml within 15 min.
+      - name: Deploy the site
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "site deploy is batched - the dispatcher deploys within 15 min (pages.yml)"
+
+      - name: Drop superseded caches
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/cache_prune.sh soi-inputs-
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### MJO RMM ${{ needs.check.outputs.compact }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Page: [/mjo.html](https://scorvec.com/mjo.html)" >> "$GITHUB_STEP_SUMMARY"
+          scripts/lib/degraded.sh --summary

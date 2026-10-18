@@ -1,0 +1,161 @@
+name: Hadley outflow and descent forecasts - drift and skill (archived ensembles against ERA5 -> release hbranch-ref-v1)
+
+# scripts/mjo/src/hadley_branch_ref.py. ERA5's daily fields from ARCO, and the archived AIFS-ENS, IFS-ENS (Google mirror)
+# and GEFS (NOAA S3) 00Z runs on the 5-day lattice: three perturbed members' fields at the 00 UTC of lead days 0-15, on
+# the 1.5 deg grid over 51S-51N. Each part is one slice of the lattice (or of the ERA5 days); the release job merges each
+# stream's parts with its published file (hbranch_ref_<stream>.npz), then fits the drift the live forecasts are
+# corrected by (hbranch_drift.npz, the same release) and scores the corrected members against the ERA5 normal,
+# committing the lead gate scripts/mjo/data/reference/hbranch_skill.json. A trial: since/until a few days apart, one
+# part, verify=false.
+on:
+  workflow_dispatch:
+    inputs:
+      since:
+        description: 'First day (YYYY-MM-DD; snapped to the 5-day lattice; each model starts at its own first day)'
+        default: '2024-03-01'
+      until:
+        description: 'Last start (empty = 6 days ago, the ERA5 lag)'
+        default: ''
+      nparts:
+        description: 'Parts the lattice is split into'
+        default: '8'
+      parts:
+        description: 'JSON list of the part indices to run'
+        default: '[0,1,2,3,4,5,6,7]'
+      what:
+        description: 'JSON list of the streams to build (era5 truth and the models); [] = verify the published reference'
+        default: '["era5","aifs","ifs","gefs"]'
+      verify:
+        description: 'Fit the drift, score and commit the lead gate'
+        default: 'true'
+
+permissions:
+  contents: write
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  ECMWF_SOURCES: google
+  ECMWF_RANGE_GAP_MB: '0.5'   # IFS-ENS ef files scatter a member's messages: a 3 MB gap fetches ~2x the bytes
+
+jobs:
+  part:
+    if: inputs.what != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        what: ${{ fromJSON(inputs.what) }}
+        part: ${{ fromJSON(inputs.parts) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: System libraries
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Install Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+      - name: Reduce this part
+        env:
+          SINCE: ${{ inputs.since }}
+          UNTIL: ${{ inputs.until }}
+          PART: ${{ matrix.part }}/${{ inputs.nparts }}
+          WHAT: ${{ matrix.what }}
+        run: |
+          mkdir -p out
+          args=(--since "$SINCE" --part "$PART" --out "out/${WHAT}_${{ matrix.part }}.npz")
+          [ -n "$UNTIL" ] && args+=(--until "$UNTIL")
+          if [ "$WHAT" = era5 ]; then
+            python scripts/mjo/src/hadley_branch_ref.py truth "${args[@]}"
+          else
+            python scripts/mjo/src/hadley_branch_ref.py archive --model "$WHAT" "${args[@]}"
+          fi
+      - uses: actions/upload-artifact@v7
+        with:
+          name: hbranch-ref-${{ matrix.what }}-${{ matrix.part }}
+          path: out/*.npz
+          retention-days: 7
+
+  release:
+    needs: part
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    concurrency:   # each merge reads the reference the previous one published: never two at once
+      group: hbranch-ref-release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - uses: actions/download-artifact@v7
+        if: inputs.what != '[]'
+        with:
+          pattern: hbranch-ref-*
+          path: parts
+          merge-multiple: true
+      - name: Merge each stream with its published file and publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          shopt -s nullglob   # no published file or no parts: the globs expand to nothing
+          REF=scripts/mjo/data/reference
+          mkdir -p prev parts
+          gh release view hbranch-ref-v1 -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create hbranch-ref-v1 -R "$GITHUB_REPOSITORY" --title "Hadley outflow and descent forecasts: drift and skill reference v1" \
+              --notes "ERA5 (ARCO) daily fields and the archived AIFS-ENS / IFS-ENS / GEFS 00Z runs (three perturbed members, the 00 UTC of lead days 0-15) on a 5-day lattice, 1.5 deg over 51S-51N (hbranch_ref_<stream>.npz), and the drift fitted on them (hbranch_drift.npz), for scripts/mjo/src/hadley_branch_ref.py and hadley_branch_fc.py."
+          for s in era5 aifs ifs gefs; do
+            new=(parts/${s}_*.npz)
+            if [ ${#new[@]} -eq 0 ]; then
+              gh release download hbranch-ref-v1 -R "$GITHUB_REPOSITORY" -p "hbranch_ref_${s}.npz" -D "$REF" --clobber 2>/dev/null \
+                || echo "no published $s reference"
+              continue
+            fi
+            gh release download hbranch-ref-v1 -R "$GITHUB_REPOSITORY" -p "hbranch_ref_${s}.npz" -D prev --clobber 2>/dev/null \
+              || echo "no published $s reference yet"
+            old=()
+            if [ -f "prev/hbranch_ref_${s}.npz" ]; then old=("prev/hbranch_ref_${s}.npz"); fi
+            python scripts/mjo/src/hadley_branch_ref.py pack --stream "$s" "${old[@]}" "${new[@]}"
+            gh release upload hbranch-ref-v1 "$REF/hbranch_ref_${s}.npz" -R "$GITHUB_REPOSITORY" --clobber
+          done
+          ls -la "$REF"/hbranch_ref_*.npz
+      - name: Drift and skill
+        if: inputs.verify == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/mjo/src/hadley_branch_ref.py verify --out-dir verify
+          gh release upload hbranch-ref-v1 scripts/mjo/data/reference/hbranch_drift.npz -R "$GITHUB_REPOSITORY" --clobber
+      - uses: actions/upload-artifact@v7
+        if: inputs.verify == 'true'
+        with:
+          name: hbranch-verify
+          path: verify/
+          retention-days: 30
+      - name: Commit & push (the lead gate)
+        if: inputs.verify == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT=scripts/mjo/data/reference/hbranch_skill.json
+          SNAP=$(mktemp -d); cp "$OUT" "$SNAP/"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            cp "$SNAP/hbranch_skill.json" "$OUT"
+            git add "$OUT"
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "Hadley outflow and descent forecasts: drift and skill on the archived runs"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

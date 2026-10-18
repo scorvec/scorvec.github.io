@@ -1,0 +1,118 @@
+name: Hadley and Walker cells each winter against ENSO (ERA5 DJF since 1959/60 -> hadley_djf.nc, walker_djf.nc)
+
+# Builder of scripts/mjo/data/reference/<cell>_djf.nc and assets/sst/<cell>_djf_enso.webp (scripts/mjo/src/
+# hadley_djf.py): every winter's DJF-mean metrics of the northern Hadley cell or the Pacific Walker cell from ERA5 at
+# 00 UTC, the climatologies' statistic, against its DJF RONI and its E and C indices (ERSSTv6). Each part reduces its
+# winters to the daily field the cell's metrics read (zonal-mean v; the equatorial divergent u) from WeatherBench2 or,
+# after January 2023, ARCO-ERA5 (anonymous GCS); the build job forms the table, draws the figure and commits both.
+# Rerun once a new winter's March is three months past; plot_only redraws the figure from the committed table.
+on:
+  workflow_dispatch:
+    inputs:
+      cell:
+        description: the cell
+        type: choice
+        options: [hadley, walker]
+        default: hadley
+      plot_only:
+        description: redraw the figure from the committed <cell>_djf.nc (no fetch)
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  plan:
+    if: ${{ !inputs.plot_only }}
+    runs-on: ubuntu-latest
+    outputs:
+      parts: ${{ steps.list.outputs.parts }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - name: The parts
+        id: list
+        run: echo "parts=$(python scripts/mjo/src/hadley_djf.py plan)" >> "$GITHUB_OUTPUT"
+
+  part:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        part: ${{ fromJSON(needs.plan.outputs.parts) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - name: The cell's daily field for the winters
+        run: |
+          mkdir -p out
+          python scripts/mjo/src/hadley_djf.py fetch --cell ${{ inputs.cell }} --windows "${{ matrix.part.windows }}" --out out/${{ matrix.part.name }}.npz
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.cell }}djf-${{ matrix.part.name }}
+          path: out/*.npz
+          retention-days: 5
+
+  build:
+    needs: part
+    if: ${{ always() && (needs.part.result == 'success' || inputs.plot_only) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - uses: actions/download-artifact@v7
+        if: ${{ !inputs.plot_only }}
+        with:
+          pattern: ${{ inputs.cell }}djf-*
+          path: parts
+          merge-multiple: true
+      - name: The winters table and the figure
+        env:
+          PLOT_ONLY: ${{ inputs.plot_only }}
+        run: |
+          [ "$PLOT_ONLY" = "true" ] || python scripts/mjo/src/hadley_djf.py build --cell ${{ inputs.cell }} parts/*.npz
+          python scripts/mjo/src/hadley_djf.py plot --cell ${{ inputs.cell }}
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="scripts/mjo/data/reference/${{ inputs.cell }}_djf.nc assets/sst/${{ inputs.cell }}_djf_enso.webp"
+          SNAP=$(mktemp -d); tar cf "$SNAP/outs.tar" $OUT
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add $OUT
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "The ${{ inputs.cell }} cell each winter against ENSO: ERA5 DJF since 1959/60"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

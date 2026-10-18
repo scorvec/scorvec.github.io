@@ -1,0 +1,964 @@
+#!/usr/bin/env python3
+"""MJO diagnostics from the live GEPS extended cycle.
+
+Two products, both built from the de-drifted anomalies forecast.py writes
+(forecast minus the GEPS8 2001-2020 hindcast climatology at the SAME lead):
+
+  phase      Wheeler & Hendon RMM phase diagram — observed last 40 days plus
+             the GEPS ensemble-mean track, days 1-35.
+  hovmoller  15S-15N OLR anomaly, lead x longitude, with u850 contours: the
+             direct view of convective propagation.
+
+This is the FULL three-field Wheeler & Hendon projection (OLR + U850 + U200),
+not the wind-only version the site's AIFS product is limited to. AIFS does not
+output OLR at all; GEPS does, and olr_channel.py supplies the observed OLR side
+in real time (ERA5 spliced with the offset-corrected GMGSI proxy). Both the
+forecast track and the observed track here are three-field, so they are
+like-for-like.
+
+Reference frames, which are easy to get wrong.
+Anomalising the forecast against the GEPS model climatology removes drift, but
+it also puts the forecast in the MODEL's frame while the observed track sits in
+the observed frame; the two differ by the model bias, which for the band-mean
+channels is 0.18-0.37 sigma in pattern. Uncorrected, it shows up exactly where
+you would expect — a jump across the analysis/forecast junction (amplitude 0.86
+to 1.53 in one day).
+
+The fix keeps both properties instead of trading one for the other. Write M for
+the model climatology and O for the observed one, both at the valid date:
+
+    A(L) = [F(L) - M(L)] + [M(L=0) - O]
+         = [F(L) - O] - [M(L) - M(L=0)]
+
+which is the observed-frame anomaly minus the model's drift RELATIVE TO ITS OWN
+day-0 state. At L=0 it reduces to F - O and joins the analysis track continuously;
+at long lead it still removes the lead-dependent drift the hindcast archive exists
+to measure. What it deliberately does not remove is the model's stationary bias,
+because that bias is common to the analysis and would otherwise be double-counted.
+
+That bias goes with the 120-day filter instead, the mean each channel loses, which
+has to come from the same source as the channel. The winds: the observed track is
+GEPS's own day-0 analysis, which agrees with ERA5's band-mean winds to 0.03 in RMM
+(28 days to 11 Oct 2026), so the site's ERA5 map (wind_map120.nc) serves the
+forecast and the observed track alike. OLR: the observed track is ERA5/GMGSI, but
+GEPS's day-1 OLR in this frame runs 12.6 W/m2 above the observed OLR of the same
+day in the band mean (13 cycles, 27 Aug - 15 Oct 2026). Against the observed map
+that bias stayed in the forecast - days 1-3 sat 11.6 W/m2 above the observed OLR,
+0.13 in RMM amplitude (0.06-0.21 a cycle) - so the forecast's OLR map is GEPS's
+own: the mean of its day-1 channel over the 120 days before the init
+(forecast_olr_map), which is how mjo_hindcast.py filters the hindcast it scores.
+The bias is then in the channel and in the map and cancels; tested on the same
+cycles the mismatch falls to -0.7 W/m2 and 0.07 (the cycle-to-cycle scatter of
+GEPS's day-1 error, which no map removes), and the forecast tracks move by about
+0.08, almost all of it along RMM1, the same at every lead. The observed track
+keeps its own map.
+
+One property to read honestly: this projects the ENSEMBLE MEAN, so the
+amplitude damps with lead by construction as members decohere. A shrinking
+radius is loss of ensemble agreement, not a forecast that the MJO decays.
+A GROWING mean radius is the opposite case, a standing drift every member
+shares, so the live track is checked against the hindcast (track_check): a
+peak after day 10 beyond the 95th percentile of the hindcast's 4-member-mean
+peaks (2.8) is printed on the figure as model bias, with the hindcast's own
+verification of such peaks (232 starts: BoM averaged amplitude 2.0 on the same
+day against a forecast 3.1). It is state-dependent: in the strong El Nino
+autumn of 2015, 21 of 55 Sep-Nov starts went beyond it, their means drifting to
+negative RMM2 (day 35 -1.2 against BoM's -0.6) - a signal that grows after the
+init, which neither the unconditional hindcast climatology, the 120-day filter
+nor the ENSO removal below (fixed at the init) can remove.
+
+ENSO. BoM's RMM stopped removing ENSO in 2014, and while an El Nino grows the
+120-day mean lags the warming, so the standing anomaly projects onto RMM1 here
+as on the MJO page's wind-only index. Every track has it removed with the
+three-field correction (scripts/mjo/src/enso_rmm.py, build_enso_rmm3.py):
+RMM - dN34 * c, dN34 the OISST Nino-3.4 minus its mean over the 120 days of a
+filter map - the wind map's and the OLR map's, which end on different days, so
+each channel group takes its own - and c -0.59 per kelvin on RMM1 (2003-2022,
+95 % -0.79..-0.45; the RMM2 part is not significant and is 0). The forecast
+holds the init's Nino-3.4: in the hindcast, the observed Nino-3.4 of each valid
+date, an upper bound on any SST forecast, scored no better. GEPS's own forecast
+RMM1 depends on the start's dN34 by -0.53 at day 1 and -0.58 to -0.62 out to day
+35, so the observed c takes out the model's ENSO part too. The hindcast is
+scored with ENSO removed on both sides (hindcast_enso_removed).
+
+    python mjo_geps.py --cycle 20260827
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import xarray as xr
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import paths
+import refpack
+import datamart
+
+# the site's mjo modules import each other flat, so src/ has to be on the path as well as the package root
+_MJO = paths.REPO / "scripts" / "mjo"
+sys.path[:0] = [str(_MJO), str(_MJO / "src")]
+import olr_channel
+import enso_rmm
+from doycal import sel_doy  # climatology.nc's leap-aware day-of-year lookup
+import plot
+
+
+def _clear_offset(x, y, base, labels, unit=0.019):
+    """Offset (points) for a "day N" label at (x, y): `base` unless its box overlaps a region name (`labels` =
+    (text, x, y, rotation) in data units), else the first candidate that does not (e.g. "day 35" can land on
+    "Indian Ocean"). Boxes are approximate (axes span ~8.6 units over ~6.5 in, so 1 pt ~ 0.019 units)."""
+
+    def box(o):  # annotate's text: left/baseline at the offset
+        x0, y0 = x + o[0] * unit, y + o[1] * unit
+        return x0, x0 + 0.85, y0 - 0.05, y0 + 0.28
+
+    def regions():
+        for t, lx, ly, rot in labels:
+            w = 0.16 * max(len(s) for s in t.split("\n")) / 2 + 0.1
+            h = 0.2 * (t.count("\n") + 1) / 2 + 0.06
+            yield (lx - h, lx + h, ly - w, ly + w) if rot else (lx - w, lx + w, ly - h, ly + h)
+
+    def hits(o):
+        a = box(o)
+        return sum(
+            max(0.0, min(a[1], r[1]) - max(a[0], r[0])) * max(0.0, min(a[3], r[3]) - max(a[2], r[2])) for r in regions()
+        )
+
+    cands = [
+        base,
+        (11, 9),
+        (11, -13),
+        (-13, 11),
+        (-13, -13),
+        (11, -24),
+        (-13, -24),
+        (11, 22),
+        (-13, 22),
+        (14, -4),
+        (-58, -4),
+    ]
+    return min(cands, key=lambda o: (round(hits(o), 3), cands.index(o)))
+
+
+HERE = Path(__file__).resolve().parent
+LIVE = paths.LIVE
+FIGS = paths.FIGS
+REF = _MJO / "data" / "reference"
+# band-mean U850/U200 of each day's GEPS lead-0 analysis (uv_*), and its day-1 OLR (olr1_*, forecast_olr_map)
+ANL_CACHE = paths.STATE / "mjo_analysis"
+FILTER_DAYS = 120  # WH04 low-frequency filter: the days before the init whose mean each channel loses
+FILTER_MIN = 110  # of those days that must have a value (olr_channel's min_periods)
+# days with both GEPS's day-1 OLR and the observed OLR before the gap-filled forecast map replaces the observed one: the
+# GEPS-minus-observed day-1 difference scatters by 0.04 in RMM from day to day (13 cycles) and persists a few days
+# (correlation 0.3-0.5 across 3-4 days), so a 20-day mean is good to 0.02-0.03 against the 0.08 it moves the track
+FILTER_BRIDGE_MIN = 20
+DATAMART_DAYS = 30  # the Datamart keeps about this many days of runs
+OLR_DAY1 = ("OLR_NTAT_0", 24)  # the 00Z run's OLR accumulated over its first 24 h: day 1, as forecast.py builds it
+HIND = paths.TC_REF / "mjo_hindcast.nc"  # mjo_hindcast.py: hindcast ensemble means projected as here, with BoM's RMM
+ENSO_DAILY = paths.REPO / "assets" / "sst" / "data" / "enso_daily.json"
+WARN = "#8b1a1a"
+TRACK_PCT = 95  # a mean-track peak after day 10 beyond this percentile of the hindcast's own peaks is flagged
+STRONG_NINO = 1.5  # deg C: from this Nino-3.4 the hindcast's one strong El Nino autumn is cited beside the flag
+NINO_AUTUMN = (2015, (9, 10, 11))  # Sep-Nov 2015, ONI +2.4: the strongest El Nino of the 2001-2020 hindcast
+
+LAT_MIN, LAT_MAX = -15.0, 15.0
+PHASE_LABEL = [
+    "",
+    "Western\nhemisphere,\nAfrica",
+    "Indian\nOcean",
+    "Indian\nOcean",
+    "Maritime\ncontinent",
+    "Maritime\ncontinent",
+    "Western\nPacific",
+    "Western\nPacific",
+    "Western\nhemisphere,\nAfrica",
+]
+
+
+def band_mean(a: xr.DataArray, lon_target: np.ndarray) -> np.ndarray:
+    """cos-weighted 15S-15N mean, interpolated to the 2.5 deg EOF longitudes.
+
+    Returns (lead, nlon)."""
+    lat = a.latitude
+    m = (lat >= LAT_MIN) & (lat <= LAT_MAX)
+    w = np.cos(np.deg2rad(lat)).where(m, 0.0)
+    b = a.weighted(w).mean(dim="latitude")
+    b = b.assign_coords(longitude=b.longitude % 360).sortby("longitude")
+    # wrap so 357.5->0 interpolates across the dateline seam
+    b = xr.concat([b, b.isel(longitude=0).assign_coords(longitude=360.0)], dim="longitude")
+    return b.interp(longitude=lon_target).transpose("L", "longitude").values
+
+
+def load(tag: str, cycle: str) -> xr.DataArray | None:
+    p = LIVE / f"geps_live_{tag}_{cycle}.nc"
+    return xr.open_dataset(p)[f"{tag}_anom"] if p.exists() else None
+
+
+GEPS_URL = datamart.URL.replace("{c}", "00")
+MVARS = {"u850": ("UGRD_ISBL_0850", False), "u200": ("UGRD_ISBL_0200", False), "olr": ("OLR_NTAT_0", True)}
+SUBSTEPS = (-18, -12, -6, 0)
+
+
+def _grib_members(date, var, L):
+    """All 21 members of one allmbrs GRIB as (member, lat, lon), or None.
+
+    forecast.py stores only the ensemble mean, which is all the mean track needs;
+    a plume needs the members themselves, so this goes back to the GRIBs. The
+    perturbed and control files are stacked rather than averaged."""
+    import os
+    import tempfile
+
+    # mkstemp hands back an OPEN fd as well as a path. Keeping only the
+    # path leaks that fd on every call: unlink() drops the name, not the
+    # descriptor. At 35 days x 4 substeps = 140 grabs per field it blew
+    # through the process's 256-fd limit partway into the second field and the
+    # run died with "Too many open files" (plus DNS failures, which were
+    # sockets that could no longer be opened either).
+    _fd, _name = tempfile.mkstemp(suffix=".grib2")
+    os.close(_fd)
+    tmp = Path(_name)
+    try:
+        body = datamart.get(GEPS_URL.format(d=date, v=var, L=L))
+        if body is None:
+            return None, None
+        tmp.write_bytes(body)
+        out = []
+        for dt in ("pf", "cf"):
+            try:
+                d = xr.open_dataset(
+                    tmp, engine="cfgrib", backend_kwargs=dict(filter_by_keys={"dataType": dt}, indexpath="")
+                )
+                a = d[next(iter(d.data_vars))].load()
+                out.append(a.values[None] if "number" not in a.dims else a.values)
+            except Exception:  # noqa: BLE001
+                pass
+        if not out:
+            return None, None
+        ref = a
+        return np.concatenate(out, axis=0), ref
+    except Exception:  # noqa: BLE001
+        return None, None
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def _band_members(v, ref, lon):
+    """(member, lat, lon) -> cos-weighted 15S-15N mean on the 2.5 deg EOF grid."""
+    lat = ref["latitude"].values if "latitude" in ref.coords else ref["lat"].values
+    lo = ref["longitude"].values if "longitude" in ref.coords else ref["lon"].values
+    w = np.where((lat >= LAT_MIN) & (lat <= LAT_MAX), np.cos(np.deg2rad(lat)), 0.0)
+    b = (v * w[None, :, None]).sum(1) / w.sum()  # (member, nlon)
+    o = np.argsort(lo % 360)
+    lo_s = (lo % 360)[o]
+    b = b[:, o]
+    lo_w = np.r_[lo_s, 360.0]
+    b_w = np.concatenate([b, b[:, :1]], axis=1)
+    return np.stack([np.interp(lon, lo_w, row) for row in b_w])
+
+
+def member_bands(cycle, base, lon, workers=8):
+    """Per-member band means for the three RMM channels, cached to disk. forecast.py writes the cache from the GRIBs
+    it already downloads, so the fetch below is only a fallback (a cycle built before that, or a partial run)."""
+    cache = LIVE / f"geps_rmm_members_{cycle}.npz"
+    if cache.exists():
+        z = np.load(cache)
+        return {k: z[k] for k in MVARS}, z["L"]
+    from concurrent.futures import ThreadPoolExecutor
+
+    days = list(range(1, 36))
+    out = {}
+    for tag, (var, accum) in MVARS.items():
+        want = sorted({24 * d for d in days}) if accum else sorted({24 * d + s for d in days for s in SUBSTEPS})
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            got = dict(zip(want, ex.map(lambda L, var=var: _grib_members(cycle, var, L), want)))
+        cur = {}
+        for L, (v, ref) in got.items():
+            if v is not None:
+                cur[L] = _band_members(v, ref, lon)
+        rows = []
+        for d in days:
+            if accum:
+                end = cur.get(24 * d)
+                start = cur.get(24 * (d - 1))
+                if end is None:
+                    rows.append(None)
+                    continue
+                rows.append(((end - start) if start is not None else end) / 86400.0)
+            else:
+                have = [cur[24 * d + s] for s in SUBSTEPS if (24 * d + s) in cur]
+                rows.append(np.mean(have, axis=0) if have else None)
+        keep = [i for i, r in enumerate(rows) if r is not None]
+        out[tag] = np.stack([rows[i] for i in keep])  # (lead, member, nlon)
+        print(f"    members {tag}: {out[tag].shape[0]} leads x {out[tag].shape[1]}", flush=True)
+    L = np.array([days[i] for i in keep])
+    np.savez_compressed(cache, L=L, **out)
+    return out, L
+
+
+def _project(folr, f850, f200, eofs):
+    """Three-field WH04 projection -> (rmm1, rmm2), unit-variance normalised."""
+    e1 = np.concatenate([eofs["eof_u850"].sel(mode=1).values, eofs["eof_u200"].sel(mode=1).values])
+    e2 = np.concatenate([eofs["eof_u850"].sel(mode=2).values, eofs["eof_u200"].sel(mode=2).values])
+    o1, o2 = eofs["eof_olr"].sel(mode=1).values, eofs["eof_olr"].sel(mode=2).values
+    comb = np.concatenate([f850, f200], axis=1)
+    return (
+        (folr @ o1 + comb @ e1) / float(eofs["pc_std"].sel(mode=1)),
+        (folr @ o2 + comb @ e2) / float(eofs["pc_std"].sel(mode=2)),
+    )
+
+
+ANL = (
+    "https://dd.weather.gc.ca/{d}/WXO-DD/ensemble/geps/grib2/raw/00/000/"
+    "CMC_geps-raw_{v}_latlon0p5x0p5_{d}00_P000_allmbrs.grib2"
+)
+
+
+def geps_analysis_winds(base: pd.Timestamp, days: int, lon):
+    """Band-mean U850/U200 from GEPS's OWN lead-0 analysis, one point per day.
+
+    This follows the methodology already established for the AIFS product
+    (archive_truth.py): grow the observed track from the forecast model's own
+    zero-lag analysis, so there is no reanalysis-to-model handoff jump at the
+    start of the forecast. It also solves a latency problem that has no other
+    cheap fix — ERA5 (and ARCO) run six days behind and NCEP R1 five months, so
+    a reanalysis track would stop days before the GEPS init and leave a visible
+    gap on the phase diagram. Datamart keeps roughly 30 days of cycles, which
+    sets the length of the track.
+    """
+    import forecast as fx
+
+    out = {}
+    dates = [base - pd.Timedelta(days=k) for k in range(days)]
+
+    def one(d):
+        # one small npz per analysis day, carried between runs, so each day's two lead-0 files are read once ever
+        cf = ANL_CACHE / f"uv_{d:%Y%m%d}.npz"
+        if cf.exists():
+            z = np.load(cf)
+            if np.allclose(z["lon"], lon):
+                return {"u850": z["u850"], "u200": z["u200"]}
+        got = {}
+        for tag, var in (("u850", "UGRD_ISBL_0850"), ("u200", "UGRD_ISBL_0200")):
+            a = fx._grab(d.strftime("%Y%m%d"), var, 0)
+            if a is None:
+                return None
+            lat = "latitude" if "latitude" in a.dims else "lat"
+            w = np.cos(np.deg2rad(a[lat])).where((a[lat] >= LAT_MIN) & (a[lat] <= LAT_MAX), 0.0)
+            b = a.weighted(w).mean(dim=lat)
+            b = b.assign_coords(longitude=b.longitude % 360).sortby("longitude")
+            b = xr.concat([b, b.isel(longitude=0).assign_coords(longitude=360.0)], dim="longitude")
+            got[tag] = b.interp(longitude=lon).values
+        ANL_CACHE.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(cf, lon=lon, **got)
+        return got
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=datamart.WORKERS) as ex:
+        for d, g in zip(dates, ex.map(one, dates)):
+            if g is not None:
+                out[d.normalize()] = g
+    if not out:
+        raise SystemExit("no GEPS analysis cycles retrievable")
+    t = pd.DatetimeIndex(sorted(out))
+    return (t, np.stack([out[d]["u850"] for d in t]), np.stack([out[d]["u200"] for d in t]))
+
+
+def observed(base: pd.Timestamp, clim, eofs, days: int = 30):
+    """Three-field observed RMM track, its fixed 120-day filter maps, and the observed OLR anomalies.
+
+    Winds: GEPS lead-0 analysis (see above). OLR: olr_channel.py. Filter maps:
+    the site's wind_map120.nc plus the OLR channel's own 120-day mean, both from
+    ERA5-grade analysis — a 120-day mean tolerates a few days of latency, unlike
+    the track. The forecast shares the wind maps; its OLR map is GEPS's own
+    (forecast_olr_map), which also takes the observed anomalies.
+    -> (times, rmm1, rmm2, maps, (OLR times, OLR anomalies), last day of each map's window {"wind", "olr"})"""
+    lon = eofs.longitude.values.astype(float)
+    t, lm850, lm200 = geps_analysis_winds(base, days, lon)
+    a850 = lm850 - sel_doy(clim["clim_u850"], t)
+    a200 = lm200 - sel_doy(clim["clim_u200"], t)
+
+    # sanity-check the model analysis against ERA5 where they overlap, rather
+    # than assuming the two agree
+    ep = REF / "era5_eq_uv_recent.nc"
+    if ep.exists():
+        e = xr.open_dataset(ep)
+        et = pd.DatetimeIndex(e.time.values).normalize()
+        both = t.intersection(et)
+        if len(both) >= 5:
+            i, j = t.get_indexer(both), et.get_indexer(both)
+            d8 = lm850[i] - e.u.sel(level=850).values[j]
+            d2 = lm200[i] - e.u.sel(level=200).values[j]
+            print(
+                f"  GEPS analysis vs ERA5 over {len(both)} d: "
+                f"U850 bias {d8.mean():+.2f} rms {d8.std():.2f} m/s "
+                f"(std_u850 {clim.attrs['std_u850']:.2f}); "
+                f"U200 bias {d2.mean():+.2f} rms {d2.std():.2f}"
+            )
+
+    m = xr.open_dataset(REF / "wind_map120.nc")
+    to, ao, mo = olr_channel.anomaly_and_map120(clim)
+    idx = pd.Index(pd.DatetimeIndex(to).normalize()).get_indexer(t)
+    ok = idx >= 0
+    aolr = np.full_like(a850, np.nan)
+    aolr[ok] = ao[idx[ok]]
+
+    maps = {"u850": m["u850"].values, "u200": m["u200"].values, "olr": mo}
+    fo = (aolr - maps["olr"]) / clim.attrs["std_olr"]
+    f8 = (a850 - maps["u850"]) / clim.attrs["std_u850"]
+    f2 = (a200 - maps["u200"]) / clim.attrs["std_u200"]
+    r1, r2 = _project(fo, f8, f2, eofs)
+    good = np.isfinite(r1)
+    sel = np.where(good)[0][-days:]
+    print(
+        f"  observed 3-field: {t[sel][0]:%Y-%m-%d} -> {t[sel][-1]:%Y-%m-%d} "
+        f"({len(sel)} d), amp now {np.hypot(r1[sel][-1], r2[sel][-1]):.2f}"
+    )
+    wend = m.attrs.get("window_end")  # absent on a map written before it was recorded: about a week before the init
+    ends = {
+        "wind": pd.Timestamp(wend) if wend else base - pd.Timedelta(days=enso_rmm.LAG_DAYS),
+        "olr": pd.Timestamp(to[-1]).normalize(),
+    }
+    return t[sel], r1[sel], r2[sel], maps, (to, ao), ends
+
+
+def _reref(tag: str, lon, valid: pd.DatetimeIndex, clim, cvar: str) -> np.ndarray:
+    """M(L=0) - O at each valid date: the shift from the model frame to the observed one.
+
+    Evaluated at the SAME day-of-year as the forecast, so the seasonal cycle is
+    consistent on both sides of the difference."""
+    cv = refpack.clim(tag).squeeze(drop=True)
+    out = []
+    for d in valid:
+        m = (
+            cv.sel(L=0.5, method="nearest")
+            .interp(doy=float(refpack.noleap_doy(d)))
+            .rename({"Y": "latitude", "X": "longitude"})
+        )
+        lat = m.latitude
+        w = np.cos(np.deg2rad(lat)).where((lat >= LAT_MIN) & (lat <= LAT_MAX), 0.0)
+        b = m.weighted(w).mean(dim="latitude")
+        b = b.assign_coords(longitude=b.longitude % 360).sortby("longitude")
+        b = xr.concat([b, b.isel(longitude=0).assign_coords(longitude=360.0)], dim="longitude")
+        out.append(b.interp(longitude=lon).values - sel_doy(clim[cvar], [d])[0])
+    return np.stack(out)
+
+
+def geps_day1_olr(cycle: str, base: pd.Timestamp, lon) -> tuple[pd.DatetimeIndex, np.ndarray]:
+    """GEPS's own day-1 OLR on each of the FILTER_DAYS days before the init: the 15S-15N band of that day's 00Z run over
+    its first 24 h, 21-member mean, W/m2, reduced exactly as forecast.py reduces a forecast day; NaN where not held.
+
+    Every day's 00Z run has the first day an extended run has (only the Monday and Thursday runs go on to day 35), so
+    the history is daily. It is one small npz per day in ANL_CACHE, carried between runs: this cycle's own day 1 is
+    filed from forecast.py's member bands, which already hold it, and a day not cached yet is read from the Datamart
+    while it still keeps that run (DATAMART_DAYS); a day it no longer keeps stays missing.
+    -> (days, olr[day, lon])"""
+    import forecast as fx
+
+    own, filed = LIVE / f"geps_rmm_members_{cycle}.npz", ANL_CACHE / f"olr1_{base:%Y%m%d}.npz"
+    if own.exists() and not filed.exists():
+        z = np.load(own)
+        k = np.where(z["L"] == 1)[0]
+        if len(k):
+            ANL_CACHE.mkdir(parents=True, exist_ok=True)
+            np.savez_compressed(filed, lon=lon, olr=z["olr"][k[0]].mean(0))
+
+    days = pd.date_range(base - pd.Timedelta(days=FILTER_DAYS), periods=FILTER_DAYS)
+    oldest = pd.Timestamp.now("UTC").tz_localize(None).normalize() - pd.Timedelta(days=DATAMART_DAYS)
+
+    def one(d):
+        cf = ANL_CACHE / f"olr1_{d:%Y%m%d}.npz"
+        if cf.exists():
+            z = np.load(cf)
+            if np.allclose(z["lon"], lon):
+                return z["olr"]
+        if d < oldest:
+            return None
+        _, b = fx._grab(d.strftime("%Y%m%d"), *OLR_DAY1, band=True)  # (member, lon), J m-2 over the first 24 h
+        if b is None:
+            return None
+        v = b.mean(0) / 86400.0
+        ANL_CACHE.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(cf, lon=lon, olr=v)
+        return v
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    out = np.full((len(days), len(lon)), np.nan)
+    with ThreadPoolExecutor(max_workers=datamart.WORKERS) as ex:
+        for i, v in enumerate(ex.map(one, days)):
+            if v is not None:
+                out[i] = v
+    return days, out
+
+
+def forecast_olr_map(cycle: str, base: pd.Timestamp, clim, lon, obs_olr, m_obs) -> np.ndarray:
+    """The forecast's OLR filter map: the mean of GEPS's OWN day-1 OLR channel over the FILTER_DAYS days before the
+    init, which is how mjo_hindcast.py filters every hindcast start it scores.
+
+    A day's channel is A(1) = [B(1) - M(0.5)] + [M(0.5) - O] = B(1) - O, B the day-1 band and O the WH04 climatology
+    at that day of year: the model climatology cancels at day 1. GEPS's OLR bias is in it as in every forecast day,
+    so the bias cancels against the map, where the observed map (ERA5/GMGSI) left it in the forecast.
+
+    The history starts with the ~30 days the Datamart still holds, so for the first months most of the window is not
+    held. Such a day contributes its observed anomaly o moved into GEPS's frame, o + [M(0.5) - O] + d: the forecast's
+    own frame shift at that day of year, plus d, the mean of GEPS's day-1 anomaly B(1) - M(0.5) minus o over the days
+    that have both. That makes the map the observed one in GEPS's frame, and GEPS's own mean once every day is held.
+    With fewer than FILTER_BRIDGE_MIN days that have both, d is not known well enough and the observed map m_obs is
+    kept; a day with neither is left out. obs_olr = (times, anomalies) from olr_channel."""
+    days, b1 = geps_day1_olr(cycle, base, lon)
+    h = b1 - sel_doy(clim["clim_olr"], days)
+    t_obs, a_obs = obs_olr
+    i = pd.Index(pd.DatetimeIndex(t_obs).normalize()).get_indexer(days)
+    o = np.full_like(h, np.nan)
+    o[i >= 0] = a_obs[i[i >= 0]]
+    held = np.isfinite(h).all(1)
+    both = held & np.isfinite(o).all(1)
+    if both.sum() < FILTER_BRIDGE_MIN:
+        print(
+            f"::warning::GEPS day-1 OLR on {both.sum()} of the {FILTER_DAYS} days before the init (with the observed "
+            f"OLR; {FILTER_BRIDGE_MIN} needed): the forecast keeps the observed OLR filter map"
+        )
+        return m_obs
+    rr = _reref("olr", lon, days, clim, "clim_olr")
+    d = (h - rr - o)[both].mean(0)
+    v = np.where(held[:, None], h, o + rr + d)
+    ok = np.isfinite(v).all(1)
+    if ok.sum() < FILTER_MIN:
+        print(f"::warning::OLR on {ok.sum()} of the {FILTER_DAYS} filter days: the forecast keeps the observed OLR map")
+        return m_obs
+    m = v[ok].mean(0)
+    print(
+        f"  forecast OLR filter map: GEPS day 1 on {held.sum()} of {FILTER_DAYS} days, the rest observed in GEPS's "
+        f"frame (GEPS day-1 minus observed anomaly {d.mean():+.1f} W/m2 over {both.sum()} d); "
+        f"{(m - m_obs).mean():+.1f} W/m2 against the observed map"
+    )
+    return m
+
+
+def rmm(cycle: str, base: pd.Timestamp, clim, eofs, maps):
+    """Three-field RMM for the GEPS ensemble-mean forecast, days 1-35; `maps` are the forecast's 120-day filter maps."""
+    lon = eofs.longitude.values.astype(float)
+    u850, u200, olr = load("u850", cycle), load("u200", cycle), load("olr", cycle)
+    if u850 is None or u200 is None or olr is None:
+        return None
+    L = u850.L.values.astype(int)
+    valid = pd.DatetimeIndex([base + pd.Timedelta(days=int(x) - 1) for x in L])  # day L = the UTC day base + L - 1
+    ch = {}
+    for tag, a, cvar in (("u850", u850, "clim_u850"), ("u200", u200, "clim_u200"), ("olr", olr, "clim_olr")):
+        ch[tag] = (band_mean(a, lon) + _reref(tag, lon, valid, clim, cvar) - maps[tag]) / clim.attrs[f"std_{tag}"]
+    r1, r2 = _project(ch["olr"], ch["u850"], ch["u200"], eofs)
+    return L, r1, r2
+
+
+def _model_clim_band(tag, lon, L, init_doy):
+    """Band mean of the GEPS model climatology M(L) at the forecast's INIT
+    day-of-year — the same reference forecast.py subtracts to form its anomaly.
+
+    The member arrays come straight off the GRIBs as RAW fields, whereas the mean
+    track is built from forecast.py's anomalies. Feeding raw fields into the same
+    projection silently omits this term, which left the plume in a different frame
+    from the mean track — the mean did not sit inside its own members."""
+    cv = refpack.clim(tag).squeeze(drop=True)
+    out = []
+    for x in L:
+        m = cv.sel(L=float(x) - 0.5, method="nearest").interp(doy=init_doy).rename({"Y": "latitude", "X": "longitude"})
+        lat = m.latitude
+        w = np.cos(np.deg2rad(lat)).where((lat >= LAT_MIN) & (lat <= LAT_MAX), 0.0)
+        b = m.weighted(w).mean(dim="latitude")
+        b = b.assign_coords(longitude=b.longitude % 360).sortby("longitude")
+        b = xr.concat([b, b.isel(longitude=0).assign_coords(longitude=360.0)], dim="longitude")
+        out.append(b.interp(longitude=lon).values)
+    return np.stack(out)
+
+
+def _project_wind(f850, f200, eofs):
+    """Wind-only projection -> (rmm1, rmm2): the index the MJO page's multi-model diagram shares with the ECMWF
+    ensembles (scripts/mjo/src/rmm.py), normalised by the wind-only projection's own standard deviation."""
+    e1 = np.concatenate([eofs["eof_u850"].sel(mode=1).values, eofs["eof_u200"].sel(mode=1).values])
+    e2 = np.concatenate([eofs["eof_u850"].sel(mode=2).values, eofs["eof_u200"].sel(mode=2).values])
+    comb = np.concatenate([f850, f200], axis=1)
+    return (comb @ e1) / float(eofs["pc_wind_std"].sel(mode=1)), (comb @ e2) / float(eofs["pc_wind_std"].sel(mode=2))
+
+
+def rmm_members(cycle, base, clim, eofs, maps):
+    """Per-member three-field RMM, days 1-35, in the same frame as the mean track, and the wind-only RMM of the same
+    members: -> L, r1, r2, w1, w2 (each (lead, member))."""
+    lon = eofs.longitude.values.astype(float)
+    bands, L = member_bands(cycle, base, lon)
+    valid = pd.DatetimeIndex([base + pd.Timedelta(days=int(x) - 1) for x in L])  # day L = the UTC day base + L - 1
+    ch = {}
+    for tag, ckey in (("u850", "clim_u850"), ("u200", "clim_u200"), ("olr", "clim_olr")):
+        rr = _reref(tag, lon, valid, clim, ckey)  # (lead, nlon)
+        mc = _model_clim_band(tag, lon, L, float(refpack.noleap_doy(base)))  # (lead, nlon)
+        ch[tag] = (bands[tag] - mc[:, None, :] + rr[:, None, :] - maps[tag]) / clim.attrs[f"std_{tag}"]
+    n = ch["u850"].shape[1]
+    r1 = np.empty((len(L), n))
+    r2, w1, w2 = np.empty_like(r1), np.empty_like(r1), np.empty_like(r1)
+    for m in range(n):
+        a, b = _project(ch["olr"][:, m, :], ch["u850"][:, m, :], ch["u200"][:, m, :], eofs)
+        r1[:, m], r2[:, m] = a, b
+        w1[:, m], w2[:, m] = _project_wind(ch["u850"][:, m, :], ch["u200"][:, m, :], eofs)
+    return L, r1, r2, w1, w2
+
+
+def write_wind_track(L, w1, w2, base: pd.Timestamp) -> None:
+    """The wind-only track for the MJO page's multi-model diagram (assets/geps/data/geps_rmm_wind.json), in the
+    layout of scripts/mjo/src/rmm_export.track. GEPS day L is the UTC day base + L - 1."""
+    sys.path.insert(0, str(_MJO / "src"))
+    from rmm_export import track
+
+    valid = [base + pd.Timedelta(days=int(x) - 1) for x in L]
+    d = paths.SITE_ASSETS / "data"
+    d.mkdir(parents=True, exist_ok=True)
+    t = track(w1.T, w2.T, L, valid, "GEPS", f"{base:%Y-%m-%d} 00Z", note="wind-only RMM (U850 + U200)")
+    (d / "geps_rmm_wind.json").write_text(json.dumps(t, separators=(",", ":")))
+
+
+def nino34_now() -> float | None:
+    """The latest daily OISST Nino-3.4 anomaly (assets/sst/data/enso_daily.json, deg C), or None without the file."""
+    import json
+
+    try:
+        v = [x for x in json.loads(ENSO_DAILY.read_text())["daily"]["nino34"] if x is not None]
+    except (OSError, KeyError, ValueError):
+        return None
+    return float(v[-1]) if v else None
+
+
+def enso_shift(n34: pd.Series, c: dict[str, np.ndarray], days, ends: dict) -> np.ndarray:
+    """The ENSO part of the three-field RMM on each of `days` (enso_rmm): dN34, the OISST Nino-3.4 on the day (its
+    latest value at or before it, so a forecast holds the init's) minus its mean over the 120 days ending ends[group],
+    times that channel group's c, summed over the OLR and wind groups. -> (n, 2), subtracted from RMM1/RMM2."""
+    out = np.zeros((len(days), 2))
+    for g, cg in c.items():
+        dn = np.array([enso_rmm.delta_n34(n34, t, ends[g]) for t in days])
+        if not np.isfinite(dn).all():
+            print(f"::warning::no Nino-3.4 change for {int((~np.isfinite(dn)).sum())} day(s): ENSO left in there")
+        out += np.where(np.isfinite(dn), dn, 0.0)[:, None] * cg
+    return out
+
+
+def hindcast_enso_removed(S: pd.DatetimeIndex, L, f1, f2, o1, o2, c: np.ndarray):
+    """Hindcast RMM pairs with ENSO removed as the live track is (enso_rmm.hindcast_dn34): the forecast by the start's
+    dN34 at every lead, BoM's RMM by the valid date's where BoM left ENSO in (from 2014); c = the applied (RMM1, RMM2)
+    c, zeros for the pairs as they are. Lead L is valid on the start + ceil(L) - 1 days. -> f1, f2, o1, o2"""
+    valid = S.values.astype("datetime64[D]")[:, None] + (np.ceil(L).astype(int) - 1).astype("timedelta64[D]")
+    dn_f, dn_o = enso_rmm.hindcast_dn34(S, valid)
+    return f1 - dn_f[:, None] * c[0], f2 - dn_f[:, None] * c[1], o1 - dn_o * c[0], o2 - dn_o * c[1]
+
+
+def track_check(L, r1, r2, nino34: float | None, c: np.ndarray) -> list[str] | None:
+    """The live ensemble-mean track (days L) against the hindcast: when its peak amplitude after day 10 is beyond what
+    the hindcast's 4-member means reach on TRACK_PCT % of starts (a 21-member mean should reach less, as it damps
+    more), the figure says so with the hindcast's own verification of such peaks, and, from STRONG_NINO, how its
+    strong El Nino autumn behaved. The hindcast has ENSO removed by c as the live track has (hindcast_enso_removed).
+    Hindcast lead h (0.5, 1.5, ...) is day h + 0.5 here. -> footer lines, or None within range."""
+    if not HIND.exists():
+        print(f"  track check skipped: no {HIND.name}")
+        return None
+    d = xr.open_dataset(HIND)
+    hl = d.L.values.astype(float)
+    S = pd.DatetimeIndex(d.S.values)
+    pairs = hindcast_enso_removed(S, hl, *(d[v].values.astype("float64") for v in ("f1", "f2", "o1", "o2")), c)
+    d.close()
+    sel = np.where((hl >= 10.5) & (hl <= 34.5))[0]
+    f1, f2, o1, o2 = (p[:, sel] for p in pairs)
+    ok = np.isfinite(f1).all(1) & np.isfinite(o1).all(1)
+    a = np.hypot(f1, f2)
+    k = np.argmax(np.where(ok[:, None], a, -1.0), axis=1)
+    peak = a[np.arange(len(a)), k]
+    thr = float(np.percentile(peak[ok], TRACK_PCT))
+    days = np.asarray(L)
+    late = days > 10
+    amp = np.hypot(r1, r2)[late]
+    j = int(np.argmax(amp))
+    if amp[j] <= thr:
+        return None
+    hi = ok & (peak > thr)
+    seen = np.hypot(o1, o2)[np.arange(len(a)), k]
+    out = [
+        f"Model bias, not MJO strength: the mean track reaches amplitude {amp[j]:.1f} on day {int(days[late][j])}, "
+        f"beyond the {thr:.1f} that {TRACK_PCT} % of the hindcast's 4-member means stay within after day 10; on the "
+        f"{int(hi.sum())} hindcast starts that went beyond it, BoM's RMM averaged {seen[hi].mean():.1f} on the same day "
+        f"against a forecast {peak[hi].mean():.1f}."
+    ]
+    if nino34 is not None and nino34 >= STRONG_NINO:
+        y, mons = NINO_AUTUMN
+        en = ok & (S.year == y) & np.isin(S.month, mons)
+        out.append(
+            f"In its strong El Niño autumn (Sep–Nov {y}) {int((en & hi).sum())} of {int(en.sum())} starts went beyond "
+            f"it (against {100 - TRACK_PCT} % of all starts); their day-35 mean RMM2 was {f2[en, -1].mean():+.1f} "
+            f"against BoM's {o2[en, -1].mean():+.1f}."
+        )
+    return out
+
+
+def plot_phase(cycle: str, base: pd.Timestamp):
+    clim = xr.open_dataset(REF / "climatology.nc")
+    eofs = xr.open_dataset(REF / "eofs.nc")
+    ot, or1, or2, maps, obs_olr, ends = observed(base, clim, eofs)
+    lon = eofs.longitude.values.astype(float)
+    fmaps = {**maps, "olr": forecast_olr_map(cycle, base, clim, lon, obs_olr, maps["olr"])}
+    got = rmm(cycle, base, clim, eofs, fmaps)
+    if got is None:
+        print("  phase: missing a channel")
+        return None
+    L, r1, r2 = got
+    import textwrap
+
+    # ENSO removed from every track (enso_rmm, three-field c): the observed days against the observed maps' windows,
+    # the forecast with the init's Nino-3.4 held, against the forecast's maps (its OLR map: the 120 days before the init)
+    c = enso_rmm.load_c3()
+    n34 = enso_rmm.n34_smoothed()
+    fends = {"wind": ends["wind"], "olr": base - pd.Timedelta(days=1)}
+    if n34 is None:
+        print(f"::warning::{enso_rmm.ENSO_DAILY.name} missing: ENSO not removed")
+        c = {g: np.zeros(2) for g in c}
+        shift, so, dn = np.zeros(2), np.zeros((len(ot), 2)), float("nan")
+    else:
+        shift, so = enso_shift(n34, c, [base], fends)[0], enso_shift(n34, c, ot, ends)
+        dn = enso_rmm.delta_n34(n34, base, fends["wind"])
+    raw = np.hypot(r1, r2), np.hypot(or1[-1], or2[-1])
+    or1, or2 = or1 - so[:, 0], or2 - so[:, 1]
+    r1, r2 = r1 - shift[0], r2 - shift[1]
+    a = np.hypot(r1, r2)
+    print(
+        f"  ENSO removed: dN34 {dn:+.2f} K at the init (wind window), forecast moved {0 - shift[0]:+.2f}/{0 - shift[1]:+.2f} "
+        "(RMM1/RMM2); mean-track amplitude raw -> ENSO removed, days 1/10/35: "
+        + ", ".join(f"{raw[0][k]:.2f} -> {a[k]:.2f}" for k in (0, 9, len(L) - 1))
+        + f"; observed {ot[-1]:%m-%d} {raw[1]:.2f} -> {np.hypot(or1[-1], or2[-1]):.2f}"
+    )
+    enso_note = (
+        f"ENSO removed: Niño-3.4 {dn:+.2f} °C against its mean over the 120-day filter, every forecast point moved "
+        f"{np.hypot(*shift):.2f}"
+        if np.any(shift)
+        else "ENSO not removed"
+    )
+
+    warn = track_check(L, r1, r2, nino34_now(), c["olr"] + c["wind"])
+    if warn:
+        print("  mean track flagged: " + " ".join(warn))
+    note = "\n".join(textwrap.fill(t, 108) for t in warn) if warn else ""
+    extra = 0.15 * (note.count("\n") + 1) + 0.05 if note else 0.0  # inches added below the wheel
+    H = 9.0 + extra
+
+    # Same wheel the AIFS-ENS product draws (src/plot.py), so the two phase
+    # diagrams on the site share one convention: phase 1 in the left sector,
+    # numbering counterclockwise, West. Hem./Africa left and Indian Ocean bottom.
+    fig, ax = plt.subplots(figsize=(8.5, H))
+    fig.subplots_adjust(left=0.082, right=0.978, top=1 - 0.558 / H, bottom=(1.305 + extra) / H)
+    plot.draw_phase_wheel(ax)
+
+    # observed track: faint connector with points by month, as in plot.py
+    ax.plot(or1, or2, color="0.55", lw=1.0, alpha=0.75, zorder=5)
+    months = ot.to_period("M")
+    mcmap = plt.get_cmap("tab10")
+    for k, mo in enumerate(dict.fromkeys(months)):
+        sel = months == mo
+        ax.scatter(
+            or1[sel],
+            or2[sel],
+            s=22,
+            zorder=6,
+            color=mcmap(k % 10),
+            edgecolor="0.3",
+            linewidth=0.3,
+            label=f"Obs {mo.strftime('%b %Y')}",
+        )
+    ax.scatter(or1[-1], or2[-1], marker="*", s=210, zorder=8, color="#111111", label=f"analysis {ot[-1]:%b %d}")
+
+    # ensemble plume: every member, faint, under the mean
+    try:
+        Lm, m1, m2, w1, w2 = rmm_members(cycle, base, clim, eofs, fmaps)
+        write_wind_track(Lm, w1, w2, base)  # the MJO page removes ENSO from the wind-only tracks itself
+        m1, m2 = m1 - shift[0], m2 - shift[1]
+        for k in range(m1.shape[1]):
+            ax.plot(np.r_[or1[-1], m1[:, k]], np.r_[or2[-1], m2[:, k]], color="#4a7bb5", alpha=0.42, lw=0.9, zorder=3)
+        amp = np.hypot(m1, m2)
+        print(
+            f"  plume: {m1.shape[1]} members, day35 amplitude "
+            f"{np.percentile(amp[-1], 10):.2f}-{np.percentile(amp[-1], 90):.2f} "
+            f"(mean track {np.hypot(r1[-1], r2[-1]):.2f})"
+        )
+    except Exception as e:  # noqa: BLE001
+        print(f"  plume unavailable: {str(e)[:70]}")
+
+    # forecast track coloured by lead, anchored on the analysis point
+    cmap, norm = plt.get_cmap("plasma_r"), mcolors.Normalize(0, len(L) - 1)
+    x = np.r_[or1[-1], r1]
+    y = np.r_[or2[-1], r2]
+    for i in range(len(x) - 1):
+        ax.plot(x[i : i + 2], y[i : i + 2], color=cmap(norm(max(i - 1, 0))), lw=2.4, zorder=7)
+    for k in range(4, len(L), 5):
+        ax.scatter(r1[k], r2[k], s=42, color=cmap(norm(k)), edgecolor="0.25", linewidth=0.4, zorder=8)
+    # a correctly damped ensemble-mean track is compact, so the labels stack on
+    # each other and on the line: fan them out and back them with white
+    for k, (dx0, dy0) in zip((9, 19, 34), ((11, 9), (11, -13), (-13, 11))):
+        if k < len(L):
+            dx, dy = _clear_offset(r1[k], r2[k], (dx0, dy0), plot.REGION_LABELS)
+            ax.annotate(
+                f"day {L[k]}",
+                (r1[k], r2[k]),
+                textcoords="offset points",
+                xytext=(dx, dy),
+                fontsize=9,
+                fontweight="bold",
+                zorder=10,
+                color=cmap(norm(k)),
+                bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.82),
+            )
+    ax.scatter(
+        r1[-1],
+        r2[-1],
+        marker="s",
+        s=70,
+        color=cmap(norm(len(L) - 1)),
+        edgecolor="0.25",
+        linewidth=0.5,
+        zorder=9,
+        label=f"GEPS day {L[-1]}",
+    )
+    ax.legend(loc="upper left", fontsize=8.5, framealpha=0.9, ncol=2)
+    ax.set_title(f"GEPS Ensemble RMM  —  Init: {base:%Y-%m-%d} 00Z", fontsize=13, fontweight="bold")
+
+    # explicit line breaks, not wrap=True: matplotlib's wrapper measures against
+    # the FIGURE width and happily ran this caption off both edges
+    fig.text(
+        0.5,
+        (0.198 + extra) / H,
+        f"Three-field RMM (OLR + U850 + U200) · 21 members\n{enso_note}",
+        ha="center",
+        va="bottom",
+        fontsize=9,
+        color="#6f6b64",
+    )
+    if note:
+        fig.text(0.5, 0.15 / H, note, ha="center", va="bottom", fontsize=8.6, color=WARN, linespacing=1.25)
+    FIGS.mkdir(parents=True, exist_ok=True)
+    p = FIGS / "geps_mjo_phase.webp"
+    fig.savefig(p, dpi=110, facecolor="white", pil_kwargs={"quality": 90, "method": 6})
+    plt.close(fig)
+    amp = np.hypot(r1, r2)
+    print(f"  {p.name}  amp day1 {amp[0]:.2f} -> day35 {amp[-1]:.2f}")
+    return p.name
+
+
+def _hov_panel(ax, lon, L, F, cmap, lim, base, dates_on_right):
+    m = ax.pcolormesh(lon, L, F, cmap=cmap, vmin=-lim, vmax=lim, shading="auto")
+    ax.invert_yaxis()
+    ax.set_xlim(0, 357.5)
+    ax.set_xticks([0, 60, 120, 180, 240, 300])
+    ax.set_xticklabels(["0°", "60°E", "120°E", "180°", "120°W", "60°W"], fontsize=9)
+    for x in (100, 150):  # Indian | Maritime | Pacific
+        ax.axvline(x, color="#00000033", lw=0.8, ls=(0, (4, 3)))
+    for x, t in ((58, "Indian Ocean"), (132, "Maritime"), (215, "Pacific"), (310, "Atlantic")):
+        ax.text(
+            x,
+            1.4,
+            t,
+            ha="center",
+            va="top",
+            fontsize=8.5,
+            color="#4a453f",
+            fontweight="bold",
+            zorder=6,
+            bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="none", alpha=0.78),
+        )
+    ax.tick_params(labelsize=9)
+    if dates_on_right:
+        ax2 = ax.twinx()
+        ax2.set_ylim(ax.get_ylim())
+        ticks = [1, 7, 14, 21, 28, 35]
+        ax2.set_yticks(ticks)
+        ax2.set_yticklabels(
+            [f"{base + pd.Timedelta(days=t - 1):%b %d}" for t in ticks], fontsize=8.5
+        )  # lead day t = UTC day base + t - 1
+    return m
+
+
+def plot_hovmoller(cycle: str, base: pd.Timestamp):
+    """Two panels: convection (OLR) and the 850 hPa zonal wind that goes with it.
+
+    These were one panel with the wind overlaid as contours. Separating them and
+    filling the wind reads far better: the MJO's signature is the PHASE RELATION
+    between the two — westerly anomalies trailing the convective envelope — and
+    two filled panels side by side show that directly, where contours over a
+    filled field mostly just clutter it. Wind is in m/s, as on the maps."""
+    olr, u850 = load("olr", cycle), load("u850", cycle)
+    if olr is None or u850 is None:
+        print("  hovmoller: missing olr or u850")
+        return None
+    lon = np.arange(0, 360, 2.5)
+    # Same offset removal the OLR maps use: the live operational GEPS radiates
+    # 7.6-8.4 W/m2 less than the GEPS8 reforecast at EVERY lead, so without this
+    # the whole panel is tinted green. rmm() and rmm_members() need no such step:
+    # GEPS's own day-1 OLR, their filter map (forecast_olr_map), carries the same
+    # offset, so it cancels there.
+    olr = olr - xr.DataArray(olr.global_mean.values, dims="L", coords={"L": olr.L})
+    O = band_mean(olr, lon)
+    U = band_mean(u850, lon)  # m/s
+    L = olr.L.values.astype(int)
+
+    fig = plt.figure(figsize=(11.4, 9.2))
+    left, right, bot, top = 0.062, 0.918, 0.108, 0.885
+    gap = 0.055
+    w = (right - left - gap) / 2
+    axO = fig.add_axes([left, bot, w, top - bot])
+    axU = fig.add_axes([left + w + gap, bot, w, top - bot])
+
+    limO = float(np.nanpercentile(np.abs(O), 98))
+    limU = float(np.nanpercentile(np.abs(U), 98))
+    mO = _hov_panel(axO, lon, L, O, "BrBG_r", limO, base, False)
+    mU = _hov_panel(axU, lon, L, U, "RdBu_r", limU, base, True)
+    axO.set_ylabel("forecast lead (days)", fontsize=10.5)
+    axU.set_yticklabels([])
+    axO.set_title("Convection — OLR anomaly", fontsize=11.5, fontweight="bold", pad=6)
+    axU.set_title("850 hPa zonal wind anomaly", fontsize=11.5, fontweight="bold", pad=6)
+
+    for ax, m, lab in ((axO, mO, "OLR anomaly (W m⁻²)"), (axU, mU, "850 hPa u anomaly (m s⁻¹)")):
+        bb = ax.get_position()
+        cax = fig.add_axes([bb.x0 + 0.10 * bb.width, 0.042, 0.80 * bb.width, 0.015])
+        cb = fig.colorbar(m, cax=cax, orientation="horizontal", extend="both")
+        cb.set_label(lab, fontsize=9, labelpad=2)
+        cb.ax.tick_params(labelsize=8, pad=1.5)
+
+    fig.suptitle(
+        f"Tropical convection and low-level wind, 15°S–15°N\nGEPS extended · init {base:%Y-%m-%d}",
+        fontsize=13,
+        fontweight="bold",
+        y=0.972,
+        va="top",
+    )
+    p = FIGS / "geps_mjo_hovmoller.webp"
+    fig.savefig(p, dpi=110, facecolor="white", pil_kwargs={"quality": 90, "method": 6})
+    plt.close(fig)
+    print(f"  {p.name}  OLR ±{limO:.0f} W/m², u850 ±{limU:.1f} m/s")
+    return p.name
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--cycle", required=True)
+    a = ap.parse_args()
+    base = pd.Timestamp(a.cycle)
+    FIGS.mkdir(parents=True, exist_ok=True)
+    plot_phase(a.cycle, base)
+    plot_hovmoller(a.cycle, base)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
