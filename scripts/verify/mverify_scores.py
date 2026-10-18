@@ -181,6 +181,7 @@ def main() -> None:
     ap.add_argument("--db", required=True, help="mverify observation database")
     ap.add_argument("--inits", nargs=2, required=True, metavar=("FIRST", "LAST"), help="00Z runs, YYYYMMDDHH")
     ap.add_argument("--work", type=Path, required=True, help="download directory")
+    ap.add_argument("--clean", action="store_true", help="delete the surface files once scored (small disks)")
     a = ap.parse_args()
     inits = [
         t.strftime("%Y%m%d%H")
@@ -195,9 +196,13 @@ def main() -> None:
     from mverify.verify import Result, score_pair_files, verify
 
     with ObsStore.open(a.db, read_only=True) as store:
-        surface = verify(
-            {m: sorted((a.work / d).glob("*.grib2")) for m, d in MODELS.items()}, store, networks=["GHCNH"]
-        )
+        surface_files = {
+            m: sorted(f for i in inits for f in (a.work / d).glob(f"{i}_*.grib2")) for m, d in MODELS.items()
+        }
+        surface = verify(surface_files, store, networks=["GHCNH"])
+        if a.clean:
+            for f in (f for fs in surface_files.values() for f in fs):
+                f.unlink()
         files = []
         for init in inits:
             files.append(upper_pairs(init, a.work, store))

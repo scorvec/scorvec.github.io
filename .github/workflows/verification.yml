@@ -1,0 +1,91 @@
+name: Model verification scores
+
+# GFS, IFS, AIFS and GDPS against surface stations, radiosondes and Stage IV, scored with mverify
+# (github.com/scorvec/nwp_verification) for verification.html. Each night it builds an observation
+# database from GHCNh, IGRA2 and Stage IV, scores the ten most recent 00Z runs whose day 10 has been
+# observed, and commits the scorecard and station maps (assets/verification/). The Datamart keeps
+# GDPS for about 30 days, so a window further back than that loses GDPS.
+#
+# Time: about 25 min for the surface and 13 min per run for every pressure level, plus the database:
+# some 3 h for ten runs. Disk: each run's pressure levels are deleted once matched, and --clean drops
+# the surface files once scored, so the runner's ~14 GB holds.
+on:
+  schedule:
+    - cron: '40 3 * * *'
+  workflow_dispatch:
+    inputs:
+      first:
+        description: 'First 00Z run, YYYYMMDD (blank = 20 days ago)'
+        default: ''
+      last:
+        description: 'Last 00Z run, YYYYMMDD (blank = 11 days ago, the latest whose day 10 is observed)'
+        default: ''
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  MVERIFY_DB: ${{ github.workspace }}/.obs/obs.duckdb   # outside the committed paths
+
+permissions:
+  contents: write
+
+concurrency:
+  group: verification
+  cancel-in-progress: false
+
+jobs:
+  score:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-verification-${{ runner.os }}-v1
+      - name: Install mverify
+        # pinned to a commit so a change upstream cannot alter the scores without a commit here
+        run: pip install --quiet "mverify[grib,zarr] @ git+https://github.com/scorvec/nwp_verification@352ddf26932cbfc5524aa51dfadbe052de1c99b3"
+      - name: Window
+        id: w
+        env:
+          FIRST: ${{ inputs.first }}
+          LAST: ${{ inputs.last }}
+        run: |
+          FIRST=${FIRST:-$(date -u -d '20 days ago' +%Y%m%d)}
+          LAST=${LAST:-$(date -u -d '11 days ago' +%Y%m%d)}
+          # observations from the first init to day 10 of the last
+          END=$(date -u -d "$LAST + 10 days" +%Y-%m-%d)
+          YEARS=$(seq "${FIRST:0:4}" "${END:0:4}" | tr '\n' ' ')
+          echo "runs ${FIRST} to ${LAST} 00Z, observations to ${END}, GHCNh years ${YEARS}"
+          { echo "first=$FIRST"; echo "last=$LAST"; echo "end=$END"; echo "years=$YEARS"; } >> "$GITHUB_OUTPUT"
+      - name: Observation database
+        run: |
+          F=${{ steps.w.outputs.first }}
+          mverify db init
+          mverify db ghcnh --year ${{ steps.w.outputs.years }} --max-stations 2500
+          mverify db igra --since "${F:0:4}-${F:4:2}-${F:6:2}"
+          mverify db precip --product stageiv --start "${F:0:4}-${F:4:2}-${F:6:2}" --end "${{ steps.w.outputs.end }}"
+          mverify db status
+      - name: Score
+        run: |
+          python scripts/verify/mverify_scores.py --db "$MVERIFY_DB" --clean --work "$RUNNER_TEMP/fc" \
+            --inits "${{ steps.w.outputs.first }}00" "${{ steps.w.outputs.last }}00"
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          PATHS="assets/verification/scores.json assets/verification/stations.json"
+          for i in 1 2 3 4 5; do
+            timeout 120 git fetch origin main || { sleep 5; continue; }
+            git reset -q FETCH_HEAD
+            git add $PATHS
+            if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+            git commit -q -m "data update: verification scores $(date -u +%Y-%m-%d)"
+            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
+            git reset -q --soft HEAD^   # undo the commit; refetch and rebuild it
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1
