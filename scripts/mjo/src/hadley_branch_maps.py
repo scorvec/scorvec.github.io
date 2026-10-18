@@ -156,6 +156,7 @@ def hres(t: pd.Timestamp, step: int = 0, params=VARS3, extras: bool = True) -> d
 
 
 @lru_cache(maxsize=1)
+@lru_cache(maxsize=1)
 def _arco() -> xr.Dataset:
     import era5_store
 
