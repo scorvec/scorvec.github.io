@@ -1060,8 +1060,8 @@ def main() -> int:
   {t_var}
   <p><b>The persistent residual, and the −4.5 Hadley figure.</b> Averaged over 1991–2020 at four times a day, ERA5's torques sum to
   {num(fsum, 1)} Hadley while angular momentum has no trend; hourly in 2026 the residual is {num(cl["1"]["mean_R"], 1)} Hadley. Until
-  12 October 2026 the site's torque products (<code>build_torque_clim.py</code> and the
-  <a href="/topics/mountain-torque.html">mountain torque explainer</a>) quoted −4.5 ± 0.7 Hadley, from 12 UTC samples alone. At 00 and
+  12 October 2026 the site's torque climatology and the
+  <a href="/topics/mountain-torque.html">mountain torque explainer</a> quoted −4.5 ± 0.7 Hadley, from 12 UTC samples alone. At 00 and
   12 UTC the semidiurnal pressure tide has the same phase, so samples at those hours alias it: at 12 UTC it adds about +4 Hadley
   to the mountain torque, and friction is far weaker than at 06 UTC, when the daytime boundary layer over Asia is strongest:</p>
   {t_hours}

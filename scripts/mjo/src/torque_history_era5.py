@@ -4,7 +4,7 @@
 chunk of years, each streaming ARCO-ERA5 anonymously and reducing every field on the fly to a
 few dozen numbers per day.
 
-Definitions are the site's (build_torque_clim.py, build_torque_basis.py, torque_map_anim.py),
+Definitions are the site's (torque_map_anim.py and its climatology, build_torque_map_clim.py),
 torque ON the atmosphere, eastward = adds westerly AAM:
   friction  T_f = -sum a^3 cos^2(phi) tau_turb dlam dphi   (mean_eastward_turbulent_surface_stress)
   GWD       T_g = -sum a^3 cos^2(phi) tau_gwd  dlam dphi   (mean_eastward_gravity_wave_surface_stress)

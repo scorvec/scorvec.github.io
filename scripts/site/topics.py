@@ -173,8 +173,8 @@ about 0.2, significant at a 10% false discovery rate).</li>
 <h2>The live forecast</h2>
 <p>The friction and mountain torques are computed from the 50 members of ECMWF's physics-based IFS ensemble for days
 1–15, each day's mean, as anomalies from the ERA5 1991–2020 climatology for the same time of year. Friction is the
-model's own surface stress, which its open data carry; the climatology is ERA5's stress through drag coefficients
-fitted cell by cell and month by month to it. Anomalies are used on purpose: the absolute budget cannot be
+model's own surface stress, which its open data carry, and its climatology is the same quantity in ERA5, ERA5's
+own turbulent surface stress. Anomalies are used on purpose: the absolute budget cannot be
 closed. ERA5's own terms sum to −11 ± 0.6 Hadleys in the annual mean (sampled four times a day, 1991–2020) where the answer must be
 zero; the reanalysis adds angular momentum at every assimilation cycle, and the resolved
 mountain torque changes with grid spacing. Both errors sit in the mean and cancel in an anomaly. The open forecast

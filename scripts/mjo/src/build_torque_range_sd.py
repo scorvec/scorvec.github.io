@@ -13,9 +13,8 @@ coefficients evaluated at that day. ERA5 days here are the 00-00 UTC windows, th
 need 1 January 2021.
 
 torque_range_sd.nc is the 1-sigma of that anomaly per range, all days pooled: the +-1 and +-2 sigma bands of the
-by-range figure. It replaces the sigma of single 00/12 UTC instants on build_torque_basis.py's 5-day sample with a
-2-harmonic cycle fitted to both hours together (that recipe reproduces the old file to 0.002 Hadley from this
-table), which was larger than a day mean's and kept the 00-12 UTC tide difference in the anomaly.
+by-range figure (a day mean's sigma, smaller than that of single 00/12 UTC instants, which keep the 00-12 UTC tide
+difference in the anomaly).
 
     python src/build_torque_range_sd.py
 """
