@@ -15,56 +15,56 @@
    {
     "week": 1,
     "valid": "2026-10-16/2026-10-22",
-    "skill_r_median": 0.83,
-    "share_skilful": 0.984,
+    "skill_r_median": 0.825,
+    "share_skilful": 0.983,
     "most_likely_cal": {
-     "below": 0.282,
-     "near": 0.279,
-     "above": 0.438
+     "below": 0.289,
+     "near": 0.269,
+     "above": 0.443
     }
    },
    {
     "week": 2,
     "valid": "2026-10-23/2026-10-29",
-    "skill_r_median": 0.559,
-    "share_skilful": 0.883,
+    "skill_r_median": 0.539,
+    "share_skilful": 0.839,
     "most_likely_cal": {
-     "below": 0.291,
-     "near": 0.226,
-     "above": 0.483
+     "below": 0.299,
+     "near": 0.212,
+     "above": 0.489
     }
    },
    {
     "week": 3,
     "valid": "2026-10-30/2026-11-05",
-    "skill_r_median": 0.318,
-    "share_skilful": 0.272,
+    "skill_r_median": 0.284,
+    "share_skilful": 0.192,
     "most_likely_cal": {
-     "below": 0.336,
-     "near": 0.147,
+     "below": 0.348,
+     "near": 0.136,
      "above": 0.517
     }
    },
    {
     "week": 4,
     "valid": "2026-11-06/2026-11-12",
-    "skill_r_median": 0.223,
-    "share_skilful": 0.114,
+    "skill_r_median": 0.183,
+    "share_skilful": 0.088,
     "most_likely_cal": {
-     "below": 0.4,
-     "near": 0.123,
-     "above": 0.478
+     "below": 0.393,
+     "near": 0.148,
+     "above": 0.459
     }
    },
    {
     "week": 5,
     "valid": "2026-11-13/2026-11-19",
-    "skill_r_median": 0.192,
-    "share_skilful": 0.068,
+    "skill_r_median": 0.154,
+    "share_skilful": 0.058,
     "most_likely_cal": {
-     "below": 0.398,
-     "near": 0.126,
-     "above": 0.477
+     "below": 0.382,
+     "near": 0.177,
+     "above": 0.441
     }
    }
   ],
@@ -72,56 +72,56 @@
    {
     "week": 1,
     "valid": "2026-10-16/2026-10-22",
-    "skill_r_median": 0.463,
-    "share_skilful": 0.566,
+    "skill_r_median": 0.455,
+    "share_skilful": 0.562,
     "most_likely_cal": {
-     "below": 0.374,
-     "near": 0.291,
-     "above": 0.335
+     "below": 0.378,
+     "near": 0.287,
+     "above": 0.336
     }
    },
    {
     "week": 2,
     "valid": "2026-10-23/2026-10-29",
-    "skill_r_median": 0.176,
+    "skill_r_median": 0.156,
     "share_skilful": 0.0,
     "most_likely_cal": {
-     "below": 0.411,
-     "near": 0.25,
-     "above": 0.338
+     "below": 0.415,
+     "near": 0.244,
+     "above": 0.341
     }
    },
    {
     "week": 3,
     "valid": "2026-10-30/2026-11-05",
-    "skill_r_median": 0.067,
+    "skill_r_median": 0.05,
     "share_skilful": 0.0,
     "most_likely_cal": {
-     "below": 0.459,
-     "near": 0.233,
-     "above": 0.309
+     "below": 0.412,
+     "near": 0.31,
+     "above": 0.278
     }
    },
    {
     "week": 4,
     "valid": "2026-11-06/2026-11-12",
-    "skill_r_median": 0.032,
+    "skill_r_median": 0.01,
     "share_skilful": 0.0,
     "most_likely_cal": {
-     "below": 0.391,
-     "near": 0.378,
-     "above": 0.231
+     "below": 0.32,
+     "near": 0.5,
+     "above": 0.18
     }
    },
    {
     "week": 5,
     "valid": "2026-11-13/2026-11-19",
-    "skill_r_median": 0.026,
+    "skill_r_median": 0.002,
     "share_skilful": 0.0,
     "most_likely_cal": {
-     "below": 0.36,
-     "near": 0.374,
-     "above": 0.266
+     "below": 0.284,
+     "near": 0.506,
+     "above": 0.211
     }
    }
   ]
@@ -146,62 +146,62 @@
    "weeks": [
     {
      "week": 1,
-     "rpss": 0.456,
-     "rpss_unhatched": 0.459,
-     "rpss_hatched": 0.034,
-     "share_unhatched": 0.993,
-     "rpss_geps_form": 0.459,
+     "rpss": 0.448,
+     "rpss_unhatched": 0.457,
+     "rpss_hatched": 0.073,
+     "share_unhatched": 0.977,
+     "rpss_geps_form": 0.451,
      "reliability_p_ge_0.4": {
-      "forecast": 0.709,
-      "observed": 0.716
+      "forecast": 0.705,
+      "observed": 0.713
      }
     },
     {
      "week": 2,
-     "rpss": 0.241,
-     "rpss_unhatched": 0.244,
-     "rpss_hatched": 0.04,
-     "share_unhatched": 0.983,
-     "rpss_geps_form": 0.244,
+     "rpss": 0.228,
+     "rpss_unhatched": 0.243,
+     "rpss_hatched": 0.078,
+     "share_unhatched": 0.91,
+     "rpss_geps_form": 0.231,
      "reliability_p_ge_0.4": {
-      "forecast": 0.598,
-      "observed": 0.608
+      "forecast": 0.59,
+      "observed": 0.601
      }
     },
     {
      "week": 3,
-     "rpss": 0.133,
-     "rpss_unhatched": 0.165,
-     "rpss_hatched": 0.029,
-     "share_unhatched": 0.765,
-     "rpss_geps_form": 0.136,
+     "rpss": 0.12,
+     "rpss_unhatched": 0.234,
+     "rpss_hatched": 0.055,
+     "share_unhatched": 0.363,
+     "rpss_geps_form": 0.123,
      "reliability_p_ge_0.4": {
-      "forecast": 0.543,
-      "observed": 0.553
+      "forecast": 0.538,
+      "observed": 0.548
      }
     },
     {
      "week": 4,
-     "rpss": 0.099,
-     "rpss_unhatched": 0.154,
-     "rpss_hatched": 0.019,
-     "share_unhatched": 0.592,
-     "rpss_geps_form": 0.102,
+     "rpss": 0.088,
+     "rpss_unhatched": 0.262,
+     "rpss_hatched": 0.045,
+     "share_unhatched": 0.197,
+     "rpss_geps_form": 0.091,
      "reliability_p_ge_0.4": {
-      "forecast": 0.532,
-      "observed": 0.538
+      "forecast": 0.53,
+      "observed": 0.536
      }
     },
     {
      "week": 5,
-     "rpss": 0.077,
-     "rpss_unhatched": 0.138,
-     "rpss_hatched": 0.017,
-     "share_unhatched": 0.497,
-     "rpss_geps_form": 0.08,
+     "rpss": 0.068,
+     "rpss_unhatched": 0.274,
+     "rpss_hatched": 0.039,
+     "share_unhatched": 0.122,
+     "rpss_geps_form": 0.07,
      "reliability_p_ge_0.4": {
       "forecast": 0.521,
-      "observed": 0.525
+      "observed": 0.523
      }
     }
    ]
@@ -211,62 +211,62 @@
    "weeks": [
     {
      "week": 1,
-     "rpss": 0.182,
-     "rpss_unhatched": 0.223,
-     "rpss_hatched": 0.016,
-     "share_unhatched": 0.801,
-     "rpss_geps_form": 0.139,
+     "rpss": 0.176,
+     "rpss_unhatched": 0.239,
+     "rpss_hatched": 0.034,
+     "share_unhatched": 0.689,
+     "rpss_geps_form": 0.132,
      "reliability_p_ge_0.4": {
-      "forecast": 0.562,
-      "observed": 0.631
+      "forecast": 0.559,
+      "observed": 0.628
      }
     },
     {
      "week": 2,
-     "rpss": 0.041,
-     "rpss_unhatched": 0.07,
-     "rpss_hatched": 0.02,
-     "share_unhatched": 0.422,
-     "rpss_geps_form": -0.004,
+     "rpss": 0.035,
+     "rpss_unhatched": -0.005,
+     "rpss_hatched": 0.035,
+     "share_unhatched": 0.0,
+     "rpss_geps_form": -0.01,
      "reliability_p_ge_0.4": {
-      "forecast": 0.476,
-      "observed": 0.518
+      "forecast": 0.473,
+      "observed": 0.51
      }
     },
     {
      "week": 3,
-     "rpss": 0.006,
-     "rpss_unhatched": 0.027,
-     "rpss_hatched": 0.005,
-     "share_unhatched": 0.06,
-     "rpss_geps_form": -0.038,
+     "rpss": 0.004,
+     "rpss_unhatched": 0.063,
+     "rpss_hatched": 0.004,
+     "share_unhatched": 0.0,
+     "rpss_geps_form": -0.041,
      "reliability_p_ge_0.4": {
-      "forecast": 0.45,
-      "observed": 0.447
+      "forecast": 0.449,
+      "observed": 0.439
      }
     },
     {
      "week": 4,
-     "rpss": 0.001,
-     "rpss_unhatched": 0.014,
-     "rpss_hatched": 0.001,
-     "share_unhatched": 0.02,
-     "rpss_geps_form": -0.043,
+     "rpss": 0.0,
+     "rpss_unhatched": -0.201,
+     "rpss_hatched": 0.0,
+     "share_unhatched": 0.0,
+     "rpss_geps_form": -0.045,
      "reliability_p_ge_0.4": {
-      "forecast": 0.444,
-      "observed": 0.413
+      "forecast": 0.443,
+      "observed": 0.405
      }
     },
     {
      "week": 5,
-     "rpss": 0.0,
-     "rpss_unhatched": -0.001,
-     "rpss_hatched": 0.0,
-     "share_unhatched": 0.014,
-     "rpss_geps_form": -0.046,
+     "rpss": -0.0,
+     "rpss_unhatched": -0.123,
+     "rpss_hatched": -0.0,
+     "share_unhatched": 0.0,
+     "rpss_geps_form": -0.047,
      "reliability_p_ge_0.4": {
       "forecast": 0.442,
-      "observed": 0.398
+      "observed": 0.387
      }
     }
    ]
