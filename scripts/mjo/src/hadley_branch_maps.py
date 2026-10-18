@@ -72,6 +72,7 @@ EXTENT = (-50.0, 50.0)
 ROWS = ("nh", "npac", "natl", "sh", "spac", "satl", "sind")
 DT_KM = np.arange(13.0, 17.51, 0.5)  # the daily map's colours: the dynamic tropopause's height (km)
 EDGE_LAT = 20.0  # the deep-tropical ascent the Hadley cell edges are looked for from lies within this of the equator
+EDGE_SMOOTH = 5  # grid columns (7.5 deg) each edge is averaged over along longitude, where most of them have one
 W_EFOLD = 12.0  # spherical-harmonic degree damped by 1/e in the mapped vertical motion (a strong Gaussian filter)
 # the interactive map's forward paths: seeds over the deep tropics at DROP_P, released DROP_BACK days before the last
 # analysis and followed for up to DAYS_BACK days (or to the last analysis), 6-hourly, as int16 files per release and level
@@ -532,7 +533,8 @@ def hc_edges(wmid: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Per longitude, the latitudes (north, south) where descent starts either side of the deep-tropical ascent: from
     the strongest ascent within EDGE_LAT of the equator, the first latitude each way where the 700-300 hPa omega,
     strongly filtered (W_EFOLD), turns to descent, interpolated to the zero; NaN where there is no ascent there, or no
-    descent before the map's edge (EXTENT)."""
+    descent before the map's edge (EXTENT). Each edge is then averaged over EDGE_SMOOTH longitudes where most of them
+    have one, so a lone column neither breaks it nor sticks out of it."""
     w = HB.large_scale(wmid, efold=W_EFOLD)
     band = np.flatnonzero(np.abs(HB.LAT) <= EDGE_LAT)
     rows = np.flatnonzero((EXTENT[0] <= HB.LAT) & (EXTENT[1] >= HB.LAT))
@@ -548,7 +550,15 @@ def hc_edges(wmid: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
             if rows[0] <= i + step <= rows[-1]:
                 a, b = w[i, j], w[i + step, j]
                 out[j] = HB.LAT[i] + (HB.LAT[i + step] - HB.LAT[i]) * a / (a - b)
-    return north, south
+    return _along(north), _along(south)
+
+
+def _along(edge: np.ndarray) -> np.ndarray:
+    ok, h = np.isfinite(edge), EDGE_SMOOTH // 2
+    k = np.ones(EDGE_SMOOTH)
+    total = np.convolve(np.pad(np.where(ok, edge, 0.0), h, mode="wrap"), k, "valid")
+    count = np.convolve(np.pad(ok.astype(float), h, mode="wrap"), k, "valid")
+    return np.where(count > EDGE_SMOOTH / 2, total / np.maximum(count, 1.0), np.nan)
 
 
 def draw_dt(F: dict, day: pd.Timestamp, out: Path):
