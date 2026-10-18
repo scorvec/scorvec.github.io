@@ -6,7 +6,6 @@ __pycache__/
 scripts/mjo/data/aifs/
 scripts/mjo/plots/
 scripts/mjo/data/reference/era5_recent/
-scripts/mjo/data/reference/ncep_recent/
 scripts/mjo/data/reference/overturn_ref.npz
 scripts/mjo/data/reference/hslp_ref.npz
 scripts/mjo/data/reference/hslp_drift.npz
