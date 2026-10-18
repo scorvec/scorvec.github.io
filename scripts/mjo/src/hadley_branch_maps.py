@@ -833,12 +833,13 @@ TRACKERS = (
     (
         "hbranch_turnover.webp",
         "How fast the Hadley cells turn over",
-        (("transit_{}_500", "Transit to 500 hPa", "days"), ("share_{}_500", "Air from the outflow", "%")),
+        (("transit_{}_500", "Transit to 500 hPa", "days"), ("share_{}_500", "Share from the outflow", "%")),
         ROWS,
-        f"the air at 500 hPa over 15–33°, released daily at 00 UTC on a {T.RES:.0f}° grid and traced back {T.DAYS_BACK} "
-        "days: transit = median time since it last left the tropical outflow layer (equatorward of "
-        f"{T.OUTFLOW_LAT:.0f}°,\nwithin {HB.OUT_DEPTH:.0f} hPa below the dynamic tropopause), of the share traced to it; "
-        "shorter = a faster-turning cell",
+        f"parcels at 500 hPa over 15–33°, released daily at 00 UTC on a {T.RES:.0f}° grid and traced back {T.DAYS_BACK} "
+        f"days · tropical outflow layer = equatorward of {T.OUTFLOW_LAT:.0f}°, within {HB.OUT_DEPTH:.0f} hPa below the "
+        "dynamic tropopause\n% = the area-weighted share of the parcels that were in that layer at some time "
+        f"in the {T.DAYS_BACK} days · transit = their median time since they last left it; shorter = a faster-turning "
+        "cell",
     ),
 )
 
@@ -856,7 +857,7 @@ def draw_trackers(series: pd.DataFrame, cl: xr.Dataset):
                 now = series[key].iloc[-1]
                 mu, sd = (clim_index(cl, key, doy[-1:], st)[0] for st in ("mean", "sd"))
                 ax.set_title(
-                    f"{SECTOR_NAME[s]} · {label} · latest {now:.1f} ({(now - mu) / sd:+.1f}σ)",
+                    f"{SECTOR_NAME[s]} · {label} · latest {now:.1f} {unit} ({(now - mu) / sd:+.1f}σ)",
                     fontsize=9,
                     loc="left",
                     fontweight="bold",
