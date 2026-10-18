@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Persistent on-disk store for raw ERA5 fields streamed from ARCO.
 
-Every ARCO read goes through get_u()/get_sp(): on a miss the field is streamed
-once and saved to disk; afterwards it loads locally (~50 ms vs ~20 s). Level
+Its readers (get_u, get_v, get_sp, get_t2m_conus) stream a field from ARCO once on
+a miss and save it to disk; afterwards it loads locally (~50 ms vs ~20 s). Level
 requests are merged per timestamp — if a file holds levels {10,50,...} and a
 later call wants {20,30} too, only the missing levels stream and the file is
 rewritten with the union. So clim rebuilds, history refreshes and validation
@@ -12,11 +12,12 @@ Layout (root set by ERA5_STORE):
     $ERA5_STORE/
       README.md
       arco_0p25/
-        u/1991/u_19910102T12.nc     one file per timestamp; `level` dim grows
+        u/1991/u_19910102T12.nc     one file per timestamp; `level` dim grows (v alike)
         sp/1991/sp_19910102T12.nc   surface pressure (float32)
 
-Packing: u is int16 with scale_factor 0.01 m/s (±327 m/s range, 0.01 precision)
-— 2 bytes/point, ~30 MB per 14-level timestamp. sp stays float32.
+Packing: the winds u, v are int16 with scale_factor 0.01 m/s (±327 m/s range,
+0.01 precision) — 2 bytes/point, ~30 MB per 14-level timestamp; a packing for
+winds only. sp and the CONUS t2m stay float32.
 """
 
 from __future__ import annotations
@@ -122,11 +123,6 @@ def get_u(time, levels) -> xr.DataArray:
 def get_v(time, levels) -> xr.DataArray:
     """Meridional wind — see _get_pl."""
     return _get_pl("v", "v_component_of_wind", time, levels)
-
-
-def get_z(time, levels) -> xr.DataArray:
-    """Geopotential (m² s⁻², divide by g for height) — see _get_pl."""
-    return _get_pl("z", "geopotential", time, levels)
 
 
 CONUS = dict(latitude=slice(55, 20), longitude=slice(-130 % 360, -60 % 360))
