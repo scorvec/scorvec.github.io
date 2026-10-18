@@ -12,6 +12,7 @@ scripts/mjo/data/reference/hslp_ref.npz
 scripts/mjo/data/reference/hslp_drift.npz
 scripts/mjo/data/reference/hbranch_ref_*.npz
 scripts/mjo/data/reference/hbranch_drift.npz
+scripts/mjo/data/reference/overturn_rf_drift.npz
 
 # SST pipeline data cache (large OISST netCDFs, re-downloaded each run)
 scripts/sst/data/

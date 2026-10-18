@@ -1,0 +1,115 @@
+name: Hadley and Walker forecasts - GEFS weeks 3-5 against the GEFSv12 reforecast (drift and skill -> overturn-ref-v1)
+
+# scripts/mjo/src/overturn_rf.py. Each archive part reduces one year of the reforecast's Wednesday 35-day starts
+# (2000-2019, the control and three members, the 00 UTC u and v of days 15-35 on the 13 levels, byte-ranged from NOAA's
+# noaa-gefs-retrospective) to weekly zonal-mean v and equatorial divergent u; each truth part reduces ERA5
+# (WeatherBench2) on the same valid days. The verify job fits the drift the live GEFS members are corrected by at weeks
+# 3-5 (overturn_rf_drift.npz, release overturn-ref-v1), scores the corrected members against ERA5 and commits the weeks
+# that pass (scripts/mjo/data/reference/overturn_rf_skill.json). A trial: one year, limit 2, verify false.
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: 'first,last reforecast year'
+        default: '2000,2019'
+      limit:
+        description: 'starts per year (empty = all; a trial: 2)'
+        default: ''
+      verify:
+        description: 'Fit the drift, score and commit the weeks that pass'
+        default: 'true'
+
+permissions:
+  contents: write
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      years: ${{ steps.m.outputs.years }}
+    steps:
+      - id: m
+        run: |
+          IFS=, read y0 y1 <<< "${{ inputs.years }}"
+          echo "years=$(python3 -c "import json; print(json.dumps(list(range($y0, $y1 + 1))))")" >> "$GITHUB_OUTPUT"
+
+  part:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        what: [archive, truth]
+        year: ${{ fromJSON(needs.plan.outputs.years) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - name: Reduce this year
+        env:
+          LIMIT: ${{ inputs.limit }}
+        run: |
+          mkdir -p out
+          args=(--year ${{ matrix.year }} --out out/${{ matrix.what }}_${{ matrix.year }}.npz)
+          [ "${{ matrix.what }}" = archive ] && [ -n "$LIMIT" ] && args+=(--limit "$LIMIT")
+          python scripts/mjo/src/overturn_rf.py ${{ matrix.what }} "${args[@]}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: overturn-rf-${{ matrix.what }}-${{ matrix.year }}
+          path: out/*.npz
+          retention-days: 14
+
+  verify:
+    needs: part
+    if: ${{ !cancelled() && inputs.verify == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: overturn-rf-*
+          path: parts
+          merge-multiple: true
+      - name: Drift and skill
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/mjo/src/overturn_rf.py verify parts/*.npz
+          gh release upload overturn-ref-v1 scripts/mjo/data/reference/overturn_rf_drift.npz -R "$GITHUB_REPOSITORY" --clobber
+      - name: Commit & push (the weeks that pass)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT=scripts/mjo/data/reference/overturn_rf_skill.json
+          SNAP=$(mktemp -d); cp "$OUT" "$SNAP/"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            cp "$SNAP/overturn_rf_skill.json" "$OUT"
+            git add "$OUT"
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "Hadley and Walker forecasts: GEFS weeks 3-5 drift and skill on the reforecast"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
