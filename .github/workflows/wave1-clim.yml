@@ -1,0 +1,65 @@
+name: Wave-1 climatology (stratosphere reference)
+
+# Dispatch-only builder of scripts/strat/reference/wave1_clim.nc (scripts/strat/build_wave1_clim.py), the normal
+# standing wave-1 the wave-1 maps (wave1_maps.py, strat.yml / strat-ifs.yml) compare each map with: the mean complex
+# k=1 coefficient of the 55-65 deg height by day of the 366-slot calendar, 1991-2020. 100 and 500 hPa from
+# WeatherBench 2's ERA5 (1.5 deg, anonymous GCS, 00 UTC; its chunks hold 8 steps of all 13 levels, so the whole
+# geopotential record of the period streams through, about 20 minutes); 10 hPa from the ERA5 10/100 hPa day-of-year
+# normal in the GEPS reference set (release geps-ref-v3), WeatherBench 2 having no level above 50 hPa. Run it when the
+# method changes; the file is committed.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wave1-clim
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: pip install --quiet numpy pandas xarray dask zarr gcsfs netCDF4 "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+      - name: ERA5 10/100 hPa day-of-year normal (release geps-ref-v3)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download geps-ref-v3 --repo "$GITHUB_REPOSITORY" -p geps_ref_v3.tar -D "$RUNNER_TEMP"
+          mkdir -p "$RUNNER_TEMP/ref"
+          tar -xf "$RUNNER_TEMP/geps_ref_v3.tar" -C "$RUNNER_TEMP/ref" --wildcards '*strat/strat_clim_1991-2020.nc'
+          rm "$RUNNER_TEMP/geps_ref_v3.tar"
+          f=$(find "$RUNNER_TEMP/ref" -name strat_clim_1991-2020.nc | head -1)
+          [ -n "$f" ] || { echo "::error::strat_clim_1991-2020.nc not in geps_ref_v3.tar"; exit 1; }
+          echo "STRAT_CLIM=$f" >> "$GITHUB_ENV"
+      - name: Build
+        run: python scripts/strat/build_wave1_clim.py --strat-clim "$STRAT_CLIM"
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          F=scripts/strat/reference/wave1_clim.nc
+          cp "$F" "$RUNNER_TEMP/wave1_clim.nc"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            cp "$RUNNER_TEMP/wave1_clim.nc" "$F"
+            git add "$F"
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "wave-1 climatology: ERA5 1991-2020 on the 366-slot calendar"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

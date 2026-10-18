@@ -1,12 +1,13 @@
 name: Tests (offline checks)
 
 # The offline checks that live beside their pipelines: synthetic-data tests of the tropical rainfall blend fit, the recon
-# decoders against the sample bulletins, and the sounding climatology's split by synoptic hour. No network, no figures.
+# decoders against the sample bulletins, the sounding climatology's split by synoptic hour, and the sounding
+# station list's positions and WMO indexes. No network, no figures.
 on:
   push:
-    paths: ['scripts/precip_bias/**', 'scripts/recon/**', 'scripts/skewt/**.py', 'scripts/lib/**', '.github/workflows/tests.yml']
+    paths: ['scripts/precip_bias/**', 'scripts/recon/**', 'scripts/skewt/**.py', 'skewt/stations.json', 'scripts/lib/**', '.github/workflows/tests.yml']
   pull_request:
-    paths: ['scripts/precip_bias/**', 'scripts/recon/**', 'scripts/skewt/**.py', 'scripts/lib/**', '.github/workflows/tests.yml']
+    paths: ['scripts/precip_bias/**', 'scripts/recon/**', 'scripts/skewt/**.py', 'skewt/stations.json', 'scripts/lib/**', '.github/workflows/tests.yml']
   workflow_dispatch:
 
 permissions:
@@ -28,10 +29,12 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-      - run: pip install --quiet numpy scipy pyproj eccodes
+      - run: pip install --quiet numpy scipy pyproj eccodes "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
       - name: Tropical rainfall blend
         run: python scripts/precip_bias/test_blend.py
       - name: Recon decoders
         run: python scripts/recon/test_recon.py
       - name: Sounding climatology hours
         run: python scripts/skewt/test_climo_hours.py
+      - name: Sounding station list
+        run: python scripts/skewt/test_stations.py

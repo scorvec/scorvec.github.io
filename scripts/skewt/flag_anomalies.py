@@ -13,7 +13,6 @@ fetches to color and annotate the anomalous stations.
 
 from __future__ import annotations
 
-import calendar
 import json
 import subprocess
 import sys
@@ -21,6 +20,7 @@ from datetime import datetime
 from pathlib import Path
 
 import numpy as np
+from quantmet.degdays import doy366
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -161,12 +161,6 @@ def parse_csv(text):
     return P, T, D, H, W
 
 
-def slot366(dt) -> int:
-    """Day of year 1..366 on build_climo's 366-slot calendar: 29 Feb = 60 and 1 March = 61 in every year."""
-    doy = dt.timetuple().tm_yday
-    return doy + 1 if doy >= 60 and not calendar.isleap(dt.year) else doy
-
-
 def pct_of(d, v):
     # The climo sanitizer nulls physically-impossible record min/max entries,
     # so either end may be None: fall back to p1/p99 — percentile
@@ -273,7 +267,7 @@ def main() -> int:
         # day-of-year climatology: nearest 5-day anchor to the sounding's date, same synoptic hour
         try:
             dt = datetime.strptime(e.get("dt", "")[:10], "%Y-%m-%d")
-            doy = slot366(dt)
+            doy = int(doy366([dt])[0]) + 1  # build_climo's 366-slot calendar: 1 March = 61
         except ValueError:
             continue
         anchors = climo.get("doy") or []

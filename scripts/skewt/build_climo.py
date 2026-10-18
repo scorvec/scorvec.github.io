@@ -39,6 +39,7 @@ from datetime import datetime
 from pathlib import Path
 
 import numpy as np
+from quantmet.degdays import doy366
 
 # /pub/data/igra/ serves the same files; ncei.noaa.gov/robots.txt disallows /data*
 IGRA = "https://www.ncei.noaa.gov/pub/data/igra/data/data-por/"
@@ -107,16 +108,6 @@ WORKERS = int(os.environ.get("CLIMO_WORKERS", "6"))
 G = 9.80665
 HERE = Path(__file__).resolve().parent
 STATIONS = HERE.parents[1] / "skewt" / "stations.json"
-
-
-def _doy366(dates) -> np.ndarray:
-    """Day-of-year index 0..365 on a 366-slot calendar: 29 Feb is slot 59 and 1 March is 60 in every year."""
-    d = np.asarray(dates, dtype="datetime64[D]")
-    y = d.astype("datetime64[Y]")
-    doy = (d - y.astype("datetime64[D]")).astype(int)
-    yr = y.astype(int) + 1970
-    leap = (yr % 4 == 0) & ((yr % 100 != 0) | (yr % 400 == 0))
-    return np.where(~leap & (doy >= 59), doy + 1, doy)
 
 
 def _f(s):
@@ -426,7 +417,7 @@ def station_tables(gid: str, s: dict) -> dict | None:
     doy, yr, V = s["doy"], s["yr"], s["v"]
     # the cache keeps the true day of year (tm_yday); pool on the 366-slot calendar
     dates = (yr.astype("int64") - 1970).astype("datetime64[Y]").astype("datetime64[D]") + (doy.astype("int64") - 1)
-    slot = _doy366(dates) + 1
+    slot = doy366(dates) + 1
     cls = hour_classes(s["hod"])
     syn = cls >= 0
     if not syn.any():

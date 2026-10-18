@@ -35,31 +35,45 @@ SSW_DAYS = 15
 
 
 def summary(df: pd.DataFrame, dec: int) -> dict:
-    v = df.values
+    """The members' mean and 10th/90th percentiles at each valid time; null where no member has a value."""
+    v = df.to_numpy(dtype=float)
+    have = np.isfinite(v).any(axis=1)
+
+    def stat(fn) -> list:
+        s = np.full(len(v), np.nan)
+        s[have] = fn(v[have])
+        return [round(float(x), dec) if np.isfinite(x) else None for x in s]
+
     return {
-        "mean": np.round(np.nanmean(v, axis=1), dec).tolist(),
-        "p10": np.round(np.nanpercentile(v, 10, axis=1), dec).tolist(),
-        "p90": np.round(np.nanpercentile(v, 90, axis=1), dec).tolist(),
+        "mean": stat(lambda a: np.nanmean(a, axis=1)),
+        "p10": stat(lambda a: np.nanpercentile(a, 10, axis=1)),
+        "p90": stat(lambda a: np.nanpercentile(a, 90, axis=1)),
     }
 
 
-def ssw_chance(u10: pd.DataFrame, base: pd.Timestamp) -> float:
-    """Share of members easterly at 10 hPa / 60N on at least one day to day SSW_DAYS."""
-    lead = u10[u10.index <= base + pd.Timedelta(days=SSW_DAYS)]
-    return float((lead.values < 0).any(axis=0).mean())
+def ssw_chance(u10: pd.DataFrame, base: pd.Timestamp) -> float | None:
+    """Share of members easterly at 10 hPa / 60N on at least one day to day SSW_DAYS, over the members with a value in
+    that window (None when none has)."""
+    lead = u10[u10.index <= base + pd.Timedelta(days=SSW_DAYS)].dropna(axis=1, how="all")
+    return float((lead.to_numpy() < 0).any(axis=0).mean()) if lead.shape[1] else None
 
 
 def record(base: pd.Timestamp, fc: dict, path: Path = RUNS) -> None:
-    """Add (or replace) run `base`: fc = {model: {"u10": frame, "zcap": anomaly frame}}, frames (valid time, member)."""
+    """Add (or replace) run `base`: fc = {model: {"u10": frame, "zcap": anomaly frame}}, frames (valid time, member).
+    Members and valid times without any value are left out of the record."""
     doc = json.loads(path.read_text()) if path.exists() else {"runs": []}
     run = {"init": f"{base:%Y-%m-%dT%H}", "models": {}}
     for m, d in fc.items():
         u = d.get("u10")
+        if u is not None:
+            u = u.dropna(axis=1, how="all").dropna(axis=0, how="all")
         if m not in MODELS or u is None or u.shape[1] < 5:
             continue
         rec = {"members": int(u.shape[1]), "valid": [f"{t:%Y-%m-%dT%H}" for t in u.index], "ssw": ssw_chance(u, base)}
         rec["u10"] = summary(u, 1)
         z = d.get("zcap")
+        if z is not None:
+            z = z.dropna(axis=1, how="all")
         if z is not None and z.shape[1] >= 5:
             rec["zcap"] = summary(z.reindex(u.index), 0)
         run["models"][m] = rec
@@ -147,7 +161,8 @@ def render(path: Path = RUNS, out: Path = OUT) -> None:
         col, lab = MODELS[m]
         mine = [r for r in runs if m in r["models"]]
         t = pd.DatetimeIndex([r["init"] for r in mine])
-        ax.plot(t, [100 * r["models"][m]["ssw"] for r in mine], color=col, lw=1.8, marker="o", ms=3.5, label=lab)
+        pct = [np.nan if r["models"][m]["ssw"] is None else 100 * r["models"][m]["ssw"] for r in mine]
+        ax.plot(t, pct, color=col, lw=1.8, marker="o", ms=3.5, label=lab)
     ax.set_ylim(bottom=0)
     ax.set_ylabel("% of members", fontsize=8.6)
     ax.set_title(

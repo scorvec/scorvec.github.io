@@ -80,7 +80,7 @@ jobs:
 
       - name: Install deps
         run: |
-          pip install --quiet numpy      # flag_anomalies.py needs it
+          pip install --quiet numpy "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"   # flag_anomalies.py needs them (quantmet: the 366-slot calendar)
           # ecCodes (the PyPI wheel bundles the library) decodes the WIS2 BUFR. Non-fatal:
           # without it the mirror skips WIS2 and IEM/IGRA still publish.
           pip install --quiet eccodes && python -c "import eccodes; print('ecCodes', eccodes.codes_get_api_version())" \

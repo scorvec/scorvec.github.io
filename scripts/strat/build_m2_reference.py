@@ -1,30 +1,26 @@
 #!/usr/bin/env python3
-"""Reduce the raw MERRA-2 stratosphere archive to the three series nh_vortex needs.
+"""Reduce the yearly MERRA-2 stratosphere files to the three daily series nh_vortex.py's reference band is built from.
 
-WHY THIS EXISTS: nh_vortex.py referenced scripts/telecon/data/m2_strat, which is
-690 MB across 47 yearly files and gitignored, so absent in GitHub Actions.
-There it failed on every run with "no MERRA-2 files under .../m2_strat"
-while still exiting green, because the step is wrapped in `|| echo ::warning::`.
+nh_vortex.load_clim needs only three DAILY SCALAR series from MERRA-2 (1980 on): u60 at 10 hPa, u60 at 100 hPa and
+the cos-weighted 65-90N polar-cap mean of zbar at 100 hPa. At ~17k days that is a few hundred KB, so the series is
+committed as reference/m2_strat_daily.nc and nothing else of MERRA-2 is needed on a runner.
 
-Committing 690 MB is not an option (the repo was collapsed from 11 GB in Aug
-2026). But load_clim() only ever reduces that archive to three DAILY SCALAR
-series - u60 at 10 hPa, u60 at 100 hPa, and the cos-weighted polar-cap
-mean of zbar at 100 hPa. At ~17k days that is a few hundred KB, small enough to
-track.
+What is kept is the RAW daily series, deliberately not the day-of-year percentiles: the band is epoch-referenced
+(load_clim detrends the cap height to the current year at runtime, so decades of stratospheric height rise do not
+manufacture a "weak vortex" out of climate drift). Caching post-detrend numbers would freeze that correction.
 
-What is cached is the RAW daily series, deliberately not the day-of-year
-percentiles. The percentile band is epoch-referenced: load_clim detrends to the
-current epoch at runtime so that 45 years of stratospheric height rise does not
-manufacture a "weak vortex" out of climate drift. Caching post-detrend numbers
-would freeze that correction at build time and slowly go wrong.
+Input (offline, not in the repository): $DATA_ARCHIVE/m2_strat/m2_strat_YYYY.nc, one file a year (~15 MB) holding
+u60(time, lev), the zonal-mean u at 60N, and zbar(time, lev, lat), the zonal-mean geopotential height, as daily means
+of the 00/06/12/18 UTC MERRA-2 M2I3NPASM fields. Run by hand on the machine holding that archive whenever it is
+extended:
 
-    python scripts/strat/build_m2_reference.py          # rebuild the cache
-    python scripts/strat/build_m2_reference.py --check   # verify against raw
+    python scripts/strat/build_m2_reference.py          # rebuild the series, then check it against the archive
+    python scripts/strat/build_m2_reference.py --check  # check only
 """
 
 from __future__ import annotations
+
 import argparse
-import glob
 import sys
 from pathlib import Path
 
@@ -34,24 +30,22 @@ import xarray as xr
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
-M2 = REPO / "scripts" / "telecon" / "data" / "m2_strat"
 OUT = HERE / "reference" / "m2_strat_daily.nc"
-OUT_OBS = HERE / "reference" / "strat_obs_daily.nc"
 
-# CAP is IMPORTED, never restated. A first version of this builder hardcoded
-# (60, 90) while nh_vortex uses (65, 90); the cache then held a different
-# quantity to the one the raw path computes, which would have silently shifted
-# the published 100 hPa height-anomaly reference band (trend +18.69 vs +17.77
-# per decade). The equivalence check below caught it - keep both.
+# CAP is IMPORTED, never restated: a copy that drifted from nh_vortex's (65, 90) would change the published
+# reference band, and the equivalence check below would no longer test the quantity the figure uses.
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(REPO / "scripts" / "lib"))
 from nh_vortex import CAP
+from localdirs import env_dir
 
 
 def reduce_raw() -> pd.DataFrame:
-    """The exact reduction load_clim() used to do against the raw archive."""
-    fs = sorted(glob.glob(str(M2 / "m2_strat_*.nc")))
+    """The three daily series from the yearly files."""
+    src = env_dir("DATA_ARCHIVE", "m2_strat")
+    fs = sorted(src.glob("m2_strat_*.nc"))
     if not fs:
-        raise SystemExit(f"no MERRA-2 files under {M2} - this builder needs the raw archive and only runs offline")
+        raise SystemExit(f"no m2_strat_YYYY.nc files under {src}")
     d = xr.open_mfdataset(fs, combine="by_coords", chunks=None)
     idx = pd.DatetimeIndex(d.time.values)
     zb = d["zbar"].sel(lev=100.0)
@@ -72,9 +66,7 @@ def reduce_raw() -> pd.DataFrame:
 def write(df: pd.DataFrame) -> None:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     ds = xr.Dataset({c: ("time", df[c].values.astype("float32")) for c in df.columns}, coords={"time": df.index.values})
-    ds.attrs["source"] = (
-        "MERRA-2 daily, reduced from scripts/telecon/data/m2_strat by scripts/strat/build_m2_reference.py"
-    )
+    ds.attrs["source"] = "MERRA-2 daily, reduced from the yearly m2_strat files by scripts/strat/build_m2_reference.py"
     ds.attrs["cap"] = f"{CAP[0]}-{CAP[1]}N cos-weighted, zbar at 100 hPa"
     ds.attrs["note"] = "pre-detrend dailies; nh_vortex applies the epoch referencing at runtime"
     enc = {c: {"zlib": True, "complevel": 6} for c in df.columns}
@@ -101,34 +93,6 @@ def check(df: pd.DataFrame) -> int:
     return bad
 
 
-def build_obs() -> int:
-    """Cache the observed ERA5 tail nh_vortex.analysis() derives.
-
-    Reuses nh_vortex._analysis_raw() rather than restating the reduction, for
-    the same reason CAP is imported: a restated copy drifts. strat_obs.nc is a
-    ROLLING 150-day window, so unlike the MERRA-2 cache this one goes stale -
-    rerun it whenever the pipeline refreshes strat_obs.nc, and nh_vortex
-    prints the cache age (flagging it past 10 days).
-    """
-    import nh_vortex as NV
-
-    obs = NV._analysis_raw()
-    if not obs:
-        print(f"  no strat_obs.nc under {NV.DATA} - skipping the observed cache")
-        return 0
-    df = pd.DataFrame({k: obs[k] for k in ("u10", "zcap")}).dropna(how="all")
-    ds = xr.Dataset({c: ("time", df[c].values.astype("float32")) for c in df.columns}, coords={"time": df.index.values})
-    ds.attrs["source"] = "ERA5 via scripts/strat/data/strat_obs.nc (rolling window)"
-    ds.attrs["note"] = "reduced by nh_vortex._analysis_raw(); refresh when strat_obs.nc updates"
-    OUT_OBS.parent.mkdir(parents=True, exist_ok=True)
-    ds.to_netcdf(OUT_OBS, encoding={c: {"zlib": True, "complevel": 6} for c in df.columns})
-    print(
-        f"  wrote {OUT_OBS.relative_to(REPO)}  ({OUT_OBS.stat().st_size / 1024:.0f} KB, "
-        f"{df.index[0]:%Y-%m-%d}..{df.index[-1]:%Y-%m-%d}, {len(df)} days)"
-    )
-    return 0
-
-
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="verify the cache against the raw archive")
@@ -137,9 +101,7 @@ def main() -> int:
     if a.check:
         return check(df)
     write(df)
-    rc = check(df)
-    build_obs()
-    return rc
+    return check(df)
 
 
 if __name__ == "__main__":

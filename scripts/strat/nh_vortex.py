@@ -34,13 +34,13 @@ DETRENDING (the reason the reference is built the way it is)
 ------------------------------------------------------------
 Polar-cap 100 hPa height has a strong secular trend -- tropospheric warming
 lifts the 100 hPa surface. Measured on MERRA-2 1980-2026 with the seasonal cycle
-removed first:
+removed first (load_clim prints these every run):
 
-    z100 cap    +18.69 m/decade   (+86.9 m over the record, residual sd 160.5 m)
-    u60 @10hPa   -0.23 m/s/decade (-1.0 m/s total,  residual sd 10.34 m/s)
-    u60 @100hPa  -0.03 m/s/decade (-0.2 m/s total,  residual sd  3.92 m/s)
+    z100 cap    +18.1 m/decade    (residual sd 100 m)
+    u60 @10hPa   -0.23 m/s/decade (residual sd 10.3 m/s)
+    u60 @100hPa  -0.03 m/s/decade (residual sd  3.9 m/s)
 
-At today's epoch the z100 trend alone is +44 m against the record-mean level, so
+At today's epoch the z100 trend alone is about +43 m against the record-mean level, so
 an undetrended 1980-2026 band would place every recent day high by construction
 and manufacture a "weak vortex" that is really just climate drift. The height
 climatology is therefore referenced to the CURRENT epoch: the trend is removed
@@ -48,17 +48,15 @@ and every historical day is adjusted to today's level before the day-of-year
 percentiles are taken. The winds are left alone -- their trends are under 2.5% of
 their own variability, and pretending to correct that would be false precision.
 
-Reference: MERRA-2 (scripts/telecon/data/m2_strat), 1980-2026 day-of-year
-10th-90th percentiles. The polar cap is rebuilt from zbar with the same
-cos-weighted 65-90N definition used on every forecast.
+Reference: MERRA-2 daily from 1980, day-of-year 10th-90th percentiles, from the committed series
+reference/m2_strat_daily.nc (build_m2_reference.py). Its polar cap is the cos-weighted 65-90N mean of zbar,
+the definition used on every forecast. The trends the figure's footer quotes are measured on it every run.
 
 ANALYSIS TAIL: GEOS FP, MERRA-2's operational sibling -- the daily mean of its 00/06/12/18Z analyses, read from
 the files the upper-stratosphere and BDC jobs commit every day (u60 at 10 and 100 hPa in upperstrat_tail.json, the
 65-90N cap height in geosfp_cap_history.json). Its heights, and those of the GEOS FP forecast, are put on the
 MERRA-2 scale by the measured GEOS FP - MERRA-2 offset (geosfp_cap.offset_at, -14 m at 100 hPa); the winds need
-none. ERA5 is used instead only where the rolling ERA5 store is at hand (measured 2026-08-28 over 94 days against
-MERRA-2: u60 at 10 hPa -0.17 m/s r 0.997, cap height +0.30 m r 1.000, so no offset). _consistency() checks the
-tail against MERRA-2 wherever the two overlap.
+none. _consistency() checks the tail against MERRA-2 wherever the two overlap.
 
     python scripts/strat/nh_vortex.py                     # all four models, IFS at 50 members
     python scripts/strat/nh_vortex.py --models aifs,geps  # no downloads beyond GEPS
@@ -89,17 +87,13 @@ import vortex_runs
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 DATA = HERE / "data"
-M2 = REPO / "scripts" / "telecon" / "data" / "m2_strat"
-# Committed fallback when the raw archive is absent (any runner).
-M2_CACHE = REPO / "scripts" / "strat" / "reference" / "m2_strat_daily.nc"
-OBS_CACHE = REPO / "scripts" / "strat" / "reference" / "strat_obs_daily.nc"
+M2_CACHE = HERE / "reference" / "m2_strat_daily.nc"  # MERRA-2 daily u60 at 10/100 hPa and 100 hPa cap height
 # GEOS FP analyses, daily: u60 by level (reference seed + the rolling file) and the 65-90N cap height
 FP_U_TAIL = (
     REPO / "scripts" / "strat" / "reference" / "upperstrat_tail_seed.json",
     REPO / "assets" / "sst" / "data" / "upperstrat_tail.json",
 )
 FP_CAP_TAIL = REPO / "assets" / "sst" / "data" / "geosfp_cap_history.json"
-TAIL_NOTE = {"GEOS FP": " Black: GEOS FP analyses (daily mean of 00/06/12/18Z).", "ERA5": " Black: ERA5."}
 CACHE = REPO / "scripts" / "ecmwf" / "cache"
 DL = DATA / "vortex_dl"  # downloaded GRIB, reused within a cycle
 OUT = REPO / "assets" / "sst" / "nh_vortex.webp"
@@ -430,13 +424,13 @@ def _detrend_to_epoch(s, epoch):
     """Adjust every historical day to `epoch`'s climate level.
 
     Seasonal cycle out first, then a linear fit in decimal years; the fitted
-    slope is used to shift history forward. Returns (adjusted series, m/decade).
+    slope is used to shift history forward.
     """
     ix = pd.DatetimeIndex(s.index)
     yr = np.asarray(ix.year + (ix.dayofyear - 1) / 365.25, dtype=float)
     r = (s - s.groupby(_cday(ix)).transform("mean")).values
     b, _ = np.polyfit(yr, r, 1)
-    return pd.Series(s.values + b * (epoch - yr), index=ix), 10.0 * b
+    return pd.Series(s.values + b * (epoch - yr), index=ix)
 
 
 def clim_doy(series):
@@ -450,36 +444,9 @@ def clim_doy(series):
 
 
 def _clim_series():
-    """The three MERRA-2 daily series, from the raw archive or the cache.
-
-    The raw archive (690 MB, gitignored) is not on the runners, so there this
-    falls back to reference/m2_strat_daily.nc - the same three series reduced
-    by build_m2_reference.py. Without it nh_vortex died with "no MERRA-2 files"
-    on every Actions run while the step still went green.
-    """
-    fs = sorted(glob.glob(str(M2 / "m2_strat_*.nc")))
-    if fs:
-        d = xr.open_mfdataset(fs, combine="by_coords", chunks=None)
-        idx = pd.DatetimeIndex(d.time.values)
-        zb = d["zbar"].sel(lev=100.0)
-        sel = zb.where((zb.lat >= CAP[0]) & (zb.lat <= CAP[1]), drop=True)
-        w = np.cos(np.deg2rad(sel.lat))
-        return (
-            idx,
-            {
-                "u10": np.asarray(d["u60"].sel(lev=10.0).values),
-                "u100": np.asarray(d["u60"].sel(lev=100.0).values),
-                "zcap": np.asarray(((sel * w).sum("lat") / w.sum()).values),
-            },
-            "MERRA-2 raw",
-        )
-    if M2_CACHE.exists():
-        c = xr.open_dataset(M2_CACHE)
-        idx = pd.DatetimeIndex(c.time.values)
-        return idx, {k: np.asarray(c[k].values) for k in ("u10", "u100", "zcap")}, "MERRA-2 cache"
-    raise SystemExit(
-        f"no MERRA-2 files under {M2} and no cache at {M2_CACHE} (build it with scripts/strat/build_m2_reference.py)"
-    )
+    """The three MERRA-2 daily series of reference/m2_strat_daily.nc (build_m2_reference.py)."""
+    with xr.open_dataset(M2_CACHE) as c:
+        return pd.DatetimeIndex(c.time.values), {k: np.asarray(c[k].values) for k in ("u10", "u100", "zcap")}
 
 
 # Physically impossible values, used to screen the reference before it becomes a
@@ -509,67 +476,37 @@ def _screen(out):
 
 
 def load_clim(epoch):
-    idx, raw, src = _clim_series()
+    """({key: screened daily series, the DETREND ones referenced to `epoch`}, {key: trend per decade})."""
+    idx, raw = _clim_series()
     out = _screen({k: pd.Series(v, index=idx).dropna() for k, v in raw.items()})
-    print(f"  {src} reference {idx[0]:%Y-%m-%d}..{idx[-1]:%Y-%m-%d} ({len(idx)} days)", flush=True)
+    print(f"  MERRA-2 reference {idx[0]:%Y-%m-%d}..{idx[-1]:%Y-%m-%d} ({len(idx)} days)", flush=True)
+    trend = {}
     for k in list(out):
         ix = pd.DatetimeIndex(out[k].index)
         yr = np.asarray(ix.year + (ix.dayofyear - 1) / 365.25, dtype=float)
         r = (out[k] - out[k].groupby(_cday(ix)).transform("mean")).values
         b = np.polyfit(yr, r, 1)[0]
+        trend[k] = 10 * b
         if k in DETREND:
-            out[k], dec = _detrend_to_epoch(out[k], epoch)
+            out[k] = _detrend_to_epoch(out[k], epoch)
             print(
-                f"    {k}: trend {dec:+.2f} /decade — climatology referenced to "
+                f"    {k}: trend {trend[k]:+.2f} /decade — climatology referenced to "
                 f"epoch {epoch:.1f} (shifts the band {b * (epoch - yr.mean()):+.1f})",
                 flush=True,
             )
         else:
             print(
-                f"    {k}: trend {10 * b:+.2f} /decade vs resid sd "
+                f"    {k}: trend {trend[k]:+.2f} /decade vs resid sd "
                 f"{np.std(r - np.polyval(np.polyfit(yr, r, 1), yr)):.2f} — left as-is",
                 flush=True,
             )
-    return out
+    return out, trend
 
 
 def analysis():
-    """(observed tail, its source): ERA5 from the raw rolling archive, else GEOS FP, else the committed ERA5 cache.
-
-    strat_obs.nc is 237 MB of 3-D fields on a rolling 150-day window and is gitignored, so on a runner the tail
-    is GEOS FP's (see the module docstring). The ERA5 cache holds the reduced u10 and zcap that _analysis_raw
-    derives; it is refreshed only where the raw file is (build_m2_reference.py), so it is the last resort.
-    """
-    out = _analysis_raw()
-    if out:
-        _refresh_obs_cache(out)
-        return out, "ERA5"
-    now = pd.Timestamp.now("UTC").tz_localize(None)
-    fp = _analysis_geosfp()
-    if fp:
-        for k, s in fp.items():
-            print(f"  observed tail {k}: GEOS FP {s.index[0]:%Y-%m-%d}..{s.index[-1]:%Y-%m-%d}", flush=True)
-        last = max(s.index[-1] for s in fp.values())
-        if (now - last).days > 5:
-            print(f"::warning::the GEOS FP analysis tail ends {last:%Y-%m-%d}", flush=True)
-        return fp, "GEOS FP"
-    if OBS_CACHE.exists():
-        c = xr.open_dataset(OBS_CACHE)
-        ci = pd.DatetimeIndex(c.time.values)
-        age = (now - ci[-1]).days
-        print(
-            f"  observed tail from the ERA5 cache {ci[0]:%Y-%m-%d}..{ci[-1]:%Y-%m-%d} "
-            f"({age} d old)" + ("  [STALE - rerun build_m2_reference.py]" if age > 10 else ""),
-            flush=True,
-        )
-        return {k: pd.Series(np.asarray(c[k].values), index=ci).dropna() for k in ("u10", "zcap")}, "ERA5"
-    print("  no observed tail available (no strat_obs.nc, no GEOS FP tail, no cache)", flush=True)
-    return {}, None
-
-
-def _analysis_geosfp():
-    """GEOS FP analyses (daily mean of 00/06/12/18Z): u60 at 10 and 100 hPa, and the 100 hPa 65-90N cap height
-    moved to the MERRA-2 scale. Empty when neither committed file is present."""
+    """The observed tail (see the module docstring): GEOS FP analyses (daily mean of 00/06/12/18Z), u60 at 10 and
+    100 hPa and the 100 hPa 65-90N cap height moved to the MERRA-2 scale. Empty when neither committed file is
+    present."""
     days = {}
     for p in FP_U_TAIL:
         if p.exists():
@@ -586,49 +523,20 @@ def _analysis_geosfp():
     cap = geosfp_cap.load_history(FP_CAP_TAIL)
     if len(cap):
         out["zcap"] = (cap[100.0].astype(float) - _fp_offset100(cap.index)).dropna()
-    return {k: s for k, s in out.items() if len(s)}
+    out = {k: s for k, s in out.items() if len(s)}
+    if not out:
+        print("  no observed tail available (no GEOS FP analysis file)", flush=True)
+        return out
+    for k, s in out.items():
+        print(f"  observed tail {k}: GEOS FP {s.index[0]:%Y-%m-%d}..{s.index[-1]:%Y-%m-%d}", flush=True)
+    last = max(s.index[-1] for s in out.values())
+    if (pd.Timestamp.now("UTC").tz_localize(None) - last).days > 5:
+        print(f"::warning::the GEOS FP analysis tail ends {last:%Y-%m-%d}", flush=True)
+    return out
 
 
-def _refresh_obs_cache(out):
-    """Keep the committed obs cache current, for free, whenever the raw file is here.
-
-    strat_obs.nc is a ROLLING window, so the cache would otherwise drift stale
-    between manual rebuilds. Every run with the raw file has the data in hand and the
-    reduction is two 150-day series, so refresh it here rather than relying on
-    anyone remembering to run build_m2_reference.py. Best-effort: a failure to
-    write the cache must never take down the figure.
-    """
-    try:
-        df = pd.DataFrame({k: out[k] for k in ("u10", "zcap")}).dropna(how="all")
-        if df.empty:
-            return
-        ds = xr.Dataset(
-            {c: ("time", df[c].values.astype("float32")) for c in df.columns}, coords={"time": df.index.values}
-        )
-        ds.attrs["source"] = "ERA5 via scripts/strat/data/strat_obs.nc (rolling window)"
-        OBS_CACHE.parent.mkdir(parents=True, exist_ok=True)
-        ds.to_netcdf(OBS_CACHE, encoding={c: {"zlib": True, "complevel": 6} for c in df.columns})
-    except Exception as e:  # noqa: BLE001
-        print(f"  (obs cache refresh skipped: {type(e).__name__}: {e})", flush=True)
-
-
-def _analysis_raw():
-    p = DATA / "strat_obs.nc"
-    if not p.exists():
-        return {}
-    d = xr.open_dataset(p)
-    idx = pd.DatetimeIndex(d.time.values)
-
-    def ren(v):
-        return d[v].rename({"lat": "latitude", "lon": "longitude"})
-
-    z = pd.Series(cap_mean(ren("z100")).values, index=idx)
-    if float(np.nanmedian(np.abs(z.values))) > 1e5:
-        z = z / G
-    return {"u10": pd.Series(zonal_at(ren("u10")).values, index=idx), "zcap": z}
-
-
-def _consistency(obs, clim, name, unit, tol, src):
+def _consistency(obs, clim, name, unit, tol):
+    """Print the GEOS FP tail's mean difference from MERRA-2 over the days both have."""
     if obs is None or clim is None:
         return
     ix = obs.index.intersection(clim.index)
@@ -638,7 +546,7 @@ def _consistency(obs, clim, name, unit, tol, src):
     dd = (obs.loc[ix] - clim.loc[ix]).dropna()
     flag = "  <-- EXCEEDS TOLERANCE" if abs(dd.mean()) > tol else ""
     print(
-        f"  {name}: {src} - MERRA-2 {dd.mean():+.2f} {unit} (sd {dd.std():.2f}, "
+        f"  {name}: GEOS FP - MERRA-2 {dd.mean():+.2f} {unit} (sd {dd.std():.2f}, "
         f"r {obs.loc[ix].corr(clim.loc[ix]):.3f}, n={len(dd)}){flag}",
         flush=True,
     )
@@ -720,10 +628,12 @@ def main() -> int:
         if tag not in f.name:
             f.unlink(missing_ok=True)
 
-    clim = load_clim(epoch)
-    obs, obs_src = analysis()
-    _consistency(obs.get("u10"), clim["u10"], "u60 @10 hPa", "m/s", 1.0, obs_src)
-    _consistency(obs.get("zcap"), clim["zcap"], "z100 cap", "m", 60.0, obs_src)
+    clim, trend = load_clim(epoch)
+    y0 = min(s.index[0] for s in clim.values()).year  # the reference's span, for the legend and the footer
+    y1 = max(s.index[-1] for s in clim.values()).year
+    obs = analysis()
+    _consistency(obs.get("u10"), clim["u10"], "u60 @10 hPa", "m/s", 1.0)
+    _consistency(obs.get("zcap"), clim["zcap"], "z100 cap", "m", 60.0)
 
     fc = {}
     if "aifs" in want:
@@ -777,9 +687,9 @@ def main() -> int:
         q10, q50, q90 = clim_doy(clim[key])
         b = q50.reindex(doy).values if anom else np.zeros(len(span))
         lab = (
-            f"MERRA-2 climatology 10–90% (1980–, detrended to {base:%Y})"
+            f"MERRA-2 climatology 10–90% ({y0}–, detrended to {base:%Y})"
             if key in DETREND
-            else "MERRA-2 climatology 10–90% (1980–)"
+            else f"MERRA-2 climatology 10–90% ({y0}–)"
         )
         ax.fill_between(
             span, q10.reindex(doy).values - b, q90.reindex(doy).values - b, color="#e6e3dc", zorder=0, label=lab
@@ -791,7 +701,7 @@ def main() -> int:
             o = o[(o.index >= t0) & (o.index <= base)]
             if len(o):
                 ob = q50.reindex(_cday(o.index)).values if anom else 0
-                ax.plot(o.index, o.values - ob, color="#1a1a1a", lw=2.4, zorder=7, label=f"{obs_src} analysis")
+                ax.plot(o.index, o.values - ob, color="#1a1a1a", lw=2.4, zorder=7, label="GEOS FP analysis")
         for k, d in fc.items():
             df = d.get(key)
             if df is None or not len(df):
@@ -811,6 +721,7 @@ def main() -> int:
                 for k, d in fc.items()
                 if d.get("u10") is not None and d["u10"].shape[1] >= 5
             }
+            hits = {k: h for k, h in hits.items() if h is not None}
             if hits and max(hits.values()) > 0:
                 worst = max(hits, key=hits.get)
                 msg = (
@@ -833,8 +744,7 @@ def main() -> int:
             ax.text(
                 0.5,
                 0.05,
-                "no analysis tail at this level"
-                + (" — the rolling ERA5 store carries u only at 10 hPa" if obs_src == "ERA5" else ""),
+                "no analysis tail at this level",
                 transform=ax.transAxes,
                 ha="center",
                 fontsize=8,
@@ -850,10 +760,11 @@ def main() -> int:
         "percentile, the solid line its mean; dashed = deterministic or control-only.\n"
         "AIFS-ENS (25 members + control) and IFS-ENS (all 50 perturbed members; open data has no IFS control at these "
         "levels) to day 15, GEPS to day 16, GDPS and GEOS FP (00Z run, NASA GMAO) to day 10.\n"
-        "Reference: MERRA-2 1980–2026 day-of-year percentiles; the height climatology is detrended to the current "
-        "year (+18.7 m/decade), the winds are not (<0.25 m/s/decade).\n"
-        "Vertical line = analysis time." + TAIL_NOTE.get(obs_src, "") + " GEOS FP heights are on the MERRA-2 scale "
-        "(measured offset removed).",
+        f"Reference: MERRA-2 {y0}–{y1} day-of-year percentiles; the height climatology is detrended to the current "
+        f"year ({trend['zcap']:+.1f} m/decade), the winds are not "
+        f"({max(abs(trend['u10']), abs(trend['u100'])):.2f} m/s/decade or less).\n"
+        "Vertical line = analysis time. Black: GEOS FP analyses (daily mean of 00/06/12/18Z). GEOS FP heights are on "
+        "the MERRA-2 scale (measured offset removed).",
         ha="center",
         va="bottom",
         fontsize=8,

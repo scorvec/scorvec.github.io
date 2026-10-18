@@ -71,8 +71,6 @@ LAT_EDGE = 20.0
 # one z field per member per level per step, so 50 would double a ~0.5 GB fetch
 # for a change too small to see on the map.
 MEMBERS = 25
-# The still shows the level the vortex actually feels; the loop carries both.
-STILL_LEVEL = 100
 
 # Symmetric per-level scales in geopotential metres, fixed so a colour means the
 # same wave amplitude every day. 100 hPa runs roughly twice 500 hPa.
@@ -211,8 +209,8 @@ _CLIM_CACHE = {}
 def clim_coeff(lev: int, hemi: str, valid: pd.Timestamp):
     """Climatological complex k=1 coefficient for this level/hemisphere/day.
 
-    None when the climatology file is absent, so the figure still renders (the
-    index panel is simply omitted) rather than the product failing.
+    None when the climatology file is absent, so the maps still render, without
+    the comparison with the normal, rather than the product failing.
     """
     if not CLIM.exists():
         return None, None
@@ -223,8 +221,6 @@ def clim_coeff(lev: int, hemi: str, valid: pd.Timestamp):
     if f"{key}_re" not in d:
         return None, None
     i = int(doy366([valid])[0])  # 366-slot calendar of wave1_clim.nc: 29 Feb = 59, 1 March = 60 in every year
-    if "366-slot" not in d.attrs.get("note", "") and i > 59:
-        i -= 1  # older file: rows by raw day of year, mostly common-year days (1 March = 59)
     c = complex(float(d[f"{key}_re"][i]), float(d[f"{key}_im"][i]))
     # Annual maximum for this level/hemisphere, used to decide whether a
     # standing wave exists at all on this date.
@@ -232,70 +228,13 @@ def clim_coeff(lev: int, hemi: str, valid: pd.Timestamp):
     return c, amax
 
 
-def superposition(Zband_coeff: complex, clim, amax=None):
-    """How the forecast wave-1 interferes with the climatological standing wave.
-
-    Total wave activity goes as |Z|^2. Splitting the forecast into the
-    climatological standing wave plus an anomaly, Z = Zc + Za, gives
-
-        |Z|^2 = |Zc|^2 + 2 Re(Zc conj(Za)) + |Za|^2
-
-    and the middle term is the LINEAR INTERFERENCE - the only term whose sign
-    can change. Positive means the anomaly is piling onto the standing wave and
-    the total is larger than climatology; negative means it is cancelling it.
-    This is the standard linear-interference diagnostic used for stratospheric
-    wave driving, and it is why the phase matters more than the amplitude: an
-    anomaly in quadrature with the climatology (90 deg out) contributes nothing
-    to the total at first order however big it is.
-
-    Reported normalised by |Zc|^2 so it is dimensionless and comparable across
-    levels and seasons:
-
-        S = Re(Za conj(Zc)) / |Zc|^2  =  (|Za|/|Zc|) cos(dphi)
-
-    S = +1 means the anomaly is as large as the climatological wave and exactly
-    in phase with it. Also returns the phase difference in degrees of longitude,
-    which is the more physical way to read it.
-    """
-    if clim is None or abs(clim) == 0:
-        return None, None, None
-    # An interference index needs something to interfere WITH. The NH
-    # climatological wave-1 at 100 hPa falls to 8 gpm in midsummer against a
-    # 147 gpm winter maximum, and S divides by |Zc|^2 - so an ordinary anomaly
-    # over a near-absent standing wave returns a meaningless S of several
-    # units. Below a quarter of the annual maximum there is no standing wave to
-    # reinforce or cancel (and in the summer hemisphere the easterlies stop
-    # planetary waves propagating anyway), so the index is simply not defined.
-    if amax is not None and abs(clim) < 0.25 * amax:
-        return None, None, None
-    anom = Zband_coeff - clim
-    s = (anom * np.conj(clim)).real / (abs(clim) ** 2)
-    # k=1, so a radian of phase is a radian of longitude.
-    dphi = np.degrees(np.angle(anom) - np.angle(clim))
-    dphi = (dphi + 180.0) % 360.0 - 180.0
-    # TOTAL wave-1 power against climatology: |Zc+Za|^2/|Zc|^2 = 1 + 2S + r^2.
-    #
-    # S alone is a FIRST-ORDER diagnostic and only means what people take it to
-    # mean while the anomaly is small against the standing wave, so the cross
-    # term dominates the r^2 term. On 2026-08-30 the SH ran S = -1.28 at 100 hPa
-    # with r = 1.88: the anomaly was nearly twice the climatological wave, the
-    # quadratic term won, and TOTAL wave-1 power came out at 1.96x climatology.
-    # Labelling that "cancelling" off the sign of S was simply wrong - the wave
-    # had reversed phase and grown, not cancelled. Report the total so the
-    # reader can see when the linear reading has stopped applying.
-    tot = 1.0 + 2.0 * s + abs(anom / clim) ** 2
-    return float(s), float(dphi), float(tot)
-
-
 def band_coeff(Z, la, north: bool, lon0: float = 0.0) -> complex:
     """Forecast complex k=1 coefficient over the same 55-65 deg band as the clim, on the CLIMATOLOGY'S longitude
     origin.
 
-    The climatology was built on WeatherBench2's grid, which starts at 0 E; ECMWF open data starts at -180. For a
-    profile sampled from lon0, the k=1 coefficient carries a factor exp(i*lon0), so without the correction every
-    forecast phase would be 180 deg off the climatology's. The amplitude ratio (|Z|/|Zc|) does not depend on it, but
-    the interference index and its phase do: uncorrected, an in-phase wave reads as reversed, e.g. S -2.30 at -175 deg
-    for the 2026-09-27 00Z F360 NH 100 hPa map, which is +0.30 corrected."""
+    The climatology's longitudes start at 0 E; ECMWF open data starts at -180. For a profile sampled from lon0, the k=1
+    coefficient carries a factor exp(i*lon0), so without the correction every forecast phase would be 180 deg off the
+    climatology's. The amplitude ratio (|Z|/|Zc|) does not depend on it; the ridge longitudes do."""
     lo, hi = (55.0, 65.0) if north else (-65.0, -55.0)
     m = (la >= lo) & (la <= hi)
     if not m.any():
@@ -605,7 +544,6 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True)
     ap.add_argument("--time", required=True)
-    ap.add_argument("--step", type=int, default=0)
     ap.add_argument(
         "--hemi",
         choices=["NH", "SH", "auto"],

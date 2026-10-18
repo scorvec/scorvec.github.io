@@ -56,6 +56,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import xarray as xr
+from quantmet.degdays import doy366
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts" / "ecmwf"))
@@ -168,15 +169,8 @@ def history_frame(h: dict, hemi: str):
     return df.apply(lambda col: col - bias_at(an, hemi, col.name, df.index, 0.0))
 
 
-def _doy366(dates) -> np.ndarray:
-    """Slot 0..365 on a 366-slot calendar: 29 Feb is 59 and 1 March 60 in every year (quantmet.degdays.doy366)."""
-    t = pd.DatetimeIndex(dates)
-    d = t.dayofyear.values - 1
-    return np.where(~t.is_leap_year & (t.month > 2), d + 1, d)
-
-
 def clim_at(clim, hemi: str, key: str, stat: str, dates):
-    return clim[f"{hemi}_{key}_{stat}"].values[_doy366(dates)]
+    return clim[f"{hemi}_{key}_{stat}"].values[doy366(dates)]
 
 
 def load_bias(model: str) -> dict | None:
@@ -201,10 +195,10 @@ def bias_at(tab, hemi: str, key: str, valid, lead_days) -> np.ndarray:
     lead = np.broadcast_to(np.asarray(lead_days, float), (len(valid),))
     b = np.where(np.array(c["significant"], dtype=bool), np.array(c["bias"], dtype=float), 0.0)  # (season, block)
     per = np.array([np.interp(lead, tab["lead_centres"], row) for row in b])  # (season, time)
-    mid = _doy366(pd.to_datetime([f"2000-{md}" for md in tab["season_mid"]]))
+    mid = doy366(pd.to_datetime([f"2000-{md}" for md in tab["season_mid"]]))
     xs = np.r_[mid[-1] - 366, mid, mid[0] + 366]  # periodic over the year
     per = np.vstack([per[-1:], per, per[:1]])
-    return np.array([np.interp(s, xs, per[:, j]) for j, s in enumerate(_doy366(valid))])
+    return np.array([np.interp(s, xs, per[:, j]) for j, s in enumerate(doy366(valid))])
 
 
 def load_warning() -> dict | None:
