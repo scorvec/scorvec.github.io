@@ -28,7 +28,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from doycal import noleap_doy
+from build_torque_map_clim import harmonics
 from torque_history_era5 import RANGES
 
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
@@ -78,9 +78,7 @@ def day_anomalies() -> pd.DataFrame:
         raise SystemExit(f"{TABLE.name}: {(~np.isfinite(x)).sum()} non-finite values")
     x00, x12 = x[0::2], x[1::2]
     day = 0.25 * x00[:-1] + 0.5 * x12[:-1] + 0.25 * x00[1:]
-    w = 2 * np.pi * noleap_doy(days[:-1]) / 365.25
-    basis = np.column_stack([np.ones_like(w), np.cos(w), np.sin(w), np.cos(2 * w), np.sin(2 * w)])
-    return pd.DataFrame(day - basis @ _clim_boxes(), index=days[:-1], columns=list(NAMES))
+    return pd.DataFrame(day - harmonics(days[:-1]) @ _clim_boxes(), index=days[:-1], columns=list(NAMES))
 
 
 def main() -> int:

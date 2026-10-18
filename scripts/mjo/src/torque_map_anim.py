@@ -12,7 +12,8 @@ IFS-ENS, a physics model, so the torques are its own and its budget closes (aifs
 members of the 00/12 UTC run (open data, Google Cloud mirror). Every quantity is a mean over a forecast DAY, the
 window from day d-1 to day d:
   friction  -a cosφ τ, τ = the window difference of the accumulated eastward turbulent surface stress ewss / 86400 s
-            (the model's own stress, turbulent orographic form drag included; linear, so the member mean is exact);
+            (the model's own stress, turbulent orographic form drag included; linear, so the member mean is exact),
+            against the climatology of ERA5's same stress (build_torque_map_clim.py);
   mountain  h ∂p_s/∂λ on the ERA5 orography (the climatology's) from the members' mean surface pressure, the
             trapezoid of its 12-hourly values over the window - the 00/12 UTC sampling of the ERA5 climatology, so its
             aliasing of the semidiurnal pressure tide cancels in the anomaly;
@@ -48,6 +49,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
 import store as ecmwf  # shared ECMWF download manager
 from aam import ARCHIVE_PATH as AAM_ARCHIVE, DAILY_STEPS, SP_STEPS, member_mean
+from build_torque_map_clim import evaluate as clim_at  # the map climatology's harmonic basis
 from doycal import noleap_doy  # common-year day of year (29 Feb = 59.5)
 
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
@@ -60,19 +62,13 @@ DAYS = list(range(1, 16))  # forecast days: the windows ending 24, 48 ... 360 h
 COARSEN = 20  # ~5°
 
 
-def _map_clim(coef_da, clat, clon, doys):
-    """Evaluate the ERA5 harmonic torque-density clim on the map grid for each
-    forecast day's common-year day (doycal.noleap_doy) → (day, clat, clon). The coeffs are per hour (00Z/12Z; the
-    friction density has a strong land diurnal cycle); a forecast DAY's mean takes the mean of the two."""
+def _map_clim(coef_da, clat, clon, dates):
+    """The ERA5 harmonic torque-density clim on the map grid at each forecast day's window midpoint → (day, clat,
+    clon). The friction coeffs are of the daily mean; the mountain's are per hour (00Z/12Z), and a forecast day's
+    trapezoid of its 12-hourly values takes the mean of the two."""
     if "hour" in coef_da.dims:
         coef_da = coef_da.mean("hour")
-    c = coef_da.reindex(latitude=clat, longitude=clon, method="nearest").values
-    out = np.empty((len(doys), len(clat), len(clon)))
-    for i, doy in enumerate(doys):
-        w = 2 * np.pi * doy / 365.25
-        b = np.array([1.0, np.cos(w), np.sin(w), np.cos(2 * w), np.sin(2 * w)])
-        out[i] = np.tensordot(b, c, axes=(0, 0))
-    return out
+    return clim_at(coef_da.reindex(latitude=clat, longitude=clon, method="nearest").values, dates)
 
 
 # major orographic barriers (lon0, lon1, lat0, lat1) on 0..360°E — for the by-range breakdown
@@ -233,9 +229,9 @@ def main() -> int:
     clat = fricC.latitude.values
     if MAP_CLIM.exists():
         cc = xr.open_dataset(MAP_CLIM)
-        doys = noleap_doy([init + pd.Timedelta(hours=24 * int(d) - 12) for d in days])  # each window's midpoint
-        fa = fricC.copy(data=fricC.values - _map_clim(cc["friction"], clat, clon, doys))
-        ma = mtnC.copy(data=mtnC.values - _map_clim(cc["mountain"], clat, clon, doys))
+        mids = [init + pd.Timedelta(hours=24 * int(d) - 12) for d in days]  # each window's midpoint
+        fa = fricC.copy(data=fricC.values - _map_clim(cc["friction"], clat, clon, mids))
+        ma = mtnC.copy(data=mtnC.values - _map_clim(cc["mountain"], clat, clon, mids))
         base_lbl = "ERA5 1991–2020 climatology"
     else:
         print(f"  WARN: {MAP_CLIM.name} missing — anomaly vs forecast-period mean", flush=True)

@@ -18,6 +18,9 @@ name: ERA5 torque history (one-off study input)
 #   u37       37-level u: relative-AAM density per pressure layer and 5-degree band at 08-11 and
 #             20-23 UTC every `step`-th day, reduced to the jumps at the 09->10 and 21->22 UTC
 #             4D-Var window starts (scripts/mjo/src/torque_increments_u37.py) -> <out> (.nc)
+#   mapclim   y0=1991, y1=2020, out=torque_map_clim_coeffs.nc: the live torque maps' ERA5 climatology,
+#             turbulent-stress friction (00/06/12/18 UTC daily means) and mountain torque (00 and 12 UTC)
+#             on the 5-degree map grid, every day (scripts/mjo/src/build_torque_map_clim.py) -> <out> (.nc)
 # One matrix job per chunk (years, or `chunk_days` days), each an artifact; one job concatenates
 # them and commits ONE file. Dispatch only, no cron.
 
@@ -49,7 +52,7 @@ on:
         required: false
         default: '0,6,12,18'
       mode:
-        description: 'daily | per_time | bands5 | ranges5 | u37 | u37maps'
+        description: 'daily | per_time | bands5 | ranges5 | u37 | u37maps | mapclim'
         required: false
         default: 'daily'
       step:
@@ -121,6 +124,8 @@ jobs:
             scripts/mjo/src/torque_history_era5.py
             scripts/mjo/src/torque_increments_u37.py
             scripts/mjo/src/torque_increments_maps.py
+            scripts/mjo/src/build_torque_map_clim.py
+            scripts/mjo/src/doycal.py
             scripts/mjo/data/reference/era5_orography.nc
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v7
@@ -131,6 +136,9 @@ jobs:
         run: |
           mkdir -p out
           case "${{ inputs.mode }}" in
+            mapclim)
+              python scripts/mjo/src/build_torque_map_clim.py --start ${{ matrix.start }} --end ${{ matrix.end }} \
+                --workers 24 --out out/torque_${{ matrix.tag }}.npz ;;
             u37maps)
               python scripts/mjo/src/torque_increments_maps.py --start ${{ matrix.start }} --end ${{ matrix.end }} \
                 --step ${{ inputs.step }} --workers 4 --out out/torque_${{ matrix.tag }}.nc ;;
@@ -167,6 +175,8 @@ jobs:
           sparse-checkout: |
             scripts/mjo/data/reference/${{ inputs.out }}
             scripts/mjo/src/torque_increments_maps.py
+            scripts/mjo/src/build_torque_map_clim.py
+            scripts/mjo/src/doycal.py
           sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@v7
         with:
@@ -180,7 +190,11 @@ jobs:
           import glob, os, pandas as pd
           os.makedirs("scripts/mjo/data/reference", exist_ok=True)
           OUT = "scripts/mjo/data/reference/${{ inputs.out }}"
-          if "${{ inputs.mode }}" == "u37maps":
+          if "${{ inputs.mode }}" == "mapclim":
+              import subprocess
+              subprocess.run(["python3", "scripts/mjo/src/build_torque_map_clim.py", "--combine", "parts", "--out", OUT],
+                             check=True)
+          elif "${{ inputs.mode }}" == "u37maps":
               import subprocess
               subprocess.run(["python3", "scripts/mjo/src/torque_increments_maps.py", "--combine", "parts", "--out", OUT,
                               "--table", OUT.replace(".nc", "_regions.csv")], check=True)
