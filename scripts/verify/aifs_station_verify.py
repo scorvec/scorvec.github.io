@@ -576,7 +576,7 @@ def station_climo(ids):
         if list(d["ids"]) == ids:
             return {"z500": d["z500"], "t850": d["t850"]}
     st = json.loads(STATIONS_JSON.read_text())["stations"]
-    gid = {s["id"]: s["gid"] for s in st if s.get("id")}
+    gid = {s["id"]: s["gid"] for s in sorted(st, key=lambda s: s.get("y1", 0)) if s.get("id")}  # reused index: latest
     z = np.full((len(ids), 73), np.nan, np.float32)
     t = np.full((len(ids), 73), np.nan, np.float32)
     got = 0

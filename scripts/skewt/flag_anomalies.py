@@ -245,7 +245,8 @@ def ecape_for(sdir: Path) -> dict:
 
 def main() -> int:
     sdir, cdir, out = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
-    wmo2gid = {s["id"]: s["gid"] for s in json.loads(STATIONS.read_text())["stations"]}
+    stations = sorted(json.loads(STATIONS.read_text())["stations"], key=lambda s: s.get("y1", 0))
+    wmo2gid = {s["id"]: s["gid"] for s in stations}  # a reused WMO index maps to its most recent station
     ecape = ecape_for(sdir)
     manifest = (
         json.loads((sdir.parent / "manifest.json").read_text())

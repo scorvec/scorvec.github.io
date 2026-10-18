@@ -219,7 +219,8 @@ def _tag(dt: datetime) -> str:
 # ---------------------------------------------------------------- stations
 def load_stations():
     st = json.loads((SKEWT / "stations.json").read_text())["stations"]
-    by_wmo = {s["id"]: s for s in st if s.get("id")}
+    # A WMO index can be reused (94775 was Point Judith in the 1940s, Tocal AWS now): the most recently active wins.
+    by_wmo = {s["id"]: s for s in sorted(st, key=lambda s: s.get("y1", 0)) if s.get("id")}
     by_gid = {s["gid"]: s for s in st}
     icao2wmo = {v: k for k, v in json.loads((SKEWT / "iem_raob.json").read_text()).items()}
     return by_wmo, by_gid, icao2wmo
