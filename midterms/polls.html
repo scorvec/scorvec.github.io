@@ -236,7 +236,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible,input:focus-visible{o
 <!-- sh:end -->
 <main class="pw" id="main">
 <h1>Every poll, and how much it counts</h1>
-<nav class="mt-nav" aria-label="Forecast pages"><a href="./">Forecast</a><a href="polls.html" aria-current="page">Every poll and its weight</a><a href="about.html">How it works</a><a href="whatif.html">What if? Test the assumptions</a><a href="legislatures.html">State legislatures</a></nav>
+<nav class="mt-nav" aria-label="Forecast pages"><a href="./">Forecast</a><a href="polls.html" aria-current="page">Every poll and its weight</a><a href="about.html">How it works</a><a href="whatif.html">What if? Test the assumptions</a><a href="legislatures.html">State legislatures</a><a href="early-vote.html">Early vote</a></nav>
 <p id="lede" class="dim">loading…</p>
 <ol class="steps">
  <li><b>1. Checked</b>Only polls naming the candidates actually on the ballot. The same poll reported by two sources is kept once.</li>
@@ -265,7 +265,7 @@ const NAMES={AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California'
 const mg=(v,ind)=>v==null?'–':(v>=0?(ind?'I+':'D+'):'R+')+Math.abs(v).toFixed(1);   // ind: independent challenger -> I+
 const sg=v=>v==null||Math.abs(v)<0.05?'–':(v>0?'+':'−')+Math.abs(v).toFixed(1);
 const pc=v=>(100*v).toFixed(0)+'%';
-const PN={yougov:'YouGov','yougov/cbs':'CBS News/YouGov','yougov/yahoo':'Yahoo News/YouGov','ft/yougov':'Financial Times/YouGov','cnn/ssrs':'CNN/SSRS',nbc:'NBC News',rmg:'RMG Research',ppp:'Public Policy Polling',harrisx:'HarrisX','ipsos/wapo':'Washington Post/Ipsos',tipp:'TIPP',siena:'New York Times/Siena','jl partners':'J.L. Partners',atlasintel:'AtlasIntel',quantus:'Quantus Insights',echelon:'Echelon Insights',bullfinch:'The Bullfinch Group',marquette:'Marquette Law School',verasight:'Strength in Numbers/Verasight','big data poll':'Big Data Poll','morning consult':'Morning Consult','fox news':'Fox News'};
+const PN={yougov:'YouGov','yougov/cbs':'CBS News/YouGov','yougov/yahoo':'Yahoo News/YouGov','ft/yougov':'Financial Times/YouGov','cnn/ssrs':'CNN/SSRS',nbc:'NBC News',rmg:'RMG Research',ppp:'Public Policy Polling',harrisx:'HarrisX',tipp:'TIPP',siena:'New York Times/Siena','jl partners':'J.L. Partners',atlasintel:'AtlasIntel',quantus:'Quantus Insights',echelon:'Echelon Insights',bullfinch:'The Bullfinch Group',marquette:'Marquette Law School',verasight:'Strength in Numbers/Verasight','big data poll':'Big Data Poll','morning consult':'Morning Consult','fox news':'Fox News'};
 const pname=k=>PN[k]||String(k).replace(/\b([a-z])/g,c=>c.toUpperCase());
 getJSON('data/polls.json').then(D=>{
  const d=new Date(D.asof+'T12:00:00');
