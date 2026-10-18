@@ -70,7 +70,7 @@ CELLS = {
             ("asc_lon", "Indo-Pacific ascent longitude", "DJF anomaly (° longitude; + = east)"),
         ),
         "title": "Pacific Walker cell in winter",
-        "what": "the 7-day-mean equatorial overturning at 00 UTC",
+        "what": "the 7-day-mean cell at 00 UTC",
     },
 }
 INDICES = (("roni", "DJF RONI (CPC)"), ("E", "DJF E index (eastern-Pacific mode)"))
