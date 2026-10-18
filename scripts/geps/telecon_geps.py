@@ -162,7 +162,6 @@ WINDOW_DOY = 45  # hindcast starts pooled for skill/calibration
 THR = 0.5  # +-0.5 sd of the daily index = "positive"/"negative" phase
 CV_BINS = 10  # PIT and reliability-diagram bins of the cross-validated test
 BOOT = 2000  # bootstrap draws over hindcast years for the PIT tests
-PSL = "https://downloads.psl.noaa.gov/Datasets/ncep.reanalysis"
 CPC_URL = {
     "ao": "cwlinks/norm.daily.ao.cdas.z1000.19500101_current.csv",
     "nao": "cwlinks/norm.daily.nao.cdas.z500.19500101_current.csv",
