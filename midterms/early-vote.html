@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Early Vote: 2026 Midterms</title>
-<meta name="description" content="The 2026 early vote against earlier elections at the same number of days out - North Carolina by party, age, race, county and vote history, Georgia and Florida - and how ballots already cast enter the midterm forecast.">
+<meta name="description" content="The 2026 early vote against earlier elections at the same number of days out - North Carolina by party, age, race, county and vote history, Georgia, Florida and Nevada's Clark County - and how ballots already cast enter the midterm forecast.">
 <link rel="canonical" href="https://scorvec.com/midterms/early-vote.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Early Vote: 2026 Midterms">
@@ -279,6 +279,10 @@ with the same 17-day early-voting calendar starting on the third Thursday before
 <div class="chips" id="flchips"></div>
 <ul class="find" id="flfind"><li>Loading&hellip;</li></ul>
 
+<h2 id="nv">Nevada (Clark County)</h2>
+<div class="chips" id="nvchips"></div>
+<ul class="find" id="nvfind"><li>Loading&hellip;</li></ul>
+
 <h2 id="gate">Why the early-vote mix is not in the forecast</h2>
 <p>Whether a party's registrants are over- or under-represented among early ballots is the most quoted early-vote reading.
 It would enter the forecast only if it had foretold the polls' misses. North Carolina has the longest public record:
@@ -297,9 +301,14 @@ Earlier years come from their final files, which keep each ballot's return date.
 name or address is stored or published (<code>midterms/nc_tracker.py</code>).</p>
 <p><b>Georgia.</b> Counts compiled by <a href="https://georgiavotes.com/">georgiavotes.com</a> from the Secretary of State's
 absentee voter files, read once a day; 2022 at the same point from the Internet Archive's captures of the same site
-(<code>midterms/ga_early.py</code>). <b>Florida.</b> The Division of Elections' daily mail-ballot statistics files, by
-party, against month-end active registration and against 2024 at the same days out from the Internet Archive's captures
-(<code>midterms/fl_early.py</code>). <b>Every state.</b> How much of each state's vote is already in comes from the
+(<code>midterms/ga_early.py</code>). <b>Florida.</b> The Division of Elections' daily mail-ballot and early-voting statistics
+files, by party, against month-end active registration and against 2024 at the same days out from the Internet Archive's captures
+(<code>midterms/fl_early.py</code>). <b>Nevada.</b> Clark County only, about 70% of the state's voters: the Secretary of
+State's statewide files turn away automated requests, the Clark County Election Department's do not. Its nightly mail ballot
+return file (each returned ballot with the voter's registered party and the day it came back; the 2022 and 2024 files the same
+way, for the same days out) and its daily in-person early vote files, joined on the voter id to the county's active voter list
+for party (a general election's file carries none; voters registered since the list was written are left unmatched). 2024's
+in-person voters are compared on turnout only. Only counts are kept (<code>midterms/nv_clark_early.py</code>). <b>Every state.</b> How much of each state's vote is already in comes from the
 <a href="https://election.lab.ufl.edu/early-vote/">UF Election Lab</a> (CC BY-NC-ND 4.0), used only to compute each
 state's factor above; its counts are not republished here.</p>
 </main>
@@ -583,7 +592,45 @@ state's factor above; its counts are not republished here.</p>
     if (F.vs_2024) f.push("<b>Against 2024.</b> At " + F.vs_2024.days_out + " days out (the last matched day), Republicans were " + sgn(F.vs_2024.R_minus_D_2026) + " among returned ballots against " +
       sgn(F.vs_2024.R_minus_D_2024) + " in 2024, " + (F.vs_2024.vs_registration_change_pts != null ? sgn(F.vs_2024.vs_registration_change_pts) + " points relative to registration, " : "") +
       "with " + Math.abs(F.vs_2024.returned_change_pct).toFixed(0) + "% " + (F.vs_2024.returned_change_pct >= 0 ? "more" : "fewer") + " ballots returned. Hurricanes Helene and Milton disrupted 2024's mail period.");
+    var E = F.early;
+    if (E) {
+      $("flchips").innerHTML += chip("voted early in person", n0(E.voted.total), E.days_out + " days out") +
+        chip("Rep &minus; Dem, in person", sgn(E.R_minus_D_pct) + " pts", "share of early voters");
+      f.push("<b>In person.</b> " + n0(E.voted.total) + " voted early by " + esc(E.compiled.slice(0, 10)) + ": " + n0(E.voted.DEM) + " registered Democrats, " + n0(E.voted.REP) + " Republicans, " + n0(E.voted.NPA) +
+        " no party. Republicans are " + sgn(E.R_minus_D_pct) + " points against Democrats among them" + (E.vs_registration_pts != null ? " (" + sgn(E.vs_registration_pts) + " relative to the rolls)" : "") +
+        ": Republicans vote early in person more, as Democrats do by mail" + (E.with_mail ? "; mail and in person together, " + n0(E.with_mail.total) + " ballots, are " + sgn(E.with_mail.R_minus_D_pct) + " points" : "") + ".");
+      if (E.vs_2024) f.push("<b>In person against 2024.</b> At " + E.vs_2024.days_out + " days out, Republicans were " + sgn(E.vs_2024.R_minus_D_2026) + " among early voters against " + sgn(E.vs_2024.R_minus_D_2024) + " in 2024, " +
+        (E.vs_2024.vs_registration_change_pts != null ? sgn(E.vs_2024.vs_registration_change_pts) + " points relative to registration, " : "") + "with " + Math.abs(E.vs_2024.returned_change_pct).toFixed(0) + "% " + (E.vs_2024.returned_change_pct >= 0 ? "more" : "fewer") + " early voters.");
+    }
     $("flfind").innerHTML = f.map(function (x) { return "<li>" + x + "</li>"; }).join("");
+  }
+
+  function nevada(V) {
+    if (!V || !V.mail) { $("nvchips").innerHTML = ""; $("nvfind").innerHTML = "<li>Clark County's files are not available today.</li>"; return; }
+    var M = V.mail, R = M.returned, G = V.registration, P = V.in_person;
+    $("nvchips").innerHTML = chip("mail ballots returned", n0(R.total), M.days_out + " days out") +
+      chip("Rep &minus; Dem, returned", sgn(M.R_minus_D_pct) + " pts", "share of mail ballots returned") +
+      chip("Rep &minus; Dem, registered", sgn(G.R_minus_D_pct) + " pts", "active voters") +
+      (P ? chip("voted early in person", n0(P.voted.total + P.unmatched), P.days_out + " days out") +
+        chip("Rep &minus; Dem, in person", sgn(P.R_minus_D_pct) + " pts", "share of early voters") : "");
+    var f = ["<b>Mail ballots.</b> " + n0(R.total) + " returned by " + date(M.through) + ": " + n0(R.DEM) + " from registered Democrats, " + n0(R.REP) + " Republicans, " + n0(R.NP) +
+      " non-partisan, " + n0(R.OTH) + " other parties. Republicans are " + sgn(M.R_minus_D_pct) + " points against Democrats among them, against " + sgn(G.R_minus_D_pct) +
+      " on the active rolls. Every active voter is sent a ballot, so relative to the rolls the returns are " + sgn(M.vs_registration_pts) + " points Rep &minus; Dem (" +
+      n0(M.signature_missing) + " returned without a signature, awaiting cure, are counted)."];
+    ["2024", "2022"].forEach(function (y) {
+      var b = M["vs_" + y]; if (!b) return;
+      f.push("<b>Against " + y + ".</b> At the same " + M.days_out + " days out, " + n0(b.returned.total) + " mail ballots had come back, Republicans " + sgn(b.R_minus_D_pct) +
+        " against Democrats; 2026 has " + Math.abs(b.returned_change_pct).toFixed(0) + "% " + (b.returned_change_pct >= 0 ? "more" : "fewer") + ".");
+    });
+    if (P) {
+      f.push("<b>In person.</b> " + n0(P.voted.total + P.unmatched) + " voted early in person over " + P.days + " day" + (P.days > 1 ? "s" : "") + " through " + date(P.through) + ": " + n0(P.voted.DEM) +
+        " registered Democrats, " + n0(P.voted.REP) + " Republicans, " + n0(P.voted.NP) + " non-partisan, " + n0(P.voted.OTH) + " other" + (P.unmatched ? ", " + n0(P.unmatched) + " not yet on the voter list" : "") +
+        ". Republicans are " + sgn(P.R_minus_D_pct) + " points against Democrats among them (" + sgn(P.vs_registration_pts) + " relative to the rolls)" +
+        (V.combined ? "; mail and in person together, " + n0(V.combined.total) + " ballots, are " + sgn(V.combined.R_minus_D_pct) + " points" : "") + ".");
+      if (P.vs_2024) f.push("<b>In person against 2024.</b> " + n0(P.vs_2024.total_2026) + " early voters against " + n0(P.vs_2024.total_2024) + " at the same point in 2024 (" +
+        (P.vs_2024.change_pct >= 0 ? "+" : "&minus;") + Math.abs(P.vs_2024.change_pct).toFixed(0) + "%); 2024's party mix at the time is not published, so it is compared on turnout only.");
+    }
+    $("nvfind").innerHTML = f.map(function (x) { return "<li>" + x + "</li>"; }).join("");
   }
 
   function get(u) { return fetch(u, { cache: "no-cache" }).then(function (r) { if (!r.ok) throw new Error(u); return r.json(); }); }
@@ -594,6 +641,7 @@ state's factor above; its counts are not republished here.</p>
     if (E.nc) northCarolina(E.nc); else { $("ncfind").innerHTML = "<li>North Carolina's file is not available today.</li>"; }
     georgia(E.ga);
     florida(E.fl);
+    nevada(E.nv);
   }).catch(function () { $("stamp").textContent = "The early-vote data could not be loaded."; });
 })();
 </script>
