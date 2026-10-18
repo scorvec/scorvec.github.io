@@ -1,0 +1,223 @@
+name: Jet branches skill (archived IFS-ENS runs against ERA5)
+
+# Dispatch-only verification of the jet-branch forecasts (scripts/mjo/src/jet_branches_verify.py): every other 00 UTC
+# IFS-ENS run of the given cold seasons, perturbed members 1..members to day 10, byte-ranged from the Google Cloud
+# mirror of ECMWF open data only and identified as the live forecast is; ERA5 (ARCO) at 00/12 UTC over the days the
+# runs reach, identified as the reference is. The verify job scores them (drift, a leave-one-season-out recalibration,
+# Brier skill against the ERA5 normal with week-block bootstrap intervals and Benjamini-Hochberg at 10 %) and, with
+# commit=true, commits scripts/mjo/data/reference/jet_branches_skill.json, which the forecast (jet-branches.yml) reads
+# to recalibrate and to show only the leads that passed. With 10 members a run is ~4 GB on the wire; the 152 runs of
+# two seasons ~0.6 TB.
+#
+# A trial: inits='["20250105","20250107","20260110","20260112"]'. verify_run scores an earlier run's artifacts (kept
+# 30 days) without fetching anything again.
+on:
+  workflow_dispatch:
+    inputs:
+      seasons:
+        description: 'Cold seasons by the year of January, comma-separated'
+        default: '2025,2026'
+      every:
+        description: 'Every Nth day''s 00 UTC run'
+        default: '2'
+      inits:
+        description: 'JSON list of runs (YYYYMMDD) instead of the seasons'' (a trial)'
+        default: ''
+      members:
+        description: 'Perturbed members 1..N'
+        default: '10'
+      chunk:
+        description: 'Runs per matrix job'
+        default: '8'
+      verify_run:
+        description: 'Score the run and ERA5 artifacts of this earlier run instead of fetching (blank = fetch)'
+        default: ''
+      commit:
+        description: 'Commit the skill file the forecast reads'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: read   # another run's artifacts (verify_run)
+
+env:
+  ECMWF_SOURCES: google
+  ECMWF_MULTISOURCE: "0"
+  ECMWF_RPS_GOOGLE: "60"           # the ef files are in arrival order: many small ranges (see strat-ifs.yml)
+  ECMWF_RPS: "60"
+  ECMWF_RANGE_GAP_MB: "0.5"
+  MPLBACKEND: Agg
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  plan:
+    if: ${{ inputs.verify_run == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      chunks: ${{ steps.plan.outputs.chunks }}
+      windows: ${{ steps.plan.outputs.windows }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - name: Unit tests
+        run: |
+          python scripts/mjo/src/test_jet_branches.py
+          python scripts/mjo/src/test_jet_branches_fc.py
+      - name: The runs and the ERA5 days they need
+        id: plan
+        env:
+          INITS: ${{ inputs.inits }}
+        run: |
+          python scripts/mjo/src/jet_branches_verify.py plan --seasons "${{ inputs.seasons }}" \
+            --every "${{ inputs.every }}" --inits "$INITS" --chunk "${{ inputs.chunk }}" --github-output
+
+  era5:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        window: ${{ fromJSON(needs.plan.outputs.windows) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - name: ERA5 (ARCO) identified at 00 and 12 UTC
+        run: |
+          mkdir -p out
+          python scripts/mjo/src/jet_branches_hindcast.py scan --start "${{ matrix.window.start }}" \
+            --end "${{ matrix.window.end }}" --out "out/scan_${{ matrix.window.season }}.npz"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: jbv-scan-${{ matrix.window.season }}
+          path: out/*.npz
+          retention-days: 30
+
+  runs:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 4   # leaves runners for the scheduled pipelines
+      matrix:
+        inits: ${{ fromJSON(needs.plan.outputs.chunks) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - name: Fetch and identify the archived runs (as the forecast does)
+        run: |
+          start=$(date +%s)
+          python scripts/mjo/src/jet_branches_verify.py runs --inits "${{ matrix.inits }}" \
+            --members "${{ inputs.members }}" --last-step 240 --out-dir out
+          echo "  wall time $(( $(date +%s) - start )) s"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: jbv-runs-${{ strategy.job-index }}
+          path: out/*.npz
+          retention-days: 30
+
+  verify:
+    needs: [plan, era5, runs]
+    # every fetch succeeded, or none ran because the artifacts come from verify_run
+    if: ${{ !cancelled() && ((needs.era5.result == 'success' && needs.runs.result == 'success') || (needs.plan.result == 'skipped' && inputs.verify_run != '')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: jbv-*
+          path: parts
+          merge-multiple: true
+          run-id: ${{ inputs.verify_run || github.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: The ERA5 normals (release jet-branches-ref-v1)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release download jet-branches-ref-v1 -R "$GITHUB_REPOSITORY" -p jet_branches_clim.nc -D /tmp/ref
+      - name: Score
+        run: |
+          ls parts | head; echo "  $(ls parts/fc_*.npz | wc -l) runs, $(ls parts/scan_*.npz | wc -l) ERA5 scans"
+          python scripts/mjo/src/jet_branches_verify.py verify --runs 'parts/fc_*.npz' --scans 'parts/scan_*.npz' \
+            --clim /tmp/ref/jet_branches_clim.nc --members "${{ inputs.members }}" --out-dir out \
+            --json scripts/mjo/data/reference/jet_branches_skill.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: jet-branches-verify
+          path: out
+          retention-days: 30
+      # Never rebase: snapshot, reset to a fresh origin/main each attempt, lay the snapshot back on, commit, push.
+      - name: Commit & push
+        if: inputs.commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          F=scripts/mjo/data/reference/jet_branches_skill.json
+          SNAP=$(mktemp -d)
+          cp "$F" "$SNAP/"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            cp "$SNAP/$(basename "$F")" "$F"
+            git add "$F"
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "Jet branches: skill on archived IFS-ENS runs against ERA5"
+            if timeout 180 git push origin HEAD:main; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

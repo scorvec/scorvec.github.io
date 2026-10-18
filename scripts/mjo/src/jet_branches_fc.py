@@ -21,6 +21,10 @@ PRODUCTS, the cold season only: an init from 1 November to 31 March, leads past 
   json     the numbers behind both and what the fetch cost
 Outside the season the still and a one-frame loop say so, and the json has in_season false.
 
+EVIDENCE. With reference/jet_branches_skill.json (jet_branches_verify.py: archived runs against ERA5) the shares are
+recalibrated where that verification adopted it, and a branch's map or a region's event odds are drawn only at the
+leads where they beat the ERA5 normal; elsewhere the panel says so. Without the file every lead is drawn as it comes.
+
     python jet_branches_fc.py run --date 20260110 --out fc.npz       # fetch and identify (the costly part)
     python jet_branches_fc.py render --fc fc.npz --clim jet_branches_clim.nc --out-dir assets/sst
     python jet_branches_fc.py forecast --date 20260110 --clim jet_branches_clim.nc --out-dir assets/sst
@@ -50,11 +54,12 @@ import ifs_ens as IE  # the IFS-ENS publication check (scripts/ecmwf/cycles.py's
 import jet_branches as JB
 
 REF = HERE.parent / "data" / "reference"
+SKILL = REF / "jet_branches_skill.json"
 MODEL, LABEL, NAME = "ifs", "IFS-ENS", "jetbr_ifs"
 HOUR = "00"
 PARAMS = ("t", "u", "v")
 MEMBERS = 50
-MIN_MEMBERS = 45  # a lead with fewer complete members is dropped
+MIN_SHARE = 0.9  # a lead with fewer than this share of the members complete is dropped
 SOURCES = ["google"]  # the Google Cloud mirror only
 STEP_TRIES = 3
 INK, MUTED = "#1a1a1a", "#6f6b64"
@@ -90,18 +95,19 @@ def _grid(gid, eccodes):
 
 
 def step_masks(job):
-    """One step of the run: t, u, v at LEVS for the 50 perturbed members, every member identified.
+    """One step of the run: t, u, v at LEVS for perturbed members 1..n, every member identified.
     -> {step, members (n,), masks (n, 3, packed), cost}; None when the step could not be fetched."""
     import eccodes
     import rangefetch as rf
 
-    date, step = job
+    date, step, n = job
     for attempt in range(1, STEP_TRIES + 1):
         try:
             t0 = time.time()
             idx = rf.fetch_index(date, HOUR, MODEL, step, "ef", sources=SOURCES)
             want = sorted(
-                rf.select(idx, param=list(PARAMS), levelist=list(JB.LEVS), type="pf"), key=lambda e: e["_offset"]
+                rf.select(idx, param=list(PARAMS), levelist=list(JB.LEVS), numbers=list(range(1, n + 1)), type="pf"),
+                key=lambda e: e["_offset"],
             )
             ranges = rf.coalesce(want)
             wire = {}
@@ -155,9 +161,9 @@ def step_masks(job):
     return None
 
 
-def run(date, last_step, out, workers=3, wait_min=0.0):
-    """Fetch and identify every step -> npz (per-step member masks and the fetch's cost). Waits up to wait_min for
-    the run to be on the Google mirror to last_step."""
+def run(date, last_step, out, workers=3, wait_min=0.0, members=MEMBERS):
+    """Fetch and identify every step for perturbed members 1..members -> npz (per-step member masks and the fetch's
+    cost). Waits up to wait_min for the run to be on the Google mirror to last_step."""
     deadline = time.time() + 60 * wait_min
     while not IE.published(date, HOUR, step=last_step):
         if time.time() >= deadline:
@@ -166,9 +172,9 @@ def run(date, last_step, out, workers=3, wait_min=0.0):
         time.sleep(120)
     t0 = time.time()
     with ProcessPoolExecutor(max_workers=workers) as ex:
-        got = [r for r in ex.map(step_masks, [(date, s) for s in lead_steps(last_step)]) if r is not None]
+        got = [r for r in ex.map(step_masks, [(date, s, members) for s in lead_steps(last_step)]) if r is not None]
     wall = time.time() - t0
-    keep = [r for r in got if r["members"].size >= MIN_MEMBERS]
+    keep = [r for r in got if r["members"].size >= MIN_SHARE * members]
     if not keep:
         raise SystemExit("no step was fetched with enough members")
     cost = {k: sum(r["cost"][k] for r in got) for k in ("messages", "bytes", "wire", "ranges")}
@@ -270,6 +276,49 @@ def products(init, steps, masks, clim_path):
     )
 
 
+def _days(group):
+    a, b = (int(x) for x in group.split("-"))
+    return range(a, b + 1)
+
+
+def gate(pr, skill):
+    """The verification applied to the products: the adopted recalibration of the shares (its table maps the share
+    of the verified members, k/n, to the observed frequency; a share in between is interpolated; 'map_cal' (lead,
+    branch) marks where) and which product-leads are shown ('map_shown' (lead, branch), 'event_shown' (lead, region)).
+    skill None: all, as they are."""
+    days = np.asarray(pr["steps"]) // 24
+    out = dict(pr, map_shown=np.ones((days.size, len(JB.BRANCHES)), bool))
+    out["map_cal"] = np.zeros((days.size, len(JB.BRANCHES)), bool)
+    out["event_shown"] = np.ones((days.size, len(JB.REGIONS)), bool)
+    if skill is None:
+        return out
+    share = pr["share"].copy()
+    for b, name in enumerate(JB.BRANCHES):
+        m = skill["maps"][name]
+        lv = np.linspace(0.0, 1.0, len(m["table"][0]))
+        for i, d in enumerate(days):
+            known = d < len(m["calibrated"])
+            if known and m["calibrated"][d]:
+                share[i, b] = np.interp(share[i, b], lv, m["table"][d])
+                out["map_cal"][i, b] = True
+            out["map_shown"][i, b] = known and m["show"] is not None and m["show"][0] <= d <= m["show"][1]
+    out["share"] = share
+    events = {}
+    for r, name in enumerate(JB.REGIONS):
+        e = skill["events"][name]
+        group = {d: g for g, grp in enumerate(e["groups"]) for d in _days(grp)}
+        lv = np.linspace(0.0, 1.0, len(e["table"][0]))
+        x = pr["events"][name].copy()
+        for i, d in enumerate(days):
+            g = group.get(int(d))
+            if g is not None and e["calibrated"][g]:
+                x[i] = np.interp(x[i], lv, e["table"][g])
+            out["event_shown"][i, r] = g is not None and e["show"] is not None and e["show"][0] <= g <= e["show"][1]
+        events[name] = x
+    out["events"] = events
+    return out
+
+
 # ── rendering ───────────────────────────────────────────────────────────────────────────────────────────────────────
 def mpl():
     import matplotlib
@@ -344,6 +393,20 @@ def frame(pr, i, out, dpi=90):
     for k, b in enumerate(JB.BRANCHES):
         rect = [left / W, (bot + (2 - k) * (mh + gap)) / H, map_w / W, mh / H]
         ax = nh_map(fig, rect, TITLE[b])
+        if not pr["map_shown"][i, k]:
+            ax.text(
+                0.5,
+                0.5,
+                f"Not shown at day {int(pr['steps'][i]) / 24:g}: at this lead the forecast of this branch did not beat "
+                "the ERA5 normal on the archived runs",
+                transform=ax.transAxes,
+                ha="center",
+                va="center",
+                fontsize=10.5,
+                color=MUTED,
+                bbox=dict(facecolor="white", edgecolor="none", alpha=0.9),
+            )
+            continue
         f, lon = cyclic(100 * pr["share"][i, k])
         cf = ax.contourf(
             lon, JB.LAT, f, levels=P_LEV, cmap=cmap, norm=BoundaryNorm(P_LEV, cmap.N), transform=ccrs.PlateCarree()
@@ -357,7 +420,7 @@ def frame(pr, i, out, dpi=90):
             draw_regions(ax)
         cax = fig.add_axes([rect[0] + rect[2] + 0.12 / W, rect[1] + 0.05 * rect[3], 0.16 / W, 0.9 * rect[3]])
         cb = fig.colorbar(cf, cax=cax, ticks=P_LEV[::2])
-        cb.set_label("% of members", fontsize=9)
+        cb.set_label("chance (%)" if pr["map_cal"][i, k] else "% of members", fontsize=9)
         cb.ax.tick_params(labelsize=8.5)
     day = int(pr["steps"][i]) / 24
     fig.text(
@@ -370,10 +433,16 @@ def frame(pr, i, out, dpi=90):
         va="top",
         color=INK,
     )
+    shading = (
+        f"the chance of the branch within {JB.NEAR_KM:g} km (the members' share, recalibrated on archived runs where "
+        "that improved it)"
+        if pr["map_cal"][i].any()
+        else f"share of members with the branch within {JB.NEAR_KM:g} km"
+    )
     sub = (
-        f"Shading: share of members with the branch within {JB.NEAR_KM:g} km. Contours: how often ERA5 had it within "
-        f"{JB.NEAR_KM:g} km on this date, 1991–2020. A jet is a 400–100 hPa wind above {JB.V_MIN:g} m/s over a strong "
-        "PV gradient in the 1–3 PVU channel of its isentropic layer; dashed boxes: the superposition regions."
+        f"Shading: {shading}. Contours: how often ERA5 had it within {JB.NEAR_KM:g} km on this date, 1991–2020. A jet "
+        f"is a 400–100 hPa wind above {JB.V_MIN:g} m/s over a strong PV gradient in the 1–3 PVU channel of its "
+        "isentropic layer; dashed boxes: the superposition regions."
     )
     fig.text(left / W, 1 - 0.5 / H, textwrap.fill(sub, int(W * 12.4)), fontsize=9.4, va="top", color=MUTED)
     fig.text(left / W, 0.06 / H, textwrap.fill(CREDIT, int(W * 15.5)), fontsize=8.2, va="bottom", color=MUTED)
@@ -388,8 +457,21 @@ def events_still(pr, out):
     W, H = 13.0, 5.4
     fig, axs = plt.subplots(1, len(JB.REGIONS), figsize=(W, H), sharey=True)
     days = np.asarray(pr["steps"]) / 24
-    for ax, r in zip(axs, JB.REGIONS):
-        ax.bar(days, 100 * pr["events"][r], width=0.4, color="#cc2f2f", label=f"{LABEL} members with an event")
+    for k, (ax, r) in enumerate(zip(axs, JB.REGIONS)):
+        on = pr["event_shown"][:, k]
+        ax.bar(days[on], 100 * pr["events"][r][on], width=0.4, color="#cc2f2f", label=f"{LABEL} chance of an event")
+        for d in days[~on]:
+            ax.axvspan(d - 0.25, d + 0.25, color="#ececec", lw=0, zorder=0)
+        if not on.all():
+            ax.text(
+                0.99,
+                0.6,
+                "grey: leads where the odds did not\nbeat the ERA5 rate on the archived runs",
+                transform=ax.transAxes,
+                ha="right",
+                fontsize=9,
+                color=MUTED,
+            )
         ax.plot(days, 100 * pr["event_normal"][r], color=INK, lw=1.6, ls=(0, (5, 3)), label="ERA5 1991–2020, same date")
         box = JB.REGIONS[r]
         ax.set_title(
@@ -412,7 +494,7 @@ def events_still(pr, out):
         ax.set_xlim(-0.4, days.max() + 0.4)
         ax.grid(axis="y", color="#e3e3e3", lw=0.6)
         ax.spines[["top", "right"]].set_visible(False)
-    axs[0].set_ylabel("% of members")
+    axs[0].set_ylabel("chance of an event (%)")
     axs[0].set_ylim(0, 100)
     fig.legend(*axs[0].get_legend_handles_labels(), loc="lower left", bbox_to_anchor=(0.06, 0.1), ncol=2, fontsize=9.5,
                frameon=False)  # fmt: skip
@@ -526,14 +608,17 @@ def render(fc_path, clim_path, out_dir):
         return render_off_season(init, out_dir)
     anim, manifest, still, data = _outputs(out_dir)
     doc = dict(model=LABEL, init=f"{init:%Y-%m-%dT%H:%MZ}", near_km=JB.NEAR_KM, fetch=cost)
-    pr = products(init, steps, masks, clim_path)
+    skill = json.loads(SKILL.read_text()) if SKILL.exists() else None
+    pr = gate(products(init, steps, masks, clim_path), skill)
     frames = []
     for i, v in enumerate(pr["valid"]):
-        fn = f"F{i:02d}.webp"
+        if not pr["map_shown"][i].any():
+            continue
+        fn = f"F{len(frames):02d}.webp"
         frame(pr, i, anim / fn)
         frames.append(
             {
-                "idx": i,
+                "idx": len(frames),
                 "file": fn,
                 "date": f"{v:%Y-%m-%d}",
                 "label": f"day {pr['steps'][i] / 24:g} · valid {v:%a %b %d %HZ} · superposition up to "
@@ -544,6 +629,9 @@ def render(fc_path, clim_path, out_dir):
     events_still(pr, still)
     doc.update(
         in_season=True,
+        verified=skill is not None,
+        map_shown={b: [bool(x) for x in pr["map_shown"][:, k]] for k, b in enumerate(JB.BRANCHES)},
+        event_shown={r: [bool(x) for x in pr["event_shown"][:, k]] for k, r in enumerate(JB.REGIONS)},
         members=pr["members"],
         lead_h=[int(s) for s in pr["steps"]],
         valid=[f"{v:%Y-%m-%dT%H:%MZ}" for v in pr["valid"]],
@@ -573,6 +661,7 @@ def main() -> int:
         s.add_argument("--date", required=True, help="YYYYMMDD of the 00 UTC run")
         s.add_argument("--last-step", type=int, default=240)
         s.add_argument("--workers", type=int, default=3)
+        s.add_argument("--members", type=int, default=MEMBERS, help="perturbed members 1..N")
         s.add_argument("--wait-min", type=float, default=0.0, help="wait this long for the run on the mirror")
         s.add_argument("--out", default="jetbr_fc.npz")
         if name == "forecast":
@@ -590,7 +679,7 @@ def main() -> int:
     if a.cmd == "forecast" and not in_season(init):
         render_off_season(init, a.out_dir)  # nothing to fetch
         return 0
-    run(a.date, a.last_step, a.out, a.workers, a.wait_min)
+    run(a.date, a.last_step, a.out, a.workers, a.wait_min, a.members)
     if a.cmd == "forecast":
         render(a.out, a.clim, a.out_dir)
     return 0
