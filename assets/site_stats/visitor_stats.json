@@ -1,13 +1,13 @@
 {
- "updated": "2026-10-17",
- "total_30d": 449,
+ "updated": "2026-10-18",
+ "total_30d": 484,
  "countries_30d": 22,
- "total_all": 1223,
+ "total_all": 1261,
  "countries_all": 25,
  "top_pages_30d": [
   {
    "path": "/models.html",
-   "count": 57
+   "count": 60
   },
   {
    "path": "/aifs-aam-budget.html",
@@ -15,7 +15,7 @@
   },
   {
    "path": "/mjo.html",
-   "count": 42
+   "count": 43
   },
   {
    "path": "/recon.html",
@@ -26,19 +26,19 @@
    "count": 22
   },
   {
+   "path": "/subseasonal.html",
+   "count": 22
+  },
+  {
    "path": "/asos5.html",
    "count": 22
   },
   {
-   "path": "/subseasonal.html",
+   "path": "/skewt",
    "count": 21
   },
   {
    "path": "/torque-enso.html",
-   "count": 20
-  },
-  {
-   "path": "/skewt",
    "count": 20
   },
   {
