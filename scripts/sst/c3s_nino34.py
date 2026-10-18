@@ -682,18 +682,19 @@ def plot(ym: str, results, out: Path):
     )
     fig.legend(handles, labels, loc="lower center", ncol=7, fontsize=8.5, frameon=False, bbox_to_anchor=(0.5, 0.098))
     if obs is not None:
+        cpc = (("Niño-3.4", obs["cpc_through"]["n34"]), ("ONI/RONI", obs["cpc_through"]["oni"]))
+        thru = ", ".join(f"{k} {v}" for k, v in cpc if v)  # empty when every observed month is CPC's
         fig.text(
             0.5,
             0.008,
             "\n".join(
                 [
-                    "Observed: CPC's monthly indices (solid) through "
-                    + ", ".join(
-                        f"{k} {v}"
-                        for k, v in (("Niño-3.4", obs["cpc_through"]["n34"]), ("ONI/RONI", obs["cpc_through"]["oni"]))
-                        if v
-                    )
-                    + f"; later months to {obs['last']} are the site's OISST v2.1 estimate, not CPC's (dashed, open markers).",
+                    (
+                        f"Observed: CPC's monthly indices (solid) through {thru}; later months to {obs['last']} are "
+                        "the site's estimate, not CPC's (dashed, open markers)."
+                        if thru
+                        else f"Observed: CPC's monthly indices through {obs['last']}."
+                    ),
                     "Niño-3.4 and ONI are re-based to the OBSERVED 1993–2016 mean, the same period as every model's hindcast;",
                     "CPC publishes them on 1991–2020, a shift of +0.05 °C in the annual mean and up to +0.10 in late winter.",
                     "RONI is CPC's published ERSSTv6 series on its own base; the shift largely cancels in a difference of two",
