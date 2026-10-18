@@ -47,7 +47,7 @@ jobs:
           key: pip-verification-${{ runner.os }}-v1
       - name: Install mverify
         # pinned to a commit so a change upstream cannot alter the scores without a commit here
-        run: pip install --quiet "mverify[grib,zarr] @ git+https://github.com/scorvec/nwp_verification@b9b7cb62f5a59ce07c182a8c638a106fdf156f45"
+        run: pip install --quiet "mverify[grib,zarr] @ git+https://github.com/scorvec/nwp_verification@e58296b86daa4d5a1c8654b33d578dead67067d0"
       - name: Window
         id: w
         env:
@@ -77,11 +77,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          PATHS="assets/verification/scores.json assets/verification/stations.json"
+          PATHS="assets/verification/scores.json assets/verification/stations.json assets/verification/precip_maps.json"
           for i in 1 2 3 4 5; do
             timeout 120 git fetch origin main || { sleep 5; continue; }
             git reset -q FETCH_HEAD
-            git add $PATHS
+            git add $(ls $PATHS 2>/dev/null)   # precip_maps.json only once a run has Stage IV windows
             if git diff --staged --quiet; then echo "no changes"; exit 0; fi
             git commit -q -m "data update: verification scores $(date -u +%Y-%m-%d)"
             if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi

@@ -15,7 +15,8 @@ GFS from NOAA on AWS; GDPS from the ECCC Datamart, which keeps about 30 days and
 Every model is first averaged onto one 0.5 deg grid (mverify.coarsen, by area overlap, with its terrain and land-sea
 mask), so the 0.15 deg GDPS and the 0.25 deg models are interpolated to the stations from cells of the same size. All
 models are scored on one sample with paired significance tests, and the scorecard goes to
-assets/verification/scores.json.
+assets/verification/scores.json; rain against Stage IV in every cell of that grid, the bias tested cell by cell
+(mverify.precip.maps), goes to assets/verification/precip_maps.json.
 
     python scripts/verify/mverify_scores.py --db obs.duckdb --inits 2026092600 2026100500 --work /tmp/fc
 """
@@ -36,6 +37,7 @@ from mverify import variables as V
 REPO = Path(__file__).resolve().parents[2]
 OUT = REPO / "assets" / "verification" / "scores.json"
 MAP_OUT = REPO / "assets" / "verification" / "stations.json"
+RAIN_OUT = REPO / "assets" / "verification" / "precip_maps.json"
 MAP_LEADS = [24, 72, 120, 168, 240]
 MAP_VARS = ["t2m", "td2m", "wind10"] + [f"{b}{lv}" for lv in (850, 500, 250) for b in ("z", "t", "wind")]
 MAP_VARS += ["q850", "q700"]
@@ -228,7 +230,10 @@ def main() -> None:
     download([(m, i, ld) for m in MODELS for i in inits for ld in LEADS], a.work, upper=False)
 
     from mverify import report
+    from mverify.coarsen import coarsen
     from mverify.db.store import ObsStore
+    from mverify.io.open import open_forecast
+    from mverify.precip.maps import cell_scores
     from mverify.verify import Result, score_pair_files, verify
 
     with ObsStore.open(a.db, read_only=True) as store:
@@ -236,6 +241,9 @@ def main() -> None:
             m: sorted(f for i in inits for f in (a.work / d).glob(f"{i}_*.grib2")) for m, d in MODELS.items()
         }
         surface = verify(surface_files, store, networks=["GHCNH"], grid=GRID)
+        # rain maps from the same files, on the same grid, before --clean removes them
+        maps = {m: cell_scores(coarsen(open_forecast(fs, name=m), GRID), store) for m, fs in surface_files.items()}
+        maps = {m: c for m, c in maps.items() if c is not None}
         if a.clean:
             for f in (f for fs in surface_files.values() for f in fs):
                 f.unlink()
@@ -246,6 +254,8 @@ def main() -> None:
     res = Result.concat([surface, score_pair_files(files)])
     report.write_json(res.scorecard(), OUT)
     report.write_json(report.station_map(res.stations, MAP_LEADS, MAP_VARS), MAP_OUT)
+    if maps:
+        report.write_json(report.precip_maps(maps), RAIN_OUT)
     print(f"{len(surface.pairs):,} surface pairs, {OUT.relative_to(REPO)}")
     stations = surface.pairs.groupby("variable")["station_id"].nunique()
     within = " (model terrain within 5 m)" if pressure == "sp" else ""

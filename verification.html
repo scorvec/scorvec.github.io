@@ -60,7 +60,7 @@
   .pair h3 { font: 600 0.95rem var(--sans); margin: 0.2rem 0; color: var(--ink2); }
   .pair .chart { height: 340px; }
   .pair .chart.prof { height: 460px; }
-  #map { width: 100%; height: min(70vh, 620px); border-radius: 8px; border: 1px solid var(--rule); background: #e9e8e4; }
+  #map, #rmap { width: 100%; height: min(70vh, 620px); border-radius: 8px; border: 1px solid var(--rule); background: #e9e8e4; }
   .leaflet-container { font-family: var(--sans); }
   .leaflet-container .leaflet-control-attribution a { color: #274b7a; }
   .cbar { display: flex; align-items: center; gap: 0.6rem; font-size: 0.82rem; color: var(--ink2); margin: 0.5rem 0 0; flex-wrap: wrap; }
@@ -74,6 +74,10 @@
   table.sc th.g { padding-top: 0.6rem; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
   table.sc td { min-width: 3.1rem; height: 1.9rem; text-align: center; border-radius: 4px; background: #f3f2ee; color: var(--muted); }
   table.sc td.s { color: #fff; font-weight: 600; }
+  table.pg { border-collapse: collapse; font-size: 0.9rem; font-variant-numeric: tabular-nums; margin-top: 0.3rem; }
+  table.pg th, table.pg td { padding: 0.3rem 0.7rem; text-align: right; border-bottom: 1px solid var(--rule); }
+  table.pg th:first-child, table.pg td:first-child { text-align: left; }
+  table.pg thead th { font-size: 0.78rem; color: var(--muted); font-weight: 600; }
   table.sc td small { display: block; font-size: 0.66rem; font-weight: 500; line-height: 1; margin-top: 1px; opacity: 0.85; }
   .key { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; font-size: 0.82rem; color: var(--ink2); margin-top: 0.5rem; }
   .key i { display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: 3px; vertical-align: -0.15rem; margin-right: 0.3rem; }
@@ -362,6 +366,24 @@ window.plotlyP = new Promise(function (ok, no) {
       <div><h3>Equitable threat score by threshold</h3><div class="chart" id="c-ets"></div></div>
       <div><h3>Fractions skill score by neighbourhood</h3><div class="chart" id="c-fss"></div></div>
     </div>
+    <div id="p-gauge-box" hidden>
+      <h3>Against Stage IV and against rain gauges</h3>
+      <div class="tblwrap"><table class="pg" id="p-gauge"></table></div>
+      <p class="note" id="p-gauge-note"></p>
+    </div>
+  </section>
+
+  <section class="card" id="rainmap-card" hidden>
+    <h2>Rain errors on the map</h2>
+    <div class="controls">
+      <label>Show<select id="r-stat"></select></label>
+      <label>Model<select id="r-model"></select></label>
+      <label>Lead<select id="r-group"></select></label>
+    </div>
+    <div id="rmap" role="img" aria-label="Map of rain forecast error on a half-degree grid"></div>
+    <div class="cbar"><div class="col"><div class="ramp" id="r-ramp"></div><div class="ticks" id="r-ticks"></div></div>
+      <span id="r-cap"></span></div>
+    <p class="note" id="r-note"></p>
   </section>
 
   <details class="method" id="method">
@@ -371,6 +393,17 @@ window.plotlyP = new Promise(function (ok, no) {
     <p><b>Rain over the US.</b> 24 hour totals ending 12Z against the Stage IV analysis, on the analysis's 4 km grid. The equitable threat
       score is the share of rain areas the model gets right beyond chance (1 is perfect). The fractions skill score asks the
       same question in neighbourhoods of growing size, so it forgives a band forecast a few tens of kilometres off.</p>
+    <p><b>Rain errors on the map.</b> The same Stage IV totals averaged onto the common 0.5° grid wherever they cover at
+      least half a cell, against each model's total for the same 24 hours, pooled over the runs and over the windows of a
+      lead group (days 1–2, 3–5, 6–9). Each cell's bias is tested over the valid days: the day's error, averaged over the
+      runs that verify it, goes through the scorecard's paired t-test with its allowance for errors that persist from day
+      to day, once a cell has 8 days. The p values of all the cells of a map then go through the Benjamini–Hochberg
+      procedure at a 10% false-discovery rate, so the coloured cells are ones whose bias is unlikely to be noise. RMSE and
+      the mean amounts are shown everywhere.</p>
+    <p><b>Rain gauges.</b> The 24 hour totals that stations report (GHCNh; at 12Z from US ASOS stations, the same window
+      as Stage IV) are scored like the other station variables, each model's total for those 24 hours interpolated to
+      the gauge from the common grid, every model on the same readings. In the US they check the gridded scores at
+      points rather than independently: Stage IV's analyses take in ASOS gauges.</p>
     <p>NOAA's GFS, ECMWF's physics model (IFS), ECMWF's AI model (AIFS) and Environment Canada's global model (GDPS)
     are scored here against the same observations:
     hourly surface stations, about 650 radiosondes a day through the whole troposphere and, for rain over the US, the Stage IV
@@ -610,6 +643,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
         const up = split(v);
         // the vector wind stands for its components at upper levels, keeping the card to one row per level
         if (up && (up[0] === "u" || up[0] === "v")) continue;
+        if (v === "pr24") continue;  // gauge totals end 12 h past the day columns; the rain card shows them
         if ((sw.value === "surface" && up) || (sw.value === "upper" && !up)) continue;
         const g = up ? `Radiosondes · ${QTY[up[0]] || up[0]}` : "Surface stations";
         const r = row(v, region);
@@ -675,6 +709,23 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
           xaxis: { title: { text: "Neighbourhood width (km)" }, type: "log", tickvals: [50, 100, 200, 400] },
           yaxis: { range: [0, 1], gridcolor: "#ece9e2", title: { text: `FSS at ${pt.value} mm` } },
         }), CONFIG);
+        // the same window against the gauges: do the two truths rank the models alike?
+        const grid = amount.find(r => r.region === "CONUS"), gauge = card.rows.find(r => r.var === "pr24" && r.region === "CONUS");
+        $("p-gauge-box").hidden = !(grid && gauge);
+        if (grid && gauge) {
+          const num = (r, m, st) => r.scores[m]?.[st]?.[i];
+          const cell = v => v == null ? "–" : v.toFixed(2);
+          const sgn = v => v == null ? "–" : `${v > 0 ? "+" : ""}${v.toFixed(2)}`;
+          $("p-gauge").innerHTML = `<thead><tr><th>Model</th><th>Bias, Stage IV</th><th>RMSE, Stage IV</th><th>Bias, gauges</th><th>RMSE, gauges</th></tr></thead><tbody>` +
+            models.map(m => `<tr><td>${esc(m)}</td><td>${sgn(num(grid, m, "bias"))}</td><td>${cell(num(grid, m, "rmse"))}</td>` +
+              `<td>${sgn(num(gauge, m, "bias"))}</td><td>${cell(num(gauge, m, "rmse"))}</td></tr>`).join("") + "</tbody>";
+          const order = r => models.filter(m => num(r, m, "rmse") != null).sort((a, b) => num(r, a, "rmse") - num(r, b, "rmse"));
+          const og = order(grid), ob = order(gauge), n = gauge.scores[models[0]]?.n?.[i];
+          $("p-gauge-note").innerHTML = `mm per 24 h over CONUS, window ending ${pl.value} h. Smallest to largest RMSE: ${og.map(esc).join(", ")} against Stage IV, ` +
+            `${ob.map(esc).join(", ")} against the gauges (${og.join() === ob.join() ? "the same order" : "a different order"})` +
+            (n ? `; ${n.toLocaleString()} gauge readings, every model on the same ones.` : ".") +
+            " A gauge measures a point and a model cell averages half a degree, so RMSE against gauges runs higher.";
+        }
       }
       [pl, pt].forEach(el => el.addEventListener("change", precipCharts));
       precipCharts();
@@ -698,8 +749,75 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     const a = stops[i].match(/\w\w/g).map(h => parseInt(h, 16)), b = stops[i + 1].match(/\w\w/g).map(h => parseInt(h, 16));
     return `rgb(${a.map((x, k) => Math.round(x + f * (b[k] - x))).join(",")})`;
   }
+  const BRBG = ["#8c510a", "#bf812d", "#dfc27d", "#f2f0ea", "#80cdc1", "#35978f", "#01665e"];  // dry .. wet
+  const WET = ["#fcfbf6", "#d4ecd5", "#a3d6b4", "#62b6a4", "#2f8e9e", "#1f5d8b", "#1d2f6b"];
   const q95 = xs => { const v = xs.filter(x => x != null && isFinite(x)).sort((a, b) => a - b); return v.length ? v[Math.floor(0.95 * (v.length - 1))] : 1; };
   const nice = x => { const e = Math.pow(10, Math.floor(Math.log10(x))); return [1, 2, 2.5, 5, 10].map(m => m * e).find(m => m >= x) || x; };
+
+  // rain against Stage IV in every cell of the common grid; the bias is coloured only where its test passes
+  function drawRainMap(pm) {
+    const models = Object.keys(pm.models);
+    if (!window.L || !models.length) return;
+    $("rainmap-card").hidden = false;
+    const dark = document.documentElement.dataset.theme === "dark" ||
+      (document.documentElement.dataset.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+    const map = L.map("rmap", { preferCanvas: true, zoomSnap: 0.5, minZoom: 3 }).setView([38, -97], 4);
+    const ESRI = "https://services.arcgisonline.com/arcgis/rest/services/Canvas/";
+    L.tileLayer(ESRI + (dark ? "World_Dark_Gray" : "World_Light_Gray") + "_Base/MapServer/tile/{z}/{y}/{x}",
+      { attribution: "Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors", maxZoom: 10 }).addTo(map);
+    const rend = L.canvas({ padding: 0.3, tolerance: 2 });
+    const cells = L.layerGroup().addTo(map);
+    const rs = $("r-stat"), rm = $("r-model"), rg = $("r-group"), truth = pm.truth.replace(" analysis", "");
+    const NAMES = { bias: "Bias", rmse: "RMSE", fcst: "Mean rain, model", obs: `Mean rain, ${truth}` };
+    fill(rs, ["bias", "rmse", "fcst", "obs"], s => NAMES[s]);
+    fill(rm, models);
+    rm.value = models.includes("IFS") ? "IFS" : models[0];
+    fill(rg, pm.groups.map((_, k) => String(k)), k => {
+      const g = pm.groups[+k];
+      return `${g.label[0].toUpperCase()}${g.label.slice(1)} (windows ending ${g.ends_h[0]}–${g.ends_h[1]} h)`;
+    });
+    const mm = v => v == null ? "–" : `${(v / 10).toFixed(1)} mm`;
+    let framed = false;
+    function render() {
+      const s = rs.value, name = rm.value, m = pm.models[name], g = +rg.value, nx = m.lon.length;
+      const hy = Math.abs(m.lat[1] - m.lat[0]) / 2 || 0.25, hx = Math.abs(m.lon[1] - m.lon[0]) / 2 || 0.25;
+      // one scale for every model, and for the model and analysed means alike, so the maps compare
+      // the model's mean is the analysed mean plus the bias
+      const field = (x, t) => t === "fcst" ? x.obs[g].map((o, k) => o == null || x.bias[g][k] == null ? null : o + x.bias[g][k]) : x[t][g];
+      const pool = models.flatMap(k => (s === "fcst" || s === "obs" ? ["fcst", "obs"] : [s]).flatMap(t => field(pm.models[k], t)))
+        .filter(v => v != null).map(v => (s === "bias" ? Math.abs(v) : v) / 10);
+      const fc = field(m, "fcst");
+      const hi = nice(q95(pool) || 1), lo = s === "bias" ? -hi : 0, stops = s === "bias" ? BRBG : s === "rmse" ? SEQ : WET;
+      cells.clearLayers();
+      let shown = 0, passed = 0;
+      const box = [[90, 180], [-90, -180]];
+      field(m, s).forEach((v, k) => {
+        if (v == null) return;
+        const la = m.lat[Math.floor(k / nx)], lon = ((m.lon[k % nx] + 180) % 360) - 180;
+        const tested = m.days[g][k] >= pm.min_days, pass = s !== "bias" || m.significant[g][k] === 1;
+        shown++; passed += m.significant[g][k];
+        box[0] = [Math.min(box[0][0], la - hy), Math.min(box[0][1], lon - hx)];
+        box[1] = [Math.max(box[1][0], la + hy), Math.max(box[1][1], lon + hx)];
+        const verdict = m.significant[g][k] ? "passes the test" : tested ? "within chance" : `not tested (${m.days[g][k]} days)`;
+        const tip = `<b>${la.toFixed(2)}°N ${Math.abs(lon).toFixed(2)}°${lon < 0 ? "W" : "E"}</b><br>` +
+          `${esc(name)} bias ${m.bias[g][k] > 0 ? "+" : ""}${mm(m.bias[g][k])} (${verdict}), RMSE ${mm(m.rmse[g][k])}<br>` +
+          `mean rain: ${esc(name)} ${mm(fc[k])}, ${esc(truth)} ${mm(m.obs[g][k])}<br>${m.days[g][k]} valid days`;
+        L.rectangle([[la - hy, lon - hx], [la + hy, lon + hx]], { renderer: rend, stroke: false,
+          fillColor: pass ? ramp(stops, (v / 10 - lo) / (hi - lo)) : (dark ? "#55524c" : "#d6d3cc"),
+          fillOpacity: pass ? 0.85 : 0.5 }).bindTooltip(tip, { sticky: true }).addTo(cells);
+      });
+      if (!framed && shown) { map.fitBounds(box, { padding: [8, 8] }); framed = true; }
+      $("r-ramp").style.background = `linear-gradient(90deg, ${stops.join(",")})`;
+      $("r-ticks").innerHTML = [0, 0.25, 0.5, 0.75, 1].map((f, j) => `<span>${j === 4 && s !== "bias" ? "≥ " : ""}${+(lo + f * (hi - lo)).toFixed(1)}</span>`).join("");
+      $("r-cap").textContent = s === "bias" ? `${name} minus ${truth}, mm per ${pm.accum_hours} h; brown too dry, teal too wet`
+        : `${NAMES[s].replace("model", name)}, mm per ${pm.accum_hours} h`;
+      $("r-note").innerHTML = `${pm.accum_hours} h totals ending 12Z against ${esc(pm.truth)} on the common 0.5° grid, over the runs and windows of the lead group. ` +
+        (s === "bias" ? `The bias is coloured in ${passed.toLocaleString()} of ${shown.toLocaleString()} cells, those that pass a cell-by-cell test at a ${Math.round(100 * pm.fdr_q)}% false-discovery rate; grey cells are within chance.`
+          : "Hover a cell for its numbers.");
+    }
+    [rs, rm, rg].forEach(el => el.addEventListener("change", render));
+    render();
+  }
 
   function drawMap(sm) {
     if (!window.L || !sm.layers.length) return;
@@ -772,9 +890,12 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     draw(card);
     // Leaflet loads deferred, so it is ready once the document is parsed.
     const parsed = new Promise(ok => document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", ok) : ok());
-    return Promise.all([fetch("/assets/verification/stations.json").then(r => r.ok ? r.json() : null), parsed]).then(([sm]) => {
-      if (sm) drawMap(sm);
-    });
+    const get = u => fetch(u).then(r => r.ok ? r.json() : null);
+    return Promise.all([get("/assets/verification/stations.json"), get("/assets/verification/precip_maps.json"), parsed])
+      .then(([sm, pm]) => {
+        if (sm) drawMap(sm);
+        if (pm) drawRainMap(pm);
+      });
   }).catch(e => {
     $("asof").textContent = "The scores could not be loaded (" + e.message + ").";
   });
