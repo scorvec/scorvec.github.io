@@ -83,7 +83,7 @@ def harmonic_day(t) -> np.ndarray:
 # ── SST ──────────────────────────────────────────────────────────────────────
 def current_ssta(ref: xr.Dataset, days: int = 30):
     """(detrended SSTA on the Gill grid, its 30-day window, raw anomaly on the same grid)."""
-    now = pd.Timestamp.utcnow().tz_localize(None).normalize()
+    now = pd.Timestamp.now("UTC").tz_localize(None).normalize()
     year = now.year
     p = oisst9120.ensure_mean(year)
     ds = xr.open_dataset(p)

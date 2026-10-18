@@ -97,7 +97,7 @@ def main() -> int:
 
     olr = open_olr()
     # the store's time axis is padded far into the future; find the real end
-    end = pd.Timestamp.utcnow().tz_localize(None).normalize()
+    end = pd.Timestamp.now("UTC").tz_localize(None).normalize()
     while end > pd.Timestamp("2020-01-01"):
         if fetch_day(olr, end) is not None:
             break

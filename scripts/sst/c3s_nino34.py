@@ -352,7 +352,7 @@ def resolve_issue(explicit):
     """(ym, results) — honour --issue, else the newest month meeting QUORUM."""
     if explicit:
         return explicit, collect(explicit)
-    now = pd.Timestamp.utcnow()
+    now = pd.Timestamp.now("UTC")
     best = None
     for back in range(3):
         ym = (now - pd.DateOffset(months=back)).strftime("%Y%m")

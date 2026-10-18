@@ -322,7 +322,7 @@ def era5_pop_reference(region: str, w: np.ndarray, lat: np.ndarray, lon: np.ndar
     series = np.tensordot(da.values.astype(np.float64), wn, axes=([1, 2], [0, 1]))  # daily K
     t = pd.to_datetime(da.time.values)
     ser = pd.Series(series, index=t).dropna()
-    ser = ser[ser.index < pd.Timestamp.utcnow().tz_localize(None).replace(day=1)]  # complete months only
+    ser = ser[ser.index < pd.Timestamp.now("UTC").tz_localize(None).replace(day=1)]  # complete months only
     mon = ser.resample("MS").mean()
     out = {"daily_years": f"{ser.index.year.min()}–{ser.index.year.max()}", "by_month": {}}
     for m in range(1, 13):

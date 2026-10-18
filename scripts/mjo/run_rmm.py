@@ -178,7 +178,7 @@ def main() -> None:
         rc = enso_rmm.clean_forecast(rmm, dn, c, "AIFS")
         oc = enso_rmm.clean_obs(obs, n34, c)
         st = enso_rmm.diagnose(rc, oc, dn, enso_rmm.romi_status())
-        st.update(init=d0, updated=pd.Timestamp.utcnow().strftime("%Y-%m-%d %H:%MZ"))
+        st.update(init=d0, updated=pd.Timestamp.now("UTC").strftime("%Y-%m-%d %H:%MZ"))
         (Path(args.out_dir) / "rmm_clean_status.json").write_text(__import__("json").dumps(st))
         print(
             f"ENSO-removed RMM: dN34 {dn:+.2f} K, forecast amp {st['forecast']['amp_mean']}, "

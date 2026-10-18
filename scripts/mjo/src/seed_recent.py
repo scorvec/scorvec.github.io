@@ -34,7 +34,7 @@ def main() -> None:
     ap.add_argument("--source", default="era5", choices=["era5", "ncep"])
     args = ap.parse_args()
 
-    init = pd.Timestamp(args.date) if args.date else pd.Timestamp.utcnow().normalize()
+    init = pd.Timestamp(args.date) if args.date else pd.Timestamp.now("UTC").normalize()
     clim = xr.open_dataset("data/reference/climatology.nc")
     eofs = xr.open_dataset("data/reference/eofs.nc")
 

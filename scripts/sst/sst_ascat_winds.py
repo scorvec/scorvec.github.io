@@ -110,7 +110,7 @@ def build_manifest() -> None:
         by_date[key] = {"file": f.name, "date": key, "label": f"{d:%a %b %d, %Y}"}
     # Age out on the same rolling window the frame files use, so the manifest and
     # the branch stay in step.
-    cutoff = pd.Timestamp.utcnow().tz_localize(None) - pd.Timedelta(days=KEEP_DAYS)
+    cutoff = pd.Timestamp.now("UTC").tz_localize(None) - pd.Timedelta(days=KEEP_DAYS)
     keep = sorted((k for k in by_date if pd.to_datetime(k) >= cutoff), key=pd.to_datetime)
     frames = [{"idx": i, **{k: v for k, v in by_date[d].items() if k != "idx"}} for i, d in enumerate(keep)]
     manifest = {

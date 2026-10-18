@@ -129,7 +129,7 @@ def update(full: bool) -> pd.Series:
     s = _load()
     # tz_localize(None): utcnow() is tz-aware in pandas >=2 and the series index
     # is naive, so a bare comparison raises
-    end = pd.Timestamp.utcnow().tz_localize(None).normalize() - pd.Timedelta(days=2)
+    end = pd.Timestamp.now("UTC").tz_localize(None).normalize() - pd.Timedelta(days=2)
     if s.empty and not full:
         # 2026-10-07: the cached series was evicted from the Actions cache and the routine sst.yml run tried to rebuild the
         # whole record from 2002 against a failing ERDDAP - 70 min of timeouts, the job cancelled at its 90 min cap. A missing

@@ -57,7 +57,7 @@ def read_asc(text: str) -> pd.Series:
 
 def load_gfz(fetch: bool) -> pd.Series:
     """Daily wind-term AAM (1e25 kg m2 s-1), 1976 to the latest whole day."""
-    years = range(1976, pd.Timestamp.utcnow().year + 1)
+    years = range(1976, pd.Timestamp.now("UTC").year + 1)
     parts = []
     if fetch:
         import requests

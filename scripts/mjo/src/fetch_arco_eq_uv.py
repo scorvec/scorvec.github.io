@@ -77,7 +77,7 @@ def main() -> int:
         d0.close()
 
     u = open_u()
-    end = pd.Timestamp.utcnow().tz_localize(None).normalize()
+    end = pd.Timestamp.now("UTC").tz_localize(None).normalize()
     while fetch_day(u, end) is None and end > pd.Timestamp("2020-01-01"):
         end -= pd.Timedelta(days=1)
     want = [d for d in pd.date_range(end - pd.Timedelta(days=a.days - 1), end, freq="D") if d not in have]
