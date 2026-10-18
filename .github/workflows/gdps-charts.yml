@@ -2,9 +2,7 @@ name: GDPS tropical forecast products
 
 # ECCC GDPS (open Datamart, credential-free): the 10 m wind maps, the 3-hourly
 # 150 hPa wind+height loop, and the simulated-IR loop on the Atmosphere page.
-# Moved out of the serial run_local_sst.sh (2026-08-25) so a slow or
-# skipped run of it can't stall these; the script is idempotent and falls back
-# to yesterday's cycle when today's isn't complete yet.
+# The script is idempotent and falls back to yesterday's cycle when today's isn't complete yet.
 #
 # WHEN. A GDPS run reaches day 10 on the Datamart ~4 h 50 min after its start
 # (00Z: 04:47-04:49 UTC, 12Z: 16:48-17:09, 10-16 Oct 2026). The laptop's

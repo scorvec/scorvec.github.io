@@ -7,7 +7,7 @@ relax and downwelling Kelvin waves drive eastward surface-current surges that pr
 east Pacific — they show here as eastward (red) bands tilting down-and-eastward.
 
 Keeps a small rolling store of the band-mean current (committed); each run pulls only the new days
-(the first build backfills the window in monthly chunks). Runs in run_local_sst.sh (CMEMS creds).
+(the first build backfills the window in monthly chunks). Runs in sst.yml (Copernicus Marine credentials).
 
     python scripts/sst/eq_current_hovmoller.py --out assets/sst/eq_current_hov.webp
 """

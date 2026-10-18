@@ -12,7 +12,7 @@ The latitude-mean section (uo, thetao on time × depth × longitude) is kept in 
 NetCDF store, so a daily run downloads only the new day(s) and a full re-render (e.g. a plot-style
 change) costs zero download — it rebuilds the frames straight from the cache. Daily frames named by
 date; later runs append the new day(s). Feeds sst_anim.html (region "eq_cur_section"). Runs in
-run_local_sst.
+sst.yml.
 
     python scripts/sst/eq_current_section.py                     # append new day(s) + refresh the loop
     python scripts/sst/eq_current_section.py --start 2026-03-01  # (re)build from a given start date

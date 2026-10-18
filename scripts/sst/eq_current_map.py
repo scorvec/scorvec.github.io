@@ -8,7 +8,7 @@ Equatorial Counter Current near 5-10°N, the western-boundary and Central-Americ
 El Niño matures, eastward surface flow building on the equator.
 
 Frames are daily PNG/WebP named by date; the first build backfills the window in one block pull,
-later runs append the new day(s). Feeds sst_anim.html (region "eq_cur_map"). Runs in run_local_sst.
+later runs append the new day(s). Feeds sst_anim.html (region "eq_cur_map"). Runs in sst.yml.
 
     python scripts/sst/eq_current_map.py            # append new day(s) + refresh the loop
     python scripts/sst/eq_current_map.py --days 31  # backfill the rolling window

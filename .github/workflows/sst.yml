@@ -10,14 +10,8 @@ name: SST anomalies & RONI (El Niño monitor)
 # so the 13:50 slot already has the newest day and the 19:23 slot picks up PSL's copy
 # plus any preliminary day that has since been finalised.
 #
-# Cron timing matters. Two constraints, both in UTC (GitHub cron is always UTC):
-#   1. PSL rewrites sst.day.anom.<YEAR>.nc with the previous day at ~16:30 UTC.
-#   2. The primary (run_local_sst.sh) polls until 13:59 America/New_York,
-#      which is 17:59 UTC in EDT but 18:59 UTC in EST — the window MOVES with DST.
-# 19:23 UTC clears both year-round, so this fallback can only ever see the freshest
-# day and never overlaps the primary (its single-instance lock doesn't span runners).
-# The old 16:23 UTC slot sat 8 min ahead of PSL and was saved only by GitHub's
-# 1–2 h scheduling delay; an on-time dispatch would have committed stale maps.
+# Cron timing matters: PSL rewrites its yearly OISST file with the previous day at ~16:30 UTC
+# (GitHub cron is always UTC), so the evening slot sits at 19:23 UTC, clear of it year-round.
 on:
   schedule:
   - cron: '50 13 * * *'   # 13:50 UTC — right after NCEI posts the previous day's `_preliminary` daily file (~13:31 UTC). oisst9120.ensure_mean tops the PSL year file up from those dailies, so the monitor gets the new day ~3 h before PSL rebuilds its yearly file; the day is flagged provisional and is replaced when NCEI finalises (~2 weeks).
@@ -263,10 +257,7 @@ jobs:
           key: ascat-data-${{ hashFiles('scripts/sst/data/ascat/**') }}
 
       # Copernicus Marine equatorial CURRENT products (zonal-current section
-      # loop, surface-current map loop, current + wind Hovmollers). These ran
-      # only in run_local_sst.sh and stopped when its schedule was retired on
-      # 2026-08-29; they were left out of the offload and enso-subsurface.html
-      # froze at Aug 29. The scripts keep latitude-mean NetCDF stores under
+      # loop, surface-current map loop, current + wind Hovmollers). The scripts keep latitude-mean NetCDF stores under
       # scripts/sst/data/cmems (gitignored): section_store.nc (every day since
       # 1 Mar 2026, ~0.3 MB/day) and the two rolling Hovmoller stores. The
       # stores ride the frames branch with the loops (seeded above, published
@@ -288,8 +279,7 @@ jobs:
           python eq_current_map.py || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Equatorial surface-current map"
           rm -f data/cmems/*_chunk.nc data/cmems/map_block.nc   # transient subsets; only the stores go back to the branch
 
-      # Products that only run_local_sst.sh was building, moved here 2026-08-29 so the
-      # SST pipeline no longer needs run_local_sst.sh. Each is non-fatal: a
+      # Each of the following is non-fatal: a
       # single upstream outage should not take the whole cycle down, and the
       # previous figure/JSON stays on the site until the next run succeeds.
       - name: Warm-water volume orbit
@@ -384,12 +374,8 @@ jobs:
           perl -0pi -e "s/((?:mei\/mei_nowcast|mei\/mei_analogs|mei\/mei_history)\.webp)\?v=\w+/\${1}?v=$CB/g" ../../enso.html
           perl -0pi -e "s/((?:walker_basins|walker_chi_weekly)\.webp)\?v=\w+/\${1}?v=$CB/g" ../../circulation.html
 
-      # WITHOUT THIS THE ANIMATIONS NEVER LEAVE THE RUNNER. .gitignore keeps
-      # frame webp off main, and this workflow had no frames-branch publisher
-      # at all - so every loop it rendered was discarded when the job ended.
-      # It went unnoticed while run_local_sst.sh still had copies and pushed
-      # them; once those were cleaned up on 2026-08-30 the loops froze on the
-      # branch, which is why a fix to the anomaly contours never appeared.
+      # WITHOUT THIS THE ANIMATIONS NEVER LEAVE THE RUNNER: .gitignore keeps
+      # frame webp off main, so a loop rendered here is discarded when the job ends.
       - name: Publish frames to the orphan branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
