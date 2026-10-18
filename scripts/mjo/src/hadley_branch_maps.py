@@ -531,9 +531,11 @@ def height_km(p: np.ndarray) -> np.ndarray:
 def hc_edges(wmid: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Per longitude, the latitudes (north, south) where descent starts either side of the deep-tropical ascent: from
     the strongest ascent within EDGE_LAT of the equator, the first latitude each way where the 700-300 hPa omega,
-    strongly filtered (W_EFOLD), turns to descent, interpolated to the zero; NaN where there is no ascent there."""
+    strongly filtered (W_EFOLD), turns to descent, interpolated to the zero; NaN where there is no ascent there, or no
+    descent before the map's edge (EXTENT)."""
     w = HB.large_scale(wmid, efold=W_EFOLD)
     band = np.flatnonzero(np.abs(HB.LAT) <= EDGE_LAT)
+    rows = np.flatnonzero((EXTENT[0] <= HB.LAT) & (EXTENT[1] >= HB.LAT))
     north, south = np.full(HB.LON.size, np.nan), np.full(HB.LON.size, np.nan)
     for j in range(HB.LON.size):
         i0 = band[np.argmin(w[band, j])]
@@ -541,10 +543,11 @@ def hc_edges(wmid: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
             continue
         for step, out in ((-1, north), (1, south)):  # rows run north to south
             i = i0
-            while 0 < i < HB.LAT.size - 1 and w[i + step, j] < 0.0:
+            while rows[0] <= i + step <= rows[-1] and w[i + step, j] < 0.0:
                 i += step
-            a, b = w[i, j], w[i + step, j]
-            out[j] = HB.LAT[i] + (HB.LAT[i + step] - HB.LAT[i]) * a / (a - b)
+            if rows[0] <= i + step <= rows[-1]:
+                a, b = w[i, j], w[i + step, j]
+                out[j] = HB.LAT[i] + (HB.LAT[i + step] - HB.LAT[i]) * a / (a - b)
     return north, south
 
 
