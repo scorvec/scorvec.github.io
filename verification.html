@@ -64,9 +64,9 @@
   .leaflet-container { font-family: var(--sans); }
   .leaflet-container .leaflet-control-attribution a { color: #274b7a; }
   .cbar { display: flex; align-items: center; gap: 0.6rem; font-size: 0.82rem; color: var(--ink2); margin: 0.5rem 0 0; flex-wrap: wrap; }
-  .cbar .ramp { position: relative; flex: 0 1 360px; min-width: 200px; height: 12px; border-radius: 3px; }
-  .cbar .ticks { display: flex; justify-content: space-between; flex: 0 1 360px; min-width: 200px; font-variant-numeric: tabular-nums; }
-  .cbar .col { display: flex; flex-direction: column; gap: 2px; flex: 0 1 360px; min-width: 200px; }
+  .cbar .ramp { height: 12px; border-radius: 3px; }
+  .cbar .ticks { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+  .cbar .col { display: flex; flex-direction: column; gap: 2px; width: min(360px, 100%); }
   .tblwrap { overflow-x: auto; }
   table.sc { border-collapse: separate; border-spacing: 2px; font-size: 0.86rem; font-variant-numeric: tabular-nums; }
   table.sc th { font-size: 0.78rem; color: var(--muted); font-weight: 600; padding: 0.2rem 0.4rem; text-align: center; white-space: nowrap; }
@@ -408,7 +408,8 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
   const SURFACE = ["t2m", "td2m", "msl", "ws10", "wind10", "u10", "v10"];
   const UPPER = ["z", "t", "wind", "q", "u", "v"];
   const QTY = { z: "Geopotential height", t: "Temperature", wind: "Vector wind", q: "Specific humidity" };
-  const split = v => { const m = /^([a-z]+?)(\d+)$/.exec(v); return m && UPPER.includes(m[1]) ? [m[1], +m[2]] : null; };
+  // [quantity, hPa] of an upper-air variable; null for surface ones (wind10 is the 10 m wind, not 10 hPa)
+  const split = v => { const m = /^([a-z]+?)(\d+)$/.exec(v); return m && !SURFACE.includes(v) && UPPER.includes(m[1]) ? [m[1], +m[2]] : null; };
   function rank(v) {
     const i = SURFACE.indexOf(v);
     if (i >= 0) return i;
@@ -701,7 +702,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
       $("m-ticks").innerHTML = ticks.map((t, j) => `<span>${j === 4 && s === "rmse" ? "≥ " : ""}${+t.toFixed(Math.abs(hi) < 2 ? 2 : 1)}</span>`).join("");
       $("m-cap").textContent = s === "rmse" ? `${a} RMSE (${u})` : s === "bias" ? `${a} ${isWind ? "speed bias" : "bias"}, forecast − observed (${u})`
         : `${a} RMSE minus ${b} RMSE (${u}); blue where ${a} is better`;
-      $("map-note").innerHTML = `${esc(l.label)} against ${esc(l.truth)}, day ${+ml.value / 24}, over ${Math.max(...Object.values(sm.inits || {}).map(x => x.length), 0) || "all"} runs. ` +
+      $("map-note").innerHTML = `${esc(l.label)} against ${esc(l.truth)}, day ${+ml.value / 24}, averaged over the runs. ` +
         `${idx.length.toLocaleString()} stations that every model was scored at. Hover a dot for every model's numbers.`;
     }
     [mv, ms, mm, mr, ml].forEach(el => el.addEventListener("change", render));
@@ -716,7 +717,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     // Leaflet loads deferred, so it is ready once the document is parsed.
     const parsed = new Promise(ok => document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", ok) : ok());
     return Promise.all([fetch("/assets/verification/stations.json").then(r => r.ok ? r.json() : null), parsed]).then(([sm]) => {
-      if (sm) { sm.inits = card.inits; drawMap(sm); }
+      if (sm) drawMap(sm);
     });
   }).catch(e => {
     $("asof").textContent = "The scores could not be loaded (" + e.message + ").";
