@@ -27,7 +27,9 @@ rho = p_s/(R*288K), matching build_torque_basis.py, because the AIFS-ENS open
 data has no 2 m temperature at forecast steps.
 
 Output: data/reference/drag_cd_field.nc -- C_d(month, latitude, longitude) on
-the ~5 degree torque-map grid, plus the sample count and fit quality per cell.
+the ~5 degree torque-map grid, plus the sample count and fit quality per cell (committed; the
+input of build_torque_map_clim.py). Reference builder, run by hand when the method changes (no
+workflow runs it); it streams ARCO-ERA5 anonymously from GCS.
 
     python src/build_drag_field.py --stride 10 --workers 14
 """

@@ -10,6 +10,9 @@ AAM levels + surface pressure — small per field, unlike the 37-level ARCO stor
 the per-day-of-year mean. Stored at 1.5°; the plot interpolates it up to the forecast
 grid. No smoothing (matches the z500-normal convention).
 
+Reference builder, run by hand when the method changes (no workflow runs it); it streams
+WeatherBench2 anonymously from GCS. Output: data/reference/aam_density_clim.nc (committed).
+
     python src/build_aam_density_clim.py --workers 8
 """
 

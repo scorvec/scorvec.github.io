@@ -3,6 +3,7 @@
 
 OurAirports (public domain, davidmegginson/ourairports-data): large and medium airports in the US and Canada with
 scheduled service and a 4-letter ICAO identifier. Tier 1 = large_airport (drawn at national scale), 2 = medium.
+Run by hand to refresh the committed list; no workflow runs it.
 
     python scripts/models/build_airports.py --out data/models_airports.json
 """

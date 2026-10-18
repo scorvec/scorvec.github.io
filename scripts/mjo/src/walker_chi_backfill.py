@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""One-off: seed the χ history from the AIFS-ENS 0-h analyses still on the Google mirror
-(~45 days). Writes scripts/mjo/data/reference/walker_chi_history_seed.nc, which walker_chi merges
-with the frames-branch history on every runner.
+"""One-off: seed the χ history from the AIFS-ENS 0-h analyses on the Google mirror (the last
+~45 days). Writes scripts/mjo/data/reference/walker_chi_history_seed.nc (committed), which
+walker_chi merges with the frames-branch history on every runner. Run by hand; no workflow runs it.
 
     python src/walker_chi_backfill.py --days 44
 """

@@ -3,9 +3,10 @@
 
 An earlier builder streamed ERA5 and hard-coded a single constant drag
 coefficient. This one reads the pre-computed basis
-(build_torque_basis.py -> torque_basis_1991-2020_s5.nc, 00Z+12Z, 5-day stride,
-1991-2020) and applies the ERA5-derived drag FIELD, so no ERA5 is re-streamed and the
-climatology matches exactly the drag the live product uses.
+(build_torque_basis.py -> torque_basis_1991-2020_s5.nc in $MJO_CACHE/era5_cache, 00Z+12Z,
+5-day stride, 1991-2020) and applies the ERA5-derived drag FIELD, so no ERA5 is re-streamed.
+The live maps (torque_map_anim.py) take their friction from the model's own surface stress
+and their anomalies against this climatology.
 
 Why the drag changed
 --------------------
@@ -18,12 +19,12 @@ drag coefficient is a property of the SURFACE, not of a latitude.
 build_drag_field.py therefore solves C_d per grid cell and calendar month so the
 bulk kernel best reproduces ERA5's own boundary-layer stress. Median fit r2 is
 0.95, and C_d runs 1.3e-3 over ocean to 1.8e-2 over rough land -- the physics the
-single constant was missing. This script applies that same field to the stored
-basis, so the climatology the anomalies are taken against is built from exactly
-the drag the live forecast uses. (The time-series bands' spread, torque_hemi_sd.nc, is
-build_torque_hemi_sd.py's: daily means, ERA5's own stress.)
+single constant was missing. This script applies that field to the stored basis, so
+the climatology's friction is ERA5's own stress as closely as the bulk kernel allows.
+(The time-series bands' spread, torque_hemi_sd.nc, is build_torque_hemi_sd.py's: daily
+means, ERA5's own stress.) Offline, run by hand; no workflow runs it.
 
-    python src/build_torque_map_clim2.py
+    python src/build_torque_map_clim.py      # -> data/reference/torque_map_clim_coeffs.nc (committed)
 """
 
 from __future__ import annotations
@@ -42,7 +43,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
 from localdirs import env_dir
 
 BASIS = env_dir("MJO_CACHE", "era5_cache", "torque_basis_1991-2020_s5.nc")
-DRAG = REF / "drag_cd_field.nc"  # per-cell, per-month C_d — same object the live product uses
+DRAG = REF / "drag_cd_field.nc"  # per-cell, per-month C_d (build_drag_field.py)
 OUT = REF / "torque_map_clim_coeffs.nc"
 
 
@@ -60,8 +61,8 @@ def main() -> int:
     print(f"basis {len(t)} times, hours {hours.tolist()}", flush=True)
 
     # Friction density = C_d(month, y, x) * (bulk kernel). Xl5 + Xs5 IS that kernel
-    # (the land/sea split exists only so a fitted split could be tried); using the
-    # same drag field as the forecast is what keeps the anomaly meaningful.
+    # (the land/sea split exists only so a fitted split could be tried); the fitted
+    # drag field makes it ERA5's own stress, which the forecast's stress is compared with.
     kern = b["Xl5"].values + b["Xs5"].values
     cdm = cdf.values[t.month.values - 1]  # (time, lat, lon)
     fric = kern * cdm
@@ -92,9 +93,8 @@ def main() -> int:
             "note": (
                 "ERA5 1991-2020 torque-density harmonic climatology, 5 deg. "
                 "Friction uses the per-cell per-month drag field solved against "
-                "ERA5's own boundary-layer stress (median fit r2 0.95), the same "
-                "field the live forecast uses. Built from the stored basis, not "
-                "re-streamed."
+                "ERA5's own boundary-layer stress (median fit r2 0.95). Built from "
+                "the stored basis, not re-streamed."
             ),
             "source_basis": BASIS.name,
             "drag_field": DRAG.name,

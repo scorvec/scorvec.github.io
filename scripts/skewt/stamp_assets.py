@@ -9,7 +9,7 @@ chrome re-apply runs. sharplib.js resolves the .wasm URL itself, so a cached WAS
 could still pair with fresh JS: this script pins the wasm hash into app.js
 (WASM_V) and then re-applies the chrome so the page picks up the new app.js hash.
 
-Run after scripts/skewt/build_wasm.sh:
+scripts/skewt/build_wasm.sh runs it at the end of every rebuild; by hand:
 
     python scripts/skewt/stamp_assets.py
 """

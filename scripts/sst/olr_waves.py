@@ -11,7 +11,7 @@ Run the self-test first — it pushes synthetic eastward/westward waves through 
 asserts the direction selectivity, which is the part that's easy to get backwards:
 
     python scripts/sst/olr_waves.py --selftest
-    python scripts/sst/olr_waves.py --hist 2021-06-01 --days 150   # historical demo render
+    python scripts/sst/olr_waves.py --realtime --out assets/sst/olr_waves.webp
 """
 
 from __future__ import annotations
@@ -32,7 +32,6 @@ import matplotlib.pyplot as plt
 from matplotlib.dates import DateFormatter
 
 HERE = Path(__file__).resolve().parent
-HIST = HERE / "data" / "olr_history.nc"  # full 1979-2022 backbone (gitignored, local)
 BASELINE = HERE / "metar" / "olr_baseline.nc"  # committed ERA5 climatology + proxy offset (build_olr_baseline.py)
 STORE_RT = HERE / "metar" / "olr_rt.nc"  # committed rolling GMGSI store
 
@@ -175,22 +174,6 @@ def clim_days(times):
     s = doy366(times)
     lo = np.where(s < 59, s + 1, s)
     return lo, np.where(s == 59, 60, lo)
-
-
-def clim_at(clim: xr.DataArray, times) -> np.ndarray:
-    """The `dayofyear`-keyed climatology at each of `times` (clim_days), stacked on a leading time axis."""
-    lo, hi = clim_days(times)
-    return 0.5 * (
-        clim.sel(dayofyear=xr.DataArray(lo, dims="time")).values
-        + clim.sel(dayofyear=xr.DataArray(hi, dims="time")).values
-    )
-
-
-def _anomaly(ds: xr.Dataset, band: str = "15") -> xr.DataArray:
-    """OLR anomaly = OLR − smooth daily climatology (by common-year day of year)."""
-    olr = ds[f"olr_{band}"]
-    a = olr.values - clim_at(ds[f"clim_{band}"], olr["time"].values)
-    return xr.DataArray(a, coords={"time": olr["time"], "lon": olr["lon"]}, dims=("time", "lon"))
 
 
 # ----------------------------------------------------------------------
@@ -366,33 +349,25 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--selftest", action="store_true")
     ap.add_argument("--realtime", action="store_true", help="render current period from the GMGSI store")
-    ap.add_argument("--hist", help="end date YYYY-MM-DD for a historical demo render")
     ap.add_argument("--days", type=int, default=200)
     ap.add_argument("--out", default=str(HERE.parent.parent / "assets" / "sst" / "olr_waves.webp"))
     args = ap.parse_args(argv)
     if args.selftest:
         return selftest()
-    if args.realtime:
-        base = xr.open_dataset(BASELINE)
-        rt = xr.open_dataset(STORE_RT)
-        anom = _anomaly_rt(rt, base, "05")
-        end = pd.Timestamp(anom["time"].values[-1]).to_pydatetime()
-        render(
-            anom,
-            end,
-            min(args.days, 360),
-            Path(args.out),
-            prelim_days=7,
-            subtitle="GMGSI longwave-IR proxy, offset to ERA5 · anomaly vs ERA5 1991–2020",
-        )
-    else:
-        clim = xr.open_dataset(HIST)
-        end = (
-            datetime.strptime(args.hist, "%Y-%m-%d")
-            if args.hist
-            else datetime.utcfromtimestamp(clim["time"].values[-1].astype("datetime64[s]").astype(int))
-        )
-        render(_anomaly(clim, "05"), end, args.days, Path(args.out), subtitle="NOAA interpolated OLR 1979–2022")
+    if not args.realtime:
+        ap.error("give --realtime (render the current period) or --selftest")
+    base = xr.open_dataset(BASELINE)
+    rt = xr.open_dataset(STORE_RT)
+    anom = _anomaly_rt(rt, base, "05")
+    end = pd.Timestamp(anom["time"].values[-1]).to_pydatetime()
+    render(
+        anom,
+        end,
+        min(args.days, 360),
+        Path(args.out),
+        prelim_days=7,
+        subtitle="GMGSI longwave-IR proxy, offset to ERA5 · anomaly vs ERA5 1991–2020",
+    )
     return 0
 
 

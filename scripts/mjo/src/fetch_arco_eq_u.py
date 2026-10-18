@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """ERA5 (ARCO) daily equatorial-band zonal wind for RMM self-standardization.
 
-Supersedes the MERRA-2 sweep (fetch_m2_eq_u.py): calibrate pc_wind_std on the
-same reanalysis stream the operational index consumes (ERA5/AIFS).
+Calibrates pc_wind_std (recalibrate_pc_wind_std.py) and the ENSO correction of
+the wind-only RMM (build_enso_rmm3.py) on the same reanalysis stream the
+operational index consumes (ERA5/AIFS). Offline, run by hand; no workflow runs it.
 
 Reads the native 0.25 deg 37-level ARCO store per timestep. One chunk = one
 hour x all levels x full globe, so u850+u200 and the whole 15S-15N band arrive

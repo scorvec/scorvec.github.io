@@ -5,7 +5,11 @@ For each 0.25° latitude from 24°N to 61°N, the first land longitude scanning 
 165°W across the North American mainland (Vancouver Island and Haida Gwaii count as coast;
 small islands and the Alaska Peninsula's Aleutian tail do not), and one grid point offshore
 of it — the point where landfalling IVT is read. Plus a set of named locations used for the
-AR-scale table. Land from Natural Earth 50 m polygons.
+AR-scale table. Land from Natural Earth 50 m polygons (through cartopy, which fetches them once).
+
+Run by hand when the transect changes; no workflow runs it:
+
+    python scripts/ar/build_coast.py      # -> scripts/ar/data/coast_transect.json (committed, read by arlib.py)
 """
 
 from __future__ import annotations

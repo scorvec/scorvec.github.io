@@ -10,6 +10,9 @@ mode to the ddof=1 std of THAT series — the WH04 standardization measured on
 the same reanalysis stream operations consume (in place of an interim x2.195
 factor calibrated on a 26-day OMI overlap).
 
+Offline, run by hand (no workflow runs it), on the yearly files fetch_arco_eq_u.py writes to
+data/reference/arco_eq_u/; --apply rewrites the committed eofs.nc.
+
     python src/recalibrate_pc_wind_std.py            # compute + validate only
     python src/recalibrate_pc_wind_std.py --apply    # also rewrite eofs.nc
 """
