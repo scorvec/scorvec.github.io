@@ -1,4 +1,4 @@
-// Drop a particle (circulation.html#hbranch/drop). Mounted by stage.js as the dom block #hbd-view: a click between
+// Drop a particle (circulation.html#hadley/turnover/drop). Mounted by stage.js as the dom block #hbd-view: a click between
 // 20°S and 20°N picks the nearest seed of hadley_branch_maps.drop(), and that seed's forward path from the chosen
 // release and height is drawn on the map, with its pressure and latitude against time below; a click on a path picks
 // that particle for the time-height plot (heights from the standard atmosphere: the files hold pressure). Data:

@@ -9,15 +9,16 @@
      (the vetted explanatory text and sources, collapsed); bust:"hourly" appends an hour cache key.
      gated:true (dom) -> the block's own script shows/hides it and a hidden one leaves the rail;
      ownHash:true (dom) -> the block keeps its own state after "#id/" in the hash and the stage leaves it.
-   STAGE.aliases maps old ids to products; STAGE.related = false drops the related-plots strip; STAGE.onRender(sel)
-   runs after each render. An optional #stage-stamp element shows the stamp the figure on stage reports for itself.
+   STAGE.aliases maps old ids to products, or to a product and its options ("product/a"); STAGE.related = false
+   drops the related-plots strip; STAGE.onRender(sel) runs after each render. An optional #stage-stamp element
+   shows the stamp the figure on stage reports for itself.
    Selection lives in the hash (#product/a/b/c); with the focus in the viewer ← → step the deepest option row and,
    in the list of plots, ↑ ↓ the product. */
 (function () {
   "use strict";
   var S = window.STAGE; if (!S) return;
   var P = S.products, GROUPS = S.groups;
-  var AL = S.aliases || {};              // old product ids -> live ones, so old deep links land on a view
+  var AL = S.aliases || {};              // old product ids -> live ones ("id" or "id/a/b"), so old deep links land on a view
   var ORDER = []; GROUPS.forEach(function (g) { g.items.forEach(function (p) { ORDER.push(p[0]); }); });
   var sel = { p: ORDER[0], a: null, b: null, c: null };
   var $ = function (id) { return document.getElementById(id); };
@@ -444,7 +445,7 @@
     // the catalogue entry for this figure: its own id, an old id that aliases to it, or failing both the page itself
     var here = pagePath(), me = null, ids = {};
     ids[here + "#" + sel.p] = 1;
-    Object.keys(AL).forEach(function (k) { if (AL[k] === sel.p) ids[here + "#" + k] = 1; });
+    Object.keys(AL).forEach(function (k) { if (AL[k].split("/")[0] === sel.p) ids[here + "#" + k] = 1; });
     relCat.items.forEach(function (it) { if (it.page === here && ids[it.id]) me = it; });
     if (!me) relCat.items.forEach(function (it) { if (!me && it.id === here) me = it; });
     if (!me) { relBox.hidden = true; return; }
@@ -590,7 +591,7 @@
     });
     return n;
   }
-  function hashParts() { var h = location.hash.replace(/^#/, "").split("/"); return (h[0] && !P[h[0]] && AL[h[0]]) ? [AL[h[0]]] : h; }
+  function hashParts() { var h = location.hash.replace(/^#/, "").split("/"); return (h[0] && !P[h[0]] && AL[h[0]]) ? AL[h[0]].split("/") : h; }
   function follow() {
     var h = hashParts(); if (!(h[0] && P[h[0]])) return;
     var n = fromHash(h);

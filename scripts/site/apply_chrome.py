@@ -169,13 +169,7 @@ PRODUCTS = [
                     (
                         "/circulation.html#hadley",
                         "Hadley cells",
-                        "The meridional overturning: every analysed week since July 2025 and three ensembles' forecasts to day 15 against ERA5, each cell's strength and poleward edge, and this season against every El Niño since 1963.",
-                        "Daily",
-                    ),
-                    (
-                        "/circulation.html#hbranch",
-                        "Hadley outflow and descent",
-                        "The Hadley cells' outflow on the dynamic tropopause, their descent and the subtropical ridges and highs it builds, mapped every analysed week and tracked basin by basin against ERA5, with back-trajectories timing how fast the cells turn over and a map to drop a particle in the tropics and follow it.",
+                        "The meridional overturning in three parts: the cells themselves (every analysed week since July 2025, three ensembles' forecasts to day 15 against ERA5, each cell's strength and poleward edge, El Niño years); their outflow on the dynamic tropopause, their descent and the subtropical ridges and highs it builds, tracked basin by basin; and back-trajectories timing how fast the cells turn over, with a map to drop a particle in the tropics and follow it.",
                         "Daily",
                     ),
                     (
@@ -833,7 +827,6 @@ HOME = {
             "/circulation.html#tcshear",
             "/circulation.html#walker",
             "/circulation.html#hadley",
-            "/circulation.html#hbranch",
             "/circulation.html#jets",
             "/circulation.html#aam",
         ],
