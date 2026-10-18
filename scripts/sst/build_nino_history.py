@@ -15,8 +15,9 @@ Sources, and which one wins:
   +1.80. The official values are applied across the whole record rather than
   spliced onto the end, so no step appears mid-series.
 
-  Anything CPC has not published yet is still bridged from the OISST daily feed
-  and flagged by `provisional_after`.
+  Anything CPC has not published yet is the site's own estimate, from the ERSSTv6
+  grid or the OISST daily bridge, full 3-month seasons only, and is flagged by
+  `provisional_after`.
 
 Writes assets/sst/data/nino_history.json: the full monthly series for all four regions
 (absolute SST + anomaly) and ONI, plus an El Niño event table (onset year, DJF-peak
@@ -177,7 +178,9 @@ def main() -> int:
         print("no Niño-box months in the ERSSTv6 grid", file=sys.stderr)
         return 1
 
-    oni = df["n34a"].rolling(3, center=True, min_periods=2).mean()  # ONI = 3-mo running Niño-3.4 anom
+    # ONI = 3-mo running Niño-3.4 anom; full seasons only: the season centred on the newest grid month needs the
+    # month after it, and a 2-month mean must not stand in for it
+    oni = df["n34a"].rolling(3, center=True, min_periods=3).mean()
 
     # Historical RONI on the same fixed footing: the grid's Niño-3.4 anomaly minus its tropical-mean anomaly,
     # σ-scaled per calendar month, 3-month running mean. A FALLBACK only: the official CPC values below overwrite it
@@ -186,7 +189,7 @@ def main() -> int:
         trop = tropical_anom(ds, df.index)
         sc = roni_scale()
         rel = (df["n34a"] - trop) * pd.Series([sc.get(t.month, 1.0) for t in df.index], index=df.index)
-        roni = rel.rolling(3, center=True, min_periods=2).mean()
+        roni = rel.rolling(3, center=True, min_periods=3).mean()
     except Exception as e:  # noqa: BLE001
         # The grid is only the FALLBACK side of RONI; CPC's official table below
         # covers every month since 1950, so an empty series still fills from it.
@@ -340,15 +343,22 @@ def main() -> int:
             provisional_from = provisional_from or (official_through or last_table)
     except Exception as _e:  # noqa: BLE001
         print(f"  provisional bridge skipped: {_e}")
+    # an ONI/RONI season past CPC's newest is the site's estimate whichever source gave it (the grid's fixed-base
+    # fallback, or the bridge): flag it, so no consumer draws it as CPC's
+    if official_through and any(
+        v is not None for k in ("oni", "roni") for m, v in zip(months, series[k]["anom"]) if m > official_through
+    ):
+        provisional_from = provisional_from or official_through
 
     out = {
         "generated": datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
-        "provisional_after": provisional_from,  # ONI/RONI: months past this are our OISST estimate
+        "provisional_after": provisional_from,  # ONI/RONI: months past this are the site's estimate, not CPC's
         "regional_provisional_after": regional_from,  # Nino boxes: months past this are OISST monthly means
         "source": (
             "ONI/RONI: CPC's published tables (official; RONI is ERSSTv6 and has "
             "been CPC's official ENSO index since Feb 2026); months past provisional_after "
-            "are our OISST v2.1 estimate. Regional Niño series: box means of the NOAA ERSSTv6 "
+            "are the site's estimate (ERSSTv6 grid on a fixed 1991–2020 base, or OISST v2.1), full "
+            "3-month seasons only. Regional Niño series: box means of the NOAA ERSSTv6 "
             "grid, fixed 1991–2020 base; months past regional_provisional_after are OISST v2.1 "
             "monthly means on the same 1991–2020 base."
         ),
