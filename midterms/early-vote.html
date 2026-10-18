@@ -282,6 +282,8 @@ with the same 17-day early-voting calendar starting on the third Thursday before
 <h2 id="nv">Nevada (Clark County)</h2>
 <div class="chips" id="nvchips"></div>
 <ul class="find" id="nvfind"><li>Loading&hellip;</li></ul>
+<div class="tw"><table id="nvcd"></table></div>
+<p class="sans" id="nvcdnote"></p>
 
 <h2 id="gate">Why the early-vote mix is not in the forecast</h2>
 <p>Whether a party's registrants are over- or under-represented among early ballots is the most quoted early-vote reading.
@@ -619,7 +621,9 @@ state's factor above; its counts are not republished here.</p>
       " on the active rolls. Every active voter is sent a ballot, so relative to the rolls the returns are " + sgn(M.vs_registration_pts) + " points Rep &minus; Dem (" +
       n0(M.signature_missing) + " returned without a signature, awaiting cure, are counted)."];
     ["2024", "2022"].forEach(function (y) {
-      var b = M["vs_" + y]; if (!b) return;
+      var b = M["vs_" + y], from = M["vs_" + y + "_from"];
+      if (!b && from != null) { f.push("<b>Against " + y + ".</b> Matched from " + from + " days out: the county logged " + y + "'s first weeks of returns in one batch that day, so earlier days have almost nothing to compare with."); return; }
+      if (!b) return;
       f.push("<b>Against " + y + ".</b> At the same " + M.days_out + " days out, " + n0(b.returned.total) + " mail ballots had come back, Republicans " + sgn(b.R_minus_D_pct) +
         " against Democrats; 2026 has " + Math.abs(b.returned_change_pct).toFixed(0) + "% " + (b.returned_change_pct >= 0 ? "more" : "fewer") + ".");
     });
@@ -632,6 +636,12 @@ state's factor above; its counts are not republished here.</p>
         (P.vs_2024.change_pct >= 0 ? "+" : "&minus;") + Math.abs(P.vs_2024.change_pct).toFixed(0) + "%); 2024's party mix at the time is not published, so it is compared on turnout only.");
     }
     $("nvfind").innerHTML = f.map(function (x) { return "<li>" + x + "</li>"; }).join("");
+    var C = V.districts || {}, ks = Object.keys(C).sort();
+    if (!ks.length) { $("nvcd").innerHTML = ""; $("nvcdnote").innerHTML = ""; return; }
+    var cell = function (c) { return c ? n0(c.total) + "</td><td>" + sgn(c.R_minus_D_pct) + (c.vs_registration_pts != null ? " (" + sgn(c.vs_registration_pts) + ")" : "") : "&ndash;</td><td>&ndash;"; };
+    $("nvcd").innerHTML = "<tr><th>District</th><th>Registered, Rep &minus; Dem</th><th>Mail returned</th><th>Rep &minus; Dem (vs rolls)</th><th>In person</th><th>Rep &minus; Dem (vs rolls)</th><th>Together, Rep &minus; Dem</th></tr>" +
+      ks.map(function (k) { var d = C[k]; return "<tr><td>" + esc(k) + "</td><td>" + sgn(d.registration.R_minus_D_pct) + "</td><td>" + cell(d.mail) + "</td><td>" + cell(d.in_person) + "</td><td>" + (d.combined ? sgn(d.combined.R_minus_D_pct) : "&ndash;") + "</td></tr>"; }).join("");
+    $("nvcdnote").innerHTML = "By congressional district, each against its own active voters (points; in brackets, the ballots' Rep &minus; Dem less the rolls'). NV-4 is only its Clark County part; its rural counties are not in these files.";
   }
 
   function get(u) { return fetch(u, { cache: "no-cache" }).then(function (r) { if (!r.ok) throw new Error(u); return r.json(); }); }
