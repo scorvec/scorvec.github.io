@@ -1,0 +1,144 @@
+name: Hadley outflow and descent forecasts (AIFS-ENS, IFS-ENS, GEFS against ERA5)
+
+# scripts/mjo/src/hadley_branch_fc.py: every perturbed member of the 00Z AIFS-ENS, IFS-ENS (Google mirror) and GEFS
+# (NOAA S3) runs, the 00 UTC fields of lead days 0-15 less its model's drift against ERA5 (hbranch_drift.npz in release
+# hbranch-ref-v1, from hbranch-ref.yml), in trailing 7-day windows led in by the analysed days (release hbranch-hres,
+# hbranch.yml); one job per ensemble, then the loops per ensemble and pooled, cut to the windows whose skill passed
+# (scripts/mjo/data/reference/hbranch_skill.json), and the trackers redrawn with the ensembles' numbers. IFS-ENS reaches
+# its last step on the Google mirror around 08:50 UTC.
+on:
+  schedule:
+    - cron: '40 10 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: '00Z run, YYYYMMDD (empty = today)'
+        required: false
+        default: ''
+      force:
+        description: 'Run even if this run is already drawn'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hbranch-ens
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  ECMWF_SOURCES: google
+  ECMWF_RANGE_GAP_MB: '0.5'   # IFS-ENS ef files scatter a member's messages: a 3 MB gap fetches ~2x the bytes
+  ARCH: scripts/mjo/data/hbranch
+
+jobs:
+  which:
+    runs-on: ubuntu-latest
+    outputs:
+      date: ${{ steps.run.outputs.date }}
+      skip: ${{ steps.run.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Which run
+        id: run
+        env:
+          DATE: ${{ inputs.date }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          d="${DATE:-$(date -u +%Y%m%d)}"
+          echo "date=$d" >> "$GITHUB_OUTPUT"
+          have=$(python3 -c "import json; print(json.load(open('assets/sst/anim/hbranch_fc_manifest.json'))['ver'])" 2>/dev/null || echo none)
+          if [ "$have" = "${d}00" ] && [ "$FORCE" != "true" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; echo "run $d 00Z already drawn"; fi
+
+  run:
+    needs: which
+    if: needs.which.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        model: [aifs, ifs, gefs]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - name: The drift and the analysed days
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download hbranch-ref-v1 -R "$GITHUB_REPOSITORY" -p hbranch_drift.npz -D scripts/mjo/data/reference --clobber
+          mkdir -p "$ARCH"
+          gh release download hbranch-hres -R "$GITHUB_REPOSITORY" -p 'hb_*.npz' -p offset_era5.npz -D "$ARCH" --clobber
+      - name: This ensemble's windows
+        run: python scripts/mjo/src/hadley_branch_fc.py run --model ${{ matrix.model }} --date "${{ needs.which.outputs.date }}" --out runs/${{ matrix.model }}.npz
+      - uses: actions/upload-artifact@v7
+        with:
+          name: hbranch-ens-${{ matrix.model }}
+          path: runs/
+          if-no-files-found: ignore   # an ensemble left out (no drift fit, no skill, too few members)
+          retention-days: 2
+
+  render:
+    needs: [which, run]
+    if: ${{ !cancelled() && needs.which.outputs.skip != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: hbranch-ens-*
+          path: runs
+          merge-multiple: true
+      - name: The analysed days
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$ARCH"
+          gh release download hbranch-hres -R "$GITHUB_REPOSITORY" -p 'hb_*.npz' -p offset_era5.npz -D "$ARCH" --clobber
+      - name: Loops and trackers
+        run: |
+          shopt -s nullglob
+          python scripts/mjo/src/hadley_branch_fc.py render --date "${{ needs.which.outputs.date }}" runs/*.npz
+      - name: Publish the frames (frames branch)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # each loop is replaced whole; the analysed lead-in frames are hbranch.yml's
+          scripts/lib/publish_frames_ci.sh $(ls -d assets/sst/anim/hbranch_fc_*/ | sed 's#/$##')
+      - name: Commit & push (manifest, numbers, trackers)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/sst/anim/hbranch_fc_manifest.json assets/sst/data/hbranch_fc.json assets/sst/hbranch_flow.webp assets/sst/hbranch_ridges.webp"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" $OUT
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            perl -0pi -e "s/(hbranch_(?:flow|ridges)\.webp)\?v=\w+/\${1}?v=$(date -u +%Y%m%d%H%M)/g" circulation.html
+            git add circulation.html $OUT
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "Hadley outflow and descent forecasts: ${{ needs.which.outputs.date }}"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

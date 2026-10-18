@@ -1,0 +1,153 @@
+name: TC shear and environment
+
+# Tropical-cyclone vertical wind shear and environment per active storm (scripts/tcshear/, circulation.html#tcshear):
+# environmental (vortex-removed) wind profile and hodograph, 200-850 / 850-500 / 500-200 hPa and generalized shear,
+# shear height and depth, vortex tilt against the shear and the observed TDR tilt, the ventilation index, and the 330 K
+# PV source of the shear - along the IFS control (ECMWF's unperturbed run, HRES until May 2026: the lead run and the
+# maps), every AIFS-ENS perturbed member's own track, AIFS single, GFS and HRRR.
+#
+# Cadence: every 00/06/12/18Z cycle, built once the IFS control is on the Google mirror next to AIFS-ENS: 06/18Z at
+# ~T+6.4 h (the dispatcher's :40 slots), 00/12Z at ~T+7.5 h (07:50/19:50); scripts/lib/dispatch_workflows.sh, the cron
+# below is the backstop. A first stdlib-only step asks NHC and JTWC whether any storm is active and ends the run in
+# seconds when none is; a cycle already published, or not ready yet, also exits early.
+# Data: ECMWF open data from the Google Cloud mirror ONLY; GFS / HRRR from the AWS S3 open-data buckets; OISST from NCEI.
+# Maps and per-storm JSON go to the frames branch (sha-pinned via publish_frames_ci.sh); the manifest and the
+# verification archive to main.
+#
+# mode=verify   SHIPS lsdiag (this season, NHC ATCF) vs the same quantities from the GFS at SHIPS's own positions, and
+#               model vortex tilt vs the NOAA TDR tilt for every flight with HRD centres (Melissa 2025, this season).
+# mode=hindcast a full product run for one past cycle (date/time/storm) into assets/sst/anim/tcshear_hc.
+on:
+  schedule:
+    - cron: '50 1,7,13,19 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'live | verify | hindcast'
+        default: 'live'
+      date:
+        description: 'Cycle date YYYYMMDD (blank = newest ready cycle)'
+        default: ''
+      time:
+        description: 'Cycle hour 00/06/12/18 (blank = newest)'
+        default: ''
+      storm:
+        description: 'hindcast: tracker id, e.g. 13L'
+        default: ''
+      members:
+        description: 'AIFS-ENS perturbed members to use (50 = all)'
+        default: '50'
+      force:
+        description: 'rebuild a cycle that is already published'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tcshear-${{ github.event.inputs.mode || 'live' }}
+  cancel-in-progress: false
+
+env:
+  ECMWF_SOURCES: google
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      MPLBACKEND: Agg
+      MODE: ${{ github.event.inputs.mode || 'live' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Any storm active? (stdlib only)
+        id: gate
+        run: |
+          if [ "$MODE" = "live" ]; then python3 scripts/tcshear/gate.py; else echo "any=true" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: actions/setup-python@v7
+        if: steps.gate.outputs.any == 'true'
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        if: steps.gate.outputs.any == 'true'
+        with:
+          path: ~/.cache/pip
+          key: pip-tcshear-${{ runner.os }}-${{ hashFiles('scripts/tcshear/requirements.txt') }}
+
+      - name: Install
+        if: steps.gate.outputs.any == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/tcshear/requirements.txt
+
+      - name: Build (live)
+        if: steps.gate.outputs.any == 'true' && env.MODE == 'live'
+        timeout-minutes: 120
+        run: |
+          args=(--members "${{ github.event.inputs.members || '50' }}")
+          [ -n "${{ github.event.inputs.date }}" ] && args+=(--date "${{ github.event.inputs.date }}" --time "${{ github.event.inputs.time }}")
+          [ "${{ github.event.inputs.force }}" = "true" ] && args+=(--force)
+          /usr/bin/time -v python scripts/tcshear/tcshear.py "${args[@]}" 2> >(tee /tmp/time.txt >&2)
+          grep -E "Maximum resident|Elapsed" /tmp/time.txt || true
+          du -sh assets/sst/anim/tcshear || true
+
+      - name: Build (hindcast)
+        if: env.MODE == 'hindcast'
+        timeout-minutes: 120
+        run: |
+          python scripts/tcshear/tcshear.py --date "${{ github.event.inputs.date }}" --time "${{ github.event.inputs.time }}" \
+            --only "${{ github.event.inputs.storm }}" --members "${{ github.event.inputs.members || '50' }}" --tag hc --force --no-hrrr
+
+      - name: Verify (SHIPS lsdiag and TDR tilt)
+        if: env.MODE == 'verify'
+        timeout-minutes: 140
+        run: python scripts/tcshear/verify.py --out assets/sst/data/tcshear_validation.json
+
+      # The publisher retries a lost lease itself, but a collision with another publisher can still end it (2026-10-07:
+      # "stale info" then its temp-dir cleanup failed under set -e); try the whole publish up to three times. The commit
+      # step below runs only after a successful publish, so the manifest never points at JSON that is not there.
+      - name: Publish maps and per-storm data to the frames branch
+        if: steps.gate.outputs.any == 'true' && env.MODE != 'verify'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          D=assets/sst/anim/tcshear; [ "$MODE" = "hindcast" ] && D=assets/sst/anim/tcshear_hc
+          for i in 1 2 3; do
+            if bash scripts/lib/publish_frames_ci.sh "$D"; then exit 0; fi
+            echo "::warning::frames publish attempt $i failed; retrying"; sleep $((20 * i))
+          done
+          exit 1
+
+      # Only the files THIS mode writes: the three modes run in separate concurrency groups, so a verify or hindcast run
+      # that also snapshotted the live manifest / verify archive (stale checkout copies) could commit them over a live
+      # run's newer ones (2026-10-12 review).
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          case "$MODE" in
+            live)     OUT="assets/sst/anim/tcshear_manifest.json assets/sst/data/tcshear_verify.json" ;;
+            verify)   OUT="assets/sst/data/tcshear_validation.json" ;;
+            hindcast) OUT="assets/sst/anim/tcshear_hc_manifest.json" ;;
+            *)        echo "::error::unknown mode '$MODE'"; exit 1 ;;
+          esac
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            for f in $OUT; do if [ -e "$f" ]; then git add "$f"; fi; done
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "data update: tc shear ($MODE) $(date -u +%Y%m%d_%H%MZ)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

@@ -1,0 +1,148 @@
+name: Tropical sea-level pressure forecasts - drift and skill (archived ensembles against ERA5 -> release hslp-ref-v1)
+
+# scripts/mjo/src/hadley_slp_ref.py. ERA5's daily means from ARCO, and the archived AIFS-ENS, IFS-ENS (Google mirror) and
+# GEFS (NOAA S3) 00Z runs on the 5-day lattice since 2024-03-01: ten perturbed members' daily means at lead days 0-14,
+# on the 1.5 deg grid over 40S-40N. Each part is one slice of the lattice (or of the ERA5 days); the release job merges
+# the parts with the reference already published (hslp_ref.npz), then fits the drift the live forecasts are corrected by
+# (hslp_drift.npz, the same release) and scores the corrected members' mean against the ERA5 normal, committing the lead
+# gate scripts/mjo/data/reference/hslp_skill.json. A trial: since/until a few weeks apart and verify=false.
+on:
+  workflow_dispatch:
+    inputs:
+      since:
+        description: 'First day (YYYY-MM-DD; snapped to the 5-day lattice)'
+        default: '2024-03-01'
+      until:
+        description: 'Last start (empty = 6 days ago, the ERA5 lag)'
+        default: ''
+      nparts:
+        description: 'Parts the lattice is split into'
+        default: '6'
+      parts:
+        description: 'JSON list of the part indices to run'
+        default: '[0,1,2,3,4,5]'
+      what:
+        description: 'JSON list of the streams to build (era5 truth and the models); [] = verify the published reference'
+        default: '["era5","aifs","ifs","gefs"]'
+      verify:
+        description: 'Fit the drift, score and commit the lead gate'
+        default: 'true'
+
+permissions:
+  contents: write
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  ECMWF_SOURCES: google
+  ECMWF_RANGE_GAP_MB: '0.5'   # IFS-ENS ef files scatter a member's messages: a 3 MB gap fetches ~2x the bytes
+
+jobs:
+  part:
+    if: inputs.what != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        what: ${{ fromJSON(inputs.what) }}
+        part: ${{ fromJSON(inputs.parts) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: System libraries
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Install Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+      - name: Reduce this part
+        env:
+          SINCE: ${{ inputs.since }}
+          UNTIL: ${{ inputs.until }}
+          PART: ${{ matrix.part }}/${{ inputs.nparts }}
+          WHAT: ${{ matrix.what }}
+        run: |
+          mkdir -p out
+          args=(--since "$SINCE" --part "$PART" --out "out/${WHAT}_${{ matrix.part }}.npz")
+          [ -n "$UNTIL" ] && args+=(--until "$UNTIL")
+          if [ "$WHAT" = era5 ]; then
+            python scripts/mjo/src/hadley_slp_ref.py truth "${args[@]}"
+          else
+            python scripts/mjo/src/hadley_slp_ref.py archive --model "$WHAT" "${args[@]}"
+          fi
+      - uses: actions/upload-artifact@v7
+        with:
+          name: hslp-${{ matrix.what }}-${{ matrix.part }}
+          path: out/*.npz
+          retention-days: 7
+
+  release:
+    needs: part
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:   # each merge reads the reference the previous one published: never two at once
+      group: hslp-ref-release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - uses: actions/download-artifact@v7
+        if: inputs.what != '[]'
+        with:
+          pattern: hslp-*
+          path: parts
+          merge-multiple: true
+      - name: Merge with the published reference and publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          shopt -s nullglob   # no published reference or no parts: the globs expand to nothing
+          mkdir -p prev parts
+          gh release download hslp-ref-v1 -R "$GITHUB_REPOSITORY" -p hslp_ref.npz -D prev 2>/dev/null || echo "no published reference yet"
+          ls -la parts prev
+          python scripts/mjo/src/hadley_slp_ref.py pack prev/*.npz parts/*.npz
+          gh release view hslp-ref-v1 -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create hslp-ref-v1 -R "$GITHUB_REPOSITORY" --title "Tropical sea-level pressure forecasts: drift and skill reference v1" \
+              --notes "ERA5 (ARCO) daily-mean sea-level pressure and the archived AIFS-ENS / IFS-ENS / GEFS 00Z runs (10 members' mean, lead days 0-14) on a 5-day lattice since 2024-03-01, 1.5 deg over 40S-40N (hslp_ref.npz), and the drift fitted on them (hslp_drift.npz), for scripts/mjo/src/hadley_slp_ref.py and hadley_slp_fc.py."
+          gh release upload hslp-ref-v1 scripts/mjo/data/reference/hslp_ref.npz -R "$GITHUB_REPOSITORY" --clobber
+      - name: Drift and skill
+        if: inputs.verify == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/mjo/src/hadley_slp_ref.py verify --out-dir verify
+          gh release upload hslp-ref-v1 scripts/mjo/data/reference/hslp_drift.npz -R "$GITHUB_REPOSITORY" --clobber
+      - uses: actions/upload-artifact@v7
+        if: inputs.verify == 'true'
+        with:
+          name: hslp-verify
+          path: verify/
+          retention-days: 30
+      - name: Commit & push (the lead gate)
+        if: inputs.verify == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT=scripts/mjo/data/reference/hslp_skill.json
+          SNAP=$(mktemp -d); cp "$OUT" "$SNAP/"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            cp "$SNAP/hslp_skill.json" "$OUT"
+            git add "$OUT"
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "Tropical sea-level pressure forecasts: drift and skill on the archived runs"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

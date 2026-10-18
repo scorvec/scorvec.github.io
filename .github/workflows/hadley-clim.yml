@@ -1,0 +1,120 @@
+name: Hadley and Walker climatologies (ERA5 1991-2020 at 00 UTC)
+
+# Builder of the ERA5 1991-2020 00 UTC references in scripts/mjo/data/reference: hadley_clim.nc (the metrics of each
+# day's centred 7-day-mean zonal-mean v) and mmsf_clim_coeffs.nc (the harmonic Psi the maps subtract), both
+# scripts/mjo/src/build_hadley_clim.py, and walker_clim_coeffs.nc (build_walker_clim.py), all from WeatherBench2 (1.5 deg;
+# anonymous GCS). Each part reduces five years to daily 00 UTC zonal means; the build job forms both Hadley files;
+# the Walker job fits its own; the commit job commits the three.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  MJO_CACHE: /tmp/mjo_cache     # the builders' download cache (scripts/lib/localdirs.py); scratch on the runner
+
+jobs:
+  part:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        years: [[1991, 1995], [1996, 2000], [2001, 2005], [2006, 2010], [2011, 2015], [2016, 2020]]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: System libraries
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Install Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+      - name: Daily zonal-mean v
+        run: |
+          mkdir -p out
+          python scripts/mjo/src/build_hadley_clim.py fetch --years ${{ matrix.years[0] }} ${{ matrix.years[1] }} \
+            --out out/vbar_${{ matrix.years[0] }}.npz
+      - uses: actions/upload-artifact@v7
+        with:
+          name: hadclim-${{ matrix.years[0] }}
+          path: out/*.npz
+          retention-days: 5
+
+  build:
+    needs: part
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: hadclim-*
+          path: parts
+          merge-multiple: true
+      - name: Climatologies
+        run: python scripts/mjo/src/build_hadley_clim.py build parts/*.npz
+      - uses: actions/upload-artifact@v7
+        with:
+          name: hadclim-out
+          path: |
+            scripts/mjo/data/reference/hadley_clim.nc
+            scripts/mjo/data/reference/mmsf_clim_coeffs.nc
+          retention-days: 5
+
+  walker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - name: Walker climatology
+        run: python scripts/mjo/src/build_walker_clim.py --stride 5
+      - uses: actions/upload-artifact@v7
+        with:
+          name: walkerclim-out
+          path: scripts/mjo/data/reference/walker_clim_coeffs.nc
+          retention-days: 5
+
+  commit:
+    needs: [build, walker]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: '*clim-out'
+          path: new
+          merge-multiple: true
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          R=scripts/mjo/data/reference
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            cp new/*.nc "$R/"
+            git add "$R/hadley_clim.nc" "$R/mmsf_clim_coeffs.nc" "$R/walker_clim_coeffs.nc"
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "Hadley and Walker climatologies: ERA5 1991-2020 at 00 UTC"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

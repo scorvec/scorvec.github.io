@@ -1,0 +1,105 @@
+name: TC track record (ECMWF tracker vs best tracks)
+
+# The track record behind the TC board (scripts/mjo/src/tc_verify.py): ECMWF's tracker on IFS-ENS, the IFS control,
+# AIFS-ENS and AIFS single, every 00/12 UTC cycle since 2024-08 from the Google Cloud mirror, against IBTrACS best
+# tracks (NOAA NCEI): track errors by lead, the reliability of the board's recurvature and post-tropical chances, the
+# watch rule.
+# The decoded tracks are kept per month in the release tc-tracks-v1, so a run decodes only the months it lacks and the
+# last two (the newest cycles); scripts/mjo/data/reference/tc_verify.json and assets/sst/tc_verify.webp go to main and
+# the board quotes the JSON's summaries. Weekly: the dispatcher's slot and the cron below as its backstop.
+on:
+  schedule:
+    - cron: '40 5 * * 1'
+  workflow_dispatch:
+    inputs:
+      refresh:
+        description: 'Months to decode again even when the release holds them (2 = the last two)'
+        default: '2'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tc-verify
+  cancel-in-progress: false
+
+env:
+  ECMWF_SOURCES: google
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      MPLBACKEND: Agg
+      REL: tc-tracks-v1
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0
+          pip install --quiet numpy pandas requests eccodes pyproj matplotlib
+
+      - name: The decoded months already in the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p work/tracks
+          if gh release view "$REL" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release download "$REL" -R "$GITHUB_REPOSITORY" --dir work/tracks --pattern 'tracks_*.npz'
+          else
+            echo "no release $REL yet: every month is decoded"
+          fi
+          ls work/tracks | wc -l
+
+      - name: Decode the tracker files the release lacks
+        working-directory: scripts/mjo
+        run: python src/tc_verify.py tracks --out ../../work/tracks --refresh "${{ github.event.inputs.refresh || '2' }}" --procs 6
+
+      - name: Upload the rebuilt months to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$REL" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$REL" -R "$GITHUB_REPOSITORY" --title "TC tracker archive v1" \
+            --notes "ECMWF tropical-cyclone tracker output (IFS-ENS, IFS control, AIFS-ENS, AIFS single), storms with an official id, decoded per month by scripts/mjo/src/tc_verify.py for the TC track record."
+          cd work/tracks && xargs -r gh release upload "$REL" -R "$GITHUB_REPOSITORY" --clobber < rebuilt.txt
+
+      - name: Best tracks (IBTrACS v04r01, last three years)
+        run: |
+          URL=https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/v04r01/access/csv/ibtracs.last3years.list.v04r01.csv
+          UA="scorvec.com tropical-cyclone verification (+https://scorvec.com)"
+          curl -fsSL --retry 3 -A "$UA" -D work/ibtracs.headers -o work/ibtracs.csv "$URL"
+          grep -i '^last-modified' work/ibtracs.headers | cut -d' ' -f2- | tr -d '\r' > work/ibtracs.date || true
+          ls -la work/ibtracs.csv; cat work/ibtracs.date
+
+      - name: Score
+        working-directory: scripts/mjo
+        run: |
+          python src/tc_verify.py score --tracks ../../work/tracks --ibtracs ../../work/ibtracs.csv \
+            --ibtracs-date "$(cat ../../work/ibtracs.date)" \
+            --out data/reference/tc_verify.json --figure ../../assets/sst/tc_verify.webp
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="scripts/mjo/data/reference/tc_verify.json assets/sst/tc_verify.webp"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            for f in $OUT; do [ -e "$f" ] && git add "$f"; done
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "TC track record: $(date -u +%Y-%m-%d)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

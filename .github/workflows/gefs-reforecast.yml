@@ -1,0 +1,131 @@
+name: GEFS reforecast climatology (release gefs-clim-v3)
+
+# The GEFSv12 reforecast climatologies behind the GEFS page (gefs.html), rebuilt on the common-year day-of-year
+# calendar: every Wednesday 35-day start 2000-2019, four members, byte-ranged from NOAA's S3 (noaa-gefs-retrospective).
+# One fetch per (year, month) feeds both reductions (scripts/gefs/gefs_daily.py month: rf2_ daily and rf_ weekly
+# per-start files); each combine job then builds the 5-day centres of one month from the starts of that month and its
+# neighbours (gefs_daily.py combine, gefs_reforecast.py combine) and the per-member hindcast fields of the month's own
+# starts, compares every centre with the copy the release holds (none on a first build) and uploads to release
+# gefs-clim-v3. The combine runs only when every month succeeded (a pool
+# must not lose starts silently): re-run the failed month jobs and the combine follows.
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: "first,last reforecast year"
+        default: "2000,2019"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: gefs-reforecast
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  RELEASE: gefs-clim-v3   # gefs_reforecast.CLIM_TAG
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - id: m
+        run: |
+          IFS=, read y0 y1 <<< "${{ inputs.years }}"
+          python3 -c "import json; print('matrix=' + json.dumps({'include': [{'y': y, 'm': m} for y in range($y0, $y1 + 1) for m in range(1, 13)]}))" >> "$GITHUB_OUTPUT"
+
+  month:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      max-parallel: 16   # leaves runners for the site's scheduled workflows
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/gefs
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy scipy eccodes
+      - name: Reforecast starts of ${{ matrix.y }}-${{ matrix.m }} (daily and weekly)
+        run: python scripts/gefs/gefs_daily.py month ${{ matrix.y }} ${{ matrix.m }} --out out --procs 4
+      - name: Name
+        id: n
+        run: echo "name=rf-${{ matrix.y }}-$(printf %02d ${{ matrix.m }})" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.n.outputs.name }}
+          path: out/
+          retention-days: 7
+          compression-level: 0
+
+  combine:
+    needs: month
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        m: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    steps:
+      - name: Room for three months of starts
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL; df -h / | tail -1
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/gefs
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy scipy
+      - name: Download months ${{ matrix.m }} +- 1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          m=${{ matrix.m }}
+          for k in $(( (m + 10) % 12 + 1 )) $m $(( m % 12 + 1 )); do
+            mm=$(printf %02d $k)
+            gh run download ${{ github.run_id }} -R "$GITHUB_REPOSITORY" -p "rf-*-$mm" -D "in/$mm"
+          done
+          echo "$(find in -name 'rf2_*.npz' | wc -l) daily, $(find in -name 'rf_*.npz' | wc -l) weekly start files"; du -sh in
+      - name: Climatologies for the centres in month ${{ matrix.m }}
+        run: |
+          set -o pipefail
+          mkdir -p log
+          python scripts/gefs/gefs_daily.py combine ${{ matrix.m }} --inp in --out clim | tee log/combine.log
+          python scripts/gefs/gefs_reforecast.py combine ${{ matrix.m }} --inp in --out clim | tee -a log/combine.log
+      - name: Differences from the release's current copy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          mkdir -p old
+          for c in $(cd scripts/gefs && python -c "import gefs_reforecast as R; print(' '.join(f'{c:03d}' for c in R.centres_in(${{ matrix.m }})))"); do
+            gh release download "$RELEASE" -R "$GITHUB_REPOSITORY" -p "gefs_clim_$c.npz" -p "gefs_clim2_$c.npz" -D old \
+              || echo "::warning::$RELEASE has no gefs_clim(2)_$c.npz yet"
+          done
+          mm=$(printf %02d ${{ matrix.m }})
+          python scripts/gefs/gefs_daily.py compare --old old --new clim --json "log/compare_$mm.json" | tee "log/compare_$mm.log"
+          { echo '```'; cat "log/compare_$mm.log"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: log-${{ matrix.m }}
+          path: log/
+          retention-days: 30
+      - name: Publish (release gefs-clim-v3)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la clim
+          gh release view "$RELEASE" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create "$RELEASE" -R "$GITHUB_REPOSITORY" --title "GEFS reforecast climatology v3" \
+                 --notes "GEFSv12 reforecast 2000-2019 (Wednesday 35-day starts, 4 members), pooled on the common-year day-of-year calendar (29 Feb = day 59.5, 1 March = 60 in every year), +-15 d around each 5-day centre: gefs_clim_DDD weekly and gefs_clim2_DDD daily lead-dependent climatologies; per start month the per-member hindcast fields for the calibrations, gefs_hind2_MM (daily 2.5 deg z500/mslp/z100 and vortex scalars) and gefs_hindw_MM (weekly 1.5 deg t2m/pr/z500/mslp). Built by .github/workflows/gefs-reforecast.yml from scripts/gefs/gefs_daily.py and gefs_reforecast.py. Not a site page." \
+            || echo "::warning::release create raced with another month (it exists now)"
+          gh release upload "$RELEASE" clim/*.npz -R "$GITHUB_REPOSITORY" --clobber

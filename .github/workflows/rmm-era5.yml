@@ -1,0 +1,121 @@
+name: Observed RMM from ERA5 (1979 to the latest day -> rmm_era5.nc, release rmm-era5-v1)
+
+# Builder of scripts/mjo/data/reference/rmm_era5.nc, the site's observed Wheeler & Hendon RMM and the truth its MJO
+# forecasts are verified against (scripts/mjo/src/rmm_era5.py, see its docstring). Each part reduces its days to
+# 15S-15N band means: u850/u200 from WeatherBench2 (1.5 deg, to 2022) or ARCO-ERA5 (0.25 deg, from 2023), OLR from
+# ARCO-ERA5 (the reduction of the live OLR channel and its frame, scripts/sst/build_olr_baseline.py); the "seam" part
+# reads ARCO-ERA5 winds over the last two months WeatherBench2 covers, for the step summary's check of the join. The
+# build job forms the series (short ERA5 holes interpolated and listed), commits it, and puts the whole record's band
+# means in release rmm-era5-v1
+# (era5_rmm_bands.npz). mjo.yml appends the new ARCO-ERA5 days on every run (rmm_era5.py update); rebuild here when
+# the method or the reference changes. The build shares mjo.yml's concurrency group, so neither commits over the other.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  REL: rmm-era5-v1
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      parts: ${{ steps.list.outputs.parts }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/mjo/src/
+            scripts/mjo/data/reference/
+            scripts/constraints.txt
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy pandas xarray netCDF4
+      - id: list
+        run: echo "parts=$(python scripts/mjo/src/rmm_era5.py plan)" >> "$GITHUB_OUTPUT"
+
+  part:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 8   # leaves runners for the site's scheduled workflows
+      matrix:
+        part: ${{ fromJSON(needs.plan.outputs.parts) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy pandas xarray netCDF4 dask zarr gcsfs "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+      - name: Band means (winds from ${{ matrix.part.source }}, OLR from ARCO-ERA5)
+        run: |
+          mkdir -p out
+          opt=""
+          [ -n "${{ matrix.part.end }}" ] && opt="--end ${{ matrix.part.end }}"
+          if [ "${{ matrix.part.olr }}" = "1" ]; then out=out/part_${{ matrix.part.name }}.npz; else out=out/${{ matrix.part.name }}.npz; opt="$opt --no-olr"; fi
+          python scripts/mjo/src/rmm_era5.py fetch --source ${{ matrix.part.source }} --start ${{ matrix.part.start }} $opt --out "$out"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rmmpart-${{ matrix.part.name }}
+          path: out/*.npz
+          retention-days: 5
+
+  build:
+    needs: part
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: mjo-rmm   # mjo.yml's: its update and this build never commit the series over each other
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy pandas xarray netCDF4 "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: rmmpart-*
+          path: parts
+          merge-multiple: true
+      - name: The series
+        run: |
+          set -o pipefail
+          python scripts/mjo/src/rmm_era5.py build --parts $(ls parts/part_*.npz) --seam parts/seam.npz \
+            --bands era5_rmm_bands.npz --summary summary.txt
+          { echo '#### checks'; echo '```'; cat summary.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Band means (release rmm-era5-v1)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "$REL" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$REL" --repo "$GITHUB_REPOSITORY" \
+            --title "Observed RMM from ERA5: band means" \
+            --notes "15S-15N daily band means of ERA5 OLR, u850 and u200 on the RMM reference longitudes, 1979 onwards (scripts/mjo/src/rmm_era5.py). Contains modified Copernicus Climate Change Service information; ERA5 CC BY 4.0."
+          gh release upload "$REL" era5_rmm_bands.npz --repo "$GITHUB_REPOSITORY" --clobber
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT=scripts/mjo/data/reference/rmm_era5.nc
+          SNAP=$(mktemp -d)
+          cp "$OUT" "$SNAP/"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            cp "$SNAP/rmm_era5.nc" "$OUT"
+            git add "$OUT"
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "Observed RMM from ERA5, 1979 onwards"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

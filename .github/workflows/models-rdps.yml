@@ -1,0 +1,28 @@
+name: Short-range models — RDPS
+
+# Caller for models.yml (models.html). RDPS runs 00/06/12/18Z to f84; the f84 files are on the MSC Datamart ~3 h 05 min
+# after the start (measured 10-16 Oct 2026: +3:02 to +3:14); RAQDPS-FireWork 00/12Z.
+# The laptop's readiness dispatcher sends `cycle` the moment the cycle's last file is up (in the smoke season, once
+# the matching RAQDPS run is up too, or 8 h after the start without it). The 3-hourly :10 slots of the main dispatcher
+# (scripts/lib/dispatch_workflows.sh) and this cron are the backstop; a firing with nothing new exits in about a minute.
+on:
+  schedule:
+  - cron: '10 */3 * * *'
+  workflow_dispatch:
+    inputs:
+      cycle:
+        description: "Cycle YYYYMMDDHH (blank = plan the newest unpublished; skipped when it or a newer one is published)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  run:
+    uses: ./.github/workflows/models.yml
+    with:
+      model: rdps
+      cycle: ${{ inputs.cycle }}
+    secrets: inherit

@@ -1,0 +1,45 @@
+name: skewt-gaps
+on:
+  schedule:
+  # Weekly (was Tue+Fri): the grade needs each US station's IGRA year-to-date file
+  # (~90 files, ~0.1 GB), and twice a week re-downloaded mostly unchanged data.
+  - cron: "40 8 * * 2"        # Tue 08:40 UTC (IGRA y2d lags ~2 days)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: skewt-gaps
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Rebuild US sounding gap record
+        run: python scripts/skewt/sounding_gaps.py
+      - name: Commit if changed
+        run: |
+          git config user.name "gaps-bot"
+          git config user.email "actions@github.com"
+          # snapshot + clean resync each attempt (the mjo.yml pattern): a pull that merges could conflict on the file
+          # this job owns and fail every retry the same way
+          SNAP=$(mktemp -d)
+          cp skewt/gaps.json "$SNAP/"
+          for i in 1 2 3; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            cp "$SNAP/gaps.json" skewt/gaps.json
+            git add skewt/gaps.json
+            if git diff --cached --quiet; then echo "no change"; exit 0; fi
+            git commit -q -m "data update"
+            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
+            sleep 5
+          done
+          echo "::error::push failed after retries"; exit 1

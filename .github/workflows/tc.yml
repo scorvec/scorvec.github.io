@@ -1,0 +1,178 @@
+name: TC board (AIFS-ENS + IFS-ENS tracks, IFS control maps)
+
+# The tropical-cyclone products of circulation.html (scripts/mjo/src/tc_*.py), on their own clock:
+#   tc_ens.py    the storm board: ECMWF's tracker on both ensembles' 100 perturbed members, each followed past the
+#                tracker on its own ensemble's sea-level pressure; recurvature outcomes, post-tropical timing, depth after
+#                transition, pooled odds and the watch (data/tc_board.json, tc/tracks_*.webp, tc/depth_*.webp)
+#   tc_phase.py  cyclone phase space on the IFS control (data/tcphase.json, tc/phase_*.webp)
+#   tc_maps.py   dynamic-tropopause loops around each storm on the IFS control (frames branch: assets/sst/anim/tcdt/)
+# The track record the board quotes is tc-verify.yml's. Cadence: 00 and 12 UTC. IFS-ENS day 10 reaches the Google mirror
+# ~T+8.5-8.7 h, so the dispatcher fires at T+8.7 h and again ~1.5 h later; the check job takes the newest cycle whose
+# every input is on the mirror (scripts/ecmwf/cycles.py --profile tc) and stops when main already carries it complete
+# (an incomplete cycle - one ensemble or its pressure missing - is rebuilt by a later slot).
+on:
+  # Backstop crons at the dispatcher's later slots, for when it is off.
+  schedule:
+    - cron: '10 10 * * *'
+    - cron: '10 22 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Cycle date YYYYMMDD (blank = the newest ready cycle)'
+        default: ''
+      time:
+        description: 'Cycle hour, 00 or 12 (blank = the newest ready cycle)'
+        default: ''
+      force:
+        description: 'rebuild a cycle main already carries'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tc
+  cancel-in-progress: false
+
+# ECMWF open data from the Google Cloud mirror only (the shared store and rangefetch refuse any other host).
+env:
+  ECMWF_SOURCES: google
+  ECMWF_RANGE_GAP_MB: '0.5'   # IFS-ENS msl: 50 messages scattered through each step's ~8,500 (rangefetch.MAX_GAP)
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      date: ${{ steps.cyc.outputs.date }}
+      time: ${{ steps.cyc.outputs.time }}
+      build: ${{ steps.done.outputs.build }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/ecmwf
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install the resolver's HTTP client
+        run: pip install --quiet requests
+
+      - name: Resolve cycle
+        id: cyc
+        working-directory: scripts/ecmwf
+        run: |
+          set -euo pipefail
+          D="${{ github.event.inputs.date }}"; T="${{ github.event.inputs.time }}"
+          if [ -z "$D" ] || [ -z "$T" ]; then
+            python cycles.py --profile tc --out /tmp/cyc || true
+            D=$(awk '{print $1}' /tmp/cyc 2>/dev/null || true)
+            T=$(awk '{print $2}' /tmp/cyc 2>/dev/null || true)
+          fi
+          if ! echo "$D" | grep -qE '^[0-9]{8}$' || ! echo "$T" | grep -qE '^(00|12)$'; then
+            echo "ERROR: no ready cycle (D='$D' T='$T') - see the resolver's lines above" >&2; exit 1
+          fi
+          echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"
+          echo "cycle: $D ${T}Z"
+
+      - name: Already published?
+        id: done
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then echo "build=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          D="${{ steps.cyc.outputs.date }}"; want="${D:0:4}-${D:4:2}-${D:6:2}T${{ steps.cyc.outputs.time }}:00Z"
+          have=$(gh api "repos/$GITHUB_REPOSITORY/contents/assets/sst/data/tc_board.json?ref=main" \
+                   -H "Accept: application/vnd.github.raw+json" 2>/dev/null \
+                 | python -c "import json, sys; b = json.load(sys.stdin); print(b.get('init', ''), b.get('complete', False))" 2>/dev/null || true)
+          if [ "$have" = "$want True" ]; then
+            echo "main already carries the $want cycle, complete; nothing to do"; echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "main has '${have:-no tc_board.json}'; building $want"; echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: check
+    if: needs.check.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      MPLBACKEND: Agg
+      D: ${{ needs.check.outputs.date }}
+      T: ${{ needs.check.outputs.time }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+
+      - name: Install
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+
+      # The board is the product: if it fails, the job fails and nothing is published.
+      - name: Storm board (tracks, recurvature, post-tropical, depth, watch)
+        working-directory: scripts/mjo
+        run: python src/tc_ens.py --date "$D" --time "$T" --out-dir ../../assets/sst --members "$RUNNER_TEMP/tc_members.json"
+
+      - name: Cyclone phase space (Hart 2003, IFS control)
+        working-directory: scripts/mjo
+        run: |
+          python src/tc_phase.py --date "$D" --time "$T" --board ../../assets/sst/data/tc_board.json \
+            --out-dir ../../assets/sst --json ../../assets/sst/data/tcphase.json \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "TC phase space"
+
+      - name: Dynamic-tropopause maps around each storm (IFS control)
+        working-directory: scripts/mjo
+        run: |
+          python src/tc_maps.py --date "$D" --time "$T" --board ../../assets/sst/data/tc_board.json \
+            --members "$RUNNER_TEMP/tc_members.json" --anim-dir ../../assets/sst/anim/tcdt \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "TC dynamic-tropopause maps"
+
+      # The publisher retries a lost lease itself; a collision can still end it, so the whole publish is tried three
+      # times. An empty directory (no storm) is skipped by the publisher and the branch keeps its copy.
+      - name: Publish the map frames to the frames branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for i in 1 2 3; do
+            if bash scripts/lib/publish_frames_ci.sh assets/sst/anim/tcdt; then exit 0; fi
+            echo "::warning::frames publish attempt $i failed; retrying"; sleep $((20 * i))
+          done
+          exit 1
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/sst/data/tc_board.json assets/sst/data/tcphase.json assets/sst/anim/tcdt/tcdt_manifest.json assets/sst/tc"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            # the per-storm figures: the folder is replaced wholesale so departed storms' files go
+            if tar tf "$SNAP/outs.tar" 2>/dev/null | grep -q '^assets/sst/tc/'; then rm -rf assets/sst/tc; fi
+            tar xf "$SNAP/outs.tar"
+            for f in $OUT; do [ -e "$f" ] && git add -A "$f"; done
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "TC board: ${D}_${T}z"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+
+      - name: Summary
+        if: always()
+        run: scripts/lib/degraded.sh --summary

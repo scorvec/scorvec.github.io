@@ -1,0 +1,82 @@
+name: SEAS5 figure redraw (no data access)
+
+# Redraws SEAS5 figures for layout fixes between monthly issues, with no CDS key and no model-data downloads, so it runs
+# outside the `seas5` concurrency group (2026-10-08: lead 7 (April) made the six-column layouts' labels overlap):
+#   seas5_tele.json + seas5_tele_{probs,series}.webp + seas5_strat_series.webp: the skill test re-applied to the
+#                           published JSON's calibration cells (seas5_tele.py --replot), after CPC's published indices
+#                           are re-attached (--refresh-obs; SOI/EqSOI observed tail, skill and calibration against
+#                           CPC, recomputed from the JSON's members and the hc_tele_nh table exactly as the monthly
+#                           build does; small CPC text files, no CDS)
+#   seas5_popT_{us,br}.webp from the issue summaries in release seas5-ref-v1          (seas5_popT.py --replot)
+# The release tables are our own derived files (seas5_ref.py), only read here. The popT JSON summary is
+# rewritten with identical numbers (only "generated" moves, which also busts the page's image cache key).
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: seas5-replot
+  cancel-in-progress: false
+
+env:
+  MPLBACKEND: Agg
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SST_SITE_ROOT: ${{ github.workspace }}
+      SEAS5_REF_DIR: ${{ github.workspace }}/seas5_ref
+      OUTS: >-
+        assets/sst/seas5_tele_probs.webp assets/sst/seas5_tele_series.webp assets/sst/seas5_strat_series.webp
+        assets/sst/data/seas5_tele.json
+        assets/sst/seas5_popT_us.webp assets/sst/seas5_popT_br.webp
+        assets/sst/data/seas5_popT.json
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          pip install --quiet numpy pandas scipy xarray netCDF4 h5netcdf 'pyproj>=3.7.2' matplotlib==3.10.9 Pillow cfgrib eccodes
+      - name: Download the issue's derived tables (release seas5-ref-v1, read only)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$SEAS5_REF_DIR"
+          YM=$(python -c "import json; print(json.load(open('assets/sst/data/seas5_popT.json'))['issue'])")
+          PREV=$(python -c "import json; print(json.load(open('assets/sst/data/seas5_popT.json'))['previous'])")
+          M=${YM:4:2}
+          gh release download seas5-ref-v1 --repo "$GITHUB_REPOSITORY" -D "$SEAS5_REF_DIR" --clobber \
+            -p 'obs_popT_*' -p 'obs_tele_era5.npz' -p "hc_tele_nh_${M}.npz" -p "hc_tele_nh_L7_${M}.npz" -p "hc_popT_hc_*${M}.npz" \
+            -p "is_popT_issue_${YM}.npz" -p "is_popT_issue_${PREV}.npz"
+          ls -la "$SEAS5_REF_DIR"
+      - name: Redraw
+        run: |
+          python scripts/sst/seas5_tele.py --replot --refresh-obs || python scripts/sst/seas5_tele.py --replot
+          python scripts/sst/seas5_popT.py --replot
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          SNAP=$(mktemp -d)
+          git add -A $OUTS
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T -
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add -A $OUTS
+            if git diff --staged --quiet; then echo "No changes"; exit 0; fi
+            git commit -q -m "data update: SEAS5 figure redraw (layout only)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            sleep 5
+          done
+          exit 1

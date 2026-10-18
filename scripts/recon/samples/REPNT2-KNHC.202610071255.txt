@@ -1,0 +1,28 @@
+
+247 
+URNT12 KNHC 071255
+VORTEX DATA MESSAGE   AL092026
+A. 07/12:33:50Z
+B. 22.40 deg N 093.97 deg W
+C. 850 mb 1446 m
+D. 1004 mb
+E. 030 deg 21 kt
+F. NA
+G. NA
+H. NA
+I. NA
+J. 122 deg 43 kt
+K. 061 deg 32 nm 12:23:30Z
+L. NA
+M. NA
+N. 346 deg 32 kt
+O. 226 deg 57 nm 12:50:30Z
+P. 16 C / 1521 m
+Q. 18 C / 1524 m
+R. 16 C / NA
+S. 12345 / 8
+T. 0.02 / 5 nm
+U. AF304 0209A ISAIAS    OB 03
+MAX FL WIND 43 KT 061 / 32 NM 12:23:30Z
+;
+

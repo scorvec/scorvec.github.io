@@ -1,0 +1,117 @@
+name: Walker metrics (ERA5 1991-2020 at 00 UTC + El Nino events)
+
+# Builder of scripts/mjo/data/reference/walker_metric_clim.nc and walker_events.nc (scripts/mjo/src/
+# build_walker_metrics.py): the Pacific Walker cell strength and the Indo-Pacific ascent longitude of ERA5's centred
+# 7-day means at 00 UTC - their 1991-2020 day-of-year distribution and every July-March whose RONI peaks at +1.0 or
+# more since 1963. Each part reduces its days to the equatorial divergent wind, from WeatherBench2 or, after January
+# 2023, ARCO-ERA5 (anonymous GCS); the build job forms both tables and commits them. A run with both tables already
+# on main does nothing unless forced; force it when a new event has ended.
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: rebuild even if both tables exist
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      parts: ${{ steps.list.outputs.parts }}
+      skip: ${{ steps.list.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - name: The parts
+        id: list
+        env:
+          FORCE: ${{ inputs.force }}
+        run: |
+          R=scripts/mjo/data/reference
+          if [ -e "$R/walker_metric_clim.nc" ] && [ -e "$R/walker_events.nc" ] && [ "$FORCE" != "true" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "both tables are on main; dispatch with force=true to rebuild"
+          fi
+          echo "parts=$(python scripts/mjo/src/build_walker_metrics.py plan)" >> "$GITHUB_OUTPUT"
+
+  part:
+    needs: plan
+    if: needs.plan.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        part: ${{ fromJSON(needs.plan.outputs.parts) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - name: Daily equatorial divergent wind
+        run: |
+          mkdir -p out
+          python scripts/mjo/src/build_walker_metrics.py fetch --start ${{ matrix.part.start }} --end ${{ matrix.part.end }} \
+            --source ${{ matrix.part.source }} --out out/${{ matrix.part.name }}.npz
+      - uses: actions/upload-artifact@v7
+        with:
+          name: walkermet-${{ matrix.part.name }}
+          path: out/*.npz
+          retention-days: 5
+
+  build:
+    needs: part
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: walkermet-*
+          path: parts
+          merge-multiple: true
+      - name: The two tables
+        run: python scripts/mjo/src/build_walker_metrics.py build parts/*.npz
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          R=scripts/mjo/data/reference
+          SNAP=$(mktemp -d); cp "$R/walker_metric_clim.nc" "$R/walker_events.nc" "$SNAP/"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            cp "$SNAP"/*.nc "$R/"
+            git add "$R/walker_metric_clim.nc" "$R/walker_events.nc"
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "Walker metrics: ERA5 1991-2020 at 00 UTC + El Nino events"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

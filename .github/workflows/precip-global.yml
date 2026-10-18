@@ -1,0 +1,161 @@
+# Reference inputs of the tropical rainfall forecast (circulation.html#rainfc: bias-adjusted rainfall and rainfall anomaly
+# maps from a blend of four ensembles over the global tropics). Three things, all in Actions:
+#   archive  00Z week-1/2 rain (members 1-6) of ECMWF IFS-ENS / AIFS-ENS (scripts/precip_bias/ecmwf_tp.py, Google Cloud
+#            mirror only), NOAA GEFS (ens_tp.py, AWS Open Data bucket noaa-gefs-pds, byte ranges via the .idx) and ECCC
+#            GEPS (ens_tp.py, MSC Datamart), and IMERG V07 Late / Final daily rain (imerg.py), all on the GLOBAL 1°
+#            band, month by month into release precip-global-arch-v1 - resumable: complete months already there are
+#            skipped, the last two are rebuilt (GEFS and GEPS merged with the release's file, fetching only new runs).
+#            ECMWF from 2026-05 (the current cycles began 2026-05-13; older cycles are never pooled), GEFS v12 from 2024-10
+#            (two annual cycles), GEPS from as far back as the Datamart reaches (~30 days; this archive keeps its runs from
+#            then on), IMERG from 2024-10 (the Late/Final overlap that scales Late to Final; Final ended 2025-09 as of
+#            2026-10-14).
+#   gpcp     the GPCP V3.2 daily 2001-2020 weekly climatology (gpcp_clim.py), built once into release precip-global-ref-v1.
+#   bias     the season-weighted bias ratios (global_bias.py) and the blend weights with their cross-validated test
+#            (blend.py) into precip-global-ref-v1, for the coming week's forecasts.
+# Weekly (Monday) and on dispatch.
+name: Tropical rain forecast - reference build
+
+on:
+  schedule:
+    - cron: '50 7 * * 1'
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "ifs | aifs-ens | gefs | geps | late | final | gpcp | bias | all"
+        default: all
+
+permissions:
+  contents: write
+
+concurrency:
+  group: precip-global
+  cancel-in-progress: false
+
+env:
+  ARCH: precip-global-arch-v1
+  REF: precip-global-ref-v1
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  archive:
+    strategy:
+      fail-fast: false
+      max-parallel: 7
+      matrix:
+        src: [ifs, aifs-ens, gefs, geps, late, final, gpcp]
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ECMWF_SOURCES: google
+      EARTHDATA_USERNAME: ${{ secrets.EARTHDATA_USERNAME }}
+      EARTHDATA_PASSWORD: ${{ secrets.EARTHDATA_PASSWORD }}
+    steps:
+      - name: Skip sources not asked for
+        id: gate
+        run: |
+          o="${{ github.event.inputs.only || 'all' }}"
+          if [ "$o" = "all" ] || [ "$o" = "${{ matrix.src }}" ]; then echo "run=1" >> "$GITHUB_OUTPUT"; else echo "run=0" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/checkout@v7
+        if: steps.gate.outputs.run == '1'
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            scripts/precip_bias
+            scripts/ecmwf
+            scripts/lib
+            scripts/constraints.txt
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        if: steps.gate.outputs.run == '1'
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        if: steps.gate.outputs.run == '1'
+        run: pip install --quiet numpy requests pyproj eccodes earthaccess netCDF4
+      - name: Releases
+        if: steps.gate.outputs.run == '1'
+        run: |
+          gh release view "$ARCH" >/dev/null 2>&1 \
+            || gh release create "$ARCH" --title "Tropical rain forecast archive (global 1°)" \
+                 --notes "Monthly inputs of the tropical rainfall forecast's bias correction and blend weights: ECMWF IFS-ENS / AIFS-ENS, NOAA GEFS and ECCC GEPS 00Z week-1/2 rain accumulations (members 1-6) and IMERG V07 Late / Final daily rain on the global 1° band (60S-60N) of scripts/precip_bias/grid.py." || true
+          gh release view "$REF" >/dev/null 2>&1 \
+            || gh release create "$REF" --title "Tropical rain forecast reference" \
+                 --notes "GPCP V3.2 2001-2020 weekly climatology, the current bias ratios and the blend weights of the tropical rainfall forecast (scripts/precip_bias/gpcp_clim.py, global_bias.py, blend.py)." || true
+          gh release view "$ARCH" --json assets -q '.assets[].name' > have.txt || true
+          gh release view "$REF" --json assets -q '.assets[].name' > have_ref.txt || true
+          echo "archive assets: $(wc -l < have.txt), reference assets: $(wc -l < have_ref.txt)"
+      - name: Climatology (once)
+        if: steps.gate.outputs.run == '1' && matrix.src == 'gpcp'
+        timeout-minutes: 330
+        run: |
+          if grep -qx gpcp_clim_week_global.npz have_ref.txt; then echo "climatology already in $REF"; exit 0; fi
+          python scripts/precip_bias/gpcp_clim.py --out out --threads 6
+          gh release upload "$REF" out/gpcp_clim_week_global.npz --clobber
+      - name: Build and upload month by month
+        if: steps.gate.outputs.run == '1' && matrix.src != 'gpcp'
+        timeout-minutes: 320
+        run: |
+          set -u
+          src="${{ matrix.src }}"
+          case "$src" in
+            ifs) start=2026-05; pre=ifs ;;
+            aifs-ens) start=2026-05; pre=aifs-ens ;;
+            gefs) start=2024-10; pre=gefs ;;
+            geps) start=$(date -u -d "31 days ago" +%Y-%m); pre=geps ;;  # older runs are gone from the Datamart
+            late) start=2024-10; pre=imerg_late ;;
+            final) start=2024-10; pre=imerg_final ;;
+          esac
+          if [ "$src" = "late" ] || [ "$src" = "final" ]; then last=$(date -u -d "2 days ago" +%F); else last=$(date -u -d "1 day ago" +%F); fi
+          cur=$(date -u +%Y-%m); prev=$(date -u -d "$(date -u +%Y-%m-01) -1 day" +%Y-%m); m="$start"; fails=0
+          while [ "$(echo -e "$m\n$cur" | sort | head -1)" = "$m" ]; do
+            f="${pre}_${m/-/}.npz"
+            if grep -qx "$f" have.txt && [ "$m" != "$cur" ] && [ "$m" != "$prev" ]; then
+              echo "skip $f (in the release)"
+            else
+              if [ "$src" = "ifs" ] || [ "$src" = "aifs-ens" ]; then
+                python scripts/precip_bias/ecmwf_tp.py --model "$src" --month "$m" --out out --last "$last" || fails=$((fails + 1))
+              elif [ "$src" = "gefs" ] || [ "$src" = "geps" ]; then
+                # merged with the release's file: only new runs are fetched, and GEPS runs gone from the Datamart are kept
+                have=""
+                if grep -qx "$f" have.txt; then gh release download "$ARCH" -p "$f" -D have --clobber && have="have/$f"; fi
+                python scripts/precip_bias/ens_tp.py month --model "$src" --month "$m" --out out --last "$last" ${have:+--have "$have"} || fails=$((fails + 1))
+              else
+                python scripts/precip_bias/imerg.py --product "$src" --month "$m" --out out --last "$last" || fails=$((fails + 1))
+              fi
+              if [ -s "out/$f" ]; then gh release upload "$ARCH" "out/$f" --clobber && rm -f "out/$f"; fi
+            fi
+            m=$(date -u -d "$m-01 +1 month" +%Y-%m)
+          done
+          echo "months that built nothing: $fails"
+          # IMERG Final stops a year behind: its empty months are expected, not a failure
+          if [ "$src" != "final" ] && [ "$fails" -gt 1 ]; then echo "::warning::$src: $fails months built nothing"; fi
+
+  bias:
+    needs: archive
+    if: ${{ !cancelled() && (github.event.inputs.only == '' || github.event.inputs.only == null || github.event.inputs.only == 'all' || github.event.inputs.only == 'bias') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            scripts/precip_bias
+            scripts/constraints.txt
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy scipy
+      - name: Bias ratios and blend weights
+        run: |
+          gh release download "$ARCH" -D data --clobber
+          gh release download "$REF" -p gpcp_clim_week_global.npz -D ref --clobber
+          ls data | head -80; du -sh data
+          python scripts/precip_bias/global_bias.py --data data --out ref --target "$(date -u +%F)"
+          python scripts/precip_bias/blend.py --data data --ref ref --out ref
+          gh release upload "$REF" ref/bias_ratio_global.npz ref/bias_ratio_global.json ref/blend_weights_global.json --clobber
+          { echo '```json'; cat ref/blend_weights_global.json ref/bias_ratio_global.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,167 @@
+name: 100 hPa eddy heat flux references (ERA5 series and climatology, archived ensemble runs)
+
+# Dispatch-only builder of the references the heat-flux products read (scripts/strat/heatflux100.py, heatflux100_ext.py):
+#   build_vt100_clim.py  ERA5 [v'T'] at 100 hPa, 45-75 deg, 00 and 12 UTC: WeatherBench2 (1.5 deg) to 2022, ARCO-ERA5
+#                        (0.25 deg) after, both anonymous GCS -> scripts/strat/reference/vt100_era5.nc (the daily series
+#                        to ~6 days ago) and vt100_clim.nc (its 1991-2020 day-of-year climatology)
+#   heatflux100_bias.py  the same flux from archived 00Z runs at daily leads: AIFS-ENS and IFS-ENS (Google Cloud
+#                        mirror of ECMWF open data only), GEFS (NOAA S3), GEPS (MSC Datamart, recent runs only)
+#                        -> scripts/strat/reference/heatflux100_archive.npz, and each model's mean error against the
+#                        ERA5 series, tested -> heatflux100_bias.json (the corrections the products apply)
+# Each part reduces a slice; the pack job merges the parts with the committed references (so a later run over new
+# days only tops them up), prints the resolution and definition checks, reruns the bias test and commits the four
+# small files.
+on:
+  workflow_dispatch:
+    inputs:
+      era5_since:
+        description: 'First ERA5 day (YYYY-MM-DD; the climatology needs 1990-11-01 onward)'
+        default: '1990-11-01'
+      models_since:
+        description: 'First archived start (YYYY-MM-DD; empty = each model''s first archived run)'
+        default: ''
+      until:
+        description: 'Last day (empty = 6 days ago, the ERA5 lag)'
+        default: ''
+      nparts:
+        description: 'Parts each stream is split into'
+        default: '8'
+      parts:
+        description: 'JSON list of the part indices to run'
+        default: '[0,1,2,3,4,5,6,7]'
+      what:
+        description: 'JSON list of the streams to build (era5 and the models)'
+        default: '["era5","aifs","ifs","gefs","geps"]'
+
+permissions:
+  contents: write
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  ECMWF_SOURCES: google
+  ECMWF_MULTISOURCE: "0"
+
+jobs:
+  part:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        what: ${{ fromJSON(inputs.what) }}
+        part: ${{ fromJSON(inputs.parts) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: System libraries
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Install Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+      - name: Reduce this part
+        env:
+          ECMWF_RPS_GOOGLE: "60"      # IFS-ENS ef files: a 5-member selection is a scatter of small ranges
+          ECMWF_RPS: "60"
+          ECMWF_RANGE_GAP_MB: "0.5"
+          ERA5_SINCE: ${{ inputs.era5_since }}
+          MODELS_SINCE: ${{ inputs.models_since }}
+          UNTIL: ${{ inputs.until }}
+          PART: ${{ matrix.part }}/${{ inputs.nparts }}
+          WHAT: ${{ matrix.what }}
+        run: |
+          mkdir -p out
+          args=(--part "$PART" --out "out/${WHAT}_${{ matrix.part }}.npz")
+          [ -n "$UNTIL" ] && args+=(--until "$UNTIL")
+          if [ "$WHAT" = era5 ]; then
+            python scripts/strat/build_vt100_clim.py fetch --since "$ERA5_SINCE" "${args[@]}"
+          else
+            python scripts/strat/heatflux100_bias.py archive --model "$WHAT" --since "$MODELS_SINCE" "${args[@]}"
+          fi
+      - uses: actions/upload-artifact@v7
+        with:
+          name: hf100-${{ matrix.what }}-${{ matrix.part }}
+          path: out/*.npz
+          retention-days: 7
+
+  pack:
+    needs: part
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    concurrency:   # each pack reads the references the previous one committed: never two at once
+      group: heatflux100-ref-pack
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: hf100-*
+          path: parts
+          merge-multiple: true
+      # The packs merge new parts INTO the committed series and archive, so they must start from main's latest copies,
+      # not this run's checkout: a run that waited behind another writer would otherwise publish over its additions.
+      - name: Latest committed references
+        run: |
+          git fetch -q origin main
+          for f in vt100_era5.nc heatflux100_archive.npz; do
+            git checkout origin/main -- "scripts/strat/reference/$f" 2>/dev/null || echo "no $f on main yet"
+          done
+      # Separate steps: a failed part leaves a gap that the climatology step refuses, while the archive, the series
+      # (whatever arrived) and the bias test on them are still committed, and a rerun of the failed part tops them up.
+      - name: Archived runs
+        run: |
+          shopt -s nullglob
+          models=(parts/aifs_*.npz parts/ifs_*.npz parts/gefs_*.npz parts/geps_*.npz)
+          if [ ${#models[@]} -gt 0 ]; then
+            python scripts/strat/heatflux100_bias.py pack "${models[@]}"
+          fi
+      - name: ERA5 series
+        if: ${{ !cancelled() }}
+        run: |
+          shopt -s nullglob
+          era5=(parts/era5_*.npz)
+          if [ ${#era5[@]} -gt 0 ]; then
+            python scripts/strat/build_vt100_clim.py pack "${era5[@]}"
+          fi
+      - name: Climatology and checks
+        run: |
+          shopt -s nullglob
+          era5=(parts/era5_*.npz)
+          if [ ${#era5[@]} -gt 0 ]; then
+            python scripts/strat/build_vt100_clim.py clim
+            python scripts/strat/build_vt100_clim.py check "${era5[@]}"
+          fi
+      - name: Bias test
+        if: ${{ !cancelled() }}
+        run: python scripts/strat/heatflux100_bias.py test
+      - name: Commit & push
+        if: ${{ !cancelled() }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          R=scripts/strat/reference
+          mkdir -p new
+          for f in vt100_era5.nc vt100_clim.nc heatflux100_archive.npz heatflux100_bias.json; do
+            if [ -f "$R/$f" ]; then cp "$R/$f" new/; fi
+          done
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            cp new/* "$R/"
+            for f in new/*; do git add "$R/$(basename "$f")"; done
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "100 hPa eddy heat flux references: ERA5 series and climatology, archived runs"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

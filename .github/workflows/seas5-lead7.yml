@@ -1,0 +1,192 @@
+name: SEAS5 lead month 7 (consistency test / one-time hindcast tables)
+
+# The SEAS5 page reaches a 7th lead month (April for an October start). The CDS monthly product
+# stops at leadtime_month 6, so month 7 comes from the daily data: the forecast from the CDS sub-daily product
+# (seas5_lead7.py, inside seas5.yml every issue), the 1993–2016 hindcast reference once per start month from
+# Planette's anonymous AWS copy of the SEAS5 daily archive plus the CDS sub-daily hindcast for the accumulated
+# fields (seas5_aws.py → seas5_ref.py lead-7 units, uploaded per table to the release like the others).
+#
+#   mode=check   the lead-6 test, both halves: (1) this issue's month 6 rebuilt from the CDS sub-daily product vs
+#                the monthly product's month 6; (2) the AWS/CDS-sub-daily hindcast at leads 5–6 vs the CDS monthly
+#                hindcast tables (means, terciles, interannual σ, per-sample index series). Results to the release
+#                as seas5_lead7_check_*.json.
+#   mode=tables  derive the start month's missing lead-7 tables (hc_*_L7_MM.npz) and upload each at once.
+#   mode=probe   the AWS store's layout.
+#
+# seas5.yml builds these tables itself for a new start month; this workflow is the one-time path that keeps the
+# monthly job within its time budget. Shares the `seas5` concurrency group: one CDS key, never two requests at once.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'check | check-hc | tables (CDS group) | aws | probe (AWS only, own group)'
+        required: true
+        default: 'check'
+      issue:
+        description: 'Issue YYYYMM whose forecast GRIBs give the grids (and the lead-6 forecast test)'
+        required: false
+        default: '202610'
+
+permissions:
+  contents: write
+
+# AWS-only modes (probe, aws) hold no CDS key and run outside the `seas5` group, in parallel with the CDS queue
+# (2026-10-08, coordinator: AWS work must not block the key).
+concurrency:
+  group: ${{ (inputs.mode == 'probe' || inputs.mode == 'aws') && 'seas5-aws' || 'seas5' }}
+  cancel-in-progress: false
+
+env:
+  REF_TAG: seas5-ref-v1
+  MPLBACKEND: Agg
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    env:
+      SEAS5_REF_DIR: ${{ github.workspace }}/seas5_ref
+      SST_SITE_ROOT: ${{ github.workspace }}
+      SEAS5_ISSUE: ${{ inputs.issue }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve
+        id: gate
+        run: |
+          echo "JOB_T0=$(date +%s)" >> "$GITHUB_ENV"
+          I="${{ inputs.issue }}"; echo "issue=$I" >> "$GITHUB_OUTPUT"; echo "month=${I:4:2}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'     # icechunk 2.x (the AWS store is written by ic-2.2.2) needs Python >= 3.12
+
+      - name: Install dependencies
+        run: |
+          if [ "${{ inputs.mode }}" != "probe" ]; then
+            for i in 1 2 3; do
+              if sudo timeout 240 apt-get update -qq -o Acquire::Retries=3 && \
+                 sudo timeout 300 apt-get install -y --no-install-recommends -o Acquire::Retries=3 \
+                   libgeos-dev libproj-dev proj-bin libeccodes0; then break; fi
+              echo "apt attempt $i failed; retrying"; sleep 10
+            done
+          fi
+          pip install --quiet numpy pandas scipy xarray cfgrib eccodes cdsapi requests \
+            matplotlib==3.10.9 cartopy==0.25.0 'shapely>=2.1.2' 'pyproj>=3.7.2' Pillow netCDF4 h5netcdf \
+            'icechunk==2.2.2' 'zarr>=3'
+
+      - name: Probe the AWS SEAS5 store
+        if: inputs.mode == 'probe'
+        run: python scripts/sst/seas5_aws.py probe
+
+      - name: Free runner disk
+        if: inputs.mode != 'probe'
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /usr/local/.ghcup 2>/dev/null || true
+          df -h "$GITHUB_WORKSPACE" | tail -1
+
+      - name: CDS credentials
+        if: inputs.mode != 'probe' && inputs.mode != 'aws'
+        env:
+          CDSAPI_URL: ${{ secrets.CDSAPI_URL }}
+          CDSAPI_KEY: ${{ secrets.CDSAPI_KEY }}
+        run: |
+          if [ -z "$CDSAPI_KEY" ]; then echo "::error::secret CDSAPI_KEY is not set"; exit 1; fi
+          umask 077
+          printf 'url: %s\nkey: %s\n' "${CDSAPI_URL:-https://cds.climate.copernicus.eu/api}" "$CDSAPI_KEY" > ~/.cdsapirc
+
+      - name: Download the derived tables
+        if: inputs.mode != 'probe'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$SEAS5_REF_DIR"
+          M=${{ steps.gate.outputs.month }}
+          # gh fails only when NO asset matches, and obs_* always does: a failure is the network or the release
+          ok=0
+          for i in 1 2 3; do
+            if gh release download "$REF_TAG" --repo "$GITHUB_REPOSITORY" -D "$SEAS5_REF_DIR" --clobber -p 'obs_*' -p "hc_*_${M}.npz"; then
+              ok=1; break
+            fi
+            echo "download attempt $i failed"; sleep 30
+          done
+          if [ "$ok" != 1 ]; then echo "::error::could not download the derived tables from $REF_TAG"; exit 1; fi
+          touch "$RUNNER_TEMP/ref_marker"
+          ls "$SEAS5_REF_DIR" | tr '\n' ' '; echo; du -sh "$SEAS5_REF_DIR"
+
+      - name: Restore the issue's forecast GRIBs (grids; the lead-6 forecast test)
+        if: inputs.mode != 'probe'
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            scripts/sst/data/seas5/forecast/*_${{ steps.gate.outputs.issue }}.grib
+            scripts/sst/data/seas5/sixh/*_${{ steps.gate.outputs.issue }}*.grib
+            scripts/sst/data/seas5/regimes/fc_*_${{ steps.gate.outputs.issue }}.grib
+            scripts/sst/data/seas5/ssw/fc_*_${{ steps.gate.outputs.issue }}.grib
+          key: seas5-fc-${{ steps.gate.outputs.issue }}-none
+          restore-keys: |
+            seas5-fc-${{ steps.gate.outputs.issue }}-
+
+      - name: Lead-6 test, forecast (CDS sub-daily month 6 vs the monthly product)
+        if: inputs.mode == 'check'
+        run: |
+          ls scripts/sst/data/seas5/forecast/ | head -40
+          python scripts/sst/seas5_lead7.py check --issue "${{ steps.gate.outputs.issue }}" --out "$RUNNER_TEMP/seas5_lead7_check_fc_${{ steps.gate.outputs.issue }}.json"
+
+      - name: Lead-6 test, hindcast (AWS / CDS sub-daily leads 5–6 vs the CDS monthly hindcast tables)
+        if: inputs.mode == 'check' || inputs.mode == 'check-hc'
+        run: |
+          # the CDS pressure-level hindcast keys are exact by construction and queue for an hour each: not in the test
+          python scripts/sst/seas5_aws.py build --aws-only --month "${{ steps.gate.outputs.month }}"
+          python scripts/sst/seas5_aws.py check --month "${{ steps.gate.outputs.month }}" --out "$RUNNER_TEMP/seas5_lead7_check_hc_${{ steps.gate.outputs.month }}.json"
+          du -sh scripts/sst/data/seas5/aws scripts/sst/data/seas5/hindcast 2>/dev/null || true
+          cat scripts/sst/data/seas5/l7_volume.jsonl 2>/dev/null || true
+
+      - name: Upload the test results
+        if: always() && (inputs.mode == 'check' || inputs.mode == 'check-hc')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          F=$(ls "$RUNNER_TEMP"/seas5_lead7_check_*.json 2>/dev/null || true)
+          [ -n "$F" ] && gh release upload "$REF_TAG" --repo "$GITHUB_REPOSITORY" --clobber $F || echo "::warning::no test results"
+
+      - name: Lead-7 hindcast tables for start month ${{ steps.gate.outputs.month }}
+        if: inputs.mode == 'tables'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SEAS5_REF_UPLOAD_TAG: ${{ env.REF_TAG }}
+        run: |
+          cd scripts/sst
+          export M=${{ steps.gate.outputs.month }}
+          L7=$(python - <<'EOF'
+          import seas5_ref as R
+          import os; print(" ".join(R.missing(os.environ["M"])))          # every missing unit of the start month (lead-7 and the vortex tables)
+          EOF
+          )
+          echo "missing units: $L7"; [ -n "$L7" ] || exit 0
+          TL=$(( 340 - ( $(date +%s) - ${JOB_T0} ) / 60 - 25 ))
+          timeout --signal=INT "${TL}m" python seas5_ref.py hindcast --month "$M" --only $L7 --fetch --discard-raw --budget-min $((TL - 30)) \
+            || echo "::warning::some lead-7 tables are still missing"
+          python seas5_ref.py missing --month "$M" || true
+          cat data/seas5/l7_volume.jsonl 2>/dev/null || true
+
+      - name: AWS-only hindcast tables (the polar-vortex daily u10; no CDS key in this mode)
+        if: inputs.mode == 'aws'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SEAS5_REF_UPLOAD_TAG: ${{ env.REF_TAG }}
+        run: |
+          cd scripts/sst
+          python seas5_ref.py hindcast --month "${{ steps.gate.outputs.month }}" --only ssw --fetch --discard-raw
+
+      - name: Upload new tables
+        if: always() && (inputs.mode == 'tables' || inputs.mode == 'aws')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NEW=$(find "$SEAS5_REF_DIR" -name 'hc_*.npz' -newer "$RUNNER_TEMP/ref_marker" | sort)
+          if [ -z "$NEW" ]; then echo "no new tables"; exit 0; fi
+          ls -la $NEW
+          gh release upload "$REF_TAG" --repo "$GITHUB_REPOSITORY" --clobber $NEW

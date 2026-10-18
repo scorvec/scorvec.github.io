@@ -1,0 +1,141 @@
+name: MJO hindcast truth (GEFS and GEPS hindcasts re-paired with the observed RMM)
+
+# The GEFS and GEPS MJO hindcast skill is scored against the observed RMM, scripts/mjo/data/reference/rmm_era5.nc
+# (scripts/mjo/src/rmm_era5.py). When the series is rebuilt, this re-pairs the stored hindcast forecasts with it - the
+# forecasts are not recomputed - and scores the result:
+#   gefs   gefs_mjo_hindcast.npz of release gefs-ref-v1 (scripts/gefs/build_gefs_mjo.py truth), scored with ENSO
+#          removed as on the page and with it left in
+#   geps   telecon/mjo_hindcast.nc inside geps_ref_v3.tar of release geps-ref-v3 (scripts/geps/mjo_hindcast.py
+#          --retruth), scored as on the page, the archive rebuilt around it
+# The step summaries hold the scores; the artifact holds the new files and the skill figures and tables. `publish`
+# replaces the two release assets (gefs.yml downloads its reference every run; geps.yml keys its cache on the asset's
+# upload time, so the next run takes the new archive).
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Replace gefs_mjo_hindcast.npz (gefs-ref-v1) and geps_ref_v3.tar (geps-ref-v3)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  gefs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write   # the release upload
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/gefs
+            scripts/lib
+            scripts/mjo/src
+            scripts/mjo/data/reference
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy pandas xarray netCDF4 matplotlib
+      - name: The current files (release gefs-ref-v1)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release download gefs-ref-v1 --repo "$GITHUB_REPOSITORY" -p gefs_mjo_ref.npz -p gefs_mjo_hindcast.npz -D old
+      - name: Re-pair and score
+        run: |
+          set -o pipefail
+          mkdir -p new log
+          B="python scripts/gefs/build_gefs_mjo.py"
+          $B truth --hind old/gefs_mjo_hindcast.npz --out new | tee log/truth.log
+          cp old/gefs_mjo_ref.npz new/
+          doy=$((10#$(date -u +%j)))
+          $B plot --hind new/gefs_mjo_hindcast.npz --ref new/gefs_mjo_ref.npz --doy-now $doy --site site | tee log/skill.log
+          $B plot --hind new/gefs_mjo_hindcast.npz --ref new/gefs_mjo_ref.npz --raw --doy-now $doy --site site_raw \
+            | tee log/skill_raw.log
+          for f in truth skill skill_raw; do
+            { echo "#### $f"; echo '```'; cat "log/$f.log"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          done
+      - uses: actions/upload-artifact@v7
+        with:
+          name: gefs-mjo-truth
+          path: |
+            new/gefs_mjo_hindcast.npz
+            log/
+            site*/assets/gefs/
+          retention-days: 30
+      - name: Publish (release gefs-ref-v1)
+        if: ${{ inputs.publish }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload gefs-ref-v1 new/gefs_mjo_hindcast.npz --repo "$GITHUB_REPOSITORY" --clobber
+
+  geps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write   # the release upload
+    env:
+      GEPS_REF: ${{ github.workspace }}/ref
+      GEPS_STATE: ${{ github.workspace }}/state
+      GEPS_WORK: ${{ github.workspace }}/work
+      SITE_ROOT: ${{ github.workspace }}/site
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/geps
+            scripts/lib
+            scripts/mjo
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy scipy pandas xarray netCDF4 matplotlib
+      - name: The current archive (release geps-ref-v3)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download geps-ref-v3 --repo "$GITHUB_REPOSITORY" -p geps_ref_v3.tar -D /tmp
+          mkdir -p ref && tar xf /tmp/geps_ref_v3.tar -C ref && rm /tmp/geps_ref_v3.tar
+          ls -la ref/telecon/mjo_hindcast.nc
+      - name: Re-pair and score
+        run: |
+          set -o pipefail
+          mkdir -p log
+          doy=$((10#$(date -u +%j)))
+          python scripts/geps/mjo_hindcast.py --retruth | tee log/truth.log
+          python scripts/geps/mjo_hindcast.py --replot --doy-now $doy | tee log/skill.log
+          for f in truth skill; do
+            { echo "#### $f"; echo '```'; cat "log/$f.log"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          done
+      - name: The archive around it (manifest and member order as make_reference.py writes them)
+        run: |
+          python3 - <<'EOF'
+          import json, tarfile
+          from pathlib import Path
+          ref = Path("ref")
+          files = sorted(p for p in ref.rglob("*") if p.is_file() and p.name != "MANIFEST.json")
+          man = {str(p.relative_to(ref)): p.stat().st_size for p in files}
+          (ref / "MANIFEST.json").write_text(json.dumps({"total_bytes": sum(man.values()), "files": man}, indent=1))
+          with tarfile.open("geps_ref_v3.tar", "w") as tf:
+              for p in [*files, ref / "MANIFEST.json"]:
+                  tf.add(p, arcname=str(p.relative_to(ref)))
+          print(f"geps_ref_v3.tar: {len(files)} files, {Path('geps_ref_v3.tar').stat().st_size / 1e6:.1f} MB")
+          EOF
+      - uses: actions/upload-artifact@v7
+        with:
+          name: geps-mjo-truth
+          path: |
+            ref/telecon/mjo_hindcast.nc
+            log/
+            site/assets/geps/
+          retention-days: 30
+      - name: Publish (release geps-ref-v3)
+        if: ${{ inputs.publish }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload geps-ref-v3 geps_ref_v3.tar --repo "$GITHUB_REPOSITORY" --clobber

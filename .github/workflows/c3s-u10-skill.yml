@@ -1,0 +1,111 @@
+name: C3S polar-vortex wind skill (monthly u 60N, 10 + 100 hPa; analysis only)
+
+# Do the C3S seasonal systems have skill for the monthly-mean zonal wind at 10 hPa, and at 100 hPa?
+# scripts/sst/c3s_u10_skill.py (pre-registered design in its docstring): CDS seasonal-monthly-pressure-levels
+# hindcasts 1993-2016 of u at 10/100 hPa on the 60N ring for 7 C3S centres (ECCC 4+5 as one; BoM left out since 2026-10-16), ERA5 monthly means as
+# the 100 hPa truth, MERRA-2 (committed) as the 10 hPa truth.
+# NOTHING goes to the site: raw GRIBs, per-unit tables and the results go to the release `c3s-u10-v1` and an artifact.
+#
+# CDS: ONE key, so this shares the `seas5` concurrency group with seas5.yml, seas5-lead7.yml and c3s.yml and every
+# request is sequential. Resumable: each unit (one CDS request) is uploaded to the release the moment it lands and the
+# next run skips it; SEAS5's October 100 hPa hindcast comes from seas5-ref-v1 (hc_ssw_u100_10.npz), never re-fetched.
+
+on:
+  workflow_dispatch:
+    inputs:
+      budget_min:
+        description: 'Minutes the fetch step may spend starting CDS requests'
+        required: false
+        default: '290'
+
+permissions:
+  contents: write   # release assets only; nothing is committed
+
+concurrency:
+  group: seas5
+  cancel-in-progress: false
+
+env:
+  TAG: c3s-u10-v1
+  MPLBACKEND: Agg
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      SST_SITE_ROOT: ${{ github.workspace }}
+      SEAS5_REF_DIR: ${{ github.workspace }}/seas5_ref
+      C3SU10_DIR: ${{ github.workspace }}/c3s_u10
+      C3SU10_OUT: ${{ github.workspace }}/c3s_u10/out
+      C3SU10_TAG: c3s-u10-v1
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          for i in 1 2 3; do
+            if sudo timeout 240 apt-get update -qq -o Acquire::Retries=3 && \
+               sudo timeout 300 apt-get install -y --no-install-recommends -o Acquire::Retries=3 libeccodes0; then break; fi
+            echo "apt attempt $i failed; retrying"; sleep 10
+          done
+          pip install --quiet numpy pandas scipy xarray netCDF4 h5netcdf 'pyproj>=3.7.2' matplotlib==3.10.9 cfgrib eccodes cdsapi requests
+          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag
+
+      - name: CDS credentials
+        env:
+          CDSAPI_URL: ${{ secrets.CDSAPI_URL }}
+          CDSAPI_KEY: ${{ secrets.CDSAPI_KEY }}
+        run: |
+          if [ -z "$CDSAPI_KEY" ]; then echo "::error::secret CDSAPI_KEY is not set"; exit 1; fi
+          umask 077
+          printf 'url: %s\nkey: %s\n' "${CDSAPI_URL:-https://cds.climate.copernicus.eu/api}" "$CDSAPI_KEY" > ~/.cdsapirc
+
+      - name: Release and held units
+        run: |
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "C3S polar-vortex wind skill (analysis)" \
+              --notes "Raw CDS GRIBs, per-request tables and results of scripts/sst/c3s_u10_skill.py (monthly u 60N 10/100 hPa, C3S hindcasts 1993-2016). Analysis only; Copernicus licence." \
+              || echo "::warning::release create failed (may already exist)"
+          fi
+          mkdir -p "$C3SU10_DIR/raw" "$SEAS5_REF_DIR"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" -D "$C3SU10_DIR" --clobber -p 'u60_*.npz' || echo "::warning::no u60 tables from $TAG (none yet, or the download failed)"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" -D "$C3SU10_DIR/raw" --clobber -p 'u60_*.grib' || echo "::warning::no raw GRIBs from $TAG (none yet, or the download failed)"
+          gh release download seas5-ref-v1 --repo "$GITHUB_REPOSITORY" -D "$SEAS5_REF_DIR" --clobber -p 'hc_ssw_u100_10.npz'
+          ls -la "$C3SU10_DIR" "$C3SU10_DIR/raw" "$SEAS5_REF_DIR"
+          python scripts/sst/c3s_u10_skill.py units
+
+      - name: Fetch (CDS, sequential, each unit uploaded on arrival)
+        id: fetch
+        run: |
+          set +e
+          python scripts/sst/c3s_u10_skill.py fetch --budget-min "${{ inputs.budget_min }}"
+          rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          if [ "$rc" -ne 0 ]; then echo "::warning::some units are still missing (rc $rc); dispatch again to resume"; fi
+          cat scripts/sst/data/seas5/l7_volume.jsonl 2>/dev/null || true
+          exit 0
+
+      - name: Statistics, JSON, figure
+        if: steps.fetch.outputs.rc == '0'
+        run: |
+          mkdir -p "$C3SU10_OUT"
+          python scripts/sst/c3s_u10_skill.py build | tee "$C3SU10_OUT/c3s_u10_skill_report.txt"
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber \
+            "$C3SU10_OUT/c3s_u10_skill.json" "$C3SU10_OUT/c3s_u10_skill.png" "$C3SU10_OUT/c3s_u10_skill_report.txt"
+
+      - name: Artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: c3s-u10-skill
+          path: |
+            ${{ github.workspace }}/c3s_u10/out/
+            ${{ github.workspace }}/c3s_u10/u60_*.npz
+          if-no-files-found: warn

@@ -1,0 +1,108 @@
+name: Overturning forecasts - drift reference (ERA5 + archived ECMWF ensembles -> release overturn-ref-v1)
+
+# Builder for the Hadley/Walker forecast drift (scripts/mjo/src/overturn.py): ERA5 from ARCO and the archived AIFS-ENS,
+# IFS-ENS (Google mirror) and GEFS (NOAA S3) 00Z runs on the 5-day lattice since 2024-03-01, at leads 0/5/10/15 days, four members a start, reduced to
+# the zonal-mean v and the equatorial divergent zonal wind. Each part is one slice of the lattice; the release job
+# merges the parts with the reference already published, so a later run over new days only tops it up.
+on:
+  workflow_dispatch:
+    inputs:
+      since:
+        description: 'First day (YYYY-MM-DD; snapped to the 5-day lattice)'
+        default: '2024-03-01'
+      until:
+        description: 'Last day (empty = 6 days ago, the ERA5 lag)'
+        default: ''
+      nparts:
+        description: 'Parts the lattice is split into'
+        default: '4'
+      parts:
+        description: 'JSON list of the part indices to run'
+        default: '[0,1,2,3]'
+      what:
+        description: 'JSON list of the streams to build (era5 truth and the models)'
+        default: '["era5","aifs","ifs","gefs"]'
+
+permissions:
+  contents: write
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  ECMWF_SOURCES: google
+
+jobs:
+  part:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        what: ${{ fromJSON(inputs.what) }}
+        part: ${{ fromJSON(inputs.parts) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: System libraries
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Install Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+      - name: Reduce this part
+        env:
+          ERA5_STORE: ${{ runner.temp }}/era5   # ARCO fields stream through a scratch store
+          SINCE: ${{ inputs.since }}
+          UNTIL: ${{ inputs.until }}
+          PART: ${{ matrix.part }}/${{ inputs.nparts }}
+          WHAT: ${{ matrix.what }}
+        run: |
+          mkdir -p out
+          args=(--since "$SINCE" --part "$PART" --out "out/${WHAT}_${{ matrix.part }}.npz")
+          [ -n "$UNTIL" ] && args+=(--until "$UNTIL")
+          if [ "$WHAT" = era5 ]; then
+            python scripts/mjo/src/overturn.py truth "${args[@]}"
+          else
+            python scripts/mjo/src/overturn.py archive --model "$WHAT" "${args[@]}"
+          fi
+      - uses: actions/upload-artifact@v7
+        with:
+          name: overturn-${{ matrix.what }}-${{ matrix.part }}
+          path: out/*.npz
+          retention-days: 5
+
+  release:
+    needs: part
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    concurrency:   # each merge reads the reference the previous one published: never two at once
+      group: overturn-ref-release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: overturn-*
+          path: parts
+          merge-multiple: true
+      - name: Merge with the published reference and publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          shopt -s nullglob   # no published reference yet: prev/*.npz expands to nothing
+          mkdir -p prev
+          gh release download overturn-ref-v1 -R "$GITHUB_REPOSITORY" -p overturn_ref.npz -D prev 2>/dev/null || echo "no published reference yet"
+          ls -la parts prev
+          python scripts/mjo/src/overturn.py pack prev/*.npz parts/*.npz
+          python scripts/mjo/src/overturn.py check
+          gh release view overturn-ref-v1 -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create overturn-ref-v1 -R "$GITHUB_REPOSITORY" --title "Overturning forecast drift reference v1" \
+              --notes "ERA5 (ARCO) and archived AIFS-ENS / IFS-ENS 00Z runs on a 5-day lattice since 2024-03-01, leads 0/5/10/15 days: zonal-mean v and the 5S-5N divergent zonal wind, for the model drift of the Hadley and Walker forecasts (scripts/mjo/src/overturn.py)."
+          gh release upload overturn-ref-v1 scripts/mjo/data/reference/overturn_ref.npz -R "$GITHUB_REPOSITORY" --clobber

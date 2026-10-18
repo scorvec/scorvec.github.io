@@ -1,0 +1,143 @@
+name: Hadley outflow and subtropical descent (IFS HRES analyses and back-trajectories against ERA5 1991-2020)
+
+# scripts/mjo/src/hadley_branch_maps.py. The archive lives in the release hbranch-hres: the last weeks of 6-hourly 3-D
+# fields (w3_*), the daily fields by month (hb_*), each day's trajectory histograms (traj.npz) and the analysis's
+# offset from ERA5 (offset_era5.npz, first filled by hbranch-offsets.yml). Each run pairs the lattice days ARCO has
+# newly published, adds yesterday (the last day with all four analyses), releases its trajectories, draws the new
+# weeks' and days' frames and the interactive map's forward paths (frames branch) and commits the manifests, the stills and
+# the figures. The daily sea-level pressure loops against ERA5 (hadley_slp.py) are drawn from the same archive. The
+# forecast release of the interactive map comes from hbranch-fc.yml, the ensembles' forecast windows in the outflow and
+# ridge trackers from hbranch-ens.yml (assets/sst/data/hbranch_fc.json). The archive steps have their own timeouts and
+# whatever they wrote is uploaded either way, so a re-run carries on where one stopped.
+on:
+  schedule:
+    - cron: '25 2 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Run even if yesterday is already drawn'
+        required: false
+        default: 'false'
+      rebuild_frames:
+        description: 'Redraw every frame (after a climatology or offset change)'
+        required: false
+        default: 'false'
+      fresh_archive:
+        description: 'Archive and release every day again (after a change to what a day holds)'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hbranch
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  ECMWF_SOURCES: google
+  ARCH: scripts/mjo/data/hbranch
+
+jobs:
+  tracker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v7
+      - name: Which day
+        id: run
+        env:
+          FORCE: ${{ inputs.force }}
+        run: |
+          last=$(python3 -c "import json; print(json.load(open('assets/sst/anim/hbranch_hist_manifest.json'))['regions']['hbranch_hist']['frames'][-1]['date'])" 2>/dev/null || echo none)
+          if [ "$last" = "$(date -u -d yesterday +%Y-%m-%d)" ] && [ "$FORCE" != "true" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; echo "week ending $last already drawn"; fi
+      - uses: actions/setup-python@v7
+        if: steps.run.outputs.skip != 'true'
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        if: steps.run.outputs.skip != 'true'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - name: The archive (release)
+        if: steps.run.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$ARCH"
+          gh release download hbranch-hres -R "$GITHUB_REPOSITORY" -p '*.npz' -D "$ARCH" --clobber \
+            || echo "::warning::the archive release holds no files yet (hbranch-offsets.yml fills the offsets first)"
+      - name: Pair the newly published lattice days with ERA5
+        if: steps.run.outputs.skip != 'true'
+        timeout-minutes: 60
+        run: python scripts/mjo/src/hadley_branch_maps.py truth
+      - name: Archive the new days and release their trajectories
+        if: steps.run.outputs.skip != 'true'
+        timeout-minutes: 240
+        run: python scripts/mjo/src/hadley_branch_maps.py update $([ "${{ inputs.fresh_archive }}" = "true" ] && echo --fresh)
+      - name: Upload what was written, delete what was pruned
+        if: always() && steps.run.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -s "$ARCH/written.txt" ]; then  # a file written and then pruned in the same run is not there to upload
+            sort -u "$ARCH/written.txt" | while read -r f; do if [ -f "$ARCH/$f" ]; then echo "$ARCH/$f"; fi; done \
+              | xargs -r -n 20 gh release upload hbranch-hres -R "$GITHUB_REPOSITORY" --clobber
+          fi
+          if [ -s "$ARCH/removed.txt" ]; then  # only what the release holds (a pruned file may never have been uploaded)
+            have=$(gh release view hbranch-hres -R "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
+            for f in $(sort -u "$ARCH/removed.txt"); do
+              if grep -qx "$f" <<< "$have"; then
+                gh release delete-asset hbranch-hres "$f" -R "$GITHUB_REPOSITORY" -y || echo "::warning::could not delete $f from the release"
+              fi
+            done
+          fi
+      - name: Frames, still and figures
+        if: steps.run.outputs.skip != 'true'
+        run: |
+          scripts/lib/fetch_frames_ci.sh assets/sst/anim/hbranch_hist assets/sst/anim/hbranch_dt \
+            || echo "::warning::no frames on the frames branch yet"
+          python scripts/mjo/src/hadley_branch_maps.py render $([ "${{ inputs.rebuild_frames }}" = "true" ] && echo --rebuild)
+      - name: Sea-level pressure loops (normalised and in hPa)
+        if: steps.run.outputs.skip != 'true'
+        run: |
+          scripts/lib/fetch_frames_ci.sh assets/sst/anim/hslp_ana assets/sst/anim/hslp_ana_hpa \
+            || echo "::warning::no sea-level pressure frames on the frames branch yet"
+          python scripts/mjo/src/hadley_slp.py render $([ "${{ inputs.rebuild_frames }}" = "true" ] && echo --rebuild) \
+            || echo "::warning::sea-level pressure loops not drawn this run"
+      - name: Publish the frames (frames branch)
+        if: steps.run.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          scripts/lib/publish_frames_ci.sh assets/sst/anim/hbranch_hist assets/sst/anim/hbranch_dt assets/sst/anim/hbranch_drop \
+            assets/sst/anim/hslp_ana assets/sst/anim/hslp_ana_hpa
+      - name: Commit & push (manifest, still, figures)
+        if: steps.run.outputs.skip != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/sst/anim/hbranch_hist_manifest.json assets/sst/anim/hbranch_dt_manifest.json assets/sst/anim/hbranch_drop_manifest.json \
+               assets/sst/hbranch_map.webp assets/sst/hbranch_dt.webp assets/sst/hbranch_flow.webp assets/sst/hbranch_ridges.webp \
+               assets/sst/hbranch_turnover.webp assets/sst/hbranch_traj.webp assets/sst/hbranch_basemap.webp"
+          HSLP="assets/sst/anim/hslp_ana_manifest.json assets/sst/anim/hslp_ana_hpa_manifest.json"   # absent if not drawn
+          last=$(python3 -c "import json; print(json.load(open('assets/sst/anim/hbranch_hist_manifest.json'))['regions']['hbranch_hist']['frames'][-1]['date'])")
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT $HSLP 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            perl -0pi -e "s/(hbranch_(?:flow|ridges|turnover|traj)\.webp)\?v=\w+/\${1}?v=$(date -u +%Y%m%d%H%M)/g" circulation.html
+            git add circulation.html $OUT
+            for f in $HSLP; do [ -e "$f" ] && git add "$f"; done
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "Hadley outflow and subtropical descent: week ending $last"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

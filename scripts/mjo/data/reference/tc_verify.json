@@ -1,0 +1,1447 @@
+{
+ "built": "2026-10-18T21:30Z",
+ "best_track": "IBTrACS v04r01 last-three-years file (Sun, 18 Oct 2026 08:58:49 GMT)",
+ "period": {
+  "ifs": [
+   "2024-08-01",
+   "2026-10-18"
+  ],
+  "aifs": [
+   "2026-05-27",
+   "2026-10-18"
+  ],
+  "pooled": [
+   "2026-05-27",
+   "2026-10-18"
+  ]
+ },
+ "rules": {
+  "match_km": 300.0,
+  "horizon_days": 10,
+  "recurvature": "tclib.recurvature with 48 h of observed history; storms already turned at the start left out",
+  "post_tropical": "tracker's last fix north of 30N by day 10 vs IBTrACS nature ET (final best tracks only)",
+  "intervals": "95 %, 2000 resamples of whole storms",
+  "min_storms": 10,
+  "min_events": 5
+ },
+ "track_error": {
+  "ifs": {
+   "leads": [
+    0,
+    24,
+    48,
+    72,
+    96,
+    120,
+    144,
+    168,
+    192,
+    216,
+    240
+   ],
+   "cases": [
+    2048,
+    1498,
+    1197,
+    913,
+    673,
+    500,
+    349,
+    227,
+    154,
+    97,
+    62
+   ],
+   "storms": [
+    190,
+    169,
+    151,
+    121,
+    92,
+    77,
+    58,
+    39,
+    31,
+    17,
+    11
+   ],
+   "det_km": [
+    [
+     34.0,
+     31.0,
+     36.0
+    ],
+    [
+     55.0,
+     52.0,
+     58.0
+    ],
+    [
+     94.0,
+     88.0,
+     100.0
+    ],
+    [
+     143.0,
+     133.0,
+     155.0
+    ],
+    [
+     201.0,
+     181.0,
+     222.0
+    ],
+    [
+     294.0,
+     259.0,
+     334.0
+    ],
+    [
+     408.0,
+     340.0,
+     487.0
+    ],
+    [
+     518.0,
+     423.0,
+     636.0
+    ],
+    [
+     644.0,
+     502.0,
+     824.0
+    ],
+    [
+     871.0,
+     626.0,
+     1165.0
+    ],
+    [
+     967.0,
+     673.0,
+     1379.0
+    ]
+   ],
+   "ens_km": [
+    [
+     29.0,
+     28.0,
+     31.0
+    ],
+    [
+     52.0,
+     49.0,
+     55.0
+    ],
+    [
+     90.0,
+     84.0,
+     96.0
+    ],
+    [
+     134.0,
+     124.0,
+     145.0
+    ],
+    [
+     192.0,
+     171.0,
+     214.0
+    ],
+    [
+     279.0,
+     243.0,
+     322.0
+    ],
+    [
+     373.0,
+     312.0,
+     452.0
+    ],
+    [
+     457.0,
+     367.0,
+     586.0
+    ],
+    [
+     588.0,
+     460.0,
+     785.0
+    ],
+    [
+     718.0,
+     517.0,
+     996.0
+    ],
+    [
+     788.0,
+     552.0,
+     1135.0
+    ]
+   ],
+   "pers_km": [
+    [
+     null,
+     null,
+     null
+    ],
+    [
+     189.0,
+     177.0,
+     203.0
+    ],
+    [
+     454.0,
+     421.0,
+     488.0
+    ],
+    [
+     730.0,
+     678.0,
+     794.0
+    ],
+    [
+     1002.0,
+     918.0,
+     1085.0
+    ],
+    [
+     1276.0,
+     1167.0,
+     1395.0
+    ],
+    [
+     1539.0,
+     1388.0,
+     1707.0
+    ],
+    [
+     1730.0,
+     1510.0,
+     1947.0
+    ],
+    [
+     1994.0,
+     1719.0,
+     2267.0
+    ],
+    [
+     2213.0,
+     1812.0,
+     2597.0
+    ],
+    [
+     2410.0,
+     2005.0,
+     2915.0
+    ]
+   ],
+   "ens_minus_det_km": [
+    [
+     -4.0,
+     -6.0,
+     -3.0
+    ],
+    [
+     -3.0,
+     -4.0,
+     -2.0
+    ],
+    [
+     -4.0,
+     -7.0,
+     -2.0
+    ],
+    [
+     -9.0,
+     -15.0,
+     -3.0
+    ],
+    [
+     -9.0,
+     -20.0,
+     1.0
+    ],
+    [
+     -15.0,
+     -35.0,
+     4.0
+    ],
+    [
+     -35.0,
+     -73.0,
+     2.0
+    ],
+    [
+     -61.0,
+     -119.0,
+     -5.0
+    ],
+    [
+     -56.0,
+     -147.0,
+     27.0
+    ],
+    [
+     -153.0,
+     -279.0,
+     -31.0
+    ],
+    [
+     -179.0,
+     -368.0,
+     -29.0
+    ]
+   ],
+   "det_skill": [
+    [
+     null,
+     null,
+     null
+    ],
+    [
+     0.711,
+     0.688,
+     0.731
+    ],
+    [
+     0.792,
+     0.774,
+     0.807
+    ],
+    [
+     0.804,
+     0.786,
+     0.822
+    ],
+    [
+     0.8,
+     0.776,
+     0.822
+    ],
+    [
+     0.769,
+     0.738,
+     0.799
+    ],
+    [
+     0.735,
+     0.685,
+     0.779
+    ],
+    [
+     0.701,
+     0.632,
+     0.759
+    ],
+    [
+     0.677,
+     0.584,
+     0.751
+    ],
+    [
+     0.606,
+     0.495,
+     0.703
+    ],
+    [
+     0.599,
+     0.478,
+     0.694
+    ]
+   ],
+   "ens_skill": [
+    [
+     null,
+     null,
+     null
+    ],
+    [
+     0.726,
+     0.706,
+     0.745
+    ],
+    [
+     0.802,
+     0.785,
+     0.816
+    ],
+    [
+     0.817,
+     0.8,
+     0.832
+    ],
+    [
+     0.809,
+     0.786,
+     0.829
+    ],
+    [
+     0.781,
+     0.749,
+     0.81
+    ],
+    [
+     0.757,
+     0.709,
+     0.799
+    ],
+    [
+     0.736,
+     0.666,
+     0.791
+    ],
+    [
+     0.705,
+     0.62,
+     0.766
+    ],
+    [
+     0.675,
+     0.569,
+     0.748
+    ],
+    [
+     0.673,
+     0.551,
+     0.752
+    ]
+   ]
+  },
+  "aifs": {
+   "leads": [
+    0,
+    24,
+    48,
+    72,
+    96,
+    120,
+    144,
+    168,
+    192
+   ],
+   "cases": [
+    707,
+    514,
+    421,
+    337,
+    272,
+    205,
+    162,
+    122,
+    89
+   ],
+   "storms": [
+    58,
+    49,
+    42,
+    35,
+    29,
+    23,
+    20,
+    15,
+    12
+   ],
+   "det_km": [
+    [
+     29.0,
+     26.0,
+     32.0
+    ],
+    [
+     41.0,
+     38.0,
+     46.0
+    ],
+    [
+     66.0,
+     58.0,
+     75.0
+    ],
+    [
+     107.0,
+     90.0,
+     125.0
+    ],
+    [
+     165.0,
+     137.0,
+     200.0
+    ],
+    [
+     213.0,
+     177.0,
+     261.0
+    ],
+    [
+     287.0,
+     239.0,
+     365.0
+    ],
+    [
+     386.0,
+     323.0,
+     482.0
+    ],
+    [
+     446.0,
+     370.0,
+     531.0
+    ]
+   ],
+   "ens_km": [
+    [
+     27.0,
+     25.0,
+     29.0
+    ],
+    [
+     42.0,
+     38.0,
+     47.0
+    ],
+    [
+     66.0,
+     58.0,
+     76.0
+    ],
+    [
+     99.0,
+     84.0,
+     118.0
+    ],
+    [
+     141.0,
+     120.0,
+     166.0
+    ],
+    [
+     205.0,
+     171.0,
+     245.0
+    ],
+    [
+     288.0,
+     236.0,
+     356.0
+    ],
+    [
+     389.0,
+     313.0,
+     484.0
+    ],
+    [
+     446.0,
+     357.0,
+     535.0
+    ]
+   ],
+   "pers_km": [
+    [
+     null,
+     null,
+     null
+    ],
+    [
+     189.0,
+     167.0,
+     215.0
+    ],
+    [
+     441.0,
+     382.0,
+     508.0
+    ],
+    [
+     697.0,
+     597.0,
+     801.0
+    ],
+    [
+     967.0,
+     820.0,
+     1126.0
+    ],
+    [
+     1235.0,
+     1066.0,
+     1452.0
+    ],
+    [
+     1484.0,
+     1264.0,
+     1728.0
+    ],
+    [
+     1617.0,
+     1340.0,
+     1904.0
+    ],
+    [
+     1811.0,
+     1473.0,
+     2112.0
+    ]
+   ],
+   "ens_minus_det_km": [
+    [
+     -3.0,
+     -4.0,
+     -1.0
+    ],
+    [
+     1.0,
+     -2.0,
+     3.0
+    ],
+    [
+     1.0,
+     -3.0,
+     5.0
+    ],
+    [
+     -8.0,
+     -17.0,
+     0.0
+    ],
+    [
+     -24.0,
+     -43.0,
+     -8.0
+    ],
+    [
+     -8.0,
+     -40.0,
+     25.0
+    ],
+    [
+     1.0,
+     -60.0,
+     58.0
+    ],
+    [
+     3.0,
+     -60.0,
+     57.0
+    ],
+    [
+     1.0,
+     -78.0,
+     62.0
+    ]
+   ],
+   "det_skill": [
+    [
+     null,
+     null,
+     null
+    ],
+    [
+     0.781,
+     0.745,
+     0.807
+    ],
+    [
+     0.851,
+     0.825,
+     0.87
+    ],
+    [
+     0.846,
+     0.825,
+     0.868
+    ],
+    [
+     0.829,
+     0.797,
+     0.857
+    ],
+    [
+     0.828,
+     0.783,
+     0.863
+    ],
+    [
+     0.807,
+     0.746,
+     0.845
+    ],
+    [
+     0.761,
+     0.683,
+     0.806
+    ],
+    [
+     0.754,
+     0.7,
+     0.791
+    ]
+   ],
+   "ens_skill": [
+    [
+     null,
+     null,
+     null
+    ],
+    [
+     0.778,
+     0.745,
+     0.803
+    ],
+    [
+     0.849,
+     0.824,
+     0.868
+    ],
+    [
+     0.858,
+     0.836,
+     0.877
+    ],
+    [
+     0.854,
+     0.832,
+     0.876
+    ],
+    [
+     0.834,
+     0.798,
+     0.866
+    ],
+    [
+     0.806,
+     0.755,
+     0.848
+    ],
+    [
+     0.759,
+     0.679,
+     0.818
+    ],
+    [
+     0.754,
+     0.681,
+     0.814
+    ]
+   ]
+  }
+ },
+ "recurvature": {
+  "ifs": {
+   "cases": 1672,
+   "storms": 182,
+   "events": 403,
+   "base_rate": 0.241,
+   "track_record": true,
+   "bss": [
+    0.528,
+    0.373,
+    0.651
+   ],
+   "skilful": true,
+   "reliability": [
+    {
+     "bin": [
+      0.0,
+      0.1
+     ],
+     "cases": 955,
+     "storms": 137,
+     "forecast": 0.011,
+     "observed": [
+      0.017,
+      0.005,
+      0.033
+     ]
+    },
+    {
+     "bin": [
+      0.1,
+      0.3
+     ],
+     "cases": 231,
+     "storms": 71,
+     "forecast": 0.17,
+     "observed": [
+      0.238,
+      0.128,
+      0.366
+     ]
+    },
+    {
+     "bin": [
+      0.3,
+      0.5
+     ],
+     "cases": 105,
+     "storms": 44,
+     "forecast": 0.385,
+     "observed": [
+      0.476,
+      0.297,
+      0.661
+     ]
+    },
+    {
+     "bin": [
+      0.5,
+      0.7
+     ],
+     "cases": 109,
+     "storms": 39,
+     "forecast": 0.584,
+     "observed": [
+      0.44,
+      0.268,
+      0.63
+     ]
+    },
+    {
+     "bin": [
+      0.7,
+      0.9
+     ],
+     "cases": 90,
+     "storms": 37,
+     "forecast": 0.797,
+     "observed": [
+      0.778,
+      0.628,
+      0.912
+     ]
+    },
+    {
+     "bin": [
+      0.9,
+      1.0
+     ],
+     "cases": 182,
+     "storms": 30,
+     "forecast": 0.972,
+     "observed": [
+      0.901,
+      0.794,
+      0.98
+     ]
+    }
+   ],
+   "reliable": true
+  },
+  "aifs": {
+   "cases": 589,
+   "storms": 56,
+   "events": 126,
+   "base_rate": 0.214,
+   "track_record": true,
+   "bss": [
+    0.602,
+    0.421,
+    0.77
+   ],
+   "skilful": true,
+   "reliability": [
+    {
+     "bin": [
+      0.0,
+      0.1
+     ],
+     "cases": 337,
+     "storms": 46,
+     "forecast": 0.015,
+     "observed": [
+      0.015,
+      0.0,
+      0.04
+     ]
+    },
+    {
+     "bin": [
+      0.1,
+      0.3
+     ],
+     "cases": 98,
+     "storms": 21,
+     "forecast": 0.163,
+     "observed": [
+      0.173,
+      0.015,
+      0.385
+     ]
+    },
+    {
+     "bin": [
+      0.3,
+      0.5
+     ],
+     "cases": 44,
+     "storms": 12,
+     "forecast": 0.389,
+     "observed": [
+      0.227,
+      0.023,
+      0.522
+     ]
+    },
+    {
+     "bin": [
+      0.5,
+      0.7
+     ],
+     "cases": 31,
+     "storms": 8,
+     "forecast": 0.568,
+     "observed": [
+      0.742,
+      0.375,
+      0.921
+     ]
+    },
+    {
+     "bin": [
+      0.7,
+      0.9
+     ],
+     "cases": 25,
+     "storms": 11,
+     "forecast": 0.789,
+     "observed": [
+      0.8,
+      0.556,
+      0.964
+     ]
+    },
+    {
+     "bin": [
+      0.9,
+      1.0
+     ],
+     "cases": 54,
+     "storms": 11,
+     "forecast": 0.971,
+     "observed": [
+      0.944,
+      0.857,
+      1.0
+     ]
+    }
+   ],
+   "reliable": true
+  },
+  "pooled": {
+   "cases": 589,
+   "storms": 56,
+   "events": 126,
+   "base_rate": 0.214,
+   "track_record": true,
+   "bss": [
+    0.611,
+    0.436,
+    0.764
+   ],
+   "skilful": true,
+   "reliability": [
+    {
+     "bin": [
+      0.0,
+      0.1
+     ],
+     "cases": 326,
+     "storms": 45,
+     "forecast": 0.016,
+     "observed": [
+      0.015,
+      0.0,
+      0.043
+     ]
+    },
+    {
+     "bin": [
+      0.1,
+      0.3
+     ],
+     "cases": 99,
+     "storms": 23,
+     "forecast": 0.172,
+     "observed": [
+      0.131,
+      0.012,
+      0.329
+     ]
+    },
+    {
+     "bin": [
+      0.3,
+      0.5
+     ],
+     "cases": 49,
+     "storms": 11,
+     "forecast": 0.39,
+     "observed": [
+      0.224,
+      0.049,
+      0.545
+     ]
+    },
+    {
+     "bin": [
+      0.5,
+      0.7
+     ],
+     "cases": 39,
+     "storms": 10,
+     "forecast": 0.587,
+     "observed": [
+      0.667,
+      0.333,
+      0.864
+     ]
+    },
+    {
+     "bin": [
+      0.7,
+      0.9
+     ],
+     "cases": 23,
+     "storms": 11,
+     "forecast": 0.787,
+     "observed": [
+      0.913,
+      0.733,
+      1.0
+     ]
+    },
+    {
+     "bin": [
+      0.9,
+      1.0
+     ],
+     "cases": 53,
+     "storms": 10,
+     "forecast": 0.965,
+     "observed": [
+      0.943,
+      0.853,
+      0.989
+     ]
+    }
+   ],
+   "reliable": true
+  }
+ },
+ "recurvature_timing": {
+  "ifs": [
+   {
+    "lead_h": [
+     0,
+     48
+    ],
+    "cases": 139,
+    "storms": 43,
+    "mae_h": [
+     5.7,
+     3.9,
+     8.1
+    ],
+    "bias_h": [
+     2.7,
+     0.4,
+     5.5
+    ]
+   },
+   {
+    "lead_h": [
+     48,
+     96
+    ],
+    "cases": 98,
+    "storms": 33,
+    "mae_h": [
+     11.2,
+     6.7,
+     17.8
+    ],
+    "bias_h": [
+     -1.2,
+     -9.0,
+     4.4
+    ]
+   },
+   {
+    "lead_h": [
+     96,
+     144
+    ],
+    "cases": 66,
+    "storms": 21,
+    "mae_h": [
+     16.4,
+     9.8,
+     24.7
+    ],
+    "bias_h": [
+     -0.6,
+     -11.8,
+     8.2
+    ]
+   },
+   {
+    "lead_h": [
+     144,
+     241
+    ],
+    "cases": 41,
+    "storms": 11,
+    "mae_h": [
+     26.0,
+     13.3,
+     42.2
+    ],
+    "bias_h": [
+     -16.9,
+     -35.3,
+     0.6
+    ]
+   }
+  ],
+  "aifs": [
+   {
+    "lead_h": [
+     0,
+     48
+    ],
+    "cases": 41,
+    "storms": 11,
+    "mae_h": [
+     4.2,
+     1.9,
+     6.7
+    ],
+    "bias_h": [
+     -0.1,
+     -3.6,
+     2.9
+    ]
+   },
+   {
+    "lead_h": [
+     48,
+     96
+    ],
+    "cases": 35,
+    "storms": 10,
+    "mae_h": [
+     7.4,
+     3.0,
+     12.8
+    ],
+    "bias_h": [
+     5.3,
+     0.5,
+     11.0
+    ]
+   },
+   {
+    "lead_h": [
+     96,
+     144
+    ],
+    "cases": 22,
+    "storms": 8,
+    "mae_h": [
+     11.0,
+     3.7,
+     19.2
+    ],
+    "bias_h": [
+     8.3,
+     -0.4,
+     17.9
+    ]
+   },
+   {
+    "lead_h": [
+     144,
+     241
+    ],
+    "cases": 9,
+    "storms": 2
+   }
+  ]
+ },
+ "post_tropical": {
+  "ifs": {
+   "cases": 1279,
+   "storms": 127,
+   "events": 379,
+   "base_rate": 0.296,
+   "track_record": true,
+   "bss": [
+    0.277,
+    -0.061,
+    0.543
+   ],
+   "skilful": false,
+   "reliability": [
+    {
+     "bin": [
+      0.0,
+      0.1
+     ],
+     "cases": 663,
+     "storms": 86,
+     "forecast": 0.008,
+     "observed": [
+      0.044,
+      0.005,
+      0.11
+     ]
+    },
+    {
+     "bin": [
+      0.1,
+      0.3
+     ],
+     "cases": 89,
+     "storms": 32,
+     "forecast": 0.185,
+     "observed": [
+      0.225,
+      0.085,
+      0.39
+     ]
+    },
+    {
+     "bin": [
+      0.3,
+      0.5
+     ],
+     "cases": 53,
+     "storms": 26,
+     "forecast": 0.379,
+     "observed": [
+      0.358,
+      0.167,
+      0.587
+     ]
+    },
+    {
+     "bin": [
+      0.5,
+      0.7
+     ],
+     "cases": 59,
+     "storms": 26,
+     "forecast": 0.589,
+     "observed": [
+      0.542,
+      0.304,
+      0.772
+     ]
+    },
+    {
+     "bin": [
+      0.7,
+      0.9
+     ],
+     "cases": 78,
+     "storms": 30,
+     "forecast": 0.805,
+     "observed": [
+      0.654,
+      0.46,
+      0.868
+     ]
+    },
+    {
+     "bin": [
+      0.9,
+      1.0
+     ],
+     "cases": 337,
+     "storms": 47,
+     "forecast": 0.985,
+     "observed": [
+      0.677,
+      0.521,
+      0.819
+     ]
+    }
+   ],
+   "reliable": false
+  },
+  "aifs": {
+   "cases": 0,
+   "storms": 0,
+   "events": 0,
+   "base_rate": null,
+   "track_record": false
+  },
+  "pooled": {
+   "cases": 0,
+   "storms": 0,
+   "events": 0,
+   "base_rate": null,
+   "track_record": false
+  }
+ },
+ "post_tropical_timing": {
+  "ifs": [
+   {
+    "lead_h": [
+     0,
+     48
+    ],
+    "cases": 90,
+    "storms": 30,
+    "mae_h": [
+     36.8,
+     24.4,
+     50.3
+    ],
+    "bias_h": [
+     31.2,
+     16.5,
+     45.3
+    ]
+   },
+   {
+    "lead_h": [
+     48,
+     96
+    ],
+    "cases": 116,
+    "storms": 30,
+    "mae_h": [
+     30.4,
+     21.9,
+     39.6
+    ],
+    "bias_h": [
+     24.7,
+     13.5,
+     35.7
+    ]
+   },
+   {
+    "lead_h": [
+     96,
+     144
+    ],
+    "cases": 74,
+    "storms": 22,
+    "mae_h": [
+     29.6,
+     19.2,
+     40.8
+    ],
+    "bias_h": [
+     27.6,
+     16.5,
+     39.5
+    ]
+   },
+   {
+    "lead_h": [
+     144,
+     241
+    ],
+    "cases": 57,
+    "storms": 15,
+    "mae_h": [
+     23.4,
+     18.5,
+     30.7
+    ],
+    "bias_h": [
+     17.0,
+     8.4,
+     28.4
+    ]
+   }
+  ],
+  "aifs": [
+   {
+    "lead_h": [
+     0,
+     48
+    ],
+    "cases": 0,
+    "storms": 0
+   },
+   {
+    "lead_h": [
+     48,
+     96
+    ],
+    "cases": 0,
+    "storms": 0
+   },
+   {
+    "lead_h": [
+     96,
+     144
+    ],
+    "cases": 0,
+    "storms": 0
+   },
+   {
+    "lead_h": [
+     144,
+     241
+    ],
+    "cases": 0,
+    "storms": 0
+   }
+  ]
+ },
+ "watch": {
+  "ifs": {
+   "watches": 313,
+   "storms_watched": 53,
+   "hit_rate": [
+    0.802,
+    0.67,
+    0.902
+   ],
+   "detected": [
+    0.623,
+    0.505,
+    0.729
+   ]
+  },
+  "aifs": {
+   "watches": 85,
+   "storms_watched": 13,
+   "hit_rate": [
+    0.894,
+    0.783,
+    0.963
+   ],
+   "detected": [
+    0.603,
+    0.381,
+    0.852
+   ]
+  },
+  "pooled": {
+   "watches": 95,
+   "storms_watched": 14,
+   "hit_rate": [
+    0.905,
+    0.808,
+    0.967
+   ],
+   "detected": [
+    0.683,
+    0.509,
+    0.86
+   ]
+  }
+ },
+ "summary": {
+  "recurvature": "AIFS-ENS + IFS-ENS pooled, 589 forecasts of 56 storms since 2026-05-27: Brier skill score 0.61 (95 % interval 0.44 to 0.76) against the base rate of 21 % \u2014 skilful. Within sampling error of reliable in every well-filled probability bin. IFS-ENS alone, 1672 forecasts of 182 storms since 2024-08-01: Brier skill score 0.53 (95 % interval 0.37 to 0.65) against the base rate of 24 % \u2014 skilful. Within sampling error of reliable in every well-filled probability bin. Turn dates (IFS-ENS, the median recurving member): mean absolute error 6 h for turns 0\u20132 days ahead, 11 h for turns 2\u20134 days ahead, 16 h for turns 4\u20136 days ahead, 26 h for turns 6\u201310 days ahead.",
+  "post_tropical": "AIFS-ENS + IFS-ENS pooled: no track record yet for the chance of becoming post-tropical by day 10 (0 forecasts of 0 storms since 2026-05-27). IFS-ENS alone, 1279 forecasts of 127 storms since 2024-08-01: Brier skill score 0.28 (95 % interval -0.06 to 0.54) against the base rate of 30 % \u2014 no skill shown. The median member's last fix comes after the best track's transition: on average 31 h (16 to 45), 25 h (14 to 36), 28 h (16 to 40), 17 h (8 to 28) for transitions 0\u20132, 2\u20134, 4\u20136 and 6\u201310 days ahead.",
+  "watch": "The watch rule on AIFS-ENS + IFS-ENS since 2026-05-27: 95 watches on 14 storms; 90 % (95 % interval 81 % to 97 %) were followed by a recurvature by day 10, and 68 % (95 % interval 51 % to 86 %) of the recurvatures were watched. On IFS-ENS alone since 2024-08-01: 313 watches on 53 storms; 80 % (95 % interval 67 % to 90 %) were followed by a recurvature by day 10, and 62 % (95 % interval 50 % to 73 %) of the recurvatures were watched.",
+  "tracks": "Day-5 track error since 2024-08-01 (500 forecasts of 77 storms): IFS control 294 km, IFS-ENS mean 279 km; the difference (-15 km, 95 % interval -35 to +4) is not significant."
+ }
+}

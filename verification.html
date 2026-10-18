@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global model verification &middot; Shawn Corvec</title>
+<meta name="description" content="GFS, ECMWF IFS, AIFS and Canada's GDPS scored against surface stations, radiosondes and the Stage IV precipitation analysis out to day 10, with mverify, an open-source verification package.">
+<link rel="canonical" href="https://scorvec.com/verification.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Global model verification: GFS, IFS, AIFS and GDPS">
+<meta property="og:description" content="GFS, ECMWF IFS, AIFS and Canada's GDPS scored against surface stations, radiosondes and the Stage IV precipitation analysis out to day 10.">
+<meta property="og:url" content="https://scorvec.com/verification.html">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "WebPage",
+ "name": "Global model verification",
+ "url": "https://scorvec.com/verification.html",
+ "description": "GFS, ECMWF IFS, AIFS and Canada's GDPS scored against surface stations, radiosondes and the Stage IV precipitation analysis out to day 10, with mverify, an open-source verification package.",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "Shawn Corvec",
+  "url": "https://scorvec.com/"
+ },
+ "author": {
+  "@id": "https://scorvec.com/#person"
+ }
+}
+</script>
+<style>
+  :root {
+    --bg: #fafaf8; --ink: #1c1c1a; --ink2: #3d3b37; --muted: #6f6b64; --accent: #2c4a72; --rule: #e6e3dc; --panel: #ffffff;
+    --better: #2c6e9e; --worse: #b4321f;
+    --serif: "Newsreader", Georgia, serif; --sans: "Schibsted Grotesk", Inter, -apple-system, sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.55; }
+  main { max-width: min(94vw, 1500px); margin: 0 auto; padding: 1.5rem 1.2rem 3rem; }
+  h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(1.7rem, 3.4vw, 2.5rem); line-height: 1.15; margin: 0.4rem 0 0.6rem; }
+  h2 { font-family: var(--serif); font-weight: 500; font-size: 1.35rem; margin: 0 0 0.4rem; }
+  .ai-note { max-width: 62rem; font-size: 0.95rem; line-height: 1.5; margin: 0.6rem 0 1rem; padding: 0.6rem 0.95rem; background: var(--panel); border: 1px solid var(--rule); border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0; color: var(--ink2); }
+  .kicker { font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .lede { color: var(--ink2); max-width: 62rem; font-size: 1.04rem; }
+  .card { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 1.1rem 1.3rem 1rem; margin: 1.3rem 0; }
+  .note { color: var(--ink2); font-size: 0.95rem; max-width: 72rem; margin: 0.1rem 0 0.8rem; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.8rem; margin: 1.2rem 0 0.4rem; }
+  .tile { min-width: 0; overflow-wrap: break-word; background: var(--panel); border: 1px solid var(--rule); border-left: 6px solid var(--c, var(--accent)); border-radius: 10px; padding: 0.8rem 1rem; }
+  .tile .k { font-size: 0.82rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .tile .v { font-family: var(--serif); font-size: clamp(1.9rem, 3vw, 2.6rem); line-height: 1.1; margin: 0.15rem 0; }
+  .tile .v small { font-family: var(--sans); font-size: 0.95rem; color: var(--muted); margin-left: 0.3rem; }
+  .tile .d { font-size: 0.9rem; color: var(--ink2); }
+  .controls { display: flex; flex-wrap: wrap; gap: 0.5rem 1.2rem; margin: 0 0 0.6rem; align-items: center; }
+  .controls label { font-size: 0.82rem; color: var(--muted); font-weight: 600; }
+  .controls select { font: 500 0.92rem var(--sans); color: var(--ink); background: #eef2f7; border: 1.5px solid var(--accent); border-radius: 999px; padding: 0.25rem 0.7rem; margin-left: 0.3rem; max-width: 100%; }
+  .chart { width: 100%; height: 420px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .pair > div { min-width: 0; }
+  .pair h3 { font: 600 0.95rem var(--sans); margin: 0.2rem 0; color: var(--ink2); }
+  .pair .chart { height: 340px; }
+  .pair .chart.prof { height: 460px; }
+  #map { width: 100%; height: min(70vh, 620px); border-radius: 8px; border: 1px solid var(--rule); background: #e9e8e4; }
+  .leaflet-container { font-family: var(--sans); }
+  .leaflet-container .leaflet-control-attribution a { color: #274b7a; }
+  .cbar { display: flex; align-items: center; gap: 0.6rem; font-size: 0.82rem; color: var(--ink2); margin: 0.5rem 0 0; flex-wrap: wrap; }
+  .cbar .ramp { height: 12px; border-radius: 3px; }
+  .cbar .ticks { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+  .cbar .col { display: flex; flex-direction: column; gap: 2px; width: min(360px, 100%); }
+  .tblwrap { overflow-x: auto; }
+  table.sc { border-collapse: separate; border-spacing: 2px; font-size: 0.86rem; font-variant-numeric: tabular-nums; }
+  table.sc th { font-size: 0.78rem; color: var(--muted); font-weight: 600; padding: 0.2rem 0.4rem; text-align: center; white-space: nowrap; }
+  table.sc th.r { text-align: left; color: var(--ink2); }
+  table.sc th.g { padding-top: 0.6rem; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  table.sc td { min-width: 3.1rem; height: 1.9rem; text-align: center; border-radius: 4px; background: #f3f2ee; color: var(--muted); }
+  table.sc td.s { color: #fff; font-weight: 600; }
+  table.sc td small { display: block; font-size: 0.66rem; font-weight: 500; line-height: 1; margin-top: 1px; opacity: 0.85; }
+  .key { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; font-size: 0.82rem; color: var(--ink2); margin-top: 0.5rem; }
+  .key i { display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: 3px; vertical-align: -0.15rem; margin-right: 0.3rem; }
+  details.method { margin-top: 1.4rem; }
+  details.method summary { cursor: pointer; font-weight: 600; color: var(--accent); }
+  details.method p, details.method li { color: var(--ink2); font-size: 0.95rem; max-width: 72rem; }
+  details.method code, .note code { font-size: 0.88em; background: #f1efe9; padding: 0.05rem 0.3rem; border-radius: 3px; }
+  pre { background: #f1efe9; border-radius: 6px; padding: 0.7rem 0.9rem; overflow-x: auto; font-size: 0.85rem; max-width: 72rem; }
+  .src { font-size: 0.82rem; color: var(--muted); margin-top: 0.6rem; }
+  @media (max-width: 900px) { .pair { grid-template-columns: 1fr; } .chart { height: 360px; } }
+  @media (max-width: 640px) { .chart, .pair .chart { height: 420px; } }
+</style>
+<script>
+// Plotly (the cartesian bundle) loads alongside the page; the drawing waits for it and the scores (window.plotlyP).
+// Integrity as in scripts/site/apply_chrome.py SRI.
+window.plotlyP = new Promise(function (ok, no) {
+  var s = document.createElement("script");
+  s.src = "https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js";
+  s.integrity = "sha384-gKF7EaMDoWW1zLWkouldmVWF5jqEKrAswAciW73iNzqlomabVVPO60XkJvL5q/Ie"; s.crossOrigin = "anonymous";
+  s.onload = ok; s.onerror = no;
+  document.head.appendChild(s);
+});
+</script>
+<link rel="stylesheet" href="/skewt/vendor/leaflet.css">
+<script src="/skewt/vendor/leaflet.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css?v=c7c5796084">
+<script src="/assets/site.js?v=fe84a7e3e0" defer></script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
+</head>
+<body>
+<!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Mid-latitude weather</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div class="sh-col">
+              <div>
+                <h3>Surface and hazards</h3>
+                <ul>
+                  <li><a href="/models.html">Short-range model maps</a></li>
+                  <li><a href="/ar.html">Atmospheric rivers</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Upper air</h3>
+                <ul>
+                  <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                  <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                  <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1"><span class="sh-lf">Global circulation and tropics</span><span class="sh-ls">Circulation/tropics</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div class="sh-col">
+              <div>
+                <h3>ENSO and the MJO</h3>
+                <ul>
+                  <li><a href="/enso.html">El Niño monitor</a></li>
+                  <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+                  <li><a href="/circulation.html#gdps_ir">Simulated satellite (GDPS)</a></li>
+                  <li><a href="/mjo.html">MJO forecast</a></li>
+                  <li><a href="/tropical-waves.html">Tropical waves</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tropical cyclones</h3>
+                <ul>
+                  <li><a href="/circulation.html#tc">Tropical cyclones</a></li>
+                  <li><a href="/recon.html">Hurricane reconnaissance</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Jets and momentum</h3>
+                <ul>
+                  <li><a href="/circulation.html#jets">Subtropical jets</a></li>
+                  <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tropical overturning</h3>
+                <ul>
+                  <li><a href="/circulation.html#walker">Walker circulation</a></li>
+                  <li><a href="/circulation.html#hadley">Hadley cells</a></li>
+                  <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                  <li><a href="/circulation.html#gdps150">Upper-level outflow (GDPS)</a></li>
+                  <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+                  <li><a href="/circulation.html#rainfc">Rain forecast, weeks 1–2</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols sh-menu--one" id="sh-g2">
+            <div class="sh-col">
+              <div>
+                <h3>By timescale</h3>
+                <ul>
+                  <li><a href="/stratosphere.html">Every stratosphere product</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div class="sh-col">
+              <div>
+                <h3>Extended range</h3>
+                <ul>
+                  <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                  <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+                  <li><a href="/sfs-subseasonal.html">SFS extended (experimental)</a></li>
+                  <li><a href="/monthly-outlook.html">Claude's month-ahead forecast</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Seasons</h3>
+                <ul>
+                  <li><a href="/seasonal.html">Seasonal model forecasts</a></li>
+                  <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4" aria-current="page"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div class="sh-col">
+              <div>
+                <h3>Studies</h3>
+                <ul>
+                  <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                  <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                  <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
+                  <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
+                  <li><a href="/topics/">Explainers</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Verification</h3>
+                <ul>
+                  <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+                  <li><a href="/verification.html" aria-current="page">Global models against observations</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+              <li><a href="/fci.html">US credit conditions</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main id="main">
+  <div class="kicker">Model verification · days 1–10 · scored with mverify</div>
+  <p class="ai-note"><b>Made with Claude Code</b>: the scoring package, mverify, was written by Claude; a first sample that grows with every run (<a href="#method">more</a>).</p>
+  <h1>How the global models score</h1>
+  <p class="lede">GFS, IFS, AIFS and GDPS against the same observations: surface stations, radiosondes and, for US rain, Stage IV.</p>
+
+  <div class="tiles" id="tiles"></div>
+  <p class="src" id="asof">Loading the scores…</p>
+
+  <section class="card">
+    <h2>Error by lead time</h2>
+    <p class="note" id="lead-note">Lower is better for RMSE and MAE; bias is forecast minus observed. Each point averages every
+      station and run at that lead.</p>
+    <div class="controls">
+      <label>Variable<select id="l-var"></select></label>
+      <label>Region<select id="l-region"></select></label>
+      <label>Score<select id="l-stat"></select></label>
+    </div>
+    <div class="chart" id="c-lead"></div>
+  </section>
+
+  <section class="card" id="map-card" hidden>
+    <h2>Error at each station</h2>
+    <p class="note" id="map-note">Each dot is a station, coloured by the model's error over all runs at that lead.</p>
+    <div class="controls">
+      <label>Variable<select id="m-var"></select></label>
+      <label>Show<select id="m-stat"></select></label>
+      <label>Model<select id="m-model"></select></label>
+      <label id="m-ref-l">against<select id="m-ref"></select></label>
+      <label>Lead<select id="m-lead"></select></label>
+    </div>
+    <div id="map" role="img" aria-label="Map of forecast error at each station"></div>
+    <div class="cbar"><div class="col"><div class="ramp" id="m-ramp"></div><div class="ticks" id="m-ticks"></div></div>
+      <span id="m-cap"></span></div>
+  </section>
+
+  <section class="card" id="profile-card" hidden>
+    <h2>Upper-air profiles</h2>
+    <div class="controls">
+      <label>Quantity<select id="p-qty"></select></label>
+      <label>Region<select id="p-region"></select></label>
+      <label>Lead<select id="p-day"></select></label>
+      <label>Relative to<select id="p-ref"></select></label>
+    </div>
+    <div class="pair">
+      <div><h3>RMSE</h3><div class="chart prof" id="c-prof-rmse"></div></div>
+      <div><h3 id="prof-rel-h">RMSE relative to IFS</h3><div class="chart prof" id="c-prof-rel"></div></div>
+      <div><h3 id="prof-bias-h">Bias (forecast − observed)</h3><div class="chart prof" id="c-prof-bias"></div></div>
+    </div>
+    <p class="note" id="prof-note">Error against radiosondes at every standard level from 1000 to 100 hPa (humidity to
+      300 hPa, above which sonde humidity is unreliable).</p>
+  </section>
+
+  <section class="card">
+    <h2>Scorecard</h2>
+    <p class="note">RMSE of one model against another, by day; coloured where the difference passes a paired test (5% level). Hover a cell for both errors.</p>
+    <div class="controls">
+      <label>Model<select id="s-model"></select></label>
+      <label>against<select id="s-ref"></select></label>
+      <label>Region<select id="s-region"></select></label>
+      <label>Rows<select id="s-rows"></select></label>
+    </div>
+    <div class="tblwrap"><table class="sc" id="scorecard"></table></div>
+    <div class="key" id="s-key"></div>
+  </section>
+
+  <section class="card" id="precip-card" hidden>
+    <h2>Rain over the US</h2>
+    <p class="note">24-hour totals ending 12Z against the Stage IV analysis on its 4&nbsp;km grid.</p>
+    <div class="controls">
+      <label>Window ending<select id="p-lead"></select></label>
+      <label>Threshold<select id="p-thr"></select></label>
+    </div>
+    <div class="pair">
+      <div><h3>Equitable threat score by threshold</h3><div class="chart" id="c-ets"></div></div>
+      <div><h3>Fractions skill score by neighbourhood</h3><div class="chart" id="c-fss"></div></div>
+    </div>
+  </section>
+
+  <details class="method" id="method">
+    <summary>How the scores are made</summary>
+    <p><b>Made with Claude Code.</b> The verification package behind this page, mverify, was written by Claude,
+    Anthropic's AI model, with guidance from Shawn Corvec. The scores are a first sample and will grow as new runs are added.</p>
+    <p><b>Rain over the US.</b> 24 hour totals ending 12Z against the Stage IV analysis, on the analysis's 4 km grid. The equitable threat
+      score is the share of rain areas the model gets right beyond chance (1 is perfect). The fractions skill score asks the
+      same question in neighbourhoods of growing size, so it forgives a band forecast a few tens of kilometres off.</p>
+    <p>NOAA's GFS, ECMWF's physics model (IFS), ECMWF's AI model (AIFS) and Environment Canada's global model (GDPS)
+    are scored here against the same observations:
+    hourly surface stations, about 650 radiosondes a day through the whole troposphere and, for rain over the US, the Stage IV
+    radar and gauge analysis. Every model gets the same treatment. Each is first averaged onto one 0.5° grid, then
+    interpolated to each station over land only,
+    2 m temperature is moved to the height of the station, and stations where the model's terrain is more than 100 m off are
+    left out. Each radiosonde level is compared with the model where and when the balloon actually was.</p>
+    <ul>
+      <li><b>Observations.</b> Surface stations come from NOAA's GHCNh hourly archive (METAR and synoptic reports), screened
+        for range, spikes and stuck sensors. Radiosondes come from NOAA's IGRA2 archive and the scorvec.com sounding
+        mirror and are reduced to the standard levels from 1000 to 100 hPa, each level at the position the balloon reached
+        it. Specific humidity is computed from the reported dew point. Precipitation is NCEP's Stage IV analysis.</li>
+      <li><b>One grid.</b> Every model is averaged onto the same 0.5° grid before it is compared with anything, by the
+        area each of its cells shares with each 0.5° cell, and its terrain and land-sea mask with it. Interpolated from
+        their own grids, the 0.15° GDPS and the 0.25° models would be scored from cells of different size: a finer grid
+        carries small-scale detail whose misplacement counts twice, and a model published on a grid finer than its own
+        resolution looks sharper than it is. 0.5° is coarser than every model's own resolution.</li>
+      <li><b>Matching.</b> Forecasts are interpolated bilinearly to each station from land points only, so coastal stations
+        are not scored against sea temperatures. 2 m temperature is moved to station height with a standard lapse rate,
+        10 m wind is adjusted to the anemometer height, and stations where model and station heights differ by more than
+        100 m are dropped.</li>
+      <li id="m-sp" hidden><b>Surface pressure.</b> Mean sea-level pressure is a reduction below ground that every model and station
+        makes its own way, so pressure is scored as the model's surface pressure against the station's own reading. It
+        is not moved to the station's height, so only stations whose height is within 5 m of every model's terrain are
+        used: pressure falls about 0.12 hPa per metre near sea level, so the mismatch stays within 0.6 hPa, inside the
+        observation error.</li>
+      <li id="m-msl" hidden><b>Pressure.</b> Pressure is scored as mean sea-level pressure, because one model does not
+        publish surface pressure; each model's own reduction to sea level is compared with the station's.</li>
+      <li><b>Scores.</b> RMSE, bias, MAE and correlation for each variable, region and lead; precipitation on the analysis
+        grid with the equitable threat score, frequency bias and the fractions skill score (Roberts and Lean 2008).</li>
+      <li><b>Same sample.</b> Each model is scored only on the observations every model was matched to, so a model
+        whose terrain or coastline drops a station is not judged on an easier set.</li>
+      <li><b>Significance.</b> The scorecard tests each model pair with a paired t-test on the per-run mean squared errors.
+        Runs a day apart share much of their weather, so the test counts fewer effective runs when the run-to-run
+        differences are correlated (Geer 2016). The small number in each scorecard cell is that count of runs;
+        hovering a cell gives the paired runs and the observations behind it.</li>
+      <li><b>Data.</b> GFS from NOAA on AWS; IFS and AIFS from ECMWF open data (Google Cloud mirror), all published at
+        0.25°; GDPS from the ECCC Datamart at 0.15°; all scored on the common 0.5° grid.</li>
+    </ul>
+    <p>The package is open source (<a href="https://github.com/scorvec/nwp_verification">github.com/scorvec/nwp_verification</a>),
+      so anyone can score their own model against the same observations. It reads GRIB, netCDF and Zarr:</p>
+    <pre>pip install git+https://github.com/scorvec/nwp_verification
+mverify db ghcnh --year 2026 --max-stations 4500     # build the observation database
+mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
+  </details>
+  <p class="src" id="src"></p>
+</main>
+<script>
+(function () {
+  "use strict";
+  const COLORS = { GFS: "#2c5f8a", IFS: "#b3372f", AIFS: "#7b4fb0", GDPS: "#3f8f5a" };
+  const FALLBACK = ["#2c5f8a", "#b3372f", "#7b4fb0", "#3f8f5a", "#b8892b"];
+  // Surface first, then upper air by quantity and from the ground up (1000 to 100 hPa); precipitation has its own card.
+  const SURFACE = ["t2m", "td2m", "sp", "msl", "ws10", "wind10", "u10", "v10"];
+  const UPPER = ["z", "t", "wind", "q", "u", "v"];
+  const QTY = { z: "Geopotential height", t: "Temperature", wind: "Vector wind", q: "Specific humidity" };
+  // [quantity, hPa] of an upper-air variable; null for surface ones (wind10 is the 10 m wind, not 10 hPa)
+  const split = v => { const m = /^([a-z]+?)(\d+)$/.exec(v); return m && !SURFACE.includes(v) && UPPER.includes(m[1]) ? [m[1], +m[2]] : null; };
+  function rank(v) {
+    const i = SURFACE.indexOf(v);
+    if (i >= 0) return i;
+    const q = split(v);
+    return q ? 100 + 10000 * UPPER.indexOf(q[0]) + (1100 - q[1]) : 1e6;
+  }
+  const STAT_NAMES = { rmse: "RMSE", bias: "Bias (forecast − observed)", mae: "MAE", corr: "Correlation",
+                       rmse_oc: "RMSE with observation error removed", n: "Pairs" };
+  const UNITS = { degC: "°C", hPa: "hPa", "m s-1": "m/s", m: "m", mm: "mm", "g kg-1": "g/kg" };
+  const $ = id => document.getElementById(id);
+  const color = (m, i) => COLORS[m] || FALLBACK[i % FALLBACK.length];
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const unit = u => UNITS[u] ?? u;
+  const FONT = { family: "Schibsted Grotesk, Inter, sans-serif", size: 13, color: "#3d3b37" };
+
+  function fill(sel, values, labels, keep) {
+    const prev = keep ? sel.value : null;
+    sel.innerHTML = values.map(v => `<option value="${esc(v)}">${esc(labels ? labels(v) : v)}</option>`).join("");
+    if (prev && values.includes(prev)) sel.value = prev;
+  }
+
+  function layout(ytitle, extra) {
+    return Object.assign({
+      font: FONT, margin: { l: 58, r: 12, t: 34, b: 50 }, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+      hovermode: "x unified", legend: { orientation: "h", x: 0, y: 1.02, yanchor: "bottom" },
+      yaxis: { title: { text: ytitle }, gridcolor: "#ece9e2", zerolinecolor: "#c9c5bb" },
+      xaxis: { gridcolor: "#ece9e2", zeroline: false },
+    }, extra || {});
+  }
+  const CONFIG = { displaylogo: false, responsive: true, modeBarButtonsToRemove: ["lasso2d", "select2d"] };
+
+  function draw(card) {
+    const models = card.models, leads = card.leads;
+    // Rows need scores at a few leads to be worth a chart (radiosondes only reach back a few days so far).
+    const enough = r => Object.values(r.scores).some(s => (s.rmse || []).filter(v => v != null).length >= 3);
+    const surface = card.rows.filter(r => !r.var.startsWith("tp") && enough(r));
+    const precip = card.rows.filter(r => r.var.startsWith("tp"));
+    const vars = [...new Set(surface.map(r => r.var))].sort((a, b) => rank(a) - rank(b));
+    // the method note for the pressure this run scored: surface pressure, or sea-level pressure as the fallback
+    $(vars.includes("sp") ? "m-sp" : "m-msl").hidden = !vars.includes("sp") && !vars.includes("msl");
+    const label = Object.fromEntries(surface.map(r => [r.var, r.label]));
+    const regionsFor = v => [...new Set(surface.filter(r => r.var === v).map(r => r.region))];
+    const row = (v, region) => surface.find(r => r.var === v && r.region === region);
+    // the cases a comparison of models a and b rests on at lead index i: paired runs, the effective runs the test
+    // counts, and the observations per model (stored once per pair, under the names in alphabetical order)
+    const cases = (r, a, b, i) => {
+      const k = a < b ? `${a}|${b}` : `${b}|${a}`, runs = r.runs?.[k]?.[i], eff = r.runs_eff?.[k]?.[i];
+      if (runs == null || eff == null) return null;
+      const n = r.scores[a]?.n?.[i], e = eff >= runs - 0.05 ? String(runs) : eff.toFixed(1);
+      return { eff: e, text: `${runs} paired runs, counted as ${e} by the test` + (n ? `, ${n.toLocaleString()} observations each` : "") };
+    };
+
+    // tiles: day-5 2 m temperature RMSE in the widest region that has it
+    const regs = regionsFor("t2m");
+    const wide = regs.includes("Global") ? "Global" : regs[0];
+    const t2 = row("t2m", wide), i120 = leads.indexOf(120);
+    if (t2 && i120 >= 0) {
+      $("tiles").innerHTML = models.map((m, i) => {
+        const v = t2.scores[m]?.rmse?.[i120];
+        const z = row("z500", "NH 20-90N") || row("z500", "Global");
+        const zv = z?.scores[m]?.rmse?.[i120];
+        return `<div class="tile" style="--c:${color(m, i)}"><div class="k">${esc(m)}</div>
+          <div class="v">${v == null ? "–" : v.toFixed(2)}<small>°C</small></div>
+          <div class="d">Day 5 RMSE of 2 m temperature, ${esc(wide.toLowerCase() === "global" ? "all stations" : wide)}${zv == null ? "" : `; 500 hPa height ${zv.toFixed(0)} m`}</div></div>`;
+      }).join("");
+    }
+    const inits = Object.values(card.inits).flat().sort();
+    const nruns = Math.max(...Object.values(card.inits).map(a => a.length));
+    $("asof").textContent = `${nruns} runs per model, ${inits[0].replace("T", " ")}Z to ${inits[inits.length - 1].replace("T", " ")}Z. ` +
+      `Scored ${card.generated} with ${card.package}.`;
+
+    // lead-time chart
+    const lv = $("l-var"), lr = $("l-region"), ls = $("l-stat");
+    fill(lv, vars, v => label[v]);
+    lv.value = vars.includes("t2m") ? "t2m" : vars[0];
+    function leadChart() {
+      fill(lr, regionsFor(lv.value), null, true);
+      const r = row(lv.value, lr.value);
+      const stats = ["rmse", "bias", "mae", "corr", "n"].filter(s => models.some(m => r.scores[m]?.[s]));
+      fill(ls, stats, s => STAT_NAMES[s], true);
+      const s = ls.value;
+      const traces = models.filter(m => r.scores[m]?.[s]).map((m, i) => ({
+        x: leads.map(h => h / 24), y: r.scores[m][s], name: m, mode: "lines+markers", connectgaps: true,
+        line: { color: color(m, models.indexOf(m)), width: 2.4 }, marker: { size: 5 },
+        hovertemplate: `%{y:.3~f}`,
+      }));
+      const u = ["corr", "n"].includes(s) ? "" : ` (${unit(r.unit)})`;
+      Plotly.react("c-lead", traces, layout(`${STAT_NAMES[s]}${u}`, {
+        xaxis: { title: { text: "Lead (days)" }, dtick: 1, gridcolor: "#ece9e2", zeroline: false },
+        shapes: s === "bias" ? [{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 0, y1: 0, line: { color: "#9a958b", width: 1 } }] : [],
+      }), CONFIG);
+      $("lead-note").innerHTML = `${esc(r.label)} against ${esc(r.truth)}, ${esc(r.region)}. Lower is better for RMSE and MAE; ` +
+        "bias is forecast minus observed. Each point averages every station and run at that lead.";
+    }
+    [lv, lr, ls].forEach(el => el.addEventListener("change", leadChart));
+    leadChart();
+
+    // upper-air profiles: error against pressure at one lead
+    const qtys = Object.keys(QTY).filter(q => surface.some(r => split(r.var)?.[0] === q));
+    if (qtys.length) {
+      $("profile-card").hidden = false;
+      const pq = $("p-qty"), pg = $("p-region"), pd = $("p-day");
+      fill(pq, qtys, q => QTY[q]);
+      const upRegions = [...new Set(surface.filter(r => split(r.var)).map(r => r.region))];
+      fill(pg, upRegions);
+      pg.value = upRegions.includes("Global") ? "Global" : upRegions[0];
+      const pdays = leads.filter(h => h % 24 === 0);
+      fill(pd, pdays.map(String), h => h === "0" ? "Analysis (hour 0)" : `Day ${+h / 24}`);
+      pd.value = pdays.includes(120) ? "120" : String(pdays[0]);
+      const pr = $("p-ref");
+      fill(pr, models);
+      pr.value = models.includes("IFS") ? "IFS" : models[0];
+      function profiles() {
+        const q = pq.value, region = pg.value, i = leads.indexOf(+pd.value);
+        const rows = surface.filter(r => r.region === region && split(r.var)?.[0] === q)
+          .map(r => ({ r, p: split(r.var)[1] })).sort((x, y) => y.p - x.p);
+        if (!rows.length) return;
+        const u = unit(rows[0].r.unit);
+        const lines = s => models.map((m, k) => ({
+          x: rows.map(x => x.r.scores[m]?.[s]?.[i] ?? null), y: rows.map(x => x.p), name: m,
+          mode: "lines+markers", line: { color: color(m, k), width: 2.4 }, marker: { size: 6 },
+          hovertemplate: `${m} %{x:.3~f} ${u} at %{y} hPa<extra></extra>`,
+        }));
+        const yaxis = { type: "log", autorange: "reversed", tickvals: rows.map(x => x.p), title: { text: "Pressure (hPa)" },
+                        gridcolor: "#ece9e2" };
+        const ext = { hovermode: "closest", yaxis, margin: { l: 62, r: 12, t: 34, b: 50 } };
+        Plotly.react("c-prof-rmse", lines("rmse"), layout("", Object.assign({}, ext, {
+          xaxis: { title: { text: `RMSE (${u})` }, rangemode: "tozero", gridcolor: "#ece9e2", zeroline: false } })), CONFIG);
+        // the scorecard's numbers at this lead: each model's RMSE against the reference, filled where its paired test passes
+        const ref = pr.value;
+        const rel = models.filter(m => m !== ref).map(m => {
+          const k = models.indexOf(m), pv = rows.map(x => x.r.p?.[`${m}|${ref}`]?.[i]), cs = rows.map(x => cases(x.r, m, ref, i));
+          return {
+            x: rows.map(x => { const a = x.r.scores[m]?.rmse?.[i], b = x.r.scores[ref]?.rmse?.[i];
+                               return a == null || b == null ? null : 100 * (a - b) / b; }),
+            y: rows.map(x => x.p), name: m, mode: "lines+markers", line: { color: color(m, k), width: 2 },
+            marker: { size: 8, color: color(m, k), line: { color: color(m, k), width: 1.6 },
+                      symbol: pv.map(v => v != null && v < 0.05 ? "circle" : "circle-open") },
+            customdata: pv.map((v, j) => (v == null ? "" : v < 0.05 ? `significant, p = ${v.toFixed(3)}` : `not significant, p = ${v.toFixed(2)}`) +
+                                          (cs[j] ? `; ${cs[j].text}` : "")),
+            hovertemplate: `${m} %{x:+.1f}% against ${ref} at %{y} hPa (%{customdata})<extra></extra>`,
+          };
+        });
+        Plotly.react("c-prof-rel", rel, layout("", Object.assign({}, ext, {
+          xaxis: { title: { text: `% (below 0: smaller error than ${ref})` }, ticksuffix: "%", gridcolor: "#ece9e2",
+                   zeroline: true, zerolinecolor: "#9a958b" } })), CONFIG);
+        $("prof-rel-h").textContent = `RMSE relative to ${ref}`;
+        Plotly.react("c-prof-bias", q === "wind" ? [] : lines("bias"), layout("", Object.assign({}, ext, {
+          xaxis: { title: { text: `Bias (${u})` }, gridcolor: "#ece9e2", zeroline: true, zerolinecolor: "#9a958b" } })), CONFIG);
+        $("prof-bias-h").textContent = q === "wind" ? "Bias (not defined for vector wind)" : "Bias (forecast − observed)";
+        const n = rows[0].r.scores[models[0]]?.n?.[i];
+        $("prof-note").innerHTML = `${esc(QTY[q])} against radiosondes, ${esc(region)}, ` +
+          (+pd.value === 0 ? "at the start of the forecast" : `day ${+pd.value / 24}`) +
+          (n ? ` (${n.toLocaleString()} soundings at ${rows[0].p} hPa)` : "") +
+          `. In the middle panel, filled points are significant (the scorecard's test, 5% level). Every model is scored on the same soundings. Humidity is verified up to 300 hPa, above which sonde humidity is unreliable.`;
+      }
+      [pq, pg, pd].forEach(el => el.addEventListener("change", profiles));
+      // one reference model for the profile and the scorecard, so both compare the same pair
+      pr.addEventListener("change", () => { const s = $("s-ref"); if (s.value !== pr.value) { s.value = pr.value; s.dispatchEvent(new Event("change")); } profiles(); });
+      profiles();
+    }
+
+    // scorecard
+    const sm = $("s-model"), sr = $("s-ref"), sg = $("s-region");
+    fill(sm, models); fill(sr, models);
+    sm.value = models.includes("AIFS") ? "AIFS" : models[0];
+    sr.value = models.includes("IFS") ? "IFS" : models[models.length - 1];
+    fill(sg, [...new Set(surface.map(r => r.region))]);
+    sg.value = wide;
+    const sw = $("s-rows");
+    fill(sw, ["all", "surface", "upper"], v => ({ all: "Surface and radiosondes", surface: "Surface stations",
+                                                  upper: "Radiosondes, every level" })[v]);
+    const days = leads.filter(h => h > 0 && h % 24 === 0);
+    function scorecard() {
+      const a = sm.value, b = sr.value, region = sg.value;
+      let html = `<tr><th></th>${days.map(h => `<th>Day ${h / 24}</th>`).join("")}</tr>`;
+      let group = "";
+      for (const v of vars) {
+        const up = split(v);
+        // the vector wind stands for its components at upper levels, keeping the card to one row per level
+        if (up && (up[0] === "u" || up[0] === "v")) continue;
+        if ((sw.value === "surface" && up) || (sw.value === "upper" && !up)) continue;
+        const g = up ? `Radiosondes · ${QTY[up[0]] || up[0]}` : "Surface stations";
+        const r = row(v, region);
+        if (!r || a === b || !r.scores[a]?.rmse || !r.scores[b]?.rmse) continue;
+        if (g !== group) {
+          html += `<tr><th class="r g" colspan="${days.length + 1}">${g}</th></tr>`;
+          group = g;
+        }
+        const t = r.p;
+        html += `<tr><th class="r">${esc(up ? `${up[1]} hPa` : r.label)}</th>` + days.map(h => {
+          const i = leads.indexOf(h);
+          const ra = r.scores[a]?.rmse?.[i], rb = r.scores[b]?.rmse?.[i];
+          if (ra == null || rb == null) return "<td>–</td>";
+          const pct = 100 * (ra - rb) / rb;
+          const p = t?.[`${a}|${b}`]?.[i], c = cases(r, a, b, i);
+          const tip = `${a} ${ra.toFixed(2)}, ${b} ${rb.toFixed(2)} ${unit(r.unit)} (${pct > 0 ? "+" : ""}${pct.toFixed(1)}%)` +
+                      (p == null ? "" : `, p = ${p.toFixed(3)}`) + (c ? `; ${c.text}` : "");
+          const sub = c ? `<small>${c.eff}</small>` : "";
+          if (p == null || p >= 0.05) return `<td title="${esc(tip)}">·${sub}</td>`;
+          const k = Math.min(1, Math.abs(pct) / 20);
+          const base = pct < 0 ? [44, 110, 158] : [180, 50, 31];
+          const bg = `rgba(${base.join(",")},${(0.35 + 0.65 * k).toFixed(2)})`;
+          return `<td class="s" style="background:${bg}" title="${esc(tip)}">${pct > 0 ? "+" : ""}${pct.toFixed(0)}%${sub}</td>`;
+        }).join("") + "</tr>";
+      }
+      $("scorecard").innerHTML = html;
+      $("s-key").innerHTML = `<span><i style="background:var(--better)"></i>${esc(a)} has the smaller error</span>` +
+        `<span><i style="background:var(--worse)"></i>${esc(a)} has the larger error</span>` +
+        `<span>Numbers: ${esc(a)}'s RMSE relative to ${esc(b)}'s</span>` +
+        (surface.some(x => x.runs) ? "<span>Small numbers: the runs the test counts (fewer than the paired runs where consecutive runs see the same weather)</span>" : "");
+    }
+    [sm, sr, sg, sw].forEach(el => el.addEventListener("change", scorecard));
+    sr.addEventListener("change", () => { const p = $("p-ref"); if (p && p.value !== sr.value) { p.value = sr.value; p.dispatchEvent(new Event("change")); } });
+    scorecard();
+
+    // precipitation
+    const amount = precip.filter(r => !r.var.includes(">="));
+    const thrRows = precip.filter(r => r.var.includes(">=")).map(r => ({ r, t: +r.var.split(">=")[1].replace("mm", "") }))
+      .sort((x, y) => x.t - y.t);
+    if (thrRows.length) {
+      $("precip-card").hidden = false;
+      const pl = $("p-lead"), pt = $("p-thr");
+      const plead = leads.filter(h => thrRows.some(({ r }) => models.some(m => r.scores[m]?.ets?.[leads.indexOf(h)] != null)));
+      fill(pl, plead.map(String), h => `${h} h (day ${(h / 24).toFixed(1).replace(".0", "")})`);
+      fill(pt, thrRows.map(x => String(x.t)), t => `${t} mm`);
+      pt.value = thrRows.some(x => x.t === 10) ? "10" : String(thrRows[0].t);
+      const fss = ["fss_50km", "fss_100km", "fss_200km", "fss_400km"];
+      function precipCharts() {
+        const i = leads.indexOf(+pl.value);
+        const ets = models.map((m, k) => ({
+          x: thrRows.map(x => x.t), y: thrRows.map(x => x.r.scores[m]?.ets?.[i] ?? null), name: m, type: "bar",
+          marker: { color: color(m, k) }, hovertemplate: "%{y:.2f}",
+        }));
+        Plotly.react("c-ets", ets, layout("Equitable threat score", {
+          barmode: "group", xaxis: { title: { text: "Threshold (mm per 24 h)" }, type: "category" },
+        }), CONFIG);
+        const tr = thrRows.find(x => String(x.t) === pt.value).r;
+        const f = models.map((m, k) => ({
+          x: fss.map(s => +s.slice(4, -2)), y: fss.map(s => tr.scores[m]?.[s]?.[i] ?? null), name: m,
+          mode: "lines+markers", line: { color: color(m, k), width: 2.4 }, hovertemplate: "%{y:.2f}",
+        }));
+        Plotly.react("c-fss", f, layout(`FSS at ${pt.value} mm`, {
+          xaxis: { title: { text: "Neighbourhood width (km)" }, type: "log", tickvals: [50, 100, 200, 400] },
+          yaxis: { range: [0, 1], gridcolor: "#ece9e2", title: { text: `FSS at ${pt.value} mm` } },
+        }), CONFIG);
+      }
+      [pl, pt].forEach(el => el.addEventListener("change", precipCharts));
+      precipCharts();
+      void amount;
+    }
+    $("src").innerHTML = "Sources: NOAA NCEI GHCNh; radiosondes from NOAA NCEI IGRA2 and the scorvec.com sounding mirror; NCEP Stage IV (Iowa " +
+      "Environmental Mesonet archive); NOAA GFS on AWS; ECMWF open data: © 2026 European Centre for Medium-Range Weather " +
+      "Forecasts (ECMWF), source <a href=\"https://www.ecmwf.int\">www.ecmwf.int</a>, " +
+      "<a href=\"https://creativecommons.org/licenses/by/4.0/\">CC BY 4.0</a>, modified; ECMWF does not accept any liability for " +
+      "errors or omissions in the data, their availability, or any loss or damage arising from their use; ECCC GDPS: Data " +
+      "Source: Environment and Climate Change Canada (MSC Datamart), under the " +
+      "<a href=\"https://eccc-msc.github.io/open-data/licence/readme_en/\">ECCC Data Servers End-use Licence</a>; map tiles © Esri.";
+  }
+
+  // Station maps: sequential colours for RMSE, diverging (blue below zero, red above) for bias and differences.
+  const SEQ = ["#fcfbf6", "#f6e3a6", "#f2b45f", "#e0743d", "#b8412f", "#7d1d2f", "#3e0d2a"];
+  const DIV = ["#24527f", "#5b8fbf", "#a9c8e2", "#f2f0ea", "#efb29a", "#cf5e47", "#8f1f24"];
+  function ramp(stops, t) {
+    t = Math.max(0, Math.min(1, t)) * (stops.length - 1);
+    const i = Math.min(stops.length - 2, Math.floor(t)), f = t - i;
+    const a = stops[i].match(/\w\w/g).map(h => parseInt(h, 16)), b = stops[i + 1].match(/\w\w/g).map(h => parseInt(h, 16));
+    return `rgb(${a.map((x, k) => Math.round(x + f * (b[k] - x))).join(",")})`;
+  }
+  const q95 = xs => { const v = xs.filter(x => x != null && isFinite(x)).sort((a, b) => a - b); return v.length ? v[Math.floor(0.95 * (v.length - 1))] : 1; };
+  const nice = x => { const e = Math.pow(10, Math.floor(Math.log10(x))); return [1, 2, 2.5, 5, 10].map(m => m * e).find(m => m >= x) || x; };
+
+  function drawMap(sm) {
+    if (!window.L || !sm.layers.length) return;
+    $("map-card").hidden = false;
+    const models = sm.models, leads = sm.leads;
+    const dark = document.documentElement.dataset.theme === "dark" ||
+      (document.documentElement.dataset.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+    const map = L.map("map", { worldCopyJump: true, preferCanvas: true, zoomSnap: 0.5, minZoom: 1.5 }).setView([30, 0], 1.5);
+    const ESRI = "https://services.arcgisonline.com/arcgis/rest/services/Canvas/";
+    const base = dark ? "World_Dark_Gray" : "World_Light_Gray";
+    L.tileLayer(ESRI + base + "_Base/MapServer/tile/{z}/{y}/{x}",
+      { attribution: "Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors", maxZoom: 10 }).addTo(map);
+    const rend = L.canvas({ padding: 0.3, tolerance: 4 });
+    const dots = L.layerGroup().addTo(map);
+    const mv = $("m-var"), ms = $("m-stat"), mm = $("m-model"), mr = $("m-ref"), ml = $("m-lead");
+    const keyOf = l => `${l.var}|${l.truth}`;
+    const byKey = Object.fromEntries(sm.layers.map(l => [keyOf(l), l]));
+    const order = sm.layers.slice().sort((a, b) => rank(a.var) - rank(b.var));
+    fill(mv, order.map(keyOf), k => `${byKey[k].label}${byKey[k].truth === "radiosondes" ? " (radiosondes)" : ""}`);
+    fill(mm, models); fill(mr, models);
+    mm.value = models.includes("AIFS") ? "AIFS" : models[0];
+    mr.value = models.includes("GFS") ? "GFS" : models[models.length - 1];
+    fill(ml, leads.map(String), h => `Day ${+h / 24}`);
+    ml.value = leads.includes(120) ? "120" : String(leads[0]);
+    function render() {
+      const l = byKey[mv.value], i = leads.indexOf(+ml.value), u = unit(l.unit);
+      const isWind = l.var.startsWith("wind");
+      fill(ms, ["rmse", "bias", "diff"], s => ({ rmse: "RMSE", bias: isWind ? "Speed bias" : "Bias", diff: "RMSE difference" })[s], true);
+      const s = ms.value, a = mm.value, b = mr.value;
+      $("m-ref-l").hidden = s !== "diff";
+      const val = k => s === "diff" ? (l.scores[a].rmse[i][k] != null && l.scores[b].rmse[i][k] != null
+        ? l.scores[a].rmse[i][k] - l.scores[b].rmse[i][k] : null) : l.scores[a][s][i][k];
+      const vals = l.ids.map((_, k) => val(k));
+      let lo, hi, stops;
+      if (s === "rmse") {
+        lo = 0; hi = nice(q95(models.flatMap(m => l.scores[m].rmse[i]))); stops = SEQ;
+      } else {
+        const src = s === "bias" ? models.flatMap(m => l.scores[m].bias[i]) : vals;
+        hi = nice(q95(src.filter(v => v != null).map(Math.abs))); lo = -hi; stops = DIV;
+      }
+      dots.clearLayers();
+      // the largest errors are drawn last, on top
+      const idx = l.ids.map((_, k) => k).filter(k => vals[k] != null).sort((x, y) => Math.abs(vals[x]) - Math.abs(vals[y]));
+      for (const k of idx) {
+        const v = vals[k];
+        const tip = `<b>${esc(l.ids[k])}</b><br>` + models.map(m => {
+          const r = l.scores[m].rmse[i][k], bb = l.scores[m].bias[i][k];
+          return `${esc(m)}: RMSE ${r == null ? "–" : r.toFixed(2)}${bb == null ? "" : `, ${isWind ? "speed bias" : "bias"} ${bb > 0 ? "+" : ""}${bb.toFixed(2)}`}`;
+        }).join("<br>") + ` <span style="color:#6f6b64">${esc(u)}</span><br>${l.scores[a].n[i][k]} runs`;
+        L.circleMarker([l.lat[k], l.lon[k]], { renderer: rend, radius: l.truth === "radiosondes" ? 5.5 : 4, weight: 0.6,
+          color: "rgba(40,40,40,0.55)", fillColor: ramp(stops, (v - lo) / (hi - lo)), fillOpacity: 0.92 })
+          .bindTooltip(tip, { sticky: true }).addTo(dots);
+      }
+      $("m-ramp").style.background = `linear-gradient(90deg, ${stops.join(",")})`;
+      const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => lo + f * (hi - lo));
+      $("m-ticks").innerHTML = ticks.map((t, j) => `<span>${j === 4 && s === "rmse" ? "≥ " : ""}${+t.toFixed(Math.abs(hi) < 2 ? 2 : 1)}</span>`).join("");
+      $("m-cap").textContent = s === "rmse" ? `${a} RMSE (${u})` : s === "bias" ? `${a} ${isWind ? "speed bias" : "bias"}, forecast − observed (${u})`
+        : `${a} RMSE minus ${b} RMSE (${u}); blue where ${a} is better`;
+      $("map-note").innerHTML = `${esc(l.label)} against ${esc(l.truth)}, day ${+ml.value / 24}, averaged over the runs. ` +
+        `${idx.length.toLocaleString()} stations that every model was scored at. Hover a dot for every model's numbers.`;
+    }
+    [mv, ms, mm, mr, ml].forEach(el => el.addEventListener("change", render));
+    render();
+  }
+
+  Promise.all([
+    fetch("/assets/verification/scores.json").then(r => r.json()),
+    window.plotlyP,
+  ]).then(([card]) => {
+    draw(card);
+    // Leaflet loads deferred, so it is ready once the document is parsed.
+    const parsed = new Promise(ok => document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", ok) : ok());
+    return Promise.all([fetch("/assets/verification/stations.json").then(r => r.ok ? r.json() : null), parsed]).then(([sm]) => {
+      if (sm) drawMap(sm);
+    });
+  }).catch(e => {
+    $("asof").textContent = "The scores could not be loaded (" + e.message + ").";
+  });
+})();
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

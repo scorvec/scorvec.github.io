@@ -1,0 +1,437 @@
+{
+ "generated": "2026-10-09",
+ "definition": {
+  "points": [
+   "165E",
+   "180",
+   "170W",
+   "155W",
+   "140W",
+   "125W",
+   "110W",
+   "95W"
+  ],
+  "box_deg": 0.5,
+  "climatology": "each reanalysis' own 1991-2020 monthly mean",
+  "godas": "NOAA NCEP GODAS pottmp (PSL), interpolated to 5 m, 0-300 m mean",
+  "oras5": "ECMWF ORAS5 (CDS control member) sohtc300 / (1035 kg m-3 x 4000 J kg-1 K-1 x 300 m)",
+  "oras5_3d_check_2014_12": {
+   "165E": {
+    "thetao_0_300_mean": 21.993,
+    "sohtc300_over_rho_cp_300": 21.988
+   },
+   "180": {
+    "thetao_0_300_mean": 21.676,
+    "sohtc300_over_rho_cp_300": 21.679
+   },
+   "170W": {
+    "thetao_0_300_mean": 21.116,
+    "sohtc300_over_rho_cp_300": 21.12
+   },
+   "155W": {
+    "thetao_0_300_mean": 20.091,
+    "sohtc300_over_rho_cp_300": 20.086
+   },
+   "140W": {
+    "thetao_0_300_mean": 18.879,
+    "sohtc300_over_rho_cp_300": 18.865
+   },
+   "125W": {
+    "thetao_0_300_mean": 17.567,
+    "sohtc300_over_rho_cp_300": 17.543
+   },
+   "110W": {
+    "thetao_0_300_mean": 16.516,
+    "sohtc300_over_rho_cp_300": 16.479
+   },
+   "95W": {
+    "thetao_0_300_mean": 15.929,
+    "sohtc300_over_rho_cp_300": 15.888
+   }
+  }
+ },
+ "validation": {
+  "oras5_vs_tao8_1993on": {
+   "n": 51,
+   "r": 0.995,
+   "bias": -0.045,
+   "rms": 0.111,
+   "sd_diff": 0.102,
+   "slope": 0.933,
+   "lag1_diff": 0.53
+  },
+  "oras5_vs_tao6_1993on": {
+   "n": 234,
+   "r": 0.993,
+   "bias": -0.026,
+   "rms": 0.105,
+   "sd_diff": 0.102,
+   "slope": 0.944,
+   "lag1_diff": 0.46
+  },
+  "oras5_vs_tao6_1997_98": {
+   "n": 11,
+   "r": 0.998,
+   "bias": 0.029,
+   "rms": 0.101,
+   "sd_diff": 0.102,
+   "slope": 0.987,
+   "lag1_diff": 0.52
+  },
+  "oras5_vs_tao6_2015_16": {
+   "n": 24,
+   "r": 0.997,
+   "bias": 0.005,
+   "rms": 0.074,
+   "sd_diff": 0.076,
+   "slope": 0.983,
+   "lag1_diff": 0.23
+  },
+  "oras5_vs_tao6_2023_24": {
+   "n": 7,
+   "r": 0.997,
+   "bias": 0.015,
+   "rms": 0.07,
+   "sd_diff": 0.074,
+   "slope": 0.97,
+   "lag1_diff": 0.06
+  },
+  "oras5_per_mooring_1993on": {
+   "165E": {
+    "n": 315,
+    "r": 0.976,
+    "bias": -0.037,
+    "rms": 0.191,
+    "sd_diff": 0.188,
+    "slope": 0.921,
+    "lag1_diff": 0.67
+   },
+   "180": {
+    "n": 322,
+    "r": 0.961,
+    "bias": -0.001,
+    "rms": 0.2,
+    "sd_diff": 0.2,
+    "slope": 0.934,
+    "lag1_diff": 0.55
+   },
+   "170W": {
+    "n": 361,
+    "r": 0.961,
+    "bias": -0.026,
+    "rms": 0.232,
+    "sd_diff": 0.231,
+    "slope": 0.919,
+    "lag1_diff": 0.62
+   },
+   "155W": {
+    "n": 334,
+    "r": 0.989,
+    "bias": 0.03,
+    "rms": 0.164,
+    "sd_diff": 0.162,
+    "slope": 0.983,
+    "lag1_diff": 0.34
+   },
+   "140W": {
+    "n": 255,
+    "r": 0.988,
+    "bias": 0.012,
+    "rms": 0.19,
+    "sd_diff": 0.19,
+    "slope": 0.905,
+    "lag1_diff": 0.21
+   },
+   "125W": {
+    "n": 230,
+    "r": 0.99,
+    "bias": -0.062,
+    "rms": 0.19,
+    "sd_diff": 0.18,
+    "slope": 0.943,
+    "lag1_diff": 0.16
+   },
+   "110W": {
+    "n": 246,
+    "r": 0.99,
+    "bias": 0.018,
+    "rms": 0.175,
+    "sd_diff": 0.174,
+    "slope": 0.966,
+    "lag1_diff": 0.39
+   },
+   "95W": {
+    "n": 246,
+    "r": 0.976,
+    "bias": -0.159,
+    "rms": 0.276,
+    "sd_diff": 0.226,
+    "slope": 0.943,
+    "lag1_diff": 0.66
+   }
+  },
+  "godas_vs_tao8_1993on": {
+   "n": 51,
+   "r": 0.994,
+   "bias": -0.001,
+   "rms": 0.098,
+   "sd_diff": 0.099,
+   "slope": 0.955,
+   "lag1_diff": 0.37
+  },
+  "godas_vs_tao6_1993on": {
+   "n": 234,
+   "r": 0.989,
+   "bias": -0.02,
+   "rms": 0.119,
+   "sd_diff": 0.118,
+   "slope": 0.957,
+   "lag1_diff": 0.53
+  },
+  "godas_vs_tao6_1997_98": {
+   "n": 11,
+   "r": 0.998,
+   "bias": -0.162,
+   "rms": 0.187,
+   "sd_diff": 0.097,
+   "slope": 1.006,
+   "lag1_diff": 0.1
+  },
+  "godas_vs_tao6_2015_16": {
+   "n": 24,
+   "r": 0.995,
+   "bias": -0.054,
+   "rms": 0.115,
+   "sd_diff": 0.104,
+   "slope": 0.967,
+   "lag1_diff": 0.47
+  },
+  "godas_vs_tao6_2023_24": {
+   "n": 7,
+   "r": 0.995,
+   "bias": -0.052,
+   "rms": 0.152,
+   "sd_diff": 0.155,
+   "slope": 0.862,
+   "lag1_diff": -0.07
+  },
+  "godas_per_mooring_1993on": {
+   "165E": {
+    "n": 315,
+    "r": 0.965,
+    "bias": -0.034,
+    "rms": 0.226,
+    "sd_diff": 0.224,
+    "slope": 0.904,
+    "lag1_diff": 0.65
+   },
+   "180": {
+    "n": 322,
+    "r": 0.941,
+    "bias": 0.016,
+    "rms": 0.246,
+    "sd_diff": 0.245,
+    "slope": 0.915,
+    "lag1_diff": 0.62
+   },
+   "170W": {
+    "n": 361,
+    "r": 0.953,
+    "bias": 0.006,
+    "rms": 0.257,
+    "sd_diff": 0.257,
+    "slope": 0.861,
+    "lag1_diff": 0.6
+   },
+   "155W": {
+    "n": 334,
+    "r": 0.975,
+    "bias": 0.021,
+    "rms": 0.24,
+    "sd_diff": 0.24,
+    "slope": 0.916,
+    "lag1_diff": 0.5
+   },
+   "140W": {
+    "n": 255,
+    "r": 0.976,
+    "bias": 0.019,
+    "rms": 0.248,
+    "sd_diff": 0.248,
+    "slope": 0.904,
+    "lag1_diff": 0.39
+   },
+   "125W": {
+    "n": 230,
+    "r": 0.982,
+    "bias": -0.082,
+    "rms": 0.249,
+    "sd_diff": 0.235,
+    "slope": 0.996,
+    "lag1_diff": 0.38
+   },
+   "110W": {
+    "n": 246,
+    "r": 0.984,
+    "bias": 0.025,
+    "rms": 0.228,
+    "sd_diff": 0.227,
+    "slope": 1.019,
+    "lag1_diff": 0.55
+   },
+   "95W": {
+    "n": 246,
+    "r": 0.981,
+    "bias": -0.146,
+    "rms": 0.258,
+    "sd_diff": 0.214,
+    "slope": 1.026,
+    "lag1_diff": 0.46
+   }
+  },
+  "oras5_vs_godas_1980on": {
+   "n": 560,
+   "r": 0.967,
+   "bias": 0.018,
+   "rms": 0.19,
+   "sd_diff": 0.189,
+   "slope": 0.952,
+   "lag1_diff": 0.81
+  },
+  "oras5_vs_godas_1982_83": {
+   "n": 24,
+   "r": 0.946,
+   "bias": 0.295,
+   "rms": 0.477,
+   "sd_diff": 0.384,
+   "slope": 0.969,
+   "lag1_diff": 0.68
+  },
+  "oras5_vs_godas_1980_92": {
+   "n": 156,
+   "r": 0.93,
+   "bias": 0.08,
+   "rms": 0.287,
+   "sd_diff": 0.277,
+   "slope": 0.976,
+   "lag1_diff": 0.78
+  },
+  "oras5_vs_godas_1993on": {
+   "n": 404,
+   "r": 0.984,
+   "bias": -0.006,
+   "rms": 0.134,
+   "sd_diff": 0.134,
+   "slope": 0.946,
+   "lag1_diff": 0.84
+  },
+  "oras5_minus_godas_1982_83_maxabs": {
+   "value": 1.35,
+   "month": "1983-03"
+  },
+  "events_oras5": {
+   "1982": {
+    "max": 1.91,
+    "max_month": "1982-10",
+    "min": -2.0,
+    "min_month": "1983-10",
+    "n": 24
+   },
+   "1997": {
+    "max": 1.96,
+    "max_month": "1997-10",
+    "min": -1.99,
+    "min_month": "1998-10",
+    "n": 24
+   },
+   "2015": {
+    "max": 1.49,
+    "max_month": "2015-10",
+    "min": -1.07,
+    "min_month": "2016-05",
+    "n": 24
+   },
+   "2023": {
+    "max": 1.33,
+    "max_month": "2023-06",
+    "min": -0.97,
+    "min_month": "2024-12",
+    "n": 24
+   },
+   "2026": {
+    "max": 2.52,
+    "max_month": "2026-08",
+    "min": 0.25,
+    "min_month": "2026-01",
+    "n": 8
+   }
+  },
+  "events_godas": {
+   "1982": {
+    "max": 1.6,
+    "max_month": "1982-10",
+    "min": -1.97,
+    "min_month": "1983-10",
+    "n": 24
+   },
+   "1997": {
+    "max": 1.76,
+    "max_month": "1997-10",
+    "min": -2.12,
+    "min_month": "1998-07",
+    "n": 24
+   },
+   "2015": {
+    "max": 1.36,
+    "max_month": "2015-10",
+    "min": -1.19,
+    "min_month": "2016-05",
+    "n": 24
+   },
+   "2023": {
+    "max": 1.26,
+    "max_month": "2023-06",
+    "min": -0.88,
+    "min_month": "2024-12",
+    "n": 24
+   },
+   "2026": {
+    "max": 2.55,
+    "max_month": "2026-08",
+    "min": 0.53,
+    "min_month": "2026-01",
+    "n": 8
+   }
+  },
+  "events_tao6": {
+   "1997": {
+    "max": 1.91,
+    "max_month": "1997-10",
+    "min": -1.99,
+    "min_month": "1998-11",
+    "n": 11
+   },
+   "2015": {
+    "max": 1.51,
+    "max_month": "2015-09",
+    "min": -1.17,
+    "min_month": "2016-05",
+    "n": 24
+   },
+   "2023": {
+    "max": 1.21,
+    "max_month": "2023-08",
+    "min": -1.0,
+    "min_month": "2024-12",
+    "n": 7
+   },
+   "2026": {
+    "max": 2.87,
+    "max_month": "2026-09",
+    "min": 0.34,
+    "min_month": "2026-01",
+    "n": 9
+   }
+  }
+ }
+}

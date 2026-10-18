@@ -1,0 +1,94 @@
+name: Hadley outflow and subtropical descent - the analysis's offset from ERA5 (backfill)
+
+# Fills offset_era5.npz in the release hbranch-hres (scripts/mjo/src/hadley_branch_maps.py truth): IFS HRES less ERA5
+# (ARCO) at 00, 06, 12 and 18 UTC on every overturn lattice day since January 2025 that ARCO has published. Each part
+# pairs every 4th day into its own harmonic sums; the merge job adds them (with whatever the release already holds, unless
+# fresh) and uploads the file. hbranch.yml then pairs each newly published day itself.
+on:
+  workflow_dispatch:
+    inputs:
+      fresh:
+        description: 'Pair every lattice day again into new sums (after a change to the fields)'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hbranch
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  ECMWF_SOURCES: google
+  ARCH: scripts/mjo/data/hbranch
+
+jobs:
+  part:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        k: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - name: What the release already holds
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$ARCH"
+          if [ "${{ inputs.fresh }}" = "true" ]; then echo "fresh: pairing every lattice day"; exit 0; fi
+          gh release download hbranch-hres -R "$GITHUB_REPOSITORY" -p offset_era5.npz -D "$ARCH" --clobber \
+            || echo "::warning::no offsets in the release yet; pairing from the start"
+      - name: Every 4th lattice day
+        timeout-minutes: 220
+        run: python scripts/mjo/src/hadley_branch_maps.py truth --part ${{ matrix.k }}/4 --out offset_part${{ matrix.k }}.npz
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: offsets-${{ matrix.k }}
+          path: offset_part${{ matrix.k }}.npz
+          retention-days: 5
+
+  merge:
+    needs: part
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: offsets-*
+          path: parts
+          merge-multiple: true
+      - name: Add the parts to the release's offsets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$ARCH"
+          if ! gh release view hbranch-hres -R "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create hbranch-hres -R "$GITHUB_REPOSITORY" --title "Hadley outflow and subtropical descent: IFS HRES archive" \
+              --notes "IFS HRES analyses on the 1.5 deg grid (rolling 3-D store w3_*, monthly daily fields hb_*), the daily trajectory histograms (traj.npz) and the offset from ERA5 (offset_era5.npz), for scripts/mjo/src/hadley_branch_maps.py."
+          fi
+          if [ "${{ inputs.fresh }}" != "true" ]; then
+            gh release download hbranch-hres -R "$GITHUB_REPOSITORY" -p offset_era5.npz -D "$ARCH" --clobber \
+              || echo "::warning::no offsets in the release yet"
+          fi
+          python scripts/mjo/src/hadley_branch_maps.py merge parts/*.npz
+          gh release upload hbranch-hres -R "$GITHUB_REPOSITORY" "$ARCH/offset_era5.npz" --clobber

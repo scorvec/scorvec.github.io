@@ -1,0 +1,314 @@
+name: MJO impacts by phase and season (CMIP6 reference build)
+
+# Builds the reference that mjo-impacts.yml draws (scripts/mjo/data/reference/mjo_impacts_site.{npz,json}) from every
+# historical member of the 11 screened CMIP6 models (1979-2014; scripts/mjo/data/reference/cmip6_mjo_members.csv):
+#   extract    one job per member streams its daily rlut, pr, tas and ua (and zg where it has one) from the Pangeo
+#              CMIP6 archive on Google Cloud (anonymous; ~11-19 GB read a member, the plev8 ua/zg chunks being read
+#              whole) and keeps only the reductions (scripts/mjo/src/cmip6_mjo_extract.py member); they go to the
+#              release below. A member of the first build is checked against its fingerprint (a warning if it differs).
+#   compose    one job per model: its reductions from the release -> its composites (mjo_impacts.py compose; members
+#              pooled, so a model counts once in the test however many members it has)
+#   observed   (input `observed`) the observed composites and the checks on the observed index, recomputed from the
+#              observed fields the release keeps (era5_t2m.npz, era5_z500.npz, gpcp.npz: mjo_obs_prepare.py), the
+#              observed RMM (scripts/mjo/data/reference/rmm_era5.nc) and its band means (release rmm-era5-v1); they
+#              replace OBS.npz/.json, validate.json and ensocheck.json in the release (ensocheck's CMIP6 part is kept)
+#   reference  the across-model tests and masks, with the observed composites and the offline checks kept in the same
+#              release (OBS.npz/.json, selected.json, validate.json, detrendcheck.json, ensocheck.json), commits the
+#              reference and dispatches mjo-impacts.yml to draw it.
+# `extract: false` recomposes from the release's reductions without streaming CMIP6 again. A `models` subset is a trial:
+# it extracts and composes only those models and keeps the reference as an artifact (a commit needs every model).
+# Compose and reference run only when every earlier job succeeded: re-run the failed jobs to finish. Dispatch only.
+on:
+  workflow_dispatch:
+    inputs:
+      extract:
+        description: "Stream CMIP6 (false: compose from the release's reductions)"
+        type: boolean
+        default: true
+      models:
+        description: "Models, comma-separated (empty: all 11; a subset never commits)"
+        default: ""
+      commit:
+        description: "Commit the reference and draw it"
+        type: boolean
+        default: true
+      observed:
+        description: "Recompute the observed composites and checks first (after a new observed RMM)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: mjo-impacts-ref
+  cancel-in-progress: false
+
+env:
+  REL: mjo-impacts-ref-v1
+  INPUTS: OBS.npz OBS.json selected.json validate.json detrendcheck.json ensocheck.json
+  MEMBERS: scripts/mjo/data/reference/cmip6_mjo_members.csv
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      members: ${{ steps.m.outputs.members }}
+      models: ${{ steps.m.outputs.models }}
+      all: ${{ steps.m.outputs.all }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/mjo/data/reference/cmip6_mjo_members.csv
+          sparse-checkout-cone-mode: false
+      - id: m
+        env:
+          MODELS: ${{ inputs.models }}
+        run: |
+          python3 - >> "$GITHUB_OUTPUT" <<'EOF'
+          import csv, json, os
+          with open(os.environ["MEMBERS"]) as fh:
+              rows = list(csv.DictReader(fh))
+          have = sorted({r["model"] for r in rows})
+          want = [m.strip() for m in os.environ["MODELS"].split(",") if m.strip()] or have
+          if set(want) - set(have):
+              raise SystemExit(f"not in the member list: {sorted(set(want) - set(have))}")
+          inc = [{"model": r["model"], "member": r["member"]} for r in rows if r["model"] in want]
+          print("members=" + json.dumps({"include": inc}))
+          print("models=" + json.dumps(want))
+          print("all=" + str(set(want) == set(have)).lower())
+          EOF
+      - name: The release holds the observed composites and the offline checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          have=$(gh release view "$REL" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name') \
+            || { echo "::error::release $REL is missing: create it and upload $INPUTS"; exit 1; }
+          for f in $INPUTS; do
+            grep -qxF "$f" <<< "$have" || { echo "::error::$f is missing from release $REL"; exit 1; }
+          done
+
+  extract:
+    needs: plan
+    if: inputs.extract
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 6   # leaves runners for the site's scheduled workflows
+      matrix: ${{ fromJSON(needs.plan.outputs.members) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/lib/
+            scripts/mjo/src/cmip6_mjo_extract.py
+            scripts/mjo/data/reference/cmip6_mjo_members.csv
+            scripts/mjo/data/reference/cmip6_mjo_red_digest.json
+            scripts/constraints.txt
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-cmip6-zarr-${{ runner.os }}-${{ hashFiles('scripts/constraints.txt') }}
+          restore-keys: |
+            pip-cmip6-zarr-${{ runner.os }}-
+      - name: Install
+        run: pip install numpy pandas xarray dask zarr cftime "gcsfs==2026.5.0"   # the Pangeo zarr stores on Google Cloud
+      - name: Extract ${{ matrix.model }} ${{ matrix.member }}
+        env:
+          DATA_ARCHIVE: ${{ runner.temp }}/archive
+          W: "2"   # two variables at a time; the block cap keeps each near 1.5 GB of decoded chunks
+        run: python scripts/mjo/src/cmip6_mjo_extract.py member "${{ matrix.model }}" "${{ matrix.member }}"
+      - name: Into the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$REL" "${{ runner.temp }}"/archive/cmip6_mjo/red/*.npz --clobber --repo "$GITHUB_REPOSITORY"
+
+  compose:
+    needs: [plan, extract]
+    if: ${{ !cancelled() && needs.plan.result == 'success' && (needs.extract.result == 'success' || needs.extract.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        model: ${{ fromJSON(needs.plan.outputs.models) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/lib/
+            scripts/mjo/src/
+            scripts/mjo/data/reference/eofs.nc
+            scripts/mjo/data/reference/cmip6_mjo_members.csv
+            scripts/sst/requirements-sst.txt
+            scripts/constraints.txt
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-sst-${{ runner.os }}-${{ hashFiles('scripts/sst/requirements-sst.txt') }}
+          restore-keys: |
+            pip-sst-${{ runner.os }}-
+      - name: Install
+        run: pip install -r scripts/sst/requirements-sst.txt
+      - name: Free disk   # a model's reductions are up to ~11 GB (CNRM-CM6-1, 28 members)
+        run: |
+          free=$(df -BG --output=avail / | tail -1 | tr -dc 0-9)
+          if [ "${free:-0}" -lt 25 ]; then
+            sudo rm -rf /usr/share/dotnet /usr/local/lib/android /usr/local/.ghcup ${AGENT_TOOLSDIRECTORY:+"$AGENT_TOOLSDIRECTORY/CodeQL"} || true
+          fi
+          df -h / | tail -1
+      - name: ${{ matrix.model }}'s reductions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODEL: ${{ matrix.model }}
+          RED: ${{ runner.temp }}/archive/cmip6_mjo/red
+        run: |
+          gh release download "$REL" --repo "$GITHUB_REPOSITORY" -p "${MODEL}_*.npz" -D "$RED"
+          python3 - <<'EOF'
+          import csv, os, pathlib
+          model, red = os.environ["MODEL"], pathlib.Path(os.environ["RED"])
+          with open(os.environ["MEMBERS"]) as fh:
+              rows = [r for r in csv.DictReader(fh) if r["model"] == model]
+          want = {f"{model}_{r['member']}_{v}.npz" for r in rows for v in ("rlut", "pr", "tas", "ua") + (("z500",) if r["zg"] else ())}
+          missing = sorted(want - {p.name for p in red.glob("*.npz")})
+          if missing:
+              raise SystemExit(f"missing from the release: {missing}")
+          print(f"{model}: {len(rows)} members, all {len(want)} reductions")
+          EOF
+          du -sh "$RED"
+      - name: Compose ${{ matrix.model }}
+        env:
+          DATA_ARCHIVE: ${{ runner.temp }}/archive
+        run: python scripts/mjo/src/mjo_impacts.py compose "${{ matrix.model }}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: comp-${{ matrix.model }}
+          path: ${{ runner.temp }}/archive/cmip6_mjo/comp/${{ matrix.model }}.*
+          retention-days: 7
+
+  observed:
+    needs: plan
+    if: inputs.observed
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install   # zarr + gcsfs + dask: the u250-for-u200 check reads WeatherBench2
+        run: pip install numpy pandas scipy xarray netCDF4 dask zarr gcsfs "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+      - name: The observed fields, the ERA5 band means and the previous ENSO check
+        env:
+          DATA_ARCHIVE: ${{ runner.temp }}/archive
+        run: |
+          A="$DATA_ARCHIVE/cmip6_mjo"
+          mkdir -p "$A/obs" "$A/comp"
+          gh release download "$REL" --repo "$GITHUB_REPOSITORY" -p era5_t2m.npz -p era5_z500.npz -p gpcp.npz -D "$A/obs"
+          gh release download rmm-era5-v1 --repo "$GITHUB_REPOSITORY" -p era5_rmm_bands.npz -D "$A/obs"
+          gh release download "$REL" --repo "$GITHUB_REPOSITORY" -p ensocheck.json -D "$A"
+          ls -la "$A/obs"
+      - name: Observed composites and checks
+        env:
+          DATA_ARCHIVE: ${{ runner.temp }}/archive
+        run: |
+          set -o pipefail
+          for c in obs validate ensocheck; do python scripts/mjo/src/mjo_impacts.py "$c" | tee "obs_$c.log"; done
+          { echo '#### observed'; echo '```'; cat obs_*.log | tail -60; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Into the release
+        env:
+          DATA_ARCHIVE: ${{ runner.temp }}/archive
+        run: |
+          A="$DATA_ARCHIVE/cmip6_mjo"
+          gh release upload "$REL" "$A/comp/OBS.npz" "$A/comp/OBS.json" "$A/validate.json" "$A/ensocheck.json" \
+            --repo "$GITHUB_REPOSITORY" --clobber
+
+  reference:
+    needs: [plan, compose, observed]
+    if: ${{ !cancelled() && needs.compose.result == 'success' && (needs.observed.result == 'success' || needs.observed.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-sst-${{ runner.os }}-${{ hashFiles('scripts/sst/requirements-sst.txt') }}
+          restore-keys: |
+            pip-sst-${{ runner.os }}-
+      - name: Install
+        run: pip install -r scripts/sst/requirements-sst.txt
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: comp-*
+          path: ${{ runner.temp }}/archive/cmip6_mjo/comp
+          merge-multiple: true
+      - name: The observed composites and the offline checks
+        run: |
+          A="${{ runner.temp }}/archive/cmip6_mjo"
+          gh release download "$REL" --repo "$GITHUB_REPOSITORY" -p 'OBS.*' -D "$A/comp"
+          for f in $INPUTS; do
+            case "$f" in OBS.*) ;; *) gh release download "$REL" --repo "$GITHUB_REPOSITORY" -p "$f" -D "$A" ;; esac
+          done
+          ls -la "$A" "$A/comp"
+      - name: Reference
+        env:
+          DATA_ARCHIVE: ${{ runner.temp }}/archive
+          MODELS: ${{ join(fromJSON(needs.plan.outputs.models), ' ') }}
+        run: python scripts/mjo/src/mjo_impacts.py reference $MODELS
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mjo-impacts-reference
+          path: |
+            scripts/mjo/data/reference/mjo_impacts_site.npz
+            scripts/mjo/data/reference/mjo_impacts_site.json
+            ${{ runner.temp }}/archive/cmip6_mjo/comp/reference_raw.npz
+          retention-days: 14
+      - name: Commit & push
+        id: commit
+        if: inputs.commit && needs.plan.outputs.all == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUTS="scripts/mjo/data/reference/mjo_impacts_site.npz scripts/mjo/data/reference/mjo_impacts_site.json"
+          # snapshot + clean resync each attempt (the enso-impacts.yml pattern); merges, never rebases
+          SNAP=$(mktemp -d)
+          git add -A $OUTS
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -A $OUTS
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "data update: MJO impacts CMIP6 reference (every member of the screened models)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; echo "pushed=1" >> "$GITHUB_OUTPUT"; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+      # a push made with the workflow token does not trigger mjo-impacts.yml's push filter
+      - name: Draw it
+        if: success() && steps.commit.outputs.pushed == '1'
+        run: gh workflow run mjo-impacts.yml --repo "$GITHUB_REPOSITORY" || echo "::warning::could not dispatch mjo-impacts.yml"
