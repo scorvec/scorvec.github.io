@@ -6,7 +6,8 @@ name: Hadley outflow and subtropical descent (IFS HRES analyses and back-traject
 # newly published, adds yesterday (the last day with all four analyses), releases its trajectories, draws the new
 # weeks' and days' frames and the interactive map's forward paths (frames branch) and commits the manifests, the stills and
 # the figures. The daily sea-level pressure loops against ERA5 (hadley_slp.py) are drawn from the same archive. The
-# forecast release of the interactive map comes from hbranch-fc.yml. The archive steps have their own timeouts and
+# forecast release of the interactive map comes from hbranch-fc.yml, the ensembles' forecast windows in the outflow and
+# ridge trackers from hbranch-ens.yml (assets/sst/data/hbranch_fc.json). The archive steps have their own timeouts and
 # whatever they wrote is uploaded either way, so a re-run carries on where one stopped.
 on:
   schedule:

@@ -16,6 +16,8 @@ Every frame and tracker value is a trailing 7-day window ending on its day, agai
 midpoint: the maps against the harmonic normal, the tracker against the distribution of ERA5's own 7-day windows. The
 analysis is first corrected by its mean offset from ERA5 at the same season - the daily fields by theirs, the
 trajectories' winds and temperatures by theirs - and nothing is drawn while fewer than MIN_PAIRS lattice days are paired.
+The outflow, descent, ridge and high trackers also carry the three ensembles' latest forecast windows (FC, from
+hadley_branch_fc.py) while it is fresh.
 
     python src/hadley_branch_maps.py truth [--part k/n --out f]  # pair lattice days with ERA5 (into OFFSETS, or f)
     python src/hadley_branch_maps.py merge f1 f2 ...             # add part files into OFFSETS
@@ -51,6 +53,7 @@ import hadley_branches as HB
 import hadley_traj as T
 import overturn as O
 from doycal import noleap_doy
+from hadley_timeseries import MODEL_C
 
 REPO = Path(__file__).resolve().parents[3]
 ANIM = REPO / "assets" / "sst" / "anim"
@@ -58,6 +61,7 @@ OUT = REPO / "assets" / "sst"
 ARCH = REPO / "scripts" / "mjo" / "data" / "hbranch"
 WRITTEN, REMOVED = ARCH / "written.txt", ARCH / "removed.txt"  # the release's files to upload / to delete
 OFFSETS, TRAJ = ARCH / "offset_era5.npz", ARCH / "traj.npz"
+FC = OUT / "data" / "hbranch_fc.json"  # the ensembles' tracker numbers (hadley_branch_fc.py)
 DIR, DT_DIR = "hbranch_hist", "hbranch_dt"  # the weekly descent and ridge loop; the daily outflow loop
 FIRST = pd.Timestamp("2026-05-01")  # the daily fields' archive begins here (the maps reach back DAYS + WIN days)
 OFFSET_FIRST = pd.Timestamp("2025-01-01")  # HRES carries omega and all 13 levels from late 2024
@@ -845,18 +849,45 @@ TRACKERS = (
 )
 
 
-def draw_trackers(series: pd.DataFrame, cl: xr.Dataset):
-    x = series.index
+FIELD_TRACKERS = ("hbranch_flow.webp", "hbranch_ridges.webp")  # the trackers the ensembles forecast
+
+
+def _forecast(last: pd.Timestamp) -> dict | None:
+    """FC, unless it is stale (its run more than two days before the last analysed window: it would sit behind it)."""
+    fc = json.loads(FC.read_text()) if FC.exists() else None
+    return fc if fc and pd.Timestamp(fc["init"]) >= last - pd.Timedelta(days=2) else None
+
+
+def draw_trackers(series: pd.DataFrame, cl: xr.Dataset, only: tuple | None = None):
+    """The trackers (all of TRACKERS, or the files in `only`): the analysed windows against ERA5's, with each
+    ensemble's forecast windows (FC) where they passed their skill test."""
+    fc = _forecast(series.index[-1])
+    valid = pd.DatetimeIndex(fc["valid"]) if fc else pd.DatetimeIndex([])
+    x = series.index.union(valid)
     doy = noleap_doy(x - pd.Timedelta(days=(WIN - 1) / 2))
+    last = noleap_doy(series.index[-1:] - pd.Timedelta(days=(WIN - 1) / 2))
     for name, title, cols, rows, what in TRACKERS:
+        if only and name not in only:
+            continue
+        drawn = []  # the ensembles drawn, in FC's order
         fig, axes = plt.subplots(len(rows), len(cols), figsize=(12.4, 1.8 * len(rows) + 1.0), sharex=True)
         for i, s in enumerate(rows):
             for j, (pat, label, unit) in enumerate(cols):
                 ax, key = axes[i, j], pat.format(s)
                 _bands(ax, cl, key, x, doy)
-                ax.plot(x, series[key], color="#0b3d6b", lw=1.8)
+                ax.plot(series.index, series[key], color="#0b3d6b", lw=1.8)
+                plumes = {m: d["keys"][key] for m, d in (fc or {"models": {}})["models"].items() if key in d["keys"]}
+                for m, q in plumes.items():
+                    v = valid[: len(q["p50"])]
+                    lo, mid, hi = (np.array(q[k], float) for k in ("p10", "p50", "p90"))  # null: a gap
+                    ax.fill_between(v, lo, hi, color=MODEL_C[m], alpha=0.13, lw=0)
+                    ax.plot(v, mid, color=MODEL_C[m], lw=1.6)
+                    if m not in drawn:
+                        drawn.append(m)
+                if plumes:
+                    ax.axvline(valid[0], color="0.55", lw=0.8, ls=":")
                 now = series[key].iloc[-1]
-                mu, sd = (clim_index(cl, key, doy[-1:], st)[0] for st in ("mean", "sd"))
+                mu, sd = (clim_index(cl, key, last, st)[0] for st in ("mean", "sd"))
                 ax.set_title(
                     f"{SECTOR_NAME[s]} · {label} · latest {now:.1f} {unit} ({(now - mu) / sd:+.1f}σ)",
                     fontsize=9,
@@ -869,22 +900,29 @@ def draw_trackers(series: pd.DataFrame, cl: xr.Dataset):
         ax.xaxis.set_major_locator(mdates.AutoDateLocator(maxticks=8))
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%-d %b"))
         fig.suptitle(
-            f"{title} — analysed 7-day windows against ERA5 1991–2020",
+            f"{title} — analysed {'and forecast ' if drawn else ''}7-day windows against ERA5 1991–2020",
             fontsize=12.5,
             fontweight="bold",
             x=0.01,
             ha="left",
         )
-        fig.text(
-            0.01,
-            0.004,
+        foot = (
             "blue = IFS HRES analyses (00, 06, 12, 18 UTC), 7-day windows ending on the day, less the analysis's offset "
-            "from ERA5 · bands = ERA5's own 7-day windows 1991–2020 (10–90 %, 25–75 %), median dashed; σ = ERA5's "
-            f"spread\n{what}",
-            fontsize=7.6,
-            color="#555",
+            "from ERA5 · bands = ERA5's own 7-day windows 1991–2020 (10–90 %, 25–75 %), median dashed; σ = ERA5's spread"
         )
-        fig.tight_layout(rect=(0, 0.04, 1, 0.975))
+        if drawn:
+            foot += (
+                f"\nforecast, the {fc['init']} 00Z runs: each ensemble's median and 10–90 % ("
+                + ", ".join(f"{fc['models'][m]['label']} {fc['models'][m]['members']}" for m in drawn)
+                + " members), each member less its model's drift against ERA5, to the last window with significant "
+                "skill on archived runs"
+            )
+            handles = [plt.Line2D([], [], color=MODEL_C[m], lw=1.6) for m in drawn]
+            axes[0, -1].legend(handles, [fc["models"][m]["label"] for m in drawn], fontsize=7, frameon=False)
+        foot += f"\n{what}"
+        fig.text(0.01, 0.004, foot, fontsize=7.6, color="#555")
+        h = fig.get_figheight()
+        fig.tight_layout(rect=(0, (0.14 * (foot.count("\n") + 1) + 0.06) / h, 1, 0.975))
         fig.savefig(OUT / name, dpi=100, facecolor="white", pil_kwargs={"quality": 82, "method": 6})
         plt.close(fig)
         print(f"wrote {OUT / name}", flush=True)

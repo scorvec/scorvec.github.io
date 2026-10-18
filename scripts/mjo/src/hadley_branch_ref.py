@@ -218,19 +218,23 @@ def run_fields(model: str, init: pd.Timestamp, members: list[int], group: int) -
 
 
 def era5_days(days) -> dict:
-    """ERA5's daily fields from ARCO; the first day it has not published ends the pass."""
+    """ERA5's daily fields from ARCO, a day's four times read in threads (each a few whole-column chunks: the reads
+    are the cost); the first day it has not published ends the pass."""
+    from concurrent.futures import ThreadPoolExecutor
+
     keep, rows = [], []
-    for d in days:
-        try:
-            times = [M.era5_time(d + pd.Timedelta(hours=h)) for h in M.HOURS]
-        except KeyError:  # beyond the store's time axis
-            times = [None]
-        if any(x is None for x in times):
-            print(f"  ERA5 not published for {d:%Y-%m-%d}: stopping", flush=True)
-            break
-        keep.append(d)
-        rows.append(pack16(derived(M.day_mean(times))))
-        print(f"  ERA5 {d:%Y-%m-%d}", flush=True)
+    with ThreadPoolExecutor(len(M.HOURS)) as ex:
+        for d in days:
+            try:
+                times = list(ex.map(M.era5_time, [d + pd.Timedelta(hours=h) for h in M.HOURS]))
+            except KeyError:  # beyond the store's time axis
+                times = [None]
+            if any(x is None for x in times):
+                print(f"  ERA5 not published for {d:%Y-%m-%d}: stopping", flush=True)
+                break
+            keep.append(d)
+            rows.append(pack16(derived(M.day_mean(times))))
+            print(f"  ERA5 {d:%Y-%m-%d}", flush=True)
     n = len(keep)
     return {
         "day": np.array(keep, "datetime64[D]"),
@@ -280,21 +284,22 @@ def pack(stream: str, paths) -> dict:
 # ── windows and normals ─────────────────────────────────────────────────────────────────────────────────────────────
 def member_windows(x: np.ndarray, before: np.ndarray) -> np.ndarray:
     """(member, window, field, point): the trailing WIN-day means ending on lead days 0..15 of each member's days
-    (member, lead, field, point), led in by the WIN - 1 days before the start (WIN - 1, field, point)."""
-    seq = np.concatenate([np.broadcast_to(before, (x.shape[0], *before.shape)), x], axis=1).astype(np.float64)
-    c = np.concatenate([np.zeros_like(seq[:, :1]), np.cumsum(seq, axis=1)], axis=1)
-    return ((c[:, WIN:] - c[:, :-WIN]) / WIN).astype(np.float32)
+    (member, lead, field, point), led in by the WIN - 1 days before the start (WIN - 1, field, point); a window that
+    holds a NaN day is NaN."""
+    seq = np.concatenate([np.broadcast_to(before, (x.shape[0], *before.shape)), x], axis=1)
+    return np.stack([seq[:, j : j + WIN].mean(1) for j in LEADS], axis=1).astype(np.float32)
+
+
+def globe(f: np.ndarray) -> np.ndarray:
+    """A (row, lon) field on the whole 1.5 deg grid, NaN beyond ROWS."""
+    g = np.full((HB.LAT.size, HB.LON.size), np.nan, np.float32)
+    g[ROWS] = f
+    return g
 
 
 def pad(x: np.ndarray) -> dict:
-    """(len(FIELDS), row, lon) -> {field: map on the whole 1.5 deg grid}, NaN beyond ROWS (hadley_branches.indices
-    reads within them)."""
-    out = {}
-    for k, f in enumerate(FIELDS):
-        g = np.full((HB.LAT.size, HB.LON.size), np.nan, np.float32)
-        g[ROWS] = x[k]
-        out[f] = g
-    return out
+    """(len(FIELDS), row, lon) -> {field: map on the whole 1.5 deg grid} (hadley_branches.indices reads within ROWS)."""
+    return {f: globe(x[k]) for k, f in enumerate(FIELDS)}
 
 
 def indices(x: np.ndarray) -> np.ndarray:
