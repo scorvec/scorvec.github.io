@@ -17,7 +17,8 @@ that is sampling noise is not.
 
 SKILL. The members' mean less d*, against the ERA5 normal, over the domain below build_slp_clim.TERRAIN_M:
 MSSS = 1 - sum w (f - o)^2 / sum w o^2, w = cos(lat), f and o the forecast and ERA5 anomalies normalised by the day's sd
-(the gate) and, reported alongside, in hPa. The drift is cross-validated: each start is corrected by the drift fitted
+(the gate) and, reported alongside, in hPa, with the scores of the uncorrected members and of persistence (the start
+day's ERA5 anomaly held). The drift is cross-validated: each start is corrected by the drift fitted
 without its fold, the calendar month of its start. Intervals and one-sided p-values come from a bootstrap over whole
 months of starts (BOOT; neighbouring starts share weather, and a persistent anomaly makes a month of them one sample),
 with Benjamini-Hochberg at FDR_Q over every model-lead; a model-lead passes when it survives and its MSSS reaches
@@ -393,6 +394,8 @@ def verify(out_dir: Path, seed: int = 1) -> dict:
             "hpa": skill_test(S["fc_hpa"], S["ref_hpa"], block, names.size, counts),
             "raw": skill_test(S["raw_sig"], S["ref_sig"], block, names.size, counts),
             "raw_hpa": skill_test(S["raw_hpa"], S["ref_hpa"], block, names.size, counts),
+            "per": skill_test(S["per_sig"], S["ref_sig"], block, names.size, counts),
+            "per_hpa": skill_test(S["per_hpa"], S["ref_hpa"], block, names.size, counts),
         }
         if names.size < MIN_BLOCKS:
             tests[m]["sig"][3][:] = 1.0
@@ -433,6 +436,8 @@ def verify(out_dir: Path, seed: int = 1) -> dict:
             "msss_hpa_ci": [_r3(t["hpa"][1]), _r3(t["hpa"][2])],
             "msss_no_drift": _r3(t["raw"][0]),
             "msss_hpa_no_drift": _r3(t["raw_hpa"][0]),
+            "msss_persistence": _r3(t["per"][0]),
+            "msss_hpa_persistence": _r3(t["per_hpa"][0]),
             "drift": drift_doc.get(m),
         }
     SKILL.write_text(json.dumps(doc, indent=1) + "\n")
@@ -445,25 +450,30 @@ def verify(out_dir: Path, seed: int = 1) -> dict:
         save[f"{m}_kappa"] = np.array([f["kappa"] for f in fl])
     np.savez_compressed(DRIFT, **{k: v.astype(np.float32) for k, v in save.items()})
     report(doc)
-    figures(doc, fits, corrected, out_dir)
+    figures(doc, fits, out_dir)
     return doc
 
 
 def _sums(starts, ec, er, epos, E, norm, sd, w) -> dict:
-    """Squared-error sums (start, lead) of the corrected (ec) and raw (er) errors, normalised and in hPa, and of the
-    ERA5 anomaly (the normal's error); NaN where ERA5 has not published the valid day."""
+    """Squared-error sums (start, lead) of the corrected (ec) and raw (er) errors, normalised and in hPa, of the ERA5
+    anomaly (the normal's error) and of persistence (the start day's ERA5 anomaly held, the normalised one in sd of each
+    day); NaN where ERA5 has not published the valid day."""
     n = len(starts)
-    S = {k: np.full((n, len(LEADS)), np.nan) for k in ("fc_sig", "fc_hpa", "raw_sig", "raw_hpa", "ref_sig", "ref_hpa")}
+    keys = ("fc_sig", "fc_hpa", "raw_sig", "raw_hpa", "ref_sig", "ref_hpa", "per_sig", "per_hpa")
+    S = {k: np.full((n, len(LEADS)), np.nan) for k in keys}
     for i, s in enumerate(starts):
+        o0 = E[epos[s]] - norm[s] if s in epos else None
         for L in LEADS:
             d = s + pd.Timedelta(days=L)
             j = epos.get(d)
-            if j is None or not np.isfinite(ec[i, L, 0]):
+            if j is None or o0 is None or not np.isfinite(ec[i, L, 0]):
                 continue
             o, inv = E[j] - norm[d], 1.0 / sd[d] ** 2
             S["ref_hpa"][i, L], S["ref_sig"][i, L] = w @ o**2, w @ (o**2 * inv)
             S["fc_hpa"][i, L], S["fc_sig"][i, L] = w @ ec[i, L] ** 2, w @ (ec[i, L] ** 2 * inv)
             S["raw_hpa"][i, L], S["raw_sig"][i, L] = w @ er[i, L] ** 2, w @ (er[i, L] ** 2 * inv)
+            S["per_hpa"][i, L] = w @ (o - o0) ** 2
+            S["per_sig"][i, L] = w @ (o / sd[d] - o0 / sd[s]) ** 2
     S["starts"] = pd.DatetimeIndex(starts)
     return S
 
@@ -487,11 +497,12 @@ def report(doc: dict):
             )
             print(
                 f"    day {L:2d}: {d['msss'][L]:+.3f} [{d['msss_ci'][0][L]:+.3f}, {d['msss_ci'][1][L]:+.3f}] p {d['p'][L]:.4f} "
-                f"{'PASS' if d['passed'][L] else '-   '}  hPa {d['msss_hpa'][L]:+.3f}  no drift {d['msss_no_drift'][L]:+.3f}{drift}"
+                f"{'PASS' if d['passed'][L] else '-   '}  hPa {d['msss_hpa'][L]:+.3f}  no drift {d['msss_no_drift'][L]:+.3f}  "
+                f"persistence {d['msss_persistence'][L]:+.3f} (hPa {d['msss_hpa_persistence'][L]:+.3f}){drift}"
             )
 
 
-def figures(doc: dict, fits: dict, corrected: dict, out_dir: Path):
+def figures(doc: dict, fits: dict, out_dir: Path):
     """Scratch figures for the check: skill by lead; the shrunk drift at days 0, 5 and 10 (annual mean)."""
     import matplotlib
 
