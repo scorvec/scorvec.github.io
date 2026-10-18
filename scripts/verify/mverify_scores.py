@@ -31,6 +31,10 @@ from mverify import variables as V
 
 REPO = Path(__file__).resolve().parents[2]
 OUT = REPO / "assets" / "verification" / "scores.json"
+MAP_OUT = REPO / "assets" / "verification" / "stations.json"
+MAP_LEADS = [24, 72, 120, 168, 240]
+MAP_VARS = ["t2m", "td2m", "msl", "wind10"] + [f"{b}{lv}" for lv in (850, 500, 250) for b in ("z", "t", "wind")]
+MAP_VARS += ["q850", "q700"]
 LEADS = range(0, 241, 12)
 GOOGLE = "https://storage.googleapis.com/ecmwf-open-data"
 GFS = "https://noaa-gfs-bdp-pds.s3.amazonaws.com"
@@ -70,12 +74,14 @@ GDPS_UPPER = [
 ]
 GDPS_STATIC = ["GeopotentialHeight_Sfc", "LandWaterProportion_Sfc"]
 MODELS = {"GFS": "gfs", "IFS": "ifs", "AIFS": "aifs-single", "GDPS": "gdps"}
+UA = "scorvec.com data pipeline (+https://scorvec.com)"  # the site's honest User-Agent (scripts/lib/webget.py)
 
 
 def get(url: str, rng: str | None = None) -> bytes:
     for attempt in range(8):
         try:
-            req = urllib.request.Request(url, headers={"Range": f"bytes={rng}"} if rng else {})
+            headers = {"User-Agent": UA, **({"Range": f"bytes={rng}"} if rng else {})}
+            req = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(req, timeout=180) as r:
                 return r.read()
         except urllib.error.HTTPError as e:
@@ -198,6 +204,7 @@ def main() -> None:
             print(f"{init}: radiosonde pairs saved", flush=True)
     res = Result.concat([surface, score_pair_files(files)])
     report.write_json(res.scorecard(), OUT)
+    report.write_json(report.station_map(res.stations, MAP_LEADS, MAP_VARS), MAP_OUT)
     print(f"{len(surface.pairs):,} surface pairs, {OUT.relative_to(REPO)}")
 
 

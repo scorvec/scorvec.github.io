@@ -60,6 +60,13 @@
   .pair h3 { font: 600 0.95rem var(--sans); margin: 0.2rem 0; color: var(--ink2); }
   .pair .chart { height: 340px; }
   .pair .chart.prof { height: 460px; }
+  #map { width: 100%; height: min(70vh, 620px); border-radius: 8px; border: 1px solid var(--rule); background: #e9e8e4; }
+  .leaflet-container { font-family: var(--sans); }
+  .leaflet-container .leaflet-control-attribution a { color: #274b7a; }
+  .cbar { display: flex; align-items: center; gap: 0.6rem; font-size: 0.82rem; color: var(--ink2); margin: 0.5rem 0 0; flex-wrap: wrap; }
+  .cbar .ramp { position: relative; flex: 0 1 360px; min-width: 200px; height: 12px; border-radius: 3px; }
+  .cbar .ticks { display: flex; justify-content: space-between; flex: 0 1 360px; min-width: 200px; font-variant-numeric: tabular-nums; }
+  .cbar .col { display: flex; flex-direction: column; gap: 2px; flex: 0 1 360px; min-width: 200px; }
   .tblwrap { overflow-x: auto; }
   table.sc { border-collapse: separate; border-spacing: 2px; font-size: 0.86rem; font-variant-numeric: tabular-nums; }
   table.sc th { font-size: 0.78rem; color: var(--muted); font-weight: 600; padding: 0.2rem 0.4rem; text-align: center; white-space: nowrap; }
@@ -89,6 +96,8 @@ window.plotlyP = new Promise(function (ok, no) {
   document.head.appendChild(s);
 });
 </script>
+<link rel="stylesheet" href="/skewt/vendor/leaflet.css">
+<script src="/skewt/vendor/leaflet.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
@@ -300,6 +309,21 @@ window.plotlyP = new Promise(function (ok, no) {
       <label>Score<select id="l-stat"></select></label>
     </div>
     <div class="chart" id="c-lead"></div>
+  </section>
+
+  <section class="card" id="map-card" hidden>
+    <h2>Error at each station</h2>
+    <p class="note" id="map-note">Each dot is a station, coloured by the model's error over all runs at that lead.</p>
+    <div class="controls">
+      <label>Variable<select id="m-var"></select></label>
+      <label>Show<select id="m-stat"></select></label>
+      <label>Model<select id="m-model"></select></label>
+      <label id="m-ref-l">against<select id="m-ref"></select></label>
+      <label>Lead<select id="m-lead"></select></label>
+    </div>
+    <div id="map" role="img" aria-label="Map of forecast error at each station"></div>
+    <div class="cbar"><div class="col"><div class="ramp" id="m-ramp"></div><div class="ticks" id="m-ticks"></div></div>
+      <span id="m-cap"></span></div>
   </section>
 
   <section class="card" id="profile-card" hidden>
@@ -600,13 +624,101 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
       void amount;
     }
     $("src").innerHTML = "Sources: NOAA NCEI GHCNh; radiosondes from NOAA NCEI IGRA2 and the scorvec.com sounding mirror; NCEP Stage IV (Iowa " +
-      "Environmental Mesonet archive); NOAA GFS on AWS; ECMWF open data (CC BY 4.0); ECCC Datamart (Open Government Licence – Canada).";
+      "Environmental Mesonet archive); NOAA GFS on AWS; ECMWF open data: © 2026 European Centre for Medium-Range Weather " +
+      "Forecasts (ECMWF), source <a href=\"https://www.ecmwf.int\">www.ecmwf.int</a>, " +
+      "<a href=\"https://creativecommons.org/licenses/by/4.0/\">CC BY 4.0</a>, modified; ECMWF does not accept any liability for " +
+      "errors or omissions in the data, their availability, or any loss or damage arising from their use; ECCC GDPS: Data " +
+      "Source: Environment and Climate Change Canada (MSC Datamart), under the " +
+      "<a href=\"https://eccc-msc.github.io/open-data/licence/readme_en/\">ECCC Data Servers End-use Licence</a>; map tiles © Esri.";
+  }
+
+  // Station maps: sequential colours for RMSE, diverging (blue below zero, red above) for bias and differences.
+  const SEQ = ["#fcfbf6", "#f6e3a6", "#f2b45f", "#e0743d", "#b8412f", "#7d1d2f", "#3e0d2a"];
+  const DIV = ["#24527f", "#5b8fbf", "#a9c8e2", "#f2f0ea", "#efb29a", "#cf5e47", "#8f1f24"];
+  function ramp(stops, t) {
+    t = Math.max(0, Math.min(1, t)) * (stops.length - 1);
+    const i = Math.min(stops.length - 2, Math.floor(t)), f = t - i;
+    const a = stops[i].match(/\w\w/g).map(h => parseInt(h, 16)), b = stops[i + 1].match(/\w\w/g).map(h => parseInt(h, 16));
+    return `rgb(${a.map((x, k) => Math.round(x + f * (b[k] - x))).join(",")})`;
+  }
+  const q95 = xs => { const v = xs.filter(x => x != null && isFinite(x)).sort((a, b) => a - b); return v.length ? v[Math.floor(0.95 * (v.length - 1))] : 1; };
+  const nice = x => { const e = Math.pow(10, Math.floor(Math.log10(x))); return [1, 2, 2.5, 5, 10].map(m => m * e).find(m => m >= x) || x; };
+
+  function drawMap(sm) {
+    if (!window.L || !sm.layers.length) return;
+    $("map-card").hidden = false;
+    const models = sm.models, leads = sm.leads;
+    const dark = document.documentElement.dataset.theme === "dark" ||
+      (document.documentElement.dataset.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+    const map = L.map("map", { worldCopyJump: true, preferCanvas: true, zoomSnap: 0.5, minZoom: 1.5 }).setView([30, 0], 1.5);
+    const ESRI = "https://services.arcgisonline.com/arcgis/rest/services/Canvas/";
+    const base = dark ? "World_Dark_Gray" : "World_Light_Gray";
+    L.tileLayer(ESRI + base + "_Base/MapServer/tile/{z}/{y}/{x}",
+      { attribution: "Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors", maxZoom: 10 }).addTo(map);
+    const rend = L.canvas({ padding: 0.3, tolerance: 4 });
+    const dots = L.layerGroup().addTo(map);
+    const mv = $("m-var"), ms = $("m-stat"), mm = $("m-model"), mr = $("m-ref"), ml = $("m-lead");
+    const keyOf = l => `${l.var}|${l.truth}`;
+    const byKey = Object.fromEntries(sm.layers.map(l => [keyOf(l), l]));
+    const order = sm.layers.slice().sort((a, b) => rank(a.var) - rank(b.var));
+    fill(mv, order.map(keyOf), k => `${byKey[k].label}${byKey[k].truth === "radiosondes" ? " (radiosondes)" : ""}`);
+    fill(mm, models); fill(mr, models);
+    mm.value = models.includes("AIFS") ? "AIFS" : models[0];
+    mr.value = models.includes("GFS") ? "GFS" : models[models.length - 1];
+    fill(ml, leads.map(String), h => `Day ${+h / 24}`);
+    ml.value = leads.includes(120) ? "120" : String(leads[0]);
+    function render() {
+      const l = byKey[mv.value], i = leads.indexOf(+ml.value), u = unit(l.unit);
+      const isWind = l.var.startsWith("wind");
+      fill(ms, ["rmse", "bias", "diff"], s => ({ rmse: "RMSE", bias: isWind ? "Speed bias" : "Bias", diff: "RMSE difference" })[s], true);
+      const s = ms.value, a = mm.value, b = mr.value;
+      $("m-ref-l").hidden = s !== "diff";
+      const val = k => s === "diff" ? (l.scores[a].rmse[i][k] != null && l.scores[b].rmse[i][k] != null
+        ? l.scores[a].rmse[i][k] - l.scores[b].rmse[i][k] : null) : l.scores[a][s][i][k];
+      const vals = l.ids.map((_, k) => val(k));
+      let lo, hi, stops;
+      if (s === "rmse") {
+        lo = 0; hi = nice(q95(models.flatMap(m => l.scores[m].rmse[i]))); stops = SEQ;
+      } else {
+        const src = s === "bias" ? models.flatMap(m => l.scores[m].bias[i]) : vals;
+        hi = nice(q95(src.filter(v => v != null).map(Math.abs))); lo = -hi; stops = DIV;
+      }
+      dots.clearLayers();
+      // the largest errors are drawn last, on top
+      const idx = l.ids.map((_, k) => k).filter(k => vals[k] != null).sort((x, y) => Math.abs(vals[x]) - Math.abs(vals[y]));
+      for (const k of idx) {
+        const v = vals[k];
+        const tip = `<b>${esc(l.ids[k])}</b><br>` + models.map(m => {
+          const r = l.scores[m].rmse[i][k], bb = l.scores[m].bias[i][k];
+          return `${esc(m)}: RMSE ${r == null ? "–" : r.toFixed(2)}${bb == null ? "" : `, ${isWind ? "speed bias" : "bias"} ${bb > 0 ? "+" : ""}${bb.toFixed(2)}`}`;
+        }).join("<br>") + ` <span style="color:#6f6b64">${esc(u)}</span><br>${l.scores[a].n[i][k]} runs`;
+        L.circleMarker([l.lat[k], l.lon[k]], { renderer: rend, radius: l.truth === "radiosondes" ? 5.5 : 4, weight: 0.6,
+          color: "rgba(40,40,40,0.55)", fillColor: ramp(stops, (v - lo) / (hi - lo)), fillOpacity: 0.92 })
+          .bindTooltip(tip, { sticky: true }).addTo(dots);
+      }
+      $("m-ramp").style.background = `linear-gradient(90deg, ${stops.join(",")})`;
+      const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => lo + f * (hi - lo));
+      $("m-ticks").innerHTML = ticks.map((t, j) => `<span>${j === 4 && s === "rmse" ? "≥ " : ""}${+t.toFixed(Math.abs(hi) < 2 ? 2 : 1)}</span>`).join("");
+      $("m-cap").textContent = s === "rmse" ? `${a} RMSE (${u})` : s === "bias" ? `${a} ${isWind ? "speed bias" : "bias"}, forecast − observed (${u})`
+        : `${a} RMSE minus ${b} RMSE (${u}); blue where ${a} is better`;
+      $("map-note").innerHTML = `${esc(l.label)} against ${esc(l.truth)}, day ${+ml.value / 24}, over ${Math.max(...Object.values(sm.inits || {}).map(x => x.length), 0) || "all"} runs. ` +
+        `${idx.length.toLocaleString()} stations that every model was scored at. Hover a dot for every model's numbers.`;
+    }
+    [mv, ms, mm, mr, ml].forEach(el => el.addEventListener("change", render));
+    render();
   }
 
   Promise.all([
     fetch("/assets/verification/scores.json").then(r => r.json()),
     window.plotlyP,
-  ]).then(([card]) => draw(card)).catch(e => {
+  ]).then(([card]) => {
+    draw(card);
+    // Leaflet loads deferred, so it is ready once the document is parsed.
+    const parsed = new Promise(ok => document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", ok) : ok());
+    return Promise.all([fetch("/assets/verification/stations.json").then(r => r.ok ? r.json() : null), parsed]).then(([sm]) => {
+      if (sm) { sm.inits = card.inits; drawMap(sm); }
+    });
+  }).catch(e => {
     $("asof").textContent = "The scores could not be loaded (" + e.message + ").";
   });
 })();
