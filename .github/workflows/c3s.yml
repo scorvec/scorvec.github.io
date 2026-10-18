@@ -170,7 +170,8 @@ jobs:
           fi
           I=${{ steps.gate.outputs.issue }}; M=${{ steps.gate.outputs.month }}
           gh release download "$REF_TAG" --repo "$GITHUB_REPOSITORY" -D "$C3S_REF_DIR" --clobber \
-            -p 'obs_*' -p "hc_terc_*_${M}.npz" -p "hc_anom_*_${M}.npz" -p "is_*_${I}*.npz" || true
+            -p 'obs_*' -p "hc_terc_*_${M}.npz" -p "hc_anom_*_${M}.npz" -p "is_*_${I}*.npz" \
+            || echo "::warning::not every $REF_TAG pattern downloaded (none published yet for this issue, or a fetch error)"
           touch "$RUNNER_TEMP/ref_marker"
           ls "$C3S_REF_DIR" | sed 's/_[0-9]*\.npz$//' | sort | uniq -c | head -40
           du -sh "$C3S_REF_DIR"
