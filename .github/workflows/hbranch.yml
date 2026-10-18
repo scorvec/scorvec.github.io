@@ -5,8 +5,9 @@ name: Hadley outflow and subtropical descent (IFS HRES analyses and back-traject
 # offset from ERA5 (offset_era5.npz, first filled by hbranch-offsets.yml). Each run pairs the lattice days ARCO has
 # newly published, adds yesterday (the last day with all four analyses), releases its trajectories, draws the new
 # weeks' and days' frames and the interactive map's forward paths (frames branch) and commits the manifests, the stills and
-# the figures. The forecast release of the interactive map comes from hbranch-fc.yml. The archive steps have their own
-# timeouts and whatever they wrote is uploaded either way, so a re-run carries on where one stopped.
+# the figures. The daily sea-level pressure loops against ERA5 (hadley_slp.py) are drawn from the same archive. The
+# forecast release of the interactive map comes from hbranch-fc.yml. The archive steps have their own timeouts and
+# whatever they wrote is uploaded either way, so a re-run carries on where one stopped.
 on:
   schedule:
     - cron: '25 2 * * *'
@@ -98,11 +99,20 @@ jobs:
           scripts/lib/fetch_frames_ci.sh assets/sst/anim/hbranch_hist assets/sst/anim/hbranch_dt \
             || echo "::warning::no frames on the frames branch yet"
           python scripts/mjo/src/hadley_branch_maps.py render $([ "${{ inputs.rebuild_frames }}" = "true" ] && echo --rebuild)
+      - name: Sea-level pressure loops (normalised and in hPa)
+        if: steps.run.outputs.skip != 'true'
+        run: |
+          scripts/lib/fetch_frames_ci.sh assets/sst/anim/hslp_ana assets/sst/anim/hslp_ana_hpa \
+            || echo "::warning::no sea-level pressure frames on the frames branch yet"
+          python scripts/mjo/src/hadley_slp.py render $([ "${{ inputs.rebuild_frames }}" = "true" ] && echo --rebuild) \
+            || echo "::warning::sea-level pressure loops not drawn this run"
       - name: Publish the frames (frames branch)
         if: steps.run.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/hbranch_hist assets/sst/anim/hbranch_dt assets/sst/anim/hbranch_drop
+        run: |
+          scripts/lib/publish_frames_ci.sh assets/sst/anim/hbranch_hist assets/sst/anim/hbranch_dt assets/sst/anim/hbranch_drop \
+            assets/sst/anim/hslp_ana assets/sst/anim/hslp_ana_hpa
       - name: Commit & push (manifest, still, figures)
         if: steps.run.outputs.skip != 'true'
         run: |
@@ -111,15 +121,17 @@ jobs:
           OUT="assets/sst/anim/hbranch_hist_manifest.json assets/sst/anim/hbranch_dt_manifest.json assets/sst/anim/hbranch_drop_manifest.json \
                assets/sst/hbranch_map.webp assets/sst/hbranch_dt.webp assets/sst/hbranch_flow.webp assets/sst/hbranch_ridges.webp \
                assets/sst/hbranch_turnover.webp assets/sst/hbranch_traj.webp assets/sst/hbranch_basemap.webp"
+          HSLP="assets/sst/anim/hslp_ana_manifest.json assets/sst/anim/hslp_ana_hpa_manifest.json"   # absent if not drawn
           last=$(python3 -c "import json; print(json.load(open('assets/sst/anim/hbranch_hist_manifest.json'))['regions']['hbranch_hist']['frames'][-1]['date'])")
           SNAP=$(mktemp -d)
-          tar cf "$SNAP/outs.tar" $OUT
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT $HSLP 2>/dev/null || true
           for i in 1 2 3 4 5; do
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar"
             perl -0pi -e "s/(hbranch_(?:flow|ridges|turnover|traj)\.webp)\?v=\w+/\${1}?v=$(date -u +%Y%m%d%H%M)/g" circulation.html
             git add circulation.html $OUT
+            for f in $HSLP; do [ -e "$f" ] && git add "$f"; done
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -m "Hadley outflow and subtropical descent: week ending $last"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi

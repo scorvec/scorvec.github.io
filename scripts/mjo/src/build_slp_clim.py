@@ -10,13 +10,16 @@ diurnal (S1) and semidiurnal (S2) tides exactly, and in the tropics those reach 
 Per grid point, by common-year day (doycal.noleap_doy: 29 Feb takes its neighbours' mean):
   normal   mean + annual + semiannual harmonics + a linear trend, fitted together on the daily means; the trend is
            read at EPOCH (Normals): the tropical daily sd is near 1 hPa, so a few tenths of a hPa of change since the
-           middle of 1991-2020 would read as a standing anomaly
+           middle of 1991-2020 would read as a standing anomaly. The trend of a point is shrunk by its signal-to-noise
+           first, b t^2 / (1 + t^2) with t its t-value on the 30 annual means (applied_trend): in 1991-2020 it is
+           |t| >= 2 over only ~15 % of the area, and a trend that is mostly interannual noise, carried 21 years from
+           the middle of the period, would put that noise into every day's anomaly
   sd       of the daily anomalies about that normal: mean + annual + semiannual harmonics fitted to their squares (the
            variance by day of year), held above VAR_FLOOR of its annual mean, square-rooted
   zs       the ERA5 terrain height on the grid (era5_orography.nc, conservatively averaged): over high ground the
            sea-level pressure is a reduction, not a measurement, and the maps leave it out above TERRAIN_M
 The build prints its checks: the sd by latitude band, the harmonic variance against each day's +-15-day pooled sample
-variance, and the trend's size at EPOCH in sd units with its t-value on the annual means.
+variance, and the trend's shift to EPOCH in sd units, as fitted and as applied.
 
     python src/build_slp_clim.py fetch --years 1991 1993 --out part.npz
     python src/build_slp_clim.py build part*.npz        # -> data/reference/hslp_clim.nc
@@ -60,6 +63,12 @@ def harm(doy) -> np.ndarray:
     return np.column_stack([np.ones(w.size), np.cos(w), np.sin(w), np.cos(2 * w), np.sin(2 * w)])
 
 
+def applied_trend(b: np.ndarray, se: np.ndarray) -> np.ndarray:
+    """The trend shrunk towards zero by its signal-to-noise: b t^2 / (1 + t^2), t = b / se."""
+    t2 = (b / se) ** 2
+    return b * t2 / (1.0 + t2)
+
+
 def terrain() -> np.ndarray:
     """The ERA5 terrain height (m) on the domain's 1.5 deg cells."""
     with xr.open_dataarray(OROG) as o:
@@ -73,7 +82,7 @@ class Normals:
     def __init__(self, path: Path = OUT):
         with xr.open_dataset(path) as ds:
             self.coef = ds["coef"].values.astype(np.float64)
-            self.coef[0] += ds["trend"].values * (EPOCH - T_REF)
+            self.coef[0] += applied_trend(ds["trend"].values, ds["trend_se"].values) * (EPOCH - T_REF)
             self.var = ds["var"].values.astype(np.float64)
             self.high = ds["zs"].values > TERRAIN_M
 
@@ -206,18 +215,23 @@ def check(ds: xr.Dataset, fit_err: np.ndarray):
     print(
         f"harmonic variance against the +-{POOL}-day pooled variance, rms / mean: p50 {q[0]:.3f} p90 {q[1]:.3f} p99 {q[2]:.3f}"
     )
-    shift = ds["trend"].values * (EPOCH - T_REF) / sd_mean
-    t = ds["trend"].values / ds["trend_se"].values
+    b, se = ds["trend"].values, ds["trend_se"].values
     w = np.cos(np.deg2rad(lat))
-    a = np.abs(shift[low])
     print(f"the trend's shift {T_REF} -> {EPOCH} in sd (of the annual-mean variance), below {TERRAIN_M:.0f} m:")
-    print(f"  |shift| area mean {np.average(a, weights=w[low]):.3f}, p95 {np.percentile(a, 95):.3f}, max {a.max():.3f}")
-    for x in (0.1, 0.25):
-        print(f"  area with |shift| >= {x} sd: {100 * np.average(a >= x, weights=w[low]):.1f} %")
-    print(f"  area with |t| >= 2 on the annual means: {100 * np.average(np.abs(t[low]) >= 2, weights=w[low]):.1f} %")
+    print(
+        f"  area with |t| >= 2 on the annual means: {100 * np.average(np.abs(b / se)[low] >= 2, weights=w[low]):.1f} %"
+    )
+    shifts = {k: x * (EPOCH - T_REF) / sd_mean for k, x in (("fitted", b), ("applied", applied_trend(b, se)))}
+    for name, shift in shifts.items():
+        a = np.abs(shift[low])
+        print(
+            f"  {name}: |shift| area mean {np.average(a, weights=w[low]):.3f}, p95 {np.percentile(a, 95):.3f}, "
+            f"max {a.max():.3f}; area >= 0.1 sd {100 * np.average(a >= 0.1, weights=w[low]):.1f} %, "
+            f">= 0.25 sd {100 * np.average(a >= 0.25, weights=w[low]):.1f} %"
+        )
     for lo, hi in ((0, 10), (10, 20), (20, 30), (30, 41)):
         m = low & (lat >= lo) & (lat < hi)
-        print(f"  {lo:2d}-{hi:2d} deg: mean shift {np.average(shift[m], weights=w[m]):+.3f} sd")
+        print(f"  {lo:2d}-{hi:2d} deg: mean applied shift {np.average(shifts['applied'][m], weights=w[m]):+.3f} sd")
 
 
 def main() -> int:

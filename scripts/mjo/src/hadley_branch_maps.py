@@ -476,7 +476,7 @@ _ORDER = np.argsort((HB.LON - CENTRE + 180.0) % 360.0)
 XN = np.r_[(HB.LON[_ORDER] - CENTRE + 180.0) % 360.0 - 180.0, 180.0]
 
 
-def _native(f: np.ndarray) -> np.ndarray:
+def native(f: np.ndarray) -> np.ndarray:
     g = f[:, _ORDER]
     return np.concatenate([g, g[:, :1]], axis=1)
 
@@ -485,9 +485,9 @@ def _xn(lon: np.ndarray) -> np.ndarray:
     return (np.asarray(lon) - CENTRE + 180.0) % 360.0 - 180.0
 
 
-def _geo(ax, title: str):
+def geo(ax, title: str, extent: tuple = EXTENT):
     ax.coastlines(linewidth=1.0, color="#111", zorder=5)
-    ax.set_extent([-180.0, 180.0, *EXTENT], crs=PROJ)
+    ax.set_extent([-180.0, 180.0, *extent], crs=PROJ)
     gl = ax.gridlines(
         draw_labels=True, linewidth=0.3, color="0.6", alpha=0.5, xlocs=range(-180, 181, 60), ylocs=[-30, 0, 30]
     )
@@ -498,19 +498,19 @@ def _geo(ax, title: str):
 
 def _panel(fig, rect, cax, field, levels, title, label):
     ax = fig.add_axes(rect, projection=PROJ)
-    cf = ax.contourf(XN, HB.LAT, _native(field), levels=levels, cmap="RdBu_r", extend="both")
-    _geo(ax, title)
+    cf = ax.contourf(XN, HB.LAT, native(field), levels=levels, cmap="RdBu_r", extend="both")
+    geo(ax, title)
     cb = fig.colorbar(cf, cax=fig.add_axes(cax), orientation="vertical")
     cb.set_label(label, fontsize=8)
     cb.ax.tick_params(labelsize=7.5)
     return ax
 
 
-def _layout(n: int, W: float = 13.0):
+def layout(n: int, W: float = 13.0, extent: tuple = EXTENT):
     """Figure size and (axes, colorbar) rects in figure fractions for n map rows of the extent's aspect, in inches: a
     left margin for the latitude labels, a title and longitude labels around each row, a header and a footer."""
     left, mw, top, foot, block = 0.6, 11.3, 0.5, 0.5, 0.34
-    mh = mw * (EXTENT[1] - EXTENT[0]) / 360.0
+    mh = mw * (extent[1] - extent[0]) / 360.0
     H = top + n * (mh + 2 * block) + foot
     rects = []
     for i in range(n):
@@ -529,21 +529,21 @@ def height_km(p: np.ndarray) -> np.ndarray:
 
 def draw_dt(F: dict, day: pd.Timestamp, out: Path):
     """The day's outflow on the dynamic tropopause: the surface's height, and the divergent wind on it as arrows."""
-    size, rects, left = _layout(1)
+    size, rects, left = layout(1)
     fig = plt.figure(figsize=size)
     ax = fig.add_axes(rects[0][0], projection=PROJ)
-    cf = ax.contourf(XN, HB.LAT, _native(height_km(F["pdt"])), levels=DT_KM, cmap="viridis", extend="both")
+    cf = ax.contourf(XN, HB.LAT, native(height_km(F["pdt"])), levels=DT_KM, cmap="viridis", extend="both")
     s = 5
     ax.quiver(
         XN[:-1:s],
         HB.LAT[::s],
-        _native(F["uout"])[::s, :-1:s],
-        _native(F["vout"])[::s, :-1:s],
+        native(F["uout"])[::s, :-1:s],
+        native(F["vout"])[::s, :-1:s],
         scale=200,
         width=0.0012,
         color="#222",
     )
-    _geo(ax, "Divergent wind on the dynamic tropopause · the surface's height")
+    geo(ax, "Divergent wind on the dynamic tropopause · the surface's height")
     cb = fig.colorbar(cf, cax=fig.add_axes(rects[0][1]), orientation="vertical")
     cb.set_label("height of the dynamic tropopause (km)", fontsize=8)
     cb.ax.tick_params(labelsize=7.5)
@@ -572,7 +572,7 @@ def draw_dt(F: dict, day: pd.Timestamp, out: Path):
 
 def draw_map(F: dict, cl: xr.Dataset, mid: float, idx: dict, end: pd.Timestamp, out: Path):
     """The week's descent and subtropical ridges against ERA5."""
-    size, rects, left = _layout(2)
+    size, rects, left = layout(2)
     fig = plt.figure(figsize=size)
     w = HB.PA_S_TO_HPA_DAY * F["wmid"]
     ax = _panel(
@@ -583,7 +583,7 @@ def draw_map(F: dict, cl: xr.Dataset, mid: float, idx: dict, end: pd.Timestamp, 
         f"Descent · {HB.DESC_LAYER[0]:.0f}–{HB.DESC_LAYER[1]:.0f} hPa vertical motion",
         "anomaly (hPa day⁻¹, + = more descent)",
     )
-    ax.contour(XN, HB.LAT, _native(HB.large_scale(w, efold=W_EFOLD)), levels=[20.0], colors="#111", linewidths=0.8)
+    ax.contour(XN, HB.LAT, native(HB.large_scale(w, efold=W_EFOLD)), levels=[20.0], colors="#111", linewidths=0.8)
     ax = _panel(
         fig,
         *rects[1],
@@ -593,7 +593,7 @@ def draw_map(F: dict, cl: xr.Dataset, mid: float, idx: dict, end: pd.Timestamp, 
         "SLP anomaly (hPa)",
     )
     for zf, ls, lw in ((F["z500"], "-", 1.6), (clim_map(cl, "z500", mid), "--", 1.0)):
-        ax.contour(XN, HB.LAT, _native(zf), levels=[HB.Z588], colors="#111", linewidths=lw, linestyles=ls)
+        ax.contour(XN, HB.LAT, native(zf), levels=[HB.Z588], colors="#111", linewidths=lw, linestyles=ls)
     for k in HB.HIGHS:
         ax.text(
             idx[f"hlon_{k}"],
@@ -651,7 +651,7 @@ def draw_transit(off: Offsets, latest: pd.Timestamp, out: Path):
     order = np.argsort(xc)
     xe = np.r_[xc[order] - k * T.RES / 2, xc[order][-1] + k * T.RES / 2]
     grid = med[:, order]
-    size, rects, left = _layout(1)
+    size, rects, left = layout(1)
     fig = plt.figure(figsize=size)
     ax = fig.add_axes(rects[0][0], projection=PROJ)
     cmap = plt.get_cmap("viridis")
@@ -670,7 +670,7 @@ def draw_transit(off: Offsets, latest: pd.Timestamp, out: Path):
         for xs, ys in zip(np.split(x, brk), np.split(y, brk), strict=True):
             ax.plot(xs, ys, color="#333", lw=0.5, alpha=0.7)
         ax.plot(_xn(slon[n]), slat[n], "o", color="#c0392b", ms=2.2)
-    _geo(ax, f"Transit time to 500 hPa · median of the week's releases ending {latest:%Y-%m-%d} (days)")
+    geo(ax, f"Transit time to 500 hPa · median of the week's releases ending {latest:%Y-%m-%d} (days)")
     cb = fig.colorbar(pm, cax=fig.add_axes(rects[0][1]), orientation="vertical")
     cb.set_label("days since it left the outflow layer", fontsize=8)
     cb.ax.tick_params(labelsize=7.5)
@@ -889,7 +889,7 @@ def draw_trackers(series: pd.DataFrame, cl: xr.Dataset):
         print(f"wrote {OUT / name}", flush=True)
 
 
-def _loop(name: str, label: str, frames: dict, rebuild: bool) -> list:
+def loop(name: str, label: str, frames: dict, rebuild: bool) -> list:
     """The loop `name` made exactly the frames in `frames` ({date key: (file, label, draw)}): the ones the runner does
     not hold are drawn (all of them with rebuild), the rest of the directory is deleted (it is swapped onto the frames
     branch whole), and the manifest written; its frames."""
@@ -943,7 +943,7 @@ def render(rebuild: bool = False):
     print(
         f"  offset ({off.n} pairs), latest week: " + ", ".join(f"{k} {idx[k] - raw[k]:+.2f}" for k in keys), flush=True
     )
-    frames = _loop(DIR, "Subtropical descent and ridges, analysed weeks", weekly, rebuild)
+    frames = loop(DIR, "Subtropical descent and ridges, analysed weeks", weekly, rebuild)
     shutil.copyfile(ANIM / DIR / frames[-1]["file"], OUT / "hbranch_map.webp")
     daily = {}
     for i, day in enumerate(date):
@@ -951,7 +951,7 @@ def render(rebuild: bool = False):
             o = off.off2(_doy(day))
             Fd = {f: D[f][i] - o[f] for f in HB.FIELDS}
             daily[f"{day:%Y-%m-%d}"] = (f"D{day:%Y%m%d}.webp", f"{day:%a %b %d, %Y}", partial(draw_dt, Fd, day))
-    frames = _loop(DT_DIR, "Hadley outflow on the dynamic tropopause, daily", daily, rebuild)
+    frames = loop(DT_DIR, "Hadley outflow on the dynamic tropopause, daily", daily, rebuild)
     shutil.copyfile(ANIM / DT_DIR / frames[-1]["file"], OUT / "hbranch_dt.webp")
     draw_trackers(pd.DataFrame(rows, index=pd.DatetimeIndex(ends)), cl)
     draw_transit(off, tdate.max(), OUT / "hbranch_traj.webp")
