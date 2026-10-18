@@ -253,7 +253,14 @@ def apply_daily(info: dict, years: list[int]) -> pd.DataFrame:
     u850 = load_u850_box(True)
     cols = {"n12": nd["n12"], "n3": nd["n3"], "n4": nd["n4"], "n34": nd["n34"], "soi": soi, "u850": u850}
     idx = pd.date_range(f"{min(years)}-01-01", f"{max(years)}-12-31", freq="D")
-    df = pd.DataFrame({k: v.reindex(v.index.union(idx)).interpolate(limit=7).reindex(idx) for k, v in cols.items()})
+    # bridge gaps of up to a week INSIDE each predictor's record only: filling past its last day would hold the last
+    # value, so the nowcast ends with the predictor that ends first (the ERA5 wind, ~5-7 days behind real time)
+    df = pd.DataFrame(
+        {
+            k: v.reindex(v.index.union(idx)).interpolate(limit=7, limit_area="inside").reindex(idx)
+            for k, v in cols.items()
+        }
+    )
     df = df.loc[df.index <= df.dropna().index.max()]
     b = info["coef"]
     out = pd.DataFrame(index=df.index)

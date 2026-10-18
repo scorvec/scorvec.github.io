@@ -123,7 +123,7 @@ def plot(tab: pd.DataFrame, out: Path):
         for ax, col in zip(axes, ("u_mean", "west_frac")):
             s = pd.Series(sub[col].values, index=x)
             s = s[~s.index.duplicated()].sort_index()
-            s = s.reindex(s.index.union(full)).interpolate(limit=3).reindex(full)
+            s = s.reindex(s.index.union(full)).interpolate(limit=3, limit_area="inside").reindex(full)  # gaps only
             sm = s.rolling(SMOOTH, min_periods=3, center=True).mean()
             if y == cur:  # show the live daily detail too
                 ax.plot(s.index, s.values, color=c, lw=0.6, alpha=0.35)
