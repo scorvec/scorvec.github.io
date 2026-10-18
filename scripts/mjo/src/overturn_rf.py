@@ -8,9 +8,10 @@ has a 35-day start every Wednesday of 2000-2019, so for its weeks 3-5 the drift 
 
   REFORECAST  every Wednesday start, gefs_reforecast.MEMBERS (control + 3), the 00 UTC u and v of lead days 15-35 on
               the 13 levels (the Days:10-35 files, 0.5 deg, byte-ranged through their .idx), as WEEKS means of the
-              zonal-mean v (overturn.zonal_v, on ERA5's latitudes) and of the 5S-5N divergent zonal wind
-              (overturn.eq_ud). Both are linear in the wind, so the week's mean wind gives the week's.
-  TRUTH       ERA5 at 00 UTC on the same valid days (WeatherBench2, 1.5 deg), reduced the same way.
+              zonal-mean v (overturn.zonal_v, averaged into build_hadley_clim's 1.5 deg bands) and of the 5S-5N
+              divergent zonal wind (overturn.eq_ud). Both are linear in the wind, so the week's mean wind gives the
+              week's.
+  TRUTH       ERA5 at 00 UTC on the same valid days (WeatherBench2, 1.5 deg: the same bands), reduced the same way.
   DRIFT       a week's error, the members' mean less ERA5, regressed per point on the start's common-year day (mean
               and annual harmonic) and shrunk by its signal-to-noise (hadley_slp_ref.fit_drift and eval_drift).
   SKILL       the members less the drift (refitted without the start's year), as the Hadley and Walker
@@ -73,7 +74,7 @@ def _url(start: str, mem: str, var: str) -> str:
 
 
 def one_member(start: str, mem: str) -> tuple[np.ndarray, np.ndarray] | None:
-    """(vbar (week, lev, 721), ud (week, lev, 173)) of one member of one start, or None when a message is missing."""
+    """(vbar (week, lev, LAT15), ud (week, lev, 173)) of one member of one start, or None when a message is missing."""
     jobs = []
     for var in ("ugrd", "vgrd"):
         url = _url(start, mem, var)
@@ -95,6 +96,7 @@ def one_member(start: str, mem: str) -> tuple[np.ndarray, np.ndarray] | None:
                 if a <= d <= z:
                     wind[var][w, k] += f / (z - a + 1)
     vb = np.stack([[O.zonal_v(wind["vgrd"][w, k], lat) for k in range(len(LEVELS))] for w in range(len(WEEKS))])
+    vb = B.band_v(vb, O.LAT)
     ud = np.stack(
         [
             [O.eq_ud(wind["ugrd"][w, k], wind["vgrd"][w, k], lat, lon) for k in range(len(LEVELS))]
@@ -178,8 +180,8 @@ def _mid(s: pd.Timestamp, w: int) -> float:
 
 
 def fields(vb: np.ndarray, ud: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Psi (lev, LAT15) and Psi_W (lev, 173) of a week's vbar and ud."""
-    return mmsf.streamfunction(B.band_v(vb, O.LAT), P_PA, B.LAT15), walker.streamfunction(ud, P_PA)
+    """Psi (lev, LAT15) and Psi_W (lev, 173) of a week's vbar (on LAT15) and ud."""
+    return mmsf.streamfunction(vb, P_PA, B.LAT15), walker.streamfunction(ud, P_PA)
 
 
 def metrics(psi: np.ndarray, psw: np.ndarray) -> dict:
@@ -298,11 +300,12 @@ def _r3(x):
 
 
 def drift_at(doy: float) -> dict | None:
-    """The drift at a start's common-year day: {"vbar": (week, lev, 721), "ud": (week, lev, 173)}; None without a fit."""
+    """The drift at a start's common-year day: {"vbar": (week, lev, LAT15), "ud": (week, lev, 173)}; None without a
+    fit."""
     if not DRIFT.exists():
         return None
     f = dict(np.load(DRIFT))
-    shape = {"vbar": (len(LEVELS), O.LAT.size), "ud": (len(LEVELS), O.NLON_UD)}
+    shape = {"vbar": (len(LEVELS), B.LAT15.size), "ud": (len(LEVELS), O.NLON_UD)}
     out = {}
     for k, shp in shape.items():
         rows = []
