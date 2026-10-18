@@ -1,7 +1,8 @@
 # Pulls the published forecast from the public model repository (scorvec/midterms-2026, built daily by its own
 # .github/workflows/daily.yml) into the site's midterms/ folder and re-applies the site chrome:
 #   * copy web/index.html, about.html, polls.html, whatif.html, whatif_engine.js, mt.css and web/data/{model, summary, polls,
-#     race_history, whatif, districts_2026.topo}.json into midterms/ and midterms/data/; legislatures.html, its
+#     race_history, whatif, districts_2026.topo}.json into midterms/ and midterms/data/; early-vote.html and
+#     data/early_vote.json (the model repo's early-vote page, built by its early-diag workflow) when published; legislatures.html, its
 #     data/stateleg_seats.json and data/stateleg_geo/ (index.json + the per-state TopoJSON it lists) when published;
 #   * drop any robots noindex tag (a guard; the model repo's pages carry none);
 #   * stamp the site header/footer: apply_chrome.stamp_all(only={the four midterms pages});
@@ -55,8 +56,8 @@ jobs:
           for f in index.html about.html polls.html whatif.html whatif_engine.js mt.css; do
             curl -fsSL --retry 3 -o "$tmp/$f" "$base/$f"
           done
-          # legislatures.html (state legislative chambers, experimental) - optional until the model repo publishes it
-          for f in legislatures.html; do
+          # legislatures.html (state legislative chambers, experimental) and early-vote.html - optional
+          for f in legislatures.html early-vote.html; do
             curl -fsSL --retry 3 -o "$tmp/$f" "$base/$f" || rm -f "$tmp/$f"
           done
           for f in model.json summary.json polls.json race_history.json whatif.json districts_2026.topo.json; do
@@ -66,6 +67,7 @@ jobs:
           # stateleg_geo/index.json "files" (new chambers add states, so the list is read, not hard-coded). Optional as a
           # whole; once the index is there every listed file must arrive (set -e) so a half-copied set is never published.
           curl -fsSL --retry 3 -o "$tmp/data/stateleg_seats.json" "$base/data/stateleg_seats.json" || rm -f "$tmp/data/stateleg_seats.json"
+          curl -fsSL --retry 3 -o "$tmp/data/early_vote.json" "$base/data/early_vote.json" || rm -f "$tmp/data/early_vote.json"
           mkdir -p "$tmp/geo"
           if curl -fsSL --retry 3 -o "$tmp/geo/index.json" "$base/data/stateleg_geo/index.json"; then
             for f in $(python -c "import json,sys; print(' '.join(json.load(open(sys.argv[1]))['files']))" "$tmp/geo/index.json"); do
@@ -89,7 +91,7 @@ jobs:
           print("forecast", new["asof"], "generated", new.get("generated"))
           EOF
           mkdir -p midterms/data
-          for f in index.html about.html polls.html whatif.html legislatures.html; do
+          for f in index.html about.html polls.html whatif.html legislatures.html early-vote.html; do
             [ -f "$tmp/$f" ] || continue
             sed 's|<meta name="robots" content="noindex">||' "$tmp/$f" > "midterms/$f"
           done
@@ -108,7 +110,7 @@ jobs:
 
       - name: Stamp the site chrome
         run: |
-          python -c "import sys; sys.path.insert(0, 'scripts/site'); import apply_chrome as A; A.stamp_all(only={'midterms/index.html', 'midterms/about.html', 'midterms/polls.html', 'midterms/whatif.html', 'midterms/legislatures.html'}, quiet=True)"
+          python -c "import sys; sys.path.insert(0, 'scripts/site'); import apply_chrome as A; A.stamp_all(only={'midterms/index.html', 'midterms/about.html', 'midterms/polls.html', 'midterms/whatif.html', 'midterms/legislatures.html', 'midterms/early-vote.html'}, quiet=True)"
 
       - name: Commit & push
         run: |
@@ -126,7 +128,7 @@ jobs:
             tar xf "$SNAP/outs.tar" 2>/dev/null || true
             # the pages come from the model repo, but their chrome is the site's: re-stamp it from main's CURRENT
             # apply_chrome.py so a menu change pushed during this run is not reverted
-            python -c "import sys; sys.path.insert(0, 'scripts/site'); import apply_chrome as A; A.stamp_all(only={'midterms/index.html', 'midterms/about.html', 'midterms/polls.html', 'midterms/whatif.html', 'midterms/legislatures.html'}, quiet=True)" || echo "::warning::chrome re-stamp failed"
+            python -c "import sys; sys.path.insert(0, 'scripts/site'); import apply_chrome as A; A.stamp_all(only={'midterms/index.html', 'midterms/about.html', 'midterms/polls.html', 'midterms/whatif.html', 'midterms/legislatures.html', 'midterms/early-vote.html'}, quiet=True)" || echo "::warning::chrome re-stamp failed"
             git add -A midterms
             if git diff --staged --quiet; then echo "No changes; skipping commit."; echo "PUSHED=0" >> "$GITHUB_ENV"; exit 0; fi
             git commit -q -m "midterms: forecast update $asof" -- midterms
