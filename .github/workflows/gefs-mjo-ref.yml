@@ -1,0 +1,96 @@
+name: GEFS MJO reference (reforecast -> gefs_mjo_ref.npz + gefs_mjo_hindcast.npz, release gefs-ref-v1)
+
+# The GEFS page's MJO reference files (scripts/gefs/build_gefs_mjo.py, see its docstring): the WH04 reference, the
+# reforecast band climatology of release gefs-clim-v3 and the three-field RMM's ENSO correction (ref), and every
+# GEFSv12 reforecast start 2000-2019 projected as the live RMM, with BoM's RMM and the ENSO terms of both (hindcast).
+# The per-start band means come from the rf-YYYY-MM artifacts of a gefs-reforecast.yml run, cut to the band a year at
+# a time; the artifacts are kept 7 days, so once they have expired run gefs-reforecast.yml again and pass its run id.
+# BoM's RMM is taken from the hindcast file being replaced (BoM's site allows no automated downloads). The step summary
+# scores the previous hindcast and the new one with ENSO left in and removed. `publish` replaces both files in
+# gefs-ref-v1, which gefs.yml downloads every run; without it the result is only an artifact (with the previous files).
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "gefs-reforecast.yml run whose rf-YYYY-MM artifacts hold the per-start files"
+        required: true
+      publish:
+        description: "Replace gefs_mjo_ref.npz and gefs_mjo_hindcast.npz in release gefs-ref-v1"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: gefs-mjo-ref
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Room for a year of reforecast artifacts
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL; df -h / | tail -1
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/gefs
+            scripts/lib
+            scripts/mjo/src
+            scripts/mjo/data/reference
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy pandas xarray netCDF4 matplotlib
+      - name: Previous files (release gefs-ref-v1)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release download gefs-ref-v1 --repo "$GITHUB_REPOSITORY" -p gefs_mjo_ref.npz -p gefs_mjo_hindcast.npz -D old
+      - name: Per-start band means (artifacts of run ${{ inputs.run_id }})
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -o pipefail
+          for y in $(seq 2000 2019); do
+            gh run download "${{ inputs.run_id }}" -R "$GITHUB_REPOSITORY" -p "rf-$y-*" -D in
+            python scripts/gefs/build_gefs_mjo.py slim --inp in --out rf
+            rm -rf in
+          done
+          echo "$(ls rf | wc -l) starts"; du -sh rf
+      - name: Build and score
+        run: |
+          set -o pipefail
+          mkdir -p new log
+          B="python scripts/gefs/build_gefs_mjo.py"
+          $B ref --out new --cache /tmp/clim --old old/gefs_mjo_ref.npz | tee log/ref.log
+          $B hindcast --out new --rf rf --truth old/gefs_mjo_hindcast.npz | tee log/hindcast.log
+          doy=$((10#$(date -u +%j)))
+          $B plot --hind old/gefs_mjo_hindcast.npz --ref old/gefs_mjo_ref.npz --raw --doy-now $doy --site site_old \
+            | tee log/skill_old.log
+          $B plot --hind new/gefs_mjo_hindcast.npz --ref new/gefs_mjo_ref.npz --raw --doy-now $doy --site site_new_raw \
+            | tee log/skill_new_raw.log
+          $B plot --hind new/gefs_mjo_hindcast.npz --ref new/gefs_mjo_ref.npz --doy-now $doy --site site_new \
+            | tee log/skill_new.log
+          for f in ref hindcast skill_old skill_new_raw skill_new; do
+            { echo "#### $f"; echo '```'; cat "log/$f.log"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          done
+      - uses: actions/upload-artifact@v7
+        with:
+          name: gefs-mjo-ref
+          path: |
+            new/
+            old/
+            log/
+            site_*/assets/gefs/
+          retention-days: 30
+      - name: Publish (release gefs-ref-v1)
+        if: ${{ inputs.publish }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload gefs-ref-v1 new/gefs_mjo_ref.npz new/gefs_mjo_hindcast.npz --repo "$GITHUB_REPOSITORY" --clobber

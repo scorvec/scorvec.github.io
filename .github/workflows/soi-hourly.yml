@@ -1,0 +1,85 @@
+name: Hourly SOI estimate (Darwin/Tahiti METAR)
+
+# Near-real-time SOI from the Darwin (YPDN) + Tahiti (NTAA) airport METARs. Light:
+# one API call + a small plot. Commits its own files only (rolling CSV + webp), so it
+# never collides with the other pipelines.
+# NO CRON OF ITS OWN. Measured 2026-08-30: GitHub honoured 5 of 24 hourly
+# firings for this workflow (21%), and stripping the repo to this single cron
+# still only got 2 of 6 over six hours - so the throttle follows the WORKFLOW's
+# requested frequency, not repo load. Workflows asking for one firing a day were
+# honoured 5 of 5.
+#
+# 2026-10-04: the 24 per-hour caller files were deleted; it now runs every 3 hours (dispatcher slot
+# */3:12 + the backstop cron above), and the work stays here
+# as a reusable workflow. One copy of the logic, 24 cheap schedules.
+on:
+  # backstop crons (2026-10-04: moved here from the per-hour caller files, which were deleted; the
+  # dispatcher, scripts/lib/dispatch_workflows.sh, fires this on time - these only matter when it is off)
+  schedule:
+    - cron: '12 */3 * * *'
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write   # scripts/lib/cache_prune.sh deletes the superseded cache entries
+
+concurrency:
+  group: soi-hourly
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20   # room for the bounded git-retry loop in Commit & push
+    steps:
+      - uses: actions/checkout@v7
+      # LongPaddock daily SOI copy + its ETag sidecar, kept between runs so it is fetched at most once a day: restored
+      # from the newest entry, saved under a hash of the files when they changed, older entries deleted
+      - name: Restore the LongPaddock copy
+        id: soi_cache
+        uses: actions/cache/restore@v6
+        with:
+          path: scripts/sst/data/soi
+          key: soi-longpaddock-
+          restore-keys: soi-longpaddock-
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy pandas matplotlib
+      - run: python scripts/sst/hourly_soi.py --out assets/sst/soi_hourly.webp
+      - name: Save the LongPaddock copy (when it changed)
+        if: >-
+          hashFiles('scripts/sst/data/soi/**') != '' &&
+          steps.soi_cache.outputs.cache-matched-key != format('soi-longpaddock-{0}', hashFiles('scripts/sst/data/soi/**'))
+        uses: actions/cache/save@v6
+        with:
+          path: scripts/sst/data/soi
+          key: soi-longpaddock-${{ hashFiles('scripts/sst/data/soi/**') }}
+      - name: Drop superseded caches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/cache_prune.sh soi-longpaddock-
+      - name: Commit & push
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "26825570+scorvec@users.noreply.github.com"
+          # Snapshot the outputs, then commit on a clean sync of origin/main each attempt (the mjo.yml pattern), never
+          # a rebase: a collided rebase can drop the build.
+          OUT="assets/sst/soi_hourly.webp scripts/sst/metar/soi_hourly.csv"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add $OUT
+            if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+            git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push; then echo "pushed (attempt $i)"; exit 0; fi
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1

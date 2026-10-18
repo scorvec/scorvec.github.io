@@ -1,0 +1,240 @@
+name: ERA5 torque history (one-off study input)
+
+# One-off: streams ARCO-ERA5 (Google public bucket, anonymous) surface pressure, turbulent and
+# gravity-wave surface stress and the vertical integral of eastward mass flux, and reduces each
+# time on the fly to mountain / friction / GWD torques and relative (motion) + mass-term AAM.
+# Input for the El Nino mountain-torque study (scripts/mjo/src/torque_enso_study.py, 2026-10-12).
+#
+# Modes:
+#   daily     00/06/12/18 UTC every day 1959 -> latest ERA5T, daily means (global, six bands, the
+#             site's RANGES boxes) -> scripts/mjo/data/reference/torque_daily_era5.csv.gz
+#   per_time  one row per sampled time, e.g. start=2026-03-01, hours=0..23, for the hourly 2026
+#             budget -> scripts/mjo/data/reference/<out>
+#   bands5    per sampled time, 5-degree latitude-band integrals of motion/mass AAM and the three
+#             torques (the zonal-mean increment study: hours 08-11, 20-23 UTC) -> <out> (csv.gz)
+#   ranges5   per sampled time, surface pressure only: the site-exact 5-degree mountain torque of each
+#             range and the globe (y0=1991, y1=2020, hours=0,12: the live by-range product's ERA5 reference,
+#             scripts/mjo/src/build_torque_range_sd.py) -> <out> (csv.gz)
+#   u37       37-level u: relative-AAM density per pressure layer and 5-degree band at 08-11 and
+#             20-23 UTC every `step`-th day, reduced to the jumps at the 09->10 and 21->22 UTC
+#             4D-Var window starts (scripts/mjo/src/torque_increments_u37.py) -> <out> (.nc)
+# One matrix job per chunk (years, or `chunk_days` days), each an artifact; one job concatenates
+# them and commits ONE file. Dispatch only, no cron.
+
+on:
+  workflow_dispatch:
+    inputs:
+      y0:
+        description: 'First year'
+        required: false
+        default: '1959'
+      y1:
+        description: 'Last year (clipped to the latest ERA5T day)'
+        required: false
+        default: '2026'
+      start:
+        description: 'Optional first date YYYY-MM-DD (overrides Jan 1 of y0)'
+        required: false
+        default: ''
+      chunk:
+        description: 'Years per matrix job (ignored when chunk_days > 0)'
+        required: false
+        default: '2'
+      chunk_days:
+        description: 'If > 0, days per matrix job'
+        required: false
+        default: '0'
+      hours:
+        description: 'UTC hours sampled per day (daily / per_time / bands5 / ranges5)'
+        required: false
+        default: '0,6,12,18'
+      mode:
+        description: 'daily | per_time | bands5 | ranges5 | u37 | u37maps'
+        required: false
+        default: 'daily'
+      step:
+        description: 'u37 mode: every N-th day'
+        required: false
+        default: '5'
+      out:
+        description: 'Output file name under scripts/mjo/data/reference/'
+        required: false
+        default: 'torque_daily_era5.csv.gz'
+      test_days:
+        description: 'If > 0, only the first N days of each chunk and NO commit (timing test)'
+        required: false
+        default: '0'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: torque-history
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - id: m
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import datetime as dt, json
+          y0, y1, c = int("${{ inputs.y0 }}"), int("${{ inputs.y1 }}"), int("${{ inputs.chunk }}")
+          cd = int("${{ inputs.chunk_days }}")
+          n = int("${{ inputs.test_days }}")
+          first = "${{ inputs.start }}".strip()
+          inc = []
+          if cd > 0:
+              a = dt.date.fromisoformat(first) if first else dt.date(y0, 1, 1)
+              last = dt.date(y1, 12, 31)
+              while a <= last:
+                  b = min(a + dt.timedelta(days=cd - 1), last)
+                  e = min(b, a + dt.timedelta(days=n - 1)) if n > 0 else b
+                  inc.append({"start": a.isoformat(), "end": e.isoformat(), "tag": f"{a:%Y%m%d}_{b:%Y%m%d}"})
+                  a = b + dt.timedelta(days=1)
+          else:
+              for a in range(y0, y1 + 1, c):
+                  b = min(a + c - 1, y1)
+                  start = first if (first and a == y0) else f"{a}-01-01"
+                  end = f"{b}-12-31"
+                  if n > 0:
+                      end = (dt.date.fromisoformat(start) + dt.timedelta(days=n - 1)).isoformat()
+                  inc.append({"start": start, "end": end, "tag": f"{a}_{b}"})
+          print("matrix=" + json.dumps({"include": inc}))
+          EOF
+
+  chunk:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/mjo/src/torque_history_era5.py
+            scripts/mjo/src/torque_increments_u37.py
+            scripts/mjo/src/torque_increments_maps.py
+            scripts/mjo/data/reference/era5_orography.nc
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet numpy pandas xarray "zarr>=3" gcsfs netCDF4 h5netcdf
+      - name: Stream and reduce ${{ matrix.start }} .. ${{ matrix.end }}
+        run: |
+          mkdir -p out
+          case "${{ inputs.mode }}" in
+            u37maps)
+              python scripts/mjo/src/torque_increments_maps.py --start ${{ matrix.start }} --end ${{ matrix.end }} \
+                --step ${{ inputs.step }} --workers 4 --out out/torque_${{ matrix.tag }}.nc ;;
+            u37)
+              python scripts/mjo/src/torque_increments_u37.py --start ${{ matrix.start }} --end ${{ matrix.end }} \
+                --step ${{ inputs.step }} --workers 8 --out out/torque_${{ matrix.tag }}.nc ;;
+            bands5)
+              python scripts/mjo/src/torque_history_era5.py --start ${{ matrix.start }} --end ${{ matrix.end }} \
+                --hours "${{ inputs.hours }}" --workers 24 --bands5 --out out/torque_${{ matrix.tag }}.csv ;;
+            ranges5)
+              python scripts/mjo/src/torque_history_era5.py --start ${{ matrix.start }} --end ${{ matrix.end }} \
+                --hours "${{ inputs.hours }}" --workers 24 --ranges5 --out out/torque_${{ matrix.tag }}.csv ;;
+            per_time)
+              python scripts/mjo/src/torque_history_era5.py --start ${{ matrix.start }} --end ${{ matrix.end }} \
+                --hours "${{ inputs.hours }}" --workers 24 --per-time --out out/torque_${{ matrix.tag }}.csv ;;
+            *)
+              python scripts/mjo/src/torque_history_era5.py --start ${{ matrix.start }} --end ${{ matrix.end }} \
+                --hours "${{ inputs.hours }}" --workers 24 --out out/torque_${{ matrix.tag }}.csv ;;
+          esac
+      - uses: actions/upload-artifact@v7
+        with:
+          name: torque_${{ matrix.tag }}
+          path: out/torque_${{ matrix.tag }}*
+          retention-days: 14
+
+  combine:
+    needs: chunk
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/mjo/data/reference/${{ inputs.out }}
+            scripts/mjo/src/torque_increments_maps.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: torque_*
+          path: parts
+          merge-multiple: true
+      - name: Concatenate
+        run: |
+          pip install --quiet pandas xarray netCDF4
+          python3 - <<'EOF'
+          import glob, os, pandas as pd
+          os.makedirs("scripts/mjo/data/reference", exist_ok=True)
+          OUT = "scripts/mjo/data/reference/${{ inputs.out }}"
+          if "${{ inputs.mode }}" == "u37maps":
+              import subprocess
+              subprocess.run(["python3", "scripts/mjo/src/torque_increments_maps.py", "--combine", "parts", "--out", OUT,
+                              "--table", OUT.replace(".nc", "_regions.csv")], check=True)
+          elif "${{ inputs.mode }}" == "u37":
+              import xarray as xr
+              fs = sorted(glob.glob("parts/torque_*.nc"))
+              parts = [xr.open_dataset(f).load() for f in fs]
+              J = xr.concat([p[["J10", "J22"]] for p in parts], "day").sortby("day")
+              J["Dsum"] = sum(p["Dsum"] for p in parts); J["nD"] = sum(int(p["nD"]) for p in parts)
+              J.attrs = parts[0].attrs
+              enc = {v: {"zlib": True, "complevel": 5} for v in ("J10", "J22", "Dsum")}
+              J.to_netcdf(OUT, encoding=enc)
+              print(f"{len(fs)} chunks, {J.sizes['day']} days {str(J.day.values[0])[:10]}..{str(J.day.values[-1])[:10]}")
+          else:
+              fs = sorted(glob.glob("parts/torque_*.csv"))
+              df = pd.concat([pd.read_csv(f) for f in fs])
+              key = "time" if "time" in df.columns else "date"
+              df = df.drop_duplicates(key).sort_values(key)
+              print(f"{len(fs)} chunks, {len(df)} rows {df[key].iloc[0]}..{df[key].iloc[-1]}")
+              if key == "date":
+                  full = pd.date_range(df.date.iloc[0], df.date.iloc[-1], freq="D").strftime("%Y-%m-%d")
+                  miss = sorted(set(full) - set(df.date))
+                  print(f"{len(miss)} missing days, {int((df.nh < df.nh.max()).sum())} incomplete days")
+                  if miss:
+                      print("::warning::missing days: " + ", ".join(miss[:20]) + (" ..." if len(miss) > 20 else ""))
+              df.to_csv(OUT, index=False,
+                        float_format="%.9g" if key == "time" else "%.7g",   # 7 digits: mass-term AAM ~1018 to 0.001
+                        compression={"method": "gzip", "mtime": 0})
+          EOF
+          ls -la scripts/mjo/data/reference/${{ inputs.out }}
+      - name: Commit & push
+        if: ${{ inputs.test_days == '0' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # snapshot + clean resync each attempt (mjo.yml / sfs.yml pattern); merges never rebases
+          SNAP=$(mktemp -d)
+          OUT=scripts/mjo/data/reference/${{ inputs.out }}
+          OUT2="${OUT%.nc}_regions.csv"
+          git add --sparse -f "$OUT"
+          if [ -f "$OUT2" ]; then git add --sparse -f "$OUT2"; fi
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add --sparse -f "$OUT"
+            if [ -f "$OUT2" ]; then git add --sparse -f "$OUT2"; fi
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "torque study: ERA5 ${{ inputs.mode }} ${{ inputs.start || inputs.y0 }}-${{ inputs.y1 }} (${{ inputs.out }})"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

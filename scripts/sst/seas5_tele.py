@@ -1,0 +1,1485 @@
+#!/usr/bin/env python3
+"""SEAS5 teleconnection and stratospheric indices, member by member, month by month.
+
+Teleconnections use the same projectors as the GEPS subseasonal page
+(telecon/patterns.nc, built by build_telecon_patterns.py):
+CPC-style loading patterns for NAO, EA, WP, EP/NP, PNA, EA/WR, SCA, TNH and POL as
+per-calendar-month regression maps of 500 hPa height on CPC's own indices; AO as
+the first EOF of sea-level pressure poleward of 20°N; EPO and WPO as PSL's box
+definitions. Applied to each member's monthly 500 hPa height (or msl) anomaly
+against SEAS5's own 1993–2016 hindcast, interpolated to the 2.5° NCEP grid the
+patterns live on. The result is on CPC's monthly scale (annual standard
+deviations), so it reads like the published index.
+
+Also, from the same fields and the stratospheric wind pull:
+  soi      Southern Oscillation index: msl Tahiti minus Darwin, in ERA5's 1991–2020
+           standard deviation for the calendar month (the hindcast spread at each lead
+           only when ERA5 is missing); skill and calibration against CPC's index.
+  u60n10 / u60s10   zonal-mean 10 hPa zonal wind at 60°N / 60°S (m/s), the
+           standard vortex strength; P(easterly) is the SSW-side probability.
+  qbo10/30/50       equatorial (5°S–5°N) zonal-mean zonal wind, SEAS5's own QBO.
+  nam_{10,50,100,500,1000}  polar-cap (65–90°N) height anomaly standardised by the
+           hindcast and sign-flipped, an annular-mode index by level.
+  wave1_100 / wave2_100   amplitude (m) of zonal wavenumbers 1 and 2 of 100 hPa
+           height along 60°N, the planetary-wave forcing.
+
+Skill: every index is also computed from the 24 hindcast years (ensemble mean per
+year) and, where ERA5 monthly fields are cached (seas5_era5.py), from ERA5 with
+the same projector against its 1993–2016 mean; the correlation across the 24
+years at each lead is stored as `skill`, so the page can say how much a tilt is
+worth for that month and lead.
+
+Output: assets/sst/data/seas5_tele.json (this issue with members; previous issue
+summary). Imported by seas5_outlook's runner via `python seas5_tele.py --issue`.
+
+Derived tables (seas5_ref.py; the build never opens a raw hindcast GRIB,
+the GEPS telecon store or the ERA5 daily store):
+  obs_tele_patterns   the CPC-style projectors + per-month z500 σ + validation meta (from
+                      the GEPS telecon store's patterns.nc, validation.json)
+  obs_tele_era5       ERA5 monthly index series and calendar-month σ (ERA5 daily store), frozen
+                      at the store's end — the observed tail of the CPC-calibrated SOI/EqSOI keeps
+                      moving because CPC's own files are re-read every run
+  hc_tele_nh_{MM}     hindcast mean z500/msl fields + every index's 600 × 6 hindcast series
+  hc_tele_strat_{MM}  vortex-wind and QBO hindcast series
+  hc_tele_polar_{MM}  polar-cap NAM and wave-amplitude hindcast series
+  is_tele_{YYYYMM}    this issue's summary (no members), next month's "previous issue" line
+"""
+
+from __future__ import annotations
+
+import pyproj  # noqa: F401  first, before eccodes/xarray/cartopy load another libproj: "double free or corruption" abort at exit
+import argparse
+import copy
+import json
+import os
+import sys
+import time
+from pathlib import Path
+
+import numpy as np
+import xarray as xr
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+from localdirs import env_dir
+from seas5_outlook import ASSETS, DATA, fc_path, hc_path, previous_issues
+from seas5_build import G0, _summ, detrend_pair, load_field, valid_months
+import seas5_ref as R
+
+# the GEPS telecon store: read by derive_obs only (offline, once) — never by the build
+CPC_DIR = DATA / "cpc_tele"  # CPC's published index files, re-read every run in Actions
+OUT_JSON = ASSETS / "data" / "seas5_tele.json"
+UA = "scorvec.com SEAS5 outlook (https://github.com/scorvec/scorvec.github.io)"
+
+TELE_ORDER = ["nao", "pna", "ao", "ea", "wp", "epnp", "eawr", "sca", "tnh", "pol", "epo", "wpo"]
+DEFINED_MONTHS = {"tnh": {12, 1, 2}, "epnp": set(range(1, 13)) - {8, 9}}
+TELE_LABEL = {
+    "eqsoi": "Equatorial SOI",
+    "nao": "NAO",
+    "pna": "PNA",
+    "ao": "Arctic Oscillation",
+    "ea": "East Atlantic",
+    "wp": "West Pacific",
+    "epnp": "East Pacific / North Pacific",
+    "eawr": "East Atlantic / West Russia",
+    "sca": "Scandinavia",
+    "tnh": "Tropical / Northern Hemisphere",
+    "pol": "Polar / Eurasia",
+    "epo": "EPO",
+    "wpo": "WPO",
+}
+
+
+# ── the projectors ───────────────────────────────────────────────────────────
+def derive_obs_patterns() -> None:
+    """obs_tele_patterns: the projectors the page uses (TELE_ORDER only), the per-month z500 σ and the
+    validation meta, from the GEPS telecon store (offline, once)."""
+    tc = (
+        Path(os.environ["TELECON_DIR"])
+        if os.environ.get("TELECON_DIR")
+        else env_dir("DATA_ARCHIVE", "geps_subx", "telecon")
+    )
+    ds = xr.open_dataset(tc / "patterns.nc")
+    meta = json.loads((tc / "validation.json").read_text())
+    ids = [i for i in TELE_ORDER if i in meta and i in ds.index.values]
+    R.save(
+        R.obs_ref("tele_patterns"),
+        meta=dict(validation=meta, ids=ids, source=str(ds.attrs.get("source", ""))),
+        lat=ds.lat.values,
+        lon=ds.lon.values,
+        projector=ds.projector.sel(index=ids).values,
+        std_month_z500=ds.std_month_z500.values,
+    )
+    ds.close()
+
+
+class Patterns:
+    def __init__(self):
+        t = R.need(R.obs_ref("tele_patterns"), "teleconnection projectors")
+        self.lat, self.lon = t["lat"], t["lon"]
+        self.meta = t["meta"]["validation"]
+        self.ids = list(t["meta"]["ids"])
+        self._proj = {sid: t["projector"][i] for i, sid in enumerate(self.ids)}
+        self._sd = t["std_month_z500"]
+        self.w = np.sqrt(np.clip(np.cos(np.deg2rad(self.lat.astype("float64"))), 0, None))[:, None] * np.ones(
+            (1, self.lon.size)
+        )
+
+    def to_ncep(self, a: xr.DataArray) -> np.ndarray:
+        """(..., lat, lon) on any regular grid → NCEP 2.5° (90..−90, 0..357.5), NaN where absent."""
+        lon = a.longitude.values
+        a = a.assign_coords(longitude=np.where(lon < 0, lon + 360, lon)).sortby("longitude")
+        wrap = a.isel(longitude=0).assign_coords(longitude=360.0)
+        a = xr.concat([a, wrap], dim="longitude").sortby("latitude")
+        out = a.interp(latitude=self.lat, longitude=self.lon, method="linear")
+        return out.transpose(..., "latitude", "longitude").values
+
+    def index(self, sid: str, anom: np.ndarray, months) -> np.ndarray:
+        """anom: (n, lat, lon) on the NCEP grid (z500 m or slp hPa); months: (n,) calendar month.
+        → CPC-scale monthly index (annual standard deviations); NaN in months CPC does not define."""
+        m = self.meta[sid]
+        mo = np.asarray(months) - 1
+        P = self._proj[sid][mo]
+        a = np.asarray(anom, dtype="float64")
+        if m.get("standardize"):
+            sd = self._sd[mo]
+            a = a / np.where(sd > 0, sd, np.nan)
+        if m.get("demean"):
+            lat = self.lat
+            cosw = (np.cos(np.deg2rad(lat)) * (lat >= 20))[:, None] * np.ones((1, self.lon.size))
+            a = a - (np.nan_to_num(a) * cosw).sum(axis=(-2, -1), keepdims=True) / cosw.sum()
+        raw = np.einsum("nij,nij->n", np.nan_to_num(a * self.w), P)
+        # CPC does not define every pattern in every month (TNH Dec–Feb only; EP/NP not Aug–Sep)
+        defined = DEFINED_MONTHS.get(sid, set(range(1, 13)))
+        raw[~np.isin(np.asarray(months), sorted(defined))] = np.nan
+        return raw
+
+
+# ── field helpers ────────────────────────────────────────────────────────────
+def _grid(path: Path, var: str, **filt):
+    vals, lat, lon = load_field(path, var, **filt)
+    return vals, lat, lon
+
+
+def _fc(kind: str, ym: str, var: str, **filt):
+    """this issue's forecast (fc[sample, lead, lat, lon], lat, lon) or None — the build's only GRIB read."""
+    f = fc_path(kind, ym)
+    if not f.exists():
+        return None
+    return _grid(f, var, **filt)
+
+
+def _hct(unit: str, ym: str) -> dict | None:
+    """the derived hindcast table of this unit for the issue's start month, or None (product skipped)."""
+    t = R.load(R.hc_ref(unit, ym[4:]))
+    if t is None:
+        print(f"  {unit}: derived table {R.hc_ref(unit, ym[4:]).name} missing — skipped", flush=True)
+    return t
+
+
+def _zonal_at(vals, lat, lat0):
+    i = int(np.argmin(np.abs(lat - lat0)))
+    return np.nanmean(vals[:, :, i, :], axis=-1)  # [sample, lead]
+
+
+def _band_zonal(vals, lat, la0, la1):
+    m = (lat >= la0) & (lat <= la1)
+    w = np.cos(np.deg2rad(lat[m]))
+    return np.nansum(np.nanmean(vals[:, :, m, :], axis=-1) * w, axis=-1) / w.sum()
+
+
+def _cap(vals, lat, la0):
+    m = lat >= la0 if la0 > 0 else lat <= la0
+    w = np.cos(np.deg2rad(lat[m]))
+    return np.nansum(np.nanmean(vals[:, :, m, :], axis=-1) * w, axis=-1) / w.sum()
+
+
+def _wave_amp(vals, lat, lat0, k):
+    i = int(np.argmin(np.abs(lat - lat0)))
+    row = vals[:, :, i, :]
+    spec = np.fft.rfft(row, axis=-1)
+    return 2.0 * np.abs(spec[..., k]) / row.shape[-1]
+
+
+def _point(vals, lat, lon, la, lo):
+    return vals[:, :, int(np.argmin(np.abs(lat - la))), int(np.argmin(np.abs(lon - lo)))]
+
+
+def _boxm(v, lat, lon, la0, la1, lo0, lo1):
+    ml = (lat >= la0) & (lat <= la1)
+    mo = (lon >= lo0) & (lon <= lo1)
+    w = np.cos(np.deg2rad(lat[ml]))[:, None]
+    sub = v[..., ml, :][..., mo]
+    return (sub * w).sum(axis=(-2, -1)) / (w.sum() * mo.sum())
+
+
+# ── derived hindcast tables (seas5_ref.py; raw GRIBs read here only) ─────────
+def _calendar_months(month: str) -> list[int]:
+    """calendar month of each lead for a start month (the year is irrelevant)."""
+    return [int(v[5:]) for v in valid_months(f"2000{int(month):02d}")]
+
+
+def derive_hc_nh(month: str) -> None:
+    """hc_tele_nh_{MM}: hindcast mean z500 / msl (raw units) and every z500/msl-based index's 600 × 6
+    hindcast series, exactly as compute() used to build them from the raw hindcast."""
+    month = f"{int(month):02d}"
+    pats = Patterns()
+    months = _calendar_months(month)
+    hz, lat, lon = load_field(hc_path("nh_z", month), "z", level=500)
+    hp, _, _ = load_field(hc_path("nh_msl", month), "msl")
+    hz_m = np.nanmean(hz, 0)
+    hp_m = np.nanmean(hp, 0)
+    ahz = xr.DataArray(
+        (hz - hz_m[None]) / G0, dims=("s", "l", "latitude", "longitude"), coords={"latitude": lat, "longitude": lon}
+    )
+    ahp = xr.DataArray(
+        (hp - hp_m[None]) / 100.0, dims=("s", "l", "latitude", "longitude"), coords={"latitude": lat, "longitude": lon}
+    )
+    nhz, nhp = pats.to_ncep(ahz), pats.to_ncep(ahp)
+    out = dict(lat=lat, lon=lon, hz_m=hz_m, hp_m=hp_m)
+    for sid in pats.ids:
+        src = nhp if pats.meta[sid].get("field") == "slp" else nhz
+        n, L = src.shape[:2]
+        out[f"pat_{sid}"] = pats.index(sid, src.reshape(n * L, *src.shape[2:]), np.tile(months, n)).reshape(n, L)
+    del nhz, nhp, ahz, ahp
+    out["soi_ht"] = _point(hp, lat, lon, -17.5, -149.5) - _point(hp, lat, lon, -12.5, 130.5)
+    out["eqsoi_he"] = _boxm(hp, lat, lon, -5, 5, -130, -80) - _boxm(hp, lat, lon, -5, 5, 90, 140)
+    out["cap500"] = _cap(hz / G0, lat, 65)
+    del hz, hp
+    h1000, lat1, _ = load_field(hc_path("nh_z", month), "z", level=1000)
+    out["cap1000"] = _cap(h1000 / G0, lat1, 65)
+    R.save(R.hc_ref("tele_nh", month), meta=dict(month=month, ids=pats.ids), **out)
+
+
+def derive_hc_strat(month: str) -> None:
+    """hc_tele_strat_{MM}: 60°N/60°S 10 hPa zonal-mean wind and the 10/30/50 hPa equatorial QBO band, 600 × 6."""
+    month = f"{int(month):02d}"
+    out = {}
+    hu, lat, _ = load_field(hc_path("strat_u", month), "u", level=10)
+    out["u60n10"], out["u60s10"] = _zonal_at(hu, lat, 60), _zonal_at(hu, lat, -60)
+    for lev in (10, 30, 50):
+        hu, lat, _ = load_field(hc_path("strat_u", month), "u", level=lev)
+        out[f"qbo{lev}"] = _band_zonal(hu, lat, -5, 5)
+    R.save(R.hc_ref("tele_strat", month), meta=dict(month=month), **out)
+
+
+def derive_hc_polar(month: str) -> None:
+    """hc_tele_polar_{MM}: 65–90°N cap mean height at 10/50/100 hPa and wave-1/2 amplitude at 100 hPa, 60°N."""
+    month = f"{int(month):02d}"
+    out = {}
+    for lev in (10, 50, 100):
+        hz, lat, _ = load_field(hc_path("polar_n", month), "z", level=lev)
+        out[f"cap{lev}"] = _cap(hz / G0, lat, 65)
+        if lev == 100:
+            for k in (1, 2):
+                out[f"wave{k}"] = _wave_amp(hz / G0, lat, 60, k)
+    R.save(R.hc_ref("tele_polar", month), meta=dict(month=month), **out)
+
+
+# ── per-issue indices ────────────────────────────────────────────────────────
+def compute(ym: str, pats: Patterns, with_members: bool, scale: dict | None = None) -> dict:
+    """scale: {key: {calendar_month: σ}} from ERA5 (1991–2020) — the unit for the indices that have no
+    built-in standardisation (AO, EPO, WPO, SOI), so that the model and the observed tail share one scale.
+    Falls back to the hindcast spread at each lead when ERA5 is unavailable."""
+    out = {}
+    vm = valid_months(ym)
+    months = [int(v[5:]) for v in vm]
+
+    def cut(fi, hi):
+        """forecast and hindcast index to their common leads; a hindcast lead with no finite value (a field the
+        lead-7 hindcast lacks) ends the series there"""
+        n = min(fi.shape[1], hi.shape[1])
+        while n > 0 and not np.isfinite(hi[:, n - 1]).any():
+            n -= 1
+        return fi[:, :n], hi[:, :n]
+
+    def to_sigma(key, fi, hi):
+        fi, hi = cut(fi, hi)
+        ms = months[: fi.shape[1]]
+        if scale and key in scale and all(m in scale[key] for m in ms):
+            sd = np.array([scale[key][m] for m in ms])[None]
+            return fi / sd, hi / sd, "ERA5 1991–2020 standard deviation for the calendar month"
+        sd = np.nanstd(hi, axis=0)
+        sd = np.where(sd > 0, sd, np.nan)
+        return fi / sd, hi / sd, "hindcast spread at each lead"
+
+    def entry(fc_idx, hc_idx, label, units, note, group, sign_note=None):
+        """fc_idx [sample, lead], hc_idx [sample, lead] (hindcast, anomaly or absolute as the index wants)."""
+        fc_idx, hc_idx = cut(fc_idx, hc_idx)
+        e = dict(
+            label=label,
+            units=units,
+            note=note,
+            group=group,
+            valid=vm[: fc_idx.shape[1]],
+            **_summ(fc_idx),
+            clim_sd=np.nanstd(hc_idx, axis=0).round(3).tolist(),
+            clim_mean=np.nanmean(hc_idx, axis=0).round(3).tolist(),
+            p_pos=np.nanmean(fc_idx > 0, axis=0).round(3).tolist(),
+            p_neg=np.nanmean(fc_idx < 0, axis=0).round(3).tolist(),
+            hc_years=None,
+        )
+        if with_members:
+            e["members"] = np.where(np.isfinite(fc_idx), np.round(fc_idx, 3), None).tolist()
+        return e
+
+    # 500 hPa / msl patterns (hindcast side: hc_tele_nh — mean fields and each index's 600 × 6 series)
+    z = _fc("nh_z", ym, "z", level=500)
+    p = _fc("nh_msl", ym, "msl")
+    T = _hct("tele_nh", ym) if (z and p) else None
+    if z and p and T is not None:
+        (fz, lat, lon), (fp, _, _) = z, p
+        assert np.allclose(lat, T["lat"]) and np.allclose(lon, T["lon"])
+        hz_m, hp_m = T["hz_m"], T["hp_m"]
+        nt = min(fz.shape[1], fp.shape[1], hz_m.shape[0], hp_m.shape[0])  # 7 with the lead-7 supplement and table
+        fz, fp, hz_m, hp_m = fz[:, :nt], fp[:, :nt], hz_m[:nt], hp_m[:nt]
+        az = xr.DataArray(
+            (fz - hz_m[None]) / G0, dims=("s", "l", "latitude", "longitude"), coords={"latitude": lat, "longitude": lon}
+        )
+        ap = xr.DataArray(
+            (fp - hp_m[None]) / 100.0,
+            dims=("s", "l", "latitude", "longitude"),
+            coords={"latitude": lat, "longitude": lon},
+        )
+        nz, npm = (pats.to_ncep(a) for a in (az, ap))
+        for sid in pats.ids:
+            m = pats.meta[sid]
+            src = npm if m.get("field") == "slp" else nz
+            if f"pat_{sid}" not in T:
+                continue
+
+            def run(arr, sid=sid):
+                n, L = arr.shape[:2]
+                flat = arr.reshape(n * L, *arr.shape[2:])
+                mo = np.tile(months[:L], n)
+                return pats.index(sid, flat, mo).reshape(n, L)
+
+            fi, hi = run(src), T[f"pat_{sid}"][:, :nt]
+            unit_note = "CPC-scale (annual standard deviations)"
+            if not m.get("standardize"):  # AO (EOF, raw) and the EPO/WPO boxes (metres) need a unit
+                fi, hi, unit_note = to_sigma(sid, fi, hi)
+            out[sid] = entry(
+                fi,
+                hi,
+                TELE_LABEL.get(sid, sid),
+                "σ",
+                (
+                    m.get("name", sid)
+                    + f". CPC-style pattern applied to the member's 500 hPa height anomaly; {unit_note}."
+                    if m.get("field") != "slp"
+                    else f"First EOF of sea-level pressure poleward of 20°N; positive = low pressure over the pole; {unit_note}."
+                ),
+                "tele",
+            )
+            out[sid]["_hc"] = hi  # kept for skill, dropped before writing
+        # SOI from msl points
+        ft = _point(fp, lat, lon, -17.5, -149.5) - _point(fp, lat, lon, -12.5, 130.5)
+        ht = T["soi_ht"][:, :nt]
+        fa, ha, unit_note = to_sigma("soi", (ft - ht.mean(0)) / 100.0, (ht - ht.mean(0)) / 100.0)
+        out["soi"] = entry(
+            fa,
+            ha,
+            "Southern Oscillation index",
+            "σ",
+            f"Tahiti minus Darwin sea-level pressure anomaly; unit: {unit_note}; negative with El Niño.",
+            "tele",
+        )
+        out["soi"]["_hc"] = ha
+        # Equatorial SOI (CPC): standardised SLP anomaly, eastern equatorial Pacific (5°N–5°S, 130–80°W)
+        # minus Indonesia (5°N–5°S, 90–140°E) — the pressure gradient that drives the Walker circulation,
+        # far less station-noisy than Tahiti−Darwin and a more physically consistent zonal pressure difference.
+        # Negative in El Niño, like the SOI.
+        fe = _boxm(fp, lat, lon, -5, 5, -130, -80) - _boxm(fp, lat, lon, -5, 5, 90, 140)
+        he = T["eqsoi_he"][:, :nt]
+        fa2, ha2, unit_note2 = to_sigma("eqsoi", (fe - he.mean(0)) / 100.0, (he - he.mean(0)) / 100.0)
+        out["eqsoi"] = entry(
+            fa2,
+            ha2,
+            "Equatorial SOI",
+            "σ",
+            f"Eastern equatorial Pacific minus Indonesian sea-level pressure anomaly (5°N–5°S boxes, CPC definition); unit: {unit_note2}; negative with El Niño. The equatorial gradient that drives the Walker circulation, without the Tahiti–Darwin station noise.",
+            "tele",
+        )
+        out["eqsoi"]["_hc"] = ha2
+    # stratospheric wind (hindcast side: hc_tele_strat)
+    u = _fc("strat_u", ym, "u", level=10)
+    TS = _hct("tele_strat", ym) if u else None
+    if u and TS is not None:
+        fu, lat, lon = u
+        for key, la, lab in (("u60n10", 60, "60°N 10 hPa zonal wind"), ("u60s10", -60, "60°S 10 hPa zonal wind")):
+            fi, hi = _zonal_at(fu, lat, la), TS[key]
+            e = entry(
+                fi,
+                hi,
+                lab,
+                "m/s",
+                "Zonal-mean zonal wind, the standard vortex-strength metric; below zero is an easterly (reversed) vortex.",
+                "strat",
+            )
+            e["p_easterly"] = np.nanmean(fi[:, : len(e["valid"])] < 0, axis=0).round(3).tolist()
+            e["absolute"] = True
+            e["_hc"] = hi
+            out[key] = e
+        for lev in (10, 30, 50):
+            fu, lat, lon = _fc("strat_u", ym, "u", level=lev)
+            fi, hi = _band_zonal(fu, lat, -5, 5), TS[f"qbo{lev}"]
+            e = entry(
+                fi,
+                hi,
+                f"QBO: equatorial {lev} hPa wind",
+                "m/s",
+                "5°S–5°N zonal-mean zonal wind, SEAS5's own QBO; westerly positive.",
+                "strat",
+            )
+            e["absolute"] = True
+            e["_hc"] = hi
+            out[f"qbo{lev}"] = e
+    # NAM by level and planetary waves
+    tabs = {
+        "polar_n": _hct("tele_polar", ym) if fc_path("polar_n", ym).exists() else None,
+        "nh_z": T if fc_path("nh_z", ym).exists() else None,
+    }
+    for lev, kind in ((10, "polar_n"), (50, "polar_n"), (100, "polar_n"), (500, "nh_z"), (1000, "nh_z")):
+        r = _fc(kind, ym, "z", level=lev)
+        if not r or tabs[kind] is None:
+            continue
+        fz, lat, lon = r
+        fc_cap, hc_cap = cut(_cap(fz / G0, lat, 65), tabs[kind][f"cap{lev}"])
+        fa, hr = detrend_pair(fc_cap, hc_cap, ym)  # heights carry the warming trend: anomaly vs the hindcast trend line
+        sd = np.nanstd(hr, axis=0)
+        fi = -fa / sd
+        hi = -hr / sd
+        e = entry(
+            fi,
+            hi,
+            f"NAM at {lev} hPa",
+            "σ",
+            "Polar-cap (65–90°N) height anomaly against the hindcast's linear trend (detrended), standardised and sign-flipped: positive = strong vortex / low polar heights.",
+            "strat",
+        )
+        e["_hc"] = hi
+        out[f"nam{lev}"] = e
+    r = _fc("polar_n", ym, "z", level=100)
+    if r and tabs["polar_n"] is not None:
+        fz, lat, lon = r
+        for k in (1, 2):
+            fi, hi = _wave_amp(fz / G0, lat, 60, k), tabs["polar_n"][f"wave{k}"]
+            e = entry(
+                fi,
+                hi,
+                f"Wave-{k} amplitude, 100 hPa, 60°N",
+                "m",
+                "Amplitude of the zonal wavenumber along 60°N: the planetary-wave forcing that precedes a warming.",
+                "strat",
+            )
+            e["absolute"] = True
+            e["_hc"] = hi
+            out[f"wave{k}_100"] = e
+    return out
+
+
+# ── skill against ERA5 ───────────────────────────────────────────────────────
+def era5_indices(pats: Patterns):
+    """(series, scale) from the derived table obs_tele_era5 (see _era5_indices_store); (None, None) without it."""
+    t = R.load(R.obs_ref("tele_era5"))
+    if t is None:
+        print(f"  {R.obs_ref('tele_era5').name} missing — no ERA5 skill or σ scale", flush=True)
+        return None, None
+    m = t["meta"]
+    series = {k: {(int(y), int(mo)): float(v) for y, mo, v in rows} for k, rows in (m["series"] or {}).items()} or None
+    scale = {k: {int(mo): float(v) for mo, v in d.items()} for k, d in (m["scale"] or {}).items()} or None
+    return series, scale
+
+
+def derive_obs_era5() -> None:
+    """obs_tele_era5 from the ERA5 daily store (offline, once): the monthly observed index series and
+    calendar-month σ that era5_indices serves to the build. Uses the store's monthly aggregates cached
+    under DATA/era5 (local_monthly_*.nc)."""
+    import era5_local
+
+    era5_local.CACHE = DATA / "era5"
+    series, scale = _era5_indices_store(Patterns())
+    R.save(
+        R.obs_ref("tele_era5"),
+        meta=dict(
+            series={k: [[y, mo, v] for (y, mo), v in sorted(d.items())] for k, d in (series or {}).items()},
+            scale={k: {str(mo): v for mo, v in d.items()} for k, d in (scale or {}).items()},
+            source="ERA5 monthly means of the WeatherBench-2 daily store (Copernicus Climate Change Service)",
+        ),
+    )
+
+
+def _era5_indices_store(pats: Patterns):
+    """(series, scale): series = {key: {(year, month): value}} observed indices in the SAME units as the
+    model's; scale = {key: {month: σ}} the ERA5 1991–2020 calendar-month standard deviation used as
+    the unit for AO/EPO/WPO/SOI. From the ERA5 daily store: the 0–90°N 500 hPa height and sea-level
+    pressure sets (1959–2026, monthly means of daily fields) for the CPC patterns, the AO and the NAM
+    rungs; the global pressure set (1991–2020) for the SOI. Anomalies are against the 1993–2016 mean of
+    each calendar month — the model's hindcast base. The stratospheric winds (10/30/50 hPa) are not in
+    the store, so u60N/u60S/QBO carry no observed reference until a CDS pressure-level file exists."""
+    import era5_local
+
+    if not era5_local.available():
+        return None, None
+    out, scale = {}, {}
+
+    def ym_keys(da):
+        t = da.time.values
+        return np.array([int(str(x)[:4]) for x in t]), np.array([int(str(x)[5:7]) for x in t])
+
+    def anom(vals, yrs, mos):
+        base = (yrs >= 1993) & (yrs <= 2016)
+        clim = np.stack([np.nanmean(vals[(mos == m) & base], axis=0) for m in range(1, 13)])
+        return vals - clim[mos - 1]
+
+    def month_sd(vals, yrs, mos):
+        sel = (yrs >= 1991) & (yrs <= 2020)
+        return {m: float(np.nanstd(vals[sel & (mos == m)], ddof=1)) for m in range(1, 13)}
+
+    def series(vals, yrs, mos):
+        return {(int(y), int(m)): float(v) for y, m, v in zip(yrs, mos, vals) if np.isfinite(v)}
+
+    z = era5_local.monthly("z", 500)
+    pm = era5_local.monthly("slp_nh")
+    if z is not None and pm is not None:
+        z, pm = era5_local.to_lon180(z), era5_local.to_lon180(pm)
+        yrs, mos = ym_keys(z)
+        za = anom(z.values.astype(np.float64), yrs, mos)
+        ypm, mpm = ym_keys(pm)
+        pa = anom(pm.values.astype(np.float64), ypm, mpm)
+        nz = pats.to_ncep(
+            xr.DataArray(
+                za,
+                dims=("t", "latitude", "longitude"),
+                coords={"latitude": z.latitude.values, "longitude": z.longitude.values},
+            )
+        )
+        npm = pats.to_ncep(
+            xr.DataArray(
+                pa,
+                dims=("t", "latitude", "longitude"),
+                coords={"latitude": pm.latitude.values, "longitude": pm.longitude.values},
+            )
+        )
+        for sid in pats.ids:
+            m = pats.meta[sid]
+            slp = m.get("field") == "slp"
+            src, yy, mm = (npm, ypm, mpm) if slp else (nz, yrs, mos)
+            v = pats.index(sid, src, mm)
+            if not m.get("standardize"):
+                scale[sid] = month_sd(v, yy, mm)
+                v = v / np.array([scale[sid][k] for k in mm])
+            out[sid] = series(v, yy, mm)
+    g = era5_local.monthly("slp")  # global set: Tahiti and Darwin
+    if g is not None:
+        g = era5_local.to_lon180(g)
+        yg, mg = ym_keys(g)
+        lat, lon = g.latitude.values, g.longitude.values
+        tah = g.values[:, int(np.argmin(np.abs(lat + 17.5))), int(np.argmin(np.abs(lon + 149.5)))]
+        dar = g.values[:, int(np.argmin(np.abs(lat + 12.5))), int(np.argmin(np.abs(lon - 130.5)))]
+        soi = anom((tah - dar).astype(np.float64), yg, mg)  # hPa
+        scale["soi"] = month_sd(soi, yg, mg)
+        out["soi"] = series(soi / np.array([scale["soi"][k] for k in mg]), yg, mg)
+
+        def _bx(la0, la1, lo0, lo1):
+            ml = (lat >= la0) & (lat <= la1)
+            mo = (lon >= lo0) & (lon <= lo1)
+            w = np.cos(np.deg2rad(lat[ml]))[:, None]
+            sub = g.values[:, ml, :][:, :, mo]
+            return (sub * w).sum(axis=(1, 2)) / (w.sum() * mo.sum())
+
+        eq = anom((_bx(-5, 5, -130, -80) - _bx(-5, 5, 90, 140)).astype(np.float64), yg, mg)
+        scale["eqsoi"] = month_sd(eq, yg, mg)
+        out["eqsoi"] = series(eq / np.array([scale["eqsoi"][k] for k in mg]), yg, mg)
+    for lev in (50, 100, 500, 1000):
+        zl = era5_local.monthly("z", lev)
+        if zl is None:
+            continue
+        yy, mm = ym_keys(zl)
+        m = zl.latitude.values >= 65
+        w = np.cos(np.deg2rad(zl.latitude.values[m]))
+        cap = np.nansum(np.nanmean(zl.values[:, m, :], axis=-1) * w, axis=-1) / w.sum()
+        # same construction as the model's NAM: anomaly against a linear trend (fit 1991–2020 per
+        # calendar month, extrapolated beyond), in units of the residual spread, sign-flipped
+        nam = np.full(cap.shape, np.nan)
+        for k in range(1, 13):
+            sel = mm == k
+            fit = sel & (yy >= 1991) & (yy <= 2020)
+            x = yy[fit] - yy[fit].mean()
+            yv = cap[fit]
+            b = (x * (yv - yv.mean())).sum() / (x**2).sum()
+            a0 = yv.mean()
+            resid_sd = np.std(yv - (a0 + b * x), ddof=2)
+            nam[sel] = -(cap[sel] - (a0 + b * (yy[sel] - yy[fit].mean()))) / resid_sd
+        out[f"nam{lev}"] = series(nam, yy, mm)
+        if lev == 100:
+            i = int(np.argmin(np.abs(zl.latitude.values - 60)))
+            spec = np.fft.rfft(zl.values[:, i, :], axis=-1)
+            for k in (1, 2):
+                out[f"wave{k}_100"] = series(2.0 * np.abs(spec[:, k]) / zl.shape[-1], yy, mm)
+    return (out or None), (scale or None)
+
+
+# ── published indices (CPC) as an independent check on the observed tail ─────
+CPC_FILES = {
+    "tele_index.nh": "https://ftp.cpc.ncep.noaa.gov/wd52dg/data/indices/tele_index.nh",
+    "monthly.ao.index.txt": "https://www.cpc.ncep.noaa.gov/products/precip/CWlink/daily_ao_index/monthly.ao.index.b50.current.ascii",
+    "soi.txt": "https://www.cpc.ncep.noaa.gov/data/indices/soi",
+    "reqsoi.for": "https://www.cpc.ncep.noaa.gov/data/indices/reqsoi.for",
+}
+CPC_COLS = {
+    "nao": "NAO",
+    "ea": "EA",
+    "wp": "WP",
+    "epnp": "EP/NP",
+    "pna": "PNA",
+    "eawr": "EA/WR",
+    "sca": "SCA",
+    "tnh": "TNH",
+    "pol": "POL",
+}
+
+
+def cpc_published() -> dict:
+    """{key: {(year, month): value}} CPC's own monthly indices (their standardisation, so the overlay
+    is a check on sign and rough size, not a same-unit comparison). Files refreshed when > 12 h old —
+    in GitHub Actions only (seas5_ref.fetch_allowed); elsewhere whatever copy is on disk is read."""
+    import re
+    import urllib.request
+
+    d = CPC_DIR
+    d.mkdir(parents=True, exist_ok=True)
+    for name, url in CPC_FILES.items():
+        f = d / name
+        if f.exists() and time.time() - f.stat().st_mtime < 12 * 3600:
+            continue
+        if not R.fetch_allowed():
+            print(
+                f"  CPC {name}: downloads run in Actions only — using the copy on disk"
+                + ("" if f.exists() else " (none)"),
+                flush=True,
+            )
+            continue
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=60) as r:
+                data = r.read()
+            if data:
+                f.write_bytes(data)
+        except Exception as e:  # noqa: BLE001
+            print(f"  CPC {name}: not refreshed ({str(e)[:60]})", flush=True)
+    out = {}
+    f = d / "tele_index.nh"
+    if f.exists():
+        cols = None
+        rows = {}
+        for ln in f.read_text(errors="replace").splitlines():
+            if cols is None and "NAO" in ln and "PNA" in ln:
+                cols = [c for c in re.split(r"\s+", ln.strip()) if c][2:]
+                continue
+            m = re.match(r"^\s*(\d{4})\s+(\d{1,2})\s+(.*)$", ln)
+            if not m or cols is None:
+                continue
+            vals = [float(x) for x in re.findall(r"-?\d+\.\d+", m.group(3))]
+            rows[(int(m.group(1)), int(m.group(2)))] = dict(zip(cols, vals))
+        for key, col in CPC_COLS.items():
+            out[key] = {k: v[col] for k, v in rows.items() if col in v and v[col] > -99}
+    f = d / "monthly.ao.index.txt"
+    if f.exists():
+        ao = {}
+        for ln in f.read_text(errors="replace").splitlines():
+            m = re.match(r"^\s*(\d{4})\s+(\d{1,2})\s+(-?\d+\.\d+)", ln)
+            if m:
+                ao[(int(m.group(1)), int(m.group(2)))] = float(m.group(3))
+        out["ao"] = ao
+    f = d / "soi.txt"
+    if f.exists():
+        soi = {}
+        std_part = False
+        for ln in f.read_text(errors="replace").splitlines():
+            if "STANDARDIZED" in ln:
+                std_part = True
+                continue
+            m = re.match(r"^\s*(\d{4})((?:\s*-?\d+\.\d)+)\s*$", ln)
+            if std_part and m:
+                vals = [float(x) for x in re.findall(r"-?\d+\.\d", m.group(2))]
+                for k, v in enumerate(vals[:12]):
+                    if v > -999:
+                        soi[(int(m.group(1)), k + 1)] = v
+        out["soi"] = soi
+    f = d / "reqsoi.for"
+    if f.exists():
+        eq = {}
+        for ln in f.read_text(errors="replace").splitlines():
+            m = re.match(r"^\s*(\d{4})((?:\s+-?\d+\.\d)+)\s*$", ln)
+            if m:
+                vals = [float(x) for x in re.findall(r"-?\d+\.\d", m.group(2))]
+                for k, v in enumerate(vals[:12]):
+                    if v < 900:
+                        eq[(int(m.group(1)), k + 1)] = v
+        out["eqsoi"] = eq
+    return out
+
+
+THR = 0.5  # phase threshold in index units (σ)
+CPC_CALIBRATED = {"soi", "eqsoi"}  # indices whose observed reference for skill and calibration is CPC's own series
+SKILL_ALPHA = 0.05  # one-sided level of the hindcast-skill test; a cell that fails it is climatology and is hatched
+SKILL_FDR_Q = 0.10  # ... and a cell must also pass Benjamini-Hochberg at this rate over every index x lead cell
+TAIL_MONTHS = 4  # observed months drawn before the issue (the forecast is the subject)
+BAND_Q = (0.10, 0.25, 0.75, 0.90)  # quantiles of the calibrated band (the page draws 10–90 and 25–75 %)
+
+
+def skill_test(r: float, n: int) -> tuple[float, float]:
+    """(p, r_crit): one-sided t-test of r > 0 on n − 2 degrees of freedom, and the smallest r that passes at
+    SKILL_ALPHA. The n hindcast years are one start a year, so the samples are independent and n_eff = n
+    (n = 24: r_crit 0.344). One-sided because only a positive correlation is usable skill — the GEFS
+    teleconnection table tests the same way."""
+    from scipy.stats import t as tdist
+
+    df = n - 2
+    tc = float(tdist.isf(SKILL_ALPHA, df))
+    p = 0.0 if r >= 1.0 else float(tdist.sf(r * np.sqrt(df / (1.0 - r * r)), df))
+    return p, tc / float(np.sqrt(df + tc * tc))
+
+
+def _r_crit24() -> float:
+    return round(skill_test(0.0, 24)[1], 2)
+
+
+def publish_cal(c: dict, x0: float, absolute: bool) -> None:
+    """Write what the page draws for one calibration cell already gated (c["no_skill"], gate_family): mu, the band
+    quantiles q and, for anomaly indices, P(≤ −THR) / P(≥ +THR).
+    Skilful: the regression's predictive distribution at the forecast mean x0, Student t on n − 2 degrees of freedom
+    with scale s·√(1 + 1/n + (x0 − x̄)²/Sxx) — the fit is in-sample on the same years, so the uncertainty of its
+    slope and intercept widens the forecast. The fit's predictor is the 25-member hindcast mean and x0 a 51-member
+    mean, which is less noisy: the slope is then slightly too small, a conservative forecast (as in c3s_vortex).
+    Not skilful: climatology, the observed mean and spread of those years (t on n − 1 degrees of freedom, scale
+    obs_sd·√(1 + 1/n))."""
+    from scipy.stats import t as tdist
+
+    n = c["n"]
+    if c["no_skill"]:
+        mu, scale, df = c["clim_mu"], c["obs_sd"] * np.sqrt(1.0 + 1.0 / n), n - 1
+    else:
+        mu = c["a"] * x0 + c["b"]
+        scale, df = c["s"] * np.sqrt(1.0 + 1.0 / n + (x0 - c["xbar"]) ** 2 / c["sxx"]), n - 2
+    c["mu"] = round(float(mu), 3)
+    c["q"] = [round(float(mu + scale * tdist.ppf(q, df)), 3) for q in BAND_Q]
+    if not absolute:
+        c["p_neg"] = round(float(tdist.cdf((-THR - mu) / scale, df)), 3)
+        c["p_pos"] = round(float(tdist.sf((THR - mu) / scale, df)), 3)
+
+
+def gate_family(idx: dict) -> dict:
+    """Gate every calibration cell of `idx` (all indices x leads) as ONE family and publish it: a cell is skilful only
+    when its one-sided p (skill_test) is at most SKILL_ALPHA AND it passes Benjamini-Hochberg at SKILL_FDR_Q over all
+    the cells - over ~140 cells, ~7 would pass a bare 5 % test by chance. Returns the family's size and passes."""
+    from quantmet.stats import benjamini_hochberg
+
+    cells = [
+        (e, L, c)
+        for e in idx.values()
+        for L, c in enumerate(e.get("cal") or [])
+        if c and e["skill"][L] is not None and e["mean"][L] is not None
+    ]
+    p = np.array([skill_test(e["skill"][L], c["n"])[0] for e, L, c in cells])
+    ok = benjamini_hochberg(p, SKILL_FDR_Q) & (p <= SKILL_ALPHA)
+    for (e, L, c), pp, k in zip(cells, p, ok):
+        c["p"], c["r_crit"], c["no_skill"] = round(float(pp), 4), round(skill_test(0.0, c["n"])[1], 3), not bool(k)
+        publish_cal(c, e["mean"][L], bool(e.get("absolute")))
+    return {"cells": len(cells), "skilful": int(ok.sum())}
+
+
+def regate(doc: dict) -> None:
+    """Re-gate and re-publish every calibration cell of a published seas5_tele.json (--replot). A file written before
+    the cells carried clim_mu / xbar / sxx gets them from its own numbers: x̄ is the hindcast mean at the lead
+    (clim_mean, every member of every year), Sxx = (n − 1)·(r·obs_sd/a)² from the slope, clim_mu = b + a·x̄."""
+    for e in doc["indices"].values():
+        for L, c in enumerate(e.get("cal") or []):
+            if not c or e["skill"][L] is None or e["mean"][L] is None or "xbar" in c:
+                continue
+            r = e["skill"][L]
+            c["xbar"] = e["clim_mean"][L]
+            c["clim_mu"] = round(c["b"] + c["a"] * c["xbar"], 3)
+            c["sxx"] = (c["n"] - 1) * (r * c["obs_sd"] / c["a"]) ** 2 if c["a"] and r else None
+    doc["skill_test"] = skill_test_doc(gate_family(doc["indices"]))
+
+
+def skill_test_doc(fam: dict) -> dict:
+    return dict(alpha=SKILL_ALPHA, sided="one", r_crit_n24=_r_crit24(), fdr_q=SKILL_FDR_Q, **fam)
+
+
+def member_odds(fc: np.ndarray, e: dict, cal: list | None) -> None:
+    """Raw member odds P(≤ −THR) / P(≥ +THR) per lead (p_neg05 / p_pos05), the event counted in the MODEL's climate:
+    ±THR in units of the observed index is moved to the same climatological frequency in the hindcast's own member
+    spread, thr·clim_sd / obs_sd (the model's index spread is not the observed one - SEAS5's NAO members spread 1.3
+    times the observed index - and a fixed threshold would read that variance bias as odds). Leads without an
+    observed reference keep ±THR (thr_member says which)."""
+    thr = []
+    for lead in range(fc.shape[1]):
+        c = cal[lead] if cal and lead < len(cal) else None
+        sd = e["clim_sd"][lead] if e.get("clim_sd") and lead < len(e["clim_sd"]) else None
+        thr.append(THR * sd / c["obs_sd"] if c and sd and c.get("obs_sd") else THR)
+    with np.errstate(invalid="ignore"):
+        e["p_neg05"], e["p_pos05"] = (
+            [
+                None if not np.isfinite(fc[:, lead]).any() else round(float(np.nanmean(cmp(fc[:, lead], t))), 3)
+                for lead, t in enumerate(thr)
+            ]
+            for cmp in (lambda x, t: x <= -t, lambda x, t: x >= t)
+        )
+    e["thr_member"] = [round(t, 3) for t in thr]
+
+
+def add_skill(idx: dict, ym: str, era: dict | None, cpc: dict | None = None) -> dict:
+    """Per index and lead: hindcast skill and a regression calibration against ERA5 at the valid month.
+    The 24 hindcast years' ensemble mean x_y is regressed on the observed index o_y (o = a·x + b, residual s); r is
+    tested and the cells published by gate_family, over all the indices given. The raw member odds follow
+    (member_odds). Also attaches the last TAIL_MONTHS observed values (ERA5) and CPC's published index where one
+    exists. Returns gate_family's summary."""
+    y0, m0 = int(ym[:4]), int(ym[4:])
+    tail = [((y0 * 12 + m0 - 1 - k) // 12, (y0 * 12 + m0 - 1 - k) % 12 + 1) for k in range(TAIL_MONTHS, 0, -1)]
+    for key, e in idx.items():
+        hc = e.pop("_hc", None)
+        fc = (
+            np.array([[np.nan if v is None else v for v in row] for row in e["members"]], dtype=float)
+            if e.get("members") is not None
+            else None
+        )
+        pub = cpc.get(key) if cpc else None
+        # SOI: calibrate against CPC's published (station-based, standardised) index rather than the ERA5
+        # grid-point version, so the plume sits on the scale people quote and the CPC tail is its own
+        # reference (an ERA5-scaled SOI jumps from run to run); the ERA5 store's global pressure also stops in
+        # 2020, so it has no observed tail at all.
+        obs = pub if (key in CPC_CALIBRATED and pub) else (era.get(key) if era else None)
+        e["obs_source"] = "CPC" if (key in CPC_CALIBRATED and pub) else ("ERA5" if obs else None)
+        e["obs_tail"] = (
+            [[f"{y}-{m:02d}", round(obs[(y, m)], 3)] for (y, m) in tail if obs and (y, m) in obs] if obs else None
+        )
+        e["cpc_tail"] = [[f"{y}-{m:02d}", round(pub[(y, m)], 2)] for (y, m) in tail if (y, m) in pub] if pub else None
+        e["skill"] = None
+        e["cal"] = None
+        if hc is not None and obs is not None:
+            n = hc.shape[0] // 24  # members per year; samples stack member-major
+            r, cal = [], []  # (xarray stack over (number, time): time varies fastest)
+            for L, v in enumerate(e["valid"][: hc.shape[1]]):
+                mo = int(v[5:])
+                yrs = list(range(1993, 2017))
+                hmean = np.nanmean(hc[:, L].reshape(n, 24), axis=0)  # → per-year ensemble mean, years in order
+                o = np.array([obs.get((y + (1 if (m0 - 1 + L) >= 12 else 0), mo), np.nan) for y in yrs])
+                ok = np.isfinite(hmean) & np.isfinite(o)
+                if ok.sum() < 12 or e["mean"][L] is None:
+                    r.append(None)
+                    cal.append(None)
+                    continue
+                x, oo = hmean[ok], o[ok]
+                r.append(round(float(np.corrcoef(x, oo)[0, 1]), 2))  # tested as published, so a redraw agrees
+                a, b = np.polyfit(x, oo, 1)
+                cal.append(
+                    dict(
+                        n=int(ok.sum()),
+                        a=round(float(a), 4),
+                        b=round(float(b), 4),
+                        s=round(float(np.std(oo - (a * x + b), ddof=2)), 4),
+                        obs_sd=round(float(oo.std(ddof=1)), 4),
+                        clim_mu=round(float(oo.mean()), 4),
+                        xbar=round(float(x.mean()), 4),
+                        sxx=round(float(((x - x.mean()) ** 2).sum()), 4),
+                    )
+                )
+            e["skill"] = r
+            e["cal"] = cal
+        if fc is not None and not e.get("absolute"):
+            member_odds(fc, e, e["cal"])
+        else:
+            e["p_neg05"] = e["p_pos05"] = None
+    return gate_family(idx)
+
+
+# ── figures ──────────────────────────────────────────────────────────────────
+INK, MUTED = "#222", "#6b6b6b"
+
+
+def _month_num(s: str) -> int:
+    return int(s[:4]) * 12 + int(s[5:7]) - 1
+
+
+def _fmt_month(n: int) -> str:
+    import calendar
+
+    return f"{calendar.month_abbr[n % 12 + 1]}\n{n // 12}" if n % 12 == 0 else calendar.month_abbr[n % 12 + 1]
+
+
+def plot_series(doc: dict, group: str, out: Path) -> None:
+    """One panel per index: ERA5 observed tail (and CPC's published index where one exists), the
+    forecast bands and mean of this issue, the previous issue's mean, the hindcast skill per month."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    keys = doc["groups"][group]
+    ncol = 4
+    nrow = int(np.ceil(len(keys) / ncol))
+    fig, axes = plt.subplots(nrow, ncol, figsize=(4.3 * ncol, 3.2 * nrow + 1.9), squeeze=False)
+    issue, prev = doc["issue"], doc["previous"]
+    for k, key in enumerate(keys):
+        ax = axes[k // ncol, k % ncol]
+        e = doc["indices"][key]
+        pe = (doc.get("previous_indices") or {}).get(key)
+        xs = [_month_num(v) for v in e["valid"]]
+        x0 = xs[0] - TAIL_MONTHS
+        absolute = bool(e.get("absolute"))
+        cm = np.array(e["clim_mean"], dtype=float) if absolute else np.zeros(len(xs))
+        band = np.array(e["clim_sd"], dtype=float) if absolute else np.full(len(xs), THR)
+        if absolute:
+            ax.fill_between(xs, cm - band, cm + band, color="#000", alpha=0.05, zorder=0)
+            ax.plot(xs, cm, color="#6f6b64", lw=0.9, ls="--", zorder=1)
+        else:
+            ax.axhspan(-THR, THR, color="#000", alpha=0.05, zorder=0)
+            ax.axhline(0, color="#555", lw=0.8, zorder=1)
+
+        def f(a):
+            return np.array([np.nan if v is None else v for v in a], dtype=float)
+
+        ax.fill_between(xs, f(e["p10"]), f(e["p90"]), color="#3f5f8f", alpha=0.16, zorder=2, lw=0)
+        ax.fill_between(xs, f(e["p25"]), f(e["p75"]), color="#3f5f8f", alpha=0.30, zorder=2, lw=0)
+        if pe:
+            ax.plot([_month_num(v) for v in pe["valid"]], f(pe["mean"]), color="#d0801a", lw=1.6, ls="--", zorder=4)
+        ax.plot(xs, f(e["mean"]), color="#1b365d", lw=2.2, marker="o", ms=3.5, zorder=5)
+        if e.get("obs_tail"):
+            ox = [_month_num(t) for t, _ in e["obs_tail"]]
+            oy = [v for _, v in e["obs_tail"]]
+            ax.plot(ox, oy, color="#333", lw=1.4, marker="o", ms=3, zorder=6)
+        if e.get("cpc_tail") and e.get("obs_source") != "CPC":  # CPC-sourced: the tail above IS CPC's index
+            ax.plot(
+                [_month_num(t) for t, _ in e["cpc_tail"]],
+                [v for _, v in e["cpc_tail"]],
+                ls="none",
+                marker="x",
+                ms=5,
+                mew=1.2,
+                color="#8b1a1a",
+                zorder=7,
+            )
+        if key.startswith("u60"):
+            ax.axhline(0, color="#c2185b", lw=1.0, ls="--", zorder=3)
+        ax.axvline(xs[0] - 0.5, color="#6f6b64", lw=0.8, ls=":", zorder=3)
+        if e.get("skill"):
+            cal = e.get("cal") or [None] * len(xs)
+            for xv, rr, c in zip(xs, e["skill"], cal):
+                if rr is not None:
+                    ax.text(
+                        xv,
+                        -0.24,
+                        f"{rr:+.2f}",
+                        transform=ax.get_xaxis_transform(),
+                        ha="center",
+                        va="top",
+                        fontsize=6.6,
+                        rotation=90,
+                        color=(INK if c and not c["no_skill"] else "#aaa"),
+                        fontweight=("bold" if rr >= 0.5 else "normal"),
+                    )
+            ax.text(
+                xs[0] - 0.8,
+                -0.24,
+                "skill r",
+                transform=ax.get_xaxis_transform(),
+                ha="right",
+                va="top",
+                fontsize=6.6,
+                color=MUTED,
+            )
+        ax.set_xlim(x0 - 0.5, xs[-1] + 0.5)
+        ticks = list(range(x0, xs[-1] + 1, 2)) if (xs[-1] - x0) > 14 else list(range(x0, xs[-1] + 1))
+        ax.set_xticks(ticks)
+        ax.set_xticklabels([_fmt_month(t) for t in ticks], fontsize=7.2)
+        ax.tick_params(axis="y", labelsize=7.5)
+        ax.grid(axis="y", lw=0.4, alpha=0.4)
+        ax.set_title(f"{e['label']}", fontsize=10, loc="left", fontweight="bold")
+        ax.set_ylabel(e["units"], fontsize=8)
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+        if e.get("obs_tail") and e.get("obs_source") == "CPC":
+            ax.text(
+                0.98,
+                0.96,
+                "observed and skill r: CPC's published index",
+                transform=ax.transAxes,
+                fontsize=7,
+                color=MUTED,
+                va="top",
+                ha="right",
+                style="italic",
+            )
+        if not e.get("obs_tail"):
+            ax.text(
+                0.98,
+                0.96,
+                (
+                    "ERA5 series not in the daily store; CPC's published index shown"
+                    if e.get("cpc_tail")
+                    else "no ERA5 reference in the daily store"
+                ),
+                transform=ax.transAxes,
+                fontsize=7,
+                color=MUTED,
+                va="top",
+                ha="right",
+                style="italic",
+            )
+    for k in range(len(keys), nrow * ncol):
+        axes[k // ncol, k % ncol].axis("off")
+    import calendar
+
+    def il(ym):
+        return f"{calendar.month_abbr[int(ym[4:])]} {ym[:4]}"
+
+    handles = [
+        Line2D([], [], color="#333", lw=1.4, marker="o", ms=3),
+        Line2D([], [], ls="none", marker="x", color="#8b1a1a", mew=1.2),
+        Line2D([], [], color="#1b365d", lw=2.2, marker="o", ms=3.5),
+        Line2D([], [], color="#d0801a", lw=1.6, ls="--"),
+        plt.Rectangle((0, 0), 1, 1, color="#3f5f8f", alpha=0.16),
+        plt.Rectangle((0, 0), 1, 1, color="#3f5f8f", alpha=0.30),
+        plt.Rectangle((0, 0), 1, 1, color="#000", alpha=0.05),
+    ]
+    via_cpc = [doc["indices"][k]["label"] for k in keys if doc["indices"][k].get("obs_source") == "CPC"]
+    labels = [
+        "observed, ERA5 (same projection)" + ("; SOI panels: CPC" if via_cpc else ""),
+        "published index (CPC), its own scale",
+        f"{il(issue)} issue: ensemble mean",
+        f"{il(prev)} issue mean",
+        "p10–p90",
+        "p25–p75",
+        (f"winds: hindcast mean ±1σ · NAM: neutral, ±{THR}σ" if group == "strat" else f"neutral, ±{THR}σ"),
+    ]
+    fig.legend(handles, labels, loc="lower center", ncol=4, fontsize=8.2, frameon=False, bbox_to_anchor=(0.5, 0.0))
+    fig.suptitle(
+        ("Teleconnection indices" if group == "tele" else "Stratosphere and annular-mode indices")
+        + f" — SEAS5, 51 members, {il(issue)} issue",
+        x=0.01,
+        ha="left",
+        fontsize=13,
+        fontweight="bold",
+        y=0.995,
+    )
+    import textwrap
+
+    fig.text(
+        0.01,
+        1 - 0.36 / fig.get_figheight(),
+        textwrap.fill(
+            "Monthly means. Anomalies against the 1993–2016 hindcast (model) and the 1993–2016 ERA5 mean (observed); r = correlation of the 24 hindcast years' ensemble mean with ERA5 for that "
+            f"calendar month and lead (grey: not significant: a one-sided {SKILL_ALPHA:.0%} test, r below {_r_crit24()} at n = 24, "
+            f"and a false discovery rate of {SKILL_FDR_Q:.0%} over every index and lead)"
+            + (f"; {' and '.join(via_cpc)}: observed and r from CPC's published index" if via_cpc else "")
+            + ". Dotted line: issue start.",
+            260,
+        ),
+        fontsize=8,
+        color=MUTED,
+        va="top",
+        linespacing=1.3,
+    )
+    fig.subplots_adjust(
+        left=0.045,
+        right=0.99,
+        top=1 - 0.85 / fig.get_figheight(),
+        bottom=1.3 / fig.get_figheight(),
+        hspace=0.78,
+        wspace=0.22,
+    )
+    fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
+    plt.close(fig)
+    print(f"  wrote {out.name}", flush=True)
+
+
+def plot_probs(doc: dict, out: Path) -> None:
+    """Phase-probability board, index × month: raw member fractions (upper bar), hindcast-calibrated
+    probabilities (thin lower bar), mean, change vs the previous issue, skill; hatched where the skill test fails."""
+    import calendar
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Patch, Rectangle
+
+    keys = [k for k in doc["groups"]["tele"] if doc["indices"][k].get("p_neg05")]
+    n = len(keys)
+    vm = max((doc["indices"][k]["valid"] for k in keys), key=len)
+    W = len(vm)
+    # width grows with the number of months (with lead 7 a six-month layout's labels collide)
+    lab_in, col_in = 2.75, 1.95
+    fw = lab_in + col_in * W + 0.35
+    fig = plt.figure(figsize=(fw, 0.80 * n + 2.6))
+    ax = fig.add_axes([lab_in / fw, 0.075, col_in * W / fw, 0.79])
+    bw = 0.74
+
+    def bar(y, h, pn, pp, x0, txt=True):
+        pz = max(0.0, 1.0 - pn - pp)
+        ax.barh(y, pn * bw, left=x0, height=h, color="#2c5fa8", lw=0)
+        ax.barh(y, pz * bw, left=x0 + pn * bw, height=h, color="#d9d6d0", lw=0)
+        ax.barh(y, pp * bw, left=x0 + (pn + pz) * bw, height=h, color="#b4453c", lw=0)
+        if txt:
+            for frac, off in ((pn, pn / 2), (pp, pn + pz + pp / 2)):
+                if frac >= 0.12:
+                    ax.text(
+                        x0 + off * bw,
+                        y,
+                        f"{frac * 100:.0f}%",
+                        ha="center",
+                        va="center",
+                        fontsize=7.4,
+                        color="white",
+                        fontweight="bold",
+                    )
+
+    for r_, key in enumerate(keys):
+        e = doc["indices"][key]
+        pe = (doc.get("previous_indices") or {}).get(key)
+        y = n - 1 - r_
+        for L, v in enumerate(vm):
+            x0 = L - bw / 2
+            if L >= len(e["mean"]):  # noqa: SIM300  variable L (maths notation), not a constant
+                ax.text(
+                    L, y, "no hindcast\nat this lead", ha="center", va="center", fontsize=7, color=MUTED, style="italic"
+                )
+                continue
+            if e["mean"][L] is None:
+                ax.text(
+                    L,
+                    y,
+                    "not defined by CPC\nin this month",
+                    ha="center",
+                    va="center",
+                    fontsize=7,
+                    color=MUTED,
+                    style="italic",
+                )
+                continue
+            c = (e.get("cal") or [None] * W)[L]
+            if e["p_neg05"][L] is None:
+                ax.text(
+                    L,
+                    y,
+                    "not defined by CPC\nin this month",
+                    ha="center",
+                    va="center",
+                    fontsize=7,
+                    color=MUTED,
+                    style="italic",
+                )
+                continue
+            bar(y + 0.10, 0.44, e["p_neg05"][L], e["p_pos05"][L], x0, txt=not (c and c.get("no_skill")))
+            dm = ""
+            if pe and v in pe["valid"] and pe["mean"][pe["valid"].index(v)] is not None:
+                dm = f" · Δ{e['mean'][L] - pe['mean'][pe['valid'].index(v)]:+.1f}"
+            line = f"mean {e['mean'][L]:+.1f}{dm}"
+            if c and "p_neg" in c:
+                bar(y - 0.24, 0.16, c["p_neg"], c["p_pos"], x0, txt=False)
+                ax.text(
+                    x0 + bw + 0.02,
+                    y - 0.24,
+                    f"{c['p_neg'] * 100:.0f}/{c['p_pos'] * 100:.0f}",
+                    ha="left",
+                    va="center",
+                    fontsize=7.0,
+                    color=INK,
+                )
+                line += f" · r {e['skill'][L]:+.2f}"
+                if c.get("no_skill"):
+                    ax.add_patch(
+                        Rectangle(
+                            (x0 - 0.02, y - 0.36),
+                            bw + 0.04,
+                            0.72,
+                            facecolor="white",
+                            alpha=0.55,
+                            edgecolor="#8a8680",
+                            hatch="////",
+                            lw=0.6,
+                            zorder=5,
+                        )
+                    )
+                    ax.text(
+                        L,
+                        y + 0.10,
+                        f"no skill  ({e['p_neg05'][L] * 100:.0f}% / {e['p_pos05'][L] * 100:.0f}%)",
+                        ha="center",
+                        va="center",
+                        fontsize=7.4,
+                        fontweight="bold",
+                        color=INK,
+                        zorder=6,
+                        bbox=dict(facecolor="white", edgecolor="none", alpha=0.85, pad=1.0),
+                    )
+            else:
+                ax.text(
+                    x0 + bw / 2,
+                    y - 0.24,
+                    "no ERA5 reference — uncalibrated",
+                    ha="center",
+                    va="center",
+                    fontsize=6.8,
+                    color=MUTED,
+                    style="italic",
+                )
+            ax.text(L, y - 0.43, line, ha="center", va="center", fontsize=7.1, color=INK)
+    ax.set_xlim(-0.5, W - 0.5)
+    ax.set_ylim(-0.7, n - 0.4)
+    ax.set_yticks(range(n))
+    ax.set_yticklabels([doc["indices"][k]["label"] for k in keys][::-1], fontsize=8.8)
+    ax.set_xticks(range(W))
+    ax.set_xticklabels([f"{calendar.month_name[int(v[5:])]} {v[:4]}" for v in vm], fontsize=9)
+    ax.tick_params(length=0)
+    for sp in ("top", "right", "left", "bottom"):
+        ax.spines[sp].set_visible(False)
+    ax.xaxis.set_ticks_position("top")
+    handles = [
+        Patch(color="#2c5fa8", label=f"P(monthly index ≤ −{THR}σ)"),
+        Patch(color="#d9d6d0", label="neutral"),
+        Patch(color="#b4453c", label=f"P(monthly index ≥ +{THR}σ)"),
+    ]
+    fig.legend(
+        handles=handles,
+        loc="upper center",
+        bbox_to_anchor=((lab_in + col_in * W / 2) / fw, 0.945),
+        ncol=3,
+        fontsize=8.4,
+        frameon=False,
+    )
+
+    def il(ym):
+        return f"{calendar.month_abbr[int(ym[4:])]} {ym[:4]}"
+
+    fig.suptitle(
+        f"Teleconnection phase probabilities by month — SEAS5, 51 members, {il(doc['issue'])} issue  ·  Δ = change in the mean vs the {il(doc['previous'])} issue",
+        fontsize=12.5,
+        fontweight="bold",
+        y=0.985,
+        va="top",
+    )
+    note = (
+        "upper bar: raw member fractions (51 members → 2% steps; 0% = no member, not certainty), the threshold moved to the same climatological frequency in the model's own hindcast spread\n"
+        "thin lower bar: hindcast-calibrated probabilities — the observed monthly index (ERA5; SOI and equatorial SOI: CPC) regressed on the hindcast ensemble mean over the 24 years 1993–2016 for this calendar month and lead, "
+        "Student t, spread widened for the in-sample fit;\n"
+        f"r = skill: correlation of the hindcast mean with the observed index; hatched = not significant (one-sided {SKILL_ALPHA:.0%} test, r below {_r_crit24()} at n = 24, "
+        f"and a false discovery rate of {SKILL_FDR_Q:.0%} over every index and lead), no usable skill: the calibrated bar is then climatology"
+    )
+    fig.text(0.5, 0.006, note, ha="center", va="bottom", fontsize=7.8, color=MUTED)
+    fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 88, "method": 6})
+    plt.close(fig)
+    print(f"  wrote {out.name}", flush=True)
+
+
+# ── per-issue summary and the seas5_ref registry ──────────────────────────────
+def save_issue_summary(ym: str, idx: dict) -> None:
+    """is_tele_{ym}: this issue's indices without members or hindcast series (exactly what
+    compute(ym, with_members=False) returns), read next month as the previous-issue line."""
+    summ = {k: {kk: copy.deepcopy(vv) for kk, vv in e.items() if kk not in ("members", "_hc")} for k, e in idx.items()}
+    R.save(R.is_ref("tele", ym), meta=dict(issue=ym, indices=summ))
+
+
+def load_issue_summary(ym: str) -> dict:
+    t = R.load(R.is_ref("tele", ym))
+    if t is None:
+        print(f"  previous issue {ym}: {R.is_ref('tele', ym).name} missing — no previous-issue line", flush=True)
+        return {}
+    return t["meta"]["indices"]
+
+
+def skill_note(idx: dict, era) -> str | None:
+    if not era:
+        return None
+    cpc_keys = [idx[k]["label"] for k in idx if idx[k].get("obs_source") == "CPC"]
+    return (
+        "correlation of the 24 hindcast years' ensemble mean with ERA5 (daily store) at the valid month"
+        + (f"; {' and '.join(cpc_keys)} with CPC's published index" if cpc_keys else "")
+        + "; blank where ERA5 lacks the field (stratospheric winds)"
+    )
+
+
+def refresh_obs(doc: dict) -> dict:
+    """Re-attach the observed references to a published seas5_tele.json without the forecast GRIBs: CPC's
+    published indices (cpc_tail everywhere; for the CPC-calibrated SOI/EqSOI also the observed tail, skill and
+    calibration, recomputed exactly as add_skill does from the members in the JSON and the hindcast series in
+    the derived table hc_tele_nh_{MM}). The other indices keep their ERA5 tail, skill and calibration untouched.
+    Needed for an issue built without CPC files on the runner (the October 2026 issue: obs_tail [] for SOI/EqSOI)."""
+    ym = doc["issue"]
+    cpc = cpc_published()
+    if not any(cpc.get(k) for k in CPC_CALIBRATED):
+        raise SystemExit("CPC SOI / equatorial SOI files unavailable — nothing to refresh")
+    era, scale = era5_indices(None)
+    T = _hct("tele_nh", ym)
+    if T is None:
+        raise SystemExit("hindcast table hc_tele_nh missing — cannot recompute the SOI calibration")
+    y0, m0 = int(ym[:4]), int(ym[4:])
+    tail = [((y0 * 12 + m0 - 1 - k) // 12, (y0 * 12 + m0 - 1 - k) % 12 + 1) for k in range(TAIL_MONTHS, 0, -1)]
+    sub = {}
+    for key, tab in (("soi", "soi_ht"), ("eqsoi", "eqsoi_he")):
+        e = doc["indices"].get(key)
+        if e is None or not cpc.get(key):
+            continue
+        L = len(e["valid"])
+        ms = [int(v[5:]) for v in e["valid"]]
+        h = np.asarray(T[tab], dtype=float)
+        h = ((h - h.mean(0)) / 100.0)[:, :L]  # compute(): anomaly vs the hindcast mean per lead, hPa
+        if "ERA5 1991–2020 standard deviation" in e["note"]:  # compute()'s to_sigma, whichever unit the build used
+            h = h / np.array([scale[key][m] for m in ms])[None]
+        else:
+            sd = np.nanstd(h, axis=0)
+            h = h / np.where(sd > 0, sd, np.nan)
+        e["_hc"] = h
+        sub[key] = e
+    add_skill(sub, ym, era, cpc)  # the same code path as the monthly build
+    for key, e in doc["indices"].items():
+        if key in sub:
+            continue
+        pub = cpc.get(key)
+        e["cpc_tail"] = [[f"{y}-{m:02d}", round(pub[(y, m)], 2)] for (y, m) in tail if (y, m) in pub] if pub else None
+    doc["skill_note"] = skill_note(doc["indices"], era)
+    for key in sub:
+        e = doc["indices"][key]
+        print(f"  {key}: observed {e['obs_source']} {e['obs_tail']}; skill {e['skill']}", flush=True)
+    return doc
+
+
+def derive_issue(ym: str) -> None:
+    """is_tele_{ym} from that issue's forecast GRIBs + the derived tables."""
+    pats = Patterns()
+    _, scale = era5_indices(pats)
+    idx = compute(ym, pats, with_members=False, scale=scale)
+    if not idx:
+        raise FileNotFoundError(f"no teleconnection fields for {ym}")
+    save_issue_summary(ym, idx)
+
+
+REF_UNITS = {
+    "tele_nh": dict(raw=["m:nh_z", "m:nh_msl"], fn=derive_hc_nh),
+    "tele_strat": dict(raw=["m:strat_u"], fn=derive_hc_strat),
+    "tele_polar": dict(raw=["m:polar_n"], fn=derive_hc_polar),
+}
+ISSUE_UNITS = {"tele": derive_issue}
+OBS_UNITS = {"tele_patterns": derive_obs_patterns, "tele_era5": derive_obs_era5}
+
+
+def _clean(o):  # NaN is not JSON; browsers reject the whole file
+    if isinstance(o, dict):
+        return {k: _clean(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [_clean(v) for v in o]
+    if isinstance(o, (float, np.floating)):
+        return None if not np.isfinite(o) else float(o)
+    if isinstance(o, (np.integer,)):
+        return int(o)
+    if isinstance(o, np.ndarray):
+        return _clean(o.tolist())
+    return o
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--issue")
+    ap.add_argument(
+        "--replot",
+        action="store_true",
+        help="re-apply the skill test to the published seas5_tele.json and redraw its figures (no data access)",
+    )
+    ap.add_argument(
+        "--fetch-cpc",
+        action="store_true",
+        help="download CPC's published index files into the cache (network; seas5.yml runs it before the offline build)",
+    )
+    ap.add_argument(
+        "--refresh-obs",
+        action="store_true",
+        help="with --replot: re-attach CPC's published indices to the published JSON first (SOI/EqSOI tail, skill "
+        "and calibration against CPC); needs network + the hc_tele_nh table",
+    )
+    a = ap.parse_args(argv)
+    if a.fetch_cpc:
+        got = cpc_published()
+        print(
+            "  CPC indices: " + ", ".join(f"{k} to {max(v)[0]}-{max(v)[1]:02d}" for k, v in sorted(got.items()) if v),
+            flush=True,
+        )
+        return 0 if any(got.get(k) for k in CPC_CALIBRATED) else 1
+    if a.replot:
+        doc = json.loads(OUT_JSON.read_text())
+        if a.refresh_obs:
+            doc = refresh_obs(doc)
+        regate(doc)
+        doc.pop("skill_min", None)
+        doc["generated"] = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())
+        for group, name in (("tele", "seas5_tele_series.webp"), ("strat", "seas5_strat_series.webp")):
+            if f"{group}_series" in doc["figures"]:
+                plot_series(doc, group, Path(os.environ.get("REPLOT_DIR") or ASSETS) / name)
+        out_json = Path(os.environ["REPLOT_DIR"]) / OUT_JSON.name if os.environ.get("REPLOT_DIR") else OUT_JSON
+        out_json.write_text(json.dumps(_clean(doc), separators=(",", ":")))
+        print(f"  wrote {out_json}", flush=True)
+        plot_probs(doc, Path(os.environ.get("REPLOT_OUT") or ASSETS / "seas5_tele_probs.webp"))
+        return 0
+    if not a.issue:
+        ap.error("--issue is required")
+    t0 = time.time()
+    pats = Patterns()
+    ym = a.issue
+    prev = previous_issues(ym, 1)[0]
+    era, scale = None, None
+    try:
+        era, scale = era5_indices(pats)
+    except Exception as e:  # noqa: BLE001
+        print(f"  ERA5 reference skipped ({str(e)[:80]})", flush=True)
+    cpc = {}
+    try:
+        cpc = cpc_published()
+    except Exception as e:  # noqa: BLE001
+        print(f"  CPC indices skipped ({str(e)[:80]})", flush=True)
+    cur = compute(ym, pats, with_members=True, scale=scale)
+    if not cur:
+        raise SystemExit("no teleconnection fields (or derived tables) on disk yet")
+    save_issue_summary(ym, cur)  # next month's "previous issue" line
+    pv = load_issue_summary(prev)
+    fam = add_skill(cur, ym, era, cpc)
+    doc = {
+        "generated": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()),
+        "issue": ym,
+        "previous": prev,
+        "groups": {
+            "tele": [k for k in cur if cur[k]["group"] == "tele"],
+            "strat": [k for k in cur if cur[k]["group"] == "strat"],
+        },
+        "indices": cur,
+        "previous_indices": pv,
+        "figures": {
+            "tele_series": "seas5_tele_series.webp",
+            "tele_probs": "seas5_tele_probs.webp",
+            "strat_series": "seas5_strat_series.webp",
+        },
+        "thr": THR,
+        "skill_test": skill_test_doc(fam),
+        "skill_note": skill_note(cur, era),
+    }
+    for group, name in (("tele", "seas5_tele_series.webp"), ("strat", "seas5_strat_series.webp")):
+        try:
+            plot_series(doc, group, ASSETS / name)
+        except Exception as e:  # noqa: BLE001
+            print(f"  {name} FAILED ({str(e)[:100]})", flush=True)
+            doc["figures"].pop(f"{group}_series", None)
+    try:
+        plot_probs(doc, ASSETS / "seas5_tele_probs.webp")
+    except Exception as e:  # noqa: BLE001
+        print(f"  seas5_tele_probs.webp FAILED ({str(e)[:100]})", flush=True)
+        doc["figures"].pop("tele_probs", None)
+    OUT_JSON.write_text(json.dumps(_clean(doc), separators=(",", ":")))
+    print(
+        f"wrote {OUT_JSON} ({OUT_JSON.stat().st_size / 1e3:.0f} kB, {len(cur)} indices) in {(time.time() - t0) / 60:.1f} min",
+        flush=True,
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

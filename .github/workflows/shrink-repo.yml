@@ -1,0 +1,73 @@
+name: Collapse branch history
+
+# Manual and destructive: replaces a branch's history with a single commit of its current tree and force-pushes it,
+# so GitHub can garbage-collect the old objects. Generated figures are rewritten daily, so the repository regrows by a
+# few GB a month; run this every month or two.
+#
+# The push is leased on the tip that was collapsed: a data commit that lands meanwhile makes the lease fail, and the
+# step retries from the new tip, so no commit is ever overwritten. When main is collapsed, every tag is re-pointed to
+# the new commit too (a tag left on an old commit would keep that history reachable); release assets belong to the
+# tag name and are unaffected.
+#
+# Afterwards, update an existing clone with:  git fetch origin && git reset --keep origin/main
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type SHRINK to confirm the history collapse and force-push'
+        required: true
+        default: ''
+      branch:
+        description: 'Branch to collapse'
+        required: true
+        default: 'main'
+      message:
+        description: 'Message of the single remaining commit'
+        required: true
+        default: 'scorvec.com: weather and climate diagnostics'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: shrink-repo
+  cancel-in-progress: false
+
+jobs:
+  shrink:
+    if: ${{ inputs.confirm == 'SHRINK' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BRANCH: ${{ inputs.branch }}
+      MESSAGE: ${{ inputs.message }}
+    steps:
+      - name: Checkout tip
+        uses: actions/checkout@v7    # depth 1: only the current tree is kept, and a shallow push sends one commit
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Collapse to one commit and force-push with a lease
+        run: |
+          set -euo pipefail
+          export GIT_AUTHOR_NAME="Shawn Corvec" GIT_AUTHOR_EMAIL="26825570+scorvec@users.noreply.github.com"
+          export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME" GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+          for attempt in 1 2 3 4 5; do
+            git fetch -q --depth 1 origin "refs/heads/$BRANCH"
+            OLD=$(git rev-parse FETCH_HEAD)
+            NEW=$(git commit-tree "FETCH_HEAD^{tree}" -m "$MESSAGE")
+            if git push --force-with-lease="refs/heads/$BRANCH:$OLD" origin "$NEW:refs/heads/$BRANCH"; then
+              echo "Collapsed $BRANCH: $OLD -> $NEW (attempt $attempt)"
+              break
+            fi
+            [ "$attempt" = 5 ] && { echo "::error::$BRANCH kept moving; nothing was overwritten. Re-run later."; exit 1; }
+            sleep 20
+          done
+          if [ "$BRANCH" = main ]; then
+            git ls-remote --tags origin | awk '$2 !~ /\^\{\}$/ { sub("refs/tags/", "", $2); print $2 }' \
+              | while read -r tag; do
+                  if git push -q --force origin "$NEW:refs/tags/$tag"; then echo "tag $tag -> $NEW"
+                  else echo "::warning::tag $tag was not moved"; fi
+                done
+          fi
+          echo "GitHub garbage-collects the orphaned objects over the following days."

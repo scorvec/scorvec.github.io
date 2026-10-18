@@ -1,0 +1,44 @@
+# Frame directories on the `frames` branch that are RETIRED and may be deleted
+# by scripts/lib/gc_frames.py --prune.
+#
+# Nothing is pruned unless it is listed here AND unreferenced by every manifest
+# on main. Being unreferenced is not enough on its own: several products are
+# private, their manifests are deliberately not tracked, and from a runner they
+# look identical to an orphan. Add a path here only when you know the product is
+# gone for good.
+#
+# One path per line.
+
+# Replaced 2026-08-30 by per-hemisphere loops (wave1_nh / wave1_sh).
+assets/sst/anim/wave1_maps
+# Replaced 2026-08-30 by per-level loops (vortex_10 / vortex_100).
+assets/sst/anim/vortex_winds
+
+# Superseded 2026-08-30 when the wave-1 loop was transposed: the selector now
+# switches HEMISPHERE (wave1_nh / wave1_sh) with both levels in one frame, so
+# the per-LEVEL directories have nothing pointing at them.
+assets/sst/anim/wave1_100
+assets/sst/anim/wave1_500
+
+# Retired 2026-09-30 for a model with more stratospheric levels: the AIFS-ENS and IFS-ENS
+# E-P flux loops, replaced by the GEFS loop (assets/sst/anim/epflux_gefs). strat.yml also prunes them directly.
+assets/sst/anim/epflux
+assets/sst/anim/epflux_ifs
+
+# The first Hadley/Walker forecast run (2026-10-16) nested its regions (mmsf_fc/blend ...); the viewer reads
+# <anim>/<region id>/, so the loops moved to flat mmsf_fc_<region> / walker_fc_<region> directories.
+assets/sst/anim/mmsf_fc
+assets/sst/anim/walker_fc
+# Retired 2026-10-16: the GDPS single-run MSLP + 10 m wind loop drawn in mjo.yml. The page's GDPS choice is now
+# gdps-charts.yml's own loop (assets/sst/anim/gdps_wind), posted hours earlier, as soon as the run is out.
+assets/sst/anim/mslp_wind_gdps
+
+# The rolling 60-day analysis loop (mjo.yml, mmsf.py) gave way on 2026-10-16 to the growing archive of analysed weeks
+# (overturn.yml: mmsf_hist); the Walker loop dir stays, it carries the chi history.
+assets/sst/anim/mmsf
+
+# 2026-10-16: the vortex-wind loops show one hemisphere per frame (vortex[_ifs]_<level>_<nh|sh>), with barbs.
+assets/sst/anim/vortex_10
+assets/sst/anim/vortex_100
+assets/sst/anim/vortex_ifs_10
+assets/sst/anim/vortex_ifs_100

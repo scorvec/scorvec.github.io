@@ -1,0 +1,142 @@
+{
+ "rows": {
+  "covar_cmip6": {
+   "p": 6.458309479137637e-12,
+   "agree": "16/16",
+   "AL_box": -15.61,
+   "sig_frac": 0.708,
+   "pattern_r_vs_covar": 1.0
+  },
+  "covar_era5": {
+   "p": 5.244513955904164e-05,
+   "n": 67,
+   "span": [
+    1960,
+    2026
+   ],
+   "AL_box": -15.95,
+   "sig_frac": 0.107,
+   "pattern_r_vs_covar": 0.851
+  },
+  "lag": {
+   "p": 0.07134858330100634,
+   "agree": "11/16",
+   "range": [
+    -3.7421,
+    3.8073
+   ],
+   "AL_box": -0.91,
+   "sig_frac": 0.322,
+   "pattern_r_vs_covar": -0.155
+  },
+  "frank2": {
+   "p": 0.2682559248493082,
+   "agree": "10/16",
+   "tau3": 0.55,
+   "tau3_p": 0.4937997945794533,
+   "tau1": -4.0583,
+   "tau1_p": 3.3568105348407036e-06,
+   "AL_box": -0.69,
+   "sig_frac": 0.288,
+   "pattern_r_vs_covar": -0.225
+  },
+  "amip": {
+   "p": 0.49323547418459857,
+   "agree": "8/14",
+   "range": [
+    -5.66,
+    6.3
+   ],
+   "members": 26,
+   "models": 14,
+   "psl": {
+    "mean": 38.59,
+    "range": [
+     -20.16,
+     116.12
+    ],
+    "same_sign": 12,
+    "p": 0.0024897475066932855
+   },
+   "AL_box": 0.66,
+   "sig_frac": 0.089,
+   "pattern_r_vs_covar": -0.351
+  },
+  "dcpp_ipsl": {
+   "p": 0.043,
+   "ci95": [
+    -25.5,
+    -0.5
+   ],
+   "imposed_pdo": 0.36,
+   "imposed_K": -0.206,
+   "members": [
+    10,
+    10
+   ],
+   "winters": [
+    90,
+    90
+   ],
+   "per_K": 22.71,
+   "AL_box": -12.99,
+   "sig_frac": 0.0,
+   "pattern_r_vs_covar": 0.479
+  },
+  "dcpp_hadgem": {
+   "p": 0.714,
+   "ci95": [
+    -20.1,
+    13.8
+   ],
+   "imposed_pdo": 0.223,
+   "imposed_K": -0.091,
+   "members": [
+    12,
+    11
+   ],
+   "winters": [
+    120,
+    110
+   ],
+   "per_K": 7.76,
+   "AL_box": -3.17,
+   "sig_frac": 0.093,
+   "pattern_r_vs_covar": 0.034
+  }
+ },
+ "granger": {
+  "p_to_al": {
+   "cv_gain_median": -0.0189,
+   "cv_negative": "14/16",
+   "members_p05": 0.05,
+   "era5": {
+    "F": 0.024,
+    "p": 0.8784,
+    "cv_gain": -0.035,
+    "coef": -0.65
+   }
+  },
+  "al_to_p": {
+   "coef": -0.0087,
+   "agree": "16/16",
+   "p": 4.917797429171698e-07,
+   "cv_gain_median": 0.0084,
+   "cv_p": 0.08819578650087793,
+   "members_p05": 0.367,
+   "members_p05_range": [
+    0.0,
+    0.9
+   ],
+   "era5": {
+    "F": 1.945,
+    "p": 0.1681,
+    "cv_gain": 0.029,
+    "coef": -0.0069
+   }
+  }
+ },
+ "K_per_sd": -0.4415,
+ "coupled_members": 147,
+ "coupled_models": 16
+}

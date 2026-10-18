@@ -1,0 +1,140 @@
+name: CMIP6 torque history (one-off study input)
+
+# One-off: CMIP6 historical (1950-2014) AAM budget terms per model for the El Nino
+# mountain-torque study (scripts/mjo/src/torque_enso_study.py, 2026-10-12). Reads the public Pangeo
+# CMIP6 Google Cloud mirror anonymously - Amon ps/tauu/ua/ts + fx orog (+ EdayZ utendogw, CFday ps
+# where a model has them) - and reduces each model on its own grid to monthly mountain / surface-
+# stress / GWD torques, relative AAM and Nino-3.4 (scripts/mjo/src/torque_history_cmip6.py).
+#
+# One matrix job per model; a final job concatenates the monthly tables and commits
+# scripts/mjo/data/reference/torque_cmip6_monthly.csv.gz + torque_cmip6_log.json. The daily
+# (CFday ps) range torques stay a run artifact (cmip6_daily_all, ~100 MB). Dispatch only, no cron.
+
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: 'Comma-separated source_ids'
+        required: false
+        default: 'ACCESS-CM2,ACCESS-ESM1-5,AWI-CM-1-1-MR,AWI-ESM-1-1-LR,BCC-ESM1,CESM2,CESM2-FV2,CESM2-WACCM,CESM2-WACCM-FV2,CMCC-CM2-HR4,CMCC-CM2-SR5,CMCC-ESM2,CNRM-CM6-1,CNRM-ESM2-1,CanESM5,E3SM-1-0,E3SM-1-1,FGOALS-f3-L,FGOALS-g3,GFDL-CM4,GFDL-ESM4,GISS-E2-1-G,GISS-E2-1-H,HadGEM3-GC31-LL,HadGEM3-GC31-MM,INM-CM4-8,INM-CM5-0,IPSL-CM6A-LR,MCM-UA-1-0,MIROC-ES2L,MIROC6,MPI-ESM-1-2-HAM,MPI-ESM1-2-HR,MPI-ESM1-2-LR,MRI-ESM2-0,NorCPM1,NorESM2-LM,NorESM2-MM,SAM0-UNICON,TaiESM1,UKESM1-0-LL'
+      members:
+        description: 'Members per model (monthly)'
+        required: false
+        default: '3'
+      commit:
+        description: 'Commit the combined monthly table'
+        required: false
+        default: 'true'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: torque-cmip6
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - id: m
+        run: |
+          python3 -c "import json; ms=[m.strip() for m in '${{ inputs.models }}'.split(',') if m.strip()]; print('matrix='+json.dumps({'model': ms}))" >> "$GITHUB_OUTPUT"
+
+  model:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/mjo/src/torque_history_cmip6.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet numpy pandas xarray "zarr>=3" gcsfs cftime scipy
+      - name: Catalogue
+        run: curl -sSf --retry 3 -o /tmp/pangeo-cmip6.csv https://storage.googleapis.com/cmip6/pangeo-cmip6.csv
+      - name: Reduce ${{ matrix.model }}
+        run: python scripts/mjo/src/torque_history_cmip6.py --catalog /tmp/pangeo-cmip6.csv --model ${{ matrix.model }} --members ${{ inputs.members }} --out out
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: cmip6_${{ matrix.model }}
+          path: out/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  combine:
+    needs: model
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/mjo/data/reference/torque_cmip6_monthly.csv.gz
+            scripts/mjo/data/reference/torque_cmip6_log.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: cmip6_*
+          path: parts
+          merge-multiple: true
+      - name: Concatenate
+        run: |
+          pip install --quiet pandas
+          python3 - <<'EOF'
+          import glob, json, os, pandas as pd
+          os.makedirs("scripts/mjo/data/reference", exist_ok=True)
+          mon = sorted(glob.glob("parts/*_monthly.csv"))
+          df = pd.concat([pd.read_csv(f) for f in mon], ignore_index=True)
+          df.to_csv("scripts/mjo/data/reference/torque_cmip6_monthly.csv.gz", index=False,
+                    float_format="%.6g", compression={"method": "gzip", "mtime": 0})
+          logs = {os.path.basename(f)[:-9]: json.load(open(f)) for f in sorted(glob.glob("parts/*_log.json"))}
+          json.dump(logs, open("scripts/mjo/data/reference/torque_cmip6_log.json", "w"), indent=1)
+          print(f"{df.model.nunique()} models, {df.groupby('model').member.nunique().sum()} members, {len(df)} rows")
+          os.makedirs("daily", exist_ok=True)
+          for f in glob.glob("parts/*_daily*.csv"):
+              os.replace(f, "daily/" + os.path.basename(f))
+          EOF
+          ls -la scripts/mjo/data/reference/ daily/ | head -60
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cmip6_daily_all
+          path: daily/
+          retention-days: 30
+          if-no-files-found: ignore
+      - name: Commit & push
+        if: ${{ inputs.commit == 'true' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # snapshot + clean resync each attempt (mjo.yml / sfs.yml pattern); merges never rebases
+          SNAP=$(mktemp -d)
+          OUTS="scripts/mjo/data/reference/torque_cmip6_monthly.csv.gz scripts/mjo/data/reference/torque_cmip6_log.json"
+          git add -f $OUTS
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -f $OUTS
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "torque study: CMIP6 historical torque + AAM monthly table"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

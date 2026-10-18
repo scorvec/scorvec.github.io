@@ -1,0 +1,61 @@
+name: AR reforecast climatology (GEFSv12 2000-2019 -> release ar-clim-v1)
+
+# One-off builder for the weeks 3-5 AR outlook (ar-ext.yml): per Wednesday 00Z 35-day reforecast start, control + 4
+# members, the weekly count of 6-hourly times with IVT* = k * PWAT * |V850| >= 250 on 1-deg cells (scripts/ar/ar_ext.py
+# clim). Byte-ranged from noaa-gefs-retrospective (AWS S3). One job per year, then the files go to the release.
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: 'JSON list of years'
+        default: '[2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019]'
+
+permissions:
+  contents: write
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  year:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        year: ${{ fromJSON(github.event.inputs.years) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0
+          pip install --quiet numpy pandas scipy requests eccodes
+          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag
+      - run: python scripts/ar/ar_ext.py clim ${{ matrix.year }} --out out --procs 6
+      - uses: actions/upload-artifact@v7
+        with:
+          name: arclim-${{ matrix.year }}
+          path: out/arclim_${{ matrix.year }}.npz
+          retention-days: 5
+
+  release:
+    needs: year
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: arclim-*
+          path: rel
+          merge-multiple: true
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ls -la rel
+          gh release view ar-clim-v1 -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create ar-clim-v1 -R "$GITHUB_REPOSITORY" --title "AR reforecast climatology v1" \
+              --notes "GEFSv12 reforecast 2000-2019 weekly AR-frequency counts for the weeks 3-5 AR outlook (scripts/ar/ar_ext.py)."
+          gh release upload ar-clim-v1 rel/*.npz -R "$GITHUB_REPOSITORY" --clobber

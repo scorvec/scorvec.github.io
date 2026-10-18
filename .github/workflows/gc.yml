@@ -1,0 +1,143 @@
+name: Garbage collect the frames branch
+
+# Daily housekeeping for the orphan `frames` branch: report every frame
+# directory no manifest references any more, delete the ones explicitly
+# listed as retired, and keep refs/frames-pins/ in step with the manifests.
+#
+# WHY IT WAITS, AND FOR WHOM. The branch is force-pushed as a single parentless
+# commit by every product that publishes frames. Since 2026-09-02 every push
+# carries a lease against the tip it read (scripts/lib/publish_frames_ci.sh), so
+# an overlap no longer deletes anyone's frames: the loser re-reads and retries.
+# Waiting is a courtesy that spares the publishers a retry, and it waits for the
+# publishers alone - until 2026-10-16 it waited for zero runs in flight anywhere
+# in the repository and skipped 13 days out of 14. After 12 min of busy
+# publishers it skips the prune, and when the two runs before it skipped too it
+# prunes anyway, under the lease.
+#
+# WHY IT DELETES SO LITTLE. Several products are private: their manifests live
+# only outside the repo, so from a runner their frames are indistinguishable from
+# orphans. 23 directories were "unreferenced" for exactly that reason. Deletion
+# is therefore opt-in per path via scripts/lib/retired_frames.txt, protected
+# prefixes are never touched, and everything else is only reported. See
+# scripts/lib/gc_frames.py.
+#
+# PINS. Manifests name the frames commit they were published with, and only a ref
+# keeps an orphan commit from GitHub's garbage collection. scripts/lib/frames_pins.py
+# creates refs/frames-pins/<sha> for every commit a manifest on main names and
+# deletes the pins nothing names any more. Refs are not branch content, so this
+# runs every day whatever else is in flight.
+#
+# ONE FIRING A DAY, in line with the rule that came out of the cron measurements
+# on 2026-08-30: workflows asking for once a day were honoured 5/5, hourly ones
+# 15/72. 04:52Z is a genuinely quiet slot - the hourly loops run at :12/:25/:40,
+# ECAPE at 01:20 and 07:20, site-stats at 05:17.
+on:
+  schedule:
+  - cron: '52 4 * * *'
+  workflow_dispatch:
+    inputs:
+      prune:
+        description: 'Actually delete the retired paths (false = report only)'
+        default: 'true'
+
+# Frame store (Cloudflare R2, S3 API). Absent secrets leave these empty and the
+# publishers fall back to the orphan `frames` branch - see scripts/lib/frames_env.sh.
+env:
+  FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}
+  FRAMES_S3_ENDPOINT: ${{ secrets.FRAMES_S3_ENDPOINT }}
+  FRAMES_S3_REGION: ${{ secrets.FRAMES_S3_REGION }}
+  FRAMES_S3_ACL: ${{ secrets.FRAMES_S3_ACL }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.FRAMES_S3_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.FRAMES_S3_SECRET_ACCESS_KEY }}
+
+permissions:
+  contents: write
+  actions: read   # the publisher check and the skip count read the run list
+
+concurrency:
+  group: gc-frames
+  cancel-in-progress: false
+
+jobs:
+  gc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      # Checked immediately before the work, not at queue time, because a run
+      # can start while this one waits for a runner. A publisher is any workflow
+      # that calls one of the branch writers, or calls a workflow that does.
+      - name: Wait for the frames publishers
+        id: quiet
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          pubs=$(grep -l -E 'publish_frames_ci\.sh|publish_data\.sh' .github/workflows/*.yml | grep -v -x '.github/workflows/gc.yml')
+          for f in $pubs; do grep -l -F "uses: ./$f" .github/workflows/*.yml; done > /tmp/callers.txt
+          list=$(printf '%s\n' $pubs $(cat /tmp/callers.txt) | sort -u | sed 's/.*/"&"/' | paste -sd, -)
+          echo "  frames publishers: $(printf '%s\n' $pubs $(cat /tmp/callers.txt) | sort -u | wc -l | tr -d ' ') workflows"
+          for attempt in 1 2 3 4 5 6; do
+            busy=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?status=in_progress&per_page=100" \
+                     -q "[.workflow_runs[] | select((.path | sub(\"@.*\$\"; \"\")) as \$p | [$list] | index(\$p))] | length" 2>/dev/null) || busy=""
+            if [ "$busy" = "0" ]; then
+              echo "  no frames publisher in flight - proceeding"
+              echo "quiet=true" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+            echo "  ${busy:-?} frames publisher(s) in flight; waiting (attempt $attempt/6)"
+            sleep 120
+          done
+          # Still busy. Count the runs before this one that skipped the prune too.
+          skips=0
+          for id in $(gh run list --workflow gc.yml --limit 6 --json databaseId,status -q '.[] | select(.status == "completed") | .databaseId'); do
+            c=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs" -q '[.jobs[].steps[]? | select(.name == "Report and prune") | .conclusion][0] // ""')
+            if [ "$c" != "skipped" ]; then break; fi
+            skips=$((skips + 1))
+          done
+          if [ "$skips" -ge 2 ]; then
+            echo "::warning::frames publishers still busy after 12 min and the last $skips runs skipped the prune - pruning under the lease"
+            echo "quiet=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::frames publishers still busy after 12 min - skipping today's prune ($((skips + 1)) in a row; the third prunes under the lease)"
+            echo "quiet=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Report and prune
+        if: ${{ steps.quiet.outputs.quiet == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python scripts/lib/gc_frames.py --prune | tee /tmp/gc.txt
+          PATHS=$(grep -oE '^PRUNE_PATHS=.*' /tmp/gc.txt | cut -d= -f2- || true)
+          if [ -n "${PATHS:-}" ] && [ "${{ github.event.inputs.prune || 'true' }}" = "true" ]; then
+            echo "  pruning: $PATHS"
+            PRUNE="$PATHS" scripts/lib/publish_frames_ci.sh
+          else
+            echo "  nothing to prune (or prune disabled for this run)"
+          fi
+
+      - name: Keep the frames pins in step with the manifests
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python scripts/lib/frames_pins.py --apply | tee /tmp/pins.txt
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Frames GC — $(date -u +%Y-%m-%dT%H:%MZ)"
+            echo ''
+            echo '```'
+            cat /tmp/gc.txt 2>/dev/null || echo "(prune skipped - frames publishers were in flight)"
+            echo ''
+            cat /tmp/pins.txt 2>/dev/null || echo "(pins not reconciled)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

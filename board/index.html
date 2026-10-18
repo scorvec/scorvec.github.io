@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- The token lives in this origin's storage, so this page runs nothing but its own inline script and style (pinned by
+     hash: an edit to either needs its new sha256 here, or the page will not run), registers only ./sw.js, and talks
+     only to api.github.com (or a local mock API when served from localhost). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-iSLRJcNFKYegtGqnkZFcATCX82o1kpmrrMtsQP5oA4E='; style-src 'sha256-TQpGF3YTtTPMCVxyKBuoxtlu8uIf5pCmFRnLSk71TLY='; connect-src https://api.github.com http://localhost:* http://127.0.0.1:*; worker-src 'self'; child-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>Private board</title>
+<!--
+  Generic sign-in for a private board. This file is the only public part: it holds no data, no names and no
+  description of any content. The board is served by ./sw.js from a PRIVATE GitHub repository through the GitHub API,
+  with a read-only token the viewer supplies; without that token nothing renders, and a crawler that finds the URL
+  learns nothing.
+
+  The token is sent to api.github.com and nowhere else, and is kept only in this browser (IndexedDB) until "Sign out".
+  Use a FINE-GRAINED personal access token limited to the board repository, with Contents: Read and a short expiry.
+-->
+<style>
+  :root {
+    --bg: #f5f6f3; --panel: #fff; --ink: #29321f; --ink2: #43503a; --muted: #5c6b73; --edge: #c9d0c5;
+    --accent: #274b7a; --warn-ink: #6b4a12; --warn-bg: #fbf4e4; --warn-edge: #d9b96a; --err: #a33a2a; --ok: #2f6b3a;
+    --sans: -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #11141a; --panel: #181c24; --ink: #e8e8f0; --ink2: #c9c9d6; --muted: #9a9ab0; --edge: #343a4a;
+    --accent: #7cc4ff; --warn-ink: #e3cf95; --warn-bg: #24211a; --warn-edge: #8c7a3d; --err: #f08a80; --ok: #8fd19e; } }
+  :root[data-theme="dark"] {
+    --bg: #11141a; --panel: #181c24; --ink: #e8e8f0; --ink2: #c9c9d6; --muted: #9a9ab0; --edge: #343a4a;
+    --accent: #7cc4ff; --warn-ink: #e3cf95; --warn-bg: #24211a; --warn-edge: #8c7a3d; --err: #f08a80; --ok: #8fd19e; }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+  main { max-width: 32rem; margin: clamp(1.5rem, 8vh, 5rem) auto; padding: 0 16px; }
+  .card { background: var(--panel); border: 1px solid var(--edge); border-radius: 8px; padding: 1.4rem 1.5rem; }
+  h1 { font-size: 1.3rem; font-weight: 600; margin: 0 0 .35rem; }
+  p { color: var(--ink2); margin: 0 0 1rem; }
+  label { display: block; font-size: .9rem; color: var(--muted); margin: .9rem 0 .25rem; }
+  input { width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--edge); border-radius: 5px; padding: .55rem .65rem; }
+  button { font: inherit; border-radius: 5px; padding: .5rem 1rem; cursor: pointer; border: 1px solid var(--edge); background: var(--panel); color: var(--ink); min-height: 44px; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  :root[data-theme="dark"] button.primary { color: #0e1216; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) button.primary { color: #0e1216; } }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button[disabled] { opacity: .6; cursor: progress; }
+  .row { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1.1rem; }
+  .msg { min-height: 1.4em; margin-top: .8rem; font-size: .92rem; }
+  .msg.err { color: var(--err); } .msg.ok { color: var(--ok); }
+  .caution { margin-top: 1.2rem; padding: .6rem .8rem; border-left: 3px solid var(--warn-edge); background: var(--warn-bg); color: var(--warn-ink);
+             font-size: .88rem; line-height: 1.45; border-radius: 0 5px 5px 0; }
+  .meta { font-size: .9rem; color: var(--muted); margin: 0 0 .2rem; word-break: break-all; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <div class="card" id="boot"><h1>Private board</h1><p>Loading…</p>
+    <noscript><p>This page needs JavaScript.</p></noscript></div>
+  <div class="card" id="signed" hidden>
+    <h1>Private board</h1>
+    <p class="meta" id="who"></p>
+    <p class="meta" id="snap"></p>
+    <div class="row">
+      <button class="primary" id="open">Open the board</button>
+      <button id="out">Sign out</button>
+    </div>
+    <div class="msg" id="smsg" role="status"></div>
+  </div>
+
+  <div class="card" id="gate" hidden>
+    <h1>Private board</h1>
+    <p>This page holds nothing of its own. Give it a repository and a read-only token and it opens the board from there.</p>
+    <label for="repo">Repository (owner/name)</label>
+    <input id="repo" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="owner/repository">
+    <label for="tok">Access token</label>
+    <input id="tok" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…">
+    <div class="row"><button class="primary" id="go">Unlock</button></div>
+    <div class="msg" id="err" role="alert"></div>
+    <div class="caution">Use a fine-grained token with <b>Contents: Read</b> on the board repository only ("Only select
+      repositories") and a short expiry. It is sent only to api.github.com and kept in this browser until you sign out.</div>
+  </div>
+
+  <div class="card" id="nosw" hidden>
+    <h1>Private board</h1>
+    <p>This browser cannot run the board: it needs service workers, which private or incognito windows in some browsers
+      (Firefox in particular) switch off. Open this page in a normal window.</p>
+  </div>
+</main>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const ENTRY = 'app/web/index.html';
+const LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+// a local test may point the board at a mock API (?api=http://localhost:PORT); the live site always uses GitHub's
+const API = (LOCAL && new URLSearchParams(location.search).get('api')) || 'https://api.github.com';
+
+function idb(mode, fn) {
+  return new Promise((resolve, reject) => {
+    const o = indexedDB.open('privboard', 1);
+    o.onupgradeneeded = () => o.result.createObjectStore('kv');
+    o.onerror = () => reject(o.error);
+    o.onsuccess = () => {
+      const tx = o.result.transaction('kv', mode), r = fn(tx.objectStore('kv'));
+      tx.oncomplete = () => resolve(r && r.result); tx.onerror = () => reject(tx.error);
+    };
+  });
+}
+const getCfg = () => idb('readonly', s => s.get('cfg')).catch(() => null);
+const setCfg = c => idb('readwrite', s => s.put(c, 'cfg'));
+const delCfg = () => idb('readwrite', s => s.delete('cfg'));
+
+async function gh(c, path) {
+  return fetch(`${c.api}/repos/${c.repo}${path}`, { headers: { Authorization: `Bearer ${c.token}`, Accept: 'application/vnd.github+json' }, cache: 'no-store' });
+}
+async function check(c) {
+  let r;
+  try { r = await gh(c, ''); } catch (e) { throw new Error('GitHub could not be reached. Check the connection and try again.'); }
+  if (r.status === 401) throw new Error('Token rejected: it is invalid, revoked or expired.');
+  if (r.status === 403 && r.headers.get('x-ratelimit-remaining') === '0') throw new Error('GitHub API rate limit reached for this token; it resets within the hour.');
+  if (!r.ok) throw new Error(`This token cannot see ${c.repo}. On the token's page set Resource owner to ${c.repo.split('/')[0]} and Repository access to `
+    + `"Only select repositories" with this one chosen, and grant Contents: Read. Check the owner/name spelling too.`);
+  const repo = await r.json(), ref = repo.default_branch || 'main';
+  const t = await gh(c, `/git/trees/${encodeURIComponent(ref)}`);
+  if (!t.ok) throw new Error(`${c.repo} is visible, but its files are not: grant the token Contents: Read (Metadata alone is not enough).`);
+  // a board repository carries board.json at its root; anything else (e.g. the board's source code) is refused here
+  // rather than opening an empty page (2026-10-12)
+  const root = (await t.json()).tree || [];
+  if (!root.some(x => x.path === 'board.json')) throw new Error(`${c.repo} has no board in it (no board.json at its root). `
+    + `Check the repository name: it is the repository the board is published to, not the one with its source code.`);
+  return ref;
+}
+function within(p, ms, what) {
+  return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(`Timed out ${what}.`)), ms))]);
+}
+async function swReady() {
+  await within(navigator.serviceWorker.register('./sw.js', { scope: './', updateViaCache: 'none' }), 20e3, 'starting the board in this browser');
+  const reg = await within(navigator.serviceWorker.ready, 20e3, 'starting the board in this browser');
+  reg.active?.postMessage({ type: 'reset' });
+  return reg;
+}
+// Ask the worker to open the board's first page before navigating, so a failure is explained here, not a blank page.
+async function probe(reg, say) {
+  say('Opening the board…');
+  const ch = new MessageChannel();
+  const answer = new Promise(res => { ch.port1.onmessage = e => res(e.data); });
+  reg.active.postMessage({ type: 'probe', path: 'web/index.html' }, [ch.port2]);
+  const r = await within(answer, 75e3, 'opening the board');
+  if (!r || !r.ok) throw new Error((r && r.error) || 'The board could not be opened.');
+  return r;
+}
+async function go(say) {
+  const reg = await swReady();
+  await probe(reg, say);
+  location.href = ENTRY;
+}
+async function showSigned(c) {
+  $('#gate').hidden = true; $('#signed').hidden = false;
+  $('#who').textContent = c.repo;
+  $('#snap').textContent = '';
+  try {
+    const r = await gh(c, `/commits/${encodeURIComponent(c.ref || 'main')}`);
+    if (r.ok) {
+      const j = await r.json(), d = new Date(j.commit.committer.date);
+      $('#snap').textContent = 'Snapshot of ' + d.toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    } else if (r.status === 401) {
+      $('#smsg').className = 'msg err'; $('#smsg').textContent = 'The saved token was rejected (expired or revoked). Sign out and unlock with a new one.';
+    }
+  } catch (e) {}
+}
+function showGate(msg) {
+  $('#signed').hidden = true; $('#gate').hidden = false;
+  $('#err').textContent = msg || '';
+  $('#repo').focus();
+}
+
+$('#go').onclick = async () => {
+  const repo = $('#repo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '').replace(/\/$/, '');
+  const token = $('#tok').value.trim();
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { $('#err').textContent = 'Enter the repository as owner/name.'; return; }
+  if (!token) { $('#err').textContent = 'A token is required.'; return; }
+  const b = $('#go'); b.disabled = true; $('#err').className = 'msg'; $('#err').textContent = 'Checking…';
+  const c = { repo, token, api: API };
+  try {
+    c.ref = await check(c);
+    await setCfg(c);
+    $('#tok').value = '';
+    await go(t => { $('#err').className = 'msg'; $('#err').textContent = t; });
+  } catch (e) {
+    $('#err').className = 'msg err'; $('#err').textContent = e.message;
+  } finally { b.disabled = false; }
+};
+$('#tok').addEventListener('keydown', e => { if (e.key === 'Enter') $('#go').click(); });
+$('#repo').addEventListener('keydown', e => { if (e.key === 'Enter') $('#tok').focus(); });
+$('#open').onclick = async () => {
+  const b = $('#open'); b.disabled = true;
+  try { await go(t => { $('#smsg').className = 'msg'; $('#smsg').textContent = t; }); }
+  catch (e) { $('#smsg').className = 'msg err'; $('#smsg').textContent = 'Could not open the board: ' + e.message; b.disabled = false; }
+};
+$('#out').onclick = async () => {
+  await delCfg().catch(() => {});
+  try { await caches.delete('privboard-blobs-v1'); } catch (e) {}
+  try { const reg = await navigator.serviceWorker.getRegistration('./'); if (reg) { reg.active?.postMessage({ type: 'reset' }); await reg.unregister(); } } catch (e) {}
+  showGate('Signed out: the token and the cached board are gone from this browser.');
+  $('#err').className = 'msg ok';
+};
+
+(async () => {
+  $('#boot').hidden = true;
+  if (!('serviceWorker' in navigator) || !window.indexedDB) { $('#nosw').hidden = false; return; }
+  const c = await getCfg();
+  if (c && c.repo && c.token) showSigned(c); else showGate();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mountain and friction torque, with a live forecast · Shawn Corvec</title>
+<meta name="description" content="How mountain and friction torques trade angular momentum between the Earth and the atmosphere, how to read torque maps, and live IFS-ENS forecasts by range.">
+<link rel="canonical" href="https://scorvec.com/topics/mountain-torque.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="author" content="Shawn Corvec">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Mountain and friction torque, with a live forecast">
+<meta property="og:description" content="How mountain and friction torques trade angular momentum between the Earth and the atmosphere, how to read torque maps, and live IFS-ENS forecasts by range.">
+<meta property="og:url" content="https://scorvec.com/topics/mountain-torque.html">
+<meta property="og:image" content="https://scorvec.com/assets/sst/torque_timeseries.webp">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "TechArticle",
+   "@id": "https://scorvec.com/topics/mountain-torque.html#article",
+   "headline": "Mountain torque and friction torque",
+   "name": "Mountain and friction torque, with a live forecast",
+   "description": "How mountain and friction torques trade angular momentum between the Earth and the atmosphere, how to read torque maps, and live IFS-ENS forecasts by range.",
+   "url": "https://scorvec.com/topics/mountain-torque.html",
+   "mainEntityOfPage": "https://scorvec.com/topics/mountain-torque.html",
+   "inLanguage": "en",
+   "author": {
+    "@id": "https://scorvec.com/#person"
+   },
+   "publisher": {
+    "@id": "https://scorvec.com/#person"
+   },
+   "dateModified": "2026-10-16",
+   "about": {
+    "@type": "DefinedTerm",
+    "name": "Mountain torque",
+    "alternateName": [
+     "mountain torque",
+     "friction torque",
+     "frictional torque",
+     "surface torque",
+     "torque budget",
+     "atmospheric angular momentum budget",
+     "gravity wave drag torque"
+    ]
+   },
+   "keywords": "Mountain torque, mountain torque, friction torque, frictional torque, surface torque, torque budget, atmospheric angular momentum budget, gravity wave drag torque",
+   "image": [
+    "https://scorvec.com/assets/sst/torque_timeseries.webp",
+    "https://scorvec.com/assets/sst/torque_ranges.webp"
+   ],
+   "citation": [
+    "Weickmann, K. M., and P. D. Sardeshmukh, 1994: The atmospheric angular momentum cycle associated with a Madden–Julian oscillation. J. Atmos. Sci., 51, 3194–3208.",
+    "Lott, F., A. W. Robertson, and M. Ghil, 2004: Mountain torques and Northern Hemisphere low-frequency variability. Part I: Hemispheric aspects. J. Atmos. Sci., 61, 1259–1271.",
+    "Egger, J., K. Weickmann, and K.-P. Hoinka, 2007: Angular momentum in the global atmospheric circulation. Rev. Geophys., 45, RG4007.",
+    "Hersbach, H., and co-authors, 2020: The ERA5 global reanalysis. Q. J. R. Meteorol. Soc., 146, 1999–2049."
+   ]
+  },
+  {
+   "@type": "BreadcrumbList",
+   "itemListElement": [
+    {
+     "@type": "ListItem",
+     "position": 1,
+     "name": "Home",
+     "item": "https://scorvec.com/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 2,
+     "name": "Explainers",
+     "item": "https://scorvec.com/topics/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 3,
+     "name": "Mountain torque",
+     "item": "https://scorvec.com/topics/mountain-torque.html"
+    }
+   ]
+  }
+ ]
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css?v=aeb29dffe4">
+<script src="/assets/site.js?v=fe84a7e3e0" defer></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous"></script>
+<style>
+  body { background: var(--c-bg, #f5f6f3); color: var(--c-ink, #29321f); margin: 0; }
+  .topic { font-size: clamp(1rem, 0.92rem + 0.22vw, 1.14rem); max-width: clamp(46rem, 32rem + 22vw, 60rem); margin: 0 auto; padding: 2rem clamp(1rem, 4vw, 3rem) 3.5rem; }   /* the column widens with the window: ~810 px up to a 1120 px window, ~880 at 1440 px, ~985 at 1920, 60rem max; 18-20 px text, ~90-100 characters a line */
+  .ai-note { font-size: 0.9em; line-height: 1.5; margin: 0 0 1.3rem; padding: 0.65rem 0.95rem; background: var(--c-panel, #eef1ea); border-left: 3px solid var(--c-accent, #274b7a); border-radius: 0 4px 4px 0; }
+  .topic figcaption, .figs figcaption { font-size: clamp(0.88rem, 0.84rem + 0.15vw, 0.95rem); }   /* a step below the text (site.css pins rem) */
+  .topic .crumbs { font-size: 0.92em; color: var(--c-muted, #5c6b73); margin-bottom: 1.2rem; }
+  .topic .crumbs a { color: inherit; }
+  .topic h1 { text-align: left; margin: 0 0 0.4rem; }
+  .topic .aka { color: var(--c-muted, #5c6b73); font-size: 0.95em; margin: 0 0 1.6rem; }
+  .topic h2 { margin: 2.2rem 0 0.7rem; text-align: left; }
+  .topic p, .topic li { line-height: 1.6; }
+  .topic ul { padding-left: 1.2rem; }
+  .topic li { margin: 0.45rem 0; }
+  .topic a { color: var(--c-accent, #274b7a); text-underline-offset: 0.2em; }
+  .topic .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
+  .figs { max-width: clamp(62rem, 48rem + 22vw, 76rem); margin: 1.6rem auto 0; padding: 0 clamp(1rem, 4vw, 3rem); }   /* wider than the text, and widening with it: the live charts are dense */
+  .figs figure { margin: 0 0 2rem; }
+  .figs img { display: block; width: auto; max-width: 100%; height: auto; margin: 0 auto; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }   /* never wider than the file */
+  .figs iframe { display: block; width: 100%; aspect-ratio: 16 / 10; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
+  .figs figcaption { color: var(--c-muted, #5c6b73); margin-top: 0.5rem; }
+  .live { display: inline-block; margin: 0.6rem 0 0; font-weight: 600; }
+  .related { border-top: 1px solid var(--c-rule, #dfe3dc); margin-top: 2.6rem; padding-top: 1.2rem; }
+  .related ul { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.6rem; }
+  .refs { font-size: 0.95em; }
+  .refs li { margin: 0.4rem 0; }
+  .byline { color: var(--c-muted, #5c6b73); font-size: 0.92em; margin-top: 2.2rem; }
+  .hub-list { list-style: none; padding: 0; }
+  .hub-list li { border-top: 1px solid var(--c-rule, #dfe3dc); padding: 1rem 0; margin: 0; }
+  .hub-list a { font-family: var(--f-serif); font-size: 1.3em; text-decoration: none; }
+  .hub-list a:hover { text-decoration: underline; }
+  .hub-list p { margin: 0.3rem 0 0; color: var(--c-muted, #5c6b73); }
+</style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
+</head>
+<body>
+<!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Mid-latitude weather</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div class="sh-col">
+              <div>
+                <h3>Surface and hazards</h3>
+                <ul>
+                  <li><a href="/models.html">Short-range model maps</a></li>
+                  <li><a href="/ar.html">Atmospheric rivers</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Upper air</h3>
+                <ul>
+                  <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                  <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                  <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1"><span class="sh-lf">Global circulation and tropics</span><span class="sh-ls">Circulation/tropics</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div class="sh-col">
+              <div>
+                <h3>ENSO and the MJO</h3>
+                <ul>
+                  <li><a href="/enso.html">El Niño monitor</a></li>
+                  <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+                  <li><a href="/circulation.html#gdps_ir">Simulated satellite (GDPS)</a></li>
+                  <li><a href="/mjo.html">MJO forecast</a></li>
+                  <li><a href="/tropical-waves.html">Tropical waves</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tropical cyclones</h3>
+                <ul>
+                  <li><a href="/circulation.html#tcshear">Shear and environment</a></li>
+                  <li><a href="/recon.html">Hurricane reconnaissance</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Jets and momentum</h3>
+                <ul>
+                  <li><a href="/circulation.html#jets">Subtropical jets</a></li>
+                  <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tropical overturning</h3>
+                <ul>
+                  <li><a href="/circulation.html#walker">Walker circulation</a></li>
+                  <li><a href="/circulation.html#hadley">Hadley cells</a></li>
+                  <li><a href="/circulation.html#hbranch">Hadley outflow and descent</a></li>
+                  <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                  <li><a href="/circulation.html#gdps150">Upper-level outflow (GDPS)</a></li>
+                  <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+                  <li><a href="/circulation.html#rainfc">Rain forecast, weeks 1–2</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols sh-menu--one" id="sh-g2">
+            <div class="sh-col">
+              <div>
+                <h3>By timescale</h3>
+                <ul>
+                  <li><a href="/stratosphere.html">Every stratosphere product</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div class="sh-col">
+              <div>
+                <h3>Extended range</h3>
+                <ul>
+                  <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                  <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+                  <li><a href="/sfs-subseasonal.html">SFS extended (experimental)</a></li>
+                  <li><a href="/monthly-outlook.html">Claude's month-ahead forecast</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Seasons</h3>
+                <ul>
+                  <li><a href="/seasonal.html">Seasonal model forecasts</a></li>
+                  <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div class="sh-col">
+              <div>
+                <h3>Studies</h3>
+                <ul>
+                  <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                  <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                  <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
+                  <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
+                  <li><a href="/topics/">Explainers</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Verification</h3>
+                <ul>
+                  <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+              <li><a href="/fci.html">US credit conditions</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main id="main">
+<article class="topic">
+  <p class="crumbs"><a href="/">Home</a> › <a href="/topics/">Explainers</a> › Mountain torque</p>
+  <p class="ai-note"><b>Made with Claude Code.</b> This explainer is a just-for-fun project: researched, coded and written entirely by Claude, Anthropic's AI model, working in Claude Code, to show what today's AI models can do with open meteorological data. It has not been peer reviewed.</p>
+  <h1>Mountain torque and friction torque</h1>
+  <p class="aka">Also called: mountain torque, friction torque, frictional torque, surface torque, torque budget, atmospheric angular momentum budget</p>
+<p>The atmosphere's angular momentum about the Earth's axis changes only through <b>torques</b> exerted at the
+surface. Three act: <b>friction torque</b>, the drag of the surface on the wind; <b>mountain torque</b>, the pressure
+difference across mountain ranges pushing on the topography; and the <b>gravity-wave drag</b> torque from terrain too
+small for a model to resolve. Whatever angular momentum the atmosphere gains, the solid Earth loses, which is why
+atmospheric angular momentum tracks the measured length of day.</p>
+
+<h2>The equations</h2>
+<p>$$\frac{dM}{dt} = T_F + T_M + T_{GW}$$</p>
+<p>$$T_M = -a^2\!\iint p_s\,\frac{\partial h}{\partial\lambda}\,\cos\phi\;d\lambda\,d\phi
+= a^2\!\iint h\,\frac{\partial p_s}{\partial\lambda}\,\cos\phi\;d\lambda\,d\phi$$</p>
+<p>$$T_F = a^3\!\iint \tau_\lambda\cos^2\!\phi\;d\lambda\,d\phi$$</p>
+<p>Here $M$ is the atmosphere's angular momentum, $p_s$ the surface pressure, $h$ the surface height, $a$ the Earth's
+radius and $\tau_\lambda$ the eastward surface stress acting on the atmosphere. The two forms of $T_M$ are equal by
+integration by parts around each latitude circle. Torques are quoted in Hadleys: 1 Hadley = 10<sup>18</sup> N m.</p>
+
+<h2>How to read it</h2>
+<ul>
+<li><b>Mountain torque</b>: high pressure on the west side of a range and low pressure on its east side pushes the
+mountain eastward, so the mountain pushes the atmosphere westward. The atmosphere loses westerly momentum; this is a
+braking event. The reverse pattern (low to the west, high to the east) adds westerly momentum. Because the pressure
+pattern moves with the weather, mountain torque changes within days, and the Rockies, the Tibetan Plateau and the
+Andes carry most of it.</li>
+<li><b>Friction torque</b> follows the surface winds: the easterly trade winds gain westerly momentum from the
+surface, and the mid-latitude westerlies lose it. It changes more slowly, over weeks, as the wind belts shift.</li>
+<li>Large mountain-torque events tend to come before changes in the jet downstream and in the global angular
+momentum. On this site's own test (ERA5, Hersbach et al., 2020; December–February 1991–2020), a positive Himalayan torque
+anomaly is followed 3 to 12 days later by a more extended North Pacific jet, most strongly after about six days (correlation
+about 0.2, significant at a 10% false discovery rate).</li>
+</ul>
+
+<h2>The live forecast</h2>
+<p>The friction and mountain torques are computed from the 50 members of ECMWF's physics-based IFS ensemble for days
+1–15, each day's mean, as anomalies from the ERA5 1991–2020 climatology for the same time of year. Friction is the
+model's own surface stress, which its open data carry; the climatology is ERA5's stress through drag coefficients
+fitted cell by cell and month by month to it. Anomalies are used on purpose: the absolute budget cannot be
+closed. ERA5's own terms sum to −11 ± 0.6 Hadleys in the annual mean (sampled four times a day, 1991–2020) where the answer must be
+zero; the reanalysis adds angular momentum at every assimilation cycle, and the resolved
+mountain torque changes with grid spacing. Both errors sit in the mean and cancel in an anomaly. The open forecast
+data carry no gravity-wave stress, so that term stays in the residual between the net torque and the actual change in
+angular momentum.</p>
+<p>The forecast is IFS-ENS's rather than the AI ensemble's because its budget closes. A separate study tests whether a
+forecast's own torques account for its change in angular momentum:
+<a href="/aifs-aam-budget.html">does an AI weather model conserve angular momentum?</a> In winter 2025–26 (lead by lead, without correction for the 15 leads tested) the AIFS
+ensemble's own torques explained 72% of its day-to-day change in angular momentum on days 1–10 and 11% on days 11–15;
+the IFS ensemble's explained 89% at every lead.</p>
+  <a class="live" href="/circulation.html#torque">Open the surface torque product in the circulation viewer</a>
+</article>
+<div class="figs">
+<figure><iframe data-src="/sst_anim.html?embed=1&amp;manifest=torque_manifest.json&amp;region=torque" title="Friction and mountain torque-density anomalies, IFS-ENS days 1–15"></iframe><figcaption>Friction and mountain torque-density anomalies, IFS-ENS days 1–15. Use the controls to step through the forecast.</figcaption></figure>
+<figure><img src="/assets/sst/torque_timeseries.webp" alt="Global and hemispheric friction and mountain torque anomalies against the change in atmospheric angular momentum, IFS-ENS forecast" loading="lazy"><figcaption>The torques integrated over the globe and each hemisphere, against the actual change in angular momentum. Shading: ±1σ and ±2σ of the net anomaly in 1991–2020. The gap is the gravity-wave-drag torque, which the open data do not carry, and, hemisphere by hemisphere, transport across the equator.</figcaption></figure>
+<figure><img src="/assets/sst/torque_ranges.webp" alt="Mountain torque by mountain range: Rockies, Andes, Tibetan Plateau and others, IFS-ENS forecast" loading="lazy"><figcaption>Which mountain ranges are doing the work.</figcaption></figure>
+</div>
+<div class="topic" style="padding-top:0">
+  <section class="related"><h2>Related</h2><ul><li><a href="/topics/atmospheric-angular-momentum.html">Atmospheric angular momentum</a></li><li><a href="/topics/wave-activity-flux.html">Wave activity flux</a></li><li><a href="/topics/ep-flux.html">E–P flux</a></li><li><a href="/topics/">All explainers</a></li></ul></section>
+  <section><h2>References and further reading</h2><ol class="refs"><li>Weickmann, K. M., and P. D. Sardeshmukh, 1994: The atmospheric angular momentum cycle associated with a Madden–Julian oscillation. <i>J. Atmos. Sci.</i>, 51, 3194–3208.</li><li>Lott, F., A. W. Robertson, and M. Ghil, 2004: Mountain torques and Northern Hemisphere low-frequency variability. Part I: Hemispheric aspects. <i>J. Atmos. Sci.</i>, 61, 1259–1271.</li><li>Egger, J., K. Weickmann, and K.-P. Hoinka, 2007: Angular momentum in the global atmospheric circulation. <i>Rev. Geophys.</i>, 45, RG4007.</li><li>Hersbach, H., and co-authors, 2020: The ERA5 global reanalysis. <i>Q. J. R. Meteorol. Soc.</i>, 146, 1999–2049.</li></ol></section>
+  <p class="byline">Data: ECMWF open data: © 2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, CC BY 4.0, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use; ERA5: Copernicus Climate Change Service (C3S) / ECMWF, CC BY 4.0; contains modified Copernicus Climate Change Service information 2026; neither the European Commission nor ECMWF is responsible for any use of this information.</p>
+  <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/">Shawn Corvec</a>, meteorologist. The figures on this page are live and update with each forecast cycle; the text was last revised 2026-10-16.</p>
+</div>
+</main>
+<script>
+addEventListener("message", function (e) {
+  var x = e.data; if (!x || x.type !== "sstAnimHeight") return;
+  document.querySelectorAll(".figs iframe").forEach(function (f) {
+    if (f.contentWindow === e.source) { f.style.height = x.h + "px"; f.style.aspectRatio = "auto"; }
+  });
+});
+// The loop player loads once it is on screen, so no frames load in the background. Native
+// loading="lazy" starts an iframe 1250-2500 px before it is visible, i.e. on page open for most readers.
+(function () {
+  var q = document.querySelectorAll(".figs iframe[data-src]");
+  function load(f) { var d = f.getAttribute("data-src"); if (d) { f.setAttribute("src", d); f.removeAttribute("data-src"); } }
+  if (!("IntersectionObserver" in window)) { Array.prototype.forEach.call(q, load); return; }
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) { if (e.isIntersecting) { io.unobserve(e.target); load(e.target); } });
+  }, { rootMargin: "0px" });
+  Array.prototype.forEach.call(q, function (f) { io.observe(f); });
+})();
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

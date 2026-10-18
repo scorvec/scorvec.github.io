@@ -1,0 +1,25 @@
+# pip constraints for the Python 3.11 workflows (PIP_CONSTRAINT in each workflow's env), so a release upstream
+# cannot change or break a product without a commit here. They only bound versions: a package is installed only
+# where a requirements file or an install line asks for it. The versions are the ones those workflows resolved on
+# 2026-10-15/16 (their install logs); several are newer on Python 3.12, whose workflows resolve on their own.
+# matplotlib and cartopy stay pinned at the install lines and requirements files that depend on a version.
+cfgrib==0.9.15.1
+cftime==1.6.6.1
+dask==2026.8.0
+eccodes==2.50.0
+eccodeslib==2.50.0.32
+eckitlib==2.5.0.32
+h5netcdf==1.8.1
+h5py==3.16.0
+netCDF4==1.7.5
+numcodecs==0.16.5
+numpy==2.4.6
+pandas==3.0.6
+pillow==12.3.0
+pyproj==3.7.2
+pyshtools==4.14.1
+requests==2.34.2
+scipy==1.17.1
+shapely==2.2.0
+xarray==2026.9.0
+zarr==3.1.6

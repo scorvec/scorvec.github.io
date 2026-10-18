@@ -1,0 +1,83 @@
+name: AR weeks 3-5 (GEFS extended vs its reforecast climatology)
+
+# ar.html, extended section: weekly AR-frequency anomalies from the 31-member GEFS 00Z extended run against the
+# GEFSv12 reforecast 2000-2019 (release ar-clim-v1, built by ar-clim.yml), shaded only where significant (Mann-Whitney
+# U per cell, Benjamini-Hochberg FDR 10 %). GEFS days 17-35 publish the next day ~03-04 UTC; the job skips a cycle it
+# has already built. Fired by the dispatcher at 05:10 and 10:10.
+on:
+  schedule:
+    - cron: '10 5 * * *'
+    - cron: '10 10 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'GEFS 00Z cycle YYYYMMDD (blank = newest reaching 840 h)'
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ar-ext
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      MPLBACKEND: Agg
+      SST_SITE_ROOT: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: System libs
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+      - name: Skip a cycle already built
+        id: skip
+        run: |
+          D="${{ github.event.inputs.date }}"
+          if [ -z "$D" ]; then
+            D=$(python -c "import sys; sys.path.insert(0,'scripts/gefs'); import gefs_live; print(gefs_live.latest_cycle() or '')")
+          fi
+          HAVE=$(python -c "import json; print(json.load(open('assets/ar/ar_ext.json'))['init'][:10].replace('-',''))" 2>/dev/null || echo none)
+          echo "newest GEFS extended: '$D'; built: $HAVE"
+          if [ -z "$D" ]; then echo "::warning::no GEFS extended cycle reaching 840 h"; echo "go=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+          echo "date=$D" >> "$GITHUB_OUTPUT"
+          if [ "$D" = "$HAVE" ] && [ -z "${{ github.event.inputs.date }}" ]; then echo "go=0" >> "$GITHUB_OUTPUT"; else echo "go=1" >> "$GITHUB_OUTPUT"; fi
+      - name: Build
+        if: steps.skip.outputs.go == '1'
+        run: python scripts/ar/ar_ext.py live --date ${{ steps.skip.outputs.date }} --work /tmp/arx --procs 4
+      - name: Commit & push
+        if: steps.skip.outputs.go == '1'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/ar/ar_ext.json $(ls assets/ar/ext_*.webp 2>/dev/null | tr '\n' ' ')"
+          SNAP=$(mktemp -d); tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            for f in $OUT; do [ -e "$f" ] && git add "$f"; done
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "data update: AR weeks 3-5 ${{ steps.skip.outputs.date }}"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1

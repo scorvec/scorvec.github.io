@@ -1,0 +1,238 @@
+{
+ "test": "t-test on episode means, BH FDR 0.10 over the map",
+ "base": "ERA5 1991-2020, R1 regime days",
+ "regimes": {
+  "ea_cold": {
+   "NAO+": {
+    "t2m": {
+     "episodes": 187,
+     "days": 1553,
+     "frac_significant": 0.743,
+     "max_abs_significant": 2.74
+    },
+    "prcp": {
+     "episodes": 187,
+     "days": 1553,
+     "frac_significant": 0.643,
+     "max_abs_significant": 6.84
+    }
+   },
+   "Scandinavian blocking": {
+    "t2m": {
+     "episodes": 174,
+     "days": 1253,
+     "frac_significant": 0.64,
+     "max_abs_significant": 3.44
+    },
+    "prcp": {
+     "episodes": 174,
+     "days": 1253,
+     "frac_significant": 0.569,
+     "max_abs_significant": 4.53
+    }
+   },
+   "Atlantic ridge": {
+    "t2m": {
+     "episodes": 174,
+     "days": 1162,
+     "frac_significant": 0.578,
+     "max_abs_significant": 2.04
+    },
+    "prcp": {
+     "episodes": 174,
+     "days": 1162,
+     "frac_significant": 0.428,
+     "max_abs_significant": 3.66
+    }
+   },
+   "NAO\u2212 / Greenland blocking": {
+    "t2m": {
+     "episodes": 118,
+     "days": 924,
+     "frac_significant": 0.761,
+     "max_abs_significant": 4.18
+    },
+    "prcp": {
+     "episodes": 118,
+     "days": 924,
+     "frac_significant": 0.556,
+     "max_abs_significant": 4.77
+    }
+   }
+  },
+  "ea_warm": {
+   "NAO+": {
+    "t2m": {
+     "episodes": 178,
+     "days": 1342,
+     "frac_significant": 0.359,
+     "max_abs_significant": 1.73
+    },
+    "prcp": {
+     "episodes": 178,
+     "days": 1342,
+     "frac_significant": 0.401,
+     "max_abs_significant": 3.86
+    }
+   },
+   "Greenland high": {
+    "t2m": {
+     "episodes": 179,
+     "days": 1244,
+     "frac_significant": 0.735,
+     "max_abs_significant": 1.94
+    },
+    "prcp": {
+     "episodes": 179,
+     "days": 1244,
+     "frac_significant": 0.647,
+     "max_abs_significant": 2.23
+    }
+   },
+   "Scandinavian blocking": {
+    "t2m": {
+     "episodes": 173,
+     "days": 1139,
+     "frac_significant": 0.677,
+     "max_abs_significant": 2.32
+    },
+    "prcp": {
+     "episodes": 173,
+     "days": 1139,
+     "frac_significant": 0.566,
+     "max_abs_significant": 2.24
+    }
+   },
+   "European ridge": {
+    "t2m": {
+     "episodes": 172,
+     "days": 1112,
+     "frac_significant": 0.606,
+     "max_abs_significant": 2.04
+    },
+    "prcp": {
+     "episodes": 172,
+     "days": 1112,
+     "frac_significant": 0.512,
+     "max_abs_significant": 3.07
+    }
+   }
+  },
+  "na_cold": {
+   "Pacific trough": {
+    "t2m": {
+     "episodes": 173,
+     "days": 1503,
+     "frac_significant": 0.705,
+     "max_abs_significant": 5.25
+    },
+    "prcp": {
+     "episodes": 173,
+     "days": 1503,
+     "frac_significant": 0.391,
+     "max_abs_significant": 6.84
+    }
+   },
+   "Alaskan ridge": {
+    "t2m": {
+     "episodes": 166,
+     "days": 1278,
+     "frac_significant": 0.792,
+     "max_abs_significant": 5.43
+    },
+    "prcp": {
+     "episodes": 166,
+     "days": 1278,
+     "frac_significant": 0.315,
+     "max_abs_significant": 5.12
+    }
+   },
+   "Pacific ridge": {
+    "t2m": {
+     "episodes": 152,
+     "days": 1188,
+     "frac_significant": 0.772,
+     "max_abs_significant": 3.37
+    },
+    "prcp": {
+     "episodes": 152,
+     "days": 1188,
+     "frac_significant": 0.362,
+     "max_abs_significant": 3.09
+    }
+   },
+   "Greenland high": {
+    "t2m": {
+     "episodes": 122,
+     "days": 981,
+     "frac_significant": 0.265,
+     "max_abs_significant": 5.53
+    },
+    "prcp": {
+     "episodes": 122,
+     "days": 981,
+     "frac_significant": 0.036,
+     "max_abs_significant": 2.28
+    }
+   }
+  },
+  "na_warm": {
+   "Pacific trough": {
+    "t2m": {
+     "episodes": 180,
+     "days": 1242,
+     "frac_significant": 0.492,
+     "max_abs_significant": 2.84
+    },
+    "prcp": {
+     "episodes": 180,
+     "days": 1242,
+     "frac_significant": 0.312,
+     "max_abs_significant": 4.09
+    }
+   },
+   "Hudson Bay ridge": {
+    "t2m": {
+     "episodes": 173,
+     "days": 1074,
+     "frac_significant": 0.661,
+     "max_abs_significant": 2.52
+    },
+    "prcp": {
+     "episodes": 173,
+     "days": 1074,
+     "frac_significant": 0.202,
+     "max_abs_significant": 1.61
+    }
+   },
+   "Pacific ridge / Canadian trough": {
+    "t2m": {
+     "episodes": 157,
+     "days": 1130,
+     "frac_significant": 0.421,
+     "max_abs_significant": 2.36
+    },
+    "prcp": {
+     "episodes": 157,
+     "days": 1130,
+     "frac_significant": 0.09,
+     "max_abs_significant": 2.45
+    }
+   },
+   "Greenland high": {
+    "t2m": {
+     "episodes": 147,
+     "days": 1121,
+     "frac_significant": 0.587,
+     "max_abs_significant": 2.35
+    },
+    "prcp": {
+     "episodes": 147,
+     "days": 1121,
+     "frac_significant": 0.189,
+     "max_abs_significant": 2.33
+    }
+   }
+  }
+ }
+}

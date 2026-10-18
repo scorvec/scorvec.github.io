@@ -1,0 +1,199 @@
+name: AAM and torque budget (IFS-ENS)
+
+# Atmospheric angular momentum (main figure + run-to-run trend, zonal loop, phase) and its surface-torque budget
+# (loop, time series, ranges) from the 50 IFS-ENS members: a physics model, so the torques are its own (its surface
+# stress, ewss) and its budget closes, where AIFS-ENS's does not (aifs-aam-budget.html). u on 14 levels at daily
+# steps (~8.4 GB), sp 12-hourly and ewss daily (~1.2 GB), msl from the shared IFS surface batch, all from the Google
+# Cloud mirror. IFS-ENS day 15 reaches the mirror ~08:50Z / 20:55Z; the dispatcher fires this at 09:15 / 21:15
+# (scripts/lib/dispatch_workflows.sh) and the crons below are its backstop. Jets, the dynamic tropopause and the
+# tropical-cyclone products stay on AIFS-ENS in aam.yml.
+on:
+  schedule:
+    - cron: '15 9 * * *'
+    - cron: '15 21 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Cycle date YYYYMMDD (blank = latest IFS-ENS)'
+        default: ''
+      time:
+        description: 'Cycle hour, 00 or 12 (blank = latest)'
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aam-ifs
+  cancel-in-progress: false
+
+env:
+  ECMWF_SOURCES: google
+  ECMWF_MULTISOURCE: "0"
+  ECMWF_RPS_GOOGLE: "60"           # the ef files are in arrival order: many small ranges (see strat-ifs.yml)
+  ECMWF_RPS: "60"
+  ECMWF_RANGE_GAP_MB: "0.5"
+  MPLBACKEND: Agg
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  ERA5_STORE: /tmp/era5_store   # ARCO-ERA5 fields fetched on a miss (scripts/era5/era5_store.py); scratch on the runner
+  MJO_CACHE: /tmp/mjo_cache     # the builders' download cache (scripts/lib/localdirs.py); scratch on the runner
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      date: ${{ steps.cyc.outputs.date }}
+      time: ${{ steps.cyc.outputs.time }}
+      build: ${{ steps.done.outputs.build }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/ecmwf
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install the resolver's HTTP client
+        run: pip install --quiet requests
+      - name: Resolve cycle
+        id: cyc
+        working-directory: scripts/ecmwf
+        run: |
+          set -euo pipefail
+          D="${{ github.event.inputs.date }}"; T="${{ github.event.inputs.time }}"
+          if [ -z "$D" ] || [ -z "$T" ]; then
+            # the newest cycle whose every IFS-ENS step is on the Google mirror (scripts/ecmwf/cycles.py)
+            python cycles.py --profile ifs-ens --out /tmp/cyc || true
+            D=$(awk '{print $1}' /tmp/cyc 2>/dev/null || true)
+            T=$(awk '{print $2}' /tmp/cyc 2>/dev/null || true)
+          fi
+          if ! echo "$D" | grep -qE '^[0-9]{8}$' || ! echo "$T" | grep -qE '^(00|12)$'; then
+            echo "ERROR: no ready cycle (D='$D' T='$T') - see the resolver's lines above" >&2; exit 1
+          fi
+          echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"
+          echo "cycle: $D ${T}Z"
+      # Dispatches always build. A scheduled run builds only when main's torque_ranges.json is not already this cycle's.
+      - name: Already published?
+        id: done
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then echo "build=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          D="${{ steps.cyc.outputs.date }}"; want="${D:0:4}-${D:4:2}-${D:6:2}T${{ steps.cyc.outputs.time }}Z"
+          have=$(gh api "repos/$GITHUB_REPOSITORY/contents/assets/sst/data/torque_ranges.json?ref=main" \
+                   -H "Accept: application/vnd.github.raw+json" 2>/dev/null \
+                 | python -c "import json, sys; d = json.load(sys.stdin); print(d.get('init', '') if d.get('model') == 'IFS-ENS' else '')" 2>/dev/null || true)
+          if [ "$have" = "$want" ]; then
+            echo "main already carries the $want cycle; nothing to do"; echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "main has ${have:-no IFS-ENS torque_ranges.json}; building $want"; echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: check
+    if: needs.check.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      D: ${{ needs.check.outputs.date }}
+      T: ${{ needs.check.outputs.time }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: System libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+      - name: Free disk
+        run: |
+          free=$(df -BG --output=avail / | tail -1 | tr -dc 0-9)
+          if [ "${free:-0}" -lt 25 ]; then
+            sudo rm -rf /usr/share/dotnet /usr/local/lib/android /usr/local/.ghcup ${AGENT_TOOLSDIRECTORY:+"$AGENT_TOOLSDIRECTORY/CodeQL"} || true
+          fi
+          df -h / | tail -1
+
+      # A run checks out the commit it was triggered at; the archive and the two histories accumulate, so they are read
+      # from main as it is now, or a run queued behind another would lay a stale copy over its additions.
+      - name: The accumulating files as main has them now
+        run: |
+          git fetch -q --depth 1 origin main
+          for f in aam_forecast_archive_ifs.nc aam_history.nc aam_latband_history.nc; do
+            git checkout origin/main -- "scripts/mjo/data/reference/$f" 2>/dev/null || echo "  $f: not on main yet"
+          done
+
+      - name: AAM main figure + trend
+        working-directory: scripts/mjo
+        timeout-minutes: 60
+        run: |
+          python src/aam.py --date "$D" --time "$T" --out ../../assets/sst/aam.webp \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AAM main figure + trend"
+      - name: AAM zonal loop
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst/anim/aam_zonal
+          python src/aam_zonal.py --date "$D" --time "$T" \
+            --anim-dir ../../assets/sst/anim/aam_zonal --manifest ../../assets/sst/anim/aam_zonal_manifest.json \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AAM zonal loop"
+      - name: AAM phase figure
+        working-directory: scripts/mjo
+        run: |
+          python src/aam_phase.py --date "$D" --time "$T" --out ../../assets/sst/aam_phase.webp \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AAM phase figure"
+      - name: Torque budget (loop, time series, ranges)
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst/anim/torque
+          python src/torque_map_anim.py --date "$D" --time "$T" \
+            --anim-dir ../../assets/sst/anim/torque --manifest ../../assets/sst/anim/torque_manifest.json \
+            --ts-out ../../assets/sst/torque_timeseries.webp --ranges-out ../../assets/sst/torque_ranges.webp \
+            --series-out ../../assets/sst/data/torque_ranges.json \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Torque budget"
+
+      - name: Publish loop frames to the frames branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/aam_zonal assets/sst/anim/torque
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Snapshot the outputs, then commit them on a clean sync of origin/main each attempt (never a rebase).
+          # circulation.html is not snapshotted: the cache keys are re-stamped on main's current page each attempt.
+          CB=$(date -u +%Y%m%d%H%M)
+          OUT="assets/sst/aam.webp assets/sst/aam_trend.webp assets/sst/aam_phase.webp \
+               assets/sst/anim/aam_zonal_manifest.json assets/sst/anim/torque_manifest.json \
+               assets/sst/torque_timeseries.webp assets/sst/torque_ranges.webp assets/sst/data/torque_ranges.json \
+               scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive_ifs.nc \
+               scripts/mjo/data/reference/aam_latband_history.nc"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            perl -0pi -e "s/((?:aam|aam_trend|aam_phase|torque_timeseries|torque_ranges)\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
+            git add circulation.html
+            for f in $OUT; do [ -e "$f" ] && git add "$f"; done
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "data update: ${D}_${T}z (AAM, IFS-ENS)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+
+      - name: Summary
+        if: always()
+        run: scripts/lib/degraded.sh --summary

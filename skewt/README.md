@@ -1,0 +1,360 @@
+# Global Real-time & Archived Sounding Explorer
+
+**[scorvec.com/skewt](https://scorvec.com/skewt/)** — click any radiosonde station on Earth and get a
+full SHARPpy-grade sounding analysis: skew-T, hodograph, parcel theory, kinematics, severe-weather
+composites, and where every value ranks against that station's own climatology.
+
+Everything runs **client-side**. There is no backend, no API server, and no compute bill: the physics
+is NWS SPC's [SHARPlib](https://github.com/keltonhalbert/SHARPlib) compiled to WebAssembly and executed
+in your browser tab. The only server-side work is a set of scheduled jobs that mirror data and
+precompute climatologies.
+
+---
+
+## 1. Data sources
+
+A sounding can come from seven places. The app walks them in order of *freshness*, and the status line
+always names the one you're looking at, so you're never guessing.
+
+| Source | Coverage | Latency | Resolution | CORS |
+|---|---|---|---|---|
+| **SPC observed** (`spc.noaa.gov/exper/soundings`) | US | Fastest — ~1 h post-synoptic | ~110–200 levels | ✅ |
+| **IEM RAOB** (`mesonet.agron.iastate.edu`) | US + Canada | ~1 h behind SPC | ~180–250 levels | ✅ |
+| **ECCC MSC Datamart** (`dd.weather.gc.ca`, Environment and Climate Change Canada) | Canada, ~29 stations | ~1 h after launch to 100 hPa, ~2 h entire | Native ~1-s BUFR (3–7k levels) | — (via the mirror) |
+| **WMO WIS 2.0 Global Cache** (`s3://wis2globalcache`, AWS Open Data) | Global, ~550 stations/day | ~2 h after launch | Mostly high-res BUFR | — (via the mirror) |
+| **WMO GTS TEMP** (text) via WIS 2.0 | Services sending no BUFR (most of Africa, parts of Asia) | ~2 h after launch | Standard + significant levels (~30–80) | — (via the mirror) |
+| **Mirror** (IEM + ECCC + WIS 2.0 real time, on `skewt-data`) | Global | hourly | As received, thinned to 260 | ✅ (raw.githubusercontent) |
+| **NOAA IGRA v2** (`ncei.noaa.gov`) | Global, 1905–present | ~1–2 day lag | Mandatory + significant levels | ✅ |
+
+### The physics floor on "real-time"
+
+A radiosonde is *launched* at 00Z/12Z, but the balloon takes **~1.5–2 hours** to ascend and transmit.
+No source on Earth has a complete 12Z sounding before ~13:30 UTC. "Real-time" for soundings means
+*as soon as the atmosphere finishes reporting itself* — not at 12:00 sharp.
+
+Within that floor, **SPC is the fastest public source**, which is why it's tried first for US stations
+even though it carries slightly fewer levels than IEM. Once IEM catches up it offers a
+higher-resolution profile of the same launch.
+
+### Why there is a mirror at all
+
+The map needs to know, in one small file, which stations launched recently — and the explorer must
+work outside North America, where no CORS-open real-time feed exists. A GitHub Action
+(`scripts/skewt/mirror_soundings.py`, hourly, honest User-Agent) builds that file:
+
+- **North America, real time:** the Iowa Environmental Mesonet RAOB JSON, *one* request per launch
+  hour for all stations (each hour slot asked at most 2–3 times, ≥121 s apart for IEM's crawl delay).
+- **Canada, real time:** Environment and Climate Change Canada's MSC Datamart,
+  `dd.weather.gc.ca/YYYYMMDD/WXO-DD/bulletins/alphanumeric/YYYYMMDD/IU/<CCCC>/<HH>/` (reception date and
+  hour; one directory per station, e.g. `CWSE` = Stony Plain 71119). `IUK` = the station's native ~1-s
+  BUFR ascent to 100 hPa (~1 h after launch), `IUS` = the entire ascent (~2 h), `CCA`… = corrections;
+  `IUW`/`IUJ` (PILOT winds) are skipped. Only today's and yesterday's directories are polled, a station
+  directory is re-listed only when its mtime changed, an hour directory until it is final, and per launch
+  only a file that outranks what was already fetched is downloaded (≤ 200 listings / 90 GETs per run;
+  ~1–2 KB per listing, 70–150 KB per file). Manifest entries get `src: "ECCC"` / `by: "ECCC"`.
+  Data Source: Environment and Climate Change Canada, under the
+  [ECCC Data Servers End-use Licence](https://eccc-msc.github.io/open-data/licence/readme_en/).
+- **Precedence** per station and launch hour: the richest file wins (all of T, Td, wind and height; then
+  more levels; then the later correction), a coarser file never replaces a richer one, ECCC wins a tie
+  with a WIS2 relay of the same bulletin, IEM keeps North America against WIS2, and ECCC and IEM compete on
+  richness (in practice IEM carries no Canadian station).
+- **Rest of the world, real time:** the WMO WIS 2.0 Global Cache on AWS Open Data (anonymous S3,
+  ~72 h retention). Each run lists the DWD and JMA GTS gateways' `I/U/S` and `I/U/K` radiosonde trees
+  and ~25 national centres' `.../surface-based-observations/temp/` topics (~36 ListObjects), GETs only
+  keys not seen before (≤ 200 per run, byte-identical gateway copies fetched once), decodes the BUFR
+  with ecCodes and keeps, per station and nominal launch hour, the richest QC-passed message (TEMP
+  parts merge). Manifest entries get `src: "WIS2"`, `by` (originating centre; `HUB@FIPS` when a GTS hub
+  relayed another country's sounding) and `hx` per launch; `centres` names them. IEM keeps North
+  America: WIS2 never overwrites an IEM file. Core data under the WMO Unified Data Policy; the
+  originating national service is credited per sounding.
+- **Text TEMP (TAC), real time:** services that send no BUFR (most of Africa: South Africa FAPR, Egypt HECA,
+  Niger, Senegal, Cameroon…; some of Asia) still put FM-35 TEMP on the GTS, which DWD's WIS 2.0 gateway
+  republishes under `data/de-dwd-gts-to-wis2/data/core/U/{S,K,L,E}/` (parts A, B, C, D). The mirror lists
+  those four trees (~8 ListObjects), GETs only unseen bulletins ≥ 50 bytes (smaller ones are NIL),
+  decodes TTAA/TTBB/TTCC/TTDD (standard + significant levels, tropopause, max wind, 21212 winds; knots vs
+  m/s from YY+50; multi-station; CCx corrections) and merges the parts per station and nominal hour (also
+  with a part written by an earlier run). Used ONLY where no BUFR/IEM/ECCC file holds the station-hour;
+  `src: "TAC"`, `by: "TAC:<CCCC>"`. PPBB (PILOT winds by height) is not decoded. Argentina (SABM) sends
+  NIL TEMPs only (2026-10-07), so its stations have no recent data from any source.
+- **Stations neither feed carries, ~1 day behind — on demand:** the mirror downloads NO IGRA data. It reads only
+  the y2d directory listing at `ncei.noaa.gov/pub/data/igra/data/data-y2d/` (one ~0.2 MB request, at
+  most every 3 h) and remembers each file's size; a file that grew at NCEI's daily update (~21:40 UTC)
+  holds new launches, so that station is listed with `src: "IGRA"`, `dt: null` and `upd` (the update
+  time) and drawn teal, never live. Opening it makes the BROWSER fetch that one station's year-to-date
+  zip from NCEI (CORS-open, ~0.2–3 MB) and show the newest launch.
+
+It force-pushes the last 96 h of IEM and WIS2 launches to the `skewt-data` branch, which `raw.githubusercontent.com`
+serves CORS-open (the parentless push is seeded with the previous tip, so only new files upload). Complete UTC
+days of the IEM launches (two days back, once IEM's late stations are in) are additionally bundled
+into `day-YYYYMMDD.zip` on an append-only `skewt-archive` branch that the browser fetches and unzips
+client-side with `fflate`.
+
+### Off-hour launches
+
+Synoptic launches are 00Z and 12Z, but stations also release at 06Z/18Z and at genuinely odd hours
+(a 15Z special ahead of severe weather). The mirror asks IEM about every hour of the last day and keeps a
+per-station list of the launches it actually holds (`hours` in the manifest), so the explorer's
+controls are built from launches that exist rather than a fixed 00/12 pair: the **launch strip**
+under the station name lists the mirror's window (specials in purple), the hour chips in archive
+mode show only the hours with a launch on that date, and ◀ ▶ step from launch to launch.
+
+### Archive mode resolution order
+
+`per-launch mirror (last 4 days)` → `day bundle` → `NOAA IGRA v2`
+
+So recent dates load instantly from small files, and anything older comes from IGRA's mandatory and
+significant levels — which reaches back to the 1930s–40s for many stations (Fort Worth's record
+begins in **September 1937**).
+
+---
+
+## 2. The analysis engine
+
+[SHARPlib](https://github.com/keltonhalbert/SHARPlib) (Kelton Halbert, NWS Storm Prediction Center
+lineage) is compiled with Emscripten into `sharplib.wasm` (~250 KB). The same `compute_sounding()`
+entry point is used by **both** the browser and the offline climatology builder, so a live value and
+its historical percentile are computed by *identical code* — never two implementations that might
+drift apart.
+
+**Computed per sounding**
+
+| Group | Values |
+|---|---|
+| Parcels | SB/ML/MU — CAPE, **ECAPE**, CINH, LCL, LI, LFC, EL |
+| Kinematics | shear (0–1, 0–6 km, effective), SRH (0–1, 0–3 km, effective), effective inflow layer, Bunkers RM/LM (fixed **and** effective-layer), Corfidi up/downshear, critical angle, DTM |
+| Composites | EHI, SCP, STP, SHIP, max updraft (ECAPE vs undilute), ECAPE/CAPE |
+| Thermo & moisture | DCAPE, 0–3 km CAPE, NCAPE, PWAT (mm and inches), lapse rates, **column RH (CRH)**, mid-level RH, PBL top |
+| Moist static energy | boundary-layer *h*, minimum *h\**, MSE deficit, column ∫h dp/g |
+| Levels | 850/700/500 hPa T/Td, 500 hPa height, 1000–500 thickness, freezing level, wet-bulb zero, **tropopause** (WMO + cold point) |
+| Winter | **dendritic growth zone** (with RH), Kuchera snow ratio, snow squall parameter, **precip type** (Bourgouin) |
+
+---
+
+## 3. ECAPE — entraining CAPE
+
+**This is the headline parameter, and it's worth understanding why.**
+
+### The problem with classic CAPE
+
+Textbook CAPE lifts a parcel **undilute** — as if it were sealed in a bag, never mixing with the air
+it rises through. Real updrafts are not sealed. They entrain drier environmental air across their
+edges, which evaporates cloud water, cools the parcel, and destroys buoyancy. This is why a sounding
+showing 3000 J/kg of CAPE routinely fails to produce a 77 m/s updraft: most of that buoyancy is
+never realized.
+
+Undilute CAPE therefore systematically **overstates** the energy actually available to a storm, and
+it overstates it *unevenly* — the error depends on the wind profile and the storm's size, so two
+soundings with identical CAPE can behave completely differently.
+
+### What ECAPE does
+
+**ECAPE** (Peters et al., 2023, *J. Atmos. Sci.* — "An analytic formula for entraining CAPE") derives
+the entrainment rate from theory rather than a tuned fudge factor. The key insight is that an
+updraft's dilution depends on its **width**, and its width is set by the **storm-relative wind and
+shear** — so ECAPE is a function of the *thermodynamic* profile **and** the *kinematic* profile
+together. Stronger storm-relative inflow and deeper shear support a wider, more protected updraft
+core, which entrains proportionally less and preserves more buoyancy.
+
+This is why SHARPlib's signature takes winds and a moist-static-energy profile, not just temperature
+and dewpoint:
+
+```cpp
+float entrainment_cape(const float pressure[], const float height[],
+                       const float temperature[], const float mse_arr[],
+                       const float u_wind[], const float v_wind[],
+                       const std::ptrdiff_t N, Parcel* pcl);
+```
+
+ECAPE is **usually below CAPE**, and the gap between them is physically meaningful — it is the buoyancy
+the atmosphere promises but entrainment takes away. The analytic form (Peters et al. 2023) also carries a
+storm-relative inflow term and is not clamped here, so in strongly sheared, vigorous-inflow environments
+the ratio can exceed 1 (see methodology.html; gridded HRRR ECAPE is on models.html, HRRR → ECAPE / CAPE).
+
+### The flavors
+
+ECAPE is defined **per lifted parcel**, exactly like CAPE, so there are three of them. The Parcels
+table shows CAPE and ECAPE side by side for each:
+
+| Parcel | Meaning |
+|---|---|
+| **SB-ECAPE** | Surface-based — a parcel lifted from the surface |
+| **ML-ECAPE** | Mixed-layer — the lowest 100 hPa mixed, the most representative for most convection |
+| **MU-ECAPE** | Most-unstable — the parcel with the greatest buoyancy, used for elevated convection |
+
+### Derived quantities (Composites column)
+
+| Quantity | Formula | What it tells you |
+|---|---|---|
+| **Max updraft (ECAPE)** | √(2·ECAPE) | The realistic entrainment-limited updraft speed |
+| **Max updraft (CAPE)** | √(2·CAPE) | The classic undilute speed — shown for contrast |
+| **Entrainment efficiency** | ECAPE / CAPE | Fraction of buoyancy surviving mixing |
+
+Both updraft speeds are theoretical ceilings that ignore water loading and the perturbation pressure
+gradient, so real updrafts fall short of even the ECAPE value. The point is not the absolute number
+but the **ratio**: an entrainment efficiency of 55% means nearly half the advertised CAPE is fiction.
+
+### Caveats
+
+- ECAPE **requires wind data**. A sounding with a broken wind profile yields no meaningful ECAPE.
+- ECAPE is **zero when CAPE is zero** — this is a real value, not a missing one (see §4).
+- Corfidi MCS vectors (`mcs_motion_corfidi`) are computed and shown in the Kinematics table, but kept
+  off the hodograph — extra arrows cost more legibility than they buy.
+
+### Moist static energy — the quantity underneath it all
+
+ECAPE is built on **moist static energy**, so the explorer reports it directly (the *Moist static
+energy* table under the plots):
+
+**h = cp·T + g·z + Lv·q**
+
+MSE is *conserved* under both dry and moist adiabatic ascent — a parcel carries its h upward
+unchanged, whether or not it's condensing. That makes it the natural currency for convection.
+
+Two profiles matter:
+
+- **h** — the actual moist static energy of the air at each level.
+- **h\*** — the **saturation** MSE: what h *would* be if that level were saturated. It depends
+  only on temperature and pressure, so it's a property of the environment, not its moisture.
+
+A parcel lifted from the boundary layer conserves its h. It is **buoyant wherever its h exceeds the
+environment's h\*** — the layer where BL h > h\* is precisely the layer that generates CAPE, and
+the gap between them *is* the instability. (An h / h\* profile panel used to sit beside the
+hodograph; it was retired in favour of larger skew-T and hodograph plots, and the table below
+carries the numbers.)
+
+The scalars in the table:
+
+| Value | Meaning |
+|---|---|
+| **MSE (0–500 m)** | Boundary-layer h — the energy a surface parcel carries aloft |
+| **Min saturation MSE** | The lowest h\* aloft (usually mid-levels) — the "dry hole" a parcel must survive, with its height |
+| **MSE deficit (h\*−h)** | Negative ⇒ the BL parcel out-energizes the mid-levels ⇒ conditionally unstable |
+| **Column MSE** | The vertical integral (1/g)∫h dp, in GJ/m² — the column's total moist energy, the state variable of tropical MSE-budget theory |
+
+A worked example (Fort Worth, 2026-07-11 12Z): BL h = 344.1 kJ/kg against a minimum h\* of
+337.6 kJ/kg at 4.3 km — a deficit of **−6.5 kJ/kg**, i.e. the boundary layer carries more energy than
+the mid-troposphere can hold at saturation. That gap is the sounding's CAPE, expressed in energy
+terms.
+
+---
+
+## 4. Climatology — how the percentiles are built
+
+Every station's **entire period of record** is downloaded from IGRA (up to ~90 MB per station, back to
+the 1930s), every historical sounding is analyzed, and the results are reduced to **percentile
+breakpoints** (1/5/10/25/50/75/90/95/99) plus **record extremes with their year** at 73 day-of-year
+anchors (±10-day windows), **separately for 00Z and 12Z**. A sounding ranks only against launches at its
+own synoptic hour; launches more than 3 h from 00Z and 12Z are left out and not ranked. The result is one
+small JSON per station on the `skewt-climo` branch, which the browser fetches on demand.
+
+Indices ranked: PWAT, 850/700/500 hPa temperature, 500 hPa height, 1000–500 thickness, freezing level,
+**ECAPE**, **SHIP** (the JSON also carries K-index and Total Totals, which the UI no longer shows).
+
+### Reading the colour shading
+
+A value is marked **only when it is genuinely unusual**. Anything between the 10th and 90th percentile
+is left plain — a "P53" badge says nothing, and tinting every row would drown the cases that matter.
+
+| What you see | Meaning |
+|---|---|
+| plain text | 10th–90th percentile: unremarkable for this station on this day of the year |
+| **red tint** + `P93` | above the 90th percentile |
+| **blue tint** + `P4` | below the 10th percentile |
+| **★ + year** | an outright record, with the year it was set |
+
+The tint ramps *within the tail* (P91 is a whisper, P99 is loud), so intensity tracks how extreme the
+value really is rather than merely its distance from the median. Hovering gives the exact percentile.
+Nothing is flagged unless the index has **≥30 samples** in the window — a "record" from four soundings
+is noise.
+
+### The climatology panel
+
+The **📊 Climatology** button charts the full annual cycle of any ranked variable:
+
+| Element | Meaning |
+|---|---|
+| inner band | 25th–75th percentile (the middle half of all soundings) |
+| outer band | 10th–90th percentile |
+| pale line | median |
+| red envelope | the **record high** for each day of the year |
+| blue envelope | the **record low** |
+| gold dot | the sounding on display, on its own day of the year |
+
+The gap between the bands and the envelopes is itself the story: where they hug, the station is
+well-behaved; where the envelope flares far above the 90th percentile, the station is capable of rare
+and violent excursions.
+
+### Record watch (the map)
+
+A **red ring** around a live station means its latest sounding is beyond the 5th/95th percentile for
+some index; the hover tooltip names which. (Gold rings mean *selected* — a different thing entirely.)
+
+### Two methodological decisions that matter
+
+**(a) A non-convective sounding has ECAPE of *zero*, not "missing."**
+It is tempting to record ECAPE only when a parcel has positive CAPE. That is wrong: it makes the
+climatology *conditional on convective days*, so the "10th percentile ECAPE" describes only the days
+convection happened. Resistencia, Argentina had 51 such samples in January against 2,007 for PWAT —
+the percentiles were meaningless. Valid soundings with no CAPE now correctly contribute zeros, which
+is what makes a statement like "this is a 95th-percentile ECAPE day" mean anything.
+
+**(b) Never fabricate missing data — gate on it instead.**
+Radiosonde reporting is far from uniform. Much of South America reports temperature on ~99% of levels
+but **dewpoint on only ~39%**, with as few as 12 levels per sounding. Filling those gaps with
+plausible-looking guesses (a constant dewpoint depression, evenly spaced heights) silently produces
+confident, wrong numbers — it manufactured absurd 0.5 mm precipitable-water values and destroyed CAPE
+across an entire continent.
+
+The builder now **refuses to invent data**. A sounding is used only if it has a real surface dewpoint,
+reaches at least 400 hPa, and reports dewpoint on ≥60% of levels below 400 hPa. Genuine gaps *within*
+a qualifying profile are interpolated in log-pressure (heights hypsometrically), never guessed from a
+rule of thumb. Soundings that don't qualify are skipped rather than fudged.
+
+The cost is a smaller sample; the benefit is that the sample is real. Each index stores its own `n`,
+and the record watch ignores any index with fewer than 30 samples in that month.
+
+---
+
+## 5. Architecture
+
+```
+skewt/
+  index.html      page shell, dark theme, map-first layout
+  app.js          everything: sources, parsers, WASM bridge, skew-T + hodograph, climo UI
+  sharplib.{js,wasm}   SHARPlib compiled by Emscripten
+  stations.json   2,704 IGRA stations (pruned to those with real data files)
+  iem_raob.json   WMO → ICAO map (290 US/Canada sites)
+
+scripts/skewt/
+  skewt_wasm.cpp    C++ wrapper — the single source of truth for the physics
+  climo_cape.cpp    native build of the SAME wrapper, for the climatology
+  build_climo.py    per-station climatology builder
+  flag_anomalies.py record-watch: compares each latest sounding to its climatology
+  mirror_soundings.py  recent-launch mirror (IEM + ECCC MSC Datamart + WMO WIS 2.0 BUFR + GTS TEMP text real time; NOAA IGRA v2 listing only)
+
+branches (data, served CORS-open via raw.githubusercontent.com)
+  skewt-data     latest soundings + manifest + anomalies.json   (force-pushed hourly)
+  skewt-archive  day-YYYYMMDD.zip day bundles                    (append-only, grows forever)
+  skewt-climo    climo/{gid}.json per-station climatology        (rebuilt on methodology change)
+```
+
+## 6. Known limitations
+
+- **Not for operational use.** This is a personal research tool.
+- Climatology is built for **active stations** (~915). Long-closed stations have no percentiles.
+- CAPE-derived climatologies (ECAPE, SHIP) rest on fewer samples than level diagnostics, because they
+  require complete, quality-gated soundings. Check `n` before leaning on a percentile.
+- IGRA's historical vertical resolution is coarser than modern BUFR, so a 1960 hodograph is
+  genuinely less detailed than today's — not a rendering artifact.
+- SPC coverage is US-only; Canada comes from ECCC's MSC Datamart (~1–2 h after launch); the rest of the world comes from the WMO WIS 2.0
+  Global Cache (~2 h after launch). Stations that publish nothing to WIS 2.0 (~120 of the IGRA-active
+  ones in the 2026-10-06 survey) still come from NOAA IGRA v2's daily update, about a day old.
+
+---
+
+*Built by Claude (Anthropic), directed by Shawn Corvec. Physics by SHARPlib (K. Halbert, NWS SPC).
+Data from NOAA/NWS SPC; the Iowa Environmental Mesonet (IEM), Iowa State University; Data Source:
+Environment and Climate Change Canada (MSC Datamart, under the ECCC Data Servers End-use Licence); the WMO WIS 2.0
+Global Cache (AWS Open Data; core data under the WMO Unified Data Policy, originating national
+meteorological services credited per sounding); and NOAA National Centers for Environmental
+Information, Integrated Global Radiosonde Archive v2 (IGRA).*

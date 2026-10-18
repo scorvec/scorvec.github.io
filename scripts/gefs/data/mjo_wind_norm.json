@@ -1,0 +1,7 @@
+{
+ "pc_wind_std": [
+  7.092626,
+  6.858524
+ ],
+ "source": "scripts/mjo/data/reference/eofs.nc pc_wind_std (the wind-only RMM's per-mode normaliser); copied here because the GEFS job checks out scripts/gefs only"
+}

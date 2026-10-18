@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude&rsquo;s month-ahead forecast &mdash; Shawn Corvec</title>
+<meta name="description" content="A statistical outlook for next month's mean 500 hPa height and 2 m temperature over the Northern Hemisphere, issued on the 15th from ERA5 alone: trend, ENSO, QBO and vortex regression, SST constructed analogues, persistence and analogue years, with cross-validated hindcast skill.">
+<link rel="canonical" href="https://scorvec.com/monthly-outlook.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Claude's month-ahead forecast">
+<meta property="og:description" content="Next month's 500 hPa height and 2 m temperature anomalies over the Northern Hemisphere from a cross-validated statistical scheme built by Claude, blended with the 35-day GEFS forecast.">
+<meta property="og:url" content="https://scorvec.com/monthly-outlook.html">
+<meta property="og:image" content="https://scorvec.com/assets/monthly/latest_t2m.webp">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/outlook.css?v=9f59b995d1">
+<style>
+  /* monthly-outlook.html: the statistical month-ahead outlook (scripts/monthly/, monthly-outlook.yml); page rules on
+     top of /assets/outlook.css. Everything that changes month to month is filled from assets/monthly/data/. */
+  main { max-width: min(94vw, 1500px); }
+  .chart-stack a, .method-note a, .page-header a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); }
+  .disc { padding: 0.9rem 1.4rem 0.4rem; }
+  .disc p { font-size: 0.9rem; color: var(--ink2); line-height: 1.75; margin: 0 0 0.85rem; max-width: 110ch; }
+  .disc b { color: var(--ink); font-weight: 600; }
+  .note { border-left: 3px solid var(--accent); background: var(--accent-light); padding: 0.7rem 1rem; margin: 0 0 1rem; }
+  table.rec { border-collapse: collapse; font-size: 0.84rem; margin: 0.4rem 0 1rem; font-variant-numeric: tabular-nums; }
+  table.rec th, table.rec td { padding: 0.35rem 0.75rem; border-bottom: 1px solid var(--rule); text-align: right; }
+  table.rec th:first-child, table.rec td:first-child { text-align: left; }
+  table.rec th { font-weight: 600; color: var(--ink); background: #faf9f6; }
+  .tblwrap { overflow-x: auto; padding: 0 1.4rem 0.6rem; }
+  .method-note { margin-top: 1.6rem; }
+  .ctl { display: flex; flex-wrap: wrap; gap: 0.2rem 0.6rem; padding: 0.7rem 0 0; }
+  .ctl .fig-toggle { padding: 0 0.6rem 0.5rem 1.4rem; }
+  #outlook .img-wrap img { max-height: 92vh; }
+  table.rec td small { color: var(--muted); }
+  #img_main { cursor: zoom-in; }
+  @media (max-width: 600px) { .chips .chip .v { font-size: 1.2rem; } }
+  .method-note h2 { font-family: var(--serif); font-weight: 500; font-size: 1.2rem; margin: 1.4rem 0 0.5rem; }
+  .method-note p { font-size: 0.88rem; color: var(--ink2); line-height: 1.75; margin: 0 0 0.85rem; max-width: 120ch; }
+  .method-note b { color: var(--ink); font-weight: 600; }
+</style>
+<link rel="stylesheet" href="/assets/site.css?v=aeb29dffe4">
+<script src="/assets/site.js?v=fe84a7e3e0" defer></script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
+</head>
+<body>
+
+<!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Mid-latitude weather</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div class="sh-col">
+              <div>
+                <h3>Surface and hazards</h3>
+                <ul>
+                  <li><a href="/models.html">Short-range model maps</a></li>
+                  <li><a href="/ar.html">Atmospheric rivers</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Upper air</h3>
+                <ul>
+                  <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                  <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                  <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1"><span class="sh-lf">Global circulation and tropics</span><span class="sh-ls">Circulation/tropics</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div class="sh-col">
+              <div>
+                <h3>ENSO and the MJO</h3>
+                <ul>
+                  <li><a href="/enso.html">El Niño monitor</a></li>
+                  <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+                  <li><a href="/circulation.html#gdps_ir">Simulated satellite (GDPS)</a></li>
+                  <li><a href="/mjo.html">MJO forecast</a></li>
+                  <li><a href="/tropical-waves.html">Tropical waves</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tropical cyclones</h3>
+                <ul>
+                  <li><a href="/circulation.html#tcshear">Shear and environment</a></li>
+                  <li><a href="/recon.html">Hurricane reconnaissance</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Jets and momentum</h3>
+                <ul>
+                  <li><a href="/circulation.html#jets">Subtropical jets</a></li>
+                  <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tropical overturning</h3>
+                <ul>
+                  <li><a href="/circulation.html#walker">Walker circulation</a></li>
+                  <li><a href="/circulation.html#hadley">Hadley cells</a></li>
+                  <li><a href="/circulation.html#hbranch">Hadley outflow and descent</a></li>
+                  <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                  <li><a href="/circulation.html#gdps150">Upper-level outflow (GDPS)</a></li>
+                  <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+                  <li><a href="/circulation.html#rainfc">Rain forecast, weeks 1–2</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols sh-menu--one" id="sh-g2">
+            <div class="sh-col">
+              <div>
+                <h3>By timescale</h3>
+                <ul>
+                  <li><a href="/stratosphere.html">Every stratosphere product</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#pv">Now: analyses and observations</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#vortex">Next two weeks</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#s5vortex">Season</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#shwinters">History and studies</a></li>
+                  <li class="sh-subitem"><a href="/stratosphere.html#qbo">QBO tracker</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3" aria-current="page">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div class="sh-col">
+              <div>
+                <h3>Extended range</h3>
+                <ul>
+                  <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                  <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+                  <li><a href="/sfs-subseasonal.html">SFS extended (experimental)</a></li>
+                  <li><a href="/monthly-outlook.html" aria-current="page">Claude's month-ahead forecast</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Seasons</h3>
+                <ul>
+                  <li><a href="/seasonal.html">Seasonal model forecasts</a></li>
+                  <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div class="sh-col">
+              <div>
+                <h3>Studies</h3>
+                <ul>
+                  <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                  <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                  <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
+                  <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
+                  <li><a href="/topics/">Explainers</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Verification</h3>
+                <ul>
+                  <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+              <li><a href="/fci.html">US credit conditions</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+
+<main id="main">
+  <div class="page-header">
+    <p class="eyebrow">Next month, issued on the 15th: ERA5 statistics and GEFS</p>
+    <h1>Claude&rsquo;s month-ahead forecast</h1>
+    <p class="sub">The coming calendar month's mean <b>2&nbsp;m temperature</b>, <b>precipitation</b> and
+    <b>500&nbsp;hPa height</b> over the Northern Hemisphere, as expected anomalies against the <b>1991&ndash;2020
+    normal</b> and as tercile probabilities. The method was designed and built by Claude (Anthropic's AI model) and
+    runs unattended on the 15th of every month. Its core is a statistical forecast that reads no dynamical model: five
+    empirical components &mdash; the trend, a RONI, QBO and polar-vortex regression, a constructed analogue on the
+    tropical oceans, local persistence of temperature, sea ice, snow and soil moisture, and the closest analogue
+    years &mdash; are blended with weights learned from a cross-validated hindcast back to 1981. That statistical
+    forecast is then blended with the whole 35-day GEFS run of the 15th, which reaches the 18th or 19th of the target
+    month, wherever the 2000&ndash;2019 GEFS reforecast shows the blend beats it, and each forecast is scored
+    against ERA5 and against the C3S multi-system seasonal forecast once its month is over. More from the models on the
+    <a href="/seasonal.html">seasonal page</a> and the <a href="/subseasonal.html">GEPS</a> and
+    <a href="/gefs.html">GEFS</a> outlooks.</p>
+    <div class="chips">
+      <div class="chip"><div class="l">target</div><div class="v" data-k="target">&ndash;</div><div class="s">calendar-month mean</div></div>
+      <div class="chip"><div class="l">issued</div><div class="v" data-k="issued">&ndash;</div><div class="s" data-k="window">predictors</div></div>
+      <div class="chip"><div class="l">hindcast ACC, 2&nbsp;m temp</div><div class="v" data-k="acc_t2m">&ndash;</div><div class="s" data-k="sub_t2m">20&ndash;90N, cross-validated</div></div>
+      <div class="chip"><div class="l">hindcast ACC, precip</div><div class="v" data-k="acc_prcp">&ndash;</div><div class="s" data-k="sub_prcp">20&ndash;90N, cross-validated</div></div>
+      <div class="chip"><div class="l">hindcast ACC, 500&nbsp;hPa</div><div class="v" data-k="acc_z500">&ndash;</div><div class="s" data-k="sub_z500">20&ndash;90N, cross-validated</div></div>
+    </div>
+  </div>
+
+  <div class="chart-stack">
+    <section class="chart-card" id="outlook">
+      <div class="chart-card-header">
+        <h2>The forecast: <span data-k="target_label">&ndash;</span></h2>
+        <p><b>Expected anomaly</b>: the forecast monthly-mean anomaly; on the height map the contours are the total
+        monthly-mean 500&nbsp;hPa height (normal plus anomaly, every 6&nbsp;dam). Its amplitudes are those of an
+        expected value, always smaller than any single month's anomaly. <b>Tercile probabilities</b>: the chance that
+        the month falls in the upper or lower third of its 1991&ndash;2020 record at each point, from that point's own
+        climatology shifted by the forecast and narrowed by the hindcast's error; shaded where one of the two is the
+        most likely category and reaches 40&nbsp;% (CPC's convention), and equal chances where the hindcast has no
+        significant skill. With the <b>skill mask</b> on, the map is faded and hatched where the hindcast of this
+        calendar month has no significant skill (one-sided test, false-discovery rate 10&nbsp;% across the map): read
+        those areas as &ldquo;no better than the normal&rdquo;; with it off, the probabilities are shown raw. Click a
+        map to open it full size.</p>
+      </div>
+      <div class="ctl">
+        <div class="fig-toggle" data-sel="var"><button type="button" class="on" data-v="t2m">2 m temperature</button><button type="button" data-v="prcp">Precipitation</button><button type="button" data-v="z500">500 hPa height</button></div>
+        <div class="fig-toggle" data-sel="reg"><button type="button" class="on" data-v="nh">Hemisphere</button><button type="button" data-v="na">North America</button><button type="button" data-v="eu">Europe</button></div>
+        <div class="fig-toggle" data-sel="kind"><button type="button" class="on" data-v="anom">Expected anomaly</button><button type="button" data-v="prob">Tercile probabilities</button></div>
+        <div class="fig-toggle" data-sel="mask"><button type="button" class="on" data-v="on">Skill mask on</button><button type="button" data-v="off">Skill mask off</button></div>
+      </div>
+      <div class="img-wrap"><img id="img_main" alt="Claude's month-ahead forecast map"></div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">Data: ERA5 (Copernicus Climate Change Service, ECMWF) via the WeatherBench&nbsp;2 and ARCO-ERA5 copies on Google Cloud; MERRA-2 (NASA GMAO) for the 10&nbsp;hPa vortex history &middot; method and code: scripts/monthly/</span>
+        <span class="chart-updated" data-k="stamp">&ndash;</span>
+      </div>
+    </section>
+
+    <section class="chart-card" id="discussion">
+      <div class="chart-card-header"><h2>Discussion</h2>
+        <p>Written from the numbers behind the maps each month; a forecaster's note, when there is one, comes first.</p></div>
+      <div class="disc" id="disc"><p>Loading&hellip;</p></div>
+    </section>
+
+    <section class="chart-card" id="guidance" hidden>
+      <div class="chart-card-header"><h2>Statistical forecast and GEFS</h2>
+        <p>The statistical forecast, the 35-day GEFS run of the 15th (31 members): its forecast of the target month's
+        days it reaches and, for temperature, its &ldquo;lead-in&rdquo; (the days before the month), and the blend.
+        The blend's weights come from the 2000&ndash;2019 GEFS reforecast, at each point and smoothed over about
+        2500&nbsp;km, fitted against the whole month, so they also say how much of each part carries into the monthly
+        mean; the blend is issued only where it beat the statistical forecast in that cross-validated hindcast. The
+        scores and weights above each map are on those same years, all against the whole month.</p></div>
+      <div class="fig-toggle" data-fig="blend"><button type="button" class="on" data-v="t2m">2 m temperature</button><button type="button" data-v="prcp">Precipitation</button><button type="button" data-v="z500">500 hPa height</button></div>
+      <div class="img-wrap"><img id="img_blend" alt="Statistical forecast, the GEFS run's two parts and the blend"></div>
+    </section>
+
+    <section class="chart-card" id="components">
+      <div class="chart-card-header"><h2>How the statistical forecast is built</h2>
+        <p>Each component's forecast multiplied by its consolidation weight at each point, and their sum (the outlook,
+        before the skill mask). The weights come from a non-negative regression of the observed anomalies on the five
+        components' cross-validated hindcasts, smoothed over about 2500&nbsp;km; a component that never helped in a
+        region gets no weight there.</p></div>
+      <div class="fig-toggle" data-fig="comp"><button type="button" class="on" data-v="t2m">2 m temperature</button><button type="button" data-v="prcp">Precipitation</button><button type="button" data-v="z500">500 hPa height</button></div>
+      <div class="img-wrap"><img id="img_comp" alt="Weighted contribution of each component to the outlook"></div>
+    </section>
+
+    <section class="chart-card" id="skill">
+      <div class="chart-card-header"><h2>Hindcast skill for this calendar month</h2>
+        <p>Left: the correlation between the cross-validated forecast and ERA5 at each point over the hindcast years;
+        the black line encloses the skill that is significant. Middle: <b>skill beyond the trend</b>, the mean-square
+        skill score of the forecast against the trend component used alone, so positive values are what the other
+        four components add to &ldquo;it will be as warm as the trend says&rdquo;. Right: the hemispheric anomaly
+        correlation (20&ndash;90N) of each year's forecast, with the trend alone as a line, and the ranked probability
+        skill score (RPSS) of the tercile probabilities against climatology. Every hindcast year is forecast as it
+        would have been on the 15th, with that year and its neighbours withheld from every training step.</p></div>
+      <div class="fig-toggle" data-fig="skill"><button type="button" class="on" data-v="t2m">2 m temperature</button><button type="button" data-v="prcp">Precipitation</button><button type="button" data-v="z500">500 hPa height</button></div>
+      <div class="img-wrap"><img id="img_skill" alt="Cross-validated hindcast skill of the outlook"></div>
+    </section>
+
+    <section class="chart-card" id="record">
+      <div class="chart-card-header"><h2>Record</h2>
+        <p>Every issued forecast, scored once its month is over against ERA5 over 20&ndash;90N: the anomaly
+        correlation (ACC) of the forecast; the same for the trend component alone (what &ldquo;it will be warmer than
+        1991&ndash;2020&rdquo; scores by itself) and for the <b>C3S multi-system mean</b>, the eight dynamical seasonal
+        models issued two days earlier, at the same target month (2&nbsp;m temperature and precipitation; C3S
+        publishes no 500&nbsp;hPa height anomalies); and the RPSS of the tercile probabilities. The benchmarks are
+        yardsticks only: nothing from them enters the forecast.</p></div>
+      <div class="tblwrap" id="rec"><p class="chart-sources">Loading&hellip;</p></div>
+    </section>
+  </div>
+
+  <section class="method-note" id="method">
+    <h2>How it is built</h2>
+    <p><b>Timing.</b> The outlook for month <i>M</i> is issued on the 15th of month <i>M</i>&minus;1. Its predictors are
+    ERA5 means over the ~30 days that end on the 7th of <i>M</i>&minus;1 (from the 8th of <i>M</i>&minus;2): ERA5's
+    preliminary release (ERA5T) trails real time by about six days, so on the 15th that window is always complete.
+    The lead from the end of the predictors to the middle of the target month is about five and a half weeks. The
+    hindcast reproduces exactly this timing for every year.</p>
+    <p><b>Data.</b> ERA5 500&nbsp;hPa height, 2&nbsp;m temperature, precipitation, SST, sea ice, snow depth, topsoil
+    moisture and 50&nbsp;hPa wind at 00, 06, 12 and 18&nbsp;UTC (precipitation as 6-hour totals, and from 2023 as
+    hourly totals every 3 hours, which match the full totals to a correlation of 0.997), 1959 onward: the WeatherBench&nbsp;2 1.5&deg; copy to 2022 and
+    the ARCO-ERA5 0.25&deg; store from 2023 (ERA5, then ERA5T), both box-averaged onto 3&deg; cells and kept as
+    half-month means (days 1&ndash;7 and 8 to the month's end). The two sources were compared over 2022, which both
+    hold: the hemispheric differences are 0.6&nbsp;m in 500&nbsp;hPa height and 0.3&nbsp;K in 2&nbsp;m temperature
+    (larger along steep coasts and mountains, from the different regridding), and that 2022 difference is removed
+    from the ARCO years month by month.</p>
+    <p><b>The five components.</b>
+    <b>Trend</b>: at each point, the linear trend of the anomaly of the three months centred on the target month
+    over the 30 years before the target year, extrapolated to that year. Only past years enter, so it is a forecast
+    the same way in the hindcast as in real time, and the part of each year's anomaly explained by relative
+    Ni&ntilde;o-3.4 is removed before the line is fitted: a run of La Ni&ntilde;a winters at the end of the window
+    would otherwise be extrapolated as climate change.
+    <b>RONI, QBO and vortex regression</b>: the detrended target-month anomaly regressed on four indices of the
+    predictor window: relative Ni&ntilde;o-3.4 (the Ni&ntilde;o-3.4 SST anomaly minus the 20S&ndash;20N mean, the
+    quantity behind CPC's RONI; van Oldenborgh et&nbsp;al. 2021) split into its El Ni&ntilde;o and La Ni&ntilde;a
+    halves, because the two teleconnections are not mirror images; the equatorial zonal-mean wind at 50&nbsp;hPa
+    (the QBO); and the 57&ndash;63N zonal-mean wind at 50&nbsp;hPa (the lower polar vortex).
+    <b>Tropical constructed analogue</b> (Van den Dool 1994): the window's detrended SST and rainfall anomalies
+    between 20S and 20N (each scaled to the same total variance) are written as a ridge-regularised combination of
+    every library year's, and the same weights combine those years' detrended target-month anomalies. It carries
+    ENSO's flavour, the Indian Ocean and the tropical Atlantic together, and the rainfall is the heating that
+    actually drives the teleconnections: adding it raised the 500&nbsp;hPa hindcast correlation in all four months
+    tested (on average from 0.13 to 0.15) and precipitation's from 0.13 to 0.15. Only the tropics are used: there the
+    ocean drives the atmosphere through convection, while poleward of about 20&deg; most of an SST anomaly is the
+    footprint of the circulation that made it (the PDO follows the Aleutian low, the Atlantic tripole the NAO), so it
+    would mostly re-encode atmospheric persistence.
+    <b>Local persistence</b>: at each point, the detrended target anomaly regressed on the window's anomaly of the
+    same field; for 2&nbsp;m temperature also on the window's sea-ice concentration, snow depth and topsoil
+    moisture, the surface memory that lets a warm Arctic sea, an early snowpack or a dry spring carry into the next
+    month, and for precipitation on topsoil moisture (a surface predictor with negligible anomalies at a point is
+    left out there).
+    <b>Analogue years</b>: the eight library years whose window state is closest &mdash; relative Ni&ntilde;o-3.4,
+    the QBO, the vortex, the leading tropical SST patterns and the leading hemispheric 500&nbsp;hPa patterns &mdash;
+    and the mean of their detrended target-month anomalies.</p>
+    <p><b>A larger library.</b> The regression and persistence components are trained on the target month pooled
+    with its two neighbours (each with its own predictor window and anomalies), so every coefficient rests on about
+    200 cases instead of about 65; the constructed analogue and the analogue years use the target month alone,
+    which scored better for them.</p>
+    <p><b>Detrending.</b> &ldquo;Detrended&rdquo; means the anomaly minus a tricube local-linear fit (20-year
+    half-width) of the 3-month anomaly through the record. That fit sees the target year's own value and its
+    neighbours, the one place where the hindcast is not strictly out of sample; its effect is on the slow part only,
+    which the trend component (strictly past-only) carries.</p>
+    <p><b>Consolidation.</b> At every point, a non-negative least-squares regression of the observed anomaly on the
+    five components' hindcasts, with the normal equations smoothed by a 2500&nbsp;km Gaussian and damped toward zero,
+    so the weights vary only on large scales and shrink the outlook where the components did not verify. Because
+    the components and the weights are fitted on the hindcast, the skill shown is cross-validated twice over: each
+    hindcast year's components leave out that year and its neighbours, and its consolidation weights leave out that
+    year.</p>
+    <p><b>GEFS guidance.</b> GEFS runs to 35 days from 00Z every day, so the run of the 15th reaches the 18th or 19th
+    of the target month (the 21st of March). The whole run is used, as two predictors: its ensemble-mean forecast of
+    the target month's days it reaches, and of its days before the month (the lead-in, the state the month starts
+    from; temperature only, below). Both are the <a href="/gefs.html">GEFS page</a>'s own anomalies (against the model's 2000&ndash;2019
+    reforecast climatology at the same start date and lead, which removes its drift and bias, re-based to
+    1991&ndash;2020 with ERA5; 500&nbsp;hPa height with its global mean removed), its weekly means weighted by how
+    many of each window's days they hold. The hindcast is the 2000&ndash;2019 GEFSv12 reforecast (four members, the
+    Wednesday start nearest the 15th of each year, so the target window is 15 to 21 days long, 18 on average;
+    anomalies against the other years), reduced the same way. At each point the blend is a non-negative regression
+    of the observed monthly anomaly on the statistical forecast and the run's two parts, fitted on those 20 years
+    and smoothed over about 2500&nbsp;km, and cross-validated the same way as everything else (each year's weights
+    without that year). Stopping the target window at day 15 scored the same. The lead-in earned weight only for
+    temperature (about 0.09), where the persistence of what the run lays down before the month helps a little; for
+    height and precipitation it earned little (0.06, 0.02) and made the blend slightly worse, so it is left out of
+    those. The statistical forecast's weight is pulled toward 1, since it is already
+    calibrated on its own 1981-onward hindcast: refitted freely on 20 years it fell to about 0.3, a sampling accident
+    of those years that would have damped the whole forecast, and the anchored fit scored as well or better. Over
+    the twelve calendar months the blend raised the hindcast's temperature anomaly correlation on those years from
+    0.20 to 0.30 (RPSS 0.02 to 0.06), the 500&nbsp;hPa height's from 0.08 to 0.14 and precipitation's from 0.12 to
+    0.15 (its mean-square error fell by under 1&nbsp;%). It is issued for a variable only when it beats the
+    statistical forecast on those years; its probabilities then use the statistical forecast's error spread scaled
+    by the blend's error ratio, and its skill mask adds the points where the blend's own 20-year hindcast is
+    significant. The live run has 31 members, the reforecast four, so the live GEFS signal is cleaner than the one
+    the weights were fitted on and the blend leans toward the statistical forecast a little more than it needs to.
+    If no GEFS run of the 12th&ndash;15th is available, the statistical forecast is issued alone.</p>
+    <p><b>Probabilities.</b> Each point's tercile boundaries are the 33rd and 67th percentiles of its 1991&ndash;2020
+    monthly anomalies. The forecast distribution is that point's own 1991&ndash;2020 climatology, shifted by the
+    forecast anomaly and narrowed by the hindcast's error relative to the climatological spread, so a skill-less
+    forecast of zero is exactly climatology (a third each) and a skewed variable such as precipitation keeps its
+    skew. Where the hindcast has no significant skill the probabilities are set to equal chances, as CPC does; without
+    that, precipitation's probabilities scored below climatology (RPSS &minus;0.03), and with it they do no harm
+    (about 0.00) while temperature keeps nearly all of its +0.06 to +0.16. The hindcast RPSS is computed the same
+    way, each year's equal-chances mask and error spread fitted without that year. With the skill mask off, the
+    probability maps show the raw probabilities.</p>
+    <p><b>Skill beyond the trend.</b> Much of any monthly forecast's correlation now comes from warming alone, so the
+    skill figures also score the forecast against the trend component used by itself: a mean-square skill score
+    above zero is what the other four components add.</p>
+    <p><b>Benchmark.</b> Once its month is over, each forecast is scored beside the C3S multi-system seasonal
+    forecast issued in the same month (the eight systems' ensemble means at lead month 2, which is the same target
+    month, from the tables the <a href="/seasonal.html">seasonal page</a> keeps), moved to the 1991&ndash;2020 base
+    with ERA5. C3S publishes no 500&nbsp;hPa height anomalies, so it is compared on temperature and precipitation.
+    Nothing from it enters the forecast.</p>
+    <p><b>Tested and left out.</b> Every candidate was run through the same cross-validated hindcast and kept only if
+    it helped.
+    <i>The MJO</i>: an RMM index built from ERA5 1979&ndash;2022 on the site's own Wheeler&ndash;Hendon EOFs
+    (correlation 0.97 with the reference RMM). Its state in the week before issue lowered the skill slightly, and even
+    a <i>perfect</i> 15-day MJO forecast (the observed index over days 15&ndash;29) added only about +0.01 to the
+    500&nbsp;hPa correlation in December to February and nothing to temperature: its teleconnections reach only the
+    first week or two of the target month and wash out of the monthly mean, and the slower part of the tropical
+    heating is already in the constructed analogue's rainfall.
+    <i>The 10&nbsp;hPa vortex</i>: the 60N wind from MERRA-2 (1980 onward), added to or in place of the 50&nbsp;hPa
+    index, changed the December to March skill by &plusmn;0.007; a stratospheric warming that matters mostly happens
+    after the issue date.
+    <i>A warming-index trend</i> (linear in the trailing 3-year hemispheric temperature instead of in time): better in
+    January, worse in November and July, no better overall.
+    <i>90-day windows</i> for SST, soil moisture and sea ice: no better, and worse for April.
+    <i>Extratropical SST</i> in the analogue (left out for the reason above), <i>weighting the blend toward ENSO-like
+    years</i> (slightly worse, strong El Ni&ntilde;o years included), and <i>dressing the probabilities with the
+    hindcast's own errors</i> (worse than either way above).</p>
+    <p><b>What it is not.</b> No seasonal model enters (C3S is only the yardstick), and GEFS reaches only the 18th or
+    19th of the target month: beyond that the forecast is the statistics' alone. Anomalies are against 1991&ndash;2020; skill is reported for the calendar month being
+    forecast, so it changes from issue to issue (summer temperature scores best, late-autumn 500&nbsp;hPa height
+    worst).</p>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var D = "/assets/monthly/data/", A = "/assets/monthly/";
+  var VARS = { t2m: ["2&nbsp;m temperature", "&deg;C", 2], prcp: ["precipitation", "mm/day", 2], z500: ["500&nbsp;hPa height", "m", 1] };
+  var NAME = { TR: "the trend", IX: "the RONI/QBO/vortex regression", CA: "the tropical constructed analogue",
+               PE: "local persistence", AN: "the analogue years" };
+  function $(id) { return document.getElementById(id); }
+  function set(k, html) { document.querySelectorAll('[data-k="' + k + '"]').forEach(function (e) { e.innerHTML = html; }); }
+  function sgn(x, d) { return (x >= 0 ? "+" : "&minus;") + Math.abs(x).toFixed(d); }
+  function get(u) { return fetch(u, { cache: "no-cache" }).then(function (r) { if (!r.ok) throw new Error(u); return r.json(); }); }
+  function store(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* storage unavailable */ } }
+  function recall(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }
+
+  // the main map: variable x region x view x skill mask, kept in the URL hash (#t2m/nh/anom) and the mask in storage
+  var st = { var: "t2m", reg: "nh", kind: "anom", mask: recall("mo-mask", "on") };
+  var h = location.hash.replace("#", "").split("/");
+  if (VARS[h[0]]) st.var = h[0];
+  if (["nh", "na", "eu"].indexOf(h[1]) >= 0) st.reg = h[1];
+  if (["anom", "prob"].indexOf(h[2]) >= 0) st.kind = h[2];
+  function draw(ver) {
+    $("img_main").src = A + "latest_" + st.var + "_" + st.reg + "_" + st.kind + (st.mask === "off" ? "_nomask" : "") + ".webp?v=" + ver;
+    document.querySelectorAll(".ctl .fig-toggle").forEach(function (box) {
+      box.querySelectorAll("button").forEach(function (b) { b.classList.toggle("on", b.dataset.v === st[box.dataset.sel]); });
+    });
+    history.replaceState(null, "", "#" + st.var + "/" + st.reg + "/" + st.kind);
+  }
+
+  function toggles(fig, imgId, ver) {
+    var box = document.querySelector('.fig-toggle[data-fig="' + fig + '"]');
+    function show(v) {
+      $(imgId).src = A + ({ comp: "components_", skill: "skill_", blend: "blend_" })[fig] + v + ".webp?v=" + ver;
+      box.querySelectorAll("button").forEach(function (b) { b.classList.toggle("on", b.dataset.v === v); });
+    }
+    box.addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) show(b.dataset.v); });
+    show("t2m");
+  }
+
+  function ranked(contrib) {
+    return Object.keys(contrib).sort(function (a, b) { return contrib[b] - contrib[a]; });
+  }
+
+  function discussion(s, notes) {
+    var p = [], ix = s.indices || {};
+    if (notes && notes[s.target]) p.push('<div class="note">' + notes[s.target] + "</div>");
+    var n = ix.roni, enso = n <= -0.5 ? "La Ni&ntilde;a-like" : n >= 0.5 ? "El Ni&ntilde;o-like" : "near neutral";
+    var qbo = ix.u50eq_raw <= -3 ? "easterly" : ix.u50eq_raw >= 3 ? "westerly" : "in transition";
+    var vtx = ix.u50v >= 3 ? "stronger than normal" : ix.u50v <= -3 ? "weaker than normal" : "near normal";
+    var v10 = ix.u10v_raw !== undefined ? " At 10&nbsp;hPa the 60N wind was " + sgn(ix.u10v_raw, 1) + "&nbsp;m/s, " +
+      sgn(ix.u10v, 1) + "&nbsp;m/s from normal." : "";
+    p.push("<p><b>The state on the 7th.</b> Over " + s.window + " the tropical Pacific was <b>" + enso +
+      "</b>: relative Ni&ntilde;o-3.4 " + sgn(n, 2) + "&nbsp;&deg;C on the RONI scale (the " + Math.round(100 * ix.n34r_pct) +
+      "th percentile of this window since 1959; plain Ni&ntilde;o-3.4 " + sgn(ix.n34, 2) + "&nbsp;&deg;C). The equatorial 50&nbsp;hPa wind was " + sgn(ix.u50eq_raw, 1) +
+      "&nbsp;m/s (QBO <b>" + qbo + "</b>), and the 50&nbsp;hPa westerlies at 60N were " + sgn(ix.u50v_raw, 1) +
+      "&nbsp;m/s, " + sgn(ix.u50v, 1) + "&nbsp;m/s from normal for the time of year (lower vortex <b>" + vtx + "</b>)." + v10 + "</p>");
+    var an = (s.analogs || []).map(function (a) { return a[0]; });
+    var ca = (s.ca_top || []).filter(function (a) { return a[1] > 0; }).slice(0, 5).map(function (a) { return String(a[0]).slice(0, 4); });
+    var cn = (s.ca_top || []).filter(function (a) { return a[1] < 0; }).slice(0, 4).map(function (a) { return String(a[0]).slice(0, 4); });
+    p.push("<p><b>Analogues.</b> The closest years by the window's state are <b>" + an.join(", ") +
+      "</b>. The tropical constructed analogue leans most on " + ca.join(", ") +
+      (cn.length ? ", and on " + cn.join(", ") + " with negative weight (their mirror image)" : "") + ".</p>");
+    ["t2m", "prcp", "z500"].forEach(function (k) {
+      var v = s.vars[k];
+      if (!v) return;
+      var r = ranked(v.contrib_rms), lab = VARS[k][0];
+      p.push("<p><b>" + lab.charAt(0).toUpperCase() + lab.slice(1) + ".</b> The hemispheric (20&ndash;90N) mean of the forecast is " +
+        sgn(v.fc_nh_mean, VARS[k][2]) + "&nbsp;" + VARS[k][1] + ". The pattern comes mostly from " + NAME[r[0]] +
+        (v.contrib_rms[r[1]] > 0.5 * v.contrib_rms[r[0]] ? " and " + NAME[r[1]] : "") +
+        ". For this calendar month the cross-validated hindcast scores a hemispheric anomaly correlation of " +
+        sgn(v.nh_acc_mean, 2) + " (the trend alone " + sgn(v.acc_trend_mean, 2) + "), an RPSS of " + sgn(v.rpss_nh, 2) +
+        " for the tercile probabilities, and a skill score of " + sgn(v.msss_trend_nh, 2) +
+        " against the trend alone; its skill is significant over " + Math.round(100 * v.skill_area_sig) +
+        "&nbsp;% of the hemisphere north of 20N." + guidance(s, k) + "</p>");
+    });
+    return p.join("");
+  }
+
+  function guidance(s, k) {
+    var b = (s.blend || {})[k];
+    if (!b) return "";
+    var sc = b.scores;
+    return " <b>GEFS</b> (the run of " + b.init + ", reaching day " + b.days[1] + "): on the " + b.years[0] + "&ndash;" +
+      b.years[1] + " reforecast years the statistical forecast scores ACC " + sgn(sc.stat.acc, 2) + ", GEFS's days in the month alone " + sgn(sc.models.acc, 2) +
+      " and the blend " + sgn(sc.blend.acc, 2) + ", so the " + (b.issued ? "<b>blend</b> (weights " + b.weight_nh.stat.toFixed(2) + " statistical, " +
+      b.weight_nh.models.toFixed(2) + " GEFS in the month" + (b.weight_nh.lead !== undefined ? ", " + b.weight_nh.lead.toFixed(2) + " its lead-in" : "") +
+      ") is" : "<b>statistical forecast</b> is") + " issued.";
+  }
+
+  function cell(x) {
+    if (!x) return "&ndash;";
+    var t = "ACC <b>" + sgn(x.acc, 2) + "</b><br><small>trend " + sgn(x.acc_trend, 2);
+    if (x.stat_acc !== undefined) t += " &middot; statistical " + sgn(x.stat_acc, 2) + " &middot; GEFS " + sgn(x.models_acc, 2);
+    if (x.c3s_acc !== undefined) t += " &middot; C3S " + sgn(x.c3s_acc, 2);
+    if (x.rpss !== undefined) t += " &middot; RPSS " + sgn(x.rpss, 2);
+    return t + "</small>";
+  }
+
+  function record(rows) {
+    if (!rows.length) return '<p class="chart-sources">No forecast has been scored yet: the first is scored on the 15th of the month after its target month.</p>';
+    var h = '<table class="rec"><thead><tr><th>Target</th><th>Issued</th><th>2 m temperature</th><th>Precipitation</th>' +
+      "<th>500 hPa height</th><th></th></tr></thead><tbody>";
+    rows.forEach(function (r) {
+      h += "<tr><td>" + r.label + "</td><td>" + r.issued + "</td><td>" + cell(r.t2m) + "</td><td>" + cell(r.prcp) +
+        "</td><td>" + cell(r.z500) + "</td><td><a href=\"" + A + "verify_" + r.target.replace("-", "") + '.webp">maps</a></td></tr>';
+    });
+    return h + "</tbody></table>";
+  }
+
+  get(D + "latest.json").then(function (L) {
+    return Promise.all([get(D + L.file), get(D + "notes.json").catch(function () { return {}; }),
+                        get(D + "verification.json").catch(function () { return []; })]);
+  }).then(function (r) {
+    var s = r[0], ver = s.target + "-" + s.issued;
+    set("target", s.target_label);
+    set("target_label", s.target_label);
+    set("issued", s.issued);
+    set("window", "ERA5 " + s.window);
+    Object.keys(VARS).forEach(function (k) {
+      var v = s.vars[k];
+      if (!v) return;
+      set("acc_" + k, sgn(v.nh_acc_mean, 2));
+      set("sub_" + k, "trend alone " + sgn(v.acc_trend_mean, 2) + " &middot; RPSS " + sgn(v.rpss_nh, 2));
+    });
+    set("stamp", "issued " + s.issued + " &middot; hindcast " + s.hindcast[0] + "&ndash;" + s.hindcast[1]);
+    document.querySelectorAll(".ctl .fig-toggle").forEach(function (box) {
+      box.addEventListener("click", function (e) {
+        var b = e.target.closest("button");
+        if (!b) return;
+        st[box.dataset.sel] = b.dataset.v;
+        if (box.dataset.sel === "mask") store("mo-mask", b.dataset.v);
+        draw(ver);
+      });
+    });
+    draw(ver);
+    $("img_main").addEventListener("click", function () { window.open($("img_main").src, "_blank", "noopener"); });
+    toggles("comp", "img_comp", ver);
+    if (s.blend && Object.keys(s.blend).length) { $("guidance").hidden = false; toggles("blend", "img_blend", ver); }
+    toggles("skill", "img_skill", ver);
+    $("disc").innerHTML = discussion(s, r[1]);
+    $("rec").innerHTML = record(r[2]);
+  }).catch(function (e) {
+    $("disc").innerHTML = "<p>The forecast data could not be loaded (" + e.message + ").</p>";
+  });
+})();
+</script>
+
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

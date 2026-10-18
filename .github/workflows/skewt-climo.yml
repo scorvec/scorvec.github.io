@@ -1,0 +1,134 @@
+name: Skew-T climatology rebuild
+
+# Rebuilds the per-station sounding climatology the Skew-T Explorer ranks against (scripts/skewt/build_climo.py):
+# every IGRA v2 period-of-record file, reduced to day-of-year percentiles and records separately for 00Z and 12Z
+# (format 2), published as climo/{gid}.json on the skewt-climo branch that skewt/app.js reads. Dispatch only: it pulls
+# roughly 40 GB from NCEI across the shards, so it runs when the climatology's method changes, not on a schedule.
+# skewt/app.js reads the branch through the frames CDN, which caches it for a year: purge /skewt-climo/* in the Bunny
+# pull zone after a rebuild (the run summary says so).
+on:
+  workflow_dispatch:
+    inputs:
+      stations:
+        description: 'Space-separated IGRA station ids (empty = every station in skewt/stations.json)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: skewt-climo
+  cancel-in-progress: false
+
+env:
+  SHARDS: 8
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      max-parallel: 4  # with 3 downloads per shard: at most 12 requests to NCEI at once
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/skewt
+            skewt/stations.json
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy
+      - name: Build the SHARPlib helper (the same compute_sounding() as the browser's WASM)
+        run: |
+          set -euo pipefail
+          W=$(mktemp -d)
+          git clone --depth 1 -q https://github.com/keltonhalbert/SHARPlib.git "$W/SHARPlib"
+          git clone --depth 1 -q https://github.com/fmtlib/fmt.git "$W/fmt"
+          cp scripts/skewt/skewt_wasm.cpp scripts/skewt/climo_cape.cpp "$W/SHARPlib/"
+          (cd "$W/SHARPlib" && c++ -O2 -std=c++17 -DFMT_HEADER_ONLY -Iinclude -I"$W/fmt/include" \
+            climo_cape.cpp skewt_wasm.cpp src/SHARPlib/*.cpp src/SHARPlib/params/*.cpp -o "$RUNNER_TEMP/climo_cape")
+          echo "CLIMO_CAPE_BIN=$RUNNER_TEMP/climo_cape" >> "$GITHUB_ENV"
+      - name: This shard's stations
+        id: stations
+        env:
+          ONLY: ${{ inputs.stations }}
+        run: |
+          python - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json, os
+          gids = os.environ["ONLY"].split() or [s["gid"] for s in json.load(open("skewt/stations.json"))["stations"]]
+          mine = gids[${{ matrix.shard }}::int(os.environ["SHARDS"])]
+          print("gids=" + " ".join(mine))
+          print(f"n={len(mine)}")
+          EOF
+      - name: Build
+        if: steps.stations.outputs.n != '0'
+        env:
+          CLIMO_CACHE: ${{ runner.temp }}/climo_cache
+          CLIMO_WORKERS: '3'
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2086
+          python scripts/skewt/build_climo.py "$RUNNER_TEMP/out" ${{ steps.stations.outputs.gids }}
+          mkdir -p "$RUNNER_TEMP/out"
+          echo "shard ${{ matrix.shard }}: $(ls "$RUNNER_TEMP/out" | wc -l) station files"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: climo-${{ matrix.shard }}
+          path: ${{ runner.temp }}/out/*.json
+          if-no-files-found: ignore
+          retention-days: 3
+
+  publish:
+    needs: build
+    if: always() && needs.build.result != 'cancelled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: climo-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/new
+      - name: Check the rebuild before it replaces anything
+        run: |
+          set -euo pipefail
+          N=$(ls "$RUNNER_TEMP/new" 2>/dev/null | wc -l)
+          echo "rebuilt station files: $N"
+          [ "$N" -gt 0 ] || { echo "::error::nothing was built"; exit 1; }
+          python - "$RUNNER_TEMP/new" <<'EOF'
+          import json, sys
+          from pathlib import Path
+          bad = [p.name for p in Path(sys.argv[1]).glob("*.json") if json.loads(p.read_text()).get("v") != 2]
+          if bad:
+              sys.exit(f"::error::{len(bad)} files are not format 2, e.g. {bad[:3]}")
+          EOF
+      - name: Publish to the skewt-climo branch
+        env:
+          GH_REPO_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
+          FULL: ${{ inputs.stations == '' }}
+        run: |
+          set -euo pipefail
+          W="$RUNNER_TEMP/branch"
+          git clone -q --depth 1 --branch skewt-climo "$GH_REPO_URL" "$W"
+          cd "$W"
+          OLD=$(ls climo | wc -l); NEW=$(ls "$RUNNER_TEMP/new" | wc -l)
+          # a full rebuild that produced far fewer stations than the branch holds is a failed run, not a smaller network
+          if [ "$FULL" = "true" ] && [ "$NEW" -lt $(( OLD * 9 / 10 )) ]; then
+            echo "::error::only $NEW of the $OLD published stations rebuilt; nothing replaced"; exit 1
+          fi
+          cp "$RUNNER_TEMP/new"/*.json climo/
+          git add climo
+          if git diff --cached --quiet; then echo "no changes"; exit 0; fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "skewt climo: ${NEW} stations rebuilt (format 2, 00Z/12Z)"
+          git push -q origin HEAD:skewt-climo
+          {
+            echo "### Skew-T climatology"
+            echo "- $NEW station files rebuilt; the branch held $OLD."
+            echo "- **Purge \`/skewt-climo/*\` in the Bunny pull zone** so readers get the new tables (the CDN caches them for a year)."
+          } >> "$GITHUB_STEP_SUMMARY"

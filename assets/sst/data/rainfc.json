@@ -1,0 +1,439 @@
+{
+ "init": "2026-10-17",
+ "members": {
+  "ifs": 50,
+  "aifs-ens": 50,
+  "gefs": 31,
+  "geps": 21
+ },
+ "missing": [],
+ "weeks": {
+  "wk1": [
+   "2026-10-17",
+   "2026-10-23"
+  ],
+  "wk2": [
+   "2026-10-24",
+   "2026-10-30"
+  ]
+ },
+ "stats": {
+  "blend_wk1": {
+   "tested_cells": 36320,
+   "sig_frac_tropics": 0.609,
+   "above_frac_tropics": 0.364,
+   "below_frac_tropics": 0.245,
+   "dod_sig_frac": 0.378
+  },
+  "blend_wk2": {
+   "tested_cells": 36423,
+   "sig_frac_tropics": 0.641,
+   "above_frac_tropics": 0.357,
+   "below_frac_tropics": 0.284,
+   "dod_sig_frac": 0.079
+  },
+  "ifs_wk1": {
+   "tested_cells": 36320,
+   "sig_frac_tropics": 0.579,
+   "above_frac_tropics": 0.379,
+   "below_frac_tropics": 0.2,
+   "dod_sig_frac": 0.39
+  },
+  "ifs_wk2": {
+   "tested_cells": 36423,
+   "sig_frac_tropics": 0.579,
+   "above_frac_tropics": 0.363,
+   "below_frac_tropics": 0.216,
+   "dod_sig_frac": 0.032
+  },
+  "aifs_wk1": {
+   "tested_cells": 36320,
+   "sig_frac_tropics": 0.585,
+   "above_frac_tropics": 0.343,
+   "below_frac_tropics": 0.242,
+   "dod_sig_frac": 0.331
+  },
+  "aifs_wk2": {
+   "tested_cells": 36423,
+   "sig_frac_tropics": 0.597,
+   "above_frac_tropics": 0.315,
+   "below_frac_tropics": 0.282,
+   "dod_sig_frac": 0.036
+  },
+  "gefs_wk1": {
+   "tested_cells": 36320,
+   "sig_frac_tropics": 0.594,
+   "above_frac_tropics": 0.364,
+   "below_frac_tropics": 0.23,
+   "dod_sig_frac": 0.221
+  },
+  "gefs_wk2": {
+   "tested_cells": 36423,
+   "sig_frac_tropics": 0.493,
+   "above_frac_tropics": 0.279,
+   "below_frac_tropics": 0.214,
+   "dod_sig_frac": 0.003
+  },
+  "geps_wk1": {
+   "tested_cells": 36320,
+   "sig_frac_tropics": 0.548,
+   "above_frac_tropics": 0.398,
+   "below_frac_tropics": 0.15,
+   "dod_sig_frac": 0.067
+  },
+  "geps_wk2": {
+   "tested_cells": 36423,
+   "sig_frac_tropics": 0.524,
+   "above_frac_tropics": 0.343,
+   "below_frac_tropics": 0.181,
+   "dod_sig_frac": 0.002
+  }
+ },
+ "bias": {
+  "target": "2026-10-16",
+  "kernel_sd_days": 30.0,
+  "coarse_deg": 2,
+  "clip": [
+   0.3333333333333333,
+   3.0
+  ],
+  "dry_mm_day": 0.2,
+  "ifs_wk1": {
+   "runs": 149,
+   "cycle": "50r1",
+   "blocks": 8,
+   "corrected": true,
+   "first": "2026-05-13",
+   "last": "2026-10-08",
+   "eff_n": 47.3,
+   "sig_frac": 0.352,
+   "tropics_fc_over_obs": [
+    1.146,
+    1.133,
+    1.153
+   ]
+  },
+  "ifs_wk2": {
+   "runs": 142,
+   "cycle": "50r1",
+   "blocks": 7,
+   "corrected": true,
+   "first": "2026-05-13",
+   "last": "2026-10-01",
+   "eff_n": 42.5,
+   "sig_frac": 0.317,
+   "tropics_fc_over_obs": [
+    1.155,
+    1.14,
+    1.164
+   ]
+  },
+  "aifs-ens_wk1": {
+   "runs": 148,
+   "cycle": "v2",
+   "blocks": 8,
+   "corrected": true,
+   "first": "2026-05-14",
+   "last": "2026-10-08",
+   "eff_n": 47.3,
+   "sig_frac": 0.359,
+   "tropics_fc_over_obs": [
+    0.991,
+    0.98,
+    1.004
+   ]
+  },
+  "aifs-ens_wk2": {
+   "runs": 141,
+   "cycle": "v2",
+   "blocks": 7,
+   "corrected": true,
+   "first": "2026-05-14",
+   "last": "2026-10-01",
+   "eff_n": 42.5,
+   "sig_frac": 0.291,
+   "tropics_fc_over_obs": [
+    1.008,
+    0.995,
+    1.019
+   ]
+  },
+  "gefs_wk1": {
+   "runs": 723,
+   "cycle": "v12",
+   "blocks": 36,
+   "corrected": true,
+   "first": "2024-10-01",
+   "last": "2026-10-08",
+   "eff_n": 207.4,
+   "sig_frac": 0.323,
+   "tropics_fc_over_obs": [
+    1.117,
+    1.107,
+    1.129
+   ]
+  },
+  "gefs_wk2": {
+   "runs": 716,
+   "cycle": "v12",
+   "blocks": 35,
+   "corrected": true,
+   "first": "2024-10-01",
+   "last": "2026-10-01",
+   "eff_n": 201.2,
+   "sig_frac": 0.3,
+   "tropics_fc_over_obs": [
+    1.137,
+    1.126,
+    1.15
+   ]
+  },
+  "geps_wk1": {
+   "runs": 22,
+   "cycle": "8.1.0",
+   "blocks": 2,
+   "corrected": false,
+   "first": "2026-09-17",
+   "last": "2026-10-08",
+   "note": "22 verified runs in 2 of the 6 21-day blocks a bias estimate needs"
+  },
+  "geps_wk2": {
+   "runs": 15,
+   "cycle": "8.1.0",
+   "blocks": 1,
+   "corrected": false,
+   "first": "2026-09-17",
+   "last": "2026-10-01",
+   "note": "15 verified runs in 1 of the 6 21-day blocks a bias estimate needs"
+  }
+ },
+ "blend": {
+  "weights": {
+   "wk1": {
+    "ifs": 0.075,
+    "aifs-ens": 0.675,
+    "gefs": 0.25,
+    "geps": 0.0
+   },
+   "wk2": {
+    "ifs": 0.15,
+    "aifs-ens": 0.625,
+    "gefs": 0.225,
+    "geps": 0.0
+   }
+  },
+  "fit": {
+   "made": "2026-10-16T20:57Z",
+   "score": "fair RPS of weekly terciles vs GPCP 2001-2020, IMERG Late scaled to Final",
+   "step": 0.025,
+   "block_days": 21,
+   "buffer_days": 14,
+   "fit_blocks": 7,
+   "weeks": {
+    "wk1": {
+     "models": [
+      "ifs",
+      "aifs-ens",
+      "gefs",
+      "geps"
+     ],
+     "fitted": [
+      "gefs",
+      "ifs",
+      "aifs-ens"
+     ],
+     "optimised": true,
+     "runs": 148,
+     "first": "2026-05-14",
+     "last": "2026-10-08",
+     "blocks": 8,
+     "cv_skill": [
+      0.0139,
+      0.0122,
+      0.0157
+     ],
+     "blend_rpss": [
+      0.3952,
+      0.3829,
+      0.407
+     ],
+     "fitted_weights": {
+      "gefs": 0.25,
+      "ifs": 0.075,
+      "aifs-ens": 0.675
+     },
+     "blend_vs_single": {
+      "gefs": [
+       0.1317,
+       0.1282,
+       0.1352
+      ],
+      "ifs": [
+       0.0731,
+       0.0672,
+       0.0795
+      ],
+      "aifs-ens": [
+       0.0094,
+       0.0046,
+       0.0145
+      ]
+     },
+     "bias": {
+      "raw": {
+       "gefs": {
+        "band_ratio": 1.129,
+        "local_abs_bias": 0.337
+       },
+       "ifs": {
+        "band_ratio": 1.149,
+        "local_abs_bias": 0.355
+       },
+       "aifs-ens": {
+        "band_ratio": 1.003,
+        "local_abs_bias": 0.273
+       },
+       "blend": {
+        "band_ratio": 1.094,
+        "local_abs_bias": 0.297
+       },
+       "wet_cells": 3344
+      },
+      "corrected": {
+       "gefs": {
+        "band_ratio": 1.027,
+        "local_abs_bias": 0.204
+       },
+       "ifs": {
+        "band_ratio": 1.032,
+        "local_abs_bias": 0.15
+       },
+       "aifs-ens": {
+        "band_ratio": 0.991,
+        "local_abs_bias": 0.141
+       },
+       "blend": {
+        "band_ratio": 1.017,
+        "local_abs_bias": 0.146
+       },
+       "wet_cells": 3344
+      }
+     },
+     "weights": {
+      "ifs": 0.075,
+      "aifs-ens": 0.675,
+      "gefs": 0.25,
+      "geps": 0.0
+     }
+    },
+    "wk2": {
+     "models": [
+      "ifs",
+      "aifs-ens",
+      "gefs",
+      "geps"
+     ],
+     "fitted": [
+      "gefs",
+      "ifs",
+      "aifs-ens"
+     ],
+     "optimised": true,
+     "runs": 141,
+     "first": "2026-05-14",
+     "last": "2026-10-01",
+     "blocks": 7,
+     "cv_skill": [
+      0.009,
+      0.0058,
+      0.0117
+     ],
+     "blend_rpss": [
+      0.1895,
+      0.1776,
+      0.2024
+     ],
+     "fitted_weights": {
+      "gefs": 0.225,
+      "ifs": 0.15,
+      "aifs-ens": 0.625
+     },
+     "blend_vs_single": {
+      "gefs": [
+       0.0866,
+       0.0812,
+       0.0921
+      ],
+      "ifs": [
+       0.0451,
+       0.0408,
+       0.0492
+      ],
+      "aifs-ens": [
+       0.0062,
+       0.0005,
+       0.0131
+      ]
+     },
+     "bias": {
+      "raw": {
+       "gefs": {
+        "band_ratio": 1.158,
+        "local_abs_bias": 0.41
+       },
+       "ifs": {
+        "band_ratio": 1.157,
+        "local_abs_bias": 0.399
+       },
+       "aifs-ens": {
+        "band_ratio": 1.011,
+        "local_abs_bias": 0.322
+       },
+       "blend": {
+        "band_ratio": 1.109,
+        "local_abs_bias": 0.343
+       },
+       "wet_cells": 3302
+      },
+      "corrected": {
+       "gefs": {
+        "band_ratio": 1.052,
+        "local_abs_bias": 0.266
+       },
+       "ifs": {
+        "band_ratio": 1.034,
+        "local_abs_bias": 0.177
+       },
+       "aifs-ens": {
+        "band_ratio": 0.988,
+        "local_abs_bias": 0.17
+       },
+       "blend": {
+        "band_ratio": 1.025,
+        "local_abs_bias": 0.18
+       },
+       "wet_cells": 3302
+      }
+     },
+     "weights": {
+      "ifs": 0.15,
+      "aifs-ens": 0.625,
+      "gefs": 0.225,
+      "geps": 0.0
+     }
+    }
+   }
+  }
+ },
+ "dod": {
+  "previous": "2026-10-16",
+  "models": [
+   "aifs-ens",
+   "gefs",
+   "geps",
+   "ifs"
+  ]
+ },
+ "normal": "GPCP V3.2 daily 2001-2020, 7-day totals",
+ "made": "2026-10-17T10:09Z"
+}
