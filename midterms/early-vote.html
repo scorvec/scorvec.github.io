@@ -308,7 +308,8 @@ State's statewide files turn away automated requests, the Clark County Election 
 return file (each returned ballot with the voter's registered party and the day it came back; the 2022 and 2024 files the same
 way, for the same days out) and its daily in-person early vote files, joined on the voter id to the county's active voter list
 for party (a general election's file carries none; voters registered since the list was written are left unmatched). 2024's
-in-person voters are compared on turnout only. Only counts are kept (<code>midterms/nv_clark_early.py</code>). <b>Every state.</b> How much of each state's vote is already in comes from the
+in-person voters are compared on turnout only. The county's daily files are unaudited (corrections reach its later cumulative files),
+and its last day is left out until a night's file holds all of it. Only counts are kept (<code>midterms/nv_clark_early.py</code>). <b>Every state.</b> How much of each state's vote is already in comes from the
 <a href="https://election.lab.ufl.edu/early-vote/">UF Election Lab</a> (CC BY-NC-ND 4.0), used only to compute each
 state's factor above; its counts are not republished here.</p>
 </main>
@@ -610,7 +611,7 @@ state's factor above; its counts are not republished here.</p>
     var M = V.mail, R = M.returned, G = V.registration, P = V.in_person;
     $("nvchips").innerHTML = chip("mail ballots returned", n0(R.total), M.days_out + " days out") +
       chip("Rep &minus; Dem, returned", sgn(M.R_minus_D_pct) + " pts", "share of mail ballots returned") +
-      chip("Rep &minus; Dem, registered", sgn(G.R_minus_D_pct) + " pts", "active voters") +
+      chip("Rep &minus; Dem, registered", sgn(G.R_minus_D_pct) + " pts", "active voters, list of " + esc(G.as_of)) +
       (P ? chip("voted early in person", n0(P.voted.total + P.unmatched), P.days_out + " days out") +
         chip("Rep &minus; Dem, in person", sgn(P.R_minus_D_pct) + " pts", "share of early voters") : "");
     var f = ["<b>Mail ballots.</b> " + n0(R.total) + " returned by " + date(M.through) + ": " + n0(R.DEM) + " from registered Democrats, " + n0(R.REP) + " Republicans, " + n0(R.NP) +
