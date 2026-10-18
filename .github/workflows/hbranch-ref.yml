@@ -120,7 +120,8 @@ jobs:
             fi
             gh release download hbranch-ref-v1 -R "$GITHUB_REPOSITORY" -p "hbranch_ref_${s}.npz" -D prev --clobber 2>/dev/null \
               || echo "no published $s reference yet"
-            old=(prev/hbranch_ref_${s}.npz)
+            old=()
+            if [ -f "prev/hbranch_ref_${s}.npz" ]; then old=("prev/hbranch_ref_${s}.npz"); fi
             python scripts/mjo/src/hadley_branch_ref.py pack --stream "$s" "${old[@]}" "${new[@]}"
             gh release upload hbranch-ref-v1 "$REF/hbranch_ref_${s}.npz" -R "$GITHUB_REPOSITORY" --clobber
           done
