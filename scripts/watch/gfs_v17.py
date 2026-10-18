@@ -6,9 +6,8 @@ Sources, each a single small page or listing a run:
   nco     the NCO implementation schedule: a GFS or GDAS row (a new row, or an edited one)
   emc     the EMC GFSv17 evaluation page: its timeline table (evaluation, code handoff, IT test, implementation date)
           and each dated announcement
-  nomads  the GFS tree on NOMADS: a directory other than prod/ and v16.*/ (a v17 parallel or the new production tree)
-  s3      the newest 00Z GFS cycle on noaa-gfs-bdp-pds: a sub-directory other than atmos/ and wave/ (the coupled v17
-          adds ocean and ice output)
+  s3      the newest 00Z GFS cycle in the AWS Open Data bucket noaa-gfs-bdp-pds (NOAA models are read from S3, never
+          NOMADS): a sub-directory other than atmos/ and wave/ (the coupled v17 adds ocean and ice output)
 Every signal has a stable id. Ids in the baseline file (the state when the watch began) or already named in an issue
 labelled LABEL are not reported again; the rest go into ONE issue per run that mentions WATCH_MENTION, so GitHub
 notifies that account.
@@ -39,7 +38,6 @@ UA = {"User-Agent": "scorvec-gfs-watch/1.0 (+https://scorvec.com)"}
 NWS = "https://www.weather.gov/notification/"
 NCO = "https://www.nco.ncep.noaa.gov/pmb/changes/"
 EMC = "https://www.emc.ncep.noaa.gov/users/meg/gfsv17/"
-NOMADS = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/"
 S3 = "https://noaa-gfs-bdp-pds.s3.amazonaws.com"
 GFS = re.compile(r"GFS|GDAS|Global Forecast System|Global Data Assimilation", re.I)
 GUIDANCE = re.compile(r"\b(MOS|LAMP)\b")  # statistical guidance built on the GFS, not the model itself
@@ -94,15 +92,6 @@ def emc() -> list[dict]:
     return out
 
 
-def nomads() -> list[dict]:
-    dirs = sorted(set(re.findall(r'href="([^"/?][^"]*/)"', get(NOMADS))))
-    return [
-        signal(f"nomads:{d}", f"New GFS directory on NOMADS: {d}", NOMADS + d)
-        for d in dirs
-        if not re.fullmatch(r"(prod|v16(\.\d+)*)/", d)
-    ]
-
-
 def s3() -> list[dict]:
     today = dt.datetime.now(dt.UTC).date()
     for back in range(3):
@@ -121,7 +110,7 @@ def s3() -> list[dict]:
     raise RuntimeError("no 00Z GFS cycle listed in the last three days")
 
 
-SOURCES = (nws, nco, emc, nomads, s3)
+SOURCES = (nws, nco, emc, s3)
 
 
 def gh(*args: str) -> str:
