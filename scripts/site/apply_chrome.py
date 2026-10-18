@@ -361,6 +361,12 @@ PRODUCTS = [
                         "The two ECMWF AIFS configurations compared as deterministic models against radiosondes and ERA5, with the ensemble member spectrally matched to the single model and the ensemble mean for reference.",
                         "Every 00Z and 12Z run",
                     ),
+                    (
+                        "/verification.html",
+                        "Global models against observations",
+                        "GFS, ECMWF IFS, AIFS and Canada's GDPS scored on the same surface stations, radiosondes and Stage IV rain analyses out to day 10, with a scorecard of the differences that pass a significance test. Scored with mverify, an open-source verification package.",
+                        "First sample, 10 runs",
+                    ),
                 ],
             ),
         ],
@@ -505,6 +511,7 @@ PAGES = [
         ],
     ),
     dict(path="asos5.html", mode="site-header"),  # no fixed-header padding to undo
+    dict(path="verification.html", mode="after-body"),  # multi-model verification (mverify scorecard JSON)
     dict(
         path="recon.html", mode="after-body"
     ),  # Atlantic recon plotter (scripts/recon, recon.yml -> recon-data branch)
@@ -857,6 +864,7 @@ HOME = {
             "/aifs-aam-budget.html",
             "/torque-enso.html",
             "/aifs-verify.html",
+            "/verification.html",
             "/topics/",
         ],
     ),
