@@ -274,6 +274,12 @@ a:focus-visible{outline:2px solid var(--d);outline-offset:2px}
 <div class="tw"><table id="nvcd"></table></div>
 <p class="sans" id="nvcdnote"></p>
 
+<h2 id="tx">Texas</h2>
+<div class="chips" id="txchips"></div>
+<div class="fig" id="txfig" hidden><p class="t">Early votes so far, share of registered voters</p><p class="st">Statewide, cumulative, in person and mail received, by days before Election Day</p><div id="txpace"></div></div>
+<div class="tw"><table id="txtab"></table></div>
+<ul class="find" id="txfind"><li>Loading&hellip;</li></ul>
+
 <h2 id="forecast">How banked votes enter the forecast</h2>
 <div class="box sans" id="fc"><p>Loading&hellip;</p></div>
 <div class="tw"><table id="ktab"></table></div>
@@ -313,6 +319,15 @@ in-person voters are compared on turnout only. The county's daily files are unau
 and its last day is left out until a night's file holds all of it. Only counts are kept (<code>midterms/nv_clark_early.py</code>). <b>Every state.</b> How much of each state's vote is already in comes from the
 <a href="https://election.lab.ufl.edu/early-vote/">UF Election Lab</a> (CC BY-NC-ND 4.0), used only to compute each
 state's factor above; its counts are not republished here.</p>
+<p><b>Texas.</b> Turnout only: Texas has no party registration and publishes no party data, so no party split is estimated.
+The Secretary of State's early-voting turnout files (<a href="https://goelect.txelections.civixapps.com/ivis-evr-ui/evr">Civix
+portal</a>), one per early-voting day with each county's registered voters, in-person early votes and mail ballots received,
+as the counties report them; a county that has not sent the day's file shows the day before's total. Early votes are in
+person plus mail received, as a share of the county's registered voters. Mail voting in Texas is limited (65 or older,
+disability, out of the county, confinement), so mail is a small and old-skewed slice. The county groups are fixed in
+advance from the 2024 presidential vote (MIT Election Data and Science Lab precinct returns by county), not chosen from the
+turnout. Early voting runs October 19 to 30, the same 12 days before Election Day as in 2022, so the two years line up day
+for day once 2022's final county early vote is added (<code>midterms/tx_early.py</code>).</p>
 </main>
 <script>
 (function () {
@@ -643,6 +658,41 @@ state's factor above; its counts are not republished here.</p>
     $("nvcdnote").innerHTML = "By congressional district, each against its own active voters (points; in brackets, the ballots' Rep &minus; Dem less the rolls'). NV-4 is only its Clark County part; its rural counties are not in these files.";
   }
 
+  function texas(T) {
+    if (!T) {
+      $("txchips").innerHTML = ""; $("txtab").innerHTML = "";
+      $("txfind").innerHTML = "<li>The Secretary of State posts each early-voting day's county file the next morning; the first, for October 19, is due on October 20.</li>";
+      return;
+    }
+    var days = T.days.filter(function (d) { return d.groups.statewide.ev != null; }), L = days[days.length - 1], S = L.groups.statewide;
+    var pct = function (v) { return v == null ? "&ndash;" : v.toFixed(1) + "%"; };
+    $("txchips").innerHTML = chip("early votes", n0(S.ev), "through " + date(L.date) + ", day " + L.ev_day + " of 12") +
+      chip("share of registered voters", pct(S.pct_rv), L.days_out + " days out") +
+      chip("by mail", pct(S.mail_pct), "of the early votes, received") +
+      (S.pct_rv_2022 != null ? chip("2022, same day", pct(S.pct_rv_2022), "of registered voters") : "");
+    var order = ["statewide", "big_dem", "swing_suburbs", "gop_suburbs", "rgv_border"].filter(function (k) { return L.groups[k]; });
+    var base = T.baseline_2022, margin = function (m) { return m == null ? "&ndash;" : (m > 0 ? "R+" : "D+") + Math.abs(m).toFixed(0); };
+    $("txtab").innerHTML = "<tr><th>Counties</th><th>Early votes</th><th>% of registered</th>" + (base ? "<th>2022, same day</th>" : "") +
+      "<th>Share of the state's early vote</th><th>By mail</th><th>2024 president</th></tr>" +
+      order.map(function (k) {
+        var g = L.groups[k], G = T.groups[k];
+        return '<tr' + (k === "statewide" ? ' class="now"' : "") + "><td>" + esc(G.label) + "</td><td>" + n0(g.ev) + "</td><td>" + pct(g.pct_rv) + "</td>" +
+          (base ? "<td>" + pct(g.pct_rv_2022) + "</td>" : "") + "<td>" + (k === "statewide" ? "100%" : pct(g.share)) + "</td><td>" + pct(g.mail_pct) + "</td><td>" + margin(G.pres2024_R_margin) + "</td></tr>";
+      }).join("");
+    if (days.length > 1) {
+      $("txfig").hidden = false;
+      // statewide (the table has the county groups), with 2022 on the same days once its baseline is in
+      var series = [{ k: "2026", ys: days.map(function (d) { return d.groups.statewide.pct_rv; }), color: "#1b1d22", w: 3 }];
+      if (base) series.push({ k: "2022", ys: days.map(function (d) { return d.groups.statewide.pct_rv_2022 || 0; }), color: "#6f6b64", dash: true });
+      lines("txpace", days.map(function (d) { return d.days_out; }), series, function (v) { return v.toFixed(1) + "%"; }, L.days_out);
+    }
+    var f = [];
+    if (L.stale_counties) f.push("<b>Counties behind.</b> " + L.stale_counties + " of " + L.counties_2026 + " counties' totals did not move from the day before" +
+      (L.stale_named && L.stale_named.length ? ", among them " + L.stale_named.map(function (c) { return esc(c.charAt(0) + c.slice(1).toLowerCase()); }).join(", ") : "") + "; they catch up as they report.");
+    if (!base) f.push("<b>Against 2022.</b> Not yet: 2022's final early vote by county is still to be added, so this year's turnout stands alone for now.");
+    $("txfind").innerHTML = f.map(function (x) { return "<li>" + x + "</li>"; }).join("");
+  }
+
   function get(u) { return fetch(u, { cache: "no-cache" }).then(function (r) { if (!r.ok) throw new Error(u); return r.json(); }); }
   Promise.all([get("data/early_vote.json"), get("data/model.json").catch(function () { return null; })]).then(function (res) {
     var E = res[0], M = res[1];
@@ -652,6 +702,7 @@ state's factor above; its counts are not republished here.</p>
     georgia(E.ga);
     florida(E.fl);
     nevada(E.nv);
+    texas(E.tx);
   }).catch(function () { $("stamp").textContent = "The early-vote data could not be loaded."; });
 })();
 </script>
