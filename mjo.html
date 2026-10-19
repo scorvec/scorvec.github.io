@@ -305,7 +305,7 @@
 <main id="main">
   <div class="page-header">
   <h1>MJO forecasts from the global ensembles</h1>
-    <p class="sub" style="margin-bottom:1rem">Latest ECMWF init: <strong>2026-10-18 12Z</strong>.</p>
+    <p class="sub" style="margin-bottom:1rem">Latest ECMWF init: <strong>2026-10-19 00Z</strong>.</p>
 
   </div>
   <div class="ss-layout">
@@ -334,7 +334,7 @@
   </div>
   <div class="mm-box" id="mm-box" data-clean="1"><canvas id="mm-cv" role="img" aria-label="MJO phase diagram: observed track and the ensembles' forecast tracks"></canvas><div class="mm-tip" id="mm-tip" hidden></div></div>
   <p class="mm-idx" id="mm-idx"></p>
-  <p style="color:var(--muted);font-size:0.95rem;line-height:1.55;margin:0.6rem 0 0">Its maximum is 1.5 and its phase speed -1.9&deg;/day, where a real MJO moves at about +7&deg;/day. NOAA&rsquo;s OLR-based ROMI on 2026-10-14: amplitude 1.32, phase 2; over the last 60 days 31&nbsp;% of days reached amplitude 1. Correction applied: &Delta;Ni&ntilde;o-3.4 = +0.96&nbsp;&deg;C. Latest inits: AIFS-ENS 2026-10-18 12Z.</p>
+  <p style="color:var(--muted);font-size:0.95rem;line-height:1.55;margin:0.6rem 0 0">Its maximum is 1.3 and its phase speed -2.7&deg;/day, where a real MJO moves at about +7&deg;/day. NOAA&rsquo;s OLR-based ROMI on 2026-10-14: amplitude 1.32, phase 2; over the last 60 days 31&nbsp;% of days reached amplitude 1. Correction applied: &Delta;Ni&ntilde;o-3.4 = +0.96&nbsp;&deg;C. Latest inits: AIFS-ENS 2026-10-19 00Z, IFS-ENS 2026-10-19 00Z.</p>
   <details style="margin-top:1rem;font-size:0.92rem"><summary style="cursor:pointer;color:var(--accent)">About this diagram and the ENSO removal</summary>
   <p>The Wheeler&ndash;Hendon phase diagram with the observed track of the last 40 days and the ensemble-mean forecast of each
   model, one marker every five days and a square at the horizon. Members are off by default and faint when on. ECMWF&rsquo;s
@@ -662,7 +662,7 @@
   The observed track is ERA5 up to mid-July 2026 and, since then, the AIFS-ENS
   control at step 0 of each 00Z and 12Z run (wind-only; from 30 May to 12 October
   2026 its phase sat within a median 5&deg; of the observed ERA5 RMM&rsquo;s on active days).</p>
-  <p class="chart-sources">Updated 2026-10-18 21:26Z · Auto-generated from the AIFS-ENS and IFS-ENS open data, &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use.
+  <p class="chart-sources">Updated 2026-10-19 08:55Z · Auto-generated from the AIFS-ENS and IFS-ENS open data, &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use.
   Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
   NCEP wind with the 120-day low-frequency filter removed; pseudo-OLR from
   &minus;standardized daily precip vs an ERA5 1991&ndash;2020 band climatology.</p>
@@ -673,7 +673,7 @@
     or ENSO-removed index), the ECMWF runs one after another, and what each phase has meant for temperature, rain and the
     flow.</p>
   </section>
-  <p class="meta">Updated 2026-10-18 21:26Z · Auto-generated from the ECMWF, NOAA and ECCC open-data feeds.</p>
+  <p class="meta">Updated 2026-10-19 08:55Z · Auto-generated from the ECMWF, NOAA and ECCC open-data feeds.</p>
 </main>
 <script>
 window.STAGE = { groups: [{"label": "Forecast", "items": [["models", "All ensembles", "AIFS-ENS, IFS-ENS, GEFS, GEPS on one diagram"], ["rmm", "ECMWF successive runs", "AIFS-ENS and IFS-ENS, run by run"]]}, {"label": "Impacts", "items": [["mi", "Impacts by phase and season", "CMIP6 and observed composites"]]}],
@@ -682,7 +682,7 @@ window.STAGE = { groups: [{"label": "Forecast", "items": [["models", "All ensemb
     rmm: { label: "AIFS-ENS and IFS-ENS RMM forecast (ENSO not removed), successive runs", about: "about-rmm",
            frame: function () { return "sst_anim.html?embed=1&base=assets&manifest=mjo/rmm_manifest.json&region=mjo"; },
            ratio: function () { return "1259/1210"; },
-           cap: function () { return "<b>ENSO not removed.</b> With the ENSO signal taken out (&Delta;Ni&ntilde;o-3.4 +0.96&nbsp;&deg;C) there is no coherent MJO in this forecast: ensemble-mean amplitude 0.7 and a phase speed of -1.9&deg;/day, where a real MJO moves at about +7&deg;/day. A large or slow track in this diagram is most likely the ENSO change projecting onto the index, not an MJO. Drag the slider to step through successive forecast runs (oldest to latest) and watch the predicted MJO track evolve."; } },
+           cap: function () { return "<b>ENSO not removed.</b> With the ENSO signal taken out (&Delta;Ni&ntilde;o-3.4 +0.96&nbsp;&deg;C) there is no coherent MJO in this forecast: ensemble-mean amplitude 0.7 and a phase speed of -2.7&deg;/day, where a real MJO moves at about +7&deg;/day. A large or slow track in this diagram is most likely the ENSO change projecting onto the index, not an MJO. Drag the slider to step through successive forecast runs (oldest to latest) and watch the predicted MJO track evolve."; } },
     models: { label: "MJO forecasts from the global ensembles", dom: function () { return "mjo-models"; } },
     mi: { label: "MJO impacts by phase and season", ownHash: true, dom: function () { return "mjo-impacts"; } }
   }
