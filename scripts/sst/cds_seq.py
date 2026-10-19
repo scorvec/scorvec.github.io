@@ -11,7 +11,9 @@ it. Actions jobs serialise through the `seas5` concurrency group (seas5.yml, sea
 
 The checks run before a request is submitted and every POLL seconds while it is in flight; if either trips while our
 request is still queued or running, the request is deleted on the CDS and resubmitted once the key is idle again, so an
-overlap lasts at most one poll interval. Retrieval is submit → poll → download, never a blocking retrieve().
+overlap lasts at most one poll interval. Retrieval is submit → poll → download, never a blocking retrieve(). Before
+submitting, a job of the key that already holds the request (finished, running or queued; e.g. one a run left behind
+when it hit its time limit while the job waited in the CDS queue) is adopted instead: adopt().
 
     from cds_seq import retrieve
     ok = retrieve("seasonal-original-pressure-levels", request, Path("out.grib"), "label")
@@ -194,6 +196,35 @@ def available(dataset: str, req: dict) -> bool | None:
     )
 
 
+def _covers(have: dict, want: dict) -> bool:
+    """A job's request holds every value of the wanted one (more days or steps are fine: the reader keeps what it needs)."""
+    for k, v in want.items():
+        a = {str(x) for x in (v if isinstance(v, list) else [v])}
+        b = {str(x) for x in (have.get(k) if isinstance(have.get(k), list) else [have.get(k)])}
+        if not a <= b:
+            return False
+    return True
+
+
+def adopt(client, dataset: str, req: dict):
+    """A job of this key that already holds the request - finished, running or queued, e.g. left by a run that hit its
+    time limit while the job waited in the CDS queue: its Remote, so it is downloaded or awaited instead of resubmitted."""
+    for st in ("successful", "running", "accepted"):
+        try:
+            jobs = client.get_jobs(status=st, limit=50).json.get("jobs", [])
+        except Exception as e:  # noqa: BLE001
+            print(f"  CDS jobs list failed ({str(e)[:80]})", flush=True)
+            return None
+        for j in jobs:
+            if j.get("processID") != dataset:
+                continue
+            remote = client.get_remote(j["jobID"])
+            with contextlib.suppress(Exception):  # noqa: BLE001
+                if _covers(remote.request, req):
+                    return remote
+    return None
+
+
 def retrieve(dataset: str, req: dict, dest: Path, label: str, tries: int = 4, max_wait_h: float = 30.0) -> bool:
     """dest written atomically; False when the CDS has no such data or every try failed."""
     if dest.exists() and dest.stat().st_size > 0:
@@ -203,22 +234,29 @@ def retrieve(dataset: str, req: dict, dest: Path, label: str, tries: int = 4, ma
     tmp = dest.with_suffix(dest.suffix + f".part{os.getpid()}")
     attempt = 0
     while attempt < tries:
-        if not wait_idle(client, label, max_wait_h):
-            return False
         t0 = time.time()
-        try:
-            remote = client.submit(dataset, req)
-        except Exception as e:  # noqa: BLE001
-            msg = str(e).replace("\n", " ")
-            print(f"  {label}: submit failed ({msg[:300]})", flush=True)
-            if "no data" in msg.lower() or "not available" in msg.lower() or "invalid" in msg.lower():
-                _log(label=label, dataset=dataset, result="refused", msg=msg[:300])
+        remote = adopt(client, dataset, req)
+        if remote is not None:
+            print(
+                f"  {label}: adopting the key's job {remote.request_id} ({remote.status}), which holds this request",
+                flush=True,
+            )
+        else:
+            if not wait_idle(client, label, max_wait_h):
                 return False
-            attempt += 1
-            time.sleep(60)
-            continue
+            try:
+                remote = client.submit(dataset, req)
+            except Exception as e:  # noqa: BLE001
+                msg = str(e).replace("\n", " ")
+                print(f"  {label}: submit failed ({msg[:300]})", flush=True)
+                if "no data" in msg.lower() or "not available" in msg.lower() or "invalid" in msg.lower():
+                    _log(label=label, dataset=dataset, result="refused", msg=msg[:300])
+                    return False
+                attempt += 1
+                time.sleep(60)
+                continue
+            print(f"  {label}: submitted {remote.request_id}", flush=True)
         rid = remote.request_id
-        print(f"  {label}: submitted {rid}", flush=True)
         yielded = False
         failures = 0  # consecutive status checks that raised
         while True:

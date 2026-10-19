@@ -112,9 +112,9 @@ SYS = {s[0]: s for s in SYSTEMS}
 # 1st (October 2026: UKMO 2 and JMA 5 a day, 2 Sep - 1 Oct, as the monthly product's member start dates list them). The
 # daily data are filed under each member's real start day, so the issue fetch asks for every one of those days.
 LAG_DAYS = {"ukmo_610": 30, "jma_4": 30}
-# JMA's 150 members do not come back from one request within a 5-hour job: its start days go in runs of LAG_CHUNK days,
-# each table kept as it lands (named by its first start day), so a later run fetches only what is still missing
-LAG_CHUNK = {"jma_4": 5}
+# JMA's start days go in one request per calendar month (LAG_CHUNK days at most): a request waits hours in the CDS queue
+# before it runs, so fewer requests beat smaller ones; each table is kept as it lands, named by its window's first day
+LAG_CHUNK = {"jma_4": 31}
 # ...and of those only every LAG_STRIDE-th start day, counted back from the 1st (75 of the 150 members): each request is
 # half the size, and a table that holds every day of its window is cut to the same days when it is read
 LAG_STRIDE = {"jma_4": 2}
