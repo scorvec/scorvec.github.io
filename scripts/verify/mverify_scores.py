@@ -24,6 +24,7 @@ assets/verification/scores.json; rain against Stage IV in every cell of that gri
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
 import time
 import urllib.error
@@ -97,8 +98,8 @@ def get(url: str, rng: str | None = None) -> bytes:
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 raise
-        except (urllib.error.URLError, TimeoutError, ConnectionError):
-            pass
+        except (urllib.error.URLError, TimeoutError, ConnectionError, http.client.HTTPException):
+            pass  # HTTPException covers a body cut off mid-transfer (IncompleteRead)
         time.sleep(min(60, 2**attempt))
     raise RuntimeError(f"gave up on {url}")
 

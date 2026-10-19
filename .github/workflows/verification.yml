@@ -47,7 +47,7 @@ jobs:
           key: pip-verification-${{ runner.os }}-v1
       - name: Install mverify
         # pinned to a commit so a change upstream cannot alter the scores without a commit here
-        run: pip install --quiet "mverify[grib,zarr] @ git+https://github.com/scorvec/nwp_verification@e58296b86daa4d5a1c8654b33d578dead67067d0"
+        run: pip install --quiet "mverify[grib,zarr] @ git+https://github.com/scorvec/nwp_verification@105e17cb0414969a9803a0d31533b22cfaa8a9c2"
       - name: Window
         id: w
         env:
