@@ -243,7 +243,8 @@
   // without ever being taller than the window.
   function tallCap() { return Math.round(Math.max(stageCap(), window.innerHeight * 0.98)); }
   function fitStage() {
-    var st = $("stage"), img = st.querySelector("img"), fr = st.querySelector("iframe");
+    // the stage's own still or embed only: a mounted block's pictures size themselves (stage.css)
+    var st = $("stage"), img = st.querySelector(":scope > .ss-zoom > img"), fr = st.querySelector(":scope > iframe");
     if (!img && !fr) return;
     var w = stageWidth();
     if (img) {

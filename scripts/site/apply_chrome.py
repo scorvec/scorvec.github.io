@@ -214,7 +214,13 @@ PRODUCTS = [
                     (
                         "/stratosphere.html",
                         "Every stratosphere product",
-                        "Every stratosphere product in one place, by timescale: analyses and the QBO now; AIFS-ENS, IFS-ENS, GEFS and the Canadian models' vortex, heat flux and wave driving for the next two weeks; GEPS and GEFS to day 35; the C3S models and SEAS5 for the season; and every sudden warming since 1980 with what followed.",
+                        "Every stratosphere product in one place, opening on the next two weeks: AIFS-ENS, IFS-ENS, GEFS and the Canadian models' dripping paint, vortex, heat flux and wave driving; then analyses and the QBO now; GEPS and GEFS to day 35; the C3S models and SEAS5 for the season; and every sudden warming since 1980 with what followed.",
+                        "Twice daily",
+                    ),
+                    (
+                        "/stratosphere.html#fdrip15",
+                        "Next two weeks",
+                        "AIFS-ENS, IFS-ENS, GEFS and the Canadian models to day 15: the dripping paint, vortex winds and polar-cap heights, 100 hPa heat flux, E–P flux, wave-1 and the upper stratosphere.",
                         "Twice daily",
                     ),
                     (
@@ -222,12 +228,6 @@ PRODUCTS = [
                         "Now: analyses and observations",
                         "GEOS FP potential vorticity, the momentum budget and the Brewer–Dobson circulation, the water-vapour tape recorder and the QBO zero-wind line.",
                         "Daily",
-                    ),
-                    (
-                        "/stratosphere.html#vortex",
-                        "Next two weeks",
-                        "AIFS-ENS, IFS-ENS, GEFS and the Canadian models to day 15: vortex winds and polar-cap heights, 100 hPa heat flux, E–P flux, wave-1, the upper stratosphere and the dripping paint.",
-                        "Twice daily",
                     ),
                     (
                         "/stratosphere.html#vortex35",
@@ -843,7 +843,7 @@ HOME = {
         "The polar vortex from today's analysis to the season, and the QBO",
         [
             "/stratosphere.html",
-            "/stratosphere.html#vortex",
+            "/stratosphere.html#fdrip15",
             "/stratosphere.html#vortex35",
             "/stratosphere.html#s5vortex",
             "/stratosphere.html#qbo",

@@ -41,7 +41,9 @@
 .stage > .card, .stage > .chart-card { border: 0; box-shadow: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 /* a mounted card (a dom product) keeps the rules of the frame products: its maps fit the window (never taller than the
    viewport less the header, title and option rows), its explanatory text follows the figure, and its sources close it */
-.ss-main .stage > :not(img) img { width: auto; max-width: 100%; height: auto; max-height: max(320px, calc(100svh - 14rem)); margin: 0 auto; }
+/* pictures inside a mounted block; the stage's own still (in its zoom button) is sized by stage.js fitStage, and this
+   cap on it as well squashed it on screens under ~1000 px tall (full width, clipped height) */
+.ss-main .stage > :not(img):not(.ss-zoom) img { width: auto; max-width: 100%; height: auto; max-height: max(320px, calc(100svh - 14rem)); margin: 0 auto; }
 .stage > .card > .note, .stage > .card > .lede, .stage > .chart-card > .note, .stage > .chart-card > .lede { order: 5; margin: 0.8rem 0 0; }
 .stage > .card > .chart-card-footer, .stage > .chart-card > .chart-card-footer { order: 6; }
 .stage > .card h2, .stage > .chart-card h2 { font-size: 1.15rem; margin-bottom: 0.4rem; }
