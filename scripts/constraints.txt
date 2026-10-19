@@ -12,7 +12,7 @@ eckitlib==2.5.0.32
 h5netcdf==1.8.1
 h5py==3.16.0
 netCDF4==1.7.5
-numcodecs==0.16.5
+numcodecs==0.17.0
 numpy==2.4.6
 pandas==3.0.6
 pillow==12.3.0
