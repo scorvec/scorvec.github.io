@@ -355,6 +355,20 @@ window.plotlyP = new Promise(function (ok, no) {
     <div class="key" id="s-key"></div>
   </section>
 
+  <section class="card" id="wind-card" hidden>
+    <h2>Wind speed as a distribution</h2>
+    <div class="controls">
+      <label>Region<select id="w-region"></select></label>
+      <label>Lead<select id="w-group"></select></label>
+    </div>
+    <div class="pair">
+      <div><h3>Quantiles, forecast against observed</h3><div class="chart" id="c-qq"></div></div>
+      <div><h3>Fitted distribution (hybrid Weibull)</h3><div class="chart" id="c-weib"></div></div>
+    </div>
+    <div class="tblwrap"><table class="pg" id="w-table"></table></div>
+    <p class="note" id="w-note"></p>
+  </section>
+
   <section class="card" id="precip-card" hidden>
     <h2>Rain over the US</h2>
     <p class="note">24-hour totals ending 12Z against the Stage IV analysis on its 4&nbsp;km grid.</p>
@@ -400,6 +414,13 @@ window.plotlyP = new Promise(function (ok, no) {
       to day, once a cell has 8 days. The p values of all the cells of a map then go through the Benjamini–Hochberg
       procedure at a 10% false-discovery rate, so the coloured cells are ones whose bias is unlikely to be noise. RMSE and
       the mean amounts are shown everywhere.</p>
+    <p><b>Wind speed as a distribution.</b> Wind speed is skewed and cannot go below zero, so RMSE and bias, which reward
+      a forecast that hedges towards the middle, are joined by the whole distribution, on the same station pairs for every
+      model: forecast and observed quantiles from 1 to 99.5% (a QQ plot: a model on the dashed line has the observed
+      distribution); the hybrid Weibull of Takle and Brown (1978), that is the share of calms (under 0.5 m/s, as reports
+      come in whole knots) and a Weibull shape k and scale c fitted by maximum likelihood to the rest (a smaller k is a
+      wider spread, a smaller c weaker winds); and how often 5, 10 and 15 m/s are reached. Each run's speeds are binned at
+      0.05 m/s and the runs resampled whole, model and observation together, for a 95% interval on every difference.</p>
     <p><b>Rain gauges.</b> The 24 hour totals that stations report (GHCNh; at 12Z from US ASOS stations, the same window
       as Stage IV) are scored like the other station variables, each model's total for those 24 hours interpolated to
       the gauge from the common grid, every model on the same readings. In the US they check the gridded scores at
@@ -754,6 +775,58 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
   const q95 = xs => { const v = xs.filter(x => x != null && isFinite(x)).sort((a, b) => a - b); return v.length ? v[Math.floor(0.95 * (v.length - 1))] : 1; };
   const nice = x => { const e = Math.pow(10, Math.floor(Math.log10(x))); return [1, 2, 2.5, 5, 10].map(m => m * e).find(m => m >= x) || x; };
 
+  // 10 m wind speed as a distribution: QQ, the hybrid Weibull and exceedance, filled or starred where the model differs
+  // from the observed beyond the bootstrap interval
+  function drawWind(wd) {
+    if (!wd.rows.length) return;
+    $("wind-card").hidden = false;
+    const wr = $("w-region"), wg = $("w-group"), models = wd.models, LABEL = { global: "Global", nh: "NH 20-90N",
+      tropics: "Tropics 20S-20N", sh: "SH 20-90S", conus: "CONUS", north_america: "North America", europe: "Europe" };
+    fill(wr, [...new Set(wd.rows.map(r => r.region))], v => LABEL[v] || v);
+    wr.value = wd.rows.some(r => r.region === "global") ? "global" : wd.rows[0].region;
+    fill(wg, wd.groups, g => g[0].toUpperCase() + g.slice(1));
+    const pct = p => `${+(100 * p).toFixed(1)}%`;
+    const out = (lo, hi, at) => lo != null && hi != null && (lo > at || hi < at);
+    function render() {
+      const row = wd.rows.find(r => r.region === wr.value && r.group === wg.value);
+      if (!row) { Plotly.purge("c-qq"); Plotly.purge("c-weib"); $("w-table").innerHTML = ""; $("w-note").textContent = "No pairs for this choice."; return; }
+      const o = row.obs, top = Math.max(...o.q, ...models.map(m => Math.max(...row.models[m].q)));
+      const qq = [{ x: [0, top], y: [0, top], mode: "lines", line: { color: "#9a958b", dash: "dash", width: 1 }, hoverinfo: "skip", showlegend: false }]
+        .concat(models.map((m, k) => {
+          const r = row.models[m], sig = r.q.map((_, i) => out(r.q_lo[i], r.q_hi[i], 0));
+          return { x: o.q, y: r.q, name: m, mode: "lines+markers", line: { color: color(m, k), width: 2 },
+            marker: { size: 7, color: sig.map(v => v ? color(m, k) : "#fff"), line: { color: color(m, k), width: 1.6 } },
+            customdata: wd.probs.map((p, i) => [pct(p), (r.q[i] - o.q[i]).toFixed(2), sig[i] ? "beyond chance" : "within chance"]),
+            hovertemplate: `${m}: %{customdata[0]} quantile %{y:.2f} m/s, observed %{x:.2f} (%{customdata[1]}, %{customdata[2]})<extra></extra>` };
+        }));
+      Plotly.react("c-qq", qq, layout("Forecast quantile (m/s)", {
+        hovermode: "closest", xaxis: { title: { text: "Observed quantile (m/s)" }, gridcolor: "#ece9e2", zeroline: false, range: [0, top * 1.03] },
+        yaxis: { title: { text: "Forecast quantile (m/s)" }, gridcolor: "#ece9e2", zeroline: false, range: [0, top * 1.03], scaleanchor: "x" } }), CONFIG);
+      const u = Array.from({ length: 120 }, (_, i) => wd.calm + i * (Math.min(top * 1.2, 30) - wd.calm) / 119);
+      const pdf = (k, c, calm) => u.map(x => (1 - calm) * (k / c) * Math.pow(x / c, k - 1) * Math.exp(-Math.pow(x / c, k)));
+      const wb = [{ x: u, y: pdf(o.k, o.c, o.calm), name: "Observed", mode: "lines", line: { color: "#2b2a27", width: 3 } }]
+        .concat(models.map((m, k) => { const r = row.models[m];
+          return { x: u, y: pdf(r.k, r.c, r.calm), name: m, mode: "lines", line: { color: color(m, k), width: 2 } }; }));
+      Plotly.react("c-weib", wb, layout("Density (per m/s)", {
+        xaxis: { title: { text: "10 m wind speed (m/s)" }, gridcolor: "#ece9e2", zeroline: false } }), CONFIG);
+      const star = (v, f) => `${v}${f ? "<b>*</b>" : ""}`, t10 = wd.thresholds.indexOf(10);
+      $("w-table").innerHTML = `<thead><tr><th></th><th>Calm</th><th>Weibull k</th><th>Weibull c (m/s)</th>` +
+        wd.thresholds.map(t => `<th>≥ ${t} m/s</th>`).join("") + "</tr></thead><tbody>" +
+        `<tr><td>Observed</td><td>${pct(o.calm)}</td><td>${o.k.toFixed(2)}</td><td>${o.c.toFixed(2)}</td>` +
+        o.exceed.map(e => `<td>${pct(e)}</td>`).join("") + "</tr>" +
+        models.map(m => { const r = row.models[m];
+          return `<tr><td>${esc(m)}</td><td>${star(pct(r.calm), out(r.calm_lo, r.calm_hi, 0))}</td><td>${star(r.k.toFixed(2), out(r.k_lo, r.k_hi, 0))}</td>` +
+            `<td>${star(r.c.toFixed(2), out(r.c_lo, r.c_hi, 0))}</td>` +
+            r.exceed.map((e, i) => `<td>${star(pct(e), out(r.ratio_lo[i], r.ratio_hi[i], 1))}</td>`).join("") + "</tr>"; }).join("") + "</tbody>";
+      const weak = models.filter(m => out(row.models[m].ratio_lo[t10], row.models[m].ratio_hi[t10], 1) && row.models[m].exceed[t10] < o.exceed[t10]);
+      $("w-note").innerHTML = `10 m wind speed against the station reports, ${row.n.toLocaleString()} pairs from ${row.runs} runs, every model on the same ones. ` +
+        `Filled points and starred numbers differ from the observed beyond chance (bootstrap over runs, ${Math.round(100 * wd.level)}%).` +
+        (weak.length ? ` Too few winds of 10 m/s or more: ${weak.map(esc).join(", ")}.` : "");
+    }
+    [wr, wg].forEach(el => el.addEventListener("change", render));
+    render();
+  }
+
   // rain against Stage IV in every cell of the common grid; the bias is coloured only where its test passes
   function drawRainMap(pm) {
     const models = Object.keys(pm.models);
@@ -891,10 +964,12 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     // Leaflet loads deferred, so it is ready once the document is parsed.
     const parsed = new Promise(ok => document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", ok) : ok());
     const get = u => fetch(u).then(r => r.ok ? r.json() : null);
-    return Promise.all([get("/assets/verification/stations.json"), get("/assets/verification/precip_maps.json"), parsed])
-      .then(([sm, pm]) => {
+    return Promise.all([get("/assets/verification/stations.json"), get("/assets/verification/precip_maps.json"),
+      get("/assets/verification/wind_dist.json"), parsed])
+      .then(([sm, pm, wd]) => {
         if (sm) drawMap(sm);
         if (pm) drawRainMap(pm);
+        if (wd) drawWind(wd);
       });
   }).catch(e => {
     $("asof").textContent = "The scores could not be loaded (" + e.message + ").";
