@@ -2,10 +2,9 @@
 """GFS, ECMWF IFS, AIFS and ECCC GDPS scored with mverify for verification.html.
 
 Downloads only the fields that are scored (byte ranges from each file's index), every 12 h to day 10:
-  * surface: 2 m temperature and dew point, pressure, 10 m wind and precipitation, plus orography and the
-    land-sea mask at step 0. Pressure is surface pressure against station-level pressure, only where the model
-    terrain is within 5 m of the station (mverify.match.MAX_DZ_PRESSURE), when every model publishes it, and
-    mean sea-level pressure when one does not (pressure_variable);
+  * surface: 2 m temperature and dew point, mean sea-level pressure (only where the model terrain at the station is
+    at most 500 m: mverify.match.MAX_TERRAIN_MSL), 10 m wind and precipitation, plus orography and the land-sea mask
+    at step 0;
   * upper air: height, temperature and wind at 1000-100 hPa and specific humidity at 1000-300 hPa
     (mverify.variables.LEVELS, HUMIDITY_LEVELS), scored against radiosondes. These are some 50 fields a
     step, so each run is downloaded, matched to the soundings and deleted before the next; its pairs are
@@ -42,7 +41,7 @@ MAP_OUT = REPO / "assets" / "verification" / "stations.json"
 RAIN_OUT = REPO / "assets" / "verification" / "precip_maps.json"
 WIND_OUT = REPO / "assets" / "verification" / "wind_dist.json"
 MAP_LEADS = [24, 72, 120, 168, 240]
-MAP_VARS = ["t2m", "td2m", "wind10"] + [f"{b}{lv}" for lv in (850, 500, 250) for b in ("z", "t", "wind")]
+MAP_VARS = ["t2m", "td2m", "msl", "wind10"] + [f"{b}{lv}" for lv in (850, 500, 250) for b in ("z", "t", "wind")]
 MAP_VARS += ["q850", "q700"]
 LEADS = range(0, 241, 12)
 GRID = 0.5  # degrees: the common grid, coarser than every model's own resolution (AIFS, the coarsest, is ~31 km)
@@ -52,6 +51,7 @@ UPPER = [(b, lv) for lv in V.LEVELS for b in "ztuv"] + [("q", lv) for lv in V.HU
 ECMWF_FIELDS = {
     ("2t", "sfc", None),
     ("2d", "sfc", None),
+    ("msl", "sfc", None),
     ("10u", "sfc", None),
     ("10v", "sfc", None),
     ("tp", "sfc", None),
@@ -61,6 +61,7 @@ ECMWF_STATIC = {("lsm", "sfc", None), ("z", "sfc", None)}
 GFS_FIELDS = [
     ":TMP:2 m above ground:",
     ":DPT:2 m above ground:",
+    ":PRMSL:mean sea level:",
     ":UGRD:10 m above ground:",
     ":VGRD:10 m above ground:",
     ":APCP:surface:",
@@ -71,6 +72,7 @@ DATAMART = "https://dd.weather.gc.ca"
 GDPS_FIELDS = [
     "AirTemp_AGL-2m",
     "DewPoint_AGL-2m",
+    "Pressure_MSL",
     "WindU_AGL-10m",
     "WindV_AGL-10m",
     "Precip-Accum_Sfc",
@@ -80,12 +82,6 @@ GDPS_UPPER = [
     for b, lv in UPPER
 ]
 GDPS_STATIC = ["GeopotentialHeight_Sfc", "LandWaterProportion_Sfc"]
-# The pressure field of each model (ECMWF, GFS, GDPS) for the two ways of scoring pressure; one is added to the field
-# lists for the run (pressure_variable)
-PRESSURE = {
-    "sp": (("sp", "sfc", None), ":PRES:surface:", "Pressure_Sfc"),
-    "msl": (("msl", "sfc", None), ":PRMSL:mean sea level:", "Pressure_MSL"),
-}
 MODELS = {"GFS": "gfs", "IFS": "ifs", "AIFS": "aifs-single", "GDPS": "gdps"}
 UA = "scorvec.com data pipeline (+https://scorvec.com)"  # the site's honest User-Agent (scripts/lib/webget.py)
 
@@ -164,18 +160,6 @@ def fetch(model: str, init: str, lead: int, dest: Path, upper: bool) -> None:
     part.rename(dest)
 
 
-def pressure_variable(init: str) -> str:
-    """'sp' when both ECMWF models publish surface pressure for the run (GFS and GDPS always do), else 'msl': a variable
-    one model lacks would drop out of every model's sample (verify.common_sample)."""
-    day, hh = init[:8], init[8:]
-    for model in ("IFS", "AIFS"):
-        index = get(f"{GOOGLE}/{day}/{hh}z/{MODELS[model]}/0p25/oper/{day}{hh}0000-12h-oper-fc.index").decode()
-        if not any(json.loads(line)["param"] == "sp" for line in index.splitlines()):
-            print(f"{model} publishes no surface pressure: scoring mean sea-level pressure", flush=True)
-            return "msl"
-    return "sp"
-
-
 def download(jobs: list[tuple[str, str, int]], root: Path, upper: bool) -> None:
     with ThreadPoolExecutor(6) as ex:
         list(ex.map(lambda j: fetch(*j, root / MODELS[j[0]] / f"{j[1]}_{j[2]:03d}.grib2", upper), jobs))
@@ -224,12 +208,6 @@ def main() -> None:
             pd.to_datetime(a.inits[0], format="%Y%m%d%H"), pd.to_datetime(a.inits[1], format="%Y%m%d%H"), freq="1D"
         )
     ]
-    pressure = pressure_variable(inits[0])
-    ecmwf, gfs, gdps = PRESSURE[pressure]
-    ECMWF_FIELDS.add(ecmwf)
-    GFS_FIELDS.append(gfs)
-    GDPS_FIELDS.append(gdps)
-    MAP_VARS.insert(2, pressure)
     download([(m, i, ld) for m in MODELS for i in inits for ld in LEADS], a.work, upper=False)
 
     from mverify import report
@@ -263,9 +241,9 @@ def main() -> None:
     report.write_json(compare(surface.pairs, "ws10"), WIND_OUT)
     print(f"{len(surface.pairs):,} surface pairs, {OUT.relative_to(REPO)}")
     stations = surface.pairs.groupby("variable")["station_id"].nunique()
-    within = " (model terrain within 5 m)" if pressure == "sp" else ""
     print(
-        f"stations scored: 2 m temperature {stations.get('t2m', 0):,}, {pressure} {stations.get(pressure, 0):,}{within}",
+        f"stations scored: 2 m temperature {stations.get('t2m', 0):,}, sea-level pressure {stations.get('msl', 0):,} "
+        "(model terrain at most 500 m)",
         flush=True,
     )
 
