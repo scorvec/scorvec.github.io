@@ -115,6 +115,9 @@ LAG_DAYS = {"ukmo_610": 30, "jma_4": 30}
 # JMA's 150 members do not come back from one request within a 5-hour job: its start days go in runs of LAG_CHUNK days,
 # each table kept as it lands (named by its first start day), so a later run fetches only what is still missing
 LAG_CHUNK = {"jma_4": 5}
+# ...and of those only every LAG_STRIDE-th start day, counted back from the 1st (75 of the 150 members): each request is
+# half the size, and a table that holds every day of its window is cut to the same days when it is read
+LAG_STRIDE = {"jma_4": 2}
 CENTRES = [
     ("ECMWF", ["ecmwf_51"]),
     ("UKMO", ["ukmo_610"]),
@@ -435,25 +438,42 @@ NPERM, NBOOT = 20000, 10000
 I60 = int(np.argmin(np.abs(LATS - 60)))
 
 
-def issue_groups(key: str, issue: str) -> list[tuple[int, str, list[str]]]:
-    """(year, month, days) of the real start days an issue's forecast members come from: the 1st of the issue month, and
-    for a lagged system (LAG_DAYS) the days before it that belong to the same nominal start."""
+def issue_windows(key: str, issue: str) -> list[tuple[int, str, list[str], list[str]]]:
+    """(year, month, the window's days, the start days used in it) for an issue's forecast members: the 1st of the issue
+    month and, for a lagged system (LAG_DAYS), the days before it that belong to the same nominal start, in windows of
+    LAG_CHUNK calendar days, every LAG_STRIDE-th day counted back from the 1st."""
     first = dt.date(int(issue[:4]), int(issue[4:]), 1)
     days = [first - dt.timedelta(days=i) for i in range(LAG_DAYS.get(key, 1))]
-    groups = {}
+    used = set(days[:: LAG_STRIDE.get(key, 1)])
+    months = {}
     for d in sorted(days):
-        groups.setdefault((d.year, f"{d.month:02d}"), []).append(f"{d.day:02d}")
+        months.setdefault((d.year, f"{d.month:02d}"), []).append(d)
     n = LAG_CHUNK.get(key)
-    return [
-        (y, m, ds[i : i + n] if n else ds) for (y, m), ds in groups.items() for i in range(0, len(ds), n or len(ds))
-    ]
+    out = []
+    for (y, m), ds in months.items():
+        for i in range(0, len(ds), n or len(ds)):
+            win = ds[i : i + n] if n else ds
+            pick = [f"{d.day:02d}" for d in win if d in used]
+            if pick:
+                out.append((y, m, [f"{d.day:02d}" for d in win], pick))
+    return out
+
+
+def issue_groups(key: str, issue: str) -> list[tuple[int, str, list[str]]]:
+    """(year, month, start days) of each request an issue's forecast needs (issue_windows)."""
+    return [(y, m, pick) for y, m, _, pick in issue_windows(key, issue)]
 
 
 def issue_names(key: str, issue: str) -> list[str]:
-    g = issue_groups(key, issue)
-    if key in LAG_CHUNK:  # by first start day: a change of chunking never reads another chunk's table
-        return [f"{key}_{issue}_s{m}{ds[0]}" for _, m, ds in g]
-    return [f"{key}_{issue}"] if len(g) == 1 else [f"{key}_{issue}_g{gi}" for gi in range(len(g))]
+    w = issue_windows(key, issue)
+    if key in LAG_CHUNK:  # by the window's first day: a change of chunking never reads another chunk's table
+        return [f"{key}_{issue}_s{m}{win[0]}" for _, m, win, _ in w]
+    return [f"{key}_{issue}"] if len(w) == 1 else [f"{key}_{issue}_g{gi}" for gi in range(len(w))]
+
+
+def issue_starts(key: str, issue: str) -> set[int]:
+    """The start dates (YYYYMMDD) an issue's members are taken from."""
+    return {y * 10000 + int(m) * 100 + int(d) for y, m, _, pick in issue_windows(key, issue) for d in pick}
 
 
 def issue_units(issue: str) -> list[dict]:
@@ -577,7 +597,9 @@ def _year_table(key: str, tag) -> np.ndarray | None:
         p = table_path(n)
         if not p.exists():
             return None
-        parts.append(np.load(p)["u"])
+        z = np.load(p)
+        # an issue table written before LAG_STRIDE holds every day of its window: keep the start days used
+        parts.append(z["u"][np.isin(z["init"], list(issue_starts(key, tag)))] if isinstance(tag, str) else z["u"])
     return np.concatenate(parts, axis=0)
 
 
