@@ -694,6 +694,14 @@ def _job(spec):
     return daily(tag, cycle, base, base_kind, only=key)
 
 
+def fetch_features() -> None:
+    """The coastlines, borders and states the maps draw, on disk before the render processes start: cartopy downloads
+    a missing Natural Earth shapefile on first use, and processes doing that at once read each other's half-written
+    files (struct.error in shapefile.py)."""
+    for feature in (cfeature.COASTLINE, cfeature.BORDERS, cfeature.STATES):
+        next(iter(feature.with_scale("50m").geometries()), None)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--cycle", required=True)
@@ -723,6 +731,7 @@ def main() -> int:
     tags = [t for t in tags if (LIVE / f"geps_live_{t}_{a.cycle}.nc").exists()]
     specs = [(t, k, a.cycle, base, a.base, a.skip_daily, a.prev) for t in tags for k in DOMAINS]
     n = min(a.workers, len(specs)) or 1
+    fetch_features()
     print(f"rendering {len(specs)} field/domain units on {n} processes", flush=True)
     t0 = time.time()
     if n == 1:

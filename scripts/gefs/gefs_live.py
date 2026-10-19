@@ -534,6 +534,21 @@ def _frames_job(spec):
     return f"{key}_{tag}", title, frames
 
 
+def fetch_features() -> None:
+    """The coastlines, borders and states the maps and loops draw, on disk before the render processes start: cartopy
+    downloads a missing Natural Earth shapefile on first use, and processes doing that at once read each other's
+    half-written files (struct.error in shapefile.py)."""
+    import cartopy.feature as cfeature
+
+    for feature, scale in (
+        (cfeature.COASTLINE, "50m"),
+        (cfeature.BORDERS, "50m"),
+        (cfeature.STATES, "50m"),
+        (cfeature.COASTLINE, "110m"),
+    ):
+        next(iter(feature.with_scale(scale).geometries()), None)
+
+
 def daily_loops(A, z, base, anim: Path, procs: int, model: str | None = None, prefix: str | None = None, days=None):
     from concurrent.futures import ProcessPoolExecutor
 
@@ -1069,6 +1084,7 @@ def render(
                         f"{FIELDS[tag][0]}: this run minus the previous run ({FIELDS[tag][1]})",
                     )
                 )
+    fetch_features()
     n_daily = daily_loops(A, z, base, anim, procs)
     trend = np.load(ref("strat_trend15.npz", cache, ref_dir))
     n_vortex = vortex_loop(z, C2, trend, base, anim, procs, Dr)
