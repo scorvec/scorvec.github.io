@@ -446,13 +446,9 @@ window.plotlyP = new Promise(function (ok, no) {
         are not scored against sea temperatures. 2 m temperature is moved to station height with a standard lapse rate,
         10 m wind is adjusted to the anemometer height, and stations where model and station heights differ by more than
         100 m are dropped.</li>
-      <li id="m-sp" hidden><b>Surface pressure.</b> Mean sea-level pressure is a reduction below ground that every model and station
-        makes its own way, so pressure is scored as the model's surface pressure against the station's own reading. It
-        is not moved to the station's height, so only stations whose height is within 5 m of every model's terrain are
-        used: pressure falls about 0.12 hPa per metre near sea level, so the mismatch stays within 0.6 hPa, inside the
-        observation error.</li>
-      <li id="m-msl" hidden><b>Pressure.</b> Pressure is scored as mean sea-level pressure, because one model does not
-        publish surface pressure; each model's own reduction to sea level is compared with the station's.</li>
+      <li><b>Pressure.</b> Mean sea-level pressure, at stations where every model's terrain is at most 500 m. The
+        reduction to sea level runs through the ground under the station, each model and station makes it its own way, and
+        the differences grow with the height reduced.</li>
       <li><b>Scores.</b> RMSE, bias, MAE and correlation for each variable, region and lead; precipitation on the analysis
         grid with the equitable threat score, frequency bias and the fractions skill score (Roberts and Lean 2008).</li>
       <li><b>Same sample.</b> Each model is scored only on the observations every model was matched to, so a model
@@ -478,7 +474,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
   const COLORS = { GFS: "#2c5f8a", IFS: "#b3372f", AIFS: "#7b4fb0", GDPS: "#3f8f5a" };
   const FALLBACK = ["#2c5f8a", "#b3372f", "#7b4fb0", "#3f8f5a", "#b8892b"];
   // Surface first, then upper air by quantity and from the ground up (1000 to 100 hPa); precipitation has its own card.
-  const SURFACE = ["t2m", "td2m", "sp", "msl", "ws10", "wind10", "u10", "v10"];
+  const SURFACE = ["t2m", "td2m", "msl", "ws10", "wind10", "u10", "v10"];
   const UPPER = ["z", "t", "wind", "q", "u", "v"];
   const QTY = { z: "Geopotential height", t: "Temperature", wind: "Vector wind", q: "Specific humidity" };
   // [quantity, hPa] of an upper-air variable; null for surface ones (wind10 is the 10 m wind, not 10 hPa)
@@ -521,8 +517,6 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     const surface = card.rows.filter(r => !r.var.startsWith("tp") && enough(r));
     const precip = card.rows.filter(r => r.var.startsWith("tp"));
     const vars = [...new Set(surface.map(r => r.var))].sort((a, b) => rank(a) - rank(b));
-    // the method note for the pressure this run scored: surface pressure, or sea-level pressure as the fallback
-    $(vars.includes("sp") ? "m-sp" : "m-msl").hidden = !vars.includes("sp") && !vars.includes("msl");
     const label = Object.fromEntries(surface.map(r => [r.var, r.label]));
     const regionsFor = v => [...new Set(surface.filter(r => r.var === v).map(r => r.region))];
     const row = (v, region) => surface.find(r => r.var === v && r.region === region);
@@ -842,7 +836,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     const cells = L.layerGroup().addTo(map);
     const rs = $("r-stat"), rm = $("r-model"), rg = $("r-group"), truth = pm.truth.replace(" analysis", "");
     const NAMES = { bias: "Bias", rmse: "RMSE", fcst: "Mean rain, model", obs: `Mean rain, ${truth}` };
-    fill(rs, ["bias", "rmse", "fcst", "obs"], s => NAMES[s]);
+    fill(rs, ["rmse", "bias", "fcst", "obs"], s => NAMES[s]);  // RMSE first: it is shown in every cell
     fill(rm, models);
     rm.value = models.includes("IFS") ? "IFS" : models[0];
     fill(rg, pm.groups.map((_, k) => String(k)), k => {
@@ -850,6 +844,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
       return `${g.label[0].toUpperCase()}${g.label.slice(1)} (windows ending ${g.ends_h[0]}–${g.ends_h[1]} h)`;
     });
     const mm = v => v == null ? "–" : `${(v / 10).toFixed(1)} mm`;
+    const CHANCE = dark ? "#8f8a80" : "#bdb8ae";  // a bias within chance: plainly there, plainly not a colour of the scale
     let framed = false;
     function render() {
       const s = rs.value, name = rm.value, m = pm.models[name], g = +rg.value, nx = m.lon.length;
@@ -876,17 +871,18 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
           `${esc(name)} bias ${m.bias[g][k] > 0 ? "+" : ""}${mm(m.bias[g][k])} (${verdict}), RMSE ${mm(m.rmse[g][k])}<br>` +
           `mean rain: ${esc(name)} ${mm(fc[k])}, ${esc(truth)} ${mm(m.obs[g][k])}<br>${m.days[g][k]} valid days`;
         L.rectangle([[la - hy, lon - hx], [la + hy, lon + hx]], { renderer: rend, stroke: false,
-          fillColor: pass ? ramp(stops, (v / 10 - lo) / (hi - lo)) : (dark ? "#55524c" : "#d6d3cc"),
-          fillOpacity: pass ? 0.85 : 0.5 }).bindTooltip(tip, { sticky: true }).addTo(cells);
+          fillColor: pass ? ramp(stops, (v / 10 - lo) / (hi - lo)) : CHANCE,
+          fillOpacity: pass ? 0.85 : 0.6 }).bindTooltip(tip, { sticky: true }).addTo(cells);
       });
       if (!framed && shown) { map.fitBounds(box, { padding: [8, 8] }); framed = true; }
       $("r-ramp").style.background = `linear-gradient(90deg, ${stops.join(",")})`;
       $("r-ticks").innerHTML = [0, 0.25, 0.5, 0.75, 1].map((f, j) => `<span>${j === 4 && s !== "bias" ? "≥ " : ""}${+(lo + f * (hi - lo)).toFixed(1)}</span>`).join("");
-      $("r-cap").textContent = s === "bias" ? `${name} minus ${truth}, mm per ${pm.accum_hours} h; brown too dry, teal too wet`
+      $("r-cap").textContent = s === "bias" ? `${name} minus ${truth}, mm per ${pm.accum_hours} h; brown too dry, teal too wet, grey within chance`
         : `${NAMES[s].replace("model", name)}, mm per ${pm.accum_hours} h`;
       $("r-note").innerHTML = `${pm.accum_hours} h totals ending 12Z against ${esc(pm.truth)} on the common 0.5° grid, over the runs and windows of the lead group. ` +
-        (s === "bias" ? `The bias is coloured in ${passed.toLocaleString()} of ${shown.toLocaleString()} cells, those that pass a cell-by-cell test at a ${Math.round(100 * pm.fdr_q)}% false-discovery rate; grey cells are within chance.`
-          : "Hover a cell for its numbers.");
+        (s !== "bias" ? "Hover a cell for its numbers." : passed
+          ? `The bias is coloured in ${passed.toLocaleString()} of ${shown.toLocaleString()} cells, those that pass a cell-by-cell test at a ${Math.round(100 * pm.fdr_q)}% false-discovery rate; grey cells are within chance.`
+          : `No cell's bias is distinguishable from chance yet (a cell-by-cell test at a ${Math.round(100 * pm.fdr_q)}% false-discovery rate, on ${Math.max(...m.days[g])} valid days at most), so every cell is grey; RMSE and the mean amounts show every cell.`);
     }
     [rs, rm, rg].forEach(el => el.addEventListener("change", render));
     render();
