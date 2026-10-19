@@ -201,59 +201,54 @@ PRODUCTS = [
         ],
         "Circulation/tropics",
     ),
-    # one hub: stratosphere.html holds every stratosphere product by timescale (including the GEPS/GEFS/SEAS5 vortex
-    # products and the QBO tracker), and this menu lists its sections; the one group heading must not repeat the
-    # menu button or the hub link
+    # one hub: stratosphere.html holds every stratosphere product (including the GEPS/GEFS/SEAS5 vortex products and the
+    # QBO tracker); this menu is a flat list of its sections in the page's order (forecasts by range, then today's
+    # analyses and the history), and the hub itself last
     (
         "Stratosphere",
         "The polar vortex and the waves going up into it, from today's analysis to the season, and the QBO",
         [
             (
-                "By timescale",
-                [
-                    (
-                        "/stratosphere.html",
-                        "Every stratosphere product",
-                        "Every stratosphere product in one place, opening on the next two weeks: AIFS-ENS, IFS-ENS, GEFS and the Canadian models' dripping paint, vortex, heat flux and wave driving; then analyses and the QBO now; GEPS and GEFS to day 35; the C3S models and SEAS5 for the season; and every sudden warming since 1980 with what followed.",
-                        "Twice daily",
-                    ),
-                    (
-                        "/stratosphere.html#fdrip15",
-                        "Next two weeks",
-                        "AIFS-ENS, IFS-ENS, GEFS and the Canadian models to day 15: the dripping paint, vortex winds and polar-cap heights, 100 hPa heat flux, E–P flux, wave-1 and the upper stratosphere.",
-                        "Twice daily",
-                    ),
-                    (
-                        "/stratosphere.html#pv",
-                        "Now: analyses and observations",
-                        "GEOS FP potential vorticity, the momentum budget and the Brewer–Dobson circulation, the water-vapour tape recorder and the QBO zero-wind line.",
-                        "Daily",
-                    ),
-                    (
-                        "/stratosphere.html#vortex35",
-                        "Weeks 3–5",
-                        "GEPS and GEFS to day 35: drift-corrected vortex diagnostics, loops and dripping paint, and the 100 hPa heat flux.",
-                        "Daily",
-                    ),
-                    (
-                        "/stratosphere.html#s5vortex",
-                        "Season",
-                        "The C3S multi-model December vortex, calibrated on its hindcasts; SEAS5's vortex, QBO and annular mode, sudden-warming risk and polar-cap heights; and this winter's odds from the QBO and ENSO.",
-                        "Monthly",
-                    ),
-                    (
-                        "/stratosphere.html#shwinters",
-                        "History and studies",
-                        "Every winter and sudden warming since 1980 in MERRA-2 and 15,000 more in CMIP6, with what followed at the surface.",
-                        "Static",
-                    ),
-                    (
-                        "/stratosphere.html#qbo",
-                        "QBO tracker",
-                        "Equatorial stratospheric winds at 10 to 100 hPa from radiosondes, from the 1950s to the present.",
-                        "Weekly",
-                    ),
-                ],
+                "/stratosphere.html#fdrip15",
+                "Next two weeks",
+                "AIFS-ENS, IFS-ENS, GEFS and the Canadian models to day 15: the dripping paint, vortex winds and polar-cap heights, 100 hPa heat flux, E–P flux, wave-1 and the upper stratosphere.",
+                "Twice daily",
+            ),
+            (
+                "/stratosphere.html#vortex35",
+                "Weeks 3–5",
+                "GEPS and GEFS to day 35: drift-corrected vortex diagnostics, loops and dripping paint, and the 100 hPa heat flux.",
+                "Daily",
+            ),
+            (
+                "/stratosphere.html#s5vortex",
+                "The season ahead",
+                "The C3S multi-model December vortex, calibrated on its hindcasts; SEAS5's vortex, QBO and annular mode, sudden-warming risk and polar-cap heights; and this winter's odds from the QBO and ENSO.",
+                "Monthly",
+            ),
+            (
+                "/stratosphere.html#pv",
+                "Today's analyses",
+                "GEOS FP potential vorticity, the momentum budget and the Brewer–Dobson circulation, the water-vapour tape recorder and the QBO zero-wind line.",
+                "Daily",
+            ),
+            (
+                "/stratosphere.html#shwinters",
+                "History and studies",
+                "Every winter and sudden warming since 1980 in MERRA-2 and 15,000 more in CMIP6, with what followed at the surface.",
+                "Static",
+            ),
+            (
+                "/stratosphere.html#qbo",
+                "QBO",
+                "Equatorial stratospheric winds at 10 to 100 hPa from radiosondes, from the 1950s to the present.",
+                "Weekly",
+            ),
+            (
+                "/stratosphere.html",
+                "All stratosphere products",
+                "Every stratosphere product in one place, opening on the next two weeks: AIFS-ENS, IFS-ENS, GEFS and the Canadian models' dripping paint, vortex, heat flux and wave driving; GEPS and GEFS to day 35; the C3S models and SEAS5 for the season; today's analyses and the QBO; and every sudden warming since 1980 with what followed.",
+                "Twice daily",
             ),
         ],
     ),
