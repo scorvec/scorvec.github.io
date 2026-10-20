@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Early Vote: 2026 Midterms</title>
-<meta name="description" content="The 2026 early vote against earlier elections at the same number of days out - North Carolina by party, age, race, county and vote history, Georgia, Florida and Nevada's Clark County - and how ballots already cast enter the midterm forecast.">
+<meta name="description" content="The 2026 early vote against earlier elections at the same number of days out - turnout so far by state, North Carolina by party, age, race, county and vote history, Georgia, Florida and Nevada's Clark County - and how ballots already cast enter the midterm forecast.">
 <link rel="canonical" href="https://scorvec.com/midterms/early-vote.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Early Vote: 2026 Midterms">
@@ -232,6 +232,10 @@ a:focus-visible{outline:2px solid var(--d);outline-offset:2px}
 <p class="mt-lede">Ballots already cast, against earlier elections at the same point before Election Day (counted, not opened).</p>
 <p class="mt-stamp" id="stamp">Loading&hellip;</p>
 
+<h2 id="turnout">Turnout so far</h2>
+<div class="tw"><table id="turntab"></table></div>
+<p class="sans" id="turnnote"></p>
+
 
 <h2 id="nc">North Carolina</h2>
 <p class="sans" style="color:var(--muted)">Accepted mail and early in-person ballots against 2018–2024 on the same day; rates per registered voter of each group.</p>
@@ -288,6 +292,25 @@ the table scores the change in that reading from the previous cycle of the same 
 <p class="sans" id="gatenote"></p>
 
 <h2 id="sources">Method and sources</h2>
+<p><b>Turnout so far.</b> Each state's ballots already cast, from the same official files as its section below, against
+2022 at the same number of days out where a 2022 file exists for that point (Clark County: mail ballots only; Georgia:
+georgiavotes.com's 2022 figures; Florida and Texas: none yet). The share of 2022's total divides by the larger of the
+state's 2022 general-election votes for U.S. Senate (the MIT Election Data and Science Lab's returns) and U.S. House (the
+Federal Election Commission's <i>Federal Elections 2022</i> tables), a floor on ballots cast. Where a share of
+citizens 18 and over is shown, it divides by the Census Bureau's American Community Survey 1-year estimate of the citizen
+voting-age population (table B29001), which is not quite the eligible electorate (it counts citizens barred from voting and
+misses voters abroad). <b>Why no projected total.</b>
+A projected total would divide the ballots so far by the share of the final vote banked at the same point in the last
+midterm, with a range from how well that rule has done before (<code>midterms/turnout_proj.py</code>, its rules written
+down before any number was computed). It is only fair across elections with the same early-voting calendar, and too few
+past midterms have one: North Carolina cut early voting to 10 days for 2014 and opened it a day earlier in 2018, leaving a
+single comparable midterm (2022 against 2018, which missed by 18% at this point and by 2% once early voting closed), and
+Pennsylvania's mail records start in 2020. Presidential years, all of them comparable, missed by up to 178% this far out
+(2020, the pandemic's mail). Rules that change how people vote break the comparison too: North Carolina's 2023 law ends
+the three-day grace period for mail ballots, Georgia's 2021 law reshaped early and mail voting, Texas's 2021 law added ID
+rules for mail, and Pennsylvania has had no-excuse mail voting only since 2020. A projection appears here only once a
+state has three comparable past midterms. There is no national figure: no source we may republish counts the early vote
+in every state.</p>
 <p class="caveat"><b>Reading the North Carolina numbers with care.</b> Registration is not a vote: unaffiliated voters are the largest group on
 North Carolina's rolls and registered Democrats and Republicans both cross over. Who votes <i>early</i> also depends on
 habit and on what each party tells its voters: Republicans moved strongly toward early voting in 2024, and if more of them
@@ -688,6 +711,24 @@ for day once 2022's final county early vote is added (<code>midterms/tx_early.py
     $("txfind").innerHTML = f.map(function (x) { return "<li>" + x + "</li>"; }).join("");
   }
 
+  function turnout(T) {
+    if (!T) { $("turntab").innerHTML = ""; $("turnnote").innerHTML = "The turnout table is not available today."; return; }
+    var pct = function (v) { return v == null ? "&ndash;" : v.toFixed(1) + "%"; };
+    var chgp = function (v) { return v == null ? "&ndash;" : (v >= 0 ? "+" : "&minus;") + Math.abs(v).toFixed(0) + "%"; };
+    var cv = T.states.some(function (r) { return r.banked_pct_cvap != null; });  // the Census shares, when they are on file
+    $("turntab").innerHTML = "<tr><th>State</th><th>Ballots so far</th><th>Days out</th><th>Against 2022, same point</th><th>Share of 2022&rsquo;s total</th>" +
+      (cv ? "<th>Share of citizens 18+</th>" : "") + "<th>Projected total</th></tr>" +
+      T.states.map(function (r) {
+        var vs = r.vs_2022_same_point_pct != null ? chgp(r.vs_2022_same_point_pct) : r.mail_vs_2022_same_point_pct != null ? chgp(r.mail_vs_2022_same_point_pct) + " (mail)" : "&ndash;";
+        var P = r.projection || {}, proj = P.total ? n0(P.total) + (P.lo ? " (" + n0(P.lo) + "&ndash;" + n0(P.hi) + ")" : "") : "&ndash;";
+        return "<tr><td>" + esc(r.label) + "</td><td>" + (r.banked ? n0(r.banked) : "&ndash;") + "</td><td>" + (r.days_out != null ? r.days_out : "&ndash;") + "</td><td>" + vs +
+          "</td><td>" + pct(r.share_of_2022_total_pct) + "</td>" + (cv ? "<td>" + pct(r.banked_pct_cvap) + "</td>" : "") + "<td" + (P.reason ? ' title="' + esc(P.reason) + '"' : "") + ">" + proj + "</td></tr>";
+      }).join("");
+    var any = T.states.some(function (r) { return r.projection && r.projection.total; });
+    $("turnnote").innerHTML = any ? "Projected totals with their " + Math.round(100 * T.level) + "% range from past elections; method and caveats at the bottom." :
+      "No projected total yet: too few past midterms share each state&rsquo;s early-voting calendar to test one (see Method and sources).";
+  }
+
   function get(u) { return fetch(u, { cache: "no-cache" }).then(function (r) { if (!r.ok) throw new Error(u); return r.json(); }); }
   Promise.all([get("data/early_vote.json"), get("data/model.json").catch(function () { return null; })]).then(function (res) {
     var E = res[0], M = res[1];
@@ -698,6 +739,7 @@ for day once 2022's final county early vote is added (<code>midterms/tx_early.py
     florida(E.fl);
     nevada(E.nv);
     texas(E.tx);
+    turnout(E.turnout);
   }).catch(function () { $("stamp").textContent = "The early-vote data could not be loaded."; });
 })();
 </script>
