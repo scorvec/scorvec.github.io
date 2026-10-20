@@ -4,10 +4,15 @@ name: Upper stratosphere (GEFS, GFS, GEOS FP, GDPS)
 # 100 to 1 hPa, time series, height-time sections and 5/1 hPa polar maps, per model and all four together
 # (scripts/strat/upperstrat_data.py fetches, scripts/strat/upperstrat.py renders). ~15-20 minutes a run.
 #
-# Data timing for a 00Z cycle, measured 2026-09-27: GDPS on the MSC Datamart ~04:10 UTC, GFS f384 on S3 ~05:20, GEFS f840
-# on S3 ~09:05, GEOS FP forecast on NCCS late (not there by 06:35; bdc.yml waits until 12:30 for the same reason). So the
-# first slot is 13:10, after bdc.yml has finished with NCCS; the 19:10 slot is the retry, and it exits at once when the
-# day's cycle is already published with all four models.
+# Two updates a day. 00Z: all four models. 12Z: GFS, GDPS and GEFS from their 12Z runs (GEFS reaches day 16 from 12Z,
+# day 35 only from 00Z); GEOS FP stays the day's 00Z forecast, carried from the 00Z run in the Actions cache rather than
+# read from NCCS again (read there only when the cache has nothing for the day).
+#
+# Data timing, measured on the object times. 00Z (2026-09-27): GDPS on the MSC Datamart ~04:10 UTC, GFS f384 on S3
+# ~05:20, GEFS f840 ~09:05, GEOS FP forecast on NCCS late (not there by 06:35; bdc.yml waits until 12:30 for the same
+# reason). 12Z (2026-10-18..20): GDPS f240 ~16:50, GFS f384 ~17:15, GEFS f384 (last member) ~18:30. Slots: 13:10 (00Z,
+# after bdc.yml has finished with NCCS) with a 15:10 retry, and 19:40 (12Z) with a 21:40 retry; a retry exits at once
+# when its cycle is already published with every model it updates. The cycle is the newest with GFS f384 on S3.
 #
 # Sources: NOAA data from the AWS S3 open-data buckets (never NOMADS); GDPS from the dated Datamart tree, which keeps
 # ~30 days; GEOS FP by OPeNDAP, read sequentially (parallel reads have returned silently corrupt slices before). No
@@ -16,11 +21,16 @@ name: Upper stratosphere (GEFS, GFS, GEOS FP, GDPS)
 on:
   schedule:
     - cron: "10 13 * * *"
-    - cron: "10 19 * * *"
+    - cron: "10 15 * * *"
+    - cron: "40 19 * * *"
+    - cron: "40 21 * * *"
   workflow_dispatch:
     inputs:
       date:
-        description: 'Cycle date YYYYMMDD, 00Z (blank = newest with GFS f384 on S3)'
+        description: 'Cycle date YYYYMMDD (blank = the newest cycle with GFS f384 on S3)'
+        default: ''
+      hour:
+        description: 'Cycle hour 00 or 12, with a date (blank = 00)'
         default: ''
       force:
         description: 'Re-render even when this cycle is already published with all four models'
@@ -81,24 +91,31 @@ jobs:
         id: cyc
         run: |
           set -euo pipefail
-          D="${{ github.event.inputs.date }}"
-          if [ -z "$D" ]; then D=$(python scripts/strat/upperstrat_data.py latest || true); fi
-          if ! echo "$D" | grep -qE '^[0-9]{8}$'; then echo "::error::no GFS 00Z f384 on S3 in the last 3 days"; exit 1; fi
-          PREV=$(date -u -d "${D:0:4}-${D:4:2}-${D:6:2} - 1 day" +%Y%m%d)
-          echo "date=$D" >> "$GITHUB_OUTPUT"; echo "prev=$PREV" >> "$GITHUB_OUTPUT"
-          # the retry slot has nothing to do when this cycle is already on the page with every model
+          D="${{ github.event.inputs.date }}"; H="${{ github.event.inputs.hour }}"
+          if [ -z "$D" ]; then read -r D H <<< "$(python scripts/strat/upperstrat_data.py latest || true)"; fi
+          H=${H:-00}
+          if ! echo "$D" | grep -qE '^[0-9]{8}$' || ! echo "$H" | grep -qE '^(00|12)$'; then
+            echo "::error::no GFS f384 on S3 in the last 3 days (D='$D' H='$H')"; exit 1
+          fi
+          PREVDAY=$(date -u -d "${D:0:4}-${D:4:2}-${D:6:2} - 1 day" +%Y%m%d)
+          # the cycle 12 h earlier: GDPS's fallback
+          if [ "$H" = "00" ]; then PD=$PREVDAY; PH=12; else PD=$D; PH=00; fi
+          { echo "date=$D"; echo "hour=$H"; echo "prevday=$PREVDAY"; echo "prev_date=$PD"; echo "prev_hour=$PH"; } >> "$GITHUB_OUTPUT"
+          # a retry slot has nothing to do when this cycle is already on the page with every model it updates
           SKIP=0
           if [ "${{ github.event.inputs.force }}" != "true" ] && [ -f assets/sst/data/upperstrat.json ]; then
             SKIP=$(python -c "
           import json,sys
-          d=json.load(open('assets/sst/data/upperstrat.json'))['models']; w='${D:0:4}-${D:4:2}-${D:6:2} 00Z'
-          print(1 if all(m in d and d[m]['init']==w for m in ('gefs','gfs','geos','gdps')) else 0)")
+          d=json.load(open('assets/sst/data/upperstrat.json'))['models']; w='${D:0:4}-${D:4:2}-${D:6:2} ${H}Z'
+          ms=('gefs','gfs','geos','gdps') if '$H'=='00' else ('gefs','gfs','gdps')
+          print(1 if all(m in d and d[m]['init']==w for m in ms) else 0)")
           fi
           echo "skip=$SKIP" >> "$GITHUB_OUTPUT"
-          echo "cycle $D 00Z (fallback $PREV); already published: $SKIP"
+          echo "cycle $D ${H}Z (GDPS fallback $PD ${PH}Z); already published: $SKIP"
 
+      # NCCS is read at the 00Z update only: the tail's newest complete day is already in by 13:10
       - name: GEOS FP analysis tail
-        if: steps.cyc.outputs.skip != '1'
+        if: steps.cyc.outputs.skip != '1' && steps.cyc.outputs.hour == '00'
         run: |
           timeout 900 python scripts/strat/upperstrat_data.py tail --days 5 --keep 120 --seed-too \
             --out assets/sst/data/upperstrat_tail.json || echo "::warning::GEOS FP analysis tail failed; the figures keep the older tail"
@@ -106,33 +123,64 @@ jobs:
       - name: GFS
         if: steps.cyc.outputs.skip != '1'
         run: |
-          python scripts/strat/upperstrat_data.py fetch --model gfs --date ${{ steps.cyc.outputs.date }} \
+          python scripts/strat/upperstrat_data.py fetch --model gfs --date ${{ steps.cyc.outputs.date }} --hour ${{ steps.cyc.outputs.hour }} \
             || echo "::warning::GFS fetch failed"
 
       - name: GDPS
         if: steps.cyc.outputs.skip != '1'
         run: |
-          python scripts/strat/upperstrat_data.py fetch --model gdps --date ${{ steps.cyc.outputs.date }} \
-            || python scripts/strat/upperstrat_data.py fetch --model gdps --date ${{ steps.cyc.outputs.prev }} \
+          python scripts/strat/upperstrat_data.py fetch --model gdps --date ${{ steps.cyc.outputs.date }} --hour ${{ steps.cyc.outputs.hour }} \
+            || python scripts/strat/upperstrat_data.py fetch --model gdps --date ${{ steps.cyc.outputs.prev_date }} --hour ${{ steps.cyc.outputs.prev_hour }} \
             || echo "::warning::GDPS fetch failed"
 
+      # GEOS FP: the day's 00Z forecast in both updates. The 00Z update reads NCCS and keeps the result for the 12Z one.
       - name: GEOS FP forecast
-        if: steps.cyc.outputs.skip != '1'
+        if: steps.cyc.outputs.skip != '1' && steps.cyc.outputs.hour == '00'
         run: |
           timeout 1200 python scripts/strat/upperstrat_data.py fetch --model geos --date ${{ steps.cyc.outputs.date }} \
-            || timeout 1200 python scripts/strat/upperstrat_data.py fetch --model geos --date ${{ steps.cyc.outputs.prev }} \
+            || timeout 1200 python scripts/strat/upperstrat_data.py fetch --model geos --date ${{ steps.cyc.outputs.prevday }} \
             || echo "::warning::GEOS FP fetch failed"
 
-      # A full 35-day run is preferred: today's, else yesterday's (seen 2026-09-27: the 00Z extended range was only partly
-      # uploaded, control to f384); only when neither is complete is today's run used, cut where it ends.
+      - name: Keep the GEOS FP read for the 12Z update
+        if: steps.cyc.outputs.skip != '1' && steps.cyc.outputs.hour == '00' && hashFiles('scripts/strat/data/upperstrat/geos.npz') != ''
+        uses: actions/cache/save@v6
+        with:
+          path: scripts/strat/data/upperstrat/geos.npz
+          key: upperstrat-geos-${{ steps.cyc.outputs.date }}-${{ github.run_id }}
+
+      - name: GEOS FP forecast, as read by the 00Z update
+        id: geoscache
+        if: steps.cyc.outputs.skip != '1' && steps.cyc.outputs.hour == '12'
+        uses: actions/cache/restore@v6
+        with:
+          path: scripts/strat/data/upperstrat/geos.npz
+          key: upperstrat-geos-${{ steps.cyc.outputs.date }}-
+          restore-keys: |
+            upperstrat-geos-${{ steps.cyc.outputs.date }}-
+
+      - name: GEOS FP forecast (nothing cached for the day)
+        if: steps.cyc.outputs.skip != '1' && steps.cyc.outputs.hour == '12' && steps.geoscache.outputs.cache-matched-key == ''
+        run: |
+          echo "::notice::no cached GEOS FP read for ${{ steps.cyc.outputs.date }} 00Z; reading NCCS"
+          timeout 1200 python scripts/strat/upperstrat_data.py fetch --model geos --date ${{ steps.cyc.outputs.date }} \
+            || timeout 1200 python scripts/strat/upperstrat_data.py fetch --model geos --date ${{ steps.cyc.outputs.prevday }} \
+            || echo "::warning::GEOS FP fetch failed"
+
+      # 00Z: a full 35-day run is preferred: today's, else yesterday's 00Z (seen 2026-09-27: the 00Z extended range was
+      # only partly uploaded, control to f384); only when neither is complete is today's run used, cut where it ends.
+      # 12Z: the cycle's 16-day run, complete or cut where it ends (a 12Z run never stands in for a 00Z 35-day one).
       - name: GEFS
         if: steps.cyc.outputs.skip != '1'
         timeout-minutes: 45
         run: |
-          python scripts/strat/upperstrat_data.py fetch --model gefs --date ${{ steps.cyc.outputs.date }} --procs 8 --require-full \
-            || python scripts/strat/upperstrat_data.py fetch --model gefs --date ${{ steps.cyc.outputs.prev }} --procs 8 --require-full \
-            || python scripts/strat/upperstrat_data.py fetch --model gefs --date ${{ steps.cyc.outputs.date }} --procs 8 \
-            || echo "::warning::GEFS fetch failed"
+          D=${{ steps.cyc.outputs.date }}; H=${{ steps.cyc.outputs.hour }}
+          f() { python scripts/strat/upperstrat_data.py fetch --model gefs --procs 8 "$@"; }
+          if [ "$H" = "00" ]; then
+            f --date "$D" --require-full || f --date ${{ steps.cyc.outputs.prevday }} --require-full || f --date "$D" \
+              || echo "::warning::GEFS fetch failed"
+          else
+            f --date "$D" --hour 12 --require-full || f --date "$D" --hour 12 || echo "::warning::GEFS fetch failed"
+          fi
 
       - name: Render
         id: render
@@ -173,7 +221,7 @@ jobs:
             # --sparse: the outputs sit outside the (file-list) sparse checkout, and a plain add refuses them
             while read -r f; do git add --sparse -f "$f"; done < "$SNAP/list"
             if git diff --staged --quiet; then echo "no changes"; exit 0; fi
-            git commit -q -m "upperstrat: GEFS/GFS/GEOS FP/GDPS upper stratosphere $(date -u +%Y-%m-%dT%H:%MZ)"
+            git commit -q -m "upperstrat: GEFS/GFS/GEOS FP/GDPS upper stratosphere, ${{ steps.cyc.outputs.date }} ${{ steps.cyc.outputs.hour }}Z cycle"
             if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
             echo "push $i rejected; resyncing"; sleep 5
           done

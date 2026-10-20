@@ -6,20 +6,23 @@ like:
   u60   zonal-mean zonal wind at exactly 60 deg (the sudden-warming criterion latitude), per hemisphere
   capT  polar-cap temperature: the cos-weighted mean over 60-90 deg of the zonal-mean temperature
   maps  geopotential height and temperature at 5 and 1 hPa, 20-90 deg, on a common 1 x 1 deg grid, days 0-10
-One instant per day: the 00Z field at every 24-hour step (migrating tides cancel in a zonal mean).
+One instant per day: the init hour's field at every 24-hour step (migrating tides cancel in a zonal mean).
 
-  gefs  NOAA GEFS 00Z, gec00 + gep01-30, 0.5 deg, days 0-35. 1-7 and 20/30/70 hPa are in the pgrb2b files, 10/50/100
-        in pgrb2a. Byte-ranged from NOAA's S3 bucket through the .idx files (the site rule for NOAA data: S3, never
-        NOMADS). Maps from the control.
-  gfs   NOAA GFS 00Z, pgrb2.0p25 (~22 MB of messages a step), days 0-16.
-  gdps  ECCC GDPS 00Z, 15 km lat-lon GRIB2 from the dated MSC Datamart tree (dd.weather.gc.ca/YYYYMMDD/WXO-DD/...),
+Cycles: 00Z for every model; 12Z for GEFS, GFS and GDPS. GEOS FP is always read from its 00Z forecast (a 12Z update
+reuses the day's 00Z read; see upperstrat.yml).
+
+  gefs  NOAA GEFS, gec00 + gep01-30, 0.5 deg, days 0-35 from the 00Z run, 0-16 from 12Z (only the 00Z cycle runs to
+        day 35). 1-7 and 20/30/70 hPa are in the pgrb2b files, 10/50/100 in pgrb2a. Byte-ranged from NOAA's S3 bucket
+        through the .idx files (the site rule for NOAA data: S3, never NOMADS). Maps from the control.
+  gfs   NOAA GFS, pgrb2.0p25 (~22 MB of messages a step), days 0-16.
+  gdps  ECCC GDPS, 15 km lat-lon GRIB2 from the dated MSC Datamart tree (dd.weather.gc.ca/YYYYMMDD/WXO-DD/...),
         days 0-10. Pressure levels 1, 5, 10, 20, 30, 50, 100 hPa only (no 2, 3, 7 or 70).
   geos  NASA GMAO GEOS FP 00Z forecast (NCCS OPeNDAP fcast/inst3_3d_asm_Np), days 0-10, read SEQUENTIALLY and
         subset (only the rows and levels used): parallel OPeNDAP reads have silently returned corrupt data here before.
 
-    python upperstrat_data.py fetch --model gfs --date 20260927 --out scripts/strat/data/upperstrat
+    python upperstrat_data.py fetch --model gfs --date 20260927 --hour 12 --out scripts/strat/data/upperstrat
     python upperstrat_data.py tail --days 4 --out assets/sst/data/upperstrat_tail.json     # GEOS FP analyses
-    python upperstrat_data.py latest                                                       # newest 00Z date with GFS f384
+    python upperstrat_data.py latest                    # newest cycle with GFS f384 on S3, as "YYYYMMDD HH"
 """
 
 from __future__ import annotations
@@ -40,6 +43,9 @@ warnings.filterwarnings("ignore", message=".*Ambiguous reference date.*")
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
+sys.path.insert(0, str(REPO / "scripts" / "lib"))
+from webget import DEFAULT_UA
+
 LEV_ALL = [100.0, 70.0, 50.0, 40.0, 30.0, 20.0, 10.0, 7.0, 5.0, 4.0, 3.0, 2.0, 1.0]
 MAP_LEVELS = [5.0, 1.0]
 MAP_DAYS = 11  # days 0..10
@@ -47,7 +53,7 @@ LAT_N = np.arange(20.0, 90.0 + 1e-6, 1.0)  # map grid, ascending; SH uses -LAT_N
 LON_1 = np.arange(0.0, 360.0 - 1e-6, 1.0)
 HEMIS = ("nh", "sh")
 
-MODELS = {
+MODELS = {  # days: the 00Z run's length (n_days gives 12Z's)
     "gefs": dict(name="GEFS", levels=[100.0, 70.0, 50.0, 30.0, 20.0, 10.0, 7.0, 5.0, 3.0, 2.0, 1.0], days=35),
     "gfs": dict(name="GFS", levels=[100.0, 70.0, 50.0, 40.0, 30.0, 20.0, 10.0, 7.0, 5.0, 3.0, 2.0, 1.0], days=16),
     "gdps": dict(name="GDPS", levels=[100.0, 50.0, 30.0, 20.0, 10.0, 5.0, 1.0], days=10),
@@ -58,11 +64,16 @@ S3_GEFS = "https://noaa-gefs-pds.s3.amazonaws.com"
 DATAMART = "https://dd.weather.gc.ca"
 GEOS_FC = "https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/fcast/inst3_3d_asm_Np"
 GEOS_AS = "https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/assim/inst3_3d_asm_Np"
-UA = {"User-Agent": "scorvec-upperstrat"}
+UA = {"User-Agent": DEFAULT_UA}  # the site's honest one, for S3, the Datamart and NCCS alike
 
 
 def log(*a):
     print(*a, flush=True)
+
+
+def n_days(model: str, hour: str) -> int:
+    """Forecast length in days of a model's run from `hour` (00 or 12): GEFS reaches day 35 only from 00Z."""
+    return 16 if (model == "gefs" and hour == "12") else MODELS[model]["days"]
 
 
 # ------------------------------------------------------------------------------------------------ reductions ---
@@ -204,9 +215,9 @@ def _pack(zon: dict, levels, maps: dict | None):
     return u, t, maps
 
 
-def gfs_step(date: str, fh: int):
+def gfs_step(date: str, hour: str, fh: int):
     levels = MODELS["gfs"]["levels"]
-    url = f"{S3_GFS}/gfs.{date}/00/atmos/gfs.t00z.pgrb2.0p25.f{fh:03d}"
+    url = f"{S3_GFS}/gfs.{date}/{hour}/atmos/gfs.t{hour}z.pgrb2.0p25.f{fh:03d}"
     want = [(v, mb(L)) for L in levels for v in ("TMP", "UGRD")]
     domap = fh <= 24 * (MAP_DAYS - 1)
     if domap:
@@ -229,11 +240,11 @@ GEFS_A = {10.0, 50.0, 100.0}
 
 
 def gefs_step(args):
-    date, mem, fh, want_maps = args
+    date, hour, mem, fh, want_maps = args
     levels = MODELS["gefs"]["levels"]
-    base = f"{S3_GEFS}/gefs.{date}/00/atmos"
-    ua = f"{base}/pgrb2ap5/{mem}.t00z.pgrb2a.0p50.f{fh:03d}"
-    ub = f"{base}/pgrb2bp5/{mem}.t00z.pgrb2b.0p50.f{fh:03d}"
+    base = f"{S3_GEFS}/gefs.{date}/{hour}/atmos"
+    ua = f"{base}/pgrb2ap5/{mem}.t{hour}z.pgrb2a.0p50.f{fh:03d}"
+    ub = f"{base}/pgrb2bp5/{mem}.t{hour}z.pgrb2b.0p50.f{fh:03d}"
     wa = [(v, mb(L)) for L in levels if L in GEFS_A for v in ("TMP", "UGRD")]
     wb = [(v, mb(L)) for L in levels if L not in GEFS_A for v in ("TMP", "UGRD")]
     if want_maps:
@@ -260,19 +271,19 @@ def gefs_step(args):
 GDPS_VAR = {"t": "AirTemp", "u": "WindU", "z": "GeopotentialHeight"}
 
 
-def gdps_file(date: str, fh: int, var: str, L: float):
+def gdps_file(date: str, hour: str, fh: int, var: str, L: float):
     url = (
-        f"{DATAMART}/{date}/WXO-DD/model_gdps/15km/00/{fh:03d}/"
-        f"{date}T00Z_MSC_GDPS_{GDPS_VAR[var]}_IsbL-{int(L):04d}_LatLon0.15_PT{fh:03d}H.grib2"
+        f"{DATAMART}/{date}/WXO-DD/model_gdps/15km/{hour}/{fh:03d}/"
+        f"{date}T{hour}Z_MSC_GDPS_{GDPS_VAR[var]}_IsbL-{int(L):04d}_LatLon0.15_PT{fh:03d}H.grib2"
     )
     return decode(http_get(url))
 
 
-def gdps_step(date: str, fh: int):
+def gdps_step(date: str, hour: str, fh: int):
     levels = MODELS["gdps"]["levels"]
     jobs = [(v, L) for L in levels for v in ("t", "u")] + [("z", L) for L in MAP_LEVELS]
     with ThreadPoolExecutor(6) as ex:
-        res = dict(zip(jobs, ex.map(lambda j: gdps_file(date, fh, *j), jobs)))
+        res = dict(zip(jobs, ex.map(lambda j: gdps_file(date, hour, fh, *j), jobs)))
     zon = {
         L: {
             "u": reduce_zonal(res[("u", L)][0], res[("u", L)][1]),
@@ -388,7 +399,7 @@ def geos_forecast(date: str):
 
 
 # ----------------------------------------------------------------------------------------------------- fetch ---
-def save(out_dir: Path, model: str, date: str, U, T, maps, members: list[str], leads_h, note=""):
+def save(out_dir: Path, model: str, date: str, hour: str, U, T, maps, members: list[str], leads_h, note=""):
     """U/T (hemi, member, lead, level); maps: list over map days of {(var, L): {hemi: arr}}."""
     nd = len(maps)
     M = np.full((2, nd, 2, len(MAP_LEVELS), len(LAT_N), len(LON_1)), np.nan, "float32")  # hemi, day, var(z,t), level
@@ -403,7 +414,7 @@ def save(out_dir: Path, model: str, date: str, U, T, maps, members: list[str], l
     p = out_dir / f"{model}.npz"
     np.savez_compressed(
         p,
-        init=f"{date[:4]}-{date[4:6]}-{date[6:8]}T00:00",
+        init=f"{date[:4]}-{date[4:6]}-{date[6:8]}T{hour}:00",
         model=model,
         name=MODELS[model]["name"],
         levels=np.array(MODELS[model]["levels"]),
@@ -424,39 +435,41 @@ def save(out_dir: Path, model: str, date: str, U, T, maps, members: list[str], l
 
 
 def fetch(a) -> int:
-    model, date = a.model, a.date
+    model, date, hour = a.model, a.date, a.hour
+    if model == "geos" and hour != "00":
+        raise SystemExit("GEOS FP is read from its 00Z forecast only")
     out = Path(a.out)
     out = out if out.is_absolute() else REPO / out
     cfg = MODELS[model]
-    leads = [24 * d for d in range(cfg["days"] + 1)]
+    leads = [24 * d for d in range(n_days(model, hour) + 1)]
     t0 = time.time()
     if model == "geos":
         U, T, maps = geos_forecast(date)
-        save(out, model, date, U, T, maps, ["det"], leads)
+        save(out, model, date, hour, U, T, maps, ["det"], leads)
     elif model in ("gfs", "gdps"):
         step = gfs_step if model == "gfs" else gdps_step
         U = np.full((2, 1, len(leads), len(cfg["levels"])), np.nan)
         T = U.copy()
         maps = []
         with ThreadPoolExecutor(4 if model == "gfs" else 2) as ex:
-            for k, (u, t, mp) in enumerate(ex.map(lambda fh: step(date, fh), leads)):
+            for k, (u, t, mp) in enumerate(ex.map(lambda fh: step(date, hour, fh), leads)):
                 U[:, 0, k], T[:, 0, k] = u, t
                 if k < MAP_DAYS:
                     maps.append(mp)
                 log(f"  {model} day {k}: NH u60 1 hPa {u[0, -1]:+.1f}  SH {u[1, -1]:+.1f}")
-        save(out, model, date, U, T, maps, ["det"], leads)
+        save(out, model, date, hour, U, T, maps, ["det"], leads)
     else:
         if a.require_full:
-            last = f"{S3_GEFS}/gefs.{date}/00/atmos/pgrb2bp5/gec00.t00z.pgrb2b.0p50.f{leads[-1]:03d}.idx"
+            last = f"{S3_GEFS}/gefs.{date}/{hour}/atmos/pgrb2bp5/gec00.t{hour}z.pgrb2b.0p50.f{leads[-1]:03d}.idx"
             try:
                 http_get(last, tries=2)
             except Exception:  # noqa: BLE001
                 raise SystemExit(
-                    f"GEFS {date}: the control's day-{cfg['days']} file is not on S3 (--require-full)"
+                    f"GEFS {date} {hour}Z: the control's day-{n_days(model, hour)} file is not on S3 (--require-full)"
                 ) from None
         mems = (["gec00"] + [f"gep{i:02d}" for i in range(1, 31)])[: a.max_members]
         leads = leads[: a.max_days + 1]
-        jobs = [(date, m, fh, m == "gec00" and fh <= 24 * (MAP_DAYS - 1)) for m in mems for fh in leads]
+        jobs = [(date, hour, m, fh, m == "gec00" and fh <= 24 * (MAP_DAYS - 1)) for m in mems for fh in leads]
         U = np.full((2, len(mems), len(leads), len(cfg["levels"])), np.nan)
         T = U.copy()
         maps = [None] * MAP_DAYS
@@ -485,7 +498,7 @@ def fetch(a) -> int:
             f"  gefs: {len(errs)} member-steps failed; complete to day {nl - 1} with {int(thru[:, max(nl - 1, 0)].sum())} members"
         )
         if nl < min(11, len(leads)):
-            raise SystemExit(f"GEFS {date}: control + {need} members complete only to day {nl - 1}")
+            raise SystemExit(f"GEFS {date} {hour}Z: control + {need} members complete only to day {nl - 1}")
         keep = np.flatnonzero(thru[:, nl - 1])
         notes = []
         if len(keep) < len(mems):
@@ -496,6 +509,7 @@ def fetch(a) -> int:
             out,
             model,
             date,
+            hour,
             U[:, keep][:, :, :nl],
             T[:, keep][:, :, :nl],
             maps,
@@ -503,7 +517,7 @@ def fetch(a) -> int:
             leads[:nl],
             note="; ".join(notes),
         )
-    log(f"{model} {date}: {time.time() - t0:.0f}s")
+    log(f"{model} {date} {hour}Z: {time.time() - t0:.0f}s")
     return 0
 
 
@@ -584,17 +598,18 @@ def _write_tail(out: Path, have: dict, keep: int):
 
 
 def latest(a) -> int:
-    """Newest date whose GFS 00Z f384 is on S3 - printed as YYYYMMDD."""
+    """Newest 00Z or 12Z cycle, back up to three days, whose GFS f384 is on S3 - printed as "YYYYMMDD HH"."""
     now = pd.Timestamp.utcnow().tz_localize(None).normalize()
     for back in range(3):
         d = now - pd.Timedelta(days=back)
-        url = f"{S3_GFS}/gfs.{d:%Y%m%d}/00/atmos/gfs.t00z.pgrb2.0p25.f384.idx"
-        try:
-            urllib.request.urlopen(urllib.request.Request(url, headers=UA, method="HEAD"), timeout=30)
-            print(f"{d:%Y%m%d}")
-            return 0
-        except Exception:  # noqa: BLE001
-            continue
+        for hour in ("12", "00"):
+            url = f"{S3_GFS}/gfs.{d:%Y%m%d}/{hour}/atmos/gfs.t{hour}z.pgrb2.0p25.f384.idx"
+            try:
+                urllib.request.urlopen(urllib.request.Request(url, headers=UA, method="HEAD"), timeout=30)
+                print(f"{d:%Y%m%d} {hour}")
+                return 0
+            except Exception:  # noqa: BLE001
+                continue
     return 1
 
 
@@ -604,6 +619,7 @@ def main() -> int:
     f = sp.add_parser("fetch")
     f.add_argument("--model", required=True, choices=list(MODELS))
     f.add_argument("--date", required=True)
+    f.add_argument("--hour", choices=("00", "12"), default="00", help="cycle; GEOS FP is 00Z only")
     f.add_argument("--out", default=str(HERE / "data" / "upperstrat"))
     f.add_argument("--procs", type=int, default=6)
     f.add_argument("--max-members", type=int, default=31, help="GEFS test subset")

@@ -14,7 +14,12 @@ the GEOS FP analysis tail (reference seed + assets/sst/data/upperstrat_tail.json
 model = gefs | gfs | geos | gdps | all ("all" overlays / tiles every model that is present).
 
 Everything is RAW model output. Nothing is drift-corrected (no reforecast with these levels is used yet); the only
-cross-model calibration shown is each model's day-0 offset from the GEOS FP 00Z analysis, printed on the figures.
+cross-model calibration shown is each model's day-0 offset from the GEOS FP analysis, printed on the figures where it
+is defined: the same cycle as GEOS FP's, which is always its 00Z run. So a 12Z update (GEFS, GFS and GDPS from their
+12Z runs, GEOS FP still the day's 00Z) prints none. Maps of several models must share a valid time, so the
+compare-all loop is drawn only when every model is on one cycle (the 00Z update); after a 12Z update the per-model
+loops of GEFS, GFS and GDPS move to 12Z, and the GEOS FP and compare-all loops keep the 00Z set (their manifest entries
+and frames are left as they are). Time series and sections overlay mixed cycles on the valid-time axis.
 Nothing above 1 hPa is drawn: GEFS and GDPS publish nothing higher, and the top levels of every model are damped.
 
     python upperstrat.py --data scripts/strat/data/upperstrat --out assets/sst
@@ -72,6 +77,11 @@ def log(*a):
     print(*a, flush=True)
 
 
+def cyc(t: pd.Timestamp, year: bool = False) -> str:
+    """A run's cycle as printed on the figures: "20 Oct 12Z" (or "20 Oct 2026 12Z")."""
+    return f"{t:%d %b %Y} {t:%H}Z" if year else f"{t:%d %b} {t:%H}Z"
+
+
 # ---------------------------------------------------------------------------------------------------- inputs ---
 def load_models(d: Path) -> dict:
     out = {}
@@ -82,12 +92,12 @@ def load_models(d: Path) -> dict:
             continue
         z = np.load(p, allow_pickle=False)
         init = pd.Timestamp(str(z["init"]))
-        leads = np.asarray(z["leads_h"]) // 24
+        leads_h = np.asarray(z["leads_h"]).astype(int)
         out[m] = dict(
             init=init,
             levels=[float(x) for x in z["levels"]],
-            days=leads.astype(int),
-            valid=pd.DatetimeIndex([init + pd.Timedelta(days=int(k)) for k in leads]),
+            days=leads_h // 24,
+            valid=pd.DatetimeIndex([init + pd.Timedelta(hours=int(h)) for h in leads_h]),
             members=[str(x) for x in z["members"]],
             u60=z["u60"].astype("float64"),
             capT=z["capT"].astype("float64"),
@@ -95,7 +105,8 @@ def load_models(d: Path) -> dict:
             note=str(z["note"]),
         )
         log(
-            f"  {m}: init {init:%Y-%m-%d}, {len(out[m]['members'])} member(s), days 0-{leads[-1]}, {len(out[m]['levels'])} levels"
+            f"  {m}: init {cyc(init, True)}, {len(out[m]['members'])} member(s), days 0-{leads_h[-1] // 24}, "
+            f"{len(out[m]['levels'])} levels"
         )
     return out
 
@@ -159,7 +170,8 @@ def series(M, m, hemi, var, L, kind="det"):
 
 
 def day0_offsets(M) -> dict:
-    """model day 0 minus the GEOS FP 00Z analysis (its forecast's step 0), same init date only."""
+    """model day 0 minus the GEOS FP analysis (its 00Z forecast's step 0), for runs of the same cycle (date and hour)
+    only: none at a 12Z update."""
     out = {}
     if "geos" not in M:
         return out
@@ -274,11 +286,11 @@ def render_ts(M, tail, clim, offs, which, hemi, path):
     title = (
         f"{NAME[which]} · upper stratosphere, {hemi_word(hemi)} Hemisphere"
         if which == "all"
-        else f"{NAME[which]} {init:%d %b %Y} 00Z · upper stratosphere, {hemi_word(hemi)} Hemisphere"
+        else f"{NAME[which]} {cyc(init, True)} · upper stratosphere, {hemi_word(hemi)} Hemisphere"
     )
     fig.suptitle(title, x=0.055, y=0.985, ha="left", fontsize=15, fontweight="bold", color=INK)
     if which == "all":
-        l1 = "Runs: " + " · ".join(f"{NAME[m]} {M[m]['init']:%d %b} 00Z to day {int(M[m]['days'][-1])}" for m in models)
+        l1 = "Runs: " + " · ".join(f"{NAME[m]} {cyc(M[m]['init'])} to day {int(M[m]['days'][-1])}" for m in models)
         l2 = "Raw model output, not drift-corrected; GEFS drawn as its 10–90 % member band and mean."
     else:
         l1 = (
@@ -457,7 +469,7 @@ def render_sec(M, tail, clim, which, hemi, path):
         for k, m in enumerate(models):
             au, at = fig.add_subplot(gs[0, k]), fig.add_subplot(gs[1, k])
             cu, ct = section_panel(au, at, M, m, tail, clim, hemi, TAIL_SEC_ALL, show_y=(k == 0), cm_u=cm_u, cm_t=cm_t)
-            lab = f"{NAME[m]}{' mean' if m == 'gefs' else ''} · {M[m]['init']:%d %b} 00Z"
+            lab = f"{NAME[m]}{' mean' if m == 'gefs' else ''} · {cyc(M[m]['init'])}"
             au.set_title(lab, loc="left", fontsize=11, fontweight="bold", color=COL[m])
         title = f"All four models · u at 60°{ns(hemi)} and polar-cap temperature anomaly, 100 → 1 hPa, {hemi_word(hemi)} Hemisphere"
         sub = (
@@ -487,7 +499,7 @@ def render_sec(M, tail, clim, which, hemi, path):
         for ax in (au, at):
             ax.set_ylabel("hPa", fontsize=9.5, color=INK)
         title = (
-            f"{NAME[m]} {M[m]['init']:%d %b %Y} 00Z · u at 60°{ns(hemi)} and polar-cap temperature, 100 → 1 hPa, "
+            f"{NAME[m]} {cyc(M[m]['init'], True)} · u at 60°{ns(hemi)} and polar-cap temperature, 100 → 1 hPa, "
             f"{hemi_word(hemi)} Hemisphere"
         )
         sub = (
@@ -645,7 +657,7 @@ def render_maps(M, which, hemi, out_anim: Path, base_init):
                     cbar_ticks(cb, SCALE.get((hemi, L), T_MAP[L]))
                     cb.set_label(f"T {L:g} hPa, K", fontsize=8)
             fig.suptitle(
-                f"Height (dam) and temperature at 5 and 1 hPa · {hemi_word(hemi)} Hemisphere · valid {valid:%a %d %b %Y} 00Z",
+                f"Height (dam) and temperature at 5 and 1 hPa · {hemi_word(hemi)} Hemisphere · valid {valid:%a %d %b %Y %H}Z",
                 x=0.03,
                 y=0.985,
                 ha="left",
@@ -656,10 +668,13 @@ def render_maps(M, which, hemi, out_anim: Path, base_init):
             fig.text(
                 0.03,
                 0.948,
-                "Four models at the same valid time; GEFS = its control run. Raw output, one colour scale "
-                f"for every panel and frame of this run; contours every {Z_INT[5.0] / 10:.0f} dam (5 hPa) and {Z_INT[1.0] / 10:.0f} dam (1 hPa).",
+                f"Four models at the same valid time, all from their {init:%d %b %H}Z runs; GEFS = its control run.\n"
+                "Raw output, one colour scale for every panel and frame of this run; contours every "
+                f"{Z_INT[5.0] / 10:.0f} dam (5 hPa) and {Z_INT[1.0] / 10:.0f} dam (1 hPa).",
                 fontsize=9.5,
                 color=MUTED,
+                va="top",
+                linespacing=1.4,
             )
         else:
             f = map_fields(M, which, hemi, valid)
@@ -685,8 +700,8 @@ def render_maps(M, which, hemi, out_anim: Path, base_init):
             lead = "analysis" if day == 0 else f"day {day}"
             src = f"{NAME[which]} control" if which == "gefs" else NAME[which]
             fig.suptitle(
-                f"{src} {M[which]['init']:%d %b} 00Z · {hemi_word(hemi)} Hemisphere, 5 and 1 hPa — {lead}, "
-                f"valid {valid:%a %d %b} 00Z",
+                f"{src} {cyc(M[which]['init'])} · {hemi_word(hemi)} Hemisphere, 5 and 1 hPa — {lead}, "
+                f"valid {valid:%a %d %b %H}Z",
                 x=0.015,
                 y=0.975,
                 ha="left",
@@ -712,7 +727,7 @@ def render_maps(M, which, hemi, out_anim: Path, base_init):
                 "idx": len(frames),
                 "file": fp.name,
                 "date": f"{valid:%Y-%m-%d}",
-                "label": ("analysis" if day == 0 else f"day {day}") + f" · {valid:%a %d %b}",
+                "label": ("analysis" if day == 0 else f"day {day}") + f" · {valid:%a %d %b %H}Z",
             }
         )
     return frames
@@ -731,7 +746,7 @@ def summary(M, tail, clim, offs):
     for m in M:
         g = M[m]
         e = {
-            "init": f"{g['init']:%Y-%m-%d} 00Z",
+            "init": f"{g['init']:%Y-%m-%d %H}Z",
             "members": len(g["members"]),
             "last_day": int(g["days"][-1]),
             "levels": g["levels"],
@@ -751,7 +766,7 @@ def summary(M, tail, clim, offs):
                         if day > g["days"][-1]:
                             continue
                         a = g[var][hemi_i(hemi), :, day, g["levels"].index(L)]
-                        vd = g["init"] + pd.Timedelta(days=day)
+                        vd = g["init"] + pd.Timedelta(days=day)  # init hour kept: a 12Z run verifies at 12Z
                         c = clim.at(hemi, var, "mean", [vd], L)[0]
                         r = {
                             "valid": f"{vd:%Y-%m-%d}",
@@ -810,16 +825,21 @@ def main() -> int:
         mpath = out / "anim" / "upperstrat_maps_manifest.json"
         man = json.loads(mpath.read_text()) if mpath.exists() else {"regions": {}}
         base_init = max(M[m]["init"] for m in M)
+        # loops are redrawn only for the models on the newest cycle; compare-all only when that is every model
+        same = [m for m in ORDER if m in M and M[m]["init"] == base_init]
+        map_whiches = same + (["all"] if len(same) == len(M) else [])
+        if len(same) < len(M):
+            log(f"  maps: {', '.join(m for m in M if m not in same)} and compare-all keep their earlier-cycle loops")
         map_scales(M)
         man.update(
             {
-                "ver": f"{base_init:%Y%m%d}00",
+                "ver": f"{base_init:%Y%m%d%H}",
                 "days": UD.MAP_DAYS,
                 "selectorLabel": "Model",
                 "default": "upperstrat_all_nh",
             }
         )
-        for w in whiches:
+        for w in map_whiches:
             for hemi in UD.HEMIS:
                 fr = render_maps(M, w, hemi, out / "anim", base_init)
                 if fr:
