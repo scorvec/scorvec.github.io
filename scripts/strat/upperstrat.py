@@ -17,9 +17,9 @@ Everything is RAW model output. Nothing is drift-corrected (no reforecast with t
 cross-model calibration shown is each model's day-0 offset from the GEOS FP analysis, printed on the figures where it
 is defined: the same cycle as GEOS FP's, which is always its 00Z run. So a 12Z update (GEFS, GFS and GDPS from their
 12Z runs, GEOS FP still the day's 00Z) prints none. Maps of several models must share a valid time, so the
-compare-all loop is drawn only when every model is on one cycle (the 00Z update); after a 12Z update the per-model
-loops of GEFS, GFS and GDPS move to 12Z, and the GEOS FP and compare-all loops keep the 00Z set (their manifest entries
-and frames are left as they are). Time series and sections overlay mixed cycles on the valid-time axis.
+compare-all loop is drawn only when every run verifies at the same hour (the 00Z update, even with GEFS on yesterday's
+00Z run); after a 12Z update it keeps the 00Z loop (its manifest entry and frames are left as they are), while every
+per-model loop is redrawn. Time series and sections overlay mixed cycles on the valid-time axis.
 Nothing above 1 hPa is drawn: GEFS and GDPS publish nothing higher, and the top levels of every model are damped.
 
     python upperstrat.py --data scripts/strat/data/upperstrat --out assets/sst
@@ -668,7 +668,8 @@ def render_maps(M, which, hemi, out_anim: Path, base_init):
             fig.text(
                 0.03,
                 0.948,
-                f"Four models at the same valid time, all from their {init:%d %b %H}Z runs; GEFS = its control run.\n"
+                f"Four models at the same valid time, all from {init:%H}Z runs (each panel's title gives its lead); "
+                "GEFS = its control run.\n"
                 "Raw output, one colour scale for every panel and frame of this run; contours every "
                 f"{Z_INT[5.0] / 10:.0f} dam (5 hPa) and {Z_INT[1.0] / 10:.0f} dam (1 hPa).",
                 fontsize=9.5,
@@ -825,11 +826,13 @@ def main() -> int:
         mpath = out / "anim" / "upperstrat_maps_manifest.json"
         man = json.loads(mpath.read_text()) if mpath.exists() else {"regions": {}}
         base_init = max(M[m]["init"] for m in M)
-        # loops are redrawn only for the models on the newest cycle; compare-all only when that is every model
-        same = [m for m in ORDER if m in M and M[m]["init"] == base_init]
-        map_whiches = same + (["all"] if len(same) == len(M) else [])
-        if len(same) < len(M):
-            log(f"  maps: {', '.join(m for m in M if m not in same)} and compare-all keep their earlier-cycle loops")
+        # compare-all needs every model at the same valid time: runs a whole number of days apart (a GEFS fallback to
+        # yesterday's 00Z) still line up, a 12Z update against GEOS FP's 00Z does not, and then keeps its earlier loop
+        map_whiches = [m for m in ORDER if m in M]
+        if len({M[m]["init"].hour for m in M}) == 1:
+            map_whiches.append("all")
+        else:
+            log("  maps: compare-all keeps its earlier loop (the runs verify at different hours)")
         map_scales(M)
         man.update(
             {
