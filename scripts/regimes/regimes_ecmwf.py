@@ -3,7 +3,7 @@
 (2026-09-28). NO NEW DOWNLOADS: it reads the 500 hPa height files the stratosphere jobs already fetch from the
 Google mirror into the shared store cache, and does nothing if they are not there.
 
-  aifs   strat.yml (light job): wave1_maps.py's 25 perturbed members of z at 500/100/10 hPa and forecast_drip.py's
+  aifs   strat.yml (light job): wave_maps.py's 25 perturbed members of z at 500/100/10 hPa and forecast_drip.py's
          control at 11 levels, daily steps 0-360 h -> 26 members
   ifs    strat-ifs.yml (maps job): the shared IFS-ENS gh file (ifs_ens.spec_gh), all 50 perturbed members (open data
          has no IFS control on pressure levels), daily steps 0-360 h -> 50 members

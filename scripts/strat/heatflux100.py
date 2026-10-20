@@ -439,24 +439,35 @@ def render(hemi, north, valid, mem, ctrl, lat, hov, obs, clim, init, n_mem, out,
     for key, col, nm in (("k1", C_K1, "wave-1"), ("k2", C_K2, "wave-2")):
         q25, q75 = np.percentile(mem[key], [25, 75], axis=0)
         ax.fill_between(valid, q25, q75, color=col, alpha=0.16, lw=0)
-        ax.plot(valid, mem[key].mean(0), color=col, lw=2.3, label=f"{nm}, ensemble mean (band 25–75%)")
+        ax.plot(valid, mem[key].mean(0), color=col, lw=2.3, label=f"{nm} ensemble mean, 25–75 %")
         if obs is not None:
             ax.plot(obs.index[-21:], obs[key].iloc[-21:], color=col, lw=1.2, alpha=0.75)
         if clim is not None:
-            ax.plot(
-                span[-(len(valid) + 21) :],
-                clim_at(clim, hemi, key, "mean", span[-(len(valid) + 21) :]),
-                color=col,
-                lw=1.2,
-                ls="--",
-                label=f"{nm} climatology",
-            )
+            # the mean and the 90th percentile: a wave's flux above its own 90th percentile is rare for the date
+            for stat, ls, lab in (("mean", "--", "climatology"), ("p90", ":", "90th percentile")):
+                ax.plot(
+                    span[-(len(valid) + 21) :],
+                    clim_at(clim, hemi, key, stat, span[-(len(valid) + 21) :]),
+                    color=col,
+                    lw=1.2,
+                    ls=ls,
+                    label=f"{nm} {lab}",
+                )
     ax.axvline(init, color="#9aa3ad", lw=0.9, ls=":")
     ax.axhline(0, color="#9aa3ad", lw=0.7)
     ax.set_title("By zonal wavenumber", loc="left", fontsize=11.5, fontweight="bold", color=INK)
+    lo, hi = ax.get_ylim()
+    ax.set_ylim(lo, lo + (hi - lo) * 1.45)  # headroom: the three-row legend sits above the lines, not over them
     ax.legend(
-        fontsize=8.5, frameon=True, framealpha=0.85, edgecolor="none", loc="upper left"
-    )  # the analysed lines ran through it
+        fontsize=8.5,
+        frameon=True,
+        framealpha=0.85,
+        edgecolor="none",
+        loc="upper left",
+        ncol=2,
+        handlelength=1.6,
+        columnspacing=0.9,
+    )
 
     # C: trailing 40-day mean as a standardised anomaly (needs the observed tail)
     ax = fig.add_subplot(gs[1, 0])

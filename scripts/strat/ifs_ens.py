@@ -15,7 +15,7 @@ WHEN IT IS ON THE MIRROR (Google object times, 00/12Z cycles of 2026-09-24..27):
 (strat-ifs.yml, 09:05 / 21:05) and why `resolve` waits for the day-15 index before anything is fetched.
 
 THE SHARED FILES (the store's canonical cache, scripts/ecmwf/cache/{cycle}/ifs/), fetched once, read by every product:
-  gh   11 drip levels 1000..10 hPa, daily 0-360 h    ~3.5 GB   forecast_drip; wave1_maps (500/100/10); nh_vortex (100)
+  gh   11 drip levels 1000..10 hPa, daily 0-360 h    ~3.5 GB   forecast_drip; wave_maps (500/100/10); nh_vortex (100)
   u,v  10 and 100 hPa, 12-hourly 0-360 h             ~4.0 GB   vortex_winds; nh_vortex (u); heatflux100 (v at 100)
   t    100 hPa, daily 0-360 h                        ~0.5 GB   heatflux100
 The E-P flux (u, v, t at all 14 levels, ~23 GB a cycle) is streamed step by step in qbo_duct.py instead of cached.

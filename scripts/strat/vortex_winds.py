@@ -181,7 +181,7 @@ def fetch(date: str, time: str, members: int = MEMBERS):
 
     Step 0 is the control because the perturbed members differ from the analysis
     only by their perturbations - averaging them smooths the very state the
-    analysis is (same reasoning as wave1_maps.fetch_analysis). If the perturbed
+    analysis is (same reasoning as wave_maps.fetch_analysis). If the perturbed
     pull fails outright, the control stands in and the subtitle says so.
     """
     cyc = ecmwf.Cycle(date, time)

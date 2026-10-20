@@ -1,4 +1,4 @@
-name: Stratosphere, IFS-ENS (vortex, heat flux, wave-1, winds, drip, zero line, jet)
+name: Stratosphere, IFS-ENS (vortex, heat flux, waves 1 and 2, winds, drip, zero line, jet)
 
 # ECMWF IFS-ENS at full membership (all 50 perturbed members; open data has no IFS control at pressure levels) in
 # every stratosphere product that its open data can feed:
@@ -7,7 +7,7 @@ name: Stratosphere, IFS-ENS (vortex, heat flux, wave-1, winds, drip, zero line, 
 #                         + nh_vortex_runs.webp, data/vortex_runs.json  the run-to-run record (vortex_runs.py)
 #   heatflux100_ext.py    -> assets/sst/ifs_heatflux100_{nh,sh}.webp   + data/ifs_heatflux100.json
 #   forecast_drip.py      -> assets/sst/ifs_drip.webp                  + data/ifs_drip.json (drift: reference/ifs_capdrift.json)
-#   wave1_maps.py         -> assets/sst/anim/wave1_ifs_{nh,sh}/         + wave1_maps_ifs_manifest.json
+#   wave_maps.py          -> assets/sst/anim/wave{1,2}_ifs_{nh,sh}/     + wave{1,2}_maps_ifs_manifest.json
 #   vortex_winds.py       -> assets/sst/anim/vortex_ifs_{10,100}_{nh,sh}/ + vortex_winds_ifs_manifest.json
 #   qbo_duct.py --model ifs -> scripts/strat/data/zmu_members_ifs.npz (zero line) + the 250 hPa jet sector (pacjet)
 #   qbo_zeroline.py       -> assets/sst/qbo_zeroline_*.webp re-rendered with IFS-ENS + data/qbo_zeroline_ifs.json
@@ -195,20 +195,20 @@ jobs:
             || echo "::warning::IFS drip failed; keeping the previous figure"
 
       # The two loops are independent and CPU-bound: render them side by side.
-      - name: Wave-1 and vortex-wind loops (IFS-ENS)
+      - name: Wave and vortex-wind loops (IFS-ENS)
         if: env.READY == 'true'
         timeout-minutes: 30
         continue-on-error: true
         run: |
-          python scripts/strat/wave1_maps.py --model ifs --date "$D" --time "$T" \
-            --anim-dir assets/sst/anim --manifest assets/sst/anim/wave1_maps_ifs_manifest.json > /tmp/wave1.log 2>&1 &
+          python scripts/strat/wave_maps.py --model ifs --date "$D" --time "$T" \
+            --anim-dir assets/sst/anim > /tmp/waves.log 2>&1 &
           p1=$!
           python scripts/strat/vortex_winds.py --model ifs --date "$D" --time "$T" \
             --anim-dir assets/sst/anim --manifest assets/sst/anim/vortex_winds_ifs_manifest.json > /tmp/vwinds.log 2>&1 &
           p2=$!
-          wait $p1 || echo "::warning::IFS wave-1 loop failed; keeping the previous frames"
+          wait $p1 || echo "::warning::IFS wave loops failed; keeping the previous frames"
           wait $p2 || echo "::warning::IFS vortex-wind loop failed; keeping the previous frames"
-          echo "---- wave1_maps"; tail -25 /tmp/wave1.log
+          echo "---- wave_maps"; tail -25 /tmp/waves.log
           echo "---- vortex_winds"; tail -25 /tmp/vwinds.log
 
       # Weather regimes from the 50 IFS-ENS members of the shared gh file (no fetch of its own; 00Z cycles only) ->
@@ -234,7 +234,7 @@ jobs:
             else printf '  %-40s MISSING\n' "$f"; bad=$((bad + 1)); fi
           done
           if [ "$READY" = "true" ]; then
-            for d in assets/sst/anim/wave1_ifs_nh assets/sst/anim/wave1_ifs_sh assets/sst/anim/vortex_ifs_10_nh assets/sst/anim/vortex_ifs_10_sh assets/sst/anim/vortex_ifs_100_nh assets/sst/anim/vortex_ifs_100_sh; do
+            for d in assets/sst/anim/wave1_ifs_nh assets/sst/anim/wave1_ifs_sh assets/sst/anim/wave2_ifs_nh assets/sst/anim/wave2_ifs_sh assets/sst/anim/vortex_ifs_10_nh assets/sst/anim/vortex_ifs_10_sh assets/sst/anim/vortex_ifs_100_nh assets/sst/anim/vortex_ifs_100_sh; do
               n=$(ls "$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')
               printf '  %-40s %s frames\n' "$d" "$n"; [ "$n" -eq 0 ] && bad=$((bad + 1))
             done
@@ -251,6 +251,7 @@ jobs:
                    assets/sst/ifs_drip.webp assets/sst/data/ifs_drip.json \
                    assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
                    assets/sst/anim/wave1_ifs_nh assets/sst/anim/wave1_ifs_sh assets/sst/anim/wave1_maps_ifs_manifest.json \
+                   assets/sst/anim/wave2_ifs_nh assets/sst/anim/wave2_ifs_sh assets/sst/anim/wave2_maps_ifs_manifest.json \
                    assets/sst/anim/vortex_ifs_10_nh assets/sst/anim/vortex_ifs_10_sh assets/sst/anim/vortex_ifs_100_nh assets/sst/anim/vortex_ifs_100_sh assets/sst/anim/vortex_winds_ifs_manifest.json; do
             [ -e "$p" ] && echo "$p" >> /tmp/maps.list
           done
@@ -391,7 +392,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PRUNE: assets/sst/anim/vortex_ifs_10 assets/sst/anim/vortex_ifs_100
         run: |
-          scripts/lib/publish_frames_ci.sh assets/sst/anim/wave1_ifs_nh assets/sst/anim/wave1_ifs_sh \
+          scripts/lib/publish_frames_ci.sh assets/sst/anim/wave1_ifs_nh assets/sst/anim/wave1_ifs_sh assets/sst/anim/wave2_ifs_nh assets/sst/anim/wave2_ifs_sh \
             assets/sst/anim/vortex_ifs_10_nh assets/sst/anim/vortex_ifs_10_sh assets/sst/anim/vortex_ifs_100_nh assets/sst/anim/vortex_ifs_100_sh assets/sst/anim/pacjet_ifs
 
       # Stills, data and manifests to main. Never rebase: snapshot, reset to a fresh
@@ -403,7 +404,7 @@ jobs:
           for f in assets/sst/nh_vortex.webp assets/sst/nh_vortex_runs.webp assets/sst/data/vortex_runs.json \
                    assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/data/ifs_heatflux100.json \
                    assets/sst/ifs_drip.webp assets/sst/data/ifs_drip.json \
-                   assets/sst/anim/wave1_maps_ifs_manifest.json assets/sst/anim/vortex_winds_ifs_manifest.json \
+                   assets/sst/anim/wave1_maps_ifs_manifest.json assets/sst/anim/wave2_maps_ifs_manifest.json assets/sst/anim/vortex_winds_ifs_manifest.json \
                    assets/sst/anim/pacjet_ifs_manifest.json assets/sst/pacjet_ifs_*.webp assets/sst/data/pacjet_ifs.json \
                    assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
                    assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_ifs.json; do

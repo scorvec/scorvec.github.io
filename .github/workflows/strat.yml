@@ -1,9 +1,9 @@
-name: Stratosphere (vortex, wave-1, E-P flux from GEFS)
+name: Stratosphere (vortex, waves 1 and 2, E-P flux from GEFS)
 
 # The stratospheric products that appear on stratosphere.html, built in
 # parallel jobs:
 #
-#   wave1_maps.py     -> assets/sst/anim/wave1_{nh,sh}/    loop only, no still
+#   wave_maps.py      -> assets/sst/anim/wave{1,2}_{nh,sh}/  loops only, no still
 #   vortex_winds.py   -> assets/sst/anim/vortex_{10,100}_{nh,sh}/  31-step 12-hourly loops, one hemisphere each
 #   qbo_duct.py --model gefs -> assets/sst/anim/epflux_gefs/   E-P flux loop from the NOAA GEFS ensemble (epflux job)
 #   qbo_duct.py --model aifs -> scripts/strat/data/zmu_members_aifs.npz (zero line) + v250 for pacjet (heavy job)
@@ -23,7 +23,7 @@ name: Stratosphere (vortex, wave-1, E-P flux from GEFS)
 # populating a 10 GB shared cache that only half the products read:
 #
 #   qbo_duct --model aifs     reads the cached u    -> needs ens_cycle
-#   wave1_maps, vortex_winds  call ecmwf.ensure     -> fetch their own, few hundred MB
+#   wave_maps, vortex_winds   call ecmwf.ensure     -> fetch their own, few hundred MB
 #
 # So the light pair no longer waits on a fetch it never touches, and the two
 # render jobs run concurrently. A failure in one no longer hides or blocks the
@@ -133,7 +133,7 @@ jobs:
           echo "cycle: $D ${T}Z"
 
   # ------------------------------------------------- light: self-fetching ---
-  # wave1_maps and vortex_winds pull exactly the fields they plot through the
+  # wave_maps and vortex_winds pull exactly the fields they plot through the
   # shared ecmwf store, so they skip ens_cycle entirely. ~25 min, most of it the
   # 31-frame vortex loop.
   light:
@@ -163,13 +163,12 @@ jobs:
       - name: Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
 
-      - name: Wave-1 maps + forecast loop
+      - name: Wave-1 and wave-2 loops
         run: |
-          python scripts/strat/wave1_maps.py \
+          python scripts/strat/wave_maps.py \
             --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
             --anim-dir assets/sst/anim \
-            --manifest assets/sst/anim/wave1_maps_manifest.json \
-            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "wave1_maps" "keeping the previous loop"
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "wave_maps" "keeping the previous loops"
 
       # 100 hPa eddy heat flux: v and T for 25 members, daily steps, ~0.5 GB. Google mirror only.
       - name: Eddy heat flux, 100 hPa
@@ -195,7 +194,7 @@ jobs:
             --out-dir assets/sst \
             || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "forecast_drip" "keeping the previous figure"
 
-      # Weather regimes from the AIFS-ENS 500 hPa members the two steps above already cached (wave1_maps' 25 perturbed
+      # Weather regimes from the AIFS-ENS 500 hPa members the two steps above already cached (wave_maps' 25 perturbed
       # members + forecast_drip's control): no fetch of its own. 00Z cycles only (a 12Z cycle is a no-op). ->
       # assets/regimes/data, read by the multi-model regime view (regimes.yml).
       - name: Weather regimes (AIFS-ENS members)
@@ -228,7 +227,7 @@ jobs:
         run: |
           scripts/lib/degraded.sh --summary
           bad=0
-          for d in assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh assets/sst/anim/vortex_10_nh assets/sst/anim/vortex_10_sh assets/sst/anim/vortex_100_nh assets/sst/anim/vortex_100_sh; do
+          for d in assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh assets/sst/anim/wave2_nh assets/sst/anim/wave2_sh assets/sst/anim/vortex_10_nh assets/sst/anim/vortex_10_sh assets/sst/anim/vortex_100_nh assets/sst/anim/vortex_100_sh; do
             n=$(ls "$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')
             printf '  %-38s %s frames\n' "$d" "$n"
             [ "$n" -eq 0 ] && bad=$((bad + 1))
@@ -257,9 +256,9 @@ jobs:
           for p in assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp assets/sst/data/heatflux100.json assets/sst/data/heatflux100_history.json \
                    assets/sst/aifs_drip.webp assets/sst/data/aifs_drip.json \
                    assets/regimes/data/regimes_members_aifs.json assets/regimes/data/regimes_drift_aifs.json \
-                   assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh \
+                   assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh assets/sst/anim/wave2_nh assets/sst/anim/wave2_sh \
                    assets/sst/anim/vortex_10_nh assets/sst/anim/vortex_10_sh assets/sst/anim/vortex_100_nh assets/sst/anim/vortex_100_sh \
-                   assets/sst/anim/wave1_maps_manifest.json \
+                   assets/sst/anim/wave1_maps_manifest.json assets/sst/anim/wave2_maps_manifest.json \
                    assets/sst/anim/vortex_winds_manifest.json; do
             [ -e "$p" ] && echo "$p" >> /tmp/light.list
           done
@@ -502,7 +501,7 @@ jobs:
             if [ -f "$f" ]; then printf '  %-38s %s\n' "$f" "$(du -h "$f" | cut -f1)"
             else printf '  %-38s (not produced this run)\n' "$f"; fi
           done
-          for d in assets/sst/anim/epflux_gefs assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh assets/sst/anim/vortex_10_nh assets/sst/anim/vortex_10_sh assets/sst/anim/vortex_100_nh assets/sst/anim/vortex_100_sh; do
+          for d in assets/sst/anim/epflux_gefs assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh assets/sst/anim/wave2_nh assets/sst/anim/wave2_sh assets/sst/anim/vortex_10_nh assets/sst/anim/vortex_10_sh assets/sst/anim/vortex_100_nh assets/sst/anim/vortex_100_sh; do
             printf '  %-38s %s frames\n' "$d" "$(ls "$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')"
           done
 
@@ -518,7 +517,7 @@ jobs:
           PRUNE: assets/sst/anim/epflux assets/sst/anim/epflux_ifs assets/sst/anim/vortex_10 assets/sst/anim/vortex_100
         run: |
           scripts/lib/publish_frames_ci.sh assets/sst/anim/epflux_gefs assets/sst/anim/wave1_nh \
-            assets/sst/anim/wave1_sh assets/sst/anim/vortex_10_nh assets/sst/anim/vortex_10_sh assets/sst/anim/vortex_100_nh assets/sst/anim/vortex_100_sh \
+            assets/sst/anim/wave1_sh assets/sst/anim/wave2_nh assets/sst/anim/wave2_sh assets/sst/anim/vortex_10_nh assets/sst/anim/vortex_10_sh assets/sst/anim/vortex_100_nh assets/sst/anim/vortex_100_sh \
             assets/sst/anim/pacjet_aifs
 
       # Only the static figures and the manifests are committed to main.
