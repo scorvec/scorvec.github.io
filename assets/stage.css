@@ -135,6 +135,8 @@
   .ss-host > .page-header > h1, .ss-host > .page-header > .eyebrow,
   .ss-host > header > h1, .ss-host > header > .eyebrow { order: 1; }
   .ss-host > .ss-layout { order: 2; margin: 0.2rem 0 1.2rem; }
+  /* the stage's credits, moved after everything else (stage.js placeCredits) */
+  .ss-host > .ss-credits-out { order: 4; margin: 1.4rem 0 0; padding-top: 0.8rem; border-top: 1px solid var(--rule, #e3e1db); color: var(--muted); }
   .ss-host .ss-more { align-self: flex-start; }
   /* the introduction, cut to three lines with a More button (stage.js clampIntro) */
   .ss-clamp:not(.ss-open) { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }

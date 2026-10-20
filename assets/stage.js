@@ -128,6 +128,21 @@
       new MutationObserver(fit).observe(el, { childList: true, characterData: true, subtree: true });
     });
   }
+  // the stage's credits (sources and the figure's date) close its card; on narrow screens, where the introduction and the
+  // headline cards follow the figure (stage.css .ss-host), they would sit above those numbers, so there they move to the
+  // end of the page, and back under the stage on wide screens
+  var credits = null, creditsHome = null, NARROW = matchMedia("(max-width: 1000px)");
+  function placeCredits() {
+    var lay = document.querySelector(".ss-layout");
+    if (!credits) {
+      credits = lay && lay.querySelector(".ss-main > .chart-card-footer");
+      if (!credits) return;
+      creditsHome = { parent: credits.parentNode, next: credits.nextSibling };
+    }
+    var out = credits.classList.contains("ss-credits-out");
+    if (NARROW.matches && !out) { credits.classList.add("ss-credits-out"); lay.parentElement.appendChild(credits); }
+    else if (!NARROW.matches && out) { credits.classList.remove("ss-credits-out"); creditsHome.parent.insertBefore(credits, creditsHome.next); }
+  }
   function openSheet() {
     if (!sheet) buildSheet();
     var list = sheet.querySelector(".ss-sheet-list"), html = "";
@@ -625,6 +640,7 @@
   buildRail();
   wireSwipe();
   clampIntro();
+  placeCredits(); NARROW.addEventListener("change", placeCredits);
   // watch the gated blocks: a card that shows or hides itself updates the rail, and leaves the stage if it hid
   var gatedEls = ORDER.filter(function (id) { return P[id].gated && P[id].dom; }).map(function (id) { return $(P[id].dom()); }).filter(Boolean);
   if (gatedEls.length && window.MutationObserver) {
