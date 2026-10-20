@@ -116,7 +116,7 @@ def day_change(runs: list[dict], m: str, key: str) -> str | None:
         return None
     d = float((a[win] - b[win]).mean())
     unit = "m s⁻¹" if key == "u10" else "m"
-    return f"24 h change, days 6–15: {d:+.1f} {unit}"
+    return f"24 h change, days 6–15: {d:+.1f} {unit}".replace("-", "−")
 
 
 def render(path: Path = RUNS, out: Path = OUT) -> None:
@@ -129,7 +129,7 @@ def render(path: Path = RUNS, out: Path = OUT) -> None:
     runs = doc["runs"]
     models = [m for m in MODELS if any(m in r["models"] for r in runs)]
     fig = plt.figure(figsize=(13.6, 10.4))
-    gs = fig.add_gridspec(3, len(models), height_ratios=(1, 1, 0.8), hspace=0.42, wspace=0.16)
+    gs = fig.add_gridspec(3, len(models), height_ratios=(1, 1, 0.8), hspace=0.5, wspace=0.16)
     for j, m in enumerate(models):
         col, lab = MODELS[m]
         mine = [r for r in runs if m in r["models"]][-SHOW:]
@@ -153,8 +153,9 @@ def render(path: Path = RUNS, out: Path = OUT) -> None:
                     zorder=5 if new else 3,
                 )
             ax.axhline(0, color="#a33" if key == "u10" else "#8a8680", lw=1.2 if key == "u10" else 0.9, zorder=4)
-            ax.set_title(f"{lab} · {KEYS[key][0]}", fontsize=10, fontweight="bold", loc="left")
-            ax.set_title(day_change(mine, m, key) or "", fontsize=8, color="0.25", loc="right")
+            # the 24 h change on its own line under the title: beside it, five panels a row run the two together
+            ax.set_title(f"{lab} · {KEYS[key][0]}", fontsize=10, fontweight="bold", loc="left", pad=14)
+            ax.text(0, 1.015, day_change(mine, m, key) or "", transform=ax.transAxes, fontsize=8, color="0.25")
             if j == 0:
                 ax.set_ylabel(KEYS[key][1], fontsize=8.6)
             ax.grid(alpha=0.22)
@@ -203,13 +204,13 @@ def render(path: Path = RUNS, out: Path = OUT) -> None:
         "Each line is one run's ensemble mean. The 24 h change is the newest run's mean minus the run 24 h before it, "
         "over the newest run's days 6–15.\nHeight anomaly against the MERRA-2 1980– median detrended to the current year, as on "
         "the main vortex figure. AIFS-ENS 25 members + control, IFS-ENS 50 perturbed members (ECMWF open data,\n"
-        "Google Cloud mirror), GEPS 20 members + control (ECCC). GEPS has no archive, so its record starts with the "
-        "first run kept.",
+        "Google Cloud mirror), GEFS 30 members + control (NOAA), GEPS 20 members + control (ECCC). GEFS and GEPS have "
+        "no archive here, so their records start with the first run kept.",
         fontsize=8,
         color="#6f6b64",
         linespacing=1.45,
     )
-    fig.subplots_adjust(left=0.06, right=0.985, top=0.915, bottom=0.1)
+    fig.subplots_adjust(left=0.06, right=0.97, top=0.915, bottom=0.1)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=110, facecolor="white", pil_kwargs={"quality": 88, "method": 6})
     plt.close(fig)

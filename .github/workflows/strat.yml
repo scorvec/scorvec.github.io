@@ -64,6 +64,9 @@ on:
       publish:
         description: 'Commit the figures (false = render + artifacts only)'
         default: 'false'
+      skip_published:
+        description: 'Do nothing when the resolved cycle is already on the page (the late-upload retry slots)'
+        default: 'false'
 
 # Frame store (Cloudflare R2, S3 API). Absent secrets leave these empty and the
 # publishers fall back to the orphan `frames` branch - see scripts/lib/frames_env.sh.
@@ -95,6 +98,7 @@ jobs:
     outputs:
       date: ${{ steps.cyc.outputs.date }}
       time: ${{ steps.cyc.outputs.time }}
+      fresh: ${{ steps.cyc.outputs.fresh }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -131,6 +135,15 @@ jobs:
           fi
           echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"
           echo "cycle: $D ${T}Z"
+          # The retry slots: a cycle whose day 15 reached the mirror after the main slot was passed over for the one
+          # before it; an hour later this picks it up, and does nothing when the main slot already published it.
+          FRESH=true
+          if [ "${{ github.event.inputs.skip_published }}" = "true" ]; then
+            PUB=$(python -c "import json, sys; print(json.load(open(sys.argv[1]))['ver'])" \
+                  "$GITHUB_WORKSPACE/assets/sst/anim/wave1_maps_manifest.json" 2>/dev/null || true)
+            if [ "$PUB" = "$D$T" ]; then FRESH=false; echo "cycle $D ${T}Z is already published: nothing to do"; fi
+          fi
+          echo "fresh=$FRESH" >> "$GITHUB_OUTPUT"
 
   # ------------------------------------------------- light: self-fetching ---
   # wave_maps and vortex_winds pull exactly the fields they plot through the
@@ -138,6 +151,7 @@ jobs:
   # 31-frame vortex loop.
   light:
     needs: cycle
+    if: needs.cycle.outputs.fresh == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -282,6 +296,7 @@ jobs:
   # Budget: populate ~5, zonal-mean u + v250 ~3, pacjet ~10.
   heavy:
     needs: cycle
+    if: needs.cycle.outputs.fresh == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 80
     env:
@@ -402,6 +417,7 @@ jobs:
   # per-member eddy quadratics in 4 processes, never written to disk. Independent of the ECMWF cache.
   epflux:
     needs: cycle
+    if: needs.cycle.outputs.fresh == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -469,7 +485,7 @@ jobs:
   # alone.
   publish:
     needs: [cycle, light, heavy, epflux]
-    if: ${{ always() && (github.event_name == 'schedule' || github.event.inputs.publish == 'true') }}
+    if: ${{ always() && needs.cycle.outputs.fresh == 'true' && (github.event_name == 'schedule' || github.event.inputs.publish == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
