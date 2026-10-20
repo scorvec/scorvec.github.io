@@ -1,32 +1,32 @@
 {
- "as_of": "2026-10-19",
+ "as_of": "2026-10-20",
  "merra2_end": "2026-09-01",
- "geosfp_days": 129,
+ "geosfp_days": 130,
  "rule": "first zero crossing of [u] (sigma 2 deg smoothing) scanning equatorward from the strongest 25-45 deg westerlies whose easterly region reaches 1 m/s; censored at 45 deg in the other hemisphere",
  "levels": {
   "70": {
    "nh": -45.0,
    "sh": 45.0,
    "nh_flag": 2,
-   "nh_30d": 23.67
+   "nh_30d": 21.09
   },
   "50": {
-   "nh": 28.04,
-   "sh": -30.69,
+   "nh": 28.09,
+   "sh": -30.13,
    "nh_flag": 0,
-   "nh_30d": 33.03
+   "nh_30d": 32.72
   },
   "30": {
-   "nh": 30.02,
-   "sh": -34.92,
+   "nh": 29.76,
+   "sh": -34.67,
    "nh_flag": 0,
-   "nh_30d": 35.12
+   "nh_30d": 34.75
   },
   "10": {
-   "nh": 23.61,
-   "sh": -36.52,
+   "nh": 23.53,
+   "sh": -36.21,
    "nh_flag": 0,
-   "nh_30d": 28.4
+   "nh_30d": 27.9
   }
  },
  "forecasts": {
