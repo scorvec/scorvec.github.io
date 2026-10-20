@@ -113,7 +113,7 @@ DETREND = {"zcap"}  # see the module docstring for why only this one
 STYLE = {
     "aifs": ("#b4541f", "AIFS-ENS"),
     "ifs": ("#1f4b6e", "IFS-ENS"),
-    "gefs": ("#127a86", "GEFS"),
+    "gefs": ("#3b88c4", "GEFS"),  # mid blue: apart from GEPS green for every reader, lighter than IFS-ENS navy
     "geps": ("#2f7d4f", "GEPS"),
     "gdps": ("#6b4c9a", "GDPS"),
     "geosfp": ("#b0306a", "GEOS FP"),

@@ -27,7 +27,7 @@ OUT = REPO / "assets" / "sst" / "nh_vortex_runs.webp"
 MODELS = {
     "aifs": ("#b4541f", "AIFS-ENS"),
     "ifs": ("#1f4b6e", "IFS-ENS"),
-    "gefs": ("#127a86", "GEFS"),
+    "gefs": ("#3b88c4", "GEFS"),  # as nh_vortex.STYLE
     "geps": ("#2f7d4f", "GEPS"),
 }
 KEYS = {  # panel title, axis label
