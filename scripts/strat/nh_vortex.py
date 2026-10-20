@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""NH polar vortex FORECAST monitor -- AIFS-ENS, IFS-ENS, GEPS, GDPS and GEOS FP.
+"""NH polar vortex FORECAST monitor -- AIFS-ENS, IFS-ENS, GEFS, GEPS, GDPS and GEOS FP.
 
 Three panels, forecast-first (a short analysis tail for context, then every
 model that publishes the stratosphere):
@@ -12,13 +12,16 @@ model that publishes the stratosphere):
   3. 100 hPa polar-cap (65-90N) height anomaly -- positive = weak/displaced
      vortex; the field that leads the AO/NAO response.
 
-Models (probed 2026-08-28; all four publish u AND height at 10 and 100 hPa):
+Models (probed 2026-08-28, GEFS 2026-10-20; every one publishes u AND height at 10 and 100 hPa):
 
   aifs  AIFS-ENS  25 pf + cf, 0.25 deg, day 15.  FREE -- the AAM task already
                   caches pf_u_10-50-100-... every cycle. Height: 25 pf z at 100 hPa
                   pulled through the shared store (~0.35 GB) plus the control.
+  gefs  GEFS      30 perturbed + control, 0.5 deg, day 16: u at 10/100 hPa and the 100 hPa height
+                  from the shared GEFS fetch (strat_ens.py, part "vortex"; NOAA's S3, ~0.6 GB/cycle).
   geps  GEPS      20 members, 0.5 deg, day 16. One `allmbrs` GRIB per
-                  variable/level/step (~2.4 MB UGRD, ~1.3 MB HGT) -> ~98 MB/cycle.
+                  variable/level/step (~2.4 MB UGRD, ~1.3 MB HGT) -> ~98 MB/cycle, through the
+                  shared Datamart client (scripts/geps/datamart.py).
   gdps  GDPS      deterministic, 0.15 deg, day 10 -> ~31 MB/cycle.
   geosfp GEOS FP   NASA GMAO, deterministic, newest 00Z run (day 10; 06/12/18Z stop at day 5), NCCS OPeNDAP
                   MERRA-2's operational sibling.
@@ -58,7 +61,7 @@ the files the upper-stratosphere and BDC jobs commit every day (u60 at 10 and 10
 MERRA-2 scale by the measured GEOS FP - MERRA-2 offset (geosfp_cap.offset_at, -14 m at 100 hPa); the winds need
 none. _consistency() checks the tail against MERRA-2 wherever the two overlap.
 
-    python scripts/strat/nh_vortex.py                     # all four models, IFS at 50 members
+    python scripts/strat/nh_vortex.py                     # every model, IFS at 50 members
     python scripts/strat/nh_vortex.py --models aifs,geps  # no downloads beyond GEPS
     python scripts/strat/nh_vortex.py --cycle 2026092700  # a named cycle (no ens_cycle cache needed)
 """
@@ -68,8 +71,7 @@ from __future__ import annotations
 import argparse
 import glob
 import json
-import urllib.error
-import urllib.request
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -86,6 +88,9 @@ import vortex_runs
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
+sys.path.insert(0, str(REPO / "scripts" / "geps"))
+import datamart  # every ECCC Datamart request: the site's User-Agent, retries, the fetch ledger
+
 DATA = HERE / "data"
 M2_CACHE = HERE / "reference" / "m2_strat_daily.nc"  # MERRA-2 daily u60 at 10/100 hPa and 100 hPa cap height
 # GEOS FP analyses, daily: u60 by level (reference seed + the rolling file) and the 65-90N cap height
@@ -103,12 +108,12 @@ CAP = (65.0, 90.0)  # polar cap for the 100 hPa height anomaly
 TAIL_DAYS = 21  # short analysis tail: this is a forecast product
 G = 9.80665  # ECMWF `z` is geopotential; `gh` / HGT are already gpm
 AIFS_Z_MEMBERS = 25  # perturbed members for the AIFS polar-cap height (as for the winds)
-UA = {"User-Agent": "scorvec-enso/1.0"}
 DETREND = {"zcap"}  # see the module docstring for why only this one
 
 STYLE = {
     "aifs": ("#b4541f", "AIFS-ENS"),
     "ifs": ("#1f4b6e", "IFS-ENS"),
+    "gefs": ("#127a86", "GEFS"),
     "geps": ("#2f7d4f", "GEPS"),
     "gdps": ("#6b4c9a", "GDPS"),
     "geosfp": ("#b0306a", "GEOS FP"),
@@ -144,16 +149,10 @@ def _frame(da, reduce_fn, base, scale=1.0):
 
 
 def _fetch(url, dest):
-    if dest.exists() and dest.stat().st_size > 0:
-        return dest
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=240) as r:
-            dest.write_bytes(r.read())
-    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as e:
-        print(f"    miss {url.rsplit('/', 1)[-1][:52]}: {str(e)[:44]}", flush=True)
-        return None
-    return dest
+    got = datamart.download(url, dest, timeout=240)  # a no-op when this cycle's file is already cached
+    if got is None:
+        print(f"    miss {url.rsplit('/', 1)[-1][:52]}", flush=True)
+    return got
 
 
 # ── model loaders: each returns {"u10","u100","zcap"} of DataFrames ─────────
@@ -294,6 +293,27 @@ def load_gdps(date, cyc, leads):
             ("zcap", "GeopotentialHeight", 100, cap_mean),
         ],
     )
+
+
+def load_gefs(date, cyc):
+    """NOAA GEFS, control + 30 members, to day 16, from the shared GEFS fetch's "vortex" part (strat_ens.py: u at 10
+    and 100 hPa and the 100 hPa height, daily, byte-ranged from NOAA's S3, ~0.6 GB). A cycle not complete on S3 falls
+    back to the newest complete one within a day; with none the figure goes without GEFS."""
+    import strat_ens as SE
+
+    try:
+        d0, h0 = SE.resolve("gefs", date, cyc)
+        d = SE.load("gefs", d0, h0, ("vortex",))
+    except SystemExit as e:
+        print(f"::warning::GEFS unavailable ({e}); the figure goes without it", flush=True)
+        return None
+    keep = SE.complete_members(d, "zcap")
+    idx = pd.Timestamp(f"{d0[:4]}-{d0[4:6]}-{d0[6:]} {h0}:00") + pd.to_timedelta(list(SE.LEADS_VORTEX), unit="h")
+    return {
+        "u10": pd.DataFrame(d["u60"][keep, :, 0].T, index=idx),
+        "u100": pd.DataFrame(d["u60"][keep, :, 1].T, index=idx),
+        "zcap": pd.DataFrame(d["zcap"][keep].T, index=idx),
+    }
 
 
 def load_ifs(date, cyc, leads, members, light=False):
@@ -582,7 +602,7 @@ def draw_model(ax, df, key, sub=None):
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--models", default="aifs,geps,gdps,ifs,geosfp")
+    ap.add_argument("--models", default="aifs,gefs,geps,gdps,ifs,geosfp")
     ap.add_argument(
         "--ifs-members", type=int, default=50, help="IFS-ENS perturbed members (all 50 by default; there is no control)"
     )
@@ -638,6 +658,8 @@ def main() -> int:
     fc = {}
     if "aifs" in want:
         fc["aifs"] = load_aifs(cdir, base)
+    if "gefs" in want:
+        fc["gefs"] = load_gefs(date, cyc)
     if "geps" in want:
         fc["geps"] = load_geps(date, cyc, list(range(0, 385, 24)))
     if "gdps" in want:
@@ -759,7 +781,8 @@ def main() -> int:
         "Zonal-mean zonal wind at 60°N and the 65–90°N polar-cap height. Shading is each ensemble's 10th–90th member "
         "percentile, the solid line its mean; dashed = deterministic or control-only.\n"
         "AIFS-ENS (25 members + control) and IFS-ENS (all 50 perturbed members; open data has no IFS control at these "
-        "levels) to day 15, GEPS to day 16, GDPS and GEOS FP (00Z run, NASA GMAO) to day 10.\n"
+        "levels) to day 15, GEFS (30 + control) and GEPS (20 + control) to day 16, GDPS and GEOS FP (00Z run, NASA "
+        "GMAO) to day 10.\n"
         f"Reference: MERRA-2 {y0}–{y1} day-of-year percentiles; the height climatology is detrended to the current "
         f"year ({trend['zcap']:+.1f} m/decade), the winds are not "
         f"({max(abs(trend['u10']), abs(trend['u100'])):.2f} m/s/decade or less).\n"

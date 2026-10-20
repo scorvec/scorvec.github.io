@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""100 hPa eddy heat flux [v'T'] from the other ensembles: GEPS and GEFS to day 35, and IFS-ENS to day 15, with the
-wave-1 and wave-2 parts.
+"""100 hPa eddy heat flux [v'T'] from the other ensembles: GEPS and GEFS to day 35 and to day 15, and IFS-ENS to day
+15, with the wave-1 and wave-2 parts.
 
 The same product as heatflux100.py (AIFS-ENS, days 1-15) - the same flux (per member, then averaged; waves 1..72; wave-1
 and wave-2 kept apart; positive = poleward), the same 45-75 deg band, the same ERA5 1991-2020 climatology and the same
@@ -16,10 +16,14 @@ Datamart keeps too few runs for that test, so GEPS is uncorrected.
   ifs   ECMWF IFS-ENS 00/12Z, ALL 50 perturbed members (open data has no IFS control at pressure levels), days 0-15,
         v at 100 hPa from the shared IFS-ENS u/v file and t at 100 hPa (ifs_ens.py, Google Cloud mirror only), taken to
         0.5 deg like GEPS and GEFS - wavenumbers 1-72 need no finer grid. Actions, in strat-ifs.yml.
+  --days 15 (GEFS, GEPS): the days 1-15 product beside AIFS-ENS and IFS-ENS - the cycle strat-ifs.yml is on (00 or
+        12Z), analysis to day 15, the members' fluxes from the shared fetch (strat_ens.py, part "flux"), the control
+        first. GEFS keeps its measured error correction; GEPS stays uncorrected.
 
     python heatflux100_ext.py --model geps --date 20260924 --out-dir assets/geps
     python heatflux100_ext.py --model gefs --date 20260926 --out-dir assets/gefs
     python heatflux100_ext.py --model ifs --date 20260927 --time 00 --out-dir assets/sst
+    python heatflux100_ext.py --model gefs --days 15 --date 20261020 --time 00 --out-dir assets/sst
 """
 
 from __future__ import annotations
@@ -156,6 +160,16 @@ def ifs(date: str, time: str):
     return out[0], out[1]
 
 
+def shared(model: str, date: str, time: str):
+    """(lat, {tot, k1, k2}: (member, step, lat), the member indices kept) of the days 1-15 run from the shared
+    GEFS/GEPS fetch (strat_ens.py): the members complete on every step; index 0 is the control."""
+    import strat_ens as SE
+
+    d = SE.load(model, date, f"{int(time):02d}", ("flux",))
+    keep = SE.complete_members(d, "flux_tot")
+    return SE.LAT, {k: d[f"flux_{k}"][keep] for k in ("tot", "k1", "k2")}, keep
+
+
 def fluxes_chunked(v, t, n: int = 10):
     """HF.fluxes over member chunks: the same numbers, a tenth of the peak memory (50 members x 16 steps of 0.5 deg
     fields go through a float64 FFT)."""
@@ -167,18 +181,34 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True, choices=("geps", "gefs", "ifs"))
     ap.add_argument("--date", required=True)
-    ap.add_argument("--time", default="00", help="cycle hour (IFS-ENS: 00 or 12; GEPS/GEFS use their 00Z run)")
+    ap.add_argument(
+        "--time", default="00", help="cycle hour (IFS-ENS and --days 15: 00 or 12; the 35-day runs are 00Z)"
+    )
+    ap.add_argument(
+        "--days", type=int, choices=(15, 35), help="GEPS/GEFS: 35 (default, the 00Z extended run) or 15 (any cycle)"
+    )
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--history", default=str(REPO / "assets" / "sst" / "data" / "heatflux100_history.json"))
     a = ap.parse_args()
-    hour = int(a.time) if a.model == "ifs" else 0
+    medium = a.model == "ifs" or a.days == 15  # the days 1-15 product
+    if a.model == "ifs" and a.days == 35:
+        ap.error("IFS-ENS open data stops at day 15")
+    hour = int(a.time) if medium else 0
     init = pd.Timestamp(f"{a.date[:4]}-{a.date[4:6]}-{a.date[6:8]} {hour:02d}:00")
-    leads = IFS_LEADS if a.model == "ifs" else LEADS
-    v, t = {"geps": lambda: geps(a.date), "gefs": lambda: gefs(a.date), "ifs": lambda: ifs(a.date, a.time)}[a.model]()
+    leads = IFS_LEADS if medium else LEADS
     name = {"geps": "GEPS", "gefs": "GEFS", "ifs": "IFS-ENS"}[a.model]
     valid = pd.DatetimeIndex([init + pd.Timedelta(hours=L) for L in leads])
-    lat, f = fluxes_chunked(v, t)  # {tot,k1,k2}: (member, step, lat)
-    has_cf = a.model != "ifs"  # IFS-ENS: 50 perturbed members, no control
+    if medium and a.model != "ifs":
+        lat, f, kept = shared(a.model, a.date, a.time)
+        n = len(kept)
+        has_cf = kept[0] == 0  # the control, when it arrived complete
+    else:
+        v, t = {"geps": lambda: geps(a.date), "gefs": lambda: gefs(a.date), "ifs": lambda: ifs(a.date, a.time)}[
+            a.model
+        ]()
+        lat, f = fluxes_chunked(v, t)  # {tot,k1,k2}: (member, step, lat)
+        n = int(v.shape[0])
+        has_cf = a.model != "ifs"  # IFS-ENS: 50 perturbed members, no control
     fc = {k: x[:1] for k, x in f.items()} if has_cf else None  # control = member 0
     fall = dict(f.items())  # the ensemble = control + perturbed, as it is issued
     clim = xr.open_dataset(HF.CLIM).load() if HF.CLIM.exists() else None
@@ -186,7 +216,6 @@ def main() -> int:
     out = Path(a.out_dir)
     out = out if out.is_absolute() else REPO / out
     (out / "data").mkdir(parents=True, exist_ok=True)
-    n = int(v.shape[0])
     doc = {
         "model": name,
         "init": init.isoformat(),
@@ -229,7 +258,7 @@ def main() -> int:
             n,
             out / f"{a.model}_heatflux100_{hemi}.webp",
             HF.bias_note(tab, any(np.any(e != 0) for e in err.values())),
-            model=name if a.model == "ifs" else f"{name} extended",
+            model=name if medium else f"{name} extended",
             warn=warn,
         )
         h = {
@@ -242,7 +271,7 @@ def main() -> int:
             }
             for k in mem
         }
-        d8 = 8 if a.model == "ifs" else 7  # IFS leads start at the analysis (index 0)
+        d8 = 8 if medium else 7  # the days 1-15 leads start at the analysis (index 0)
         last = leads[-1] // 24
         if clim is not None:
             h["clim_mean"] = np.round(HF.clim_at(clim, hemi, "tot", "mean", valid), 2).tolist()

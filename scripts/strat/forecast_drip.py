@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """FORECAST dripping paint: standardised polar-cap (65-90N) geopotential height from 1000 to 10 hPa against time - the
-observed record of the last ~60 days, then the ensemble-mean forecast - for GEPS (day 35), GEFS (day 35) and
-AIFS-ENS (day 15).
+observed record of the last ~60 days, then the ensemble-mean forecast - for GEPS and GEFS (day 35, and with --days 15
+the days 1-15 product from any cycle, read from the shared strat_ens.py fetch), AIFS-ENS and IFS-ENS (day 15).
 
 Same scale as the MERRA-2 history drips (strat_history.py): every value is (cap height - the MERRA-2 harmonics+trend
 mean) / the MERRA-2 seasonal sd, from reference/drip_std.json (build_drip_ref.py, which reproduces the history
@@ -35,6 +35,7 @@ negative AO) and the share of members with the 100 hPa cap >= +1 sd.
     python forecast_drip.py --model gefs --date 20260926 --out-dir assets/gefs
     python forecast_drip.py --model aifs --date 20260927 --time 00 --out-dir assets/sst
     python forecast_drip.py --model ifs --date 20260927 --time 00 --out-dir assets/sst
+    python forecast_drip.py --model gefs --days 15 --date 20261020 --time 12 --out-dir assets/sst
     python forecast_drip.py --measure-drift ifs          # outside Actions, once: -> reference/ifs_capdrift.json
 """
 
@@ -575,6 +576,12 @@ def main() -> int:
     ap.add_argument("--time", default="00")
     ap.add_argument("--out-dir")
     ap.add_argument("--history", default=str(REPO / "assets" / "sst" / "data" / "geosfp_cap_history.json"))
+    ap.add_argument(
+        "--days",
+        type=int,
+        choices=(15, 35),
+        help="GEPS/GEFS: 35 (default, the 00Z extended run) or 15 (any cycle, from the shared strat_ens.py fetch)",
+    )
     ap.add_argument("--cache", help="npz of the reduced member caps (reused if present)")
     ap.add_argument("--fetch-only", action="store_true")
     ap.add_argument("--measure-aifs-drift", action="store_true")
@@ -587,7 +594,12 @@ def main() -> int:
     init = pd.Timestamp(f"{a.date[:4]}-{a.date[4:6]}-{a.date[6:8]}")
     ref = Ref()
     cache = Path(a.cache) if a.cache else None
-    if cache and cache.exists():
+    if a.days == 15 and a.model in ("geps", "gefs"):
+        import strat_ens as SE
+
+        d = SE.load(a.model, a.date, f"{int(a.time):02d}", ("drip",))
+        C, leads = d["caps"][SE.complete_members(d, "caps")].astype(float), list(SE.LEADS_DAILY)
+    elif cache and cache.exists():
         z = np.load(cache)
         C, leads = z["C"], [int(x) for x in z["leads"]]
     else:

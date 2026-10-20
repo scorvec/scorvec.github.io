@@ -1,9 +1,10 @@
-name: Stratosphere, IFS-ENS (vortex, heat flux, waves 1 and 2, winds, drip, zero line, jet)
+name: Stratosphere, IFS-ENS, GEFS and GEPS (vortex, heat flux, waves 1 and 2, winds, drip, zero line, jet)
 
 # ECMWF IFS-ENS at full membership (all 50 perturbed members; open data has no IFS control at pressure levels) in
-# every stratosphere product that its open data can feed:
+# every stratosphere product that its open data can feed, and the days 1-15 GEFS and GEPS versions of the same products
+# (naens job, below):
 #
-#   nh_vortex.py          -> assets/sst/nh_vortex.webp                  all four models
+#   nh_vortex.py          -> assets/sst/nh_vortex.webp                  every model
 #                         + nh_vortex_runs.webp, data/vortex_runs.json  the run-to-run record (vortex_runs.py)
 #   heatflux100_ext.py    -> assets/sst/ifs_heatflux100_{nh,sh}.webp   + data/ifs_heatflux100.json
 #   forecast_drip.py      -> assets/sst/ifs_drip.webp                  + data/ifs_drip.json (drift: reference/ifs_capdrift.json)
@@ -11,13 +12,15 @@ name: Stratosphere, IFS-ENS (vortex, heat flux, waves 1 and 2, winds, drip, zero
 #   vortex_winds.py       -> assets/sst/anim/vortex_ifs_{10,100}_{nh,sh}/ + vortex_winds_ifs_manifest.json
 #   qbo_duct.py --model ifs -> scripts/strat/data/zmu_members_ifs.npz (zero line) + the 250 hPa jet sector (pacjet)
 #   qbo_zeroline.py       -> assets/sst/qbo_zeroline_*.webp re-rendered with IFS-ENS + data/qbo_zeroline_ifs.json
-# The upper-stratosphere item cannot have IFS: its open data stops at 10 hPa.
+#   naens (GEFS, GEPS)    -> assets/sst/{gefs,geps}_heatflux100_{nh,sh}.webp, {gefs,geps}_drip.webp (+ data/*.json),
+#                            anim/wave{1,2}_{gefs,geps}_{nh,sh}/, anim/vortex_{gefs,geps}_{10,100}_{nh,sh}/ + manifests
+# The upper-stratosphere item cannot have IFS: its open data stops at 10 hPa (GEPS's too).
 #
 # WHY A SEPARATE WORKFLOW. IFS-ENS day 15 reaches the Google mirror at ~08:50Z and ~20:55Z (object times), over an
 # hour after strat.yml's 07:35/19:35 slots, which are timed for AIFS-ENS; run in strat.yml, the IFS steps would find
 # nothing. This runs at 09:05/21:05.
 #
-# nh_vortex lives here, not in strat.yml: one figure holds all four models, and rendering it at both slots would
+# nh_vortex lives here, not in strat.yml: one figure holds every model, and rendering it at both slots would
 # flip it between "without IFS" (07:35) and "with IFS" (09:05) twice a day. Its AIFS winds come through the store.
 #
 # DATA. Google Cloud mirror only: ECMWF_SOURCES=google for every step, and ifs_ens.py names the
@@ -26,6 +29,9 @@ name: Stratosphere, IFS-ENS (vortex, heat flux, waves 1 and 2, winds, drip, zero
 #           10/100 hPa 12-hourly (~4.0 GB), t at 100 hPa daily (~0.5 GB); every render reads those files.
 #   zmu     u at 10/50/250 hPa and v at 250 hPa, streamed a step at a time and never cached (~2 GB a cycle). The
 #           E-P flux comes from GEFS instead (strat.yml), which has levels between 10 and 50 hPa.
+#   naens   GEFS from NOAA's S3 (byte-ranged per message) and GEPS from the MSC Datamart, one shared fetch per model
+#           (strat_ens.py fetch: every member and step pulled once, reduced on the way in), read by all four products.
+#           nh_vortex (maps job, run in parallel) takes its GEFS u and 100 hPa height in a small fetch of its own.
 # The ef files hold ~8,500 messages per step in arrival order, so a 50-member selection is a scatter of 0.3-0.7 MB
 # ranges: ECMWF_RANGE_GAP_MB=0.5 keeps the wasted bytes near 1 % (a 3 MB gap doubled them), and the request budget is
 # raised to 60/s for Google on these runners (default 14/s, set for AWS/Azure throttling; Google does not throttle,
@@ -169,12 +175,12 @@ jobs:
           git fetch -q --depth 1 origin main
           git checkout origin/main -- assets/sst/data/vortex_runs.json || echo "::warning::vortex_runs.json not on main yet"
 
-      # All four models in one figure. Without IFS (not on the mirror) it still renders the other three.
+      # Every model in one figure. Without IFS (not on the mirror) it still renders the others.
       - name: NH polar vortex
         timeout-minutes: 25
         continue-on-error: true
         run: |
-          M=aifs,geps,gdps,geosfp; [ "$READY" = "true" ] && M=aifs,geps,gdps,geosfp,ifs
+          M=aifs,gefs,geps,gdps,geosfp; [ "$READY" = "true" ] && M=aifs,gefs,geps,gdps,geosfp,ifs
           python scripts/strat/nh_vortex.py --models "$M" --cycle "$D$T" --out assets/sst/nh_vortex.webp \
             || echo "::warning::nh_vortex failed; keeping the previous figure"
 
@@ -265,6 +271,148 @@ jobs:
         with:
           name: strat-ifs-maps
           path: /tmp/strat-ifs-maps.tgz
+          if-no-files-found: warn
+          retention-days: 7
+
+  # ---------------------------------------------------------------- naens ---
+  # GEFS and GEPS for the days 1-15 products, on this workflow's cycle (each falls back up to a day to the newest cycle
+  # complete to 384 h); it does not wait for IFS-ENS. One shared fetch per model (strat_ens.py: GEFS ~4.5 GB
+  # byte-ranged from NOAA's S3, GEPS ~0.7 GB from the MSC Datamart, both reduced as they arrive), then the heat flux,
+  # the dripping paint, the wave maps and the vortex winds, the two models side by side. ~35 min.
+  naens:
+    needs: cycle
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      MPLBACKEND: Agg
+      D: ${{ needs.cycle.outputs.date }}
+      T: ${{ needs.cycle.outputs.time }}
+      GEFS_CLIM_CACHE: /tmp/gefs_clim2   # the GEFSv12 reforecast climatology the GEFS drip's drift comes from
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: System libs
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+
+      # The GEPS dripping paint removes GEPS's drift measured on the S2S reforecasts (strat/geps_s2s of the GEPS
+      # reference set); only that directory is kept from the tar.
+      - name: GEPS reforecast drift (release geps-ref-v3)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          touch /tmp/t0                                   # stamp: the checkout's copies are older than this
+          gh release download geps-ref-v3 --repo "$GITHUB_REPOSITORY" -p geps_ref_v3.tar -D "$RUNNER_TEMP"
+          mkdir -p "$RUNNER_TEMP/ref" scripts/strat/data
+          tar -xf "$RUNNER_TEMP/geps_ref_v3.tar" -C "$RUNNER_TEMP/ref" --wildcards '*strat/geps_s2s/*'
+          rm "$RUNNER_TEMP/geps_ref_v3.tar"
+          d=$(find "$RUNNER_TEMP/ref" -type d -name geps_s2s | head -1)
+          if [ -n "$d" ]; then cp -r "$d" scripts/strat/data/; ls scripts/strat/data/geps_s2s
+          else echo "::warning::geps_s2s not in geps_ref_v3.tar; the GEPS drip goes uncorrected (hatched)"; fi
+
+      # The two fetches hit different hosts: run them side by side. Each writes the cycle it used to the step output.
+      - name: Shared GEFS and GEPS fetch
+        id: fetch
+        timeout-minutes: 45
+        continue-on-error: true
+        run: |
+          start=$(date +%s)
+          python scripts/strat/strat_ens.py fetch --model gefs --date "$D" --time "$T" --github-output > /tmp/gefs.log 2>&1 &
+          p1=$!
+          python scripts/strat/strat_ens.py fetch --model geps --date "$D" --time "$T" --github-output > /tmp/geps.log 2>&1 &
+          p2=$!
+          wait $p1 || echo "::warning::GEFS fetch failed; the GEFS products keep their previous version"
+          wait $p2 || echo "::warning::GEPS fetch failed; the GEPS products keep their previous version"
+          echo "---- GEFS"; tail -6 /tmp/gefs.log
+          echo "---- GEPS"; tail -6 /tmp/geps.log
+          echo "  fetch wall time $(( $(date +%s) - start )) s"
+          du -sh scripts/strat/data/strat_ens 2>/dev/null || true
+
+      # Per model: heat flux, dripping paint, wave maps, vortex winds, from the shared file only (no download).
+      - name: GEFS and GEPS products
+        timeout-minutes: 50
+        continue-on-error: true
+        env:
+          GEFS_D: ${{ steps.fetch.outputs.gefs_date }}
+          GEFS_T: ${{ steps.fetch.outputs.gefs_time }}
+          GEPS_D: ${{ steps.fetch.outputs.geps_date }}
+          GEPS_T: ${{ steps.fetch.outputs.geps_time }}
+        run: |
+          products() {   # model date hour
+            m=$1; d=$2; t=$3
+            [ -n "$d" ] || { echo "::warning::no $m cycle fetched; its products keep their previous version"; return 0; }
+            python scripts/strat/heatflux100_ext.py --model "$m" --days 15 --date "$d" --time "$t" --out-dir assets/sst \
+              || echo "::warning::$m heat flux failed; keeping the previous figure"
+            python scripts/strat/forecast_drip.py --model "$m" --days 15 --date "$d" --time "$t" --out-dir assets/sst \
+              || echo "::warning::$m drip failed; keeping the previous figure"
+            python scripts/strat/wave_maps.py --model "$m" --date "$d" --time "$t" --anim-dir assets/sst/anim \
+              || echo "::warning::$m wave loops failed; keeping the previous frames"
+            python scripts/strat/vortex_winds.py --model "$m" --date "$d" --time "$t" --anim-dir assets/sst/anim \
+              --manifest "assets/sst/anim/vortex_winds_${m}_manifest.json" \
+              || echo "::warning::$m vortex-wind loops failed; keeping the previous frames"
+          }
+          products gefs "$GEFS_D" "$GEFS_T" > /tmp/gefs_products.log 2>&1 &
+          p1=$!
+          products geps "$GEPS_D" "$GEPS_T" > /tmp/geps_products.log 2>&1 &
+          p2=$!
+          wait $p1; wait $p2
+          grep -h "::warning::" /tmp/gefs_products.log /tmp/geps_products.log || true
+          echo "---- GEFS"; grep -v "^    " /tmp/gefs_products.log | tail -25
+          echo "---- GEPS"; grep -v "^    " /tmp/geps_products.log | tail -25
+
+      - name: What was produced
+        if: always()
+        run: |
+          bad=0
+          for m in gefs geps; do
+            for f in assets/sst/${m}_heatflux100_nh.webp assets/sst/${m}_heatflux100_sh.webp assets/sst/${m}_drip.webp; do
+              if [ -f "$f" ] && [ "$f" -nt /tmp/t0 ]; then printf '  %-40s %s\n' "$f" "$(du -h "$f" | cut -f1)"
+              else printf '  %-40s MISSING\n' "$f"; bad=$((bad + 1)); fi
+            done
+            for d in wave1_${m}_nh wave1_${m}_sh wave2_${m}_nh wave2_${m}_sh vortex_${m}_10_nh vortex_${m}_10_sh vortex_${m}_100_nh vortex_${m}_100_sh; do
+              n=$(ls "assets/sst/anim/$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')
+              printf '  %-40s %s frames\n' "$d" "$n"; [ "$n" -eq 0 ] && bad=$((bad + 1))
+            done
+          done
+          [ "$bad" -gt 0 ] && { echo "::error::$bad GEFS/GEPS product(s) produced nothing"; exit 1; } || true
+
+      - name: Pack the outputs
+        if: always()
+        run: |
+          set -euo pipefail
+          : > /tmp/naens.list
+          for m in gefs geps; do
+            for p in assets/sst/${m}_heatflux100_nh.webp assets/sst/${m}_heatflux100_sh.webp assets/sst/data/${m}_heatflux100.json \
+                     assets/sst/${m}_drip.webp assets/sst/data/${m}_drip.json \
+                     assets/sst/anim/wave1_${m}_nh assets/sst/anim/wave1_${m}_sh assets/sst/anim/wave2_${m}_nh assets/sst/anim/wave2_${m}_sh \
+                     assets/sst/anim/wave1_maps_${m}_manifest.json assets/sst/anim/wave2_maps_${m}_manifest.json \
+                     assets/sst/anim/vortex_${m}_10_nh assets/sst/anim/vortex_${m}_10_sh assets/sst/anim/vortex_${m}_100_nh \
+                     assets/sst/anim/vortex_${m}_100_sh assets/sst/anim/vortex_winds_${m}_manifest.json; do
+              [ -e "$p" ] && [ "$p" -nt /tmp/t0 ] && echo "$p" >> /tmp/naens.list
+            done
+          done
+          if [ ! -s /tmp/naens.list ]; then : > /tmp/strat-ifs-naens.tgz; exit 0; fi
+          tar -czf /tmp/strat-ifs-naens.tgz -T /tmp/naens.list
+          echo "  packed $(tar -tzf /tmp/strat-ifs-naens.tgz | grep -c '\.webp$') webp"
+
+      - name: Hand off to publish
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: strat-ifs-naens
+          path: /tmp/strat-ifs-naens.tgz
           if-no-files-found: warn
           retention-days: 7
 
@@ -361,7 +509,7 @@ jobs:
 
   # -------------------------------------------------------------- publish ---
   publish:
-    needs: [cycle, maps, zmu]
+    needs: [cycle, maps, naens, zmu]
     if: ${{ always() && (github.event_name == 'schedule' || github.event.inputs.publish == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -392,8 +540,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PRUNE: assets/sst/anim/vortex_ifs_10 assets/sst/anim/vortex_ifs_100
         run: |
-          scripts/lib/publish_frames_ci.sh assets/sst/anim/wave1_ifs_nh assets/sst/anim/wave1_ifs_sh assets/sst/anim/wave2_ifs_nh assets/sst/anim/wave2_ifs_sh \
-            assets/sst/anim/vortex_ifs_10_nh assets/sst/anim/vortex_ifs_10_sh assets/sst/anim/vortex_ifs_100_nh assets/sst/anim/vortex_ifs_100_sh assets/sst/anim/pacjet_ifs
+          dirs=""
+          for m in ifs gefs geps; do
+            dirs="$dirs assets/sst/anim/wave1_${m}_nh assets/sst/anim/wave1_${m}_sh assets/sst/anim/wave2_${m}_nh assets/sst/anim/wave2_${m}_sh"
+            dirs="$dirs assets/sst/anim/vortex_${m}_10_nh assets/sst/anim/vortex_${m}_10_sh assets/sst/anim/vortex_${m}_100_nh assets/sst/anim/vortex_${m}_100_sh"
+          done
+          scripts/lib/publish_frames_ci.sh $dirs assets/sst/anim/pacjet_ifs
 
       # Stills, data and manifests to main. Never rebase: snapshot, reset to a fresh
       # origin/main each attempt, lay the snapshot back on, commit, push.
@@ -405,6 +557,10 @@ jobs:
                    assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/data/ifs_heatflux100.json \
                    assets/sst/ifs_drip.webp assets/sst/data/ifs_drip.json \
                    assets/sst/anim/wave1_maps_ifs_manifest.json assets/sst/anim/wave2_maps_ifs_manifest.json assets/sst/anim/vortex_winds_ifs_manifest.json \
+                   assets/sst/gefs_heatflux100_*.webp assets/sst/geps_heatflux100_*.webp assets/sst/data/gefs_heatflux100.json assets/sst/data/geps_heatflux100.json \
+                   assets/sst/gefs_drip.webp assets/sst/geps_drip.webp assets/sst/data/gefs_drip.json assets/sst/data/geps_drip.json \
+                   assets/sst/anim/wave1_maps_gefs_manifest.json assets/sst/anim/wave2_maps_gefs_manifest.json assets/sst/anim/vortex_winds_gefs_manifest.json \
+                   assets/sst/anim/wave1_maps_geps_manifest.json assets/sst/anim/wave2_maps_geps_manifest.json assets/sst/anim/vortex_winds_geps_manifest.json \
                    assets/sst/anim/pacjet_ifs_manifest.json assets/sst/pacjet_ifs_*.webp assets/sst/data/pacjet_ifs.json \
                    assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
                    assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_ifs.json; do

@@ -24,7 +24,12 @@ import pandas as pd
 REPO = Path(__file__).resolve().parents[2]
 RUNS = REPO / "assets" / "sst" / "data" / "vortex_runs.json"
 OUT = REPO / "assets" / "sst" / "nh_vortex_runs.webp"
-MODELS = {"aifs": ("#b4541f", "AIFS-ENS"), "ifs": ("#1f4b6e", "IFS-ENS"), "geps": ("#2f7d4f", "GEPS")}
+MODELS = {
+    "aifs": ("#b4541f", "AIFS-ENS"),
+    "ifs": ("#1f4b6e", "IFS-ENS"),
+    "gefs": ("#127a86", "GEFS"),
+    "geps": ("#2f7d4f", "GEPS"),
+}
 KEYS = {  # panel title, axis label
     "u10": ("u 10 hPa", "u at 10 hPa, 60°N  (m s⁻¹)"),
     "zcap": ("cap height", "100 hPa 65–90°N height anomaly (m)"),

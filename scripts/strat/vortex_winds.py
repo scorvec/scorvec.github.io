@@ -56,11 +56,17 @@ IFS-ENS perturbed members from the shared IFS-ENS u/v file (ifs_ens.py: 10 and 1
 only) and a 12-hourly geopotential-height pull of the same members into vortex_ifs_10/ and vortex_ifs_100/, same scales. Open data has no IFS control at pressure levels, so its
 analysis frame is the IFS HRES step 0, the analysis the ensemble starts from.
 
+GEFS and GEPS: --model gefs / geps draw the mean of every member (control + 30 / control + 20) from the shared fetch
+(strat_ens.py, part "winds": the ensemble-mean u, v and height at 10 and 100 hPa, 0.5 deg, 12-hourly) into
+vortex_gefs_* / vortex_geps_*, same scales; their analysis frame is the control at step 0.
+
 Usage:
   python vortex_winds.py --date 20260829 --time 12 --anim-dir assets/sst/anim \
       --manifest assets/sst/anim/vortex_winds_manifest.json
   python vortex_winds.py --model ifs --date 20260927 --time 00 --anim-dir assets/sst/anim \
       --manifest assets/sst/anim/vortex_winds_ifs_manifest.json
+  python vortex_winds.py --model gefs --date 20261020 --time 00 --anim-dir assets/sst/anim \
+      --manifest assets/sst/anim/vortex_winds_gefs_manifest.json
 """
 
 from __future__ import annotations
@@ -232,10 +238,32 @@ def fetch_ifs(date: str, time: str):
     return out, f"ensemble mean of {IE.MEMBERS} members"
 
 
+def fetch_shared(model: str, date: str, time: str):
+    """GEFS / GEPS: u, v and height at both levels, every 12 h step, the forecast steps as the mean of every member
+    (control + perturbed) and step 0 the control, from the shared fetch (strat_ens.py, part "winds", 0.5 deg)."""
+    import strat_ens as SE
+
+    d = SE.load(model, date, f"{int(time):02d}", ("winds",))
+    n = int(d["wind_n"][1:].min())
+    if n < SE.FLOOR[model] or d["wind_n"][0] != 1:
+        raise SystemExit(
+            f"{MODEL[model]} {date} {time}Z: winds from {n} members (need {SE.FLOOR[model]}) or no control"
+        )
+    coords = {"step": pd.to_timedelta(list(SE.LEADS_12H), unit="h"), "latitude": SE.LAT, "longitude": SE.LON}
+    out = {}
+    for li, lev in enumerate(SE.LEV_WIND):
+        u, v, gh = (
+            xr.DataArray(d["wind"][:, li, fi], dims=("step", "latitude", "longitude"), coords=coords) for fi in range(3)
+        )
+        out[lev] = (u, v, gh / 10.0)  # gpm -> dam
+    return out, f"ensemble mean of {n} members"
+
+
 FIELDS = ("u", "v", "z")  # the AIFS-ENS fields (z = geopotential, m2 s-2)
 G0 = 9.80665
-MODEL = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS"}
-PREFIX = {"aifs": "vortex", "ifs": "vortex_ifs"}  # frame directories / manifest regions
+MODEL = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS", "gefs": "GEFS", "geps": "GEPS"}
+CENTRE = {"aifs": "ECMWF", "ifs": "ECMWF", "gefs": "NOAA", "geps": "ECCC"}
+PREFIX = {"aifs": "vortex", "ifs": "vortex_ifs", "gefs": "vortex_gefs", "geps": "vortex_geps"}  # frame dirs / regions
 
 
 def circular_boundary(ax):
@@ -377,7 +405,7 @@ def render(uv, lev, hemi, date, time, step_h, out_path: Path, source: str = "con
     if step_h == 0 and model == "ifs":
         what = "ECMWF IFS HRES analysis, the state IFS-ENS starts from (open data has no IFS-ENS control)"
     else:
-        what = f"ECMWF {MODEL[model]} " + ("control (the analysis)" if step_h == 0 else source)
+        what = f"{CENTRE[model]} {MODEL[model]} " + ("control (the analysis)" if step_h == 0 else source)
     fig.text(
         0.03,
         0.935,
@@ -480,10 +508,12 @@ def main(argv=None) -> int:
     ap.add_argument("--time", required=True, help="cycle hour, 00 or 12")
     ap.add_argument("--anim-dir", required=True, help="frames ROOT; <prefix>_<level>_<nh|sh>/ go under it")
     ap.add_argument("--manifest", required=True, help="animator manifest path")
-    ap.add_argument("--model", choices=("aifs", "ifs"), default="aifs")
+    ap.add_argument("--model", choices=tuple(MODEL), default="aifs")
     a = ap.parse_args(argv)
 
-    if a.model == "ifs":
+    if a.model in ("gefs", "geps"):
+        full, source = fetch_shared(a.model, a.date, a.time)
+    elif a.model == "ifs":
         full, source = fetch_ifs(a.date, a.time)
     else:
         full, source = fetch(a.date, a.time)

@@ -28,9 +28,15 @@ IFS-ENS: --model ifs maps the mean of ALL 50 IFS-ENS perturbed members from the 
 Google Cloud mirror only) into wave{1,2}_ifs_{nh,sh}/. Open data has no IFS control at pressure levels, so its analysis
 frame is the IFS HRES step 0 - the analysis the ensemble starts from.
 
-Usage (frames under --anim-dir: wave{k}[_ifs]_{nh,sh}/ and wave{k}_maps[_ifs]_manifest.json for k = 1, 2):
+GEFS and GEPS: --model gefs / geps map the mean of every member (control + 30 / control + 20) from the shared fetch
+(strat_ens.py, part "waves": the members' heights at 500/100/10 hPa on 1 deg, daily) into wave{1,2}_{gefs,geps}_{nh,sh}/;
+their analysis frame is the control at step 0.
+
+Usage (frames under --anim-dir: wave{k}[_<model>]_{nh,sh}/ and wave{k}_maps[_<model>]_manifest.json for k = 1, 2; no
+suffix for AIFS-ENS):
   python wave_maps.py --date 20260829 --time 12 --anim-dir assets/sst/anim
   python wave_maps.py --model ifs --date 20260927 --time 00 --anim-dir assets/sst/anim
+  python wave_maps.py --model gefs --date 20261020 --time 00 --anim-dir assets/sst/anim
 """
 
 from __future__ import annotations
@@ -85,16 +91,21 @@ FULL_CI = {10: 160.0, 100: 120.0, 500: 60.0}
 CMAP = "RdBu_r"
 
 
-MODEL = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS"}
+MODEL = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS", "gefs": "GEFS", "geps": "GEPS"}
+CENTRE = {"aifs": "ECMWF", "ifs": "ECMWF", "gefs": "NOAA", "geps": "ECCC"}
+
+
+def _suffix(model: str) -> str:
+    return "" if model == "aifs" else f"_{model}"  # the AIFS-ENS loops keep their original names
 
 
 def prefix(model: str, k: int) -> str:
-    """Frame-directory / region prefix: wave1_nh/, wave2_ifs_sh/, ..."""
-    return f"wave{k}" + ("_ifs" if model == "ifs" else "")
+    """Frame-directory / region prefix: wave1_nh/, wave2_ifs_sh/, wave1_gefs_nh/, ..."""
+    return f"wave{k}{_suffix(model)}"
 
 
 def manifest_name(model: str, k: int) -> str:
-    return f"wave{k}_maps" + ("_ifs" if model == "ifs" else "") + "_manifest.json"
+    return f"wave{k}_maps{_suffix(model)}_manifest.json"
 
 
 def open_level(path, lev: int, short: str = "z"):
@@ -175,6 +186,29 @@ def fetch_analysis_ifs(date: str, time: str):
 
     path = IE.hres_analysis(IE.E.Cycle(date, time), ("gh",), LEVELS)
     return {lev: open_level(path, lev, "gh") for lev in LEVELS}
+
+
+def fetch_shared(model: str, date: str, time: str):
+    """GEFS / GEPS: every member's height (control + perturbed) at the three levels on 1 deg, daily 0-360 h, from the
+    shared fetch (strat_ens.py, part "waves"); the analysis frame is the control at step 0. -> (full, source, ana)"""
+    import strat_ens as SE
+
+    d = SE.load(model, date, f"{int(time):02d}", ("waves",))
+    keep = SE.complete_members(d, "zwave")
+    if keep[0] != 0:
+        raise SystemExit(f"{MODEL[model]} {date} {time}Z: the control is incomplete, so there is no analysis frame")
+    coords = {"latitude": SE.LAT[::2], "longitude": SE.LON[::2]}
+    steps = pd.to_timedelta(list(SE.LEADS_DAILY), unit="h")
+    full, ana = {}, {}
+    for lev in LEVELS:
+        z = d["zwave"][:, :, SE.LEV_WAVE.index(lev)]
+        full[lev] = xr.DataArray(
+            z[keep], dims=("number", "step", "latitude", "longitude"), coords={"step": steps, **coords}
+        )
+        ana[lev] = xr.DataArray(z[0, 0], dims=("latitude", "longitude"), coords=coords)
+        for da in (full[lev], ana[lev]):
+            da.attrs["gpm_per_unit"] = 1.0  # heights already in metres
+    return full, f"ensemble mean ({len(keep)} members)", ana
 
 
 def fetch_analysis(date: str, time: str):
@@ -435,7 +469,7 @@ def render(levels_at_step, hemi, date, time, step_h, out_path: Path, k: int, sou
     fig.text(
         left,
         0.975,
-        f"ECMWF {MODEL[model]} · planetary wave-{k} from the troposphere to the vortex — {full}",
+        f"{CENTRE[model]} {MODEL[model]} · planetary wave-{k} from the troposphere to the vortex — {full}",
         fontsize=15,
         fontweight="bold",
         ha="left",
@@ -540,7 +574,7 @@ def build_loop(full, ana, date, time, anim_root: Path, k: int, source="ensemble 
         regions[key] = {
             "label": ("Northern" if hemi == "NH" else "Southern")
             + f" Hemisphere — wave-{k} at 500, 100 and 10 hPa"
-            + (", IFS-ENS" if model == "ifs" else ""),
+            + ("" if model == "aifs" else f", {MODEL[model]}"),
             "n_frames": len(frames),
             "frames": frames,
         }
@@ -568,12 +602,18 @@ def main(argv=None) -> int:
         default="auto",
         help="hemisphere the loops open on (default: whichever is active)",
     )
-    ap.add_argument("--members", type=int, default=MEMBERS)
-    ap.add_argument("--model", choices=("aifs", "ifs"), default="aifs")
+    ap.add_argument("--members", type=int, default=MEMBERS, help="AIFS-ENS perturbed members")
+    ap.add_argument("--model", choices=tuple(MODEL), default="aifs")
     ap.add_argument("--anim-dir", required=True, help="frames ROOT: the loops' directories and manifests go under it")
     a = ap.parse_args(argv)
-    full, source = fetch_ifs(a.date, a.time) if a.model == "ifs" else fetch(a.date, a.time, a.members)
-    ana = fetch_analysis_ifs(a.date, a.time) if a.model == "ifs" else fetch_analysis(a.date, a.time)
+    if a.model in ("gefs", "geps"):
+        full, source, ana = fetch_shared(a.model, a.date, a.time)
+    elif a.model == "ifs":
+        full, source = fetch_ifs(a.date, a.time)
+        ana = fetch_analysis_ifs(a.date, a.time)
+    else:
+        full, source = fetch(a.date, a.time, a.members)
+        ana = fetch_analysis(a.date, a.time)
     hemi = active_hemisphere(full) if a.hemi == "auto" else a.hemi
     print(f"  leading hemisphere: {hemi}", flush=True)
     # No still. It duplicated the loop's first frame, and on the page it was the
