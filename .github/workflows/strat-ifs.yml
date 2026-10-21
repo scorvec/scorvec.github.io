@@ -23,6 +23,12 @@ name: Stratosphere, IFS-ENS, GEFS and GEPS (vortex, heat flux, waves 1 and 2, wi
 # nh_vortex lives here, not in strat.yml: one figure holds every model, and rendering it at both slots would
 # flip it between "without IFS" (07:35) and "with IFS" (09:05) twice a day. Its AIFS winds come through the store.
 #
+# GEPS FAST LANE. GEPS day 16 is on the Datamart ~5 h after the start (05:05Z / 17:15Z on 2026-10-21), hours before
+# these slots, so the Canadian fast lane (scripts/lib/canada_fastlane.sh) dispatches this workflow with only=geps the
+# moment that run is complete: the naens job alone, for GEPS alone (nh_vortex still waits for the full run - one
+# figure, one cycle for every model). A GEFS or GEPS cycle that main already shows in every product is not fetched
+# again (strat_ens.py --skip-shown; force=true re-renders it), so the full run after the fast lane skips GEPS.
+#
 # DATA. Google Cloud mirror only: ECMWF_SOURCES=google for every step, and ifs_ens.py names the
 # Google mirror in every request. A cycle the mirror does not have is skipped with a warning - never fetched elsewhere.
 #   maps    one shared fetch into the store's cache (ifs_ens.py fetch): gh at 11 levels daily (~3.5 GB), u/v at
@@ -53,6 +59,12 @@ on:
         default: ''
       publish:
         description: 'Commit the figures (false = render + artifacts only)'
+        default: 'false'
+      only:
+        description: 'Only this model''s days 1-15 products, gefs or geps (blank = every product)'
+        default: ''
+      force:
+        description: 'Re-render GEFS/GEPS even when the page already shows their cycle'
         default: 'false'
 
 env:
@@ -103,11 +115,14 @@ jobs:
         run: pip install -r scripts/mjo/requirements-mjo.txt
       - name: Resolve the cycle and wait for IFS-ENS on the Google mirror
         id: cyc
+        env:
+          ONLY: ${{ inputs.only }}
         run: |
           set -euo pipefail
+          wait=45; [ -n "$ONLY" ] && wait=0   # a GEFS/GEPS-only run does not wait for IFS-ENS
           python scripts/strat/ifs_ens.py resolve --date "${{ github.event.inputs.date }}" \
-            --time "${{ github.event.inputs.time }}" --wait-min 45 --github-output
-          if grep -q '^ready=false' "$GITHUB_OUTPUT"; then
+            --time "${{ github.event.inputs.time }}" --wait-min "$wait" --github-output
+          if [ -z "$ONLY" ] && grep -q '^ready=false' "$GITHUB_OUTPUT"; then
             echo "::warning::IFS-ENS is not on the Google mirror for this cycle; nh_vortex renders without it and the IFS products keep their previous version"
           fi
 
@@ -118,6 +133,7 @@ jobs:
   # the rest still render and publish, and "What was produced" still turns the run red for whatever is missing.
   maps:
     needs: cycle
+    if: ${{ !inputs.only }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -278,7 +294,7 @@ jobs:
   # GEFS and GEPS for the days 1-15 products, on this workflow's cycle (each falls back up to a day to the newest cycle
   # complete to 384 h); it does not wait for IFS-ENS. One shared fetch per model (strat_ens.py: GEFS ~4.5 GB
   # byte-ranged from NOAA's S3, GEPS ~0.7 GB from the MSC Datamart, both reduced as they arrive), then the heat flux,
-  # the dripping paint, the wave maps and the vortex winds, the two models side by side. ~35 min.
+  # the dripping paint, the wave maps and the vortex winds, the two models side by side. ~35 min (GEPS alone ~15).
   naens:
     needs: cycle
     runs-on: ubuntu-latest
@@ -287,6 +303,7 @@ jobs:
       MPLBACKEND: Agg
       D: ${{ needs.cycle.outputs.date }}
       T: ${{ needs.cycle.outputs.time }}
+      MODELS: ${{ inputs.only || 'gefs geps' }}
       GEFS_CLIM_CACHE: /tmp/gefs_clim2   # the GEFSv12 reforecast climatology the GEFS drip's drift comes from
     steps:
       - uses: actions/checkout@v7
@@ -322,21 +339,29 @@ jobs:
           if [ -n "$d" ]; then cp -r "$d" scripts/strat/data/; ls scripts/strat/data/geps_s2s
           else echo "::warning::geps_s2s not in geps_ref_v3.tar; the GEPS drip goes uncorrected (hatched)"; fi
 
-      # The two fetches hit different hosts: run them side by side. Each writes the cycle it used to the step output.
+      # The two fetches hit different hosts: run them side by side. Each writes the cycle it used to the step output,
+      # and whether main already shows that cycle in every product (then nothing is fetched or rendered).
       - name: Shared GEFS and GEPS fetch
         id: fetch
         timeout-minutes: 45
         continue-on-error: true
+        env:
+          FORCE: ${{ inputs.force }}
         run: |
           start=$(date +%s)
-          python scripts/strat/strat_ens.py fetch --model gefs --date "$D" --time "$T" --github-output > /tmp/gefs.log 2>&1 &
-          p1=$!
-          python scripts/strat/strat_ens.py fetch --model geps --date "$D" --time "$T" --github-output > /tmp/geps.log 2>&1 &
-          p2=$!
-          wait $p1 || echo "::warning::GEFS fetch failed; the GEFS products keep their previous version"
-          wait $p2 || echo "::warning::GEPS fetch failed; the GEPS products keep their previous version"
-          echo "---- GEFS"; tail -6 /tmp/gefs.log
-          echo "---- GEPS"; tail -6 /tmp/geps.log
+          git fetch -q --depth 1 origin main   # what the page shows now (a queued run checks out an older commit)
+          skip=--skip-shown; [ "$FORCE" = "true" ] && skip=
+          pids=()
+          for m in $MODELS; do
+            python scripts/strat/strat_ens.py fetch --model "$m" --date "$D" --time "$T" $skip --github-output > "/tmp/$m.log" 2>&1 &
+            pids+=($!)
+          done
+          i=0
+          for m in $MODELS; do
+            wait "${pids[$i]}" || echo "::warning::$m fetch failed; its products keep their previous version"
+            echo "---- $m"; tail -6 "/tmp/$m.log"
+            i=$((i + 1))
+          done
           echo "  fetch wall time $(( $(date +%s) - start )) s"
           du -sh scripts/strat/data/strat_ens 2>/dev/null || true
 
@@ -349,9 +374,12 @@ jobs:
           GEFS_T: ${{ steps.fetch.outputs.gefs_time }}
           GEPS_D: ${{ steps.fetch.outputs.geps_date }}
           GEPS_T: ${{ steps.fetch.outputs.geps_time }}
+          GEFS_SKIP: ${{ steps.fetch.outputs.gefs_skip }}
+          GEPS_SKIP: ${{ steps.fetch.outputs.geps_skip }}
         run: |
-          products() {   # model date hour
+          products() {   # model date hour skip
             m=$1; d=$2; t=$3
+            [ "$4" = "true" ] && { echo "::notice::$m $d ${t}Z is already on the page in every product; nothing to render"; return 0; }
             [ -n "$d" ] || { echo "::warning::no $m cycle fetched; its products keep their previous version"; return 0; }
             python scripts/strat/heatflux100_ext.py --model "$m" --days 15 --date "$d" --time "$t" --out-dir assets/sst \
               || echo "::warning::$m heat flux failed; keeping the previous figure"
@@ -363,20 +391,25 @@ jobs:
               --manifest "assets/sst/anim/vortex_winds_${m}_manifest.json" \
               || echo "::warning::$m vortex-wind loops failed; keeping the previous frames"
           }
-          products gefs "$GEFS_D" "$GEFS_T" > /tmp/gefs_products.log 2>&1 &
-          p1=$!
-          products geps "$GEPS_D" "$GEPS_T" > /tmp/geps_products.log 2>&1 &
-          p2=$!
-          wait $p1; wait $p2
-          grep -h "::warning::" /tmp/gefs_products.log /tmp/geps_products.log || true
-          echo "---- GEFS"; grep -v "^    " /tmp/gefs_products.log | tail -25
-          echo "---- GEPS"; grep -v "^    " /tmp/geps_products.log | tail -25
+          for m in $MODELS; do
+            M=$(echo "$m" | tr a-z A-Z); dv=${M}_D tv=${M}_T sv=${M}_SKIP
+            products "$m" "${!dv}" "${!tv}" "${!sv}" > "/tmp/${m}_products.log" 2>&1 &
+          done
+          wait
+          for m in $MODELS; do
+            grep -h "::warning::\|::notice::" "/tmp/${m}_products.log" || true
+            echo "---- $m"; grep -v "^    " "/tmp/${m}_products.log" | tail -25
+          done
 
       - name: What was produced
         if: always()
+        env:
+          GEFS_SKIP: ${{ steps.fetch.outputs.gefs_skip }}
+          GEPS_SKIP: ${{ steps.fetch.outputs.geps_skip }}
         run: |
           bad=0
-          for m in gefs geps; do
+          for m in $MODELS; do
+            sv=$(echo "$m" | tr a-z A-Z)_SKIP; [ "${!sv}" = "true" ] && { echo "  $m: this cycle is already on the page"; continue; }
             for f in assets/sst/${m}_heatflux100_nh.webp assets/sst/${m}_heatflux100_sh.webp assets/sst/${m}_drip.webp; do
               if [ -f "$f" ] && [ "$f" -nt /tmp/t0 ]; then printf '  %-40s %s\n' "$f" "$(du -h "$f" | cut -f1)"
               else printf '  %-40s MISSING\n' "$f"; bad=$((bad + 1)); fi
@@ -393,7 +426,7 @@ jobs:
         run: |
           set -euo pipefail
           : > /tmp/naens.list
-          for m in gefs geps; do
+          for m in $MODELS; do
             for p in assets/sst/${m}_heatflux100_nh.webp assets/sst/${m}_heatflux100_sh.webp assets/sst/data/${m}_heatflux100.json \
                      assets/sst/${m}_drip.webp assets/sst/data/${m}_drip.json \
                      assets/sst/anim/wave1_${m}_nh assets/sst/anim/wave1_${m}_sh assets/sst/anim/wave2_${m}_nh assets/sst/anim/wave2_${m}_sh \
@@ -421,7 +454,7 @@ jobs:
   # the per-member zonal-mean u in memory; the 250 hPa jet sector is left in /tmp/pacjet_ifs.
   zmu:
     needs: cycle
-    if: needs.cycle.outputs.ready == 'true'
+    if: needs.cycle.outputs.ready == 'true' && !inputs.only
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:

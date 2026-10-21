@@ -27,13 +27,16 @@ The reductions of one cycle sit in data/strat_ens/{model}_{YYYYMMDDHH}.npz (cont
 
     python strat_ens.py fetch --model gefs --date 20261020 --time 00   # every part
     python strat_ens.py fetch --model geps --date 20261020 --time 00 --parts flux,drip
+    python strat_ens.py fetch --model geps --date 20261021 --time 12 --skip-shown   # nothing when main shows it
 """
 
 from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
 import os
+import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -345,6 +348,31 @@ def resolve(model: str, date: str, hh: str, last_h: int = 384, back: int = 2) ->
     raise SystemExit(f"no {MODELS[model]} cycle complete to {last_h} h within {12 * back} h of {date} {hh}Z")
 
 
+def shown(model: str, ref: str = "origin/main") -> str:
+    """The cycle (YYYYMMDDHH) that EVERY one of the model's days 1-15 products shows on `ref` (the oldest of them), or
+    "" when one has not been published. Read from git, not the checkout: a queued run checks out an older commit."""
+
+    def doc(rel: str) -> dict | None:
+        r = subprocess.run(
+            ["git", "-C", str(REPO), "show", f"{ref}:{rel}"], check=False, capture_output=True, text=True
+        )
+        return json.loads(r.stdout) if r.returncode == 0 else None
+
+    got = []
+    for rel, key, fmt in (
+        (f"assets/sst/data/{model}_drip.json", "init", "%Y-%m-%d %HZ"),
+        (f"assets/sst/data/{model}_heatflux100.json", "init", "%Y-%m-%dT%H:%M:%S"),
+        (f"assets/sst/anim/wave1_maps_{model}_manifest.json", "ver", "%Y%m%d%H"),
+        (f"assets/sst/anim/wave2_maps_{model}_manifest.json", "ver", "%Y%m%d%H"),
+        (f"assets/sst/anim/vortex_winds_{model}_manifest.json", "ver", "%Y%m%d%H"),
+    ):
+        d = doc(rel)
+        if not d or not d.get(key):
+            return ""
+        got.append(dt.datetime.strptime(d[key], fmt).strftime("%Y%m%d%H"))
+    return min(got)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -354,16 +382,25 @@ def main() -> int:
     f.add_argument("--time", required=True)
     f.add_argument("--parts", default=",".join(PARTS))
     f.add_argument("--github-output", action="store_true", help="write the cycle used as <model>_date/_time lines")
+    f.add_argument(
+        "--skip-shown",
+        action="store_true",
+        help="fetch nothing (and write <model>_skip=true) when main already shows this cycle in every product",
+    )
     a = ap.parse_args()
     parts = [p for p in a.parts.split(",") if p]
     bad = set(parts) - set(PARTS)
     if bad:
         ap.error(f"unknown part(s): {', '.join(sorted(bad))}")
     date, hh = resolve(a.model, a.date, f"{int(a.time):02d}")
-    fetch(a.model, date, hh, parts)
+    skip = a.skip_shown and shown(a.model) >= f"{date}{hh}"
+    if skip:
+        print(f"  {MODELS[a.model]} {date} {hh}Z is already on the page in every product; nothing to fetch", flush=True)
+    else:
+        fetch(a.model, date, hh, parts)
     if a.github_output:
         with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
-            fh.write(f"{a.model}_date={date}\n{a.model}_time={hh}\n")
+            fh.write(f"{a.model}_date={date}\n{a.model}_time={hh}\n{a.model}_skip={str(skip).lower()}\n")
     return 0
 
 
