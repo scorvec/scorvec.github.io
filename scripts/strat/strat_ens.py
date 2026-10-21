@@ -19,6 +19,8 @@ THE PARTS (fetch only what the caller needs; the job that runs every product fet
   drip    daily 0-360 h      HGT at the 11 drip levels caps (member, lead, level) 65-90N height  forecast_drip --cache
   flux    daily 0-360 h      VGRD 100, TMP 100        flux_tot/_k1/_k2 (member, lead, lat) 100 hPa [v'T'] by latitude
                                                        (heatflux100.fluxes: per member, waves 1-72)   heatflux100_ext
+                                                       flux_sib/_can (member, lead) v*T* over Siberia / Canada
+                                                       (heatflux100.regional: the regional reflection index)
   waves   daily 0-360 h      HGT 500/100/10           zwave (member, lead, level, lat, lon) on 1 deg       wave_maps
   winds   12-hourly 0-360 h  UGRD, VGRD, HGT 10/100   wind (lead, level, u|v|gh, lat, lon) ensemble mean, 0.5 deg,
                                                        step 0 the CONTROL (the analysis)                 vortex_winds
@@ -67,7 +69,7 @@ PARTS = ("vortex", "drip", "flux", "waves", "winds")
 PART_KEYS = {
     "vortex": ("u60", "zcap"),
     "drip": ("caps",),
-    "flux": ("flux_tot", "flux_k1", "flux_k2"),
+    "flux": ("flux_sib", "flux_can", "flux_tot", "flux_k1", "flux_k2"),
     "waves": ("zwave",),
     "winds": ("wind_n", "wind"),
 }
@@ -212,6 +214,8 @@ def cap(field: np.ndarray) -> float:
 def _empty(key: str, nmem: int) -> np.ndarray:
     if key == "wind_n":
         return np.zeros(len(LEADS_12H), "int16")
+    if key in ("flux_sib", "flux_can"):
+        return np.full((nmem, len(LEADS_DAILY)), np.nan, "float32")
     if key.startswith("flux_"):
         return np.full((nmem, len(LEADS_DAILY), LAT.size), np.nan, "float32")
     shape = {
@@ -275,6 +279,9 @@ def fetch(model: str, date: str, hh: str, parts=PARTS, workers: int = 32) -> Pat
                 _, f = HF.fluxes(*vt)  # per member, waves 1-72
                 for k in ("tot", "k1", "k2"):
                     acc[f"flux_{k}"][ms, i] = f[k][:, 0]
+                reg = HF.regional(LAT, LON, vt[0].values[:, 0], vt[1].values[:, 0])  # Siberia and Canada v*T*
+                for k in HF.REGIONS:
+                    acc[f"flux_{k}"][ms, i] = reg[k]
         if "winds" in todo and L in LEADS_12H:
             i = LEADS_12H.index(L)
             if L == 0 and 0 not in got:

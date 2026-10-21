@@ -122,6 +122,59 @@ def fluxes(v, t):
     return v.latitude.values, {"tot": per_k[..., 1:].sum(-1), "k1": per_k[..., 1], "k2": per_k[..., 2]}
 
 
+# Messori et al. (2022)'s regional reflection index: v*T* at 100 hPa over Siberia (upward waves) and Canada (where
+# reflected waves come down), each standardised by its ERA5 day-of-year mean and sd; RI = z(Siberia) - z(Canada).
+REGIONS = {"sib": (45.0, 75.0, 140.0, 200.0), "can": (45.0, 75.0, 230.0, 280.0)}
+RI_THRESHOLD, RI_DAYS = 1.0, 10  # an event: RI above 1 for 10 days or more, Siberia upward and Canada downward
+
+
+def regional(lat, lon, v, t) -> dict:
+    """{box: (...)} v*T* (departures from the zonal mean, every wavenumber) averaged over each REGIONS box, area-weighted,
+    from (..., lat, lon) v and T."""
+    lat, lon = np.asarray(lat, float), np.asarray(lon, float) % 360.0
+    v, t = np.asarray(v, np.float64), np.asarray(t, np.float64)
+    prod = (v - v.mean(-1, keepdims=True)) * (t - t.mean(-1, keepdims=True))
+    out = {}
+    for k, (la0, la1, lo0, lo1) in REGIONS.items():
+        mla, mlo = (lat >= la0) & (lat <= la1), (lon >= lo0) & (lon <= lo1)
+        w = np.cos(np.deg2rad(lat[mla]))
+        out[k] = (prod[..., mla, :][..., mlo].mean(-1) * w).sum(-1) / w.sum()
+    return out
+
+
+def regional_block(valid, reg: dict, clim) -> dict:
+    """The members' (member, step) regional fluxes -> the JSON summary; the index and the event share need the ERA5
+    climatology of both boxes (vt100_clim nh_sib / nh_can)."""
+
+    def summ(x):
+        return {
+            "mean": np.round(x.mean(0), 2).tolist(),
+            "p10": np.round(np.percentile(x, 10, 0), 2).tolist(),
+            "p90": np.round(np.percentile(x, 90, 0), 2).tolist(),
+        }
+
+    out = {k: summ(x) for k, x in reg.items()}
+    if clim is None or "nh_sib_mean" not in clim:
+        out["ri"] = None
+        return out
+    z = {k: (reg[k] - clim_at(clim, "nh", k, "mean", valid)) / clim_at(clim, "nh", k, "sd", valid) for k in reg}
+    ri = z["sib"] - z["can"]
+    event = []
+    for m in range(ri.shape[0]):  # each member: a spell of RI > 1 for RI_DAYS+ days, Siberia up and Canada down
+        hit, run = False, 0
+        for j in range(ri.shape[1]):
+            run = run + 1 if ri[m, j] > RI_THRESHOLD else 0
+            if run >= RI_DAYS:
+                sl = slice(j - run + 1, j + 1)
+                hit = reg["sib"][m, sl].mean() > 0 and reg["can"][m, sl].mean() < 0
+                if hit:
+                    break
+        event.append(hit)
+    out["ri"] = summ(ri) | {"share_above_1": np.round((ri > RI_THRESHOLD).mean(0), 2).tolist()}
+    out["event_share"] = round(float(np.mean(event)), 3)
+    return out
+
+
 def band_mean(lat, f, north: bool):
     lo, hi = BAND if north else (-BAND[1], -BAND[0])
     m = (lat >= lo) & (lat <= hi)
@@ -648,6 +701,12 @@ def main() -> int:
     lat, fm = fluxes(v, t)
     _, fc = fluxes(vc, tc)
     clim = xr.open_dataset(CLIM).load() if CLIM.exists() else None
+    reg = regional(
+        v.latitude.values,
+        v.longitude.values,
+        v.transpose("number", "step", "latitude", "longitude").values,
+        t.transpose("number", "step", "latitude", "longitude").values,
+    )
     hpath = REPO / a.history if not Path(a.history).is_absolute() else Path(a.history)
     hist = load_history(hpath)
     try:  # this cycle's analysis joins the record
@@ -736,6 +795,8 @@ def main() -> int:
         h["z40_end_of_forecast"] = None if z_last is None else round(z_last, 2)
         if warn is not None:
             h["ssw_warning"] = warn
+        if north:
+            h["regional"] = regional_block(valid, reg, clim)
         doc["hemispheres"][hemi] = h
         print(
             f"  {hemi}: mean flux d1-5 {mem['tot'].mean(0)[1:6].mean():+.1f}, d6-15 {mem['tot'].mean(0)[6:].mean():+.1f} K m/s"

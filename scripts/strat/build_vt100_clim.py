@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""ERA5 100 hPa eddy heat flux [v'T'], 45-75 deg, both hemispheres: the daily series and its 1991-2020 climatology.
+"""ERA5 100 hPa eddy heat flux [v'T'], 45-75 deg, both hemispheres: the daily series and its 1991-2020 climatology;
+and v*T* over Messori et al.'s (2022) Siberia and Canada boxes (heatflux100.REGIONS), for the regional reflection index.
 
 The flux is heatflux100.py's own (heatflux100.fluxes and band_mean): the zonal-mean covariance of v and T at 100 hPa
 over zonal wavenumbers 1..K_MAX (72), cos(lat)-weighted over 45-75 deg, the total and its wave-1 and wave-2 parts, the
@@ -51,18 +52,21 @@ ARCO = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"
 WB2_LAST = pd.Timestamp("2023-01-10")  # WeatherBench2's last day
 SWITCH = pd.Timestamp("2023-01-01")  # the series is WeatherBench2 before this day and ARCO from it
 HOURS = (0, 12)
-KEYS = tuple(f"{h}_{k}" for h in ("nh", "sh") for k in ("tot", "k1", "k2"))
+KEYS = tuple(f"{h}_{k}" for h in ("nh", "sh") for k in ("tot", "k1", "k2")) + tuple(f"nh_{k}" for k in HF.REGIONS)
 W15 = np.array([0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5])  # a 1.5 deg cell over 0.25 deg cells: five whole, two halves
 
 
-def band_fluxes(v: np.ndarray, t: np.ndarray, lat: np.ndarray) -> np.ndarray:
-    """(time, lat, lon) v and T -> (time, 6) in KEYS order, through heatflux100's flux and band mean."""
+def band_fluxes(v: np.ndarray, t: np.ndarray, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
+    """(time, lat, lon) v and T -> (time, len(KEYS)) in KEYS order, through heatflux100's flux and band mean, then its
+    regional boxes."""
     da = {
         k: xr.DataArray(x, dims=("time", "latitude", "longitude"), coords={"latitude": lat})
         for k, x in (("v", v), ("t", t))
     }
     _, f = HF.fluxes(da["v"], da["t"])
-    return np.stack([HF.band_mean(lat, f[k], north) for north in (True, False) for k in ("tot", "k1", "k2")], axis=-1)
+    reg = HF.regional(lat, lon, v, t)
+    bands = [HF.band_mean(lat, f[k], north) for north in (True, False) for k in ("tot", "k1", "k2")]
+    return np.stack(bands + [reg[k] for k in HF.REGIONS], axis=-1)
 
 
 def screen(v: np.ndarray, t: np.ndarray, what: str) -> None:
@@ -105,10 +109,10 @@ def fetch_wb2(days: pd.DatetimeIndex) -> dict:
         sl = slice(sub[0], sub[-1] + pd.Timedelta(hours=18))
         v, t = dask.compute(v_all.sel(time=sl), t_all.sel(time=sl))
         v, t = (x.transpose("time", "latitude", "longitude") for x in (v, t))  # by name: the store is lon-major
-        a, b, lat = v.values.astype(np.float64), t.values.astype(np.float64), v.latitude.values
+        a, b, lat, lon = v.values.astype(np.float64), t.values.astype(np.float64), v.latitude.values, v.longitude.values
         screen(a, b, f"WeatherBench2 {m}")
         tt = pd.DatetimeIndex(v.time.values)
-        f = band_fluxes(a, b, lat)
+        f = band_fluxes(a, b, lat, lon)
         keep = tt.hour.isin(HOURS)
         it.append(tt[keep])
         fl.append(f[keep])
@@ -117,7 +121,7 @@ def fetch_wb2(days: pd.DatetimeIndex) -> dict:
         if full:
             dm = np.stack([np.stack([a[day == d].mean(0), b[day == d].mean(0)]) for d in full])
             dd.append(pd.DatetimeIndex(full))
-            fd.append(band_fluxes(dm[:, 0], dm[:, 1], lat))
+            fd.append(band_fluxes(dm[:, 0], dm[:, 1], lat, lon))
         print(f"  WeatherBench2 {m}: {int(keep.sum())} fields", flush=True)
     return {
         "wb2_time": np.array(np.concatenate(it), "datetime64[s]"),
@@ -139,7 +143,8 @@ def fetch_arco(days: pd.DatetimeIndex, workers: int = 8) -> dict:
         for attempt in range(4):
             try:
                 v = ds["v_component_of_wind"].sel(time=ts, level=100, latitude=rows)
-                return ts, v.values, ds["temperature"].sel(time=ts, level=100, latitude=rows).values, v.latitude.values
+                t = ds["temperature"].sel(time=ts, level=100, latitude=rows).values
+                return ts, v.values, t, v.latitude.values, v.longitude.values
             except Exception as e:  # noqa: BLE001
                 if attempt == 3:
                     raise
@@ -148,7 +153,7 @@ def fetch_arco(days: pd.DatetimeIndex, workers: int = 8) -> dict:
 
     it, fl, f15, skipped = [], [], [], 0
     with ThreadPoolExecutor(workers) as ex:
-        for ts, v, t, lat in ex.map(read, times):
+        for ts, v, t, lat, lon in ex.map(read, times):
             if np.isnan(v).all() or np.isnan(t).all():  # ARCO pads hours it has not published
                 skipped += 1
                 continue
@@ -157,8 +162,8 @@ def fetch_arco(days: pd.DatetimeIndex, workers: int = 8) -> dict:
             c_v, lat15 = cells15(a, lat)
             c_t, _ = cells15(b, lat)
             it.append(ts)
-            fl.append(band_fluxes(a, b, lat)[0])
-            f15.append(band_fluxes(c_v, c_t, lat15)[0])
+            fl.append(band_fluxes(a, b, lat, lon)[0])
+            f15.append(band_fluxes(c_v, c_t, lat15, np.arange(240) * 1.5)[0])  # the cells start at 0 E
             if ts.day == 1 and ts.hour == 0:
                 print(f"  ARCO {ts:%Y-%m}", flush=True)
     if skipped:
@@ -199,7 +204,7 @@ def pack(paths, out: Path = SERIES) -> xr.Dataset:
         with xr.open_dataset(out) as old:
             for i, d in enumerate(pd.DatetimeIndex(old.time.values)):
                 for j, h in enumerate(old.hour.values):
-                    x = np.array([float(old[k].values[i, j]) for k in KEYS])
+                    x = np.array([float(old[k].values[i, j]) if k in old else np.nan for k in KEYS])
                     if np.isfinite(x).all():
                         rows[d + pd.Timedelta(hours=int(h))] = x
     p = load_parts(paths)
@@ -216,12 +221,14 @@ def pack(paths, out: Path = SERIES) -> xr.Dataset:
         {k: (("time", "hour"), arr[..., i], {"units": "K m s-1"}) for i, k in enumerate(KEYS)},
         coords={"time": days, "hour": list(HOURS)},
         attrs={
-            "title": "ERA5 100 hPa zonal-mean eddy heat flux [v'T'], 45-75 deg",
+            "title": "ERA5 100 hPa zonal-mean eddy heat flux [v'T'], 45-75 deg, and v*T* over the regional boxes",
             "source": f"ERA5: WeatherBench2 6-hourly 1.5 deg (conservative) before {SWITCH:%Y-%m-%d}, ARCO-ERA5 "
             "hourly 0.25 deg (ERA5T at the end) from it",
             "method": f"heatflux100.fluxes / band_mean: zonal wavenumbers 1-{HF.K_MAX}, cos(lat)-weighted "
             f"{HF.BAND[0]:.0f}-{HF.BAND[1]:.0f} deg; single fields at 00 and 12 UTC",
             "sign": "positive = poleward in both hemispheres",
+            "regions": "nh_sib, nh_can: v*T* (departures from the zonal mean) area-averaged over "
+            + ", ".join(f"{k} {a:.0f}-{b:.0f}N {c:.0f}-{d:.0f}E" for k, (a, b, c, d) in HF.REGIONS.items()),
         },
     )
     out.parent.mkdir(parents=True, exist_ok=True)

@@ -169,13 +169,14 @@ def ifs(date: str, time: str, control: bool = False):
 
 
 def shared(model: str, date: str, time: str):
-    """(lat, {tot, k1, k2}: (member, step, lat), the member indices kept) of the days 1-15 run from the shared
-    GEFS/GEPS fetch (strat_ens.py): the members complete on every step; index 0 is the control."""
+    """(lat, {tot, k1, k2}: (member, step, lat), the member indices kept, {sib, can}: (member, step)) of the days 1-15
+    run from the shared GEFS/GEPS fetch (strat_ens.py): the members complete on every step; index 0 is the control."""
     import strat_ens as SE
 
     d = SE.load(model, date, f"{int(time):02d}", ("flux",))
     keep = SE.complete_members(d, "flux_tot")
-    return SE.LAT, {k: d[f"flux_{k}"][keep] for k in ("tot", "k1", "k2")}, keep
+    reg = {k: d[f"flux_{k}"][keep] for k in HF.REGIONS}
+    return SE.LAT, {k: d[f"flux_{k}"][keep] for k in ("tot", "k1", "k2")}, keep, reg
 
 
 def fluxes_chunked(v, t, n: int = 10):
@@ -207,7 +208,7 @@ def main() -> int:
     name = {"geps": "GEPS", "gefs": "GEFS", "ifs": "IFS-ENS"}[a.model]
     valid = pd.DatetimeIndex([init + pd.Timedelta(hours=L) for L in leads])
     if medium and a.model != "ifs":
-        lat, f, kept = shared(a.model, a.date, a.time)
+        lat, f, kept, reg = shared(a.model, a.date, a.time)
         n = len(kept)
         has_cf = kept[0] == 0  # the control, when it arrived complete
     else:
@@ -215,6 +216,7 @@ def main() -> int:
             a.model
         ]()
         lat, f = fluxes_chunked(v, t)  # {tot,k1,k2}: (member, step, lat)
+        reg = HF.regional(LAT_H, LON_H, v, t)
         n = int(v.shape[0])
         has_cf = a.model != "ifs"  # IFS-ENS: 50 perturbed members; its control comes from its own stream, below
     fc = {k: x[:1] for k, x in f.items()} if has_cf else None  # control = member 0
@@ -294,6 +296,8 @@ def main() -> int:
         h["z40_end_of_forecast"] = None if z_last is None else round(z_last, 2)
         if warn is not None:
             h["ssw_warning"] = warn
+        if north:
+            h["regional"] = HF.regional_block(valid, reg, clim)
         doc["hemispheres"][hemi] = h
         print(
             f"  {name} {hemi}: mean flux d1-7 {mem['tot'].mean(0)[d8 - 7 : d8].mean():+.1f}, d8-{last} {mem['tot'].mean(0)[d8:].mean():+.1f} K m/s; "
