@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pyproj  # noqa: F401  (load pyproj's libproj before xarray/eccodes: else a double free at exit)
 import numpy as np
 import pandas as pd
 

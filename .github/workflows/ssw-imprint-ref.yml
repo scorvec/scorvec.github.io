@@ -8,8 +8,12 @@ name: SSW imprint index - analysis record and model drift (IFS control analyses,
 #   measure-drift  each model's mean index error by lead: its control's archived 00Z runs (AIFS-ENS control and IFS
 #                  control from the Google Cloud mirror, GEFS gec00 from NOAA's S3), one every `every` days, verified
 #                  against those analyses -> scripts/strat/reference/ssw_imprint_drift.json. GEPS has no archive.
-# ~1 GB in all. The strat-ifs concurrency group: both workflows write the analysis record.
+# ~1 GB in all. Weekly (Mondays), so the drift follows the season: it was first measured on July-October runs. The
+# strat-ifs concurrency group: both workflows write the analysis record.
 on:
+  # backstop cron: the dispatcher (scripts/lib/dispatch_workflows.sh) fires this on time
+  schedule:
+    - cron: '30 3 * * 1'
   workflow_dispatch:
     inputs:
       start:
@@ -63,13 +67,13 @@ jobs:
 
       - name: Backfill the analyses
         env:
-          START: ${{ inputs.start }}
+          START: ${{ inputs.start || '2026-01-01' }}
         run: python scripts/strat/ssw_imprint.py backfill --start "$START"
 
       - name: Measure the drift
         env:
-          MODELS: ${{ inputs.drift }}
-          CYCLES: ${{ inputs.cycles }}
+          MODELS: ${{ inputs.drift || 'aifs hres gefs' }}
+          CYCLES: ${{ inputs.cycles || '30' }}
         run: |
           for m in $MODELS; do
             python scripts/strat/ssw_imprint.py measure-drift --model "$m" --cycles "$CYCLES" \
