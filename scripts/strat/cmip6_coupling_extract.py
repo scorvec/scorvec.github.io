@@ -228,6 +228,9 @@ def run(cat, model, exp, member, years, out: Path, workers: int, regional: bool)
         das.pop("ta", None)
     n = len(common)
     F = Fields(das["psl"].lat.values, das["psl"].lon.values, model)
+    # v and T may sit on another grid than psl (GFDL-CM4: half the latitudes)
+    same = "va" in das and np.array_equal(das["va"].lat.values, das["psl"].lat.values)
+    F_reg = F if same or "va" not in das else Fields(das["va"].lat.values, das["va"].lon.values, model)
     res = {k: np.full(n, np.nan, "float32") for k in SERIES}
     for job in [v for v in ("ua", "epfz", "psl", "tas") if v in das] + (["regional"] if "va" in das else []):
         lead = "va" if job == "regional" else job
@@ -240,7 +243,7 @@ def run(cat, model, exp, member, years, out: Path, workers: int, regional: bool)
                     if job == "regional":
                         v = _read(das["va"], idx["va"][s:e], 100)
                         t = _read(das["ta"], idx["ta"][s:e], 100)
-                        return s, reduce_chunk(job, v, das["va"], F, t)
+                        return s, reduce_chunk(job, v, das["va"], F_reg, t)
                     return s, reduce_chunk(job, _read(das[lead], idx[lead][s:e]), das[lead], F)
                 except Exception as err_:  # noqa: BLE001  (a GCS hiccup: retry the chunk)
                     err = err_
