@@ -6,6 +6,7 @@ name: Stratosphere (vortex, waves 1 and 2, E-P flux from GEFS)
 #   wave_maps.py      -> assets/sst/anim/wave{1,2}_{nh,sh}/  loops only, no still
 #   vortex_winds.py   -> assets/sst/anim/vortex_{10,100}_{nh,sh}/  31-step 12-hourly loops, one hemisphere each
 #   qbo_duct.py --model gefs -> assets/sst/anim/epflux_gefs/   E-P flux loop from the NOAA GEFS ensemble (epflux job)
+#                               + assets/sst/refractive_gefs.webp, data/refractive_gefs.json   wave-1/2 refractive index
 #   qbo_duct.py --model aifs -> scripts/strat/data/zmu_members_aifs.npz (zero line) + v250 for pacjet (heavy job)
 #   qbo_zeroline.py   -> assets/sst/qbo_zeroline_{70,50,30,10}.webp + data/qbo_zeroline{,_aifs}.json   (heavy job)
 #   pacjet.py         -> assets/sst/pacjet_aifs_*.webp, pacjet_torque.webp, anim/pacjet_aifs/  (heavy job; circulation.html)
@@ -462,7 +463,8 @@ jobs:
         run: |
           set -euo pipefail
           : > /tmp/ep.list
-          for p in assets/sst/anim/epflux_gefs assets/sst/anim/epflux_gefs_manifest.json; do
+          for p in assets/sst/anim/epflux_gefs assets/sst/anim/epflux_gefs_manifest.json \
+                   assets/sst/refractive_gefs.webp assets/sst/data/refractive_gefs.json; do
             [ -e "$p" ] && echo "$p" >> /tmp/ep.list
           done
           if [ ! -s /tmp/ep.list ]; then : > /tmp/strat-epflux.tgz; exit 0; fi
@@ -513,7 +515,7 @@ jobs:
 
       - name: What arrived
         run: |
-          for f in assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp; do
+          for f in assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp assets/sst/refractive_gefs.webp; do
             if [ -f "$f" ]; then printf '  %-38s %s\n' "$f" "$(du -h "$f" | cut -f1)"
             else printf '  %-38s (not produced this run)\n' "$f"; fi
           done
@@ -547,7 +549,8 @@ jobs:
                    assets/regimes/data/regimes_members_aifs.json assets/regimes/data/regimes_drift_aifs.json \
                    assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_aifs.json \
                    assets/sst/pacjet_aifs_*.webp assets/sst/pacjet_torque.webp assets/sst/pacjet_impacts_*.webp \
-                   assets/sst/data/pacjet_aifs.json assets/sst/data/pacjet_analysis.json; do
+                   assets/sst/data/pacjet_aifs.json assets/sst/data/pacjet_analysis.json \
+                   assets/sst/refractive_gefs.webp assets/sst/data/refractive_gefs.json; do
             if [ -e "$f" ]; then git add "$f"; fi
           done
           # the retired AIFS-ENS / IFS-ENS E-P flux manifests leave main with the next commit

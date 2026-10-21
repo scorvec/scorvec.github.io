@@ -50,6 +50,13 @@ THE MATHS (quasi-geostrophic, pressure coordinates; Edmon, Hoskins and McIntyre 
     ARROW_K was set on 2026-09-30 00Z (SH spring, no arrow capped) and 2026-01-15 00Z (NH winter, k=1: none capped;
     k=1-3: 21 capped, all at 1-10 hPa over 45-75N).
   * The dashed magenta line is u = U_c, the wave-1 Charney-Drazin ceiling (cd_ceiling_excess) on the same levels.
+assets/sst/refractive_gefs.webp (+ data/refractive_gefs.json)
+    The quasi-geostrophic refractive index a^2 n^2 for stationary wave-1 and wave-2 (refractive_index; Matsuno 1970)
+    from the same cycle's ensemble-mean zonal wind and theta profile, NH 300-1 hPa, days 0/5/10/15: the waveguide the
+    planetary waves see. It is drawn, not scored: on MERRA-2 the extent of negative index at 1-5 hPa did not separate
+    regional reflection onsets (Messori et al. 2022, ERA5 list) from the absorbing Novembers of 2009 and 2016, while
+    u(60N) at 1 minus 10 hPa was lower at all three onsets (upper_shear, days -5..+5: -2, -1 and +17 m/s against +28
+    and +35), so each wave-1 panel carries that shear and the JSON keeps it per day.
 
 --model aifs / --model ifs  (zonal-mean u only, since 2026-09-30)
     The AIFS-ENS and IFS-ENS E-P flux loops were retired on 2026-09-30. What survives is what other
@@ -211,6 +218,126 @@ def cd_ceiling_excess(U, lat, levs, th_prof, k=1, Hs=7000.0):
     out[:, np.abs(lat) > POLE_MASK] = np.nan  # beta->0: Uc collapses at the poles
     out[levs > 400] = np.nan
     return out
+
+
+def refractive_index(U, lat, levs, th_prof, k=1, Hs=7000.0):
+    """a^2 n_k^2, the quasi-geostrophic refractive index squared for stationary zonal wavenumber k (Matsuno 1970;
+    Andrews, Holton and Leovy 1987, eq. 5.3.4), on (level, lat):
+        a^2 n^2 = a q_phi / u - k^2 / cos^2(phi) - a^2 f^2 / (4 N^2 H^2)
+        q_phi   = 2 Omega cos(phi) - d/dphi[ d(u cos phi)/dphi / (a cos phi) ] - (a f^2 / rho) d/dz(rho u_z / N^2)
+    in log-pressure z = -H ln(p / 1000 hPa), rho ~ exp(-z/H), N^2 from the area-mean theta profile. Waves of
+    wavenumber k propagate where it is positive and are evanescent where it is negative; a negative layer above a
+    positive one at high latitude is a reflecting surface. NaN where u <= 0 (behind a critical line), equatorward of
+    20 deg (QG invalid) and poleward of POLE_MASK. Its second derivatives amplify noise, so u is smoothed in latitude
+    first (3 deg sigma) and the index after (3 deg in latitude, 1-2-1 over levels), NaN-aware."""
+    G = 9.80665
+    latr = np.deg2rad(lat)
+    cosp = np.clip(np.cos(latr), 5e-3, None)[None, :]
+    f = 2 * OMEGA * np.sin(latr)[None, :]
+    z = -Hs * np.log(levs / 1000.0)
+    N2 = np.clip(G / th_prof * np.gradient(th_prof, z), 5e-6, None)[:, None]
+    rho = np.exp(-z / Hs)[:, None]
+    dlat = float(np.abs(np.diff(lat)).mean())
+    u = ndi.gaussian_filter1d(U, sigma=3.0 / dlat, axis=1, mode="nearest")
+    curv = np.gradient(np.gradient(u * cosp, latr, axis=1) / (A * cosp), latr, axis=1)
+    strat = A * f**2 / rho * np.gradient(rho * np.gradient(u, z, axis=0) / N2, z, axis=0)
+    qphi = 2 * OMEGA * cosp - curv - strat
+    with np.errstate(divide="ignore", invalid="ignore"):
+        n2 = A * qphi / u - k**2 / cosp**2 - A**2 * f**2 / (4.0 * N2 * Hs**2)
+    n2[u <= 0] = np.nan
+    n2[:, np.abs(lat) < 20] = np.nan
+    n2[:, np.abs(lat) > POLE_MASK] = np.nan
+    n2 = _nan_smooth_lat(n2, 3.0 / dlat)
+    ok = np.isfinite(n2)
+    w = np.where(ok, 1.0, 0.0)
+    v = np.where(ok, n2, 0.0)
+    num = ndi.convolve1d(v, [1.0, 2.0, 1.0], axis=0, mode="nearest")
+    den = ndi.convolve1d(w, [1.0, 2.0, 1.0], axis=0, mode="nearest")
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return np.where(ok, num / den, np.nan)
+
+
+def upper_shear(U, lat, levs) -> float:
+    """u(60N) at 1 hPa minus 10 hPa: negative is the reflecting configuration (the wind weaker aloft). On MERRA-2 cases
+    it separated regional reflection onsets from November 2009 and 2016 better than the extent of the negative index
+    aloft, which those absorbing Novembers had as much of."""
+    j60 = int(np.argmin(np.abs(lat - 60.0)))
+    return round(float(U[int(np.argmin(np.abs(levs - 1.0))), j60] - U[int(np.argmin(np.abs(levs - 10.0))), j60]), 1)
+
+
+def render_refractive(by_step, nmem, lat, base, days=(0, 5, 10, 15), out=None) -> dict:
+    """Wave-1 and wave-2 refractive index, NH, at `days` -> assets/sst/refractive_gefs.webp; returns u(60N) at 1 minus
+    10 hPa for every day (data/refractive_gefs.json)."""
+    out = out or REPO / "assets" / "sst" / "refractive_gefs.webp"
+    steps = sorted(by_step)
+    test = {}
+    for s in steps:
+        levs, _p, U, *_rest = by_step[s]
+        test[f"{base + pd.Timedelta(hours=s):%Y-%m-%d}"] = upper_shear(U, lat, levs)
+    show = [s for s in steps if s // 24 in days]
+    fig, axes = plt.subplots(
+        2, len(show), figsize=(3.6 * len(show) + 1.2, 7.6), sharex=True, sharey=True, squeeze=False
+    )
+    from matplotlib.colors import BoundaryNorm
+
+    lv = [
+        0,
+        2,
+        5,
+        10,
+        20,
+        40,
+        80,
+        150,
+        300,
+    ]  # stratospheric wave-1 values sit near 0-20, the tropopause in the hundreds
+    cmap = plt.get_cmap("YlGnBu", len(lv))
+    norm = BoundaryNorm(lv, cmap.N, extend="max")
+    nh = lat >= 20
+    for c, s in enumerate(show):
+        levs, _p, U, *_rest = by_step[s]
+        th_prof = by_step[s][6]
+        top = (levs >= 1.0) & (levs <= 300.0)  # the stratosphere: below, the index is large wherever u is small
+        for r, k in enumerate((1, 2)):
+            ax = axes[r, c]
+            n2 = refractive_index(U, lat, levs, th_prof, k)
+            X, Y = lat[nh], levs[top]
+            Z = n2[np.ix_(top, nh)]
+            ax.contourf(X, Y, np.where(Z < 0, 1, np.nan), levels=[0.5, 1.5], colors=["#cfcac0"])
+            cf = ax.contourf(X, Y, np.where(Z >= 0, Z, np.nan), levels=lv, cmap=cmap, norm=norm, extend="max")
+            ax.contour(X, Y, np.where(np.isfinite(Z), Z, np.nan), levels=[0], colors="#b3122b", linewidths=1.1)
+            cs = ax.contour(X, Y, U[np.ix_(top, nh)], levels=[-20, 0, 20, 40, 60, 80], colors="#333", linewidths=0.6)
+            ax.clabel(cs, fontsize=6.5, fmt="%d")
+            ax.set_yscale("log")
+            ax.set_ylim(300, 1)
+            ax.set_xlim(20, 85)
+            if r == 0:
+                ax.set_title(f"day {s // 24} · {base + pd.Timedelta(hours=s):%d %b}", fontsize=10, fontweight="bold")
+            if c == 0:
+                ax.set_ylabel(f"wave-{k}\npressure, hPa", fontsize=9.5)
+            if r == 1:
+                ax.set_xlabel("latitude, °N", fontsize=9)
+            if k == 1:
+                sh = test[f"{base + pd.Timedelta(hours=s):%Y-%m-%d}"]
+                ax.text(0.02, 0.02, f"u(60°N) 1 minus 10 hPa: {sh:+.0f} m/s", transform=ax.transAxes, fontsize=7.4,
+                        color="#1f2328", bbox=dict(fc="white", ec="none", alpha=0.8, pad=1.5))  # fmt: skip
+    cax = fig.add_axes([0.92, 0.18, 0.012, 0.64])
+    fig.colorbar(cf, cax=cax, label="a² n² (stationary wave)")
+    fig.suptitle(f"GEFS ensemble ({nmem} members) · refractive index for stationary planetary waves · init {base:%Y-%m-%d %HZ}",
+                 fontsize=12.5, fontweight="bold", x=0.06, ha="left", y=0.995)  # fmt: skip
+    fig.text(0.06, 0.005, "Quasi-geostrophic a²n² (Matsuno 1970) from the ensemble-mean zonal wind: waves propagate where it "
+             "is positive (blue) and bend toward higher values; they are evanescent where it is negative (grey; red line = 0) "
+             "and absorbed at a critical line (blank, u \u2264 0).\nContours: zonal-mean u, m/s. A picture of the waveguide, "
+             "not a reflection test: for that, read the 1 minus 10 hPa shear in each panel (negative = weaker aloft, the "
+             "reflecting configuration) with the sign of the heat flux.", fontsize=7.6, color="#6f6b64")  # fmt: skip
+    fig.subplots_adjust(left=0.06, right=0.9, top=0.92, bottom=0.14, wspace=0.08, hspace=0.12)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=110, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
+    plt.close(fig)
+    doc = {"init": f"{base:%Y-%m-%d %HZ}", "u60_1_minus_10_hpa": test}
+    (REPO / "assets" / "sst" / "data" / "refractive_gefs.json").write_text(json.dumps(doc, indent=0))
+    print(f"wrote {out.name}: u60 1 minus 10 hPa " + ", ".join(f"{d} {v:+.0f}" for d, v in list(test.items())[::5]))
+    return test
 
 
 # -------------------------------------------------------------------------------------------------------- GEFS ---
@@ -794,6 +921,7 @@ def main():
         flush=True,
     )
     render_epflux(by_step, nmem, lat, S, base, "gefs", args.waves)
+    render_refractive(by_step, nmem, lat, base)
 
 
 if __name__ == "__main__":
