@@ -199,7 +199,8 @@ def analysis_flux(cyc):
 
 
 def load_history(path: Path | None) -> dict:
-    """{'YYYY-MM-DD HH': {hemi: {tot,k1,k2}}}: the committed seed under the live file."""
+    """{"YYYY-MM-DD HH": {hemi: {tot, k1, k2}, "nh_reg": {sib, can}}}: the committed seed under the live file (the
+    regional boxes from 2026-10-22)."""
     h = {}
     for p in (SEED, path):
         if p is not None and Path(p).exists():
@@ -715,6 +716,9 @@ def main() -> int:
             hm: {k: round(float(band_mean(lat, f0[k], nth)[0, 0]), 3) for k in f0}
             for hm, nth in (("nh", True), ("sh", False))
         }
+        a0 = [x.isel(step=0).transpose(..., "latitude", "longitude") for x in (vc, tc)]
+        r0 = regional(a0[0].latitude.values, a0[0].longitude.values, a0[0].values, a0[1].values)
+        hist[f"{init:%Y-%m-%d %H}"]["nh_reg"] = {k: round(float(np.ravel(x)[0]), 3) for k, x in r0.items()}
         keep = sorted(hist)[-800:]
         hpath.parent.mkdir(parents=True, exist_ok=True)
         hpath.write_text(json.dumps({k: hist[k] for k in keep}, separators=(",", ":")))

@@ -1,0 +1,224 @@
+{
+ "built": "2026-10-21",
+ "builder": "scripts/strat/build_reflection_index.py",
+ "period": [
+  "1990-11-01",
+  "2026-10-15"
+ ],
+ "winters": 36,
+ "events": [
+  {
+   "onset": "1992-01-06",
+   "days": 13
+  },
+  {
+   "onset": "1992-03-07",
+   "days": 15
+  },
+  {
+   "onset": "1993-02-11",
+   "days": 11
+  },
+  {
+   "onset": "1993-12-14",
+   "days": 13
+  },
+  {
+   "onset": "1994-01-02",
+   "days": 23
+  },
+  {
+   "onset": "1995-01-14",
+   "days": 11
+  },
+  {
+   "onset": "1995-02-04",
+   "days": 10
+  },
+  {
+   "onset": "1995-12-24",
+   "days": 13
+  },
+  {
+   "onset": "1996-01-23",
+   "days": 10
+  },
+  {
+   "onset": "1996-02-25",
+   "days": 11
+  },
+  {
+   "onset": "1996-03-20",
+   "days": 12
+  },
+  {
+   "onset": "2000-03-04",
+   "days": 12
+  },
+  {
+   "onset": "2001-01-31",
+   "days": 17
+  },
+  {
+   "onset": "2003-02-28",
+   "days": 13
+  },
+  {
+   "onset": "2005-02-22",
+   "days": 29
+  },
+  {
+   "onset": "2008-02-11",
+   "days": 16
+  },
+  {
+   "onset": "2008-12-04",
+   "days": 20
+  },
+  {
+   "onset": "2010-01-23",
+   "days": 11
+  },
+  {
+   "onset": "2011-12-14",
+   "days": 15
+  },
+  {
+   "onset": "2012-01-05",
+   "days": 11
+  },
+  {
+   "onset": "2014-01-20",
+   "days": 15
+  },
+  {
+   "onset": "2014-02-20",
+   "days": 28
+  },
+  {
+   "onset": "2016-01-23",
+   "days": 12
+  },
+  {
+   "onset": "2016-02-05",
+   "days": 10
+  },
+  {
+   "onset": "2016-02-21",
+   "days": 12
+  },
+  {
+   "onset": "2017-12-01",
+   "days": 28
+  },
+  {
+   "onset": "2018-01-25",
+   "days": 10
+  },
+  {
+   "onset": "2020-02-04",
+   "days": 10
+  },
+  {
+   "onset": "2023-01-19",
+   "days": 19
+  },
+  {
+   "onset": "2024-02-14",
+   "days": 10
+  },
+  {
+   "onset": "2025-02-06",
+   "days": 12
+  },
+  {
+   "onset": "2025-02-24",
+   "days": 32
+  }
+ ],
+ "epo_after": [
+  {
+   "days": [
+    -5,
+    0
+   ],
+   "mean": 0.28,
+   "share_negative": 0.38,
+   "null_mean": 0.0,
+   "p": 0.0335
+  },
+  {
+   "days": [
+    1,
+    5
+   ],
+   "mean": -0.43,
+   "share_negative": 0.69,
+   "null_mean": -0.0,
+   "p": 0.006
+  },
+  {
+   "days": [
+    6,
+    12
+   ],
+   "mean": -0.49,
+   "share_negative": 0.69,
+   "null_mean": 0.0,
+   "p": 0.0015
+  },
+  {
+   "days": [
+    13,
+    24
+   ],
+   "mean": 0.25,
+   "share_negative": 0.28,
+   "null_mean": 0.01,
+   "p": 0.0185
+  }
+ ],
+ "tna_after": [
+  {
+   "days": [
+    -5,
+    0
+   ],
+   "mean": 1.65,
+   "share_negative": 0.28,
+   "null_mean": 0.13,
+   "p": 0.0015
+  },
+  {
+   "days": [
+    1,
+    5
+   ],
+   "mean": 0.12,
+   "share_negative": 0.44,
+   "null_mean": 0.08,
+   "p": 0.485
+  },
+  {
+   "days": [
+    6,
+    12
+   ],
+   "mean": -1.93,
+   "share_negative": 0.78,
+   "null_mean": 0.07,
+   "p": 0.0005
+  },
+  {
+   "days": [
+    13,
+    24
+   ],
+   "mean": 0.16,
+   "share_negative": 0.5,
+   "null_mean": 0.11,
+   "p": 0.464
+  }
+ ],
+ "definition": "RI = z(Siberia 45-75N 140-200E) - z(Canada 45-75N 230-280E), v*T* at 100 hPa, ERA5 1991-2020 day-of-year standardisation; event = RI > 1 for 10+ days, December-March, Siberia upward and Canada downward"
+}

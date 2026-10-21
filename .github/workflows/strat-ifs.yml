@@ -14,6 +14,8 @@ name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, wave
 #   (hres = the IFS control in file names, as in the code; the pages say "IFS control")
 #   ssw_imprint.py        -> assets/sst/ssw_imprint.webp + data/ssw_imprint{,_history,_runs}.json: the downward
 #                            propagation monitor (imprint job, after the drips it reads)
+#   reflection_index.py   -> assets/sst/reflection_index.webp: the regional reflection index of every ensemble (imprint
+#                            job, from the heat-flux JSON of this run and main's AIFS-ENS one)
 #   qbo_duct.py --model ifs -> scripts/strat/data/zmu_members_ifs.npz (zero line) + the 250 hPa jet sector (pacjet)
 #   qbo_zeroline.py       -> assets/sst/qbo_zeroline_*.webp re-rendered with IFS-ENS + data/qbo_zeroline_ifs.json
 #   naens (GEFS, GEPS)    -> assets/sst/{gefs,geps}_heatflux100_{nh,sh}.webp, {gefs,geps}_drip.webp (+ data/*.json),
@@ -634,12 +636,13 @@ jobs:
           touch /tmp/t0
           git fetch -q --depth 1 origin main
           for f in assets/sst/data/ssw_imprint.json assets/sst/data/ssw_imprint_history.json assets/sst/data/ssw_imprint_runs.json \
-                   assets/sst/data/{aifs,ifs,hres,gefs,geps}_drip.json; do
+                   assets/sst/data/{aifs,ifs,hres,gefs,geps}_drip.json assets/sst/data/{,ifs_,gefs_,geps_}heatflux100.json \
+                   assets/sst/data/heatflux100_history.json assets/sst/data/upperstrat.json; do
             git checkout origin/main -- "$f" 2>/dev/null || echo "  $f: not on main yet"
           done
           shopt -s nullglob
           for t in /tmp/art/*.tgz; do
-            [ -s "$t" ] && tar -xzf "$t" -C . --wildcards 'assets/sst/data/*_drip.json' 2>/dev/null || true
+            [ -s "$t" ] && tar -xzf "$t" -C . --wildcards 'assets/sst/data/*_drip.json' 'assets/sst/data/*heatflux100.json' 2>/dev/null || true
           done
           ls -la assets/sst/data/*_drip.json
 
@@ -663,6 +666,7 @@ jobs:
               || echo "::warning::$x imprint index failed; keeping its previous run"
           done
           python scripts/strat/ssw_imprint.py render || echo "::warning::the monitor did not render; keeping the previous figure"
+          python scripts/strat/reflection_index.py || echo "::warning::the reflection index did not render; keeping the previous figure"
 
       - name: Pack the outputs
         if: always()
@@ -670,7 +674,7 @@ jobs:
           set -euo pipefail
           : > /tmp/imprint.list
           for p in assets/sst/ssw_imprint.webp assets/sst/data/ssw_imprint.json assets/sst/data/ssw_imprint_history.json \
-                   assets/sst/data/ssw_imprint_runs.json; do
+                   assets/sst/data/ssw_imprint_runs.json assets/sst/reflection_index.webp; do
             [ -e "$p" ] && [ "$p" -nt /tmp/t0 ] && echo "$p" >> /tmp/imprint.list
           done
           if [ ! -s /tmp/imprint.list ]; then : > /tmp/strat-ifs-imprint.tgz; exit 0; fi
@@ -745,7 +749,7 @@ jobs:
                    assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
                    assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_ifs.json \
                    assets/sst/ssw_imprint.webp assets/sst/data/ssw_imprint.json assets/sst/data/ssw_imprint_history.json \
-                   assets/sst/data/ssw_imprint_runs.json; do
+                   assets/sst/data/ssw_imprint_runs.json assets/sst/reflection_index.webp; do
             if [ -e "$f" ]; then git add "$f"; fi
           done
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi

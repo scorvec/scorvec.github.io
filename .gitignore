@@ -139,6 +139,8 @@ scripts/strat/*
 !scripts/strat/fetch_m2_zmu.py
 !scripts/strat/ssw_imprint.py
 !scripts/strat/build_ssw_imprint.py
+!scripts/strat/build_reflection_index.py
+!scripts/strat/reflection_index.py
 !scripts/strat/cmip6_coupling.py
 !scripts/strat/cmip6_coupling_extract.py
 # GEPS subseasonal vortex products (subseasonal.html, built with scripts/geps)
@@ -173,6 +175,7 @@ scripts/strat/*
 !scripts/strat/reference/qbo_zeroline_ref.nc
 !scripts/strat/reference/qbo_zeroline_test.json
 !scripts/strat/reference/ssw_imprint.nc
+!scripts/strat/reference/reflection_index.json
 !scripts/strat/reference/cmip6_coupling_tests.json
 !scripts/strat/reference/cmip6_coupling_log.json
 
