@@ -26,7 +26,7 @@ on:
         description: 'Run the tests and commit them (false = extracts only, kept as artifacts)'
         default: 'true'
       from_run:
-        description: 'A finished run id whose extracts to test again (blank = extract now)'
+        description: 'Finished run ids (comma-separated) whose extracts to test, together (blank = extract now)'
         default: ''
 
 permissions:
@@ -115,13 +115,18 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install --quiet numpy pandas scipy
-      - uses: actions/download-artifact@v7
-        with:
-          pattern: coupling_*
-          path: runs
-          merge-multiple: true
-          run-id: ${{ inputs.from_run || github.run_id }}
-          github-token: ${{ github.token }}
+      # every listed run's extracts (a later run of a model replaces an earlier one's file)
+      - name: Collect the extracts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IDS: ${{ inputs.from_run || github.run_id }}
+        run: |
+          mkdir -p runs
+          for id in ${IDS//,/ }; do
+            gh run download "$id" -R "$GITHUB_REPOSITORY" -p 'coupling_*' -D "dl/$id"
+            find "dl/$id" -type f \( -name '*.npz' -o -name '*_log.json' \) -exec cp {} runs/ \;
+          done
+          ls runs | wc -l
       - name: Events and tests
         run: |
           ls runs | head -80

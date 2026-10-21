@@ -188,8 +188,9 @@ def reduce_chunk(var: str, a: np.ndarray, da, F: Fields, t100=None) -> dict:
     return out
 
 
-def _read(da, i0, i1, level=None):
-    x = da.isel(time=slice(i0, i1))
+def _read(da, idx, level=None):
+    """The store's time steps `idx` (a contiguous run is read as a slice, anything else index by index)."""
+    x = da.isel(time=slice(int(idx[0]), int(idx[-1]) + 1) if (np.diff(idx) == 1).all() else idx)
     if level is not None:
         x = x.isel(plev=_plev_index(da.plev.values, level))
     a = x.values.astype("float32")
@@ -209,15 +210,19 @@ def run(cat, model, exp, member, years, out: Path, workers: int, regional: bool)
         common = [c for c in common if c[0] < common[0][0] + years]
     if len(common) < 3650:
         return {"run": dest.stem, "status": f"only {len(common)} common days"}
-    first = {}
+    # Each variable's time step for every common day. A store can hold a day twice or skip one (CESM2-WACCM psl), so
+    # the days are indexed, not sliced; the days some required variable lacks are dropped, and counted.
+    span = {c for c in keys["psl"] if common[0] <= c <= common[-1]}
+    dropped = len(span) - len(common)
+    if dropped > 0.01 * len(span):
+        return {"run": dest.stem, "status": f"{dropped} of {len(span)} days missing from some required variable"}
+    idx = {}
     for v in list(das):
-        idx = np.array([keys[v].get(c, -1) for c in common])
-        if (idx < 0).any() or not (np.diff(idx) == 1).all():
-            if v in REQUIRED:
-                return {"run": dest.stem, "status": f"{v}: the common days are not one block"}
+        ix = np.array([keys[v].get(c, -1) for c in common])
+        if (ix < 0).any():
             das.pop(v)  # an optional variable that does not cover the run is left out
             continue
-        first[v] = int(idx[0])
+        idx[v] = ix
     if "va" not in das or "ta" not in das:
         das.pop("va", None)
         das.pop("ta", None)
@@ -233,10 +238,10 @@ def run(cat, model, exp, member, years, out: Path, workers: int, regional: bool)
             for attempt in range(5):
                 try:
                     if job == "regional":
-                        v = _read(das["va"], first["va"] + s, first["va"] + e, 100)
-                        t = _read(das["ta"], first["ta"] + s, first["ta"] + e, 100)
+                        v = _read(das["va"], idx["va"][s:e], 100)
+                        t = _read(das["ta"], idx["ta"][s:e], 100)
                         return s, reduce_chunk(job, v, das["va"], F, t)
-                    return s, reduce_chunk(job, _read(das[lead], first[lead] + s, first[lead] + e), das[lead], F)
+                    return s, reduce_chunk(job, _read(das[lead], idx[lead][s:e]), das[lead], F)
                 except Exception as err_:  # noqa: BLE001  (a GCS hiccup: retry the chunk)
                     err = err_
                     time.sleep(5 * (attempt + 1))
@@ -260,6 +265,7 @@ def run(cat, model, exp, member, years, out: Path, workers: int, regional: bool)
         "first": "-".join(map(str, common[0])),
         "last": "-".join(map(str, common[-1])),
         "variables": sorted(das),
+        "days_dropped": dropped,
         "seconds": round(time.time() - t0),
     }
 
