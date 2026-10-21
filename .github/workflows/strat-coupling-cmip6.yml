@@ -4,8 +4,8 @@ name: CMIP6 wave reflection and downward propagation (large-sample test)
 # (its first `picontrol_years`) and up to `members` historical runs, from the public Pangeo CMIP6 Google Cloud mirror
 # (anonymous): the DynVarMIP zonal means (EdayZ ua, and epfz where published), day psl and tas, and for `regional`
 # models day va and ta at 100 hPa. One job per run reduces it to daily series (cmip6_coupling_extract.py); a final job
-# finds the events in every run, tests what follows across models and commits the event table and the tests
-# (scripts/strat/reference/cmip6_coupling_events.csv.gz, _tests.json, _log.json); the daily series go to release
+# finds the events in every run, tests what follows across models and commits the tests and the run log
+# (scripts/strat/reference/cmip6_coupling_tests.json, _log.json); the daily series and the event table go to release
 # cmip6-coupling-v1. A run streams ~10-150 GB (the regional plev8 stores carry all eight levels). Dispatch only.
 on:
   workflow_dispatch:
@@ -137,16 +137,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tar -cf /tmp/cmip6_coupling_runs.tar -C runs $(cd runs && ls *.npz)
+          cp scripts/strat/reference/cmip6_coupling_events.csv.gz /tmp/
           gh release view cmip6-coupling-v1 -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
             gh release create cmip6-coupling-v1 -R "$GITHUB_REPOSITORY" --title "CMIP6 stratosphere-troposphere coupling: daily series v1" \
               --notes "Daily series per CMIP6 run (scripts/strat/cmip6_coupling_extract.py): u(60N) 10/50 hPa, 10/100 hPa polar cap, 100/50 hPa eddy heat flux by wave, Siberia/Canada regional heat flux, the SSW imprint projection, North America / Eurasia 2 m temperature. From the Pangeo CMIP6 mirror (CMIP6 terms of use: cite the models)."
-          gh release upload cmip6-coupling-v1 /tmp/cmip6_coupling_runs.tar -R "$GITHUB_REPOSITORY" --clobber
+          gh release upload cmip6-coupling-v1 /tmp/cmip6_coupling_runs.tar /tmp/cmip6_coupling_events.csv.gz -R "$GITHUB_REPOSITORY" --clobber
       # Never rebase: snapshot, reset to a fresh origin/main each attempt, lay the snapshot back on, commit, push.
       - name: Commit & push
         run: |
           git config user.name "Shawn Corvec"
           git config user.email "26825570+scorvec@users.noreply.github.com"
-          OUTS="scripts/strat/reference/cmip6_coupling_events.csv.gz scripts/strat/reference/cmip6_coupling_tests.json scripts/strat/reference/cmip6_coupling_log.json"
+          OUTS="scripts/strat/reference/cmip6_coupling_tests.json scripts/strat/reference/cmip6_coupling_log.json"
           git add $OUTS
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           SNAP=$(mktemp -d)

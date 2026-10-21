@@ -28,8 +28,8 @@ runs with gridded v and T, the shear ones only where u reaches 2 hPa:
   wk100_td / wk100_bu   the 100 hPa weakness first reaching +1 sd, 30 days apart, with 10 hPa at +1 sd in the 3-20 days
                before (top-down) or not (bottom-up)
 
-TESTS. Per model, each outcome's event mean less its mean over random days of the same calendar months in the same
-runs (NULL draws): the model's effect. Across models (models weighted equally, those with >= MIN_EVENTS events): the
+TESTS. Per model, each outcome's event mean less its expected value on a random day of the events' calendar months
+in the same runs (every day of those months, weighted as the events are): the model's effect. Across models (models weighted equally, those with >= MIN_EVENTS events): the
 mean effect, a one-sample t-test, the share of models agreeing on its sign; robust = Benjamini-Hochberg FDR 10 % over
 every test and >= 80 % sign agreement, the site's CMIP6 rule.
 
@@ -49,7 +49,6 @@ from scipy import stats
 WINTER = (11, 12, 1, 2, 3)
 DJFM = (12, 1, 2, 3)
 MIN_EVENTS = 5
-NULL = 400
 WINDOWS = {"d-5_0": (-5, 0), "d1_10": (1, 10), "d11_20": (11, 20), "d1_30": (1, 30), "d31_60": (31, 60)}
 OUTCOMES = ("ssi", "tna", "teu", "wk10", "wk100")
 
@@ -203,32 +202,44 @@ def events(f: pd.DataFrame) -> list[dict]:
     return ev
 
 
-def window_mean(x: np.ndarray, i: int, a0: int, a1: int) -> float:
-    lo, hi = i + a0, i + a1 + 1
-    if lo < 0 or hi > len(x):
-        return np.nan
-    return float(np.nanmean(x[lo:hi]))
+def window_table(f: pd.DataFrame) -> dict:
+    """{outcome_window: (day,) float32}: each outcome's mean over each window after every day (NaN where the window
+    leaves the run), from cumulative sums, so an event or a random day is a lookup."""
+    n = len(f)
+    i = np.arange(n)
+    out = {}
+    for o in OUTCOMES:
+        x = f[o].values.astype(float)
+        ok = np.isfinite(x)
+        cs = np.concatenate([[0.0], np.cumsum(np.where(ok, x, 0.0))])
+        cn = np.concatenate([[0], np.cumsum(ok)])
+        for w, (a0, a1) in WINDOWS.items():
+            lo, hi = np.clip(i + a0, 0, n), np.clip(i + a1 + 1, 0, n)
+            cnt = cn[hi] - cn[lo]
+            with np.errstate(invalid="ignore", divide="ignore"):
+                v = (cs[hi] - cs[lo]) / cnt
+            inside = (i + a0 >= 0) & (i + a1 + 1 <= n) & (cnt > 0)
+            out[f"{o}_{w}"] = np.where(inside, v, np.nan).astype("float32")
+    return out
 
 
-def outcomes(f: pd.DataFrame, i: int) -> dict:
-    return {f"{o}_{w}": window_mean(f[o].values, i, *ab) for o in OUTCOMES for w, ab in WINDOWS.items()}
+def outcomes(table: dict, i: int) -> dict:
+    return {k: float(v[i]) for k, v in table.items()}
 
 
 # ------------------------------------------------------------------------------------------------------- tests ---
-def null_means(runs: list[pd.DataFrame], months: list[int], rng) -> dict:
-    """For one model: the mean of every outcome over NULL draws of random days matched to the events' months."""
-    pool = {}
-    for r, f in enumerate(runs):
-        for m in set(months):
-            pool.setdefault(m, []).extend((r, int(i)) for i in np.flatnonzero(f.month.values == m)[5:-65])
-    keys = [f"{o}_{w}" for o in OUTCOMES for w in WINDOWS]
-    acc = {k: [] for k in keys}
-    for _ in range(NULL):
-        draw = [pool[m][rng.integers(len(pool[m]))] for m in months]
-        vals = [outcomes(runs[r], i) for r, i in draw]
-        for k in keys:
-            acc[k].append(np.nanmean([v[k] for v in vals]))
-    return {k: float(np.mean(v)) for k, v in acc.items()}
+def null_means(runs: list[pd.DataFrame], tables: list[dict], months: list[int]) -> dict:
+    """For one model: each outcome's expected value on a random day of the events' calendar months (in their
+    proportions), over every day of those months in its runs: the exact mean of month-matched random draws."""
+    share = pd.Series(months).value_counts(normalize=True)
+    out = {}
+    for k in tables[0]:
+        tot = 0.0
+        for m, wgt in share.items():
+            vals = np.concatenate([t[k][f.month.values == m] for f, t in zip(runs, tables)])
+            tot += wgt * float(np.nanmean(vals))
+        out[k] = tot
+    return out
 
 
 def fdr(p: np.ndarray, q: float = 0.10) -> np.ndarray:
@@ -248,20 +259,19 @@ def main() -> int:
     ap.add_argument("--runs", required=True, help="directory of the extract npz files")
     ap.add_argument("--out", required=True, help="output stem: <out>_events.csv.gz and <out>_tests.json")
     a = ap.parse_args()
-    rng = np.random.default_rng(2026)
-    by_model: dict[str, list[pd.DataFrame]] = {}
+    paths: dict[str, list[Path]] = {}
     for p in sorted(Path(a.runs).glob("*.npz")):
-        if ".part" in p.name:
-            continue
-        f = load_run(p)
-        by_model.setdefault(f.attrs["model"], []).append(f)
+        if ".part" not in p.name:
+            paths.setdefault(p.stem.split("_")[0], []).append(p)
     rows, effects, years = [], {}, {}
-    for model, runs in by_model.items():
+    for model, ps in paths.items():  # one model in memory at a time
+        runs = [load_run(p) for p in ps]
+        tables = [window_table(f) for f in runs]
         years[model] = int(sum(f.year.nunique() for f in runs))
         evs = []
-        for r, f in enumerate(runs):
+        for r, (f, t) in enumerate(zip(runs, tables)):
             for e in events(f):
-                e.update(outcomes(f, e["i"]), model=model, run=f.attrs["run"], r=r)
+                e.update(outcomes(t, e["i"]), model=model, run=f.attrs["run"], r=r)
                 e["date"] = f"{f.year.values[e['i']]:04d}-{f.month.values[e['i']]:02d}-{f.day.values[e['i']]:02d}"
                 e["month"] = int(f.month.values[e["i"]])
                 evs.append(e)
@@ -279,7 +289,7 @@ def main() -> int:
         for g, G in groups.items():
             if len(G) < MIN_EVENTS:
                 continue
-            null = null_means(runs, list(G.month), rng)
+            null = null_means(runs, tables, list(G.month))
             effects.setdefault(g, {})[model] = {"n": len(G), **{k: float(G[k].mean() - null[k]) for k in null}}
         print(f"{model}: {years[model]} years, " + ", ".join(f"{g} {len(G)}" for g, G in groups.items()), flush=True)
     E = pd.concat(rows, ignore_index=True)
