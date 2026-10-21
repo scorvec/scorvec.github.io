@@ -1,0 +1,135 @@
+name: CMIP6 wave reflection and downward propagation (large-sample test)
+
+# Wave reflection and downward propagation tested on CMIP6 (scripts/strat/cmip6_coupling.py). Each model's piControl
+# (the first `picontrol_years`) and up to `members` historical runs, from the public Pangeo CMIP6 Google Cloud mirror
+# (anonymous), day table: ua, va, ta, zg on plev8, psl, tas. One job per model reduces every run to daily series
+# (cmip6_coupling_extract.py: u(60N) at 10/50 hPa, the 10/100 hPa polar cap, the 100/50 hPa heat flux by wave, the
+# Siberia/Canada regional heat flux, the SSW imprint projection, North America / Eurasia 2 m temperature); a final job
+# finds the events in every run, tests what follows across models and commits the event table and the tests
+# (scripts/strat/reference/cmip6_coupling_events.csv.gz, _tests.json); the daily series go to release
+# cmip6-coupling-v1. A plev8 store chunk carries all eight levels, so a model-year streams ~1-2 GB. Dispatch only.
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: 'Comma-separated source_ids'
+        default: 'ACCESS-CM2,ACCESS-ESM1-5,BCC-CSM2-MR,CanESM5,CESM2,CESM2-WACCM,CMCC-CM2-SR5,CNRM-CM6-1,CNRM-ESM2-1,EC-Earth3,GFDL-CM4,GFDL-ESM4,HadGEM3-GC31-LL,HadGEM3-GC31-MM,INM-CM5-0,IPSL-CM6A-LR,MIROC6,MPI-ESM1-2-HR,MPI-ESM1-2-LR,MRI-ESM2-0,NorESM2-LM,NorESM2-MM,TaiESM1,UKESM1-0-LL'
+      picontrol_years:
+        description: 'piControl years per model (from its start)'
+        default: '300'
+      members:
+        description: 'Historical members per model'
+        default: '3'
+      analyse:
+        description: 'Run the tests and commit them (false = extracts only, kept as artifacts)'
+        default: 'true'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: strat-coupling-cmip6
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - id: m
+        env:
+          MODELS: ${{ inputs.models }}
+        run: |
+          python3 -c "import json, os; ms=[m.strip() for m in os.environ['MODELS'].split(',') if m.strip()]; print('matrix='+json.dumps({'model': ms}))" >> "$GITHUB_OUTPUT"
+
+  model:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/strat/cmip6_coupling_extract.py
+            scripts/strat/ssw_imprint.py
+            scripts/strat/reference/ssw_imprint.nc
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet numpy pandas xarray "zarr>=3" gcsfs cftime scipy netCDF4
+      - name: Catalogue
+        run: curl -sSf --retry 3 -o /tmp/pangeo-cmip6.csv https://storage.googleapis.com/cmip6/pangeo-cmip6.csv
+      - name: Reduce ${{ matrix.model }}
+        env:
+          YEARS: ${{ inputs.picontrol_years }}
+          MEMBERS: ${{ inputs.members }}
+        run: |
+          python scripts/strat/cmip6_coupling_extract.py --catalog /tmp/pangeo-cmip6.csv --model ${{ matrix.model }} \
+            --picontrol-years "$YEARS" --historical-members "$MEMBERS" --out out
+          ls -la out
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coupling_${{ matrix.model }}
+          path: out/
+          retention-days: 30
+          if-no-files-found: ignore
+
+  analyse:
+    needs: model
+    if: ${{ !cancelled() && inputs.analyse == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet numpy pandas scipy
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: coupling_*
+          path: runs
+          merge-multiple: true
+      - name: Events and tests
+        run: |
+          ls runs | head -80
+          python scripts/strat/cmip6_coupling.py --runs runs --out scripts/strat/reference/cmip6_coupling
+          python3 -c "import glob, json; json.dump({f.split('/')[-1][:-9]: json.load(open(f)) for f in sorted(glob.glob('runs/*_log.json'))}, open('scripts/strat/reference/cmip6_coupling_log.json', 'w'), indent=1)"
+      - name: Daily series to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tar -cf /tmp/cmip6_coupling_runs.tar -C runs $(cd runs && ls *.npz)
+          gh release view cmip6-coupling-v1 -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create cmip6-coupling-v1 -R "$GITHUB_REPOSITORY" --title "CMIP6 stratosphere-troposphere coupling: daily series v1" \
+              --notes "Daily series per CMIP6 run (scripts/strat/cmip6_coupling_extract.py): u(60N) 10/50 hPa, 10/100 hPa polar cap, 100/50 hPa eddy heat flux by wave, Siberia/Canada regional heat flux, the SSW imprint projection, North America / Eurasia 2 m temperature. From the Pangeo CMIP6 mirror (CMIP6 terms of use: cite the models)."
+          gh release upload cmip6-coupling-v1 /tmp/cmip6_coupling_runs.tar -R "$GITHUB_REPOSITORY" --clobber
+      # Never rebase: snapshot, reset to a fresh origin/main each attempt, lay the snapshot back on, commit, push.
+      - name: Commit & push
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "26825570+scorvec@users.noreply.github.com"
+          OUTS="scripts/strat/reference/cmip6_coupling_events.csv.gz scripts/strat/reference/cmip6_coupling_tests.json scripts/strat/reference/cmip6_coupling_log.json"
+          git add $OUTS
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          SNAP=$(mktemp -d)
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T -
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add $OUTS
+            if git diff --staged --quiet; then echo "no changes after resync"; exit 0; fi
+            git commit -q -m "strat: CMIP6 reflection and downward-propagation tests $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
+            echo "push $i rejected; resyncing"; sleep 5
+          done
+          echo "push failed after retries"; exit 1

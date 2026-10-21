@@ -50,11 +50,16 @@ LAGS = np.arange(-40, 91)
 
 
 def pattern():
-    """(pattern, robust mask, lat, lon): the nine models' mean days 1-60 composite, zero where it is not robust."""
+    """(pattern, robust mask, lat, lon, models, leave-one-out patterns): the models' mean days 1-60 composite, zero where
+    it is not robust; and the same from all models but one, for testing a model on a pattern it did not help make."""
     F = xr.open_dataset(FOLLOW)
     X = F.psl.sel(set="ssw_all").mean("window").values  # (model, lat, lon), hPa; both windows are 30 days
     m, sig, _, _ = robust(X)
-    return np.where(sig, m, 0.0), sig, F.lat.values, F.lon.values, int(F.sizes["model"])
+    loo = []
+    for k in range(X.shape[0]):
+        mk, sk, _, _ = robust(np.delete(X, k, axis=0))
+        loo.append(np.where(sk, mk, 0.0))
+    return np.where(sig, m, 0.0), sig, F.lat.values, F.lon.values, [str(x) for x in F.model.values], np.array(loo)
 
 
 def era5_boxes():
@@ -78,7 +83,8 @@ def window_means(index: pd.Series, onsets, a0: int, a1: int) -> np.ndarray:
 
 
 def main() -> int:
-    P, sig, lat, lon, nmod = pattern()
+    P, sig, lat, lon, models, loo = pattern()
+    nmod = len(models)
     print(f"pattern: {int(sig.sum())} of {sig.size} boxes robust, {P.min():+.2f} to {P.max():+.2f} hPa", flush=True)
     t, S = era5_boxes()
     print(f"ERA5: {len(t)} days, {t[0]:%Y-%m-%d} to {t[-1]:%Y-%m-%d}", flush=True)
@@ -96,8 +102,9 @@ def main() -> int:
             "pattern": (("lat", "lon"), P.astype("float32")),
             "robust": (("lat", "lon"), sig.astype("int8")),
             "baseline": (("term", "lat", "lon"), coef.astype("float64")),
+            "pattern_loo": (("model", "lat", "lon"), loo.astype("float32")),
         },
-        coords={"lat": lat, "lon": lon, "term": np.arange(X.shape[1])},
+        coords={"lat": lat, "lon": lon, "term": np.arange(X.shape[1]), "model": models},
     )
     ds.to_netcdf(SI.REF)  # the index below goes through the same Ref a forecast uses
     ref = SI.Ref()
