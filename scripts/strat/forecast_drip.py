@@ -716,6 +716,7 @@ def main() -> int:
         "drift_m": {str(L): np.round(dr[L][keep], 1).tolist() for L in dr},
         "lead_h": leads_f,
         "forecast_mean_sd": _js(mean, 2),
+        "member_sd": None if C.shape[0] == 1 else _js(np.nanstd(Zf, 0), 2),  # the spread (ssw_imprint's outlook)
         "frac100_ge1": None if C.shape[0] == 1 else _js(frac100, 3),
         "tail_days": [f"{d:%Y-%m-%d}" for d in H.index],
         "tail_sd": _js(Zt, 2),

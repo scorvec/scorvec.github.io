@@ -12,6 +12,8 @@ name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, wave
 #   wave_maps.py          -> assets/sst/anim/wave{1,2}_{ifs,hres}_{nh,sh}/ + wave{1,2}_maps_{ifs,hres}_manifest.json
 #   vortex_winds.py       -> assets/sst/anim/vortex_{ifs,hres}_{10,100}_{nh,sh}/ + vortex_winds_{ifs,hres}_manifest.json
 #   (hres = the IFS control in file names, as in the code; the pages say "IFS control")
+#   ssw_imprint.py        -> assets/sst/ssw_imprint.webp + data/ssw_imprint{,_history,_runs}.json: the downward
+#                            propagation monitor (imprint job, after the drips it reads)
 #   qbo_duct.py --model ifs -> scripts/strat/data/zmu_members_ifs.npz (zero line) + the 250 hPa jet sector (pacjet)
 #   qbo_zeroline.py       -> assets/sst/qbo_zeroline_*.webp re-rendered with IFS-ENS + data/qbo_zeroline_ifs.json
 #   naens (GEFS, GEPS)    -> assets/sst/{gefs,geps}_heatflux100_{nh,sh}.webp, {gefs,geps}_drip.webp (+ data/*.json),
@@ -327,6 +329,13 @@ jobs:
     needs: cycle
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    outputs:  # the cycle each model was rendered on (or skipped), for the imprint job
+      gefs_date: ${{ steps.fetch.outputs.gefs_date }}
+      gefs_time: ${{ steps.fetch.outputs.gefs_time }}
+      gefs_skip: ${{ steps.fetch.outputs.gefs_skip }}
+      geps_date: ${{ steps.fetch.outputs.geps_date }}
+      geps_time: ${{ steps.fetch.outputs.geps_time }}
+      geps_skip: ${{ steps.fetch.outputs.geps_skip }}
     env:
       MPLBACKEND: Agg
       D: ${{ needs.cycle.outputs.date }}
@@ -568,9 +577,114 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  # -------------------------------------------------------------- imprint ---
+  # The downward propagation monitor (ssw_imprint.py): every model's members' sea-level pressure, daily to day 15,
+  # projected on the CMIP6 post-SSW pattern, beside the drips the maps and naens jobs just rendered (their day-15
+  # 100 hPa cap drives the outlook). IFS-ENS ~0.8 GB and AIFS-ENS ~0.4 GB from the Google Cloud mirror, GEFS ~0.2 GB
+  # byte-ranged from S3, GEPS ~50 MB from the Datamart. Each model on the cycle its drip is on; a GEFS/GEPS cycle main
+  # already shows is not fetched again. ~10 min.
+  imprint:
+    needs: [cycle, maps, naens]
+    if: ${{ always() && needs.cycle.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      MPLBACKEND: Agg
+      D: ${{ needs.cycle.outputs.date }}
+      T: ${{ needs.cycle.outputs.time }}
+      READY: ${{ needs.cycle.outputs.ready }}
+      ONLY: ${{ inputs.only }}
+      MODELS: ${{ inputs.only || 'gefs geps' }}
+      GEFS_D: ${{ needs.naens.outputs.gefs_date }}
+      GEFS_T: ${{ needs.naens.outputs.gefs_time }}
+      GEFS_SKIP: ${{ needs.naens.outputs.gefs_skip }}
+      GEPS_D: ${{ needs.naens.outputs.geps_date }}
+      GEPS_T: ${{ needs.naens.outputs.geps_time }}
+      GEPS_SKIP: ${{ needs.naens.outputs.geps_skip }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: System libs
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+
+      - name: Collect the drips just rendered
+        uses: actions/download-artifact@v7
+        with:
+          pattern: strat-ifs-*
+          merge-multiple: true
+          path: /tmp/art
+
+      # The record files accumulate, so they are read from main as it is now (a queued run checks out an older commit);
+      # the drips this run rendered are laid over main's.
+      - name: The records as main has them, and this run's drips
+        run: |
+          touch /tmp/t0
+          git fetch -q --depth 1 origin main
+          for f in assets/sst/data/ssw_imprint.json assets/sst/data/ssw_imprint_history.json assets/sst/data/ssw_imprint_runs.json \
+                   assets/sst/data/{aifs,ifs,hres,gefs,geps}_drip.json; do
+            git checkout origin/main -- "$f" 2>/dev/null || echo "  $f: not on main yet"
+          done
+          shopt -s nullglob
+          for t in /tmp/art/*.tgz; do
+            [ -s "$t" ] && tar -xzf "$t" -C . --wildcards 'assets/sst/data/*_drip.json' 2>/dev/null || true
+          done
+          ls -la assets/sst/data/*_drip.json
+
+      - name: SSW imprint index and the downward propagation monitor
+        timeout-minutes: 30
+        continue-on-error: true
+        run: |
+          if [ -z "$ONLY" ]; then
+            m=aifs,hres; [ "$READY" = "true" ] && m=aifs,ifs,hres
+            python scripts/strat/ssw_imprint.py run --models "$m" --date "$D" --time "$T" --no-render \
+              || echo "::warning::the ECMWF imprint indices failed; keeping their previous runs"
+          fi
+          for x in $MODELS; do
+            X=$(echo "$x" | tr a-z A-Z); dv=${X}_D tv=${X}_T sv=${X}_SKIP
+            if [ -z "${!dv}" ] || [ "${!sv}" = "true" ]; then echo "  $x: nothing new"; continue; fi
+            python scripts/strat/ssw_imprint.py run --models "$x" --date "${!dv}" --time "${!tv}" --no-render \
+              || echo "::warning::$x imprint index failed; keeping its previous run"
+          done
+          python scripts/strat/ssw_imprint.py render || echo "::warning::the monitor did not render; keeping the previous figure"
+
+      - name: Pack the outputs
+        if: always()
+        run: |
+          set -euo pipefail
+          : > /tmp/imprint.list
+          for p in assets/sst/ssw_imprint.webp assets/sst/data/ssw_imprint.json assets/sst/data/ssw_imprint_history.json \
+                   assets/sst/data/ssw_imprint_runs.json; do
+            [ -e "$p" ] && [ "$p" -nt /tmp/t0 ] && echo "$p" >> /tmp/imprint.list
+          done
+          if [ ! -s /tmp/imprint.list ]; then : > /tmp/strat-ifs-imprint.tgz; exit 0; fi
+          tar -czf /tmp/strat-ifs-imprint.tgz -T /tmp/imprint.list
+          cat /tmp/imprint.list
+
+      - name: Hand off to publish
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: strat-ifs-imprint
+          path: /tmp/strat-ifs-imprint.tgz
+          if-no-files-found: warn
+          retention-days: 7
+
   # -------------------------------------------------------------- publish ---
   publish:
-    needs: [cycle, maps, naens, zmu]
+    needs: [cycle, maps, naens, zmu, imprint]
     if: ${{ always() && (github.event_name == 'schedule' || github.event.inputs.publish == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -625,7 +739,9 @@ jobs:
                    assets/sst/anim/wave1_maps_geps_manifest.json assets/sst/anim/wave2_maps_geps_manifest.json assets/sst/anim/vortex_winds_geps_manifest.json \
                    assets/sst/anim/pacjet_ifs_manifest.json assets/sst/pacjet_ifs_*.webp assets/sst/data/pacjet_ifs.json \
                    assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
-                   assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_ifs.json; do
+                   assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_ifs.json \
+                   assets/sst/ssw_imprint.webp assets/sst/data/ssw_imprint.json assets/sst/data/ssw_imprint_history.json \
+                   assets/sst/data/ssw_imprint_runs.json; do
             if [ -e "$f" ]; then git add "$f"; fi
           done
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi

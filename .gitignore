@@ -137,6 +137,8 @@ scripts/strat/*
 !scripts/strat/qbo_zeroline.py
 !scripts/strat/build_qbo_zeroline.py
 !scripts/strat/fetch_m2_zmu.py
+!scripts/strat/ssw_imprint.py
+!scripts/strat/build_ssw_imprint.py
 # GEPS subseasonal vortex products (subseasonal.html, built with scripts/geps)
 !scripts/strat/strat_maps.py
 !scripts/strat/strat_series.py
@@ -168,6 +170,8 @@ scripts/strat/*
 !scripts/strat/reference/tape_geosfp_seed.npz
 !scripts/strat/reference/qbo_zeroline_ref.nc
 !scripts/strat/reference/qbo_zeroline_test.json
+!scripts/strat/reference/ssw_imprint.nc
+!scripts/strat/reference/ssw_imprint_drift.json
 
 # local archives, caches and runtime state
 local_archive/
