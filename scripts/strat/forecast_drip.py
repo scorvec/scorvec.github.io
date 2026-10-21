@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """FORECAST dripping paint: standardised polar-cap (65-90N) geopotential height from 1000 to 10 hPa against time - the
 observed record of the last ~60 days, then the ensemble-mean forecast - for GEPS and GEFS (day 35, and with --days 15
-the days 1-15 product from any cycle, read from the shared strat_ens.py fetch), AIFS-ENS and IFS-ENS (day 15).
+the days 1-15 product from any cycle, read from the shared strat_ens.py fetch), AIFS-ENS and IFS-ENS (day 15) - and the
+single IFS control run (day 15).
 
 Same scale as the MERRA-2 history drips (strat_history.py): every value is (cap height - the MERRA-2 harmonics+trend
 mean) / the MERRA-2 seasonal sd, from reference/drip_std.json (build_drip_ref.py, which reproduces the history
@@ -20,10 +21,13 @@ Model drift - never shown as signal:
   AIFS-ENS no reforecast exists, so the control's cap forecasts from recent 00Z cycles are verified against the GEOS FP
            analyses (plus the GEOS FP - MERRA-2 offset) and the mean error per level and lead is removed
            (--measure-aifs-drift -> reference/aifs_capdrift.json).
-  IFS-ENS  no open reforecast either (ECMWF's are not open data), and no control at pressure levels on open data, so
-           the same verification is made with the mean of all 50 perturbed members over the same cycles
+  IFS-ENS  no open reforecast either (ECMWF's are not open data), and no control in the ensemble files at pressure
+           levels, so the same verification is made with the mean of all 50 perturbed members over the same cycles
            (--measure-drift ifs -> reference/ifs_capdrift.json). 50 members, 0.25 deg, day 15, from the shared
            IFS-ENS file (ifs_ens.py, Google Cloud mirror only).
+  IFS control (--model hres) the unperturbed run from its own open-data stream (ifs_ens.py ctrl_gh), day 15, with the
+           IFS-ENS drift above: the same model at the same resolution, whose mean error over many cycles is the
+           ensemble's. One run, so the lower panel has no spread and no member share.
   At any level without a measured drift, only the model's offset from GEOS FP at the analysis and day 1 is removed and
   the level is HATCHED. The 1000 hPa cap needs that offset most: models extrapolate heights below ground where GEOS FP
   and MERRA-2 leave those points out (in summer whole rows near the pole are underground and the observed 1000 hPa cap
@@ -35,6 +39,7 @@ negative AO) and the share of members with the 100 hPa cap >= +1 sd.
     python forecast_drip.py --model gefs --date 20260926 --out-dir assets/gefs
     python forecast_drip.py --model aifs --date 20260927 --time 00 --out-dir assets/sst
     python forecast_drip.py --model ifs --date 20260927 --time 00 --out-dir assets/sst
+    python forecast_drip.py --model hres --date 20261021 --time 12 --out-dir assets/sst
     python forecast_drip.py --model gefs --days 15 --date 20261020 --time 12 --out-dir assets/sst
     python forecast_drip.py --measure-drift ifs          # outside Actions, once: -> reference/ifs_capdrift.json
 """
@@ -59,6 +64,7 @@ from build_drip_ref import Ref
 import geosfp_cap as FP
 
 LEVELS = FP.LEVELS  # 1000 ... 10 hPa (11)
+NAME = {"geps": "GEPS", "gefs": "GEFS", "aifs": "AIFS-ENS", "ifs": "IFS-ENS", "hres": "IFS control"}
 G = 9.80665
 TAIL = 60
 INK, MUTED = "#1f2328", "#6f6b64"
@@ -250,6 +256,17 @@ def ifs(date: str, time: str):
     if not IE.published(date, time):
         raise SystemExit(f"IFS-ENS {date} {time}Z is not on the Google mirror yet")
     path = IE.ensure(IE.E.Cycle(date, time), IE.spec_gh())
+    C, steps = _caps_members(path, "gh", [int(x) for x in LEVELS])
+    return C, [int(s) for s in steps]
+
+
+def hres(date: str, time: str):
+    """(1, lead, level) cap heights of the IFS control, daily 0..360 h, from the shared control gh file (ifs_ens.py)."""
+    import ifs_ens as IE
+
+    if not IE.ctrl_published(date, time):
+        raise SystemExit(f"IFS control {date} {time}Z is not on the Google mirror yet")
+    path = IE.ensure(IE.E.Cycle(date, time), IE.spec_ctrl_gh())
     C, steps = _caps_members(path, "gh", [int(x) for x in LEVELS])
     return C, [int(s) for s in steps]
 
@@ -449,8 +466,9 @@ def render(
     X = np.r_[(tail_days - init).days.values, np.array(leads) / 24.0]
     Z = np.vstack([Zt, np.nanmean(Zf, 0)])  # (time, level)
     p = np.array(LEVELS)
+    single = nmem == 1  # the IFS control: one run, no spread and no member share
     fig = plt.figure(figsize=(13.4, 8.9), dpi=120)
-    name = {"geps": "GEPS", "gefs": "GEFS", "aifs": "AIFS-ENS", "ifs": "IFS-ENS"}[model]
+    name = NAME[model]
     fig.text(
         0.07,
         0.975,
@@ -464,10 +482,11 @@ def render(
     fig.text(
         0.07,
         0.935,
-        f"Standardised 65–90°N geopotential height (MERRA-2 1980–2026 scale, as the history drips). Left of "
-        f"the line: GEOS FP analyses (offset to MERRA-2 removed). Right: ensemble mean of {nmem} members, model drift "
-        f"removed where measured ({note}); hatched = drift not measured at that level (only the analysis-time offset "
-        f"from GEOS FP removed), read with caution.",
+        "Standardised 65–90°N geopotential height (MERRA-2 1980–2026 scale, as the history drips). Left of "
+        "the line: GEOS FP analyses (offset to MERRA-2 removed). Right: "
+        + ("the IFS control, one run" if single else f"ensemble mean of {nmem} members")
+        + f", model drift removed where measured ({note}); hatched = drift not measured at that level (only the "
+        f"analysis-time offset from GEOS FP removed), read with caution.",
         ha="left",
         va="top",
         fontsize=9.4,
@@ -506,14 +525,16 @@ def render(
     k1000 = LEVELS.index(1000.0)
     xf = np.array(leads) / 24.0
     ax2.plot((tail_days - init).days.values, Zt[:, k1000], color=INK, lw=1.4, label="1000 hPa cap, observed (GEOS FP)")
-    q10, q90 = np.nanpercentile(Zf[:, :, k1000], [10, 90], axis=0)
-    ax2.fill_between(xf, q10, q90, color="#b3122b", alpha=0.15, lw=0, label="members 10–90 %")
+    if not single:
+        q10, q90 = np.nanpercentile(Zf[:, :, k1000], [10, 90], axis=0)
+        ax2.fill_between(xf, q10, q90, color="#b3122b", alpha=0.15, lw=0, label="members 10–90 %")
     ax2.plot(
         xf,
         np.nanmean(Zf[:, :, k1000], 0),
         color="#b3122b",
         lw=1.6,
-        label="ensemble mean" + ("" if 1000.0 in corrected else " (analysis offset removed; drift not measured)"),
+        label=("IFS control" if single else "ensemble mean")
+        + ("" if 1000.0 in corrected else " (analysis offset removed; drift not measured)"),
     )
     ax2.axhline(0, color="#555", lw=0.8)
     ax2.axvline(0, color=INK, lw=1.0)
@@ -521,20 +542,23 @@ def render(
     ax2.set_xticklabels([f"{init + pd.Timedelta(days=t):%d %b}" for t in ticks], fontsize=8.5)
     ax2.set_xlim(X[0], X[-1])
     ax2.set_ylabel("sd (high = −AO)", fontsize=10, color=INK)
-    ax3 = ax2.twinx()
-    ax3.bar(xf, frac100 * 100, width=0.8, color="#8c6d31", alpha=0.35, label="members with 100 hPa cap ≥ +1 sd (%)")
     # headroom for the key, so it does not sit on the observed line or under the bars; the key goes on the twin,
     # the top-most axes, so nothing draws over it
     lo, hi = ax2.get_ylim()
     ax2.set_ylim(lo, hi + 0.3 * (hi - lo))
-    ax3.set_ylim(0, 130)
-    ax3.set_yticks([0, 20, 40, 60, 80, 100])
-    ax3.set_ylabel("% of members, 100 hPa ≥ +1 sd", fontsize=9, color="#8c6d31")
     h1, l1 = ax2.get_legend_handles_labels()
-    h2, l2 = ax3.get_legend_handles_labels()
-    ax3.legend(h1 + h2, l1 + l2, fontsize=8.3, frameon=True, framealpha=0.9, edgecolor="none", ncol=4, loc="upper left")
+    top = ax2
+    if not single:
+        top = ax2.twinx()
+        top.bar(xf, frac100 * 100, width=0.8, color="#8c6d31", alpha=0.35, label="members with 100 hPa cap ≥ +1 sd (%)")
+        top.set_ylim(0, 130)
+        top.set_yticks([0, 20, 40, 60, 80, 100])
+        top.set_ylabel("% of members, 100 hPa ≥ +1 sd", fontsize=9, color="#8c6d31")
+    h2, l2 = top.get_legend_handles_labels() if top is not ax2 else ([], [])
+    top.legend(h1 + h2, l1 + l2, fontsize=8.3, frameon=True, framealpha=0.9, edgecolor="none", ncol=4, loc="upper left")
     ax2.set_title(
-        "Near the surface: the 1000 hPa polar cap (an Arctic Oscillation proxy) and the lower stratosphere's weak-vortex share",
+        "Near the surface: the 1000 hPa polar cap (an Arctic Oscillation proxy)"
+        + ("" if single else " and the lower stratosphere's weak-vortex share"),
         loc="left",
         fontsize=10.2,
         fontweight="bold",
@@ -552,6 +576,8 @@ def render(
             "gefs": "NOAA GEFS (AWS Open Data); drift: GEFSv12 reforecast climatology",
             "aifs": "ECMWF AIFS-ENS open data (CC BY 4.0)",
             "ifs": "ECMWF IFS-ENS open data (CC BY 4.0), 50 perturbed members, 0.25°, Google Cloud mirror",
+            "hres": "ECMWF open data (CC BY 4.0), the IFS control (ECMWF's unperturbed 9 km run, called HRES until May "
+            "2026), 0.25°, Google Cloud mirror",
         }[model]
         + " · GEOS FP (NASA GMAO) · MERRA-2 scale (NASA GMAO)",
         fontsize=8.2,
@@ -571,7 +597,7 @@ def _js(a, nd):
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", choices=("geps", "gefs", "aifs", "ifs"))
+    ap.add_argument("--model", choices=tuple(NAME))
     ap.add_argument("--date")
     ap.add_argument("--time", default="00")
     ap.add_argument("--out-dir")
@@ -608,6 +634,7 @@ def main() -> int:
             "gefs": lambda: gefs(a.date),
             "aifs": lambda: aifs(a.date, a.time),
             "ifs": lambda: ifs(a.date, a.time),
+            "hres": lambda: hres(a.date, a.time),
         }[a.model]()
         if cache:
             np.savez_compressed(cache, C=C, leads=np.array(leads))
@@ -619,6 +646,7 @@ def main() -> int:
         "gefs": lambda: drift_gefs(init, leads, ref),
         "aifs": lambda: drift_aifs(init, leads, ref, None),
         "ifs": lambda: drift_aifs(init, leads, ref, None, "ifs"),
+        "hres": lambda: drift_aifs(init, leads, ref, None, "ifs"),  # the IFS-ENS drift (module docstring)
     }[a.model]()
     C = C[np.isfinite(C[:, 1:, :]).all(axis=(1, 2))]
     # observed tail first: it also measures each model's ANALYSIS offset from GEOS FP (hence from MERRA-2), which is
@@ -659,7 +687,7 @@ def main() -> int:
     Zt = np.column_stack([(raw[:, k] - ref.mean(H.index, L)) / ref.sd(H.index, L) for k, L in enumerate(LEVELS)])
     frac100 = np.nanmean(Zf[:, :, LEVELS.index(100.0)] >= 1.0, 0)
     corrected = set(dr) - set(offsets)
-    name = {"geps": "GEPS", "gefs": "GEFS", "aifs": "AIFS-ENS", "ifs": "IFS-ENS"}[a.model]
+    name = NAME[a.model]
     out = Path(a.out_dir)
     out = out if out.is_absolute() else REPO / out
     render(
@@ -688,7 +716,7 @@ def main() -> int:
         "drift_m": {str(L): np.round(dr[L][keep], 1).tolist() for L in dr},
         "lead_h": leads_f,
         "forecast_mean_sd": _js(mean, 2),
-        "frac100_ge1": _js(frac100, 3),
+        "frac100_ge1": None if C.shape[0] == 1 else _js(frac100, 3),
         "tail_days": [f"{d:%Y-%m-%d}" for d in H.index],
         "tail_sd": _js(Zt, 2),
     }

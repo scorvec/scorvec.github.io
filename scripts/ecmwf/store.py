@@ -259,8 +259,8 @@ class Cycle:
 
 @dataclass(frozen=True)
 class Spec:
-    model: str  # "aifs-ens" | "ifs" | "aifs-single" (stream oper, type fc)
-    type: str  # "pf" | "cf" | "em"
+    model: str  # "aifs-ens" | "ifs" | "aifs-single"
+    type: str  # "pf" | "cf" | "em" (stream enfo) | "fc" (stream oper: aifs-single, the IFS control)
     param: object  # one param str, or a tuple of params batched in 1 retrieve
     levtype: str  # "pl" | "sfc"
     levelist: tuple = ()  # () for sfc
@@ -611,7 +611,7 @@ def _lock(p: Path):
 
 def _to_req(cycle: Cycle, spec: Spec) -> dict:
     pm = list(spec.params)
-    stream = "oper" if spec.model == "aifs-single" else "enfo"
+    stream = "oper" if spec.type == "fc" else "enfo"
     r = dict(
         model=spec.model,
         date=cycle.iso,
@@ -677,7 +677,7 @@ def _fetch_v2(cycle: Cycle, spec: Spec, target: str) -> str | None:
     stats: dict = {}
     try:
         with open(target, "wb") as out:
-            stream = "oper" if spec.model == "aifs-single" else "enfo"
+            stream = "oper" if spec.type == "fc" else "enfo"
             for step in spec.steps:
                 idx = rf.fetch_index(
                     cycle.date, cycle.time, spec.model, int(step), spec.type, stream=stream, sources=srcs

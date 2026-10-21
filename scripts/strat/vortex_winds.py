@@ -51,10 +51,14 @@ cycle through the shared ECMWF store, Google mirror), plus the control at step 0
 Opened with dask one step at a time so the 25-member mean never holds more than
 one step's members in memory.
 
-IFS-ENS: --model ifs draws the mean of ALL 50
-IFS-ENS perturbed members from the shared IFS-ENS u/v file (ifs_ens.py: 10 and 100 hPa, 12-hourly, Google Cloud mirror
-only) and a 12-hourly geopotential-height pull of the same members into vortex_ifs_10/ and vortex_ifs_100/, same scales. Open data has no IFS control at pressure levels, so its
-analysis frame is the IFS HRES step 0, the analysis the ensemble starts from.
+IFS-ENS: --model ifs draws the mean of ALL 50 IFS-ENS perturbed members from the shared IFS-ENS u/v file (ifs_ens.py:
+10 and 100 hPa, 12-hourly, Google Cloud mirror only) and a 12-hourly geopotential-height pull of the same members into
+vortex_ifs_{10,100}_{nh,sh}/, same scales. The ensemble files carry no control at pressure levels, so its analysis frame
+is the IFS control's step 0, the analysis the ensemble starts from.
+
+IFS control: --model hres draws the single unperturbed run (its own open-data stream: the shared control u/v/gh file)
+into vortex_hres_{10,100}_{nh,sh}/, analysis to day 15. It is what the ensemble mean is not - one realisation, whose
+vortex shape in the second week is largely its own (see "Why the mean" above) - and the frames say so.
 
 GEFS and GEPS: --model gefs / geps draw the mean of every member (control + 30 / control + 20) from the shared fetch
 (strat_ens.py, part "winds": the ensemble-mean u, v and height at 10 and 100 hPa, 0.5 deg, 12-hourly) into
@@ -213,9 +217,26 @@ def fetch(date: str, time: str, members: int = MEMBERS):
     return out, source
 
 
+def fetch_hres(date: str, time: str):
+    """The IFS control: u, v and height at both levels, every 12 h step, from the shared control file (ifs_ens.py
+    ctrl_wind). Its step 0 is the analysis frame of the IFS-ENS loop too."""
+    import ifs_ens as IE
+
+    if not IE.ctrl_published(date, time):
+        raise SystemExit(f"IFS control {date} {time}Z is not on the Google mirror yet")
+    path = IE.ensure(IE.E.Cycle(date, time), IE.spec_ctrl_wind())
+    out = {}
+    for lev in LEVELS:
+        u, v, gh = (_mean_field(path, sh, lev) for sh in ("u", "v", "gh"))
+        keep = ("step", "latitude", "longitude")
+        out[lev] = tuple(f.drop_vars([c for c in f.coords if c not in keep]) for f in (u, v, gh / 10.0))  # gh in dam
+    return out, "IFS control, one run"
+
+
 def fetch_ifs(date: str, time: str):
     """IFS-ENS: u and v at both levels, every 12 h step, the forecast steps as the mean of ALL 50 perturbed members
-    (the shared IFS-ENS file) and step 0 from the IFS HRES analysis (no ensemble control on open data)."""
+    (the shared IFS-ENS file) and step 0 from the IFS control (the ensemble files carry no control at pressure
+    levels)."""
     import ifs_ens as IE
 
     if not IE.published(date, time):
@@ -223,12 +244,12 @@ def fetch_ifs(date: str, time: str):
     cyc = IE.E.Cycle(date, time)
     uv = IE.ensure(cyc, IE.spec_uv())
     gh = IE.ensure(cyc, IE.E.Spec("ifs", "pf", "gh", "pl", LEVELS, STEPS_12H))  # geopotential height, gpm, 12-hourly
-    ana = IE.hres_analysis(cyc, ("u", "v", "gh"), LEVELS)
+    ana = IE.ensure(cyc, IE.spec_ctrl_wind())
     out = {}
     for lev in LEVELS:
         trio = []
         for sh, path in (("u", uv), ("v", uv), ("gh", gh)):
-            a = _with_step(_mean_field(ana, sh, lev), 0)
+            a = _with_step(at_step(_mean_field(ana, sh, lev), 0), 0)
             f = _mean_field(path, sh, lev)
             f = f.isel(step=np.flatnonzero(IE.step_hours(f) > 0))
             f = f.drop_vars([c for c in f.coords if c not in ("step", "latitude", "longitude")])
@@ -261,9 +282,9 @@ def fetch_shared(model: str, date: str, time: str):
 
 FIELDS = ("u", "v", "z")  # the AIFS-ENS fields (z = geopotential, m2 s-2)
 G0 = 9.80665
-MODEL = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS", "gefs": "GEFS", "geps": "GEPS"}
-CENTRE = {"aifs": "ECMWF", "ifs": "ECMWF", "gefs": "NOAA", "geps": "ECCC"}
-PREFIX = {"aifs": "vortex", "ifs": "vortex_ifs", "gefs": "vortex_gefs", "geps": "vortex_geps"}  # frame dirs / regions
+MODEL = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS", "hres": "IFS control", "gefs": "GEFS", "geps": "GEPS"}
+CENTRE = {"aifs": "ECMWF", "ifs": "ECMWF", "hres": "ECMWF", "gefs": "NOAA", "geps": "ECCC"}
+PREFIX = {m: "vortex" if m == "aifs" else f"vortex_{m}" for m in MODEL}  # frame dirs / regions
 
 
 def circular_boundary(ax):
@@ -402,8 +423,11 @@ def render(uv, lev, hemi, date, time, step_h, out_path: Path, source: str = "con
         ha="left",
         y=0.975,
     )
+    single = model == "hres"
     if step_h == 0 and model == "ifs":
-        what = "ECMWF IFS HRES analysis, the state IFS-ENS starts from (open data has no IFS-ENS control)"
+        what = "ECMWF IFS control analysis, the state IFS-ENS starts from"
+    elif single:
+        what = f"ECMWF {'IFS control analysis' if step_h == 0 else source}"
     else:
         what = f"{CENTRE[model]} {MODEL[model]} " + ("control (the analysis)" if step_h == 0 else source)
     fig.text(
@@ -411,8 +435,8 @@ def render(uv, lev, hemi, date, time, step_h, out_path: Path, source: str = "con
         0.935,
         f"{what} · {date[:4]}-{date[4:6]}-{date[6:]} {time}Z {tag} · "
         f"valid {valid:%a %d %b %HZ}\n"
-        f"{'speed' if step_h == 0 else 'speed of the mean wind'} shaded, "
-        f"{'barbs' if step_h == 0 else 'its barbs'} in m s$^{{-1}}$ (half 5, full 10, pennant 50)\n"
+        f"{'speed' if step_h == 0 or single else 'speed of the mean wind'} shaded, "
+        f"{'barbs' if step_h == 0 or single else 'its barbs'} in m s$^{{-1}}$ (half 5, full 10, pennant 50)\n"
         f"black: geopotential height, dam, every {HEIGHT_STEP[lev]} dam · thin lines: the speed levels · red: u = 0 (vortex edge, to 80°)\n"
         f"dashed ring: 60° · the disc at the pole: left blank poleward of {POLE_MASK_LAT:.0f}°",
         fontsize=9,
@@ -424,9 +448,14 @@ def render(uv, lev, hemi, date, time, step_h, out_path: Path, source: str = "con
     fig.text(
         0.03,
         0.012,
-        "Where the members disagree the mean is weaker and smoother than any one of them: a split carried by a few\n"
-        "members shows as a stretched, slackened vortex, not two centres. Colour scales are fixed per level, the same "
-        "in both hemispheres.",
+        (
+            "One run, not an ensemble: by the second week its vortex shape is largely its own, so a split\n"
+            "here is one realisation of many. "
+            if single
+            else "Where the members disagree the mean is weaker and smoother than any one of them: a split carried by a "
+            "few\nmembers shows as a stretched, slackened vortex, not two centres. "
+        )
+        + "Colour scales are fixed per level, the same in both hemispheres.",
         fontsize=8,
         color="#6f6b64",
         ha="left",
@@ -483,7 +512,7 @@ def build_loop(full, date, time, anim_root: Path, manifest: Path, source: str = 
                 print(f"    {lev} hPa {h.upper()}  F{step_h:03d}", flush=True)
             regions[f"{PREFIX[model]}_{lev}_{h}"] = {
                 "label": f"Vortex winds — {lev} hPa, {'northern' if h == 'nh' else 'southern'} hemisphere, "
-                f"{MODEL[model]} ensemble mean",
+                f"{MODEL[model]}" + ("" if model == "hres" else " ensemble mean"),
                 "n_frames": len(frames),
                 "frames": frames,
             }
@@ -515,6 +544,8 @@ def main(argv=None) -> int:
         full, source = fetch_shared(a.model, a.date, a.time)
     elif a.model == "ifs":
         full, source = fetch_ifs(a.date, a.time)
+    elif a.model == "hres":
+        full, source = fetch_hres(a.date, a.time)
     else:
         full, source = fetch(a.date, a.time)
     return build_loop(full, a.date, a.time, Path(a.anim_dir), Path(a.manifest), source, a.model)

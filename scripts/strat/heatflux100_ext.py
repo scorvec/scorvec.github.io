@@ -13,9 +13,10 @@ Datamart keeps too few runs for that test, so GEPS is uncorrected.
         the GEPS vortex products already cache (strat_maps.fetch). Actions, in run_geps.sh (geps.yml).
   gefs  NOAA GEFS 00Z run, gec00 + gep01-30, pgrb2a 0.5 deg, VGRD/TMP at 100 mb byte-ranged from NOAA's S3 bucket via
         the .idx files (as for every NOAA model on the site). Actions, in gefs.yml.
-  ifs   ECMWF IFS-ENS 00/12Z, ALL 50 perturbed members (open data has no IFS control at pressure levels), days 0-15,
-        v at 100 hPa from the shared IFS-ENS u/v file and t at 100 hPa (ifs_ens.py, Google Cloud mirror only), taken to
-        0.5 deg like GEPS and GEFS - wavenumbers 1-72 need no finer grid. Actions, in strat-ifs.yml.
+  ifs   ECMWF IFS-ENS 00/12Z, ALL 50 perturbed members, days 0-15, v at 100 hPa from the shared IFS-ENS u/v file and t
+        at 100 hPa (ifs_ens.py, Google Cloud mirror only), taken to 0.5 deg like GEPS and GEFS - wavenumbers 1-72 need
+        no finer grid. The ensemble files carry no control at pressure levels; the control line is the IFS control from
+        its own stream (ifs_ens.py ctrl_wind / ctrl_t100). Actions, in strat-ifs.yml.
   --days 15 (GEFS, GEPS): the days 1-15 product beside AIFS-ENS and IFS-ENS - the cycle strat-ifs.yml is on (00 or
         12Z), analysis to day 15, the members' fluxes from the shared fetch (strat_ens.py, part "flux"), the control
         first. GEFS keeps its measured error correction; GEPS stays uncorrected.
@@ -138,17 +139,24 @@ def gefs(date: str, workers: int = 32):
     return V[ok], T[ok]
 
 
-def ifs(date: str, time: str):
-    """(v, t) for all 50 IFS-ENS perturbed members, daily 0..360 h, at 0.5 deg on LAT_H x LON_H (every other 0.25 deg
-    point; the open-data grid starts at -180, so it is rolled to start at 0)."""
+def ifs(date: str, time: str, control: bool = False):
+    """(v, t) for all 50 IFS-ENS perturbed members, or with `control` the IFS control as one member, daily 0..360 h, at
+    0.5 deg on LAT_H x LON_H (every other 0.25 deg point; the open-data grid starts at -180, so it is rolled to start
+    at 0)."""
     import ifs_ens as IE
 
-    if not IE.published(date, time):
-        raise SystemExit(f"IFS-ENS {date} {time}Z is not on the Google mirror yet")
+    if not (IE.ctrl_published if control else IE.published)(date, time):
+        raise SystemExit(f"{IE.CTRL_LABEL if control else IE.LABEL} {date} {time}Z is not on the Google mirror yet")
     cyc = IE.E.Cycle(date, time)
+    specs = (
+        ((IE.spec_ctrl_wind(), "v"), (IE.spec_ctrl_t100(), "t"))
+        if control
+        else ((IE.spec_uv(), "v"), (IE.spec_t100(), "t"))
+    )
     out = []
-    for spec, short in ((IE.spec_uv(), "v"), (IE.spec_t100(), "t")):
+    for spec, short in specs:
         da = IE.open_field(IE.ensure(cyc, spec), short, 100)
+        da = da if "number" in da.dims else da.expand_dims("number")
         hrs = IE.step_hours(da)
         keep = [int(np.flatnonzero(hrs == L)[0]) for L in IFS_LEADS]
         lon = da.longitude.values[::2]
@@ -208,9 +216,14 @@ def main() -> int:
         ]()
         lat, f = fluxes_chunked(v, t)  # {tot,k1,k2}: (member, step, lat)
         n = int(v.shape[0])
-        has_cf = a.model != "ifs"  # IFS-ENS: 50 perturbed members, no control
+        has_cf = a.model != "ifs"  # IFS-ENS: 50 perturbed members; its control comes from its own stream, below
     fc = {k: x[:1] for k, x in f.items()} if has_cf else None  # control = member 0
-    fall = dict(f.items())  # the ensemble = control + perturbed, as it is issued
+    if a.model == "ifs":
+        try:
+            fc = fluxes_chunked(*ifs(a.date, a.time, control=True))[1]
+        except SystemExit as e:
+            print(f"  no IFS control line: {e}", flush=True)
+    fall = dict(f.items())  # the ensemble as issued: control + perturbed (GEFS, GEPS); IFS-ENS its 50 perturbed members
     clim = xr.open_dataset(HF.CLIM).load() if HF.CLIM.exists() else None
     hist = HF.load_history(Path(a.history))
     out = Path(a.out_dir)

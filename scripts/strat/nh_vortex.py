@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""NH polar vortex FORECAST monitor -- AIFS-ENS, IFS-ENS, GEFS, GEPS, GDPS and GEOS FP.
+"""NH polar vortex FORECAST monitor -- AIFS-ENS, IFS-ENS, the IFS control, GEFS, GEPS, GDPS and GEOS FP.
 
 Three panels, forecast-first (a short analysis tail for context, then every
 model that publishes the stratosphere):
@@ -25,13 +25,17 @@ Models (probed 2026-08-28, GEFS 2026-10-20; every one publishes u AND height at 
   gdps  GDPS      deterministic, 0.15 deg, day 10 -> ~31 MB/cycle.
   geosfp GEOS FP   NASA GMAO, deterministic, newest 00Z run (day 10; 06/12/18Z stop at day 5), NCCS OPeNDAP
                   MERRA-2's operational sibling.
-  ifs   IFS-ENS   all 50 perturbed members, 0.25 deg, day 15. There is NO control
-                  at these levels - open data publishes only type=pf at pressure levels.
+  ifs   IFS-ENS   all 50 perturbed members, 0.25 deg, day 15. The ensemble files carry
+                  no control at these levels - open data publishes only type=pf there.
                   Read from the shared IFS-ENS files (ifs_ens.py: u at 10/100 hPa and gh
                   at 100 hPa, fetched once a cycle for every stratosphere product, Google
                   Cloud mirror only). IFS day 15 reaches the mirror ~08:50Z / 20:55Z, so
                   this figure renders in strat-ifs.yml (09:05 / 21:05), not strat.yml; a
                   cycle the mirror does not have yet drops IFS with a message.
+  hres  IFS control  the unperturbed run (called HRES until May 2026), 0.25 deg, day 15,
+                  from its own open-data stream (oper): u and gh at 10/100 hPa from the
+                  shared control file (ifs_ens.py ctrl_wind, ~0.1 GB). Drawn dashed, as
+                  the other single runs.
 
 DETRENDING (the reason the reference is built the way it is)
 ------------------------------------------------------------
@@ -61,7 +65,7 @@ the files the upper-stratosphere and BDC jobs commit every day (u60 at 10 and 10
 MERRA-2 scale by the measured GEOS FP - MERRA-2 offset (geosfp_cap.offset_at, -14 m at 100 hPa); the winds need
 none. _consistency() checks the tail against MERRA-2 wherever the two overlap.
 
-    python scripts/strat/nh_vortex.py                     # every model, IFS at 50 members
+    python scripts/strat/nh_vortex.py                     # every model, IFS-ENS at 50 members
     python scripts/strat/nh_vortex.py --models aifs,geps  # no downloads beyond GEPS
     python scripts/strat/nh_vortex.py --cycle 2026092700  # a named cycle (no ens_cycle cache needed)
 """
@@ -113,6 +117,7 @@ DETREND = {"zcap"}  # see the module docstring for why only this one
 STYLE = {
     "aifs": ("#b4541f", "AIFS-ENS"),
     "ifs": ("#1f4b6e", "IFS-ENS"),
+    "hres": ("#1f4b6e", "IFS control"),  # dashed, so the ensemble's navy is free for it
     "gefs": ("#3b88c4", "GEFS"),  # mid blue: apart from GEPS green for every reader, lighter than IFS-ENS navy
     "geps": ("#2f7d4f", "GEPS"),
     "gdps": ("#6b4c9a", "GDPS"),
@@ -367,6 +372,37 @@ def load_ifs(date, cyc, leads, members, light=False):
     return out
 
 
+def load_hres(date, cyc, leads):
+    """The IFS control at the daily steps: u at 10/100 hPa and gh at 100 hPa from the shared control file
+    (ifs_ens.py ctrl_wind, 12-hourly). Google Cloud mirror only; a cycle not there yet drops it with a message."""
+    import sys
+
+    sys.path.insert(0, str(HERE))
+    try:
+        import ifs_ens as IE
+    except Exception as e:  # noqa: BLE001
+        print(f"    ifs_ens unavailable ({e}); skipping the IFS control", flush=True)
+        return None
+    if not IE.ctrl_published(date, cyc):
+        print(f"    IFS control {date} {cyc}Z is not on the Google mirror yet; the figure goes without it", flush=True)
+        return None
+    try:
+        path = IE.ensure(IE.E.Cycle(date, cyc), IE.spec_ctrl_wind())
+    except Exception as e:  # noqa: BLE001
+        print(f"::warning::IFS control file unavailable ({type(e).__name__}: {str(e)[:100]}); skipping it", flush=True)
+        return None
+    base = pd.Timestamp(f"{date} {cyc}:00")
+    out = {}
+    for key, short, lev, red in (
+        ("u10", "u", 10, zonal_at),
+        ("u100", "u", 100, zonal_at),
+        ("zcap", "gh", 100, cap_mean),
+    ):
+        da = IE.open_field(path, short, lev)
+        out[key] = _frame(da.isel(step=np.flatnonzero(np.isin(IE.step_hours(da), leads))), red, base)
+    return out
+
+
 GEOSFP_FC = "https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/fcast/inst3_3d_asm_Np/inst3_3d_asm_Np.{c}"
 
 
@@ -596,15 +632,15 @@ def draw_model(ax, df, key, sub=None):
             lw=2.0,
             ls="--",
             zorder=5,
-            label=f"{lab} ({'control' if key == 'ifs' else 'det'})",
+            label=lab if key == "hres" else f"{lab} (det)",
         )
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--models", default="aifs,gefs,geps,gdps,ifs,geosfp")
+    ap.add_argument("--models", default="aifs,gefs,geps,gdps,ifs,hres,geosfp")
     ap.add_argument(
-        "--ifs-members", type=int, default=50, help="IFS-ENS perturbed members (all 50 by default; there is no control)"
+        "--ifs-members", type=int, default=50, help="IFS-ENS perturbed members (all 50 by default; the control is hres)"
     )
     ap.add_argument("--cycle")
     ap.add_argument("--out", default=str(OUT))
@@ -666,6 +702,8 @@ def main() -> int:
         fc["gdps"] = load_gdps(date, cyc, list(range(0, 241, 24)))
     if "ifs" in want:
         fc["ifs"] = load_ifs(date, cyc, list(range(0, 361, 24)), a.ifs_members, light=a.record_only)
+    if "hres" in want:
+        fc["hres"] = load_hres(date, cyc, list(range(0, 361, 24)))
     if "geosfp" in want:
         fc["geosfp"] = load_geosfp(base)
     fc = {k: v for k, v in fc.items() if v}
@@ -780,14 +818,13 @@ def main() -> int:
         0.004,
         "Zonal-mean zonal wind at 60°N and the 65–90°N polar-cap height. Shading is each ensemble's 10th–90th member "
         "percentile, the solid line its mean; dashed = deterministic or control-only.\n"
-        "AIFS-ENS (25 members + control) and IFS-ENS (all 50 perturbed members; open data has no IFS control at these "
-        "levels) to day 15, GEFS (30 + control) and GEPS (20 + control) to day 16, GDPS and GEOS FP (00Z run, NASA "
-        "GMAO) to day 10.\n"
+        "AIFS-ENS (25 members + control), IFS-ENS (50 perturbed members) and the IFS control to day 15, GEFS (30 + "
+        "control) and GEPS (20 + control) to day 16, GDPS and GEOS FP (00Z run, NASA GMAO) to day 10.\n"
         f"Reference: MERRA-2 {y0}–{y1} day-of-year percentiles; the height climatology is detrended to the current "
         f"year ({trend['zcap']:+.1f} m/decade), the winds are not "
         f"({max(abs(trend['u10']), abs(trend['u100'])):.2f} m/s/decade or less).\n"
         "Vertical line = analysis time. Black: GEOS FP analyses (daily mean of 00/06/12/18Z). GEOS FP heights are on "
-        "the MERRA-2 scale (measured offset removed).",
+        "the MERRA-2 scale (measured offset removed). IFS control: ECMWF's unperturbed 9 km run (HRES until May 2026).",
         ha="center",
         va="bottom",
         fontsize=8,

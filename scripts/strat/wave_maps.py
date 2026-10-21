@@ -25,8 +25,12 @@ A wave-k ridge recurs every 360/k degrees of longitude, so the westward tilt is 
 moves 30 deg west between two levels has turned as far as a wave-1 ridge moving 60 deg.
 
 IFS-ENS: --model ifs maps the mean of ALL 50 IFS-ENS perturbed members from the shared IFS-ENS gh file (ifs_ens.py,
-Google Cloud mirror only) into wave{1,2}_ifs_{nh,sh}/. Open data has no IFS control at pressure levels, so its analysis
-frame is the IFS HRES step 0 - the analysis the ensemble starts from.
+Google Cloud mirror only) into wave{1,2}_ifs_{nh,sh}/. The ensemble files carry no control at pressure levels, so its
+analysis frame is the IFS control's step 0 - the analysis the ensemble starts from.
+
+IFS control: --model hres maps the single unperturbed run (its own open-data stream, the shared control gh file) into
+wave{1,2}_hres_{nh,sh}/, analysis to day 15. One run, so no stippling and no phase agreement - and past the first week
+its wave phases are one realisation of many (see fetch), which the frames say.
 
 GEFS and GEPS: --model gefs / geps map the mean of every member (control + 30 / control + 20) from the shared fetch
 (strat_ens.py, part "waves": the members' heights at 500/100/10 hPa on 1 deg, daily) into wave{1,2}_{gefs,geps}_{nh,sh}/;
@@ -36,6 +40,7 @@ Usage (frames under --anim-dir: wave{k}[_<model>]_{nh,sh}/ and wave{k}_maps[_<mo
 suffix for AIFS-ENS):
   python wave_maps.py --date 20260829 --time 12 --anim-dir assets/sst/anim
   python wave_maps.py --model ifs --date 20260927 --time 00 --anim-dir assets/sst/anim
+  python wave_maps.py --model hres --date 20261021 --time 12 --anim-dir assets/sst/anim
   python wave_maps.py --model gefs --date 20261020 --time 00 --anim-dir assets/sst/anim
 """
 
@@ -91,8 +96,8 @@ FULL_CI = {10: 160.0, 100: 120.0, 500: 60.0}
 CMAP = "RdBu_r"
 
 
-MODEL = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS", "gefs": "GEFS", "geps": "GEPS"}
-CENTRE = {"aifs": "ECMWF", "ifs": "ECMWF", "gefs": "NOAA", "geps": "ECCC"}
+MODEL = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS", "hres": "IFS control", "gefs": "GEFS", "geps": "GEPS"}
+CENTRE = {"aifs": "ECMWF", "ifs": "ECMWF", "hres": "ECMWF", "gefs": "NOAA", "geps": "ECCC"}
 
 
 def _suffix(model: str) -> str:
@@ -180,11 +185,14 @@ def fetch_ifs(date: str, time: str):
     return {lev: open_level(path, lev, "gh") for lev in LEVELS}, f"ensemble mean ({IE.MEMBERS} members)"
 
 
-def fetch_analysis_ifs(date: str, time: str):
-    """IFS has no control at pressure levels on open data; the HRES step 0 is the analysis the ensemble starts from."""
+def fetch_hres(date: str, time: str):
+    """The IFS control: gh at 500/100/10 hPa, daily 0-360 h, from the shared control file (ifs_ens.py ctrl_gh). Its
+    step 0 is the analysis, for the IFS-ENS loops as well (the ensemble files carry no control at pressure levels)."""
     import ifs_ens as IE
 
-    path = IE.hres_analysis(IE.E.Cycle(date, time), ("gh",), LEVELS)
+    if not IE.ctrl_published(date, time):
+        raise SystemExit(f"IFS control {date} {time}Z is not on the Google mirror yet")
+    path = IE.ensure(IE.E.Cycle(date, time), IE.spec_ctrl_gh())
     return {lev: open_level(path, lev, "gh") for lev in LEVELS}
 
 
@@ -501,7 +509,13 @@ def render(levels_at_step, hemi, date, time, step_h, out_path: Path, k: int, sou
         0.058,
         f"Filled ▲: this map's wave-{k} ridge{'s' if k > 1 else ''}; open △: where the 1991–2020 normal puts "
         f"{'them' if k > 1 else 'it'} on this date. × normal = wave-{k} amplitude over the normal standing wave's "
-        "(ERA5, 55–65°). Dots: under 80 % of the members agree on the sign.\nA ridge that shifts WEST going up "
+        "(ERA5, 55–65°). "
+        + (
+            "One run: past the first week its wave phases are one realisation of many."
+            if model == "hres"
+            else "Dots: under 80 % of the members agree on the sign."
+        )
+        + "\nA ridge that shifts WEST going up "
         "(500 → 100 → 10 hPa) is carrying wave activity into the vortex (positive eddy heat flux); one stacked over "
         "the same longitude is not.",
         fontsize=8.3,
@@ -546,10 +560,8 @@ def build_loop(full, ana, date, time, anim_root: Path, k: int, source="ensemble 
     # mean, so the loop starts from the state the forecast was launched from
     # rather than from a smoothed version of it.
     steps = [0] + [h for h in ecmwf.STEPS if h > 0]
-    ana_label = (
-        "IFS HRES analysis, the state IFS-ENS starts from (no IFS-ENS control on open data)"
-        if model == "ifs"
-        else "control (analysis)"
+    ana_label = {"ifs": "IFS control analysis, the state IFS-ENS starts from", "hres": "analysis"}.get(
+        model, "control (analysis)"
     )
     regions = {}
     for hemi in ("NH", "SH"):
@@ -610,7 +622,10 @@ def main(argv=None) -> int:
         full, source, ana = fetch_shared(a.model, a.date, a.time)
     elif a.model == "ifs":
         full, source = fetch_ifs(a.date, a.time)
-        ana = fetch_analysis_ifs(a.date, a.time)
+        ana = fetch_hres(a.date, a.time)
+    elif a.model == "hres":
+        full, source = fetch_hres(a.date, a.time), "IFS control, one run"
+        ana = full
     else:
         full, source = fetch(a.date, a.time, a.members)
         ana = fetch_analysis(a.date, a.time)

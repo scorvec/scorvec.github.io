@@ -1,15 +1,17 @@
-name: Stratosphere, IFS-ENS, GEFS and GEPS (vortex, heat flux, waves 1 and 2, winds, drip, zero line, jet)
+name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, waves 1 and 2, winds, drip, zero line, jet)
 
-# ECMWF IFS-ENS at full membership (all 50 perturbed members; open data has no IFS control at pressure levels) in
-# every stratosphere product that its open data can feed, and the days 1-15 GEFS and GEPS versions of the same products
-# (naens job, below):
+# ECMWF IFS-ENS at full membership (all 50 perturbed members; the ensemble files carry no control at pressure levels)
+# and the IFS control (its own open-data stream, to day 15) in every stratosphere product that their open data can
+# feed, and the days 1-15 GEFS and GEPS versions of the same products (naens job, below):
 #
-#   nh_vortex.py          -> assets/sst/nh_vortex.webp                  every model
+#   nh_vortex.py          -> assets/sst/nh_vortex.webp                  every model, the IFS control dashed
 #                         + nh_vortex_runs.webp, data/vortex_runs.json  the run-to-run record (vortex_runs.py)
-#   heatflux100_ext.py    -> assets/sst/ifs_heatflux100_{nh,sh}.webp   + data/ifs_heatflux100.json
-#   forecast_drip.py      -> assets/sst/ifs_drip.webp                  + data/ifs_drip.json (drift: reference/ifs_capdrift.json)
-#   wave_maps.py          -> assets/sst/anim/wave{1,2}_ifs_{nh,sh}/     + wave{1,2}_maps_ifs_manifest.json
-#   vortex_winds.py       -> assets/sst/anim/vortex_ifs_{10,100}_{nh,sh}/ + vortex_winds_ifs_manifest.json
+#   heatflux100_ext.py    -> assets/sst/ifs_heatflux100_{nh,sh}.webp   + data/ifs_heatflux100.json (the control line)
+#   forecast_drip.py      -> assets/sst/{ifs,hres}_drip.webp           + data/{ifs,hres}_drip.json
+#                            (both with the IFS-ENS drift, reference/ifs_capdrift.json)
+#   wave_maps.py          -> assets/sst/anim/wave{1,2}_{ifs,hres}_{nh,sh}/ + wave{1,2}_maps_{ifs,hres}_manifest.json
+#   vortex_winds.py       -> assets/sst/anim/vortex_{ifs,hres}_{10,100}_{nh,sh}/ + vortex_winds_{ifs,hres}_manifest.json
+#   (hres = the IFS control in file names, as in the code; the pages say "IFS control")
 #   qbo_duct.py --model ifs -> scripts/strat/data/zmu_members_ifs.npz (zero line) + the 250 hPa jet sector (pacjet)
 #   qbo_zeroline.py       -> assets/sst/qbo_zeroline_*.webp re-rendered with IFS-ENS + data/qbo_zeroline_ifs.json
 #   naens (GEFS, GEPS)    -> assets/sst/{gefs,geps}_heatflux100_{nh,sh}.webp, {gefs,geps}_drip.webp (+ data/*.json),
@@ -32,7 +34,8 @@ name: Stratosphere, IFS-ENS, GEFS and GEPS (vortex, heat flux, waves 1 and 2, wi
 # DATA. Google Cloud mirror only: ECMWF_SOURCES=google for every step, and ifs_ens.py names the
 # Google mirror in every request. A cycle the mirror does not have is skipped with a warning - never fetched elsewhere.
 #   maps    one shared fetch into the store's cache (ifs_ens.py fetch): gh at 11 levels daily (~3.5 GB), u/v at
-#           10/100 hPa 12-hourly (~4.0 GB), t at 100 hPa daily (~0.5 GB); every render reads those files.
+#           10/100 hPa 12-hourly (~4.0 GB), t at 100 hPa daily (~0.5 GB), and the same fields of the IFS control
+#           (~0.3 GB; it lands over an hour before the ensemble); every render reads those files.
 #   zmu     u at 10/50/250 hPa and v at 250 hPa, streamed a step at a time and never cached (~2 GB a cycle). The
 #           E-P flux comes from GEFS instead (strat.yml), which has levels between 10 and 50 hPa.
 #   naens   GEFS from NOAA's S3 (byte-ranged per message) and GEPS from the MSC Datamart, one shared fetch per model
@@ -123,7 +126,7 @@ jobs:
           python scripts/strat/ifs_ens.py resolve --date "${{ github.event.inputs.date }}" \
             --time "${{ github.event.inputs.time }}" --wait-min "$wait" --github-output
           if [ -z "$ONLY" ] && grep -q '^ready=false' "$GITHUB_OUTPUT"; then
-            echo "::warning::IFS-ENS is not on the Google mirror for this cycle; nh_vortex renders without it and the IFS products keep their previous version"
+            echo "::warning::IFS-ENS is not on the Google mirror for this cycle; nh_vortex renders without it and the IFS-ENS products keep their previous version"
           fi
 
   # ----------------------------------------------------------------- maps ---
@@ -191,12 +194,13 @@ jobs:
           git fetch -q --depth 1 origin main
           git checkout origin/main -- assets/sst/data/vortex_runs.json || echo "::warning::vortex_runs.json not on main yet"
 
-      # Every model in one figure. Without IFS (not on the mirror) it still renders the others.
+      # Every model in one figure. Without IFS-ENS (not on the mirror) it still renders the others; the IFS control
+      # lands first and is drawn whenever it is there.
       - name: NH polar vortex
         timeout-minutes: 25
         continue-on-error: true
         run: |
-          M=aifs,gefs,geps,gdps,geosfp; [ "$READY" = "true" ] && M=aifs,gefs,geps,gdps,geosfp,ifs
+          M=aifs,gefs,geps,gdps,geosfp,hres; [ "$READY" = "true" ] && M=aifs,gefs,geps,gdps,geosfp,hres,ifs
           python scripts/strat/nh_vortex.py --models "$M" --cycle "$D$T" --out assets/sst/nh_vortex.webp \
             || echo "::warning::nh_vortex failed; keeping the previous figure"
 
@@ -233,6 +237,24 @@ jobs:
           echo "---- wave_maps"; tail -25 /tmp/waves.log
           echo "---- vortex_winds"; tail -25 /tmp/vwinds.log
 
+      # The IFS control on its own (one run, ~0.3 GB, on the mirror before the ensemble): drip and the two loops.
+      - name: Dripping paint and loops (IFS control)
+        timeout-minutes: 20
+        continue-on-error: true
+        run: |
+          python scripts/strat/forecast_drip.py --model hres --date "$D" --time "$T" --out-dir assets/sst \
+            || echo "::warning::IFS control drip failed; keeping the previous figure"
+          python scripts/strat/wave_maps.py --model hres --date "$D" --time "$T" --anim-dir assets/sst/anim \
+            > /tmp/hwaves.log 2>&1 &
+          p1=$!
+          python scripts/strat/vortex_winds.py --model hres --date "$D" --time "$T" \
+            --anim-dir assets/sst/anim --manifest assets/sst/anim/vortex_winds_hres_manifest.json > /tmp/hwinds.log 2>&1 &
+          p2=$!
+          wait $p1 || echo "::warning::IFS control wave loops failed; keeping the previous frames"
+          wait $p2 || echo "::warning::IFS control vortex-wind loop failed; keeping the previous frames"
+          echo "---- wave_maps"; tail -8 /tmp/hwaves.log
+          echo "---- vortex_winds"; tail -8 /tmp/hwinds.log
+
       # Weather regimes from the 50 IFS-ENS members of the shared gh file (no fetch of its own; 00Z cycles only) ->
       # assets/regimes/data, read by the multi-model regime view (regimes.yml).
       - name: Weather regimes (IFS-ENS members)
@@ -249,19 +271,20 @@ jobs:
         if: always()
         run: |
           bad=0
-          want="assets/sst/nh_vortex.webp assets/sst/nh_vortex_runs.webp"
+          want="assets/sst/nh_vortex.webp assets/sst/nh_vortex_runs.webp assets/sst/hres_drip.webp"
           [ "$READY" = "true" ] && want="$want assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/ifs_drip.webp"
           for f in $want; do
             if [ -f "$f" ] && [ "$f" -nt /tmp/t0 ]; then printf '  %-40s %s\n' "$f" "$(du -h "$f" | cut -f1)"
             else printf '  %-40s MISSING\n' "$f"; bad=$((bad + 1)); fi
           done
-          if [ "$READY" = "true" ]; then
-            for d in assets/sst/anim/wave1_ifs_nh assets/sst/anim/wave1_ifs_sh assets/sst/anim/wave2_ifs_nh assets/sst/anim/wave2_ifs_sh assets/sst/anim/vortex_ifs_10_nh assets/sst/anim/vortex_ifs_10_sh assets/sst/anim/vortex_ifs_100_nh assets/sst/anim/vortex_ifs_100_sh; do
-              n=$(ls "$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')
+          models=hres; [ "$READY" = "true" ] && models="ifs hres"
+          for m in $models; do
+            for d in wave1_${m}_nh wave1_${m}_sh wave2_${m}_nh wave2_${m}_sh vortex_${m}_10_nh vortex_${m}_10_sh vortex_${m}_100_nh vortex_${m}_100_sh; do
+              n=$(ls "assets/sst/anim/$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')
               printf '  %-40s %s frames\n' "$d" "$n"; [ "$n" -eq 0 ] && bad=$((bad + 1))
             done
-          fi
-          [ "$bad" -gt 0 ] && { echo "::error::$bad IFS product(s) produced nothing"; exit 1; } || true
+          done
+          [ "$bad" -gt 0 ] && { echo "::error::$bad IFS-ENS / IFS control product(s) produced nothing"; exit 1; } || true
 
       - name: Pack the outputs
         if: always()
@@ -270,12 +293,17 @@ jobs:
           : > /tmp/maps.list
           for p in assets/sst/nh_vortex.webp assets/sst/nh_vortex_runs.webp assets/sst/data/vortex_runs.json \
                    assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/data/ifs_heatflux100.json \
-                   assets/sst/ifs_drip.webp assets/sst/data/ifs_drip.json \
-                   assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
-                   assets/sst/anim/wave1_ifs_nh assets/sst/anim/wave1_ifs_sh assets/sst/anim/wave1_maps_ifs_manifest.json \
-                   assets/sst/anim/wave2_ifs_nh assets/sst/anim/wave2_ifs_sh assets/sst/anim/wave2_maps_ifs_manifest.json \
-                   assets/sst/anim/vortex_ifs_10_nh assets/sst/anim/vortex_ifs_10_sh assets/sst/anim/vortex_ifs_100_nh assets/sst/anim/vortex_ifs_100_sh assets/sst/anim/vortex_winds_ifs_manifest.json; do
+                   assets/sst/ifs_drip.webp assets/sst/data/ifs_drip.json assets/sst/hres_drip.webp assets/sst/data/hres_drip.json \
+                   assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json; do
             [ -e "$p" ] && echo "$p" >> /tmp/maps.list
+          done
+          for m in ifs hres; do
+            for p in assets/sst/anim/wave1_${m}_nh assets/sst/anim/wave1_${m}_sh assets/sst/anim/wave1_maps_${m}_manifest.json \
+                     assets/sst/anim/wave2_${m}_nh assets/sst/anim/wave2_${m}_sh assets/sst/anim/wave2_maps_${m}_manifest.json \
+                     assets/sst/anim/vortex_${m}_10_nh assets/sst/anim/vortex_${m}_10_sh assets/sst/anim/vortex_${m}_100_nh \
+                     assets/sst/anim/vortex_${m}_100_sh assets/sst/anim/vortex_winds_${m}_manifest.json; do
+              [ -e "$p" ] && echo "$p" >> /tmp/maps.list
+            done
           done
           if [ ! -s /tmp/maps.list ]; then : > /tmp/strat-ifs-maps.tgz; exit 0; fi
           tar -czf /tmp/strat-ifs-maps.tgz -T /tmp/maps.list
@@ -574,7 +602,7 @@ jobs:
           PRUNE: assets/sst/anim/vortex_ifs_10 assets/sst/anim/vortex_ifs_100
         run: |
           dirs=""
-          for m in ifs gefs geps; do
+          for m in ifs hres gefs geps; do
             dirs="$dirs assets/sst/anim/wave1_${m}_nh assets/sst/anim/wave1_${m}_sh assets/sst/anim/wave2_${m}_nh assets/sst/anim/wave2_${m}_sh"
             dirs="$dirs assets/sst/anim/vortex_${m}_10_nh assets/sst/anim/vortex_${m}_10_sh assets/sst/anim/vortex_${m}_100_nh assets/sst/anim/vortex_${m}_100_sh"
           done
@@ -588,8 +616,9 @@ jobs:
           git config user.email "26825570+scorvec@users.noreply.github.com"
           for f in assets/sst/nh_vortex.webp assets/sst/nh_vortex_runs.webp assets/sst/data/vortex_runs.json \
                    assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/data/ifs_heatflux100.json \
-                   assets/sst/ifs_drip.webp assets/sst/data/ifs_drip.json \
+                   assets/sst/ifs_drip.webp assets/sst/data/ifs_drip.json assets/sst/hres_drip.webp assets/sst/data/hres_drip.json \
                    assets/sst/anim/wave1_maps_ifs_manifest.json assets/sst/anim/wave2_maps_ifs_manifest.json assets/sst/anim/vortex_winds_ifs_manifest.json \
+                   assets/sst/anim/wave1_maps_hres_manifest.json assets/sst/anim/wave2_maps_hres_manifest.json assets/sst/anim/vortex_winds_hres_manifest.json \
                    assets/sst/gefs_heatflux100_*.webp assets/sst/geps_heatflux100_*.webp assets/sst/data/gefs_heatflux100.json assets/sst/data/geps_heatflux100.json \
                    assets/sst/gefs_drip.webp assets/sst/geps_drip.webp assets/sst/data/gefs_drip.json assets/sst/data/geps_drip.json \
                    assets/sst/anim/wave1_maps_gefs_manifest.json assets/sst/anim/wave2_maps_gefs_manifest.json assets/sst/anim/vortex_winds_gefs_manifest.json \
