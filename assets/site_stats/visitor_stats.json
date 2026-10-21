@@ -1,8 +1,8 @@
 {
  "updated": "2026-10-21",
- "total_30d": 641,
- "countries_30d": 29,
- "total_all": 1441,
+ "total_30d": 648,
+ "countries_30d": 30,
+ "total_all": 1448,
  "countries_all": 31,
  "top_pages_30d": [
   {
@@ -19,27 +19,27 @@
   },
   {
    "path": "/",
-   "count": 34
+   "count": 36
   },
   {
    "path": "/subseasonal.html",
    "count": 25
   },
   {
+   "path": "/circulation.html",
+   "count": 23
+  },
+  {
    "path": "/recon.html",
    "count": 23
   },
   {
-   "path": "/circulation.html",
+   "path": "/midterms",
    "count": 22
   },
   {
    "path": "/gefs.html",
    "count": 22
-  },
-  {
-   "path": "/midterms",
-   "count": 21
   },
   {
    "path": "/torque-enso.html",
