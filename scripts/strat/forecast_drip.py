@@ -729,7 +729,8 @@ def main() -> int:
         if m.any():
             print(
                 f"  {name} days {d0}-{d1}: cap 10/100/1000 hPa {np.nanmean(mean[m, k10]):+.2f}/{np.nanmean(mean[m, k100]):+.2f}/"
-                f"{np.nanmean(mean[m, k1000]):+.2f} sd; 100 hPa >= +1 sd in {100 * np.nanmean(frac100[m]):.0f} % of members"
+                f"{np.nanmean(mean[m, k1000]):+.2f} sd"
+                + ("" if C.shape[0] == 1 else f"; 100 hPa >= +1 sd in {100 * np.nanmean(frac100[m]):.0f} % of members")
             )
     print(
         f"  drift ({note}): "
