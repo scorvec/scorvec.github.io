@@ -152,7 +152,7 @@ class Fields:
         return (x[:, la][:, :, lo].mean(-1) * ww).sum(1) / ww.sum()
 
 
-def reduce_chunk(var: str, a: np.ndarray, da, F: Fields, t100=None) -> dict:
+def reduce_chunk(var: str, a: np.ndarray, da, F: Fields | None, t100=None) -> dict:
     """One chunk (time first) of one variable -> its series; for "regional", a is v and t100 is T at 100 hPa."""
     if var == "ua":
         p, lat = da.plev.values, da.lat.values
@@ -223,14 +223,20 @@ def run(cat, model, exp, member, years, out: Path, workers: int, regional: bool)
             das.pop(v)  # an optional variable that does not cover the run is left out
             continue
         idx[v] = ix
-    if "va" not in das or "ta" not in das:
-        das.pop("va", None)
+    if "va" not in das or "ta" not in das or das["va"].shape[1:] != das["ta"].shape[1:]:
+        das.pop("va", None)  # the regional flux needs both, on one grid
         das.pop("ta", None)
     n = len(common)
-    F = Fields(das["psl"].lat.values, das["psl"].lon.values, model)
-    # v and T may sit on another grid than psl (GFDL-CM4: half the latitudes)
-    same = "va" in das and np.array_equal(das["va"].lat.values, das["psl"].lat.values)
-    F_reg = F if same or "va" not in das else Fields(das["va"].lat.values, das["va"].lon.values, model)
+    # each day field on its own grid (GFDL-CM4 has tas, va and ta on half psl's latitudes)
+    grids = {}
+
+    def fields(v):
+        key = (das[v].lat.values.tobytes(), das[v].lon.values.tobytes())
+        if key not in grids:
+            grids[key] = Fields(das[v].lat.values, das[v].lon.values, model)
+        return grids[key]
+
+    F = {v: fields(v) for v in ("psl", "tas", "va") if v in das}
     res = {k: np.full(n, np.nan, "float32") for k in SERIES}
     for job in [v for v in ("ua", "epfz", "psl", "tas") if v in das] + (["regional"] if "va" in das else []):
         lead = "va" if job == "regional" else job
@@ -243,8 +249,8 @@ def run(cat, model, exp, member, years, out: Path, workers: int, regional: bool)
                     if job == "regional":
                         v = _read(das["va"], idx["va"][s:e], 100)
                         t = _read(das["ta"], idx["ta"][s:e], 100)
-                        return s, reduce_chunk(job, v, das["va"], F_reg, t)
-                    return s, reduce_chunk(job, _read(das[lead], idx[lead][s:e]), das[lead], F)
+                        return s, reduce_chunk(job, v, das["va"], F["va"], t)
+                    return s, reduce_chunk(job, _read(das[lead], idx[lead][s:e]), das[lead], F.get(lead))
                 except Exception as err_:  # noqa: BLE001  (a GCS hiccup: retry the chunk)
                     err = err_
                     time.sleep(5 * (attempt + 1))
