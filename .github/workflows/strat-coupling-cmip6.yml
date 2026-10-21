@@ -25,6 +25,9 @@ on:
       analyse:
         description: 'Run the tests and commit them (false = extracts only, kept as artifacts)'
         default: 'true'
+      from_run:
+        description: 'A finished run id whose extracts to test again (blank = extract now)'
+        default: ''
 
 permissions:
   contents: write
@@ -35,6 +38,7 @@ concurrency:
 
 jobs:
   plan:
+    if: ${{ !inputs.from_run }}
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.m.outputs.matrix }}
@@ -62,6 +66,7 @@ jobs:
 
   model:
     needs: plan
+    if: ${{ !inputs.from_run }}
     runs-on: ubuntu-latest
     timeout-minutes: 350
     strategy:
@@ -115,6 +120,8 @@ jobs:
           pattern: coupling_*
           path: runs
           merge-multiple: true
+          run-id: ${{ inputs.from_run || github.run_id }}
+          github-token: ${{ github.token }}
       - name: Events and tests
         run: |
           ls runs | head -80
