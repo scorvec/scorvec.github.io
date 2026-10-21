@@ -73,7 +73,7 @@ FDR = 0.10
 
 
 def band(v, t, lat) -> np.ndarray:
-    """(member, step, lat, lon) v and T -> (member, step, 6): the band fluxes in build_vt100_clim.KEYS order, the
+    """(member, step, lat, lon) v and T -> (member, step, 6): the band fluxes in build_vt100_clim.BAND_KEYS order, the
     products' flux (heatflux100.fluxes and band_mean), member by member."""
     v, t = np.asarray(v), np.asarray(t)
     return np.stack([C.band_fluxes(v[i], t[i], lat) for i in range(len(v))])
@@ -209,7 +209,7 @@ def pairs(fc: np.ndarray, starts: pd.DatetimeIndex, era: pd.DataFrame) -> pd.Dat
         valid = starts + pd.Timedelta(days=L)
         e = fc[:, L] - era.reindex(valid).to_numpy()
         ok = np.isfinite(e).all(-1)
-        cols = {k: e[ok, i] for i, k in enumerate(C.KEYS)}
+        cols = {k: e[ok, i] for i, k in enumerate(C.BAND_KEYS)}
         out.append(pd.DataFrame({"start": starts[ok], "lead": L, "valid": valid[ok], **cols}))
     return pd.concat(out, ignore_index=True)
 
@@ -238,7 +238,7 @@ def test(out: Path = BIAS) -> dict:
     from quantmet.stats import benjamini_hochberg
 
     with xr.open_dataset(C.SERIES) as s:
-        era = pd.DataFrame({k: s[k].sel(hour=0).values for k in C.KEYS}, index=pd.DatetimeIndex(s.time.values))
+        era = pd.DataFrame({k: s[k].sel(hour=0).values for k in C.BAND_KEYS}, index=pd.DatetimeIndex(s.time.values))
     rows, meta = {}, {}
     with np.load(ARCHIVE) as A:
         for m, cfg in MODELS.items():
@@ -259,7 +259,7 @@ def test(out: Path = BIAS) -> dict:
             ds = d[d["valid"].dt.month.isin(mo)]
             for i in nb:
                 dc = ds[ds["lead"].between(*LEAD_BLOCKS[i])]
-                cells.extend((m, k, si, i, boot_test(dc, k, rng) if len(dc) else None) for k in C.KEYS)
+                cells.extend((m, k, si, i, boot_test(dc, k, rng) if len(dc) else None) for k in C.BAND_KEYS)
     sig = benjamini_hochberg(np.array([np.nan if r is None else r["p"] for *_, r in cells]), FDR)
     models = {}
     for (m, k, si, i, r), s_ in zip(cells, sig):
@@ -273,7 +273,7 @@ def test(out: Path = BIAS) -> dict:
             tab["starts"][si][i] = r["starts"]
             tab["significant"][si][i] = bool(s_)
     for m, tab in models.items():  # a model with no testable cell is listed with its reason, no table
-        if all(v is None for k in C.KEYS for row in tab[k]["p"] for v in row):
+        if all(v is None for k in C.BAND_KEYS for row in tab[k]["p"] for v in row):
             models[m] = meta[m] | {
                 "untested": f"{meta[m]['runs']} runs, {meta[m]['first']} to {meta[m]['last']}: no season holds "
                 f"{MIN_BLOCKS} independent {BLOCK_DAYS}-day blocks of starts"
@@ -297,7 +297,7 @@ def test(out: Path = BIAS) -> dict:
         if "untested" in tab:
             print(f"  {tab['label']}: not tested ({tab['untested']})")
             continue
-        for k in C.KEYS:
+        for k in C.BAND_KEYS:
             print(f"  {tab['label']} {k} by lead block {[LEAD_BLOCKS[i] for i in range(len(tab['lead_centres']))]}:")
             for si, sn in enumerate(SEASONS):
                 cell = [

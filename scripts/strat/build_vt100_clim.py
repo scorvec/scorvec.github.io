@@ -52,7 +52,8 @@ ARCO = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"
 WB2_LAST = pd.Timestamp("2023-01-10")  # WeatherBench2's last day
 SWITCH = pd.Timestamp("2023-01-01")  # the series is WeatherBench2 before this day and ARCO from it
 HOURS = (0, 12)
-KEYS = tuple(f"{h}_{k}" for h in ("nh", "sh") for k in ("tot", "k1", "k2")) + tuple(f"nh_{k}" for k in HF.REGIONS)
+BAND_KEYS = tuple(f"{h}_{k}" for h in ("nh", "sh") for k in ("tot", "k1", "k2"))  # what the model archives hold too
+KEYS = BAND_KEYS + tuple(f"nh_{k}" for k in HF.REGIONS)
 W15 = np.array([0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5])  # a 1.5 deg cell over 0.25 deg cells: five whole, two halves
 
 
