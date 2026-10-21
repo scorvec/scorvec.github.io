@@ -1,15 +1,10 @@
-name: SSW imprint index - analysis record and model drift (IFS control analyses, archived control runs)
+name: SSW imprint index - the analysis record (IFS control analyses)
 
-# scripts/strat/ssw_imprint.py, the downward propagation monitor's surface index. Two references it needs that the
-# reanalysis cannot give it:
-#   backfill       the IFS control's analyses (step 0 of every 00 and 12 UTC cycle, msl, Google Cloud mirror) from
-#                  `start`, into assets/sst/data/ssw_imprint_history.json, the live analysis tail after ERA5's store
-#                  stops; the overlap with ERA5 is compared (correlation, mean difference) and stored beside it.
-#   measure-drift  each model's mean index error by lead: its control's archived 00Z runs (AIFS-ENS control and IFS
-#                  control from the Google Cloud mirror, GEFS gec00 from NOAA's S3), one every `every` days, verified
-#                  against those analyses -> scripts/strat/reference/ssw_imprint_drift.json. GEPS has no archive.
-# ~1 GB in all. Weekly (Mondays), so the drift follows the season: it was first measured on July-October runs. The
-# strat-ifs concurrency group: both workflows write the analysis record.
+# scripts/strat/ssw_imprint.py, the downward propagation monitor's surface index: the IFS control's analyses (step 0 of
+# every 00 and 12 UTC cycle, msl, Google Cloud mirror) from `start` into assets/sst/data/ssw_imprint_history.json, the
+# live analysis tail after the ERA5 store stops, with its overlap with ERA5 compared (correlation, mean difference)
+# and stored beside it. strat-ifs.yml adds each cycle it runs on; this fills whatever that missed, weekly (Mondays).
+# The strat-ifs concurrency group: both workflows write the record.
 on:
   # backstop cron: the dispatcher (scripts/lib/dispatch_workflows.sh) fires this on time
   schedule:
@@ -19,12 +14,6 @@ on:
       start:
         description: 'First analysis day (YYYY-MM-DD); the overlap with ERA5 is everything before July 2026'
         default: '2026-01-01'
-      drift:
-        description: 'Models to measure the drift of (space-separated: aifs hres gefs; blank = none)'
-        default: 'aifs hres gefs'
-      cycles:
-        description: 'Past runs per model'
-        default: '30'
 
 permissions:
   contents: write
@@ -70,22 +59,12 @@ jobs:
           START: ${{ inputs.start || '2026-01-01' }}
         run: python scripts/strat/ssw_imprint.py backfill --start "$START"
 
-      - name: Measure the drift
-        env:
-          MODELS: ${{ inputs.drift || 'aifs hres gefs' }}
-          CYCLES: ${{ inputs.cycles || '30' }}
-        run: |
-          for m in $MODELS; do
-            python scripts/strat/ssw_imprint.py measure-drift --model "$m" --cycles "$CYCLES" \
-              || echo "::warning::$m drift not measured"
-          done
-
       # Never rebase: snapshot, reset to a fresh origin/main each attempt, lay the snapshot back on, commit, push.
       - name: Commit & push
         run: |
           git config user.name "Shawn Corvec"
           git config user.email "26825570+scorvec@users.noreply.github.com"
-          for f in assets/sst/data/ssw_imprint_history.json scripts/strat/reference/ssw_imprint_drift.json; do
+          for f in assets/sst/data/ssw_imprint_history.json; do
             if [ -e "$f" ]; then git add "$f"; fi
           done
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
@@ -99,7 +78,7 @@ jobs:
             tar xf "$SNAP/outs.tar"
             for f in $FILES; do git add "$f"; done
             if git diff --staged --quiet; then echo "no changes after resync"; exit 0; fi
-            git commit -q -m "ssw imprint: analysis record and model drift $(date -u +%Y-%m-%dT%H:%MZ)"
+            git commit -q -m "ssw imprint: analysis record $(date -u +%Y-%m-%dT%H:%MZ)"
             if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
             echo "push $i rejected; resyncing"; sleep 5
           done

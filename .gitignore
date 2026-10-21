@@ -173,7 +173,6 @@ scripts/strat/*
 !scripts/strat/reference/qbo_zeroline_ref.nc
 !scripts/strat/reference/qbo_zeroline_test.json
 !scripts/strat/reference/ssw_imprint.nc
-!scripts/strat/reference/ssw_imprint_drift.json
 !scripts/strat/reference/cmip6_coupling_events.csv.gz
 !scripts/strat/reference/cmip6_coupling_tests.json
 !scripts/strat/reference/cmip6_coupling_log.json

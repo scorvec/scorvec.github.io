@@ -93,7 +93,9 @@ class Ref:
 
 
 # ================================================================================================= the live product ===
-# Each model's members from their own open data, daily 0-360 h (00 or 12 UTC instants), on the boxes:
+# A November-April product: a run is drawn when its day 15 falls in the season (the analysis is recorded all year, so
+# the tail is there when it starts). Each model's members from their own open data, daily 0-360 h (00 or 12 UTC
+# instants), on the boxes:
 #   aifs  AIFS-ENS control + 25 perturbed members (ECMWF open data, Google Cloud mirror only), msl
 #   ifs   IFS-ENS, all 50 perturbed members (the ensemble files carry no control), msl
 #   hres  the IFS control, msl from its own stream (oper)
@@ -101,9 +103,9 @@ class Ref:
 #   geps  ECCC GEPS control + 20, the MSC Datamart's PRMSL allmbrs files
 # ANALYSIS. The IFS control's step 0 (its 4D-Var analysis) of every 00 and 12 UTC cycle, averaged per day, kept in
 # data/ssw_imprint_history.json (backfill seeds it; each run adds its cycle); ERA5's own index stops where the store does.
-# DRIFT. Each model's mean index error by lead, measured by verifying its control's past runs against those analyses
-# (measure-drift -> reference/ssw_imprint_drift.json), is removed where it is significant (|mean| > 2 se); IFS-ENS
-# takes the IFS control's. GEPS: the Datamart keeps no archive to measure it on, so it stays uncorrected (said so).
+# RAW. The forecasts are each model's own output, no drift removed. Verified on the controls' runs
+# of July-October 2026 against those analyses, every model drifts towards an SSW-like index as the run goes on (about
+# +2 for the IFS control and +1.7 for GEFS by day 15), and the figure says the late leads lean that way.
 MODELS = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS", "hres": "IFS control", "gefs": "GEFS", "geps": "GEPS"}
 STYLE = {"aifs": "#b4541f", "ifs": "#1f4b6e", "hres": "#1f4b6e", "gefs": "#3b88c4", "geps": "#2f7d4f"}  # nh_vortex's
 LEADS = tuple(range(0, 361, 24))
@@ -113,11 +115,9 @@ DATA = REPO / "assets" / "sst" / "data"
 OUT_JSON = DATA / "ssw_imprint.json"
 HISTORY = DATA / "ssw_imprint_history.json"
 RUNS = DATA / "ssw_imprint_runs.json"
-DRIFT = HERE / "reference" / "ssw_imprint_drift.json"
 FIGURE = REPO / "assets" / "sst" / "ssw_imprint.webp"
-DRIFT_OF = {"aifs": "aifs", "ifs": "hres", "hres": "hres", "gefs": "gefs"}  # whose measured drift each model takes
 OUTLOOK_DAYS = (16, 45)  # the window after day 15 the coupling regression speaks to
-WINTER = (11, 12, 1, 2, 3)  # the months the coupling was measured on
+SEASON = (11, 12, 1, 2, 3, 4)  # November-April: the product's season and the months the coupling is measured on
 
 
 def _ecmwf():
@@ -164,7 +164,7 @@ def slp_ecmwf(model: str, date: str, hh: str, steps=LEADS):
     return np.concatenate([g[0] for g in got]), got[0][1]
 
 
-def slp_gefs(date: str, hh: str, members=None, steps=LEADS, workers: int = 32):
+def slp_gefs(date: str, hh: str, steps=LEADS, workers: int = 32):
     """(member, lead, lat, lon) hPa boxes of GEFS (control first), PRMSL byte-ranged from NOAA's S3 bucket."""
     import sys
     from concurrent.futures import ThreadPoolExecutor
@@ -173,7 +173,7 @@ def slp_gefs(date: str, hh: str, members=None, steps=LEADS, workers: int = 32):
     import strat_ens as SE
 
     R = SE._gefs_lib()
-    mems = members or SE.GEFS_MEMBERS
+    mems = SE.GEFS_MEMBERS
     b = Boxes(SE.LAT, SE.LON)
 
     def one(job):
@@ -250,23 +250,6 @@ def _write(path: Path, doc) -> None:
     Path(path).write_text(json.dumps(doc, separators=(",", ":")))
 
 
-def drift_for(model: str, leads) -> tuple[np.ndarray, str]:
-    """(the index drift to remove at each lead, a note): significant leads only, zero elsewhere."""
-    src = DRIFT_OF.get(model)
-    d = _read(DRIFT, {}).get(src) if src else None
-    if not d:
-        return np.zeros(
-            len(leads)
-        ), "uncorrected (no archive to measure its drift on)" if model == "geps" else "drift not measured yet"
-    lh = np.array(d["lead_h"], float)
-    m, se = np.array(d["mean"], float), np.array(d["se"], float)
-    m = np.where(np.abs(m) > 2 * se, m, 0.0)
-    who = "" if src == model else f"{MODELS[src]}'s "
-    return np.interp(
-        np.asarray(leads, float), lh, m
-    ), f"{who}measured drift removed where significant ({d['cycles']} runs)"
-
-
 def analysis_day(ref: Ref, date: str, hh: str) -> float:
     """The imprint index of the IFS control's analysis (step 0) of one cycle."""
     boxes, _ = slp_ecmwf("hres", date, hh, steps=(0,))
@@ -295,8 +278,6 @@ def model_entry(ref: Ref, model: str, date: str, hh: str) -> dict:
     init = pd.Timestamp(f"{date} {hh}:00")
     valid = pd.DatetimeIndex([init + pd.Timedelta(hours=int(L)) for L in leads])
     idx = np.stack([ref.index(valid, m) for m in boxes])  # (member, lead)
-    drift, note = drift_for(model, leads)
-    idx = idx - drift[None]
     return {
         "name": MODELS[model],
         "init": f"{init:%Y-%m-%d %H}Z",
@@ -305,15 +286,13 @@ def model_entry(ref: Ref, model: str, date: str, hh: str) -> dict:
         "valid": [f"{v:%Y-%m-%d}" for v in valid],
         "index": np.round(idx, 2).tolist(),
         "mean": np.round(idx.mean(0), 2).tolist(),
-        "drift_removed": np.round(drift, 2).tolist(),
-        "drift_note": note,
     }
 
 
 def outlook(ref: Ref, entry: dict, drip: dict | None) -> dict | None:
     """P(the index over days 16-45 > 0) from the ERA5/MERRA-2 coupling regression on this run's day-15 state: the 100 hPa
     cap (the drip's drift-corrected ensemble mean and spread) and the index over days 10-15. Ensembles only; None
-    outside November-March, where the coupling was not measured, or when the drip is not on this run's cycle."""
+    outside November-April, where the coupling was not measured, or when the drip is not on this run's cycle."""
     import json
 
     from scipy import stats
@@ -321,7 +300,7 @@ def outlook(ref: Ref, entry: dict, drip: dict | None) -> dict | None:
     if entry["members"] < 5 or not drip or drip.get("init") != entry["init"] or "member_sd" not in drip:
         return None
     d15 = pd.Timestamp(entry["valid"][-1])
-    if d15.month not in WINTER:
+    if d15.month not in SEASON:
         return None
     k = [float(x) for x in drip["levels"]].index(100.0)
     j = drip["lead_h"].index(360)
@@ -506,11 +485,11 @@ def render(doc: dict, ref: Ref, out: Path = FIGURE) -> None:
     )
     note = (
         f"From each run's day 15: the 100 hPa cap and the\nindex over days 10–15, through the ERA5/MERRA-2\nregression "
-        f"(Nov–Mar 1980–, {cp['n_winters']} winters).\nDotted: the base rate, {100 * cp['base_rate']:.0f} %.\n"
+        f"(Nov–Apr 1980–, {cp['n_winters']} winters).\nDotted: the base rate, {100 * cp['base_rate']:.0f} %.\n"
         f"Brier skill, each winter predicted from the\nothers: {sk['cap_1sd']['bss']:.2f} ({sk['cap_1sd']['ci95'][0]:.2f}–"
         f"{sk['cap_1sd']['ci95'][1]:.2f}) with the cap ≥ 1 sd from\nnormal, {sk['all_days']['bss']:.2f} on every day."
         if ens
-        else "No ensemble outlook: the coupling is\nmeasured for November–March."
+        else "No ensemble outlook: the coupling is\nmeasured for November–April."
     )
     side_note.text(0, 1.0, note, transform=side_note.transAxes, fontsize=8, color=MUTED, va="top", linespacing=1.45)
     for s in ("top", "right"):
@@ -535,14 +514,14 @@ def render(doc: dict, ref: Ref, out: Path = FIGURE) -> None:
         va="top",
     )
     tests = json.loads(ref.ds.attrs["imprint_tests"])
-    notes = "; ".join(f"{MODELS[m]} {doc['models'][m]['drift_note']}" for m in models)
     fig.text(
         0.06,
         0.012,
         f"Index: the day's sea-level pressure anomaly (ERA5 1991–2020 baseline) projected on the CMIP6 nine-model mean "
         f"sea-level pressure over days 1–60 after SSWs,\nrobust boxes only; after the {tests['d1_30']['n']} MERRA-2 SSWs "
         f"since 1980 it averaged {tests['d1_30']['mean']:+.1f} over days 1–30 (p {tests['d1_30']['t_p']:.0e}).\n"
-        f"Forecasts: ensemble means, daily 00/12Z instants; {notes}.\n"
+        "Forecasts: ensemble means, daily 00/12Z instants, raw model output (no drift removed: on July–October 2026 runs "
+        "the models drift towards an SSW-like index, about +2 by day 15).\n"
         "Sources: ECMWF open data (CC BY 4.0, Google Cloud mirror) · NOAA GEFS (AWS Open Data) · ECCC GEPS (MSC Datamart) · "
         "ERA5 (C3S) · MERRA-2 and GEOS FP (NASA GMAO) · CMIP6 (WCRP).",
         fontsize=7.6,
@@ -556,10 +535,18 @@ def render(doc: dict, ref: Ref, out: Path = FIGURE) -> None:
 
 
 # ============================================================================================================== CLI ===
+def in_season(date: str, hh: str) -> bool:
+    """A November-April product: a run is drawn when its day 15 falls in the season."""
+    return (pd.Timestamp(f"{date} {hh}:00") + pd.Timedelta(hours=LEADS[-1])).month in SEASON
+
+
 def run(models, date: str, hh: str, draw: bool = True) -> int:
     ref = Ref()
     doc = _read(OUT_JSON, {"models": {}})
-    for m in models:
+    season = in_season(date, hh)
+    if not season:
+        print(f"  {date} {hh}Z: day 15 is outside November-April; only the analysis is recorded", flush=True)
+    for m in models if season else ():
         try:
             doc["models"][m] = model_entry(ref, m, date, hh)
         except (SystemExit, Exception) as e:  # noqa: BLE001  (one model missing must not take the others down)
@@ -584,7 +571,7 @@ def run(models, date: str, hh: str, draw: bool = True) -> int:
             runs["runs"].setdefault(e["init"], {})[m] = e["outlook"]
     _write(RUNS, runs)
     _write(OUT_JSON, doc)
-    if draw:
+    if draw and season:
         render(doc, ref)
     return 0
 
@@ -618,57 +605,6 @@ def backfill(start: str, end: str | None = None) -> int:
     return 0
 
 
-def measure_drift(model: str, cycles: int, every: int) -> int:
-    """Verify the control's index forecasts on `cycles` past 00 UTC runs, one every `every` days, against the IFS
-    control analyses in the history (each verifying day must be there): mean error and its standard error by lead."""
-    ref = Ref()
-    obs = history_days()
-    if obs.empty:
-        raise SystemExit("no analyses in the history: run backfill first")
-    last = obs.index[-1] - pd.Timedelta(days=15)
-    errs, used = [], []
-    for k in range(cycles):
-        init = last - pd.Timedelta(days=every * k)
-        d = f"{init:%Y%m%d}"
-        try:
-            if model == "gefs":
-                boxes, leads = slp_gefs(d, "00", members=["gec00"])
-            else:
-                boxes, leads = slp_ecmwf(model, d, "00") if model == "hres" else slp_ecmwf_control(d)
-        except Exception as e:  # noqa: BLE001
-            print(f"  {d}: {type(e).__name__}: {str(e)[:80]}", flush=True)
-            continue
-        valid = pd.DatetimeIndex([init + pd.Timedelta(hours=int(L)) for L in leads])
-        f = ref.index(valid, boxes[0])
-        o = obs.reindex(valid.normalize()).values
-        if np.isfinite(o).all():
-            errs.append(f - o)
-            used.append(d)
-    if len(errs) < 10:
-        raise SystemExit(f"only {len(errs)} verifiable runs")
-    E_ = np.array(errs)
-    doc = _read(DRIFT, {})
-    doc[model] = {
-        "lead_h": [int(L) for L in leads],
-        "mean": np.round(E_.mean(0), 3).tolist(),
-        "se": np.round(E_.std(0, ddof=1) / np.sqrt(len(E_)), 3).tolist(),
-        "cycles": len(used),
-        "first": used[-1],
-        "last": used[0],
-        "verified_against": "IFS control analyses (data/ssw_imprint_history.json)",
-    }
-    _write(DRIFT, doc)
-    print(f"  {MODELS[model]} drift by lead: {doc[model]['mean']} (se {doc[model]['se']})")
-    return 0
-
-
-def slp_ecmwf_control(date: str):
-    """The AIFS-ENS control alone (its drift is the ensemble's)."""
-    IE = _ecmwf()
-    p = IE.ensure(IE.E.Cycle(date, "00"), IE.E.Spec("aifs-ens", "cf", "msl", "sfc", (), LEADS))
-    return _ecmwf_boxes(p)
-
-
 def main() -> int:
     import argparse
 
@@ -682,18 +618,12 @@ def main() -> int:
     b = sub.add_parser("backfill", help="the IFS control analyses from --start into the history")
     b.add_argument("--start", required=True)
     b.add_argument("--end")
-    m = sub.add_parser("measure-drift", help="a model's index drift by lead from its control's past runs")
-    m.add_argument("--model", required=True, choices=("aifs", "hres", "gefs"))
-    m.add_argument("--cycles", type=int, default=30)
-    m.add_argument("--every", type=int, default=3)
     sub.add_parser("render", help="redraw the figure from the published JSON")
     a = ap.parse_args()
     if a.cmd == "run":
         return run([x for x in a.models.split(",") if x], a.date, f"{int(a.time):02d}", not a.no_render)
     if a.cmd == "backfill":
         return backfill(a.start, a.end)
-    if a.cmd == "measure-drift":
-        return measure_drift(a.model, a.cycles, a.every)
     render(_read(OUT_JSON, {"models": {}}), Ref())
     return 0
 

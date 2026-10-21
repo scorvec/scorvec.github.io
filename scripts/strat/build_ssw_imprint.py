@@ -12,9 +12,10 @@ z100s, the scale of the dripping-paint plots).
 TESTS (stored as attributes and printed):
   imprint   the index over days 1-30, 31-60 and 1-60 after the MERRA-2 SSWs: across events (one-sample t-test) and
             against month-matched random onsets (N_NULL draws, one-sided).
-  coupling  every November-March day since 1980: the next 30 days' mean index regressed on the 100 hPa cap that day and
-            the index's own mean over the five days before (the surface's persistence), winters resampled N_BOOT times
-            for the intervals. The 100 hPa coefficient is the stratosphere's share, over and above persistence.
+  coupling  every November-April day since 1980 (the product's season): the next 30 days' mean index regressed on the
+            100 hPa cap that day and the index's own mean over the five days before (the surface's persistence),
+            winters resampled N_BOOT times for the intervals. The 100 hPa coefficient is the stratosphere's share, over
+            and above persistence.
   outlook   that regression as a forecast of P(next 30 days' index > 0), each winter predicted from the others
             (leave-one-winter-out), Brier skill against each training set's base rate, on every day and on the days
             with the 100 hPa cap at least 1 sd from normal; winters resampled for the intervals.
@@ -44,7 +45,7 @@ EVENTS = HERE / "reference" / "strat_history_events.json"
 HISTORY = HERE / "reference" / "strat_history.nc"
 BASE = (1991, 2020)
 WINDOWS = ((1, 30), (31, 60), (1, 60))
-WINTER = (11, 12, 1, 2, 3)
+WINTER = (11, 12, 1, 2, 3, 4)  # November-April, the season the monitor runs in
 N_NULL, N_BOOT = 2000, 1000
 LAGS = np.arange(-40, 91)
 
@@ -110,7 +111,7 @@ def main() -> int:
     ref = SI.Ref()
     index = pd.Series(ref.index(t, S), index=t)
     winter = index[index.index.month.isin(WINTER)]
-    print(f"index sd: all days {index.std():.2f}, Nov-Mar {winter.std():.2f}", flush=True)
+    print(f"index sd: all days {index.std():.2f}, Nov-Apr {winter.std():.2f}", flush=True)
 
     ev = json.loads(EVENTS.read_text())
     onsets = [pd.Timestamp(e["date"]) for e in ev["ssw"] if not e.get("marginal")]
