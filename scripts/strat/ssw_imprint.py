@@ -619,11 +619,18 @@ def main() -> int:
     b.add_argument("--start", required=True)
     b.add_argument("--end")
     sub.add_parser("render", help="redraw the figure from the published JSON")
+    h = sub.add_parser("has", help="exit 0 when the published JSON already holds this model's cycle")
+    h.add_argument("--model", required=True)
+    h.add_argument("--date", required=True)
+    h.add_argument("--time", required=True)
     a = ap.parse_args()
     if a.cmd == "run":
         return run([x for x in a.models.split(",") if x], a.date, f"{int(a.time):02d}", not a.no_render)
     if a.cmd == "backfill":
         return backfill(a.start, a.end)
+    if a.cmd == "has":
+        init = f"{pd.Timestamp(a.date):%Y-%m-%d} {int(a.time):02d}Z"
+        return 0 if _read(OUT_JSON, {"models": {}})["models"].get(a.model, {}).get("init") == init else 1
     render(_read(OUT_JSON, {"models": {}}), Ref())
     return 0
 

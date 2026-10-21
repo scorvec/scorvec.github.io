@@ -654,7 +654,11 @@ jobs:
           fi
           for x in $MODELS; do
             X=$(echo "$x" | tr a-z A-Z); dv=${X}_D tv=${X}_T sv=${X}_SKIP
-            if [ -z "${!dv}" ] || [ "${!sv}" = "true" ]; then echo "  $x: nothing new"; continue; fi
+            if [ -z "${!dv}" ]; then echo "  $x: no cycle"; continue; fi
+            # a cycle the drips already showed may still be missing here (the monitor's first run, a failed one)
+            if [ "${!sv}" = "true" ] && python scripts/strat/ssw_imprint.py has --model "$x" --date "${!dv}" --time "${!tv}"; then
+              echo "  $x: ${!dv} ${!tv}Z already in the monitor"; continue
+            fi
             python scripts/strat/ssw_imprint.py run --models "$x" --date "${!dv}" --time "${!tv}" --no-render \
               || echo "::warning::$x imprint index failed; keeping its previous run"
           done
