@@ -1,25 +1,27 @@
 name: CMIP6 wave reflection and downward propagation (large-sample test)
 
 # Wave reflection and downward propagation tested on CMIP6 (scripts/strat/cmip6_coupling.py). Each model's piControl
-# (the first `picontrol_years`) and up to `members` historical runs, from the public Pangeo CMIP6 Google Cloud mirror
-# (anonymous), day table: ua, va, ta, zg on plev8, psl, tas. One job per model reduces every run to daily series
-# (cmip6_coupling_extract.py: u(60N) at 10/50 hPa, the 10/100 hPa polar cap, the 100/50 hPa heat flux by wave, the
-# Siberia/Canada regional heat flux, the SSW imprint projection, North America / Eurasia 2 m temperature); a final job
+# (its first `picontrol_years`) and up to `members` historical runs, from the public Pangeo CMIP6 Google Cloud mirror
+# (anonymous): the DynVarMIP zonal means (EdayZ ua, and epfz where published), day psl and tas, and for `regional`
+# models day va and ta at 100 hPa. One job per run reduces it to daily series (cmip6_coupling_extract.py); a final job
 # finds the events in every run, tests what follows across models and commits the event table and the tests
-# (scripts/strat/reference/cmip6_coupling_events.csv.gz, _tests.json); the daily series go to release
-# cmip6-coupling-v1. A plev8 store chunk carries all eight levels, so a model-year streams ~1-2 GB. Dispatch only.
+# (scripts/strat/reference/cmip6_coupling_events.csv.gz, _tests.json, _log.json); the daily series go to release
+# cmip6-coupling-v1. A run streams ~10-150 GB (the regional plev8 stores carry all eight levels). Dispatch only.
 on:
   workflow_dispatch:
     inputs:
       models:
-        description: 'Comma-separated source_ids'
-        default: 'ACCESS-CM2,ACCESS-ESM1-5,BCC-CSM2-MR,CanESM5,CESM2,CESM2-WACCM,CMCC-CM2-SR5,CNRM-CM6-1,CNRM-ESM2-1,EC-Earth3,GFDL-CM4,GFDL-ESM4,HadGEM3-GC31-LL,HadGEM3-GC31-MM,INM-CM5-0,IPSL-CM6A-LR,MIROC6,MPI-ESM1-2-HR,MPI-ESM1-2-LR,MRI-ESM2-0,NorESM2-LM,NorESM2-MM,TaiESM1,UKESM1-0-LL'
+        description: 'Comma-separated source_ids (those without EdayZ ua, day psl and day tas are skipped)'
+        default: 'AWI-ESM-1-1-LR,CESM2,CESM2-FV2,CESM2-WACCM,CNRM-CM6-1,CNRM-ESM2-1,CanESM5,GFDL-CM4,GFDL-ESM4,HadGEM3-GC31-LL,INM-CM4-8,INM-CM5-0,IPSL-CM6A-LR,MIROC6,MPI-ESM-1-2-HAM,MPI-ESM1-2-HR,MPI-ESM1-2-LR,MRI-ESM2-0,UKESM1-0-LL'
+      regional:
+        description: 'Models whose day va and ta are read too (the regional reflection index)'
+        default: 'CanESM5,CNRM-CM6-1,GFDL-CM4'
       picontrol_years:
         description: 'piControl years per model (from its start)'
-        default: '300'
+        default: '500'
       members:
         description: 'Historical members per model'
-        default: '3'
+        default: '10'
       analyse:
         description: 'Run the tests and commit them (false = extracts only, kept as artifacts)'
         default: 'true'
@@ -37,11 +39,26 @@ jobs:
     outputs:
       matrix: ${{ steps.m.outputs.matrix }}
     steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/strat/cmip6_coupling_extract.py
+            scripts/strat/ssw_imprint.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet numpy pandas xarray
+      - name: Catalogue
+        run: curl -sSf --retry 3 -o /tmp/pangeo-cmip6.csv https://storage.googleapis.com/cmip6/pangeo-cmip6.csv
       - id: m
         env:
           MODELS: ${{ inputs.models }}
+          MEMBERS: ${{ inputs.members }}
         run: |
-          python3 -c "import json, os; ms=[m.strip() for m in os.environ['MODELS'].split(',') if m.strip()]; print('matrix='+json.dumps({'model': ms}))" >> "$GITHUB_OUTPUT"
+          runs=$(python scripts/strat/cmip6_coupling_extract.py plan --catalog /tmp/pangeo-cmip6.csv --models "$MODELS" --members "$MEMBERS")
+          echo "$runs" | python3 -c "import json, sys; r = json.load(sys.stdin); print(len(r), 'runs'); [print(' ', x) for x in r]"
+          echo "matrix=$(echo "$runs" | python3 -c "import json, sys; print(json.dumps({'include': json.load(sys.stdin)[:256]}))")" >> "$GITHUB_OUTPUT"
 
   model:
     needs: plan
@@ -65,18 +82,19 @@ jobs:
       - run: pip install --quiet numpy pandas xarray "zarr>=3" gcsfs cftime scipy netCDF4
       - name: Catalogue
         run: curl -sSf --retry 3 -o /tmp/pangeo-cmip6.csv https://storage.googleapis.com/cmip6/pangeo-cmip6.csv
-      - name: Reduce ${{ matrix.model }}
+      - name: Reduce ${{ matrix.model }} ${{ matrix.experiment }} ${{ matrix.member }}
         env:
           YEARS: ${{ inputs.picontrol_years }}
-          MEMBERS: ${{ inputs.members }}
+          REGIONAL: ${{ inputs.regional }}
         run: |
-          python scripts/strat/cmip6_coupling_extract.py --catalog /tmp/pangeo-cmip6.csv --model ${{ matrix.model }} \
-            --picontrol-years "$YEARS" --historical-members "$MEMBERS" --out out
+          reg=; case ",$REGIONAL," in *",${{ matrix.model }},"*) reg=--regional ;; esac
+          python scripts/strat/cmip6_coupling_extract.py run --catalog /tmp/pangeo-cmip6.csv --model ${{ matrix.model }} \
+            --experiment ${{ matrix.experiment }} --member ${{ matrix.member }} --picontrol-years "$YEARS" $reg --out out
           ls -la out
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: coupling_${{ matrix.model }}
+          name: coupling_${{ matrix.model }}_${{ matrix.experiment }}_${{ matrix.member }}
           path: out/
           retention-days: 30
           if-no-files-found: ignore

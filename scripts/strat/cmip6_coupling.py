@@ -4,25 +4,29 @@
 
 ANOMALIES. Each run against itself, on its own calendar (365-day, 360-day or Gregorian years): four annual harmonics and
 a linear trend for the mean; for the standardised series a three-harmonic fit to the squared residual for the variance.
-  ssi        the SSW imprint index (ssw_imprint.py): the projected sea-level pressure less its fit; the pattern made
-             without the model for the nine models that made it
-  cap10, cap100   standardised polar-cap height at 10 and 100 hPa (high = weak vortex)
-  zsib, zcan      standardised regional v*T* at 100 hPa; ri = zsib - zcan (Messori et al. 2022)
-  tna, teu        2 m temperature anomaly, North America and northern Eurasia (K)
+  ssi          the SSW imprint index (ssw_imprint.py): the projected sea-level pressure less its fit; the pattern made
+               without the model for the nine models that made it
+  wk10, wk100  minus the standardised u(60N) at 10 and 100 hPa: positive = a weak vortex (the CMIP6 drips' measure;
+               zonal-mean height is too rarely published daily)
+  zsib, zcan   standardised regional v*T* at 100 hPa; ri = zsib - zcan (Messori et al. 2022), where gridded v and T exist
+  tna, teu     2 m temperature anomaly, North America and northern Eurasia (K)
 
-EVENTS (onsets; November-March unless said):
+EVENTS (onsets; November-March unless said); the flux events only in runs with the EP flux, the regional ones only in
+runs with gridded v and T, the shear ones only where u reaches 2 hPa:
   ssw          u(60N, 10 hPa) easterly (Charlton & Polvani 2007: a return to 10 westerly days before 30 April, 20
                westerly days between events), split two ways:
-                 absorbing / reflecting   the 100 hPa [v'T'] over days +5..+15 above / below the model's median
-                 (Kodera et al. 2016's recovery-phase wave driving)
-                 reflect_k1               the wave-1 [v'T'] at 50 hPa (5-day mean) negative on some day +1..+20
-  refl_zm      wave-1 [v'T'] at 50 hPa, 5-day mean, below zero (net downward wave-1 activity; Shaw & Perlwitz 2013,
-               Dunn-Sigouin & Shaw 2015), December-March, 20 days apart
+                 ssw_absorbing / ssw_reflecting   the 100 hPa EP flux Fz over days +5..+15 above / below the model's
+                 median (Kodera et al. 2016's recovery-phase wave driving)
+                 ssw_reflect_fz   Fz at 50 hPa (5-day mean) negative on some day +1..+20: waves coming back down
+  refl_zm      Fz at 50 hPa, 5-day mean, below zero (net downward wave activity; the zonal-mean reflection of Shaw &
+               Perlwitz 2013 and Dunn-Sigouin & Shaw 2015, all waves here), December-March, 20 days apart
+  refl_low     the same below the run's December-March 10th percentile
   refl_reg     ri > 1 for 10 days or more, December-March, with upward flux over Siberia and downward over Canada on
-               average over the event (Messori et al. 2022; their third criterion, a reflective upper stratosphere,
-               needs winds above 10 hPa, which the day table does not have)
-  cap100_td / cap100_bu   the 100 hPa cap first reaching +1 sd, 30 days apart, with the 10 hPa cap at +1 sd in the
-               3-20 days before (top-down) or not (bottom-up)
+               average over the event (Messori et al. 2022)
+  shear_neg    u(60N) at 2 hPa minus 10 hPa, 5-day mean, below its January-March 10th percentile: a reflective upper
+               stratosphere (Perlwitz & Harnik 2003)
+  wk100_td / wk100_bu   the 100 hPa weakness first reaching +1 sd, 30 days apart, with 10 hPa at +1 sd in the 3-20 days
+               before (top-down) or not (bottom-up)
 
 TESTS. Per model, each outcome's event mean less its mean over random days of the same calendar months in the same
 runs (NULL draws): the model's effect. Across models (models weighted equally, those with >= MIN_EVENTS events): the
@@ -47,7 +51,7 @@ DJFM = (12, 1, 2, 3)
 MIN_EVENTS = 5
 NULL = 400
 WINDOWS = {"d-5_0": (-5, 0), "d1_10": (1, 10), "d11_20": (11, 20), "d1_30": (1, 30), "d31_60": (31, 60)}
-OUTCOMES = ("ssi", "tna", "teu", "cap10", "cap100")
+OUTCOMES = ("ssi", "tna", "teu", "wk10", "wk100")
 
 
 # ---------------------------------------------------------------------------------------------------- calendar ---
@@ -100,20 +104,25 @@ def load_run(path: Path) -> pd.DataFrame:
     X4, X3 = design(frac, y, 4, True), design(frac, y, 3, False)
     model = path.stem.split("_")[0]
     pattern = "slp_loo"  # the leave-one-out projection (= slp_p for a model outside the composite)
+    X4n = design(frac, y, 4, False)
     f = pd.DataFrame({"year": y, "month": m, "day": d})
     f["u10"] = z["u10"]
     f["ssi"] = anomaly(z[pattern].astype(float), X4)
-    f["cap10"] = standardise(z["z10"].astype(float), X4, X3)
-    f["cap100"] = standardise(z["z100"].astype(float), X4, X3)
-    f["zsib"] = standardise(z["hf100_sib"].astype(float), design(frac, y, 4, False), X3)
-    f["zcan"] = standardise(z["hf100_can"].astype(float), design(frac, y, 4, False), X3)
-    f["ri"] = f.zsib - f.zcan
-    f["hf100_tot"] = z["hf100_tot"]
-    f["hf50_k1"] = z["hf50_k1"]
-    f["hf50_k1_5"] = f.hf50_k1.rolling(5, center=True).mean()
-    f["sib"], f["can"] = z["hf100_sib"], z["hf100_can"]
+    f["wk10"] = -standardise(z["u10"].astype(float), X4, X3)
+    f["wk100"] = -standardise(z["u100"].astype(float), X4, X3)
     f["tna"] = anomaly(z["tas_na"].astype(float), X4)
     f["teu"] = anomaly(z["tas_eu"].astype(float), X4)
+    has = {k: bool(np.isfinite(z[k]).mean() > 0.9) for k in ("fz100", "fz50", "hf100_sib", "u2")}
+    if has["fz100"] and has["fz50"]:
+        f["fz100"] = z["fz100"]
+        f["fz50_5"] = pd.Series(z["fz50"]).rolling(5, center=True).mean()
+    if has["hf100_sib"]:
+        f["zsib"] = standardise(z["hf100_sib"].astype(float), X4n, X3)
+        f["zcan"] = standardise(z["hf100_can"].astype(float), X4n, X3)
+        f["ri"] = f.zsib - f.zcan
+        f["sib"], f["can"] = z["hf100_sib"], z["hf100_can"]
+    if has["u2"]:
+        f["shear5"] = pd.Series(z["u2"] - z["u10"]).rolling(5, center=True).mean()
     f.attrs = {"model": model, "run": path.stem, "calendar": cal}
     return f
 
@@ -164,26 +173,33 @@ def spell_onsets(mask: np.ndarray, months: np.ndarray, allowed, gap: int, min_le
 def events(f: pd.DataFrame) -> list[dict]:
     ev = []
     mo = f.month.values
-    ons = ssw_onsets(f)
-    rec = {i: np.nanmean(f.hf100_tot.values[i + 5 : i + 16]) for i in ons}
-    med = np.nanmedian(list(rec.values())) if rec else np.nan
-    for i in ons:
-        k1neg = bool((f.hf50_k1_5.values[i + 1 : i + 21] < 0).any())
-        ev.append({"type": "ssw", "i": i, "recovery_hf100": rec[i], "absorbing": rec[i] > med, "reflect_k1": k1neg})
-    for i, _ in spell_onsets(f.hf50_k1_5.values < 0, mo, DJFM, 20):
-        ev.append({"type": "refl_zm", "i": i})
-    for i, n in spell_onsets(f.ri.values > 1.0, mo, DJFM, 1, 10):
-        sl = slice(i, i + n)
-        if (
-            np.nanmean(f.sib.values[sl]) > 0
-            and np.nanmean(f.can.values[sl]) < 0
-            and mo[min(i + n - 1, len(mo) - 1)] in DJFM
-        ):
-            ev.append({"type": "refl_reg", "i": i, "length": n})
-    c10, c100 = f.cap10.values, f.cap100.values
-    for i, _ in spell_onsets(c100 >= 1.0, mo, WINTER, 30):
-        top = bool((c10[max(0, i - 20) : max(0, i - 2)] >= 1.0).any())
-        ev.append({"type": "cap100_td" if top else "cap100_bu", "i": i})
+    flux = "fz100" in f
+    for i in ssw_onsets(f):
+        e = {"type": "ssw", "i": i}
+        if flux:
+            e["recovery_fz100"] = float(np.nanmean(f.fz100.values[i + 5 : i + 16]))
+            e["reflect_fz"] = bool((f.fz50_5.values[i + 1 : i + 21] < 0).any())
+        ev.append(e)
+    if flux:
+        for i, _ in spell_onsets(f.fz50_5.values < 0, mo, DJFM, 20):
+            ev.append({"type": "refl_zm", "i": i})
+        q = np.nanpercentile(f.fz50_5.values[np.isin(mo, DJFM)], 10)
+        for i, _ in spell_onsets(f.fz50_5.values < q, mo, DJFM, 20):
+            ev.append({"type": "refl_low", "i": i})
+    if "ri" in f:
+        for i, n in spell_onsets(f.ri.values > 1.0, mo, DJFM, 1, 10):
+            sl = slice(i, i + n)
+            end_ok = mo[min(i + n - 1, len(mo) - 1)] in DJFM
+            if end_ok and np.nanmean(f.sib.values[sl]) > 0 and np.nanmean(f.can.values[sl]) < 0:
+                ev.append({"type": "refl_reg", "i": i, "length": n})
+    if "shear5" in f:
+        q = np.nanpercentile(f.shear5.values[np.isin(mo, (1, 2, 3))], 10)
+        for i, _ in spell_onsets(f.shear5.values < q, mo, (1, 2, 3), 20):
+            ev.append({"type": "shear_neg", "i": i})
+    w10, w100 = f.wk10.values, f.wk100.values
+    for i, _ in spell_onsets(w100 >= 1.0, mo, WINTER, 30):
+        top = bool((w10[max(0, i - 20) : max(0, i - 2)] >= 1.0).any())
+        ev.append({"type": "wk100_td" if top else "wk100_bu", "i": i})
     return ev
 
 
@@ -252,9 +268,14 @@ def main() -> int:
         E = pd.DataFrame(evs)
         rows.append(E)
         groups = {t: E[E.type == t] for t in E.type.unique()}
-        if "ssw" in groups:
-            s = groups["ssw"]
-            groups.update(ssw_absorbing=s[s.absorbing], ssw_reflecting=s[~s.absorbing], ssw_reflect_k1=s[s.reflect_k1])
+        if "ssw" in groups and "recovery_fz100" in E:
+            sw = groups["ssw"].dropna(subset=["recovery_fz100"])
+            med = sw.recovery_fz100.median()
+            groups.update(
+                ssw_absorbing=sw[sw.recovery_fz100 > med],
+                ssw_reflecting=sw[sw.recovery_fz100 <= med],
+                ssw_reflect_fz=sw[sw.reflect_fz.astype(bool)],
+            )
         for g, G in groups.items():
             if len(G) < MIN_EVENTS:
                 continue
