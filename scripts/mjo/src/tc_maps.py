@@ -14,9 +14,13 @@ tracks (tclib.track_sector, tclib.sector_axes):
             line and a dot at the frame's time; small dots: where the AIFS-ENS (blue) and IFS-ENS (red) members have the
             storm at that time (tc_ens.py --members), open once followed past the tracker (post-tropical)
 The maps show where the storms, the troughs and the outflow are; nothing about what one does to another.
+Grid: --resol 0p25 draws the IFS control's 0.25-degree run, with the board; --resol 0p1 redraws the same cycle from its
+0.1-degree grid, which reaches the mirror ~2 h after the 0.25-degree one. Both shade at their own grid spacing (a
+0.1-degree cell is 1-5 pixels on these sectors). The manifest records the grid, and a 0.25-degree run leaves a
+0.1-degree set of the same cycle in place.
 Frames: assets/sst/anim/tcdt/<storm>/F##.webp (frames branch); manifest: assets/sst/anim/tcdt/tcdt_manifest.json (main).
     python src/tc_maps.py --date 20261018 --time 00 --board ../../assets/sst/data/tc_board.json \
-        --members /tmp/tc_members.json --anim-dir ../../assets/sst/anim/tcdt
+        --members /tmp/tc_members.json --anim-dir ../../assets/sst/anim/tcdt [--resol 0p1]
 """
 
 from __future__ import annotations
@@ -38,6 +42,7 @@ from quantmet.pv import dynamic_tropopause
 sys.path.insert(0, str(Path(__file__).parent))
 import dt_charts as DT
 import tclib as TC
+from rangefetch import RESOL_LABEL, path_for
 
 STEPS = tuple(range(0, TC.FOLLOW_H_MAX + 1, 6))
 MAX_STORMS = 4
@@ -46,16 +51,17 @@ SOURCES = (("ifs", TC.DET["ifs"]), ("aifs-single", TC.DET["aifs"]))  # the run t
 MAP_W_MAX, MAP_H_MAX, TOP_IN, BOT_IN = 10.8, 6.6, 0.42, 1.12  # frame layout (inches): never taller than a screen
 
 
-def source(date: str, hh: str) -> tuple[str, str] | None:
-    """(model, label) of the first deterministic run with every map step on the Google mirror."""
+def source(date: str, hh: str, resol: str = "0p25") -> tuple[str, str] | None:
+    """(model, label) of the first deterministic run with every map step on the Google mirror at grid `resol` (only the
+    IFS control has a 0.1-degree run, so there is no fallback at 0.1 degrees)."""
     import cycles
 
-    for model, lab in SOURCES:
-        names = set(cycles._list_names(f"{date}/{hh}z/{model}/0p25/oper/") or [])
-        need = [f"{date}/{hh}z/{model}/0p25/oper/{date}{hh}0000-{s}h-oper-fc" for s in STEPS]
+    for model, lab in SOURCES if resol == "0p25" else SOURCES[:1]:
+        need = [path_for(date, hh, model, s, "fc", stream="oper", resol=resol, levtype="pl") for s in STEPS]
+        names = set(cycles._list_names(need[0].rsplit("/", 1)[0] + "/") or [])
         if all(n + ".index" in names and n + ".grib2" in names for n in need):
             return model, lab
-        print(f"  {lab} {date} {hh}Z: not every step to +{STEPS[-1]} h is on the Google mirror", flush=True)
+        print(f"  {lab} {resol} {date} {hh}Z: not every step to +{STEPS[-1]} h is on the Google mirror", flush=True)
     return None
 
 
@@ -89,8 +95,9 @@ def position(tr: dict, h: int):
     return tr["lat"][k], tr["lon"][k], bool(tr.get("followed", [False] * len(tr["h"]))[k])
 
 
-def frame(storm, members, det, sector, fields, init, h, lab, out: Path):
-    """One map: theta on 2 PVU, DT pressure, outflow near the storm, the storm's positions."""
+def frame(storm, members, det, sector, fields, init, h, lab, grid, out: Path):
+    """One map: theta on 2 PVU, DT pressure, outflow near the storm, the storm's positions; grid: the run's grid for the
+    title (rangefetch.RESOL_LABEL)."""
     import cartopy.crs as ccrs
     import matplotlib.pyplot as plt
 
@@ -151,16 +158,17 @@ def frame(storm, members, det, sector, fields, init, h, lab, out: Path):
                 zorder=8,
             )
     valid = init + pd.Timedelta(hours=int(h))
-    fig.text(
+    title = fig.text(
         0.15 / W,
         1 - 0.08 / H,
-        f"{storm['name']} on the dynamic tropopause — {lab}, init {init:%d %b %HZ} · "
+        f"{storm['name']} on the dynamic tropopause — {lab} {grid}, init {init:%d %b %HZ} · "
         + ("analysis" if h == 0 else f"+{h} h")
         + f" · {valid:%a %d %b %HZ}",
         fontsize=10.5,
         fontweight="bold",
         va="top",
     )
+    TC.fit_text(fig, title, W - 0.3)
     cax = fig.add_axes([0.15 / W, 0.62 / H, 3.9 / W, 0.13 / H])
     cb = fig.colorbar(cf, cax=cax, orientation="horizontal")
     cb.ax.tick_params(labelsize=7.6, pad=1.5)
@@ -187,6 +195,7 @@ def main() -> int:
     ap.add_argument("--members", required=True, help="tc_ens.py --members work file")
     ap.add_argument("--anim-dir", default="assets/sst/anim/tcdt")
     ap.add_argument("--max-steps", type=int, default=0, help="render only the first N steps (timing tests)")
+    ap.add_argument("--resol", choices=sorted(RESOL_LABEL), default="0p25", help="the IFS control's grid")
     a = ap.parse_args()
     import matplotlib
 
@@ -201,12 +210,26 @@ def main() -> int:
         raise SystemExit(f"board ({board.get('init')}) or member file ({mem.get('init')}) is not the {want} cycle")
     storms = [s for s in board["storms"] if s["slug"] in mem["storms"]][:MAX_STORMS]
     anim = Path(a.anim_dir)
+    man = anim / "tcdt_manifest.json"
+    prev = json.loads(man.read_text()) if man.exists() else {}
+    src = source(a.date, hh, a.resol) if storms else None
+    keep = a.resol == "0p25" and prev.get("init") == want and prev.get("resol") == "0p1"
+    if keep or (a.resol != "0p25" and src is None):
+        # The published maps stay. Without the directory the frames publisher keeps the branch copy (it would swap in
+        # the directory as it is, main's manifest alone) and the commit step keeps main's manifest.
+        shutil.rmtree(anim, ignore_errors=True)
+        if keep:
+            print(f"the {want} maps are drawn at {RESOL_LABEL['0p1']}: a 0.25-degree run leaves them", flush=True)
+        elif storms:
+            TC.report(
+                f"TC maps {a.date} {hh}Z: the IFS control's {RESOL_LABEL[a.resol]} run is not complete", "warning"
+            )
+        return 0
     if anim.exists():
         shutil.rmtree(anim)  # departed storms' loops go with the old frames
     anim.mkdir(parents=True)
     # start: the embed opens on the analysis (sst_anim.html ?start=manifest), not on its default last frame
     mani = {"ver": int(time.time()), "init": want, "model": None, "default": None, "start": 0, "regions": {}}
-    src = source(a.date, hh) if storms else None
     if storms and src is None:
         TC.report(
             f"TC maps {a.date} {hh}Z: neither {SOURCES[0][1]} nor {SOURCES[1][1]} is complete on the Google mirror",
@@ -214,7 +237,7 @@ def main() -> int:
         )
     if src is not None:
         model, lab = src
-        mani["model"] = lab
+        mani.update(model=lab, resol=a.resol, grid=RESOL_LABEL[a.resol])
         sect = {}
         for s in storms:
             la = [v for m in mem["storms"][s["slug"]].values() for t in m for v in t["lat"]]
@@ -231,7 +254,7 @@ def main() -> int:
         for k, h in enumerate(STEPS):
             if a.max_steps and k >= a.max_steps:
                 break
-            T, U, V, lat, lon = DT.step_fields(model, a.date, hh, h)
+            T, U, V, lat, lon = DT.step_fields(model, a.date, hh, h, a.resol)
             pv, th = DT.pv_step(T, U, V, p_pa, lat, lon)
             dt_ = dynamic_tropopause(pv, th, U, V, p_pa)
             try:
@@ -251,6 +274,7 @@ def main() -> int:
                     init,
                     h,
                     lab,
+                    RESOL_LABEL[a.resol],
                     fp,
                 )
                 mani["regions"][s["slug"]]["frames"].append(
@@ -263,10 +287,15 @@ def main() -> int:
                 )
             if k % 8 == 0:
                 print(f"    +{h:3d} h done ({time.time() - t0:.0f} s)", flush=True)
-    (anim / "tcdt_manifest.json").write_text(json.dumps(mani, separators=(",", ":")))
+    mani["bytes"] = sum(TC.FETCHED.values())
+    man.write_text(json.dumps(mani, separators=(",", ":")))
     n = sum(len(r["frames"]) for r in mani["regions"].values())
+    import resource
+
     print(
-        f"wrote {n} frames for {len(mani['regions'])} storms ({mani['model']}) in {(time.time() - t0) / 60:.1f} min",
+        f"wrote {n} frames for {len(mani['regions'])} storms ({mani['model']} {mani.get('grid', '')}) in "
+        f"{(time.time() - t0) / 60:.1f} min; fetched {mani['bytes'] / 1e9:.2f} GB from the Google mirror; "
+        f"peak RSS {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024:.0f} MB",
         flush=True,
     )
     return 0

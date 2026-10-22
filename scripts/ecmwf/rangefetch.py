@@ -72,8 +72,22 @@ WORKERS = int(os.environ.get("ECMWF_RANGE_WORKERS", "16"))
 _throttle_events = 0
 
 
+# The grids of the open data, as products name them. IFS is also published on a regular 0.1-deg grid (since October
+# 2026; interpolated, like the 0.25-deg one, from the model's ~9 km octahedral grid O1280: 11 km apart at the equator,
+# 5.6 km east-west at 60 deg), about two hours after the 0.25-deg files and split by level type: one -pl and one -sfc
+# file per step.
+RESOL_LABEL = {"0p25": "0.25°", "0p1": "0.1°"}
+
+
 def path_for(
-    date: str, hh: str, model: str, step: int, kind: str = "pf", stream: str = "enfo", resol: str = "0p25"
+    date: str,
+    hh: str,
+    model: str,
+    step: int,
+    kind: str = "pf",
+    stream: str = "enfo",
+    resol: str = "0p25",
+    levtype: str | None = None,
 ) -> str:
     # IFS publishes control + perturbed members in ONE file per step, named
     # "-enfo-ef" (ecmwf-opendata maps type cf/pf -> "ef" for it); AIFS-ENS
@@ -83,7 +97,12 @@ def path_for(
     # published yet. Filter the mixed ef index by type in select().
     if model == "ifs" and kind in ("cf", "pf"):
         kind = "ef"
-    return f"{date}/{hh}z/{model}/{resol}/{stream}/{date}{hh}0000-{step}h-{stream}-{kind}"
+    rel = f"{date}/{hh}z/{model}/{resol}/{stream}/{date}{hh}0000-{step}h-{stream}-{kind}"
+    if resol == "0p25":
+        return rel
+    if levtype not in ("pl", "sfc"):
+        raise ValueError(f"{resol} files are split by level type: levtype must be 'pl' or 'sfc', not {levtype!r}")
+    return f"{rel}-{levtype}"
 
 
 class IndexUnavailable(RuntimeError):
@@ -103,10 +122,18 @@ class IndexUnavailable(RuntimeError):
 
 
 def fetch_index(
-    date: str, hh: str, model: str, step: int, kind: str = "pf", stream: str = "enfo", sources: list[str] | None = None
+    date: str,
+    hh: str,
+    model: str,
+    step: int,
+    kind: str = "pf",
+    stream: str = "enfo",
+    sources: list[str] | None = None,
+    resol: str = "0p25",
+    levtype: str | None = None,
 ) -> list[dict]:
     """Parse the .index file: list of message dicts with _offset/_length."""
-    rel = path_for(date, hh, model, step, kind, stream=stream) + ".index"
+    rel = path_for(date, hh, model, step, kind, stream=stream, resol=resol, levtype=levtype) + ".index"
     last_err = None
     statuses: dict = {}  # mirror -> last HTTP status seen
     srcs = _google(sources)
@@ -254,6 +281,26 @@ def fetch(
     if out:
         Path(out).write_bytes(blob)
     return blob
+
+
+def oper_files(
+    date: str,
+    hh: str,
+    model: str,
+    step: int,
+    resol: str = "0p25",
+    levtypes: tuple = ("pl", "sfc"),
+    sources: list[str] | None = None,
+) -> list[tuple[str, list[dict]]]:
+    """[(GRIB path, index entries)] for one step of a deterministic run (stream oper, type fc): its one file at 0.25
+    deg, or at 0.1 deg the file of each level type in `levtypes` (the 0.1-deg files are split by level type). The
+    entries carry "levtype" either way, so a caller selects the same way at both grids. Raises IndexUnavailable like
+    fetch_index."""
+    out = []
+    for lt in (None,) if resol == "0p25" else levtypes:
+        idx = fetch_index(date, hh, model, step, "fc", stream="oper", sources=sources, resol=resol, levtype=lt)
+        out.append((path_for(date, hh, model, step, "fc", stream="oper", resol=resol, levtype=lt) + ".grib2", idx))
+    return out
 
 
 def cycle_complete(date: str, hh: str, model: str = "aifs-ens", last_step: int = 360, kind: str = "pf") -> bool:

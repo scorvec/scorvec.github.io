@@ -10,6 +10,10 @@ name: TC shear and environment
 # ~T+6.4 h (the dispatcher's :40 slots), 00/12Z at ~T+7.5 h (07:50/19:50); scripts/lib/dispatch_workflows.sh, the cron
 # below is the backstop. A first stdlib-only step asks NHC and JTWC whether any storm is active and ends the run in
 # seconds when none is; a cycle already published, or not ready yet, also exits early.
+# The maps in two stages: drawn from the IFS control's 0.25-degree run with the cycle, then redrawn alone from its
+# 0.1-degree run, which reaches the mirror ~2 h later (06/18Z ~T+8.5 h, 00/12Z ~T+9.7 h): the 02:40 / 09:50 /
+# 14:40 / 21:50 slots find the cycle published with 0.25-degree maps and redraw only them (tcshear.py maps_only, which
+# fetches the published storm files back from the frames branch first).
 # Data: ECMWF open data from the Google Cloud mirror ONLY; GFS / HRRR from the AWS S3 open-data buckets; OISST from NCEI.
 # Maps and per-storm JSON go to the frames branch (sha-pinned via publish_frames_ci.sh); the manifest and the
 # verification archive to main.
@@ -20,6 +24,8 @@ name: TC shear and environment
 on:
   schedule:
     - cron: '50 1,7,13,19 * * *'
+    - cron: '40 2,14 * * *'
+    - cron: '50 9,21 * * *'
   workflow_dispatch:
     inputs:
       mode:
@@ -41,6 +47,9 @@ on:
         description: 'rebuild a cycle that is already published'
         type: boolean
         default: false
+      map_resol:
+        description: 'Grid of the maps: auto (0p1 once the IFS control 0.1-degree run is out), 0p25 or 0p1'
+        default: 'auto'
 
 permissions:
   contents: write
@@ -89,7 +98,7 @@ jobs:
         if: steps.gate.outputs.any == 'true' && env.MODE == 'live'
         timeout-minutes: 120
         run: |
-          args=(--members "${{ github.event.inputs.members || '50' }}")
+          args=(--members "${{ github.event.inputs.members || '50' }}" --map-resol "${{ github.event.inputs.map_resol || 'auto' }}")
           [ -n "${{ github.event.inputs.date }}" ] && args+=(--date "${{ github.event.inputs.date }}" --time "${{ github.event.inputs.time }}")
           [ "${{ github.event.inputs.force }}" = "true" ] && args+=(--force)
           /usr/bin/time -v python scripts/tcshear/tcshear.py "${args[@]}" 2> >(tee /tmp/time.txt >&2)

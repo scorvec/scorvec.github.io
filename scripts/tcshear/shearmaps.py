@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Where the shear comes from: 330 K potential vorticity with the 200-850 hPa shear vectors around a storm, IFS control
-(HRES until May 2026), 6-hourly to day 5. PV from the models page's code (scripts/models/upper.py via shearlib.pv330) and the same PV
+(HRES until May 2026), 6-hourly to day 5: from its 0.25-degree run, then redrawn from its 0.1-degree run once that is
+out (tcshear.redraw_maps); the smoothing and the arrow spacing are in degrees, so both grids draw alike. PV from the models page's code (scripts/models/upper.py via shearlib.pv330) and the same PV
 colours as the dynamic-tropopause charts (scripts/mjo/src/dt_charts.py), so the three products read alike.
 
 Each frame: 330 K Ertel PV (tropospheric air warm, the 2-PVU line black, stratospheric air blue: the upstream trough),
@@ -40,17 +41,20 @@ TEXT = "#1b1d22"
 MUTED = "#6f6b64"
 
 
-def _shear_field(box, sigma_pts=5.0):
+def _shear_field(box, sigma_deg=1.25):
+    """200-850 hPa shear of the total wind, Gaussian-smoothed by sigma_deg (~300 km across) whatever the grid."""
     from scipy.ndimage import gaussian_filter
 
     li = list(S.LEVELS)
     du = np.asarray(box["u"][li.index(200)], float) - np.asarray(box["u"][li.index(850)], float)
     dv = np.asarray(box["v"][li.index(200)], float) - np.asarray(box["v"][li.index(850)], float)
-    return gaussian_filter(np.nan_to_num(du), sigma_pts), gaussian_filter(np.nan_to_num(dv), sigma_pts)
+    n = sigma_deg / abs(float(box["lat"][1] - box["lat"][0]))
+    return gaussian_filter(np.nan_to_num(du), n), gaussian_filter(np.nan_to_num(dv), n)
 
 
-def render(storm, boxes, recs, init, out_dir: Path, obs=None):
-    """boxes: {step: map box (IFS control)}; recs: that run's records (shearlib.analyze + 'h'). -> [file names]."""
+def render(storm, boxes, recs, init, out_dir: Path, obs=None, grid="0.25°"):
+    """boxes: {step: map box (IFS control)}; recs: that run's records (shearlib.analyze + 'h'); grid: the boxes' grid,
+    for the title. -> [file names]."""
     import matplotlib
 
     matplotlib.use("Agg")
@@ -104,7 +108,7 @@ def render(storm, boxes, recs, init, out_dir: Path, obs=None):
         )
         ax.contour(LO, LA, np.nan_to_num(pv), levels=[2.0], colors="#000", linewidths=1.3, transform=ccrs.PlateCarree())
         ax.add_feature(cfeature.STATES.with_scale("50m"), lw=0.2, edgecolor="#555")
-        k = 8
+        k = max(1, round(2.0 / abs(float(lat[1] - lat[0]))))  # an arrow every 2 degrees
         ax.quiver(
             LO[::k, ::k],
             LA[::k, ::k],
@@ -178,15 +182,17 @@ def render(storm, boxes, recs, init, out_dir: Path, obs=None):
                 note += f";  2-PVU air on 330 K {r['d2pvu']:,} km to the {_compass(r['b2pvu'])}"
         valid = init + dt.timedelta(hours=step)
         top = 1 - 0.12 / H
-        fig.text(
+        title = fig.text(
             0.012,
             top,
-            f"{storm['name']} — 330 K PV and 200–850 hPa shear, IFS control, +{step} h (valid {valid:%a %d %b %H}Z)",
+            f"{storm['name']} — 330 K PV and 200–850 hPa shear, IFS control {grid}, "
+            f"+{step} h (valid {valid:%a %d %b %H}Z)",
             fontsize=12.5,
             fontweight="bold",
             color=TEXT,
             va="top",
         )
+        TC.fit_text(fig, title, W * (1 - 2 * 0.012))
         fig.text(0.012, top - 0.3 / H, note or " ", fontsize=10, color=TEXT, va="top")
         cax = fig.add_axes([0.04, 0.42 / H, 0.44, 0.17 / H])
         cb = fig.colorbar(m, cax=cax, orientation="horizontal", ticks=PV_LEV)

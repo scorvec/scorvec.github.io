@@ -96,10 +96,10 @@ PV_COLS = [
 ]
 
 
-def step_fields(model: str, date: str, hh: str, step: int):
+def step_fields(model: str, date: str, hh: str, step: int, resol: str = "0p25"):
     """t/u/v on LEVS for one step of a deterministic run (model "ifs" = the IFS control, or "aifs-single"), byte-ranged from the
-    Google mirror: arrays (lev, lat, lon), lat ascending, lon 0..360."""
-    f = TC.oper_fields(model, date, hh, step, pl=("t", "u", "v"), levels=LEVS)
+    Google mirror at grid `resol` (tclib.oper_fields): arrays (lev, lat, lon), lat ascending, lon 0..360."""
+    f = TC.oper_fields(model, date, hh, step, pl=("t", "u", "v"), levels=LEVS, resol=resol)
     T, U, V = (np.stack([f[(p, L)] for L in LEVS]) for p in ("t", "u", "v"))
     return T, U, V, f["lat"], f["lon"]
 

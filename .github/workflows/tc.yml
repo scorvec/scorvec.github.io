@@ -10,6 +10,11 @@ name: TC board (AIFS-ENS + IFS-ENS tracks, IFS control maps)
 # ~T+8.5-8.7 h, so the dispatcher fires at T+8.7 h and again ~1.5 h later; the check job takes the newest cycle whose
 # every input is on the mirror (scripts/ecmwf/cycles.py --profile tc) and stops when main already carries it complete
 # (an incomplete cycle - one ensemble or its pressure missing - is rebuilt by a later slot).
+# Two stages for the maps: the board's run draws them from the IFS control's 0.25-degree run; the IFS control's 0.1-degree
+# run reaches the mirror ~2 h later (00Z: day 10 ~09:40Z, 12Z ~21:40Z), and the later slot (10:10 / 22:10) then
+# redraws only the maps from it (build=maps), with the board's own member tracks (the tc-members artifact). A run that
+# finds the 0.1-degree run already out draws its maps from it directly (cycles.py --profile ifs-0p1), and a 0.25-degree
+# run never replaces a cycle's 0.1-degree maps (tc_maps.py).
 on:
   # Backstop crons at the dispatcher's later slots, for when it is off.
   schedule:
@@ -27,9 +32,13 @@ on:
         description: 'rebuild a cycle main already carries'
         type: boolean
         default: false
+      resol:
+        description: 'Grid of the IFS control maps, 0p25 or 0p1 (blank = 0p1 once that run is complete)'
+        default: ''
 
 permissions:
   contents: write
+  actions: read   # a maps-only redraw downloads the board run's member tracks (artifact)
 
 concurrency:
   group: tc
@@ -48,6 +57,7 @@ jobs:
     outputs:
       date: ${{ steps.cyc.outputs.date }}
       time: ${{ steps.cyc.outputs.time }}
+      resol: ${{ steps.grid.outputs.resol }}
       build: ${{ steps.done.outputs.build }}
     steps:
       - uses: actions/checkout@v7
@@ -76,31 +86,55 @@ jobs:
           echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"
           echo "cycle: $D ${T}Z"
 
+      - name: Grid of the IFS control maps (0.1 deg once that run is complete)
+        id: grid
+        working-directory: scripts/ecmwf
+        env:
+          WANT: ${{ github.event.inputs.resol }}
+        run: |
+          if [ "$WANT" = "0p25" ] || [ "$WANT" = "0p1" ]; then
+            echo "resol=$WANT" >> "$GITHUB_OUTPUT"
+          elif python cycles.py --profile ifs-0p1 --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" --check; then
+            echo "resol=0p1" >> "$GITHUB_OUTPUT"
+          else
+            echo "resol=0p25" >> "$GITHUB_OUTPUT"
+          fi
+
+      # build=full: the board, the phase space and the maps; build=maps: the board is published and the 0.1-degree run is
+      # now out, so only the maps are redrawn; build=none: nothing new.
       - name: Already published?
         id: done
         env:
           GH_TOKEN: ${{ github.token }}
+          R: ${{ steps.grid.outputs.resol }}
         run: |
-          if [ "${{ github.event.inputs.force }}" = "true" ]; then echo "build=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then echo "build=full" >> "$GITHUB_OUTPUT"; exit 0; fi
           D="${{ steps.cyc.outputs.date }}"; want="${D:0:4}-${D:4:2}-${D:6:2}T${{ steps.cyc.outputs.time }}:00Z"
-          have=$(gh api "repos/$GITHUB_REPOSITORY/contents/assets/sst/data/tc_board.json?ref=main" \
-                   -H "Accept: application/vnd.github.raw+json" 2>/dev/null \
+          raw() { gh api "repos/$GITHUB_REPOSITORY/contents/$1?ref=main" -H "Accept: application/vnd.github.raw+json" 2>/dev/null; }
+          have=$(raw assets/sst/data/tc_board.json \
                  | python -c "import json, sys; b = json.load(sys.stdin); print(b.get('init', ''), b.get('complete', False))" 2>/dev/null || true)
-          if [ "$have" = "$want True" ]; then
-            echo "main already carries the $want cycle, complete; nothing to do"; echo "build=false" >> "$GITHUB_OUTPUT"
+          maps=$(raw assets/sst/anim/tcdt/tcdt_manifest.json \
+                 | python -c "import json, sys; m = json.load(sys.stdin); print(m.get('init', ''), m.get('resol', '0p25'), bool(m.get('regions')))" 2>/dev/null || true)
+          if [ "$have" != "$want True" ]; then
+            echo "main has '${have:-no tc_board.json}'; building $want at $R"; echo "build=full" >> "$GITHUB_OUTPUT"
+          elif [ "$R" = "0p1" ] && [ "$maps" = "$want 0p25 True" ]; then
+            echo "main carries the $want board with 0.25-degree maps; the 0.1-degree run is out: redrawing the maps"
+            echo "build=maps" >> "$GITHUB_OUTPUT"
           else
-            echo "main has '${have:-no tc_board.json}'; building $want"; echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "main already carries the $want cycle, complete (maps: ${maps:-none}); nothing to do"; echo "build=none" >> "$GITHUB_OUTPUT"
           fi
 
   build:
     needs: check
-    if: needs.check.outputs.build == 'true'
+    if: needs.check.outputs.build != 'none'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
       MPLBACKEND: Agg
       D: ${{ needs.check.outputs.date }}
       T: ${{ needs.check.outputs.time }}
+      R: ${{ needs.check.outputs.resol }}
+      BUILD: ${{ needs.check.outputs.build }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -121,22 +155,44 @@ jobs:
 
       # The board is the product: if it fails, the job fails and nothing is published.
       - name: Storm board (tracks, recurvature, post-tropical, depth, watch)
+        if: env.BUILD == 'full'
         working-directory: scripts/mjo
         run: python src/tc_ens.py --date "$D" --time "$T" --out-dir ../../assets/sst --members "$RUNNER_TEMP/tc_members.json"
 
+      # the board's member tracks, for the 0.1-degree redraw of its maps ~2 h later
+      - uses: actions/upload-artifact@v7
+        if: env.BUILD == 'full'
+        with:
+          name: tc-members-${{ env.D }}${{ env.T }}
+          path: ${{ runner.temp }}/tc_members.json
+          retention-days: 2
+
       - name: Cyclone phase space (Hart 2003, IFS control)
+        if: env.BUILD == 'full'
         working-directory: scripts/mjo
         run: |
           python src/tc_phase.py --date "$D" --time "$T" --board ../../assets/sst/data/tc_board.json \
             --out-dir ../../assets/sst --json ../../assets/sst/data/tcphase.json \
             || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "TC phase space"
 
+      - name: Member tracks of the published board (maps-only redraw)
+        if: env.BUILD == 'maps'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=tc-members-$D$T&per_page=10" \
+                  --jq '[.artifacts[] | select(.expired | not)][0].workflow_run.id // empty')
+          if [ -z "$run" ]; then echo "::error::no member tracks of the $D ${T}Z board to redraw its maps with"; exit 1; fi
+          gh run download "$run" -n "tc-members-$D$T" -D "$RUNNER_TEMP"
+
+      # A full build carries on without its maps (degraded); a maps-only redraw that fails publishes nothing, so the
+      # 0.25-degree maps stay.
       - name: Dynamic-tropopause maps around each storm (IFS control)
         working-directory: scripts/mjo
         run: |
           python src/tc_maps.py --date "$D" --time "$T" --board ../../assets/sst/data/tc_board.json \
-            --members "$RUNNER_TEMP/tc_members.json" --anim-dir ../../assets/sst/anim/tcdt \
-            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "TC dynamic-tropopause maps"
+            --members "$RUNNER_TEMP/tc_members.json" --anim-dir ../../assets/sst/anim/tcdt --resol "$R" \
+            || { if [ "$BUILD" = "maps" ]; then exit 1; fi; "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "TC dynamic-tropopause maps"; }
 
       # The publisher retries a lost lease itself; a collision can still end it, so the whole publish is tried three
       # times. An empty directory (no storm) is skipped by the publisher and the branch keeps its copy.
@@ -154,7 +210,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          OUT="assets/sst/data/tc_board.json assets/sst/data/tcphase.json assets/sst/anim/tcdt/tcdt_manifest.json assets/sst/tc"
+          # a maps-only redraw commits only the map manifest: the board files in this checkout may be older than main's
+          OUT="assets/sst/anim/tcdt/tcdt_manifest.json"
+          if [ "$BUILD" = "full" ]; then OUT="$OUT assets/sst/data/tc_board.json assets/sst/data/tcphase.json assets/sst/tc"; fi
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do
@@ -165,7 +223,7 @@ jobs:
             tar xf "$SNAP/outs.tar"
             for f in $OUT; do [ -e "$f" ] && git add -A "$f"; done
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
-            git commit -m "TC board: ${D}_${T}z"
+            if [ "$BUILD" = "full" ]; then git commit -m "TC board: ${D}_${T}z"; else git commit -m "TC maps at $R: ${D}_${T}z"; fi
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
             echo "Push $i rejected; resyncing and retrying"
             sleep 5

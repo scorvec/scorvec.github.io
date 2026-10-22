@@ -68,12 +68,24 @@ class Need:
     stream: str = "enfo"  # "enfo" | "oper"
     step: int = 360
     every: tuple = tuple(range(0, 361, 6))  # the stream's published steps up to `step` (all must be on the mirror)
+    resol: str = "0p25"
+    levtype: str | None = None  # "pl" | "sfc": the 0.1-deg files are split by level type
 
     def rel(self, date: str, hh: str, step: int | None = None) -> str:
-        return path_for(date, hh, self.model, self.step if step is None else step, self.kind, stream=self.stream)
+        return path_for(
+            date,
+            hh,
+            self.model,
+            self.step if step is None else step,
+            self.kind,
+            stream=self.stream,
+            resol=self.resol,
+            levtype=self.levtype,
+        )
 
     def label(self) -> str:
-        return f"{self.model} {self.stream}-{self.kind} +{self.step}h"
+        grid = "" if self.resol == "0p25" else f" {self.resol}-{self.levtype}"
+        return f"{self.model}{grid} {self.stream}-{self.kind} +{self.step}h"
 
 
 # What each product family reads. AIFS-ENS control and perturbed members are separate files that land separately
@@ -92,12 +104,19 @@ TC_BOARD = (
     Need("ifs", "ef", step=240, every=IFS_STEPS),
     *IFS_HRES_D10,
 )
+# The IFS control at 0.1 deg to day 10, both of its files (pressure levels and surface): the second stage of the TC
+# storm maps (tc.yml) and the AR monitor's IFS IVT (ar-det.yml). It reaches the mirror ~2 h after the 0.25-deg run
+# (00Z: day 10 by ~09:40Z, 12Z by ~21:40Z; measured 20-22 Oct 2026).
+IFS_CONTROL_0P1 = tuple(
+    Need("ifs", "fc", "oper", step=240, every=IFS_STEPS, resol="0p1", levtype=lt) for lt in ("pl", "sfc")
+)
 PROFILES = {
     "aifs-ens": AIFS_ENS,  # strat, mjo, aam, ar
     "ifs-ens": IFS_ENS,  # strat-ifs (waits for it on the AIFS-ENS cycle)
     "aifs-single": AIFS_SINGLE,
     "aifs-compare": AIFS_SINGLE + AIFS_ENS,  # aifs-compare: single vs control vs ensemble mean
     "tc": TC_BOARD,  # tc.yml
+    "ifs-0p1": IFS_CONTROL_0P1,  # tc.yml, ar-det.yml: whether the IFS control's maps can be drawn at 0.1 deg
 }
 
 

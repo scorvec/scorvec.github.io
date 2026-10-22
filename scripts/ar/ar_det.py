@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic IVT, days 1-7, four models: ECMWF AIFS single, ECMWF IFS HRES, NCEP GFS, ECCC GDPS.
+"""Deterministic IVT, days 1-7, four models: ECMWF AIFS single, the ECMWF IFS control, NCEP GFS, ECCC GDPS.
 
 Every model's IVT is computed here from q, u and v on the pressure levels it publishes (arlib.integrate: 1000-300 hPa,
 trapezoidal in p, below-ground levels dropped by surface pressure), 6-hourly from the analysis to +168 h:
@@ -8,8 +8,13 @@ trapezoidal in p, below-ground levels dropped by surface pressure), 6-hourly fro
     GFS         1000 975 950 925 900 850 ... 350 300         (17 levels, every 25/50 hPa)
     GDPS        1000 985 970 950 925 900 875 850 ... 300     (19 levels)
 
+The IFS control runs twice a cycle: at 0.25 deg with the others, then (--resol 0p1) on its 0.1-degree grid
+(interpolated by ECMWF from the model's ~9 km octahedral grid), which reaches the mirror ~2 h later. At 0.1 deg the IVT,
+the coastline series and the North America map are on that grid; the North Pacific map shades 0.2-degree blocks (arlib.ivt_frame: a 0.1-degree cell is under a pixel there).
+
 Per model (one job each in ar-det.yml):
     python ar_det.py model --model gfs --date 20261007 --time 00 --work /tmp/ard
+    python ar_det.py model --model ifs --resol 0p1 --date 20261007 --time 00 --work /tmp/ard
         -> assets/ar/anim/det_<model>_{pac,na}/F00..F28.webp   the IVT loops (two domains)
            assets/ar/anim/det_<model>_pac/coast.json             coastal-transect IVT series + AR-scale ranks per point
            <work>/det_<model>.json                               the manifest part (frames, levels, bytes, runtime)
@@ -60,15 +65,15 @@ def _render(job):
     title = f"{m['label']} IVT · init {R['init']:%d %b %Y %HZ} · {_frame_label(R['init'], h)}"
     lv = R["levels"]
     sub = (
-        f"Integrated vapour transport 1000–300 hPa from q, u, v on {len(lv)} levels ({m['res']}); below-ground levels "
-        "removed with surface pressure · contours: sea-level pressure, 4 hPa"
+        f"IVT 1000–300 hPa from q, u, v on {len(lv)} levels, {R['res']} grid; below-ground levels removed with surface "
+        "pressure · contours: sea-level pressure, 4 hPa"
     )
     A.ivt_frame(out, R["lat"], R["lon"], R["ivt"][k], R["ivte"][k], R["ivtn"][k], dom, title, sub, msl=R["msl"][k])
     return dom_key, k, out.stat().st_size
 
 
-def coast_figure(out, m, init, valid, cser, tl, levels):
-    """Coastline IVT, latitude x time (the deterministic landfall chart)."""
+def coast_figure(out, m, init, valid, cser, tl, levels, res):
+    """Coastline IVT, latitude x time (the deterministic landfall chart); res: the model grid's label."""
     import matplotlib
 
     matplotlib.use("Agg")
@@ -102,8 +107,8 @@ def coast_figure(out, m, init, valid, cser, tl, levels):
     fig.text(
         0.02,
         0.925,
-        f"IVT 1000–300 hPa ({len(levels)} levels) at the first ocean point west of the coast on each 0.25° latitude, "
-        "Baja California to southeast Alaska · contours 250 / 500 / 750 / 1000",
+        f"IVT 1000–300 hPa ({len(levels)} levels, {res} grid) at the first ocean point west of the coast on each 0.25° "
+        "latitude, Baja California to southeast Alaska · contours 250 / 500 / 750 / 1000",
         fontsize=8.5,
         color="#444",
         va="top",
@@ -116,17 +121,22 @@ def coast_figure(out, m, init, valid, cser, tl, levels):
     plt.close(fig)
 
 
-def run_model(model, date, hh, work: Path, procs: int, wait_min: float):
+def run_model(model, date, hh, work: Path, procs: int, wait_min: float, resol: str = "0p25"):
+    from rangefetch import RESOL_LABEL
+
     t0 = time.time()
     init = pd.Timestamp(f"{date}T{hh}:00")
     m = A.MODELS[model]
-    print(f"== {m['label']} {date} {hh}Z, {len(STEPS)} steps to +{STEPS[-1]} h", flush=True)
+    if resol != "0p25" and model != "ifs":
+        raise SystemExit(f"only the IFS control has a {resol} run")
+    res = RESOL_LABEL[resol] if model == "ifs" else m["res"]
+    print(f"== {m['label']} {date} {hh}Z, {res}, {len(STEPS)} steps to +{STEPS[-1]} h", flush=True)
     ivt, ivte, ivtn, msl, lat, lon = [], [], [], [], None, None
     sub8 = []  # GFS/GDPS: IVT on the ECMWF 8-level subset, for the level-bias check
     t_end = time.time() + 60 * wait_min
     for h in STEPS:
         while True:
-            d = A.read_step(model, date, hh, h)
+            d = A.read_step(model, date, hh, h, resol)
             if d is not None or time.time() > t_end:
                 break
             print(f"  +{h} h not published yet; waiting", flush=True)
@@ -181,7 +191,17 @@ def run_model(model, date, hh, work: Path, procs: int, wait_min: float):
         for f in dd.glob("F*.webp"):
             f.unlink()
     _R.update(
-        model=model, init=init, levels=levels, lat=lat, lon=lon, ivt=ivt, ivte=ivte, ivtn=ivtn, msl=msl, dirs=dirs
+        model=model,
+        init=init,
+        levels=levels,
+        res=res,
+        lat=lat,
+        lon=lon,
+        ivt=ivt,
+        ivte=ivte,
+        ivtn=ivtn,
+        msl=msl,
+        dirs=dirs,
     )
     jobs = [(k, dk) for k in range(len(STEPS)) for dk in A.DOMAINS]
     t1 = time.time()
@@ -237,7 +257,7 @@ def run_model(model, date, hh, work: Path, procs: int, wait_min: float):
         "levels": levels,
     }
     (dirs["pac"] / "coast.json").write_text(json.dumps(coast, separators=(",", ":")))
-    coast_figure(SITE / "assets" / "ar" / f"det_coast_{model}.webp", m, init, valid, cser, tl, levels)
+    coast_figure(SITE / "assets" / "ar" / f"det_coast_{model}.webp", m, init, valid, cser, tl, levels, res)
 
     # ── analysis-time IVT on the 0.5-deg points (validation) ──
     la5 = np.arange(10.0, 70.01, 0.5)
@@ -261,8 +281,9 @@ def run_model(model, date, hh, work: Path, procs: int, wait_min: float):
         "short": m["short"],
         "init": init.strftime("%Y-%m-%dT%HZ"),
         "levels": levels,
-        "res": m["res"],
-        "src": m["src"],
+        "res": res,
+        "resol": resol,
+        "src": m["src"] + ("" if resol == "0p25" else f" {resol}"),
         "steps": list(STEPS),
         "level_bias": lvl_bias,
         "points": [{k: p[k] for k in ("lat", "lon", "name", "rank", "peak", "dur_h", "onset", "daily")} for p in pts],
@@ -303,7 +324,8 @@ def combine(work: Path):
         if model in parts:
             p = parts[model]
             models[model] = {
-                k: p[k] for k in ("label", "short", "init", "levels", "res", "src", "level_bias", "max_ivt", "points")
+                k: p[k]
+                for k in ("label", "short", "init", "levels", "res", "resol", "src", "level_bias", "max_ivt", "points")
             }
             for dk, fr in p["frames"].items():
                 regions[f"det_{model}_{dk}"] = {"label": f"{p['short']} · {A.DOMAINS[dk]['label']}", "frames": fr}
@@ -346,13 +368,14 @@ def main():
     a1.add_argument("--work", default="/tmp/ard")
     a1.add_argument("--procs", type=int, default=4)
     a1.add_argument("--wait-min", type=float, default=float(os.environ.get("AR_DET_WAIT_MIN", "40")))
+    a1.add_argument("--resol", choices=("0p25", "0p1"), default="0p25", help="the IFS control's grid")
     a2 = sp.add_parser("combine")
     a2.add_argument("--work", default="/tmp/ard")
     a = ap.parse_args()
     work = Path(a.work)
     work.mkdir(parents=True, exist_ok=True)
     if a.cmd == "model":
-        run_model(a.model, a.date, f"{int(a.time):02d}", work, a.procs, a.wait_min)
+        run_model(a.model, a.date, f"{int(a.time):02d}", work, a.procs, a.wait_min, a.resol)
     else:
         combine(work)
     return 0

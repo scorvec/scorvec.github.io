@@ -4,17 +4,26 @@ name: AR deterministic IVT (AIFS, IFS, GFS, GDPS, days 1-7)
 # levels (scripts/ar/arlib.py), 6-hourly to +168 h, two map domains, coastline IVT and AR-scale ranks per model.
 # One job per model (sources: ECMWF open data from the Google Cloud mirror ONLY; GFS from AWS S3 byte ranges; GDPS
 # from the MSC Datamart), then one combine job publishes the frames and commits the manifest. A model whose cycle is
-# not out keeps its previous run on the page for up to 30 h (flagged). Fired by the dispatcher at 08:20/20:20.
+# not out keeps its previous run on the page for up to 30 h (flagged). Fired by the dispatcher at 08:20/20:20 and, for
+# the IFS control's 0.1-degree run, 09:50/21:50.
 #
 # GDPS FIRST. The GDPS reaches +168 h on the Datamart ~4 h 30 min after its start (00Z: 04:30 UTC, 12Z: 16:31-17:06,
 # 10-16 Oct 2026), hours before the others, so the laptop's readiness dispatcher runs it alone (models=gdps) the moment
 # it is out: the page shows the new GDPS run beside the other models' previous one, flagged. The full run then skips
 # every model whose run of the cycle is already on the page (which also makes GitHub's late cron firings, repeating a
 # cycle the dispatcher ran, cost a minute instead of four model jobs).
+#
+# THE IFS CONTROL TWICE. Its 0.25-degree run is drawn with the others at 08:20/20:20; its 0.1-degree run reaches
+# the mirror ~2 h later (day 10 by ~09:40Z / ~21:40Z), and the 09:50/21:50 slots redraw the IFS control alone from it.
+# The cycle job reads the grid from the mirror (scripts/ecmwf/cycles.py --profile ifs-0p1): a run that finds the
+# 0.1-degree run complete draws the IFS control from it, and a 0.25-degree run never replaces the page's 0.1-degree run
+# of the same cycle (the manifest's models.ifs.resol).
 on:
   schedule:
     - cron: '20 8 * * *'
+    - cron: '50 9 * * *'
     - cron: '20 20 * * *'
+    - cron: '50 21 * * *'
   workflow_dispatch:
     inputs:
       date:
@@ -49,7 +58,16 @@ jobs:
       date: ${{ steps.c.outputs.date }}
       time: ${{ steps.c.outputs.time }}
       models: ${{ steps.c.outputs.models }}
+      resol: ${{ steps.c.outputs.resol }}
     steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/ecmwf
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install the resolver's HTTP client
+        run: pip install --quiet requests
       - id: c
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -63,13 +81,16 @@ jobs:
             if [ "$H" -ge 12 ]; then T=12; else T=00; fi
           fi
           echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"; echo "cycle $D ${T}Z"
-          # main's CURRENT manifest (no checkout in this job): a model whose run of this cycle, or a newer one, is already
-          # on the page is not run again
+          # the IFS control's grid: its 0.1-degree run once that is complete on the Google mirror
+          if python scripts/ecmwf/cycles.py --profile ifs-0p1 --date "$D" --time "$T" --check; then R=0p1; else R=0p25; fi
+          echo "resol=$R" >> "$GITHUB_OUTPUT"
+          # main's CURRENT manifest: a model whose run of this cycle, or a newer one, is already on the page is not run
+          # again, except the IFS control drawn at 0.25 deg once its 0.1-degree run is out
           gh api -H "Accept: application/vnd.github.raw" "repos/$GITHUB_REPOSITORY/contents/assets/ar/anim/ar_det_manifest.json?ref=main" \
             > /tmp/man.json 2>/dev/null || { echo "::warning::main's manifest unreadable: running every model asked for"; echo '{}' > /tmp/man.json; }
-          python3 - "$D$T" "${WANT:-aifs,ifs,gfs,gdps}" "$FORCE" /tmp/man.json <<'PY' >> "$GITHUB_OUTPUT"
+          python3 - "$D$T" "${WANT:-aifs,ifs,gfs,gdps}" "$FORCE" /tmp/man.json "$R" <<'PY' >> "$GITHUB_OUTPUT"
           import json, sys
-          cyc, want, force, path = sys.argv[1:]
+          cyc, want, force, path, resol = sys.argv[1:]
           try:
               have = json.load(open(path)).get("models", {})
           except ValueError:
@@ -77,12 +98,17 @@ jobs:
           init = f"{cyc[:4]}-{cyc[4:6]}-{cyc[6:8]}T{cyc[8:]}Z"
           run = []
           for m in want.split(","):
-              shown = have.get(m, {}).get("init", "")
-              if force != "true" and shown >= init:
+              shown, grid = have.get(m, {}).get("init", ""), have.get(m, {}).get("resol", "0p25")
+              if m == "ifs" and shown == init and grid == "0p1" and resol != "0p1":
+                  print(f"ifs: the page shows its {shown} run at 0.1 deg; a 0.25-degree run does not replace it", file=sys.stderr)
+              elif m == "ifs" and shown == init and grid != "0p1" and resol == "0p1":
+                  run.append(m)
+                  print(f"ifs: the page shows its {shown} run at 0.25 deg; redrawing it from the 0.1-degree run", file=sys.stderr)
+              elif force != "true" and shown >= init:
                   print(f"{m}: the page already shows its {shown} run", file=sys.stderr)
               else:
                   run.append(m)
-          print(f"models to run: {', '.join(run) or 'none'}", file=sys.stderr)
+          print(f"models to run: {', '.join(run) or 'none'} (IFS control at {resol})", file=sys.stderr)
           print("models=" + json.dumps(run))
           PY
 
@@ -116,7 +142,7 @@ jobs:
       - name: Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
       - name: IVT for ${{ matrix.model }}
-        run: python scripts/ar/ar_det.py model --model ${{ matrix.model }} --date ${{ needs.cycle.outputs.date }} --time ${{ needs.cycle.outputs.time }} --work out/work --procs 4
+        run: python scripts/ar/ar_det.py model --model ${{ matrix.model }} --date ${{ needs.cycle.outputs.date }} --time ${{ needs.cycle.outputs.time }} --work out/work --procs 4 --resol ${{ matrix.model == 'ifs' && needs.cycle.outputs.resol || '0p25' }}
       - name: Hand over
         run: |
           mkdir -p out/assets/ar/anim

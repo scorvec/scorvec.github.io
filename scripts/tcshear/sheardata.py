@@ -2,7 +2,8 @@
 """Data access for the TC shear product. Only the levels and variables it needs, byte-ranged:
 
   ECMWF open data (AIFS-ENS members, AIFS single, IFS control): Google Cloud mirror ONLY, through the
-      repo's rangefetch (.index -> coalesced Range GETs). u, v, t at LEVELS, q at Q_LEVELS, msl.
+      repo's rangefetch (.index -> coalesced Range GETs). u, v, t at LEVELS, q at Q_LEVELS, msl; the maps' u, v, t also
+      from the IFS control's 0.1-degree files.
   GFS 0.25 deg and HRRR (3 km, CONUS): AWS S3 open-data buckets (noaa-gfs-bdp-pds, noaa-hrrr-bdp-pds), one Range GET per
       record through the .idx (never NOMADS).
   SST: NOAA OISST v2.1 daily (NCEI, the newest preliminary day not after the cycle).
@@ -184,13 +185,33 @@ def complete(b) -> bool:
 
 
 # ── ECMWF open data (Google mirror only) ──────────────────────────────────────────────────────────────────────────
-def ecmwf_boxes(model, date, hh, step, kind, stream, centres_by_member, half_lat=16.0, extra=None, chunk=240):
+def ecmwf_boxes(
+    model,
+    date,
+    hh,
+    step,
+    kind,
+    stream,
+    centres_by_member,
+    half_lat=16.0,
+    extra=None,
+    chunk=240,
+    resol="0p25",
+    params=("u", "v", "t", "q", "msl"),
+):
     """Boxes for one step of an ECMWF open-data file. model 'aifs-ens' (kind pf, stream enfo), 'aifs-single' or
-    'ifs' (kind fc, stream oper). Returns {key: box} or None when the step is not on the Google mirror."""
+    'ifs' (kind fc, stream oper; resol "0p1": the IFS control's 0.1-degree files). params: the fields to read (the maps
+    need only u, v, t). Returns {key: box} or None when the step is not on the Google mirror."""
     import rangefetch as rf
 
     try:
-        idx = rf.fetch_index(date, hh, model, int(step), kind, stream=stream)
+        if stream == "oper":
+            files = rf.oper_files(
+                date, hh, model, int(step), resol, levtypes=("pl", "sfc") if "msl" in params else ("pl",)
+            )
+        else:
+            idx = rf.fetch_index(date, hh, model, int(step), kind, stream=stream)
+            files = [(rf.path_for(date, hh, model, int(step), kind, stream=stream) + ".grib2", idx)]
     except rf.IndexUnavailable as e:
         if e.not_found:
             return None
@@ -201,6 +222,8 @@ def ecmwf_boxes(model, date, hh, step, kind, stream, centres_by_member, half_lat
         if kind == "pf" and str(e.get("number")) not in mems:
             return False
         p, lt = e.get("param"), e.get("levtype")
+        if p not in params:
+            return False
         if p == "msl" and lt == "sfc":
             return True
         if lt != "pl":
@@ -208,19 +231,19 @@ def ecmwf_boxes(model, date, hh, step, kind, stream, centres_by_member, half_lat
         L = int(e.get("levelist", -1))
         return (p in ("u", "v", "t") and L in LEVELS) or (p == "q" and L in Q_LEVELS)
 
-    want = sorted([e for e in idx if keep(e)], key=lambda e: e["_offset"])
-    rel = rf.path_for(date, hh, model, int(step), kind, stream=stream) + ".grib2"
     parts = []
     futs = []
     ex = pool()
-    for c0 in range(0, len(want), chunk):
-        sub = want[c0 : c0 + chunk]
-        blob = rf.fetch_ranges(rel, rf.coalesce(sub, max_gap=128 * 1024))
-        LEDGER.add("ecmwf-google", len(blob))
-        futs.extend(ex.submit(_work, (m, centres_by_member, half_lat, extra)) for m in split_grib(blob))
-        if len(futs) > 3 * chunk:  # bound memory: drain the oldest
-            parts += [f.result() for f in futs[:chunk]]
-            futs = futs[chunk:]
+    for rel, idx in files:
+        want = sorted([e for e in idx if keep(e)], key=lambda e: e["_offset"])
+        for c0 in range(0, len(want), chunk):
+            sub = want[c0 : c0 + chunk]
+            blob = rf.fetch_ranges(rel, rf.coalesce(sub, max_gap=128 * 1024))
+            LEDGER.add("ecmwf-google", len(blob))
+            futs.extend(ex.submit(_work, (m, centres_by_member, half_lat, extra)) for m in split_grib(blob))
+            if len(futs) > 3 * chunk:  # bound memory: drain the oldest
+                parts += [f.result() for f in futs[:chunk]]
+                futs = futs[chunk:]
     parts += [f.result() for f in futs]
     return _assemble(parts)
 

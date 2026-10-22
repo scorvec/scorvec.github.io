@@ -15,7 +15,8 @@ Outflow (Archambault, Bosart, Keyser & Cordeira 2013, MWR 141, 2325-2346; Archam
 negative PV advection by the irrotational wind, -v_chi . grad(PV), in the 300-200 hPa layer (irrotational,
 pv_advection): v_chi from the layer-mean wind by a spherical-harmonic inversion (wind200_vpot, T106 ~1.7 deg), PV
 smoothed 1 deg first.
-Fields of the deterministic runs (IFS control, AIFS single) come byte-ranged from the Google mirror (oper_fields).
+Fields of the deterministic runs (IFS control, AIFS single) come byte-ranged from the Google mirror (oper_fields), the
+IFS control's at 0.25 or 0.1 degrees.
 """
 
 from __future__ import annotations
@@ -187,23 +188,34 @@ def decode_all(fp: Path, types=(1, 4)) -> list[dict]:
     return out
 
 
-def oper_fields(model: str, date: str, hh: str, step: int, pl=(), levels=(), sfc=()) -> dict:
+FETCHED: dict = {}  # bytes oper_fields has fetched in this process, per mirror (rangefetch.fetch_ranges stats)
+
+
+def oper_fields(model: str, date: str, hh: str, step: int, pl=(), levels=(), sfc=(), resol: str = "0p25") -> dict:
     """One step of a deterministic run (model "ifs" = the IFS control, or "aifs-single"), byte-ranged from the Google mirror:
     {"lat" (ascending), "lon" (0..360), (param, level): field for each pl param on each level, param: field for each sfc
-    param}. Raises RuntimeError when the step is not on the mirror or a field is missing."""
+    param}. resol "0p1": the IFS control's 0.1-degree files. Raises RuntimeError when the step is not on the mirror or a
+    field is missing."""
     import eccodes
     import rangefetch as rf
 
     hh = f"{int(hh):02d}"
+    levtypes = (("pl",) if pl else ()) + (("sfc",) if sfc else ())
     try:
-        idx = rf.fetch_index(date, hh, model, int(step), "fc", stream="oper")
+        files = rf.oper_files(date, hh, model, int(step), resol, levtypes)
     except rf.IndexUnavailable as e:
-        raise RuntimeError(f"{model} {date} {hh}Z +{step} h: not on the Google mirror") from e
-    want = [e for e in rf.select(idx, param=list(pl), levelist=list(levels)) if e.get("levtype") == "pl"] if pl else []
-    want += [e for e in rf.select(idx, param=list(sfc)) if e.get("levtype") == "sfc"] if sfc else []
-    if len(want) != len(pl) * len(levels) + len(sfc):
-        raise RuntimeError(f"{model} {date} {hh}Z +{step} h: {len(want)} of the fields in the index")
-    blob = rf.fetch_ranges(rf.path_for(date, hh, model, int(step), "fc", stream="oper") + ".grib2", rf.coalesce(want))
+        raise RuntimeError(f"{model} {resol} {date} {hh}Z +{step} h: not on the Google mirror") from e
+    sel = []
+    for rel, idx in files:
+        want = (
+            [e for e in rf.select(idx, param=list(pl), levelist=list(levels)) if e.get("levtype") == "pl"] if pl else []
+        )
+        want += [e for e in rf.select(idx, param=list(sfc)) if e.get("levtype") == "sfc"] if sfc else []
+        sel.append((rel, want))
+    n = sum(len(want) for _, want in sel)
+    if n != len(pl) * len(levels) + len(sfc):
+        raise RuntimeError(f"{model} {resol} {date} {hh}Z +{step} h: {n} of the fields in the index")
+    blob = b"".join(rf.fetch_ranges(rel, rf.coalesce(want), stats=FETCHED) for rel, want in sel if want)
     out = {}
     i = 0
     while (j := blob.find(b"GRIB", i)) >= 0:
@@ -733,3 +745,11 @@ def sector_axes(fig, rect, lon0, lon1, lat0, lat1, land=True, coast_res="50m", n
     ax.add_feature(cfeature.BORDERS, lw=0.3, edgecolor="#777")
     ax.gridlines(lw=0.3, color="#999", alpha=0.5, xlocs=range(-180, 181, 30), ylocs=range(0, 91, 15))
     return ax
+
+
+def fit_text(fig, text, width_in: float) -> None:
+    """Shrink a figure text's font until it is at most width_in inches wide (a title with a long storm name and the grid
+    would otherwise run off a narrow map)."""
+    w = text.get_window_extent(fig.canvas.get_renderer()).width / fig.dpi
+    if w > width_in:
+        text.set_fontsize(text.get_fontsize() * width_in / w)

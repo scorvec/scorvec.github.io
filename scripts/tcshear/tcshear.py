@@ -16,6 +16,10 @@ Exits in seconds with an empty storm list when no named storm exists. A cycle is
 are both on the Google mirror to day 5 (resolve_cycle). A run that was not fully read (AIFS single not on the mirror yet,
 or a failed fetch) is published with complete=false, pending=[model] and rebuilt by a later dispatch once the model is
 there (closed without it at T+DET_WAIT_H).
+Map grid: the maps are drawn from the IFS control's 0.25-degree run with the cycle; its 0.1-degree run reaches
+the mirror ~2 h later, and the next dispatch redraws only the maps from it (maps_only; --map-resol auto), on the same
+boxes and steps. The diagnostics, the hodographs and the verification archive stay on the 0.25-degree run. The
+manifest's maps_resol says which grid the maps are on.
 """
 
 from __future__ import annotations
@@ -118,15 +122,17 @@ def oper_tf(model, d, h):
     return fp
 
 
-def oper_steps(model, d, h, steps):
-    """Steps of a deterministic ECMWF run fully on the mirror (.index and .grib2). The IFS control runs to 144 h at 06/18Z and
-    360 h at 00/12Z, AIFS single to 360 h: every step to 120 h exists once the run is uploaded. A listing failure
-    returns no steps (counted as missing, so the cycle is retried)."""
+def oper_steps(model, d, h, steps, resol="0p25"):
+    """Steps of a deterministic ECMWF run fully on the mirror (.index and .grib2; at 0.1 deg the pressure-level file, all
+    the maps read). The IFS control runs to 144 h at 06/18Z and 360 h at 00/12Z, AIFS single to 360 h: every step to
+    120 h exists once the run is uploaded. A listing failure returns no steps (counted as missing, so the cycle is
+    retried)."""
     import cycles
+    import rangefetch as rf
 
-    names = set(cycles._list_names(f"{d}/{h}z/{model}/0p25/oper/") or [])
-    base = f"{d}/{h}z/{model}/0p25/oper/{d}{h}0000"
-    return [s for s in steps if f"{base}-{s}h-oper-fc.grib2" in names and f"{base}-{s}h-oper-fc.index" in names]
+    names = set(cycles._list_names(f"{d}/{h}z/{model}/{resol}/oper/") or [])
+    rel = {s: rf.path_for(d, h, model, s, "fc", stream="oper", resol=resol, levtype="pl") for s in steps}
+    return [s for s in steps if rel[s] + ".grib2" in names and rel[s] + ".index" in names]
 
 
 # The deterministic ECMWF runs: (model on the mirror, key in the product). The IFS control, the lead, reaches the Google mirror
@@ -509,6 +515,78 @@ def mapbox_for(tr):
     return (round(a0), round(a1), round(b0) % 360.0, round(b0) % 360.0 + round(b1 - b0))
 
 
+# ── the maps' second stage: the lead run's 0.1-degree fields ───────────────────────────────────────────────────────
+def lead_map_resol(d, h):
+    """'0p1' once the lead run's 0.1-degree pressure levels are on the mirror for every step of DET_STEPS its
+    0.25-degree run has (~2 h after it), else '0p25'."""
+    fine = oper_steps(LEAD, d, h, DET_STEPS, "0p1")
+    return "0p1" if fine and fine == oper_steps(LEAD, d, h, DET_STEPS) else "0p25"
+
+
+def redraw_maps(man, d, h, init, resol) -> bool:
+    """Redraw every storm's maps of the cycle in OUT_DIR from the lead run's `resol` fields, at the steps and on the map
+    boxes its 0.25-degree maps used (the per-storm JSON keeps the box, the lead run's records and the observations); the
+    diagnostics stay the 0.25-degree run's. Nothing changes unless every map box of every step is read."""
+    import shearmaps as M
+    from rangefetch import RESOL_LABEL
+
+    docs = {st["sid"]: json.loads((OUT_DIR / f"{st['sid']}.json").read_text()) for st in man["storms"]}
+    docs = {sid: doc for sid, doc in docs.items() if doc.get("frames")}
+    if any(not doc.get("mapbox") for doc in docs.values()):
+        log(f"::warning::{d} {h}Z: a storm's map box was not kept; its {RESOL_LABEL[resol]} maps cannot be drawn")
+        return False
+    steps = sorted({int(f.rsplit("_F", 1)[1][:3]) for doc in docs.values() for f in doc["frames"]})
+    boxes = {}
+    for step in steps:
+        extra = {
+            ("map", sid): tuple(doc["mapbox"])
+            for sid, doc in docs.items()
+            if any(f.endswith(f"_F{step:03d}.webp") for f in doc["frames"])
+        }
+        try:
+            b = D.ecmwf_boxes(LEAD, d, h, step, "fc", "oper", {0: []}, extra=extra, resol=resol, params=("u", "v", "t"))
+        except Exception as e:  # noqa: BLE001
+            b = None
+            log(f"::warning::{LEAD} {resol} +{step}h: {e}")
+        if b is None or any(k not in b for k in extra):
+            log(f"::warning::{d} {h}Z: the {RESOL_LABEL[resol]} map boxes at +{step} h not read; maps unchanged")
+            return False
+        for (_, sid), box in b.items():
+            boxes.setdefault(sid, {})[step] = box
+    for st in man["storms"]:
+        doc = docs.get(st["sid"])
+        if doc is None:
+            continue
+        storm = dict(sid=doc["sid"], name=doc["name"], mapbox=doc["mapbox"])
+        recs = doc["models"].get(LEAD, {}).get("run", [])
+        doc["frames"] = M.render(storm, boxes[doc["sid"]], recs, init, OUT_DIR, doc["obs"], RESOL_LABEL[resol])
+        (OUT_DIR / f"{doc['sid']}.json").write_text(json.dumps(doc, separators=(",", ":"), allow_nan=False))
+        st["frames"] = len(doc["frames"])
+    man["maps_resol"] = resol
+    log(f"  maps redrawn at {RESOL_LABEL[resol]} for {len(docs)} storm(s), {len(steps)} steps  {D.LEDGER.report()}")
+    return True
+
+
+def maps_only(man, d, h, init, resol) -> int:
+    """The cycle is published with 0.25-degree maps and the lead run's `resol` run is now out: fetch the published storm
+    files back from the frames branch (the publisher replaces the directory whole) and redraw only the maps. On any
+    failure the directory is emptied, so nothing is published and the 0.25-degree maps stay."""
+    import shutil
+    import subprocess
+
+    seed = ROOT / "scripts" / "lib" / "fetch_frames_ci.sh"
+    subprocess.run(["bash", str(seed), str(OUT_DIR.relative_to(ROOT))], cwd=ROOT, check=False)  # checked below
+    ok = all((OUT_DIR / f"{st['sid']}.json").exists() for st in man["storms"])
+    if not ok:
+        log(f"::warning::{d} {h}Z: the published storm files could not be fetched back; the 0.25-degree maps stay")
+    if not ok or not redraw_maps(man, d, h, init, resol):
+        shutil.rmtree(OUT_DIR)
+        OUT_DIR.mkdir(parents=True)
+        return 0
+    MANIFEST.write_text(json.dumps(man, separators=(",", ":")))
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date")
@@ -520,6 +598,12 @@ def main() -> int:
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--max-h", type=int, default=120, help="dev: last forecast hour")
     ap.add_argument("--tag", default="", help="hc: a hindcast, written to tcshear_hc (never over the live product)")
+    ap.add_argument(
+        "--map-resol",
+        choices=("auto", "0p25", "0p1"),
+        default="auto",
+        help="the maps' grid (auto: 0.1 deg once the lead run's 0.1-degree run is on the mirror)",
+    )
     a = ap.parse_args()
     global DET_STEPS, MEM_STEPS, HRRR_STEPS, OUT_DIR, MANIFEST  # noqa: PLW0603  run settings set once from the command line before any use
     if a.tag:
@@ -534,8 +618,13 @@ def main() -> int:
     d, h = resolve_cycle(a.date, a.time)
     init = dt.datetime.strptime(d + h, "%Y%m%d%H")
     prev = json.loads(MANIFEST.read_text()) if MANIFEST.exists() else {}
+    map_resol = lead_map_resol(d, h) if a.map_resol == "auto" else a.map_resol
     if prev.get("init") == f"{init:%Y-%m-%dT%H:00Z}" and not a.force:
         if prev.get("complete"):
+            maps = any(st.get("frames") for st in prev.get("storms", []))
+            if maps and map_resol != "0p25" and prev.get("maps_resol", "0p25") != map_resol:
+                log(f"{d} {h}Z is published with 0.25-degree maps; redrawing them from the {map_resol} run")
+                return maps_only(prev, d, h, init, map_resol)
             log(f"{d} {h}Z already published; nothing to do")
             return 0
         pend = prev.get("pending") or []
@@ -644,6 +733,7 @@ def main() -> int:
             models=models,
             obs=obs,
             frames=frames,
+            mapbox=s["mapbox"],
             method=dict(
                 r_remove_km=S.R_REMOVE_KM,
                 r_env_km=S.R_ENV_KM,
@@ -675,6 +765,9 @@ def main() -> int:
                 O.update_verify(VERIFY, sid, s["name"], init, models, obs, RUNS)
         except Exception as e:  # noqa: BLE001
             log(f"  verify archive: {e}")
+    man["maps_resol"] = "0p25"
+    if map_resol != "0p25" and not a.no_maps:  # the 0.1-degree run is already out: redraw the maps from it
+        redraw_maps(man, d, h, init, map_resol)
     close_cycle(man, det_full, init)
     man["built"] = built
     man["bytes"] = D.LEDGER.report()

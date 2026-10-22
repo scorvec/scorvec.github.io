@@ -323,24 +323,28 @@ def _assemble(recs, levels, qkey="q", ukey="u", vkey="v"):
     return out
 
 
-def ecmwf_step(date, hh, model, step, levels=ECMWF_LEVELS, crop=CROP):
-    """IFS HRES ("ifs", stream oper) or AIFS single ("aifs-single") from the Google mirror: q/u/v on `levels`, surface
-    pressure and MSLP for one step. None if the step is not on the mirror (the cycle stays partial)."""
+def ecmwf_step(date, hh, model, step, levels=ECMWF_LEVELS, crop=CROP, resol="0p25"):
+    """The IFS control ("ifs", stream oper; resol "0p1": its 0.1-degree run) or AIFS single ("aifs-single") from the
+    Google mirror: q/u/v on `levels`, surface pressure and MSLP for one step. None if the step is not on the mirror (the
+    cycle stays partial)."""
     import rangefetch as rf
 
     try:
-        idx = rf.fetch_index(date, hh, model, int(step), "fc", stream="oper")
+        files = rf.oper_files(date, hh, model, int(step), resol)
     except rf.IndexUnavailable as e:
         if e.not_found:
             return None
         raise
-    want = rf.select(idx, param=["q", "u", "v"], levelist=list(levels)) + rf.select(idx, param=["sp", "msl"])
-    want = [
-        e for e in want if (e.get("levtype") == "pl") or (e.get("param") in ("sp", "msl") and e.get("levtype") == "sfc")
-    ]
-    ranges = rf.coalesce(want, max_gap=256 * 1024)
-    stats = {}
-    blob = rf.fetch_ranges(rf.path_for(date, hh, model, int(step), "fc", stream="oper") + ".grib2", ranges, stats=stats)
+    blob = b""
+    for rel, idx in files:
+        want = rf.select(idx, param=["q", "u", "v"], levelist=list(levels)) + rf.select(idx, param=["sp", "msl"])
+        want = [
+            e
+            for e in want
+            if (e.get("levtype") == "pl") or (e.get("param") in ("sp", "msl") and e.get("levtype") == "sfc")
+        ]
+        if want:
+            blob += rf.fetch_ranges(rel, rf.coalesce(want, max_gap=256 * 1024))
     LEDGER.add("ecmwf-google", len(blob))
     recs = {}
     for m in split_grib(blob):
@@ -463,11 +467,12 @@ MODELS = {
 }
 
 
-def read_step(model, date, hh, step):
+def read_step(model, date, hh, step, resol="0p25"):
+    """One step of a model's run (resol: the IFS control's grid, "0p25" or "0p1"; the other models have one grid)."""
     if model == "aifs":
         return ecmwf_step(date, hh, "aifs-single", step)
     if model == "ifs":
-        return ecmwf_step(date, hh, "ifs", step)
+        return ecmwf_step(date, hh, "ifs", step, resol=resol)
     if model == "gfs":
         return gfs_step(date, hh, step)
     if model == "gdps":
@@ -506,6 +511,7 @@ IVT_COL = [
     "#3b0a5e",
 ]
 INK, MUTED = "#1a1a1a", "#6f6b64"
+MAP_DPI = 100  # the maps' resolution (pixels per inch)
 
 
 def ivt_cmap():
@@ -557,8 +563,19 @@ def heading(fig, H, title, sub):
     fig.text(0.03, 1 - 0.40 / H, sub, fontsize=8.6, color="#444", va="top")
 
 
+def block_mean(a, k):
+    """Means over blocks of k cells along each axis of a 1-D or 2-D array; edge cells that do not fill a block dropped."""
+    a = np.asarray(a)
+    if a.ndim == 1:
+        return a[: len(a) // k * k].reshape(-1, k).mean(1)
+    nj, ni = a.shape[0] // k * k, a.shape[1] // k * k
+    return a[:nj, :ni].reshape(nj // k, k, ni // k, k).mean((1, 3))
+
+
 def ivt_frame(out, lat, lon, ivt, ivte, ivtn, dom, title, sub, msl=None, cb_label=None, prob=None):
-    """One IVT map: shaded magnitude, vectors where IVT >= 250, optional MSLP contours (every 4 hPa)."""
+    """One IVT map: shaded magnitude, vectors where IVT >= 250, optional MSLP contours (every 4 hPa). A grid finer than
+    the map's pixels is shaded in blocks of whole cells at least a pixel across (the IFS control's 0.1 deg on the North
+    Pacific map: 0.9 pixel a cell, shaded at 0.2 deg); the arrows and the contours have their own spacing."""
     import matplotlib.pyplot as plt
     import cartopy.crs as ccrs
 
@@ -574,10 +591,15 @@ def ivt_frame(out, lat, lon, ivt, ivte, ivtn, dom, title, sub, msl=None, cb_labe
         return a[np.ix_(jj, ii)]
 
     mag = sub_(ivt)
+    px = ax.get_position().width * fig.get_figwidth() * MAP_DPI / (e - w) * abs(lo[1] - lo[0])  # pixels a cell
+    k = int(np.ceil(1.0 / px)) if px < 1.0 else 1
+    if k > 1:
+        sub += f" · shaded in {k * abs(lo[1] - lo[0]):.2g}° blocks"
+    shade = block_mean(mag, k)
     pm = ax.pcolormesh(
-        lo,
-        la,
-        np.where(mag >= IVT_LEV[0], mag, np.nan),
+        block_mean(lo, k),
+        block_mean(la, k),
+        np.where(shade >= IVT_LEV[0], shade, np.nan),
         cmap=cm,
         norm=nm,
         transform=pc,
@@ -635,7 +657,7 @@ def ivt_frame(out, lat, lon, ivt, ivte, ivtn, dom, title, sub, msl=None, cb_labe
         or "IVT (kg m⁻¹ s⁻¹): AR threshold 250 · Ralph-scale steps 250 / 500 / 750 / 1000 / 1250 · arrows: IVT vector where ≥ 250 (length capped at 1000)",
         fontsize=8,
     )
-    fig.savefig(out, dpi=100, facecolor="white", pil_kwargs={"quality": 65, "method": 6})
+    fig.savefig(out, dpi=MAP_DPI, facecolor="white", pil_kwargs={"quality": 65, "method": 6})
     plt.close(fig)
 
 
@@ -698,7 +720,7 @@ def prob_frame(out, lat, lon, prob, dom, title, sub, contour=None, contour_label
     cb.ax.set_xticklabels(["5", "10", "20", "30", "40", "50", "60", "70", "80", "90", "100"])
     cb.ax.tick_params(labelsize=7.5)
     cb.set_label("probability (% of members)" + (f" · {contour_label}" if contour_label else ""), fontsize=8)
-    fig.savefig(out, dpi=100, facecolor="white", pil_kwargs={"quality": 65, "method": 6})
+    fig.savefig(out, dpi=MAP_DPI, facecolor="white", pil_kwargs={"quality": 65, "method": 6})
     plt.close(fig)
 
 
