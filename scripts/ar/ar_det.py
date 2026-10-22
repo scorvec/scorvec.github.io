@@ -10,7 +10,8 @@ trapezoidal in p, below-ground levels dropped by surface pressure), 6-hourly fro
 
 The IFS control runs twice a cycle: at 0.25 deg with the others, then (--resol 0p1) on its 0.1-degree grid
 (interpolated by ECMWF from the model's ~9 km octahedral grid), which reaches the mirror ~2 h later. At 0.1 deg the IVT,
-the coastline series and the North America map are on that grid; the North Pacific map shades 0.2-degree blocks (arlib.ivt_frame: a 0.1-degree cell is under a pixel there).
+the coastline series and the North America map are on that grid; the North Pacific map shades 0.2-degree blocks
+(arlib.ivt_frame: a 0.1-degree cell is under a pixel there).
 
 Per model (one job each in ar-det.yml):
     python ar_det.py model --model gfs --date 20261007 --time 00 --work /tmp/ard
@@ -72,8 +73,8 @@ def _render(job):
     return dom_key, k, out.stat().st_size
 
 
-def coast_figure(out, m, init, valid, cser, tl, levels, res):
-    """Coastline IVT, latitude x time (the deterministic landfall chart); res: the model grid's label."""
+def coast_figure(out, m, init, valid, cser, tl, levels, grid):
+    """Coastline IVT, latitude x time (the deterministic landfall chart); grid: the model grid's label."""
     import matplotlib
 
     matplotlib.use("Agg")
@@ -107,7 +108,7 @@ def coast_figure(out, m, init, valid, cser, tl, levels, res):
     fig.text(
         0.02,
         0.925,
-        f"IVT 1000–300 hPa ({len(levels)} levels, {res} grid) at the first ocean point west of the coast on each 0.25° "
+        f"IVT 1000–300 hPa ({len(levels)} levels, {grid} grid) at the first ocean point west of the coast on each 0.25° "
         "latitude, Baja California to southeast Alaska · contours 250 / 500 / 750 / 1000",
         fontsize=8.5,
         color="#444",
@@ -129,8 +130,8 @@ def run_model(model, date, hh, work: Path, procs: int, wait_min: float, resol: s
     m = A.MODELS[model]
     if resol != "0p25" and model != "ifs":
         raise SystemExit(f"only the IFS control has a {resol} run")
-    res = RESOL_LABEL[resol] if model == "ifs" else m["res"]
-    print(f"== {m['label']} {date} {hh}Z, {res}, {len(STEPS)} steps to +{STEPS[-1]} h", flush=True)
+    grid = RESOL_LABEL[resol] if model == "ifs" else m["res"]
+    print(f"== {m['label']} {date} {hh}Z, {grid}, {len(STEPS)} steps to +{STEPS[-1]} h", flush=True)
     ivt, ivte, ivtn, msl, lat, lon = [], [], [], [], None, None
     sub8 = []  # GFS/GDPS: IVT on the ECMWF 8-level subset, for the level-bias check
     t_end = time.time() + 60 * wait_min
@@ -194,7 +195,7 @@ def run_model(model, date, hh, work: Path, procs: int, wait_min: float, resol: s
         model=model,
         init=init,
         levels=levels,
-        res=res,
+        res=grid,
         lat=lat,
         lon=lon,
         ivt=ivt,
@@ -257,7 +258,7 @@ def run_model(model, date, hh, work: Path, procs: int, wait_min: float, resol: s
         "levels": levels,
     }
     (dirs["pac"] / "coast.json").write_text(json.dumps(coast, separators=(",", ":")))
-    coast_figure(SITE / "assets" / "ar" / f"det_coast_{model}.webp", m, init, valid, cser, tl, levels, res)
+    coast_figure(SITE / "assets" / "ar" / f"det_coast_{model}.webp", m, init, valid, cser, tl, levels, grid)
 
     # ── analysis-time IVT on the 0.5-deg points (validation) ──
     la5 = np.arange(10.0, 70.01, 0.5)
@@ -281,7 +282,7 @@ def run_model(model, date, hh, work: Path, procs: int, wait_min: float, resol: s
         "short": m["short"],
         "init": init.strftime("%Y-%m-%dT%HZ"),
         "levels": levels,
-        "res": res,
+        "res": grid,
         "resol": resol,
         "src": m["src"] + ("" if resol == "0p25" else f" {resol}"),
         "steps": list(STEPS),
