@@ -1,0 +1,97 @@
+name: Frames store (cutover)
+
+# Dispatch-only tool for moving the animation frames off the orphan `frames` branch into the frames store (Bunny
+# Storage through its S3 API; scripts/lib/frames_store.py does the work, nothing here talks to the store itself).
+#
+#   check    a put / head / list / get (whole and a range) / delete round trip on one scratch key, after trying the
+#            candidate signing regions: says which region string signs and whether the store's ETag is the MD5 of
+#            what was uploaded (if not, every sync re-sends its directories in full).
+#   migrate  checks out the frames branch tip here on the runner (~3.6 GB, ~28,000 files) and uploads every file the
+#            store does not have yet. Nothing is replaced or deleted (sync --no-replace on "+" paths): once the
+#            secrets are set the publishers write the store first, so a file already there is at least as new as the
+#            tip. dry_run lists what would be uploaded, by directory, and changes nothing.
+#
+# Without the FRAMES_S3_* secrets it stops at "Store configured". The confirm input must be STORE.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'check (round trip on a scratch key) or migrate (the frames branch tip into the store)'
+        type: choice
+        options: [check, migrate]
+        default: check
+      dry_run:
+        description: 'migrate: list what would be uploaded, upload nothing'
+        type: boolean
+        default: true
+      confirm:
+        description: 'Type STORE to run'
+        required: true
+
+env:
+  FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}
+  FRAMES_S3_ENDPOINT: ${{ secrets.FRAMES_S3_ENDPOINT }}
+  FRAMES_S3_REGION: ${{ secrets.FRAMES_S3_REGION }}
+  FRAMES_S3_ACCESS_KEY_ID: ${{ secrets.FRAMES_S3_ACCESS_KEY_ID }}
+  FRAMES_S3_SECRET_ACCESS_KEY: ${{ secrets.FRAMES_S3_SECRET_ACCESS_KEY }}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frames-store
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Confirm
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          if [ "$CONFIRM" != "STORE" ]; then echo "::error::confirm must be STORE"; exit 1; fi
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/lib
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Store configured
+        run: |
+          set -euo pipefail
+          if ! python scripts/lib/frames_store.py configured; then
+            echo "::error::the FRAMES_S3_* secrets are not set"; exit 1
+          fi
+          python -m pip install -q boto3
+
+      - name: Round trip
+        if: inputs.mode == 'check'
+        run: python scripts/lib/frames_store.py check
+
+      - name: Check out the frames branch tip
+        if: inputs.mode == 'migrate'
+        uses: actions/checkout@v7
+        with:
+          ref: frames
+          path: frames-tip
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Migrate
+        if: inputs.mode == 'migrate'
+        env:
+          DRY: ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: |
+          set -euo pipefail
+          echo "frames tip $(git -C frames-tip rev-parse HEAD): $(du -sh --exclude=.git frames-tip | cut -f1)"
+          # every top-level entry of the branch (assets, scripts) as an additive "+" path
+          tops=$(find frames-tip -mindepth 1 -maxdepth 1 ! -name .git -printf '+%P\n' | sort)
+          python scripts/lib/frames_store.py sync --root frames-tip --no-replace $DRY $tops
+      - name: Left to upload
+        if: inputs.mode == 'migrate' && !inputs.dry_run
+        run: |
+          set -euo pipefail
+          tops=$(find frames-tip -mindepth 1 -maxdepth 1 ! -name .git -printf '+%P\n' | sort)
+          python scripts/lib/frames_store.py sync --root frames-tip --no-replace --dry-run $tops
