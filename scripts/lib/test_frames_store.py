@@ -10,7 +10,7 @@ Retry-After) or hands out ETags that are not the MD5. The branch is a local bare
 (FRAMES_URL), so nothing here touches the network; boto3 is the only dependency.
 
   frames_store.py   sync (add / replace / delete, "+dir", a single file, sibling prefixes, dry run, --no-replace),
-                    seed (and --exclude, directory markers), prune (directories and single files), prune-cycles, ls,
+                    seed (directory markers), prune (directories and single files), prune-cycles, ls,
                     check, Retry-After, non-MD5 ETags, Cache-Control only on request
   the wrappers      FRAMES_S3_* empty: the branch alone, the store never consulted (publish_frames_ci.sh,
                     fetch_frames_ci.sh, publish_data.sh); store configured: both (seeds still from the branch);
@@ -323,7 +323,7 @@ def test_client(stub: Stub) -> None:
         del os.environ["FRAMES_S3_CACHE_CONTROL"]
         check(stub.objects["assets/cc/F00.webp"]["headers"].get("cache-control") == "public, max-age=60", "cc")
 
-    # seed: never overwrites, skips directory markers; --exclude seeds only the other child directories
+    # seed: never overwrites, skips directory markers
     d = "assets/geps/anim"
     stub.put(f"{d}/top.json", b"top")
     stub.put(f"{d}/c1/f.webp", b"c1")
@@ -332,17 +332,12 @@ def test_client(stub: Stub) -> None:
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
         write(root, f"{d}/c2/g.webp", "rendered by this run")
-        rc, out = quiet(S.cmd_seed, [d, "assets/not_there"], root, None)
+        rc, out = quiet(S.cmd_seed, [d, "assets/not_there"], root)
         check(rc == 0, out)
         check((root / f"{d}/top.json").read_bytes() == b"top" and (root / f"{d}/c1/f.webp").exists(), "seeded")
         check((root / f"{d}/c2/g.webp").read_bytes() == b"rendered by this run", "seed never overwrites")
         check(not (root / f"{d}/c3").is_file(), "a directory marker is not a file")
         check("not in the store yet" in out and not list(root.rglob("*.part")), out)
-    with tempfile.TemporaryDirectory() as td:
-        root = Path(td)
-        quiet(S.cmd_seed, [d], root, "c1")
-        got = sorted(p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file())
-        check(got == [f"{d}/c2/g.webp"], f"--exclude: {got}")
 
     # prune: a directory and a single file; prune-cycles: cycle directories older than the floor
     for k in ("x/dir/a", "x/dir/b", "x/dir_other/a", "x/file.webp"):

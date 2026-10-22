@@ -31,7 +31,7 @@ BRANCH="${FRAMES_BRANCH:-frames}"
 . "$(dirname "$0")/frames_env.sh"
 case "$FRAMES_MODE" in
   store)
-    "$FRAMES_PY" "$FRAMES_LIB/frames_store.py" seed ${EXCLUDE:+--exclude "$EXCLUDE"} "$@" \
+    "$FRAMES_PY" "$FRAMES_LIB/frames_store.py" seed "$@" \
       || echo "::warning::not everything could be seeded from the frames store - rendering what is missing"
     exit 0 ;;
   broken)
@@ -54,12 +54,6 @@ if ! git -C "$TMP/f" sparse-checkout set --no-cone -- "${pats[@]}" 2>/dev/null |
   exit 0
 fi
 
-# EXCLUDE names a CHILD directory not to seed - used by the ECAPE archive so a
-# cycle this run has just rendered is never topped up with its own older frames
-# from the branch (a leftover F45 from a previous attempt would otherwise be
-# published carrying the new run's valid times).
-EXCLUDE="${EXCLUDE:-}"
-
 seed_one() {
   local src="$1" dst="$2"
   mkdir -p "$dst"
@@ -73,17 +67,5 @@ for d in "$@"; do
     echo "  $d: not on $BRANCH yet"
     continue
   fi
-  if [ -n "$EXCLUDE" ]; then
-    for child in "$TMP/f/$d"/*; do
-      [ -d "$child" ] || continue
-      name="$(basename "$child")"
-      if [ "$name" = "$EXCLUDE" ]; then
-        echo "  $d/$name: skipped (rendered by this run)"
-        continue
-      fi
-      seed_one "$child" "$d/$name"
-    done
-  else
-    seed_one "$TMP/f/$d" "$d"
-  fi
+  seed_one "$TMP/f/$d" "$d"
 done

@@ -336,11 +336,8 @@ def cmd_sync(paths: list[str], root: Path, no_replace: bool, dry_run: bool) -> i
     return 0
 
 
-def cmd_seed(dirs: list[str], root: Path, exclude: str | None) -> int:
-    """store -> local, never overwriting what this run has already produced.
-
-    With --exclude, as from the branch, only the child DIRECTORIES of each path are seeded, all but the excluded one.
-    """
+def cmd_seed(dirs: list[str], root: Path) -> int:
+    """store -> local, never overwriting what this run has already produced."""
     s3 = client()
     failed = 0
     for arg in dirs:
@@ -349,13 +346,7 @@ def cmd_seed(dirs: list[str], root: Path, exclude: str | None) -> int:
         if not rem:
             print(f"  {d}: not in the store yet")
             continue
-        want = []
-        for k in rem:
-            child, sep, _ = k[len(d) + 1 :].partition("/")
-            if exclude is not None and (not sep or child == exclude):
-                continue
-            if not (root / k).exists():
-                want.append(k)
+        want = [k for k in rem if not (root / k).exists()]
 
         def get(k: str) -> bool:
             from botocore.exceptions import BotoCoreError, ClientError
@@ -370,8 +361,7 @@ def cmd_seed(dirs: list[str], root: Path, exclude: str | None) -> int:
         with ThreadPoolExecutor(WORKERS) as ex:
             ok = list(ex.map(get, want))
         failed += ok.count(False)
-        skipped = f" ({exclude} skipped - rendered by this run)" if exclude else ""
-        print(f"  {d}: seeded {ok.count(True)} files{skipped}")
+        print(f"  {d}: seeded {ok.count(True)} files")
     if failed:
         print(f"::warning::frames store: {failed} file(s) could not be seeded")
     return 1 if failed else 0
@@ -524,7 +514,6 @@ def main() -> int:
     p.add_argument("--no-replace", action="store_true", help="upload only files the store does not have")
     p = sub.add_parser("seed", parents=[root])
     p.add_argument("dirs", nargs="+")
-    p.add_argument("--exclude", help="seed only the child directories, all but this one")
     p = sub.add_parser("prune", parents=[dry])
     p.add_argument("paths", nargs="+")
     p = sub.add_parser("prune-cycles", parents=[dry])
@@ -543,7 +532,7 @@ def main() -> int:
     t0 = time.time()
     rc = {
         "sync": lambda: cmd_sync(a.dirs, a.root.resolve(), a.no_replace, a.dry_run),
-        "seed": lambda: cmd_seed(a.dirs, a.root.resolve(), a.exclude),
+        "seed": lambda: cmd_seed(a.dirs, a.root.resolve()),
         "prune": lambda: cmd_prune(a.paths, a.dry_run),
         "prune-cycles": lambda: cmd_prune_cycles(a.specs, a.dry_run),
         "ls": lambda: cmd_ls(a.prefix),
