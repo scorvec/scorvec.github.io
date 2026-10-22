@@ -1,5 +1,6 @@
 #!/bin/bash
-# Publish animation frames to the orphan `frames` branch FROM A RUNNER.
+# Publish animation frames to the orphan `frames` branch FROM A RUNNER, and to the frames store once it is configured
+# (scripts/lib/frames_store.py; FRAMES_BRANCH=off then retires the branch - see frames_env.sh).
 #
 #     GH_TOKEN=... scripts/lib/publish_frames_ci.sh assets/sst/anim/pacsat ...
 #
@@ -20,7 +21,7 @@
 # An empty or missing directory is SKIPPED rather than swapped in: a product
 # that failed to render must not blank its own frames on the branch.
 #
-# PRUNE="<path> ..." deletes paths from the branch, for retention.
+# PRUNE="<path> ..." deletes paths (directories or single files) from the branch, for retention.
 #
 # THE BRANCH NEVER TRAVELS (2026-10-16). Each attempt used to clone the whole branch (--depth 1, 3.2 GB by October) to
 # swap a few directories in: 6-7 GB per run with the seed, minutes per clone, and a clone that slow lost the lease race
@@ -51,17 +52,6 @@ for d in "$@" ${PRUNE:-}; do
   case "$p" in "" | . | ./* | /* | ../* | */.. | */../* | *//*) echo "refusing path '$d'"; exit 2 ;; esac
 done
 
-# Object store first. `sync` writes only the directories it is given, so there
-# is no race to lose here - see frames_store.py. While the viewers still read
-# the branch (FRAMES_BRANCH != off) the branch is published as well, so the two
-# stay in step until the cutover commit flips assets/frames_root.js.
-. "$(dirname "$0")/frames_env.sh"
-if frames_store_ready; then
-  [ $# -gt 0 ] && "$FRAMES_PY" "$FRAMES_LIB/frames_store.py" sync "$@"
-  [ -n "${PRUNE:-}" ] && "$FRAMES_PY" "$FRAMES_LIB/frames_store.py" prune ${PRUNE}
-  [ "$BRANCH" = "off" ] && exit 0
-fi
-
 # [ -d ] first: under `set -euo pipefail` a find over a missing directory exits
 # non-zero, pipefail carries it through the pipe and set -e kills the script
 # before it prints anything. That cost a silent exit-1 in strat.yml on
@@ -72,6 +62,34 @@ count_frames() {
   # branch under scripts/sst/data/cmems; they count as content too.
   find "$1" -type f \( -name '*.webp' -o -name '*.nc' -o -name '*.npz' -o -name '*.json' -o -name '*.bin' \) 2>/dev/null | wc -l | tr -d ' '
 }
+
+# Object store first (FRAMES_MODE: see frames_env.sh). `sync` writes only the paths it is given, so there is no race
+# to lose here - see frames_store.py. It gets the arguments as they are ("+dir" adds, never deletes) and, like the
+# branch below, only those with something rendered. While the branch is still published (dual) a store failure is a
+# warning: the viewers read the branch until the cutover, and the job's manifest commit must not wait on the store.
+# Once the branch is off the store is the only copy, and a failure fails the step.
+. "$(dirname "$0")/frames_env.sh"
+if [ "$FRAMES_MODE" = broken ]; then
+  echo "::error::FRAMES_BRANCH=off but the frames store is not usable - nothing published"
+  exit 1
+fi
+store_publish() {
+  local d dirs=()
+  for d in "$@"; do
+    if [ "$(count_frames "${d#+}")" -gt 0 ]; then dirs+=("$d"); fi
+  done
+  if [ ${#dirs[@]} -eq 0 ] && [ -z "${PRUNE:-}" ]; then
+    echo "::warning::nothing rendered; leaving the frames store untouched"
+    return 0
+  fi
+  if [ ${#dirs[@]} -gt 0 ]; then "$FRAMES_PY" "$FRAMES_LIB/frames_store.py" sync "${dirs[@]}" || return; fi
+  if [ -n "${PRUNE:-}" ]; then "$FRAMES_PY" "$FRAMES_LIB/frames_store.py" prune ${PRUNE} || return; fi
+}
+if [ "$FRAMES_MODE" != branch ]; then
+  rc=0; store_publish "$@" || rc=$?
+  if [ "$FRAMES_MODE" = store ]; then exit "$rc"; fi
+  [ "$rc" -eq 0 ] || echo "::warning::the frames store was not updated (exit $rc); publishing to the $BRANCH branch alone"
+fi
 
 n=0
 for d in "$@"; do

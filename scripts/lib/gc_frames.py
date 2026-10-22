@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
-"""Garbage-collect the orphan `frames` branch.
+"""Garbage-collect the frames: the orphan `frames` branch and, once it is configured, the frames store.
 
     python scripts/lib/gc_frames.py              # report only, deletes nothing
     python scripts/lib/gc_frames.py --prune      # delete what RETIRED lists
+
+While both are published (scripts/lib/frames_env.sh) the report also lists every frame directory whose count differs
+between them - the check that the store keeps up before the viewers move to it. With FRAMES_BRANCH=off the report
+covers the store only.
 
 WHAT IT DOES. Every animation manifest on main names the frame directories its
 viewer will request. Anything on the frames branch that no manifest references
@@ -32,12 +36,13 @@ import re
 import subprocess
 import sys
 import tempfile
+from collections import Counter
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 RETIRED = HERE / "retired_frames.txt"
-BRANCH = os.environ.get("FRAMES_BRANCH", "frames")
+BRANCH = os.environ.get("FRAMES_BRANCH") or "frames"  # a workflow passes an unset repository variable as ""
 
 # Never pruned, whatever the manifests say: live products whose manifests are not
 # tracked on main, i.e. the set a reference-only rule would delete. Frames of
@@ -75,22 +80,19 @@ def referenced() -> set[str]:
     return out
 
 
-def on_branch() -> dict[str, int]:
-    """Frame directories in the store (when configured) or on the branch."""
-    counts: dict[str, int] = {}
+def in_store() -> dict[str, int] | None:
+    """Frame directory -> frame count in the store, or None when the store is not configured."""
     sys.path.insert(0, str(HERE))
     import frames_store
 
-    if frames_store.configured():
-        s3 = frames_store.client()
-        for k in frames_store.remote_listing(s3, "assets"):
-            if k.endswith(".webp"):
-                counts[os.path.dirname(k)] = counts.get(os.path.dirname(k), 0) + 1
-        return counts
-    for p in branch_paths():
-        if p.endswith(".webp"):
-            counts[os.path.dirname(p)] = counts.get(os.path.dirname(p), 0) + 1
-    return counts
+    if not frames_store.configured():
+        return None
+    return frames_store.frame_dirs(frames_store.client(), "assets")
+
+
+def on_branch() -> dict[str, int]:
+    """Frame directory -> frame count on the branch."""
+    return dict(Counter(os.path.dirname(p) for p in branch_paths() if p.endswith(".webp")))
 
 
 def branch_paths() -> list[str]:
@@ -116,7 +118,13 @@ def main() -> int:
     a = ap.parse_args()
 
     sh("git", "fetch", "-q", "origin", "main")
-    ref, br = referenced(), on_branch()
+    ref, store = referenced(), in_store()
+    branch = None if BRANCH == "off" else on_branch()
+    if branch is None and store is None:
+        sys.exit("FRAMES_BRANCH=off but the frames store is not configured")
+    # While both are published a retired directory is pruned from both (publish_frames_ci.sh PRUNE= does both), so the
+    # candidates are the union; the branch's counts stand while it is the copy the viewers read.
+    br = (store or {}) | (branch or {})
     retired = retired_list()
 
     protected = [d for d in br if d.startswith(PROTECT_PREFIXES)]
@@ -124,7 +132,16 @@ def main() -> int:
     to_prune = [d for d in orphans if d in retired]
     review = [d for d in orphans if d not in retired]
 
-    print(f"  branch dirs {len(br)} | referenced {len(ref)} | protected {len(protected)}")
+    where = " + ".join(w for w, c in (("branch", branch), ("store", store)) if c is not None)
+    print(f"  frame dirs ({where}) {len(br)} | referenced {len(ref)} | protected {len(protected)}")
+    if branch is not None and store is not None:
+        # the dual-write check: every directory the branch has, the store should have with the same frame count
+        drift = sorted(d for d in br if branch.get(d) != store.get(d))
+        print(f"\n  STORE vs BRANCH: {len(drift)} frame dir(s) differ")
+        for d in drift[:60]:
+            print(f"    {d:46s} branch {branch.get(d, 0):5d}  store {store.get(d, 0):5d}")
+        if len(drift) > 60:
+            print(f"    ... and {len(drift) - 60} more")
     if to_prune:
         n = sum(br[d] for d in to_prune)
         print(f"\n  RETIRED, will be pruned ({n} frames):")
@@ -149,8 +166,8 @@ def main() -> int:
     if not to_prune:
         print("\n  nothing on the retired list to prune")
         return 0
-    # The caller does the branch surgery: this script never force-pushes, so a
-    # bug here cannot take the branch with it.
+    # The caller does the deleting (publish_frames_ci.sh PRUNE=, on the branch and in the store): this script never
+    # force-pushes or deletes, so a bug here cannot take the frames with it.
     print("\nPRUNE_PATHS=" + " ".join(to_prune))
     return 0
 

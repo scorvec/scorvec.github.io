@@ -1,9 +1,11 @@
 #!/bin/bash
-# Publish one model cycle's data to the orphan `frames` branch WITHOUT downloading the branch.
+# Publish one model cycle's data to the orphan `frames` branch WITHOUT downloading the branch, and to the frames store
+# once it is configured (scripts/lib/frames_store.py; see the store block below).
 #
 #     GH_TOKEN=... SRC=<workspace> PRUNE="<path> ..." scripts/models/publish_data.sh assets/models/data/hrrr/2026093012
 #
-# prints the new frames commit SHA on the last line of stdout (the page pins its jsDelivr fallback to it).
+# prints the new frames commit SHA on the last line of stdout (the page pins its jsDelivr fallback to it; an empty
+# line once the branch is retired).
 #
 # WHY NOT publish_frames_ci.sh. That script clones the whole branch (--depth 1, ~1.4 GB of every product's frames) to
 # swap a few directories in. This job runs every hour and only ever ADDS one new cycle directory and deletes old ones,
@@ -38,6 +40,32 @@ for p in ${PRUNE_OLDER:-}; do
   case "${p%%:*}" in assets/models/data/*) ;; *) echo "refusing to prune under ${p%%:*}" >&2; exit 2 ;; esac
   [[ "${p##*:}" =~ ^[0-9]{10}$ ]] || { echo "refusing PRUNE_OLDER $p: the floor must be a YYYYMMDDHH cycle" >&2; exit 2; }
 done
+
+# The frames store (FRAMES_MODE: see scripts/lib/frames_env.sh) gets the same edit first: the directories replaced,
+# PRUNE deleted, then every cycle directory older than its PRUNE_OLDER floor, listed in the store itself so orphans go
+# too - and the old cycles only once the new one is up. While the branch is still published a store failure is a
+# warning; once it is off the store is the only copy, nothing is pushed, and the SHA line is empty (the page then has
+# no commit to pin, and models.py stamp records "").
+. "$(dirname "$0")/../lib/frames_env.sh"
+if [ "$FRAMES_MODE" = broken ]; then
+  echo "::error::FRAMES_BRANCH=off but the frames store is not usable - nothing published" >&2
+  exit 1
+fi
+store_publish() {
+  local py="$FRAMES_PY" lib="$FRAMES_LIB/frames_store.py" dry=""
+  [ "${DRY_RUN:-0}" != "1" ] || dry="--dry-run"
+  if [ $# -gt 0 ]; then "$py" "$lib" sync $dry --root "$SRC" "$@" || return; fi
+  if [ -n "${PRUNE:-}" ]; then "$py" "$lib" prune $dry ${PRUNE} || return; fi
+  if [ -n "${PRUNE_OLDER:-}" ]; then "$py" "$lib" prune-cycles $dry ${PRUNE_OLDER} || return; fi
+}
+if [ "$FRAMES_MODE" != branch ]; then
+  rc=0; store_publish "$@" >&2 || rc=$?
+  if [ "$FRAMES_MODE" = store ]; then
+    if [ "$rc" -eq 0 ]; then echo ""; fi
+    exit "$rc"
+  fi
+  [ "$rc" -eq 0 ] || echo "::warning::the frames store was not updated (exit $rc); publishing to the $BRANCH branch alone" >&2
+fi
 
 publish_once() {
   local TMP; TMP=$(mktemp -d)

@@ -1,6 +1,7 @@
 #!/bin/bash
 # Seed a runner's workspace with existing animation frames from the `frames`
-# branch, so incremental renderers append instead of rebuilding.
+# branch (from the frames store once the branch is retired), so incremental
+# renderers append instead of rebuilding.
 #
 #     scripts/lib/fetch_frames_ci.sh assets/sst/anim/mur_ct ...
 #
@@ -24,11 +25,19 @@ set -uo pipefail
 [ $# -gt 0 ] || { echo "usage: $0 <frame-dir> [frame-dir ...]"; exit 2; }
 BRANCH="${FRAMES_BRANCH:-frames}"
 
+# FRAMES_MODE: see frames_env.sh. Seeds come from the branch for as long as it is published (dual too): it is the
+# complete copy, while a store still being filled would hand a swapped directory a partial set, which its publisher
+# would then write to both. Only once the branch is off does the store seed.
 . "$(dirname "$0")/frames_env.sh"
-if frames_store_ready; then
-  "$FRAMES_PY" "$FRAMES_LIB/frames_store.py" seed ${EXCLUDE:+--exclude "$EXCLUDE"} "$@"
-  exit 0
-fi
+case "$FRAMES_MODE" in
+  store)
+    "$FRAMES_PY" "$FRAMES_LIB/frames_store.py" seed ${EXCLUDE:+--exclude "$EXCLUDE"} "$@" \
+      || echo "::warning::not everything could be seeded from the frames store - rendering what is missing"
+    exit 0 ;;
+  broken)
+    echo "::warning::FRAMES_BRANCH=off but the frames store is not usable - rendering everything from scratch"
+    exit 0 ;;
+esac
 REPO_URL="${FRAMES_URL:-https://github.com/${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}.git}"
 
 TMP=$(mktemp -d)
