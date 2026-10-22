@@ -278,20 +278,12 @@ def render_refractive(by_step, nmem, lat, base, days=(0, 5, 10, 15), out=None) -
     fig, axes = plt.subplots(
         2, len(show), figsize=(3.6 * len(show) + 1.2, 7.6), sharex=True, sharey=True, squeeze=False
     )
-    from matplotlib.colors import BoundaryNorm
+    from matplotlib.colors import BoundaryNorm, ListedColormap
 
-    lv = [
-        0,
-        2,
-        5,
-        10,
-        20,
-        40,
-        80,
-        150,
-        300,
-    ]  # stratospheric wave-1 values sit near 0-20, the tropopause in the hundreds
-    cmap = plt.get_cmap("YlGnBu", len(lv))
+    # one grey bin for every negative value, drawn in the same fill as the positive ones so no gap opens between them;
+    # stratospheric wave-1 values sit near 0-20, the tropopause in the hundreds
+    lv = [-1, 0, 2, 5, 10, 20, 40, 80, 150, 300]
+    cmap = ListedColormap(["#cfcac0", *plt.get_cmap("YlGnBu", len(lv) - 1)(range(len(lv) - 1))])
     norm = BoundaryNorm(lv, cmap.N, extend="max")
     nh = lat >= 20
     for c, s in enumerate(show):
@@ -303,8 +295,7 @@ def render_refractive(by_step, nmem, lat, base, days=(0, 5, 10, 15), out=None) -
             n2 = refractive_index(U, lat, levs, th_prof, k)
             X, Y = lat[nh], levs[top]
             Z = n2[np.ix_(top, nh)]
-            ax.contourf(X, Y, np.where(Z < 0, 1, np.nan), levels=[0.5, 1.5], colors=["#cfcac0"])
-            cf = ax.contourf(X, Y, np.where(Z >= 0, Z, np.nan), levels=lv, cmap=cmap, norm=norm, extend="max")
+            cf = ax.contourf(X, Y, np.maximum(Z, -0.5), levels=lv, cmap=cmap, norm=norm, extend="max")
             ax.contour(X, Y, np.where(np.isfinite(Z), Z, np.nan), levels=[0], colors="#b3122b", linewidths=1.1)
             cs = ax.contour(X, Y, U[np.ix_(top, nh)], levels=[-20, 0, 20, 40, 60, 80], colors="#333", linewidths=0.6)
             ax.clabel(cs, fontsize=6.5, fmt="%d")
@@ -322,7 +313,8 @@ def render_refractive(by_step, nmem, lat, base, days=(0, 5, 10, 15), out=None) -
                 ax.text(0.02, 0.02, f"u(60°N) 1 minus 10 hPa: {sh:+.0f} m/s", transform=ax.transAxes, fontsize=7.4,
                         color="#1f2328", bbox=dict(fc="white", ec="none", alpha=0.8, pad=1.5))  # fmt: skip
     cax = fig.add_axes([0.92, 0.18, 0.012, 0.64])
-    fig.colorbar(cf, cax=cax, label="a² n² (stationary wave)")
+    cb = fig.colorbar(cf, cax=cax, label="a² n² (stationary wave)", ticks=[-0.5, *lv[1:]])
+    cb.ax.set_yticklabels(["< 0", *(f"{v:g}" for v in lv[1:])])
     fig.suptitle(f"GEFS ensemble ({nmem} members) · refractive index for stationary planetary waves · init {base:%Y-%m-%d %HZ}",
                  fontsize=12.5, fontweight="bold", x=0.06, ha="left", y=0.995)  # fmt: skip
     fig.text(0.06, 0.005, "Quasi-geostrophic a²n² (Matsuno 1970) from the ensemble-mean zonal wind: waves propagate where it "
