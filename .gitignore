@@ -141,6 +141,7 @@ scripts/strat/*
 !scripts/strat/build_ssw_imprint.py
 !scripts/strat/build_reflection_index.py
 !scripts/strat/reflection_index.py
+!scripts/strat/ssw_summary.py
 !scripts/strat/cmip6_coupling.py
 !scripts/strat/cmip6_coupling_extract.py
 # GEPS subseasonal vortex products (subseasonal.html, built with scripts/geps)
