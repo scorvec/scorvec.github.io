@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SSW outlook &mdash; Shawn Corvec</title>
+<meta name="description" content="Is a sudden stratospheric warming coming in the next 15 days, what kind of event is it (wave-1 or wave-2, bottom-up or top-down, reflecting or absorbing), and will it reach the surface: one summary of AIFS-ENS, IFS-ENS, GEFS and GEPS, updated with every run.">
+<link rel="canonical" href="https://scorvec.com/ssw.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Sudden stratospheric warming outlook">
+<meta property="og:description" content="Is a sudden stratospheric warming coming in the next 15 days, what kind of event is it (wave-1 or wave-2, bottom-up or top-down, reflecting or absorbing), and will it reach the surface: one summary of AIFS-ENS, IFS-ENS, GEFS and GEPS, updated with every run.">
+<meta property="og:url" content="https://scorvec.com/ssw.html">
+<meta property="og:image" content="https://scorvec.com/assets/sst/nh_vortex.webp">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/outlook.css?v=9f59b995d1">
+<style>
+  /* ssw.html: the days 1-15 sudden-warming summary (scripts/strat/ssw_summary.py -> assets/sst/data/ssw_summary.json);
+     page rules on top of /assets/outlook.css. */
+  main { max-width: min(94vw, 1300px); }
+  .chart-stack a, .method-note a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); }
+  .chart-card-header p { max-width: 110ch; }
+  .tblwrap { overflow-x: auto; padding: 0 1.4rem 0.6rem; }
+  table.rec { border-collapse: collapse; font-size: 0.84rem; margin: 0.4rem 0 0.6rem; font-variant-numeric: tabular-nums; }
+  table.rec th, table.rec td { padding: 0.35rem 0.75rem; border-bottom: 1px solid var(--rule); text-align: right; white-space: nowrap; }
+  table.rec th:first-child, table.rec td:first-child { text-align: left; }
+  table.rec th { font-weight: 600; color: var(--ink); background: #faf9f6; }
+  table.rec td small { display: block; font-size: 0.72rem; color: var(--muted); }
+  .img-wrap img { max-height: 92vh; width: auto; max-width: 100%; display: block; margin: 0 auto; }
+  .img-wrap a { border: 0; }
+  .disc { padding: 0.9rem 1.4rem 0.4rem; }
+  .disc p { font-size: 0.9rem; color: var(--ink2); line-height: 1.75; margin: 0 0 0.85rem; max-width: 110ch; }
+  .disc b { color: var(--ink); font-weight: 600; }
+  @media (max-width: 600px) { .chips .chip .v { font-size: 1.2rem; } .tblwrap { padding: 0 0.6rem 0.6rem; } }
+</style>
+<link rel="stylesheet" href="/assets/site.css?v=c7c5796084">
+<script src="/assets/site.js?v=fe84a7e3e0" defer></script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
+</head>
+<body>
+
+<!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Mid-latitude weather</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div class="sh-col">
+              <div>
+                <h3>Surface and hazards</h3>
+                <ul>
+                  <li><a href="/models.html">Short-range model maps</a></li>
+                  <li><a href="/ar.html">Atmospheric rivers</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Upper air</h3>
+                <ul>
+                  <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                  <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                  <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1"><span class="sh-lf">Global circulation and tropics</span><span class="sh-ls">Circulation/tropics</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div class="sh-col">
+              <div>
+                <h3>ENSO and the MJO</h3>
+                <ul>
+                  <li><a href="/enso.html">El Niño monitor</a></li>
+                  <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+                  <li><a href="/circulation.html#gdps_ir">Simulated satellite (GDPS)</a></li>
+                  <li><a href="/mjo.html">MJO forecast</a></li>
+                  <li><a href="/tropical-waves.html">Tropical waves</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tropical cyclones</h3>
+                <ul>
+                  <li><a href="/circulation.html#tc">Tropical cyclones</a></li>
+                  <li><a href="/recon.html">Hurricane reconnaissance</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Jets and momentum</h3>
+                <ul>
+                  <li><a href="/circulation.html#jets">Subtropical jets</a></li>
+                  <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tropical overturning</h3>
+                <ul>
+                  <li><a href="/circulation.html#walker">Walker circulation</a></li>
+                  <li><a href="/circulation.html#hadley">Hadley cells</a></li>
+                  <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                  <li><a href="/circulation.html#gdps150">Upper-level outflow (GDPS)</a></li>
+                  <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+                  <li><a href="/circulation.html#rainfc">Rain forecast, weeks 1–2</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2" aria-current="page">Stratosphere</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/ssw.html" aria-current="page">SSW outlook</a></li>
+              <li><a href="/stratosphere.html#fdrip15">Next two weeks</a></li>
+              <li><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
+              <li><a href="/stratosphere.html#s5vortex">The season ahead</a></li>
+              <li><a href="/stratosphere.html#pv">Today's analyses</a></li>
+              <li><a href="/stratosphere.html#shwinters">History and studies</a></li>
+              <li><a href="/stratosphere.html#qbo">QBO</a></li>
+              <li><a href="/stratosphere.html">All stratosphere products</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div class="sh-col">
+              <div>
+                <h3>Extended range</h3>
+                <ul>
+                  <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                  <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+                  <li><a href="/sfs-subseasonal.html">SFS extended (experimental)</a></li>
+                  <li><a href="/monthly-outlook.html">Claude's month-ahead forecast</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Seasons</h3>
+                <ul>
+                  <li><a href="/seasonal.html">Seasonal model forecasts</a></li>
+                  <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div class="sh-col">
+              <div>
+                <h3>Studies</h3>
+                <ul>
+                  <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                  <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                  <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
+                  <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
+                  <li><a href="/topics/">Explainers</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Verification</h3>
+                <ul>
+                  <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+                  <li><a href="/verification.html">Global models against observations</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+              <li><a href="/fci.html">US credit conditions</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+
+<main id="main">
+  <div class="page-header">
+    <p class="eyebrow">Days 1&ndash;15, four ensembles: AIFS-ENS, IFS-ENS, GEFS and GEPS</p>
+    <h1>Sudden stratospheric warming outlook</h1>
+    <p class="sub" id="lede">&ndash;</p>
+    <div class="chips">
+      <div class="chip"><div class="l">sudden warming, days 1&ndash;15</div><div class="v" data-k="c_ssw">&ndash;</div><div class="s" data-k="c_ssw_s">of members</div></div>
+      <div class="chip"><div class="l">wave driving</div><div class="v" data-k="c_wave">&ndash;</div><div class="s" data-k="c_wave_s">100&nbsp;hPa heat flux</div></div>
+      <div class="chip"><div class="l">direction</div><div class="v" data-k="c_dir">&ndash;</div><div class="s" data-k="c_dir_s">polar-cap height</div></div>
+      <div class="chip"><div class="l">reflection</div><div class="v" data-k="c_ref">&ndash;</div><div class="s" data-k="c_ref_s">upper stratosphere</div></div>
+      <div class="chip"><div class="l">surface, after day 15</div><div class="v" data-k="c_sfc">&ndash;</div><div class="s" data-k="c_sfc_s">imprint outlook</div></div>
+    </div>
+  </div>
+
+  <div class="chart-stack">
+    <section class="chart-card" id="ssw">
+      <div class="chart-card-header"><h2>Is a sudden warming forecast?</h2>
+        <p data-k="ssw_line">&ndash;</p></div>
+      <div class="tblwrap"><table class="rec" id="t_ssw"></table></div>
+      <div class="img-wrap"><a href="/stratosphere.html#vortex"><img src="/assets/sst/nh_vortex.webp" alt="u at 60N at 10 and 100 hPa and the polar-cap height, every model, days 1-15" loading="lazy"></a></div>
+    </section>
+
+    <section class="chart-card" id="kind">
+      <div class="chart-card-header"><h2>What kind of event</h2>
+        <p data-k="kind_line">&ndash;</p></div>
+      <div class="tblwrap"><table class="rec" id="t_wave"></table></div>
+      <div class="tblwrap"><table class="rec" id="t_dir"></table></div>
+      <div class="img-wrap"><a href="/stratosphere.html#heatflux"><img src="/assets/sst/heatflux100_nh.webp" alt="100 hPa eddy heat flux, AIFS-ENS, days 1-15" loading="lazy"></a></div>
+    </section>
+
+    <section class="chart-card" id="reflect">
+      <div class="chart-card-header"><h2>Reflection or absorption</h2>
+        <p data-k="ref_line">&ndash;</p></div>
+      <div class="tblwrap"><table class="rec" id="t_ref"></table></div>
+      <div class="img-wrap"><a href="/stratosphere.html#refract"><img src="/assets/sst/refractive_gefs.webp" alt="Refractive index for waves 1 and 2 from GEFS, days 0 to 15" loading="lazy"></a></div>
+    </section>
+
+    <section class="chart-card" id="surface">
+      <div class="chart-card-header"><h2>Will it reach the troposphere?</h2>
+        <p data-k="sfc_line">&ndash;</p></div>
+      <div class="tblwrap"><table class="rec" id="t_sfc"></table></div>
+      <div class="img-wrap"><a href="/stratosphere.html#descent"><img src="/assets/sst/ssw_imprint.webp" alt="The 10 and 100 hPa polar cap and the SSW surface imprint index, every ensemble" loading="lazy"></a></div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">Data: ECMWF open data (CC&nbsp;BY&nbsp;4.0, Google Cloud mirror) &middot; NOAA GEFS (AWS Open Data) &middot; ECCC GEPS (MSC Datamart, ECCC Data Servers End-use Licence) &middot; ERA5 (Copernicus Climate Change Service) &middot; MERRA-2 (NASA GMAO) &middot; CMIP6 (Pangeo)</span>
+        <span class="chart-updated" data-k="stamp">&ndash;</span>
+      </div>
+    </section>
+
+    <section class="chart-card method-note" id="method">
+      <div class="chart-card-header"><h2>How each answer is made</h2></div>
+      <div class="disc">
+        <p>Every number on this page is read from the stratosphere products&rsquo; own output; the figures open the full
+        products. Member shares are raw counts from each ensemble, not calibrated probabilities. The <b>IFS control</b>
+        is ECMWF&rsquo;s unperturbed 9&nbsp;km run, called HRES until May 2026; it is one run, so it enters only the
+        direction table.</p>
+        <p><b>Sudden warming.</b> The zonal-mean wind at 60&deg;N and 10&nbsp;hPa turning easterly on some day in days
+        1&ndash;15 (Charlton and Polvani 2007, who count November&ndash;March onsets only). The warning meter counts
+        members whose 10-day mean 100&nbsp;hPa heat flux crosses the level that preceded the sudden warmings on record
+        (<span data-r="warn">&ndash;</span>). The normal rate is the share of MERRA-2 winters since 1980 with an onset in
+        the same 15 calendar days.</p>
+        <p><b>Wave driving.</b> The share of wave-1 and wave-2 in the ensemble-mean 100&nbsp;hPa eddy heat flux
+        (45&ndash;75&deg;N) over days 1&ndash;15; a wavenumber carrying <span data-r="wshare">&ndash;</span> or more
+        names the forcing, otherwise it is mixed. The peak is the total flux against its ERA5 1991&ndash;2020
+        day-of-year mean and standard deviation. This describes the forcing; it is not a forecast of whether the vortex
+        would split or be displaced. In ERA5 the wave-2 share over the 10 days before an onset does not separate
+        MERRA-2&rsquo;s splits from its displacements (<span data-r="split">&ndash;</span>).</p>
+        <p><b>Direction.</b> The rule of the CMIP6 coupling test, on the polar-cap (65&ndash;90&deg;N) height of each
+        model&rsquo;s dripping paint in standard deviations of its day-of-year normal, analyses then forecast: the day
+        the 100&nbsp;hPa cap first reaches +1&nbsp;sd is <b>top-down</b> when the 10&nbsp;hPa cap was at +1&nbsp;sd
+        3&ndash;20 days before, <b>bottom-up</b> when it was not. In <span data-r="cm_n">&ndash;</span> both kinds
+        were followed by the surface pattern of a sudden warming: <span data-r="cm_dir">&ndash;</span>.</p>
+        <p><b>Reflection or absorption.</b> Waves are turned back down where the westerlies weaken with height in the
+        upper stratosphere (Perlwitz and Harnik 2003): the wind at 60&deg;N at 1&nbsp;hPa minus 10&nbsp;hPa below zero,
+        read from GEFS, the one ensemble here with winds to 1&nbsp;hPa. The answer is <b>reflecting</b> when that
+        happens with waves coming down (the zonal-mean 100&nbsp;hPa flux below zero, or the Canadian box of the
+        regional reflection index below &minus;1&nbsp;sd), <b>absorbing</b> when the upward flux runs at least
+        <span data-r="active">&ndash;</span> above normal into a vortex without that layer, and quiet otherwise. A
+        large regional reflection index can come from the Siberian upward burst alone, so it is shown but does not
+        decide. In CMIP6, a reflective upper stratosphere was followed by the opposite of the warming pattern over days
+        1&ndash;30 (<span data-r="cm_shear">&ndash;</span>), and sudden warmings followed by strong upward flux
+        (absorbing) and weak flux (reflecting) both reached the surface (<span data-r="cm_abs">&ndash;</span>). After
+        <span data-r="mx_n">&ndash;</span> regional reflection events in ERA5 (December&ndash;March), the East Pacific
+        Oscillation turned negative (<span data-r="mx_epo">&ndash;</span>) and North America cooled
+        (<span data-r="mx_tna">&ndash;</span>).</p>
+        <p><b>Surface.</b> The SSW surface imprint index projects daily sea-level pressure on the pattern that follows
+        sudden warmings in nine CMIP6 models (positive = the negative-Arctic-Oscillation side). Its outlook is the
+        chance the index is positive over the 30 days after day 15, from each model&rsquo;s day-15 100&nbsp;hPa cap and
+        the index itself, fitted on ERA5 November&ndash;April days since 1959. Skill (Brier skill score, cross-validated
+        by winter): <span data-r="bss">&ndash;</span>. After the MERRA-2 sudden warmings the index averaged
+        <span data-r="era5_imp">&ndash;</span>; in CMIP6 <span data-r="cm_ssw">&ndash;</span>.</p>
+        <p>Messori, G. et al. (2022), <i>Weather Clim. Dynam.</i> 3, 1215&ndash;1236 &middot; Perlwitz, J. and Harnik, N.
+        (2003), <i>J. Climate</i> 16, 3011&ndash;3026 &middot; Charlton, A.&nbsp;J. and Polvani, L.&nbsp;M. (2007),
+        <i>J. Climate</i> 20, 449&ndash;469 &middot; Kodera, K. et al. (2016), <i>J. Geophys. Res.</i> 121,
+        80&ndash;94.</p>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var M = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function md(iso) { if (!iso) return "–"; var d = new Date(iso.slice(0, 10) + "T00:00:00Z"); return d.getUTCDate() + " " + M[d.getUTCMonth()]; }
+  function pct(x) { return x == null ? "–" : Math.round(100 * x) + "\u00A0%"; }
+  function sg(x, n) { return x == null ? "–" : (x >= 0 ? "+" : "−") + Math.abs(x).toFixed(n == null ? 1 : n); }
+  function set(k, t) { document.querySelectorAll('[data-k="' + k + '"]').forEach(function (e) { e.textContent = t; }); }
+  function ref(k, t) { document.querySelectorAll('[data-r="' + k + '"]').forEach(function (e) { e.textContent = t; }); }
+  function table(id, head, rows) {
+    var h = "<thead><tr>" + head.map(function (c) { return "<th>" + c + "</th>"; }).join("") + "</tr></thead><tbody>";
+    rows.forEach(function (r) { h += "<tr>" + r.map(function (c) { return "<td>" + c + "</td>"; }).join("") + "</tr>"; });
+    document.getElementById(id).innerHTML = h + "</tbody>";
+  }
+  function who(name, init) { return name + (init ? "<small>" + init.slice(8, 10).replace(/^0/, "") + " " + M[+init.slice(5, 7) - 1] + " " + init.slice(11) + "</small>" : ""); }
+  function p(t) { return t.p < 0.001 ? "p < 0.001" : "p " + t.p.toPrecision(2); }
+  fetch("assets/sst/data/ssw_summary.json", { cache: "no-cache" }).then(function (r) { if (!r.ok) throw r.status; return r.json(); }).then(function (j) {
+    var N = j.names, S = j.ssw, W = j.waves, D = j.descent, R = j.reflect, F = j.surface, X = j.reference;
+    var ens = ["aifs", "ifs", "gefs", "geps"];
+
+    // sudden warming
+    var share = S.share_mean, br = S.base_rate;
+    var sswWord = share == null ? "–" : share < 0.05 ? "No sudden warming" : share < 0.3 ? "A sudden warming in a minority of members"
+      : share < 0.6 ? "A sudden warming is possible" : "A sudden warming is likely";
+    set("c_ssw", pct(share)); set("c_ssw_s", "of members, four ensembles" + (j.ssw_season ? "" : "; outside Nov–Mar"));
+    set("ssw_line", sswWord + " in " + md(j.window[0]) + "–" + md(j.window[1]) + ": the wind at 60°N, 10\u00A0hPa turns easterly in "
+      + pct(share) + " of members on average. Since 1980, " + br.with_onset + " of " + br.winters + " winters had a sudden warming begin in these 15 days.");
+    table("t_ssw", ["model", "members", "easterly at 10\u00A0hPa", "lowest u, mean (m/s)", "lowest u, 10th pct", "warning meter"],
+      ens.filter(function (m) { return S.models[m]; }).map(function (m) {
+        var v = S.models[m], w = W.models[m] || {};
+        return [who(N[m], v.init), v.members, pct(v.share), sg(v.u10_min_mean), sg(v.u10_min_p10), w.warning_members == null ? "–" : pct(w.warning_members)];
+      }));
+
+    // what kind
+    var w2 = W.wave2_share_mean, kind = W.kind, dk = D.kind;
+    set("c_wave", kind === "wave-2" ? "Wave-2" : kind === "wave-1" ? "Wave-1" : kind === "mixed" ? "Mixed" : "–");
+    set("c_wave_s", w2 == null ? "100\u00A0hPa heat flux" : pct(w2) + " wave-2 of waves 1–2");
+    var cross = ens.map(function (m) { return D.models[m] && D.models[m].cross100; }).filter(Boolean).sort();
+    set("c_dir", dk === "bottom-up" ? "Bottom-up" : dk === "top-down" ? "Top-down" : "No weakening");
+    set("c_dir_s", cross.length ? "100\u00A0hPa at +1\u00A0sd " + md(cross[0]) + (cross.length > 1 && cross[cross.length - 1] !== cross[0] ? "–" + md(cross[cross.length - 1]) : "") : "100\u00A0hPa cap below +1\u00A0sd");
+    set("kind_line", (kind === "mixed" ? "Mixed wave-1 and wave-2 driving" : (kind || "–").replace("w", "W") + " driving")
+      + " (" + pct(w2) + " of the wave-1 + wave-2 flux is wave-2), "
+      + (dk === "none" ? "and no polar-cap weakening reaches +1\u00A0sd at 100\u00A0hPa." : dk + ": " + (dk === "bottom-up" ? "the lower stratosphere weakens first, without a 10\u00A0hPa weakening before it." : "the 10\u00A0hPa weakening came first and is descending.")));
+    table("t_wave", ["model", "wave-2 share", "peak flux (sd)", "peak day", "lowest flux (K\u00A0m/s)", "regional index, members with an event"],
+      ens.filter(function (m) { return W.models[m]; }).map(function (m) {
+        var v = W.models[m]; return [who(N[m], v.init), pct(v.wave2_share), sg(v.z_peak), "day " + v.z_peak_day, sg(v.flux_min), pct(v.ri_event_share)];
+      }));
+    table("t_dir", ["model", "100\u00A0hPa at +1\u00A0sd", "10\u00A0hPa at +1\u00A0sd", "direction", "100\u00A0hPa cap, day 15 (sd)"],
+      ["aifs", "ifs", "hres", "gefs", "geps"].filter(function (m) { return D.models[m]; }).map(function (m) {
+        var v = D.models[m]; return [who(N[m], v.init), v.cross100 ? md(v.cross100) : "–", v.cross10 ? md(v.cross10) : "–", v.kind === "none" ? "no weakening" : v.kind, sg(v.cap100_day15)];
+      }));
+
+    // reflection
+    var rv = R.verdict;
+    set("c_ref", rv === "reflecting" ? "Reflecting" : rv === "absorbing" ? "Absorbing" : "Quiet");
+    set("c_ref_s", R.shear_min == null ? "no GEFS upper air" : "u(60°N) 1 − 10\u00A0hPa ≥ " + sg(R.shear_min, 0) + "\u00A0m/s");
+    set("ref_line", (rv === "reflecting" ? "A reflecting layer with waves coming back down" : rv === "absorbing" ? "Absorption: strong upward wave flux into a vortex with no reflecting layer"
+      : "Little upward wave activity") + ". In GEFS the wind at 60°N stays " + (R.shear_min >= 0 ? "stronger" : "weaker") + " at 1\u00A0hPa than at 10\u00A0hPa ("
+      + sg(R.shear_min, 0) + " to " + sg(R.shear_max, 0) + "\u00A0m/s; normal " + sg(R.shear_normal, 0) + ")"
+      + (R.ri_event_share_mean != null ? "; " + pct(R.ri_event_share_mean) + " of members meet the regional reflection index’s event test." : "."));
+    table("t_ref", ["model", "lowest zonal-mean flux (K\u00A0m/s)", "Siberia box, highest (sd)", "Canada box, lowest (sd)", "upward flux at least +" + j.thresholds.active_z + "\u00A0sd"],
+      ens.filter(function (m) { return W.models[m]; }).map(function (m) {
+        var v = W.models[m]; return [who(N[m], v.init), sg(v.flux_min), sg(v.z_sib_max), sg(v.z_can_min), R.active.indexOf(m) >= 0 ? "yes" : "no"];
+      }));
+
+    // surface
+    var pp = F.p_positive_mean, sk = F.skill[F.regime];
+    set("c_sfc", pct(pp)); set("c_sfc_s", "chance of the warming pattern; normal 50\u00A0%");
+    var lean = pp == null ? "–" : pp >= 0.65 ? "A clear lean toward" : pp >= 0.55 ? "A slight lean toward" : pp > 0.45 ? "No lean toward or away from" : "A lean away from";
+    set("sfc_line", lean + " the surface pattern that follows sudden warmings over " + md(F.models.gefs ? F.models.gefs.window[0] : null) + "–" + md(F.models.gefs ? F.models.gefs.window[1] : null)
+      + ": " + pct(pp) + " against the 50\u00A0% base rate, with the 100\u00A0hPa cap at " + sg(F.cap100_day15_mean) + "\u00A0sd on day 15 (skill when the cap is "
+      + (F.regime === "cap_1sd" ? "beyond" : "within") + " 1\u00A0sd: " + sk.bss.toFixed(2) + ").");
+    table("t_sfc", ["model", "chance positive", "100\u00A0hPa cap, day 15 (sd)", "members with the cap at +1\u00A0sd"],
+      ens.filter(function (m) { return F.models[m]; }).map(function (m) {
+        var v = F.models[m]; return [who(N[m], v.init), pct(v.p_positive), sg(v.cap100_day15), pct(v.frac100_day15)];
+      }));
+
+    document.getElementById("lede").textContent = sswWord + " in the next 15 days. "
+      + (dk === "none" ? "No polar-cap weakening reaches the lower stratosphere" : "A " + (kind || "") + ", " + dk + " weakening" + (rv === "absorbing" ? ", absorbed rather than reflected" : rv === "reflecting" ? ", with waves reflected back down" : ""))
+      + "; " + lean.toLowerCase() + " the post-warming surface pattern after day 15.";
+    set("stamp", "newest run " + j.newest_init + " · built " + j.built);
+
+    // method references
+    var c = X.cmip6, r = S.warning_record;
+    if (r) ref("warn", "hit " + Math.round(100 * r.hit_rate) + "\u00A0% of " + r.n_events + " events, false alarms " + Math.round(100 * r.false_alarm_rate) + "\u00A0%");
+    ref("wshare", pct(j.thresholds.wave_share)); ref("active", "+" + j.thresholds.active_z + "\u00A0sd");
+    var st = X.split_test; ref("split", st.splits + " splits, " + st.displacements + " displacements, wave-2 share " + st.split_median.toFixed(2) + " against " + st.displacement_median.toFixed(2) + ", area under the curve " + st.auc.toFixed(2) + ", p " + st.p.toFixed(2));
+    ref("cm_n", X.cmip6_model_years.toLocaleString("en") + " model-years from " + X.cmip6_models + " CMIP6 models");
+    function cm(k) { var t = c[k]; return t ? sg(t.mean, 2) + " (" + p(t) + ")" : "–"; }
+    ref("cm_dir", "bottom-up " + cm("wk100_bu/ssi_d1_30") + " over days 1–30 and " + cm("wk100_bu/ssi_d31_60") + " over days 31–60; top-down " + cm("wk100_td/ssi_d1_30") + " and " + cm("wk100_td/ssi_d31_60") + " (imprint index)");
+    ref("cm_shear", cm("shear_neg/ssi_d1_30"));
+    ref("cm_abs", "absorbing " + cm("ssw_absorbing/ssi_d31_60") + ", reflecting " + cm("ssw_reflecting/ssi_d31_60") + " over days 31–60");
+    var mx = X.messori_era5, e1 = mx.epo_after.filter(function (w) { return w.days[0] === 1; })[0], t6 = mx.tna_after.filter(function (w) { return w.days[0] === 6; })[0];
+    ref("mx_n", mx.events); ref("mx_epo", e1 ? sg(e1.mean, 2) + "\u00A0sd over days 1–5, p " + e1.p : "–"); ref("mx_tna", t6 ? sg(t6.mean) + "\u00A0K over days 6–12, p " + t6.p : "–");
+    var bs = F.skill; ref("bss", bs.all_days.bss.toFixed(2) + " on all days (95\u00A0% range " + bs.all_days.ci95[0].toFixed(2) + "–" + bs.all_days.ci95[1].toFixed(2) + "), "
+      + bs.cap_1sd.bss.toFixed(2) + " when the cap is beyond 1\u00A0sd (" + bs.cap_1sd.ci95[0].toFixed(2) + "–" + bs.cap_1sd.ci95[1].toFixed(2) + ")");
+    var ei = F.era5_after_ssw; ref("era5_imp", sg(ei.d1_30.mean, 2) + " over days 1–30 (" + ei.d1_30.n + " events, p " + ei.d1_30.t_p.toPrecision(2) + ") and " + sg(ei.d31_60.mean, 2) + " over days 31–60");
+    ref("cm_ssw", "sudden warmings were followed by " + cm("ssw/ssi_d1_30") + " over days 1–30, North America " + cm("ssw/tna_d1_30") + "\u00A0K over days 1–30 and northern Eurasia " + cm("ssw/teu_d31_60") + "\u00A0K over days 31–60");
+  }).catch(function () { document.getElementById("lede").textContent = "The summary did not load."; });
+})();
+</script>
+
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

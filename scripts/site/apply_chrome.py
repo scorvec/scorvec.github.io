@@ -209,6 +209,12 @@ PRODUCTS = [
         "The polar vortex and the waves going up into it, from today's analysis to the season, and the QBO",
         [
             (
+                "/ssw.html",
+                "SSW outlook",
+                "Is a sudden warming coming in the next 15 days, what kind of event it is (wave-1 or wave-2, bottom-up or top-down, reflecting or absorbing) and whether it will reach the surface: one summary of every ensemble.",
+                "Twice daily",
+            ),
+            (
                 "/stratosphere.html#fdrip15",
                 "Next two weeks",
                 "AIFS-ENS, IFS-ENS, GEFS and the Canadian models to day 15: the dripping paint, vortex winds and polar-cap heights, 100 hPa heat flux, E–P flux, wave-1 and the upper stratosphere.",
@@ -482,6 +488,7 @@ PAGES = [
     dict(path="enso.html", mode="after-body", tabs="enso"),
     dict(path="circulation.html", mode="after-body", tabs="enso"),
     dict(path="stratosphere.html", mode="after-body", tabs="enso"),  # every stratosphere product
+    dict(path="ssw.html", mode="site-header"),  # the days 1-15 sudden-warming summary (scripts/strat/ssw_summary.py)
     dict(path="tropical-waves.html", mode="after-body", tabs="enso"),  # every tropical-wave product
     dict(
         path="subseasonal.html", mode="site-header", fixes=[]
@@ -837,6 +844,7 @@ HOME = {
         "circulation",
         "The polar vortex from today's analysis to the season, and the QBO",
         [
+            "/ssw.html",
             "/stratosphere.html",
             "/stratosphere.html#fdrip15",
             "/stratosphere.html#vortex35",
