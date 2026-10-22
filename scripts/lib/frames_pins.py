@@ -26,7 +26,7 @@ import sys
 from datetime import UTC, datetime, timedelta
 
 NS = "refs/frames-pins/"
-GRACE_H = 48
+GRACE_H = 6  # a publish is minutes from its manifest commit; superseded pins keep replaced frames (~1.7 GB per 6 h)
 SHA = re.compile(r'"(frames_sha|sha)": ?"([0-9a-f]{40})"')
 
 
