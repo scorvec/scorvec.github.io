@@ -78,7 +78,7 @@ jobs:
         run: |
           set -uo pipefail
           pubs=$(grep -l -E 'publish_frames_ci\.sh|publish_data\.sh' .github/workflows/*.yml | grep -v -x '.github/workflows/gc.yml')
-          for f in $pubs; do grep -l -F "uses: ./$f" .github/workflows/*.yml; done > /tmp/callers.txt
+          for f in $pubs; do grep -l -F "uses: ./$f" .github/workflows/*.yml || true; done > /tmp/callers.txt   # most have no caller: grep 1 under bash -e
           list=$(printf '%s\n' $pubs $(cat /tmp/callers.txt) | sort -u | sed 's/.*/"&"/' | paste -sd, -)
           echo "  frames publishers: $(printf '%s\n' $pubs $(cat /tmp/callers.txt) | sort -u | wc -l | tr -d ' ') workflows"
           for attempt in 1 2 3 4 5 6; do
