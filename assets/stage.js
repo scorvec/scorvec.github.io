@@ -7,6 +7,9 @@
        dom(a,b,c)   -> id of a hidden element to mount (interactive blocks, widgets)
      cap(a,b,c) -> caption text; about -> id of a <template> whose HTML goes under the caption
      (the vetted explanatory text and sources, collapsed); bust:"hourly" appends an hour cache key.
+     STAGE.version() -> the run's key (or null), appended to every other still as ?v= so a new run's figures, which keep
+       their file names, never come from a browser cache; the page calls STAGE.refresh() when its key arrives.
+     An option row of more than MANY choices is one menu (a <select>) on narrow screens instead of a wall of pills.
      gated:true (dom) -> the block's own script shows/hides it and a hidden one leaves the rail;
      ownHash:true (dom) -> the block keeps its own state after "#id/" in the hash and the stage leaves it; a function of
        (a,b,c) does so for the views it is true for, after "#id/a/" (a product whose parts mount different blocks).
@@ -219,12 +222,22 @@
     host.classList.toggle("more-l", more && host.scrollLeft > 2);
     host.classList.toggle("more-r", more && host.scrollLeft + host.clientWidth < host.scrollWidth - 2);
   }
+  var MANY = 6;   // a longer option row is one menu on narrow screens (seventeen pills filled a phone's screen)
   function buttons(host, group, key) {
     host.innerHTML = ""; host.removeAttribute("role"); host.removeAttribute("aria-labelledby");
     if (!group) { sel[key] = null; return null; }
     host.setAttribute("role", "group");                  // a row of pills, one pressed: its label names the group
     if (group.label) { var l = document.createElement("span"); l.className = "seg-label"; l.textContent = group.label; l.id = host.id + "-l"; host.appendChild(l); host.setAttribute("aria-labelledby", l.id); }
     var valid = group.items.some(function (it) { return it[0] === sel[key]; });
+    if (NARROW.matches && group.items.length > MANY) {
+      var m = document.createElement("select"); m.className = "opt-menu";
+      if (group.label) m.setAttribute("aria-labelledby", host.id + "-l");
+      group.items.forEach(function (it) { var o = document.createElement("option"); o.value = it[0]; o.textContent = it[1]; m.appendChild(o); });
+      m.value = valid ? sel[key] : group.items[0][0]; sel[key] = m.value;
+      m.onchange = function () { sel[key] = m.value; render(); };
+      host.appendChild(m);
+      return sel[key];
+    }
     group.items.forEach(function (it, i) {
       var b = document.createElement("button"); b.className = "pill"; b.type = "button"; b.textContent = it[1]; b.dataset.v = it[0];
       var on = (valid && sel[key] === it[0]) || (!valid && i === 0);
@@ -312,7 +325,7 @@
   function refocus(spot) {
     var el = spot === "rail" ? document.querySelector('#rail button[data-p="' + sel.p + '"]')
       : spot === "zoom" ? document.querySelector("#stage > .ss-zoom")
-      : spot ? (document.querySelector("#" + spot + " .pill.on") || document.querySelector("#" + spot + " .pill")) : null;
+      : spot ? (document.querySelector("#" + spot + " .pill.on") || document.querySelector("#" + spot + " .pill, #" + spot + " .opt-menu")) : null;
     if (el && el.offsetParent !== null) el.focus({ preventScroll: true });
   }
   function render() {
@@ -345,7 +358,8 @@
       var fsrc = p.frame(sel.a, sel.b, sel.c); f.src = fsrc + (fsrc.indexOf("?") < 0 ? "?" : "&") + "maxh=" + (stageWidth() < 700 ? 4000 : tallCap());  // the embed caps its picture to the same budget
       f.style.aspectRatio = (p.ratio ? p.ratio(sel.a, sel.b, sel.c) : "1259/700"); st.appendChild(f); fitStage();
     } else {
-      var src = p.img(sel.a, sel.b, sel.c); if (p.bust === "hourly") src += (src.indexOf("?") < 0 ? "?" : "&") + "v=" + hourKey();
+      var src = p.img(sel.a, sel.b, sel.c), key = p.bust === "hourly" ? hourKey() : (S.version ? S.version() : null);
+      if (key) src += (src.indexOf("?") < 0 ? "?" : "&") + "v=" + encodeURIComponent(key);
       var im = document.createElement("img"); im.alt = p.label;
       // the still is a button that enlarges it (keyboard and screen readers reach it like any control)
       var zb = document.createElement("button"); zb.type = "button"; zb.className = "ss-zoom"; zb.setAttribute("aria-label", "Enlarge: " + p.label);
@@ -640,7 +654,7 @@
   buildRail();
   wireSwipe();
   clampIntro();
-  placeCredits(); NARROW.addEventListener("change", placeCredits);
+  placeCredits(); NARROW.addEventListener("change", function () { placeCredits(); render(); });   // pills <-> menus
   // watch the gated blocks: a card that shows or hides itself updates the rail, and leaves the stage if it hid
   var gatedEls = ORDER.filter(function (id) { return P[id].gated && P[id].dom; }).map(function (id) { return $(P[id].dom()); }).filter(Boolean);
   if (gatedEls.length && window.MutationObserver) {

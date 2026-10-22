@@ -170,6 +170,9 @@
               padding: 0.22rem 0.7rem; cursor: pointer; transition: all .15s; }
 .opts .pill:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
 .opts .pill.on { color: #fff; background: var(--accent); border-color: var(--accent); }
+.opts .opt-menu { font: 600 0.9rem var(--sans); color: var(--accent); background: var(--surface); border: 1.5px solid var(--accent);
+  border-radius: 8px; min-height: 44px; padding: 0 0.6rem; max-width: 100%; flex: 1 1 auto; }
+.opts .opt-menu:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .opts .pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* "Related plots" strip under the figure (stage.js related(), from the finder's catalogue) */
 .ss-related { margin: 0.4rem 1.2rem 0.9rem; padding-top: 0.6rem; border-top: 1px solid var(--rule); }

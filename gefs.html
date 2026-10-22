@@ -38,7 +38,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/outlook.css?v=9f59b995d1">
-<link rel="stylesheet" href="/assets/stage.css?v=169b086e15">
+<link rel="stylesheet" href="/assets/stage.css?v=41d1b81a10">
 <style>
   /* gefs.html — page-specific rules on top of /assets/outlook.css (shared with seas5 and sfs). */
   table.tele { width: 100%; border-collapse: collapse; margin: 0.9rem 0 0.3rem; font-size: 0.78rem; }
@@ -50,6 +50,10 @@
   table.tele td.r { color: var(--muted); font-size: 0.72rem; white-space: nowrap; }
   table.tele td.noskill { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.55) 0 4px, rgba(140,136,128,0.35) 4px 6px) !important; color: var(--muted); }
   table.tele td.noskill b { color: var(--muted); }
+  @media (max-width: 640px) {   /* phones: short cell lines that do not wrap, the index names pinned while the weeks scroll */
+    table.tele td.wk { white-space: nowrap; }
+    #tele-table tbody th { position: sticky; left: 0; z-index: 1; background: var(--surface); white-space: normal; }
+  }
   .method-note { margin-top: 2rem; border-top: 1px solid var(--rule); padding-top: 1.2rem; }
   .method-note h2 { font-family: var(--serif); font-weight: 500; font-size: 1rem; color: var(--ink); margin-bottom: 0.5rem; }
   .method-note p { font-size: 0.82rem; color: var(--ink2); line-height: 1.7; max-width: 62rem; }
@@ -413,12 +417,15 @@ var GROUPS = [["Maps", "\u{1F5FA}", [["weekly","Weekly means","weeks 1–5, nine
 // hashchange (the finder's same-page jumps); the tables follow the selection.
 var sel = { p: null, a: null, b: null, c: null };
 var $ = function (id) { return document.getElementById(id); };
-// header chips and the footer date from the run's own metadata
+// header chips and the footer date from the run's own metadata; its cycle is the cache key of every still
+var CYCLE = null;
 fetch("assets/gefs/data/gefs.json", {cache: "no-cache"}).then(function (r) { return r.json(); }).then(function (m) {
   var set = function (id, t) { var e = document.getElementById(id); if (e && t != null) e.textContent = t; };
   set("g-cycle", m.init); set("g-valid", m.valid); set("g-members", m.members); set("g-updated", "init " + m.init);
+  if (m.cycle && m.cycle !== CYCLE) { CYCLE = m.cycle; if (window.STAGE.refresh) window.STAGE.refresh(); }
 }).catch(function () {});
 window.STAGE = {
+  version: function () { return CYCLE; },
   groups: GROUPS.map(function (g) { return { label: g[0], ico: g[1], items: g[2] }; }),
   products: P,
   onRender: function (s) { sel = s; teleTable(s.p === "telecon"); mjoTable(s.p === "mjo" && s.a === "skill"); }
@@ -458,9 +465,9 @@ function teleTable(show) {
       var bg = tilt > 0 ? "rgba(180,69,60," + (0.08 + 0.55 * tilt) + ")"
                         : "rgba(44,95,168," + (0.08 - 0.55 * tilt) + ")";
       var d = ("prev_mean" in w) ? " <i>\u0394" + (w.mean - w.prev_mean >= 0 ? "+" : "") + (w.mean - w.prev_mean).toFixed(1) + "</i>" : "";
-      var cal = ("skill_r" in w) ? "<span>cal " + Math.round(w.cal_p_neg * 100) + "% / " + Math.round(w.cal_p_pos * 100) + "% \u00B7 skill r " + w.skill_r.toFixed(2) + "</span>"
+      var cal = ("skill_r" in w) ? "<span>cal " + Math.round(w.cal_p_neg * 100) + "% / " + Math.round(w.cal_p_pos * 100) + "%</span><span>skill r " + w.skill_r.toFixed(2) + "</span>"
                                  : (x.has_hindcast ? "" : "<span><i>no hindcast</i></span>");
-      var cls = w.no_skill ? ' class="noskill"' : "";
+      var cls = w.no_skill ? ' class="wk noskill"' : ' class="wk"';
       h += '<td' + cls + ' style="background:' + bg + '"><b>' + Math.round(w.p_neg * 100) + "% / " + Math.round(w.p_pos * 100) + "%</b><span>mean " + (w.mean >= 0 ? "+" : "") + w.mean.toFixed(1) + d + "</span>" + cal + "</td>";
     });
     var r = x.r_daily != null ? "r " + x.r_daily.toFixed(2) + " daily" : (x.r_monthly != null ? "r " + x.r_monthly.toFixed(2) + " monthly" : "\u2014");
@@ -530,6 +537,6 @@ function mjoTable(show) {
   </div>
 </footer>
 <!-- sf:end -->
-<script src="/assets/stage.js?v=0d5a02f93a" defer></script>
+<script src="/assets/stage.js?v=f6eaf570c5" defer></script>
 </body>
 </html>
