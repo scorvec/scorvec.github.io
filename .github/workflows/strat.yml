@@ -49,9 +49,9 @@ on:
   # backstop crons: the dispatcher (scripts/lib/dispatch_workflows.sh) fires this on time; these only matter when
   # it is off
   schedule:
-    - cron: '35 7 * * *'
-    - cron: '35 19 * * *'
-  # AIFS-ENS 00Z/12Z land on open data around 06-07Z and 18-19Z. These are
+    - cron: '50 7 * * *'
+    - cron: '50 19 * * *'
+  # AIFS-ENS 00Z/12Z are complete on open data by about 07:45Z and 19:45Z. These are
   # daily products, so two firings is the right size - deliberately not more.
   workflow_call:
   workflow_dispatch:
@@ -66,7 +66,7 @@ on:
         description: 'Commit the figures (false = render + artifacts only)'
         default: 'false'
       skip_published:
-        description: 'Do nothing when the resolved cycle is already on the page (the late-upload retry slots)'
+        description: 'Do nothing when the resolved cycle is already on the page (the dispatcher slots)'
         default: 'false'
 
 # Frame store (Cloudflare R2, S3 API). Absent secrets leave these empty and the
@@ -136,8 +136,8 @@ jobs:
           fi
           echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"
           echo "cycle: $D ${T}Z"
-          # The retry slots: a cycle whose day 15 reached the mirror after the main slot was passed over for the one
-          # before it; an hour later this picks it up, and does nothing when the main slot already published it.
+          # skip_published (every dispatcher slot): a slot that fires before the newest cycle is complete resolves the
+          # one before it, already published, and does nothing; the next slot picks the new cycle up.
           FRESH=true
           if [ "${{ github.event.inputs.skip_published }}" = "true" ]; then
             PUB=$(python -c "import json, sys; print(json.load(open(sys.argv[1]))['ver'])" \
@@ -325,7 +325,7 @@ jobs:
 
       # --only strat: the four AIFS-ENS u files these renderers glob, and
       # nothing else. The full ens_cycle also pulls the Hovmöller/SOI surface
-      # batches and IFS-ENS, and at the 07:35Z dispatch IFS 00Z is not on open
+      # batches and IFS-ENS, and at the 07:50Z dispatch IFS-ENS 00Z is not on open
       # data yet, so retries on that one missing file can eat the whole budget.
       # The subset is ~5 min against ~19; the budget below is sized to that.
       - name: Populate the ENS cycle cache
