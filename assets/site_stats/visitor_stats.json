@@ -1,49 +1,49 @@
 {
- "updated": "2026-10-21",
- "total_30d": 648,
- "countries_30d": 30,
- "total_all": 1448,
- "countries_all": 31,
+ "updated": "2026-10-22",
+ "total_30d": 696,
+ "countries_30d": 32,
+ "total_all": 1497,
+ "countries_all": 33,
  "top_pages_30d": [
   {
    "path": "/models.html",
-   "count": 65
+   "count": 67
   },
   {
    "path": "/aifs-aam-budget.html",
-   "count": 62
+   "count": 63
   },
   {
    "path": "/mjo.html",
-   "count": 50
+   "count": 52
   },
   {
    "path": "/",
-   "count": 36
+   "count": 46
   },
   {
-   "path": "/subseasonal.html",
-   "count": 25
+   "path": "/stratosphere.html",
+   "count": 30
+  },
+  {
+   "path": "/midterms",
+   "count": 29
   },
   {
    "path": "/circulation.html",
-   "count": 23
+   "count": 26
+  },
+  {
+   "path": "/subseasonal.html",
+   "count": 26
   },
   {
    "path": "/recon.html",
    "count": 23
   },
   {
-   "path": "/midterms",
-   "count": 22
-  },
-  {
    "path": "/gefs.html",
-   "count": 22
-  },
-  {
-   "path": "/torque-enso.html",
-   "count": 21
+   "count": 23
   }
  ]
 }
