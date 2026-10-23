@@ -9,7 +9,7 @@ GitHub Pages.
 
 | Theme | Products (examples) |
 |---|---|
-| Mid-latitude weather | short-range model viewer (HRRR, RRFS, RDPS), dynamic tropopause, North Pacific jet, atmospheric rivers, wave-activity flux |
+| Mid-latitude weather | short-range model viewer (HRRR, RRFS, RDPS), South America model viewer (IFS control, GDPS), dynamic tropopause, North Pacific jet, atmospheric rivers, wave-activity flux |
 | Tropics | ENSO monitor and forecasts (ERSSTv6, official ONI/RONI), MJO, equatorial waves and Kelvin waves, Walker circulation by basin, tropical-cyclone shear and environment |
 | Stratosphere | polar vortex and E–P flux (AIFS-ENS, IFS-ENS, GEFS), 100 hPa heat flux, QBO, Brewer–Dobson circulation, sudden-warming history |
 | Weeks to seasons | GEPS and GEFS days 1–35, SEAS5 and the C3S multi-system seasonal maps, NOAA SFS, regimes and teleconnections, Claude's month-ahead forecast (ERA5 statistics + GEFS) |
