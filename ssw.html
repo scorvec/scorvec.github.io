@@ -29,6 +29,8 @@
   table.rec th:first-child, table.rec td:first-child { text-align: left; }
   table.rec th { font-weight: 600; color: var(--ink); background: #faf9f6; }
   table.rec td small { display: block; font-size: 0.72rem; color: var(--muted); }
+  .runs-h { margin: 0.6rem 1.4rem 0; font-weight: 600; font-size: 0.9rem; color: var(--ink); }
+  @media (max-width: 600px) { .runs-h { margin: 0.6rem 0.6rem 0; } }
   .img-wrap img { max-height: 92vh; width: auto; max-width: 100%; display: block; margin: 0 auto; }
   .img-wrap a { border: 0; }
   .disc { padding: 0.9rem 1.4rem 0.4rem; }
@@ -244,6 +246,8 @@
       <div class="chart-card-header"><h2>Is a sudden warming forecast?</h2>
         <p data-k="ssw_line">&ndash;</p></div>
       <div class="tblwrap"><table class="rec" id="t_ssw"></table></div>
+      <p class="runs-h">Run by run: members easterly at 10&nbsp;hPa in each ensemble&rsquo;s last runs</p>
+      <div class="tblwrap"><table class="rec" id="t_runs"></table></div>
       <div class="img-wrap"><a href="/stratosphere.html#vortex"><img src="/assets/sst/nh_vortex.webp" alt="u at 60N at 10 and 100 hPa and the polar-cap height, every model, days 1-15" loading="lazy"></a></div>
     </section>
 
@@ -284,7 +288,10 @@
         1&ndash;15 (Charlton and Polvani 2007, who count November&ndash;March onsets only). The warning meter counts
         members whose 10-day mean 100&nbsp;hPa heat flux crosses the level that preceded the sudden warmings on record
         (<span data-r="warn">&ndash;</span>). The normal rate is the share of MERRA-2 winters since 1980 with an onset in
-        the same 15 calendar days.</p>
+        the same 15 calendar days. Each ensemble is its newest run, taken as soon as that run is in, so for a few hours
+        of a cycle the models stand on different starts. <b>Run by run</b> lists each ensemble&rsquo;s share in its last
+        six runs (and its warning-meter share): a swing between runs is the models&rsquo; view changing, not a forecast
+        of its own.</p>
         <p><b>Wave driving.</b> The share of wave-1 and wave-2 in the ensemble-mean 100&nbsp;hPa eddy heat flux
         (45&ndash;75&deg;N) over days 1&ndash;15; a wavenumber carrying <span data-r="wshare">&ndash;</span> or more
         names the forcing, otherwise it is mixed. The peak is the total flux against its ERA5 1991&ndash;2020
@@ -356,6 +363,17 @@
         var v = S.models[m], w = W.models[m] || {};
         return [who(N[m], v.init), v.members, pct(v.share), sg(v.u10_min_mean), sg(v.u10_min_p10), w.warning_members == null ? "–" : pct(w.warning_members)];
       }));
+
+    // run by run: each ensemble's chance in its last runs, the warning-meter share beside it
+    var have = ens.filter(function (m) { return S.models[m] && S.models[m].runs; }), starts = {};
+    have.forEach(function (m) { S.models[m].runs.forEach(function (r) { starts[r[0]] = 1; }); });
+    var last = Object.keys(starts).sort().slice(-6).reverse();
+    function runCell(m, t) {
+      var r = S.models[m].runs.filter(function (x) { return x[0] === t; })[0];
+      return r ? pct(r[1]) + (r[2] == null ? "" : " <small>warning " + pct(r[2]) + "</small>") : "–";
+    }
+    table("t_runs", ["run"].concat(have.map(function (m) { return N[m]; })),
+      last.map(function (t) { return [md(t) + " " + t.slice(11) + "Z"].concat(have.map(function (m) { return runCell(m, t); })); }));
 
     // what kind
     var w2 = W.wave2_share_mean, kind = W.kind, dk = D.kind;

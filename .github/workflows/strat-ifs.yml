@@ -4,8 +4,9 @@ name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, wave
 # and the IFS control (its own open-data stream, to day 15) in every stratosphere product that their open data can
 # feed, and the days 1-15 GEFS and GEPS versions of the same products (naens job, below):
 #
-#   nh_vortex.py          -> assets/sst/nh_vortex.webp                  every model, the IFS control dashed
-#                         + nh_vortex_runs.webp, data/vortex_runs.json  the run-to-run record (vortex_runs.py)
+#   nh_vortex.py --record-only -> data/runs/vortex_{ifs,hres,gdps,geosfp}.json (maps), vortex_{gefs,geps}.json (naens)
+#   run_record.py capture -> data/runs/{heatflux,drip}_<model>.json + assets/sst/runs/<product>_<model>.webp: each
+#                            model's run-to-run record and figure, from the JSON its products just wrote
 #   heatflux100_ext.py    -> assets/sst/ifs_heatflux100_{nh,sh}.webp   + data/ifs_heatflux100.json (the control line)
 #   forecast_drip.py      -> assets/sst/{ifs,hres}_drip.webp           + data/{ifs,hres}_drip.json
 #                            (both with the IFS-ENS drift, reference/ifs_capdrift.json)
@@ -16,8 +17,6 @@ name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, wave
 #                            propagation monitor (imprint job, after the drips it reads)
 #   reflection_index.py   -> assets/sst/reflection_index.webp: the regional reflection index of every ensemble (imprint
 #                            job, from the heat-flux JSON of this run and main's AIFS-ENS one)
-#   ssw_summary.py        -> assets/sst/data/ssw_summary.json: the days 1-15 sudden-warming summary that ssw.html reads
-#                            (imprint job, last: it reads every product above and main's GEFS upper-air files)
 #   qbo_duct.py --model ifs -> scripts/strat/data/zmu_members_ifs.npz (zero line) + the 250 hPa jet sector (pacjet)
 #   qbo_zeroline.py       -> assets/sst/qbo_zeroline_*.webp re-rendered with IFS-ENS + data/qbo_zeroline_ifs.json
 #   naens (GEFS, GEPS)    -> assets/sst/{gefs,geps}_heatflux100_{nh,sh}.webp, {gefs,geps}_drip.webp (+ data/*.json),
@@ -28,13 +27,17 @@ name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, wave
 # hour after strat.yml's 07:35/19:35 slots, which are timed for AIFS-ENS; run in strat.yml, the IFS steps would find
 # nothing. This runs at 09:05/21:05.
 #
-# nh_vortex lives here, not in strat.yml: one figure holds every model, and rendering it at both slots would
-# flip it between "without IFS" (07:35) and "with IFS" (09:05) twice a day. Its AIFS winds come through the store.
+# EVERY MODEL AS IT LANDS. Each job records only the models it renders (strat.yml AIFS-ENS, maps the IFS-ENS, IFS
+# control, GDPS and GEOS FP, naens GEFS and GEPS) into their own files; the figures that hold every model (nh_vortex.webp,
+# nh_vortex_runs.webp) and the SSW summary (ssw_summary.json, read by ssw.html) are drawn from each model's newest
+# record by strat-combine.yml after every run of this workflow and of strat.yml, so they move model by model.
 #
 # GEPS FAST LANE. GEPS day 16 is on the Datamart ~5 h after the start (05:05Z / 17:15Z on 2026-10-21), hours before
 # these slots, so the Canadian fast lane (scripts/lib/canada_fastlane.sh) dispatches this workflow with only=geps the
-# moment that run is complete: the naens job alone, for GEPS alone (nh_vortex still waits for the full run - one
-# figure, one cycle for every model). A GEFS or GEPS cycle that main already shows in every product is not fetched
+# moment that run is complete: the naens job alone, for GEPS alone, its vortex record with it. GEFS day 16 is on S3
+# by ~06:30Z / 18:30Z, and dispatcher slots at 06:45/18:45 run only=gefs the same way (no date: the 00/12Z start at
+# least 5 h ago, or the one before when that is not complete yet). A GEFS or GEPS cycle
+# that main already shows in every product is not fetched
 # again (strat_ens.py --skip-shown; force=true re-renders it), so the full run after the fast lane skips GEPS.
 #
 # DATA. Google Cloud mirror only: ECMWF_SOURCES=google for every step, and ifs_ens.py names the
@@ -45,8 +48,8 @@ name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, wave
 #   zmu     u at 10/50/250 hPa and v at 250 hPa, streamed a step at a time and never cached (~2 GB a cycle). The
 #           E-P flux comes from GEFS instead (strat.yml), which has levels between 10 and 50 hPa.
 #   naens   GEFS from NOAA's S3 (byte-ranged per message) and GEPS from the MSC Datamart, one shared fetch per model
-#           (strat_ens.py fetch: every member and step pulled once, reduced on the way in), read by all four products.
-#           nh_vortex (maps job, run in parallel) takes its GEFS u and 100 hPa height in a small fetch of its own.
+#           (strat_ens.py fetch: every member and step pulled once, reduced on the way in), read by all four products
+#           and by the vortex record.
 # The ef files hold ~8,500 messages per step in arrival order, so a 50-member selection is a scatter of 0.3-0.7 MB
 # ranges: ECMWF_RANGE_GAP_MB=0.5 keeps the wasted bytes near 1 % (a 3 MB gap doubled them), and the request budget is
 # raised to 60/s for Google on these runners (default 14/s, set for AWS/Azure throttling; Google does not throttle,
@@ -131,11 +134,17 @@ jobs:
           ONLY: ${{ inputs.only }}
         run: |
           set -euo pipefail
+          D="${{ github.event.inputs.date }}"; T="${{ github.event.inputs.time }}"
+          if [ -n "$ONLY" ] && [ -z "$D" ]; then
+            # a GEFS/GEPS-only run is on that model's own newest cycle, not the one AIFS-ENS has reached: the 00/12Z
+            # start at least 5 h ago (strat_ens.py falls back a cycle when it is not complete yet)
+            t=$(( ($(date -u +%s) - 5 * 3600) / 43200 * 43200 ))
+            D=$(date -u -d "@$t" +%Y%m%d); T=$(date -u -d "@$t" +%H)
+          fi
           wait=45; [ -n "$ONLY" ] && wait=0   # a GEFS/GEPS-only run does not wait for IFS-ENS
-          python scripts/strat/ifs_ens.py resolve --date "${{ github.event.inputs.date }}" \
-            --time "${{ github.event.inputs.time }}" --wait-min "$wait" --github-output
+          python scripts/strat/ifs_ens.py resolve --date "$D" --time "$T" --wait-min "$wait" --github-output
           if [ -z "$ONLY" ] && grep -q '^ready=false' "$GITHUB_OUTPUT"; then
-            echo "::warning::IFS-ENS is not on the Google mirror for this cycle; nh_vortex renders without it and the IFS-ENS products keep their previous version"
+            echo "::warning::IFS-ENS is not on the Google mirror for this cycle; the IFS-ENS products and record keep their previous version"
           fi
       # A backstop cron fires hours late and resolves the cycle a dispatcher slot already rendered: when the IFS control
       # products show it, and the IFS-ENS ones too (or IFS-ENS is still not on the mirror), there is nothing new to fetch
@@ -221,22 +230,22 @@ jobs:
           df -h / | tail -1
 
       # A run checks out the commit it was triggered at, and a queued run can start well after main has moved on.
-      # The run record accumulates, so it is read from main as it is now, or this run's publish would lay a stale
-      # copy over it (2026-10-17: a queued run dropped the 14 backfilled runs).
-      - name: The run record as main has it now
+      # The run records accumulate, so they are read from main as it is now, or this run's publish would lay stale
+      # copies over them (2026-10-17: a queued run dropped the 14 backfilled runs).
+      - name: The run records as main has them now
         run: |
           git fetch -q --depth 1 origin main
-          git checkout origin/main -- assets/sst/data/vortex_runs.json || echo "::warning::vortex_runs.json not on main yet"
+          git checkout origin/main -- assets/sst/data/runs || echo "::warning::no run records on main yet"
 
-      # Every model in one figure. Without IFS-ENS (not on the mirror) it still renders the others; the IFS control
-      # lands first and is drawn whenever it is there.
-      - name: NH polar vortex
+      # The polar-vortex record of the models this job reads (AIFS-ENS is recorded by strat.yml, GEFS and GEPS by the
+      # naens job); the figure of every model's newest run is drawn by strat-combine.yml.
+      - name: NH polar vortex run records
         timeout-minutes: 25
         continue-on-error: true
         run: |
-          M=aifs,gefs,geps,gdps,geosfp,hres; [ "$READY" = "true" ] && M=aifs,gefs,geps,gdps,geosfp,hres,ifs
-          python scripts/strat/nh_vortex.py --models "$M" --cycle "$D$T" --out assets/sst/nh_vortex.webp \
-            || echo "::warning::nh_vortex failed; keeping the previous figure"
+          M=gdps,geosfp,hres; [ "$READY" = "true" ] && M=gdps,geosfp,hres,ifs
+          python scripts/strat/nh_vortex.py --record-only --models "$M" --cycle "$D$T" \
+            || echo "::warning::nh_vortex failed; the records keep their previous runs"
 
       - name: Eddy heat flux, 100 hPa (IFS-ENS)
         if: env.READY == 'true'
@@ -299,13 +308,22 @@ jobs:
           python scripts/regimes/regimes_ecmwf.py --model ifs --date "$D" --time "$T" \
             || echo "::warning::IFS-ENS regimes failed"
 
+      - name: Run records, heat flux and dripping paint
+        continue-on-error: true
+        run: |
+          python scripts/strat/run_record.py capture drip --model hres || echo "::warning::IFS control drip record failed"
+          if [ "$READY" = "true" ]; then
+            python scripts/strat/run_record.py capture heatflux --model ifs || echo "::warning::IFS heat-flux record failed"
+            python scripts/strat/run_record.py capture drip --model ifs || echo "::warning::IFS drip record failed"
+          fi
+
       # Red when something that should have rendered did not (every render above is `|| ::warning::`, so a green step
       # proves nothing). Publishing still runs under always().
       - name: What was produced
         if: always()
         run: |
           bad=0
-          want="assets/sst/nh_vortex.webp assets/sst/nh_vortex_runs.webp assets/sst/hres_drip.webp"
+          want="assets/sst/hres_drip.webp"
           [ "$READY" = "true" ] && want="$want assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/ifs_drip.webp"
           for f in $want; do
             if [ -f "$f" ] && [ "$f" -nt /tmp/t0 ]; then printf '  %-40s %s\n' "$f" "$(du -h "$f" | cut -f1)"
@@ -325,11 +343,13 @@ jobs:
         run: |
           set -euo pipefail
           : > /tmp/maps.list
-          for p in assets/sst/nh_vortex.webp assets/sst/nh_vortex_runs.webp assets/sst/data/vortex_runs.json \
-                   assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/data/ifs_heatflux100.json \
+          for p in assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/data/ifs_heatflux100.json \
                    assets/sst/ifs_drip.webp assets/sst/data/ifs_drip.json assets/sst/hres_drip.webp assets/sst/data/hres_drip.json \
-                   assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json; do
-            [ -e "$p" ] && echo "$p" >> /tmp/maps.list
+                   assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
+                   assets/sst/data/runs/vortex_{ifs,hres,gdps,geosfp}.json assets/sst/data/runs/{heatflux,drip,waves}_ifs.json \
+                   assets/sst/data/runs/{drip,waves}_hres.json assets/sst/runs/{heatflux,drip,waves}_ifs.webp \
+                   assets/sst/runs/{drip,waves}_hres.webp; do
+            [ -e "$p" ] && [ "$p" -nt /tmp/t0 ] && echo "$p" >> /tmp/maps.list
           done
           for m in ifs hres; do
             for p in assets/sst/anim/wave1_${m}_nh assets/sst/anim/wave1_${m}_sh assets/sst/anim/wave1_maps_${m}_manifest.json \
@@ -434,6 +454,9 @@ jobs:
           echo "  fetch wall time $(( $(date +%s) - start )) s"
           du -sh scripts/strat/data/strat_ens 2>/dev/null || true
 
+      # the run records accumulate, so they are main's as it is now (a queued run checks out an older commit)
+      - name: The run records as main has them now
+        run: git checkout origin/main -- assets/sst/data/runs || echo "::warning::no run records on main yet"
       # Per model: heat flux, dripping paint, wave maps, vortex winds, from the shared file only (no download).
       - name: GEFS and GEPS products
         timeout-minutes: 50
@@ -469,6 +492,27 @@ jobs:
             grep -h "::warning::\|::notice::" "/tmp/${m}_products.log" || true
             echo "---- $m"; grep -v "^    " "/tmp/${m}_products.log" | tail -25
           done
+      # Each model's run into its records, from the shared files and the JSON just written (nothing fetched; wave_maps.py
+      # recorded the waves itself).
+      - name: Run records, polar vortex, heat flux and dripping paint
+        continue-on-error: true
+        env:
+          GEFS_D: ${{ steps.fetch.outputs.gefs_date }}
+          GEFS_T: ${{ steps.fetch.outputs.gefs_time }}
+          GEPS_D: ${{ steps.fetch.outputs.geps_date }}
+          GEPS_T: ${{ steps.fetch.outputs.geps_time }}
+          GEFS_SKIP: ${{ steps.fetch.outputs.gefs_skip }}
+          GEPS_SKIP: ${{ steps.fetch.outputs.geps_skip }}
+        run: |
+          for m in $MODELS; do
+            M=$(echo "$m" | tr a-z A-Z); dv=${M}_D tv=${M}_T sv=${M}_SKIP
+            [ "${!sv}" = "true" ] || [ -z "${!dv}" ] && continue
+            python scripts/strat/nh_vortex.py --record-only --models "$m" --cycle "${!dv}${!tv}" \
+              || echo "::warning::$m vortex record failed"
+            for p in heatflux drip; do
+              python scripts/strat/run_record.py capture "$p" --model "$m" || echo "::warning::$m $p record failed"
+            done
+          done
 
       - name: What was produced
         if: always()
@@ -501,7 +545,8 @@ jobs:
                      assets/sst/anim/wave1_${m}_nh assets/sst/anim/wave1_${m}_sh assets/sst/anim/wave2_${m}_nh assets/sst/anim/wave2_${m}_sh \
                      assets/sst/anim/wave1_maps_${m}_manifest.json assets/sst/anim/wave2_maps_${m}_manifest.json \
                      assets/sst/anim/vortex_${m}_10_nh assets/sst/anim/vortex_${m}_10_sh assets/sst/anim/vortex_${m}_100_nh \
-                     assets/sst/anim/vortex_${m}_100_sh assets/sst/anim/vortex_winds_${m}_manifest.json; do
+                     assets/sst/anim/vortex_${m}_100_sh assets/sst/anim/vortex_winds_${m}_manifest.json \
+                     assets/sst/data/runs/{vortex,heatflux,drip,waves}_${m}.json assets/sst/runs/{heatflux,drip,waves}_${m}.webp; do
               [ -e "$p" ] && [ "$p" -nt /tmp/t0 ] && echo "$p" >> /tmp/naens.list
             done
           done
@@ -671,14 +716,13 @@ jobs:
           git fetch -q --depth 1 origin main
           for f in assets/sst/data/ssw_imprint.json assets/sst/data/ssw_imprint_history.json assets/sst/data/ssw_imprint_runs.json \
                    assets/sst/data/{aifs,ifs,hres,gefs,geps}_drip.json assets/sst/data/{,ifs_,gefs_,geps_}heatflux100.json \
-                   assets/sst/data/heatflux100_history.json assets/sst/data/upperstrat.json \
-                   assets/sst/data/vortex_runs.json assets/sst/data/refractive_gefs.json; do
+                   assets/sst/data/heatflux100_history.json assets/sst/data/upperstrat.json assets/sst/data/refractive_gefs.json; do
             git checkout origin/main -- "$f" 2>/dev/null || echo "  $f: not on main yet"
           done
           shopt -s nullglob
           for t in /tmp/art/*.tgz; do
             [ -s "$t" ] && tar -xzf "$t" -C . --wildcards 'assets/sst/data/*_drip.json' 'assets/sst/data/*heatflux100.json' \
-              'assets/sst/data/vortex_runs.json' 2>/dev/null || true
+              2>/dev/null || true
           done
           ls -la assets/sst/data/*_drip.json
 
@@ -703,7 +747,6 @@ jobs:
           done
           python scripts/strat/ssw_imprint.py render || echo "::warning::the monitor did not render; keeping the previous figure"
           python scripts/strat/reflection_index.py || echo "::warning::the reflection index did not render; keeping the previous figure"
-          python scripts/strat/ssw_summary.py || echo "::warning::the SSW summary did not build; keeping the previous one"
 
       - name: Pack the outputs
         if: always()
@@ -711,7 +754,7 @@ jobs:
           set -euo pipefail
           : > /tmp/imprint.list
           for p in assets/sst/ssw_imprint.webp assets/sst/data/ssw_imprint.json assets/sst/data/ssw_imprint_history.json \
-                   assets/sst/data/ssw_imprint_runs.json assets/sst/reflection_index.webp assets/sst/data/ssw_summary.json; do
+                   assets/sst/data/ssw_imprint_runs.json assets/sst/reflection_index.webp; do
             [ -e "$p" ] && [ "$p" -nt /tmp/t0 ] && echo "$p" >> /tmp/imprint.list
           done
           if [ ! -s /tmp/imprint.list ]; then : > /tmp/strat-ifs-imprint.tgz; exit 0; fi
@@ -775,7 +818,7 @@ jobs:
         run: |
           git config user.name "Shawn Corvec"
           git config user.email "26825570+scorvec@users.noreply.github.com"
-          for f in assets/sst/nh_vortex.webp assets/sst/nh_vortex_runs.webp assets/sst/data/vortex_runs.json \
+          for f in assets/sst/data/runs/*.json assets/sst/runs/*.webp \
                    assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/data/ifs_heatflux100.json \
                    assets/sst/ifs_drip.webp assets/sst/data/ifs_drip.json assets/sst/hres_drip.webp assets/sst/data/hres_drip.json \
                    assets/sst/anim/wave1_maps_ifs_manifest.json assets/sst/anim/wave2_maps_ifs_manifest.json assets/sst/anim/vortex_winds_ifs_manifest.json \
@@ -788,7 +831,7 @@ jobs:
                    assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
                    assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_ifs.json \
                    assets/sst/ssw_imprint.webp assets/sst/data/ssw_imprint.json assets/sst/data/ssw_imprint_history.json \
-                   assets/sst/data/ssw_imprint_runs.json assets/sst/reflection_index.webp assets/sst/data/ssw_summary.json; do
+                   assets/sst/data/ssw_imprint_runs.json assets/sst/reflection_index.webp; do
             if [ -e "$f" ]; then git add "$f"; fi
           done
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi

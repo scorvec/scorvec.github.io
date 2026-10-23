@@ -180,6 +180,10 @@ jobs:
       - name: Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
 
+      # the run records accumulate, so they are main's as it is now (a queued run checks out an older commit)
+      - name: The run records as main has them now
+        run: git fetch -q --depth 1 origin main && git checkout FETCH_HEAD -- assets/sst/data/runs || echo "::warning::no run records on main yet"
+
       - name: Wave-1 and wave-2 loops
         run: |
           python scripts/strat/wave_maps.py \
@@ -233,6 +237,15 @@ jobs:
             --manifest assets/sst/anim/vortex_winds_manifest.json \
             || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "vortex_winds" "keeping the previous figure"
 
+      # AIFS-ENS's run into its heat-flux and drip records (run_record.py: from the JSON just written, nothing fetched;
+      # wave_maps.py records the waves itself)
+      - name: Run records, heat flux and dripping paint
+        continue-on-error: true
+        run: |
+          for p in heatflux drip; do
+            python scripts/strat/run_record.py capture "$p" --model aifs || echo "::warning::AIFS-ENS $p record failed"
+          done
+
       # Fails the job when a product rendered nothing. Every render is wrapped in
       # a `|| degraded.sh` guard so one upstream outage cannot sink the others - but
       # that also turns a render that dies at once (an argparse error, say) into
@@ -276,7 +289,8 @@ jobs:
                    assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh assets/sst/anim/wave2_nh assets/sst/anim/wave2_sh \
                    assets/sst/anim/vortex_10_nh assets/sst/anim/vortex_10_sh assets/sst/anim/vortex_100_nh assets/sst/anim/vortex_100_sh \
                    assets/sst/anim/wave1_maps_manifest.json assets/sst/anim/wave2_maps_manifest.json \
-                   assets/sst/anim/vortex_winds_manifest.json; do
+                   assets/sst/anim/vortex_winds_manifest.json \
+                   assets/sst/data/runs/{heatflux,drip,waves}_aifs.json assets/sst/runs/{heatflux,drip,waves}_aifs.webp; do
             [ -e "$p" ] && echo "$p" >> /tmp/light.list
           done
           if [ ! -s /tmp/light.list ]; then
@@ -340,6 +354,16 @@ jobs:
             || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "ens_cycle" "downstream uses whatever cached"
           du -sh ../ecmwf/cache 2>/dev/null || true
 
+      # AIFS-ENS's run into the polar-vortex record (run_record.py) from the u files just cached and the 100 hPa height;
+      # strat-combine.yml draws the figure of every model's newest run after this workflow
+      - name: Polar vortex run record (AIFS-ENS)
+        continue-on-error: true
+        run: |
+          git fetch -q --depth 1 origin main && git checkout FETCH_HEAD -- assets/sst/data/runs || echo "::warning::no run records on main yet"
+          python scripts/strat/nh_vortex.py --record-only --models aifs \
+            --cycle "${{ needs.cycle.outputs.date }}${{ needs.cycle.outputs.time }}" \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AIFS-ENS vortex record" "the record keeps its previous runs"
+
       # Per-member zonal-mean u at 10/50/100 hPa from the cached u files -> data/zmu_members_aifs.npz, and v at
       # 250 hPa (control + 25) for the jet below.
       - name: Zonal-mean u (zero line) and v250 (jet), AIFS-ENS
@@ -396,7 +420,8 @@ jobs:
                    assets/sst/pacjet_impacts_lag0.webp assets/sst/pacjet_impacts_lag3_7.webp \
                    assets/sst/data/pacjet_aifs.json assets/sst/data/pacjet_analysis.json \
                    assets/sst/qbo_zeroline_70.webp assets/sst/qbo_zeroline_50.webp assets/sst/qbo_zeroline_30.webp \
-                   assets/sst/qbo_zeroline_10.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_aifs.json; do
+                   assets/sst/qbo_zeroline_10.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_aifs.json \
+                   assets/sst/data/runs/vortex_aifs.json; do
             [ -e "$p" ] && echo "$p" >> /tmp/heavy.list
           done
           if [ ! -s /tmp/heavy.list ]; then
@@ -552,7 +577,8 @@ jobs:
                    assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_aifs.json \
                    assets/sst/pacjet_aifs_*.webp assets/sst/pacjet_torque.webp assets/sst/pacjet_impacts_*.webp \
                    assets/sst/data/pacjet_aifs.json assets/sst/data/pacjet_analysis.json \
-                   assets/sst/refractive_gefs.webp assets/sst/data/refractive_gefs.json; do
+                   assets/sst/refractive_gefs.webp assets/sst/data/refractive_gefs.json \
+                   assets/sst/data/runs/*_aifs.json assets/sst/runs/*_aifs.webp; do
             if [ -e "$f" ]; then git add "$f"; fi
           done
           # the retired AIFS-ENS / IFS-ENS E-P flux manifests leave main with the next commit

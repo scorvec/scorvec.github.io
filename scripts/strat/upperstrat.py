@@ -797,6 +797,26 @@ def summary(M, tail, clim, offs):
     return doc
 
 
+def record_runs(M: dict) -> None:
+    """Every model's run into its record (run_record.py, upperstrat_<model>.json; northern u60 at 1 and 10 hPa and the
+    1 hPa cap temperature) and the run-to-run figures, each model's and all of them side by side."""
+    import run_record as RR
+
+    for m, d in M.items():
+        lev = d["levels"]
+        if 1.0 not in lev or 10.0 not in lev:
+            continue
+        i1, i10 = lev.index(1.0), lev.index(10.0)
+        frames = {
+            "u1": pd.DataFrame(d["u60"][0, :, :, i1].T, index=d["valid"]),
+            "u10": pd.DataFrame(d["u60"][0, :, :, i10].T, index=d["valid"]),
+            "t1": pd.DataFrame(d["capT"][0, :, :, i1].T, index=d["valid"]),
+        }
+        RR.record("upperstrat", m, d["init"], RR.entry("upperstrat", frames))
+        RR.render("upperstrat", m)
+    RR.render_combined("upperstrat", tuple(ORDER), RR.FIGS / "upperstrat_all.webp")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default=str(HERE / "data" / "upperstrat"))
@@ -856,6 +876,7 @@ def main() -> int:
         mpath.write_text(json.dumps(man))
     (out / "data" / "upperstrat.json").write_text(json.dumps(summary(M, tail, clim, offs), separators=(",", ":")))
     log(f"wrote {out / 'data' / 'upperstrat.json'}")
+    record_runs(M)
     return 0
 
 

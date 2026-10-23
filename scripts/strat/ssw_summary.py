@@ -6,7 +6,8 @@
 It downloads nothing: every number comes from what the other stratosphere products publish (assets/sst/data) or from
 the committed references (reference/). Five questions, each answered per model and then across the ensembles:
 
-  SSW      the share of members with u(60N, 10 hPa) easterly on some day 1-15 (vortex_runs.json, nh_vortex.py), raw
+  SSW      the share of members with u(60N, 10 hPa) easterly on some day 1-15 (each ensemble's newest recorded run,
+           run_record.py vortex_<model>.json from nh_vortex.py, and the kept runs before it), raw
            member counts, not calibrated; the members whose 10-day mean 100 hPa heat flux crosses the SSW warning level
            (heatflux100 ssw_warning); and how often a MERRA-2 sudden warming began in the same 15 calendar days.
            Charlton and Polvani (2007) count November-March onsets only.
@@ -42,6 +43,7 @@ REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 import heatflux100 as HF
 import reflection_index as RX
+import run_record as RR
 
 DATA = REPO / "assets" / "sst" / "data"
 REF = HERE / "reference"
@@ -78,21 +80,25 @@ def _r(x, n=2):
     return None if x is None or not np.isfinite(x) else round(float(x), n)
 
 
-def ssw_part(runs: list) -> dict:
-    """{model: {init, members, share, u10_min_mean, u10_min_p10}} from each model's newest run in vortex_runs.json."""
+def ssw_part() -> dict:
+    """{model: {init, members, share, u10_min_mean, u10_min_p10, runs}} from each ensemble's newest recorded run
+    (run_record.py: vortex_<model>.json), with every kept run's chance and its heat-flux warning share by start (runs:
+    [[start, chance, warning share]])."""
     out = {}
-    for run in reversed(runs):
-        for m, d in run["models"].items():
-            if m in out or m not in ENSEMBLES:
-                continue
-            u = d["u10"]
-            out[m] = {
-                "init": run["init"].replace("T", " ") + "Z",
-                "members": int(d["members"]),
-                "share": _r(d["ssw"]),
-                "u10_min_mean": _r(min(u["mean"][1:]), 1),
-                "u10_min_p10": _r(min(u["p10"][1:]), 1),
-            }
+    for m in ENSEMBLES:
+        rs = RR.runs("vortex", m)
+        if not rs:
+            continue
+        d, u = rs[-1], rs[-1]["u10"]
+        warn = {r["init"]: r.get("warn") for r in RR.runs("heatflux", m)}
+        out[m] = {
+            "init": d["init"].replace("T", " ") + "Z",
+            "members": int(d["members"]),
+            "share": _r(d["ssw"]),
+            "u10_min_mean": _r(min(x for x in u["mean"][1:] if x is not None), 1),
+            "u10_min_p10": _r(min(x for x in u["p10"][1:] if x is not None), 1),
+            "runs": [[r["init"], _r(r.get("ssw")), _r(warn.get(r["init"]))] for r in rs],
+        }
     return out
 
 
@@ -267,11 +273,10 @@ def references() -> dict:
 
 
 def main() -> int:
-    vr = _read("vortex_runs.json")
-    if not vr or not vr.get("runs"):
-        raise SystemExit("no vortex_runs.json")
+    ssw = ssw_part()
+    if not ssw:
+        raise SystemExit("no recorded vortex runs (assets/sst/data/runs/vortex_<model>.json)")
     clim = xr.open_dataset(HF.CLIM).load()
-    ssw = ssw_part(vr["runs"])
     waves = waves_part({}, clim)
     descent = descent_part()
     reflect = reflect_part(waves)

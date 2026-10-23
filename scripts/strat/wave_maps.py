@@ -604,6 +604,32 @@ def build_loop(full, ana, date, time, anim_root: Path, k: int, source="ensemble 
     return 0
 
 
+def record_run(full, date: str, time: str, model: str) -> None:
+    """The run into its record (run_record.py, waves_<model>.json): every member's wave-1 and wave-2 amplitude over the
+    55-65N band at 100 and 10 hPa, daily, as a multiple of the day's normal standing wave (blank on a day the normal
+    has none there, as the maps' "no standing wave in the normal")."""
+    import run_record as RR
+
+    init = pd.Timestamp(f"{date}T{time}:00")
+    sh = (full[100].step.values / np.timedelta64(1, "h")).astype(int) if "step" in full[100].dims else np.array([0])
+    frames = {}
+    for lev in (100, 10):
+        for k in WAVES:
+            rows = {}
+            for h in [int(x) for x in sh if x % 24 == 0]:
+                z = at_step(full[lev], h)
+                Zall, M = split(z)
+                lat, lon = z.latitude.values, z.longitude.values
+                valid = init + pd.Timedelta(hours=h)
+                cc, amax = clim_coeff(lev, "NH", valid, k)
+                cm = band_coeff(Zall[None] if M is None else M, lat, True, lon[0], k)
+                ok = cc is not None and amax is not None and abs(cc) >= 0.25 * amax
+                rows[valid] = np.abs(np.atleast_1d(cm)) / abs(cc) if ok else np.full(np.size(cm), np.nan)
+            frames[f"w{k}_{lev}"] = pd.DataFrame.from_dict(rows, orient="index").sort_index()
+    RR.record("waves", model, init, RR.entry("waves", frames))
+    RR.render("waves", model)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True)
@@ -635,6 +661,7 @@ def main(argv=None) -> int:
     # analysis - the one view that cannot answer whether the wave is building.
     for k in WAVES:
         build_loop(full, ana, a.date, a.time, Path(a.anim_dir), k, source, hemi, a.model)
+    record_run(full, a.date, a.time, a.model)
     return 0
 
 

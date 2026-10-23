@@ -19,9 +19,8 @@ Models (probed 2026-08-28, GEFS 2026-10-20; every one publishes u AND height at 
                   pulled through the shared store (~0.35 GB) plus the control.
   gefs  GEFS      30 perturbed + control, 0.5 deg, day 16: u at 10/100 hPa and the 100 hPa height
                   from the shared GEFS fetch (strat_ens.py, part "vortex"; NOAA's S3, ~0.6 GB/cycle).
-  geps  GEPS      20 members, 0.5 deg, day 16. One `allmbrs` GRIB per
-                  variable/level/step (~2.4 MB UGRD, ~1.3 MB HGT) -> ~98 MB/cycle, through the
-                  shared Datamart client (scripts/geps/datamart.py).
+  geps  GEPS      20 members + control, 0.5 deg, day 16, from the same shared fetch's "vortex" part (strat_ens.py;
+                  the MSC Datamart), made by the job that renders GEPS's other products.
   gdps  GDPS      deterministic, 0.15 deg, day 10 -> ~31 MB/cycle.
   geosfp GEOS FP   NASA GMAO, deterministic, newest 00Z run (day 10; 06/12/18Z stop at day 5), NCCS OPeNDAP
                   MERRA-2's operational sibling.
@@ -65,9 +64,12 @@ the files the upper-stratosphere and BDC jobs commit every day (u60 at 10 and 10
 MERRA-2 scale by the measured GEOS FP - MERRA-2 offset (geosfp_cap.offset_at, -14 m at 100 hPa); the winds need
 none. _consistency() checks the tail against MERRA-2 wherever the two overlap.
 
-    python scripts/strat/nh_vortex.py                     # every model, IFS-ENS at 50 members
-    python scripts/strat/nh_vortex.py --models aifs,geps  # no downloads beyond GEPS
-    python scripts/strat/nh_vortex.py --cycle 2026092700  # a named cycle (no ens_cycle cache needed)
+RUN RECORD: every model's run goes into its own record (run_record.py, assets/sst/data/runs/vortex_<model>.json) from
+the job that renders that model, as soon as it lands; the figure is drawn from each model's newest record (--from-records,
+nothing fetched), so it moves model by model through the cycle.
+
+    python scripts/strat/nh_vortex.py --models ifs,hres --cycle 2026102312 --record-only   # record two models' runs
+    python scripts/strat/nh_vortex.py --from-records                                       # the figure
 """
 
 from __future__ import annotations
@@ -88,7 +90,7 @@ import matplotlib.pyplot as plt
 from quantmet.degdays import doy366
 
 import geosfp_cap
-import vortex_runs
+import run_record as RR
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
@@ -233,10 +235,6 @@ def load_aifs(cdir, base):
     return out
 
 
-GEPS_URL = (
-    "https://dd.weather.gc.ca/{d}/WXO-DD/ensemble/geps/grib2/raw/{c}/{L:03d}/"
-    "CMC_geps-raw_{v}_ISBL_{lev:04d}_latlon0p5x0p5_{d}{c}_P{L:03d}_allmbrs.grib2"
-)
 GDPS_URL = (
     "https://dd.weather.gc.ca/{d}/WXO-DD/model_gdps/15km/{c}/{L:03d}/"
     "{d}T{c}Z_MSC_GDPS_{v}_IsbL-{lev:04d}_LatLon0.15_PT{L:03d}H.grib2"
@@ -254,35 +252,14 @@ def _eccc(kind, url_tpl, date, cyc, leads, spec):
             )
             if f is None:
                 continue
-            # a GEPS `allmbrs` GRIB carries the 20 perturbed members AND the
-            # control; opening it unfiltered raises "multiple values for unique
-            # key". Take pf for the spread and append cf as one more column.
-            vals = []
-            for dt in ("pf", "cf") if kind == "geps" else (None,):
-                try:
-                    ds = _grib(f, dataType=dt) if dt else _grib(f)
-                    vals.append(np.atleast_1d(np.asarray(red(_first(ds)).values)).ravel())
-                except Exception as e:  # noqa: BLE001
-                    if dt == "pf" or dt is None:
-                        print(f"    {kind} {var}{lev} +{L}h unreadable: {str(e)[:50]}", flush=True)
-            if not vals:
-                continue
-            rows[base + pd.Timedelta(hours=L)] = np.concatenate(vals)
+            try:
+                rows[base + pd.Timedelta(hours=L)] = np.atleast_1d(np.asarray(red(_first(_grib(f))).values)).ravel()
+            except Exception as e:  # noqa: BLE001
+                print(f"    {kind} {var}{lev} +{L}h unreadable: {str(e)[:50]}", flush=True)
         if not rows:
             return None
         out[key] = pd.DataFrame.from_dict(rows, orient="index").sort_index()
     return out
-
-
-def load_geps(date, cyc, leads):
-    return _eccc(
-        "geps",
-        GEPS_URL,
-        date,
-        cyc,
-        leads,
-        [("u10", "UGRD", 10, zonal_at), ("u100", "UGRD", 100, zonal_at), ("zcap", "HGT", 100, cap_mean)],
-    )
 
 
 def load_gdps(date, cyc, leads):
@@ -300,17 +277,18 @@ def load_gdps(date, cyc, leads):
     )
 
 
-def load_gefs(date, cyc):
-    """NOAA GEFS, control + 30 members, to day 16, from the shared GEFS fetch's "vortex" part (strat_ens.py: u at 10
-    and 100 hPa and the 100 hPa height, daily, byte-ranged from NOAA's S3, ~0.6 GB). A cycle not complete on S3 falls
-    back to the newest complete one within a day; with none the figure goes without GEFS."""
+def load_ens(model, date, cyc):
+    """GEFS (control + 30 members) or GEPS (control + 20), to day 16, from the shared fetch's "vortex" part
+    (strat_ens.py: u at 10 and 100 hPa and the 100 hPa height, daily; NOAA's S3, the MSC Datamart), which the job that
+    renders the model's other products has already made. A cycle not complete falls back to the newest complete one
+    within a day; with none the model is not recorded this run."""
     import strat_ens as SE
 
     try:
-        d0, h0 = SE.resolve("gefs", date, cyc)
-        d = SE.load("gefs", d0, h0, ("vortex",))
+        d0, h0 = SE.resolve(model, date, cyc)
+        d = SE.load(model, d0, h0, ("vortex",))
     except SystemExit as e:
-        print(f"::warning::GEFS unavailable ({e}); the figure goes without it", flush=True)
+        print(f"::warning::{STYLE[model][1]} unavailable ({e}); not recorded this run", flush=True)
         return None
     keep = SE.complete_members(d, "zcap")
     idx = pd.Timestamp(f"{d0[:4]}-{d0[4:6]}-{d0[6:]} {h0}:00") + pd.to_timedelta(list(SE.LEADS_VORTEX), unit="h")
@@ -608,134 +586,83 @@ def _consistency(obs, clim, name, unit, tol):
     )
 
 
+# ── the run record ──────────────────────────────────────────────────────────
+SSW_DAYS = 15
+MAX_AGE_DAYS = 2  # a model's newest recorded run older than this against the newest of all is left off the figure
+
+
+def ssw_chance(u10: pd.DataFrame, init: pd.Timestamp) -> float | None:
+    """Share of members easterly at 10 hPa / 60N on at least one day to day SSW_DAYS, over the members with a value in
+    that window (None when none has)."""
+    lead = u10[u10.index <= init + pd.Timedelta(days=SSW_DAYS)].dropna(axis=1, how="all")
+    return float((lead.to_numpy() < 0).any(axis=0).mean()) if lead.shape[1] else None
+
+
+def record_runs(fc: dict, zmed: pd.Series) -> None:
+    """Each model's run into its own record (run_record.py): u60 at 10 and 100 hPa and the cap-height anomaly against
+    the detrended MERRA-2 median, the members' mean and 10-90 %, and an ensemble's sudden-warming chance. A run is
+    filed under its own start (its first valid time: GEOS FP's newest 00Z run, a GEFS run that fell back a cycle)."""
+    for m, d in fc.items():
+        u = d.get("u10")
+        if u is None or not len(u):
+            continue
+        init = u.index[0]
+        z = d.get("zcap")
+        frames = {
+            "u10": u,
+            "u100": d.get("u100"),
+            "zcap": None if z is None else z.sub(zmed.reindex(_cday(z.index)).values, axis=0),
+        }
+        ssw = ssw_chance(u, init) if u.shape[1] >= 5 else None
+        RR.record("vortex", m, init, RR.entry("vortex", frames, {"ssw": None if ssw is None else round(ssw, 3)}))
+
+
+def newest_runs() -> dict:
+    """{model: run}: every model's newest recorded run, those within MAX_AGE_DAYS of the newest of all."""
+    out = {m: RR.runs("vortex", m)[-1] for m in STYLE if RR.runs("vortex", m)}
+    if not out:
+        return {}
+    t1 = max(pd.Timestamp(r["init"]) for r in out.values())
+    return {m: r for m, r in out.items() if pd.Timestamp(r["init"]) >= t1 - pd.Timedelta(days=MAX_AGE_DAYS)}
+
+
 # ── plot ────────────────────────────────────────────────────────────────────
-def draw_model(ax, df, key, sub=None):
-    col, lab = STYLE[key]
-    v = df.values if sub is None else df.values - sub[:, None]
-    n = df.shape[1]
-    if n >= 5:
+def draw_model(ax, run, key, m):
+    """One model's newest run: an ensemble's members' 10-90 % and mean, a single run dashed; labelled with its start."""
+    if key not in run:
+        return
+    col, lab = STYLE[m]
+    init = pd.Timestamp(run["init"])
+    mean = RR.series(run, key)
+    if run["members"] >= 5:
         ax.fill_between(
-            df.index,
-            np.nanpercentile(v, 10, axis=1),
-            np.nanpercentile(v, 90, axis=1),
-            color=col,
-            alpha=0.16,
-            lw=0,
-            zorder=2,
+            mean.index, RR.series(run, key, "p10"), RR.series(run, key, "p90"), color=col, alpha=0.16, lw=0, zorder=2
         )
-        ax.plot(df.index, np.nanmean(v, axis=1), color=col, lw=2.4, zorder=5, label=f"{lab} ({n}m)")
+        ax.plot(mean.index, mean.values, color=col, lw=2.4, zorder=5, label=f"{lab} {init:%-d/%HZ} ({run['members']}m)")
     else:
-        ax.plot(
-            df.index,
-            np.nanmean(v, axis=1),
-            color=col,
-            lw=2.0,
-            ls="--",
-            zorder=5,
-            label=lab if key == "hres" else f"{lab} (det)",
-        )
+        ax.plot(mean.index, mean.values, color=col, lw=2.0, ls="--", zorder=5,
+                label=f"{lab} {init:%-d/%HZ}" + ("" if m == "hres" else " (det)"))  # fmt: skip
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--models", default="aifs,gefs,geps,gdps,ifs,hres,geosfp")
-    ap.add_argument(
-        "--ifs-members", type=int, default=50, help="IFS-ENS perturbed members (all 50 by default; the control is hres)"
-    )
-    ap.add_argument("--cycle")
-    ap.add_argument("--out", default=str(OUT))
-    ap.add_argument(
-        "--record-only",
-        action="store_true",
-        help="add this run to the run-to-run record (vortex_runs.py) and draw nothing: a past run, IFS pulled light",
-    )
-    a = ap.parse_args()
-    want = [m.strip() for m in a.models.split(",") if m.strip()]
-
-    cdirs = sorted(glob.glob(str(CACHE / "*z")))
-    if a.cycle:
-        # Cache dirs are named "20260829 12" + "z" ("2026082912z"). Accept the
-        # cycle with or without the trailing z: strat.yml passes date+time with
-        # no suffix, and an exact-match filter silently emptied the list, which
-        # surfaced as the misleading "no AIFS-ENS cycle in the cache".
-        want_c = a.cycle.lower().rstrip("z") + "z"
-        cdirs = [d for d in cdirs if Path(d).name.lower() == want_c]
-    cdir = base = None
-    for d in reversed(cdirs):
-        if glob.glob(f"{d}/aifs-ens/pf_u_10-*.grib2"):
-            t = Path(d).name
-            cdir, base = Path(d), pd.Timestamp(f"{t[:4]}-{t[4:6]}-{t[6:8]} {t[8:10]}:00")
-            break
-    if base is None and a.cycle:
-        # No ens_cycle cache for this cycle (strat-ifs.yml): load_aifs pulls what it needs through the store.
-        t = a.cycle.lower().rstrip("z")
-        cdir, base = CACHE / f"{t}z", pd.Timestamp(f"{t[:4]}-{t[4:6]}-{t[6:8]} {t[8:10]}:00")
-        print(f"no ens_cycle cache for {t}; AIFS-ENS winds come through the shared store", flush=True)
-    if base is None:
-        print("no AIFS-ENS cycle in the cache to anchor on")
+def render(out: Path) -> int:
+    """The figure from every model's newest recorded run (no download): each model on its own start."""
+    runs = newest_runs()
+    if not runs:
+        print("no recorded runs to draw")
         return 1
-    date, cyc = f"{base:%Y%m%d}", f"{base:%H}"
+    base = max(pd.Timestamp(r["init"]) for r in runs.values())
     epoch = base.year + (base.dayofyear - 1) / 365.25
-    print(f"cycle {base:%Y-%m-%d %HZ}  models={want}", flush=True)
-
-    # the GRIB cache is ~250 MB a cycle — keep only this cycle's files
-    tag = f"_{date}{cyc}_"
-    for f in DL.glob("*.grib2"):
-        if tag not in f.name:
-            f.unlink(missing_ok=True)
-
     clim, trend = load_clim(epoch)
     y0 = min(s.index[0] for s in clim.values()).year  # the reference's span, for the legend and the footer
     y1 = max(s.index[-1] for s in clim.values()).year
     obs = analysis()
     _consistency(obs.get("u10"), clim["u10"], "u60 @10 hPa", "m/s", 1.0)
     _consistency(obs.get("zcap"), clim["zcap"], "z100 cap", "m", 60.0)
-
-    fc = {}
-    if "aifs" in want:
-        fc["aifs"] = load_aifs(cdir, base)
-    if "gefs" in want:
-        fc["gefs"] = load_gefs(date, cyc)
-    if "geps" in want:
-        fc["geps"] = load_geps(date, cyc, list(range(0, 385, 24)))
-    if "gdps" in want:
-        fc["gdps"] = load_gdps(date, cyc, list(range(0, 241, 24)))
-    if "ifs" in want:
-        fc["ifs"] = load_ifs(date, cyc, list(range(0, 361, 24)), a.ifs_members, light=a.record_only)
-    if "hres" in want:
-        fc["hres"] = load_hres(date, cyc, list(range(0, 361, 24)))
-    if "geosfp" in want:
-        fc["geosfp"] = load_geosfp(base)
-    fc = {k: v for k, v in fc.items() if v}
-    if not fc:
-        print("no model data available")
-        return 1
-    for k, v in fc.items():
-        print(
-            f"  {STYLE[k][1]}: " + ", ".join(f"{p}={v[p].shape[1]}m x{len(v[p])}" for p in v if v[p] is not None),
-            flush=True,
-        )
-
-    zmed = clim_doy(clim["zcap"])[1]
-    vortex_runs.record(
-        base,
-        {
-            k: {
-                "u10": d.get("u10"),
-                "zcap": None
-                if d.get("zcap") is None
-                else d["zcap"].sub(zmed.reindex(_cday(d["zcap"].index)).values, axis=0),
-            }
-            for k, d in fc.items()
-        },
-    )
-    if a.record_only:
-        return 0
-
-    tmax = max(d[p].index[-1] for d in fc.values() for p in d if d[p] is not None)
+    tmax = max(pd.Timestamp(r["valid"][-1]) for r in runs.values())
     t0 = base - pd.Timedelta(days=TAIL_DAYS)
     span = pd.date_range(t0, tmax, freq="D")
     doy = _cday(span)
+    print("  runs: " + ", ".join(f"{STYLE[m][1]} {r['init']}Z" for m, r in runs.items()), flush=True)
 
     fig, axes = plt.subplots(3, 1, figsize=(13, 11.4), sharex=True)
     panels = [
@@ -762,31 +689,21 @@ def main() -> int:
             if len(o):
                 ob = q50.reindex(_cday(o.index)).values if anom else 0
                 ax.plot(o.index, o.values - ob, color="#1a1a1a", lw=2.4, zorder=7, label="GEOS FP analysis")
-        for k, d in fc.items():
-            df = d.get(key)
-            if df is None or not len(df):
-                continue
-            sub = q50.reindex(_cday(df.index)).values if anom else None
-            draw_model(ax, df, k, sub)
+        for m, run in runs.items():
+            draw_model(ax, run, key, m)  # the record's cap height is already the anomaly
         ax.axvline(base, color="#8a8680", lw=1, zorder=3)
         ax.set_ylabel(ylab)
         ax.grid(alpha=0.22)
         ax.legend(loc="upper left", fontsize=7.4, ncol=3, framealpha=0.9)
         if key == "u10":
             ax.axhline(0, color="#a33", lw=1.5, zorder=4)
-            # per ensemble: the share of MEMBERS easterly on at least one day to day 15 (vortex_runs.ssw_chance)
             msg = "easterly at 10 hPa / 60°N = SSW (WMO)"
-            hits = {
-                k: vortex_runs.ssw_chance(d["u10"], base)
-                for k, d in fc.items()
-                if d.get("u10") is not None and d["u10"].shape[1] >= 5
-            }
-            hits = {k: h for k, h in hits.items() if h is not None}
+            hits = {m: r["ssw"] for m, r in runs.items() if r.get("ssw") is not None}
             if hits and max(hits.values()) > 0:
                 worst = max(hits, key=hits.get)
                 msg = (
                     f"{100 * hits[worst]:.0f}% of {STYLE[worst][1]} members easterly on some day to day "
-                    f"{vortex_runs.SSW_DAYS} — easterly here = SSW (WMO)"
+                    f"{SSW_DAYS} — easterly here = SSW (WMO)"
                 )
             ax.text(0.005, 0.05, msg, transform=ax.transAxes, fontsize=8, color="#a33", style="italic")
         if key == "zcap":
@@ -812,18 +729,24 @@ def main() -> int:
                 color="#6f6b64",
             )
 
-    fig.suptitle(f"Northern polar vortex forecast — {base:%Y-%m-%d %HZ} cycle", fontsize=14, fontweight="bold", y=0.996)
+    fig.suptitle(
+        f"Northern polar vortex forecast — the newest run of each model (to {base:%Y-%m-%d %HZ})",
+        fontsize=14,
+        fontweight="bold",
+        y=0.996,
+    )
     fig.text(
         0.5,
         0.004,
         "Zonal-mean zonal wind at 60°N and the 65–90°N polar-cap height. Shading is each ensemble's 10th–90th member "
-        "percentile, the solid line its mean; dashed = deterministic or control-only.\n"
+        "percentile, the solid line its mean; dashed = deterministic or control-only. Each model is its newest run "
+        "(start in the legend, day/hour UTC).\n"
         "AIFS-ENS (25 members + control), IFS-ENS (50 perturbed members) and the IFS control to day 15, GEFS (30 + "
         "control) and GEPS (20 + control) to day 16, GDPS and GEOS FP (00Z run, NASA GMAO) to day 10.\n"
         f"Reference: MERRA-2 {y0}–{y1} day-of-year percentiles; the height climatology is detrended to the current "
         f"year ({trend['zcap']:+.1f} m/decade), the winds are not "
         f"({max(abs(trend['u10']), abs(trend['u100'])):.2f} m/s/decade or less).\n"
-        "Vertical line = analysis time. Black: GEOS FP analyses (daily mean of 00/06/12/18Z). GEOS FP heights are on "
+        "Vertical line = the newest start. Black: GEOS FP analyses (daily mean of 00/06/12/18Z). GEOS FP heights are on "
         "the MERRA-2 scale (measured offset removed). IFS control: ECMWF's unperturbed 9 km run (HRES until May 2026).",
         ha="center",
         va="bottom",
@@ -833,12 +756,93 @@ def main() -> int:
     )
     fig.autofmt_xdate()
     fig.tight_layout(rect=(0, 0.064, 1, 0.985))  # four footer lines under rotated dates
-    Path(a.out).parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(a.out, dpi=112, facecolor="white", bbox_inches="tight", pil_kwargs={"quality": 88, "method": 6})
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=112, facecolor="white", bbox_inches="tight", pil_kwargs={"quality": 88, "method": 6})
     plt.close(fig)
-    print(f"wrote {a.out}")
-    vortex_runs.render(out=Path(a.out).with_name(vortex_runs.OUT.name))
+    print(f"wrote {out}")
     return 0
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--models", default="aifs,gefs,geps,gdps,ifs,hres,geosfp")
+    ap.add_argument(
+        "--ifs-members", type=int, default=50, help="IFS-ENS perturbed members (all 50 by default; the control is hres)"
+    )
+    ap.add_argument("--cycle")
+    ap.add_argument("--out", default=str(OUT))
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument(
+        "--record-only",
+        action="store_true",
+        help="add these models' runs to their records (run_record.py) and draw nothing",
+    )
+    mode.add_argument(
+        "--from-records", action="store_true", help="draw the figure from every model's newest record, nothing fetched"
+    )
+    a = ap.parse_args()
+    if a.from_records:
+        return render(Path(a.out))
+    want = [m.strip() for m in a.models.split(",") if m.strip()]
+
+    cdirs = sorted(glob.glob(str(CACHE / "*z")))
+    if a.cycle:
+        # Cache dirs are named "20260829 12" + "z" ("2026082912z"). Accept the
+        # cycle with or without the trailing z: strat.yml passes date+time with
+        # no suffix, and an exact-match filter silently emptied the list, which
+        # surfaced as the misleading "no AIFS-ENS cycle in the cache".
+        want_c = a.cycle.lower().rstrip("z") + "z"
+        cdirs = [d for d in cdirs if Path(d).name.lower() == want_c]
+    cdir = base = None
+    for d in reversed(cdirs):
+        if glob.glob(f"{d}/aifs-ens/pf_u_10-*.grib2"):
+            t = Path(d).name
+            cdir, base = Path(d), pd.Timestamp(f"{t[:4]}-{t[4:6]}-{t[6:8]} {t[8:10]}:00")
+            break
+    if base is None and a.cycle:
+        # No ens_cycle cache for this cycle: load_aifs pulls what it needs through the store.
+        t = a.cycle.lower().rstrip("z")
+        cdir, base = CACHE / f"{t}z", pd.Timestamp(f"{t[:4]}-{t[4:6]}-{t[6:8]} {t[8:10]}:00")
+        print(f"no ens_cycle cache for {t}; AIFS-ENS winds come through the shared store", flush=True)
+    if base is None:
+        print("no AIFS-ENS cycle in the cache to anchor on")
+        return 1
+    date, cyc = f"{base:%Y%m%d}", f"{base:%H}"
+    epoch = base.year + (base.dayofyear - 1) / 365.25
+    print(f"cycle {base:%Y-%m-%d %HZ}  models={want}", flush=True)
+
+    # the GRIB cache is ~250 MB a cycle — keep only this cycle's files
+    tag = f"_{date}{cyc}_"
+    for f in DL.glob("*.grib2"):
+        if tag not in f.name:
+            f.unlink(missing_ok=True)
+
+    clim, _ = load_clim(epoch)
+    fc = {}
+    if "aifs" in want:
+        fc["aifs"] = load_aifs(cdir, base)
+    for m in ("gefs", "geps"):
+        if m in want:
+            fc[m] = load_ens(m, date, cyc)
+    if "gdps" in want:
+        fc["gdps"] = load_gdps(date, cyc, list(range(0, 241, 24)))
+    if "ifs" in want:
+        fc["ifs"] = load_ifs(date, cyc, list(range(0, 361, 24)), a.ifs_members, light=a.record_only)
+    if "hres" in want:
+        fc["hres"] = load_hres(date, cyc, list(range(0, 361, 24)))
+    if "geosfp" in want:
+        fc["geosfp"] = load_geosfp(base)
+    fc = {k: v for k, v in fc.items() if v}
+    if not fc:
+        print("no model data available")
+        return 1
+    for k, v in fc.items():
+        print(
+            f"  {STYLE[k][1]}: " + ", ".join(f"{p}={v[p].shape[1]}m x{len(v[p])}" for p in v if v[p] is not None),
+            flush=True,
+        )
+    record_runs(fc, clim_doy(clim["zcap"])[1])
+    return 0 if a.record_only else render(Path(a.out))
 
 
 if __name__ == "__main__":

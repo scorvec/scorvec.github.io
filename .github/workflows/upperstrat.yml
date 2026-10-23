@@ -66,6 +66,9 @@ jobs:
           sparse-checkout: |
             scripts/strat/upperstrat.py
             scripts/strat/upperstrat_data.py
+            scripts/strat/run_record.py
+            assets/sst/data/runs/upperstrat_*.json
+            assets/sst/runs/upperstrat_*.webp
             scripts/strat/geos_pv.py
             scripts/strat/reference/upperstrat_clim.nc
             scripts/strat/reference/upperstrat_tail_seed.json
@@ -107,6 +110,8 @@ jobs:
           if timeout 60 git fetch -q --depth 1 origin main; then
             git show FETCH_HEAD:assets/sst/data/upperstrat.json > /tmp/us.json 2>/dev/null || echo '{}' > /tmp/us.json
             git checkout FETCH_HEAD -- assets/sst/data/upperstrat_tail.json 2>/dev/null || true
+            # the run records accumulate: main's, which the render adds this run to
+            git checkout FETCH_HEAD -- 'assets/sst/data/runs/upperstrat_*.json' 2>/dev/null || true
           else
             cp assets/sst/data/upperstrat.json /tmp/us.json 2>/dev/null || echo '{}' > /tmp/us.json
           fi
@@ -262,7 +267,8 @@ jobs:
           # origin/main, lay the snapshot back on and commit - the sst.yml / strat.yml pattern.
           SNAP=$(mktemp -d)
           ls assets/sst/upperstrat_*.webp assets/sst/data/upperstrat.json assets/sst/data/upperstrat_tail.json \
-             assets/sst/anim/upperstrat_maps_manifest.json 2>/dev/null > "$SNAP/list" || true
+             assets/sst/anim/upperstrat_maps_manifest.json assets/sst/data/runs/upperstrat_*.json \
+             assets/sst/runs/upperstrat_*.webp 2>/dev/null > "$SNAP/list" || true
           tar cf "$SNAP/outs.tar" -T "$SNAP/list"
           echo "snapshot: $(wc -l < "$SNAP/list") files"
           for i in 1 2 3 4 5; do

@@ -1,0 +1,89 @@
+name: Stratosphere, every model's newest run (polar vortex figures, SSW summary)
+
+# The products that hold every model: the polar-vortex figure (scripts/strat/nh_vortex.py --from-records), its
+# run-to-run figure (run_record.py combined vortex) and the days 1-15 sudden-warming summary that ssw.html reads
+# (ssw_summary.py). Each model's job records its own run as it lands (strat.yml AIFS-ENS; strat-ifs.yml the IFS-ENS,
+# IFS control, GDPS, GEOS FP, and GEFS and GEPS - the fast lane too); after every such run this draws the three from
+# each model's newest record and main's published JSON. Nothing is downloaded, and this is the only writer of the
+# three files, so runs that finish close together cannot overwrite each other's models: a later run of this cancels
+# an earlier one still going and draws the newer state.
+on:
+  workflow_run:
+    workflows:
+      - "Stratosphere (vortex, waves 1 and 2, E-P flux from GEFS)"
+      - "Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, waves 1 and 2, winds, drip, zero line, jet)"
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: strat-combine
+  cancel-in-progress: true
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  MPLBACKEND: Agg
+
+jobs:
+  combine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main   # a workflow_run event checks out the default branch as it is now; the dispatch says so too
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - name: Draw from every model's newest record
+        run: |
+          OUT="assets/sst/nh_vortex.webp assets/sst/nh_vortex_runs.webp assets/sst/data/ssw_summary.json"
+          # once: the old all-model record (vortex_runs.json) split into the per-model records, merged with any run a
+          # model's job has recorded since
+          migrate() {
+            [ -f assets/sst/data/vortex_runs.json ] || return 0
+            python - <<'PY'
+          import json, tempfile
+          from pathlib import Path
+          old = json.loads(Path("assets/sst/data/vortex_runs.json").read_text())["runs"]
+          tmp = Path(tempfile.mkdtemp())
+          for m in {m for r in old for m in r["models"]}:
+              runs = [{"init": r["init"], **r["models"][m]} for r in old if m in r["models"]]
+              (tmp / f"vortex_{m}.json").write_text(json.dumps({"product": "vortex", "model": m, "runs": runs}))
+          Path("/tmp/legacy_dir").write_text(str(tmp))
+          PY
+            python scripts/strat/run_record.py merge "$(cat /tmp/legacy_dir)"
+            git rm -q assets/sst/data/vortex_runs.json
+            git add assets/sst/data/runs
+          }
+          draw() {
+            python scripts/strat/nh_vortex.py --from-records || echo "::warning::the vortex figure did not draw; keeping the previous one"
+            python scripts/strat/run_record.py combined vortex --out assets/sst/nh_vortex_runs.webp \
+              || echo "::warning::the vortex run-to-run figure did not draw; keeping the previous one"
+            python scripts/strat/ssw_summary.py || echo "::warning::the SSW summary did not build; keeping the previous one"
+          }
+          migrate; draw
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # never rebase: on a push race, reset to the fresh main and draw again from its records
+          for i in 1 2 3 4 5; do
+            git add $OUT
+            if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+            git commit -q -m "stratosphere: every model's newest run $(date -u +%Y-%m-%dT%H%MZ)"
+            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
+            echo "push $i rejected; resyncing"; sleep 5
+            timeout 120 git fetch origin main && git reset -q --hard origin/main && migrate && draw
+          done
+          echo "push failed after retries"; exit 1
