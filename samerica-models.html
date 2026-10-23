@@ -492,7 +492,6 @@
   var FIELD_GROUPS = [["Surface", ["t2m", "td2m", "mslp", "wind10", "wind100", "gust"]],
                       ["Rain and moisture", ["rate", "acc", "pwat", "the850", "ir"]],
                       ["Convection", ["ecape", "shr6", "srh"]]];
-  var FIELD_ORDER = [].concat.apply([], FIELD_GROUPS.map(function (g) { return g[1]; }));
   var MSLP_LEVELS = [900, 976, 980, 984, 988, 992, 996, 1000, 1004, 1008, 1012, 1016, 1020, 1024, 1028, 1032, 1036, 1040, 1044];
   var MSLP_COLORS = ["#3b0f5c", "#56258a", "#6a3fb0", "#4c50c4", "#3769c9", "#3f86cf", "#5aa2d8", "#80bce2", "#a9d3ea", "#d3e7ef",
                      "#f1ead6", "#f6d8a4", "#f3be78", "#ec9c52", "#df7638", "#c9512b", "#a53024", "#7c1a20", "#560e1d"];
@@ -1355,8 +1354,8 @@
   function subKey() { return st.field === "acc" ? st.acc.type + "-" + st.acc.win : st.field === "ecape" ? st.ec : st.field === "srh" ? st.srh : ""; }
 
   // ── overlay: boundaries, contour lines (CPU fallback), barbs; labels on a second canvas once the map is at rest ───
-  var interacting = false, settleT = 0, ovView = null, labT = 0, ovMoved = false, gestDraws = 0;
-  function beginInteract() { if (!interacting) { interacting = true; gestDraws = 0; } clearTimeout(settleT); }
+  var interacting = false, settleT = 0, ovView = null, labT = 0, ovMoved = false;
+  function beginInteract() { interacting = true; clearTimeout(settleT); }
   function settleSoon(ms) { clearTimeout(settleT); settleT = setTimeout(function () { interacting = false; render(); }, ms || 140); }
   function moveOverlay() {
     if (!ovView) return;
@@ -1998,7 +1997,9 @@
   }
 
   // ── start ──────────────────────────────────────────────────────────────────────────────────────────────────────
-  window.SA = { st: st, man: man, frames: frames, CONT: CONT, P: P, gridIJ: gridIJ, get view() { return view; }, get drawn() { return drawn; }, get gpuc() { return GPUC; }, render: render };
+  // for testing from the console (and the headless checks of the decode and the shader's projection)
+  window.SA = { st: st, man: man, frames: frames, CONT: CONT, P: P, gridIJ: gridIJ, get view() { return view; }, get drawn() { return drawn; }, get gpuc() { return GPUC; },
+    render: render, draw: draw, lut: buildLut, gl: gl, dpr: function () { return DPR; } };
   try { glOk = initGL(); } catch (e) { console.error(e); }
   if (!glOk) $("msg").textContent = "This page needs WebGL 2, which this browser does not provide.";
   var hadHour = readHash();
