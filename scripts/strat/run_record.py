@@ -182,15 +182,18 @@ def record(product: str, model: str, base: pd.Timestamp, rec: dict | None) -> No
 
 
 def merge(src: Path) -> list[Path]:
-    """Every record file in src merged into RUNS by start, the run RUNS already holds kept where both have one (a live
-    run beats a backfilled or older copy of it): how a backfill that ran for hours, or an old record moved over, joins
-    the record main holds at commit time."""
+    """Every record file in src merged into RUNS by start. Where both hold a run, the one with more fields wins (a
+    record of the current kind over an older, thinner one), else the one RUNS holds: how a backfill or an old record
+    moved over joins the record main holds at commit time."""
     done = []
     for f in sorted(src.glob("*.json")):
         new = json.loads(f.read_text())
         p = RUNS / f.name
         old = json.loads(p.read_text()) if p.exists() else {**new, "runs": []}
-        by = {r["init"]: r for r in new["runs"]} | {r["init"]: r for r in old["runs"]}
+        by = {r["init"]: r for r in old["runs"]}
+        for r in new["runs"]:
+            if r["init"] not in by or len(r) > len(by[r["init"]]):
+                by[r["init"]] = r
         newest = max(pd.Timestamp(i) for i in by)
         keep = [by[i] for i in sorted(by) if pd.Timestamp(i) >= newest - pd.Timedelta(days=KEEP_DAYS)]
         p.parent.mkdir(parents=True, exist_ok=True)
