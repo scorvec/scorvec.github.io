@@ -6,7 +6,8 @@ From the public Pangeo CMIP6 zarr stores (Google Cloud, anonymous), Amon 1950-20
                 site's SASD poles (sst-roni.py SASD_SW 30-10W 40-30S, SASD_NE 20W-0 25-15S; the index is SW - NE, the
                 Morioka convention) and Nino-3.4 (170-120W, 5S-5N). All three boxes are open ocean.
   pr, tas, psl  (month, lat, lon) on a 2.5-degree grid, 60S-15N x 90W-0 (bilinear from the native grid): mm/day, degC,
-                hPa.
+  sfcWind       hPa, and the monthly mean 10 m wind speed in m/s where the model publishes it (optional: a member
+                without it keeps the other fields).
   calendar      the store's CF calendar (month lengths for day-weighted seasonal means).
 
     python scripts/sst/cmip6_satl_extract.py plan --catalog pangeo-cmip6.csv --members 3          # JSON matrix
@@ -26,7 +27,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-VARS = ("ts", "pr", "tas", "psl")
+VARS = ("ts", "pr", "tas", "psl")  # every member must have these
+OPTIONAL = ("sfcWind",)
 Y0, Y1 = 1950, 2014
 LAT = np.arange(-60.0, 15.01, 2.5)
 LON = np.arange(270.0, 360.01, 2.5)
@@ -36,12 +38,13 @@ RIPF = re.compile(r"r(\d+)i(\d+)p(\d+)f(\d+)")
 
 def catalog(path: str) -> pd.DataFrame:
     c = pd.read_csv(path)
-    return c[(c.experiment_id == "historical") & (c.table_id == "Amon") & c.variable_id.isin(VARS)]
+    return c[(c.experiment_id == "historical") & (c.table_id == "Amon") & c.variable_id.isin(VARS + OPTIONAL)]
 
 
 def members(cat: pd.DataFrame, model: str, n: int) -> list[str]:
     """The first n members (by realisation, then the rest of the label) that publish all four variables."""
-    have = cat[cat.source_id == model].groupby("member_id").variable_id.nunique()
+    c = cat[(cat.source_id == model) & cat.variable_id.isin(VARS)]
+    have = c.groupby("member_id").variable_id.nunique()
     ripf = {m: tuple(map(int, g.groups())) for m in have.index if have[m] == len(VARS) and (g := RIPF.fullmatch(m))}
     if not ripf:
         return []
@@ -50,10 +53,10 @@ def members(cat: pd.DataFrame, model: str, n: int) -> list[str]:
     return sorted((m for m, v in ripf.items() if v[1:] == ipf), key=lambda m: ripf[m][0])[:n]
 
 
-def store(cat: pd.DataFrame, model: str, member: str, var: str) -> str:
+def store(cat: pd.DataFrame, model: str, member: str, var: str) -> str | None:
     g = cat[(cat.source_id == model) & (cat.member_id == member) & (cat.variable_id == var)]
     g = g.assign(native=g.grid_label.str.startswith("gn")).sort_values(["native", "version"])
-    return g.zstore.iloc[-1]
+    return g.zstore.iloc[-1] if len(g) else None
 
 
 def open_var(zstore: str, var: str) -> xr.DataArray:
@@ -88,8 +91,11 @@ def run(cat: pd.DataFrame, model: str, n: int, out: Path) -> int:
         t0 = time.time()
         try:
             fields, months, calendar = {}, None, None
-            for var in VARS:
-                da = open_var(store(cat, model, member, var), var)
+            for var in VARS + OPTIONAL:
+                zs = store(cat, model, member, var)
+                if zs is None:  # only an optional variable can be missing (members() checked the rest)
+                    continue
+                da = open_var(zs, var)
                 # only the latitudes in use travel into memory: the boxes for ts, the domain (one cell wider) else
                 da = da.sel(lat=slice(-42.5, 7.5) if var == "ts" else slice(LAT[0] - 5, LAT[-1] + 5)).load()
                 ym = [f"{t.year:04d}-{t.month:02d}" for t in da.time.values]
@@ -103,7 +109,7 @@ def run(cat: pd.DataFrame, model: str, n: int, out: Path) -> int:
                     fields.update({k: box_mean(da, b) for k, b in BOXES.items()})
                 else:
                     x = regrid(da)
-                    fields[var] = x * 86400.0 if var == "pr" else x - 273.15 if var == "tas" else x / 100.0
+                    fields[var] = {"pr": x * 86400.0, "tas": x - 273.15, "psl": x / 100.0}.get(var, x)
             np.savez_compressed(
                 out / f"{model}_{member}.npz",
                 months=np.array(months),

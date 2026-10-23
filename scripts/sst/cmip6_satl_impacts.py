@@ -31,17 +31,22 @@ CASES = {  # name: (index months, field months, field year offset from the index
     "DJF": ((12, 1, 2), (12, 1, 2), 0),
     "SON to DJF": ((9, 10, 11), (12, 1, 2), 1),
 }
-REGIONS = {  # name: (lat0, lat1, lon0, lon1) in degrees east 0-360
-    "La Plata (S Brazil, Uruguay, NE Argentina)": (-35, -25, 300, 308),
-    "SE Brazil (Sao Paulo, Rio, Minas)": (-25, -18, 310, 318),
-    "Centre-West / Cerrado": (-20, -10, 305, 315),
-    "NE Brazil": (-12, -3, 315, 325),
-    "S Amazon": (-15, -5, 295, 310),
-    "Patagonia": (-50, -40, 285, 295),
-    "South Atlantic High": (-35, -25, 340, 360),
+LAND = ("pr", "tas")
+REGIONS = {  # name: ((lat0, lat1, lon0, lon1) in degrees east 0-360, the fields reported there)
+    "La Plata (S Brazil, Uruguay, NE Argentina)": ((-35, -25, 300, 308), LAND),
+    "SE Brazil (Sao Paulo, Rio, Minas)": ((-25, -18, 310, 318), LAND),
+    "Centre-West / Cerrado": ((-20, -10, 305, 315), LAND),
+    "NE Brazil": ((-12, -3, 315, 325), LAND),
+    "S Amazon": ((-15, -5, 295, 310), LAND),
+    "Patagonia": ((-50, -40, 285, 295), LAND),
+    "NE Brazil wind coast (Ceara, Rio Grande do Norte)": ((-7, -2, 320, 325), ("sfcWind", "tas")),
+    "NE Brazil wind interior (Bahia, Piaui, Pernambuco)": ((-15, -7, 315, 322), ("sfcWind", "tas")),
+    "South Atlantic High": ((-35, -25, 340, 360), ("psl",)),
 }
-FIELDS = ("pr", "tas", "psl")
-UNITS = {"pr": "mm/day", "tas": "degC", "psl": "hPa"}
+FIELDS = ("pr", "tas", "psl", "sfcWind")
+UNITS = {"pr": "mm/day", "tas": "degC", "psl": "hPa", "sfcWind": "m/s"}
+RELATIVE = ("sfcWind",)  # also reported as % of the seasonal mean (wind power goes roughly as its cube)
+MIN_MODELS = 5
 FDR_Q, AGREE = 0.10, 0.8
 
 
@@ -115,7 +120,13 @@ def member(path: str):
     days = month_days(years, months, str(d["calendar"]))
     series = {"sasd": anomalies(d["sw"] - d["ne"]), "n34": anomalies(d["n34"])}
     fields = {f: anomalies(d[f]) for f in FIELDS if f in d.files}
-    return str(d["source_id"]), responses(series, fields, years, months, days), d["lat"], d["lon"], series, years
+    r = responses(series, fields, years, months, days)
+    # the seasonal mean of the fields reported relative to it, for the case's field months
+    r["clim"] = {
+        case: {f: seasonal(d[f], years, months, days, fsel, 0)[0].mean(0) for f in RELATIVE if f in d.files}
+        for case, (_isel, fsel, _off) in CASES.items()
+    }
+    return str(d["source_id"]), r, d["lat"], d["lon"], series, years
 
 
 def bh(p: np.ndarray, q: float) -> np.ndarray:
@@ -153,15 +164,18 @@ def cmip6(paths: list[str]):
     for case in CASES:
         out["cases"][case] = {}
         for f in FIELDS:
-            mm = np.array([np.mean([r[case][f] for r in by_model[m]], 0) for m in models])  # (model, lat, lon)
+            have = [m for m in models if all(f in r[case] for r in by_model[m])]
+            if len(have) < MIN_MODELS:
+                continue
+            mm = np.array([np.mean([r[case][f] for r in by_model[m]], 0) for m in have])  # (model, lat, lon)
             mean = mm.mean(0)
             t = stats.ttest_1samp(mm, 0.0, axis=0)
             agree = np.mean(np.sign(mm) == np.sign(mean), 0)
             robust = bh(t.pvalue, FDR_Q) & (agree >= AGREE)
             maps[f"{case}|{f}|mean"], maps[f"{case}|{f}|robust"] = mean, robust
             regs = {}
-            for name, box in REGIONS.items():
-                if (name == "South Atlantic High") != (f == "psl"):
+            for name, (box, fs) in REGIONS.items():
+                if f not in fs:
                     continue
                 per = np.array([region_mean(x, lat, lon, box) for x in mm])
                 tr = stats.ttest_1samp(per, 0.0)
@@ -170,7 +184,17 @@ def cmip6(paths: list[str]):
                     "models_same_sign": round(float(np.mean(np.sign(per) == np.sign(per.mean()))), 2),
                     "p": round(float(tr.pvalue), 4),
                 }
-            out["cases"][case][f] = {"units": UNITS[f], "robust_cells": round(float(robust.mean()), 3), "regions": regs}
+                if f in RELATIVE:
+                    clim = [
+                        np.mean([region_mean(r["clim"][case][f], lat, lon, box) for r in by_model[m]]) for m in have
+                    ]
+                    regs[name]["pct_of_mean"] = round(float(np.mean(100 * per / np.array(clim))), 2)
+            out["cases"][case][f] = {
+                "units": UNITS[f],
+                "n_models": len(have),
+                "robust_cells": round(float(robust.mean()), 3),
+                "regions": regs,
+            }
     out["sasd_n34_corr_monthly"] = {m: round(float(np.mean(v)), 2) for m, v in corr.items()}
     return out, maps, lat, lon
 
@@ -182,13 +206,19 @@ def figure(maps: dict, lat, lon, path: Path, title: str) -> None:
     import cartopy.crs as ccrs
     import matplotlib.pyplot as plt
 
-    lim = {"pr": 0.6, "tas": 0.4, "psl": 0.8}
-    cmap = {"pr": "BrBG", "tas": "RdBu_r", "psl": "PuOr_r"}
+    lim = {"pr": 0.6, "tas": 0.4, "psl": 0.8, "sfcWind": 0.3}
+    cmap = {"pr": "BrBG", "tas": "RdBu_r", "psl": "PuOr_r", "sfcWind": "PiYG"}
+    rows = [f for f in FIELDS if all(f"{c}|{f}|mean" in maps for c in CASES)]
     fig, axs = plt.subplots(
-        3, 3, figsize=(12.6, 12.4), subplot_kw={"projection": ccrs.PlateCarree()}, layout="constrained"
+        len(rows),
+        3,
+        figsize=(12.6, 4.15 * len(rows)),
+        subplot_kw={"projection": ccrs.PlateCarree()},
+        layout="constrained",
+        squeeze=False,
     )
     lon180 = np.where(lon > 180, lon - 360, lon)
-    for i, f in enumerate(FIELDS):
+    for i, f in enumerate(rows):
         for j, case in enumerate(CASES):
             ax = axs[i, j]
             m, rb = maps[f"{case}|{f}|mean"], maps[f"{case}|{f}|robust"]
@@ -215,14 +245,11 @@ def observed(path: str) -> dict:
     _src, r, lat, lon, _series, _years = member(path)
     return {
         case: {
-            f: {
-                n: round(region_mean(m, lat, lon, b), 3)
-                for n, b in REGIONS.items()
-                if (n == "South Atlantic High") == (f == "psl")
-            }
+            f: {n: round(region_mean(m, lat, lon, b), 3) for n, (b, fs) in REGIONS.items() if f in fs}
             for f, m in fields.items()
         }
         for case, fields in r.items()
+        if case in CASES
     }
 
 
