@@ -1,0 +1,162 @@
+name: South America models (data)
+
+# samerica-models.html: the IFS control (ECMWF open data, 0.1 deg) and the GDPS (MSC Datamart, 0.15 deg) over South
+# America to 10 days, every field and step one lossless WebP on the model's native grid, with ECAPE, CAPE, shear and
+# helicity computed on every column by the site's ECAPE kernel (scripts/models/samerica.py has the details). One model
+# per run; the callers models-sa-ifs.yml / models-sa-gdps.yml fix it, so the dispatcher's "already ran since" check is
+# per model.
+#
+# Each run: read that model's CURRENT manifest from main, plan (the newest complete 00/12Z cycle not yet published),
+# fetch + compute + encode, publish the cycle directory to the FRAMES STORE ONLY (FRAMES_BRANCH=off on the publish step:
+# this product never touches the git `frames` branch; old cycles are pruned in the store), THEN commit the manifest to
+# main - never the other way round, or the page would point at data that is not there yet. A cycle that lost a step is
+# not published.
+#
+# Cost per cycle (estimated from the index files and listings, 2026-10-23): IFS 8.97 GB from the Google mirror in ~1,830
+# requests (65 steps x ~140 MB of global 0.1 deg messages: the surface set and t, q, u, v on 13 levels); GDPS 7.67 GB
+# from the Datamart in 6,177 files (81 hours of the surface set, 65 hours of t, q, u, v on 20 levels). Each run prints
+# the bytes it fetched and published per field.
+
+on:
+  workflow_call:
+    inputs:
+      model:
+        type: string
+        required: true
+      cycle:
+        type: string
+        default: ""
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "ifs or gdps"
+        required: true
+        default: ifs
+      cycle:
+        description: "Cycle YYYYMMDDHH (blank = plan the newest unpublished; skipped when it or a newer one is published)"
+        required: false
+        default: ""
+      force:
+        description: "Rebuild the given cycle even when it is already published"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: models-sa-${{ inputs.model }}
+  cancel-in-progress: false
+
+env:
+  # Frames store (Bunny Storage, S3 API; scripts/lib/frames_store.py). The publish step sets FRAMES_BRANCH=off: the
+  # store is this product's only copy, and with the store unconfigured the publish fails rather than use the branch.
+  FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}
+  FRAMES_S3_ENDPOINT: ${{ secrets.FRAMES_S3_ENDPOINT }}
+  FRAMES_S3_REGION: ${{ secrets.FRAMES_S3_REGION }}
+  FRAMES_S3_ACCESS_KEY_ID: ${{ secrets.FRAMES_S3_ACCESS_KEY_ID }}
+  FRAMES_S3_SECRET_ACCESS_KEY: ${{ secrets.FRAMES_S3_SECRET_ACCESS_KEY }}
+  ECMWF_SOURCES: google   # ECMWF open data from the Google Cloud mirror only (rangefetch refuses any other host)
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      MODEL: ${{ inputs.model }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/models/
+            /scripts/snowband/
+            /scripts/ecape/
+            /scripts/skewt/skewt_wasm.cpp
+            /scripts/ecmwf/
+            /scripts/lib/
+            /assets/models/
+            /scripts/constraints.txt
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      # requests: scripts/ecmwf/rangefetch.py; scipy: models.py imports the snow-band module, whose encoders this reuses
+      - run: pip install --quiet numpy pillow eccodes scipy requests
+      - name: Plan
+        id: plan
+        env:
+          CYCLE: ${{ inputs.cycle }}
+          FORCE: ${{ inputs.force && '--force' || '' }}
+        run: |
+          set -euo pipefail
+          case "$MODEL" in ifs|gdps) ;; *) echo "::error::unknown model $MODEL"; exit 1 ;; esac
+          mkdir -p assets/models
+          # main's CURRENT manifest, not the checkout's (a run queued behind another checks out an older commit)
+          if timeout 60 git fetch -q --depth 1 origin main && git show "FETCH_HEAD:assets/models/sa_$MODEL.json" > "/tmp/sa_$MODEL.json" 2>/dev/null; then
+            cp "/tmp/sa_$MODEL.json" "assets/models/sa_$MODEL.json"
+          else echo "no manifest on main yet for $MODEL"; rm -f "assets/models/sa_$MODEL.json"; fi
+          python scripts/models/samerica.py plan --model "$MODEL" --manifests assets/models ${CYCLE:+--cycle "$CYCLE"} $FORCE > "$RUNNER_TEMP/plan.txt"
+          cat "$RUNNER_TEMP/plan.txt"
+          echo "n=$(wc -l < "$RUNNER_TEMP/plan.txt" | tr -d ' ')" >> "$GITHUB_OUTPUT"
+      - name: Boundaries (once)
+        if: steps.plan.outputs.n != '0'
+        run: |
+          set -euo pipefail
+          if timeout 60 git show "FETCH_HEAD:assets/models/geo_sa.json" > /dev/null 2>&1 && timeout 60 git show "FETCH_HEAD:assets/models/geo_sa_coarse.json" > /dev/null 2>&1; then
+            echo "geo_sa.json and geo_sa_coarse.json are on main"; exit 0
+          fi
+          python scripts/models/build_geo.py --region sa --out assets/models/geo_sa.json
+          echo "BUILT_GEO=1" >> "$GITHUB_ENV"
+      - name: Build the ECAPE kernel
+        if: steps.plan.outputs.n != '0'
+        run: |
+          chmod +x scripts/ecape/build.sh
+          ./scripts/ecape/build.sh
+      - name: Fetch, compute, publish
+        id: run
+        if: steps.plan.outputs.n != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FRAMES_BRANCH: "off"
+        run: |
+          set -euo pipefail
+          # steps worked on at once, each fetching its own: the GDPS's JPEG2000 decoding is CPU-bound (4 = the runner's
+          # cores); the IFS's CCSDS messages decode fast and its fetch shares the Google mirror's request budget
+          if [ "$MODEL" = gdps ]; then PROCS=4; else PROCS=3; fi
+          done=0
+          while read -r m cyc; do
+            [ -n "$cyc" ] || continue
+            echo "::group::$m $cyc"
+            L="$RUNNER_TEMP/lists_$cyc"
+            python scripts/models/samerica.py run --model "$m" --cycle "$cyc" --site . --procs "$PROCS" --lists "$L" \
+              --manifest-in "assets/models/sa_$m.json"
+            PR=$(tr '\n' ' ' < "$L/prune.txt")
+            if [ ! -s "$L/publish.txt" ]; then echo "::warning::$m $cyc is older than the cycle on the page - not published"; continue; fi
+            SRC=. PRUNE="$PR" PRUNE_OLDER="$(cat "$L/floor.txt")" scripts/models/publish_data.sh $(cat "$L/publish.txt") > /dev/null
+            rm -rf "assets/models/data/sa/$m/$cyc"       # in the store now; keep the runner disk free
+            done=$((done + 1))
+            echo "::endgroup::"
+          done < "$RUNNER_TEMP/plan.txt"
+          echo "done=$done" >> "$GITHUB_OUTPUT"
+      - name: Commit & push the manifest
+        if: steps.run.outputs.done != '' && steps.run.outputs.done != '0'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          SNAP=$(mktemp -d)
+          outs() { ls "assets/models/sa_$MODEL.json" assets/models/geo_sa.json assets/models/geo_sa_coarse.json 2>/dev/null; }
+          for f in $(outs); do git add -f "$f"; done
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            for f in $(outs); do git add -f "$f"; done
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "models-sa: $MODEL $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            sleep 5
+          done
+          exit 1

@@ -1,0 +1,27 @@
+name: South America models — GDPS
+
+# Caller for models-sa.yml (samerica-models.html). The GDPS 00/12Z run reaches +240 h on the MSC Datamart ~5 h 05 min
+# after the start (measured 2026-10-23 00Z: +003 h at 04:00Z, every +240 h file at 05:05Z); the readiness check is a
+# HEAD on two of the last hour's files (never a directory listing). The dispatcher fires the same slots; these crons are
+# the backstop. A firing with nothing new exits in about a minute.
+on:
+  schedule:
+  - cron: '25 5 * * *'
+  - cron: '25 17 * * *'
+  workflow_dispatch:
+    inputs:
+      cycle:
+        description: "Cycle YYYYMMDDHH (blank = plan the newest unpublished; skipped when it or a newer one is published)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    uses: ./.github/workflows/models-sa.yml
+    with:
+      model: gdps
+      cycle: ${{ inputs.cycle }}
+    secrets: inherit

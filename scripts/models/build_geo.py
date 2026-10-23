@@ -1,21 +1,24 @@
 #!/usr/bin/env python3
-"""Vector boundaries for models.html: coastlines, lakes, country borders, US states, Canadian and Mexican
-provinces and US counties, as compact delta-encoded polylines in lon/lat (1e-3 degree units, ~100 m) so the page
-can project them into whatever map projection it draws and stroke them crisply at every zoom.
+"""Vector boundaries for models.html and samerica-models.html: coastlines, lakes, country borders, provinces and
+states (and US counties), as compact delta-encoded polylines in lon/lat (1e-3 degree units, ~100 m) so the page can
+project them into whatever map projection it draws and stroke them crisply at every zoom.
 
 Sources (read once; the output is static and only rebuilt when missing):
-  Natural Earth 10m coastline, lakes, admin-0 boundary lines, admin-1 lines (CAN/MEX) - public domain,
+  Natural Earth 10m coastline, lakes, admin-0 boundary lines, admin-1 lines - public domain,
       raw.githubusercontent.com/nvkelso/natural-earth-vector (jsDelivr refuses files over 20 MB)
   us-atlas@3 counties-10m (US Census cartographic boundaries 1:10M) - states and counties, via jsDelivr npm
 
-Three files: geo.json (the base map), geo_counties.json (drawn only zoomed in) and geo_coarse.json, the base map
-already simplified to the level the page draws at the national view (COARSE_KM), which the page paints first and
-replaces with geo.json once the first map frame is up. The coarse file is derived from geo.json alone (no download),
-with the page's own projection and Douglas-Peucker, so its lines are the points the page keeps from geo.json at that
-tolerance:
+Region "na" (models.html), three files: geo.json (the base map; admin-1 lines of Canada and Mexico, US states from
+us-atlas), geo_counties.json (drawn only zoomed in) and geo_coarse.json, the base map already simplified to the level
+the page draws at the national view (COARSE_KM), which the page paints first and replaces with geo.json once the
+first map frame is up. The coarse file is derived from geo.json alone (no download), with the page's own projection
+and Douglas-Peucker, so its lines are the points the page keeps from geo.json at that tolerance.
+Region "sa" (samerica-models.html): geo_sa.json (the admin-1 lines of the South American countries, no US layers) and
+geo_sa_coarse.json on that page's projection.
 
     python scripts/models/build_geo.py --out assets/models/geo.json                 # all three (downloads)
     python scripts/models/build_geo.py --out assets/models/geo.json --coarse-only   # geo_coarse.json from geo.json
+    python scripts/models/build_geo.py --region sa --out assets/models/geo_sa.json
 """
 
 from __future__ import annotations
@@ -31,6 +34,9 @@ from pathlib import Path
 NE = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/{}.geojson"
 USATLAS = "https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json"
 BOX = (-179.9, -40.0, 10.0, 84.0)  # lon0, lon1, lat0, lat1: everything any of the three models covers
+SA_BOX = (-100.0, -25.0, -62.0, 18.0)  # samerica-models.html: its domain (60 S - 15 N, 95 - 30 W) and a margin
+# the countries whose provinces or states samerica-models.html draws (Natural Earth ADM0_A3)
+SA_ADMIN1 = ("ARG", "BOL", "BRA", "CHL", "COL", "ECU", "GUY", "PER", "PRY", "SUR", "URY", "VEN")
 Q = 1000  # 1e-3 degree
 
 
@@ -48,15 +54,15 @@ def get(url):
             time.sleep(10 * (k + 1))
 
 
-def inside(lon, lat):
-    return BOX[0] <= lon <= BOX[1] and BOX[2] <= lat <= BOX[3]
+def inside(lon, lat, box=BOX):
+    return box[0] <= lon <= box[1] and box[2] <= lat <= box[3]
 
 
-def clip(line):
-    """Split a polyline into the runs that fall inside BOX (one point of margin kept so edges meet the frame)."""
+def clip(line, box=BOX):
+    """Split a polyline into the runs that fall inside the box (one point of margin kept so edges meet the frame)."""
     out, cur = [], []
     for i, (lo, la) in enumerate(line):
-        if inside(lo, la):
+        if inside(lo, la, box):
             if not cur and i > 0:
                 cur.append(line[i - 1])
             cur.append((lo, la))
@@ -98,11 +104,11 @@ def simplify(pts, tol):
     return [p for p, k in zip(pts, keep) if k]
 
 
-def encode(lines, tol):
+def encode(lines, tol, box=BOX):
     """[[x0, y0, dx1, dy1, ...], ...] in 1e-3 degree integers, consecutive duplicates dropped."""
     enc, npts = [], 0
     for ln in lines:
-        for raw_part in clip(ln):
+        for raw_part in clip(ln, box):
             part = simplify(raw_part, tol)
             q = []
             for lo, la in part:
@@ -201,6 +207,31 @@ def project_km(pts, q, P):
     return out
 
 
+# samerica-models.html draws on an oblique stereographic projection centred on its domain, same sphere
+SA_CENTRE = (-22.5, -62.5)  # lat, lon
+
+
+def project_km_sa(pts, q):
+    """[(lon_int, lat_int)] -> [(x, y)] km on samerica-models.html's projection, the arithmetic of its worker."""
+    D, R = math.pi / 180, 6371229
+    s0, c0, l0 = math.sin(SA_CENTRE[0] * D), math.cos(SA_CENTRE[0] * D), SA_CENTRE[1] * D
+    out = []
+    for x, y in pts:
+        la, dl = y / q * D, x / q * D - l0
+        cl = math.cos(la)
+        k = 2 * R / (1 + s0 * math.sin(la) + c0 * cl * math.cos(dl))
+        out.append((k * cl * math.sin(dl) / 1000, k * (c0 * math.sin(la) - s0 * cl * math.cos(dl)) / 1000))
+    return out
+
+
+def projector(region):
+    """The (points, q) -> km function of the region's page."""
+    if region == "sa":
+        return project_km_sa
+    P = page_projection()
+    return lambda pts, q: project_km(pts, q, P)
+
+
 def dp_keep(xy, tol):
     """The page's simplifyLine: indices kept by Douglas-Peucker at `tol` km."""
     m = len(xy)
@@ -234,9 +265,9 @@ def dp_keep(xy, tol):
     return [k for k in range(m) if keep[k]]
 
 
-def coarse_doc(doc, tol=COARSE_KM):
+def coarse_doc(doc, tol=COARSE_KM, region="na"):
     """geo.json document -> geo_coarse.json document (same format, every layer simplified at `tol` km)."""
-    P = page_projection()
+    project = projector(region)
     layers = {}
     for name, L in doc["layers"].items():
         q, lines = L["q"], []
@@ -247,7 +278,7 @@ def coarse_doc(doc, tol=COARSE_KM):
                     x += ln[2 * k]
                     y += ln[2 * k + 1]
                 pts.append((x, y))
-            xy = project_km(pts, q, P)
+            xy = project(pts, q)
             xs, ys = [p[0] for p in xy], [p[1] for p in xy]
             if max(xs) - min(xs) < tol and max(ys) - min(ys) < tol:  # smaller than the tolerance: the page skips it
                 continue
@@ -260,10 +291,10 @@ def coarse_doc(doc, tol=COARSE_KM):
     return dict(sources=doc.get("sources", ""), simplified_km=tol, layers=layers)
 
 
-def write_coarse(full_path):
+def write_coarse(full_path, region="na"):
     full_path = Path(full_path)
     doc = json.loads(full_path.read_text())
-    cdoc = coarse_doc(doc)
+    cdoc = coarse_doc(doc, region=region)
     path = full_path.with_name(full_path.stem + "_coarse.json")
     path.write_text(json.dumps(cdoc, separators=(",", ":")))
     n0 = sum(len(ln) // 2 for L in doc["layers"].values() for ln in L["lines"])
@@ -271,14 +302,24 @@ def write_coarse(full_path):
     print(f"wrote {path}: {path.stat().st_size / 1e6:.3f} MB, {n1} of {n0} points at {COARSE_KM} km")
 
 
+def write_layers(path, layers, names, src):
+    path.write_text(json.dumps(dict(sources=src, layers={n: layers[n] for n in names}), separators=(",", ":")))
+    print(f"wrote {path}: {path.stat().st_size / 1e6:.2f} MB")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="assets/models/geo.json")
+    ap.add_argument(
+        "--region", choices=("na", "sa"), default="na", help="models.html (na) or samerica-models.html (sa)"
+    )
     ap.add_argument("--coarse-only", action="store_true", help="only derive <out>_coarse.json from an existing <out>")
     a = ap.parse_args()
     if a.coarse_only:
-        write_coarse(a.out)
+        write_coarse(a.out, a.region)
         return
+    sa = a.region == "sa"
+    box = SA_BOX if sa else BOX
     layers = {}
     print("Natural Earth ...")
     coast = geo_lines(get(NE.format("ne_10m_coastline")))
@@ -286,13 +327,8 @@ def main():
     ctry = geo_lines(get(NE.format("ne_10m_admin_0_boundary_lines_land")))
     prov = geo_lines(
         get(NE.format("ne_10m_admin_1_states_provinces_lines")),
-        keep=lambda p: (p.get("ADM0_A3") or p.get("adm0_a3")) in ("CAN", "MEX"),
+        keep=lambda p: (p.get("ADM0_A3") or p.get("adm0_a3")) in (SA_ADMIN1 if sa else ("CAN", "MEX")),
     )
-    print("us-atlas ...")
-    topo = get(USATLAS)
-    arcs = topo_arcs(topo)
-    st = topo_used(topo["objects"]["states"])
-    co = topo_used(topo["objects"]["counties"]) - st
     # (name, lines, simplification tolerance in degrees, minimum zoom in km per screen pixel - the page draws a layer
     # only when zoomed in past it; 0 = always)
     spec = [
@@ -300,24 +336,31 @@ def main():
         ("lakes", lakes, 0.004, 0),
         ("countries", ctry, 0.004, 0),
         ("provinces", prov, 0.004, 0),
-        ("states", [arcs[i] for i in sorted(st)], 0.003, 0),
-        ("counties", [arcs[i] for i in sorted(co)], 0.003, 2.2),
     ]
+    if not sa:
+        print("us-atlas ...")
+        topo = get(USATLAS)
+        arcs = topo_arcs(topo)
+        st = topo_used(topo["objects"]["states"])
+        co = topo_used(topo["objects"]["counties"]) - st
+        spec += [
+            ("states", [arcs[i] for i in sorted(st)], 0.003, 0),
+            ("counties", [arcs[i] for i in sorted(co)], 0.003, 2.2),
+        ]
     for name, lines, tol, kpp in spec:
-        enc, n = encode(lines, tol)
+        enc, n = encode(lines, tol, box)
         layers[name] = dict(q=Q, maxKmPerPx=kpp or None, lines=enc)
         print(f"  {name}: {len(enc)} lines, {n} points")
-    src = "Natural Earth 10m (public domain); US states and counties: us-atlas 3 / US Census 1:10M"
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    # two files: the base map (first paint) and the counties (fetched after the first frame is up)
-    for path, names in (
-        (out, [n for n in layers if n != "counties"]),
-        (out.with_name(out.stem + "_counties.json"), ["counties"]),
-    ):
-        path.write_text(json.dumps(dict(sources=src, layers={n: layers[n] for n in names}), separators=(",", ":")))
-        print(f"wrote {path}: {path.stat().st_size / 1e6:.2f} MB")
-    write_coarse(out)  # from the file just written: the same path as --coarse-only
+    if sa:
+        write_layers(out, layers, list(layers), "Natural Earth 10m (public domain)")
+    else:
+        src = "Natural Earth 10m (public domain); US states and counties: us-atlas 3 / US Census 1:10M"
+        # two files: the base map (first paint) and the counties (fetched after the first frame is up)
+        write_layers(out, layers, [n for n in layers if n != "counties"], src)
+        write_layers(out.with_name(out.stem + "_counties.json"), layers, ["counties"], src)
+    write_coarse(out, a.region)  # from the file just written: the same path as --coarse-only
 
 
 if __name__ == "__main__":

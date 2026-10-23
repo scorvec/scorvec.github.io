@@ -1,0 +1,27 @@
+name: South America models — IFS control
+
+# Caller for models-sa.yml (samerica-models.html). The IFS control's 0.1 deg files reach the Google Cloud mirror all
+# at once, ~9 h 35-40 min after the start (measured 2026-10-22 12Z and 2026-10-23 00Z: every step 21:34-21:39Z and
+# 09:34-09:39Z); the readiness check (scripts/ecmwf/cycles.py IFS_CONTROL_0P1) waits for every step of both files.
+# The dispatcher fires the same slots; these crons are the backstop. A firing with nothing new exits in about a minute.
+on:
+  schedule:
+  - cron: '55 9 * * *'
+  - cron: '55 21 * * *'
+  workflow_dispatch:
+    inputs:
+      cycle:
+        description: "Cycle YYYYMMDDHH (blank = plan the newest unpublished; skipped when it or a newer one is published)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    uses: ./.github/workflows/models-sa.yml
+    with:
+      model: ifs
+      cycle: ${{ inputs.cycle }}
+    secrets: inherit

@@ -49,6 +49,9 @@ BRANCH = os.environ.get("FRAMES_BRANCH") or "frames"  # a workflow passes an uns
 # retired products are removed from the branch outright rather than protected
 # here - a retired page's frames otherwise stay publicly fetchable.
 PROTECT_PREFIXES = ("assets/sfs/anim",)
+# Published to the frames store alone, never to the branch (their workflows set FRAMES_BRANCH=off for the publish):
+# their absence from the branch is not drift.
+STORE_ONLY_PREFIXES = ("assets/models/data/sa/",)
 
 
 def sh(*a: str) -> str:
@@ -136,7 +139,7 @@ def main() -> int:
     print(f"  frame dirs ({where}) {len(br)} | referenced {len(ref)} | protected {len(protected)}")
     if branch is not None and store is not None:
         # the dual-write check: every directory the branch has, the store should have with the same frame count
-        drift = sorted(d for d in br if branch.get(d) != store.get(d))
+        drift = sorted(d for d in br if branch.get(d) != store.get(d) and not d.startswith(STORE_ONLY_PREFIXES))
         print(f"\n  STORE vs BRANCH: {len(drift)} frame dir(s) differ")
         for d in drift[:60]:
             print(f"    {d:46s} branch {branch.get(d, 0):5d}  store {store.get(d, 0):5d}")
