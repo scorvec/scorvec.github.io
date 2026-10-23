@@ -2,9 +2,9 @@ name: South America models (data)
 
 # samerica-models.html: the IFS control (ECMWF open data, 0.1 deg) and the GDPS (MSC Datamart, 0.15 deg) over South
 # America to 10 days, every field and step one lossless WebP on the model's native grid, with ECAPE, CAPE, shear and
-# helicity computed on every column by the site's ECAPE kernel (scripts/models/samerica.py has the details). One model
-# per run; the callers models-sa-ifs.yml / models-sa-gdps.yml fix it, so the dispatcher's "already ran since" check is
-# per model.
+# helicity computed on every column by the site's ECAPE kernel, and from the same pass the airports' meteogram series
+# and the forecast-sounding tiles (scripts/models/samerica.py has the details). One model per run; the callers
+# models-sa-ifs.yml / models-sa-gdps.yml fix it, so the dispatcher's "already ran since" check is per model.
 #
 # Each run: read that model's CURRENT manifest from main, plan (the newest complete 00/12Z cycle not yet published),
 # fetch + compute + encode, publish the cycle directory to the FRAMES STORE ONLY (FRAMES_BRANCH=off on the publish step:
@@ -77,6 +77,7 @@ jobs:
             /scripts/ecmwf/
             /scripts/lib/
             /assets/models/
+            /data/models_airports_sa.json
             /scripts/constraints.txt
       - uses: actions/setup-python@v7
         with:
@@ -107,7 +108,17 @@ jobs:
             echo "geo_sa.json and geo_sa_coarse.json are on main"; exit 0
           fi
           python scripts/models/build_geo.py --region sa --out assets/models/geo_sa.json
-          echo "BUILT_GEO=1" >> "$GITHUB_ENV"
+      - name: Airports (once)
+        if: steps.plan.outputs.n != '0'
+        run: |
+          set -euo pipefail
+          # the meteogram airports (OurAirports, public domain): main's copy, or built once; without them the run
+          # publishes its maps and soundings but no meteograms
+          mkdir -p data
+          if timeout 60 git show "FETCH_HEAD:data/models_airports_sa.json" > data/models_airports_sa.json 2>/dev/null; then
+            echo "models_airports_sa.json is on main"; exit 0
+          fi
+          python scripts/models/build_airports.py --region sa || { rm -f data/models_airports_sa.json; echo "::warning::no airport list: no meteograms this run"; }
       - name: Build the ECAPE kernel
         if: steps.plan.outputs.n != '0'
         run: |
@@ -145,7 +156,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           SNAP=$(mktemp -d)
-          outs() { ls "assets/models/sa_$MODEL.json" assets/models/geo_sa.json assets/models/geo_sa_coarse.json 2>/dev/null; }
+          outs() { ls "assets/models/sa_$MODEL.json" assets/models/geo_sa.json assets/models/geo_sa_coarse.json data/models_airports_sa.json 2>/dev/null; }
           for f in $(outs); do git add -f "$f"; done
           git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
           git reset -q

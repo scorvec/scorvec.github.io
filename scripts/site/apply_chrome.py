@@ -51,7 +51,7 @@ PRODUCTS = [
                     (
                         "/samerica-models.html",
                         "South America model maps",
-                        "Zoomable maps of the newest IFS control (ECMWF's unperturbed 9 km run) and GDPS runs over South America to day 10: temperature, wind, rain and its type, accumulation, precipitable water and 850 hPa θe, with ECAPE, CAPE, shear and helicity computed on every column, contours and hover values.",
+                        "Zoomable maps of the newest IFS control (ECMWF's unperturbed 9 km run) and GDPS runs over South America to day 10: temperature, wind at the surface and at 925 and 850 hPa, rain and its type, accumulation, precipitable water, 850 hPa θe and simulated IR, with ECAPE, CAPE, shear and helicity computed on every column, airport meteograms, forecast soundings, contours and hover values.",
                         "Twice daily",
                     ),
                     # snowbands.html is retired: its maps are the "Winter: snow bands" group of /models.html

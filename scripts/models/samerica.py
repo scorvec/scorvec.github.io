@@ -8,9 +8,9 @@ models.html (scripts/models/models.py), drawn by the page with WebGL. Nothing is
 
 Fields (FIELDS below has the encodings; the page holds the same table):
   surface   2 m temperature and dewpoint (deg C), sea-level pressure, 10 m wind, 100 m wind (IFS), gust, precipitation
-            rate with its type, accumulated precipitation and 10:1 snow, precipitable water, 850 hPa theta-e, and an
-            infrared proxy (brightness temperature from the outgoing longwave radiation: neither model publishes a
-            simulated satellite band)
+            rate with its type, accumulated precipitation and 10:1 snow, precipitable water, 925 and 850 hPa wind,
+            850 hPa theta-e, and simulated IR (olr_tb: neither model publishes a simulated satellite band, so it is a
+            window brightness temperature made from the outgoing longwave radiation)
   convection ECAPE and CAPE for the most-unstable and the 100 hPa mixed-layer parcels, the 0-6 km bulk shear vector
             and the storm-relative helicity 0-1 and 0-3 km, all computed here on every column by the site's ECAPE
             kernel (scripts/ecape/ecape_grid.cpp: SHARPlib, the sounding explorer's code), from the surface and the
@@ -23,6 +23,13 @@ term) are the same, and the helicity comes out with its sign flipped. ECAPE and 
 the cyclonic storm in both hemispheres, and the helicity is CYCLONIC-POSITIVE (the conventional Southern Hemisphere
 value is its negative). The shear vector is turned back to the real frame before it is stored.
 
+Meteograms and soundings come out of the same pass, while each step is in memory (nothing more is downloaded):
+  points.json, points.bin   every airport of data/models_airports_sa.json (build_airports.py --region sa) on every step,
+                            scripts/models/points.py's format and sampling (bilinear, CAPE and helicity nearest)
+  snd/{ty}_{tx}.bin         the columns the kernel reads (surface + pressure levels, the winds NOT mirrored) every
+                            MODELS[...]["snd_d"]-th grid point, in scripts/ecape/to_soundings.py's tiles (its
+                            pressure-level mode), for the sounding explorer; the manifest's "snd" is their index
+
 Column heights are hypsometric (virtual temperature, trapezoidal in ln p) up from the model's own terrain height and
 surface pressure: the geopotential of every level would add ~15 % to the download, and each run checks the result
 against the model's own 500 and 850 hPa heights on a few steps (manifest "checks", with the ECAPE kernel's MU CAPE
@@ -33,8 +40,10 @@ Sources (hard rules):
          wanted messages; it refuses any other host). 00/12Z, 3-hourly to +144 h then 6-hourly to +240 h; the 0.1 deg
          files are complete on the mirror ~9 h 40 min after the start (cycles.IFS_CONTROL_0P1).
   gdps   ECCC MSC Datamart (dd.weather.gc.ca): one global GRIB2 file per variable, level and hour, JPEG2000-packed, so a
-         file cannot be cut to the domain and is read whole. 00/12Z to +240 h: surface fields every 3 h, the column
-         (20 pressure levels) on the IFS's steps. Readiness is a HEAD on the last hour's files, never a listing.
+         file cannot be cut to the domain and is read whole. 00/12Z to +240 h: surface fields every 3 h (the
+         precipitation type, and so the rate map it colours, 6-hourly after +168 h: GDPS_TYPE_6H), the column (20
+         pressure levels) on the IFS's steps. Readiness is a HEAD on the last hour's files, never a listing. A file
+         missing from a cycle the plan found complete is not retried: the step fails and the cycle is not published.
 
     python scripts/models/samerica.py plan --model ifs --manifests assets/models
     python scripts/models/samerica.py run --model gdps --cycle 2026102300 --site . --procs 2 --lists /tmp/sa
@@ -64,7 +73,9 @@ SCRIPTS = HERE.parent
 sys.path.insert(0, str(SCRIPTS / "ecmwf"))
 sys.path.insert(0, str(SCRIPTS / "ecape"))
 import models as MV  # the viewer's quantisers and WebP writer (models.html decodes the same codes)
+import points as PTS  # meteogram point series
 import to_models as EC  # the ECAPE grids' square-root code
+import to_soundings as SND  # the forecast-sounding tiles
 
 UA = {"User-Agent": "scorvec-models/1.0 (+https://scorvec.com/samerica-models.html)"}
 DATA = "assets/models/data/sa"
@@ -74,10 +85,11 @@ STEPS = tuple(range(0, 144, 3)) + tuple(range(144, 241, 6))  # the IFS control's
 MISSING = -9999.0  # ecape_grid's missing value
 
 # ── encoding (codes 0-254 data, 255 = missing); samerica-models.html holds the same table ─────────────────────────────
-#   ir       K, 170 + 0.625 * code: brightness temperature (OLR / sigma)^(1/4)
+#   ir       K, 170 + 0.625 * code: simulated IR, the window brightness temperature from the OLR (olr_tb)
 #   t2m, td2m  deg C, per-frame offset (manifest "q"), 0.5 C steps (coarser if the frame spans more than 127 C)
 #   mslp     R = 940 + 0.5 hPa, G = 1 where the surface pressure is below 850 hPa (no highs or lows placed there)
-#   wind10, wind100  R, G = earth-relative u, v, -50.8 + 0.4 m/s
+#   wind10, wind100, wind925, wind850  R, G = earth-relative u, v, -50.8 + 0.4 m/s; 255 where the level is less
+#            than 5 hPa above the ground (925, 850 hPa: the columns' rule)
 #   gust     m/s, 0.25 m/s steps
 #   rate     R = precipitation rate, log 0.1-100 mm/h (0 = below 0.1 or no type), G = type 1 rain, 2 snow, 3 freezing
 #            rain or drizzle, 4 ice pellets, 5 rain-snow mix (the models.html codes)
@@ -95,6 +107,8 @@ FIELDS = {
     "mslp": dict(enc="mslp", off=940.0, step=0.5),
     "wind10": dict(enc="lin2", off=-50.8, step=0.4),
     "wind100": dict(enc="lin2", off=-50.8, step=0.4),
+    "wind925": dict(enc="lin2", off=-50.8, step=0.4),
+    "wind850": dict(enc="lin2", off=-50.8, step=0.4),
     "gust": dict(enc="lin", off=0.0, step=0.25),
     "rate": dict(enc="rate2"),
     "apcp": dict(enc="acc16", unit=0.1),
@@ -117,6 +131,7 @@ MODELS = {
         levels=(1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 50),
         sfc_hours=STEPS,
         conv_hours=STEPS,
+        snd_d=4,  # soundings every 4th column: 0.4 deg
     ),
     "gdps": dict(
         label="GDPS",
@@ -125,12 +140,13 @@ MODELS = {
         levels=(1015, 1000, 985, 970, 950, 925, 900, 850, 800, 750, 700, 600, 500, 400, 300, 250, 200, 150, 100, 50),
         sfc_hours=tuple(range(0, 241, 3)),
         conv_hours=STEPS,
+        snd_d=3,  # 0.45 deg
     ),
 }
 QC_HOURS = (0, 120, 240)  # steps with the model's own 500/850 hPa heights (and the GDPS's own CAPE) fetched as a check
 METHOD = {
     "ifs": dict(
-        ir="brightness temperature from the outgoing longwave radiation (top thermal radiation, ttr), its mean since the previous step (3 h to +144 h, 6 h after)",
+        ir="simulated IR: the window brightness temperature from the outgoing longwave radiation (top thermal radiation, ttr, its mean since the previous step: 3 h to +144 h, 6 h after), by the Ohring-Gruber relation",
         gust="the largest gust since the previous step: 10fg3 (3 h) on the 3-hourly steps, 10fg (6 h) on the 6-hourly ones",
         apcp="tp, the total since the start of the run",
         asnow="10 x sf, the snowfall water equivalent since the start of the run (10:1)",
@@ -139,7 +155,7 @@ METHOD = {
         capem="mucape, the most-unstable CAPE the IFS computes on its own model levels",
     ),
     "gdps": dict(
-        ir="brightness temperature from the outgoing longwave radiation at the top of the atmosphere, instantaneous",
+        ir="simulated IR: the window brightness temperature from the instantaneous outgoing longwave radiation at the top of the atmosphere, by the Ohring-Gruber relation",
         gust="WindGust, instantaneous",
         apcp="Precip-Accum, the total since the start of the run",
         asnow="10 x Snow-Accum, the snow water equivalent since the start of the run (10:1)",
@@ -237,6 +253,7 @@ class Stats:
     def __init__(self):
         self.lock = threading.Lock()
         self.n = self.b = 0
+        self.secs = 0.0  # the step's fetch time (the rest is decoding, the kernel and encoding)
 
     def add(self, nbytes, requests=1):
         with self.lock:
@@ -355,11 +372,20 @@ GDPS_COL = {
 
 
 GDPS_NOT_AT_0 = ("olr", "apcp", "swe", "rate", "ptype")  # no accumulation, rate or type (or OLR) at the analysis time
+# PrecipType-Instant is published every 6 h after +168 h (+171, +177, ... are absent; HEAD probes of every GDPS_SFC file
+# and the 1000 hPa temperature at +165 to +240 h, 2026-10-23: only the type, and CAPE_Sfc, thin out). The rate map is
+# coloured by the type, so it follows the type's steps there; every other field stays 3-hourly.
+GDPS_TYPE_6H = 168
 
 
 def gdps_jobs(date, hh, hour, conv, qc):
     """{key: url} for one GDPS hour: the surface set, the column on convective hours, the checks on QC hours."""
-    jobs = {k: gdps_url(date, hh, hour, v) for k, v in GDPS_SFC.items() if hour or k not in GDPS_NOT_AT_0}
+    typed = hour <= GDPS_TYPE_6H or hour % 6 == 0
+    jobs = {
+        k: gdps_url(date, hh, hour, v)
+        for k, v in GDPS_SFC.items()
+        if (hour or k not in GDPS_NOT_AT_0) and (typed or k not in ("rate", "ptype"))
+    }
     if hour == 0:
         jobs["zsfc"] = gdps_url(date, hh, 0, "GeopotentialHeight_Sfc")
     if conv:
@@ -374,7 +400,7 @@ def gdps_jobs(date, hh, hour, conv, qc):
 
 
 def gdps_fetch(date, hh, hour, conv, qc, stats=None, workers=6):
-    """{key: message} for one GDPS hour; a file that is missing raises Missing (the hour is retried, then failed)."""
+    """{key: message} for one GDPS hour; a file that is missing raises Missing (the step fails)."""
     jobs = gdps_jobs(date, hh, hour, conv, qc)
     with ThreadPoolExecutor(workers) as ex:
         return dict(zip(jobs, ex.map(lambda u: http_get(u, stats), jobs.values())))
@@ -397,6 +423,19 @@ def metres(z, units, expect):
 
 def pa(p):
     return p * 100.0 if np.nanmedian(p) < 2000 else p
+
+
+OG_A, OG_B = 1.106e-3, 1.228  # Ohring, Gruber and Ellingson (1984): flux temperature Tf = Tb (OG_B - OG_A Tb)
+
+
+def olr_tb(olr):
+    """Simulated IR: the window brightness temperature (K) from the outgoing longwave radiation (W m-2), the inverse of the
+    Ohring-Gruber relation (as the site's GDPS simulated-IR loop, scripts/sst/gdps_eq_charts.py). The flux
+    temperature (OLR / sigma)^(1/4) alone runs ~20 K cold over clear ground (water vapour absorbs outside the window);
+    over deep cloud the two agree."""
+    with np.errstate(invalid="ignore"):
+        tf = (np.maximum(olr, 1.0) / SIGMA) ** 0.25
+    return (OG_B - np.sqrt(np.clip(OG_B**2 - 4.0 * OG_A * tf, 0.0, None))) / (2.0 * OG_A)
 
 
 def q_from_td(td_k, p):
@@ -560,8 +599,9 @@ def ifs_want(step):
 def step_ifs(date, hh, step, outdir):
     conv, qc = step in MODELS["ifs"]["conv_hours"], step in QC_HOURS
     levels = MODELS["ifs"]["levels"]
-    st = Stats()
+    st, t0 = Stats(), time.time()
     blobs = ifs_fetch(date, hh, step, *ifs_want(step), st)
+    st.secs = time.time() - t0
     dec, units, grid = {}, {}, None
     for key, m in blobs.items():
         dec[key], units[key], grid = decode(m)
@@ -602,21 +642,22 @@ def step_ifs(date, hh, step, outdir):
         q2 = q_from_td(td2, ps)
         sfc_col = dict(p=ps, z=zsfc, t=t2, q=q2, u=S("10u"), v=S("10v"))
         levs = {p: {k: dec[(k, p)] for k in ("t", "q", "u", "v")} for p in levels}
+        phys.update(winds_aloft(ps, levs))
         k_out, kmeta = convective(sfc_col, levs, levels, lat, outdir)
         phys.update(k_out)
         checks["kernel"] = kmeta
         checks["mucape_vs_ifs"] = cape_check(phys["mucape"], S("mucape"))
         checks["pwat_vs_tcwv"] = diff_check(k_out["_pwat"], S("tcwv"))
-        if qc:
-            checks["heights"] = heights_check(sfc_col, levs, levels, dec, units)
+        checks.update(soundings("ifs", step, dict(sfc_col, td=td2), levs, outdir, qc, dec, units))
     return phys, checks, st, grid, (zsfc if step == 0 else None)
 
 
 def step_gdps(date, hh, hour, outdir):
     conv, qc = hour in MODELS["gdps"]["conv_hours"], hour in QC_HOURS
     levels = MODELS["gdps"]["levels"]
-    st = Stats()
+    st, t0 = Stats(), time.time()
     blobs = gdps_fetch(date, hh, hour, conv, qc, st)
+    st.secs = time.time() - t0
     dec, units, grid = {}, {}, None
     for key, m in blobs.items():
         dec[key], units[key], grid = decode(m)
@@ -639,8 +680,8 @@ def step_gdps(date, hh, hour, outdir):
     }
     checks = {}
     if hour:
-        with np.errstate(invalid="ignore"):
-            phys["ir"] = (np.maximum(dec["olr"], 1.0) / SIGMA) ** 0.25
+        phys["ir"] = olr_tb(dec["olr"])
+    if "ptype" in dec:  # not at the analysis time, 6-hourly after +168 h (GDPS_TYPE_6H)
         code = np.rint(np.nan_to_num(dec["ptype"], nan=6)).astype(int)
         pt = np.zeros(code.shape, np.uint8)
         for k, v in MV.RDPS_PTYPE.items():  # the GEM codes as measured for the RDPS (models.py)
@@ -655,13 +696,14 @@ def step_gdps(date, hh, hour, outdir):
         if np.nanmax(levs[850]["q"]) > 0.5:
             raise RuntimeError("GDPS specific humidity is not in kg/kg")
         phys["the850"] = np.where(ps >= 86000.0, theta_e(levs[850]["t"], levs[850]["q"], 85000.0), np.nan)
+        phys.update(winds_aloft(ps, levs))
         sfc_col = dict(p=ps, z=zsfc, t=t2, q=q_from_td(td2, ps), u=dec["u10"], v=dec["v10"])
         k_out, kmeta = convective(sfc_col, levs, levels, lat, outdir)
         phys.update(k_out)
         phys["pwat"] = k_out["_pwat"]
         checks["kernel"] = kmeta
+        checks.update(soundings("gdps", hour, dict(sfc_col, td=td2), levs, outdir, qc, dec, units))
         if qc:
-            checks["heights"] = heights_check(sfc_col, levs, levels, dec, units)
             checks["mucape_vs_gdps_cape"] = cape_check(phys["mucape"], dec["capem"])
     return phys, checks, st, grid, (zsfc if hour == 0 else None)
 
@@ -681,25 +723,146 @@ def convective(sfc, levs, levels, lat, outdir):
     return out, meta
 
 
-def heights_check(sfc, levs, levels, dec, units):
-    """Hypsometric heights against the model's own at 500 and 850 hPa (above the ground only)."""
-    col = column(sfc, levs, levels)
-    order = sorted(levels, reverse=True)
+def winds_aloft(ps, levs):
+    """The 925 and 850 hPa wind maps, masked where the level is less than 5 hPa above the ground (the columns' rule)."""
+    out = {}
+    for p in (925, 850):
+        up = p * 100.0 < ps - 500.0
+        out[f"wind{p}"] = (np.where(up, levs[p]["u"], np.nan), np.where(up, levs[p]["v"], np.nan))
+    return out
+
+
+def heights_check(col, levels, dec, units):
+    """Hypsometric heights (column()) against the model's own at 500 and 850 hPa (above the ground only), with the 99th
+    percentile of the difference apart over ground below and above 1,500 m (where a tail sits)."""
     typical = {500: 5700.0, 850: 1500.0}
-    return {
-        str(p): diff_check(
-            col[1, 1 + order.index(p)], metres(dec[("gh", p)], units.get(("gh", p), ""), ("median", typical[p]))
+    high = col[1, 0] >= 1500.0
+    out = {}
+    for p in (500, 850):
+        if ("gh", p) not in dec:
+            continue
+        ours, theirs = (
+            col[1, 1 + levels.index(p)],
+            metres(dec[("gh", p)], units.get(("gh", p), ""), ("median", typical[p])),
         )
-        for p in (500, 850)
-        if ("gh", p) in dec
-    }
+        c = diff_check(ours, theirs)
+        err = np.abs(ours.astype(np.float64) - theirs)
+        for name, m in (("low", ~high), ("high", high)):
+            e = err[m & np.isfinite(err)]
+            if e.size:
+                c[f"p99_abs_{name}"] = round(float(np.percentile(e, 99)), 2)
+        out[str(p)] = c
+    return out
+
+
+def soundings(model, step, sfc, levs, outdir, qc, dec, units):
+    """One step's sounding tiles (snd/_parts, packed by cmd_run) from the real, unmirrored columns; on the check steps
+    the height check and the tiles decoded back as the page decodes them (to_soundings.check_plev). -> checks"""
+    levels, d = MODELS[model]["levels"], MODELS[model]["snd_d"]
+    out = {}
+    col = column(sfc, levs, levels) if qc else None
+    if qc:
+        out["heights"] = heights_check(col, levels, dec, units)
+    try:
+        codes = SND.quantise_plev(sfc, levs, levels, d)
+        SND.write_parts(codes, Path(outdir) / "snd" / "_parts", step)
+        if qc:
+            out["snd"] = SND.check_plev(codes, levs, levels, d, col[1, 1:])
+    except Exception as e:  # noqa: BLE001  the soundings never fail the maps (cmd_run leaves them out)
+        print(f"::warning::{model} +{step:03d} h: sounding tiles not written ({e!r})", flush=True)
+    return out
+
+
+# ── meteogram points ────────────────────────────────────────────────────────────────────────────────────────────────
+PT_SIMPLE = {"t2c": "t2m", "td2c": "td2m", "gust": "gust", "apcp_mm": "apcp", "asnow_cm": "asnow", "pwat": "pwat"}
+PT_SIMPLE |= {"the850": "the850", "tb": "ir"}
+PT_NEAR = ("ecape_mu", "ecape_ml", "mucape", "mlcape", "capem", "srh1", "srh3")
+
+
+def sampler(grid):
+    """This process's points.Sampler for the grid (built on first use), or None without an airport list."""
+    if not _CTX.get("pts"):
+        return None
+    g = grid_desc(*grid)
+    if _CTX.get("ps_grid") != g:
+        _ids, la, lo = _CTX["pts"]
+        _CTX["ps"], _CTX["ps_grid"] = PTS.Sampler(g, la, lo), g
+    return _CTX["ps"]
+
+
+def sample_points(phys, smp):
+    """One step at every airport (points.py SPEC, its metric names): bilinear for the continuous fields, the nearest
+    cell for the rate and its type and for CAPE, ECAPE, shear and helicity. -> {name: float32 (npoints,)}, NaN missing"""
+    out = {}
+
+    def near(a):
+        v = smp.nearest(a).astype(np.float32)
+        v[~smp.inside] = np.nan
+        return v
+
+    for n, k in PT_SIMPLE.items():
+        if k in phys:
+            out[n] = smp.bilinear(phys[k])
+    for lev in ("10", "100", "925", "850"):
+        if f"wind{lev}" in phys:
+            u, v = (smp.bilinear(c) for c in phys[f"wind{lev}"])
+            out[f"ws{lev}"] = np.hypot(u, v)
+            out[f"wd{lev}"] = np.mod(270.0 - np.degrees(np.arctan2(v, u)), 360.0)
+    if "mslp" in phys:
+        out["mslp"] = smp.bilinear(phys["mslp"][0])
+    if "rate" in phys:
+        r, t = (near(c) for c in phys["rate"])
+        out["prate"] = np.where(r < 0.05, 0.0, r)
+        out["ptype"] = np.where(r >= RATE_LO, t, np.where(np.isfinite(r), 0.0, np.nan))  # the map's rule
+    for n in PT_NEAR:
+        if n in phys:
+            out[n] = near(phys[n])
+    if "shr6" in phys:
+        out["shr6"] = np.hypot(*(near(c) for c in phys["shr6"]))
+    return out
+
+
+def write_points(model, key, cyc_dt, hours, samples, outdir):
+    """points.json and points.bin from the per-step samples (models.py's write_points). -> manifest entries"""
+    ids = _CTX["pts"][0]
+    names = sorted({n for s in samples.values() for n in s})
+    series = {n: np.full((len(ids), len(hours)), np.nan, np.float32) for n in names}
+    for j, h in enumerate(hours):
+        for n, v in samples.get(h, {}).items():
+            series[n][:, j] = v
+    codes = {"0": "none", "1": "rain", "2": "snow", "3": "freezing rain", "4": "ice pellets", "5": "rain-snow mix"}
+    doc = PTS.build(
+        model, key, hours, ids, series, extra=dict(init=cyc_dt.strftime("%Y-%m-%dT%H:00Z"), ptype_codes=codes)
+    )
+    b = PTS.dumps(doc).encode()
+    (Path(outdir) / "points.json").write_bytes(b)
+    bb, head = PTS.bin_bytes(doc)
+    (Path(outdir) / "points.bin").write_bytes(bb)
+    print(
+        f"  points: {len(doc['ids'])} airports x {len(hours)} steps x {len(doc['fields'])} fields, points.json "
+        f"{len(b) / 1e3:.0f} KB, points.bin {len(bb) / 1e3:.0f} KB",
+        flush=True,
+    )
+    n = len(doc["ids"])
+    return dict(
+        points=dict(file="points.json", bytes=len(b), n=n, fields=list(doc["fields"])),
+        points_bin=dict(file="points.bin", bytes=len(bb), head=head, n=n),
+    )
 
 
 def process_step(model, date, hh, step, outdir):
-    """Fetch and encode one step. -> (step, {field: params}, bytes, checks, fetch stats, grid, zsfc or None)."""
+    """Fetch and encode one step. -> (step, {field: params}, bytes, checks, fetch stats, grid, zsfc or None, point
+    samples)."""
     t0 = time.time()
     fn = step_ifs if model == "ifs" else step_gdps
     phys, checks, st, grid, zsfc = fn(date, hh, step, outdir)
+    pts = {}
+    try:  # the meteogram points never fail the maps
+        smp = sampler(grid)
+        if smp is not None:
+            pts = sample_points(phys, smp)
+    except Exception as e:  # noqa: BLE001
+        print(f"::warning::{model} +{step:03d} h: point sampling failed ({e!r})", flush=True)
     meta, nbytes = {}, 0
     for name, x in phys.items():
         if name.startswith("_") or name not in FIELDS:
@@ -707,16 +870,20 @@ def process_step(model, date, hh, step, outdir):
         q, b = write_field(outdir, name, step, x)
         meta[name] = q
         nbytes += b
-    checks["secs"] = round(time.time() - t0, 1)
-    return step, meta, nbytes, checks, (st.n, st.b), grid, zsfc
+    checks["secs"], checks["fetch_secs"] = round(time.time() - t0, 1), round(st.secs, 1)
+    return step, meta, nbytes, checks, (st.n, st.b), grid, zsfc, pts
 
 
 def process_step_retry(model, date, hh, step, outdir, tries=3):
-    """process_step, tried again after a pause (a step still publishing, a dropped connection); the step number alone
-    when every try failed."""
+    """process_step, tried again after a pause (a dropped connection, a mirror still replicating); the step number alone
+    when every try failed. A GDPS file the Datamart does not have (Missing) fails at once: the plan only takes complete
+    cycles, so it will not appear, and another try would fetch the step's other files again for nothing."""
     for k in range(tries):
         try:
             return process_step(model, date, hh, step, outdir)
+        except Missing as e:
+            print(f"  +{step:03d} h: {e!r}"[:400], flush=True)
+            break
         except Exception as e:  # noqa: BLE001
             print(f"  +{step:03d} h attempt {k + 1}: {e!r}"[:400], flush=True)
             if k < tries - 1:
@@ -768,22 +935,23 @@ def cmd_plan(a):
         c -= dt.timedelta(hours=12)
 
 
-def ir_from_ttr(outdir, per_field):
-    """IFS: brightness temperature from the mean outgoing longwave over each step's interval (the accumulated top
-    thermal radiation differenced between consecutive steps). -> bytes written"""
+def ir_from_ttr(outdir, per_field, samples, grid):
+    """IFS simulated IR from the mean outgoing longwave over each step's interval (the accumulated top thermal
+    radiation differenced between consecutive steps), sampled at the airports too. -> bytes written"""
     nbytes, prev, tprev = 0, None, 0
+    smp = sampler(grid)
     for f in sorted(Path(outdir).glob("_ttr_*.npy")):
         step = int(f.stem[5:])
         cur = np.load(f).astype(np.float64)
         f.unlink()
         if prev is not None or tprev == 0:
             base = prev if prev is not None else 0.0  # ttr is 0 at the start of the run
-            olr = -(cur - base) / ((step - tprev) * 3600.0)
-            with np.errstate(invalid="ignore"):
-                tb = (np.maximum(olr, 1.0) / SIGMA) ** 0.25
+            tb = olr_tb(-(cur - base) / ((step - tprev) * 3600.0))
             _q, b = write_field(outdir, "ir", step, tb)
             per_field["ir"][step] = None
             nbytes += b
+            if smp is not None:
+                samples.setdefault(step, {})["tb"] = smp.bilinear(tb)
         prev, tprev = cur, step
     return nbytes
 
@@ -804,6 +972,10 @@ def cmd_run(a):
     t_start = time.time()
     ncpu = os.cpu_count() or 2
     ctx = dict(kernel=str(Path(a.kernel).resolve()), omp=max(1, ncpu // a.procs))
+    if PTS.AIRPORTS_SA.exists():  # the meteogram airports; each process locates them on the grid (sampler)
+        ctx["pts"] = PTS.load_points((PTS.AIRPORTS_SA,))
+    else:
+        print(f"::warning::no {PTS.AIRPORTS_SA.name}: no meteograms for this run", flush=True)
 
     # step 0 first, alone: the terrain height every other step's columns start from
     _init(ctx)
@@ -814,12 +986,13 @@ def cmd_run(a):
         raise SystemExit(f"::error::{model} {key}: step 0 failed - nothing published")
     ctx["zsfc"] = first[6]
     per_field = {k: {} for k in FIELDS}
-    checks, failed, nbytes, nreq, nb = {}, [], 0, 0, 0
+    checks, failed, nbytes, nreq, nb, samples = {}, [], 0, 0, 0, {}
     grid = first[5]
 
     def take(res):
         nonlocal nbytes, nreq, nb
-        step, meta, b, ck, (n, bb), _g, _z = res
+        step, meta, b, ck, (n, bb), _g, _z, pts = res
+        samples[step] = pts
         for name, q in meta.items():
             per_field[name][step] = q
         nbytes += b
@@ -827,7 +1000,8 @@ def cmd_run(a):
         nb += bb
         checks[str(step)] = ck
         print(
-            f"  {model} +{step:03d} h: {b / 1e6:.2f} MB, fetched {bb / 1e6:.0f} MB in {n} requests, {ck['secs']} s",
+            f"  {model} +{step:03d} h: {b / 1e6:.2f} MB, fetched {bb / 1e6:.0f} MB in {n} requests in "
+            f"{ck['fetch_secs']} s, {ck['secs']} s in all",
             flush=True,
         )
 
@@ -841,9 +1015,38 @@ def cmd_run(a):
             else:
                 take(r)
     if model == "ifs":
-        nbytes += ir_from_ttr(outdir, per_field)
+        nbytes += ir_from_ttr(outdir, per_field, samples, grid)
     for p in outdir.glob("_k*"):
         shutil.rmtree(p, ignore_errors=True)
+    extra = {}
+    try:  # never fail the maps for the meteograms or the soundings
+        if _CTX.get("pts"):
+            extra.update(write_points(model, key, cyc_dt, hours, samples, outdir))
+    except Exception as e:  # noqa: BLE001
+        print(f"::warning::{model} {key}: no points files ({e!r})", flush=True)
+    sh = [h for h in hours if h in M["conv_hours"] and h not in failed]
+    try:
+        d, (lat, lon, _di) = M["snd_d"], grid
+        ny_d, nx_d = -(-lat.size // d), -(-lon.size // d)
+        total, nt = SND.pack_tiles(outdir / "snd", sh, ny_d, nx_d)
+        extra["snd"] = SND.plev_index(
+            model,
+            d,
+            (ny_d, nx_d),
+            M["levels"],
+            sh,
+            total,
+            nt,
+            f"one grid column in {d} each way ({d * _di:.2f} deg); level 0 = the surface (2 m T and Td, 10 m wind); pressure "
+            "levels less than 5 hPa above the ground left out; winds earth-relative",
+        )
+        nbytes += total
+        print(
+            f"  soundings: {nt} tiles x {len(sh)} steps, {total / 1e6:.1f} MB ({d * _di:.2f} deg columns)", flush=True
+        )
+    except (Exception, SystemExit) as e:  # noqa: BLE001  pack_tiles exits on a missing part: the maps still go out
+        shutil.rmtree(outdir / "snd", ignore_errors=True)
+        print(f"::warning::{model} {key}: no soundings ({e!r})", flush=True)
 
     method = METHOD[model]
     fields = {}
@@ -876,6 +1079,7 @@ def cmd_run(a):
         checks=summary,
         wall_s=round(wall, 1),
         made=dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ"),
+        **extra,
     )
     print(
         f"{model} {key}: {nbytes / 1e6:.1f} MB in {sum(len(e['hours']) for e in fields.values())} files, fetched "
@@ -937,9 +1141,15 @@ def summarise(checks):
         ("heights", "500", "bias"),
         ("heights", "500", "mae"),
         ("heights", "500", "p99_abs"),
+        ("heights", "500", "p99_abs_low"),
+        ("heights", "500", "p99_abs_high"),
         ("heights", "850", "bias"),
         ("heights", "850", "mae"),
         ("kernel", "skipped"),
+        ("snd", "t_err_k"),
+        ("snd", "td_err_k"),
+        ("snd", "u_err_ms"),
+        ("snd", "z_err_m"),
     ):
         v = med(path)
         if v:
@@ -947,6 +1157,9 @@ def summarise(checks):
     pt = [checks[s].get("ptype_t2m_median_c") for s in steps if checks[s].get("ptype_t2m_median_c")]
     if pt:
         out["ptype_t2m_median_c"] = pt[len(pt) // 2]
+    snd = [checks[s]["snd"] for s in steps if "snd" in checks[s]]
+    if snd:  # the sounding decode: lossless and the same levels as the columns on every check step
+        out["snd/exact"] = all(c["lossless"] and c["levels_as_source"] for c in snd)
     return out
 
 
