@@ -1,12 +1,19 @@
-name: Hadley and Walker loops (analysed 7-day means + AIFS-ENS, IFS-ENS, GEFS forecasts)
+name: Hadley and Walker loops, Hadley outflow and descent forecasts (AIFS-ENS, IFS-ENS, GEFS)
 
-# The analysed loops: every day's 7-day mean since July 2025, the analysis less its offset from ERA5
-# (scripts/mjo/src/overturn_hist.py; the daily-mean archive rides on the frames branch in assets/sst/anim/overturn_hist,
-# topped up from the cycle histories mjo.yml keeps, frames drawn once and published additively). Then the forecast
-# loops: every member of the 00Z AIFS-ENS, IFS-ENS and GEFS runs to day 15, less its model's drift against ERA5
-# (release overturn-ref-v1, built by overturn-ref.yml), led in by the last analysed weeks (overturn_fc.py); then GEFS's
-# weeks 3-5 that passed on its reforecast, less its drift there (overturn_rf_drift.npz, same release, overturn-rf.yml).
-# IFS-ENS day 15 reaches the Google mirror around 08:50 UTC: the dispatcher fires this at 09:40 (backstop 11:40).
+# The two products that read every member of the 00Z AIFS-ENS, IFS-ENS and GEFS runs to day 15. The members job fetches
+# each ensemble ONCE for both (scripts/mjo/src/hadley_members.py: the u/v the overturning forecasts read, with the t,
+# omega, z500 and sea-level pressure the outflow and descent forecasts add); then:
+# * loops: the analysed Hadley and Walker loops, every day's 7-day mean since July 2025, the analysis less its offset
+#   from ERA5 (overturn_hist.py; the daily-mean archive rides on the frames branch in assets/sst/anim/overturn_hist,
+#   topped up from the cycle histories mjo.yml keeps, frames drawn once and published additively), and the forecast
+#   loops, every member less its model's drift against ERA5 (release overturn-ref-v1, built by overturn-ref.yml), led
+#   in by the last analysed weeks (overturn_fc.py), then GEFS's weeks 3-5 that passed on its reforecast, less its drift
+#   there (overturn_rf_drift.npz, same release, overturn-rf.yml);
+# * outflow: the Hadley outflow and descent loops and trackers (hadley_branch_fc.py), the members less their drift
+#   (hbranch_drift.npz in release hbranch-ref-v1, from hbranch-ref.yml) in trailing 7-day windows led in by the analysed
+#   days (release hbranch-hres, hbranch.yml), cut to the windows whose skill passed.
+# A product whose page already shows the run is left out of the fetch and not redrawn. IFS-ENS day 15 reaches the Google
+# mirror around 08:50 UTC: the dispatcher fires this at 09:40 (backstop 11:40).
 on:
   schedule:
     - cron: '40 9 * * *'
@@ -53,72 +60,138 @@ env:
   ECMWF_SOURCES: google
 
 jobs:
-  loops:
+  which:
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    outputs:
+      date: ${{ steps.run.outputs.date }}
+      fc_overturn: ${{ steps.run.outputs.fc_overturn }}
+      fc_hbranch: ${{ steps.run.outputs.fc_hbranch }}
+      loops: ${{ steps.run.outputs.loops }}
     steps:
       - uses: actions/checkout@v7
-      - name: Which run
+      - name: Which run, and which products still need it
         id: run
         env:
           DATE: ${{ inputs.date }}
           FORCE: ${{ inputs.force }}
           BACKFILL: ${{ inputs.backfill_since }}
+          REBUILD: ${{ inputs.rebuild_frames }}
         run: |
           d="${DATE:-$(date -u +%Y%m%d)}"
           echo "date=$d" >> "$GITHUB_OUTPUT"
-          # main's manifest as it is now: a queued run checks out the commit it was triggered at
-          timeout 60 git fetch -q --depth 1 origin main && git checkout FETCH_HEAD -- assets/sst/anim/mmsf_fc_manifest.json 2>/dev/null || true
-          have=$(python3 -c "import json; print(json.load(open('assets/sst/anim/mmsf_fc_manifest.json'))['ver'])" 2>/dev/null || echo none)
-          if [ "$have" = "${d}00" ] && [ "$FORCE" != "true" ] && [ -z "$BACKFILL" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; echo "run $d 00Z already drawn"; fi
+          # main's manifests as they are now: a queued run checks out the commit it was triggered at
+          timeout 60 git fetch -q --depth 1 origin main || true
+          ver() { git show "FETCH_HEAD:assets/sst/anim/$1_manifest.json" 2>/dev/null | python3 -c "import json, sys; print(json.load(sys.stdin)['ver'])" 2>/dev/null || echo none; }
+          for p in overturn:mmsf_fc hbranch:hbranch_fc; do
+            fresh=true
+            if [ "$(ver "${p#*:}")" = "${d}00" ] && [ "$FORCE" != "true" ]; then fresh=false; fi
+            echo "fc_${p%%:*}=$fresh" >> "$GITHUB_OUTPUT"; echo "${p%%:*}: run $d 00Z still to draw: $fresh"
+          done
+          # the analysed loops go with a new forecast, or with an archive backfill or redraw on their own
+          loops=false
+          if grep -q '^fc_overturn=true' "$GITHUB_OUTPUT" || [ -n "$BACKFILL" ] || [ "$REBUILD" = "true" ]; then loops=true; fi
+          echo "loops=$loops" >> "$GITHUB_OUTPUT"
+
+  # ------------------------------------------------------------ members ---
+  # One ensemble a job, every member's lead days fetched once for both products (~1 GB a lead day for ECMWF).
+  members:
+    needs: which
+    if: needs.which.outputs.fc_overturn == 'true' || needs.which.outputs.fc_hbranch == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        model: [aifs, ifs, gefs]
+    env:
+      ECMWF_RANGE_GAP_MB: '0.5'   # IFS-ENS ef files scatter a member's messages: a 3 MB gap fetches ~2x the bytes
+      ARCH: scripts/mjo/data/hbranch
+    steps:
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
-        if: steps.run.outputs.skip != 'true'
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - name: The outflow and descent forecasts' drift and analysed days
+        if: needs.which.outputs.fc_hbranch == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download hbranch-ref-v1 -R "$GITHUB_REPOSITORY" -p hbranch_drift.npz -D scripts/mjo/data/reference --clobber
+          mkdir -p "$ARCH"
+          gh release download hbranch-hres -R "$GITHUB_REPOSITORY" -p 'hb_*.npz' -p offset_era5.npz -D "$ARCH" --clobber
+      - name: This ensemble's members
+        env:
+          OV: ${{ needs.which.outputs.fc_overturn }}
+          HB: ${{ needs.which.outputs.fc_hbranch }}
+        run: |
+          only=; [ "$OV" != "true" ] && only="--only hbranch"; [ "$HB" != "true" ] && only="--only overturn"
+          python scripts/mjo/src/hadley_members.py --model ${{ matrix.model }} --date "${{ needs.which.outputs.date }}" \
+            --out runs $only
+      - uses: actions/upload-artifact@v7
+        with:
+          name: hadley-members-${{ matrix.model }}
+          path: runs/
+          if-no-files-found: ignore   # an ensemble left out (no drift fit, no skill, too few members)
+          retention-days: 2
+
+  # -------------------------------------------------------------- loops ---
+  loops:
+    needs: [which, members]
+    if: ${{ !cancelled() && needs.which.outputs.loops == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
       - name: System libraries
-        if: steps.run.outputs.skip != 'true'
         run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
       - name: Install Python dependencies
-        if: steps.run.outputs.skip != 'true'
         run: pip install -r scripts/mjo/requirements-mjo.txt
       - name: Drift reference and the analysis archive
-        if: steps.run.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release download overturn-ref-v1 -R "$GITHUB_REPOSITORY" -p overturn_ref.npz -p overturn_rf_drift.npz \
             -D scripts/mjo/data/reference --clobber
           scripts/lib/fetch_frames_ci.sh assets/sst/anim/overturn_hist || echo "::warning::no analysis archive on the frames branch yet"
+      - uses: actions/download-artifact@v7
+        if: needs.which.outputs.fc_overturn == 'true'
+        with:
+          pattern: hadley-members-*
+          path: runs
+          merge-multiple: true
       - name: Backfill the analysis archive
-        if: steps.run.outputs.skip != 'true' && inputs.backfill_since != ''
+        if: inputs.backfill_since != ''
         run: python scripts/mjo/src/overturn_hist.py backfill --since "${{ inputs.backfill_since }}" $([ "${{ inputs.fresh_archive }}" = "true" ] && echo --fresh)
       - name: Analysed loops
-        if: steps.run.outputs.skip != 'true'
         run: |
           python scripts/mjo/src/overturn_hist.py update
           python scripts/mjo/src/overturn_hist.py render $([ "${{ inputs.rebuild_frames }}" = "true" ] && echo --rebuild)
       - name: Forecast loops
-        if: steps.run.outputs.skip != 'true'
+        if: needs.which.outputs.fc_overturn == 'true'
         run: |
-          python scripts/mjo/src/overturn_fc.py --date "${{ steps.run.outputs.date }}" \
+          python scripts/mjo/src/overturn_fc.py --date "${{ needs.which.outputs.date }}" --members runs \
             || echo "::warning::forecast loops not drawn this run; the analysed loops still publish"
       - name: Strength and edges (series)
-        if: steps.run.outputs.skip != 'true'
         run: |
           python scripts/mjo/src/hadley_timeseries.py --out assets/sst/hadley_timeseries.webp || echo "::warning::Hadley series not drawn"
       - name: This season against the El Nino events
-        if: steps.run.outputs.skip != 'true'
         run: |
           python scripts/mjo/src/hadley_enso.py plot --out assets/sst/hadley_enso.webp \
             || echo "::warning::El Nino comparison not drawn (needs hadley_events.nc from hadley-events.yml)"
       - name: Walker strength and position (series, El Nino events)
-        if: steps.run.outputs.skip != 'true' && hashFiles('scripts/mjo/data/reference/walker_metric_clim.nc') != ''
+        if: hashFiles('scripts/mjo/data/reference/walker_metric_clim.nc') != ''
         run: |
           python scripts/mjo/src/walker_figs.py series --out assets/sst/walker_timeseries.webp || echo "::warning::Walker series not drawn"
           python scripts/mjo/src/walker_figs.py enso --out assets/sst/walker_enso.webp \
             || echo "::warning::Walker El Nino comparison not drawn (needs walker_events.nc from walker-metrics.yml)"
       - name: Publish the frames (frames branch)
-        if: steps.run.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -126,7 +199,6 @@ jobs:
           fc=$(ls -d assets/sst/anim/mmsf_fc_*/ assets/sst/anim/walker_fc_*/ 2>/dev/null | sed 's#/$##')
           scripts/lib/publish_frames_ci.sh +assets/sst/anim/overturn_hist +assets/sst/anim/mmsf_hist +assets/sst/anim/walker_hist $fc
       - name: Commit & push (manifests, stills, series)
-        if: steps.run.outputs.skip != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -146,7 +218,67 @@ jobs:
             git add circulation.html
             for f in $OUT; do [ -e "$f" ] && git add "$f"; done
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
-            git commit -m "Hadley/Walker loops: ${{ steps.run.outputs.date }}"
+            git commit -m "Hadley/Walker loops: ${{ needs.which.outputs.date }}"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+
+  # ------------------------------------------------------------ outflow ---
+  outflow:
+    needs: [which, members]
+    if: ${{ !cancelled() && needs.which.outputs.fc_hbranch == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      ARCH: scripts/mjo/data/hbranch
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: hadley-members-*
+          path: runs
+          merge-multiple: true
+      - name: The analysed days
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$ARCH"
+          gh release download hbranch-hres -R "$GITHUB_REPOSITORY" -p 'hb_*.npz' -p offset_era5.npz -D "$ARCH" --clobber
+      - name: Loops and trackers
+        run: |
+          shopt -s nullglob
+          python scripts/mjo/src/hadley_branch_fc.py --date "${{ needs.which.outputs.date }}" runs/hbranch_*.npz
+      - name: Publish the frames (frames branch)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # each loop is replaced whole; the analysed lead-in frames are hbranch.yml's
+          scripts/lib/publish_frames_ci.sh $(ls -d assets/sst/anim/hbranch_fc_*/ | sed 's#/$##')
+      - name: Commit & push (manifest, numbers, trackers)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/sst/anim/hbranch_fc_manifest.json assets/sst/data/hbranch_fc.json assets/sst/hbranch_flow.webp assets/sst/hbranch_ridges.webp"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" $OUT
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            perl -0pi -e "s/(hbranch_(?:flow|ridges)\.webp)\?v=\w+/\${1}?v=$(date -u +%Y%m%d%H%M)/g" circulation.html
+            git add circulation.html $OUT
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "Hadley outflow and descent forecasts: ${{ needs.which.outputs.date }}"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
             echo "Push $i rejected; resyncing and retrying…"
             sleep 5

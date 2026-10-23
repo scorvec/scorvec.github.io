@@ -80,6 +80,7 @@ KEYS = (
 ROWS = np.flatnonzero(np.abs(HB.LAT) <= 51.0)  # the maps' domain and a row beyond
 LAT = HB.LAT[ROWS]
 W_LEVELS = tuple(L for L in HB.DT_LEVELS if HB.DESC_LAYER[0] <= L <= HB.DESC_LAYER[1])
+UV_LEVELS = tuple(O.LEVELS)  # u and v on overturn's 13 levels: the very file the overturning forecasts read
 _LEV = {L: i for i, L in enumerate(HB.LEVELS)}
 _OFF = np.array([PACK[f][0] for f in FIELDS], np.float32)[:, None, None]
 _SCALE = np.array([PACK[f][1] for f in FIELDS], np.float32)[:, None, None]
@@ -142,9 +143,10 @@ def derived(st: dict) -> np.ndarray | None:
     return np.stack([F[f][ROWS] for f in FIELDS]).astype(np.float32)
 
 
-def gefs_member_step(date: str, member: int, step: int) -> list[bytes]:
-    """The GEFS_WANT messages of one GEFS member (0 = control) at one step of the 00Z run, byte-ranged from NOAA's S3
-    bucket through the pgrb2a and pgrb2b .idx files. Network only, so it runs in threads."""
+def gefs_member_step(date: str, member: int, step: int, want=GEFS_WANT) -> list[bytes]:
+    """The `want` messages ((variable, level) as the .idx names them) of one GEFS member (0 = control) at one step of the
+    00Z run, byte-ranged from NOAA's S3 bucket through the pgrb2a and pgrb2b .idx files. Network only, so it runs in
+    threads."""
     from qbo_duct import _get, gefs_url
 
     mem = "gec00" if member == 0 else f"gep{member:02d}"
@@ -153,7 +155,7 @@ def gefs_member_step(date: str, member: int, step: int) -> list[bytes]:
         url = gefs_url(date, "00", mem, kind, step)
         lines = [x.split(":") for x in _get(url + ".idx").decode().splitlines() if x.strip()]
         for i, p in enumerate(lines):
-            if (p[3], p[4]) in GEFS_WANT:
+            if (p[3], p[4]) in want:
                 end = int(lines[i + 1][1]) - 1 if i + 1 < len(lines) else -1
                 out.append(bytes(_get(url, (int(p[1]), end))))
     return out
@@ -183,7 +185,8 @@ def states(model: str, init: pd.Timestamp, steps: tuple, members: list[int], wor
     cyc = ecmwf.Cycle(f"{init:%Y%m%d}", "00")
     n = max(members) if max(members) < ecmwf.PF_MEMBERS else 0
     specs = (
-        ecmwf.Spec(cfg["store"], "pf", ("u", "v", "t"), "pl", HB.DT_LEVELS, steps, n),
+        ecmwf.Spec(cfg["store"], "pf", ("u", "v"), "pl", UV_LEVELS, steps, n),  # already on disk in hadley_members.py
+        ecmwf.Spec(cfg["store"], "pf", "t", "pl", HB.DT_LEVELS, steps, n),
         ecmwf.Spec(cfg["store"], "pf", "w", "pl", W_LEVELS, steps, n),
         ecmwf.Spec(cfg["store"], "pf", cfg["z"], "pl", (500,), steps, n),
         ecmwf.Spec(cfg["store"], "pf", "msl", "sfc", (), steps, n),

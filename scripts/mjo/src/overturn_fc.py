@@ -2,7 +2,8 @@
 """Hadley and Walker forecasts, member by member, from the AIFS-ENS, IFS-ENS and GEFS 00Z runs.
 
 Every member's zonal-mean v and equatorial divergent zonal wind (overturn.reduce_file, the same reductions as the
-analysis) at days 0..15, corrected by its model's drift against ERA5 at that lead and season (overturn.drift, the
+analysis) at days 0..15 (fetched by hadley_members.py, which hands the same winds to the outflow and descent
+forecasts), corrected by its model's drift against ERA5 at that lead and season (overturn.drift, the
 reference in release overturn-ref-v1), then put through what the analysed loops go through (mmsf.py, walker.py):
 TRAILING 7-day means, so the window of an early lead still holds analysed days (less the analysis offset d(0), so
 analysis and forecast both stand on ERA5's footing); Psi and Psi_W against the ERA5 1991-2020 harmonic climatology at
@@ -21,7 +22,8 @@ measured on its 2000-2019 reforecast against ERA5 (overturn_rf.py), appended to 
 publishes a 00Z run's days 16-35 about a day later (the last members by ~03:30 UTC the next day), so the weeks come from
 the previous day's run, named as such; a failure there leaves the weeks out and the 15-day loops as they are.
 
-    python src/overturn_fc.py --date 20261016      # -> assets/sst/data/overturn_fc.json + the two loops
+    python src/hadley_members.py --model ifs --date 20261016 --out runs   # per ensemble -> runs/overturn_ifs.npz
+    python src/overturn_fc.py --date 20261016 --members runs   # -> assets/sst/data/overturn_fc.json + the two loops
 """
 
 from __future__ import annotations
@@ -56,27 +58,12 @@ P_PA = np.asarray(LEVELS, float) * 100.0
 P_HPA = np.asarray(LEVELS, float)
 
 
-def fetch(model: str, init: pd.Timestamp):
-    """vbar (member, lead, lev, 721) and ud (member, lead, lev, 173) for every member, one step file at a time."""
-    import store as ecmwf
-
-    if model == "gefs":
-        return O.gefs_run(f"{init:%Y%m%d}", list(range(O.GEFS_PF + 1)), [24 * L for L in LEADS], workers=16)
-    cfg = O.MODELS[model]
-    cyc = ecmwf.Cycle(f"{init:%Y%m%d}", "00")
-    members = ([0] if cfg["cf"] else []) + list(range(1, 51))
-    vb = np.full((len(members), len(LEADS), len(LEVELS), O.LAT.size), np.nan, np.float32)
-    ud = np.full((len(members), len(LEADS), len(LEVELS), O.NLON_UD), np.nan, np.float32)
-    for j, L in enumerate(LEADS):
-        s = (24 * L,)
-        for typ in (["cf"] if cfg["cf"] else []) + ["pf"]:
-            p = ecmwf.ensure(cyc, ecmwf.Spec(cfg["store"], typ, ("u", "v"), "pl", tuple(LEVELS), s))
-            mem = [0] if typ == "cf" else list(range(1, 51))
-            v, u = O.reduce_file(p, mem, s)
-            rows = [members.index(m) for m in mem]
-            vb[rows, j], ud[rows, j] = v[:, 0], u[:, 0]
-            p.unlink(missing_ok=True)  # ~0.9 GB a step: never keep them
-        print(f"  {cfg['label']} day {L}: {np.isfinite(vb[:, j, 0, 0]).sum()} members", flush=True)
+def load_members(path: Path):
+    """vbar (member, lead, lev, 721) and ud (member, lead, lev, 173) of every member, as hadley_members.py wrote them."""
+    with np.load(path) as f:
+        vb, ud = f["vb"], f["ud"]
+    if vb.shape[1] != len(LEADS) or vb.shape[2] != len(LEVELS):
+        raise ValueError(f"{path}: {vb.shape} is not member x {len(LEADS)} lead days x {len(LEVELS)} levels")
     return vb, ud
 
 
@@ -357,6 +344,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True, help="00Z run, YYYYMMDD")
     ap.add_argument("--models", default="aifs,ifs,gefs")
+    ap.add_argument("--members", required=True, type=Path, help="hadley_members.py's directory of overturn_<model>.npz")
     ap.add_argument("--out", default="assets/sst/data/overturn_fc.json")
     ap.add_argument("--anim-root", default="assets/sst/anim")
     a = ap.parse_args()
@@ -387,7 +375,10 @@ def main() -> int:
         if dv is None or du is None:
             print(f"  {O.MODELS[model]['label']}: no drift reference, left out", flush=True)
             continue
-        vb, ud = fetch(model, init)
+        if not (a.members / f"overturn_{model}.npz").exists():
+            print(f"  {O.MODELS[model]['label']}: no members fetched, left out", flush=True)
+            continue
+        vb, ud = load_members(a.members / f"overturn_{model}.npz")
         vb -= O.drift_at(dv[0], LEADS)[None]
         ud -= O.drift_at(du[0], LEADS)[None]
         res, S, mids, clim_m, clim_w = windows(vb, ud, *hist, init, cm, cw, lon)

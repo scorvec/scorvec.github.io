@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Hadley outflow and subtropical descent forecasts, member by member, from the AIFS-ENS, IFS-ENS and GEFS 00Z runs.
 
-Every perturbed member's fields of the 00 UTC state of lead days 0..15 (hadley_branch_ref.run_fields: the analysis's
-fields, hadley_branches.fields, on the 1.5 deg grid) less its model's drift against ERA5 at that lead and season
+Every perturbed member's fields of the 00 UTC state of lead days 0..15 (fetched by hadley_members.py with the
+overturning forecasts' winds: the analysis's fields, hadley_branches.fields, on the 1.5 deg grid; hadley_branch_ref
+.states) less its model's drift against ERA5 at that lead and season
 (hadley_branch_ref.Drift, release hbranch-ref-v1), in TRAILING 7-day windows ending on each lead day; the window of an
 early lead still holds analysed days, the IFS HRES daily fields less their offset from ERA5 (hadley_branch_maps), so
 analysis and forecast stand on ERA5's footing. A model without a drift fit, or with no lead whose skill passed, is left
@@ -15,8 +16,8 @@ archived runs (hadley_branch_ref.SKILL): the descent shading, the pressure shadi
 own. The tracker numbers (FC: each ensemble's median and 10-90 % at the windows that passed) go into the analysed
 trackers (hadley_branch_maps.draw_trackers).
 
-    python src/hadley_branch_fc.py run --model ifs --date 20261018 --out runs/ifs.npz   # one ensemble's windows
-    python src/hadley_branch_fc.py render --date 20261018 runs/*.npz                     # loops, trackers, FC
+    python src/hadley_members.py --model ifs --date 20261018 --out runs   # -> runs/hbranch_ifs.npz (save_run)
+    python src/hadley_branch_fc.py --date 20261018 runs/hbranch_*.npz      # loops, trackers, FC
 """
 
 from __future__ import annotations
@@ -68,20 +69,24 @@ def analysed_before(init: pd.Timestamp) -> np.ndarray:
     return out
 
 
-def run(model: str, init: pd.Timestamp, out: Path) -> bool:
-    """One ensemble: its complete members less the drift, reduced (reduce) into `out`; False when it is left out."""
+def drawn(model: str, init: pd.Timestamp) -> bool:
+    """Whether the ensemble is drawn at all: it needs a drift fit and a lead whose skill passed (never drawn raw)."""
     skill = json.loads(H.SKILL.read_text())["models"].get(model) if H.SKILL.exists() else None
-    drift = H.Drift().at(model, M._doy(init))
-    if drift is None or not skill or not any(t["show"] for t in skill["targets"].values()):
+    if H.Drift().at(model, M._doy(init)) is None or not skill or not any(t["show"] for t in skill["targets"].values()):
         print(f"  {H.MODELS[model]['label']}: no drift fit or no lead with significant skill, left out", flush=True)
         return False
+    return True
+
+
+def save_run(model: str, init: pd.Timestamp, x: np.ndarray, out: Path) -> bool:
+    """One ensemble's members (member, lead day, field, row, lon), the complete ones less the drift, reduced (reduce)
+    into `out`; False when too few are complete."""
     want = H.MODELS[model]["members"]
-    x = H.run_fields(model, init, list(range(1, want + 1)), group=1)
     x = x[np.isfinite(x).all(axis=(1, 2, 3, 4))]
     print(f"  {H.MODELS[model]['label']}: {x.shape[0]} of {want} members complete", flush=True)
     if x.shape[0] < MIN_SHARE * want:
         return False
-    x -= drift[None]
+    x -= H.Drift().at(model, M._doy(init))[None]
     doc = reduce(x.reshape(*x.shape[:3], -1), analysed_before(init), init, H.Normals())
     np.savez_compressed(out, model=model, init=np.datetime64(init, "D"), **doc)
     return True
@@ -319,20 +324,10 @@ def _num(v: float) -> float | None:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    sub = ap.add_subparsers(dest="cmd", required=True)
-    s = sub.add_parser("run")
-    s.add_argument("--model", required=True, choices=sorted(H.MODELS))
-    s.add_argument("--date", required=True, help="00Z run, YYYYMMDD")
-    s.add_argument("--out", required=True)
-    s = sub.add_parser("render")
-    s.add_argument("--date", required=True, help="00Z run, YYYYMMDD")
-    s.add_argument("runs", nargs="*")
+    ap.add_argument("--date", required=True, help="00Z run, YYYYMMDD")
+    ap.add_argument("runs", nargs="*", help="hadley_members.py's hbranch_<model>.npz")
     a = ap.parse_args()
     init = pd.Timestamp(a.date)
-    if a.cmd == "run":
-        Path(a.out).parent.mkdir(parents=True, exist_ok=True)
-        run(a.model, init, Path(a.out))
-        return 0
     if not a.runs:
         print("no ensemble to draw", file=sys.stderr)
         return 1
