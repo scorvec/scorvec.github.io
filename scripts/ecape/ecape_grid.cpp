@@ -1,6 +1,6 @@
-// Gridded ECAPE over the HRRR CONUS domain.
+// Gridded ECAPE: the HRRR's CONUS domain (ecape.yml) and the South America viewer (scripts/models/samerica.py).
 //
-// Reads the float32 scratch written by fetch_hrrr.py, shape (NVAR, NLEV, ny, nx)
+// Reads the float32 scratch written by fetch_hrrr.py or samerica.py, shape (NVAR, NLEV, ny, nx)
 // with NVAR = PRES, HGT, TMP, SPFH, UGRD, VGRD, and runs SHARPlib's
 // entrainment_cape() (Peters et al. 2023) on every column.
 //
@@ -16,6 +16,15 @@
 // Build:  see build.sh
 // Usage:  ecape_grid <stem>        # reads <stem>.json + <stem>.f32
 //                                  # writes <stem>_ecape.f32 + <stem>_ecape.json
+//
+// Two switches in <stem>.json, both off unless set to 1 (the HRRR job sets neither, so its columns and output are
+// exactly as before):
+//   "compact"  pressure-level input (scripts/models/samerica.py): level 0 is the surface, and a level whose pressure,
+//              temperature or height is not finite (below the ground) is left out of that column instead of skipping
+//              the whole column. A column needs its surface and at least 5 levels.
+//   "kin"      also writes, per column, the 0-6 km bulk shear vector (u, v), storm-relative helicity 0-1 and 0-3 km
+//              for the Bunkers right-moving storm, and precipitable water - the same SHARPlib calls the sounding
+//              explorer's compute_sounding() makes for those numbers.
 
 #include <cmath>
 #include <cstdlib>
@@ -33,6 +42,11 @@
 #include <omp.h>
 #endif
 
+#include <SHARPlib/layer.h>
+#include <SHARPlib/params/convective.h>
+#include <SHARPlib/thermo.h>
+#include <SHARPlib/winds.h>
+
 extern "C" int compute_sounding(const float*, const float*, const float*,
                                 const float*, const float*, const float*, int,
                                 float*, float*, float*, float*);
@@ -45,8 +59,32 @@ extern "C" int compute_ecape4(const float*, const float*, const float*, const fl
 enum { I_ML_CAPE = 5, I_MU_CAPE = 10, I_ECAPE_MU = 42, I_ECAPE_ML = 45 };
 static const float MISSING = -9999.0f;
 
-// Output fields, in write order.
+// Output fields, in write order; "kin" appends the K_ fields after them.
 enum { O_ECAPE_ML = 0, O_ECAPE_MU, O_MLCAPE, O_MUCAPE, O_NOUT };
+enum { K_SHR6_U = 0, K_SHR6_V, K_SRH1, K_SRH3, K_PWAT, K_NOUT };
+
+// The "kin" numbers of one column (surface first, n levels), MISSING where SHARPlib finds no answer or refuses the
+// layer (it throws on a degenerate one).
+static void kinematics(const float* P, const float* H, const float* D, const float* U, const float* V, int n,
+                       float* mixr, float* k) {
+    for (int i = 0; i < K_NOUT; ++i) k[i] = MISSING;
+    try {
+        const sharp::HeightLayer l6(0.0f, 6000.0f);
+        const sharp::WindComponents shr = sharp::wind_shear(l6, H, U, V, n);
+        k[K_SHR6_U] = shr.u;
+        k[K_SHR6_V] = shr.v;
+        const sharp::WindComponents rm = sharp::storm_motion_bunkers(P, H, U, V, n, l6, l6, false, false);
+        if (rm.u != sharp::MISSING && rm.v != sharp::MISSING) {
+            k[K_SRH1] = sharp::helicity(sharp::HeightLayer(0.0f, 1000.0f), rm, H, U, V, n);
+            k[K_SRH3] = sharp::helicity(sharp::HeightLayer(0.0f, 3000.0f), rm, H, U, V, n);
+        }
+        for (int i = 0; i < n; ++i) mixr[i] = sharp::mixratio(P[i], D[i]);
+        k[K_PWAT] = sharp::precipitable_water(sharp::PressureLayer(P[0], P[n - 1]), P, mixr, n);
+    } catch (...) {
+    }
+    for (int i = 0; i < K_NOUT; ++i)
+        if (!std::isfinite(k[i]) || k[i] == sharp::MISSING) k[i] = MISSING;
+}
 
 // --- minimal JSON scraping (the metadata file is ours, so this need not be a
 // general parser - just pull the few scalars the kernel needs) -----------------
@@ -89,6 +127,8 @@ int main(int argc, char** argv) {
     const int nlev = (int)json_int(meta, "nlev", 50);
     const int ny   = (int)json_int(meta, "ny", 0);
     const int nx   = (int)json_int(meta, "nx", 0);
+    const bool compact = json_int(meta, "compact", 0) == 1;
+    const bool kin = json_int(meta, "kin", 0) == 1;
     const int nvar = 6;
     if (ny <= 0 || nx <= 0) { std::fprintf(stderr, "bad grid in meta\n"); return 2; }
 
@@ -127,7 +167,8 @@ int main(int argc, char** argv) {
                     p_first / 100.0f, nlev - 1, p_last / 100.0f);
     }
 
-    std::vector<float> out(plane * O_NOUT, MISSING);
+    const int nfield = O_NOUT + (kin ? K_NOUT : 0);
+    std::vector<float> out(plane * nfield, MISSING);
     const int nout = out_size();
 
     long long ok = 0, bad = 0;
@@ -144,12 +185,14 @@ int main(int argc, char** argv) {
         // Per-thread scratch: one column plus SHARPlib's parcel buffers.
         std::vector<float> P(nlev), H(nlev), T(nlev), D(nlev), U(nlev), V(nlev);
         std::vector<float> o(nout), a(nlev), b(nlev), c(nlev);
+        float kv[K_NOUT];
 
 #pragma omp for schedule(dynamic, 8)
         for (int j = 0; j < ny; ++j) {
             for (int i = 0; i < nx; ++i) {
                 const size_t idx = (size_t)j * nx + i;
                 bool good = true;
+                int n = 0;                          // levels in this column (all of them unless compact)
                 for (int k = 0; k < nlev && good; ++k) {
                     const int kk = flip ? (nlev - 1 - k) : k;
                     const float p = VAR(V_PRES, kk)[idx];
@@ -157,26 +200,34 @@ int main(int argc, char** argv) {
                     const float q = VAR(V_SPFH, kk)[idx];
                     const float h = VAR(V_HGT, kk)[idx];
                     if (!std::isfinite(p) || !std::isfinite(t) ||
-                        !std::isfinite(h) || p <= 0.0f) { good = false; break; }
-                    P[k] = p; T[k] = t; H[k] = h;
-                    D[k] = dewpoint_from_q(q, p);
-                    if (!std::isfinite(D[k])) D[k] = t - 40.0f;   // bone dry
-                    if (D[k] > t) D[k] = t;                       // no supersaturation
-                    U[k] = VAR(V_UGRD, kk)[idx];
-                    V[k] = VAR(V_VGRD, kk)[idx];
-                    if (!std::isfinite(U[k])) U[k] = 0.0f;
-                    if (!std::isfinite(V[k])) V[k] = 0.0f;
+                        !std::isfinite(h) || p <= 0.0f) {
+                        if (compact && k > 0) continue;   // a level below the ground: not in this column
+                        good = false; break;
+                    }
+                    P[n] = p; T[n] = t; H[n] = h;
+                    D[n] = dewpoint_from_q(q, p);
+                    if (!std::isfinite(D[n])) D[n] = t - 40.0f;   // bone dry
+                    if (D[n] > t) D[n] = t;                       // no supersaturation
+                    U[n] = VAR(V_UGRD, kk)[idx];
+                    V[n] = VAR(V_VGRD, kk)[idx];
+                    if (!std::isfinite(U[n])) U[n] = 0.0f;
+                    if (!std::isfinite(V[n])) V[n] = 0.0f;
+                    ++n;
                 }
-                if (!good) { ++bad; continue; }
+                if (!good || n < 5) { ++bad; continue; }
                 // SHARPlib requires strictly increasing height; HRRR native is
                 // already monotonic but a flat pair would abort the parcel walk.
-                for (int k = 1; k < nlev; ++k)
+                for (int k = 1; k < n; ++k)
                     if (!(H[k] > H[k - 1])) H[k] = H[k - 1] + 0.1f;
 
+                if (kin) {
+                    kinematics(P.data(), H.data(), D.data(), U.data(), V.data(), n, a.data(), kv);
+                    for (int f = 0; f < K_NOUT; ++f) out[(O_NOUT + f) * plane + idx] = kv[f];
+                }
                 // the four numbers only (2026-10-04); ECAPE_FULL=1 runs the explorer's whole analysis for comparison
-                const int rc = full ? compute_sounding(P.data(), H.data(), T.data(), D.data(), U.data(), V.data(), nlev,
+                const int rc = full ? compute_sounding(P.data(), H.data(), T.data(), D.data(), U.data(), V.data(), n,
                                                        o.data(), a.data(), b.data(), c.data())
-                                    : compute_ecape4(P.data(), H.data(), T.data(), D.data(), U.data(), V.data(), nlev,
+                                    : compute_ecape4(P.data(), H.data(), T.data(), D.data(), U.data(), V.data(), n,
                                                      o.data(), b.data(), c.data());
                 if (rc != 0) { ++bad; continue; }
                 auto keep = [&](int src) {
@@ -211,10 +262,10 @@ int main(int argc, char** argv) {
 
     FILE* fj = std::fopen((stem + "_ecape.json").c_str(), "wb");
     std::fprintf(fj,
-        "{\n  \"fields\": [\"ecape_ml\", \"ecape_mu\", \"mlcape\", \"mucape\"],\n"
+        "{\n  \"fields\": [\"ecape_ml\", \"ecape_mu\", \"mlcape\", \"mucape\"%s],\n"
         "  \"shape\": [%d, %d, %d],\n  \"dtype\": \"float32\",\n"
         "  \"order\": \"C\",\n  \"columns_ok\": %lld,\n  \"columns_skipped\": %lld\n}\n",
-        O_NOUT, ny, nx, ok, bad);
+        kin ? ", \"shr6_u\", \"shr6_v\", \"srh1\", \"srh3\", \"pwat\"" : "", nfield, ny, nx, ok, bad);
     std::fclose(fj);
 
     std::printf("  columns: %lld computed, %lld skipped -> %s\n",
