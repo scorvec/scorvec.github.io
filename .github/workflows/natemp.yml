@@ -1,12 +1,13 @@
 name: North America 2 m temperature (IFS-ENS 0.1 deg, anomaly and run-to-run change)
 
 # scripts/natemp/natemp.py: the 50 perturbed members of the IFS-ENS 0.1-deg run (Google Cloud mirror only), 2t at the
-# 6-hourly steps of its full calendar days (15 for a 00Z run, 14 for 12Z), daily means against the ERA5-Land/ERA5
-# 1991-2020 normals (natemp_normals.npz, release natemp-ref-v1, from natemp-ref.yml); maps of days 1-5, 6-10, 11-15 and
-# of each day, the anomaly where 80% of the members agree on its sign and the change from the run 12 h earlier where
-# significant. The change needs the previous run's statistics, which each run leaves in the Actions cache
-# (natemp-stats-<YYYYMMDDHH>, ~70 MB; older entries are deleted). Frames go to the frames publisher; the manifest and
-# the summary are committed to main.
+# 6-hourly steps of its full calendar days (15 for a 00Z run, 14 for 12Z); maps of days 1-5, 6-10, 11-15 and of each
+# day: the anomaly against the ERA5-Land/ERA5 1991-2020 normals (natemp_normals.npz, release natemp-ref-v1, from
+# natemp-ref.yml) where 80% of the members agree on its sign, and the change from the run 12 h earlier where
+# significant. The change needs no normals, only the previous run's statistics, which each run leaves in the Actions
+# cache (natemp-stats-<YYYYMMDDHH>, ~100 MB; older entries are deleted). Until the release holds the normals a run draws
+# the change maps alone, and the first run after they appear redraws the newest run with its anomaly maps (the
+# manifest's "normals" flag). Frames go to the frames publisher; the manifest and the summary are committed to main.
 # The 0.1-deg ensemble reaches the mirror ~13:20Z (00Z run) and ~01:20Z (12Z): the dispatcher fires at 13:40 / 01:40,
 # these crons are its backstop. The job waits up to 45 min for a late run and stops when main already carries it.
 on:
@@ -66,6 +67,7 @@ jobs:
       - name: Which run
         id: run
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DATE: ${{ inputs.date }}
           TIME: ${{ inputs.time }}
           FORCE: ${{ inputs.force }}
@@ -79,15 +81,19 @@ jobs:
           fi
           prev=$(date -u -d "${d} ${t}:00 12 hours ago" +%Y%m%d%H)
           echo "date=$d" >> "$GITHUB_OUTPUT"; echo "time=$t" >> "$GITHUB_OUTPUT"; echo "prev=$prev" >> "$GITHUB_OUTPUT"
-          # main's manifest as it is now: a queued run checks out the commit it was triggered at
-          timeout 60 git fetch -q --depth 1 origin main
-          have=$(git show FETCH_HEAD:assets/sst/anim/natemp_manifest.json 2>/dev/null \
-                 | python -c "import json, sys; print(json.load(sys.stdin)['ver'])" 2>/dev/null || echo none)
-          if [ "$have" = "${d}${t}" ] && [ "$FORCE" != "true" ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"; echo "main already carries run ${d} ${t}Z"
-          else
-            echo "run ${d} ${t}Z (main has ${have}); previous run ${prev}"
+          normals=False
+          if gh release view natemp-ref-v1 -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null | grep -qx natemp_normals.npz; then
+            normals=True
           fi
+          echo "normals=$normals" >> "$GITHUB_OUTPUT"
+          # main's manifest as it is now: a queued run checks out the commit it was triggered at
+          timeout 60 git fetch -q --depth 1 origin main || echo "::warning::could not read main's manifest"
+          have=$(git show FETCH_HEAD:assets/sst/anim/natemp_manifest.json 2>/dev/null \
+                 | python -c "import json, sys; m = json.load(sys.stdin); print(m['ver'], m.get('normals', False))" 2>/dev/null || echo none)
+          if [ "$have" = "${d}${t} True" ] || { [ "$have" = "${d}${t} False" ] && [ "$normals" = False ]; }; then
+            if [ "$FORCE" != "true" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; echo "main already carries run ${d} ${t}Z ($have)"; exit 0; fi
+          fi
+          echo "run ${d} ${t}Z (main has ${have}; normals in the release: ${normals}); previous run ${prev}"
 
       - name: The previous run's statistics
         if: steps.run.outputs.skip != 'true'
@@ -102,7 +108,7 @@ jobs:
           path: ~/.local/share/cartopy
           key: cartopy-naturalearth-10m-natemp-v1
       - name: The normals
-        if: steps.run.outputs.skip != 'true'
+        if: steps.run.outputs.skip != 'true' && steps.run.outputs.normals == 'True'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release download natemp-ref-v1 -R "$GITHUB_REPOSITORY" -p natemp_normals.npz -D ref --clobber

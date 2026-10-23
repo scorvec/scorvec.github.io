@@ -10,7 +10,7 @@ answers: no data are fetched and no figure is drawn.
   grib     read_field maps a 180..334 E message with missing values onto the box; decode keeps the box of a global
            0.1-deg 2t message and refuses another grid
   days     a 00Z run has 15 full days (steps 6..360), a 12Z run 14 (18..348); windows 1-5, 6-10, 11-15/14
-  read     read_run on fake steps: daily means less the normal, a member missing one field loses that day only
+  read     read_run on fake steps: the members' daily means, a member missing one field loses that day only
   gate     the 80 % agreement on the sign of the mean, also when the members are skewed
   test     welch_p equals scipy's Welch test; with no change about q of the maps get any significant point after
            Benjamini-Hochberg, a planted change is found
@@ -83,8 +83,7 @@ coef = HC.fit(months)
 check(np.abs(coef - coef_true).max() < 1e-9, "the month averages of a three-harmonic curve give back its coefficients")
 with tempfile.TemporaryDirectory() as tmp:
     path = Path(tmp) / "n.npz"
-    land = np.zeros((R.LAT.size, R.LON.size), bool)
-    np.savez_compressed(path, coef=coef.astype(np.float32), land=land, lat=R.LAT, lon=R.LON, meta='{"x": 1}')
+    np.savez_compressed(path, coef=coef.astype(np.float32), lat=R.LAT, lon=R.LON, meta='{"x": 1}')
     N = R.Normals(path)
 day = pd.Timestamp("2028-02-29")
 want = np.mean([HC.evaluate(true, HC.times_of(day + pd.Timedelta(hours=h)))[0] for h in T.SAMPLES])
@@ -150,7 +149,6 @@ check(
 print("read: daily means on fake steps")
 init = pd.Timestamp("2026-10-23 00:00")
 one = d00[:2]
-normal = np.stack([np.full((T.NY, T.NX), 270.0, np.float32), np.full((T.NY, T.NX), 271.0, np.float32)])
 cache = {}
 
 
@@ -165,11 +163,11 @@ def fake(date, hh, step):
     return msgs, sum(map(len, msgs))
 
 
-A, done, info = T.read_run("20261023", "00", one, normal, fake)
-w1 = want + 1 + np.mean([6, 12, 18, 24]) / 6.0 - 270.0
-w2 = want + 2 + np.mean([30, 36, 42, 48]) / 6.0 - 271.0
+A, done, info = T.read_run("20261023", "00", one, fake)
+w1 = want + 1 + np.mean([6, 12, 18, 24]) / 6.0
+w2 = want + 2 + np.mean([30, 36, 42, 48]) / 6.0
 check(
-    np.abs(A[0, 0] - w1).max() < 0.06 and np.abs(A[1, 1] - w2).max() < 0.06, "member daily mean less the day's normal"
+    np.abs(A[0, 0] - w1).max() < 2e-3 and np.abs(A[1, 1] - w2).max() < 2e-3, "a member's day: the mean of its 4 fields"
 )
 check(done[:3].tolist() == [[True, True], [True, True], [False, True]], "a missing field drops that member-day only")
 check(not done[3:].any() and np.isnan(A[3:]).all(), "members without messages stay missing")
@@ -206,7 +204,7 @@ with tempfile.TemporaryDirectory() as tmp:
     for a_init, b_init in (("2026-10-23 00:00", "2026-10-23 12:00"), ("2026-10-23 12:00", "2026-10-24 00:00")):
         ia, ib = pd.Timestamp(a_init), pd.Timestamp(b_init)
         da, db = T.full_days(ia), T.full_days(ib)
-        Aa = RNG.normal(0, 2, (50, len(da), 3, 4)).astype(np.float16)
+        Aa = RNG.normal(280, 2, (50, len(da), 3, 4)).astype(np.float32)
         mem = np.arange(48)
         path = Path(tmp) / f"{ia:%Y%m%d%H}.npz"
         T.save_stats(path, ia, da, Aa, mem)
@@ -224,7 +222,7 @@ with tempfile.TemporaryDirectory() as tmp:
         c1, row = got[name]
         off = [d for d, _ in da].index(db[k0][0])
         x = T.member_mean(Aa, mem, off + k0, off + c1)
-        ok = np.allclose(prev["mean"][row], x.mean(0), atol=2e-3) and np.allclose(
+        ok = np.allclose(prev["mean"][row], x.mean(0), atol=1e-4) and np.allclose(
             prev["sd"][row], x.std(0, ddof=1), atol=2e-3
         )
         check(ok and prev["n"] == 48, f"{tag}: the stored days 1-5 are the members' mean and sd over the same dates")

@@ -1,15 +1,20 @@
 name: North America 2 m temperature normals (ERA5-Land + ERA5 1991-2020 -> release natemp-ref-v1)
 
-# scripts/natemp/natemp_ref.py, once (dispatch only): the CDS monthly means by hour of day (00, 06, 12, 18 UTC) of the
-# 2 m temperature over the maps' box, 1991-2020 - ERA5-Land at 0.1 deg (the IFS grid's points) and ERA5 at 0.25 deg
-# with its land-sea mask, one request per reanalysis and decade - each reduced at once to its monthly means
-# (natemp_<unit>.npz) and uploaded to the release, so a later run fetches only the units still missing; then the daily
-# curve per grid point (natemp_normals.npz), which natemp.yml downloads.
+# scripts/natemp/natemp_ref.py, built once: the CDS monthly means by hour of day (00, 06, 12, 18 UTC) of the 2 m
+# temperature over the maps' box, 1991-2020 - ERA5-Land at 0.1 deg (the IFS grid's points) and ERA5 at 0.25 deg with
+# its land-sea mask, one request per reanalysis and decade - each reduced at once to its monthly means
+# (natemp_<unit>.npz) and uploaded to the release; then the daily curve per grid point (natemp_normals.npz), which
+# natemp.yml downloads (it draws the change maps alone until then).
 #
 # CDS: ONE key, so this shares the `seas5` concurrency group with seas5.yml, c3s.yml and the other CDS workflows, and
-# every request goes through scripts/sst/cds_seq.py, one at a time. Licence: Copernicus (the page carries "Contains
-# modified Copernicus Climate Change Service information"). Secrets: CDSAPI_URL and CDSAPI_KEY.
+# every request goes through scripts/sst/cds_seq.py, one at a time. A request the CDS keeps queued is waited for until
+# the fetch step's time runs out; the next run adopts the key's job (queued, running or finished) instead of asking
+# again, and fetches only the units the release does not hold. The cron repeats that every 6 h until the release has
+# the normals, then exits at its first step. Licence: Copernicus (the page carries "Contains modified Copernicus Climate
+# Change Service information"). Secrets: CDSAPI_URL and CDSAPI_KEY.
 on:
+  schedule:
+    - cron: '25 */6 * * *'
   workflow_dispatch:
     inputs:
       refit:
@@ -36,17 +41,29 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
+      - name: Anything to build?
+        id: gate
+        run: |
+          if [ "${{ github.event_name }}" = schedule ] && \
+             gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null | grep -qx natemp_normals.npz; then
+            echo "the release holds the normals: nothing to build"; echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@v7
+        if: steps.gate.outputs.build == 'true'
       - uses: actions/setup-python@v7
+        if: steps.gate.outputs.build == 'true'
         with:
           python-version: '3.11'
       - name: Install dependencies
+        if: steps.gate.outputs.build == 'true'
         run: |
           sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0
           pip install --quiet numpy scipy pandas eccodes cdsapi requests
 
       - name: CDS credentials
-        if: ${{ !inputs.refit }}
+        if: steps.gate.outputs.build == 'true' && !inputs.refit
         env:
           CDSAPI_URL: ${{ secrets.CDSAPI_URL }}
           CDSAPI_KEY: ${{ secrets.CDSAPI_KEY }}
@@ -56,6 +73,7 @@ jobs:
           printf 'url: %s\nkey: %s\n' "${CDSAPI_URL:-https://cds.climate.copernicus.eu/api}" "$CDSAPI_KEY" > ~/.cdsapirc
 
       - name: Release and the units it holds
+        if: steps.gate.outputs.build == 'true'
         run: |
           if ! gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release create "$TAG" -R "$GITHUB_REPOSITORY" --title "North America 2 m temperature normals v1" \
@@ -68,7 +86,7 @@ jobs:
           cat held.txt
 
       - name: Fetch the missing units (CDS, one request at a time)
-        if: ${{ !inputs.refit }}
+        if: steps.gate.outputs.build == 'true' && !inputs.refit
         timeout-minutes: 300
         env:
           CDS_SEQ_LOG: ${{ runner.temp }}/cds_seq.jsonl
@@ -77,7 +95,7 @@ jobs:
           cat "$CDS_SEQ_LOG" 2>/dev/null || true
 
       - name: Upload the new units
-        if: always()
+        if: always() && steps.gate.outputs.build == 'true'
         run: |
           shopt -s nullglob
           for f in ref/natemp_*.npz; do
@@ -86,6 +104,9 @@ jobs:
           done
 
       - name: Fit the daily curves and publish them
+        if: steps.gate.outputs.build == 'true'
         run: |
-          python scripts/natemp/natemp_ref.py fit --in-dir ref --out ref/natemp_normals.npz
+          rc=0; python scripts/natemp/natemp_ref.py fit --in-dir ref --out ref/natemp_normals.npz || rc=$?
+          if [ "$rc" -eq 3 ]; then echo "::notice::units still missing; the next run continues"; exit 0; fi
+          [ "$rc" -eq 0 ] || exit "$rc"
           gh release upload "$TAG" ref/natemp_normals.npz -R "$GITHUB_REPOSITORY" --clobber

@@ -7,18 +7,19 @@ the 0.1-deg files carry the perturbed members only), parameter 2t at the steps a
 (rangefetch: index -> the 50 messages -> coalesced ranges) and decoded in this thread; the grid's own points over the
 box (natemp_ref.LAT, LON) are kept, nothing is regridded. A day is a calendar UTC day, the mean of 06, 12, 18 and 24 UTC:
 a 00Z run has 15 full days, a 12Z run 14 (its first and last partial days are not read). Each member's daily mean less
-the day's normal (natemp_ref.Normals: ERA5-Land, ERA5 over the sea) is its anomaly.
+the day's normal (natemp_ref.Normals: ERA5-Land, ERA5 over the sea) is its anomaly; until the normals exist (release
+natemp-ref-v1) only the change frames are drawn, which need none: over the same days the normal cancels.
 
 Frames, per view: days 1-5, 6-10 and 11-15 of the run (from its first full day; the last can be shorter, its label
 says which days), then each day.
   anom    the members' mean anomaly, coloured only where at least AGREE of the members give it its sign
-  change  this run's mean anomaly less the previous run's (12 h earlier) over the same calendar days (the days both
+  change  this run's members' mean less the previous run's (12 h earlier) over the same calendar days (the days both
           runs hold), coloured only where significant: Welch's t-test on the two runs' members (their means and
           standard deviations, the previous run's from its statistics file), Benjamini-Hochberg over the map's points
           at FDR_Q. Without the previous run's statistics there are no change frames.
 Writes the frames (assets/sst/anim/natemp_anom, natemp_change; frames branch), assets/sst/anim/natemp_manifest.json,
 the summary assets/sst/data/natemp.json, and this run's statistics for the next run (--save: per day and per window,
-the mean and standard deviation of the members' anomalies, float16).
+the mean (float32) and standard deviation (float16) of the members' daily-mean temperatures).
 
     python scripts/natemp/natemp.py resolve --wait-min 45      # prints "YYYYMMDD HH"
     python scripts/natemp/natemp.py run --date 20261023 --time 00 --normals ref/natemp_normals.npz \
@@ -131,11 +132,11 @@ def day_normals(N: R.Normals, days) -> np.ndarray:
     return np.stack([N.at([d + pd.Timedelta(hours=h) for h in SAMPLES]).mean(0) for d in days]).astype(np.float32)
 
 
-def read_run(date: str, hh: str, days: list, normal: np.ndarray, fetch=fetch_step):
-    """The members' daily-mean anomalies (member, day, NY, NX) K as float16, which member-days hold all four fields
+def read_run(date: str, hh: str, days: list, fetch=fetch_step):
+    """The members' daily-mean temperatures (member, day, NY, NX) K, which member-days hold all four fields
     (member, day), and the fetch's totals. Steps are fetched AHEAD of the decoding; each day is closed at its last
     field."""
-    A = np.full((MEMBERS, len(days), NY, NX), np.nan, np.float16)
+    A = np.full((MEMBERS, len(days), NY, NX), np.nan, np.float32)
     done = np.zeros((MEMBERS, len(days)), bool)
     last = {st[-1]: k for k, (_, st) in enumerate(days)}
     acc = np.zeros((MEMBERS, NY, NX), np.float32)
@@ -163,7 +164,7 @@ def read_run(date: str, hh: str, days: list, normal: np.ndarray, fetch=fetch_ste
             if s in last:
                 k = last[s]
                 full = cnt == len(SAMPLES)
-                A[full, k] = acc[full] / len(SAMPLES) - normal[k]
+                A[full, k] = acc[full] / len(SAMPLES)
                 done[:, k] = full
                 acc[:] = 0.0
                 cnt[:] = 0
@@ -216,14 +217,14 @@ def key(days, k0: int, k1: int) -> str:
 
 
 def save_stats(path: Path, init: pd.Timestamp, days: list, A: np.ndarray, mem: np.ndarray) -> None:
-    """Mean and standard deviation of the members' anomalies (K) per day and per window from day 1 and day 2 - the
-    windows the next run (12 h later) compares with: its days 1-5 start on this run's day 1 or 2."""
+    """Mean and standard deviation of the members' daily-mean temperatures (K) per day and per window from day 1 and
+    day 2 - the windows the next run (12 h later) compares with: its days 1-5 start on this run's day 1 or 2."""
     spans = [(k, k) for k in range(len(days))] + sorted(set(windows(len(days), 0) + windows(len(days), 1)))
     keys, mean, sd = [], [], []
     for k0, k1 in spans:
         x = member_mean(A, mem, k0, k1)
         keys.append(key(days, k0, k1))
-        mean.append(x.mean(0).astype(np.float16))
+        mean.append(x.mean(0))
         sd.append(x.std(0, ddof=1).astype(np.float16))
     path.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(
@@ -261,10 +262,10 @@ def frame_label(days, k0: int, k1: int) -> str:
     return f"{what[0].upper()}{what[1:]} · {when}"
 
 
-def shares(value: np.ndarray, gate: np.ndarray, land: np.ndarray) -> dict:
-    """Over the map's land points: the share coloured warm (positive), cold and neutral (the gate failed), and the
-    coloured extremes (degF)."""
-    v, g = value[land], gate[land]
+def shares(value: np.ndarray, gate: np.ndarray, inmap: np.ndarray) -> dict:
+    """Over the map's points: the share coloured warm (positive), cold and neutral (the gate failed), and the coloured
+    extremes (degF)."""
+    v, g = value[inmap], gate[inmap]
     col = v[g]
     return {
         "warm": round(float((g & (v > 0)).mean()), 3),
@@ -322,16 +323,18 @@ def run(date: str, hh: str, normals: Path, prev_path: Path | None, save: Path | 
     init = pd.Timestamp(f"{date} {hh}:00")
     prev_init = init - pd.Timedelta(hours=12)
     days = full_days(init)
-    N = R.Normals(normals)
+    N = R.Normals(normals) if normals.exists() else None
     log(f"IFS-ENS {init:%Y-%m-%d %H}Z: {len(days)} full days {days[0][0]:%Y-%m-%d}..{days[-1][0]:%Y-%m-%d}")
-    A, done, fetched = read_run(date, hh, days, day_normals(N, [d for d, _ in days]), fetch)
+    if N is None:
+        log(f"::notice::no normals ({normals}): change frames only")
+    A, done, fetched = read_run(date, hh, days, fetch)
     mem = np.flatnonzero(done.all(1))
     log(f"  {mem.size} of {MEMBERS} members complete; {fetched['bytes'] / 1e9:.2f} GB, {fetched['messages']} messages")
     if mem.size < MIN_MEMBERS:
         log(f"::error::only {mem.size} complete members")
         return 1
     canvas = M.Canvas(R.LAT, R.LON)
-    land = N.land & canvas.inmap
+    normal = day_normals(N, [d for d, _ in days]) if N else None
     prev = load_stats(prev_path, prev_init)
     run_s = f"{init:%a %b %-d %Y %H}Z"
     for rid, _label in REGIONS.values():
@@ -349,24 +352,25 @@ def run(date: str, hh: str, normals: Path, prev_path: Path | None, save: Path | 
         )
         frames[kind].append({"file": out.name, "date": f"{days[k0][0]:%Y-%m-%d}", "label": frame_label(days, k0, k1)})
         row = {"frame": name, "first": f"{days[k0][0]:%Y-%m-%d}", "last": f"{days[k1][0]:%Y-%m-%d}"}
-        summary[kind].append(row | shares(value, gate, land))
+        summary[kind].append(row | shares(value, gate, canvas.inmap))
 
     for name, k0, k1 in spans(len(days)):
         x = member_mean(A, mem, k0, k1)
-        m, gate = agreed(x)
-        what, when = span_text(days, k0, k1)
-        sub = (
-            f"Run {run_s} · {mem.size} members · ensemble mean against the 1991–2020 normal, coloured where at least "
-            f"{AGREE:.0%} of the members agree on its sign · contours every 10 °F"
-        )
-        add("anom", name, k0, k1, m * KF, gate, f"IFS-ENS 2 m temperature anomaly: {what}, {when}", sub)
+        if normal is not None:
+            m, gate = agreed(x - normal[k0 : k1 + 1].mean(0))
+            what, when = span_text(days, k0, k1)
+            sub = (
+                f"Run {run_s} · {mem.size} members · ensemble mean against the 1991–2020 normal, coloured where at "
+                f"least {AGREE:.0%} of the members agree on its sign · contours every 10 °F"
+            )
+            add("anom", name, k0, k1, m * KF, gate, f"IFS-ENS 2 m temperature anomaly: {what}, {when}", sub)
         cut = prev_row(days, k0, k1, prev) if prev else None
         if cut is None:
             continue
         c1, row = cut
         y = x if c1 == k1 else member_mean(A, mem, k0, c1)
         my, sy = y.mean(0), y.std(0, ddof=1)
-        m0, s0 = prev["mean"][row].astype(np.float32), prev["sd"][row].astype(np.float32)
+        m0, s0 = prev["mean"][row], prev["sd"][row].astype(np.float32)
         sig = significant(welch_p(my, sy, mem.size, m0, s0, prev["n"]), canvas.inmap)
         what, when = span_text(days, k0, c1)
         sub = (
@@ -377,14 +381,14 @@ def run(date: str, hh: str, normals: Path, prev_path: Path | None, save: Path | 
         add("change", name, k0, c1, (my - m0) * KF, sig, title, sub)
     if save:
         save_stats(save, init, days, A, mem)
-    del A  # 1.6 GB the render workers need not inherit
+    del A  # 3 GB the render workers need not inherit
     t0 = time.time()
     render(jobs, canvas, procs)
     size = sum(j["out"].stat().st_size for j in jobs)
     log(f"  {len(jobs)} frames ({size / 1e6:.0f} MB) in {time.time() - t0:.0f} s")
     if not frames["change"]:
         log(f"::notice::no statistics of the previous run ({prev_init:%Y-%m-%d %H}Z): no change frames this run")
-    write_outputs(init, prev_init, mem.size, days, frames, summary, fetched, N.meta)
+    write_outputs(init, prev_init, mem.size, days, frames, summary, fetched, N.meta if N else None)
     return 0
 
 
@@ -392,7 +396,8 @@ def write_outputs(init, prev_init, n, days, frames, summary, fetched, normals_me
     doc = {
         "ver": f"{init:%Y%m%d%H}",
         "init": f"{init:%Y-%m-%dT%H}:00Z",
-        "default": REGIONS["anom"][0],
+        "normals": normals_meta is not None,  # natemp.yml redraws a run drawn without them once they exist
+        "default": REGIONS["anom" if frames["anom"] else "change"][0],
         "selectorLabel": "View",
         "regions": {},
     }
@@ -414,11 +419,11 @@ def write_outputs(init, prev_init, n, days, frames, summary, fetched, normals_me
                 "fdr_q": FDR_Q,
                 "previous_run": f"{prev_init:%Y-%m-%dT%H}:00Z",
                 "change_frames": bool(frames["change"]),
-                "shares_over": "land points of the map",
+                "shares_over": "the map's grid points",
                 "anom": summary["anom"],
                 "change": summary["change"],
                 "fetch": fetched,
-                "normals": normals_meta,
+                "normals": normals_meta or "not built yet (natemp-ref.yml): change frames only",
             },
             indent=1,
         )

@@ -17,7 +17,7 @@ one 12 x 7 design matrix serves every point). Normals.at reads the curve at any 
 day's four forecast times. The fit prints the month residuals and a few cities' curves.
 
     python scripts/natemp/natemp_ref.py fetch --out-dir ref      # Actions only: CDS, one request at a time
-    python scripts/natemp/natemp_ref.py fit --in-dir ref --out ref/natemp_normals.npz
+    python scripts/natemp/natemp_ref.py fit --in-dir ref --out ref/natemp_normals.npz   # exit 3: units missing
 """
 
 from __future__ import annotations
@@ -69,7 +69,6 @@ class Normals:
     def __init__(self, path: Path = OUT):
         with np.load(path) as z:
             self.coef = z["coef"].astype(np.float64)
-            self.land = z["land"]
             self.meta = json.loads(str(z["meta"]))
             if not (np.allclose(z["lat"], LAT) and np.allclose(z["lon"], LON)):
                 raise SystemExit(f"{path}: the normals are not on the box's grid")
@@ -233,9 +232,6 @@ def sea_interp(t25: np.ndarray, sea: np.ndarray) -> np.ndarray:
 
 
 def fit(in_dir: Path, out: Path) -> None:
-    missing = [name for name, _, _ in units() if not (in_dir / f"natemp_{name}.npz").exists()]
-    if missing:
-        raise SystemExit(f"units not fetched yet: {', '.join(missing)}")
     land_t, land_n = merged(in_dir, "land")
     era_t, era_n = merged(in_dir, "era5")
     full = 10 * len(DECADES) * len(HOURS)  # fields per month behind a complete normal
@@ -265,7 +261,7 @@ def fit(in_dir: Path, out: Path) -> None:
         "built": dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%MZ"),
     }
     out.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(out, coef=coef.astype(np.float32), land=land, lat=LAT, lon=LON, meta=json.dumps(meta))
+    np.savez_compressed(out, coef=coef.astype(np.float32), lat=LAT, lon=LON, meta=json.dumps(meta))
     print(f"  -> {out} ({out.stat().st_size / 1e6:.1f} MB)", flush=True)
     days = pd.date_range("2021-01-01 12:00", "2021-12-31 12:00")
     t = HC.times_of(days)
@@ -294,6 +290,10 @@ def main() -> int:
         missing = fetch(a.out_dir)
         print(f"  {missing} unit(s) not fetched", flush=True)
         return 1 if missing else 0
+    missing = [name for name, _, _ in units() if not (a.in_dir / f"natemp_{name}.npz").exists()]
+    if missing:
+        print(f"  units not fetched yet: {', '.join(missing)}", flush=True)
+        return 3
     fit(a.in_dir, a.out)
     return 0
 
