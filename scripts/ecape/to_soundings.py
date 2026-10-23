@@ -20,6 +20,12 @@ hypsometrically from z_s upward with the virtual temperature, plus a fitted per-
 A_k, B_k (and zc) are fitted on every hour separately (index.json "coef", one set per hour; v=1 files had one set) (the residual absorbs the rest; HRRR's
 coordinate follows dry pressure, so p is not exactly A + B p_s - rms 3 Pa near the ground, ~35 Pa mid-column).
 
+Pressure-level mode (scripts/models/samerica.py, the South America viewer: the IFS control's 13 levels and the
+GDPS's 20): the same tiles from columns of the surface plus fixed pressure levels (quantise_plev). A level's pressure
+is exactly A_k (B_k = 0, residual 0); a level less than 5 hPa above the ground gets the residual PLEV_BELOW instead,
+which puts its pressure beyond any surface pressure, so the page's rule that pressure falls with height drops it.
+Heights are rebuilt in the page as the HRRR's are, with zc = 0 (check_plev compares them with the columns' own).
+
 Tile file (.bin): b"SND1", uint16 nhours, uint16 0, nhours x uint32 byte lengths, then one zlib stream per hour.
 A stream = the hour's planes in order [surface 6 vars][level vars 5 x 42], each plane ty x tx, predicted
 (left neighbour; first column from the row above), taken modulo 2**16, byte-shuffled (all low bytes, then all high
@@ -169,6 +175,38 @@ def tiles(ny4, nx4):
             yield ty, tx, np.s_[:, j0 : j0 + TS, i0 : i0 + TS]
 
 
+def write_parts(codes, parts, fxx):
+    """One hour's codes -> parts/{ty}_{tx}_{fxx}.z, one zlib stream per tile. -> (bytes, tiles)"""
+    parts.mkdir(parents=True, exist_ok=True)
+    n = nt = 0
+    for ty, tx, sl in tiles(*codes.shape[1:]):
+        buf = pack_stream(codes[sl])
+        (parts / f"{ty}_{tx}_{fxx}.z").write_bytes(buf)
+        n += len(buf)
+        nt += 1
+    return n, nt
+
+
+def pack_tiles(out, hours, ny4, nx4):
+    """out/_parts -> out/{ty}_{tx}.bin, every hour of a tile behind its head; removes _parts. -> (bytes, tiles)"""
+    parts = out / "_parts"
+    total = nt = 0
+    for ty, tx, _ in tiles(ny4, nx4):
+        bufs = []
+        for h in hours:
+            p = parts / f"{ty}_{tx}_{h}.z"
+            if not p.exists():
+                raise SystemExit(f"missing part {p.name}")
+            bufs.append(p.read_bytes())
+        head = b"SND1" + struct.pack("<HH", len(bufs), 0) + struct.pack(f"<{len(bufs)}I", *map(len, bufs))
+        f = out / f"{ty}_{tx}.bin"
+        f.write_bytes(head + b"".join(bufs))
+        total += f.stat().st_size
+        nt += 1
+    shutil.rmtree(parts)
+    return total, nt
+
+
 def cmd_encode(a):
     stem, out = Path(a.stem), Path(a.out) / "snd"
     parts = out / "_parts"
@@ -180,12 +218,8 @@ def cmd_encode(a):
     coef["grid"] = meta["grid"]
     (parts / f"coef_{a.fxx}.json").write_text(json.dumps(coef))
     codes = quantise(meta, cube, sfc, coef)
-    n = 0
-    for ty, tx, sl in tiles(*codes.shape[1:]):
-        buf = pack_stream(codes[sl])
-        (parts / f"{ty}_{tx}_{a.fxx}.z").write_bytes(buf)
-        n += len(buf)
-    print(f"  soundings f{a.fxx:02d}: {n / 1e6:.1f} MB in {sum(1 for _ in tiles(*codes.shape[1:]))} tiles", flush=True)
+    n, nt = write_parts(codes, parts, a.fxx)
+    print(f"  soundings f{a.fxx:02d}: {n / 1e6:.1f} MB in {nt} tiles", flush=True)
 
 
 def cmd_pack(a):
@@ -200,19 +234,7 @@ def cmd_pack(a):
         coefs.append(json.loads(cf.read_text()))
     g = coefs[0]["grid"]
     ny4, nx4 = -(-g["ny"] // D), -(-g["nx"] // D)
-    total = nt = 0
-    for ty, tx, _ in tiles(ny4, nx4):
-        bufs = []
-        for h in hours:
-            p = parts / f"{ty}_{tx}_{h}.z"
-            if not p.exists():
-                raise SystemExit(f"missing part {p.name}")
-            bufs.append(p.read_bytes())
-        head = b"SND1" + struct.pack("<HH", len(bufs), 0) + struct.pack(f"<{len(bufs)}I", *map(len, bufs))
-        f = out / f"{ty}_{tx}.bin"
-        f.write_bytes(head + b"".join(bufs))
-        total += f.stat().st_size
-        nt += 1
+    total, nt = pack_tiles(out, hours, ny4, nx4)
     idx = dict(
         v=2,
         model="hrrr",
@@ -234,8 +256,100 @@ def cmd_pack(a):
         note="12 km columns of the 3 km HRRR (every 4th point); level 0 = surface (2 m T/Td, 10 m wind)",
     )
     (out / "index.json").write_text(json.dumps(idx, separators=(",", ":")))
-    shutil.rmtree(parts)
     print(f"soundings: {nt} tiles, {len(hours)} hours, {total / 1e6:.1f} MB", flush=True)
+
+
+# ── pressure-level mode (scripts/models/samerica.py) ──────────────────────────────────────────────────────────────────
+PLEV_BELOW = 32767  # level residual of a level at or below the ground: p_k + 163,835 Pa, beyond any surface pressure
+
+
+def quantise_plev(sfc, levs, plevs, d):
+    """(6 + 5 L, ny_d, nx_d) codes of every d-th column of a pressure-level column set. sfc: p (Pa), z (m), t, td (K),
+    u, v (m/s, earth-relative) at the surface (2 m, 10 m); levs: {hPa: dict t, q, u, v}; plevs in decreasing pressure."""
+    sl = np.s_[::d, ::d]
+    ps = np.asarray(sfc["p"][sl], np.float64)
+    vals = [ps] + [np.asarray(sfc[k][sl], np.float64) for k in ("z", "t", "td", "u", "v")]
+    planes = [np.round(x / k) for x, k in zip(vals, SFC_SCALE)]
+    for ph in plevs:
+        lv, p = levs[ph], ph * 100.0
+        up = p < ps - 500.0
+        x = [np.asarray(lv[k][sl], np.float64) for k in ("t", "q", "u", "v")]
+        codes = [np.round(v / sc) for v, sc in zip([x[0], dewpoint(x[1], p), x[2], x[3]], LEV_SCALE[1:])]
+        planes.append(np.where(up, 0.0, PLEV_BELOW))
+        planes += [np.where(up, c, 0.0) for c in codes]
+    return np.stack(planes).astype(np.int64)
+
+
+def plev_index(model, d, shape, plevs, hours, total, nt, note):
+    """The index of a pressure-level tile set (the manifest's "snd" entry): index.json's layout, zc all 0."""
+    nl = len(plevs)
+    return dict(
+        v=2,
+        model=model,
+        D=d,
+        ts=TS,
+        nx=shape[1],
+        ny=shape[0],
+        nlev=nl + 1,
+        hours=list(hours),
+        sfc_scale=SFC_SCALE,
+        lev_scale=LEV_SCALE,
+        A=[p * 100.0 for p in plevs],
+        B=[0.0] * nl,
+        zc=[0.0] * nl,
+        bytes=total,
+        tiles=nt,
+        note=note,
+    )
+
+
+def check_plev(codes, levs, plevs, d, z_ref):
+    """Decode one hour's codes through the streams and rebuild the page's profiles (sndProfile, in numpy); compare with
+    the source columns. z_ref: (L, ny, nx) the columns' level heights (m, NaN at or below the ground). -> report"""
+    ny_d, nx_d = codes.shape[1:]
+    dec = np.empty_like(codes)
+    for _ty, _tx, sl in tiles(ny_d, nx_d):
+        sub = codes[sl]
+        dec[sl] = unpack_stream(pack_stream(sub), *sub.shape)
+    s, nl = np.s_[::d, ::d], len(plevs)
+    ps = dec[0] * SFC_SCALE[0]
+    lev = dec[6:].reshape(nl, 5, ny_d, nx_d).astype(np.float64)
+    pk = np.asarray(plevs, np.float64)[:, None, None] * 100.0 + lev[:, 0] * LEV_SCALE[0]
+    kept = pk < ps  # every level is above the surface, so "pressure falls" reduces to this
+    t = np.where(kept, lev[:, 1] * LEV_SCALE[1], np.nan)
+    td = np.minimum(np.where(kept, lev[:, 2] * LEV_SCALE[2], np.nan), t)
+    u = np.where(kept, lev[:, 3] * LEV_SCALE[3], np.nan)
+
+    def tv(T, Td, P):
+        e = 611.2 * np.exp(17.67 * (Td - 273.15) / (Td - 29.65))
+        return T * (1 + 0.608 * 0.622 * e / (P - 0.378 * e))
+
+    z = np.full(t.shape, np.nan)
+    pp, zz = ps, dec[1] * SFC_SCALE[1]
+    tp = tv(dec[2] * SFC_SCALE[2], dec[3] * SFC_SCALE[3], ps)  # the page clamps Td <= T after the heights
+    for k in range(nl):  # a dropped level leaves the chain where it was, as the page's loop does
+        ok = kept[k]
+        tk = tv(lev[k, 1] * LEV_SCALE[1], lev[k, 2] * LEV_SCALE[2], np.where(ok, pk[k], pp))
+        zk = np.maximum(zz + 287.04 * 0.5 * (tp + tk) / 9.80665 * np.log(pp / np.where(ok, pk[k], pp)), zz + 0.5)
+        z[k] = np.where(ok, zk, np.nan)
+        pp, tp, zz = np.where(ok, pk[k], pp), np.where(ok, tk, tp), np.where(ok, zk, zz)
+    src = [np.asarray(levs[ph][k][s], np.float64) for ph in plevs for k in ("t", "q", "u")]
+    t0, q0, u0 = (np.stack(src[i::3]) for i in range(3))
+    td0 = np.minimum(dewpoint(q0, np.asarray(plevs, np.float64)[:, None, None] * 100.0), t0)
+    zr = np.asarray(z_ref, np.float64)[(slice(None), *s)]
+
+    def worst(a, b):
+        m = np.isfinite(a) & np.isfinite(b)
+        return round(float(np.abs(a[m] - b[m]).max()), 3) if m.any() else None
+
+    return dict(
+        lossless=bool(np.array_equal(dec, codes)),
+        levels_as_source=bool(np.array_equal(kept, np.isfinite(zr))),
+        t_err_k=worst(t, t0),
+        td_err_k=worst(td, td0),
+        u_err_ms=worst(u, u0),
+        z_err_m=worst(z, zr),
+    )
 
 
 def heights(ps, zs, t, td, p):

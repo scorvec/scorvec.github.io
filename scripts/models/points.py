@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Point time series for models.html meteograms, and the projection math that finds a point on a model grid.
+"""Point time series for the meteograms of models.html and samerica-models.html, and the projection math that finds a
+point on a model grid.
 
 Clicking an airport shows every model's series for every forecast hour of the current run.
 
@@ -8,13 +9,15 @@ ONE compact JSON per model run next to the run's WebP frames:
 
     assets/models/data/<model>/<cycle>/points.json          (models.yml: surface fields)
     assets/models/data/hrrr/<cycle>/points_ecape.json       (ecape.yml: ECAPE / CAPE, from its own WebP output)
+    assets/models/data/sa/<model>/<cycle>/points.json       (models-sa.yml: scripts/models/samerica.py, every field)
 
 Why one file per run and not per-station shards: the page needs it only when someone clicks a marker, and then wants
 the next click to be instant; ~700 shards per run would be ~2,000 tiny files per cycle on the frames branch (tree churn
 on every push, and gzip cannot compress a 600-byte file), while the whole run gzips to a few hundred KB.
 
 Locating a point: the grid description the page already uses (manifest "grids") is inverted analytically -
-spherical Lambert conformal for HRRR/RRFS, rotated lat-lon for RDPS/RAQDPS - to a FRACTIONAL grid index (fi, fj),
+spherical Lambert conformal for HRRR/RRFS, rotated lat-lon for RDPS/RAQDPS, a plain latitude-longitude window for the
+IFS control and the GDPS over South America - to a FRACTIONAL grid index (fi, fj),
 fj counted from the SOUTHERN row (the decoded arrays' row 0; the WebP files are flipped, row 0 north). Checked against
 eccodes' own latitude/longitude arrays (`python scripts/models/points.py check`).
 
@@ -58,6 +61,7 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 SITE = HERE.parent.parent
 AIRPORTS = SITE / "data" / "models_airports.json"
+AIRPORTS_SA = SITE / "data" / "models_airports_sa.json"  # samerica.py's (build_airports.py --region sa)
 CITIES = SITE / "data" / "models_cities.json"
 D2R = math.pi / 180.0
 # the HRRR's (and RRFS's) 3 km CONUS grid as models.py's grid_desc reads it - the ECAPE job uses it when it has no manifest
@@ -120,8 +124,14 @@ def rotll_ij(g, lat, lon):
     return fi, fj
 
 
+def ll_ij(g, lat, lon):
+    """A regular latitude-longitude window (samerica.py's "ll": lo1/la1 = the west column and the south row)."""
+    fi = (((np.asarray(lon, float) - g["lo1"]) + 180) % 360 - 180) / g["di"]
+    return fi, (np.asarray(lat, float) - g["la1"]) / g["dj"]
+
+
 def grid_ij(g, lat, lon):
-    return (lcc_ij if g["type"] == "lcc" else rotll_ij)(g, lat, lon)
+    return {"lcc": lcc_ij, "rotll": rotll_ij, "ll": ll_ij}[g["type"]](g, lat, lon)
 
 
 # ── samplers ────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -161,10 +171,10 @@ class Sampler:
 
 
 # ── the point list ──────────────────────────────────────────────────────────────────────────────────────────────────
-def load_points():
+def load_points(paths=(AIRPORTS, CITIES)):
     """-> (ids, lat, lon): every airport on the map, then the extra cities that are not airports."""
     ids, la, lo = [], [], []
-    for path in (AIRPORTS, CITIES):
+    for path in paths:
         if not path.exists():
             continue
         d = json.loads(path.read_text())
@@ -206,6 +216,24 @@ SPEC = {
     "ecape_ml": ("J/kg", 1, "nearest", False),
     "mucape": ("J/kg", 1, "nearest", False),
     "mlcape": ("J/kg", 1, "nearest", False),
+    # samerica.py (metric units; the others as above)
+    "t2c": ("C", 0.1, "bilinear", True),
+    "td2c": ("C", 0.1, "bilinear", True),
+    "ws100": ("m/s", 0.1, "bilinear (u, v)", True),
+    "wd100": ("deg from", 5, "bilinear (u, v)", False),
+    "ws925": ("m/s", 0.1, "bilinear (u, v)", True),  # null where 925 hPa is below the ground
+    "wd925": ("deg from", 5, "bilinear (u, v)", False),
+    "ws850": ("m/s", 0.1, "bilinear (u, v)", True),
+    "wd850": ("deg from", 5, "bilinear (u, v)", False),
+    "apcp_mm": ("mm", 0.1, "bilinear", True),
+    "asnow_cm": ("cm", 0.1, "bilinear", True),  # 10:1 from the snow water equivalent
+    "pwat": ("mm", 0.1, "bilinear", True),
+    "the850": ("K", 0.1, "bilinear", True),
+    "tb": ("K", 0.5, "bilinear", False),  # simulated IR brightness temperature
+    "capem": ("J/kg", 1, "nearest", False),  # the IFS's own most-unstable CAPE
+    "shr6": ("m/s", 0.1, "nearest", False),  # 0-6 km bulk shear, magnitude
+    "srh1": ("m2/s2", 1, "nearest", False),  # cyclonic-positive (samerica.py)
+    "srh3": ("m2/s2", 1, "nearest", False),
 }
 ORDER = list(SPEC)
 

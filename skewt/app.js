@@ -1346,7 +1346,7 @@ let current = null;              // selected: {gid, id, n, e}  (model soundings:
 // ?embed=model: the card alone, fed forecast soundings by models.html — see "model soundings" at the end
 const EMBED = new URLSearchParams(location.search).get("embed") === "model";
 const MS = { items: [], idx: 0, title: "", coords: "", model: "", pt: {}, kind: "model", stripLabel: "",   // kind "drop": recon.html dropsondes
-             sid: undefined, asked: {}, wait: -1, shown: 0 };      // hours the host has yet to send: see "model soundings"
+             sid: undefined, asked: {}, wait: -1, shown: 0, chips: null };   // hours the host has yet to send: see "model soundings"
 let plotTitle = "", plotCoords = "";
 let pinned = null;                 // { prof, title } — overlay for comparison              // drawn on the skew-t canvas itself
 let plotNote = "";               // secondary blurb (e.g. wind-only)
@@ -4557,9 +4557,10 @@ function plotLabels(prof, res) {
   drawRecents();
 })();
 
-// ---------- model soundings (click anywhere on models.html for a forecast sounding) ----------
-// models.html opens this page as <iframe src="/skewt/?embed=model"> in a dock, decodes the HRRR column itself
-// (scripts/ecape/to_soundings.py tiles) and posts every forecast hour of it here:
+// ---------- model soundings (click anywhere on models.html or samerica-models.html for a forecast sounding) ----------
+// The host page opens this page as <iframe src="/skewt/?embed=model"> in a dock, decodes the model column itself
+// (scripts/ecape/to_soundings.py tiles: the HRRR's, or the IFS control's and the GDPS's) and posts every forecast hour
+// of it here:
 //   in : {type: "mv-sounding", model, title, coords, items: [{label, fxx, valid: "YYYY-MM-DD HH:MM", prof: {P,H,T,D,U,V}}], idx, sid}
 //        {type: "mv-sel", idx}                       the map's hour changed
 //        {type: "mv-prof", sid, items: [{fxx, prof}], failed: [fxx]}   profiles of hours that were pending (or could not be read)
@@ -4574,14 +4575,17 @@ function plotLabels(prof, res) {
 // (there is no station), and the MSE trend compares with the same run 12 h earlier.
 // The model's own point values for the shown hour (models.html samples its HRRR map frames and posts
 // {type: "mv-point", fxx, ceil: ft | null (no ceiling) | undefined (not in the run), ptype: {code, name, dbz} | undefined}).
-// Ceiling colours = the map's flight categories; type colours = the map's radar ramps.
+// Ceiling colours = the map's flight categories; type colours = the map's radar ramps. mv-sounding may describe the
+// host's model for these boxes: chips {grid: "3 km grid", ceiling: false (the model has none: no box), none: what
+// "none" means for the type} (samerica-models.html); without it, the HRRR's.
 const MODEL_PT = { "-1": ["none", "#8b8ba3"], 0: ["type not given", "#a6e3a0"], 1: ["rain", "#4cc24f"], 2: ["snow", "#8cc3f0"],
                    3: ["freezing rain", "#f09fc6"], 4: ["sleet", "#f8bb72"], 5: ["rain/snow mix", "#c09ae8"] };
 function modelPointChips() {
   const ks = document.getElementById("keystrip");
   if (!ks || !current || !current.model || MS.kind === "drop") return;
   ks.querySelectorAll(".kchip.mpt").forEach(el => el.remove());
-  const it = MS.items[MS.idx], v = it && MS.pt[it.fxx];
+  const it = MS.items[MS.idx], v = it && MS.pt[it.fxx], ch = MS.chips || {};
+  const grid = escH(ch.grid || "3 km grid"), none = escH(ch.none || "no echo above 5 dBZ at 1 km"), who = escH(MS.model);
   const box = (label, val, unit, col, title) =>
     `<div class="kchip mpt" title="${title}" style="${col ? `border-color:${col}88;` : ""}"><span class="kl">${label}</span>` +
     `<span class="kv"${col ? ` style="color:${col}"` : ""}>${val}${unit ? `<small>${unit}</small>` : ""}</span></div>`;
@@ -4600,10 +4604,10 @@ function modelPointChips() {
     else { const m = MODEL_PT[v.ptype.code] || MODEL_PT[0]; pt = v.ptype.code === 0 ? "precip" : m[0]; ptC = m[1]; }
   }
   ks.insertAdjacentHTML("beforeend",
-    box("Ceiling (HRRR)", ce, ceU, ceC, "the HRRR's cloud ceiling where you clicked (3 km grid), this hour: lowest broken-or-overcast layer, " +
-        "feet above ground; colours = flight categories (LIFR, IFR, MVFR, VFR)") +
-    box("Sfc precip type", pt, "", ptC, "the HRRR's surface precipitation type where you clicked (3 km grid), this hour (none = no echo " +
-        "above 5 dBZ at 1 km); colours as on the radar + type map"));
+    (ch.ceiling === false ? "" : box(`Ceiling (${who})`, ce, ceU, ceC, `the ${who}'s cloud ceiling where you clicked (${grid}), this hour: ` +
+        "lowest broken-or-overcast layer, feet above ground; colours = flight categories (LIFR, IFR, MVFR, VFR)")) +
+    box("Sfc precip type", pt, "", ptC, `the ${who}'s surface precipitation type where you clicked (${grid}), this hour (none = ${none}); ` +
+        "colours as on the map's precipitation type"));
 }
 function copyProf(p) { const o = {}; for (const k of ["P", "H", "T", "D", "U", "V"]) o[k] = Array.from(p[k]); return o; }
 // the item ~12 h before valid time t0 (6-18 h back, nearest 12): the moist-static-energy trend's comparison, or null
@@ -4679,6 +4683,7 @@ if (EMBED) {
     const d = e.data || {};
     if (d.type === "mv-sounding") {
       MS.items = d.items || []; MS.title = d.title || ""; MS.coords = d.coords || ""; MS.model = d.model || ""; MS.pt = {};
+      MS.chips = d.chips || null;
       MS.sid = d.sid; MS.asked = {}; MS.wait = -1;
       MS.idx = Math.max(0, Math.min(MS.items.length - 1, d.idx || 0));
       MS.kind = d.kind === "drop" ? "drop" : "model"; MS.stripLabel = d.stripLabel || "";
