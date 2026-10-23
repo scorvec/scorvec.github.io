@@ -1,1 +1,1 @@
-{"sla_through":"2026-10-21","waves":[{"sign":1,"lon":257.125,"amp_cm":2.6,"speed":2.25,"track_days":26,"eta_270":"2026-10-28"},{"sign":-1,"lon":179.125,"amp_cm":-1.6,"speed":2.58,"track_days":12,"eta_240":"2026-11-20","eta_270":"2026-12-05"}],"wind_sources":["\u2193 AIFS-ENS 0-h analyses"]}
+{"sla_through":"2026-10-21","waves":[{"sign":1,"lon":257.125,"amp_cm":2.6,"speed":2.27,"track_days":26,"eta_270":"2026-10-28"},{"sign":-1,"lon":179.125,"amp_cm":-1.6,"speed":2.6,"track_days":13,"eta_240":"2026-11-20","eta_270":"2026-12-05"}],"wind_sources":[]}
