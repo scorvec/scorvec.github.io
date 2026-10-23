@@ -1,0 +1,49 @@
+name: Ecuador hydropower map (plants, dams, catchments)
+# scripts/maps/ecuador_hydro.py: HydroBASINS level 12 and HydroRIVERS for South America (HydroSHEDS, CC BY 4.0; ~0.4 GB
+# downloaded here, nothing kept) and one OpenStreetMap Overpass query for Ecuador's hydro plants and dams; the catchment
+# of each major scheme is traced upstream from its dam or intake. The map and the catchments (GeoJSON) are the run's
+# artifact. Dispatch only.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/maps
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet geopandas pyogrio shapely pyproj matplotlib "cartopy==0.25.0"
+      - name: HydroSHEDS (HydroBASINS level 12, HydroRIVERS, South America)
+        run: |
+          set -euo pipefail
+          mkdir -p data && cd data
+          curl -sSfL --retry 3 -o basins.zip https://data.hydrosheds.org/file/hydrobasins/standard/hybas_sa_lev12_v1c.zip
+          curl -sSfL --retry 3 -o rivers.zip https://data.hydrosheds.org/file/HydroRIVERS/HydroRIVERS_v10_sa_shp.zip
+          unzip -q basins.zip && unzip -q rivers.zip && ls -la
+      - name: OpenStreetMap hydro plants and dams (one Overpass query)
+        run: |
+          set -euo pipefail
+          curl -sSf --retry 3 --max-time 180 -A "scorvec.com Ecuador hydropower map" https://overpass-api.de/api/interpreter \
+            --data-urlencode 'data=[out:json][timeout:120];area["ISO3166-1"="EC"][admin_level=2]->.ec;(nwr["power"="plant"]["plant:source"="hydro"](area.ec);nwr["waterway"="dam"]["name"](area.ec););out center tags;' \
+            -o data/osm.json
+      - name: Map
+        run: |
+          set -euo pipefail
+          B=$(find data -name 'hybas_sa_lev12_v1c.shp' | head -1); R=$(find data -name 'HydroRIVERS_v10_sa.shp' | head -1)
+          mkdir -p out
+          python scripts/maps/ecuador_hydro.py --basins "$B" --rivers "$R" --osm data/osm.json --out out/ecuador_hydro.png \
+            --geojson out/ecuador_hydro_catchments.geojson
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ecuador-hydro-map
+          path: out/
+          retention-days: 90
