@@ -1,9 +1,9 @@
 {
- "built": "2026-10-23 00:37Z",
- "newest_init": "2026-10-22 12Z",
+ "built": "2026-10-23 05:26Z",
+ "newest_init": "2026-10-23 00Z",
  "window": [
-  "2026-10-23",
-  "2026-11-06"
+  "2026-10-24",
+  "2026-11-07"
  ],
  "ssw_season": true,
  "names": {
@@ -121,18 +121,18 @@
     "z_sib_max": 3.3
    },
    "geps": {
-    "init": "2026-10-22 12Z",
+    "init": "2026-10-23 00Z",
     "members": 21,
-    "wave2_share": 0.6,
-    "z_peak": 3.2,
-    "z_peak_day": 7,
-    "flux_min": 11.7,
+    "wave2_share": 0.61,
+    "z_peak": 3.4,
+    "z_peak_day": 6,
+    "flux_min": 11.4,
     "warning_now": 8.2,
     "warning_threshold": 27.5,
     "warning_members": 0.0,
-    "ri_event_share": 0.33,
-    "z_can_min": -1.1,
-    "z_sib_max": 4.6
+    "ri_event_share": 0.19,
+    "z_can_min": -0.9,
+    "z_sib_max": 4.2
    }
   },
   "wave2_share_mean": 0.65,
@@ -181,13 +181,13 @@
     "kind": "bottom-up"
    },
    "geps": {
-    "init": "2026-10-22 12Z",
+    "init": "2026-10-23 00Z",
     "members": 21,
-    "cap100_day15": 0.9,
-    "cap10_day15": 2.8,
-    "frac100_day15": 0.43,
-    "cross100": "2026-10-27",
-    "cross10": "2026-10-28",
+    "cap100_day15": 1.1,
+    "cap10_day15": 3.0,
+    "frac100_day15": 0.57,
+    "cross100": "2026-10-28",
+    "cross10": "2026-10-29",
     "kind": "bottom-up"
    }
   },
@@ -203,8 +203,7 @@
   "canada_downward": [
    "aifs",
    "ifs",
-   "gefs",
-   "geps"
+   "gefs"
   ],
   "active": [
    "aifs",
@@ -212,7 +211,7 @@
    "gefs",
    "geps"
   ],
-  "ri_event_share_mean": 0.45
+  "ri_event_share_mean": 0.42
  },
  "surface": {
   "models": {
@@ -250,15 +249,15 @@
     "frac100_day15": 0.26
    },
    "geps": {
-    "init": "2026-10-22 12Z",
-    "p_positive": 0.6,
+    "init": "2026-10-23 00Z",
+    "p_positive": 0.66,
     "base_rate": 0.5,
     "window": [
-     "2026-11-07",
-     "2026-12-06"
+     "2026-11-08",
+     "2026-12-07"
     ],
-    "cap100_day15": 0.9,
-    "frac100_day15": 0.43
+    "cap100_day15": 1.1,
+    "frac100_day15": 0.57
    }
   },
   "skill": {
@@ -310,8 +309,8 @@
     "random_p": 0.0005
    }
   },
-  "p_positive_mean": 0.6,
-  "cap100_day15_mean": 0.8,
+  "p_positive_mean": 0.62,
+  "cap100_day15_mean": 0.9,
   "regime": "all_days"
  },
  "reference": {
