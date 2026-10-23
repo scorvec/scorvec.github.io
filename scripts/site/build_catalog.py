@@ -151,6 +151,7 @@ PAGES = {
             ),
             "Jets & angular momentum": dict(topic="drivers", region=["Global"]),
         },
+        items={"natemp": dict(models=["IFS-ENS", "ERA5"])},
     ),
     # "/snowbands.html" retired: its diagnostics are the "Winter: snow bands" maps of /models.html
     "/subseasonal.html": dict(
@@ -659,6 +660,7 @@ def stage_items(href: str, cfg: dict) -> list:
                     if thumb is None and fr:
                         src = frame_source(H.unescape(fr.group(1)), path.parent)
                         thumb = thumb_key(*src) if src else None
+            icfg = cfg.get("items", {}).get(pid, {})  # an item whose models are its own, not the page's or group's
             opts_text = " ".join(v[0] for v in variants)
             shows = " ".join([p["label"], g["label"], p.get("sub", ""), p.get("cap", ""), opts_text])
             blob = shows + " " + (about or elem)[:1500]
@@ -673,7 +675,8 @@ def stage_items(href: str, cfg: dict) -> list:
                     url=f"{href}#{pid}",
                     topic=gcfg.get("topic", cfg["topic"]),
                     horizon=gcfg.get("horizon", cfg["horizon"]),
-                    models=tags(MODEL_RX, shows, gcfg.get("models", cfg["models"]), cfg.get("own_models", False)),
+                    models=icfg.get("models")
+                    or tags(MODEL_RX, shows, gcfg.get("models", cfg["models"]), cfg.get("own_models", False)),
                     regions=regions_of(shows, gcfg.get("region", cfg["region"])),
                     variables=tags(VAR_RX, blob),
                     thumb=thumb,

@@ -170,7 +170,7 @@ def text(fig, x_px: float, y_px: float, s: str, size: float, room_px: float, **k
     t = fig.text(x_px / FIG_W, y_px / FIG_H, s, fontsize=size, **kw)
     w = t.get_window_extent(fig.canvas.get_renderer()).width
     if w > room_px:
-        t.set_fontsize(size * room_px / w)
+        t.set_fontsize(0.97 * size * room_px / w)  # a margin: the rescaled glyphs do not shrink exactly in proportion
     return min(w, room_px)
 
 
