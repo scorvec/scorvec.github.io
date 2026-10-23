@@ -1833,6 +1833,18 @@
   // shader mode of the field drawn: 0 one code, 1 wind speed (u, v), 2 radar + type, 3 MSLP (bilinear, terrain fade),
   // 4 bilinear one code (coarse upper-air grids), 5 bilinear wind speed
   function modeOf(f, ch) { var fd = FIELDS[f]; if (f === "refl") return 2; if (f === "mslp") return 3; if (fd && fd.bil) return ch >= 2 && fd.enc === "lin2" ? 5 : 4; return ch >= 2 ? 1 : 0; }
+  // the storage step of a decode table at value v: the spacing of its codes there, or at the nearest end of the table
+  // (a regular level series starts below it); 0 without a table
+  function lutStep(lut, v) {
+    if (!lut) return 0;
+    var best = 0, dist = Infinity;
+    for (var c = 1; c < 255; c++) {
+      var a = lut[c - 1], b = lut[c]; if (!isFinite(a) || !isFinite(b) || a === b) continue;
+      var d = (a - v) * (b - v) <= 0 ? 0 : Math.min(Math.abs(a - v), Math.abs(b - v));
+      if (d < dist) { dist = d; best = Math.abs(b - a); if (!d) break; }
+    }
+    return best;
+  }
   function setLayer(X, L) {
     var u = cLoc[X];
     if (!L) { gl.uniform1i(u.uCm, 0); return; }
@@ -1843,9 +1855,10 @@
     else { gl.uniform4f(u.uCR1, g.splat, g.splon, g.lo1, g.la1); gl.uniform4f(u.uCR2, g.di, g.dj, g.i0 || 0, g.j0 || 0); }
     gl.uniform2i(u.uCN, g.nx, g.ny); gl.uniform2f(u.uCD, info.D, info.ctr); gl.uniform2i(u.uCM, info.W2, info.H2);
     var reg = gp.reg && (!gp.zoomOut || view.s < gp.zoomOut[0]) ? gp.reg : gp.zoomOut ? gp.zoomOut[1] : null;
-    // every level is drawn a hair BELOW its value (as the worker's ">= level" test): a plateau of exactly the level value
-    // (0.5 hPa steps, smoothed) then counts as above it and the line runs along its lower edge, not round every cell of it
-    var EPS = function (v, step) { return v - 1e-3 * (step || Math.max(Math.abs(v), 1) * 0.01); };
+    // every level is drawn BELOW its value (as the worker's ">= level" test), by a quarter of the field's storage step
+    // there: the smoothed copy of a stepped field (0.5 hPa steps) is flat at the stored values over whole patches, and a
+    // level only a hair under one drew a second, cell-stepped line along the patch's inner edge (a hair without a table)
+    var EPS = function (v, step) { var q = lutStep(sp.lut, v); return v - (q > 0 ? q / 4 : 1e-3 * (step || Math.max(Math.abs(v), 1) * 0.01)); };
     if (reg) { gl.uniform1i(u.uCm, 1); gl.uniform4f(u.uCrg, EPS(reg[0], reg[1]), reg[1], EPS(reg[2], reg[1]), EPS(reg[3], reg[1])); gl.uniform2f(u.uCmj, reg[4] || 0, (reg[5] || 0) / 2 * DPR); }
     else { var lv = new Float32Array(8); gp.list.forEach(function (v, i) { lv[i] = EPS(v); }); gl.uniform1i(u.uCm, 2); gl.uniform1fv(u.uClv, lv); gl.uniform1i(u.uCnl, gp.list.length); }
     var c = rgba01(gp.col), h = rgba01(gp.halo || "rgba(255,255,255,0.55)");
