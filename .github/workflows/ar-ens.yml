@@ -2,8 +2,9 @@ name: AR ensemble probabilities (AIFS-ENS, IFS-ENS, GEFS, GEPS, days 1-15)
 
 # ar.html, second section: P(IVT >= 250 / 500) 6-hourly to +360 h per system and equally weighted across systems, the
 # coastal landfall charts, member plumes and AR-scale odds. IVT per member is the proxy k * W * |V850| with k refitted
-# every cycle on each system's own exact IVT for one member (scripts/ar/ar_ens.py). One job per system, each on its
-# newest complete 00/12Z cycle (ECMWF from the Google Cloud mirror ONLY; GEFS from AWS S3; GEPS from the MSC Datamart),
+# every cycle on each system's own exact IVT for one member (scripts/ar/ar_ens.py). A plan job picks each system's
+# newest complete 00/12Z cycle (ECMWF from the Google Cloud mirror ONLY; GEFS from AWS S3; GEPS from the MSC Datamart)
+# and stops the run when the page already shows all four (a backstop cron hours late); otherwise one job per system,
 # then a combine job renders, publishes the frames and commits. Also the precipitable-water loops (AIFS-ENS, IFS-ENS).
 # Fired by the dispatcher at 09:05/21:05 (the IFS-ENS cycle lands on the mirror ~08:50/20:55).
 on:
@@ -11,6 +12,10 @@ on:
     - cron: '5 9 * * *'
     - cron: '5 21 * * *'
   workflow_dispatch:
+    inputs:
+      force:
+        description: 'Re-render even when the page already shows every system''s newest cycle'
+        default: 'false'
 
 permissions:
   contents: write
@@ -32,7 +37,36 @@ env:
   PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
 
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      AR_WAIT_MIN: '30'
+    outputs:
+      fresh: ${{ steps.plan.outputs.fresh }}
+      aifs: ${{ steps.plan.outputs.aifs }}
+      ifs: ${{ steps.plan.outputs.ifs }}
+      gefs: ${{ steps.plan.outputs.gefs }}
+      geps: ${{ steps.plan.outputs.geps }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy pandas requests
+      # main's ar_ens.json as it is now, not the checkout's (a queued run checks out an older commit)
+      - name: Each system's cycle, and is any newer than the page's?
+        id: plan
+        run: |
+          set -euo pipefail
+          timeout 60 git fetch -q --depth 1 origin main && git show FETCH_HEAD:assets/ar/ar_ens.json > /tmp/ar_ens.json \
+            || echo '{}' > /tmp/ar_ens.json
+          python scripts/ar/ar_ens.py plan --published /tmp/ar_ens.json ${{ inputs.force == 'true' && '--force' || '' }} \
+            | tee -a "$GITHUB_OUTPUT"
+
   system:
+    needs: plan
+    if: needs.plan.outputs.fresh == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     strategy:
@@ -42,7 +76,6 @@ jobs:
     env:
       MPLBACKEND: Agg
       SST_SITE_ROOT: ${{ github.workspace }}
-      AR_WAIT_MIN: '30'
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -61,7 +94,9 @@ jobs:
       - name: Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
       - name: Members of ${{ matrix.sys }}
-        run: python scripts/ar/ar_ens.py system --sys ${{ matrix.sys }} --work out
+        env:
+          CYC: ${{ needs.plan.outputs[matrix.sys] }}
+        run: python scripts/ar/ar_ens.py system --sys ${{ matrix.sys }} ${CYC:+--date ${CYC:0:8} --time ${CYC:8:2}} --work out
       - uses: actions/upload-artifact@v7
         with:
           name: ens-${{ matrix.sys }}
@@ -69,8 +104,8 @@ jobs:
           retention-days: 2
 
   publish:
-    needs: system
-    if: ${{ !cancelled() }}
+    needs: [plan, system]
+    if: ${{ !cancelled() && needs.plan.outputs.fresh == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:

@@ -110,6 +110,7 @@ jobs:
       date: ${{ steps.cyc.outputs.date }}
       time: ${{ steps.cyc.outputs.time }}
       ready: ${{ steps.cyc.outputs.ready }}
+      fresh: ${{ steps.pub.outputs.fresh }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -136,6 +137,31 @@ jobs:
           if [ -z "$ONLY" ] && grep -q '^ready=false' "$GITHUB_OUTPUT"; then
             echo "::warning::IFS-ENS is not on the Google mirror for this cycle; nh_vortex renders without it and the IFS-ENS products keep their previous version"
           fi
+      # A backstop cron fires hours late and resolves the cycle a dispatcher slot already rendered: when the IFS control
+      # products show it, and the IFS-ENS ones too (or IFS-ENS is still not on the mirror), there is nothing new to fetch
+      # (~8 GB). Main's manifests as they are now, not the checkout's (a queued run checks out an older commit).
+      - name: Already published?
+        id: pub
+        env:
+          ONLY: ${{ inputs.only }}
+          FORCE: ${{ inputs.force }}
+          D: ${{ steps.cyc.outputs.date }}
+          T: ${{ steps.cyc.outputs.time }}
+          READY: ${{ steps.cyc.outputs.ready }}
+        run: |
+          set -euo pipefail
+          fresh=true
+          if [ -z "$ONLY" ] && [ "$FORCE" != "true" ] && timeout 60 git fetch -q --depth 1 origin main; then
+            ver() {
+              git show "FETCH_HEAD:assets/sst/anim/wave1_maps_$1_manifest.json" 2>/dev/null \
+                | python -c "import json, sys; print(json.load(sys.stdin).get('ver', ''))" 2>/dev/null || true
+            }
+            if [ "$(ver hres)" = "$D$T" ] && { [ "$READY" != "true" ] || [ "$(ver ifs)" = "$D$T" ]; }; then
+              fresh=false
+              echo "cycle $D ${T}Z: the IFS control and IFS-ENS products already show it - nothing to fetch"
+            fi
+          fi
+          echo "fresh=$fresh" >> "$GITHUB_OUTPUT"
 
   # ----------------------------------------------------------------- maps ---
   # One shared fetch (~8 GB), then every product that reads it. ~35 min: fetch ~5, vortex winds ~15, the rest ~10.
@@ -144,7 +170,7 @@ jobs:
   # the rest still render and publish, and "What was produced" still turns the run red for whatever is missing.
   maps:
     needs: cycle
-    if: ${{ !inputs.only }}
+    if: ${{ !inputs.only && needs.cycle.outputs.fresh == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -497,7 +523,7 @@ jobs:
   # the per-member zonal-mean u in memory; the 250 hPa jet sector is left in /tmp/pacjet_ifs.
   zmu:
     needs: cycle
-    if: needs.cycle.outputs.ready == 'true' && !inputs.only
+    if: needs.cycle.outputs.ready == 'true' && !inputs.only && needs.cycle.outputs.fresh == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -591,7 +617,10 @@ jobs:
   # already shows is not fetched again. ~10 min.
   imprint:
     needs: [cycle, maps, naens]
-    if: ${{ always() && needs.cycle.result == 'success' }}
+    # nothing to do when no model has a new cycle (a late backstop after the dispatcher slot and the GEPS fast lane)
+    if: >-
+      ${{ always() && needs.cycle.result == 'success' && (needs.cycle.outputs.fresh == 'true'
+      || needs.naens.outputs.gefs_skip != 'true' || needs.naens.outputs.geps_skip != 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
@@ -599,6 +628,7 @@ jobs:
       D: ${{ needs.cycle.outputs.date }}
       T: ${{ needs.cycle.outputs.time }}
       READY: ${{ needs.cycle.outputs.ready }}
+      FRESH: ${{ needs.cycle.outputs.fresh }}
       ONLY: ${{ inputs.only }}
       MODELS: ${{ inputs.only || 'gefs geps' }}
       GEFS_D: ${{ needs.naens.outputs.gefs_date }}
@@ -656,7 +686,7 @@ jobs:
         timeout-minutes: 30
         continue-on-error: true
         run: |
-          if [ -z "$ONLY" ]; then
+          if [ -z "$ONLY" ] && [ "$FRESH" = "true" ]; then
             m=aifs,hres; [ "$READY" = "true" ] && m=aifs,ifs,hres
             python scripts/strat/ssw_imprint.py run --models "$m" --date "$D" --time "$T" --no-render \
               || echo "::warning::the ECMWF imprint indices failed; keeping their previous runs"
@@ -700,7 +730,9 @@ jobs:
   # -------------------------------------------------------------- publish ---
   publish:
     needs: [cycle, maps, naens, zmu, imprint]
-    if: ${{ always() && (github.event_name == 'schedule' || github.event.inputs.publish == 'true') }}
+    if: >-
+      ${{ always() && needs.imprint.result != 'skipped'
+      && (github.event_name == 'schedule' || github.event.inputs.publish == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

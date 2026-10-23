@@ -16,6 +16,7 @@ along V850), with k fitted EVERY CYCLE through the origin against that system's 
 Steps: 6-hourly from the analysis to +360 h for all four (every system publishes 6-hourly or finer to 360 h; the
 finer early steps are not used, so every system and the combination share one time axis).
 
+    python ar_ens.py plan --published ar_ens.json [--force]                          -> each system's cycle, fresh=
     python ar_ens.py system --sys gefs --work /tmp/are [--date YYYYMMDD --time HH]   -> /tmp/are/ens_gefs.npz
     python ar_ens.py combine --work /tmp/are                                          -> frames, figures, JSON
 """
@@ -388,11 +389,12 @@ def _ready(system, d, hh):
     return r.status_code == 200
 
 
-def latest(system):
-    """Newest complete 00/12Z cycle. The cycle due now (init >= 7 h ago) is waited for up to AR_WAIT_MIN minutes,
-    then older ones are taken (the page states each system's init)."""
+def latest(system, t_end=None):
+    """Newest complete 00/12Z cycle. The cycle due now (init >= 7 h ago) is waited for until t_end (default: AR_WAIT_MIN
+    minutes from now), then older ones are taken (the page states each system's init)."""
     now = pd.Timestamp.now("UTC").tz_localize(None)
-    t_end = time.time() + 60 * float(os.environ.get("AR_WAIT_MIN", "0"))
+    if t_end is None:
+        t_end = time.time() + 60 * float(os.environ.get("AR_WAIT_MIN", "0"))
     for back in range(6):
         t = (now - pd.Timedelta(hours=7) - pd.Timedelta(hours=12 * back)).floor("12h")
         d, hh = t.strftime("%Y%m%d"), t.strftime("%H")
@@ -405,6 +407,27 @@ def latest(system):
             time.sleep(120)
         print(f"  {system} {d} {hh}Z not complete", flush=True)
     return None
+
+
+def plan(published: Path, force: bool):
+    """The cycle each system's job is to run (the due ones waited for as latest() does, AR_WAIT_MIN shared by all four),
+    and whether any is newer than the page's: a backstop cron fires hours late and would fetch every member of cycles
+    the page already shows. Prints `<system>=YYYYMMDDHH` lines and `fresh=true|false` for $GITHUB_OUTPUT."""
+    try:
+        shown = {k: v.get("init") for k, v in json.loads(published.read_text())["systems"].items()}
+    except Exception:  # noqa: BLE001
+        shown = {}
+    t_end = time.time() + 60 * float(os.environ.get("AR_WAIT_MIN", "0"))
+    fresh = force
+    for system in ORDER:
+        r = latest(system, t_end)
+        init = f"{r[0][:4]}-{r[0][4:6]}-{r[0][6:]}T{r[1]}Z" if r else None
+        fresh = fresh or (init is not None and init != shown.get(system))
+        print(f"  {system}: {init or 'no complete cycle'} (the page: {shown.get(system) or 'none'})", file=sys.stderr)
+        print(f"{system}={''.join(r) if r else ''}")
+    print(f"fresh={str(fresh).lower()}")
+    if not fresh:
+        print("  every system's newest cycle is already on the page: nothing to fetch", file=sys.stderr)
 
 
 def run_system(system, date, hh, work: Path):
@@ -911,10 +934,16 @@ def main():
     a1.add_argument("--date")
     a1.add_argument("--time")
     a1.add_argument("--work", default="/tmp/are")
+    a0 = sp.add_parser("plan")
+    a0.add_argument("--published", type=Path, required=True, help="the page's ar_ens.json (as main has it now)")
+    a0.add_argument("--force", action="store_true", help="fresh even when the page shows every newest cycle")
     a2 = sp.add_parser("combine")
     a2.add_argument("--work", default="/tmp/are")
     a2.add_argument("--procs", type=int, default=4)
     a = ap.parse_args()
+    if a.cmd == "plan":
+        plan(a.published, a.force)
+        return 0
     work = Path(a.work)
     work.mkdir(parents=True, exist_ok=True)
     if a.cmd == "system":

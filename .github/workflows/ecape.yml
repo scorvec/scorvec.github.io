@@ -110,8 +110,13 @@ jobs:
           PY
           )
           # dispatched at cycle +58 min: if F00 of the new cycle is a few minutes late we resolved the previous (published)
-          # one - poll for the new cycle for up to 25 min rather than leave it to the next slot six hours later
-          if [ "$WHY" = "published" ] && [ -z "${{ github.event.inputs.cycle }}" ]; then
+          # one - poll for the new cycle for up to 25 min rather than leave it to the next slot six hours later. Only
+          # when that F00 (~53 min after the next extended cycle, 6 h on) is due inside the window: a cron backstop that
+          # fires hours late would poll for nothing.
+          due=$(( $(date -u -d "${C:0:8} ${C:8:2}:00" +%s) + 6 * 3600 + 53 * 60 - $(date -u +%s) ))
+          if [ "$WHY" = "published" ] && [ -z "${{ github.event.inputs.cycle }}" ] && [ "$due" -gt 1500 ]; then
+            echo "the next extended cycle's F00 is not due for $(( due / 60 )) min: not polling"
+          elif [ "$WHY" = "published" ] && [ -z "${{ github.event.inputs.cycle }}" ]; then
             for i in $(seq 1 25); do
               sleep 60
               C2=$(python scripts/ecape/fetch_hrrr.py --print-cycle --extended-only --probe-fxx 0 || echo "$C")

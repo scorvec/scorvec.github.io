@@ -66,7 +66,7 @@ on:
         description: 'Commit the figures (false = render + artifacts only)'
         default: 'false'
       skip_published:
-        description: 'Do nothing when the resolved cycle is already on the page (the dispatcher slots)'
+        description: 'Do nothing when the resolved cycle is already on the page (the dispatcher slots; schedule runs always skip it)'
         default: 'false'
 
 env:
@@ -137,9 +137,10 @@ jobs:
           echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"
           echo "cycle: $D ${T}Z"
           # skip_published (every dispatcher slot): a slot that fires before the newest cycle is complete resolves the
-          # one before it, already published, and does nothing; the next slot picks the new cycle up.
+          # one before it, already published, and does nothing; the next slot picks the new cycle up. A schedule run
+          # (the backstop, hours late) always skips it: re-rendering a published cycle re-fetches ~10 GB for nothing.
           FRESH=true
-          if [ "${{ github.event.inputs.skip_published }}" = "true" ]; then
+          if [ "${{ github.event.inputs.skip_published }}" = "true" ] || [ "${{ github.event_name }}" = "schedule" ]; then
             PUB=$(python -c "import json, sys; print(json.load(open(sys.argv[1]))['ver'])" \
                   "$GITHUB_WORKSPACE/assets/sst/anim/wave1_maps_manifest.json" 2>/dev/null || true)
             if [ "$PUB" = "$D$T" ]; then FRESH=false; echo "cycle $D ${T}Z is already published: nothing to do"; fi
