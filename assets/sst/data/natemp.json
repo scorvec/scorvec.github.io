@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-23T22:53Z",
+ "generated": "2026-10-23T23:45Z",
  "init": "2026-10-23T00:00Z",
  "model": "IFS-ENS perturbed members, 0.1\u00b0 open data (Google Cloud mirror)",
  "members": 50,
@@ -25,7 +25,188 @@
  "previous_run": "2026-10-22T12:00Z",
  "change_frames": true,
  "shares_over": "the map's grid points",
- "anom": [],
+ "anom": [
+  {
+   "frame": "P1",
+   "first": "2026-10-23",
+   "last": "2026-10-27",
+   "warm": 0.705,
+   "cold": 0.194,
+   "neutral": 0.101,
+   "max_f": 23.1,
+   "min_f": -26.8
+  },
+  {
+   "frame": "P2",
+   "first": "2026-10-28",
+   "last": "2026-11-01",
+   "warm": 0.699,
+   "cold": 0.04,
+   "neutral": 0.261,
+   "max_f": 23.3,
+   "min_f": -14.0
+  },
+  {
+   "frame": "P3",
+   "first": "2026-11-02",
+   "last": "2026-11-06",
+   "warm": 0.609,
+   "cold": 0.007,
+   "neutral": 0.384,
+   "max_f": 18.7,
+   "min_f": -13.4
+  },
+  {
+   "frame": "D01",
+   "first": "2026-10-23",
+   "last": "2026-10-23",
+   "warm": 0.64,
+   "cold": 0.259,
+   "neutral": 0.101,
+   "max_f": 25.5,
+   "min_f": -28.9
+  },
+  {
+   "frame": "D02",
+   "first": "2026-10-24",
+   "last": "2026-10-24",
+   "warm": 0.633,
+   "cold": 0.262,
+   "neutral": 0.105,
+   "max_f": 24.2,
+   "min_f": -29.6
+  },
+  {
+   "frame": "D03",
+   "first": "2026-10-25",
+   "last": "2026-10-25",
+   "warm": 0.66,
+   "cold": 0.215,
+   "neutral": 0.125,
+   "max_f": 26.0,
+   "min_f": -29.3
+  },
+  {
+   "frame": "D04",
+   "first": "2026-10-26",
+   "last": "2026-10-26",
+   "warm": 0.644,
+   "cold": 0.156,
+   "neutral": 0.2,
+   "max_f": 26.3,
+   "min_f": -28.0
+  },
+  {
+   "frame": "D05",
+   "first": "2026-10-27",
+   "last": "2026-10-27",
+   "warm": 0.591,
+   "cold": 0.167,
+   "neutral": 0.241,
+   "max_f": 28.2,
+   "min_f": -21.5
+  },
+  {
+   "frame": "D06",
+   "first": "2026-10-28",
+   "last": "2026-10-28",
+   "warm": 0.64,
+   "cold": 0.141,
+   "neutral": 0.219,
+   "max_f": 26.4,
+   "min_f": -18.2
+  },
+  {
+   "frame": "D07",
+   "first": "2026-10-29",
+   "last": "2026-10-29",
+   "warm": 0.655,
+   "cold": 0.075,
+   "neutral": 0.27,
+   "max_f": 25.1,
+   "min_f": -17.1
+  },
+  {
+   "frame": "D08",
+   "first": "2026-10-30",
+   "last": "2026-10-30",
+   "warm": 0.603,
+   "cold": 0.026,
+   "neutral": 0.37,
+   "max_f": 22.6,
+   "min_f": -15.0
+  },
+  {
+   "frame": "D09",
+   "first": "2026-10-31",
+   "last": "2026-10-31",
+   "warm": 0.525,
+   "cold": 0.008,
+   "neutral": 0.467,
+   "max_f": 23.7,
+   "min_f": -12.1
+  },
+  {
+   "frame": "D10",
+   "first": "2026-11-01",
+   "last": "2026-11-01",
+   "warm": 0.552,
+   "cold": 0.008,
+   "neutral": 0.44,
+   "max_f": 21.5,
+   "min_f": -12.1
+  },
+  {
+   "frame": "D11",
+   "first": "2026-11-02",
+   "last": "2026-11-02",
+   "warm": 0.567,
+   "cold": 0.008,
+   "neutral": 0.425,
+   "max_f": 19.0,
+   "min_f": -12.4
+  },
+  {
+   "frame": "D12",
+   "first": "2026-11-03",
+   "last": "2026-11-03",
+   "warm": 0.527,
+   "cold": 0.004,
+   "neutral": 0.469,
+   "max_f": 18.9,
+   "min_f": -15.3
+  },
+  {
+   "frame": "D13",
+   "first": "2026-11-04",
+   "last": "2026-11-04",
+   "warm": 0.496,
+   "cold": 0.003,
+   "neutral": 0.501,
+   "max_f": 19.2,
+   "min_f": -14.4
+  },
+  {
+   "frame": "D14",
+   "first": "2026-11-05",
+   "last": "2026-11-05",
+   "warm": 0.494,
+   "cold": 0.004,
+   "neutral": 0.502,
+   "max_f": 18.9,
+   "min_f": -15.3
+  },
+  {
+   "frame": "D15",
+   "first": "2026-11-06",
+   "last": "2026-11-06",
+   "warm": 0.485,
+   "cold": 0.004,
+   "neutral": 0.511,
+   "max_f": 18.4,
+   "min_f": -12.1
+  }
+ ],
  "change": [
   {
    "frame": "P1",
@@ -201,7 +382,19 @@
  "fetch": {
   "bytes": 4163340273,
   "messages": 3000,
-  "seconds": 250
+  "seconds": 254
  },
- "normals": "not built yet (natemp-ref.yml): change frames only"
+ "normals": {
+  "source": "ERA5 daily means (WeatherBench 2, 1.5 deg) downscaled to the IFS 0.1-deg land fraction and height by local regression; interim, until the ERA5-Land normals",
+  "label": "ERA5 1991\u20132020 (1.5\u00b0) downscaled to the 0.1\u00b0 land and terrain, interim until ERA5-Land",
+  "years": "1991-2020",
+  "hours": "00, 06, 12, 18 UTC",
+  "curve": "mean + 3 annual harmonics, month averages fitted to the monthly normals, common year",
+  "resid_rms_K": {
+   "median": 0.107,
+   "p99": 0.58,
+   "max": 0.777
+  },
+  "built": "2026-10-23T23:40Z"
+ }
 }
