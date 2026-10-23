@@ -85,6 +85,10 @@ def spec_ctrl_t100() -> E.Spec:
     return E.Spec("ifs", "fc", "t", "pl", (100,), STEPS)
 
 
+def spec_ctrl_t10() -> E.Spec:
+    return E.Spec("ifs", "fc", "t", "pl", (10,), STEPS_12H)  # t10_maps.py fetches it itself (t10.yml), not shared
+
+
 def published(date: str, time_: str, step: int = 360) -> bool:
     """True when IFS-ENS is COMPLETELY on the Google mirror to `step`: that step's index and GRIB, and every step up to
     it uploaded (the shared rule, scripts/ecmwf/cycles.py). Day 15 is the last thing ECMWF disseminates."""

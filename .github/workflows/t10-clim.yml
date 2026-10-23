@@ -1,0 +1,59 @@
+name: 10 hPa temperature normal (ERA5 1991-2020, for the polar temperature maps)
+
+# scripts/strat/build_t10_clim.py: ERA5 monthly-mean temperature at 10 hPa, 1991-2020, 1 deg (one CDS request, ~40 MB),
+# fitted to a smooth daily curve per grid point; commits scripts/strat/reference/t10_clim.nc, which t10_maps.py reads.
+# Dispatch only (once, or after a change to the fit). CDS requests from this key are never run in parallel: the
+# seas5 concurrency group is shared with seas5.yml and c3s.yml.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: seas5
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0
+          pip install --quiet numpy pandas xarray cfgrib eccodes cdsapi
+      - name: CDS credentials
+        env:
+          CDSAPI_URL: ${{ secrets.CDSAPI_URL }}
+          CDSAPI_KEY: ${{ secrets.CDSAPI_KEY }}
+        run: |
+          if [ -z "$CDSAPI_KEY" ]; then echo "::error::secret CDSAPI_KEY is not set"; exit 1; fi
+          umask 077
+          printf 'url: %s\nkey: %s\n' "${CDSAPI_URL:-https://cds.climate.copernicus.eu/api}" "$CDSAPI_KEY" > ~/.cdsapirc
+      - name: Build
+        run: python scripts/strat/build_t10_clim.py --work "$RUNNER_TEMP/t10"
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          F=scripts/strat/reference/t10_clim.nc
+          SNAP=$(mktemp -d); cp "$F" "$SNAP"/
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            cp "$SNAP/t10_clim.nc" "$F"
+            git add -f "$F"
+            if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+            git commit -q -m "10 hPa temperature normal (ERA5 1991-2020)"
+            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
+            echo "push $i rejected; resyncing"; sleep 5
+          done
+          echo "push failed after retries"; exit 1
