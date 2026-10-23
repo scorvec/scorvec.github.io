@@ -8,7 +8,10 @@ Downloads only the fields that are scored (byte ranges from each file's index), 
   * upper air: height, temperature and wind at 1000-100 hPa and specific humidity at 1000-300 hPa
     (mverify.variables.LEVELS, HUMIDITY_LEVELS), scored against radiosondes. These are some 50 fields a
     step, so each run is downloaded, matched to the soundings and deleted before the next; its pairs are
-    kept as Parquet and scored level by level at the end (mverify.verify.score_pair_files).
+    kept as Parquet in <work>/pairs and scored level by level at the end (mverify.verify.score_pair_files).
+    A run whose pairs are already there is not downloaded again (the nightly workflow carries the directory
+    over); the two newest runs are matched afresh, since soundings of their last days can still arrive, and
+    pairs of runs outside the window are deleted.
 ECMWF comes from the Google Cloud mirror only (as everywhere on the site, see scripts/ecmwf/rangefetch.py);
 GFS from NOAA on AWS; GDPS from the ECCC Datamart, which keeps about 30 days and has one file per field.
 Every model is first averaged onto one 0.5 deg grid (mverify.coarsen, by area overlap, with its terrain and land-sea
@@ -175,6 +178,7 @@ def upper_pairs(init: str, work: Path, store) -> Path:
     if out.exists():
         return out
     root = work / "upper"
+    print(f"{init}: downloading the pressure levels", flush=True)
     download([(m, init, ld) for m in MODELS for ld in LEADS], root, upper=True)
     pairs = pd.concat(
         [
@@ -208,6 +212,10 @@ def main() -> None:
             pd.to_datetime(a.inits[0], format="%Y%m%d%H"), pd.to_datetime(a.inits[1], format="%Y%m%d%H"), freq="1D"
         )
     ]
+    reuse = set(inits[:-2])  # the two newest are matched again: soundings of their last days can still arrive
+    for f in (a.work / "pairs").glob("*.parquet"):
+        if f.stem not in reuse:
+            f.unlink()
     download([(m, i, ld) for m in MODELS for i in inits for ld in LEADS], a.work, upper=False)
 
     from mverify import report

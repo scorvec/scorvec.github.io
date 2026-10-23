@@ -6,9 +6,10 @@ name: Model verification scores
 # observed, and commits the scorecard and station maps (assets/verification/). The Datamart keeps
 # GDPS for about 30 days, so a window further back than that loses GDPS.
 #
-# Time: about 25 min for the surface and 13 min per run for every pressure level, plus the database:
-# some 3 h for ten runs. Disk: each run's pressure levels are deleted once matched, and --clean drops
-# the surface files once scored, so the runner's ~14 GB holds.
+# Time: about 25 min for the surface and 13 min per run for every pressure level, plus the database. The
+# radiosonde pairs of each run are kept between nights (Actions cache), so a night downloads the pressure
+# levels of its two newest runs only (their last soundings can still arrive): about 1 h instead of 3. Disk: each run's pressure levels are deleted once
+# matched, and --clean drops the surface files once scored, so the runner's ~14 GB holds.
 on:
   schedule:
     - cron: '40 3 * * *'
@@ -69,10 +70,23 @@ jobs:
           mverify db igra --since "${F:0:4}-${F:4:2}-${F:6:2}"
           mverify db precip --product stageiv --start "${F:0:4}-${F:4:2}-${F:6:2}" --end "${{ steps.w.outputs.end }}"
           mverify db status
+      # the radiosonde pairs of the runs earlier nights matched (Parquet), from the same script and mverify pin
+      - name: Radiosonde pairs from earlier nights
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ runner.temp }}/fc/pairs
+          key: verification-pairs-${{ hashFiles('scripts/verify/mverify_scores.py', '.github/workflows/verification.yml') }}-
+          restore-keys: |
+            verification-pairs-${{ hashFiles('scripts/verify/mverify_scores.py', '.github/workflows/verification.yml') }}-
       - name: Score
         run: |
           python scripts/verify/mverify_scores.py --db "$MVERIFY_DB" --clean --work "$RUNNER_TEMP/fc" \
             --inits "${{ steps.w.outputs.first }}00" "${{ steps.w.outputs.last }}00"
+      - name: Keep the radiosonde pairs for the next night
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}/fc/pairs
+          key: verification-pairs-${{ hashFiles('scripts/verify/mverify_scores.py', '.github/workflows/verification.yml') }}-${{ github.run_id }}
       - name: Commit & push
         run: |
           git config user.name "github-actions[bot]"
