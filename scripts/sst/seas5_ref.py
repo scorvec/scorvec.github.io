@@ -200,7 +200,11 @@ def merge_l7(base: dict, ext: dict, name: str = "") -> dict:
             meta[k] = {**meta[k], **v}
     if ep:
         meta["periods"] = [list(p) for p in ep]
-    if "day_weighted" in bm or "day_weighted" in em:
+    dw = [m["day_weighted"] for m in (bm, em) if "day_weighted" in m]
+    if any(isinstance(x, bool) for x in dw):
+        # a flag for every lead set the table holds (the spread tables): true when both halves say so
+        meta["day_weighted"] = all(x is True for x in dw)
+    elif dw:
         # each lead set's statistics come from the base where the base holds that set, else from the extension, so
         # the record of which sets are day-weighted means follows the same source
         held = {tuple(p) for p in (bm.get("periods") or bm.get("season_leads") or [])}
