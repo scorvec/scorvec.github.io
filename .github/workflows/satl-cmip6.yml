@@ -1,18 +1,34 @@
 name: South Atlantic dipole impacts on South America (CMIP6)
-# The negative South Atlantic subtropical dipole (SASD, SW - NE pole, the site's Atlantic-indices convention) in CMIP6
-# historical runs: per model, up to `members` members from the public Pangeo CMIP6 Google Cloud mirror (anonymous),
-# Amon ts / pr / tas / psl 1950-2014 reduced to the dipole and Nino-3.4 box means and 2.5-degree South American fields
-# (scripts/sst/cmip6_satl_extract.py, ~1 GB streamed per member); then the ENSO-controlled responses and their
-# robustness across models (scripts/sst/cmip6_satl_impacts.py). Results are kept as the run's artifact. Dispatch only.
+# The negative South Atlantic subtropical dipole (SASD, SW - NE pole, the site's Atlantic-indices convention) in CMIP6:
+# per model, up to `members` members of the coupled `historical` runs (1950-2014) or the atmosphere-only `amip` runs
+# (1979-2014, observed SST prescribed: the response to the dipole without the atmosphere acting back), from the public
+# Pangeo CMIP6 Google Cloud mirror (anonymous): Amon ts / pr / tas / psl / sfcWind reduced to the dipole and Nino-3.4 box
+# means and 2.5-degree South American fields (scripts/sst/cmip6_satl_extract.py, ~1 GB streamed per member); then the
+# ENSO-controlled responses, their robustness across models and, with `causal`, the lead-lag and persistence tests
+# (scripts/sst/cmip6_satl_impacts.py). `from_run` analyses the extracts of an earlier run instead of extracting again.
+# Results are kept as the run's artifact. Dispatch only.
 on:
   workflow_dispatch:
     inputs:
+      experiment:
+        description: 'historical (coupled) or amip (atmosphere-only)'
+        type: choice
+        options: [historical, amip]
+        default: historical
       members:
-        description: 'Historical members per model'
+        description: 'Members per model'
         default: '3'
+      causal:
+        description: 'Also the lead-lag and persistence tests'
+        type: boolean
+        default: true
+      from_run:
+        description: 'Analyse the extracts of this earlier run id (blank = extract now)'
+        default: ''
 
 permissions:
   contents: read
+  actions: read  # from_run: another run's artifacts
 
 concurrency:
   group: satl-cmip6
@@ -20,6 +36,7 @@ concurrency:
 
 jobs:
   plan:
+    if: ${{ !inputs.from_run }}
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.m.outputs.matrix }}
@@ -37,7 +54,7 @@ jobs:
       - id: m
         run: |
           set -euo pipefail
-          m=$(python scripts/sst/cmip6_satl_extract.py plan --catalog /tmp/pangeo-cmip6.csv)
+          m=$(python scripts/sst/cmip6_satl_extract.py plan --catalog /tmp/pangeo-cmip6.csv --experiment ${{ inputs.experiment }})
           echo "models: $m"
           echo "matrix=$m" >> "$GITHUB_OUTPUT"
 
@@ -62,16 +79,16 @@ jobs:
       - name: Reduce ${{ matrix.model }}
         run: |
           python scripts/sst/cmip6_satl_extract.py run --catalog /tmp/pangeo-cmip6.csv --model ${{ matrix.model }} \
-            --members ${{ inputs.members }} --out out
+            --experiment ${{ inputs.experiment }} --members ${{ inputs.members }} --out out
       - uses: actions/upload-artifact@v7
         with:
-          name: satl_${{ matrix.model }}
+          name: satl_${{ inputs.experiment }}_${{ matrix.model }}
           path: out/*.npz
           retention-days: 30
 
   analyse:
     needs: extract
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && (inputs.from_run || needs.extract.result != 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -89,8 +106,13 @@ jobs:
         with:
           pattern: satl_*
           path: extracts
+          run-id: ${{ inputs.from_run || github.run_id }}
+          github-token: ${{ github.token }}
       - name: Responses and robustness
-        run: python scripts/sst/cmip6_satl_impacts.py --cmip6 extracts --out results
+        env:
+          TAG: ${{ inputs.experiment == 'amip' && 'amip' || 'cmip6' }}
+          CAUSAL: ${{ inputs.causal && '--causal' || '' }}
+        run: python scripts/sst/cmip6_satl_impacts.py --cmip6 extracts --tag "$TAG" $CAUSAL --out results
       - uses: actions/upload-artifact@v7
         with:
           name: satl-cmip6-results

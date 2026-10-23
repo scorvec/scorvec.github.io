@@ -11,8 +11,19 @@ one-sample t-test at a Benjamini-Hochberg false discovery rate of 10 % (over the
 least 80 % of the models agree in sign. An observed file in the same format (--obs: indices from ERSST, fields from
 a reanalysis, any subset of the fields) is fitted the same way, as the check on the models.
 
-    python scripts/sst/cmip6_satl_impacts.py --cmip6 extracts/ --out out/
-    python scripts/sst/cmip6_satl_impacts.py --obs obs.npz --out out/
+Which way the causality runs (--causal, on coupled runs or the observed file):
+  lead-lag   monthly correlation of the South Atlantic High and the regional series with the dipole from 3 months
+             before to 3 months after (ENSO removed from both: Nino-3.4 at 0-2 months' lead). Atmosphere driving the
+             ocean shows as a peak with the atmosphere LEADING; the Frankignoul estimate of the response to the SST,
+             lambda = cov(A(t), T(t-k)) / cov(T(t), T(t-k)) for k = 1, 2, uses only lags at which the atmosphere's own
+             noise has decorrelated, so it is what the SST anomaly causes.
+  persistent DJF fields on SON SASD holding SON Nino-3.4, the SON South Atlantic High AND the field's own SON value
+             fixed: what the ocean carries into summer beyond the atmosphere's own memory.
+The atmosphere-only test is the same response fit on `amip` extracts (observed SST prescribed): --cmip6 on those, with
+--tag amip.
+
+    python scripts/sst/cmip6_satl_impacts.py --cmip6 extracts/ --out out/ [--tag amip] [--causal]
+    python scripts/sst/cmip6_satl_impacts.py --obs obs.npz --out out/ [--causal]
 """
 
 from __future__ import annotations
@@ -240,6 +251,133 @@ def figure(maps: dict, lat, lon, path: Path, title: str) -> None:
     plt.close(fig)
 
 
+LAGS = range(-3, 4)  # months; positive = the atmosphere AFTER the dipole
+SAH = REGIONS["South Atlantic High"][0]
+
+
+def deseason_enso(x: np.ndarray, n34: np.ndarray) -> np.ndarray:
+    """Monthly anomaly series with Nino-3.4 at 0, 1 and 2 months' lead regressed out."""
+    X = np.column_stack([np.ones(len(x)), n34, np.r_[np.nan, n34[:-1]], np.r_[np.nan, np.nan, n34[:-2]]])
+    ok = np.isfinite(X).all(1) & np.isfinite(x)
+    beta, *_ = np.linalg.lstsq(X[ok], x[ok], rcond=None)
+    out = np.full(len(x), np.nan)
+    out[ok] = x[ok] - X[ok] @ beta
+    return out
+
+
+def lagcorr(a: np.ndarray, t: np.ndarray, k: int) -> float:
+    """corr(a(t + k), t(t)) over the pairs both finite."""
+    x, y = (a[k:], t[: len(t) - k]) if k >= 0 else (a[: len(a) + k], t[-k:])
+    ok = np.isfinite(x) & np.isfinite(y)
+    return float(np.corrcoef(x[ok], y[ok])[0, 1])
+
+
+def frankignoul(a: np.ndarray, t: np.ndarray, k: int) -> float:
+    """Response of a to one sd of t, from the lag-k covariances (t leading)."""
+    x, y, z = a[k:], t[: len(t) - k], t[k:]
+    ok = np.isfinite(x) & np.isfinite(y) & np.isfinite(z)
+    return float(np.cov(x[ok], y[ok])[0, 1] / np.cov(z[ok], y[ok])[0, 1] * np.nanstd(t))
+
+
+def causal_member(path: str) -> dict:
+    """{series: {"lag": {k: r}, "lambda": {k: value}, "persistent": coefficient, "plain": coefficient}} for one member."""
+    d = np.load(path)
+    ym = np.array([s.split("-") for s in d["months"]], int)
+    years, months = ym[:, 0], ym[:, 1]
+    days = month_days(years, months, str(d["calendar"]))
+    lat, lon = d["lat"], d["lon"]
+    n34 = anomalies(d["n34"])
+    sasd = anomalies(d["sw"] - d["ne"])
+    series = {}
+    if "psl" in d.files:
+        series["South Atlantic High (psl)"] = (anomalies(d["psl"]), SAH)
+    for name, (box, fs) in REGIONS.items():
+        for f in fs:
+            if f != "psl" and f in d.files:
+                series[f"{name} ({f})"] = (None, box, f)
+    fields = {f: anomalies(d[f]) for f in FIELDS if f in d.files}
+    t = deseason_enso(sasd, n34)
+    out = {}
+    sah = None
+    for key, spec in series.items():
+        x = spec[0] if spec[0] is not None else fields[spec[2]]
+        box = spec[1]
+        reg = np.array([region_mean(m, lat, lon, box) for m in x])
+        if key.startswith("South Atlantic High"):
+            sah = reg
+        a = deseason_enso(reg, n34)
+        out[key] = {
+            "lag": {k: lagcorr(a, t, k) for k in LAGS},
+            "lambda": {k: frankignoul(a, t, k) for k in (1, 2)},
+            "_reg": reg,
+        }
+    # the persistence-controlled spring-to-summer fit, per series
+    son = lambda v: seasonal(v[:, None], years, months, days, (9, 10, 11), 0)  # noqa: E731
+    djf = lambda v: seasonal(v[:, None], years, months, days, (12, 1, 2), 1)  # noqa: E731
+    z = lambda v: (v - v.mean()) / v.std()  # noqa: E731
+    s_sasd, ys = son(sasd)
+    s_n34, _ = son(n34)
+    s_sah, _ = son(sah) if sah is not None else (None, None)
+    idx = {yr: i for i, yr in enumerate(ys)}
+    for o in out.values():
+        reg = o.pop("_reg")
+        dj, yd = djf(reg)
+        sn, _ = son(reg)
+        keep = [(i, idx[yr]) for i, yr in enumerate(yd) if yr in idx]
+        y = np.array([dj[i, 0] for i, _ in keep])
+        cols = [s_sasd[:, 0], s_n34[:, 0]] + ([s_sah[:, 0]] if s_sah is not None else [])
+        base = np.column_stack([np.ones(len(keep))] + [z(np.array([c[j] for _, j in keep])) for c in cols])
+        own = z(np.array([sn[j, 0] for _, j in keep]))
+        plain, *_ = np.linalg.lstsq(base[:, :3], y, rcond=None)
+        full, *_ = np.linalg.lstsq(np.column_stack([base, own]), y, rcond=None)
+        o["plain"], o["persistent"] = -float(plain[1]), -float(full[1])  # negative phase
+    return out
+
+
+def causal(paths: list[str]) -> dict:
+    from scipy import stats
+
+    by_model = defaultdict(list)
+    for p in paths:
+        by_model[str(np.load(p)["source_id"])].append(causal_member(p))
+    keys = sorted({k for runs in by_model.values() for r in runs for k in r})
+    out = {"models": len(by_model), "series": {}}
+    for key in keys:
+        have = [m for m, runs in by_model.items() if all(key in r for r in runs)]
+        if len(have) < MIN_MODELS:
+            continue
+
+        def agg(get, key=key, have=have):
+            v = np.array([np.mean([get(r[key]) for r in by_model[m]]) for m in have])
+            return {
+                "mean": round(float(v.mean()), 3),
+                "same_sign": round(float(np.mean(np.sign(v) == np.sign(v.mean()))), 2),
+                "p": round(float(stats.ttest_1samp(v, 0.0).pvalue), 4),
+            }
+
+        out["series"][key] = {
+            "n_models": len(have),
+            "lag_corr": {str(k): agg(lambda o, k=k: o["lag"][k]) for k in LAGS},
+            "frankignoul_per_sd": {str(k): agg(lambda o, k=k: o["lambda"][k]) for k in (1, 2)},
+            "son_to_djf_plain": agg(lambda o: o["plain"]),
+            "son_to_djf_persistence_held": agg(lambda o: o["persistent"]),
+        }
+    return out
+
+
+def causal_obs(path: str) -> dict:
+    r = causal_member(path)
+    return {
+        k: {
+            "lag_corr": {str(j): round(v, 3) for j, v in o["lag"].items()},
+            "frankignoul_per_sd": {str(j): round(v, 3) for j, v in o["lambda"].items()},
+            "son_to_djf_plain": round(o["plain"], 3),
+            "son_to_djf_persistence_held": round(o["persistent"], 3),
+        }
+        for k, o in r.items()
+    }
+
+
 def observed(path: str) -> dict:
     """{case: {field: {region: value}}} for the observed file (one sample: no robustness test)."""
     _src, r, lat, lon, _series, _years = member(path)
@@ -258,27 +396,36 @@ def main() -> int:
     ap.add_argument("--cmip6", help="directory of cmip6_satl_extract.py files")
     ap.add_argument("--obs", help="observed file in the extract format")
     ap.add_argument("--out", default="out")
+    ap.add_argument("--tag", default="cmip6", help="output name: satl_<tag>.* (amip for the atmosphere-only runs)")
+    ap.add_argument("--causal", action="store_true", help="also the lead-lag and persistence tests")
     a = ap.parse_args()
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     if a.obs:
         (out / "satl_obs.json").write_text(json.dumps(observed(a.obs), indent=1))
         print((out / "satl_obs.json").read_text())
+        if a.causal:
+            (out / "satl_obs_causal.json").write_text(json.dumps(causal_obs(a.obs), indent=1))
     if a.cmip6:
         paths = sorted(glob.glob(str(Path(a.cmip6) / "**" / "*.npz"), recursive=True))
         if not paths:
             sys.exit("no extracts")
         summary, maps, lat, lon = cmip6(paths)
-        (out / "satl_cmip6.json").write_text(json.dumps(summary, indent=1))
+        (out / f"satl_{a.tag}.json").write_text(json.dumps(summary, indent=1))
         np.savez_compressed(
-            out / "satl_cmip6_maps.npz", lat=lat, lon=lon, **{k.replace("|", "__"): v for k, v in maps.items()}
+            out / f"satl_{a.tag}_maps.npz", lat=lat, lon=lon, **{k.replace("|", "__"): v for k, v in maps.items()}
         )
+        d0 = np.load(paths[0])
+        exp = str(d0["experiment_id"]) if "experiment_id" in d0.files else "historical"
+        span = f"{d0['months'][0][:4]}-{d0['months'][-1][:4]}"
         title = (
-            f"Negative South Atlantic dipole (SW - NE), CMIP6 historical 1950-2014: {len(summary['models'])} models, "
+            f"Negative South Atlantic dipole (SW - NE), CMIP6 {exp} {span}: {len(summary['models'])} models, "
             f"{summary['n_members']} members"
         )
-        figure(maps, lat, lon, out / "satl_cmip6.webp", title)
+        figure(maps, lat, lon, out / f"satl_{a.tag}.webp", title)
         print(json.dumps(summary["cases"], indent=1)[:4000])
+        if a.causal:
+            (out / f"satl_{a.tag}_causal.json").write_text(json.dumps(causal(paths), indent=1))
     return 0
 
 
