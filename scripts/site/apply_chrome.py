@@ -231,7 +231,7 @@ PRODUCTS = [
             (
                 "/stratosphere.html#fdrip15",
                 "Next two weeks",
-                "AIFS-ENS, IFS-ENS, GEFS and the Canadian models to day 15: the dripping paint, vortex winds and polar-cap heights, 100 hPa heat flux, E–P flux, wave-1, GEOS FP potential vorticity and the upper stratosphere.",
+                "AIFS-ENS, IFS-ENS, GEFS and the Canadian models to day 15: the dripping paint, vortex winds and polar-cap heights, 100 hPa heat flux, E–P flux, wave-1, GEOS FP potential vorticity, the QBO zero-wind line and the upper stratosphere.",
                 "Twice daily",
             ),
             (
@@ -249,7 +249,7 @@ PRODUCTS = [
             (
                 "/stratosphere.html#mbudget",
                 "Today's analyses",
-                "The momentum budget and the Brewer–Dobson circulation, the water-vapour tape recorder and the QBO from radiosondes and its zero-wind line.",
+                "The momentum budget and the Brewer–Dobson circulation, the water-vapour tape recorder and the QBO from radiosondes.",
                 "Daily",
             ),
             (
