@@ -3,7 +3,7 @@
 
 ERA5 monthly-mean temperature at 10 hPa, 1991-2020, on a global 1 deg grid (CDS reanalysis-era5-pressure-levels-
 monthly-means; run in Actions by t10-clim.yml), each calendar month averaged over the 30 years, then a smooth daily
-curve per grid point through those twelve means (scripts/lib/harmonic_clim.py: the mean and three annual harmonics
+curve per grid point through those twelve means (scripts/lib/harmonic_clim.py: the mean and NHARM annual harmonics
 whose month averages match them). -> reference/t10_clim.nc, the coefficients coef (term, latitude, longitude) in K.
 
     python scripts/strat/build_t10_clim.py --work /tmp/t10      # needs a CDS key (~/.cdsapirc)
@@ -25,6 +25,7 @@ import harmonic_clim as HC
 
 OUT = HERE / "reference" / "t10_clim.nc"
 YEARS = range(1991, 2021)
+NHARM = 4  # the polar-night stratosphere's annual cycle is sharp: three harmonics left 0.55 K rms in the month means
 
 
 def fetch(work: Path) -> Path:
@@ -61,7 +62,7 @@ def build(grib: Path) -> xr.Dataset:
     if sorted(set(month)) != list(range(1, 13)) or t.sizes[tname] != 12 * len(YEARS):
         raise SystemExit(f"expected {12 * len(YEARS)} monthly fields, got {t.sizes[tname]}")
     means = np.stack([t.values[month == m].mean(axis=0) for m in range(1, 13)])  # (12, lat, lon)
-    coef = HC.fit(means)
+    coef = HC.fit(means, NHARM)
     fitted = np.stack([HC.evaluate(coef, np.linspace(a, b, 200)).mean(axis=0) for a, b in zip(HC.EDGES, HC.EDGES[1:])])
     print(f"  month-mean residual of the fit: rms {np.sqrt(np.nanmean((fitted - means) ** 2)):.3f} K", flush=True)
     return xr.Dataset(
@@ -69,7 +70,7 @@ def build(grib: Path) -> xr.Dataset:
         coords={"term": np.arange(coef.shape[0]), "latitude": t.latitude.values, "longitude": t.longitude.values},
         attrs={
             "source": "ERA5 monthly-mean temperature at 10 hPa, 1991-2020 (Copernicus Climate Change Service)",
-            "method": f"mean + {HC.NHARM} annual harmonics fitted to the month means (scripts/lib/harmonic_clim.py)",
+            "method": f"mean + {NHARM} annual harmonics fitted to the month means (scripts/lib/harmonic_clim.py)",
             "units": "K",
         },
     )
