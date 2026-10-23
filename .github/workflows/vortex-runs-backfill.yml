@@ -1,9 +1,9 @@
-name: Polar vortex run record, backfill (AIFS-ENS and IFS-ENS past runs -> runs/vortex_{aifs,ifs}.json)
+name: Polar vortex run record, backfill (past runs -> runs/vortex_<model>.json)
 
-# Adds past 00/12 UTC runs of AIFS-ENS and IFS-ENS to their run-to-run records (scripts/strat/run_record.py) that
-# strat.yml and strat-ifs.yml extend every cycle: nh_vortex.py --record-only per run, IFS pulled light (u at 10/100 hPa
-# and gh at 100 hPa at the daily steps, ~2 GB a run), ECMWF open data from the Google Cloud mirror only. GEPS keeps no
-# archive, so its record starts with the first live run. The records are merged into main's at commit time (a run added
+# Adds past 00/12 UTC runs (AIFS-ENS and IFS-ENS by default; any of nh_vortex's models, or named cycles) to their
+# run-to-run records (scripts/strat/run_record.py) that strat.yml and strat-ifs.yml extend every cycle: nh_vortex.py
+# --record-only per run, IFS pulled light (u at 10/100 hPa and gh at 100 hPa at the daily steps, ~2 GB a run), ECMWF
+# open data from the Google Cloud mirror only. The records are merged into main's at commit time (a run added
 # meanwhile stays); strat-combine.yml redraws the figures after the next stratosphere run.
 on:
   workflow_dispatch:
@@ -11,6 +11,12 @@ on:
       days:
         description: days of runs to add, ending yesterday
         default: '7'
+      cycles:
+        description: these runs instead (YYYYMMDDHH, space-separated)
+        default: ''
+      models:
+        description: the models to record
+        default: 'aifs,ifs'
 
 permissions:
   contents: write
@@ -45,25 +51,29 @@ jobs:
       - name: Past runs
         env:
           DAYS: ${{ inputs.days }}
+          CYCLES: ${{ inputs.cycles }}
+          MODELS: ${{ inputs.models }}
         run: |
-          for k in $(seq "$DAYS" -1 1); do
-            d=$(date -u -d "$k days ago" +%Y%m%d)
-            for t in 00 12; do
-              python scripts/strat/nh_vortex.py --cycle "$d$t" --models aifs,ifs --record-only \
-                || echo "::warning::run $d ${t}Z not recorded"
-              rm -rf scripts/ecmwf/cache/* scripts/strat/data/vortex_dl  # one run's files at a time
-            done
+          if [ -z "$CYCLES" ]; then
+            for k in $(seq "$DAYS" -1 1); do d=$(date -u -d "$k days ago" +%Y%m%d); CYCLES="$CYCLES ${d}00 ${d}12"; done
+          fi
+          for c in $CYCLES; do
+            python scripts/strat/nh_vortex.py --cycle "$c" --models "$MODELS" --record-only \
+              || echo "::warning::run $c not recorded"
+            rm -rf scripts/ecmwf/cache/* scripts/strat/data/vortex_dl scripts/strat/data/strat_ens  # one run's files at a time
           done
       - name: Commit & push
+        env:
+          MODELS: ${{ inputs.models }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          SNAP=$(mktemp -d); cp assets/sst/data/runs/vortex_aifs.json assets/sst/data/runs/vortex_ifs.json "$SNAP"/
+          SNAP=$(mktemp -d); for m in ${MODELS//,/ }; do cp "assets/sst/data/runs/vortex_$m.json" "$SNAP"/ 2>/dev/null || true; done
           for i in 1 2 3 4 5; do
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             python scripts/strat/run_record.py merge "$SNAP"
-            git add assets/sst/data/runs/vortex_aifs.json assets/sst/data/runs/vortex_ifs.json
+            git add assets/sst/data/runs
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -m "Polar vortex run record: backfill"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi

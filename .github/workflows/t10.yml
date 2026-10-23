@@ -1,0 +1,95 @@
+name: Polar temperature at 10 hPa (IFS control)
+
+# scripts/strat/t10_maps.py: the IFS control's 10 hPa temperature against its ERA5 1991-2020 normal (reference/
+# t10_clim.nc, t10-clim.yml) with the 10 hPa height, every 12 h to day 15, both hemispheres -> the stratosphere page's
+# "Polar temperature, 10 hPa" loop. The control is on the Google mirror about an hour and a half before the ensemble
+# (00Z ~07:36, 12Z ~19:36), so this runs on its own then (dispatcher 07:45/19:45, backstop cron), ~60 MB a run (t at
+# 10 hPa and the height; ECMWF open data, Google Cloud mirror only). A run the page already shows is skipped.
+on:
+  schedule:
+    - cron: '45 8 * * *'
+    - cron: '45 20 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Redraw even when the page already shows the newest run'
+        default: 'false'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: t10
+  cancel-in-progress: false
+
+env:
+  # Frames store (Bunny Storage, S3 API; scripts/lib/frames_store.py). Unset secrets leave these empty and frames go
+  # to the `frames` branch alone; the repository variable FRAMES_BRANCH=off retires the branch (frames_env.sh).
+  FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}
+  FRAMES_S3_ENDPOINT: ${{ secrets.FRAMES_S3_ENDPOINT }}
+  FRAMES_S3_REGION: ${{ secrets.FRAMES_S3_REGION }}
+  FRAMES_S3_ACCESS_KEY_ID: ${{ secrets.FRAMES_S3_ACCESS_KEY_ID }}
+  FRAMES_S3_SECRET_ACCESS_KEY: ${{ secrets.FRAMES_S3_SECRET_ACCESS_KEY }}
+  FRAMES_BRANCH: ${{ vars.FRAMES_BRANCH }}
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  ECMWF_SOURCES: google
+  MPLBACKEND: Agg
+
+jobs:
+  maps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - name: The newest control run, unless the page shows it
+        id: run
+        env:
+          FORCE: ${{ inputs.force }}
+        run: |
+          c=$(python scripts/strat/t10_maps.py --print-cycle)
+          echo "newest IFS control run: $c"
+          timeout 60 git fetch -q --depth 1 origin main || true
+          have=$(git show FETCH_HEAD:assets/sst/anim/t10_hres_manifest.json 2>/dev/null | python -c "import json, sys; print(json.load(sys.stdin)['ver'])" 2>/dev/null || echo none)
+          go=true; [ "$have" = "$c" ] && [ "$FORCE" != "true" ] && { go=false; echo "the page already shows $c"; }
+          { echo "cycle=$c"; echo "go=$go"; } >> "$GITHUB_OUTPUT"
+      - name: Maps
+        if: steps.run.outputs.go == 'true'
+        run: |
+          c=${{ steps.run.outputs.cycle }}
+          python scripts/strat/t10_maps.py --date "${c:0:8}" --time "${c:8:2}" --anim-dir assets/sst/anim
+      - name: Publish the frames
+        if: steps.run.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/t10_hres_nh assets/sst/anim/t10_hres_sh
+      - name: Commit & push (manifest)
+        if: steps.run.outputs.go == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          F=assets/sst/anim/t10_hres_manifest.json
+          SNAP=$(mktemp -d); cp "$F" "$SNAP"/
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            cp "$SNAP/t10_hres_manifest.json" "$F"
+            git add "$F"
+            if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+            git commit -q -m "polar temperature at 10 hPa: IFS control ${{ steps.run.outputs.cycle }}"
+            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
+            echo "push $i rejected; resyncing"; sleep 5
+          done
+          echo "push failed after retries"; exit 1

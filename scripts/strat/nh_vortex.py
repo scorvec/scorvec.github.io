@@ -80,6 +80,7 @@ import json
 import sys
 from pathlib import Path
 
+import pyproj  # noqa: F401  (load pyproj's libproj before xarray/eccodes: without it the process aborts at exit)
 import numpy as np
 import pandas as pd
 import xarray as xr
