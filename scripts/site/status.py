@@ -33,7 +33,7 @@ from pathlib import Path
 
 REPO = "scorvec/scorvec.github.io"
 API = "https://api.github.com/repos/" + REPO
-RAW_FRAMES = "https://raw.githubusercontent.com/" + REPO + "/frames/"
+STORE = "https://scorvec-store.b-cdn.net/"  # the frames store (Bunny Storage, scripts/lib/frames_store.py)
 SITE = Path(__file__).resolve().parents[2]
 
 # homepage href -> (normal interval in hours, source); a stamp is (file on main, field)
@@ -138,7 +138,7 @@ def updated(src: dict) -> tuple[str, str]:
     if "branch" in src:
         return iso(get(f"{API}/commits/{src['branch']}")["commit"]["committer"]["date"]), f"{src['branch']}:commit"
     if "json" in src:
-        return iso(get(RAW_FRAMES + src["json"], api=False)[src["field"]]), f"frames:{src['json']}:{src['field']}"
+        return iso(get(STORE + src["json"], api=False)[src["field"]]), f"frames:{src['json']}:{src['field']}"
     raise ValueError(src)
 
 

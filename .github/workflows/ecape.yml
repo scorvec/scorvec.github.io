@@ -284,29 +284,3 @@ jobs:
             sleep 7
           done
           echo "::error::models-viewer manifest not pushed after 5 attempts"; exit 1
-
-      # One-time (idempotent): the retired ecape.html's frames (assets/ecape/anim on the frames branch) and manifests
-      # (assets/ecape/ on main). Nothing else reads them. A no-op once both are gone.
-      - name: Retire the old ECAPE page's data
-        if: ${{ env.DO_PUBLISH == '1' }}
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          if gh api "repos/$GITHUB_REPOSITORY/contents/assets/ecape?ref=frames" > /dev/null 2>&1; then
-            echo "removing assets/ecape from the frames branch"
-            PRUNE="assets/ecape" scripts/lib/publish_frames_ci.sh
-          else echo "frames branch: no assets/ecape"; fi
-          W="$RUNNER_TEMP/retire_wt"
-          for i in 1 2 3; do
-            rm -rf "$W"; git worktree prune
-            timeout 120 git fetch -q origin main || { sleep 5; continue; }
-            git worktree add -q --detach "$W" FETCH_HEAD
-            [ -d "$W/assets/ecape" ] || { echo "main: no assets/ecape"; exit 0; }
-            git -C "$W" rm -r -q assets/ecape
-            git -C "$W" -c user.name="Shawn Corvec" -c user.email="26825570+scorvec@users.noreply.github.com" commit -q -m "ecape: remove the retired page's manifests (ecape.html redirects to models.html)"
-            if timeout 180 git -C "$W" push -q origin HEAD:main; then echo "main: assets/ecape removed"; exit 0; fi
-            sleep 7
-          done
-          echo "::warning::could not remove assets/ecape from main"

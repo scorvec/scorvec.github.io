@@ -50,7 +50,7 @@ import mo_grid as G
 DATA = HERE / "data"
 HINDW_URL = GR.CLIM_URL.format(name="gefs_hindw_{mm:02d}.npz")
 SHIFT_URL = "https://github.com/scorvec/scorvec.github.io/releases/download/gefs-ref-v1/era5_shift.npz"
-RUN_URL = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/assets/gefs/anim/runs/gefs_run_{d}.npz"
+RUN_URL = "https://scorvec-store.b-cdn.net/assets/gefs/anim/runs/gefs_run_{d}.npz"  # the frames store
 TAGS = {"z500": "zg500", "t2m": "t2m", "prcp": "pr"}  # outlook variable -> GEFS field
 DEMEAN = ("zg500",)  # global mean removed (the GEFS page's rule)
 LEAD = ("t2m",)  # variables that also take the run's lead-in (blend.py: it earned weight only for temperature)

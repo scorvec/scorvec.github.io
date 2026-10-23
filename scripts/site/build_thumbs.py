@@ -34,7 +34,7 @@ sys.path.insert(0, str(HERE))
 import build_catalog as B
 
 SLUG = "scorvec/scorvec.github.io"
-RAW_FRAMES = f"https://raw.githubusercontent.com/{SLUG}/frames/"
+STORE = "https://scorvec-store.b-cdn.net/"  # the frames store (Bunny Storage, scripts/lib/frames_store.py)
 WIDTH, MAX_H = 360, 540
 
 
@@ -100,7 +100,7 @@ def main() -> int:
     for rec in table.values():
         frames = bool(rec.get("f"))
         key = ("f:" if frames else "m:") + rec["s"]
-        url = (RAW_FRAMES if frames else f"https://raw.githubusercontent.com/{SLUG}/{commit}/") + rec["s"]
+        url = (STORE if frames else f"https://raw.githubusercontent.com/{SLUG}/{commit}/") + rec["s"]
         jobs.append((key, rec["s"], frames, url))
 
     def sig_of(job):

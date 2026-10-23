@@ -49,8 +49,8 @@ import apply_chrome as A
 # CATALOG_OUT redirects a local test build (the committed copy is built only in catalog.yml)
 OUT = Path(os.environ["CATALOG_OUT"]) if os.environ.get("CATALOG_OUT") else REPO / "assets" / "site" / "catalog.json"
 EVAL = Path(__file__).resolve().parent / "catalog_eval.js"
-THUMB_DIR = "assets/site/thumbs"  # on the frames branch
-THUMB_INDEX_URL = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/" + THUMB_DIR + "/index.json"
+THUMB_DIR = "assets/site/thumbs"  # in the frames store
+THUMB_INDEX_URL = "https://scorvec-store.b-cdn.net/" + THUMB_DIR + "/index.json"
 
 # ids stay stable (they are in catalogue URLs, ?topic=...); labels are the menu group titles in apply_chrome.PRODUCTS
 TOPICS = [  # the theme-first menus (ids stable; labels = apply_chrome.PRODUCTS titles, in menu order)
@@ -886,16 +886,14 @@ def resolve_thumb(spec):
 
 
 def thumb_index(path: str | None) -> dict:
-    """What build_thumbs.py has made: {source key string: {t, sig}}, from a local file or the frames branch."""
+    """What build_thumbs.py has made: {source key string: {t, sig}}, from a local file or the frames store."""
     try:
         if path:
             return json.loads(Path(path).read_text())
-        with urllib.request.urlopen(
-            THUMB_INDEX_URL + "?t=" + dt.datetime.now().strftime("%Y%m%d%H%M"), timeout=20
-        ) as r:
+        with urllib.request.urlopen(THUMB_INDEX_URL, timeout=20) as r:  # the pull zone holds a file 60 s
             return json.loads(r.read())
     except Exception as e:
-        # the frames branch unreachable (or raw.githubusercontent still serving a cached 404): keep the thumbnails the
+        # the frames store unreachable: keep the thumbnails the
         # committed index already points at, rather than a push-triggered rebuild dropping every one of them
         try:
             old = json.loads(OUT.read_text()).get("thumbs", {})
