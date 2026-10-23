@@ -64,7 +64,7 @@ DUE_H = 13.0  # a run's 0.1-deg ensemble is on the mirror ~13.3 h after its star
 AHEAD = 2  # steps fetched ahead of the decoding
 RANGE_WORKERS = 12  # ranged GETs per step (two steps in flight stay under the mirror's per-IP ceiling)
 KF = 1.8  # K -> degF for anomalies and changes
-GLOBAL_2T = ("2t", 3600, 1801, 0, 90.0, 0.0)  # shortName, Ni, Nj, jScansPositively, first lat, first lon
+GLOBAL_2T = ("2t", 3600, 1801, 0, 90.0)  # shortName, Ni, Nj, jScansPositively, first latitude
 NY, NX = R.LAT.size, R.LON.size
 DAY_NOTE = "a day is the mean of 06, 12, 18 and 24 UTC · 0.1° grid"
 NEUTRAL = {"anom": f"members split (under {AGREE:.0%} agree on the sign)", "change": "no significant change"}
@@ -110,8 +110,9 @@ def fetch_step(date: str, hh: str, step: int) -> tuple[list[bytes], int]:
 
 
 def decode(msg: bytes) -> tuple[int, np.ndarray]:
-    """(member number, 2t on the box (K)) of one message; eccodes runs here, in the calling thread only (decoding in
-    the fetch threads has crashed the interpreter in this repository)."""
+    """(member number, 2t on the box (K)) of one global 0.1-deg message, whatever its first longitude (the open data's
+    starts at 180 E); eccodes runs here, in the calling thread only (decoding in the fetch threads has crashed the
+    interpreter in this repository)."""
     import eccodes
 
     gid = eccodes.codes_new_from_message(msg)
@@ -122,9 +123,10 @@ def decode(msg: bytes) -> tuple[int, np.ndarray]:
         v = eccodes.codes_get_values(gid)
     finally:
         eccodes.codes_release(gid)
-    if (key["shortName"], key["Ni"], key["Nj"], key["jScansPositively"], lat0, lon0) != GLOBAL_2T:
+    if (key["shortName"], key["Ni"], key["Nj"], key["jScansPositively"], lat0) != GLOBAL_2T:
         raise RuntimeError(f"unexpected message {key} first point {lat0}, {lon0}")
-    return int(key["number"]), v.reshape(1801, 3600)[R.ROW0 : R.ROW0 + NY, R.COL0 : R.COL0 + NX].astype(np.float32)
+    cols = (round((R.LON[0] - lon0) % 360 * 10) + np.arange(NX)) % 3600
+    return int(key["number"]), v.reshape(1801, 3600)[R.ROW0 : R.ROW0 + NY][:, cols].astype(np.float32)
 
 
 def day_normals(N: R.Normals, days) -> np.ndarray:

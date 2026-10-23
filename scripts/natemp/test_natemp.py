@@ -8,7 +8,7 @@ answers: no data are fetched and no figure is drawn.
            a day's normal is the curve's mean at the day's four forecast times; ERA5's sea fill takes no value from a
            land node when a sea node is near
   grib     read_field maps a 180..334 E message with missing values onto the box; decode keeps the box of a global
-           0.1-deg 2t message and refuses another grid
+           0.1-deg 2t message starting at 0 E or at 180 E, and refuses another grid
   days     a 00Z run has 15 full days (steps 6..360), a 12Z run 14 (18..348); windows 1-5, 6-10, 11-15/14
   read     read_run on fake steps: the members' daily means, a member missing one field loses that day only
   gate     the 80 % agreement on the sign of the mean, also when the members are skewed
@@ -124,8 +124,10 @@ lat = np.round(np.arange(900, -901, -1) / 10.0, 1)
 lon = np.round(np.arange(3600) / 10.0, 1)
 glob = 250 + 0.5 * lat[:, None] + 0.01 * lon[None, :]
 num, box = T.decode(grib(glob, 90.0, 0.0, 0.1, number=7))
-want = glob[R.ROW0 : R.ROW0 + T.NY, R.COL0 : R.COL0 + T.NX]
+want = glob[R.ROW0 : R.ROW0 + T.NY, 1800 : 1800 + T.NX]
 check(num == 7 and np.abs(box - want).max() < 2e-3, "decode: member 7 and the box rows 77N..9N, columns 180W..26W")
+num, box = T.decode(grib(np.roll(glob, 1800, axis=1), 90.0, 180.0, 0.1, number=8))
+check(num == 8 and np.abs(box - want).max() < 2e-3, "decode: the same box from a grid that starts at 180 E")
 try:
     T.decode(grib(np.full((721, 1440), 280.0), 90.0, 0.0, 0.25))
     check(False, "decode refuses a 0.25-deg message")

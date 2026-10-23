@@ -36,11 +36,11 @@ HERE = Path(__file__).resolve().parent
 sys.path[:0] = [str(HERE.parents[0] / "lib"), str(HERE.parents[0] / "sst")]
 import harmonic_clim as HC
 
-# The box: rows 77N..9N and columns 180W..26W of the IFS 0.1-deg grid (3600 x 1801, 90N and 0E first), which hold the
-# whole of the maps' Lambert rectangle (natemp_maps.EXTENT).
+# The box: rows 77N..9N and columns 180W..26W of the IFS 0.1-deg grid (3600 x 1801, 90N first), which hold the whole
+# of the maps' Lambert rectangle (natemp_maps.EXTENT).
 LAT = np.round(np.arange(770, 89, -1) / 10.0, 1)
 LON = np.round(np.arange(-1800, -259) / 10.0, 1)
-ROW0, COL0 = 130, 1800  # the box's first row and column in the global grid
+ROW0 = 130  # the box's first row in the global grid
 AREA = [77.0, -180.0, 9.0, -26.0]  # CDS area: north, west, south, east
 LAT25 = np.round(np.arange(7700, 899, -25) / 100.0, 2)  # ERA5's 0.25-deg nodes over the same box
 LON25 = np.round(np.arange(-18000, -2599, 25) / 100.0, 2)
