@@ -9,7 +9,9 @@ name: Frames store (cutover)
 #   migrate  checks out the frames branch tip here on the runner (~3.6 GB, ~28,000 files) and uploads every file the
 #            store does not have yet. Nothing is replaced or deleted (sync --no-replace on "+" paths): once the
 #            secrets are set the publishers write the store first, so a file already there is at least as new as the
-#            tip. dry_run lists what would be uploaded, by directory, and changes nothing.
+#            tip. dry_run lists what would be uploaded, by directory, and changes nothing. replace also re-sends every
+#            file whose content differs from the tip: a file a publisher wrote while a long migrate ran can have been
+#            overwritten by the older tip copy, and the branch (written after the store) holds the newest one.
 #
 # Without the FRAMES_S3_* secrets it stops at "Store configured". The confirm input must be STORE.
 on:
@@ -24,6 +26,10 @@ on:
         description: 'migrate: list what would be uploaded, upload nothing'
         type: boolean
         default: true
+      replace:
+        description: 'migrate: also re-send files whose content differs from the frames branch tip'
+        type: boolean
+        default: false
       confirm:
         description: 'Type STORE to run'
         required: true
@@ -83,15 +89,18 @@ jobs:
         if: inputs.mode == 'migrate'
         env:
           DRY: ${{ inputs.dry_run && '--dry-run' || '' }}
+          NOREP: ${{ !inputs.replace && '--no-replace' || '' }}
         run: |
           set -euo pipefail
           echo "frames tip $(git -C frames-tip rev-parse HEAD): $(du -sh --exclude=.git frames-tip | cut -f1)"
           # every top-level entry of the branch (assets, scripts) as an additive "+" path
           tops=$(find frames-tip -mindepth 1 -maxdepth 1 ! -name .git -printf '+%P\n' | sort)
-          python scripts/lib/frames_store.py sync --root frames-tip --no-replace $DRY $tops
+          python scripts/lib/frames_store.py sync --root frames-tip $NOREP $DRY $tops
       - name: Left to upload
         if: inputs.mode == 'migrate' && !inputs.dry_run
+        env:
+          NOREP: ${{ !inputs.replace && '--no-replace' || '' }}
         run: |
           set -euo pipefail
           tops=$(find frames-tip -mindepth 1 -maxdepth 1 ! -name .git -printf '+%P\n' | sort)
-          python scripts/lib/frames_store.py sync --root frames-tip --no-replace --dry-run $tops
+          python scripts/lib/frames_store.py sync --root frames-tip $NOREP --dry-run $tops
