@@ -807,9 +807,11 @@ def cmd_run(a):
 
     # step 0 first, alone: the terrain height every other step's columns start from
     _init(ctx)
-    first = process_step(model, date, hh, hours[0], str(outdir))
-    if first[6] is None:
+    if hours[0] != 0:
         raise SystemExit("the first step must be step 0 (the terrain height)")
+    first = process_step_retry(model, date, hh, 0, str(outdir))
+    if isinstance(first, int):
+        raise SystemExit(f"::error::{model} {key}: step 0 failed - nothing published")
     ctx["zsfc"] = first[6]
     per_field = {k: {} for k in FIELDS}
     checks, failed, nbytes, nreq, nb = {}, [], 0, 0, 0
