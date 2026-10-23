@@ -1,8 +1,8 @@
 {
  "updated": "2026-10-23",
- "total_30d": 746,
+ "total_30d": 749,
  "countries_30d": 33,
- "total_all": 1553,
+ "total_all": 1556,
  "countries_all": 35,
  "top_pages_30d": [
   {
@@ -31,11 +31,11 @@
   },
   {
    "path": "/enso.html",
-   "count": 31
+   "count": 32
   },
   {
    "path": "/circulation.html",
-   "count": 31
+   "count": 32
   },
   {
    "path": "/subseasonal.html",
