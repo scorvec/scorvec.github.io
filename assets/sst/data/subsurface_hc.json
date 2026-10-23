@@ -1,9 +1,9 @@
 {
- "generated": "2026-10-22T19:28Z",
+ "generated": "2026-10-23T09:23Z",
  "event_year": 2026,
- "last_day": "2026-10-20",
- "value_raw": 2.726,
- "value_15d": 2.832,
+ "last_day": "2026-10-21",
+ "value_raw": 2.741,
+ "value_15d": 2.826,
  "rule": {
   "persist_days": 10,
   "min_moorings": 6,
@@ -73,14 +73,6 @@
  },
  "fill_used": true,
  "recent": [
-  {
-   "date": "2026-08-22",
-   "n_live": 8,
-   "n_fill": 0,
-   "n_carried": 0,
-   "cat": 0,
-   "raw": 2.827
-  },
   {
    "date": "2026-08-23",
    "n_live": 8,
@@ -207,7 +199,7 @@
    "n_fill": 1,
    "n_carried": 0,
    "cat": 1,
-   "raw": 2.989
+   "raw": 2.99
   },
   {
    "date": "2026-09-08",
@@ -552,6 +544,14 @@
    "n_carried": 0,
    "cat": 0,
    "raw": 2.726
+  },
+  {
+   "date": "2026-10-21",
+   "n_live": 8,
+   "n_fill": 0,
+   "n_carried": 0,
+   "cat": 0,
+   "raw": 2.741
   }
  ]
 }
