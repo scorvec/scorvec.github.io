@@ -7,8 +7,9 @@ the 0.1-deg files carry the perturbed members only), parameter 2t at the steps a
 (rangefetch: index -> the 50 messages -> coalesced ranges) and decoded in this thread; the grid's own points over the
 box (natemp_ref.LAT, LON) are kept, nothing is regridded. A day is a calendar UTC day, the mean of 06, 12, 18 and 24 UTC:
 a 00Z run has 15 full days, a 12Z run 14 (its first and last partial days are not read). Each member's daily mean less
-the day's normal (natemp_ref.Normals: ERA5-Land, ERA5 over the sea) is its anomaly; until the normals exist (release
-natemp-ref-v1) only the change frames are drawn, which need none: over the same days the normal cancels.
+the day's normal (natemp_ref.Normals: ERA5-Land, ERA5 over the sea; until those exist, the interim ERA5 1.5-deg normals
+downscaled to the 0.1-deg land and terrain) is its anomaly; without any normals (release natemp-ref-v1) only the change
+frames are drawn, which need none: over the same days the normal cancels.
 
 Frames, per view: days 1-5, 6-10 and 11-15 of the run (from its first full day; the last can be shorter, its label
 says which days), then each day.
@@ -69,7 +70,7 @@ NY, NX = R.LAT.size, R.LON.size
 DAY_NOTE = "a day is the mean of 06, 12, 18 and 24 UTC · 0.1° grid"
 NEUTRAL = {"anom": f"members split (under {AGREE:.0%} agree on the sign)", "change": "no significant change"}
 FOOT = {
-    "anom": "Normals: ERA5-Land 1991–2020 over land, ERA5 over the sea, as a smooth daily curve · " + DAY_NOTE,
+    "anom": "Normals: {} · " + DAY_NOTE,  # the normals' label (natemp_ref FINAL_META, INTERIM_META)
     "change": "Both runs over the same calendar days · " + DAY_NOTE,
 }
 
@@ -339,6 +340,8 @@ def run(date: str, hh: str, normals: Path, prev_path: Path | None, save: Path | 
     normal = day_normals(N, [d for d, _ in days]) if N else None
     prev = load_stats(prev_path, prev_init)
     run_s = f"{init:%a %b %-d %Y %H}Z"
+    label = N.meta.get("label", R.FINAL_META["label"]) if N else ""
+    foot = {kind: text.format(label) for kind, text in FOOT.items()}
     for rid, _label in REGIONS.values():
         (ANIM / rid).mkdir(parents=True, exist_ok=True)
         for old in (ANIM / rid).glob("*.webp"):
@@ -349,7 +352,7 @@ def run(date: str, hh: str, normals: Path, prev_path: Path | None, save: Path | 
         out = ANIM / REGIONS[kind][0] / f"{name}.webp"
         jobs.append(
             dict(
-                kind=kind, value=value, gate=gate, title=title, sub=sub, neutral=NEUTRAL[kind], foot=FOOT[kind], out=out
+                kind=kind, value=value, gate=gate, title=title, sub=sub, neutral=NEUTRAL[kind], foot=foot[kind], out=out
             )
         )
         frames[kind].append({"file": out.name, "date": f"{days[k0][0]:%Y-%m-%d}", "label": frame_label(days, k0, k1)})

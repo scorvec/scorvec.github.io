@@ -7,6 +7,9 @@ answers: no data are fetched and no figure is drawn.
   normals  a known three-harmonic curve: its month averages fitted back exactly (the saved file's Normals reproduce it),
            a day's normal is the curve's mean at the day's four forecast times; ERA5's sea fill takes no value from a
            land node when a sea node is near
+  interim  cell means of a linear field are its centre values; the coast fade keeps a constant and crosses 1/2 at a
+           straight coast; from the cell means of T = a + trend + b L + c z the local regression gives back b and c
+           (cells of one height take the prior lapse rate), and the downscale the 0.1-deg field
   grib     read_field maps a 180..334 E message with missing values onto the box; decode keeps the box of a global
            0.1-deg 2t message starting at 0 E or at 180 E, and refuses another grid
   days     a 00Z run has 15 full days (steps 6..360), a 12Z run 14 (18..348); windows 1-5, 6-10, 11-15/14
@@ -108,6 +111,41 @@ j, i = R.cell(R.LAT25[120], R.LON25[300] + 0.1)  # between the land column and t
 check(abs(fill[0, j, i] - 285.0) < 1e-6, "the sea fill takes nothing from a land node beside a sea node")
 j, i = R.cell(R.LAT25[150] - 0.1, R.LON25[290] + 0.1)  # inside the land block: plain bilinear
 check(abs(fill[0, j, i] - 260.0) < 1e-6, "a point with no sea node around takes the plain bilinear value")
+
+print("interim: cell means, coast fade, local slopes, downscale")
+clat, clon = np.round(np.arange(20, 31) * R.CELL, 2), np.round(np.arange(160, 173) * R.CELL, 2)
+flat = np.round(np.arange(round((clat[-1] + 0.7) * 10), round((clat[0] - 0.7) * 10) - 1, -1) / 10.0, 1)
+flon = np.round(np.arange(round((clon[0] - 0.7) * 10), round((clon[-1] + 0.7) * 10) + 1) / 10.0, 1)
+ramp = 250.0 + 0.6 * flat[:, None] + 0.2 * flon[None, :]
+cm = R.coarsen(ramp, flat, flon, 0.1, clat, clon)
+check(
+    np.abs(cm - (250.0 + 0.6 * clat[:, None] + 0.2 * clon[None, :])).max() < 2e-3, "cell means of a ramp: its centres"
+)
+coast = np.where(flon[None, :] < 249.0, 0.0, 1.0) * np.ones((flat.size, 1))
+fade = R.exposure(coast, flat, 0.1)
+row, k = fade[flat.size // 2], np.searchsorted(flon, 249.0)
+check(np.abs(R.exposure(np.ones_like(coast), flat, 0.1) - 1).max() < 1e-12, "the coast fade keeps a constant")
+check(np.all(np.diff(row) >= 0) and abs(row[k - 1] + row[k] - 1) < 1e-3, "...and crosses 1/2 at the coast")
+yy, xx = np.meshgrid(flat, flon, indexing="ij")
+lf = np.clip(0.5 + 0.5 * np.sin(xx / 1.7) * np.cos(yy / 2.3), 0, 1)
+zf = 1500.0 * (1 + np.sin(xx / 0.9 + yy / 1.3)) * lf
+b0, c0 = np.array([-3.0, 6.0]), np.array([-4.0, -7.0])  # per month: land colder and an inversion-ish; warm and steep
+truth = np.stack([ramp + b * lf + c * zf / 1000.0 for b, c in zip(b0, c0)])
+tc = np.stack([R.coarsen(t, flat, flon, 0.1, clat, clon) for t in truth])
+lc, zc = R.coarsen(lf, flat, flon, 0.1, clat, clon), R.coarsen(zf, flat, flon, 0.1, clat, clon)
+prior, R.PRIOR = R.PRIOR, {k: (v, 1e-4) for k, (v, _) in R.PRIOR.items()}  # a negligible pull
+b, c = R.local_slopes(tc, lc, zc)
+R.PRIOR = prior
+check(
+    np.abs(b - b0[:, None, None]).max() < 0.05 and np.abs(c - c0[:, None, None]).max() < 0.05,
+    "the local regression gives back the land and height slopes",
+)
+flat_b, flat_c = R.local_slopes(tc, np.ones_like(lc), np.full_like(zc, 300.0))
+check(np.allclose(flat_c, R.PRIOR["height"][0]), "cells of one height take the prior lapse rate")
+inside = (flat <= clat[-1]) & (flat >= clat[0]), (flon >= clon[0]) & (flon <= clon[-1])
+sub = np.ix_(*inside)
+est = R.downscale(tc, lc, zc, b, c, lf[sub], zf[sub], flat[inside[0]], flon[inside[1]], clat, clon)
+check(np.abs(est - truth[:, sub[0], sub[1]]).max() < 0.05, "the downscale gives back the 0.1-deg field (0.05 K)")
 
 print("grib: the box, missing values, the grid check")
 f = RNG.normal(280, 5, (R.LAT.size, R.LON.size))

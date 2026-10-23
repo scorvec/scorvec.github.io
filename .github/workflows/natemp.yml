@@ -7,7 +7,10 @@ name: North America 2 m temperature (IFS-ENS 0.1 deg, anomaly and run-to-run cha
 # significant. The change needs no normals, only the previous run's statistics, which each run leaves in the Actions
 # cache (natemp-stats-<YYYYMMDDHH>, ~100 MB; older entries are deleted). Until the release holds the normals a run draws
 # the change maps alone, and the first run after they appear redraws the newest run with its anomaly maps (the
-# manifest's "normals" flag). Frames go to the frames publisher; the manifest and the summary are committed to main.
+# manifest's "normals" flag). Until natemp-ref.yml has built them, the interim normals stand in: the ERA5 store's 1.5-deg
+# monthly normals (natemp_era5_1p5.npz, an offline build) downscaled once here to the 0.1-deg land and terrain of the
+# IFS (its step-0 lsm and z, ~25 MB) -> natemp_normals_interim.npz in the release, which later runs download.
+# Frames go to the frames publisher; the manifest and the summary are committed to main.
 # The 0.1-deg ensemble reaches the mirror ~13:20Z (00Z run) and ~01:20Z (12Z): the dispatcher fires at 13:40 / 01:40,
 # these crons are its backstop. The job waits up to 45 min for a late run and stops when main already carries it.
 on:
@@ -81,16 +84,17 @@ jobs:
           fi
           prev=$(date -u -d "${d} ${t}:00 12 hours ago" +%Y%m%d%H)
           echo "date=$d" >> "$GITHUB_OUTPUT"; echo "time=$t" >> "$GITHUB_OUTPUT"; echo "prev=$prev" >> "$GITHUB_OUTPUT"
-          normals=False
-          if gh release view natemp-ref-v1 -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null | grep -qx natemp_normals.npz; then
-            normals=True
-          fi
+          held=$(gh release view natemp-ref-v1 -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null || true)
+          normals=none   # the best the release holds: the normals, the interim normals, or the cells to build them from
+          for n in era5_1p5 normals_interim normals; do
+            if grep -qx "natemp_$n.npz" <<< "$held"; then normals=$n; fi
+          done
           echo "normals=$normals" >> "$GITHUB_OUTPUT"
           # main's manifest as it is now: a queued run checks out the commit it was triggered at
           timeout 60 git fetch -q --depth 1 origin main || echo "::warning::could not read main's manifest"
           have=$(git show FETCH_HEAD:assets/sst/anim/natemp_manifest.json 2>/dev/null \
                  | python -c "import json, sys; m = json.load(sys.stdin); print(m['ver'], m.get('normals', False))" 2>/dev/null || echo none)
-          if [ "$have" = "${d}${t} True" ] || { [ "$have" = "${d}${t} False" ] && [ "$normals" = False ]; }; then
+          if [ "$have" = "${d}${t} True" ] || { [ "$have" = "${d}${t} False" ] && [ "$normals" = none ]; }; then
             if [ "$FORCE" != "true" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; echo "main already carries run ${d} ${t}Z ($have)"; exit 0; fi
           fi
           echo "run ${d} ${t}Z (main has ${have}; normals in the release: ${normals}); previous run ${prev}"
@@ -108,10 +112,23 @@ jobs:
           path: ~/.local/share/cartopy
           key: cartopy-naturalearth-10m-natemp-v1
       - name: The normals
-        if: steps.run.outputs.skip != 'true' && steps.run.outputs.normals == 'True'
+        if: steps.run.outputs.skip != 'true' && steps.run.outputs.normals != 'none'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release download natemp-ref-v1 -R "$GITHUB_REPOSITORY" -p natemp_normals.npz -D ref --clobber
+          N: ${{ steps.run.outputs.normals }}
+          D: ${{ steps.run.outputs.date }}
+          T: ${{ steps.run.outputs.time }}
+        run: |
+          gh release download natemp-ref-v1 -R "$GITHUB_REPOSITORY" -p "natemp_$N.npz" -D ref --clobber
+          if [ "$N" = era5_1p5 ]; then
+            if ! python scripts/natemp/natemp_ref.py interim --coarse ref/natemp_era5_1p5.npz --date "$D" --time "$T" \
+                   --out ref/natemp_normals_interim.npz; then
+              echo "::warning::the interim normals were not built: change frames only"; exit 0
+            fi
+            gh release upload natemp-ref-v1 ref/natemp_normals_interim.npz -R "$GITHUB_REPOSITORY" --clobber
+            N=normals_interim
+          fi
+          [ "$N" = normals ] || mv "ref/natemp_$N.npz" ref/natemp_normals.npz
 
       - name: Maps
         if: steps.run.outputs.skip != 'true'

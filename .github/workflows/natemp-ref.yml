@@ -4,7 +4,8 @@ name: North America 2 m temperature normals (ERA5-Land + ERA5 1991-2020 -> relea
 # temperature over the maps' box, 1991-2020 - ERA5-Land at 0.1 deg (the IFS grid's points) and ERA5 at 0.25 deg with
 # its land-sea mask, one request per reanalysis and decade - each reduced at once to its monthly means
 # (natemp_<unit>.npz) and uploaded to the release; then the daily curve per grid point (natemp_normals.npz), which
-# natemp.yml downloads (it draws the change maps alone until then).
+# natemp.yml downloads. Until then natemp.yml draws against the interim normals (natemp_normals_interim.npz, built
+# from the cells natemp_era5_1p5.npz); this deletes both once the normals are published.
 #
 # CDS: ONE key, so this shares the `seas5` concurrency group with seas5.yml, c3s.yml and the other CDS workflows, and
 # every request goes through scripts/sst/cds_seq.py, one at a time. A request the CDS keeps queued is waited for until
@@ -80,8 +81,8 @@ jobs:
               --notes "ERA5-Land (land, 0.1 deg) and ERA5 (sea, 0.25 deg) monthly means by hour of day 1991-2020 over 9-77N, 180-26W, reduced per decade (natemp_<unit>.npz), and the daily normal curve on the IFS 0.1-deg grid (natemp_normals.npz) for scripts/natemp. Contains modified Copernicus Climate Change Service information 2026."
           fi
           mkdir -p ref
-          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -D ref -p 'natemp_*.npz' --clobber || echo "no units held yet"
-          rm -f ref/natemp_normals.npz
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -D ref -p 'natemp_land_*.npz' -p 'natemp_era5_*.npz' --clobber \
+            || echo "no units held yet"
           ls ref > held.txt
           cat held.txt
 
@@ -110,3 +111,6 @@ jobs:
           if [ "$rc" -eq 3 ]; then echo "::notice::units still missing; the next run continues"; exit 0; fi
           [ "$rc" -eq 0 ] || exit "$rc"
           gh release upload "$TAG" ref/natemp_normals.npz -R "$GITHUB_REPOSITORY" --clobber
+          gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' \
+            | grep -x -e natemp_normals_interim.npz -e natemp_era5_1p5.npz \
+            | while read -r a; do gh release delete-asset "$TAG" "$a" -R "$GITHUB_REPOSITORY" -y && echo "deleted the superseded $a"; done
