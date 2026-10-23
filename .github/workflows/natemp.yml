@@ -1,0 +1,163 @@
+name: North America 2 m temperature (IFS-ENS 0.1 deg, anomaly and run-to-run change)
+
+# scripts/natemp/natemp.py: the 50 perturbed members of the IFS-ENS 0.1-deg run (Google Cloud mirror only), 2t at the
+# 6-hourly steps of its full calendar days (15 for a 00Z run, 14 for 12Z), daily means against the ERA5-Land/ERA5
+# 1991-2020 normals (natemp_normals.npz, release natemp-ref-v1, from natemp-ref.yml); maps of days 1-5, 6-10, 11-15 and
+# of each day, the anomaly where 80% of the members agree on its sign and the change from the run 12 h earlier where
+# significant. The change needs the previous run's statistics, which each run leaves in the Actions cache
+# (natemp-stats-<YYYYMMDDHH>, ~70 MB; older entries are deleted). Frames go to the frames publisher; the manifest and
+# the summary are committed to main.
+# The 0.1-deg ensemble reaches the mirror ~13:20Z (00Z run) and ~01:20Z (12Z): the dispatcher fires at 13:40 / 01:40,
+# these crons are its backstop. The job waits up to 45 min for a late run and stops when main already carries it.
+on:
+  schedule:
+    - cron: '50 14 * * *'
+    - cron: '50 2 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Run date YYYYMMDD (blank = the newest run due)'
+        default: ''
+      time:
+        description: 'Run hour, 00 or 12 (blank = the newest run due)'
+        default: ''
+      force:
+        description: 'Redraw a run main already carries'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write   # delete superseded statistics from the Actions cache
+
+concurrency:
+  group: natemp
+  cancel-in-progress: false
+
+env:
+  # Frames store (Bunny Storage, S3 API; scripts/lib/frames_store.py). Unset secrets leave these empty and frames go
+  # to the `frames` branch alone; the repository variable FRAMES_BRANCH=off retires the branch (frames_env.sh).
+  FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}
+  FRAMES_S3_ENDPOINT: ${{ secrets.FRAMES_S3_ENDPOINT }}
+  FRAMES_S3_REGION: ${{ secrets.FRAMES_S3_REGION }}
+  FRAMES_S3_ACCESS_KEY_ID: ${{ secrets.FRAMES_S3_ACCESS_KEY_ID }}
+  FRAMES_S3_SECRET_ACCESS_KEY: ${{ secrets.FRAMES_S3_SECRET_ACCESS_KEY }}
+  FRAMES_BRANCH: ${{ vars.FRAMES_BRANCH }}
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  ECMWF_SOURCES: google
+  ECMWF_RANGE_GAP_MB: '0.5'   # the 50 2t messages are scattered through each step's file (rangefetch.MAX_GAP)
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  maps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 110
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install --quiet numpy scipy pandas requests eccodes Pillow matplotlib==3.10.9 cartopy==0.25.0 'shapely>=2.1.2' 'pyproj>=3.7.2' \
+            "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+
+      - name: Which run
+        id: run
+        env:
+          DATE: ${{ inputs.date }}
+          TIME: ${{ inputs.time }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          if [ -n "$DATE" ] && [ -n "$TIME" ]; then
+            d="$DATE"; t="$TIME"
+          else
+            python scripts/natemp/natemp.py resolve --wait-min 45 > "$RUNNER_TEMP/cyc" || { echo "::error::no run ready on the Google mirror"; exit 1; }
+            read -r d t < "$RUNNER_TEMP/cyc"
+          fi
+          prev=$(date -u -d "${d} ${t}:00 12 hours ago" +%Y%m%d%H)
+          echo "date=$d" >> "$GITHUB_OUTPUT"; echo "time=$t" >> "$GITHUB_OUTPUT"; echo "prev=$prev" >> "$GITHUB_OUTPUT"
+          # main's manifest as it is now: a queued run checks out the commit it was triggered at
+          timeout 60 git fetch -q --depth 1 origin main
+          have=$(git show FETCH_HEAD:assets/sst/anim/natemp_manifest.json 2>/dev/null \
+                 | python -c "import json, sys; print(json.load(sys.stdin)['ver'])" 2>/dev/null || echo none)
+          if [ "$have" = "${d}${t}" ] && [ "$FORCE" != "true" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"; echo "main already carries run ${d} ${t}Z"
+          else
+            echo "run ${d} ${t}Z (main has ${have}); previous run ${prev}"
+          fi
+
+      - name: The previous run's statistics
+        if: steps.run.outputs.skip != 'true'
+        uses: actions/cache/restore@v6
+        with:
+          path: natemp_stats
+          key: natemp-stats-${{ steps.run.outputs.prev }}
+      - name: Natural Earth 10 m shapes
+        if: steps.run.outputs.skip != 'true'
+        uses: actions/cache@v6
+        with:
+          path: ~/.local/share/cartopy
+          key: cartopy-naturalearth-10m-natemp-v1
+      - name: The normals
+        if: steps.run.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release download natemp-ref-v1 -R "$GITHUB_REPOSITORY" -p natemp_normals.npz -D ref --clobber
+
+      - name: Maps
+        if: steps.run.outputs.skip != 'true'
+        env:
+          D: ${{ steps.run.outputs.date }}
+          T: ${{ steps.run.outputs.time }}
+          P: ${{ steps.run.outputs.prev }}
+        run: |
+          python scripts/natemp/natemp.py run --date "$D" --time "$T" --normals ref/natemp_normals.npz \
+            --prev "natemp_stats/$P.npz" --save "natemp_stats/$D$T.npz"
+          rm -f "natemp_stats/$P.npz"   # the cache entry keeps this run's statistics only
+
+      - name: Keep this run's statistics for the next run
+        if: steps.run.outputs.skip != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: natemp_stats
+          key: natemp-stats-${{ steps.run.outputs.date }}${{ steps.run.outputs.time }}
+      - name: Delete superseded statistics (all but the two newest runs)
+        if: steps.run.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh cache list -R "$GITHUB_REPOSITORY" --key natemp-stats- --limit 100 --json id,key -q '.[] | "\(.key) \(.id)"' \
+            | sort -r | tail -n +3 | while read -r k id; do
+              gh cache delete "$id" -R "$GITHUB_REPOSITORY" && echo "deleted $k" || echo "::warning::could not delete $k"
+            done
+
+      - name: Publish the frames
+        if: steps.run.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/natemp_anom assets/sst/anim/natemp_change
+
+      - name: Commit & push (manifest, summary)
+        if: steps.run.outputs.skip != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/sst/anim/natemp_manifest.json assets/sst/data/natemp.json"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" $OUT
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add $OUT
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "North America 2 m temperature: IFS-ENS ${{ steps.run.outputs.date }} ${{ steps.run.outputs.time }}Z"
+            if timeout 180 git push origin HEAD:main; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

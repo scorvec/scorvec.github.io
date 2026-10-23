@@ -110,6 +110,10 @@ TC_BOARD = (
 IFS_CONTROL_0P1 = tuple(
     Need("ifs", "fc", "oper", step=240, every=IFS_STEPS, resol="0p1", levtype=lt) for lt in ("pl", "sfc")
 )
+# IFS-ENS at 0.1 deg, the surface file at the 6-hourly steps to day 15 (the North America 2 m temperature maps,
+# natemp.yml). The 0.1-deg ensemble files carry the 50 perturbed members only and reach the mirror ~4.5 h after the
+# 0.25-deg run (00Z ~13:20Z, 12Z ~01:20Z).
+IFS_ENS_0P1 = (Need("ifs", "ef", step=360, every=tuple(range(6, 361, 6)), resol="0p1", levtype="sfc"),)
 PROFILES = {
     "aifs-ens": AIFS_ENS,  # strat, mjo, aam, ar
     "ifs-ens": IFS_ENS,  # strat-ifs (waits for it on the AIFS-ENS cycle)
@@ -117,6 +121,7 @@ PROFILES = {
     "aifs-compare": AIFS_SINGLE + AIFS_ENS,  # aifs-compare: single vs control vs ensemble mean
     "tc": TC_BOARD,  # tc.yml
     "ifs-0p1": IFS_CONTROL_0P1,  # tc.yml, ar-det.yml: whether the IFS control's maps can be drawn at 0.1 deg
+    "ifs-ens-0p1": IFS_ENS_0P1,  # natemp.yml
 }
 
 
