@@ -55,6 +55,8 @@ jobs:
           if [ -z "$D" ]; then
             D=$(python -c "import sys; sys.path.insert(0,'scripts/gefs'); import gefs_live; print(gefs_live.latest_cycle() or '')")
           fi
+          # main's copy as it is now: a queued run checks out the commit it was triggered at
+          timeout 60 git fetch -q --depth 1 origin main && git checkout FETCH_HEAD -- assets/ar/ar_ext.json 2>/dev/null || true
           HAVE=$(python -c "import json; print(json.load(open('assets/ar/ar_ext.json'))['init'][:10].replace('-',''))" 2>/dev/null || echo none)
           echo "newest GEFS extended: '$D'; built: $HAVE"
           if [ -z "$D" ]; then echo "::warning::no GEFS extended cycle reaching 840 h"; echo "go=0" >> "$GITHUB_OUTPUT"; exit 0; fi

@@ -861,8 +861,8 @@ def registry() -> list[Spec]:
         # 5) the heavy AAM/jets multi-level pull (~3 GB at 25 members) goes LAST
         Spec("aifs-ens", "pf", "u", "pl", LEVELS_AAM_REST, S, AAM_PF_MEMBERS),
         Spec("aifs-ens", "cf", "u", "pl", LEVELS_AAM_REST, S),
-        # no z@500: the ensembles page is retired (ens_cycle gates its copy
-        # behind ENS_FETCH_Z500=1) and it would be ~0.5 GB/cycle of dead weight.
+        # no z@500: the ensembles page is retired and it would be ~0.5 GB/cycle
+        # of dead weight.
     ]
 
 

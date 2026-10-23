@@ -141,8 +141,9 @@ jobs:
           # (the backstop, hours late) always skips it: re-rendering a published cycle re-fetches ~10 GB for nothing.
           FRESH=true
           if [ "${{ github.event.inputs.skip_published }}" = "true" ] || [ "${{ github.event_name }}" = "schedule" ]; then
-            PUB=$(python -c "import json, sys; print(json.load(open(sys.argv[1]))['ver'])" \
-                  "$GITHUB_WORKSPACE/assets/sst/anim/wave1_maps_manifest.json" 2>/dev/null || true)
+            # main's manifest as it is now, not the checkout's (a queued run checks out an older commit)
+            PUB=$(timeout 60 git fetch -q --depth 1 origin main && git -C "$GITHUB_WORKSPACE" show FETCH_HEAD:assets/sst/anim/wave1_maps_manifest.json \
+                  | python -c "import json, sys; print(json.load(sys.stdin)['ver'])" 2>/dev/null || true)
             if [ "$PUB" = "$D$T" ]; then FRESH=false; echo "cycle $D ${T}Z is already published: nothing to do"; fi
           fi
           echo "fresh=$FRESH" >> "$GITHUB_OUTPUT"

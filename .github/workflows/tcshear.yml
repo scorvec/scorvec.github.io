@@ -80,6 +80,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # main's manifest as it is now: a run queued behind another checks out the commit it was triggered at, and from
+      # that copy it would rebuild the cycle the run ahead of it just published
+      - name: The manifest as main has it now
+        if: env.MODE == 'live'
+        run: |
+          timeout 60 git fetch -q --depth 1 origin main && git checkout FETCH_HEAD -- assets/sst/anim/tcshear_manifest.json \
+            || echo "::warning::main's manifest not read; the checkout's copy decides what is published"
+
       - name: Any storm active? (stdlib only)
         id: gate
         run: |

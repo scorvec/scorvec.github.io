@@ -53,6 +53,8 @@ jobs:
         run: |
           d="${DATE:-$(date -u +%Y%m%d)}"
           echo "date=$d" >> "$GITHUB_OUTPUT"
+          # main's manifest as it is now: a queued run checks out the commit it was triggered at
+          timeout 60 git fetch -q --depth 1 origin main && git checkout FETCH_HEAD -- assets/sst/anim/hslp_fc_manifest.json 2>/dev/null || true
           have=$(python3 -c "import json; print(json.load(open('assets/sst/anim/hslp_fc_manifest.json'))['ver'])" 2>/dev/null || echo none)
           if [ "$have" = "${d}00" ] && [ "$FORCE" != "true" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; echo "run $d 00Z already drawn"; fi
       - uses: actions/setup-python@v7
