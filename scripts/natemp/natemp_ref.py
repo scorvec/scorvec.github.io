@@ -138,37 +138,43 @@ def read_field(gid, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
 
 def reduce_unit(name: str, path: Path, out: Path) -> None:
     """A unit's GRIB -> its per-month mean over years and hours (12, lat, lon) and the number of fields behind each
-    value; checks that every month of every year holds the four hours."""
+    value; checks that every month of every year holds four fields of distinct times (the four hours asked for) and
+    prints the first month's times and box means."""
     import eccodes
 
     src = name.split("_")[0]
     lat, lon = grid_of(src)
     s = np.zeros((12, lat.size, lon.size))
     n = np.zeros((12, lat.size, lon.size), np.int16)
-    hours: dict = {}
+    times: dict = {}  # YYYYMM -> [(time keys, box mean)]
     with open(path, "rb") as fh:
         while (gid := eccodes.codes_grib_new_from_file(fh)) is not None:
             try:
-                date, hhmm = eccodes.codes_get(gid, "dataDate"), eccodes.codes_get(gid, "dataTime")
+                date = eccodes.codes_get(gid, "dataDate")
+                when = tuple(eccodes.codes_get_string(gid, k) for k in ("dataTime", "validityTime", "stepRange"))
                 f = read_field(gid, lat, lon)
             finally:
                 eccodes.codes_release(gid)
             m = date // 100 % 100 - 1
-            hours.setdefault(date // 100, set()).add(hhmm)
+            times.setdefault(date // 100, []).append((when, float(np.nanmean(f))))
             ok = np.isfinite(f)
             s[m][ok] += f[ok]
             n[m] += ok
+    first = min(times)
+    print(f"  {name} {first}: (dataTime, validityTime, stepRange) and box mean: {times[first]}", flush=True)
     if name != "era5_lsm":
         y0, y1 = next(d for d in DECADES if name.endswith(str(d[0])))
         want = {y * 100 + m for y in range(y0, y1 + 1) for m in range(1, 13)}
-        bad = sorted(k for k in want if hours.get(k) != {0, 600, 1200, 1800})
-        if bad or set(hours) != want:
+        rows = {k: times.get(k, []) for k in want}
+        bad = sorted(k for k, r in rows.items() if len(r) != len(HOURS) or len({w for w, _ in r}) != len(HOURS))
+        extra = sorted(set(times) - want)
+        if bad or extra:
             raise SystemExit(
-                f"{name}: months without all four hours or out of range: {bad[:6]} / {sorted(set(hours) - want)[:6]}"
+                f"{name}: months without {len(HOURS)} distinct times: {bad[:6]}; out of range: {extra[:6]}"
             )
     with np.errstate(invalid="ignore"):
         np.savez_compressed(out, mean=(s / n).astype(np.float32), n=n, lat=lat, lon=lon)
-    print(f"  {name}: {sum(map(len, hours.values()))} fields -> {out.name}", flush=True)
+    print(f"  {name}: {sum(map(len, times.values()))} fields -> {out.name}", flush=True)
 
 
 def fetch(out_dir: Path) -> int:
