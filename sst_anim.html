@@ -169,7 +169,7 @@
   <span class="hint">Space play &middot; &larr; &rarr; step &middot; Home/End jump</span>
 </div>
 
-<script src="assets/frames_root.js?v=9d2de66ccd"></script>
+<script src="assets/frames_root.js?v=bdced09224"></script>
 <script>
 const ANIM_BASE = new URLSearchParams(location.search).get("base") || "assets/sst/anim";
 // Frame webp live on the orphan `frames` branch, not on main — the daily churn
@@ -196,7 +196,7 @@ function frameSrc(im, rid, f, ver, onFail) {   // onFail: every host failed (the
   const q = `?v=${f.date}.${ver || Math.floor(Date.now() / 3.6e6)}`;
   const rel = `${ANIM_BASE}/${rid}/${f.file}`;
   if (ON_FRAMES_BRANCH && window.frameLoad) {
-    // frames.scorvec.com (Bunny CDN) -> raw.githubusercontent.com -> jsDelivr -> copy on main
+    // the frames store (Bunny) -> frames.scorvec.com (Bunny CDN) -> raw.githubusercontent.com -> jsDelivr -> copy on main
     // (assets/frames_root.js); the chain is per-FRAME because imgEl is reused
     window.frameLoad(im, rel, q, rel, onFail || null, manifest && manifest.frames_sha);   // frames_sha: pins the CDN and jsDelivr to that commit
   } else {
@@ -207,14 +207,14 @@ function frameSrc(im, rid, f, ver, onFail) {   // onFail: every host failed (the
 }
 // Frame-host status (assets/frames_root.js): say WHY nothing shows instead of
 // spinning forever, and note when the slower mirror is carrying the loop. Both
-// fire only after the CDN (frames.scorvec.com) itself has failed in this tab: a
-// network that merely blocks GitHub hears nothing, the CDN serves it.
+// fire only after the first host (the frames store) itself has failed in this tab:
+// a network that merely blocks GitHub hears nothing, Bunny serves it.
 document.addEventListener("framehost", ev => {
   const d = ev.detail || {};
   if (d.dead) {
     loadingEl.classList.remove("hidden");
-    loadingEl.innerHTML = "Frames could not be loaded from frames.scorvec.com or its fallbacks " +
-      "(raw.githubusercontent.com, cdn.jsdelivr.net) &mdash; check the connection and reload.";
+    loadingEl.innerHTML = "Frames could not be loaded from scorvec-store.b-cdn.net or its fallbacks " +
+      "(frames.scorvec.com, raw.githubusercontent.com, cdn.jsdelivr.net) &mdash; check the connection and reload.";
   } else if (d.unpublished) {
     // the frame host answered "not found": the connection is fine, this loop's frames are not out yet
     loadingEl.classList.remove("hidden");
@@ -238,7 +238,7 @@ document.addEventListener("framehost", ev => {
       n = document.createElement("div"); n.id = "hostnote"; n.className = "hostnote";
       document.querySelector(".frame-wrap").insertAdjacentElement("afterend", n);
     }
-    const base = "Frames via the cdn.jsdelivr.net fallback: frames.scorvec.com and raw.githubusercontent.com are not answering, so loops can lag a few hours.";
+    const base = "Frames via the cdn.jsdelivr.net fallback: scorvec-store.b-cdn.net, frames.scorvec.com and raw.githubusercontent.com are not answering, so loops can lag a few hours.";
     n.textContent = base;
     // say HOW stale: jsDelivr exposes `age` (seconds its cache has held the copy)
     const probe = () => {
