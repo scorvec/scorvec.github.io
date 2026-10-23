@@ -234,6 +234,16 @@ PAGES = {
         region=["North America"],
         variable=["Temperature", "Wind", "Convection", "Precipitation"],
     ),
+    "/samerica-models.html": dict(
+        kind="page",
+        topic="weather",
+        tier=0,
+        prio=5,
+        models=["IFS", "GDPS"],
+        horizon="Days 1–15",
+        region=["South America"],
+        variable=["Temperature", "Wind", "Convection", "Precipitation"],
+    ),
     "/ar.html": dict(
         kind="stage",
         file="ar.html",

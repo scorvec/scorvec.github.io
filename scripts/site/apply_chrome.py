@@ -48,6 +48,12 @@ PRODUCTS = [
                         "Zoomable maps of the newest HRRR, RRFS and RDPS runs for aviation, severe and winter weather and renewables: radar with precipitation type, accumulation, snow-band diagnostics (frontogenesis, EPV*, dendritic-zone lift), ceiling, visibility, temperature, dewpoint, wind, HRRR entraining CAPE (ECAPE), smoke and sunshine, with contours and hover values.",
                         "Four times daily",
                     ),
+                    (
+                        "/samerica-models.html",
+                        "South America model maps",
+                        "Zoomable maps of the newest IFS control (ECMWF's unperturbed 9 km run) and GDPS runs over South America to day 10: temperature, wind, rain and its type, accumulation, precipitable water and 850 hPa θe, with ECAPE, CAPE, shear and helicity computed on every column, contours and hover values.",
+                        "Twice daily",
+                    ),
                     # snowbands.html is retired: its maps are the "Winter: snow bands" group of /models.html
                     (
                         "/ar.html",
@@ -520,6 +526,7 @@ PAGES = [
     # sfs.html: folded into seasonal.html, now a redirect stub (no chrome)
     dict(path="ar.html", mode="after-body"),
     dict(path="models.html", mode="after-body"),  # short-range model viewer (scripts/models), WebGL
+    dict(path="samerica-models.html", mode="after-body"),  # South America viewer (scripts/models/samerica.py), WebGL
     # snowbands.html: retired, now a noindex redirect stub to models.html#hrrr/sbing (no chrome)
     dict(path="catalog.html", mode="after-body"),  # every plot on the site (scripts/site/build_catalog.py)
     dict(path="aifs-aam-budget.html", mode="after-body"),  # static study, built offline
@@ -824,7 +831,14 @@ HOME = {
     "Mid-latitude weather": (
         "weather",
         "Storms, hazards and the flow aloft over the next two weeks",
-        ["/models.html", "/ar.html", "/circulation.html#dt", "/circulation.html#pacjet", "/circulation.html#waf"],
+        [
+            "/models.html",
+            "/samerica-models.html",
+            "/ar.html",
+            "/circulation.html#dt",
+            "/circulation.html#pacjet",
+            "/circulation.html#waf",
+        ],
     ),
     "Global circulation and tropics": (
         "drivers",

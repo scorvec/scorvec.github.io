@@ -1,0 +1,2058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>South America Model Maps: IFS Control and GDPS &middot; Shawn Corvec</title>
+<meta name="description" content="Zoomable maps of the newest IFS control and GDPS runs over South America to ten days: temperature, wind, rain and its type, ECAPE, CAPE, shear and helicity, with hover values.">
+<link rel="canonical" href="https://scorvec.com/samerica-models.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:title" content="South America model maps: IFS control and GDPS">
+<meta property="og:description" content="Zoomable maps of the newest IFS control and GDPS runs over South America to ten days, with ECAPE, CAPE, shear and helicity computed on every column.">
+<meta property="og:url" content="https://scorvec.com/samerica-models.html">
+<meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
+<meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "WebPage",
+ "name": "South America model maps: IFS control and GDPS",
+ "url": "https://scorvec.com/samerica-models.html",
+ "description": "Zoomable maps of the newest IFS control and GDPS runs over South America to ten days: temperature, wind, rain and its type, ECAPE, CAPE, shear and helicity, with hover values.",
+ "image": "https://scorvec.com/hero-supercell-1280.webp",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "Shawn Corvec",
+  "url": "https://scorvec.com/"
+ },
+ "author": {
+  "@id": "https://scorvec.com/#person"
+ }
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css?v=c7c5796084">
+<script src="/assets/site.js?v=fe84a7e3e0" defer></script>
+<script src="/assets/frames_root.js?v=9d2de66ccd"></script>
+<style>
+  /* samerica-models.html: the page draws the data itself - scripts/models/samerica.py ships one lossless WebP per field
+     and step on the model's native latitude-longitude grid, and the WebGL code below colours, projects and reads it
+     (the engine of models.html, on a projection centred on South America). */
+  :root { --bg: #f5f6f3; --panel: #ffffff; --ink: #1f261c; --ink2: #3d4540; --muted: #6f6b64; --rule: #dfe3dc;
+          --accent: #274b7a; --accent-soft: rgba(39, 75, 122, 0.09); --map: #e9ebe6;
+          --serif: 'Source Serif 4', Georgia, serif; --sans: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif; }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.5; }
+  main.mv { max-width: none; margin: 0 auto; padding: 1.2rem clamp(0.75rem, 3vw, 3.5rem) 3rem; }
+  h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(1.6rem, 3.2vw, 2.3rem); line-height: 1.15; margin: 0.25rem 0 0.4rem; }
+  h2 { font-family: var(--serif); font-weight: 500; font-size: 1.3rem; margin: 1.8rem 0 0.5rem; }
+  main.mv > .lede { color: var(--ink); font-size: 1.16rem; max-width: 80ch; margin: 0.7rem auto 1.1rem; }
+  .lede a, .mv-about a { color: var(--accent); }
+
+  .mv-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.9rem; margin: 0 0 0.4rem; }
+  .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule); border-radius: 7px; background: var(--panel); overflow: hidden; }
+  .seg button { font: inherit; font-size: 1.14rem; font-weight: 600; border: 0; border-right: 1px solid var(--rule); background: transparent; color: var(--ink);
+                padding: 0.62rem 1.05rem; min-height: 46px; cursor: pointer; white-space: nowrap; }
+  .seg button:last-child { border-right: 0; }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .seg button:disabled { color: #8a8f8a; cursor: not-allowed; background: repeating-linear-gradient(135deg, transparent 0 5px, rgba(0,0,0,0.035) 5px 10px); }
+  .seg button:not(:disabled):not([aria-pressed="true"]):hover { background: var(--accent-soft); }
+  .seg button small { font-size: 0.78em; opacity: 0.8; margin-left: 0.25em; }
+  .mv-fields { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 0.35rem 0.8rem; align-items: flex-end; }
+  .mv-grp { display: flex; flex-direction: column; gap: 0.15rem; }
+  .mv-grp > span { font-size: 0.86rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); padding-left: 2px; }
+  .mv-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.9rem; flex: 1 1 100%; min-width: 0; }
+  .mv-sub { display: flex; flex-wrap: wrap; gap: 0.45rem 0.9rem; align-items: center; flex: 1 1 100%; min-width: 0; }
+  .mv-sub[hidden] { display: none; }
+  .runsel { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 1.12rem; font-weight: 600; color: var(--ink); min-width: 0; max-width: 100%; }
+  .runsel select { font: inherit; font-size: 1.12rem; font-weight: 600; padding: 0.55rem 0.6rem; min-height: 46px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink);
+                   flex: 0 1 auto; min-width: 0; max-width: 100%; text-overflow: ellipsis; }
+  .runsel.mv-fsel { display: none; }
+  .mv-runT { font-size: 1.04rem; color: var(--ink2); }
+  .chk[hidden] { display: none; }
+  .chk { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 1.12rem; font-weight: 600; color: var(--ink); cursor: pointer; user-select: none; min-height: 40px; }
+  .chk input { width: 1.25rem; height: 1.25rem; accent-color: var(--accent); margin: 0; }
+  .mv-show { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1.3rem; margin: 0.45rem 0 0; font-size: 1.12rem; }
+  .mv-show > b { font-weight: 600; }
+  .mv-keys { margin-left: auto; font-size: 0.92rem; color: var(--muted); }
+  .mv-keys kbd { font: inherit; font-size: 0.78rem; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0 0.3em; background: var(--panel); }
+
+  /* touch: one finger scrolls the page, two move and zoom the map. Never taller than the window. */
+  .mv-map { position: relative; width: 100%; height: max(340px, calc(100vh - 225px)); background: var(--map); border: 1px solid var(--rule);
+            border-radius: 8px; overflow: hidden; touch-action: pan-x pan-y; cursor: grab;
+            -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  .mv-map.drag { cursor: grabbing; }
+  .mv-map:focus { outline: none; }
+  .mv-map:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .mv-coop { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5; pointer-events: none; max-width: min(26rem, 90%);
+             background: rgba(20, 24, 22, 0.85); color: #fff; border-radius: 8px; padding: 0.6rem 0.95rem; font-size: 1.04rem; text-align: center;
+             opacity: 0; transition: opacity 0.2s; }
+  .mv-coop.on { opacity: 1; }
+  .mv-map canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .mv-map canvas#ov { transform-origin: 0 0; will-change: transform; }
+  .mv-map canvas#lab { pointer-events: none; }
+  .mv-zoom { position: absolute; right: 8px; top: 8px; display: flex; flex-direction: column; gap: 4px; z-index: 3; }
+  .mv-zoom button { width: 48px; height: 48px; font: 700 1.5rem var(--sans); border: 1px solid var(--rule); border-radius: 6px;
+                    background: rgba(255,255,255,0.92); color: var(--ink); cursor: pointer; }
+  .mv-zoom button.txt { font-size: 0.98rem; }
+  .mv-badge { position: absolute; left: 8px; top: 8px; z-index: 3; background: rgba(255,255,255,0.93); border: 1px solid var(--rule); border-radius: 6px;
+              padding: 0.3rem 0.6rem; font-size: 0.95rem; color: var(--ink); max-width: calc(100% - 60px); pointer-events: none; }
+  .mv-badge b { font-weight: 600; }
+  .mv-load { position: absolute; left: 8px; bottom: 8px; z-index: 3; background: rgba(255,255,255,0.93); border: 1px solid var(--rule); border-radius: 6px;
+             padding: 0.2rem 0.5rem; font-size: 0.82rem; color: var(--ink2); pointer-events: none; }
+  .mv-load:empty { display: none; }
+  .mv-msg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2; max-width: min(34rem, 90%); text-align: center;
+            background: rgba(255,255,255,0.96); border: 1.5px dashed #b9beb6; border-radius: 8px; padding: 1.1rem 1.3rem; font-size: 0.97rem; color: var(--ink2); }
+  .mv-msg:empty { display: none; }
+  .mv-tip { position: absolute; z-index: 4; pointer-events: none; background: rgba(20, 24, 22, 0.9); color: #fff; font-size: 0.84rem; line-height: 1.35;
+            padding: 0.3rem 0.5rem; border-radius: 5px; white-space: nowrap; transform: translate(12px, 12px); display: none; }
+  .mv-tip .v { font-weight: 600; font-size: 0.95rem; }
+  .mv-tip .ll { color: #cfd6cf; }
+
+  .mv-time { display: flex; align-items: center; gap: 0.5rem; margin: 0.2rem 0 0.55rem; flex-wrap: wrap; }
+  .mv-time button { font: inherit; font-size: 1.35rem; font-weight: 700; min-width: 3.3rem; height: 3rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel);
+                    color: var(--ink); cursor: pointer; }
+  .mv-time input[type=range] { flex: 1 1 14rem; min-width: 10rem; height: 3rem; margin: 0; background: transparent; cursor: pointer;
+                                -webkit-appearance: none; appearance: none; touch-action: manipulation; }
+  .mv-time input[type=range]::-webkit-slider-runnable-track { height: 14px; border-radius: 7px; background: #cfd5cc; border: 1px solid #b8beb5; }
+  .mv-time input[type=range]::-moz-range-track { height: 14px; border-radius: 7px; background: #cfd5cc; border: 1px solid #b8beb5; }
+  .mv-time input[type=range]::-moz-range-progress { height: 14px; border-radius: 7px; background: var(--accent); }
+  .mv-time input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 30px; height: 30px; margin-top: -9px;
+      border-radius: 50%; background: var(--accent); border: 3px solid #fff; box-shadow: 0 0 0 1px var(--accent), 0 1px 4px rgba(0,0,0,0.35); }
+  .mv-time input[type=range]::-moz-range-thumb { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); border: 3px solid #fff;
+      box-shadow: 0 0 0 1px var(--accent), 0 1px 4px rgba(0,0,0,0.35); }
+  .mv-time input[type=range]:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 8px; }
+  .mv-valid { font-size: 1.05rem; color: var(--ink); min-width: 15rem; line-height: 1.3; }
+  .mv-valid .vt { font-size: 1.22rem; font-weight: 600; }
+  .mv-valid .loc { color: var(--ink2); }
+  .mv-valid .fh { display: inline-block; margin-left: 0.35rem; padding: 0 0.4rem; border-radius: 4px; background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 0.9rem; }
+  .mv-panel { background: #e6edf4; border: 1px solid #c9d6e3; border-radius: 10px; padding: 0.7rem 0.85rem 0.15rem; margin: 0 0 0.6rem; }
+  .mv-mapwrap { display: flex; gap: 8px; align-items: stretch; position: relative; }
+  .mv-mapwrap > .mv-map { flex: 1 1 auto; min-width: 0; }
+  /* the canvas is out of the flow: its backing store is sized from its own box, which in flow would feed back into the row height */
+  .mv-legend { flex: 0 0 96px; margin: 0; position: relative; }
+  .mv-legend canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .mv-legT { margin: 0.3rem 0 0; font-size: 0.97rem; color: var(--muted); }
+  .mv-note { margin: 0.5rem 0 0; padding: 0.55rem 0.8rem; background: var(--panel); border: 1px solid var(--rule); border-left: 4px solid var(--accent);
+             border-radius: 4px; font-size: 1.02rem; color: var(--ink2); max-width: 80rem; }
+  .mv-note:empty { display: none; }
+  .mv-note b { color: var(--ink); font-weight: 600; }
+  .mv-about { max-width: 80rem; color: var(--ink2); font-size: 1.04rem; margin-top: 1.4rem; border-top: 1px solid var(--rule); padding-top: 0.6rem; }
+  .mv-about > h2:first-child { margin-top: 0.6rem; }
+  .mv-about h3 { font-family: var(--serif); font-weight: 500; font-size: 1.12rem; margin: 1.1rem 0 0.4rem; color: var(--ink); }
+  .mv-about table { border-collapse: collapse; width: 100%; font-size: 0.98rem; margin: 0.4rem 0 0.8rem; background: var(--panel); }
+  .mv-about th, .mv-about td { border: 1px solid var(--rule); padding: 0.35rem 0.5rem; text-align: left; vertical-align: top; }
+  .mv-about th { background: #eef1ec; font-weight: 600; color: var(--ink); }
+  .mv-about td.na { color: var(--muted); font-style: italic; }
+  .mv-about .tbl { overflow-x: auto; }
+  .mv-runs { font-size: 0.95rem; color: var(--muted); margin: 0.2rem 0 0; }
+  @media (max-width: 640px) {
+    main.mv { padding-top: 0.6rem; display: flex; flex-direction: column; }
+    h1 { font-size: 1.45rem; margin: 0.1rem 0 0.25rem; }
+    main.mv > .lede { font-size: 1.04rem; padding: 0.75rem 0.9rem; margin: 0.9rem 0 0.8rem; order: 1; }
+    main.mv > .mv-mapwrap ~ * { order: 2; }
+    .seg button { padding: 0.55rem 0.72rem; font-size: 1.06rem; min-height: 46px; }
+    .runsel, .runsel select, .chk { font-size: 1.04rem; }
+    .mv-time button { min-width: 2.9rem; }
+    .mv-fields { display: none; }
+    .runsel.mv-fsel { display: inline-flex; flex: 1 1 12rem; }
+    .mv-fsel select { flex: 1 1 auto; min-width: 0; }
+    .mv-map { height: clamp(340px, calc(100svh - 180px), 700px); }
+    .mv-zoom button { width: 36px; height: 36px; font-size: 1.15rem; }
+    .mv-zoom button.txt { font-size: 0.82rem; }
+    .mv-time { margin: 0 0 0.35rem; padding: 0.2rem 0 0.25rem; }
+    .mv-panel { padding: 0.5rem 0.55rem 0.05rem; }
+    .mv-mapwrap { flex-direction: column; gap: 0.3rem; }
+    .mv-legend { flex: 0 0 auto; }
+    .mv-legend canvas { position: static; height: 38px; }
+    .mv-valid { min-width: 0; flex: 1 1 100%; font-size: 0.95rem; order: -1; }
+    .mv-valid .vt { font-size: 1.08rem; }
+    .mv-time input[type=range] { flex: 1 1 5rem; min-width: 5rem; }
+    .mv-keys { display: none; }
+    .mv-badge { font-size: 0.86rem; padding: 0.22rem 0.5rem; }
+  }
+</style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
+</head>
+<body>
+<!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0" aria-current="page">Mid-latitude weather</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div class="sh-col">
+              <div>
+                <h3>Surface and hazards</h3>
+                <ul>
+                  <li><a href="/models.html">Short-range model maps</a></li>
+                  <li><a href="/samerica-models.html" aria-current="page">South America model maps</a></li>
+                  <li><a href="/ar.html">Atmospheric rivers</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Upper air</h3>
+                <ul>
+                  <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                  <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                  <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1"><span class="sh-lf">Global circulation and tropics</span><span class="sh-ls">Circulation/tropics</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div class="sh-col">
+              <div>
+                <h3>ENSO and the MJO</h3>
+                <ul>
+                  <li><a href="/enso.html">El Niño monitor</a></li>
+                  <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+                  <li><a href="/circulation.html#gdps_ir">Simulated satellite (GDPS)</a></li>
+                  <li><a href="/mjo.html">MJO forecast</a></li>
+                  <li><a href="/tropical-waves.html">Tropical waves</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tropical cyclones</h3>
+                <ul>
+                  <li><a href="/circulation.html#tc">Tropical cyclones</a></li>
+                  <li><a href="/recon.html">Hurricane reconnaissance</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Jets and momentum</h3>
+                <ul>
+                  <li><a href="/circulation.html#jets">Subtropical jets</a></li>
+                  <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tropical overturning</h3>
+                <ul>
+                  <li><a href="/circulation.html#walker">Walker circulation</a></li>
+                  <li><a href="/circulation.html#hadley">Hadley cells</a></li>
+                  <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                  <li><a href="/circulation.html#gdps150">Upper-level outflow (GDPS)</a></li>
+                  <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+                  <li><a href="/circulation.html#rainfc">Rain forecast, weeks 1–2</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/ssw.html">SSW outlook</a></li>
+              <li><a href="/stratosphere.html#fdrip15">Next two weeks</a></li>
+              <li><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
+              <li><a href="/stratosphere.html#s5vortex">The season ahead</a></li>
+              <li><a href="/stratosphere.html#pv">Today's analyses</a></li>
+              <li><a href="/stratosphere.html#shwinters">History and studies</a></li>
+              <li><a href="/stratosphere.html#qbo">QBO</a></li>
+              <li><a href="/stratosphere.html">All stratosphere products</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div class="sh-col">
+              <div>
+                <h3>Extended range</h3>
+                <ul>
+                  <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                  <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+                  <li><a href="/sfs-subseasonal.html">SFS extended (experimental)</a></li>
+                  <li><a href="/monthly-outlook.html">Claude's month-ahead forecast</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Seasons</h3>
+                <ul>
+                  <li><a href="/seasonal.html">Seasonal model forecasts</a></li>
+                  <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div class="sh-col">
+              <div>
+                <h3>Studies</h3>
+                <ul>
+                  <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                  <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                  <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
+                  <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
+                  <li><a href="/topics/">Explainers</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Verification</h3>
+                <ul>
+                  <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+                  <li><a href="/verification.html">Global models against observations</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+              <li><a href="/fci.html">US credit conditions</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main id="main" class="mv">
+  <h1>South America model maps</h1>
+  <p class="lede">The newest IFS control (ECMWF's unperturbed 9&nbsp;km forecast) and GDPS (Canada's 15&nbsp;km global model) over South America to ten days: hover or tap for values.</p>
+
+  <div class="mv-panel">
+  <div class="mv-bar">
+    <div class="mv-row">
+      <div class="seg" id="models" role="group" aria-label="Model"></div>
+      <span class="mv-runT" id="runT"></span>
+      <label class="runsel mv-fsel">Map <select id="fieldSel" aria-label="Map"></select></label>
+    </div>
+    <div class="mv-fields" id="fields" role="group" aria-label="Map"></div>
+    <div class="mv-sub" id="accBar" hidden>
+      <div class="seg" id="accType" role="group" aria-label="Precipitation"></div>
+      <label class="runsel">Window <select id="accWin" aria-label="Accumulation window"></select></label>
+    </div>
+    <div class="mv-sub" id="subBar" hidden><div class="seg" id="subSeg" role="group" aria-label="Map variant"></div></div>
+  </div>
+  <div class="mv-time">
+    <button type="button" id="play" aria-label="Play">&#9654;</button>
+    <button type="button" id="back" aria-label="Previous step">&lsaquo;</button>
+    <input type="range" id="hour" min="0" max="0" value="0" aria-label="Forecast step">
+    <button type="button" id="fwd" aria-label="Next step">&rsaquo;</button>
+    <span class="mv-valid" id="valid" aria-live="polite"></span>
+  </div>
+  </div>
+  <div class="mv-mapwrap">
+  <div class="mv-map" id="map" tabindex="0" role="application" aria-roledescription="map" aria-label="Model map" aria-describedby="badge mapKeys">
+    <canvas id="gl" aria-hidden="true"></canvas>
+    <canvas id="ov" aria-hidden="true"></canvas>
+    <canvas id="lab" aria-hidden="true"></canvas>
+    <div class="mv-coop" id="coop" aria-hidden="true"></div>
+    <div class="mv-badge" id="badge"></div>
+    <div class="mv-zoom"><button type="button" id="zin" aria-label="Zoom in">+</button><button type="button" id="zout" aria-label="Zoom out">&minus;</button><button type="button" class="txt" id="zfit" aria-label="Reset view">fit</button></div>
+    <div class="mv-msg" id="msg" role="status"></div>
+    <div class="mv-load" id="load"></div>
+    <div class="mv-tip" id="tip"></div>
+  </div>
+  <div class="mv-legend"><canvas id="leg" role="img" aria-label="Colour scale" aria-describedby="legT"></canvas></div>
+  </div>
+  <p class="mv-legT" id="legT"></p>
+  <div class="mv-show"><b>Show</b>
+    <label class="chk" id="contL" hidden title="Labelled contours drawn from the same data"><input type="checkbox" id="cont" checked> Contours</label>
+    <span class="mv-keys" id="mapKeys">Click the map, then: arrows pan &middot; <kbd>+</kbd> <kbd>&minus;</kbd> zoom &middot; <kbd>0</kbd> reset &middot; <kbd>,</kbd> <kbd>.</kbd> step &middot; <kbd>Space</kbd> play &middot; <kbd>Ctrl</kbd> + scroll zooms</span>
+  </div>
+  <p class="mv-note" id="note"></p>
+
+  <section class="mv-about" id="about" aria-labelledby="aboutH">
+    <h2 id="aboutH">About these maps</h2>
+    <p class="mv-runs" id="runs"></p>
+    <h3>The two models</h3>
+    <p><b>IFS control</b>: the European Centre for Medium-Range Weather Forecasts' Integrated Forecasting System run without perturbations, at about 9&nbsp;km (the unperturbed member that anchors its ensemble), read here on the 0.1&deg; grid of ECMWF's open data, interpolated from the model's own octahedral grid. 00 and 12&nbsp;UTC runs, every 3&nbsp;hours to +144&nbsp;h and every 6&nbsp;hours to +240&nbsp;h; a run appears here about 10&nbsp;hours after its start time, when its last files are published. <b>GDPS</b>: Environment and Climate Change Canada's Global Deterministic Prediction System (the GEM model, about 15&nbsp;km), on its 0.15&deg; latitude-longitude grid, 00 and 12&nbsp;UTC to +240&nbsp;h; surface fields every 3&nbsp;hours, the convective fields on the IFS's steps (every 3&nbsp;hours to +144&nbsp;h, then 6-hourly), so the two models can be compared at the same times. It appears about 6&nbsp;hours after its start. Both are cropped to 60&deg;&nbsp;S&ndash;15&deg;&nbsp;N, 95&ndash;30&deg;&nbsp;W; only the newest run of each is kept.</p>
+    <h3>What each map is</h3>
+    <div class="tbl"><table>
+      <tr><th>Map</th><th>IFS control</th><th>GDPS</th></tr>
+      <tr><td>Temperature, dewpoint</td><td colspan="2">2&nbsp;m above ground, &deg;C, stored to 0.5&nbsp;&deg;C; contours every 5&nbsp;&deg;C (0&nbsp;&deg;C in blue on the temperature map, 20&nbsp;&deg;C bold on the dewpoint map)</td></tr>
+      <tr><td>Sea-level pressure</td><td>msl, in 4&nbsp;hPa classes, isobars every 2&nbsp;hPa (4&nbsp;hPa zoomed out), highs and lows; faded where the ground is above about 1,500&nbsp;m (surface pressure below 850&nbsp;hPa: the Andes, the Altiplano), where the reduction to sea level is unreliable and no H or L is placed</td><td>Pressure_MSL, as the IFS</td></tr>
+      <tr><td>10&nbsp;m wind, gust</td><td>10u/10v in knots with barbs; gust = the largest gust since the previous step (10fg3 over 3&nbsp;h on the 3-hourly steps, 10fg over 6&nbsp;h on the 6-hourly ones); isobars on both</td><td>10&nbsp;m wind as the IFS; gust = WindGust, instantaneous at the valid time</td></tr>
+      <tr><td>100&nbsp;m wind</td><td>100u/100v, m/s (the wind-energy convention), barbs in knots</td><td class="na">Not in the GDPS output (its wind levels are 10, 40, 80 and 120&nbsp;m)</td></tr>
+      <tr><td>Precipitation rate and type</td><td>tprate (instantaneous) coloured by ptype: rain, snow (and wet snow), freezing rain (and freezing drizzle), ice pellets, rain-snow mix; colours on the radar scale through the Marshall&ndash;Palmer relation, so 1&nbsp;mm/h looks like light rain on a radar &mdash; a rate, not reflectivity</td><td>PrecipRate coloured by PrecipType (the GEM codes as measured for the RDPS: 1 rain, 2 rain-snow mix, 3 freezing rain, 4 ice pellets, 5 snow); each run logs the median 2&nbsp;m temperature under each code as a check</td></tr>
+      <tr><td>Accumulation</td><td>tp since the start of the run, mm; snow = 10 &times; the snowfall water equivalent (sf), cm at 10:1. Pick a window to see what falls in it</td><td>Precip-Accum; snow = 10 &times; Snow-Accum, cm at 10:1</td></tr>
+      <tr><td>Precipitable water</td><td>tcwv, the model's total column water vapour, mm</td><td>Computed here from the surface and 20 pressure levels (SHARPlib), mm</td></tr>
+      <tr><td>850&nbsp;hPa &theta;<sub>e</sub></td><td colspan="2">Equivalent potential temperature at 850&nbsp;hPa from the level's temperature and specific humidity (Bolton 1980), K; blank where 850&nbsp;hPa is within 10&nbsp;hPa of the ground or below it</td></tr>
+      <tr><td>IR proxy</td><td>Neither model publishes a simulated satellite band. Shown: the brightness temperature (OLR/&sigma;)<sup>&frac14;</sup> of the outgoing longwave radiation, here its mean since the previous step (3&nbsp;h to +144&nbsp;h, 6&nbsp;h after) from the accumulated top thermal radiation. Cloud tops come out close to a 10.3&nbsp;&micro;m image; clear skies read 20&ndash;30&nbsp;K colder than one</td><td>As the IFS, from the instantaneous outgoing longwave radiation</td></tr>
+      <tr><td>ECAPE and CAPE</td><td colspan="2">Computed here on every column (see below): the entraining CAPE of Peters et al. (2023) and the undiluted CAPE, for the most-unstable parcel and the 100&nbsp;hPa mixed-layer parcel; the ECAPE/CAPE ratio is shown where CAPE exceeds 100&nbsp;J/kg. Stored to within &plusmn;&radic;(J/kg)/2.8 (&plusmn;4&nbsp;J/kg at 100, &plusmn;11 at 1,000, &plusmn;20 at 3,000). The IFS's own most-unstable CAPE (mucape, from its model levels) is there for comparison</td></tr>
+      <tr><td>0&ndash;6&nbsp;km shear</td><td colspan="2">The bulk shear vector from the 10&nbsp;m wind to the wind 6&nbsp;km above the ground, knots, barbs of the vector; blank below 20&nbsp;kt</td></tr>
+      <tr><td>Helicity</td><td colspan="2">Storm-relative helicity 0&ndash;1 and 0&ndash;3&nbsp;km for the Bunkers storm motion of the cyclonic supercell, m&sup2;/s&sup2;, <b>cyclonic-positive</b> in both hemispheres (see below); blank below 50</td></tr>
+    </table></div>
+    <h3 id="convection">How the convective maps are computed</h3>
+    <p>Every column of the grid (about 490,000 for the IFS, 220,000 for the GDPS, every step) goes through the site's ECAPE kernel: SHARPlib, through the same wrapper the <a href="/skewt/">sounding explorer</a> runs in the browser, so a column here and a sounding there come from identical code. The column is the surface (surface pressure, terrain height, 2&nbsp;m temperature and dewpoint, 10&nbsp;m wind) and then the model's pressure levels above the ground: the IFS's 13 open-data levels (1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 50&nbsp;hPa) and 20 of the GDPS's (1015, 1000, 985, 970, 950, 925, 900, 850, 800, 750, 700, 600, 500, 400, 300, 250, 200, 150, 100, 50&nbsp;hPa); a level less than 5&nbsp;hPa above the ground is left out. Heights are hypsometric (virtual temperature, trapezoidal in ln&nbsp;p) up from the model's terrain and surface pressure, and each run checks them against the model's own 500 and 850&nbsp;hPa heights. The most-unstable parcel comes from the effective-inflow search in the lowest 400&nbsp;hPa, the mixed-layer parcel is the lowest 100&nbsp;hPa mean; ECAPE takes its storm-relative inflow from the Bunkers storm motion.</p>
+    <p><b>Southern Hemisphere storms.</b> South of the equator the cyclonic supercell is the one that turns <em>left</em> of the mean wind. Each column there is handed to the kernel with its wind profile mirrored, so the kernel's right-moving storm is the real profile's left mover: ECAPE gets that storm's inflow, and the helicity is that storm's with the sign turned, <b>positive for cyclonic rotation in both hemispheres</b>. The conventional Southern Hemisphere value, negative for a cyclonic storm, is the negative of the number shown. North of the equator nothing is mirrored; near it, where there is little Coriolis force, neither storm is favoured.</p>
+    <p><b>Limits.</b> Pressure levels are coarse near the ground: the IFS has only 1000, 925 and 850&nbsp;hPa below 700&nbsp;hPa, so the mixed-layer parcel and the 0&ndash;1&nbsp;km helicity rest on the surface and one or two levels (more over the Andes foothills, fewer over high ground), and a shallow inversion between levels is missed. The GDPS's levels are 15&ndash;50&nbsp;hPa apart down there. Treat the 0&ndash;1&nbsp;km numbers as a guide to where low-level shear is strong, not as values to threshold.</p>
+    <p class="mv-runs" id="checks"></p>
+    <h3>How the page works</h3>
+    <p>Nothing on this page is a picture. Each field and step is shipped as the model's own numbers, rounded to 256 levels, on its native grid, and your browser colours, projects, contours and reads it: zooming shows the model's grid cells, and the hover value is the stored one. The maps are drawn on an oblique stereographic projection centred at 22.5&deg;&nbsp;S, 62.5&deg;&nbsp;W (conformal: shapes and wind directions are right everywhere). Contours are drawn by your graphics card from the same numbers after a light smoothing; their labels and the highs and lows are placed once the map is at rest. <b>Data use:</b> opening a map loads only the step on screen (0.1&ndash;0.5&nbsp;MB); playing, stepping or dragging the time slider downloads every step of that map (65&ndash;81 files, typically 5&ndash;20&nbsp;MB a map).</p>
+    <p>Data: ECMWF open data (IFS control; &copy; ECMWF, CC&nbsp;BY&nbsp;4.0, Google Cloud mirror) and ECCC GDPS (Data Source: Environment and Climate Change Canada (MSC Datamart), under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a>). Model output as published, uncorrected. Boundaries: Natural Earth. Peters, J. M., D. R. Chavas, C.-Y. Su, H. Morrison and B. E. Coffer, 2023, J. Atmos. Sci. 80, 2165&ndash;2186 &middot; Bunkers, M. J., et al., 2000, Wea. Forecasting 15, 61&ndash;79 &middot; Bolton, D., 1980, Mon. Wea. Rev. 108, 1046&ndash;1053.</p>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  // ── configuration ─────────────────────────────────────────────────────────────────────────────────────────────
+  var LOCAL = /[?&]local=1/.test(location.search);                    // testing: data from this origin
+  var D2R = Math.PI / 180, KT = 1.943844, KMH = 3.6;
+  var MODELS = { ifs: "IFS control", gdps: "GDPS" }, MODEL_ORDER = ["ifs", "gdps"];
+  var DATA = "assets/models/data/sa/";
+  function S(v, c, a) { return [v, parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16), a == null ? 1 : a]; }
+  // the 10 m wind and gust colours (m/s; shown in knots), as models.html
+  var WIND_STOPS = [S(0, "#f6f6f4"), S(3, "#d3e4f1"), S(6, "#9cc5e3"), S(9, "#5c9fcd"), S(12, "#3f9b6a"), S(15, "#8cc24a"),
+                    S(18, "#e6d93a"), S(21, "#f8a93a"), S(25, "#e4552f"), S(30, "#a8124f"), S(40, "#4a0f6a")];
+  var FIELDS = {
+    ir: { label: "IR proxy", enc: "lin", off: 170, step: 0.625, unit: "°C", disp: function (k) { return k - 273.15; }, lines: "rgba(255,226,110,0.9)",
+          stops: [S(45, "#0c0c0c"), S(20, "#3b3b3b"), S(0, "#727272"), S(-20, "#b1b1b1"), S(-30, "#e2e2e2"), S(-31, "#a6dcf2"),
+                  S(-40, "#3f92d2"), S(-48, "#1f58a6"), S(-50, "#2aa047"), S(-58, "#9fd23a"), S(-62, "#f2e23a"), S(-67, "#f39a2b"),
+                  S(-72, "#d7301f"), S(-78, "#8b0a36"), S(-84, "#e8b8ec"), S(-95, "#ffffff")],
+          ticks: [40, 20, 0, -20, -30, -40, -50, -60, -70, -80], range: [45, -95],
+          fmt: function (v, k) { return v.toFixed(1) + " °C  (" + k.toFixed(1) + " K)"; } },
+    // hue every 5 C through the common range, saturated red from 38 C, a hard step to purple at 43 C
+    t2m: { label: "Temperature", enc: "linf", unit: "°C",
+           stops: [S(-40, "#f3eef6"), S(-34, "#dcc4e8"), S(-29, "#b98fd6"), S(-23, "#8a55bd"), S(-18, "#5c2fa3"), S(-12, "#2f3fae"),
+                   S(-6, "#2a6fd6"), S(0, "#5cb8ef"), S(4, "#3cb8a8"), S(10, "#4aaa45"), S(15, "#a6cf3c"), S(18, "#ecdf3a"),
+                   S(21, "#f8c23a"), S(24, "#f7a031"), S(27, "#f07f2a"), S(32, "#e44f22"), S(36, "#d92a1f"), S(38, "#ff1414"),
+                   S(42.9, "#d6001c"), S(43, "#a32bc4"), S(47, "#76169f"), S(52, "#4b0a6e")],
+           ticks: [-30, -20, -10, 0, 10, 20, 30, 40, 50], range: [-40, 52],
+           fmt: function (v) { return v.toFixed(1) + " °C  (" + (v * 1.8 + 32).toFixed(1) + " °F)"; } },
+    td2m: { label: "Dewpoint", enc: "linf", unit: "°C",
+            stops: [S(-35, "#4d3b29"), S(-18, "#7b5e3d"), S(-7, "#a8875a"), S(-1, "#c9ae84"), S(4, "#e4d8b3"), S(7, "#d8e8bf"),
+                    S(10, "#abd8a2"), S(13, "#70c07e"), S(16, "#3aa05d"), S(18, "#1f7f4a"), S(21, "#1b6f7a"), S(24, "#245199"), S(28, "#4a2f8a")],
+            ticks: [-20, -10, 0, 5, 10, 15, 20, 25], range: [-30, 28],
+            fmt: function (v) { return v.toFixed(1) + " °C  (" + (v * 1.8 + 32).toFixed(1) + " °F)"; } },
+    mslp: { label: "Sea-level pressure", enc: "lin", off: 940, step: 0.5, unit: "hPa",
+            fmt: function (v) { return v.toFixed(1) + " hPa"; } },
+    wind10: { label: "10 m wind", enc: "lin2", off: -50.8, step: 0.4, unit: "kt", kt: true, smax: 40, stops: WIND_STOPS,
+              ticksKt: [0, 10, 20, 30, 40, 50, 60, 70], range: [0, 40] },
+    wind100: { label: "100 m wind", enc: "lin2", off: -50.8, step: 0.4, unit: "m/s", smax: 40, stops: WIND_STOPS,
+               ticks: [0, 5, 10, 15, 20, 25, 30, 35, 40], range: [0, 40] },
+    gust: { label: "Wind gust", enc: "lin", off: 0, step: 0.25, unit: "kt", kt: true,
+            stops: [S(0, "#f4f4f0"), S(5, "#d6e6f0"), S(10, "#94c3e2"), S(13, "#559fd2"), S(16, "#3a9e6c"), S(19, "#98ca46"), S(22, "#eed73a"),
+                    S(25, "#f6a535"), S(28, "#e8682d"), S(32, "#c92a37"), S(38, "#981062"), S(45, "#5a0f78"), S(55, "#2c0640")],
+            ticksKt: [0, 10, 20, 30, 40, 50, 60, 80, 100], range: [0, 55] },
+    rate: { label: "Precip rate + type", enc: "rate2", unit: "mm/h" },
+    acc: { label: "Accumulation", enc: "accd", unit: "mm" },
+    pwat: { label: "Precipitable water", enc: "lin", off: 0, step: 0.5, unit: "mm",
+            stops: [S(0, "#8a6a42"), S(8, "#c9a46c"), S(15, "#e8dcae"), S(22, "#cfe6b0"), S(30, "#8fcb7e"), S(38, "#3fa26a"), S(45, "#1f8a8f"),
+                    S(52, "#2f63b8"), S(60, "#4a3fa8"), S(68, "#8a2fa0"), S(76, "#c23b8f")],
+            ticks: [0, 10, 20, 30, 40, 50, 60, 70], range: [0, 76], fmt: function (v) { return v.toFixed(1) + " mm"; } },
+    the850: { label: "850 hPa θe", enc: "lin", off: 270, step: 0.5, unit: "K",
+              stops: [S(270, "#2a1f6b"), S(285, "#3456b8"), S(300, "#5aa2d8"), S(312, "#9fd3c4"), S(322, "#d7e8a0"), S(330, "#f5dc5a"),
+                      S(338, "#f7a63a"), S(346, "#e5612b"), S(354, "#c22a3a"), S(362, "#8e1a6e"), S(372, "#4b0a6e")],
+              ticks: [280, 300, 320, 330, 340, 350, 360, 370], range: [270, 375], fmt: function (v) { return v.toFixed(1) + " K"; } },
+    ecape: { label: "ECAPE / CAPE", enc: "sqrt", unit: "J/kg" },
+    shr6: { label: "0–6 km shear", enc: "lin2", off: -63.5, step: 0.5, unit: "kt", kt: true, smax: 45 },
+    srh: { label: "Helicity", enc: "lin", off: -250, step: 5, unit: "m²/s²" }
+  };
+  var FIELD_GROUPS = [["Surface", ["t2m", "td2m", "mslp", "wind10", "wind100", "gust"]],
+                      ["Rain and moisture", ["rate", "acc", "pwat", "the850", "ir"]],
+                      ["Convection", ["ecape", "shr6", "srh"]]];
+  var FIELD_ORDER = [].concat.apply([], FIELD_GROUPS.map(function (g) { return g[1]; }));
+  var MSLP_LEVELS = [900, 976, 980, 984, 988, 992, 996, 1000, 1004, 1008, 1012, 1016, 1020, 1024, 1028, 1032, 1036, 1040, 1044];
+  var MSLP_COLORS = ["#3b0f5c", "#56258a", "#6a3fb0", "#4c50c4", "#3769c9", "#3f86cf", "#5aa2d8", "#80bce2", "#a9d3ea", "#d3e7ef",
+                     "#f1ead6", "#f6d8a4", "#f3be78", "#ec9c52", "#df7638", "#c9512b", "#a53024", "#7c1a20", "#560e1d"];
+  // precipitation type (G channel of "rate"), models.html's codes
+  var PT_NAMES = ["no type", "rain", "snow", "freezing rain", "ice pellets", "rain/snow mix"];
+  var NWS_RAIN = (function () {
+    var bins = [[5, "#04e9e7"], [10, "#019ff4"], [15, "#0300f4"], [20, "#02fd02"], [25, "#01c501"], [30, "#008e00"], [35, "#fdf802"],
+                [40, "#e5bc00"], [45, "#fd9500"], [50, "#fd0000"], [55, "#d40000"], [60, "#bc0000"], [65, "#f800fd"], [70, "#9854c6"], [75, "#fdfdfd"]];
+    var out = [];
+    bins.forEach(function (b, i) { out.push(S(b[0], b[1])); out.push(S(i + 1 < bins.length ? bins[i + 1][0] - 0.001 : 95, b[1])); });
+    return out;
+  })();
+  var PT_RAMPS = [null, NWS_RAIN,
+    [S(5, "#cfe9fb"), S(15, "#8cc3f0"), S(25, "#4b8fe0"), S(33, "#1f5cc2"), S(40, "#12398c"), S(52, "#241766")],
+    [S(5, "#f9d3e5"), S(15, "#f09fc6"), S(25, "#e0639f"), S(35, "#c02b7b"), S(48, "#7e0e4a")],
+    [S(5, "#fde3bd"), S(15, "#f8bb72"), S(25, "#ef8c35"), S(35, "#d45f16"), S(48, "#8f3406")],
+    [S(5, "#e6d3f7"), S(15, "#c09ae8"), S(25, "#9660d2"), S(35, "#6c35b0"), S(48, "#40157a")]];
+  PT_RAMPS[0] = PT_RAMPS[1];
+  function rateEq(mmh) { return 10 * Math.log10(200 * Math.pow(Math.max(mmh, 1e-6), 1.6)); }   // colour index only (Marshall-Palmer)
+  function rateOf(c) { return Math.exp(Math.log(0.1) + (c - 1) / 253 * Math.log(1000)); }
+  // accumulation: the files hold the total since the run started (16-bit, 0.1 mm / 0.1 cm); the page subtracts two steps
+  // for the window and bins the result on a square-root scale into the 8-bit code the shader colours (vmax per type)
+  var ACC_TYPES = {
+    apcp: { label: "Total", vmax: 600, unit: "mm", unitLabel: "Precipitation, mm (liquid equivalent)", ticks: [1, 5, 10, 25, 50, 100, 200, 400], lo: 0.5, hi: 450, levels: [10, 25, 50],
+            stops: [S(0.5, "#d6f0c4", 0.9), S(2.5, "#9bd685"), S(6, "#4cb24a"), S(12, "#1e873a"), S(20, "#2c72b8"), S(25, "#1d409f"),
+                    S(40, "#7a4fb7"), S(50, "#ae3bb0"), S(75, "#d42a3b"), S(100, "#ef6a25"), S(125, "#f8a62c"), S(175, "#fbe46c"), S(250, "#fff6cf"), S(400, "#ffffff")] },
+    asnow: { label: "Snow (10:1)", vmax: 300, unit: "cm", unitLabel: "Snowfall at 10:1 from the snow water equivalent, cm", ticks: [1, 5, 10, 20, 30, 60, 100], lo: 0.5, hi: 120, levels: [5, 15, 30],
+             stops: [S(0.5, "#e2effc", 0.9), S(2.5, "#a9cdf2"), S(5, "#6fa8e6"), S(7.5, "#3d7fd4"), S(10, "#2152b0"), S(15, "#1d2f8f"), S(20, "#5a2a96"),
+                     S(30, "#9a3fb0"), S(45, "#cf62c6"), S(60, "#f29ad8"), S(90, "#f9d2ea"), S(120, "#b07040")] } };
+  var ACC_ORDER = ["apcp", "asnow"], ACC_WINS = [0, 3, 6, 12, 24, 48, 72];
+  // ECAPE / CAPE: files ecape_mu, ecape_ml, mucape, mlcape (and the IFS's own capem), code = round(K * sqrt(J/kg)); the
+  // ratio is divided here, masked where CAPE <= 100 J/kg
+  var EC_SUBS = {
+    ecape_mu: { label: "MU ECAPE", long: "entraining CAPE, most-unstable parcel", kind: "cape", files: ["ecape_mu"] },
+    ecape_ml: { label: "ML ECAPE", long: "entraining CAPE, mixed-layer parcel", kind: "cape", files: ["ecape_ml"] },
+    ratio_mu: { label: "ECAPE/CAPE, MU", long: "ECAPE / CAPE, most-unstable parcel", kind: "ratio", files: ["ecape_mu", "mucape"] },
+    ratio_ml: { label: "ECAPE/CAPE, ML", long: "ECAPE / CAPE, mixed-layer parcel", kind: "ratio", files: ["ecape_ml", "mlcape"] },
+    mucape: { label: "MU CAPE", long: "undiluted CAPE, most-unstable parcel", kind: "cape", files: ["mucape"] },
+    mlcape: { label: "ML CAPE", long: "undiluted CAPE, mixed-layer parcel", kind: "cape", files: ["mlcape"] },
+    capem: { label: "IFS's own MU CAPE", long: "the most-unstable CAPE the IFS computes on its own model levels", kind: "cape", files: ["capem"], only: "ifs" } };
+  var EC_ORDER = ["ecape_mu", "ecape_ml", "ratio_mu", "ratio_ml", "mucape", "mlcape", "capem"];
+  var SRH_SUBS = { srh1: { label: "0–1 km", long: "0–1 km" }, srh3: { label: "0–3 km", long: "0–3 km" } };
+  var CAPE_LEVELS = [0, 100, 250, 500, 750, 1000, 1500, 2000, 2500, 3000, 4000, 5000];
+  var CAPE_COLORS = ["#ffffff", "#bfe0f2", "#72b6e6", "#2f7fd0", "#1fa463", "#8fd043", "#f3e228", "#f6a623", "#ea5a1f", "#c8172d", "#d63fa8", "#7b2fc4"];
+  var RATIO_LEVELS = [0.0, 0.15, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5];
+  var RATIO_COLORS = ["#4a2377", "#6b3fbf", "#3d64d8", "#249cdd", "#20b7ad", "#37b658", "#97cf37", "#eadf27", "#f7b329", "#f27a20", "#df3a24", "#c0175d", "#6e0a30"];
+  var SHR_LEVELS = [20, 30, 40, 50, 60, 70], SHR_COLORS = ["#cfe3f1", "#7fb7e0", "#2f9e5b", "#e6d636", "#f08a24", "#c8172d"];
+  var SRH_LEVELS = [50, 100, 150, 200, 300, 400, 500], SRH_COLORS = ["#d8ecf6", "#9ac9e6", "#4f9fd6", "#2fa24a", "#e6d636", "#f08a24", "#c8172d"];
+  function stepColour(levels, colors, v) {                        // matplotlib BoundaryNorm, extend="max"
+    if (v === null || !(v >= levels[0])) return null;
+    var i = levels.length - 1; while (i > 0 && v < levels[i]) i--;
+    var h = colors[i]; return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16), 1];
+  }
+  function capeOf(c, k) { return c === 255 ? null : (c / k) * (c / k); }
+  var NA = { gdps: { wind100: "The GDPS output has no 100 m wind: its wind levels are 10, 40, 80 and 120 m." } };
+  var NOTES = {
+    ifs: { ir: "IR proxy: the brightness temperature of the outgoing longwave radiation, its mean since the previous step (3 h to +144 h, 6 h after); neither model publishes a satellite band.",
+           gust: "The IFS gust is the largest since the previous step (3 h to +144 h, 6 h after), not an instantaneous value." },
+    gdps: { ir: "IR proxy: the brightness temperature of the instantaneous outgoing longwave radiation; neither model publishes a satellite band.",
+            gust: "The GDPS gust is instantaneous at the valid time (WindGust)." } };
+
+  // ── display projection: oblique stereographic centred on South America (sphere 6371229 m) ──────────────────────────
+  // scripts/models/build_geo.py SA_CENTRE / project_km_sa use the same projection for the coarse boundary file
+  var P = (function () {
+    var R2 = 2 * 6371229, p0 = -22.5 * D2R, l0 = -62.5 * D2R, s0 = Math.sin(p0), c0 = Math.cos(p0);
+    return { s0: s0, c0: c0, l0: l0,
+      fwd: function (lon, lat) {
+        var la = lat * D2R, dl = lon * D2R - l0, cl = Math.cos(la), k = R2 / (1 + s0 * Math.sin(la) + c0 * cl * Math.cos(dl));
+        return [k * cl * Math.sin(dl), k * (c0 * Math.sin(la) - s0 * cl * Math.cos(dl))];
+      },
+      inv: function (x, y) {
+        var rho = Math.sqrt(x * x + y * y); if (rho < 1e-6) return [l0 / D2R, p0 / D2R];
+        var c = 2 * Math.atan(rho / R2), sc = Math.sin(c), cc = Math.cos(c);
+        var lat = Math.asin(Math.max(-1, Math.min(1, cc * s0 + y * sc * c0 / rho)));
+        var lon = l0 + Math.atan2(x * sc, rho * c0 * cc - y * s0 * sc);
+        return [((lon / D2R + 540) % 360) - 180, lat / D2R];
+      },
+      north: function (lon, lat) {                                  // unit vector of north on the map at (lon, lat)
+        var a = P.fwd(lon, lat - 0.02), b = P.fwd(lon, lat + 0.02), dx = b[0] - a[0], dy = b[1] - a[1], n = Math.sqrt(dx * dx + dy * dy);
+        return [dx / n, dy / n];
+      } };
+  })();
+  // grid index (fractional) of a display point on a regular lat-lon grid (row j = 0 at the south), identical to the shader
+  function gridIJ(g, x, y) { var ll = P.inv(x, y), di = ((ll[0] - g.lo1) % 360 + 540) % 360 - 180; return [di / g.di, (ll[1] - g.la1) / g.dj]; }
+  function ijLL(g, i, j) { return [g.lo1 + i * g.di, g.la1 + j * g.dj]; }
+  function prepGrid(g) {
+    if (g._ok) return g;
+    var xs = [], ys = [], k, N = 40;
+    function add(i, j) { var ll = ijLL(g, i, j), q = P.fwd(ll[0], ll[1]); xs.push(q[0]); ys.push(q[1]); }
+    for (k = 0; k <= N; k++) { add(k / N * (g.nx - 1), 0); add(k / N * (g.nx - 1), g.ny - 1); add(0, k / N * (g.ny - 1)); add(g.nx - 1, k / N * (g.ny - 1)); }
+    g._bb = [Math.min.apply(0, xs), Math.max.apply(0, xs), Math.min.apply(0, ys), Math.max.apply(0, ys)];
+    g._ok = true;
+    return g;
+  }
+
+  // ── decoding: code -> value ─────────────────────────────────────────────────────────────────────────────────────
+  function valueOf(fd, code, q) {
+    if (code === 255) return null;
+    if (fd.enc === "lin") { var k = fd.off + code * fd.step; return fd.disp ? fd.disp(k) : k; }
+    if (fd.enc === "linf") return q[0] + code * q[1];
+    return null;
+  }
+  function interp(stops, v) {
+    if (v <= stops[0][0] && stops[0][0] <= stops[stops.length - 1][0]) return stops[0].slice(1);
+    var asc = stops[0][0] <= stops[stops.length - 1][0];
+    for (var i = 1; i < stops.length; i++) {
+      var a = stops[i - 1], b = stops[i];
+      if (asc ? v <= b[0] : v >= b[0]) {
+        var t = (v - a[0]) / (b[0] - a[0]); if (!isFinite(t)) t = 0; t = Math.max(0, Math.min(1, t));
+        return [a[1] + t * (b[1] - a[1]), a[2] + t * (b[2] - a[2]), a[3] + t * (b[3] - a[3]), a[4] + t * (b[4] - a[4])];
+      }
+    }
+    return stops[stops.length - 1].slice(1);
+  }
+  function accValue(type, c) { var vm = ACC_TYPES[type].vmax, t = c / 254; return vm * t * t; }
+  function colourOf(name, v) {                                     // -> [r, g, b, a] or null (transparent)
+    var fd = FIELDS[name];
+    if (v === null) return null;
+    if (name === "acc") { var at = ACC_TYPES[st.acc.type]; if (v < at.lo) return null; return interp(at.stops, v); }
+    if (name === "mslp") return stepColour(MSLP_LEVELS, MSLP_COLORS, v);
+    if (name === "ecape") {
+      if (EC_SUBS[st.ec].kind === "ratio") return stepColour(RATIO_LEVELS, RATIO_COLORS, v);
+      return v < 100 ? null : stepColour(CAPE_LEVELS, CAPE_COLORS, v);
+    }
+    if (name === "shr6") return stepColour(SHR_LEVELS, SHR_COLORS, v * KT);
+    if (name === "srh") return stepColour(SRH_LEVELS, SRH_COLORS, v);
+    var s = interp(fd.stops, v);
+    return s[3] <= 0.01 ? null : s;
+  }
+  function rateColour(c, t) { if (c === 0 || c === 255) return null; return interp(PT_RAMPS[Math.min(t, 5)], rateEq(rateOf(c))); }
+  // 256-entry colour table for a frame (6 rows for the rate map: row = type)
+  function buildLut(name, q, enc) {
+    var fd = FIELDS[name], lut = new Uint8Array(256 * 4 * 6), c, col;
+    if (name === "rate") {
+      for (var t = 0; t < 6; t++) for (c = 0; c < 256; c++) { col = rateColour(c, t); var o = 4 * (t * 256 + c); if (col) { lut[o] = col[0]; lut[o + 1] = col[1]; lut[o + 2] = col[2]; lut[o + 3] = 255; } }
+      return lut;
+    }
+    for (c = 0; c < 256; c++) {
+      var v;
+      if (fd.enc === "lin2") v = c > 254 ? null : c / 254 * fd.smax;
+      else if (name === "acc") v = c === 0 ? null : accValue(st.acc.type, c);
+      else if (name === "ecape") v = enc === "ratio" ? (c === 0 ? null : (c - 1) / 100) : capeOf(c, q || 2.8);
+      else v = valueOf(fd, c, q);
+      col = colourOf(name, v);
+      if (col) { lut[4 * c] = col[0]; lut[4 * c + 1] = col[1]; lut[4 * c + 2] = col[2]; lut[4 * c + 3] = Math.round(255 * col[3]); }
+    }
+    return lut;
+  }
+
+  // ── state ──────────────────────────────────────────────────────────────────────────────────────────────────────
+  var man = {};
+  var st = { model: "ifs", field: "t2m", hour: 0, playing: false, acc: { type: "apcp", win: 0 }, ec: "ecape_mu", srh: "srh3" };
+  var view = null;                                // {cx, cy, s: metres per CSS px}
+  var $ = function (id) { return document.getElementById(id); };
+  function escH(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  var mapEl = $("map"), glc = $("gl"), ovc = $("ov"), labc = $("lab"), tip = $("tip");
+  function cycleOf(model) { var m = man[model]; return m && m.cycles && m.cycles[0]; }
+  // the files a map reads: an accumulation type, the ECAPE family's one or two, a helicity layer, or the field itself
+  function fileFields() { return st.field === "acc" ? [st.acc.type] : st.field === "ecape" ? EC_SUBS[st.ec].files : st.field === "srh" ? [st.srh] : [st.field]; }
+  // the steps the slider walks: the map's own (the GDPS's surface maps are 3-hourly to +240 h, its convective ones not)
+  function uiHours(c) { var fm = c && c.fields[fileFields()[0]]; return fm ? fm.hours : (c ? c.hours : [0]); }
+  function nearestHour(c, h) { var hs = uiHours(c), best = hs[0]; hs.forEach(function (x) { if (Math.abs(x - h) < Math.abs(best - h)) best = x; }); return best; }
+  function chOf(f) { return f === "wind10" || f === "wind100" || f === "shr6" || f === "mslp" || f === "rate" || !!ACC_TYPES[f] ? 2 : 1; }
+  function relPath(model, c, f, h) { return DATA + model + "/" + c.cycle + "/" + f + "/" + ("00" + h).slice(-3) + ".webp"; }
+
+  // ── data transport: assets/frames_root.js (frameFetch: the frames store first, every fallback behind it) ─────────
+  // A file's path names its run (model/cycle/field/step), so its bytes never change: they are kept in Cache Storage and
+  // read back from there on a later visit. Old runs are pruned on load.
+  var CACHE_NAME = "sa-frames-v1", CACHE_HOST = "https://sa-frames.invalid/", cacheP = null;
+  function frameCache() {
+    if (!cacheP) cacheP = (typeof caches === "object" && caches && window.isSecureContext && (!LOCAL || /[?&]cache=1/.test(location.search)) ? caches.open(CACHE_NAME) : Promise.reject(new Error("no cache")))
+      .catch(function () { return null; });
+    return cacheP;
+  }
+  function pruneCache() {
+    var live = {}; MODEL_ORDER.forEach(function (m) { var c = cycleOf(m); if (c) live[m + "/" + c.cycle] = 1; });
+    frameCache().then(function (cc) { if (!cc) return;
+      return cc.keys().then(function (ks) { ks.forEach(function (rq) { var m = rq.url.match(/sa\/(\w+)\/(\d{10})\//); if (m && !live[m[1] + "/" + m[2]]) cc.delete(rq); }); });
+    }).catch(function () {});
+  }
+  function getBytes(rel, prio, sig) {
+    var key = CACHE_HOST + rel;
+    function net() {
+      var init = { priority: prio }; if (sig) init.signal = sig;
+      var p = LOCAL ? fetch("/" + rel, init).then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r; })
+        : window.frameFetch ? window.frameFetch(rel, null, { init: init }) : Promise.reject(new Error("frames_root.js missing"));
+      return p.then(function (r) { var t0 = performance.now(); return r.arrayBuffer().then(function (b) { b._tb = performance.now() - t0;
+        frameCache().then(function (cc) { if (cc) cc.put(key, new Response(b.slice(0), { headers: { "Content-Type": "image/webp" } })).catch(function () {}); });
+        return b; }); });
+    }
+    return frameCache().then(function (cc) { return cc ? cc.match(key) : null; }).catch(function () { return null; })
+      .then(function (hit) { return hit ? hit.arrayBuffer().then(function (b) { b._cached = true; return b; }) : net(); });
+  }
+
+  // ── worker: WebP -> channels, contour tracing, boundaries ─────────────────────────────────────────────────────
+  function workerMain() {
+    function decodeMsg(d) {
+      return createImageBitmap(new Blob([d.buf], { type: "image/webp" }), { colorSpaceConversion: "none", premultiplyAlpha: "none" }).then(function (b) {
+        var bw = b.width, bh = b.height, c = new OffscreenCanvas(bw, bh), g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(b, 0, 0);
+        var px = g.getImageData(0, 0, bw, bh).data, n = bw * bh, o = new Uint8Array(n * d.ch), k;
+        b.close(); c.width = c.height = 0;
+        if (d.ch === 1) for (k = 0; k < n; k++) o[k] = px[4 * k];
+        else for (k = 0; k < n; k++) { o[2 * k] = px[4 * k]; o[2 * k + 1] = px[4 * k + 1]; }
+        self.postMessage({ id: d.id, w: bw, h: bh, data: o }, [o.buffer]);
+      });
+    }
+    function blur(f, W, H, r) {                       // box blur, radius r, separable running sums, edges clamped
+      if (r < 1) return f;
+      var t = new Float32Array(W * H), x, y, s, k, n = 2 * r + 1, row, W1 = W - 1, H1 = H - 1;
+      for (y = 0; y < H; y++) { row = y * W; s = 0;
+        for (k = -r; k <= r; k++) s += f[row + (k < 0 ? 0 : k > W1 ? W1 : k)];
+        for (x = 0; x < W; x++) { t[row + x] = s / n; var xa = x + r + 1, xb = x - r; s += f[row + (xa > W1 ? W1 : xa)] - f[row + (xb < 0 ? 0 : xb)]; } }
+      for (x = 0; x < W; x++) { s = 0;
+        for (k = -r; k <= r; k++) s += t[(k < 0 ? 0 : k > H1 ? H1 : k) * W + x];
+        for (y = 0; y < H; y++) { f[y * W + x] = s / n; var ya = y + r + 1, yb = y - r; s += t[(ya > H1 ? H1 : ya) * W + x] - t[(yb < 0 ? 0 : yb) * W + x]; } }
+      return f;
+    }
+    var W2g = 0;
+    function E(S, e, x, y, lv, tl, tr, bl, br) {          // one crossing: edge key, x, y (T=0 B=1 L=2 R=3)
+      if (e === 0) S.push(2 * (y * W2g + x), x + (lv - tl) / (tr - tl), y);
+      else if (e === 1) S.push(2 * ((y + 1) * W2g + x), x + (lv - bl) / (br - bl), y + 1);
+      else if (e === 2) S.push(2 * (y * W2g + x) + 1, x, y + (lv - tl) / (bl - tl));
+      else S.push(2 * (y * W2g + x + 1) + 1, x + 1, y + (lv - tr) / (br - tr));
+    }
+    function contourMsg(d) {
+      var t0 = performance.now(), W = d.w, H = d.h, a = d.data, k, n2 = W * H, g = new Float32Array(n2), gb = null, lut = d.lut, vv2;
+      if (d.speed) {                                        // wind speed from the (u, v) codes; 255 = missing
+        var sp = new Float32Array(256); for (k = 0; k < 256; k++) sp[k] = d.speed[0] + k * d.speed[1];
+        for (k = 0; k < n2; k++) { var cu = a[2 * k]; if (cu === 255) { (gb || (gb = new Uint8Array(n2)))[k] = 1; continue; } var uu = sp[cu], vv = sp[a[2 * k + 1]]; g[k] = Math.sqrt(uu * uu + vv * vv); }
+      } else {
+        var st2 = d.stride || 1, co = d.choff || 0;
+        for (k = 0; k < n2; k++) { vv2 = lut[a[k * st2 + co]]; if (vv2 !== vv2) { g[k] = 0; (gb || (gb = new Uint8Array(n2)))[k] = 1; } else g[k] = vv2; }
+      }
+      if (d.nblur && gb) {                                  // normalised convolution: masked cells carry no weight
+        var wg = new Float32Array(n2); for (k = 0; k < n2; k++) wg[k] = gb[k] ? 0 : 1;
+        blur(g, W, H, d.rad); blur(wg, W, H, d.rad); if (d.rad2) { blur(g, W, H, d.rad2); blur(wg, W, H, d.rad2); }
+        for (k = 0; k < n2; k++) g[k] = wg[k] > 0.01 ? g[k] / wg[k] : 0;
+      } else { blur(g, W, H, d.rad); if (d.rad2) blur(g, W, H, d.rad2); }
+      W2g = W;
+      var L = d.levels, NL = L.length, segs = [], q, x, y;
+      for (q = 0; q < NL; q++) segs.push([]);
+      var bin = new Uint8Array(n2);
+      for (k = 0; k < n2; k++) { var gv = g[k], lo2 = 0, hi2 = NL; while (lo2 < hi2) { var md = (lo2 + hi2) >> 1; if (L[md] <= gv) lo2 = md + 1; else hi2 = md; } bin[k] = lo2; }
+      for (y = 0; y < H - 1; y++) for (x = 0; x < W - 1; x++) {
+        var i0 = y * W + x, b0 = bin[i0], b1 = bin[i0 + 1], b2 = bin[i0 + W], b3 = bin[i0 + W + 1];
+        if (b0 === b1 && b0 === b2 && b0 === b3) continue;
+        if (gb && (gb[i0] | gb[i0 + 1] | gb[i0 + W] | gb[i0 + W + 1])) continue;
+        var tl = g[i0], tr = g[i0 + 1], bl = g[i0 + W], br = g[i0 + W + 1], qa = Math.min(b0, b1, b2, b3), qb = Math.max(b0, b1, b2, b3);
+        for (q = qa; q < qb; q++) {
+          var lv = L[q], c = (tl >= lv ? 8 : 0) | (tr >= lv ? 4 : 0) | (br >= lv ? 2 : 0) | (bl >= lv ? 1 : 0), S = segs[q];
+          switch (c) {
+            case 1: case 14: E(S, 2, x, y, lv, tl, tr, bl, br); E(S, 1, x, y, lv, tl, tr, bl, br); break;
+            case 2: case 13: E(S, 1, x, y, lv, tl, tr, bl, br); E(S, 3, x, y, lv, tl, tr, bl, br); break;
+            case 3: case 12: E(S, 2, x, y, lv, tl, tr, bl, br); E(S, 3, x, y, lv, tl, tr, bl, br); break;
+            case 4: case 11: E(S, 0, x, y, lv, tl, tr, bl, br); E(S, 3, x, y, lv, tl, tr, bl, br); break;
+            case 6: case 9: E(S, 0, x, y, lv, tl, tr, bl, br); E(S, 1, x, y, lv, tl, tr, bl, br); break;
+            case 7: case 8: E(S, 2, x, y, lv, tl, tr, bl, br); E(S, 0, x, y, lv, tl, tr, bl, br); break;
+            case 5: case 10:
+              var ctr = (tl + tr + bl + br) / 4 >= lv;
+              if ((c === 5) === ctr) { E(S, 2, x, y, lv, tl, tr, bl, br); E(S, 0, x, y, lv, tl, tr, bl, br); E(S, 1, x, y, lv, tl, tr, bl, br); E(S, 3, x, y, lv, tl, tr, bl, br); }
+              else { E(S, 0, x, y, lv, tl, tr, bl, br); E(S, 3, x, y, lv, tl, tr, bl, br); E(S, 2, x, y, lv, tl, tr, bl, br); E(S, 1, x, y, lv, tl, tr, bl, br); }
+              break;
+          }
+        }
+      }
+      var out = [], total = 0;                              // chain segments into polylines through shared edge keys
+      for (q = 0; q < NL; q++) {
+        var S2 = segs[q], ns = S2.length / 6; if (!ns) continue;
+        var first = new Map(), second = new Map(), used = new Uint8Array(ns);
+        for (k = 0; k < ns; k++) for (var e = 0; e < 2; e++) { var key = S2[6 * k + 3 * e]; if (first.has(key)) second.set(key, k); else first.set(key, k); }
+        var other = function (key, not) { var f1 = first.get(key); if (f1 !== undefined && f1 !== not && !used[f1]) return f1; var f2 = second.get(key); return f2 !== undefined && f2 !== not && !used[f2] ? f2 : -1; };
+        for (k = 0; k < ns; k++) {
+          if (used[k]) continue; used[k] = 1;
+          var fx = [S2[6 * k + 1], S2[6 * k + 4]], fy = [S2[6 * k + 2], S2[6 * k + 5]], bxs = [], bys = [], endKey = S2[6 * k + 3], cur = k;
+          for (;;) { var nx = other(endKey, cur); if (nx < 0) break; used[nx] = 1; var o6 = 6 * nx, sd = S2[o6] === endKey ? 3 : 0; fx.push(S2[o6 + sd + 1]); fy.push(S2[o6 + sd + 2]); endKey = S2[o6 + sd]; cur = nx; }
+          endKey = S2[6 * k]; cur = k;
+          for (;;) { var nb = other(endKey, cur); if (nb < 0) break; used[nb] = 1; var b6 = 6 * nb, sb = S2[b6] === endKey ? 3 : 0; bxs.push(S2[b6 + sb + 1]); bys.push(S2[b6 + sb + 2]); endKey = S2[b6 + sb]; cur = nb; }
+          var np = fx.length + bxs.length; if (np < d.minPts) continue;
+          var arr = new Float32Array(np * 2), m2 = 0, m;
+          for (m = bxs.length - 1; m >= 0; m--, m2++) { arr[2 * m2] = bxs[m]; arr[2 * m2 + 1] = (H - 1) - bys[m]; }
+          for (m = 0; m < fx.length; m++, m2++) { arr[2 * m2] = fx[m]; arr[2 * m2 + 1] = (H - 1) - fy[m]; }
+          out.push({ lv: q, pts: arr }); total += np;
+        }
+      }
+      // highs and lows (d.ext = [search radius in cells, prominence, extra blur radius]): the extreme of the whole disc, standing
+      // out from the ring by the prominence, a radius inside the domain, not on high terrain (G = 1); the strongest wins
+      var ext = [];
+      if (d.ext) {
+        var Rw = d.ext[0], prom = d.ext[1], ge = blur(blur(Float32Array.from(g), W, H, d.ext[2]), W, H, d.ext[2]), cand = [], ringN = 32, ring = [];
+        for (k = 0; k < ringN; k++) ring.push([Math.round(Rw * Math.cos(2 * Math.PI * k / ringN)), Math.round(Rw * Math.sin(2 * Math.PI * k / ringN))]);
+        for (y = Rw; y < H - Rw; y++) for (x = Rw; x < W - Rw; x++) {
+          var i1 = y * W + x, z1 = ge[i1];
+          if ((gb && gb[i1]) || a[2 * i1 + 1]) continue;
+          var up = z1 >= ge[i1 - 1] && z1 >= ge[i1 + 1] && z1 >= ge[i1 - W] && z1 >= ge[i1 + W] && z1 > ge[i1 - W - 1] && z1 > ge[i1 + W + 1];
+          var dn = z1 <= ge[i1 - 1] && z1 <= ge[i1 + 1] && z1 <= ge[i1 - W] && z1 <= ge[i1 + W] && z1 < ge[i1 - W - 1] && z1 < ge[i1 + W + 1];
+          if (!up && !dn) continue;
+          var rs = 0; for (k = 0; k < ringN; k++) rs += ge[(y + ring[k][1]) * W + x + ring[k][0]];
+          var pr = up ? z1 - rs / ringN : rs / ringN - z1; if (pr < prom) continue;
+          var ok = true, R2 = Rw * Rw;
+          for (var yy3 = -Rw; yy3 <= Rw && ok; yy3++) for (var xx3 = -Rw; xx3 <= Rw; xx3++) { if (xx3 * xx3 + yy3 * yy3 > R2) continue; var z3 = ge[(y + yy3) * W + x + xx3]; if (up ? z3 > z1 : z3 < z1) { ok = false; break; } }
+          if (ok) cand.push([up ? 1 : -1, x, y, pr, g[i1]]);
+        }
+        cand.sort(function (p1, p2) { return p2[3] - p1[3]; });
+        var kept = [];
+        cand.forEach(function (c3) { for (var q3 = 0; q3 < kept.length; q3++) { var o3 = kept[q3]; if (o3[0] === c3[0] && (o3[1] - c3[1]) * (o3[1] - c3[1]) + (o3[2] - c3[2]) * (o3[2] - c3[2]) < Rw * Rw) return; } kept.push(c3); });
+        kept.forEach(function (c3) { ext.push(c3[0], c3[1], (H - 1) - c3[2], c3[4]); });
+      }
+      self.postMessage({ id: d.id, lines: out, ext: ext, ms: performance.now() - t0, npts: total }, out.map(function (o) { return o.pts.buffer; }));
+    }
+    self.onmessage = function (e) {
+      var d = e.data;
+      try {
+        if (d.op === "contour") contourMsg(d);
+        else if (d.op === "geo") fetch(d.url).then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); }).then(function (j) {
+          var L = geoProcess(j, d.P, d.tols), bufs = [];
+          L.forEach(function (x) { x.lods.forEach(function (o) { bufs.push(o.xy.buffer, o.off.buffer); }); });
+          self.postMessage({ id: d.id, layers: L }, bufs);
+        }).catch(function (err) { self.postMessage({ id: d.id, err: String(err) }); });
+        else decodeMsg(d).catch(function (err) { self.postMessage({ id: d.id, err: String(err) }); });
+      } catch (err) { self.postMessage({ id: d.id, err: String(err) }); }
+    };
+  }
+  // boundaries: unpack the delta-coded lon/lat lines, project them (km) and simplify each layer once per tolerance
+  function simplifyLine(xy, a, b, tol, out) {
+    var m = b - a; if (m < 2) return;
+    var keep = new Uint8Array(m), st = [0, m - 1], t2 = tol * tol; keep[0] = keep[m - 1] = 1;
+    while (st.length) {
+      var j = st.pop(), i = st.pop(), x0 = xy[2 * (a + i)], y0 = xy[2 * (a + i) + 1], dx = xy[2 * (a + j)] - x0, dy = xy[2 * (a + j) + 1] - y0;
+      var L2 = dx * dx + dy * dy, best = -1, bd = t2;
+      for (var k = i + 1; k < j; k++) {
+        var px = xy[2 * (a + k)] - x0, py = xy[2 * (a + k) + 1] - y0, d;
+        if (L2 > 0) { var cr = px * dy - py * dx; d = cr * cr / L2; var tt = (px * dx + py * dy) / L2; if (tt < 0) d = px * px + py * py; else if (tt > 1) { var ex = px - dx, ey = py - dy; d = ex * ex + ey * ey; } }
+        else d = px * px + py * py;
+        if (d > bd) { bd = d; best = k; }
+      }
+      if (best > 0) { keep[best] = 1; st.push(i, best, best, j); }
+    }
+    for (var q = 0; q < m; q++) if (keep[q]) out.push(xy[2 * (a + q)], xy[2 * (a + q) + 1]);
+  }
+  function geoProcess(d, Pp, tols) {
+    var s0 = Pp[0], c0 = Pp[1], l0 = Pp[2], R2 = 2 * 6371229, D = Math.PI / 180, res = [];
+    Object.keys(d.layers).forEach(function (name) {
+      var L = d.layers[name], q = L.q, np = 0, li, k;
+      L.lines.forEach(function (ln) { np += ln.length / 2; });
+      var xy = new Float64Array(np * 2), off = new Int32Array(L.lines.length + 1), p = 0;
+      for (li = 0; li < L.lines.length; li++) {
+        var ln = L.lines[li], x = ln[0], y = ln[1], m = ln.length / 2; off[li] = p;
+        for (k = 0; k < m; k++) {
+          if (k) { x += ln[2 * k]; y += ln[2 * k + 1]; }
+          var la = y / q * D, dl = x / q * D - l0, cl = Math.cos(la), kk = R2 / (1 + s0 * Math.sin(la) + c0 * cl * Math.cos(dl));
+          xy[2 * p] = kk * cl * Math.sin(dl) / 1000; xy[2 * p + 1] = kk * (c0 * Math.sin(la) - s0 * cl * Math.cos(dl)) / 1000; p++;
+        }
+      }
+      off[L.lines.length] = p;
+      var lods = [{ tol: 0, xy: Float32Array.from(xy), off: off }];
+      tols.forEach(function (t) {
+        var o = [], of = [0];
+        for (li = 0; li < L.lines.length; li++) {
+          var a = off[li], b = off[li + 1], x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+          for (k = a; k < b; k++) { var X = xy[2 * k], Y = xy[2 * k + 1]; if (X < x0) x0 = X; if (X > x1) x1 = X; if (Y < y0) y0 = Y; if (Y > y1) y1 = Y; }
+          if (x1 - x0 < t && y1 - y0 < t) continue;
+          simplifyLine(xy, a, b, t, o); of.push(o.length / 2);
+        }
+        lods.push({ tol: t, xy: Float32Array.from(o), off: Int32Array.from(of) });
+      });
+      res.push({ name: name, maxKmPerPx: L.maxKmPerPx, lods: lods });
+    });
+    return res;
+  }
+  var WORKER_SRC = simplifyLine.toString() + "\n" + geoProcess.toString() + "\n(" + workerMain.toString() + ")();";
+  var workers = [], wcb = {}, wid = 0, wnext = 0;
+  try {
+    if (typeof OffscreenCanvas === "function" && typeof Worker === "function") {
+      var wurl = URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" }));
+      for (var wi = 0; wi < Math.min(3, Math.max(1, (navigator.hardwareConcurrency || 2) - 1)); wi++) {
+        var w = new Worker(wurl);
+        w.onmessage = function (e) { var cb = wcb[e.data.id]; delete wcb[e.data.id]; if (cb) cb(e.data); };
+        workers.push(w);
+      }
+    }
+  } catch (e) { workers = []; }
+  function decodeMain(buf, ch) {
+    return createImageBitmap(new Blob([buf], { type: "image/webp" }), { colorSpaceConversion: "none", premultiplyAlpha: "none" }).then(function (b) {
+      var bw = b.width, bh = b.height, c = document.createElement("canvas"); c.width = bw; c.height = bh;
+      var g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(b, 0, 0);
+      var px = g.getImageData(0, 0, bw, bh).data, n = bw * bh, o = new Uint8Array(n * ch), k;
+      if (b.close) b.close(); c.width = c.height = 0;
+      if (ch === 1) for (k = 0; k < n; k++) o[k] = px[4 * k];
+      else for (k = 0; k < n; k++) { o[2 * k] = px[4 * k]; o[2 * k + 1] = px[4 * k + 1]; }
+      return { w: bw, h: bh, data: o };
+    });
+  }
+  function decode(buf, ch) {
+    if (!workers.length) return decodeMain(buf, ch);
+    return new Promise(function (res, rej) {
+      var id = ++wid;
+      wcb[id] = function (d) { if (d.err) decodeMain(buf, ch).then(res, rej); else res(d); };
+      workers[wnext++ % workers.length].postMessage({ id: id, buf: buf, ch: ch });   // not transferred: the bytes stay cached
+    });
+  }
+  function workerCall(msg) {
+    return new Promise(function (res, rej) {
+      if (!workers.length) { rej(new Error("no worker")); return; }
+      var id = ++wid; msg.id = id;
+      wcb[id] = function (d) { if (d.err) rej(new Error(d.err)); else res(d); };
+      workers[wnext++ % workers.length].postMessage(msg);
+    });
+  }
+
+  // ── frame cache: bytes, decoded frames (LRU by bytes, scaled to the device) ──────────────────────────────────────
+  var frames = new Map();
+  var DEVMEM = Math.max(0.5, Math.min(8, navigator.deviceMemory || 4)), MB = 1048576;
+  var MEM = { bytes: Math.round(Math.min(240, Math.max(40, 40 * DEVMEM)) * MB), dec: Math.round(Math.min(96, Math.max(24, 16 * DEVMEM)) * MB),
+              tex: Math.round(Math.min(64, Math.max(16, 10 * DEVMEM)) * MB), der: Math.round(Math.min(96, Math.max(24, 16 * DEVMEM)) * MB) };
+  function lru(list, size, budget, keep, drop) {
+    var tot = 0; list.forEach(function (x) { tot += size(x); });
+    if (tot <= budget) return;
+    list.sort(function (a, b) { return a.used - b.used; });
+    for (var i = 0; i < list.length - keep && tot > budget; i++) { tot -= size(list[i]); drop(list[i]); }
+  }
+  var inflight = 0, urgentIn = 0, queue = [], NET = { bw: 0, n: 0 };
+  function netSlow() {
+    var cn = navigator.connection;
+    if (cn && (cn.saveData || /(^|-)2g$|^3g$/.test(cn.effectiveType || ""))) return true;
+    if (NET.n) return NET.bw < 800;                          // < ~6.5 Mbit/s
+    return !!(cn && cn.downlink && cn.downlink < 8);
+  }
+  function fkey(model, c, f, h) { return model + "/" + c.cycle + "/" + f + "/" + h; }
+  function entry(k) { var e = frames.get(k); if (!e) { e = { k: k, used: 0 }; frames.set(k, e); } return e; }
+  function want(list, nUrgent) {                            // [model, cycle, field, step], highest priority first
+    var keep = {}; list.forEach(function (a) { keep[fkey(a[0], a[1], a[2], a[3])] = 1; });
+    frames.forEach(function (e, k) { if (e.bytesP && e.ac && !e.urgent && !keep[k]) e.ac.abort(); });   // nothing in the background
+    queue = list.filter(function (a) { var e = frames.get(fkey(a[0], a[1], a[2], a[3])); return !(e && (e.bytes || e.bytesP || e.fail)); })
+      .map(function (a, i) { return a.slice(0, 4).concat([i < (nUrgent || 0)]); });
+    pump();
+  }
+  function pump() {
+    var slow = netSlow();
+    while (queue.length) {
+      var a = queue[0], urgent = !!a[4];
+      if (!urgent && urgentIn && (slow || !NET.n)) break;       // the frame on screen first
+      if (inflight >= (slow ? 2 : 6) + (urgent ? 2 : 0)) break;
+      queue.shift();
+      var e = entry(fkey(a[0], a[1], a[2], a[3]));
+      if (e.bytes || e.bytesP || e.fail) continue;
+      inflight++; if (urgent) urgentIn++;
+      var ac = typeof AbortController === "function" ? new AbortController() : null, conc = inflight;
+      e.ac = ac; e.urgent = urgent;
+      e.bytesP = getBytes(relPath(a[0], a[1], a[2], a[3]), urgent ? "high" : "low", ac && ac.signal).then(function (e, urgent, conc) { return function (buf) {
+        e.bytes = buf; e.bytesP = null; e.ac = null; inflight--; if (urgent) urgentIn--;
+        if (e.wantDec && !e.dec && !e.decP) startDec(e);
+        if (!buf._cached && buf.byteLength > 60000) { var r = buf.byteLength / Math.max(buf._tb, 4) * Math.max(1, (conc + inflight + 1) / 2); NET.bw = NET.n ? 0.6 * NET.bw + 0.4 * r : r; NET.n++; }
+        pump(); trimBytes(); render(); return buf; }; }(e, urgent, conc),
+        function (e, urgent, ac) { return function (err) {
+          e.bytesP = null; e.ac = null; inflight--; if (urgent) urgentIn--;
+          if (ac && ac.signal.aborted) { pump(); return; }      // cancelled, not failed
+          e.fail = true; pump(); render(); throw err; }; }(e, urgent, ac));
+      e.bytesP.catch(function () {});
+    }
+    updLoad();
+  }
+  function trimBytes() { var es = []; frames.forEach(function (e) { if (e.bytes) es.push(e); }); lru(es, function (e) { return e.bytes.byteLength; }, MEM.bytes, 6, function (e) { dropTex(e); frames.delete(e.k); }); }
+  var useClock = 0;
+  function peek(model, c, f, h) { var e = frames.get(fkey(model, c, f, h)); return e && e.dec ? e : null; }
+  function decoded(model, c, f, h) {
+    var e = entry(fkey(model, c, f, h));
+    e.used = ++useClock;
+    if (e.dec) return e;
+    if (e.decP || e.fail) return null;
+    e.ch = chOf(f);
+    if (!e.bytes) { e.wantDec = true; if (!e.bytesP) { queue.unshift([model, c, f, h, true]); pump(); } return null; }
+    startDec(e);
+    return null;
+  }
+  function startDec(e) {
+    e.wantDec = false;
+    e.decP = decode(e.bytes, e.ch).then(function (d) {
+      e.dec = d; e.decP = null;
+      var ds = []; frames.forEach(function (x) { if (x.dec) ds.push(x); });
+      lru(ds, function (x) { return x.dec.data.byteLength; }, MEM.dec, 4, function (x) { x.dec = null; dropTex(x); });
+      render();
+    }, function () { e.decP = null; e.fail = true; render(); });
+  }
+  function updLoad() { var n = 0; frames.forEach(function (e) { if (e.bytesP) n++; }); $("load").textContent = n ? "Loading " + (n + queue.length) + " map" + (n + queue.length > 1 ? "s" : "") + "…" : ""; }
+
+  // ── WebGL ──────────────────────────────────────────────────────────────────────────────────────────────────────
+  var gl = glc.getContext("webgl2", { premultipliedAlpha: true, antialias: false, preserveDrawingBuffer: false });
+  var prog, loc = {}, lutTex, lutKey = "";
+  var VS = "#version 300 es\nin vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
+  // contour lines are drawn by the GPU in the map's own pass from a smoothed copy of the frame (RG32F: value, mask) made
+  // by two small render passes per frame, as in models.html. A = the field's own lines, B = isobars from the MSLP frame.
+  function cDecl(X) {
+    return ["uniform sampler2D uCt" + X + ";uniform int uCm" + X + ";uniform vec4 uCG" + X + ";uniform ivec2 uCN" + X + ";uniform vec4 uCrg" + X + ";uniform vec2 uCmj" + X + ";uniform float uClv" + X + "[8];uniform int uCnl" + X + ";",
+      "uniform vec4 uCc" + X + ";uniform vec4 uCh" + X + ";uniform vec2 uCw" + X + ";uniform vec4 uCsp" + X + "[3];uniform vec4 uCspc" + X + "[3];",
+      // outside the grid: the edge's value, masked - a 0 there would make fwidth() jump at the edge and draw every level
+      // along the domain's border
+      "vec2 cv" + X + "(vec2 xy){vec2 g=gIdx(xy,uCG" + X + ");vec2 hi=vec2(uCN" + X + "-1);vec2 l=vec2(g.x,hi.y-g.y);",
+      " float off=any(lessThan(l,vec2(0.)))||any(greaterThan(l,hi))?1.:0.;l=clamp(l,vec2(0.),hi);",
+      " ivec2 a0=ivec2(floor(l));ivec2 a1=min(a0+1,uCN" + X + "-1);vec2 f=l-vec2(a0);",
+      " vec2 p=texelFetch(uCt" + X + ",a0,0).rg,q=texelFetch(uCt" + X + ",ivec2(a1.x,a0.y),0).rg,r=texelFetch(uCt" + X + ",ivec2(a0.x,a1.y),0).rg,s=texelFetch(uCt" + X + ",a1,0).rg;",
+      " return vec2(mix(mix(p.r,q.r,f.x),mix(r.r,s.r,f.x),f.y),max(off,max(max(p.g,q.g),max(r.g,s.g))));}",
+      "vec4 cl" + X + "(vec4 c,vec2 v,float fw){if(uCm" + X + "==0||v.y>0.5||!(fw>0.))return c;",
+      " float d=1e9,hw=uCw" + X + ".x;",
+      " if(uCm" + X + "==1){float f=(v.x-uCrg" + X + ".x)/uCrg" + X + ".y;float k=floor(f+0.5);float L=uCrg" + X + ".x+k*uCrg" + X + ".y;",
+      "  if(L>=uCrg" + X + ".z-1e-3&&L<=uCrg" + X + ".w+1e-3){d=abs(f-k)*uCrg" + X + ".y/fw;if(uCmj" + X + ".x>0.5&&abs(mod(k,uCmj" + X + ".x))<0.5)hw=uCmj" + X + ".y;}}",
+      " else{for(int n=0;n<8;n++){if(n>=uCnl" + X + ")break;d=min(d,abs(v.x-uClv" + X + "[n])/fw);}}",
+      " c=ov(c,uCh" + X + ",clamp(hw+uCw" + X + ".y-d+0.5,0.,1.));c=ov(c,uCc" + X + ",clamp(hw-d+0.5,0.,1.));",
+      " for(int n=0;n<3;n++){vec4 sp=uCsp" + X + "[n];if(sp.z<0.5)continue;float e=abs(v.x-sp.x)/fw;",
+      "  c=ov(c,uCh" + X + ",clamp(sp.y+uCw" + X + ".y-e+0.5,0.,1.));c=ov(c,uCspc" + X + "[n],clamp(sp.y-e+0.5,0.,1.));}",
+      " return c;}"].join("\n");
+  }
+  var FS = [
+    "#version 300 es", "precision highp float;precision highp int;precision highp sampler2D;",
+    "uniform sampler2D uData;uniform sampler2D uLut;uniform vec2 uC;uniform float uS;uniform vec2 uWH;",
+    "uniform vec4 uG;uniform ivec2 uN;uniform int uMode;uniform vec3 uW;uniform vec3 uP;",
+    "out vec4 o;",
+    // display metres (oblique stereographic, uP = sin, cos of the centre latitude and its longitude) -> grid index on a
+    // regular lat-lon grid G = (lon of column 0, lat of row 0, di, dj)
+    "vec2 gIdx(vec2 xy,vec4 G){float rho=length(xy);float lat=asin(uP.x),lon=uP.z;",
+    " if(rho>1e-3){float c=2.*atan(rho/12742458.);float sc=sin(c),cc=cos(c);lat=asin(clamp(cc*uP.x+xy.y*sc*uP.y/rho,-1.,1.));lon=uP.z+atan(xy.x*sc,rho*uP.y*cc-xy.y*uP.x*sc);}",
+    " float di=mod(degrees(lon)-G.x+540.,360.)-180.;return vec2(di/G.z,(degrees(lat)-G.y)/G.w);}",
+    "vec4 ov(vec4 c,vec4 s,float a){a*=s.a;return vec4(s.rgb*a,a)+c*(1.-a);}",
+    cDecl("A"), cDecl("B"),
+    "float bil(vec2 g){float x=clamp(g.x,0.,float(uN.x-1)),y=clamp(g.y,0.,float(uN.y-1));int i0=int(floor(x)),j0=int(floor(y));int i1=min(i0+1,uN.x-1),j1=min(j0+1,uN.y-1);",
+    " vec4 A=texelFetch(uData,ivec2(i0,uN.y-1-j0),0),B=texelFetch(uData,ivec2(i1,uN.y-1-j0),0),C=texelFetch(uData,ivec2(i0,uN.y-1-j1),0),D=texelFetch(uData,ivec2(i1,uN.y-1-j1),0);",
+    " if(max(max(A.r,B.r),max(C.r,D.r))>0.999)return -1.;float fx=x-float(i0),fy=y-float(j0);return mix(mix(A.r,B.r,fx),mix(C.r,D.r,fx),fy)*255.;}",
+    "void main(){",
+    " vec2 xy=uC+(gl_FragCoord.xy-0.5*uWH)*uS;",
+    " vec2 vA=uCmA>0?cvA(xy):vec2(0.,1.);float fA=fwidth(vA.x);",
+    " vec2 vB=uCmB>0?cvB(xy):vec2(0.,1.);float fB=fwidth(vB.x);",
+    " vec2 g=gIdx(xy,uG);int i=int(floor(g.x+0.5)),j=int(floor(g.y+0.5));",
+    " vec4 c=vec4(0.);",
+    " if(i>=0&&j>=0&&i<uN.x&&j<uN.y){",
+    "  vec4 t2=texelFetch(uData,ivec2(i,uN.y-1-j),0);float code=-1.;int row=0;float fade=1.;",
+    "  if(uMode==0){code=floor(t2.r*255.+0.5);}",
+    "  else if(uMode==3){code=floor(t2.r*255.+0.5);if(code>254.5)code=-1.;else{if(t2.g>0.002)fade=0.45;float b=bil(g);if(b>=0.)code=floor(b+0.5);}}",
+    "  else if(uMode==2){code=floor(t2.r*255.+0.5);if(code<0.5)code=-1.;row=int(floor(t2.g*255.+0.5));if(row>5)row=0;}",
+    "  else{float cu=floor(t2.r*255.+0.5),cv=floor(t2.g*255.+0.5);if(cu<254.5){float u=uW.x+cu*uW.y,v=uW.x+cv*uW.y;code=min(254.,floor(sqrt(u*u+v*v)/uW.z*254.+0.5));}}",
+    "  if(code>=0.){c=texelFetch(uLut,ivec2(int(code),row),0);c.a*=fade;c=vec4(c.rgb*c.a,c.a);}",
+    " }",
+    " c=clB(c,vB,fB);c=clA(c,vA,fA);",
+    " if(c.a<0.004)discard;o=c;",
+    "}"].join("\n");
+  // pass 1: the frame -> (value from the decode table or the wind speed, valid flag); pass 2: the box blur(s) as one
+  // separable kernel, edges clamped, normalised by the valid fraction where asked (as the worker)
+  var FS_P1 = ["#version 300 es", "precision highp float;precision highp int;precision highp sampler2D;",
+    "uniform sampler2D uData;uniform sampler2D uDL;uniform int uMode;uniform vec3 uW;uniform int uCh;out vec4 o;",
+    "void main(){vec4 c=texelFetch(uData,ivec2(gl_FragCoord.xy),0);float v;",
+    " if(uMode==1){float cu=floor(c.r*255.+0.5),cv=floor(c.g*255.+0.5);if(cu>254.5){o=vec4(0.,0.,0.,1.);return;}float u=uW.x+cu*uW.y,w=uW.x+cv*uW.y;v=sqrt(u*u+w*w);}",
+    " else v=texelFetch(uDL,ivec2(int(floor(c[uCh]*255.+0.5)),0),0).r;",
+    " o=v>-1e29?vec4(v,1.,0.,1.):vec4(0.,0.,0.,1.);}"].join("\n");
+  var FS_P2 = ["#version 300 es", "precision highp float;precision highp int;precision highp sampler2D;",
+    "uniform sampler2D uS;uniform ivec2 uM;uniform int uR;uniform float uK[9];uniform int uNb;out vec4 o;",
+    "void main(){ivec2 q=ivec2(gl_FragCoord.xy);float a=0.,w=0.;",
+    " for(int dy=-4;dy<=4;dy++){if(dy<-uR||dy>uR)continue;for(int dx=-4;dx<=4;dx++){if(dx<-uR||dx>uR)continue;",
+    "  vec2 s=texelFetch(uS,clamp(q+ivec2(dx,dy),ivec2(0),uM-1),0).rg;float k=uK[dx+4]*uK[dy+4];a+=k*s.r;w+=k*s.g;}}",
+    " float self=texelFetch(uS,q,0).g;o=vec4(uNb==1?(w>0.01?a/w:0.):a,self<0.999?1.:0.,0.,1.);}"].join("\n");
+  var GPUC = false, pre = null, cLoc = { A: {}, B: {} };
+  var C_UNI = ["uCt", "uCm", "uCG", "uCN", "uCrg", "uCmj", "uClv", "uCnl", "uCc", "uCh", "uCw", "uCsp", "uCspc"];
+  function initGL() {
+    if (!gl) return false;
+    function sh(type, src) { var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+    function link(fs) { var p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
+      gl.bindAttribLocation(p, 0, "p"); gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p)); return p; }
+    prog = link(FS);
+    gl.useProgram(prog);
+    ["uData", "uLut", "uC", "uS", "uWH", "uG", "uN", "uMode", "uW", "uP"].forEach(function (n) { loc[n] = gl.getUniformLocation(prog, n); });
+    ["A", "B"].forEach(function (X) { C_UNI.forEach(function (n) { cLoc[X][n] = gl.getUniformLocation(prog, n + X + (n === "uClv" || n === "uCsp" || n === "uCspc" ? "[0]" : "")); }); });
+    var b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    lutTex = gl.createTexture(); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, lutTex);
+    [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER].forEach(function (p) { gl.texParameteri(gl.TEXTURE_2D, p, gl.NEAREST); });
+    gl.uniform1i(loc.uData, 0); gl.uniform1i(loc.uLut, 1); gl.uniform1i(cLoc.A.uCt, 2); gl.uniform1i(cLoc.B.uCt, 3);
+    gl.uniform1i(cLoc.A.uCm, 0); gl.uniform1i(cLoc.B.uCm, 0);
+    gl.uniform3f(loc.uP, P.s0, P.c0, P.l0);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    try {
+      if (!/[?&]cpulines=only/.test(location.search) && gl.getExtension("EXT_color_buffer_float")) {
+        var p1 = link(FS_P1), p2 = link(FS_P2), l1 = {}, l2 = {};
+        ["uData", "uDL", "uMode", "uW", "uCh"].forEach(function (n) { l1[n] = gl.getUniformLocation(p1, n); });
+        ["uS", "uM", "uR", "uK", "uNb"].forEach(function (n) { l2[n] = gl.getUniformLocation(p2, n + (n === "uK" ? "[0]" : "")); });
+        pre = { p1: p1, p2: p2, l1: l1, l2: l2, fb: gl.createFramebuffer(), dl: newTex(), tmp: null, tmpWH: "" };
+        var dummy = newTex(); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG32F, 1, 1, 0, gl.RG, gl.FLOAT, new Float32Array([0, 1]));
+        [2, 3].forEach(function (u) { gl.activeTexture(gl.TEXTURE0 + u); gl.bindTexture(gl.TEXTURE_2D, dummy); });
+        GPUC = true;
+      }
+    } catch (e) { console.warn("GPU contours unavailable", e); GPUC = false; }
+    gl.useProgram(prog);
+    return true;
+  }
+  var glLost = false, glOk = false;
+  glc.addEventListener("webglcontextlost", function (e) { e.preventDefault(); glLost = true; $("msg").textContent = "The graphics card dropped the map for a moment; it is redrawn as soon as it is back."; });
+  glc.addEventListener("webglcontextrestored", function () {
+    var forget = function (x) { x.tex = null; x.cmap = null; };
+    frames.forEach(forget); ACCF.forEach(forget); ECF.forEach(forget);
+    drawn = null; lutKey = ""; pre = null; GPUC = false;
+    try { glOk = initGL(); } catch (err) { console.error(err); glOk = false; }
+    glLost = false; $("msg").textContent = glOk ? "" : "The map could not be drawn again after the graphics card reset; reload the page.";
+    if (glOk) render();
+  });
+  function newTex() {
+    var t = gl.createTexture(); gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, t);
+    [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER].forEach(function (p) { gl.texParameteri(gl.TEXTURE_2D, p, gl.NEAREST); });
+    [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T].forEach(function (p) { gl.texParameteri(gl.TEXTURE_2D, p, gl.CLAMP_TO_EDGE); });
+    return t;
+  }
+  function dropTex(e) {
+    if (!e || !gl) return;
+    if (e.tex) { gl.deleteTexture(e.tex); e.tex = null; }
+    if (e.cmap) { Object.keys(e.cmap).forEach(function (k) { gl.deleteTexture(e.cmap[k].tex); }); e.cmap = null; }
+  }
+  function texOf(e, ch) {
+    if (e.tex) return e.tex;
+    var t = gl.createTexture(); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, t);
+    [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER].forEach(function (p) { gl.texParameteri(gl.TEXTURE_2D, p, gl.NEAREST); });
+    [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T].forEach(function (p) { gl.texParameteri(gl.TEXTURE_2D, p, gl.CLAMP_TO_EDGE); });
+    if (ch === 1) gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, e.dec.w, e.dec.h, 0, gl.RED, gl.UNSIGNED_BYTE, e.dec.data);
+    else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG8, e.dec.w, e.dec.h, 0, gl.RG, gl.UNSIGNED_BYTE, e.dec.data);
+    e.tex = t;
+    var ts = [], add = function (x) { if (x.tex || x.cmap) ts.push(x); };
+    frames.forEach(add); ACCF.forEach(add); ECF.forEach(add);
+    lru(ts, texBytes, MEM.tex, 3, function (x) { if (x !== e) dropTex(x); });
+    return t;
+  }
+  function texBytes(x) { var b = x.tex && x.dec ? x.dec.data.byteLength : 0; if (x.cmap) Object.keys(x.cmap).forEach(function (k) { b += x.cmap[k].W * x.cmap[k].H * 8; }); return b; }
+  // the smoothed field of a frame for the GPU contours, once per frame and spec: RG32F (value, valid), image row order
+  function ctexOf(e, ch, spec, gkey) {
+    if (e.cmap && e.cmap[gkey]) return e.cmap[gkey];
+    if (!e.cmap) e.cmap = {};
+    var ks = Object.keys(e.cmap); if (ks.length >= 2) { gl.deleteTexture(e.cmap[ks[0]].tex); delete e.cmap[ks[0]]; }
+    var Wd = e.dec.w, Hd = e.dec.h, src = texOf(e, ch);
+    gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, pre.dl);
+    var dl = new Float32Array(256);
+    if (spec.lut) for (var k = 0; k < 256; k++) { var v = spec.lut[k]; dl[k] = v === v ? v : -1e30; }
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, 256, 1, 0, gl.RED, gl.FLOAT, dl);
+    if (!pre.tmp || pre.tmpWH !== Wd + "x" + Hd) {
+      if (pre.tmp) gl.deleteTexture(pre.tmp);
+      pre.tmp = newTex(); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG32F, Wd, Hd, 0, gl.RG, gl.FLOAT, null); pre.tmpWH = Wd + "x" + Hd;
+    }
+    var out = newTex(); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG32F, Wd, Hd, 0, gl.RG, gl.FLOAT, null);
+    gl.disable(gl.BLEND);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, pre.fb); gl.viewport(0, 0, Wd, Hd);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, pre.tmp, 0);
+    gl.useProgram(pre.p1);
+    gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, src);
+    gl.uniform1i(pre.l1.uData, 5); gl.uniform1i(pre.l1.uDL, 4); gl.uniform1i(pre.l1.uMode, spec.speed ? 1 : 0);
+    gl.uniform3f(pre.l1.uW, spec.speed ? spec.speed[0] : 0, spec.speed ? spec.speed[1] : 1, 1); gl.uniform1i(pre.l1.uCh, spec.ch || 0);
+    gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, pre.dl);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    var r1 = spec.rad || 0, r2 = spec.rad2 || 0, K = new Float32Array(9);
+    for (var a = -r1; a <= r1; a++) for (var b = -r2; b <= r2; b++) K[a + b + 4] += 1 / ((2 * r1 + 1) * (2 * r2 + 1));
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, out, 0);
+    gl.useProgram(pre.p2);
+    gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, pre.tmp);
+    gl.uniform1i(pre.l2.uS, 5); gl.uniform2i(pre.l2.uM, Wd, Hd); gl.uniform1i(pre.l2.uR, r1 + r2); gl.uniform1fv(pre.l2.uK, K); gl.uniform1i(pre.l2.uNb, spec.nblur ? 1 : 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.useProgram(prog); gl.enable(gl.BLEND);
+    e.cmap[gkey] = { tex: out, W: Wd, H: Hd };
+    return e.cmap[gkey];
+  }
+  function rgba01(s) {
+    var m = /rgba?\(([^)]+)\)/.exec(s);
+    if (m) { var p = m[1].split(",").map(Number); return [p[0] / 255, p[1] / 255, p[2] / 255, p[3] == null ? 1 : p[3]]; }
+    return [parseInt(s.slice(1, 3), 16) / 255, parseInt(s.slice(3, 5), 16) / 255, parseInt(s.slice(5, 7), 16) / 255, 1];
+  }
+  function zoomSide(lay) { return (lay || []).map(function (L) { return L && L.spec.gl.zoomOut ? (view.s < L.spec.gl.zoomOut[0] ? 1 : 2) : 0; }).join(""); }
+  // shader mode: 0 one code, 1 wind speed from (u, v), 2 rate + type, 3 sea-level pressure (bilinear, terrain fade)
+  function modeOf(f) { return f === "rate" ? 2 : f === "mslp" ? 3 : f === "wind10" || f === "wind100" || f === "shr6" ? 1 : 0; }
+  function setLayer(X, L) {
+    var u = cLoc[X];
+    if (!L) { gl.uniform1i(u.uCm, 0); return; }
+    var gp = L.spec.gl, g = L.g;
+    gl.activeTexture(X === "A" ? gl.TEXTURE2 : gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, L.info.tex);
+    gl.uniform4f(u.uCG, g.lo1, g.la1, g.di, g.dj); gl.uniform2i(u.uCN, g.nx, g.ny);
+    var reg = gp.reg && (!gp.zoomOut || view.s < gp.zoomOut[0]) ? gp.reg : gp.zoomOut ? gp.zoomOut[1] : null;
+    // every level a hair BELOW its value (the worker's ">= level"): a plateau exactly at a level then runs along its edge
+    var EPS = function (v, step) { return v - 1e-3 * (step || Math.max(Math.abs(v), 1) * 0.01); };
+    if (reg) { gl.uniform1i(u.uCm, 1); gl.uniform4f(u.uCrg, EPS(reg[0], reg[1]), reg[1], EPS(reg[2], reg[1]), EPS(reg[3], reg[1])); gl.uniform2f(u.uCmj, reg[4] || 0, (reg[5] || 0) / 2 * DPR); }
+    else { var lv = new Float32Array(8); gp.list.forEach(function (v, i) { lv[i] = EPS(v); }); gl.uniform1i(u.uCm, 2); gl.uniform1fv(u.uClv, lv); gl.uniform1i(u.uCnl, gp.list.length); }
+    var c = rgba01(gp.col), h = rgba01(gp.halo || "rgba(255,255,255,0.55)");
+    gl.uniform4f(u.uCc, c[0], c[1], c[2], c[3]); gl.uniform4f(u.uCh, h[0], h[1], h[2], h[3]);
+    gl.uniform2f(u.uCw, gp.w / 2 * DPR, (gp.hw == null ? 0.9 : gp.hw) * DPR);
+    var spv = new Float32Array(12), spc = new Float32Array(12);
+    (gp.special || []).slice(0, 3).forEach(function (s, i) { spv.set([EPS(s[0]), s[1] / 2 * DPR, 1, 0], 4 * i); spc.set(rgba01(s[2]), 4 * i); });
+    gl.uniform4fv(u.uCsp, spv); gl.uniform4fv(u.uCspc, spc);
+  }
+
+  // ── boundaries ─────────────────────────────────────────────────────────────────────────────────────────────────
+  // geo_sa_coarse.json (the 2.7 km level, built with this projection by scripts/models/build_geo.py) first, geo_sa.json
+  // when a view needs finer lines; each level of detail cut into ~400 km tiles of Path2D
+  var geo = {}, GEO_STYLE = { coast: [1.1, 1], lakes: [0.9, 0.9], countries: [1.5, 1], provinces: [0.8, 0.75] }, GEO_TOLS = [0.3, 0.9, 2.7];
+  var GEO = "/assets/models/geo_sa.json", GEO_C = "/assets/models/geo_sa_coarse.json", GEO_COARSE = 2.7, geoFull = 0;
+  function geoWant() { if (geoFull || !view || 0.6 * view.s / 1000 / DPR >= GEO_COARSE) return; geoFull = 1; whenShown(function () { if (geoFull < 2) { geoFull = 2; loadGeo(GEO, 2); } }); }
+  function loadGeo(url, rank) {
+    var abs = new URL(url, location.href).href, Pp = [P.s0, P.c0, P.l0], tols = rank > 1 ? GEO_TOLS : [];
+    var job = workers.length ? workerCall({ op: "geo", url: abs, P: Pp, tols: tols }).then(function (r) { return r.layers; })
+      : fetch(abs).then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); }).then(function (d) { return geoProcess(d, Pp, tols); });
+    return job.then(function (L) {
+      L.forEach(function (x) { if (geo[x.name] && geo[x.name].rank > rank) return; geo[x.name] = { lods: x.lods, maxKmPerPx: x.maxKmPerPx, rank: rank }; });
+      drawOverlay(); return true;
+    }).catch(function (e) { console.warn("boundaries", e); return false; });
+  }
+  function buildTiles(xy, off, cellKm) {
+    var cells = new Map(), li, k, a, b;
+    for (li = 0; li + 1 < off.length; li++) {
+      for (a = off[li]; a < off[li + 1] - 1; a = b - 1) {
+        b = Math.min(off[li + 1], a + 200);
+        var x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+        for (k = a; k < b; k++) { var X = xy[2 * k], Y = xy[2 * k + 1]; if (X < x0) x0 = X; if (X > x1) x1 = X; if (Y < y0) y0 = Y; if (Y > y1) y1 = Y; }
+        var key = Math.floor((x0 + x1) / 2 / cellKm) + "," + Math.floor((y0 + y1) / 2 / cellKm), t = cells.get(key);
+        if (!t) { t = { bb: [x0, x1, y0, y1], path: new Path2D() }; cells.set(key, t); }
+        else { if (x0 < t.bb[0]) t.bb[0] = x0; if (x1 > t.bb[1]) t.bb[1] = x1; if (y0 < t.bb[2]) t.bb[2] = y0; if (y1 > t.bb[3]) t.bb[3] = y1; }
+        t.path.moveTo(xy[2 * a], xy[2 * a + 1]);
+        for (k = a + 1; k < b; k++) t.path.lineTo(xy[2 * k], xy[2 * k + 1]);
+      }
+    }
+    return Array.from(cells.values());
+  }
+  function geoLod(L) { var tmax = 0.6 * view.s / 1000 / DPR, best = L.lods[0]; L.lods.forEach(function (o) { if (o.tol <= tmax && o.tol >= best.tol) best = o; }); if (!best.tiles) best.tiles = buildTiles(best.xy, best.off, 400); return best; }
+  function kmTransform(ctx) { var k = DPR * 1000 / view.s; ctx.setTransform(k, 0, 0, -k, DPR * W / 2 - k * view.cx / 1000, DPR * H / 2 + k * view.cy / 1000); }
+  function strokeTiles(ctx, tiles, x0, x1, y0, y1) { for (var i = 0; i < tiles.length; i++) { var bb = tiles[i].bb; if (bb[1] < x0 || bb[0] > x1 || bb[3] < y0 || bb[2] > y1) continue; ctx.stroke(tiles[i].path); } }
+
+  // ── view ───────────────────────────────────────────────────────────────────────────────────────────────────────
+  var W = 0, H = 0, DPR = 1, DPR_CAP = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4 ? 1.25 : 2;
+  function resize() {
+    var r = mapEl.getBoundingClientRect();
+    DPR = Math.min(window.devicePixelRatio || 1, DPR_CAP);
+    W = r.width; H = r.height;
+    [glc, ovc, labc].forEach(function (c) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); });
+    ovView = null; drawLegend(); render();
+  }
+  // the map box takes the domain's shape when that is shorter than the CSS height, so the whole continent fits on open
+  function fitBox(g) {
+    mapEl.style.height = "";
+    var r = mapEl.getBoundingClientRect(), bb = g._bb, need = Math.ceil(r.width * (bb[3] - bb[2]) / (bb[1] - bb[0]) * 1.03);
+    if (need < r.height) mapEl.style.height = Math.max(window.innerWidth <= 640 ? 280 : 220, need) + "px";
+  }
+  function fit(g) { var bb = g._bb; view = { cx: (bb[0] + bb[1]) / 2, cy: (bb[2] + bb[3]) / 2, s: Math.max((bb[1] - bb[0]) / W, (bb[3] - bb[2]) / H) * 1.02 }; }
+  function toXY(px, py) { return [view.cx + (px - W / 2) * view.s, view.cy - (py - H / 2) * view.s]; }
+  function clampView() { view.s = Math.max(60, Math.min(view.s, 40000)); }
+
+  // ── drawing ────────────────────────────────────────────────────────────────────────────────────────────────────
+  var drawn = null, raf = 0;
+  function render() { if (!raf) raf = requestAnimationFrame(function () { raf = 0; draw(); }); }
+  var shown = false, onShown = [];
+  function idleDo(f) { if (window.requestIdleCallback) requestIdleCallback(function () { f(); }, { timeout: 1000 }); else setTimeout(f, 150); }
+  function whenShown(f) { if (shown) idleDo(f); else onShown.push(f); }
+  function markShown() { if (shown) return; shown = true; onShown.splice(0).forEach(idleDo); }
+  // derived frames: accumulation windows (two cumulative frames differenced) and ECAPE/CAPE ratios
+  var ACCF = new Map(), ECF = new Map();
+  function trimDerived() {
+    [ACCF, ECF].forEach(function (M) { var es = []; M.forEach(function (e, k) { e._k = k; es.push(e); });
+      lru(es, function (e) { return e.dec.data.byteLength * (e.exact || e.a ? 5 : 1); }, MEM.der / 2, 2, function (e) { dropTex(e); M.delete(e._k); }); });
+  }
+  function accFrame(model, c, hour) {
+    var type = st.acc.type, fm = c.fields[type];
+    if (!fm) return { msg: ACC_TYPES[type].label + " is missing from this run." };
+    if (fm.hours.indexOf(hour) < 0) return { msg: "No accumulation at +" + hour + " h in this run." };
+    var start = 0;
+    if (st.acc.win) { var w0 = hour - st.acc.win; fm.hours.forEach(function (x) { if (x <= w0 && x > start) start = x; }); if (w0 <= 0) start = 0; }
+    var key = model + "/" + c.cycle + "/" + type + "/" + hour + "/" + start;
+    var label = start === 0 ? "since the start of the run (0 to +" + hour + " h)" : "+" + start + " to +" + hour + " h";
+    var have = ACCF.get(key); if (have) { have.used = ++useClock; return { e: have, fm: fm, label: label, key: key }; }
+    var e1 = decoded(model, c, type, hour), e0 = start ? decoded(model, c, type, start) : null;
+    if (!e1 || (start && !e0)) return { wait: true, fm: fm, label: label };
+    var a1 = e1.dec.data, a0 = e0 ? e0.dec.data : null, n = e1.dec.w * e1.dec.h, out = new Uint8Array(n), u = fm.unit, vm = ACC_TYPES[type].vmax, exact = new Float32Array(n);
+    for (var k = 0; k < n; k++) {
+      var v = (a1[2 * k] * 256 + a1[2 * k + 1]) - (a0 ? a0[2 * k] * 256 + a0[2 * k + 1] : 0);
+      if (v <= 0) continue;
+      var vi = v * u; exact[k] = vi;
+      var cd = Math.round(254 * Math.sqrt(vi / vm)); out[k] = cd < 1 ? 1 : cd > 254 ? 254 : cd;
+    }
+    var ent = { dec: { w: e1.dec.w, h: e1.dec.h, data: out }, exact: exact, used: ++useClock };
+    ACCF.set(key, ent); trimDerived();
+    return { e: ent, fm: fm, label: label, key: key };
+  }
+  function ecFrame(model, c, hour) {
+    var sub = EC_SUBS[st.ec], fm = c.fields[sub.files[0]];
+    if (sub.only && sub.only !== model) return { msg: sub.label + " is the IFS's own field; the GDPS's own CAPE is not shown here (its parcel definition is not published with the file)." };
+    if (!fm || (sub.files[1] && !c.fields[sub.files[1]])) return { msg: sub.label + " is missing from this run." };
+    if (fm.hours.indexOf(hour) < 0) return { msg: sub.label + " is not available at +" + hour + " h in this run." };
+    var key = model + "/" + c.cycle + "/" + st.ec + "/" + hour, K = fm.k || 2.8;
+    if (sub.kind === "cape") { var e0 = decoded(model, c, sub.files[0], hour); return e0 ? { e: e0, fm: fm, key: key } : { wait: true, fm: fm, key: key }; }
+    var have = ECF.get(key); if (have) { have.used = ++useClock; return { e: have, fm: fm, key: key }; }
+    var ea = decoded(model, c, sub.files[0], hour), eb = decoded(model, c, sub.files[1], hour);
+    if (!ea || !eb) return { wait: true, fm: fm, key: key };
+    var a = ea.dec.data, b = eb.dec.data, n = ea.dec.w * ea.dec.h, out = new Uint8Array(n), D = new Float32Array(256), k;
+    for (k = 0; k < 256; k++) D[k] = k === 255 ? NaN : (k / K) * (k / K);
+    for (k = 0; k < n; k++) { var cp = D[b[k]]; if (!(cp > 100)) continue; var r = D[a[k]] / cp; if (r !== r) continue; var cd = 1 + Math.round(r * 100); out[k] = cd > 254 ? 254 : cd; }
+    var ent = { dec: { w: ea.dec.w, h: ea.dec.h, data: out }, a: a, b: b, used: ++useClock };
+    ECF.set(key, ent); trimDerived();
+    return { e: ent, fm: fm, key: key };
+  }
+  // the cheap frame while the map is dragged or zoomed: new view uniforms, the overlay moved by the compositor
+  function fastFrame() {
+    var e = drawn && drawn.e;
+    if (!gl || glLost || !view || !e || !e.tex) return false;
+    gl.viewport(0, 0, glc.width, glc.height); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, e.tex);
+    gl.uniform2f(loc.uC, view.cx, view.cy); gl.uniform1f(loc.uS, view.s / DPR); gl.uniform2f(loc.uWH, glc.width, glc.height);
+    if (drawn.layers) { var zs = zoomSide(drawn.layers); if (zs !== drawn.zs) { setLayer("A", drawn.layers[0]); setLayer("B", drawn.layers[1]); drawn.zs = zs; } }
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    moveOverlay();
+    return true;
+  }
+  function clearGL() { if (gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); } }
+  function draw() {
+    if (glLost) return;
+    if (interacting && fastFrame()) return;
+    var c = cycleOf(st.model), fd = FIELDS[st.field];
+    updateBadge();
+    if (!c || !view) { drawOverlay(); return; }
+    var hour = st.hour, fm = c.fields[fileFields()[0]], acc = null, ec = null, msg = "";
+    var na = NA[st.model] && NA[st.model][st.field];
+    if (!na && st.field === "acc") { acc = accFrame(st.model, c, hour); fm = acc.fm || null; if (acc.msg) na = acc.msg; }
+    if (!na && st.field === "ecape") { ec = ecFrame(st.model, c, hour); fm = ec.fm || null; if (ec.msg) na = ec.msg; }
+    if (na) msg = na;
+    else if (!fm) msg = fd.label + " is missing from this run.";
+    else if (fm.hours.indexOf(hour) < 0) msg = fd.label + " is not available at +" + hour + " h in this run (it covers +" + fm.hours[0] + " to +" + fm.hours[fm.hours.length - 1] + " h).";
+    if ($("msg").textContent !== msg) $("msg").textContent = msg;
+    if (msg) { clearGL(); drawn = null; markShown(); drawOverlay(); schedule(); return; }
+    var f0 = fileFields()[0], e = acc ? (acc.e || null) : ec ? (ec.e || null) : peek(st.model, c, f0, hour) || decoded(st.model, c, f0, hour);
+    if (!e && fileFields().some(function (f) { var x = frames.get(fkey(st.model, c, f, hour)); return x && x.fail; })) {
+      $("msg").textContent = "This map could not be downloaded. It may still be publishing, or the connection dropped; try another step, or reload in a minute.";
+      clearGL(); drawn = null; markShown(); drawOverlay(); schedule(); return;
+    }
+    var hold = false;
+    if (!e && drawn && drawn.field === st.field && drawn.model === st.model && drawn.sub === subKey()) { e = drawn.e; hold = true; }   // hold the last frame while the next decodes
+    else if (!e) { drawn = null; clearGL(); drawOverlay(); schedule(); return; }
+    if (!e.dec) { drawOverlay(); schedule(); return; }
+    var q = fm.q && !acc ? fm.q[fm.hours.indexOf(hour)] : ec ? (fm.k || 2.8) : null;
+    if (hold) q = drawn.q;
+    var g = hold ? drawn.g : prepGrid(c.grids[fm.grid]);
+    var dd = { e: e, g: g, field: st.field, model: st.model, q: q, c: c, hour: hold ? drawn.hour : hour, fm: fm, sub: subKey(), hold: hold,
+               ckey: acc ? "acc/" + acc.key : ec ? "ec/" + ec.key : null, accLabel: acc ? acc.label : null };
+    if (gl) {
+      var lay = hold && drawn.layers ? drawn.layers : gpuLayers(dd);
+      dd.layers = lay;
+      var ch = acc || ec ? 1 : chOf(fileFields()[0]), enc = acc ? "accd" : ec ? (EC_SUBS[st.ec].kind === "ratio" ? "ratio" : "sqrt") : fd.enc;
+      gl.viewport(0, 0, glc.width, glc.height); clearGL();
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texOf(e, ch));
+      var lk = st.field + "|" + enc + "|" + (q && q.join ? q.join(",") : q || "") + "|" + subKey();
+      if (lk !== lutKey) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, lutTex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 256, 6, 0, gl.RGBA, gl.UNSIGNED_BYTE, buildLut(st.field, q, enc)); lutKey = lk; }
+      gl.uniform2f(loc.uC, view.cx, view.cy); gl.uniform1f(loc.uS, view.s / DPR); gl.uniform2f(loc.uWH, glc.width, glc.height);
+      gl.uniform4f(loc.uG, g.lo1, g.la1, g.di, g.dj); gl.uniform2i(loc.uN, g.nx, g.ny);
+      gl.uniform1i(loc.uMode, acc || ec ? 0 : modeOf(st.field)); gl.uniform3f(loc.uW, fd.off || 0, fd.step || 1, fd.smax || 1);
+      setLayer("A", lay[0]); setLayer("B", lay[1]); dd.zs = zoomSide(lay);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+    drawn = dd; markShown();
+    ensureContours(drawn);
+    drawOverlay();
+    schedule();
+  }
+  function subKey() { return st.field === "acc" ? st.acc.type + "-" + st.acc.win : st.field === "ecape" ? st.ec : st.field === "srh" ? st.srh : ""; }
+
+  // ── overlay: boundaries, contour lines (CPU fallback), barbs; labels on a second canvas once the map is at rest ───
+  var interacting = false, settleT = 0, ovView = null, labT = 0, ovMoved = false, gestDraws = 0;
+  function beginInteract() { if (!interacting) { interacting = true; gestDraws = 0; } clearTimeout(settleT); }
+  function settleSoon(ms) { clearTimeout(settleT); settleT = setTimeout(function () { interacting = false; render(); }, ms || 140); }
+  function moveOverlay() {
+    if (!ovView) return;
+    var k = ovView.s / view.s, tx = W / 2 * (1 - k) + (ovView.cx - view.cx) / view.s, ty = H / 2 * (1 - k) - (ovView.cy - view.cy) / view.s;
+    ovc.style.transform = "matrix(" + k + ",0,0," + k + "," + tx + "," + ty + ")"; ovMoved = true;
+    if (labc.style.visibility !== "hidden") { labc.style.visibility = "hidden"; tip.style.display = "none"; }
+  }
+  function drawOverlay() {
+    if (interacting && ovView && view) { moveOverlay(); return; }
+    var ctx = ovc.getContext("2d");
+    if (ovMoved) { ovc.style.transform = ""; ovMoved = false; }
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ovc.width, ovc.height);
+    if (!view) { ovView = null; return; }
+    geoWant();
+    var kpp = view.s / 1000, x0 = (view.cx - W / 2 * view.s) / 1000, x1 = (view.cx + W / 2 * view.s) / 1000, y0 = (view.cy - H / 2 * view.s) / 1000, y1 = (view.cy + H / 2 * view.s) / 1000;
+    kmTransform(ctx); ctx.lineJoin = "round"; ctx.strokeStyle = FIELDS[st.field].lines || "rgba(28,30,28,0.78)";
+    ["lakes", "coast", "provinces", "countries"].forEach(function (name) {
+      var L = geo[name]; if (!L) return;
+      var sty = GEO_STYLE[name]; ctx.globalAlpha = sty[1]; ctx.lineWidth = sty[0] * kpp;
+      strokeTiles(ctx, geoLod(L).tiles, x0, x1, y0, y1);
+    });
+    ctx.globalAlpha = 1;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    drawContourLines(ctx, x0, x1, y0, y1);
+    if (drawn && drawn.e && drawn.e.dec && drawn.field === st.field) {
+      if (st.field === "wind10" || st.field === "wind100" || st.field === "shr6") drawBarbs(ctx, drawn);
+      if (st.field === "gust") { var bw = windFor(drawn); if (bw) drawBarbs(ctx, bw); }
+    }
+    ovView = { cx: view.cx, cy: view.cy, s: view.s };
+    cancelAnimationFrame(labT);
+    labT = requestAnimationFrame(function () { labT = 0; drawLabels(); });
+  }
+  function drawLabels() {
+    var ctx = labc.getContext("2d");
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, labc.width, labc.height);
+    if (!view || interacting) return;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    var occ = labOcc(), mr = mapEl.getBoundingClientRect();
+    [".mv-badge", ".mv-zoom"].forEach(function (sel) {                // the floating controls first: no label under them
+      var el = document.querySelector(sel); if (!el || el.offsetParent === null) return;
+      var r = el.getBoundingClientRect(); if (r.width && r.height) occ.add([r.left - mr.left - 3, r.top - mr.top - 3, r.right - mr.left + 3, r.bottom - mr.top + 3]);
+    });
+    drawContourLabels(ctx, occ);
+    labc.style.visibility = "";
+  }
+
+  // ── contours ──────────────────────────────────────────────────────────────────────────────────────────────────
+  function range(a, b, d) { var r = []; for (var v = a; v <= b + 1e-9; v += d) r.push(v); return r; }
+  function lutLin(off, step) { var L = new Float32Array(256); for (var c = 0; c < 256; c++) L[c] = c === 255 ? NaN : off + c * step; return L; }
+  // spec.gl: how the GPU draws the lines - reg [base, interval, lowest, highest, major every N, major width] or a list of
+  // up to 8 levels; special [[level, width, colour]] on top; zoomOut [metres per px, reg] further out. The worker trace
+  // (labels, H/L) uses levels / values / style / fmt.
+  function isoSpec(field) {
+    var pv = range(940, 1066, 2);
+    var sp = { rad: 1, rad2: 1, minPts: 4, lut: lutLin(940, 0.5), levels: pv, values: pv, src: "mslp", stride: 2, extKm: [400, 2.0, 60],
+               show: function (v) { return v % 4 === 0 || view.s < 4000; }, fmt: String, style: function () { return ["rgba(20,20,20,0.85)", 1.0]; },
+               gl: { reg: [940, 2, 940, 1066], col: "rgba(20,20,20,0.85)", w: 1.0, zoomOut: [4000, [940, 4, 940, 1066]] } };
+    if (field === "mslp") {
+      sp.style = function (v) { return v === 1012 ? ["rgba(15,15,15,0.95)", 1.6] : ["rgba(20,20,20,0.85)", v % 4 ? 0.8 : 1.1]; };
+      sp.gl = { reg: [940, 2, 940, 1066, 2, 1.1], col: "rgba(20,20,20,0.85)", w: 0.8, special: [[1012, 1.6, "rgba(15,15,15,0.95)"]], zoomOut: [4000, [940, 4, 940, 1066, 1, 1.1]] };
+    }
+    if (field === "wind10" || field === "gust") {
+      sp.style = function (v) { return v === 1012 ? ["rgba(5,5,5,0.95)", 1.3] : ["rgba(5,5,5,0.92)", 0.8]; };
+      sp.gl = { reg: [940, 2, 940, 1066], col: "rgba(5,5,5,0.92)", w: 0.8, hw: 0.7, special: [[1012, 1.3, "rgba(5,5,5,0.95)"]], zoomOut: [4000, [940, 4, 940, 1066]] };
+    }
+    return sp;
+  }
+  var WIND_GL = { col: "rgba(255,255,255,0.97)", w: 1.8, halo: "rgba(25,25,35,0.75)", hw: 0.7 };
+  function contourSpec(field, q) {
+    var base = { rad: 1, rad2: 0, minPts: 8 }, dark = "rgba(15,15,15,0.88)";
+    function speedSpec(fd, vals, toMs, unit) { var lv = vals.map(toMs);
+      return Object.assign(base, { speed: [fd.off, fd.step], levels: lv, values: vals, fmt: function (v) { return v + " " + unit; },
+        style: function () { return ["rgba(255,255,255,0.97)", 1.8]; }, gl: Object.assign({ list: lv }, WIND_GL) }); }
+    if (field === "t2m") { var lv = range(-60, 60, 5);
+      return Object.assign(base, { lut: lutLin(q[0], q[1]), levels: lv, values: lv, fmt: function (v) { return v + "°"; },
+        style: function (v) { return v === 0 ? ["#1640c8", 2.2] : ["rgba(20,22,20,0.8)", 0.9]; },
+        gl: { reg: [-60, 5, -60, 60], col: "rgba(20,22,20,0.8)", w: 0.9, special: [[0, 2.2, "#1640c8"]] } }); }
+    if (field === "td2m") { var lv2 = range(-40, 35, 5);
+      return Object.assign(base, { lut: lutLin(q[0], q[1]), levels: lv2, values: lv2, fmt: function (v) { return v + "°"; },
+        style: function (v) { return v === 20 ? ["rgba(10,40,20,0.95)", 2.1] : ["rgba(20,22,20,0.8)", 0.9]; },
+        gl: { reg: [-40, 5, -40, 35], col: "rgba(20,22,20,0.8)", w: 0.9, special: [[20, 2.1, "rgba(10,40,20,0.95)"]] } }); }
+    if (field === "mslp" || field === "rate") return isoSpec(field);
+    if (field === "wind10") return speedSpec(FIELDS.wind10, [20, 30, 40], function (k) { return k / KT; }, "kt");
+    if (field === "wind100") return speedSpec(FIELDS.wind100, [10, 15, 20], function (m) { return m; }, "m/s");
+    if (field === "shr6") return speedSpec(FIELDS.shr6, [30, 40, 50], function (k) { return k / KT; }, "kt");
+    if (field === "gust") { var gv = [30, 40, 50], gm = gv.map(function (k) { return k / KT; });
+      return Object.assign(base, { lut: lutLin(0, 0.25), levels: gm, values: gv, fmt: function (v) { return v + " kt"; },
+        style: function (v) { return ["rgba(255,255,255,0.97)", v === 50 ? 2.6 : 1.8]; },
+        gl: Object.assign({ list: [gm[0], gm[1]], special: [[gm[2], 2.6, "rgba(255,255,255,0.97)"]] }, WIND_GL) }); }
+    if (field === "acc") { var at = ACC_TYPES[st.acc.type], La = new Float32Array(256);
+      for (var ca = 0; ca < 256; ca++) La[ca] = ca === 0 ? 0 : accValue(st.acc.type, ca);
+      return { rad: 1, rad2: 1, minPts: 12, lut: La, levels: at.levels, values: at.levels, fmt: function (v) { return v + " " + at.unit; },
+        style: function () { return [dark, 1.2]; }, gl: { list: at.levels, col: dark, w: 1.2 } }; }
+    if (field === "pwat") return Object.assign(base, { lut: lutLin(0, 0.5), levels: [25, 50], values: [25, 50], fmt: function (v) { return v + " mm"; },
+        style: function (v) { return [dark, v === 50 ? 1.8 : 1.0]; }, gl: { list: [25], col: dark, w: 1.0, special: [[50, 1.8, dark]] } });
+    if (field === "the850") { var lt = range(280, 380, 10);
+      return Object.assign(base, { lut: lutLin(270, 0.5), nblur: true, levels: lt, values: lt, fmt: String,
+        style: function (v) { return [dark, v === 340 ? 1.8 : 0.9]; }, gl: { reg: [280, 10, 280, 380], col: dark, w: 0.9, special: [[340, 1.8, dark]] } }); }
+    if (field === "srh") return Object.assign(base, { lut: lutLin(-250, 5), nblur: true, levels: [100, 200, 300], values: [100, 200, 300], fmt: String,
+        style: function (v) { return [dark, v === 200 ? 1.6 : 1.0]; }, gl: { list: [100, 300], col: dark, w: 1.0, special: [[200, 1.6, dark]] } });
+    if (field === "ecape") { var Le = new Float32Array(256), K = (q && !q.join) ? q : 2.8, ce;
+      if (EC_SUBS[st.ec].kind === "ratio") {
+        for (ce = 0; ce < 256; ce++) Le[ce] = ce === 0 ? NaN : (ce - 1) / 100;
+        return Object.assign(base, { lut: Le, nblur: true, levels: [0.5, 1.0], values: [0.5, 1.0], fmt: function (v) { return v.toFixed(1); },
+          style: function (v) { return [dark, v === 1 ? 1.8 : 1.1]; }, gl: { list: [0.5], col: dark, w: 1.1, special: [[1.0, 1.8, dark]] } });
+      }
+      for (ce = 0; ce < 256; ce++) Le[ce] = ce === 255 ? NaN : (ce / K) * (ce / K);
+      return Object.assign(base, { lut: Le, levels: [1000, 2000, 3000], values: [1000, 2000, 3000], fmt: function (v) { return v.toLocaleString("en-US"); },
+        style: function (v) { return [dark, v === 2000 ? 1.6 : 1.0]; }, gl: { list: [1000, 3000], col: dark, w: 1.0, special: [[2000, 1.6, dark]] } });
+    }
+    return null;                                                  // the IR proxy: no lines
+  }
+  function extraSpec(field) { return field === "wind10" || field === "gust" ? isoSpec(field) : null; }
+  var CONT = new Map(), contBusy = {}, CPU_LINES = /[?&]cpulines=1/.test(location.search), scrubbing = false, scrubT = 0;
+  function scrubbed() { scrubbing = true; clearTimeout(scrubT); scrubT = setTimeout(function () { scrubbing = false; render(); }, 350); }
+  function contoursOn() { return !!contourSpec(st.field, [0, 1]) && $("cont").checked; }
+  function specSrc(d, spec) {                                     // the frame a spec reads: the field's own, or the MSLP frame
+    if (!spec.src) return { e: d.e, g: d.g, fm: d.fm, own: true };
+    var sfm = d.c.fields[spec.src]; if (!sfm || sfm.hours.indexOf(d.hour) < 0) return null;
+    var e = peek(d.model, d.c, spec.src, d.hour) || decoded(d.model, d.c, spec.src, d.hour);
+    return e && e.dec ? { e: e, g: prepGrid(d.c.grids[sfm.grid]), fm: sfm, own: false } : null;
+  }
+  function specQ(d, S) { if (S.own && d.field === "ecape") return d.fm.k || 2.8; if (S.own && d.field === "acc") return null; return S.fm.q ? S.fm.q[S.fm.hours.indexOf(d.hour)] : null; }
+  function contKey(d, suffix) { return (d.ckey || d.model + "/" + d.c.cycle + "/" + d.field + "/" + d.sub + "/" + d.hour) + (suffix || ""); }
+  function ensureTrace(d, spec0, suffix) {
+    var key = contKey(d, suffix);
+    if (CONT.has(key) || contBusy[key]) return;
+    var S = specSrc(d, spec0); if (!S) return;
+    var q = specQ(d, S), spec = suffix ? extraSpec(d.field) : contourSpec(d.field, q), g = S.g, cellKm = g.di * 111.2, ext = null;
+    if (spec.extKm) ext = [Math.max(4, Math.round(spec.extKm[0] / cellKm)), spec.extKm[1], Math.max(1, Math.round(spec.extKm[2] / cellKm))];
+    contBusy[key] = 1;
+    workerCall({ op: "contour", w: S.e.dec.w, h: S.e.dec.h, data: S.e.dec.data, lut: spec.lut, speed: spec.speed, levels: spec.levels,
+                 rad: spec.rad, rad2: spec.rad2, minPts: spec.minPts, ext: ext, stride: spec.stride, choff: spec.ch, nblur: spec.nblur }).then(function (r) {
+      var lines = r.lines.map(function (o) {
+        var n = o.pts.length / 2, xy = new Float64Array(o.pts.length), bb = [1e20, -1e20, 1e20, -1e20];
+        for (var k = 0; k < n; k++) { var ll = ijLL(g, o.pts[2 * k], o.pts[2 * k + 1]), p = P.fwd(ll[0], ll[1]); xy[2 * k] = p[0]; xy[2 * k + 1] = p[1];
+          if (p[0] < bb[0]) bb[0] = p[0]; if (p[0] > bb[1]) bb[1] = p[0]; if (p[1] < bb[2]) bb[2] = p[1]; if (p[1] > bb[3]) bb[3] = p[1]; }
+        return { v: spec.values[o.lv], xy: xy, bb: bb };
+      });
+      var ex = [];
+      for (var k = 0; k < r.ext.length; k += 4) { var ll = ijLL(g, r.ext[k + 1], r.ext[k + 2]), p = P.fwd(ll[0], ll[1]); ex.push([r.ext[k], p[0], p[1], r.ext[k + 3]]); }
+      CONT.set(key, { lines: lines, ext: ex, spec: spec });
+      if (CONT.size > 60) CONT.delete(CONT.keys().next().value);
+      delete contBusy[key]; render();
+    }, function () { delete contBusy[key]; });
+  }
+  function ensureContours(d) {
+    if (!contoursOn() || !d || d.hold) return;
+    if (GPUC && (st.playing || scrubbing)) return;               // the lines are on the GPU; labels wait for the map to rest
+    var sp = contourSpec(d.field, [0, 1]); if (sp) ensureTrace(d, sp, "");
+    var x = extraSpec(d.field); if (x) ensureTrace(d, x, "/iso");
+  }
+  function contAll() {
+    if (!contoursOn() || !drawn) return [];
+    var out = [], C = CONT.get(contKey(drawn, "")), X = extraSpec(drawn.field) ? CONT.get(contKey(drawn, "/iso")) : null;
+    if (C) out.push(C); if (X) out.push(X);
+    if ((!C || (extraSpec(drawn.field) && !X)) && !interacting) ensureContours(drawn);
+    return out;
+  }
+  function gpuLayer(d, spec, suffix) {
+    var S = specSrc(d, spec); if (!S) return null;
+    var q = specQ(d, S), sp = suffix ? extraSpec(d.field) : contourSpec(d.field, q);
+    var ch = S.own ? (d.field === "acc" || d.field === "ecape" ? 1 : chOf(fileFields()[0])) : chOf(spec.src);
+    var gkey = (S.own ? d.field + "|" + d.sub : spec.src) + "|" + (q && q.join ? q.join(",") : q) + "|c" + (sp.ch || 0);
+    return { spec: sp, g: S.g, info: ctexOf(S.e, ch, sp, gkey) };
+  }
+  function gpuLayers(d) {
+    if (!GPUC || !d || !contoursOn()) return [null, null];
+    var sp = contourSpec(d.field, [0, 1]), x = extraSpec(d.field);
+    return [sp ? gpuLayer(d, sp, "") : null, x ? gpuLayer(d, x, "/iso") : null];
+  }
+  function drawContourLines(ctx, x0, x1, y0, y1) {                   // only without the GPU path (or ?cpulines=1, in red)
+    if (GPUC && !CPU_LINES) return;
+    contAll().forEach(function (C) {
+      if (!C.groups) {
+        var by = new Map(); C.lines.forEach(function (L) { var gp = by.get(L.v); if (!gp) by.set(L.v, gp = []); gp.push(L); });
+        C.groups = [];
+        by.forEach(function (ls, v) {
+          var np = 0; ls.forEach(function (L) { np += L.xy.length / 2; });
+          var xy = new Float32Array(np * 2), off = new Int32Array(ls.length + 1), p = 0;
+          ls.forEach(function (L, i) { off[i] = p; for (var k = 0; k < L.xy.length; k++) xy[2 * p + k] = L.xy[k] / 1000; p += L.xy.length / 2; });
+          off[ls.length] = p; C.groups.push({ v: v, sty: C.spec.style(v), tiles: buildTiles(xy, off, 400) });
+        });
+      }
+      var kpp = view.s / 1000;
+      kmTransform(ctx); ctx.lineJoin = "round"; ctx.lineCap = "round";
+      [0, 1].forEach(function (pass) {
+        if (CPU_LINES && GPUC && !pass) return;
+        C.groups.forEach(function (gp) {
+          if (C.spec.show && !C.spec.show(gp.v)) return;
+          ctx.strokeStyle = CPU_LINES && GPUC ? "rgba(230,0,40,0.9)" : pass ? gp.sty[0] : "rgba(255,255,255,0.55)";
+          ctx.lineWidth = (CPU_LINES && GPUC ? 0.8 : pass ? gp.sty[1] : gp.sty[1] + 1.8) * kpp;
+          strokeTiles(ctx, gp.tiles, x0, x1, y0, y1);
+        });
+      });
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    });
+  }
+  var TW = new Map();
+  function textW(ctx, font, txt) { var k = font + "|" + txt, w = TW.get(k); if (w === undefined) { w = ctx.measureText(txt).width; TW.set(k, w); } return w; }
+  function labOcc() {                                              // label collision boxes in a 48 px hash grid
+    var G = 48, grid = new Map();
+    return {
+      hits: function (b) { for (var gx = Math.floor(b[0] / G); gx <= Math.floor(b[2] / G); gx++) for (var gy = Math.floor(b[1] / G); gy <= Math.floor(b[3] / G); gy++) {
+        var L = grid.get(gx * 4096 + gy); if (!L) continue; for (var m = 0; m < L.length; m++) { var o = L[m]; if (b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]) return true; } } return false; },
+      add: function (b) { for (var gx = Math.floor(b[0] / G); gx <= Math.floor(b[2] / G); gx++) for (var gy = Math.floor(b[1] / G); gy <= Math.floor(b[3] / G); gy++) { var k = gx * 4096 + gy, L = grid.get(k); if (!L) grid.set(k, L = []); L.push(b); } } };
+  }
+  function drawContourLabels(ctx, occ) {
+    if (GPUC && (st.playing || scrubbing)) return;
+    var all = contAll(); if (!all.length) return;
+    var x0 = view.cx - W / 2 * view.s, x1 = view.cx + W / 2 * view.s, y0 = view.cy - H / 2 * view.s, y1 = view.cy + H / 2 * view.s;
+    all.forEach(function (C) { C.ext.forEach(function (x) { var px = W / 2 + (x[1] - view.cx) / view.s, py = H / 2 - (x[2] - view.cy) / view.s; occ.add([px - 11, py - 12, px + 11, py + 22]); }); });
+    var boxes = [], GAP = W < 640 ? 170 : 240, FONT = "600 11.5px 'Source Sans 3', Arial, sans-serif";
+    ctx.font = FONT; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    all.forEach(function (C) {
+      C.lines.forEach(function (L) {
+        if (L.bb[1] < x0 || L.bb[0] > x1 || L.bb[3] < y0 || L.bb[2] > y1) return;
+        if (C.spec.show && !C.spec.show(L.v)) return;
+        var a = L.xy, n = a.length, txt = C.spec.fmt(L.v), tw = textW(ctx, FONT, txt) + 6, sty = C.spec.style(L.v);
+        var acc = GAP * 0.45, px = W / 2 + (a[0] - view.cx) / view.s, py = H / 2 - (a[1] - view.cy) / view.s;
+        for (var k = 2; k < n; k += 2) {
+          var cx = W / 2 + (a[k] - view.cx) / view.s, cy = H / 2 - (a[k + 1] - view.cy) / view.s, dx = cx - px, dy = cy - py;
+          px = cx; py = cy; acc += Math.sqrt(dx * dx + dy * dy);
+          if (acc < GAP || cx < tw || cx > W - tw || cy < 12 || cy > H - 12) continue;
+          var ka = Math.max(0, k - 6), kb = Math.min(n - 2, k + 6), ang = Math.atan2(-(a[kb + 1] - a[ka + 1]), a[kb] - a[ka]);
+          if (ang > Math.PI / 2) ang -= Math.PI; if (ang < -Math.PI / 2) ang += Math.PI;
+          var r = Math.max(tw, 16) / 2 + 2, hit = false;
+          for (var b = 0; b < boxes.length; b++) { var bx = boxes[b]; if (Math.abs(bx[0] - cx) < bx[2] + r && Math.abs(bx[1] - cy) < 9 + r * Math.abs(Math.sin(ang)) + 4) { hit = true; break; } }
+          if (hit) continue;
+          var ca = Math.abs(Math.cos(ang)), sa = Math.abs(Math.sin(ang)), hx = r * ca + 7 * sa, hy = r * sa + 7 * ca, ab = [cx - hx, cy - hy, cx + hx, cy + hy];
+          if (occ.hits(ab)) continue;
+          occ.add(ab); boxes.push([cx, cy, r]); acc = 0;
+          ctx.save(); ctx.translate(cx, cy); ctx.rotate(ang);
+          ctx.lineWidth = 3.2; ctx.strokeStyle = "rgba(255,255,255,0.92)"; ctx.strokeText(txt, 0, 0);
+          ctx.fillStyle = sty[0].indexOf("rgba") === 0 ? "#141614" : sty[0]; ctx.fillText(txt, 0, 0);
+          ctx.restore();
+        }
+      });
+      C.ext.forEach(function (x) {                                    // highs and lows
+        if (x[1] < x0 || x[1] > x1 || x[2] < y0 || x[2] > y1) return;
+        var px = W / 2 + (x[1] - view.cx) / view.s, py = H / 2 - (x[2] - view.cy) / view.s, hi = x[0] > 0;
+        ctx.font = "700 20px 'Source Sans 3', Arial, sans-serif"; ctx.lineWidth = 3.5; ctx.strokeStyle = "rgba(255,255,255,0.95)";
+        ctx.strokeText(hi ? "H" : "L", px, py); ctx.fillStyle = hi ? "#1c3fa8" : "#b0171f"; ctx.fillText(hi ? "H" : "L", px, py);
+        ctx.font = "600 11px 'Source Sans 3', Arial, sans-serif"; ctx.lineWidth = 3; ctx.strokeText(Math.round(x[3]), px, py + 15); ctx.fillText(Math.round(x[3]), px, py + 15);
+        ctx.font = FONT;
+      });
+    });
+  }
+  // ── barbs (knots): the wind maps, the gust map (its 10 m wind) and the shear vector; Southern Hemisphere convention south of the equator
+  function sample(d, px, py) {                                     // -> code(s) at a CSS pixel of a frame, or null
+    var xy = toXY(px, py), ij = gridIJ(d.g, xy[0], xy[1]), i = Math.floor(ij[0] + 0.5), j = Math.floor(ij[1] + 0.5);
+    if (i < 0 || j < 0 || i >= d.g.nx || j >= d.g.ny) return null;
+    var idx = (d.g.ny - 1 - j) * d.g.nx + i, a = d.e.dec.data;
+    return a.length === 2 * d.g.nx * d.g.ny ? [a[2 * idx], a[2 * idx + 1], xy, idx] : [a[idx], null, xy, idx];
+  }
+  function windFor(d) {
+    var fm = d.c.fields.wind10; if (!fm || fm.hours.indexOf(d.hour) < 0) return null;
+    var e = peek(d.model, d.c, "wind10", d.hour) || decoded(d.model, d.c, "wind10", d.hour); if (!e) return null;
+    return { e: e, g: prepGrid(d.c.grids[fm.grid]), field: "wind10" };
+  }
+  function drawBarbs(ctx, d) {
+    var fd = FIELDS[d.field], sp = W < 640 ? 34 : 40, L = 17;
+    ctx.strokeStyle = "rgba(18,20,18,0.85)"; ctx.fillStyle = "rgba(18,20,18,0.85)"; ctx.lineWidth = 1.1;
+    for (var py = sp / 2; py < H; py += sp) for (var px = sp / 2; px < W; px += sp) {
+      var s = sample(d, px, py); if (!s || s[0] === 255) continue;
+      var u = fd.off + s[0] * fd.step, v = fd.off + s[1] * fd.step, ll = P.inv(s[2][0], s[2][1]), n = P.north(ll[0], ll[1]);
+      // earth -> map frame: east is north turned clockwise (the projection is conformal)
+      var su = u * n[1] + v * n[0], sv = -u * n[0] + v * n[1];
+      barb(ctx, px, py, su, sv, Math.sqrt(u * u + v * v) * KT, L, ll[1] < 0);
+    }
+  }
+  function barb(ctx, x, y, su, sv, kt, L, south) {
+    var m = Math.sqrt(su * su + sv * sv);
+    if (kt < 2.5 || m === 0) { ctx.beginPath(); ctx.arc(x, y, 2.4, 0, 2 * Math.PI); ctx.stroke(); return; }
+    var dx = -su / m, dy = sv / m;                     // staff points upwind, canvas y down
+    var rx = south ? dy : -dy, ry = south ? -dx : dx;   // feathers on the clockwise side of the staff north of the equator, the other side south of it
+    var ex = x + dx * L, ey = y + dy * L;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey);
+    var nn = Math.round(kt / 5) * 5, pos = 0, fl = L * 0.55, gap = L * 0.17;
+    while (nn >= 50) { var bx = ex - dx * pos, by = ey - dy * pos; ctx.moveTo(bx, by); ctx.lineTo(bx + rx * fl, by + ry * fl); ctx.lineTo(bx - dx * gap * 1.2, by - dy * gap * 1.2); ctx.fill(); pos += gap * 1.6; nn -= 50; }
+    while (nn >= 10) { var fx = ex - dx * pos, fy = ey - dy * pos; ctx.moveTo(fx, fy); ctx.lineTo(fx + rx * fl + dx * fl * 0.35, fy + ry * fl + dy * fl * 0.35); pos += gap; nn -= 10; }
+    if (nn >= 5) { if (pos === 0) pos = gap; var hx = ex - dx * pos, hy = ey - dy * pos; ctx.moveTo(hx, hy); ctx.lineTo(hx + rx * fl * 0.5 + dx * fl * 0.18, hy + ry * fl * 0.5 + dy * fl * 0.18); }
+    ctx.stroke();
+  }
+
+  // ── legend ─────────────────────────────────────────────────────────────────────────────────────────────────────
+  function legVert() { var w = document.querySelector(".mv-mapwrap"); return !!w && getComputedStyle(w).flexDirection === "row"; }
+  function legSetup(hpx) {
+    var cv = $("leg"), dpr = Math.min(window.devicePixelRatio || 1, 2), vert = legVert();
+    cv.style.height = vert ? "100%" : hpx + "px";
+    var r = cv.getBoundingClientRect(); cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, r.height);
+    ctx.font = "13.5px 'Source Sans 3', Arial, sans-serif"; return { ctx: ctx, w: r.width, h: r.height, vert: vert };
+  }
+  function hLab(ctx, txt, x, x0, x1, yy, Sx) { var w = ctx.measureText(txt).width, cx = Math.min(Math.max(x, x0 + w / 2), x1 - w / 2); if (cx - w / 2 < Sx.r + 7) return; ctx.fillText(txt, cx, yy); Sx.r = cx + w / 2; }
+  function rgbaStr(c) { return typeof c === "string" ? c : "rgba(" + Math.round(c[0]) + "," + Math.round(c[1]) + "," + Math.round(c[2]) + "," + (c[3] == null ? 1 : c[3]) + ")"; }
+  function vBar(g, colAt, ticks) {
+    var ctx = g.ctx, y0 = g.h - 12, y1 = 12, x0 = 10, bw = 22;
+    ctx.fillStyle = "#e9ebe6"; ctx.fillRect(x0, y1, bw, y0 - y1);
+    for (var py = y1; py < y0; py++) { var c = colAt((y0 - py) / (y0 - y1)); if (c) { ctx.fillStyle = rgbaStr(c); ctx.fillRect(x0, py, bw, 1.2); } }
+    ctx.strokeStyle = "#8c918b"; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y1 + 0.5, bw - 1, y0 - y1 - 1);
+    ctx.fillStyle = "#3d4540"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; var last = 1e9;
+    ticks.forEach(function (tk) { var y = y0 - tk[0] * (y0 - y1); if (y < y1 - 1 || y > y0 + 1) return; ctx.fillRect(x0 + bw, y - 0.5, 4, 1);
+      if (Math.abs(last - y) < 17) return; ctx.fillText(tk[1], x0 + bw + 7, Math.min(Math.max(y, y1 + 6), y0 - 6)); last = y; });
+  }
+  function hBar(g, colAt, ticks) {
+    var ctx = g.ctx, x0 = 6, x1 = g.w - 6, bh = 14, y = 4;
+    ctx.fillStyle = "#e9ebe6"; ctx.fillRect(x0, y, x1 - x0, bh);
+    for (var px = x0; px < x1; px++) { var c = colAt((px - x0) / (x1 - x0)); if (c) { ctx.fillStyle = rgbaStr(c); ctx.fillRect(px, y, 1.2, bh); } }
+    ctx.strokeStyle = "#8c918b"; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y + 0.5, x1 - x0 - 1, bh - 1);
+    ctx.fillStyle = "#3d4540"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+    var Sx = { r: -1e9 };
+    ticks.forEach(function (tk) { var x = x0 + tk[0] * (x1 - x0); if (x < x0 - 1 || x > x1 + 1) return; ctx.fillRect(x - 0.5, y + bh, 1, 4); hLab(ctx, tk[1], x, x0, x1, y + bh + 5, Sx); });
+  }
+  function bar(colAt, ticks) { var g = legSetup(38); (g.vert ? vBar : hBar)(g, colAt, ticks); }
+  function classes(L, C, lab) { var n = C.length; bar(function (t) { return C[Math.min(n - 1, Math.floor(t * n))]; }, L.map(function (v, i) { return [i / n, lab(v, i)]; })); }
+  function kLab(v) { return v >= 1000 ? (v / 1000) + "k" : String(v); }
+  function drawLegendRate() {
+    var g = legSetup(92), vt = [0.1, 0.5, 1, 2.5, 5, 10, 25, 50], ctx = g.ctx, lo5 = 5, hi72 = 72, names = [1, 2, 3, 4, 5];
+    $("legT").textContent = "Precipitation rate, mm/h (not reflectivity), coloured by type · isobars every 2 hPa (4 hPa zoomed out)";
+    ctx.font = "12.5px 'Source Sans 3', Arial, sans-serif"; ctx.fillStyle = "#3d4540";
+    var cap = function (t) { return PT_NAMES[t].replace(/^./, function (a) { return a.toUpperCase(); }); };
+    if (g.vert) {
+      var cw = 10, xs = 6, y0 = g.h - 12, top = Math.ceil(Math.max.apply(null, names.map(function (t) { return ctx.measureText(cap(t)).width; }))) + 14;
+      ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      names.forEach(function (t, kk) { ctx.save(); ctx.translate(xs + kk * (cw + 1) + cw / 2, top - 6); ctx.rotate(-Math.PI / 2); ctx.fillText(cap(t), 0, 0); ctx.restore(); });
+      names.forEach(function (t, kk) { var x = xs + kk * (cw + 1); for (var py = top; py < y0; py++) { ctx.fillStyle = rgbaStr(interp(PT_RAMPS[t], lo5 + (y0 - py) / (y0 - top) * (hi72 - lo5))); ctx.fillRect(x, py, cw, 1.2); } });
+      var x0 = xs + 5 * (cw + 1) - 1, last = 1e9; ctx.fillStyle = "#3d4540";
+      vt.forEach(function (tv) { var y = y0 - (rateEq(tv) - lo5) / (hi72 - lo5) * (y0 - top); if (y < top || y > y0) return; ctx.fillRect(x0, y - 0.5, 4, 1); if (Math.abs(last - y) < 16) return; ctx.fillText(String(tv), x0 + 6, y); last = y; });
+      return;
+    }
+    ctx.textBaseline = "middle"; ctx.textAlign = "right";
+    var lab = Math.ceil(Math.max.apply(null, names.map(function (t) { return ctx.measureText(cap(t)).width; }))) + 8, xa = 6 + lab, xb = g.w - 6, bh = 11;
+    names.forEach(function (t, row) { var y = 2 + row * (bh + 3);
+      for (var px = xa; px < xb; px++) { ctx.fillStyle = rgbaStr(interp(PT_RAMPS[t], lo5 + (px - xa) / (xb - xa) * (hi72 - lo5))); ctx.fillRect(px, y, 1.2, bh); }
+      ctx.fillStyle = "#3d4540"; ctx.fillText(cap(t), xa - 6, y + bh / 2); });
+    var yT = 2 + 5 * (bh + 3), Sx = { r: -1e9 }; ctx.textAlign = "center"; ctx.textBaseline = "top";
+    vt.forEach(function (tv) { var x = xa + (rateEq(tv) - lo5) / (hi72 - lo5) * (xb - xa); if (x < xa || x > xb) return; ctx.fillRect(x - 0.5, yT, 1, 4); hLab(ctx, String(tv), x, xa, xb, yT + 5, Sx); });
+  }
+  function drawLegend() {
+    var f = st.field, fd = FIELDS[f], T = $("legT");
+    if (f === "rate") { drawLegendRate(); return; }
+    if (f === "mslp") { T.textContent = "Sea-level pressure, hPa, in 4 hPa classes · isobars every 2 hPa (4 hPa zoomed out), 1012 bold · H/L = highs and lows · faded: terrain above ~1,500 m";
+      classes(MSLP_LEVELS, MSLP_COLORS, function (v, i) { return i && i % 2 === 1 ? String(v) : ""; }); return; }
+    if (f === "ecape") { var ratio = EC_SUBS[st.ec].kind === "ratio";
+      T.textContent = ratio ? "ECAPE / CAPE: the fraction of CAPE an entraining updraft keeps · blank where CAPE is 100 J/kg or less · contours 0.5 and 1" : EC_SUBS[st.ec].label + ", J/kg (blank below 100) · contours 1,000, 2,000 and 3,000 J/kg";
+      if (ratio) classes(RATIO_LEVELS, RATIO_COLORS, String); else classes(CAPE_LEVELS.slice(1), CAPE_COLORS.slice(1), kLab); return; }
+    if (f === "shr6") { T.textContent = "0–6 km bulk shear, knots (blank below 20 kt) · barbs: the shear vector · lines 30, 40, 50 kt"; classes(SHR_LEVELS, SHR_COLORS, String); return; }
+    if (f === "srh") { T.textContent = "Storm-relative helicity " + SRH_SUBS[st.srh].long + ", m²/s², cyclonic-positive in both hemispheres (the Southern Hemisphere's conventional value is the negative of this) · blank below 50 · lines 100, 200, 300";
+      classes(SRH_LEVELS, SRH_COLORS, String); return; }
+    var lo, hi, logx = false, tks, cap;
+    if (f === "acc") { var at = ACC_TYPES[st.acc.type]; lo = at.lo; hi = at.hi; logx = true; tks = at.ticks.map(function (v) { return [v, String(v)]; }); cap = at.unitLabel + " · lines " + at.levels.join(", ") + " " + at.unit; }
+    else {
+      lo = fd.range[0]; hi = fd.range[1];
+      tks = fd.kt ? fd.ticksKt.map(function (kv) { return [kv / KT, String(kv)]; }) : fd.ticks.map(function (v) { return [v, String(v).replace("-", "−")]; });
+      cap = { ir: "Brightness temperature of the outgoing longwave radiation, °C (cold, high cloud tops in colour) - an IR proxy, not a satellite band",
+              t2m: "Temperature 2 m above ground, °C · lines every 5 °C, 0 °C in blue", td2m: "Dewpoint 2 m above ground, °C · lines every 5 °C, 20 °C bold",
+              wind10: "Wind speed 10 m above ground, knots · barbs in knots · white lines 20, 30, 40 kt · black lines: isobars, H/L = highs and lows",
+              wind100: "Wind speed 100 m above ground, m/s (the wind-energy convention) · barbs in knots · lines 10, 15, 20 m/s",
+              gust: "Wind gust, knots · barbs: 10 m wind · white lines 30, 40, 50 kt · black lines: isobars",
+              pwat: "Precipitable water, mm · lines 25 and 50 mm", the850: "Equivalent potential temperature at 850 hPa, K · lines every 10 K, 340 K bold · blank where 850 hPa is at or below the ground" }[f];
+    }
+    T.textContent = cap;
+    var tOf = function (v) { return logx ? (Math.log(v) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)) : (v - lo) / (hi - lo); };
+    var vOf = function (t) { return logx ? Math.exp(Math.log(lo) + t * (Math.log(hi) - Math.log(lo))) : lo + t * (hi - lo); };
+    bar(function (t) { return colourOf(f, vOf(t)); }, tks.map(function (tk) { return [tOf(tk[0]), tk[1]]; }));
+  }
+
+  // ── UI ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+  function fmtTime(ms) {
+    var d = new Date(ms);
+    var utc = d.toLocaleString("en-US", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }) + ", " + d.toLocaleString("en-US", { timeZone: "UTC", hour: "2-digit", minute: "2-digit", hour12: false }) + " UTC";
+    return [utc, d.toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZoneName: "short" })];
+  }
+  var badgeH = null, validH = null;
+  function setHTML(id, html, last) { if (html !== last) $(id).innerHTML = html; return html; }
+  function labelOf(f) { return FIELDS[f].label; }
+  function updateBadge() {
+    var c = cycleOf(st.model);
+    if (!c) { badgeH = setHTML("badge", "<b>" + MODELS[st.model] + "</b> · no run published yet", badgeH); validH = setHTML("valid", "", validH); return; }
+    var h = st.hour, t = fmtTime(Date.parse(c.init) + h * 3600e3), init = escH(c.init.replace(/T(\d\d):00Z/, " $1Z").slice(5).replace("-", "/"));
+    var what = st.field === "ecape" ? EC_SUBS[st.ec].label : st.field === "srh" ? "Helicity " + SRH_SUBS[st.srh].long : st.field === "acc" ? ACC_TYPES[st.acc.type].label.toLowerCase() + " precipitation" + (drawn && drawn.accLabel ? ", " + drawn.accLabel : "") : labelOf(st.field);
+    badgeH = setHTML("badge", "<b>" + MODELS[st.model] + "</b> " + escH(what) + " · run " + init + " +" + h + " h", badgeH);
+    var live = st.playing || document.activeElement === $("hour") ? "off" : "polite";
+    if ($("valid").getAttribute("aria-live") !== live) $("valid").setAttribute("aria-live", live);
+    validH = setHTML("valid", "<span class=\"vt\">" + t[0] + "</span> <span class=\"loc\">· " + t[1] + " your time</span><span class=\"fh\">+" + h + " h</span>", validH);
+    $("hour").setAttribute("aria-valuetext", t[0] + ", +" + h + " h");
+  }
+  function segButtons(el, keys, label, pressed, onPick, title, disabled) {
+    el.innerHTML = "";
+    keys.forEach(function (key) {
+      var b = document.createElement("button"); b.type = "button"; b.textContent = label(key); b.setAttribute("aria-pressed", String(key === pressed));
+      var why = disabled && disabled(key); if (why) { b.disabled = true; b.title = why; } else if (title) b.title = title(key);
+      b.onclick = function () { onPick(key); }; el.appendChild(b);
+    });
+  }
+  function setButtons() {
+    segButtons($("models"), MODEL_ORDER, function (m) { return MODELS[m]; }, st.model, selectModel, null, function (m) { return cycleOf(m) ? null : "No run published yet"; });
+    var c0 = cycleOf(st.model);
+    $("runT").textContent = c0 ? "Run " + c0.init.slice(5, 10).replace("-", "/") + " " + c0.init.slice(11, 13) + "Z, to +" + c0.length + " h" : "";
+    $("accBar").hidden = st.field !== "acc";
+    if (st.field === "acc") {
+      segButtons($("accType"), ACC_ORDER, function (t) { return ACC_TYPES[t].label; }, st.acc.type, function (t) { st.acc.type = t; setButtons(); onChange(); });
+      var aw = $("accWin"); if (!aw.options.length) ACC_WINS.forEach(function (w) { var o = document.createElement("option"); o.value = w; o.textContent = w ? "last " + w + " h" : "since the run started"; aw.appendChild(o); });
+      aw.value = String(st.acc.win);
+    }
+    var sb = $("subBar"); sb.hidden = st.field !== "ecape" && st.field !== "srh";
+    if (st.field === "ecape") segButtons($("subSeg"), EC_ORDER, function (t) { return EC_SUBS[t].label; }, st.ec, function (t) { st.ec = t; setButtons(); onChange(); },
+      function (t) { return EC_SUBS[t].long; }, function (t) { return EC_SUBS[t].only && EC_SUBS[t].only !== st.model ? "The IFS's own field" : null; });
+    if (st.field === "srh") segButtons($("subSeg"), ["srh1", "srh3"], function (t) { return SRH_SUBS[t].label; }, st.srh, function (t) { st.srh = t; var c1 = cycleOf(st.model); if (c1) st.hour = nearestHour(c1, st.hour); setButtons(); onChange(); });
+    var fb = $("fields"), fs = $("fieldSel"); fb.innerHTML = ""; fs.innerHTML = "";
+    function pick(f) { st.field = f; var c1 = cycleOf(st.model); if (c1) st.hour = nearestHour(c1, st.hour); setButtons(); onChange(); }
+    FIELD_GROUPS.forEach(function (grp) {
+      var wrap = document.createElement("div"), cap = document.createElement("span"), seg = document.createElement("div"), og = document.createElement("optgroup");
+      wrap.className = "mv-grp"; cap.textContent = grp[0]; seg.className = "seg"; seg.setAttribute("role", "group"); seg.setAttribute("aria-label", grp[0]); og.label = grp[0];
+      grp[1].forEach(function (f) {
+        var na = NA[st.model] && NA[st.model][f], b = document.createElement("button"), u = document.createElement("small"), o = document.createElement("option");
+        b.type = "button"; b.textContent = labelOf(f); u.textContent = FIELDS[f].unit; b.appendChild(u);
+        b.setAttribute("aria-pressed", String(f === st.field)); if (na) { b.disabled = true; b.title = na; }
+        b.onclick = function () { if (st.field !== f) pick(f); }; seg.appendChild(b);
+        o.value = f; o.textContent = labelOf(f) + " (" + FIELDS[f].unit + ")" + (na ? " - not in this model" : ""); o.selected = f === st.field; o.disabled = !!na; og.appendChild(o);
+      });
+      wrap.appendChild(cap); wrap.appendChild(seg); fb.appendChild(wrap); fs.appendChild(og);
+    });
+    fs.onchange = function () { pick(this.value); };
+    var hs = uiHours(c0); $("hour").max = Math.max(0, hs.length - 1); $("hour").value = Math.max(0, hs.indexOf(st.hour));
+  }
+  function selectModel(m) {
+    tip.style.display = "none";
+    if (!cycleOf(m)) return;
+    var old = cycleOf(st.model), vt = old ? Date.parse(old.init) + st.hour * 3600e3 : Date.now();
+    st.model = m;
+    if (NA[m] && NA[m][st.field]) st.field = "wind10";
+    if (EC_SUBS[st.ec].only && EC_SUBS[st.ec].only !== m) st.ec = "mucape";
+    var c = cycleOf(m); st.hour = nearestHour(c, Math.round((vt - Date.parse(c.init)) / 3600e3));
+    setButtons(); onChange();
+  }
+  function onChange() {
+    var c = cycleOf(st.model), hs = uiHours(c);
+    $("hour").max = Math.max(0, hs.length - 1); $("hour").value = Math.max(0, hs.indexOf(st.hour));
+    $("contL").hidden = !contourSpec(st.field, [0, 1]);
+    var n = (NOTES[st.model] && NOTES[st.model][st.field]) || "", fm = c && c.fields[fileFields()[0]];
+    if (st.field === "acc" && fm && fm.method) n = "<b>" + ACC_TYPES[st.acc.type].label + "</b>: " + escH(fm.method) + ".";
+    if (st.field === "pwat" && fm && fm.method) n = "Precipitable water: " + escH(fm.method) + ".";
+    if (st.field === "srh") n = "Helicity is <b>cyclonic-positive</b> in both hemispheres here (south of the equator the conventional value is its negative); see <a href=\"#convection\">how the convective maps are computed</a>.";
+    if (st.field === "ecape") n = "<b>" + EC_SUBS[st.ec].label + "</b>: " + EC_SUBS[st.ec].long + (st.ec === "capem" ? "." : ", computed here on every column from the surface and the model's pressure levels (<a href=\"#convection\">method</a>).");
+    if (st.field === "shr6") n = "The bulk shear vector from the 10 m wind to 6 km above the ground (<a href=\"#convection\">method</a>).";
+    $("note").innerHTML = n;
+    drawLegend(); prefetch(); writeHash(); render();
+  }
+  // Prefetch: until the reader plays, steps or drags the slider on THIS map, only the step on screen (and the overlays drawn
+  // on it); once engaged, every step of the map, nearest first (on a slow connection the next three and the previous one)
+  function engKey() { return [st.model, st.field, subKey()].join("/"); }
+  function engage() { st.engaged = engKey(); }
+  function engaged() { return st.playing || st.engaged === engKey(); }
+  function prefetch() {
+    var c = cycleOf(st.model); if (!c) return;
+    var pfs = fileFields().filter(function (f) { return c.fields[f]; }); if (!pfs.length || (NA[st.model] && NA[st.model][st.field])) return;
+    var hs = c.fields[pfs[0]].hours, i0 = Math.max(0, hs.indexOf(st.hour)), list = [], slow = netSlow();
+    var order = [hs[i0]];
+    if (st.field === "acc" && st.acc.win) { var w0 = st.hour - st.acc.win, s0 = 0; hs.forEach(function (x) { if (x <= w0 && x > s0) s0 = x; }); if (s0) order.push(s0); }
+    var nU = order.length, ahead = slow ? (st.playing ? 6 : 3) : hs.length, back = slow ? 1 : hs.length;
+    for (var d = 1; d < hs.length; d++) { if (d <= ahead && i0 + d < hs.length) order.push(hs[i0 + d]); if (d <= back && i0 - d >= 0) order.push(hs[i0 - d]); }
+    var rides = (st.field === "rate" || st.field === "wind10" || st.field === "gust") && $("cont").checked && c.fields.mslp ? ["mslp"] : [];
+    if (st.field === "gust" && c.fields.wind10) rides.push("wind10");
+    order.forEach(function (h, i) {
+      pfs.forEach(function (f) { list.push([st.model, c, f, h]); });
+      rides.forEach(function (f) { if (c.fields[f].hours.indexOf(h) >= 0) list.push([st.model, c, f, h]); });
+      if (i === nU - 1) nU = list.length;
+    });
+    want(engaged() ? list : list.slice(0, nU), nU);
+  }
+  var playT = 0;
+  function schedule() {
+    if (!st.playing || playT) return;
+    playT = setTimeout(function () {
+      playT = 0; if (!st.playing) return;
+      var c = cycleOf(st.model), hs = uiHours(c), next = hs[(hs.indexOf(st.hour) + 1) % hs.length];
+      var ready = fileFields().every(function (f) { var fm = c.fields[f]; if (!fm) return true; var e = frames.get(fkey(st.model, c, f, next)); return !!(e && (e.dec || e.fail)) || fm.hours.indexOf(next) < 0; });
+      if (ready) { st.hour = next; onChange(); } else { prefetch(); schedule(); }
+    }, 300);
+  }
+  function step(dh) { var c = cycleOf(st.model); if (!c) return; engage(); scrubbed(); var hs = uiHours(c), ix = hs.indexOf(st.hour); st.hour = hs[Math.max(0, Math.min(hs.length - 1, ix + dh))]; onChange(); }
+  $("hour").addEventListener("input", function () { engage(); scrubbed(); var hs = uiHours(cycleOf(st.model)); st.hour = hs[+this.value] || 0; onChange(); });
+  $("back").onclick = function () { step(-1); };
+  $("fwd").onclick = function () { step(1); };
+  function togglePlay() { var b = $("play"); st.playing = !st.playing; engage(); b.innerHTML = st.playing ? "&#10074;&#10074;" : "&#9654;"; b.setAttribute("aria-label", st.playing ? "Pause" : "Play"); prefetch(); render(); }
+  $("play").onclick = togglePlay;
+  $("cont").onchange = function () { prefetch(); render(); };
+  $("accWin").onchange = function () { st.acc.win = +this.value; onChange(); };
+  function panBy(fx, fy) { if (!view) return; beginInteract(); view.cx += fx * W * view.s; view.cy -= fy * H * view.s; render(); settleSoon(160); }
+  document.addEventListener("keydown", function (e) {
+    if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
+    var t = e.target, kk = e.key;
+    if (t === mapEl) {
+      var f = e.shiftKey ? 0.4 : 0.12;
+      if (kk === "ArrowLeft") panBy(-f, 0); else if (kk === "ArrowRight") panBy(f, 0); else if (kk === "ArrowUp") panBy(0, -f); else if (kk === "ArrowDown") panBy(0, f);
+      else if (kk === "+" || kk === "=") zoomBy(W / 2, H / 2, 0.6, 45); else if (kk === "-" || kk === "_") zoomBy(W / 2, H / 2, 1 / 0.6, 45);
+      else if (kk === "0") $("zfit").click(); else if (kk === "," || kk === "PageUp") step(-1); else if (kk === "." || kk === "PageDown") step(1);
+      else if (kk === " " || kk === "Spacebar") togglePlay(); else return;
+      e.preventDefault(); return;
+    }
+    if (e.shiftKey || !t || !t.closest || !t.closest(".mv-time") || t.tagName === "INPUT") return;
+    if (kk === "ArrowRight") { step(1); e.preventDefault(); } else if (kk === "ArrowLeft") { step(-1); e.preventDefault(); }
+  });
+  document.addEventListener("visibilitychange", function () { if (document.hidden && st.playing) togglePlay(); });
+
+  // zoom / pan / hover: smooth zoom eased in log space toward a target scale, anchored at the cursor
+  var zA = null;
+  function zoomBy(px, py, f, tau) {
+    if (!view) return;
+    var w0 = toXY(px, py);
+    if (!zA) zA = { target: view.s, raf: 0 };
+    zA.target = Math.max(60, Math.min(40000, zA.target * f)); zA.px = px; zA.py = py; zA.wx = w0[0]; zA.wy = w0[1]; zA.tau = tau || 45;
+    beginInteract();
+    if (!zA.raf) { zA.last = performance.now(); zA.raf = requestAnimationFrame(zStep); }
+  }
+  function zStep(t) {
+    var z = zA; if (!z) return;
+    var dt = Math.max(1, Math.min(t - z.last, 50)); z.last = t;
+    var ls = Math.log(view.s), lt = Math.log(z.target), nl = ls + (lt - ls) * (1 - Math.exp(-dt / z.tau));
+    if (Math.abs(lt - nl) < 0.003) nl = lt;
+    view.s = Math.exp(nl); view.cx = z.wx - (z.px - W / 2) * view.s; view.cy = z.wy + (z.py - H / 2) * view.s;
+    draw();
+    if (nl !== lt) z.raf = requestAnimationFrame(zStep); else { zA = null; settleSoon(120); }
+  }
+  var coopT = 0;
+  function coop(text) { var el = $("coop"); if (el.textContent !== text) el.textContent = text; el.classList.add("on"); clearTimeout(coopT); coopT = setTimeout(function () { el.classList.remove("on"); }, 1400); }
+  mapEl.addEventListener("wheel", function (e) {
+    if (!view) return;
+    if (!e.ctrlKey && !e.metaKey && document.activeElement !== mapEl) { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) coop("To zoom, hold " + (/Mac|iPhone|iPad/.test(navigator.platform || "") ? "⌘" : "Ctrl") + " while you scroll, or click the map first"); return; }
+    e.preventDefault(); var r = mapEl.getBoundingClientRect(), dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1), kk = e.ctrlKey && Math.abs(dy) < 40 ? 0.01 : 0.0016;
+    dy = Math.max(-300, Math.min(300, dy));
+    zoomBy(e.clientX - r.left, e.clientY - r.top, Math.exp(dy * kk), Math.abs(dy) >= 40 ? 45 : 30);
+  }, { passive: false });
+  mapEl.addEventListener("touchmove", function (e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  var gS = 0;
+  mapEl.addEventListener("gesturestart", function (e) { e.preventDefault(); gS = view ? view.s : 0; beginInteract(); });
+  mapEl.addEventListener("gesturechange", function (e) { e.preventDefault(); if (!view || !gS) return; var r = mapEl.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top, a = toXY(px, py); view.s = gS / e.scale; clampView(); var b = toXY(px, py); view.cx += a[0] - b[0]; view.cy += a[1] - b[1]; render(); });
+  mapEl.addEventListener("gestureend", function (e) { e.preventDefault(); settleSoon(120); });
+  $("zin").onclick = function () { zoomBy(W / 2, H / 2, 0.6, 45); };
+  $("zout").onclick = function () { zoomBy(W / 2, H / 2, 1 / 0.6, 45); };
+  $("zfit").onclick = function () { var c = cycleOf(st.model); if (c) { zA = null; fitBox(prepGrid(c.grids.main)); resize(); fit(prepGrid(c.grids.main)); render(); } };
+  var ptrs = new Map(), pinch = null, moved = false, gest = { pinched: false, start: null }, SLOP_TOUCH = 10, SLOP_MOUSE = 4;
+  mapEl.addEventListener("pointerdown", function (e) {
+    if (e.target.closest("button")) return;
+    if (!ptrs.size) gest = { pinched: false, start: [e.clientX, e.clientY] };
+    mapEl.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); moved = false;
+    if (zA) { cancelAnimationFrame(zA.raf); zA = null; } beginInteract();
+    if (ptrs.size === 2) { var p = Array.from(ptrs.values()); pinch = { d: Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]), s: view.s }; }
+    mapEl.classList.add("drag");
+  });
+  mapEl.addEventListener("pointermove", function (e) {
+    var r = mapEl.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+    if (ptrs.has(e.pointerId) && view) {
+      var old = ptrs.get(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+      if (ptrs.size === 2 && pinch) {
+        var p = Array.from(ptrs.values()), d = Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]), mx = (p[0][0] + p[1][0]) / 2 - r.left, my = (p[0][1] + p[1][1]) / 2 - r.top;
+        var a = toXY(mx, my); view.s = pinch.s * pinch.d / Math.max(d, 1); clampView(); var b = toXY(mx, my);
+        view.cx += a[0] - b[0]; view.cy += a[1] - b[1]; view.cx -= (e.clientX - old[0]) * view.s / 2; view.cy += (e.clientY - old[1]) * view.s / 2;
+        moved = true; gest.pinched = true; render(); return;
+      }
+      if (ptrs.size === 1 && !moved && !gest.pinched && gest.start) {
+        if (Math.hypot(e.clientX - gest.start[0], e.clientY - gest.start[1]) < (e.pointerType === "mouse" ? SLOP_MOUSE : SLOP_TOUCH)) { ptrs.set(e.pointerId, old); return; }
+        moved = true;
+      }
+      if (ptrs.size === 1 && e.pointerType !== "mouse") return;    // one finger scrolls the page; two move the map
+      view.cx -= (e.clientX - old[0]) * view.s; view.cy += (e.clientY - old[1]) * view.s; moved = true; render();
+      return;
+    }
+    if (e.pointerType === "mouse" && !interacting) hover(px, py);
+  });
+  function endPtr(e) {
+    var r = mapEl.getBoundingClientRect();
+    if (ptrs.has(e.pointerId) && e.type === "pointerup" && !moved && !gest.pinched && e.pointerType !== "mouse") hover(e.clientX - r.left, e.clientY - r.top, true);
+    if (e.type === "pointercancel" && e.pointerType === "touch" && ptrs.size <= 1) coop("Use two fingers to move or zoom the map");
+    ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!ptrs.size) { mapEl.classList.remove("drag"); settleSoon(60); }
+  }
+  mapEl.addEventListener("pointerup", endPtr); mapEl.addEventListener("pointercancel", endPtr);
+  mapEl.addEventListener("pointerleave", function (e) { if (e.pointerType === "mouse") tip.style.display = "none"; });
+  mapEl.addEventListener("dblclick", function (e) { var r = mapEl.getBoundingClientRect(); zoomBy(e.clientX - r.left, e.clientY - r.top, 0.5, 45); });
+
+  function wtxt(u, v) { var sp = Math.sqrt(u * u + v * v); return Math.round(sp * KT) + " kt · " + sp.toFixed(1) + " m/s · " + Math.round(sp * KMH) + " km/h<br>from " + Math.round((Math.atan2(-u, -v) / D2R + 360) % 360) + "°"; }
+  function hover(px, py, sticky) {
+    var d = drawn;
+    if (!d || !d.e || !d.e.dec) { tip.style.display = "none"; return; }
+    var s = sample(d, px, py); if (!s) { tip.style.display = "none"; return; }
+    var fd = FIELDS[d.field], ll = P.inv(s[2][0], s[2][1]), txt, ix = s[3];
+    if (d.field === "acc") { var av = d.e.exact[ix], at = ACC_TYPES[st.acc.type]; txt = av.toFixed(1) + " " + at.unit + (st.acc.type === "asnow" ? " of snow" : "") + "<br><span class=\"ll\">" + d.accLabel + "</span>"; }
+    else if (d.field === "ecape") {
+      var sub = EC_SUBS[st.ec], Kc = d.fm.k || 2.8, J = function (v) { return Math.round(v).toLocaleString("en-US") + " J/kg"; };
+      if (sub.kind === "cape") { var cv0 = capeOf(s[0], Kc); txt = cv0 === null ? "not computed (the column could not be lifted)" : J(cv0); }
+      else { var ev = capeOf(d.e.a[ix], Kc), cv = capeOf(d.e.b[ix], Kc);
+        txt = ev === null || cv === null ? "no data" : !(cv > 100) ? "not shown: CAPE " + J(cv) + " (ratio masked below 100 J/kg)" : (ev / cv).toFixed(2) + "<br><span class=\"ll\">ECAPE " + J(ev) + " / CAPE " + J(cv) + "</span>"; }
+    }
+    else if (d.field === "rate") txt = s[0] === 0 || s[0] === 255 ? "no precipitation" : (function (r) { return (r < 1 ? r.toFixed(2) : r.toFixed(1)) + " mm/h · " + PT_NAMES[Math.min(s[1], 5)]; })(rateOf(s[0]));
+    else if (d.field === "mslp") txt = s[0] === 255 ? "no data" : fd.fmt(940 + 0.5 * s[0]) + (s[1] ? "<br><span class=\"ll\">high terrain: sea-level reduction unreliable</span>" : "");
+    else if (fd.enc === "lin2") {
+      if (s[0] === 255) txt = d.field === "shr6" ? "not computed here (the column is too shallow)" : "no data";
+      else { var u = fd.off + s[0] * fd.step, v = fd.off + s[1] * fd.step; txt = d.field === "shr6" ? (function (sp) { return Math.round(sp * KT) + " kt (" + sp.toFixed(1) + " m/s) 0–6 km shear"; })(Math.sqrt(u * u + v * v)) : wtxt(u, v); }
+    }
+    else if (d.field === "srh") { var hv = valueOf(fd, s[0], null); txt = hv === null ? "not computed here" : Math.round(hv) + " m²/s² (" + SRH_SUBS[st.srh].long + ", cyclonic-positive" + (ll[1] < 0 ? "; conventional SH value " + Math.round(-hv) : "") + ")"; }
+    else if (d.field === "gust") { var gv = valueOf(fd, s[0], null); txt = gv === null ? "no data" : Math.round(gv * KT) + " kt · " + gv.toFixed(1) + " m/s · " + Math.round(gv * KMH) + " km/h"; }
+    else if (d.field === "the850") { var tv = valueOf(fd, s[0], null); txt = tv === null ? "masked: 850 hPa is at or below the ground here" : fd.fmt(tv); }
+    else { var val = valueOf(fd, s[0], d.q); txt = val === null ? "no data" : d.field === "ir" ? fd.fmt(val, val + 273.15) : fd.fmt(val); }
+    tip.innerHTML = "<span class=\"v\">" + txt + "</span><br><span class=\"ll\">" + Math.abs(ll[1]).toFixed(2) + "°" + (ll[1] >= 0 ? "N" : "S") + " " + Math.abs(ll[0]).toFixed(2) + "°" + (ll[0] >= 0 ? "E" : "W") + "</span>";
+    tip.style.display = "block";
+    tip.style.left = Math.min(px, W - tip.offsetWidth - 16) + "px"; tip.style.top = Math.min(py, H - tip.offsetHeight - 16) + "px";
+    if (sticky) { clearTimeout(tip._t); tip._t = setTimeout(function () { tip.style.display = "none"; }, 4000); }
+  }
+
+  // ── URL hash: #model/field/+step[/variant] ───────────────────────────────────────────────────────────────────
+  function writeHash() { try { history.replaceState(null, "", "#" + st.model + "/" + st.field + "/" + st.hour + (subKey() ? "/" + subKey() : "")); } catch (e) {} }
+  function readHash() {
+    var p = location.hash.replace("#", "").split("/");
+    if (MODELS[p[0]]) st.model = p[0];
+    if (FIELDS[p[1]]) st.field = p[1];
+    var hadHour = p[2] !== undefined && /^\d+$/.test(p[2]); if (hadHour) st.hour = +p[2];
+    var v = p[3] || "", am = /^([a-z]+)-(\d+)$/.exec(v);
+    if (am && ACC_TYPES[am[1]]) { st.acc.type = am[1]; st.acc.win = +am[2]; }
+    if (EC_SUBS[v]) st.ec = v;
+    if (SRH_SUBS[v]) st.srh = v;
+    return hadHour;
+  }
+  // the run's own checks (scripts/models/samerica.py "checks"), for the method section at the bottom
+  function showChecks() {
+    var parts = [];
+    MODEL_ORDER.forEach(function (m) {
+      var c = cycleOf(m), k0 = c && c.checks; if (!k0) return;
+      var g = function (key) { var x = k0[key]; return x ? x.median : null; }, bits = [];
+      if (g("mucape_vs_ifs/r") !== null) bits.push("MU CAPE against the IFS's own: correlation " + g("mucape_vs_ifs/r").toFixed(2) + ", median ratio " + g("mucape_vs_ifs/median_ratio").toFixed(2));
+      if (g("mucape_vs_gdps_cape/r") !== null) bits.push("MU CAPE against the GDPS's own CAPE: correlation " + g("mucape_vs_gdps_cape/r").toFixed(2) + ", median ratio " + g("mucape_vs_gdps_cape/median_ratio").toFixed(2));
+      if (g("pwat_vs_tcwv/bias") !== null) bits.push("column precipitable water minus the IFS's tcwv: " + g("pwat_vs_tcwv/bias").toFixed(1) + " mm (mean abs. " + g("pwat_vs_tcwv/mae").toFixed(1) + ")");
+      if (g("heights/500/mae") !== null) bits.push("hypsometric 500 hPa height minus the model's: " + g("heights/500/bias").toFixed(0) + " m (mean abs. " + g("heights/500/mae").toFixed(0) + ")");
+      if (g("kernel/skipped") !== null) bits.push(g("kernel/skipped").toFixed(0) + " columns a step not computed");
+      if (bits.length) parts.push(MODELS[m] + " " + c.init.slice(5, 10).replace("-", "/") + " " + c.init.slice(11, 13) + "Z (medians over the steps): " + bits.join("; "));
+    });
+    $("checks").textContent = parts.length ? "This run's checks: " + parts.join(" · ") + "." : "";
+  }
+
+  // ── start ──────────────────────────────────────────────────────────────────────────────────────────────────────
+  window.SA = { st: st, man: man, frames: frames, CONT: CONT, P: P, gridIJ: gridIJ, get view() { return view; }, get drawn() { return drawn; }, get gpuc() { return GPUC; }, render: render };
+  try { glOk = initGL(); } catch (e) { console.error(e); }
+  if (!glOk) $("msg").textContent = "This page needs WebGL 2, which this browser does not provide.";
+  var hadHour = readHash();
+  if (glOk) $("msg").textContent = "Loading the newest runs…";
+  loadGeo(GEO_C, 1).then(function (ok) { if (!ok && geoFull < 2) { geoFull = 2; loadGeo(GEO, 2); } });
+  var bust = "?v=" + Math.floor(Date.now() / 60000);
+  Promise.all(MODEL_ORDER.map(function (m) {
+    return fetch("/assets/models/sa_" + m + ".json" + bust).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (d) { man[m] = d; });
+  })).then(function () {
+    if (!cycleOf(st.model)) { var alt = MODEL_ORDER.filter(cycleOf)[0]; if (alt) st.model = alt; }
+    var c = cycleOf(st.model);
+    if (!c) { $("msg").textContent = MODEL_ORDER.some(function (m) { return man[m]; }) ? "No model run has been published yet." : "The list of model runs could not be loaded. Check your connection and reload the page."; return; }
+    if (!glOk) return;
+    $("msg").textContent = "";
+    if (NA[st.model] && NA[st.model][st.field]) st.field = "t2m";
+    if (!hadHour) st.hour = Math.round((Date.now() - Date.parse(c.init)) / 3600e3);
+    st.hour = nearestHour(c, st.hour);
+    setButtons();
+    fitBox(prepGrid(c.grids.main)); resize(); fit(prepGrid(c.grids.main));
+    onChange();
+    $("runs").textContent = "Runs on the page now: " + MODEL_ORDER.filter(cycleOf).map(function (m) { var x = cycleOf(m); return MODELS[m] + " " + x.init.slice(5, 10).replace("-", "/") + " " + x.init.slice(11, 13) + "Z"; }).join(" · ") + ".";
+    showChecks();
+    setTimeout(pruneCache, 4000);
+  });
+  if (typeof ResizeObserver === "function") new ResizeObserver(function () { if (view) { var s = view.s; resize(); view.s = s; render(); } }).observe(mapEl);
+  else window.addEventListener("resize", resize);
+})();
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>
