@@ -32,13 +32,14 @@
  }
 }
 </script>
+<link rel="preconnect" href="https://scorvec-store.b-cdn.net" crossorigin>
 <link rel="preconnect" href="https://frames.scorvec.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css?v=c7c5796084">
-<script src="/assets/site.js?v=fe84a7e3e0" defer></script>
-<script src="/assets/frames_root.js?v=9d2de66ccd"></script>
+<script src="/assets/site.js?v=295e377ffb" defer></script>
+<script src="/assets/frames_root.js?v=bdced09224"></script>
 <style>
   /* models.html: the page draws the data itself - scripts/models/models.py ships one 8-bit lossless WebP
      per field and hour on the model's native grid, and the WebGL code below colours, projects and reads it. */
@@ -1121,10 +1122,10 @@
   // lo = the half-resolution copy (every 2nd point of the native grid, <fff>_lo.webp, manifest field "lo" names its grid)
   function relPath(model, c, field, h, lo) { return "assets/models/data/" + model + "/" + c.cycle + "/" + field + "/" + ("00" + h).slice(-3) + (lo ? "_lo" : "") + ".webp"; }
 
-  // ── data transport: Bunny CDN (frames.scorvec.com) -> raw.githubusercontent -> jsDelivr; same hosts as frameLoad ──
-  // assets/frames_root.js owns the host list and the per-tab CDN health check. The CDN is asked first for every file:
-  // pinned files as CDN/<sha>/<path> (cached a year), unpinned ones as CDN/frames/<path> (60 s edge TTL, so at most
-  // ~6 min old with raw's own 5 min). The GitHub hosts are silent fallbacks behind it.
+  // ── data transport: the frames store -> Bunny CDN (frames.scorvec.com) -> raw.githubusercontent -> jsDelivr ──
+  // assets/frames_root.js owns the host list and the per-tab health check of the first host. The store is asked first
+  // for every file (STORE/<path>, 60 s TTL); then the CDN, pinned files as CDN/<sha>/<path> (cached a year), unpinned
+  // ones as CDN/frames/<path>. The GitHub hosts are silent fallbacks behind them.
   // A file's path names its run (model/cycle/field/hour), so its bytes never change: they are kept in Cache Storage and
   // read back from there on a later visit without asking the network. Old runs are pruned on load.
   var rawOk = false, CACHE_NAME = "mv-frames-v1", CACHE_HOST = "https://mv-frames.invalid/";
@@ -1151,8 +1152,9 @@
     return fetch(url, opt).then(function (r) { if (t) clearTimeout(t); return r; },
                                 function (e) { if (t) clearTimeout(t); throw e; });
   }
-  // rng = [a, b): only those bytes of the file, by an HTTP Range request (sounding tiles, meteogram points). The CDN and
-  // raw.githubusercontent (asked at the frames commit, so every range comes from one version of the file) answer 206 with
+  // rng = [a, b): only those bytes of the file, by an HTTP Range request (sounding tiles, meteogram points). The store
+  // (a run's path never changes its bytes, so its ranges need no pin), the CDN and raw.githubusercontent (both asked at
+  // the frames commit, so every range comes from one version of the file) answer 206 with
   // exactly those bytes; jsDelivr's 206s were found shifted by a few bytes (2026-10-15), so it is read whole, like the
   // same-origin copy and any host that answers a range with a plain 200. A file read whole is kept (WHOLE, and in Cache
   // Storage under its plain path), so its next range costs nothing; a range is cached under its own key.
@@ -1160,7 +1162,10 @@
   function getBytes(rel, sha, prio, sig, rng) {
     var raw = window.FRAME_ROOT_RAW || "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/";
     var hosts = LOCAL ? ["/"] : (window.frameUrls ? window.frameUrls("", sha) : ["https://frames.scorvec.com/" + (sha || "frames") + "/", raw, MIRROR + (sha || "frames") + "/"]);
-    var cdn = !LOCAL && /^https:\/\/frames\.scorvec\.com\//.test(hosts[0]) ? hosts[0] : null, cdnErr = false;
+    var store = !LOCAL && window.FRAME_ROOT_STORE && hosts[0] === window.FRAME_ROOT_STORE ? hosts[0] : null;
+    var cdn = LOCAL ? null : hosts.filter(function (x) { return /^https:\/\/frames\.scorvec\.com\//.test(x); })[0] || null;
+    // the host whose health frames_root.js keeps: the store once it is configured (none while it is parked), else the CDN
+    var first = window.FRAME_ROOT_STORE ? store : (cdn === hosts[0] ? cdn : null), cdnErr = false;
     var k = 0, ckey = CACHE_HOST + rel + (rng ? "?bytes=" + rng[0] + "-" + (rng[1] - 1) : "");
     var cut = function (buf) { return rng ? buf.slice(rng[0], rng[1]) : buf; };
     var keep = function (key, buf) { frameCache().then(function (cc) { if (cc) cc.put(key, new Response(buf.slice(0), { headers: { "Content-Type": "image/webp" } })).catch(function () {}); }); };
@@ -1168,15 +1173,15 @@
     function next() {
       if (sig && sig.aborted) return Promise.reject(new Error("cancelled"));   // cancelled: no other host either
       if (k >= hosts.length) return Promise.reject(new Error("unavailable"));
-      var h = hosts[k++], part = !!rng && (h === cdn || h === raw) && /^[0-9a-f]{7,40}$/.test(sha || "");
+      var h = hosts[k++], part = !!rng && (h === store || ((h === cdn || h === raw) && /^[0-9a-f]{7,40}$/.test(sha || "")));
       var url = (part && h === raw ? h.replace(/\/frames\/$/, "/" + sha + "/") : h) + rel;
-      return fetchT(url, h === raw && !rawOk ? 7000 : (h === cdn ? 8000 : 30000), prio, sig, part ? { Range: "bytes=" + rng[0] + "-" + (rng[1] - 1) } : null).then(function (r) {
-        if (!r.ok) { if (h === cdn && r.status !== 404) cdnErr = true; return next(); }   // a 404 is the origin's own answer
+      return fetchT(url, h === raw && !rawOk ? 7000 : (h === first || h === cdn ? 8000 : 30000), prio, sig, part ? { Range: "bytes=" + rng[0] + "-" + (rng[1] - 1) } : null).then(function (r) {
+        if (!r.ok) { if (h === first && r.status !== 404) cdnErr = true; return next(); }   // a 404 is the origin's own answer
         if (h === raw) rawOk = true;
-        if (h === cdn) { if (window.frameCdnServed) window.frameCdnServed(); }
-        else if (cdn) {
+        if (h === first) { if (window.frameCdnServed) window.frameCdnServed(); }
+        else if (first) {
           if (window.frameOtherServed) window.frameOtherServed();
-          if (cdnErr && window.frameCdnFailed) window.frameCdnFailed();                // the CDN failed where another host had it
+          if (cdnErr && window.frameCdnFailed) window.frameCdnFailed();                // the first host failed where another had it
         }
         var th = performance.now(), sub = part && r.status === 206;   // headers in: the body time measures bandwidth, not latency
         return r.arrayBuffer().then(function (buf) {
@@ -1188,8 +1193,8 @@
           return cut(buf);
         });
       }, function (e) {
-        // no headers within 8 s: probe before blaming the CDN (a busy link answers a HEAD at once); a refusal is an error
-        if (h === cdn && !(sig && sig.aborted)) { if (e && e.name === "AbortError") { if (window.frameCdnStalled) window.frameCdnStalled(h + rel); } else cdnErr = true; }
+        // no headers within 8 s: probe before blaming the first host (a busy link answers a HEAD at once); a refusal is an error
+        if (h === first && !(sig && sig.aborted)) { if (e && e.name === "AbortError") { if (window.frameCdnStalled) window.frameCdnStalled(h + rel); } else cdnErr = true; }
         return next();
       });
     }

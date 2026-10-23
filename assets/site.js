@@ -158,8 +158,10 @@
 // exposes the loader and the scorer to catalog.html so the catalogue page filters with exactly the same matching.
 (function () {
   var CAT_URL = '/assets/site/catalog.json';
-  // frames-branch hosts: the Bunny CDN first (frames.scorvec.com, 60 s edge TTL on /frames/*, see assets/frames_root.js),
-  // then GitHub raw and jsDelivr as silent fallbacks (raw.githubusercontent.com is blocked on many work networks)
+  // frame hosts, as in assets/frames_root.js: the frames store first (its Bunny pull zone, 60 s TTL), then the Bunny CDN
+  // on the frames branch (frames.scorvec.com), then GitHub raw and jsDelivr as silent fallbacks (raw.githubusercontent.com
+  // is blocked on many work networks)
+  var STORE = window.FRAME_ROOT_STORE || 'https://scorvec-store.b-cdn.net/';
   var CDN = 'https://frames.scorvec.com/frames/';
   var RAW = 'https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/';
   var MIRROR = 'https://cdn.jsdelivr.net/gh/scorvec/scorvec.github.io@frames/';
@@ -344,10 +346,10 @@
     return cat && cat.thumbs ? cat.thumbs[key] || null : null;
   }
   function figUrls(rec, full) {
-    // frames_root.js (when the page loads it) knows whether the CDN failed in this tab and whether raw is blocked
-    var cdnOk = !window.frameCdnOk || window.frameCdnOk();
+    // frames_root.js (when the page loads it) knows whether the store failed in this tab and whether raw is blocked
+    var storeOk = !window.frameCdnOk || window.frameCdnOk();
     var gh = window.frameHostIsMirror && window.frameHostIsMirror() ? [MIRROR, RAW] : [RAW, MIRROR];
-    var hosts = cdnOk ? [CDN].concat(gh) : gh;
+    var hosts = (storeOk ? [STORE] : []).concat([CDN], gh);
     var out = [];
     if (!full) {
       if (rec.t) hosts.forEach(function (h) { out.push(h + 'assets/site/thumbs/' + rec.t + '.webp'); });
@@ -363,10 +365,10 @@
     var tries = rec ? figUrls(rec, full) : [];
     if (!tries.length) { if (onFail) onFail(); return; }
     var k = 0, tm = null, tok = im._thumbTok = {};
-    // a CDN that a filter silently drops would hold the thumbnail until the browser gives up: move on after 6 s
+    // a Bunny host that a filter silently drops would hold the thumbnail until the browser gives up: move on after 6 s
     function go() {
       clearTimeout(tm); im.src = tries[k];
-      if (tries[k].indexOf(CDN) === 0 && k + 1 < tries.length) { var at = k; tm = setTimeout(function () { if (im._thumbTok === tok && k === at && !im.complete) { k++; go(); } }, 6000); }
+      if ((tries[k].indexOf(STORE) === 0 || tries[k].indexOf(CDN) === 0) && k + 1 < tries.length) { var at = k; tm = setTimeout(function () { if (im._thumbTok === tok && k === at && !im.complete) { k++; go(); } }, 6000); }
     }
     im.onerror = function () { clearTimeout(tm); k++; if (k < tries.length) go(); else if (onFail) onFail(); };
     im.addEventListener('load', function () { clearTimeout(tm); }, { once: true });
