@@ -1,6 +1,6 @@
 {
- "generated": "2026-10-23T22:39Z",
- "init": "2026-10-22T12:00Z",
+ "generated": "2026-10-23T22:53Z",
+ "init": "2026-10-23T00:00Z",
  "model": "IFS-ENS perturbed members, 0.1\u00b0 open data (Google Cloud mirror)",
  "members": 50,
  "days": [
@@ -17,19 +17,191 @@
   "2026-11-02",
   "2026-11-03",
   "2026-11-04",
-  "2026-11-05"
+  "2026-11-05",
+  "2026-11-06"
  ],
  "agree": 0.8,
  "fdr_q": 0.1,
- "previous_run": "2026-10-22T00:00Z",
- "change_frames": false,
+ "previous_run": "2026-10-22T12:00Z",
+ "change_frames": true,
  "shares_over": "the map's grid points",
  "anom": [],
- "change": [],
+ "change": [
+  {
+   "frame": "P1",
+   "first": "2026-10-23",
+   "last": "2026-10-27",
+   "warm": 0.229,
+   "cold": 0.07,
+   "neutral": 0.701,
+   "max_f": 3.7,
+   "min_f": -3.0
+  },
+  {
+   "frame": "P2",
+   "first": "2026-10-28",
+   "last": "2026-11-01",
+   "warm": 0.094,
+   "cold": 0.028,
+   "neutral": 0.878,
+   "max_f": 4.1,
+   "min_f": -4.7
+  },
+  {
+   "frame": "P3",
+   "first": "2026-11-02",
+   "last": "2026-11-05",
+   "warm": 0.0,
+   "cold": 0.0,
+   "neutral": 1.0,
+   "max_f": null,
+   "min_f": null
+  },
+  {
+   "frame": "D01",
+   "first": "2026-10-23",
+   "last": "2026-10-23",
+   "warm": 0.353,
+   "cold": 0.156,
+   "neutral": 0.491,
+   "max_f": 5.0,
+   "min_f": -4.5
+  },
+  {
+   "frame": "D02",
+   "first": "2026-10-24",
+   "last": "2026-10-24",
+   "warm": 0.215,
+   "cold": 0.102,
+   "neutral": 0.683,
+   "max_f": 4.6,
+   "min_f": -3.3
+  },
+  {
+   "frame": "D03",
+   "first": "2026-10-25",
+   "last": "2026-10-25",
+   "warm": 0.153,
+   "cold": 0.056,
+   "neutral": 0.792,
+   "max_f": 5.9,
+   "min_f": -5.3
+  },
+  {
+   "frame": "D04",
+   "first": "2026-10-26",
+   "last": "2026-10-26",
+   "warm": 0.145,
+   "cold": 0.073,
+   "neutral": 0.783,
+   "max_f": 4.3,
+   "min_f": -5.9
+  },
+  {
+   "frame": "D05",
+   "first": "2026-10-27",
+   "last": "2026-10-27",
+   "warm": 0.13,
+   "cold": 0.06,
+   "neutral": 0.81,
+   "max_f": 5.6,
+   "min_f": -5.7
+  },
+  {
+   "frame": "D06",
+   "first": "2026-10-28",
+   "last": "2026-10-28",
+   "warm": 0.134,
+   "cold": 0.055,
+   "neutral": 0.811,
+   "max_f": 6.3,
+   "min_f": -5.5
+  },
+  {
+   "frame": "D07",
+   "first": "2026-10-29",
+   "last": "2026-10-29",
+   "warm": 0.108,
+   "cold": 0.037,
+   "neutral": 0.855,
+   "max_f": 5.0,
+   "min_f": -9.1
+  },
+  {
+   "frame": "D08",
+   "first": "2026-10-30",
+   "last": "2026-10-30",
+   "warm": 0.121,
+   "cold": 0.049,
+   "neutral": 0.83,
+   "max_f": 6.6,
+   "min_f": -6.5
+  },
+  {
+   "frame": "D09",
+   "first": "2026-10-31",
+   "last": "2026-10-31",
+   "warm": 0.062,
+   "cold": 0.009,
+   "neutral": 0.929,
+   "max_f": 6.6,
+   "min_f": -5.6
+  },
+  {
+   "frame": "D10",
+   "first": "2026-11-01",
+   "last": "2026-11-01",
+   "warm": 0.0,
+   "cold": 0.0,
+   "neutral": 1.0,
+   "max_f": null,
+   "min_f": null
+  },
+  {
+   "frame": "D11",
+   "first": "2026-11-02",
+   "last": "2026-11-02",
+   "warm": 0.0,
+   "cold": 0.0,
+   "neutral": 1.0,
+   "max_f": null,
+   "min_f": null
+  },
+  {
+   "frame": "D12",
+   "first": "2026-11-03",
+   "last": "2026-11-03",
+   "warm": 0.0,
+   "cold": 0.0,
+   "neutral": 1.0,
+   "max_f": null,
+   "min_f": null
+  },
+  {
+   "frame": "D13",
+   "first": "2026-11-04",
+   "last": "2026-11-04",
+   "warm": 0.0,
+   "cold": 0.003,
+   "neutral": 0.997,
+   "max_f": 0.8,
+   "min_f": -7.4
+  },
+  {
+   "frame": "D14",
+   "first": "2026-11-05",
+   "last": "2026-11-05",
+   "warm": 0.02,
+   "cold": 0.022,
+   "neutral": 0.958,
+   "max_f": 5.9,
+   "min_f": -8.6
+  }
+ ],
  "fetch": {
-  "bytes": 3885034460,
-  "messages": 2800,
-  "seconds": 239
+  "bytes": 4163340273,
+  "messages": 3000,
+  "seconds": 250
  },
  "normals": "not built yet (natemp-ref.yml): change frames only"
 }
