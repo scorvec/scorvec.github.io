@@ -131,8 +131,9 @@
   .mv-valid .loc { color: var(--ink2); }
   .mv-valid .fh { display: inline-block; margin-left: 0.35rem; padding: 0 0.4rem; border-radius: 4px; background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 0.9rem; }
   .mv-panel { background: #e6edf4; border: 1px solid #c9d6e3; border-radius: 10px; padding: 0.7rem 0.85rem 0.15rem; margin: 0 0 0.6rem; }
-  .mv-mapwrap { display: flex; gap: 8px; align-items: stretch; position: relative; }
+  .mv-mapwrap { display: flex; gap: 8px; align-items: stretch; justify-content: center; position: relative; }
   .mv-mapwrap > .mv-map { flex: 1 1 auto; min-width: 0; }
+  .mv-mapwrap > .mv-map.shaped { flex: 0 1 auto; }
   /* the canvas is out of the flow: its backing store is sized from its own box, which in flow would feed back into the row height */
   .mv-legend { flex: 0 0 96px; margin: 0; position: relative; }
   .mv-legend canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -1228,11 +1229,15 @@
     [glc, ovc, labc].forEach(function (c) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); });
     ovView = null; drawLegend(); render();
   }
-  // the map box takes the domain's shape when that is shorter than the CSS height, so the whole continent fits on open
+  // the map box takes the domain's shape, so the whole continent fits on open without empty panes: shorter than the CSS
+  // height on a narrow screen, narrower than the row on a wide one (centred, the legend beside it)
   function fitBox(g) {
-    mapEl.style.height = "";
-    var r = mapEl.getBoundingClientRect(), bb = g._bb, need = Math.ceil(r.width * (bb[3] - bb[2]) / (bb[1] - bb[0]) * 1.03);
+    mapEl.style.height = mapEl.style.width = "";
+    mapEl.classList.remove("shaped");
+    var r = mapEl.getBoundingClientRect(), bb = g._bb, hw = (bb[3] - bb[2]) / (bb[1] - bb[0]);
+    var need = Math.ceil(r.width * hw * 1.03), wide = Math.ceil(r.height / hw * 1.03);
     if (need < r.height) mapEl.style.height = Math.max(window.innerWidth <= 640 ? 280 : 220, need) + "px";
+    else if (wide < r.width) { mapEl.style.width = Math.max(320, wide) + "px"; mapEl.classList.add("shaped"); }
   }
   function fit(g) { var bb = g._bb; view = { cx: (bb[0] + bb[1]) / 2, cy: (bb[2] + bb[3]) / 2, s: Math.max((bb[1] - bb[0]) / W, (bb[3] - bb[2]) / H) * 1.02 }; }
   function toXY(px, py) { return [view.cx + (px - W / 2) * view.s, view.cy - (py - H / 2) * view.s]; }
