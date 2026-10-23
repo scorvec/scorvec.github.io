@@ -31,10 +31,29 @@ REPO = Path(__file__).resolve().parents[2]
 # A group's items may be a flat list or a list of (subtitle, items) columns. Group titles are also the catalogue's
 # topic labels (scripts/site/build_catalog.py TOPICS) - rename both together.
 PRODUCTS = [
-    # THEME-FIRST: Mid-latitude weather / Global circulation and tropics / Stratosphere / Weeks to seasons / Studies and
-    # verification / Tools. Tropical cyclones and the days 1-15 upper-air loops have their own entries; the tropical-
+    # THEME-FIRST: Model maps (the interactive model viewers, every region) / Mid-latitude weather / Global circulation
+    # and tropics / Stratosphere / Weeks to seasons / Studies and verification / Tools. Tropical cyclones and the days
+    # 1-15 upper-air loops have their own entries; the tropical-
     # cyclone products are diagnostic only. Products only (the person lives in PERSONAL) and never a group called
     # "Weather" or "Research".
+    (
+        "Model maps",
+        "Zoomable maps of the newest model runs, with contours and hover values",
+        [
+            (
+                "/models.html",
+                "North America, short range",
+                "Zoomable maps of the newest HRRR, RRFS and RDPS runs for aviation, severe and winter weather and renewables: radar with precipitation type, accumulation, snow-band diagnostics (frontogenesis, EPV*, dendritic-zone lift), ceiling, visibility, temperature, dewpoint, wind, HRRR entraining CAPE (ECAPE), smoke and sunshine, with contours and hover values.",
+                "Four times daily",
+            ),
+            (
+                "/samerica-models.html",
+                "South America, to day 10",
+                "Zoomable maps of the newest IFS control (ECMWF's unperturbed 9 km run) and GDPS runs over South America to day 10: temperature, wind at the surface and at 925 and 850 hPa, rain and its type, accumulation, precipitable water, 850 hPa θe and simulated IR, with ECAPE, CAPE, shear and helicity computed on every column, airport meteograms, forecast soundings, contours and hover values.",
+                "Twice daily",
+            ),
+        ],
+    ),
     (
         "Mid-latitude weather",
         "The next two weeks: storms, hazards and the flow aloft",
@@ -42,18 +61,6 @@ PRODUCTS = [
             (
                 "Surface and hazards",
                 [
-                    (
-                        "/models.html",
-                        "Short-range model maps",
-                        "Zoomable maps of the newest HRRR, RRFS and RDPS runs for aviation, severe and winter weather and renewables: radar with precipitation type, accumulation, snow-band diagnostics (frontogenesis, EPV*, dendritic-zone lift), ceiling, visibility, temperature, dewpoint, wind, HRRR entraining CAPE (ECAPE), smoke and sunshine, with contours and hover values.",
-                        "Four times daily",
-                    ),
-                    (
-                        "/samerica-models.html",
-                        "South America model maps",
-                        "Zoomable maps of the newest IFS control (ECMWF's unperturbed 9 km run) and GDPS runs over South America to day 10: temperature, wind at the surface and at 925 and 850 hPa, rain and its type, accumulation, precipitable water, 850 hPa θe and simulated IR, with ECAPE, CAPE, shear and helicity computed on every column, airport meteograms, forecast soundings, contours and hover values.",
-                        "Twice daily",
-                    ),
                     # snowbands.html is retired: its maps are the "Winter: snow bands" group of /models.html
                     (
                         "/ar.html",
@@ -87,6 +94,7 @@ PRODUCTS = [
                 ],
             ),
         ],
+        "Mid-latitudes",
     ),
     # the subtropical jets and the angular-momentum products sit here with the tropics (the North Pacific jet is
     # mid-latitude weather); the columns follow circulation.html's groups, and the menu keeps a short label
@@ -205,7 +213,7 @@ PRODUCTS = [
                 ],
             ),
         ],
-        "Circulation/tropics",
+        "Tropics",
     ),
     # one hub: stratosphere.html holds every stratosphere product (including the GEPS/GEFS/SEAS5 vortex products and the
     # QBO tracker); this menu is a flat list of its sections in the page's order (forecasts by range, then today's
@@ -377,7 +385,7 @@ PRODUCTS = [
                 ],
             ),
         ],
-        "Studies/verification",
+        "Studies",
     ),
     (
         "Tools",
@@ -828,12 +836,15 @@ def header_html(page: str, skin: str, skip: bool = False) -> str:
 # catalogue. HOME: group title -> (catalogue topic id, short purpose, featured hrefs in order). A group missing here
 # features its first six pages.
 HOME = {
+    "Model maps": (
+        "models",
+        "The newest model runs, zoomable, with hover values and soundings",
+        ["/models.html", "/samerica-models.html"],
+    ),
     "Mid-latitude weather": (
         "weather",
         "Storms, hazards and the flow aloft over the next two weeks",
         [
-            "/models.html",
-            "/samerica-models.html",
             "/ar.html",
             "/circulation.html#dt",
             "/circulation.html#pacjet",

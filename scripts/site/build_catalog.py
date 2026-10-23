@@ -54,6 +54,7 @@ THUMB_INDEX_URL = "https://scorvec-store.b-cdn.net/" + THUMB_DIR + "/index.json"
 
 # ids stay stable (they are in catalogue URLs, ?topic=...); labels are the menu group titles in apply_chrome.PRODUCTS
 TOPICS = [  # the theme-first menus (ids stable; labels = apply_chrome.PRODUCTS titles, in menu order)
+    ("models", "Model maps", "Zoomable maps of the newest model runs, with contours and hover values"),
     ("weather", "Mid-latitude weather", "The next two weeks: storms, hazards and the flow aloft"),
     (
         "drivers",
@@ -226,7 +227,7 @@ PAGES = {
     ),
     "/models.html": dict(
         kind="page",
-        topic="weather",
+        topic="models",
         tier=0,
         prio=4,
         models=["HRRR", "RRFS", "RDPS"],
@@ -236,7 +237,7 @@ PAGES = {
     ),
     "/samerica-models.html": dict(
         kind="page",
-        topic="weather",
+        topic="models",
         tier=0,
         prio=5,
         models=["IFS", "GDPS"],
