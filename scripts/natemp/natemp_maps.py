@@ -1,8 +1,9 @@
-"""The North America 2 m temperature maps of natemp.py: Lambert conformal, the 0.1-deg grid's cells drawn as they are.
+"""The North America 2 m temperature maps of natemp.py: Lambert conformal, the model grid's cells drawn as they are.
 
-Each pixel of the map takes the value of the grid point whose 0.1-deg cell holds it (nearest neighbour in latitude and
+Each pixel of the map takes the value of the grid point whose cell holds it (nearest neighbour in latitude and
 longitude, worked out once per layout: Canvas), so every cell keeps its own colour and true shape and nothing is
-smoothed or regridded. At MAP_W pixels across EXTENT a cell is 3.4 px tall and 2.2 px wide at 50N (1.7 px at 60N).
+smoothed or regridded. At MAP_W pixels across EXTENT a 0.1-deg cell (IFS-ENS) is 3.4 px tall and 2.2 px wide at 50N
+(1.7 px at 60N), a 0.5-deg cell (GEPS) five times that.
 Colour = the field on a fixed scale with saturating ends: the anomaly in 2 degF steps, only where its gate passes (the
 rest takes the neutral NEUTRAL fill); the change at every point, white within +-0.5 degF and in finer steps near zero,
 with dots on a staggered lattice where its gate (significance) passes. Contours every 10 degF through the coloured part
@@ -86,17 +87,18 @@ def palette(kind: str):
 
 
 class Canvas:
-    """The layout's pixel -> grid-point map and the grid points' projected coordinates, for a grid of rows `lat`
-    (north first) and columns `lon` at 0.1 deg."""
+    """The layout's pixel -> grid-point map and the grid points' projected coordinates, for a regular grid of rows
+    `lat` (north first) and columns `lon`."""
 
     def __init__(self, lat: np.ndarray, lon: np.ndarray):
+        res = float(lon[1] - lon[0])
         x0, x1, y0, y1 = EXTENT
         x = x0 + (np.arange(MAP_W) + 0.5) * (x1 - x0) / MAP_W
         y = y1 - (np.arange(MAP_H) + 0.5) * (y1 - y0) / MAP_H
         X, Y = np.meshgrid(x, y)
         ll = ccrs.PlateCarree().transform_points(PROJ, X, Y)
-        j = np.rint((lat[0] - ll[..., 1]) * 10).astype(np.int64)
-        i = np.rint((ll[..., 0] - lon[0]) * 10).astype(np.int64)
+        j = np.rint((lat[0] - ll[..., 1]) / res).astype(np.int64)
+        i = np.rint((ll[..., 0] - lon[0]) / res).astype(np.int64)
         ok = (j >= 0) & (j < lat.size) & (i >= 0) & (i < lon.size)
         if not ok.all():
             raise SystemExit(f"the grid misses {int((~ok).sum())} pixels of the map")
