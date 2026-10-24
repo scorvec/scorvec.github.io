@@ -144,7 +144,7 @@
       if (ok) for (const [j, d] of pickS) if ((sm[j] > 0) !== d) { ok = false; break; }
       if (!ok) continue;
       kept++;
-      let hd = 0; for (let j = 0; j < nH; j++) if (hm[j] > 0) { hd++; hWins[j]++; }
+      let hd = 0; for (let j = 0; j < nH; j++) if (hm[j] > 0) { hWins[j]++; if (!H.seats[j].ind) hd++; }   // an independent's win (AK-1) is not a D seat
       let sd = S.holdD, si = 0; for (let j = 0; j < nS; j++) if (sm[j] > 0) { sWins[j]++; if (races[j].ind) si++; else sd++; }
       let gd = Gv ? Gv.holdD : 0; for (let j = nS; j < nS + nG; j++) if (sm[j] > 0) { sWins[j]++; gd++; }
       const sr = 100 - sd - si, ctl = sd > sr, maj = hd >= H.need;      // Senate: independents abstain, the VP breaks a tie (R)
