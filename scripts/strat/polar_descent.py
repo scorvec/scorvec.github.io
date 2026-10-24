@@ -19,8 +19,10 @@ recorded on their own, and GEFS control + 30 (VVEL from its pgrb2b files, to 1 h
 value is the field at its valid time (the run's hour each day). The observed record is GEOS FP's analysis (NCCS
 OPeNDAP), the daily mean of its 00/06/12/18Z omega (which cancels the atmospheric tides), `tail` below (bdc.yml).
 
-Raw model output, no normal: the winter polar cap descends on average (the Brewer-Dobson circulation's downward
-branch), so the signal is a change of the descent against the observed weeks before, not its sign.
+Raw model output, no normal. This is the EULERIAN motion, the air's own movement through each pressure surface, not the
+Brewer-Dobson (residual) circulation: while planetary waves carry heat poleward, as before a sudden warming, the
+Eulerian mean over the cap RISES, its adiabatic cooling offsetting part of the eddies' warming, while the residual
+circulation sinks (Andrews, Holton and Leovy 1987). The sectors and maps show where the air sinks and warms.
 
     python polar_descent.py --model ifs --date 20261024 --time 00          # IFS-ENS and the IFS control
     python polar_descent.py tail --days 5     # GEOS FP: -> assets/sst/data/descent_tail.json (bdc.yml)
@@ -290,7 +292,8 @@ def column(model, init, valid, levels, series, ctrl, obs, out: Path) -> None:
     n = series.shape[0]
     fig.text(0.07, 0.935, "Log-pressure vertical velocity, downward positive (red: the air sinks and warms by compression). "
              f"Left of the line: GEOS FP analyses, daily means; right: {'the run' if n == 1 else f'the mean of {n} members'}, "
-             "at the run's hour each day. Raw output, no normal: the winter cap sinks on average.", fontsize=9.4,
+             "at the run's hour each day. Raw output, no normal. Eulerian motion: while waves carry heat poleward the "
+             "cap-mean air rises, offsetting part of their warming.", fontsize=9.4,
              color=MUTED, va="top", wrap=True)  # fmt: skip
     ax = fig.add_axes([0.07, 0.42, 0.84, 0.45])
     cf = ax.contourf(X, np.array(levels, float), Z.T, levels=RATE, cmap="RdBu_r", extend="both")
