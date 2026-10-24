@@ -108,6 +108,12 @@
         <span class="chart-updated" id="polarUpdated">&mdash;</span>
       </div>
     </div>
+    <!-- the wave driving against the ERA5 record: the heat-flux JSONs' "records" blocks (flux_records.py) -->
+    <div id="dom-fluxrec" class="card" hidden>
+      <div class="chips" id="frChips"></div>
+      <div class="sh-tablewrap"><table class="sh-table fr-table" id="frTable"></table></div>
+      <p class="note" id="frNote"></p>
+    </div>
     <!-- the QBO tracker's station table (qbo.yml writes qbo/qbo.json) -->
     <div id="dom-qbostations" class="card" hidden>
       <div class="chips" id="qboChips"></div>
@@ -728,6 +734,12 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
         ECMWF open data (CC&nbsp;BY&nbsp;4.0, Google Cloud mirror) &middot; NOAA GEFS (AWS Open Data) &middot; ECCC GEPS
         (MSC Datamart, ECCC Data Servers End-use Licence) &middot; updated each 00/12Z cycle</p>
 </template>
+<template id="about-fluxrec">
+<p><b>What it shows.</b> How unusual the forecast wave driving would be, against the ERA5 record. For each ensemble and its control run, over days 1&ndash;15: the peak of the poleward eddy heat flux at 100&nbsp;hPa, 45&ndash;75&deg;, the measure of the planetary waves entering the stratosphere, as all waves, wave 1 or wave 2, or as the trailing 10-day mean of all waves that the SSW warning meter uses. Each peak is ranked among every ERA5 value within 15 days of the same calendar date in 1990&ndash;2026 (the <b>percentile</b>: 99 means higher than 99% of them) and set against the highest of them, the <b>record</b> for that time of year, with its date.</p>
+<p><b>The columns.</b> The ensemble mean&rsquo;s peak and its date; the median member&rsquo;s peak and its percentile; the strongest member; the share of members whose own peak is at or above the 99th percentile, and the share above the record, each member ranked at the date of its own peak; and the ERA5 record near the ensemble mean&rsquo;s peak. A mean of members whose peaks fall on different days is lower than most of them, so the members&rsquo; columns say more about how extreme the forecast can get. The control rows rank the single run. The top line gives the latest analysed day and 10-day mean, ranked the same way.</p>
+<p><b>Limits.</b> The forecast values are the members&rsquo; daily fields at the run&rsquo;s hour, with the model&rsquo;s significant mean error against ERA5 removed as on the heat-flux figure (GEPS uncorrected), ranked among ERA5&rsquo;s 00 and 12&nbsp;UTC fields; the 10-day means run through the analysed days before the start. The record is 36 years long: the record for a time of year is the highest of about 2,200 daily values (1,100 ten-day means) in that history. Descriptive ranks, not a statistical test.</p>
+<p class="chart-sources">The heat-flux runs of the item above (ECMWF AIFS-ENS, IFS-ENS and IFS control open data, CC&nbsp;BY&nbsp;4.0, Google Cloud mirror; NOAA GEFS; ECCC GEPS) &middot; ERA5 (Copernicus Climate Change Service; Hersbach et al. 2020) via WeatherBench&nbsp;2 and ARCO-ERA5</p>
+</template>
 <template id="about-heatflux">
 <p><a href="/topics/eddy-heat-flux.html">The explainer</a>: what the 100 hPa eddy heat flux measures, the equations and how to read the chart.</p>
 <p>The wave maps show how large the planetary waves are and where their ridges sit; they do not show
@@ -923,7 +935,7 @@ window.STAGE = {
   aliases: {wave1: "waves/1"},  // the wave-1 maps became one product with wave-2
   groups: [
   {label: "The vortex, days 1–15", ico: "\u2744", items: [["vortex","Vortex strength and sudden-warming odds","every model's u(60°N) at 10 hPa and polar-cap height"],["vshape","Split or displaced","every member's vortex shape at 10 hPa"],["t10","Polar temperature and the vortex, 10 hPa","every ensemble's mean and members, the IFS control"],["vwinds","Vortex winds","10 and 100 hPa: every ensemble and both controls"],["z100","100 hPa height: anomaly and 24 h change","every ensemble's mean and the IFS control"],["fdrip15","Dripping paint, ground to 10 hPa","AIFS-ENS, IFS-ENS, IFS control, GEFS, GEPS; ground to 10 hPa"],["upperstrat","Upper stratosphere","to 1 hPa: GEFS, GFS, GEOS FP, GDPS"],["pv","Potential vorticity","GEOS FP, 475 and 850 K, to day 10"],["verify","How the recent runs verified","each model's runs of the last two weeks against the analysis"]]},
-  {label: "The waves driving it, days 1–15", ico: "\u{1F30A}", items: [["heatflux","Eddy heat flux, 100 hPa","[v′T′] and the SSW warning meter, every ensemble"],["waves","Planetary waves 1 and 2","AIFS-ENS, IFS-ENS, IFS control, GEFS, GEPS; 500, 100 and 10 hPa"],["epflux","E–P flux","GEFS wave driving to 1 hPa, k = 1–3"],["refract","Refractive index","GEFS waveguide for waves 1 and 2, 300–1 hPa"],["reflect","Regional reflection index","Siberia vs Canada wave flux at 100 hPa (Messori et al. 2022), every ensemble"]]},
+  {label: "The waves driving it, days 1–15", ico: "\u{1F30A}", items: [["heatflux","Eddy heat flux, 100 hPa","[v′T′] and the SSW warning meter, every ensemble"],["fluxrec","How unusual is the wave driving","every ensemble's heat-flux peak against the ERA5 record"],["waves","Planetary waves 1 and 2","AIFS-ENS, IFS-ENS, IFS control, GEFS, GEPS; 500, 100 and 10 hPa"],["epflux","E–P flux","GEFS wave driving to 1 hPa, k = 1–3"],["refract","Refractive index","GEFS waveguide for waves 1 and 2, 300–1 hPa"],["reflect","Regional reflection index","Siberia vs Canada wave flux at 100 hPa (Messori et al. 2022), every ensemble"]]},
   {label: "Down to the surface, days 1–15", ico: "\u{1F30E}", items: [["descent","Downward propagation monitor","10 and 100 hPa cap and the SSW surface imprint, every ensemble"],["polarcap","Polar cap: sea level and 500 hPa","every ensemble's members, maps and run to run"],["telecon","Arctic Oscillation and NAO","every ensemble's members, all models and run to run"],["pdescent","Descent over the polar cap","the column and six sectors, every ensemble and GEOS FP"]]},
   {label: "Weeks 3–5", ico: "\u{1F4C5}", items: [["vortex35","Polar vortex, days 1–35","GEFS and GEPS, drift-corrected"],["vloop35","Polar vortex loop, days 1–35","GEFS and GEPS, 10 and 100 hPa"],["heatflux35","Eddy heat flux, days 1–35","100 hPa [v′T′]: GEPS and GEFS"],["fdrip","Forecast dripping paint, days 1–35","GEPS and GEFS, drift-corrected"]]},
   {label: "The season ahead", ico: "\u{1F5D3}", items: [["c3svortex","December vortex: C3S multi-model","calibrated; hindcast r 0.67, significant"],["c3svdaily","December vortex, day by day","C3S members, spells and sudden warmings"],["s5vortex","SEAS5: vortex, QBO, annular mode","51 members, seven months; hindcast skill for the annular mode"],["s5ssw","SEAS5: sudden-warming risk","no demonstrated skill: the model's view"],["s5cap","SEAS5: polar-cap heights","100, 50 and 10 hPa, both hemispheres"],["shseason","This winter's odds","QBO and ENSO, model-based"]]},
@@ -1133,6 +1145,10 @@ window.STAGE = {
   // split by range (as the drips): heatflux = days 1-15 (AIFS-ENS, IFS-ENS, GEFS, GEPS), heatflux35 = GEPS/GEFS to day 35
   reflect: {label: "Regional reflection index", img: function () { return "assets/sst/reflection_index.webp"; }, bust: "hourly", about: "about-reflect", fit: false,
           cap: function () { return "Upward wave flux over Siberia against downward flux over Canada at 100 hPa, standardised: Messori et al.'s regional reflection index for every ensemble, the two boxes, and the share of members with an event. In ERA5 an event has been followed by a ridge over Alaska (EPO negative) and North American cold."; }},
+  fluxrec: {label: "How unusual is the wave driving", a: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
+          b: {label: "Measure", items: [["tot","All waves"],["k1","Wave 1"],["k2","Wave 2"],["ten","10-day mean"]]},
+          dom: function () { return "dom-fluxrec"; }, about: "about-fluxrec",
+          cap: function (a, b) { return "Each ensemble's peak 100 hPa heat flux in days 1–15 (" + {tot: "all waves", k1: "wave 1", k2: "wave 2", ten: "10-day mean of all waves"}[b || "tot"] + "), 45–75°" + (a === "sh" ? "S" : "N") + ", ranked among every ERA5 value within 15 days of the same date, 1990–2026, and set against the record for that time of year."; }},
   heatflux: {label: "100 hPa eddy heat flux, days 1–15", a: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
           b: {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"],["gefs","GEFS"],["geps","GEPS"]]},
           c: {label: "View", items: [["now","This run"],["runs","Run to run (north)"]]},
@@ -1261,11 +1277,43 @@ window.STAGE = {
         " stations spanning Africa, the Maritime Continent, the western Pacific and the Amazon.";
     }).catch(function () { $("qboMethod").textContent = "The station table could not be loaded just now; try reloading in a minute."; });
   }
+  var frData = null;
+  function drawFluxRec(sel) {
+    var go = function () {
+      var hemi = sel.a === "sh" ? "sh" : "nh", m = sel.b || "tot", rows = [], an = null;
+      var runs = [["aifs", "AIFS-ENS", "AIFS-ENS control"], ["ifs", "IFS-ENS", "IFS control"], ["gefs", "GEFS", null], ["geps", "GEPS", null]];
+      var pc = function (v) { return v === undefined || v === null ? "—" : v >= 100 ? "above all" : v.toFixed(1); };
+      var hot = function (v) { return v >= 99 ? ' class="fr-hot"' : ""; };
+      var share = function (v) { return v === undefined ? "—" : '<span' + (v > 0 ? ' class="fr-rec"' : "") + ">" + Math.round(100 * v) + "%</span>"; };
+      runs.forEach(function (r) {
+        var d = frData[r[0]], h = d && d.hemispheres && d.hemispheres[hemi], rec = h && h.records, x = rec && rec.measures[m];
+        if (!x) return;
+        if (!an && rec.analysis) an = rec.analysis;
+        var run = d.init.slice(8, 10) + " " + ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+d.init.slice(5, 7) - 1] + " " + d.init.slice(11, 13) + "Z";
+        rows.push("<tr><th scope=\"row\">" + r[1] + " <small>" + run + "</small></th><td>" + x.ens_peak.toFixed(1) + " <small>" + x.ens_date.slice(5) + "</small></td><td" + hot(x.ens_pct) + ">" + pc(x.ens_pct) +
+                  "</td><td>" + x.member_median.toFixed(1) + " <small>(" + pc(x.member_median_pct) + ")</small></td><td>" + x.member_max.toFixed(1) + " <small>(" + pc(x.member_max_pct) + ")</small></td><td>" +
+                  share(x.share_p99) + "</td><td>" + share(x.share_record) + "</td><td>" + x.record.toFixed(1) + " <small>" + x.record_date + "</small></td></tr>");
+        if (r[2] && x.control) rows.push("<tr class=\"fr-ctrl\"><th scope=\"row\">" + r[2] + " <small>one run</small></th><td>" + x.control.peak.toFixed(1) + " <small>" + x.control.date.slice(5) +
+                  "</small></td><td" + hot(x.control.pct) + ">" + pc(x.control.pct) + "</td><td>—</td><td>—</td><td>—</td><td>" + (x.control.above_record ? '<span class="fr-rec">above</span>' : "below") + "</td><td>—</td></tr>");
+      });
+      $("frTable").innerHTML = "<thead><tr><th scope=\"col\">Run</th><th scope=\"col\">Ensemble mean peak<br><small>K m/s, date</small></th><th scope=\"col\">Percentile</th><th scope=\"col\">Median member<br><small>peak (percentile)</small></th>" +
+        "<th scope=\"col\">Strongest member<br><small>peak (percentile)</small></th><th scope=\"col\">Members at or above<br>the 99th percentile</th><th scope=\"col\">Members above<br>the record</th><th scope=\"col\">ERA5 record near the peak<br><small>K m/s, date</small></th></tr></thead><tbody>" +
+        (rows.length ? rows.join("") : '<tr><td colspan="8">No run carries the table yet: it appears with each model\'s next run.</td></tr>') + "</tbody>";
+      $("frChips").innerHTML = an ? '<div class="chip"><div class="l">Analysis · ' + an.date + '</div><div class="v">' + an.tot.toFixed(1) + ' K m/s</div><div class="s">percentile ' + pc(an.tot_pct) + "</div></div>" +
+        '<div class="chip"><div class="l">10-day mean to ' + an.date + '</div><div class="v">' + an.ten.toFixed(1) + ' K m/s</div><div class="s">percentile ' + pc(an.ten_pct) + "</div></div>" : "";
+      $("frNote").textContent = "Percentile among ERA5 values within 15 days of the same date, 1990–2026; bold: at or above the 99th. Each model from its newest run.";
+    };
+    if (frData) return go();
+    var files = {aifs: "heatflux100.json", ifs: "ifs_heatflux100.json", gefs: "gefs_heatflux100.json", geps: "geps_heatflux100.json"}, keys = Object.keys(files);
+    Promise.all(keys.map(function (k) { return fetch("/assets/sst/data/" + files[k] + "?v=" + new Date().toISOString().slice(0, 13)).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); }))
+      .then(function (docs) { frData = {}; keys.forEach(function (k, i) { frData[k] = docs[i]; }); go(); });
+  }
   window.STAGE.onRender = function (sel) {
     if (sel.p === "s5vortex" || sel.p === "s5ssw" || sel.p === "s5cap") startS5();
     if (sel.p === "c3svortex") startVX();
     if (sel.p === "c3svdaily") startVX(true);
     if (sel.p === "qbo" && sel.a === "stations") startQBO();
+    if (sel.p === "fluxrec") drawFluxRec(sel);
   };
 })();
 </script>
@@ -1310,6 +1358,7 @@ window.STAGE = {
 .sh-table.qbo-table td, .sh-table.qbo-table th { text-align: right; } .sh-table.qbo-table td:first-child, .sh-table.qbo-table th:first-child { text-align: left; }
 .qbo-table td.w { color: #a33a26; font-weight: 600; } .qbo-table td.e { color: #2b5f8a; font-weight: 600; }
 #dom-qbostations .chip .v.w { color: #a33a26; } #dom-qbostations .chip .v.e { color: #2b5f8a; }
+.fr-table td .fr-rec, .fr-table td.fr-hot { font-weight: 700; } .fr-table td .fr-rec { color: #a33a26; } .fr-table tr.fr-ctrl th, .fr-table tr.fr-ctrl td { background: #faf8f5; }
 .sh-hist .controls { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; margin-bottom: 0.45rem; }
 .sh-pick { margin-left: auto; font-size: 0.85rem; color: var(--muted); display: inline-flex; gap: 0.4rem; align-items: center; }
 .sh-pick select { font: inherit; color: var(--ink, #1c2430); padding: 0.22rem 0.4rem; border: 1px solid #c9c5bb; border-radius: 4px; background: #fff; }

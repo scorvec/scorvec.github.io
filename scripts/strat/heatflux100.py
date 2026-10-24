@@ -61,6 +61,8 @@ from quantmet.degdays import doy366
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts" / "ecmwf"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import flux_records as FR
+
 try:  # only the AIFS fetch needs it; the GEPS/GEFS versions
     import store as ecmwf  # (heatflux100_ext.py) import this module without it
 except Exception:  # noqa: BLE001
@@ -738,6 +740,7 @@ def main() -> int:
     }
     tab = load_bias("aifs")
     wref = load_warning()
+    era5 = FR.Era5()
     lead = (valid - init) / pd.Timedelta(days=1)
     for hemi, north in (("nh", True), ("sh", False)):
         err = {k: bias_at(tab, hemi, k, valid, lead) for k in fm}  # zero where no significant error was found
@@ -755,6 +758,7 @@ def main() -> int:
             if len(obs) < 5:
                 obs = None
         warn = warning_meter(obs, mem["tot"], valid, wref, init) if north else None
+        rec = FR.block(era5, hemi, valid, mem, ctrl, obs, member_paths(obs, mem["tot"], valid), init)
         z_last = render(
             hemi,
             north,
@@ -799,6 +803,7 @@ def main() -> int:
         h["z40_end_of_forecast"] = None if z_last is None else round(z_last, 2)
         if warn is not None:
             h["ssw_warning"] = warn
+        h["records"] = rec
         if north:
             h["regional"] = regional_block(valid, reg, clim)
         doc["hemispheres"][hemi] = h

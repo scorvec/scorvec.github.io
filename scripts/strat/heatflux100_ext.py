@@ -43,6 +43,7 @@ import xarray as xr
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
+import flux_records as FR
 import heatflux100 as HF
 
 LEADS = list(range(24, 841, 24))
@@ -244,6 +245,7 @@ def main() -> int:
     }
     tab = HF.load_bias(a.model)
     wref = HF.load_warning()
+    era5 = FR.Era5()
     lead = (valid - init) / pd.Timedelta(days=1)
     for hemi, north in (("nh", True), ("sh", False)):
         err = {k: HF.bias_at(tab, hemi, k, valid, lead) for k in fall}  # zero where no significant error was found
@@ -259,6 +261,11 @@ def main() -> int:
             if len(obs) < 5:
                 obs = None
         warn = HF.warning_meter(obs, mem["tot"], valid, wref, init) if north else None
+        rec = (
+            FR.block(era5, hemi, valid, mem, ctrl, obs, HF.member_paths(obs, mem["tot"], valid), init)
+            if medium
+            else None
+        )
         z_last = HF.render(
             hemi,
             north,
@@ -296,6 +303,8 @@ def main() -> int:
         h["z40_end_of_forecast"] = None if z_last is None else round(z_last, 2)
         if warn is not None:
             h["ssw_warning"] = warn
+        if rec is not None:
+            h["records"] = rec
         if north:
             h["regional"] = HF.regional_block(valid, reg, clim)
         doc["hemispheres"][hemi] = h
