@@ -29,11 +29,9 @@ THE PARTS (fetch only what the caller needs; the job that runs every product fet
   polarcap daily 0-360 h     PRMSL, HGT 500, 100, 10, pc_msl (hPa), pc_z500, pc_z100, pc_z10, pc_t10 (K) (member,
                              TMP 10                   lead, lat, lon) on polarcap.py's 1.5 deg cells, 19.5-90N (cell
                                                        means)                                             polarcap
-  omega   daily 0-360 h      VVEL, VGRD, TMP at 17    om_series (member, lead, level, region) descent over the cap
-          (GEFS only: GEPS   levels 850..1 hPa        and its six sectors; om_res (member, lead, level) the cap's
-          publishes no                                residual descent; om_mean, om_ndesc (lead, level, lat, lon)
-          vertical velocity)                          the smoothed members' mean and count descending, north of 50N
-                                                       (polar_descent.reduce_step)                       polar_descent
+  omega   daily 0-360 h      VGRD, TMP at 17 levels   om_cap, om_res (member, lead, level) the polar cap's Eulerian
+          (GEFS only)        850..1 hPa               descent from continuity and its residual descent, from v and T
+                                                       on the cap's edge (polar_descent.edge_step)       polar_descent
 Members are kept whole only on 1 deg for the wave maps and on 1.5 deg for the polar cap; everything else is reduced as
 each step arrives.
 The reductions of one cycle sit in data/strat_ens/{model}_{YYYYMMDDHH}.npz (control = member 0).
@@ -79,7 +77,7 @@ LEADS_DAILY = tuple(range(0, 361, 24))  # the days 1-15 products: analysis + 15 
 LEADS_VORTEX = tuple(range(0, 385, 24))  # nh_vortex shows every ensemble to its end (day 16)
 LEADS_12H = tuple(range(0, 361, 12))  # the vortex-wind loop
 PARTS = ("vortex", "drip", "flux", "waves", "winds", "polarcap", "omega")
-MODEL_PARTS = {"gefs": PARTS, "geps": tuple(p for p in PARTS if p != "omega")}  # GEPS has no vertical velocity
+MODEL_PARTS = {"gefs": PARTS, "geps": tuple(p for p in PARTS if p != "omega")}  # GEPS: v and T at 11 levels only
 # the arrays each part keeps (the last one decides which members are complete) and the members a part needs
 PART_KEYS = {
     "vortex": ("u60", "zcap"),
@@ -88,7 +86,7 @@ PART_KEYS = {
     "waves": ("zwave",),
     "winds": ("wind_n", "wind"),
     "polarcap": ("pc_msl", "pc_z100", "pc_z10", "pc_t10", "pc_z500"),
-    "omega": ("om_n", "om_mean", "om_ndesc", "om_res", "om_series"),
+    "omega": ("om_n", "om_res", "om_cap"),
 }
 FLOOR = {"gefs": 16, "geps": 11}  # of 31 and 21
 LAT = np.arange(90.0, -90.0 - 1e-6, -0.5)  # both models' 0.5 deg grid, north to south
@@ -113,7 +111,7 @@ def need(parts, L: int, model: str) -> set[tuple[str, int]]:
     if "polarcap" in parts and L in LEADS_DAILY:
         out |= {("PRMSL", "msl"), ("HGT", 500), ("HGT", 100), ("HGT", 10), ("TMP", 10)}
     if "omega" in parts and L in LEADS_DAILY:
-        out |= {(v, lev) for v in ("VVEL", "VGRD", "TMP") for lev in PD.LEVELS_GEFS}
+        out |= {(v, lev) for v in ("VGRD", "TMP") for lev in PD.LEVELS_GEFS}
     return out
 
 
@@ -243,11 +241,8 @@ def cap(field: np.ndarray) -> float:
 def _empty(key: str, nmem: int, model: str) -> np.ndarray:
     if key == "wind_n":
         return np.zeros(len(LEADS_12H), "int16")
-    nmap = int((PC.CLAT >= PD.MAP_LAT).sum())
     if key == "om_n":
         return np.zeros(len(LEADS_DAILY), "int16")
-    if key == "om_ndesc":
-        return np.zeros((len(LEADS_DAILY), len(PD.LEVELS_GEFS), nmap, PC.CLON.size), "int16")
     if key in ("flux_sib", "flux_can"):
         return np.full((nmem, len(LEADS_DAILY)), np.nan, "float32")
     if key.startswith("flux_"):
@@ -263,9 +258,8 @@ def _empty(key: str, nmem: int, model: str) -> np.ndarray:
         "pc_z100": (nmem, len(LEADS_DAILY), PC.CLAT.size, PC.CLON.size),
         "pc_z10": (nmem, len(LEADS_DAILY), PC.CLAT.size, PC.CLON.size),
         "pc_t10": (nmem, len(LEADS_DAILY), PC.CLAT.size, PC.CLON.size),
-        "om_series": (nmem, len(LEADS_DAILY), len(PD.LEVELS_GEFS), len(PD.REGIONS)),
+        "om_cap": (nmem, len(LEADS_DAILY), len(PD.LEVELS_GEFS)),
         "om_res": (nmem, len(LEADS_DAILY), len(PD.LEVELS_GEFS)),
-        "om_mean": (len(LEADS_DAILY), len(PD.LEVELS_GEFS), nmap, PC.CLON.size),
     }[key]
     return np.full(shape, np.nan, "float32")
 
@@ -317,14 +311,12 @@ def fetch(model: str, date: str, hh: str, parts=PARTS, workers: int = 32) -> Pat
                     acc["pc_z10"][m, i] = PC.coarse(got[m][("HGT", 10)], LAT, LON)
                     acc["pc_t10"][m, i] = PC.coarse(got[m][("TMP", 10)], LAT, LON)
             if "omega" in todo:
-                om = np.stack([[PC.coarse(got[m][("VVEL", lev)], LAT, LON) for lev in PD.LEVELS_GEFS] for m in ms])
-                edge = np.abs(LAT - PD.PHI0) <= 0.3  # the rows on the cap's edge, for the residual descent
+                edge = np.abs(LAT - PD.PHI0) <= 0.3  # the rows on the polar cap's edge
                 v, t = (
                     np.stack([[got[m][(x, lev)][edge] for lev in PD.LEVELS_GEFS] for m in ms]) for x in ("VGRD", "TMP")
                 )
-                r = PD.reduce_step(om, PD.LEVELS_GEFS, *PD.boundary_eddies(v, t, LAT[edge]))
-                acc["om_series"][ms, i], acc["om_res"][ms, i] = r["series"], r["res"]
-                acc["om_mean"][i], acc["om_ndesc"][i], acc["om_n"][i] = r["mean"], r["ndesc"], len(ms)
+                r = PD.edge_step(v, t, LAT[edge], PD.LEVELS_GEFS)
+                acc["om_cap"][ms, i], acc["om_res"][ms, i], acc["om_n"][i] = r["cap"], r["res"], len(ms)
             if "flux" in todo:
                 vt = [
                     xr.DataArray(
@@ -433,11 +425,6 @@ def shown(model: str, ref: str = "origin/main") -> str:
         (f"assets/sst/anim/polarcap_{model}_manifest.json", "ver", "%Y%m%d%H"),
         (f"assets/sst/anim/z100_{model}_manifest.json", "ver", "%Y%m%d%H"),
         (f"assets/sst/anim/t10_{model}_manifest.json", "ver", "%Y%m%d%H"),
-        *(
-            [(f"assets/sst/anim/descent_{model}_manifest.json", "ver", "%Y%m%d%H")]
-            if "omega" in MODEL_PARTS[model]
-            else []
-        ),
     ):
         d = doc(rel)
         if not d or not d.get(key):

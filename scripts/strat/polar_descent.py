@@ -15,7 +15,7 @@ positive downward. Each member's omega is averaged onto polarcap.py's 1.5-deg ce
             sign test at 5 % (polarcap.agreeing); orographic gravity waves (Greenland, the Rockies) are averaged away
 The models: AIFS-ENS control + 25 and IFS-ENS 50 members (ECMWF open data, Google Cloud mirror; w at 850, 500, 300,
 250, 200, 150, 100, 50 and 10 hPa), the IFS control and the AIFS-ENS control drawn on their ensembles' figures and
-recorded on their own, and GEFS control + 30 (VVEL from its pgrb2b files, to 1 hPa: strat_ens.py part "omega"). Each
+recorded on their own, and GEFS control + 30 (v and T on the cap's edge to 1 hPa: strat_ens.py part "omega"). Each
 value is the field at its valid time (the run's hour each day). The observed record is GEOS FP's analysis (NCCS
 OPeNDAP), the daily mean of its 00/06/12/18Z omega (which cancels the atmospheric tides), `tail` below (bdc.yml).
 
@@ -30,6 +30,12 @@ circulation sinks (Andrews, Holton and Leovy 1987). The sectors and maps show wh
             zonal means of the grid rows within 0.3 deg of it; d/dp centred in pressure between the levels): the descent
             that carries a warming down, from RES_BOTTOM up. The ECMWF ensembles' open data have v and T at too few
             levels for it.
+  GEFS      its published VVEL is not omega: the post-processor writes the model's geometric vertical velocity in
+            pressure units, whose mean over a pressure surface is far from the zero mass conservation needs. So GEFS's
+            cap mean is kinematic, from continuity: [omega] over the cap = cos phi0 I / (a (1 - sin phi0)), I the
+            zonal-mean meridional wind on the edge integrated down from its top level, 1 hPa (the flow above it left
+            out: on an analytic two-cell circulation that costs 1 % at 100 hPa and 10 % at 10 hPa, so it is drawn from
+            KIN_TOP down), and it has no sectors or maps.
 
     python polar_descent.py --model ifs --date 20261024 --time 00          # IFS-ENS and the IFS control
     python polar_descent.py tail --days 5     # GEOS FP: -> assets/sst/data/descent_tail.json (bdc.yml)
@@ -73,6 +79,7 @@ KMAX = 8  # zonal wavenumbers kept in the maps
 SIGMA_LAT = 2.0  # cells (3 deg): the maps' meridional smoothing
 PHI0 = 65.25  # deg N: the cap cells' southern edge (polarcap.CLAT >= CAP: the cells from 65.25N)
 A_EARTH = 6.371e6  # m
+KIN_TOP = 10.0  # hPa: GEFS's kinematic cap descent is drawn below it (above, the missing flow over 1 hPa matters)
 RES_BOTTOM = 300.0  # hPa: the residual descent is drawn above it (below, the polar stability is too weak for the TEM
 # eddy term to be read from daily fields)
 KAPPA = 0.2857  # R / cp
@@ -117,13 +124,34 @@ def smooth(d: np.ndarray) -> np.ndarray:
     return gaussian_filter1d(np.fft.irfft(f, n=d.shape[-1], axis=-1), SIGMA_LAT, axis=-2, mode="nearest")
 
 
-def boundary_eddies(v: np.ndarray, t: np.ndarray, lat: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """([v'T'], [T]) on the cap's edge PHI0 from v, t (..., level, lat, lon): the zonal-mean eddy heat flux and
-    temperature of the grid rows within 0.3 deg of it, averaged over those rows -> (..., level)."""
+def boundary_eddies(v: np.ndarray, t: np.ndarray, lat: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """([v'T'], [T], [v]) on the cap's edge PHI0 from v, t (..., level, lat, lon): the zonal-mean eddy heat flux,
+    temperature and meridional wind of the grid rows within 0.3 deg of it, averaged over those rows -> (..., level)."""
     rows = np.abs(lat - PHI0) <= 0.3
     vv, tt = v[..., rows, :], t[..., rows, :]
     vt = ((vv - vv.mean(-1, keepdims=True)) * (tt - tt.mean(-1, keepdims=True))).mean(-1)
-    return vt.mean(-1), tt.mean((-2, -1))
+    return vt.mean(-1), tt.mean((-2, -1)), vv.mean((-2, -1))
+
+
+def kinematic_cap(vbar: np.ndarray, levels) -> np.ndarray:
+    """The cap's Eulerian descent from continuity, mm/s (..., level): [omega] = cos phi0 I / (a (1 - sin phi0)), I the
+    edge's zonal-mean meridional wind vbar (..., level) integrated in pressure from the top level down (trapezoids,
+    nothing above the top)."""
+    p = np.asarray(levels, float) * 100.0
+    o = np.argsort(p)
+    v = vbar[..., o]
+    inc = 0.5 * (v[..., 1:] + v[..., :-1]) * np.diff(p[o])
+    flux = np.concatenate([np.zeros((*v.shape[:-1], 1)), np.cumsum(inc, -1)], -1)[..., np.argsort(o)]
+    omega = np.cos(np.deg2rad(PHI0)) * flux / (A_EARTH * (1 - np.sin(np.deg2rad(PHI0))))
+    return 1000.0 * H * omega / p
+
+
+def edge_step(v: np.ndarray, t: np.ndarray, lat: np.ndarray, levels) -> dict:
+    """GEFS's reductions of one lead from every member's v, t on the edge rows (member, level, lat, lon): the cap's
+    kinematic Eulerian descent and its residual descent, (member, level) each."""
+    vt, tbar, vbar = boundary_eddies(v, t, lat)
+    cap = np.where(np.asarray(levels, float) >= KIN_TOP, kinematic_cap(vbar, levels), np.nan)
+    return {"cap": cap.astype("float32"), "res": (cap + residual_shift(vt, tbar, levels)).astype("float32")}
 
 
 def residual_shift(vt: np.ndarray, tbar: np.ndarray, levels) -> np.ndarray:
@@ -136,35 +164,27 @@ def residual_shift(vt: np.ndarray, tbar: np.ndarray, levels) -> np.ndarray:
     return np.where(p <= RES_BOTTOM * 100.0, 1000.0 * H * domega / p, np.nan)
 
 
-def reduce_step(omega: np.ndarray, levels, vt: np.ndarray | None = None, tbar: np.ndarray | None = None) -> dict:
+def reduce_step(omega: np.ndarray, levels) -> dict:
     """One lead's reductions from every member's omega (member, level, CLAT, CLON), Pa/s: the cap and sector series
-    (member, level, 7), north of MAP_LAT the smoothed members' mean (level, lat, lon) and the number of members
-    descending there (level, lat, lon), and with the edge's eddies (boundary_eddies, (member, level)) the cap's residual
-    descent (member, level)."""
+    (member, level, 7), and north of MAP_LAT the smoothed members' mean (level, lat, lon) and the number of members
+    descending there (level, lat, lon)."""
     d = descent(omega, levels)
     rows = PC.CLAT >= MAP_LAT
     s = smooth(d[..., rows, :])
-    out = {
+    return {
         "series": area_means(d).astype("float32"),
         "mean": s.mean(0).astype("float32"),
         "ndesc": (s > 0).sum(0).astype("int16"),
     }
-    if vt is not None:
-        out["res"] = (out["series"][..., 0] + residual_shift(vt, tbar, levels)).astype("float32")
-    return out
 
 
 def stack_steps(steps: list) -> dict:
-    """The leads' reduce_step outputs stacked: series (member, lead, level, 7), mean and ndesc (lead, level, lat, lon),
-    res (member, lead, level) when the steps carry it."""
-    out = {
+    """The leads' reduce_step outputs stacked: series (member, lead, level, 7), mean and ndesc (lead, level, lat, lon)."""
+    return {
         "series": np.stack([s["series"] for s in steps], 1),
         "mean": np.stack([s["mean"] for s in steps]),
         "ndesc": np.stack([s["ndesc"] for s in steps]),
     }
-    if "res" in steps[0]:
-        out["res"] = np.stack([s["res"] for s in steps], 1)
-    return out
 
 
 def layer(x: np.ndarray, levels, top: float, bot: float) -> np.ndarray:
@@ -225,11 +245,8 @@ def load_gefs(date: str, hh: str) -> dict:
     import strat_ens as SE
 
     d = SE.load("gefs", date, hh, ("omega",))
-    keep = SE.complete_members(d, "om_series")
-    out = {"series": d["om_series"][keep], "mean": d["om_mean"], "ndesc": d["om_ndesc"], "n": int(d["om_n"].min())}
-    if "om_res" in d:
-        out["res"] = d["om_res"][keep]
-    return {"gefs": out}
+    keep = SE.complete_members(d, "om_cap")
+    return {"gefs": {"cap": d["om_cap"][keep], "res": d["om_res"][keep], "n": int(d["om_n"].min())}}
 
 
 LEVELS_OF = {"aifs": LEVELS_EC, "aifsc": LEVELS_EC, "ifs": LEVELS_EC, "hres": LEVELS_EC, "gefs": LEVELS_GEFS}
@@ -275,7 +292,9 @@ def tail(a) -> int:
             om = read("omega", it, slice(r0, None, 2))
             snaps.append(np.where(np.abs(om) < 1e5, om, np.nan)[[i - l0 for i in li]])  # below ground: missing
             sl = slice(int(edge[0]), int(edge[-1]) + 1)
-            vt, tb = boundary_eddies(*(read(v, it, sl)[[i - l0 for i in li]] for v in ("v", "t")), fp.d.lat.values[sl])
+            vt, tb, _ = boundary_eddies(
+                *(read(v, it, sl)[[i - l0 for i in li]] for v in ("v", "t")), fp.d.lat.values[sl]
+            )
             vts.append(vt)
             tbars.append(tb)
         with warnings.catch_warnings():
@@ -317,13 +336,14 @@ def observed(levels) -> pd.DataFrame | None:
 
 # ── figures ──────────────────────────────────────────────────────────────────────────────────────────────────────
 INK, MUTED = "#1f2328", "#6f6b64"
-CREDIT = {**PC.CREDIT, "gefs": "NOAA GEFS (AWS Open Data), VVEL from the pgrb2b files"}
+CREDIT = {**PC.CREDIT, "gefs": "NOAA GEFS (AWS Open Data), v and T on the cap's edge from the pgrb2 files"}
 
 
-def column(model, init, valid, levels, series, res, ctrl, obs, out: Path) -> None:
+def column(model, init, valid, levels, cap_e, res, ctrl, obs, out: Path) -> None:
     """Time-height of the cap's descent - the residual descent where the model has it (res, (member, lead, level)),
-    else the Eulerian one: GEOS FP's last TAIL_DAYS days, then the members' mean; beneath, the cap's 10-100 and
-    100-300 hPa layers (with the residual, the Eulerian 10-100 hPa as well)."""
+    else the Eulerian one (cap_e, (member, lead, level)): GEOS FP's last TAIL_DAYS days, then the members' mean;
+    beneath, the cap's 10-100 and 100-300 hPa layers (with the residual, the Eulerian 10-100 hPa as well); ctrl the
+    control's Eulerian cap (1, lead, level)."""
     import matplotlib
 
     matplotlib.use("Agg")
@@ -331,7 +351,11 @@ def column(model, init, valid, levels, series, res, ctrl, obs, out: Path) -> Non
     import forecast_drip as FD
 
     region = "Polar cap" if res is None else "Residual"
-    fc = series[..., 0] if res is None else res  # (member, lead, level)
+    keep = [k for k in range(len(levels)) if np.isfinite((cap_e if res is None else res)[..., k]).any()]
+    levels = [levels[k] for k in keep]  # the levels the model's descent is drawn on (GEFS: KIN_TOP down)
+    cap_e, res = cap_e[..., keep], None if res is None else res[..., keep]
+    ctrl = None if ctrl is None else ctrl[..., keep]
+    fc = cap_e if res is None else res  # (member, lead, level)
     cap = fc.mean(0)  # the residual is NaN below RES_BOTTOM in every member
     t_obs = obs.index[(obs.index < init.normalize()) & (obs.index >= init.normalize() - pd.Timedelta(days=TAIL_DAYS))] if obs is not None else []  # fmt: skip
     xo = np.asarray((pd.DatetimeIndex(t_obs) - init.normalize()).days, float)
@@ -343,7 +367,7 @@ def column(model, init, valid, levels, series, res, ctrl, obs, out: Path) -> Non
     what = "descent" if res is None else "residual descent"
     fig.text(0.07, 0.975, f"{lab} · {what} over the polar cap (65–90°N), observed and forecast · run {init:%d %b %Y %HZ}",
              fontsize=15, fontweight="bold", color=INK, va="top")  # fmt: skip
-    n = series.shape[0]
+    n = cap_e.shape[0]
     kind = (
         "Log-pressure vertical velocity, downward positive (red: the air sinks and warms by compression). Eulerian "
         "motion: while waves carry heat poleward the cap-mean air rises, offsetting part of their warming."
@@ -358,6 +382,7 @@ def column(model, init, valid, levels, series, res, ctrl, obs, out: Path) -> Non
     cf = ax.contourf(X, np.array(levels, float), Z.T, levels=RATE, cmap="RdBu_r", extend="both")
     ax.axvline(0, color=INK, lw=1.4)
     FD._paxis(ax, levels)
+    ax.set_ylim(max(levels), min(levels))
     ax.set_xlim(X[0], X[-1])
     ticks = list(range(int(np.ceil(X[0] / 7)) * 7, int(X[-1]) + 1, 7))
     labels = [f"{init.normalize() + pd.Timedelta(days=t):%d %b}" for t in ticks]
@@ -382,7 +407,7 @@ def column(model, init, valid, levels, series, res, ctrl, obs, out: Path) -> Non
             xf, np.nanmean(f, 0), color=col, lw=2.0, ls=ls, label=f"{name}, {'run' if n == 1 else 'members’ mean'}"
         )
         if ctrl is not None:
-            c = layer(ctrl[:, 1:, :, :1], levels, top, bot)[0, :, 0]
+            c = layer(ctrl[:, 1:, :, None], levels, top, bot)[0, :, 0]
             ax2.plot(
                 xf,
                 c,
@@ -393,7 +418,7 @@ def column(model, init, valid, levels, series, res, ctrl, obs, out: Path) -> Non
             )
     if res is not None:  # the Eulerian 10-100 hPa mean beside it: the eddies' term is the gap
         top, bot = LAYERS["strat"]
-        e = layer(series[:, 1:, :, :1], levels, top, bot)[..., 0]
+        e = layer(cap_e[:, 1:, :, None], levels, top, bot)[..., 0]
         ax2.plot(
             xf, np.nanmean(e, 0), color="#8a8680", lw=1.4, ls=":", label=f"{top}–{bot} hPa, Eulerian, members’ mean"
         )
@@ -416,9 +441,11 @@ def column(model, init, valid, levels, series, res, ctrl, obs, out: Path) -> Non
     how = (
         "−(H/p) ω, H = 7 km, from each model's ω averaged onto 1.5° cells."
         if res is None
-        else f"ω* over the cap = its Eulerian mean less cos φ0 [v′θ′]/(∂θ/∂p) / (a (1 − sin φ0)) on its edge, φ0 = {PHI0}°N."
+        else f"ω* over the cap = its Eulerian mean less cos φ0 [v′θ′]/(∂θ/∂p) / (a (1 − sin φ0)) on its edge, φ0 = {PHI0}°N"
+        + ("; GEFS's Eulerian mean from continuity of its edge wind." if model == "gefs" else ".")
     )
-    fig.text(0.07, 0.012, f"{how} {CREDIT[model]} · GEOS FP (NASA GMAO).", fontsize=8.2, color=MUTED)
+    fig.text(0.07, 0.008, textwrap.fill(f"{how} {CREDIT[model]} · GEOS FP (NASA GMAO).", 200), fontsize=8.2,
+             color=MUTED, linespacing=1.3)  # fmt: skip
     fig.savefig(out, dpi=120, facecolor="white", pil_kwargs={"quality": 88, "method": 6})
     plt.close(fig)
     print(f"  wrote {out}", flush=True)
@@ -567,8 +594,10 @@ def run(model: str, date: str, hh: str, figures: bool = True) -> int:
         print(f"::warning::{model} {date} {hh}Z: nothing on the mirror to draw", flush=True)
         return 1
     for m, red in got.items():
-        lv, x = LEVELS_OF[m], red["series"]
-        cap = {key: layer(x[..., :1], lv, *LAYERS[key])[..., 0] for key in LAYERS}  # (member, lead)
+        lv = LEVELS_OF[m]
+        red.setdefault("cap", red["series"][..., 0] if "series" in red else None)  # (member, lead, level)
+        x = red["cap"]
+        cap = {key: layer(x[..., None], lv, *LAYERS[key])[..., 0] for key in LAYERS}  # (member, lead)
         if "res" in red:
             cap["res"] = layer(red["res"][..., None], lv, *LAYERS["strat"])[..., 0]
         print(f"  {RR.MODEL_LABEL[m]}: {x.shape[0]} members; cap 10-100 hPa descent {np.nanmean(cap['strat'][:, 1:6]):+.2f} "
@@ -576,16 +605,18 @@ def run(model: str, date: str, hh: str, figures: bool = True) -> int:
               + (f"; residual {np.nanmean(cap['res'][:, 1:6]):+.2f} / {np.nanmean(cap['res'][:, 6:]):+.2f}" if "res" in cap else ""),
               flush=True)  # fmt: skip
         PC.record("descent", m, init, cap, valid)
-        if figures:
+        if figures and "mean" in red:
             maps(m, init, valid, lv, red)
     if not figures:
         return 0
     for m in (e for e in ENSEMBLES if e in got):
-        lv, c = LEVELS_OF[m], got.get(CONTROL.get(m))
-        ctrl = c["series"] if c else None
+        lv, c, red = LEVELS_OF[m], got.get(CONTROL.get(m)), got[m]
         obs = observed(lv)
-        column(m, init, valid, lv, got[m]["series"], got[m].get("res"), ctrl, obs, OUT / f"descent_{m}.webp")
-        sectors(m, init, valid, lv, got[m]["series"], ctrl, obs, OUT / f"descent_sectors_{m}.webp")
+        column(m, init, valid, lv, red["cap"], red.get("res"), c["cap"] if c else None, obs, OUT / f"descent_{m}.webp")
+        if "series" in red:
+            sectors(
+                m, init, valid, lv, red["series"], c["series"] if c else None, obs, OUT / f"descent_sectors_{m}.webp"
+            )
     return 0
 
 

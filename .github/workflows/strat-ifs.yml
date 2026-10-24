@@ -15,7 +15,7 @@ name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, wave
 #   polarcap.py           -> assets/sst/{polarcap,telecon,vshape}_ifs.webp + anim/{polarcap,t10}_ifs/, anim/z100_{ifs,hres}/
 #                            + data/runs/{polarcap,telecon,vshape}_{ifs,hres}.json: polar cap, AO/NAO, 100 hPa height,
 #                            10 hPa temperature and the vortex's shape (the shared gh, msl and t10 files)
-#   polar_descent.py      -> assets/sst/descent{,_sectors}_{ifs,gefs}.webp + anim/descent_{ifs,hres,gefs}/: descent over
+#   polar_descent.py      -> assets/sst/descent{,_sectors}_ifs.webp, descent_gefs.webp + anim/descent_{ifs,hres}/: descent over
 #                            the polar cap (the shared w files; GEFS from strat_ens.py part "omega")
 #   (hres = the IFS control in file names, as in the code; the pages say "IFS control")
 #   ssw_imprint.py        -> assets/sst/ssw_imprint.webp + data/ssw_imprint{,_history,_runs}.json: the downward
@@ -590,8 +590,7 @@ jobs:
                      assets/sst/polarcap_${m}.webp assets/sst/anim/polarcap_${m} assets/sst/anim/polarcap_${m}_manifest.json \
                      assets/sst/telecon_${m}.webp assets/sst/anim/z100_${m} assets/sst/anim/z100_${m}_manifest.json \
                      assets/sst/vshape_${m}.webp assets/sst/anim/t10_${m} assets/sst/anim/t10_${m}_manifest.json \
-                     assets/sst/descent_${m}.webp assets/sst/descent_sectors_${m}.webp \
-                     assets/sst/anim/descent_${m} assets/sst/anim/descent_${m}_manifest.json \
+                     assets/sst/descent_${m}.webp \
                      assets/sst/data/runs/{vortex,heatflux,drip,waves,polarcap,telecon,vshape,descent}_${m}.json \
                      assets/sst/runs/{heatflux,drip,waves,polarcap,telecon,vshape,descent}_${m}.webp; do
               [ -e "$p" ] && [ "$p" -nt /tmp/t0 ] && echo "$p" >> /tmp/naens.list
@@ -846,11 +845,11 @@ jobs:
           done
 
       # Frames to the frame store / frames branch (lease-guarded; only the directories that rendered are swapped).
-      # PRUNE: the two-hemisphere vortex-wind loops (idempotent; also in retired_frames.txt).
+      # PRUNE: the two-hemisphere vortex-wind loops and the GEFS descent maps (idempotent; also in retired_frames.txt).
       - name: Publish loop frames
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PRUNE: assets/sst/anim/vortex_ifs_10 assets/sst/anim/vortex_ifs_100
+          PRUNE: assets/sst/anim/vortex_ifs_10 assets/sst/anim/vortex_ifs_100 assets/sst/anim/descent_gefs
         run: |
           dirs=""
           for m in ifs hres gefs geps; do
@@ -860,7 +859,7 @@ jobs:
           dirs="$dirs assets/sst/anim/polarcap_ifs assets/sst/anim/polarcap_gefs assets/sst/anim/polarcap_geps"
           for m in ifs hres gefs geps; do dirs="$dirs assets/sst/anim/z100_${m}"; done
           for m in ifs gefs geps; do dirs="$dirs assets/sst/anim/t10_${m}"; done
-          for m in ifs hres gefs; do dirs="$dirs assets/sst/anim/descent_${m}"; done
+          for m in ifs hres; do dirs="$dirs assets/sst/anim/descent_${m}"; done
           scripts/lib/publish_frames_ci.sh $dirs assets/sst/anim/pacjet_ifs
 
       # Stills, data and manifests to main. Never rebase: snapshot, reset to a fresh
@@ -889,7 +888,7 @@ jobs:
                    assets/sst/anim/t10_ifs_manifest.json assets/sst/anim/t10_gefs_manifest.json \
                    assets/sst/anim/t10_geps_manifest.json \
                    assets/sst/descent_ifs.webp assets/sst/descent_sectors_ifs.webp assets/sst/descent_gefs.webp \
-                   assets/sst/descent_sectors_gefs.webp assets/sst/anim/descent_{ifs,hres,gefs}_manifest.json \
+                   assets/sst/anim/descent_{ifs,hres}_manifest.json \
                    assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
                    assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_ifs.json \
                    assets/sst/ssw_imprint.webp assets/sst/data/ssw_imprint.json assets/sst/data/ssw_imprint_history.json \
