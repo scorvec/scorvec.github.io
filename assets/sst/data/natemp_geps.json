@@ -1,0 +1,217 @@
+{
+ "generated": "2026-10-24T17:37Z",
+ "init": "2026-10-24T12:00Z",
+ "model": "GEPS control and 20 perturbed members, 0.5\u00b0 (MSC Datamart)",
+ "members": 21,
+ "days": [
+  "2026-10-25",
+  "2026-10-26",
+  "2026-10-27",
+  "2026-10-28",
+  "2026-10-29",
+  "2026-10-30",
+  "2026-10-31",
+  "2026-11-01",
+  "2026-11-02",
+  "2026-11-03",
+  "2026-11-04",
+  "2026-11-05",
+  "2026-11-06",
+  "2026-11-07"
+ ],
+ "agree": 0.7619,
+ "fdr_q": 0.1,
+ "previous_run": "2026-10-24T00:00Z",
+ "change_frames": false,
+ "shares_over": "the map's grid points",
+ "anom": [
+  {
+   "frame": "P1",
+   "first": "2026-10-25",
+   "last": "2026-10-29",
+   "warm": 0.563,
+   "cold": 0.342,
+   "neutral": 0.095,
+   "max_f": 21.7,
+   "min_f": -33.4
+  },
+  {
+   "frame": "P2",
+   "first": "2026-10-30",
+   "last": "2026-11-03",
+   "warm": 0.586,
+   "cold": 0.213,
+   "neutral": 0.201,
+   "max_f": 15.0,
+   "min_f": -36.5
+  },
+  {
+   "frame": "P3",
+   "first": "2026-11-04",
+   "last": "2026-11-07",
+   "warm": 0.53,
+   "cold": 0.174,
+   "neutral": 0.296,
+   "max_f": 17.4,
+   "min_f": -34.3
+  },
+  {
+   "frame": "D01",
+   "first": "2026-10-25",
+   "last": "2026-10-25",
+   "warm": 0.568,
+   "cold": 0.338,
+   "neutral": 0.094,
+   "max_f": 22.8,
+   "min_f": -52.9
+  },
+  {
+   "frame": "D02",
+   "first": "2026-10-26",
+   "last": "2026-10-26",
+   "warm": 0.554,
+   "cold": 0.341,
+   "neutral": 0.105,
+   "max_f": 23.0,
+   "min_f": -45.7
+  },
+  {
+   "frame": "D03",
+   "first": "2026-10-27",
+   "last": "2026-10-27",
+   "warm": 0.52,
+   "cold": 0.366,
+   "neutral": 0.114,
+   "max_f": 20.4,
+   "min_f": -36.0
+  },
+  {
+   "frame": "D04",
+   "first": "2026-10-28",
+   "last": "2026-10-28",
+   "warm": 0.548,
+   "cold": 0.345,
+   "neutral": 0.107,
+   "max_f": 22.7,
+   "min_f": -34.9
+  },
+  {
+   "frame": "D05",
+   "first": "2026-10-29",
+   "last": "2026-10-29",
+   "warm": 0.546,
+   "cold": 0.309,
+   "neutral": 0.144,
+   "max_f": 22.9,
+   "min_f": -33.2
+  },
+  {
+   "frame": "D06",
+   "first": "2026-10-30",
+   "last": "2026-10-30",
+   "warm": 0.553,
+   "cold": 0.282,
+   "neutral": 0.165,
+   "max_f": 17.9,
+   "min_f": -35.6
+  },
+  {
+   "frame": "D07",
+   "first": "2026-10-31",
+   "last": "2026-10-31",
+   "warm": 0.527,
+   "cold": 0.233,
+   "neutral": 0.24,
+   "max_f": 16.6,
+   "min_f": -38.6
+  },
+  {
+   "frame": "D08",
+   "first": "2026-11-01",
+   "last": "2026-11-01",
+   "warm": 0.509,
+   "cold": 0.192,
+   "neutral": 0.299,
+   "max_f": 15.7,
+   "min_f": -38.9
+  },
+  {
+   "frame": "D09",
+   "first": "2026-11-02",
+   "last": "2026-11-02",
+   "warm": 0.509,
+   "cold": 0.18,
+   "neutral": 0.311,
+   "max_f": 14.8,
+   "min_f": -36.3
+  },
+  {
+   "frame": "D10",
+   "first": "2026-11-03",
+   "last": "2026-11-03",
+   "warm": 0.501,
+   "cold": 0.183,
+   "neutral": 0.316,
+   "max_f": 14.6,
+   "min_f": -35.7
+  },
+  {
+   "frame": "D11",
+   "first": "2026-11-04",
+   "last": "2026-11-04",
+   "warm": 0.49,
+   "cold": 0.175,
+   "neutral": 0.335,
+   "max_f": 16.2,
+   "min_f": -33.4
+  },
+  {
+   "frame": "D12",
+   "first": "2026-11-05",
+   "last": "2026-11-05",
+   "warm": 0.476,
+   "cold": 0.17,
+   "neutral": 0.354,
+   "max_f": 18.5,
+   "min_f": -34.4
+  },
+  {
+   "frame": "D13",
+   "first": "2026-11-06",
+   "last": "2026-11-06",
+   "warm": 0.464,
+   "cold": 0.156,
+   "neutral": 0.38,
+   "max_f": 18.1,
+   "min_f": -34.6
+  },
+  {
+   "frame": "D14",
+   "first": "2026-11-07",
+   "last": "2026-11-07",
+   "warm": 0.459,
+   "cold": 0.158,
+   "neutral": 0.383,
+   "max_f": 17.5,
+   "min_f": -34.7
+  }
+ ],
+ "change": [],
+ "fetch": {
+  "bytes": 221460203,
+  "messages": 1176,
+  "seconds": 167
+ },
+ "normals": {
+  "source": "ERA5-Land monthly means by hour of day over land; ERA5 (0.25 deg, sea nodes) over the sea",
+  "years": "1991-2020",
+  "hours": "00, 06, 12, 18 UTC",
+  "curve": "mean + 3 annual harmonics, month averages fitted to the monthly normals, common year",
+  "resid_rms_K": {
+   "median": 0.108,
+   "p99": 0.621,
+   "max": 0.931
+  },
+  "built": "2026-10-24T02:23Z"
+ }
+}
