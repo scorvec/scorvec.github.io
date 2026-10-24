@@ -44,6 +44,7 @@ Outputs, model m:
 
     python polarcap.py --model ifs --date 20261024 --time 00
     python polarcap.py --combined
+    python polarcap.py --model gefs --date 20261010 --time 12 --record-only     # the records only (strat-backfill.yml)
 """
 
 from __future__ import annotations
@@ -681,7 +682,7 @@ CAP_TITLE = "the troposphere under the polar vortex"
 TELE_TITLE = "the Arctic and North Atlantic Oscillations"
 
 
-def run(model: str, date: str, hh: str) -> int:
+def run(model: str, date: str, hh: str, figures: bool = True) -> int:
     init = pd.Timestamp(f"{date} {hh}:00")
     N = Normals()
     load = {"aifs": load_aifs, "ifs": load_ifs}.get(model) or (lambda d, h: load_strat_ens(model, d, h))
@@ -704,7 +705,7 @@ def run(model: str, date: str, hh: str) -> int:
               flush=True)  # fmt: skip
         record("polarcap", m, init, cp, valid)
         record("telecon", m, init, tc, valid)
-        if "z100" in fields:
+        if "z100" in fields and figures:
             z100_maps(m, init, fields["z100"], A["z100"])
         if "z10" in fields:
             shapes[m] = vs = VS.shape(fields["z10"], CLAT, CLON)
@@ -712,12 +713,14 @@ def run(model: str, date: str, hh: str) -> int:
             print(f"  {RR.MODEL_LABEL[m]}: vortex split in {'/'.join(share)} % of members on days 0/5/10/15, on any "
                   f"day 1-15 in {VS.any_split(vs):.0%}", flush=True)  # fmt: skip
             record("vshape", m, init, VS.series(vs), valid, {"anysplit": round(VS.any_split(vs), 3)})
-            if "t10" in fields:
+            if "t10" in fields and figures:
                 t10_maps(m, init, A["t10"], fields["z10"], vs)
         if m in CONTROL.values():
             ctrls[m] = {**{k: v[0] for k, v in cp.items()}, **{k: v[0] for k, v in tc.items()}}
         else:
             done[m] = (fields, A, cp, tc, valid)
+    if not figures:
+        return 0
     for m, (fields, A, cp, tc, valid) in done.items():
         c = ctrls.get(CONTROL.get(m))
         plumes(m, init, valid, cp, CAP_PANELS, CAP_TITLE, c, OUT / f"polarcap_{m}.webp")
@@ -736,6 +739,7 @@ def main() -> int:
     ap.add_argument("--date")
     ap.add_argument("--time")
     ap.add_argument("--combined", action="store_true", help="every model's newest run from the records")
+    ap.add_argument("--record-only", action="store_true", help="the run into the records, no figures (a backfill)")
     a = ap.parse_args()
     if a.combined:
         combined("polarcap", CAP_PANELS, CAP_TITLE, OUT / "polarcap_models.webp")
@@ -743,7 +747,7 @@ def main() -> int:
         return 0
     if not (a.model and a.date and a.time):
         ap.error("--model, --date and --time are required (or --combined)")
-    return run(a.model, a.date, f"{int(a.time):02d}")
+    return run(a.model, a.date, f"{int(a.time):02d}", figures=not a.record_only)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,223 @@
+name: Stratosphere run records, backfill (past runs of every product and model)
+
+# Adds past runs to the run-to-run records (scripts/strat/run_record.py) that strat.yml and strat-ifs.yml extend every
+# cycle, for every record product: the polar vortex (nh_vortex.py --record-only), the heat flux and the dripping paint
+# (their scripts, then run_record.py capture), the planetary waves (wave_maps.py --record-only), and the polar cap, the
+# AO/NAO and the vortex's shape (polarcap.py --record-only). One job per model and day, newest day first:
+#   aifs  AIFS-ENS 00, 06, 12 and 18Z, and its control (aifsc)
+#   ifs   IFS-ENS 00 and 12Z, and the IFS control (hres)
+#   gefs  GEFS 00 and 12Z
+# GEPS cannot be backfilled: the MSC Datamart keeps only the last day or two of its files. ECMWF open data from the
+# Google Cloud mirror only, GEFS byte-ranged from NOAA's S3 bucket; ~40 GB of downloads a day of runs, one run's files
+# on disk at a time. The day jobs commit nothing: each hands its record files to the last job, which merges them into
+# main's (run_record.py merge: a run main already holds stays unless the backfill's has more fields) once no
+# stratosphere workflow is mid-run (those lay their own record files over main's when they commit), redraws the
+# run-to-run figures and dispatches strat-combine.yml.
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: first day of runs (YYYYMMDD)
+        required: true
+      end:
+        description: last day of runs (YYYYMMDD; blank = yesterday)
+        default: ''
+      groups:
+        description: the model groups (aifs, ifs, gefs)
+        default: 'aifs,ifs,gefs'
+      parallel:
+        description: day jobs at once (the account's other workflows share the runners)
+        default: '6'
+
+permissions:
+  contents: write
+  actions: write  # the wait on the stratosphere workflows, and the strat-combine dispatch
+
+concurrency:
+  group: strat-backfill
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  ECMWF_SOURCES: google
+  ECMWF_MULTISOURCE: "0"
+  ECMWF_RPS_GOOGLE: "60"
+  ECMWF_RPS: "60"
+  ECMWF_RANGE_GAP_MB: "0.5"
+  MPLBACKEND: Agg
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      days: ${{ steps.p.outputs.days }}
+    steps:
+      - id: p
+        env:
+          START: ${{ inputs.start }}
+          END: ${{ inputs.end }}
+          GROUPS: ${{ inputs.groups }}
+        run: |
+          set -euo pipefail
+          d=${END:-$(date -u -d yesterday +%Y%m%d)}
+          rows=()
+          while [ "$d" -ge "$START" ]; do
+            for g in ${GROUPS//,/ }; do rows+=("{\"group\":\"$g\",\"day\":\"$d\"}"); done
+            d=$(date -u -d "$d - 1 day" +%Y%m%d)
+          done
+          [ ${#rows[@]} -gt 0 ] || { echo "::error::no days between $START and the end"; exit 1; }
+          echo "days=[$(IFS=,; echo "${rows[*]}")]" >> "$GITHUB_OUTPUT"
+          echo "${#rows[@]} day jobs"
+
+  day:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ fromJSON(inputs.parallel) }}
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.days) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: Dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+          pip install -r scripts/mjo/requirements-mjo.txt
+      # one IFS run's shared files are ~9 GB
+      - name: Free disk
+        run: |
+          free=$(df -BG --output=avail / | tail -1 | tr -dc 0-9)
+          if [ "${free:-0}" -lt 25 ]; then
+            sudo rm -rf /usr/share/dotnet /usr/local/lib/android /usr/local/.ghcup ${AGENT_TOOLSDIRECTORY:+"$AGENT_TOOLSDIRECTORY/CodeQL"} || true
+          fi
+          df -h / | tail -1
+
+      - name: The runs of ${{ matrix.group }}, ${{ matrix.day }}
+        env:
+          G: ${{ matrix.group }}
+          D: ${{ matrix.day }}
+        run: |
+          S=scripts/strat
+          rec() { echo "::group::$*"; "$@" || echo "::warning::$G $D$T: $(basename "$2") ${*:3:2} failed"; echo "::endgroup::"; }
+          hours="00 12"; [ "$G" = "aifs" ] && hours="00 06 12 18"
+          for T in $hours; do
+            start=$(date +%s)
+            case $G in
+              aifs)
+                rec python $S/wave_maps.py --date "$D" --time "$T" --record-only
+                rec python $S/wave_maps.py --model aifsc --date "$D" --time "$T" --record-only
+                rec python $S/polarcap.py --model aifs --date "$D" --time "$T" --record-only
+                rec python $S/heatflux100.py --date "$D" --time "$T" --out-dir assets/sst
+                rec python $S/forecast_drip.py --model aifs --date "$D" --time "$T" --out-dir assets/sst
+                rec python $S/forecast_drip.py --model aifsc --date "$D" --time "$T" --out-dir assets/sst
+                rec python $S/run_record.py capture heatflux --model aifs
+                rec python $S/run_record.py capture drip --model aifs
+                rec python $S/run_record.py capture drip --model aifsc
+                rec python $S/nh_vortex.py --record-only --models aifs,aifsc --cycle "$D$T"
+                ;;
+              ifs)
+                rec python $S/ifs_ens.py fetch --date "$D" --time "$T"
+                rec python $S/heatflux100_ext.py --model ifs --date "$D" --time "$T" --out-dir assets/sst
+                rec python $S/forecast_drip.py --model ifs --date "$D" --time "$T" --out-dir assets/sst
+                rec python $S/forecast_drip.py --model hres --date "$D" --time "$T" --out-dir assets/sst
+                rec python $S/run_record.py capture heatflux --model ifs
+                rec python $S/run_record.py capture drip --model ifs
+                rec python $S/run_record.py capture drip --model hres
+                rec python $S/wave_maps.py --model ifs --date "$D" --time "$T" --record-only
+                rec python $S/wave_maps.py --model hres --date "$D" --time "$T" --record-only
+                rec python $S/polarcap.py --model ifs --date "$D" --time "$T" --record-only
+                rec python $S/nh_vortex.py --record-only --models ifs,hres --cycle "$D$T"
+                ;;
+              gefs)
+                rec python $S/strat_ens.py fetch --model gefs --date "$D" --time "$T" --parts vortex,drip,flux,waves,polarcap
+                rec python $S/heatflux100_ext.py --model gefs --days 15 --date "$D" --time "$T" --out-dir assets/sst
+                rec python $S/forecast_drip.py --model gefs --days 15 --date "$D" --time "$T" --out-dir assets/sst
+                rec python $S/run_record.py capture heatflux --model gefs
+                rec python $S/run_record.py capture drip --model gefs
+                rec python $S/wave_maps.py --model gefs --date "$D" --time "$T" --record-only
+                rec python $S/polarcap.py --model gefs --date "$D" --time "$T" --record-only
+                rec python $S/nh_vortex.py --record-only --models gefs --cycle "$D$T"
+                ;;
+            esac
+            echo "$G $D ${T}Z: $(( $(date +%s) - start )) s"
+            rm -rf scripts/ecmwf/cache/* $S/data/vortex_dl $S/data/strat_ens  # one run's files at a time
+          done
+
+      - name: Hand the records on
+        uses: actions/upload-artifact@v7
+        with:
+          name: runs-${{ matrix.group }}-${{ matrix.day }}
+          path: assets/sst/data/runs/*.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  merge:
+    needs: day
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Dependencies
+        run: pip install --quiet numpy pandas matplotlib==3.10.9
+      - name: Collect the day jobs' records
+        uses: actions/download-artifact@v7
+        with:
+          pattern: runs-*
+          path: /tmp/runs
+
+      # A stratosphere workflow mid-run lays the record files it read at its start over main's when it commits, which
+      # would drop the runs merged in meanwhile: wait until none is running (up to two hours).
+      - name: Wait for the stratosphere workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for i in $(seq 1 60); do
+            busy=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?per_page=60" --jq '[.workflow_runs[]
+                   | select(.status == "in_progress" or .status == "queued")
+                   | select(.path | test("(^|/)(strat|strat-ifs|upperstrat)\\.yml$"))] | length')
+            [ "$busy" = "0" ] && { echo "no stratosphere workflow running"; exit 0; }
+            echo "  $busy stratosphere run(s) in progress; waiting"; sleep 120
+          done
+          echo "::warning::still busy after two hours; merging anyway"
+
+      - name: Merge, redraw, commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            for d in /tmp/runs/*/; do python scripts/strat/run_record.py merge "$d" > /dev/null; done
+            for f in $(git status --porcelain -- assets/sst/data/runs | awk '{print $2}'); do   # the records that gained runs
+              b=$(basename "$f" .json); p=${b%_*}; m=${b##*_}
+              python scripts/strat/run_record.py render "$p" --model "$m" > /dev/null || echo "::warning::$b figure failed"
+            done
+            git add assets/sst/data/runs assets/sst/runs
+            if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+            git commit -q -m "stratosphere run records: backfill ${{ inputs.start }}-${{ inputs.end || 'yesterday' }}"
+            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; break; fi
+            echo "push $i rejected; resyncing"; sleep 5
+            [ "$i" = 5 ] && { echo "push failed after retries"; exit 1; }
+          done
+          git show --stat HEAD | tail -5
+
+      - name: Redraw the every-model figures
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run strat-combine.yml --repo "$GITHUB_REPOSITORY" --ref main
