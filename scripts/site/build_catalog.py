@@ -137,6 +137,7 @@ PAGES = {
             "vshape": dict(models=["AIFS-ENS", "IFS-ENS", "GEFS", "GEPS", "MERRA-2"]),
             "verify": dict(models=["AIFS-ENS", "IFS-ENS", "GEFS", "GEPS", "GEOS FP"]),
             "pdescent": dict(models=["AIFS-ENS", "IFS-ENS", "GEFS", "GEOS FP"]),
+            "fluxrec": dict(models=["AIFS-ENS", "IFS-ENS", "GEFS", "GEPS", "ERA5"]),
         },
     ),
     # circulation.html's groups follow the theme-first menus: its days 1-15 maps under Mid-latitude weather, the

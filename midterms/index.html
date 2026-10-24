@@ -398,8 +398,9 @@ const mg=(v,pt)=>v==null?'–':(v>=0?(pt&&pt!=='D'?'I+':'D+'):'R+')+Math.abs(v).
 const lean=v=>v==null?'':Math.abs(v)<0.05?'Even':(v>0?'D+':'R+')+Math.abs(v).toFixed(1);   // presidential margin against the nation's, points
 const pc=p=>`<td class="n pd" style="color:${p>=.5?'#0b3d91':'#a32215'}">${pct(p)}</td>`;
 const who=s=>/^none|new seat/i.test(s.member||'')||!s.member?'New seat':s.open?`Open seat (${esc(s.member)} not running)`:esc(s.member);   // markup
+const hInd=s=>s.challenger_party&&s.challenger_party!=='D';   // House seat whose challenger is an independent (AK-1)
 const rcvTxt=r=>r.rcv?`<p class="mt-note">Ranked-choice: ${esc(r.rcv)} · <a href="about.html#rcv">how</a></p>`:'';
-const pollTxt=r=>r.n_polls?`${esc(r.n_polls)} poll${r.n_polls>1?'s':''}, average ${mg(r.poll_margin,r.dem_party)}`:'no polls';
+const pollTxt=r=>r.n_polls?`${esc(r.n_polls)} poll${r.n_polls>1?'s':''}, average ${mg(r.poll_margin,r.dem_party||r.challenger_party)}`:'no polls';
 getJSON('data/model.json').then(j=>{D=j;init();if(RH)histReady()}).catch(e=>{console.error(e);$('#upd').textContent='The forecast could not be loaded. Reload the page to try again.'});
 let RH=null;fetch('data/race_history.json').then(r=>r.ok?r.json():null).then(j=>{RH=j;if(D&&RH)histReady()}).catch(()=>{});
 
@@ -432,12 +433,13 @@ function pick(sec,key){SEL[sec]=key;$$(sec==='house'?'path.t':`#${sec==='senate'
 
 function panel(sec){const el=$('#race-'+sec);const key=SEL[sec];if(!key)return;
  if(sec==='house'){const s=D.house.seats.find(x=>x.seat===key);if(!s)return;const p=s.p[gi],m=s.mu+(E-D.house.E_now);
-  el.innerHTML=`<h3>${esc(s.seat)}</h3><p class="who">${who(s)}${s.open?'':(s.inc>0?' · Democratic incumbent':s.inc<0?' · Republican incumbent':'')}</p>${bar(p,'Democrat','Republican')}
-  <dl><dt>Expected margin</dt><dd>${mg(m)}</dd><dt>Partisan lean</dt><dd>${lean(s.lean)}</dd><dt>Polls</dt><dd>${pollTxt(s)}${s.n_polls?` · <a href="polls.html#house:${esc(s.seat)}">every poll for this race</a>`:''}</dd>${s.rating!=null?`<dt>Race raters</dt><dd>${pct(s.rating)} Democratic</dd>`:''}${s.money_d!=null?`<dt>Raised by June 30</dt><dd>D $${(s.money_d/1e6).toFixed(1)}M · R $${(s.money_r/1e6).toFixed(1)}M</dd>`:''}</dl>${rcvTxt(s)}`;trend(el,'house',s.seat,'Democrat');return}
+  const ind=hInd(s);
+  el.innerHTML=`<h3>${esc(s.seat)}</h3><p class="who">${who(s)}${s.open?'':(s.inc>0?' · Democratic incumbent':s.inc<0?' · Republican incumbent':'')}${ind?` · challenger ${esc(s.challenger)} (I)`:''}</p>${bar(p,ind?'Independent':'Democrat','Republican')}
+  <dl><dt>Expected margin</dt><dd>${mg(m,s.challenger_party)}</dd><dt>Partisan lean</dt><dd>${lean(s.lean)}</dd><dt>Polls</dt><dd>${pollTxt(s)}${s.n_polls?` · <a href="polls.html#house:${esc(s.seat)}">every poll for this race</a>`:''}</dd>${s.rating!=null?`<dt>Race raters</dt><dd>${pct(s.rating)} ${ind?'against the Republican':'Democratic'}</dd>`:''}${s.money_d!=null&&!ind?`<dt>Raised by June 30</dt><dd>D $${(s.money_d/1e6).toFixed(1)}M · R $${(s.money_r/1e6).toFixed(1)}M</dd>`:''}</dl>${rcvTxt(s)}`;trend(el,'house',s.seat,ind?'Independent':'Democrat');return}
  const S=sec==='senate'?D.senate:D.governor,[st,sp]=String(key).split('|');const r=S.races.find(x=>x.state===st&&(!!x.special)===(sp==='sp'))||S.races.find(x=>x.state===st);if(!r)return;
  const slope=sec==='senate'?S.nat_slope:S.slope,m=r.mu+(E-S.E_now)*slope,p=r.p[gi],ind=r.dem_party&&r.dem_party!=='D';
  el.innerHTML=`<h3>${esc(NAMES[r.state]||r.state)} ${sec==='senate'?'Senate':'Governor'}${r.special?' (special)':''}</h3><p class="who">${esc(r.dem||'?')} (${esc(r.dem_party||'D')}) v ${esc(r.rep||'?')} (R)${r.inc?'':' · open seat'}</p>${bar(p,ind?'Independent':'Democrat','Republican')}
-  <dl><dt>Expected margin</dt><dd>${mg(m,r.dem_party)}</dd>${r.lean!=null?`<dt>Partisan lean</dt><dd>${lean(r.lean)}</dd>`:''}<dt>Polls</dt><dd>${pollTxt(r)}${r.n_polls?` · <a href="polls.html#${sec==='senate'?'senate':'governor'}:${esc(r.state)}">every poll for this race</a>`:''}</dd>${r.cook?`<dt>Cook rating</dt><dd>${esc(r.cook)}</dd>`:''}</dl>${r.prior_note?`<p class="mt-note">${esc(r.prior_note)}</p>`:''}${rcvTxt(r)}`;trend(el,sec,r.state+(r.special?'|sp':''),ind?'Independent':'Democrat')}
+  <dl><dt>Expected margin</dt><dd>${mg(m,r.dem_party)}</dd>${r.lean!=null?`<dt>Partisan lean</dt><dd>${lean(r.lean)}</dd>`:''}<dt>Polls</dt><dd>${pollTxt(r)}${r.n_polls?` · <a href="polls.html#${sec==='senate'?'senate':'governor'}:${esc(r.state)}">every poll for this race</a>`:''}</dd>${r.cook?`<dt>Cook rating</dt><dd>${esc(r.cook)}</dd>`:''}</dl>${r.prior_note?`<p class="mt-note">${esc(r.prior_note)}</p>`:''}${r.majority?`<p class="mt-note">Nobody wins a majority: ${pct(r.majority.p[gi])}; ${esc(r.majority.rule)} · <a href="about.html#majority">how</a></p>`:''}${rcvTxt(r)}`;trend(el,sec,r.state+(r.special?'|sp':''),ind?'Independent':'Democrat')}
 // Chance of winning over time (race_history.json, midterms/race_history.py + backfill.py): the CURRENT model reconstructed
 // as of each past date with only the polls released by then (weekly to June, daily after), then each day's own run; the
 // faint dashed line is what the board showed at the time (since 16 Sep). Independent of the slider. Days that modelled a
@@ -509,7 +511,7 @@ function buildMaps(){getJSON('data/districts_2026.topo.json').then(topo=>{
  const proj=d3.geoAlbersUsa().fitSize([960,600],fc),path=d3.geoPath(proj),bySeat=Object.fromEntries(H.seats.map(s=>[s.seat,s]));
  const svg=d3.select('#hmapsvg'),g=svg.append('g');
  g.selectAll('path.t').data(fc.features).join('path').attr('class',f=>'t'+((bySeat[f.properties.seat]||{}).open?' open':'')).attr('d',path).attr('data-seat',f=>f.properties.seat)
-  .on('mousemove',(e,f)=>{const s=bySeat[f.properties.seat];if(s)tipAt(e,`<b>${esc(s.seat)}</b> ${who(s)}<br>Democrat ${pct(s.p[gi])}`)}).on('mouseleave',()=>{$('#tip').style.display='none'})
+  .on('mousemove',(e,f)=>{const s=bySeat[f.properties.seat];if(s)tipAt(e,`<b>${esc(s.seat)}</b> ${who(s)}<br>${hInd(s)?`${esc(s.challenger)} (I)`:'Democrat'} ${pct(s.p[gi])}`)}).on('mouseleave',()=>{$('#tip').style.display='none'})
   .on('click',(e,f)=>pick('house',f.properties.seat));
  const st=f=>f.properties.seat.split('-')[0];
  g.append('path').attr('class','stb').attr('d',path(topojson.mesh(topo,obj,(a,b)=>a===b||st(a)!==st(b))));
@@ -591,10 +593,10 @@ function render(){const H=D.house;E=+$('#E').value;gi=H.grid.reduce((b,x,i)=>Mat
  $$('path.t').forEach(t=>{const s=H.seats.find(x=>x.seat===t.dataset.seat);if(s)t.style.fill=col(s.p[gi])});
  $$('path.sp').forEach(p=>{const sec=D[p.dataset.sec];if(!sec)return;const r=sec.races.find(x=>x.state===p.dataset.st&&!x.special)||sec.races.find(x=>x.state===p.dataset.st);if(r)p.style.fill=col(r.p[gi])});
  $('#hsum').innerHTML=`Democrats win <b>${hd.mean.toFixed(0)}</b> seats in the average simulation; 8 in 10 land between ${esc(hd.p10)} and ${esc(hd.p90)}.`;hist('#hhist',hd.hist,218,140);
- $('#ssum').innerHTML=`Democrats hold <b>${sd.mean.toFixed(1)}</b> seats on average (${esc(sd.p10)}–${esc(sd.p90)})${sd.ind_mean?`; independents win ${sd.ind_mean.toFixed(1)} more on average, stacked on each bar (x-axis: Democratic seats)`:''}.`;(sd.hist2?shist('#shist',sd.hist2,170):hist('#shist',sd.hist,51,130));
+ $('#ssum').innerHTML=`Democrats hold <b>${sd.mean.toFixed(1)}</b> seats on average (${esc(sd.p10)}–${esc(sd.p90)})${sd.ind_mean?`; independents win ${sd.ind_mean.toFixed(1)} more on average, stacked on each bar (x-axis: Democratic seats)`:''}.${Object.entries(sd.decides||{}).filter(([,v])=>v>=0.005).map(([st,v])=>` ${esc(NAMES[st]||st)} decides control in ${pct(v)} of the simulations: ${esc((D.senate.late_count||{})[st]||'')}.`).join('')}`;(sd.hist2?shist('#shist',sd.hist2,170):hist('#shist',sd.hist,51,130));
  // closest House races
  const close=H.seats.map(s=>({...s,pp:s.p[gi]})).sort((a,b)=>Math.abs(a.pp-.5)-Math.abs(b.pp-.5)).slice(0,SHOW.close);
- $('#close').innerHTML='<thead><tr><th>District</th><th>Member</th><th class="n">Lean</th><th class="n">Polls</th><th class="n">Chance D</th></tr></thead><tbody>'+close.map(s=>`<tr data-k="${esc(s.seat)}"><td><b>${esc(s.seat)}</b></td><td>${who(s)}</td><td class="n">${lean(s.lean)}</td><td class="n">${s.n_polls?mg(s.poll_margin):'–'}</td>${pc(s.pp)}</tr>`).join('')+'</tbody>';
+ $('#close').innerHTML=`<thead><tr><th>District</th><th>Member</th><th class="n">Lean</th><th class="n">Polls</th><th class="n">Chance ${close.some(hInd)?'D/I':'D'}</th></tr></thead><tbody>`+close.map(s=>`<tr data-k="${esc(s.seat)}"><td><b>${esc(s.seat)}</b></td><td>${who(s)}${hInd(s)?` v ${esc(s.challenger)} (I)`:''}</td><td class="n">${lean(s.lean)}</td><td class="n">${s.n_polls?mg(s.poll_margin,s.challenger_party):'–'}</td>${pc(s.pp)}</tr>`).join('')+'</tbody>';
  $$('#close tbody tr').forEach(tr=>tr.addEventListener('click',()=>{pick('house',tr.dataset.k);$('#race-house').scrollIntoView({block:'nearest',behavior:'smooth'})}));
  // Senate
  const S=D.senate,sr=S.races.map(r=>({...r,pp:r.p[gi]})).sort((a,b)=>Math.abs(a.pp-.5)-Math.abs(b.pp-.5)),scomp=sr.filter(r=>r.pp>0.03&&r.pp<0.97),sshow=SHOW.sen?sr:scomp;
