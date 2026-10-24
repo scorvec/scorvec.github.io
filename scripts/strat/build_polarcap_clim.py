@@ -114,7 +114,7 @@ def msl() -> None:
         print(f"  {y}: {len(keep)} fields, mean {float(v.mean()):.1f} hPa", flush=True)
     coef = fit(s, n, "msl")  # (term, hour, lat, lon)
     orog = on_grid(ds["geopotential_at_surface"]).load().values / G
-    tide = np.abs(coef[0, 1] - coef[0, 0]).mean(1)  # the annual means' 12 - 00 UTC difference, by latitude
+    tide = np.abs(coef[0, HOURS.index(12)] - coef[0, HOURS.index(0)]).mean(1)  # annual means' 12 - 00 UTC, by latitude
     print(
         "  |12 - 00 UTC| (hPa) at "
         + ", ".join(f"{la} N {tide[np.searchsorted(LAT, la)]:.2f}" for la in (19.5, 45, 70.5))
