@@ -14,7 +14,8 @@ answers: no data are fetched and no figure is drawn.
            0.1-deg 2t message starting at 0 E or at 180 E, and refuses another grid
   days     a 00Z run has 15 full days (steps 6..360), a 12Z run 14 (18..348); windows 1-5, 6-10, 11-15/14
   read     read_run on fake steps: the members' daily means, a member missing one field loses that day only
-  gate     the 80 % agreement on the sign of the mean, also when the members are skewed
+  gate     the two-thirds agreement on the sign of the mean, also when the members are skewed; that share passes
+           a sign test at 5 % for every member count drawn
   test     welch_p equals scipy's Welch test; with no change about q of the maps get any significant point after
            Benjamini-Hochberg, a planted change is found
   chain    a run's statistics serve the run 12 h later, 00Z -> 12Z and 12Z -> 00Z: every window and day it holds, the
@@ -29,7 +30,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy.stats import ttest_ind
+from scipy.stats import binomtest, ttest_ind
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -215,12 +216,17 @@ check(info["messages"] == 2 * 4 * 3 - 1, "every message decoded once")
 
 print("gate: agreement on the sign of the mean")
 x = np.ones((50, 4))
-x[:10, 1] = -1.0  # 80 % positive: coloured
-x[:11, 2] = -1.0  # 78 % positive: split
+x[:16, 1] = -1.0  # 68 % positive: coloured
+x[:17, 2] = -1.0  # 66 % positive: split
 x[:, 3] = 0.1
-x[:10, 3] = -5.0  # 80 % positive but the mean is negative: split
+x[:16, 3] = -5.0  # 68 % positive but the mean is negative: split
 m, gate = T.agreed(x)
-check(gate.tolist() == [True, True, False, False], "coloured at >= 80 % on the mean's sign, never on a skewed mean")
+check(gate.tolist() == [True, True, False, False], "coloured at >= 2/3 on the mean's sign, never on a skewed mean")
+x = np.ones((48, 1))
+x[:16] = -1.0  # exactly two thirds
+check(T.agreed(x)[1].tolist() == [True], "exactly two thirds of 48 members is coloured")
+p = [binomtest(int(np.ceil(T.AGREE * n - 1e-9)), n).pvalue for n in range(T.MIN_MEMBERS, T.MEMBERS + 1)]
+check(max(p) < 0.05, f"the share passes a two-sided 5 % sign test for {T.MIN_MEMBERS}-{T.MEMBERS} members")
 
 print("test: Welch, FDR")
 a, b = RNG.normal(0.3, 1.0, (50, 200)), RNG.normal(0.0, 2.0, (50, 200))

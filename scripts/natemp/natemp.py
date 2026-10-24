@@ -15,9 +15,9 @@ Frames, per view: days 1-5, 6-10 and 11-15 of the run (from its first full day; 
 says which days), then each day.
   anom    the members' mean anomaly, coloured only where at least AGREE of the members give it its sign
   change  this run's members' mean less the previous run's (12 h earlier) over the same calendar days (the days both
-          runs hold), coloured only where significant: Welch's t-test on the two runs' members (their means and
-          standard deviations, the previous run's from its statistics file), Benjamini-Hochberg over the map's points
-          at FDR_Q. Without the previous run's statistics there are no change frames.
+          runs hold), coloured at every point and dotted where significant: Welch's t-test on the two runs' members
+          (their means and standard deviations, the previous run's from its statistics file), Benjamini-Hochberg over
+          the map's points at FDR_Q. Without the previous run's statistics there are no change frames.
 Writes the frames (assets/sst/anim/natemp_anom, natemp_change; frames branch), assets/sst/anim/natemp_manifest.json,
 the summary assets/sst/data/natemp.json, and this run's statistics for the next run (--save: per day and per window,
 the mean (float32) and standard deviation (float16) of the members' daily-mean temperatures).
@@ -56,7 +56,9 @@ SUMMARY = ROOT / "assets" / "sst" / "data" / "natemp.json"
 REGIONS = {"anom": ("natemp_anom", "Anomaly"), "change": ("natemp_change", "Change since the previous run")}
 MEMBERS = 50
 MIN_MEMBERS = 40  # a run with fewer complete members is not drawn
-AGREE = 0.8  # colour an anomaly only where this share of the members gives it its sign
+# colour an anomaly only where this share of the members gives it its sign: the smallest share a two-sided sign test
+# against an even split passes at 5 % for any 40 to 50 members (p 0.015-0.044)
+AGREE = 2 / 3
 FDR_Q = 0.10
 PERIOD = 5  # days per window
 SAMPLES = (6, 12, 18, 24)  # hours after a day's 00 UTC: the four fields of its mean
@@ -68,7 +70,10 @@ KF = 1.8  # K -> degF for anomalies and changes
 GLOBAL_2T = ("2t", 3600, 1801, 0, 90.0)  # shortName, Ni, Nj, jScansPositively, first latitude
 NY, NX = R.LAT.size, R.LON.size
 DAY_NOTE = "a day is the mean of 06, 12, 18 and 24 UTC · 0.1° grid"
-NEUTRAL = {"anom": f"members split (under {AGREE:.0%} agree on the sign)", "change": "no significant change"}
+NEUTRAL = {  # the legend of the grey cells (anom) and of the dots (change)
+    "anom": "members split (under two thirds agree on the sign)",
+    "change": f"dotted: significant (Welch t-test, false discovery rate {FDR_Q:.0%})",
+}
 FOOT = {
     "anom": "Normals: {} · " + DAY_NOTE,  # the normals' label (natemp_ref FINAL_META, INTERIM_META)
     "change": "Both runs over the same calendar days · " + DAY_NOTE,
@@ -366,7 +371,7 @@ def run(date: str, hh: str, normals: Path, prev_path: Path | None, save: Path | 
             what, when = span_text(days, k0, k1)
             sub = (
                 f"Run {run_s} · {mem.size} members · ensemble mean against the 1991–2020 normal, coloured where at "
-                f"least {AGREE:.0%} of the members agree on its sign · contours every 10 °F"
+                "least two thirds of the members agree on its sign · contours every 10 °F"
             )
             add("anom", name, k0, k1, m * KF, gate, f"IFS-ENS 2 m temperature anomaly: {what}, {when}", sub)
         cut = prev_row(days, k0, k1, prev) if prev else None
@@ -380,7 +385,7 @@ def run(date: str, hh: str, normals: Path, prev_path: Path | None, save: Path | 
         what, when = span_text(days, k0, c1)
         sub = (
             f"Run {run_s} minus {prev_init:%a %b %-d %H}Z · {mem.size} and {prev['n']} members · ensemble-mean change, "
-            f"coloured where significant (Welch t-test, false discovery rate {FDR_Q:.0%}) · contours every 10 °F"
+            f"dotted where significant (Welch t-test, false discovery rate {FDR_Q:.0%}) · contours every 10 °F"
         )
         title = f"IFS-ENS 2 m temperature, change from the previous run: {what}, {when}"
         add("change", name, k0, c1, (my - m0) * KF, sig, title, sub)
@@ -420,7 +425,7 @@ def write_outputs(init, prev_init, n, days, frames, summary, fetched, normals_me
                 "model": "IFS-ENS perturbed members, 0.1° open data (Google Cloud mirror)",
                 "members": n,
                 "days": [f"{d:%Y-%m-%d}" for d, _ in days],
-                "agree": AGREE,
+                "agree": round(AGREE, 4),
                 "fdr_q": FDR_Q,
                 "previous_run": f"{prev_init:%Y-%m-%dT%H}:00Z",
                 "change_frames": bool(frames["change"]),
