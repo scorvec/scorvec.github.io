@@ -1,29 +1,37 @@
 #!/usr/bin/env python3
-"""Polar-cap sea-level pressure and 500 hPa height, days 1-15, from every ensemble: plumes, maps and the run record.
+"""The troposphere and lower stratosphere under the polar vortex, days 1-15, from every ensemble: the polar cap at sea
+level and 500 hPa, the Arctic and North Atlantic Oscillations, and the 100 hPa height - plumes, maps and run records.
 
-What the troposphere under the polar vortex is doing: each member's 65-90N mean sea-level pressure and 500 hPa height
-against the ERA5 1991-2020 normal of that day and hour (high pressure over the Arctic is the negative Arctic
-Oscillation that often follows a sudden warming), and polar maps of the ensemble mean.
-
-Every model's fields are averaged onto the 1.5-deg cells the normals are on (ERA5's in WeatherBench 2; reference/
-z500_clim.nc, msl_clim.nc from build_polarcap_clim.py; scripts/lib/cellmeans.py), so the models compare cell for cell:
-  aifs  AIFS-ENS control + 25 perturbed members (as its other stratosphere products): msl, and z at 500 hPa from the
-        wave maps' file; ECMWF open data, Google Cloud mirror.
+Each member's sea-level pressure, 500 and 100 hPa height against the ERA5 1991-2020 normal of that day and hour (high
+pressure over the Arctic is the negative Arctic Oscillation that often follows a sudden warming). Every model's fields
+are averaged onto the 1.5-deg cells the normals are on (ERA5's in WeatherBench 2; reference/{msl,z500,z100}_clim.nc from
+build_polarcap_clim.py; scripts/lib/cellmeans.py), so the models compare cell for cell:
+  aifs  AIFS-ENS control + 25 perturbed members (as its other stratosphere products): msl, and z at 500 and 100 hPa
+        from the wave maps' file; ECMWF open data, Google Cloud mirror.
   ifs   IFS-ENS, all 50 perturbed members, from the shared IFS-ENS files (ifs_ens.py gh and msl), and the IFS control
-        (its own stream: ctrl_gh, ctrl_msl), drawn on the IFS-ENS plume and recorded as a model of its own (hres).
-  gefs  GEFS control + 30 members, geps GEPS control + 20 members: strat_ens.py's "polarcap" part (PRMSL, HGT 500).
-Daily to 360 h, each value the field at its valid time (00 or 12 UTC, as the normal). The sea-level pressure cap leaves
-out the cells whose ERA5 surface lies above HIGH (Greenland's ice sheet, the higher Siberian and Canadian ranges), where
-sea-level pressure is an extrapolation each model makes its own way; the maps leave it unshaded above MAP_HIGH. Raw
-model output: no drift is removed (the dripping paint's cap heights are drift-corrected and standardised).
+        (its own stream: ctrl_gh, ctrl_msl), drawn on the IFS-ENS plumes and recorded and mapped as a model of its own
+        (hres).
+  gefs  GEFS control + 30 members, geps GEPS control + 20 members: strat_ens.py's "polarcap" part (PRMSL, HGT 500, 100).
+Daily to 360 h, each value the field at its valid time (00 or 12 UTC, as the normal). Raw model output: no drift is
+removed (the dripping paint's cap heights are drift-corrected and standardised).
+
+  polar cap  65-90N means. The sea-level pressure cap leaves out the cells whose ERA5 surface lies above HIGH
+             (Greenland's ice sheet, the higher Siberian and Canadian ranges), where sea-level pressure is an
+             extrapolation each model makes its own way; the maps leave it unshaded above MAP_HIGH.
+  AO, NAO    each member's anomalies projected on the site's teleconnection patterns (the GEPS and GEFS pages' CPC-style
+             projectors on NCEP/NCAR R1 1991-2020: the AO the leading sea-level pressure EOF, the NAO the rotated 500
+             hPa mode; gefs_patterns.Ref, release gefs-ref-v1), the cells' anomalies averaged onto the patterns' 2.5 deg
+             grid first; in standard deviations of the daily index at that time of year.
+  100 hPa    the height anomaly and its 24 h change: where a lobe of the lower-stratospheric vortex fills or deepens.
+Maps show the ensemble mean, an anomaly or change coloured only where enough members give it its sign for a two-sided
+sign test at 5 % (agreeing()); the IFS control, one run, is drawn as it is.
 
 Outputs, model m:
-  assets/sst/polarcap_{m}.webp      the plumes: every member's cap anomaly and the members' mean (IFS-ENS: the control)
-  assets/sst/anim/polarcap_{m}/ + polarcap_{m}_manifest.json   maps of the ensemble mean, the anomaly coloured where
-                                     enough members give it its sign for a two-sided sign test at 5 % (agreeing()):
-                                     days 1-5, 6-10, 11-15, then each day
-  assets/sst/data/runs/polarcap_{m}.json (+ hres)   the run record (run_record.py, which draws the run-to-run figures)
-  --combined: assets/sst/polarcap_models.webp, every model's newest run from the records (strat-combine.yml)
+  assets/sst/polarcap_{m}.webp, telecon_{m}.webp   plumes: every member, the members' mean (IFS-ENS: the control)
+  assets/sst/anim/polarcap_{m}/ + manifest         sea level and 500 hPa: days 1-5, 6-10, 11-15, then each day
+  assets/sst/anim/z100_{m}/ + manifest (+ hres)    100 hPa anomaly and 24 h change, each day
+  assets/sst/data/runs/{polarcap,telecon}_{m}.json (+ hres)   the run records (run_record.py draws the run-to-run figures)
+  --combined: assets/sst/polarcap_models.webp, telecon_models.webp, every model's newest run (strat-combine.yml)
 
     python polarcap.py --model ifs --date 20261024 --time 00
     python polarcap.py --combined
@@ -36,6 +44,7 @@ import pyproj  # noqa: F401  (load pyproj's libproj before xarray/eccodes)
 import argparse
 import json
 import sys
+import textwrap
 from pathlib import Path
 
 import numpy as np
@@ -56,26 +65,30 @@ HIGH = 500.0  # m: the sea-level pressure cap leaves out cells whose ERA5 surfac
 MAP_HIGH = 1500.0  # m: the maps leave sea-level pressure anomalies unshaded above this
 LEADS = tuple(range(0, 361, 24))
 WINDOWS = ((1, 5), (6, 10), (11, 15))
+FIELDS = ("msl", "z500", "z100")
 AIFS_MEMBERS = 25
 G = 9.80665
 OUT = REPO / "assets" / "sst"
 ANIM = OUT / "anim"
 ENSEMBLES = ("aifs", "ifs", "gefs", "geps")
-WHO = {
-    "aifs": "control + 25 members",
-    "ifs": "50 members",
-    "gefs": "control + 30 members",
-    "geps": "control + 20 members",
-}
 CREDIT = {
     "aifs": "ECMWF AIFS-ENS open data (CC BY 4.0), Google Cloud mirror",
     "ifs": "ECMWF IFS-ENS and IFS control open data (CC BY 4.0), Google Cloud mirror",
+    "hres": "ECMWF IFS control open data (CC BY 4.0), Google Cloud mirror",
     "gefs": "NOAA GEFS (AWS Open Data)",
     "geps": "ECCC GEPS (MSC Datamart)",
 }
 NEUTRAL = "#d9d6d0"
 MSL_LEVELS = np.arange(-20, 21, 2)  # hPa
 Z_LEVELS = np.arange(-200, 201, 20)  # m
+Z100_LEVELS = np.arange(-400, 401, 40)  # m
+TEND_LEVELS = np.arange(-200, 201, 20)  # m per day
+CAP_PANELS = (
+    ("msl", "Sea-level pressure, 65–90°N (cells below 500 m)", "hPa"),
+    ("z500", "500 hPa height, 65–90°N", "m"),
+)
+TELE_PANELS = (("ao", "Arctic Oscillation", "sd"), ("nao", "North Atlantic Oscillation", "sd"))
+TELE_REF = HERE / "data" / "telecon_ref"  # gefs_patterns_ref.npz, fetched from release gefs-ref-v1 once per job
 
 
 # ── the grid, the normals, the cap ───────────────────────────────────────────────────────────────────────────────
@@ -87,25 +100,31 @@ def coarse(f: np.ndarray, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
 
 
 class Normals:
-    """ERA5 1991-2020 on the cells: sea-level pressure (hPa) at 00 and 12 UTC, 500 hPa height (m), surface height."""
+    """ERA5 1991-2020 on the cells: sea-level pressure (hPa) at 00 and 12 UTC, 500 and 100 hPa height (m), the surface
+    height (m)."""
 
     def __init__(self):
         import xarray as xr
 
-        with xr.open_dataset(HERE / "reference" / "z500_clim.nc") as z, xr.open_dataset(HERE / "reference" / "msl_clim.nc") as p:  # fmt: skip
-            for d in (z, p):
+        self.coef = {}
+        for f in FIELDS:
+            with xr.open_dataset(HERE / "reference" / f"{f}_clim.nc") as d:
                 if not (np.allclose(d.latitude, CLAT) and np.allclose(d.longitude, CLON)):
-                    raise SystemExit("the polar-cap normals are not on the cells CLAT x CLON")
-            self.z = z["coef"].values.astype(np.float64)
-            self.p = {int(h): p["coef"].sel(hour=h).values.astype(np.float64) for h in p.hour.values}
-            self.orog = p["orog"].values.astype(np.float64)
+                    raise SystemExit(f"{f}_clim.nc is not on the cells CLAT x CLON")
+                if f == "msl":
+                    self.coef[f] = {int(h): d["coef"].sel(hour=h).values.astype(np.float64) for h in d.hour.values}
+                    self.orog = d["orog"].values.astype(np.float64)
+                else:
+                    self.coef[f] = d["coef"].values.astype(np.float64)
 
-    def at(self, valid: pd.Timestamp) -> tuple[np.ndarray, np.ndarray]:
-        """(sea-level pressure, 500 hPa height) normal at that day and hour, (CLAT, CLON)."""
-        if valid.hour not in self.p:
-            raise SystemExit(f"no sea-level pressure normal for {valid:%H} UTC")
-        t = HC.times_of([valid])
-        return HC.evaluate(self.p[valid.hour], t)[0], HC.evaluate(self.z, t)[0]
+    def at(self, field: str, valid: pd.Timestamp) -> np.ndarray:
+        """The field's normal at that day and hour, (CLAT, CLON)."""
+        c = self.coef[field]
+        if isinstance(c, dict):
+            if valid.hour not in c:
+                raise SystemExit(f"no {field} normal for {valid:%H} UTC")
+            c = c[valid.hour]
+        return HC.evaluate(c, HC.times_of([valid]))[0]
 
 
 def cap(x: np.ndarray, keep: np.ndarray | None = None) -> np.ndarray:
@@ -118,18 +137,19 @@ def cap(x: np.ndarray, keep: np.ndarray | None = None) -> np.ndarray:
 
 
 # ── the fields ───────────────────────────────────────────────────────────────────────────────────────────────────
-def read_grib(path: Path, short: str, level: int | None = None, scale: float = 1.0) -> dict:
-    """{(member, step h): cell means} of the messages of `short` (at `level`) in a GRIB file of global regular grids;
-    a message without a member number is member 0 (the control)."""
+def read_grib(path: Path, short: str, levels=(None,), scale: float = 1.0) -> dict:
+    """{level: {(member, step h): cell means}} of the messages of `short` at each of `levels` (None: any level) in a
+    GRIB file of global regular grids; a message without a member number is member 0 (the control)."""
     import eccodes
 
-    out, grid = {}, None
+    out, grid = {lev: {} for lev in levels}, None
     with open(path, "rb") as fh:
         while (gid := eccodes.codes_grib_new_from_file(fh)) is not None:
             try:
                 if eccodes.codes_get(gid, "shortName") != short:
                     continue
-                if level is not None and eccodes.codes_get(gid, "level") != level:
+                lev = None if levels == (None,) else eccodes.codes_get(gid, "level")
+                if lev not in out:
                     continue
                 try:
                     num = int(eccodes.codes_get(gid, "number"))
@@ -149,7 +169,7 @@ def read_grib(path: Path, short: str, level: int | None = None, scale: float = 1
                     grid = (nj, ni, lat, lo0 + di * np.arange(ni))
                 nj, ni, lat, lon = grid
                 v = eccodes.codes_get_values(gid).reshape(nj, ni) * scale
-                out[num, step] = coarse(v, lat, lon)
+                out[lev][num, step] = coarse(v, lat, lon)
             finally:
                 eccodes.codes_release(gid)
     return out
@@ -170,12 +190,13 @@ def load_aifs(date: str, hh: str) -> dict:
     import wave_maps as WM
 
     cyc, steps = E.Cycle(date, hh), tuple(E.STEPS)
-    msl, z = [], []
+    got = {f: [] for f in FIELDS}
     for kind, n in (("cf", 0), ("pf", AIFS_MEMBERS)):
-        msl.append(read_grib(E.ensure(cyc, E.Spec("aifs-ens", kind, "msl", "sfc", (), steps, n)), "msl", scale=0.01))
-        zs = E.Spec("aifs-ens", kind, "z", "pl", WM.LEVELS, steps, n)  # the wave maps' file
-        z.append(read_grib(E.ensure(cyc, zs), "z", 500, 1 / G))
-    return {"aifs": (stack(*msl), stack(*z))}
+        got["msl"].append(read_grib(E.ensure(cyc, E.Spec("aifs-ens", kind, "msl", "sfc", (), steps, n)), "msl", scale=0.01)[None])  # fmt: skip
+        z = read_grib(E.ensure(cyc, E.Spec("aifs-ens", kind, "z", "pl", WM.LEVELS, steps, n)), "z", (500, 100), 1 / G)
+        got["z500"].append(z[500])  # the wave maps' file
+        got["z100"].append(z[100])
+    return {"aifs": {f: stack(*parts) for f, parts in got.items()}}
 
 
 def load_ifs(date: str, hh: str) -> dict:
@@ -183,16 +204,14 @@ def load_ifs(date: str, hh: str) -> dict:
     import ifs_ens as IE
 
     cyc, out = IE.E.Cycle(date, hh), {}
-    if IE.published(date, hh):
-        out["ifs"] = (
-            stack(read_grib(IE.ensure(cyc, IE.spec_msl()), "msl", scale=0.01)),
-            stack(read_grib(IE.ensure(cyc, IE.spec_gh()), "gh", 500)),
-        )
-    if IE.ctrl_published(date, hh):
-        out["hres"] = (
-            stack(read_grib(IE.ensure(cyc, IE.spec_ctrl_msl()), "msl", scale=0.01)),
-            stack(read_grib(IE.ensure(cyc, IE.spec_ctrl_gh()), "gh", 500)),
-        )
+    for m, ready, msl, gh in (
+        ("ifs", IE.published, IE.spec_msl, IE.spec_gh),
+        ("hres", IE.ctrl_published, IE.spec_ctrl_msl, IE.spec_ctrl_gh),
+    ):
+        if ready(date, hh):
+            z = read_grib(IE.ensure(cyc, gh()), "gh", (500, 100))
+            out[m] = {"msl": stack(read_grib(IE.ensure(cyc, msl()), "msl", scale=0.01)[None]),
+                      "z500": stack(z[500]), "z100": stack(z[100])}  # fmt: skip
     return out
 
 
@@ -201,26 +220,46 @@ def load_strat_ens(model: str, date: str, hh: str) -> dict:
 
     d = SE.load(model, date, hh, ("polarcap",))
     keep = SE.complete_members(d, "pc_z500")
-    return {model: (d["pc_msl"][keep], d["pc_z500"][keep])}
+    return {model: {f: d[f"pc_{f}"][keep] for f in FIELDS if f"pc_{f}" in d}}
 
 
 # ── one run ──────────────────────────────────────────────────────────────────────────────────────────────────────
-def anomalies(init: pd.Timestamp, msl: np.ndarray, z: np.ndarray, N: Normals):
-    """The members' anomalies (member, lead, CLAT, CLON) of both fields, and the valid times."""
-    valid = [init + pd.Timedelta(hours=h) for h in LEADS]
-    nm = np.stack([np.stack(N.at(v)) for v in valid])  # (lead, 2, CLAT, CLON)
-    return msl - nm[None, :, 0], z - nm[None, :, 1], pd.DatetimeIndex(valid)
+def anomalies(init: pd.Timestamp, fields: dict, N: Normals) -> tuple[dict, pd.DatetimeIndex]:
+    """The members' anomalies {field: (member, lead, CLAT, CLON)} and the valid times."""
+    valid = pd.DatetimeIndex([init + pd.Timedelta(hours=h) for h in LEADS])
+    return {f: x - np.stack([N.at(f, v) for v in valid])[None] for f, x in fields.items()}, valid
 
 
-def caps(am: np.ndarray, az: np.ndarray, N: Normals) -> tuple[np.ndarray, np.ndarray]:
-    """(member, lead) cap anomalies: sea-level pressure over the cells below HIGH, 500 hPa height over all."""
-    return cap(am, N.orog < HIGH), cap(az)
+def caps(A: dict, N: Normals) -> dict:
+    """{msl, z500: (member, lead)} cap anomalies: sea-level pressure over the cells below HIGH, 500 hPa height over all."""
+    return {"msl": cap(A["msl"], N.orog < HIGH), "z500": cap(A["z500"])}
 
 
-def record(model: str, init: pd.Timestamp, cm: np.ndarray, cz: np.ndarray, valid: pd.DatetimeIndex) -> None:
-    frames = {k: pd.DataFrame(v.T, index=valid) for k, v in (("msl", cm), ("z500", cz))}
-    RR.record("polarcap", model, init, RR.entry("polarcap", frames))
-    RR.render("polarcap", model)
+def teleconnections(A: dict, valid: pd.DatetimeIndex) -> dict:
+    """{ao, nao: (member, lead)} in seasonal standard deviations of the daily index (gefs_patterns.Ref.index)."""
+    sys.path.insert(0, str(REPO / "scripts" / "gefs"))
+    import gefs_patterns as GP
+
+    ref = GP.Ref(GP.ref_path(GP.REF_NAME, TELE_REF))
+    lat25 = GP.LAT25
+    rows = lat25 - 2.5 / 2 >= CLAT[0] - CELL / 2  # the 2.5-deg rows whose cells the 1.5-deg cells cover: 20 N and north
+    months = np.array([t.month for t in valid])
+    doys = np.array([GP.doy(t.date()) for t in valid])
+    out = {}
+    for sid, f in (("ao", "msl"), ("nao", "z500")):
+        a = A[f]
+        on25 = np.full((*a.shape[:2], GP.LAT25.size, GP.LON25.size), np.nan)
+        on25[..., rows, :] = CM.coarsen(a, CLAT, CLON, CELL, lat25[rows], GP.LON25, 2.5, 360.0)
+        n, L = a.shape[:2]
+        flat = ref.index(sid, on25.reshape(n * L, *on25.shape[2:]), np.tile(months, n), np.tile(doys, n))
+        out[sid] = flat.reshape(n, L)
+    return out
+
+
+def record(product: str, model: str, init: pd.Timestamp, series: dict, valid: pd.DatetimeIndex) -> None:
+    frames = {k: pd.DataFrame(v.T, index=valid) for k, v in series.items()}
+    RR.record(product, model, init, RR.entry(product, frames))
+    RR.render(product, model)
 
 
 def agreeing(n: int) -> int:
@@ -232,8 +271,11 @@ def agreeing(n: int) -> int:
 
 
 def agreed(x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """(the members' mean, where enough members share its sign: agreeing) for x (member, ...) without gaps."""
+    """(the members' mean, where enough members share its sign: agreeing) for x (member, ...) without gaps; a single
+    run is shown everywhere."""
     m = x.mean(0)
+    if x.shape[0] == 1:
+        return m, np.ones(m.shape, bool)
     same = (np.sign(x) == np.sign(m)[None]).sum(0)
     return m, (same >= agreeing(x.shape[0])) & (m != 0)
 
@@ -250,71 +292,62 @@ def _style(ax, ylab: str) -> None:
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%-d %b"))
 
 
-def plumes(model: str, init: pd.Timestamp, valid, cm, cz, ctrl=None, out: Path | None = None) -> Path:
-    """Every member's cap anomaly, the members' mean bold, (the control dashed), both fields."""
+def plumes(model: str, init: pd.Timestamp, valid, series: dict, panels, title: str, ctrl=None, out=None) -> Path:
+    """Every member's series (member, lead), the members' mean bold (the control dashed), one panel per (key, title,
+    unit)."""
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     col, lab = RR.MODEL_COLOUR[model], RR.MODEL_LABEL[model]
-    fig, axes = plt.subplots(2, 1, figsize=(11.5, 8.2), sharex=True)
-    for ax, x, k, (title, unit) in zip(
-        axes,
-        (cm, cz),
-        (0, 1),
-        (("Sea-level pressure, 65–90°N (cells below 500 m)", "hPa"), ("500 hPa height, 65–90°N", "m")),
-    ):
+    fig, axes = plt.subplots(len(panels), 1, figsize=(11.5, 8.2), sharex=True)
+    for ax, (key, name, unit) in zip(axes, panels):
+        x = series[key]
         for row in x:
             ax.plot(valid, row, color=col, lw=0.8, alpha=0.35, zorder=3)
-        mean = np.nanmean(x, 0)
-        ax.plot(valid, mean, color=col, lw=2.8, zorder=5, label=f"{lab} mean, {x.shape[0]} members")
+        ax.plot(valid, np.nanmean(x, 0), color=col, lw=2.8, zorder=5, label=f"{lab} mean, {x.shape[0]} members")
         if ctrl is not None:
-            ax.plot(valid, ctrl[k], color="#1f1f1f", lw=1.6, ls="--", zorder=6, label="IFS control")
+            ax.plot(valid, ctrl[key], color="#1f1f1f", lw=1.6, ls="--", zorder=6, label="IFS control")
         late = (valid >= init + pd.Timedelta(days=6)) & (valid <= init + pd.Timedelta(days=15))
         lm = np.nanmean(x[:, late], 1)
-        fmt = "{:+.1f}" if unit == "hPa" else "{:+.0f}"
-        ax.set_title(f"{title}: anomaly from ERA5 1991–2020", fontsize=11, fontweight="bold", loc="left", pad=16)
+        fmt = "{:+.0f}" if unit == "m" else "{:+.1f}"
+        ax.set_title(f"{name}: anomaly from ERA5 1991–2020" if unit != "sd" else name, fontsize=11,
+                     fontweight="bold", loc="left", pad=16)  # fmt: skip
         ax.text(
             0,
             1.015,
             f"days 6–15: members' mean {fmt.format(np.nanmean(lm)).replace('-', '−')} {unit}, "
-            f"{(lm > 0).mean():.0%} of the members above normal",
+            f"{(lm > 0).mean():.0%} of the members above zero",
             transform=ax.transAxes,
             fontsize=9,
             color="0.25",
         )
-        _style(ax, unit)
+        _style(ax, unit if unit != "sd" else "sd of the daily index")
         ax.legend(fontsize=8.5, loc="upper left", framealpha=0.9)
-    fig.suptitle(
-        f"{lab} · the troposphere under the polar vortex · run {init:%Y-%m-%d %HZ}",
-        fontsize=13.5,
-        fontweight="bold",
-        x=0.07,
-        ha="left",
-        y=0.985,
-    )
-    fig.text(
-        0.07,
-        0.945,
-        "every member thin, the members' mean bold · above zero: high pressure and heights over the Arctic "
-        "(the negative Arctic Oscillation)",
-        fontsize=9.5,
-        color="0.25",
-    )
-    fig.text(
-        0.07,
-        0.012,
-        f"Raw model output against the ERA5 normal of each day and hour. {CREDIT[model]}.",
-        fontsize=8,
-        color="#6f6b64",
-    )
-    fig.subplots_adjust(left=0.08, right=0.98, top=0.88, bottom=0.07, hspace=0.32)
-    out = out or OUT / f"polarcap_{model}.webp"
+    fig.suptitle(f"{lab} · {title} · run {init:%Y-%m-%d %HZ}", fontsize=13.5, fontweight="bold", x=0.07, ha="left",
+                 y=0.985)  # fmt: skip
+    fig.text(0.07, 0.945, SUBTITLE[panels], fontsize=9.5, color="0.25")
+    fig.text(0.07, 0.008, textwrap.fill(f"{NOTE[panels]} {CREDIT[model]}.", 190), fontsize=8, color="#6f6b64",
+             linespacing=1.4)  # fmt: skip
+    fig.subplots_adjust(left=0.08, right=0.98, top=0.88, bottom=0.085, hspace=0.32)
     fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
     plt.close(fig)
     print(f"  wrote {out}", flush=True)
     return out
+
+
+SUBTITLE = {
+    CAP_PANELS: "every member thin, the members' mean bold · above zero: high pressure and heights over the Arctic "
+    "(the negative Arctic Oscillation)",
+    TELE_PANELS: "every member thin, the members' mean bold · negative AO and NAO: high pressure over the Arctic and "
+    "Greenland, the westerlies pushed south",
+}
+NOTE = {
+    CAP_PANELS: "Raw model output against the ERA5 normal of each day and hour.",
+    TELE_PANELS: "Raw model output: anomalies against ERA5 1991–2020 on the site's CPC-style patterns (NCEP/NCAR R1); "
+    "in standard deviations of the daily index at this time of year.",
+}
 
 
 def _pole(a: np.ndarray) -> np.ndarray:
@@ -325,7 +358,7 @@ def _pole(a: np.ndarray) -> np.ndarray:
     return a
 
 
-def _panel(fig, pos, mean, anom, gate, levels, contour_step, unit, title, high=None):
+def _panel(fig, pos, mean, anom, gate, levels, contour_step, label, title, high=None):
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
     import matplotlib.pyplot as plt
@@ -359,8 +392,11 @@ def _panel(fig, pos, mean, anom, gate, levels, contour_step, unit, title, high=N
     ax.set_title(title, fontsize=11, fontweight="bold", pad=6)
     cax = fig.add_axes([pos[0] + 0.04, pos[1] - 0.05, pos[2] - 0.08, 0.018])
     cb = fig.colorbar(cf, cax=cax, orientation="horizontal", ticks=levels[::2])
-    cb.set_label(f"anomaly from ERA5 1991–2020, {unit}", fontsize=8.5)
+    cb.set_label(label, fontsize=8.5)
     cb.ax.tick_params(labelsize=7.5)
+
+
+ANOM_LABEL = "anomaly from ERA5 1991–2020, {}"
 
 
 def map_frame(model, init, span, n, mm, ma, mg, zm, za, zg, high, out: Path) -> None:
@@ -373,8 +409,9 @@ def map_frame(model, init, span, n, mm, ma, mg, zm, za, zg, high, out: Path) -> 
 
     lab = RR.MODEL_LABEL[model]
     fig = plt.figure(figsize=(13.0, 7.4), dpi=110)
-    _panel(fig, [0.02, 0.175, 0.46, 0.69], mm, ma, mg, MSL_LEVELS, 4, "hPa", "Sea-level pressure", high)
-    _panel(fig, [0.52, 0.175, 0.46, 0.69], zm, za, zg, Z_LEVELS, 6, "m", "500 hPa height")
+    _panel(fig, [0.02, 0.175, 0.46, 0.69], mm, ma, mg, MSL_LEVELS, 4, ANOM_LABEL.format("hPa"), "Sea-level pressure",
+           high)  # fmt: skip
+    _panel(fig, [0.52, 0.175, 0.46, 0.69], zm, za, zg, Z_LEVELS, 6, ANOM_LABEL.format("m"), "500 hPa height")
     fig.text(0.02, 0.965, f"{lab} · sea-level pressure and 500 hPa height: {span}", fontsize=14, fontweight="bold")
     fig.text(
         0.02,
@@ -419,32 +456,84 @@ def maps(model: str, init: pd.Timestamp, msl, z, am, az, N: Normals) -> None:
         frames.append(
             {"file": f"{name}.webp", "date": f"{v0:%Y-%m-%d}", "label": f"{what[0].upper()}{what[1:]} · {when}"}
         )
-    rid = f"polarcap_{model}"
-    man = {"ver": f"{init:%Y%m%d%H}", "days": len(frames), "selectorLabel": "Model", "default": rid,
-           "regions": {rid: {"label": f"Sea-level pressure and 500 hPa height, {RR.MODEL_LABEL[model]}",
-                             "n_frames": len(frames), "frames": [dict(f, idx=i) for i, f in enumerate(frames)]}}}  # fmt: skip
-    (ANIM / f"{rid}_manifest.json").write_text(json.dumps(man))
+    manifest(f"polarcap_{model}", init, f"Sea-level pressure and 500 hPa height, {RR.MODEL_LABEL[model]}", frames)
     print(f"  {len(frames)} map frames -> {d}", flush=True)
 
 
-def combined(out: Path = OUT / "polarcap_models.webp", max_age_days: float = 2.0) -> Path | None:
+def manifest(rid: str, init: pd.Timestamp, label: str, frames: list) -> None:
+    man = {"ver": f"{init:%Y%m%d%H}", "days": len(frames), "selectorLabel": "Model", "default": rid,
+           "regions": {rid: {"label": label, "n_frames": len(frames), "frames": [dict(f, idx=i) for i, f in enumerate(frames)]}}}  # fmt: skip
+    (ANIM / f"{rid}_manifest.json").write_text(json.dumps(man))
+
+
+def z100_frame(model, init, valid, n, zm, za, zg, tm, tg, out: Path) -> None:
+    """Two polar panels at 100 hPa: the height (zm, dam) contoured on both, its anomaly and its 24 h change shaded."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    lab = RR.MODEL_LABEL[model]
+    fig = plt.figure(figsize=(13.0, 7.4), dpi=110)
+    _panel(fig, [0.02, 0.175, 0.46, 0.69], zm, za, zg, Z100_LEVELS, 16, ANOM_LABEL.format("m"), "Height anomaly")
+    _panel(fig, [0.52, 0.175, 0.46, 0.69], zm, tm, tg, TEND_LEVELS, 16, "change over the last 24 h, m",
+           "Height change over 24 h")  # fmt: skip
+    fig.text(0.02, 0.965, f"{lab} · 100 hPa height: {valid:%a %-d %b %HZ} (day {(valid - init).days})", fontsize=14,
+             fontweight="bold")  # fmt: skip
+    how = (
+        "one run, drawn as it is"
+        if n == 1
+        else f"ensemble mean; shaded where at least {agreeing(n)} of the {n} members agree on the sign (a sign test at 5 %)"
+    )
+    fig.text(0.02, 0.928, f"Run {init:%Y-%m-%d %HZ} · black: height, every 16 dam · {how}", fontsize=9.5, color="#333")
+    fig.text(
+        0.02,
+        0.008,
+        ("Grey: the members are split. " if n > 1 else "")
+        + "The change is this day's height minus the day before's, so a lobe of the vortex filling in shows red over "
+        f"it.\nRaw model output against ERA5 1991–2020 at each day and hour. {CREDIT[model]}.",
+        fontsize=8,
+        color="#6f6b64",
+        linespacing=1.4,
+    )
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=110, facecolor="white", pil_kwargs={"quality": 80, "method": 6})
+    plt.close(fig)
+
+
+def z100_maps(model: str, init: pd.Timestamp, z, az) -> None:
+    """Each day 1-15: the 100 hPa height anomaly and 24 h change (ensemble means, gated; the control as it is)."""
+    d = ANIM / f"z100_{model}"
+    d.mkdir(parents=True, exist_ok=True)
+    for old in d.glob("*.webp"):
+        old.unlink()
+    frames = []
+    for k in range(1, len(LEADS)):
+        valid = init + pd.Timedelta(hours=LEADS[k])
+        za, zg = agreed(az[:, k])
+        tm, tg = agreed(z[:, k] - z[:, k - 1])
+        z100_frame(model, init, valid, z.shape[0], z[:, k].mean(0) / 10.0, za, zg, tm, tg, d / f"D{k:02d}.webp")
+        frames.append(
+            {"file": f"D{k:02d}.webp", "date": f"{valid:%Y-%m-%d}", "label": f"Day {k} · {valid:%a %-d %b %HZ}"}
+        )
+    manifest(f"z100_{model}", init, f"100 hPa height, {RR.MODEL_LABEL[model]}", frames)
+    print(f"  {len(frames)} 100 hPa frames -> {d}", flush=True)
+
+
+def combined(product: str, panels, title: str, out: Path, max_age_days: float = 2.0) -> Path | None:
     """Every model's newest run from the records: the members' mean and 10-90 % band, the IFS control dashed."""
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    newest = {m: rs[-1] for m in (*ENSEMBLES, "hres") if (rs := RR.runs("polarcap", m))}
+    newest = {m: rs[-1] for m in (*ENSEMBLES, "hres") if (rs := RR.runs(product, m))}
     if not newest:
         return None
     t1 = max(pd.Timestamp(r["init"]) for r in newest.values())
     newest = {m: r for m, r in newest.items() if t1 - pd.Timestamp(r["init"]) <= pd.Timedelta(days=max_age_days)}
-    fig, axes = plt.subplots(2, 1, figsize=(11.5, 8.2), sharex=True)
-    for ax, key, (title, unit) in zip(
-        axes,
-        ("msl", "z500"),
-        (("Sea-level pressure, 65–90°N (cells below 500 m)", "hPa"), ("500 hPa height, 65–90°N", "m")),
-    ):
+    fig, axes = plt.subplots(len(panels), 1, figsize=(11.5, 8.2), sharex=True)
+    for ax, (key, name, unit) in zip(axes, panels):
         for m, r in newest.items():
             mean = RR.series(r, key)
             col = RR.MODEL_COLOUR[m]
@@ -454,64 +543,59 @@ def combined(out: Path = OUT / "polarcap_models.webp", max_age_days: float = 2.0
                 continue
             ax.fill_between(mean.index, RR.series(r, key, "p10"), RR.series(r, key, "p90"), color=col, alpha=0.13, lw=0)
             ax.plot(mean.index, mean.values, color=col, lw=2.4, zorder=5, label=f"{lab}, {r['members']} members")
-        ax.set_title(f"{title}: anomaly from ERA5 1991–2020", fontsize=11, fontweight="bold", loc="left")
-        _style(ax, unit)
+        ax.set_title(f"{name}: anomaly from ERA5 1991–2020" if unit != "sd" else name, fontsize=11, fontweight="bold",
+                     loc="left")  # fmt: skip
+        _style(ax, unit if unit != "sd" else "sd of the daily index")
         ax.legend(fontsize=8.5, loc="upper left", ncol=2, framealpha=0.9)
-    fig.suptitle(
-        f"Every ensemble's newest run · the troposphere under the polar vortex (newest {t1:%Y-%m-%d %HZ})",
-        fontsize=13.5,
-        fontweight="bold",
-        x=0.07,
-        ha="left",
-        y=0.985,
-    )
-    fig.text(
-        0.07,
-        0.945,
-        "each model's members' mean with its 10–90 % range, the IFS control dashed · above zero: high pressure and "
-        "heights over the Arctic (the negative Arctic Oscillation)",
-        fontsize=9.5,
-        color="0.25",
-    )
-    fig.text(
-        0.07,
-        0.012,
-        "Raw model output against the ERA5 normal of each day and hour; each model is labelled with its run.",
-        fontsize=8,
-        color="#6f6b64",
-    )
-    fig.subplots_adjust(left=0.08, right=0.98, top=0.88, bottom=0.07, hspace=0.32)
+    fig.suptitle(f"Every ensemble's newest run · {title} (newest {t1:%Y-%m-%d %HZ})", fontsize=13.5, fontweight="bold",
+                 x=0.07, ha="left", y=0.985)  # fmt: skip
+    fig.text(0.07, 0.945, "each model's members' mean with its 10–90 % range, the IFS control dashed · "
+             + SUBTITLE[panels].split(" · ", 1)[1], fontsize=9.5, color="0.25")  # fmt: skip
+    fig.text(0.07, 0.008, textwrap.fill(f"{NOTE[panels]} Each model is labelled with its run.", 190), fontsize=8,
+             color="#6f6b64", linespacing=1.4)  # fmt: skip
+    fig.subplots_adjust(left=0.08, right=0.98, top=0.88, bottom=0.085, hspace=0.32)
     fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
     plt.close(fig)
     print(f"wrote {out}", flush=True)
     return out
 
 
+CAP_TITLE = "the troposphere under the polar vortex"
+TELE_TITLE = "the Arctic and North Atlantic Oscillations"
+
+
 def run(model: str, date: str, hh: str) -> int:
     init = pd.Timestamp(f"{date} {hh}:00")
     N = Normals()
     load = {"aifs": load_aifs, "ifs": load_ifs}.get(model) or (lambda d, h: load_strat_ens(model, d, h))
-    fields = load(date, hh)
-    if not fields:
+    got = load(date, hh)
+    if not got:
         print(f"::warning::{model} {date} {hh}Z: nothing on the mirror to draw", flush=True)
         return 1
     done, ctrl = {}, None
-    for m, (msl_all, z_all) in fields.items():
-        full = np.isfinite(msl_all).all((1, 2, 3)) & np.isfinite(z_all).all((1, 2, 3))  # members with every lead
-        msl, z = msl_all[full], z_all[full]
-        am, az, valid = anomalies(init, msl, z, N)
-        cm, cz = caps(am, az, N)
-        print(f"  {RR.MODEL_LABEL[m]}: {msl.shape[0]} members; analysis cap {np.nanmean(cm[:, 0]):+.1f} hPa, "
-              f"{np.nanmean(cz[:, 0]):+.0f} m; days 6-15 {np.nanmean(cm[:, 6:]):+.1f} hPa, {np.nanmean(cz[:, 6:]):+.0f} m",
+    for m, raw in got.items():
+        full = np.logical_and.reduce([np.isfinite(x).all((1, 2, 3)) for x in raw.values()])  # every lead, field
+        fields = {f: x[full] for f, x in raw.items()}
+        A, valid = anomalies(init, fields, N)
+        cp, tc = caps(A, N), teleconnections(A, valid)
+        print(f"  {RR.MODEL_LABEL[m]}: {full.sum()} members; cap {np.nanmean(cp['msl'][:, 0]):+.1f} hPa, "
+              f"{np.nanmean(cp['z500'][:, 0]):+.0f} m at the start, {np.nanmean(cp['msl'][:, 6:]):+.1f} hPa, "
+              f"{np.nanmean(cp['z500'][:, 6:]):+.0f} m days 6-15; AO {np.nanmean(tc['ao'][:, 0]):+.2f} -> "
+              f"{np.nanmean(tc['ao'][:, 6:]):+.2f}, NAO {np.nanmean(tc['nao'][:, 0]):+.2f} -> {np.nanmean(tc['nao'][:, 6:]):+.2f}",
               flush=True)  # fmt: skip
-        record(m, init, cm, cz, valid)
+        record("polarcap", m, init, cp, valid)
+        record("telecon", m, init, tc, valid)
+        if "z100" in fields:
+            z100_maps(m, init, fields["z100"], A["z100"])
         if m == "hres":
-            ctrl = (cm[0], cz[0])
+            ctrl = {**{k: v[0] for k, v in cp.items()}, **{k: v[0] for k, v in tc.items()}}
         else:
-            done[m] = (msl, z, am, az, cm, cz, valid)
-    for m, (msl, z, am, az, cm, cz, valid) in done.items():
-        plumes(m, init, valid, cm, cz, ctrl if m == "ifs" else None)
-        maps(m, init, msl, z, am, az, N)
+            done[m] = (fields, A, cp, tc, valid)
+    for m, (fields, A, cp, tc, valid) in done.items():
+        c = ctrl if m == "ifs" else None
+        plumes(m, init, valid, cp, CAP_PANELS, CAP_TITLE, c, OUT / f"polarcap_{m}.webp")
+        plumes(m, init, valid, tc, TELE_PANELS, TELE_TITLE, c, OUT / f"telecon_{m}.webp")
+        maps(m, init, fields["msl"], fields["z500"], A["msl"], A["z500"], N)
     return 0
 
 
@@ -523,7 +607,8 @@ def main() -> int:
     ap.add_argument("--combined", action="store_true", help="every model's newest run from the records")
     a = ap.parse_args()
     if a.combined:
-        combined()
+        combined("polarcap", CAP_PANELS, CAP_TITLE, OUT / "polarcap_models.webp")
+        combined("telecon", TELE_PANELS, TELE_TITLE, OUT / "telecon_models.webp")
         return 0
     if not (a.model and a.date and a.time):
         ap.error("--model, --date and --time are required (or --combined)")

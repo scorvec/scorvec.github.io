@@ -8,6 +8,7 @@ alike (scripts/lib/harmonic_clim.py: the mean and NHARM annual harmonics whose m
   z500  the ERA5 store's daily means (the mean of 00, 06, 12 and 18 UTC, metres; offline: $ERA5_STORE)
         -> reference/z500_clim.nc, coef (term, latitude, longitude) in m. The 500 hPa height's daily cycle is a few
         metres, so the one curve serves forecasts valid at 00 and at 12 UTC.
+  z100  the same from the store's 13-level heights (zplev, 100 hPa) -> reference/z100_clim.nc.
   msl   the 00 and 12 UTC fields separately, from WeatherBench 2's 6-hourly zarr (one pass over 1991-2020, ~3.5 GB; in
         Actions, polarcap-clim.yml): sea-level pressure has a daily tide of about 1 hPa at 20 N, which a daily-mean
         normal would leave in the anomaly of a forecast valid at 00 or 12 UTC.
@@ -15,6 +16,7 @@ alike (scripts/lib/harmonic_clim.py: the mean and NHARM annual harmonics whose m
         (m, geopotential_at_surface / g: the polar cap's sea-level pressure leaves out the high cells).
 
     python scripts/strat/build_polarcap_clim.py z500
+    python scripts/strat/build_polarcap_clim.py z100
     python scripts/strat/build_polarcap_clim.py msl
 """
 
@@ -62,27 +64,32 @@ def save(path: Path, ds: xr.Dataset) -> None:
     print(f"wrote {path} ({path.stat().st_size / 1e6:.1f} MB)", flush=True)
 
 
-def z500() -> None:
+HEIGHTS = {"z500": ("z500", None, (4500, 6000)), "z100": ("zplev", 100, (14500, 17500))}  # store set, level, metres
+
+
+def height(var: str) -> None:
     from localdirs import env_dir
 
+    name, level, (lo, hi) = HEIGHTS[var]
     s, n = np.zeros((12, LAT.size, LON.size)), np.zeros(12)
     for y in range(YEARS[0], YEARS[1] + 1):
-        with xr.open_dataset(env_dir("ERA5_STORE", "wb2_1p5_daily", "z500", f"z500_{y}.nc")) as ds:
-            z = on_grid(ds["z500"]).load()  # metres, whatever the attributes say
-        if not 4500 < float(z.mean()) < 6000:
-            raise SystemExit(f"z500_{y}.nc: not the 500 hPa height in metres")
+        with xr.open_dataset(env_dir("ERA5_STORE", "wb2_1p5_daily", name, f"{name}_{y}.nc")) as ds:
+            da = ds[name] if level is None else ds[name].sel(level=level)
+            z = on_grid(da).load()  # metres, whatever the attributes say
+        if not lo < float(z.mean()) < hi:
+            raise SystemExit(f"{name}_{y}.nc: not the {var[1:]} hPa height in metres")
         month = z.time.dt.month.values
         for m in range(12):
             s[m] += z.values[month == m + 1].sum(0)
             n[m] += (month == m + 1).sum()
-    coef = fit(s, n, "z500")
+    coef = fit(s, n, var)
     save(
-        REF / "z500_clim.nc",
+        REF / f"{var}_clim.nc",
         xr.Dataset(
             {"coef": (("term", "latitude", "longitude"), coef.astype("float32"))},
             coords={"term": np.arange(coef.shape[0]), "latitude": LAT, "longitude": LON},
             attrs={
-                "source": f"ERA5 500 hPa height, daily means {YEARS[0]}-{YEARS[1]} (WeatherBench 2, 1.5 deg)",
+                "source": f"ERA5 {var[1:]} hPa height, daily means {YEARS[0]}-{YEARS[1]} (WeatherBench 2, 1.5 deg)",
                 "method": f"mean + {HC.NHARM} annual harmonics fitted to the month means (scripts/lib/harmonic_clim.py)",
                 "units": "m",
             },
@@ -131,9 +138,9 @@ def msl() -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("var", choices=("z500", "msl"))
+    ap.add_argument("var", choices=(*HEIGHTS, "msl"))
     a = ap.parse_args()
-    {"z500": z500, "msl": msl}[a.var]()
+    msl() if a.var == "msl" else height(a.var)
     return 0
 
 

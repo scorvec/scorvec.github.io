@@ -124,6 +124,15 @@ PRODUCTS = {
         note="Anomalies against ERA5 1991–2020 at each day and hour, raw model output (polarcap.py); above zero = high "
         "pressure over the Arctic, the negative Arctic Oscillation.",
     ),
+    "telecon": Product(
+        "Arctic Oscillation and North Atlantic Oscillation",
+        {
+            "ao": Key("Arctic Oscillation", "sd of the daily index", 2, unit="sd", short="AO"),
+            "nao": Key("North Atlantic Oscillation", "sd of the daily index", 2, unit="sd", short="NAO"),
+        },
+        note="Each member's daily index on the site's CPC-style patterns, raw model output against ERA5 1991–2020 "
+        "(polarcap.py); negative = high pressure over the Arctic and Greenland.",
+    ),
     "upperstrat": Product(
         "Upper stratosphere, northern vortex",
         {

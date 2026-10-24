@@ -12,8 +12,9 @@ name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, wave
 #                            (both with the IFS-ENS drift, reference/ifs_capdrift.json)
 #   wave_maps.py          -> assets/sst/anim/wave{1,2}_{ifs,hres}_{nh,sh}/ + wave{1,2}_maps_{ifs,hres}_manifest.json
 #   vortex_winds.py       -> assets/sst/anim/vortex_{ifs,hres}_{10,100}_{nh,sh}/ + vortex_winds_{ifs,hres}_manifest.json
-#   polarcap.py           -> assets/sst/polarcap_ifs.webp + anim/polarcap_ifs/ + data/runs/polarcap_{ifs,hres}.json:
-#                            polar-cap sea level and 500 hPa (the shared gh and msl files)
+#   polarcap.py           -> assets/sst/{polarcap,telecon}_ifs.webp + anim/polarcap_ifs/, anim/z100_{ifs,hres}/ +
+#                            data/runs/{polarcap,telecon}_{ifs,hres}.json: polar cap, AO/NAO, 100 hPa height (the shared
+#                            gh and msl files)
 #   (hres = the IFS control in file names, as in the code; the pages say "IFS control")
 #   ssw_imprint.py        -> assets/sst/ssw_imprint.webp + data/ssw_imprint{,_history,_runs}.json: the downward
 #                            propagation monitor (imprint job, after the drips it reads)
@@ -23,7 +24,7 @@ name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, wave
 #   qbo_zeroline.py       -> assets/sst/qbo_zeroline_*.webp re-rendered with IFS-ENS + data/qbo_zeroline_ifs.json
 #   naens (GEFS, GEPS)    -> assets/sst/{gefs,geps}_heatflux100_{nh,sh}.webp, {gefs,geps}_drip.webp (+ data/*.json),
 #                            anim/wave{1,2}_{gefs,geps}_{nh,sh}/, anim/vortex_{gefs,geps}_{10,100}_{nh,sh}/ + manifests,
-#                            polarcap_{gefs,geps}.webp + anim/polarcap_{gefs,geps}/
+#                            {polarcap,telecon}_{gefs,geps}.webp + anim/{polarcap,z100}_{gefs,geps}/
 # The upper-stratosphere item cannot have IFS: its open data stops at 10 hPa (GEPS's too).
 #
 # WHY A SEPARATE WORKFLOW. IFS-ENS day 15 reaches the Google mirror at ~08:50Z and ~20:55Z (object times), over an
@@ -301,9 +302,10 @@ jobs:
           echo "---- wave_maps"; tail -8 /tmp/hwaves.log
           echo "---- vortex_winds"; tail -8 /tmp/hwinds.log
 
-      # Polar cap at sea level and 500 hPa from the shared files (gh at 500 hPa and msl, the IFS control's too): the
-      # IFS-ENS plumes and maps and the IFS-ENS and IFS control records. The control alone when IFS-ENS is not ready.
-      - name: Polar cap, sea level and 500 hPa (IFS-ENS, IFS control)
+      # Polar cap at sea level and 500 hPa, the AO and NAO, and the 100 hPa height from the shared files (gh at 500 and
+      # 100 hPa and msl, the IFS control's too): plumes, maps and the IFS-ENS and IFS control records. The control alone
+      # when IFS-ENS is not ready.
+      - name: Polar cap, AO and NAO, 100 hPa height (IFS-ENS, IFS control)
         timeout-minutes: 15
         continue-on-error: true
         run: |
@@ -336,7 +338,7 @@ jobs:
         run: |
           bad=0
           want="assets/sst/hres_drip.webp"
-          [ "$READY" = "true" ] && want="$want assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/ifs_drip.webp assets/sst/polarcap_ifs.webp"
+          [ "$READY" = "true" ] && want="$want assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/ifs_drip.webp assets/sst/polarcap_ifs.webp assets/sst/telecon_ifs.webp"
           for f in $want; do
             if [ -f "$f" ] && [ "$f" -nt /tmp/t0 ]; then printf '  %-40s %s\n' "$f" "$(du -h "$f" | cut -f1)"
             else printf '  %-40s MISSING\n' "$f"; bad=$((bad + 1)); fi
@@ -361,11 +363,14 @@ jobs:
                    assets/sst/data/runs/vortex_{ifs,hres,gdps,geosfp}.json assets/sst/data/runs/{heatflux,drip,waves}_ifs.json \
                    assets/sst/data/runs/{drip,waves}_hres.json assets/sst/runs/{heatflux,drip,waves}_ifs.webp \
                    assets/sst/runs/{drip,waves}_hres.webp \
-                   assets/sst/polarcap_ifs.webp assets/sst/anim/polarcap_ifs_manifest.json \
-                   assets/sst/data/runs/polarcap_{ifs,hres}.json assets/sst/runs/polarcap_{ifs,hres}.webp; do
+                   assets/sst/polarcap_ifs.webp assets/sst/telecon_ifs.webp assets/sst/anim/polarcap_ifs_manifest.json \
+                   assets/sst/anim/z100_{ifs,hres}_manifest.json \
+                   assets/sst/data/runs/{polarcap,telecon}_{ifs,hres}.json assets/sst/runs/{polarcap,telecon}_{ifs,hres}.webp; do
             [ -e "$p" ] && [ "$p" -nt /tmp/t0 ] && echo "$p" >> /tmp/maps.list
           done
-          [ -d assets/sst/anim/polarcap_ifs ] && [ assets/sst/anim/polarcap_ifs -nt /tmp/t0 ] && echo assets/sst/anim/polarcap_ifs >> /tmp/maps.list
+          for d in assets/sst/anim/polarcap_ifs assets/sst/anim/z100_ifs assets/sst/anim/z100_hres; do
+            if [ -d "$d" ] && [ "$d" -nt /tmp/t0 ]; then echo "$d" >> /tmp/maps.list; fi
+          done
           for m in ifs hres; do
             for p in assets/sst/anim/wave1_${m}_nh assets/sst/anim/wave1_${m}_sh assets/sst/anim/wave1_maps_${m}_manifest.json \
                      assets/sst/anim/wave2_${m}_nh assets/sst/anim/wave2_${m}_sh assets/sst/anim/wave2_maps_${m}_manifest.json \
@@ -540,7 +545,7 @@ jobs:
           bad=0
           for m in $MODELS; do
             sv=$(echo "$m" | tr a-z A-Z)_SKIP; [ "${!sv}" = "true" ] && { echo "  $m: this cycle is already on the page"; continue; }
-            for f in assets/sst/${m}_heatflux100_nh.webp assets/sst/${m}_heatflux100_sh.webp assets/sst/${m}_drip.webp assets/sst/polarcap_${m}.webp; do
+            for f in assets/sst/${m}_heatflux100_nh.webp assets/sst/${m}_heatflux100_sh.webp assets/sst/${m}_drip.webp assets/sst/polarcap_${m}.webp assets/sst/telecon_${m}.webp; do
               if [ -f "$f" ] && [ "$f" -nt /tmp/t0 ]; then printf '  %-40s %s\n' "$f" "$(du -h "$f" | cut -f1)"
               else printf '  %-40s MISSING\n' "$f"; bad=$((bad + 1)); fi
             done
@@ -564,8 +569,9 @@ jobs:
                      assets/sst/anim/vortex_${m}_10_nh assets/sst/anim/vortex_${m}_10_sh assets/sst/anim/vortex_${m}_100_nh \
                      assets/sst/anim/vortex_${m}_100_sh assets/sst/anim/vortex_winds_${m}_manifest.json \
                      assets/sst/polarcap_${m}.webp assets/sst/anim/polarcap_${m} assets/sst/anim/polarcap_${m}_manifest.json \
-                     assets/sst/data/runs/{vortex,heatflux,drip,waves,polarcap}_${m}.json \
-                     assets/sst/runs/{heatflux,drip,waves,polarcap}_${m}.webp; do
+                     assets/sst/telecon_${m}.webp assets/sst/anim/z100_${m} assets/sst/anim/z100_${m}_manifest.json \
+                     assets/sst/data/runs/{vortex,heatflux,drip,waves,polarcap,telecon}_${m}.json \
+                     assets/sst/runs/{heatflux,drip,waves,polarcap,telecon}_${m}.webp; do
               [ -e "$p" ] && [ "$p" -nt /tmp/t0 ] && echo "$p" >> /tmp/naens.list
             done
           done
@@ -830,6 +836,7 @@ jobs:
             dirs="$dirs assets/sst/anim/vortex_${m}_10_nh assets/sst/anim/vortex_${m}_10_sh assets/sst/anim/vortex_${m}_100_nh assets/sst/anim/vortex_${m}_100_sh"
           done
           dirs="$dirs assets/sst/anim/polarcap_ifs assets/sst/anim/polarcap_gefs assets/sst/anim/polarcap_geps"
+          for m in ifs hres gefs geps; do dirs="$dirs assets/sst/anim/z100_${m}"; done
           scripts/lib/publish_frames_ci.sh $dirs assets/sst/anim/pacjet_ifs
 
       # Stills, data and manifests to main. Never rebase: snapshot, reset to a fresh
@@ -851,6 +858,9 @@ jobs:
                    assets/sst/polarcap_ifs.webp assets/sst/polarcap_gefs.webp assets/sst/polarcap_geps.webp \
                    assets/sst/anim/polarcap_ifs_manifest.json assets/sst/anim/polarcap_gefs_manifest.json \
                    assets/sst/anim/polarcap_geps_manifest.json \
+                   assets/sst/telecon_ifs.webp assets/sst/telecon_gefs.webp assets/sst/telecon_geps.webp \
+                   assets/sst/anim/z100_ifs_manifest.json assets/sst/anim/z100_hres_manifest.json \
+                   assets/sst/anim/z100_gefs_manifest.json assets/sst/anim/z100_geps_manifest.json \
                    assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
                    assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_ifs.json \
                    assets/sst/ssw_imprint.webp assets/sst/data/ssw_imprint.json assets/sst/data/ssw_imprint_history.json \
