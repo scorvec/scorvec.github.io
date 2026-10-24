@@ -122,9 +122,9 @@ PAGES = {
         horizon="Days 1–15",
         region=["Northern Hemisphere"],
         groups={
-            "Now: analyses and observations": dict(models=["GEOS FP"], horizon="Observed"),
+            "The QBO and today's analyses": dict(models=["GEOS FP"], horizon="Observed"),
             "Weeks 3–5": dict(models=["GEPS", "GEFS"], horizon="Weeks 1–5", prio=3),
-            "Season": dict(models=["SEAS5"], horizon="Seasons", tier=2, prio=30),
+            "The season ahead": dict(models=["SEAS5"], horizon="Seasons", tier=2, prio=30),
             "History and studies": dict(
                 topic="research", horizon="Climate record", models=["MERRA-2"], tier=1, prio=21
             ),
