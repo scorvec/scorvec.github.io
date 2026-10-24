@@ -1927,7 +1927,7 @@
     var hs = c.tem.hours, ix = hs.indexOf(36) >= 0 ? hs.indexOf(36) : 0, cp = c.tem.cap && c.tem.cap[ix];
     if (cp) out.push("over the caps at +" + hs[ix] + " h (the first full 72 h mean): " + ["nh", "sh"].map(function (h) {
       return (h === "nh" ? "60–90°N" : "60–90°S") + " residual descent " + [10, 100].map(function (q) { var x = cp[h + "/" + q]; return num(x.residual, 2) + " mm/s at " + q + " hPa (Eulerian " + num(x.eulerian, 2) + ")"; }).join(", "); }).join("; "));
-    return "This run (GFS " + c.init.slice(5, 10).replace("-", "/") + " " + c.init.slice(11, 13) + "Z): " + out.join(". ") + ".";
+    return "This run (GFS " + c.init.slice(5, 10).replace("-", "/") + " " + c.init.slice(11, 13) + "Z). " + out.map(function (x) { return x.charAt(0).toUpperCase() + x.slice(1); }).join(". ") + ".";
   }
   function checksOf(mod, c, geos) {
     var k0 = c && c.checks; if (!k0) return "";
