@@ -162,9 +162,10 @@ PRODUCTS = {
         {
             "strat": Key("10–100 hPa", "mm s⁻¹, downward", 2, unit="mm s⁻¹", short="10–100 hPa"),
             "ut": Key("100–300 hPa", "mm s⁻¹, downward", 2, unit="mm s⁻¹", short="100–300 hPa"),
+            "res": Key("residual (TEM) descent, 10–100 hPa", "mm s⁻¹, downward", 2, unit="mm s⁻¹", short="residual"),
         },
         note="Log-pressure vertical velocity −(H/p) ω, H = 7 km, downward positive, the cap's log-pressure layer means "
-        "(polar_descent.py). Raw model output, no normal.",
+        "(polar_descent.py): the Eulerian motion, and for GEFS the residual (TEM) one. Raw model output, no normal.",
     ),
     "upperstrat": Product(
         "Upper stratosphere, northern vortex",
@@ -342,10 +343,11 @@ def render(product: str, model: str, out: Path | None = None) -> Path | None:
         return None
     col, lab = MODEL_COLOUR[model], MODEL_LABEL[model]
     mine = rs[-SHOW:]
-    nk = len(P.keys)
+    keys = {k: K for k, K in P.keys.items() if any(k in r for r in mine)}  # a model without a key has no panel for it
+    nk = len(keys)
     fig = plt.figure(figsize=(11.5, 2.7 * nk + (2.4 if P.scalar else 0) + 0.9))
     gs = fig.add_gridspec(nk + (1 if P.scalar else 0), 1, hspace=0.62)
-    for i, (key, K) in enumerate(P.keys.items()):
+    for i, (key, K) in enumerate(keys.items()):
         ax = fig.add_subplot(gs[i])
         shown = [r for r in mine if key in r]
         for k, r in enumerate(shown):
@@ -435,14 +437,15 @@ def render_combined(product: str, models: tuple, out: Path) -> Path | None:
     have = {m: rs for m, rs in have.items() if rs}
     if not have:
         return None
-    nk = len(P.keys)
+    keys = {k: K for k, K in P.keys.items() if any(k in r for rs in have.values() for r in rs[-SHOW:])}
+    nk = len(keys)
     ns = 1 if P.scalar else 0
     fig = plt.figure(figsize=(13.6, 3.4 * nk + 3.6 * ns + 1.0))
     gs = fig.add_gridspec(nk + ns, len(have), height_ratios=(*(1,) * nk, *(0.8,) * ns), hspace=0.5, wspace=0.16)
     for j, (m, rs) in enumerate(have.items()):
         col, lab = MODEL_COLOUR[m], MODEL_LABEL[m]
         mine = rs[-SHOW:]
-        for i, (key, K) in enumerate(P.keys.items()):
+        for i, (key, K) in enumerate(keys.items()):
             ax = fig.add_subplot(gs[i, j])
             shown = [r for r in mine if key in r]
             for k, r in enumerate(shown):

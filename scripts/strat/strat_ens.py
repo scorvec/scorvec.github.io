@@ -29,9 +29,10 @@ THE PARTS (fetch only what the caller needs; the job that runs every product fet
   polarcap daily 0-360 h     PRMSL, HGT 500, 100, 10, pc_msl (hPa), pc_z500, pc_z100, pc_z10, pc_t10 (K) (member,
                              TMP 10                   lead, lat, lon) on polarcap.py's 1.5 deg cells, 19.5-90N (cell
                                                        means)                                             polarcap
-  omega   daily 0-360 h      VVEL at 17 levels        om_series (member, lead, level, region) descent over the cap
-          (GEFS only: GEPS   850..1 hPa               and its six sectors; om_mean, om_ndesc (lead, level, lat, lon)
-          publishes none)                             the smoothed members' mean and count descending, north of 50N
+  omega   daily 0-360 h      VVEL, VGRD, TMP at 17    om_series (member, lead, level, region) descent over the cap
+          (GEFS only: GEPS   levels 850..1 hPa        and its six sectors; om_res (member, lead, level) the cap's
+          publishes no                                residual descent; om_mean, om_ndesc (lead, level, lat, lon)
+          vertical velocity)                          the smoothed members' mean and count descending, north of 50N
                                                        (polar_descent.reduce_step)                       polar_descent
 Members are kept whole only on 1 deg for the wave maps and on 1.5 deg for the polar cap; everything else is reduced as
 each step arrives.
@@ -87,7 +88,7 @@ PART_KEYS = {
     "waves": ("zwave",),
     "winds": ("wind_n", "wind"),
     "polarcap": ("pc_msl", "pc_z100", "pc_z10", "pc_t10", "pc_z500"),
-    "omega": ("om_n", "om_mean", "om_ndesc", "om_series"),
+    "omega": ("om_n", "om_mean", "om_ndesc", "om_res", "om_series"),
 }
 FLOOR = {"gefs": 16, "geps": 11}  # of 31 and 21
 LAT = np.arange(90.0, -90.0 - 1e-6, -0.5)  # both models' 0.5 deg grid, north to south
@@ -112,7 +113,7 @@ def need(parts, L: int, model: str) -> set[tuple[str, int]]:
     if "polarcap" in parts and L in LEADS_DAILY:
         out |= {("PRMSL", "msl"), ("HGT", 500), ("HGT", 100), ("HGT", 10), ("TMP", 10)}
     if "omega" in parts and L in LEADS_DAILY:
-        out |= {("VVEL", lev) for lev in PD.LEVELS_GEFS}
+        out |= {(v, lev) for v in ("VVEL", "VGRD", "TMP") for lev in PD.LEVELS_GEFS}
     return out
 
 
@@ -263,6 +264,7 @@ def _empty(key: str, nmem: int, model: str) -> np.ndarray:
         "pc_z10": (nmem, len(LEADS_DAILY), PC.CLAT.size, PC.CLON.size),
         "pc_t10": (nmem, len(LEADS_DAILY), PC.CLAT.size, PC.CLON.size),
         "om_series": (nmem, len(LEADS_DAILY), len(PD.LEVELS_GEFS), len(PD.REGIONS)),
+        "om_res": (nmem, len(LEADS_DAILY), len(PD.LEVELS_GEFS)),
         "om_mean": (len(LEADS_DAILY), len(PD.LEVELS_GEFS), nmap, PC.CLON.size),
     }[key]
     return np.full(shape, np.nan, "float32")
@@ -316,8 +318,12 @@ def fetch(model: str, date: str, hh: str, parts=PARTS, workers: int = 32) -> Pat
                     acc["pc_t10"][m, i] = PC.coarse(got[m][("TMP", 10)], LAT, LON)
             if "omega" in todo:
                 om = np.stack([[PC.coarse(got[m][("VVEL", lev)], LAT, LON) for lev in PD.LEVELS_GEFS] for m in ms])
-                r = PD.reduce_step(om, PD.LEVELS_GEFS)
-                acc["om_series"][ms, i] = r["series"]
+                edge = np.abs(LAT - PD.PHI0) <= 0.3  # the rows on the cap's edge, for the residual descent
+                v, t = (
+                    np.stack([[got[m][(x, lev)][edge] for lev in PD.LEVELS_GEFS] for m in ms]) for x in ("VGRD", "TMP")
+                )
+                r = PD.reduce_step(om, PD.LEVELS_GEFS, *PD.boundary_eddies(v, t, LAT[edge]))
+                acc["om_series"][ms, i], acc["om_res"][ms, i] = r["series"], r["res"]
                 acc["om_mean"][i], acc["om_ndesc"][i], acc["om_n"][i] = r["mean"], r["ndesc"], len(ms)
             if "flux" in todo:
                 vt = [
