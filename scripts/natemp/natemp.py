@@ -220,26 +220,39 @@ class OnCells:
 def orography_shift(date: str, hh: str) -> np.ndarray:
     """(LAT_G, LON_G) K: -LAPSE x (GEPS's surface height - the IFS's orography averaged over the GEPS cell), the
     normals' orography being the IFS's (ERA5-Land runs on its ~9 km grid). GEPS: the control's HGT at step 0; the IFS:
-    its control's surface geopotential at step 0, 0.25 deg (Google Cloud mirror)."""
+    its control's surface geopotential at step 0 of the newest run on the Google Cloud mirror, 0.25 deg."""
     import cellmeans as CM
     import eccodes
-    import store as E
+    import rangefetch as rf
 
     zg = dict(decode_geps(m) for m in split_grib(geps_file(date, hh, GEPS_HGT, 0)))[0]
-    path = E.ensure(E.Cycle(date, hh), E.Spec("ifs", "fc", "z", "sfc", (), (0,)))
-    with open(path, "rb") as fh:
-        gid = eccodes.codes_grib_new_from_file(fh)
+    t0 = pd.Timestamp(f"{date} {hh}:00")
+    for back in range(5):  # the orography does not change: the newest control run on the mirror (it lands after GEPS)
+        t = t0 - pd.Timedelta(hours=12 * back)
+        d, h = f"{t:%Y%m%d}", f"{t:%H}"
         try:
-            ni, nj = eccodes.codes_get(gid, "Ni"), eccodes.codes_get(gid, "Nj")
-            lat0 = eccodes.codes_get_double(gid, "latitudeOfFirstGridPointInDegrees")
-            lon0 = eccodes.codes_get_double(gid, "longitudeOfFirstGridPointInDegrees")
-            h = eccodes.codes_get_double(gid, "iDirectionIncrementInDegrees")
-            up = eccodes.codes_get(gid, "jScansPositively")
-            z = eccodes.codes_get_values(gid).reshape(nj, ni) / G
-        finally:
-            eccodes.codes_release(gid)
-    lat = lat0 + (h if up else -h) * np.arange(nj)
-    dz = zg - CM.coarsen(z, lat, lon0 + h * np.arange(ni), h, LAT_G, LON_G, 0.5, 360.0)
+            idx = rf.fetch_index(d, h, "ifs", 0, "fc", stream="oper")
+            break
+        except rf.IndexUnavailable:
+            continue
+    else:
+        raise SystemExit(f"no IFS control run on the mirror in the 48 h before {t0:%Y-%m-%d %H}Z")
+    want = [e for e in idx if e.get("param") == "z" and e.get("levtype") == "sfc"]
+    if not want:
+        raise SystemExit(f"IFS control {d} {h}Z: no surface geopotential in the step-0 index")
+    blob = rf.fetch_ranges(rf.path_for(d, h, "ifs", 0, "fc", stream="oper") + ".grib2", rf.coalesce(want))
+    gid = eccodes.codes_new_from_message(split_grib(blob)[0])
+    try:
+        ni, nj = eccodes.codes_get(gid, "Ni"), eccodes.codes_get(gid, "Nj")
+        lat0 = eccodes.codes_get_double(gid, "latitudeOfFirstGridPointInDegrees")
+        lon0 = eccodes.codes_get_double(gid, "longitudeOfFirstGridPointInDegrees")
+        inc = eccodes.codes_get_double(gid, "iDirectionIncrementInDegrees")
+        up = eccodes.codes_get(gid, "jScansPositively")
+        z = eccodes.codes_get_values(gid).reshape(nj, ni) / G
+    finally:
+        eccodes.codes_release(gid)
+    lat = lat0 + (inc if up else -inc) * np.arange(nj)
+    dz = zg - CM.coarsen(z, lat, lon0 + inc * np.arange(ni), inc, LAT_G, LON_G, 0.5, 360.0)
     log(f"  GEPS surface minus the IFS orography over its cells: mean |dz| {np.mean(np.abs(dz)):.0f} m, largest "
         f"{np.max(np.abs(dz)):.0f} m")  # fmt: skip
     return (-LAPSE * dz).astype(np.float32)
