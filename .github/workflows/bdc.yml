@@ -93,9 +93,12 @@ jobs:
           python scripts/strat/geosfp_cap.py tail --days 10 --keep 120 --procs 3 \
             --out assets/sst/data/geosfp_cap_history.json || echo "::warning::GEOS FP cap tail failed"
       # the observed record of the polar-cap descent (polar_descent.py, read by strat.yml and strat-ifs.yml): GEOS FP
-      # omega over the cap and its six sectors, daily mean of 00/06/12/18Z; only the days of the last 45 not yet held
+      # omega over the cap and its six sectors, daily mean of 00/06/12/18Z; only the days of the last 45 not yet held,
+      # newest first and saved day by day (~30 s a day; NCCS stalls cost minutes each, hence the step's own limit)
       - name: GEOS FP polar-cap descent tail
         if: ${{ !cancelled() }}
+        timeout-minutes: 25
+        continue-on-error: true
         run: |
           python scripts/strat/polar_descent.py tail --days 45 --keep 90 || echo "::warning::GEOS FP descent tail failed"
       - name: Publish the PV frames (frames branch)
