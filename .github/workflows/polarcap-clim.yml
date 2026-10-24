@@ -1,7 +1,7 @@
-name: Polar-cap sea-level pressure normal (ERA5 1991-2020 at 00 and 12 UTC, for polarcap.py)
+name: Polar-cap sea-level pressure normal (ERA5 1991-2020 at 00, 06, 12 and 18 UTC, for polarcap.py)
 
-# scripts/strat/build_polarcap_clim.py msl: ERA5 mean sea-level pressure at 00 and 12 UTC, 1991-2020, from WeatherBench
-# 2's public 1.5-deg zarr (one pass, ~3.5 GB), fitted to a smooth daily curve per cell and hour; commits
+# scripts/strat/build_polarcap_clim.py msl: ERA5 mean sea-level pressure at 00, 06, 12 and 18 UTC, 1991-2020, from
+# WeatherBench 2's public 1.5-deg zarr (one pass, ~3.5 GB), fitted to a smooth daily curve per cell and hour; commits
 # scripts/strat/reference/msl_clim.nc. The 500 hPa normal (z500_clim.nc) is built offline from the ERA5 store. Dispatch
 # only (once, or after a change to the fit).
 on:
@@ -43,7 +43,7 @@ jobs:
             cp "$SNAP/msl_clim.nc" "$F"
             git add -f "$F"
             if git diff --staged --quiet; then echo "no changes"; exit 0; fi
-            git commit -q -m "polar-cap sea-level pressure normal (ERA5 1991-2020, 00 and 12 UTC)"
+            git commit -q -m "polar-cap sea-level pressure normal (ERA5 1991-2020, 00/06/12/18 UTC)"
             if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
             echo "push $i rejected; resyncing"; sleep 5
           done

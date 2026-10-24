@@ -12,8 +12,9 @@ build_polarcap_clim.py; scripts/lib/cellmeans.py), so the models compare cell fo
         (its own stream: ctrl_gh, ctrl_msl), drawn on the IFS-ENS plumes and recorded and mapped as a model of its own
         (hres).
   gefs  GEFS control + 30 members, geps GEPS control + 20 members: strat_ens.py's "polarcap" part (PRMSL, HGT 500, 100).
-Daily to 360 h, each value the field at its valid time (00 or 12 UTC, as the normal). Raw model output: no drift is
-removed (the dripping paint's cap heights are drift-corrected and standardised).
+Daily to 360 h, each value the field at its valid time (00, 06, 12 or 18 UTC, as the normal: AIFS-ENS runs four times a
+day, the others at 00 and 12 UTC). Raw model output: no drift is removed (the dripping paint's cap heights are
+drift-corrected and standardised).
 
   polar cap  65-90N means. The sea-level pressure cap leaves out the cells whose ERA5 surface lies above HIGH
              (Greenland's ice sheet, the higher Siberian and Canadian ranges), where sea-level pressure is an

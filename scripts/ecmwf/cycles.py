@@ -20,7 +20,8 @@ If the listing cannot be read, (3) falls back to a settle time: the last step's 
 
 resolve() walks back from the newest cycle whose init time has passed to at most `back` cycles before it (default 2,
 env ECMWF_CYCLE_BACK) and returns the first ready one, logging to stderr why each newer one was passed over. It never
-guesses: if none is ready it raises CycleUnavailable.
+guesses: if none is ready it raises CycleUnavailable. Cycles are 00/12Z unless `every` = 6 (the AIFS-ENS 06/18Z runs
+reach day 15 too; the stratosphere products take them).
 
 GOOGLE MIRROR ONLY: every probe goes to storage.googleapis.com/ecmwf-open-data (the object
 HEADs, and the JSON listing of the same bucket). Never AWS, Azure or data.ecmwf.int, not even to probe.
@@ -31,6 +32,7 @@ HEADs, and the JSON listing of the same bucket). Never AWS, Azure or data.ecmwf.
 
     python cycles.py --profile aifs-ens --github-output      # date=/time= for a workflow step
     python cycles.py --profile aifs-ens --out /tmp/cyc       # "YYYYMMDD HH" to a file
+    python cycles.py --profile aifs-ens --every 6 --out /tmp/cyc   # 00/06/12/18Z
     python cycles.py --profile ifs-ens --date 20260928 --time 12 --check   # exit 0 iff ready
 """
 
@@ -222,14 +224,15 @@ def is_ready(
     return True, "complete (" + "; ".join(notes) + ")"
 
 
-def candidates(now: dt.datetime | None = None, back: int = BACK) -> list[tuple[str, str]]:
-    """The newest 00/12Z cycle whose init time has passed, then `back` cycles before it. Only ORDERS the probes."""
+def candidates(now: dt.datetime | None = None, back: int = BACK, every: int = 12) -> list[tuple[str, str]]:
+    """The newest cycle (every `every` hours from 00Z) whose init time has passed, then `back` cycles before it. Only
+    ORDERS the probes."""
     now = (now or dt.datetime.now(dt.UTC)).astimezone(dt.UTC).replace(tzinfo=None)
-    c = now.replace(minute=0, second=0, microsecond=0, hour=12 if now.hour >= 12 else 0)
+    c = now.replace(minute=0, second=0, microsecond=0, hour=now.hour // every * every)
     out = []
     for _ in range(back + 1):
         out.append((f"{c:%Y%m%d}", f"{c:%H}"))
-        c -= dt.timedelta(hours=12)
+        c -= dt.timedelta(hours=every)
     return out
 
 
@@ -241,6 +244,7 @@ def resolve(
     settle_min: float = SETTLE_MIN,
     now: dt.datetime | None = None,
     what: str = "",
+    every: int = 12,
 ) -> tuple[str, str]:
     """The newest READY cycle (see the module docstring). An explicit date AND time are returned as given (a manual
     override), with a warning when that cycle is not ready. Raises CycleUnavailable when nothing in the window is."""
@@ -253,7 +257,7 @@ def resolve(
         )
         return date, f"{int(time_):02d}"
     skipped = []
-    for d, h in candidates(now, back):
+    for d, h in candidates(now, back, every):
         ok, why = is_ready(d, h, needs, settle_min, now)
         if ok:
             msg = f"cycle {d} {h}Z chosen for {what}: {why}"
@@ -292,6 +296,7 @@ def main() -> int:
     ap.add_argument("--date", default="")
     ap.add_argument("--time", default="")
     ap.add_argument("--back", type=int, default=BACK)
+    ap.add_argument("--every", type=int, choices=(6, 12), default=12, help="hours between the cycles tried")
     ap.add_argument("--check", action="store_true", help="only report whether --date/--time is ready (exit 0/1)")
     ap.add_argument("--out", help="write 'YYYYMMDD HH' to this file")
     ap.add_argument("--github-output", action="store_true", help="append date=/time= to $GITHUB_OUTPUT")
@@ -304,7 +309,7 @@ def main() -> int:
         _log(f"{a.date} {a.time}Z {a.profile}: {'ready' if ok else 'not ready'} - {why}")
         return 0 if ok else 1
     try:
-        d, h = resolve(needs, a.date or None, a.time or None, back=a.back, what=a.profile)
+        d, h = resolve(needs, a.date or None, a.time or None, back=a.back, what=a.profile, every=a.every)
     except CycleUnavailable as e:
         _log(f"ERROR: {e}")
         return 1

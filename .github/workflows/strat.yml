@@ -42,6 +42,11 @@ name: Stratosphere (vortex, waves 1 and 2, E-P flux from GEFS)
 # back up to two cycles. strat-ifs.yml resolves with the same rule, so both
 # workflows land on the same initialisation.
 #
+# 06Z AND 18Z. AIFS-ENS also runs to day 15 at 06 and 18Z (complete on the mirror ~13:55Z / ~01:55Z), and the
+# stratosphere products take those runs too (cycles.py --every 6): everything in the light job, the vortex record and
+# the zero line. The North Pacific jet (circulation.html) and the GEFS E-P flux stay on 00/12Z, and strat-ifs.yml (IFS-ENS
+# reaches day 15 only at 00/12Z) resolves 00/12Z alone.
+#
 # Publishing is likewise a single job. Both the frames push and the commit to
 # main are force-push / rebase operations on shared refs: two render jobs
 # publishing concurrently would race, and on the frames branch the loser
@@ -53,8 +58,9 @@ on:
   schedule:
     - cron: '50 7 * * *'
     - cron: '50 19 * * *'
-  # AIFS-ENS 00Z/12Z are complete on open data by about 07:45Z and 19:45Z. These are
-  # daily products, so two firings is the right size - deliberately not more.
+    - cron: '10 14 * * *'
+    - cron: '10 2 * * *'
+  # AIFS-ENS 00/06/12/18Z are complete on open data by about 07:45Z, 13:55Z, 19:45Z and 01:55Z.
   workflow_call:
   workflow_dispatch:
     inputs:
@@ -62,7 +68,7 @@ on:
         description: 'Cycle date YYYYMMDD (blank = latest AIFS-ENS)'
         default: ''
       time:
-        description: 'Cycle hour 00 or 12 (blank = latest)'
+        description: 'Cycle hour 00, 06, 12 or 18 (blank = latest)'
         default: ''
       publish:
         description: 'Commit the figures (false = render + artifacts only)'
@@ -102,6 +108,7 @@ jobs:
       date: ${{ steps.cyc.outputs.date }}
       time: ${{ steps.cyc.outputs.time }}
       fresh: ${{ steps.cyc.outputs.fresh }}
+      main: ${{ steps.cyc.outputs.main }}   # a 00/12Z cycle (the jet and the E-P flux run on those only)
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -129,14 +136,15 @@ jobs:
           if [ -z "$D" ] || [ -z "$T" ]; then
             # Availability, not the clock: the shared resolver takes the newest cycle whose every step
             # is on the Google mirror (scripts/ecmwf/cycles.py) and logs why it passed over a newer one.
-            python ../../ecmwf/cycles.py --profile aifs-ens --out /tmp/cyc || true
+            python ../../ecmwf/cycles.py --profile aifs-ens --every 6 --out /tmp/cyc || true
             D=$(awk '{print $1}' /tmp/cyc 2>/dev/null || true)
             T=$(awk '{print $2}' /tmp/cyc 2>/dev/null || true)
           fi
-          if ! echo "$D" | grep -qE '^[0-9]{8}$' || ! echo "$T" | grep -qE '^(00|12)$'; then
+          if ! echo "$D" | grep -qE '^[0-9]{8}$' || ! echo "$T" | grep -qE '^(00|06|12|18)$'; then
             echo "ERROR: no ready cycle (D='$D' T='$T') - see the resolver's lines above" >&2; exit 1
           fi
           echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"
+          main=false; case "$T" in 00|12) main=true ;; esac; echo "main=$main" >> "$GITHUB_OUTPUT"
           echo "cycle: $D ${T}Z"
           # skip_published (every dispatcher slot): a slot that fires before the newest cycle is complete resolves the
           # one before it, already published, and does nothing; the next slot picks the new cycle up. A schedule run
@@ -406,6 +414,7 @@ jobs:
       # research view (which reads the committed torque_ranges.json from aam-ifs.yml) and the phase-impact figures (drawn
       # from the committed ERA5 composites in scripts/mjo/data/reference/pacjet_impacts.npz).
       - name: North Pacific jet (AIFS-ENS)
+        if: needs.cycle.outputs.main == 'true'
         run: |
           python scripts/mjo/src/pacjet.py --model aifs \
             --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
@@ -462,7 +471,7 @@ jobs:
   # per-member eddy quadratics in 4 processes, never written to disk. Independent of the ECMWF cache.
   epflux:
     needs: cycle
-    if: needs.cycle.outputs.fresh == 'true'
+    if: needs.cycle.outputs.fresh == 'true' && needs.cycle.outputs.main == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:

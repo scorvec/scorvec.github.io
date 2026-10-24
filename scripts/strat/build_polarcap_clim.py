@@ -9,9 +9,9 @@ alike (scripts/lib/harmonic_clim.py: the mean and NHARM annual harmonics whose m
         -> reference/z500_clim.nc, coef (term, latitude, longitude) in m. The 500 hPa height's daily cycle is a few
         metres, so the one curve serves forecasts valid at 00 and at 12 UTC.
   z100  the same from the store's 13-level heights (zplev, 100 hPa) -> reference/z100_clim.nc.
-  msl   the 00 and 12 UTC fields separately, from WeatherBench 2's 6-hourly zarr (one pass over 1991-2020, ~3.5 GB; in
-        Actions, polarcap-clim.yml): sea-level pressure has a daily tide of about 1 hPa at 20 N, which a daily-mean
-        normal would leave in the anomaly of a forecast valid at 00 or 12 UTC.
+  msl   each of 00, 06, 12 and 18 UTC separately, from WeatherBench 2's 6-hourly zarr (one pass over 1991-2020, ~3.5 GB;
+        in Actions, polarcap-clim.yml): sea-level pressure has a daily tide of about 1 hPa at 20 N, which a daily-mean
+        normal would leave in the anomaly of a forecast valid at a fixed hour.
         -> reference/msl_clim.nc, coef (hour, term, latitude, longitude) in hPa, with each cell's surface height orog
         (m, geopotential_at_surface / g: the polar cap's sea-level pressure leaves out the high cells).
 
@@ -38,7 +38,7 @@ REF = HERE / "reference"
 YEARS = (1991, 2020)
 LAT = np.round(np.arange(13, 61) * 1.5, 2)  # 19.5..90 N
 LON = np.round(np.arange(240) * 1.5, 2)  # 0..358.5 E
-HOURS = (0, 12)
+HOURS = (0, 6, 12, 18)
 G = 9.80665
 WB2 = "gs://weatherbench2/datasets/era5/1959-2023_01_10-6h-240x121_equiangular_with_poles_conservative.zarr"
 
@@ -128,7 +128,7 @@ def msl() -> None:
             },
             coords={"hour": list(HOURS), "term": np.arange(coef.shape[0]), "latitude": LAT, "longitude": LON},
             attrs={
-                "source": f"ERA5 mean sea-level pressure at 00 and 12 UTC, {YEARS[0]}-{YEARS[1]} (WeatherBench 2, 1.5 deg)",
+                "source": f"ERA5 mean sea-level pressure at 00, 06, 12 and 18 UTC, {YEARS[0]}-{YEARS[1]} (WeatherBench 2, 1.5 deg)",
                 "method": f"mean + {HC.NHARM} annual harmonics fitted to the month means (scripts/lib/harmonic_clim.py)",
                 "units": "hPa; orog m",
             },

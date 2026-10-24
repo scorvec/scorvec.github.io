@@ -35,7 +35,7 @@ DATA = REPO / "assets" / "sst" / "data"
 RUNS = DATA / "runs"
 FIGS = REPO / "assets" / "sst" / "runs"
 KEEP_DAYS = 30
-SHOW = 8  # four days of 00/12Z runs
+SHOW = 8  # four days of 00/12Z runs (two of AIFS-ENS, which runs at 00, 06, 12 and 18Z)
 CHANGE = (6, 15)  # days of the newest run whose mean change against the run 24 h earlier is printed
 MODEL_LABEL = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS", "hres": "IFS control", "gefs": "GEFS", "geps": "GEPS",
                "gdps": "GDPS", "geosfp": "GEOS FP", "gfs": "GFS", "geos": "GEOS FP"}  # fmt: skip
