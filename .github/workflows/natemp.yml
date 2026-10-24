@@ -3,7 +3,7 @@ name: North America 2 m temperature (IFS-ENS 0.1 deg, anomaly and run-to-run cha
 # scripts/natemp/natemp.py: the 50 perturbed members of the IFS-ENS 0.1-deg run (Google Cloud mirror only), 2t at the
 # 6-hourly steps of its full calendar days (15 for a 00Z run, 14 for 12Z); maps of days 1-5, 6-10, 11-15 and of each
 # day: the anomaly against the ERA5-Land/ERA5 1991-2020 normals (natemp_normals.npz, release natemp-ref-v1, from
-# natemp-ref.yml) where 80% of the members agree on its sign, and the change from the run 12 h earlier where
+# natemp-ref.yml) where two thirds of the members agree on its sign, and the change from the run 12 h earlier where
 # significant. The change needs no normals, only the previous run's statistics, which each run leaves in the Actions
 # cache (natemp-stats-<YYYYMMDDHH>, ~100 MB; older entries are deleted). Until the release holds the normals a run draws
 # the change maps alone, and the first run after they appear redraws the newest run with its anomaly maps (the

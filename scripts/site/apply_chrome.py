@@ -77,7 +77,7 @@ PRODUCTS = [
                     (
                         "/circulation.html#natemp",
                         "North America 2 m temperature",
-                        "IFS-ENS daily-mean 2 m temperature anomalies on the 0.1° grid to day 15, coloured where 80% of the 50 members agree on the sign, and the significant changes from the previous run.",
+                        "Daily-mean 2 m temperature anomalies to day 15 from the IFS-ENS on its 0.1° grid and GEPS on its 0.5° grid, coloured where enough members agree on the sign, and the significant changes from the previous run.",
                         "Twice daily",
                     ),
                 ],

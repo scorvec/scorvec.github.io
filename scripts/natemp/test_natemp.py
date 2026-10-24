@@ -9,6 +9,9 @@ answers: no data are fetched and no figure is drawn.
            land node when a sea node is near
   grib     read_field maps a 180..334 E message with missing values onto the box; decode keeps the box of a global
            0.1-deg 2t message starting at 0 E or at 180 E, and refuses another grid
+  geps     split_grib cuts a file's bytes into its messages; decode_geps keeps the 0.5-deg box of a global message
+           and its member number (the control 0); the GEPS gate is 16 of 21; the normals averaged onto the 0.5-deg
+           cells keep a smooth field and add the height shift
   days     a 00Z run has 15 full days (steps 6..360), a 12Z run 14 (18..348); windows 1-5, 6-10, 11-15/14
   read     read_run on fake steps: the members' daily means, a member missing one field loses that day only
   gate     the two-thirds agreement on the sign of the mean, also when the members are skewed; that share passes
@@ -134,6 +137,39 @@ try:
     check(False, "decode refuses a 0.25-deg message")
 except RuntimeError:
     check(True, "decode refuses a 0.25-deg message")
+
+print("geps: the 0.5-deg grid, the gate, the normals on its cells")
+lat5 = np.round(np.arange(900, -901, -5) / 10.0, 1)
+lon5 = np.round(np.arange(0, 3600, 5) / 10.0, 1)
+g5 = 250 + 0.5 * lat5[:, None] + 0.01 * lon5[None, :]
+blob = grib(g5, 90.0, 0.0, 0.5, number=0) + grib(g5 + 1, 90.0, 0.0, 0.5, number=3)
+msgs = T.split_grib(blob)
+check(len(msgs) == 2 and b"".join(msgs) == blob, "split_grib: two messages back to back, nothing lost")
+num, box = T.decode_geps(msgs[0])
+want5 = g5[np.rint((90 - T.LAT_G) / 0.5).astype(int)][:, np.rint((T.LON_G % 360) / 0.5).astype(int)]
+check(num == 0 and box.shape == (T.LAT_G.size, T.LON_G.size) and np.abs(box - want5).max() < 2e-3,
+      "decode_geps: the control and the box rows 77N..9N, columns 180W..26W")  # fmt: skip
+num, box = T.decode_geps(msgs[1])
+check(num == 3 and np.abs(box - want5 - 1).max() < 2e-3, "decode_geps: a perturbed member's number and field")
+check(T.sign_k(21) == 16 and T.sign_k(50) == 33, "the sign test's counts: 16 of 21, 33 of 50")
+
+
+class Flat:
+    def __init__(self):
+        self.meta = {"label": "flat"}
+
+    def at(self, times):
+        return np.full((len(times), R.LAT.size, R.LON.size), 280.0) + 0.01 * R.LAT[None, :, None]
+
+
+oc = T.OnCells(Flat(), T.LAT_G, T.LON_G, np.full((T.LAT_G.size, T.LON_G.size), -1.0, np.float32))
+v = oc.at([pd.Timestamp("2026-10-24 12:00")])[0]
+cells = 280.0 + 0.01 * T.LAT_G[:, None] - 1.0
+inner = (slice(1, -1), slice(1, -1))  # the box's edge cells are part outside the 0.1-deg points
+check(
+    np.abs(v[inner] - np.broadcast_to(cells, v.shape)[inner]).max() < 1e-4,
+    "OnCells: cell means of a smooth field, + shift",
+)
 
 print("days: the run's full days and windows")
 d00 = T.full_days(pd.Timestamp("2026-10-23 00:00"))
