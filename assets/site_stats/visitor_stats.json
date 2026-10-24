@@ -1,13 +1,13 @@
 {
  "updated": "2026-10-24",
- "total_30d": 814,
- "countries_30d": 33,
- "total_all": 1623,
- "countries_all": 35,
+ "total_30d": 819,
+ "countries_30d": 34,
+ "total_all": 1628,
+ "countries_all": 36,
  "top_pages_30d": [
   {
    "path": "/models.html",
-   "count": 70
+   "count": 71
   },
   {
    "path": "/aifs-aam-budget.html",
@@ -23,11 +23,11 @@
   },
   {
    "path": "/stratosphere.html",
-   "count": 41
+   "count": 42
   },
   {
    "path": "/enso.html",
-   "count": 40
+   "count": 41
   },
   {
    "path": "/midterms",
