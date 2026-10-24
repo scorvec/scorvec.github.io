@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """GitHub traffic of the public repositories, kept beyond GitHub's 14-day window, for stats.html.
 
-GitHub serves clones and page views per day for the last 14 days only (Insights -> Traffic). Each run merges those days
-into assets/site_stats/github_traffic.json, so the history accumulates; the newest day is partial and the next run
-overwrites it. Clones count every clone and fetch, GitHub Actions checkouts and `pip install git+...` included, so they
-mostly measure automation; page views, stars and forks are the human signal.
+GitHub serves page views per day for the last 14 days only (Insights -> Traffic). Each run merges those days into
+assets/site_stats/github_traffic.json, so the history accumulates; the newest day is partial and the next run
+overwrites it. Clones are not kept: GitHub counts every clone and fetch, so they measure this site's own GitHub Actions
+jobs (hundreds a day, several fetches each) and the `pip install git+...` of its workflows, not people.
 
 Every public, non-fork, unarchived repository of OWNER is read, so a new one is picked up by itself; one the token
 cannot read is skipped with a warning and keeps its history. Runs daily from .github/workflows/site-stats.yml. Needs
@@ -49,26 +49,18 @@ def public_repos(token: str) -> list[str]:
 
 
 def update(doc: dict, repo: str, token: str) -> None:
-    """Merge one repository's 14 daily rows of clones and views, and its current stars / forks / watchers, into doc."""
+    """Merge one repository's 14 daily rows of page views, and its current stars and forks, into doc."""
     base = f"/repos/{OWNER}/{repo}"
     meta = get(base, token)
-    clones = get(f"{base}/traffic/clones?per=day", token)
     views = get(f"{base}/traffic/views?per=day", token)
     r = doc["repos"].setdefault(repo, {"days": {}})
-    for kind, rows in (("clones", clones["clones"]), ("views", views["views"])):
-        for row in rows:
-            day = r["days"].setdefault(row["timestamp"][:10], {})
-            day[kind], day[f"{kind}_unique"] = row["count"], row["uniques"]
+    for row in views["views"]:
+        r["days"][row["timestamp"][:10]] = {"views": row["count"], "views_unique": row["uniques"]}
     r["days"] = dict(sorted(r["days"].items()))
     r["since"] = next(iter(r["days"]), None)
-    r["total"] = {k: sum(d.get(k, 0) for d in r["days"].values()) for k in ("clones", "views")}
-    r["last_14d"] = {
-        "clones": clones["count"],
-        "clones_unique": clones["uniques"],
-        "views": views["count"],
-        "views_unique": views["uniques"],
-    }
-    r["stars"], r["forks"], r["watchers"] = meta["stargazers_count"], meta["forks_count"], meta["subscribers_count"]
+    r["total"] = {"views": sum(d["views"] for d in r["days"].values())}
+    r["last_14d"] = {"views": views["count"], "views_unique": views["uniques"]}
+    r["stars"], r["forks"] = meta["stargazers_count"], meta["forks_count"]
 
 
 def main() -> int:
@@ -87,11 +79,7 @@ def main() -> int:
         return 0
     doc["updated"] = datetime.now(UTC).strftime("%Y-%m-%d %H:%MZ")
     OUT.write_text(json.dumps(doc, indent=1) + "\n")
-    print(
-        ", ".join(
-            f"{k}: {v['last_14d']['views']} views / {v['last_14d']['clones']} clones" for k, v in doc["repos"].items()
-        )
-    )
+    print(", ".join(f"{k}: {v['last_14d']['views']} views in 14 days" for k, v in doc["repos"].items()))
     return 0
 
 
