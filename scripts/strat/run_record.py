@@ -311,6 +311,8 @@ def capture_drip(model: str) -> tuple[pd.Timestamp, dict] | None:
         rec[k] = {"mean": r2(mean[:, j]), "p10": r2(mean[:, j] - sd[:, j]), "p90": r2(mean[:, j] + sd[:, j])}
     fr = d.get("frac100_ge1")
     rec["frac"] = None if not fr or fr[-1] is None else round(float(fr[-1]), 3)
+    # the whole time-height field, which the next day's run is drawn against (forecast_drip.change)
+    rec["field"] = {"lead_h": d["lead_h"], "levels": lev, "mean": d["forecast_mean_sd"]}
     return init, rec
 
 

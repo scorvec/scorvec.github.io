@@ -3,9 +3,9 @@
 fit of build_strat_history.standardise, stored as coefficients so the Actions renderers and the GEPS run put
 forecasts and the observed tail on exactly the scale of the MERRA-2 history drips.
 
-Per level: mean = 4 annual harmonics + a linear trend (per decade from 2000; no MLS step - that applies above 5 hPa
-only and every level here is >= 10 hPa); sd = sqrt(3-harmonic fit to the squared residual, the top 0.1 % clipped),
-floored at a third of its seasonal maximum. The fit uses MERRA-2 1980-01-01 -> 2026-06-26 with the same QC and gap
+Per level: mean = 4 annual harmonics + a linear trend (per decade from 2000), plus at 5 hPa and above a step at
+August 2004, when MERRA-2 starts assimilating Aura MLS (build_strat_history.seasonal_design); sd = sqrt(3-harmonic fit
+to the squared residual, the top 0.1 % clipped), floored at a third of its seasonal maximum. The fit uses MERRA-2 1980-01-01 -> 2026-06-26 with the same QC and gap
 filling as build_strat_history.load_m2.
 
     python build_drip_ref.py            # -> reference/drip_std.json
@@ -21,10 +21,11 @@ import pandas as pd
 
 HERE = Path(__file__).resolve().parent
 OUT = HERE / "reference" / "drip_std.json"
-LEVELS = [1000.0, 925.0, 850.0, 700.0, 500.0, 300.0, 250.0, 200.0, 100.0, 50.0, 10.0]
+LEVELS = [1000.0, 925.0, 850.0, 700.0, 500.0, 300.0, 250.0, 200.0, 100.0, 50.0, 10.0, 7.0, 5.0, 3.0, 2.0, 1.0]
+MLS_STEP = 5.0  # hPa: the levels at and above it take the August 2004 step
 
 
-def design(t: pd.DatetimeIndex, nh: int, trend: bool):
+def design(t: pd.DatetimeIndex, nh: int, trend: bool, step: bool = False):
     # common-year day (1 March = 60 in every year, 29 Feb = 59.5): a calendar date has one phase in leap and common years
     d = np.where((t.month == 2) & (t.day == 29), 59.5, t.dayofyear.values - (t.is_leap_year & (t.month > 2)))
     x = 2 * np.pi * (d - 1) / 365.25
@@ -33,12 +34,14 @@ def design(t: pd.DatetimeIndex, nh: int, trend: bool):
         cols += [np.cos(k * x), np.sin(k * x)]
     if trend:
         cols.append((t.year.values + t.dayofyear.values / 365.25 - 2000) / 10)
+    if step:
+        cols.append((t >= "2004-08-01").astype(float))
     return np.column_stack(cols)
 
 
-def fit(y: np.ndarray, t: pd.DatetimeIndex):
-    """The same algebra as build_strat_history.standardise (step=False), returning the coefficients."""
-    X = design(t, 4, True)
+def fit(y: np.ndarray, t: pd.DatetimeIndex, step: bool = False):
+    """The same algebra as build_strat_history.standardise, returning the coefficients."""
+    X = design(t, 4, True, step)
     ok = np.isfinite(y)
     b = np.linalg.lstsq(X[ok], y[ok], rcond=None)[0]
     r = y - X @ b
@@ -57,7 +60,7 @@ class Ref:
 
     def mean(self, days, L):
         c = self.j["levels"][str(float(L))]
-        return design(pd.DatetimeIndex(days), 4, True) @ np.array(c["b"])
+        return design(pd.DatetimeIndex(days), 4, True, c.get("step", False)) @ np.array(c["b"])
 
     def sd(self, days, L):
         c = self.j["levels"][str(float(L))]
@@ -79,21 +82,24 @@ def main() -> int:
     out = {
         "source": "MERRA-2 cap_z (65-90N cos-weighted, daily mean of 00/06/12/18Z), "
         f"{t[0]:%Y-%m-%d}..{t[-1]:%Y-%m-%d}, build_strat_history QC and gap filling",
-        "method": "mean: 4 annual harmonics + linear trend per decade from 2000; sd: sqrt of a 3-harmonic fit to "
+        "method": "mean: 4 annual harmonics + linear trend per decade from 2000 (+ an August 2004 step at 5 hPa and "
+        "above, where step is true); sd: sqrt of a 3-harmonic fit to "
         "the squared residual (top 0.1 % clipped), floored at a third of its seasonal maximum",
         "levels": {},
     }
     for L in LEVELS:
         y = d.cap_z.sel(lev=L, method="nearest").values.astype(float)
-        b, bs, floor, vfloor = fit(y, t)
+        step = L <= MLS_STEP
+        b, bs, floor, vfloor = fit(y, t, step)
         out["levels"][str(L)] = {
             "b": [float(v) for v in b],
             "bs": [float(v) for v in bs],
             "sd_floor": floor,
             "var_floor": vfloor,
+            "step": step,
         }
         # check against the history reference's own standardisation
-        z_hist = B.standardise(y, t)[1]
+        z_hist = B.standardise(y, t, step)[1]
         R = Ref.__new__(Ref)
         R.j = out
         z_ref = R.z(t, L, y)

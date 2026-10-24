@@ -57,7 +57,7 @@ SOURCES = ["google"]  # never another mirror, not even as a fallback
 MEMBERS = 50  # the whole perturbed ensemble; there is no control at pressure levels
 STEPS = tuple(E.STEPS)  # 0..360 h by 24
 STEPS_12H = tuple(range(0, 361, 12))
-LEV_GH = (1000, 925, 850, 700, 500, 300, 250, 200, 100, 50, 10)  # = geosfp_cap.LEVELS, the drip's levels
+LEV_GH = (1000, 925, 850, 700, 500, 300, 250, 200, 100, 50, 10)  # the drip's levels to 10 hPa (forecast_drip.LEVELS_10)
 LABEL = "IFS-ENS"
 CREDIT = "ECMWF IFS-ENS open data (CC BY 4.0), 50 perturbed members, 0.25°, Google Cloud mirror"
 CTRL_LABEL = "IFS control"

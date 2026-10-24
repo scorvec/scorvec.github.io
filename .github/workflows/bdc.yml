@@ -83,7 +83,7 @@ jobs:
           if python scripts/strat/geos_pv.py --out assets/sst; then echo "ok=1" >> "$GITHUB_OUTPUT"
           else echo "::warning::GEOS FP PV failed; keeping the previous loop"; fi
       # the observed tail of the forecast dripping paint (forecast_drip.py, read by gefs.yml, strat.yml and the
-      # GEPS run): GEOS FP polar-cap height at 11 levels, daily mean of 00/06/12/18Z, the last 10 days refreshed
+      # GEPS run): GEOS FP polar-cap height at 16 levels to 1 hPa, daily mean of 00/06/12/18Z, the last 10 days refreshed
       - name: GEOS FP polar-cap height tail
         if: ${{ !cancelled() }}
         run: |

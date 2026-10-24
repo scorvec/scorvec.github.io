@@ -10,11 +10,14 @@ cancels the semidiurnal tide), zonal mean, then the cos-weighted mean over 65-90
 0.25 x 0.3125 grid is used: a cap mean of a planetary-scale field loses nothing to it.
 
 The GEOS FP minus MERRA-2 difference is measured on same days (`overlap`: every 7th day, 2024-07 -> 2026-06) and fitted
-per level as a mean plus an annual harmonic, so the tail can be put on the MERRA-2 scale before it is standardised.
+per level as a mean plus an annual harmonic, so the tail can be put on the MERRA-2 scale before it is standardised. The
+MERRA-2 side of those days is reduced once from the local MERRA-2 archive into reference/m2_cap_overlap.json
+(`m2-overlap`), so the overlap itself runs in Actions (geosfp-cap-ref.yml).
 
-    python geosfp_cap.py overlap                       # -> reference/geosfp_cap_offset.json   (outside Actions, once)
+    python geosfp_cap.py m2-overlap                    # -> reference/m2_cap_overlap.json   (needs the MERRA-2 archive)
+    python geosfp_cap.py overlap                       # -> reference/geosfp_cap_offset.json   (geosfp-cap-ref.yml)
     python geosfp_cap.py tail --days 90 --out reference/geosfp_cap_seed.json    # seed history
-    python geosfp_cap.py tail --days 5 --out assets/sst/data/geosfp_cap_history.json   # daily append (Actions)
+    python geosfp_cap.py tail --days 5 --out assets/sst/data/geosfp_cap_history.json   # daily append (bdc.yml)
 """
 
 from __future__ import annotations
@@ -33,8 +36,10 @@ import xarray as xr
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 URL = "https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/assim/inst3_3d_asm_Np"
-LEVELS = [1000.0, 925.0, 850.0, 700.0, 500.0, 300.0, 250.0, 200.0, 100.0, 50.0, 10.0]  # the GEPS/GEFS/AIFS levels
+# the drip levels: every model's to 10 hPa, and GEFS's above it to 1 hPa
+LEVELS = [1000.0, 925.0, 850.0, 700.0, 500.0, 300.0, 250.0, 200.0, 100.0, 50.0, 10.0, 7.0, 5.0, 3.0, 2.0, 1.0]
 OFFSET = HERE / "reference" / "geosfp_cap_offset.json"
+M2_OVERLAP = HERE / "reference" / "m2_cap_overlap.json"
 SEED = HERE / "reference" / "geosfp_cap_seed.json"
 M2 = REPO / "scripts" / "telecon" / "data" / "m2_strat"
 
@@ -142,6 +147,21 @@ def m2_cap():
     return d.to_pandas()
 
 
+def m2_overlap(a) -> int:
+    """The MERRA-2 cap heights on the overlap days (every `step`th day from `start` to `end` with every level above
+    1000 hPa present) -> reference/m2_cap_overlap.json, the input of `overlap`."""
+    m2 = m2_cap()
+    days = [
+        d
+        for d in pd.date_range(a.start, a.end, freq=f"{a.step}D")
+        if d in m2.index and np.isfinite(m2.loc[d].values[1:]).all()
+    ]
+    rows = {f"{d:%Y-%m-%d}": [round(float(v), 2) if np.isfinite(v) else None for v in m2.loc[d].values] for d in days}
+    M2_OVERLAP.write_text(json.dumps({"source": "MERRA-2 cap_z (scripts/telecon/data/m2_strat), 65-90N, m", "levels": LEVELS, "days": rows}, separators=(",", ":")))  # fmt: skip
+    print(f"wrote {M2_OVERLAP} ({len(days)} days)")
+    return 0
+
+
 def _phase(t: pd.DatetimeIndex) -> np.ndarray:
     """Annual phase 2 pi (d - 1) / 365.25 of the common-year day d (1 March = 60 in every year, 29 Feb = 59.5), so a
     calendar date has the same phase in leap and common years."""
@@ -150,12 +170,11 @@ def _phase(t: pd.DatetimeIndex) -> np.ndarray:
 
 
 def overlap(a) -> int:
-    m2 = m2_cap()
-    days = [
-        d
-        for d in pd.date_range(a.start, a.end, freq=f"{a.step}D")
-        if d in m2.index and np.isfinite(m2.loc[d].values[1:]).all()
-    ]
+    j = json.loads(M2_OVERLAP.read_text())
+    if j["levels"] != LEVELS:
+        raise SystemExit(f"{M2_OVERLAP.name} is on other levels: rebuild it (m2-overlap)")
+    m2 = pd.DataFrame({pd.Timestamp(d): v for d, v in j["days"].items()}, index=LEVELS, dtype=float).T
+    days = list(m2.index)
     got = many(days, a.procs)
     rows = [(d, got[d] - m2.loc[d].values) for d in days if got.get(d) is not None]
     t = pd.DatetimeIndex([r[0] for r in rows])
@@ -188,17 +207,17 @@ def overlap(a) -> int:
 
 
 def offset_at(days: pd.DatetimeIndex) -> np.ndarray:
-    """(n_days, level) GEOS FP - MERRA-2 offset to SUBTRACT from a GEOS FP cap series."""
-    if not OFFSET.exists():  # not measured yet: no adjustment (|offset| < ~15 m)
-        return np.zeros((len(days), len(LEVELS)))
+    """(n_days, level) GEOS FP - MERRA-2 offset to SUBTRACT from a GEOS FP cap series; NaN at a level not measured."""
     o = json.loads(OFFSET.read_text())
     x = _phase(pd.DatetimeIndex(days))
     X = np.column_stack([np.ones(len(days)), np.cos(x), np.sin(x)])
-    return np.column_stack([X @ np.array(o["coef"][str(L)]) for L in LEVELS])
+    nan = np.full(len(days), np.nan)
+    return np.column_stack([X @ np.array(o["coef"][str(L)]) if str(L) in o["coef"] else nan for L in LEVELS])
 
 
 def load_history(extra: Path | None = None) -> pd.DataFrame:
-    """Seed + live history, raw GEOS FP cap heights (m), columns = LEVELS."""
+    """Seed + live history, raw GEOS FP cap heights (m), columns = LEVELS (NaN where a day was fetched before a level
+    was added)."""
     h = {}
     for p in (SEED, extra):
         if p is not None and Path(p).exists():
@@ -208,7 +227,7 @@ def load_history(extra: Path | None = None) -> pd.DataFrame:
     df = pd.DataFrame.from_dict(h, orient="index")
     df.index = pd.DatetimeIndex(df.index)
     df.columns = [float(c) for c in df.columns]
-    return df.sort_index()[LEVELS]
+    return df.sort_index().reindex(columns=LEVELS)
 
 
 def tail(a) -> int:
@@ -249,7 +268,7 @@ def tail(a) -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["overlap", "tail"])
+    ap.add_argument("cmd", choices=["m2-overlap", "overlap", "tail"])
     ap.add_argument("--start", default="2024-07-01")
     ap.add_argument("--end", default="2026-06-26")
     ap.add_argument("--step", type=int, default=7)
@@ -259,7 +278,7 @@ def main() -> int:
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--procs", type=int, default=6)
     a = ap.parse_args()
-    return {"overlap": overlap, "tail": tail}[a.cmd](a)
+    return {"m2-overlap": m2_overlap, "overlap": overlap, "tail": tail}[a.cmd](a)
 
 
 if __name__ == "__main__":

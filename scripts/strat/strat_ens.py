@@ -3,8 +3,9 @@
 to exactly what each product reads, so no product downloads a field another has already pulled.
 
 THE MODELS
-  gefs  NOAA GEFS, control gec00 + 30 perturbed members, pgrb2a 0.5 deg, every message byte-ranged from NOAA's S3
-        bucket (noaa-gefs-pds) through its .idx file - the site rule for NOAA models. Every cycle reaches 384 h.
+  gefs  NOAA GEFS, control gec00 + 30 perturbed members, 0.5 deg, every message byte-ranged from NOAA's S3 bucket
+        (noaa-gefs-pds) through its .idx file - the site rule for NOAA models: the pgrb2a files, and the pgrb2b files
+        for what they lack (the heights at 7, 5, 3, 2 and 1 hPa). Every cycle reaches 384 h.
   geps  ECCC GEPS, control + 20 perturbed members, 0.5 deg, the MSC Datamart's raw `allmbrs` GRIBs (one file per
         variable, level and step, all 21 members in it) through scripts/geps/datamart.py (the site's honest User-Agent,
         retries, the fetch ledger), cached under strat_maps.DL with the names nh_vortex and strat_maps use, so a job
@@ -16,7 +17,8 @@ THE MODELS
 THE PARTS (fetch only what the caller needs; the job that runs every product fetches them all at once)
   vortex  daily 0-384 h      UGRD 10/100, HGT 100     u60 (member, lead, 2) zonal-mean u at 60N, 10 and 100 hPa;
                                                        zcap (member, lead) 65-90N height at 100 hPa       nh_vortex
-  drip    daily 0-360 h      HGT at the 11 drip levels caps (member, lead, level) 65-90N height  forecast_drip --cache
+  drip    daily 0-360 h      HGT at the drip levels   caps (member, lead, level) 65-90N height  forecast_drip --cache
+                             (GEFS 16 to 1 hPa, GEPS 11 to 10 hPa)
   flux    daily 0-360 h      VGRD 100, TMP 100        flux_tot/_k1/_k2 (member, lead, lat) 100 hPa [v'T'] by latitude
                                                        (heatflux100.fluxes: per member, waves 1-72)   heatflux100_ext
                                                        flux_sib/_can (member, lead) v*T* over Siberia / Canada
@@ -63,7 +65,8 @@ CREDIT = {
     "gefs": "NOAA GEFS (AWS Open Data, public domain), control + 30 members, 0.5°",
     "geps": "ECCC GEPS (MSC Datamart, ECCC Data Servers End-use Licence), control + 20 members, 0.5°",
 }
-LEV_DRIP = tuple(int(x) for x in FP.LEVELS)  # 1000 ... 10 hPa, the drip's 11 levels
+# the drip's levels: GEFS 1000 ... 1 hPa (16; above 10 hPa from its pgrb2b files), GEPS 1000 ... 10 hPa (11)
+LEV_DRIP = {"gefs": tuple(int(x) for x in FP.LEVELS), "geps": tuple(int(x) for x in FP.LEVELS if x >= 10)}
 LEV_WAVE = (500, 100, 10)  # wave_maps.LEVELS
 LEV_WIND = (10, 100)  # vortex_winds.LEVELS
 LEADS_DAILY = tuple(range(0, 361, 24))  # the days 1-15 products: analysis + 15 days
@@ -86,13 +89,13 @@ GEFS_S3 = "https://noaa-gefs-pds.s3.amazonaws.com"
 GEFS_MEMBERS = ["gec00"] + [f"gep{i:02d}" for i in range(1, 31)]
 
 
-def need(parts, L: int) -> set[tuple[str, int]]:
+def need(parts, L: int, model: str) -> set[tuple[str, int]]:
     """{(variable, level hPa)} the given parts read at lead L hours."""
     out = set()
     if "vortex" in parts and L in LEADS_VORTEX:
         out |= {("UGRD", 10), ("UGRD", 100), ("HGT", 100)}
     if "drip" in parts and L in LEADS_DAILY:
-        out |= {("HGT", lev) for lev in LEV_DRIP}
+        out |= {("HGT", lev) for lev in LEV_DRIP[model]}
     if "flux" in parts and L in LEADS_DAILY:
         out |= {("VGRD", 100), ("TMP", 100)}
     if "waves" in parts and L in LEADS_DAILY:
@@ -104,8 +107,8 @@ def need(parts, L: int) -> set[tuple[str, int]]:
     return out
 
 
-def leads_for(parts) -> list[int]:
-    return sorted({L for L in (*LEADS_VORTEX, *LEADS_12H) if need(parts, L)})
+def leads_for(parts, model: str) -> list[int]:
+    return sorted({L for L in (*LEADS_VORTEX, *LEADS_12H) if need(parts, L, model)})
 
 
 def path(model: str, date: str, hh: str) -> Path:
@@ -120,8 +123,9 @@ def _gefs_lib():
     return R
 
 
-def gefs_url(date: str, hh: str, mem: str, L: int) -> str:
-    return f"{GEFS_S3}/gefs.{date}/{hh}/atmos/pgrb2ap5/{mem}.t{hh}z.pgrb2a.0p50.f{L:03d}"
+def gefs_url(date: str, hh: str, mem: str, L: int, ab: str = "a") -> str:
+    """A member's pgrb2a file (the common fields) or pgrb2b file (the rest, among them the heights above 10 hPa)."""
+    return f"{GEFS_S3}/gefs.{date}/{hh}/atmos/pgrb2{ab}p5/{mem}.t{hh}z.pgrb2{ab}.0p50.f{L:03d}"
 
 
 def gefs_ready(date: str, hh: str, last_h: int = 384) -> bool:
@@ -134,24 +138,29 @@ def gefs_ready(date: str, hh: str, last_h: int = 384) -> bool:
 
 
 def gefs_step(date: str, hh: str, L: int, want: set, workers: int = 32) -> dict:
-    """{member index: {(var, lev): (lat, lon) float32}} for one lead (lev in hPa, or "msl"); a member missing any field
-    is left out."""
+    """{member index: {(var, lev): (lat, lon) float32}} for one lead (lev in hPa, or "msl"), each field from the pgrb2a
+    file, or the pgrb2b file when the a file has not got it; a member missing any field is left out."""
     R = _gefs_lib()
     step = "anl" if L == 0 else f"{L} hour fcst"
 
     def one(mi):
-        url = gefs_url(date, hh, GEFS_MEMBERS[mi], L)
-        try:
-            idx = R.index(url)
-        except Exception:  # noqa: BLE001  (not on S3: the member is left out of this step)
-            return mi, None
+        idx = {}
         out = {}
-        for var, lev in want:
+        for var, lev in sorted(want, key=str):
             level = "mean sea level" if lev == "msl" else f"{lev} mb"
-            hit = [e for e in idx if e[4] == var and e[2] == level and e[3] == step]
-            if not hit:
+            for ab in ("a", "b"):
+                url = gefs_url(date, hh, GEFS_MEMBERS[mi], L, ab)
+                if ab not in idx:
+                    try:
+                        idx[ab] = R.index(url)
+                    except Exception:  # noqa: BLE001  (not on S3: the member is left out of this step)
+                        return mi, None
+                hit = [e for e in idx[ab] if e[4] == var and e[2] == level and e[3] == step]
+                if hit:
+                    out[(var, lev)] = R.decode(R.get(url, (hit[0][0], hit[0][1]))).astype("float32")
+                    break
+            else:
                 return mi, None
-            out[(var, lev)] = R.decode(R.get(url, (hit[0][0], hit[0][1]))).astype("float32")
         return mi, out
 
     with ThreadPoolExecutor(workers) as ex:
@@ -221,7 +230,7 @@ def cap(field: np.ndarray) -> float:
     return float((np.nanmean(field[m], axis=-1) * w).sum() / w.sum())
 
 
-def _empty(key: str, nmem: int) -> np.ndarray:
+def _empty(key: str, nmem: int, model: str) -> np.ndarray:
     if key == "wind_n":
         return np.zeros(len(LEADS_12H), "int16")
     if key in ("flux_sib", "flux_can"):
@@ -231,7 +240,7 @@ def _empty(key: str, nmem: int) -> np.ndarray:
     shape = {
         "u60": (nmem, len(LEADS_VORTEX), 2),
         "zcap": (nmem, len(LEADS_VORTEX)),
-        "caps": (nmem, len(LEADS_DAILY), len(LEV_DRIP)),
+        "caps": (nmem, len(LEADS_DAILY), len(LEV_DRIP[model])),
         "zwave": (nmem, len(LEADS_DAILY), len(LEV_WAVE), LAT.size // 2 + 1, LON.size // 2),
         "wind": (len(LEADS_12H), len(LEV_WIND), 3, LAT.size, LON.size),
         "pc_msl": (nmem, len(LEADS_DAILY), PC.CLAT.size, PC.CLON.size),
@@ -259,11 +268,11 @@ def fetch(model: str, date: str, hh: str, parts=PARTS, workers: int = 32) -> Pat
     if not todo:
         return dest
     nmem = len(GEFS_MEMBERS) if model == "gefs" else 21
-    acc = {k: _empty(k, nmem) for p in todo for k in PART_KEYS[p]}
+    acc = {k: _empty(k, nmem, model) for p in todo for k in PART_KEYS[p]}
     j60 = int(np.argmin(np.abs(LAT - 60.0)))
     t0, nbytes = time.time(), 0
-    for L in leads_for(todo):
-        want = need(todo, L)
+    for L in leads_for(todo, model):
+        want = need(todo, L, model)
         got = gefs_step(date, hh, L, want, workers) if model == "gefs" else geps_step(date, hh, L, want)
         if not got:
             raise SystemExit(f"{MODELS[model]} {date} {hh}Z: no member complete at +{L} h")
@@ -278,7 +287,7 @@ def fetch(model: str, date: str, hh: str, parts=PARTS, workers: int = 32) -> Pat
             i = LEADS_DAILY.index(L)
             if "drip" in todo:
                 for m in ms:
-                    acc["caps"][m, i] = [cap(got[m][("HGT", lev)]) for lev in LEV_DRIP]
+                    acc["caps"][m, i] = [cap(got[m][("HGT", lev)]) for lev in LEV_DRIP[model]]
             if "waves" in todo:
                 for m in ms:
                     acc["zwave"][m, i] = [got[m][("HGT", lev)][::2, ::2] for lev in LEV_WAVE]
@@ -334,7 +343,7 @@ def fetch(model: str, date: str, hh: str, parts=PARTS, workers: int = 32) -> Pat
         leads_daily=np.array(LEADS_DAILY),
         leads_vortex=np.array(LEADS_VORTEX),
         leads_12h=np.array(LEADS_12H),
-        lev_drip=np.array(LEV_DRIP),
+        lev_drip=np.array(LEV_DRIP[model]),
         lev_wave=np.array(LEV_WAVE),
         lev_wind=np.array(LEV_WIND),
     )
