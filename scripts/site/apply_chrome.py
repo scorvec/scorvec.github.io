@@ -228,8 +228,8 @@ PRODUCTS = [
         "Tropics",
     ),
     # one hub: stratosphere.html holds every stratosphere product (including the GEPS/GEFS/SEAS5 vortex products and the
-    # QBO tracker); this menu is a flat list of its sections in the page's order (forecasts by range, then today's
-    # analyses and the history), and the hub itself last
+    # QBO tracker); this menu is a flat list of its sections in the page's order (days 1-15 by theme, then the longer
+    # ranges, the QBO and today's analyses, and the history), and the hub itself last
     (
         "Stratosphere",
         "The polar vortex and the waves going up into it, from today's analysis to the season, and the QBO",
@@ -241,9 +241,21 @@ PRODUCTS = [
                 "Twice daily",
             ),
             (
-                "/stratosphere.html#fdrip15",
-                "Next two weeks",
-                "AIFS-ENS, IFS-ENS, GEFS and the Canadian models to day 15: the dripping paint, vortex winds and polar-cap heights, 100 hPa heat flux, E–P flux, wave-1, GEOS FP potential vorticity, the QBO zero-wind line and the upper stratosphere.",
+                "/stratosphere.html#vortex",
+                "The vortex, days 1–15",
+                "Every model's vortex to day 15: its strength and the chance of a sudden warming, split or displaced member by member, the 10 hPa temperature, the vortex winds and the 100 hPa height, the dripping paint, the upper stratosphere to 1 hPa, GEOS FP potential vorticity, and how the recent runs verified.",
+                "Twice daily",
+            ),
+            (
+                "/stratosphere.html#heatflux",
+                "The waves driving it, days 1–15",
+                "The 100 hPa eddy heat flux with the SSW warning meter, planetary waves 1 and 2, the GEFS E–P flux and refractive index, and the regional reflection index.",
+                "Twice daily",
+            ),
+            (
+                "/stratosphere.html#descent",
+                "Down to the surface, days 1–15",
+                "Whether the stratosphere's anomaly is coming down: the downward-propagation monitor, the polar cap at sea level and 500 hPa, and the Arctic Oscillation and NAO from every ensemble's members.",
                 "Twice daily",
             ),
             (
@@ -259,9 +271,9 @@ PRODUCTS = [
                 "Monthly",
             ),
             (
-                "/stratosphere.html#mbudget",
-                "Today's analyses",
-                "The momentum budget and the Brewer–Dobson circulation, the water-vapour tape recorder and the QBO from radiosondes.",
+                "/stratosphere.html#qbo",
+                "The QBO and today's analyses",
+                "The QBO from radiosondes since the 1950s and its zero-wind line forecast, the momentum budget, the Brewer–Dobson circulation and the water-vapour tape recorder.",
                 "Daily",
             ),
             (
@@ -271,15 +283,9 @@ PRODUCTS = [
                 "Static",
             ),
             (
-                "/stratosphere.html#qbo",
-                "QBO",
-                "Equatorial stratospheric winds at 10 to 100 hPa from radiosondes, from the 1950s to the present.",
-                "Weekly",
-            ),
-            (
                 "/stratosphere.html",
                 "All stratosphere products",
-                "Every stratosphere product in one place, opening on the next two weeks: AIFS-ENS, IFS-ENS, GEFS and the Canadian models' dripping paint, vortex, heat flux and wave driving; GEPS and GEFS to day 35; the C3S models and SEAS5 for the season; today's analyses and the QBO; and every sudden warming since 1980 with what followed.",
+                "Every stratosphere product in one place, opening on the next two weeks: the vortex, the waves driving it and what reaches the surface from AIFS-ENS, IFS-ENS, GEFS and the Canadian models; GEPS and GEFS to day 35; the C3S models and SEAS5 for the season; the QBO and today's analyses; and every sudden warming since 1980 with what followed.",
                 "Twice daily",
             ),
         ],
@@ -884,12 +890,11 @@ HOME = {
         "The polar vortex from today's analysis to the season, and the QBO",
         [
             "/ssw.html",
-            "/stratosphere.html",
-            "/stratosphere.html#fdrip15",
+            "/stratosphere.html#vortex",
+            "/stratosphere.html#heatflux",
+            "/stratosphere.html#descent",
             "/stratosphere.html#vortex35",
             "/stratosphere.html#s5vortex",
-            "/stratosphere.html#qbo",
-            "/stratosphere.html#pv",
         ],
     ),
     "Weeks to seasons": (

@@ -122,15 +122,20 @@ PAGES = {
         horizon="Days 1–15",
         region=["Northern Hemisphere"],
         groups={
-            "Now: analyses and observations": dict(models=["GEOS FP"], horizon="Observed"),
+            "The QBO and today's analyses": dict(models=["GEOS FP"], horizon="Observed"),
             "Weeks 3–5": dict(models=["GEPS", "GEFS"], horizon="Weeks 1–5", prio=3),
-            "Season": dict(models=["SEAS5"], horizon="Seasons", tier=2, prio=30),
+            "The season ahead": dict(models=["SEAS5"], horizon="Seasons", tier=2, prio=30),
             "History and studies": dict(
                 topic="research", horizon="Climate record", models=["MERRA-2"], tier=1, prio=21
             ),
         },
         items={
-            pid: dict(models=["AIFS-ENS", "IFS-ENS", "GEFS", "GEPS", "ERA5"]) for pid in ("polarcap", "telecon", "z100")
+            **{
+                pid: dict(models=["AIFS-ENS", "IFS-ENS", "GEFS", "GEPS", "ERA5"])
+                for pid in ("polarcap", "telecon", "z100", "t10")
+            },
+            "vshape": dict(models=["AIFS-ENS", "IFS-ENS", "GEFS", "GEPS", "MERRA-2"]),
+            "verify": dict(models=["AIFS-ENS", "IFS-ENS", "GEFS", "GEPS", "GEOS FP"]),
         },
     ),
     # circulation.html's groups follow the theme-first menus: its days 1-15 maps under Mid-latitude weather, the

@@ -43,6 +43,7 @@ suffix for AIFS-ENS):
   python wave_maps.py --model ifs --date 20260927 --time 00 --anim-dir assets/sst/anim
   python wave_maps.py --model hres --date 20261021 --time 12 --anim-dir assets/sst/anim
   python wave_maps.py --model gefs --date 20261020 --time 00 --anim-dir assets/sst/anim
+  python wave_maps.py --model ifs --date 20261010 --time 00 --record-only     # the record only (strat-backfill.yml)
 """
 
 from __future__ import annotations
@@ -660,13 +661,17 @@ def main(argv=None) -> int:
     )
     ap.add_argument("--members", type=int, default=MEMBERS, help="AIFS-ENS perturbed members")
     ap.add_argument("--model", choices=tuple(MODEL), default="aifs")
-    ap.add_argument("--anim-dir", required=True, help="frames ROOT: the loops' directories and manifests go under it")
+    ap.add_argument("--anim-dir", help="frames ROOT: the loops' directories and manifests go under it")
+    ap.add_argument("--record-only", action="store_true", help="the run into its record, no loops (a backfill)")
     a = ap.parse_args(argv)
+    if not (a.anim_dir or a.record_only):
+        ap.error("--anim-dir is required (or --record-only)")
+    loops = not a.record_only
     if a.model in ("gefs", "geps"):
         full, source, ana = fetch_shared(a.model, a.date, a.time)
     elif a.model == "ifs":
         full, source = fetch_ifs(a.date, a.time)
-        ana = fetch_hres(a.date, a.time)
+        ana = fetch_hres(a.date, a.time) if loops else None
     elif a.model == "hres":
         full, source = fetch_hres(a.date, a.time), "IFS control, one run"
         ana = full
@@ -675,13 +680,14 @@ def main(argv=None) -> int:
         ana = full
     else:
         full, source = fetch(a.date, a.time, a.members)
-        ana = fetch_analysis(a.date, a.time)
-    hemi = active_hemisphere(full) if a.hemi == "auto" else a.hemi
-    print(f"  leading hemisphere: {hemi}", flush=True)
-    # No still. It duplicated the loop's first frame, and on the page it was the
-    # analysis - the one view that cannot answer whether the wave is building.
-    for k in WAVES:
-        build_loop(full, ana, a.date, a.time, Path(a.anim_dir), k, source, hemi, a.model)
+        ana = fetch_analysis(a.date, a.time) if loops else None
+    if loops:
+        hemi = active_hemisphere(full) if a.hemi == "auto" else a.hemi
+        print(f"  leading hemisphere: {hemi}", flush=True)
+        # No still. It duplicated the loop's first frame, and on the page it was the
+        # analysis - the one view that cannot answer whether the wave is building.
+        for k in WAVES:
+            build_loop(full, ana, a.date, a.time, Path(a.anim_dir), k, source, hemi, a.model)
     record_run(full, a.date, a.time, a.model)
     return 0
 
