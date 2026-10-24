@@ -111,6 +111,7 @@ scripts/strat/*
 !scripts/strat/build_polarcap_clim.py
 !scripts/strat/polarcap.py
 !scripts/strat/vortex_shape.py
+!scripts/strat/strat_verify.py
 !scripts/strat/build_m2_reference.py
 !scripts/strat/build_wave_clim.py
 !scripts/strat/heatflux100.py
