@@ -350,7 +350,9 @@ def fetch(model: str, date: str, hh: str, parts=PARTS, workers: int = 32) -> Pat
         if p == "winds":
             continue
         a = acc[PART_KEYS[p][-1]]
-        n = int(np.isfinite(a.reshape(a.shape[0], -1)).all(axis=1).sum())
+        if not np.isfinite(a).any(axis=tuple(k for k in range(a.ndim) if k != 1)).all():
+            raise SystemExit(f"{MODELS[model]} {date} {hh}Z {p}: a lead with no member")
+        n = int(_complete(a).sum())
         if n < FLOOR[model]:
             raise SystemExit(f"{MODELS[model]} {date} {hh}Z {p}: only {n} complete members")
     out = {**have, **acc, **{f"done_{p}": np.array(True) for p in todo}}
@@ -384,10 +386,16 @@ def load(model: str, date: str, hh: str, parts) -> dict:
         return {k: z[k] for k in z.files}
 
 
+def _complete(a: np.ndarray) -> np.ndarray:
+    """Per member (the rows of a member-first array): every value present that some member has. A value no member has
+    is structural, not missing: the kinematic cap above its top level, the residual below RES_BOTTOM."""
+    f = np.isfinite(a.reshape(a.shape[0], -1))
+    return (f | ~f.any(axis=0)).all(axis=1)
+
+
 def complete_members(d: dict, key: str) -> np.ndarray:
-    """Indices of the members (rows of a member-first array) with every value of `key` present."""
-    a = d[key]
-    return np.flatnonzero(np.isfinite(a.reshape(a.shape[0], -1)).all(axis=1))
+    """Indices of the members (rows of a member-first array) with every value of `key` present (_complete)."""
+    return np.flatnonzero(_complete(d[key]))
 
 
 def resolve(model: str, date: str, hh: str, last_h: int = 384, back: int = 2) -> tuple[str, str]:
