@@ -13,6 +13,8 @@ from 180 W with 4 columns repeated on each side, so the page can sample and smoo
   pv<K>    R = Lait-scaled Ertel potential vorticity, -20 + 0.5 * code in PVU at the 475 K scale (see below), sign
            reversed in the Southern Hemisphere so the vortex is positive in both; G = the Montgomery streamfunction
            divided by g, metres, per-frame offset and step; B = the pressure of the surface, log 0.2-600 hPa
+  o<lev>   R = vertical motion, hPa/day, DESCENT POSITIVE (omega in Pa/s x 864), smoothed (below): -2 X + 4 X / 254 *
+           code, X = the level's colour range (manifest "omega" "ranges")
   255 = missing in every channel. <lev> is the pressure in hPa with "p" for the point (0p4 = 0.4 hPa).
 
 Potential vorticity. Ertel PV on the pressure levels (hydrostatic, isobaric form, spherical derivatives, centred and
@@ -25,6 +27,17 @@ isentrope linearly in ln theta, column by column (theta = T (1000 hPa / p)^(R/cp
 in a resting atmosphere, so the page colours the Lait (1994) scaled value PV (theta / 475 K)^(-9/2): a vortex reads
 alike on every surface, and at 475 K the scaled value is the PV itself. The page converts back for its hover values
 and legend ticks.
+
+Vertical motion. The GFS's own omega (VVEL, Pa/s, published on all 15 map levels), smoothed hard: raw omega on a
+0.5 deg grid in the stratosphere is mostly gravity waves. In space, a Gaussian of standard deviation VV_SIGMA_KM along
+the sphere (smooth_sphere: exact along each latitude circle in Fourier space, then along the meridians, continued over
+the poles); in time, a centred running mean over 72 h of the 12-hourly steps (trapezoidal: weight 1 inside +-36 h, 1/2
+at +-36 h), shortened near the ends of the run so it stays centred (24 h at +12 h, 48 h at +24 h; none at +0 and
++384 h, which have no vertical motion; the manifest's "win" gives the hours each step covers). The page's
+colour range per level is fixed by `omega-clim`: the 99th percentile of |omega| poleward of 20 deg, smoothed the same
+way, over 48 samples of GFS analyses (the 15th of each month, July 2022 - June 2026, the seven 00/12 UTC analyses of
+the 72 h around it), rounded up -> strat_omega_ranges.json beside this script. Without that file a run writes no
+vertical motion.
 
 Checks, per run (manifest "checks"; the page's method section shows them):
   absv/<lev>   zeta + f from these winds against the GFS's own absolute vorticity (ABSV) at 50 and 10 hPa, 20-85 deg
@@ -39,6 +52,7 @@ via the .idx files (scripts/snowband/snowband.py's validated transport). 00 and 
 
     python scripts/models/strat_maps.py plan --manifests assets/models
     python scripts/models/strat_maps.py run --cycle 2026102400 --site . --procs 4 --lists /tmp/strat
+    python scripts/models/strat_maps.py omega-clim --procs 4          # once: the vertical-motion colour ranges
 """
 
 from __future__ import annotations
@@ -83,6 +97,11 @@ P_LO, P_HI = 0.2, 600.0  # pressure code of the isentropic surfaces, log, hPa
 WIND_STEPS = (0.5, 0.6, 0.8, 1.0, 1.2, 1.5, 2.0)  # m/s, the finest that spans the frame
 CAP_LAT, CAP_THETAS = 60.0, (475, 850)
 HEMIS = ("nh", "sh")
+HPA_DAY = 864.0  # Pa/s -> hPa/day
+VV_SIGMA_KM, VV_HALF_H = 600.0, 36  # the vertical motion's smoothing: Gaussian sigma along the sphere; half the window
+VV_REF = HERE / "strat_omega_ranges.json"  # its colour range per level (omega-clim)
+CLIM_FROM, CLIM_MONTHS, CLIM_LAT = (2022, 7), 48, 20.0  # omega-clim: the 15th of each month from July 2022
+CLIM_BINS = np.linspace(-4.0, 2.0, 601)  # log10 |omega|, hPa/day
 
 
 def lev_key(p):
@@ -175,6 +194,42 @@ def on_theta(th, fields, theta0):
     return out
 
 
+def smooth_sphere(a, lat, sigma_km=VV_SIGMA_KM):
+    """A Gaussian of standard deviation sigma_km along the sphere on the last two axes of a global field (rows
+    90 N -> 90 S, periodic columns): along each latitude circle in Fourier space (exact on the circle: zonal wavenumber
+    k is kept by exp(-(k sigma / (a cos phi))^2 / 2), so near the poles only the zonal mean is left), then along the
+    meridians, continued over each pole onto the opposite meridian."""
+    ny, nx = a.shape[-2:]
+    sig = sigma_km * 1e3
+    k = np.arange(nx // 2 + 1)
+    cph = np.maximum(np.cos(np.radians(lat)), 1e-9)[:, None]
+    b = np.fft.irfft(np.fft.rfft(a, axis=-1) * np.exp(-0.5 * (k[None, :] * sig / (A_E * cph)) ** 2), n=nx, axis=-1)
+    sr = sig / (A_E * math.radians(abs(lat[1] - lat[0])))  # sigma in rows
+    half = math.ceil(4 * sr)
+
+    def over(rows):  # the rows beyond a pole: the same latitudes on the opposite meridian
+        return np.roll(rows[..., ::-1, :], nx // 2, axis=-1)
+
+    ext = np.concatenate([over(b[..., 1 : half + 1, :]), b, over(b[..., ny - 1 - half : ny - 1, :])], axis=-2)
+    w = np.exp(-0.5 * (np.arange(-half, half + 1) / sr) ** 2)
+    out = np.zeros_like(b)
+    for i, wi in enumerate(w / w.sum()):
+        out += wi * ext[..., i : i + ny, :]
+    return out
+
+
+def window(steps, t, half=VV_HALF_H):
+    """The centred running mean at step t of the 12-hourly `steps`: {step: weight}, trapezoidal over +-h hours (weight
+    1 inside, 1/2 at the ends; with 12-hourly steps this cancels the diurnal tide exactly), h = `half`, or less near the
+    ends of the run so the window stays centred; {} where h would be under 12 h (the run's first and last step)."""
+    h = min(half, t - steps[0], steps[-1] - t)
+    if h < 12:
+        return {}
+    w = {s: 1.0 if abs(s - t) < h else 0.5 for s in steps if abs(s - t) <= h}
+    tot = sum(w.values())
+    return {s: v / tot for s, v in w.items()}
+
+
 def lait(pv, theta0, sign):
     """PV scaled to the PV_REF surface (Lait 1994, theta^(-9/2)), sign reversed in the Southern Hemisphere."""
     return sign * pv * (theta0 / PV_REF) ** -4.5
@@ -231,7 +286,7 @@ def fetch(date, hh, step):
     def want(levels):
         return {(v, f"{p:g} mb") for v in ("HGT", "TMP", "UGRD", "VGRD") for p in levels}
 
-    wa = want(COL_A)
+    wa = want(COL_A) | {("VVEL", f"{p:g} mb") for p in LEVELS}
     if qc:
         wa |= {("ABSV", f"{p} mb") for p in ABSV_LEVELS} | {("PRES", s) for s in PV2.values()}
     a, grid = sb.fetch_messages(f, url(date, hh, step), wa)
@@ -290,6 +345,9 @@ def process_step(date, hh, step, outdir):
             if step == 0:  # the surfaces' polar-cap pressure (the page's labels)
                 extras.setdefault("cap_hpa", {}).setdefault(h, {})[str(th0)] = round(cap_mean(pp, hlat[h], True), 1)
 
+    vv = np.stack([msgs[("VVEL", f"{p:g} mb")] for p in LEVELS]).astype(np.float64) * HPA_DAY
+    np.save(Path(outdir) / f"_vv_{step:03d}.npy", smooth_sphere(vv, lat).astype(np.float32))  # time mean: vv_level
+
     checks = {"cap": cap}
     if step in QC_STEPS:
         checks.update(check_absv(msgs, absv, col, lat))
@@ -308,6 +366,31 @@ def process_step_retry(date, hh, step, outdir, tries=3):
             if k < tries - 1:
                 time.sleep(30)
     return step
+
+
+def vv_level(outdir, k, p, x_range, steps):
+    """One level's vertical-motion files: the running mean of the smoothed steps (process_step's _vv files), both
+    hemispheres. -> bytes written"""
+    one = {s: np.load(Path(outdir) / f"_vv_{s:03d}.npy", mmap_mode="r") for s in steps}
+    nbytes = 0
+    for t in steps:
+        w = window(steps, t)
+        if not w:
+            continue
+        x = sum(wt * one[s][k].astype(np.float64) for s, wt in w.items())
+        for h in HEMIS:
+            img = image(MV.q_lin(hemi(x, h), -2 * x_range, 4 * x_range / 254))
+            nbytes += write(outdir, h, f"o{lev_key(p)}", t, img)
+    return nbytes
+
+
+def vv_ranges():
+    """omega-clim's file and the vertical motion's colour range per level from it, or (None, None)."""
+    try:
+        doc = json.loads(VV_REF.read_text())
+        return doc, {lev_key(p): float(doc["levels"][lev_key(p)]["range"]) for p in LEVELS}
+    except Exception:  # noqa: BLE001
+        return None, None
 
 
 # ── checks ──────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -441,7 +524,6 @@ def cmd_run(a):
                 f"{ck['secs']} s in all",
                 flush=True,
             )
-    wall = time.time() - t_start
     if failed:
         print(f"::error::{key}: steps {sorted(failed)} failed - not publishing a partial cycle")
         sys.exit(1)
@@ -451,6 +533,26 @@ def cmd_run(a):
         e = dict(hours=sorted(hs))
         e["q"] = {h: [hs[s][h] for s in e["hours"]] for h in HEMIS}
         fields[name] = e
+    ref, ranges = vv_ranges()
+    omega = None
+    if ranges:
+        with ProcessPoolExecutor(a.procs) as pool:
+            futs = [pool.submit(vv_level, str(outdir), k, p, ranges[lev_key(p)], hours) for k, p in enumerate(LEVELS)]
+            nbytes += sum(fu.result() for fu in futs)
+        vh = [t for t in hours if window(hours, t)]
+        fields.update({f"o{lev_key(p)}": dict(hours=vh) for p in LEVELS})
+        omega = dict(
+            sigma_km=VV_SIGMA_KM,
+            window_h=2 * VV_HALF_H,
+            ranges=ranges,
+            win=[[min(w), max(w)] for w in (window(hours, t) for t in vh)],
+            ref=dict(stat=ref["stat"], samples=ref["samples"], period=ref["period"]),
+        )
+    else:
+        print(f"::warning::no {VV_REF.name}: no vertical-motion maps this run (strat_maps.py omega-clim)")
+    for f in outdir.glob("_vv_*.npy"):
+        f.unlink()
+    wall = time.time() - t_start
     ny, nx = 181, 720 + 2 * PAD
     cap = {
         h: {str(t): [checks[str(s)]["cap"][h][str(t)] for s in hours] for t in CAP_THETAS} for h in HEMIS
@@ -472,6 +574,7 @@ def cmd_run(a):
         zmean_km=extras.get("zmean_km", {}),
         cap_hpa=extras.get("cap_hpa", {}),
         cap=dict(lat=CAP_LAT, values=cap),
+        **({"omega": omega} if omega else {}),
         bytes=nbytes,
         fetch=dict(requests=nreq, mb=round(nb / 1e6, 1)),
         checks=summarise(checks),
@@ -483,7 +586,7 @@ def cmd_run(a):
         f"{key}: {nbytes / 1e6:.1f} MB in {nfiles} files, fetched {nb / 1e6:.0f} MB in {nreq} requests, wall {wall:.0f} s",
         flush=True,
     )
-    for kind in ("t", "w", "pv"):
+    for kind in ("t", "w", "pv", "o"):
         sz = sum(p.stat().st_size for h in HEMIS for p in (outdir / h).glob(f"{kind}[0-9]*/*.webp"))
         print(f"  {kind:3s} files {sz / 1e6:6.1f} MB")
     print("checks: " + json.dumps(entry["checks"]), flush=True)
@@ -507,6 +610,70 @@ def cmd_run(a):
     print(f"manifest: keep {[c['cycle'] for c in keep]}, drop {[c['cycle'] for c in drop]}")
 
 
+def clim_sample(day):
+    """One sample of omega-clim: the vertical motion of the 72 h around 00 UTC on `day` from the seven 00/12 UTC
+    analyses in it, averaged and smoothed as the maps are (both linear, so in either order). -> (day, histogram of
+    log10 |omega| per level poleward of CLIM_LAT, cos-weighted) or (day, None) when an analysis is missing."""
+    keys = [("VVEL", f"{p:g} mb") for p in LEVELS]
+    t0 = dt.datetime.combine(day, dt.time())
+    acc = lat = None
+    try:
+        for off, wt in window(range(-VV_HALF_H, VV_HALF_H + 1, 12), 0).items():
+            c = t0 + dt.timedelta(hours=off)
+            msgs, grid = sb.fetch_messages(fetcher(), url(c.strftime("%Y%m%d"), c.strftime("%H"), 0), set(keys))
+            x = wt * HPA_DAY * np.stack([msgs[k] for k in keys]).astype(np.float64)
+            acc = x if acc is None else acc + x
+            lat = grid["lat"][:, 0].astype(np.float64)
+    except sb.Missing as e:
+        print(f"  {day}: {e}", flush=True)
+        return day.isoformat(), None
+    x = smooth_sphere(acc, lat)
+    rows = np.abs(lat) >= CLIM_LAT
+    w = np.cos(np.radians(lat[rows]))[:, None] * np.ones((1, x.shape[-1]))
+    with np.errstate(divide="ignore"):
+        hist = [np.histogram(np.log10(np.abs(x[k][rows])), bins=CLIM_BINS, weights=w)[0] for k in range(len(LEVELS))]
+    print(f"  {day}: done", flush=True)
+    return day.isoformat(), np.stack(hist)
+
+
+def nice_up(v):
+    """The smallest of 1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8 x 10^n at or above v."""
+    e = 10.0 ** math.floor(math.log10(v))
+    return next(round(m * e, 10) for m in (1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10) if m * e >= v * (1 - 1e-9))
+
+
+def cmd_omega_clim(a):
+    """The vertical motion's colour range per level: the 99th percentile of |omega| (smoothed as the maps are) poleward
+    of CLIM_LAT over CLIM_MONTHS monthly samples of GFS analyses, rounded up (nice_up) -> VV_REF."""
+    y0, m0 = CLIM_FROM
+    days = [dt.date(y0 + (m0 - 1 + i) // 12, (m0 - 1 + i) % 12 + 1, 15) for i in range(CLIM_MONTHS)]
+    with ProcessPoolExecutor(a.procs) as pool:
+        got = [(d, h) for d, h in pool.map(clim_sample, days) if h is not None]
+    if len(got) < 0.9 * len(days):
+        raise SystemExit(f"::error::only {len(got)} of {len(days)} samples - not writing {VV_REF.name}")
+    H = sum(h for _, h in got)
+    levels = {}
+    for k, p in enumerate(LEVELS):
+        c = np.cumsum(H[k]) / H[k].sum()
+        q = {
+            n: float(10 ** CLIM_BINS[1:][np.searchsorted(c, f)]) for n, f in (("p50", 0.5), ("p90", 0.9), ("p99", 0.99))
+        }
+        levels[lev_key(p)] = {n: float(f"{v:.3g}") for n, v in q.items()} | {"range": nice_up(q["p99"])}
+        print(f"  {p:5g} hPa: " + ", ".join(f"{n} {v:.3g}" for n, v in levels[lev_key(p)].items()) + " hPa/day")
+    doc = dict(
+        stat=f"99th percentile of |omega| poleward of {CLIM_LAT:g} deg, cos-weighted, rounded up",
+        units="hPa/day, descent positive",
+        smoothing=f"Gaussian sigma {VV_SIGMA_KM:g} km along the sphere; {2 * VV_HALF_H} h centred mean of 00/12 UTC analyses",
+        period=f"{days[0]:%Y-%m} to {days[-1]:%Y-%m}, the 15th of each month",
+        samples=len(got),
+        missing=sorted({d.isoformat() for d in days} - {d for d, _ in got}),
+        levels=levels,
+        made=dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%MZ"),
+    )
+    VV_REF.write_text(json.dumps(doc, indent=1) + "\n")
+    print(f"wrote {VV_REF} from {len(got)} samples")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -520,8 +687,10 @@ def main():
     p.add_argument("--procs", type=int, default=4, help="steps processed at once (each fetches its own)")
     p.add_argument("--lists", default="")
     p.add_argument("--manifest-in", default="", help="the manifest to extend (main's CURRENT copy)")
+    p = sub.add_parser("omega-clim")
+    p.add_argument("--procs", type=int, default=4, help="samples fetched at once")
     a = ap.parse_args()
-    {"plan": cmd_plan, "run": cmd_run}[a.cmd](a)
+    {"plan": cmd_plan, "run": cmd_run, "omega-clim": cmd_omega_clim}[a.cmd](a)
 
 
 if __name__ == "__main__":
