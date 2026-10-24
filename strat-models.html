@@ -1763,7 +1763,8 @@
         out.push("polar-cap (poleward of 60°) mean PV on " + day + " 00 UTC, GFS +" + c.hours[ih] + " h against GEOS FP (" + (ig ? "its +" + ig + " d forecast" : "its analysis") + "): " + cmp.join("; "));
       }
     }
-    if (c.omega && c.omega.ref) out.push("vertical-motion colour ranges: the " + c.omega.ref.stat + ", " + c.omega.ref.samples + " samples, " + c.omega.ref.period);
+    if (c.omega && c.omega.ref) out.push("the vertical motion's colour ranges come from " + c.omega.ref.samples + " samples of GFS analyses (" + c.omega.ref.period + "): " +
+      ["100", "10", "1"].filter(function (k) { return c.omega.ranges[k]; }).map(function (k) { return "±" + c.omega.ranges[k] + " hPa/day at " + k + " hPa"; }).join(", "));
     $("checks").textContent = out.length ? "This run. " + out.map(function (x) { return x.charAt(0).toUpperCase() + x.slice(1); }).join(". ") + "." : "";
   }
   var ABSV_TXT = ["50", "10"];
