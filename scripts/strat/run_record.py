@@ -166,7 +166,7 @@ PRODUCTS = {
             "res": Key("residual (TEM) descent, 10–100 hPa", "mm s⁻¹, downward", 2, unit="mm s⁻¹", short="residual"),
         },
         note="Log-pressure vertical velocity −(H/p) ω, H = 7 km, downward positive, the cap's log-pressure layer means "
-        "(polar_descent.py): the Eulerian motion, and for GEFS the residual (TEM) one. Raw model output, no normal.",
+        "(polar_descent.py): the Eulerian motion and the residual (TEM) one. Raw model output, no normal.",
         models=("ifs", "hres", "gefs"),
     ),
     "upperstrat": Product(

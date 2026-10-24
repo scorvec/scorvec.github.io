@@ -783,6 +783,70 @@ def ensure(cycle: Cycle, spec: Spec) -> Path:
     return p
 
 
+def rows_path(cycle: Cycle, spec: Spec, rows: tuple) -> Path:
+    return path(cycle, spec).with_suffix(f".rows{rows[0]}-{rows[-1]}.npz")
+
+
+def ensure_rows(cycle: Cycle, spec: Spec, rows: tuple) -> Path:
+    """The rows `rows` (indices from the grid's northern edge) of every message of spec, from the leading bytes of
+    each message alone (rangefetch.fetch_rows), cached as an npz: values (message, len(rows), Ni) float32, lat, and
+    each message's param, level, number (0 for a control) and step. For a product that needs only high northern
+    latitudes; the Google mirror only, NotPublished as ensure()."""
+    import numpy as np
+
+    import rangefetch as rf
+
+    p = rows_path(cycle, spec, rows)
+    expected = spec.n_expected()
+
+    def complete() -> bool:
+        if not p.exists():
+            return False
+        with np.load(p) as z:
+            return len(z["step"]) == expected
+
+    if complete():
+        return p
+    srcs = [s for s in google_only(SOURCES) if s in rf.MIRRORS]
+    if not srcs:
+        raise RuntimeError("rangefetch has no Google mirror configured")
+    stream = "oper" if spec.type == "fc" else "enfo"
+    levl = list(spec.levelist) if spec.levtype == "pl" else None
+    vals, meta, stats, t0 = [], {"param": [], "level": [], "number": [], "step": []}, {}, time.time()
+    with _lock(p):
+        if complete():  # another process just finished it
+            return p
+        for step in spec.steps:
+            try:
+                idx = rf.fetch_index(
+                    cycle.date, cycle.time, spec.model, int(step), spec.type, stream=stream, sources=srcs
+                )
+            except rf.IndexUnavailable as e:
+                if e.not_found:
+                    raise NotPublished(f"{spec.model}/{p.name}: step {step} not on the Google mirror") from e
+                raise
+            want = rf.select(idx, param=list(spec.params), levelist=levl, numbers=spec.members(), type=spec.type)
+            rel = rf.path_for(cycle.date, cycle.time, spec.model, int(step), spec.type, stream=stream) + ".grib2"
+            for e, (v, la) in zip(want, rf.fetch_rows(rel, want, rows, sources=srcs, stats=stats)):
+                vals.append(v)
+                lat = la
+                meta["param"].append(e["param"])
+                meta["level"].append(int(e.get("levelist", 0)))
+                meta["number"].append(int(e.get("number", 0)))
+                meta["step"].append(int(step))
+        if len(vals) != expected:
+            raise RuntimeError(f"{spec.model}/{p.name}: {len(vals)} of {expected} messages")
+        stage = p.with_name(".stage_" + p.name)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        with open(stage, "wb") as f:
+            np.savez(f, values=np.stack(vals), lat=lat, **{k: np.asarray(v) for k, v in meta.items()})
+        os.replace(stage, p)
+    mb = sum(stats.values()) / 1048576
+    print(f"  ECMWF {cycle.tag} {spec.model}/{p.name}: ✓ {len(vals)} msgs, rows {rows[0]}-{rows[-1]}, {mb:.0f} MB in "
+          f"{time.time() - t0:.0f} s", flush=True)  # fmt: skip
+    return p
+
+
 def open_ds(cycle: Cycle, spec: Spec, **backend_kwargs):
     import xarray as xr
 

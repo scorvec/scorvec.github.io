@@ -26,12 +26,14 @@ Brewer-Dobson (residual) circulation: while planetary waves carry heat poleward,
 Eulerian mean over the cap RISES, its adiabatic cooling offsetting part of the eddies' warming, while the residual
 circulation sinks (Andrews, Holton and Leovy 1987). The sectors and maps show where the air sinks and warms.
 
-  residual  for GEFS and GEOS FP, whose v and T reach 1 hPa, the cap mean of the residual (TEM) vertical velocity
+  residual  for every model and GEOS FP, the cap mean of the residual (TEM) vertical velocity
             omega* = [omega] + (1/(a cos phi)) d/dphi (cos phi [v'theta'] / d[theta]/dp), which over the cap is its
             Eulerian mean less cos phi0 X / (a (1 - sin phi0)), X = [v'theta'] / d[theta]/dp on its edge PHI0 (the
             zonal means of the grid rows within 0.3 deg of it; d[theta]/dp through ln theta in ln p, residual_shift):
-            the descent that carries a warming down, from RES_BOTTOM up. The ECMWF ensembles stay Eulerian: the shared
-            files carry their v and T at 10 and 100 hPa only.
+            the descent that carries a warming down, from RES_BOTTOM up. GEFS and GEOS FP have v and T to 1 hPa; IFS-ENS
+            and the IFS control at 10-400 hPa from the three rows on 65.0-65.5N alone (ifs_ens ROWS, edge_terms). On
+            those levels the stability's error is within 2 % at 50-100 hPa and 10 % (low) at 10 hPa, where the nearest
+            level below is 50 (MERRA-2's 42 levels, Nov-Mar 2005-2025).
   GEFS      its published VVEL is not omega: the post-processor writes the model's geometric vertical velocity in
             pressure units, whose mean over a pressure surface is far from the zero mass conservation needs. So GEFS's
             cap mean is kinematic, from continuity: [omega] over the cap = cos phi0 I / (a (1 - sin phi0)), I the
@@ -224,13 +226,47 @@ def _reduce_members(members: dict, levels) -> dict:
     return {**stack_steps([reduce_step(a[:, i], levels) for i in range(a.shape[1])]), "n": len(ms)}
 
 
+def edge_terms(path: Path, members: list) -> tuple[list, np.ndarray, np.ndarray]:
+    """(levels, [v'T'], [T]) on the cap's edge, (member, lead, level), from the edge rows ifs_ens stocks (ROWS,
+    store.ensure_rows); NaN where a member, lead or level is missing."""
+    with np.load(path) as z:
+        vals, lat, par, lev, num, step = (z[k] for k in ("values", "lat", "param", "level", "number", "step"))
+    levels = sorted(set(lev.tolist()))
+    v, t = (np.full((len(members), len(PC.LEADS), len(levels), *vals.shape[1:]), np.nan, "float32") for _ in "vt")
+    mi, li = {m: i for i, m in enumerate(members)}, {L: i for i, L in enumerate(levels)}
+    for k in range(len(vals)):
+        i, s = mi.get(int(num[k])), int(step[k])
+        if i is not None and s in PC.LEADS:
+            (v if par[k] == "v" else t)[i, PC.LEADS.index(s), li[int(lev[k])]] = vals[k]
+    vt, tbar, _ = boundary_eddies(v, t, lat)
+    return levels, vt, tbar
+
+
 def load_ifs(date: str, hh: str) -> dict:
+    """IFS-ENS and the IFS control: the Eulerian descent from their w, and the residual from it and the eddy terms on
+    the cap's edge (ifs_ens's edge rows, residual_shift); a run whose edge rows are missing keeps the Eulerian alone."""
     import ifs_ens as IE
 
     cyc, out = IE.E.Cycle(date, hh), {}
-    for m, ready, spec in (("ifs", IE.published, IE.spec_w), ("hres", IE.ctrl_published, IE.spec_ctrl_w)):
-        if ready(date, hh):
-            out[m] = _reduce_members(_from_grib([IE.ensure(cyc, spec())], LEVELS_EC), LEVELS_EC)
+    for m, ready, spec, edge in (
+        ("ifs", IE.published, IE.spec_w, IE.spec_edge),
+        ("hres", IE.ctrl_published, IE.spec_ctrl_w, IE.spec_ctrl_edge),
+    ):
+        if not ready(date, hh):
+            continue
+        mem = _from_grib([IE.ensure(cyc, spec())], LEVELS_EC)
+        red = _reduce_members(mem, LEVELS_EC)
+        try:
+            lv, vt, tb = edge_terms(IE.ensure_rows(cyc, edge()), sorted(mem))
+            shift = residual_shift(vt, tb, lv)  # (member, lead, edge level), NaN below RES_BOTTOM
+            nan = np.full(shift.shape[:2], np.nan)
+            red["res"] = red["series"][..., 0] + np.stack(
+                [shift[..., lv.index(L)] if L in lv else nan for L in LEVELS_EC], -1
+            )
+        except Exception as e:  # noqa: BLE001
+            print(f"::warning::{RR.MODEL_LABEL[m]} {date} {hh}Z: no residual ({type(e).__name__}: {str(e)[:100]}); "
+                  "the Eulerian descent alone", flush=True)  # fmt: skip
+        out[m] = red
     return out
 
 
@@ -353,7 +389,7 @@ def column(model, init, valid, levels, cap_e, res, ctrl, obs, out: Path) -> None
     """Time-height of the cap's descent - the residual descent where the model has it (res, (member, lead, level)),
     else the Eulerian one (cap_e, (member, lead, level)): GEOS FP's last TAIL_DAYS days, then the members' mean;
     beneath, the cap's 10-100 and 100-300 hPa layers (with the residual, the Eulerian 10-100 hPa as well); ctrl the
-    control's Eulerian cap (1, lead, level)."""
+    control's cap of the same kind (1, lead, level)."""
     import matplotlib
 
     matplotlib.use("Agg")
@@ -634,7 +670,8 @@ def run(model: str, date: str, hh: str, figures: bool = True) -> int:
     for m in (e for e in ENSEMBLES if e in got):
         lv, c, red = LEVELS_OF[m], got.get(CONTROL.get(m)), got[m]
         obs = observed(lv)
-        column(m, init, valid, lv, red["cap"], red.get("res"), c["cap"] if c else None, obs, OUT / f"descent_{m}.webp")
+        ctl = None if c is None else c.get("res") if "res" in red else c["cap"]  # never a mix of kinds
+        column(m, init, valid, lv, red["cap"], red.get("res"), ctl, obs, OUT / f"descent_{m}.webp")
         if "series" in red:
             sectors(
                 m, init, valid, lv, red["series"], c["series"] if c else None, obs, OUT / f"descent_sectors_{m}.webp"

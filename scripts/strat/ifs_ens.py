@@ -31,13 +31,17 @@ and the control's (type fc), ~0.3 GB together:
   ctrl_t100  t at 100 hPa, daily 0-360 h                          heatflux100
   ctrl_msl   sea-level pressure, daily 0-360 h                    polarcap
   ctrl_w     w at the 9 descent levels, daily 0-360 h             polar_descent
+and, of the members and the control, only the rows from 90N to 65N (ROWS: each message's first ~16 % of bytes, its
+leading rows decoded from them, store.ensure_rows / ccsds.py), ~1.1 GB together:
+  edge       v and t at 10-400 hPa (8 levels), daily 0-360 h       polar_descent (the residual descent: the eddy heat
+  ctrl_edge  the same for the control                               flux and the stability on the cap's 65.25N edge)
 The E-P flux (u, v, t at all 14 levels, ~23 GB a cycle) is streamed step by step in qbo_duct.py instead of cached.
 
 GOOGLE MIRROR ONLY: every request here names the Google mirror and nothing else; a cycle the
 mirror does not have yet is skipped with a warning, never fetched from another mirror.
 
     python ifs_ens.py resolve --wait-min 45 --github-output   # cycle + ready flag for the workflow
-    python ifs_ens.py fetch --date 20260927 --time 00          # stock the eleven shared files
+    python ifs_ens.py fetch --date 20260927 --time 00          # stock the shared files and rows
 """
 
 from __future__ import annotations
@@ -120,6 +124,18 @@ def spec_ctrl_t10() -> E.Spec:
     return E.Spec("ifs", "fc", "t", "pl", (10,), STEPS_12H)  # t10_maps.py fetches it itself (t10.yml), not shared
 
 
+EDGE_LEVELS = (10, 50, 100, 150, 200, 250, 300, 400)  # the residual's levels, and 400 for the stability at 300
+EDGE_ROWS = (98, 99, 100)  # 65.5, 65.25 and 65N on the 0.25-deg grid: the cap's edge 65.25N and the rows either side
+
+
+def spec_edge() -> E.Spec:
+    return E.Spec("ifs", "pf", ("v", "t"), "pl", EDGE_LEVELS, STEPS)
+
+
+def spec_ctrl_edge() -> E.Spec:
+    return E.Spec("ifs", "fc", ("v", "t"), "pl", EDGE_LEVELS, STEPS)
+
+
 def published(date: str, time_: str, step: int = 360) -> bool:
     """True when IFS-ENS is COMPLETELY on the Google mirror to `step`: that step's index and GRIB, and every step up to
     it uploaded (the shared rule, scripts/ecmwf/cycles.py). Day 15 is the last thing ECMWF disseminates."""
@@ -158,6 +174,11 @@ def ensure(cycle: E.Cycle, spec: E.Spec) -> Path:
     return E.ensure(cycle, spec)
 
 
+def ensure_rows(cycle: E.Cycle, spec: E.Spec) -> Path:
+    _set_env()
+    return E.ensure_rows(cycle, spec, EDGE_ROWS)
+
+
 SHARED = {
     "gh": spec_gh,
     "uv": spec_uv,
@@ -171,17 +192,18 @@ SHARED = {
     "ctrl_msl": spec_ctrl_msl,
     "ctrl_w": spec_ctrl_w,
 }
+ROWS = {"edge": spec_edge, "ctrl_edge": spec_ctrl_edge}
 
 
 def fetch_all(cycle: E.Cycle) -> dict:
     """Stock the shared files; returns {name: path} for the ones that arrived (a failure is reported, not raised, so
     one missing file does not take the others down)."""
     out = {}
-    for name, spec_of in SHARED.items():
+    for name, spec_of in {**SHARED, **ROWS}.items():
         spec = spec_of()
         t0 = time.time()
         try:
-            p = ensure(cycle, spec)
+            p = (ensure_rows if name in ROWS else ensure)(cycle, spec)
             out[name] = p
             mb = p.stat().st_size / 1e6
             print(
@@ -240,8 +262,8 @@ def main() -> int:
         return 0
     got = fetch_all(E.Cycle(a.date, a.time))
     tot = sum(p.stat().st_size for p in got.values()) / 1e9
-    print(f"  shared IFS files: {len(got)}/{len(SHARED)}, {tot:.2f} GB", flush=True)
-    return 0 if len(got) == len(SHARED) else 1
+    print(f"  shared IFS files: {len(got)}/{len(SHARED) + len(ROWS)}, {tot:.2f} GB", flush=True)
+    return 0 if len(got) == len(SHARED) + len(ROWS) else 1
 
 
 if __name__ == "__main__":

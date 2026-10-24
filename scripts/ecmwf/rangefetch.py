@@ -202,60 +202,114 @@ def coalesce(entries: list[dict], max_gap: int = MAX_GAP) -> list[tuple[int, int
     return ranges
 
 
+class _Gets:
+    """Ranged GETs of one GRIB file on the Google mirror (the only one), in parallel: each range retried there, the
+    concurrency shed on throttle signals; `stats` accumulates the bytes served per mirror."""
+
+    def __init__(self, rel_grib: str, sources, workers: int, stats: dict | None):
+        import threading
+
+        self.rel, self.sources, self.stats = rel_grib, _google(sources), stats
+        self.workers = workers
+        self.gate = threading.Semaphore(workers)  # shrinks on throttle signals
+        self.permits = workers
+        self.lock = threading.Lock()
+
+    def _shrink(self):
+        with self.lock:
+            if self.permits > 4:  # never below 4
+                self.gate.acquire(blocking=False)  # permanently retire a permit
+                self.permits -= 1
+
+    def get(self, start: int, end: int) -> bytes:
+        """Bytes start..end-1."""
+        last = None
+        with self.gate:
+            for attempt in range(3):
+                for src in self.sources:
+                    try:
+                        budget.acquire(src)
+                        r = requests.get(
+                            f"{MIRRORS[src]}/{self.rel}", headers={"Range": f"bytes={start}-{end - 1}"}, timeout=TIMEOUT
+                        )
+                        if r.status_code in (200, 206):
+                            if self.stats is not None:
+                                with self.lock:
+                                    self.stats[src] = self.stats.get(src, 0) + len(r.content)
+                            return r.content
+                        last = RuntimeError(f"{src}: HTTP {r.status_code}")
+                        if r.status_code in (429, 503):  # throttled: back off AND
+                            budget.penalize(src)
+                            self._shrink()  # shed concurrency
+                            time.sleep(1.0 + 2.0 * attempt)
+                    except Exception as e:  # noqa: BLE001
+                        last = e
+        raise RuntimeError(f"range {start}-{end} failed on the Google mirror: {last}")
+
+    def map(self, fn, items) -> list:
+        with ThreadPoolExecutor(max_workers=self.workers) as ex:
+            return list(ex.map(fn, items))
+
+
 def fetch_ranges(
     rel_grib: str, ranges, sources: list[str] | None = None, workers: int = WORKERS, stats: dict | None = None
 ) -> bytes:
     """Parallel ranged GETs; returns wanted message bytes concatenated in
     offset order. Retries each range on the Google mirror (the only one). If
     `stats` is given, bytes served are accumulated per mirror."""
-    sources = _google(sources)
-    import threading
-
-    gate = threading.Semaphore(workers)  # shrinks on throttle signals
-    shrink_lock = threading.Lock()
-    state = {"permits": workers}
-    stats_lock = threading.Lock()
-
-    def _shrink():
-        with shrink_lock:
-            if state["permits"] > 4:  # never below 4
-                gate.acquire(blocking=False)  # permanently retire a permit
-                state["permits"] -= 1
+    g = _Gets(rel_grib, sources, workers, stats)
 
     def one(rng):
         start, end, members = rng
-        last = None
-        for attempt in range(3):
-            for src in sources:
-                try:
-                    budget.acquire(src)
-                    r = requests.get(
-                        f"{MIRRORS[src]}/{rel_grib}", headers={"Range": f"bytes={start}-{end - 1}"}, timeout=TIMEOUT
-                    )
-                    if r.status_code in (200, 206):
-                        blob = r.content
-                        if stats is not None:
-                            with stats_lock:
-                                stats[src] = stats.get(src, 0) + len(blob)
-                        return b"".join(
-                            blob[e["_offset"] - start : e["_offset"] - start + e["_length"]] for e in members
-                        )
-                    last = RuntimeError(f"{src}: HTTP {r.status_code}")
-                    if r.status_code in (429, 503):  # throttled: back off AND
-                        budget.penalize(src)
-                        _shrink()  # shed concurrency
-                        time.sleep(1.0 + 2.0 * attempt)
-                except Exception as e:  # noqa: BLE001
-                    last = e
-        raise RuntimeError(f"range {start}-{end} failed on the Google mirror: {last}")
+        blob = g.get(start, end)
+        return b"".join(blob[e["_offset"] - start : e["_offset"] - start + e["_length"]] for e in members)
 
-    def gated(rng):
-        with gate:
-            return one(rng)
+    return b"".join(g.map(one, ranges))
 
-    with ThreadPoolExecutor(max_workers=workers) as ex:
-        parts = list(ex.map(gated, ranges))
-    return b"".join(parts)
+
+def fetch_rows(
+    rel_grib: str, entries: list[dict], rows: tuple, sources: list[str] | None = None, workers: int = WORKERS,
+    stats: dict | None = None,
+) -> list[tuple]:  # fmt: skip
+    """The rows `rows` (indices from the grid's northern edge) of each message in entries, [(values (len(rows), Ni),
+    latitudes)], from the first ccsds.PREFIX of its bytes (ccsds.py): one ranged GET per message, the whole message
+    fetched again for any whose prefix falls short, and decoded with eccodes where ccsds cannot."""
+    import eccodes
+    import numpy as np
+
+    import ccsds
+
+    if ccsds.AEC is None:
+        print("::warning::libaec not found: whole messages fetched for their rows", flush=True)
+    g = _Gets(rel_grib, sources, workers, stats)
+    keep = list(rows)
+
+    def lead(buf):
+        got = ccsds.leading_rows(buf, max(keep) + 1)
+        return None if got is None else (got[0][keep], got[1][keep])
+
+    def whole(buf):
+        h = eccodes.codes_new_from_message(buf)
+        try:
+            if eccodes.codes_get(h, "jScansPositively"):
+                raise RuntimeError(f"{rel_grib}: a south-to-north grid has no leading northern rows")
+            ni, nj = eccodes.codes_get(h, "Ni"), eccodes.codes_get(h, "Nj")
+            la1 = eccodes.codes_get(h, "latitudeOfFirstGridPointInDegrees")
+            dj = eccodes.codes_get(h, "jDirectionIncrementInDegrees")
+            vals = eccodes.codes_get_values(h).reshape(nj, ni)[keep].astype("float32")
+        finally:
+            eccodes.codes_release(h)
+        return vals, la1 - dj * np.asarray(keep, float)
+
+    def one(e):
+        s, n = e["_offset"], e["_length"]
+        got = lead(g.get(s, s + min(n, max(4096, int(n * ccsds.PREFIX)))))
+        if got is None:
+            buf = g.get(s, s + n)
+            got = lead(buf) or whole(buf)
+        return got
+
+    return g.map(one, entries)
 
 
 def fetch(

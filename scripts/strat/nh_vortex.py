@@ -317,8 +317,9 @@ def load_ifs(date, cyc, leads, members, light=False):
 
     ifs_ens.py stocks u/v at 10/100 hPa (12-hourly) and gh at the 11 drip levels (daily) ONCE a cycle for every
     stratosphere product; this reads u at 10/100 and gh at 100 hPa out of them at the daily steps. `light` (a past run
-    recorded on its own, --record-only) pulls just those fields, ~2 GB instead of the bundle's ~7.5. Google Cloud
-    mirror only: a cycle not yet on Google is dropped rather than pulled slowly from another mirror.
+    recorded on its own, --record-only) pulls just those fields, ~1.3 GB instead of the bundle's ~7.5, unless the
+    shared files are already on disk (the job that renders IFS-ENS stocks them first). Google Cloud mirror only: a
+    cycle not yet on Google is dropped rather than pulled slowly from another mirror.
     """
     import sys
 
@@ -335,7 +336,7 @@ def load_ifs(date, cyc, leads, members, light=False):
         return None
     cycle = IE.E.Cycle(date, cyc)
     try:
-        if light:
+        if light and not all(IE.E.path(cycle, spec()).exists() for spec in (IE.spec_uv, IE.spec_gh)):
             uv = IE.ensure(cycle, IE.E.Spec("ifs", "pf", "u", "pl", (10, 100), IE.STEPS))
             gh = IE.ensure(cycle, IE.E.Spec("ifs", "pf", "gh", "pl", (100,), IE.STEPS))
         else:
