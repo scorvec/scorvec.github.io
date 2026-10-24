@@ -1,0 +1,1809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stratosphere Model Maps: GFS from 100 to 0.4 hPa and Isentropic PV &middot; Shawn Corvec</title>
+<meta name="description" content="Zoomable polar maps of the newest GFS run to 16 days at every stratospheric level from 100 to 0.4 hPa (temperature, height, wind) and Ertel potential vorticity on seven isentropic surfaces, both hemispheres, with hover values.">
+<link rel="canonical" href="https://scorvec.com/strat-models.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Stratosphere model maps: GFS from 100 to 0.4 hPa and isentropic PV">
+<meta property="og:description" content="Zoomable polar maps of the newest GFS run to 16 days at every stratospheric level, with potential vorticity on seven isentropic surfaces.">
+<meta property="og:url" content="https://scorvec.com/strat-models.html">
+<meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
+<meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "WebPage",
+ "name": "Stratosphere model maps: GFS from 100 to 0.4 hPa and isentropic PV",
+ "url": "https://scorvec.com/strat-models.html",
+ "description": "Zoomable polar maps of the newest GFS run to 16 days at every stratospheric level from 100 to 0.4 hPa (temperature, height, wind) and Ertel potential vorticity on seven isentropic surfaces, both hemispheres, with hover values.",
+ "image": "https://scorvec.com/hero-supercell-1280.webp",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "Shawn Corvec",
+  "url": "https://scorvec.com/"
+ },
+ "author": {
+  "@id": "https://scorvec.com/#person"
+ }
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css?v=c7c5796084">
+<script src="/assets/site.js?v=295e377ffb" defer></script>
+<script src="/assets/frames_root.js?v=bdced09224"></script>
+<style>
+  /* strat-models.html: the page draws the data itself - scripts/models/strat_maps.py ships one lossless WebP per field,
+     level and step on the GFS's 0.5 deg grid, and the WebGL code below colours, projects and reads it (the engine of
+     samerica-models.html, on polar stereographic maps). */
+  :root { --bg: #f5f6f3; --panel: #ffffff; --ink: #1f261c; --ink2: #3d4540; --muted: #6f6b64; --rule: #dfe3dc;
+          --accent: #274b7a; --accent-soft: rgba(39, 75, 122, 0.09); --map: #e9ebe6;
+          --serif: 'Source Serif 4', Georgia, serif; --sans: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif; }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.5; }
+  main.mv { max-width: none; margin: 0 auto; padding: 1.2rem clamp(0.75rem, 3vw, 3.5rem) 3rem; }
+  h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(1.6rem, 3.2vw, 2.3rem); line-height: 1.15; margin: 0.25rem 0 0.4rem; }
+  h2 { font-family: var(--serif); font-weight: 500; font-size: 1.3rem; margin: 1.8rem 0 0.5rem; }
+  main.mv > .lede { color: var(--ink); font-size: 1.16rem; max-width: 80ch; margin: 0.7rem auto 1.1rem; }
+  .lede a, .mv-about a, .mv-note a { color: var(--accent); }
+
+  .mv-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.9rem; margin: 0 0 0.4rem; }
+  .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule); border-radius: 7px; background: var(--panel); overflow: hidden; }
+  .seg button { font: inherit; font-size: 1.14rem; font-weight: 600; border: 0; border-right: 1px solid var(--rule); background: transparent; color: var(--ink);
+                padding: 0.62rem 1.05rem; min-height: 46px; cursor: pointer; white-space: nowrap; }
+  .seg button:last-child { border-right: 0; }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .seg button:not([aria-pressed="true"]):hover { background: var(--accent-soft); }
+  .seg button small { font-size: 0.78em; opacity: 0.8; margin-left: 0.25em; }
+  .mv-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.9rem; flex: 1 1 100%; min-width: 0; }
+  .seg[hidden] { display: none; }
+  .mv-runT { font-size: 1.04rem; color: var(--ink2); }
+  .chk[hidden] { display: none; }
+  .chk { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 1.12rem; font-weight: 600; color: var(--ink); cursor: pointer; user-select: none; min-height: 40px; }
+  .chk input { width: 1.25rem; height: 1.25rem; accent-color: var(--accent); margin: 0; }
+  .mv-show { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1.3rem; margin: 0.45rem 0 0; font-size: 1.12rem; }
+  .mv-show > b { font-weight: 600; }
+  .mv-keys { margin-left: auto; font-size: 0.92rem; color: var(--muted); }
+  .mv-keys kbd { font: inherit; font-size: 0.78rem; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0 0.3em; background: var(--panel); }
+
+  /* touch: one finger scrolls the page, two move and zoom the map. Never taller than the window. */
+  .mv-map { position: relative; width: 100%; height: max(340px, calc(100vh - 225px)); background: var(--map); border: 1px solid var(--rule);
+            border-radius: 8px; overflow: hidden; touch-action: pan-x pan-y; cursor: grab;
+            -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  .mv-map.drag { cursor: grabbing; }
+  .mv-map:focus { outline: none; }
+  .mv-map:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .mv-coop { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5; pointer-events: none; max-width: min(26rem, 90%);
+             background: rgba(20, 24, 22, 0.85); color: #fff; border-radius: 8px; padding: 0.6rem 0.95rem; font-size: 1.04rem; text-align: center;
+             opacity: 0; transition: opacity 0.2s; }
+  .mv-coop.on { opacity: 1; }
+  .mv-map canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .mv-map canvas#ov { transform-origin: 0 0; will-change: transform; }
+  .mv-map canvas#lab { pointer-events: none; }
+  .mv-zoom { position: absolute; right: 8px; top: 8px; display: flex; flex-direction: column; gap: 4px; z-index: 3; }
+  .mv-zoom button { width: 48px; height: 48px; font: 700 1.5rem var(--sans); border: 1px solid var(--rule); border-radius: 6px;
+                    background: rgba(255,255,255,0.92); color: var(--ink); cursor: pointer; }
+  .mv-zoom button.txt { font-size: 0.98rem; }
+  .mv-badge { position: absolute; left: 8px; top: 8px; z-index: 3; background: rgba(255,255,255,0.93); border: 1px solid var(--rule); border-radius: 6px;
+              padding: 0.3rem 0.6rem; font-size: 0.95rem; color: var(--ink); max-width: calc(100% - 60px); pointer-events: none; }
+  .mv-badge b { font-weight: 600; }
+  .mv-load { position: absolute; left: 8px; bottom: 8px; z-index: 3; background: rgba(255,255,255,0.93); border: 1px solid var(--rule); border-radius: 6px;
+             padding: 0.2rem 0.5rem; font-size: 0.82rem; color: var(--ink2); pointer-events: none; }
+  .mv-load:empty { display: none; }
+  .mv-msg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2; max-width: min(34rem, 90%); text-align: center;
+            background: rgba(255,255,255,0.96); border: 1.5px dashed #b9beb6; border-radius: 8px; padding: 1.1rem 1.3rem; font-size: 0.97rem; color: var(--ink2); }
+  .mv-msg:empty { display: none; }
+  .mv-tip { position: absolute; z-index: 4; pointer-events: none; background: rgba(20, 24, 22, 0.9); color: #fff; font-size: 0.84rem; line-height: 1.35;
+            padding: 0.3rem 0.5rem; border-radius: 5px; white-space: nowrap; transform: translate(12px, 12px); display: none; }
+  .mv-tip .v { font-weight: 600; font-size: 0.95rem; }
+  .mv-tip .ll { color: #cfd6cf; }
+
+  .mv-time { display: flex; align-items: center; gap: 0.5rem; margin: 0.2rem 0 0.55rem; flex-wrap: wrap; }
+  .mv-time button { font: inherit; font-size: 1.35rem; font-weight: 700; min-width: 3.3rem; height: 3rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel);
+                    color: var(--ink); cursor: pointer; }
+  .mv-time input[type=range] { flex: 1 1 14rem; min-width: 10rem; height: 3rem; margin: 0; background: transparent; cursor: pointer;
+                                -webkit-appearance: none; appearance: none; touch-action: manipulation; }
+  .mv-time input[type=range]::-webkit-slider-runnable-track { height: 14px; border-radius: 7px; background: #cfd5cc; border: 1px solid #b8beb5; }
+  .mv-time input[type=range]::-moz-range-track { height: 14px; border-radius: 7px; background: #cfd5cc; border: 1px solid #b8beb5; }
+  .mv-time input[type=range]::-moz-range-progress { height: 14px; border-radius: 7px; background: var(--accent); }
+  .mv-time input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 30px; height: 30px; margin-top: -9px;
+      border-radius: 50%; background: var(--accent); border: 3px solid #fff; box-shadow: 0 0 0 1px var(--accent), 0 1px 4px rgba(0,0,0,0.35); }
+  .mv-time input[type=range]::-moz-range-thumb { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); border: 3px solid #fff;
+      box-shadow: 0 0 0 1px var(--accent), 0 1px 4px rgba(0,0,0,0.35); }
+  .mv-time input[type=range]:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 8px; }
+  .mv-valid { font-size: 1.05rem; color: var(--ink); min-width: 15rem; line-height: 1.3; }
+  .mv-valid .vt { font-size: 1.22rem; font-weight: 600; }
+  .mv-valid .loc { color: var(--ink2); }
+  .mv-valid .fh { display: inline-block; margin-left: 0.35rem; padding: 0 0.4rem; border-radius: 4px; background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 0.9rem; }
+  .mv-panel { background: #e6edf4; border: 1px solid #c9d6e3; border-radius: 10px; padding: 0.7rem 0.85rem 0.15rem; margin: 0 0 0.6rem; }
+  .mv-mapwrap { display: flex; gap: 8px; align-items: stretch; justify-content: center; position: relative; }
+  .mv-mapwrap > .mv-map { flex: 1 1 auto; min-width: 0; }
+  .mv-mapwrap > .mv-map.shaped { flex: 0 1 auto; }
+  /* the level picker beside the map: the top of the atmosphere at the top; one click (or the wheel, or the arrow keys)
+     per level */
+  .mv-levs { flex: 0 0 auto; display: flex; flex-direction: column; gap: 3px; min-width: 6.4rem; }
+  .mv-levs > span { font-size: 0.86rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); padding: 0 0 0.1rem 2px; }
+  .mv-levs button { flex: 1 1 0; min-height: 26px; max-height: 52px; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+                    font: inherit; font-size: 1.02rem; font-weight: 600; text-align: left; padding: 0 0.55rem; border: 1px solid var(--rule); border-radius: 5px;
+                    background: var(--panel); color: var(--ink); cursor: pointer; white-space: nowrap; }
+  .mv-levs button small { font-size: 0.82rem; font-weight: 400; color: var(--ink2); }
+  .mv-levs button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .mv-levs button[aria-pressed="true"] small { color: #e8eef6; }
+  .mv-levs button:not([aria-pressed="true"]):hover { background: var(--accent-soft); }
+  /* the canvas is out of the flow: its backing store is sized from its own box, which in flow would feed back into the row height */
+  .mv-legend { flex: 0 0 96px; margin: 0; position: relative; }
+  .mv-legend canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .mv-legT { margin: 0.3rem 0 0; font-size: 0.97rem; color: var(--muted); }
+  .mv-note { margin: 0.5rem 0 0; padding: 0.55rem 0.8rem; background: var(--panel); border: 1px solid var(--rule); border-left: 4px solid var(--accent);
+             border-radius: 4px; font-size: 1.02rem; color: var(--ink2); max-width: 80rem; }
+  .mv-note:empty { display: none; }
+  .mv-note b { color: var(--ink); font-weight: 600; }
+  .mv-about { max-width: 80rem; color: var(--ink2); font-size: 1.04rem; margin-top: 1.4rem; border-top: 1px solid var(--rule); padding-top: 0.6rem; }
+  .mv-about > h2:first-child { margin-top: 0.6rem; }
+  .mv-about h3 { font-family: var(--serif); font-weight: 500; font-size: 1.12rem; margin: 1.1rem 0 0.4rem; color: var(--ink); }
+  .mv-about table { border-collapse: collapse; width: 100%; font-size: 0.98rem; margin: 0.4rem 0 0.8rem; background: var(--panel); }
+  .mv-about th, .mv-about td { border: 1px solid var(--rule); padding: 0.35rem 0.5rem; text-align: left; vertical-align: top; }
+  .mv-about th { background: #eef1ec; font-weight: 600; color: var(--ink); }
+  .mv-about .tbl { overflow-x: auto; }
+  .mv-about .eq { font-family: var(--serif); font-size: 1.08rem; text-align: center; margin: 0.5rem 0; }
+  .mv-runs { font-size: 0.95rem; color: var(--muted); margin: 0.2rem 0 0; }
+  @media (max-width: 640px) {
+    main.mv { padding-top: 0.6rem; display: flex; flex-direction: column; }
+    h1 { font-size: 1.45rem; margin: 0.1rem 0 0.25rem; }
+    main.mv > .lede { font-size: 1.04rem; padding: 0.75rem 0.9rem; margin: 0.9rem 0 0.8rem; order: 1; }
+    main.mv > .mv-mapwrap ~ * { order: 2; }
+    .seg button { padding: 0.55rem 0.72rem; font-size: 1.06rem; min-height: 46px; }
+    .chk { font-size: 1.04rem; }
+    .mv-time button { min-width: 2.9rem; }
+    .mv-map { height: clamp(320px, calc(100svh - 230px), 640px); }
+    .mv-zoom button { width: 36px; height: 36px; font-size: 1.15rem; }
+    .mv-zoom button.txt { font-size: 0.82rem; }
+    .mv-time { margin: 0 0 0.35rem; padding: 0.2rem 0 0.25rem; }
+    .mv-panel { padding: 0.5rem 0.55rem 0.05rem; }
+    .mv-mapwrap { flex-direction: column; gap: 0.3rem; }
+    .mv-levs { flex-direction: row; overflow-x: auto; gap: 3px; min-width: 0; padding-bottom: 2px; }
+    .mv-levs > span { display: none; }
+    .mv-levs button { flex: 0 0 auto; min-height: 40px; max-height: none; flex-direction: column; justify-content: center; gap: 0; padding: 0.15rem 0.5rem; font-size: 0.95rem; line-height: 1.15; }
+    .mv-levs button small { font-size: 0.74rem; }
+    .mv-legend { flex: 0 0 auto; }
+    .mv-legend canvas { position: static; height: 38px; }
+    .mv-valid { min-width: 0; flex: 1 1 100%; font-size: 0.95rem; order: -1; }
+    .mv-valid .vt { font-size: 1.08rem; }
+    .mv-time input[type=range] { flex: 1 1 5rem; min-width: 5rem; }
+    .mv-keys { display: none; }
+    .mv-badge { font-size: 0.86rem; padding: 0.22rem 0.5rem; }
+  }
+</style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
+</head>
+<body>
+<!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0" aria-current="page">Model maps</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/models.html">North America, short range</a></li>
+              <li><a href="/samerica-models.html">South America, to day 10</a></li>
+              <li><a href="/strat-models.html" aria-current="page">Stratosphere, to day 16</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1"><span class="sh-lf">Mid-latitude weather</span><span class="sh-ls">Mid-latitudes</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div class="sh-col">
+              <div>
+                <h3>Surface and hazards</h3>
+                <ul>
+                  <li><a href="/ar.html">Atmospheric rivers</a></li>
+                  <li><a href="/circulation.html#natemp">North America 2 m temperature</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Upper air</h3>
+                <ul>
+                  <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
+                  <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
+                  <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2"><span class="sh-lf">Global circulation and tropics</span><span class="sh-ls">Tropics</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div class="sh-col">
+              <div>
+                <h3>ENSO and the MJO</h3>
+                <ul>
+                  <li><a href="/enso.html">El Niño monitor</a></li>
+                  <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
+                  <li><a href="/circulation.html#gdps_ir">Simulated satellite (GDPS)</a></li>
+                  <li><a href="/mjo.html">MJO forecast</a></li>
+                  <li><a href="/tropical-waves.html">Tropical waves</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tropical cyclones</h3>
+                <ul>
+                  <li><a href="/circulation.html#tc">Tropical cyclones</a></li>
+                  <li><a href="/recon.html">Hurricane reconnaissance</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Jets and momentum</h3>
+                <ul>
+                  <li><a href="/circulation.html#jets">Subtropical jets</a></li>
+                  <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tropical overturning</h3>
+                <ul>
+                  <li><a href="/circulation.html#walker">Walker circulation</a></li>
+                  <li><a href="/circulation.html#hadley">Hadley cells</a></li>
+                  <li><a href="/circulation.html#vpot">Velocity potential</a></li>
+                  <li><a href="/circulation.html#gdps150">Upper-level outflow (GDPS)</a></li>
+                  <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
+                  <li><a href="/circulation.html#rainfc">Rain forecast, weeks 1–2</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Stratosphere</button>
+          <div class="sh-menu sh-menu--list" id="sh-g3">
+            <ul>
+              <li><a href="/ssw.html">SSW outlook</a></li>
+              <li><a href="/stratosphere.html#vortex">The vortex, days 1–15</a></li>
+              <li><a href="/stratosphere.html#heatflux">The waves driving it, days 1–15</a></li>
+              <li><a href="/stratosphere.html#descent">Down to the surface, days 1–15</a></li>
+              <li><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
+              <li><a href="/stratosphere.html#s5vortex">The season ahead</a></li>
+              <li><a href="/stratosphere.html#qbo">The QBO and today's analyses</a></li>
+              <li><a href="/stratosphere.html#shwinters">History and studies</a></li>
+              <li><a href="/stratosphere.html">All stratosphere products</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div class="sh-col">
+              <div>
+                <h3>Extended range</h3>
+                <ul>
+                  <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                  <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+                  <li><a href="/sfs-subseasonal.html">SFS extended (experimental)</a></li>
+                  <li><a href="/monthly-outlook.html">Claude's month-ahead forecast</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Seasons</h3>
+                <ul>
+                  <li><a href="/seasonal.html">Seasonal model forecasts</a></li>
+                  <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g5">
+            <div class="sh-col">
+              <div>
+                <h3>Studies</h3>
+                <ul>
+                  <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                  <li><a href="/mjo.html#mi">MJO impacts</a></li>
+                  <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
+                  <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
+                  <li><a href="/topics/">Explainers</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Verification</h3>
+                <ul>
+                  <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+                  <li><a href="/verification.html">Global models against observations</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g6">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g6">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+              <li><a href="/fci.html">US credit conditions</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main id="main" class="mv">
+  <h1>Stratosphere model maps</h1>
+  <p class="lede">The newest GFS run to day 16, from 100 to 0.4&nbsp;hPa, with isentropic PV.</p>
+
+  <div class="mv-panel">
+  <div class="mv-bar">
+    <div class="mv-row">
+      <div class="seg" id="hemis" role="group" aria-label="Hemisphere"></div>
+      <div class="seg" id="fields" role="group" aria-label="Map"></div>
+      <div class="seg" id="subSeg" role="group" aria-label="Wind" hidden></div>
+      <span class="mv-runT" id="runT"></span>
+    </div>
+  </div>
+  <div class="mv-time">
+    <button type="button" id="play" aria-label="Play">&#9654;</button>
+    <button type="button" id="back" aria-label="Previous step">&lsaquo;</button>
+    <input type="range" id="hour" min="0" max="0" value="0" aria-label="Forecast step">
+    <button type="button" id="fwd" aria-label="Next step">&rsaquo;</button>
+    <span class="mv-valid" id="valid" aria-live="polite"></span>
+  </div>
+  </div>
+  <div class="mv-mapwrap">
+  <div class="mv-levs" id="levs" role="group" aria-label="Level"></div>
+  <div class="mv-map" id="map" tabindex="0" role="application" aria-roledescription="map" aria-label="Model map" aria-describedby="badge mapKeys">
+    <canvas id="gl" aria-hidden="true"></canvas>
+    <canvas id="ov" aria-hidden="true"></canvas>
+    <canvas id="lab" aria-hidden="true"></canvas>
+    <div class="mv-coop" id="coop" aria-hidden="true"></div>
+    <div class="mv-badge" id="badge"></div>
+    <div class="mv-zoom"><button type="button" id="zin" aria-label="Zoom in">+</button><button type="button" id="zout" aria-label="Zoom out">&minus;</button><button type="button" class="txt" id="zfit" aria-label="Reset view">fit</button></div>
+    <div class="mv-msg" id="msg" role="status"></div>
+    <div class="mv-load" id="load"></div>
+    <div class="mv-tip" id="tip"></div>
+  </div>
+  <div class="mv-legend"><canvas id="leg" role="img" aria-label="Colour scale" aria-describedby="legT"></canvas></div>
+  </div>
+  <p class="mv-legT" id="legT"></p>
+  <div class="mv-show"><b>Show</b>
+    <label class="chk" title="Labelled contours drawn from the same data"><input type="checkbox" id="cont" checked> Contours</label>
+    <label class="chk" id="barbL" hidden title="Wind barbs in knots"><input type="checkbox" id="barb" checked> Barbs</label>
+    <span class="mv-keys" id="mapKeys">Click the map, then: arrows pan &middot; <kbd>+</kbd> <kbd>&minus;</kbd> zoom &middot; <kbd>0</kbd> reset &middot; <kbd>PgUp</kbd> <kbd>PgDn</kbd> level &middot; <kbd>,</kbd> <kbd>.</kbd> step &middot; <kbd>Space</kbd> play</span>
+  </div>
+  <p class="mv-note" id="note"></p>
+
+  <section class="mv-about" id="about" aria-labelledby="aboutH">
+    <h2 id="aboutH">About these maps</h2>
+    <p class="mv-runs" id="runs"></p>
+    <h3>The model and its levels</h3>
+    <p><b>GFS</b>: NOAA's Global Forecast System (the FV3 model, about 13&nbsp;km, 127 layers up to about 80&nbsp;km), read on the 0.5&deg; latitude&ndash;longitude grid of its published output. The 00 and 12&nbsp;UTC runs, every 12&nbsp;hours to +384&nbsp;h (16 days); a run appears here about 6&nbsp;hours after its start time, and only the newest is kept. The maps are the output's 15 pressure levels from 100&nbsp;hPa (about 16&nbsp;km, near the tropical tropopause) to 0.4&nbsp;hPa (about 54&nbsp;km, around the stratopause): 100, 70, 50, 40, 30, 20, 15, 10, 7, 5, 3, 2, 1, 0.7 and 0.4&nbsp;hPa. The heights beside the level buttons are this run's global-mean height of each level at its start. The GFS also writes 0.2 to 0.01&nbsp;hPa, the mesosphere up to the model top; they are left out, because the model's uppermost layers are its damping (sponge) layers and the analysis has few observations to draw on there. Above about 1&nbsp;hPa the same holds more weakly: read the top levels as the model's picture, not a well-observed one.</p>
+    <h3>What each map is</h3>
+    <div class="tbl"><table>
+      <tr><th>Map</th><th>Shading</th><th>Lines</th></tr>
+      <tr><td>Temperature</td><td>Air temperature on the pressure level, &deg;C, stored to 0.6&nbsp;K; purple below &minus;78&nbsp;&deg;C (195&nbsp;K), where nitric-acid polar stratospheric clouds can form (ice clouds near &minus;85&nbsp;&deg;C, 188&nbsp;K)</td><td>Geopotential height, dam, at a fixed interval for each level (8&nbsp;dam at 100&ndash;40&nbsp;hPa up to 48&nbsp;dam at 0.4&nbsp;hPa)</td></tr>
+      <tr><td>Wind: speed</td><td>Wind speed, m/s; barbs in knots (feathers on the Southern Hemisphere side south of the equator)</td><td>Height, as on the temperature map</td></tr>
+      <tr><td>Wind: zonal</td><td>The west&ndash;east component: westerlies red, easterlies blue, m/s. A reversal to easterlies at 60&deg; and 10&nbsp;hPa in winter is the usual definition of a major sudden stratospheric warming (Charlton and Polvani 2007)</td><td>Height, and the zero-wind line in black</td></tr>
+      <tr><td>Potential vorticity</td><td>Ertel PV on the isentropic surface (350, 400, 475, 600, 850, 1200 or 1600&nbsp;K), PVU; the colours follow the Lait-scaled value (below), so one colour means the same thing on every surface, and the legend gives the surface's own PV. Southern Hemisphere PV is shown with its sign reversed, so the vortex is positive in both. Blank where the surface lies outside 400&ndash;0.4&nbsp;hPa</td><td>The Montgomery streamfunction M&nbsp;=&nbsp;c<sub>p</sub>T&nbsp;+&nbsp;gz divided by g, dam: on an isentropic surface the geostrophic wind blows along it as it does along height contours on a pressure surface</td></tr>
+    </table></div>
+    <h3 id="pvmethod">How the potential vorticity is computed</h3>
+    <p>The GFS publishes no potential vorticity in the stratosphere (only the &plusmn;0.5 to 2&nbsp;PVU surfaces near the tropopause), so it is computed here from the temperature and the winds on 27 pressure levels, 400&nbsp;hPa to 0.4&nbsp;hPa (the 21 levels of the main output from 400&nbsp;hPa up, and the six 25&nbsp;hPa levels between 125 and 375&nbsp;hPa from its secondary files), as Ertel's potential vorticity in pressure coordinates (Hoskins, McIntyre and Robertson 1985):</p>
+    <p class="eq">PV = &minus;g [ (&zeta; + f) &part;&theta;/&part;p &minus; &part;v/&part;p &middot; &part;&theta;/&part;x + &part;u/&part;p &middot; &part;&theta;/&part;y ],&nbsp;&nbsp; &theta; = T (1000&nbsp;hPa / p)<sup>R/c<sub>p</sub></sup></p>
+    <p>with the relative vorticity &zeta; and the horizontal derivatives taken on the sphere (centred differences, periodic in longitude), the vertical ones in ln&nbsp;p across the actual levels, one 1&ndash;2&ndash;1 smoothing pass in latitude and longitude, and the rows at the poles set to the mean of the ring next to them. PV, the Montgomery streamfunction and ln&nbsp;p are then interpolated to each isentrope linearly in ln&nbsp;&theta;, column by column. 1&nbsp;PVU&nbsp;=&nbsp;10<sup>&minus;6</sup>&nbsp;K&nbsp;m<sup>2</sup>&nbsp;kg<sup>&minus;1</sup>&nbsp;s<sup>&minus;1</sup>.</p>
+    <p><b>Why the colours are scaled.</b> In a resting atmosphere PV grows roughly as &theta;<sup>9/2</sup> with height, from tens of PVU at 475&nbsp;K to hundreds at 850&nbsp;K and thousands at 1600&nbsp;K. The colours follow PV&nbsp;&times;&nbsp;(&theta;&nbsp;/&nbsp;475&nbsp;K)<sup>&minus;9/2</sup> (Lait 1994, referenced to 475&nbsp;K), so a vortex looks alike on every surface and at 475&nbsp;K the scaled value is the PV itself; the legend and the hover give the surface's real PV.</p>
+    <p><b>Checks.</b> The formula and the interpolation were tested on idealised atmospheres before the first run: a resting and a solid-body-rotating isothermal atmosphere (PV within 0.3&nbsp;% of the exact value at every level) and a strongly sheared, weakly stratified one where the two tilting terms change PV by 8&ndash;16&nbsp;% and the isobaric form above matches the isentropic form &minus;g&nbsp;(&zeta;<sub>&theta;</sub>&nbsp;+&nbsp;f)&nbsp;&part;&theta;/&part;p to 0.2&nbsp;%. Every run then checks itself against the GFS's own post-processed fields, and against NASA's GEOS FP analysis, which carries its own PV:</p>
+    <p class="mv-runs" id="checks"></p>
+    <h3>How the page works</h3>
+    <p>Nothing on this page is a picture. Each field, level and step is shipped as the model's own numbers, rounded to 256 levels, on the GFS's 0.5&deg; grid, and your browser colours, projects, contours and reads it; the shading is interpolated between grid points, and the hover value is the stored one at the nearest point. The maps are polar stereographic, true at the pole (0&deg; longitude at the bottom of the northern map and at the top of the southern one). Contours are drawn by your graphics card from the same numbers after a light smoothing; their labels are placed once the map is at rest. <b>Data use:</b> opening a map loads only the map on screen (about 30&ndash;90&nbsp;KB); stepping through the levels loads that step at every level (about 1&nbsp;MB), and playing or dragging the time slider loads every step of that map (33 files, 1&ndash;3&nbsp;MB).</p>
+    <p>Data: NOAA GFS through the NOAA Open Data Dissemination program (AWS); GEOS FP potential vorticity from NASA GMAO (the site's <a href="/stratosphere.html#pv">GEOS FP PV product</a>). Model output as published, uncorrected. Boundaries: Natural Earth. Hoskins, B. J., M. E. McIntyre and A. W. Robertson, 1985, Q. J. R. Meteorol. Soc. 111, 877&ndash;946 &middot; Lait, L. R., 1994, J. Atmos. Sci. 51, 1754&ndash;1759 &middot; Charlton, A. J., and L. M. Polvani, 2007, J. Climate 20, 449&ndash;469.</p>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  // ── configuration ─────────────────────────────────────────────────────────────────────────────────────────────
+  var LOCAL = /[?&]local=1/.test(location.search);                    // testing: data from this origin
+  var D2R = Math.PI / 180, KT = 1.943844, R2 = 2 * 6371229;
+  var DATA = "assets/models/data/strat/gfs/", MAN = "/assets/models/strat_gfs.json";
+  function S(v, c, a) { return [v, parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16), a == null ? 1 : a]; }
+  // temperature, deg C, one scale for every level: purple below the polar-stratospheric-cloud threshold (-78 C)
+  var T_STOPS = [S(-95, "#f4ecf8"), S(-88, "#d6bce8"), S(-82, "#aa7fcf"), S(-78.01, "#7a4bb3"), S(-78, "#3a3f9e"), S(-72, "#2d55b8"), S(-66, "#2f78d2"),
+                 S(-60, "#4fa0e0"), S(-55, "#79c3e4"), S(-50, "#58b6a6"), S(-45, "#46a463"), S(-40, "#7dbd46"), S(-35, "#b6d33d"), S(-30, "#e7dc3b"),
+                 S(-25, "#f6c13a"), S(-20, "#f5a035"), S(-15, "#ee7f2d"), S(-10, "#e05a27"), S(-5, "#c93a26"), S(0, "#a8202d"), S(10, "#7a1236"), S(25, "#4a0b3c")];
+  var SPD_STOPS = [S(0, "#f7f7f4"), S(10, "#d6e6f2"), S(20, "#9cc5e3"), S(30, "#5c9fcd"), S(40, "#3f9b6a"), S(50, "#8cc24a"), S(60, "#e6d93a"),
+                   S(70, "#f8a93a"), S(85, "#e4552f"), S(100, "#a8124f"), S(125, "#5a0f78"), S(160, "#2c0640")];
+  var U_STOPS = [S(-120, "#08244f"), S(-80, "#1c4f96"), S(-50, "#3b7fc0"), S(-25, "#86b9dc"), S(-8, "#d6e7f2"), S(0, "#f6f6f3"), S(8, "#fbdccb"),
+                 S(25, "#f2a27e"), S(50, "#dc5f45"), S(80, "#b01c2c"), S(120, "#5c0618")];
+  // potential vorticity: the Lait-scaled value (PVU at the 475 K scale, scripts/models/strat_maps.py PV_OFF/PV_STEP)
+  var PV_STOPS = [S(-15, "#2f56a6"), S(-4, "#a9c3e2"), S(0, "#f4f6f8"), S(4, "#fbf3c6"), S(8, "#fbe293"), S(12, "#f9c862"), S(16, "#f5a843"), S(20, "#ee8732"),
+                  S(25, "#e0632a"), S(30, "#cb3f29"), S(35, "#ac2533"), S(40, "#86183f"), S(48, "#62114b"), S(56, "#451057"), S(66, "#2e0c53"), S(80, "#17062f")];
+  var FIELDS = { t: { label: "Temperature", unit: "°C" }, wind: { label: "Wind", unit: "m/s" }, pv: { label: "Potential vorticity", unit: "PVU" } };
+  var FIELD_ORDER = ["t", "wind", "pv"];
+  var WIND_SUBS = { spd: { label: "Speed" }, u: { label: "Zonal wind" } };
+  var HEMIS = { nh: "North", sh: "South" }, HEMI_LONG = { nh: "Northern Hemisphere", sh: "Southern Hemisphere" };
+  // contour interval per level (height, dam) and per isentrope (Montgomery streamfunction / g, dam)
+  var CI_LEV = { "100": 8, "70": 8, "50": 8, "40": 8, "30": 12, "20": 12, "15": 16, "10": 16, "7": 16, "5": 24, "3": 24, "2": 32, "1": 32, "0p7": 32, "0p4": 48 };
+  var CI_TH = { "350": 12, "400": 12, "475": 8, "600": 12, "850": 16, "1200": 24, "1600": 32 };
+  var SPD_MAX = 160, FIT_LAT = 20, OUT_LAT = 25;   // speed scale (m/s); the open view reaches FIT_LAT; lines stop OUT_LAT past the equator
+
+  // ── display projection: polar stereographic, true at the pole (sphere 6371229 m); 0 deg at the bottom of the
+  // northern map, at the top of the southern one (as the site's GEOS FP PV maps) ───────────────────────────────────
+  var P = { h: 1, l0: 0,
+    set: function (hemi) { P.h = hemi === "sh" ? -1 : 1; },
+    fwd: function (lon, lat) {
+      var rho = R2 * Math.tan(Math.PI / 4 - P.h * lat * D2R / 2), dl = lon * D2R - P.l0;
+      return [rho * Math.sin(dl), -P.h * rho * Math.cos(dl)];
+    },
+    inv: function (x, y) {
+      var rho = Math.sqrt(x * x + y * y), lat = P.h * (90 - 2 * Math.atan(rho / R2) / D2R), lon = (P.l0 + Math.atan2(x, -P.h * y)) / D2R;
+      return [((lon + 540) % 360) - 180, lat];
+    },
+    north: function (lon, lat) {                                  // unit vector of north on the map at (lon, lat)
+      var la = Math.max(-89.9, Math.min(89.9, lat)), a = P.fwd(lon, la - 0.02), b = P.fwd(lon, la + 0.02), dx = b[0] - a[0], dy = b[1] - a[1], n = Math.sqrt(dx * dx + dy * dy);
+      return [dx / n, dy / n];
+    },
+    rho: function (lat) { return R2 * Math.tan(Math.PI / 4 - Math.abs(lat) * D2R / 2); } };
+  // grid index (fractional) of a display point: regular lat-lon, row j = 0 at the south; longitude counted from w0 and
+  // offset into the padded columns (strat_maps.py grid_desc), identical to the shader
+  function gridIJ(g, x, y) { var ll = P.inv(x, y), di = ((ll[0] - g.w0) % 360 + 360) % 360 + (g.w0 - g.lo1); return [di / g.di, (ll[1] - g.la1) / g.dj]; }
+  function ijLL(g, i, j) { return [g.lo1 + i * g.di, g.la1 + j * g.dj]; }
+  function prepGrid(g) { if (!g._bb) { var r = P.rho(FIT_LAT); g._bb = [-r, r, -r, r]; } return g; }
+
+  // ── decoding: code -> value ─────────────────────────────────────────────────────────────────────────────────────
+  var ENC = null;                                                  // the run's fixed encodings (manifest "enc")
+  function tOf(c) { return c === 255 ? null : ENC.t.off + c * ENC.t.step - 273.15; }
+  function linOf(c, q) { return c === 255 || !q ? null : q[0] + c * q[1]; }
+  function pvScale(th) { return Math.pow(th / ENC.pv.ref, 4.5); }  // scaled PV x this = the surface's PV
+  function mpvOf(c) { return c === 255 ? null : ENC.pv.off + c * ENC.pv.step; }
+  function pOf(c) { return c === 255 ? null : Math.exp(Math.log(ENC.p.lo) + c / 254 * Math.log(ENC.p.hi / ENC.p.lo)); }
+  function interp(stops, v) {
+    if (v <= stops[0][0]) return stops[0].slice(1);
+    for (var i = 1; i < stops.length; i++) {
+      var a = stops[i - 1], b = stops[i];
+      if (v <= b[0]) {
+        var t = (v - a[0]) / (b[0] - a[0]); if (!isFinite(t)) t = 0; t = Math.max(0, Math.min(1, t));
+        return [a[1] + t * (b[1] - a[1]), a[2] + t * (b[2] - a[2]), a[3] + t * (b[3] - a[3]), a[4] + t * (b[4] - a[4])];
+      }
+    }
+    return stops[stops.length - 1].slice(1);
+  }
+  function stopsOf() { return st.field === "t" ? T_STOPS : st.field === "pv" ? PV_STOPS : st.wv === "u" ? U_STOPS : SPD_STOPS; }
+  // 256-entry colour table of a frame: the shader looks up the (interpolated) code, or for the wind speed its own
+  // 0..SPD_MAX code
+  function buildLut(q) {
+    var lut = new Uint8Array(256 * 4), stops = stopsOf();
+    for (var c = 0; c < 255; c++) {
+      var v = st.field === "t" ? tOf(c) : st.field === "pv" ? mpvOf(c) : st.wv === "u" ? linOf(c, q) : c / 254 * SPD_MAX;
+      if (v === null) continue;
+      var col = interp(stops, v);
+      lut[4 * c] = col[0]; lut[4 * c + 1] = col[1]; lut[4 * c + 2] = col[2]; lut[4 * c + 3] = Math.round(255 * col[3]);
+    }
+    return lut;
+  }
+
+  // ── state ──────────────────────────────────────────────────────────────────────────────────────────────────────
+  var man = null;
+  var st = { hemi: "nh", field: "t", lev: "10", th: "850", wv: "spd", hour: 0, playing: false, engT: "", engL: "" };
+  var view = null;                                // {cx, cy, s: metres per CSS px}
+  var $ = function (id) { return document.getElementById(id); };
+  function escH(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  var mapEl = $("map"), glc = $("gl"), ovc = $("ov"), labc = $("lab"), tip = $("tip");
+  function cyc() { return man && man.cycles && man.cycles[0]; }
+  function levKey(p) { return String(p).replace(".", "p"); }
+  function levName(k) { return k.replace("p", "."); }
+  // the file a map reads (the wind maps draw their height lines from the temperature file of the same level)
+  function fileOf(field, lev, th) { return field === "pv" ? "pv" + th : (field === "t" ? "t" : "w") + lev; }
+  function mainFile() { return fileOf(st.field, st.lev, st.th); }
+  function hoursOf(c) { var fm = c && c.fields[mainFile()]; return fm ? fm.hours : (c ? c.hours : [0]); }
+  function nearestHour(c, h) { var hs = hoursOf(c), best = hs[0]; hs.forEach(function (x) { if (Math.abs(x - h) < Math.abs(best - h)) best = x; }); return best; }
+  function qOf(c, f, h) { var fm = c.fields[f], k = fm ? fm.hours.indexOf(h) : -1; return k < 0 ? null : fm.q[st.hemi][k]; }
+  function chOf(f) { return f.slice(0, 2) === "pv" ? 3 : 2; }
+  function relPath(c, hemi, f, h) { return DATA + c.cycle + "/" + hemi + "/" + f + "/" + ("00" + h).slice(-3) + ".webp"; }
+  function subKey() { return st.field === "pv" ? st.th : st.lev + (st.field === "wind" ? "-" + st.wv : ""); }
+
+  // ── data transport: assets/frames_root.js (frameFetch: the frames store first, every fallback behind it) ─────────
+  // A file's path names its run (cycle/hemisphere/field/step), so its bytes never change: they are kept in Cache Storage
+  // and read back from there on a later visit. Old runs are pruned on load.
+  var CACHE_NAME = "strat-frames-v1", CACHE_HOST = "https://strat-frames.invalid/", cacheP = null;
+  function frameCache() {
+    if (!cacheP) cacheP = (typeof caches === "object" && caches && window.isSecureContext && (!LOCAL || /[?&]cache=1/.test(location.search)) ? caches.open(CACHE_NAME) : Promise.reject(new Error("no cache")))
+      .catch(function () { return null; });
+    return cacheP;
+  }
+  function pruneCache() {
+    var c = cyc(); if (!c) return;
+    frameCache().then(function (cc) { if (!cc) return;
+      return cc.keys().then(function (ks) { ks.forEach(function (rq) { var m = rq.url.match(/strat\/gfs\/(\d{10})\//); if (m && m[1] !== c.cycle) cc.delete(rq); }); });
+    }).catch(function () {});
+  }
+  function getBytes(rel, prio, sig) {
+    var key = CACHE_HOST + rel;
+    function net() {
+      var init = { priority: prio }; if (sig) init.signal = sig;
+      var p = LOCAL ? fetch("/" + rel, init).then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r; })
+        : window.frameFetch ? window.frameFetch(rel, null, { init: init }) : Promise.reject(new Error("frames_root.js missing"));
+      return p.then(function (r) { var t0 = performance.now(); return r.arrayBuffer().then(function (b) {
+        b._tb = performance.now() - t0;
+        frameCache().then(function (cc) { if (cc) cc.put(key, new Response(b.slice(0), { headers: { "Content-Type": "image/webp" } })).catch(function () {}); });
+        return b; }); });
+    }
+    return frameCache().then(function (cc) { return cc ? cc.match(key) : null; }).catch(function () { return null; })
+      .then(function (hit) { return hit ? hit.arrayBuffer().then(function (b) { b._cached = true; return b; }) : net(); });
+  }
+
+  // ── worker: WebP -> channels, contour tracing (for the labels), boundaries ───────────────────────────────────────
+  function workerMain() {
+    function decodeMsg(d) {
+      return createImageBitmap(new Blob([d.buf], { type: "image/webp" }), { colorSpaceConversion: "none", premultiplyAlpha: "none" }).then(function (b) {
+        var bw = b.width, bh = b.height, c = new OffscreenCanvas(bw, bh), g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(b, 0, 0);
+        var px = g.getImageData(0, 0, bw, bh).data, n = bw * bh, ch = d.ch, o = new Uint8Array(n * ch), k, q;
+        b.close(); c.width = c.height = 0;
+        for (k = 0; k < n; k++) for (q = 0; q < ch; q++) o[ch * k + q] = px[4 * k + q];
+        self.postMessage({ id: d.id, w: bw, h: bh, data: o }, [o.buffer]);
+      });
+    }
+    function blur(f, W, H, r) {                       // box blur, radius r, separable running sums, edges clamped
+      if (r < 1) return f;
+      var t = new Float32Array(W * H), x, y, s, k, n = 2 * r + 1, row, W1 = W - 1, H1 = H - 1;
+      for (y = 0; y < H; y++) { row = y * W; s = 0;
+        for (k = -r; k <= r; k++) s += f[row + (k < 0 ? 0 : k > W1 ? W1 : k)];
+        for (x = 0; x < W; x++) { t[row + x] = s / n; var xa = x + r + 1, xb = x - r; s += f[row + (xa > W1 ? W1 : xa)] - f[row + (xb < 0 ? 0 : xb)]; } }
+      for (x = 0; x < W; x++) { s = 0;
+        for (k = -r; k <= r; k++) s += t[(k < 0 ? 0 : k > H1 ? H1 : k) * W + x];
+        for (y = 0; y < H; y++) { f[y * W + x] = s / n; var ya = y + r + 1, yb = y - r; s += t[(ya > H1 ? H1 : ya) * W + x] - t[(yb < 0 ? 0 : yb) * W + x]; } }
+      return f;
+    }
+    var W2g = 0;
+    function E(S, e, x, y, lv, tl, tr, bl, br) {          // one crossing: edge key, x, y (T=0 B=1 L=2 R=3)
+      if (e === 0) S.push(2 * (y * W2g + x), x + (lv - tl) / (tr - tl), y);
+      else if (e === 1) S.push(2 * ((y + 1) * W2g + x), x + (lv - bl) / (br - bl), y + 1);
+      else if (e === 2) S.push(2 * (y * W2g + x) + 1, x, y + (lv - tl) / (bl - tl));
+      else S.push(2 * (y * W2g + x + 1) + 1, x + 1, y + (lv - tr) / (br - tr));
+    }
+    function contourMsg(d) {
+      var t0 = performance.now(), W = d.w, H = d.h, a = d.data, k, n2 = W * H, g = new Float32Array(n2), gb = null, lut = d.lut, vv2;
+      var st2 = d.stride || 1, co = d.choff || 0;
+      for (k = 0; k < n2; k++) { vv2 = lut[a[k * st2 + co]]; if (vv2 !== vv2) { g[k] = 0; (gb || (gb = new Uint8Array(n2)))[k] = 1; } else g[k] = vv2; }
+      blur(g, W, H, d.rad);
+      W2g = W;
+      var L = d.levels, NL = L.length, segs = [], q, x, y;
+      for (q = 0; q < NL; q++) segs.push([]);
+      var bin = new Uint8Array(n2);
+      for (k = 0; k < n2; k++) { var gv = g[k], lo2 = 0, hi2 = NL; while (lo2 < hi2) { var md = (lo2 + hi2) >> 1; if (L[md] <= gv) lo2 = md + 1; else hi2 = md; } bin[k] = lo2; }
+      for (y = 0; y < H - 1; y++) for (x = 0; x < W - 1; x++) {
+        var i0 = y * W + x, b0 = bin[i0], b1 = bin[i0 + 1], b2 = bin[i0 + W], b3 = bin[i0 + W + 1];
+        if (b0 === b1 && b0 === b2 && b0 === b3) continue;
+        if (gb && (gb[i0] | gb[i0 + 1] | gb[i0 + W] | gb[i0 + W + 1])) continue;
+        var tl = g[i0], tr = g[i0 + 1], bl = g[i0 + W], br = g[i0 + W + 1], qa = Math.min(b0, b1, b2, b3), qb = Math.max(b0, b1, b2, b3);
+        for (q = qa; q < qb; q++) {
+          var lv = L[q], c = (tl >= lv ? 8 : 0) | (tr >= lv ? 4 : 0) | (br >= lv ? 2 : 0) | (bl >= lv ? 1 : 0), S = segs[q];
+          switch (c) {
+            case 1: case 14: E(S, 2, x, y, lv, tl, tr, bl, br); E(S, 1, x, y, lv, tl, tr, bl, br); break;
+            case 2: case 13: E(S, 1, x, y, lv, tl, tr, bl, br); E(S, 3, x, y, lv, tl, tr, bl, br); break;
+            case 3: case 12: E(S, 2, x, y, lv, tl, tr, bl, br); E(S, 3, x, y, lv, tl, tr, bl, br); break;
+            case 4: case 11: E(S, 0, x, y, lv, tl, tr, bl, br); E(S, 3, x, y, lv, tl, tr, bl, br); break;
+            case 6: case 9: E(S, 0, x, y, lv, tl, tr, bl, br); E(S, 1, x, y, lv, tl, tr, bl, br); break;
+            case 7: case 8: E(S, 2, x, y, lv, tl, tr, bl, br); E(S, 0, x, y, lv, tl, tr, bl, br); break;
+            case 5: case 10:
+              var ctr = (tl + tr + bl + br) / 4 >= lv;
+              if ((c === 5) === ctr) { E(S, 2, x, y, lv, tl, tr, bl, br); E(S, 0, x, y, lv, tl, tr, bl, br); E(S, 1, x, y, lv, tl, tr, bl, br); E(S, 3, x, y, lv, tl, tr, bl, br); }
+              else { E(S, 0, x, y, lv, tl, tr, bl, br); E(S, 3, x, y, lv, tl, tr, bl, br); E(S, 2, x, y, lv, tl, tr, bl, br); E(S, 1, x, y, lv, tl, tr, bl, br); }
+              break;
+          }
+        }
+      }
+      var out = [], total = 0;                              // chain segments into polylines through shared edge keys
+      for (q = 0; q < NL; q++) {
+        var S2 = segs[q], ns = S2.length / 6; if (!ns) continue;
+        var first = new Map(), second = new Map(), used = new Uint8Array(ns);
+        for (k = 0; k < ns; k++) for (var e = 0; e < 2; e++) { var key = S2[6 * k + 3 * e]; if (first.has(key)) second.set(key, k); else first.set(key, k); }
+        var other = function (key, not) { var f1 = first.get(key); if (f1 !== undefined && f1 !== not && !used[f1]) return f1; var f2 = second.get(key); return f2 !== undefined && f2 !== not && !used[f2] ? f2 : -1; };
+        for (k = 0; k < ns; k++) {
+          if (used[k]) continue; used[k] = 1;
+          var fx = [S2[6 * k + 1], S2[6 * k + 4]], fy = [S2[6 * k + 2], S2[6 * k + 5]], bxs = [], bys = [], endKey = S2[6 * k + 3], cur = k;
+          for (;;) { var nx = other(endKey, cur); if (nx < 0) break; used[nx] = 1; var o6 = 6 * nx, sd = S2[o6] === endKey ? 3 : 0; fx.push(S2[o6 + sd + 1]); fy.push(S2[o6 + sd + 2]); endKey = S2[o6 + sd]; cur = nx; }
+          endKey = S2[6 * k]; cur = k;
+          for (;;) { var nb = other(endKey, cur); if (nb < 0) break; used[nb] = 1; var b6 = 6 * nb, sb = S2[b6] === endKey ? 3 : 0; bxs.push(S2[b6 + sb + 1]); bys.push(S2[b6 + sb + 2]); endKey = S2[b6 + sb]; cur = nb; }
+          var np = fx.length + bxs.length; if (np < d.minPts) continue;
+          var arr = new Float32Array(np * 2), m2 = 0, m;
+          for (m = bxs.length - 1; m >= 0; m--, m2++) { arr[2 * m2] = bxs[m]; arr[2 * m2 + 1] = (H - 1) - bys[m]; }
+          for (m = 0; m < fx.length; m++, m2++) { arr[2 * m2] = fx[m]; arr[2 * m2 + 1] = (H - 1) - fy[m]; }
+          out.push({ lv: q, pts: arr }); total += np;
+        }
+      }
+      self.postMessage({ id: d.id, lines: out, ms: performance.now() - t0, npts: total }, out.map(function (o) { return o.pts.buffer; }));
+    }
+    self.onmessage = function (e) {
+      var d = e.data;
+      try {
+        if (d.op === "contour") contourMsg(d);
+        else if (d.op === "geo") fetch(d.url).then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); }).then(function (j) {
+          var L = geoProcess(j, d.P, d.tols), bufs = [];
+          L.forEach(function (x) { x.lods.forEach(function (o) { bufs.push(o.xy.buffer, o.off.buffer); }); });
+          self.postMessage({ id: d.id, layers: L }, bufs);
+        }).catch(function (err) { self.postMessage({ id: d.id, err: String(err) }); });
+        else decodeMsg(d).catch(function (err) { self.postMessage({ id: d.id, err: String(err) }); });
+      } catch (err) { self.postMessage({ id: d.id, err: String(err) }); }
+    };
+  }
+  // boundaries: unpack the delta-coded lon/lat lines, project them (km; a line is cut where it runs more than OUT_LAT
+  // past the equator) and simplify each layer once per tolerance
+  function simplifyLine(xy, a, b, tol, out) {
+    var m = b - a; if (m < 2) return;
+    var keep = new Uint8Array(m), st = [0, m - 1], t2 = tol * tol; keep[0] = keep[m - 1] = 1;
+    while (st.length) {
+      var j = st.pop(), i = st.pop(), x0 = xy[2 * (a + i)], y0 = xy[2 * (a + i) + 1], dx = xy[2 * (a + j)] - x0, dy = xy[2 * (a + j) + 1] - y0;
+      var L2 = dx * dx + dy * dy, best = -1, bd = t2;
+      for (var k = i + 1; k < j; k++) {
+        var px = xy[2 * (a + k)] - x0, py = xy[2 * (a + k) + 1] - y0, d;
+        if (L2 > 0) { var cr = px * dy - py * dx; d = cr * cr / L2; var tt = (px * dx + py * dy) / L2; if (tt < 0) d = px * px + py * py; else if (tt > 1) { var ex = px - dx, ey = py - dy; d = ex * ex + ey * ey; } }
+        else d = px * px + py * py;
+        if (d > bd) { bd = d; best = k; }
+      }
+      if (best > 0) { keep[best] = 1; st.push(i, best, best, j); }
+    }
+    for (var q = 0; q < m; q++) if (keep[q]) out.push(xy[2 * (a + q)], xy[2 * (a + q) + 1]);
+  }
+  function geoProcess(d, Pp, tols) {
+    var h = Pp[0], l0 = Pp[1], lim = Pp[2], R2 = 2 * 6371229, D = Math.PI / 180, res = [];
+    Object.keys(d.layers).forEach(function (name) {
+      var L = d.layers[name], q = L.q, xy = [], off = [], li, k, run = [];
+      var flush = function () { if (run.length >= 4) { off.push(xy.length / 2); for (var r = 0; r < run.length; r++) xy.push(run[r]); } run = []; };   // runs of 2+ points
+      for (li = 0; li < L.lines.length; li++) {
+        var ln = L.lines[li], x = ln[0], y = ln[1], m = ln.length / 2;
+        for (k = 0; k < m; k++) {
+          if (k) { x += ln[2 * k]; y += ln[2 * k + 1]; }
+          var lat = y / q;
+          if (h * lat < -lim) { flush(); continue; }
+          var rho = R2 * Math.tan(Math.PI / 4 - h * lat * D / 2), dl = x / q * D - l0;
+          run.push(rho * Math.sin(dl) / 1000, -h * rho * Math.cos(dl) / 1000);
+        }
+        flush();
+      }
+      off.push(xy.length / 2);
+      var XY = Float64Array.from(xy), OFF = Int32Array.from(off);
+      var lods = [{ tol: 0, xy: Float32Array.from(XY), off: OFF }];
+      tols.forEach(function (t) {
+        var o = [], of = [0];
+        for (li = 0; li + 1 < OFF.length; li++) {
+          var a = OFF[li], b = OFF[li + 1], x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+          for (k = a; k < b; k++) { var X = XY[2 * k], Y = XY[2 * k + 1]; if (X < x0) x0 = X; if (X > x1) x1 = X; if (Y < y0) y0 = Y; if (Y > y1) y1 = Y; }
+          if (x1 - x0 < t && y1 - y0 < t) continue;
+          simplifyLine(XY, a, b, t, o); of.push(o.length / 2);
+        }
+        lods.push({ tol: t, xy: Float32Array.from(o), off: Int32Array.from(of) });
+      });
+      res.push({ name: name, maxKmPerPx: L.maxKmPerPx, lods: lods });
+    });
+    return res;
+  }
+  var WORKER_SRC = simplifyLine.toString() + "\n" + geoProcess.toString() + "\n(" + workerMain.toString() + ")();";
+  var workers = [], wcb = {}, wid = 0, wnext = 0;
+  try {
+    if (typeof OffscreenCanvas === "function" && typeof Worker === "function") {
+      var wurl = URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" }));
+      for (var wi = 0; wi < Math.min(3, Math.max(1, (navigator.hardwareConcurrency || 2) - 1)); wi++) {
+        var w = new Worker(wurl);
+        w.onmessage = function (e) { var cb = wcb[e.data.id]; delete wcb[e.data.id]; if (cb) cb(e.data); };
+        workers.push(w);
+      }
+    }
+  } catch (e) { workers = []; }
+  function decodeMain(buf, ch) {
+    return createImageBitmap(new Blob([buf], { type: "image/webp" }), { colorSpaceConversion: "none", premultiplyAlpha: "none" }).then(function (b) {
+      var bw = b.width, bh = b.height, c = document.createElement("canvas"); c.width = bw; c.height = bh;
+      var g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(b, 0, 0);
+      var px = g.getImageData(0, 0, bw, bh).data, n = bw * bh, o = new Uint8Array(n * ch), k, q;
+      if (b.close) b.close(); c.width = c.height = 0;
+      for (k = 0; k < n; k++) for (q = 0; q < ch; q++) o[ch * k + q] = px[4 * k + q];
+      return { w: bw, h: bh, data: o };
+    });
+  }
+  function decode(buf, ch) {
+    if (!workers.length) return decodeMain(buf, ch);
+    return new Promise(function (res, rej) {
+      var id = ++wid;
+      wcb[id] = function (d) { if (d.err) decodeMain(buf, ch).then(res, rej); else res(d); };
+      workers[wnext++ % workers.length].postMessage({ id: id, buf: buf, ch: ch });   // not transferred: the bytes stay cached
+    });
+  }
+  function workerCall(msg) {
+    return new Promise(function (res, rej) {
+      if (!workers.length) { rej(new Error("no worker")); return; }
+      var id = ++wid; msg.id = id;
+      wcb[id] = function (d) { if (d.err) rej(new Error(d.err)); else res(d); };
+      workers[wnext++ % workers.length].postMessage(msg);
+    });
+  }
+
+  // ── frame cache: bytes, decoded frames (LRU by bytes, scaled to the device) ──────────────────────────────────────
+  var frames = new Map();
+  var DEVMEM = Math.max(0.5, Math.min(8, navigator.deviceMemory || 4)), MB = 1048576;
+  var MEM = { bytes: Math.round(Math.min(160, Math.max(30, 30 * DEVMEM)) * MB), dec: Math.round(Math.min(96, Math.max(24, 16 * DEVMEM)) * MB),
+              tex: Math.round(Math.min(64, Math.max(16, 10 * DEVMEM)) * MB) };
+  function lru(list, size, budget, keep, drop) {
+    var tot = 0; list.forEach(function (x) { tot += size(x); });
+    if (tot <= budget) return;
+    list.sort(function (a, b) { return a.used - b.used; });
+    for (var i = 0; i < list.length - keep && tot > budget; i++) { tot -= size(list[i]); drop(list[i]); }
+  }
+  var inflight = 0, urgentIn = 0, queue = [], NET = { bw: 0, n: 0 };
+  function netSlow() {
+    var cn = navigator.connection;
+    if (cn && (cn.saveData || /(^|-)2g$|^3g$/.test(cn.effectiveType || ""))) return true;
+    if (NET.n) return NET.bw < 800;                          // < ~6.5 Mbit/s
+    return !!(cn && cn.downlink && cn.downlink < 8);
+  }
+  function fkey(c, hemi, f, h) { return c.cycle + "/" + hemi + "/" + f + "/" + h; }
+  function entry(k) { var e = frames.get(k); if (!e) { e = { k: k, used: 0 }; frames.set(k, e); } return e; }
+  function want(list, nUrgent) {                            // [cycle entry, hemisphere, file, step], highest priority first
+    var keep = {}; list.forEach(function (a) { keep[fkey(a[0], a[1], a[2], a[3])] = 1; });
+    frames.forEach(function (e, k) { if (e.bytesP && e.ac && !e.urgent && !keep[k]) e.ac.abort(); });   // nothing in the background
+    queue = list.filter(function (a) { var e = frames.get(fkey(a[0], a[1], a[2], a[3])); return !(e && (e.bytes || e.bytesP || e.fail)); })
+      .map(function (a, i) { return a.slice(0, 4).concat([i < (nUrgent || 0)]); });
+    pump();
+  }
+  function pump() {
+    var slow = netSlow();
+    while (queue.length) {
+      var a = queue[0], urgent = !!a[4];
+      if (!urgent && urgentIn && (slow || !NET.n)) break;       // the frame on screen first
+      if (inflight >= (slow ? 2 : 6) + (urgent ? 2 : 0)) break;
+      queue.shift();
+      var e = entry(fkey(a[0], a[1], a[2], a[3]));
+      if (e.bytes || e.bytesP || e.fail) continue;
+      inflight++; if (urgent) urgentIn++;
+      var ac = typeof AbortController === "function" ? new AbortController() : null, conc = inflight;
+      e.ac = ac; e.urgent = urgent;
+      e.bytesP = getBytes(relPath(a[0], a[1], a[2], a[3]), urgent ? "high" : "low", ac && ac.signal).then(function (e, urgent, conc) { return function (buf) {
+        e.bytes = buf; e.bytesP = null; e.ac = null; inflight--; if (urgent) urgentIn--;
+        if (e.wantDec && !e.dec && !e.decP) startDec(e);
+        if (!buf._cached && buf.byteLength > 30000) { var r = buf.byteLength / Math.max(buf._tb, 4) * Math.max(1, (conc + inflight + 1) / 2); NET.bw = NET.n ? 0.6 * NET.bw + 0.4 * r : r; NET.n++; }
+        pump(); trimBytes(); render(); return buf; }; }(e, urgent, conc),
+        function (e, urgent, ac) { return function (err) {
+          e.bytesP = null; e.ac = null; inflight--; if (urgent) urgentIn--;
+          if (ac && ac.signal.aborted) { pump(); return; }      // cancelled, not failed
+          e.fail = true; pump(); render(); throw err; }; }(e, urgent, ac));
+      e.bytesP.catch(function () {});
+    }
+    updLoad();
+  }
+  function trimBytes() { var es = []; frames.forEach(function (e) { if (e.bytes) es.push(e); }); lru(es, function (e) { return e.bytes.byteLength; }, MEM.bytes, 6, function (e) { dropTex(e); frames.delete(e.k); }); }
+  var useClock = 0;
+  function peek(c, hemi, f, h) { var e = frames.get(fkey(c, hemi, f, h)); return e && e.dec ? e : null; }
+  function decoded(c, hemi, f, h) {
+    var e = entry(fkey(c, hemi, f, h));
+    e.used = ++useClock;
+    if (e.dec) return e;
+    if (e.decP || e.fail) return null;
+    e.ch = chOf(f);
+    if (!e.bytes) { e.wantDec = true; if (!e.bytesP) { queue.unshift([c, hemi, f, h, true]); pump(); } return null; }
+    startDec(e);
+    return null;
+  }
+  function startDec(e) {
+    e.wantDec = false;
+    e.decP = decode(e.bytes, e.ch).then(function (d) {
+      e.dec = d; e.decP = null;
+      var ds = []; frames.forEach(function (x) { if (x.dec) ds.push(x); });
+      lru(ds, function (x) { return x.dec.data.byteLength; }, MEM.dec, 4, function (x) { x.dec = null; dropTex(x); });
+      render();
+    }, function () { e.decP = null; e.fail = true; render(); });
+  }
+  function updLoad() { var n = 0; frames.forEach(function (e) { if (e.bytesP) n++; }); $("load").textContent = n ? "Loading " + (n + queue.length) + " map" + (n + queue.length > 1 ? "s" : "") + "…" : ""; }
+
+  // ── WebGL ──────────────────────────────────────────────────────────────────────────────────────────────────────
+  var gl = glc.getContext("webgl2", { premultipliedAlpha: true, antialias: false, preserveDrawingBuffer: false });
+  var prog, loc = {}, lutTex, lutKey = "";
+  var VS = "#version 300 es\nin vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
+  // contour lines are drawn by the GPU in the map's own pass from a smoothed copy of a frame (RG32F: value, mask) made by
+  // two small render passes per frame, as in models.html. A = heights (or the Montgomery streamfunction), B = the zero
+  // line of the zonal wind. Every frame of a hemisphere is on the same grid (uG, uN, uGw).
+  function cDecl(X) {
+    return ["uniform sampler2D uCt" + X + ";uniform int uCm" + X + ";uniform vec4 uCrg" + X + ";uniform vec2 uCmj" + X + ";uniform float uClv" + X + "[8];uniform int uCnl" + X + ";",
+      "uniform vec4 uCc" + X + ";uniform vec4 uCh" + X + ";uniform vec2 uCw" + X + ";uniform vec4 uCsp" + X + "[3];uniform vec4 uCspc" + X + "[3];",
+      // outside the grid's rows: masked (a 0 there would make fwidth() jump at the edge and draw every level along it)
+      "vec2 cv" + X + "(vec2 g){vec2 hi=vec2(uN-1);vec2 l=vec2(g.x,hi.y-g.y);",
+      " float off=any(lessThan(l,vec2(0.)))||any(greaterThan(l,hi))?1.:0.;l=clamp(l,vec2(0.),hi);",
+      " ivec2 a0=ivec2(floor(l));ivec2 a1=min(a0+1,uN-1);vec2 f=l-vec2(a0);",
+      " vec2 p=texelFetch(uCt" + X + ",a0,0).rg,q=texelFetch(uCt" + X + ",ivec2(a1.x,a0.y),0).rg,r=texelFetch(uCt" + X + ",ivec2(a0.x,a1.y),0).rg,s=texelFetch(uCt" + X + ",a1,0).rg;",
+      " return vec2(mix(mix(p.r,q.r,f.x),mix(r.r,s.r,f.x),f.y),max(off,max(max(p.g,q.g),max(r.g,s.g))));}",
+      "vec4 cl" + X + "(vec4 c,vec2 v,float fw){if(uCm" + X + "==0||v.y>0.5||!(fw>0.))return c;",
+      " float d=1e9,hw=uCw" + X + ".x;",
+      " if(uCm" + X + "==1){float f=(v.x-uCrg" + X + ".x)/uCrg" + X + ".y;float k=floor(f+0.5);float L=uCrg" + X + ".x+k*uCrg" + X + ".y;",
+      "  if(L>=uCrg" + X + ".z-1e-3&&L<=uCrg" + X + ".w+1e-3){d=abs(f-k)*uCrg" + X + ".y/fw;if(uCmj" + X + ".x>0.5&&abs(mod(k,uCmj" + X + ".x))<0.5)hw=uCmj" + X + ".y;}}",
+      " else{for(int n=0;n<8;n++){if(n>=uCnl" + X + ")break;d=min(d,abs(v.x-uClv" + X + "[n])/fw);}}",
+      " c=ov(c,uCh" + X + ",clamp(hw+uCw" + X + ".y-d+0.5,0.,1.));c=ov(c,uCc" + X + ",clamp(hw-d+0.5,0.,1.));",
+      " for(int n=0;n<3;n++){vec4 sp=uCsp" + X + "[n];if(sp.z<0.5)continue;float e=abs(v.x-sp.x)/fw;",
+      "  c=ov(c,uCh" + X + ",clamp(sp.y+uCw" + X + ".y-e+0.5,0.,1.));c=ov(c,uCspc" + X + "[n],clamp(sp.y-e+0.5,0.,1.));}",
+      " return c;}"].join("\n");
+  }
+  var FS = [
+    "#version 300 es", "precision highp float;precision highp int;precision highp sampler2D;",
+    "uniform sampler2D uData;uniform sampler2D uLut;uniform vec2 uC;uniform float uS;uniform vec2 uWH;",
+    "uniform vec4 uG;uniform ivec2 uN;uniform float uGw;uniform int uMode;uniform vec3 uW;uniform vec2 uP;",
+    "out vec4 o;",
+    // display metres (polar stereographic; uP = hemisphere sign, central longitude in radians) -> grid index on the
+    // padded regular lat-lon grid G = (lon of column 0, lat of row 0, di, dj), longitude counted from uGw
+    "vec2 gIdx(vec2 xy){float rho=length(xy);float lat=uP.x*(90.-degrees(2.*atan(rho/12742458.)));",
+    " float lon=degrees(uP.y+atan(xy.x,-uP.x*xy.y));float di=mod(lon-uGw,360.)+(uGw-uG.x);return vec2(di/uG.z,(lat-uG.y)/uG.w);}",
+    "vec4 ov(vec4 c,vec4 s,float a){a*=s.a;return vec4(s.rgb*a,a)+c*(1.-a);}",
+    cDecl("A"), cDecl("B"),
+    "vec4 tx(int i,int j){return texelFetch(uData,ivec2(i,uN.y-1-j),0);}",
+    "void main(){",
+    " vec2 xy=uC+(gl_FragCoord.xy-0.5*uWH)*uS;vec2 g=gIdx(xy);",
+    " vec2 vA=uCmA>0?cvA(g):vec2(0.,1.);float fA=fwidth(vA.x);",
+    " vec2 vB=uCmB>0?cvB(g):vec2(0.,1.);float fB=fwidth(vB.x);",
+    " vec4 c=vec4(0.);",
+    " if(g.y>=-0.5&&g.y<=float(uN.y)-0.5&&g.x>=0.&&g.x<=float(uN.x-1)){",
+    "  float y=clamp(g.y,0.,float(uN.y-1));int i0=int(floor(g.x)),j0=int(floor(y));int i1=min(i0+1,uN.x-1),j1=min(j0+1,uN.y-1);",
+    "  float fx=g.x-float(i0),fy=y-float(j0);vec4 A=tx(i0,j0),B=tx(i1,j0),C=tx(i0,j1),D=tx(i1,j1);float code=-1.;",
+    "  if(uMode==0){if(max(max(A.r,B.r),max(C.r,D.r))>0.999){vec4 N=tx(int(floor(g.x+0.5)),int(floor(y+0.5)));if(N.r<0.999)code=floor(N.r*255.+0.5);}",
+    "   else code=floor(mix(mix(A.r,B.r,fx),mix(C.r,D.r,fx),fy)*255.+0.5);}",
+    "  else if(max(max(A.r,B.r),max(C.r,D.r))<0.999){vec2 u=mix(mix(A.rg,B.rg,fx),mix(C.rg,D.rg,fx),fy)*255.*uW.y+uW.x;code=min(254.,floor(length(u)/uW.z*254.+0.5));}",
+    "  if(code>=0.){c=texelFetch(uLut,ivec2(int(code),0),0);c=vec4(c.rgb*c.a,c.a);}",
+    " }",
+    " c=clB(c,vB,fB);c=clA(c,vA,fA);",
+    " if(c.a<0.004)discard;o=c;",
+    "}"].join("\n");
+  // pass 1: the frame -> (value from the decode table of one channel, valid flag); pass 2: a box blur, edges clamped
+  // (the padded columns cover the date line)
+  var FS_P1 = ["#version 300 es", "precision highp float;precision highp int;precision highp sampler2D;",
+    "uniform sampler2D uData;uniform sampler2D uDL;uniform int uCh;out vec4 o;",
+    "void main(){vec4 c=texelFetch(uData,ivec2(gl_FragCoord.xy),0);float v=texelFetch(uDL,ivec2(int(floor(c[uCh]*255.+0.5)),0),0).r;",
+    " o=v>-1e29?vec4(v,1.,0.,1.):vec4(0.,0.,0.,1.);}"].join("\n");
+  var FS_P2 = ["#version 300 es", "precision highp float;precision highp int;precision highp sampler2D;",
+    "uniform sampler2D uS;uniform ivec2 uM;uniform int uR;out vec4 o;",
+    "void main(){ivec2 q=ivec2(gl_FragCoord.xy);float a=0.,w=0.,n=0.;",
+    " for(int dy=-2;dy<=2;dy++){if(dy<-uR||dy>uR)continue;for(int dx=-2;dx<=2;dx++){if(dx<-uR||dx>uR)continue;",
+    "  vec2 s=texelFetch(uS,clamp(q+ivec2(dx,dy),ivec2(0),uM-1),0).rg;a+=s.r;w+=s.g;n+=1.;}}",
+    " float self=texelFetch(uS,q,0).g;o=vec4(w>0.01?a/w:0.,self<0.999||w<n-0.01?1.:0.,0.,1.);}"].join("\n");
+  var GPUC = false, pre = null, cLoc = { A: {}, B: {} };
+  var C_UNI = ["uCt", "uCm", "uCrg", "uCmj", "uClv", "uCnl", "uCc", "uCh", "uCw", "uCsp", "uCspc"];
+  function initGL() {
+    if (!gl) return false;
+    function sh(type, src) { var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+    function link(fs) { var p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
+      gl.bindAttribLocation(p, 0, "p"); gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p)); return p; }
+    prog = link(FS);
+    gl.useProgram(prog);
+    ["uData", "uLut", "uC", "uS", "uWH", "uG", "uN", "uGw", "uMode", "uW", "uP"].forEach(function (n) { loc[n] = gl.getUniformLocation(prog, n); });
+    ["A", "B"].forEach(function (X) { C_UNI.forEach(function (n) { cLoc[X][n] = gl.getUniformLocation(prog, n + X + (n === "uClv" || n === "uCsp" || n === "uCspc" ? "[0]" : "")); }); });
+    var b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    lutTex = gl.createTexture(); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, lutTex);
+    [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER].forEach(function (p) { gl.texParameteri(gl.TEXTURE_2D, p, gl.NEAREST); });
+    gl.uniform1i(loc.uData, 0); gl.uniform1i(loc.uLut, 1); gl.uniform1i(cLoc.A.uCt, 2); gl.uniform1i(cLoc.B.uCt, 3);
+    gl.uniform1i(cLoc.A.uCm, 0); gl.uniform1i(cLoc.B.uCm, 0);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    try {
+      if (!/[?&]cpulines=only/.test(location.search) && gl.getExtension("EXT_color_buffer_float")) {
+        var p1 = link(FS_P1), p2 = link(FS_P2), l1 = {}, l2 = {};
+        ["uData", "uDL", "uCh"].forEach(function (n) { l1[n] = gl.getUniformLocation(p1, n); });
+        ["uS", "uM", "uR"].forEach(function (n) { l2[n] = gl.getUniformLocation(p2, n); });
+        pre = { p1: p1, p2: p2, l1: l1, l2: l2, fb: gl.createFramebuffer(), dl: newTex(), tmp: null, tmpWH: "" };
+        var dummy = newTex(); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG32F, 1, 1, 0, gl.RG, gl.FLOAT, new Float32Array([0, 1]));
+        [2, 3].forEach(function (u) { gl.activeTexture(gl.TEXTURE0 + u); gl.bindTexture(gl.TEXTURE_2D, dummy); });
+        GPUC = true;
+      }
+    } catch (e) { console.warn("GPU contours unavailable", e); GPUC = false; }
+    gl.useProgram(prog);
+    return true;
+  }
+  var glLost = false, glOk = false;
+  glc.addEventListener("webglcontextlost", function (e) { e.preventDefault(); glLost = true; $("msg").textContent = "The graphics card dropped the map for a moment; it is redrawn as soon as it is back."; });
+  glc.addEventListener("webglcontextrestored", function () {
+    frames.forEach(function (x) { x.tex = null; x.cmap = null; });
+    drawn = null; lutKey = ""; pre = null; GPUC = false;
+    try { glOk = initGL(); } catch (err) { console.error(err); glOk = false; }
+    glLost = false; $("msg").textContent = glOk ? "" : "The map could not be drawn again after the graphics card reset; reload the page.";
+    if (glOk) render();
+  });
+  function newTex() {
+    var t = gl.createTexture(); gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, t);
+    [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER].forEach(function (p) { gl.texParameteri(gl.TEXTURE_2D, p, gl.NEAREST); });
+    [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T].forEach(function (p) { gl.texParameteri(gl.TEXTURE_2D, p, gl.CLAMP_TO_EDGE); });
+    return t;
+  }
+  function dropTex(e) {
+    if (!e || !gl) return;
+    if (e.tex) { gl.deleteTexture(e.tex); e.tex = null; }
+    if (e.cmap) { Object.keys(e.cmap).forEach(function (k) { gl.deleteTexture(e.cmap[k].tex); }); e.cmap = null; }
+  }
+  var TEXFMT = null;
+  function texOf(e) {
+    if (e.tex) return e.tex;
+    if (!TEXFMT) TEXFMT = { 1: [gl.R8, gl.RED], 2: [gl.RG8, gl.RG], 3: [gl.RGB8, gl.RGB] };
+    var t = gl.createTexture(), fm = TEXFMT[e.ch]; gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, t);
+    [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER].forEach(function (p) { gl.texParameteri(gl.TEXTURE_2D, p, gl.NEAREST); });
+    [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T].forEach(function (p) { gl.texParameteri(gl.TEXTURE_2D, p, gl.CLAMP_TO_EDGE); });
+    gl.texImage2D(gl.TEXTURE_2D, 0, fm[0], e.dec.w, e.dec.h, 0, fm[1], gl.UNSIGNED_BYTE, e.dec.data);
+    e.tex = t;
+    var ts = []; frames.forEach(function (x) { if (x.tex || x.cmap) ts.push(x); });
+    lru(ts, texBytes, MEM.tex, 3, function (x) { if (x !== e) dropTex(x); });
+    return t;
+  }
+  function texBytes(x) { var b = x.tex && x.dec ? x.dec.data.byteLength : 0; if (x.cmap) Object.keys(x.cmap).forEach(function (k) { b += x.cmap[k].W * x.cmap[k].H * 8; }); return b; }
+  // the smoothed field of a frame for the GPU contours, once per frame and spec: RG32F (value, valid), image row order
+  function ctexOf(e, spec, gkey) {
+    if (e.cmap && e.cmap[gkey]) return e.cmap[gkey];
+    if (!e.cmap) e.cmap = {};
+    var ks = Object.keys(e.cmap); if (ks.length >= 2) { gl.deleteTexture(e.cmap[ks[0]].tex); delete e.cmap[ks[0]]; }
+    var Wd = e.dec.w, Hd = e.dec.h, src = texOf(e);
+    gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, pre.dl);
+    var dl = new Float32Array(256);
+    for (var k = 0; k < 256; k++) { var v = spec.lut[k]; dl[k] = v === v ? v : -1e30; }
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, 256, 1, 0, gl.RED, gl.FLOAT, dl);
+    if (!pre.tmp || pre.tmpWH !== Wd + "x" + Hd) {
+      if (pre.tmp) gl.deleteTexture(pre.tmp);
+      pre.tmp = newTex(); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG32F, Wd, Hd, 0, gl.RG, gl.FLOAT, null); pre.tmpWH = Wd + "x" + Hd;
+    }
+    var out = newTex(); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG32F, Wd, Hd, 0, gl.RG, gl.FLOAT, null);
+    gl.disable(gl.BLEND);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, pre.fb); gl.viewport(0, 0, Wd, Hd);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, pre.tmp, 0);
+    gl.useProgram(pre.p1);
+    gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, src);
+    gl.uniform1i(pre.l1.uData, 5); gl.uniform1i(pre.l1.uDL, 4); gl.uniform1i(pre.l1.uCh, spec.ch || 0);
+    gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, pre.dl);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, out, 0);
+    gl.useProgram(pre.p2);
+    gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, pre.tmp);
+    gl.uniform1i(pre.l2.uS, 5); gl.uniform2i(pre.l2.uM, Wd, Hd); gl.uniform1i(pre.l2.uR, spec.rad || 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.useProgram(prog); gl.enable(gl.BLEND);
+    e.cmap[gkey] = { tex: out, W: Wd, H: Hd };
+    return e.cmap[gkey];
+  }
+  function rgba01(s) {
+    var m = /rgba?\(([^)]+)\)/.exec(s);
+    if (m) { var p = m[1].split(",").map(Number); return [p[0] / 255, p[1] / 255, p[2] / 255, p[3] == null ? 1 : p[3]]; }
+    return [parseInt(s.slice(1, 3), 16) / 255, parseInt(s.slice(3, 5), 16) / 255, parseInt(s.slice(5, 7), 16) / 255, 1];
+  }
+  // the storage step of a decode table at value v (a level a hair under a stored value would trace the edge of a flat
+  // patch: every level is drawn a quarter step below its value)
+  function lutStep(lut, v) {
+    var best = 0, dist = Infinity;
+    for (var c = 1; c < 255; c++) {
+      var a = lut[c - 1], b = lut[c]; if (!isFinite(a) || !isFinite(b) || a === b) continue;
+      var d = (a - v) * (b - v) <= 0 ? 0 : Math.min(Math.abs(a - v), Math.abs(b - v));
+      if (d < dist) { dist = d; best = Math.abs(b - a); if (!d) break; }
+    }
+    return best;
+  }
+  function setLayer(X, L) {
+    var u = cLoc[X];
+    if (!L) { gl.uniform1i(u.uCm, 0); return; }
+    var gp = L.spec.gl;
+    gl.activeTexture(X === "A" ? gl.TEXTURE2 : gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, L.info.tex);
+    var EPS = function (v) { var q = lutStep(L.spec.lut, v); return v - (q > 0 ? q / 4 : 1e-3); };
+    if (gp.reg) { var reg = gp.reg; gl.uniform1i(u.uCm, 1); gl.uniform4f(u.uCrg, EPS(reg[0]), reg[1], EPS(reg[2]), EPS(reg[3])); gl.uniform2f(u.uCmj, reg[4] || 0, (reg[5] || 0) / 2 * DPR); }
+    else { var lv = new Float32Array(8); gp.list.forEach(function (v, i) { lv[i] = EPS(v); }); gl.uniform1i(u.uCm, 2); gl.uniform1fv(u.uClv, lv); gl.uniform1i(u.uCnl, gp.list.length); }
+    var c = rgba01(gp.col), h = rgba01(gp.halo || "rgba(255,255,255,0.55)");
+    gl.uniform4f(u.uCc, c[0], c[1], c[2], c[3]); gl.uniform4f(u.uCh, h[0], h[1], h[2], h[3]);
+    gl.uniform2f(u.uCw, gp.w / 2 * DPR, (gp.hw == null ? 0.9 : gp.hw) * DPR);
+    gl.uniform4fv(u.uCsp, new Float32Array(12)); gl.uniform4fv(u.uCspc, new Float32Array(12));
+  }
+
+  // ── boundaries ─────────────────────────────────────────────────────────────────────────────────────────────────
+  // geo_polar_coarse.json (Natural Earth 110m) first, geo_polar.json (50m) when the view is zoomed in; projected per
+  // hemisphere in the worker, each level of detail cut into ~400 km tiles of Path2D
+  var geo = { nh: {}, sh: {} }, GEO_STYLE = { coast: [1.1, 1], lakes: [0.9, 0.9], countries: [0.9, 0.85] }, GEO_TOLS = [1, 3, 9];
+  var GEO = "/assets/models/geo_polar.json", GEO_C = "/assets/models/geo_polar_coarse.json", GEO_COARSE = 6, geoFull = { nh: 0, sh: 0 }, geoBase = { nh: 0, sh: 0 };
+  function geoWant() {
+    var h = st.hemi;
+    if (!geoBase[h]) { geoBase[h] = 1; loadGeo(GEO_C, 1, h).then(function (ok) { if (!ok && geoFull[h] < 2) { geoFull[h] = 2; loadGeo(GEO, 2, h); } }); }
+    if (geoFull[h] || !view || 0.6 * view.s / 1000 / DPR >= GEO_COARSE) return;
+    geoFull[h] = 1; whenShown(function () { if (geoFull[h] < 2) { geoFull[h] = 2; loadGeo(GEO, 2, h); } });
+  }
+  function loadGeo(url, rank, h) {
+    var abs = new URL(url, location.href).href, Pp = [h === "sh" ? -1 : 1, P.l0, OUT_LAT], tols = rank > 1 ? GEO_TOLS : [];
+    var job = workers.length ? workerCall({ op: "geo", url: abs, P: Pp, tols: tols }).then(function (r) { return r.layers; })
+      : fetch(abs).then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); }).then(function (d) { return geoProcess(d, Pp, tols); });
+    return job.then(function (L) {
+      L.forEach(function (x) { if (geo[h][x.name] && geo[h][x.name].rank > rank) return; geo[h][x.name] = { lods: x.lods, maxKmPerPx: x.maxKmPerPx, rank: rank }; });
+      drawOverlay(); return true;
+    }).catch(function (e) { console.warn("boundaries", e); return false; });
+  }
+  function buildTiles(xy, off, cellKm) {
+    var cells = new Map(), li, k, a, b;
+    for (li = 0; li + 1 < off.length; li++) {
+      for (a = off[li]; a < off[li + 1] - 1; a = b - 1) {
+        b = Math.min(off[li + 1], a + 200);
+        var x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+        for (k = a; k < b; k++) { var X = xy[2 * k], Y = xy[2 * k + 1]; if (X < x0) x0 = X; if (X > x1) x1 = X; if (Y < y0) y0 = Y; if (Y > y1) y1 = Y; }
+        var key = Math.floor((x0 + x1) / 2 / cellKm) + "," + Math.floor((y0 + y1) / 2 / cellKm), t = cells.get(key);
+        if (!t) { t = { bb: [x0, x1, y0, y1], path: new Path2D() }; cells.set(key, t); }
+        else { if (x0 < t.bb[0]) t.bb[0] = x0; if (x1 > t.bb[1]) t.bb[1] = x1; if (y0 < t.bb[2]) t.bb[2] = y0; if (y1 > t.bb[3]) t.bb[3] = y1; }
+        t.path.moveTo(xy[2 * a], xy[2 * a + 1]);
+        for (k = a + 1; k < b; k++) t.path.lineTo(xy[2 * k], xy[2 * k + 1]);
+      }
+    }
+    return Array.from(cells.values());
+  }
+  function geoLod(L) { var tmax = 0.6 * view.s / 1000 / DPR, best = L.lods[0]; L.lods.forEach(function (o) { if (o.tol <= tmax && o.tol >= best.tol) best = o; }); if (!best.tiles) best.tiles = buildTiles(best.xy, best.off, 400); return best; }
+  function kmTransform(ctx) { var k = DPR * 1000 / view.s; ctx.setTransform(k, 0, 0, -k, DPR * W / 2 - k * view.cx / 1000, DPR * H / 2 + k * view.cy / 1000); }
+  function strokeTiles(ctx, tiles, x0, x1, y0, y1) { for (var i = 0; i < tiles.length; i++) { var bb = tiles[i].bb; if (bb[1] < x0 || bb[0] > x1 || bb[3] < y0 || bb[2] > y1) continue; ctx.stroke(tiles[i].path); } }
+  // latitude circles every 30 deg and meridians every 30 deg, drawn with the boundaries
+  function drawGraticule(ctx, kpp) {
+    ctx.save(); ctx.strokeStyle = "rgba(40,44,40,0.32)"; ctx.lineWidth = 0.7 * kpp; ctx.setLineDash([4 * kpp, 4 * kpp]); ctx.beginPath();
+    [0, 30, 60].forEach(function (la) { var r = P.rho(la) / 1000; ctx.moveTo(r, 0); ctx.arc(0, 0, r, 0, 2 * Math.PI); });
+    for (var lo = 0; lo < 360; lo += 30) { var a = P.fwd(lo, P.h * 80), b = P.fwd(lo, -P.h * OUT_LAT / 2); ctx.moveTo(a[0] / 1000, a[1] / 1000); ctx.lineTo(b[0] / 1000, b[1] / 1000); }
+    ctx.stroke(); ctx.restore();
+  }
+
+  // ── view ───────────────────────────────────────────────────────────────────────────────────────────────────────
+  var W = 0, H = 0, DPR = 1, DPR_CAP = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4 ? 1.25 : 2;
+  function resize() {
+    var r = mapEl.getBoundingClientRect();
+    DPR = Math.min(window.devicePixelRatio || 1, DPR_CAP);
+    W = r.width; H = r.height;
+    [glc, ovc, labc].forEach(function (c) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); });
+    ovView = null; drawLegend(); render();
+  }
+  // the map box takes the disc's shape (square), so the hemisphere fits on open without empty panes
+  function fitBox(g) {
+    mapEl.style.height = mapEl.style.width = "";
+    mapEl.classList.remove("shaped");
+    var r = mapEl.getBoundingClientRect(), bb = g._bb, hw = (bb[3] - bb[2]) / (bb[1] - bb[0]);
+    var need = Math.ceil(r.width * hw * 1.02), wide = Math.ceil(r.height / hw * 1.02);
+    if (need < r.height) mapEl.style.height = Math.max(window.innerWidth <= 640 ? 300 : 260, need) + "px";
+    else if (wide < r.width) { mapEl.style.width = Math.max(320, wide) + "px"; mapEl.classList.add("shaped"); }
+  }
+  function fit(g) { var bb = g._bb; view = { cx: (bb[0] + bb[1]) / 2, cy: (bb[2] + bb[3]) / 2, s: Math.max((bb[1] - bb[0]) / W, (bb[3] - bb[2]) / H) * 1.01 }; }
+  function toXY(px, py) { return [view.cx + (px - W / 2) * view.s, view.cy - (py - H / 2) * view.s]; }
+  var S_MIN = 400, S_MAX = 60000;
+  function clampView() { view.s = Math.max(S_MIN, Math.min(view.s, S_MAX)); }
+
+  // ── drawing ────────────────────────────────────────────────────────────────────────────────────────────────────
+  var drawn = null, raf = 0;
+  function render() { if (!raf) raf = requestAnimationFrame(function () { raf = 0; draw(); }); }
+  var shown = false, onShown = [];
+  function idleDo(f) { if (window.requestIdleCallback) requestIdleCallback(function () { f(); }, { timeout: 1000 }); else setTimeout(f, 150); }
+  function whenShown(f) { if (shown) idleDo(f); else onShown.push(f); }
+  function markShown() { if (shown) return; shown = true; onShown.splice(0).forEach(idleDo); }
+  // the cheap frame while the map is dragged or zoomed: new view uniforms, the overlay moved by the compositor
+  function fastFrame() {
+    var e = drawn && drawn.e;
+    if (!gl || glLost || !view || !e || !e.tex) return false;
+    gl.viewport(0, 0, glc.width, glc.height); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, e.tex);
+    gl.uniform2f(loc.uC, view.cx, view.cy); gl.uniform1f(loc.uS, view.s / DPR); gl.uniform2f(loc.uWH, glc.width, glc.height);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    moveOverlay();
+    return true;
+  }
+  function clearGL() { if (gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); } }
+  function draw() {
+    if (glLost) return;
+    if (interacting && fastFrame()) return;
+    var c = cyc();
+    updateBadge();
+    if (!c || !view) { drawOverlay(); return; }
+    var hour = st.hour, f0 = mainFile(), fm = c.fields[f0], msg = "";
+    if (!fm) msg = "This map is missing from this run.";
+    else if (fm.hours.indexOf(hour) < 0) msg = "This map is not available at +" + hour + " h in this run.";
+    if ($("msg").textContent !== msg) $("msg").textContent = msg;
+    if (msg) { clearGL(); drawn = null; markShown(); drawOverlay(); schedule(); return; }
+    var e = peek(c, st.hemi, f0, hour) || decoded(c, st.hemi, f0, hour);
+    if (!e && frames.get(fkey(c, st.hemi, f0, hour)) && frames.get(fkey(c, st.hemi, f0, hour)).fail) {
+      $("msg").textContent = "This map could not be downloaded. It may still be publishing, or the connection dropped; try another step, or reload in a minute.";
+      clearGL(); drawn = null; markShown(); drawOverlay(); schedule(); return;
+    }
+    var hold = false;
+    if (!e && drawn && drawn.field === st.field && drawn.hemi === st.hemi) { e = drawn.e; hold = true; }   // hold the last frame while the next decodes
+    else if (!e) { drawn = null; clearGL(); drawOverlay(); schedule(); return; }
+    if (!e.dec) { drawOverlay(); schedule(); return; }
+    var q = hold ? drawn.q : qOf(c, f0, hour), g = c.grids[st.hemi];
+    var dd = { e: e, g: g, field: st.field, hemi: st.hemi, q: q, c: c, hour: hold ? drawn.hour : hour, file: hold ? drawn.file : f0, sub: hold ? drawn.sub : subKey(),
+               lk: hold ? drawn.lk : curLev(), wv: hold ? drawn.wv : st.wv, hold: hold };
+    if (gl) {
+      var lay = hold && drawn.layers ? drawn.layers : gpuLayers(dd);
+      dd.layers = lay;
+      gl.viewport(0, 0, glc.width, glc.height); clearGL();
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texOf(e));
+      var mode = st.field === "wind" && st.wv === "spd" ? 1 : 0;
+      var lk = st.field + "|" + st.wv + "|" + (mode === 0 && st.field === "wind" && q ? q.join(",") : "");
+      if (lk !== lutKey) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, lutTex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, buildLut(q)); lutKey = lk; }
+      gl.uniform2f(loc.uC, view.cx, view.cy); gl.uniform1f(loc.uS, view.s / DPR); gl.uniform2f(loc.uWH, glc.width, glc.height);
+      gl.uniform4f(loc.uG, g.lo1, g.la1, g.di, g.dj); gl.uniform2i(loc.uN, g.nx, g.ny); gl.uniform1f(loc.uGw, g.w0);
+      gl.uniform2f(loc.uP, P.h, P.l0);
+      gl.uniform1i(loc.uMode, mode); gl.uniform3f(loc.uW, q ? q[0] : 0, q ? q[1] : 1, SPD_MAX);
+      setLayer("A", lay[0]); setLayer("B", lay[1]);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+    drawn = dd; markShown();
+    ensureContours(drawn);
+    drawOverlay();
+    schedule();
+  }
+
+  // ── overlay: boundaries, contour lines (CPU fallback), barbs; labels on a second canvas once the map is at rest ───
+  var interacting = false, settleT = 0, ovView = null, labT = 0, ovMoved = false;
+  function beginInteract() { interacting = true; clearTimeout(settleT); }
+  function settleSoon(ms) { clearTimeout(settleT); settleT = setTimeout(function () { interacting = false; render(); }, ms || 140); }
+  function moveOverlay() {
+    if (!ovView) return;
+    var k = ovView.s / view.s, tx = W / 2 * (1 - k) + (ovView.cx - view.cx) / view.s, ty = H / 2 * (1 - k) - (ovView.cy - view.cy) / view.s;
+    ovc.style.transform = "matrix(" + k + ",0,0," + k + "," + tx + "," + ty + ")"; ovMoved = true;
+    if (labc.style.visibility !== "hidden") { labc.style.visibility = "hidden"; tip.style.display = "none"; }
+  }
+  function drawOverlay() {
+    if (interacting && ovView && view) { moveOverlay(); return; }
+    var ctx = ovc.getContext("2d");
+    if (ovMoved) { ovc.style.transform = ""; ovMoved = false; }
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ovc.width, ovc.height);
+    if (!view) { ovView = null; return; }
+    geoWant();
+    var kpp = view.s / 1000, x0 = (view.cx - W / 2 * view.s) / 1000, x1 = (view.cx + W / 2 * view.s) / 1000, y0 = (view.cy - H / 2 * view.s) / 1000, y1 = (view.cy + H / 2 * view.s) / 1000;
+    kmTransform(ctx); ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(28,30,28,0.78)";
+    var G = geo[st.hemi];
+    ["lakes", "coast", "countries"].forEach(function (name) {
+      var L = G[name]; if (!L) return;
+      var sty = GEO_STYLE[name]; ctx.globalAlpha = sty[1]; ctx.lineWidth = sty[0] * kpp;
+      strokeTiles(ctx, geoLod(L).tiles, x0, x1, y0, y1);
+    });
+    ctx.globalAlpha = 1;
+    drawGraticule(ctx, kpp);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    drawContourLines(ctx, x0, x1, y0, y1);
+    if (drawn && drawn.e && drawn.e.dec && drawn.field === "wind" && $("barb").checked) drawBarbs(ctx, drawn);
+    ovView = { cx: view.cx, cy: view.cy, s: view.s };
+    cancelAnimationFrame(labT);
+    labT = requestAnimationFrame(function () { labT = 0; drawLabels(); });
+  }
+  function drawLabels() {
+    var ctx = labc.getContext("2d");
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, labc.width, labc.height);
+    if (!view || interacting) return;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    // one occupancy grid for all label text: the floating controls first, then the contour labels, which slide along
+    // their line to a free spot
+    var occ = labOcc(), mr = mapEl.getBoundingClientRect();
+    [".mv-badge", ".mv-zoom"].forEach(function (sel) {
+      var el = document.querySelector(sel); if (!el || el.offsetParent === null) return;
+      var r = el.getBoundingClientRect(); if (r.width && r.height) occ.add([r.left - mr.left - 3, r.top - mr.top - 3, r.right - mr.left + 3, r.bottom - mr.top + 3]);
+    });
+    drawContourLabels(ctx, occ);
+    labc.style.visibility = "";
+  }
+
+  // ── contours ──────────────────────────────────────────────────────────────────────────────────────────────────
+  function lutLin(q) { var L = new Float32Array(256); for (var c = 0; c < 256; c++) L[c] = c === 255 || !q ? NaN : q[0] + c * q[1]; return L; }
+  var DARK = "rgba(15,15,15,0.88)";
+  // the specs of a map: [A, B]. A = heights (temperature and wind maps; the wind maps read the temperature file's) or the
+  // Montgomery streamfunction (PV maps), labelled in dam; B = the zero line of the zonal wind. gl: how the GPU draws the
+  // lines (reg [base, interval, lowest, highest] or a list of up to 8 levels); levels/values/fmt: the worker's labels.
+  function specsOf(d) {
+    var ci = 10 * (d.field === "pv" ? CI_TH[d.lk] : CI_LEV[d.lk]) || 160, a = { rad: 1, minPts: 8, ch: 1, src: d.field === "wind" ? "t" + d.lk : null,
+      fmt: function (v) { return String(Math.round(v / 10)); }, gl: { reg: [0, ci, 0, 1e6], col: DARK, w: 0.9 }, ci: ci, lab: true };
+    var b = d.field === "wind" && d.wv === "u" ? { rad: 1, minPts: 8, ch: 0, levels: [0], fmt: String, gl: { list: [0], col: "rgba(0,0,0,0.95)", w: 2.2 } } : null;
+    return [a, b];
+  }
+  var CONT = new Map(), contBusy = {}, CPU_LINES = /[?&]cpulines=1/.test(location.search), scrubbing = false, scrubT = 0;
+  function scrubbed() { scrubbing = true; clearTimeout(scrubT); scrubT = setTimeout(function () { scrubbing = false; render(); }, 350); }
+  function contoursOn() { return $("cont").checked; }
+  // the frame a spec reads (its own or the temperature file of the same level) with its decode table and levels
+  function specSrc(d, spec) {
+    var f = spec.src || d.file, e = spec.src ? peek(d.c, d.hemi, f, d.hour) || decoded(d.c, d.hemi, f, d.hour) : d.e;
+    if (!e || !e.dec) return null;
+    var q = spec.src ? qOf(d.c, f, d.hour) : d.q;                  // the frame's own q is the one of its second channel
+    if (!q) return null;
+    var lut = lutLin(q), lv = spec.levels;
+    if (!lv) { lv = []; for (var v = Math.ceil(q[0] / spec.ci) * spec.ci; v <= q[0] + 254 * q[1]; v += spec.ci) lv.push(v); }
+    return { e: e, f: f, q: q, lut: lut, levels: lv };
+  }
+  function contKey(d, n) { return d.c.cycle + "/" + d.hemi + "/" + d.file + "/" + d.sub + "/" + d.hour + "/" + n; }
+  function ensureTrace(d, spec, n) {
+    var key = contKey(d, n);
+    if (CONT.has(key) || contBusy[key]) return;
+    var S = specSrc(d, spec); if (!S) return;
+    var g = d.g, ch = chOf(S.f);
+    contBusy[key] = 1;
+    workerCall({ op: "contour", w: S.e.dec.w, h: S.e.dec.h, data: S.e.dec.data, lut: S.lut, levels: S.levels, rad: spec.rad, minPts: spec.minPts, stride: ch, choff: spec.ch }).then(function (r) {
+      var lines = r.lines.map(function (o) {
+        var np = o.pts.length / 2, xy = new Float64Array(o.pts.length), bb = [1e20, -1e20, 1e20, -1e20];
+        for (var k = 0; k < np; k++) { var ll = ijLL(g, o.pts[2 * k], o.pts[2 * k + 1]), p = P.fwd(ll[0], ll[1]); xy[2 * k] = p[0]; xy[2 * k + 1] = p[1];
+          if (p[0] < bb[0]) bb[0] = p[0]; if (p[0] > bb[1]) bb[1] = p[0]; if (p[1] < bb[2]) bb[2] = p[1]; if (p[1] > bb[3]) bb[3] = p[1]; }
+        return { v: S.levels[o.lv], xy: xy, bb: bb };
+      });
+      CONT.set(key, { lines: lines, spec: spec });
+      if (CONT.size > 60) CONT.delete(CONT.keys().next().value);
+      delete contBusy[key]; render();
+    }, function () { delete contBusy[key]; });
+  }
+  function ensureContours(d) {
+    if (!contoursOn() || !d || d.hold) return;
+    if (GPUC && (st.playing || scrubbing)) return;               // the lines are on the GPU; labels wait for the map to rest
+    specsOf(d).forEach(function (sp, n) { if (sp && (sp.lab || !GPUC || CPU_LINES)) ensureTrace(d, sp, n); });
+  }
+  function contAll() {
+    if (!contoursOn() || !drawn) return [];
+    var out = [];
+    specsOf(drawn).forEach(function (sp, n) { var C = sp && CONT.get(contKey(drawn, n)); if (C) out.push(C); });
+    if (!interacting) ensureContours(drawn);
+    return out;
+  }
+  function gpuLayers(d) {
+    if (!GPUC || !d || !contoursOn()) return [null, null];
+    return specsOf(d).map(function (sp) {
+      if (!sp) return null;
+      var S = specSrc(d, sp); if (!S) return null;
+      var spec = Object.assign({}, sp, { lut: S.lut });
+      return { spec: spec, info: ctexOf(S.e, spec, S.f + "|" + sp.ch + "|" + S.q.join(",")) };
+    });
+  }
+  function drawContourLines(ctx, x0, x1, y0, y1) {                   // only without the GPU path (or ?cpulines=1, in red)
+    if (GPUC && !CPU_LINES) return;
+    contAll().forEach(function (C) {
+      if (!C.groups) {
+        var by = new Map(); C.lines.forEach(function (L) { var gp = by.get(L.v); if (!gp) by.set(L.v, gp = []); gp.push(L); });
+        C.groups = [];
+        by.forEach(function (ls, v) {
+          var np = 0; ls.forEach(function (L) { np += L.xy.length / 2; });
+          var xy = new Float32Array(np * 2), off = new Int32Array(ls.length + 1), p = 0;
+          ls.forEach(function (L, i) { off[i] = p; for (var k = 0; k < L.xy.length; k++) xy[2 * p + k] = L.xy[k] / 1000; p += L.xy.length / 2; });
+          off[ls.length] = p; C.groups.push({ v: v, tiles: buildTiles(xy, off, 400) });
+        });
+      }
+      var kpp = view.s / 1000;
+      kmTransform(ctx); ctx.lineJoin = "round"; ctx.lineCap = "round";
+      [0, 1].forEach(function (pass) {
+        if (CPU_LINES && GPUC && !pass) return;
+        C.groups.forEach(function (gp) {
+          ctx.strokeStyle = CPU_LINES && GPUC ? "rgba(230,0,40,0.9)" : pass ? C.spec.gl.col : "rgba(255,255,255,0.55)";
+          ctx.lineWidth = (CPU_LINES && GPUC ? 0.8 : pass ? C.spec.gl.w : C.spec.gl.w + 1.8) * kpp;
+          strokeTiles(ctx, gp.tiles, x0, x1, y0, y1);
+        });
+      });
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    });
+  }
+  var TW = new Map();
+  function textW(ctx, font, txt) { var k = font + "|" + txt, w = TW.get(k); if (w === undefined) { w = ctx.measureText(txt).width; TW.set(k, w); } return w; }
+  function labOcc() {                                              // label collision boxes in a 48 px hash grid
+    var G = 48, grid = new Map();
+    return {
+      hits: function (b) { for (var gx = Math.floor(b[0] / G); gx <= Math.floor(b[2] / G); gx++) for (var gy = Math.floor(b[1] / G); gy <= Math.floor(b[3] / G); gy++) {
+        var L = grid.get(gx * 4096 + gy); if (!L) continue; for (var m = 0; m < L.length; m++) { var o = L[m]; if (b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]) return true; } } return false; },
+      add: function (b) { for (var gx = Math.floor(b[0] / G); gx <= Math.floor(b[2] / G); gx++) for (var gy = Math.floor(b[1] / G); gy <= Math.floor(b[3] / G); gy++) { var k = gx * 4096 + gy, L = grid.get(k); if (!L) grid.set(k, L = []); L.push(b); } } };
+  }
+  function drawContourLabels(ctx, occ) {
+    if (GPUC && (st.playing || scrubbing)) return;
+    var all = contAll(); if (!all.length) return;
+    var x0 = view.cx - W / 2 * view.s, x1 = view.cx + W / 2 * view.s, y0 = view.cy - H / 2 * view.s, y1 = view.cy + H / 2 * view.s;
+    var boxes = [], GAP = W < 640 ? 170 : 240, FONT = "600 11.5px 'Source Sans 3', Arial, sans-serif";
+    ctx.font = FONT; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    all.forEach(function (C) {
+      if (!C.spec.lab) return;
+      C.lines.forEach(function (L) {
+        if (L.bb[1] < x0 || L.bb[0] > x1 || L.bb[3] < y0 || L.bb[2] > y1) return;
+        var a = L.xy, n = a.length, txt = C.spec.fmt(L.v), tw = textW(ctx, FONT, txt) + 6;
+        var acc = GAP * 0.45, px = W / 2 + (a[0] - view.cx) / view.s, py = H / 2 - (a[1] - view.cy) / view.s;
+        for (var k = 2; k < n; k += 2) {
+          var cx = W / 2 + (a[k] - view.cx) / view.s, cy = H / 2 - (a[k + 1] - view.cy) / view.s, dx = cx - px, dy = cy - py;
+          px = cx; py = cy; acc += Math.sqrt(dx * dx + dy * dy);
+          if (acc < GAP || cx < tw || cx > W - tw || cy < 12 || cy > H - 12) continue;
+          var ka = Math.max(0, k - 6), kb = Math.min(n - 2, k + 6), ang = Math.atan2(-(a[kb + 1] - a[ka + 1]), a[kb] - a[ka]);
+          if (ang > Math.PI / 2) ang -= Math.PI; if (ang < -Math.PI / 2) ang += Math.PI;
+          var r = Math.max(tw, 16) / 2 + 2, hit = false;
+          for (var b = 0; b < boxes.length; b++) { var bx = boxes[b]; if (Math.abs(bx[0] - cx) < bx[2] + r && Math.abs(bx[1] - cy) < 9 + r * Math.abs(Math.sin(ang)) + 4) { hit = true; break; } }
+          if (hit) continue;
+          var ca = Math.abs(Math.cos(ang)), sa = Math.abs(Math.sin(ang)), hx = r * ca + 7 * sa, hy = r * sa + 7 * ca, ab = [cx - hx, cy - hy, cx + hx, cy + hy];
+          if (occ.hits(ab)) continue;
+          occ.add(ab); boxes.push([cx, cy, r]); acc = 0;
+          ctx.save(); ctx.translate(cx, cy); ctx.rotate(ang);
+          ctx.lineWidth = 3.2; ctx.strokeStyle = "rgba(255,255,255,0.92)"; ctx.strokeText(txt, 0, 0);
+          ctx.fillStyle = "#141614"; ctx.fillText(txt, 0, 0);
+          ctx.restore();
+        }
+      });
+    });
+  }
+
+  // ── barbs (knots), feathers on the Southern Hemisphere side south of the equator ──────────────────────────────────
+  function sample(d, px, py) {                                     // -> the codes at a CSS pixel of a frame, or null
+    var xy = toXY(px, py), ij = gridIJ(d.g, xy[0], xy[1]), i = Math.floor(ij[0] + 0.5), j = Math.floor(ij[1] + 0.5);
+    if (i < 0 || j < 0 || i >= d.g.nx || j >= d.g.ny) return null;
+    var idx = (d.g.ny - 1 - j) * d.g.nx + i, a = d.e.dec.data, ch = a.length / (d.g.nx * d.g.ny), out = [];
+    for (var k = 0; k < ch; k++) out.push(a[ch * idx + k]);
+    return { c: out, xy: xy, idx: idx };
+  }
+  function drawBarbs(ctx, d) {
+    var sp = W < 640 ? 36 : 44, L = 17, q = d.q;
+    if (!q) return;
+    ctx.strokeStyle = "rgba(18,20,18,0.85)"; ctx.fillStyle = "rgba(18,20,18,0.85)"; ctx.lineWidth = 1.1;
+    for (var py = sp / 2; py < H; py += sp) for (var px = sp / 2; px < W; px += sp) {
+      var s = sample(d, px, py); if (!s || s.c[0] === 255) continue;
+      var u = q[0] + s.c[0] * q[1], v = q[0] + s.c[1] * q[1], ll = P.inv(s.xy[0], s.xy[1]), n = P.north(ll[0], ll[1]);
+      // earth -> map frame: east is north turned clockwise (the projection is conformal)
+      var su = u * n[1] + v * n[0], sv = -u * n[0] + v * n[1];
+      barb(ctx, px, py, su, sv, Math.sqrt(u * u + v * v) * KT, L, ll[1] < 0);
+    }
+  }
+  function barb(ctx, x, y, su, sv, kt, L, south) {
+    var m = Math.sqrt(su * su + sv * sv);
+    if (kt < 2.5 || m === 0) { ctx.beginPath(); ctx.arc(x, y, 2.4, 0, 2 * Math.PI); ctx.stroke(); return; }
+    var dx = -su / m, dy = sv / m;                     // staff points upwind, canvas y down
+    var rx = south ? dy : -dy, ry = south ? -dx : dx;   // feathers on the clockwise side of the staff north of the equator, the other side south of it
+    var ex = x + dx * L, ey = y + dy * L;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey);
+    var nn = Math.round(kt / 5) * 5, pos = 0, fl = L * 0.55, gap = L * 0.17;
+    while (nn >= 50) { var bx = ex - dx * pos, by = ey - dy * pos; ctx.moveTo(bx, by); ctx.lineTo(bx + rx * fl, by + ry * fl); ctx.lineTo(bx - dx * gap * 1.2, by - dy * gap * 1.2); ctx.fill(); pos += gap * 1.6; nn -= 50; }
+    while (nn >= 10) { var fx = ex - dx * pos, fy = ey - dy * pos; ctx.moveTo(fx, fy); ctx.lineTo(fx + rx * fl + dx * fl * 0.35, fy + ry * fl + dy * fl * 0.35); pos += gap; nn -= 10; }
+    if (nn >= 5) { if (pos === 0) pos = gap; var hx = ex - dx * pos, hy = ey - dy * pos; ctx.moveTo(hx, hy); ctx.lineTo(hx + rx * fl * 0.5 + dx * fl * 0.18, hy + ry * fl * 0.5 + dy * fl * 0.18); }
+    ctx.stroke();
+  }
+
+  // ── legend ─────────────────────────────────────────────────────────────────────────────────────────────────────
+  function legVert() { var w = document.querySelector(".mv-mapwrap"); return !!w && getComputedStyle(w).flexDirection === "row"; }
+  function legSetup(hpx) {
+    var cv = $("leg"), dpr = Math.min(window.devicePixelRatio || 1, 2), vert = legVert();
+    cv.style.height = vert ? "100%" : hpx + "px";
+    var r = cv.getBoundingClientRect(); cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, r.height);
+    ctx.font = "13.5px 'Source Sans 3', Arial, sans-serif"; return { ctx: ctx, w: r.width, h: r.height, vert: vert };
+  }
+  function hLab(ctx, txt, x, x0, x1, yy, Sx) { var w = ctx.measureText(txt).width, cx = Math.min(Math.max(x, x0 + w / 2), x1 - w / 2); if (cx - w / 2 < Sx.r + 7) return; ctx.fillText(txt, cx, yy); Sx.r = cx + w / 2; }
+  function rgbaStr(c) { return "rgba(" + Math.round(c[0]) + "," + Math.round(c[1]) + "," + Math.round(c[2]) + "," + (c[3] == null ? 1 : c[3]) + ")"; }
+  function vBar(g, colAt, ticks) {
+    var ctx = g.ctx, y0 = g.h - 12, y1 = 12, x0 = 10, bw = 22;
+    for (var py = y1; py < y0; py++) { ctx.fillStyle = rgbaStr(colAt((y0 - py) / (y0 - y1))); ctx.fillRect(x0, py, bw, 1.2); }
+    ctx.strokeStyle = "#8c918b"; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y1 + 0.5, bw - 1, y0 - y1 - 1);
+    ctx.fillStyle = "#3d4540"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; var last = 1e9;
+    ticks.forEach(function (tk) { var y = y0 - tk[0] * (y0 - y1); if (y < y1 - 1 || y > y0 + 1) return; ctx.fillRect(x0 + bw, y - 0.5, 4, 1);
+      if (Math.abs(last - y) < 17) return; ctx.fillText(tk[1], x0 + bw + 7, Math.min(Math.max(y, y1 + 6), y0 - 6)); last = y; });
+  }
+  function hBar(g, colAt, ticks) {
+    var ctx = g.ctx, x0 = 6, x1 = g.w - 6, bh = 14, y = 4;
+    for (var px = x0; px < x1; px++) { ctx.fillStyle = rgbaStr(colAt((px - x0) / (x1 - x0))); ctx.fillRect(px, y, 1.2, bh); }
+    ctx.strokeStyle = "#8c918b"; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y + 0.5, x1 - x0 - 1, bh - 1);
+    ctx.fillStyle = "#3d4540"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+    var Sx = { r: -1e9 };
+    ticks.forEach(function (tk) { var x = x0 + tk[0] * (x1 - x0); if (x < x0 - 1 || x > x1 + 1) return; ctx.fillRect(x - 0.5, y + bh, 1, 4); hLab(ctx, tk[1], x, x0, x1, y + bh + 5, Sx); });
+  }
+  function niceStep(span, n) { var raw = span / n, p = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / p; return (m < 1.5 ? 1 : m < 3 ? 2 : m < 7 ? 5 : 10) * p; }
+  function minus(v) { return String(v).replace("-", "−"); }
+  function drawLegend() {
+    if (!ENC) return;
+    var g = legSetup(38), lo, hi, ticks = [], cap, v;
+    var ci = st.field === "pv" ? CI_TH[st.th] : CI_LEV[st.lev], lev = levName(st.lev);
+    if (st.field === "t") { lo = -95; hi = 25; for (v = -90; v <= 20; v += 10) ticks.push([v, minus(v)]);
+      cap = "Temperature at " + lev + " hPa, °C · purple below −78 °C (195 K, polar stratospheric clouds) · lines: height every " + ci + " dam"; }
+    else if (st.field === "wind" && st.wv === "spd") { lo = 0; hi = SPD_MAX; for (v = 0; v <= SPD_MAX; v += 20) ticks.push([v, String(v)]);
+      cap = "Wind speed at " + lev + " hPa, m/s · barbs in knots · lines: height every " + ci + " dam"; }
+    else if (st.field === "wind") { lo = -120; hi = 120; for (v = -120; v <= 120; v += 40) ticks.push([v, minus(v)]);
+      cap = "Zonal (west–east) wind at " + lev + " hPa, m/s: westerlies red, easterlies blue · black line: zero · lines: height every " + ci + " dam"; }
+    else {                                                         // ticks at round values of the surface's own PV
+      lo = -15; hi = 80; var f = pvScale(+st.th), stp = niceStep((hi - lo) * f, 6);
+      for (v = Math.ceil(lo * f / stp) * stp; v <= hi * f + 1e-9; v += stp) ticks.push([v / f, minus(+v.toPrecision(6))]);
+      cap = "Potential vorticity on the " + st.th + " K surface, PVU" + (st.hemi === "sh" ? " (sign reversed: the vortex is positive)" : "") +
+        " · colours by PV × (θ / 475 K)^−9/2, one scale on every surface · lines: Montgomery streamfunction / g every " + ci + " dam";
+    }
+    $("legT").textContent = cap;
+    var tOfV = function (x) { return (x - lo) / (hi - lo); };
+    var stops = stopsOf(), colAt = function (t) { return interp(stops, lo + t * (hi - lo)); };
+    (g.vert ? vBar : hBar)(g, colAt, ticks.map(function (tk) { return [tOfV(tk[0]), tk[1]]; }));
+  }
+
+  // ── UI ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+  function fmtTime(ms) {
+    var d = new Date(ms);
+    var utc = d.toLocaleString("en-US", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }) + ", " + d.toLocaleString("en-US", { timeZone: "UTC", hour: "2-digit", minute: "2-digit", hour12: false }) + " UTC";
+    return [utc, d.toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZoneName: "short" })];
+  }
+  var badgeH = null, validH = null;
+  function setHTML(id, html, last) { if (html !== last) $(id).innerHTML = html; return html; }
+  function what() {
+    if (st.field === "pv") return "PV on " + st.th + " K";
+    return levName(st.lev) + " hPa " + (st.field === "t" ? "temperature" : st.wv === "u" ? "zonal wind" : "wind");
+  }
+  function updateBadge() {
+    var c = cyc();
+    if (!c) { badgeH = setHTML("badge", "<b>GFS</b> · no run published yet", badgeH); validH = setHTML("valid", "", validH); return; }
+    var h = st.hour, t = fmtTime(Date.parse(c.init) + h * 3600e3), init = escH(c.init.replace(/T(\d\d):00Z/, " $1Z").slice(5).replace("-", "/"));
+    badgeH = setHTML("badge", "<b>GFS</b> " + escH(what()) + " · run " + init + " +" + h + " h", badgeH);
+    var live = st.playing || document.activeElement === $("hour") ? "off" : "polite";
+    if ($("valid").getAttribute("aria-live") !== live) $("valid").setAttribute("aria-live", live);
+    validH = setHTML("valid", "<span class=\"vt\">" + t[0] + "</span> <span class=\"loc\">· " + t[1] + " your time</span><span class=\"fh\">+" + h + " h</span>", validH);
+    $("hour").setAttribute("aria-valuetext", t[0] + ", +" + h + " h");
+  }
+  function segButtons(el, keys, label, pressed, onPick, title) {
+    el.innerHTML = "";
+    keys.forEach(function (key) {
+      var b = document.createElement("button"); b.type = "button"; b.innerHTML = label(key); b.setAttribute("aria-pressed", String(key === pressed));
+      if (title) b.title = title(key);
+      b.onclick = function () { onPick(key); }; el.appendChild(b);
+    });
+  }
+  // the level picker: pressure levels for the temperature and wind maps, isentropes for PV; the top of the atmosphere at
+  // the top of the column
+  function levList() { var c = cyc(); if (!c) return []; return (st.field === "pv" ? c.thetas.map(String) : c.levels.map(levKey)).slice().reverse(); }
+  function curLev() { return st.field === "pv" ? st.th : st.lev; }
+  function setLev(k) { if (st.field === "pv") st.th = k; else st.lev = k; }
+  function levLabel(k) {
+    var c = cyc();
+    if (st.field === "pv") { var p = c.cap_hpa && c.cap_hpa[st.hemi] && c.cap_hpa[st.hemi][k]; return k + " K<small>" + (p ? "~" + (p < 10 ? p.toFixed(1) : Math.round(p)) + " hPa" : "") + "</small>"; }
+    var z = c.zmean_km && c.zmean_km[k]; return levName(k) + " hPa<small>" + (z ? Math.round(z) + " km" : "") + "</small>";
+  }
+  function setButtons() {
+    var c = cyc();
+    segButtons($("hemis"), ["nh", "sh"], function (h) { return HEMIS[h]; }, st.hemi, selectHemi, function (h) { return HEMI_LONG[h]; });
+    segButtons($("fields"), FIELD_ORDER, function (f) { return FIELDS[f].label + "<small>" + FIELDS[f].unit + "</small>"; }, st.field, function (f) {
+      if (st.field === f) return; st.field = f; if (c) st.hour = nearestHour(c, st.hour); setButtons(); onChange(); });
+    $("runT").textContent = c ? "Run " + c.init.slice(5, 10).replace("-", "/") + " " + c.init.slice(11, 13) + "Z, to +" + c.length + " h" : "";
+    $("subSeg").hidden = st.field !== "wind";
+    if (st.field === "wind") segButtons($("subSeg"), ["spd", "u"], function (k) { return WIND_SUBS[k].label; }, st.wv, function (k) { st.wv = k; setButtons(); onChange(); });
+    $("barbL").hidden = st.field !== "wind";
+    var L = $("levs"); L.innerHTML = "";
+    var cap = document.createElement("span"); cap.textContent = st.field === "pv" ? "Isentrope" : "Level"; L.appendChild(cap);
+    levList().forEach(function (k) {
+      var b = document.createElement("button"); b.type = "button"; b.innerHTML = levLabel(k); b.setAttribute("aria-pressed", String(k === curLev()));
+      b.dataset.k = k; b.onclick = function () { pickLev(k); }; L.appendChild(b);
+    });
+    levInView();
+    var hs = hoursOf(c); $("hour").max = Math.max(0, hs.length - 1); $("hour").value = Math.max(0, hs.indexOf(st.hour));
+  }
+  function pickLev(k) {
+    if (k === curLev()) return;
+    setLev(k); engageL();
+    var L = $("levs"); Array.prototype.forEach.call(L.querySelectorAll("button"), function (b) { b.setAttribute("aria-pressed", String(b.dataset.k === k)); });
+    levInView(); onChange();
+  }
+  function levInView() {                                           // the phone's scrolling row: the chosen level in view
+    var L = $("levs"), b = L.querySelector('button[aria-pressed="true"]');
+    if (b && L.scrollWidth > L.clientWidth) L.scrollLeft = b.offsetLeft - L.offsetLeft - (L.clientWidth - b.offsetWidth) / 2;
+  }
+  function stepLev(d) {                                            // d = +1: one level up (lower pressure, higher theta)
+    var ks = levList(), i = ks.indexOf(curLev()), j = Math.max(0, Math.min(ks.length - 1, i - d));
+    if (j !== i) pickLev(ks[j]);
+    var b = $("levs").querySelector('button[data-k="' + ks[j] + '"]'); return b;
+  }
+  function selectHemi(h) {
+    if (h === st.hemi) return;
+    tip.style.display = "none"; st.hemi = h; P.set(h); CONT.clear();
+    var c = cyc(); setButtons(); if (c) { prepGrid(c.grids[h]); fit(c.grids[h]); }
+    onChange();
+  }
+  function onChange() {
+    var c = cyc(), hs = hoursOf(c);
+    $("hour").max = Math.max(0, hs.length - 1); $("hour").value = Math.max(0, hs.indexOf(st.hour));
+    var n = "";
+    if (st.field === "pv") n = "Ertel potential vorticity computed here from the GFS's temperature and winds on 27 levels (<a href=\"#pvmethod\">method and checks</a>)" +
+      (st.hemi === "sh" ? "; Southern Hemisphere PV is shown with its sign reversed, so the vortex is positive" : "") + ".";
+    else if (+levName(st.lev) < 1) n = "Above 1 hPa (the stratopause region) the analysis has few observations to draw on: read these maps as the model's picture.";
+    $("note").innerHTML = n;
+    drawLegend(); prefetch(); writeHash(); render();
+  }
+  // Prefetch: until the reader plays, steps or drags the slider on THIS map, only the map on screen (and the heights it
+  // draws); once engaged in time, every step of the map, nearest first; once engaged in height (stepping levels), the
+  // same step at every level of this map. On a slow connection, the next three steps or levels and the previous one.
+  function engKeyT() { return [st.hemi, st.field, subKey()].join("/"); }
+  function engKeyL() { return [st.hemi, st.field, st.wv, st.hour].join("/"); }
+  function engageT() { st.engT = engKeyT(); }
+  function engageL() { st.engL = engKeyL(); }
+  function prefetch() {
+    var c = cyc(); if (!c) return;
+    var f0 = mainFile(), fm = c.fields[f0]; if (!fm) return;
+    var slow = netSlow(), list = [], seen = {};
+    function add(f, h) { var k = f + "/" + h; if (seen[k] || !c.fields[f] || c.fields[f].hours.indexOf(h) < 0) return; seen[k] = 1; list.push([c, st.hemi, f, h]); }
+    function both(lev, th, h) { add(fileOf(st.field, lev, th), h); if (st.field === "wind" && $("cont").checked) add("t" + lev, h); }
+    both(st.lev, st.th, st.hour);
+    var nU = list.length;
+    if (st.playing || st.engT === engKeyT()) {
+      var hs = fm.hours, i0 = Math.max(0, hs.indexOf(st.hour)), ahead = slow ? (st.playing ? 6 : 3) : hs.length, back = slow ? 1 : hs.length;
+      for (var d = 1; d < hs.length; d++) { if (d <= ahead && i0 + d < hs.length) both(st.lev, st.th, hs[i0 + d]); if (d <= back && i0 - d >= 0) both(st.lev, st.th, hs[i0 - d]); }
+    }
+    if (st.engL === engKeyL()) {
+      var ks = levList(), j0 = ks.indexOf(curLev()), lim = slow ? 3 : ks.length;
+      for (var e = 1; e < ks.length; e++) [j0 - e, j0 + e].forEach(function (j) { if (e <= lim && j >= 0 && j < ks.length) both(st.field === "pv" ? st.lev : ks[j], st.field === "pv" ? ks[j] : st.th, st.hour); });
+    }
+    want(list, nU);
+  }
+  var playT = 0;
+  function schedule() {
+    if (!st.playing || playT) return;
+    playT = setTimeout(function () {
+      playT = 0; if (!st.playing) return;
+      var c = cyc(), hs = hoursOf(c), next = hs[(hs.indexOf(st.hour) + 1) % hs.length];
+      var e = frames.get(fkey(c, st.hemi, mainFile(), next)), ready = !!(e && (e.dec || e.fail));
+      if (ready) { st.hour = next; onChange(); } else { decoded(c, st.hemi, mainFile(), next); prefetch(); schedule(); }
+    }, 300);
+  }
+  function step(dh) { var c = cyc(); if (!c) return; engageT(); scrubbed(); var hs = hoursOf(c), ix = hs.indexOf(st.hour); st.hour = hs[Math.max(0, Math.min(hs.length - 1, ix + dh))]; onChange(); }
+  $("hour").addEventListener("input", function () { engageT(); scrubbed(); var hs = hoursOf(cyc()); st.hour = hs[+this.value] || 0; onChange(); });
+  $("back").onclick = function () { step(-1); };
+  $("fwd").onclick = function () { step(1); };
+  function togglePlay() { var b = $("play"); st.playing = !st.playing; engageT(); b.innerHTML = st.playing ? "&#10074;&#10074;" : "&#9654;"; b.setAttribute("aria-label", st.playing ? "Pause" : "Play"); prefetch(); render(); }
+  $("play").onclick = togglePlay;
+  $("cont").onchange = function () { prefetch(); render(); };
+  $("barb").onchange = function () { render(); };
+  function panBy(fx, fy) { if (!view) return; beginInteract(); view.cx += fx * W * view.s; view.cy -= fy * H * view.s; render(); settleSoon(160); }
+  document.addEventListener("keydown", function (e) {
+    if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
+    var t = e.target, kk = e.key;
+    if (t === mapEl) {
+      var f = e.shiftKey ? 0.4 : 0.12;
+      if (kk === "ArrowLeft") panBy(-f, 0); else if (kk === "ArrowRight") panBy(f, 0); else if (kk === "ArrowUp") panBy(0, -f); else if (kk === "ArrowDown") panBy(0, f);
+      else if (kk === "+" || kk === "=") zoomBy(W / 2, H / 2, 0.6, 45); else if (kk === "-" || kk === "_") zoomBy(W / 2, H / 2, 1 / 0.6, 45);
+      else if (kk === "0") $("zfit").click(); else if (kk === ",") step(-1); else if (kk === ".") step(1);
+      else if (kk === "PageUp") stepLev(1); else if (kk === "PageDown") stepLev(-1);
+      else if (kk === " " || kk === "Spacebar") togglePlay(); else return;
+      e.preventDefault(); return;
+    }
+    if (t && t.closest && t.closest("#levs") && (kk === "ArrowUp" || kk === "ArrowDown" || kk === "PageUp" || kk === "PageDown")) {
+      var b = stepLev(kk === "ArrowUp" || kk === "PageUp" ? 1 : -1); if (b) b.focus(); e.preventDefault(); return;
+    }
+    if (e.shiftKey || !t || !t.closest || !t.closest(".mv-time") || t.tagName === "INPUT") return;
+    if (kk === "ArrowRight") { step(1); e.preventDefault(); } else if (kk === "ArrowLeft") { step(-1); e.preventDefault(); }
+  });
+  // the wheel over the level picker steps one level a notch, once the reader has pressed in it (until the pointer leaves
+  // it), so a page scroll that passes over it still scrolls the page
+  var levWheel = 0, levArmed = false;
+  $("levs").addEventListener("pointerdown", function () { levArmed = true; });
+  $("levs").addEventListener("pointerleave", function () { levArmed = false; });
+  $("levs").addEventListener("wheel", function (e) {
+    if (!levArmed) return;
+    e.preventDefault(); var now = performance.now(); if (now - levWheel < 90 || Math.abs(e.deltaY) < 1) return; levWheel = now;
+    stepLev(e.deltaY < 0 ? 1 : -1);
+  }, { passive: false });
+  document.addEventListener("visibilitychange", function () { if (document.hidden && st.playing) togglePlay(); });
+
+  // zoom / pan / hover: smooth zoom eased in log space toward a target scale, anchored at the cursor
+  var zA = null;
+  function zoomBy(px, py, f, tau) {
+    if (!view) return;
+    var w0 = toXY(px, py);
+    if (!zA) zA = { target: view.s, raf: 0 };
+    zA.target = Math.max(S_MIN, Math.min(S_MAX, zA.target * f)); zA.px = px; zA.py = py; zA.wx = w0[0]; zA.wy = w0[1]; zA.tau = tau || 45;
+    beginInteract();
+    if (!zA.raf) { zA.last = performance.now(); zA.raf = requestAnimationFrame(zStep); }
+  }
+  function zStep(t) {
+    var z = zA; if (!z) return;
+    var dt = Math.max(1, Math.min(t - z.last, 50)); z.last = t;
+    var ls = Math.log(view.s), lt = Math.log(z.target), nl = ls + (lt - ls) * (1 - Math.exp(-dt / z.tau));
+    if (Math.abs(lt - nl) < 0.003) nl = lt;
+    view.s = Math.exp(nl); view.cx = z.wx - (z.px - W / 2) * view.s; view.cy = z.wy + (z.py - H / 2) * view.s;
+    draw();
+    if (nl !== lt) z.raf = requestAnimationFrame(zStep); else { zA = null; settleSoon(120); }
+  }
+  var coopT = 0;
+  function coop(text) { var el = $("coop"); if (el.textContent !== text) el.textContent = text; el.classList.add("on"); clearTimeout(coopT); coopT = setTimeout(function () { el.classList.remove("on"); }, 1400); }
+  mapEl.addEventListener("wheel", function (e) {
+    if (!view) return;
+    if (!e.ctrlKey && !e.metaKey && document.activeElement !== mapEl) { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) coop("To zoom, hold " + (/Mac|iPhone|iPad/.test(navigator.platform || "") ? "⌘" : "Ctrl") + " while you scroll, or click the map first"); return; }
+    e.preventDefault(); var r = mapEl.getBoundingClientRect(), dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1), kk = e.ctrlKey && Math.abs(dy) < 40 ? 0.01 : 0.0016;
+    dy = Math.max(-300, Math.min(300, dy));
+    zoomBy(e.clientX - r.left, e.clientY - r.top, Math.exp(dy * kk), Math.abs(dy) >= 40 ? 45 : 30);
+  }, { passive: false });
+  mapEl.addEventListener("touchmove", function (e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  var gS = 0;
+  mapEl.addEventListener("gesturestart", function (e) { e.preventDefault(); gS = view ? view.s : 0; beginInteract(); });
+  mapEl.addEventListener("gesturechange", function (e) { e.preventDefault(); if (!view || !gS) return; var r = mapEl.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top, a = toXY(px, py); view.s = gS / e.scale; clampView(); var b = toXY(px, py); view.cx += a[0] - b[0]; view.cy += a[1] - b[1]; render(); });
+  mapEl.addEventListener("gestureend", function (e) { e.preventDefault(); settleSoon(120); });
+  $("zin").onclick = function () { zoomBy(W / 2, H / 2, 0.6, 45); };
+  $("zout").onclick = function () { zoomBy(W / 2, H / 2, 1 / 0.6, 45); };
+  $("zfit").onclick = function () { var c = cyc(); if (c) { zA = null; var g = prepGrid(c.grids[st.hemi]); fitBox(g); resize(); fit(g); render(); } };
+  var ptrs = new Map(), pinch = null, moved = false, gest = { pinched: false, start: null }, SLOP_TOUCH = 10, SLOP_MOUSE = 4;
+  mapEl.addEventListener("pointerdown", function (e) {
+    if (e.target.closest("button")) return;
+    if (!ptrs.size) gest = { pinched: false, start: [e.clientX, e.clientY] };
+    mapEl.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); moved = false;
+    if (zA) { cancelAnimationFrame(zA.raf); zA = null; } beginInteract();
+    if (ptrs.size === 2) { var p = Array.from(ptrs.values()); pinch = { d: Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]), s: view.s }; }
+    mapEl.classList.add("drag");
+  });
+  mapEl.addEventListener("pointermove", function (e) {
+    var r = mapEl.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+    if (ptrs.has(e.pointerId) && view) {
+      var old = ptrs.get(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+      if (ptrs.size === 2 && pinch) {
+        var p = Array.from(ptrs.values()), d = Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]), mx = (p[0][0] + p[1][0]) / 2 - r.left, my = (p[0][1] + p[1][1]) / 2 - r.top;
+        var a = toXY(mx, my); view.s = pinch.s * pinch.d / Math.max(d, 1); clampView(); var b = toXY(mx, my);
+        view.cx += a[0] - b[0]; view.cy += a[1] - b[1]; view.cx -= (e.clientX - old[0]) * view.s / 2; view.cy += (e.clientY - old[1]) * view.s / 2;
+        moved = true; gest.pinched = true; render(); return;
+      }
+      if (ptrs.size === 1 && !moved && !gest.pinched && gest.start) {
+        if (Math.hypot(e.clientX - gest.start[0], e.clientY - gest.start[1]) < (e.pointerType === "mouse" ? SLOP_MOUSE : SLOP_TOUCH)) { ptrs.set(e.pointerId, old); return; }
+        moved = true;
+      }
+      if (ptrs.size === 1 && e.pointerType !== "mouse") return;    // one finger scrolls the page; two move the map
+      view.cx -= (e.clientX - old[0]) * view.s; view.cy += (e.clientY - old[1]) * view.s; moved = true; render();
+      return;
+    }
+    if (e.pointerType === "mouse" && !interacting) hover(px, py);
+  });
+  function endPtr(e) {
+    var r = mapEl.getBoundingClientRect(), isTap = e.type === "pointerup" && !moved && !gest.pinched;
+    if (ptrs.has(e.pointerId) && isTap && e.pointerType !== "mouse") hover(e.clientX - r.left, e.clientY - r.top, true);
+    if (e.type === "pointercancel" && e.pointerType === "touch" && ptrs.size <= 1) coop("Use two fingers to move or zoom the map");
+    ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!ptrs.size) { mapEl.classList.remove("drag"); settleSoon(60); }
+  }
+  mapEl.addEventListener("pointerup", endPtr); mapEl.addEventListener("pointercancel", endPtr);
+  mapEl.addEventListener("pointerleave", function (e) { if (e.pointerType === "mouse") tip.style.display = "none"; });
+  mapEl.addEventListener("dblclick", function (e) { var r = mapEl.getBoundingClientRect(); zoomBy(e.clientX - r.left, e.clientY - r.top, 0.5, 45); });
+
+  function num(v, d) { return (v < 0 ? "−" : "") + Math.abs(v).toFixed(d); }
+  function heightAt(d, px, py) {                                   // the height (m) at a pixel from the temperature file of the map's level
+    var f = d.field === "t" ? d.file : d.field === "wind" ? "t" + d.lk : null; if (!f) return null;
+    var e = f === d.file ? d.e : peek(d.c, d.hemi, f, d.hour); if (!e) return null;
+    var s = sample({ e: e, g: d.g }, px, py); return s ? linOf(s.c[1], qOf(d.c, f, d.hour)) : null;
+  }
+  function hover(px, py, sticky) {
+    var d = drawn;
+    if (!d || !d.e || !d.e.dec) { tip.style.display = "none"; return; }
+    var s = sample(d, px, py); if (!s) { tip.style.display = "none"; return; }
+    var ll = P.inv(s.xy[0], s.xy[1]), txt, extra = [];
+    if (d.field === "t") { var tc = tOf(s.c[0]); txt = tc === null ? "no data" : num(tc, 1) + " °C (" + (tc + 273.15).toFixed(1) + " K)"; }
+    else if (d.field === "wind") {
+      if (s.c[0] === 255 || !d.q) txt = "no data";
+      else { var u = d.q[0] + s.c[0] * d.q[1], v = d.q[0] + s.c[1] * d.q[1], sp = Math.sqrt(u * u + v * v);
+        txt = sp.toFixed(0) + " m/s (" + Math.round(sp * KT) + " kt) from " + Math.round((Math.atan2(-u, -v) / D2R + 360) % 360) + "°";
+        extra.push("u " + num(u, 0) + " m/s (" + (u >= 0 ? "westerly" : "easterly") + "), v " + num(v, 0) + " m/s"); }
+    }
+    else {
+      var mpv = mpvOf(s.c[0]), pp = pOf(s.c[2]), mg = linOf(s.c[1], d.q), th = +d.lk;
+      if (mpv === null) txt = "outside the levels: the " + th + " K surface is below 400 hPa or above 0.4 hPa here";
+      else { var pv = mpv * pvScale(th) * (d.hemi === "sh" ? -1 : 1);
+        txt = "PV " + num(pv, Math.abs(pv) < 100 ? 1 : 0) + " PVU";
+        extra.push("scaled to 475 K: " + num(mpv, 1) + " PVU" + (d.hemi === "sh" ? " (sign reversed on the map)" : ""));
+        if (pp !== null) extra.push("the surface is at " + (pp < 10 ? pp.toFixed(2) : pp.toFixed(0)) + " hPa here");
+        if (mg !== null) extra.push("M/g " + Math.round(mg).toLocaleString("en-US") + " m"); }
+    }
+    var z = heightAt(d, px, py); if (z !== null) extra.push("height " + Math.round(z).toLocaleString("en-US") + " m");
+    tip.innerHTML = "<span class=\"v\">" + escH(txt) + "</span>" + extra.map(function (x) { return "<br>" + escH(x); }).join("") +
+      "<br><span class=\"ll\">" + Math.abs(ll[1]).toFixed(1) + "°" + (ll[1] >= 0 ? "N" : "S") + " " + Math.abs(ll[0]).toFixed(1) + "°" + (ll[0] >= 0 ? "E" : "W") + "</span>";
+    tip.style.display = "block";
+    tip.style.left = Math.min(px, W - tip.offsetWidth - 16) + "px"; tip.style.top = Math.min(py, H - tip.offsetHeight - 16) + "px";
+    if (sticky) { clearTimeout(tip._t); tip._t = setTimeout(function () { tip.style.display = "none"; }, 4000); }
+  }
+
+  // ── URL hash: #hemisphere/field/level-or-isentrope/step[/u] ─────────────────────────────────────────────────────────
+  function writeHash() { try { history.replaceState(null, "", "#" + st.hemi + "/" + st.field + "/" + levName(curLev()) + "/" + st.hour + (st.field === "wind" && st.wv === "u" ? "/u" : "")); } catch (e) {} }
+  function readHash() {
+    var p = location.hash.replace("#", "").split("/");
+    if (HEMIS[p[0]]) st.hemi = p[0];
+    if (FIELDS[p[1]]) st.field = p[1];
+    if (p[2]) { if (st.field === "pv") st.th = p[2]; else st.lev = levKey(p[2]); }
+    var hadHour = p[3] !== undefined && /^\d+$/.test(p[3]); if (hadHour) st.hour = +p[3];
+    if (p[4] === "u") st.wv = "u";
+    return hadHour;
+  }
+  // the run's checks (scripts/models/strat_maps.py "checks") and the polar-cap PV beside GEOS FP's, for the method section
+  function showChecks(geos) {
+    var c = cyc(), k0 = c && c.checks; if (!k0) return;
+    var m = function (key) { var x = k0[key]; return x ? x.median : null; }, bits = [];
+    ABSV_TXT.forEach(function (p) { if (m("absv/" + p + "/r") !== null) bits.push(p + " hPa: correlation " + m("absv/" + p + "/r").toFixed(3) + ", rms ratio " + m("absv/" + p + "/rms_ratio").toFixed(2)); });
+    var out = [];
+    if (bits.length) out.push("ζ + f from these winds against the GFS's own absolute vorticity (20–85°, medians over the check steps) at " + bits.join("; "));
+    var pv2 = ["nh", "sh"].filter(function (h) { return m("pv2/" + h + "/mae_hpa") !== null; }).map(function (h) {
+      return (h === "nh" ? "north" : "south") + " mean difference " + num(m("pv2/" + h + "/bias_hpa"), 0) + " hPa, mean absolute " + m("pv2/" + h + "/mae_hpa").toFixed(0) + " hPa, " + Math.round(100 * m("pv2/" + h + "/within_25hpa")) + " % within 25 hPa";
+    });
+    if (pv2.length) out.push("the 2-PVU (dynamic tropopause) pressure from this PV against the GFS's own, computed by its post-processor on the model's native levels (30–80°): " + pv2.join("; "));
+    if (geos && geos.hemispheres && geos.valid && c.cap) {
+      var vt = c.hours.map(function (h) { return new Date(Date.parse(c.init) + h * 3600e3).toISOString(); });
+      var day = null, ig = -1, ih = -1;
+      geos.valid.forEach(function (d, i) { if (day) return; var j = vt.indexOf(d + "T00:00:00.000Z"); if (j >= 0) { day = d; ig = i; ih = j; } });
+      if (day) {
+        var cmp = ["nh", "sh"].map(function (h) {
+          return (h === "nh" ? "north" : "south") + " " + ["475", "850"].map(function (t) {
+            var a = c.cap.values[h] && c.cap.values[h][t] && c.cap.values[h][t][ih], b = geos.hemispheres[h] && geos.hemispheres[h][t];
+            return a && b ? t + " K " + a[0] + " against " + b.cap_pv[ig] + " PVU (" + a[1] + " against " + b.cap_hpa[ig] + " hPa)" : "";
+          }).filter(Boolean).join(", ");
+        });
+        out.push("polar-cap (poleward of 60°) mean PV on " + day + " 00 UTC, GFS +" + c.hours[ih] + " h against GEOS FP (" + (ig ? "its +" + ig + " d forecast" : "its analysis") + "): " + cmp.join("; "));
+      }
+    }
+    $("checks").textContent = out.length ? "This run. " + out.map(function (x) { return x.charAt(0).toUpperCase() + x.slice(1); }).join(". ") + "." : "";
+  }
+  var ABSV_TXT = ["50", "10"];
+
+  // ── start ──────────────────────────────────────────────────────────────────────────────────────────────────────
+  // for testing from the console (and the headless checks of the decode and the shader's projection)
+  window.STRAT = { st: st, get man() { return man; }, frames: frames, CONT: CONT, P: P, gridIJ: gridIJ, get view() { return view; }, get drawn() { return drawn; },
+    get gpuc() { return GPUC; }, render: render, draw: draw, lut: buildLut, gl: gl, dpr: function () { return DPR; }, pickLev: pickLev, selectHemi: selectHemi };
+  try { glOk = initGL(); } catch (e) { console.error(e); }
+  if (!glOk) $("msg").textContent = "This page needs WebGL 2, which this browser does not provide.";
+  var hadHour = readHash();
+  P.set(st.hemi);
+  if (glOk) $("msg").textContent = "Loading the newest run…";
+  fetch(MAN + "?v=" + Math.floor(Date.now() / 60000)).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (d) {
+    man = d;
+    var c = cyc();
+    if (!c) { $("msg").textContent = d ? "No model run has been published yet." : "The list of model runs could not be loaded. Check your connection and reload the page."; return; }
+    ENC = c.enc;
+    if (!glOk) return;
+    $("msg").textContent = "";
+    if (c.levels.map(levKey).indexOf(st.lev) < 0) st.lev = "10";
+    if (c.thetas.map(String).indexOf(st.th) < 0) st.th = "850";
+    if (!hadHour) st.hour = Math.max(0, Math.round((Date.now() - Date.parse(c.init)) / 3600e3));
+    st.hour = nearestHour(c, st.hour);
+    setButtons();
+    var g = prepGrid(c.grids[st.hemi]);
+    fitBox(g); resize(); fit(g);
+    onChange();
+    $("runs").textContent = "Run on the page now: GFS " + c.init.slice(5, 10).replace("-", "/") + " " + c.init.slice(11, 13) + "Z (published " + c.made + ").";
+    showChecks(null);
+    whenShown(function () { fetch("/assets/sst/data/geos_pv.json").then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (j) { if (j) showChecks(j); }); });
+    setTimeout(pruneCache, 4000);
+  });
+  if (typeof ResizeObserver === "function") new ResizeObserver(function () { if (view) { var s = view.s; resize(); view.s = s; render(); } }).observe(mapEl);
+  else window.addEventListener("resize", resize);
+})();
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

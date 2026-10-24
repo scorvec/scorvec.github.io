@@ -1,0 +1,528 @@
+#!/usr/bin/env python3
+"""Stratosphere model maps for strat-models.html: the GFS on every pressure level from 100 to 0.4 hPa and on seven
+isentropic surfaces, both hemispheres, every 12 hours to 16 days.
+
+The GFS (NOAA's global model, 127 layers to 80 km) is read on its 0.5 deg latitude-longitude output grid and every field
+and step becomes ONE lossless WebP per hemisphere - the format of models.html (scripts/models/models.py), drawn by the
+page with WebGL on a polar stereographic projection. Nothing is rendered here.
+
+Files, per hemisphere (nh: 0-90 N, sh: 90 S-0), rows south -> north, columns from 182 W to 181.5 E (the 0.5 deg grid
+from 180 W with 4 columns repeated on each side, so the page can sample and smooth across the date line without wrapping):
+  t<lev>   R = temperature, 160 K + 0.6 K * code; G = geopotential height, per-frame offset and step (manifest "q")
+  w<lev>   R, G = earth-relative u, v, one per-frame offset and step for both (manifest "q")
+  pv<K>    R = Lait-scaled Ertel potential vorticity, -20 + 0.5 * code in PVU at the 475 K scale (see below), sign
+           reversed in the Southern Hemisphere so the vortex is positive in both; G = the Montgomery streamfunction
+           divided by g, metres, per-frame offset and step; B = the pressure of the surface, log 0.2-600 hPa
+  255 = missing in every channel. <lev> is the pressure in hPa with "p" for the point (0p4 = 0.4 hPa).
+
+Potential vorticity. Ertel PV on the pressure levels (hydrostatic, isobaric form, spherical derivatives, centred and
+periodic in longitude; vertical derivatives in ln p on the actual levels):
+    PV = -g [ (zeta + f) dtheta/dp - dv/dp dtheta/dx + du/dp dtheta/dy ]          1 PVU = 1e-6 K m2 kg-1 s-1
+from T, u and v on 27 levels, 400 hPa to 0.4 hPa (the 0.5 deg files' 21 from 400 hPa up, and the six 25 hPa levels
+between 125 and 375 hPa from the "b" files), one 1-2-1 pass in latitude and longitude; the rows at the poles take the
+mean of the ring next to them. PV, the Montgomery streamfunction M = cp T + g z and ln p are then interpolated to each
+isentrope linearly in ln theta, column by column (theta = T (1000 hPa / p)^(R/cp)). PV grows ~ theta^(9/2) with height
+in a resting atmosphere, so the page colours the Lait (1994) scaled value PV (theta / 475 K)^(-9/2): a vortex reads
+alike on every surface, and at 475 K the scaled value is the PV itself. The page converts back for its hover values
+and legend ticks.
+
+Checks, per run (manifest "checks"; the page's method section shows them):
+  absv/<lev>   zeta + f from these winds against the GFS's own absolute vorticity (ABSV) at 50 and 10 hPa, 20-85 deg
+  pv2/<hemi>   the 2-PVU surface from this PV (searched downward from 100 hPa, models.html's dynamic-tropopause rule)
+               against the GFS's own 2-PVU pressure (its post-processor, from the model's native levels), 30-80 deg
+  cap          the polar-cap (poleward of 60 deg, cos-weighted) mean PV and log-mean pressure at 475 and 850 K on every
+               step: the quantities the site's GEOS FP PV product (scripts/strat/geos_pv.py) reports, so the page can
+               set the two models side by side for the same day
+Source (hard rule: NOAA models from AWS S3, never NOMADS): noaa-gfs-bdp-pds, byte ranges of only the wanted messages
+via the .idx files (scripts/snowband/snowband.py's validated transport). 00 and 12 UTC runs; +384 h reaches the bucket
+~5 h 15 min after the start (pgrb2.0p50 and pgrb2b.0p50 alike, 2026-10-23/24).
+
+    python scripts/models/strat_maps.py plan --manifests assets/models
+    python scripts/models/strat_maps.py run --cycle 2026102400 --site . --procs 4 --lists /tmp/strat
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import json
+import math
+import os
+import shutil
+import sys
+import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from pathlib import Path
+
+import numpy as np
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent / "snowband"))
+import models as MV  # the viewer's quantiser and WebP writer (models.html decodes the same codes)
+import snowband as sb  # the shared, validated S3 transport
+import upper as UPR  # per-frame height codes (q_auto) and the downward 2-PVU search
+
+MODEL = "gfs"
+LABEL = "GFS"
+SOURCE = "NOAA GFS (FV3, 127 layers to 80 km) on its 0.5 deg output grid: NOAA Open Data Dissemination, AWS S3"
+DATA = "assets/models/data/strat/gfs"
+S3 = "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.{d}/{h}/atmos/gfs.t{h}z.{f}.0p50.f{s:03d}"
+STEPS = tuple(range(0, 385, 12))
+LEVELS = (100, 70, 50, 40, 30, 20, 15, 10, 7, 5, 3, 2, 1, 0.7, 0.4)  # the maps' pressure levels, hPa
+COL_A = (400, 350, 300, 250, 200, 150, *LEVELS)  # the PV columns' levels in pgrb2.0p50 ...
+COL_B = (375, 325, 275, 225, 175, 125)  # ... and in pgrb2b.0p50
+THETAS = (350, 400, 475, 600, 850, 1200, 1600)  # isentropic surfaces, K
+QC_STEPS = (0, 120, 240)  # steps with the GFS's own vorticity and 2-PVU surface fetched as a check
+ABSV_LEVELS = (50, 10)
+PV2 = {"nh": "PV=2e-06 (Km^2/kg/s) surface", "sh": "PV=-2e-06 (Km^2/kg/s) surface"}
+G0, CP, KAPPA, OMEGA, A_E = 9.80665, 1004.64, 0.2857, 7.2921e-5, 6.371229e6
+DI, PAD = 0.5, 4  # grid spacing (deg) and the columns repeated on each side of the date line
+T_OFF, T_STEP = 160.0, 0.6  # temperature code, K
+PV_OFF, PV_STEP, PV_REF = -20.0, 0.5, 475.0  # Lait-scaled PV code, PVU at the PV_REF scale
+P_LO, P_HI = 0.2, 600.0  # pressure code of the isentropic surfaces, log, hPa
+WIND_STEPS = (0.5, 0.6, 0.8, 1.0, 1.2, 1.5, 2.0)  # m/s, the finest that spans the frame
+CAP_LAT, CAP_THETAS = 60.0, (475, 850)
+HEMIS = ("nh", "sh")
+
+
+def lev_key(p):
+    """10 -> "10", 0.4 -> "0p4" (the files' level names)."""
+    return f"{p:g}".replace(".", "p")
+
+
+def url(date, hh, step, b=False):
+    return S3.format(d=date, h=hh, f="pgrb2b" if b else "pgrb2", s=step)
+
+
+# ── grids ───────────────────────────────────────────────────────────────────────────────────────────────────────────
+def hemi(a, h):
+    """A global field (rows 90 N -> 90 S, columns 0 -> 359.5 E) -> one hemisphere, rows south -> north (equator to pole
+    or pole to equator), columns 182 W -> 181.5 E (PAD columns repeated on each side of the date line)."""
+    ny = a.shape[-2]
+    eq = ny // 2
+    rows = a[..., eq::-1, :] if h == "nh" else a[..., ny - 1 : eq - 1 : -1, :]
+    nx = a.shape[-1]
+    w = np.concatenate([rows[..., nx // 2 :], rows[..., : nx // 2]], axis=-1)  # from 180 W
+    return np.concatenate([w[..., -PAD:], w, w[..., :PAD]], axis=-1)
+
+
+def grid_desc(h, nx, ny):
+    """The page's grid: regular lat-lon, row j = 0 at the south (la1), column i = 0 at lo1; w0 = where the page starts
+    counting longitude (columns PAD.. hold 180 W .. 180 E once each)."""
+    return dict(
+        type="llw", nx=nx, ny=ny, lo1=-180.0 - PAD * DI, la1=0.0 if h == "nh" else -90.0, di=DI, dj=DI, w0=-180.0
+    )
+
+
+# ── physics ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+def _121(a):
+    """One 1-2-1 pass in latitude (edges kept) and longitude (periodic)."""
+    b = a.copy()
+    b[..., 1:-1, :] = 0.25 * a[..., :-2, :] + 0.5 * a[..., 1:-1, :] + 0.25 * a[..., 2:, :]
+    return 0.25 * np.roll(b, 1, -1) + 0.5 * b + 0.25 * np.roll(b, -1, -1)
+
+
+def poles(a, lat):
+    """The rows at the poles (where the longitude derivatives are undefined) take the zonal mean of the ring next to
+    them."""
+    for j in np.flatnonzero(np.abs(lat) > 89.99):
+        k = j + 1 if j + 1 < lat.size and abs(lat[j + 1]) < 89.99 else j - 1
+        a[..., j, :] = np.nanmean(a[..., k, :], axis=-1, keepdims=True)
+    return a
+
+
+def ertel_pv(T, U, V, plev, lat):
+    """Ertel PV (PVU) and zeta + f on pressure levels of a global regular lat-lon grid (module docstring). T, U, V:
+    (nlev, ny, nx), earth-relative winds; plev hPa (any order); lat (ny,) degrees, the grid's rows. -> pv, absv, theta"""
+    p = np.asarray(plev, np.float64)[:, None, None] * 100.0
+    lnp = np.log(p[:, 0, 0])
+    th = T * (1e5 / p) ** KAPPA
+    phi = np.radians(np.asarray(lat, np.float64))
+    cph = np.cos(phi)[:, None]
+    cph[np.abs(lat) > 89.99] = np.nan  # the poles: no longitude derivative (filled from the next ring)
+    dlam = math.radians(360.0 / T.shape[-1])
+
+    def ddx(q):  # (1 / a cos phi) dq/dlambda, centred and periodic
+        return (np.roll(q, -1, -1) - np.roll(q, 1, -1)) / (2 * dlam * A_E * cph)
+
+    def ddy(q):  # (1 / a) dq/dphi
+        return np.gradient(q, phi, axis=-2) / A_E
+
+    def ddp(q):  # dq/dp = (1 / p) dq/dln p on the actual levels
+        return np.gradient(q, lnp, axis=0) / p
+
+    with np.errstate(invalid="ignore", divide="ignore"):
+        absv = ddx(V) - ddy(U * np.nan_to_num(cph)) / cph + (2 * OMEGA * np.sin(phi))[:, None]
+        pv = -G0 * (absv * ddp(th) - ddp(V) * ddx(th) + ddp(U) * ddy(th)) * 1e6
+    return poles(_121(poles(pv, lat)), lat), poles(absv, lat), th
+
+
+def on_theta(th, fields, theta0):
+    """Each of `fields` (nlev, ny, nx) on the isentrope theta0, linear in ln theta between the two levels around it
+    (theta increasing upward: the first crossing counted from the bottom); NaN where theta0 is outside the column."""
+    lt = np.log(th)
+    k = (th < theta0).sum(axis=0) - 1
+    bad = (k < 0) | (k > th.shape[0] - 2)
+    k = np.clip(k, 0, th.shape[0] - 2)[None]
+    a, b = np.take_along_axis(lt, k, 0)[0], np.take_along_axis(lt, k + 1, 0)[0]
+    with np.errstate(invalid="ignore", divide="ignore"):
+        w = (math.log(theta0) - a) / (b - a)
+    bad |= ~((w >= 0) & (w <= 1))
+    out = []
+    for f in fields:
+        x0, x1 = np.take_along_axis(f, k, 0)[0], np.take_along_axis(f, k + 1, 0)[0]
+        out.append(np.where(bad, np.nan, x0 + w * (x1 - x0)))
+    return out
+
+
+def lait(pv, theta0, sign):
+    """PV scaled to the PV_REF surface (Lait 1994, theta^(-9/2)), sign reversed in the Southern Hemisphere."""
+    return sign * pv * (theta0 / PV_REF) ** -4.5
+
+
+def cap_mean(x, lat, logmean=False):
+    """cos-weighted mean poleward of CAP_LAT of a hemisphere's (rows, columns) field, the padding columns left out."""
+    rows = np.abs(lat) >= CAP_LAT
+    w = np.cos(np.radians(lat[rows]))
+    v = x[rows][:, PAD:-PAD]
+    v = np.log(v) if logmean else v
+    m = float((np.nanmean(v, axis=1) * w).sum() / w.sum())
+    return math.exp(m) if logmean else m
+
+
+# ── encoding ────────────────────────────────────────────────────────────────────────────────────────────────────────
+def q_logp(p):
+    with np.errstate(invalid="ignore", divide="ignore"):
+        c = np.rint((np.log(p) - math.log(P_LO)) / (math.log(P_HI) - math.log(P_LO)) * 254)
+    return np.where(np.isfinite(p), np.clip(c, 0, 254), 255).astype(np.uint8)
+
+
+def image(*chans):
+    """Channels (rows south -> north) -> a 3-channel uint8 image, row 0 at the north (the empty third channel of a
+    two-channel frame is zero)."""
+    while len(chans) < 3:
+        chans = (*chans, np.zeros_like(chans[0]))
+    return np.dstack(chans)[::-1]
+
+
+def write(outdir, h, name, step, arr):
+    d = Path(outdir) / h / name
+    d.mkdir(parents=True, exist_ok=True)
+    b = MV.webp(arr)
+    (d / f"{step:03d}.webp").write_bytes(b)
+    return len(b)
+
+
+# ── one step (a worker process: fetch, compute, encode) ──────────────────────────────────────────────────────────────
+_FETCH: dict = {}
+
+
+def fetcher():
+    if "f" not in _FETCH:
+        _FETCH["f"] = sb.Fetcher("S3 GFS", 16)
+    return _FETCH["f"]
+
+
+def fetch(date, hh, step):
+    """{(var, level): global array} for one step from the two 0.5 deg files, and the grid's latitudes."""
+    f = fetcher()
+    qc = step in QC_STEPS
+
+    def want(levels):
+        return {(v, f"{p:g} mb") for v in ("HGT", "TMP", "UGRD", "VGRD") for p in levels}
+
+    wa = want(COL_A)
+    if qc:
+        wa |= {("ABSV", f"{p} mb") for p in ABSV_LEVELS} | {("PRES", s) for s in PV2.values()}
+    a, grid = sb.fetch_messages(f, url(date, hh, step), wa)
+    b, _ = sb.fetch_messages(f, url(date, hh, step, b=True), want(COL_B))
+    lat = grid["lat"][:, 0].astype(np.float64)
+    if a[("TMP", "10 mb")].shape != (361, 720) or abs(lat[0] - 90) > 1e-6 or abs(lat[-1] + 90) > 1e-6:
+        raise RuntimeError(f"unexpected grid {a[('TMP', '10 mb')].shape}, lat {lat[0]}..{lat[-1]}")
+    return a | b, lat
+
+
+def process_step(date, hh, step, outdir):
+    """-> (step, {file: {hemi: q}}, bytes, checks, (requests, bytes fetched), extras)"""
+    t0 = time.time()
+    f = fetcher()
+    n0, b0 = f.nreq, f.nbytes
+    msgs, lat = fetch(date, hh, step)
+    t_fetch = time.time() - t0
+    col = sorted(COL_A + COL_B, reverse=True)  # bottom (400 hPa) to top (0.4 hPa)
+
+    def stack(v):
+        return np.stack([msgs[(v, f"{p:g} mb")] for p in col]).astype(np.float64)
+
+    T, U, V, Z = stack("TMP"), stack("UGRD"), stack("VGRD"), stack("HGT")
+    pv, absv, th = ertel_pv(T, U, V, col, lat)
+    lnp = np.log(np.asarray(col, np.float64))[:, None, None] * np.ones_like(T)
+    mg = (CP * T + G0 * Z) / G0  # the Montgomery streamfunction over g, metres
+    meta, nbytes, extras = {}, 0, {}
+    hlat = {h: hemi(lat[:, None], h)[:, 0] for h in HEMIS}
+
+    for p in LEVELS:
+        k = col.index(p)
+        for h in HEMIS:
+            t, z, u, v = (hemi(x[k], h) for x in (T, Z, U, V))
+            zc, zq = UPR.q_auto(z)
+            nbytes += write(outdir, h, f"t{lev_key(p)}", step, image(MV.q_lin(t, T_OFF, T_STEP), zc))
+            wc, wq = UPR.q_auto(np.stack([u, v]), steps=WIND_STEPS)
+            nbytes += write(outdir, h, f"w{lev_key(p)}", step, image(wc[0], wc[1]))
+            meta.setdefault(f"t{lev_key(p)}", {})[h] = zq
+            meta.setdefault(f"w{lev_key(p)}", {})[h] = wq
+    if step == 0:  # the levels' mean height (the page's labels): cos-weighted over the globe
+        w = np.cos(np.radians(lat))[:, None] * np.ones((1, T.shape[-1]))
+        extras["zmean_km"] = {lev_key(p): round(float((Z[col.index(p)] * w).sum() / w.sum()) / 1000, 1) for p in LEVELS}
+
+    cap = {h: {} for h in HEMIS}
+    for th0 in THETAS:
+        q_pv, q_m, q_lnp = on_theta(th, (pv, mg, lnp), th0)
+        for h in HEMIS:
+            sign = 1.0 if h == "nh" else -1.0
+            x, m, pp = hemi(q_pv, h), hemi(q_m, h), np.exp(hemi(q_lnp, h))
+            mc, mq = UPR.q_auto(m)
+            img = image(MV.q_lin(lait(x, th0, sign), PV_OFF, PV_STEP), mc, q_logp(pp))
+            nbytes += write(outdir, h, f"pv{th0}", step, img)
+            meta.setdefault(f"pv{th0}", {})[h] = mq
+            if th0 in CAP_THETAS:
+                cap[h][str(th0)] = [round(cap_mean(sign * x, hlat[h]), 1), round(cap_mean(pp, hlat[h], True), 1)]
+            if step == 0:  # the surfaces' polar-cap pressure (the page's labels)
+                extras.setdefault("cap_hpa", {}).setdefault(h, {})[str(th0)] = round(cap_mean(pp, hlat[h], True), 1)
+
+    checks = {"cap": cap}
+    if step in QC_STEPS:
+        checks.update(check_absv(msgs, absv, col, lat))
+        checks.update(check_pv2(msgs, pv, col, lat))
+    checks["secs"], checks["fetch_secs"] = round(time.time() - t0, 1), round(t_fetch, 1)
+    return step, meta, nbytes, checks, (f.nreq - n0, f.nbytes - b0), extras
+
+
+def process_step_retry(date, hh, step, outdir, tries=3):
+    """process_step, tried again after a pause (a dropped connection); the step number alone when every try failed."""
+    for k in range(tries):
+        try:
+            return process_step(date, hh, step, outdir)
+        except Exception as e:  # noqa: BLE001
+            print(f"  +{step:03d} h attempt {k + 1}: {e!r}"[:400], flush=True)
+            if k < tries - 1:
+                time.sleep(30)
+    return step
+
+
+# ── checks ──────────────────────────────────────────────────────────────────────────────────────────────────────────
+def band(lat, lo, hi):
+    a = np.abs(lat)
+    return (a >= lo) & (a <= hi)
+
+
+def check_absv(msgs, absv, col, lat):
+    """zeta + f from this module's derivatives against the GFS's own ABSV, 20-85 deg, both hemispheres together."""
+    out = {}
+    rows = band(lat, 20, 85)
+    for p in ABSV_LEVELS:
+        ours, theirs = absv[col.index(p)][rows].ravel(), msgs[("ABSV", f"{p} mb")][rows].ravel().astype(np.float64)
+        ok = np.isfinite(ours) & np.isfinite(theirs)
+        a, b = ours[ok], theirs[ok]
+        out[f"absv/{p}"] = dict(
+            n=int(ok.sum()),
+            r=round(float(np.corrcoef(a, b)[0, 1]), 4),
+            rms_ratio=round(float(np.sqrt((a**2).mean() / (b**2).mean())), 4),
+            mae_rel=round(float(np.abs(a - b).mean() / np.abs(b).mean()), 4),
+        )
+    return out
+
+
+def check_pv2(msgs, pv, col, lat):
+    """The 2-PVU pressure from this PV (|PV|, searched downward from 100 hPa through the levels to 400 hPa, as
+    models.html's dynamic tropopause) against the GFS's own, 30-80 deg, where both lie between 100 and 400 hPa."""
+    ks = [col.index(p) for p in sorted(p for p in col if 100 <= p <= 400)]  # 100 hPa first
+    levs = [col[k] for k in ks]
+    stack = np.abs(pv[ks])
+    dt_ = UPR.dt_downward(stack, stack, stack, stack, levs)
+    out = {}
+    for h, sel in (("nh", lat > 0), ("sh", lat < 0)):
+        rows = sel & band(lat, 30, 80)
+        ours = np.where(dt_["top"] | dt_["none"], np.nan, dt_["p"])[rows]
+        theirs = msgs[("PRES", PV2[h])][rows] / 100.0
+        ok = np.isfinite(ours) & np.isfinite(theirs) & (theirs >= 100) & (theirs <= 400)
+        d = (ours[ok] - theirs[ok]).astype(np.float64)
+        out[f"pv2/{h}"] = dict(
+            n=int(ok.sum()),
+            bias_hpa=round(float(d.mean()), 1),
+            mae_hpa=round(float(np.abs(d).mean()), 1),
+            r=round(float(np.corrcoef(ours[ok], theirs[ok])[0, 1]), 3),
+            within_25hpa=round(float((np.abs(d) <= 25).mean()), 3),
+        )
+    return out
+
+
+def summarise(checks):
+    """The per-step checks -> the manifest's: medians over the check steps (and min, max); the cap means every step."""
+    out = {}
+    qc = [checks[s] for s in sorted(checks, key=int) if "pv2/nh" in checks[s]]
+    keys = sorted({(k, m) for c in qc for k, v in c.items() if isinstance(v, dict) and "n" in v for m in v if m != "n"})
+    for k, m in keys:
+        vals = [c[k][m] for c in qc if k in c and isinstance(c[k].get(m), (int, float))]
+        if vals:
+            out[f"{k}/{m}"] = dict(median=round(float(np.median(vals)), 4), min=min(vals), max=max(vals))
+    return out
+
+
+# ── plan / run ──────────────────────────────────────────────────────────────────────────────────────────────────────
+def complete(cyc_dt):
+    """Both 0.5 deg files of the last step are on the bucket (their .idx answer a HEAD)."""
+    date, hh, last = cyc_dt.strftime("%Y%m%d"), cyc_dt.strftime("%H"), STEPS[-1]
+    return all(MV.head_ok(url(date, hh, last, b) + ".idx") for b in (False, True))
+
+
+def load_manifest(path):
+    try:
+        return json.loads(Path(path).read_text())
+    except Exception:  # noqa: BLE001
+        return dict(model=MODEL, label=LABEL, source=SOURCE, cycles=[])
+
+
+def cmd_plan(a):
+    """Print the newest complete 00/12Z cycle not yet in the manifest (nothing if none). With --cycle: that cycle,
+    unless the manifest has it or a newer one (--force plans it anyway)."""
+    man = load_manifest(Path(a.manifests) / f"strat_{MODEL}.json")
+    have = {c["cycle"] for c in man.get("cycles", [])}
+    if a.cycle:
+        if have and max(have) >= a.cycle and not a.force:
+            print(f"{a.cycle}: the page already has {max(have)}", file=sys.stderr)
+        else:
+            print(a.cycle)
+        return
+    now = dt.datetime.now(dt.UTC).replace(minute=0, second=0, microsecond=0, tzinfo=None)
+    c = now.replace(hour=12 if now.hour >= 12 else 0)
+    for _ in range(4):
+        key = c.strftime("%Y%m%d%H")
+        if key in have:
+            return  # the newest published: nothing newer is complete
+        if complete(c):
+            print(key)
+            return
+        print(f"  {key}: not complete yet", file=sys.stderr)
+        c -= dt.timedelta(hours=12)
+
+
+def cmd_run(a):
+    key = a.cycle
+    cyc_dt = dt.datetime.strptime(key, "%Y%m%d%H")
+    date, hh = key[:8], key[8:]
+    steps = list(STEPS)
+    if os.environ.get("STRAT_STEPS"):  # testing only: a subset of the steps
+        steps = [int(x) for x in os.environ["STRAT_STEPS"].split(",")]
+    site = Path(a.site)
+    outdir = site / DATA / key
+    if outdir.exists():
+        shutil.rmtree(outdir)
+    outdir.mkdir(parents=True)
+    t_start = time.time()
+    per = {}  # file -> {step: {hemi: q}}
+    checks, failed, extras = {}, [], {}
+    nbytes = nreq = nb = 0
+    with ProcessPoolExecutor(a.procs) as pool:
+        futs = [pool.submit(process_step_retry, date, hh, s, str(outdir)) for s in steps]
+        for fu in as_completed(futs):
+            r = fu.result()
+            if isinstance(r, int):
+                failed.append(r)
+                continue
+            step, meta, b, ck, (n, bb), ex = r
+            for name, q in meta.items():
+                per.setdefault(name, {})[step] = q
+            checks[str(step)] = ck
+            extras.update(ex)
+            nbytes, nreq, nb = nbytes + b, nreq + n, nb + bb
+            print(
+                f"  +{step:03d} h: {b / 1e6:.2f} MB, fetched {bb / 1e6:.0f} MB in {n} requests in {ck['fetch_secs']} s, "
+                f"{ck['secs']} s in all",
+                flush=True,
+            )
+    wall = time.time() - t_start
+    if failed:
+        print(f"::error::{key}: steps {sorted(failed)} failed - not publishing a partial cycle")
+        sys.exit(1)
+    hours = sorted(steps)
+    fields = {}
+    for name, hs in per.items():
+        e = dict(hours=sorted(hs))
+        e["q"] = {h: [hs[s][h] for s in e["hours"]] for h in HEMIS}
+        fields[name] = e
+    ny, nx = 181, 720 + 2 * PAD
+    cap = {
+        h: {str(t): [checks[str(s)]["cap"][h][str(t)] for s in hours] for t in CAP_THETAS} for h in HEMIS
+    }  # [PV, hPa] per step
+    entry = dict(
+        cycle=key,
+        init=cyc_dt.strftime("%Y-%m-%dT%H:00Z"),
+        length=max(hours),
+        hours=hours,
+        levels=list(LEVELS),
+        thetas=list(THETAS),
+        grids={h: grid_desc(h, nx, ny) for h in HEMIS},
+        enc=dict(
+            t=dict(off=T_OFF, step=T_STEP),
+            pv=dict(off=PV_OFF, step=PV_STEP, ref=PV_REF, sh_sign=-1),
+            p=dict(lo=P_LO, hi=P_HI),
+        ),
+        fields=fields,
+        zmean_km=extras.get("zmean_km", {}),
+        cap_hpa=extras.get("cap_hpa", {}),
+        cap=dict(lat=CAP_LAT, values=cap),
+        bytes=nbytes,
+        fetch=dict(requests=nreq, mb=round(nb / 1e6, 1)),
+        checks=summarise(checks),
+        wall_s=round(wall, 1),
+        made=dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%MZ"),
+    )
+    nfiles = sum(len(e["hours"]) for e in fields.values()) * len(HEMIS)
+    print(
+        f"{key}: {nbytes / 1e6:.1f} MB in {nfiles} files, fetched {nb / 1e6:.0f} MB in {nreq} requests, wall {wall:.0f} s",
+        flush=True,
+    )
+    for kind in ("t", "w", "pv"):
+        sz = sum(p.stat().st_size for h in HEMIS for p in (outdir / h).glob(f"{kind}[0-9]*/*.webp"))
+        print(f"  {kind:3s} files {sz / 1e6:6.1f} MB")
+    print("checks: " + json.dumps(entry["checks"]), flush=True)
+
+    mpath = site / "assets/models" / f"strat_{MODEL}.json"
+    man = load_manifest(Path(a.manifest_in) if a.manifest_in else mpath)
+    cycles = sorted(
+        [c for c in man.get("cycles", []) if c["cycle"] != key] + [entry], key=lambda c: c["cycle"], reverse=True
+    )
+    keep, drop = cycles[:1], cycles[1:]  # the newest run only, as models.html
+    man.update(model=MODEL, label=LABEL, source=SOURCE, cycles=keep, updated=entry["made"])
+    mpath.parent.mkdir(parents=True, exist_ok=True)
+    mpath.write_text(json.dumps(man, separators=(",", ":")))
+    if a.lists:
+        L = Path(a.lists)
+        L.mkdir(parents=True, exist_ok=True)
+        stale = any(c["cycle"] == key for c in drop)  # a re-run of a cycle older than the one shown: not published
+        (L / "publish.txt").write_text("" if stale else f"{DATA}/{key}\n")
+        (L / "prune.txt").write_text("".join(f"{DATA}/{c['cycle']}\n" for c in drop))
+        (L / "floor.txt").write_text(f"{DATA}:{keep[0]['cycle']}\n")
+    print(f"manifest: keep {[c['cycle'] for c in keep]}, drop {[c['cycle'] for c in drop]}")
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    p = sub.add_parser("plan")
+    p.add_argument("--manifests", default="assets/models")
+    p.add_argument("--cycle", default="", help="YYYYMMDDHH: plan this cycle (skipped when already published)")
+    p.add_argument("--force", action="store_true")
+    p = sub.add_parser("run")
+    p.add_argument("--cycle", required=True)
+    p.add_argument("--site", default=".")
+    p.add_argument("--procs", type=int, default=4, help="steps processed at once (each fetches its own)")
+    p.add_argument("--lists", default="")
+    p.add_argument("--manifest-in", default="", help="the manifest to extend (main's CURRENT copy)")
+    a = ap.parse_args()
+    {"plan": cmd_plan, "run": cmd_run}[a.cmd](a)
+
+
+if __name__ == "__main__":
+    main()

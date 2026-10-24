@@ -52,6 +52,12 @@ PRODUCTS = [
                 "Zoomable maps of the newest IFS control (ECMWF's unperturbed 9 km run) and GDPS runs over South America to day 10: temperature, wind at the surface and at 925 and 850 hPa, rain and its type, accumulation, precipitable water, 850 hPa θe and simulated IR, with ECAPE, CAPE, shear and helicity computed on every column, airport meteograms, forecast soundings, contours and hover values.",
                 "Twice daily",
             ),
+            (
+                "/strat-models.html",
+                "Stratosphere, to day 16",
+                "Zoomable polar maps of the newest GFS run to day 16 at every stratospheric level from 100 to 0.4 hPa (temperature, height, wind speed and zonal wind) and Ertel potential vorticity on seven isentropic surfaces from 350 to 1600 K, both hemispheres, with contours and hover values.",
+                "Twice daily",
+            ),
         ],
     ),
     (
@@ -547,6 +553,7 @@ PAGES = [
     dict(path="ar.html", mode="after-body"),
     dict(path="models.html", mode="after-body"),  # short-range model viewer (scripts/models), WebGL
     dict(path="samerica-models.html", mode="after-body"),  # South America viewer (scripts/models/samerica.py), WebGL
+    dict(path="strat-models.html", mode="after-body"),  # stratosphere viewer (scripts/models/strat_maps.py), WebGL
     # snowbands.html: retired, now a noindex redirect stub to models.html#hrrr/sbing (no chrome)
     dict(path="catalog.html", mode="after-body"),  # every plot on the site (scripts/site/build_catalog.py)
     dict(path="aifs-aam-budget.html", mode="after-body"),  # static study, built offline
@@ -851,7 +858,7 @@ HOME = {
     "Model maps": (
         "models",
         "The newest model runs, zoomable, with hover values and soundings",
-        ["/models.html", "/samerica-models.html"],
+        ["/models.html", "/samerica-models.html", "/strat-models.html"],
     ),
     "Mid-latitude weather": (
         "weather",
