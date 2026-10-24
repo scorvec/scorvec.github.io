@@ -5,6 +5,7 @@ name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, wave
 # feed, and the days 1-15 GEFS and GEPS versions of the same products (naens job, below):
 #
 #   nh_vortex.py --record-only -> data/runs/vortex_{ifs,hres,gdps,geosfp}.json (maps), vortex_{gefs,geps}.json (naens)
+#                            + (--members) assets/sst/vortex_members_{ifs,gefs,geps}.webp, each ensemble member by member
 #   run_record.py capture -> data/runs/{heatflux,drip}_<model>.json + assets/sst/runs/<product>_<model>.webp: each
 #                            model's run-to-run record and figure, from the JSON its products just wrote
 #   heatflux100_ext.py    -> assets/sst/ifs_heatflux100_{nh,sh}.webp   + data/ifs_heatflux100.json (the control line)
@@ -250,7 +251,7 @@ jobs:
         continue-on-error: true
         run: |
           M=gdps,geosfp,hres; [ "$READY" = "true" ] && M=gdps,geosfp,hres,ifs
-          python scripts/strat/nh_vortex.py --record-only --models "$M" --cycle "$D$T" \
+          python scripts/strat/nh_vortex.py --record-only --members --models "$M" --cycle "$D$T" \
             || echo "::warning::nh_vortex failed; the records keep their previous runs"
 
       - name: Eddy heat flux, 100 hPa (IFS-ENS)
@@ -372,7 +373,8 @@ jobs:
           for p in assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/data/ifs_heatflux100.json \
                    assets/sst/ifs_drip.webp assets/sst/ifs_drip_change.webp assets/sst/data/ifs_drip.json assets/sst/hres_drip.webp assets/sst/hres_drip_change.webp assets/sst/data/hres_drip.json \
                    assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
-                   assets/sst/data/runs/vortex_{ifs,hres,gdps,geosfp}.json assets/sst/data/runs/{heatflux,drip,waves}_ifs.json \
+                   assets/sst/data/runs/vortex_{ifs,hres,gdps,geosfp}.json assets/sst/vortex_members_ifs.webp \
+                   assets/sst/data/runs/{heatflux,drip,waves}_ifs.json \
                    assets/sst/data/runs/{drip,waves}_hres.json assets/sst/runs/{heatflux,drip,waves}_ifs.webp \
                    assets/sst/runs/{drip,waves}_hres.webp \
                    assets/sst/polarcap_ifs.webp assets/sst/telecon_ifs.webp assets/sst/anim/polarcap_ifs_manifest.json \
@@ -548,7 +550,7 @@ jobs:
           for m in $MODELS; do
             M=$(echo "$m" | tr a-z A-Z); dv=${M}_D tv=${M}_T sv=${M}_SKIP
             [ "${!sv}" = "true" ] || [ -z "${!dv}" ] && continue
-            python scripts/strat/nh_vortex.py --record-only --models "$m" --cycle "${!dv}${!tv}" \
+            python scripts/strat/nh_vortex.py --record-only --members --models "$m" --cycle "${!dv}${!tv}" \
               || echo "::warning::$m vortex record failed"
             for p in heatflux drip; do
               python scripts/strat/run_record.py capture "$p" --model "$m" || echo "::warning::$m $p record failed"
@@ -590,7 +592,7 @@ jobs:
                      assets/sst/polarcap_${m}.webp assets/sst/anim/polarcap_${m} assets/sst/anim/polarcap_${m}_manifest.json \
                      assets/sst/telecon_${m}.webp assets/sst/anim/z100_${m} assets/sst/anim/z100_${m}_manifest.json \
                      assets/sst/vshape_${m}.webp assets/sst/anim/t10_${m} assets/sst/anim/t10_${m}_manifest.json \
-                     assets/sst/descent_${m}.webp \
+                     assets/sst/descent_${m}.webp assets/sst/vortex_members_${m}.webp \
                      assets/sst/data/runs/{vortex,heatflux,drip,waves,polarcap,telecon,vshape,descent}_${m}.json \
                      assets/sst/runs/{heatflux,drip,waves,polarcap,telecon,vshape,descent}_${m}.webp; do
               [ -e "$p" ] && [ "$p" -nt /tmp/t0 ] && echo "$p" >> /tmp/naens.list
@@ -888,7 +890,7 @@ jobs:
                    assets/sst/anim/t10_ifs_manifest.json assets/sst/anim/t10_gefs_manifest.json \
                    assets/sst/anim/t10_geps_manifest.json \
                    assets/sst/descent_ifs.webp assets/sst/descent_sectors_ifs.webp assets/sst/descent_gefs.webp \
-                   assets/sst/anim/descent_{ifs,hres}_manifest.json \
+                   assets/sst/anim/descent_{ifs,hres}_manifest.json assets/sst/vortex_members_{ifs,gefs,geps}.webp \
                    assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
                    assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_ifs.json \
                    assets/sst/ssw_imprint.webp assets/sst/data/ssw_imprint.json assets/sst/data/ssw_imprint_history.json \

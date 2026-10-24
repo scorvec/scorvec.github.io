@@ -72,6 +72,11 @@ nothing fetched), so it moves model by model through the cycle.
 
     python scripts/strat/nh_vortex.py --models ifs,hres --cycle 2026102312 --record-only   # record two models' runs
     python scripts/strat/nh_vortex.py --from-records                                       # the figure
+
+MEMBERS (--members, with --record-only): the job that records an ensemble also draws its run member by member,
+vortex_members_{aifs,ifs,gefs,geps}.webp: u60 at 10 and 100 hPa of every member, the members' mean and the control,
+the members that turn easterly at 10 hPa by day SSW_DAYS picked out in both panels. The backfill records past runs
+without it, so the figures stay on each ensemble's newest run.
 """
 
 from __future__ import annotations
@@ -90,6 +95,8 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib import patheffects
+from matplotlib.lines import Line2D
 from quantmet.degdays import doy366
 
 import geosfp_cap
@@ -111,6 +118,7 @@ FP_CAP_TAIL = REPO / "assets" / "sst" / "data" / "geosfp_cap_history.json"
 CACHE = REPO / "scripts" / "ecmwf" / "cache"
 DL = DATA / "vortex_dl"  # downloaded GRIB, reused within a cycle
 OUT = REPO / "assets" / "sst" / "nh_vortex.webp"
+MEMBERS_OUT = REPO / "assets" / "sst" / "vortex_members_{m}.webp"
 
 PHI = 60.0  # WMO 60N for the SSW criterion
 CAP = (65.0, 90.0)  # polar cap for the 100 hPa height anomaly
@@ -297,10 +305,10 @@ def load_ens(model, date, cyc):
         return None
     keep = SE.complete_members(d, "zcap")
     idx = pd.Timestamp(f"{d0[:4]}-{d0[4:6]}-{d0[6:]} {h0}:00") + pd.to_timedelta(list(SE.LEADS_VORTEX), unit="h")
-    return {
-        "u10": pd.DataFrame(d["u60"][keep, :, 0].T, index=idx),
-        "u100": pd.DataFrame(d["u60"][keep, :, 1].T, index=idx),
-        "zcap": pd.DataFrame(d["zcap"][keep].T, index=idx),
+    return {  # columns = member numbers: 0 is the control
+        "u10": pd.DataFrame(d["u60"][keep, :, 0].T, index=idx, columns=keep),
+        "u100": pd.DataFrame(d["u60"][keep, :, 1].T, index=idx, columns=keep),
+        "zcap": pd.DataFrame(d["zcap"][keep].T, index=idx, columns=keep),
     }
 
 
@@ -649,6 +657,103 @@ def draw_model(ax, run, key, m):
                 label=f"{lab} {init:%-d/%HZ}" + ("" if m in CONTROLS else " (det)"))  # fmt: skip
 
 
+MEMBER_MODELS = ("aifs", "ifs", "gefs", "geps")  # the ensembles drawn member by member (--members)
+CONTROL_COLUMN = {"aifs": "cf", "gefs": 0, "geps": 0}  # the control's column in the ensemble's frames; IFS's is hres
+MEMBER_TAIL_DAYS = 7
+EAST = "#b8322a"  # members easterly at 10 hPa by day SSW_DAYS
+MEMBER = "#8f8a80"  # the other members: neutral, so the highlight reads against every model's colour
+
+
+def draw_members(m: str, fc: dict, clim: dict, obs: dict, out: Path) -> bool:
+    """One ensemble's run member by member: u60 at 10 and 100 hPa of every member (thin), the members' mean (bold), the
+    control (dashed), against the MERRA-2 day-of-year 10-90 % and the GEOS FP analysis tail. The members easterly at
+    10 hPa on some day to day SSW_DAYS are drawn red in both panels."""
+    d = fc[m]
+    u10 = d.get("u10")
+    if u10 is None or u10.shape[1] < 5:
+        return False
+    col, lab = STYLE[m]
+    init = u10.index[0]
+    ccol = CONTROL_COLUMN.get(m)
+    ctrl = {k: v[ccol] for k, v in d.items() if v is not None and ccol in v} if ccol is not None else {}
+    if m == "ifs" and fc.get("hres"):
+        ctrl = {k: v[0] for k, v in fc["hres"].items() if v is not None}
+    cut = init + pd.Timedelta(days=SSW_DAYS)
+    east = (u10[u10.index <= cut] < 0).any(axis=0)
+    n, k = len(east), int(east.sum())
+    inc = ", control included" if ccol is not None and ccol in u10 else ""
+    c10 = ctrl.get("u10")
+    ceast = c10 is not None and bool((c10[c10.index <= cut] < 0).any())
+    t0 = init - pd.Timedelta(days=MEMBER_TAIL_DAYS)
+    t1 = max(f.index[-1] for f in (d.get("u10"), d.get("u100")) if f is not None)
+    span = pd.date_range(t0.normalize(), t1.ceil("D"), freq="D")
+    y0 = min(s.index[0] for s in clim.values()).year
+    y1 = max(s.index[-1] for s in clim.values()).year
+
+    fig, axes = plt.subplots(2, 1, figsize=(12, 8.4), sharex=True)
+    for ax, key, lev in zip(axes, ("u10", "u100"), (10, 100)):
+        q10, q50, q90 = (q.reindex(_cday(span)).values for q in clim_doy(clim[key]))
+        ax.fill_between(span, q10, q90, color="#e6e3dc", lw=0, zorder=0)
+        ax.plot(span, q50, color="#9a958c", ls=":", lw=1.1, zorder=1)
+        f = d.get(key)
+        if f is None:
+            ax.text(0.5, 0.5, f"no {lev} hPa wind in this run", transform=ax.transAxes, ha="center", color="#6f6b64")
+            continue
+        for c in f.columns:
+            if c == ccol:
+                continue
+            s = f[c].dropna()
+            e = bool(east.get(c, False))
+            ax.plot(s.index, s.values, color=EAST if e else MEMBER, lw=0.9 if e else 0.7, alpha=0.8 if e else 0.5,
+                    zorder=3 if e else 2)  # fmt: skip
+        if key in ctrl:
+            s = ctrl[key].dropna()
+            ax.plot(s.index, s.values, color=EAST if ceast else "#3d3a35", lw=1.6, ls="--", zorder=5)
+        mean = f.mean(axis=1)
+        ax.plot(mean.index, mean.values, color=col, lw=2.8, zorder=6,
+                path_effects=[patheffects.Stroke(linewidth=4.8, foreground="white"), patheffects.Normal()])  # fmt: skip
+        o = obs.get(key)
+        if o is not None:
+            o = o[(o.index >= t0) & (o.index <= init)]
+            ax.plot(o.index, o.values, color="#1a1a1a", lw=2.4, zorder=7)
+        ax.axvline(init, color="#8a8680", lw=1, zorder=4)
+        if key == "u10":
+            ax.axhline(0, color="#a33", lw=1.5, zorder=4)
+            ax.text(0.005, 0.04, f"{k} of {n} members{inc} easterly on some day to day {SSW_DAYS} (red) — easterly here "
+                    "= SSW (WMO)", transform=ax.transAxes, fontsize=8.5, color="#a33", style="italic", zorder=8,
+                    bbox={"fc": "white", "ec": "none", "alpha": 0.85, "pad": 1.5})  # fmt: skip
+        elif ax.get_ylim()[0] < 0:
+            ax.axhline(0, color="#8a8680", lw=1, ls=":", zorder=4)
+        ax.set_ylabel(f"u at {lev} hPa, 60°N  (m s$^{{-1}}$)")
+        ax.grid(alpha=0.22)
+    handles = [
+        Line2D([], [], color=MEMBER, lw=0.9, alpha=0.7, label=f"members ({n}{inc})"),
+        Line2D([], [], color=EAST, lw=1.1, label=f"members easterly at 10 hPa by day {SSW_DAYS} ({k})"),
+        Line2D([], [], color=col, lw=2.8, label="members' mean"),
+    ]
+    if ctrl:
+        handles.append(
+            Line2D([], [], color="#3d3a35", lw=1.6, ls="--", label="IFS control" if m == "ifs" else "control")
+        )
+    handles += [
+        Line2D([], [], color="#1a1a1a", lw=2.4, label="GEOS FP analysis"),
+        Line2D([], [], color="#e6e3dc", lw=7, label=f"MERRA-2 {y0}–{y1} 10–90% (dotted: median)"),
+    ]
+    axes[0].legend(handles=handles, loc="upper left", fontsize=7.6, ncol=3, framealpha=0.9)
+    axes[0].set_xlim(t0, t1)
+    fig.suptitle(f"{lab} {init:%Y-%m-%d %HZ}: every member's polar-vortex wind (zonal mean at 60°N)", fontsize=14,
+                 fontweight="bold", y=0.995)  # fmt: skip
+    fig.text(0.5, 0.004, "Vertical line = the start; to its left the GEOS FP analyses (daily mean of 00/06/12/18Z). "
+             "Raw model output.", ha="center", va="bottom", fontsize=8, color="#6f6b64")  # fmt: skip
+    fig.autofmt_xdate()
+    fig.tight_layout(rect=(0, 0.02, 1, 0.985))
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=112, facecolor="white", bbox_inches="tight", pil_kwargs={"quality": 88, "method": 6})
+    plt.close(fig)
+    print(f"wrote {out} ({k} of {n} members easterly by day {SSW_DAYS})", flush=True)
+    return True
+
+
 def render(out: Path) -> int:
     """The figure from every model's newest recorded run (no download): each model on its own start."""
     runs = newest_runs()
@@ -785,6 +890,11 @@ def main() -> int:
     mode.add_argument(
         "--from-records", action="store_true", help="draw the figure from every model's newest record, nothing fetched"
     )
+    ap.add_argument(
+        "--members",
+        action="store_true",
+        help="also draw each ensemble's run member by member (vortex_members_{m}.webp)",
+    )
     a = ap.parse_args()
     if a.from_records:
         return render(Path(a.out))
@@ -851,6 +961,11 @@ def main() -> int:
             flush=True,
         )
     record_runs(fc, clim_doy(clim["zcap"])[1])
+    if a.members:
+        obs = analysis()
+        for m in MEMBER_MODELS:
+            if m in fc:
+                draw_members(m, fc, clim, obs, Path(str(MEMBERS_OUT).format(m=m)))
     return 0 if a.record_only else render(Path(a.out))
 
 
