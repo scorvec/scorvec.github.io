@@ -8,7 +8,7 @@ name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, wave
 #   run_record.py capture -> data/runs/{heatflux,drip}_<model>.json + assets/sst/runs/<product>_<model>.webp: each
 #                            model's run-to-run record and figure, from the JSON its products just wrote
 #   heatflux100_ext.py    -> assets/sst/ifs_heatflux100_{nh,sh}.webp   + data/ifs_heatflux100.json (the control line)
-#   forecast_drip.py      -> assets/sst/{ifs,hres}_drip.webp           + data/{ifs,hres}_drip.json
+#   forecast_drip.py      -> assets/sst/{ifs,hres}_drip{,_change}.webp + data/{ifs,hres}_drip.json (_change: against the run a day earlier)
 #                            (both with the IFS-ENS drift, reference/ifs_capdrift.json)
 #   wave_maps.py          -> assets/sst/anim/wave{1,2}_{ifs,hres}_{nh,sh}/ + wave{1,2}_maps_{ifs,hres}_manifest.json
 #   vortex_winds.py       -> assets/sst/anim/vortex_{ifs,hres}_{10,100}_{nh,sh}/ + vortex_winds_{ifs,hres}_manifest.json
@@ -359,7 +359,7 @@ jobs:
           set -euo pipefail
           : > /tmp/maps.list
           for p in assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/data/ifs_heatflux100.json \
-                   assets/sst/ifs_drip.webp assets/sst/data/ifs_drip.json assets/sst/hres_drip.webp assets/sst/data/hres_drip.json \
+                   assets/sst/ifs_drip.webp assets/sst/ifs_drip_change.webp assets/sst/data/ifs_drip.json assets/sst/hres_drip.webp assets/sst/hres_drip_change.webp assets/sst/data/hres_drip.json \
                    assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
                    assets/sst/data/runs/vortex_{ifs,hres,gdps,geosfp}.json assets/sst/data/runs/{heatflux,drip,waves}_ifs.json \
                    assets/sst/data/runs/{drip,waves}_hres.json assets/sst/runs/{heatflux,drip,waves}_ifs.webp \
@@ -565,7 +565,7 @@ jobs:
           : > /tmp/naens.list
           for m in $MODELS; do
             for p in assets/sst/${m}_heatflux100_nh.webp assets/sst/${m}_heatflux100_sh.webp assets/sst/data/${m}_heatflux100.json \
-                     assets/sst/${m}_drip.webp assets/sst/data/${m}_drip.json \
+                     assets/sst/${m}_drip.webp assets/sst/${m}_drip_change.webp assets/sst/data/${m}_drip.json \
                      assets/sst/anim/wave1_${m}_nh assets/sst/anim/wave1_${m}_sh assets/sst/anim/wave2_${m}_nh assets/sst/anim/wave2_${m}_sh \
                      assets/sst/anim/wave1_maps_${m}_manifest.json assets/sst/anim/wave2_maps_${m}_manifest.json \
                      assets/sst/anim/vortex_${m}_10_nh assets/sst/anim/vortex_${m}_10_sh assets/sst/anim/vortex_${m}_100_nh \
@@ -851,11 +851,11 @@ jobs:
           git config user.email "26825570+scorvec@users.noreply.github.com"
           for f in assets/sst/data/runs/*.json assets/sst/runs/*.webp \
                    assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/data/ifs_heatflux100.json \
-                   assets/sst/ifs_drip.webp assets/sst/data/ifs_drip.json assets/sst/hres_drip.webp assets/sst/data/hres_drip.json \
+                   assets/sst/ifs_drip.webp assets/sst/ifs_drip_change.webp assets/sst/data/ifs_drip.json assets/sst/hres_drip.webp assets/sst/hres_drip_change.webp assets/sst/data/hres_drip.json \
                    assets/sst/anim/wave1_maps_ifs_manifest.json assets/sst/anim/wave2_maps_ifs_manifest.json assets/sst/anim/vortex_winds_ifs_manifest.json \
                    assets/sst/anim/wave1_maps_hres_manifest.json assets/sst/anim/wave2_maps_hres_manifest.json assets/sst/anim/vortex_winds_hres_manifest.json \
                    assets/sst/gefs_heatflux100_*.webp assets/sst/geps_heatflux100_*.webp assets/sst/data/gefs_heatflux100.json assets/sst/data/geps_heatflux100.json \
-                   assets/sst/gefs_drip.webp assets/sst/geps_drip.webp assets/sst/data/gefs_drip.json assets/sst/data/geps_drip.json \
+                   assets/sst/gefs_drip.webp assets/sst/geps_drip.webp assets/sst/gefs_drip_change.webp assets/sst/geps_drip_change.webp assets/sst/data/gefs_drip.json assets/sst/data/geps_drip.json \
                    assets/sst/anim/wave1_maps_gefs_manifest.json assets/sst/anim/wave2_maps_gefs_manifest.json assets/sst/anim/vortex_winds_gefs_manifest.json \
                    assets/sst/anim/wave1_maps_geps_manifest.json assets/sst/anim/wave2_maps_geps_manifest.json assets/sst/anim/vortex_winds_geps_manifest.json \
                    assets/sst/anim/pacjet_ifs_manifest.json assets/sst/pacjet_ifs_*.webp assets/sst/data/pacjet_ifs.json \

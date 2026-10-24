@@ -330,7 +330,7 @@ jobs:
           set -euo pipefail
           : > /tmp/light.list
           for p in assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp assets/sst/data/heatflux100.json assets/sst/data/heatflux100_history.json \
-                   assets/sst/aifs_drip.webp assets/sst/data/aifs_drip.json \
+                   assets/sst/aifs_drip.webp assets/sst/aifs_drip_change.webp assets/sst/data/aifs_drip.json \
                    assets/regimes/data/regimes_members_aifs.json assets/regimes/data/regimes_drift_aifs.json \
                    assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh assets/sst/anim/wave2_nh assets/sst/anim/wave2_sh \
                    assets/sst/anim/vortex_10_nh assets/sst/anim/vortex_10_sh assets/sst/anim/vortex_100_nh assets/sst/anim/vortex_100_sh \
@@ -341,7 +341,7 @@ jobs:
                    assets/sst/vshape_aifs.webp assets/sst/anim/t10_aifs assets/sst/anim/t10_aifs_manifest.json \
                    assets/sst/data/runs/{heatflux,drip,waves,polarcap,telecon,vshape}_aifs.json \
                    assets/sst/runs/{heatflux,drip,waves,polarcap,telecon,vshape}_aifs.webp \
-                   assets/sst/aifsc_drip.webp assets/sst/data/aifsc_drip.json \
+                   assets/sst/aifsc_drip.webp assets/sst/aifsc_drip_change.webp assets/sst/data/aifsc_drip.json \
                    assets/sst/anim/wave1_aifsc_nh assets/sst/anim/wave1_aifsc_sh assets/sst/anim/wave2_aifsc_nh assets/sst/anim/wave2_aifsc_sh \
                    assets/sst/anim/wave1_maps_aifsc_manifest.json assets/sst/anim/wave2_maps_aifsc_manifest.json \
                    assets/sst/anim/vortex_aifsc_10_nh assets/sst/anim/vortex_aifsc_10_sh assets/sst/anim/vortex_aifsc_100_nh \
@@ -635,7 +635,7 @@ jobs:
           git config user.email "26825570+scorvec@users.noreply.github.com"
           # one path at a time: `git add a b c` adds NOTHING when any one of them is missing (a product that failed)
           for f in assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp assets/sst/data/heatflux100.json assets/sst/data/heatflux100_history.json \
-                   assets/sst/aifs_drip.webp assets/sst/data/aifs_drip.json assets/sst/anim/*_manifest.json \
+                   assets/sst/aifs_drip.webp assets/sst/aifs_drip_change.webp assets/sst/data/aifs_drip.json assets/sst/anim/*_manifest.json \
                    assets/sst/polarcap_aifs.webp assets/sst/telecon_aifs.webp assets/sst/vshape_aifs.webp \
                    assets/regimes/data/regimes_members_aifs.json assets/regimes/data/regimes_drift_aifs.json \
                    assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_aifs.json \
@@ -643,7 +643,7 @@ jobs:
                    assets/sst/data/pacjet_aifs.json assets/sst/data/pacjet_analysis.json \
                    assets/sst/refractive_gefs.webp assets/sst/data/refractive_gefs.json \
                    assets/sst/data/runs/*_aifs.json assets/sst/runs/*_aifs.webp \
-                   assets/sst/aifsc_drip.webp assets/sst/data/aifsc_drip.json \
+                   assets/sst/aifsc_drip.webp assets/sst/aifsc_drip_change.webp assets/sst/data/aifsc_drip.json \
                    assets/sst/data/runs/*_aifsc.json assets/sst/runs/*_aifsc.webp; do
             if [ -e "$f" ]; then git add "$f"; fi
           done

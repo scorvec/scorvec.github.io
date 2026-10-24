@@ -647,7 +647,7 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
 </template>
 <template id="about-fdrip">
 <p>The <b>dripping-paint</b> view of the forecasts: the polar-cap (65&ndash;90&deg;N) geopotential height at eleven
-        levels from 1000 to 10&nbsp;hPa, standardised exactly as in the MERRA-2 history drips (anomaly from a 4-harmonic
+        levels from 1000 to 10&nbsp;hPa (GEFS sixteen, to 1&nbsp;hPa: the other models&rsquo; open data stop at 10&nbsp;hPa), standardised exactly as in the MERRA-2 history drips (anomaly from a 4-harmonic
         seasonal cycle and linear trend, divided by the seasonal standard deviation), so a forecast can be read against
         the historical composites. Red is a high cap: a warm, weak vortex, and near the ground a negative Arctic
         Oscillation. Left of the line are the <b>last 60 days observed</b> in GEOS FP analyses; right of it the
@@ -661,7 +661,7 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
 <li><b>GEPS</b>: from the GEPS reforecasts in the ECMWF S2S archive (2001&ndash;2020, control + 3 members, start dates
         within 8 days of the forecast's day of year). 10 and 100&nbsp;hPa are corrected; the other levels are added as
         their reforecasts arrive from the archive.</li>
-<li><b>GEFS</b>: from the GEFSv12 reforecast daily climatology (2000&ndash;2019), which holds 10, 100 and 500&nbsp;hPa.</li>
+<li><b>GEFS</b>: from the GEFSv12 reforecast daily climatology (2000&ndash;2019), which holds 10, 100 and 500&nbsp;hPa; its five levels above 10&nbsp;hPa (7, 5, 3, 2 and 1&nbsp;hPa, from its pgrb2b files) are hatched. Their MERRA-2 scale includes the step at August 2004, when MERRA-2 starts assimilating Aura MLS, as the history drips&rsquo; does at 5&nbsp;hPa and above.</li>
 <li><b>AIFS-ENS</b>: no reforecast exists, so its control's cap forecasts from 25 recent cycles are verified against
         the GEOS FP analyses and the mean error at each level and lead is removed where it is significant (more than
         twice its standard error). It is small for the first week and rises to +15 to +45&nbsp;m by days 10&ndash;15.</li>
@@ -685,6 +685,7 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
         30&ndash;40&nbsp;m low at the start (AIFS-ENS 11&nbsp;m) by definition alone. The lower panel shows the 1000&nbsp;hPa cap (a proxy for the Arctic Oscillation; high = negative
         AO) and the share of members with the 100&nbsp;hPa cap at least one standard deviation high, the level that couples
         to the troposphere.</p>
+<p><b>Change since a day earlier</b> (View: Change). The newest run&rsquo;s drip minus the same model&rsquo;s run 24&nbsp;hours earlier (12&nbsp;hours when that one is missing), at the valid dates and levels both cover, in the same standard deviations: red is a cap now forecast higher, a vortex weaker than the earlier run said. The newest run is contoured over it, and the lower panel follows the change at 1000, 100, 10 and (GEFS) 1&nbsp;hPa. Both runs have the same drift removed, so the change is the forecast&rsquo;s own movement. Ensemble means move less from run to run than single runs do.</p>
 <p><b>Run to run</b> (View: Run to run). The 10 and 100&nbsp;hPa rows of the drip, the ensemble mean of each of the model&rsquo;s last eight runs over one another (the newest with &plusmn; one member standard deviation), the change of the newest run against the run a day earlier over its days 6&ndash;15, and every run of the last 30 days with its share of members whose 100&nbsp;hPa cap is at +1&nbsp;sd or more on the last day.</p>
 <p class="chart-sources">ECCC GEPS (MSC Datamart), NOAA GEFS (AWS Open Data), ECMWF AIFS-ENS open data (CC&nbsp;BY&nbsp;4.0),
         ECMWF IFS-ENS open data, all 50 perturbed members, and the IFS control, 0.25&deg; (CC&nbsp;BY&nbsp;4.0, Google
@@ -1060,7 +1061,7 @@ window.STAGE = {
   fdrip: {label: "Forecast dripping paint, days 1–35", a: {label: "Model", items: [["geps","GEPS"],["gefs","GEFS"]]},
           img: function (a) { return a === "gefs" ? "assets/gefs/gefs_drip.webp" : "assets/geps/geps_drip.webp"; },
           bust: "hourly", about: "about-fdrip", fit: false,
-          cap: function (a) { return "Standardised polar-cap height from 1000 to 10 hPa: the last 60 days observed (GEOS FP), then the "
+          cap: function (a) { return "Standardised polar-cap height from 1000 to " + (a === "gefs" ? "1" : "10") + " hPa: the last 60 days observed (GEOS FP), then the "
                                      + (a === "gefs" ? "GEFS" : "GEPS") + " ensemble mean to day 35 with the model's drift removed where it has been measured; hatched levels are not drift-corrected. Same scale as the history drips."; }},
   descent: {label: "Downward propagation monitor", img: function () { return "assets/sst/ssw_imprint.webp"; }, bust: "hourly", about: "about-descent", fit: false,
           cap: function () { return "Is the stratosphere's anomaly coming down? The 10 and 100 hPa polar cap and the surface's SSW imprint index (sea-level pressure on the CMIP6 post-SSW pattern) for every ensemble, and the chance the imprint is positive over the month after day 15. November to April."; }},
@@ -1096,11 +1097,12 @@ window.STAGE = {
                                  if (a === "maps") return m + ": ensemble-mean sea-level pressure and 500 hPa height, the anomaly from ERA5 1991–2020 shaded where enough members agree on its sign for a sign test at 5 %; days 1–5, 6–10, 11–15, then each day.";
                                  return m + ": every member's polar-cap (65–90°N) sea-level pressure and 500 hPa height anomaly from ERA5 1991–2020 to day 15, the members' mean bold. Above zero = high pressure over the Arctic (negative Arctic Oscillation)."; }},
   fdrip15: {label: "Forecast dripping paint, days 1–15", a: {label: "Model", items: [["aifs","AIFS-ENS"],["aifsc","AIFS-ENS control"],["ifs","IFS-ENS"],["hres","IFS control"],["gefs","GEFS"],["geps","GEPS"]]},
-          b: {label: "View", items: [["now","This run"],["runs","Run to run"]]},
-          img: function (a, b) { return b === "runs" ? "assets/sst/runs/drip_" + a + ".webp" : "assets/sst/" + a + "_drip.webp"; },
+          b: {label: "View", items: [["now","This run"],["change","Change since a day earlier"],["runs","Run to run"]]},
+          img: function (a, b) { return b === "runs" ? "assets/sst/runs/drip_" + a + ".webp" : "assets/sst/" + a + (b === "change" ? "_drip_change.webp" : "_drip.webp"); },
           bust: "hourly", about: "about-fdrip", fit: false,
-          cap: function (a, b) { if (b === "runs") return "How the last runs have moved the 10 and 100 hPa polar-cap height (ensemble mean, sd of the day’s normal), and each run’s share of members with the 100 hPa cap at +1 sd or more on its last day.";
-                                 return "Standardised polar-cap height from 1000 to 10 hPa: the last 60 days observed (GEOS FP), then the "
+          cap: function (a, b) { if (b === "change") return "The newest run's dripping paint minus the same model's run a day earlier, at the valid dates both cover, in standard deviations; red = the polar cap now forecast higher, the vortex weaker. The newest run is contoured.";
+                                 if (b === "runs") return "How the last runs have moved the 10 and 100 hPa polar-cap height (ensemble mean, sd of the day’s normal), and each run’s share of members with the 100 hPa cap at +1 sd or more on its last day.";
+                                 return "Standardised polar-cap height from 1000 to " + (a === "gefs" ? "1" : "10") + " hPa: the last 60 days observed (GEOS FP), then the "
                                      + (a === "hres" ? "IFS control, one run, to day 15 with the IFS-ENS drift removed where it has been measured" : a === "aifsc" ? "AIFS-ENS control, one run, to day 15 with the AIFS-ENS drift removed where it has been measured"
                                                      : {aifs: "AIFS-ENS", ifs: "IFS-ENS (50 members)", gefs: "GEFS (31 members)", geps: "GEPS (21 members)"}[a] + " ensemble mean to day 15 with the model's drift removed where it has been measured")
                                      + "; hatched levels are not drift-corrected. Same scale as the history drips."; }},

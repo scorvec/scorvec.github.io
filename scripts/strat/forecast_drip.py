@@ -66,7 +66,8 @@ sys.path.insert(0, str(HERE))
 from build_drip_ref import Ref
 import geosfp_cap as FP
 
-LEVELS = FP.LEVELS  # 1000 ... 10 hPa (11)
+LEVELS = FP.LEVELS  # 1000 ... 1 hPa (16): GEFS
+LEVELS_10 = [L for L in LEVELS if L >= 10.0]  # 1000 ... 10 hPa (11): what ECMWF open data and GEPS carry
 NAME = {
     "geps": "GEPS",
     "gefs": "GEFS",
@@ -78,6 +79,11 @@ NAME = {
 G = 9.80665
 TAIL = 60
 INK, MUTED = "#1f2328", "#6f6b64"
+
+
+def levels_of(model: str) -> list:
+    """The model's drip levels: GEFS to 1 hPa (its pgrb2b files), the others to 10 hPa."""
+    return LEVELS if model == "gefs" else LEVELS_10
 
 
 def cap_of(field: np.ndarray, lat: np.ndarray) -> float:
@@ -135,14 +141,14 @@ def geps(date: str):
             f.unlink(missing_ok=True)
         return li, ki, caps
 
-    jobs = [(li, ki, L, lev) for li, L in enumerate(leads) for ki, lev in enumerate(LEVELS)]
+    jobs = [(li, ki, L, lev) for li, L in enumerate(leads) for ki, lev in enumerate(LEVELS_10)]
     C = None
     with ThreadPoolExecutor(sm.datamart.WORKERS) as ex:  # polite: the Datamart is a shared service
         for li, ki, caps in ex.map(one, jobs):
             if not caps:
                 continue
             if C is None:
-                C = np.full((max(caps) + 1, len(leads), len(LEVELS)), np.nan)
+                C = np.full((max(caps) + 1, len(leads), len(LEVELS_10)), np.nan)
             for n, v in caps.items():
                 if n < C.shape[0]:
                     C[n, li, ki] = v
@@ -161,18 +167,19 @@ def gefs(date: str, workers: int = 32):
 
     def one(job):
         mi, li, L = job
-        url = f"{S3}/gefs.{date}/00/atmos/pgrb2ap5/{mems[mi]}.t00z.pgrb2a.0p50.f{L:03d}"
-        try:
-            idx = R.index(url)
-        except Exception:  # noqa: BLE001
-            return mi, li, None
-        out = {}
         tag = "anl" if L == 0 else f"{L} hour fcst"
-        for lev in LEVELS:
-            hit = [e for e in idx if e[4] == "HGT" and e[2] == f"{int(lev)} mb" and e[3] == tag]
-            if not hit:
+        out = {}
+        for ab, levs in (("a", LEVELS_10), ("b", LEVELS[len(LEVELS_10) :])):  # above 10 hPa: the pgrb2b files
+            url = f"{S3}/gefs.{date}/00/atmos/pgrb2{ab}p5/{mems[mi]}.t00z.pgrb2{ab}.0p50.f{L:03d}"
+            try:
+                idx = R.index(url)
+            except Exception:  # noqa: BLE001
                 return mi, li, None
-            out[lev] = cap_of(R.decode(R.get(url, (hit[0][0], hit[0][1]))), lat)
+            for lev in levs:
+                hit = [e for e in idx if e[4] == "HGT" and e[2] == f"{int(lev)} mb" and e[3] == tag]
+                if not hit:
+                    return mi, li, None
+                out[lev] = cap_of(R.decode(R.get(url, (hit[0][0], hit[0][1]))), lat)
         return mi, li, out
 
     C = np.full((len(mems), len(leads), len(LEVELS)), np.nan)
@@ -193,7 +200,7 @@ def aifs(date: str, time: str, members: int = 10):
 
     cyc = E.Cycle(date, time)
     steps = list(range(0, 361, 24))
-    levs = tuple(int(x) for x in LEVELS)
+    levs = tuple(int(x) for x in LEVELS_10)
     parts = []
     for kind, n in (("cf", None), ("pf", members))[: 2 if members else 1]:  # members=0: the control alone
         spec = (
@@ -202,7 +209,7 @@ def aifs(date: str, time: str, members: int = 10):
             else E.Spec("aifs-ens", kind, "z", "pl", levs, tuple(steps))
         )
         path = E.ensure(cyc, spec)
-        arr = np.full(((n or 1), len(steps), len(LEVELS)), np.nan)
+        arr = np.full(((n or 1), len(steps), len(levs)), np.nan)
         for ki, lev in enumerate(levs):
             ds = xr.open_dataset(
                 path,
@@ -266,7 +273,7 @@ def ifs(date: str, time: str):
     if not IE.published(date, time):
         raise SystemExit(f"IFS-ENS {date} {time}Z is not on the Google mirror yet")
     path = IE.ensure(IE.E.Cycle(date, time), IE.spec_gh())
-    C, steps = _caps_members(path, "gh", [int(x) for x in LEVELS])
+    C, steps = _caps_members(path, "gh", [int(x) for x in LEVELS_10])
     return C, [int(s) for s in steps]
 
 
@@ -277,7 +284,7 @@ def hres(date: str, time: str):
     if not IE.ctrl_published(date, time):
         raise SystemExit(f"IFS control {date} {time}Z is not on the Google mirror yet")
     path = IE.ensure(IE.E.Cycle(date, time), IE.spec_ctrl_gh())
-    C, steps = _caps_members(path, "gh", [int(x) for x in LEVELS])
+    C, steps = _caps_members(path, "gh", [int(x) for x in LEVELS_10])
     return C, [int(s) for s in steps]
 
 
@@ -375,7 +382,7 @@ def measure_drift(model: str, history: Path, cycles: int = 25, every: int = 3, s
     last = H.index.max() - pd.Timedelta(days=15)
     inits = list(pd.date_range(H.index.min(), last, freq=f"{every}D"))[-cycles:]
     rows = {s: [] for s in steps}
-    levs = tuple(int(x) for x in LEVELS)
+    levs = tuple(int(x) for x in LEVELS_10)
     for d in inits:
         cyc = E.Cycle(f"{d:%Y%m%d}", "00")
         try:
@@ -395,7 +402,7 @@ def measure_drift(model: str, history: Path, cycles: int = 25, every: int = 3, s
         except Exception as e:  # noqa: BLE001
             print(f"  {d:%Y-%m-%d}: {str(e)[:60]}")
             continue
-        for ki, lev in enumerate(LEVELS):
+        for ki, lev in enumerate(LEVELS_10):
             for si, s_ in enumerate(steps):
                 v = d + pd.Timedelta(hours=s_)
                 if v in H.index and np.isfinite(H.loc[v, lev]):
@@ -422,7 +429,7 @@ def measure_drift(model: str, history: Path, cycles: int = 25, every: int = 3, s
         "step_h": list(steps),
         "levels": {},
     }
-    for lev in LEVELS:
+    for lev in LEVELS_10:
         m, se = [], []
         for s_ in steps:
             v = np.array([x for L, x in rows[s_] if L == lev])  # noqa: SIM300  variable L (maths notation), not a constant
@@ -465,8 +472,22 @@ def drift_aifs(init, leads, ref, tail_z_raw, model: str = "aifs"):
 
 
 # ---------------------------------------------------------------------------------------------------------- figure
+PTICKS = (1000, 700, 500, 300, 200, 100, 50, 30, 10, 5, 2, 1)
+
+
+def _paxis(ax, levels) -> None:
+    """Log-pressure axis from 1000 hPa to the model's top level."""
+    ax.set_yscale("log")
+    ax.set_ylim(1000, min(levels))
+    t = [x for x in PTICKS if x >= min(levels)]
+    ax.set_yticks(t)
+    ax.set_yticklabels([str(x) for x in t])
+    ax.minorticks_off()
+    ax.set_ylabel("pressure, hPa", fontsize=10, color=INK)
+
+
 def render(
-    model, init, leads, Zf, corrected, tail_days, Zt, frac100, out: Path, note: str, nmem: int, hour: str = "00"
+    model, init, leads, Zf, corrected, tail_days, Zt, frac100, out: Path, note: str, nmem: int, levels, hour: str = "00"
 ):
     import matplotlib
 
@@ -475,7 +496,7 @@ def render(
 
     X = np.r_[(tail_days - init).days.values, np.array(leads) / 24.0]
     Z = np.vstack([Zt, np.nanmean(Zf, 0)])  # (time, level)
-    p = np.array(LEVELS)
+    p = np.array(levels)
     single = nmem == 1  # the IFS control: one run, no spread and no member share
     fig = plt.figure(figsize=(13.4, 8.9), dpi=120)
     name = NAME[model]
@@ -507,20 +528,15 @@ def render(
     lv = np.arange(-2.4, 2.41, 0.3)
     cf = ax.contourf(X, p, Z.T, levels=lv, cmap="RdBu_r", extend="both")
     ax.contour(X, p, Z.T, levels=[x for x in lv if abs(x) > 1e-6], colors="#333", linewidths=0.3)
-    unc = [k for k, L in enumerate(LEVELS) if L not in corrected]
+    unc = [k for k, L in enumerate(levels) if L not in corrected]
     if unc:
         mask = np.zeros_like(Z.T)
         mask[unc, len(tail_days) :] = 1
         ax.contourf(X, p, mask, levels=[0.5, 1.5], colors="none", hatches=["////"])
     ax.axvline(0, color=INK, lw=1.4)
-    ax.text(-0.5, 12, "observed", ha="right", va="top", fontsize=9, color=INK)
-    ax.text(0.5, 12, "forecast", ha="left", va="top", fontsize=9, color=INK)
-    ax.set_yscale("log")
-    ax.set_ylim(1000, 10)
-    ax.set_yticks([1000, 700, 500, 300, 200, 100, 50, 30, 10])
-    ax.set_yticklabels(["1000", "700", "500", "300", "200", "100", "50", "30", "10"])
-    ax.minorticks_off()
-    ax.set_ylabel("pressure, hPa", fontsize=10, color=INK)
+    ax.text(-0.5, 1.2 * min(levels), "observed", ha="right", va="top", fontsize=9, color=INK)
+    ax.text(0.5, 1.2 * min(levels), "forecast", ha="left", va="top", fontsize=9, color=INK)
+    _paxis(ax, levels)
     ax.set_xlim(X[0], X[-1])
     ticks = list(range(int(np.ceil(X[0] / 7)) * 7, int(X[-1]) + 1, 7))  # inside the data: no blank margin
     ax.set_xticks(ticks)
@@ -532,7 +548,7 @@ def render(
     cb.ax.tick_params(labelsize=8)
     # 1000 hPa strip and the member share at 100 hPa
     ax2 = fig.add_axes([0.07, 0.07, 0.84, 0.26])
-    k1000 = LEVELS.index(1000.0)
+    k1000 = levels.index(1000.0)
     xf = np.array(leads) / 24.0
     ax2.plot((tail_days - init).days.values, Zt[:, k1000], color=INK, lw=1.4, label="1000 hPa cap, observed (GEOS FP)")
     if not single:
@@ -599,6 +615,83 @@ def render(
     plt.close(fig)
 
 
+def change(model: str, init_t: pd.Timestamp, levels, days_f, mean, nmem: int, out: Path) -> Path | None:
+    """The newest run against the run a day earlier (12 h earlier when that one is not recorded), at the valid dates and
+    levels both have: the run-to-run change of the dripping paint, from the earlier run's drip record (run_record.py
+    capture drip keeps its whole field)."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    import run_record as RR
+
+    by = {pd.Timestamp(r["init"]): r for r in RR.runs("drip", model) if r.get("field")}
+    t0 = next((t for t in (init_t - pd.Timedelta(hours=24), init_t - pd.Timedelta(hours=12)) if t in by), None)
+    if t0 is None:
+        print(f"  no {NAME[model]} run 12 or 24 h before {init_t:%Y-%m-%d %HZ} in the drip record: no change figure")
+        return None
+    f = by[t0]["field"]
+    old = pd.DataFrame(
+        np.array(f["mean"], float),
+        index=(t0.normalize() + pd.to_timedelta(f["lead_h"], unit="h")).normalize(),
+        columns=[float(x) for x in f["levels"]],
+    )
+    new = pd.DataFrame(np.asarray(mean, float), index=days_f, columns=levels)
+    days = new.index.intersection(old.index)
+    levs = [L for L in levels if L in old.columns]
+    if len(days) < 3:
+        return None
+    D = (new.loc[days, levs] - old.loc[days, levs]).to_numpy()
+    x = np.asarray((days - init_t.normalize()).days, float)
+    p = np.array(levs)
+    hours = int((init_t - t0) / pd.Timedelta(hours=1))
+    name, run = NAME[model], "the run" if nmem == 1 else "the ensemble mean"
+    fig = plt.figure(figsize=(13.4, 8.4), dpi=120)
+    fig.text(0.07, 0.975, f"{name} · dripping paint, run to run: {init_t:%d %b %HZ} against {t0:%d %b %HZ}", ha="left",
+             va="top", fontsize=15, fontweight="bold", color=INK)  # fmt: skip
+    fig.text(0.07, 0.935, f"Shaded: the change in the standardised 65–90°N height since the run {hours} h earlier, at the "
+             f"same valid dates ({run}, drift removed as on the forecast figure); red = the polar cap now higher, the "
+             f"vortex weaker, than the earlier run said. Black: the newest run, every 0.6 sd.", ha="left", va="top",
+             fontsize=9.4, color=MUTED, wrap=True)  # fmt: skip
+    ax = fig.add_axes([0.07, 0.42, 0.84, 0.45])
+    lv = np.arange(-1.6, 1.61, 0.2)
+    cf = ax.contourf(x, p, D.T, levels=lv, cmap="RdBu_r", extend="both")
+    cs = ax.contour(x, p, new.loc[days, levs].to_numpy().T, levels=np.arange(-3.0, 3.01, 0.6), colors=INK,
+                    linewidths=0.7)  # fmt: skip
+    ax.clabel(cs, fmt=lambda v: f"{v:+.1f}".replace("-", "−"), fontsize=7)
+    _paxis(ax, levs)
+    ticks = [int(v) for v in x if int(v) % 2 == 0]
+    labels = [f"{init_t.normalize() + pd.Timedelta(days=t):%d %b}" for t in ticks]
+    ax.set_xlim(x[0], x[-1])
+    ax.set_xticks(ticks)
+    ax.set_xticklabels(labels, fontsize=8.5)
+    cax = fig.add_axes([0.925, 0.42, 0.012, 0.45])
+    cb = fig.colorbar(cf, cax=cax, ticks=lv[::2])
+    cb.set_label(f"change since {t0:%d %b %HZ}, sd (red = weaker vortex)", fontsize=9)
+    cb.ax.tick_params(labelsize=8)
+    ax2 = fig.add_axes([0.07, 0.08, 0.84, 0.25])
+    for L, c in ((1.0, "#6b4c9a"), (10.0, "#b3122b"), (100.0, "#1f4b6e"), (1000.0, INK)):
+        if L in levs:
+            ax2.plot(x, D[:, levs.index(L)], color=c, lw=1.8, label=f"{L:g} hPa")
+    ax2.axhline(0, color="#555", lw=0.8)
+    ax2.set_xlim(x[0], x[-1])
+    ax2.set_xticks(ticks)
+    ax2.set_xticklabels(labels, fontsize=8.5)
+    ax2.set_ylabel("change, sd", fontsize=10, color=INK)
+    ax2.legend(fontsize=8.5, frameon=False, ncol=4, loc="upper left")
+    ax2.set_title("The change at single levels", loc="left", fontsize=10.2, fontweight="bold", color=INK)
+    for a in (ax, ax2):
+        for sp in ("top", "right"):
+            a.spines[sp].set_visible(False)
+    path = out / f"{model}_drip_change.webp"
+    fig.savefig(path, dpi=120, facecolor="white", pil_kwargs={"quality": 88, "method": 6})
+    plt.close(fig)
+    print(f"  change against {t0:%Y-%m-%d %HZ}: {np.nanmean(D[-5:, levs.index(10.0)]):+.2f} sd at 10 hPa over the last "
+          f"five shared days -> {path.name}")  # fmt: skip
+    return path
+
+
 def _js(a, nd):
     """Rounded nested list with NaN -> null (the observed 1000 hPa cap is undefined on days the surface is underground
     across a whole latitude row, as in MERRA-2)."""
@@ -636,10 +729,13 @@ def main() -> int:
 
         d = SE.load(a.model, a.date, f"{int(a.time):02d}", ("drip",))
         C, leads = d["caps"][SE.complete_members(d, "caps")].astype(float), list(SE.LEADS_DAILY)
+        lv = [float(x) for x in d["lev_drip"]]
     elif cache and cache.exists():
         z = np.load(cache)
         C, leads = z["C"], [int(x) for x in z["leads"]]
+        lv = levels_of(a.model)
     else:
+        lv = levels_of(a.model)
         C, leads = {
             "geps": lambda: geps(a.date),
             "gefs": lambda: gefs(a.date),
@@ -669,7 +765,7 @@ def main() -> int:
     H = FP.load_history(Path(a.history))
     Hraw = H.copy()
     offsets = {}
-    for L in LEVELS:
+    for L in lv:
         if L in dr:
             continue
         diffs = []
@@ -677,7 +773,7 @@ def main() -> int:
             v = init + pd.Timedelta(hours=h)
             if v in Hraw.index and np.isfinite(Hraw.loc[v, L]):
                 o = FP.offset_at(pd.DatetimeIndex([v]))[0, LEVELS.index(L)]
-                diffs.append(np.nanmean(C[:, li, LEVELS.index(L)]) - (Hraw.loc[v, L] - o))
+                diffs.append(np.nanmean(C[:, li, lv.index(L)]) - (Hraw.loc[v, L] - o))
         if diffs:
             offsets[L] = float(np.mean(diffs))
             dr[L] = np.full(len(leads), offsets[L])
@@ -686,8 +782,8 @@ def main() -> int:
     keep = np.array(leads) > 0
     leads_f = [h for h, k in zip(leads, keep) if k]
     days_f = days_f[keep]
-    Zf = np.full((C.shape[0], len(leads_f), len(LEVELS)), np.nan)
-    for k, L in enumerate(LEVELS):
+    Zf = np.full((C.shape[0], len(leads_f), len(lv)), np.nan)
+    for k, L in enumerate(lv):
         d = dr.get(L)
         dd = d[keep] if d is not None else 0.0
         Zf[:, :, k] = (C[:, keep, k] - dd - ref.mean(days_f, L)) / ref.sd(days_f, L)
@@ -696,9 +792,9 @@ def main() -> int:
     if len(H) < 20:
         raise SystemExit(f"GEOS FP tail too short ({len(H)} days)")
     H = H.asfreq("D").interpolate(limit=3)
-    raw = H.values - FP.offset_at(H.index)
-    Zt = np.column_stack([(raw[:, k] - ref.mean(H.index, L)) / ref.sd(H.index, L) for k, L in enumerate(LEVELS)])
-    frac100 = np.nanmean(Zf[:, :, LEVELS.index(100.0)] >= 1.0, 0)
+    raw = H[lv].values - FP.offset_at(H.index)[:, [LEVELS.index(L) for L in lv]]
+    Zt = np.column_stack([(raw[:, k] - ref.mean(H.index, L)) / ref.sd(H.index, L) for k, L in enumerate(lv)])
+    frac100 = np.nanmean(Zf[:, :, lv.index(100.0)] >= 1.0, 0)
     corrected = set(dr) - set(offsets)
     name = NAME[a.model]
     out = Path(a.out_dir)
@@ -715,6 +811,7 @@ def main() -> int:
         out / f"{a.model}_drip.webp",
         note,
         C.shape[0],
+        lv,
         hour=f"{int(a.time):02d}",
     )
     mean = np.nanmean(Zf, 0)
@@ -722,7 +819,7 @@ def main() -> int:
         "model": name,
         "init": f"{init:%Y-%m-%d} {a.time}Z",
         "members": int(C.shape[0]),
-        "levels": LEVELS,
+        "levels": lv,
         "corrected_levels": sorted(corrected),
         "drift_source": note,
         "analysis_offset_only_m": {str(L): round(v, 1) for L, v in offsets.items()},
@@ -736,7 +833,9 @@ def main() -> int:
     }
     (out / "data").mkdir(parents=True, exist_ok=True)
     (out / "data" / f"{a.model}_drip.json").write_text(json.dumps(doc, separators=(",", ":")))
-    k10, k100, k1000 = LEVELS.index(10.0), LEVELS.index(100.0), LEVELS.index(1000.0)
+    if a.days == 15 or a.model not in ("geps", "gefs"):  # the days 1-15 drips: the ones the drip record holds
+        change(a.model, init + pd.Timedelta(hours=int(a.time)), lv, days_f, mean, C.shape[0], out)
+    k10, k100, k1000 = lv.index(10.0), lv.index(100.0), lv.index(1000.0)
     for d0, d1 in ((1, 7), (8, 14), (15, 21), (22, 35)):
         m = (np.array(leads_f) / 24 >= d0) & (np.array(leads_f) / 24 <= d1)
         if m.any():
