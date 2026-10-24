@@ -129,6 +129,7 @@ PAGES = {
                 topic="research", horizon="Climate record", models=["MERRA-2"], tier=1, prio=21
             ),
         },
+        items={"polarcap": dict(models=["AIFS-ENS", "IFS-ENS", "GEFS", "GEPS", "ERA5"])},
     ),
     # circulation.html's groups follow the theme-first menus: its days 1-15 maps under Mid-latitude weather, the
     # tropical-cyclone, tropical-circulation and angular-momentum items under Global circulation and tropics

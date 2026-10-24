@@ -5,12 +5,13 @@ The job that renders a model's run hands it to record(): per key, a series again
 10th/90th percentiles; one member, a deterministic run, is its own mean), and per scalar one number. The last
 KEEP_DAYS days of runs stay in assets/sst/data/runs/<product>_<model>.json. One file per product and model, written only
 by the job that renders that model, so workflows that finish close together never overwrite each other's runs; the
-figures that put the models together (nh_vortex.py --from-records, ssw_summary.py) read the newest run of each.
+figures that put the models together (nh_vortex.py --from-records, ssw_summary.py, polarcap.py --combined) read the
+newest run of each.
 
 render() draws one model's record: the last SHOW runs over one another (the oldest faint, the newest bold with its band),
 each key's change over days 6-15 against the run 24 h earlier, and the scalar run by run
 (assets/sst/runs/<product>_<model>.webp). The heat flux and the dripping paint are taken from the JSON their scripts
-publish (capture); the vortex, waves and upper-stratosphere scripts record their own members.
+publish (capture); the vortex, waves, polar-cap and upper-stratosphere scripts record their own members.
 
     python run_record.py capture heatflux --model ifs      # this run, from assets/sst/data/ifs_heatflux100.json
     python run_record.py render vortex --model ifs
@@ -111,6 +112,17 @@ PRODUCTS = {
         },
         note="Each member's wave amplitude over the 55–65°N band as a multiple of the day's normal standing wave (ERA5 "
         "1991–2020, wave_clim.nc); 1 = normal. A day the normal has no standing wave at that level is left blank.",
+    ),
+    "polarcap": Product(
+        "Polar cap, 65–90°N: sea level and 500 hPa",
+        {
+            "msl": Key(
+                "sea-level pressure anomaly (cells below 500 m)", "hPa", 1, unit="hPa", short="sea-level pressure"
+            ),
+            "z500": Key("500 hPa height anomaly", "m", 0, unit="m", short="500 hPa height"),
+        },
+        note="Anomalies against ERA5 1991–2020 at each day and hour, raw model output (polarcap.py); above zero = high "
+        "pressure over the Arctic, the negative Arctic Oscillation.",
     ),
     "upperstrat": Product(
         "Upper stratosphere, northern vortex",

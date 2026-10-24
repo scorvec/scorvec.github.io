@@ -17,20 +17,23 @@ WHEN IT IS ON THE MIRROR (Google object times, 00/12Z cycles of 2026-09-24..27):
 whole run lands within a few minutes, ~07:36Z / 19:36Z (2026-10-21), over an hour before the ensemble's day 15.
 
 THE SHARED FILES (the store's canonical cache, scripts/ecmwf/cache/{cycle}/ifs/), fetched once, read by every product:
-  gh   11 drip levels 1000..10 hPa, daily 0-360 h    ~3.5 GB   forecast_drip; wave_maps (500/100/10); nh_vortex (100)
+  gh   11 drip levels 1000..10 hPa, daily 0-360 h    ~3.5 GB   forecast_drip; wave_maps (500/100/10); nh_vortex (100);
+                                                               polarcap (500)
   u,v  10 and 100 hPa, 12-hourly 0-360 h             ~4.0 GB   vortex_winds; nh_vortex (u); heatflux100 (v at 100)
   t    100 hPa, daily 0-360 h                        ~0.5 GB   heatflux100
+  msl  sea-level pressure, daily 0-360 h                       polarcap
 and the control's (type fc), ~0.3 GB together:
-  ctrl_gh    gh at the 11 drip levels, daily 0-360 h              forecast_drip; wave_maps
+  ctrl_gh    gh at the 11 drip levels, daily 0-360 h              forecast_drip; wave_maps; polarcap (500)
   ctrl_wind  u, v and gh at 10 and 100 hPa, 12-hourly 0-360 h     vortex_winds; nh_vortex; heatflux100 (v at 100)
   ctrl_t100  t at 100 hPa, daily 0-360 h                          heatflux100
+  ctrl_msl   sea-level pressure, daily 0-360 h                    polarcap
 The E-P flux (u, v, t at all 14 levels, ~23 GB a cycle) is streamed step by step in qbo_duct.py instead of cached.
 
 GOOGLE MIRROR ONLY: every request here names the Google mirror and nothing else; a cycle the
 mirror does not have yet is skipped with a warning, never fetched from another mirror.
 
     python ifs_ens.py resolve --wait-min 45 --github-output   # cycle + ready flag for the workflow
-    python ifs_ens.py fetch --date 20260927 --time 00          # stock the six shared files
+    python ifs_ens.py fetch --date 20260927 --time 00          # stock the eight shared files
 """
 
 from __future__ import annotations
@@ -73,6 +76,10 @@ def spec_t100() -> E.Spec:
     return E.Spec("ifs", "pf", "t", "pl", (100,), STEPS)
 
 
+def spec_msl() -> E.Spec:
+    return E.Spec("ifs", "pf", "msl", "sfc", (), STEPS)
+
+
 def spec_ctrl_gh() -> E.Spec:
     return E.Spec("ifs", "fc", "gh", "pl", LEV_GH, STEPS)
 
@@ -83,6 +90,10 @@ def spec_ctrl_wind() -> E.Spec:
 
 def spec_ctrl_t100() -> E.Spec:
     return E.Spec("ifs", "fc", "t", "pl", (100,), STEPS)
+
+
+def spec_ctrl_msl() -> E.Spec:
+    return E.Spec("ifs", "fc", "msl", "sfc", (), STEPS)
 
 
 def spec_ctrl_t10() -> E.Spec:
@@ -131,9 +142,11 @@ SHARED = {
     "gh": spec_gh,
     "uv": spec_uv,
     "t100": spec_t100,
+    "msl": spec_msl,
     "ctrl_gh": spec_ctrl_gh,
     "ctrl_wind": spec_ctrl_wind,
     "ctrl_t100": spec_ctrl_t100,
+    "ctrl_msl": spec_ctrl_msl,
 }
 
 

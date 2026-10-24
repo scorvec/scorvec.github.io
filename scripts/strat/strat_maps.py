@@ -72,6 +72,7 @@ GEPS = (
     "https://dd.weather.gc.ca/{d}/WXO-DD/ensemble/geps/grib2/raw/{c}/{L:03d}/"
     "CMC_geps-raw_{v}_ISBL_{lev:04d}_latlon0p5x0p5_{d}{c}_P{L:03d}_allmbrs.grib2"
 )
+GEPS_MSL = GEPS.replace("{v}_ISBL_{lev:04d}", "{v}_MSL_0")  # a mean-sea-level field (PRMSL)
 # The EXTENDED (Mon/Thu) cycle publishes 10 and 100 hPa all the way to day 35,
 # the same cycle the rest of the subseasonal page runs on — so the vortex board
 # shares an init with everything beside it instead of drifting off on the daily
@@ -146,8 +147,10 @@ WNORM = BoundaryNorm(WLEV, WCMAP.N)
 
 
 def fetch(date, cyc, var, lev, L):
+    """One GEPS allmbrs file into the cache: lev an isobaric level (hPa), or "msl" for a mean-sea-level field."""
     dest = DL / f"geps_{date}{cyc}_{var}{lev}_{L:03d}.grib2"
-    got = datamart.download(GEPS.format(d=date, c=cyc, v=var, lev=lev, L=L), dest, timeout=300)
+    url = (GEPS_MSL if lev == "msl" else GEPS).format(d=date, c=cyc, v=var, lev=lev, L=L)
+    got = datamart.download(url, dest, timeout=300)
     if got is None:
         print(f"    miss {var}{lev} +{L}h", flush=True)
     return got

@@ -24,7 +24,10 @@ THE PARTS (fetch only what the caller needs; the job that runs every product fet
   waves   daily 0-360 h      HGT 500/100/10           zwave (member, lead, level, lat, lon) on 1 deg       wave_maps
   winds   12-hourly 0-360 h  UGRD, VGRD, HGT 10/100   wind (lead, level, u|v|gh, lat, lon) ensemble mean, 0.5 deg,
                                                        step 0 the CONTROL (the analysis)                 vortex_winds
-Members are kept whole only on 1 deg and only for the wave maps; everything else is reduced as each step arrives.
+  polarcap daily 0-360 h     PRMSL, HGT 500           pc_msl (hPa), pc_z500 (member, lead, lat, lon) on polarcap.py's
+                                                       1.5 deg cells, 19.5-90N (cell means)              polarcap
+Members are kept whole only on 1 deg for the wave maps and on 1.5 deg for the polar cap; everything else is reduced as
+each step arrives.
 The reductions of one cycle sit in data/strat_ens/{model}_{YYYYMMDDHH}.npz (control = member 0).
 
     python strat_ens.py fetch --model gefs --date 20261020 --time 00   # every part
@@ -51,6 +54,7 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 import geosfp_cap as FP
+import polarcap as PC
 
 DATA = HERE / "data" / "strat_ens"
 MODELS = {"gefs": "GEFS", "geps": "GEPS"}
@@ -64,7 +68,7 @@ LEV_WIND = (10, 100)  # vortex_winds.LEVELS
 LEADS_DAILY = tuple(range(0, 361, 24))  # the days 1-15 products: analysis + 15 days
 LEADS_VORTEX = tuple(range(0, 385, 24))  # nh_vortex shows every ensemble to its end (day 16)
 LEADS_12H = tuple(range(0, 361, 12))  # the vortex-wind loop
-PARTS = ("vortex", "drip", "flux", "waves", "winds")
+PARTS = ("vortex", "drip", "flux", "waves", "winds", "polarcap")
 # the arrays each part keeps (the last one decides which members are complete) and the members a part needs
 PART_KEYS = {
     "vortex": ("u60", "zcap"),
@@ -72,6 +76,7 @@ PART_KEYS = {
     "flux": ("flux_sib", "flux_can", "flux_tot", "flux_k1", "flux_k2"),
     "waves": ("zwave",),
     "winds": ("wind_n", "wind"),
+    "polarcap": ("pc_msl", "pc_z500"),
 }
 FLOOR = {"gefs": 16, "geps": 11}  # of 31 and 21
 LAT = np.arange(90.0, -90.0 - 1e-6, -0.5)  # both models' 0.5 deg grid, north to south
@@ -93,6 +98,8 @@ def need(parts, L: int) -> set[tuple[str, int]]:
         out |= {("HGT", lev) for lev in LEV_WAVE}
     if "winds" in parts and L in LEADS_12H:
         out |= {(v, lev) for v in ("UGRD", "VGRD", "HGT") for lev in LEV_WIND}
+    if "polarcap" in parts and L in LEADS_DAILY:
+        out |= {("PRMSL", "msl"), ("HGT", 500)}
     return out
 
 
@@ -126,7 +133,8 @@ def gefs_ready(date: str, hh: str, last_h: int = 384) -> bool:
 
 
 def gefs_step(date: str, hh: str, L: int, want: set, workers: int = 32) -> dict:
-    """{member index: {(var, lev): (lat, lon) float32}} for one lead; a member missing any field is left out."""
+    """{member index: {(var, lev): (lat, lon) float32}} for one lead (lev in hPa, or "msl"); a member missing any field
+    is left out."""
     R = _gefs_lib()
     step = "anl" if L == 0 else f"{L} hour fcst"
 
@@ -138,7 +146,8 @@ def gefs_step(date: str, hh: str, L: int, want: set, workers: int = 32) -> dict:
             return mi, None
         out = {}
         for var, lev in want:
-            hit = [e for e in idx if e[4] == var and e[2] == f"{lev} mb" and e[3] == step]
+            level = "mean sea level" if lev == "msl" else f"{lev} mb"
+            hit = [e for e in idx if e[4] == var and e[2] == level and e[3] == step]
             if not hit:
                 return mi, None
             out[(var, lev)] = R.decode(R.get(url, (hit[0][0], hit[0][1]))).astype("float32")
@@ -224,6 +233,8 @@ def _empty(key: str, nmem: int) -> np.ndarray:
         "caps": (nmem, len(LEADS_DAILY), len(LEV_DRIP)),
         "zwave": (nmem, len(LEADS_DAILY), len(LEV_WAVE), LAT.size // 2 + 1, LON.size // 2),
         "wind": (len(LEADS_12H), len(LEV_WIND), 3, LAT.size, LON.size),
+        "pc_msl": (nmem, len(LEADS_DAILY), PC.CLAT.size, PC.CLON.size),
+        "pc_z500": (nmem, len(LEADS_DAILY), PC.CLAT.size, PC.CLON.size),
     }[key]
     return np.full(shape, np.nan, "float32")
 
@@ -267,6 +278,10 @@ def fetch(model: str, date: str, hh: str, parts=PARTS, workers: int = 32) -> Pat
             if "waves" in todo:
                 for m in ms:
                     acc["zwave"][m, i] = [got[m][("HGT", lev)][::2, ::2] for lev in LEV_WAVE]
+            if "polarcap" in todo:
+                for m in ms:
+                    acc["pc_msl"][m, i] = PC.coarse(got[m][("PRMSL", "msl")] / 100.0, LAT, LON)
+                    acc["pc_z500"][m, i] = PC.coarse(got[m][("HGT", 500)], LAT, LON)
             if "flux" in todo:
                 vt = [
                     xr.DataArray(
@@ -372,6 +387,7 @@ def shown(model: str, ref: str = "origin/main") -> str:
         (f"assets/sst/anim/wave1_maps_{model}_manifest.json", "ver", "%Y%m%d%H"),
         (f"assets/sst/anim/wave2_maps_{model}_manifest.json", "ver", "%Y%m%d%H"),
         (f"assets/sst/anim/vortex_winds_{model}_manifest.json", "ver", "%Y%m%d%H"),
+        (f"assets/sst/anim/polarcap_{model}_manifest.json", "ver", "%Y%m%d%H"),
     ):
         d = doc(rel)
         if not d or not d.get(key):
