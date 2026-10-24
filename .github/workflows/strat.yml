@@ -169,7 +169,7 @@ jobs:
     needs: cycle
     if: needs.cycle.outputs.fresh == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90  # ~45 min since the 10 hPa maps and the descent joined it (2026-10-24)
     env:
       MPLBACKEND: Agg
     steps:
