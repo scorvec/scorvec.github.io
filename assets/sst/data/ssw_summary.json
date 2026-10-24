@@ -1,5 +1,5 @@
 {
- "built": "2026-10-24 15:25Z",
+ "built": "2026-10-24 16:25Z",
  "newest_init": "2026-10-24 06Z",
  "window": [
   "2026-10-25",
@@ -562,7 +562,7 @@
     "z_peak": 3.6,
     "z_peak_day": 5,
     "flux_min": 11.9,
-    "warning_now": 8.8,
+    "warning_now": 9.4,
     "warning_threshold": 27.5,
     "warning_members": 0.0,
     "ri_event_share": 0.1,
@@ -576,7 +576,7 @@
     "z_peak": 3.7,
     "z_peak_day": 5,
     "flux_min": 11.3,
-    "warning_now": 9.5,
+    "warning_now": 9.4,
     "warning_threshold": 27.5,
     "warning_members": 0.0,
     "ri_event_share": 0.52,
