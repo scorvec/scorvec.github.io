@@ -22,19 +22,22 @@ THE SHARED FILES (the store's canonical cache, scripts/ecmwf/cache/{cycle}/ifs/)
   u,v  10 and 100 hPa, 12-hourly 0-360 h             ~4.0 GB   vortex_winds; nh_vortex (u); heatflux100 (v at 100)
   t    100 hPa, daily 0-360 h                        ~0.5 GB   heatflux100
   t10  t at 10 hPa, daily 0-360 h                    ~0.3 GB   polarcap (the 10 hPa maps)
+  w    vertical velocity at 9 levels 850..10 hPa,     ~4.3 GB   polar_descent
+       daily 0-360 h
   msl  sea-level pressure, daily 0-360 h                       polarcap
 and the control's (type fc), ~0.3 GB together:
   ctrl_gh    gh at the 11 drip levels, daily 0-360 h              forecast_drip; wave_maps; polarcap (500/100/10)
   ctrl_wind  u, v and gh at 10 and 100 hPa, 12-hourly 0-360 h     vortex_winds; nh_vortex; heatflux100 (v at 100)
   ctrl_t100  t at 100 hPa, daily 0-360 h                          heatflux100
   ctrl_msl   sea-level pressure, daily 0-360 h                    polarcap
+  ctrl_w     w at the 9 descent levels, daily 0-360 h             polar_descent
 The E-P flux (u, v, t at all 14 levels, ~23 GB a cycle) is streamed step by step in qbo_duct.py instead of cached.
 
 GOOGLE MIRROR ONLY: every request here names the Google mirror and nothing else; a cycle the
 mirror does not have yet is skipped with a warning, never fetched from another mirror.
 
     python ifs_ens.py resolve --wait-min 45 --github-output   # cycle + ready flag for the workflow
-    python ifs_ens.py fetch --date 20260927 --time 00          # stock the nine shared files
+    python ifs_ens.py fetch --date 20260927 --time 00          # stock the eleven shared files
 """
 
 from __future__ import annotations
@@ -81,6 +84,12 @@ def spec_t10() -> E.Spec:
     return E.Spec("ifs", "pf", "t", "pl", (10,), STEPS)
 
 
+def spec_w() -> E.Spec:
+    import polar_descent as PD
+
+    return E.Spec("ifs", "pf", "w", "pl", PD.LEVELS_EC, STEPS)
+
+
 def spec_msl() -> E.Spec:
     return E.Spec("ifs", "pf", "msl", "sfc", (), STEPS)
 
@@ -95,6 +104,12 @@ def spec_ctrl_wind() -> E.Spec:
 
 def spec_ctrl_t100() -> E.Spec:
     return E.Spec("ifs", "fc", "t", "pl", (100,), STEPS)
+
+
+def spec_ctrl_w() -> E.Spec:
+    import polar_descent as PD
+
+    return E.Spec("ifs", "fc", "w", "pl", PD.LEVELS_EC, STEPS)
 
 
 def spec_ctrl_msl() -> E.Spec:
@@ -148,11 +163,13 @@ SHARED = {
     "uv": spec_uv,
     "t100": spec_t100,
     "t10": spec_t10,
+    "w": spec_w,
     "msl": spec_msl,
     "ctrl_gh": spec_ctrl_gh,
     "ctrl_wind": spec_ctrl_wind,
     "ctrl_t100": spec_ctrl_t100,
     "ctrl_msl": spec_ctrl_msl,
+    "ctrl_w": spec_ctrl_w,
 }
 
 

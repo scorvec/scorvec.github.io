@@ -157,6 +157,15 @@ PRODUCTS = {
         note="Each member's 10 hPa height: split = two low centres 150 m inside the winter vortex edge, displaced = "
         "its centre south of 66°N (Seviour et al. 2013). Raw model output.",
     ),
+    "descent": Product(
+        "Descent over the polar cap, 65–90°N",
+        {
+            "strat": Key("10–100 hPa", "mm s⁻¹, downward", 2, unit="mm s⁻¹", short="10–100 hPa"),
+            "ut": Key("100–300 hPa", "mm s⁻¹, downward", 2, unit="mm s⁻¹", short="100–300 hPa"),
+        },
+        note="Log-pressure vertical velocity −(H/p) ω, H = 7 km, downward positive, the cap's log-pressure layer means "
+        "(polar_descent.py). Raw model output, no normal.",
+    ),
     "upperstrat": Product(
         "Upper stratosphere, northern vortex",
         {
