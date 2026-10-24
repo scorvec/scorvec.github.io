@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Stratosphere Model Maps: GFS from 100 to 0.4 hPa and Isentropic PV &middot; Shawn Corvec</title>
-<meta name="description" content="Zoomable polar maps of the newest GFS run to 16 days at every stratospheric level from 100 to 0.4 hPa (temperature, height, wind) and Ertel potential vorticity on seven isentropic surfaces, both hemispheres, with hover values.">
+<title>Stratosphere Model Maps: GFS and GDPS Levels and Isentropic PV &middot; Shawn Corvec</title>
+<meta name="description" content="Zoomable polar maps of the newest GFS (to 16 days, 100 to 0.4 hPa) and GDPS (to 10 days, 100 to 1 hPa) runs at every stratospheric level they publish (temperature, height, wind, the GFS's smoothed vertical motion) and Ertel potential vorticity on isentropic surfaces, both hemispheres, with hover values.">
 <link rel="canonical" href="https://scorvec.com/strat-models.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Stratosphere model maps: GFS from 100 to 0.4 hPa and isentropic PV">
-<meta property="og:description" content="Zoomable polar maps of the newest GFS run to 16 days at every stratospheric level, with potential vorticity on seven isentropic surfaces.">
+<meta property="og:title" content="Stratosphere model maps: GFS and GDPS levels and isentropic PV">
+<meta property="og:description" content="Zoomable polar maps of the newest GFS and GDPS runs at every stratospheric level they publish, with potential vorticity on isentropic surfaces.">
 <meta property="og:url" content="https://scorvec.com/strat-models.html">
 <meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
 <meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
@@ -18,9 +18,9 @@
 {
  "@context": "https://schema.org",
  "@type": "WebPage",
- "name": "Stratosphere model maps: GFS from 100 to 0.4 hPa and isentropic PV",
+ "name": "Stratosphere model maps: GFS and GDPS levels and isentropic PV",
  "url": "https://scorvec.com/strat-models.html",
- "description": "Zoomable polar maps of the newest GFS run to 16 days at every stratospheric level from 100 to 0.4 hPa (temperature, height, wind) and Ertel potential vorticity on seven isentropic surfaces, both hemispheres, with hover values.",
+ "description": "Zoomable polar maps of the newest GFS (to 16 days, 100 to 0.4 hPa) and GDPS (to 10 days, 100 to 1 hPa) runs at every stratospheric level they publish (temperature, height, wind, the GFS's smoothed vertical motion) and Ertel potential vorticity on isentropic surfaces, both hemispheres, with hover values.",
  "image": "https://scorvec.com/hero-supercell-1280.webp",
  "isPartOf": {
   "@type": "WebSite",
@@ -40,7 +40,7 @@
 <script src="/assets/frames_root.js?v=bdced09224"></script>
 <style>
   /* strat-models.html: the page draws the data itself - scripts/models/strat_maps.py ships one lossless WebP per field,
-     level and step on the GFS's 0.5 deg grid, and the WebGL code below colours, projects and reads it (the engine of
+     level and step on each model's latitude-longitude grid, and the WebGL code below colours, projects and reads it (the engine of
      samerica-models.html, on polar stereographic maps). */
   :root { --bg: #f5f6f3; --panel: #ffffff; --ink: #1f261c; --ink2: #3d4540; --muted: #6f6b64; --rule: #dfe3dc;
           --accent: #274b7a; --accent-soft: rgba(39, 75, 122, 0.09); --map: #e9ebe6;
@@ -370,11 +370,12 @@
 <!-- sh:end -->
 <main id="main" class="mv">
   <h1>Stratosphere model maps</h1>
-  <p class="lede">The newest GFS run to day 16, from 100 to 0.4&nbsp;hPa, with isentropic PV.</p>
+  <p class="lede">The newest GFS and GDPS runs, level by level up to 0.4&nbsp;hPa, with isentropic PV.</p>
 
   <div class="mv-panel">
   <div class="mv-bar">
     <div class="mv-row">
+      <div class="seg" id="models" role="group" aria-label="Model"></div>
       <div class="seg" id="hemis" role="group" aria-label="Hemisphere"></div>
       <div class="seg" id="fields" role="group" aria-label="Map"></div>
       <div class="seg" id="subSeg" role="group" aria-label="Wind" hidden></div>
@@ -415,29 +416,31 @@
   <section class="mv-about" id="about" aria-labelledby="aboutH">
     <h2 id="aboutH">About these maps</h2>
     <p class="mv-runs" id="runs"></p>
-    <h3>The model and its levels</h3>
+    <h3>The models and their levels</h3>
     <p><b>GFS</b>: NOAA's Global Forecast System (the FV3 model, about 13&nbsp;km, 127 layers up to about 80&nbsp;km), read on the 0.5&deg; latitude&ndash;longitude grid of its published output. The 00 and 12&nbsp;UTC runs, every 12&nbsp;hours to +384&nbsp;h (16 days); a run appears here about 6&nbsp;hours after its start time, and only the newest is kept. The maps are the output's 15 pressure levels from 100&nbsp;hPa (about 16&nbsp;km, near the tropical tropopause) to 0.4&nbsp;hPa (about 54&nbsp;km, around the stratopause): 100, 70, 50, 40, 30, 20, 15, 10, 7, 5, 3, 2, 1, 0.7 and 0.4&nbsp;hPa. The heights beside the level buttons are this run's global-mean height of each level at its start. The GFS also writes 0.2 to 0.01&nbsp;hPa, the mesosphere up to the model top; they are left out, because the model's uppermost layers are its damping (sponge) layers and the analysis has few observations to draw on there. Above about 1&nbsp;hPa the same holds more weakly: read the top levels as the model's picture, not a well-observed one.</p>
+    <p><b>GDPS</b>: Environment and Climate Change Canada's Global Deterministic Prediction System (the GEM model, about 15&nbsp;km, its top near 0.1&nbsp;hPa), read on the 0.15&deg; grid of its files on the MSC Datamart and averaged over 3&nbsp;&times;&nbsp;3 cells to 0.45&deg; (the stratosphere has no structure at 15&nbsp;km that these maps could show, and it keeps the files small). The 00 and 12&nbsp;UTC runs, every 12&nbsp;hours to +240&nbsp;h (10 days); a run appears here about 5&nbsp;hours after its start time. Above 100&nbsp;hPa the GDPS publishes only 50, 30, 20, 10, 5 and 1&nbsp;hPa, so its maps have those seven levels and nothing above 1&nbsp;hPa; it publishes vertical velocity only from 200&nbsp;hPa down, so it has no vertical-motion map. Every field's units are checked against its magnitude on every run (ECCC's files have carried decametres under a metres label), and the check is reported below.</p>
     <h3>What each map is</h3>
     <div class="tbl"><table>
       <tr><th>Map</th><th>Shading</th><th>Lines</th></tr>
       <tr><td>Temperature</td><td>Air temperature on the pressure level, &deg;C, stored to 0.6&nbsp;K; purple below &minus;78&nbsp;&deg;C (195&nbsp;K), where nitric-acid polar stratospheric clouds can form (ice clouds near &minus;85&nbsp;&deg;C, 188&nbsp;K)</td><td>Geopotential height, dam, at a fixed interval for each level (8&nbsp;dam at 100&ndash;40&nbsp;hPa up to 48&nbsp;dam at 0.4&nbsp;hPa)</td></tr>
       <tr><td>Wind: speed</td><td>Wind speed, m/s; barbs in knots (feathers on the Southern Hemisphere side south of the equator)</td><td>Height, as on the temperature map</td></tr>
       <tr><td>Wind: zonal</td><td>The west&ndash;east component: westerlies red, easterlies blue, m/s. A reversal to easterlies at 60&deg; and 10&nbsp;hPa in winter is the usual definition of a major sudden stratospheric warming (Charlton and Polvani 2007)</td><td>Height, and the zero-wind line in black</td></tr>
-      <tr><td>Vertical motion</td><td>The GFS's own vertical motion in pressure coordinates (omega), in hPa/day with <b>descent positive</b>: red where air sinks (and warms by compression, as when a warming presses down from above), blue where it rises; heavily smoothed in space and time (<a href="#vvmethod">below</a>). The colours saturate at a fixed range for each level, set from four years of GFS analyses, not from this run</td><td>Height, as on the temperature map</td></tr>
-      <tr><td>Potential vorticity</td><td>Ertel PV on the isentropic surface (350, 400, 475, 600, 850, 1200 or 1600&nbsp;K), PVU; the colours follow the Lait-scaled value (below), so one colour means the same thing on every surface, and the legend gives the surface's own PV. Southern Hemisphere PV is shown with its sign reversed, so the vortex is positive in both. Blank where the surface lies outside 400&ndash;0.4&nbsp;hPa</td><td>The Montgomery streamfunction M&nbsp;=&nbsp;c<sub>p</sub>T&nbsp;+&nbsp;gz divided by g, dam: on an isentropic surface the geostrophic wind blows along it as it does along height contours on a pressure surface</td></tr>
+      <tr><td>Vertical motion (GFS)</td><td>The GFS's own vertical motion in pressure coordinates (omega), in hPa/day with <b>descent positive</b>: red where air sinks (and warms by compression, as when a warming presses down from above), blue where it rises; heavily smoothed in space and time (<a href="#vvmethod">below</a>). The colours saturate at a fixed range for each level, set from four years of GFS analyses, not from this run</td><td>Height, as on the temperature map</td></tr>
+      <tr><td>Potential vorticity</td><td>Ertel PV on the isentropic surface (350, 400, 475, 600 or 850&nbsp;K, and for the GFS also 1200 and 1600&nbsp;K), PVU; the colours follow the Lait-scaled value (below), so one colour means the same thing on every surface, and the legend gives the surface's own PV. Southern Hemisphere PV is shown with its sign reversed, so the vortex is positive in both. Blank where the surface lies outside the model's column (400&nbsp;hPa to its top level)</td><td>The Montgomery streamfunction M&nbsp;=&nbsp;c<sub>p</sub>T&nbsp;+&nbsp;gz divided by g, dam: on an isentropic surface the geostrophic wind blows along it as it does along height contours on a pressure surface</td></tr>
     </table></div>
     <h3 id="pvmethod">How the potential vorticity is computed</h3>
-    <p>The GFS publishes no potential vorticity in the stratosphere (only the &plusmn;0.5 to 2&nbsp;PVU surfaces near the tropopause), so it is computed here from the temperature and the winds on 27 pressure levels, 400&nbsp;hPa to 0.4&nbsp;hPa (the 21 levels of the main output from 400&nbsp;hPa up, and the six 25&nbsp;hPa levels between 125 and 375&nbsp;hPa from its secondary files), as Ertel's potential vorticity in pressure coordinates (Hoskins, McIntyre and Robertson 1985):</p>
+    <p>Neither model publishes potential vorticity in the stratosphere (only surfaces of 0.5 to 2&nbsp;PVU near the tropopause), so it is computed here from the temperature and the winds on the pressure levels: for the GFS 27 levels, 400&nbsp;hPa to 0.4&nbsp;hPa (the 21 levels of its main output from 400&nbsp;hPa up, and the six 25&nbsp;hPa levels between 125 and 375&nbsp;hPa from its secondary files); for the GDPS its 16 levels from 400 to 1&nbsp;hPa (400, 350, 300, 275, 250, 225, 200, 175, 150, 100, 50, 30, 20, 10, 5 and 1&nbsp;hPa). In both cases it is Ertel's potential vorticity in pressure coordinates (Hoskins, McIntyre and Robertson 1985):</p>
     <p class="eq">PV = &minus;g [ (&zeta; + f) &part;&theta;/&part;p &minus; &part;v/&part;p &middot; &part;&theta;/&part;x + &part;u/&part;p &middot; &part;&theta;/&part;y ],&nbsp;&nbsp; &theta; = T (1000&nbsp;hPa / p)<sup>R/c<sub>p</sub></sup></p>
     <p>with the relative vorticity &zeta; and the horizontal derivatives taken on the sphere (centred differences, periodic in longitude), the vertical ones in ln&nbsp;p across the actual levels, one 1&ndash;2&ndash;1 smoothing pass in latitude and longitude, and the rows at the poles set to the mean of the ring next to them. PV, the Montgomery streamfunction and ln&nbsp;p are then interpolated to each isentrope linearly in ln&nbsp;&theta;, column by column. 1&nbsp;PVU&nbsp;=&nbsp;10<sup>&minus;6</sup>&nbsp;K&nbsp;m<sup>2</sup>&nbsp;kg<sup>&minus;1</sup>&nbsp;s<sup>&minus;1</sup>.</p>
+    <p><b>Why the GDPS stops at 850&nbsp;K.</b> PV depends on the vertical gradient of &theta;, and the GDPS's levels are far apart in the upper stratosphere: none between 5 and 1&nbsp;hPa, an 11&nbsp;km gap where 1200&nbsp;K and 1600&nbsp;K lie. What coarse levels cost is measured on every GFS run: its PV is recomputed from only the GDPS's 16 levels and compared with its own from all 27, surface by surface (in the checks below). The GDPS's maps show the surfaces where that comparison holds up, 350 to 850&nbsp;K; even there the coarse levels push PV up somewhat. On the first measurement (the GFS run of 24 October 12&nbsp;UTC) the patterns kept correlations of 0.996&ndash;0.9996 on 350&ndash;850&nbsp;K, and the polar-cap means came out 0&ndash;12&nbsp;% high (most at 850&nbsp;K in the north), against 18&ndash;37&nbsp;% off at 1200 and 1600&nbsp;K; the GDPS's own polar-cap PV beside GEOS FP's was high by about the same amounts (+15&nbsp;% at 850&nbsp;K in the north, 1&ndash;6&nbsp;% elsewhere). So read the GDPS's PV for its pattern and its changes, and its values as up to about a tenth high.</p>
     <p><b>Why the colours are scaled.</b> In a resting atmosphere PV grows roughly as &theta;<sup>9/2</sup> with height, from tens of PVU at 475&nbsp;K to hundreds at 850&nbsp;K and thousands at 1600&nbsp;K. The colours follow PV&nbsp;&times;&nbsp;(&theta;&nbsp;/&nbsp;475&nbsp;K)<sup>&minus;9/2</sup> (Lait 1994, referenced to 475&nbsp;K), so a vortex looks alike on every surface and at 475&nbsp;K the scaled value is the PV itself; the legend and the hover give the surface's real PV.</p>
-    <p><b>Checks.</b> The formula and the interpolation were tested on idealised atmospheres before the first run: a resting and a solid-body-rotating isothermal atmosphere (PV within 0.3&nbsp;% of the exact value at every level) and a strongly sheared, weakly stratified one where the two tilting terms change PV by 8&ndash;16&nbsp;% and the isobaric form above matches the isentropic form &minus;g&nbsp;(&zeta;<sub>&theta;</sub>&nbsp;+&nbsp;f)&nbsp;&part;&theta;/&part;p to 0.2&nbsp;%. Every run then checks itself against the GFS's own post-processed fields, and against NASA's GEOS FP analysis, which carries its own PV:</p>
+    <p><b>Checks.</b> The formula and the interpolation were tested on idealised atmospheres before the first run: a resting and a solid-body-rotating isothermal atmosphere (PV within 0.3&nbsp;% of the exact value at every level) and a strongly sheared, weakly stratified one where the two tilting terms change PV by 8&ndash;16&nbsp;% and the isobaric form above matches the isentropic form &minus;g&nbsp;(&zeta;<sub>&theta;</sub>&nbsp;+&nbsp;f)&nbsp;&part;&theta;/&part;p to 0.2&nbsp;%. Every run then checks itself against its model's own fields (its absolute vorticity, and the 2-PVU tropopause the model computes on its native levels), and against NASA's GEOS FP analysis, which carries its own PV:</p>
     <p class="mv-runs" id="checks"></p>
     <h3 id="vvmethod">How the vertical motion is smoothed</h3>
     <p>The GFS publishes omega (dp/dt, Pa/s) on all 15 levels of the maps; it is shown as omega&nbsp;&times;&nbsp;864&nbsp;=&nbsp;hPa/day, positive downward. On a 0.5&deg; grid in the stratosphere the raw field is dominated by gravity waves and tides, so it is smoothed hard before it is stored. <b>In space</b>: a Gaussian with a standard deviation of 600&nbsp;km along the sphere, applied along each latitude circle exactly (in Fourier space: zonal wavenumber k keeps exp(&minus;&frac12;(k&sigma;&nbsp;/&nbsp;a&nbsp;cos&nbsp;&phi;)<sup>2</sup>) of its amplitude, so wave 3 at 60&deg; keeps 85&nbsp;% and anything shorter than about 2,000&nbsp;km less than a fifth) and then along the meridians, continued over the pole onto the opposite meridian. <b>In time</b>: a running mean centred on the valid time over the 12-hourly steps, trapezoidal over &plusmn;36&nbsp;h (a 72&nbsp;h mean; weight 1 inside, &frac12; at the ends, which cancels the daily tide exactly), shortened near the ends of the run so it stays centred (24&nbsp;h at +12&nbsp;h, 48&nbsp;h at +24&nbsp;h); +0 and +384&nbsp;h have no vertical-motion map. The legend gives the hours each map averages. <b>Colours</b>: for each level the range is the 99th percentile of the same smoothed field&rsquo;s magnitude poleward of 20&deg; in 48 samples of GFS analyses (the 15th of each month from July 2022 to June 2026, the seven 00 and 12&nbsp;UTC analyses around each), rounded up, so a colour means the same from run to run and a strong event stands out. The hover converts to a vertical velocity, w&nbsp;&asymp;&nbsp;&minus;&omega;&nbsp;R&nbsp;T&nbsp;/&nbsp;(p&nbsp;g), with the level's temperature.</p>
     <h3>How the page works</h3>
-    <p>Nothing on this page is a picture. Each field, level and step is shipped as the model's own numbers, rounded to 256 levels, on the GFS's 0.5&deg; grid, and your browser colours, projects, contours and reads it; the shading is interpolated between grid points, and the hover value is the stored one at the nearest point. The maps are polar stereographic, true at the pole (0&deg; longitude at the bottom of the northern map and at the top of the southern one). Contours are drawn by your graphics card from the same numbers after a light smoothing; their labels are placed once the map is at rest. <b>Data use:</b> opening a map loads only the map on screen and the heights drawn on it (about 45&ndash;115&nbsp;KB); stepping through the levels loads that step at every level (0.5&ndash;2&nbsp;MB), and playing or dragging the time slider loads every step of that map (31&ndash;33 files, 1.5&ndash;4&nbsp;MB).</p>
-    <p>Data: NOAA GFS through the NOAA Open Data Dissemination program (AWS); GEOS FP potential vorticity from NASA GMAO (the site's <a href="/stratosphere.html#pv">GEOS FP PV product</a>). Model output as published, uncorrected. Boundaries: Natural Earth. Hoskins, B. J., M. E. McIntyre and A. W. Robertson, 1985, Q. J. R. Meteorol. Soc. 111, 877&ndash;946 &middot; Lait, L. R., 1994, J. Atmos. Sci. 51, 1754&ndash;1759 &middot; Charlton, A. J., and L. M. Polvani, 2007, J. Climate 20, 449&ndash;469.</p>
+    <p>Nothing on this page is a picture. Each field, level and step is shipped as the model's own numbers, rounded to 256 levels, on its latitude&ndash;longitude grid (GFS 0.5&deg;, GDPS 0.45&deg;), and your browser colours, projects, contours and reads it; the shading is interpolated between grid points, and the hover value is the stored one at the nearest point. The maps are polar stereographic, true at the pole (0&deg; longitude at the bottom of the northern map and at the top of the southern one). Contours are drawn by your graphics card from the same numbers after a light smoothing; their labels are placed once the map is at rest. <b>Data use:</b> opening a map loads only the map on screen and the heights drawn on it (about 45&ndash;115&nbsp;KB); stepping through the levels loads that step at every level (0.5&ndash;2&nbsp;MB), and playing or dragging the time slider loads every step of that map (31&ndash;33 files, 1.5&ndash;4&nbsp;MB).</p>
+    <p>Data: NOAA GFS through the NOAA Open Data Dissemination program (AWS); ECCC GDPS (Data Source: Environment and Climate Change Canada (MSC Datamart), under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a>); GEOS FP potential vorticity from NASA GMAO (the site's <a href="/stratosphere.html#pv">GEOS FP PV product</a>). Model output as published, uncorrected. Boundaries: Natural Earth. Hoskins, B. J., M. E. McIntyre and A. W. Robertson, 1985, Q. J. R. Meteorol. Soc. 111, 877&ndash;946 &middot; Lait, L. R., 1994, J. Atmos. Sci. 51, 1754&ndash;1759 &middot; Charlton, A. J., and L. M. Polvani, 2007, J. Climate 20, 449&ndash;469.</p>
   </section>
 </main>
 
@@ -447,7 +450,7 @@
   // ── configuration ─────────────────────────────────────────────────────────────────────────────────────────────
   var LOCAL = /[?&]local=1/.test(location.search);                    // testing: data from this origin
   var D2R = Math.PI / 180, KT = 1.943844, R2 = 2 * 6371229;
-  var DATA = "assets/models/data/strat/gfs/", MAN = "/assets/models/strat_gfs.json";
+  var DATA = "assets/models/data/strat/", MODELS = { gfs: "GFS", gdps: "GDPS" }, MODEL_ORDER = ["gfs", "gdps"];
   function S(v, c, a) { return [v, parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16), a == null ? 1 : a]; }
   // temperature, deg C, one scale for every level: purple below the polar-stratospheric-cloud threshold (-78 C)
   var T_STOPS = [S(-95, "#f4ecf8"), S(-88, "#d6bce8"), S(-82, "#aa7fcf"), S(-78.01, "#7a4bb3"), S(-78, "#3a3f9e"), S(-72, "#2d55b8"), S(-66, "#2f78d2"),
@@ -531,13 +534,14 @@
   }
 
   // ── state ──────────────────────────────────────────────────────────────────────────────────────────────────────
-  var man = null;
-  var st = { hemi: "nh", field: "t", lev: "10", th: "850", wv: "spd", hour: 0, playing: false, engT: "", engL: "" };
+  var man = {};
+  var st = { model: "gfs", hemi: "nh", field: "t", lev: "10", th: "850", wv: "spd", hour: 0, playing: false, engT: "", engL: "" };
   var view = null;                                // {cx, cy, s: metres per CSS px}
   var $ = function (id) { return document.getElementById(id); };
   function escH(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   var mapEl = $("map"), glc = $("gl"), ovc = $("ov"), labc = $("lab"), tip = $("tip");
-  function cyc() { return man && man.cycles && man.cycles[0]; }
+  function cycleOf(m) { var x = man[m]; return x && x.cycles && x.cycles[0]; }
+  function cyc() { return cycleOf(st.model); }
   function levKey(p) { return String(p).replace(".", "p"); }
   function levName(k) { return k.replace("p", "."); }
   // the file a map reads (the wind and vertical-motion maps draw their height lines from the temperature file of the same
@@ -548,7 +552,7 @@
   function nearestHour(c, h) { var hs = hoursOf(c), best = hs[0]; hs.forEach(function (x) { if (Math.abs(x - h) < Math.abs(best - h)) best = x; }); return best; }
   function qOf(c, f, h) { var fm = c.fields[f], k = fm ? fm.hours.indexOf(h) : -1; return k < 0 || !fm.q ? null : fm.q[st.hemi][k]; }   // fixed-code files (vertical motion) have none
   function chOf(f) { return f.slice(0, 2) === "pv" ? 3 : f[0] === "o" ? 1 : 2; }
-  function relPath(c, hemi, f, h) { return DATA + c.cycle + "/" + hemi + "/" + f + "/" + ("00" + h).slice(-3) + ".webp"; }
+  function relPath(c, hemi, f, h) { return DATA + c.model + "/" + c.cycle + "/" + hemi + "/" + f + "/" + ("00" + h).slice(-3) + ".webp"; }
   function subKey() { return st.field === "pv" ? st.th : st.lev + (st.field === "wind" ? "-" + st.wv : ""); }
 
   // ── data transport: assets/frames_root.js (frameFetch: the frames store first, every fallback behind it) ─────────
@@ -561,9 +565,9 @@
     return cacheP;
   }
   function pruneCache() {
-    var c = cyc(); if (!c) return;
+    var live = {}; MODEL_ORDER.forEach(function (m) { var c = cycleOf(m); if (c) live[m + "/" + c.cycle] = 1; });
     frameCache().then(function (cc) { if (!cc) return;
-      return cc.keys().then(function (ks) { ks.forEach(function (rq) { var m = rq.url.match(/strat\/gfs\/(\d{10})\//); if (m && m[1] !== c.cycle) cc.delete(rq); }); });
+      return cc.keys().then(function (ks) { ks.forEach(function (rq) { var m = rq.url.match(/strat\/(\w+)\/(\d{10})\//); if (m && !live[m[1] + "/" + m[2]]) cc.delete(rq); }); });
     }).catch(function () {});
   }
   function getBytes(rel, prio, sig) {
@@ -784,7 +788,7 @@
     if (NET.n) return NET.bw < 800;                          // < ~6.5 Mbit/s
     return !!(cn && cn.downlink && cn.downlink < 8);
   }
-  function fkey(c, hemi, f, h) { return c.cycle + "/" + hemi + "/" + f + "/" + h; }
+  function fkey(c, hemi, f, h) { return c.model + "/" + c.cycle + "/" + hemi + "/" + f + "/" + h; }   // both models can share a cycle
   function entry(k) { var e = frames.get(k); if (!e) { e = { k: k, used: 0 }; frames.set(k, e); } return e; }
   function want(list, nUrgent) {                            // [cycle entry, hemisphere, file, step], highest priority first
     var keep = {}; list.forEach(function (a) { keep[fkey(a[0], a[1], a[2], a[3])] = 1; });
@@ -1147,7 +1151,7 @@
       clearGL(); drawn = null; markShown(); drawOverlay(); schedule(); return;
     }
     var hold = false;
-    if (!e && drawn && drawn.field === st.field && drawn.hemi === st.hemi) { e = drawn.e; hold = true; }   // hold the last frame while the next decodes
+    if (!e && drawn && drawn.field === st.field && drawn.hemi === st.hemi && drawn.c === c) { e = drawn.e; hold = true; }   // hold the last frame while the next decodes
     else if (!e) { drawn = null; clearGL(); drawOverlay(); schedule(); return; }
     if (!e.dec) { drawOverlay(); schedule(); return; }
     var q = hold ? drawn.q : qOf(c, f0, hour), g = c.grids[st.hemi];
@@ -1249,7 +1253,7 @@
     if (!lv) { lv = []; for (var v = Math.ceil(q[0] / spec.ci) * spec.ci; v <= q[0] + 254 * q[1]; v += spec.ci) lv.push(v); }
     return { e: e, f: f, q: q, lut: lut, levels: lv };
   }
-  function contKey(d, n) { return d.c.cycle + "/" + d.hemi + "/" + d.file + "/" + d.sub + "/" + d.hour + "/" + n; }
+  function contKey(d, n) { return d.c.model + "/" + d.c.cycle + "/" + d.hemi + "/" + d.file + "/" + d.sub + "/" + d.hour + "/" + n; }
   function ensureTrace(d, spec, n) {
     var key = contKey(d, n);
     if (CONT.has(key) || contBusy[key]) return;
@@ -1461,9 +1465,9 @@
   }
   function updateBadge() {
     var c = cyc();
-    if (!c) { badgeH = setHTML("badge", "<b>GFS</b> · no run published yet", badgeH); validH = setHTML("valid", "", validH); return; }
+    if (!c) { badgeH = setHTML("badge", "<b>" + MODELS[st.model] + "</b> · no run published yet", badgeH); validH = setHTML("valid", "", validH); return; }
     var h = st.hour, t = fmtTime(Date.parse(c.init) + h * 3600e3), init = escH(c.init.replace(/T(\d\d):00Z/, " $1Z").slice(5).replace("-", "/"));
-    badgeH = setHTML("badge", "<b>GFS</b> " + escH(what()) + " · run " + init + " +" + h + " h", badgeH);
+    badgeH = setHTML("badge", "<b>" + MODELS[st.model] + "</b> " + escH(what()) + " · run " + init + " +" + h + " h", badgeH);
     var live = st.playing || document.activeElement === $("hour") ? "off" : "polite";
     if ($("valid").getAttribute("aria-live") !== live) $("valid").setAttribute("aria-live", live);
     validH = setHTML("valid", "<span class=\"vt\">" + t[0] + "</span> <span class=\"loc\">· " + t[1] + " your time</span><span class=\"fh\">+" + h + " h</span>", validH);
@@ -1489,6 +1493,7 @@
   }
   function setButtons() {
     var c = cyc();
+    segButtons($("models"), MODEL_ORDER.filter(cycleOf), function (m) { return MODELS[m]; }, st.model, selectModel, function (m) { return MODELS[m] + ", to +" + cycleOf(m).length + " h"; });
     segButtons($("hemis"), ["nh", "sh"], function (h) { return HEMIS[h]; }, st.hemi, selectHemi, function (h) { return HEMI_LONG[h]; });
     segButtons($("fields"), FIELD_ORDER.filter(function (f) { return f !== "omega" || (c && c.omega); }), function (f) { return FIELDS[f].label + "<small>" + FIELDS[f].unit + "</small>"; }, st.field, function (f) {
       if (st.field === f) return; st.field = f; if (c) st.hour = nearestHour(c, st.hour); setButtons(); onChange(); });
@@ -1520,6 +1525,18 @@
     if (j !== i) pickLev(ks[j]);
     var b = $("levs").querySelector('button[data-k="' + ks[j] + '"]'); return b;
   }
+  // another model: the same valid time, hemisphere and field where it has them, the nearest level (in ln p) or isentrope
+  function selectModel(m) {
+    if (m === st.model || !cycleOf(m)) return;
+    var old = cyc(), vt = old ? Date.parse(old.init) + st.hour * 3600e3 : Date.now(), c = cycleOf(m);
+    tip.style.display = "none"; st.model = m; ENC = c.enc; CONT.clear();
+    if (st.field === "omega" && !c.omega) st.field = "t";
+    function near(list, v, f) { return list.reduce(function (a, b) { return Math.abs(f(b) - f(v)) < Math.abs(f(a) - f(v)) ? b : a; }); }
+    st.lev = levKey(near(c.levels, +levName(st.lev), Math.log));
+    st.th = String(near(c.thetas, +st.th, Math.log));
+    st.hour = nearestHour(c, Math.round((vt - Date.parse(c.init)) / 3600e3));
+    setButtons(); var g = prepGrid(c.grids[st.hemi]); fit(g); onChange(); showChecks(GEOS);
+  }
   function selectHemi(h) {
     if (h === st.hemi) return;
     tip.style.display = "none"; st.hemi = h; P.set(h); CONT.clear();
@@ -1530,7 +1547,8 @@
     var c = cyc(), hs = hoursOf(c);
     $("hour").max = Math.max(0, hs.length - 1); $("hour").value = Math.max(0, hs.indexOf(st.hour));
     var n = "";
-    if (st.field === "pv") n = "Ertel potential vorticity computed here from the GFS's temperature and winds on 27 levels (<a href=\"#pvmethod\">method and checks</a>)" +
+    if (st.field === "pv") n = "Ertel potential vorticity computed here from the " + MODELS[st.model] + "'s temperature and winds on " + (c && c.pv_levels ? c.pv_levels.length : "its") + " levels" +
+      (st.model === "gdps" ? ", shown on 350–850 K only: the GDPS publishes no level between 5 and 1 hPa" : "") + " (<a href=\"#pvmethod\">method and checks</a>)" +
       (st.hemi === "sh" ? "; Southern Hemisphere PV is shown with its sign reversed, so the vortex is positive" : "") + ".";
     else if (st.field === "omega") n = "Vertical motion is the GFS's own omega, smoothed hard in space and averaged over up to 3 days centred on the valid time, so it shows the planetary-scale descent and ascent, not single waves; there is none at +0 and +384 h (<a href=\"#vvmethod\">how</a>).";
     else if (+levName(st.lev) < 1) n = "Above 1 hPa (the stratopause region) the analysis has few observations to draw on: read these maps as the model's picture.";
@@ -1712,7 +1730,7 @@
     }
     else {
       var mpv = mpvOf(s.c[0]), pp = pOf(s.c[2]), mg = linOf(s.c[1], d.q), th = +d.lk;
-      if (mpv === null) txt = "outside the levels: the " + th + " K surface is below 400 hPa or above 0.4 hPa here";
+      if (mpv === null) txt = "outside the levels: the " + th + " K surface is below 400 hPa or above " + Math.min.apply(null, d.c.levels) + " hPa here";
       else { var pv = mpv * pvScale(th) * (d.hemi === "sh" ? -1 : 1);
         txt = "PV " + num(pv, Math.abs(pv) < 100 ? 1 : 0) + " PVU";
         extra.push("scaled to 475 K: " + num(mpv, 1) + " PVU" + (d.hemi === "sh" ? " (sign reversed on the map)" : ""));
@@ -1727,10 +1745,11 @@
     if (sticky) { clearTimeout(tip._t); tip._t = setTimeout(function () { tip.style.display = "none"; }, 4000); }
   }
 
-  // ── URL hash: #hemisphere/field/level-or-isentrope/step[/u] ─────────────────────────────────────────────────────────
-  function writeHash() { try { history.replaceState(null, "", "#" + st.hemi + "/" + st.field + "/" + levName(curLev()) + "/" + st.hour + (st.field === "wind" && st.wv === "u" ? "/u" : "")); } catch (e) {} }
+  // ── URL hash: #[model/]hemisphere/field/level-or-isentrope/step[/u] (no model = the GFS) ────────────────────────────
+  function writeHash() { try { history.replaceState(null, "", "#" + (st.model === "gfs" ? "" : st.model + "/") + st.hemi + "/" + st.field + "/" + levName(curLev()) + "/" + st.hour + (st.field === "wind" && st.wv === "u" ? "/u" : "")); } catch (e) {} }
   function readHash() {
     var p = location.hash.replace("#", "").split("/");
+    if (MODELS[p[0]]) st.model = p.shift();
     if (HEMIS[p[0]]) st.hemi = p[0];
     if (FIELDS[p[1]]) st.field = p[1];
     if (p[2]) { if (st.field === "pv") st.th = p[2]; else st.lev = levKey(p[2]); }
@@ -1739,16 +1758,29 @@
     return hadHour;
   }
   // the run's checks (scripts/models/strat_maps.py "checks") and the polar-cap PV beside GEOS FP's, for the method section
+  var GEOS = null;
   function showChecks(geos) {
-    var c = cyc(), k0 = c && c.checks; if (!k0) return;
-    var m = function (key) { var x = k0[key]; return x ? x.median : null; }, bits = [];
-    ABSV_TXT.forEach(function (p) { if (m("absv/" + p + "/r") !== null) bits.push(p + " hPa: correlation " + m("absv/" + p + "/r").toFixed(3) + ", rms ratio " + m("absv/" + p + "/rms_ratio").toFixed(2)); });
+    if (geos) GEOS = geos;
+    var lines = MODEL_ORDER.filter(cycleOf).map(function (mod) { var t = checksOf(mod, cycleOf(mod), GEOS); return t ? MODELS[mod] + " run of " + cycleOf(mod).init.slice(5, 10).replace("-", "/") + " " + cycleOf(mod).init.slice(11, 13) + "Z. " + t : ""; }).filter(Boolean);
+    $("checks").textContent = lines.join(" ");
+  }
+  function checksOf(mod, c, geos) {
+    var k0 = c && c.checks; if (!k0) return "";
+    var M = MODELS[mod], m = function (key) { var x = k0[key]; return x ? x.median : null; }, bits = [];
+    Object.keys(k0).map(function (k) { var x = /^absv\/(\d+)\/r$/.exec(k); return x && x[1]; }).filter(Boolean).sort(function (a, b) { return a - b; }).forEach(function (p) {
+      bits.push(p + " hPa: correlation " + m("absv/" + p + "/r").toFixed(3) + ", rms ratio " + m("absv/" + p + "/rms_ratio").toFixed(2)); });
     var out = [];
-    if (bits.length) out.push("absolute vorticity (ζ + f) from these winds against the GFS's own (20–85°, medians over the check steps) at " + bits.join("; "));
+    if (k0.units) out.push("units read from the fields' magnitudes, not their labels: temperature " + k0.units.t + ", heights " + k0.units.z + " (the 10 hPa median " + k0.units.z10_median_m.toLocaleString("en-US") + " m), winds " + k0.units.uv.split(" (")[0] +
+      (k0.units.absv ? ", vorticity " + k0.units.absv : "") + (k0.units.pv2 ? ", the 2-PVU pressure " + k0.units.pv2 : ""));
+    if (bits.length) out.push("absolute vorticity (ζ + f) from these winds against the " + M + "'s own (20–85°, medians over the check steps) at " + bits.join("; "));
     var pv2 = ["nh", "sh"].filter(function (h) { return m("pv2/" + h + "/mae_hpa") !== null; }).map(function (h) {
       return (h === "nh" ? "north" : "south") + " mean difference " + num(m("pv2/" + h + "/bias_hpa"), 0) + " hPa, mean absolute " + m("pv2/" + h + "/mae_hpa").toFixed(0) + " hPa, " + Math.round(100 * m("pv2/" + h + "/within_25hpa")) + " % within 25 hPa";
     });
-    if (pv2.length) out.push("the 2-PVU (dynamic tropopause) pressure from this PV against the GFS's own, computed by its post-processor on the model's native levels (30–80°): " + pv2.join("; "));
+    if (pv2.length) out.push("the 2-PVU (dynamic tropopause) pressure from this PV against the " + M + "'s own, computed on the model's native levels (30–80°): " + pv2.join("; "));
+    var g0 = mod === "gdps" && cycleOf("gfs") && cycleOf("gfs").checks, gm = function (key) { var x = g0 && g0[key]; return x ? x.median : null; };
+    var gl = [350, 400, 475, 600, 850, 1200, 1600].filter(function (t) { return gm("gdpslev/" + t + "/r") !== null; }).map(function (t) {
+      return t + " K r " + gm("gdpslev/" + t + "/r").toFixed(3) + ", cap ratio " + gm("gdpslev/" + t + "/cap_ratio_nh").toFixed(2) + " north, " + gm("gdpslev/" + t + "/cap_ratio_sh").toFixed(2) + " south"; });
+    if (gl.length) out.push("what its levels cost, measured on the newest GFS run: the GFS's PV recomputed on only the GDPS's 16 levels against its own from 27 (pattern correlation poleward of 20°; ratio of the polar-cap means): " + gl.join("; "));
     if (geos && geos.hemispheres && geos.valid && c.cap) {
       var vt = c.hours.map(function (h) { return new Date(Date.parse(c.init) + h * 3600e3).toISOString(); });
       var day = null, ig = -1, ih = -1;
@@ -1760,33 +1792,36 @@
             return a && b ? t + " K " + a[0] + " against " + b.cap_pv[ig] + " PVU (" + a[1] + " against " + b.cap_hpa[ig] + " hPa)" : "";
           }).filter(Boolean).join(", ");
         });
-        out.push("polar-cap (poleward of 60°) mean PV on " + day + " 00 UTC, GFS +" + c.hours[ih] + " h against GEOS FP (" + (ig ? "its +" + ig + " d forecast" : "its analysis") + "): " + cmp.join("; "));
+        out.push("polar-cap (poleward of 60°) mean PV on " + day + " 00 UTC, " + M + " +" + c.hours[ih] + " h against GEOS FP (" + (ig ? "its +" + ig + " d forecast" : "its analysis") + "): " + cmp.join("; "));
       }
     }
     if (c.omega && c.omega.ref) out.push("the vertical motion's colour ranges come from " + c.omega.ref.samples + " samples of GFS analyses (" + c.omega.ref.period + "): " +
       ["100", "10", "1"].filter(function (k) { return c.omega.ranges[k]; }).map(function (k) { return "±" + c.omega.ranges[k] + " hPa/day at " + k + " hPa"; }).join(", "));
-    $("checks").textContent = out.length ? "This run. " + out.map(function (x) { return x.charAt(0).toUpperCase() + x.slice(1); }).join(". ") + "." : "";
+    return out.length ? out.map(function (x) { return x.charAt(0).toUpperCase() + x.slice(1); }).join(". ") + "." : "";
   }
-  var ABSV_TXT = ["50", "10"];
 
   // ── start ──────────────────────────────────────────────────────────────────────────────────────────────────────
   // for testing from the console (and the headless checks of the decode and the shader's projection)
   window.STRAT = { st: st, get man() { return man; }, frames: frames, CONT: CONT, P: P, gridIJ: gridIJ, get view() { return view; }, get drawn() { return drawn; },
-    get gpuc() { return GPUC; }, render: render, draw: draw, lut: buildLut, gl: gl, dpr: function () { return DPR; }, pickLev: pickLev, selectHemi: selectHemi };
+    get gpuc() { return GPUC; }, render: render, draw: draw, lut: buildLut, gl: gl, dpr: function () { return DPR; }, pickLev: pickLev, selectHemi: selectHemi, selectModel: selectModel };
   try { glOk = initGL(); } catch (e) { console.error(e); }
   if (!glOk) $("msg").textContent = "This page needs WebGL 2, which this browser does not provide.";
   var hadHour = readHash();
   P.set(st.hemi);
-  if (glOk) $("msg").textContent = "Loading the newest run…";
-  fetch(MAN + "?v=" + Math.floor(Date.now() / 60000)).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (d) {
-    man = d;
+  if (glOk) $("msg").textContent = "Loading the newest runs…";
+  var bust = "?v=" + Math.floor(Date.now() / 60000);
+  Promise.all(MODEL_ORDER.map(function (m) {
+    return fetch("/assets/models/strat_" + m + ".json" + bust).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (d) {
+      man[m] = d; var x = cycleOf(m); if (x) x.model = m; });
+  })).then(function () {
+    if (!cyc()) { var alt = MODEL_ORDER.filter(cycleOf)[0]; if (alt) st.model = alt; }
     var c = cyc();
-    if (!c) { $("msg").textContent = d ? "No model run has been published yet." : "The list of model runs could not be loaded. Check your connection and reload the page."; return; }
+    if (!c) { $("msg").textContent = MODEL_ORDER.some(function (m) { return man[m]; }) ? "No model run has been published yet." : "The list of model runs could not be loaded. Check your connection and reload the page."; return; }
     ENC = c.enc;
     if (!glOk) return;
     $("msg").textContent = "";
     if (c.levels.map(levKey).indexOf(st.lev) < 0) st.lev = "10";
-    if (c.thetas.map(String).indexOf(st.th) < 0) st.th = "850";
+    if (c.thetas.map(String).indexOf(st.th) < 0) st.th = "475";
     if (st.field === "omega" && !c.omega) st.field = "t";
     if (!hadHour) st.hour = Math.max(0, Math.round((Date.now() - Date.parse(c.init)) / 3600e3));
     st.hour = nearestHour(c, st.hour);
@@ -1794,7 +1829,7 @@
     var g = prepGrid(c.grids[st.hemi]);
     fitBox(g); resize(); fit(g);
     onChange();
-    $("runs").textContent = "Run on the page now: GFS " + c.init.slice(5, 10).replace("-", "/") + " " + c.init.slice(11, 13) + "Z (published " + c.made + ").";
+    $("runs").textContent = "Runs on the page now: " + MODEL_ORDER.filter(cycleOf).map(function (m) { var x = cycleOf(m); return MODELS[m] + " " + x.init.slice(5, 10).replace("-", "/") + " " + x.init.slice(11, 13) + "Z (published " + x.made + ")"; }).join(" · ") + ".";
     showChecks(null);
     whenShown(function () { fetch("/assets/sst/data/geos_pv.json").then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (j) { if (j) showChecks(j); }); });
     setTimeout(pruneCache, 4000);

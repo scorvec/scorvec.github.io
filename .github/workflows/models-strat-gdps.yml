@@ -1,0 +1,30 @@
+name: Stratosphere model maps — GDPS
+
+# Caller for models-strat.yml (strat-models.html). The GDPS 00/12Z run reaches +240 h on the MSC Datamart ~4 h 50 min
+# after the start (measured 2026-10-24 12Z: the +240 h files at 16:47Z); the readiness check is a HEAD on two of that
+# step's files (never a directory listing):
+#   {date}/WXO-DD/model_gdps/15km/{hh}/240/{date}T{hh}Z_MSC_GDPS_AirTemp_IsbL-0001_LatLon0.15_PT240H.grib2
+#   {date}/WXO-DD/model_gdps/15km/{hh}/240/{date}T{hh}Z_MSC_GDPS_WindV_IsbL-0400_LatLon0.15_PT240H.grib2
+# The Canadian fast lane dispatches this workflow when those land; these crons are the backstop. A firing with nothing
+# new exits in about a minute.
+on:
+  schedule:
+  - cron: '20 5 * * *'
+  - cron: '20 17 * * *'
+  workflow_dispatch:
+    inputs:
+      cycle:
+        description: "Cycle YYYYMMDDHH (blank = plan the newest unpublished; skipped when it or a newer one is published)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    uses: ./.github/workflows/models-strat.yml
+    with:
+      model: gdps
+      cycle: ${{ inputs.cycle }}
+    secrets: inherit

@@ -1,32 +1,43 @@
-name: Stratosphere model maps (GFS data)
+name: Stratosphere model maps (data)
 
-# strat-models.html: the GFS 00/12Z run on every pressure level from 100 to 0.4 hPa (temperature, height, wind and the
-# smoothed vertical motion) and on seven isentropic surfaces (Ertel potential vorticity, computed here), both
-# hemispheres, every 12 h to +384 h, each field and step one lossless WebP on the 0.5 deg grid
-# (scripts/models/strat_maps.py has the details).
+# strat-models.html: the GFS and the GDPS 00/12Z runs on their pressure levels from 100 hPa up (temperature, height,
+# wind and, for the GFS, the smoothed vertical motion) and on the isentropic surfaces their levels support (Ertel
+# potential vorticity, computed here), both hemispheres, every 12 h (GFS to +384 h, GDPS to +240 h), each field and
+# step one lossless WebP (scripts/models/strat_maps.py has the details). One model per run; the callers
+# models-strat-gfs.yml / models-strat-gdps.yml fix it, so the dispatcher's "already ran since" check is per model.
 #
-# Each run: read the CURRENT manifest from main, plan (the newest complete 00/12Z cycle not yet published), fetch +
-# compute + encode, publish the cycle directory to the FRAMES STORE ONLY (FRAMES_BRANCH=off on the publish step: this
-# product never touches the git `frames` branch; the old cycle is pruned in the store), THEN commit the manifest to
-# main - never the other way round, or the page would point at data that is not there yet. A cycle that lost a step is
-# not published.
+# Each run: read that model's CURRENT manifest from main, plan (the newest complete 00/12Z cycle not yet published),
+# fetch + compute + encode, publish the cycle directory to the FRAMES STORE ONLY (FRAMES_BRANCH=off on the publish
+# step: this product never touches the git `frames` branch; the old cycle is pruned in the store), THEN commit the
+# manifest to main - never the other way round, or the page would point at data that is not there yet. A cycle that
+# lost a step is not published.
 #
-# Source: NOAA's AWS bucket noaa-gfs-bdp-pds only (never NOMADS), byte ranges of the wanted messages via the .idx
-# files: ~125 of the ~740 messages of each 0.5 deg step (u, v, T and height on 27 levels, 400-0.4 hPa, and omega on
-# the 15 map levels), ~30 MB a step, ~1 GB a cycle. +384 h is on the bucket ~5 h 15 min after the start (measured 2026-10-23/24); the dispatcher fires
-# 05:30 and 17:30 with a backup an hour later, these crons are the backstop, and a firing with nothing new exits in
-# about a minute.
+# Sources and cost per cycle:
+#   gfs   NOAA's AWS bucket noaa-gfs-bdp-pds only (never NOMADS), byte ranges of the wanted messages via the .idx files:
+#         ~125 of the ~740 messages of each 0.5 deg step, ~950 MB in ~2,350 requests (measured 2026-10-24 12Z)
+#   gdps  the MSC Datamart through scripts/geps/datamart.py (honest User-Agent, retries, ledger), 4 files at a time in
+#         each of 3 step workers: 64 whole files a step (t, z, u, v on 16 levels, 400-1 hPa, ~0.6-0.9 MB each) and 3
+#         more on the check steps, ~1 GB in ~1,350 requests
 #
-# Dispatch with omega_clim=true (instead of a run) to rebuild the vertical motion's colour ranges,
+# Dispatch with model=gfs and omega_clim=true (instead of a run) to rebuild the GFS vertical motion's colour ranges,
 # scripts/models/strat_omega_ranges.json (strat_maps.py omega-clim: 48 monthly samples of GFS analyses, ~2 GB), which
-# the runs read; without the file a run publishes no vertical motion.
+# the GFS runs read; without the file a GFS run publishes no vertical motion.
 
 on:
-  schedule:
-  - cron: '40 5 * * *'
-  - cron: '40 17 * * *'
+  workflow_call:
+    inputs:
+      model:
+        type: string
+        required: true
+      cycle:
+        type: string
+        default: ""
   workflow_dispatch:
     inputs:
+      model:
+        description: "gfs or gdps"
+        required: true
+        default: gfs
       cycle:
         description: "Cycle YYYYMMDDHH (blank = plan the newest unpublished; skipped when it or a newer one is published)"
         required: false
@@ -36,7 +47,7 @@ on:
         type: boolean
         default: false
       omega_clim:
-        description: "Rebuild the vertical motion's colour ranges (strat_omega_ranges.json) instead of a run"
+        description: "GFS only: rebuild the vertical motion's colour ranges (strat_omega_ranges.json) instead of a run"
         type: boolean
         default: false
 
@@ -44,7 +55,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: models-strat
+  group: models-strat-${{ inputs.model }}
   cancel-in-progress: false
 
 env:
@@ -61,6 +72,9 @@ jobs:
   run:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    env:
+      MODEL: ${{ inputs.model }}
+      GEPS_WORK: ${{ github.workspace }}/../datamart-work   # scripts/geps/datamart.py's request ledger, scratch
     steps:
       - uses: actions/checkout@v7
         with:
@@ -68,6 +82,8 @@ jobs:
           sparse-checkout: |
             /scripts/models/
             /scripts/snowband/
+            /scripts/geps/datamart.py
+            /scripts/geps/paths.py
             /scripts/lib/
             /assets/models/
             /scripts/constraints.txt
@@ -83,13 +99,17 @@ jobs:
           OMEGA_CLIM: ${{ inputs.omega_clim && '1' || '' }}
         run: |
           set -euo pipefail
-          if [ -n "$OMEGA_CLIM" ]; then echo "n=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+          case "$MODEL" in gfs|gdps) ;; *) echo "::error::unknown model $MODEL"; exit 1 ;; esac
+          if [ -n "$OMEGA_CLIM" ]; then
+            [ "$MODEL" = gfs ] || { echo "::error::omega_clim is for the GFS"; exit 1; }
+            echo "n=0" >> "$GITHUB_OUTPUT"; exit 0
+          fi
           mkdir -p assets/models
           # main's CURRENT manifest, not the checkout's (a run queued behind another checks out an older commit)
-          if timeout 60 git fetch -q --depth 1 origin main && git show FETCH_HEAD:assets/models/strat_gfs.json > /tmp/strat_gfs.json 2>/dev/null; then
-            cp /tmp/strat_gfs.json assets/models/strat_gfs.json
-          else echo "no manifest on main yet"; rm -f assets/models/strat_gfs.json; fi
-          python scripts/models/strat_maps.py plan --manifests assets/models ${CYCLE:+--cycle "$CYCLE"} $FORCE > "$RUNNER_TEMP/plan.txt"
+          if timeout 60 git fetch -q --depth 1 origin main && git show "FETCH_HEAD:assets/models/strat_$MODEL.json" > "/tmp/strat_$MODEL.json" 2>/dev/null; then
+            cp "/tmp/strat_$MODEL.json" "assets/models/strat_$MODEL.json"
+          else echo "no manifest on main yet for $MODEL"; rm -f "assets/models/strat_$MODEL.json"; fi
+          python scripts/models/strat_maps.py plan --model "$MODEL" --manifests assets/models ${CYCLE:+--cycle "$CYCLE"} $FORCE > "$RUNNER_TEMP/plan.txt"
           cat "$RUNNER_TEMP/plan.txt"
           echo "n=$(wc -l < "$RUNNER_TEMP/plan.txt" | tr -d ' ')" >> "$GITHUB_OUTPUT"
       - name: Boundaries (once)
@@ -108,19 +128,24 @@ jobs:
           FRAMES_BRANCH: "off"
         run: |
           set -euo pipefail
+          # steps worked on at once, each fetching its own: the GFS's S3 ranges are cheap to serve; the Datamart is a
+          # shared public service (3 workers x datamart.py's 4 files at a time)
+          if [ "$MODEL" = gdps ]; then PROCS=3; else PROCS=4; fi
           done=0
           while read -r cyc; do
             [ -n "$cyc" ] || continue
-            echo "::group::GFS $cyc"
+            echo "::group::$MODEL $cyc"
             L="$RUNNER_TEMP/lists_$cyc"
-            python scripts/models/strat_maps.py run --cycle "$cyc" --site . --procs 4 --lists "$L" --manifest-in assets/models/strat_gfs.json
+            python scripts/models/strat_maps.py run --model "$MODEL" --cycle "$cyc" --site . --procs "$PROCS" --lists "$L" \
+              --manifest-in "assets/models/strat_$MODEL.json"
             PR=$(tr '\n' ' ' < "$L/prune.txt")
-            if [ ! -s "$L/publish.txt" ]; then echo "::warning::$cyc is older than the cycle on the page - not published"; continue; fi
+            if [ ! -s "$L/publish.txt" ]; then echo "::warning::$MODEL $cyc is older than the cycle on the page - not published"; continue; fi
             SRC=. PRUNE="$PR" PRUNE_OLDER="$(cat "$L/floor.txt")" scripts/models/publish_data.sh $(cat "$L/publish.txt") > /dev/null
-            rm -rf "assets/models/data/strat/gfs/$cyc"       # in the store now; keep the runner disk free
+            rm -rf "assets/models/data/strat/$MODEL/$cyc"       # in the store now; keep the runner disk free
             done=$((done + 1))
             echo "::endgroup::"
           done < "$RUNNER_TEMP/plan.txt"
+          if [ "$MODEL" = gdps ]; then python scripts/geps/datamart.py; fi    # the run's Datamart requests and bytes
           echo "done=$done" >> "$GITHUB_OUTPUT"
       - name: Vertical-motion colour ranges (omega_clim dispatch only)
         id: clim
@@ -132,7 +157,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           SNAP=$(mktemp -d)
-          outs() { ls assets/models/strat_gfs.json assets/models/geo_polar.json assets/models/geo_polar_coarse.json scripts/models/strat_omega_ranges.json 2>/dev/null; }
+          outs() { ls "assets/models/strat_$MODEL.json" assets/models/geo_polar.json assets/models/geo_polar_coarse.json scripts/models/strat_omega_ranges.json 2>/dev/null; }
           for f in $(outs); do git add -f "$f"; done
           git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
           git reset -q
@@ -142,7 +167,7 @@ jobs:
             tar xf "$SNAP/outs.tar" 2>/dev/null || true
             for f in $(outs); do git add -f "$f"; done
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
-            git commit -q -m "models-strat: GFS $(date -u +%Y-%m-%dT%H:%MZ)"
+            git commit -q -m "models-strat: $MODEL $(date -u +%Y-%m-%dT%H:%MZ)"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
             sleep 5
           done
