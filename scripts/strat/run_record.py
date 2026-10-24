@@ -65,6 +65,7 @@ class Product:
     band: str = "members' 10–90 %"  # what the newest run's band is
     note: str = ""  # the footer's source and method line
     extra: tuple = field(default_factory=tuple)  # keys recorded but not drawn here (nh_vortex's main figure reads them)
+    models: tuple = ()  # the models that feed it (empty: any); merge() takes no record of another
 
 
 PRODUCTS = {
@@ -166,6 +167,7 @@ PRODUCTS = {
         },
         note="Log-pressure vertical velocity −(H/p) ω, H = 7 km, downward positive, the cap's log-pressure layer means "
         "(polar_descent.py): the Eulerian motion, and for GEFS the residual (TEM) one. Raw model output, no normal.",
+        models=("ifs", "hres", "gefs"),
     ),
     "upperstrat": Product(
         "Upper stratosphere, northern vortex",
@@ -242,6 +244,10 @@ def merge(src: Path) -> list[Path]:
     moved over joins the record main holds at commit time."""
     done = []
     for f in sorted(src.glob("*.json")):
+        product, model = f.stem.rsplit("_", 1)
+        if PRODUCTS.get(product) and PRODUCTS[product].models and model not in PRODUCTS[product].models:
+            print(f"  {f.name}: {model} no longer feeds {product}; not merged", flush=True)
+            continue
         new = json.loads(f.read_text())
         p = RUNS / f.name
         old = json.loads(p.read_text()) if p.exists() else {**new, "runs": []}

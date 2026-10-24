@@ -45,3 +45,6 @@ assets/sst/anim/vortex_ifs_100
 
 # 2026-10-24: GEFS's polar-cap descent maps (its VVEL is not omega; its cap descent is kinematic, without maps).
 assets/sst/anim/descent_gefs
+# 2026-10-24: the AIFS-ENS descent maps (its learned omega fails against IFS-ENS from the same analysis).
+assets/sst/anim/descent_aifs
+assets/sst/anim/descent_aifsc

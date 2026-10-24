@@ -136,7 +136,7 @@ PAGES = {
             },
             "vshape": dict(models=["AIFS-ENS", "IFS-ENS", "GEFS", "GEPS", "MERRA-2"]),
             "verify": dict(models=["AIFS-ENS", "IFS-ENS", "GEFS", "GEPS", "GEOS FP"]),
-            "pdescent": dict(models=["AIFS-ENS", "IFS-ENS", "GEFS", "GEOS FP"]),
+            "pdescent": dict(models=["IFS-ENS", "IFS control", "GEFS", "GEOS FP"]),
             "fluxrec": dict(models=["AIFS-ENS", "IFS-ENS", "GEFS", "GEPS", "ERA5"]),
         },
     ),

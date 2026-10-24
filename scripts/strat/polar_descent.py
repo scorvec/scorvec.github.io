@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Descent over the polar cap, days 1-15: where the air over the Arctic sinks (and warms by compression) or rises, from
-the stratosphere down through the troposphere, for the cap as a whole and six sectors of it, from every ensemble.
+the stratosphere down through the troposphere, for the cap as a whole and six sectors of it, from IFS-ENS and GEFS.
 
 The quantity is the log-pressure vertical velocity w* = -(H / p) omega (H = 7 km), the TEM convention: omega (Pa/s) is
 what the models publish, and w* puts the stratosphere and the troposphere on one scale (mm/s). Shown as DESCENT,
@@ -13,10 +13,12 @@ positive downward. Each member's omega is averaged onto polarcap.py's 1.5-deg ce
   maps      north of 50N, each member smoothed to planetary scales first (zonal wavenumbers 0-8, a 3-deg Gaussian in
             latitude), the ensemble mean shaded only where enough members agree on descent or ascent for a two-sided
             sign test at 5 % (polarcap.agreeing); orographic gravity waves (Greenland, the Rockies) are averaged away
-The models: AIFS-ENS control + 25 and IFS-ENS 50 members (ECMWF open data, Google Cloud mirror; w at 850, 500, 300,
-250, 200, 150, 100, 50 and 10 hPa), the IFS control and the AIFS-ENS control drawn on their ensembles' figures and
-recorded on their own, and GEFS control + 30 (v and T on the cap's edge to 1 hPa: strat_ens.py part "omega"). Each
-value is the field at its valid time (the run's hour each day). The observed record is GEOS FP's analysis (NCCS
+The models: IFS-ENS 50 members (ECMWF open data, Google Cloud mirror; w at 850, 500, 300, 250, 200, 150, 100, 50 and
+10 hPa), the IFS control drawn on its figures and recorded on its own, and GEFS control + 30 (v and T on the cap's edge
+to 1 hPa: strat_ens.py part "omega"). Each value is the field at its valid time (the run's hour each day). AIFS-ENS is
+left out: its w is a learned output that fails against IFS-ENS from the same analysis (24 Oct 2026 12Z: a one-level
+band of ascent at 250 hPa that continuity rules out, and a 10-100 hPa cap mean twice IFS-ENS's from day 1, -5.5
+against -1.5 mm/s, with GEOS FP at -1.3 the day before). The observed record is GEOS FP's analysis (NCCS
 OPeNDAP), the daily mean of its 00/06/12/18Z omega (which cancels the atmospheric tides), `tail` below (bdc.yml).
 
 Raw model output, no normal. omega is the EULERIAN motion, the air's own movement through each pressure surface, not the
@@ -87,7 +89,7 @@ TAIL = REPO / "assets" / "sst" / "data" / "descent_tail.json"
 TAIL_DAYS = 21
 OUT = REPO / "assets" / "sst"
 ANIM = OUT / "anim"
-ENSEMBLES = ("aifs", "ifs", "gefs")
+ENSEMBLES = ("ifs", "gefs")
 CONTROL = PC.CONTROL
 RATE = np.array([-12, -8, -6, -4, -3, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12.0])  # mm/s, the column chart
 MAP_RATE = np.arange(-6.0, 6.01, 1.0)  # mm/s, the maps
@@ -222,18 +224,6 @@ def _reduce_members(members: dict, levels) -> dict:
     return {**stack_steps([reduce_step(a[:, i], levels) for i in range(a.shape[1])]), "n": len(ms)}
 
 
-def load_aifs(date: str, hh: str) -> dict:
-    import store as E
-
-    cyc, steps = E.Cycle(date, hh), tuple(E.STEPS)
-    paths = {
-        k: E.ensure(cyc, E.Spec("aifs-ens", k, "w", "pl", LEVELS_EC, steps, n))
-        for k, n in (("cf", 0), ("pf", PC.AIFS_MEMBERS))
-    }
-    mem = _from_grib([paths["cf"], paths["pf"]], LEVELS_EC)  # the control is member 0
-    return {"aifs": _reduce_members(mem, LEVELS_EC), "aifsc": _reduce_members({0: mem[0]}, LEVELS_EC)}
-
-
 def load_ifs(date: str, hh: str) -> dict:
     import ifs_ens as IE
 
@@ -252,7 +242,7 @@ def load_gefs(date: str, hh: str) -> dict:
     return {"gefs": {"cap": d["om_cap"][keep], "res": d["om_res"][keep], "n": int(d["om_n"].min())}}
 
 
-LEVELS_OF = {"aifs": LEVELS_EC, "aifsc": LEVELS_EC, "ifs": LEVELS_EC, "hres": LEVELS_EC, "gefs": LEVELS_GEFS}
+LEVELS_OF = {"ifs": LEVELS_EC, "hres": LEVELS_EC, "gefs": LEVELS_GEFS}
 
 
 # ── the observed record ──────────────────────────────────────────────────────────────────────────────────────────
@@ -621,7 +611,7 @@ def maps(model, init, valid, levels, red) -> None:
 def run(model: str, date: str, hh: str, figures: bool = True) -> int:
     init = pd.Timestamp(f"{date} {hh}:00")
     valid = pd.DatetimeIndex([init + pd.Timedelta(hours=h) for h in PC.LEADS])
-    got = {"aifs": load_aifs, "ifs": load_ifs, "gefs": load_gefs}[model](date, hh)
+    got = {"ifs": load_ifs, "gefs": load_gefs}[model](date, hh)
     if not got:
         print(f"::warning::{model} {date} {hh}Z: nothing on the mirror to draw", flush=True)
         return 1

@@ -120,7 +120,6 @@ jobs:
                 rec python $S/wave_maps.py --date "$D" --time "$T" --record-only
                 rec python $S/wave_maps.py --model aifsc --date "$D" --time "$T" --record-only
                 rec python $S/polarcap.py --model aifs --date "$D" --time "$T" --record-only
-                rec python $S/polar_descent.py --model aifs --date "$D" --time "$T" --record-only
                 rec python $S/heatflux100.py --date "$D" --time "$T" --out-dir assets/sst
                 rec python $S/forecast_drip.py --model aifs --date "$D" --time "$T" --out-dir assets/sst
                 rec python $S/forecast_drip.py --model aifsc --date "$D" --time "$T" --out-dir assets/sst
