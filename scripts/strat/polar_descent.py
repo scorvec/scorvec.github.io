@@ -332,7 +332,7 @@ def column(model, init, valid, levels, series, res, ctrl, obs, out: Path) -> Non
 
     region = "Polar cap" if res is None else "Residual"
     fc = series[..., 0] if res is None else res  # (member, lead, level)
-    cap = np.nanmean(fc, 0)
+    cap = fc.mean(0)  # the residual is NaN below RES_BOTTOM in every member
     t_obs = obs.index[(obs.index < init.normalize()) & (obs.index >= init.normalize() - pd.Timedelta(days=TAIL_DAYS))] if obs is not None else []  # fmt: skip
     xo = np.asarray((pd.DatetimeIndex(t_obs) - init.normalize()).days, float)
     xf = np.asarray((valid - init.normalize()) / pd.Timedelta(days=1), float)[1:]
