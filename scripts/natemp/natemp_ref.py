@@ -343,19 +343,12 @@ def coarse(out: Path) -> None:
     print(f"  ERA5 1.5-deg monthly normals {YEARS[0]}-{YEARS[1]} ({int(n.sum())} days) -> {out}", flush=True)
 
 
-def cell_weights(cells: np.ndarray, pts: np.ndarray, h: float) -> np.ndarray:
-    """(cells, pts): the overlap of each point's cell (width h) with each CELL-wide cell, normalised per cell."""
-    lo = np.maximum(cells[:, None] - CELL / 2, pts[None] - h / 2)
-    hi = np.minimum(cells[:, None] + CELL / 2, pts[None] + h / 2)
-    w = np.clip(hi - lo, 0.0, None)
-    return w / w.sum(1, keepdims=True)
-
-
 def coarsen(f: np.ndarray, lat: np.ndarray, lon: np.ndarray, h: float, clat=CLAT, clon=CLON) -> np.ndarray:
-    """The area means over the cells (clat, clon) of a field on the h-deg points (lat, lon); longitudes east, unwrapped."""
-    wy = cell_weights(clat, lat, h) * np.cos(np.deg2rad(lat))[None]
-    wx = cell_weights(clon, lon, h)
-    return (wy @ f @ wx.T) / (wy.sum(1)[:, None] * wx.sum(1)[None])
+    """The area means over the CELL-wide cells (clat, clon) of a field on the h-deg points (lat, lon); longitudes east,
+    unwrapped."""
+    import cellmeans
+
+    return cellmeans.coarsen(f, lat, lon, h, clat, clon, CELL)
 
 
 def exposure(lf: np.ndarray, lat: np.ndarray, h: float) -> np.ndarray:

@@ -1,0 +1,50 @@
+name: Polar-cap sea-level pressure normal (ERA5 1991-2020 at 00 and 12 UTC, for polarcap.py)
+
+# scripts/strat/build_polarcap_clim.py msl: ERA5 mean sea-level pressure at 00 and 12 UTC, 1991-2020, from WeatherBench
+# 2's public 1.5-deg zarr (one pass, ~3.5 GB), fitted to a smooth daily curve per cell and hour; commits
+# scripts/strat/reference/msl_clim.nc. The 500 hPa normal (z500_clim.nc) is built offline from the ERA5 store. Dispatch
+# only (once, or after a change to the fit).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: polarcap-clim
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Python dependencies
+        run: pip install --quiet numpy pandas xarray zarr gcsfs netCDF4
+      - name: Build
+        run: python scripts/strat/build_polarcap_clim.py msl
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          F=scripts/strat/reference/msl_clim.nc
+          SNAP=$(mktemp -d); cp "$F" "$SNAP"/
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            cp "$SNAP/msl_clim.nc" "$F"
+            git add -f "$F"
+            if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+            git commit -q -m "polar-cap sea-level pressure normal (ERA5 1991-2020, 00 and 12 UTC)"
+            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
+            echo "push $i rejected; resyncing"; sleep 5
+          done
+          echo "push failed after retries"; exit 1
