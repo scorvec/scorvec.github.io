@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Vector boundaries for models.html and samerica-models.html: coastlines, lakes, country borders, provinces and
-states (and US counties), as compact delta-encoded polylines in lon/lat (1e-3 degree units, ~100 m) so the page can
-project them into whatever map projection it draws and stroke them crisply at every zoom.
+"""Vector boundaries for models.html, samerica-models.html and strat-models.html: coastlines, lakes, country borders,
+provinces and states (and US counties), as compact delta-encoded polylines in lon/lat (1e-3 degree units, ~100 m) so
+the page can project them into whatever map projection it draws and stroke them crisply at every zoom.
 
 Sources (read once; the output is static and only rebuilt when missing):
   Natural Earth 10m coastline, lakes, admin-0 boundary lines, admin-1 lines - public domain,
@@ -15,10 +15,14 @@ first map frame is up. The coarse file is derived from geo.json alone (no downlo
 and Douglas-Peucker, so its lines are the points the page keeps from geo.json at that tolerance.
 Region "sa" (samerica-models.html): geo_sa.json (the admin-1 lines of the South American countries, no US layers) and
 geo_sa_coarse.json on that page's projection.
+Region "polar" (strat-models.html, the whole globe on two polar stereographic maps): coastlines, large lakes and
+country borders only, geo_polar.json from Natural Earth 50m and geo_polar_coarse.json from 110m (the first paint, and
+all a hemisphere needs until the map is zoomed in); no projection-specific coarse file, as the page has two projections.
 
     python scripts/models/build_geo.py --out assets/models/geo.json                 # all three (downloads)
     python scripts/models/build_geo.py --out assets/models/geo.json --coarse-only   # geo_coarse.json from geo.json
     python scripts/models/build_geo.py --region sa --out assets/models/geo_sa.json
+    python scripts/models/build_geo.py --region polar --out assets/models/geo_polar.json
 """
 
 from __future__ import annotations
@@ -37,6 +41,7 @@ BOX = (-179.9, -40.0, 10.0, 84.0)  # lon0, lon1, lat0, lat1: everything any of t
 SA_BOX = (-100.0, -25.0, -62.0, 18.0)  # samerica-models.html: its domain (60 S - 15 N, 95 - 30 W) and a margin
 # the countries whose provinces or states samerica-models.html draws (Natural Earth ADM0_A3)
 SA_ADMIN1 = ("ARG", "BOL", "BRA", "CHL", "COL", "ECU", "GUY", "PER", "PRY", "SUR", "URY", "VEN")
+GLOBE = (-180.0, 180.0, -90.0, 90.0)  # strat-models.html: everything
 Q = 1000  # 1e-3 degree
 
 
@@ -307,14 +312,38 @@ def write_layers(path, layers, names, src):
     print(f"wrote {path}: {path.stat().st_size / 1e6:.2f} MB")
 
 
+def write_polar(out):
+    """geo_polar.json (Natural Earth 50m) and geo_polar_coarse.json (110m): coastlines, lakes, country borders."""
+    for scale, path, tol in (("50m", out, 0.01), ("110m", out.with_name(out.stem + "_coarse.json"), 0.0)):
+        print(f"Natural Earth {scale} ...")
+        layers = {}
+        for name, src, keep in (
+            ("coast", "coastline", lambda p: True),
+            ("lakes", "lakes", lambda p: (p.get("scalerank", p.get("SCALERANK")) or 9) <= 3),
+            ("countries", "admin_0_boundary_lines_land", lambda p: True),
+        ):
+            enc, n = encode(geo_lines(get(NE.format(f"ne_{scale}_{src}")), keep=keep), tol, GLOBE)
+            layers[name] = dict(q=Q, maxKmPerPx=None, lines=enc)
+            print(f"  {name}: {len(enc)} lines, {n} points")
+        write_layers(path, layers, list(layers), f"Natural Earth {scale} (public domain)")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="assets/models/geo.json")
     ap.add_argument(
-        "--region", choices=("na", "sa"), default="na", help="models.html (na) or samerica-models.html (sa)"
+        "--region",
+        choices=("na", "sa", "polar"),
+        default="na",
+        help="models.html (na), samerica-models.html (sa) or strat-models.html (polar)",
     )
     ap.add_argument("--coarse-only", action="store_true", help="only derive <out>_coarse.json from an existing <out>")
     a = ap.parse_args()
+    if a.region == "polar":
+        out = Path(a.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        write_polar(out)
+        return
     if a.coarse_only:
         write_coarse(a.out, a.region)
         return

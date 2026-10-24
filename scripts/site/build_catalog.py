@@ -249,6 +249,16 @@ PAGES = {
         region=["South America"],
         variable=["Temperature", "Wind", "Convection", "Precipitation"],
     ),
+    "/strat-models.html": dict(
+        kind="page",
+        topic="models",
+        tier=0,
+        prio=6,
+        models=["GFS"],
+        horizon="Days 1–15",
+        region=["Northern Hemisphere", "Southern Hemisphere"],
+        variable=["Stratosphere", "Temperature", "Height", "Wind"],
+    ),
     "/ar.html": dict(
         kind="stage",
         file="ar.html",
