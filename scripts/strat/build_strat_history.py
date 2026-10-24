@@ -59,13 +59,14 @@ REPO = HERE.parent.parent
 sys.path.insert(0, str(REPO / "scripts" / "lib"))
 from localdirs import env_dir
 
+import vortex_shape as VS  # the split/displacement geometry, shared with the forecasts
+
 TD = REPO / "scripts" / "telecon" / "data"
 M2 = TD / "m2_strat"
 OUT_NC = HERE / "reference" / "strat_history.nc"
 OUT_JS = HERE / "reference" / "strat_history_events.json"
 
 LAGS = np.arange(-40, 91)
-SPLIT_OFFSET = 150.0  # m below the edge: two low centres at this contour, the smaller >= 1/4 of the larger, days -3..+7
 SURF_WIN = {"d1_30": (1, 30), "d31_60": (31, 60)}
 SURF_LAT = (20.0, 90.0)
 REGIONS = {  # name: (lat0, lat1, lon0, lon1) in degrees east; land points only
@@ -252,60 +253,6 @@ def load_z10():
     return z
 
 
-def geometry(z: xr.DataArray, edge: float):
-    """Centroid latitude and aspect ratio of the region below `edge`, moments on an equal-area polar grid."""
-    lat, lon = np.deg2rad(z.lat.values), np.deg2rad(z.lon.values)
-    LA, LO = np.meshgrid(lat, lon, indexing="ij")
-    r = 2 * np.sin((np.pi / 2 - LA) / 2)
-    X, Y = r * np.cos(LO), r * np.sin(LO)
-    dA = np.cos(LA)
-    keep = LA >= np.deg2rad(30)  # noqa: SIM300  coordinate array LA, not a constant
-    out = []
-    for f in z.values:
-        q = np.where(keep, np.clip(edge - f, 0, None), 0) * dA
-        m0 = q.sum()
-        if m0 <= 0:
-            out.append((np.nan, np.nan))
-            continue
-        xc, yc = (q * X).sum() / m0, (q * Y).sum() / m0
-        J11 = (q * (X - xc) ** 2).sum() / m0
-        J22 = (q * (Y - yc) ** 2).sum() / m0
-        J12 = (q * (X - xc) * (Y - yc)).sum() / m0
-        s = np.sqrt((J11 - J22) ** 2 + 4 * J12**2)
-        ar = np.sqrt((J11 + J22 + s) / max(J11 + J22 - s, 1e-12))
-        rc = np.hypot(xc, yc)
-        clat = 90 - np.rad2deg(2 * np.arcsin(min(rc / 2, 1)))
-        out.append((clat, ar))
-    return np.array(out)
-
-
-def vortex_count(f: np.ndarray, lat: np.ndarray, level: float, frac: float = 0.25):
-    """Separate low centres below `level` poleward of 30N (longitude wraps, the pole row is one point):
-    the number whose area is at least `frac` of the largest's, and the second-to-first area ratio."""
-    from scipy import ndimage
-
-    lab, n = ndimage.label((f < level) & (lat[:, None] >= 30))
-    par = list(range(n + 1))
-
-    def find(a):
-        while par[a] != a:
-            a = par[a]
-        return a
-
-    for i in range(f.shape[0]):
-        if lab[i, 0] and lab[i, -1]:
-            par[find(lab[i, 0])] = find(lab[i, -1])
-    pole = [x for x in np.unique(lab[np.argmax(lat)]) if x]
-    for x in pole[1:]:
-        par[find(x)] = find(pole[0])
-    root = np.vectorize(lambda x: find(x) if x else 0)(lab)
-    area = np.cos(np.deg2rad(lat))[:, None] * np.ones(f.shape[1])[None, :]
-    A = sorted([area[root == r].sum() for r in np.unique(root) if r], reverse=True)
-    if not A:
-        return 0, 0.0
-    return sum(1 for a in A if a >= frac * A[0]), (A[1] / A[0] if len(A) > 1 else 0.0)
-
-
 # ------------------------------------------------------------------ ERA5 surface
 def era5_anoms(var: str, lat0: float):
     """Daily anomalies 1979-2026 against per-gridpoint harmonics(3) + linear trend, lat >= lat0."""
@@ -483,8 +430,8 @@ def main():
             d.filled.sel(time=slice(c - pd.Timedelta(days=10), c + pd.Timedelta(days=10))).sum()
         )
         w = z10.sel(time=slice(c - pd.Timedelta(days=3), c + pd.Timedelta(days=7)))
-        g = geometry(w, edge)
-        nv = [vortex_count(f, z10.lat.values, edge - SPLIT_OFFSET) for f in w.values]
+        g = VS.geometry(w.values, w.lat.values, w.lon.values, edge)  # days -3..+7
+        nv = [VS.vortex_count(f, z10.lat.values, edge - VS.SPLIT_OFFSET) for f in w.values]
         e["ar_max"] = round(float(np.nanmax(g[:, 1])), 2)
         e["clat_min"] = round(float(np.nanmin(g[:, 0])), 1)
         e["split_days"] = int(sum(1 for x in nv if x[0] >= 2))

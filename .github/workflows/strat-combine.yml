@@ -2,8 +2,9 @@ name: Stratosphere, every model's newest run (polar vortex figures, SSW summary)
 
 # The products that hold every model: the polar-vortex figure (scripts/strat/nh_vortex.py --from-records), its
 # run-to-run figure (run_record.py combined vortex), the days 1-15 sudden-warming summary that ssw.html reads
-# (ssw_summary.py), and the polar cap at sea level and 500 hPa and the AO and NAO (polarcap.py --combined,
-# run_record.py combined polarcap / telecon). Each model's job records its own run as it lands (strat.yml AIFS-ENS; strat-ifs.yml the IFS-ENS, IFS
+# (ssw_summary.py), the polar cap at sea level and 500 hPa and the AO and NAO (polarcap.py --combined, run_record.py
+# combined polarcap / telecon), and the vortex's shape at 10 hPa (vortex_shape.py --combined, run_record.py combined
+# vshape). Each model's job records its own run as it lands (strat.yml AIFS-ENS; strat-ifs.yml the IFS-ENS, IFS
 # control, GDPS, GEOS FP, and GEFS and GEPS - the fast lane too); after every such run this draws them from each
 # model's newest record and main's published JSON. Nothing is downloaded, and this is the only writer of these files,
 # so runs that finish close together cannot overwrite each other's models: a later run of this cancels an earlier one
@@ -52,14 +53,16 @@ jobs:
         run: |
           OUT="assets/sst/nh_vortex.webp assets/sst/nh_vortex_runs.webp assets/sst/data/ssw_summary.json
                assets/sst/polarcap_models.webp assets/sst/runs/polarcap_all.webp
-               assets/sst/telecon_models.webp assets/sst/runs/telecon_all.webp"
+               assets/sst/telecon_models.webp assets/sst/runs/telecon_all.webp
+               assets/sst/vshape_models.webp assets/sst/runs/vshape_all.webp"
           draw() {
             python scripts/strat/nh_vortex.py --from-records || echo "::warning::the vortex figure did not draw; keeping the previous one"
             python scripts/strat/run_record.py combined vortex --out assets/sst/nh_vortex_runs.webp \
               || echo "::warning::the vortex run-to-run figure did not draw; keeping the previous one"
             python scripts/strat/ssw_summary.py || echo "::warning::the SSW summary did not build; keeping the previous one"
             python scripts/strat/polarcap.py --combined || echo "::warning::the polar-cap / AO-NAO figures did not draw; keeping the previous ones"
-            for p in polarcap telecon; do
+            python scripts/strat/vortex_shape.py --combined || echo "::warning::the vortex-shape figure did not draw; keeping the previous one"
+            for p in polarcap telecon vshape; do
               python scripts/strat/run_record.py combined "$p" \
                 || echo "::warning::the $p run-to-run figure did not draw; keeping the previous one"
             done

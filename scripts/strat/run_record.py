@@ -5,13 +5,14 @@ The job that renders a model's run hands it to record(): per key, a series again
 10th/90th percentiles; one member, a deterministic run, is its own mean), and per scalar one number. The last
 KEEP_DAYS days of runs stay in assets/sst/data/runs/<product>_<model>.json. One file per product and model, written only
 by the job that renders that model, so workflows that finish close together never overwrite each other's runs; the
-figures that put the models together (nh_vortex.py --from-records, ssw_summary.py, polarcap.py --combined) read the
-newest run of each.
+figures that put the models together (nh_vortex.py --from-records, ssw_summary.py, polarcap.py --combined,
+vortex_shape.py --combined) read the newest run of each.
 
 render() draws one model's record: the last SHOW runs over one another (the oldest faint, the newest bold with its band),
 each key's change over days 6-15 against the run 24 h earlier, and the scalar run by run
 (assets/sst/runs/<product>_<model>.webp). The heat flux and the dripping paint are taken from the JSON their scripts
-publish (capture); the vortex, waves, polar-cap and upper-stratosphere scripts record their own members.
+publish (capture); the vortex, waves, polar-cap (with the vortex shape) and upper-stratosphere scripts record their own
+members.
 
     python run_record.py capture heatflux --model ifs      # this run, from assets/sst/data/ifs_heatflux100.json
     python run_record.py render vortex --model ifs
@@ -52,6 +53,7 @@ class Key:
     unit: str = ""  # of the 24 h change
     short: str = ""  # the title in a row of several models (the title when empty)
     ref: float = 0.0  # where the reference line is
+    share: bool = False  # a share of members, 0-100 (each member 0 or 100): no members' band, the axis 0-100
 
 
 @dataclass
@@ -132,6 +134,28 @@ PRODUCTS = {
         },
         note="Each member's daily index on the site's CPC-style patterns, raw model output against ERA5 1991–2020 "
         "(polarcap.py); negative = high pressure over the Arctic and Greenland.",
+    ),
+    "vshape": Product(
+        "Polar vortex shape, 10 hPa",
+        {
+            "split": Key(
+                "members with a split vortex (two centres)", "% of members", 0, None, "pts", "split", share=True
+            ),
+            "displaced": Key(
+                "members with a displaced vortex (centre south of 66°N)",
+                "% of members",
+                0,
+                None,
+                "pts",
+                "displaced",
+                share=True,
+            ),
+            "clat": Key("vortex centre latitude", "°N", 1, unit="°", short="centre latitude", ref=66.0),
+        },
+        ("anysplit", "Members whose vortex splits on any day 1–15", "% of members"),
+        band="members' 10–90 % (centre latitude)",
+        note="Each member's 10 hPa height: split = two low centres 150 m inside the winter vortex edge, displaced = "
+        "its centre south of 66°N (Seviour et al. 2013). Raw model output.",
     ),
     "upperstrat": Product(
         "Upper stratosphere, northern vortex",
@@ -316,7 +340,7 @@ def render(product: str, model: str, out: Path | None = None) -> Path | None:
         for k, r in enumerate(shown):
             new = k == len(shown) - 1
             m = series(r, key)
-            if new and r["members"] > 1:
+            if new and r["members"] > 1 and not K.share:
                 ax.fill_between(m.index, series(r, key, "p10"), series(r, key, "p90"), color=col, alpha=0.16, lw=0)
             age = (k + 1) / len(shown)
             ax.plot(
@@ -329,6 +353,8 @@ def render(product: str, model: str, out: Path | None = None) -> Path | None:
             )
         if K.zero:
             ax.axhline(K.ref, color=K.zero, lw=1.2, zorder=4)
+        if K.share:
+            ax.set_ylim(-3, 103)
         ax.set_title(K.title, fontsize=10.5, fontweight="bold", loc="left", pad=14)
         ax.text(0, 1.02, day_change(mine, key, K.unit) or "", transform=ax.transAxes, fontsize=8.5, color="0.25")
         ax.set_ylabel(K.axis, fontsize=9)
@@ -411,7 +437,7 @@ def render_combined(product: str, models: tuple, out: Path) -> Path | None:
             for k, r in enumerate(shown):
                 new = k == len(shown) - 1
                 mean = series(r, key)
-                if new and r["members"] > 1:
+                if new and r["members"] > 1 and not K.share:
                     ax.fill_between(
                         mean.index, series(r, key, "p10"), series(r, key, "p90"), color=col, alpha=0.16, lw=0
                     )
@@ -426,6 +452,8 @@ def render_combined(product: str, models: tuple, out: Path) -> Path | None:
                 )
             if K.zero:
                 ax.axhline(K.ref, color=K.zero, lw=1.2 if K.zero == "#a33" else 0.9, zorder=4)
+            if K.share:
+                ax.set_ylim(-3, 103)
             # the 24 h change on its own line under the title: beside it, four panels a row run the two together
             ax.set_title(f"{lab} · {K.short or K.title}", fontsize=10, fontweight="bold", loc="left", pad=14)
             ax.text(0, 1.015, day_change(mine, key, K.unit) or "", transform=ax.transAxes, fontsize=8, color="0.25")

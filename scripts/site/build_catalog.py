@@ -130,7 +130,11 @@ PAGES = {
             ),
         },
         items={
-            pid: dict(models=["AIFS-ENS", "IFS-ENS", "GEFS", "GEPS", "ERA5"]) for pid in ("polarcap", "telecon", "z100")
+            **{
+                pid: dict(models=["AIFS-ENS", "IFS-ENS", "GEFS", "GEPS", "ERA5"])
+                for pid in ("polarcap", "telecon", "z100", "t10")
+            },
+            "vshape": dict(models=["AIFS-ENS", "IFS-ENS", "GEFS", "GEPS", "MERRA-2"]),
         },
     ),
     # circulation.html's groups follow the theme-first menus: its days 1-15 maps under Mid-latitude weather, the

@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
-"""The troposphere and lower stratosphere under the polar vortex, days 1-15, from every ensemble: the polar cap at sea
-level and 500 hPa, the Arctic and North Atlantic Oscillations, and the 100 hPa height - plumes, maps and run records.
+"""The polar vortex and the troposphere under it, days 1-15, from every ensemble: the polar cap at sea level and 500
+hPa, the Arctic and North Atlantic Oscillations, the 100 hPa height, and at 10 hPa the temperature and the vortex's
+shape member by member (split, displaced: vortex_shape.py) - plumes, maps and run records.
 
 Each member's sea-level pressure, 500 and 100 hPa height against the ERA5 1991-2020 normal of that day and hour (high
 pressure over the Arctic is the negative Arctic Oscillation that often follows a sudden warming). Every model's fields
 are averaged onto the 1.5-deg cells the normals are on (ERA5's in WeatherBench 2; reference/{msl,z500,z100}_clim.nc from
 build_polarcap_clim.py; scripts/lib/cellmeans.py), so the models compare cell for cell:
-  aifs  AIFS-ENS control + 25 perturbed members (as its other stratosphere products): msl, and z at 500 and 100 hPa
-        from the wave maps' file; ECMWF open data, Google Cloud mirror. The control (member 0) is also drawn on the
-        AIFS-ENS plumes and recorded and mapped on its own (aifsc), as the IFS control is.
-  ifs   IFS-ENS, all 50 perturbed members, from the shared IFS-ENS files (ifs_ens.py gh and msl), and the IFS control
-        (its own stream: ctrl_gh, ctrl_msl), drawn on the IFS-ENS plumes and recorded and mapped as a model of its own
-        (hres).
-  gefs  GEFS control + 30 members, geps GEPS control + 20 members: strat_ens.py's "polarcap" part (PRMSL, HGT 500, 100).
+  aifs  AIFS-ENS control + 25 perturbed members (as its other stratosphere products): msl, t at 10 hPa, and z at 500,
+        100 and 10 hPa from the wave maps' file; ECMWF open data, Google Cloud mirror. The control (member 0) is also
+        drawn on the AIFS-ENS plumes and recorded and mapped on its own (aifsc), as the IFS control is.
+  ifs   IFS-ENS, all 50 perturbed members, from the shared IFS-ENS files (ifs_ens.py gh, msl and t10), and the IFS
+        control (its own stream: ctrl_gh, ctrl_msl), drawn on the IFS-ENS plumes and recorded and mapped as a model of
+        its own (hres; its 10 hPa temperature maps are t10_maps.py's).
+  gefs  GEFS control + 30 members, geps GEPS control + 20 members: strat_ens.py's "polarcap" part (PRMSL, HGT 500, 100,
+        10, TMP 10).
 Daily to 360 h, each value the field at its valid time (00, 06, 12 or 18 UTC, as the normal: AIFS-ENS runs four times a
 day, the others at 00 and 12 UTC). Raw model output: no drift is removed (the dripping paint's cap heights are
 drift-corrected and standardised).
@@ -25,6 +27,8 @@ drift-corrected and standardised).
              hPa mode; gefs_patterns.Ref, release gefs-ref-v1), the cells' anomalies averaged onto the patterns' 2.5 deg
              grid first; in standard deviations of the daily index at that time of year.
   100 hPa    the height anomaly and its 24 h change: where a lobe of the lower-stratospheric vortex fills or deepens.
+  10 hPa     the temperature anomaly (the normal: t10_maps.py's ERA5 1991-2020 monthly means, averaged onto the cells)
+             under the height, and every member's vortex outline coloured by its shape that day.
 Maps show the ensemble mean, an anomaly or change coloured only where enough members give it its sign for a two-sided
 sign test at 5 % (agreeing()); a control run, one run, is drawn as it is.
 
@@ -32,7 +36,10 @@ Outputs, model m:
   assets/sst/polarcap_{m}.webp, telecon_{m}.webp   plumes: every member, the members' mean (IFS-ENS: the control)
   assets/sst/anim/polarcap_{m}/ + manifest         sea level and 500 hPa: days 1-5, 6-10, 11-15, then each day
   assets/sst/anim/z100_{m}/ + manifest (+ hres)    100 hPa anomaly and 24 h change, each day
-  assets/sst/data/runs/{polarcap,telecon}_{m}.json (+ hres)   the run records (run_record.py draws the run-to-run figures)
+  assets/sst/anim/t10_{m}/ + manifest (+ aifsc)    10 hPa temperature and every member's vortex, days 0-15
+  assets/sst/vshape_{m}.webp                       every member's vortex shape each day, the shares beneath
+  assets/sst/data/runs/{polarcap,telecon,vshape}_{m}.json (+ hres)   the run records (run_record.py draws the
+                                                   run-to-run figures)
   --combined: assets/sst/polarcap_models.webp, telecon_models.webp, every model's newest run (strat-combine.yml)
 
     python polarcap.py --model ifs --date 20261024 --time 00
@@ -67,7 +74,8 @@ HIGH = 500.0  # m: the sea-level pressure cap leaves out cells whose ERA5 surfac
 MAP_HIGH = 1500.0  # m: the maps leave sea-level pressure anomalies unshaded above this
 LEADS = tuple(range(0, 361, 24))
 WINDOWS = ((1, 5), (6, 10), (11, 15))
-FIELDS = ("msl", "z500", "z100")
+FIELDS = ("msl", "z500", "z100", "z10", "t10")  # each member's, on the cells
+NORMALS = ("msl", "z500", "z100", "t10")  # the fields with an ERA5 normal (anomalies)
 AIFS_MEMBERS = 25
 G = 9.80665
 OUT = REPO / "assets" / "sst"
@@ -86,6 +94,7 @@ NEUTRAL = "#d9d6d0"
 MSL_LEVELS = np.arange(-20, 21, 2)  # hPa
 Z_LEVELS = np.arange(-200, 201, 20)  # m
 Z100_LEVELS = np.arange(-400, 401, 40)  # m
+T10_LEVELS = np.arange(-36, 37, 4)  # K, as the IFS control's 10 hPa maps (t10_maps.py)
 TEND_LEVELS = np.arange(-200, 201, 20)  # m per day
 CAP_PANELS = (
     ("msl", "Sea-level pressure, 65–90°N (cells below 500 m)", "hPa"),
@@ -104,14 +113,16 @@ def coarse(f: np.ndarray, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
 
 
 class Normals:
-    """ERA5 1991-2020 on the cells: sea-level pressure (hPa) at 00 and 12 UTC, 500 and 100 hPa height (m), the surface
-    height (m)."""
+    """ERA5 1991-2020 on the cells: sea-level pressure (hPa) at 00, 06, 12 and 18 UTC, 500 and 100 hPa height (m),
+    10 hPa temperature (K), the surface height (m)."""
 
     def __init__(self):
         import xarray as xr
 
         self.coef = {}
-        for f in FIELDS:
+        with xr.open_dataset(HERE / "reference" / "t10_clim.nc") as d:  # 1 deg (t10_maps.py's): averaged onto the cells
+            self.coef["t10"] = coarse(d["coef"].values.astype(np.float64), d.latitude.values, d.longitude.values)
+        for f in ("msl", "z500", "z100"):  # on the cells already (build_polarcap_clim.py)
             with xr.open_dataset(HERE / "reference" / f"{f}_clim.nc") as d:
                 if not (np.allclose(d.latitude, CLAT) and np.allclose(d.longitude, CLON)):
                     raise SystemExit(f"{f}_clim.nc is not on the cells CLAT x CLON")
@@ -197,9 +208,14 @@ def load_aifs(date: str, hh: str) -> dict:
     got = {f: [] for f in FIELDS}
     for kind, n in (("cf", 0), ("pf", AIFS_MEMBERS)):
         got["msl"].append(read_grib(E.ensure(cyc, E.Spec("aifs-ens", kind, "msl", "sfc", (), steps, n)), "msl", scale=0.01)[None])  # fmt: skip
-        z = read_grib(E.ensure(cyc, E.Spec("aifs-ens", kind, "z", "pl", WM.LEVELS, steps, n)), "z", (500, 100), 1 / G)
-        got["z500"].append(z[500])  # the wave maps' file
-        got["z100"].append(z[100])
+        z = read_grib(
+            E.ensure(cyc, E.Spec("aifs-ens", kind, "z", "pl", WM.LEVELS, steps, n)), "z", (500, 100, 10), 1 / G
+        )
+        for lev in (500, 100, 10):  # the wave maps' file
+            got[f"z{lev}"].append(z[lev])
+        got["t10"].append(
+            read_grib(E.ensure(cyc, E.Spec("aifs-ens", kind, "t", "pl", (10,), steps, n)), "t", (10,))[10]
+        )
     return {
         "aifs": {f: stack(*parts) for f, parts in got.items()},
         "aifsc": {f: stack(parts[0]) for f, parts in got.items()},
@@ -207,18 +223,21 @@ def load_aifs(date: str, hh: str) -> dict:
 
 
 def load_ifs(date: str, hh: str) -> dict:
-    """IFS-ENS (when complete on the mirror) and the IFS control, from the shared files."""
+    """IFS-ENS (when complete on the mirror) and the IFS control, from the shared files. The control has no 10 hPa
+    temperature here: its own maps of it (t10_maps.py) are 12-hourly and in both hemispheres."""
     import ifs_ens as IE
 
     cyc, out = IE.E.Cycle(date, hh), {}
-    for m, ready, msl, gh in (
-        ("ifs", IE.published, IE.spec_msl, IE.spec_gh),
-        ("hres", IE.ctrl_published, IE.spec_ctrl_msl, IE.spec_ctrl_gh),
+    for m, ready, msl, gh, t10 in (
+        ("ifs", IE.published, IE.spec_msl, IE.spec_gh, IE.spec_t10),
+        ("hres", IE.ctrl_published, IE.spec_ctrl_msl, IE.spec_ctrl_gh, None),
     ):
         if ready(date, hh):
-            z = read_grib(IE.ensure(cyc, gh()), "gh", (500, 100))
+            z = read_grib(IE.ensure(cyc, gh()), "gh", (500, 100, 10))
             out[m] = {"msl": stack(read_grib(IE.ensure(cyc, msl()), "msl", scale=0.01)[None]),
-                      "z500": stack(z[500]), "z100": stack(z[100])}  # fmt: skip
+                      **{f"z{lev}": stack(z[lev]) for lev in (500, 100, 10)}}  # fmt: skip
+            if t10 is not None:
+                out[m]["t10"] = stack(read_grib(IE.ensure(cyc, t10()), "t", (10,))[10])
     return out
 
 
@@ -232,9 +251,9 @@ def load_strat_ens(model: str, date: str, hh: str) -> dict:
 
 # ── one run ──────────────────────────────────────────────────────────────────────────────────────────────────────
 def anomalies(init: pd.Timestamp, fields: dict, N: Normals) -> tuple[dict, pd.DatetimeIndex]:
-    """The members' anomalies {field: (member, lead, CLAT, CLON)} and the valid times."""
+    """The members' anomalies {field: (member, lead, CLAT, CLON)} of the fields with a normal, and the valid times."""
     valid = pd.DatetimeIndex([init + pd.Timedelta(hours=h) for h in LEADS])
-    return {f: x - np.stack([N.at(f, v) for v in valid])[None] for f, x in fields.items()}, valid
+    return {f: x - np.stack([N.at(f, v) for v in valid])[None] for f, x in fields.items() if f in NORMALS}, valid
 
 
 def caps(A: dict, N: Normals) -> dict:
@@ -263,9 +282,9 @@ def teleconnections(A: dict, valid: pd.DatetimeIndex) -> dict:
     return out
 
 
-def record(product: str, model: str, init: pd.Timestamp, series: dict, valid: pd.DatetimeIndex) -> None:
+def record(product: str, model: str, init: pd.Timestamp, series: dict, valid: pd.DatetimeIndex, scalars=None) -> None:
     frames = {k: pd.DataFrame(v.T, index=valid) for k, v in series.items()}
-    RR.record(product, model, init, RR.entry(product, frames))
+    RR.record(product, model, init, RR.entry(product, frames, scalars))
     RR.render(product, model)
 
 
@@ -527,6 +546,96 @@ def z100_maps(model: str, init: pd.Timestamp, z, az) -> None:
     print(f"  {len(frames)} 100 hPa frames -> {d}", flush=True)
 
 
+def _vortices(fig, pos, z, states, title) -> None:
+    """Every member's vortex: its contour at the split level of z (member, CLAT, CLON), coloured by its shape that
+    day (vortex_shape.py), the splits drawn last."""
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+    import matplotlib.pyplot as plt
+    import vortex_shape as VS
+    import vortex_winds as VW
+    from matplotlib.lines import Line2D
+
+    pc = ccrs.PlateCarree()
+    ax = fig.add_axes(pos, projection=ccrs.NorthPolarStereo(central_longitude=0))
+    ax.set_extent([-180, 180, CLAT[0] + 0.5, 90], crs=pc)
+    VW.circular_boundary(ax)
+    lon = np.append(CLON, 360.0)
+    lw = 1.8 if len(z) == 1 else 0.8
+    for i in sorted(range(len(z)), key=lambda i: (states[i] == 2, states[i] == 1)):
+        f = _pole(z[i])
+        ax.contour(lon, CLAT, np.concatenate([f, f[:, :1]], axis=1), levels=[VS.EDGE - VS.SPLIT_OFFSET],
+                   colors=[VS.LINE_COLOUR[VS.STATES[states[i]]]], linewidths=lw, transform=pc, zorder=3)  # fmt: skip
+    ax.add_feature(cfeature.COASTLINE.with_scale("110m"), edgecolor="#2b2b2b", linewidth=0.55, zorder=4)
+    gl = ax.gridlines(linewidth=0.3, color="#8a8a8a", alpha=0.5, zorder=5)
+    gl.ylocator = plt.FixedLocator([30, 45, 60, 75])
+    ax.set_title(title, fontsize=11, fontweight="bold", pad=6)
+    counts = [(k, int((states == VS.STATES.index(k)).sum())) for k in VS.STATES]
+    handles = [Line2D([], [], color=VS.LINE_COLOUR[k], lw=2) for k, c in counts if c]
+    labels = [f"{VS.STATE_LABEL[k]}: {c}" for k, c in counts if c]
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(pos[0] + pos[2] / 2, pos[1] - 0.012), ncol=2,
+               fontsize=8.5, frameon=False)  # fmt: skip
+
+
+def t10_frame(model, init, valid, n, zm, ta, tg, z, states, out: Path) -> None:
+    """Two polar panels at 10 hPa: the temperature anomaly shaded under the height (zm, dam), and every member's
+    vortex."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import vortex_shape as VS
+
+    lab = RR.MODEL_LABEL[model]
+    fig = plt.figure(figsize=(13.0, 7.4), dpi=110)
+    _panel(fig, [0.02, 0.175, 0.46, 0.69], zm, ta, tg, T10_LEVELS, 24, ANOM_LABEL.format("K"),
+           "Temperature anomaly")  # fmt: skip
+    _vortices(fig, [0.52, 0.175, 0.46, 0.69], z, states, "The vortex" if n == 1 else "Every member's vortex")
+    fig.text(0.02, 0.965, f"{lab} · 10 hPa temperature and the vortex: {valid:%a %-d %b %HZ} (day {(valid - init).days})",
+             fontsize=14, fontweight="bold")  # fmt: skip
+    how = (
+        "one run, drawn as it is"
+        if n == 1
+        else f"ensemble mean; shaded where at least {agreeing(n)} of the {n} members agree on the sign (a sign test at 5 %)"
+    )
+    fig.text(0.02, 0.928, f"Run {init:%Y-%m-%d %HZ} · black: height, every 24 dam · {how}", fontsize=9.5, color="#333")
+    fig.text(
+        0.02,
+        0.008,
+        ("Grey: the members are split. " if n > 1 else "")
+        + f"Right: the {VS.EDGE - VS.SPLIT_OFFSET:,.0f} m height line of "
+        + ("the run" if n == 1 else "each member")
+        + " (150 m inside the winter vortex edge), coloured by the vortex's shape that day.\n"
+        f"Raw model output against ERA5 1991–2020 at each day. {CREDIT[model]}.",
+        fontsize=8,
+        color="#6f6b64",
+        linespacing=1.4,
+    )
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=110, facecolor="white", pil_kwargs={"quality": 80, "method": 6})
+    plt.close(fig)
+
+
+def t10_maps(model: str, init: pd.Timestamp, at, z, shape: dict) -> None:
+    """Each day 0-15: the 10 hPa temperature anomaly (the ensemble mean, gated; a single run as it is) under the mean
+    height, and every member's vortex."""
+    d = ANIM / f"t10_{model}"
+    d.mkdir(parents=True, exist_ok=True)
+    for old in d.glob("*.webp"):
+        old.unlink()
+    frames = []
+    for k in range(len(LEADS)):
+        valid = init + pd.Timedelta(hours=LEADS[k])
+        ta, tg = agreed(at[:, k])
+        t10_frame(model, init, valid, z.shape[0], z[:, k].mean(0) / 10.0, ta, tg, z[:, k], shape["state"][:, k],
+                  d / f"D{k:02d}.webp")  # fmt: skip
+        frames.append(
+            {"file": f"D{k:02d}.webp", "date": f"{valid:%Y-%m-%d}", "label": f"Day {k} · {valid:%a %-d %b %HZ}"}
+        )
+    manifest(f"t10_{model}", init, f"10 hPa temperature and the vortex, {RR.MODEL_LABEL[model]}", frames)
+    print(f"  {len(frames)} 10 hPa frames -> {d}", flush=True)
+
+
 def combined(product: str, panels, title: str, out: Path, max_age_days: float = 2.0) -> Path | None:
     """Every model's newest run from the records: the members' mean and 10-90 % band, the control runs dashed."""
     import matplotlib
@@ -580,7 +689,9 @@ def run(model: str, date: str, hh: str) -> int:
     if not got:
         print(f"::warning::{model} {date} {hh}Z: nothing on the mirror to draw", flush=True)
         return 1
-    done, ctrls = {}, {}
+    import vortex_shape as VS
+
+    done, ctrls, shapes = {}, {}, {}
     for m, raw in got.items():
         full = np.logical_and.reduce([np.isfinite(x).all((1, 2, 3)) for x in raw.values()])  # every lead, field
         fields = {f: x[full] for f, x in raw.items()}
@@ -595,6 +706,14 @@ def run(model: str, date: str, hh: str) -> int:
         record("telecon", m, init, tc, valid)
         if "z100" in fields:
             z100_maps(m, init, fields["z100"], A["z100"])
+        if "z10" in fields:
+            shapes[m] = vs = VS.shape(fields["z10"], CLAT, CLON)
+            share = [f"{100 * (vs['state'][:, k] == 2).mean():.0f}" for k in (0, 5, 10, 15)]
+            print(f"  {RR.MODEL_LABEL[m]}: vortex split in {'/'.join(share)} % of members on days 0/5/10/15, on any "
+                  f"day 1-15 in {VS.any_split(vs):.0%}", flush=True)  # fmt: skip
+            record("vshape", m, init, VS.series(vs), valid, {"anysplit": round(VS.any_split(vs), 3)})
+            if "t10" in fields:
+                t10_maps(m, init, A["t10"], fields["z10"], vs)
         if m in CONTROL.values():
             ctrls[m] = {**{k: v[0] for k, v in cp.items()}, **{k: v[0] for k, v in tc.items()}}
         else:
@@ -604,6 +723,10 @@ def run(model: str, date: str, hh: str) -> int:
         plumes(m, init, valid, cp, CAP_PANELS, CAP_TITLE, c, OUT / f"polarcap_{m}.webp")
         plumes(m, init, valid, tc, TELE_PANELS, TELE_TITLE, c, OUT / f"telecon_{m}.webp")
         maps(m, init, fields["msl"], fields["z500"], A["msl"], A["z500"], N)
+        if m in shapes:
+            cm = CONTROL.get(m)
+            cs = {**shapes[cm], "model": cm} if cm in shapes else None
+            VS.members(m, init, shapes[m], cs, CREDIT[m], OUT / f"vshape_{m}.webp")
     return 0
 
 
