@@ -19,10 +19,17 @@ recorded on their own, and GEFS control + 30 (VVEL from its pgrb2b files, to 1 h
 value is the field at its valid time (the run's hour each day). The observed record is GEOS FP's analysis (NCCS
 OPeNDAP), the daily mean of its 00/06/12/18Z omega (which cancels the atmospheric tides), `tail` below (bdc.yml).
 
-Raw model output, no normal. This is the EULERIAN motion, the air's own movement through each pressure surface, not the
+Raw model output, no normal. omega is the EULERIAN motion, the air's own movement through each pressure surface, not the
 Brewer-Dobson (residual) circulation: while planetary waves carry heat poleward, as before a sudden warming, the
 Eulerian mean over the cap RISES, its adiabatic cooling offsetting part of the eddies' warming, while the residual
 circulation sinks (Andrews, Holton and Leovy 1987). The sectors and maps show where the air sinks and warms.
+
+  residual  for GEFS and GEOS FP, whose v and T reach 1 hPa, the cap mean of the residual (TEM) vertical velocity
+            omega* = [omega] + (1/(a cos phi)) d/dphi (cos phi [v'theta'] / d[theta]/dp), which over the cap is its
+            Eulerian mean less cos phi0 X / (a (1 - sin phi0)), X = [v'theta'] / d[theta]/dp on its edge PHI0 (the
+            zonal means of the grid rows within 0.3 deg of it; d/dp centred in pressure between the levels): the descent
+            that carries a warming down, from RES_BOTTOM up. The ECMWF ensembles' open data have v and T at too few
+            levels for it.
 
     python polar_descent.py --model ifs --date 20261024 --time 00          # IFS-ENS and the IFS control
     python polar_descent.py tail --days 5     # GEOS FP: -> assets/sst/data/descent_tail.json (bdc.yml)
@@ -64,6 +71,11 @@ MAP_LAT = 49.5  # the maps' southern edge (cell centre)
 MAP_LEVELS = (10, 50, 100)
 KMAX = 8  # zonal wavenumbers kept in the maps
 SIGMA_LAT = 2.0  # cells (3 deg): the maps' meridional smoothing
+PHI0 = 65.25  # deg N: the cap cells' southern edge (polarcap.CLAT >= CAP: the cells from 65.25N)
+A_EARTH = 6.371e6  # m
+RES_BOTTOM = 300.0  # hPa: the residual descent is drawn above it (below, the polar stability is too weak for the TEM
+# eddy term to be read from daily fields)
+KAPPA = 0.2857  # R / cp
 TAIL = REPO / "assets" / "sst" / "data" / "descent_tail.json"
 TAIL_DAYS = 45
 OUT = REPO / "assets" / "sst"
@@ -105,27 +117,54 @@ def smooth(d: np.ndarray) -> np.ndarray:
     return gaussian_filter1d(np.fft.irfft(f, n=d.shape[-1], axis=-1), SIGMA_LAT, axis=-2, mode="nearest")
 
 
-def reduce_step(omega: np.ndarray, levels) -> dict:
+def boundary_eddies(v: np.ndarray, t: np.ndarray, lat: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """([v'T'], [T]) on the cap's edge PHI0 from v, t (..., level, lat, lon): the zonal-mean eddy heat flux and
+    temperature of the grid rows within 0.3 deg of it, averaged over those rows -> (..., level)."""
+    rows = np.abs(lat - PHI0) <= 0.3
+    vv, tt = v[..., rows, :], t[..., rows, :]
+    vt = ((vv - vv.mean(-1, keepdims=True)) * (tt - tt.mean(-1, keepdims=True))).mean(-1)
+    return vt.mean(-1), tt.mean((-2, -1))
+
+
+def residual_shift(vt: np.ndarray, tbar: np.ndarray, levels) -> np.ndarray:
+    """The eddy part of the cap-mean residual descent, mm/s (..., level): -cos phi0 X / (a (1 - sin phi0)) with
+    X = [v'theta'] / d[theta]/dp on the edge, in the descent units of `descent`."""
+    p = np.asarray(levels, float) * 100.0
+    fac = (1e5 / p) ** KAPPA  # theta / T
+    th_p = np.gradient(tbar * fac, p, axis=-1)
+    domega = -np.cos(np.deg2rad(PHI0)) * (vt * fac / th_p) / (A_EARTH * (1 - np.sin(np.deg2rad(PHI0))))
+    return np.where(p <= RES_BOTTOM * 100.0, 1000.0 * H * domega / p, np.nan)
+
+
+def reduce_step(omega: np.ndarray, levels, vt: np.ndarray | None = None, tbar: np.ndarray | None = None) -> dict:
     """One lead's reductions from every member's omega (member, level, CLAT, CLON), Pa/s: the cap and sector series
-    (member, level, 7), and north of MAP_LAT the smoothed members' mean (level, lat, lon) and the number of members
-    descending there (level, lat, lon)."""
+    (member, level, 7), north of MAP_LAT the smoothed members' mean (level, lat, lon) and the number of members
+    descending there (level, lat, lon), and with the edge's eddies (boundary_eddies, (member, level)) the cap's residual
+    descent (member, level)."""
     d = descent(omega, levels)
     rows = PC.CLAT >= MAP_LAT
     s = smooth(d[..., rows, :])
-    return {
+    out = {
         "series": area_means(d).astype("float32"),
         "mean": s.mean(0).astype("float32"),
         "ndesc": (s > 0).sum(0).astype("int16"),
     }
+    if vt is not None:
+        out["res"] = (out["series"][..., 0] + residual_shift(vt, tbar, levels)).astype("float32")
+    return out
 
 
 def stack_steps(steps: list) -> dict:
-    """The leads' reduce_step outputs stacked: series (member, lead, level, 7), mean and ndesc (lead, level, lat, lon)."""
-    return {
+    """The leads' reduce_step outputs stacked: series (member, lead, level, 7), mean and ndesc (lead, level, lat, lon),
+    res (member, lead, level) when the steps carry it."""
+    out = {
         "series": np.stack([s["series"] for s in steps], 1),
         "mean": np.stack([s["mean"] for s in steps]),
         "ndesc": np.stack([s["ndesc"] for s in steps]),
     }
+    if "res" in steps[0]:
+        out["res"] = np.stack([s["res"] for s in steps], 1)
+    return out
 
 
 def layer(x: np.ndarray, levels, top: float, bot: float) -> np.ndarray:
@@ -187,14 +226,10 @@ def load_gefs(date: str, hh: str) -> dict:
 
     d = SE.load("gefs", date, hh, ("omega",))
     keep = SE.complete_members(d, "om_series")
-    return {
-        "gefs": {
-            "series": d["om_series"][keep],
-            "mean": d["om_mean"],
-            "ndesc": d["om_ndesc"],
-            "n": int(d["om_n"].min()),
-        }
-    }
+    out = {"series": d["om_series"][keep], "mean": d["om_mean"], "ndesc": d["om_ndesc"], "n": int(d["om_n"].min())}
+    if "om_res" in d:
+        out["res"] = d["om_res"][keep]
+    return {"gefs": out}
 
 
 LEVELS_OF = {"aifs": LEVELS_EC, "aifsc": LEVELS_EC, "ifs": LEVELS_EC, "hres": LEVELS_EC, "gefs": LEVELS_GEFS}
@@ -202,8 +237,8 @@ LEVELS_OF = {"aifs": LEVELS_EC, "aifsc": LEVELS_EC, "ifs": LEVELS_EC, "hres": LE
 
 # ── the observed record ──────────────────────────────────────────────────────────────────────────────────────────
 def tail(a) -> int:
-    """GEOS FP: the cap and sector descent (mm/s) per level, daily mean of the 00/06/12/18Z analyses, for the last
-    `days` days not yet held -> TAIL (the last KEEP kept)."""
+    """GEOS FP: the cap and sector descent (mm/s) per level and the cap's residual descent, daily means of the
+    00/06/12/18Z analyses, for the last `days` days not yet held -> TAIL (the last KEEP kept)."""
     import time
     import warnings
 
@@ -216,35 +251,46 @@ def tail(a) -> int:
     l0, l1 = min(li), max(li)
     r0 = int(np.where(fp.d.lat.values >= PC.CAP)[0][0])
     lat, lon = fp.d.lat.values[r0::2], fp.d.lon.values[::4]  # 0.5 x 1.25 deg, as geosfp_cap: a cap mean loses nothing
+    edge = np.flatnonzero(np.abs(fp.d.lat.values - PHI0) <= 0.3)  # the rows on the cap's edge, for the residual
     end = fp.tn.normalize() - pd.Timedelta(days=1) if fp.tn.hour < 18 else fp.tn.normalize()
     days = [
-        d for d in pd.date_range(end - pd.Timedelta(days=a.days - 1), end) if a.force or f"{d:%Y-%m-%d}" not in have
+        d
+        for d in pd.date_range(end - pd.Timedelta(days=a.days - 1), end)
+        if a.force or not isinstance(have.get(f"{d:%Y-%m-%d}"), dict)  # a day held without its residual is refetched
     ]
+
+    def read(var, it, lat_sl):
+        for k in range(7):  # NCCS answers 504 under load
+            try:
+                return fp.d[var].isel(time=it, lev=slice(l0, l1 + 1), lat=lat_sl, lon=slice(None, None, 4)).values
+            except Exception as e:  # noqa: BLE001
+                if k == 6:
+                    raise SystemExit(f"GEOS FP {var} step {it}: {str(e)[:80]}") from e
+                time.sleep(15 * (k + 1))
+
     for day in days:
-        snaps = []
+        snaps, vts, tbars = [], [], []
         for h in (0, 6, 12, 18):
             it = round((day + pd.Timedelta(hours=h) - fp.t0) / pd.Timedelta(hours=3))
-            for k in range(7):  # NCCS answers 504 under load
-                try:
-                    om = (
-                        fp.d["omega"]
-                        .isel(time=it, lev=slice(l0, l1 + 1), lat=slice(r0, None, 2), lon=slice(None, None, 4))
-                        .values
-                    )
-                    break
-                except Exception as e:  # noqa: BLE001
-                    if k == 6:
-                        raise SystemExit(f"GEOS FP {day:%Y-%m-%d} {h:02d}Z: {str(e)[:80]}") from e
-                    time.sleep(15 * (k + 1))
+            om = read("omega", it, slice(r0, None, 2))
             snaps.append(np.where(np.abs(om) < 1e5, om, np.nan)[[i - l0 for i in li]])  # below ground: missing
+            sl = slice(int(edge[0]), int(edge[-1]) + 1)
+            vt, tb = boundary_eddies(*(read(v, it, sl)[[i - l0 for i in li]] for v in ("v", "t")), fp.d.lat.values[sl])
+            vts.append(vt)
+            tbars.append(tb)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
             x = area_means(descent(np.nanmean(snaps, 0), LEVELS_GEFS), lat, lon)  # (level, 7)
-        have[f"{day:%Y-%m-%d}"] = np.round(x, 3).tolist()
-        print(f"  GEOS FP {day:%Y-%m-%d}: cap descent 10 hPa {x[LEVELS_GEFS.index(10), 0]:+.2f} mm/s", flush=True)
+        res = x[:, 0] + residual_shift(np.mean(vts, 0), np.mean(tbars, 0), LEVELS_GEFS)
+        have[f"{day:%Y-%m-%d}"] = {"w": np.round(x, 3).tolist(), "res": np.round(res, 3).tolist()}
+        k10 = LEVELS_GEFS.index(10)
+        print(
+            f"  GEOS FP {day:%Y-%m-%d}: cap descent 10 hPa {x[k10, 0]:+.2f} mm/s, residual {res[k10]:+.2f}", flush=True
+        )
     keep = sorted(have)[-a.keep :]
     TAIL.write_text(json.dumps({"source": "GEOS FP inst3_3d_asm_Np omega (NASA GMAO, NCCS OPeNDAP), daily mean of "
-                                "00/06/12/18Z, on polarcap.py's 1.5-deg cells; descent -w* = H omega / p, H = 7 km, mm/s",
+                                "00/06/12/18Z, on polarcap.py's 1.5-deg cells; descent -w = H omega / p, H = 7 km, mm/s "
+                                "(w: the cap and sectors, Eulerian; res: the cap's residual, with the eddies on 65.25N)",
                                 "levels": list(LEVELS_GEFS), "regions": list(REGIONS),
                                 "days": {k: have[k] for k in keep}}, separators=(",", ":")))  # fmt: skip
     print(f"descent tail: {len(days)} day(s) fetched, {len(keep)} kept -> {TAIL}")
@@ -252,17 +298,21 @@ def tail(a) -> int:
 
 
 def observed(levels) -> pd.DataFrame | None:
-    """The GEOS FP tail at the model's levels: a frame with a (level, region) column index, by day."""
+    """The GEOS FP tail at the model's levels: a frame with a (level, region) column index, by day; region "Residual"
+    is the cap's residual descent."""
     if not TAIL.exists():
         return None
     j = json.loads(TAIL.read_text())
     idx = [j["levels"].index(L) for L in levels if L in j["levels"]]
     if len(idx) < len(levels):
         return None
-    days = sorted(j["days"])
-    a = np.array([np.array(j["days"][d], float)[idx] for d in days])  # (day, level, region)
-    cols = pd.MultiIndex.from_product([list(levels), list(REGIONS)])
-    return pd.DataFrame(a.reshape(len(days), -1), index=pd.DatetimeIndex(days), columns=cols)
+    days = sorted(d for d, v in j["days"].items() if isinstance(v, dict))
+    if not days:
+        return None
+    w = np.array([np.array(j["days"][d]["w"], float)[idx] for d in days])  # (day, level, region)
+    r = np.array([np.array(j["days"][d]["res"], float)[idx] for d in days])[..., None]
+    cols = pd.MultiIndex.from_product([list(levels), [*REGIONS, "Residual"]])
+    return pd.DataFrame(np.concatenate([w, r], -1).reshape(len(days), -1), index=pd.DatetimeIndex(days), columns=cols)
 
 
 # ── figures ──────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -270,31 +320,40 @@ INK, MUTED = "#1f2328", "#6f6b64"
 CREDIT = {**PC.CREDIT, "gefs": "NOAA GEFS (AWS Open Data), VVEL from the pgrb2b files"}
 
 
-def column(model, init, valid, levels, series, ctrl, obs, out: Path) -> None:
-    """Time-height of the cap's descent: GEOS FP's last TAIL_DAYS days, then the members' mean; beneath, the cap's
-    10-100 and 100-300 hPa layers."""
+def column(model, init, valid, levels, series, res, ctrl, obs, out: Path) -> None:
+    """Time-height of the cap's descent - the residual descent where the model has it (res, (member, lead, level)),
+    else the Eulerian one: GEOS FP's last TAIL_DAYS days, then the members' mean; beneath, the cap's 10-100 and
+    100-300 hPa layers (with the residual, the Eulerian 10-100 hPa as well)."""
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import forecast_drip as FD
 
-    cap = np.nanmean(series[..., 0], 0)  # (lead, level)
+    region = "Polar cap" if res is None else "Residual"
+    fc = series[..., 0] if res is None else res  # (member, lead, level)
+    cap = np.nanmean(fc, 0)
     t_obs = obs.index[(obs.index < init.normalize()) & (obs.index >= init.normalize() - pd.Timedelta(days=TAIL_DAYS))] if obs is not None else []  # fmt: skip
     xo = np.asarray((pd.DatetimeIndex(t_obs) - init.normalize()).days, float)
     xf = np.asarray((valid - init.normalize()) / pd.Timedelta(days=1), float)[1:]
-    Zo = np.array([[obs.loc[t, (L, "Polar cap")] for L in levels] for t in t_obs]) if len(t_obs) else np.empty((0, len(levels)))  # fmt: skip
+    Zo = np.array([[obs.loc[t, (L, region)] for L in levels] for t in t_obs]) if len(t_obs) else np.empty((0, len(levels)))  # fmt: skip
     X, Z = np.r_[xo, xf], np.vstack([Zo, cap[1:]])
     fig = plt.figure(figsize=(13.4, 8.6), dpi=120)
     lab = RR.MODEL_LABEL[model]
-    fig.text(0.07, 0.975, f"{lab} · descent over the polar cap (65–90°N), observed and forecast · run {init:%d %b %Y %HZ}",
+    what = "descent" if res is None else "residual descent"
+    fig.text(0.07, 0.975, f"{lab} · {what} over the polar cap (65–90°N), observed and forecast · run {init:%d %b %Y %HZ}",
              fontsize=15, fontweight="bold", color=INK, va="top")  # fmt: skip
     n = series.shape[0]
-    fig.text(0.07, 0.935, "Log-pressure vertical velocity, downward positive (red: the air sinks and warms by compression). "
-             f"Left of the line: GEOS FP analyses, daily means; right: {'the run' if n == 1 else f'the mean of {n} members'}, "
-             "at the run's hour each day. Raw output, no normal. Eulerian motion: while waves carry heat poleward the "
-             "cap-mean air rises, offsetting part of their warming.", fontsize=9.4,
-             color=MUTED, va="top", wrap=True)  # fmt: skip
+    kind = (
+        "Log-pressure vertical velocity, downward positive (red: the air sinks and warms by compression). Eulerian "
+        "motion: while waves carry heat poleward the cap-mean air rises, offsetting part of their warming."
+        if res is None
+        else "The residual (TEM) vertical velocity −(H/p) ω*, downward positive: the Eulerian motion plus the eddies' "
+        "heat-flux term on the cap's edge, the descent that carries a warming down."
+    )
+    fig.text(0.07, 0.935, f"{kind} Left of the line: GEOS FP analyses, daily means; right: "
+             f"{'the run' if n == 1 else f'the mean of {n} members'}, at the run's hour each day. Raw output, no normal.",
+             fontsize=9.4, color=MUTED, va="top", wrap=True)  # fmt: skip
     ax = fig.add_axes([0.07, 0.42, 0.84, 0.45])
     cf = ax.contourf(X, np.array(levels, float), Z.T, levels=RATE, cmap="RdBu_r", extend="both")
     ax.axvline(0, color=INK, lw=1.4)
@@ -314,7 +373,7 @@ def column(model, init, valid, levels, series, ctrl, obs, out: Path) -> None:
         if obs is not None and len(t_obs):
             o = layer(Zo[:, :, None], levels, top, bot)[:, 0]
             ax2.plot(xo, o, color=INK, lw=1.5, ls=ls, label=f"{name}, observed (GEOS FP)")
-        f = layer(series[:, 1:, :, :1], levels, top, bot)[..., 0]  # (member, lead)
+        f = layer(fc[:, 1:, :, None], levels, top, bot)[..., 0]  # (member, lead)
         if n > 1 and key == "strat":
             ax2.fill_between(
                 xf, *np.nanpercentile(f, [10, 90], 0), color=col, alpha=0.15, lw=0, label="members 10–90 %"
@@ -332,6 +391,16 @@ def column(model, init, valid, levels, series, ctrl, obs, out: Path) -> None:
                 ls=":" if key == "ut" else "-.",
                 label=f"{name}, {RR.MODEL_LABEL[CONTROL[model]]}",
             )
+    if res is not None:  # the Eulerian 10-100 hPa mean beside it: the eddies' term is the gap
+        top, bot = LAYERS["strat"]
+        e = layer(series[:, 1:, :, :1], levels, top, bot)[..., 0]
+        ax2.plot(
+            xf, np.nanmean(e, 0), color="#8a8680", lw=1.4, ls=":", label=f"{top}–{bot} hPa, Eulerian, members’ mean"
+        )
+        if obs is not None and len(t_obs):
+            eo = np.array([[obs.loc[t, (L, "Polar cap")] for L in levels] for t in t_obs])
+            ax2.plot(xo, layer(eo[:, :, None], levels, top, bot)[:, 0], color="#8a8680", lw=1.2, ls=":",
+                     label=f"{top}–{bot} hPa, Eulerian, observed")  # fmt: skip
     ax2.axhline(0, color="#555", lw=0.8)
     ax2.axvline(0, color=INK, lw=1.0)
     ax2.set_xlim(X[0], X[-1])
@@ -344,8 +413,12 @@ def column(model, init, valid, levels, series, ctrl, obs, out: Path) -> None:
     for a in (ax, ax2):
         for sp in ("top", "right"):
             a.spines[sp].set_visible(False)
-    fig.text(0.07, 0.012, f"w* = −(H/p) ω, H = 7 km, from each model's ω averaged onto 1.5° cells. {CREDIT[model]} · GEOS FP (NASA GMAO).",
-             fontsize=8.2, color=MUTED)  # fmt: skip
+    how = (
+        "−(H/p) ω, H = 7 km, from each model's ω averaged onto 1.5° cells."
+        if res is None
+        else f"ω* over the cap = its Eulerian mean less cos φ0 [v′θ′]/(∂θ/∂p) / (a (1 − sin φ0)) on its edge, φ0 = {PHI0}°N."
+    )
+    fig.text(0.07, 0.012, f"{how} {CREDIT[model]} · GEOS FP (NASA GMAO).", fontsize=8.2, color=MUTED)
     fig.savefig(out, dpi=120, facecolor="white", pil_kwargs={"quality": 88, "method": 6})
     plt.close(fig)
     print(f"  wrote {out}", flush=True)
@@ -496,8 +569,12 @@ def run(model: str, date: str, hh: str, figures: bool = True) -> int:
     for m, red in got.items():
         lv, x = LEVELS_OF[m], red["series"]
         cap = {key: layer(x[..., :1], lv, *LAYERS[key])[..., 0] for key in LAYERS}  # (member, lead)
+        if "res" in red:
+            cap["res"] = layer(red["res"][..., None], lv, *LAYERS["strat"])[..., 0]
         print(f"  {RR.MODEL_LABEL[m]}: {x.shape[0]} members; cap 10-100 hPa descent {np.nanmean(cap['strat'][:, 1:6]):+.2f} "
-              f"mm/s days 1-5, {np.nanmean(cap['strat'][:, 6:]):+.2f} days 6-15", flush=True)  # fmt: skip
+              f"mm/s days 1-5, {np.nanmean(cap['strat'][:, 6:]):+.2f} days 6-15"
+              + (f"; residual {np.nanmean(cap['res'][:, 1:6]):+.2f} / {np.nanmean(cap['res'][:, 6:]):+.2f}" if "res" in cap else ""),
+              flush=True)  # fmt: skip
         PC.record("descent", m, init, cap, valid)
         if figures:
             maps(m, init, valid, lv, red)
@@ -507,7 +584,7 @@ def run(model: str, date: str, hh: str, figures: bool = True) -> int:
         lv, c = LEVELS_OF[m], got.get(CONTROL.get(m))
         ctrl = c["series"] if c else None
         obs = observed(lv)
-        column(m, init, valid, lv, got[m]["series"], ctrl, obs, OUT / f"descent_{m}.webp")
+        column(m, init, valid, lv, got[m]["series"], got[m].get("res"), ctrl, obs, OUT / f"descent_{m}.webp")
         sectors(m, init, valid, lv, got[m]["series"], ctrl, obs, OUT / f"descent_sectors_{m}.webp")
     return 0
 
