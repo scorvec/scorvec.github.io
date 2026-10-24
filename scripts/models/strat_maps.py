@@ -81,7 +81,8 @@ Checks, per run (manifest "checks"; the page's method section shows them):
                  mean of [omega] - (+ in the south) cos phi0 F(phi0) / (a (1 - sin phi0)), at 10 and 100 hPa, relative
                  to the eddy term; the cap means of the residual and Eulerian descent there;
                  the kinematic [omega] against an independent route, the GFS's VVEL plus rho g (d[z]/dt + [V.grad z])
-                 (the moving pressure surfaces put back), at 10, 50 and 100 hPa, and the global means of all three;
+                 (the moving pressure surfaces put back), at 10, 50 and 100 hPa, as they are and with each level's
+                 global mean removed, and the global means of all three;
                  omega* from the GDPS's levels alone (1-100 hPa, I = 0 at 1 hPa, F from those levels) against the
                  full column's: the test of whether the GDPS (no vertical velocity above 200 hPa) could have it
   cap            the polar-cap (poleward of 60 deg, cos-weighted) mean PV and log-mean pressure at 475 and 850 K on every
@@ -719,6 +720,9 @@ def tem_section(outdir, steps, lat, levels):
         if v is not None and np.isfinite(v):
             ck.setdefault(key, []).append(float(v))
 
+    def anom(x):  # less its cos-weighted global mean at each level
+        return x - (x * cw).sum(-1, keepdims=True) / cw.sum()
+
     def gmean(x):  # the cos-weighted global mean relative to the rms, per level -> the largest
         return float(np.max(np.abs((x * cw).sum(-1)) / np.sqrt((x**2 * cw).sum(-1) * cw.sum())))
 
@@ -736,9 +740,10 @@ def tem_section(outdir, steps, lat, levels):
         wc = smooth_lat(m["w"] + rho * G0 * ((one[h1]["z"] - one[h0]["z"]) / ((h1 - h0) * 3600.0) + m["adv"]), lat)
         for q in (10, 50, 100):
             k = lev.index(q)
-            a, b = wb[k][band20], wc[k][band20]
-            add(f"kin_vs_w/{q}/r", np.corrcoef(a, b)[0, 1])
-            add(f"kin_vs_w/{q}/rms_ratio", np.sqrt((a**2).mean() / (b**2).mean()))
+            for name, x, y in (("kin_vs_w", wb, wc), ("kin_vs_w_anom", anom(wb), anom(wc))):  # as is; global means out
+                a, b = x[k][band20], y[k][band20]
+                add(f"{name}/{q}/r", np.corrcoef(a, b)[0, 1])
+                add(f"{name}/{q}/rms_ratio", np.sqrt((a**2).mean() / (b**2).mean()))
         add("global_mean/vvel", gmean(smooth_lat(m["w"], lat)))
         add("global_mean/kinematic", gmean(wb))
         add("global_mean/vvel_corrected", gmean(wc))
