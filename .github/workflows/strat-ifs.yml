@@ -15,6 +15,8 @@ name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, wave
 #   polarcap.py           -> assets/sst/{polarcap,telecon,vshape}_ifs.webp + anim/{polarcap,t10}_ifs/, anim/z100_{ifs,hres}/
 #                            + data/runs/{polarcap,telecon,vshape}_{ifs,hres}.json: polar cap, AO/NAO, 100 hPa height,
 #                            10 hPa temperature and the vortex's shape (the shared gh, msl and t10 files)
+#   polar_descent.py      -> assets/sst/descent{,_sectors}_{ifs,gefs}.webp + anim/descent_{ifs,hres,gefs}/: descent over
+#                            the polar cap (the shared w files; GEFS from strat_ens.py part "omega")
 #   (hres = the IFS control in file names, as in the code; the pages say "IFS control")
 #   ssw_imprint.py        -> assets/sst/ssw_imprint.webp + data/ssw_imprint{,_history,_runs}.json: the downward
 #                            propagation monitor (imprint job, after the drips it reads)
@@ -223,7 +225,7 @@ jobs:
 
       - name: Shared IFS-ENS fetch (Google mirror only)
         if: env.READY == 'true'
-        timeout-minutes: 25
+        timeout-minutes: 40
         continue-on-error: true
         run: |
           start=$(date +%s)
@@ -313,6 +315,15 @@ jobs:
           python scripts/strat/polarcap.py --model ifs --date "$D" --time "$T" \
             || echo "::warning::IFS polar cap failed; keeping the previous figures"
 
+      # Descent over the polar cap from the shared w files (the ensemble's and the control's): the column, the sectors,
+      # the maps and the IFS-ENS and IFS control records.
+      - name: Descent over the polar cap (IFS-ENS, IFS control)
+        timeout-minutes: 20
+        continue-on-error: true
+        run: |
+          python scripts/strat/polar_descent.py --model ifs --date "$D" --time "$T" \
+            || echo "::warning::IFS descent failed; keeping the previous figures"
+
       # Weather regimes from the 50 IFS-ENS members of the shared gh file (no fetch of its own; 00Z cycles only) ->
       # assets/regimes/data, read by the multi-model regime view (regimes.yml).
       - name: Weather regimes (IFS-ENS members)
@@ -339,7 +350,7 @@ jobs:
         run: |
           bad=0
           want="assets/sst/hres_drip.webp"
-          [ "$READY" = "true" ] && want="$want assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/ifs_drip.webp assets/sst/polarcap_ifs.webp assets/sst/telecon_ifs.webp assets/sst/vshape_ifs.webp"
+          [ "$READY" = "true" ] && want="$want assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/ifs_drip.webp assets/sst/polarcap_ifs.webp assets/sst/telecon_ifs.webp assets/sst/vshape_ifs.webp assets/sst/descent_ifs.webp"
           for f in $want; do
             if [ -f "$f" ] && [ "$f" -nt /tmp/t0 ]; then printf '  %-40s %s\n' "$f" "$(du -h "$f" | cut -f1)"
             else printf '  %-40s MISSING\n' "$f"; bad=$((bad + 1)); fi
@@ -366,11 +377,13 @@ jobs:
                    assets/sst/runs/{drip,waves}_hres.webp \
                    assets/sst/polarcap_ifs.webp assets/sst/telecon_ifs.webp assets/sst/anim/polarcap_ifs_manifest.json \
                    assets/sst/anim/z100_{ifs,hres}_manifest.json assets/sst/vshape_ifs.webp assets/sst/anim/t10_ifs_manifest.json \
-                   assets/sst/data/runs/{polarcap,telecon,vshape}_{ifs,hres}.json \
-                   assets/sst/runs/{polarcap,telecon,vshape}_{ifs,hres}.webp; do
+                   assets/sst/descent_ifs.webp assets/sst/descent_sectors_ifs.webp assets/sst/anim/descent_{ifs,hres}_manifest.json \
+                   assets/sst/data/runs/{polarcap,telecon,vshape,descent}_{ifs,hres}.json \
+                   assets/sst/runs/{polarcap,telecon,vshape,descent}_{ifs,hres}.webp; do
             [ -e "$p" ] && [ "$p" -nt /tmp/t0 ] && echo "$p" >> /tmp/maps.list
           done
-          for d in assets/sst/anim/polarcap_ifs assets/sst/anim/z100_ifs assets/sst/anim/z100_hres assets/sst/anim/t10_ifs; do
+          for d in assets/sst/anim/polarcap_ifs assets/sst/anim/z100_ifs assets/sst/anim/z100_hres assets/sst/anim/t10_ifs \
+                   assets/sst/anim/descent_ifs assets/sst/anim/descent_hres; do
             if [ -d "$d" ] && [ "$d" -nt /tmp/t0 ]; then echo "$d" >> /tmp/maps.list; fi
           done
           for m in ifs hres; do
@@ -506,6 +519,10 @@ jobs:
               || echo "::warning::$m vortex-wind loops failed; keeping the previous frames"
             python scripts/strat/polarcap.py --model "$m" --date "$d" --time "$t" \
               || echo "::warning::$m polar cap failed; keeping the previous figures"
+            if [ "$m" = gefs ]; then  # GEPS publishes no vertical velocity
+              python scripts/strat/polar_descent.py --model gefs --date "$d" --time "$t" \
+                || echo "::warning::gefs descent failed; keeping the previous figures"
+            fi
           }
           for m in $MODELS; do
             M=$(echo "$m" | tr a-z A-Z); dv=${M}_D tv=${M}_T sv=${M}_SKIP
@@ -573,8 +590,10 @@ jobs:
                      assets/sst/polarcap_${m}.webp assets/sst/anim/polarcap_${m} assets/sst/anim/polarcap_${m}_manifest.json \
                      assets/sst/telecon_${m}.webp assets/sst/anim/z100_${m} assets/sst/anim/z100_${m}_manifest.json \
                      assets/sst/vshape_${m}.webp assets/sst/anim/t10_${m} assets/sst/anim/t10_${m}_manifest.json \
-                     assets/sst/data/runs/{vortex,heatflux,drip,waves,polarcap,telecon,vshape}_${m}.json \
-                     assets/sst/runs/{heatflux,drip,waves,polarcap,telecon,vshape}_${m}.webp; do
+                     assets/sst/descent_${m}.webp assets/sst/descent_sectors_${m}.webp \
+                     assets/sst/anim/descent_${m} assets/sst/anim/descent_${m}_manifest.json \
+                     assets/sst/data/runs/{vortex,heatflux,drip,waves,polarcap,telecon,vshape,descent}_${m}.json \
+                     assets/sst/runs/{heatflux,drip,waves,polarcap,telecon,vshape,descent}_${m}.webp; do
               [ -e "$p" ] && [ "$p" -nt /tmp/t0 ] && echo "$p" >> /tmp/naens.list
             done
           done
@@ -841,6 +860,7 @@ jobs:
           dirs="$dirs assets/sst/anim/polarcap_ifs assets/sst/anim/polarcap_gefs assets/sst/anim/polarcap_geps"
           for m in ifs hres gefs geps; do dirs="$dirs assets/sst/anim/z100_${m}"; done
           for m in ifs gefs geps; do dirs="$dirs assets/sst/anim/t10_${m}"; done
+          for m in ifs hres gefs; do dirs="$dirs assets/sst/anim/descent_${m}"; done
           scripts/lib/publish_frames_ci.sh $dirs assets/sst/anim/pacjet_ifs
 
       # Stills, data and manifests to main. Never rebase: snapshot, reset to a fresh
@@ -868,6 +888,8 @@ jobs:
                    assets/sst/vshape_ifs.webp assets/sst/vshape_gefs.webp assets/sst/vshape_geps.webp \
                    assets/sst/anim/t10_ifs_manifest.json assets/sst/anim/t10_gefs_manifest.json \
                    assets/sst/anim/t10_geps_manifest.json \
+                   assets/sst/descent_ifs.webp assets/sst/descent_sectors_ifs.webp assets/sst/descent_gefs.webp \
+                   assets/sst/descent_sectors_gefs.webp assets/sst/anim/descent_{ifs,hres,gefs}_manifest.json \
                    assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
                    assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_ifs.json \
                    assets/sst/ssw_imprint.webp assets/sst/data/ssw_imprint.json assets/sst/data/ssw_imprint_history.json \

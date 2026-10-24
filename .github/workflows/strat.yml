@@ -7,6 +7,7 @@ name: Stratosphere (vortex, waves 1 and 2, E-P flux from GEFS)
 #   vortex_winds.py   -> assets/sst/anim/vortex_{10,100}_{nh,sh}/  31-step 12-hourly loops, one hemisphere each
 #   polarcap.py       -> assets/sst/{polarcap,telecon,vshape}_aifs.webp + anim/{polarcap,z100,t10}_aifs/  polar cap,
 #                        AO/NAO, 100 hPa height, 10 hPa temperature and the vortex's shape member by member (light job)
+#   polar_descent.py  -> assets/sst/descent{,_sectors}_aifs.webp + anim/descent_{aifs,aifsc}/  descent over the polar cap
 #   aifsc             -> the AIFS-ENS control (member 0) on its own, as the IFS control: aifsc_drip.webp, wave and
 #                        vortex-wind loops, {z100,t10}_aifsc/, its run records (light job; its vortex record in heavy)
 #   qbo_duct.py --model gefs -> assets/sst/anim/epflux_gefs/   E-P flux loop from the NOAA GEFS ensemble (epflux job)
@@ -215,6 +216,17 @@ jobs:
             --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
             || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "polarcap" "keeping the previous figures"
 
+      # Descent over the polar cap and its six sectors: w at 9 levels for the control and the 25 members (~1.5 GB),
+      # the column, the sectors, the maps and the records. Google mirror only.
+      - name: Descent over the polar cap
+        env:
+          ECMWF_SOURCES: google
+          ECMWF_MULTISOURCE: "0"
+        run: |
+          python scripts/strat/polar_descent.py --model aifs \
+            --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "polar_descent" "keeping the previous figures"
+
       # 100 hPa eddy heat flux: v and T for 25 members, daily steps, ~0.5 GB. Google mirror only.
       - name: Eddy heat flux, 100 hPa
         env:
@@ -300,10 +312,10 @@ jobs:
         run: |
           scripts/lib/degraded.sh --summary
           bad=0
-          for d in assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh assets/sst/anim/wave2_nh assets/sst/anim/wave2_sh assets/sst/anim/vortex_10_nh assets/sst/anim/vortex_10_sh assets/sst/anim/vortex_100_nh assets/sst/anim/vortex_100_sh assets/sst/anim/polarcap_aifs assets/sst/anim/z100_aifs assets/sst/anim/t10_aifs \
+          for d in assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh assets/sst/anim/wave2_nh assets/sst/anim/wave2_sh assets/sst/anim/vortex_10_nh assets/sst/anim/vortex_10_sh assets/sst/anim/vortex_100_nh assets/sst/anim/vortex_100_sh assets/sst/anim/polarcap_aifs assets/sst/anim/z100_aifs assets/sst/anim/t10_aifs assets/sst/anim/descent_aifs \
                    assets/sst/anim/wave1_aifsc_nh assets/sst/anim/wave1_aifsc_sh assets/sst/anim/wave2_aifsc_nh assets/sst/anim/wave2_aifsc_sh \
                    assets/sst/anim/vortex_aifsc_10_nh assets/sst/anim/vortex_aifsc_10_sh assets/sst/anim/vortex_aifsc_100_nh \
-                   assets/sst/anim/vortex_aifsc_100_sh assets/sst/anim/z100_aifsc assets/sst/anim/t10_aifsc; do
+                   assets/sst/anim/vortex_aifsc_100_sh assets/sst/anim/z100_aifsc assets/sst/anim/t10_aifsc assets/sst/anim/descent_aifsc; do
             n=$(ls "$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')
             printf '  %-38s %s frames\n' "$d" "$n"
             [ "$n" -eq 0 ] && bad=$((bad + 1))
@@ -339,8 +351,10 @@ jobs:
                    assets/sst/polarcap_aifs.webp assets/sst/anim/polarcap_aifs assets/sst/anim/polarcap_aifs_manifest.json \
                    assets/sst/telecon_aifs.webp assets/sst/anim/z100_aifs assets/sst/anim/z100_aifs_manifest.json \
                    assets/sst/vshape_aifs.webp assets/sst/anim/t10_aifs assets/sst/anim/t10_aifs_manifest.json \
-                   assets/sst/data/runs/{heatflux,drip,waves,polarcap,telecon,vshape}_aifs.json \
-                   assets/sst/runs/{heatflux,drip,waves,polarcap,telecon,vshape}_aifs.webp \
+                   assets/sst/descent_aifs.webp assets/sst/descent_sectors_aifs.webp \
+                   assets/sst/anim/descent_aifs assets/sst/anim/descent_aifs_manifest.json \
+                   assets/sst/data/runs/{heatflux,drip,waves,polarcap,telecon,vshape,descent}_aifs.json \
+                   assets/sst/runs/{heatflux,drip,waves,polarcap,telecon,vshape,descent}_aifs.webp \
                    assets/sst/aifsc_drip.webp assets/sst/aifsc_drip_change.webp assets/sst/data/aifsc_drip.json \
                    assets/sst/anim/wave1_aifsc_nh assets/sst/anim/wave1_aifsc_sh assets/sst/anim/wave2_aifsc_nh assets/sst/anim/wave2_aifsc_sh \
                    assets/sst/anim/wave1_maps_aifsc_manifest.json assets/sst/anim/wave2_maps_aifsc_manifest.json \
@@ -348,8 +362,9 @@ jobs:
                    assets/sst/anim/vortex_aifsc_100_sh assets/sst/anim/vortex_winds_aifsc_manifest.json \
                    assets/sst/anim/z100_aifsc assets/sst/anim/z100_aifsc_manifest.json \
                    assets/sst/anim/t10_aifsc assets/sst/anim/t10_aifsc_manifest.json \
-                   assets/sst/data/runs/{drip,waves,polarcap,telecon,vshape}_aifsc.json \
-                   assets/sst/runs/{drip,waves,polarcap,telecon,vshape}_aifsc.webp; do
+                   assets/sst/anim/descent_aifsc assets/sst/anim/descent_aifsc_manifest.json \
+                   assets/sst/data/runs/{drip,waves,polarcap,telecon,vshape,descent}_aifsc.json \
+                   assets/sst/runs/{drip,waves,polarcap,telecon,vshape,descent}_aifsc.webp; do
             [ -e "$p" ] && echo "$p" >> /tmp/light.list
           done
           if [ ! -s /tmp/light.list ]; then
@@ -624,6 +639,7 @@ jobs:
           scripts/lib/publish_frames_ci.sh assets/sst/anim/epflux_gefs assets/sst/anim/wave1_nh \
             assets/sst/anim/wave1_sh assets/sst/anim/wave2_nh assets/sst/anim/wave2_sh assets/sst/anim/vortex_10_nh assets/sst/anim/vortex_10_sh assets/sst/anim/vortex_100_nh assets/sst/anim/vortex_100_sh \
             assets/sst/anim/pacjet_aifs assets/sst/anim/polarcap_aifs assets/sst/anim/z100_aifs assets/sst/anim/t10_aifs \
+            assets/sst/anim/descent_aifs assets/sst/anim/descent_aifsc \
             assets/sst/anim/wave1_aifsc_nh assets/sst/anim/wave1_aifsc_sh assets/sst/anim/wave2_aifsc_nh assets/sst/anim/wave2_aifsc_sh \
             assets/sst/anim/vortex_aifsc_10_nh assets/sst/anim/vortex_aifsc_10_sh assets/sst/anim/vortex_aifsc_100_nh \
             assets/sst/anim/vortex_aifsc_100_sh assets/sst/anim/z100_aifsc assets/sst/anim/t10_aifsc
@@ -637,6 +653,7 @@ jobs:
           for f in assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp assets/sst/data/heatflux100.json assets/sst/data/heatflux100_history.json \
                    assets/sst/aifs_drip.webp assets/sst/aifs_drip_change.webp assets/sst/data/aifs_drip.json assets/sst/anim/*_manifest.json \
                    assets/sst/polarcap_aifs.webp assets/sst/telecon_aifs.webp assets/sst/vshape_aifs.webp \
+                   assets/sst/descent_aifs.webp assets/sst/descent_sectors_aifs.webp \
                    assets/regimes/data/regimes_members_aifs.json assets/regimes/data/regimes_drift_aifs.json \
                    assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_aifs.json \
                    assets/sst/pacjet_aifs_*.webp assets/sst/pacjet_torque.webp assets/sst/pacjet_impacts_*.webp \

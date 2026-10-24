@@ -2,8 +2,9 @@ name: Stratosphere run records, backfill (past runs of every product and model)
 
 # Adds past runs to the run-to-run records (scripts/strat/run_record.py) that strat.yml and strat-ifs.yml extend every
 # cycle, for every record product: the polar vortex (nh_vortex.py --record-only), the heat flux and the dripping paint
-# (their scripts, then run_record.py capture), the planetary waves (wave_maps.py --record-only), and the polar cap, the
-# AO/NAO and the vortex's shape (polarcap.py --record-only). One job per model and day, newest day first:
+# (their scripts, then run_record.py capture), the planetary waves (wave_maps.py --record-only), the polar cap, the
+# AO/NAO and the vortex's shape (polarcap.py --record-only), and the descent over the cap (polar_descent.py
+# --record-only). One job per model and day, newest day first:
 #   aifs  AIFS-ENS 00, 06, 12 and 18Z, and its control (aifsc)
 #   ifs   IFS-ENS 00 and 12Z, and the IFS control (hres)
 #   gefs  GEFS 00 and 12Z
@@ -119,6 +120,7 @@ jobs:
                 rec python $S/wave_maps.py --date "$D" --time "$T" --record-only
                 rec python $S/wave_maps.py --model aifsc --date "$D" --time "$T" --record-only
                 rec python $S/polarcap.py --model aifs --date "$D" --time "$T" --record-only
+                rec python $S/polar_descent.py --model aifs --date "$D" --time "$T" --record-only
                 rec python $S/heatflux100.py --date "$D" --time "$T" --out-dir assets/sst
                 rec python $S/forecast_drip.py --model aifs --date "$D" --time "$T" --out-dir assets/sst
                 rec python $S/forecast_drip.py --model aifsc --date "$D" --time "$T" --out-dir assets/sst
@@ -138,16 +140,18 @@ jobs:
                 rec python $S/wave_maps.py --model ifs --date "$D" --time "$T" --record-only
                 rec python $S/wave_maps.py --model hres --date "$D" --time "$T" --record-only
                 rec python $S/polarcap.py --model ifs --date "$D" --time "$T" --record-only
+                rec python $S/polar_descent.py --model ifs --date "$D" --time "$T" --record-only
                 rec python $S/nh_vortex.py --record-only --models ifs,hres --cycle "$D$T"
                 ;;
               gefs)
-                rec python $S/strat_ens.py fetch --model gefs --date "$D" --time "$T" --parts vortex,drip,flux,waves,polarcap
+                rec python $S/strat_ens.py fetch --model gefs --date "$D" --time "$T" --parts vortex,drip,flux,waves,polarcap,omega
                 rec python $S/heatflux100_ext.py --model gefs --days 15 --date "$D" --time "$T" --out-dir assets/sst
                 rec python $S/forecast_drip.py --model gefs --days 15 --date "$D" --time "$T" --out-dir assets/sst
                 rec python $S/run_record.py capture heatflux --model gefs
                 rec python $S/run_record.py capture drip --model gefs
                 rec python $S/wave_maps.py --model gefs --date "$D" --time "$T" --record-only
                 rec python $S/polarcap.py --model gefs --date "$D" --time "$T" --record-only
+                rec python $S/polar_descent.py --model gefs --date "$D" --time "$T" --record-only
                 rec python $S/nh_vortex.py --record-only --models gefs --cycle "$D$T"
                 ;;
             esac

@@ -54,7 +54,8 @@ jobs:
           OUT="assets/sst/nh_vortex.webp assets/sst/nh_vortex_runs.webp assets/sst/data/ssw_summary.json
                assets/sst/polarcap_models.webp assets/sst/runs/polarcap_all.webp
                assets/sst/telecon_models.webp assets/sst/runs/telecon_all.webp
-               assets/sst/vshape_models.webp assets/sst/runs/vshape_all.webp assets/sst/runs/verify_strat.webp"
+               assets/sst/vshape_models.webp assets/sst/runs/vshape_all.webp assets/sst/runs/verify_strat.webp
+               assets/sst/runs/descent_all.webp"
           draw() {
             python scripts/strat/nh_vortex.py --from-records || echo "::warning::the vortex figure did not draw; keeping the previous one"
             python scripts/strat/run_record.py combined vortex --out assets/sst/nh_vortex_runs.webp \
@@ -63,7 +64,7 @@ jobs:
             python scripts/strat/polarcap.py --combined || echo "::warning::the polar-cap / AO-NAO figures did not draw; keeping the previous ones"
             python scripts/strat/vortex_shape.py --combined || echo "::warning::the vortex-shape figure did not draw; keeping the previous one"
             python scripts/strat/strat_verify.py || echo "::warning::the verification figure did not draw; keeping the previous one"
-            for p in polarcap telecon vshape; do
+            for p in polarcap telecon vshape descent; do
               python scripts/strat/run_record.py combined "$p" \
                 || echo "::warning::the $p run-to-run figure did not draw; keeping the previous one"
             done

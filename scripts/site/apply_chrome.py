@@ -255,7 +255,7 @@ PRODUCTS = [
             (
                 "/stratosphere.html#descent",
                 "Down to the surface, days 1–15",
-                "Whether the stratosphere's anomaly is coming down: the downward-propagation monitor, the polar cap at sea level and 500 hPa, and the Arctic Oscillation and NAO from every ensemble's members.",
+                "Whether the stratosphere's anomaly is coming down: the downward-propagation monitor, the polar cap at sea level and 500 hPa, the Arctic Oscillation and NAO from every ensemble's members, and where the air over the cap is sinking.",
                 "Twice daily",
             ),
             (
