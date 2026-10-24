@@ -1,5 +1,5 @@
 {
- "built": "2026-10-24 07:03Z",
+ "built": "2026-10-24 08:23Z",
  "newest_init": "2026-10-24 00Z",
  "window": [
   "2026-10-25",
@@ -16,11 +16,11 @@
  "ssw": {
   "models": {
    "aifs": {
-    "init": "2026-10-23 12Z",
+    "init": "2026-10-24 00Z",
     "members": 26,
-    "share": 0.0,
-    "u10_min_mean": 9.4,
-    "u10_min_p10": 4.3,
+    "share": 0.04,
+    "u10_min_mean": 7.8,
+    "u10_min_p10": 3.5,
     "runs": [
      [
       "2026-10-09T00",
@@ -171,6 +171,11 @@
       "2026-10-23T12",
       0.0,
       null
+     ],
+     [
+      "2026-10-24T00",
+      0.04,
+      0.0
      ]
     ]
    },
@@ -477,7 +482,7 @@
     ]
    }
   },
-  "share_mean": 0.05,
+  "share_mean": 0.06,
   "base_rate": {
    "winters": 46,
    "with_onset": 0,
@@ -512,18 +517,18 @@
  "waves": {
   "models": {
    "aifs": {
-    "init": "2026-10-23 12Z",
+    "init": "2026-10-24 00Z",
     "members": 25,
-    "wave2_share": 0.53,
-    "z_peak": 3.5,
-    "z_peak_day": 6,
-    "flux_min": 11.8,
-    "warning_now": 8.8,
+    "wave2_share": 0.49,
+    "z_peak": 3.7,
+    "z_peak_day": 5,
+    "flux_min": 12.9,
+    "warning_now": 9.5,
     "warning_threshold": 27.5,
     "warning_members": 0.0,
-    "ri_event_share": 0.56,
+    "ri_event_share": 0.6,
     "z_can_min": -1.5,
-    "z_sib_max": 4.1
+    "z_sib_max": 4.2
    },
    "ifs": {
     "init": "2026-10-23 12Z",
@@ -568,16 +573,16 @@
     "z_sib_max": 4.0
    }
   },
-  "wave2_share_mean": 0.55,
+  "wave2_share_mean": 0.54,
   "kind": "mixed"
  },
  "descent": {
   "models": {
    "aifs": {
-    "init": "2026-10-23 12Z",
+    "init": "2026-10-24 00Z",
     "members": 11,
-    "cap100_day15": 0.6,
-    "cap10_day15": 2.1,
+    "cap100_day15": 0.8,
+    "cap10_day15": 2.6,
     "frac100_day15": 0.36,
     "cross100": "2026-10-27",
     "cross10": "2026-10-29",
@@ -628,9 +633,9 @@
  },
  "reflect": {
   "verdict": "absorbing",
-  "shear_init": "2026-10-23 12Z",
-  "shear_min": 29.2,
-  "shear_max": 35.4,
+  "shear_init": "2026-10-24 00Z",
+  "shear_min": 27.3,
+  "shear_max": 33.8,
   "shear_normal": 23.4,
   "zonal_mean_downward": [],
   "canada_downward": [
@@ -645,7 +650,7 @@
    "gefs",
    "geps"
   ],
-  "ri_event_share_mean": 0.38
+  "ri_event_share_mean": 0.39
  },
  "surface": {
   "models": {
