@@ -1,9 +1,9 @@
 {
- "built": "2026-10-24 02:12Z",
- "newest_init": "2026-10-23 12Z",
+ "built": "2026-10-24 06:01Z",
+ "newest_init": "2026-10-24 00Z",
  "window": [
-  "2026-10-24",
-  "2026-11-07"
+  "2026-10-25",
+  "2026-11-08"
  ],
  "ssw_season": true,
  "names": {
@@ -383,11 +383,11 @@
     ]
    },
    "geps": {
-    "init": "2026-10-23 12Z",
+    "init": "2026-10-24 00Z",
     "members": 21,
-    "share": 0.05,
-    "u10_min_mean": 6.4,
-    "u10_min_p10": 1.4,
+    "share": 0.1,
+    "u10_min_mean": 7.4,
+    "u10_min_p10": 1.6,
     "runs": [
      [
       "2026-10-16T12",
@@ -463,11 +463,16 @@
       "2026-10-23T12",
       0.05,
       0.0
+     ],
+     [
+      "2026-10-24T00",
+      0.1,
+      0.0
      ]
     ]
    }
   },
-  "share_mean": 0.04,
+  "share_mean": 0.05,
   "base_rate": {
    "winters": 46,
    "with_onset": 0,
@@ -544,21 +549,21 @@
     "z_sib_max": 3.5
    },
    "geps": {
-    "init": "2026-10-23 12Z",
+    "init": "2026-10-24 00Z",
     "members": 21,
-    "wave2_share": 0.56,
+    "wave2_share": 0.51,
     "z_peak": 3.7,
-    "z_peak_day": 6,
-    "flux_min": 8.9,
+    "z_peak_day": 5,
+    "flux_min": 11.3,
     "warning_now": 8.8,
     "warning_threshold": 27.5,
     "warning_members": 0.0,
-    "ri_event_share": 0.43,
-    "z_can_min": -1.0,
-    "z_sib_max": 4.1
+    "ri_event_share": 0.52,
+    "z_can_min": -1.2,
+    "z_sib_max": 4.0
    }
   },
-  "wave2_share_mean": 0.57,
+  "wave2_share_mean": 0.56,
   "kind": "mixed"
  },
  "descent": {
@@ -604,13 +609,13 @@
     "kind": "bottom-up"
    },
    "geps": {
-    "init": "2026-10-23 12Z",
+    "init": "2026-10-24 00Z",
     "members": 21,
-    "cap100_day15": 0.7,
-    "cap10_day15": 2.9,
-    "frac100_day15": 0.38,
+    "cap100_day15": 0.8,
+    "cap10_day15": 3.0,
+    "frac100_day15": 0.48,
     "cross100": "2026-10-28",
-    "cross10": "2026-10-28",
+    "cross10": "2026-10-29",
     "kind": "bottom-up"
    }
   },
@@ -635,7 +640,7 @@
    "gefs",
    "geps"
   ],
-  "ri_event_share_mean": 0.39
+  "ri_event_share_mean": 0.41
  },
  "surface": {
   "models": {
@@ -673,15 +678,15 @@
     "frac100_day15": 0.26
    },
    "geps": {
-    "init": "2026-10-23 12Z",
-    "p_positive": 0.6,
+    "init": "2026-10-24 00Z",
+    "p_positive": 0.59,
     "base_rate": 0.5,
     "window": [
-     "2026-11-08",
-     "2026-12-07"
+     "2026-11-09",
+     "2026-12-08"
     ],
-    "cap100_day15": 0.7,
-    "frac100_day15": 0.38
+    "cap100_day15": 0.8,
+    "frac100_day15": 0.48
    }
   },
   "skill": {
