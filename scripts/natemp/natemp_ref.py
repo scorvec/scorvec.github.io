@@ -18,12 +18,6 @@ day's four forecast times. The fit prints the month residuals and a few cities' 
 
     python scripts/natemp/natemp_ref.py fetch --out-dir ref      # Actions only: CDS, one request at a time
     python scripts/natemp/natemp_ref.py fit --in-dir ref --out ref/natemp_normals.npz   # exit 3: units missing
-
-Until then, interim normals (see "interim" below): the ERA5 store's 1.5-deg cells downscaled to the 0.1-deg points.
-
-    python scripts/natemp/natemp_ref.py coarse --out ref/natemp_era5_1p5.npz       # reads $ERA5_STORE
-    python scripts/natemp/natemp_ref.py interim --coarse ref/natemp_era5_1p5.npz --date 20261023 --time 00 \
-        --out ref/natemp_normals_interim.npz                                         # natemp.yml
 """
 
 from __future__ import annotations
@@ -39,7 +33,7 @@ import numpy as np
 import pandas as pd
 
 HERE = Path(__file__).resolve().parent
-sys.path[:0] = [str(HERE.parents[0] / "lib"), str(HERE.parents[0] / "sst"), str(HERE.parents[0] / "ecmwf")]
+sys.path[:0] = [str(HERE.parents[0] / "lib"), str(HERE.parents[0] / "sst")]
 import harmonic_clim as HC
 
 # The box: rows 77N..9N and columns 180W..26W of the IFS 0.1-deg grid (3600 x 1801, 90N first), which hold the whole
@@ -54,14 +48,9 @@ YEARS = (1991, 2020)
 HOURS = ("00:00", "06:00", "12:00", "18:00")
 DECADES = ((1991, 2000), (2001, 2010), (2011, 2020))  # one CDS request each: 480 fields
 OUT = HERE / "data" / "natemp_normals.npz"
-FINAL_META = {
+META = {
     "source": "ERA5-Land monthly means by hour of day over land; ERA5 (0.25 deg, sea nodes) over the sea",
     "label": "ERA5-Land 1991–2020 over land, ERA5 over the sea, as a smooth daily curve",
-}
-INTERIM_META = {
-    "source": "ERA5 daily means (WeatherBench 2, 1.5 deg) downscaled to the IFS 0.1-deg land fraction and height by "
-    "local regression; interim, until the ERA5-Land normals",
-    "label": "ERA5 1991–2020 (1.5°) downscaled to the 0.1° land and terrain, interim until ERA5-Land",
 }
 CITIES = {  # the fit's printed check
     "Chicago": (41.9, -87.6),
@@ -261,7 +250,7 @@ def fit(in_dir: Path, out: Path) -> None:
     months = np.where(land[None], land_t, sea_interp(era_t, sea))
     if not np.isfinite(months).all():
         raise SystemExit("normals: values missing after the ERA5 fill")
-    save_fit(months, land, out, FINAL_META)
+    save_fit(months, land, out, META)
 
 
 def save_fit(months: np.ndarray, land: np.ndarray, out: Path, meta: dict) -> None:
@@ -297,175 +286,6 @@ def save_fit(months: np.ndarray, land: np.ndarray, out: Path, meta: dict) -> Non
         )
 
 
-# ── interim: ERA5 1.5 deg downscaled to the IFS 0.1-deg land and terrain (until the ERA5-Land normals exist) ──────────
-# The ERA5 store's daily 2 m temperature (WeatherBench 2: the daily mean of 00, 06, 12 and 18 UTC, conservatively
-# averaged onto 1.5-deg cells) gives the 1991-2020 monthly normals of each cell (coarse, an offline build from the
-# store; natemp_era5_1p5.npz in the release). Their structure below 1.5 deg comes from the land and the height of the
-# IFS 0.1-deg grid (its step-0 lsm and z, Google Cloud mirror): L is the land fraction smoothed over COAST_KM, so the
-# sea's influence fades inland over a few tens of km rather than stopping at the coastline. Per cell and month,
-# T = a + p dy + q dx + b L + c z by weighted least squares over the 5 x 5 cells around it (Gaussian weights, SIGMA
-# cells): b is the local land-sea contrast and c the local lapse rate (an inversion gives c > 0), both drawn weakly
-# towards PRIOR where the cells do not vary. A point's normal is the bilinear cell normal plus b and c times its L's
-# and height's departures from the bilinear cell means.
-CELL = 1.5
-CLAT = np.round(np.arange(3, 55) * CELL, 2)  # 4.5..81 N: the box and three cells beyond it
-CLON = np.round(np.arange(117, 227) * CELL, 2)  # 175.5..339 E
-RADIUS, SIGMA = 2, 1.0  # cells
-COAST_KM = 25.0
-# (prior, weight): K per unit land fraction and K/km, weighted as one cell 0.05 of land or 0.05 km of height away
-PRIOR = {"land": (0.0, 0.05), "height": (-6.5, 0.05)}
-COARSE = HERE / "data" / "natemp_era5_1p5.npz"
-
-
-def coarse(out: Path) -> None:
-    """The ERA5 store's daily 2 m temperature 1991-2020 -> its monthly normals (12, CLAT, CLON), every day of a month
-    weighted alike."""
-    import xarray as xr
-    from localdirs import env_dir
-
-    s = np.zeros((12, CLAT.size, CLON.size))
-    n = np.zeros(12)
-    for y in range(YEARS[0], YEARS[1] + 1):
-        with xr.open_dataset(env_dir("ERA5_STORE", "wb2_1p5_daily", "t2m", f"t2m_{y}.nc")) as ds:
-            t = ds["t2m"].transpose("time", "latitude", "longitude")
-            t = t.sel(latitude=CLAT, longitude=CLON, method="nearest", tolerance=1e-3).load()
-        if t.latitude.size != CLAT.size or t.longitude.size != CLON.size or not 180 < float(t.mean()) < 320:
-            raise SystemExit(f"t2m_{y}.nc: not the store's 1.5-deg grid or not kelvin")
-        month = t.time.dt.month.values
-        for m in range(12):
-            s[m] += t.values[month == m + 1].sum(0)
-            n[m] += (month == m + 1).sum()
-    want = [sum(pd.Period(f"{y}-{m:02d}").days_in_month for y in range(YEARS[0], YEARS[1] + 1)) for m in range(1, 13)]
-    if n.tolist() != want:
-        raise SystemExit(f"days per month {n.tolist()}, expected {want}")
-    out.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(out, mean=(s / n[:, None, None]).astype(np.float32), lat=CLAT, lon=CLON, days=n)
-    print(f"  ERA5 1.5-deg monthly normals {YEARS[0]}-{YEARS[1]} ({int(n.sum())} days) -> {out}", flush=True)
-
-
-def coarsen(f: np.ndarray, lat: np.ndarray, lon: np.ndarray, h: float, clat=CLAT, clon=CLON) -> np.ndarray:
-    """The area means over the CELL-wide cells (clat, clon) of a field on the h-deg points (lat, lon); longitudes east,
-    unwrapped."""
-    import cellmeans
-
-    return cellmeans.coarsen(f, lat, lon, h, clat, clon, CELL)
-
-
-def exposure(lf: np.ndarray, lat: np.ndarray, h: float) -> np.ndarray:
-    """The land fraction lf on h-deg points smoothed by a Gaussian of COAST_KM (its east-west width in degrees grows
-    with latitude)."""
-    from scipy.ndimage import gaussian_filter1d
-
-    km = 111.2 * h
-    out = gaussian_filter1d(lf.astype(np.float64), COAST_KM / km, axis=0, mode="nearest")
-    for j, la in enumerate(lat):
-        out[j] = gaussian_filter1d(out[j], COAST_KM / (km * np.cos(np.deg2rad(la))), mode="nearest")
-    return out
-
-
-def local_slopes(tc: np.ndarray, lc: np.ndarray, zc: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """(b, c), each (12, cells): the land-fraction (K) and height (K/km) slopes of T = a + p dy + q dx + b L + c z over
-    the (2 RADIUS + 1)^2 cells around each cell, from its monthly normals tc (12, cells), land fraction lc and height
-    zc (m); cells beyond the edge are left out."""
-    from numpy.lib.stride_tricks import sliding_window_view
-
-    r, k = RADIUS, 2 * RADIUS + 1
-
-    def win(a):
-        pad = np.pad(a, [(0, 0)] * (a.ndim - 2) + [(r, r), (r, r)], constant_values=np.nan)
-        return sliding_window_view(pad, (k, k), axis=(-2, -1))
-
-    dy, dx = np.mgrid[-r : r + 1, -r : r + 1].astype(float)
-    L, Z = win(lc), win(zc / 1000.0)
-    ok = np.isfinite(L)
-    w = np.where(ok, np.exp(-(dy**2 + dx**2) / (2 * SIGMA**2)), 0.0)
-    X = np.stack(np.broadcast_arrays(1.0, dy, dx, np.where(ok, L, 0.0), np.where(ok, Z, 0.0)), -1)
-    A = np.einsum("jiab,jiabp,jiabq->jipq", w, X, X)
-    rhs0 = np.zeros(A.shape[:-1])
-    wsum = w.sum((-2, -1))
-    for p, (prior, spread) in zip((3, 4), PRIOR.values()):
-        A[..., p, p] += wsum * spread**2
-        rhs0[..., p] += wsum * spread**2 * prior
-    b, c = np.empty_like(tc), np.empty_like(tc)
-    for m in range(tc.shape[0]):
-        y = np.where(ok, win(tc[m]), 0.0)
-        beta = np.linalg.solve(A, (rhs0 + np.einsum("jiab,jiabp,jiab->jip", w, X, y))[..., None])[..., 0]
-        b[m], c[m] = beta[..., 3], beta[..., 4]
-    return b, c
-
-
-def downscale(tc, lc, zc, b, c, lf, zf, lat, lon, clat=CLAT, clon=CLON) -> np.ndarray:
-    """(12, lat, lon): the cells' normals tc at the points (lat, lon) of land fraction lf and height zf (m) - the
-    bilinear cell normal plus the local slopes b, c times the point's departures from the bilinear cell land fraction
-    and height."""
-    from scipy.interpolate import RegularGridInterpolator
-
-    pts = np.stack(np.meshgrid(lat, lon, indexing="ij"), -1).reshape(-1, 2)
-    up = clat[0] > clat[-1]
-
-    def bil(a):
-        a = a[::-1] if up else a
-        f = RegularGridInterpolator((clat[::-1] if up else clat, clon), a, method="linear")
-        return f(pts).reshape(lat.size, lon.size)
-
-    dl, dz = lf - bil(lc), (zf - bil(zc)) / 1000.0
-    return np.stack([bil(tc[m]) + bil(b[m]) * dl + bil(c[m]) * dz for m in range(tc.shape[0])])
-
-
-def ifs_static(date: str, hh: str) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """(land fraction, height m, lat, lon east) of the IFS 0.1-deg grid over the cells CLAT x CLON, from the step-0
-    lsm and z of the deterministic run date hh (Google Cloud mirror)."""
-    import eccodes
-    import rangefetch as rf
-
-    lat = np.round(np.arange(round((CLAT[-1] + 0.7) * 10), round((CLAT[0] - 0.7) * 10) - 1, -1) / 10.0, 1)
-    lon = np.round(np.arange(round((CLON[0] - 0.7) * 10), round((CLON[-1] + 0.7) * 10) + 1) / 10.0, 1)
-    ((path, idx),) = rf.oper_files(date, hh, "ifs", 0, resol="0p1", levtypes=("sfc",))
-    want = sorted(rf.select(idx, param=["lsm", "z"]), key=lambda e: e["_offset"])
-    if sorted(e["param"] for e in want) != ["lsm", "z"]:
-        raise SystemExit(f"{path}: no single lsm and z at step 0")
-    blob = rf.fetch_ranges(path, rf.coalesce(want))
-    out = {}
-    for e, end in zip(want, np.cumsum([e["_length"] for e in want])):
-        gid = eccodes.codes_new_from_message(blob[end - e["_length"] : end])
-        try:
-            ni, nj = eccodes.codes_get(gid, "Ni"), eccodes.codes_get(gid, "Nj")
-            lat0 = eccodes.codes_get_double(gid, "latitudeOfFirstGridPointInDegrees")
-            lon0 = eccodes.codes_get_double(gid, "longitudeOfFirstGridPointInDegrees")
-            if (ni, nj, lat0, eccodes.codes_get(gid, "jScansPositively")) != (3600, 1801, 90.0, 0):
-                raise SystemExit(f"{e['param']}: not the global 0.1-deg grid")
-            v = eccodes.codes_get_values(gid).reshape(nj, ni)
-        finally:
-            eccodes.codes_release(gid)
-        rows = np.round((90.0 - lat) * 10).astype(int)
-        cols = np.round((lon - lon0) % 360 * 10).astype(int) % 3600
-        out[e["param"]] = v[rows][:, cols]
-    return out["lsm"], out["z"] / 9.80665, lat, lon
-
-
-def interim(coarse_path: Path, date: str, hh: str, out: Path) -> None:
-    """The interim normals from the cells' monthly normals (coarse) and the IFS run date hh's land and height."""
-    with np.load(coarse_path) as z:
-        tc, clat, clon = z["mean"].astype(np.float64), z["lat"], z["lon"]
-    if not (np.array_equal(clat, CLAT) and np.array_equal(clon, CLON)):
-        raise SystemExit(f"{coarse_path}: not on the cells CLAT x CLON")
-    lsm, zf, lat, lon = ifs_static(date, hh)
-    lf = exposure(lsm, lat, 0.1)
-    lc, zc = coarsen(lf, lat, lon, 0.1), coarsen(zf, lat, lon, 0.1)
-    b, c = local_slopes(tc, lc, zc)
-    rows = np.searchsorted(-lat, -LAT)
-    cols = np.searchsorted(lon, LON % 360)
-    if not (np.allclose(lat[rows], LAT) and np.allclose(lon[cols], LON % 360)):
-        raise SystemExit("the box is not on the IFS points")
-    box = np.ix_(rows, cols)
-    months = downscale(tc, lc, zc, b, c, lf[box], zf[box], LAT, LON % 360)
-    land = lc > 0.5
-    for name, x in (("land-fraction slope b, K", b), ("height slope c, K/km", c)):
-        q = np.percentile(x[:, land], [5, 50, 95], axis=1).round(1)
-        print(f"  {name} over land cells, Jan / Jul (5, 50, 95 %): {q[:, 0].tolist()} / {q[:, 6].tolist()}", flush=True)
-    save_fit(months, lsm[box] >= 0.5, out, INTERIM_META)
-
-
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -474,20 +294,7 @@ def main() -> int:
     b = sub.add_parser("fit")
     b.add_argument("--in-dir", type=Path, required=True)
     b.add_argument("--out", type=Path, default=OUT)
-    c = sub.add_parser("coarse")
-    c.add_argument("--out", type=Path, default=COARSE)
-    i = sub.add_parser("interim")
-    i.add_argument("--coarse", type=Path, default=COARSE)
-    i.add_argument("--date", required=True, help="YYYYMMDD of an IFS run on the mirror (its step-0 land and height)")
-    i.add_argument("--time", required=True, choices=("00", "06", "12", "18"))
-    i.add_argument("--out", type=Path, required=True)
     a = ap.parse_args()
-    if a.cmd == "coarse":
-        coarse(a.out)
-        return 0
-    if a.cmd == "interim":
-        interim(a.coarse, a.date, a.time, a.out)
-        return 0
     if a.cmd == "fetch":
         missing = fetch(a.out_dir)
         print(f"  {missing} unit(s) not fetched", flush=True)
