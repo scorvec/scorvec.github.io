@@ -465,8 +465,10 @@ def render_combined(product: str, models: tuple, out: Path) -> Path | None:
                 ax.axhline(K.ref, color=K.zero, lw=1.2 if K.zero == "#a33" else 0.9, zorder=4)
             if K.share:
                 ax.set_ylim(-3, 103)
-            # the 24 h change on its own line under the title: beside it, four panels a row run the two together
-            ax.set_title(f"{lab} · {K.short or K.title}", fontsize=10, fontweight="bold", loc="left", pad=14)
+            # the 24 h change on its own line under the title: beside it, four panels a row run the two together;
+            # each model's own newest run in its title, as the models' runs land hours apart
+            run = f"{pd.Timestamp(mine[-1]['init']):%-d %b %HZ}"
+            ax.set_title(f"{lab} {run} · {K.short or K.title}", fontsize=10, fontweight="bold", loc="left", pad=14)
             ax.text(0, 1.015, day_change(mine, key, K.unit) or "", transform=ax.transAxes, fontsize=8, color="0.25")
             if j == 0:
                 ax.set_ylabel(K.axis, fontsize=8.6)
@@ -489,9 +491,8 @@ def render_combined(product: str, models: tuple, out: Path) -> Path | None:
         ax.tick_params(labelsize=8)
         ax.legend(fontsize=8, loc="upper left", ncol=4, framealpha=0.9)
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%-d %b %HZ"))
-    newest = max(pd.Timestamp(rs[-1]["init"]) for rs in have.values())
     fig.suptitle(
-        f"{P.title}: how the forecast has moved, run by run (newest {newest:%Y-%m-%d %HZ})",
+        f"{P.title}: how the forecast has moved, run by run",
         fontsize=13.5,
         fontweight="bold",
         x=0.06,
@@ -501,8 +502,8 @@ def render_combined(product: str, models: tuple, out: Path) -> Path | None:
     fig.text(
         0.06,
         0.952,
-        f"the last {SHOW} runs of each model: older runs grey and fainter, the newest bold in the model's colour (an "
-        f"ensemble's with its {P.band} band)",
+        f"the last {SHOW} runs of each model, its newest run in each panel's title: older runs grey and fainter, the "
+        f"newest bold in the model's colour (an ensemble's with its {P.band} band)",
         fontsize=9,
         color="0.25",
     )

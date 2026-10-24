@@ -665,7 +665,7 @@ def combined(product: str, panels, title: str, out: Path, max_age_days: float = 
                      loc="left")  # fmt: skip
         _style(ax, unit if unit != "sd" else "sd of the daily index")
         ax.legend(fontsize=8.5, loc="upper left", ncol=2, framealpha=0.9)
-    fig.suptitle(f"Every ensemble's newest run · {title} (newest {t1:%Y-%m-%d %HZ})", fontsize=13.5, fontweight="bold",
+    fig.suptitle(f"Every ensemble's newest run · {title}", fontsize=13.5, fontweight="bold",
                  x=0.07, ha="left", y=0.985)  # fmt: skip
     fig.text(0.07, 0.945, "each model's members' mean with its 10–90 % range, the control runs dashed · "
              + SUBTITLE[panels].split(" · ", 1)[1], fontsize=9.5, color="0.25")  # fmt: skip

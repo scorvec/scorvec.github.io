@@ -227,7 +227,7 @@ def combined(out: Path, max_age_days: float = 2.0) -> Path | None:
         ax.xaxis.set_major_locator(mdates.DayLocator(interval=2))
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%-d %b"))
         ax.legend(fontsize=8.5, loc="upper left", ncol=2, framealpha=0.9)
-    fig.suptitle(f"Every ensemble's newest run · the polar vortex at 10 hPa: split or displaced (newest {t1:%Y-%m-%d %HZ})",
+    fig.suptitle("Every ensemble's newest run · the polar vortex at 10 hPa: split or displaced",
                  fontsize=13.5, fontweight="bold", x=0.07, ha="left", y=0.985)  # fmt: skip
     fig.text(0.07, 0.945, "the share of each model's members whose vortex is split or displaced that day; a single run "
              "(dashed) is 0 or 100", fontsize=9.5, color="0.25")  # fmt: skip
