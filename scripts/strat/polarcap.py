@@ -7,7 +7,8 @@ pressure over the Arctic is the negative Arctic Oscillation that often follows a
 are averaged onto the 1.5-deg cells the normals are on (ERA5's in WeatherBench 2; reference/{msl,z500,z100}_clim.nc from
 build_polarcap_clim.py; scripts/lib/cellmeans.py), so the models compare cell for cell:
   aifs  AIFS-ENS control + 25 perturbed members (as its other stratosphere products): msl, and z at 500 and 100 hPa
-        from the wave maps' file; ECMWF open data, Google Cloud mirror.
+        from the wave maps' file; ECMWF open data, Google Cloud mirror. The control (member 0) is also drawn on the
+        AIFS-ENS plumes and recorded and mapped on its own (aifsc), as the IFS control is.
   ifs   IFS-ENS, all 50 perturbed members, from the shared IFS-ENS files (ifs_ens.py gh and msl), and the IFS control
         (its own stream: ctrl_gh, ctrl_msl), drawn on the IFS-ENS plumes and recorded and mapped as a model of its own
         (hres).
@@ -25,7 +26,7 @@ drift-corrected and standardised).
              grid first; in standard deviations of the daily index at that time of year.
   100 hPa    the height anomaly and its 24 h change: where a lobe of the lower-stratospheric vortex fills or deepens.
 Maps show the ensemble mean, an anomaly or change coloured only where enough members give it its sign for a two-sided
-sign test at 5 % (agreeing()); the IFS control, one run, is drawn as it is.
+sign test at 5 % (agreeing()); a control run, one run, is drawn as it is.
 
 Outputs, model m:
   assets/sst/polarcap_{m}.webp, telecon_{m}.webp   plumes: every member, the members' mean (IFS-ENS: the control)
@@ -72,10 +73,12 @@ G = 9.80665
 OUT = REPO / "assets" / "sst"
 ANIM = OUT / "anim"
 ENSEMBLES = ("aifs", "ifs", "gefs", "geps")
+CONTROL = {"aifs": "aifsc", "ifs": "hres"}  # an ensemble's control run, drawn on its plumes and recorded on its own
 CREDIT = {
     "aifs": "ECMWF AIFS-ENS open data (CC BY 4.0), Google Cloud mirror",
     "ifs": "ECMWF IFS-ENS and IFS control open data (CC BY 4.0), Google Cloud mirror",
     "hres": "ECMWF IFS control open data (CC BY 4.0), Google Cloud mirror",
+    "aifsc": "ECMWF AIFS-ENS open data (CC BY 4.0), the control (member 0), Google Cloud mirror",
     "gefs": "NOAA GEFS (AWS Open Data)",
     "geps": "ECCC GEPS (MSC Datamart)",
 }
@@ -197,7 +200,10 @@ def load_aifs(date: str, hh: str) -> dict:
         z = read_grib(E.ensure(cyc, E.Spec("aifs-ens", kind, "z", "pl", WM.LEVELS, steps, n)), "z", (500, 100), 1 / G)
         got["z500"].append(z[500])  # the wave maps' file
         got["z100"].append(z[100])
-    return {"aifs": {f: stack(*parts) for f, parts in got.items()}}
+    return {
+        "aifs": {f: stack(*parts) for f, parts in got.items()},
+        "aifsc": {f: stack(parts[0]) for f, parts in got.items()},
+    }
 
 
 def load_ifs(date: str, hh: str) -> dict:
@@ -309,7 +315,7 @@ def plumes(model: str, init: pd.Timestamp, valid, series: dict, panels, title: s
             ax.plot(valid, row, color=col, lw=0.8, alpha=0.35, zorder=3)
         ax.plot(valid, np.nanmean(x, 0), color=col, lw=2.8, zorder=5, label=f"{lab} mean, {x.shape[0]} members")
         if ctrl is not None:
-            ax.plot(valid, ctrl[key], color="#1f1f1f", lw=1.6, ls="--", zorder=6, label="IFS control")
+            ax.plot(valid, ctrl[key], color="#1f1f1f", lw=1.6, ls="--", zorder=6, label=RR.MODEL_LABEL[CONTROL[model]])
         late = (valid >= init + pd.Timedelta(days=6)) & (valid <= init + pd.Timedelta(days=15))
         lm = np.nanmean(x[:, late], 1)
         fmt = "{:+.0f}" if unit == "m" else "{:+.1f}"
@@ -522,13 +528,13 @@ def z100_maps(model: str, init: pd.Timestamp, z, az) -> None:
 
 
 def combined(product: str, panels, title: str, out: Path, max_age_days: float = 2.0) -> Path | None:
-    """Every model's newest run from the records: the members' mean and 10-90 % band, the IFS control dashed."""
+    """Every model's newest run from the records: the members' mean and 10-90 % band, the control runs dashed."""
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    newest = {m: rs[-1] for m in (*ENSEMBLES, "hres") if (rs := RR.runs(product, m))}
+    newest = {m: rs[-1] for m in (*ENSEMBLES, *CONTROL.values()) if (rs := RR.runs(product, m))}
     if not newest:
         return None
     t1 = max(pd.Timestamp(r["init"]) for r in newest.values())
@@ -539,8 +545,9 @@ def combined(product: str, panels, title: str, out: Path, max_age_days: float = 
             mean = RR.series(r, key)
             col = RR.MODEL_COLOUR[m]
             lab = f"{RR.MODEL_LABEL[m]} {pd.Timestamp(r['init']):%-d %b %HZ}"
-            if m == "hres":
-                ax.plot(mean.index, mean.values, color="#1f1f1f", lw=1.6, ls="--", zorder=6, label=lab)
+            if m in CONTROL.values():
+                ax.plot(mean.index, mean.values, color="#1f1f1f" if m == "hres" else col, lw=1.6, ls="--", zorder=6,
+                        label=lab)  # fmt: skip
                 continue
             ax.fill_between(mean.index, RR.series(r, key, "p10"), RR.series(r, key, "p90"), color=col, alpha=0.13, lw=0)
             ax.plot(mean.index, mean.values, color=col, lw=2.4, zorder=5, label=f"{lab}, {r['members']} members")
@@ -550,7 +557,7 @@ def combined(product: str, panels, title: str, out: Path, max_age_days: float = 
         ax.legend(fontsize=8.5, loc="upper left", ncol=2, framealpha=0.9)
     fig.suptitle(f"Every ensemble's newest run · {title} (newest {t1:%Y-%m-%d %HZ})", fontsize=13.5, fontweight="bold",
                  x=0.07, ha="left", y=0.985)  # fmt: skip
-    fig.text(0.07, 0.945, "each model's members' mean with its 10–90 % range, the IFS control dashed · "
+    fig.text(0.07, 0.945, "each model's members' mean with its 10–90 % range, the control runs dashed · "
              + SUBTITLE[panels].split(" · ", 1)[1], fontsize=9.5, color="0.25")  # fmt: skip
     fig.text(0.07, 0.008, textwrap.fill(f"{NOTE[panels]} Each model is labelled with its run.", 190), fontsize=8,
              color="#6f6b64", linespacing=1.4)  # fmt: skip
@@ -573,7 +580,7 @@ def run(model: str, date: str, hh: str) -> int:
     if not got:
         print(f"::warning::{model} {date} {hh}Z: nothing on the mirror to draw", flush=True)
         return 1
-    done, ctrl = {}, None
+    done, ctrls = {}, {}
     for m, raw in got.items():
         full = np.logical_and.reduce([np.isfinite(x).all((1, 2, 3)) for x in raw.values()])  # every lead, field
         fields = {f: x[full] for f, x in raw.items()}
@@ -588,12 +595,12 @@ def run(model: str, date: str, hh: str) -> int:
         record("telecon", m, init, tc, valid)
         if "z100" in fields:
             z100_maps(m, init, fields["z100"], A["z100"])
-        if m == "hres":
-            ctrl = {**{k: v[0] for k, v in cp.items()}, **{k: v[0] for k, v in tc.items()}}
+        if m in CONTROL.values():
+            ctrls[m] = {**{k: v[0] for k, v in cp.items()}, **{k: v[0] for k, v in tc.items()}}
         else:
             done[m] = (fields, A, cp, tc, valid)
     for m, (fields, A, cp, tc, valid) in done.items():
-        c = ctrl if m == "ifs" else None
+        c = ctrls.get(CONTROL.get(m))
         plumes(m, init, valid, cp, CAP_PANELS, CAP_TITLE, c, OUT / f"polarcap_{m}.webp")
         plumes(m, init, valid, tc, TELE_PANELS, TELE_TITLE, c, OUT / f"telecon_{m}.webp")
         maps(m, init, fields["msl"], fields["z500"], A["msl"], A["z500"], N)

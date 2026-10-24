@@ -35,6 +35,8 @@ Models (probed 2026-08-28, GEFS 2026-10-20; every one publishes u AND height at 
                   from its own open-data stream (oper): u and gh at 10/100 hPa from the
                   shared control file (ifs_ens.py ctrl_wind, ~0.1 GB). Drawn dashed, as
                   the other single runs.
+  aifsc AIFS-ENS control  member 0 of AIFS-ENS on its own: the "cf" column of the AIFS-ENS frames
+                  (no download of its own), recorded and drawn dashed like the IFS control.
 
 DETRENDING (the reason the reference is built the way it is)
 ------------------------------------------------------------
@@ -116,11 +118,13 @@ TAIL_DAYS = 21  # short analysis tail: this is a forecast product
 G = 9.80665  # ECMWF `z` is geopotential; `gh` / HGT are already gpm
 AIFS_Z_MEMBERS = 25  # perturbed members for the AIFS polar-cap height (as for the winds)
 DETREND = {"zcap"}  # see the module docstring for why only this one
+CONTROLS = ("hres", "aifsc")  # an ensemble's control run, drawn and recorded on its own
 
 STYLE = {
     "aifs": ("#b4541f", "AIFS-ENS"),
     "ifs": ("#1f4b6e", "IFS-ENS"),
     "hres": ("#1f4b6e", "IFS control"),  # dashed, so the ensemble's navy is free for it
+    "aifsc": ("#b4541f", "AIFS-ENS control"),  # member 0 of AIFS-ENS on its own, dashed like the IFS control
     "gefs": ("#3b88c4", "GEFS"),  # mid blue: apart from GEPS green for every reader, lighter than IFS-ENS navy
     "geps": ("#2f7d4f", "GEPS"),
     "gdps": ("#6b4c9a", "GDPS"),
@@ -642,7 +646,7 @@ def draw_model(ax, run, key, m):
         ax.plot(mean.index, mean.values, color=col, lw=2.4, zorder=5, label=f"{lab} {init:%-d/%HZ} ({run['members']}m)")
     else:
         ax.plot(mean.index, mean.values, color=col, lw=2.0, ls="--", zorder=5,
-                label=f"{lab} {init:%-d/%HZ}" + ("" if m == "hres" else " (det)"))  # fmt: skip
+                label=f"{lab} {init:%-d/%HZ}" + ("" if m in CONTROLS else " (det)"))  # fmt: skip
 
 
 def render(out: Path) -> int:
@@ -766,7 +770,7 @@ def render(out: Path) -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--models", default="aifs,gefs,geps,gdps,ifs,hres,geosfp")
+    ap.add_argument("--models", default="aifs,aifsc,gefs,geps,gdps,ifs,hres,geosfp")
     ap.add_argument(
         "--ifs-members", type=int, default=50, help="IFS-ENS perturbed members (all 50 by default; the control is hres)"
     )
@@ -820,8 +824,12 @@ def main() -> int:
 
     clim, _ = load_clim(epoch)
     fc = {}
-    if "aifs" in want:
+    if "aifs" in want or "aifsc" in want:
         fc["aifs"] = load_aifs(cdir, base)
+        if "aifsc" in want and fc["aifs"]:  # the control's own column of the AIFS-ENS frames
+            fc["aifsc"] = {k: v[["cf"]] for k, v in fc["aifs"].items() if v is not None and "cf" in v}
+        if "aifs" not in want:
+            del fc["aifs"]
     for m in ("gefs", "geps"):
         if m in want:
             fc[m] = load_ens(m, date, cyc)

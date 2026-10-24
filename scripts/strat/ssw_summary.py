@@ -48,7 +48,14 @@ import run_record as RR
 DATA = REPO / "assets" / "sst" / "data"
 REF = HERE / "reference"
 OUT = DATA / "ssw_summary.json"
-NAMES = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS", "hres": "IFS control", "gefs": "GEFS", "geps": "GEPS"}
+NAMES = {
+    "aifs": "AIFS-ENS",
+    "aifsc": "AIFS-ENS control",
+    "ifs": "IFS-ENS",
+    "hres": "IFS control",
+    "gefs": "GEFS",
+    "geps": "GEPS",
+}
 ENSEMBLES = ("aifs", "ifs", "gefs", "geps")
 HEATFLUX = {"aifs": "heatflux100.json", "ifs": "ifs_heatflux100.json", "gefs": "gefs_heatflux100.json",
             "geps": "geps_heatflux100.json"}  # fmt: skip

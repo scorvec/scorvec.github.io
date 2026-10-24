@@ -955,12 +955,12 @@ window.STAGE = {
             if (c === "sec") return "Zonal-mean wind at 60°" + h + " and the polar-cap temperature anomaly from 100 up to 1 hPa: GEOS FP analyses, then " + (a === "all" ? "each model to its own range, on one colour scale" : m + (a === "gefs" ? " ensemble mean" : "")) + ". A warming that starts at the top shows as red coming down.";
             return "Zonal-mean wind at 60°" + h + " and polar-cap temperature at 1, 5 and 10 hPa: GEOS FP analyses, then " + (a === "all" ? "every model overlaid" : m) + ", against the MERRA-2 range. Raw output; after the 00Z update each panel prints the day-0 offset from the GEOS FP analysis."; }},
   vwinds: {label: "Vortex winds", a: {label: "Level", items: [["vortex_10","10 hPa"],["vortex_100","100 hPa"]]},
-          b: {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"],["hres","IFS control"],["gefs","GEFS"],["geps","GEPS"]]},
+          b: {label: "Model", items: [["aifs","AIFS-ENS"],["aifsc","AIFS-ENS control"],["ifs","IFS-ENS"],["hres","IFS control"],["gefs","GEFS"],["geps","GEPS"]]},
           c: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
           frame: function (a, b, c) { var lev = a === "vortex_100" ? "100" : "10", m = b === "aifs" ? "" : "_" + b;
                                       var r = "vortex" + m + "_" + lev + "_" + (c === "sh" ? "sh" : "nh");  // &regions=: the stage's own rows pick the loop (no second picker)
                                       return "sst_anim.html?embed=1&manifest=vortex_winds" + m + "_manifest.json&region=" + r + "&regions=" + r; }, about: "about-vwinds",
-          cap: function (a, b, c) { return (b === "hres" ? "IFS control (one run) wind speed" : {aifs: "AIFS-ENS (25 members)", ifs: "IFS-ENS (50 members)", gefs: "GEFS (31 members)", geps: "GEPS (21 members)"}[b] + " ensemble-mean wind speed") + " and barbs at " + (a === "vortex_100" ? "100" : "10") + " hPa, " + (c === "sh" ? "southern" : "northern") + " hemisphere; the red contour is u = 0, drawn to 80&deg; (nearer the pole the east&ndash;west component has no fixed direction)."; }},
+          cap: function (a, b, c) { return (b === "hres" || b === "aifsc" ? {hres: "IFS control", aifsc: "AIFS-ENS control"}[b] + " (one run) wind speed" : {aifs: "AIFS-ENS (25 members)", ifs: "IFS-ENS (50 members)", gefs: "GEFS (31 members)", geps: "GEPS (21 members)"}[b] + " ensemble-mean wind speed") + " and barbs at " + (a === "vortex_100" ? "100" : "10") + " hPa, " + (c === "sh" ? "southern" : "northern") + " hemisphere; the red contour is u = 0, drawn to 80&deg; (nearer the pole the east&ndash;west component has no fixed direction)."; }},
   t10: {label: "Polar temperature, 10 hPa (IFS control)", a: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
           frame: function (a) { var r = "t10_hres_" + (a === "sh" ? "sh" : "nh");
                                 return "sst_anim.html?embed=1&manifest=t10_hres_manifest.json&region=" + r + "&regions=" + r; }, about: "about-t10",
@@ -980,7 +980,7 @@ window.STAGE = {
                                      + ", against the MERRA-2 climatology and the easterly- and westerly-QBO winters. A diagnostic, not a forecast of the vortex."; }},
   waves: {label: "Planetary waves 1 and 2", a: {label: "Wave", items: [["1","Wave-1"],["2","Wave-2"],["runs","Run to run (north)"]]},
           b: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
-          c: {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"],["hres","IFS control"],["gefs","GEFS"],["geps","GEPS"]]},
+          c: {label: "Model", items: [["aifs","AIFS-ENS"],["aifsc","AIFS-ENS control"],["ifs","IFS-ENS"],["hres","IFS control"],["gefs","GEFS"],["geps","GEPS"]]},
           frame: function (a, b, c) { if (a === "runs") return null;
                                       var m = c === "aifs" ? "" : "_" + c, r = "wave" + a + m + "_" + b;   // &regions=: the stage's own rows pick the loop (no second picker)
                                       return "sst_anim.html?embed=1&manifest=wave" + a + "_maps" + m + "_manifest.json&region=" + r + "&regions=" + r; }, about: "about-waves",
@@ -1034,41 +1034,41 @@ window.STAGE = {
   telecon: {label: "Arctic Oscillation and NAO", a: {label: "View", items: [["plumes","Members"],["all","All models"],["runs","Run to run"]]},
           b: function (a) { if (a === "all") return null;
                             var ms = [["aifs","AIFS-ENS"],["ifs","IFS-ENS"],["gefs","GEFS"],["geps","GEPS"]];
-                            return {label: "Model", items: a === "runs" ? ms.concat([["hres","IFS control"],["all","All"]]) : ms}; },
+                            return {label: "Model", items: a === "runs" ? ms.concat([["aifsc","AIFS-ENS control"],["hres","IFS control"],["all","All"]]) : ms}; },
           img: function (a, b) { if (a === "all") return "assets/sst/telecon_models.webp";
                                  return (a === "runs" ? "assets/sst/runs/telecon_" : "assets/sst/telecon_") + (b || "aifs") + ".webp"; },
           bust: "hourly", about: "about-telecon", fit: false,
-          cap: function (a, b) { var m = {aifs: "AIFS-ENS (control + 25 members)", ifs: "IFS-ENS (50 members, the IFS control dashed)", gefs: "GEFS (control + 30 members)", geps: "GEPS (control + 20 members)", hres: "the IFS control", all: "every ensemble"}[b || "aifs"];
+          cap: function (a, b) { var m = {aifs: "AIFS-ENS (control + 25 members, the control dashed)", ifs: "IFS-ENS (50 members, the IFS control dashed)", gefs: "GEFS (control + 30 members)", geps: "GEPS (control + 20 members)", hres: "the IFS control", aifsc: "the AIFS-ENS control", all: "every ensemble"}[b || "aifs"];
                                  if (a === "all") return "Every ensemble's newest run: the members' mean Arctic Oscillation and NAO with its 10–90 % range, the IFS control dashed. Negative = high pressure over the Arctic and Greenland.";
                                  if (a === "runs") return "How the last runs of " + m + " have moved the Arctic Oscillation and NAO (the members' mean; the newest run with its members' 10–90 %).";
                                  return m + ": every member's Arctic Oscillation and NAO to day 15 on the site's CPC-style patterns, in standard deviations of the daily index; the members' mean bold."; }},
-  z100: {label: "100 hPa height: anomaly and 24 h change", a: {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"],["hres","IFS control"],["gefs","GEFS"],["geps","GEPS"]]},
+  z100: {label: "100 hPa height: anomaly and 24 h change", a: {label: "Model", items: [["aifs","AIFS-ENS"],["aifsc","AIFS-ENS control"],["ifs","IFS-ENS"],["hres","IFS control"],["gefs","GEFS"],["geps","GEPS"]]},
           frame: function (a) { var r = "z100_" + (a || "aifs"); return "sst_anim.html?embed=1&manifest=" + r + "_manifest.json&region=" + r + "&regions=" + r; },
           ratio: function () { return "1430/814"; }, about: "about-z100",
-          cap: function (a) { return (a === "hres" ? "IFS control (one run, drawn as it is)" : {aifs: "AIFS-ENS", ifs: "IFS-ENS", gefs: "GEFS", geps: "GEPS"}[a || "aifs"] + " ensemble mean")
-                                     + ": 100 hPa height (black), its anomaly from ERA5 1991–2020 and its change over 24 h, each day to day 15" + (a === "hres" ? "." : "; shaded where enough members agree on the sign for a sign test at 5 %."); }},
+          cap: function (a) { return (a === "hres" || a === "aifsc" ? {hres: "IFS control", aifsc: "AIFS-ENS control"}[a] + " (one run, drawn as it is)" : {aifs: "AIFS-ENS", ifs: "IFS-ENS", gefs: "GEFS", geps: "GEPS"}[a || "aifs"] + " ensemble mean")
+                                     + ": 100 hPa height (black), its anomaly from ERA5 1991–2020 and its change over 24 h, each day to day 15" + (a === "hres" || a === "aifsc" ? "." : "; shaded where enough members agree on the sign for a sign test at 5 %."); }},
   polarcap: {label: "Polar cap, sea level and 500 hPa", a: {label: "View", items: [["plumes","Members"],["maps","Maps"],["all","All models"],["runs","Run to run"]]},
           b: function (a) { if (a === "all") return null;
                             var ms = [["aifs","AIFS-ENS"],["ifs","IFS-ENS"],["gefs","GEFS"],["geps","GEPS"]];
-                            return {label: "Model", items: a === "runs" ? ms.concat([["hres","IFS control"],["all","All"]]) : ms}; },
+                            return {label: "Model", items: a === "runs" ? ms.concat([["aifsc","AIFS-ENS control"],["hres","IFS control"],["all","All"]]) : ms}; },
           frame: function (a, b) { if (a !== "maps") return null; var r = "polarcap_" + (b || "aifs");
                                    return "sst_anim.html?embed=1&manifest=" + r + "_manifest.json&region=" + r + "&regions=" + r; },
           ratio: function () { return "1430/814"; },
           img: function (a, b) { if (a === "all") return "assets/sst/polarcap_models.webp";
                                  return (a === "runs" ? "assets/sst/runs/polarcap_" : "assets/sst/polarcap_") + (b || "aifs") + ".webp"; },
           bust: "hourly", about: "about-polarcap", fit: false,
-          cap: function (a, b) { var m = {aifs: "AIFS-ENS (control + 25 members)", ifs: "IFS-ENS (50 members, the IFS control dashed)", gefs: "GEFS (control + 30 members)", geps: "GEPS (control + 20 members)", hres: "the IFS control", all: "every ensemble"}[b || "aifs"];
+          cap: function (a, b) { var m = {aifs: "AIFS-ENS (control + 25 members, the control dashed)", ifs: "IFS-ENS (50 members, the IFS control dashed)", gefs: "GEFS (control + 30 members)", geps: "GEPS (control + 20 members)", hres: "the IFS control", aifsc: "the AIFS-ENS control", all: "every ensemble"}[b || "aifs"];
                                  if (a === "all") return "Every ensemble's newest run: the members' mean polar-cap (65–90°N) sea-level pressure and 500 hPa height anomaly with its 10–90 % range, the IFS control dashed. Above zero = high pressure over the Arctic (negative Arctic Oscillation).";
                                  if (a === "runs") return "How the last runs of " + m + " have moved the polar-cap sea-level pressure and 500 hPa height anomaly (the members' mean; the newest run with its members' 10–90 %).";
                                  if (a === "maps") return m + ": ensemble-mean sea-level pressure and 500 hPa height, the anomaly from ERA5 1991–2020 shaded where enough members agree on its sign for a sign test at 5 %; days 1–5, 6–10, 11–15, then each day.";
                                  return m + ": every member's polar-cap (65–90°N) sea-level pressure and 500 hPa height anomaly from ERA5 1991–2020 to day 15, the members' mean bold. Above zero = high pressure over the Arctic (negative Arctic Oscillation)."; }},
-  fdrip15: {label: "Forecast dripping paint, days 1–15", a: {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"],["hres","IFS control"],["gefs","GEFS"],["geps","GEPS"]]},
+  fdrip15: {label: "Forecast dripping paint, days 1–15", a: {label: "Model", items: [["aifs","AIFS-ENS"],["aifsc","AIFS-ENS control"],["ifs","IFS-ENS"],["hres","IFS control"],["gefs","GEFS"],["geps","GEPS"]]},
           b: {label: "View", items: [["now","This run"],["runs","Run to run"]]},
           img: function (a, b) { return b === "runs" ? "assets/sst/runs/drip_" + a + ".webp" : "assets/sst/" + a + "_drip.webp"; },
           bust: "hourly", about: "about-fdrip", fit: false,
           cap: function (a, b) { if (b === "runs") return "How the last runs have moved the 10 and 100 hPa polar-cap height (ensemble mean, sd of the day’s normal), and each run’s share of members with the 100 hPa cap at +1 sd or more on its last day.";
                                  return "Standardised polar-cap height from 1000 to 10 hPa: the last 60 days observed (GEOS FP), then the "
-                                     + (a === "hres" ? "IFS control, one run, to day 15 with the IFS-ENS drift removed where it has been measured"
+                                     + (a === "hres" ? "IFS control, one run, to day 15 with the IFS-ENS drift removed where it has been measured" : a === "aifsc" ? "AIFS-ENS control, one run, to day 15 with the AIFS-ENS drift removed where it has been measured"
                                                      : {aifs: "AIFS-ENS", ifs: "IFS-ENS (50 members)", gefs: "GEFS (31 members)", geps: "GEPS (21 members)"}[a] + " ensemble mean to day 15 with the model's drift removed where it has been measured")
                                      + "; hatched levels are not drift-corrected. Same scale as the history drips."; }},
   // split by range (as the drips): heatflux = days 1-15 (AIFS-ENS, IFS-ENS, GEFS, GEPS), heatflux35 = GEPS/GEFS to day 35

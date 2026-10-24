@@ -60,6 +60,9 @@ IFS control: --model hres draws the single unperturbed run (its own open-data st
 into vortex_hres_{10,100}_{nh,sh}/, analysis to day 15. It is what the ensemble mean is not - one realisation, whose
 vortex shape in the second week is largely its own (see "Why the mean" above) - and the frames say so.
 
+AIFS-ENS control: --model aifsc draws member 0 of AIFS-ENS the same way (its own u, v and z at 10 and 100 hPa,
+12-hourly, ~0.1 GB) into vortex_aifsc_{10,100}_{nh,sh}/.
+
 GEFS and GEPS: --model gefs / geps draw the mean of every member (control + 30 / control + 20) from the shared fetch
 (strat_ens.py, part "winds": the ensemble-mean u, v and height at 10 and 100 hPa, 0.5 deg, 12-hourly) into
 vortex_gefs_* / vortex_geps_*, same scales; their analysis frame is the control at step 0.
@@ -233,6 +236,19 @@ def fetch_hres(date: str, time: str):
     return out, "IFS control, one run"
 
 
+def fetch_aifsc(date: str, time: str):
+    """The AIFS-ENS control (member 0): u, v and z at both levels, every 12 h step; its step 0 is the analysis."""
+    cyc = ecmwf.Cycle(date, time)
+    files = {sh: ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", sh, "pl", LEVELS, STEPS_12H)) for sh in FIELDS}
+    out = {}
+    for lev in LEVELS:
+        trio = [_mean_field(files[sh], sh, lev) for sh in FIELDS]
+        trio = [f.drop_vars([c for c in f.coords if c not in ("step", "latitude", "longitude")]) for f in trio]
+        trio[2] = trio[2] / (G0 * 10.0)  # geopotential (m2 s-2) -> height in dam
+        out[lev] = tuple(trio)
+    return out, "AIFS-ENS control, one run"
+
+
 def fetch_ifs(date: str, time: str):
     """IFS-ENS: u and v at both levels, every 12 h step, the forecast steps as the mean of ALL 50 perturbed members
     (the shared IFS-ENS file) and step 0 from the IFS control (the ensemble files carry no control at pressure
@@ -282,8 +298,16 @@ def fetch_shared(model: str, date: str, time: str):
 
 FIELDS = ("u", "v", "z")  # the AIFS-ENS fields (z = geopotential, m2 s-2)
 G0 = 9.80665
-MODEL = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS", "hres": "IFS control", "gefs": "GEFS", "geps": "GEPS"}
-CENTRE = {"aifs": "ECMWF", "ifs": "ECMWF", "hres": "ECMWF", "gefs": "NOAA", "geps": "ECCC"}
+MODEL = {
+    "aifs": "AIFS-ENS",
+    "aifsc": "AIFS-ENS control",
+    "ifs": "IFS-ENS",
+    "hres": "IFS control",
+    "gefs": "GEFS",
+    "geps": "GEPS",
+}
+CENTRE = {"aifs": "ECMWF", "aifsc": "ECMWF", "ifs": "ECMWF", "hres": "ECMWF", "gefs": "NOAA", "geps": "ECCC"}
+SINGLE = ("aifsc", "hres")  # one run, not an ensemble mean
 PREFIX = {m: "vortex" if m == "aifs" else f"vortex_{m}" for m in MODEL}  # frame dirs / regions
 
 
@@ -423,11 +447,11 @@ def render(uv, lev, hemi, date, time, step_h, out_path: Path, source: str = "con
         ha="left",
         y=0.975,
     )
-    single = model == "hres"
+    single = model in SINGLE
     if step_h == 0 and model == "ifs":
         what = "ECMWF IFS control analysis, the state IFS-ENS starts from"
     elif single:
-        what = f"ECMWF {'IFS control analysis' if step_h == 0 else source}"
+        what = f"ECMWF {MODEL[model] + ' analysis' if step_h == 0 else source}"
     else:
         what = f"{CENTRE[model]} {MODEL[model]} " + ("control (the analysis)" if step_h == 0 else source)
     fig.text(
@@ -512,7 +536,7 @@ def build_loop(full, date, time, anim_root: Path, manifest: Path, source: str = 
                 print(f"    {lev} hPa {h.upper()}  F{step_h:03d}", flush=True)
             regions[f"{PREFIX[model]}_{lev}_{h}"] = {
                 "label": f"Vortex winds — {lev} hPa, {'northern' if h == 'nh' else 'southern'} hemisphere, "
-                f"{MODEL[model]}" + ("" if model == "hres" else " ensemble mean"),
+                f"{MODEL[model]}" + ("" if model in SINGLE else " ensemble mean"),
                 "n_frames": len(frames),
                 "frames": frames,
             }
@@ -546,6 +570,8 @@ def main(argv=None) -> int:
         full, source = fetch_ifs(a.date, a.time)
     elif a.model == "hres":
         full, source = fetch_hres(a.date, a.time)
+    elif a.model == "aifsc":
+        full, source = fetch_aifsc(a.date, a.time)
     else:
         full, source = fetch(a.date, a.time)
     return build_loop(full, a.date, a.time, Path(a.anim_dir), Path(a.manifest), source, a.model)

@@ -7,6 +7,8 @@ name: Stratosphere (vortex, waves 1 and 2, E-P flux from GEFS)
 #   vortex_winds.py   -> assets/sst/anim/vortex_{10,100}_{nh,sh}/  31-step 12-hourly loops, one hemisphere each
 #   polarcap.py       -> assets/sst/{polarcap,telecon}_aifs.webp + anim/{polarcap,z100}_aifs/  polar cap, AO/NAO and
 #                        100 hPa height (light job)
+#   aifsc             -> the AIFS-ENS control (member 0) on its own, as the IFS control: aifsc_drip.webp, wave and
+#                        vortex-wind loops, z100_aifsc/, its run records (light job; its vortex record in heavy)
 #   qbo_duct.py --model gefs -> assets/sst/anim/epflux_gefs/   E-P flux loop from the NOAA GEFS ensemble (epflux job)
 #                               + assets/sst/refractive_gefs.webp, data/refractive_gefs.json   wave-1/2 refractive index
 #   qbo_duct.py --model aifs -> scripts/strat/data/zmu_members_aifs.npz (zero line) + v250 for pacjet (heavy job)
@@ -261,12 +263,31 @@ jobs:
 
       # AIFS-ENS's run into its heat-flux and drip records (run_record.py: from the JSON just written, nothing fetched;
       # wave_maps.py records the waves itself)
+      # The AIFS-ENS control (member 0) on its own, as the IFS control is: its dripping paint (the drip's control
+      # file), wave loops (the polar-cap step's control file) and vortex-wind loops (its own u, v and z at 10 and
+      # 100 hPa, ~0.1 GB); its polar-cap, AO/NAO and 100 hPa products came with the polar-cap step. Google mirror only.
+      - name: Dripping paint and loops (AIFS-ENS control)
+        env:
+          ECMWF_SOURCES: google
+          ECMWF_MULTISOURCE: "0"
+          D: ${{ needs.cycle.outputs.date }}
+          T: ${{ needs.cycle.outputs.time }}
+        run: |
+          python scripts/strat/forecast_drip.py --model aifsc --date "$D" --time "$T" --out-dir assets/sst \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AIFS-ENS control drip" "keeping the previous figure"
+          python scripts/strat/wave_maps.py --model aifsc --date "$D" --time "$T" --anim-dir assets/sst/anim \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AIFS-ENS control wave loops" "keeping the previous frames"
+          python scripts/strat/vortex_winds.py --model aifsc --date "$D" --time "$T" --anim-dir assets/sst/anim \
+            --manifest assets/sst/anim/vortex_winds_aifsc_manifest.json \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AIFS-ENS control vortex winds" "keeping the previous frames"
+
       - name: Run records, heat flux and dripping paint
         continue-on-error: true
         run: |
           for p in heatflux drip; do
             python scripts/strat/run_record.py capture "$p" --model aifs || echo "::warning::AIFS-ENS $p record failed"
           done
+          python scripts/strat/run_record.py capture drip --model aifsc || echo "::warning::AIFS-ENS control drip record failed"
 
       # Fails the job when a product rendered nothing. Every render is wrapped in
       # a `|| degraded.sh` guard so one upstream outage cannot sink the others - but
@@ -279,7 +300,10 @@ jobs:
         run: |
           scripts/lib/degraded.sh --summary
           bad=0
-          for d in assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh assets/sst/anim/wave2_nh assets/sst/anim/wave2_sh assets/sst/anim/vortex_10_nh assets/sst/anim/vortex_10_sh assets/sst/anim/vortex_100_nh assets/sst/anim/vortex_100_sh assets/sst/anim/polarcap_aifs assets/sst/anim/z100_aifs; do
+          for d in assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh assets/sst/anim/wave2_nh assets/sst/anim/wave2_sh assets/sst/anim/vortex_10_nh assets/sst/anim/vortex_10_sh assets/sst/anim/vortex_100_nh assets/sst/anim/vortex_100_sh assets/sst/anim/polarcap_aifs assets/sst/anim/z100_aifs \
+                   assets/sst/anim/wave1_aifsc_nh assets/sst/anim/wave1_aifsc_sh assets/sst/anim/wave2_aifsc_nh assets/sst/anim/wave2_aifsc_sh \
+                   assets/sst/anim/vortex_aifsc_10_nh assets/sst/anim/vortex_aifsc_10_sh assets/sst/anim/vortex_aifsc_100_nh \
+                   assets/sst/anim/vortex_aifsc_100_sh assets/sst/anim/z100_aifsc; do
             n=$(ls "$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')
             printf '  %-38s %s frames\n' "$d" "$n"
             [ "$n" -eq 0 ] && bad=$((bad + 1))
@@ -315,7 +339,14 @@ jobs:
                    assets/sst/polarcap_aifs.webp assets/sst/anim/polarcap_aifs assets/sst/anim/polarcap_aifs_manifest.json \
                    assets/sst/telecon_aifs.webp assets/sst/anim/z100_aifs assets/sst/anim/z100_aifs_manifest.json \
                    assets/sst/data/runs/{heatflux,drip,waves,polarcap,telecon}_aifs.json \
-                   assets/sst/runs/{heatflux,drip,waves,polarcap,telecon}_aifs.webp; do
+                   assets/sst/runs/{heatflux,drip,waves,polarcap,telecon}_aifs.webp \
+                   assets/sst/aifsc_drip.webp assets/sst/data/aifsc_drip.json \
+                   assets/sst/anim/wave1_aifsc_nh assets/sst/anim/wave1_aifsc_sh assets/sst/anim/wave2_aifsc_nh assets/sst/anim/wave2_aifsc_sh \
+                   assets/sst/anim/wave1_maps_aifsc_manifest.json assets/sst/anim/wave2_maps_aifsc_manifest.json \
+                   assets/sst/anim/vortex_aifsc_10_nh assets/sst/anim/vortex_aifsc_10_sh assets/sst/anim/vortex_aifsc_100_nh \
+                   assets/sst/anim/vortex_aifsc_100_sh assets/sst/anim/vortex_winds_aifsc_manifest.json \
+                   assets/sst/anim/z100_aifsc assets/sst/anim/z100_aifsc_manifest.json \
+                   assets/sst/data/runs/{drip,waves,polarcap,telecon}_aifsc.json assets/sst/runs/{drip,waves,polarcap,telecon}_aifsc.webp; do
             [ -e "$p" ] && echo "$p" >> /tmp/light.list
           done
           if [ ! -s /tmp/light.list ]; then
@@ -385,7 +416,7 @@ jobs:
         continue-on-error: true
         run: |
           git fetch -q --depth 1 origin main && git checkout FETCH_HEAD -- assets/sst/data/runs || echo "::warning::no run records on main yet"
-          python scripts/strat/nh_vortex.py --record-only --models aifs \
+          python scripts/strat/nh_vortex.py --record-only --models aifs,aifsc \
             --cycle "${{ needs.cycle.outputs.date }}${{ needs.cycle.outputs.time }}" \
             || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AIFS-ENS vortex record" "the record keeps its previous runs"
 
@@ -447,7 +478,7 @@ jobs:
                    assets/sst/data/pacjet_aifs.json assets/sst/data/pacjet_analysis.json \
                    assets/sst/qbo_zeroline_70.webp assets/sst/qbo_zeroline_50.webp assets/sst/qbo_zeroline_30.webp \
                    assets/sst/qbo_zeroline_10.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_aifs.json \
-                   assets/sst/data/runs/vortex_aifs.json; do
+                   assets/sst/data/runs/vortex_aifs.json assets/sst/data/runs/vortex_aifsc.json; do
             [ -e "$p" ] && echo "$p" >> /tmp/heavy.list
           done
           if [ ! -s /tmp/heavy.list ]; then
@@ -589,7 +620,10 @@ jobs:
         run: |
           scripts/lib/publish_frames_ci.sh assets/sst/anim/epflux_gefs assets/sst/anim/wave1_nh \
             assets/sst/anim/wave1_sh assets/sst/anim/wave2_nh assets/sst/anim/wave2_sh assets/sst/anim/vortex_10_nh assets/sst/anim/vortex_10_sh assets/sst/anim/vortex_100_nh assets/sst/anim/vortex_100_sh \
-            assets/sst/anim/pacjet_aifs assets/sst/anim/polarcap_aifs assets/sst/anim/z100_aifs
+            assets/sst/anim/pacjet_aifs assets/sst/anim/polarcap_aifs assets/sst/anim/z100_aifs \
+            assets/sst/anim/wave1_aifsc_nh assets/sst/anim/wave1_aifsc_sh assets/sst/anim/wave2_aifsc_nh assets/sst/anim/wave2_aifsc_sh \
+            assets/sst/anim/vortex_aifsc_10_nh assets/sst/anim/vortex_aifsc_10_sh assets/sst/anim/vortex_aifsc_100_nh \
+            assets/sst/anim/vortex_aifsc_100_sh assets/sst/anim/z100_aifsc
 
       # Only the static figures and the manifests are committed to main.
       - name: Commit & push
@@ -605,7 +639,9 @@ jobs:
                    assets/sst/pacjet_aifs_*.webp assets/sst/pacjet_torque.webp assets/sst/pacjet_impacts_*.webp \
                    assets/sst/data/pacjet_aifs.json assets/sst/data/pacjet_analysis.json \
                    assets/sst/refractive_gefs.webp assets/sst/data/refractive_gefs.json \
-                   assets/sst/data/runs/*_aifs.json assets/sst/runs/*_aifs.webp; do
+                   assets/sst/data/runs/*_aifs.json assets/sst/runs/*_aifs.webp \
+                   assets/sst/aifsc_drip.webp assets/sst/data/aifsc_drip.json \
+                   assets/sst/data/runs/*_aifsc.json assets/sst/runs/*_aifsc.webp; do
             if [ -e "$f" ]; then git add "$f"; fi
           done
           # the retired AIFS-ENS / IFS-ENS E-P flux manifests leave main with the next commit

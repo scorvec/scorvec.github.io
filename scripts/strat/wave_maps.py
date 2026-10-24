@@ -30,7 +30,8 @@ analysis frame is the IFS control's step 0 - the analysis the ensemble starts fr
 
 IFS control: --model hres maps the single unperturbed run (its own open-data stream, the shared control gh file) into
 wave{1,2}_hres_{nh,sh}/, analysis to day 15. One run, so no stippling and no phase agreement - and past the first week
-its wave phases are one realisation of many (see fetch), which the frames say.
+its wave phases are one realisation of many (see fetch), which the frames say. --model aifsc does the same for the
+AIFS-ENS control (member 0, its z at the three levels) into wave{1,2}_aifsc_{nh,sh}/.
 
 GEFS and GEPS: --model gefs / geps map the mean of every member (control + 30 / control + 20) from the shared fetch
 (strat_ens.py, part "waves": the members' heights at 500/100/10 hPa on 1 deg, daily) into wave{1,2}_{gefs,geps}_{nh,sh}/;
@@ -96,8 +97,16 @@ FULL_CI = {10: 160.0, 100: 120.0, 500: 60.0}
 CMAP = "RdBu_r"
 
 
-MODEL = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS", "hres": "IFS control", "gefs": "GEFS", "geps": "GEPS"}
-CENTRE = {"aifs": "ECMWF", "ifs": "ECMWF", "hres": "ECMWF", "gefs": "NOAA", "geps": "ECCC"}
+MODEL = {
+    "aifs": "AIFS-ENS",
+    "aifsc": "AIFS-ENS control",
+    "ifs": "IFS-ENS",
+    "hres": "IFS control",
+    "gefs": "GEFS",
+    "geps": "GEPS",
+}
+CENTRE = {"aifs": "ECMWF", "aifsc": "ECMWF", "ifs": "ECMWF", "hres": "ECMWF", "gefs": "NOAA", "geps": "ECCC"}
+SINGLE = ("aifsc", "hres")  # one run: no member agreement to show
 
 
 def _suffix(model: str) -> str:
@@ -194,6 +203,13 @@ def fetch_hres(date: str, time: str):
         raise SystemExit(f"IFS control {date} {time}Z is not on the Google mirror yet")
     path = IE.ensure(IE.E.Cycle(date, time), IE.spec_ctrl_gh())
     return {lev: open_level(path, lev, "gh") for lev in LEVELS}
+
+
+def fetch_aifsc(date: str, time: str):
+    """The AIFS-ENS control (member 0): z at 500/100/10 hPa, daily 0-360 h (the polar-cap step's file); its step 0 is
+    the analysis."""
+    path = ecmwf.ensure(ecmwf.Cycle(date, time), ecmwf.Spec("aifs-ens", "cf", "z", "pl", LEVELS, tuple(ecmwf.STEPS)))
+    return {lev: open_level(path, lev) for lev in LEVELS}
 
 
 def fetch_shared(model: str, date: str, time: str):
@@ -512,7 +528,7 @@ def render(levels_at_step, hemi, date, time, step_h, out_path: Path, k: int, sou
         "(ERA5, 55–65°). "
         + (
             "One run: past the first week its wave phases are one realisation of many."
-            if model == "hres"
+            if model in SINGLE
             else "Dots: under 80 % of the members agree on the sign."
         )
         + "\nA ridge that shifts WEST going up "
@@ -560,9 +576,11 @@ def build_loop(full, ana, date, time, anim_root: Path, k: int, source="ensemble 
     # mean, so the loop starts from the state the forecast was launched from
     # rather than from a smoothed version of it.
     steps = [0] + [h for h in ecmwf.STEPS if h > 0]
-    ana_label = {"ifs": "IFS control analysis, the state IFS-ENS starts from", "hres": "analysis"}.get(
-        model, "control (analysis)"
-    )
+    ana_label = {
+        "ifs": "IFS control analysis, the state IFS-ENS starts from",
+        "hres": "analysis",
+        "aifsc": "analysis",
+    }.get(model, "control (analysis)")
     regions = {}
     for hemi in ("NH", "SH"):
         key = f"{prefix(model, k)}_{hemi.lower()}"
@@ -651,6 +669,9 @@ def main(argv=None) -> int:
         ana = fetch_hres(a.date, a.time)
     elif a.model == "hres":
         full, source = fetch_hres(a.date, a.time), "IFS control, one run"
+        ana = full
+    elif a.model == "aifsc":
+        full, source = fetch_aifsc(a.date, a.time), "AIFS-ENS control, one run"
         ana = full
     else:
         full, source = fetch(a.date, a.time, a.members)

@@ -25,6 +25,8 @@ Model drift - never shown as signal:
            levels, so the same verification is made with the mean of all 50 perturbed members over the same cycles
            (--measure-drift ifs -> reference/ifs_capdrift.json). 50 members, 0.25 deg, day 15, from the shared
            IFS-ENS file (ifs_ens.py, Google Cloud mirror only).
+  AIFS-ENS control (--model aifsc) member 0 alone, from the same file as the AIFS-ENS drip's control, day 15, with the
+           AIFS-ENS drift (which was measured on the control). One run.
   IFS control (--model hres) the unperturbed run from its own open-data stream (ifs_ens.py ctrl_gh), day 15, with the
            IFS-ENS drift above: the same model at the same resolution, whose mean error over many cycles is the
            ensemble's. One run, so the lower panel has no spread and no member share.
@@ -40,6 +42,7 @@ negative AO) and the share of members with the 100 hPa cap >= +1 sd.
     python forecast_drip.py --model aifs --date 20260927 --time 00 --out-dir assets/sst
     python forecast_drip.py --model ifs --date 20260927 --time 00 --out-dir assets/sst
     python forecast_drip.py --model hres --date 20261021 --time 12 --out-dir assets/sst
+    python forecast_drip.py --model aifsc --date 20261024 --time 06 --out-dir assets/sst
     python forecast_drip.py --model gefs --days 15 --date 20261020 --time 12 --out-dir assets/sst
     python forecast_drip.py --measure-drift ifs          # outside Actions, once: -> reference/ifs_capdrift.json
 """
@@ -64,7 +67,14 @@ from build_drip_ref import Ref
 import geosfp_cap as FP
 
 LEVELS = FP.LEVELS  # 1000 ... 10 hPa (11)
-NAME = {"geps": "GEPS", "gefs": "GEFS", "aifs": "AIFS-ENS", "ifs": "IFS-ENS", "hres": "IFS control"}
+NAME = {
+    "geps": "GEPS",
+    "gefs": "GEFS",
+    "aifs": "AIFS-ENS",
+    "aifsc": "AIFS-ENS control",
+    "ifs": "IFS-ENS",
+    "hres": "IFS control",
+}
 G = 9.80665
 TAIL = 60
 INK, MUTED = "#1f2328", "#6f6b64"
@@ -185,7 +195,7 @@ def aifs(date: str, time: str, members: int = 10):
     steps = list(range(0, 361, 24))
     levs = tuple(int(x) for x in LEVELS)
     parts = []
-    for kind, n in (("cf", None), ("pf", members)):
+    for kind, n in (("cf", None), ("pf", members))[: 2 if members else 1]:  # members=0: the control alone
         spec = (
             E.Spec("aifs-ens", kind, "z", "pl", levs, tuple(steps), n)
             if n
@@ -575,6 +585,7 @@ def render(
             "geps": "ECCC GEPS (MSC Datamart); drift: ECMWF S2S GEPS reforecasts (non-commercial research licence)",
             "gefs": "NOAA GEFS (AWS Open Data); drift: GEFSv12 reforecast climatology",
             "aifs": "ECMWF AIFS-ENS open data (CC BY 4.0)",
+            "aifsc": "ECMWF AIFS-ENS open data (CC BY 4.0), the control (member 0)",
             "ifs": "ECMWF IFS-ENS open data (CC BY 4.0), 50 perturbed members, 0.25°, Google Cloud mirror",
             "hres": "ECMWF open data (CC BY 4.0), the IFS control (ECMWF's unperturbed 9 km run, called HRES until May "
             "2026), 0.25°, Google Cloud mirror",
@@ -633,6 +644,7 @@ def main() -> int:
             "geps": lambda: geps(a.date),
             "gefs": lambda: gefs(a.date),
             "aifs": lambda: aifs(a.date, a.time),
+            "aifsc": lambda: aifs(a.date, a.time, 0),
             "ifs": lambda: ifs(a.date, a.time),
             "hres": lambda: hres(a.date, a.time),
         }[a.model]()
@@ -645,6 +657,7 @@ def main() -> int:
         "geps": lambda: drift_geps(init, leads),
         "gefs": lambda: drift_gefs(init, leads, ref),
         "aifs": lambda: drift_aifs(init, leads, ref, None),
+        "aifsc": lambda: drift_aifs(init, leads, ref, None),  # measured on the control itself
         "ifs": lambda: drift_aifs(init, leads, ref, None, "ifs"),
         "hres": lambda: drift_aifs(init, leads, ref, None, "ifs"),  # the IFS-ENS drift (module docstring)
     }[a.model]()
