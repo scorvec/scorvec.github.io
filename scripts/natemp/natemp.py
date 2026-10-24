@@ -226,6 +226,11 @@ def orography_shift(date: str, hh: str) -> np.ndarray:
     import rangefetch as rf
 
     zg = dict(decode_geps(m) for m in split_grib(geps_file(date, hh, GEPS_HGT, 0)))[0]
+    # the Datamart's GEPS surface height is in DECAMETRES though its GRIB parameter says geopotential metres (24 Oct
+    # 2026: 12 bits at a binary scale of -2, values -14..1010; the box's highest ground, Greenland and Alaska, reads
+    # ~300-600): metres when the box's maximum says so, should the encoding be corrected
+    if zg.max() < 1000.0:
+        zg = zg * 10.0
     t0 = pd.Timestamp(f"{date} {hh}:00")
     for back in range(5):  # the orography does not change: the newest control run on the mirror (it lands after GEPS)
         t = t0 - pd.Timedelta(hours=12 * back)
