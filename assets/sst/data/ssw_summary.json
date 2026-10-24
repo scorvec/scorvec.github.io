@@ -1,5 +1,5 @@
 {
- "built": "2026-10-24 18:08Z",
+ "built": "2026-10-24 19:15Z",
  "newest_init": "2026-10-24 12Z",
  "window": [
   "2026-10-25",
@@ -360,11 +360,11 @@
     ]
    },
    "gefs": {
-    "init": "2026-10-24 00Z",
+    "init": "2026-10-24 12Z",
     "members": 31,
-    "share": 0.0,
-    "u10_min_mean": 10.4,
-    "u10_min_p10": 5.0,
+    "share": 0.1,
+    "u10_min_mean": 7.0,
+    "u10_min_p10": 0.3,
     "runs": [
      [
       "2026-10-20T00",
@@ -409,6 +409,11 @@
      [
       "2026-10-24T00",
       0.0,
+      0.0
+     ],
+     [
+      "2026-10-24T12",
+      0.1,
       0.0
      ]
     ]
@@ -508,7 +513,7 @@
     ]
    }
   },
-  "share_mean": 0.12,
+  "share_mean": 0.15,
   "base_rate": {
    "winters": 46,
    "with_onset": 0,
@@ -571,18 +576,18 @@
     "z_sib_max": 4.5
    },
    "gefs": {
-    "init": "2026-10-24 00Z",
+    "init": "2026-10-24 12Z",
     "members": 31,
-    "wave2_share": 0.53,
-    "z_peak": 3.6,
+    "wave2_share": 0.5,
+    "z_peak": 3.8,
     "z_peak_day": 5,
-    "flux_min": 11.9,
+    "flux_min": 13.1,
     "warning_now": 9.4,
     "warning_threshold": 27.5,
     "warning_members": 0.0,
-    "ri_event_share": 0.1,
-    "z_can_min": -1.1,
-    "z_sib_max": 4.3
+    "ri_event_share": 0.0,
+    "z_can_min": -1.2,
+    "z_sib_max": 4.5
    },
    "geps": {
     "init": "2026-10-24 12Z",
@@ -635,13 +640,13 @@
     "kind": "bottom-up"
    },
    "gefs": {
-    "init": "2026-10-24 00Z",
+    "init": "2026-10-24 12Z",
     "members": 31,
-    "cap100_day15": 0.8,
-    "cap10_day15": 1.8,
-    "frac100_day15": 0.35,
+    "cap100_day15": 1.2,
+    "cap10_day15": 2.3,
+    "frac100_day15": 0.68,
     "cross100": "2026-10-27",
-    "cross10": "2026-10-30",
+    "cross10": "2026-10-29",
     "kind": "bottom-up"
    },
    "geps": {
@@ -662,7 +667,7 @@
   "shear_init": "2026-10-24 00Z",
   "shear_min": 27.3,
   "shear_max": 33.8,
-  "shear_normal": 23.8,
+  "shear_normal": 23.5,
   "zonal_mean_downward": [],
   "canada_downward": [
    "aifs",
@@ -676,7 +681,7 @@
    "gefs",
    "geps"
   ],
-  "ri_event_share_mean": 0.36
+  "ri_event_share_mean": 0.34
  },
  "surface": {
   "models": {
@@ -703,15 +708,15 @@
     "frac100_day15": 0.84
    },
    "gefs": {
-    "init": "2026-10-24 00Z",
-    "p_positive": 0.6,
+    "init": "2026-10-24 12Z",
+    "p_positive": 0.69,
     "base_rate": 0.5,
     "window": [
      "2026-11-09",
      "2026-12-08"
     ],
-    "cap100_day15": 0.8,
-    "frac100_day15": 0.35
+    "cap100_day15": 1.2,
+    "frac100_day15": 0.68
    },
    "geps": {
     "init": "2026-10-24 12Z",
@@ -774,8 +779,8 @@
     "random_p": 0.0005
    }
   },
-  "p_positive_mean": 0.68,
-  "cap100_day15_mean": 1.2,
+  "p_positive_mean": 0.7,
+  "cap100_day15_mean": 1.3,
   "regime": "cap_1sd"
  },
  "reference": {
