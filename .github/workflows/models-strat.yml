@@ -1,8 +1,9 @@
 name: Stratosphere model maps (GFS data)
 
-# strat-models.html: the GFS 00/12Z run on every pressure level from 100 to 0.4 hPa (temperature, height, wind) and on
-# seven isentropic surfaces (Ertel potential vorticity, computed here), both hemispheres, every 12 h to +384 h, each
-# field and step one lossless WebP on the 0.5 deg grid (scripts/models/strat_maps.py has the details).
+# strat-models.html: the GFS 00/12Z run on every pressure level from 100 to 0.4 hPa (temperature, height, wind and the
+# smoothed vertical motion) and on seven isentropic surfaces (Ertel potential vorticity, computed here), both
+# hemispheres, every 12 h to +384 h, each field and step one lossless WebP on the 0.5 deg grid
+# (scripts/models/strat_maps.py has the details).
 #
 # Each run: read the CURRENT manifest from main, plan (the newest complete 00/12Z cycle not yet published), fetch +
 # compute + encode, publish the cycle directory to the FRAMES STORE ONLY (FRAMES_BRANCH=off on the publish step: this
@@ -11,10 +12,14 @@ name: Stratosphere model maps (GFS data)
 # not published.
 #
 # Source: NOAA's AWS bucket noaa-gfs-bdp-pds only (never NOMADS), byte ranges of the wanted messages via the .idx
-# files: ~110 of the ~740 messages of each 0.5 deg step (u, v, T and height on 27 levels, 400-0.4 hPa), ~25 MB a step,
-# ~0.85 GB a cycle. +384 h is on the bucket ~5 h 15 min after the start (measured 2026-10-23/24); the dispatcher fires
+# files: ~125 of the ~740 messages of each 0.5 deg step (u, v, T and height on 27 levels, 400-0.4 hPa, and omega on
+# the 15 map levels), ~30 MB a step, ~1 GB a cycle. +384 h is on the bucket ~5 h 15 min after the start (measured 2026-10-23/24); the dispatcher fires
 # 05:30 and 17:30 with a backup an hour later, these crons are the backstop, and a firing with nothing new exits in
 # about a minute.
+#
+# Dispatch with omega_clim=true (instead of a run) to rebuild the vertical motion's colour ranges,
+# scripts/models/strat_omega_ranges.json (strat_maps.py omega-clim: 48 monthly samples of GFS analyses, ~2 GB), which
+# the runs read; without the file a run publishes no vertical motion.
 
 on:
   schedule:
@@ -28,6 +33,10 @@ on:
         default: ""
       force:
         description: "Rebuild the given cycle even when it is already published"
+        type: boolean
+        default: false
+      omega_clim:
+        description: "Rebuild the vertical motion's colour ranges (strat_omega_ranges.json) instead of a run"
         type: boolean
         default: false
 
@@ -71,8 +80,10 @@ jobs:
         env:
           CYCLE: ${{ inputs.cycle }}
           FORCE: ${{ inputs.force && '--force' || '' }}
+          OMEGA_CLIM: ${{ inputs.omega_clim && '1' || '' }}
         run: |
           set -euo pipefail
+          if [ -n "$OMEGA_CLIM" ]; then echo "n=0" >> "$GITHUB_OUTPUT"; exit 0; fi
           mkdir -p assets/models
           # main's CURRENT manifest, not the checkout's (a run queued behind another checks out an older commit)
           if timeout 60 git fetch -q --depth 1 origin main && git show FETCH_HEAD:assets/models/strat_gfs.json > /tmp/strat_gfs.json 2>/dev/null; then
@@ -111,13 +122,17 @@ jobs:
             echo "::endgroup::"
           done < "$RUNNER_TEMP/plan.txt"
           echo "done=$done" >> "$GITHUB_OUTPUT"
+      - name: Vertical-motion colour ranges (omega_clim dispatch only)
+        id: clim
+        if: inputs.omega_clim
+        run: python scripts/models/strat_maps.py omega-clim --procs 4
       - name: Commit & push the manifest
-        if: steps.run.outputs.done != '' && steps.run.outputs.done != '0'
+        if: (steps.run.outputs.done != '' && steps.run.outputs.done != '0') || steps.clim.outcome == 'success'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           SNAP=$(mktemp -d)
-          outs() { ls assets/models/strat_gfs.json assets/models/geo_polar.json assets/models/geo_polar_coarse.json 2>/dev/null; }
+          outs() { ls assets/models/strat_gfs.json assets/models/geo_polar.json assets/models/geo_polar_coarse.json scripts/models/strat_omega_ranges.json 2>/dev/null; }
           for f in $(outs); do git add -f "$f"; done
           git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
           git reset -q
