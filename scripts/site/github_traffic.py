@@ -6,8 +6,10 @@ into assets/site_stats/github_traffic.json, so the history accumulates; the newe
 overwrites it. Clones count every clone and fetch, GitHub Actions checkouts and `pip install git+...` included, so they
 mostly measure automation; page views, stars and forks are the human signal.
 
-Runs daily from .github/workflows/site-stats.yml. Needs GH_TRAFFIC_TOKEN, a fine-grained token with "Administration:
-read" on the repositories (the workflow's own token cannot read traffic); without it the script says so and exits 0.
+Every public, non-fork, unarchived repository of OWNER is read, so a new one is picked up by itself; one the token
+cannot read is skipped with a warning and keeps its history. Runs daily from .github/workflows/site-stats.yml. Needs
+GH_TRAFFIC_TOKEN, a fine-grained token with "Administration: read" on the repositories (the workflow's own token cannot
+read traffic); without it the script says so and exits 0.
 
     GH_TRAFFIC_TOKEN=... python scripts/site/github_traffic.py
 """
@@ -16,13 +18,13 @@ from __future__ import annotations
 
 import json
 import os
+import urllib.error
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
 
 OUT = Path(__file__).resolve().parents[2] / "assets" / "site_stats" / "github_traffic.json"
 OWNER = "scorvec"
-REPOS = ("scorvec.github.io", "quantmet-tools", "midterms-2026")
 API = "https://api.github.com"
 
 
@@ -38,6 +40,12 @@ def get(path: str, token: str) -> dict:
     )
     with urllib.request.urlopen(req, timeout=60) as r:
         return json.load(r)
+
+
+def public_repos(token: str) -> list[str]:
+    """OWNER's public repositories, forks and archived ones left out."""
+    rows = get(f"/users/{OWNER}/repos?type=owner&per_page=100", token)
+    return sorted(r["name"] for r in rows if not (r["private"] or r["fork"] or r["archived"]))
 
 
 def update(doc: dict, repo: str, token: str) -> None:
@@ -69,8 +77,14 @@ def main() -> int:
         print("GH_TRAFFIC_TOKEN not set - GitHub traffic skipped")
         return 0
     doc = json.loads(OUT.read_text()) if OUT.exists() else {"repos": {}}
-    for repo in REPOS:
-        update(doc, repo, token)
+    for repo in public_repos(token):
+        try:
+            update(doc, repo, token)
+        except urllib.error.HTTPError as e:
+            print(f"::warning::{repo}: HTTP {e.code} - not readable with this token; its history is kept")
+    if not doc["repos"]:
+        print("::warning::no repository's traffic was readable - nothing written")
+        return 0
     doc["updated"] = datetime.now(UTC).strftime("%Y-%m-%d %H:%MZ")
     OUT.write_text(json.dumps(doc, indent=1) + "\n")
     print(
