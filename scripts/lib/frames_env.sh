@@ -24,11 +24,16 @@ fi
 frames_store_ready() {
   [ -n "${FRAMES_S3_BUCKET:-}" ] && [ -n "${FRAMES_S3_ENDPOINT:-}" ] \
     && [ -n "${FRAMES_S3_ACCESS_KEY_ID:-}" ] && [ -n "${FRAMES_S3_SECRET_ACCESS_KEY:-}" ] || return 1
-  "$FRAMES_PY" -c 'import boto3' 2>/dev/null && return 0
+  # boto3 with a botocore that takes frames_store.client()'s checksum options (1.36+): an older system copy (the
+  # runner image's python3-boto3) imports but fails there
+  local probe='import boto3, botocore.config as c; c.Config(request_checksum_calculation="when_required")'
+  "$FRAMES_PY" -c "$probe" 2>/dev/null && return 0
   # a runner's system python refuses a plain install (PEP 668, externally managed); setup-python's takes it
-  "$FRAMES_PY" -m pip install -q boto3 >/dev/null 2>&1 \
-    || "$FRAMES_PY" -m pip install -q --break-system-packages boto3 >/dev/null 2>&1 \
+  "$FRAMES_PY" -m pip install -q --upgrade boto3 >/dev/null 2>&1 \
+    || "$FRAMES_PY" -m pip install -q --upgrade --user --break-system-packages boto3 >/dev/null 2>&1 \
     || { echo "::warning::the frames store is configured but boto3 could not be installed" >&2; return 1; }
+  "$FRAMES_PY" -c "$probe" 2>/dev/null \
+    || { echo "::warning::the frames store is configured but no usable boto3 imports after the install" >&2; return 1; }
 }
 case "${FRAMES_BRANCH:-frames}" in
   off)    if frames_store_ready; then FRAMES_MODE=store; else FRAMES_MODE=broken; fi ;;
