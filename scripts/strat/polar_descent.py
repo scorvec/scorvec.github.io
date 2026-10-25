@@ -14,8 +14,8 @@ positive downward. Each member's omega is averaged onto polarcap.py's 1.5-deg ce
             latitude), the ensemble mean shaded only where enough members agree on descent or ascent for a two-sided
             sign test at 5 % (polarcap.agreeing); orographic gravity waves (Greenland, the Rockies) are averaged away
 The models: IFS-ENS 50 members (ECMWF open data, Google Cloud mirror; w at 850, 500, 300, 250, 200, 150, 100, 50 and
-10 hPa, north of 48.25N only, its cells from each message's first bytes: ifs_ens ROWS, w_cells), the IFS control drawn on
-its figures and recorded on its own, and GEFS control + 30 (v and T on the cap's edge to 1 hPa: strat_ens.py part
+10 hPa, north of 48.25N only, its cells from each message's first bytes: ifs_ens ROWS, w_cells), the IFS control drawn
+on its figures and recorded on its own, and GEFS control + 30 (v and T on the cap's edge to 1 hPa: strat_ens.py part
 "omega"). Each value is the field at its valid time (the run's hour each day). AIFS-ENS is left out: its w is a learned
 output that fails against IFS-ENS from the same analysis (24 Oct 2026 12Z: a one-level band of ascent at 250 hPa that
 continuity rules out, and a 10-100 hPa cap mean twice IFS-ENS's from day 1, -5.5 against -1.5 mm/s, with GEOS FP at
