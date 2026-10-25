@@ -62,9 +62,6 @@ jobs:
         run: pip install -r scripts/mjo/requirements-mjo.txt
       - name: Reduce this part
         env:
-          ECMWF_RPS_GOOGLE: "60"      # IFS-ENS ef files: a 5-member selection is a scatter of small ranges
-          ECMWF_RPS: "60"
-          ECMWF_RANGE_GAP_MB: "0.5"
           ERA5_SINCE: ${{ inputs.era5_since }}
           MODELS_SINCE: ${{ inputs.models_since }}
           UNTIL: ${{ inputs.until }}

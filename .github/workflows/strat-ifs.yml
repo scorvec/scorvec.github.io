@@ -61,9 +61,8 @@ name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, wave
 #           (strat_ens.py fetch: every member and step pulled once, reduced on the way in), read by all four products
 #           and by the vortex record.
 # The ef files hold ~8,500 messages per step in arrival order, so a 50-member selection is a scatter of 0.3-0.7 MB
-# ranges: ECMWF_RANGE_GAP_MB=0.5 keeps the wasted bytes near 1 % (a 3 MB gap doubled them), and the request budget is
-# raised to 60/s for Google on these runners (default 14/s, set for AWS/Azure throttling; Google does not throttle,
-# and the budget still meters every request and halves on any 429/503). Measured: 8 -> 25-50 MB/s.
+# ranges; rangefetch's 0.5 MB gap keeps the wasted bytes near 1 % and its 60/s request budget (scripts/ecmwf/budget.py)
+# gives 25-50 MB/s on them.
 on:
   # backstop crons: the dispatcher (scripts/lib/dispatch_workflows.sh) fires this on time; these only matter when
   # it is off
@@ -92,9 +91,6 @@ on:
 env:
   ECMWF_SOURCES: google
   ECMWF_MULTISOURCE: "0"
-  ECMWF_RPS_GOOGLE: "60"
-  ECMWF_RPS: "60"
-  ECMWF_RANGE_GAP_MB: "0.5"
   # Frames store (Bunny Storage, S3 API; scripts/lib/frames_store.py). Unset secrets leave these empty and frames go
   # to the `frames` branch alone; the repository variable FRAMES_BRANCH=off retires the branch (frames_env.sh).
   FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}

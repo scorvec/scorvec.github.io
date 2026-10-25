@@ -32,8 +32,6 @@ from pathlib import Path
 
 import numpy as np
 
-os.environ.setdefault("ECMWF_RPS_GOOGLE", "60")
-os.environ.setdefault("ECMWF_RPS", "60")
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parents[1] / "ecmwf"))

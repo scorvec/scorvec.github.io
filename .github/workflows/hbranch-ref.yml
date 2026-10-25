@@ -35,7 +35,6 @@ permissions:
 env:
   PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
   ECMWF_SOURCES: google
-  ECMWF_RANGE_GAP_MB: '0.5'   # IFS-ENS ef files scatter a member's messages: a 3 MB gap fetches ~2x the bytes
 
 jobs:
   part:

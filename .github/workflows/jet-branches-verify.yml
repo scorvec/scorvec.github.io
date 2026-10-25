@@ -48,9 +48,6 @@ permissions:
 env:
   ECMWF_SOURCES: google
   ECMWF_MULTISOURCE: "0"
-  ECMWF_RPS_GOOGLE: "60"           # the ef files are in arrival order: many small ranges (see strat-ifs.yml)
-  ECMWF_RPS: "60"
-  ECMWF_RANGE_GAP_MB: "0.5"
   MPLBACKEND: Agg
   PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
 

@@ -58,12 +58,12 @@ def _google(sources) -> list[str]:
 
 
 TIMEOUT = (10, 90)  # (connect, read) — nothing hangs for hours, ever
-# merge ranges separated by < 3 MB. ECMWF_RANGE_GAP_MB overrides it for a job that
-# reads IFS-ENS `-enfo-ef` files: their ~8,500 messages per step are in arrival
-# order, so a 50-member selection is a scatter of 0.3-0.7 MB messages and a 3 MB
-# gap fetches ~2x the wanted bytes (measured 2026-09-27: gh at 11 levels, 222 MB
-# wanted, 440 MB on the wire); at 0.5 MB the waste is ~1 %.
-MAX_GAP = int(float(os.environ.get("ECMWF_RANGE_GAP_MB", "3")) * 1024 * 1024)
+# merge ranges separated by < 0.5 MB (ECMWF_RANGE_GAP_MB). The members' messages are scattered through each step's
+# file - IFS-ENS `-enfo-ef` files hold ~8,500 in arrival order, AIFS-ENS files interleave members, levels and
+# parameters - so a wider gap fetches what nobody asked for: at 3 MB, 1.8x the wanted bytes over the stratosphere
+# products' AIFS-ENS selections and 2.2x for the 12-level u pull (measured 2026-10-25), ~2x for IFS-ENS gh at 11 levels
+# (2026-09-27); at 0.5 MB, 1.0-1.04x for ~40 % more requests.
+MAX_GAP = int(float(os.environ.get("ECMWF_RANGE_GAP_MB", "0.5")) * 1024 * 1024)
 WORKERS = int(os.environ.get("ECMWF_RANGE_WORKERS", "16"))
 # empirical single-IP ceiling ~32; leave headroom
 # for OTHER processes sharing this IP (pipeline,
