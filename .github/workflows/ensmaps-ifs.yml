@@ -1,0 +1,28 @@
+name: Global ensemble maps — IFS-ENS
+
+# Caller for ensmaps.yml (ens-anomalies.html). The IFS-ENS 0.1-deg surface files of a 00/12Z run reach the Google Cloud
+# mirror to day 15 ~13 h 20 min after the start (00Z ~13:20Z, 12Z ~01:20Z; the 0.25-deg files land hours earlier); the
+# dispatcher fires 13:40 / 01:40 with a backup an hour later. These crons are the backstop; a firing with nothing new
+# exits in about a minute.
+on:
+  schedule:
+  - cron: '50 14 * * *'
+  - cron: '50 2 * * *'
+  workflow_dispatch:
+    inputs:
+      cycle:
+        description: "Cycle YYYYMMDDHH (blank = plan the newest unpublished; skipped when it or a newer one is published)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  run:
+    uses: ./.github/workflows/ensmaps.yml
+    with:
+      model: ifs
+      cycle: ${{ inputs.cycle }}
+    secrets: inherit

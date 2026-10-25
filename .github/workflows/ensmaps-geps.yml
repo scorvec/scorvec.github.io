@@ -1,0 +1,27 @@
+name: Global ensemble maps — GEPS
+
+# Caller for ensmaps.yml (ens-anomalies.html). A GEPS 00/12Z run is complete on the MSC Datamart ~5 h 05 after the
+# start; the Canadian fast lane dispatches this as it lands. These crons are the backstop; a firing with nothing new
+# exits in about a minute.
+on:
+  schedule:
+  - cron: '25 6 * * *'
+  - cron: '25 18 * * *'
+  workflow_dispatch:
+    inputs:
+      cycle:
+        description: "Cycle YYYYMMDDHH (blank = plan the newest unpublished; skipped when it or a newer one is published)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  run:
+    uses: ./.github/workflows/ensmaps.yml
+    with:
+      model: geps
+      cycle: ${{ inputs.cycle }}
+    secrets: inherit

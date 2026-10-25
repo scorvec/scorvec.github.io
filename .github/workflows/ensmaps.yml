@@ -1,0 +1,188 @@
+name: Global ensemble maps (data)
+
+# ens-anomalies.html: one ensemble's 00/12Z run - 2 m temperature, 500 hPa height and sea-level pressure, each member's
+# daily means to day 15 against the 1991-2020 normals (where the members agree on the sign) and the change from the
+# run 12 h earlier (where significant) - as lossless WebP on the model's own grid (scripts/ensmaps/ensmaps.py has the
+# details). One model per run; the callers ensmaps-ifs.yml, ensmaps-aifs.yml, ensmaps-gefs.yml and ensmaps-geps.yml fix
+# it, so each lands as soon as its own run does.
+#
+# Each run: read that model's CURRENT manifest from main, plan (the newest complete 00/12Z cycle not yet published),
+# fetch + compute + encode, publish the cycle directory to the FRAMES STORE ONLY (FRAMES_BRANCH=off: this product never
+# touches the git `frames` branch; the old cycle is pruned in the store), THEN commit the manifest to main - never the
+# other way round, or the page would point at data that is not there yet. The previous run's statistics (the change
+# test) come from the Actions cache (ensmaps-<model>-stats-<YYYYMMDDHH>; all but the two newest are deleted).
+#
+# Sources per run (the steps of the 15 or 14 full days, 6-hourly):
+#   ifs   ECMWF open data, Google Cloud mirror only: 2t of the 50 perturbed members from the 0.1-deg surface files,
+#         msl and gh 500 from the 0.25-deg files, byte ranges of the wanted messages
+#   aifs  the same mirror: 2t, msl and z 500 of the control and 50 perturbed members, 0.25 deg
+#   gefs  NOAA's AWS bucket noaa-gefs-pds only (never NOMADS): TMP 2 m, PRMSL and HGT 500 of 31 members through
+#         the .idx files, byte ranges
+#   geps  the MSC Datamart through scripts/geps/datamart.py (honest User-Agent, retries, ledger): three allmbrs files
+#         a step
+# The 2 m temperature normals come from release ensmaps-ref-v1 (ensmaps-ref.yml); without them a run publishes the
+# other fields' anomalies and every change map.
+
+on:
+  workflow_call:
+    inputs:
+      model:
+        type: string
+        required: true
+      cycle:
+        type: string
+        default: ""
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "ifs, aifs, gefs or geps"
+        required: true
+        default: ifs
+      cycle:
+        description: "Cycle YYYYMMDDHH (blank = plan the newest unpublished; skipped when it or a newer one is published)"
+        required: false
+        default: ""
+      force:
+        description: "Rebuild the given cycle even when it is already published"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write   # delete superseded statistics from the Actions cache
+
+concurrency:
+  group: ensmaps-${{ inputs.model }}
+  cancel-in-progress: false
+
+env:
+  # Frames store (Bunny Storage, S3 API; scripts/lib/frames_store.py). The publish step sets FRAMES_BRANCH=off: the
+  # store is this product's only copy, and with the store unconfigured the publish fails rather than use the branch.
+  FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}
+  FRAMES_S3_ENDPOINT: ${{ secrets.FRAMES_S3_ENDPOINT }}
+  FRAMES_S3_REGION: ${{ secrets.FRAMES_S3_REGION }}
+  FRAMES_S3_ACCESS_KEY_ID: ${{ secrets.FRAMES_S3_ACCESS_KEY_ID }}
+  FRAMES_S3_SECRET_ACCESS_KEY: ${{ secrets.FRAMES_S3_SECRET_ACCESS_KEY }}
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  ECMWF_SOURCES: google
+  ECMWF_RANGE_GAP_MB: '0.5'   # the members' messages are scattered through each step's file (rangefetch.MAX_GAP)
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 110
+    env:
+      MODEL: ${{ inputs.model }}
+      GEPS_WORK: ${{ github.workspace }}/../datamart-work   # scripts/geps/datamart.py's request ledger, scratch
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/ensmaps/
+            /scripts/ecmwf/
+            /scripts/lib/
+            /scripts/geps/datamart.py
+            /scripts/geps/paths.py
+            /scripts/models/publish_data.sh
+            /scripts/constraints.txt
+            /assets/models/ensmaps_*.json
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0
+          pip install --quiet numpy scipy pandas requests eccodes pillow 'pyproj>=3.7.2' \
+            "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+      - name: Plan
+        id: plan
+        env:
+          CYCLE: ${{ inputs.cycle }}
+          FORCE: ${{ inputs.force && '--force' || '' }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          case "$MODEL" in ifs|aifs|gefs|geps) ;; *) echo "::error::unknown model $MODEL"; exit 1 ;; esac
+          mkdir -p assets/models
+          # main's CURRENT manifest, not the checkout's (a run queued behind another checks out an older commit)
+          if timeout 60 git fetch -q --depth 1 origin main && git show "FETCH_HEAD:assets/models/ensmaps_$MODEL.json" > "/tmp/ensmaps_$MODEL.json" 2>/dev/null; then
+            cp "/tmp/ensmaps_$MODEL.json" "assets/models/ensmaps_$MODEL.json"
+          else echo "no manifest on main yet for $MODEL"; rm -f "assets/models/ensmaps_$MODEL.json"; fi
+          python scripts/ensmaps/ensmaps.py plan --model "$MODEL" --manifests assets/models ${CYCLE:+--cycle "$CYCLE"} $FORCE > "$RUNNER_TEMP/plan.txt"
+          cyc=$(head -n 1 "$RUNNER_TEMP/plan.txt")
+          if [ -z "$cyc" ]; then echo "nothing new for $MODEL"; echo "cycle=" >> "$GITHUB_OUTPUT"; exit 0; fi
+          prev=$(date -u -d "${cyc:0:8} ${cyc:8:2}:00 12 hours ago" +%Y%m%d%H)
+          echo "cycle=$cyc" >> "$GITHUB_OUTPUT"; echo "prev=$prev" >> "$GITHUB_OUTPUT"
+          normals=false
+          if gh release view ensmaps-ref-v1 -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null | grep -qx ensmaps_t2m_normals.npz; then
+            normals=true
+          fi
+          echo "normals=$normals" >> "$GITHUB_OUTPUT"
+          echo "$MODEL $cyc (previous run $prev; 2 m normals in the release: $normals)"
+      - name: The previous run's statistics
+        if: steps.plan.outputs.cycle != ''
+        uses: actions/cache/restore@v6
+        with:
+          path: ensmaps_stats
+          key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev }}
+      - name: The 2 m temperature normals
+        if: steps.plan.outputs.cycle != '' && steps.plan.outputs.normals == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release download ensmaps-ref-v1 -R "$GITHUB_REPOSITORY" -p ensmaps_t2m_normals.npz -D ref --clobber
+      - name: Fetch, compute, publish
+        id: run
+        if: steps.plan.outputs.cycle != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FRAMES_BRANCH: "off"
+          CYC: ${{ steps.plan.outputs.cycle }}
+          PREV: ${{ steps.plan.outputs.prev }}
+        run: |
+          set -euo pipefail
+          L="$RUNNER_TEMP/lists"
+          python scripts/ensmaps/ensmaps.py run --model "$MODEL" --cycle "$CYC" --site . --normals ref/ensmaps_t2m_normals.npz \
+            --prev "ensmaps_stats/$PREV.npz" --save "ensmaps_stats/$CYC.npz" --lists "$L" --manifest-in "assets/models/ensmaps_$MODEL.json"
+          rm -f "ensmaps_stats/$PREV.npz"   # the cache entry keeps this run's statistics only
+          if [ "$MODEL" = geps ]; then python scripts/geps/datamart.py; fi    # the run's Datamart requests and bytes
+          if [ ! -s "$L/publish.txt" ]; then echo "::warning::$MODEL $CYC is older than the run on the page - not published"; exit 0; fi
+          SRC=. PRUNE="$(tr '\n' ' ' < "$L/prune.txt")" PRUNE_OLDER="$(cat "$L/floor.txt")" scripts/models/publish_data.sh $(cat "$L/publish.txt") > /dev/null
+          rm -rf "assets/models/data/ensmaps/$MODEL/$CYC"       # in the store now; keep the runner disk free
+          echo "done=1" >> "$GITHUB_OUTPUT"
+      - name: Keep this run's statistics for the next run
+        if: steps.run.outcome == 'success'
+        uses: actions/cache/save@v6
+        with:
+          path: ensmaps_stats
+          key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.cycle }}
+      - name: Delete superseded statistics (all but the two newest runs)
+        if: steps.run.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh cache list -R "$GITHUB_REPOSITORY" --key "ensmaps-$MODEL-stats-" --limit 100 --json id,key -q '.[] | "\(.key) \(.id)"' \
+            | sort -r | tail -n +3 | while read -r k id; do
+              gh cache delete "$id" -R "$GITHUB_REPOSITORY" && echo "deleted $k" || echo "::warning::could not delete $k"
+            done
+      - name: Commit & push the manifest
+        if: steps.run.outputs.done == '1'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/models/ensmaps_$MODEL.json"
+          SNAP=$(mktemp -d)
+          cp "$OUT" "$SNAP/"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            cp "$SNAP/$(basename "$OUT")" "$OUT"
+            git add -f "$OUT"
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "ensmaps: $MODEL ${{ steps.plan.outputs.cycle }}"
+            if timeout 180 git push origin HEAD:main; then echo "Pushed on attempt $i."; exit 0; fi
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
