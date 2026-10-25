@@ -6,8 +6,8 @@ days 0..15; the outflow and descent loops (hadley_branch_fc.py) read u and v on 
 and sea-level pressure at the same states. Fetched apart, the winds came down twice. Here each lead day is fetched once
 and handed to both: ECMWF (AIFS-ENS, IFS-ENS) from the Google Cloud mirror, DAY_PROCS lead days at once, the u/v
 file read by overturn.reduce_file and then by hadley_branch_ref.states, which finds it on disk, adds the other fields
-and deletes them all (~1 GB a day, never kept); GEFS member-steps from NOAA's S3 bucket in threads, both products' messages in one
-byte-ranged pass per member-step, decoded here (eccodes in the fetch threads crashed the interpreter).
+and deletes them all (~1 GB a day, never kept); GEFS member-steps from NOAA's S3 bucket in threads, both products'
+messages in one byte-ranged pass per member-step, decoded here (eccodes in the fetch threads crashed the interpreter).
 
     python src/hadley_members.py --model ifs --date 20261023 --out runs [--only overturn|hbranch]
         -> runs/overturn_ifs.npz (vbar, ud: member x lead day x level) and runs/hbranch_ifs.npz (hadley_branch_fc's
