@@ -45,7 +45,7 @@ on:
       cycle:
         type: string
         default: ""
-      fields:
+      stage:
         type: string
         default: ""
       follow:
@@ -65,8 +65,8 @@ on:
         description: "Rebuild the given cycle even when it is already published"
         type: boolean
         default: false
-      fields:
-        description: "IFS-ENS: z500,msl publishes the first stage only (blank = every field, or the 2 m stage when due)"
+      stage:
+        description: "IFS-ENS: first = the first stage, 2 m from the 0.25-deg files (blank = the whole run, or the 0.1-deg 2 m when due)"
         required: false
         default: ""
       follow:
@@ -134,7 +134,7 @@ jobs:
         env:
           CYCLE: ${{ inputs.cycle }}
           FORCE: ${{ inputs.force && '--force' || '' }}
-          FIELDS: ${{ inputs.fields }}
+          FIRST: ${{ inputs.stage == 'first' && '1' || '' }}
           FOLLOW: ${{ inputs.follow && '1' || '' }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -149,9 +149,9 @@ jobs:
           D="assets/regimes/data/ensmaps_drift_$MODEL.json"
           if git show "FETCH_HEAD:$D" > "/tmp/drift_$MODEL.json" 2>/dev/null; then mkdir -p "$(dirname "$D")"; cp "/tmp/drift_$MODEL.json" "$D"; fi
           # a run dispatched as its last step lands is waited for (up to 25 min) when it is due
-          # the plan prints the cycle and, for an IFS-ENS stage, its fields: "z500,msl" first, "t2m" added later
+          # the plan prints the cycle and, for an IFS-ENS stage, which: "first" (2 m from the 0.25-deg files), then "t2m"
           python scripts/ensmaps/ensmaps.py plan --model "$MODEL" --manifests assets/models ${CYCLE:+--cycle "$CYCLE"} $FORCE \
-            ${FIELDS:+--fields "$FIELDS"} ${FOLLOW:+--started} --wait-min 25 > "$RUNNER_TEMP/plan.txt"
+            ${FIRST:+--first} ${FOLLOW:+--started} --wait-min 25 > "$RUNNER_TEMP/plan.txt"
           read -r cyc stage < "$RUNNER_TEMP/plan.txt" || true
           if [ -z "$cyc" ]; then echo "nothing new for $MODEL"; echo "cycle=" >> "$GITHUB_OUTPUT"; exit 0; fi
           prev=$(date -u -d "${cyc:0:8} ${cyc:8:2}:00 12 hours ago" +%Y%m%d%H)
@@ -162,7 +162,6 @@ jobs:
           held=$(gh release view ensmaps-ref-v1 -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null || true)
           normals=""
           if echo "$held" | grep -qx ensmaps_t2m_normals.npz; then normals=ensmaps_t2m_normals.npz; fi
-          if [ "${stage:-}" = z500,msl ]; then normals=""; fi   # a first stage has no 2 m temperature
           echo "normals=$normals" >> "$GITHUB_OUTPUT"
           echo "$MODEL $cyc ${stage:-every field} (the runs 12 h, 6 h and 48 h earlier: $prev, $prev6, $prev48; 2 m normals: ${normals:-none})"
       - name: The statistics of the run 12 h earlier
@@ -221,9 +220,13 @@ jobs:
         run: |
           set -euo pipefail
           L="$RUNNER_TEMP/lists"
-          MERGE=""; if [ "$STAGE" = t2m ]; then MERGE=--merge; fi   # 2 m temperature added to the run on the page
+          case "$STAGE" in   # IFS-ENS: the first stage, or the 0.1-deg 2 m temperature merged into the run on the page
+            first) S="--first" ;;
+            t2m) S="--fields t2m --merge" ;;
+            *) S="" ;;
+          esac
           python scripts/ensmaps/ensmaps.py run --model "$MODEL" --cycle "$CYC" --site . --normals "ref/${NORMALS:-none}" \
-            ${STAGE:+--fields "$STAGE"} $MERGE ${FOLLOW:+--follow 200 --checkpoint scripts/ensmaps/checkpoint.sh} \
+            $S ${FOLLOW:+--follow 200 --checkpoint scripts/ensmaps/checkpoint.sh} \
             --prev "ensmaps_stats/$PREV.npz" --prev6 "ensmaps_stats/$PREV6.npz" --prev48 "ensmaps_stats/$PREV48.npz" \
             --save "ensmaps_stats/$CYC.npz" --lists "$L" \
             --manifest-in "assets/models/ensmaps_$MODEL.json" --fields-out "clusterfields/$MODEL.npz" --cluster-drift "cdrift/$MODEL.npz"
@@ -239,7 +242,7 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: ensmaps_stats
-          key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.cycle }}${{ steps.plan.outputs.stage == 'z500,msl' && '-partial' || '' }}
+          key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.cycle }}${{ steps.plan.outputs.stage == 'first' && '-partial' || '' }}
       - name: Keep the members' fields for the clusters
         if: steps.run.outputs.fields == '1'
         uses: actions/cache/save@v6

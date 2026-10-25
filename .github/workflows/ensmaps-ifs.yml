@@ -1,9 +1,9 @@
 name: Global ensemble maps — IFS-ENS
 
 # Caller for ensmaps.yml (ens-anomalies.html). IFS-ENS is published in two stages: the 0.25-deg files (500 hPa height,
-# sea-level pressure) of a 00/12Z run are complete ~8 h 30 min after the start, and the local fast lane fires
-# fields=z500,msl then; the 0.1-deg surface files (2 m temperature) reach day 15 ~13 h 20 min after the start (00Z
-# ~13:20Z, 12Z ~01:20Z), when a dispatch without fields adds them to the same run. The 06/18Z runs, to +144 h, follow
+# sea-level pressure, and 2 m temperature at 0.25 deg) of a 00/12Z run are complete ~8 h 30 min after the start, and
+# the local fast lane fires stage=first then; the 0.1-deg surface files (2 m temperature) reach day 15 ~13 h 20 min after
+# the start (00Z ~13:20Z, 12Z ~01:20Z), when a dispatch without a stage replaces the 2 m maps in the same run. The 06/18Z runs, to +144 h, follow
 # the same two stages. These crons are the backstop: a firing plans the 2 m stage when it is due, a whole run when
 # nothing of it is on the page, and exits in about a minute when there is nothing new.
 on:
@@ -22,8 +22,8 @@ on:
         description: "Follow the run as it lands, publishing days 1-5 and 6-10 as they complete"
         type: boolean
         default: false
-      fields:
-        description: "z500,msl = the first stage only (blank = every field, or the 2 m stage when due)"
+      stage:
+        description: "first = the first stage, 2 m from the 0.25-deg files (blank = the whole run, or the 0.1-deg 2 m when due)"
         required: false
         default: ""
 
@@ -38,5 +38,5 @@ jobs:
       model: ifs
       cycle: ${{ inputs.cycle }}
       follow: ${{ inputs.follow || false }}
-      fields: ${{ inputs.fields }}
+      stage: ${{ inputs.stage }}
     secrets: inherit

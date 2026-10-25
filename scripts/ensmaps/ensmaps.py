@@ -16,10 +16,11 @@ Runs: 00, 06, 12 and 18Z (GEPS 00 and 12Z), each to +360 h (GEFS and GEPS +384 h
 runs to +144 h (Model.runs). A run can be followed as it lands (--follow, planned with --started once its first day is
 complete): each step is fetched as soon as its source has it, and at the end of days 5 and 10 what is done is published
 (--checkpoint: the days and the windows they close, "through" in the manifest entry); the change maps, the regimes,
-the clusters' fields and the statistics come with the whole run. IFS-ENS comes in two stages (--fields): its 0.25-deg files land hours before the 0.1-deg
-surface files, so 500 hPa height and sea-level pressure are published as soon as they are complete (with the regimes
-and the clusters' fields; the run statistics kept as <cycle>-partial), and 2 m temperature is added to the same run's
-entry when its files land (--fields t2m --merge: the maps added, the statistics completed, nothing else redone). A day is a calendar UTC day, the mean of 06, 12, 18 and 24 UTC: a 00Z run has 15 full
+the clusters' fields and the statistics come with the whole run. IFS-ENS comes in two stages: its 0.25-deg files land hours before the 0.1-deg
+surface files, so the first stage (--first) publishes every field as soon as they are complete, 2 m temperature from
+the 0.25-deg files (with the regimes and the clusters' fields; the run statistics kept as <cycle>-partial; "stage":
+"first" in the entry), and the second replaces 2 m temperature with the 0.1-deg one when its files land (--fields t2m
+--merge: its maps, changes and statistics replaced, nothing else redone). A day is a calendar UTC day, the mean of 06, 12, 18 and 24 UTC: a 00Z run has 15 full
 days, a 06, 12 or 18Z run 14 (its first and last partial days are not read), GEFS and GEPS one more, an IFS-ENS 06/18Z
 run 5. Spans: days 1-5, 6-10, 11-15 (the last cut at the run's last day) and each day.
 
@@ -274,12 +275,15 @@ def ecmwf_messages(date, hh, model, step, kind, params: dict, resol="0p25", levt
     return [(of[e["_offset"]], None, m) for e, m in zip(want, msgs)], sum(stats.values())
 
 
-def fetch_ifs(date: str, hh: str, step: int, fields=FIELDS) -> tuple[list, int]:
+def fetch_ifs(date: str, hh: str, step: int, fields=FIELDS, coarse: bool = False) -> tuple[list, int]:
+    """The run's messages of `fields`; 2 m temperature from the 0.1-deg surface files, or with `coarse` from the
+    0.25-deg files with the rest (the first stage, before the 0.1-deg files land)."""
     out, nb = [], 0
-    if "t2m" in fields:
+    if "t2m" in fields and not coarse:
         a, na = ecmwf_messages(date, hh, "ifs", step, "ef", {"t2m": ("2t", None)}, resol="0p1", levtype="sfc")
         out, nb = out + a, nb + na
-    upper = {f: p for f, p in (("z500", ("gh", "500")), ("msl", ("msl", None))) if f in fields}
+    upper = {f: p for f, p in (("t2m", ("2t", None)), ("z500", ("gh", "500")), ("msl", ("msl", None)))
+             if f in fields and (f != "t2m" or coarse)}  # fmt: skip
     if upper:
         b, nu = ecmwf_messages(date, hh, "ifs", step, "ef", upper)
         out, nb = out + b, nb + nu
@@ -770,8 +774,9 @@ def frame(name: str, anom: np.ndarray | None, agree: np.ndarray | None, mean: np
 def run(a) -> int:
     mod = MODELS[a.model]
     fields = tuple(f for f in FIELDS if f in a.fields.split(",")) if a.fields else FIELDS
-    if fields != FIELDS and mod.key != "ifs":
-        raise SystemExit("--fields: only IFS-ENS publishes in stages")
+    if (fields != FIELDS or a.first) and mod.key != "ifs":
+        raise SystemExit("--fields / --first: only IFS-ENS publishes in stages")
+    grids = dict(mod.grids, **({"t2m": G25} if a.first else {}))  # the first stage's 2 m temperature: 0.25 deg
     if a.merge and "z500" in fields:
         raise SystemExit("--merge adds 2 m temperature to a run published without it")
     key_c = a.cycle
@@ -800,15 +805,15 @@ def run(a) -> int:
     z_t2m = None
     if mod.key != "ifs":
         z_t2m = model_orography(mod, date, hh)
-        z_ref = to_half(z_ifs, 0.25) if mod.grids["t2m"].res == 0.5 else z_ifs
+        z_ref = to_half(z_ifs, 0.25) if grids["t2m"].res == 0.5 else z_ifs
         dz = z_t2m - z_ref
         log(
             f"  surface height less the IFS's: mean |dz| {np.mean(np.abs(dz)):.0f} m, largest {np.max(np.abs(dz)):.0f} m"
         )
     normals, high = {}, {}
-    spread = {f: spread_on(f, mod.grids[f]) for f in ("z500", "msl") if f in fields}
+    spread = {f: spread_on(f, grids[f]) for f in ("z500", "msl") if f in fields}
     for f in fields:
-        g = mod.grids[f]
+        g = grids[f]
         if f == "t2m":
             shift = None if z_t2m is None else (-LAPSE * dz).astype(np.float32)
             normals[f] = t2m_on(t2m_normals, g, shift) if t2m_normals else None
@@ -818,7 +823,7 @@ def run(a) -> int:
             zs = z_ifs if mod.key == "ifs" else z_t2m
             high[f] = zs > HIGH_M
     n = mod.members
-    F = {f: Field(f, mod.grids[f], n, len(days), normals[f], high.get(f)) for f in fields}
+    F = {f: Field(f, grids[f], n, len(days), normals[f], high.get(f)) for f in fields}
     W = Writer(outdir, a.threads)
     Z25 = np.full((n, len(days), 73, 144), np.nan, np.float32)  # the regimes' field: 500 hPa height on 2.5 deg
     M25 = np.full((n, len(days), 73, 144), np.nan, np.float32)  # and the clusters': sea-level pressure
@@ -872,8 +877,8 @@ def run(a) -> int:
             fields={
                 f: {
                     "unit": UNIT[f],
-                    "grid": mod.grids[f].desc(),
-                    "tiles": {"rows": TILE[0], "cols": TILE[1], "overview": 5} if mod.grids[f].tiled else None,
+                    "grid": grids[f].desc(),
+                    "tiles": {"rows": TILE[0], "cols": TILE[1], "overview": 5} if grids[f].tiled else None,
                     "change_grid": G50.desc(),
                     "anomaly": F[f].normals is not None,
                     "sigma": f in spread,
@@ -894,6 +899,8 @@ def run(a) -> int:
             regimes=None,
             made=dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%MZ"),
         )
+        if a.first:
+            out["stage"] = "first"
         if through is not None:
             out["through"] = f"{days[through][0]:%Y-%m-%d}"
         return out | extra
@@ -917,7 +924,7 @@ def run(a) -> int:
     nbytes = nmsg = 0
     units: dict = {}
     t0 = time.time()
-    fetch = functools.partial(mod.fetch, fields=fields) if mod.key == "ifs" else mod.fetch  # IFS-ENS: this stage's
+    fetch = functools.partial(mod.fetch, fields=fields, coarse=a.first) if mod.key == "ifs" else mod.fetch
     if a.follow:
         fetch = following(fetch, a.follow)
     with ThreadPoolExecutor(AHEAD) as ex:
@@ -1042,7 +1049,7 @@ def run(a) -> int:
     before = next((c for c in man_in.get("cycles", []) if c["cycle"] <= f"{prev_init:%Y%m%d%H}"), None)  # 12 h or more
     regimes = None
     if "z500" in F and "msl" in F:
-        high50 = to_half(F["msl"].high.astype(np.float32), mod.grids["msl"].res) > 0.5
+        high50 = to_half(F["msl"].high.astype(np.float32), grids["msl"].res) > 0.5
         regimes = ER.run(mod, key_c, init, days, Z25, F, high50, W, a.regimes_out, before)
     clusters_ok = "z500" in F and "msl" in F and mod.last(hh) == max(r[0] for r in mod.runs.values())
     if a.fields_out and clusters_ok:  # the clusters' fields: full runs only
@@ -1051,7 +1058,7 @@ def run(a) -> int:
         import ensmaps_clusters as EC
 
         ok = F["z500"].done & F["msl"].done
-        high25 = to25(F["msl"].high.astype(np.float32), mod.grids["msl"].res) > 0.5
+        high25 = to25(F["msl"].high.astype(np.float32), grids["msl"].res) > 0.5
         EC.save_fields(a.fields_out, mod, key_c, init, days, Z25, M25, ok, high25, a.cluster_drift)
     del Z25, M25
     nbytes_out = W.close()
@@ -1085,6 +1092,7 @@ def merged(old: dict, new: dict) -> dict:
     """A run's manifest entry with a later stage's fields added: their spans' members, gates and changes, grids,
     normals; the earlier stage's regimes kept; the fetch, bytes and wall time summed."""
     out = dict(old, fields={**old["fields"], **new["fields"]}, made=new["made"])
+    out.pop("stage", None)  # the run is complete
     spans_old = {e["key"]: e for e in old["spans"]}
     for e in new["spans"]:
         o = spans_old.setdefault(e["key"], {k: e[k] for k in ("key", "first", "last", "label")} | {"n": {}, "k": {}})
@@ -1159,18 +1167,22 @@ def write_manifest(site: Path, mod: Model, entry: dict, manifest_in: Path | None
 def cmd_plan(a) -> int:
     """Print the newest complete cycle (of the model's start hours) not yet in the manifest (nothing if none; with
     --started, the newest whose first day is complete, to be followed as the rest lands), and its
-    stage when it is one: "<cycle> z500,msl" when --fields asks for the first IFS-ENS stage only, "<cycle> t2m" when
-    the newest run on the page is still without its 2 m temperature and those files are complete. With --cycle: that
+    stage when it is one: "<cycle> first" with --first (the IFS-ENS first stage, its 0.25-deg files complete),
+    "<cycle> t2m" when the newest run on the page still has the first stage's 2 m temperature and the 0.1-deg files
+    are complete. With --cycle: that
     cycle, unless the manifest has it (complete) or a newer one (--force plans it anyway)."""
     mod = MODELS[a.model]
     man = load_manifest(Path(a.manifests) / f"ensmaps_{a.model}.json", mod)
     have = {c["cycle"] for c in man.get("cycles", [])}
-    held = {c["cycle"]: set(c.get("fields", FIELDS)) for c in man.get("cycles", [])}
+    held = {
+        c["cycle"]: set(c.get("fields", FIELDS)) - ({"t2m"} if c.get("stage") == "first" else set())
+        for c in man.get("cycles", [])
+    }  # a first stage's 0.25-deg 2 m temperature is still to be replaced
     partial = {c["cycle"] for c in man.get("cycles", []) if c.get("through")}  # checkpoints of a run being followed
-    want = tuple(f for f in FIELDS if f in a.fields.split(",")) if a.fields else FIELDS
+    want = ("z500", "msl") if a.first else FIELDS  # the first stage waits for the 0.25-deg files only
 
     def stage(fs) -> str:
-        return "" if fs == FIELDS else " " + ",".join(fs)
+        return " first" if a.first else ""
 
     if a.cycle:
         if a.cycle in held and "t2m" not in held[a.cycle] and "t2m" in want and not a.force:
@@ -1220,7 +1232,7 @@ def main() -> int:
     p.add_argument("--cycle", default="")
     p.add_argument("--force", action="store_true")
     p.add_argument("--wait-min", type=float, default=0.0, help="wait up to this long for a run that is due")
-    p.add_argument("--fields", default="", help="IFS-ENS: z500,msl plans the first stage only (default: every field)")
+    p.add_argument("--first", action="store_true", help="IFS-ENS: plan the first stage (the 0.25-deg files complete)")
     p.add_argument("--started", action="store_true", help="plan a run once its first day is complete (to follow it)")
     r = sub.add_parser("run")
     r.add_argument("--model", choices=tuple(MODELS), required=True)
@@ -1238,7 +1250,8 @@ def main() -> int:
     r.add_argument("--fields-out", type=Path, help="write the members' 2.5-deg anomalies for the clusters here")
     r.add_argument("--cluster-drift", type=Path, help="the clusters' drift archive of this model (read, and extended)")
     r.add_argument("--threads", type=int, default=min(4, os.cpu_count() or 1))
-    r.add_argument("--fields", default="", help="IFS-ENS stages: z500,msl first, then t2m with --merge (default all)")
+    r.add_argument("--fields", default="", help="IFS-ENS second stage: t2m, with --merge (default every field)")
+    r.add_argument("--first", action="store_true", help="IFS-ENS first stage: 2 m temperature from the 0.25-deg files")
     r.add_argument("--merge", action="store_true", help="add the fields to the run's entry already on the page")
     r.add_argument("--follow", type=float, default=0.0, help="wait up to this many minutes for steps still landing")
     r.add_argument("--checkpoint", default="", help="shell command that publishes a checkpoint (with --follow)")
