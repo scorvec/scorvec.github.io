@@ -1,6 +1,6 @@
 {
- "built": "2026-10-25 02:27Z",
- "newest_init": "2026-10-24 12Z",
+ "built": "2026-10-25 02:56Z",
+ "newest_init": "2026-10-24 18Z",
  "window": [
   "2026-10-25",
   "2026-11-08"
@@ -17,11 +17,11 @@
  "ssw": {
   "models": {
    "aifs": {
-    "init": "2026-10-24 12Z",
+    "init": "2026-10-24 18Z",
     "members": 26,
-    "share": 0.12,
-    "u10_min_mean": 5.5,
-    "u10_min_p10": 0.3,
+    "share": 0.04,
+    "u10_min_mean": 6.4,
+    "u10_min_p10": 2.3,
     "runs": [
      [
       "2026-10-01T00",
@@ -496,6 +496,11 @@
      [
       "2026-10-24T12",
       0.12,
+      0.0
+     ],
+     [
+      "2026-10-24T18",
+      0.04,
       0.0
      ]
     ]
@@ -1093,7 +1098,7 @@
     ]
    }
   },
-  "share_mean": 0.25,
+  "share_mean": 0.23,
   "base_rate": {
    "winters": 46,
    "with_onset": 0,
@@ -1128,18 +1133,18 @@
  "waves": {
   "models": {
    "aifs": {
-    "init": "2026-10-24 12Z",
+    "init": "2026-10-24 18Z",
     "members": 25,
     "wave2_share": 0.51,
-    "z_peak": 4.0,
+    "z_peak": 3.8,
     "z_peak_day": 5,
-    "flux_min": 12.3,
+    "flux_min": 11.9,
     "warning_now": 9.4,
     "warning_threshold": 27.5,
     "warning_members": 0.0,
     "ri_event_share": 0.48,
-    "z_can_min": -1.1,
-    "z_sib_max": 4.6
+    "z_can_min": -1.2,
+    "z_sib_max": 4.2
    },
    "ifs": {
     "init": "2026-10-24 12Z",
@@ -1190,20 +1195,20 @@
  "descent": {
   "models": {
    "aifs": {
-    "init": "2026-10-24 12Z",
+    "init": "2026-10-24 18Z",
     "members": 11,
-    "cap100_day15": 1.0,
-    "cap10_day15": 3.0,
-    "frac100_day15": 0.55,
+    "cap100_day15": 0.5,
+    "cap10_day15": 2.7,
+    "frac100_day15": 0.18,
     "cross100": "2026-10-27",
     "cross10": "2026-10-29",
     "kind": "bottom-up"
    },
    "aifsc": {
-    "init": "2026-10-24 12Z",
+    "init": "2026-10-24 18Z",
     "members": 1,
-    "cap100_day15": 0.9,
-    "cap10_day15": 3.7,
+    "cap100_day15": 0.7,
+    "cap10_day15": 3.1,
     "frac100_day15": null,
     "cross100": "2026-10-27",
     "cross10": "2026-10-29",
@@ -1284,7 +1289,7 @@
      "2026-12-08"
     ],
     "cap100_day15": 1.0,
-    "frac100_day15": 0.55
+    "frac100_day15": 0.18
    },
    "ifs": {
     "init": "2026-10-24 12Z",
