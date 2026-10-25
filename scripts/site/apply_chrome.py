@@ -53,6 +53,12 @@ PRODUCTS = [
                 "Twice daily",
             ),
             (
+                "/ens-anomalies.html",
+                "World ensembles, to day 15",
+                "Zoomable world maps of the newest IFS-ENS, AIFS-ENS, GEFS and GEPS runs to day 15: 2 m temperature (the IFS-ENS on its 0.1° grid), 500 hPa height and sea-level pressure against the 1991–2020 normal where the members agree on the sign, and the significant changes from the previous run, for days 1–5, 6–10, 11–15 and each day, with contours and hover values.",
+                "Twice daily",
+            ),
+            (
                 "/strat-models.html",
                 "Stratosphere, to day 16",
                 "Zoomable polar maps of the newest GFS (to day 16, 100 to 0.4 hPa) and GDPS (to day 10, 100 to 1 hPa) runs at every stratospheric level they publish: temperature, height, wind speed and zonal wind, the GFS's smoothed vertical motion, and Ertel potential vorticity on isentropic surfaces from 350 to 1600 K, both hemispheres, with contours and hover values.",
@@ -72,12 +78,6 @@ PRODUCTS = [
                         "/ar.html",
                         "Atmospheric rivers",
                         "Integrated vapour transport maps to day 7 from AIFS, IFS, GFS and GDPS; West Coast landfall and AR-scale ranks; AR probabilities to day 15 from four ensembles and their blend; GEFS weeks 3–5 AR-frequency anomalies where significant.",
-                        "Twice daily",
-                    ),
-                    (
-                        "/circulation.html#natemp",
-                        "North America 2 m temperature",
-                        "Daily-mean 2 m temperature anomalies to day 15 from the IFS-ENS on its 0.1° grid and GEPS on its 0.5° grid, coloured where enough members agree on the sign, and the significant changes from the previous run.",
                         "Twice daily",
                     ),
                 ],
@@ -554,6 +554,7 @@ PAGES = [
     dict(path="models.html", mode="after-body"),  # short-range model viewer (scripts/models), WebGL
     dict(path="samerica-models.html", mode="after-body"),  # South America viewer (scripts/models/samerica.py), WebGL
     dict(path="strat-models.html", mode="after-body"),  # stratosphere viewer (scripts/models/strat_maps.py), WebGL
+    dict(path="ens-anomalies.html", mode="after-body"),  # world ensemble viewer (scripts/ensmaps/ensmaps.py), WebGL
     # snowbands.html: retired, now a noindex redirect stub to models.html#hrrr/sbing (no chrome)
     dict(path="catalog.html", mode="after-body"),  # every plot on the site (scripts/site/build_catalog.py)
     dict(path="aifs-aam-budget.html", mode="after-body"),  # static study, built offline
@@ -858,14 +859,13 @@ HOME = {
     "Model maps": (
         "models",
         "The newest model runs, zoomable, with hover values and soundings",
-        ["/models.html", "/samerica-models.html", "/strat-models.html"],
+        ["/models.html", "/samerica-models.html", "/ens-anomalies.html", "/strat-models.html"],
     ),
     "Mid-latitude weather": (
         "weather",
         "Storms, hazards and the flow aloft over the next two weeks",
         [
             "/ar.html",
-            "/circulation.html#natemp",
             "/circulation.html#dt",
             "/circulation.html#pacjet",
             "/circulation.html#waf",

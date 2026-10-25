@@ -161,7 +161,6 @@ PAGES = {
             ),
             "Jets & angular momentum": dict(topic="drivers", region=["Global"]),
         },
-        items={"natemp": dict(models=["IFS-ENS", "GEPS", "ERA5"])},
     ),
     # "/snowbands.html" retired: its diagnostics are the "Winter: snow bands" maps of /models.html
     "/subseasonal.html": dict(
@@ -255,6 +254,16 @@ PAGES = {
         horizon="Days 1–15",
         region=["South America"],
         variable=["Temperature", "Wind", "Convection", "Precipitation"],
+    ),
+    "/ens-anomalies.html": dict(
+        kind="page",
+        topic="models",
+        tier=0,
+        prio=6,
+        models=["IFS-ENS", "AIFS-ENS", "GEFS", "GEPS", "ERA5-Land", "ERA5"],
+        horizon="Days 1–15",
+        region=["Global"],
+        variable=["Temperature", "Height", "Pressure"],
     ),
     "/strat-models.html": dict(
         kind="page",

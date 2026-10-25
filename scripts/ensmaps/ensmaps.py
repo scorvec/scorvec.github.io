@@ -22,7 +22,7 @@ geopotential, 0.25 deg, averaged over the cell) to the model's own surface heigh
 at its own height. 500 hPa height and sea-level pressure: ERA5 at 1.5 deg, interpolated bilinearly. The sea-level
 pressure anomaly is not drawn where the model's surface is above HIGH_M (the reduction to sea level differs between
 models and the reanalysis there). The page colours an anomaly where at least sign_k(n) of the n members share the sign
-of their mean: a two-sided sign test against an even split at 5 % (33 of 50, 34 of 51, 22 of 31, 16 of 21).
+of their mean: a two-sided sign test against an even split at 5 % (33 of 50 or 51, 22 of 31, 16 of 21).
 
 Change: this run's members' mean less the previous run's (12 h earlier) over the same calendar days (the days both runs
 hold), on a 0.5-deg grid (each member's field averaged over the cells first: the statistics carried from run to run stay
