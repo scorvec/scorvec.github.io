@@ -5,7 +5,7 @@ name: Stratosphere, every model's newest run (polar vortex figures, SSW summary)
 # (ssw_summary.py), the polar cap at sea level and 500 hPa and the AO and NAO (polarcap.py --combined, run_record.py
 # combined polarcap / telecon), the vortex's shape at 10 hPa (vortex_shape.py --combined, run_record.py combined
 # vshape), and how the recent runs verified (strat_verify.py). Each model's job records its own run as it lands (strat.yml AIFS-ENS; strat-ifs.yml the IFS-ENS, IFS
-# control, GDPS, GEOS FP, and GEFS and GEPS - the fast lane too); after every such run this draws them from each
+# control, GDPS, GEOS FP, and GEFS and GEPS - the fast lane too; strat-aifs1.yml AIFS single); after every such run this draws them from each
 # model's newest record and main's published JSON. Nothing is downloaded, and this is the only writer of these files,
 # so runs that finish close together cannot overwrite each other's models: a later run of this cancels an earlier one
 # still going and draws the newer state.
@@ -14,6 +14,7 @@ on:
     workflows:
       - "Stratosphere (vortex, waves 1 and 2, E-P flux from GEFS)"
       - "Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, waves 1 and 2, winds, drip, zero line, jet)"
+      - "Stratosphere, AIFS single (vortex winds, waves 1 and 2, drip, polar cap, vortex record)"
     types: [completed]
   workflow_dispatch:
 

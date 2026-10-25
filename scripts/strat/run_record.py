@@ -38,10 +38,10 @@ FIGS = REPO / "assets" / "sst" / "runs"
 KEEP_DAYS = 30
 SHOW = 8  # four days of 00/12Z runs (two of AIFS-ENS, which runs at 00, 06, 12 and 18Z)
 CHANGE = (6, 15)  # days of the newest run whose mean change against the run 24 h earlier is printed
-MODEL_LABEL = {"aifs": "AIFS-ENS", "aifsc": "AIFS-ENS control", "ifs": "IFS-ENS", "hres": "IFS control", "gefs": "GEFS", "geps": "GEPS",
-               "gdps": "GDPS", "geosfp": "GEOS FP", "gfs": "GFS", "geos": "GEOS FP"}  # fmt: skip
-MODEL_COLOUR = {"aifs": "#b4541f", "aifsc": "#b4541f", "ifs": "#1f4b6e", "hres": "#1f4b6e", "gefs": "#3b88c4", "geps": "#2f7d4f",
-                "gdps": "#6b4c9a", "geosfp": "#b0306a", "gfs": "#5a6f2b", "geos": "#b0306a"}  # fmt: skip
+MODEL_LABEL = {"aifs": "AIFS-ENS", "aifsc": "AIFS-ENS control", "aifs1": "AIFS single", "ifs": "IFS-ENS", "hres": "IFS control",
+               "gefs": "GEFS", "geps": "GEPS", "gdps": "GDPS", "geosfp": "GEOS FP", "gfs": "GFS", "geos": "GEOS FP"}  # fmt: skip
+MODEL_COLOUR = {"aifs": "#b4541f", "aifsc": "#b4541f", "aifs1": "#af9000", "ifs": "#1f4b6e", "hres": "#1f4b6e", "gefs": "#3b88c4",
+                "geps": "#2f7d4f", "gdps": "#6b4c9a", "geosfp": "#b0306a", "gfs": "#5a6f2b", "geos": "#b0306a"}  # fmt: skip
 
 
 @dataclass

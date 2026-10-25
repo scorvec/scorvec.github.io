@@ -51,6 +51,7 @@ OUT = DATA / "ssw_summary.json"
 NAMES = {
     "aifs": "AIFS-ENS",
     "aifsc": "AIFS-ENS control",
+    "aifs1": "AIFS single",
     "ifs": "IFS-ENS",
     "hres": "IFS control",
     "gefs": "GEFS",

@@ -16,6 +16,9 @@ build_polarcap_clim.py; scripts/lib/cellmeans.py), so the models compare cell fo
         its own (hres; its 10 hPa temperature maps are t10_maps.py's).
   gefs  GEFS control + 30 members, geps GEPS control + 20 members: strat_ens.py's "polarcap" part (PRMSL, HGT 500, 100,
         10, TMP 10).
+  aifs1 AIFS single, ECMWF's deterministic AIFS run, on its own (no ensemble): msl and t at 10 hPa from the 90-18N rows
+        of each message, gh at 500, 100 and 10 hPa from the shared files of its stratosphere products (aifs_single.py);
+        recorded and mapped (100 hPa, 10 hPa) as the control runs are.
 Daily to 360 h, each value the field at its valid time (00, 06, 12 or 18 UTC, as the normal: AIFS-ENS runs four times a
 day, the others at 00 and 12 UTC). Raw model output: no drift is removed (the dripping paint's cap heights are
 drift-corrected and standardised).
@@ -41,6 +44,8 @@ Outputs, model m:
   assets/sst/vshape_{m}.webp                       every member's vortex shape each day, the shares beneath
   assets/sst/data/runs/{polarcap,telecon,vshape}_{m}.json (+ hres)   the run records (run_record.py draws the
                                                    run-to-run figures)
+  aifs1, a single run: its records and its z100_aifs1 and t10_aifs1 loops only (no plumes, sea-level maps or shape
+  barcode of its own)
   --combined: assets/sst/polarcap_models.webp, telecon_models.webp, every model's newest run (strat-combine.yml)
 
     python polarcap.py --model ifs --date 20261024 --time 00
@@ -84,11 +89,13 @@ OUT = REPO / "assets" / "sst"
 ANIM = OUT / "anim"
 ENSEMBLES = ("aifs", "ifs", "gefs", "geps")
 CONTROL = {"aifs": "aifsc", "ifs": "hres"}  # an ensemble's control run, drawn on its plumes and recorded on its own
+SINGLE = (*CONTROL.values(), "aifs1")  # one run: recorded and mapped on its own, no plumes or shape barcode of its own
 CREDIT = {
     "aifs": "ECMWF AIFS-ENS open data (CC BY 4.0), Google Cloud mirror",
     "ifs": "ECMWF IFS-ENS and IFS control open data (CC BY 4.0), Google Cloud mirror",
     "hres": "ECMWF IFS control open data (CC BY 4.0), Google Cloud mirror",
     "aifsc": "ECMWF AIFS-ENS open data (CC BY 4.0), the control (member 0), Google Cloud mirror",
+    "aifs1": "ECMWF AIFS single open data (CC BY 4.0), Google Cloud mirror",
     "gefs": "NOAA GEFS (AWS Open Data)",
     "geps": "ECCC GEPS (MSC Datamart)",
 }
@@ -197,8 +204,8 @@ def _cells(v: np.ndarray, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
 
 
 def read_rows(cyc, spec, scale: float = 1.0) -> dict:
-    """read_grib's {level: {(member, step h): cell means}} (level None at the surface) of an AIFS-ENS spec, from the
-    90-18N rows of each message (store.ensure_rows, ~45 % of its bytes)."""
+    """read_grib's {level: {(member, step h): cell means}} (level None at the surface) of an AIFS-ENS or AIFS single
+    spec, from the 90-18N rows of each message (store.ensure_rows, ~45 % of its bytes)."""
     import store as E
 
     a, mems, steps, levs = E.load_rows(E.ensure_rows(cyc, spec, ROWS, reduce=_cells, tag="cells"))
@@ -234,6 +241,19 @@ def load_aifs(date: str, hh: str) -> dict:
         "aifs": {f: stack(*parts) for f, parts in got.items()},
         "aifsc": {f: stack(parts[0]) for f, parts in got.items()},
     }
+
+
+def load_aifs1(date: str, hh: str) -> dict:
+    """AIFS single: msl and t at 10 hPa from the rows, gh at 500, 100 and 10 hPa from the shared files (aifs_single.py;
+    read_grib keeps the daily steps of the 12-hourly one)."""
+    import aifs_single as A1
+    import store as E
+
+    cyc = E.Cycle(date, hh)
+    msl = read_rows(cyc, E.Spec("aifs-single", "fc", "msl", "sfc", (), A1.STEPS), 0.01)[None]
+    t10 = read_rows(cyc, E.Spec("aifs-single", "fc", "t", "pl", (10,), A1.STEPS))[10]
+    z = {lev: read_grib(A1.height(cyc, lev), "gh", (lev,))[lev] for lev in A1.HEIGHTS}
+    return {"aifs1": {"msl": stack(msl), **{f"z{lev}": stack(z[lev]) for lev in A1.HEIGHTS}, "t10": stack(t10)}}
 
 
 def load_ifs(date: str, hh: str) -> dict:
@@ -651,13 +671,13 @@ def t10_maps(model: str, init: pd.Timestamp, at, z, shape: dict) -> None:
 
 
 def combined(product: str, panels, title: str, out: Path, max_age_days: float = 2.0) -> Path | None:
-    """Every model's newest run from the records: the members' mean and 10-90 % band, the control runs dashed."""
+    """Every model's newest run from the records: the members' mean and 10-90 % band, the single runs dashed."""
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    newest = {m: rs[-1] for m in (*ENSEMBLES, *CONTROL.values()) if (rs := RR.runs(product, m))}
+    newest = {m: rs[-1] for m in (*ENSEMBLES, *SINGLE) if (rs := RR.runs(product, m))}
     if not newest:
         return None
     t1 = max(pd.Timestamp(r["init"]) for r in newest.values())
@@ -668,7 +688,7 @@ def combined(product: str, panels, title: str, out: Path, max_age_days: float = 
             mean = RR.series(r, key)
             col = RR.MODEL_COLOUR[m]
             lab = f"{RR.MODEL_LABEL[m]} {pd.Timestamp(r['init']):%-d %b %HZ}"
-            if m in CONTROL.values():
+            if m in SINGLE:
                 ax.plot(mean.index, mean.values, color="#1f1f1f" if m == "hres" else col, lw=1.6, ls="--", zorder=6,
                         label=lab)  # fmt: skip
                 continue
@@ -678,12 +698,11 @@ def combined(product: str, panels, title: str, out: Path, max_age_days: float = 
                      loc="left")  # fmt: skip
         _style(ax, unit if unit != "sd" else "sd of the daily index")
         ax.legend(fontsize=8.5, loc="upper left", ncol=2, framealpha=0.9)
-    fig.suptitle(f"Every ensemble's newest run · {title}", fontsize=13.5, fontweight="bold",
+    fig.suptitle(f"Every model's newest run · {title}", fontsize=13.5, fontweight="bold",
                  x=0.07, ha="left", y=0.985)  # fmt: skip
-    fig.text(0.07, 0.945, "each model's members' mean with its 10–90 % range, the control runs dashed · "
-             + SUBTITLE[panels].split(" · ", 1)[1], fontsize=9.5, color="0.25")  # fmt: skip
-    fig.text(0.07, 0.008, textwrap.fill(f"{NOTE[panels]} Each model is labelled with its run.", 190), fontsize=8,
-             color="#6f6b64", linespacing=1.4)  # fmt: skip
+    fig.text(0.07, 0.945, SUBTITLE[panels].split(" · ", 1)[1], fontsize=9.5, color="0.25")
+    fig.text(0.07, 0.008, textwrap.fill(f"Each model's members' mean and 10–90 % range, the single runs dashed, each "
+             f"labelled with its run. {NOTE[panels]}", 190), fontsize=8, color="#6f6b64", linespacing=1.4)  # fmt: skip
     fig.subplots_adjust(left=0.08, right=0.98, top=0.88, bottom=0.085, hspace=0.32)
     fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
     plt.close(fig)
@@ -698,7 +717,9 @@ TELE_TITLE = "the Arctic and North Atlantic Oscillations"
 def run(model: str, date: str, hh: str, figures: bool = True) -> int:
     init = pd.Timestamp(f"{date} {hh}:00")
     N = Normals()
-    load = {"aifs": load_aifs, "ifs": load_ifs}.get(model) or (lambda d, h: load_strat_ens(model, d, h))
+    load = {"aifs": load_aifs, "aifs1": load_aifs1, "ifs": load_ifs}.get(model) or (
+        lambda d, h: load_strat_ens(model, d, h)
+    )
     got = load(date, hh)
     if not got:
         print(f"::warning::{model} {date} {hh}Z: nothing on the mirror to draw", flush=True)
@@ -728,7 +749,7 @@ def run(model: str, date: str, hh: str, figures: bool = True) -> int:
             record("vshape", m, init, VS.series(vs), valid, {"anysplit": round(VS.any_split(vs), 3)})
             if "t10" in fields and figures:
                 t10_maps(m, init, A["t10"], fields["z10"], vs)
-        if m in CONTROL.values():
+        if m in SINGLE:
             ctrls[m] = {**{k: v[0] for k, v in cp.items()}, **{k: v[0] for k, v in tc.items()}}
         else:
             done[m] = (fields, A, cp, tc, valid)
@@ -748,7 +769,7 @@ def run(model: str, date: str, hh: str, figures: bool = True) -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--model", choices=ENSEMBLES)
+    ap.add_argument("--model", choices=(*ENSEMBLES, "aifs1"))
     ap.add_argument("--date")
     ap.add_argument("--time")
     ap.add_argument("--combined", action="store_true", help="every model's newest run from the records")

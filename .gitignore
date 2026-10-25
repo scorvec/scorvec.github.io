@@ -142,6 +142,7 @@ scripts/strat/*
 !scripts/strat/fetch_mls_h2o.py
 !scripts/strat/tape_recorder.py
 !scripts/strat/ifs_ens.py
+!scripts/strat/aifs_single.py
 !scripts/strat/qbo_zeroline.py
 !scripts/strat/build_qbo_zeroline.py
 !scripts/strat/fetch_m2_zmu.py

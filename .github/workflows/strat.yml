@@ -26,7 +26,8 @@ name: Stratosphere (vortex, waves 1 and 2, E-P flux from GEFS)
 # and the epflux job uses the same cycle as the AIFS-ENS products (falling back up to 24 h if GEFS is not complete).
 #
 # IFS-ENS (all 50 members) lives in strat-ifs.yml (09:05/21:05): IFS day 15 reaches the Google mirror ~08:50Z/20:55Z,
-# after these slots. The polar-vortex figure of every model is drawn from the records by strat-combine.yml.
+# after these slots. AIFS single, complete ~15 min before AIFS-ENS, has its own workflow (strat-aifs1.yml), so neither
+# waits for the other. The polar-vortex figure of every model is drawn from the records by strat-combine.yml.
 #
 # WHY FOUR JOBS. As one job this took ~70 min, and 23 of those were ens_cycle
 # populating a 10 GB shared cache that only half the products read:

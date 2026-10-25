@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""NH polar vortex FORECAST monitor -- AIFS-ENS, IFS-ENS, the IFS control, GEFS, GEPS, GDPS and GEOS FP.
+"""NH polar vortex FORECAST monitor -- AIFS-ENS, IFS-ENS, the IFS control, AIFS single, GEFS, GEPS, GDPS and GEOS FP.
 
 Three panels, forecast-first (a short analysis tail for context, then every
 model that publishes the stratosphere):
@@ -37,6 +37,9 @@ Models (probed 2026-08-28, GEFS 2026-10-20; every one publishes u AND height at 
                   the other single runs.
   aifsc AIFS-ENS control  member 0 of AIFS-ENS on its own: the "cf" column of the AIFS-ENS frames
                   (no download of its own), recorded and drawn dashed like the IFS control.
+  aifs1 AIFS single  ECMWF's deterministic AIFS run, 0.25 deg, day 15: u and gh at 10/100 hPa from the shared
+                  file its vortex-wind maps read (aifs_single.py, 12-hourly; nothing fetched when they have run),
+                  recorded by its own workflow (strat-aifs1.yml) and drawn dashed.
 
 DETRENDING (the reason the reference is built the way it is)
 ------------------------------------------------------------
@@ -134,6 +137,7 @@ STYLE = {
     "ifs": ("#1f4b6e", "IFS-ENS"),
     "hres": ("#1f4b6e", "IFS control"),  # dashed, so the ensemble's navy is free for it
     "aifsc": ("#b4541f", "AIFS-ENS control"),  # member 0 of AIFS-ENS on its own, dashed like the IFS control
+    "aifs1": ("#af9000", "AIFS single"),  # dark gold: apart from AIFS-ENS orange, GFS olive and GEPS green
     "gefs": ("#3b88c4", "GEFS"),  # mid blue: apart from GEPS green for every reader, lighter than IFS-ENS navy
     "geps": ("#2f7d4f", "GEPS"),
     "gdps": ("#6b4c9a", "GDPS"),
@@ -235,6 +239,29 @@ def load_aifs(cdir, base):
     if zp is not None and zc is not None:
         zp["cf"] = zc[0].reindex(zp.index)
     out["zcap"] = zp if zp is not None else zc
+    return out
+
+
+def load_aifs1(base):
+    """AIFS single at the daily steps: u at 10/100 hPa and gh at 100 hPa from the shared file its vortex-wind maps read
+    (aifs_single.py, 12-hourly). Google Cloud mirror only; a run not there yet is not recorded."""
+    import aifs_single as A1
+
+    ecmwf = _store()
+    try:
+        path = ecmwf.ensure(ecmwf.Cycle(f"{base:%Y%m%d}", f"{base:%H}"), A1.spec_wind())
+    except Exception as e:  # noqa: BLE001
+        print(f"::warning::AIFS single unavailable ({type(e).__name__}: {str(e)[:100]}); not recorded", flush=True)
+        return None
+    out = {}
+    for key, short, lev, red in (
+        ("u10", "u", 10, zonal_at),
+        ("u100", "u", 100, zonal_at),
+        ("zcap", "gh", 100, cap_mean),
+    ):
+        da = _grib(path, shortName=short, level=lev)[short]
+        h = (da.step.values / np.timedelta64(1, "h")).astype(int)
+        out[key] = _frame(da.isel(step=np.flatnonzero(h % 24 == 0)), red, base)
     return out
 
 
@@ -845,8 +872,8 @@ def render(out: Path) -> int:
         "Zonal-mean zonal wind at 60°N and the 65–90°N polar-cap height. Shading is each ensemble's 10th–90th member "
         "percentile, the solid line its mean; dashed = deterministic or control-only. Each model is its newest run "
         "(start in the legend, day/hour UTC).\n"
-        "AIFS-ENS (50 members + control), IFS-ENS (50 perturbed members) and the IFS control to day 15, GEFS (30 + "
-        "control) and GEPS (20 + control) to day 16, GDPS and GEOS FP (00Z run, NASA GMAO) to day 10.\n"
+        "AIFS-ENS (50 members + control), IFS-ENS (50 perturbed members), the IFS control and AIFS single to day 15, "
+        "GEFS (30 + control) and GEPS (20 + control) to day 16, GDPS and GEOS FP (00Z run, NASA GMAO) to day 10.\n"
         f"Reference: MERRA-2 {y0}–{y1} day-of-year percentiles; the height climatology is detrended to the current "
         f"year ({trend['zcap']:+.1f} m/decade), the winds are not "
         f"({max(abs(trend['u10']), abs(trend['u100'])):.2f} m/s/decade or less).\n"
@@ -869,7 +896,7 @@ def render(out: Path) -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--models", default="aifs,aifsc,gefs,geps,gdps,ifs,hres,geosfp")
+    ap.add_argument("--models", default="aifs,aifsc,aifs1,gefs,geps,gdps,ifs,hres,geosfp")
     ap.add_argument(
         "--ifs-members", type=int, default=50, help="IFS-ENS perturbed members (all 50 by default; the control is hres)"
     )
@@ -912,7 +939,8 @@ def main() -> int:
         # No ens_cycle cache for this cycle: load_aifs pulls what it needs through the store.
         t = a.cycle.lower().rstrip("z")
         cdir, base = CACHE / f"{t}z", pd.Timestamp(f"{t[:4]}-{t[4:6]}-{t[6:8]} {t[8:10]}:00")
-        print(f"no ens_cycle cache for {t}; AIFS-ENS winds come through the shared store", flush=True)
+        if {"aifs", "aifsc"} & set(want):
+            print(f"no ens_cycle cache for {t}; AIFS-ENS winds come through the shared store", flush=True)
     if base is None:
         print("no AIFS-ENS cycle in the cache to anchor on")
         return 1
@@ -934,6 +962,8 @@ def main() -> int:
             fc["aifsc"] = {k: v[["cf"]] for k, v in fc["aifs"].items() if v is not None and "cf" in v}
         if "aifs" not in want:
             del fc["aifs"]
+    if "aifs1" in want:
+        fc["aifs1"] = load_aifs1(base)
     for m in ("gefs", "geps"):
         if m in want:
             fc[m] = load_ens(m, date, cyc)

@@ -1,0 +1,245 @@
+name: Stratosphere, AIFS single (vortex winds, waves 1 and 2, drip, polar cap, vortex record)
+
+# AIFS single, ECMWF's deterministic AIFS run, in the stratosphere products on stratosphere.html, as one run beside the
+# AIFS-ENS control (strat.yml) and the IFS control (strat-ifs.yml):
+#
+#   vortex_winds.py --model aifs1  -> assets/sst/anim/vortex_aifs1_{10,100}_{nh,sh}/ + vortex_winds_aifs1_manifest.json
+#   wave_maps.py --model aifs1     -> assets/sst/anim/wave{1,2}_aifs1_{nh,sh}/ + wave{1,2}_maps_aifs1_manifest.json,
+#                                     data/runs/waves_aifs1.json
+#   forecast_drip.py --model aifs1 -> assets/sst/aifs1_drip{,_change}.webp + data/aifs1_drip.json, with AIFS single's
+#                                     own drift (reference/aifs1_capdrift.json; never AIFS-ENS's)
+#   polarcap.py --model aifs1      -> assets/sst/anim/{z100,t10}_aifs1/ + manifests, data/runs/{polarcap,telecon,
+#                                     vshape}_aifs1.json: the polar cap, the AO/NAO, the 100 hPa height, the 10 hPa
+#                                     temperature and the vortex's shape
+#   nh_vortex.py --record-only     -> data/runs/vortex_aifs1.json
+#   run_record.py capture drip     -> data/runs/drip_aifs1.json, and every record's figure assets/sst/runs/*_aifs1.webp
+# strat-combine.yml (which runs after this workflow) draws the every-model figures and the SSW summary from the records.
+# There is no heat flux (it has no single-run line) and no E-P flux, upper stratosphere or descent: AIFS single has
+# nothing between 50 and 10 hPa or above 10 hPa, and its vertical velocity is a learned output (as AIFS-ENS's, which
+# failed against IFS-ENS).
+#
+# WHY ITS OWN WORKFLOW. The whole AIFS single run (00, 06, 12 and 18Z, to 360 h) is on the Google mirror ~7 h 15 min
+# after its start, ~15 min before AIFS-ENS: in its own workflow and concurrency group it publishes as soon as it is in,
+# and it never queues the AIFS-ENS job (strat.yml) or waits on it. The local fast lane dispatches it when the run is
+# complete (publish=true, skip_published=true); the crons below are the backstop and skip a cycle already published.
+#
+# DATA. ECMWF open data from the Google Cloud mirror only (ECMWF_SOURCES=google). Each field is fetched once a run into
+# the shared store (aifs_single.py), byte ranges of the wanted messages, and read by every product that needs it (the
+# store's per-file locks): u, v and gh at 10/100 hPa every 12 h and gh at 500 hPa daily as whole fields (~85 MB), and
+# only the leading rows of the other fields (the dripping paint's polar cap at its other eight levels, the polar cap's
+# sea-level pressure and 10 hPa temperature, ~15 MB). ~100 MB in ~460 requests a run (2026-10-25 12Z).
+on:
+  # backstop crons: the fast lane fires this on time; these only matter when it is off
+  schedule:
+    - cron: '55 7 * * *'
+    - cron: '55 13 * * *'
+    - cron: '55 19 * * *'
+    - cron: '55 1 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Cycle date YYYYMMDD (blank = the newest complete AIFS single run)'
+        default: ''
+      time:
+        description: 'Cycle hour 00, 06, 12 or 18 (blank = latest)'
+        default: ''
+      publish:
+        description: 'Commit the figures (false = render only)'
+        default: 'false'
+      skip_published:
+        description: 'Do nothing when the resolved cycle is already on the page (the fast lane; schedule runs always skip it)'
+        default: 'false'
+
+env:
+  # ECMWF open data comes from the Google Cloud mirror only; the shared store already ignores any other mirror name.
+  ECMWF_SOURCES: google
+  ECMWF_MULTISOURCE: "0"
+  # Frames store (Bunny Storage, S3 API; scripts/lib/frames_store.py). Unset secrets leave these empty and frames go
+  # to the `frames` branch alone; the repository variable FRAMES_BRANCH=off retires the branch (frames_env.sh).
+  FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}
+  FRAMES_S3_ENDPOINT: ${{ secrets.FRAMES_S3_ENDPOINT }}
+  FRAMES_S3_REGION: ${{ secrets.FRAMES_S3_REGION }}
+  FRAMES_S3_ACCESS_KEY_ID: ${{ secrets.FRAMES_S3_ACCESS_KEY_ID }}
+  FRAMES_S3_SECRET_ACCESS_KEY: ${{ secrets.FRAMES_S3_SECRET_ACCESS_KEY }}
+  FRAMES_BRANCH: ${{ vars.FRAMES_BRANCH }}
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+permissions:
+  contents: write
+
+concurrency:
+  group: strat-aifs1
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------- cycle ---
+  # By availability, not the clock (scripts/ecmwf/cycles.py): the newest 00/06/12/18Z run whose every step is on the
+  # Google mirror, falling back up to two runs.
+  cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      date: ${{ steps.cyc.outputs.date }}
+      time: ${{ steps.cyc.outputs.time }}
+      fresh: ${{ steps.cyc.outputs.fresh }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Python dependencies
+        run: pip install requests   # all the resolver needs
+
+      - name: Resolve cycle
+        id: cyc
+        env:
+          D: ${{ inputs.date }}
+          T: ${{ inputs.time }}
+          SKIP: ${{ inputs.skip_published }}
+        run: |
+          set -euo pipefail
+          if [ -z "$D" ] || [ -z "$T" ]; then
+            python scripts/ecmwf/cycles.py --profile aifs-single --every 6 --out /tmp/cyc || true
+            D=$(awk '{print $1}' /tmp/cyc 2>/dev/null || true)
+            T=$(awk '{print $2}' /tmp/cyc 2>/dev/null || true)
+          fi
+          if ! echo "$D" | grep -qE '^[0-9]{8}$' || ! echo "$T" | grep -qE '^(00|06|12|18)$'; then
+            echo "ERROR: no ready cycle (D='$D' T='$T') - see the resolver's lines above" >&2; exit 1
+          fi
+          echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"
+          echo "cycle: $D ${T}Z"
+          # A fast-lane or backstop run that resolves the cycle already on the page does nothing (main's manifest as it
+          # is now, not the checkout's: a queued run checks out an older commit).
+          FRESH=true
+          if [ "$SKIP" = "true" ] || [ "${{ github.event_name }}" = "schedule" ]; then
+            PUB=$(timeout 60 git fetch -q --depth 1 origin main && git show FETCH_HEAD:assets/sst/anim/wave1_maps_aifs1_manifest.json \
+                  | python -c "import json, sys; print(json.load(sys.stdin)['ver'])" 2>/dev/null || true)
+            if [ "$PUB" = "$D$T" ]; then FRESH=false; echo "cycle $D ${T}Z is already published: nothing to do"; fi
+          fi
+          echo "fresh=$FRESH" >> "$GITHUB_OUTPUT"
+
+  # --------------------------------------------------------------- render ---
+  # Every product at once, then the frames and the commit. One job, so publishing is single-threaded within the
+  # workflow; the frames publisher's lease handles the other workflows. ~10 min.
+  render:
+    needs: cycle
+    if: needs.cycle.outputs.fresh == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      MPLBACKEND: Agg
+      D: ${{ needs.cycle.outputs.date }}
+      T: ${{ needs.cycle.outputs.time }}
+      PUBLISH: ${{ github.event_name == 'schedule' || inputs.publish == 'true' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+
+      # The run records accumulate, so AIFS single's are main's as it is now (a queued run checks out an older commit).
+      # Only its own: the commit below lays what this job staged over a fresh main, so another model's record taken
+      # here could overwrite a run recorded meanwhile.
+      - name: AIFS single's run records as main has them now
+        run: |
+          git fetch -q --depth 1 origin main
+          git checkout FETCH_HEAD -- 'assets/sst/data/runs/*_aifs1.json' || echo "::warning::no AIFS single run records on main yet"
+
+      # All at once (scripts/lib/parallel.sh); whichever product asks for a shared file first fetches it, the others
+      # wait for it and read it (aifs_single.py):
+      #   vortex_winds  u, v and gh at 10/100 hPa every 12 h (the wind file, ~77 MB)
+      #   wave_maps     gh at 500 hPa daily (~7 MB) and at 100/10 hPa from the wind file
+      #   forecast_drip 500/100/10 hPa from those, the other eight levels from the 90-65N rows (~10 MB); the GEOS FP
+      #                 tail (bdc.yml keeps assets/sst/data/geosfp_cap_history.json)
+      #   polarcap      msl and t at 10 hPa from the 90-18N rows (~6 MB), gh from the shared files
+      #   nh_vortex     u at 60N and the 100 hPa cap from the wind file, into the vortex record
+      - name: AIFS single products
+        timeout-minutes: 30
+        run: |
+          touch /tmp/t0   # stamp: the checkout's copies are older than this
+          source scripts/lib/parallel.sh
+          par "AIFS single vortex winds" "keeping the previous frames" python scripts/strat/vortex_winds.py --model aifs1 \
+            --date "$D" --time "$T" --anim-dir assets/sst/anim --manifest assets/sst/anim/vortex_winds_aifs1_manifest.json
+          par "AIFS single wave loops" "keeping the previous frames" python scripts/strat/wave_maps.py --model aifs1 \
+            --date "$D" --time "$T" --anim-dir assets/sst/anim
+          par "AIFS single drip" "keeping the previous figure" python scripts/strat/forecast_drip.py --model aifs1 \
+            --date "$D" --time "$T" --out-dir assets/sst
+          par "AIFS single polar cap" "keeping the previous figures" python scripts/strat/polarcap.py --model aifs1 \
+            --date "$D" --time "$T"
+          par "AIFS single vortex record" "the record keeps its previous runs" python scripts/strat/nh_vortex.py \
+            --record-only --models aifs1 --cycle "$D$T"
+          par_wait
+          python scripts/strat/run_record.py capture drip --model aifs1 || echo "::warning::AIFS single drip record failed"
+
+      # Frames to the frame store / frames branch (lease-guarded; only the directories that rendered are swapped, an
+      # empty one is left alone). Before the commit: the publisher stamps the manifests with the frames' commit.
+      - name: Publish loop frames
+        if: always() && env.PUBLISH == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          dirs=""
+          for d in vortex_aifs1_10_nh vortex_aifs1_10_sh vortex_aifs1_100_nh vortex_aifs1_100_sh \
+                   wave1_aifs1_nh wave1_aifs1_sh wave2_aifs1_nh wave2_aifs1_sh z100_aifs1 t10_aifs1; do
+            dirs="$dirs assets/sst/anim/$d"
+          done
+          scripts/lib/publish_frames_ci.sh $dirs
+
+      # The stills, data, records and manifests to main. Never rebase: snapshot the staged outputs, then on each attempt
+      # reset to a fresh origin/main, lay the snapshot back on and commit (the strat.yml pattern).
+      - name: Commit & push
+        if: always() && env.PUBLISH == 'true'
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "26825570+scorvec@users.noreply.github.com"
+          # one path at a time: `git add a b c` adds NOTHING when any one of them is missing (a product that failed)
+          for f in assets/sst/aifs1_drip.webp assets/sst/aifs1_drip_change.webp assets/sst/data/aifs1_drip.json \
+                   assets/sst/anim/{vortex_winds,wave1_maps,wave2_maps,z100,t10}_aifs1_manifest.json \
+                   assets/sst/data/runs/{vortex,drip,waves,polarcap,telecon,vshape}_aifs1.json \
+                   assets/sst/runs/{drip,waves,polarcap,telecon,vshape}_aifs1.webp; do
+            if [ -e "$f" ]; then git add "$f"; fi
+          done
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          SNAP=$(mktemp -d)
+          git diff --staged --name-only --diff-filter=d -z | tar cf "$SNAP/outs.tar" --null -T -
+          FILES=$(git diff --staged --name-only --diff-filter=d)
+          git reset -q
+          MSG="data update: $(date -u +%Y-%m-%dT%H:%MZ)"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            for f in $FILES; do git add "$f"; done
+            if git diff --staged --quiet; then echo "no changes after resync"; exit 0; fi
+            git commit -q -m "$MSG"
+            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
+            echo "push $i rejected; resyncing"; sleep 5
+          done
+          echo "push failed after retries"; exit 1
+
+      # Red when a product rendered nothing (every render is a `par` guard, so a green products step proves nothing);
+      # last, so whatever did render was published first.
+      - name: What was produced
+        if: always()
+        run: |
+          scripts/lib/degraded.sh --summary
+          bad=0
+          for f in assets/sst/aifs1_drip.webp assets/sst/data/runs/vortex_aifs1.json assets/sst/data/runs/polarcap_aifs1.json; do
+            if [ -f "$f" ] && [ "$f" -nt /tmp/t0 ]; then printf '  %-44s %s\n' "$f" "$(du -h "$f" | cut -f1)"
+            else printf '  %-44s MISSING\n' "$f"; bad=$((bad + 1)); fi
+          done
+          for d in vortex_aifs1_10_nh vortex_aifs1_10_sh vortex_aifs1_100_nh vortex_aifs1_100_sh \
+                   wave1_aifs1_nh wave1_aifs1_sh wave2_aifs1_nh wave2_aifs1_sh z100_aifs1 t10_aifs1; do
+            n=$(ls "assets/sst/anim/$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')
+            printf '  %-44s %s frames\n' "$d" "$n"
+            if [ "$n" -eq 0 ]; then bad=$((bad + 1)); fi
+          done
+          if [ "$bad" -gt 0 ]; then echo "::error::$bad AIFS single product(s) produced nothing - see the warnings above"; exit 1; fi

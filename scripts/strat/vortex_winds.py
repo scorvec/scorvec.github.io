@@ -63,6 +63,9 @@ vortex shape in the second week is largely its own (see "Why the mean" above) - 
 AIFS-ENS control: --model aifsc draws member 0 of AIFS-ENS the same way (its own u, v and z at 10 and 100 hPa,
 12-hourly, ~0.1 GB) into vortex_aifsc_{10,100}_{nh,sh}/.
 
+AIFS single: --model aifs1 draws ECMWF's deterministic AIFS run the same way, from the shared u, v and gh file of its
+stratosphere products (aifs_single.py: 10 and 100 hPa, 12-hourly) into vortex_aifs1_{10,100}_{nh,sh}/.
+
 GEFS and GEPS: --model gefs / geps draw the mean of every member (control + 30 / control + 20) from the shared fetch
 (strat_ens.py, part "winds": the ensemble-mean u, v and height at 10 and 100 hPa, 0.5 deg, 12-hourly) into
 vortex_gefs_* / vortex_geps_*, same scales; their analysis frame is the control at step 0.
@@ -220,6 +223,16 @@ def fetch(date: str, time: str):
     return out, source
 
 
+def _one_run(path, source: str):
+    """u, v and height at both levels, every 12 h step, of a single run's file of u, v and gh (gpm)."""
+    out = {}
+    for lev in LEVELS:
+        u, v, gh = (_mean_field(path, sh, lev) for sh in ("u", "v", "gh"))
+        keep = ("step", "latitude", "longitude")
+        out[lev] = tuple(f.drop_vars([c for c in f.coords if c not in keep]) for f in (u, v, gh / 10.0))  # gh in dam
+    return out, source
+
+
 def fetch_hres(date: str, time: str):
     """The IFS control: u, v and height at both levels, every 12 h step, from the shared control file (ifs_ens.py
     ctrl_wind). Its step 0 is the analysis frame of the IFS-ENS loop too."""
@@ -227,13 +240,15 @@ def fetch_hres(date: str, time: str):
 
     if not IE.ctrl_published(date, time):
         raise SystemExit(f"IFS control {date} {time}Z is not on the Google mirror yet")
-    path = IE.ensure(IE.E.Cycle(date, time), IE.spec_ctrl_wind())
-    out = {}
-    for lev in LEVELS:
-        u, v, gh = (_mean_field(path, sh, lev) for sh in ("u", "v", "gh"))
-        keep = ("step", "latitude", "longitude")
-        out[lev] = tuple(f.drop_vars([c for c in f.coords if c not in keep]) for f in (u, v, gh / 10.0))  # gh in dam
-    return out, "IFS control, one run"
+    return _one_run(IE.ensure(IE.E.Cycle(date, time), IE.spec_ctrl_wind()), "IFS control, one run")
+
+
+def fetch_aifs1(date: str, time: str):
+    """AIFS single: u, v and height at both levels, every 12 h step, from the shared file (aifs_single.py); its step 0
+    is the analysis."""
+    import aifs_single as A1
+
+    return _one_run(ecmwf.ensure(ecmwf.Cycle(date, time), A1.spec_wind()), "AIFS single, one run")
 
 
 def fetch_aifsc(date: str, time: str):
@@ -301,13 +316,14 @@ G0 = 9.80665
 MODEL = {
     "aifs": "AIFS-ENS",
     "aifsc": "AIFS-ENS control",
+    "aifs1": "AIFS single",
     "ifs": "IFS-ENS",
     "hres": "IFS control",
     "gefs": "GEFS",
     "geps": "GEPS",
 }
-CENTRE = {"aifs": "ECMWF", "aifsc": "ECMWF", "ifs": "ECMWF", "hres": "ECMWF", "gefs": "NOAA", "geps": "ECCC"}
-SINGLE = ("aifsc", "hres")  # one run, not an ensemble mean
+CENTRE = dict.fromkeys(("aifs", "aifsc", "aifs1", "ifs", "hres"), "ECMWF") | {"gefs": "NOAA", "geps": "ECCC"}
+SINGLE = ("aifsc", "aifs1", "hres")  # one run, not an ensemble mean
 PREFIX = {m: "vortex" if m == "aifs" else f"vortex_{m}" for m in MODEL}  # frame dirs / regions
 
 
@@ -572,6 +588,8 @@ def main(argv=None) -> int:
         full, source = fetch_hres(a.date, a.time)
     elif a.model == "aifsc":
         full, source = fetch_aifsc(a.date, a.time)
+    elif a.model == "aifs1":
+        full, source = fetch_aifs1(a.date, a.time)
     else:
         full, source = fetch(a.date, a.time)
     return build_loop(full, a.date, a.time, Path(a.anim_dir), Path(a.manifest), source, a.model)

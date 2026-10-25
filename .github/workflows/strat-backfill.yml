@@ -5,9 +5,10 @@ name: Stratosphere run records, backfill (past runs of every product and model)
 # (their scripts, then run_record.py capture), the planetary waves (wave_maps.py --record-only), the polar cap, the
 # AO/NAO and the vortex's shape (polarcap.py --record-only), and the descent over the cap (polar_descent.py
 # --record-only). One job per model and day, newest day first:
-#   aifs  AIFS-ENS 00, 06, 12 and 18Z, and its control (aifsc)
-#   ifs   IFS-ENS 00 and 12Z, and the IFS control (hres)
-#   gefs  GEFS 00 and 12Z
+#   aifs   AIFS-ENS 00, 06, 12 and 18Z, and its control (aifsc)
+#   aifs1  AIFS single 00, 06, 12 and 18Z (~0.1 GB a run)
+#   ifs    IFS-ENS 00 and 12Z, and the IFS control (hres)
+#   gefs   GEFS 00 and 12Z
 # GEPS cannot be backfilled: the MSC Datamart keeps only the last day or two of its files. ECMWF open data from the
 # Google Cloud mirror only, GEFS byte-ranged from NOAA's S3 bucket; ~40 GB of downloads a day of runs, one run's files
 # on disk at a time. The day jobs commit nothing: each hands its record files to the last job, which merges them into
@@ -24,8 +25,8 @@ on:
         description: last day of runs (YYYYMMDD; blank = yesterday)
         default: ''
       groups:
-        description: the model groups (aifs, ifs, gefs)
-        default: 'aifs,ifs,gefs'
+        description: the model groups (aifs, aifs1, ifs, gefs)
+        default: 'aifs,aifs1,ifs,gefs'
       parallel:
         description: day jobs at once (the account's other workflows share the runners)
         default: '6'
@@ -107,7 +108,7 @@ jobs:
         run: |
           S=scripts/strat
           rec() { echo "::group::$*"; "$@" || echo "::warning::$G $D$T: $(basename "$2") ${*:3:2} failed"; echo "::endgroup::"; }
-          hours="00 12"; [ "$G" = "aifs" ] && hours="00 06 12 18"
+          hours="00 12"; case $G in aifs|aifs1) hours="00 06 12 18" ;; esac
           for T in $hours; do
             start=$(date +%s)
             case $G in
@@ -122,6 +123,13 @@ jobs:
                 rec python $S/run_record.py capture drip --model aifs
                 rec python $S/run_record.py capture drip --model aifsc
                 rec python $S/nh_vortex.py --record-only --models aifs,aifsc --cycle "$D$T"
+                ;;
+              aifs1)
+                rec python $S/wave_maps.py --model aifs1 --date "$D" --time "$T" --record-only
+                rec python $S/polarcap.py --model aifs1 --date "$D" --time "$T" --record-only
+                rec python $S/forecast_drip.py --model aifs1 --date "$D" --time "$T" --out-dir assets/sst
+                rec python $S/run_record.py capture drip --model aifs1
+                rec python $S/nh_vortex.py --record-only --models aifs1 --cycle "$D$T"
                 ;;
               ifs)
                 rec python $S/ifs_ens.py fetch --date "$D" --time "$T"
@@ -188,7 +196,7 @@ jobs:
           for i in $(seq 1 60); do
             busy=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?per_page=60" --jq '[.workflow_runs[]
                    | select(.status == "in_progress" or .status == "queued")
-                   | select(.path | test("(^|/)(strat|strat-ifs|upperstrat)\\.yml$"))] | length')
+                   | select(.path | test("(^|/)(strat|strat-ifs|strat-aifs1|upperstrat)\\.yml$"))] | length')
             [ "$busy" = "0" ] && { echo "no stratosphere workflow running"; exit 0; }
             echo "  $busy stratosphere run(s) in progress; waiting"; sleep 120
           done
