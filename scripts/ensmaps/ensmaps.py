@@ -37,6 +37,9 @@ Files, per field and span (assets/models/data/ensmaps/<model>/<cycle>/<field>/),
                   On the 0.1-deg grid: a/<span>/o.webp, every 5th point (the 0.5-deg points, exact values), and
                   a/<span>/<row><col>.webp, 6 x 6 tiles of 300 x 600 points each with one more row and column shared
                   with the next tile (the last column wraps to 180W).
+  s/<span>.webp   (500 hPa height, sea-level pressure) as a/, R the standardized anomaly: the members' mean anomaly
+                  over the sd of an anomaly of the span's own averaging period (a day or its n-day mean; ensmaps_ref
+                  Spread), (code - 128) x enc[field]["sigma"]
   c/<span>.webp   R change of the members' mean, (code - 128) x enc[field]["change"], 0 = none; G 1 = significant
   r/<sector><regime>/<span>.webp   the members of one weather regime (ensmaps_regimes.py), as a/ on the 0.5-deg grid
 The manifest (assets/models/ensmaps_<model>.json, newest run only) lists the spans, members, gates, grids, encodings
@@ -93,8 +96,8 @@ DATA = "assets/models/data/ensmaps"
 # per field: anomaly step, the mean's lowest value and step, change step (K or deg C, m, hPa)
 ENC = {
     "t2m": {"anom": 0.25, "lo": -78.0, "mean": 0.5, "change": 0.1},
-    "z500": {"anom": 4.0, "lo": 4600.0, "mean": 6.0, "change": 2.0},
-    "msl": {"anom": 0.4, "lo": 920.0, "mean": 0.6, "change": 0.2},
+    "z500": {"anom": 4.0, "lo": 4600.0, "mean": 6.0, "change": 2.0, "sigma": 0.025},
+    "msl": {"anom": 0.4, "lo": 920.0, "mean": 0.6, "change": 0.2, "sigma": 0.025},
 }
 UNIT = {"t2m": "K", "z500": "m", "msl": "hPa"}
 S3 = "https://noaa-gefs-pds.s3.amazonaws.com"
@@ -207,6 +210,12 @@ def t2m_on(N: R.Normals, g: Grid, shift: np.ndarray | None) -> R.Normals:
 def upper_on(field: str, g: Grid) -> R.Normals:
     N = R.Normals.upper(field)
     return R.Normals(bilinear(N.coef, N.lat, N.lon, g), g.lat, g.lon, N.meta)
+
+
+def spread_on(field: str, g: Grid) -> R.Spread:
+    """The standardized anomalies' sd curves (ensmaps_ref.Spread) interpolated bilinearly to g, as the normals are."""
+    S = R.Spread.upper(field)
+    return R.Spread({n: bilinear(c, S.lat, S.lon, g) for n, c in S.coef.items()}, g.lat, g.lon)
 
 
 def day_normal(N: R.Normals, day: pd.Timestamp) -> np.ndarray:
@@ -731,6 +740,7 @@ def run(a) -> int:
             f"  surface height less the IFS's: mean |dz| {np.mean(np.abs(dz)):.0f} m, largest {np.max(np.abs(dz)):.0f} m"
         )
     normals, high = {}, {}
+    spread = {f: spread_on(f, mod.grids[f]) for f in ("z500", "msl")}
     for f in FIELDS:
         g = mod.grids[f]
         if f == "t2m":
@@ -745,6 +755,7 @@ def run(a) -> int:
     F = {f: Field(f, mod.grids[f], n, len(days), normals[f], high.get(f)) for f in FIELDS}
     W = Writer(outdir, a.threads)
     Z25 = np.full((n, len(days), 73, 144), np.nan, np.float32)  # the regimes' field: 500 hPa height on 2.5 deg
+    M25 = np.full((n, len(days), 73, 144), np.nan, np.float32)  # and the clusters': sea-level pressure
     spans_meta: dict = {}
     min_n = int(np.ceil(MIN_SHARE * n))
 
@@ -762,6 +773,13 @@ def run(a) -> int:
         else:
             img = frame(fd.name, m, agree, m + norm, fd.high)
             entry["k"][fd.name] = sign_k(int(mem.size))
+            if fd.name in spread:  # the same frame standardized by the sd of the span's own averaging period
+                sd = spread[fd.name].sd([days[k][0] + pd.Timedelta(hours=12) for k in range(k0, k1 + 1)], k1 - k0 + 1)
+                si = img.copy()
+                si[..., 0] = code_signed(m / sd, ENC[fd.name]["sigma"])
+                if fd.high is not None:
+                    si[..., 0][fd.high] = 0
+                W.put(f"{fd.name}/s/{name}", si, False)
         entry["n"][fd.name] = int(mem.size)
         W.put(f"{fd.name}/a/{name}", img, fd.g.tiled)
 
@@ -805,8 +823,8 @@ def run(a) -> int:
                 fd.acc[~ok] = np.nan
                 for i in np.flatnonzero(ok):
                     fd.S[i, k] = to_half(fd.acc[i], fd.g.res)
-                    if fd.name == "z500":
-                        Z25[i, k] = to25(fd.acc[i], fd.g.res)
+                    if fd.name in ("z500", "msl"):
+                        (Z25 if fd.name == "z500" else M25)[i, k] = to25(fd.acc[i], fd.g.res)
                 fd.done[:, k] = ok
                 norm = day_normal(fd.normals, day) if fd.normals is not None else None
                 if norm is not None:
@@ -877,7 +895,13 @@ def run(a) -> int:
     before = next((c for c in man_in.get("cycles", []) if c["cycle"] < key_c), None)
     high50 = to_half(F["msl"].high.astype(np.float32), mod.grids["msl"].res) > 0.5
     regimes = ER.run(mod, key_c, init, days, Z25, F, high50, W, a.regimes_out, before)
-    del Z25
+    if a.fields_out:  # the members' 2.5-deg anomalies for the four-ensemble clusters (ensmaps_clusters.py)
+        import ensmaps_clusters as EC
+
+        ok = F["z500"].done & F["msl"].done
+        high25 = to25(F["msl"].high.astype(np.float32), mod.grids["msl"].res) > 0.5
+        EC.save_fields(a.fields_out, mod, key_c, init, days, Z25, M25, ok, high25, a.cluster_drift)
+    del Z25, M25
     nbytes_out = W.close()
     wall = time.time() - t_start
     log(f"{mod.label} {key_c}: {nbytes_out / 1e6:.0f} MB of frames ({changes} change maps), fetched "
@@ -912,6 +936,7 @@ def run(a) -> int:
                 "tiles": {"rows": TILE[0], "cols": TILE[1], "overview": 5} if mod.grids[f].tiled else None,
                 "change_grid": G50.desc(),
                 "anomaly": F[f].normals is not None,
+                "sigma": f in spread,
                 "units_read": sorted(units.get(f, [])),
             }
             for f in FIELDS
@@ -1016,6 +1041,8 @@ def main() -> int:
     r.add_argument("--regimes-out", type=Path, default=ROOT / "assets" / "regimes" / "data",
                    help="where the regime labels (ensmaps_members_<model>.json) and drift archive go")  # fmt: skip
     r.add_argument("--lists", type=Path, help="write publish.txt, prune.txt and floor.txt here")
+    r.add_argument("--fields-out", type=Path, help="write the members' 2.5-deg anomalies for the clusters here")
+    r.add_argument("--cluster-drift", type=Path, help="the clusters' drift archive of this model (read, and extended)")
     r.add_argument("--threads", type=int, default=min(4, os.cpu_count() or 1))
     a = ap.parse_args()
     if a.cmd == "plan":
