@@ -16,10 +16,9 @@ stratosphere jobs already pull from the Google Cloud mirror):
                                                    the jet indices on the Himalayan mountain torque, and what it implies
                                                    for this cycle only where it is significant
 
-Members: AIFS-ENS control + perturbed 1-25 (u from the 12-level AAM pull, v from the E-P flux pull - the 250 hPa level
-is only fetched for 25 perturbed members); IFS-ENS perturbed 1-50 (qbo_duct.py --model ifs streams u/v at every level
-and leaves the 250 hPa sector here via PACJET_IFS_DIR). Every field is reduced to the same 0.5 deg grid by conservative
-averaging (pacjet_core). Each model's lead-dependent drift of the 250 hPa zonal wind was measured on its own archived
+Members: AIFS-ENS control + perturbed 1-50 (u from the 12-level AAM pull, v at 250 hPa from qbo_duct.py's pull);
+IFS-ENS perturbed 1-50 (qbo_duct.py --model ifs streams u/v at every level and leaves the 250 hPa sector here via
+PACJET_IFS_DIR). Every field is reduced to the same 0.5 deg grid by conservative averaging (pacjet_core). Each model's lead-dependent drift of the 250 hPa zonal wind was measured on its own archived
 forecasts (build_pacjet_hindcast.py; data/reference/pacjet_drift.nc, smoothed and noise-shrunk) and is subtracted only
 where that lowered the cross-validated error of the phase indices (IFS-ENS yes, AIFS-ENS no, as of 2026-09-28).
 
@@ -103,10 +102,11 @@ PH_COL = {
 
 # ── members ──────────────────────────────────────────────────────────────────
 def _read_grib(path, short, want_level=PC.LEVEL):
-    """{(number, step_h): (nj, ni) values} for one parameter at one level, plus (lat, lon)."""
+    """{(number, step_h): (141, 401) field on the work grid} for one parameter at one level, each message reduced as it
+    is read (51 members' 16 steps at 0.25 deg would be ~7 GB a parameter)."""
     import eccodes as ec
 
-    out, lat, lon = {}, None, None
+    out, sl = {}, None
     with open(path, "rb") as f:
         while True:
             h = ec.codes_grib_new_from_file(f)
@@ -116,18 +116,17 @@ def _read_grib(path, short, want_level=PC.LEVEL):
                 if ec.codes_get(h, "shortName") != short or int(ec.codes_get(h, "level")) != want_level:
                     continue
                 nj, ni = ec.codes_get(h, "Nj"), ec.codes_get(h, "Ni")
-                if lat is None:
+                if sl is None:
                     la0 = ec.codes_get(h, "latitudeOfFirstGridPointInDegrees")
                     la1 = ec.codes_get(h, "latitudeOfLastGridPointInDegrees")
                     lo0 = ec.codes_get(h, "longitudeOfFirstGridPointInDegrees")
-                    lat = np.linspace(la0, la1, nj)
-                    lon = (lo0 + (360.0 / ni) * np.arange(ni)) % 360
+                    sl = PC.native_slices(np.linspace(la0, la1, nj), (lo0 + (360.0 / ni) * np.arange(ni)) % 360)
                 num = int(ec.codes_get(h, "number")) if ec.codes_get(h, "dataType") == "pf" else 0
                 step = int(ec.codes_get(h, "endStep"))
-                out[(num, step)] = ec.codes_get_values(h).reshape(nj, ni)
+                out[(num, step)] = PC.to_work(ec.codes_get_values(h).reshape(nj, ni), *sl)
             finally:
                 ec.codes_release(h)
-    return out, lat, lon
+    return out
 
 
 def load_aifs(date, time_):
@@ -140,37 +139,32 @@ def load_aifs(date, time_):
     files = {
         "u": [
             E.path(cyc, E.Spec("aifs-ens", "cf", "u", "pl", E.LEVELS_AAM_REST, S)),
-            E.path(cyc, E.Spec("aifs-ens", "pf", "u", "pl", E.LEVELS_AAM_REST, S, E.AAM_PF_MEMBERS)),
+            E.path(cyc, E.Spec("aifs-ens", "pf", "u", "pl", E.LEVELS_AAM_REST, S)),
         ],
         # v at 250 hPa alone, ensured by qbo_duct.py --model aifs; a 14-level v file is used instead when the
         # cache holds one
         "v": [
             E.path(cyc, E.Spec("aifs-ens", "cf", "v", "pl", (PC.LEVEL,), S)),
-            E.path(cyc, E.Spec("aifs-ens", "pf", "v", "pl", (PC.LEVEL,), S, E.AAM_PF_MEMBERS)),
+            E.path(cyc, E.Spec("aifs-ens", "pf", "v", "pl", (PC.LEVEL,), S)),
         ],
     }
-    for i, alt in enumerate(
-        (E.Spec("aifs-ens", "cf", "v", "pl", L14, S), E.Spec("aifs-ens", "pf", "v", "pl", L14, S, E.AAM_PF_MEMBERS))
-    ):
+    for i, alt in enumerate((E.Spec("aifs-ens", "cf", "v", "pl", L14, S), E.Spec("aifs-ens", "pf", "v", "pl", L14, S))):
         if not files["v"][i].exists() and E.path(cyc, alt).exists():
             files["v"][i] = E.path(cyc, alt)
-    fields, li = {}, None
+    fields = {}
     for par, paths in files.items():
         got = {}
         for p in paths:
             if not p.exists():
                 raise SystemExit(f"AIFS-ENS {par}{PC.LEVEL} not in the store cache ({p.name}); nothing is fetched here")
-            d, lat, lon = _read_grib(p, par)
-            if li is None:
-                li, lj = PC.native_slices(lat, lon)
-            got.update(d)
+            got.update(_read_grib(p, par))
         fields[par] = got
     keys = sorted(set(fields["u"]) & set(fields["v"]))
     mem = sorted({k[0] for k in keys})
     steps = [24 * d for d in range(NDAY)]
     mem = [m for m in mem if all((m, s) in fields["u"] and (m, s) in fields["v"] for s in steps)]
-    U = np.stack([np.stack([PC.to_work(fields["u"][(m, s)], li, lj) for s in steps]) for m in mem])
-    V = np.stack([np.stack([PC.to_work(fields["v"][(m, s)], li, lj) for s in steps]) for m in mem])
+    U = np.stack([np.stack([fields["u"][(m, s)] for s in steps]) for m in mem])
+    V = np.stack([np.stack([fields["v"][(m, s)] for s in steps]) for m in mem])
     return np.array(mem), U, V
 
 

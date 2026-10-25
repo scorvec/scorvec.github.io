@@ -77,7 +77,7 @@ PRODUCTS = {
         },
         ("ssw", "Chance of a sudden warming by day 15: members easterly at 10 hPa, 60°N on any day", "% of members"),
         note="Height anomaly against the MERRA-2 1980– median detrended to the current year, as on the main vortex figure. "
-        "AIFS-ENS 25 members + control, IFS-ENS 50 perturbed members (ECMWF open data, Google Cloud mirror), GEFS 30 "
+        "AIFS-ENS 50 members + control, IFS-ENS 50 perturbed members (ECMWF open data, Google Cloud mirror), GEFS 30 "
         "members + control (NOAA), GEPS 20 members + control (ECCC).",
         extra=("u100",),
     ),

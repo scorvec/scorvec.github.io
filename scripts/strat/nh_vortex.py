@@ -14,9 +14,9 @@ model that publishes the stratosphere):
 
 Models (probed 2026-08-28, GEFS 2026-10-20; every one publishes u AND height at 10 and 100 hPa):
 
-  aifs  AIFS-ENS  25 pf + cf, 0.25 deg, day 15.  FREE -- the AAM task already
-                  caches pf_u_10-50-100-... every cycle. Height: 25 pf z at 100 hPa
-                  pulled through the shared store (~0.35 GB) plus the control.
+  aifs  AIFS-ENS  50 pf + cf, 0.25 deg, day 15.  u FREE -- ens_cycle --only strat
+                  caches pf_u_10-50-100-... every cycle. Height: the 90-65N rows of z at
+                  100 hPa, 50 pf + cf (~0.1 GB, store.ensure_rows).
   gefs  GEFS      30 perturbed + control, 0.5 deg, day 16: u at 10/100 hPa and the 100 hPa height
                   from the shared GEFS fetch (strat_ens.py, part "vortex"; NOAA's S3, ~0.6 GB/cycle).
   geps  GEPS      20 members + control, 0.5 deg, day 16, from the same shared fetch's "vortex" part (strat_ens.py;
@@ -124,7 +124,8 @@ PHI = 60.0  # WMO 60N for the SSW criterion
 CAP = (65.0, 90.0)  # polar cap for the 100 hPa height anomaly
 TAIL_DAYS = 21  # short analysis tail: this is a forecast product
 G = 9.80665  # ECMWF `z` is geopotential; `gh` / HGT are already gpm
-AIFS_Z_MEMBERS = 25  # perturbed members for the AIFS polar-cap height (as for the winds)
+U_ROW = round((90.0 - PHI) / 0.25)  # 60N as a row of ECMWF's 0.25 deg grid, counted from 90N
+CAP_ROWS = tuple(range(round((90.0 - CAP[0]) / 0.25) + 1))  # the cap's rows, 90-65N
 DETREND = {"zcap"}  # see the module docstring for why only this one
 CONTROLS = ("hres", "aifsc")  # an ensemble's control run, drawn and recorded on its own
 
@@ -185,63 +186,52 @@ def _store():
     return ecmwf
 
 
+def _aifs_rows(base, kind: str, short: str, levels: tuple, rows: tuple, reduce, tag: str) -> dict:
+    """{level: (time, member) DataFrame} of a per-message reduction of the leading rows of AIFS-ENS fields
+    (store.ensure_rows), every daily step."""
+    ecmwf = _store()
+    spec = ecmwf.Spec("aifs-ens", kind, short, "pl", levels, tuple(ecmwf.STEPS))
+    a, _, steps, levs = ecmwf.load_rows(
+        ecmwf.ensure_rows(ecmwf.Cycle(f"{base:%Y%m%d}", f"{base:%H}"), spec, rows, reduce=reduce, tag=tag)
+    )
+    t = base + pd.to_timedelta(steps, unit="h")
+    return {L: pd.DataFrame(a[:, :, i].T.astype(float), index=t) for i, L in enumerate(levs)}
+
+
+def _u60(v, lat, lon):
+    return float(v[0].astype(float).mean())
+
+
+def _zcap(v, lat, lon):
+    w = np.cos(np.deg2rad(lat))
+    return float((v.astype(float).mean(-1) * w).sum() / w.sum()) / G
+
+
 def load_aifs(cdir, base):
     pf = glob.glob(f"{cdir}/aifs-ens/pf_u_10-*.grib2")
     cf = glob.glob(f"{cdir}/aifs-ens/cf_u_10-*.grib2")
-    if not (pf and cf):
-        # No ens_cycle cache (strat-ifs.yml runs without it): pull just u at 10/100 hPa, the 25 perturbed members
-        # the cache would have held plus the control, through the shared store (~0.6 GB, Google mirror).
-        try:
-            ecmwf = _store()
-            cyc = ecmwf.Cycle(f"{base:%Y%m%d}", f"{base:%H}")
-            pf = [
-                ecmwf.ensure(
-                    cyc, ecmwf.Spec("aifs-ens", "pf", "u", "pl", (10, 100), tuple(ecmwf.STEPS), AIFS_Z_MEMBERS)
-                )
-            ]
-            cf = [ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "u", "pl", (10, 100), tuple(ecmwf.STEPS)))]
-        except Exception as e:  # noqa: BLE001
-            print(f"  AIFS-ENS u unavailable ({type(e).__name__}: {str(e)[:80]})", flush=True)
-            return None
     out = {}
-    for lev, key in ((10, "u10"), (100, "u100")):
-        d = _frame(_grib(pf[0], shortName="u", level=lev)["u"], zonal_at, base)
-        d["cf"] = _frame(_grib(cf[0], shortName="u", level=lev)["u"], zonal_at, base)[0]
-        out[key] = d
-    zf = glob.glob(f"{cdir}/aifs-ens/cf_z_10-*.grib2")
-    if not zf:
-        try:
-            ecmwf = _store()
-            zf = [
-                ecmwf.ensure(
-                    ecmwf.Cycle(f"{base:%Y%m%d}", f"{base:%H}"),
-                    ecmwf.Spec("aifs-ens", "cf", "z", "pl", (100,), tuple(ecmwf.STEPS)),
-                )
-            ]
-        except Exception as e:  # noqa: BLE001
-            print(f"  AIFS-ENS control z100 unavailable ({type(e).__name__}: {str(e)[:80]})", flush=True)
-    zc = _frame(_grib(zf[0], shortName="z", level=100)["z"], cap_mean, base, 1.0 / G) if zf else None
-    # Open data does carry perturbed z at 100 hPa (index probed 2026-09-26: pf z at
-    # 10/50/100, all 50 members, ~0.85 MB a field), so the panel gets members like the winds.
-    # ~0.35 GB through the shared store; a failed pull leaves the control alone.
-    zp = None
     try:
-        import sys
-
-        sys.path.insert(0, str(REPO / "scripts" / "ecmwf"))
-        import store as ecmwf
-
-        zpath = ecmwf.ensure(
-            ecmwf.Cycle(f"{base:%Y%m%d}", f"{base:%H}"),
-            ecmwf.Spec("aifs-ens", "pf", "z", "pl", (100,), tuple(ecmwf.STEPS), AIFS_Z_MEMBERS),
-        )
-        zp = _frame(_grib(zpath, shortName="z", level=100)["z"], cap_mean, base, 1.0 / G)
+        if pf and cf:  # the 12-level u pull ens_cycle caches every cycle
+            for lev, key in ((10, "u10"), (100, "u100")):
+                d = _frame(_grib(pf[0], shortName="u", level=lev)["u"], zonal_at, base)
+                d["cf"] = _frame(_grib(cf[0], shortName="u", level=lev)["u"], zonal_at, base)[0]
+                out[key] = d
+        else:  # no ens_cycle cache (a backfill): the 60N row alone, ~20 % of each message
+            u = {k: _aifs_rows(base, k, "u", (10, 100), (U_ROW,), _u60, "u60") for k in ("pf", "cf")}
+            for lev, key in ((10, "u10"), (100, "u100")):
+                out[key] = u["pf"][lev].assign(cf=u["cf"][lev][0])
     except Exception as e:  # noqa: BLE001
-        print(
-            f"  AIFS-ENS perturbed z100 unavailable ({type(e).__name__}: {str(e)[:80]}); "
-            "polar-cap height stays control-only",
-            flush=True,
-        )
+        print(f"  AIFS-ENS u unavailable ({type(e).__name__}: {str(e)[:80]})", flush=True)
+        return None
+    # The 100 hPa cap height of the control and the 50 perturbed members from the 90-65N rows (~12 % of each message);
+    # a failed perturbed pull leaves the control alone.
+    zc = zp = None
+    try:
+        zc = _aifs_rows(base, "cf", "z", (100,), CAP_ROWS, _zcap, "cap")[100]
+        zp = _aifs_rows(base, "pf", "z", (100,), CAP_ROWS, _zcap, "cap")[100]
+    except Exception as e:  # noqa: BLE001
+        print(f"  AIFS-ENS z100 unavailable ({type(e).__name__}: {str(e)[:80]})", flush=True)
     if zp is not None and zc is not None:
         zp["cf"] = zc[0].reindex(zp.index)
     out["zcap"] = zp if zp is not None else zc
@@ -855,7 +845,7 @@ def render(out: Path) -> int:
         "Zonal-mean zonal wind at 60°N and the 65–90°N polar-cap height. Shading is each ensemble's 10th–90th member "
         "percentile, the solid line its mean; dashed = deterministic or control-only. Each model is its newest run "
         "(start in the legend, day/hour UTC).\n"
-        "AIFS-ENS (25 members + control), IFS-ENS (50 perturbed members) and the IFS control to day 15, GEFS (30 + "
+        "AIFS-ENS (50 members + control), IFS-ENS (50 perturbed members) and the IFS control to day 15, GEFS (30 + "
         "control) and GEPS (20 + control) to day 16, GDPS and GEOS FP (00Z run, NASA GMAO) to day 10.\n"
         f"Reference: MERRA-2 {y0}–{y1} day-of-year percentiles; the height climatology is detrended to the current "
         f"year ({trend['zcap']:+.1f} m/decade), the winds are not "

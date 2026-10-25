@@ -91,12 +91,6 @@ PER_SRC = int(os.environ.get("ECMWF_DL_PER_SRC", "2"))  # hard cap: in-flight re
 MAX_CONN = int(os.environ.get("ECMWF_MAX_CONN", "400"))
 CHUNK_MSGS = int(os.environ.get("ECMWF_CHUNK_MSGS", "200"))
 PF_MEMBERS = 50
-# The heavy 12-level AAM u-pull only ever feeds ensemble MEAN + SPREAD (AAM, torque,
-# zonal, jets), so half the members carry it fine: 25 of 50 halves the ~6 GB file with
-# a √2 bump in mean noise on an already-smooth global integral. Set 0 (or the env) to
-# restore the full ensemble. Encoded in the filename ("…m25"), so a subset cache file
-# never masquerades as a full one.
-AAM_PF_MEMBERS = int(os.environ.get("ECMWF_AAM_MEMBERS", "25"))
 MIN_RATE = float(os.environ.get("ECMWF_DL_MIN_RATE", "40000"))  # B/s; below ⇒ stalled
 # With fail-fast retries (below) a throttled mirror raises in ~30 s and we rotate, so the
 # watchdog no longer has to out-wait multiurl's old 120 s backoff.
@@ -849,6 +843,19 @@ def ensure_rows(cycle: Cycle, spec: Spec, rows: tuple, reduce=None, tag: str = "
     return p
 
 
+def load_rows(p: Path):
+    """An ensure_rows file of one param as (values (member, step, level, ...), members, steps, levels), each sorted
+    (member 0 is a control); NaN for a message the file lacks."""
+    import numpy as np
+
+    with np.load(p) as z:
+        vals, num, step, lev = (z[k] for k in ("values", "number", "step", "level"))
+    keys = [np.unique(k) for k in (num, step, lev)]
+    out = np.full((*(k.size for k in keys), *vals.shape[1:]), np.nan, "float32")
+    out[tuple(np.searchsorted(k, x) for k, x in zip(keys, (num, step, lev)))] = vals
+    return out, *(k.tolist() for k in keys)
+
+
 def open_ds(cycle: Cycle, spec: Spec, **backend_kwargs):
     import xarray as xr
 
@@ -924,8 +931,8 @@ def registry() -> list[Spec]:
         Spec("aifs-ens", "cf", "v", "pl", LEVELS_AAM, (0,)),
         # 4) v@200 all leads (~0.6 GB) — velocity potential + WAF unblock here
         Spec("aifs-ens", "pf", "v", "pl", (200,), S),
-        # 5) the heavy AAM/jets multi-level pull (~3 GB at 25 members) goes LAST
-        Spec("aifs-ens", "pf", "u", "pl", LEVELS_AAM_REST, S, AAM_PF_MEMBERS),
+        # 5) the heavy AAM/jets multi-level pull (~6 GB, all 50 members) goes LAST
+        Spec("aifs-ens", "pf", "u", "pl", LEVELS_AAM_REST, S),
         Spec("aifs-ens", "cf", "u", "pl", LEVELS_AAM_REST, S),
         # no z@500: the ensembles page is retired and it would be ~0.5 GB/cycle
         # of dead weight.

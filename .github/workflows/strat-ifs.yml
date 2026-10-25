@@ -708,8 +708,8 @@ jobs:
   # -------------------------------------------------------------- imprint ---
   # The downward propagation monitor (ssw_imprint.py): every model's members' sea-level pressure, daily to day 15,
   # projected on the CMIP6 post-SSW pattern, beside the drips the maps and naens jobs just rendered (their day-15
-  # 100 hPa cap drives the outlook). IFS-ENS ~0.8 GB and AIFS-ENS ~0.4 GB from the Google Cloud mirror, GEFS ~0.2 GB
-  # byte-ranged from S3, GEPS ~50 MB from the Datamart. Each model on the cycle its drip is on; a GEFS/GEPS cycle main
+  # 100 hPa cap drives the outlook). IFS-ENS ~0.35 GB and AIFS-ENS ~0.4 GB (the 90-20N rows of each message) from
+  # the Google Cloud mirror, GEFS ~0.2 GB byte-ranged from S3, GEPS ~50 MB from the Datamart. Each model on the cycle its drip is on; a GEFS/GEPS cycle main
   # already shows is not fetched again. ~10 min.
   imprint:
     needs: [cycle, maps, naens]
@@ -748,7 +748,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            libeccodes0 libgeos-dev libproj-dev proj-bin
+            libeccodes0 libaec0 libgeos-dev libproj-dev proj-bin  # libaec: rows (ccsds.py)
       - name: Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
 

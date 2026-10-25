@@ -3,8 +3,8 @@
 (2026-09-28). NO NEW DOWNLOADS: it reads the 500 hPa height files the stratosphere jobs already fetch from the
 Google mirror into the shared store cache, and does nothing if they are not there.
 
-  aifs   strat.yml (light job): wave_maps.py's 25 perturbed members of z at 500/100/10 hPa and forecast_drip.py's
-         control at 11 levels, daily steps 0-360 h -> 26 members
+  aifs   strat.yml (light job): wave_maps.py's 50 perturbed members of z at 500/100/10 hPa and polarcap.py's
+         control at the same levels, daily steps 0-360 h -> 51 members
   ifs    strat-ifs.yml (maps job): the shared IFS-ENS gh file (ifs_ens.spec_gh), all 50 perturbed members (open data
          has no IFS control on pressure levels), daily steps 0-360 h -> 50 members
 
@@ -49,22 +49,14 @@ LABEL = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS"}
 
 
 def files(model, date, time):
-    """The cached GRIB files holding member z500 for this cycle, [(path, kind)]; nothing is fetched."""
+    """The cached GRIB files holding member z500 for this cycle; nothing is fetched."""
     import store as E
 
     cyc = E.Cycle(date, time)
     steps = tuple(E.STEPS)
-    if model == "aifs":
-        pf = [
-            E.path(cyc, E.Spec("aifs-ens", "pf", "z", "pl", (500, 100, 10), steps, 25)),
-            E.path(cyc, E.Spec("aifs-ens", "pf", "z", "pl", LEV11, steps, 10)),
-        ]
-        cf = [
-            E.path(cyc, E.Spec("aifs-ens", "cf", "z", "pl", LEV11, steps)),
-            E.path(cyc, E.Spec("aifs-ens", "cf", "z", "pl", (500, 100, 10), steps)),
-        ]
-        got = [next((p for p in pf if p.exists()), None), next((p for p in cf if p.exists()), None)]
-        return [p for p in got if p is not None]
+    if model == "aifs":  # the 50 perturbed members from the wave maps' file, the control from the polar cap's
+        got = [E.path(cyc, E.Spec("aifs-ens", k, "z", "pl", (500, 100, 10), steps)) for k in ("pf", "cf")]
+        return [p for p in got if p.exists()]
     p = E.path(cyc, E.Spec("ifs", "pf", "gh", "pl", LEV11, steps))
     return [p] if p.exists() else []
 

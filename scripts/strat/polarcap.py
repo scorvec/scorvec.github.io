@@ -7,9 +7,10 @@ Each member's sea-level pressure, 500 and 100 hPa height against the ERA5 1991-2
 pressure over the Arctic is the negative Arctic Oscillation that often follows a sudden warming). Every model's fields
 are averaged onto the 1.5-deg cells the normals are on (ERA5's in WeatherBench 2; reference/{msl,z500,z100}_clim.nc from
 build_polarcap_clim.py; scripts/lib/cellmeans.py), so the models compare cell for cell:
-  aifs  AIFS-ENS control + 25 perturbed members (as its other stratosphere products): msl, t at 10 hPa, and z at 500,
-        100 and 10 hPa from the wave maps' file; ECMWF open data, Google Cloud mirror. The control (member 0) is also
-        drawn on the AIFS-ENS plumes and recorded and mapped on its own (aifsc), as the IFS control is.
+  aifs  AIFS-ENS control + 50 perturbed members: msl and t at 10 hPa from the 90-18N rows of each message (all the
+        cells need, store.ensure_rows), and z at 500, 100 and 10 hPa from the wave maps' file; ECMWF open data, Google
+        Cloud mirror. The control (member 0) is also drawn on the AIFS-ENS plumes and recorded and mapped on its own
+        (aifsc), as the IFS control is.
   ifs   IFS-ENS, all 50 perturbed members, from the shared IFS-ENS files (ifs_ens.py gh, msl and t10), and the IFS
         control (its own stream: ctrl_gh, ctrl_msl), drawn on the IFS-ENS plumes and recorded and mapped as a model of
         its own (hres; its 10 hPa temperature maps are t10_maps.py's).
@@ -77,7 +78,7 @@ LEADS = tuple(range(0, 361, 24))
 WINDOWS = ((1, 5), (6, 10), (11, 15))
 FIELDS = ("msl", "z500", "z100", "z10", "t10")  # each member's, on the cells
 NORMALS = ("msl", "z500", "z100", "t10")  # the fields with an ERA5 normal (anomalies)
-AIFS_MEMBERS = 25
+ROWS = tuple(range(round((90.0 - (CLAT[0] - CELL)) / 0.25) + 1))  # 90-18N: the ECMWF 0.25 deg rows the cells need
 G = 9.80665
 OUT = REPO / "assets" / "sst"
 ANIM = OUT / "anim"
@@ -191,6 +192,22 @@ def read_grib(path: Path, short: str, levels=(None,), scale: float = 1.0) -> dic
     return out
 
 
+def _cells(v: np.ndarray, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
+    return coarse(v.astype(np.float64), lat, lon).astype(np.float32)
+
+
+def read_rows(cyc, spec, scale: float = 1.0) -> dict:
+    """read_grib's {level: {(member, step h): cell means}} (level None at the surface) of an AIFS-ENS spec, from the
+    90-18N rows of each message (store.ensure_rows, ~45 % of its bytes)."""
+    import store as E
+
+    a, mems, steps, levs = E.load_rows(E.ensure_rows(cyc, spec, ROWS, reduce=_cells, tag="cells"))
+    return {
+        (L or None): {(m, s): a[i, j, k] * scale for i, m in enumerate(mems) for j, s in enumerate(steps) if s in LEADS}
+        for k, L in enumerate(levs)
+    }
+
+
 def stack(*parts: dict) -> np.ndarray:
     """(member, lead, CLAT, CLON) from read_grib dicts, NaN where a member lacks a lead; members with nothing dropped."""
     got = {k: v for p in parts for k, v in p.items()}
@@ -207,16 +224,12 @@ def load_aifs(date: str, hh: str) -> dict:
 
     cyc, steps = E.Cycle(date, hh), tuple(E.STEPS)
     got = {f: [] for f in FIELDS}
-    for kind, n in (("cf", 0), ("pf", AIFS_MEMBERS)):
-        got["msl"].append(read_grib(E.ensure(cyc, E.Spec("aifs-ens", kind, "msl", "sfc", (), steps, n)), "msl", scale=0.01)[None])  # fmt: skip
-        z = read_grib(
-            E.ensure(cyc, E.Spec("aifs-ens", kind, "z", "pl", WM.LEVELS, steps, n)), "z", (500, 100, 10), 1 / G
-        )
+    for kind in ("cf", "pf"):
+        got["msl"].append(read_rows(cyc, E.Spec("aifs-ens", kind, "msl", "sfc", (), steps), 0.01)[None])
+        z = read_grib(E.ensure(cyc, E.Spec("aifs-ens", kind, "z", "pl", WM.LEVELS, steps)), "z", (500, 100, 10), 1 / G)
         for lev in (500, 100, 10):  # the wave maps' file
             got[f"z{lev}"].append(z[lev])
-        got["t10"].append(
-            read_grib(E.ensure(cyc, E.Spec("aifs-ens", kind, "t", "pl", (10,), steps, n)), "t", (10,))[10]
-        )
+        got["t10"].append(read_rows(cyc, E.Spec("aifs-ens", kind, "t", "pl", (10,), steps))[10])
     return {
         "aifs": {f: stack(*parts) for f, parts in got.items()},
         "aifsc": {f: stack(parts[0]) for f, parts in got.items()},
@@ -291,7 +304,7 @@ def record(product: str, model: str, init: pd.Timestamp, series: dict, valid: pd
 
 def agreeing(n: int) -> int:
     """The fewest of n members that must share a sign for a two-sided sign test against an even split to pass at 5 %
-    (16 of 21, 19 of 26, 22 of 31, 33 of 50)."""
+    (16 of 21, 22 of 31, 33 of 50 or 51)."""
     from scipy.stats import binom
 
     return next(k for k in range(n // 2 + 1, n + 1) if 2 * binom.sf(k - 1, n, 0.5) < 0.05)

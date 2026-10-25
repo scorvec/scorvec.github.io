@@ -77,6 +77,7 @@ NAME = {
     "hres": "IFS control",
 }
 G = 9.80665
+CAP_ROWS = tuple(range(101))  # 90-65N on the 0.25 deg grid: the rows an ECMWF cap mean needs
 TAIL = 60
 INK, MUTED = "#1f2328", "#6f6b64"
 
@@ -193,44 +194,28 @@ def gefs(date: str, workers: int = 32):
     return C[ok], leads
 
 
-def aifs(date: str, time: str, members: int = 10):
+def aifs_caps(cyc, kind: str, levs: tuple, steps: tuple) -> np.ndarray:
+    """(member, step, level) 65-90N cap heights of AIFS-ENS z, the control ("cf") or the 50 perturbed members ("pf"),
+    from the leading rows of each message (90-65N: ~12 % of its bytes, store.ensure_rows)."""
+    import store as E
+
+    spec = E.Spec("aifs-ens", kind, "z", "pl", levs, steps)
+    p = E.ensure_rows(cyc, spec, CAP_ROWS, reduce=lambda v, la, lo: cap_of(v.astype(float), la) / G, tag="cap")
+    C, _, _, got = E.load_rows(p)
+    return C[:, :, [got.index(L) for L in levs]].astype(float)
+
+
+def aifs(date: str, time: str, members: bool = True):
+    """(member, lead, level) cap heights: the control and the 50 perturbed members, or the control alone."""
     sys.path.insert(0, str(REPO / "scripts" / "ecmwf"))
     import store as E
-    import xarray as xr
 
-    cyc = E.Cycle(date, time)
-    steps = list(range(0, 361, 24))
-    levs = tuple(int(x) for x in LEVELS_10)
-    parts = []
-    for kind, n in (("cf", None), ("pf", members))[: 2 if members else 1]:  # members=0: the control alone
-        spec = (
-            E.Spec("aifs-ens", kind, "z", "pl", levs, tuple(steps), n)
-            if n
-            else E.Spec("aifs-ens", kind, "z", "pl", levs, tuple(steps))
-        )
-        path = E.ensure(cyc, spec)
-        arr = np.full(((n or 1), len(steps), len(levs)), np.nan)
-        for ki, lev in enumerate(levs):
-            ds = xr.open_dataset(
-                path,
-                engine="cfgrib",
-                backend_kwargs=dict(filter_by_keys={"shortName": "z", "level": lev}, indexpath=""),
-            )
-            z = ds["z"]
-            z = z.expand_dims("number") if "number" not in z.dims else z
-            z = z.sel(latitude=z.latitude[z.latitude >= 65]) / G
-            lat = z.latitude.values
-            w = np.cos(np.deg2rad(lat))
-            cap = (z.mean("longitude") * xr.DataArray(w, dims="latitude", coords={"latitude": lat})).sum(
-                "latitude"
-            ) / w.sum()
-            cap = cap.transpose("number", "step").values
-            arr[:, :, ki] = cap[:, : len(steps)]
-        parts.append(arr)
-    return np.concatenate(parts, axis=0), steps
+    cyc, steps, levs = E.Cycle(date, time), tuple(range(0, 361, 24)), tuple(int(x) for x in LEVELS_10)
+    kinds = ("cf", "pf") if members else ("cf",)
+    return np.concatenate([aifs_caps(cyc, k, levs, steps) for k in kinds]), list(steps)
 
 
-def _caps_members(path, short: str, levs, scale: float = 1.0):
+def _caps_members(path, short: str, levs):
     """(member, step, level) 65-90N cap heights from one multi-member, multi-level GRIB, one level at a time."""
     import xarray as xr
 
@@ -252,7 +237,6 @@ def _caps_members(path, short: str, levs, scale: float = 1.0):
             (
                 (z.mean("longitude") * xr.DataArray(w, dims="latitude", coords={"latitude": lat})).sum("latitude")
                 / w.sum()
-                * scale
             )
             .transpose("number", "step")
             .values
@@ -396,9 +380,7 @@ def measure_drift(model: str, history: Path, cycles: int = 25, every: int = 3, s
                 path.unlink(missing_ok=True)
                 path.with_suffix(path.suffix + ".json").unlink(missing_ok=True)
             else:
-                path = E.ensure(cyc, E.Spec("aifs-ens", "cf", "z", "pl", levs, tuple(steps)))
-                C, _ = _caps_members(path, "z", levs, 1.0 / G)
-                cap_ls = C[0].T
+                cap_ls = aifs_caps(cyc, "cf", levs, tuple(steps))[0].T
         except Exception as e:  # noqa: BLE001
             print(f"  {d:%Y-%m-%d}: {str(e)[:60]}")
             continue
@@ -740,7 +722,7 @@ def main() -> int:
             "geps": lambda: geps(a.date),
             "gefs": lambda: gefs(a.date),
             "aifs": lambda: aifs(a.date, a.time),
-            "aifsc": lambda: aifs(a.date, a.time, 0),
+            "aifsc": lambda: aifs(a.date, a.time, members=False),
             "ifs": lambda: ifs(a.date, a.time),
             "hres": lambda: hres(a.date, a.time),
         }[a.model]()

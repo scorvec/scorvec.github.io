@@ -39,8 +39,8 @@ with p̂ = 250/1000 and (U, V) the ERA5 1991–2020 day-of-year basic state
 (build_waf_clim.py). Masked where |lat| < 20° or the basic-state wind < 3 m/s
 (the quasi-stationary linear theory needs a westerly waveguide).
 
-Data cost: u and v at 250 hPa for NMEMBERS perturbed members at the 16 daily frame steps
-(~2 × 200 MB per cycle); the store caches them for the cycle.
+Data cost: u and v at 250 hPa for all 50 perturbed members at the 16 daily frame steps
+(~2 × 400 MB per cycle); the store caches them for the cycle.
 
     python src/waf.py --date 20260718 --time 00 \
         --anim-dir assets/sst/anim/waf --manifest assets/sst/anim/waf_manifest.json \
@@ -81,7 +81,6 @@ LMAX = 63  # ψ truncation (~2.8°): synoptic + planetary
 LFILT = 15  # ∇·W shown at planetary scale (T15, ≳2500 km)
 LEVEL = int(os.environ.get("WAF_LEVEL", "250"))
 UMIN, LATMIN = 3.0, 20.0  # basic-state westerly / tropics mask
-NMEMBERS = int(os.environ.get("WAF_MEMBERS", "25"))  # perturbed members for the flux average
 TSMOOTH = 5  # days: running mean of ψ′ along the lead (quasi-stationary)
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
 CLIM = REF / (
@@ -289,8 +288,8 @@ def main() -> int:
     all_steps = list(download_aifs.rmm_steps(args.time))
     frame_steps = tuple(all_steps[:16])
     cyc = ecmwf.Cycle(args.date, args.time)
-    up = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", "u", "pl", (LEVEL,), frame_steps, NMEMBERS))
-    vp = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", "v", "pl", (LEVEL,), frame_steps, NMEMBERS))
+    up = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", "u", "pl", (LEVEL,), frame_steps))
+    vp = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", "v", "pl", (LEVEL,), frame_steps))
     ku = dict(engine="cfgrib", backend_kwargs={"indexpath": ""})
     U = xr.open_dataset(up, **ku)["u"]
     Vv = xr.open_dataset(vp, **ku)["v"]
