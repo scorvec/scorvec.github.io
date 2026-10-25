@@ -47,6 +47,9 @@ on:
       cycle:
         type: string
         default: ""
+      fields:
+        type: string
+        default: ""
   workflow_dispatch:
     inputs:
       model:
@@ -61,6 +64,10 @@ on:
         description: "Rebuild the given cycle even when it is already published"
         type: boolean
         default: false
+      fields:
+        description: "IFS-ENS: z500,msl publishes the first stage only (blank = every field, or the 2 m stage when due)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -122,6 +129,7 @@ jobs:
         env:
           CYCLE: ${{ inputs.cycle }}
           FORCE: ${{ inputs.force && '--force' || '' }}
+          FIELDS: ${{ inputs.fields }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
@@ -135,40 +143,51 @@ jobs:
           D="assets/regimes/data/ensmaps_drift_$MODEL.json"
           if git show "FETCH_HEAD:$D" > "/tmp/drift_$MODEL.json" 2>/dev/null; then mkdir -p "$(dirname "$D")"; cp "/tmp/drift_$MODEL.json" "$D"; fi
           # a run dispatched as its last step lands is waited for (up to 25 min) when it is due
+          # the plan prints the cycle and, for an IFS-ENS stage, its fields: "z500,msl" first, "t2m" added later
           python scripts/ensmaps/ensmaps.py plan --model "$MODEL" --manifests assets/models ${CYCLE:+--cycle "$CYCLE"} $FORCE \
-            --wait-min 25 > "$RUNNER_TEMP/plan.txt"
-          cyc=$(head -n 1 "$RUNNER_TEMP/plan.txt")
+            ${FIELDS:+--fields "$FIELDS"} --wait-min 25 > "$RUNNER_TEMP/plan.txt"
+          read -r cyc stage < "$RUNNER_TEMP/plan.txt" || true
           if [ -z "$cyc" ]; then echo "nothing new for $MODEL"; echo "cycle=" >> "$GITHUB_OUTPUT"; exit 0; fi
           prev=$(date -u -d "${cyc:0:8} ${cyc:8:2}:00 12 hours ago" +%Y%m%d%H)
           prev6=$(date -u -d "${cyc:0:8} ${cyc:8:2}:00 6 hours ago" +%Y%m%d%H)
           prev48=$(date -u -d "${cyc:0:8} ${cyc:8:2}:00 48 hours ago" +%Y%m%d%H)
           echo "cycle=$cyc" >> "$GITHUB_OUTPUT"; echo "prev=$prev" >> "$GITHUB_OUTPUT"; echo "prev6=$prev6" >> "$GITHUB_OUTPUT"
-          echo "prev48=$prev48" >> "$GITHUB_OUTPUT"
+          echo "prev48=$prev48" >> "$GITHUB_OUTPUT"; echo "stage=${stage:-}" >> "$GITHUB_OUTPUT"
           held=$(gh release view ensmaps-ref-v1 -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null || true)
           normals=""
           for f in ensmaps_t2m_normals.npz ensmaps_t2m_normals_interim.npz; do   # the final normals, else the interim
             if [ -z "$normals" ] && echo "$held" | grep -qx "$f"; then normals=$f; fi
           done
+          if [ "${stage:-}" = z500,msl ]; then normals=""; fi   # a first stage has no 2 m temperature
           echo "normals=$normals" >> "$GITHUB_OUTPUT"
-          echo "$MODEL $cyc (the runs 12 h, 6 h and 48 h earlier: $prev, $prev6, $prev48; 2 m normals: ${normals:-none})"
+          echo "$MODEL $cyc ${stage:-every field} (the runs 12 h, 6 h and 48 h earlier: $prev, $prev6, $prev48; 2 m normals: ${normals:-none})"
       - name: The statistics of the run 12 h earlier
         if: steps.plan.outputs.cycle != ''
         uses: actions/cache/restore@v6
         with:
           path: ensmaps_stats
           key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev }}
+          restore-keys: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev }}-partial
       - name: The statistics of the run 6 h earlier
         if: steps.plan.outputs.cycle != '' && inputs.model != 'geps'
         uses: actions/cache/restore@v6
         with:
           path: ensmaps_stats
           key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev6 }}
+          restore-keys: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev6 }}-partial
       - name: The statistics of the run 48 h earlier (the trend over two days)
         if: steps.plan.outputs.cycle != ''
         uses: actions/cache/restore@v6
         with:
           path: ensmaps_stats
           key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev48 }}
+          restore-keys: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev48 }}-partial
+      - name: This run's first-stage statistics (IFS-ENS, when 2 m temperature is added)
+        if: steps.plan.outputs.stage == 't2m'
+        uses: actions/cache/restore@v6
+        with:
+          path: ensmaps_stats
+          key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.cycle }}-partial
       - name: The clusters' drift archive of this model (the newest)
         if: steps.plan.outputs.cycle != ''
         uses: actions/cache/restore@v6
@@ -193,10 +212,13 @@ jobs:
           PREV6: ${{ steps.plan.outputs.prev6 }}
           PREV48: ${{ steps.plan.outputs.prev48 }}
           NORMALS: ${{ steps.plan.outputs.normals }}
+          STAGE: ${{ steps.plan.outputs.stage }}
         run: |
           set -euo pipefail
           L="$RUNNER_TEMP/lists"
+          MERGE=""; if [ "$STAGE" = t2m ]; then MERGE=--merge; fi   # 2 m temperature added to the run on the page
           python scripts/ensmaps/ensmaps.py run --model "$MODEL" --cycle "$CYC" --site . --normals "ref/${NORMALS:-none}" \
+            ${STAGE:+--fields "$STAGE"} $MERGE \
             --prev "ensmaps_stats/$PREV.npz" --prev6 "ensmaps_stats/$PREV6.npz" --prev48 "ensmaps_stats/$PREV48.npz" \
             --save "ensmaps_stats/$CYC.npz" --lists "$L" \
             --manifest-in "assets/models/ensmaps_$MODEL.json" --fields-out "clusterfields/$MODEL.npz" --cluster-drift "cdrift/$MODEL.npz"
@@ -212,7 +234,7 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: ensmaps_stats
-          key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.cycle }}
+          key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.cycle }}${{ steps.plan.outputs.stage == 'z500,msl' && '-partial' || '' }}
       - name: Keep the members' fields for the clusters
         if: steps.run.outputs.fields == '1'
         uses: actions/cache/save@v6
@@ -220,7 +242,7 @@ jobs:
           path: clusterfields
           key: ensmaps-${{ inputs.model }}-fields-${{ steps.plan.outputs.cycle }}
       - name: Keep the clusters' drift archive
-        if: steps.run.outcome == 'success' && endsWith(steps.plan.outputs.cycle, '00')
+        if: steps.run.outputs.fields == '1' && endsWith(steps.plan.outputs.cycle, '00')
         uses: actions/cache/save@v6
         with:
           path: cdrift
@@ -235,7 +257,7 @@ jobs:
         run: |
           for kind in stats fields cdrift; do
             gh cache list -R "$GITHUB_REPOSITORY" --key "ensmaps-$MODEL-$kind-" --limit 100 --json id,key -q '.[] | "\(.key) \(.id)"' \
-              | sort -r | { if [ "$kind" = stats ]; then awk -v floor="$PREV48" '{ n = split($1, a, "-"); if (a[n] < floor) print }'; else tail -n +3; fi; } \
+              | sort -r | { if [ "$kind" = stats ]; then awk -v floor="$PREV48" '{ if (match($1, /[0-9]{10}/) && substr($1, RSTART, 10) < floor) print }'; else tail -n +3; fi; } \
               | while read -r k id; do
                 gh cache delete "$id" -R "$GITHUB_REPOSITORY" && echo "deleted $k" || echo "::warning::could not delete $k"
               done

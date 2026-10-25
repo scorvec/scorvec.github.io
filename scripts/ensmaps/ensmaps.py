@@ -13,7 +13,10 @@ Ensembles and grids (one job per model, each as its run lands; ensmaps.yml):
         ranges through each file's .idx
   geps  GEPS, the control and 20 perturbed members, 0.5 deg; the MSC Datamart through scripts/geps/datamart.py
 Runs: 00, 06, 12 and 18Z (GEPS 00 and 12Z), each to +360 h (GEFS and GEPS +384 h), except IFS-ENS 06/18Z, which
-runs to +144 h (Model.runs). A day is a calendar UTC day, the mean of 06, 12, 18 and 24 UTC: a 00Z run has 15 full
+runs to +144 h (Model.runs). IFS-ENS comes in two stages (--fields): its 0.25-deg files land hours before the 0.1-deg
+surface files, so 500 hPa height and sea-level pressure are published as soon as they are complete (with the regimes
+and the clusters' fields; the run statistics kept as <cycle>-partial), and 2 m temperature is added to the same run's
+entry when its files land (--fields t2m --merge: the maps added, the statistics completed, nothing else redone). A day is a calendar UTC day, the mean of 06, 12, 18 and 24 UTC: a 00Z run has 15 full
 days, a 06, 12 or 18Z run 14 (its first and last partial days are not read), GEFS and GEPS one more, an IFS-ENS 06/18Z
 run 5. Spans: days 1-5, 6-10, 11-15 (the last cut at the run's last day) and each day.
 
@@ -62,6 +65,7 @@ import pyproj  # noqa: F401  (load pyproj's libproj before eccodes)
 
 import argparse
 import datetime as dt
+import functools
 import json
 import os
 import shutil
@@ -266,10 +270,16 @@ def ecmwf_messages(date, hh, model, step, kind, params: dict, resol="0p25", levt
     return [(of[e["_offset"]], None, m) for e, m in zip(want, msgs)], sum(stats.values())
 
 
-def fetch_ifs(date: str, hh: str, step: int) -> tuple[list, int]:
-    a, na = ecmwf_messages(date, hh, "ifs", step, "ef", {"t2m": ("2t", None)}, resol="0p1", levtype="sfc")
-    b, nb = ecmwf_messages(date, hh, "ifs", step, "ef", {"z500": ("gh", "500"), "msl": ("msl", None)})
-    return a + b, na + nb
+def fetch_ifs(date: str, hh: str, step: int, fields=FIELDS) -> tuple[list, int]:
+    out, nb = [], 0
+    if "t2m" in fields:
+        a, na = ecmwf_messages(date, hh, "ifs", step, "ef", {"t2m": ("2t", None)}, resol="0p1", levtype="sfc")
+        out, nb = out + a, nb + na
+    upper = {f: p for f, p in (("z500", ("gh", "500")), ("msl", ("msl", None))) if f in fields}
+    if upper:
+        b, nu = ecmwf_messages(date, hh, "ifs", step, "ef", upper)
+        out, nb = out + b, nb + nu
+    return out, nb
 
 
 def fetch_aifs(date: str, hh: str, step: int) -> tuple[list, int]:
@@ -390,7 +400,7 @@ class Model:
     member_key: str  # the GRIB key that numbers the members (GEFS: one file per member, numbered by the fetch)
     fetch: Callable
     source: str
-    ready: Callable  # (date, hh, last step) -> the run is complete to its last step
+    ready: Callable  # (date, hh, last step, fields) -> the run is complete to its last step
     runs: dict  # start hour "HH" -> (last step, hours after the start by which the run is usually complete)
 
     def last(self, hh: str) -> int:
@@ -398,15 +408,13 @@ class Model:
 
 
 def ready_ecmwf(model: str) -> Callable:
-    def ready(date: str, hh: str, last: int) -> bool:
+    def ready(date: str, hh: str, last: int, fields=FIELDS) -> bool:
         import cycles
 
         steps = tuple(range(6, last + 1, 6))
-        if model == "ifs":
-            needs = (
-                cycles.Need("ifs", "ef", step=last, every=steps, resol="0p1", levtype="sfc"),
-                cycles.Need("ifs", "ef", step=last, every=steps),
-            )
+        if model == "ifs":  # the 0.1-deg surface files for 2 m temperature, the 0.25-deg ones for the rest
+            needs = (cycles.Need("ifs", "ef", step=last, every=steps, resol="0p1", levtype="sfc"),) * ("t2m" in fields)
+            needs += (cycles.Need("ifs", "ef", step=last, every=steps),) * bool({"z500", "msl"} & set(fields))
         else:
             needs = tuple(cycles.Need("aifs-ens", k, step=last, every=steps) for k in ("pf", "cf"))
         ok, why = cycles.is_ready(date, hh, needs)
@@ -416,7 +424,7 @@ def ready_ecmwf(model: str) -> Callable:
     return ready
 
 
-def ready_gefs(date: str, hh: str, last: int) -> bool:
+def ready_gefs(date: str, hh: str, last: int, fields=FIELDS) -> bool:
     from webget import get
 
     try:
@@ -428,7 +436,7 @@ def ready_gefs(date: str, hh: str, last: int) -> bool:
         return False
 
 
-def ready_geps(date: str, hh: str, last: int) -> bool:
+def ready_geps(date: str, hh: str, last: int, fields=FIELDS) -> bool:
     import datamart
 
     ok = all(datamart.exists(datamart.url(date, v, last, hh)) for v in GEPS_VAR.values())
@@ -598,9 +606,18 @@ def stat_spans(ndays: int) -> list[tuple[int, int]]:
 
 def save_stats(path: Path, init: pd.Timestamp, days: list, S: dict, done: dict) -> None:
     """Per field and span: the mean (float32) and standard deviation (float16) of the members' 0.5-deg cell means and
-    how many members (complete on each of its days) they are from."""
+    how many members (complete on each of its days) they are from. The other fields' statistics of the same run already
+    in the file (an IFS-ENS first stage) are kept."""
     sp = stat_spans(len(days))
     out = {"init": f"{init:%Y%m%d%H}", "keys": np.array([key(days, k0, k1) for k0, k1 in sp])}
+    if path.exists():
+        with np.load(path) as z:
+            if str(z["init"]) == out["init"] and list(z["keys"]) == list(out["keys"]):
+                out |= {
+                    k: z[k]
+                    for k in z.files
+                    if k.split("_", 1)[0] in ("mean", "sd", "n") and k.split("_", 1)[1] not in S
+                }
     for f in S:
         mean, sd, n = [], [], []
         for k0, k1 in sp:
@@ -724,6 +741,11 @@ def frame(name: str, anom: np.ndarray | None, agree: np.ndarray | None, mean: np
 
 def run(a) -> int:
     mod = MODELS[a.model]
+    fields = tuple(f for f in FIELDS if f in a.fields.split(",")) if a.fields else FIELDS
+    if fields != FIELDS and mod.key != "ifs":
+        raise SystemExit("--fields: only IFS-ENS publishes in stages")
+    if a.merge and "z500" in fields:
+        raise SystemExit("--merge adds 2 m temperature to a run published without it")
     key_c = a.cycle
     init = pd.Timestamp(f"{key_c[:8]} {key_c[8:]}:00")
     date, hh = key_c[:8], key_c[8:]
@@ -737,11 +759,14 @@ def run(a) -> int:
         shutil.rmtree(outdir)
     outdir.mkdir(parents=True)
     t_start = time.time()
-    log(f"{mod.label} {init:%Y-%m-%d %H}Z: {len(days)} full days {days[0][0]:%Y-%m-%d}..{days[-1][0]:%Y-%m-%d}")
+    log(
+        f"{mod.label} {init:%Y-%m-%d %H}Z: {len(days)} full days {days[0][0]:%Y-%m-%d}..{days[-1][0]:%Y-%m-%d}, "
+        f"{', '.join(fields)}{' (added to the published run)' if a.merge else ''}"
+    )
 
     # normals on the model's grids
-    t2m_normals = R.Normals.t2m(a.normals) if a.normals and a.normals.exists() else None
-    if t2m_normals is None:
+    t2m_normals = R.Normals.t2m(a.normals) if "t2m" in fields and a.normals and a.normals.exists() else None
+    if t2m_normals is None and "t2m" in fields:
         log(f"::notice::no 2 m temperature normals ({a.normals}): its anomaly maps are left out")
     z_ifs = ifs_orography(date, hh)
     z_t2m = None
@@ -753,8 +778,8 @@ def run(a) -> int:
             f"  surface height less the IFS's: mean |dz| {np.mean(np.abs(dz)):.0f} m, largest {np.max(np.abs(dz)):.0f} m"
         )
     normals, high = {}, {}
-    spread = {f: spread_on(f, mod.grids[f]) for f in ("z500", "msl")}
-    for f in FIELDS:
+    spread = {f: spread_on(f, mod.grids[f]) for f in ("z500", "msl") if f in fields}
+    for f in fields:
         g = mod.grids[f]
         if f == "t2m":
             shift = None if z_t2m is None else (-LAPSE * dz).astype(np.float32)
@@ -765,7 +790,7 @@ def run(a) -> int:
             zs = z_ifs if mod.key == "ifs" else z_t2m
             high[f] = zs > HIGH_M
     n = mod.members
-    F = {f: Field(f, mod.grids[f], n, len(days), normals[f], high.get(f)) for f in FIELDS}
+    F = {f: Field(f, mod.grids[f], n, len(days), normals[f], high.get(f)) for f in fields}
     W = Writer(outdir, a.threads)
     Z25 = np.full((n, len(days), 73, 144), np.nan, np.float32)  # the regimes' field: 500 hPa height on 2.5 deg
     M25 = np.full((n, len(days), 73, 144), np.nan, np.float32)  # and the clusters': sea-level pressure
@@ -802,18 +827,21 @@ def run(a) -> int:
     nbytes = nmsg = 0
     units: dict = {}
     t0 = time.time()
+    fetch = functools.partial(mod.fetch, fields=fields) if mod.key == "ifs" else mod.fetch  # IFS-ENS: this stage's
     with ThreadPoolExecutor(AHEAD) as ex:
         live: deque = deque()
         while todo or live:
             while todo and len(live) < AHEAD:
                 s = todo.popleft()
-                live.append((s, ex.submit(mod.fetch, date, hh, s)))
+                live.append((s, ex.submit(fetch, date, hh, s)))
             s, fut = live.popleft()
             msgs, nb = fut.result()
             nbytes += nb
             nmsg += len(msgs)
             seen = set()
             for f, m_idx, msg in msgs:
+                if f not in F:
+                    continue
                 num, v, _ = decode(msg, mod.member_key)
                 i = (m_idx if m_idx is not None else num) - (0 if m_idx is not None else mod.first)
                 fd = F[f]
@@ -861,7 +889,9 @@ def run(a) -> int:
                 fd.acc[:] = 0.0
                 fd.cnt[:] = 0
             gb, sec = nbytes / 1e9, time.time() - t0
-            log(f"  day {k + 1} {day:%Y-%m-%d}: {int(F['t2m'].done[:, k].sum())} members, {gb:.2f} GB, {sec:.0f} s")
+            log(
+                f"  day {k + 1} {day:%Y-%m-%d}: {int(next(iter(F.values())).done[:, k].sum())} members, {gb:.2f} GB, {sec:.0f} s"
+            )
     fetched = {"bytes": nbytes, "messages": nmsg, "seconds": round(time.time() - t0)}
     for fd in F.values():  # the 0.1 / 0.25-deg sums are done with
         fd.acc = fd.win = None
@@ -911,14 +941,17 @@ def run(a) -> int:
     if a.save:
         save_stats(a.save, init, days, {f: fd.S for f, fd in F.items()}, {f: fd.done for f, fd in F.items()})
 
-    # weather regimes, from the 500 hPa members held (ensmaps_regimes.py)
+    # weather regimes, from the 500 hPa members held (ensmaps_regimes.py); not again when 2 m temperature is added
     import ensmaps_regimes as ER
 
     man_in = load_manifest(a.manifest_in, mod)
     before = next((c for c in man_in.get("cycles", []) if c["cycle"] <= f"{prev_init:%Y%m%d%H}"), None)  # 12 h or more
-    high50 = to_half(F["msl"].high.astype(np.float32), mod.grids["msl"].res) > 0.5
-    regimes = ER.run(mod, key_c, init, days, Z25, F, high50, W, a.regimes_out, before)
-    if a.fields_out and mod.last(hh) == max(r[0] for r in mod.runs.values()):  # the clusters' fields: full runs only
+    regimes = None
+    if "z500" in F and "msl" in F:
+        high50 = to_half(F["msl"].high.astype(np.float32), mod.grids["msl"].res) > 0.5
+        regimes = ER.run(mod, key_c, init, days, Z25, F, high50, W, a.regimes_out, before)
+    clusters_ok = "z500" in F and "msl" in F and mod.last(hh) == max(r[0] for r in mod.runs.values())
+    if a.fields_out and clusters_ok:  # the clusters' fields: full runs only
         # (the members' 2.5-deg anomalies for the four-ensemble clusters, ensmaps_clusters.py; an IFS-ENS 06/18Z run
         # would cut its windows to day 5)
         import ensmaps_clusters as EC
@@ -931,7 +964,7 @@ def run(a) -> int:
     wall = time.time() - t_start
     log(f"{mod.label} {key_c}: {nbytes_out / 1e6:.0f} MB of frames ({changes} change maps), fetched "
         f"{nbytes / 1e9:.2f} GB in {nmsg} messages, wall {wall:.0f} s")  # fmt: skip
-    for f in FIELDS:
+    for f in F:
         sz = sum(p.stat().st_size for p in (outdir / f).rglob("*.webp"))
         log(f"  {f:5s} {sz / 1e6:7.1f} MB")
 
@@ -966,7 +999,7 @@ def run(a) -> int:
                 "sigma": f in spread,
                 "units_read": sorted(units.get(f, [])),
             }
-            for f in FIELDS
+            for f in F
         },
         enc=ENC,
         high_m=HIGH_M,
@@ -982,8 +1015,32 @@ def run(a) -> int:
         wall_s=round(wall),
         made=dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%MZ"),
     )
+    if a.merge:
+        old = next((c for c in man_in.get("cycles", []) if c["cycle"] == key_c), None)
+        if old is None:
+            raise SystemExit(f"--merge: {key_c} is not on the page (its first stage has not been published)")
+        entry = merged(old, entry)
     write_manifest(site, mod, entry, a.manifest_in, a.lists)
     return 0
+
+
+def merged(old: dict, new: dict) -> dict:
+    """A run's manifest entry with a later stage's fields added: their spans' members, gates and changes, grids,
+    normals; the earlier stage's regimes kept; the fetch, bytes and wall time summed."""
+    out = dict(old, fields={**old["fields"], **new["fields"]}, made=new["made"])
+    spans_old = {e["key"]: e for e in old["spans"]}
+    for e in new["spans"]:
+        o = spans_old.setdefault(e["key"], {k: e[k] for k in ("key", "first", "last", "label")} | {"n": {}, "k": {}})
+        for k in ("n", "k", "change", "change6", "change48"):
+            if e.get(k):
+                o[k] = {**o.get(k, {}), **e[k]}
+    out["spans"] = list(spans_old.values())
+    for k in ("prev", "prev6", "prev48"):
+        out[k] = old.get(k) or new.get(k)
+    out["normals"] = {**old["normals"], **{k: v for k, v in new["normals"].items() if k.startswith("t2m")}}
+    out["fetch"] = {k: old["fetch"].get(k, 0) + new["fetch"].get(k, 0) for k in ("bytes", "messages", "seconds")}
+    out["bytes"], out["wall_s"] = old["bytes"] + new["bytes"], old["wall_s"] + new["wall_s"]
+    return out
 
 
 def load_manifest(path: Path | None, mod: Model) -> dict:
@@ -1043,16 +1100,26 @@ def write_manifest(site: Path, mod: Model, entry: dict, manifest_in: Path | None
 
 
 def cmd_plan(a) -> int:
-    """Print the newest complete cycle (of the model's start hours) not yet in the manifest (nothing if none). With
-    --cycle: that cycle, unless the manifest has it or a newer one (--force plans it anyway)."""
+    """Print the newest complete cycle (of the model's start hours) not yet in the manifest (nothing if none), and its
+    stage when it is one: "<cycle> z500,msl" when --fields asks for the first IFS-ENS stage only, "<cycle> t2m" when
+    the newest run on the page is still without its 2 m temperature and those files are complete. With --cycle: that
+    cycle, unless the manifest has it (complete) or a newer one (--force plans it anyway)."""
     mod = MODELS[a.model]
     man = load_manifest(Path(a.manifests) / f"ensmaps_{a.model}.json", mod)
     have = {c["cycle"] for c in man.get("cycles", [])}
+    held = {c["cycle"]: set(c.get("fields", FIELDS)) for c in man.get("cycles", [])}
+    want = tuple(f for f in FIELDS if f in a.fields.split(",")) if a.fields else FIELDS
+
+    def stage(fs) -> str:
+        return "" if fs == FIELDS else " " + ",".join(fs)
+
     if a.cycle:
-        if have and max(have) >= a.cycle and not a.force:
+        if a.cycle in held and "t2m" not in held[a.cycle] and "t2m" in want and not a.force:
+            print(f"{a.cycle} t2m")
+        elif have and max(have) >= a.cycle and not a.force:
             log(f"{a.cycle}: the page already has {max(have)}")
         else:
-            print(a.cycle)
+            print(a.cycle + stage(want))
         return 0
     every = 24 // len(mod.runs)  # 6 or 12 h between starts
     now = dt.datetime.now(dt.UTC).replace(tzinfo=None)
@@ -1061,11 +1128,15 @@ def cmd_plan(a) -> int:
     while True:
         c = newest
         for _ in range(48 // every):
-            k = f"{c:%Y%m%d%H}"
-            if k in have or (have and max(have) > k):
-                return 0  # the newest published: nothing newer is complete
-            if mod.ready(f"{c:%Y%m%d}", f"{c:%H}", mod.last(f"{c:%H}")):
-                print(k)
+            k, d, h = f"{c:%Y%m%d%H}", f"{c:%Y%m%d}", f"{c:%H}"
+            if k in held:  # the newest published: nothing newer is complete; its 2 m temperature may be due
+                if "t2m" not in held[k] and "t2m" in want and mod.ready(d, h, mod.last(h), ("t2m",)):
+                    print(f"{k} t2m")
+                return 0
+            if have and max(have) > k:
+                return 0
+            if mod.ready(d, h, mod.last(h), want):
+                print(k + stage(want))
                 return 0
             c -= dt.timedelta(hours=every)
         # the newest run is due but its last step not there yet (a dispatch fired as an earlier step landed): wait
@@ -1084,6 +1155,7 @@ def main() -> int:
     p.add_argument("--cycle", default="")
     p.add_argument("--force", action="store_true")
     p.add_argument("--wait-min", type=float, default=0.0, help="wait up to this long for a run that is due")
+    p.add_argument("--fields", default="", help="IFS-ENS: z500,msl plans the first stage only (default: every field)")
     r = sub.add_parser("run")
     r.add_argument("--model", choices=tuple(MODELS), required=True)
     r.add_argument("--cycle", required=True)
@@ -1100,6 +1172,8 @@ def main() -> int:
     r.add_argument("--fields-out", type=Path, help="write the members' 2.5-deg anomalies for the clusters here")
     r.add_argument("--cluster-drift", type=Path, help="the clusters' drift archive of this model (read, and extended)")
     r.add_argument("--threads", type=int, default=min(4, os.cpu_count() or 1))
+    r.add_argument("--fields", default="", help="IFS-ENS stages: z500,msl first, then t2m with --merge (default all)")
+    r.add_argument("--merge", action="store_true", help="add the fields to the run's entry already on the page")
     a = ap.parse_args()
     if a.cmd == "plan":
         return cmd_plan(a)
