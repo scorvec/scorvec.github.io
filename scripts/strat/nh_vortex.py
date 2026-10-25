@@ -682,7 +682,7 @@ def draw_members(m: str, fc: dict, clim: dict, obs: dict, out: Path) -> bool:
     cut = init + pd.Timedelta(days=SSW_DAYS)
     east = (u10[u10.index <= cut] < 0).any(axis=0)
     n, k = len(east), int(east.sum())
-    inc = ", control included" if ccol is not None and ccol in u10 else ""
+    inc = ccol is not None and ccol in u10  # the control is one of the n
     c10 = ctrl.get("u10")
     ceast = c10 is not None and bool((c10[c10.index <= cut] < 0).any())
     t0 = init - pd.Timedelta(days=MEMBER_TAIL_DAYS)
@@ -720,7 +720,7 @@ def draw_members(m: str, fc: dict, clim: dict, obs: dict, out: Path) -> bool:
         ax.axvline(init, color="#8a8680", lw=1, zorder=4)
         if key == "u10":
             ax.axhline(0, color="#a33", lw=1.5, zorder=4)
-            ax.text(0.005, 0.04, f"{k} of {n} members{inc} easterly on some day to day {SSW_DAYS} (red) — easterly here "
+            ax.text(0.005, 0.04, f"{k} of {n} members{' (control included)' * inc} easterly on some day to day {SSW_DAYS} (red) — easterly here "
                     "= SSW (WMO)", transform=ax.transAxes, fontsize=8.5, color="#a33", style="italic", zorder=8,
                     bbox={"fc": "white", "ec": "none", "alpha": 0.85, "pad": 1.5})  # fmt: skip
         elif ax.get_ylim()[0] < 0:
@@ -728,7 +728,7 @@ def draw_members(m: str, fc: dict, clim: dict, obs: dict, out: Path) -> bool:
         ax.set_ylabel(f"u at {lev} hPa, 60°N  (m s$^{{-1}}$)")
         ax.grid(alpha=0.22)
     handles = [
-        Line2D([], [], color=MEMBER, lw=0.9, alpha=0.7, label=f"members ({n}{inc})"),
+        Line2D([], [], color=MEMBER, lw=0.9, alpha=0.7, label=f"members ({n}{', control included' * inc})"),
         Line2D([], [], color=EAST, lw=1.1, label=f"members easterly at 10 hPa by day {SSW_DAYS} ({k})"),
         Line2D([], [], color=col, lw=2.8, label="members' mean"),
     ]
