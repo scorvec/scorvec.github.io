@@ -2,7 +2,8 @@ name: Global ensemble maps (data)
 
 # ens-anomalies.html: one ensemble's run (00, 06, 12 or 18Z; GEPS 00 and 12Z; IFS-ENS 06/18Z to day 5) - 2 m
 # temperature, 500 hPa height and sea-level pressure, each member's daily means to day 15 against the 1991-2020 normals
-# (where the members agree on the sign) and the change from the runs 12, 6 and 48 h earlier (dotted where significant) - as
+# (dotted where the members agree on the sign) and the change from the runs 6, 12, 18, 24, 36 and 48 h earlier (dotted
+# where significant; the page picks the run to compare with) - as
 # lossless WebP on the model's own grid (scripts/ensmaps/ensmaps.py has the details). One model per run; the callers
 # ensmaps-ifs.yml, ensmaps-aifs.yml, ensmaps-gefs.yml and ensmaps-geps.yml fix it, so each lands as soon as its own run
 # does. The page keeps each model's four newest runs.
@@ -12,7 +13,7 @@ name: Global ensemble maps (data)
 # the git `frames` branch; cycles older than the four kept are pruned in the store), THEN commit the manifest to main -
 # never the other way round, or the page would point at data that is not there yet. The earlier runs' statistics (the
 # change tests) come from the Actions cache (ensmaps-<model>-stats-<YYYYMMDDHH>; those more than 48 h older than this
-# run are deleted: a run needs the runs 6, 12 and 48 h before it). The same run labels each member's weather regime from the 500 hPa
+# run are deleted: a run compares with the runs up to 48 h before it). The same run labels each member's weather regime from the 500 hPa
 # fields it holds (scripts/ensmaps/ensmaps_regimes.py, no download of its own) and commits the labels
 # (assets/regimes/data/ensmaps_members_<model>.json for the newest run and ensmaps_members_<model>_<cycle>.json for each
 # of the four, regime_core's members_record format) and, on a 00Z run, its drift archive (ensmaps_drift_<model>.json)
@@ -154,23 +155,16 @@ jobs:
             ${FIRST:+--first} ${FOLLOW:+--started} --wait-min 25 > "$RUNNER_TEMP/plan.txt"
           read -r cyc stage < "$RUNNER_TEMP/plan.txt" || true
           if [ -z "$cyc" ]; then echo "nothing new for $MODEL"; echo "cycle=" >> "$GITHUB_OUTPUT"; exit 0; fi
-          prev=$(date -u -d "${cyc:0:8} ${cyc:8:2}:00 12 hours ago" +%Y%m%d%H)
-          prev6=$(date -u -d "${cyc:0:8} ${cyc:8:2}:00 6 hours ago" +%Y%m%d%H)
-          prev48=$(date -u -d "${cyc:0:8} ${cyc:8:2}:00 48 hours ago" +%Y%m%d%H)
-          echo "cycle=$cyc" >> "$GITHUB_OUTPUT"; echo "prev=$prev" >> "$GITHUB_OUTPUT"; echo "prev6=$prev6" >> "$GITHUB_OUTPUT"
-          echo "prev48=$prev48" >> "$GITHUB_OUTPUT"; echo "stage=${stage:-}" >> "$GITHUB_OUTPUT"
+          # the earlier runs a change map can compare with (ensmaps.py CHANGES): 6, 12, 18, 24, 36 and 48 h before
+          echo "cycle=$cyc" >> "$GITHUB_OUTPUT"; echo "stage=${stage:-}" >> "$GITHUB_OUTPUT"
+          for h in 6 12 18 24 36 48; do
+            echo "prev$h=$(date -u -d "${cyc:0:8} ${cyc:8:2}:00 $h hours ago" +%Y%m%d%H)" >> "$GITHUB_OUTPUT"
+          done
           held=$(gh release view ensmaps-ref-v1 -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null || true)
           normals=""
           if echo "$held" | grep -qx ensmaps_t2m_normals.npz; then normals=ensmaps_t2m_normals.npz; fi
           echo "normals=$normals" >> "$GITHUB_OUTPUT"
-          echo "$MODEL $cyc ${stage:-every field} (the runs 12 h, 6 h and 48 h earlier: $prev, $prev6, $prev48; 2 m normals: ${normals:-none})"
-      - name: The statistics of the run 12 h earlier
-        if: steps.plan.outputs.cycle != ''
-        uses: actions/cache/restore@v6
-        with:
-          path: ensmaps_stats
-          key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev }}
-          restore-keys: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev }}-partial
+          echo "$MODEL $cyc ${stage:-every field} (2 m normals: ${normals:-none})"
       - name: The statistics of the run 6 h earlier
         if: steps.plan.outputs.cycle != '' && inputs.model != 'geps'
         uses: actions/cache/restore@v6
@@ -178,7 +172,35 @@ jobs:
           path: ensmaps_stats
           key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev6 }}
           restore-keys: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev6 }}-partial
-      - name: The statistics of the run 48 h earlier (the trend over two days)
+      - name: The statistics of the run 12 h earlier
+        if: steps.plan.outputs.cycle != ''
+        uses: actions/cache/restore@v6
+        with:
+          path: ensmaps_stats
+          key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev12 }}
+          restore-keys: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev12 }}-partial
+      - name: The statistics of the run 18 h earlier
+        if: steps.plan.outputs.cycle != '' && inputs.model != 'geps'
+        uses: actions/cache/restore@v6
+        with:
+          path: ensmaps_stats
+          key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev18 }}
+          restore-keys: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev18 }}-partial
+      - name: The statistics of the run 24 h earlier
+        if: steps.plan.outputs.cycle != ''
+        uses: actions/cache/restore@v6
+        with:
+          path: ensmaps_stats
+          key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev24 }}
+          restore-keys: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev24 }}-partial
+      - name: The statistics of the run 36 h earlier
+        if: steps.plan.outputs.cycle != ''
+        uses: actions/cache/restore@v6
+        with:
+          path: ensmaps_stats
+          key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev36 }}
+          restore-keys: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev36 }}-partial
+      - name: The statistics of the run 48 h earlier
         if: steps.plan.outputs.cycle != ''
         uses: actions/cache/restore@v6
         with:
@@ -211,9 +233,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FRAMES_BRANCH: "off"
           CYC: ${{ steps.plan.outputs.cycle }}
-          PREV: ${{ steps.plan.outputs.prev }}
-          PREV6: ${{ steps.plan.outputs.prev6 }}
-          PREV48: ${{ steps.plan.outputs.prev48 }}
           NORMALS: ${{ steps.plan.outputs.normals }}
           STAGE: ${{ steps.plan.outputs.stage }}
           FOLLOW: ${{ inputs.follow && '1' || '' }}
@@ -227,10 +246,10 @@ jobs:
           esac
           python scripts/ensmaps/ensmaps.py run --model "$MODEL" --cycle "$CYC" --site . --normals "ref/${NORMALS:-none}" \
             $S ${FOLLOW:+--follow 200 --checkpoint scripts/ensmaps/checkpoint.sh} \
-            --prev "ensmaps_stats/$PREV.npz" --prev6 "ensmaps_stats/$PREV6.npz" --prev48 "ensmaps_stats/$PREV48.npz" \
+            --stats-dir ensmaps_stats \
             --save "ensmaps_stats/$CYC.npz" --lists "$L" \
             --manifest-in "assets/models/ensmaps_$MODEL.json" --fields-out "clusterfields/$MODEL.npz" --cluster-drift "cdrift/$MODEL.npz"
-          rm -f "ensmaps_stats/$PREV.npz" "ensmaps_stats/$PREV6.npz" "ensmaps_stats/$PREV48.npz"   # the cache entry: this run's only
+          if [ -d ensmaps_stats ]; then find ensmaps_stats -name '*.npz' ! -name "$CYC.npz" -delete; fi   # the cache entry: this run's statistics only
           if [ "$MODEL" = geps ]; then python scripts/geps/datamart.py; fi    # the run's Datamart requests and bytes
           if [ ! -s "$L/publish.txt" ]; then echo "::warning::$MODEL $CYC is older than the run on the page - not published"; exit 0; fi
           SRC=. PRUNE="$(tr '\n' ' ' < "$L/prune.txt")" PRUNE_OLDER="$(cat "$L/floor.txt")" scripts/models/publish_data.sh $(cat "$L/publish.txt") > /dev/null
@@ -255,7 +274,7 @@ jobs:
         with:
           path: cdrift
           key: ensmaps-${{ inputs.model }}-cdrift-${{ steps.plan.outputs.cycle }}
-      # the statistics of every run of the last 48 h (the runs 6, 12 and 48 h later compare with them), the two newest of
+      # the statistics of every run of the last 48 h (the runs up to 48 h later compare with them), the two newest of
       # the other kinds
       - name: Delete superseded caches
         if: steps.run.outcome == 'success'
