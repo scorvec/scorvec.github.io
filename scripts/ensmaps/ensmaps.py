@@ -89,6 +89,7 @@ FIELDS = ("t2m", "z500", "msl")
 SAMPLES = (6, 12, 18, 24)  # hours after a day's 00 UTC: the four fields of its mean
 LAST_STEP = 360  # the ECMWF ensembles' last step; GEFS and GEPS run to 384, IFS-ENS 06/18Z to 144 (Model.runs)
 KEEP_RUNS = 4  # runs of each model on the page (the frames store and the manifest)
+RETAIN_MIN = 60  # minutes the store keeps what a manifest stopped naming: the deploy and the browsers' caches lag it
 PERIOD = 5  # days per window
 FDR_Q = 0.10
 LAPSE = 6.5e-3  # K/m: a coarser grid's 2 m normal is moved to the model's surface height at this rate
@@ -985,31 +986,53 @@ def load_manifest(path: Path | None, mod: Model) -> dict:
         return {"model": mod.key, "label": mod.label, "source": mod.source, "cycles": []}
 
 
+def retained(items: list[dict], when: str, now: str) -> list[dict]:
+    """Of the items (each with a time `when`, "%Y-%m-%dT%H:%MZ"), the ones the store still keeps, newest first: every
+    one from the RETAIN_MIN minutes before `now`, and the newest older one."""
+
+    def t(s: str) -> dt.datetime:
+        return dt.datetime.strptime(s, "%Y-%m-%dT%H:%MZ")
+
+    items = sorted(items, key=lambda x: x[when], reverse=True)
+    cut = t(now) - dt.timedelta(minutes=RETAIN_MIN)
+    return [x for x in items if t(x[when]) >= cut] + [x for x in items if t(x[when]) < cut][:1]
+
+
 def write_manifest(site: Path, mod: Model, entry: dict, manifest_in: Path | None, lists: Path | None) -> None:
     """The KEEP_RUNS newest runs, newest first; the lists for publish_data.sh: the cycle to publish (none for a run
-    older than those kept), the cycles to prune and the floor below which the store is pruned. The store keeps one run
-    more than the manifest lists - the one it no longer lists - so a page still holding the previous manifest (the
-    deploy and the browser's cache lag the store by minutes) never names a pruned run."""
+    older than those kept), the cycles to prune and the floor below which the store is pruned. A run the manifest
+    stops naming stays in the store (`spare`, with the time it left) for RETAIN_MIN minutes and until a newer one has
+    left before it (retained), so a page still holding an older manifest (the deploy and the browsers' cache lag the
+    store by minutes) never names a pruned run."""
     mpath = site / "assets/models" / f"ensmaps_{mod.key}.json"
     man = load_manifest(manifest_in or mpath, mod)
+    prior = {c["cycle"] for c in man.get("cycles", [])} | {x["cycle"] for x in man.get("spare", [])}
     cycles = sorted(
         [c for c in man.get("cycles", []) if c["cycle"] != entry["cycle"]] + [entry],
         key=lambda c: c["cycle"],
         reverse=True,
     )
     keep, drop = cycles[:KEEP_RUNS], cycles[KEEP_RUNS:]
-    man.update(model=mod.key, label=mod.label, source=mod.source, cycles=keep, updated=entry["made"])
+    listed = {c["cycle"] for c in keep}
+    was = [x for x in man.get("spare", []) if x["cycle"] not in listed]
+    left = [{"cycle": c["cycle"], "since": entry["made"]} for c in drop if c["cycle"] != entry["cycle"]]
+    spare = retained(left + was, "since", entry["made"])
+    man.update(model=mod.key, label=mod.label, source=mod.source, cycles=keep, spare=spare, updated=entry["made"])
     mpath.parent.mkdir(parents=True, exist_ok=True)
     mpath.write_text(json.dumps(man, separators=(",", ":")))
     data = f"{DATA}/{mod.key}"
     if lists:
         lists.mkdir(parents=True, exist_ok=True)
-        stale = any(c["cycle"] == entry["cycle"] for c in drop)
-        spare = [c for c in drop if c["cycle"] != entry["cycle"]][:1]
-        (lists / "publish.txt").write_text("" if stale else f"{data}/{entry['cycle']}\n")
-        (lists / "prune.txt").write_text("".join(f"{data}/{c['cycle']}\n" for c in drop if c not in spare))
-        (lists / "floor.txt").write_text(f"{data}:{(keep + spare)[-1]['cycle']}\n")
-    log(f"manifest {mpath.name}: keep {[c['cycle'] for c in keep]}, drop {[c['cycle'] for c in drop]}")
+        stale = entry["cycle"] not in listed
+        held = listed | {x["cycle"] for x in spare}
+        # a rebuild of a run already on the page adds and replaces its files, deleting none the older manifest names
+        again = "+" if entry["cycle"] in prior else ""
+        (lists / "publish.txt").write_text("" if stale else f"{again}{data}/{entry['cycle']}\n")
+        (lists / "prune.txt").write_text(
+            "".join(f"{data}/{x['cycle']}\n" for x in left + was if x["cycle"] not in held)
+        )
+        (lists / "floor.txt").write_text(f"{data}:{min(held)}\n")
+    log(f"manifest {mpath.name}: keep {sorted(listed, reverse=True)}, in the store too {[x['cycle'] for x in spare]}")
 
 
 def cmd_plan(a) -> int:
