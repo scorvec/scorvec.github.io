@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       date:
-        description: 'Cycle date YYYYMMDD (blank = latest AIFS-ENS)'
+        description: 'Cycle date YYYYMMDD (blank = the IFS control''s latest complete run)'
         default: ''
       time:
         description: 'Cycle hour, 00 or 12 (blank = latest)'
@@ -69,7 +69,7 @@ jobs:
           if [ -z "$D" ] || [ -z "$T" ]; then
             # Availability, not the clock: the shared resolver takes the newest cycle whose every step
             # is on the Google mirror (scripts/ecmwf/cycles.py) and logs why it passed over a newer one.
-            python cycles.py --profile aifs-ens --out /tmp/cyc || true
+            python cycles.py --profile ifs-control --out /tmp/cyc || true
             D=$(awk '{print $1}' /tmp/cyc 2>/dev/null || true)
             T=$(awk '{print $2}' /tmp/cyc 2>/dev/null || true)
           fi
