@@ -38,13 +38,13 @@ RETAIN_DAYS = 7  # store cache retention — raw gribs dropped after this many d
 def fetch_strat(date: str, time: str) -> None:
     """Only what the stratosphere page reads from the store cache.
 
-    nh_vortex globs aifs-ens pf_u_10-*/cf_u_10-* (the 12-level AAM u pull) and
+    nh_vortex globs aifs-ens pf_u_10-*/cf_u_10-* (the 12-level AAM u pull),
     qbo_duct gates on cf_u_10-*x16 + cf_u_200-850_s0-*x16 (it fetches its own v
-    and t). Nothing on that page reads the Hovmöller/SOI surface batches or
-    IFS-ENS, so this subset drops the IFS-ENS dependency of fetch(): at the
-    07:35Z dispatch IFS 00Z is not yet on open data, and waiting on it (once
-    for the Hovmöller, once for the SOI) can consume the whole 60-min step
-    budget. ~5 min instead of ~19."""
+    and t), and jets.py reads all four. Nothing on that page reads the
+    Hovmöller/SOI surface batches or IFS-ENS, so this subset drops the IFS-ENS
+    dependency of fetch(): at the 07:35Z dispatch IFS 00Z is not yet on open
+    data, and waiting on it (once for the Hovmöller, once for the SOI) can
+    consume the whole 60-min step budget. ~8 min for the 50 members' ~7.5 GB."""
     print("== stratosphere subset: AIFS-ENS u @ 200/850 + the 12 AAM levels ==", flush=True)
     cyc = store.Cycle(date, time)
     S = tuple(store.STEPS)

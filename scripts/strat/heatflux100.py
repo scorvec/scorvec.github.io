@@ -703,12 +703,11 @@ def main() -> int:
     lat, fm = fluxes(v, t)
     _, fc = fluxes(vc, tc)
     clim = xr.open_dataset(CLIM).load() if CLIM.exists() else None
-    reg = regional(
-        v.latitude.values,
-        v.longitude.values,
-        v.transpose("number", "step", "latitude", "longitude").values,
-        t.transpose("number", "step", "latitude", "longitude").values,
-    )
+    per = [  # a member at a time, as fluxes(): all 50 at once would not fit in memory
+        regional(v.latitude.values, v.longitude.values, v.isel(number=i).values, t.isel(number=i).values)
+        for i in range(v.sizes["number"])
+    ]
+    reg = {k: np.stack([r[k] for r in per]) for k in per[0]}
     hpath = REPO / a.history if not Path(a.history).is_absolute() else Path(a.history)
     hist = load_history(hpath)
     try:  # this cycle's analysis joins the record

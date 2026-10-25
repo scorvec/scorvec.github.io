@@ -1,11 +1,10 @@
-name: Jets (AIFS-ENS) and dynamic tropopause (IFS control)
+name: Dynamic tropopause (IFS control)
 
-# The heavy leg of the atmosphere page: the jets figure/loop and the dynamic tropopause. The jets need the ~6 GB
-# 14-level AIFS-ENS pull, so they live apart from mjo.yml (RMM + the light products) and are fired by the dispatcher
-# ~40 min after it (scripts/lib/dispatch_workflows.sh). The dynamic tropopause is drawn from the IFS control (HRES
-# until May 2026; t/u/v on nine levels, byte-ranged, ~1 GB), whose 00/12Z run reaches day 10 on the Google mirror
-# ~T+7.5 h, before these slots (T+9.3 h); its step still waits up to 40 min for it. Angular momentum and its torque
-# budget moved to IFS-ENS (aam-ifs.yml); the tropical-cyclone products to tc.yml.
+# The dynamic-tropopause maps and loops of circulation.html, drawn from the IFS control (HRES until May 2026; t/u/v on
+# nine levels, byte-ranged, ~1 GB), whose 00/12Z run reaches day 10 on the Google mirror ~T+7.5 h, before the
+# dispatcher's slots (T+9.3 h; scripts/lib/dispatch_workflows.sh); its step still waits up to 40 min for it. The jets
+# moved to strat.yml's heavy job (2026-10-25), which already holds the AIFS-ENS u files they read; angular momentum and
+# its torque budget to IFS-ENS (aam-ifs.yml); the tropical-cyclone products to tc.yml.
 on:
   # Backstop crons at the dispatcher's slots, for when it is off. GitHub delivers them hours late when at all, so
   # they set no timing: a scheduled run whose cycle main already carries stops in the check job.
@@ -131,15 +130,6 @@ jobs:
           echo "date=${{ needs.check.outputs.date }}" >> "$GITHUB_OUTPUT"; echo "time=${{ needs.check.outputs.time }}" >> "$GITHUB_OUTPUT"
           echo "cycle: ${{ needs.check.outputs.date }} ${{ needs.check.outputs.time }}Z"
 
-      - name: Jets
-        working-directory: scripts/mjo
-        run: |
-          mkdir -p ../../assets/sst/anim/jets
-          python src/jets.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
-            --out ../../assets/sst/jets.webp \
-            --anim-dir ../../assets/sst/anim/jets --manifest ../../assets/sst/anim/jets_manifest.json \
-            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Jets"
-
       - name: Dynamic tropopause (IFS control)
         working-directory: scripts/mjo
         run: |
@@ -148,18 +138,10 @@ jobs:
             --anim-dir ../../assets/sst/anim --manifest ../../assets/sst/anim/dt_manifest.json --wait-min 40 \
             || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Dynamic tropopause"
 
-      # The North Pacific jet is built in strat.yml / strat-ifs.yml (it needs 250 hPa v, which only the stratosphere
-      # jobs fetch); it reads the torque_ranges.json that aam-ifs.yml writes, from main.
-
-      - name: Cache-bust the rebuilt figures
-        run: |
-          CB=$(date -u +%Y%m%d%H%M)
-          perl -0pi -e "s/(jets\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
-
       - name: Publish loop frames to the frames branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/jets assets/sst/anim/dt assets/sst/anim/dt_npac assets/sst/anim/dt_na assets/sst/anim/dt_atl assets/sst/anim/dt_asia assets/sst/anim/dt_pv330 assets/sst/anim/dt_pv330_npac assets/sst/anim/dt_pv330_na assets/sst/anim/dt_pv330_atl assets/sst/anim/dt_pv330_asia assets/sst/anim/dt_pv350 assets/sst/anim/dt_pv350_npac assets/sst/anim/dt_pv350_na assets/sst/anim/dt_pv350_atl assets/sst/anim/dt_pv350_asia assets/sst/anim/dt_sam assets/sst/anim/dt_pv330_sam assets/sst/anim/dt_pv350_sam
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/dt assets/sst/anim/dt_npac assets/sst/anim/dt_na assets/sst/anim/dt_atl assets/sst/anim/dt_asia assets/sst/anim/dt_pv330 assets/sst/anim/dt_pv330_npac assets/sst/anim/dt_pv330_na assets/sst/anim/dt_pv330_atl assets/sst/anim/dt_pv330_asia assets/sst/anim/dt_pv350 assets/sst/anim/dt_pv350_npac assets/sst/anim/dt_pv350_na assets/sst/anim/dt_pv350_atl assets/sst/anim/dt_pv350_asia assets/sst/anim/dt_sam assets/sst/anim/dt_pv330_sam assets/sst/anim/dt_pv350_sam
 
       - name: Commit & push
         run: |
@@ -167,18 +149,13 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # Snapshot outputs, then commit on a clean sync of origin/main each attempt
           # (same pattern as mjo.yml: losing the build to a rebase is structurally impossible).
-          # circulation.html is not snapshotted: a run that started before a page push would restore its stale copy
-          # over it. The cache-bust is re-applied to main's current page on every attempt instead.
-          CB=$(date -u +%Y%m%d%H%M)
-          OUT="assets/sst/anim/jets_manifest.json assets/sst/jets.webp assets/sst/anim/dt_manifest.json"
+          OUT="assets/sst/anim/dt_manifest.json"
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar"
-            perl -0pi -e "s/(jets\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
-            git add circulation.html
             for f in $OUT; do [ -e "$f" ] && git add "$f"; done
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -m "data update: ${{ steps.cyc.outputs.date }}_${{ steps.cyc.outputs.time }}z (a)"

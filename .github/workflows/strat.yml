@@ -14,6 +14,8 @@ name: Stratosphere (vortex, waves 1 and 2, E-P flux from GEFS)
 #   qbo_duct.py --model aifs -> scripts/strat/data/zmu_members_aifs.npz (zero line) + v250 for pacjet (heavy job)
 #   qbo_zeroline.py   -> assets/sst/qbo_zeroline_{70,50,30,10}.webp + data/qbo_zeroline{,_aifs}.json   (heavy job)
 #   pacjet.py         -> assets/sst/pacjet_aifs_*.webp, pacjet_torque.webp, anim/pacjet_aifs/  (heavy job; circulation.html)
+#   jets.py           -> assets/sst/jets.webp + anim/jets/  per-member zonal-mean jets from the same u files (heavy job;
+#                        circulation.html), 00/12Z
 #   nh_vortex.py --record-only --members -> data/runs/vortex_{aifs,aifsc}.json + assets/sst/vortex_members_aifs.webp
 #                        (heavy job), the AIFS-ENS run member by member at 10 and 100 hPa
 #
@@ -405,7 +407,7 @@ jobs:
       # nothing else. The full ens_cycle also pulls the Hovmöller/SOI surface
       # batches and IFS-ENS, and at the 07:50Z dispatch IFS-ENS 00Z is not on open
       # data yet, so retries on that one missing file can eat the whole budget.
-      # The subset is ~8 min (the 12-level u pull for all 50 members is ~6 GB); the budget below allows for a slow mirror.
+      # The subset is ~8 min (the u files of all 50 members are ~7.5 GB); the budget below allows for a slow mirror.
       - name: Populate the ENS cycle cache
         working-directory: scripts/mjo
         timeout-minutes: 30
@@ -457,6 +459,18 @@ jobs:
             --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
             || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "North Pacific jet (AIFS-ENS)" "keeping the previous figures"
 
+      # Jets: each member's zonal-mean u at 13 levels to day 15, from the 14-level u files ens_cycle cached above (no
+      # download of its own), against the ERA5 jet climatology (scripts/mjo/data/reference/jet_clim.nc).
+      - name: Jets (AIFS-ENS)
+        if: needs.cycle.outputs.main == 'true'
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst/anim/jets
+          python src/jets.py --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
+            --out ../../assets/sst/jets.webp \
+            --anim-dir ../../assets/sst/anim/jets --manifest ../../assets/sst/anim/jets_manifest.json \
+            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Jets (AIFS-ENS)" "keeping the previous figure"
+
       - name: What was produced
         if: always()
         run: |
@@ -478,6 +492,7 @@ jobs:
           set -euo pipefail
           : > /tmp/heavy.list
           for p in assets/sst/anim/pacjet_aifs assets/sst/anim/pacjet_aifs_manifest.json \
+                   assets/sst/jets.webp assets/sst/anim/jets assets/sst/anim/jets_manifest.json \
                    assets/sst/pacjet_aifs_wk1.webp assets/sst/pacjet_aifs_wk2.webp assets/sst/pacjet_aifs_axis.webp \
                    assets/sst/pacjet_aifs_phase.webp assets/sst/pacjet_torque.webp \
                    assets/sst/pacjet_impacts_lag0.webp assets/sst/pacjet_impacts_lag3_7.webp \
@@ -626,7 +641,7 @@ jobs:
         run: |
           scripts/lib/publish_frames_ci.sh assets/sst/anim/epflux_gefs assets/sst/anim/wave1_nh \
             assets/sst/anim/wave1_sh assets/sst/anim/wave2_nh assets/sst/anim/wave2_sh assets/sst/anim/vortex_10_nh assets/sst/anim/vortex_10_sh assets/sst/anim/vortex_100_nh assets/sst/anim/vortex_100_sh \
-            assets/sst/anim/pacjet_aifs assets/sst/anim/polarcap_aifs assets/sst/anim/z100_aifs assets/sst/anim/t10_aifs \
+            assets/sst/anim/pacjet_aifs assets/sst/anim/jets assets/sst/anim/polarcap_aifs assets/sst/anim/z100_aifs assets/sst/anim/t10_aifs \
             assets/sst/anim/wave1_aifsc_nh assets/sst/anim/wave1_aifsc_sh assets/sst/anim/wave2_aifsc_nh assets/sst/anim/wave2_aifsc_sh \
             assets/sst/anim/vortex_aifsc_10_nh assets/sst/anim/vortex_aifsc_10_sh assets/sst/anim/vortex_aifsc_100_nh \
             assets/sst/anim/vortex_aifsc_100_sh assets/sst/anim/z100_aifsc assets/sst/anim/t10_aifsc
@@ -643,7 +658,7 @@ jobs:
                    assets/sst/vortex_members_aifs.webp \
                    assets/regimes/data/regimes_members_aifs.json assets/regimes/data/regimes_drift_aifs.json \
                    assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_aifs.json \
-                   assets/sst/pacjet_aifs_*.webp assets/sst/pacjet_torque.webp assets/sst/pacjet_impacts_*.webp \
+                   assets/sst/pacjet_aifs_*.webp assets/sst/pacjet_torque.webp assets/sst/pacjet_impacts_*.webp assets/sst/jets.webp \
                    assets/sst/data/pacjet_aifs.json assets/sst/data/pacjet_analysis.json \
                    assets/sst/refractive_gefs.webp assets/sst/data/refractive_gefs.json \
                    assets/sst/data/runs/*_aifs.json assets/sst/runs/*_aifs.webp \
