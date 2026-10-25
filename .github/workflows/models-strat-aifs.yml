@@ -1,0 +1,27 @@
+name: Stratosphere model maps — AIFS single
+
+# Caller for models-strat.yml (strat-models.html). The AIFS single 00/12Z run is complete on the Google Cloud mirror
+# ~7 h 15 min after the start (+360 h at ~19:15Z for 12Z, 2026-10-25); readiness is scripts/ecmwf/cycles.py's check of
+# every step. The local fast lane fires it once the run is complete; these crons are the backstop. A firing with nothing
+# new exits in about a minute.
+on:
+  schedule:
+  - cron: '50 7 * * *'
+  - cron: '50 19 * * *'
+  workflow_dispatch:
+    inputs:
+      cycle:
+        description: "Cycle YYYYMMDDHH (blank = plan the newest unpublished; skipped when it or a newer one is published)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    uses: ./.github/workflows/models-strat.yml
+    with:
+      model: aifs
+      cycle: ${{ inputs.cycle }}
+    secrets: inherit

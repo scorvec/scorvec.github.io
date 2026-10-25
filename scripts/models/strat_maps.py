@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Stratosphere model maps for strat-models.html: the GFS and the GDPS on their pressure levels from 100 hPa up and on
-the isentropic surfaces their levels support, both hemispheres, every 12 hours (GFS to 16 days, GDPS to 10).
+"""Stratosphere model maps for strat-models.html: the GFS, the GDPS and the AIFS single on their pressure levels from 100
+hPa up and (GFS, GDPS) on the isentropic surfaces their levels support, both hemispheres, every 12 hours (GFS to 16
+days, GDPS to 10, AIFS single to 15).
 
 Each model is read on its latitude-longitude output grid (GFS 0.5 deg; GDPS 0.15 deg, averaged over 3 x 3 cells to
-0.45 deg) and every field and step becomes ONE lossless WebP per hemisphere - the format of models.html
+0.45 deg; AIFS single 0.25 deg, one 1-2-1 pass and every second point to 0.5 deg) and every field and step becomes ONE
+lossless WebP per hemisphere - the format of models.html
 (scripts/models/models.py), drawn by the page with WebGL on a polar stereographic projection. Nothing is rendered here.
 
   gfs    NOAA GFS (FV3, 127 layers to 80 km). Maps on its 15 levels 100-0.4 hPa; PV from T, u, v on 27 levels, 400 hPa
@@ -13,6 +15,9 @@ Each model is read on its latitude-longitude output grid (GFS 0.5 deg; GDPS 0.15
          vertical velocity only from 200 hPa down (listings of 2026-10-24): maps on 100-1 hPa, no vertical motion, PV
          from 16 levels 400-1 hPa on 350-850 K only (between 5 and 1 hPa there is no level for 11 km; the GFS run
          measures what that costs, check "gdpslev" below).
+  aifs   ECMWF AIFS single (the deterministic AIFS, 0.25 deg open data). Above 100 hPa it publishes 50 and 10 hPa only:
+         maps on 100, 50 and 10 hPa, no PV (a column of 100, 50, 10 hPa cannot resolve d theta/dp on the isentropes)
+         and no vertical motion (the AIFS-ENS's w failed the site's residual-circulation checks; the AIFS's is not used).
 
 Files, per hemisphere (nh: 0-90 N, sh: 90 S-0), rows south -> north, columns from 180 W less PAD cells to 180 E plus
 PAD cells (the grid from 180 W with PAD columns repeated on each side, so the page can sample and smooth across the date
@@ -66,7 +71,9 @@ after the start (2026-10-23/24). GDPS: the dated MSC Datamart tree (dd.weather.g
 the files scripts/strat/upperstrat_data.py and scripts/models/samerica.py read) through scripts/geps/datamart.py (the
 site's honest User-Agent, retries, a request ledger) with modest concurrency; one global file per variable, level and
 step, read whole (they cannot be cut); +240 h lands ~4 h 50 min after the start, and readiness is a HEAD on two of the
-last step's files.
+last step's files. AIFS single (hard rule: ECMWF open data from the Google Cloud mirror only): byte ranges of t, gh, u, v
+on its three levels through scripts/ecmwf/rangefetch.py (the index, coalesced ranges, the request budget); +360 h is
+on the mirror ~7 h 15 min after the start, and readiness is scripts/ecmwf/cycles.py's (every step's file present).
 
     python scripts/models/strat_maps.py plan --model gfs --manifests assets/models
     python scripts/models/strat_maps.py run --model gdps --cycle 2026102412 --site . --procs 3 --lists /tmp/strat
@@ -91,8 +98,10 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "snowband"))
 sys.path.insert(0, str(HERE.parent / "geps"))
+sys.path.insert(0, str(HERE.parent / "ecmwf"))
 import datamart as DM  # the MSC Datamart fetcher (honest User-Agent, retries, ledger)
 import models as MV  # the viewer's quantiser and WebP writer (models.html decodes the same codes)
+import rangefetch as RF  # ECMWF open data, Google Cloud mirror only
 import snowband as sb  # the shared, validated S3 transport
 import upper as UPR  # per-frame height codes (q_auto) and the downward 2-PVU search
 
@@ -122,6 +131,16 @@ MODELS = {
         col=GDPS_COL,
         thetas=(350, 400, 475, 600, 850),
         absv=(250, 200),
+        omega=False,
+    ),
+    "aifs": dict(
+        label="AIFS single",
+        source="ECMWF AIFS single (the deterministic AIFS) on its 0.25 deg grid, smoothed to 0.5 deg: ECMWF open data (CC BY 4.0), Google Cloud mirror",
+        steps=tuple(range(0, 361, 12)),
+        levels=(100, 50, 10),
+        col=(100, 50, 10),
+        thetas=(),
+        absv=(),
         omega=False,
     ),
 }
@@ -194,6 +213,11 @@ def grid_desc(h, nx, ny, di):
         dj=di,
         w0=-180.0,
     )
+
+
+def half(a):
+    """0.25 -> 0.5 deg: one 1-2-1 pass, then every second point (the poles and 0 E kept)."""
+    return _121(a)[..., ::2, ::2]
 
 
 def coarsen3(a):
@@ -498,12 +522,43 @@ def gdps_units(out, grib_units):
     return rep
 
 
+AIFS_PARAM = {"t": "t", "gh": "z", "u": "u", "v": "v"}  # open-data param -> this module's name
+
+
+def fetch_aifs(date, hh, step):
+    M = MODELS["aifs"]
+    ((rel, idx),) = RF.oper_files(date, hh, "aifs-single", step)
+    want = RF.select(idx, param=list(AIFS_PARAM), levelist=list(M["levels"]))
+    if len(want) != len(AIFS_PARAM) * len(M["levels"]):
+        raise RuntimeError(
+            f"AIFS single +{step} h: {len(want)} of {len(AIFS_PARAM) * len(M['levels'])} messages indexed"
+        )
+    ranges = RF.coalesce(want)
+    blob = RF.fetch_ranges(rel, ranges)  # the messages, concatenated in the ranges' order
+    out, pos = {}, 0
+    for e in (e for _, _, es in ranges for e in es):
+        x, _ = decode_ll(blob[pos : pos + e["_length"]])
+        pos += e["_length"]
+        out[(AIFS_PARAM[e["param"]], float(e["levelist"]))] = half(x)
+    n = out[("t", 10.0)].shape
+    if n != (361, 720):
+        raise RuntimeError(f"unexpected AIFS single grid {n} after halving")
+    for p in M["levels"]:  # units by magnitude, as the GDPS's: K and metres, or the step is not used
+        t, z = float(np.nanmedian(out[("t", float(p))])), float(np.nanmedian(out[("z", float(p))]))
+        if not 150.0 < t < 330.0 or not 0.8 < z / Z_STD[p] < 1.25:
+            raise RuntimeError(
+                f"AIFS single {p} hPa: median temperature {t:.1f}, height {z:.0f} m (~{Z_STD[p]} m expected)"
+            )
+    lat = np.linspace(90.0, -90.0, n[0])
+    return out, lat, dict(requests=len(ranges) + 1, bytes=len(blob), di=0.5)
+
+
 # ── one step (a worker process: fetch, compute, encode) ──────────────────────────────────────────────────────────────
 def process_step(model, date, hh, step, outdir):
     """-> (step, {file: {hemi: q}}, bytes, checks, (requests, bytes fetched), extras)"""
     t0 = time.time()
     M = MODELS[model]
-    msgs, lat, info = (fetch_gfs if model == "gfs" else fetch_gdps)(date, hh, step)
+    msgs, lat, info = {"gfs": fetch_gfs, "gdps": fetch_gdps, "aifs": fetch_aifs}[model](date, hh, step)
     t_fetch = time.time() - t0
     col = col_of(model)
 
@@ -511,9 +566,10 @@ def process_step(model, date, hh, step, outdir):
         return np.stack([msgs[(v, float(p))] for p in col]).astype(np.float64)
 
     T, U, V, Z = stack("t"), stack("u"), stack("v"), stack("z")
-    pv, absv, th = ertel_pv(T, U, V, col, lat)
-    lnp = np.log(np.asarray(col, np.float64))[:, None, None] * np.ones_like(T)
-    mg = (CP * T + G0 * Z) / G0  # the Montgomery streamfunction over g, metres
+    if M["thetas"]:
+        pv, absv, th = ertel_pv(T, U, V, col, lat)
+        lnp = np.log(np.asarray(col, np.float64))[:, None, None] * np.ones_like(T)
+        mg = (CP * T + G0 * Z) / G0  # the Montgomery streamfunction over g, metres
     meta, nbytes, extras = {}, 0, {}
     hlat = {h: hemi(lat[:, None], h)[:, 0] for h in HEMIS}
 
@@ -553,7 +609,7 @@ def process_step(model, date, hh, step, outdir):
         np.save(Path(outdir) / f"_vv_{step:03d}.npy", smooth_sphere(W * HPA_DAY, lat).astype(np.float32))  # vv_level
 
     checks = {"cap": cap}
-    if step in QC_STEPS:
+    if step in QC_STEPS and M["thetas"]:
         checks.update(check_absv(msgs, absv, col, lat, M["absv"]))
         checks.update(check_pv2(msgs, pv, col, lat))
         if model == "gfs":
@@ -705,10 +761,12 @@ def summarise(checks):
 # ── plan / run ──────────────────────────────────────────────────────────────────────────────────────────────────────
 def complete(model, cyc_dt):
     """The run's last step is published: both GFS 0.5 deg files' .idx, or two of the GDPS's last files (the top and
-    the bottom of the column; they land together), answer a HEAD."""
+    the bottom of the column; they land together), answer a HEAD; the AIFS single's every step on the Google mirror."""
     date, hh, last = cyc_dt.strftime("%Y%m%d"), cyc_dt.strftime("%H"), MODELS[model]["steps"][-1]
     if model == "gfs":
         return all(MV.head_ok(gfs_url(date, hh, last, b) + ".idx") for b in (False, True))
+    if model == "aifs":
+        return RF.cycle_complete(date, hh, "aifs-single", last_step=last, kind="fc")
     return all(DM.exists(gdps_url(date, hh, last, v)) for v in ("AirTemp_IsbL-0001", "WindV_IsbL-0400"))
 
 
@@ -814,9 +872,11 @@ def cmd_run(a):
     di = extras["di"]
     wall = time.time() - t_start
     ny, nx = round(90 / di) + 1, round(360 / di) + 2 * PAD
-    cap = {
-        h: {str(t): [checks[str(s)]["cap"][h][str(t)] for s in hours] for t in CAP_THETAS} for h in HEMIS
-    }  # [PV, hPa] per step
+    cap = (
+        {h: {str(t): [checks[str(s)]["cap"][h][str(t)] for s in hours] for t in CAP_THETAS} for h in HEMIS}
+        if M["thetas"]
+        else None
+    )  # [PV, hPa] per step
     entry = dict(
         cycle=key,
         init=cyc_dt.strftime("%Y-%m-%dT%H:00Z"),
@@ -824,7 +884,7 @@ def cmd_run(a):
         hours=hours,
         levels=list(M["levels"]),
         thetas=list(M["thetas"]),
-        pv_levels=col_of(model),
+        pv_levels=col_of(model) if M["thetas"] else [],
         grids={h: grid_desc(h, nx, ny, di) for h in HEMIS},
         enc=dict(
             t=dict(off=T_OFF, step=T_STEP),
@@ -834,7 +894,7 @@ def cmd_run(a):
         fields=fields,
         zmean_km=extras.get("zmean_km", {}),
         cap_hpa=extras.get("cap_hpa", {}),
-        cap=dict(lat=CAP_LAT, values=cap),
+        **({"cap": dict(lat=CAP_LAT, values=cap)} if cap else {}),
         **({"omega": omega} if omega else {}),
         bytes=nbytes,
         fetch=dict(requests=nreq, mb=round(nb / 1e6, 1)),
