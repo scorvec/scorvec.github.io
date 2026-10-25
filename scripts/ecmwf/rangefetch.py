@@ -68,8 +68,7 @@ WORKERS = int(os.environ.get("ECMWF_RANGE_WORKERS", "16"))
 # empirical single-IP ceiling ~32; leave headroom
 # for OTHER processes sharing this IP (pipeline,
 # benchmarks). Adaptive: throttle responses shrink
-# effective concurrency for the rest of the batch.
-_throttle_events = 0
+# effective concurrency for the rest of the batch, and each is logged.
 
 
 # The grids of the open data, as products name them. IFS is also published on a regular 0.1-deg grid (since October
@@ -148,6 +147,7 @@ def fetch_index(
                     return [json.loads(line) for line in r.text.splitlines() if line.strip()]
                 last_err = RuntimeError(f"{src}: HTTP {r.status_code}")
                 if r.status_code in (429, 503):
+                    print(f"  throttled: HTTP {r.status_code} from {src} on {rel.rsplit('/', 1)[-1]}", flush=True)
                     budget.penalize(src)
                     time.sleep(1.5 + 3.0 * attempt)
             except Exception as e:  # noqa: BLE001
@@ -241,6 +241,8 @@ class _Gets:
                         if r.status_code in (429, 503):  # throttled: back off AND
                             budget.penalize(src)
                             self._shrink()  # shed concurrency
+                            print(f"  throttled: HTTP {r.status_code} from {src} on {self.rel.rsplit('/', 1)[-1]}, "
+                                  f"{self.permits} requests in flight from now", flush=True)  # fmt: skip
                             time.sleep(1.0 + 2.0 * attempt)
                     except Exception as e:  # noqa: BLE001
                         last = e

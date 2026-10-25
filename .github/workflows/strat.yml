@@ -172,9 +172,14 @@ jobs:
     needs: cycle
     if: needs.cycle.outputs.fresh == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 90  # ~45 min since the 10 hPa maps joined it (2026-10-24)
+    timeout-minutes: 90  # ~45 min with all 50 AIFS-ENS members (2026-10-25)
     env:
       MPLBACKEND: Agg
+      # Google mirror request caps (scripts/ecmwf/budget.py, defaults 20/s and 14/s): the drip's 90-65N rows are one
+      # request per message (~9,000), so the cap sets their speed. A throttle response halves the cap for 45 s
+      # (budget.penalize) and is logged ("throttled: HTTP 429 ..."), so a cap set too high slows itself down.
+      ECMWF_RPS: "36"
+      ECMWF_RPS_GOOGLE: "30"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
