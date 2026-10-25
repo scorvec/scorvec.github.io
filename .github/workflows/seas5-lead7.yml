@@ -65,14 +65,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          if [ "${{ inputs.mode }}" != "probe" ]; then
-            for i in 1 2 3; do
-              if sudo timeout 240 apt-get update -qq -o Acquire::Retries=3 && \
-                 sudo timeout 300 apt-get install -y --no-install-recommends -o Acquire::Retries=3 \
-                   libgeos-dev libproj-dev proj-bin libeccodes0; then break; fi
-              echo "apt attempt $i failed; retrying"; sleep 10
-            done
-          fi
           pip install --quiet numpy pandas scipy xarray cfgrib eccodes cdsapi requests \
             matplotlib==3.10.9 cartopy==0.25.0 'shapely>=2.1.2' 'pyproj>=3.7.2' Pillow netCDF4 h5netcdf \
             'icechunk==2.2.2' 'zarr>=3'

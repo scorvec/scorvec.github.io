@@ -28,8 +28,6 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-      - name: System libraries
-        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
       - name: Install Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
       - name: Daily zonal-mean v
@@ -53,7 +51,6 @@ jobs:
           python-version: '3.11'
       - name: Install Python dependencies
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
           pip install -r scripts/mjo/requirements-mjo.txt
       - uses: actions/download-artifact@v7
         with:
@@ -80,7 +77,6 @@ jobs:
           python-version: '3.11'
       - name: Install Python dependencies
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
           pip install -r scripts/mjo/requirements-mjo.txt
       - name: Walker climatology
         run: python scripts/mjo/src/build_walker_clim.py --stride 5

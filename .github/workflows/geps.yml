@@ -83,7 +83,6 @@ jobs:
           key: geps-pip-v1
       - name: Install Python dependencies
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libgeos-dev libproj-dev proj-bin
           # netCDF4/h5netcdf are xarray BACKEND plugins (no import names them); zarr+gcsfs read ARCO ERA5 for the MJO
           # channels (fetch_arco_*); cartopy 0.25 pinned (0.26 collapses dateline-centred extents, 2026-09-18).
           # eofs: the MJO reference helpers (scripts/mjo/src/setup_reference.py) import it.

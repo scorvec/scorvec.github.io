@@ -125,12 +125,6 @@ jobs:
       - name: Install dependencies
         if: steps.gate.outputs.run == '1'
         run: |
-          for i in 1 2 3; do
-            if sudo timeout 240 apt-get update -qq -o Acquire::Retries=3 && \
-               sudo timeout 300 apt-get install -y --no-install-recommends -o Acquire::Retries=3 \
-                 libgeos-dev libproj-dev proj-bin libeccodes0; then break; fi
-            echo "apt attempt $i failed; retrying"; sleep 10
-          done
           # cartopy pinned to 0.25 (0.26 collapses dateline-centred global extents) and
           # matplotlib to 3.10 (see requirements-sst.txt). netCDF4/h5netcdf are xarray backend plugins.
           pip install --quiet numpy pandas scipy xarray cfgrib eccodes cdsapi requests \

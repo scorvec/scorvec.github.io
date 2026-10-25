@@ -112,17 +112,6 @@ jobs:
           restore-keys: |
             ersst-v6-
 
-      - name: Install cartopy system libs
-        run: |
-          # Bounded + retried: an apt mirror hang here once ate the full 60-min job budget
-          # (2026-08-19 run, killed at timeout during this step).
-          for i in 1 2 3; do
-            if sudo timeout 240 apt-get update -qq -o Acquire::Retries=3 && \
-               sudo timeout 300 apt-get install -y --no-install-recommends -o Acquire::Retries=3 \
-                 libgeos-dev libproj-dev proj-bin; then exit 0; fi
-            echo "apt attempt $i failed; retrying"; sleep 10
-          done
-          exit 1
 
       - name: Install Python dependencies
         run: pip install -r scripts/sst/requirements-sst.txt

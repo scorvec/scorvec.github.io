@@ -42,10 +42,6 @@ jobs:
           key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
           restore-keys: |
             pip-mjo-${{ runner.os }}-
-      - name: System libs
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
       - name: Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
 

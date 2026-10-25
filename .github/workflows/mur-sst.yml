@@ -43,15 +43,6 @@ jobs:
         with:
           path: ~/.cache/pip
           key: pip-mur-${{ runner.os }}-v1
-      - name: Install cartopy system libs
-        run: |
-          for i in 1 2 3; do
-            if sudo timeout 240 apt-get update -qq -o Acquire::Retries=3 && \
-               sudo timeout 300 apt-get install -y --no-install-recommends -o Acquire::Retries=3 \
-                 libgeos-dev libproj-dev proj-bin; then exit 0; fi
-            echo "apt attempt $i failed; retrying"; sleep 10
-          done
-          exit 1
       - name: Install Python dependencies
         run: pip install --quiet numpy pandas xarray netcdf4 matplotlib==3.10.9 cartopy==0.25.0 "shapely>=2.0" "pyproj>=3.5" Pillow
       # The still maps are retired from the page for now — only the event

@@ -71,7 +71,6 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libgeos-dev libproj-dev proj-bin
           # dask is not optional: without it xarray.open_zarr loads eagerly, so each 4.8 GB
           # reforecast variable is materialised whole and the climatology step is OOM-killed
           # (exit 143). With dask it streams 11 MB chunks.

@@ -41,7 +41,6 @@ jobs:
           python-version: '3.11'
       - name: Install
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0
           pip install --quiet numpy pandas requests eccodes pyproj matplotlib
 
       - name: The decoded months already in the release

@@ -68,7 +68,6 @@ jobs:
           python-version: '3.11'
       - name: Install Python dependencies
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libgeos-dev libproj-dev proj-bin
           # cartopy pinned at 0.25: 0.26 blanks full-longitude maps (dateline collapse, 2026-09-18)
           pip install --quiet numpy pandas requests eccodes global-land-mask scipy pyproj \
             matplotlib==3.10.9 cartopy==0.25.0 pillow

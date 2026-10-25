@@ -40,7 +40,6 @@ jobs:
           python-version: '3.11'
       - name: Install Python dependencies
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
           pip install -r scripts/mjo/requirements-mjo.txt
       - name: Forward paths on the newest run
         run: python scripts/mjo/src/hadley_branch_maps.py forecast

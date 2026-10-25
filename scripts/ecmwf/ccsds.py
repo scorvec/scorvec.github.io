@@ -7,7 +7,8 @@ message. A product that needs only high northern latitudes (the 65N circle of th
 prefix_share).
 
 leading_rows() returns None for anything it does not handle - another packing, a bitmap, another grid or scanning
-order, a prefix too short or no libaec - and the caller decodes the whole message with eccodes instead.
+order, a prefix too short or no libaec (the system's, or the copy in the eccodes wheel) - and the caller decodes the
+whole message with eccodes instead.
 """
 
 from __future__ import annotations
@@ -50,6 +51,13 @@ def _load():
     names = [ctypes.util.find_library("aec")] + [
         str(Path(sys.prefix) / "lib" / n) for n in ("libaec.so.0", "libaec.dylib")
     ]
+    try:  # the copy the eccodes wheel ships (eccodeslib), so no system package is needed
+        import eccodeslib
+
+        root = Path(eccodeslib.__file__).parent
+        names += [str(root / d / n) for d in ("lib64", "lib") for n in ("libaec.so.0", "libaec.dylib")]
+    except ImportError:
+        pass
     for name in filter(None, names):
         try:
             return ctypes.CDLL(name)

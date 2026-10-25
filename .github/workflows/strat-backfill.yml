@@ -90,8 +90,6 @@ jobs:
             pip-mjo-${{ runner.os }}-
       - name: Dependencies
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends libeccodes0 libaec0 libgeos-dev libproj-dev proj-bin
           pip install -r scripts/mjo/requirements-mjo.txt
       # one IFS run's shared files are ~9 GB
       - name: Free disk

@@ -57,10 +57,6 @@ jobs:
           key: hc-anfc-store-v1-
           restore-keys: |
             hc-anfc-store-v1-
-      - name: Install cartopy system libs
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends libgeos-dev libproj-dev proj-bin
       - name: Install Python dependencies
         run: pip install -r scripts/sst/requirements-sst.txt
 
