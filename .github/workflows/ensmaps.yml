@@ -10,9 +10,12 @@ name: Global ensemble maps (data)
 # fetch + compute + encode, publish the cycle directory to the FRAMES STORE ONLY (FRAMES_BRANCH=off: this product never
 # touches the git `frames` branch; the old cycle is pruned in the store), THEN commit the manifest to main - never the
 # other way round, or the page would point at data that is not there yet. The previous run's statistics (the change
-# test) come from the Actions cache (ensmaps-<model>-stats-<YYYYMMDDHH>; all but the two newest are deleted).
+# test) come from the Actions cache (ensmaps-<model>-stats-<YYYYMMDDHH>; all but the two newest are deleted). The
+# same run labels each member's weather regime from the 500 hPa fields it holds (scripts/ensmaps/ensmaps_regimes.py, no
+# download of its own) and commits the labels (assets/regimes/data/ensmaps_members_<model>.json, regime_core's
+# members_record format) and, on a 00Z run, its drift archive (ensmaps_drift_<model>.json) with the manifest.
 #
-# Sources per run (the steps of the 15 or 14 full days, 6-hourly):
+# Sources per run (the steps of the full days, 6-hourly: 15 or 14, GEFS and GEPS to +384 h one more):
 #   ifs   ECMWF open data, Google Cloud mirror only: 2t of the 50 perturbed members from the 0.1-deg surface files,
 #         msl and gh 500 from the 0.25-deg files, byte ranges of the wanted messages
 #   aifs  the same mirror: 2t, msl and z 500 of the control and 50 perturbed members, 0.25 deg
@@ -86,8 +89,13 @@ jobs:
             /scripts/geps/datamart.py
             /scripts/geps/paths.py
             /scripts/models/publish_data.sh
+            /scripts/regimes/regime_core.py
+            /scripts/regimes/regimes_ecmwf.py
+            /scripts/regimes/data/
             /scripts/constraints.txt
             /assets/models/ensmaps_*.json
+            /assets/regimes/data/ensmaps_*.json
+            /assets/regimes/data/regimes_drift_*.json
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
@@ -110,7 +118,12 @@ jobs:
           if timeout 60 git fetch -q --depth 1 origin main && git show "FETCH_HEAD:assets/models/ensmaps_$MODEL.json" > "/tmp/ensmaps_$MODEL.json" 2>/dev/null; then
             cp "/tmp/ensmaps_$MODEL.json" "assets/models/ensmaps_$MODEL.json"
           else echo "no manifest on main yet for $MODEL"; rm -f "assets/models/ensmaps_$MODEL.json"; fi
-          python scripts/ensmaps/ensmaps.py plan --model "$MODEL" --manifests assets/models ${CYCLE:+--cycle "$CYCLE"} $FORCE > "$RUNNER_TEMP/plan.txt"
+          # and its regime drift archive, which only the 00Z runs extend
+          D="assets/regimes/data/ensmaps_drift_$MODEL.json"
+          if git show "FETCH_HEAD:$D" > "/tmp/drift_$MODEL.json" 2>/dev/null; then mkdir -p "$(dirname "$D")"; cp "/tmp/drift_$MODEL.json" "$D"; fi
+          # a run dispatched as its last step lands is waited for (up to 25 min) when it is due
+          python scripts/ensmaps/ensmaps.py plan --model "$MODEL" --manifests assets/models ${CYCLE:+--cycle "$CYCLE"} $FORCE \
+            --wait-min 25 > "$RUNNER_TEMP/plan.txt"
           cyc=$(head -n 1 "$RUNNER_TEMP/plan.txt")
           if [ -z "$cyc" ]; then echo "nothing new for $MODEL"; echo "cycle=" >> "$GITHUB_OUTPUT"; exit 0; fi
           prev=$(date -u -d "${cyc:0:8} ${cyc:8:2}:00 12 hours ago" +%Y%m%d%H)
@@ -166,19 +179,19 @@ jobs:
             | sort -r | tail -n +3 | while read -r k id; do
               gh cache delete "$id" -R "$GITHUB_REPOSITORY" && echo "deleted $k" || echo "::warning::could not delete $k"
             done
-      - name: Commit & push the manifest
+      - name: Commit & push the manifest and the regime labels
         if: steps.run.outputs.done == '1'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          OUT="assets/models/ensmaps_$MODEL.json"
+          outs() { ls "assets/models/ensmaps_$MODEL.json" "assets/regimes/data/ensmaps_members_$MODEL.json" "assets/regimes/data/ensmaps_drift_$MODEL.json" 2>/dev/null; }
           SNAP=$(mktemp -d)
-          cp "$OUT" "$SNAP/"
+          tar cf "$SNAP/outs.tar" $(outs)
           for i in 1 2 3 4 5; do
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset -q --hard origin/main
-            cp "$SNAP/$(basename "$OUT")" "$OUT"
-            git add -f "$OUT"
+            tar xf "$SNAP/outs.tar"
+            for f in $(outs); do git add -f "$f"; done
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -q -m "ensmaps: $MODEL ${{ steps.plan.outputs.cycle }}"
             if timeout 180 git push origin HEAD:main; then echo "Pushed on attempt $i."; exit 0; fi
