@@ -562,10 +562,12 @@
   function cyc() { return cycleOf(st.model); }
   function spanOf(c, k) { if (!c) return null; for (var i = 0; i < c.spans.length; i++) if (c.spans[i].key === k) return c.spans[i]; return null; }
   function hasAnom(c, f) { return !!(c && c.fields[f] && c.fields[f].anomaly); }
-  function hasChange(c, f) { return !!(c && c.spans.some(function (s) { return s.change && s.change[f]; })); }
+  function hasChange12(c, f) { return !!(c && c.spans.some(function (s) { return s.change && s.change[f]; })); }
   function hasChange6(c, f) { return !!(c && c.spans.some(function (s) { return s.change6 && s.change6[f]; })); }
-  // the change on screen: from the run 12 h earlier, or from the run 6 h earlier where this run has that (c6/ frames)
-  function vs6On(c) { return st.vs6 && st.view === "change" && hasChange6(c, st.field); }
+  function hasChange(c, f) { return hasChange12(c, f) || hasChange6(c, f); }
+  // the change on screen: from the run 12 h earlier, or from the run 6 h earlier (c6/ frames) when that is picked or
+  // the only one this run has (the first run after a missing one)
+  function vs6On(c) { return st.view === "change" && hasChange6(c, st.field) && (st.vs6 || !hasChange12(c, st.field)); }
   function chOf(c, sp, f) { var k = vs6On(c) ? "change6" : "change"; return sp && sp[k] ? sp[k][f] : null; }
   function vsH(c) { return vs6On(c) ? 6 : 12; }
   function hasRegimes(c) { return !!(c && c.regimes && c.regimes.sectors); }
@@ -1696,7 +1698,7 @@
     var six = st.view === "change" && rs.some(function (x) { return hasChange6(x, st.field); });
     $("vsSeg").hidden = !six;
     if (six) segButtons($("vsSeg"), ["12", "6"], function (v) { return "vs " + v + " h earlier"; }, vs6On(c) ? "6" : "12", function (v) { st.vs6 = v === "6"; setButtons(); onChange(); },
-      function (v) { return v === "6" ? "The change from the run 6 h earlier" : "The change from the run 12 h earlier"; }, function (v) { return v === "6" && !hasChange6(c, st.field); });
+      function (v) { return v === "6" ? "The change from the run 6 h earlier" : "The change from the run 12 h earlier"; }, function (v) { return v === "6" ? !hasChange6(c, st.field) : !hasChange12(c, st.field); });
     var ds = days(c); $("day").max = Math.max(1, ds.length);
     var cur = st.span[0] === "D" ? +st.span.slice(1) : null;
     $("day").value = cur || 1; $("day").classList.toggle("off", !cur);
@@ -1917,7 +1919,7 @@
     if (st.view === "clusters") x.push("c" + st.cdom, st.cwin === "day" ? "day" + ("0" + st.cday).slice(-2) : st.cwin);
     if (st.unit === "F") x.push("F");
     if (st.sigma) x.push("s");
-    if (vs6On(cyc())) x.push("v6");
+    if (st.vs6 && vs6On(cyc())) x.push("v6");
     MODEL_ORDER.forEach(function (m) { if (st.run[m]) x.push("r" + m + st.run[m]); });
     try { history.replaceState(null, "", "#" + x.join("/")); } catch (e) {}
   }
