@@ -1,6 +1,6 @@
 {
- "generated": "2026-10-25T01:58Z",
- "init": "2026-10-24T12:00Z",
+ "generated": "2026-10-25T13:48Z",
+ "init": "2026-10-25T00:00Z",
  "model": "IFS-ENS perturbed members, 0.1\u00b0 open data (Google Cloud mirror)",
  "members": 50,
  "days": [
@@ -17,11 +17,12 @@
   "2026-11-04",
   "2026-11-05",
   "2026-11-06",
-  "2026-11-07"
+  "2026-11-07",
+  "2026-11-08"
  ],
  "agree": 0.6667,
  "fdr_q": 0.1,
- "previous_run": "2026-10-24T00:00Z",
+ "previous_run": "2026-10-24T12:00Z",
  "change_frames": true,
  "shares_over": "the map's grid points",
  "anom": [
@@ -29,171 +30,181 @@
    "frame": "P1",
    "first": "2026-10-25",
    "last": "2026-10-29",
-   "warm": 0.73,
-   "cold": 0.206,
-   "neutral": 0.064,
-   "max_f": 27.8,
-   "min_f": -19.3
+   "warm": 0.738,
+   "cold": 0.197,
+   "neutral": 0.065,
+   "max_f": 27.1,
+   "min_f": -19.1
   },
   {
    "frame": "P2",
    "first": "2026-10-30",
    "last": "2026-11-03",
-   "warm": 0.771,
-   "cold": 0.111,
-   "neutral": 0.118,
-   "max_f": 25.1,
-   "min_f": -13.3
+   "warm": 0.787,
+   "cold": 0.116,
+   "neutral": 0.098,
+   "max_f": 25.3,
+   "min_f": -13.2
   },
   {
    "frame": "P3",
    "first": "2026-11-04",
-   "last": "2026-11-07",
-   "warm": 0.836,
-   "cold": 0.02,
-   "neutral": 0.144,
-   "max_f": 24.1,
-   "min_f": -9.5
+   "last": "2026-11-08",
+   "warm": 0.863,
+   "cold": 0.013,
+   "neutral": 0.124,
+   "max_f": 23.8,
+   "min_f": -10.0
   },
   {
    "frame": "D01",
    "first": "2026-10-25",
    "last": "2026-10-25",
-   "warm": 0.709,
-   "cold": 0.24,
-   "neutral": 0.051,
-   "max_f": 28.0,
-   "min_f": -30.8
+   "warm": 0.722,
+   "cold": 0.233,
+   "neutral": 0.045,
+   "max_f": 27.5,
+   "min_f": -31.1
   },
   {
    "frame": "D02",
    "first": "2026-10-26",
    "last": "2026-10-26",
-   "warm": 0.713,
-   "cold": 0.208,
-   "neutral": 0.079,
-   "max_f": 27.0,
-   "min_f": -27.8
+   "warm": 0.732,
+   "cold": 0.195,
+   "neutral": 0.074,
+   "max_f": 26.7,
+   "min_f": -28.3
   },
   {
    "frame": "D03",
    "first": "2026-10-27",
    "last": "2026-10-27",
-   "warm": 0.675,
-   "cold": 0.231,
-   "neutral": 0.095,
-   "max_f": 27.3,
-   "min_f": -19.6
+   "warm": 0.684,
+   "cold": 0.226,
+   "neutral": 0.09,
+   "max_f": 26.7,
+   "min_f": -18.5
   },
   {
    "frame": "D04",
    "first": "2026-10-28",
    "last": "2026-10-28",
-   "warm": 0.722,
-   "cold": 0.198,
-   "neutral": 0.08,
-   "max_f": 29.2,
-   "min_f": -17.8
+   "warm": 0.724,
+   "cold": 0.206,
+   "neutral": 0.07,
+   "max_f": 28.9,
+   "min_f": -15.7
   },
   {
    "frame": "D05",
    "first": "2026-10-29",
    "last": "2026-10-29",
-   "warm": 0.719,
-   "cold": 0.19,
-   "neutral": 0.092,
-   "max_f": 29.9,
-   "min_f": -16.8
+   "warm": 0.716,
+   "cold": 0.202,
+   "neutral": 0.082,
+   "max_f": 29.0,
+   "min_f": -15.8
   },
   {
    "frame": "D06",
    "first": "2026-10-30",
    "last": "2026-10-30",
    "warm": 0.726,
-   "cold": 0.177,
-   "neutral": 0.096,
-   "max_f": 24.7,
-   "min_f": -15.7
+   "cold": 0.183,
+   "neutral": 0.091,
+   "max_f": 27.1,
+   "min_f": -16.3
   },
   {
    "frame": "D07",
    "first": "2026-10-31",
    "last": "2026-10-31",
-   "warm": 0.706,
-   "cold": 0.147,
-   "neutral": 0.147,
-   "max_f": 26.8,
-   "min_f": -14.5
+   "warm": 0.722,
+   "cold": 0.144,
+   "neutral": 0.133,
+   "max_f": 27.9,
+   "min_f": -15.6
   },
   {
    "frame": "D08",
    "first": "2026-11-01",
    "last": "2026-11-01",
-   "warm": 0.735,
-   "cold": 0.096,
-   "neutral": 0.169,
-   "max_f": 24.9,
-   "min_f": -15.4
+   "warm": 0.76,
+   "cold": 0.1,
+   "neutral": 0.14,
+   "max_f": 25.5,
+   "min_f": -14.2
   },
   {
    "frame": "D09",
    "first": "2026-11-02",
    "last": "2026-11-02",
-   "warm": 0.758,
-   "cold": 0.058,
-   "neutral": 0.184,
-   "max_f": 27.4,
-   "min_f": -14.4
+   "warm": 0.772,
+   "cold": 0.052,
+   "neutral": 0.176,
+   "max_f": 26.3,
+   "min_f": -17.3
   },
   {
    "frame": "D10",
    "first": "2026-11-03",
    "last": "2026-11-03",
-   "warm": 0.746,
-   "cold": 0.044,
-   "neutral": 0.209,
-   "max_f": 27.8,
-   "min_f": -13.8
+   "warm": 0.744,
+   "cold": 0.041,
+   "neutral": 0.215,
+   "max_f": 26.2,
+   "min_f": -17.1
   },
   {
    "frame": "D11",
    "first": "2026-11-04",
    "last": "2026-11-04",
-   "warm": 0.754,
-   "cold": 0.039,
-   "neutral": 0.207,
-   "max_f": 25.3,
-   "min_f": -12.3
+   "warm": 0.742,
+   "cold": 0.056,
+   "neutral": 0.201,
+   "max_f": 24.9,
+   "min_f": -11.5
   },
   {
    "frame": "D12",
    "first": "2026-11-05",
    "last": "2026-11-05",
-   "warm": 0.795,
-   "cold": 0.021,
-   "neutral": 0.184,
-   "max_f": 23.9,
-   "min_f": -9.0
+   "warm": 0.793,
+   "cold": 0.033,
+   "neutral": 0.174,
+   "max_f": 24.8,
+   "min_f": -10.1
   },
   {
    "frame": "D13",
    "first": "2026-11-06",
    "last": "2026-11-06",
-   "warm": 0.826,
-   "cold": 0.013,
-   "neutral": 0.162,
-   "max_f": 24.0,
-   "min_f": -8.5
+   "warm": 0.83,
+   "cold": 0.007,
+   "neutral": 0.163,
+   "max_f": 24.8,
+   "min_f": -9.1
   },
   {
    "frame": "D14",
    "first": "2026-11-07",
    "last": "2026-11-07",
-   "warm": 0.818,
-   "cold": 0.006,
-   "neutral": 0.176,
-   "max_f": 23.4,
-   "min_f": -9.3
+   "warm": 0.823,
+   "cold": 0.003,
+   "neutral": 0.174,
+   "max_f": 22.7,
+   "min_f": -10.0
+  },
+  {
+   "frame": "D15",
+   "first": "2026-11-08",
+   "last": "2026-11-08",
+   "warm": 0.802,
+   "cold": 0.002,
+   "neutral": 0.197,
+   "max_f": 22.4,
+   "min_f": -9.4
   }
  ],
  "change": [
@@ -201,21 +212,21 @@
    "frame": "P1",
    "first": "2026-10-25",
    "last": "2026-10-29",
-   "warm": 0.071,
-   "cold": 0.141,
-   "neutral": 0.788,
-   "max_f": 4.0,
-   "min_f": -4.1
+   "warm": 0.232,
+   "cold": 0.174,
+   "neutral": 0.593,
+   "max_f": 4.7,
+   "min_f": -2.5
   },
   {
    "frame": "P2",
    "first": "2026-10-30",
    "last": "2026-11-03",
-   "warm": 0.077,
-   "cold": 0.099,
-   "neutral": 0.824,
-   "max_f": 4.1,
-   "min_f": -4.3
+   "warm": 0.004,
+   "cold": 0.001,
+   "neutral": 0.995,
+   "max_f": 2.1,
+   "min_f": -2.4
   },
   {
    "frame": "P3",
@@ -231,111 +242,111 @@
    "frame": "D01",
    "first": "2026-10-25",
    "last": "2026-10-25",
-   "warm": 0.108,
-   "cold": 0.267,
-   "neutral": 0.625,
-   "max_f": 8.5,
-   "min_f": -4.4
+   "warm": 0.347,
+   "cold": 0.143,
+   "neutral": 0.51,
+   "max_f": 5.2,
+   "min_f": -4.5
   },
   {
    "frame": "D02",
    "first": "2026-10-26",
    "last": "2026-10-26",
-   "warm": 0.107,
-   "cold": 0.163,
-   "neutral": 0.73,
-   "max_f": 5.5,
-   "min_f": -8.7
+   "warm": 0.248,
+   "cold": 0.143,
+   "neutral": 0.61,
+   "max_f": 6.8,
+   "min_f": -6.0
   },
   {
    "frame": "D03",
    "first": "2026-10-27",
    "last": "2026-10-27",
-   "warm": 0.101,
-   "cold": 0.12,
-   "neutral": 0.779,
-   "max_f": 6.2,
-   "min_f": -10.9
+   "warm": 0.23,
+   "cold": 0.186,
+   "neutral": 0.584,
+   "max_f": 9.6,
+   "min_f": -7.5
   },
   {
    "frame": "D04",
    "first": "2026-10-28",
    "last": "2026-10-28",
-   "warm": 0.138,
-   "cold": 0.113,
-   "neutral": 0.749,
-   "max_f": 8.1,
-   "min_f": -7.8
+   "warm": 0.231,
+   "cold": 0.204,
+   "neutral": 0.565,
+   "max_f": 7.7,
+   "min_f": -7.2
   },
   {
    "frame": "D05",
    "first": "2026-10-29",
    "last": "2026-10-29",
-   "warm": 0.178,
-   "cold": 0.178,
-   "neutral": 0.644,
-   "max_f": 10.2,
-   "min_f": -9.7
+   "warm": 0.189,
+   "cold": 0.179,
+   "neutral": 0.633,
+   "max_f": 5.6,
+   "min_f": -4.7
   },
   {
    "frame": "D06",
    "first": "2026-10-30",
    "last": "2026-10-30",
-   "warm": 0.093,
-   "cold": 0.156,
-   "neutral": 0.751,
-   "max_f": 11.2,
-   "min_f": -8.8
+   "warm": 0.182,
+   "cold": 0.142,
+   "neutral": 0.676,
+   "max_f": 5.5,
+   "min_f": -6.1
   },
   {
    "frame": "D07",
    "first": "2026-10-31",
    "last": "2026-10-31",
-   "warm": 0.065,
-   "cold": 0.11,
-   "neutral": 0.826,
-   "max_f": 7.3,
-   "min_f": -6.3
+   "warm": 0.077,
+   "cold": 0.037,
+   "neutral": 0.886,
+   "max_f": 5.2,
+   "min_f": -5.7
   },
   {
    "frame": "D08",
    "first": "2026-11-01",
    "last": "2026-11-01",
-   "warm": 0.04,
-   "cold": 0.034,
-   "neutral": 0.927,
-   "max_f": 5.3,
-   "min_f": -4.1
+   "warm": 0.006,
+   "cold": 0.001,
+   "neutral": 0.993,
+   "max_f": 6.4,
+   "min_f": -2.6
   },
   {
    "frame": "D09",
    "first": "2026-11-02",
    "last": "2026-11-02",
-   "warm": 0.084,
-   "cold": 0.043,
-   "neutral": 0.873,
-   "max_f": 6.5,
-   "min_f": -6.5
+   "warm": 0.0,
+   "cold": 0.0,
+   "neutral": 1.0,
+   "max_f": 1.9,
+   "min_f": -5.1
   },
   {
    "frame": "D10",
    "first": "2026-11-03",
    "last": "2026-11-03",
-   "warm": 0.057,
-   "cold": 0.031,
-   "neutral": 0.911,
-   "max_f": 8.8,
+   "warm": 0.012,
+   "cold": 0.008,
+   "neutral": 0.98,
+   "max_f": 6.5,
    "min_f": -6.0
   },
   {
    "frame": "D11",
    "first": "2026-11-04",
    "last": "2026-11-04",
-   "warm": 0.0,
-   "cold": 0.0,
-   "neutral": 1.0,
-   "max_f": null,
-   "min_f": null
+   "warm": 0.033,
+   "cold": 0.022,
+   "neutral": 0.945,
+   "max_f": 8.8,
+   "min_f": -6.7
   },
   {
    "frame": "D12",
@@ -344,8 +355,8 @@
    "warm": 0.0,
    "cold": 0.0,
    "neutral": 1.0,
-   "max_f": null,
-   "min_f": null
+   "max_f": 2.3,
+   "min_f": 1.8
   },
   {
    "frame": "D13",
@@ -369,9 +380,9 @@
   }
  ],
  "fetch": {
-  "bytes": 3888434736,
-  "messages": 2800,
-  "seconds": 235
+  "bytes": 4165141669,
+  "messages": 3000,
+  "seconds": 249
  },
  "normals": {
   "source": "ERA5-Land monthly means by hour of day over land; ERA5 (0.25 deg, sea nodes) over the sea",
