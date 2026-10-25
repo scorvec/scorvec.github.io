@@ -156,7 +156,6 @@
   .cl-card img { display: block; width: 100%; max-width: 960px; max-height: calc(100vh - 120px); object-fit: contain; }
   .cl-card figcaption { font-size: 0.95rem; color: var(--ink2); margin-top: 0.35rem; display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; align-items: center; }
   .cl-card figcaption canvas { width: 280px; height: 56px; }
-  .cl-card .flag { color: #9c1c2a; font-weight: 600; }
   .cl-time[hidden] { display: none; }
   .cl-card .lt { display: inline-block; width: 0.8rem; height: 0.8rem; border-radius: 2px; margin-right: 0.35rem; vertical-align: -0.05rem; }
   .cl-fd { margin: 1rem 0 0.4rem; }
@@ -505,7 +504,7 @@
     <p><b>The scenarios</b> are the regimes that hold at least six members of the chosen ensemble on the period's middle day (a period's label is its own 5-day mean) or on the day: the share of that regime in every ensemble on that date, side by side with the normal as a tick, and the mean anomaly of just its members, coloured only where at least <i>k</i> of them agree on its sign (the sign test at 5&nbsp;% on that regime's member count; fewer than six members can never pass it). <b>Since the previous run</b>: each regime's share against the same ensemble's run 12&nbsp;hours earlier on the same dates, coloured where Fisher's exact test on the two runs' member counts is significant with the false discovery rate held at 10&nbsp;% over the table. Each run's labels are published in the multi-model view's format (<code>assets/regimes/data/ensmaps_members_&lt;model&gt;.json</code>).</p>
     <h3 id="clusters">Clusters</h3>
     <p>The members of all four ensembles' newest runs are pooled on the same calendar days and grouped into the scenarios their spread supports, for days 3&ndash;5, 6&ndash;10 and 11&ndash;15 (each the mean over its days, counted from the newest run's first full day and cut to the days every run holds) and for each day on its own (its daily mean, from the ensembles that reach it: GEFS and GEPS alone hold day 16), over the Euro-Atlantic, North America and the Pacific (the regimes' boxes, outlined on the maps) and the whole hemisphere north of 20&deg;N. Each member's 500&nbsp;hPa height and sea-level pressure anomalies, on a 2.5&deg; grid, are divided by their typical 1991&ndash;2020 spread over the domain for that time of year and period, weighted by the square root of the cosine of latitude and joined; each ensemble's members together carry a quarter of the weight, so the 50 and 51-member ensembles count no more than GEPS's 21. The leading patterns of the members' differences from the four-ensemble mean (enough to explain 80&nbsp;% of them) are grouped by weighted k-means (100 starts) into 1 to 5 clusters. More than one is shown only when the split cuts the spread by more than it does in 95&nbsp;% of 100 synthetic ensembles with the same spread but no clusters, every cluster holds at least 5&nbsp;% of the weight, and resampling the members gives the same number of clusters at least 60&nbsp;% of the time; otherwise the page shows one scenario, the four-ensemble mean.</p>
-    <p>Each scenario's probability is its share of the weight, with the share of each ensemble's own members beside it; its nearest regime is the regime whose pattern correlates best with the scenario's mean 500&nbsp;hPa anomaly in each sector (&ldquo;no regime&rdquo; below 0.25). On the maps the anomaly is shaded where the scenario's members agree on its sign (the sign test at 5&nbsp;%), the lines are the scenario's mean height (every 6&nbsp;dam) and pressure (every 4&nbsp;hPa), and dots mark where the scenario's mean differs from the four-ensemble mean (500 random sets of as many members, false discovery rate 10&nbsp;%). A test of whether the clusters follow the ensembles (a permutation chi-square) names a scenario made mostly of one ensemble's members: until each model's drift is removed (from ten verified runs on, as for the regimes), such a split can be the models' own differences rather than the weather's. The table gives how the members move from one window's scenarios to the next.</p>
+    <p>Each scenario's probability is its share of the weight, with the share of each ensemble's own members beside it; its nearest regime is the regime whose pattern correlates best with the scenario's mean 500&nbsp;hPa anomaly in each sector (&ldquo;no regime&rdquo; below 0.25). On the maps the anomaly is shaded where the scenario's members agree on its sign (the sign test at 5&nbsp;%), the lines are the scenario's mean height (every 6&nbsp;dam) and pressure (every 4&nbsp;hPa), and dots mark where the scenario's mean differs from the four-ensemble mean (500 random sets of as many members, false discovery rate 10&nbsp;%). A split that passes those tests can still be the models' own differences rather than the weather's: on the first days each ensemble's members sit close to their own mean, and the means differ. So every split is also tested against the ensembles the members come from (a permutation chi-square test of ensemble against cluster, 2000 permutations); where it fails at 5&nbsp;% the page shows no scenarios, says that the ensembles differ and shows each ensemble's own mean instead (marked &ne; in the chart by day). Scenarios are shown only for the windows and days that pass both. Once a model's lead-dependent drift is removed (from ten verified 00&nbsp;UTC runs per lead on, as for the regimes), the clustering and this test run on the corrected fields. The table gives how the members move from one window's scenarios to the next.</p>
     <p>A scenario keeps its letter while its members stay together. Each day's scenarios are matched to the last earlier day's with more than one (the assignment that keeps the most members' weight in place); a scenario takes the letter of the one it is matched to when more than half of its members were in it, a scenario that re-forms after a day of one takes its old letter back, and a new letter appears only when a scenario splits off. The windows are lettered the same way among themselves, so a window's A and a day's A need not be the same scenario. In the chart of scenarios by day each bar is a day's scenarios (grey and marked 1 where the tests find one scenario), and the bands carry the members from one day's scenarios to the next day's.</p>
     <h3>How the page works</h3>
     <p>Nothing on this page is a picture. Each model, field and period is shipped as the ensemble's own numbers (the mean anomaly to 0.25&nbsp;&deg;C, 4&nbsp;m or 0.4&nbsp;hPa, the number of members agreeing, and the ensemble mean), on its grid, as a lossless WebP image, and your browser colours, gates, contours and reads it. The 0.1&deg; maps come in 36 tiles of 30&deg; by 60&deg;, loaded as you zoom in; the world view draws every fifth point of them.</p>
@@ -562,10 +561,12 @@
   function cyc() { return cycleOf(st.model); }
   function spanOf(c, k) { if (!c) return null; for (var i = 0; i < c.spans.length; i++) if (c.spans[i].key === k) return c.spans[i]; return null; }
   function hasAnom(c, f) { return !!(c && c.fields[f] && c.fields[f].anomaly); }
-  function hasChange(c, f) { return !!(c && c.spans.some(function (s) { return s.change && s.change[f]; })); }
+  function hasChange12(c, f) { return !!(c && c.spans.some(function (s) { return s.change && s.change[f]; })); }
   function hasChange6(c, f) { return !!(c && c.spans.some(function (s) { return s.change6 && s.change6[f]; })); }
-  // the change on screen: from the run 12 h earlier, or from the run 6 h earlier where this run has that (c6/ frames)
-  function vs6On(c) { return st.vs6 && st.view === "change" && hasChange6(c, st.field); }
+  function hasChange(c, f) { return hasChange12(c, f) || hasChange6(c, f); }
+  // the change on screen: from the run 12 h earlier, or from the run 6 h earlier (c6/ frames) when that is picked or
+  // the only one this run has (the first run after a missing one)
+  function vs6On(c) { return st.view === "change" && hasChange6(c, st.field) && (st.vs6 || !hasChange12(c, st.field)); }
   function chOf(c, sp, f) { var k = vs6On(c) ? "change6" : "change"; return sp && sp[k] ? sp[k][f] : null; }
   function vsH(c) { return vs6On(c) ? 6 : 12; }
   function hasRegimes(c) { return !!(c && c.regimes && c.regimes.sectors); }
@@ -1553,21 +1554,25 @@
     drawFlowDays();
     var P = clPeriod(), R = P && CL.results[P.key] && CL.results[P.key][st.cdom];
     if (!P || !R) { $("clVerdict").textContent = "Not every ensemble's run covers this window."; return; }
-    var ev = R.evidence;
-    $("clVerdict").textContent = (R.k > 1 ? R.k + " scenarios" : "One scenario") + " for " + CDOMS[st.cdom] + ", " + P.label + ", from " + R.members + " members of " +
-      P.models.map(function (m) { return MODELS[m]; }).join(", ") + (R.k > 1 ? " (they cut the spread by " + Math.round(100 * ev.reduction[R.k - 1]) + " %, against " + Math.round(100 * ev.null_p95[R.k - 1]) +
-      " % for a featureless ensemble; the same split in " + Math.round(100 * ev.stability) + " % of resampled ensembles)" : ": no split of the members passes the tests, so the mean of the ensembles is the forecast") +
-      (R.independence !== null && R.independence < 0.05 ? ". The clusters follow the ensembles more than chance allows (p " + R.independence + "): part of the split may be the models' own differences." : ".");
+    var ev = R.evidence, ens = P.models.map(function (m) { return MODELS[m]; }).join(", ");
+    $("clVerdict").textContent = R.models
+      ? "The ensembles differ: the split follows the models. For " + CDOMS[st.cdom] + ", " + P.label + ", the " + R.members + " members of " + ens + " fall into " + R.models.k +
+        " clusters that follow the ensembles they come from (a permutation test of ensemble against cluster, p " + R.models.p + "), so no scenario is shown: the panels are each ensemble's own mean."
+      : (R.k > 1 ? R.k + " scenarios" : "One scenario") + " for " + CDOMS[st.cdom] + ", " + P.label + ", from " + R.members + " members of " + ens +
+        (R.k > 1 ? " (they cut the spread by " + Math.round(100 * ev.reduction[R.k - 1]) + " %, against " + Math.round(100 * ev.null_p95[R.k - 1]) +
+        " % for a featureless ensemble; the same split in " + Math.round(100 * ev.stability) + " % of resampled ensembles, and it does not follow the ensembles)." : ": no split of the members passes the tests, so the mean of the ensembles is the forecast.");
     R.clusters.forEach(function (c) {
       var f = document.createElement("figure"); f.className = "cl-card";
-      var img = document.createElement("img"); img.alt = (R.k > 1 ? "Scenario " + c.letter : "The mean of the ensembles") + ": 500 hPa height and sea-level pressure maps of the Northern Hemisphere"; f.appendChild(img);
+      var img = document.createElement("img"); img.alt = (c.model ? MODELS[c.model] + "'s mean" : R.k > 1 ? "Scenario " + c.letter : "The mean of the ensembles") + ": 500 hPa height and sea-level pressure maps of the Northern Hemisphere"; f.appendChild(img);
       clImg(img, CL.files + "/" + c.img[st.sigma ? "sigma" : "phys"]);
       var cap = document.createElement("figcaption");
       var rg = Object.keys(c.regimes).map(function (sk) { return SECTORS[sk] + ": " + c.regimes[sk].name + (c.regimes[sk].name === "no regime" ? "" : " (r " + c.regimes[sk].r.toFixed(2) + ")"); }).join(" · ");
-      cap.innerHTML = "<span><i class=\"lt\" style=\"background:" + letterCol(R.k > 1 ? c.letter : null) + "\"></i><b>" + clName(c, R.k) + (R.k > 1 ? ": " + pct(c.p) : "") + "</b> · " + c.n + " members</span><span>Nearest regime: " + escH(rg) + "</span>" +
-        (c.flags.length ? "<span class=\"flag\">" + escH(c.flags.map(function (x) { return (x.over ? "mostly " : "few ") + MODELS[x.model] + " members"; }).join(", ")) + "</span>" : "");
+      cap.innerHTML = c.model ? "<span><b>" + MODELS[c.model] + " mean</b> · " + c.n + " members</span><span>Nearest regime: " + escH(rg) + "</span>"
+        : "<span><i class=\"lt\" style=\"background:" + letterCol(R.k > 1 ? c.letter : null) + "\"></i><b>" + clName(c, R.k) + (R.k > 1 ? ": " + pct(c.p) : "") + "</b> · " + c.n + " members</span><span>Nearest regime: " + escH(rg) + "</span>";
+      f.appendChild(cap); box.appendChild(f);
+      if (c.model) return;
       var cv = document.createElement("canvas"); cv.setAttribute("role", "img"); cv.setAttribute("aria-label", "The share of each ensemble's members in this scenario");
-      cap.insertBefore(cv, cap.firstChild.nextSibling); f.appendChild(cap); box.appendChild(f);
+      cap.insertBefore(cv, cap.firstChild.nextSibling);
       clShares(cv, c.shares);
     });
     if (R.from_previous && st.cwin !== "day") {
@@ -1591,7 +1596,7 @@
     var cw = (w - 12) / D.length, bw = Math.max(6, Math.min(30, cw * 0.42)), seen = {}, cols = [];
     D.forEach(function (d, i) {                                    // each day's segments in letter order: [{letter, y0, y1, c}]
       var R = CL.results[d.key][st.cdom], x = 6 + (i + 0.5) * cw, segs = [], y = CF_TOP;
-      var cl = R.clusters.map(function (c, j) { return { c: c, j: j }; }).sort(function (a, b) { return R.k > 1 ? (a.c.letter.length - b.c.letter.length) || (a.c.letter < b.c.letter ? -1 : 1) : 0; });
+      var cl = (R.models ? [{ p: 1 }] : R.clusters).map(function (c, j) { return { c: c, j: j }; }).sort(function (a, b) { return R.k > 1 ? (a.c.letter.length - b.c.letter.length) || (a.c.letter < b.c.letter ? -1 : 1) : 0; });
       cl.forEach(function (q) { var hh = q.c.p * CF_H; segs[q.j] = { L: R.k > 1 ? q.c.letter : null, y0: y, y1: y + hh, c: q.c }; y += hh; if (R.k > 1) seen[q.c.letter] = 1; });
       cols.push({ d: d, R: R, x: x, segs: segs });
     });
@@ -1618,14 +1623,14 @@
         ctx.fillStyle = letterCol(sg.L); ctx.fillRect(q.x - bw / 2, y0, bw, hh);
         if (sg.L && hh >= 14 && bw >= 12) { ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "600 11px 'Source Sans 3', Arial, sans-serif"; ctx.fillText(sg.L, q.x, y0 + hh / 2); }
       });
-      if (q.R.k === 1) { ctx.fillStyle = "#6f6b64"; ctx.textAlign = "center"; ctx.font = "11px 'Source Sans 3', Arial, sans-serif"; ctx.fillText("1", q.x, CF_TOP - 8); }
+      if (q.R.k === 1) { ctx.fillStyle = "#6f6b64"; ctx.textAlign = "center"; ctx.font = "11px 'Source Sans 3', Arial, sans-serif"; ctx.fillText(q.R.models ? "≠" : "1", q.x, CF_TOP - 8); }
       if (sel) { ctx.strokeStyle = "#1f261c"; ctx.lineWidth = 2; ctx.strokeRect(q.x - bw / 2 - 3, CF_TOP - 2, bw + 6, CF_H + 4); }
     });
     var step = Math.max(1, Math.ceil(46 / cw));
     ctx.fillStyle = "#3d4540"; ctx.textAlign = "center"; ctx.font = "12px 'Source Sans 3', Arial, sans-serif";
     cols.forEach(function (q, i) { if (!(i % step)) ctx.fillText(cw >= 40 ? shortDate(q.d.date) : String(q.d.day), q.x, CF_TOP + CF_H + CF_AX / 2 + 3); });
     $("clKey").innerHTML = Object.keys(seen).sort(function (a, b) { return (a.length - b.length) || (a < b ? -1 : 1); }).map(function (L) { return "<span><i style=\"background:" + letterCol(L) + "\"></i>Scenario " + L + "</span>"; }).join("") +
-      "<span><i style=\"background:" + ONE_COL + "\"></i>1: the tests find one scenario</span><span>bands: the members' moves to the next day's scenarios · click a day to show its maps</span>";
+      "<span><i style=\"background:" + ONE_COL + "\"></i>1: the tests find one scenario · ≠: the ensembles differ, the split follows the models</span><span>bands: the members' moves to the next day's scenarios · click a day to show its maps</span>";
     fdHit = { cols: cols, cw: cw };
   }
   function fdAt(e) {
@@ -1638,7 +1643,7 @@
     var a = fdAt(e), t = $("clTip"); if (!a) { t.style.display = "none"; return; }
     var R = a.q.R, head = "Day " + a.q.d.day + " · " + dayLong(a.q.d.date) + " · " + a.q.d.models.length + (a.q.d.models.length === 4 ? " ensembles" : " of the four ensembles");
     var body = R.k > 1 ? R.clusters.map(function (c) { return "<br>" + escH("Scenario " + c.letter + ": " + pct(c.p) + " (" + Object.keys(c.shares).map(function (m) { return MODELS[m] + " " + Math.round(100 * c.shares[m]); }).join(", ") + ")"); }).join("")
-      : "<br>" + escH("One scenario: no split of the members passes the tests");
+      : "<br>" + escH(R.models ? "The ensembles differ: the split follows the models (p " + R.models.p + ")" : "One scenario: no split of the members passes the tests");
     t.innerHTML = "<span class=\"v\">" + escH(head) + "</span>" + body; t.style.display = "block";
     var wr = $("clFd").parentNode.clientWidth; t.style.left = Math.min(a.x + 12, wr - t.offsetWidth - 8) + "px"; t.style.top = (a.y + 12) + "px";
   });
@@ -1696,7 +1701,7 @@
     var six = st.view === "change" && rs.some(function (x) { return hasChange6(x, st.field); });
     $("vsSeg").hidden = !six;
     if (six) segButtons($("vsSeg"), ["12", "6"], function (v) { return "vs " + v + " h earlier"; }, vs6On(c) ? "6" : "12", function (v) { st.vs6 = v === "6"; setButtons(); onChange(); },
-      function (v) { return v === "6" ? "The change from the run 6 h earlier" : "The change from the run 12 h earlier"; }, function (v) { return v === "6" && !hasChange6(c, st.field); });
+      function (v) { return v === "6" ? "The change from the run 6 h earlier" : "The change from the run 12 h earlier"; }, function (v) { return v === "6" ? !hasChange6(c, st.field) : !hasChange12(c, st.field); });
     var ds = days(c); $("day").max = Math.max(1, ds.length);
     var cur = st.span[0] === "D" ? +st.span.slice(1) : null;
     $("day").value = cur || 1; $("day").classList.toggle("off", !cur);
@@ -1917,7 +1922,7 @@
     if (st.view === "clusters") x.push("c" + st.cdom, st.cwin === "day" ? "day" + ("0" + st.cday).slice(-2) : st.cwin);
     if (st.unit === "F") x.push("F");
     if (st.sigma) x.push("s");
-    if (vs6On(cyc())) x.push("v6");
+    if (st.vs6 && vs6On(cyc())) x.push("v6");
     MODEL_ORDER.forEach(function (m) { if (st.run[m]) x.push("r" + m + st.run[m]); });
     try { history.replaceState(null, "", "#" + x.join("/")); } catch (e) {}
   }
