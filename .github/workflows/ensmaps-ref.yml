@@ -1,0 +1,121 @@
+name: Global ensemble maps, 2 m temperature normals (ERA5-Land + ERA5 1991-2020 -> release ensmaps-ref-v1)
+
+# scripts/ensmaps/ensmaps_ref.py, built once: the CDS monthly means by hour of day (00, 06, 12, 18 UTC) of the 2 m
+# temperature over the globe, 1991-2020 - ERA5-Land at 0.1 deg (the IFS grid's points) and ERA5 at 0.25 deg with its
+# land-sea mask, one request per reanalysis and decade - each reduced at once to its monthly means (ensmaps_<unit>.npz)
+# and uploaded to the release; then the daily curve per grid point (ensmaps_t2m_normals.npz), which the ensemble-map
+# runs (ensmaps.yml) download. The 500 hPa height and sea-level pressure normals come from the local ERA5 store and live
+# in the repository (scripts/ensmaps/reference/ensmaps_upper_normals.npz).
+#
+# CDS: ONE key, so this shares the `seas5` concurrency group with seas5.yml, c3s.yml and the other CDS workflows, and
+# every request goes through scripts/sst/cds_seq.py, one at a time. A request the CDS keeps queued is waited for until
+# the fetch step's time runs out; the next run adopts the key's job (queued, running or finished) instead of asking
+# again, and fetches only the units the release does not hold. The cron repeats that every 6 h until the release has
+# the normals, then exits at its first step. Licence: Copernicus (the page carries "Contains modified Copernicus Climate
+# Change Service information"). Secrets: CDSAPI_URL and CDSAPI_KEY.
+on:
+  schedule:
+    - cron: '40 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      refit:
+        description: 'Fit the curves from the units already in the release (no CDS requests)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # release assets only; nothing is committed
+
+concurrency:
+  group: seas5
+  cancel-in-progress: false
+
+env:
+  TAG: ensmaps-ref-v1
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  normals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 345
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Anything to build?
+        id: gate
+        run: |
+          if [ "${{ github.event_name }}" = schedule ] && \
+             gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null | grep -qx ensmaps_t2m_normals.npz; then
+            echo "the release holds the normals: nothing to build"; echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v7
+        if: steps.gate.outputs.build == 'true'
+        with:
+          sparse-checkout: |
+            scripts/ensmaps
+            scripts/lib
+            scripts/sst/cds_seq.py
+            scripts/constraints.txt
+            .github/workflows
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        if: steps.gate.outputs.build == 'true'
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        if: steps.gate.outputs.build == 'true'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0
+          pip install --quiet numpy scipy pandas eccodes cdsapi requests
+
+      - name: CDS credentials
+        if: steps.gate.outputs.build == 'true' && !inputs.refit
+        env:
+          CDSAPI_URL: ${{ secrets.CDSAPI_URL }}
+          CDSAPI_KEY: ${{ secrets.CDSAPI_KEY }}
+        run: |
+          if [ -z "$CDSAPI_KEY" ]; then echo "::error::secret CDSAPI_KEY is not set"; exit 1; fi
+          umask 077
+          printf 'url: %s\nkey: %s\n' "${CDSAPI_URL:-https://cds.climate.copernicus.eu/api}" "$CDSAPI_KEY" > ~/.cdsapirc
+
+      - name: Release and the units it holds
+        if: steps.gate.outputs.build == 'true'
+        run: |
+          if ! gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" --title "Global ensemble maps, 2 m temperature normals v1" \
+              --notes "ERA5-Land (land, 0.1 deg) and ERA5 (sea, 0.25 deg) global monthly means by hour of day 1991-2020, reduced per decade (ensmaps_<unit>.npz), and the daily normal curve on the IFS 0.1-deg grid (ensmaps_t2m_normals.npz) for scripts/ensmaps. Contains modified Copernicus Climate Change Service information 2026."
+          fi
+          mkdir -p ref
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -D ref -p 'ensmaps_land_*.npz' -p 'ensmaps_era5_*.npz' --clobber \
+            || echo "no units held yet"
+          ls ref > held.txt
+          cat held.txt
+
+      - name: Fetch the missing units (CDS, one request at a time)
+        if: steps.gate.outputs.build == 'true' && !inputs.refit
+        timeout-minutes: 300
+        env:
+          CDS_SEQ_LOG: ${{ runner.temp }}/cds_seq.jsonl
+        run: |
+          python scripts/ensmaps/ensmaps_ref.py fetch --out-dir ref || echo "::warning::some units were not fetched; the next run continues"
+          cat "$CDS_SEQ_LOG" 2>/dev/null || true
+
+      - name: Upload the new units
+        if: always() && steps.gate.outputs.build == 'true'
+        run: |
+          shopt -s nullglob
+          for f in ref/ensmaps_*.npz; do
+            b=$(basename "$f")
+            if ! grep -qx "$b" held.txt; then gh release upload "$TAG" "$f" -R "$GITHUB_REPOSITORY" --clobber && echo "uploaded $b"; fi
+          done
+
+      - name: Fit the daily curves and publish them
+        if: steps.gate.outputs.build == 'true'
+        run: |
+          rc=0; python scripts/ensmaps/ensmaps_ref.py fit --in-dir ref --out ref/ensmaps_t2m_normals.npz || rc=$?
+          if [ "$rc" -eq 3 ]; then echo "::notice::units still missing; the next run continues"; exit 0; fi
+          [ "$rc" -eq 0 ] || exit "$rc"
+          gh release upload "$TAG" ref/ensmaps_t2m_normals.npz -R "$GITHUB_REPOSITORY" --clobber
