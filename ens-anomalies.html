@@ -65,6 +65,8 @@
   .mv-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.9rem; flex: 1 1 100%; min-width: 0; }
   .seg[hidden] { display: none; }
   .mv-runT { font-size: 1.04rem; color: var(--ink2); }
+  .mv-run { display: inline-flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
+  .mv-run[hidden] { display: none; }
   .chk { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 1.12rem; font-weight: 600; color: var(--ink); cursor: pointer; user-select: none; min-height: 40px; }
   .chk input { width: 1.25rem; height: 1.25rem; accent-color: var(--accent); margin: 0; }
   .mv-show { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1.3rem; margin: 0.45rem 0 0; font-size: 1.12rem; }
@@ -145,7 +147,7 @@
   main.mv.rg .mv-map { height: max(300px, calc(100vh - 250px - var(--rgh, 150px))); }
   .rg-top[hidden], .rg-more[hidden], .cl-top[hidden], .cl-view[hidden] { display: none; }
   /* the clusters view: the figures replace the map */
-  main.mv.cl .mv-mapwrap, main.mv.cl #legT, main.mv.cl .mv-show, main.mv.cl .mv-time:not(.cl-time), main.mv.cl #models, main.mv.cl #fields, main.mv.cl #runT, main.mv.cl #note { display: none; }
+  main.mv.cl .mv-mapwrap, main.mv.cl #legT, main.mv.cl .mv-show, main.mv.cl .mv-time:not(.cl-time), main.mv.cl #models, main.mv.cl #fields, main.mv.cl #runBox, main.mv.cl #note { display: none; }
   .cl-top { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.9rem; margin: 0 0 0.5rem; }
   .cl-top .seg button { font-size: 1rem; padding: 0.4rem 0.8rem; min-height: 40px; }
   .cl-verdict { font-size: 1.05rem; color: var(--ink2); margin: 0.2rem 0 0.6rem; max-width: 80rem; }
@@ -408,7 +410,7 @@
       <div class="seg" id="models" role="group" aria-label="Ensemble"></div>
       <div class="seg" id="fields" role="group" aria-label="Field"></div>
       <div class="seg" id="views" role="group" aria-label="View"></div>
-      <span class="mv-runT" id="runT"></span>
+      <span class="mv-run" id="runBox"><span class="mv-runT">Run</span><span class="seg" id="runPick" role="group" aria-label="Run"></span></span>
     </div>
   </div>
   <div class="mv-time">
@@ -454,6 +456,7 @@
   <div class="mv-show"><b>Show</b>
     <label class="chk" title="The ensemble mean's 500 hPa height every 6 dam, its sea-level pressure every 4 hPa, the 0 °C line of its 2 m temperature"><input type="checkbox" id="cont" checked> Contours</label>
     <div class="seg" id="units" role="group" aria-label="Unit"></div>
+    <div class="seg" id="vsSeg" role="group" aria-label="Change from which run"></div>
     <span class="mv-keys" id="mapKeys">Click the map, then: arrows pan &middot; <kbd>+</kbd> <kbd>&minus;</kbd> zoom &middot; <kbd>0</kbd> reset &middot; <kbd>,</kbd> <kbd>.</kbd> day &middot; <kbd>Space</kbd> play</span>
   </div>
   <p class="mv-note" id="note"></p>
@@ -470,9 +473,9 @@
   <section class="rg-more" id="rgMore" hidden aria-label="Regime scenarios and changes">
     <h2 id="rgCardsH">Scenarios</h2>
     <div class="rg-cards" id="rgCards"></div>
-    <h2>Since each ensemble's previous run</h2>
+    <h2>Since each ensemble's run 12 h earlier</h2>
     <div class="rg-chg" id="rgChg"></div>
-    <p class="mv-runs">Columns: each run's days. Coloured where the regime's share of the members moved significantly (Fisher's exact test, false discovery rate 10&nbsp;% over the table): red, more members than in the previous run; blue, fewer; percentage points. Grey: no significant move.</p>
+    <p class="mv-runs">Columns: each run's days. Coloured where the regime's share of the members moved significantly (Fisher's exact test, false discovery rate 10&nbsp;% over the table): red, more members than in that run; blue, fewer; percentage points. Grey: no significant move.</p>
   </section>
 
   <section class="mv-about" id="about" aria-labelledby="aboutH">
@@ -481,21 +484,21 @@
     <h3>The ensembles</h3>
     <div class="tbl"><table>
       <tr><th>Ensemble</th><th>Members</th><th>Grid on this page</th><th>Runs</th></tr>
-      <tr><td><b>IFS-ENS</b>: ECMWF's physics ensemble (~9&nbsp;km)</td><td>the 50 perturbed members (the 0.1&deg; files carry no control)</td><td>2&nbsp;m temperature 0.1&deg; (~11&nbsp;km), shown in tiles once zoomed in; 500&nbsp;hPa height and sea-level pressure 0.25&deg;</td><td>00 and 12&nbsp;UTC, here about 13&frac12;&nbsp;h after the start (the 0.1&deg; files are the last to land)</td></tr>
-      <tr><td><b>AIFS-ENS</b>: ECMWF's machine-learned ensemble</td><td>the control and 50 perturbed members</td><td>0.25&deg;</td><td>00 and 12&nbsp;UTC, about 8&nbsp;h after the start</td></tr>
-      <tr><td><b>GEFS</b>: NOAA's Global Ensemble Forecast System</td><td>the control and 30 perturbed members</td><td>0.5&deg;</td><td>00 and 12&nbsp;UTC, about 6&frac12;&nbsp;h after the start</td></tr>
+      <tr><td><b>IFS-ENS</b>: ECMWF's physics ensemble (~9&nbsp;km)</td><td>the 50 perturbed members (the 0.1&deg; files carry no control)</td><td>2&nbsp;m temperature 0.1&deg; (~11&nbsp;km), shown in tiles once zoomed in; 500&nbsp;hPa height and sea-level pressure 0.25&deg;</td><td>00 and 12&nbsp;UTC to day&nbsp;15, here about 13&frac12;&nbsp;h after the start (the 0.1&deg; files are the last to land); 06 and 18&nbsp;UTC to day&nbsp;5 (ECMWF runs them to 144&nbsp;h), about 11&nbsp;h after the start</td></tr>
+      <tr><td><b>AIFS-ENS</b>: ECMWF's machine-learned ensemble</td><td>the control and 50 perturbed members</td><td>0.25&deg;</td><td>00, 06, 12 and 18&nbsp;UTC, about 8&nbsp;h after the start</td></tr>
+      <tr><td><b>GEFS</b>: NOAA's Global Ensemble Forecast System</td><td>the control and 30 perturbed members</td><td>0.5&deg;</td><td>00, 06, 12 and 18&nbsp;UTC, about 6&frac12;&nbsp;h after the start</td></tr>
       <tr><td><b>GEPS</b>: Environment and Climate Change Canada's Global Ensemble Prediction System</td><td>the control and 20 perturbed members</td><td>0.5&deg;, the finest the MSC Datamart publishes</td><td>00 and 12&nbsp;UTC, about 5&frac12;&nbsp;h after the start</td></tr>
     </table></div>
-    <p>Each ensemble is shown on its own published grid, untouched: the finer grids are not smoothed and the coarser ones are not interpolated before the colours (your browser interpolates between grid points as it draws). Each ensemble shows its newest run; the four can be a run apart, and the date line under the buttons always gives the calendar days a map covers.</p>
+    <p>Each ensemble is shown on its own published grid, untouched: the finer grids are not smoothed and the coarser ones are not interpolated before the colours (your browser interpolates between grid points as it draws). The page keeps each ensemble's four newest runs, and the buttons beside &ldquo;Run&rdquo; pick one (the newest is shown until another is picked; the regimes' timeline and its comparisons take the runs picked). The ensembles' runs can be hours apart, and the date line under the buttons always gives the calendar days a map covers. The clusters always pool each ensemble's newest run that reaches day&nbsp;15.</p>
     <h3>Days and periods</h3>
-    <p>A day is a calendar day in UTC, the mean of the 06, 12, 18 and 24&nbsp;UTC fields. A 00&nbsp;UTC run has 15 full days (day&nbsp;1 is the day it starts), a 12&nbsp;UTC run 14 (day&nbsp;1 is the next day; its first and last half-days are left out); GEFS and GEPS, which run to 16 days, have one more. The periods are days 1&ndash;5, 6&ndash;10 and 11&ndash;15 (11&ndash;14 for a 12&nbsp;UTC run), each the mean of its days. A member that misses any field of a period's days is left out of that period, and a period from fewer than 80&nbsp;% of the ensemble's members is not drawn.</p>
+    <p>A day is a calendar day in UTC, the mean of the 06, 12, 18 and 24&nbsp;UTC fields. A 00&nbsp;UTC run has 15 full days (day&nbsp;1 is the day it starts), a 06, 12 or 18&nbsp;UTC run 14 (day&nbsp;1 is the next day; its first and last part-days are left out); GEFS and GEPS, which run to 16 days, have one more, and an IFS-ENS run from 06 or 18&nbsp;UTC, which ECMWF runs to 144 hours, has 5. The periods are days 1&ndash;5, 6&ndash;10 and 11&ndash;15 (11&ndash;14 for a 06, 12 or 18&nbsp;UTC run), each the mean of its days. A member that misses any field of a period's days is left out of that period, and a period from fewer than 80&nbsp;% of the ensemble's members is not drawn.</p>
     <h3>Anomaly</h3>
     <p>Each member's mean less the 1991&ndash;2020 normal for the same days, and the ensemble mean of those anomalies, coloured only where at least <i>k</i> of the <i>n</i> members give the anomaly the same sign as their mean: the smallest number a two-sided sign test against an even split passes at 5&nbsp;% (33 of 50 or 51, 22 of 31, 16 of 21). Elsewhere the members are split and the map is grey; the hover still says how many agree.</p>
     <p><b>The normals.</b> 2&nbsp;m temperature: ERA5-Land over land and ERA5 over the sea (ERA5 interpolated from its sea points only, so a coastal mountain does not chill the water beside it), the monthly means at 00, 06, 12 and 18&nbsp;UTC, so the normal samples the daily cycle as the forecast day does, on the 0.1&deg; grid of the IFS, whose orography ERA5-Land shares. On the 0.25&deg; and 0.5&deg; grids the normal is the 0.1&deg; one averaged over each cell and moved by 6.5&nbsp;&deg;C per kilometre from the IFS's height to the model's own, so a valley or a mountain cell is compared with a normal at its own height. The anomalies are the models' raw output against the reanalysis: they include the warming since 1991&ndash;2020 (in the 500&nbsp;hPa height, a positive anomaly across the tropics) and each model's own biases, which no drift correction removes. 500&nbsp;hPa height and sea-level pressure: ERA5 at 1.5&deg; (the daily means of the four synoptic hours), interpolated to each grid. Each normal is a smooth curve through the year (the mean and three annual harmonics, fitted so that its month averages match the twelve monthly normals), read at each day. The sea-level pressure anomaly is not drawn where the model's ground is above 1,500&nbsp;m: there the pressure &ldquo;at sea level&rdquo; is an extrapolation that each model and the reanalysis make differently.</p>
     <h3 id="sigma">Standardized anomalies (σ)</h3>
     <p>For 500&nbsp;hPa height and sea-level pressure the anomaly can also be shown in standard deviations: the ensemble-mean anomaly divided by the 1991&ndash;2020 standard deviation of an anomaly over the <i>same averaging period</i> &mdash; a single day for the daily maps, the period's own 4- or 5-day mean for the periods (a 5-day mean varies less than a day does, so dividing it by a day's spread would understate it). The standard deviations come from ERA5 at 1.5&deg; (the same daily means as the normals): each cell's anomalies from the normal curve, a linear trend over 1991&ndash;2020 removed, averaged over the period's length, and their variance through the year fitted as a smooth curve (the mean and three harmonics of a 366-day year), interpolated to each model's grid as the normals are. Colours run to &plusmn;3&sigma;; the members-agree gate is the same as for the anomaly. Across the tropics the 500&nbsp;hPa height reads several standard deviations high: its day-to-day spread is small there, and the warming since 1991&ndash;2020 is not. The change maps stay in metres and hectopascals.</p>
-    <h3>Change from the previous run</h3>
-    <p>This run's ensemble mean less the previous run's (12&nbsp;hours earlier) over the same calendar days, on a common 0.5&deg; grid (each member's field averaged over the 0.5&deg; cells first). It is coloured only where the change is significant: Welch's <i>t</i>-test on the two runs' members at every point, and the Benjamini&ndash;Hochberg procedure over the whole map at a false discovery rate of 10&nbsp;%, so that among the coloured points at most a tenth are expected to be chance. The last period of a 00&nbsp;UTC run is compared over days 11&ndash;14, the days the previous 12&nbsp;UTC run holds. Where the ensembles are confident (the first days) even a small change can be significant: read the size from the colours.</p>
+    <h3>Change from an earlier run</h3>
+    <p>This run's ensemble mean less that of the same ensemble's run 12&nbsp;hours earlier (or, with &ldquo;vs 6&nbsp;h earlier&rdquo;, the run 6&nbsp;hours earlier, for the ensembles that run four times a day) over the same calendar days, on a common 0.5&deg; grid (each member's field averaged over the 0.5&deg; cells first). It is coloured only where the change is significant: Welch's <i>t</i>-test on the two runs' members at every point, and the Benjamini&ndash;Hochberg procedure over the whole map at a false discovery rate of 10&nbsp;%, so that among the coloured points at most a tenth are expected to be chance. The last period of a 00&nbsp;UTC run is compared over days 11&ndash;14, the days the earlier run holds, and an IFS-ENS run from 06 or 18&nbsp;UTC only over the days both runs hold. Where the ensembles are confident (the first days) even a small change can be significant: read the size from the colours.</p>
     <h3 id="regimes">Weather regimes</h3>
     <p>Each run of each ensemble sorts every member's 500&nbsp;hPa height on every day into one of four recurring weather regimes of two sectors, the Euro-Atlantic (20&ndash;80&deg;N, 90&deg;W&ndash;30&deg;E) and North America and the Pacific (20&ndash;80&deg;N, 170&ndash;30&deg;W), or into none. These are the regimes of the site's multi-model regime view on the <a href="/subseasonal.html">extended-range page</a>, classified the same way: four patterns per sector and season from NCEP/NCAR reanalysis 1991&ndash;2020 (k-means on 5-day mean height anomalies), one set for October&ndash;March and one for April&ndash;September, every day taking the set of its own season; a member's 5-day running mean anomaly (against ERA5 1991&ndash;2020) goes to the nearest pattern, or to &ldquo;no regime&rdquo; when its pattern correlation with that pattern is below 0.25. No model here has a reforecast, so each ensemble's drift is learned from its own past runs: the ensemble-mean anomaly at each lead day, less what the run started on that valid day showed on its first day, averaged over the runs and removed (shrunk towards zero by <i>n</i>&nbsp;/&nbsp;(<i>n</i>&nbsp;+&nbsp;10)) once ten runs verify a lead.</p>
     <p><b>The timeline</b> stacks, for each ensemble and valid date, the share of its members in each regime, every ensemble on the same dates (their newest runs can start 12&nbsp;hours apart; each row gives its run) and every regime in the same colour and place, as on the extended-range page. A share is drawn pale unless it differs from that regime's 1991&ndash;2020 frequency within 15 days of the date: the 95&nbsp;% interval of their difference, from resampling the members and the reanalysis years 1,000 times, must exclude zero. <b>The four-ensemble row</b> averages the shares of the ensembles that hold the date with equal weight per ensemble, so the 50 and 51-member ensembles count no more than GEPS's 21; it is pale unless the mean differs from the normal by more than 1.96 standard errors (each ensemble's sampling error over its members, and the normal's over the reanalysis years). A black tick above it marks a date on which the ensembles' most frequent regime is not the same.</p>
@@ -521,7 +524,7 @@
   var FIELDS = { t2m: { label: "2 m temperature", up: "warmer", dn: "colder" }, z500: { label: "500 hPa height", up: "higher", dn: "lower" },
                  msl: { label: "Sea-level pressure", up: "higher", dn: "lower" } };
   var FIELD_ORDER = ["t2m", "z500", "msl"];
-  var VIEWS = { anom: "Anomaly", change: "Change from the previous run", regimes: "Regimes", clusters: "Clusters" }, VIEW_ORDER = ["anom", "change", "regimes", "clusters"];
+  var VIEWS = { anom: "Anomaly", change: "Change from an earlier run", regimes: "Regimes", clusters: "Clusters" }, VIEW_ORDER = ["anom", "change", "regimes", "clusters"];
   var CDOMS = { nh: "Northern Hemisphere", ea: "Euro-Atlantic", na: "North America and Pacific" }, CDOM_ORDER = ["nh", "ea", "na"];
   var CWINS = { d3_5: "Days 3–5", d6_10: "Days 6–10", d11_15: "Days 11–15", day: "By day" }, CWIN_ORDER = ["d3_5", "d6_10", "d11_15", "day"];
   // the scenarios' letters, A first, in the categorical order (a ninth letter on is grey); one scenario is neutral grey
@@ -547,17 +550,24 @@
   // ── state ──────────────────────────────────────────────────────────────────────────────────────────────────────
   var man = {};
   var st = { model: "ifs", field: "t2m", view: "anom", span: "P1", unit: "C", playing: false, sector: "ea", regime: null, only: false, sigma: false,
-             cdom: "nh", cwin: "d6_10", cday: 1 };
+             cdom: "nh", cwin: "d6_10", cday: 1, run: {}, vs6: false };
   var CL = null;                                                       // assets/models/ensmaps_clusters.json
   var view = null;                                                     // {cx, cy: degrees, s: degrees per CSS px}
   var $ = function (id) { return document.getElementById(id); };
   function escH(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   var mapEl = $("map"), glc = $("gl"), ovc = $("ov"), labc = $("lab"), tip = $("tip");
-  function cycleOf(m) { var x = man[m]; return x && x.cycles && x.cycles[0]; }
+  // each model's runs on the page, newest first, and the one picked (st.run[m]: its cycle; the newest when unset)
+  function runsOf(m) { var x = man[m]; return x && x.cycles ? x.cycles : []; }
+  function cycleOf(m) { var cs = runsOf(m), w = st.run[m]; return (w && cs.filter(function (c) { return c.cycle === w; })[0]) || cs[0]; }
   function cyc() { return cycleOf(st.model); }
   function spanOf(c, k) { if (!c) return null; for (var i = 0; i < c.spans.length; i++) if (c.spans[i].key === k) return c.spans[i]; return null; }
   function hasAnom(c, f) { return !!(c && c.fields[f] && c.fields[f].anomaly); }
   function hasChange(c, f) { return !!(c && c.spans.some(function (s) { return s.change && s.change[f]; })); }
+  function hasChange6(c, f) { return !!(c && c.spans.some(function (s) { return s.change6 && s.change6[f]; })); }
+  // the change on screen: from the run 12 h earlier, or from the run 6 h earlier where this run has that (c6/ frames)
+  function vs6On(c) { return st.vs6 && st.view === "change" && hasChange6(c, st.field); }
+  function chOf(c, sp, f) { var k = vs6On(c) ? "change6" : "change"; return sp && sp[k] ? sp[k][f] : null; }
+  function vsH(c) { return vs6On(c) ? 6 : 12; }
   function hasRegimes(c) { return !!(c && c.regimes && c.regimes.sectors); }
   // the scenario cards of a span and sector (regimes with at least min_members members), the most members first
   function cardsOf(c, sp, sk) {
@@ -582,7 +592,7 @@
   function base(c, f, kind, sp) { return DATA + c.model + "/" + c.cycle + "/" + f + "/" + kind + "/" + sp; }
   function relA(c, f, sp) { return sigmaOn() ? base(c, f, "s", sp) + ".webp" : base(c, f, "a", sp) + (c.fields[f].tiles ? "/o" : "") + ".webp"; }
   function relT(c, f, sp, r, k) { return base(c, f, "a", sp) + "/" + r + k + ".webp"; }
-  function relC(c, f, sp) { return base(c, f, "c", sp) + ".webp"; }
+  function relC(c, f, sp) { return base(c, f, vs6On(c) ? "c6" : "c", sp) + ".webp"; }
 
   // ── colours ────────────────────────────────────────────────────────────────────────────────────────────────────
   function interp(stops, v) {
@@ -1046,7 +1056,8 @@
     else if (st.view === "regimes" && !fr.card.n[f]) msg = f === "t2m" ? "The 2 m temperature normals are still being built: pick 500 hPa height or sea-level pressure." : "Too few of this regime's members are complete for this field.";
     else if (st.view === "anom" && !hasAnom(c, f)) msg = hasChange(c, f) ? "The 2 m temperature normals are still being built: this run has the change maps only."
       : "The 2 m temperature maps start once their normals (ERA5-Land and ERA5, 1991–2020) are built and the next run has the previous one to compare with.";
-    else if (st.view === "change" && !(sp.change && sp.change[f])) msg = c.prev ? "There is no change map for this period: the previous run does not cover it." : "The change maps start with the next run: the previous run's statistics were not available.";
+    else if (st.view === "change" && !chOf(c, sp, f)) msg = (vs6On(c) ? c.prev6 : c.prev) ? "There is no change map for this period: the run " + vsH(c) + " h earlier does not cover it."
+      : "There are no change maps for this run: the statistics of the run 12 h earlier were not available.";
     else if (st.view === "anom" && !(sp.n && sp.k && sp.k[f])) msg = "Too few members of this run are complete for this period.";
     if ($("msg").textContent !== msg) $("msg").textContent = msg;
     if (msg) { clearGL(); drawn = null; markShown(); drawOverlay(); schedule(); return; }
@@ -1261,7 +1272,7 @@
       ? f + " anomaly of the mean of the " + (n || "n") + " members in " + c.regimes.sectors[st.sector].names[cd.f] + " (" + SECTORS[st.sector] + ") against 1991–2020, " + u + "; coloured where at least " + (k || "k") + " of them agree on its sign (a sign test at 5 %), grey where they are split"
       : st.view !== "change"
       ? f + (sigmaOn() ? " standardized anomaly of the ensemble mean: the anomaly against 1991–2020 over the 1991–2020 standard deviation of " + (sp && sp.first !== sp.last ? "a mean over as many days" : "a day") + ", σ" : " anomaly of the ensemble mean against 1991–2020, " + u) + "; coloured where at least " + (k || "k") + " of the " + (n || "n") + " members agree on its sign (a sign test at 5 %), grey where they are split"
-      : f + ": this run's ensemble mean less the previous run's over the same days, " + u + "; coloured where the change is significant (Welch's t-test, false discovery rate 10 %), grey elsewhere";
+      : f + ": this run's ensemble mean less that of the run " + vsH(c) + " h earlier" + ((vs6On(c) ? c.prev6 : c.prev) ? " (" + initLabel({ init: vs6On(c) ? c.prev6 : c.prev }) + ")" : "") + " over the same days, " + u + "; coloured where the change is significant (Welch's t-test, false discovery rate 10 %), grey elsewhere";
     if (contoursOn()) cap += st.field === "z500" ? " · lines: " + who + "'s mean height every 6 dam" : st.field === "msl" ? " · lines: " + who + "'s mean pressure every 4 hPa" : " · blue line: " + who + "'s mean 0 °C";
     if (st.field === "msl" && st.view !== "change") cap += " · darker grey: ground above 1,500 m, no anomaly shown";
     $("legT").textContent = cap;
@@ -1644,7 +1655,7 @@
   function updateBadge() {
     var c = cyc();
     if (!c) { badgeH = setHTML("badge", "<b>" + MODELS[st.model] + "</b> · no run published yet", badgeH); validH = setHTML("valid", "", validH); return; }
-    var sp = spanOf(c, st.span), lab = sp ? (st.view === "change" && sp.change && sp.change[st.field] ? sp.change[st.field].label : sp.label) : "";
+    var sp = spanOf(c, st.span), ch = st.view === "change" ? chOf(c, sp, st.field) : null, lab = sp ? (ch ? ch.label : sp.label) : "";
     var fl = FIELDS[st.field].label;
     var cd = st.view === "regimes" ? cardOf(c) : null, rn = cd ? c.regimes.sectors[st.sector].names[cd.f] : "";
     badgeH = setHTML("badge", "<b>" + MODELS[st.model] + "</b> " + escH(fl.charAt(0).toLowerCase() + fl.slice(1)) + " " + (st.view === "change" ? "change" : sigmaOn() ? "standardized anomaly" : "anomaly") +
@@ -1677,7 +1688,15 @@
       function (v) { st.sigma = v === "sigma"; setButtons(); onChange(); },
       function (v) { return v === "sigma" ? "Standardized: the anomaly over the 1991–2020 standard deviation of the same averaging period" : "The anomaly in " + unitOf(st.field); });
     $("units").hidden = st.field !== "t2m" && (st.view !== "anom" || !(c && c.fields[st.field] && c.fields[st.field].sigma));
-    $("runT").textContent = c ? "Run " + runLabel(c) : "";
+    var rs = runsOf(st.model);
+    $("runBox").hidden = !rs.length;
+    segButtons($("runPick"), rs.map(function (x) { return x.cycle; }), function (k) { var x = rs.filter(function (y) { return y.cycle === k; })[0]; return escH(initLabel(x)); },
+      c ? c.cycle : null, selectRun, function (k) { var x = rs.filter(function (y) { return y.cycle === k; })[0], nd = days(x).length;
+        return MODELS[st.model] + " run of " + runLabel(x) + ", " + nd + " full days" + (x.last_step && x.last_step < 240 ? " (ECMWF runs the IFS ensemble from 06 and 18 UTC to 144 h)" : ""); });
+    var six = st.view === "change" && rs.some(function (x) { return hasChange6(x, st.field); });
+    $("vsSeg").hidden = !six;
+    if (six) segButtons($("vsSeg"), ["12", "6"], function (v) { return "vs " + v + " h earlier"; }, vs6On(c) ? "6" : "12", function (v) { st.vs6 = v === "6"; setButtons(); onChange(); },
+      function (v) { return v === "6" ? "The change from the run 6 h earlier" : "The change from the run 12 h earlier"; }, function (v) { return v === "6" && !hasChange6(c, st.field); });
     var ds = days(c); $("day").max = Math.max(1, ds.length);
     var cur = st.span[0] === "D" ? +st.span.slice(1) : null;
     $("day").value = cur || 1; $("day").classList.toggle("off", !cur);
@@ -1689,6 +1708,15 @@
     if (st.view === "change" && !hasChange(c, st.field) && hasAnom(c, st.field)) st.view = "anom";
   }
   function pickSpan(k) { if (k === st.span) return; st.span = k; setButtons(); onChange(); }
+  // another run of the same model: the same calendar days where it has them
+  function selectRun(k) {
+    var rs = runsOf(st.model), old = spanOf(cyc(), st.span);
+    if (!rs.length || k === cyc().cycle) return;
+    if (k === rs[0].cycle) delete st.run[st.model]; else st.run[st.model] = k;
+    var c = cyc(), same = old && c.spans.filter(function (s) { return s.first === old.first && s.last === old.last; })[0];
+    if (same) st.span = same.key; else if (!spanOf(c, st.span)) st.span = "P1";
+    tip.style.display = "none"; fixView(); setButtons(); onChange();
+  }
   // another model: the same calendar days where it has them (its run can be 12 h apart), else the same span
   function selectModel(m) {
     if (m === st.model || !cycleOf(m)) return;
@@ -1701,6 +1729,7 @@
   function onChange() {
     var c = cyc(), n = "";
     if (c && !hasAnom(c, "t2m") && st.field === "t2m") n = "The 2 m temperature normals (ERA5-Land and ERA5, 1991–2020) are still being built; until they are, this ensemble's 2 m temperature has the change maps only.";
+    if (c && c.last_step && c.last_step < 240) n += (n ? " " : "") + "This run reaches day " + days(c).length + " only: ECMWF runs the IFS ensemble from 06 and 18 UTC to 144 hours.";
     $("note").innerHTML = n;
     renderRegimes(); renderClusters(); drawLegend(); prefetch(); writeHash(); render();
   }
@@ -1712,7 +1741,7 @@
     var f = st.field, list = [], spans = c.spans.map(function (s) { return s.key; }), i0 = Math.max(0, spans.indexOf(st.span)), slow = netSlow();
     function add(sp) {
       var fr = framesOf(c, f, st.view, sp);
-      if (st.view === "change") { var s = spanOf(c, sp); if (!(s && s.change && s.change[f])) return; list.push(fr.c); }
+      if (st.view === "change") { if (!chOf(c, spanOf(c, sp), f)) return; list.push(fr.c); }
       if (fr.a) list.push(fr.a);
       if (sp === st.span) fr.tiles.forEach(function (t) { list.push(t.rel); });
     }
@@ -1864,7 +1893,7 @@
       var sc = sampleAt(d.cc, gridC(d.c, f), lon, lat);
       if (!sc || !sc[0]) { tip.style.display = "none"; return; }
       var ch = dispK((sc[0] - 128) * e.change), ce = sc[0] === 1 || sc[0] === 255 ? " or more" : "";
-      head = fmtV(ch, f === "z500" ? 0 : 1) + " " + u + ce + " since the previous run";
+      head = fmtV(ch, f === "z500" ? 0 : 1) + " " + u + ce + " since the run " + vsH(d.c) + " h earlier";
       lines.push(sc[1] ? "significant" : "not significant: inside the members' spread");
     }
     if (sa && sa[2]) {
@@ -1879,13 +1908,17 @@
   }
 
   // ── URL hash: #model/field/view/span[/F] ────────────────────────────────────────────────────────────────────────
-  // #model/field/view/span, then in any order: F (deg F), the regimes' sector (ea, na) and regime (its family's number)
+  // #model/field/view/span, then in any order: F (deg F), s (standardized), v6 (the change from 6 h earlier), r<model><cycle>
+  // (a model's run other than its newest), the regimes' sector (ea, na) and regime (its family's number), the clusters'
+  // domain (c<domain>) and window or day
   function writeHash() {
     var x = [st.model, st.field, st.view, st.span];
     if (st.view === "regimes") { x.push(st.sector); if (st.regime !== null) x.push(String(st.regime)); }
     if (st.view === "clusters") x.push("c" + st.cdom, st.cwin === "day" ? "day" + ("0" + st.cday).slice(-2) : st.cwin);
     if (st.unit === "F") x.push("F");
     if (st.sigma) x.push("s");
+    if (vs6On(cyc())) x.push("v6");
+    MODEL_ORDER.forEach(function (m) { if (st.run[m]) x.push("r" + m + st.run[m]); });
     try { history.replaceState(null, "", "#" + x.join("/")); } catch (e) {}
   }
   function readHash() {
@@ -1894,7 +1927,7 @@
     if (FIELDS[p[1]]) st.field = p[1];
     if (VIEWS[p[2]]) st.view = p[2];
     if (/^(P[1-3]|D\d\d)$/.test(p[3] || "")) st.span = p[3];
-    p.slice(4).forEach(function (t) { if (t === "F") st.unit = "F"; else if (t === "s") st.sigma = true; else if (/^day\d\d$/.test(t)) { st.cwin = "day"; st.cday = +t.slice(3); } else if (CWINS[t] && t !== "day") st.cwin = t; else if (t[0] === "c" && CDOMS[t.slice(1)]) st.cdom = t.slice(1); else if (SECTORS[t]) st.sector = t; else if (/^\d$/.test(t)) st.regime = +t; });
+    p.slice(4).forEach(function (t) { var rm = /^r(ifs|aifs|gefs|geps)(\d{10})$/.exec(t); if (rm) st.run[rm[1]] = rm[2]; else if (t === "v6") st.vs6 = true; else if (t === "F") st.unit = "F"; else if (t === "s") st.sigma = true; else if (/^day\d\d$/.test(t)) { st.cwin = "day"; st.cday = +t.slice(3); } else if (CWINS[t] && t !== "day") st.cwin = t; else if (t[0] === "c" && CDOMS[t.slice(1)]) st.cdom = t.slice(1); else if (SECTORS[t]) st.sector = t; else if (/^\d$/.test(t)) st.regime = +t; });
   }
   function showRuns() {
     $("runs").textContent = "Runs on the page now: " + MODEL_ORDER.filter(cycleOf).map(function (m) { var x = cycleOf(m); return MODELS[m] + " " + runLabel(x) + " (published " + x.made.replace("T", " ") + ")"; }).join(" · ") + ".";
