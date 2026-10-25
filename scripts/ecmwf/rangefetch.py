@@ -21,8 +21,10 @@ polite ones.
 from __future__ import annotations
 
 import argparse
+import atexit
 import json
 import os
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -69,6 +71,31 @@ WORKERS = int(os.environ.get("ECMWF_RANGE_WORKERS", "16"))
 # for OTHER processes sharing this IP (pipeline,
 # benchmarks). Adaptive: throttle responses shrink
 # effective concurrency for the rest of the batch, and each is logged.
+
+
+# What this process downloaded, per file stream (model/grid/stream/type): printed once at exit, so every job's log says
+# how much each of its steps took from the mirror.
+_LEDGER: dict[str, list[int]] = {}
+_LEDGER_LOCK = threading.Lock()
+
+
+def _count(rel: str, nbytes: int) -> None:
+    # <date>/<hh>z/<model>/<grid>/<stream>/<date><hh>0000-<step>h-<stream>-<type>[-<levtype>].<ext>
+    parts = rel.split("/")
+    key = "/".join([*parts[2:5], "-".join(parts[-1].split(".")[0].split("-")[3:])]) if len(parts) > 5 else rel
+    with _LEDGER_LOCK:
+        c = _LEDGER.setdefault(key, [0, 0])
+        c[0] += 1
+        c[1] += nbytes
+
+
+@atexit.register
+def _report() -> None:
+    if not _LEDGER:
+        return
+    n, b = sum(c[0] for c in _LEDGER.values()), sum(c[1] for c in _LEDGER.values())
+    parts = ", ".join(f"{k} {c[1] / 1e6:,.0f} MB" for k, c in sorted(_LEDGER.items(), key=lambda kv: -kv[1][1]))
+    print(f"  ECMWF downloads (Google mirror): {n:,} requests, {b / 1e9:.2f} GB - {parts}", flush=True)
 
 
 # The grids of the open data, as products name them. IFS is also published on a regular 0.1-deg grid (since October
@@ -144,6 +171,7 @@ def fetch_index(
                 r = requests.get(f"{MIRRORS[src]}/{rel}", timeout=TIMEOUT)
                 statuses[src] = r.status_code
                 if r.status_code == 200:
+                    _count(rel, len(r.content))
                     return [json.loads(line) for line in r.text.splitlines() if line.strip()]
                 last_err = RuntimeError(f"{src}: HTTP {r.status_code}")
                 if r.status_code in (429, 503):
@@ -207,8 +235,6 @@ class _Gets:
     concurrency shed on throttle signals; `stats` accumulates the bytes served per mirror."""
 
     def __init__(self, rel_grib: str, sources, workers: int, stats: dict | None):
-        import threading
-
         self.rel, self.sources, self.stats = rel_grib, _google(sources), stats
         self.workers = workers
         self.gate = threading.Semaphore(workers)  # shrinks on throttle signals
@@ -236,6 +262,7 @@ class _Gets:
                             if self.stats is not None:
                                 with self.lock:
                                     self.stats[src] = self.stats.get(src, 0) + len(r.content)
+                            _count(self.rel, len(r.content))
                             return r.content
                         last = RuntimeError(f"{src}: HTTP {r.status_code}")
                         if r.status_code in (429, 503):  # throttled: back off AND
@@ -279,8 +306,6 @@ def fetch_rows(
     decoded with eccodes where ccsds cannot. `each` runs per message, so a reduction never holds a step's rows at once,
     and one call at a time: a matrix product with a transposed operand from several threads came out corrupt with some
     OpenBLAS builds (63 of 64 concurrent calls wrong), while the fetches and decoding stay parallel."""
-    import threading
-
     import eccodes
     import numpy as np
 
