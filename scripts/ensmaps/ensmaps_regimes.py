@@ -11,11 +11,13 @@ runs).
   field     each member's daily mean (06-24 UTC) 500 hPa height averaged onto the 2.5-deg NCEP grid
             (regime_core.box25), less the ERA5 1991-2020 day-of-year normal (scripts/regimes/data/era5_z500_clim.npz)
   drift     the archive of this job's 00Z runs (assets/regimes/data/ensmaps_drift_<model>.json, 60 runs; the IFS-ENS
-            and AIFS-ENS archives start from the ECMWF producer's, the same quantity); a 12Z run takes the drift of
-            the same lead day. Lead day 16 (GEFS, GEPS) has no verified pairs and is used as it comes.
-  labels    regime_core.members_record -> assets/regimes/data/ensmaps_members_<model>.json, the format every regime
-            producer writes, so the multi-model view can read it (it carries `cycle`; a 12Z run's day 1 is the day
-            after its start)
+            and AIFS-ENS archives start from the ECMWF producer's, the same quantity); a 06, 12 or 18Z run takes the
+            00Z runs' drift of the same lead day (its d-th full day, the day after its start being day 1). Lead day
+            16 (GEFS, GEPS) has no verified pairs and is used as it comes.
+  labels    regime_core.members_record -> assets/regimes/data/ensmaps_members_<model>.json (the newest run) and
+            ensmaps_members_<model>_<cycle>.json (each run on the page, ensmaps.KEEP_RUNS), the format every regime
+            producer writes, so the multi-model view can read it (it carries `cycle`; a 06, 12 or 18Z run's day 1 is
+            the day after its start)
 
 What the page shows, and the tests that gate it:
   timeline   per sector and valid day, how many members are in each regime (and in none). A share is marked
@@ -23,8 +25,9 @@ What the page shows, and the tests that gate it:
              (regime_core.climatology): the 95 % interval of [share - normal], members resampled with replacement and
              the R1 years resampled (both 1000 times), excludes 0 - the multi-model view's test, per day; the normal's
              standard error over the resampled years (clim_sd) lets the page test its equal-weight four-ensemble mean
-  change     per sector, regime and day both runs hold: the share less the previous run's; significant by Fisher's
-             exact test on the two runs' member counts with Benjamini-Hochberg at FDR_Q over the sector's table
+  change     per sector, regime and day both runs hold: the share less that of the run 12 h earlier (or of the
+             newest run before it); significant by Fisher's exact test on the two runs' member counts with
+             Benjamini-Hochberg at FDR_Q over the sector's table
   scenarios  per span (the periods take the label of their middle day: the 5-day running mean that is the period's
              own mean) and sector, for each regime holding at least SCEN_MIN members: the mean anomaly of those
              members in each field on the 0.5-deg grid, gated as the maps are (a sign test at 5 % on that regime's
@@ -119,10 +122,16 @@ def labels(mod, cycle: str, init, dates: list, Z25: np.ndarray, ok: np.ndarray, 
         max_age_days=2,
     )
     rec["cycle"] = cycle
-    if cycle.endswith("12"):
-        rec["valid_convention"] = "day d valid on the UTC day init + d (a 12Z run's first full day is the next day)"
+    if not cycle.endswith("00"):
+        rec["valid_convention"] = (
+            "day d valid on the UTC day init + d (a 06, 12 or 18Z run's first full day is the next day)"
+        )
     rec["drift"] = {"applied": applied, "note": note}
-    (out_dir / f"ensmaps_members_{mod.key}.json").write_text(json.dumps(rec))
+    text = json.dumps(rec)
+    (out_dir / f"ensmaps_members_{mod.key}.json").write_text(text)  # the newest run's
+    (out_dir / f"ensmaps_members_{mod.key}_{cycle}.json").write_text(text)  # and each of the page's runs'
+    for old in sorted(out_dir.glob(f"ensmaps_members_{mod.key}_??????????.json"))[: -E.KEEP_RUNS]:
+        old.unlink()
     E.log(f"  regimes: {mem.size} members; {note}")
     return out, mem, note
 
@@ -247,7 +256,7 @@ def run(mod, cycle: str, init, days: list, Z25: np.ndarray, F: dict, high50: np.
     return {
         "members": int(mem.size),
         "drift": note,
-        "record": f"assets/regimes/data/ensmaps_members_{mod.key}.json",
+        "record": f"assets/regimes/data/ensmaps_members_{mod.key}_{cycle}.json",
         "min_members": SCEN_MIN,
         "sectors": sectors,
         "scenarios": scen,
