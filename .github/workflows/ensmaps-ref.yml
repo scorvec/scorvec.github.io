@@ -10,12 +10,10 @@ name: Global ensemble maps, 2 m temperature normals (ERA5-Land + ERA5 1991-2020 
 # CDS: ONE key, so this shares the `seas5` concurrency group with seas5.yml, c3s.yml and the other CDS workflows, and
 # every request goes through scripts/sst/cds_seq.py, one at a time. A request the CDS keeps queued is waited for until
 # the fetch step's time runs out; the next run adopts the key's job (queued, running or finished) instead of asking
-# again, and fetches only the units the release does not hold. The cron repeats that every 6 h until the release has
-# the normals, then exits at its first step. Licence: Copernicus (the page carries "Contains modified Copernicus Climate
+# again, and fetches only the units the release does not hold. Built 2026-10-25, so it is dispatch-only now (a rebuild,
+# or refit=true to fit the curves again from the units in the release). Licence: Copernicus (the page carries "Contains modified Copernicus Climate
 # Change Service information"). Secrets: CDSAPI_URL and CDSAPI_KEY.
 on:
-  schedule:
-    - cron: '40 */6 * * *'
   workflow_dispatch:
     inputs:
       refit:
