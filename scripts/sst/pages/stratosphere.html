@@ -391,16 +391,18 @@ stratosphere, and it is driven from above &mdash; waves breaking in the extratro
 This product estimates it by <b>downward control</b> (Haynes et al. 1991): the zonal momentum forcing &mdash; the divergence
 of the Eliassen&ndash;Palm flux of the resolved waves plus the parameterized gravity-wave drag &mdash; divided by the
 Coriolis term gives the residual meridional wind, integrated from the top down into the residual streamfunction &Psi;*.
-The tropical upward mass flux is &Psi;* at the two subtropical turnaround latitudes (fixed for the day of year from the
-MERRA-2 mean circulation). Estimating it from the analysed mean meridional wind or vertical velocity directly does not
+The tropical upward mass flux is &Psi;* at the two subtropical turnaround latitudes, fixed for each level from MERRA-2&rsquo;s
+annual-mean circulation (41&deg;S and 36&deg;N at 70&nbsp;hPa, 23&deg;S and 33&deg;N at 100&nbsp;hPa): sought day by day, the turnaround
+sat on the edge of its search range on 39% of days and jumped by up to 18&deg; as the flat summer-hemisphere profile changed,
+which moved the index with every change of the climatology. Estimating it from the analysed mean meridional wind or vertical velocity directly does not
 work: in both GEOS FP and MERRA-2 that version shows no northern-winter maximum at all, because the tropical upwelling
 (~0.3&nbsp;mm/s) is buried in the noise of a daily zonal mean.</p>
-<p>The reference is the MERRA-2 GMI replay on 29 years (1991&ndash;2019), sampled at 00Z every 10th day, 1,070 days in all: at 70&nbsp;hPa the annual mean is 6.5&times;10<sup>9</sup>&nbsp;kg/s
-with a December&ndash;January maximum 1.5&times; the July minimum, as in the published reanalysis estimates. GEOS FP is put on the
-MERRA-2 scale by the same-day difference measured on 38 days of 2018&ndash;19 (&minus;1.0 at 70&nbsp;hPa, about half of it GEOS FP's
-weaker gravity-wave drag). At 100&nbsp;hPa that difference varies by season (one-way ANOVA p&nbsp;0.03 over the four seasons, 0.06
-allowing for the two levels tested, and it rests on spring alone), so one constant shift is used and its standard error enters every
-test. The forecast holds the last five days' drag fixed, because GEOS FP publishes no forecast wind
+<p>The reference is the MERRA-2 GMI replay on 29 years (1991&ndash;2019), sampled at 00Z every 10th day, 1,070 days in all: at 70&nbsp;hPa the annual mean is 6.0&times;10<sup>9</sup>&nbsp;kg/s
+with one December&ndash;January maximum, 2.3&times; the June minimum (December&ndash;February 1.85&times; June&ndash;August), as in the published reanalysis estimates. GEOS FP is put on the
+MERRA-2 scale by the same-day difference measured on 38 days of 2018&ndash;19, fitted as a function of the season (a mean and
+annual and semiannual harmonics): on average &minus;0.6 at 70&nbsp;hPa, nearly all of it GEOS FP's weaker gravity-wave drag; at
+100&nbsp;hPa it swings from about &minus;1.6 in January to +1.5 in October (F-test against a constant, p&nbsp;0.001). The fit&rsquo;s
+uncertainty at the days compared enters every test. The forecast holds the last five days' drag fixed, because GEOS FP publishes no forecast wind
 tendencies. Values are trailing 30-day means: a single day scatters by about &plusmn;3 at 70&nbsp;hPa and &plusmn;4 at 100&nbsp;hPa. The
 stability &part;&theta;/&part;p in the eddy fluxes is taken through ln&nbsp;&theta; against ln&nbsp;p: differenced in p directly it weakened
 the resolved-wave part by 2&ndash;5%. The analysis increment, the reanalyses' own correction to the momentum budget, is left out.</p>
@@ -566,19 +568,19 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
         1&nbsp;hPa. Only in the tropics at 10&nbsp;hPa does the drag dominate (0.35 against 0.04). Part of the forcing the
         model's own physics does not supply is supplied by the observations.</p>
 <p id="mb-upwelling"><b>Tropical upwelling.</b> The mean residual vertical velocity $\bar w^{*}$ between the subtropical
-        turnaround latitudes (where the residual circulation turns from rising to sinking, fixed by day of year from the
-        MERRA-2 mean circulation, as in the Brewer&ndash;Dobson item) at 70 and 100&nbsp;hPa, split by <b>downward
+        turnaround latitudes (where the residual circulation turns from rising to sinking, fixed for each level from the
+        MERRA-2 annual-mean circulation, as in the Brewer&ndash;Dobson item) at 70 and 100&nbsp;hPa, split by <b>downward
         control</b> (Haynes et al. 1991): each force, divided by $\hat f$ and integrated down from the top, drives its
         own share of the upwelling. The parts are the resolved waves, the gravity-wave drag, the analysis increment, the
         non-steady part (the wind's own change, $-\partial\bar u/\partial t$) and &ldquo;other&rdquo; (vertical advection
         and the residual). By construction they add up to the upwelling implied by the analysed $\bar v^{*}$; the
-        $\bar w^{*}$ computed straight from the analysed vertical velocity is an independent check. Over 28&nbsp;August&ndash;26&nbsp;September 2026 (the operator before its 25 October fix) the two agreed: 0.185 against
+        $\bar w^{*}$ computed straight from the analysed vertical velocity is an independent check. Over 28&nbsp;August&ndash;26&nbsp;September 2026 (the operator and the turnaround latitudes before their 25 October revision) the two agreed: 0.185 against
         0.184&nbsp;mm/s at 70&nbsp;hPa (daily correlation 0.79) and 0.218 against 0.188 at 100&nbsp;hPa. Over the same days the
         increment drove three times as much of the 70&nbsp;hPa upwelling as the gravity-wave drag did (0.031 against
         0.011&nbsp;mm/s), against 0.193 for the resolved waves. Lines are
         trailing 30-day means. On the right, the last 30 days against MERRA-2: each normal is put on the GEOS FP scale by
-        the 2018&ndash;19 same-day difference (at 70&nbsp;hPa resolved &minus;0.016, gravity waves &minus;0.018, increment
-        &minus;0.010&nbsp;mm/s) and tested with a z-test against MERRA-2's year-to-year spread of 30-day means plus the
+        the 2018&ndash;19 same-day difference fitted as a function of the season (annual means at 70&nbsp;hPa: resolved &minus;0.001,
+        gravity waves &minus;0.018, increment &minus;0.006&nbsp;mm/s) and tested with a z-test against MERRA-2's year-to-year spread of 30-day means plus the
         errors of the normal and of that difference; the footer says which parts are significant. 0.2&nbsp;mm/s is about
         17&nbsp;m a day.</p>
 <p><b>Where the forces act.</b> Latitude&ndash;height sections from 100 to 1&nbsp;hPa of the resolved-wave drag, the

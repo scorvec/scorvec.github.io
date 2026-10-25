@@ -617,7 +617,9 @@ def seam_offsets(lat, ref):
     """GEOS FP minus MERRA-2 on the 38 same days of 2018-19 (bdc_dc overlap files: 00Z states; GEOS FP GWD and ANA as
     the mean of four tavg3 windows). EPD/cor/vad: 00Z against 00Z. GWD: against the GMI replay's daily GWD. ANA: against
     MERRA-2's monthly increment for the month (the replay saves none). Per point: mean difference, its standard error, and
-    for GWD also the no-intercept ratio. Also the upwelling parts at 70/100 hPa."""
+    for GWD also the no-intercept ratio. Also the upwelling parts at 70/100 hPa. Each difference is also fitted as a mean
+    plus B.OFF_NH harmonics of the day of year (seam_at): the drag parts and the 100 hPa resolved part vary with the
+    season (F-test against a constant p < 0.01 for the upwelling, 41 % of section points for the drag)."""
     OVL = B.OVL
     udt = {}
     for y in (2018, 2019):
@@ -661,11 +663,20 @@ def seam_offsets(lat, ref):
                 k = B.lev_index(L)
                 UP[f"{nm}{L}"].append(upflux_mm(pf[k], lat, d, L) - upflux_mm(pm[k], lat, d, L))
         days.append(day)
-    out = {"seam_n": len(days), "seam_days": np.array(days)}
+    Xh = B.harm([B.cday(pd.Timestamp(d)) for d in days], B.OFF_NH)
+    XtXi = np.linalg.inv(Xh.T @ Xh)
+    dof = len(days) - Xh.shape[1]
+
+    def fit(vals):
+        c = np.tensordot(XtXi @ Xh.T, vals, axes=1)
+        return c, np.sum((vals - np.tensordot(Xh, c, axes=1)) ** 2, 0) / dof
+
+    out = {"seam_n": len(days), "seam_days": np.array(days), "seam_XtXi": XtXi}
     for k, v in D.items():
         vals = np.array(v)
         out[f"seam_{k}"] = vals.mean(0)
         out[f"seam_{k}_se"] = vals.std(0, ddof=1) / np.sqrt(len(vals))
+        out[f"seam_{k}_coef"], out[f"seam_{k}_s2"] = fit(vals)
     Gm, Gf = np.array(Gm), np.array(Gf)
     den = (Gm**2).sum(0)
     out["seam_gwd_ratio"] = r_ = np.where(den > 0, (Gm * Gf).sum(0) / np.where(den > 0, den, 1), 1.0)
@@ -674,6 +685,7 @@ def seam_offsets(lat, ref):
         vals = np.array(v)
         out[f"seam_up_{k}"] = np.array(vals.mean())
         out[f"seam_up_{k}_se"] = np.array(vals.std(ddof=1) / np.sqrt(len(vals)))
+        out[f"seam_up_{k}_coef"], out[f"seam_up_{k}_s2"] = fit(vals)
     log(f"seam: {len(days)} same days 2018-19")
     return out
 
@@ -834,6 +846,13 @@ def _save(fig, path):
     import matplotlib.pyplot as plt
 
     plt.close(fig)
+
+
+def seam_at(R, key, doys):
+    """The 2018-19 seam of `key` (GEOS FP minus MERRA-2: "epd", "ana" per point, or "up_ep70" and the like) as a mean over
+    the days doys (cday values) of its seasonal fit, and the variance of that mean."""
+    xb = B.harm(np.atleast_1d(doys), B.OFF_NH).mean(0)
+    return np.tensordot(xb, R[f"seam_{key}_coef"], axes=1), R[f"seam_{key}_s2"] * float(xb @ R["seam_XtXi"] @ xb)
 
 
 def seam_note(R, key, lo, hi, L):
@@ -1081,12 +1100,13 @@ def up_normals(R, doys, L):
     for c in ("ep", "gw"):
         mu = float(np.mean(B.harm(doys) @ R[f"up_{c}{L}_coef"]))
         var_ia = max(float(R[f"up_{c}{L}_via30"]), 0.0) + float(R[f"up_{c}{L}_via30_se"])
+        seam, var_seam = seam_at(R, f"up_{c}{L}", doys)
         out[c] = {
             "normal": mu,
             "var_ia": var_ia,
             "var_mu": float(R[f"up_{c}{L}_s2"]) * lev_,
-            "seam": float(R[f"seam_up_{c}{L}"]),
-            "seam_se": float(R[f"seam_up_{c}{L}_se"]),
+            "seam": float(seam),
+            "seam_se": float(np.sqrt(var_seam)),
             "daily_s2": float(R[f"up_{c}{L}_s2"]),
         }
     # common-year days (B.cday; 29 Feb = 59.5 falls in February) back to months on a common year
@@ -1099,12 +1119,13 @@ def up_normals(R, doys, L):
     w = np.bincount(mo, minlength=12) / len(mo)
     mu = float(w @ R[f"up_an{L}_mmean"])
     sd2 = float(w @ R[f"up_an{L}_msd"] ** 2)
+    seam, var_seam = seam_at(R, f"up_an{L}", doys)
     out["an"] = {
         "normal": mu,
         "var_ia": sd2,
         "var_mu": sd2 / len(R["m_years"]),
-        "seam": float(R[f"seam_up_an{L}"]),
-        "seam_se": float(R[f"seam_up_an{L}_se"]),
+        "seam": float(seam),
+        "seam_se": float(np.sqrt(var_seam)),
         "daily_s2": 0.0,
         "monthly": True,
     }
@@ -1286,8 +1307,8 @@ def section_stats(Z, days, lat, R):
             res = Z[key] - clim_all
             infl = B.acf_inflation(np.where(np.isfinite(res), res, 0.0), days)
             var_x = np.nanvar(X, 0, ddof=1) / np.isfinite(X).sum(0) * infl
-            adj = normal + R["seam_epd"]
-            var_seam = R["seam_epd_se"] ** 2
+            seam, var_seam = seam_at(R, "epd", doys)
+            adj = normal + seam
         else:
             normal = np.tensordot(wm, R[f"m_{key}_mean"], axes=1)
             var_ia = np.tensordot(wm, R[f"m_{key}_sd"] ** 2, axes=1)
@@ -1298,8 +1319,8 @@ def section_stats(Z, days, lat, R):
                 adj = normal * R["seam_gwd_ratio"]
                 var_seam = (normal * R["seam_gwd_ratio_se"]) ** 2
             else:
-                adj = normal + R["seam_ana"]
-                var_seam = R["seam_ana_se"] ** 2
+                seam, var_seam = seam_at(R, "ana", doys)
+                adj = normal + seam
         anom = xm - adj
         z = anom / np.sqrt(var_ia + var_mu + var_seam + var_x)
         p = np.where(dom, B.norm_p(z), np.nan)

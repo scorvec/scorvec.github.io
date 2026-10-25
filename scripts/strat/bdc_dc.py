@@ -16,11 +16,11 @@ METHOD. Steady TEM zonal momentum balance in pressure coordinates (Andrews, Holt
   covariances come from 00Z fields point-sampled at 1 x 1.25 deg, on GEOS FP's pressure levels 0.1-200 hPa for BOTH
   analyses (MERRA-2's extra 125 and 85 hPa levels are dropped: derivatives and the integral are grid-dependent).
   Index = tropical upward mass flux across 70 and 100 hPa: psi* averaged over +-2 deg around the NH turnaround latitude
-  minus the same around the SH one, with the turnaround latitudes FIXED from the MERRA-2 mean circulation for the day of
-  year (extremum over 15-40 deg of the 2-deg-smoothed 3-harmonic climatology). Fixing them keeps the index linear in
-  psi*, so a 30-day mean of daily values is the index of the 30-day-mean circulation. The earlier choice - each day's
-  own max minus min - is biased high by the day-to-day noise (MERRA-2 70 hPa annual mean 9.4 instead of 6.4, on the
-  15-year climatology of 2026-09-27).
+  minus the same around the SH one, with the turnaround latitudes FIXED for each level from the MERRA-2 annual-mean
+  circulation (extremum over 15-60 deg of the 2-deg-smoothed annual mean: 23S/33N at 100 hPa, 41S/36N at 70, 42S/39N at
+  50; turn_table says why not by day of year). Fixing them keeps the index linear in psi*, so a 30-day mean of daily
+  values is the index of the 30-day-mean circulation; each day's own max minus min is biased high by the day-to-day
+  noise.
   Single days are noisy (sd ~3 at 70 hPa, ~4 at 100: transient wave forcing, which the steady balance maps straight
   into v*), so the product is the trailing 30-day mean. Section: 30-day mean psi*; |lat| < 15 is interpolated in
   sin(lat) (uniform tropical upwelling) because fhat -> 0 there.
@@ -41,24 +41,24 @@ DATA.
 
 VALIDATION (numbers also in data/bdc_dc/*.json)
   MERRA-2 climatology (rebuilt 2026-10-25: 29 years 1991-2019, 1,070 days; the stability through ln theta in ln p,
-    which raised the resolved-wave part 2.3 % at 70 hPa and 4.5 % at 100 hPa against d theta/dp differenced in p, the
-    drag part unchanged): 70 hPa tropical upward mass flux 6.5 x 1e9 kg/s annual mean (literature for reanalysis
-    downward control ~6-7), Dec 8.7 / Jan 8.4 vs Jul 5.8 / Aug 5.3, DJF/JJA 1.38; 100 hPa 10.3, DJF/JJA 1.42.
-    Resolved-wave part 5.5 (DJF/JJA 1.22), gravity-wave part 1.04 (DJF/JJA 2.6). Single days scatter with sd 3.2
-    (70 hPa) / 4.0 (100 hPa) about the normal; the year-to-year variance of 30-day means is not resolvable from
-    every-10th-day samples (estimate -0.10 +- 0.27 at 70 hPa, +0.13 +- 0.43 at 100 hPa), so the band and the tests use
-    0 + one standard error.
-  Same days, GEOS FP vs MERRA-2 (38 days, every 20th day of 2018-19, each with its own drag): 70 hPa 5.75 vs 6.78,
-    GEOS FP - MERRA-2 = -1.03 +- 0.25 (ratio 0.85 +- 0.04), same-day r 0.90; the gravity-wave part is -0.54 +- 0.05
-    (GEOS FP's parameterized drag is 54 % of MERRA-2's), the resolved part -0.49 +- 0.24 (p 0.04). 100 hPa -0.68 +- 0.41
-    (ratio 0.94, r 0.84; drag -0.96 +- 0.07, resolved +0.28 +- 0.40). Seasonal means at 70 hPa -1.3 DJF, -0.6 MAM,
-    -1.6 JJA, -0.6 SON (one-way ANOVA p 0.35); at 100 hPa -1.7, +1.2, -1.6, -0.6 (p 0.03, 0.06 Bonferroni over the two
-    levels; spring alone; 0.09 with the 15-year turnaround latitudes), and scaling only the drag part does not remove
-    the spread, so the shift is one additive constant: GEOS FP values are shifted +1.03 (70 hPa) / +0.68 (100 hPa), and
-    psi* by its per-point mean difference, before any comparison with the MERRA-2 normal; the shift's standard error
-    enters every test. Caveat: GEOS FP's model version (and GWD tuning) has changed since 2018-19; its 2026 drag part
-    (0.32 at 70 hPa) against MERRA-2's normal drag on the same days (0.74, 15-year normal) is consistent with the
-    2018-19 ratio.
+    which raised the resolved-wave part 2-5 % against d theta/dp differenced in p; the fixed annual-mean turnaround
+    latitudes): 70 hPa tropical upward mass flux 6.0 x 1e9 kg/s annual mean (literature for reanalysis downward control
+    ~6-7), one December-January maximum (Dec 8.7, Jan 8.3) and one June minimum (3.7), DJF/JJA 1.85; 100 hPa 9.7,
+    DJF/JJA 1.50 (a second, June peak at 100 hPa under every turnaround choice tried: the summer monsoon upwelling near
+    the tropopause). Resolved-wave part 4.9 (DJF/JJA 1.72), gravity-wave part 1.18 (DJF/JJA 2.4). Single days scatter
+    with sd 3.4 (70 hPa) / 3.7 (100 hPa) about the normal; the year-to-year variance of 30-day means is not resolvable
+    from every-10th-day samples (estimate +0.06 +- 0.29 at 70 hPa, -0.12 +- 0.34 at 100 hPa), so the band and the tests
+    use 0 + one standard error.
+  Same days, GEOS FP vs MERRA-2 (38 days, every 20th day of 2018-19, each with its own drag): 70 hPa 5.56 vs 6.18,
+    GEOS FP - MERRA-2 = -0.62 +- 0.18 on average (ratio 0.90 +- 0.03), same-day r 0.96; the gravity-wave part is
+    -0.57 +- 0.05 (GEOS FP's parameterized drag is 55 % of MERRA-2's), the resolved part -0.04 +- 0.17. 100 hPa
+    -0.45 +- 0.37 (ratio 0.96, r 0.85; drag -0.87 +- 0.07, resolved +0.42 +- 0.34). The difference changes with the
+    season: at 100 hPa it is semiannual, about -1.6 in January and +1.5 in October (F-test of a mean plus two harmonics
+    against a constant, p 0.001; 70 hPa p 0.07, 50 hPa p 0.26). So the shift is that seasonal fit (offset_at: a mean
+    plus OFF_NH harmonics of the day of year, for the index and for psi* point by point), applied before any comparison
+    with the MERRA-2 normal, and the fit's standard error at the days compared enters every test. Caveat: GEOS FP's
+    model version (and GWD tuning) has changed since 2018-19; its 2026 drag part (0.32 at 70 hPa) against MERRA-2's
+    normal drag on the same days (0.74, 15-year normal) is consistent with the 2018-19 ratio.
   GEOS FP analysis tail (2026-09-27, against the 15-year climatology), 106 daily analyses 2026-06-13 -> 09-26:
     unshifted mean 5.27 at 70 hPa vs the MERRA-2 normal for the same days 5.44 (8.17 vs 8.20 at 100 hPa); 68 % / 75 %
     of single days inside MERRA-2's single-day 10-90 % range (80 % expected). Daily index: lag-1 autocorrelation 0.59
@@ -223,6 +223,7 @@ def downward_control(lat, p_hpa, ubar, tbar, vT, uv, uw, X):
 
 IDX_LEVS = (100, 70, 50)
 TURN_HALF = 2.0  # the index averages psi* over +-2 deg around each turnaround
+TURN_BAND = (15.0, 60.0)  # deg: where the turnaround latitudes are sought (the annual-mean extrema lie at 23-42 deg)
 
 
 def lev_index(level):
@@ -230,22 +231,25 @@ def lev_index(level):
 
 
 def turn_table(psi_clim_fn, lat):
-    """Turnaround latitudes of the MERRA-2 mean circulation by day of year: the extremum of the climatological psi*
-    (smoothed with a 2-deg Gaussian in latitude) over 15-40 deg in each hemisphere, at each index level ->
-    (366, len(IDX_LEVS), 2) latitudes (south, north). Fixing them makes the index LINEAR in psi*: the mean of daily
-    values equals the value of the mean circulation. Taking each day's own max-min instead inflated the MERRA-2 70 hPa
-    annual mean from 6.5 to 9.4 x 1e9 kg/s, because the max of a noisy profile is biased high."""
+    """Turnaround latitudes of the MERRA-2 mean circulation, one pair per index level for the whole year: the extremum
+    of the ANNUAL-MEAN climatological psi* (smoothed with a 2-deg Gaussian in latitude) over TURN_BAND in each
+    hemisphere -> (366, len(IDX_LEVS), 2) latitudes (south, north), the same on every day.
+    Fixed latitudes keep the index LINEAR in psi* (the mean of daily values is the value of the mean circulation; each
+    day's own max-min is biased high by the noise, 9.4 instead of 6.5 at 70 hPa). Fixed for the year, they cannot jump:
+    a day-of-year extremum over 15-40 deg sits on its 40-deg edge on 39 % of days at 70 hPa (the summer hemisphere's
+    psi* is flat, the spring hemisphere's peaks near 50 deg) and hops by up to 18 deg, so the index moved with the years
+    in the climatology (rms 0.55 x 1e9 kg/s of the daily 70 hPa value between a 15- and a 29-year base; 0 with these).
+    On MERRA-2 1991-2019 these give one December maximum and June minimum at 70 hPa, DJF/JJA 1.85."""
     from scipy.ndimage import gaussian_filter1d
 
-    n = (lat >= 15) & (lat <= 40)
-    s = (lat <= -15) & (lat >= -40)
+    lo, hi = TURN_BAND
+    n = (lat >= lo) & (lat <= hi)
+    s = (lat <= -lo) & (lat >= -hi)
+    ann = np.mean([psi_clim_fn(d) for d in range(1, 366)], axis=0)
     out = np.zeros((366, len(IDX_LEVS), 2))
-    for d in range(1, 367):
-        ps = psi_clim_fn(d)
-        for i, L in enumerate(IDX_LEVS):
-            row = gaussian_filter1d(np.nan_to_num(ps[lev_index(L)]), 2.0, mode="nearest")
-            out[d - 1, i, 0] = lat[s][np.argmin(row[s])]
-            out[d - 1, i, 1] = lat[n][np.argmax(row[n])]
+    for i, L in enumerate(IDX_LEVS):
+        row = gaussian_filter1d(np.nan_to_num(ann[lev_index(L)]), 2.0, mode="nearest")
+        out[:, i] = lat[s][np.argmin(row[s])], lat[n][np.argmax(row[n])]
     return out
 
 
@@ -261,13 +265,14 @@ def get_tl():
 
 def band_mean(row, lat, c):
     lo, hi = (c - TURN_HALF, c + TURN_HALF)
-    lo, hi = (max(lo, 15), min(hi, 40)) if c > 0 else (max(lo, -40), min(hi, -15))
+    b0, b1 = TURN_BAND
+    lo, hi = (max(lo, b0), min(hi, b1)) if c > 0 else (max(lo, -b1), min(hi, -b0))
     return float(np.nanmean(row[(lat >= lo - 1e-6) & (lat <= hi + 1e-6)]))
 
 
 def upflux(row, lat, doy, i_lev, tl=None):
     """Tropical upward mass flux (1e9 kg/s) across a level: psi* averaged over +-2 deg around the NH turnaround latitude
-    minus the same around the SH one, both from the MERRA-2 climatology for the day of year (turn_table)."""
+    minus the same around the SH one, both from the MERRA-2 annual-mean circulation (turn_table)."""
     tl = get_tl() if tl is None else tl
     s, n = at_day(tl, doy)[i_lev]
     return band_mean(row, lat, n) - band_mean(row, lat, s)
@@ -832,6 +837,7 @@ def forecast_frame(path, X):
 # GEOS FP vs MERRA-2 on the same days (2018-19)
 # ----------------------------------------------------------------------------------------------------------------------
 OFFSET_CACHE = OUT / "overlap_offset.pkl"  # the computed offset, for runs without the overlap files (Actions)
+OFF_NH = 2  # harmonics of the offset's seasonal fit: at 100 hPa it is semiannual (F-test against a constant p 0.001)
 
 
 def overlap_offset():
@@ -868,7 +874,12 @@ def _overlap_offset():
         pairs.append((day, dc_record(m2, doy), dc_record(fp, doy)))
     if len(pairs) < 5:
         return None
-    out = {"n": len(pairs), "days": [p[0] for p in pairs]}
+    from scipy import stats
+
+    Xh = harm([cday(pd.Timestamp(p[0])) for p in pairs], OFF_NH)
+    XtXi = np.linalg.inv(Xh.T @ Xh)
+    dof = len(pairs) - Xh.shape[1]
+    out = {"n": len(pairs), "days": [p[0] for p in pairs], "nh": OFF_NH, "XtXi": XtXi}
     rng = np.random.default_rng(0)
     boot = rng.integers(0, len(pairs), (2000, len(pairs)))
     for key in KEYS:
@@ -885,10 +896,30 @@ def _overlap_offset():
             "ratio_se": float(rb.std()),
             "r": float(np.corrcoef(a, b)[0, 1]),
         }
+        coef = XtXi @ Xh.T @ d
+        rss, rss0 = float(np.sum((d - Xh @ coef) ** 2)), float(np.sum((d - d.mean()) ** 2))
+        q = Xh.shape[1] - 1
+        out[key] |= {
+            "coef": coef,
+            "s2": rss / dof,
+            "season_p": float(stats.f.sf((rss0 - rss) / q / (rss / dof), q, dof)),
+        }
     dpsi = np.array([p[2]["psi"] - p[1]["psi"] for p in pairs])
-    out["psi_diff"] = np.nanmean(dpsi, 0)
-    out["psi_diff_se"] = np.nanstd(dpsi, 0, ddof=1) / np.sqrt(len(pairs))
+    out["psi_coef"] = np.tensordot(XtXi @ Xh.T, dpsi, axes=1)
+    out["psi_s2"] = np.sum((dpsi - np.tensordot(Xh, out["psi_coef"], axes=1)) ** 2, 0) / dof
     return out
+
+
+def offset_at(off, key, doys):
+    """The GEOS FP - MERRA-2 offset of `key` (an index key, or "psi" for the section) on the days doys (cday values):
+    (each day's offset, the variance of their mean). The offset is a mean plus OFF_NH harmonics of the day of year,
+    fitted to the same-day differences; its variance is that fit's."""
+    Xd = harm(np.atleast_1d(doys), off["nh"])
+    xb = Xd.mean(0)
+    if key == "psi":
+        return np.tensordot(Xd, off["psi_coef"], axes=1), off["psi_s2"] * float(xb @ off["XtXi"] @ xb)
+    o = off[key]
+    return Xd @ o["coef"], o["s2"] * float(xb @ off["XtXi"] @ xb)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -1011,7 +1042,8 @@ def index_stats(C, S, key, an, off, nm):
     var_x = float(np.mean(clim_at(C, f"{key}_var", doys)) / n_eq * nm["inflation"])
     delta, var_d = 0.0, 0.0
     if off is not None:
-        delta, var_d = off[key]["diff"], off[key]["diff_se"] ** 2
+        dd, var_d = offset_at(off, key, doys)
+        delta = float(dd.mean())
     xa = float(x.mean()) - delta
     z = (xa - mu) / np.sqrt(var_x + var_ia + var_mu + var_d)
     p = float(norm_p(z))
@@ -1071,7 +1103,7 @@ def fig_upwelling(C, an, fc, cyc, stats, notes, off, nm, path):
             ls=(0, (5, 3)),
             label=f"MERRA-2 normal ({len(C['years'])} years {C['years'][0]}–{C['years'][-1]})",
         )
-        delta = stats[key]["offset_removed"]
+        delta = 0.0 if off is None else offset_at(off, key, cday(both.index))[0]
         run = (both[key] - delta).rolling(f"{WIN}D", min_periods=minp).mean()
         ra = run[(run.index <= an.index.max()) & (run.index >= t0)]
         rf = run[run.index >= an.index.max()]
@@ -1154,7 +1186,9 @@ def section_stats(C, S, an, PS_an, off, lat):
     est, se = interannual_var(S["psi"], T, half=WIN // 2)
     var_ia = np.maximum(est, 0) + se
     var_mu = harm_mean_se(S["psi"], T, doys) ** 2
-    delta, var_d = (off["psi_diff"], off["psi_diff_se"] ** 2) if off is not None else (0.0, 0.0)
+    delta, var_d = (0.0, 0.0) if off is None else offset_at(off, "psi", doys)
+    if off is not None:
+        delta = delta.mean(0)
     anom = xm - delta - clim
     z = anom / np.sqrt(var_x + var_ia + var_mu + var_d)
     p = norm_p(z)
@@ -1313,7 +1347,7 @@ def fig_section(C, sec, lat, cyc, off, path):
         f"Shading only where significant: z-test per point against MERRA-2 ({len(C['years'])} years {C['years'][0]}–"
         f"{C['years'][-1]}; day-to-day and year-to-year variance),\nfalse-discovery rate 10 % over 100–1 hPa and 15–80°."
         + (
-            f" The GEOS FP–MERRA-2 difference measured on {off['n']} same days in 2018–19 is removed first."
+            f" The GEOS FP–MERRA-2 difference measured on {off['n']} same days in 2018–19 (a seasonal fit) is removed first."
             if off is not None
             else ""
         )
@@ -1413,8 +1447,9 @@ def render():
         scale_note = "GEOS FP is not adjusted to MERRA-2 (no same-day comparison on file)."
     else:
         scale_note = (
-            f"GEOS FP is shifted {-off['F70']['diff']:+.1f} (70 hPa) and {-off['F100']['diff']:+.1f} (100 hPa): its mean "
-            f"same-day difference from MERRA-2 on {off['n']} days in 2018–19, of which the weaker gravity-wave drag is "
+            f"GEOS FP is shifted by its same-day difference from MERRA-2 ({off['n']} days in 2018–19) fitted as a function of "
+            f"the season, over the last {WIN} days {-stats['F70']['offset_removed']:+.1f} (70 hPa) and "
+            f"{-stats['F100']['offset_removed']:+.1f} (100 hPa); the weaker gravity-wave drag averages "
             f"{-off['F70_gw']['diff']:+.1f} / {-off['F100_gw']['diff']:+.1f}."
         )
     notes = (
@@ -1443,7 +1478,7 @@ def render():
         "gwd_forecast_hindcast": gwd_persistence_test(C, an, GW, recs),
         "overlap_2018_19": None
         if off is None
-        else {"n_days": off["n"], **{k: {kk: round(vv, 3) for kk, vv in off[k].items()} for k in KEYS}},
+        else {"n_days": off["n"], **{k: {kk: round(vv, 3) for kk, vv in off[k].items() if kk != "coef"} for k in KEYS}},
         "section": {
             "window": [f"{sec['window'][0]:%Y-%m-%d}", f"{sec['window'][1]:%Y-%m-%d}"],
             "n": sec["n"],
@@ -1466,7 +1501,8 @@ def render():
     minp = int(0.8 * WIN / nm["F70"]["step_days"])
     ser = {}
     for key in ("F70", "F100"):
-        run = (both[key] - stats[key]["offset_removed"]).rolling(f"{WIN}D", min_periods=minp).mean()
+        delta = 0.0 if off is None else offset_at(off, key, cday(both.index))[0]
+        run = (both[key] - delta).rolling(f"{WIN}D", min_periods=minp).mean()
         mu = clim_at(C, f"{key}_mean", cday(days))
         sd = band_sd(C, key, cday(days), nm[key])
         ser[key] = {
