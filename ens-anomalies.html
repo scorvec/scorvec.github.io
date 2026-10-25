@@ -143,7 +143,21 @@
   /* the regimes view: the timeline in the panel (the map gives up its height), scenario cards and the run-to-run
      table below the map */
   main.mv.rg .mv-map { height: max(300px, calc(100vh - 250px - var(--rgh, 150px))); }
-  .rg-top[hidden], .rg-more[hidden] { display: none; }
+  .rg-top[hidden], .rg-more[hidden], .cl-top[hidden], .cl-view[hidden] { display: none; }
+  /* the clusters view: the figures replace the map */
+  main.mv.cl .mv-mapwrap, main.mv.cl #legT, main.mv.cl .mv-show, main.mv.cl .mv-time, main.mv.cl #models, main.mv.cl #fields, main.mv.cl #runT, main.mv.cl #note { display: none; }
+  .cl-top { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.9rem; margin: 0 0 0.5rem; }
+  .cl-top .seg button { font-size: 1rem; padding: 0.4rem 0.8rem; min-height: 40px; }
+  .cl-verdict { font-size: 1.05rem; color: var(--ink2); margin: 0.2rem 0 0.6rem; max-width: 80rem; }
+  .cl-cards { display: flex; flex-direction: column; gap: 14px; }
+  .cl-card { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 0.5rem; margin: 0; }
+  .cl-card img { display: block; width: 100%; max-width: 960px; max-height: calc(100vh - 120px); object-fit: contain; }
+  .cl-card figcaption { font-size: 0.95rem; color: var(--ink2); margin-top: 0.35rem; display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; align-items: center; }
+  .cl-card figcaption canvas { width: 280px; height: 56px; }
+  .cl-card .flag { color: #9c1c2a; font-weight: 600; }
+  #clFlow table { border-collapse: collapse; font-size: 0.95rem; margin: 0.6rem 0; background: var(--panel); }
+  #clFlow th, #clFlow td { border: 1px solid var(--rule); padding: 0.25rem 0.5rem; text-align: right; }
+  #clFlow caption { text-align: left; color: var(--ink2); padding-bottom: 0.3rem; }
   .rg-top { margin: 0 0 0.5rem; }
   .rg-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1rem; margin: 0 0 0.35rem; }
   .rg-head .seg button { font-size: 1rem; padding: 0.4rem 0.8rem; min-height: 40px; }
@@ -400,6 +414,12 @@
     <button type="button" id="fwd" aria-label="Next day">&rsaquo;</button>
     <span class="mv-valid" id="valid" aria-live="polite"></span>
   </div>
+  <div class="cl-top" id="clTop" hidden>
+    <div class="seg" id="cdoms" role="group" aria-label="Domain"></div>
+    <div class="seg" id="cwins" role="group" aria-label="Window"></div>
+    <div class="seg" id="cvar" role="group" aria-label="Anomaly or standardized anomaly"></div>
+    <span class="mv-runT" id="clRuns"></span>
+  </div>
   <div class="rg-top" id="rgTop" hidden>
     <div class="rg-head"><div class="seg" id="sectors" role="group" aria-label="Sector"></div><div class="rg-key" id="rgKey"></div></div>
     <div class="rg-tlwrap"><canvas id="rgTl" role="img" aria-label="Share of each ensemble's members in each regime, by day"></canvas><div class="mv-tip" id="rgTip"></div></div>
@@ -422,10 +442,15 @@
   <p class="mv-legT" id="legT"></p>
   <div class="mv-show"><b>Show</b>
     <label class="chk" title="The ensemble mean's 500 hPa height every 6 dam, its sea-level pressure every 4 hPa, the 0 °C line of its 2 m temperature"><input type="checkbox" id="cont" checked> Contours</label>
-    <div class="seg" id="units" role="group" aria-label="Temperature unit"></div>
+    <div class="seg" id="units" role="group" aria-label="Unit"></div>
     <span class="mv-keys" id="mapKeys">Click the map, then: arrows pan &middot; <kbd>+</kbd> <kbd>&minus;</kbd> zoom &middot; <kbd>0</kbd> reset &middot; <kbd>,</kbd> <kbd>.</kbd> day &middot; <kbd>Space</kbd> play</span>
   </div>
   <p class="mv-note" id="note"></p>
+  <section class="cl-view" id="clView" hidden aria-label="Four-ensemble clusters">
+    <p class="cl-verdict" id="clVerdict"></p>
+    <div class="cl-cards" id="clCards"></div>
+    <div id="clFlow"></div>
+  </section>
   <section class="rg-more" id="rgMore" hidden aria-label="Regime scenarios and changes">
     <h2 id="rgCardsH">Scenarios</h2>
     <div class="rg-cards" id="rgCards"></div>
@@ -451,12 +476,17 @@
     <h3>Anomaly</h3>
     <p>Each member's mean less the 1991&ndash;2020 normal for the same days, and the ensemble mean of those anomalies, coloured only where at least <i>k</i> of the <i>n</i> members give the anomaly the same sign as their mean: the smallest number a two-sided sign test against an even split passes at 5&nbsp;% (33 of 50 or 51, 22 of 31, 16 of 21). Elsewhere the members are split and the map is grey; the hover still says how many agree.</p>
     <p><b>The normals.</b> 2&nbsp;m temperature: ERA5-Land over land and ERA5 over the sea (ERA5 interpolated from its sea points only, so a coastal mountain does not chill the water beside it), the monthly means at 00, 06, 12 and 18&nbsp;UTC, so the normal samples the daily cycle as the forecast day does, on the 0.1&deg; grid of the IFS, whose orography ERA5-Land shares. On the 0.25&deg; and 0.5&deg; grids the normal is the 0.1&deg; one averaged over each cell and moved by 6.5&nbsp;&deg;C per kilometre from the IFS's height to the model's own, so a valley or a mountain cell is compared with a normal at its own height. The anomalies are the models' raw output against the reanalysis: they include the warming since 1991&ndash;2020 (in the 500&nbsp;hPa height, a positive anomaly across the tropics) and each model's own biases, which no drift correction removes. 500&nbsp;hPa height and sea-level pressure: ERA5 at 1.5&deg; (the daily means of the four synoptic hours), interpolated to each grid. Each normal is a smooth curve through the year (the mean and three annual harmonics, fitted so that its month averages match the twelve monthly normals), read at each day. The sea-level pressure anomaly is not drawn where the model's ground is above 1,500&nbsp;m: there the pressure &ldquo;at sea level&rdquo; is an extrapolation that each model and the reanalysis make differently.</p>
+    <h3 id="sigma">Standardized anomalies (σ)</h3>
+    <p>For 500&nbsp;hPa height and sea-level pressure the anomaly can also be shown in standard deviations: the ensemble-mean anomaly divided by the 1991&ndash;2020 standard deviation of an anomaly over the <i>same averaging period</i> &mdash; a single day for the daily maps, the period's own 4- or 5-day mean for the periods (a 5-day mean varies less than a day does, so dividing it by a day's spread would understate it). The standard deviations come from ERA5 at 1.5&deg; (the same daily means as the normals): each cell's anomalies from the normal curve, a linear trend over 1991&ndash;2020 removed, averaged over the period's length, and their variance through the year fitted as a smooth curve (the mean and three harmonics of a 366-day year), interpolated to each model's grid as the normals are. Colours run to &plusmn;3&sigma;; the members-agree gate is the same as for the anomaly. Across the tropics the 500&nbsp;hPa height reads several standard deviations high: its day-to-day spread is small there, and the warming since 1991&ndash;2020 is not. The change maps stay in metres and hectopascals.</p>
     <h3>Change from the previous run</h3>
     <p>This run's ensemble mean less the previous run's (12&nbsp;hours earlier) over the same calendar days, on a common 0.5&deg; grid (each member's field averaged over the 0.5&deg; cells first). It is coloured only where the change is significant: Welch's <i>t</i>-test on the two runs' members at every point, and the Benjamini&ndash;Hochberg procedure over the whole map at a false discovery rate of 10&nbsp;%, so that among the coloured points at most a tenth are expected to be chance. The last period of a 00&nbsp;UTC run is compared over days 11&ndash;14, the days the previous 12&nbsp;UTC run holds. Where the ensembles are confident (the first days) even a small change can be significant: read the size from the colours.</p>
     <h3 id="regimes">Weather regimes</h3>
     <p>Each run of each ensemble sorts every member's 500&nbsp;hPa height on every day into one of four recurring weather regimes of two sectors, the Euro-Atlantic (20&ndash;80&deg;N, 90&deg;W&ndash;30&deg;E) and North America and the Pacific (20&ndash;80&deg;N, 170&ndash;30&deg;W), or into none. These are the regimes of the site's multi-model regime view on the <a href="/subseasonal.html">extended-range page</a>, classified the same way: four patterns per sector and season from NCEP/NCAR reanalysis 1991&ndash;2020 (k-means on 5-day mean height anomalies), one set for October&ndash;March and one for April&ndash;September, every day taking the set of its own season; a member's 5-day running mean anomaly (against ERA5 1991&ndash;2020) goes to the nearest pattern, or to &ldquo;no regime&rdquo; when its pattern correlation with that pattern is below 0.25. No model here has a reforecast, so each ensemble's drift is learned from its own past runs: the ensemble-mean anomaly at each lead day, less what the run started on that valid day showed on its first day, averaged over the runs and removed (shrunk towards zero by <i>n</i>&nbsp;/&nbsp;(<i>n</i>&nbsp;+&nbsp;10)) once ten runs verify a lead.</p>
     <p><b>The timeline</b> stacks, for each ensemble and valid date, the share of its members in each regime, every ensemble on the same dates (their newest runs can start 12&nbsp;hours apart; each row gives its run) and every regime in the same colour and place, as on the extended-range page. A share is drawn pale unless it differs from that regime's 1991&ndash;2020 frequency within 15 days of the date: the 95&nbsp;% interval of their difference, from resampling the members and the reanalysis years 1,000 times, must exclude zero. <b>The four-ensemble row</b> averages the shares of the ensembles that hold the date with equal weight per ensemble, so the 50 and 51-member ensembles count no more than GEPS's 21; it is pale unless the mean differs from the normal by more than 1.96 standard errors (each ensemble's sampling error over its members, and the normal's over the reanalysis years). A black tick above it marks a date on which the ensembles' most frequent regime is not the same.</p>
     <p><b>The scenarios</b> are the regimes that hold at least six members of the chosen ensemble on the period's middle day (a period's label is its own 5-day mean) or on the day: the share of that regime in every ensemble on that date, side by side with the normal as a tick, and the mean anomaly of just its members, coloured only where at least <i>k</i> of them agree on its sign (the sign test at 5&nbsp;% on that regime's member count; fewer than six members can never pass it). <b>Since the previous run</b>: each regime's share against the same ensemble's run 12&nbsp;hours earlier on the same dates, coloured where Fisher's exact test on the two runs' member counts is significant with the false discovery rate held at 10&nbsp;% over the table. Each run's labels are published in the multi-model view's format (<code>assets/regimes/data/ensmaps_members_&lt;model&gt;.json</code>).</p>
+    <h3 id="clusters">Clusters</h3>
+    <p>The members of all four ensembles' newest runs are pooled on the same calendar days and grouped into the scenarios their spread supports, for days 3&ndash;5, 6&ndash;10 and 11&ndash;15 (each the mean over its days, counted from the newest run's first full day and cut to the days every run holds), over the Euro-Atlantic, North America and the Pacific (the regimes' boxes, outlined on the maps) and the whole hemisphere north of 20&deg;N. Each member's 500&nbsp;hPa height and sea-level pressure anomalies, on a 2.5&deg; grid, are divided by their typical 1991&ndash;2020 spread over the domain for that time of year and period, weighted by the square root of the cosine of latitude and joined; each ensemble's members together carry a quarter of the weight, so the 50 and 51-member ensembles count no more than GEPS's 21. The leading patterns of the members' differences from the four-ensemble mean (enough to explain 80&nbsp;% of them) are grouped by weighted k-means (100 starts) into 1 to 5 clusters. More than one is shown only when the split cuts the spread by more than it does in 95&nbsp;% of 100 synthetic ensembles with the same spread but no clusters, every cluster holds at least 5&nbsp;% of the weight, and resampling the members gives the same number of clusters at least 60&nbsp;% of the time; otherwise the page shows one scenario, the four-ensemble mean.</p>
+    <p>Each scenario's probability is its share of the weight, with the share of each ensemble's own members beside it; its nearest regime is the regime whose pattern correlates best with the scenario's mean 500&nbsp;hPa anomaly in each sector (&ldquo;no regime&rdquo; below 0.25). On the maps the anomaly is shaded where the scenario's members agree on its sign (the sign test at 5&nbsp;%), the lines are the scenario's mean height (every 6&nbsp;dam) and pressure (every 4&nbsp;hPa), and dots mark where the scenario's mean differs from the four-ensemble mean (500 random sets of as many members, false discovery rate 10&nbsp;%). A test of whether the clusters follow the ensembles (a permutation chi-square) names a scenario made mostly of one ensemble's members: until each model's drift is removed (from ten verified runs on, as for the regimes), such a split can be the models' own differences rather than the weather's. The table gives how the members move from one window's scenarios to the next.</p>
     <h3>How the page works</h3>
     <p>Nothing on this page is a picture. Each model, field and period is shipped as the ensemble's own numbers (the mean anomaly to 0.25&nbsp;&deg;C, 4&nbsp;m or 0.4&nbsp;hPa, the number of members agreeing, and the ensemble mean), on its grid, as a lossless WebP image, and your browser colours, gates, contours and reads it. The 0.1&deg; maps come in 36 tiles of 30&deg; by 60&deg;, loaded as you zoom in; the world view draws every fifth point of them.</p>
     <p class="mv-runs" id="checks"></p>
@@ -474,7 +504,9 @@
   var FIELDS = { t2m: { label: "2 m temperature", up: "warmer", dn: "colder" }, z500: { label: "500 hPa height", up: "higher", dn: "lower" },
                  msl: { label: "Sea-level pressure", up: "higher", dn: "lower" } };
   var FIELD_ORDER = ["t2m", "z500", "msl"];
-  var VIEWS = { anom: "Anomaly", change: "Change from the previous run", regimes: "Regimes" }, VIEW_ORDER = ["anom", "change", "regimes"];
+  var VIEWS = { anom: "Anomaly", change: "Change from the previous run", regimes: "Regimes", clusters: "Clusters" }, VIEW_ORDER = ["anom", "change", "regimes", "clusters"];
+  var CDOMS = { nh: "Northern Hemisphere", ea: "Euro-Atlantic", na: "North America and Pacific" }, CDOM_ORDER = ["nh", "ea", "na"];
+  var CWINS = { d3_5: "Days 3–5", d6_10: "Days 6–10", d11_15: "Days 11–15" }, CWIN_ORDER = ["d3_5", "d6_10", "d11_15"];
   var SECTORS = { ea: "Euro-Atlantic", na: "North America and Pacific" };
   // the sectors' boxes (scripts/regimes/regime_core.py SECTORS): the scenario cards' maps
   var SBOX = { ea: [-90, 30, 20, 80], na: [-170, -30, 20, 80] };
@@ -482,6 +514,7 @@
   // the colour scales' half-ranges (colours saturate beyond): 2 m temperature [deg C, deg F], height m, pressure hPa
   var RANGE = { t2m: { anom: [12, 20], change: [6, 10] }, z500: { anom: [300], change: [150] }, msl: { anom: [24], change: [12] } };
   var TICK = { t2m: { anom: [3, 5], change: [1.5, 2.5] }, z500: { anom: [75], change: [50] }, msl: { anom: [6], change: [3] } };
+  var SIGMA = 3;                                                       // the standardized anomalies' half-range, sd
   // contour levels of the ensemble mean (its B channel): height every 60 m (labelled in dam), pressure every 4 hPa,
   // and the 0 deg C line of the 2 m temperature
   var CONT = { z500: { ci: 60, lo: 4620, hi: 6120, fmt: function (v) { return String(Math.round(v / 10)); } },
@@ -494,7 +527,9 @@
 
   // ── state ──────────────────────────────────────────────────────────────────────────────────────────────────────
   var man = {};
-  var st = { model: "ifs", field: "t2m", view: "anom", span: "P1", unit: "C", playing: false, sector: "ea", regime: null, only: false };
+  var st = { model: "ifs", field: "t2m", view: "anom", span: "P1", unit: "C", playing: false, sector: "ea", regime: null, only: false, sigma: false,
+             cdom: "nh", cwin: "d6_10" };
+  var CL = null;                                                       // assets/models/ensmaps_clusters.json
   var view = null;                                                     // {cx, cy: degrees, s: degrees per CSS px}
   var $ = function (id) { return document.getElementById(id); };
   function escH(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
@@ -516,6 +551,8 @@
   function tF() { return st.field === "t2m" && st.unit === "F"; }
   function dispK(v) { return tF() ? v * KF : v; }                   // an anomaly or change in K -> the shown unit
   function unitOf(f) { return f === "t2m" ? (st.unit === "F" ? "°F" : "°C") : f === "z500" ? "m" : "hPa"; }
+  // the standardized anomaly (s/ frames: the anomaly over the sd of the same averaging period) on screen
+  function sigmaOn() { var c = cyc(); return st.sigma && st.view === "anom" && st.field !== "t2m" && !!(c && c.fields[st.field] && c.fields[st.field].sigma); }
 
   // grids of a frame: {res, nx, ny, c0, r0 (first point in the global grid's indices), wrap}
   function gridA(c, f) { var g = c.fields[f].grid, t = c.fields[f].tiles;
@@ -524,7 +561,7 @@
   function gridT(c, f, r, k) { var g = c.fields[f].grid, t = c.fields[f].tiles; return { res: g.res, nx: t.cols + 1, ny: t.rows + 1, c0: k * t.cols, r0: r * t.rows, wrap: false }; }
   function gridC(c, f) { var g = c.fields[f].change_grid; return { res: g.res, nx: g.nx, ny: g.ny, c0: 0, r0: 0, wrap: true }; }
   function base(c, f, kind, sp) { return DATA + c.model + "/" + c.cycle + "/" + f + "/" + kind + "/" + sp; }
-  function relA(c, f, sp) { return base(c, f, "a", sp) + (c.fields[f].tiles ? "/o" : "") + ".webp"; }
+  function relA(c, f, sp) { return sigmaOn() ? base(c, f, "s", sp) + ".webp" : base(c, f, "a", sp) + (c.fields[f].tiles ? "/o" : "") + ".webp"; }
   function relT(c, f, sp, r, k) { return base(c, f, "a", sp) + "/" + r + k + ".webp"; }
   function relC(c, f, sp) { return base(c, f, "c", sp) + ".webp"; }
 
@@ -538,8 +575,8 @@
     return stops[stops.length - 1].slice(1);
   }
   function scale() { return st.view === "change" ? "change" : "anom"; }   // the regimes view shows anomalies
-  function halfRange() { var r = RANGE[st.field][scale()]; return st.field === "t2m" && st.unit === "F" ? r[1] : r[0]; }
-  function stepOf() { var e = enc(st.field); return scale() === "anom" ? e.anom : e.change; }
+  function halfRange() { if (sigmaOn()) return SIGMA; var r = RANGE[st.field][scale()]; return st.field === "t2m" && st.unit === "F" ? r[1] : r[0]; }
+  function stepOf() { var e = enc(st.field); return sigmaOn() ? e.sigma : scale() === "anom" ? e.anom : e.change; }
   // 256-entry colour table: the shader looks up the (interpolated) code; codes run (code - 128) x step
   function buildLut() {
     var lut = new Uint8Array(256 * 4), R = halfRange(), stp = stepOf();
@@ -1004,9 +1041,9 @@
     if (!main && !hold) { drawn = null; clearGL(); drawOverlay(); schedule(); return; }
     // n and k: the members behind the frame and the sign test's gate (a regime's own members in the regimes view)
     var dd = hold ? drawn : { c: c, field: f, view: st.view, span: st.span, sp: sp, a: ea, ga: fr.ga, cc: ec, tiles: [], card: fr.card,
-      n: fr.card ? fr.card.n[f] : sp.n ? sp.n[f] : 0, k: fr.card ? fr.card.k[f] : kOf(sp, f) };
+      n: fr.card ? fr.card.n[f] : sp.n ? sp.n[f] : 0, k: fr.card ? fr.card.k[f] : kOf(sp, f), sigma: sigmaOn() };
     if (!hold) fr.tiles.forEach(function (t) { var e = peek(t.rel) || decoded(t.rel); if (e) dd.tiles.push({ e: e, g: t.g }); });
-    var lk = f + "|" + (st.view === "change" ? "change" : "anom") + "|" + st.unit + "|" + stepOf();
+    var lk = f + "|" + (st.view === "change" ? "change" : "anom") + "|" + st.unit + "|" + stepOf() + "|" + sigmaOn();
     if (lk !== lutKey) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, lutTex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, buildLut()); lutKey = lk; }
     clearGL();
     gl.uniform2f(loc.uC, view.cx, view.cy); gl.uniform1f(loc.uS, view.s / DPR); gl.uniform2f(loc.uWH, glc.width, glc.height);
@@ -1174,7 +1211,7 @@
   function sgn(v) { return (v > 0 ? "+" : "") + minus(v); }
   function drawLegend() {
     var c = cyc(); if (!c) return;
-    var g = legSetup(38), R = halfRange(), tk = TICK[st.field][scale()][st.field === "t2m" && st.unit === "F" ? 1 : 0], ctx = g.ctx, u = unitOf(st.field), ticks = [];
+    var g = legSetup(38), R = halfRange(), tk = sigmaOn() ? 1 : TICK[st.field][scale()][st.field === "t2m" && st.unit === "F" ? 1 : 0], ctx = g.ctx, u = sigmaOn() ? "σ" : unitOf(st.field), ticks = [];
     for (var v = -R; v <= R + 1e-9; v += tk) ticks.push(+v.toFixed(2));
     var colAt = function (t) { return interp(DIV, 2 * t - 1); };
     var neuS = rgbStr([NEU[0] * 255, NEU[1] * 255, NEU[2] * 255]);
@@ -1204,7 +1241,7 @@
     var cap = cd
       ? f + " anomaly of the mean of the " + (n || "n") + " members in " + c.regimes.sectors[st.sector].names[cd.f] + " (" + SECTORS[st.sector] + ") against 1991–2020, " + u + "; coloured where at least " + (k || "k") + " of them agree on its sign (a sign test at 5 %), grey where they are split"
       : st.view !== "change"
-      ? f + " anomaly of the ensemble mean against 1991–2020, " + u + "; coloured where at least " + (k || "k") + " of the " + (n || "n") + " members agree on its sign (a sign test at 5 %), grey where they are split"
+      ? f + (sigmaOn() ? " standardized anomaly of the ensemble mean: the anomaly against 1991–2020 over the 1991–2020 standard deviation of " + (sp && sp.first !== sp.last ? "a mean over as many days" : "a day") + ", σ" : " anomaly of the ensemble mean against 1991–2020, " + u) + "; coloured where at least " + (k || "k") + " of the " + (n || "n") + " members agree on its sign (a sign test at 5 %), grey where they are split"
       : f + ": this run's ensemble mean less the previous run's over the same days, " + u + "; coloured where the change is significant (Welch's t-test, false discovery rate 10 %), grey elsewhere";
     if (contoursOn()) cap += st.field === "z500" ? " · lines: " + who + "'s mean height every 6 dam" : st.field === "msl" ? " · lines: " + who + "'s mean pressure every 4 hPa" : " · blue line: " + who + "'s mean 0 °C";
     if (st.field === "msl" && st.view !== "change") cap += " · darker grey: ground above 1,500 m, no anomaly shown";
@@ -1435,6 +1472,65 @@
     drawTimeline(); renderCards(); renderChanges();
   }
 
+  // ── the four-ensemble clusters (scripts/ensmaps/ensmaps_clusters.py): the figures, each scenario's probability, its
+  // share of each ensemble's members, its nearest regimes and the members' moves from the window before ─────────────
+  var clUrls = {};
+  function clImg(img, rel) {
+    if (clUrls[rel]) { img.src = clUrls[rel]; return; }
+    getBytes(rel, "high").then(function (b) { clUrls[rel] = URL.createObjectURL(new Blob([b], { type: "image/webp" })); img.src = clUrls[rel]; },
+      function () { img.alt = "This figure could not be downloaded; reload in a minute."; });
+  }
+  function clShares(cv, shares) {
+    var ms = MODEL_ORDER.filter(function (m) { return shares[m] !== undefined; }), w = cv.clientWidth || 280, h = 56, dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.font = "11px 'Source Sans 3', Arial, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    var bw = w / Math.max(1, ms.length), top = 13, bh = h - top - 15;
+    ms.forEach(function (m, i) {
+      var x = i * bw + bw * 0.22, x2 = bw * 0.56, v = shares[m];
+      ctx.fillStyle = "#f0f1ed"; ctx.fillRect(x, top, x2, bh); ctx.fillStyle = "#274b7a"; ctx.fillRect(x, top + bh * (1 - v), x2, bh * v);
+      ctx.fillStyle = "#6f6b64"; ctx.fillText(MODELS[m].replace("-ENS", ""), i * bw + bw / 2, h - 7); ctx.fillText(Math.round(100 * v) + "%", i * bw + bw / 2, top - 7);
+    });
+  }
+  function renderClusters() {
+    var on = st.view === "clusters";
+    $("clTop").hidden = !on; $("clView").hidden = !on; mainEl.classList.toggle("cl", on);
+    if (!on) return;
+    segButtons($("cdoms"), CDOM_ORDER, function (k) { return CDOMS[k]; }, st.cdom, function (k) { st.cdom = k; setButtons(); onChange(); });
+    var wins = CL ? CL.windows.map(function (w) { return w.key; }) : [];
+    if (wins.length && wins.indexOf(st.cwin) < 0) st.cwin = wins[Math.min(1, wins.length - 1)];
+    segButtons($("cwins"), CWIN_ORDER.filter(function (k) { return wins.indexOf(k) >= 0; }), function (k) { return CWINS[k]; }, st.cwin, function (k) { st.cwin = k; setButtons(); onChange(); });
+    segButtons($("cvar"), ["phys", "sigma"], function (v) { return v === "sigma" ? "σ" : "m, hPa"; }, st.sigma ? "sigma" : "phys", function (v) { st.sigma = v === "sigma"; setButtons(); onChange(); },
+      function (v) { return v === "sigma" ? "Standardized anomalies" : "Anomalies in metres and hectopascals"; });
+    var box = $("clCards"); box.innerHTML = ""; $("clFlow").innerHTML = "";
+    if (!CL) { $("clVerdict").textContent = "No clusters have been computed yet: they start once the ensembles' runs carry their members' fields."; $("clRuns").textContent = ""; return; }
+    $("clRuns").textContent = "Runs: " + Object.keys(CL.runs).map(function (m) { var r = CL.runs[m]; return MODELS[m] + " " + shortDate(r.init.slice(0, 10)) + " " + r.init.slice(11, 13) + "Z"; }).join(" · ");
+    var W = CL.windows.filter(function (w) { return w.key === st.cwin; })[0], R = CL.results[st.cwin] && CL.results[st.cwin][st.cdom];
+    if (!W || !R) { $("clVerdict").textContent = "Not every ensemble's run covers this window."; return; }
+    var d0 = shortDate(W.dates[0]), d1 = shortDate(W.dates[W.dates.length - 1]), ev = R.evidence;
+    $("clVerdict").textContent = (R.k > 1 ? R.k + " scenarios" : "One scenario") + " for " + CDOMS[st.cdom] + ", " + d0 + " – " + d1 + ", from " + R.members + " members of " +
+      W.models.map(function (m) { return MODELS[m]; }).join(", ") + (R.k > 1 ? " (they cut the spread by " + Math.round(100 * ev.reduction[R.k - 1]) + " %, against " + Math.round(100 * ev.null_p95[R.k - 1]) +
+      " % for a featureless ensemble; the same split in " + Math.round(100 * ev.stability) + " % of resampled ensembles)" : ": no split of the members passes the tests, so the four-ensemble mean is the forecast") +
+      (R.independence !== null && R.independence < 0.05 ? ". The clusters follow the ensembles more than chance allows (p " + R.independence + "): part of the split may be the models' own differences." : ".");
+    R.clusters.forEach(function (c, j) {
+      var f = document.createElement("figure"); f.className = "cl-card";
+      var img = document.createElement("img"); img.alt = (R.k > 1 ? "Scenario " + (j + 1) : "The four-ensemble mean") + ": 500 hPa height and sea-level pressure maps of the Northern Hemisphere"; f.appendChild(img);
+      clImg(img, CL.files + "/" + c.img[st.sigma ? "sigma" : "phys"]);
+      var cap = document.createElement("figcaption");
+      var rg = Object.keys(c.regimes).map(function (sk) { return SECTORS[sk] + ": " + c.regimes[sk].name + (c.regimes[sk].name === "no regime" ? "" : " (r " + c.regimes[sk].r.toFixed(2) + ")"); }).join(" · ");
+      cap.innerHTML = "<span><b>" + (R.k > 1 ? "Scenario " + (j + 1) + ": " + pct(c.p) : "All members") + "</b> · " + c.n + " members</span><span>Nearest regime: " + escH(rg) + "</span>" +
+        (c.flags.length ? "<span class=\"flag\">" + escH(c.flags.map(function (x) { return (x.over ? "mostly " : "few ") + MODELS[x.model] + " members"; }).join(", ")) + "</span>" : "");
+      var cv = document.createElement("canvas"); cv.setAttribute("role", "img"); cv.setAttribute("aria-label", "The share of each ensemble's members in this scenario");
+      cap.insertBefore(cv, cap.firstChild.nextSibling); f.appendChild(cap); box.appendChild(f);
+      clShares(cv, c.shares);
+    });
+    if (R.from_previous) {
+      var fl = R.from_previous.flow, t = "<table><caption>Members' moves from " + CWINS[R.from_previous.window].toLowerCase() + " (rows) to " + CWINS[st.cwin].toLowerCase() + " (columns), % of the four ensembles</caption><tr><th></th>";
+      fl[0].forEach(function (_, j) { t += "<th>" + (R.k > 1 ? "Scenario " + (j + 1) : "All") + "</th>"; });
+      t += "</tr>"; fl.forEach(function (row, i) { t += "<tr><th>" + (fl.length > 1 ? "Scenario " + (i + 1) : "All") + "</th>" + row.map(function (v) { return "<td>" + Math.round(100 * v) + "</td>"; }).join("") + "</tr>"; });
+      $("clFlow").innerHTML = t + "</table>";
+    }
+  }
+
   // ── UI ─────────────────────────────────────────────────────────────────────────────────────────────────────────
   var badgeH = null, validH = null;
   function setHTML(id, html, last) { if (html !== last) $(id).innerHTML = html; return html; }
@@ -1445,7 +1541,7 @@
     var sp = spanOf(c, st.span), lab = sp ? (st.view === "change" && sp.change && sp.change[st.field] ? sp.change[st.field].label : sp.label) : "";
     var fl = FIELDS[st.field].label;
     var cd = st.view === "regimes" ? cardOf(c) : null, rn = cd ? c.regimes.sectors[st.sector].names[cd.f] : "";
-    badgeH = setHTML("badge", "<b>" + MODELS[st.model] + "</b> " + escH(fl.charAt(0).toLowerCase() + fl.slice(1)) + " " + (st.view === "change" ? "change" : "anomaly") +
+    badgeH = setHTML("badge", "<b>" + MODELS[st.model] + "</b> " + escH(fl.charAt(0).toLowerCase() + fl.slice(1)) + " " + (st.view === "change" ? "change" : sigmaOn() ? "standardized anomaly" : "anomaly") +
       (cd ? " · " + escH(rn) + " members" : "") + " · run " + escH(runLabel(c)), badgeH);
     var parts = lab.split(" · ");
     validH = setHTML("valid", "<span class=\"vt\">" + escH(parts[1] || "") + "</span> <span class=\"loc\">· " + escH(parts[0] || "") + "</span>", validH);
@@ -1467,11 +1563,14 @@
     segButtons($("models"), MODEL_ORDER.filter(cycleOf), function (m) { return MODELS[m]; }, st.model, selectModel, function (m) { var x = cycleOf(m); return MODELS[m] + ", run " + runLabel(x); });
     segButtons($("fields"), FIELD_ORDER, function (f) { return FIELDS[f].label; }, st.field, function (f) { if (st.field === f) return; st.field = f; fixView(); setButtons(); onChange(); });
     segButtons($("views"), VIEW_ORDER, function (v) { return VIEWS[v]; }, st.view, function (v) { if (st.view === v) return; st.view = v; setButtons(); onChange(); },
-      null, function (v) { return v === "anom" ? !hasAnom(c, st.field) : v === "change" ? !hasChange(c, st.field) : !hasRegimes(c); });
+      null, function (v) { return v === "anom" ? !hasAnom(c, st.field) : v === "change" ? !hasChange(c, st.field) : v === "regimes" ? !hasRegimes(c) : !CL; });
     segButtons($("wins"), wins(c).map(function (s) { return s.key; }), function (k) { var s = spanOf(c, k), d = s.label.split(" · ")[0]; return d.replace("Days ", "Days&nbsp;"); },
       st.span, pickSpan, function (k) { return spanOf(c, k).label; });
-    segButtons($("units"), ["C", "F"], function (u) { return "°" + u; }, st.unit, function (u) { st.unit = u; setButtons(); onChange(); });
-    $("units").hidden = st.field !== "t2m";
+    if (st.field === "t2m") segButtons($("units"), ["C", "F"], function (u) { return "°" + u; }, st.unit, function (u) { st.unit = u; setButtons(); onChange(); });
+    else segButtons($("units"), ["phys", "sigma"], function (v) { return v === "sigma" ? "σ" : unitOf(st.field); }, st.sigma ? "sigma" : "phys",
+      function (v) { st.sigma = v === "sigma"; setButtons(); onChange(); },
+      function (v) { return v === "sigma" ? "Standardized: the anomaly over the 1991–2020 standard deviation of the same averaging period" : "The anomaly in " + unitOf(st.field); });
+    $("units").hidden = st.field !== "t2m" && (st.view !== "anom" || !(c && c.fields[st.field] && c.fields[st.field].sigma));
     $("runT").textContent = c ? "Run " + runLabel(c) : "";
     var ds = days(c); $("day").max = Math.max(1, ds.length);
     var cur = st.span[0] === "D" ? +st.span.slice(1) : null;
@@ -1497,7 +1596,7 @@
     var c = cyc(), n = "";
     if (c && !hasAnom(c, "t2m") && st.field === "t2m") n = "The 2 m temperature normals (ERA5-Land and ERA5, 1991–2020) are still being built; until they are, this ensemble's 2 m temperature has the change maps only.";
     $("note").innerHTML = n;
-    renderRegimes(); drawLegend(); prefetch(); writeHash(); render();
+    renderRegimes(); renderClusters(); drawLegend(); prefetch(); writeHash(); render();
   }
   // Prefetch: the map on screen first (its anomaly frame, the tiles in view, the change frame), then the same map on
   // the other days and periods (the 0.1-deg grids: their overviews), nearest first; on a slow connection only the next
@@ -1650,9 +1749,9 @@
       if (!sa) { tip.style.display = "none"; return; }
       if (!sa[0]) head = f === "msl" ? "no anomaly over ground above 1,500 m" : "no data";
       else {
-        var an = dispK((sa[0] - 128) * e.anom), edge = sa[0] === 1 || sa[0] === 255 ? " or more" : "";
+        var sg = d.sigma, an = sg ? (sa[0] - 128) * e.sigma : dispK((sa[0] - 128) * e.anom), edge = sa[0] === 1 || sa[0] === 255 ? " or more" : "";
         var ok = sa[1] >= k && sa[1] < 255;
-        head = (ok ? "" : "members split: ") + fmtV(an, dec) + " " + u + edge + (an >= 0 ? " above" : " below") + " normal";
+        head = (ok ? "" : "members split: ") + fmtV(an, sg ? 2 : dec) + (sg ? "σ" : " " + u) + edge + (an >= 0 ? " above" : " below") + " normal";
         lines.push(sa[1] + " of " + n + (d.card ? " members in this regime " : " members ") + (an >= 0 ? FIELDS[f].up : FIELDS[f].dn) + " than normal" + (ok ? "" : " (" + k + " needed)"));
       }
     } else {
@@ -1678,7 +1777,9 @@
   function writeHash() {
     var x = [st.model, st.field, st.view, st.span];
     if (st.view === "regimes") { x.push(st.sector); if (st.regime !== null) x.push(String(st.regime)); }
+    if (st.view === "clusters") x.push("c" + st.cdom, st.cwin);
     if (st.unit === "F") x.push("F");
+    if (st.sigma) x.push("s");
     try { history.replaceState(null, "", "#" + x.join("/")); } catch (e) {}
   }
   function readHash() {
@@ -1687,7 +1788,7 @@
     if (FIELDS[p[1]]) st.field = p[1];
     if (VIEWS[p[2]]) st.view = p[2];
     if (/^(P[1-3]|D\d\d)$/.test(p[3] || "")) st.span = p[3];
-    p.slice(4).forEach(function (t) { if (t === "F") st.unit = "F"; else if (SECTORS[t]) st.sector = t; else if (/^\d$/.test(t)) st.regime = +t; });
+    p.slice(4).forEach(function (t) { if (t === "F") st.unit = "F"; else if (t === "s") st.sigma = true; else if (CWINS[t]) st.cwin = t; else if (t[0] === "c" && CDOMS[t.slice(1)]) st.cdom = t.slice(1); else if (SECTORS[t]) st.sector = t; else if (/^\d$/.test(t)) st.regime = +t; });
   }
   function showRuns() {
     $("runs").textContent = "Runs on the page now: " + MODEL_ORDER.filter(cycleOf).map(function (m) { var x = cycleOf(m); return MODELS[m] + " " + runLabel(x) + " (published " + x.made.replace("T", " ") + ")"; }).join(" · ") + ".";
@@ -1706,10 +1807,11 @@
   readHash();
   if (glOk) $("msg").textContent = "Loading the newest runs…";
   var bust = "?v=" + Math.floor(Date.now() / 60000);
-  Promise.all(MODEL_ORDER.map(function (m) {
+  var clP = fetch("/assets/models/ensmaps_clusters.json" + bust).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (d) { CL = d; });
+  Promise.all([clP].concat(MODEL_ORDER.map(function (m) {
     return fetch("/assets/models/ensmaps_" + m + ".json" + bust).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (d) {
       man[m] = d; var x = cycleOf(m); if (x) x.model = m; });
-  })).then(function () {
+  }))).then(function () {
     if (!cyc()) { var alt = MODEL_ORDER.filter(cycleOf)[0]; if (alt) st.model = alt; }
     var c = cyc();
     if (!c) { $("msg").textContent = MODEL_ORDER.some(function (m) { return man[m]; }) ? "No ensemble run has been published yet." : "The list of runs could not be loaded. Check your connection and reload the page."; return; }
