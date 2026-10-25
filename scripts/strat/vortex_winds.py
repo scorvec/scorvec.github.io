@@ -3,7 +3,7 @@
 Stratospheric vortex winds: 10 and 100 hPa, each hemisphere on its own.
 
 One polar map per frame - a level and a hemisphere - showing wind SPEED (shaded, with thin speed contours) with
-WIND BARBS over it and the GEOPOTENTIAL HEIGHT contoured in black, from the AIFS-ENS ENSEMBLE MEAN (25 perturbed
+WIND BARBS over it and the GEOPOTENTIAL HEIGHT contoured in black, from the AIFS-ENS ENSEMBLE MEAN (50 perturbed
 members; the analysis frame is the control). Barbs, not streamlines: a streamline through the pole is integrated
 across a point where the grid's u and v have no fixed direction, and it tangled there; a barb is one vector, regridded
 onto the map with its direction rotated into the projection. The height lines are the flow's own contours (the wind
@@ -46,9 +46,9 @@ stronger than 100 hPa, so a shared scale would flatten the lower level into a
 single colour, while a per-panel scale would make NH and SH incomparable at a
 glance - which is exactly the comparison the figure exists to support.
 
-Data: u, v and z at 10 and 100 hPa for 25 perturbed members every 12 h (~2.8 GB a
+Data: u, v and z at 10 and 100 hPa for all 50 perturbed members every 12 h (~5.6 GB a
 cycle through the shared ECMWF store, Google mirror), plus the control at step 0.
-Opened with dask one step at a time so the 25-member mean never holds more than
+Opened with dask one step at a time so the member mean never holds more than
 one step's members in memory.
 
 IFS-ENS: --model ifs draws the mean of ALL 50 IFS-ENS perturbed members from the shared IFS-ENS u/v file (ifs_ens.py:
@@ -162,11 +162,6 @@ def at_step(da, step_h: int):
     return da.isel(step=int(np.where(steps == step_h)[0][0]))
 
 
-# Perturbed members averaged. 25, as for the wave-1 maps, the heat flux and the
-# WAF: the mean of u and v converges well before 50, and the pull scales with N.
-MEMBERS = 25
-
-
 def _mean_field(path, short: str, lev: int):
     """The member mean for one shortName/level, every step, one step in memory at a time."""
     ds = xr.open_dataset(
@@ -188,9 +183,9 @@ def _with_step(da, step_h: int):
     return da.drop_vars([c for c in da.coords if c not in ("step", "latitude", "longitude")])
 
 
-def fetch(date: str, time: str, members: int = MEMBERS):
+def fetch(date: str, time: str):
     """u and v at both levels, every 12 h step: the analysis from the CONTROL, every
-    forecast step as the mean of `members` perturbed members.
+    forecast step as the mean of the 50 perturbed members.
 
     Step 0 is the control because the perturbed members differ from the analysis
     only by their perturbations - averaging them smooths the very state the
@@ -201,8 +196,8 @@ def fetch(date: str, time: str, members: int = MEMBERS):
     fc_steps = tuple(s for s in STEPS_12H if s)
     ana = {sh: ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", sh, "pl", LEVELS, (0,))) for sh in FIELDS}
     try:
-        pf = {sh: ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", sh, "pl", LEVELS, fc_steps, members)) for sh in FIELDS}
-        source = f"ensemble mean of {members} members"
+        pf = {sh: ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", sh, "pl", LEVELS, fc_steps)) for sh in FIELDS}
+        source = f"ensemble mean of {ecmwf.PF_MEMBERS} members"
     except Exception as e:  # noqa: BLE001
         print(f"  perturbed pull failed ({type(e).__name__}: {e}); falling back to the control", flush=True)
         pf = {sh: ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", sh, "pl", LEVELS, fc_steps)) for sh in FIELDS}

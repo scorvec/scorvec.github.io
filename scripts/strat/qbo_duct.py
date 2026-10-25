@@ -62,7 +62,7 @@ assets/sst/refractive_gefs.webp (+ data/refractive_gefs.json)
     The AIFS-ENS and IFS-ENS E-P flux loops were retired on 2026-09-30. What survives is what other
     products read from their stream: data/zmu_members_<model>.npz, the per-member zonal-mean u at 10/50(/100) hPa
     for qbo_zeroline.py. aifs reads the u files ens_cycle --only strat already cached and ensures v at 250 hPa
-    (control + 25) for pacjet.py; ifs streams only u at 10/50/250 and v at 250 hPa for the 50 members (~2 GB a cycle
+    (control + 50) for pacjet.py; ifs streams only u at 10/50/250 and v at 250 hPa for the 50 members (~2 GB a cycle
     instead of ~23 GB for u/v/t at 14 levels) and leaves the 250 hPa sector in PACJET_IFS_DIR for pacjet.py.
 
 Fixed 2026-09-27: _band13 filtered along axis 1, which for (member, lat, lon) blocks is LATITUDE.
@@ -733,19 +733,18 @@ def _read_u_members(path, lev, steps):
 
 
 def aifs_zmu(date, time_):
-    """AIFS-ENS: per-member zonal-mean u at ZMU_LEVELS from the u files ens_cycle --only strat cached (control + 25),
-    and v at 250 hPa (control + 25) ensured for pacjet.py. No E-P flux since 2026-09-30."""
+    """AIFS-ENS: per-member zonal-mean u at ZMU_LEVELS from the u files ens_cycle --only strat cached (control + 50),
+    and v at 250 hPa (control + 50) ensured for pacjet.py. No E-P flux since 2026-09-30."""
     import store as ecmwf
 
     cyc = ecmwf.Cycle(date, time_)
     S = tuple(ecmwf.STEPS)
-    NM = ecmwf.AAM_PF_MEMBERS
     L12 = tuple(ecmwf.LEVELS_AAM_REST)
     u_cf = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "u", "pl", L12, S))
-    u_pf = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", "u", "pl", L12, S, NM))
-    for typ, nm in (("cf", 0), ("pf", NM)):  # pacjet.py reads these from the cache
+    u_pf = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", "u", "pl", L12, S))
+    for typ in ("cf", "pf"):  # pacjet.py reads these from the cache
         try:
-            ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", typ, "v", "pl", (250,), S, nm))
+            ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", typ, "v", "pl", (250,), S))
         except Exception as e:  # noqa: BLE001
             print(f"  v250 {typ} for pacjet not fetched ({str(e)[:80]})", flush=True)
     zmu, lat = {}, None

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """The multi-model weather-regime view for subseasonal.html (2026-09-28): GEPS (21 members, days 1-35), GEFS (31, days
-1-35), AIFS-ENS (26, days 1-15) and IFS-ENS (50, days 1-15), from the per-model member files every producer writes in
+1-35), AIFS-ENS (51, days 1-15) and IFS-ENS (50, days 1-15), from the per-model member files every producer writes in
 one format (regime_core.members_record):
 
   geps  assets/geps/regimes_members.json                 geps.yml (run_geps.sh), Mon/Thu

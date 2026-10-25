@@ -71,7 +71,6 @@ except Exception:  # noqa: BLE001
 CLIM = Path(__file__).resolve().parent / "reference" / "vt100_clim.nc"
 BIAS = Path(__file__).resolve().parent / "reference" / "heatflux100_bias.json"
 WARN = Path(__file__).resolve().parent / "reference" / "heatflux100_warning.json"
-MEMBERS = 25
 K_MAX = 72
 BAND = (45.0, 75.0)
 OBS_DAYS = 60
@@ -99,29 +98,30 @@ def open_field(path, short: str):
     return da.transpose("number", "step", "latitude", "longitude")
 
 
-def fetch(cyc, typ: str, members: int = 0):
+def fetch(cyc, typ: str):
     out = {}
     for short in ("v", "t"):
-        spec = (
-            ecmwf.Spec("aifs-ens", typ, short, "pl", (100,), tuple(ecmwf.STEPS), members)
-            if typ == "pf"
-            else ecmwf.Spec("aifs-ens", typ, short, "pl", (100,), tuple(ecmwf.STEPS))
-        )
+        spec = ecmwf.Spec("aifs-ens", typ, short, "pl", (100,), tuple(ecmwf.STEPS))
         out[short] = open_field(ecmwf.ensure(cyc, spec), short)
     return out["v"], out["t"]
 
 
 def fluxes(v, t):
-    """(member, step, lat, lon) -> per-latitude flux by wavenumber group, positive northward.
-    Returns lat (descending as stored) and {tot, k1, k2}: (member, step, lat)."""
-    a, b = np.asarray(v.values, np.float64), np.asarray(t.values, np.float64)
-    n = a.shape[-1]
-    V = np.fft.rfft(a, axis=-1)[..., : K_MAX + 1]
-    T = np.fft.rfft(b, axis=-1)[..., : K_MAX + 1]
-    per_k = 2.0 * np.real(V * np.conj(T)) / n**2
-    if n % 2 == 0 and n // 2 <= K_MAX:
-        per_k[..., n // 2] /= 2.0  # Nyquist counts once (a no-op on the 0.25/0.5 deg grids: k=72 < n/2)
-    return v.latitude.values, {"tot": per_k[..., 1:].sum(-1), "k1": per_k[..., 1], "k2": per_k[..., 2]}
+    """(member, step, lat, lon) -> per-latitude flux by wavenumber group, positive northward, a member at a time (50
+    members' 16 steps at 0.25 deg would be 13 GB in double precision). Returns lat (descending as stored) and
+    {tot, k1, k2}: (member, step, lat)."""
+    parts = []
+    for i in range(v.sizes["number"]):
+        a = np.asarray(v.isel(number=i).values, np.float64)
+        b = np.asarray(t.isel(number=i).values, np.float64)
+        n = a.shape[-1]
+        V = np.fft.rfft(a, axis=-1)[..., : K_MAX + 1]
+        T = np.fft.rfft(b, axis=-1)[..., : K_MAX + 1]
+        per_k = 2.0 * np.real(V * np.conj(T)) / n**2
+        if n % 2 == 0 and n // 2 <= K_MAX:
+            per_k[..., n // 2] /= 2.0  # Nyquist counts once (a no-op on the 0.25/0.5 deg grids: k=72 < n/2)
+        parts.append({"tot": per_k[..., 1:].sum(-1), "k1": per_k[..., 1], "k2": per_k[..., 2]})
+    return v.latitude.values, {k: np.stack([p[k] for p in parts]) for k in parts[0]}
 
 
 # Messori et al. (2022)'s regional reflection index: v*T* at 100 hPa over Siberia (upward waves) and Canada (where
@@ -670,7 +670,6 @@ def main() -> int:
     ap.add_argument("--date", required=True)
     ap.add_argument("--time", default="00")
     ap.add_argument("--out-dir", default="assets/sst")
-    ap.add_argument("--members", type=int, default=MEMBERS)
     ap.add_argument("--history", default="assets/sst/data/heatflux100_history.json")
     ap.add_argument(
         "--backfill",
@@ -697,7 +696,7 @@ def main() -> int:
         return 0
     cyc = ecmwf.Cycle(a.date, a.time)
     init = pd.Timestamp(f"{a.date[:4]}-{a.date[4:6]}-{a.date[6:8]} {int(a.time):02d}:00")
-    v, t = fetch(cyc, "pf", a.members)
+    v, t = fetch(cyc, "pf")
     vc, tc = fetch(cyc, "cf")
     steps = (v.step.values / np.timedelta64(1, "h")).astype(int)
     valid = pd.DatetimeIndex([init + pd.Timedelta(hours=int(s)) for s in steps])

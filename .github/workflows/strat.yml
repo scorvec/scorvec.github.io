@@ -30,7 +30,7 @@ name: Stratosphere (vortex, waves 1 and 2, E-P flux from GEFS)
 # populating a 10 GB shared cache that only half the products read:
 #
 #   qbo_duct --model aifs     reads the cached u    -> needs ens_cycle
-#   wave_maps, vortex_winds   call ecmwf.ensure     -> fetch their own, few hundred MB
+#   wave_maps, vortex_winds   call ecmwf.ensure     -> fetch their own (z, u, v of the 50 members, a few GB)
 #
 # So the light pair no longer waits on a fetch it never touches, and the two
 # render jobs run concurrently. A failure in one no longer hides or blocks the
@@ -189,7 +189,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            libeccodes0 libgeos-dev libproj-dev proj-bin
+            libeccodes0 libaec0 libgeos-dev libproj-dev proj-bin  # libaec: rows (ccsds.py)
 
       - name: Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
@@ -206,8 +206,9 @@ jobs:
             || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "wave_maps" "keeping the previous loops"
 
       # Polar cap at sea level and 500 hPa, the AO and NAO, the 100 hPa height, and at 10 hPa the temperature and the
-      # vortex's shape: msl and t at 10 hPa for the control and the 25 members (~0.4 GB), z at 500, 100 and 10 hPa from
-      # the wave maps' file just cached; plumes, maps and the run records. Google mirror only.
+      # vortex's shape: msl and t at 10 hPa for the control and the 50 members from the 90-18N rows of each message
+      # (~0.4 GB), z at 500, 100 and 10 hPa from the wave maps' file just cached; plumes, maps and the run records.
+      # Google mirror only.
       - name: Polar cap, AO and NAO, 100 and 10 hPa
         env:
           ECMWF_SOURCES: google
@@ -217,7 +218,7 @@ jobs:
             --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
             || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "polarcap" "keeping the previous figures"
 
-      # 100 hPa eddy heat flux: v and T for 25 members, daily steps, ~0.5 GB. Google mirror only.
+      # 100 hPa eddy heat flux: v and T for the 50 members, daily steps, ~1 GB. Google mirror only.
       - name: Eddy heat flux, 100 hPa
         env:
           ECMWF_SOURCES: google
@@ -229,8 +230,8 @@ jobs:
             || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "heatflux100" "keeping the previous figure"
 
       # Forecast dripping paint: polar-cap height 1000-10 hPa, GEOS FP tail (bdc.yml keeps
-      # assets/sst/data/geosfp_cap_history.json) + AIFS-ENS control and 10 members to day 15,
-      # drift measured against GEOS FP (reference/aifs_capdrift.json). ~1.7 GB. Google mirror only.
+      # assets/sst/data/geosfp_cap_history.json) + AIFS-ENS control and 50 members to day 15 from the 90-65N rows of
+      # each message, drift measured against GEOS FP (reference/aifs_capdrift.json). ~1.3 GB. Google mirror only.
       - name: Forecast dripping paint
         env:
           ECMWF_SOURCES: google
@@ -241,8 +242,8 @@ jobs:
             --out-dir assets/sst \
             || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "forecast_drip" "keeping the previous figure"
 
-      # Weather regimes from the AIFS-ENS 500 hPa members the two steps above already cached (wave_maps' 25 perturbed
-      # members + forecast_drip's control): no fetch of its own. 00Z cycles only (a 12Z cycle is a no-op). ->
+      # Weather regimes from the AIFS-ENS 500 hPa members the steps above already cached (wave_maps' 50 perturbed
+      # members + polarcap's control): no fetch of its own. 00Z cycles only (a 12Z cycle is a no-op). ->
       # assets/regimes/data, read by the multi-model regime view (regimes.yml).
       - name: Weather regimes (AIFS-ENS members)
         run: |
@@ -250,7 +251,7 @@ jobs:
             --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
             || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AIFS-ENS regimes"
 
-      # 25 perturbed members of u and v at 10/100 hPa every 12 h (~1.9 GB) for the
+      # The 50 perturbed members of u, v and z at 10/100 hPa every 12 h (~5.6 GB) for the
       # ensemble-mean maps. Google mirror only.
       - name: Vortex winds, 10 and 100 hPa
         env:
@@ -395,7 +396,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            libeccodes0 libgeos-dev libproj-dev proj-bin
+            libeccodes0 libaec0 libgeos-dev libproj-dev proj-bin  # libaec: rows (ccsds.py)
 
       - name: Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
@@ -404,7 +405,7 @@ jobs:
       # nothing else. The full ens_cycle also pulls the Hovmöller/SOI surface
       # batches and IFS-ENS, and at the 07:50Z dispatch IFS-ENS 00Z is not on open
       # data yet, so retries on that one missing file can eat the whole budget.
-      # The subset is ~5 min against ~19; the budget below is sized to that.
+      # The subset is ~8 min (the 12-level u pull for all 50 members is ~6 GB); the budget below allows for a slow mirror.
       - name: Populate the ENS cycle cache
         working-directory: scripts/mjo
         timeout-minutes: 30
@@ -426,7 +427,7 @@ jobs:
             || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AIFS-ENS vortex record" "the record keeps its previous runs"
 
       # Per-member zonal-mean u at 10/50/100 hPa from the cached u files -> data/zmu_members_aifs.npz, and v at
-      # 250 hPa (control + 25) for the jet below.
+      # 250 hPa (control + 50) for the jet below.
       - name: Zonal-mean u (zero line) and v250 (jet), AIFS-ENS
         run: |
           python scripts/strat/qbo_duct.py --model aifs \
@@ -446,7 +447,7 @@ jobs:
             || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "zero-line render" "keeping the previous figures"
 
       # North Pacific jet: 250 hPa u from the AAM pull above and v from the zonal-mean
-      # u step's 250 hPa fetch (control + 25 members). Maps, loop, jet axis, phase diagram, the torque
+      # u step's 250 hPa fetch (control + 50 members). Maps, loop, jet axis, phase diagram, the torque
       # research view (which reads the committed torque_ranges.json from aam-ifs.yml) and the phase-impact figures (drawn
       # from the committed ERA5 composites in scripts/mjo/data/reference/pacjet_impacts.npz).
       - name: North Pacific jet (AIFS-ENS)

@@ -1,6 +1,6 @@
 name: Jets (AIFS-ENS) and dynamic tropopause (IFS control)
 
-# The heavy leg of the atmosphere page: the jets figure/loop and the dynamic tropopause. The jets need the ~3 GB
+# The heavy leg of the atmosphere page: the jets figure/loop and the dynamic tropopause. The jets need the ~6 GB
 # 14-level AIFS-ENS pull, so they live apart from mjo.yml (RMM + the light products) and are fired by the dispatcher
 # ~40 min after it (scripts/lib/dispatch_workflows.sh). The dynamic tropopause is drawn from the IFS control (HRES
 # until May 2026; t/u/v on nine levels, byte-ranged, ~1 GB), whose 00/12Z run reaches day 10 on the Google mirror

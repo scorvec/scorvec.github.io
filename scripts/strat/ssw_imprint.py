@@ -96,9 +96,10 @@ class Ref:
 # A November-April product: a run is drawn when its day 15 falls in the season (the analysis is recorded all year, so
 # the tail is there when it starts). Each model's members from their own open data, daily 0-360 h (00 or 12 UTC
 # instants), on the boxes:
-#   aifs  AIFS-ENS control + 25 perturbed members (ECMWF open data, Google Cloud mirror only), msl
+#   aifs  AIFS-ENS control + 50 perturbed members (ECMWF open data, Google Cloud mirror only), msl
 #   ifs   IFS-ENS, all 50 perturbed members (the ensemble files carry no control), msl
 #   hres  the IFS control, msl from its own stream (oper)
+#         (the three ECMWF models from the 90-20N rows of each message alone, store.ensure_rows)
 #   gefs  NOAA GEFS control + 30, PRMSL byte-ranged from NOAA's S3 bucket through the .idx files
 #   geps  ECCC GEPS control + 20, the MSC Datamart's PRMSL allmbrs files
 # ANALYSIS. The IFS control's step 0 (its 4D-Var analysis) of every 00 and 12 UTC cycle, averaged per day, kept in
@@ -109,7 +110,7 @@ class Ref:
 MODELS = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS", "hres": "IFS control", "gefs": "GEFS", "geps": "GEPS"}
 STYLE = {"aifs": "#b4541f", "ifs": "#1f4b6e", "hres": "#1f4b6e", "gefs": "#3b88c4", "geps": "#2f7d4f"}  # nh_vortex's
 LEADS = tuple(range(0, 361, 24))
-AIFS_MEMBERS = 25
+ROWS = tuple(range(round((90.0 - LAT_EDGES[0]) / 0.25) + 1))  # 90-20N: the ECMWF 0.25 deg rows the boxes need
 REPO = HERE.parents[1]
 DATA = REPO / "assets" / "sst" / "data"
 OUT_JSON = DATA / "ssw_imprint.json"
@@ -130,20 +131,19 @@ def _ecmwf():
     return IE
 
 
-def _ecmwf_boxes(path: Path, short: str = "msl"):
-    """(member, lead, lat, lon) hPa boxes and the lead hours from one store GRIB (members, if any, first)."""
-    import xarray as xr
+def _ecmwf_boxes(cyc, spec) -> tuple[np.ndarray, np.ndarray]:
+    """(member, lead, lat, lon) hPa boxes (members, if any, after the control) and the lead hours of one store spec,
+    from the 90-20N rows of each message (store.ensure_rows, ~43 % of its bytes)."""
+    IE = _ecmwf()
+    box = {}
 
-    with xr.open_dataset(
-        path, engine="cfgrib", backend_kwargs={"indexpath": "", "filter_by_keys": {"shortName": short}}
-    ) as ds:
-        da = ds[short]
-        da = da.expand_dims("number") if "number" not in da.dims else da
-        da = da.expand_dims("step") if "step" not in da.dims else da
-        da = da.transpose("number", "step", "latitude", "longitude")
-        b = Boxes(da.latitude.values, da.longitude.values)
-        leads = (da.step.values / np.timedelta64(1, "h")).astype(int)
-        return np.stack([b(da.isel(number=i).values / 100.0) for i in range(da.sizes["number"])]), leads
+    def boxes(v, lat, lon):  # one Boxes for the file: every message is on the same grid
+        if "b" not in box:
+            box["b"] = Boxes(lat, lon)
+        return box["b"](v / 100.0).astype("float32")
+
+    a, _, steps, _ = IE.E.load_rows(IE.E.ensure_rows(cyc, spec, ROWS, reduce=boxes, tag="boxes"))
+    return a[:, :, 0].astype(float), np.array(steps)
 
 
 def slp_ecmwf(model: str, date: str, hh: str, steps=LEADS):
@@ -154,13 +154,13 @@ def slp_ecmwf(model: str, date: str, hh: str, steps=LEADS):
     if model == "aifs":
         parts = [
             IE.E.Spec("aifs-ens", "cf", "msl", "sfc", (), steps),
-            IE.E.Spec("aifs-ens", "pf", "msl", "sfc", (), steps, AIFS_MEMBERS),
+            IE.E.Spec("aifs-ens", "pf", "msl", "sfc", (), steps),
         ]
     elif model == "ifs":
         parts = [IE.E.Spec("ifs", "pf", "msl", "sfc", (), steps)]
     else:  # hres, the IFS control
         parts = [IE.E.Spec("ifs", "fc", "msl", "sfc", (), steps)]
-    got = [_ecmwf_boxes(IE.ensure(cyc, s)) for s in parts]
+    got = [_ecmwf_boxes(cyc, s) for s in parts]
     return np.concatenate([g[0] for g in got]), got[0][1]
 
 

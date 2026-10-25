@@ -74,11 +74,6 @@ G = 9.80665
 LEVELS = (500, 100, 10)  # left to right, bottom-up
 ROLE = {500: "troposphere (the source)", 100: "lower stratosphere", 10: "middle stratosphere (the vortex)"}
 LAT_EDGE = 20.0
-# Perturbed members averaged for the ensemble mean. 25 rather than all 50: at
-# k=1 the mean converges long before the member count runs out, and the pull is
-# one z field per member per level per step, so 50 would double a ~0.5 GB fetch
-# for a change too small to see on the map. The IFS-ENS loops carry all 50.
-MEMBERS = 25
 
 WAVES = (1, 2)
 # Symmetric per-level shading levels in geopotential metres, fixed so a colour
@@ -158,7 +153,7 @@ def at_step(da, step_h: int):
     return da.isel(step=int(np.where(steps == step_h)[0][0]))
 
 
-def fetch(date: str, time: str, members: int = MEMBERS):
+def fetch(date: str, time: str):
     """Geopotential at the three levels, as the ENSEMBLE MEAN.
 
     z is not in the store's bulk list (~0.5 GB a cycle that nothing else
@@ -177,8 +172,8 @@ def fetch(date: str, time: str, members: int = MEMBERS):
     """
     cyc = ecmwf.Cycle(date, time)
     try:
-        path = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", "z", "pl", LEVELS, tuple(ecmwf.STEPS), members))
-        return {lev: open_level(path, lev) for lev in LEVELS}, f"ensemble mean ({members} members)"
+        path = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", "z", "pl", LEVELS, tuple(ecmwf.STEPS)))
+        return {lev: open_level(path, lev) for lev in LEVELS}, f"ensemble mean ({ecmwf.PF_MEMBERS} members)"
     except Exception as e:  # noqa: BLE001
         print(f"  perturbed pull failed ({type(e).__name__}: {e}); falling back to the control", flush=True)
         path = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "z", "pl", LEVELS, tuple(ecmwf.STEPS)))
@@ -659,7 +654,6 @@ def main(argv=None) -> int:
         default="auto",
         help="hemisphere the loops open on (default: whichever is active)",
     )
-    ap.add_argument("--members", type=int, default=MEMBERS, help="AIFS-ENS perturbed members")
     ap.add_argument("--model", choices=tuple(MODEL), default="aifs")
     ap.add_argument("--anim-dir", help="frames ROOT: the loops' directories and manifests go under it")
     ap.add_argument("--record-only", action="store_true", help="the run into its record, no loops (a backfill)")
@@ -679,7 +673,7 @@ def main(argv=None) -> int:
         full, source = fetch_aifsc(a.date, a.time), "AIFS-ENS control, one run"
         ana = full
     else:
-        full, source = fetch(a.date, a.time, a.members)
+        full, source = fetch(a.date, a.time)
         ana = fetch_analysis(a.date, a.time) if loops else None
     if loops:
         hemi = active_hemisphere(full) if a.hemi == "auto" else a.hemi

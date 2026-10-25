@@ -445,7 +445,7 @@ def render(out_dir=REPO / "assets" / "sst", data_dir=None, tail_dir=None, days_b
         verdict = test.get("test", {}).get("verdict_short", "")
         foot = (
             "MERRA-2 (NASA GMAO, M2I3NPASM daily means, 1980–" + m2_end.strftime("%b %Y") + ") · GEOS FP assimilation, "
-            "00Z (NASA GMAO, NCCS) · ECMWF AIFS-ENS control + 25 members and IFS-ENS 50 members, open data "
+            "00Z (NASA GMAO, NCCS) · ECMWF AIFS-ENS control + 50 members and IFS-ENS 50 members, open data "
             "(CC BY 4.0, Google Cloud mirror)"
             + ("; forecast shading = " + MODEL[fc_models[0]] + " ensemble-mean [u]" if fc_models else "")
             + " · QBO phase: KIT / FU Berlin Singapore soundings. "

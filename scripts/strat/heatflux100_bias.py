@@ -14,7 +14,7 @@ ERA5 (reference/vt100_era5.nc) at the same valid time:
         runs)
 
 Starts every 3 days (GEPS: every day the Datamart still holds). The control and the mean of the perturbed members are
-kept apart, so the products' own mix (AIFS-ENS 1 + 25, GEFS 1 + 30, GEPS 1 + 20, IFS-ENS 50) can be formed from them:
+kept apart, so the products' own mix (AIFS-ENS 1 + 50, GEFS 1 + 30, GEPS 1 + 20, IFS-ENS 50) can be formed from them:
 the expected flux of a perturbed member does not depend on which members are drawn.
 
 THE TEST (`test`). The error is the products' ensemble-mean flux minus ERA5 at 00 UTC on the valid day, for the total
@@ -56,7 +56,7 @@ DAYS_ECMWF = list(range(16))  # the ECMWF products' steps, 0..360 h
 DAYS_35 = list(range(36))  # GEFS and GEPS, 0..840 h
 # pf: perturbed members archived per run; mix: perturbed members beside the control in the product (IFS-ENS: no control)
 MODELS = {
-    "aifs": {"label": "AIFS-ENS", "first": "2025-07-01", "every": 3, "days": DAYS_ECMWF, "pf": 4, "mix": 25},
+    "aifs": {"label": "AIFS-ENS", "first": "2025-07-01", "every": 3, "days": DAYS_ECMWF, "pf": 4, "mix": 50},
     "ifs": {"label": "IFS-ENS", "first": "2025-01-10", "every": 3, "days": DAYS_ECMWF, "pf": 5, "mix": None},
     "gefs": {"label": "GEFS", "first": "2025-01-10", "every": 3, "days": DAYS_35, "pf": 4, "mix": 30},
     "geps": {"label": "GEPS", "first": None, "every": 1, "days": DAYS_35, "pf": 20, "mix": 20},  # the Datamart's window

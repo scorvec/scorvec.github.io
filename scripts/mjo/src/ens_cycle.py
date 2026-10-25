@@ -52,7 +52,7 @@ def fetch_strat(date: str, time: str) -> None:
         store.Spec("aifs-ens", "cf", "u", "pl", store.LEVELS_RMM, S),
         store.Spec("aifs-ens", "pf", "u", "pl", store.LEVELS_RMM, S),
         store.Spec("aifs-ens", "cf", "u", "pl", store.LEVELS_AAM_REST, S),
-        store.Spec("aifs-ens", "pf", "u", "pl", store.LEVELS_AAM_REST, S, store.AAM_PF_MEMBERS),
+        store.Spec("aifs-ens", "pf", "u", "pl", store.LEVELS_AAM_REST, S),
     ]
     for sp in specs:  # the core u files: let a failure propagate
         store.ensure(cyc, sp)
