@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Stratosphere model maps for strat-models.html: the GFS, the GDPS, the AIFS single and GEOS FP on their pressure levels
 from 100 hPa up and (GFS, GDPS, GEOS FP) on the isentropic surfaces their levels support, both hemispheres, every 12
-hours (GFS to 16 days, GDPS to 10, AIFS single to 15, GEOS FP to 10 from 00 UTC and 5 from 12 UTC).
+hours (GFS to 16 days, GDPS to 10, AIFS single to 15, GEOS FP to 10 from 00 UTC and 5 from 12 UTC). The 00 and 12 UTC
+runs; the AIFS single's from 00, 06, 12 and 18 UTC (its 06/18 UTC runs reach 15 days too).
 
 Each model is read on its latitude-longitude output grid (GFS 0.5 deg; GDPS 0.15 deg, averaged over 3 x 3 cells to
 0.45 deg; AIFS single 0.25 deg, one 1-2-1 pass and every second point to 0.5 deg; GEOS FP every second point of its
@@ -163,6 +164,7 @@ MODELS = {
         label="AIFS single",
         source="ECMWF AIFS single (the deterministic AIFS) on its 0.25 deg grid, smoothed to 0.5 deg: ECMWF open data (CC BY 4.0), Google Cloud mirror",
         steps=tuple(range(0, 361, 12)),
+        every=6,  # hours between the runs planned (the others: 12)
         levels=(100, 50, 10),
         col=(100, 50, 10),
         thetas=(),
@@ -898,8 +900,8 @@ def load_manifest(path, model):
 
 
 def cmd_plan(a):
-    """Print the newest complete 00/12Z cycle not yet in the manifest (nothing if none). With --cycle: that cycle,
-    unless the manifest has it or a newer one (--force plans it anyway)."""
+    """Print the newest complete cycle (00/12Z; the AIFS single's every 6 h) not yet in the manifest (nothing if none),
+    looking back 48 h. With --cycle: that cycle, unless the manifest has it or a newer one (--force plans it anyway)."""
     man = load_manifest(Path(a.manifests) / f"strat_{a.model}.json", a.model)
     have = {c["cycle"] for c in man.get("cycles", [])}
     if a.cycle:
@@ -908,9 +910,10 @@ def cmd_plan(a):
         else:
             print(a.cycle)
         return
+    every = MODELS[a.model].get("every", 12)
     now = dt.datetime.now(dt.UTC).replace(minute=0, second=0, microsecond=0, tzinfo=None)
-    c = now.replace(hour=12 if now.hour >= 12 else 0)
-    for _ in range(4):
+    c = now.replace(hour=now.hour - now.hour % every)
+    for _ in range(48 // every):
         key = c.strftime("%Y%m%d%H")
         if key in have:
             return  # the newest published: nothing newer is complete
@@ -918,7 +921,7 @@ def cmd_plan(a):
             print(key)
             return
         print(f"  {a.model} {key}: not complete yet", file=sys.stderr)
-        c -= dt.timedelta(hours=12)
+        c -= dt.timedelta(hours=every)
 
 
 def cmd_run(a):
@@ -1038,9 +1041,11 @@ def cmd_run(a):
     cycles = sorted(
         [c for c in man.get("cycles", []) if c["cycle"] != key] + [entry], key=lambda c: c["cycle"], reverse=True
     )
-    # The newest run and the one before: the page draws the newest and its change from the previous, and a visitor's
-    # copy of the old manifest (or a deploy not out yet) still finds the previous run's maps in the store.
-    keep, drop = cycles[:2], cycles[2:]
+    # The newest run and those back to the run 12 h before it: the page draws the newest and its change from that run
+    # (the steps are 12-hourly, so the valid times pair), and a visitor's copy of the old manifest (or a deploy not out
+    # yet) still finds the previous run's maps in the store.
+    n_keep = 1 + 12 // M.get("every", 12)
+    keep, drop = cycles[:n_keep], cycles[n_keep:]
     man.update(model=model, label=M["label"], source=M["source"], cycles=keep, updated=entry["made"])
     mpath.parent.mkdir(parents=True, exist_ok=True)
     mpath.write_text(json.dumps(man, separators=(",", ":")))

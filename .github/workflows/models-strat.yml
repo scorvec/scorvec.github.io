@@ -1,13 +1,14 @@
 name: Stratosphere model maps (data)
 
-# strat-models.html: the GFS, the GDPS, the AIFS single and GEOS FP 00/12Z runs on their pressure levels from 100 hPa up
+# strat-models.html: the GFS, the GDPS, the AIFS single and GEOS FP runs (00/12Z; the AIFS single's 00/06/12/18Z) on
+# their pressure levels from 100 hPa up
 # (temperature, height, wind and, for the GFS, the smoothed vertical motion) and, for the GFS, the GDPS and GEOS FP, on
 # the isentropic surfaces their levels support (Ertel potential vorticity, computed here; GEOS FP's own), both
 # hemispheres, every 12 h (GFS to +384 h, GDPS to +240 h, AIFS single to +360 h, GEOS FP to +240 h from 00Z and +120 h
 # from 12Z), each field and step one lossless WebP (scripts/models/strat_maps.py has the details). One model per run;
 # the callers models-strat-{gfs,gdps,aifs,geos}.yml fix it, so the dispatcher's "already ran since" check is per model.
 #
-# Each run: read that model's CURRENT manifest from main, plan (the newest complete 00/12Z cycle not yet published),
+# Each run: read that model's CURRENT manifest from main, plan (the newest complete cycle not yet published),
 # fetch + compute + encode, publish the cycle directory to the FRAMES STORE ONLY (FRAMES_BRANCH=off on the publish
 # step: this product never touches the git `frames` branch; the old cycle is pruned in the store), THEN commit the
 # manifest to main - never the other way round, or the page would point at data that is not there yet. A cycle that
