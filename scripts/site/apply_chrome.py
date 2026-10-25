@@ -80,6 +80,12 @@ PRODUCTS = [
                         "Integrated vapour transport maps to day 7 from AIFS, IFS, GFS and GDPS; West Coast landfall and AR-scale ranks; AR probabilities to day 15 from four ensembles and their blend; GEFS weeks 3–5 AR-frequency anomalies where significant.",
                         "Twice daily",
                     ),
+                    (
+                        "/circulation.html#natemp",
+                        "North America 2 m temperature",
+                        "Daily-mean 2 m temperature anomalies to day 15 from the IFS-ENS on its 0.1° grid and GEPS on its 0.5° grid, coloured where enough members agree on the sign, and the significant changes from the previous run.",
+                        "Twice daily",
+                    ),
                 ],
             ),
             (
@@ -866,6 +872,7 @@ HOME = {
         "Storms, hazards and the flow aloft over the next two weeks",
         [
             "/ar.html",
+            "/circulation.html#natemp",
             "/circulation.html#dt",
             "/circulation.html#pacjet",
             "/circulation.html#waf",

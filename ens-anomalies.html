@@ -194,6 +194,7 @@
                 <h3>Surface and hazards</h3>
                 <ul>
                   <li><a href="/ar.html">Atmospheric rivers</a></li>
+                  <li><a href="/circulation.html#natemp">North America 2 m temperature</a></li>
                 </ul>
               </div>
             </div>
@@ -868,7 +869,12 @@
     ovView = null; drawLegend(); if (view) clampView(); render();
   }
   function sFit() { return Math.max(360 / W, 180 / H); }
-  function fit() { view = { cx: 0, cy: 0, s: sFit() }; clampView(); }
+  // the whole world; on a phone, 150 degrees of latitude from the pole down, centred on the reader's own longitude (from
+  // the time zone), since the whole world would be a thin strip
+  function fit() {
+    var phone = W < 640, lon = -new Date().getTimezoneOffset() / 4;
+    view = phone ? { cx: lon, cy: 15, s: 150 / H } : { cx: 0, cy: 0, s: sFit() }; clampView();
+  }
   function toLL(px, py) { return [view.cx + (px - W / 2) * view.s, view.cy - (py - H / 2) * view.s]; }
   var S_MIN = 0.008;
   function clampView() {
@@ -1126,7 +1132,9 @@
       for (var px = X0; px < X1; px++) { ctx.fillStyle = rgbStr(colAt((px - X0) / (X1 - X0))); ctx.fillRect(px, y, 1.2, bh); }
       ctx.strokeStyle = "#8c918b"; ctx.lineWidth = 1; ctx.strokeRect(X0 + 0.5, y + 0.5, X1 - X0 - 1, bh - 1);
       ctx.fillStyle = "#3d4540"; ctx.textAlign = "center"; ctx.textBaseline = "top"; var right = -1e9;
-      ticks.forEach(function (t) { var x = X0 + (t + R) / (2 * R) * (X1 - X0), txt = sgn(t), tw = ctx.measureText(txt).width; ctx.fillRect(x - 0.5, y + bh, 1, 4); if (x - tw / 2 < right + 6) return; ctx.fillText(txt, x, y + bh + 5); right = x + tw / 2; });
+      ticks.forEach(function (t) {
+        var x = X0 + (t + R) / (2 * R) * (X1 - X0), txt = sgn(t), tw = ctx.measureText(txt).width, cx = Math.min(Math.max(x, tw / 2 + 1), X1 - tw / 2);
+        ctx.fillRect(x - 0.5, y + bh, 1, 4); if (cx - tw / 2 < right + 6) return; ctx.fillText(txt, cx, y + bh + 5); right = cx + tw / 2; });
       ctx.fillStyle = neuS; ctx.fillRect(X1 + 10, y, 18, bh); ctx.strokeRect(X1 + 10.5, y + 0.5, 17, bh - 1);
       ctx.fillStyle = "#3d4540"; ctx.textAlign = "left"; ctx.fillText(st.view === "anom" ? "split" : "n.s.", X1 + 32, y);
     }
