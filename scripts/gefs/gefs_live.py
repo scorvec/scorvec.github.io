@@ -85,32 +85,50 @@ def latest_cycle(explicit=None, weekdays=None) -> str | None:
     return None
 
 
+GAP = 200_000  # wanted messages at most this far apart come in one GET (the RH between HGT/TMP and UGRD/VGRD)
+
+
+def _index(url: str):
+    try:
+        return R.index(url)
+    except Exception:  # noqa: BLE001  (not on S3: the member is incomplete)
+        return None
+
+
 def member(date: str, mem: str):
     """One member through gefs_daily.Acc - the reforecast v2's own reduction - or None if incomplete.
 
     -> dict: w_<tag> weekly (5, lat, lon) for the nine map fields, e_<tag> daily (35, lat, lon) for every field (summed
     into the ensemble mean by fetch), m_<tag> daily 2.5 deg, s vortex scalars (16, 35), band (3, 35, lon)."""
-    jobs = []
-    for h in range(6, 841, 6):
-        url = step_url(date, mem, h)
-        try:
-            idx = R.index(url)
-        except Exception:  # noqa: BLE001
-            return None
+    hours = range(6, 841, 6)
+    urls = [step_url(date, mem, h) for h in hours]
+    with ThreadPoolExecutor(24) as ex:
+        idxs = list(ex.map(_index, urls))
+    if any(idx is None for idx in idxs):
+        return None
+    jobs = []  # (url, start, end or -1, [(tag, day, start, end), ...]): one ranged GET per run of wanted messages
+    for h, url, idx in zip(hours, urls, idxs):
         want = []
         if h % 12 == 0:
             want += [(t, f"{h} hour fcst") for t in G.TABLE if G.TABLE[t][3] == "inst"]
         want += [(t, f"{h - 6}-{h} hour {G.TABLE[t][3]} fcst") for t in G.TABLE if G.TABLE[t][3] != "inst"]
+        msgs = []
         for t, stext in want:
             name, lev = G.TABLE[t][4], G.TABLE[t][2]
             hit = [e for e in idx if e[4] == name and e[2] == lev and e[3] == stext]
             if not hit:
                 return None
-            jobs.append((t, (h + 23) // 24, url, hit[0][0], hit[0][1]))
+            msgs.append((t, (h + 23) // 24, hit[0][0], hit[0][1]))
+        for m in sorted(msgs, key=lambda m: m[2]):
+            if jobs and jobs[-1][0] == url and jobs[-1][2] >= 0 and m[2] - jobs[-1][2] <= GAP:
+                jobs[-1] = (url, jobs[-1][1], m[3], [*jobs[-1][3], m])
+            else:
+                jobs.append((url, m[2], m[3], [m]))
     acc = G.Acc(tuple(G.TABLE))
     with ThreadPoolExecutor(24) as ex:
-        for (t, d, *_), b in zip(jobs, ex.map(lambda j: get(j[2], (j[3], j[4])), jobs)):
-            acc.add(t, d, R.decode(b))
+        for (_, s0, _, msgs), b in zip(jobs, ex.map(lambda j: get(j[0], (j[1], j[2])), jobs)):
+            for t, d, s, e in msgs:
+                acc.add(t, d, R.decode(b[s - s0 : None if e < 0 else e + 1 - s0]))
     r = acc.finish()
     if r is None:
         return None
