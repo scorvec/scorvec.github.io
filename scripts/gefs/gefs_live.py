@@ -20,6 +20,7 @@ The vortex panel: 60N 10 hPa zonal wind per member, bias-corrected as raw - mode
 both 2000-2019 (data/merra2_u60_10_clim.json).
 
     python gefs_live.py [--date YYYYMMDD] [--members 31] [--site SITE]
+    python gefs_live.py --stage fetch ...; python gefs_live.py --stage draw --date YYYYMMDD ...   # as gefs.yml
 """
 
 from __future__ import annotations
@@ -28,11 +29,13 @@ import textwrap
 import argparse
 import datetime as dt
 import json
+import os
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+import pyproj  # noqa: F401  (load pyproj's libproj before eccodes)
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
@@ -169,7 +172,7 @@ def _bracket(init: dt.date):
 def _cached(url: str, p: Path) -> Path:
     if not p.exists():
         p.parent.mkdir(parents=True, exist_ok=True)
-        tmp = p.with_suffix(".part")
+        tmp = p.with_name(f"{p.name}.{os.getpid()}.part")  # several products share the cache at once (gefs.yml)
         tmp.write_bytes(get(url))
         tmp.replace(p)
     return p
@@ -994,9 +997,19 @@ def load_prev(runs: Path, date: str, max_gap=7):
     return None, None
 
 
-def render(
-    npz: Path, date: str, site: Path, cache: Path, procs: int = 4, runs: Path | None = None, ref_dir: Path | None = None
-):
+def drift(base: dt.date, cache: Path, runs: Path):
+    """The operational drift correction, written to the run archive (runs/gefs_drift_<date>.npz): estimated from the
+    window's verifiable inits (whatever are missing are verified; the first run backfills), else the newest archived."""
+    import gefs_drift as GD
+
+    try:
+        return GD.estimate(base, cache, runs)
+    except (Exception, SystemExit) as e:  # noqa: BLE001
+        print(f"  drift estimate failed ({str(e)[:100]}); using the newest archived one", flush=True)
+        return GD.latest(runs, base)
+
+
+def render(npz: Path, date: str, site: Path, cache: Path, procs: int, runs: Path, ref_dir: Path | None, Dr):
     """Every GEFS page figure this script owns: weekly maps (+ skill-masked), change vs the previous run, the daily
     animation, the vortex diagnostics and the vortex loop; and the run archive the next run compares with."""
     base = dt.date(int(date[:4]), int(date[4:6]), int(date[6:]))
@@ -1006,8 +1019,6 @@ def render(
     data.mkdir(exist_ok=True)
     anim = out / "anim"
     anim.mkdir(exist_ok=True)
-    runs = runs or (anim / "runs")
-    runs.mkdir(parents=True, exist_ok=True)
     z = np.load(npz)
     C2 = clim2_at(base, cache)
     if C2 is None:
@@ -1015,11 +1026,6 @@ def render(
     sh = np.load(ref("era5_shift.npz", cache, ref_dir))
     import gefs_drift as GD
 
-    try:  # verifies whatever inits of the window are missing (the first run backfills)
-        Dr = GD.estimate(base, cache, runs)
-    except (Exception, SystemExit) as e:  # noqa: BLE001
-        print(f"  drift estimate failed ({str(e)[:100]}); using the newest archived one", flush=True)
-        Dr = GD.latest(runs, base)
     A = anomalies(z, C2, sh, base, Dr)
     days = valid_days(base)
     titles = [f"Week {i + 1}   {days[a - 1]:%b %d} – {days[b - 1]:%b %d}" for i, (a, b) in enumerate(R.WEEKS)]
@@ -1151,6 +1157,13 @@ def main() -> int:
     )
     ap.add_argument("--ref", help="local directory holding the gefs-ref-v1 files (default: download the release)")
     ap.add_argument("--force", action="store_true", help="render even if this cycle is already done")
+    ap.add_argument(
+        "--stage",
+        choices=("all", "fetch", "draw"),
+        default="all",
+        help="fetch: the members and the drift estimate only, so the products built on them can start; draw: the "
+        "figures from that fetch (gefs.yml draws them alongside those products)",
+    )
     a = ap.parse_args()
     date = latest_cycle(a.date)
     if not date:
@@ -1162,16 +1175,22 @@ def main() -> int:
         return 0
     print(f"GEFS extended {date} 00Z", flush=True)
     work = Path(a.work)
-    npz = fetch(date, a.members, work, a.procs)
-    render(
-        npz,
-        date,
-        Path(a.site),
-        work / "clim",
-        a.procs,
-        Path(a.runs) if a.runs else None,
-        Path(a.ref) if a.ref else None,
-    )
+    base = dt.datetime.strptime(date, "%Y%m%d").date()
+    runs = Path(a.runs) if a.runs else Path(a.site) / "assets" / "gefs" / "anim" / "runs"
+    runs.mkdir(parents=True, exist_ok=True)
+    if a.stage == "draw":
+        import gefs_drift as GD
+
+        npz, Dr = work / f"gefs2_{date}.npz", GD.latest(runs, base)
+        if not npz.exists():
+            raise SystemExit(f"no fetch of {date} in {work} (run --stage fetch first)")
+    else:
+        npz = fetch(date, a.members, work, a.procs)
+        Dr = drift(base, work / "clim", runs)
+        for c in _bracket(base)[:2]:  # the daily climatology every product of the run reads, downloaded once here
+            R.clim_file(f"gefs_clim2_{c:03d}.npz", work / "clim")
+    if a.stage != "fetch":
+        render(npz, date, Path(a.site), work / "clim", a.procs, runs, Path(a.ref) if a.ref else None, Dr)
     return 0
 
 
