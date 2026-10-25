@@ -487,6 +487,7 @@
       <tr><td><b>GEFS</b>: NOAA's Global Ensemble Forecast System</td><td>the control and 30 perturbed members</td><td>0.5&deg;</td><td>00, 06, 12 and 18&nbsp;UTC, about 6&frac12;&nbsp;h after the start</td></tr>
       <tr><td><b>GEPS</b>: Environment and Climate Change Canada's Global Ensemble Prediction System</td><td>the control and 20 perturbed members</td><td>0.5&deg;, the finest the MSC Datamart publishes</td><td>00 and 12&nbsp;UTC, about 5&frac12;&nbsp;h after the start</td></tr>
     </table></div>
+    <p>A run is shown as it arrives: its days&nbsp;1&ndash;5 as soon as they are complete on the model&rsquo;s server, days&nbsp;6&ndash;10 next, and the rest, with the change from earlier runs, the regimes and the clusters, once the whole run is in (the run picker and the caption say how far a run has got).</p>
     <p>Each ensemble is shown on its own published grid, untouched: the finer grids are not smoothed and the coarser ones are not interpolated before the colours (your browser interpolates between grid points as it draws). The page keeps each ensemble's four newest runs, and the buttons beside &ldquo;Run&rdquo; pick one (the newest is shown until another is picked; the regimes' timeline and its comparisons take the runs picked). The ensembles' runs can be hours apart, and the date line under the buttons always gives the calendar days a map covers. The clusters always pool each ensemble's newest run that reaches day&nbsp;15.</p>
     <h3>Days and periods</h3>
     <p>A day is a calendar day in UTC, the mean of the 06, 12, 18 and 24&nbsp;UTC fields. A 00&nbsp;UTC run has 15 full days (day&nbsp;1 is the day it starts), a 06, 12 or 18&nbsp;UTC run 14 (day&nbsp;1 is the next day; its first and last part-days are left out); GEFS and GEPS, which run to 16 days, have one more, and an IFS-ENS run from 06 or 18&nbsp;UTC, which ECMWF runs to 144 hours, has 5. The periods are days 1&ndash;5, 6&ndash;10 and 11&ndash;15 (11&ndash;14 for a 06, 12 or 18&nbsp;UTC run), each the mean of its days. A member that misses any field of a period's days is left out of that period, and a period from fewer than 80&nbsp;% of the ensemble's members is not drawn.</p>
@@ -1069,6 +1070,7 @@
     else if (st.view === "regimes" && !fr.card.n[f]) msg = f === "t2m" ? "This run was made without the 2 m temperature normals: pick 500 hPa height or sea-level pressure, or a newer run." : "Too few of this regime's members are complete for this field.";
     else if (st.view === "anom" && !hasAnom(c, f)) msg = hasChange(c, f) ? "This run was made without the 2 m temperature normals: it has the change maps only; the newer runs have the anomalies."
       : "This run was made without the 2 m temperature normals, and without an earlier run to compare with: pick a newer run.";
+    else if (st.view === "change" && !chOf(c, sp, f) && c.through) msg = "This run is still arriving (in so far: through " + c.through + "); its change maps come with the rest of it.";
     else if (st.view === "change" && !chOf(c, sp, f)) msg = vsPrev(c) ? "There is no change map for this period: the run " + vsH(c) + " h earlier does not cover it."
       : "There are no change maps for this run: the statistics of the run 12 h earlier were not available.";
     else if (st.view === "anom" && !(sp.n && sp.k && sp.k[f])) msg = "Too few members of this run are complete for this period.";
@@ -1297,6 +1299,7 @@
       : f + ": this run's ensemble mean less that of the run " + vsH(c) + " h earlier" + (vsPrev(c) ? " (" + initLabel({ init: vsPrev(c) }) + ")" : "") + " over the same days, " + u + "; dots where the change is significant (Welch's t-test, false discovery rate 10 %)";
     if (contoursOn()) cap += st.field === "z500" ? " · lines: " + who + "'s mean height every 6 dam" : st.field === "msl" ? " · lines: " + who + "'s mean pressure every 4 hPa" : " · blue line: " + who + "'s mean 0 °C";
     if (st.field === "msl" && st.view !== "change") cap += " · darker grey: ground above 1,500 m, no anomaly shown";
+    if (c.through) cap += " · this run so far: through " + c.through + ", the rest arriving";
     $("legT").textContent = cap;
   }
 
@@ -1720,7 +1723,7 @@
     $("runBox").hidden = !rs.length;
     segButtons($("runPick"), rs.map(function (x) { return x.cycle; }), function (k) { var x = rs.filter(function (y) { return y.cycle === k; })[0]; return escH(initLabel(x)); },
       c ? c.cycle : null, selectRun, function (k) { var x = rs.filter(function (y) { return y.cycle === k; })[0], nd = days(x).length;
-        return MODELS[st.model] + " run of " + runLabel(x) + ", " + nd + " full days" + (x.last_step && x.last_step < 240 ? " (ECMWF runs the IFS ensemble from 06 and 18 UTC to 144 h)" : ""); });
+        return MODELS[st.model] + " run of " + runLabel(x) + ", " + nd + " full days" + (x.through ? " so far (through " + x.through + "; the rest is arriving)" : "") + (x.last_step && x.last_step < 240 ? " (ECMWF runs the IFS ensemble from 06 and 18 UTC to 144 h)" : ""); });
     var vs = CHG_ORDER.filter(function (v) { return rs.some(function (x) { return hasVs(x, st.field, v); }); });
     $("vsSeg").hidden = st.view !== "change" || vs.length < 2;
     if (!$("vsSeg").hidden) segButtons($("vsSeg"), vs, function (v) { return "vs " + v + " h earlier"; }, vsOf(c), function (v) { st.vs = v; setButtons(); onChange(); },

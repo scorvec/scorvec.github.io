@@ -18,6 +18,10 @@ on:
         description: "Cycle YYYYMMDDHH (blank = plan the newest unpublished; skipped when it or a newer one is published)"
         required: false
         default: ""
+      follow:
+        description: "Follow the run as it lands, publishing days 1-5 and 6-10 as they complete"
+        type: boolean
+        default: false
       fields:
         description: "z500,msl = the first stage only (blank = every field, or the 2 m stage when due)"
         required: false
@@ -33,5 +37,6 @@ jobs:
     with:
       model: ifs
       cycle: ${{ inputs.cycle }}
+      follow: ${{ inputs.follow || false }}
       fields: ${{ inputs.fields }}
     secrets: inherit

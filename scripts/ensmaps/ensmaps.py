@@ -13,7 +13,10 @@ Ensembles and grids (one job per model, each as its run lands; ensmaps.yml):
         ranges through each file's .idx
   geps  GEPS, the control and 20 perturbed members, 0.5 deg; the MSC Datamart through scripts/geps/datamart.py
 Runs: 00, 06, 12 and 18Z (GEPS 00 and 12Z), each to +360 h (GEFS and GEPS +384 h), except IFS-ENS 06/18Z, which
-runs to +144 h (Model.runs). IFS-ENS comes in two stages (--fields): its 0.25-deg files land hours before the 0.1-deg
+runs to +144 h (Model.runs). A run can be followed as it lands (--follow, planned with --started once its first day is
+complete): each step is fetched as soon as its source has it, and at the end of days 5 and 10 what is done is published
+(--checkpoint: the days and the windows they close, "through" in the manifest entry); the change maps, the regimes,
+the clusters' fields and the statistics come with the whole run. IFS-ENS comes in two stages (--fields): its 0.25-deg files land hours before the 0.1-deg
 surface files, so 500 hPa height and sea-level pressure are published as soon as they are complete (with the regimes
 and the clusters' fields; the run statistics kept as <cycle>-partial), and 2 m temperature is added to the same run's
 entry when its files land (--fields t2m --merge: the maps added, the statistics completed, nothing else redone). A day is a calendar UTC day, the mean of 06, 12, 18 and 24 UTC: a 00Z run has 15 full
@@ -69,6 +72,7 @@ import functools
 import json
 import os
 import shutil
+import subprocess
 import sys
 import time
 from collections import deque
@@ -701,10 +705,34 @@ class Writer:
         path.write_bytes(b)
         return len(b)
 
-    def close(self) -> int:
+    def drain(self) -> int:
+        """Wait for the frames put so far; the bytes written so far."""
         self.bytes += sum(f.result() for f in self.futs)
+        self.futs = []
+        return self.bytes
+
+    def close(self) -> int:
+        self.drain()
         self.ex.shutdown()
         return self.bytes
+
+
+def following(fetch: Callable, minutes: float) -> Callable:
+    """fetch(date, hh, step), waiting for a step its source does not have yet (a run followed as it lands), for up to
+    `minutes` from now in all."""
+    end = time.time() + 60 * minutes
+
+    def get(date: str, hh: str, step: int):
+        while True:
+            try:
+                return fetch(date, hh, step)
+            except Exception as e:  # noqa: BLE001
+                if time.time() > end:
+                    raise
+                log(f"  +{step} h not complete on the source yet ({str(e)[:80]}); again in a minute")
+                time.sleep(60)
+
+    return get
 
 
 # ── the run ───────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -821,6 +849,68 @@ def run(a) -> int:
         entry["n"][fd.name] = int(mem.size)
         W.put(f"{fd.name}/a/{name}", img, fd.g.tiled)
 
+    def entry_of(through: int | None, **extra) -> dict:
+        """The run's manifest entry: every span drawn, or (a checkpoint) those to day index `through`, which it names."""
+        out_spans = []
+        for name, k0, k1 in spans(len(days)):
+            e = spans_meta.get(name)
+            if e is None or not e["n"] or (through is not None and k1 > through):
+                continue
+            what, when = span_text(days, k0, k1)
+            e["label"] = f"{what[0].upper()}{what[1:]} · {when}"
+            for c in [v for k in ("change", "change6", "change48") for v in e.get(k, {}).values()]:
+                c1 = next(k for k, (d, _) in enumerate(days) if f"{d:%Y-%m-%d}" == c["last"])
+                cw, cwhen = span_text(days, k0, c1)
+                c["label"] = f"{cw[0].upper()}{cw[1:]} · {cwhen}"
+            out_spans.append(e)
+        out = dict(
+            cycle=key_c,
+            init=f"{init:%Y-%m-%dT%H}:00Z",
+            last_step=mod.last(hh),
+            days=[f"{d:%Y-%m-%d}" for d, _ in days],
+            spans=out_spans,
+            fields={
+                f: {
+                    "unit": UNIT[f],
+                    "grid": mod.grids[f].desc(),
+                    "tiles": {"rows": TILE[0], "cols": TILE[1], "overview": 5} if mod.grids[f].tiled else None,
+                    "change_grid": G50.desc(),
+                    "anomaly": F[f].normals is not None,
+                    "sigma": f in spread,
+                    "units_read": sorted(units.get(f, [])),
+                }
+                for f in F
+            },
+            enc=ENC,
+            high_m=HIGH_M,
+            fdr_q=FDR_Q,
+            normals={
+                "t2m": t2m_normals.meta.get("label") if t2m_normals else None,
+                "upper": R.UPPER_META["label"],
+            },
+            prev=None,
+            prev6=None,
+            prev48=None,
+            regimes=None,
+            made=dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%MZ"),
+        )
+        if through is not None:
+            out["through"] = f"{days[through][0]:%Y-%m-%d}"
+        return out | extra
+
+    def checkpoint(k: int) -> None:
+        """Publish the days to index k and the windows they close (a run followed as it lands): the manifest written,
+        then --checkpoint run to put the frames in the store and the manifest on main."""
+        seconds = round(time.time() - t0)
+        entry = entry_of(k, fetch={"bytes": nbytes, "messages": nmsg, "seconds": seconds}, bytes=W.drain(),
+                         wall_s=round(time.time() - t_start))  # fmt: skip
+        write_manifest(site, mod, entry, a.manifest_in, a.lists)
+        env = dict(os.environ, ENSMAPS_LISTS=str(a.lists), ENSMAPS_THROUGH=entry["through"])
+        r = subprocess.run(a.checkpoint, shell=True, env=env, check=False)
+        log(
+            f"  through {entry['through']}: {'published' if r.returncode == 0 else f'NOT published (exit {r.returncode})'}"
+        )
+
     last_of = {st[-1]: k for k, (_, st) in enumerate(days)}
     wins = {k1: (i, k0) for i, (k0, k1) in enumerate(windows(len(days)))}
     todo = deque(s for _, st in days for s in st)
@@ -828,6 +918,8 @@ def run(a) -> int:
     units: dict = {}
     t0 = time.time()
     fetch = functools.partial(mod.fetch, fields=fields) if mod.key == "ifs" else mod.fetch  # IFS-ENS: this stage's
+    if a.follow:
+        fetch = following(fetch, a.follow)
     with ThreadPoolExecutor(AHEAD) as ex:
         live: deque = deque()
         while todo or live:
@@ -892,6 +984,8 @@ def run(a) -> int:
             log(
                 f"  day {k + 1} {day:%Y-%m-%d}: {int(next(iter(F.values())).done[:, k].sum())} members, {gb:.2f} GB, {sec:.0f} s"
             )
+            if a.checkpoint and not a.merge and (k + 1) % PERIOD == 0 and k < len(days) - 1:
+                checkpoint(k)
     fetched = {"bytes": nbytes, "messages": nmsg, "seconds": round(time.time() - t0)}
     for fd in F.values():  # the 0.1 / 0.25-deg sums are done with
         fd.acc = fd.win = None
@@ -968,51 +1062,15 @@ def run(a) -> int:
         sz = sum(p.stat().st_size for p in (outdir / f).rglob("*.webp"))
         log(f"  {f:5s} {sz / 1e6:7.1f} MB")
 
-    out_spans = []
-    for name, k0, k1 in spans(len(days)):
-        e = spans_meta.get(name)
-        if e is None or not e["n"]:
-            continue
-        what, when = span_text(days, k0, k1)
-        e["label"] = f"{what[0].upper()}{what[1:]} · {when}"
-        for c in [v for k in ("change", "change6", "change48") for v in e.get(k, {}).values()]:
-            c1 = next(k for k, (d, _) in enumerate(days) if f"{d:%Y-%m-%d}" == c["last"])
-            cw, cwhen = span_text(days, k0, c1)
-            c["label"] = f"{cw[0].upper()}{cw[1:]} · {cwhen}"
-        out_spans.append(e)
-    entry = dict(
-        cycle=key_c,
-        init=f"{init:%Y-%m-%dT%H}:00Z",
+    entry = entry_of(
+        None,
         prev=f"{prev_init:%Y-%m-%dT%H}:00Z" if prev else None,
         prev6=f"{prev6_init:%Y-%m-%dT%H}:00Z" if prev6 else None,
         prev48=f"{prev48_init:%Y-%m-%dT%H}:00Z" if prev48 else None,
-        last_step=mod.last(hh),
-        days=[f"{d:%Y-%m-%d}" for d, _ in days],
-        spans=out_spans,
-        fields={
-            f: {
-                "unit": UNIT[f],
-                "grid": mod.grids[f].desc(),
-                "tiles": {"rows": TILE[0], "cols": TILE[1], "overview": 5} if mod.grids[f].tiled else None,
-                "change_grid": G50.desc(),
-                "anomaly": F[f].normals is not None,
-                "sigma": f in spread,
-                "units_read": sorted(units.get(f, [])),
-            }
-            for f in F
-        },
-        enc=ENC,
-        high_m=HIGH_M,
-        fdr_q=FDR_Q,
-        normals={
-            "t2m": t2m_normals.meta.get("label") if t2m_normals else None,
-            "upper": R.UPPER_META["label"],
-        },
         regimes=regimes,
         fetch=fetched,
         bytes=nbytes_out,
         wall_s=round(wall),
-        made=dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%MZ"),
     )
     if a.merge:
         old = next((c for c in man_in.get("cycles", []) if c["cycle"] == key_c), None)
@@ -1099,7 +1157,8 @@ def write_manifest(site: Path, mod: Model, entry: dict, manifest_in: Path | None
 
 
 def cmd_plan(a) -> int:
-    """Print the newest complete cycle (of the model's start hours) not yet in the manifest (nothing if none), and its
+    """Print the newest complete cycle (of the model's start hours) not yet in the manifest (nothing if none; with
+    --started, the newest whose first day is complete, to be followed as the rest lands), and its
     stage when it is one: "<cycle> z500,msl" when --fields asks for the first IFS-ENS stage only, "<cycle> t2m" when
     the newest run on the page is still without its 2 m temperature and those files are complete. With --cycle: that
     cycle, unless the manifest has it (complete) or a newer one (--force plans it anyway)."""
@@ -1107,6 +1166,7 @@ def cmd_plan(a) -> int:
     man = load_manifest(Path(a.manifests) / f"ensmaps_{a.model}.json", mod)
     have = {c["cycle"] for c in man.get("cycles", [])}
     held = {c["cycle"]: set(c.get("fields", FIELDS)) for c in man.get("cycles", [])}
+    partial = {c["cycle"] for c in man.get("cycles", []) if c.get("through")}  # checkpoints of a run being followed
     want = tuple(f for f in FIELDS if f in a.fields.split(",")) if a.fields else FIELDS
 
     def stage(fs) -> str:
@@ -1128,13 +1188,19 @@ def cmd_plan(a) -> int:
         c = newest
         for _ in range(48 // every):
             k, d, h = f"{c:%Y%m%d%H}", f"{c:%Y%m%d}", f"{c:%H}"
+            if k in partial:  # its follower died before the end: the whole run again once it is complete (not a second
+                # follower, which would race the first)
+                if not a.started and mod.ready(d, h, mod.last(h), want):
+                    print(k + stage(want))
+                return 0
             if k in held:  # the newest published: nothing newer is complete; its 2 m temperature may be due
                 if "t2m" not in held[k] and "t2m" in want and mod.ready(d, h, mod.last(h), ("t2m",)):
                     print(f"{k} t2m")
                 return 0
             if have and max(have) > k:
                 return 0
-            if mod.ready(d, h, mod.last(h), want):
+            upto = full_days(pd.Timestamp(c), mod.last(h))[0][1][-1] if a.started else mod.last(h)
+            if mod.ready(d, h, upto, want):
                 print(k + stage(want))
                 return 0
             c -= dt.timedelta(hours=every)
@@ -1155,6 +1221,7 @@ def main() -> int:
     p.add_argument("--force", action="store_true")
     p.add_argument("--wait-min", type=float, default=0.0, help="wait up to this long for a run that is due")
     p.add_argument("--fields", default="", help="IFS-ENS: z500,msl plans the first stage only (default: every field)")
+    p.add_argument("--started", action="store_true", help="plan a run once its first day is complete (to follow it)")
     r = sub.add_parser("run")
     r.add_argument("--model", choices=tuple(MODELS), required=True)
     r.add_argument("--cycle", required=True)
@@ -1173,6 +1240,8 @@ def main() -> int:
     r.add_argument("--threads", type=int, default=min(4, os.cpu_count() or 1))
     r.add_argument("--fields", default="", help="IFS-ENS stages: z500,msl first, then t2m with --merge (default all)")
     r.add_argument("--merge", action="store_true", help="add the fields to the run's entry already on the page")
+    r.add_argument("--follow", type=float, default=0.0, help="wait up to this many minutes for steps still landing")
+    r.add_argument("--checkpoint", default="", help="shell command that publishes a checkpoint (with --follow)")
     a = ap.parse_args()
     if a.cmd == "plan":
         return cmd_plan(a)

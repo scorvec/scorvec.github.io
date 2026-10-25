@@ -48,6 +48,9 @@ on:
       fields:
         type: string
         default: ""
+      follow:
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       model:
@@ -66,6 +69,10 @@ on:
         description: "IFS-ENS: z500,msl publishes the first stage only (blank = every field, or the 2 m stage when due)"
         required: false
         default: ""
+      follow:
+        description: "Follow the run as it lands (from its first day), publishing days 1-5 and 6-10 as they complete"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -90,7 +97,7 @@ env:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 110
+    timeout-minutes: ${{ inputs.follow && 240 || 110 }}
     outputs:
       done: ${{ steps.run.outputs.done }}
       fields: ${{ steps.run.outputs.fields }}
@@ -128,6 +135,7 @@ jobs:
           CYCLE: ${{ inputs.cycle }}
           FORCE: ${{ inputs.force && '--force' || '' }}
           FIELDS: ${{ inputs.fields }}
+          FOLLOW: ${{ inputs.follow && '1' || '' }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
@@ -143,7 +151,7 @@ jobs:
           # a run dispatched as its last step lands is waited for (up to 25 min) when it is due
           # the plan prints the cycle and, for an IFS-ENS stage, its fields: "z500,msl" first, "t2m" added later
           python scripts/ensmaps/ensmaps.py plan --model "$MODEL" --manifests assets/models ${CYCLE:+--cycle "$CYCLE"} $FORCE \
-            ${FIELDS:+--fields "$FIELDS"} --wait-min 25 > "$RUNNER_TEMP/plan.txt"
+            ${FIELDS:+--fields "$FIELDS"} ${FOLLOW:+--started} --wait-min 25 > "$RUNNER_TEMP/plan.txt"
           read -r cyc stage < "$RUNNER_TEMP/plan.txt" || true
           if [ -z "$cyc" ]; then echo "nothing new for $MODEL"; echo "cycle=" >> "$GITHUB_OUTPUT"; exit 0; fi
           prev=$(date -u -d "${cyc:0:8} ${cyc:8:2}:00 12 hours ago" +%Y%m%d%H)
@@ -209,12 +217,13 @@ jobs:
           PREV48: ${{ steps.plan.outputs.prev48 }}
           NORMALS: ${{ steps.plan.outputs.normals }}
           STAGE: ${{ steps.plan.outputs.stage }}
+          FOLLOW: ${{ inputs.follow && '1' || '' }}
         run: |
           set -euo pipefail
           L="$RUNNER_TEMP/lists"
           MERGE=""; if [ "$STAGE" = t2m ]; then MERGE=--merge; fi   # 2 m temperature added to the run on the page
           python scripts/ensmaps/ensmaps.py run --model "$MODEL" --cycle "$CYC" --site . --normals "ref/${NORMALS:-none}" \
-            ${STAGE:+--fields "$STAGE"} $MERGE \
+            ${STAGE:+--fields "$STAGE"} $MERGE ${FOLLOW:+--follow 200 --checkpoint scripts/ensmaps/checkpoint.sh} \
             --prev "ensmaps_stats/$PREV.npz" --prev6 "ensmaps_stats/$PREV6.npz" --prev48 "ensmaps_stats/$PREV48.npz" \
             --save "ensmaps_stats/$CYC.npz" --lists "$L" \
             --manifest-in "assets/models/ensmaps_$MODEL.json" --fields-out "clusterfields/$MODEL.npz" --cluster-drift "cdrift/$MODEL.npz"

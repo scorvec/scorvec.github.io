@@ -13,6 +13,10 @@ on:
         description: "Cycle YYYYMMDDHH (blank = plan the newest unpublished; skipped when it or a newer one is published)"
         required: false
         default: ""
+      follow:
+        description: "Follow the run as it lands, publishing days 1-5 and 6-10 as they complete"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -24,4 +28,5 @@ jobs:
     with:
       model: geps
       cycle: ${{ inputs.cycle }}
+      follow: ${{ inputs.follow || false }}
     secrets: inherit
