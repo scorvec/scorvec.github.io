@@ -18,6 +18,8 @@ anomalies in the Actions cache (save_fields, from ensmaps.py), and `run` cluster
             year (SD_FILE: ERA5 1991-2020 from the store, +-15 days), weighted by sqrt(cos lat), the two concatenated
   weights   each model's members share 1/M of the weight (M models in the window), so 51 members count as much as 21
   EOFs      of the weighted deviations from the grand-ensemble mean, as many as explain VAR_KEEP of that spread
+  shadow    the same choice on the leading EOFs only (SHADOW_KEEP of the spread), recorded per period and domain in the
+            manifest ("shadow": k, EOFs, evidence, independence) and not drawn: how often fewer EOFs find scenarios
   k-means   weighted, k = 1..K_MAX, N_START starts (k-means++), in the EOFs' space
   choice    k > 1 only when (1) its within-cluster variance reduction beats the 95th percentile of N_NULL synthetic Gaussian
             ensembles with the same covariance and weights, (2) every cluster holds >= MIN_W of the weight, (3) the same
@@ -75,6 +77,7 @@ HALF = 15  # +- days of the time of year
 WINDOWS = (("d3_5", 3, 5), ("d6_10", 6, 10), ("d11_15", 11, 15))
 DAYS_MAX = 16  # the days clustered one by one (GEFS and GEPS hold the 16th)
 K_MAX, N_START, N_NULL, N_BOOT, STABLE, MIN_W, VAR_KEEP = 5, 100, 100, 50, 0.6, 0.05, 0.80
+SHADOW_KEEP = 0.60  # the shadow fit's share of the spread (see the module docstring)
 N_START_FAST = 10  # starts for the null and bootstrap ensembles
 N_PERM, FDR_Q = 500, 0.10
 P_MODELS = 0.05  # a split whose model x cluster test is below this follows the models: no scenarios
@@ -250,14 +253,14 @@ def vectors(z, m, dk: str, dates: list[str]) -> np.ndarray:
     return np.concatenate(parts, axis=1).astype(np.float64)
 
 
-def pca(X: np.ndarray, w: np.ndarray):
-    """(scores (N, r), variances (r,), explained share): EOFs of the weighted deviations, VAR_KEEP of the spread."""
+def pca(X: np.ndarray, w: np.ndarray, keep: float = VAR_KEEP):
+    """(scores (N, r), variances (r,), explained share): EOFs of the weighted deviations, `keep` of the spread."""
     W = w / w.sum()
     D = X - (W[:, None] * X).sum(0)
     _, S, Vt = np.linalg.svd(np.sqrt(W)[:, None] * D, full_matrices=False)
     var = S**2
     share = np.cumsum(var) / var.sum()
-    r = int(np.searchsorted(share, VAR_KEEP) + 1)
+    r = int(np.searchsorted(share, keep) + 1)
     return D @ Vt[:r].T, var[:r], float(share[r - 1])
 
 
@@ -427,8 +430,14 @@ def solve(job: dict) -> dict:
     out = {}
     for d, dk in enumerate(job["doms"]):
         rng = np.random.default_rng([SEED, job["seed"], d])
-        Y, var, share = pca(vectors(z, m, dk, dates), w)
+        X = vectors(z, m, dk, dates)
+        Y, var, share = pca(X, w)
         k, labs, ev = choose(Y, w, var, mi, rng)
+        rs = np.random.default_rng([SEED, job["seed"], d, 1])  # the shadow's own draws: the fit above is unchanged
+        Ys, vs, ss = pca(X, w, SHADOW_KEEP)
+        ks, labs_s, evs = choose(Ys, w, vs, mi, rs)
+        shadow = {"keep": SHADOW_KEEP, "k": ks, "eofs": int(Ys.shape[1]), "explained": round(ss, 3), "evidence": evs,
+                  "independence": independence(mi, order(labs_s[ks - 1], w, ks), ks, nm, rs)}  # fmt: skip
         lab = order(labs[k - 1], w, k)
         p_ind = independence(mi, lab, k, nm, rng)
         models = {"p": p_ind, "k": k} if p_ind is not None and p_ind < P_MODELS else None
@@ -454,7 +463,7 @@ def solve(job: dict) -> dict:
         if models:
             k, lab = 1, np.zeros_like(lab)
         out[dk] = {"k": k, "lab": lab, "ev": ev, "eofs": int(Y.shape[1]), "share": share, "p_ind": p_ind,
-                   "models": models, "cl": cl}  # fmt: skip
+                   "models": models, "cl": cl, "shadow": shadow}  # fmt: skip
     return out
 
 
@@ -605,11 +614,14 @@ def run(paths: list[Path], site: Path, lists: Path | None, manifest_in: Path | N
                 res["models"] = sol["models"]
             if "from" in sol:
                 res["from_previous"] = sol["from"]
+            res["shadow"] = sol["shadow"]
             result[P["key"]][dk] = res
             what = (f"the split (k = {sol['models']['k']}) follows the models, p {sol['models']['p']}" if sol["models"]
                     else f"k = {k} {''.join(x or '-' for x in sol['letters'])}")  # fmt: skip
             log(f"  {P['key']} {dk}: {len(P['w'])} members, {sol['eofs']} EOFs ({sol['share']:.0%}), {what} "
-                f"(reductions {ev['reduction'][1:]}, null p95 {ev['null_p95'][1:]}, stability {ev['stability']})")  # fmt: skip
+                f"(reductions {ev['reduction'][1:]}, null p95 {ev['null_p95'][1:]}, stability {ev['stability']}); "
+                f"shadow ({sol['shadow']['eofs']} EOFs): k = {sol['shadow']['k']}, stability "
+                f"{sol['shadow']['evidence']['stability']}, independence {sol['shadow']['independence']}")  # fmt: skip
     nbytes = 0
     with ProcessPoolExecutor(max(1, min(workers, len(draws)))) as ex:
         for (info, v), (fn, nb) in zip(where, ex.map(_draw, draws, chunksize=4), strict=True):
