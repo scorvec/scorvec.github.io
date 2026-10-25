@@ -193,6 +193,10 @@ jobs:
       D: ${{ needs.cycle.outputs.date }}
       T: ${{ needs.cycle.outputs.time }}
       READY: ${{ needs.cycle.outputs.ready }}
+      # trial (2026-10-25): twice the default request budget on the Google mirror, since the shared fetch is bound by
+      # its ~25,000 range requests; a throttle response halves it and is logged ("throttled: HTTP ...")
+      ECMWF_RPS: "120"
+      ECMWF_RPS_GOOGLE: "120"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
