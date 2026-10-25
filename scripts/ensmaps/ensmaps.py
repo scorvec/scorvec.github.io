@@ -101,7 +101,7 @@ ECMWF_PARAM = {"ifs": {"t2m": "2t", "z500": "gh", "msl": "msl"}, "aifs": {"t2m":
 
 
 def log(*a):
-    print(*a, flush=True)
+    print(*a, file=sys.stderr, flush=True)  # stdout carries only what plan prints
 
 
 # ── grids ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
