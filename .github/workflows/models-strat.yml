@@ -141,12 +141,23 @@ jobs:
             PR=$(tr '\n' ' ' < "$L/prune.txt")
             if [ ! -s "$L/publish.txt" ]; then echo "::warning::$MODEL $cyc is older than the cycle on the page - not published"; continue; fi
             SRC=. PRUNE="$PR" PRUNE_OLDER="$(cat "$L/floor.txt")" scripts/models/publish_data.sh $(cat "$L/publish.txt") > /dev/null
-            rm -rf "assets/models/data/strat/$MODEL/$cyc"       # in the store now; keep the runner disk free
+            # in the store now: off the site tree, kept for the run's artifact below
+            mkdir -p "$RUNNER_TEMP/maps/$MODEL" && mv "assets/models/data/strat/$MODEL/$cyc" "$RUNNER_TEMP/maps/$MODEL/"
             done=$((done + 1))
             echo "::endgroup::"
           done < "$RUNNER_TEMP/plan.txt"
           if [ "$MODEL" = gdps ]; then python scripts/geps/datamart.py; fi    # the run's Datamart requests and bytes
           echo "done=$done" >> "$GITHUB_OUTPUT"
+      # Each published cycle's maps as they went to the store, kept 30 days, so the runs stay available for later study
+      # after the store prunes them (it keeps the newest cycles only).
+      - name: The published cycles as an artifact
+        if: steps.run.outputs.done != '' && steps.run.outputs.done != '0'
+        uses: actions/upload-artifact@v7
+        with:
+          name: strat-maps-${{ inputs.model }}
+          path: ${{ runner.temp }}/maps
+          retention-days: 30
+          compression-level: 0  # lossless WebP: already compressed
       - name: Vertical-motion colour ranges (omega_clim dispatch only)
         id: clim
         if: inputs.omega_clim
