@@ -619,22 +619,28 @@
   }
 
   // ── data transport: assets/frames_root.js (frameFetch: the frames store first, every fallback behind it) ─────────
-  // A file's path names its run, so its bytes never change: they are kept in Cache Storage and read back from there on
-  // a later visit. Old runs are pruned on load.
-  var CACHE_NAME = "ensmaps-frames-v1", CACHE_HOST = "https://ensmaps-frames.invalid/", cacheP = null;
+  // A file's path names its run; its bytes are kept in Cache Storage and read back from there on a later visit, under a
+  // key that also carries the run's publication time (a forced re-run rewrites a run's files in place). Old runs are
+  // pruned on load.
+  var CACHE_NAME = "ensmaps-frames-v2", CACHE_HOST = "https://ensmaps-frames.invalid/", cacheP = null;
   function frameCache() {
     if (!cacheP) cacheP = (typeof caches === "object" && caches && window.isSecureContext && (!LOCAL || /[?&]cache=1/.test(location.search)) ? caches.open(CACHE_NAME) : Promise.reject(new Error("no cache")))
       .catch(function () { return null; });
     return cacheP;
   }
+  function cacheKey(rel) {
+    var m = rel.match(/ensmaps\/(\w+)\/(\d{10})\//), c = m && runsOf(m[1]).filter(function (x) { return x.cycle === m[2]; })[0];
+    return CACHE_HOST + rel + (c ? "?made=" + encodeURIComponent(c.made) : "");
+  }
   function pruneCache() {
-    var live = {}; MODEL_ORDER.forEach(function (m) { var c = cycleOf(m); if (c) live[m + "/" + c.cycle] = 1; });
-    frameCache().then(function (cc) { if (!cc) return;
-      return cc.keys().then(function (ks) { ks.forEach(function (rq) { var m = rq.url.match(/ensmaps\/(\w+)\/(\d{10})\//); if (m && !live[m[1] + "/" + m[2]]) cc.delete(rq); }); });
+    if (typeof caches === "object" && caches) caches.delete("ensmaps-frames-v1").catch(function () {});   // keyed by path alone
+    var live = {}; MODEL_ORDER.forEach(function (m) { runsOf(m).forEach(function (c) { live[m + "/" + c.cycle] = "?made=" + encodeURIComponent(c.made); }); });
+    frameCache().then(function (cc) { if (!cc) return;   // a run no longer on the page, or a re-run's older files
+      return cc.keys().then(function (ks) { ks.forEach(function (rq) { var m = rq.url.match(/ensmaps\/(\w+)\/(\d{10})\//), v = m && live[m[1] + "/" + m[2]]; if (m && (!v || rq.url.slice(-v.length) !== v)) cc.delete(rq); }); });
     }).catch(function () {});
   }
   function getBytes(rel, prio, sig) {
-    var key = CACHE_HOST + rel;
+    var key = cacheKey(rel);
     function net() {
       var init = { priority: prio }; if (sig) init.signal = sig;
       var p = LOCAL ? fetch("/" + rel, init).then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r; })
