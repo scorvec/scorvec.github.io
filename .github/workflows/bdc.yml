@@ -188,7 +188,7 @@ jobs:
             tar xf "$SNAP/outs.tar" 2>/dev/null || true
             for f in $OUTS; do [ -f "$f" ] && git add -f "$f"; done
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
-            git commit -q -m "bdc: Brewer-Dobson upwelling + GEOS FP PV + momentum budget + tape recorder $(date -u +%Y-%m-%dT%H:%MZ)"
+            git commit -q -m "bdc: Brewer-Dobson upwelling + momentum budget + tape recorder $(date -u +%Y-%m-%dT%H:%MZ)"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
             sleep 5
           done
