@@ -28,8 +28,8 @@ of their mean: a two-sided sign test against an even split at 5 % (33 of 50 or 5
 
 Change: this run's members' mean less the run 12 h earlier's over the same calendar days (the days both runs hold), on
 a 0.5-deg grid (each member's field averaged over the cells first: the statistics carried from run to run stay small):
-Welch's t-test on the two runs' members, Benjamini-Hochberg over the map's points at FDR_Q; the page colours the
-significant points only. The same against the run 6 h earlier (c6/) where that run's statistics are there. A run's
+Welch's t-test on the two runs' members, Benjamini-Hochberg over the map's points at FDR_Q; the page shades the
+change everywhere and dots the significant points. The same against the run 6 h earlier (c6/) where that run's statistics are there. A run's
 statistics come from its own --save (the Actions cache).
 
 Files, per field and span (assets/models/data/ensmaps/<model>/<cycle>/<field>/), rows 90N first, columns from 180W:
