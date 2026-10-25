@@ -1108,8 +1108,10 @@ def cmd_run(a):
         L.mkdir(parents=True, exist_ok=True)
         stale = any(c["cycle"] == key for c in drop)  # a re-run of a cycle older than the one shown: not published
         (L / "publish.txt").write_text("" if stale else f"{DATA}/{model}/{key}\n")
-        (L / "prune.txt").write_text("".join(f"{DATA}/{model}/{c['cycle']}\n" for c in drop))
-        (L / "floor.txt").write_text(f"{DATA}/{model}:{keep[0]['cycle']}\n")
+        # the store keeps the run just replaced until the next one: a visitor's copy of the old manifest (or a deploy
+        # not out yet) still names it, and pruning it at once left the maps blank until the new manifest was live
+        (L / "prune.txt").write_text("".join(f"{DATA}/{model}/{c['cycle']}\n" for c in drop[1:]))
+        (L / "floor.txt").write_text(f"{DATA}/{model}:{(drop or keep)[0]['cycle']}\n")
     print(f"manifest: keep {[c['cycle'] for c in keep]}, drop {[c['cycle'] for c in drop]}")
 
 

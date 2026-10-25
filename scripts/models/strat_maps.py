@@ -858,7 +858,9 @@ def cmd_run(a):
     cycles = sorted(
         [c for c in man.get("cycles", []) if c["cycle"] != key] + [entry], key=lambda c: c["cycle"], reverse=True
     )
-    keep, drop = cycles[:1], cycles[1:]  # the newest run only, as models.html
+    # The newest run and the one before: the page draws the newest and its change from the previous, and a visitor's
+    # copy of the old manifest (or a deploy not out yet) still finds the previous run's maps in the store.
+    keep, drop = cycles[:2], cycles[2:]
     man.update(model=model, label=M["label"], source=M["source"], cycles=keep, updated=entry["made"])
     mpath.parent.mkdir(parents=True, exist_ok=True)
     mpath.write_text(json.dumps(man, separators=(",", ":")))
@@ -868,7 +870,7 @@ def cmd_run(a):
         stale = any(c["cycle"] == key for c in drop)  # a re-run of a cycle older than the one shown: not published
         (L / "publish.txt").write_text("" if stale else f"{data}/{key}\n")
         (L / "prune.txt").write_text("".join(f"{data}/{c['cycle']}\n" for c in drop))
-        (L / "floor.txt").write_text(f"{data}:{keep[0]['cycle']}\n")
+        (L / "floor.txt").write_text(f"{data}:{keep[-1]['cycle']}\n")
     print(f"manifest: keep {[c['cycle'] for c in keep]}, drop {[c['cycle'] for c in drop]}")
 
 
