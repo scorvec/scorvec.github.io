@@ -68,7 +68,7 @@ PRODUCTS = {
         12,
         {"stamps": [("assets/models/sa_ifs.json", "updated"), ("assets/models/sa_gdps.json", "updated")]},
     ),
-    # the stratosphere viewer: the newest of its three models' manifests (scripts/models/strat_maps.py, twice daily each)
+    # the stratosphere viewer: the newest of its four models' manifests (scripts/models/strat_maps.py, twice daily each)
     "/strat-models.html": (
         12,
         {
@@ -76,6 +76,7 @@ PRODUCTS = {
                 ("assets/models/strat_gfs.json", "updated"),
                 ("assets/models/strat_gdps.json", "updated"),
                 ("assets/models/strat_aifs.json", "updated"),
+                ("assets/models/strat_geos.json", "updated"),
             ]
         },
     ),

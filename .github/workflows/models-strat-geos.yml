@@ -1,0 +1,30 @@
+name: Stratosphere model maps — GEOS FP
+
+# Caller for models-strat.yml (strat-models.html). NASA posts GEOS FP's 00Z forecast (to +240 h) and its 12Z forecast
+# (to +120 h) on the NCCS OPeNDAP server some hours after the start; the readiness check reads the last step's top level,
+# which holds data only once the forecast is complete. A firing with nothing new exits in about a minute.
+on:
+  schedule:
+  - cron: '20 9 * * *'
+  - cron: '20 11 * * *'
+  - cron: '20 13 * * *'
+  - cron: '20 21 * * *'
+  - cron: '20 23 * * *'
+  - cron: '20 1 * * *'
+  workflow_dispatch:
+    inputs:
+      cycle:
+        description: "Cycle YYYYMMDDHH (blank = plan the newest unpublished; skipped when it or a newer one is published)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    uses: ./.github/workflows/models-strat.yml
+    with:
+      model: geos
+      cycle: ${{ inputs.cycle }}
+    secrets: inherit

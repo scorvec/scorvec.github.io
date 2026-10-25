@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Stratosphere Model Maps: GFS, GDPS and AIFS Levels and Isentropic PV &middot; Shawn Corvec</title>
-<meta name="description" content="Zoomable polar maps of the newest GFS (to 16 days, 100 to 0.4 hPa), GDPS (to 10 days, 100 to 1 hPa) and AIFS single (to 15 days, 100, 50 and 10 hPa) runs at every stratospheric level they publish (temperature, height, wind, the GFS's smoothed vertical motion) and Ertel potential vorticity on isentropic surfaces, both hemispheres, with hover values.">
+<title>Stratosphere Model Maps: GFS, GDPS, AIFS and GEOS FP Levels and Isentropic PV &middot; Shawn Corvec</title>
+<meta name="description" content="Zoomable polar maps of the newest GFS (to 16 days, 100 to 0.4 hPa), GDPS (to 10 days, 100 to 1 hPa), AIFS single (to 15 days, 100, 50 and 10 hPa) and GEOS FP (to 10 days, 100 to 0.4 hPa) runs at every stratospheric level they publish (temperature, height, wind, the GFS's smoothed vertical motion) and Ertel potential vorticity on isentropic surfaces, both hemispheres, with hover values.">
 <link rel="canonical" href="https://scorvec.com/strat-models.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Stratosphere model maps: GFS, GDPS and AIFS levels and isentropic PV">
-<meta property="og:description" content="Zoomable polar maps of the newest GFS, GDPS and AIFS single runs at every stratospheric level they publish, with potential vorticity on isentropic surfaces.">
+<meta property="og:title" content="Stratosphere model maps: GFS, GDPS, AIFS and GEOS FP levels and isentropic PV">
+<meta property="og:description" content="Zoomable polar maps of the newest GFS, GDPS, AIFS single and GEOS FP runs at every stratospheric level they publish, with potential vorticity on isentropic surfaces.">
 <meta property="og:url" content="https://scorvec.com/strat-models.html">
 <meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
 <meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
@@ -18,9 +18,9 @@
 {
  "@context": "https://schema.org",
  "@type": "WebPage",
- "name": "Stratosphere model maps: GFS, GDPS and AIFS levels and isentropic PV",
+ "name": "Stratosphere model maps: GFS, GDPS, AIFS and GEOS FP levels and isentropic PV",
  "url": "https://scorvec.com/strat-models.html",
- "description": "Zoomable polar maps of the newest GFS (to 16 days, 100 to 0.4 hPa), GDPS (to 10 days, 100 to 1 hPa) and AIFS single (to 15 days, 100, 50 and 10 hPa) runs at every stratospheric level they publish (temperature, height, wind, the GFS's smoothed vertical motion) and Ertel potential vorticity on isentropic surfaces, both hemispheres, with hover values.",
+ "description": "Zoomable polar maps of the newest GFS (to 16 days, 100 to 0.4 hPa), GDPS (to 10 days, 100 to 1 hPa), AIFS single (to 15 days, 100, 50 and 10 hPa) and GEOS FP (to 10 days, 100 to 0.4 hPa) runs at every stratospheric level they publish (temperature, height, wind, the GFS's smoothed vertical motion) and Ertel potential vorticity on isentropic surfaces, both hemispheres, with hover values.",
  "image": "https://scorvec.com/hero-supercell-1280.webp",
  "isPartOf": {
   "@type": "WebSite",
@@ -372,7 +372,7 @@
 <!-- sh:end -->
 <main id="main" class="mv">
   <h1>Stratosphere model maps</h1>
-  <p class="lede">The newest GFS, GDPS and AIFS single runs, level by level up to 0.4&nbsp;hPa, with isentropic PV.</p>
+  <p class="lede">The newest GFS, GDPS, AIFS single and GEOS FP runs, level by level up to 0.4&nbsp;hPa, with isentropic PV.</p>
 
   <div class="mv-panel">
   <div class="mv-bar">
@@ -422,6 +422,7 @@
     <p><b>GFS</b>: NOAA's Global Forecast System (the FV3 model, about 13&nbsp;km, 127 layers up to about 80&nbsp;km), read on the 0.5&deg; latitude&ndash;longitude grid of its published output. The 00 and 12&nbsp;UTC runs, every 12&nbsp;hours to +384&nbsp;h (16 days); a run appears here about 6&nbsp;hours after its start time, and only the newest is kept. The maps are the output's 15 pressure levels from 100&nbsp;hPa (about 16&nbsp;km, near the tropical tropopause) to 0.4&nbsp;hPa (about 54&nbsp;km, around the stratopause): 100, 70, 50, 40, 30, 20, 15, 10, 7, 5, 3, 2, 1, 0.7 and 0.4&nbsp;hPa. The heights beside the level buttons are this run's global-mean height of each level at its start. The GFS also writes 0.2 to 0.01&nbsp;hPa, the mesosphere up to the model top; they are left out, because the model's uppermost layers are its damping (sponge) layers and the analysis has few observations to draw on there. Above about 1&nbsp;hPa the same holds more weakly: read the top levels as the model's picture, not a well-observed one.</p>
     <p><b>GDPS</b>: Environment and Climate Change Canada's Global Deterministic Prediction System (the GEM model, about 15&nbsp;km, its top near 0.1&nbsp;hPa), read on the 0.15&deg; grid of its files on the MSC Datamart and averaged over 3&nbsp;&times;&nbsp;3 cells to 0.45&deg; (the stratosphere has no structure at 15&nbsp;km that these maps could show, and it keeps the files small). The 00 and 12&nbsp;UTC runs, every 12&nbsp;hours to +240&nbsp;h (10 days); a run appears here about 5&nbsp;hours after its start time. Above 100&nbsp;hPa the GDPS publishes only 50, 30, 20, 10, 5 and 1&nbsp;hPa, so its maps have those seven levels and nothing above 1&nbsp;hPa; it publishes vertical velocity only from 200&nbsp;hPa down, so it has no vertical-motion map. Every field's units are checked against its magnitude on every run (ECCC's files have carried decametres under a metres label), and the check is reported below.</p>
     <p><b>AIFS single</b>: ECMWF's deterministic machine-learning model (the AIFS, run from the IFS analysis), read on the 0.25&deg; grid of its open data and smoothed to 0.5&deg; (one 1-2-1 pass, then every second point). The 00 and 12&nbsp;UTC runs, every 12&nbsp;hours to +360&nbsp;h (15 days); a run appears here about 7&frac12;&nbsp;hours after its start time. Above 100&nbsp;hPa the AIFS publishes only 50 and 10&nbsp;hPa, so its maps have those three levels; with no level between 50 and 10&nbsp;hPa its column cannot resolve the vertical gradient of &theta; that PV needs, so it has no PV maps, and it has no vertical-motion map. Its temperatures and heights are checked against their expected magnitudes on every step.</p>
+    <p><b>GEOS FP</b>: NASA GMAO's Goddard Earth Observing System forward-processing system (72 layers up to 0.01&nbsp;hPa), whose forecasts start from its own data assimilation, so its +0&nbsp;h map is an analysis. It is read on every second point of its 0.25&deg;&nbsp;&times;&nbsp;0.3125&deg; grid and interpolated in longitude to 0.5&deg;. The 00&nbsp;UTC run goes every 12&nbsp;hours to +240&nbsp;h (10 days), and the 12&nbsp;UTC run only to +120&nbsp;h. The maps use the 14 of the GFS's levels that GEOS FP also publishes (it has no 15&nbsp;hPa). Its potential vorticity is the model's own Ertel PV on its pressure levels, interpolated to the isentropes from its 22 levels between 400 and 0.4&nbsp;hPa and given the same light smoothing as the PV computed here. Its temperatures, heights and PV are checked against their expected magnitudes on every step.</p>
     <h3>What each map is</h3>
     <div class="tbl"><table>
       <tr><th>Map</th><th>Shading</th><th>Lines</th></tr>
@@ -431,10 +432,10 @@
       <tr><td>Wind: speed</td><td>Wind speed, m/s; barbs in knots (feathers on the Southern Hemisphere side south of the equator)</td><td>Height, as on the temperature map</td></tr>
       <tr><td>Wind: zonal</td><td>The west&ndash;east component: westerlies red, easterlies blue, m/s. A reversal to easterlies at 60&deg; and 10&nbsp;hPa in winter is the usual definition of a major sudden stratospheric warming (Charlton and Polvani 2007)</td><td>Height, and the zero-wind line in black</td></tr>
       <tr><td>Eulerian vertical motion (GFS)</td><td>The GFS's published vertical velocity in pressure units (VVEL, &ldquo;omega&rdquo;), in hPa/day with <b>descent positive</b>: red where air sinks, blue where it rises. The GFS's post-processor computes it from the model's geometric vertical velocity (&minus;w&nbsp;dp/dz), so it is the air's motion up or down in height, which also counts the rise and fall of the pressure surfaces themselves; heavily smoothed in space and time (<a href="#vvmethod">below</a>). The colours saturate at a fixed range for each level, set from four years of GFS analyses, not from this run</td><td>Height, as on the temperature map</td></tr>
-      <tr><td>Potential vorticity</td><td>Ertel PV on the isentropic surface (350, 400, 475, 600 or 850&nbsp;K, and for the GFS also 1200 and 1600&nbsp;K), PVU; the colours follow the Lait-scaled value (below), so one colour means the same thing on every surface, and the legend gives the surface's own PV. Southern Hemisphere PV is shown with its sign reversed, so the vortex is positive in both. Blank where the surface lies outside the model's column (400&nbsp;hPa to its top level)</td><td>The Montgomery streamfunction M&nbsp;=&nbsp;c<sub>p</sub>T&nbsp;+&nbsp;gz divided by g, dam: on an isentropic surface the geostrophic wind blows along it as it does along height contours on a pressure surface</td></tr>
+      <tr><td>Potential vorticity</td><td>Ertel PV on the isentropic surface (350, 400, 475, 600 or 850&nbsp;K, and for the GFS and GEOS FP also 1200 and 1600&nbsp;K), PVU; the colours follow the Lait-scaled value (below), so one colour means the same thing on every surface, and the legend gives the surface's own PV. Southern Hemisphere PV is shown with its sign reversed, so the vortex is positive in both. Blank where the surface lies outside the model's column (400&nbsp;hPa to its top level)</td><td>The Montgomery streamfunction M&nbsp;=&nbsp;c<sub>p</sub>T&nbsp;+&nbsp;gz divided by g, dam: on an isentropic surface the geostrophic wind blows along it as it does along height contours on a pressure surface</td></tr>
     </table></div>
     <h3 id="pvmethod">How the potential vorticity is computed</h3>
-    <p>Neither model publishes potential vorticity in the stratosphere (only surfaces of 0.5 to 2&nbsp;PVU near the tropopause), so it is computed here from the temperature and the winds on the pressure levels: for the GFS 27 levels, 400&nbsp;hPa to 0.4&nbsp;hPa (the 21 levels of its main output from 400&nbsp;hPa up, and the six 25&nbsp;hPa levels between 125 and 375&nbsp;hPa from its secondary files); for the GDPS its 16 levels from 400 to 1&nbsp;hPa (400, 350, 300, 275, 250, 225, 200, 175, 150, 100, 50, 30, 20, 10, 5 and 1&nbsp;hPa). In both cases it is Ertel's potential vorticity in pressure coordinates (Hoskins, McIntyre and Robertson 1985):</p>
+    <p>GEOS FP publishes its own Ertel PV, which is used as it is. Neither the GFS nor the GDPS publishes potential vorticity in the stratosphere (only surfaces of 0.5 to 2&nbsp;PVU near the tropopause), so for them it is computed here from the temperature and the winds on the pressure levels: for the GFS 27 levels, 400&nbsp;hPa to 0.4&nbsp;hPa (the 21 levels of its main output from 400&nbsp;hPa up, and the six 25&nbsp;hPa levels between 125 and 375&nbsp;hPa from its secondary files); for the GDPS its 16 levels from 400 to 1&nbsp;hPa (400, 350, 300, 275, 250, 225, 200, 175, 150, 100, 50, 30, 20, 10, 5 and 1&nbsp;hPa). In both cases it is Ertel's potential vorticity in pressure coordinates (Hoskins, McIntyre and Robertson 1985):</p>
     <p class="eq">PV = &minus;g [ (&zeta; + f) &part;&theta;/&part;p &minus; &part;v/&part;p &middot; &part;&theta;/&part;x + &part;u/&part;p &middot; &part;&theta;/&part;y ],&nbsp;&nbsp; &theta; = T (1000&nbsp;hPa / p)<sup>R/c<sub>p</sub></sup></p>
     <p>with the relative vorticity &zeta; and the horizontal derivatives taken on the sphere (centred differences, periodic in longitude), the vertical ones in ln&nbsp;p across the actual levels, one 1&ndash;2&ndash;1 smoothing pass in latitude and longitude, and the rows at the poles set to the mean of the ring next to them. PV, the Montgomery streamfunction and ln&nbsp;p are then interpolated to each isentrope linearly in ln&nbsp;&theta;, column by column. 1&nbsp;PVU&nbsp;=&nbsp;10<sup>&minus;6</sup>&nbsp;K&nbsp;m<sup>2</sup>&nbsp;kg<sup>&minus;1</sup>&nbsp;s<sup>&minus;1</sup>.</p>
     <p><b>Why the GDPS stops at 850&nbsp;K.</b> PV depends on the vertical gradient of &theta;, and the GDPS's levels are far apart in the upper stratosphere: none between 5 and 1&nbsp;hPa, an 11&nbsp;km gap where 1200&nbsp;K and 1600&nbsp;K lie. What coarse levels cost is measured on every GFS run: its PV is recomputed from only the GDPS's 16 levels and compared with its own from all 27, surface by surface (in the checks below). The GDPS's maps show the surfaces where that comparison holds up, 350 to 850&nbsp;K; even there the coarse levels push PV up somewhat. On the first measurement (the GFS run of 24 October 12&nbsp;UTC) the patterns kept correlations of 0.996&ndash;0.9996 on 350&ndash;850&nbsp;K, and the polar-cap means came out 0&ndash;12&nbsp;% high (most at 850&nbsp;K in the north), against 18&ndash;37&nbsp;% off at 1200 and 1600&nbsp;K; the GDPS's own polar-cap PV beside GEOS FP's was high by about the same amounts (+15&nbsp;% at 850&nbsp;K in the north, 1&ndash;6&nbsp;% elsewhere). So read the GDPS's PV for its pattern and its changes, and its values as up to about a tenth high.</p>
@@ -445,7 +446,7 @@
     <p>The GFS publishes VVEL (Pa/s) on all 15 levels of the maps; it is shown as VVEL&nbsp;&times;&nbsp;864&nbsp;=&nbsp;hPa/day, positive downward. (It is the model's geometric vertical velocity in pressure units, &minus;w&nbsp;dp/dz, not the motion across pressure surfaces: it also counts the rise and fall of the surfaces themselves, &rho;g&nbsp;(&part;z/&part;t&nbsp;+&nbsp;V&middot;&nabla;z), and its mean over a pressure level is far from the zero that mass conservation needs, so read it for its pattern, not as the net descent that warms the stratosphere.) On a 0.5&deg; grid in the stratosphere the raw field is dominated by gravity waves and tides, so it is smoothed hard before it is stored. <b>In space</b>: a Gaussian with a standard deviation of 600&nbsp;km along the sphere, applied along each latitude circle exactly (in Fourier space: zonal wavenumber k keeps exp(&minus;&frac12;(k&sigma;&nbsp;/&nbsp;a&nbsp;cos&nbsp;&phi;)<sup>2</sup>) of its amplitude, so wave 3 at 60&deg; keeps 85&nbsp;% and anything shorter than about 2,000&nbsp;km less than a fifth) and then along the meridians, continued over the pole onto the opposite meridian. <b>In time</b>: a running mean centred on the valid time over the 12-hourly steps, trapezoidal over &plusmn;36&nbsp;h (a 72&nbsp;h mean; weight 1 inside, &frac12; at the ends, which cancels the daily tide exactly), shortened near the ends of the run so it stays centred (24&nbsp;h at +12&nbsp;h, 48&nbsp;h at +24&nbsp;h); +0 and +384&nbsp;h have no vertical-motion map. The legend gives the hours each map averages. <b>Colours</b>: for each level the range is the 99th percentile of the same smoothed field&rsquo;s magnitude poleward of 20&deg; in 48 samples of GFS analyses (the 15th of each month from July 2022 to June 2026, the seven 00 and 12&nbsp;UTC analyses around each), rounded up, so a colour means the same from run to run and a strong event stands out. The hover converts to a vertical velocity, w&nbsp;&asymp;&nbsp;&minus;&omega;&nbsp;R&nbsp;T&nbsp;/&nbsp;(p&nbsp;g), with the level's temperature.</p>
     <h3>How the page works</h3>
     <p>Nothing on this page is a picture. Each field, level and step is shipped as the model's own numbers, rounded to 256 levels, on its latitude&ndash;longitude grid (GFS and AIFS 0.5&deg;, GDPS 0.45&deg;), and your browser colours, projects, contours and reads it; the shading is interpolated between grid points, and the hover value is the stored one at the nearest point. The maps are polar stereographic, true at the pole (0&deg; longitude at the bottom of the northern map and at the top of the southern one). Contours are drawn by your graphics card from the same numbers after a light smoothing; their labels are placed once the map is at rest. <b>Data use:</b> opening a map loads only the map on screen and the heights drawn on it (about 45&ndash;115&nbsp;KB); stepping through the levels loads that step at every level (0.5&ndash;2&nbsp;MB), and playing or dragging the time slider loads every step of that map (31&ndash;33 files, 1.5&ndash;4&nbsp;MB). The change views load the previous run&rsquo;s map beside each of this run&rsquo;s and take the difference in your browser.</p>
-    <p>Data: NOAA GFS through the NOAA Open Data Dissemination program (AWS); ECMWF AIFS single open data (&copy; ECMWF, CC&nbsp;BY&nbsp;4.0, Google Cloud mirror); ECCC GDPS (Data Source: Environment and Climate Change Canada (MSC Datamart), under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a>); GEOS FP potential vorticity from NASA GMAO (the site's <a href="/stratosphere.html#pv">GEOS FP PV product</a>). Model output as published, uncorrected. Boundaries: Natural Earth. Hoskins, B. J., M. E. McIntyre and A. W. Robertson, 1985, Q. J. R. Meteorol. Soc. 111, 877&ndash;946 &middot; Lait, L. R., 1994, J. Atmos. Sci. 51, 1754&ndash;1759 &middot; Charlton, A. J., and L. M. Polvani, 2007, J. Climate 20, 449&ndash;469.</p>
+    <p>Data: NOAA GFS through the NOAA Open Data Dissemination program (AWS); ECMWF AIFS single open data (&copy; ECMWF, CC&nbsp;BY&nbsp;4.0, Google Cloud mirror); NASA GMAO GEOS FP through the NASA Center for Climate Simulation's OPeNDAP server; ECCC GDPS (Data Source: Environment and Climate Change Canada (MSC Datamart), under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a>); GEOS FP potential vorticity from NASA GMAO (the site's <a href="/stratosphere.html#pv">GEOS FP PV product</a>). Model output as published, uncorrected. Boundaries: Natural Earth. Hoskins, B. J., M. E. McIntyre and A. W. Robertson, 1985, Q. J. R. Meteorol. Soc. 111, 877&ndash;946 &middot; Lait, L. R., 1994, J. Atmos. Sci. 51, 1754&ndash;1759 &middot; Charlton, A. J., and L. M. Polvani, 2007, J. Climate 20, 449&ndash;469.</p>
   </section>
 </main>
 
@@ -455,7 +456,7 @@
   // ── configuration ─────────────────────────────────────────────────────────────────────────────────────────────
   var LOCAL = /[?&]local=1/.test(location.search);                    // testing: data from this origin
   var D2R = Math.PI / 180, KT = 1.943844, R2 = 2 * 6371229;
-  var DATA = "assets/models/data/strat/", MODELS = { gfs: "GFS", gdps: "GDPS", aifs: "AIFS single" }, MODEL_ORDER = ["gfs", "gdps", "aifs"];
+  var DATA = "assets/models/data/strat/", MODELS = { gfs: "GFS", gdps: "GDPS", aifs: "AIFS single", geos: "GEOS FP" }, MODEL_ORDER = ["gfs", "gdps", "aifs", "geos"];
   function S(v, c, a) { return [v, parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16), a == null ? 1 : a]; }
   // temperature, deg C, one scale for every level: purple below the polar-stratospheric-cloud threshold (-78 C)
   var T_STOPS = [S(-95, "#f4ecf8"), S(-88, "#d6bce8"), S(-82, "#aa7fcf"), S(-78.01, "#7a4bb3"), S(-78, "#3a3f9e"), S(-72, "#2d55b8"), S(-66, "#2f78d2"),
@@ -490,7 +491,7 @@
   var SPD_MAX = 160, FIT_LAT = 20, OUT_LAT = 25;   // speed scale (m/s); the open view reaches FIT_LAT; lines stop OUT_LAT past the equator
 
   // ── display projection: polar stereographic, true at the pole (sphere 6371229 m); 0 deg at the bottom of the
-  // northern map, at the top of the southern one (as the site's GEOS FP PV maps) ───────────────────────────────────
+  // northern map, at the top of the southern one ─────────────────────────────────────────────────────────
   var P = { h: 1, l0: 0,
     set: function (hemi) { P.h = hemi === "sh" ? -1 : 1; },
     fwd: function (lon, lat) {
@@ -1597,7 +1598,7 @@
     var c = cyc(), hs = hoursOf(c);
     $("hour").max = Math.max(0, hs.length - 1); $("hour").value = Math.max(0, hs.indexOf(st.hour));
     var n = "";
-    if (st.field === "pv") n = "Ertel potential vorticity computed here from the " + MODELS[st.model] + "'s temperature and winds on " + (c && c.pv_levels ? c.pv_levels.length : "its") + " levels" +
+    if (st.field === "pv") n = (st.model === "geos" ? "GEOS FP's own Ertel potential vorticity, interpolated to the isentrope from " : "Ertel potential vorticity computed here from the " + MODELS[st.model] + "'s temperature and winds on ") + (c && c.pv_levels ? c.pv_levels.length : "its") + " levels" +
       (st.model === "gdps" ? ", shown on 350–850 K only: the GDPS publishes no level between 5 and 1 hPa" : "") + " (<a href=\"#pvmethod\">method and checks</a>)" +
       (st.hemi === "sh" ? "; Southern Hemisphere PV is shown with its sign reversed, so the vortex is positive" : "") + ".";
     else if (st.field === "omega") n = "The Eulerian vertical motion: the GFS's published vertical velocity (its geometric vertical motion, in pressure units), smoothed hard in space and averaged over up to 3 days centred on the valid time. Over a polar cap it often rises while the cap warms from above (<a href=\"#vvmethod\">method</a>).";
@@ -1826,6 +1827,23 @@
   }
   // the run's checks (scripts/models/strat_maps.py "checks") and the polar-cap PV beside GEOS FP's, for the method section
   var GEOS = null;
+  // GEOS FP's polar-cap PV and pressure at 475 and 850 K on each 00 UTC day of its newest 00 UTC run on the page
+  // (day 0 its analysis), in the form checksOf reads
+  function geosRef() {
+    var g = ((man.geos && man.geos.cycles) || []).filter(function (x) { return x.init.slice(11, 13) === "00" && x.cap; })[0];
+    if (!g) return null;
+    var out = { valid: [], hemispheres: {} };
+    g.hours.forEach(function (h, i) {
+      if (h % 24) return;
+      out.valid.push(new Date(Date.parse(g.init) + h * 3600e3).toISOString().slice(0, 10));
+      ["nh", "sh"].forEach(function (hm) { ["475", "850"].forEach(function (th) {
+        var v = g.cap.values[hm] && g.cap.values[hm][th] ? g.cap.values[hm][th][i] : null;
+        var e = (out.hemispheres[hm] = out.hemispheres[hm] || {})[th] = out.hemispheres[hm][th] || { cap_pv: [], cap_hpa: [] };
+        e.cap_pv.push(v ? v[0] : null); e.cap_hpa.push(v ? v[1] : null);
+      }); });
+    });
+    return out;
+  }
   function showChecks(geos) {
     if (geos) GEOS = geos;
     var lines = MODEL_ORDER.filter(cycleOf).map(function (mod) { var t = checksOf(mod, cycleOf(mod), GEOS); return t ? MODELS[mod] + " run of " + cycleOf(mod).init.slice(5, 10).replace("-", "/") + " " + cycleOf(mod).init.slice(11, 13) + "Z. " + t : ""; }).filter(Boolean);
@@ -1848,7 +1866,7 @@
     var gl = [350, 400, 475, 600, 850, 1200, 1600].filter(function (t) { return gm("gdpslev/" + t + "/r") !== null; }).map(function (t) {
       return t + " K r " + gm("gdpslev/" + t + "/r").toFixed(3) + ", cap ratio " + gm("gdpslev/" + t + "/cap_ratio_nh").toFixed(2) + " north, " + gm("gdpslev/" + t + "/cap_ratio_sh").toFixed(2) + " south"; });
     if (gl.length) out.push("what its levels cost, measured on the newest GFS run: the GFS's PV recomputed on only the GDPS's 16 levels against its own from 27 (pattern correlation poleward of 20°; ratio of the polar-cap means): " + gl.join("; "));
-    if (geos && geos.hemispheres && geos.valid && c.cap) {
+    if (mod !== "geos" && geos && geos.hemispheres && geos.valid && c.cap) {
       var vt = c.hours.map(function (h) { return new Date(Date.parse(c.init) + h * 3600e3).toISOString(); });
       var day = null, ig = -1, ih = -1;
       geos.valid.forEach(function (d, i) { if (day) return; var j = vt.indexOf(d + "T00:00:00.000Z"); if (j >= 0) { day = d; ig = i; ih = j; } });
@@ -1856,7 +1874,7 @@
         var cmp = ["nh", "sh"].map(function (h) {
           return (h === "nh" ? "north" : "south") + " " + ["475", "850"].map(function (t) {
             var a = c.cap.values[h] && c.cap.values[h][t] && c.cap.values[h][t][ih], b = geos.hemispheres[h] && geos.hemispheres[h][t];
-            return a && b ? t + " K " + a[0] + " against " + b.cap_pv[ig] + " PVU (" + a[1] + " against " + b.cap_hpa[ig] + " hPa)" : "";
+            return a && b && b.cap_pv[ig] != null ? t + " K " + a[0] + " against " + b.cap_pv[ig] + " PVU (" + a[1] + " against " + b.cap_hpa[ig] + " hPa)" : "";
           }).filter(Boolean).join(", ");
         });
         out.push("polar-cap (poleward of 60°) mean PV on " + day + " 00 UTC, " + M + " +" + c.hours[ih] + " h against GEOS FP (" + (ig ? "its +" + ig + " d forecast" : "its analysis") + "): " + cmp.join("; "));
@@ -1898,7 +1916,7 @@
     onChange();
     $("runs").textContent = "Runs on the page now: " + MODEL_ORDER.filter(cycleOf).map(function (m) { var x = cycleOf(m); return MODELS[m] + " " + x.init.slice(5, 10).replace("-", "/") + " " + x.init.slice(11, 13) + "Z (published " + x.made + ")"; }).join(" · ") + ".";
     showChecks(null);
-    whenShown(function () { fetch("/assets/sst/data/geos_pv.json").then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (j) { if (j) showChecks(j); }); });
+    showChecks(geosRef());
     setTimeout(pruneCache, 4000);
   });
   if (typeof ResizeObserver === "function") {

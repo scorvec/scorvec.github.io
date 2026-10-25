@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Stratosphere model maps for strat-models.html: the GFS, the GDPS and the AIFS single on their pressure levels from 100
-hPa up and (GFS, GDPS) on the isentropic surfaces their levels support, both hemispheres, every 12 hours (GFS to 16
-days, GDPS to 10, AIFS single to 15).
+"""Stratosphere model maps for strat-models.html: the GFS, the GDPS, the AIFS single and GEOS FP on their pressure levels
+from 100 hPa up and (GFS, GDPS, GEOS FP) on the isentropic surfaces their levels support, both hemispheres, every 12
+hours (GFS to 16 days, GDPS to 10, AIFS single to 15, GEOS FP to 10 from 00 UTC and 5 from 12 UTC).
 
 Each model is read on its latitude-longitude output grid (GFS 0.5 deg; GDPS 0.15 deg, averaged over 3 x 3 cells to
-0.45 deg; AIFS single 0.25 deg, one 1-2-1 pass and every second point to 0.5 deg) and every field and step becomes ONE
-lossless WebP per hemisphere - the format of models.html
+0.45 deg; AIFS single 0.25 deg, one 1-2-1 pass and every second point to 0.5 deg; GEOS FP every second point of its
+0.25 x 0.3125 deg grid, interpolated in longitude to 0.5 deg) and every field and step becomes ONE lossless WebP per
+hemisphere - the format of models.html
 (scripts/models/models.py), drawn by the page with WebGL on a polar stereographic projection. Nothing is rendered here.
 
   gfs    NOAA GFS (FV3, 127 layers to 80 km). Maps on its 15 levels 100-0.4 hPa; PV from T, u, v on 27 levels, 400 hPa
@@ -18,6 +19,10 @@ lossless WebP per hemisphere - the format of models.html
   aifs   ECMWF AIFS single (the deterministic AIFS, 0.25 deg open data). Above 100 hPa it publishes 50 and 10 hPa only:
          maps on 100, 50 and 10 hPa, no PV (a column of 100, 50, 10 hPa cannot resolve d theta/dp on the isentropes)
          and no vertical motion (the AIFS-ENS's w failed the site's residual-circulation checks; the AIFS's is not used).
+  geos   NASA GMAO GEOS FP (the assimilation's forecasts, 72 layers to 0.01 hPa; day 0 is its analysis): maps on its 14
+         levels 100-0.4 hPa that the GFS shares, and PV on 350-1600 K from the model's OWN Ertel PV (EPV, published on
+         its pressure levels; given the same 1-2-1 pass as the PV computed here), interpolated from its 22 levels 400-0.4
+         hPa; no vertical motion, no absolute-vorticity or 2-PVU check (nothing is differentiated).
 
 Files, per hemisphere (nh: 0-90 N, sh: 90 S-0), rows south -> north, columns from 180 W less PAD cells to 180 E plus
 PAD cells (the grid from 180 W with PAD columns repeated on each side, so the page can sample and smooth across the date
@@ -74,6 +79,9 @@ step, read whole (they cannot be cut); +240 h lands ~4 h 50 min after the start,
 last step's files. AIFS single (hard rule: ECMWF open data from the Google Cloud mirror only): byte ranges of t, gh, u, v
 on its three levels through scripts/ecmwf/rangefetch.py (the index, coalesced ranges, the request budget); +360 h is
 on the mirror ~7 h 15 min after the start, and readiness is scripts/ecmwf/cycles.py's (every step's file present).
+GEOS FP: NASA's NCCS OPeNDAP server (fcast/inst3_3d_asm_Np, 3-hourly), one request per step for t, h, epv, u, v on 400-0.4
+hPa at every second point (~90 MB, read with a small DAP binary parser); readiness is the last step's top level holding
+data (the collection is listed before its last steps are written).
 
     python scripts/models/strat_maps.py plan --model gfs --manifests assets/models
     python scripts/models/strat_maps.py run --model gdps --cycle 2026102412 --site . --procs 3 --lists /tmp/strat
@@ -88,6 +96,7 @@ import json
 import math
 import os
 import shutil
+import struct
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
@@ -111,6 +120,11 @@ DATAMART = (
 )
 GFS_LEVELS = (100, 70, 50, 40, 30, 20, 15, 10, 7, 5, 3, 2, 1, 0.7, 0.4)
 GDPS_COL = (400, 350, 300, 275, 250, 225, 200, 175, 150, 100, 50, 30, 20, 10, 5, 1)
+GEOS = "https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/fcast/inst3_3d_asm_Np/inst3_3d_asm_Np.{d}_{h}"
+GEOS_LEV = (1000, 975, 950, 925, 900, 875, 850, 825, 800, 775, 750, 725, 700, 650, 600, 550, 500, 450, 400, 350, 300,
+            250, 200, 150, 100, 70, 50, 40, 30, 20, 10, 7, 5, 4, 3, 2, 1, 0.7, 0.5, 0.4, 0.3, 0.1)  # fmt: skip
+GEOS_COL = GEOS_LEV[GEOS_LEV.index(400) : GEOS_LEV.index(0.4) + 1]  # 22 levels, one contiguous slab
+UA = {"User-Agent": "scorvec.com data pipeline (+https://scorvec.com)"}
 MODELS = {
     "gfs": dict(
         label="GFS",
@@ -132,6 +146,18 @@ MODELS = {
         thetas=(350, 400, 475, 600, 850),
         absv=(250, 200),
         omega=False,
+    ),
+    "geos": dict(
+        label="GEOS FP",
+        source="NASA GMAO GEOS FP on its 0.25 x 0.3125 deg grid, every second point, at 0.5 deg; its own Ertel PV: NCCS OPeNDAP",
+        steps=tuple(range(0, 241, 12)),
+        steps_by_hour={"12": tuple(range(0, 121, 12))},  # the 12 UTC forecast runs 5 days
+        levels=tuple(p for p in GFS_LEVELS if p in GEOS_LEV),
+        col=GEOS_COL,
+        thetas=(350, 400, 475, 600, 850, 1200, 1600),
+        absv=(),
+        omega=False,
+        epv=True,
     ),
     "aifs": dict(
         label="AIFS single",
@@ -163,6 +189,12 @@ CLIM_BINS = np.linspace(-4.0, 2.0, 601)  # log10 |omega|, hPa/day
 # 2026-10-24, rounded): a field off by more than 20 % from these is not in metres
 Z_STD = {400: 7200, 350: 8100, 300: 9200, 275: 9800, 250: 10400, 225: 11000, 200: 11800, 175: 12600, 150: 13600}
 Z_STD |= {100: 16300, 50: 20500, 30: 23700, 20: 26300, 10: 30900, 5: 35600, 1: 47500}
+
+
+def steps_of(model, hh):
+    """The model's forecast steps (h) for a cycle starting at hh UTC."""
+    M = MODELS[model]
+    return M.get("steps_by_hour", {}).get(hh, M["steps"])
 
 
 def lev_key(p):
@@ -553,12 +585,93 @@ def fetch_aifs(date, hh, step):
     return out, lat, dict(requests=len(ranges) + 1, bytes=len(blob), di=0.5)
 
 
+def dods(url: str, shape: tuple, tries: int = 4) -> dict:
+    """{name: array} of a DAP2 binary response (.dods) of float32 Grid variables of one shape. The server sends them in
+    the dataset's order, not the request's: the DDS before "Data:" names them; after it each Grid is its array then its
+    map vectors (float64), every vector led by its length twice (XDR)."""
+    import re
+
+    import requests
+
+    for k in range(tries):
+        try:
+            r = requests.get(url, headers=UA, timeout=300)
+            r.raise_for_status()
+            body = r.content
+            cut = body.index(b"\nData:\n")
+            names = re.findall(r"ARRAY:\s*Float32 (\w+)\[", body[:cut].decode("ascii", "replace"))
+            i, out = cut + 7, {}
+            for name in names:
+                n = struct.unpack(">I", body[i : i + 4])[0]
+                if n != math.prod(shape):
+                    raise RuntimeError(f"DAP array {name} of {n} values, {math.prod(shape)} expected")
+                out[name] = np.frombuffer(body, ">f4", n, i + 8).reshape(shape).astype(np.float64)
+                i += 8 + 4 * n
+                for _ in shape:  # the Grid's maps, one per dimension
+                    i += 8 + 8 * struct.unpack(">I", body[i : i + 4])[0]
+            return out
+        except Exception as e:  # noqa: BLE001
+            if k == tries - 1:
+                raise
+            print(f"  DAP read failed ({str(e)[:100]}); again in {30 * (k + 1)} s", flush=True)
+            time.sleep(30 * (k + 1))
+
+
+GEOS_VARS = {"t": "t", "h": "z", "epv": "epv", "u": "u", "v": "v"}  # GEOS FP name -> this module's
+
+
+def fetch_geos(date, hh, step):
+    """One step of the GEOS FP forecast: every variable on GEOS_COL at every second point (0.5 x 0.625 deg), rows
+    flipped to 90 N first, columns rolled to 0 E and interpolated (periodic, linear) to 0.5 deg."""
+    k0, k1 = GEOS_LEV.index(GEOS_COL[0]), GEOS_LEV.index(GEOS_COL[-1])
+    j = step // 3
+    hyper = f"[{j}:{j}][{k0}:{k1}][0:2:720][0:2:1151]"
+    url = GEOS.format(d=date, h=hh) + ".dods?" + ",".join(v + hyper for v in GEOS_VARS)
+    shape = (1, k1 - k0 + 1, 361, 576)
+    arrs = dods(url, shape)
+    x = np.arange(720) * 0.5 / 0.625  # 0.5-deg columns from 0 E on the 0.625-deg grid rolled to 0 E
+    i0 = np.floor(x).astype(int)
+    w = x - i0
+    out = {}
+    for name, mine in GEOS_VARS.items():
+        raw = arrs[name]
+        b = raw[0, :, ::-1]  # (lev, lat 90 N -> 90 S, lon from 180 W)
+        b[np.abs(b) > 1e10] = np.nan  # below ground
+        b = np.roll(b, -288, axis=-1)  # 180 W + 288 x 0.625 deg = 0 E
+        b = b[..., i0] * (1 - w) + b[..., (i0 + 1) % 576] * w
+        for i, p in enumerate(GEOS_COL):
+            out[(mine, float(p))] = b[i]
+    lat = np.linspace(90.0, -90.0, 361)
+    for p in (100, 50, 10, 1):  # units by magnitude, as the GDPS's: K, metres, SI PV, or the step is not used
+        t, z = float(np.nanmedian(out[("t", float(p))])), float(np.nanmedian(out[("z", float(p))]))
+        if not 150.0 < t < 330.0 or not 0.8 < z / Z_STD[p] < 1.25:
+            raise RuntimeError(
+                f"GEOS FP {p} hPa: median temperature {t:.1f}, height {z:.0f} m (~{Z_STD[p]} m expected)"
+            )
+    q = float(np.nanmedian(np.abs(out[("epv", 50.0)][lat >= 60])))
+    if not 3e-6 < q < 3e-4:
+        raise RuntimeError(f"GEOS FP 50 hPa polar |EPV| median {q:.2e}: not K m2 kg-1 s-1")
+    return out, lat, dict(requests=1, bytes=sum(a.size for a in arrs.values()) * 4, di=0.5)
+
+
+def geos_complete(date, hh, last) -> bool:
+    """The forecast's last step holds data at its top level (NCCS lists a collection before its last steps)."""
+    j, k = last // 3, GEOS_LEV.index(GEOS_COL[-1])
+    try:
+        a = dods(GEOS.format(d=date, h=hh) + f".dods?t[{j}:{j}][{k}:{k}][360:360][0:0]", (1, 1, 1, 1), tries=1)["t"]
+    except Exception:  # noqa: BLE001  (not posted yet)
+        return False
+    return bool(np.isfinite(a).all() and (np.abs(a) < 1e10).all())
+
+
 # ── one step (a worker process: fetch, compute, encode) ──────────────────────────────────────────────────────────────
 def process_step(model, date, hh, step, outdir):
     """-> (step, {file: {hemi: q}}, bytes, checks, (requests, bytes fetched), extras)"""
     t0 = time.time()
     M = MODELS[model]
-    msgs, lat, info = {"gfs": fetch_gfs, "gdps": fetch_gdps, "aifs": fetch_aifs}[model](date, hh, step)
+    msgs, lat, info = {"gfs": fetch_gfs, "gdps": fetch_gdps, "aifs": fetch_aifs, "geos": fetch_geos}[model](
+        date, hh, step
+    )
     t_fetch = time.time() - t0
     col = col_of(model)
 
@@ -566,8 +679,12 @@ def process_step(model, date, hh, step, outdir):
         return np.stack([msgs[(v, float(p))] for p in col]).astype(np.float64)
 
     T, U, V, Z = stack("t"), stack("u"), stack("v"), stack("z")
-    if M["thetas"]:
+    if M["thetas"] and M.get("epv"):  # the model's own Ertel PV (SI), smoothed as ertel_pv smooths its own
+        th = T * (1e5 / (np.asarray(col, np.float64)[:, None, None] * 100.0)) ** KAPPA
+        pv = poles(_121(poles(stack("epv") * 1e6, lat)), lat)
+    elif M["thetas"]:
         pv, absv, th = ertel_pv(T, U, V, col, lat)
+    if M["thetas"]:
         lnp = np.log(np.asarray(col, np.float64))[:, None, None] * np.ones_like(T)
         mg = (CP * T + G0 * Z) / G0  # the Montgomery streamfunction over g, metres
     meta, nbytes, extras = {}, 0, {}
@@ -609,7 +726,7 @@ def process_step(model, date, hh, step, outdir):
         np.save(Path(outdir) / f"_vv_{step:03d}.npy", smooth_sphere(W * HPA_DAY, lat).astype(np.float32))  # vv_level
 
     checks = {"cap": cap}
-    if step in QC_STEPS and M["thetas"]:
+    if step in QC_STEPS and M["absv"]:
         checks.update(check_absv(msgs, absv, col, lat, M["absv"]))
         checks.update(check_pv2(msgs, pv, col, lat))
         if model == "gfs":
@@ -762,11 +879,14 @@ def summarise(checks):
 def complete(model, cyc_dt):
     """The run's last step is published: both GFS 0.5 deg files' .idx, or two of the GDPS's last files (the top and
     the bottom of the column; they land together), answer a HEAD; the AIFS single's every step on the Google mirror."""
-    date, hh, last = cyc_dt.strftime("%Y%m%d"), cyc_dt.strftime("%H"), MODELS[model]["steps"][-1]
+    date, hh = cyc_dt.strftime("%Y%m%d"), cyc_dt.strftime("%H")
+    last = steps_of(model, hh)[-1]
     if model == "gfs":
         return all(MV.head_ok(gfs_url(date, hh, last, b) + ".idx") for b in (False, True))
     if model == "aifs":
         return RF.cycle_complete(date, hh, "aifs-single", last_step=last, kind="fc")
+    if model == "geos":
+        return geos_complete(date, hh, last)
     return all(DM.exists(gdps_url(date, hh, last, v)) for v in ("AirTemp_IsbL-0001", "WindV_IsbL-0400"))
 
 
@@ -806,7 +926,7 @@ def cmd_run(a):
     M = MODELS[model]
     cyc_dt = dt.datetime.strptime(key, "%Y%m%d%H")
     date, hh = key[:8], key[8:]
-    steps = list(M["steps"])
+    steps = list(steps_of(model, hh))
     if os.environ.get("STRAT_STEPS"):  # testing only: a subset of the steps
         steps = [int(x) for x in os.environ["STRAT_STEPS"].split(",")]
     site = Path(a.site)

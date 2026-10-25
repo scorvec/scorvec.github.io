@@ -1,11 +1,11 @@
 name: Stratosphere model maps (data)
 
-# strat-models.html: the GFS, the GDPS and the AIFS single 00/12Z runs on their pressure levels from 100 hPa up
-# (temperature, height, wind and, for the GFS, the smoothed vertical motion) and, for the GFS and the GDPS, on the
-# isentropic surfaces their levels support (Ertel potential vorticity, computed here), both hemispheres, every 12 h (GFS
-# to +384 h, GDPS to +240 h, AIFS single to +360 h), each field and step one lossless WebP (scripts/models/strat_maps.py
-# has the details). One model per run; the callers models-strat-gfs.yml / models-strat-gdps.yml / models-strat-aifs.yml
-# fix it, so the dispatcher's "already ran since" check is per model.
+# strat-models.html: the GFS, the GDPS, the AIFS single and GEOS FP 00/12Z runs on their pressure levels from 100 hPa up
+# (temperature, height, wind and, for the GFS, the smoothed vertical motion) and, for the GFS, the GDPS and GEOS FP, on
+# the isentropic surfaces their levels support (Ertel potential vorticity, computed here; GEOS FP's own), both
+# hemispheres, every 12 h (GFS to +384 h, GDPS to +240 h, AIFS single to +360 h, GEOS FP to +240 h from 00Z and +120 h
+# from 12Z), each field and step one lossless WebP (scripts/models/strat_maps.py has the details). One model per run;
+# the callers models-strat-{gfs,gdps,aifs,geos}.yml fix it, so the dispatcher's "already ran since" check is per model.
 #
 # Each run: read that model's CURRENT manifest from main, plan (the newest complete 00/12Z cycle not yet published),
 # fetch + compute + encode, publish the cycle directory to the FRAMES STORE ONLY (FRAMES_BRANCH=off on the publish
@@ -21,6 +21,8 @@ name: Stratosphere model maps (data)
 #         more on the check steps, ~1 GB in ~1,350 requests
 #   aifs  ECMWF open data from the Google Cloud mirror only (scripts/ecmwf/rangefetch.py, ECMWF_SOURCES=google): t, gh,
 #         u, v at 100, 50 and 10 hPa, byte ranges through the index, ~140 MB in ~370 requests
+#   geos  NASA NCCS OPeNDAP (GEOS FP fcast/inst3_3d_asm_Np): t, h, epv, u, v on 22 levels 400-0.4 hPa at every second
+#         point, one DAP request a step, ~1.9 GB in 21 requests (00Z), half that from 12Z; 3 steps at a time
 #
 # Dispatch with model=gfs and omega_clim=true (instead of a run) to rebuild the GFS vertical motion's colour ranges,
 # scripts/models/strat_omega_ranges.json (strat_maps.py omega-clim: 48 monthly samples of GFS analyses, ~2 GB), which
@@ -38,7 +40,7 @@ on:
   workflow_dispatch:
     inputs:
       model:
-        description: "gfs, gdps or aifs"
+        description: "gfs, gdps, aifs or geos"
         required: true
         default: gfs
       cycle:
@@ -104,7 +106,7 @@ jobs:
           OMEGA_CLIM: ${{ inputs.omega_clim && '1' || '' }}
         run: |
           set -euo pipefail
-          case "$MODEL" in gfs|gdps|aifs) ;; *) echo "::error::unknown model $MODEL"; exit 1 ;; esac
+          case "$MODEL" in gfs|gdps|aifs|geos) ;; *) echo "::error::unknown model $MODEL"; exit 1 ;; esac
           if [ -n "$OMEGA_CLIM" ]; then
             [ "$MODEL" = gfs ] || { echo "::error::omega_clim is for the GFS"; exit 1; }
             echo "n=0" >> "$GITHUB_OUTPUT"; exit 0
@@ -134,8 +136,9 @@ jobs:
         run: |
           set -euo pipefail
           # steps worked on at once, each fetching its own: the GFS's S3 and the AIFS's mirror ranges are cheap to serve;
-          # the Datamart is a shared public service (3 workers x datamart.py's 4 files at a time)
-          if [ "$MODEL" = gdps ]; then PROCS=3; else PROCS=4; fi
+          # the Datamart and NASA's OPeNDAP server are shared public services (the Datamart: 3 workers x datamart.py's 4
+          # files at a time; OPeNDAP: one request per worker)
+          case "$MODEL" in gdps|geos) PROCS=3 ;; *) PROCS=4 ;; esac
           done=0
           while read -r cyc; do
             [ -n "$cyc" ] || continue
