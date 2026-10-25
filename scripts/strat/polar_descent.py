@@ -16,10 +16,11 @@ positive downward. Each member's omega is averaged onto polarcap.py's 1.5-deg ce
 The models: IFS-ENS 50 members (ECMWF open data, Google Cloud mirror; w at 850, 500, 300, 250, 200, 150, 100, 50 and
 10 hPa, north of 48.25N only, its cells from each message's first bytes: ifs_ens ROWS, w_cells), the IFS control drawn on
 its figures and recorded on its own, and GEFS control + 30 (v and T on the cap's edge to 1 hPa: strat_ens.py part
-"omega"). Each value is the field at its valid time (the run's hour each day). AIFS-ENS is left out: its w is a learned output that fails against IFS-ENS from the same analysis (24 Oct 2026 12Z: a one-level
-band of ascent at 250 hPa that continuity rules out, and a 10-100 hPa cap mean twice IFS-ENS's from day 1, -5.5
-against -1.5 mm/s, with GEOS FP at -1.3 the day before). The observed record is GEOS FP's analysis (NCCS
-OPeNDAP), the daily mean of its 00/06/12/18Z omega (which cancels the atmospheric tides), `tail` below (bdc.yml).
+"omega"). Each value is the field at its valid time (the run's hour each day). AIFS-ENS is left out: its w is a learned
+output that fails against IFS-ENS from the same analysis (24 Oct 2026 12Z: a one-level band of ascent at 250 hPa that
+continuity rules out, and a 10-100 hPa cap mean twice IFS-ENS's from day 1, -5.5 against -1.5 mm/s, with GEOS FP at
+-1.3 the day before). The observed record is GEOS FP's analysis (NCCS OPeNDAP), the daily mean of its 00/06/12/18Z
+omega (which cancels the atmospheric tides), `tail` below (bdc.yml).
 
 Raw model output, no normal. omega is the EULERIAN motion, the air's own movement through each pressure surface, not the
 Brewer-Dobson (residual) circulation: while planetary waves carry heat poleward, as before a sudden warming, the
