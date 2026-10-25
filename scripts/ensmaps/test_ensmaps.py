@@ -22,7 +22,6 @@ data are fetched.
            12Z run's day 16 needs +384 h
   clusters a scenario keeps its letter through a one-scenario day, a split takes a new letter and a scenario that
            re-forms its old one; the members' moves between two periods' clusters
-  interim  column_height gives back the height of a standard column from its surface and sea-level pressures
 """
 
 from __future__ import annotations
@@ -353,16 +352,6 @@ def clusters():
     check(EC.flow((keys, seq[2]), (keys, seq[3], w)) == [[0.5, 0.0], [0.0, 0.35], [0.15, 0.0]], "the members' moves")
 
 
-def interim():
-    print("interim")
-    z, t0 = np.array([0.0, 500.0, 1500.0, 4000.0]), 288.15
-    t = t0 - R.GAMMA * z  # a standard column: its sea-level pressure from the surface one
-    sp = 101325.0 * (t / t0) ** (9.80665 / (R.RD * R.GAMMA))
-    check(
-        np.allclose(R.column_height(np.full(4, 101325.0), sp, t), z, atol=0.01), "column_height inverts the reduction"
-    )
-
-
 def main() -> int:
     grids()
     grib_checks()
@@ -373,7 +362,6 @@ def main() -> int:
     chain()
     regimes()
     clusters()
-    interim()
     print("all checks passed")
     return 0
 

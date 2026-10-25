@@ -161,7 +161,6 @@ PAGES = {
             ),
             "Jets & angular momentum": dict(topic="drivers", region=["Global"]),
         },
-        items={"natemp": dict(models=["IFS-ENS", "GEPS", "ERA5"])},
     ),
     # "/snowbands.html" retired: its diagnostics are the "Winter: snow bands" maps of /models.html
     "/subseasonal.html": dict(

@@ -2,14 +2,13 @@ name: Tests (offline checks)
 
 # The offline checks that live beside their pipelines: synthetic-data tests of the tropical rainfall blend fit, the recon
 # decoders against the sample bulletins, the sounding climatology's split by synoptic hour, the sounding
-# station list's positions and WMO indexes, the North America 2 m temperature product's normals, daily means,
-# agreement gate and run-to-run change test, and the global ensemble maps' grids, decoding, codes, gates, run-to-run
-# statistics and weather regimes. No network, no figures.
+# station list's positions and WMO indexes, and the global ensemble maps' grids, decoding, codes, gates, run-to-run
+# statistics, weather regimes and clusters. No network, no figures.
 on:
   push:
-    paths: ['scripts/precip_bias/**', 'scripts/recon/**', 'scripts/skewt/**.py', 'skewt/stations.json', 'scripts/lib/**', 'scripts/natemp/**', 'scripts/ensmaps/**', 'scripts/regimes/**', '.github/workflows/tests.yml']
+    paths: ['scripts/precip_bias/**', 'scripts/recon/**', 'scripts/skewt/**.py', 'skewt/stations.json', 'scripts/lib/**', 'scripts/ensmaps/**', 'scripts/regimes/**', '.github/workflows/tests.yml']
   pull_request:
-    paths: ['scripts/precip_bias/**', 'scripts/recon/**', 'scripts/skewt/**.py', 'skewt/stations.json', 'scripts/lib/**', 'scripts/natemp/**', 'scripts/ensmaps/**', 'scripts/regimes/**', '.github/workflows/tests.yml']
+    paths: ['scripts/precip_bias/**', 'scripts/recon/**', 'scripts/skewt/**.py', 'skewt/stations.json', 'scripts/lib/**', 'scripts/ensmaps/**', 'scripts/regimes/**', '.github/workflows/tests.yml']
   workflow_dispatch:
 
 permissions:
@@ -40,7 +39,5 @@ jobs:
         run: python scripts/skewt/test_climo_hours.py
       - name: Sounding station list
         run: python scripts/skewt/test_stations.py
-      - name: North America 2 m temperature
-        run: python scripts/natemp/test_natemp.py
       - name: Global ensemble maps and their regimes
         run: python scripts/ensmaps/test_ensmaps.py

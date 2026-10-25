@@ -33,9 +33,7 @@ name: Global ensemble maps (data)
 #         the .idx files, byte ranges
 #   geps  the MSC Datamart through scripts/geps/datamart.py (honest User-Agent, retries, ledger): three allmbrs files
 #         a step
-# The 2 m temperature normals come from release ensmaps-ref-v1 (ensmaps-ref.yml): ensmaps_t2m_normals.npz, or until it is
-# built ensmaps_t2m_normals_interim.npz (ERA5 1.5 deg height-adjusted, the North America normals over their box); without
-# either a run publishes the
+# The 2 m temperature normals come from release ensmaps-ref-v1 (ensmaps-ref.yml); without them a run publishes the
 # other fields' anomalies and every change map.
 
 on:
@@ -146,9 +144,7 @@ jobs:
           echo "prev48=$prev48" >> "$GITHUB_OUTPUT"
           held=$(gh release view ensmaps-ref-v1 -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null || true)
           normals=""
-          for f in ensmaps_t2m_normals.npz ensmaps_t2m_normals_interim.npz; do   # the final normals, else the interim
-            if [ -z "$normals" ] && echo "$held" | grep -qx "$f"; then normals=$f; fi
-          done
+          if echo "$held" | grep -qx ensmaps_t2m_normals.npz; then normals=ensmaps_t2m_normals.npz; fi
           echo "normals=$normals" >> "$GITHUB_OUTPUT"
           echo "$MODEL $cyc (the runs 12 h, 6 h and 48 h earlier: $prev, $prev6, $prev48; 2 m normals: ${normals:-none})"
       - name: The statistics of the run 12 h earlier

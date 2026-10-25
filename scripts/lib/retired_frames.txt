@@ -52,3 +52,10 @@ assets/sst/anim/descent_gefs
 # 2026-10-24: the AIFS-ENS descent maps (its learned omega fails against IFS-ENS from the same analysis).
 assets/sst/anim/descent_aifs
 assets/sst/anim/descent_aifsc
+
+# Retired 2026-10-25: the North America 2 m temperature maps, replaced by the world viewer ens-anomalies.html
+# (scripts/ensmaps/, its data in the frames store under assets/models/data/ensmaps).
+assets/sst/anim/natemp_anom
+assets/sst/anim/natemp_change
+assets/sst/anim/natemp_geps_anom
+assets/sst/anim/natemp_geps_change
