@@ -1,0 +1,27 @@
+name: Global ensemble maps — AIFS-ENS
+
+# Caller for ensmaps.yml (ens-anomalies.html). The AIFS-ENS 00/12Z run reaches day 15 on the Google Cloud mirror ~7 h
+# 30 min after the start; the dispatcher fires 07:50 / 19:50 with a backup an hour later. These crons are the backstop;
+# a firing with nothing new exits in about a minute.
+on:
+  schedule:
+  - cron: '10 9 * * *'
+  - cron: '10 21 * * *'
+  workflow_dispatch:
+    inputs:
+      cycle:
+        description: "Cycle YYYYMMDDHH (blank = plan the newest unpublished; skipped when it or a newer one is published)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  run:
+    uses: ./.github/workflows/ensmaps.yml
+    with:
+      model: aifs
+      cycle: ${{ inputs.cycle }}
+    secrets: inherit
