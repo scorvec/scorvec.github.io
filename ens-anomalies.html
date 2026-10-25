@@ -482,7 +482,7 @@
     <h3>The ensembles</h3>
     <div class="tbl"><table>
       <tr><th>Ensemble</th><th>Members</th><th>Grid on this page</th><th>Runs</th></tr>
-      <tr><td><b>IFS-ENS</b>: ECMWF's physics ensemble (~9&nbsp;km)</td><td>the 50 perturbed members (the 0.1&deg; files carry no control)</td><td>2&nbsp;m temperature 0.1&deg; (~11&nbsp;km), shown in tiles once zoomed in; 500&nbsp;hPa height and sea-level pressure 0.25&deg;</td><td>00 and 12&nbsp;UTC to day&nbsp;15, here about 13&frac12;&nbsp;h after the start (the 0.1&deg; files are the last to land); 06 and 18&nbsp;UTC to day&nbsp;5 (ECMWF runs them to 144&nbsp;h), about 11&nbsp;h after the start</td></tr>
+      <tr><td><b>IFS-ENS</b>: ECMWF's physics ensemble (~9&nbsp;km)</td><td>the 50 perturbed members (the 0.1&deg; files carry no control)</td><td>2&nbsp;m temperature 0.1&deg; (~11&nbsp;km), shown in tiles once zoomed in; 500&nbsp;hPa height and sea-level pressure 0.25&deg;</td><td>00 and 12&nbsp;UTC to day&nbsp;15: 500&nbsp;hPa height and sea-level pressure here about 8&frac12;&nbsp;h after the start, 2&nbsp;m temperature about 13&frac12;&nbsp;h (the 0.1&deg; files land last); 06 and 18&nbsp;UTC to day&nbsp;5 (ECMWF runs them to 144&nbsp;h) in the same two steps, the last about 11&nbsp;h after the start</td></tr>
       <tr><td><b>AIFS-ENS</b>: ECMWF's machine-learned ensemble</td><td>the control and 50 perturbed members</td><td>0.25&deg;</td><td>00, 06, 12 and 18&nbsp;UTC, about 8&nbsp;h after the start</td></tr>
       <tr><td><b>GEFS</b>: NOAA's Global Ensemble Forecast System</td><td>the control and 30 perturbed members</td><td>0.5&deg;</td><td>00, 06, 12 and 18&nbsp;UTC, about 6&frac12;&nbsp;h after the start</td></tr>
       <tr><td><b>GEPS</b>: Environment and Climate Change Canada's Global Ensemble Prediction System</td><td>the control and 20 perturbed members</td><td>0.5&deg;, the finest the MSC Datamart publishes</td><td>00 and 12&nbsp;UTC, about 5&frac12;&nbsp;h after the start</td></tr>
@@ -560,6 +560,7 @@
   function cycleOf(m) { var cs = runsOf(m), w = st.run[m]; return (w && cs.filter(function (c) { return c.cycle === w; })[0]) || cs[0]; }
   function cyc() { return cycleOf(st.model); }
   function spanOf(c, k) { if (!c) return null; for (var i = 0; i < c.spans.length; i++) if (c.spans[i].key === k) return c.spans[i]; return null; }
+  function hasField(c, f) { return !!(c && c.fields && c.fields[f]); }   // IFS-ENS publishes 2 m temperature last
   function hasAnom(c, f) { return !!(c && c.fields[f] && c.fields[f].anomaly); }
   // the change from the run 12, 6 or 48 h earlier (the trend over two days): its spans' entry, frames and manifest key
   var CHG = { "12": ["change", "c", "prev"], "6": ["change6", "c6", "prev6"], "48": ["change48", "c48", "prev48"] }, CHG_ORDER = ["6", "12", "48"];
@@ -1703,7 +1704,9 @@
   function setButtons() {
     var c = cyc();
     segButtons($("models"), MODEL_ORDER.filter(cycleOf), function (m) { return MODELS[m]; }, st.model, selectModel, function (m) { var x = cycleOf(m); return MODELS[m] + ", run " + runLabel(x); });
-    segButtons($("fields"), FIELD_ORDER, function (f) { return FIELDS[f].label; }, st.field, function (f) { if (st.field === f) return; st.field = f; fixView(); setButtons(); onChange(); });
+    segButtons($("fields"), FIELD_ORDER, function (f) { return FIELDS[f].label; }, st.field, function (f) { if (st.field === f) return; st.field = f; fixView(); setButtons(); onChange(); },
+      function (f) { return hasField(c, f) ? FIELDS[f].label : FIELDS[f].label + ": not in this run yet (IFS-ENS adds it when ECMWF's 0.1° files land, about 13 h after the start)"; },
+      function (f) { return !hasField(c, f); });
     segButtons($("views"), VIEW_ORDER, function (v) { return VIEWS[v]; }, st.view, function (v) { if (st.view === v) return; st.view = v; setButtons(); onChange(); },
       null, function (v) { return v === "anom" ? !hasAnom(c, st.field) : v === "change" ? !hasChange(c, st.field) : v === "regimes" ? !hasRegimes(c) : !CL; });
     segButtons($("wins"), wins(c).map(function (s) { return s.key; }), function (k) { var s = spanOf(c, k), d = s.label.split(" · ")[0]; return d.replace("Days ", "Days&nbsp;"); },
@@ -1728,6 +1731,7 @@
   }
   function fixView() {
     var c = cyc();
+    if (c && !hasField(c, st.field)) st.field = FIELD_ORDER.filter(function (f) { return hasField(c, f); })[0] || st.field;
     if (st.view === "regimes" && !hasRegimes(c)) st.view = "anom";
     if (st.view === "anom" && !hasAnom(c, st.field) && hasChange(c, st.field)) st.view = "change";
     if (st.view === "change" && !hasChange(c, st.field) && hasAnom(c, st.field)) st.view = "anom";

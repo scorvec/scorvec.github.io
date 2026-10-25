@@ -1,10 +1,11 @@
 name: Global ensemble maps — IFS-ENS
 
-# Caller for ensmaps.yml (ens-anomalies.html). The IFS-ENS 0.1-deg surface files of a 00/12Z run reach the Google Cloud
-# mirror to day 15 ~13 h 20 min after the start (00Z ~13:20Z, 12Z ~01:20Z; the 0.25-deg files land hours earlier); the
-# dispatcher fires 13:40 / 01:40 with a backup an hour later. The 06/18Z runs, to +144 h, are complete ~10 h 50 min
-# after the start (06Z ~16:50Z, 18Z ~04:50Z). These crons are the backstop; a firing with nothing new exits in about a
-# minute.
+# Caller for ensmaps.yml (ens-anomalies.html). IFS-ENS is published in two stages: the 0.25-deg files (500 hPa height,
+# sea-level pressure) of a 00/12Z run are complete ~8 h 30 min after the start, and the local fast lane fires
+# fields=z500,msl then; the 0.1-deg surface files (2 m temperature) reach day 15 ~13 h 20 min after the start (00Z
+# ~13:20Z, 12Z ~01:20Z), when a dispatch without fields adds them to the same run. The 06/18Z runs, to +144 h, follow
+# the same two stages. These crons are the backstop: a firing plans the 2 m stage when it is due, a whole run when
+# nothing of it is on the page, and exits in about a minute when there is nothing new.
 on:
   schedule:
   - cron: '50 14 * * *'
@@ -15,6 +16,10 @@ on:
     inputs:
       cycle:
         description: "Cycle YYYYMMDDHH (blank = plan the newest unpublished; skipped when it or a newer one is published)"
+        required: false
+        default: ""
+      fields:
+        description: "z500,msl = the first stage only (blank = every field, or the 2 m stage when due)"
         required: false
         default: ""
 
@@ -28,4 +33,5 @@ jobs:
     with:
       model: ifs
       cycle: ${{ inputs.cycle }}
+      fields: ${{ inputs.fields }}
     secrets: inherit
