@@ -425,6 +425,8 @@
     <div class="tbl"><table>
       <tr><th>Map</th><th>Shading</th><th>Lines</th></tr>
       <tr><td>Temperature</td><td>Air temperature on the pressure level, &deg;C, stored to 0.6&nbsp;K; purple below &minus;78&nbsp;&deg;C (195&nbsp;K), where nitric-acid polar stratospheric clouds can form (ice clouds near &minus;85&nbsp;&deg;C, 188&nbsp;K)</td><td>Geopotential height, dam, at a fixed interval for each level (8&nbsp;dam at 100&ndash;40&nbsp;hPa up to 48&nbsp;dam at 0.4&nbsp;hPa)</td></tr>
+      <tr><td>Temperature: change from the previous run</td><td>This run's temperature minus the previous run's (12&nbsp;h earlier) at the same valid time and level, &deg;C: warmer red, colder blue, saturating at &plusmn;15&nbsp;&deg;C. It shows how the forecast moved, not how good either run is</td><td>This run's height, as on the temperature map</td></tr>
+      <tr><td>Temperature: height change from the previous run</td><td>The same for the geopotential height, m, saturating at &plusmn;4 contour intervals of the level (&plusmn;320&nbsp;m at 100&ndash;40&nbsp;hPa, &plusmn;640&nbsp;m at 15&ndash;7&nbsp;hPa)</td><td>This run's height</td></tr>
       <tr><td>Wind: speed</td><td>Wind speed, m/s; barbs in knots (feathers on the Southern Hemisphere side south of the equator)</td><td>Height, as on the temperature map</td></tr>
       <tr><td>Wind: zonal</td><td>The west&ndash;east component: westerlies red, easterlies blue, m/s. A reversal to easterlies at 60&deg; and 10&nbsp;hPa in winter is the usual definition of a major sudden stratospheric warming (Charlton and Polvani 2007)</td><td>Height, and the zero-wind line in black</td></tr>
       <tr><td>Eulerian vertical motion (GFS)</td><td>The GFS's published vertical velocity in pressure units (VVEL, &ldquo;omega&rdquo;), in hPa/day with <b>descent positive</b>: red where air sinks, blue where it rises. The GFS's post-processor computes it from the model's geometric vertical velocity (&minus;w&nbsp;dp/dz), so it is the air's motion up or down in height, which also counts the rise and fall of the pressure surfaces themselves; heavily smoothed in space and time (<a href="#vvmethod">below</a>). The colours saturate at a fixed range for each level, set from four years of GFS analyses, not from this run</td><td>Height, as on the temperature map</td></tr>
@@ -441,7 +443,7 @@
     <h3 id="vvmethod">How the vertical motion is smoothed</h3>
     <p>The GFS publishes VVEL (Pa/s) on all 15 levels of the maps; it is shown as VVEL&nbsp;&times;&nbsp;864&nbsp;=&nbsp;hPa/day, positive downward. (It is the model's geometric vertical velocity in pressure units, &minus;w&nbsp;dp/dz, not the motion across pressure surfaces: it also counts the rise and fall of the surfaces themselves, &rho;g&nbsp;(&part;z/&part;t&nbsp;+&nbsp;V&middot;&nabla;z), and its mean over a pressure level is far from the zero that mass conservation needs, so read it for its pattern, not as the net descent that warms the stratosphere.) On a 0.5&deg; grid in the stratosphere the raw field is dominated by gravity waves and tides, so it is smoothed hard before it is stored. <b>In space</b>: a Gaussian with a standard deviation of 600&nbsp;km along the sphere, applied along each latitude circle exactly (in Fourier space: zonal wavenumber k keeps exp(&minus;&frac12;(k&sigma;&nbsp;/&nbsp;a&nbsp;cos&nbsp;&phi;)<sup>2</sup>) of its amplitude, so wave 3 at 60&deg; keeps 85&nbsp;% and anything shorter than about 2,000&nbsp;km less than a fifth) and then along the meridians, continued over the pole onto the opposite meridian. <b>In time</b>: a running mean centred on the valid time over the 12-hourly steps, trapezoidal over &plusmn;36&nbsp;h (a 72&nbsp;h mean; weight 1 inside, &frac12; at the ends, which cancels the daily tide exactly), shortened near the ends of the run so it stays centred (24&nbsp;h at +12&nbsp;h, 48&nbsp;h at +24&nbsp;h); +0 and +384&nbsp;h have no vertical-motion map. The legend gives the hours each map averages. <b>Colours</b>: for each level the range is the 99th percentile of the same smoothed field&rsquo;s magnitude poleward of 20&deg; in 48 samples of GFS analyses (the 15th of each month from July 2022 to June 2026, the seven 00 and 12&nbsp;UTC analyses around each), rounded up, so a colour means the same from run to run and a strong event stands out. The hover converts to a vertical velocity, w&nbsp;&asymp;&nbsp;&minus;&omega;&nbsp;R&nbsp;T&nbsp;/&nbsp;(p&nbsp;g), with the level's temperature.</p>
     <h3>How the page works</h3>
-    <p>Nothing on this page is a picture. Each field, level and step is shipped as the model's own numbers, rounded to 256 levels, on its latitude&ndash;longitude grid (GFS 0.5&deg;, GDPS 0.45&deg;), and your browser colours, projects, contours and reads it; the shading is interpolated between grid points, and the hover value is the stored one at the nearest point. The maps are polar stereographic, true at the pole (0&deg; longitude at the bottom of the northern map and at the top of the southern one). Contours are drawn by your graphics card from the same numbers after a light smoothing; their labels are placed once the map is at rest. <b>Data use:</b> opening a map loads only the map on screen and the heights drawn on it (about 45&ndash;115&nbsp;KB); stepping through the levels loads that step at every level (0.5&ndash;2&nbsp;MB), and playing or dragging the time slider loads every step of that map (31&ndash;33 files, 1.5&ndash;4&nbsp;MB).</p>
+    <p>Nothing on this page is a picture. Each field, level and step is shipped as the model's own numbers, rounded to 256 levels, on its latitude&ndash;longitude grid (GFS 0.5&deg;, GDPS 0.45&deg;), and your browser colours, projects, contours and reads it; the shading is interpolated between grid points, and the hover value is the stored one at the nearest point. The maps are polar stereographic, true at the pole (0&deg; longitude at the bottom of the northern map and at the top of the southern one). Contours are drawn by your graphics card from the same numbers after a light smoothing; their labels are placed once the map is at rest. <b>Data use:</b> opening a map loads only the map on screen and the heights drawn on it (about 45&ndash;115&nbsp;KB); stepping through the levels loads that step at every level (0.5&ndash;2&nbsp;MB), and playing or dragging the time slider loads every step of that map (31&ndash;33 files, 1.5&ndash;4&nbsp;MB). The change views load the previous run&rsquo;s map beside each of this run&rsquo;s and take the difference in your browser.</p>
     <p>Data: NOAA GFS through the NOAA Open Data Dissemination program (AWS); ECCC GDPS (Data Source: Environment and Climate Change Canada (MSC Datamart), under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a>); GEOS FP potential vorticity from NASA GMAO (the site's <a href="/stratosphere.html#pv">GEOS FP PV product</a>). Model output as published, uncorrected. Boundaries: Natural Earth. Hoskins, B. J., M. E. McIntyre and A. W. Robertson, 1985, Q. J. R. Meteorol. Soc. 111, 877&ndash;946 &middot; Lait, L. R., 1994, J. Atmos. Sci. 51, 1754&ndash;1759 &middot; Charlton, A. J., and L. M. Polvani, 2007, J. Climate 20, 449&ndash;469.</p>
   </section>
 </main>
@@ -473,6 +475,13 @@
   var FIELD_ORDER = ["t", "wind", "omega", "pv"];
   function hasField(c, f) { return f === "omega" ? !!(c && c.omega) : true; }
   var WIND_SUBS = { spd: { label: "Speed" }, u: { label: "Zonal wind" } };
+  // the temperature map's views: the field, or its change from the previous run at the same valid time (temperature or
+  // height); a change is stored here as code = 127 * (1 + change / range), 255 where either run has no value
+  var T_SUBS = { abs: { label: "Temperature" }, dt: { label: "Change from previous run" }, dz: { label: "Height change from previous run" } };
+  var DT_MAX = 15;                                                 // deg C: the temperature change's colour range
+  function dzMax(lev) { return 40 * (CI_LEV[lev] || 16); }         // m: four contour intervals of the level
+  var D_STOPS = [S(-1, "#08244f"), S(-0.66, "#1c4f96"), S(-0.42, "#3b7fc0"), S(-0.2, "#86b9dc"), S(-0.06, "#d6e7f2"), S(0, "#f6f6f3"), S(0.06, "#fbdccb"),
+                 S(0.2, "#f2a27e"), S(0.42, "#dc5f45"), S(0.66, "#b01c2c"), S(1, "#5c0618")];
   var HEMIS = { nh: "North", sh: "South" }, HEMI_LONG = { nh: "Northern Hemisphere", sh: "Southern Hemisphere" };
   // contour interval per level (height, dam) and per isentrope (Montgomery streamfunction / g, dam)
   var CI_LEV = { "100": 8, "70": 8, "50": 8, "40": 8, "30": 12, "20": 12, "15": 16, "10": 16, "7": 16, "5": 24, "3": 24, "2": 32, "1": 32, "0p7": 32, "0p4": 48 };
@@ -520,7 +529,9 @@
     }
     return stops[stops.length - 1].slice(1);
   }
-  function stopsOf() { return st.field === "t" ? T_STOPS : st.field === "pv" ? PV_STOPS : st.field === "omega" ? VV_STOPS : st.wv === "u" ? U_STOPS : SPD_STOPS; }
+  function deltaOn() { return st.field === "t" && st.tv !== "abs"; }
+  function deltaR() { return st.tv === "dt" ? DT_MAX : dzMax(st.lev); }
+  function stopsOf() { return deltaOn() ? D_STOPS : st.field === "t" ? T_STOPS : st.field === "pv" ? PV_STOPS : st.field === "omega" ? VV_STOPS : st.wv === "u" ? U_STOPS : SPD_STOPS; }
   function vvRange(lk) { var c = cyc(); return c && c.omega ? c.omega.ranges[lk] : null; }
   function vvOf(c, X) { return c === 255 || !X ? null : -2 * X + c * 4 * X / 254; }       // hPa/day, descent positive
   // 256-entry colour table of a frame: the shader looks up the (interpolated) code, or for the wind speed its own
@@ -528,7 +539,7 @@
   function buildLut(q) {
     var lut = new Uint8Array(256 * 4), stops = stopsOf(), X = vvRange(st.lev);
     for (var c = 0; c < 255; c++) {
-      var v = st.field === "t" ? tOf(c) : st.field === "pv" ? mpvOf(c) : st.field === "omega" ? (X ? vvOf(c, X) / X : null) : st.wv === "u" ? linOf(c, q) : c / 254 * SPD_MAX;
+      var v = deltaOn() ? c / 127 - 1 : st.field === "t" ? tOf(c) : st.field === "pv" ? mpvOf(c) : st.field === "omega" ? (X ? vvOf(c, X) / X : null) : st.wv === "u" ? linOf(c, q) : c / 254 * SPD_MAX;
       if (v === null) continue;
       var col = interp(stops, v);
       lut[4 * c] = col[0]; lut[4 * c + 1] = col[1]; lut[4 * c + 2] = col[2]; lut[4 * c + 3] = Math.round(255 * col[3]);
@@ -538,13 +549,16 @@
 
   // ── state ──────────────────────────────────────────────────────────────────────────────────────────────────────
   var man = {};
-  var st = { model: "gfs", hemi: "nh", field: "t", lev: "10", th: "850", wv: "spd", hour: 0, playing: false, engT: "", engL: "" };
+  var st = { model: "gfs", hemi: "nh", field: "t", lev: "10", th: "850", wv: "spd", tv: "abs", hour: 0, playing: false, engT: "", engL: "" };
   var view = null;                                // {cx, cy, s: metres per CSS px}
   var $ = function (id) { return document.getElementById(id); };
   function escH(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   var mapEl = $("map"), glc = $("gl"), ovc = $("ov"), labc = $("lab"), tip = $("tip");
   function cycleOf(m) { var x = man[m]; return x && x.cycles && x.cycles[0]; }
   function cyc() { return cycleOf(st.model); }
+  function prevCyc() { var x = man[st.model]; return x && x.cycles && x.cycles[1]; }   // the run before the newest
+  function shiftH(c, p) { return Math.round((Date.parse(c.init) - Date.parse(p.init)) / 3600e3); }   // c's +h is p's +(h + this)
+  function runName(c) { return c.init.slice(5, 10).replace("-", "/") + " " + c.init.slice(11, 13) + "Z"; }
   function levKey(p) { return String(p).replace(".", "p"); }
   function levName(k) { return k.replace("p", "."); }
   // the file a map reads (the wind and vertical-motion maps draw their height lines from the temperature file of the same
@@ -556,7 +570,7 @@
   function qOf(c, f, h) { var fm = c.fields[f], k = fm ? fm.hours.indexOf(h) : -1; return k < 0 || !fm.q ? null : fm.q[st.hemi][k]; }   // fixed-code files (vertical motion) have none
   function chOf(f) { return f.slice(0, 2) === "pv" ? 3 : f[0] === "o" ? 1 : 2; }
   function relPath(c, hemi, f, h) { return DATA + c.model + "/" + c.cycle + "/" + hemi + "/" + f + "/" + ("00" + h).slice(-3) + ".webp"; }
-  function subKey() { return st.field === "pv" ? st.th : st.lev + (st.field === "wind" ? "-" + st.wv : ""); }
+  function subKey() { return st.field === "pv" ? st.th : st.lev + (st.field === "wind" ? "-" + st.wv : st.field === "t" ? "-" + st.tv : ""); }
 
   // ── data transport: assets/frames_root.js (frameFetch: the frames store first, every fallback behind it) ─────────
   // A file's path names its run (cycle/hemisphere/field/step), so its bytes never change: they are kept in Cache Storage
@@ -568,7 +582,7 @@
     return cacheP;
   }
   function pruneCache() {
-    var live = {}; MODEL_ORDER.forEach(function (m) { var c = cycleOf(m); if (c) live[m + "/" + c.cycle] = 1; });
+    var live = {}; MODEL_ORDER.forEach(function (m) { ((man[m] && man[m].cycles) || []).forEach(function (c) { live[m + "/" + c.cycle] = 1; }); });
     frameCache().then(function (cc) { if (!cc) return;
       return cc.keys().then(function (ks) { ks.forEach(function (rq) { var m = rq.url.match(/strat\/(\w+)\/(\d{10})\//); if (m && !live[m[1] + "/" + m[2]]) cc.delete(rq); }); });
     }).catch(function () {});
@@ -846,6 +860,26 @@
       lru(ds, function (x) { return x.dec.data.byteLength; }, MEM.dec, 4, function (x) { x.dec = null; dropTex(x); });
       render();
     }, function () { e.decP = null; e.fail = true; render(); });
+  }
+  // the change from the previous run at the same valid time: built here from the two runs' decoded frames (the temperature
+  // file: channel 0 temperature on the run's fixed code, channel 1 height on the frame's own linear code)
+  function deltaFrame(c, p, hemi, f, h) {
+    var hp = h + shiftH(c, p), key = "delta-" + st.tv + "/" + fkey(c, hemi, f, h) + "/" + p.cycle, e = frames.get(key);
+    if (e && e.dec) { e.used = ++useClock; return e; }
+    var a = peek(c, hemi, f, h) || decoded(c, hemi, f, h), b = peek(p, hemi, f, hp) || decoded(p, hemi, f, hp);
+    if (!a || !b || !a.dec || !b.dec || a.dec.w !== b.dec.w || a.dec.h !== b.dec.h) return null;
+    var n = a.dec.w * a.dec.h, o = new Uint8Array(n), A = a.dec.data, B = b.dec.data, R = deltaR(), k, ca, cb, dv;
+    var ta = c.enc.t, tb = p.enc.t, qa = qOf(c, f, h), qb = qOf(p, f, hp), dz = st.tv === "dz";
+    if (dz && (!qa || !qb)) return null;
+    for (k = 0; k < n; k++) {
+      ca = A[2 * k + (dz ? 1 : 0)]; cb = B[2 * k + (dz ? 1 : 0)];
+      if (ca === 255 || cb === 255) { o[k] = 255; continue; }
+      dv = dz ? (qa[0] + ca * qa[1]) - (qb[0] + cb * qb[1]) : (ta.off + ca * ta.step) - (tb.off + cb * tb.step);
+      o[k] = Math.max(0, Math.min(254, Math.round(127 * (1 + dv / R))));
+    }
+    e = { k: key, used: ++useClock, ch: 1, synth: true, dec: { w: a.dec.w, h: a.dec.h, data: o } };
+    frames.set(key, e);
+    return e;
   }
   function updLoad() { var n = 0; frames.forEach(function (e) { if (e.bytesP) n++; }); $("load").textContent = n ? "Loading " + (n + queue.length) + " map" + (n + queue.length > 1 ? "s" : "") + "…" : ""; }
 
@@ -1144,29 +1178,33 @@
     updateBadge();
     if (!c || !view) { drawOverlay(); return; }
     var hour = st.hour, f0 = mainFile(), fm = c.fields[f0], msg = "";
+    var dmode = deltaOn(), pc = dmode ? prevCyc() : null;
     if (!fm) msg = "This map is missing from this run.";
     else if (fm.hours.indexOf(hour) < 0) msg = "This map is not available at +" + hour + " h in this run.";
+    else if (dmode && !pc) msg = "The change from the previous run appears once two " + MODELS[st.model] + " runs are on the page (from its next run).";
+    else if (dmode && (!pc.fields[f0] || pc.fields[f0].hours.indexOf(hour + shiftH(c, pc)) < 0)) msg = "The previous run (" + runName(pc) + ") does not reach this valid time.";
     if ($("msg").textContent !== msg) $("msg").textContent = msg;
     if (msg) { clearGL(); drawn = null; markShown(); drawOverlay(); schedule(); return; }
-    var e = peek(c, st.hemi, f0, hour) || decoded(c, st.hemi, f0, hour);
-    if (!e && frames.get(fkey(c, st.hemi, f0, hour)) && frames.get(fkey(c, st.hemi, f0, hour)).fail) {
+    var e = dmode ? deltaFrame(c, pc, st.hemi, f0, hour) : peek(c, st.hemi, f0, hour) || decoded(c, st.hemi, f0, hour);
+    var failed = function (cc, hh) { var x = frames.get(fkey(cc, st.hemi, f0, hh)); return x && x.fail; };
+    if (!e && (failed(c, hour) || (dmode && failed(pc, hour + shiftH(c, pc))))) {
       $("msg").textContent = "This map could not be downloaded. It may still be publishing, or the connection dropped; try another step, or reload in a minute.";
       clearGL(); drawn = null; markShown(); drawOverlay(); schedule(); return;
     }
     var hold = false;
-    if (!e && drawn && drawn.field === st.field && drawn.hemi === st.hemi && drawn.c === c) { e = drawn.e; hold = true; }   // hold the last frame while the next decodes
+    if (!e && drawn && drawn.field === st.field && drawn.tv === st.tv && drawn.hemi === st.hemi && drawn.c === c) { e = drawn.e; hold = true; }   // hold the last frame while the next decodes
     else if (!e) { drawn = null; clearGL(); drawOverlay(); schedule(); return; }
     if (!e.dec) { drawOverlay(); schedule(); return; }
-    var q = hold ? drawn.q : qOf(c, f0, hour), g = c.grids[st.hemi];
+    var q = hold ? drawn.q : dmode ? null : qOf(c, f0, hour), g = c.grids[st.hemi];
     var dd = { e: e, g: g, field: st.field, hemi: st.hemi, q: q, c: c, hour: hold ? drawn.hour : hour, file: hold ? drawn.file : f0, sub: hold ? drawn.sub : subKey(),
-               lk: hold ? drawn.lk : curLev(), wv: hold ? drawn.wv : st.wv, hold: hold };
+               lk: hold ? drawn.lk : curLev(), wv: hold ? drawn.wv : st.wv, tv: st.tv, pc: pc, hold: hold };
     if (gl) {
       var lay = hold && drawn.layers ? drawn.layers : gpuLayers(dd);
       dd.layers = lay;
       gl.viewport(0, 0, glc.width, glc.height); clearGL();
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texOf(e));
       var mode = st.field === "wind" && st.wv === "spd" ? 1 : 0;
-      var lk = st.field + "|" + st.wv + "|" + (mode === 0 && st.field === "wind" && q ? q.join(",") : "") + (st.field === "omega" ? "|" + st.lev : "");
+      var lk = st.field + "|" + st.wv + "|" + st.tv + "|" + (mode === 0 && st.field === "wind" && q ? q.join(",") : "") + (st.field === "omega" || dmode ? "|" + st.lev : "");
       if (lk !== lutKey) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, lutTex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, buildLut(q)); lutKey = lk; }
       gl.uniform2f(loc.uC, view.cx, view.cy); gl.uniform1f(loc.uS, view.s / DPR); gl.uniform2f(loc.uWH, glc.width, glc.height);
       gl.uniform4f(loc.uG, g.lo1, g.la1, g.di, g.dj); gl.uniform2i(loc.uN, g.nx, g.ny); gl.uniform1f(loc.uGw, g.w0);
@@ -1238,7 +1276,7 @@
   // Montgomery streamfunction (PV maps), labelled in dam; B = the zero line of the zonal wind. gl: how the GPU draws the
   // lines (reg [base, interval, lowest, highest] or a list of up to 8 levels); levels/values/fmt: the worker's labels.
   function specsOf(d) {
-    var ci = 10 * (d.field === "pv" ? CI_TH[d.lk] : CI_LEV[d.lk]) || 160, a = { rad: 1, minPts: 8, ch: 1, src: d.field === "wind" || d.field === "omega" ? "t" + d.lk : null,
+    var ci = 10 * (d.field === "pv" ? CI_TH[d.lk] : CI_LEV[d.lk]) || 160, a = { rad: 1, minPts: 8, ch: 1, src: d.field === "wind" || d.field === "omega" || (d.field === "t" && d.tv !== "abs") ? "t" + d.lk : null,
       fmt: function (v) { return String(Math.round(v / 10)); }, gl: { reg: [0, ci, 0, 1e6], col: DARK, w: 0.9 }, ci: ci, lab: true };
     var b = d.field === "wind" && d.wv === "u" ? { rad: 1, minPts: 8, ch: 0, levels: [0], fmt: String, gl: { list: [0], col: "rgba(0,0,0,0.95)", w: 2.2 } } : null;
     return [a, b];
@@ -1431,7 +1469,12 @@
     if (!ENC) return;
     var g = legSetup(38), lo, hi, ticks = [], cap, v;
     var ci = st.field === "pv" ? CI_TH[st.th] : CI_LEV[st.lev], lev = levName(st.lev);
-    if (st.field === "t") { lo = -95; hi = 25; for (v = -90; v <= 20; v += 10) ticks.push([v, minus(v)]);
+    if (deltaOn()) {
+      var R = deltaR(), pc = prevCyc(), dzm = st.tv === "dz"; lo = -1; hi = 1;
+      [-1, -0.5, 0, 0.5, 1].forEach(function (f) { ticks.push([f, minus(+(f * R).toPrecision(3))]); });
+      cap = (dzm ? "Height" : "Temperature") + " change at " + lev + " hPa from the " + (pc ? runName(pc) : "previous") + " run to this one, same valid time, " + (dzm ? "m: higher red, lower blue" : "°C: warmer red, colder blue") +
+        " · colours saturate at ±" + R + (dzm ? " m" : " °C") + " · lines: this run's height every " + ci + " dam"; }
+    else if (st.field === "t") { lo = -95; hi = 25; for (v = -90; v <= 20; v += 10) ticks.push([v, minus(v)]);
       cap = "Temperature at " + lev + " hPa, °C · purple below −78 °C (195 K, polar stratospheric clouds) · lines: height every " + ci + " dam"; }
     else if (st.field === "wind" && st.wv === "spd") { lo = 0; hi = SPD_MAX; for (v = 0; v <= SPD_MAX; v += 20) ticks.push([v, String(v)]);
       cap = "Wind speed at " + lev + " hPa, m/s · barbs in knots · lines: height every " + ci + " dam"; }
@@ -1464,6 +1507,7 @@
   function setHTML(id, html, last) { if (html !== last) $(id).innerHTML = html; return html; }
   function what() {
     if (st.field === "pv") return "PV on " + st.th + " K";
+    if (deltaOn()) { var pc = prevCyc(); return levName(st.lev) + " hPa " + (st.tv === "dz" ? "height" : "temperature") + " change from the " + (pc ? runName(pc) + " " : "previous ") + "run"; }
     return levName(st.lev) + " hPa " + (st.field === "t" ? "temperature" : st.field === "omega" ? "Eulerian vertical motion" : st.wv === "u" ? "zonal wind" : "wind");
   }
   function updateBadge() {
@@ -1501,8 +1545,10 @@
     segButtons($("fields"), FIELD_ORDER.filter(function (f) { return hasField(c, f); }), function (f) { return FIELDS[f].label + "<small>" + FIELDS[f].unit + "</small>"; }, st.field, function (f) {
       if (st.field === f) return; st.field = f; if (c) st.hour = nearestHour(c, st.hour); setButtons(); onChange(); });
     $("runT").textContent = c ? "Run " + c.init.slice(5, 10).replace("-", "/") + " " + c.init.slice(11, 13) + "Z, to +" + c.length + " h" : "";
-    $("subSeg").hidden = st.field !== "wind";
+    $("subSeg").hidden = st.field !== "wind" && st.field !== "t";
+    $("subSeg").setAttribute("aria-label", st.field === "t" ? "Temperature view" : "Wind");
     if (st.field === "wind") segButtons($("subSeg"), ["spd", "u"], function (k) { return WIND_SUBS[k].label; }, st.wv, function (k) { st.wv = k; setButtons(); onChange(); });
+    if (st.field === "t") segButtons($("subSeg"), ["abs", "dt", "dz"], function (k) { return T_SUBS[k].label; }, st.tv, function (k) { if (k === st.tv) return; st.tv = k; tip.style.display = "none"; setButtons(); onChange(); });
     $("barbL").hidden = st.field !== "wind";
     var L = $("levs"); L.innerHTML = "";
     var cap = document.createElement("span"); cap.textContent = st.field === "pv" ? "Isentrope" : "Level"; L.appendChild(cap);
@@ -1580,6 +1626,15 @@
     if (st.engL === engKeyL()) {
       var ks = levList(), j0 = ks.indexOf(curLev()), lim = slow ? 3 : ks.length;
       for (var e = 1; e < ks.length; e++) [j0 - e, j0 + e].forEach(function (j) { if (e <= lim && j >= 0 && j < ks.length) both(st.field === "pv" ? st.lev : ks[j], st.field === "pv" ? ks[j] : st.th, st.hour); });
+    }
+    var pc = deltaOn() ? prevCyc() : null;
+    if (pc) {                                                      // the previous run's frame at the same valid time beside each
+      var dh = shiftH(c, pc), paired = [], nP = 0;
+      list.forEach(function (a, i) {
+        paired.push(a); if (i < nU) nP++;
+        var hp = a[3] + dh; if (pc.fields[a[2]] && pc.fields[a[2]].hours.indexOf(hp) >= 0) { paired.push([pc, a[1], a[2], hp]); if (i < nU) nP++; }
+      });
+      list = paired; nU = nP;
     }
     want(list, nU);
   }
@@ -1710,7 +1765,7 @@
   function num(v, d) { return (v < 0 ? "−" : "") + Math.abs(v).toFixed(d); }
   function tzAt(d, px, py) {                                       // [T (K), height (m)] at a pixel from the temperature file of the map's level
     var f = d.field === "pv" ? null : "t" + d.lk; if (!f) return null;
-    var e = f === d.file ? d.e : peek(d.c, d.hemi, f, d.hour); if (!e) return null;
+    var e = f === d.file && !d.e.synth ? d.e : peek(d.c, d.hemi, f, d.hour); if (!e) return null;
     var s = sample({ e: e, g: d.g }, px, py); return s ? [s.c[0] === 255 ? null : tOf(s.c[0]) + 273.15, linOf(s.c[1], qOf(d.c, f, d.hour))] : null;
   }
   function hover(px, py, sticky) {
@@ -1718,7 +1773,13 @@
     if (!d || !d.e || !d.e.dec) { tip.style.display = "none"; return; }
     var s = sample(d, px, py); if (!s) { tip.style.display = "none"; return; }
     var ll = P.inv(s.xy[0], s.xy[1]), txt, extra = [];
-    if (d.field === "t") { var tc = tOf(s.c[0]); txt = tc === null ? "no data" : num(tc, 1) + " °C (" + (tc + 273.15).toFixed(1) + " K)"; }
+    if (d.field === "t" && d.tv !== "abs") {
+      var R = d.tv === "dt" ? DT_MAX : dzMax(d.lk), dv = (s.c[0] / 127 - 1) * R, sat = Math.abs(dv) >= R * 0.999 ? " or more" : "";
+      txt = s.c[0] === 255 ? "no data" : (d.tv === "dt" ? (dv >= 0 ? "+" : "−") + Math.abs(dv).toFixed(1) + " °C" : (dv >= 0 ? "+" : "−") + Math.abs(Math.round(dv)) + " m") + sat +
+        " since the " + (d.pc ? runName(d.pc) : "previous") + " run";
+      var tz1 = tzAt(d, px, py); if (tz1 && tz1[0] !== null && d.tv === "dt") extra.push("now " + num(tz1[0] - 273.15, 1) + " °C");
+    }
+    else if (d.field === "t") { var tc = tOf(s.c[0]); txt = tc === null ? "no data" : num(tc, 1) + " °C (" + (tc + 273.15).toFixed(1) + " K)"; }
     else if (d.field === "wind") {
       if (s.c[0] === 255 || !d.q) txt = "no data";
       else { var u = d.q[0] + s.c[0] * d.q[1], v = d.q[0] + s.c[1] * d.q[1], sp = Math.sqrt(u * u + v * v);
@@ -1750,7 +1811,7 @@
 
   // ── URL hash: #[model/]hemisphere/field/level-or-isentrope/step[/u] (no model = the GFS) ────────────────────────────
   function writeHash() { try { history.replaceState(null, "", "#" + (st.model === "gfs" ? "" : st.model + "/") + st.hemi + "/" + st.field + "/" + levName(curLev()) + "/" + st.hour +
-    (st.field === "wind" && st.wv === "u" ? "/u" : "")); } catch (e) {} }
+    (st.field === "wind" && st.wv === "u" ? "/u" : st.field === "t" && st.tv !== "abs" ? "/" + st.tv : "")); } catch (e) {} }
   function readHash() {
     var p = location.hash.replace("#", "").split("/");
     if (MODELS[p[0]]) st.model = p.shift();
@@ -1759,6 +1820,7 @@
     if (p[2] && p[2] !== "-") { if (st.field === "pv") st.th = p[2]; else st.lev = levKey(p[2]); }
     var hadHour = p[3] !== undefined && /^\d+$/.test(p[3]); if (hadHour) st.hour = +p[3];
     if (p[4] === "u") st.wv = "u";
+    if (T_SUBS[p[4]]) st.tv = p[4];
     return hadHour;
   }
   // the run's checks (scripts/models/strat_maps.py "checks") and the polar-cap PV beside GEOS FP's, for the method section
@@ -1816,7 +1878,7 @@
   var bust = "?v=" + Math.floor(Date.now() / 60000);
   Promise.all(MODEL_ORDER.map(function (m) {
     return fetch("/assets/models/strat_" + m + ".json" + bust).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (d) {
-      man[m] = d; var x = cycleOf(m); if (x) x.model = m; });
+      man[m] = d; ((d && d.cycles) || []).forEach(function (x) { x.model = m; }); });
   })).then(function () {
     if (!cyc()) { var alt = MODEL_ORDER.filter(cycleOf)[0]; if (alt) st.model = alt; }
     var c = cyc();
