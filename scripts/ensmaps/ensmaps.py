@@ -13,7 +13,8 @@ Ensembles and grids (one job per model, each as its run lands; ensmaps.yml):
         ranges through each file's .idx
   geps  GEPS, the control and 20 perturbed members, 0.5 deg; the MSC Datamart through scripts/geps/datamart.py
 A day is a calendar UTC day, the mean of 06, 12, 18 and 24 UTC: a 00Z run has 15 full days, a 12Z run 14 (its first
-and last partial days are not read). Spans: days 1-5, 6-10, 11-15 (the last cut at the run's last day) and each day.
+and last partial days are not read); GEFS and GEPS, which run to +384 h, one more. Spans: days 1-5, 6-10, 11-15 (the
+last cut at the run's last day) and each day.
 
 Anomaly: each member's daily mean less the day's normal (ensmaps_ref.Normals: the curve averaged over the day's four
 times). 2 m temperature: ERA5-Land/ERA5 at 0.1 deg; on a coarser grid it is averaged over each cell (cellmeans) and
@@ -37,8 +38,9 @@ Files, per field and span (assets/models/data/ensmaps/<model>/<cycle>/<field>/),
                   a/<span>/<row><col>.webp, 6 x 6 tiles of 300 x 600 points each with one more row and column shared
                   with the next tile (the last column wraps to 180W).
   c/<span>.webp   R change of the members' mean, (code - 128) x enc[field]["change"], 0 = none; G 1 = significant
-The manifest (assets/models/ensmaps_<model>.json, newest run only) lists the spans, members, gates, grids and
-encodings; this run's statistics for the next run go to --save.
+  r/<sector><regime>/<span>.webp   the members of one weather regime (ensmaps_regimes.py), as a/ on the 0.5-deg grid
+The manifest (assets/models/ensmaps_<model>.json, newest run only) lists the spans, members, gates, grids, encodings
+and the regimes; this run's statistics for the next run go to --save, its regime labels to --regimes-out.
 
     python scripts/ensmaps/ensmaps.py plan --model ifs --manifests assets/models
     python scripts/ensmaps/ensmaps.py run --model ifs --cycle 2026102500 --site . --normals ref/ensmaps_t2m_normals.npz \
@@ -72,12 +74,13 @@ sys.path[:0] = [
     str(ROOT / "scripts" / "ecmwf"),
     str(ROOT / "scripts" / "lib"),
     str(ROOT / "scripts" / "geps"),
+    str(ROOT / "scripts" / "regimes"),
 ]
 import ensmaps_ref as R
 
 FIELDS = ("t2m", "z500", "msl")
 SAMPLES = (6, 12, 18, 24)  # hours after a day's 00 UTC: the four fields of its mean
-LAST_STEP = 360
+LAST_STEP = 360  # the ECMWF ensembles' last step; GEFS and GEPS run to 384 (Model.last_step)
 PERIOD = 5  # days per window
 FDR_Q = 0.10
 LAPSE = 6.5e-3  # K/m: a coarser grid's 2 m normal is moved to the model's surface height at this rate
@@ -156,6 +159,14 @@ def to_half(a: np.ndarray, res: float) -> np.ndarray:
         wr = w1[h - (j - lo) : h + (hi - j)] * cw[lo:hi]
         out[..., r, :] = np.tensordot(wr, xs[..., lo:hi, :], axes=(0, -2)) / wr.sum()
     return out
+
+
+def to25(a: np.ndarray, res: float) -> np.ndarray:
+    """A global field (90N first, columns from 180W) -> the regimes' 2.5-deg NCEP grid (regime_core.box25, which takes
+    columns from 0E)."""
+    import regime_core as RC
+
+    return RC.box25(np.roll(a, a.shape[-1] // 2, axis=-1), res).astype(np.float32)
 
 
 def roll_rows(v: np.ndarray, lat0: float, lon0: float, inc: float, up: bool) -> np.ndarray:
@@ -362,21 +373,23 @@ class Model:
     member_key: str  # the GRIB key that numbers the members (GEFS: one file per member, numbered by the fetch)
     fetch: Callable
     source: str
-    ready: Callable
+    ready: Callable  # (date, hh, last step) -> the run is complete to its last step
+    last_step: int
+    due_h: float  # hours after the start by which a run is usually complete
 
 
 def ready_ecmwf(model: str) -> Callable:
-    def ready(date: str, hh: str) -> bool:
+    def ready(date: str, hh: str, last: int) -> bool:
         import cycles
 
-        steps = tuple(range(6, LAST_STEP + 1, 6))
+        steps = tuple(range(6, last + 1, 6))
         if model == "ifs":
             needs = (
-                cycles.Need("ifs", "ef", step=LAST_STEP, every=steps, resol="0p1", levtype="sfc"),
-                cycles.Need("ifs", "ef", step=LAST_STEP, every=steps),
+                cycles.Need("ifs", "ef", step=last, every=steps, resol="0p1", levtype="sfc"),
+                cycles.Need("ifs", "ef", step=last, every=steps),
             )
         else:
-            needs = tuple(cycles.Need("aifs-ens", k, step=LAST_STEP, every=steps) for k in ("pf", "cf"))
+            needs = tuple(cycles.Need("aifs-ens", k, step=last, every=steps) for k in ("pf", "cf"))
         ok, why = cycles.is_ready(date, hh, needs)
         log(f"  {model} {date} {hh}Z: {why}")
         return ok
@@ -384,35 +397,38 @@ def ready_ecmwf(model: str) -> Callable:
     return ready
 
 
-def ready_gefs(date: str, hh: str) -> bool:
+def ready_gefs(date: str, hh: str, last: int) -> bool:
     from webget import get
 
     try:
         for mem in (GEFS_MEMBERS[0], GEFS_MEMBERS[-1]):
-            get(gefs_url(date, hh, mem, LAST_STEP) + ".idx", timeout=30, tries=2)
+            get(gefs_url(date, hh, mem, last) + ".idx", timeout=30, tries=2)
         return True
     except Exception as e:  # noqa: BLE001
-        log(f"  gefs {date} {hh}Z: +{LAST_STEP} h not there ({str(e)[:80]})")
+        log(f"  gefs {date} {hh}Z: +{last} h not there ({str(e)[:80]})")
         return False
 
 
-def ready_geps(date: str, hh: str) -> bool:
+def ready_geps(date: str, hh: str, last: int) -> bool:
     import datamart
 
-    return all(datamart.exists(datamart.url(date, v, LAST_STEP, hh)) for v in GEPS_VAR.values())
+    ok = all(datamart.exists(datamart.url(date, v, last, hh)) for v in GEPS_VAR.values())
+    if not ok:
+        log(f"  geps {date} {hh}Z: +{last} h not there")
+    return ok
 
 
 MODELS = {
     "ifs": Model("ifs", "IFS-ENS", 50, 1, {"t2m": G10, "z500": G25, "msl": G25}, "number", fetch_ifs,
                  "IFS-ENS perturbed members: 2 m temperature 0.1°, 500 hPa height and sea-level pressure 0.25° "
-                 "(ECMWF open data, Google Cloud mirror)", ready_ecmwf("ifs")),
+                 "(ECMWF open data, Google Cloud mirror)", ready_ecmwf("ifs"), LAST_STEP, 13.3),
     "aifs": Model("aifs", "AIFS-ENS", 51, 0, dict.fromkeys(FIELDS, G25), "number", fetch_aifs,
                   "AIFS-ENS control and 50 perturbed members, 0.25° (ECMWF open data, Google Cloud mirror)",
-                  ready_ecmwf("aifs")),
+                  ready_ecmwf("aifs"), LAST_STEP, 7.5),
     "gefs": Model("gefs", "GEFS", 31, 0, dict.fromkeys(FIELDS, G50), "", fetch_gefs,
-                  "GEFS control and 30 perturbed members, 0.5° (NOAA open data, AWS)", ready_gefs),
+                  "GEFS control and 30 perturbed members, 0.5° (NOAA open data, AWS)", ready_gefs, 384, 6.0),
     "geps": Model("geps", "GEPS", 21, 0, dict.fromkeys(FIELDS, G50), "perturbationNumber", fetch_geps,
-                  "GEPS control and 20 perturbed members, 0.5° (MSC Datamart)", ready_geps),
+                  "GEPS control and 20 perturbed members, 0.5° (MSC Datamart)", ready_geps, 384, 5.3),
 }  # fmt: skip
 
 
@@ -507,12 +523,13 @@ def significant(p: np.ndarray) -> np.ndarray:
 
 
 # ── days and spans ────────────────────────────────────────────────────────────────────────────────────────────────────
-def full_days(init: pd.Timestamp) -> list[tuple[pd.Timestamp, list[int]]]:
-    """[(day, steps of its four fields)] for the run's calendar UTC days whose four fields are all forecast steps."""
+def full_days(init: pd.Timestamp, last: int = LAST_STEP) -> list[tuple[pd.Timestamp, list[int]]]:
+    """[(day, steps of its four fields)] for the run's calendar UTC days whose four fields are all forecast steps up to
+    `last`."""
     out = []
-    for day in pd.date_range(init.normalize(), (init + pd.Timedelta(hours=LAST_STEP)).normalize()):
+    for day in pd.date_range(init.normalize(), (init + pd.Timedelta(hours=last)).normalize()):
         steps = [int((day + pd.Timedelta(hours=h) - init) / pd.Timedelta(hours=1)) for h in SAMPLES]
-        if steps[0] >= 6 and steps[-1] <= LAST_STEP:
+        if steps[0] >= 6 and steps[-1] <= last:
             out.append((day, steps))
     return out
 
@@ -665,19 +682,21 @@ class Field:
         self.win_norm = np.zeros(g.shape, np.float32)
         self.S = np.full((n, ndays, *G50.shape), np.nan, np.float32)  # member daily means on the 0.5-deg cells
         self.done = np.zeros((n, ndays), bool)
+        self.N50 = np.full((ndays, *G50.shape), np.nan, np.float32) if normals is not None else None  # the day normals
 
 
-def frame_a(f: Field, anom: np.ndarray | None, agree: np.ndarray | None, mean: np.ndarray) -> np.ndarray:
-    e = ENC[f.name]
-    m = mean - 273.15 if f.name == "t2m" else mean
+def frame(name: str, anom: np.ndarray | None, agree: np.ndarray | None, mean: np.ndarray, high=None) -> np.ndarray:
+    """An anomaly frame (a/, r/): R anomaly, G members agreeing, B mean; `high` masks the anomaly."""
+    e = ENC[name]
+    m = mean - 273.15 if name == "t2m" else mean
     if anom is None:
-        r = np.zeros(f.g.shape, np.uint8)
-        g = np.full(f.g.shape, 255, np.uint8)
+        r = np.zeros(mean.shape, np.uint8)
+        g = np.full(mean.shape, 255, np.uint8)
     else:
         r = code_signed(anom, e["anom"])
         g = agree.copy()
-        if f.high is not None:
-            r[f.high], g[f.high] = 0, 255
+        if high is not None:
+            r[high], g[high] = 0, 255
     return np.dstack([r, g, code_mean(m, e["lo"], e["mean"])])
 
 
@@ -687,7 +706,7 @@ def run(a) -> int:
     init = pd.Timestamp(f"{key_c[:8]} {key_c[8:]}:00")
     date, hh = key_c[:8], key_c[8:]
     prev_init = init - pd.Timedelta(hours=12)
-    days = full_days(init)
+    days = full_days(init, mod.last_step)
     if os.environ.get("ENSMAPS_DAYS"):  # testing only: the first n days
         days = days[: int(os.environ["ENSMAPS_DAYS"])]
     site = Path(a.site)
@@ -725,6 +744,7 @@ def run(a) -> int:
     n = mod.members
     F = {f: Field(f, mod.grids[f], n, len(days), normals[f], high.get(f)) for f in FIELDS}
     W = Writer(outdir, a.threads)
+    Z25 = np.full((n, len(days), 73, 144), np.nan, np.float32)  # the regimes' field: 500 hPa height on 2.5 deg
     spans_meta: dict = {}
     min_n = int(np.ceil(MIN_SHARE * n))
 
@@ -738,9 +758,9 @@ def run(a) -> int:
             return
         m, agree = agreeing(x, mem)
         if norm is None:
-            img = frame_a(fd, None, None, m)
+            img = frame(fd.name, None, None, m)
         else:
-            img = frame_a(fd, m, agree, m + norm)
+            img = frame(fd.name, m, agree, m + norm, fd.high)
             entry["k"][fd.name] = sign_k(int(mem.size))
         entry["n"][fd.name] = int(mem.size)
         W.put(f"{fd.name}/a/{name}", img, fd.g.tiled)
@@ -785,9 +805,12 @@ def run(a) -> int:
                 fd.acc[~ok] = np.nan
                 for i in np.flatnonzero(ok):
                     fd.S[i, k] = to_half(fd.acc[i], fd.g.res)
+                    if fd.name == "z500":
+                        Z25[i, k] = to25(fd.acc[i], fd.g.res)
                 fd.done[:, k] = ok
                 norm = day_normal(fd.normals, day) if fd.normals is not None else None
                 if norm is not None:
+                    fd.N50[k] = to_half(norm, fd.g.res)
                     fd.acc -= norm[None]
                 draw(fd, f"D{k + 1:02d}", k, k, fd.acc, ok, norm)
                 if k in [k0 for k0, _ in windows(len(days))]:
@@ -846,6 +869,15 @@ def run(a) -> int:
         log(f"::notice::no statistics of the previous run ({prev_init:%Y-%m-%d %H}Z): no change maps this run")
     if a.save:
         save_stats(a.save, init, days, {f: fd.S for f, fd in F.items()}, {f: fd.done for f, fd in F.items()})
+
+    # weather regimes, from the 500 hPa members held (ensmaps_regimes.py)
+    import ensmaps_regimes as ER
+
+    man_in = load_manifest(a.manifest_in, mod)
+    before = next((c for c in man_in.get("cycles", []) if c["cycle"] < key_c), None)
+    high50 = to_half(F["msl"].high.astype(np.float32), mod.grids["msl"].res) > 0.5
+    regimes = ER.run(mod, key_c, init, days, Z25, F, high50, W, a.regimes_out, before)
+    del Z25
     nbytes_out = W.close()
     wall = time.time() - t_start
     log(f"{mod.label} {key_c}: {nbytes_out / 1e6:.0f} MB of frames ({changes} change maps), fetched "
@@ -891,6 +923,7 @@ def run(a) -> int:
             "t2m": t2m_normals.meta.get("label") if t2m_normals else None,
             "upper": R.UPPER_META["label"],
         },
+        regimes=regimes,
         fetch=fetched,
         bytes=nbytes_out,
         wall_s=round(wall),
@@ -943,17 +976,24 @@ def cmd_plan(a) -> int:
         else:
             print(a.cycle)
         return 0
-    now = dt.datetime.now(dt.UTC).replace(minute=0, second=0, microsecond=0, tzinfo=None)
-    c = now.replace(hour=12 if now.hour >= 12 else 0)
-    for _ in range(4):
-        k = f"{c:%Y%m%d%H}"
-        if k in have or (have and max(have) > k):
-            return 0  # the newest published: nothing newer is complete
-        if mod.ready(f"{c:%Y%m%d}", f"{c:%H}"):
-            print(k)
+    now = dt.datetime.now(dt.UTC).replace(tzinfo=None)
+    newest = now.replace(minute=0, second=0, microsecond=0, hour=12 if now.hour >= 12 else 0)
+    t_end = time.time() + 60 * a.wait_min
+    while True:
+        c = newest
+        for _ in range(4):
+            k = f"{c:%Y%m%d%H}"
+            if k in have or (have and max(have) > k):
+                return 0  # the newest published: nothing newer is complete
+            if mod.ready(f"{c:%Y%m%d}", f"{c:%H}", mod.last_step):
+                print(k)
+                return 0
+            c -= dt.timedelta(hours=12)
+        # the newest run is due but its last step not there yet (a dispatch fired as an earlier step landed): wait
+        due = now - newest >= dt.timedelta(hours=mod.due_h) - dt.timedelta(minutes=30)
+        if not due or time.time() >= t_end:
             return 0
-        c -= dt.timedelta(hours=12)
-    return 0
+        time.sleep(60)
 
 
 def main() -> int:
@@ -964,6 +1004,7 @@ def main() -> int:
     p.add_argument("--manifests", type=Path, default=ROOT / "assets" / "models")
     p.add_argument("--cycle", default="")
     p.add_argument("--force", action="store_true")
+    p.add_argument("--wait-min", type=float, default=0.0, help="wait up to this long for a run that is due")
     r = sub.add_parser("run")
     r.add_argument("--model", choices=tuple(MODELS), required=True)
     r.add_argument("--cycle", required=True)
@@ -972,6 +1013,8 @@ def main() -> int:
     r.add_argument("--prev", type=Path, help="the previous run's statistics (save_stats)")
     r.add_argument("--save", type=Path, help="write this run's statistics here")
     r.add_argument("--manifest-in", type=Path, help="the manifest on main (default: the site's)")
+    r.add_argument("--regimes-out", type=Path, default=ROOT / "assets" / "regimes" / "data",
+                   help="where the regime labels (ensmaps_members_<model>.json) and drift archive go")  # fmt: skip
     r.add_argument("--lists", type=Path, help="write publish.txt, prune.txt and floor.txt here")
     r.add_argument("--threads", type=int, default=min(4, os.cpu_count() or 1))
     a = ap.parse_args()

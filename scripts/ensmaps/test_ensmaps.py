@@ -15,10 +15,15 @@ data are fetched.
   test     welch_p equals scipy's Welch test
   chain    a run's statistics serve the run 12 h later, 00Z -> 12Z and 12Z -> 00Z, the last window cut to the shared
            days
+  regimes  members whose 500 hPa anomaly is a regime's centroid are labelled with it (every day in its own season's
+           set) and the record is regime_core's format; a period's label day is the middle day, whose 5-day running
+           mean is the period's own mean; the run-to-run test finds a planted shift and nothing in identical runs; a
+           12Z run's day 16 needs +384 h
 """
 
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 from pathlib import Path
@@ -31,6 +36,9 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import ensmaps as E  # (imports pyproj before eccodes)
 import ensmaps_ref as R
+import ensmaps_regimes as ER
+import regime_core as RC
+import regimes_ecmwf as RE
 import eccodes
 
 RNG = np.random.default_rng(20261025)
@@ -215,6 +223,64 @@ def chain():
     )
 
 
+def regimes():
+    print("regimes")
+    ref = RC.Ref()
+    init = pd.Timestamp("2026-10-25 00:00")
+    days = E.full_days(init)
+    dates = [d.date() for d, _ in days]
+    nd, nm = len(dates), 12
+    pattern = {}
+    an = np.zeros((nd, 73, 144))
+    for sk in RC.SECTORS:
+        cent, lat, lon = ref.centroids(sk, "cold")
+        k = 1 if sk == "ea" else 2
+        lon360 = lon % 360
+        rows = [int(np.rint((90 - la) / 2.5)) for la in lat]
+        cols = [int(np.rint(lo / 2.5)) % 144 for lo in lon360]
+        an[:, np.ix_(rows, cols)[0], np.ix_(rows, cols)[1]] = cent[k]
+        pattern[sk] = k
+    Z25 = np.zeros((nm, nd, 73, 144), np.float32)
+    clim = RE.era5_clim(dates)
+    Z25[:, :, :37] = (clim + an[:, :37])[None]
+    ok = np.ones((nm, nd), bool)
+
+    class Mod:
+        key, label, source = "test", "Test", "synthetic members"
+
+    with tempfile.TemporaryDirectory() as d:
+        got = ER.labels(Mod, "2026102500", init, dates, Z25, ok, Path(d))
+        rec = json.loads((Path(d) / "ensmaps_members_test.json").read_text())
+        arch = json.loads((Path(d) / "ensmaps_drift_test.json").read_text())
+    labs = got[0]
+    check(all((labs[sk] == pattern[sk]).all() for sk in labs), "members on a centroid are labelled with its regime")
+    check(
+        rec["schema"] == RC.SCHEMA and rec["cycle"] == "2026102500" and len(rec["valid"]) == nd,
+        "the record is regime_core's format",
+    )
+    check(
+        list(arch["runs"]) == ["20261025"] and len(arch["runs"]["20261025"]["ea"]) == RE.NDAYS,
+        "the 00Z run joins the drift archive",
+    )
+    a = RNG.normal(size=14)
+    rp = RC.running_partial(a, RC.SMOOTH)
+    check(
+        all(abs(rp[min(k0 + 2, k1)] - a[k0 : k1 + 1].mean()) < 1e-12 for _, k0, k1 in E.spans(14)[:3]),
+        "a period's label day carries the period's mean",
+    )
+    counts = np.array([[20, 20, 20], [5, 5, 5], [6, 6, 6]])
+    prev = {"valid": ["2026-10-25", "2026-10-26", "2026-10-27"], "n": 31, "count": counts.tolist()}
+    same = ER.vs_previous(counts, 31, dates[:3], prev)
+    moved = counts.copy()
+    moved[:, 2] = [2, 23, 6]
+    shift = ER.vs_previous(moved, 31, dates[:3], prev)
+    check(
+        not np.any(same["sig"]) and shift["sig"][0][2] and shift["sig"][1][2] and not shift["sig"][2][2],
+        "the run-to-run test finds a planted shift only",
+    )
+    check(len(E.full_days(pd.Timestamp("2026-10-25 12:00"), 384)) == 15, "a 12Z run to +384 h has 15 full days")
+
+
 def main() -> int:
     grids()
     grib_checks()
@@ -223,6 +289,7 @@ def main() -> int:
     gate()
     test()
     chain()
+    regimes()
     print("all checks passed")
     return 0
 

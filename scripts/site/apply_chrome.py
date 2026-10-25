@@ -55,7 +55,7 @@ PRODUCTS = [
             (
                 "/ens-anomalies.html",
                 "World ensembles, to day 15",
-                "Zoomable world maps of the newest IFS-ENS, AIFS-ENS, GEFS and GEPS runs to day 15: 2 m temperature (the IFS-ENS on its 0.1° grid), 500 hPa height and sea-level pressure against the 1991–2020 normal where the members agree on the sign, and the significant changes from the previous run, for days 1–5, 6–10, 11–15 and each day, with contours and hover values.",
+                "Zoomable world maps of the newest IFS-ENS, AIFS-ENS, GEFS and GEPS runs to day 15: 2 m temperature (the IFS-ENS on its 0.1° grid), 500 hPa height and sea-level pressure against the 1991–2020 normal where the members agree on the sign, and the significant changes from the previous run, for days 1–5, 6–10, 11–15 and each day, with contours and hover values; each member's weather regime over the Euro-Atlantic and North America, with each regime's scenario maps.",
                 "Twice daily",
             ),
             (

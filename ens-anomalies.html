@@ -140,6 +140,32 @@
   .mv-about th { background: #eef1ec; font-weight: 600; color: var(--ink); }
   .mv-about .tbl { overflow-x: auto; }
   .mv-runs { font-size: 0.95rem; color: var(--muted); margin: 0.2rem 0 0; }
+  /* the regimes view: the timeline in the panel (the map gives up its height), scenario cards and the run-to-run
+     table below the map */
+  main.mv.rg .mv-map { height: max(300px, calc(100vh - 250px - var(--rgh, 150px))); }
+  .rg-top[hidden], .rg-more[hidden] { display: none; }
+  .rg-top { margin: 0 0 0.5rem; }
+  .rg-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1rem; margin: 0 0 0.35rem; }
+  .rg-head .seg button { font-size: 1rem; padding: 0.4rem 0.8rem; min-height: 40px; }
+  .rg-key { display: flex; flex-wrap: wrap; gap: 0.2rem 0.9rem; font-size: 0.95rem; color: var(--ink2); }
+  .rg-key span { display: inline-flex; align-items: center; gap: 0.35rem; }
+  .rg-key i { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+  .rg-tlwrap { position: relative; background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; }
+  .rg-tlwrap canvas { display: block; width: 100%; cursor: pointer; }
+  .rg-more { max-width: 100rem; margin-top: 0.8rem; }
+  .rg-more > h2 { font-size: 1.15rem; margin: 1rem 0 0.4rem; }
+  .rg-cards { display: flex; flex-wrap: wrap; gap: 10px; }
+  .rg-card { font: inherit; text-align: left; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px; padding: 0.45rem 0.5rem 0.4rem;
+             cursor: pointer; width: 300px; max-width: 100%; }
+  .rg-card[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+  .rg-card b { display: flex; align-items: center; gap: 0.4rem; font-size: 1.04rem; }
+  .rg-card b i { width: 13px; height: 13px; border-radius: 3px; flex: 0 0 auto; }
+  .rg-card .sub { font-size: 0.92rem; color: var(--muted); }
+  .rg-card canvas { display: block; width: 100%; margin-top: 0.3rem; border-radius: 4px; background: var(--map); }
+  .rg-chg { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+  .rg-chg > div { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 0.45rem 0.55rem; font-size: 0.95rem; }
+  .rg-chg canvas { display: block; width: 100%; margin-top: 0.3rem; }
+  .rg-chg .sub { color: var(--muted); }
   @media (max-width: 640px) {
     main.mv { padding-top: 0.6rem; display: flex; flex-direction: column; }
     h1 { font-size: 1.45rem; margin: 0.1rem 0 0.25rem; }
@@ -354,7 +380,7 @@
 <!-- sh:end -->
 <main id="main" class="mv">
   <h1>Ensemble anomaly maps</h1>
-  <p class="lede">Four ensembles to day 15 against the 1991&ndash;2020 normal, coloured where the members agree, and what the newest run changed.</p>
+  <p class="lede">Four ensembles to day 15 against the 1991&ndash;2020 normal, coloured where the members agree, what the newest run changed, and each member's weather regime.</p>
 
   <div class="mv-panel">
   <div class="mv-bar">
@@ -372,6 +398,10 @@
     <input type="range" id="day" min="1" max="15" value="1" aria-label="Day">
     <button type="button" id="fwd" aria-label="Next day">&rsaquo;</button>
     <span class="mv-valid" id="valid" aria-live="polite"></span>
+  </div>
+  <div class="rg-top" id="rgTop" hidden>
+    <div class="rg-head"><div class="seg" id="sectors" role="group" aria-label="Sector"></div><div class="rg-key" id="rgKey"></div></div>
+    <div class="rg-tlwrap"><canvas id="rgTl" role="img" aria-label="Share of each ensemble's members in each regime, by day"></canvas><div class="mv-tip" id="rgTip"></div></div>
   </div>
   </div>
   <div class="mv-mapwrap">
@@ -395,6 +425,13 @@
     <span class="mv-keys" id="mapKeys">Click the map, then: arrows pan &middot; <kbd>+</kbd> <kbd>&minus;</kbd> zoom &middot; <kbd>0</kbd> reset &middot; <kbd>,</kbd> <kbd>.</kbd> day &middot; <kbd>Space</kbd> play</span>
   </div>
   <p class="mv-note" id="note"></p>
+  <section class="rg-more" id="rgMore" hidden aria-label="Regime scenarios and changes">
+    <h2 id="rgCardsH">Scenarios</h2>
+    <div class="rg-cards" id="rgCards"></div>
+    <h2>Since each ensemble's previous run</h2>
+    <div class="rg-chg" id="rgChg"></div>
+    <p class="mv-runs">Columns: each run's days. Coloured where the regime's share of the members moved significantly (Fisher's exact test, false discovery rate 10&nbsp;% over the table): red, more members than in the previous run; blue, fewer; percentage points. Grey: no significant move.</p>
+  </section>
 
   <section class="mv-about" id="about" aria-labelledby="aboutH">
     <h2 id="aboutH">About these maps</h2>
@@ -409,12 +446,15 @@
     </table></div>
     <p>Each ensemble is shown on its own published grid, untouched: the finer grids are not smoothed and the coarser ones are not interpolated before the colours (your browser interpolates between grid points as it draws). Each ensemble shows its newest run; the four can be a run apart, and the date line under the buttons always gives the calendar days a map covers.</p>
     <h3>Days and periods</h3>
-    <p>A day is a calendar day in UTC, the mean of the 06, 12, 18 and 24&nbsp;UTC fields. A 00&nbsp;UTC run has 15 full days (day&nbsp;1 is the day it starts), a 12&nbsp;UTC run 14 (day&nbsp;1 is the next day; its first and last half-days are left out). The periods are days 1&ndash;5, 6&ndash;10 and 11&ndash;15 (11&ndash;14 for a 12&nbsp;UTC run), each the mean of its days. A member that misses any field of a period's days is left out of that period, and a period from fewer than 80&nbsp;% of the ensemble's members is not drawn.</p>
+    <p>A day is a calendar day in UTC, the mean of the 06, 12, 18 and 24&nbsp;UTC fields. A 00&nbsp;UTC run has 15 full days (day&nbsp;1 is the day it starts), a 12&nbsp;UTC run 14 (day&nbsp;1 is the next day; its first and last half-days are left out); GEFS and GEPS, which run to 16 days, have one more. The periods are days 1&ndash;5, 6&ndash;10 and 11&ndash;15 (11&ndash;14 for a 12&nbsp;UTC run), each the mean of its days. A member that misses any field of a period's days is left out of that period, and a period from fewer than 80&nbsp;% of the ensemble's members is not drawn.</p>
     <h3>Anomaly</h3>
     <p>Each member's mean less the 1991&ndash;2020 normal for the same days, and the ensemble mean of those anomalies, coloured only where at least <i>k</i> of the <i>n</i> members give the anomaly the same sign as their mean: the smallest number a two-sided sign test against an even split passes at 5&nbsp;% (33 of 50 or 51, 22 of 31, 16 of 21). Elsewhere the members are split and the map is grey; the hover still says how many agree.</p>
     <p><b>The normals.</b> 2&nbsp;m temperature: ERA5-Land over land and ERA5 over the sea (ERA5 interpolated from its sea points only, so a coastal mountain does not chill the water beside it), the monthly means at 00, 06, 12 and 18&nbsp;UTC, so the normal samples the daily cycle as the forecast day does, on the 0.1&deg; grid of the IFS, whose orography ERA5-Land shares. On the 0.25&deg; and 0.5&deg; grids the normal is the 0.1&deg; one averaged over each cell and moved by 6.5&nbsp;&deg;C per kilometre from the IFS's height to the model's own, so a valley or a mountain cell is compared with a normal at its own height. The anomalies are the models' raw output against the reanalysis: they include the warming since 1991&ndash;2020 (in the 500&nbsp;hPa height, a positive anomaly across the tropics) and each model's own biases, which no drift correction removes. 500&nbsp;hPa height and sea-level pressure: ERA5 at 1.5&deg; (the daily means of the four synoptic hours), interpolated to each grid. Each normal is a smooth curve through the year (the mean and three annual harmonics, fitted so that its month averages match the twelve monthly normals), read at each day. The sea-level pressure anomaly is not drawn where the model's ground is above 1,500&nbsp;m: there the pressure &ldquo;at sea level&rdquo; is an extrapolation that each model and the reanalysis make differently.</p>
     <h3>Change from the previous run</h3>
     <p>This run's ensemble mean less the previous run's (12&nbsp;hours earlier) over the same calendar days, on a common 0.5&deg; grid (each member's field averaged over the 0.5&deg; cells first). It is coloured only where the change is significant: Welch's <i>t</i>-test on the two runs' members at every point, and the Benjamini&ndash;Hochberg procedure over the whole map at a false discovery rate of 10&nbsp;%, so that among the coloured points at most a tenth are expected to be chance. The last period of a 00&nbsp;UTC run is compared over days 11&ndash;14, the days the previous 12&nbsp;UTC run holds. Where the ensembles are confident (the first days) even a small change can be significant: read the size from the colours.</p>
+    <h3 id="regimes">Weather regimes</h3>
+    <p>Each run of each ensemble sorts every member's 500&nbsp;hPa height on every day into one of four recurring weather regimes of two sectors, the Euro-Atlantic (20&ndash;80&deg;N, 90&deg;W&ndash;30&deg;E) and North America and the Pacific (20&ndash;80&deg;N, 170&ndash;30&deg;W), or into none. These are the regimes of the site's multi-model regime view on the <a href="/subseasonal.html">extended-range page</a>, classified the same way: four patterns per sector and season from NCEP/NCAR reanalysis 1991&ndash;2020 (k-means on 5-day mean height anomalies), one set for October&ndash;March and one for April&ndash;September, every day taking the set of its own season; a member's 5-day running mean anomaly (against ERA5 1991&ndash;2020) goes to the nearest pattern, or to &ldquo;no regime&rdquo; when its pattern correlation with that pattern is below 0.25. No model here has a reforecast, so each ensemble's drift is learned from its own past runs: the ensemble-mean anomaly at each lead day, less what the run started on that valid day showed on its first day, averaged over the runs and removed (shrunk towards zero by <i>n</i>&nbsp;/&nbsp;(<i>n</i>&nbsp;+&nbsp;10)) once ten runs verify a lead.</p>
+    <p><b>The timeline</b> stacks, for each ensemble and day, the share of its members in each regime. A share is drawn pale unless it differs from that regime's 1991&ndash;2020 frequency within 15 days of the date: the 95&nbsp;% interval of their difference, from resampling the members and the reanalysis years 1,000 times, must exclude zero. <b>The scenarios</b> are the regimes that hold at least six members on the period's middle day (a period's label is its own 5-day mean) or on the day: the mean anomaly of just those members, coloured only where at least <i>k</i> of them agree on its sign (the sign test at 5&nbsp;% on that regime's member count; fewer than six members can never pass it). <b>Since the previous run</b>: each regime's share against the run 12&nbsp;hours earlier on the same days, coloured where Fisher's exact test on the two runs' member counts is significant with the false discovery rate held at 10&nbsp;% over the table. Each run's labels are published in the multi-model view's format (<code>assets/regimes/data/ensmaps_members_&lt;model&gt;.json</code>).</p>
     <h3>How the page works</h3>
     <p>Nothing on this page is a picture. Each model, field and period is shipped as the ensemble's own numbers (the mean anomaly to 0.25&nbsp;&deg;C, 4&nbsp;m or 0.4&nbsp;hPa, the number of members agreeing, and the ensemble mean), on its grid, as a lossless WebP image, and your browser colours, gates, contours and reads it. The 0.1&deg; maps come in 36 tiles of 30&deg; by 60&deg;, loaded as you zoom in; the world view draws every fifth point of them.</p>
     <p class="mv-runs" id="checks"></p>
@@ -432,7 +472,10 @@
   var FIELDS = { t2m: { label: "2 m temperature", up: "warmer", dn: "colder" }, z500: { label: "500 hPa height", up: "higher", dn: "lower" },
                  msl: { label: "Sea-level pressure", up: "higher", dn: "lower" } };
   var FIELD_ORDER = ["t2m", "z500", "msl"];
-  var VIEWS = { anom: "Anomaly", change: "Change from the previous run" }, VIEW_ORDER = ["anom", "change"];
+  var VIEWS = { anom: "Anomaly", change: "Change from the previous run", regimes: "Regimes" }, VIEW_ORDER = ["anom", "change", "regimes"];
+  var SECTORS = { ea: "Euro-Atlantic", na: "North America and Pacific" };
+  // the sectors' boxes (scripts/regimes/regime_core.py SECTORS): the scenario cards' maps
+  var SBOX = { ea: [-90, 30, 20, 80], na: [-170, -30, 20, 80] };
   var KF = 1.8;
   // the colour scales' half-ranges (colours saturate beyond): 2 m temperature [deg C, deg F], height m, pressure hPa
   var RANGE = { t2m: { anom: [12, 20], change: [6, 10] }, z500: { anom: [300], change: [150] }, msl: { anom: [24], change: [12] } };
@@ -449,7 +492,7 @@
 
   // ── state ──────────────────────────────────────────────────────────────────────────────────────────────────────
   var man = {};
-  var st = { model: "ifs", field: "t2m", view: "anom", span: "P1", unit: "C", playing: false };
+  var st = { model: "ifs", field: "t2m", view: "anom", span: "P1", unit: "C", playing: false, sector: "ea", regime: null, only: false };
   var view = null;                                                     // {cx, cy: degrees, s: degrees per CSS px}
   var $ = function (id) { return document.getElementById(id); };
   function escH(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
@@ -459,6 +502,14 @@
   function spanOf(c, k) { if (!c) return null; for (var i = 0; i < c.spans.length; i++) if (c.spans[i].key === k) return c.spans[i]; return null; }
   function hasAnom(c, f) { return !!(c && c.fields[f] && c.fields[f].anomaly); }
   function hasChange(c, f) { return !!(c && c.spans.some(function (s) { return s.change && s.change[f]; })); }
+  function hasRegimes(c) { return !!(c && c.regimes && c.regimes.sectors); }
+  // the scenario cards of a span and sector (regimes with at least min_members members), the most members first
+  function cardsOf(c, sp, sk) {
+    var r = c && c.regimes, s = r && r.scenarios && r.scenarios[sp];
+    return s && s[sk] ? s[sk].slice().sort(function (a, b) { return (b.n.z500 || 0) - (a.n.z500 || 0); }) : [];
+  }
+  function cardOf(c) { var cs = cardsOf(c, st.span, st.sector); return cs.filter(function (x) { return x.f === st.regime; })[0] || cs[0] || null; }
+  function relR(c, f, sp, sk, fi) { return base(c, f, "r/" + sk + fi, sp) + ".webp"; }
   function enc(f) { return cyc().enc[f]; }
   function tF() { return st.field === "t2m" && st.unit === "F"; }
   function dispK(v) { return tF() ? v * KF : v; }                   // an anomaly or change in K -> the shown unit
@@ -484,8 +535,9 @@
     }
     return stops[stops.length - 1].slice(1);
   }
-  function halfRange() { var r = RANGE[st.field][st.view]; return st.field === "t2m" && st.unit === "F" ? r[1] : r[0]; }
-  function stepOf() { var e = enc(st.field); return st.view === "anom" ? e.anom : e.change; }
+  function scale() { return st.view === "change" ? "change" : "anom"; }   // the regimes view shows anomalies
+  function halfRange() { var r = RANGE[st.field][scale()]; return st.field === "t2m" && st.unit === "F" ? r[1] : r[0]; }
+  function stepOf() { var e = enc(st.field); return scale() === "anom" ? e.anom : e.change; }
   // 256-entry colour table: the shader looks up the (interpolated) code; codes run (code - 128) x step
   function buildLut() {
     var lut = new Uint8Array(256 * 4), R = halfRange(), stp = stepOf();
@@ -839,7 +891,7 @@
     var job = workers.length ? workerCall({ op: "geo", url: abs }).then(function (r) { return r.layers; }) : Promise.reject(new Error("no worker"));
     job.then(function (L) {
       L.forEach(function (x) { if (geo[x.name] && geo[x.name].rank > rank) return; geo[x.name] = { tiles: buildTiles(x.xy, x.off, 30), rank: rank }; });
-      drawOverlay();
+      drawOverlay(); if (st.view === "regimes") renderCards();   // the cards' maps carry the coastlines
     }).catch(function (e) { console.warn("boundaries", e); });
   }
   function buildTiles(xy, off, cell) {                            // [{bb [lon0, lon1, lat0, lat1], path}] in degrees
@@ -905,8 +957,10 @@
     }
     return out;
   }
+  // the regimes view reads one regime's member-mean frame (r/, 0.5 deg) in the anomaly frame's place
   function framesOf(c, f, view_, sp) {
-    var o = { a: relA(c, f, sp), tiles: [], c: null };
+    if (view_ === "regimes") { var cd = cardOf(c); return { a: cd ? relR(c, f, sp, st.sector, cd.f) : null, ga: gridC(c, f), tiles: [], c: null, card: cd }; }
+    var o = { a: relA(c, f, sp), ga: gridA(c, f), tiles: [], c: null };
     if (view_ === "change") o.c = relC(c, f, sp);
     else tilesInView(c, f).forEach(function (rk) { o.tiles.push({ rel: relT(c, f, sp, rk[0], rk[1]), g: gridT(c, f, rk[0], rk[1]) }); });
     return o;
@@ -923,18 +977,21 @@
   function kOf(sp, f) { return sp && sp.k && sp.k[f] ? sp.k[f] : 0; }
   function draw() {
     if (glLost) return;
+    if (thumbs.length) updateThumbs();
     var c = cyc();
     updateBadge();
     if (!c || !view) { drawOverlay(); return; }
-    var f = st.field, sp = spanOf(c, st.span), msg = "";
+    var f = st.field, sp = spanOf(c, st.span), msg = "", fr = framesOf(c, f, st.view, st.span);
     if (!sp) msg = "This period is not in this run.";
+    else if (st.view === "regimes" && !hasRegimes(c)) msg = "This run has no weather regimes: too few of its members are complete.";
+    else if (st.view === "regimes" && !fr.card) msg = "No regime holds " + (c.regimes.min_members || 6) + " or more of this ensemble's members in this period, the fewest whose agreement can be tested.";
+    else if (st.view === "regimes" && !fr.card.n[f]) msg = f === "t2m" ? "The 2 m temperature normals are still being built: pick 500 hPa height or sea-level pressure." : "Too few of this regime's members are complete for this field.";
     else if (st.view === "anom" && !hasAnom(c, f)) msg = hasChange(c, f) ? "The 2 m temperature normals are still being built: this run has the change maps only."
       : "The 2 m temperature maps start once their normals (ERA5-Land and ERA5, 1991–2020) are built and the next run has the previous one to compare with.";
     else if (st.view === "change" && !(sp.change && sp.change[f])) msg = c.prev ? "There is no change map for this period: the previous run does not cover it." : "The change maps start with the next run: the previous run's statistics were not available.";
     else if (st.view === "anom" && !(sp.n && sp.k && sp.k[f])) msg = "Too few members of this run are complete for this period.";
     if ($("msg").textContent !== msg) $("msg").textContent = msg;
     if (msg) { clearGL(); drawn = null; markShown(); drawOverlay(); schedule(); return; }
-    var fr = framesOf(c, f, st.view, st.span);
     var ea = peek(fr.a) || decoded(fr.a), ec = fr.c ? peek(fr.c) || decoded(fr.c) : null;
     var main = st.view === "change" ? ec : ea, failed = frames.get(st.view === "change" ? fr.c : fr.a);
     if (!main && failed && failed.fail) {
@@ -943,17 +1000,15 @@
     }
     var hold = !main && drawn && drawn.field === f && drawn.view === st.view && drawn.c === c;   // the last map while the next decodes
     if (!main && !hold) { drawn = null; clearGL(); drawOverlay(); schedule(); return; }
-    var dd = hold ? drawn : { c: c, field: f, view: st.view, span: st.span, sp: sp, a: ea, cc: ec, tiles: [] };
+    // n and k: the members behind the frame and the sign test's gate (a regime's own members in the regimes view)
+    var dd = hold ? drawn : { c: c, field: f, view: st.view, span: st.span, sp: sp, a: ea, ga: fr.ga, cc: ec, tiles: [], card: fr.card,
+      n: fr.card ? fr.card.n[f] : sp.n ? sp.n[f] : 0, k: fr.card ? fr.card.k[f] : kOf(sp, f) };
     if (!hold) fr.tiles.forEach(function (t) { var e = peek(t.rel) || decoded(t.rel); if (e) dd.tiles.push({ e: e, g: t.g }); });
-    var lk = f + "|" + st.view + "|" + st.unit + "|" + stepOf();
+    var lk = f + "|" + (st.view === "change" ? "change" : "anom") + "|" + st.unit + "|" + stepOf();
     if (lk !== lutKey) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, lutTex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, buildLut()); lutKey = lk; }
     clearGL();
     gl.uniform2f(loc.uC, view.cx, view.cy); gl.uniform1f(loc.uS, view.s / DPR); gl.uniform2f(loc.uWH, glc.width, glc.height);
-    if (dd.view === "change") drawTex(dd.cc, gridC(c, f), 1, 0);
-    else {
-      drawTex(dd.a, gridA(c, f), 0, kOf(dd.sp, f));
-      dd.tiles.forEach(function (t) { drawTex(t.e, t.g, 0, kOf(dd.sp, f)); });
-    }
+    drawFrames(dd);
     drawn = dd; markShown();
     ensureContours(dd);
     drawOverlay();
@@ -964,10 +1019,13 @@
     var d = drawn; if (!gl || glLost || !view || !d) return false;
     clearGL();
     gl.uniform2f(loc.uC, view.cx, view.cy); gl.uniform1f(loc.uS, view.s / DPR); gl.uniform2f(loc.uWH, glc.width, glc.height);
-    if (d.view === "change") drawTex(d.cc, gridC(d.c, d.field), 1, 0);
-    else { drawTex(d.a, gridA(d.c, d.field), 0, kOf(d.sp, d.field)); d.tiles.forEach(function (t) { if (t.e.dec) drawTex(t.e, t.g, 0, kOf(d.sp, d.field)); }); }
+    drawFrames(d);
     moveOverlay();
     return true;
+  }
+  function drawFrames(d) {
+    if (d.view === "change") drawTex(d.cc, gridC(d.c, d.field), 1, 0);
+    else { drawTex(d.a, d.ga, 0, d.k); d.tiles.forEach(function (t) { drawTex(t.e, t.g, 0, d.k); }); }
   }
 
   // ── overlay: boundaries, graticule, contour lines; labels on a second canvas once the map is at rest ─────────────
@@ -1037,7 +1095,7 @@
     if (!contoursOn() || !d || !d.a || !d.a.dec || st.playing) return;
     var key = d.a.k;
     if (CONTS.has(key) || contBusy[key]) return;
-    var g = gridA(d.c, d.field), L = levelsOf(d.field);
+    var g = d.ga, L = levelsOf(d.field);
     contBusy[key] = 1;
     workerCall({ op: "contour", w: d.a.dec.w, h: d.a.dec.h, data: d.a.dec.data, lut: meanLut(d.field, d.c.enc[d.field]), levels: L, rad: g.res >= 0.5 ? 0 : 1, minPts: 6, ch: 2 }).then(function (r) {
       var lines = r.lines.map(function (o) {
@@ -1114,7 +1172,7 @@
   function sgn(v) { return (v > 0 ? "+" : "") + minus(v); }
   function drawLegend() {
     var c = cyc(); if (!c) return;
-    var g = legSetup(38), R = halfRange(), tk = TICK[st.field][st.view][st.field === "t2m" && st.unit === "F" ? 1 : 0], ctx = g.ctx, u = unitOf(st.field), ticks = [];
+    var g = legSetup(38), R = halfRange(), tk = TICK[st.field][scale()][st.field === "t2m" && st.unit === "F" ? 1 : 0], ctx = g.ctx, u = unitOf(st.field), ticks = [];
     for (var v = -R; v <= R + 1e-9; v += tk) ticks.push(+v.toFixed(2));
     var colAt = function (t) { return interp(DIV, 2 * t - 1); };
     var neuS = rgbStr([NEU[0] * 255, NEU[1] * 255, NEU[2] * 255]);
@@ -1136,15 +1194,170 @@
         var x = X0 + (t + R) / (2 * R) * (X1 - X0), txt = sgn(t), tw = ctx.measureText(txt).width, cx = Math.min(Math.max(x, tw / 2 + 1), X1 - tw / 2);
         ctx.fillRect(x - 0.5, y + bh, 1, 4); if (cx - tw / 2 < right + 6) return; ctx.fillText(txt, cx, y + bh + 5); right = cx + tw / 2; });
       ctx.fillStyle = neuS; ctx.fillRect(X1 + 10, y, 18, bh); ctx.strokeRect(X1 + 10.5, y + 0.5, 17, bh - 1);
-      ctx.fillStyle = "#3d4540"; ctx.textAlign = "left"; ctx.fillText(st.view === "anom" ? "split" : "n.s.", X1 + 32, y);
+      ctx.fillStyle = "#3d4540"; ctx.textAlign = "left"; ctx.fillText(st.view !== "change" ? "split" : "n.s.", X1 + 32, y);
     }
     var sp = spanOf(c, st.span), n = sp && sp.n ? sp.n[st.field] : null, k = kOf(sp, st.field), f = FIELDS[st.field].label;
-    var cap = st.view === "anom"
+    var cd = st.view === "regimes" ? cardOf(c) : null, who = cd ? "the regime's members" : "the ensemble";
+    if (cd) { n = cd.n[st.field]; k = cd.k[st.field]; }
+    var cap = cd
+      ? f + " anomaly of the mean of the " + (n || "n") + " members in " + c.regimes.sectors[st.sector].names[cd.f] + " (" + SECTORS[st.sector] + ") against 1991–2020, " + u + "; coloured where at least " + (k || "k") + " of them agree on its sign (a sign test at 5 %), grey where they are split"
+      : st.view !== "change"
       ? f + " anomaly of the ensemble mean against 1991–2020, " + u + "; coloured where at least " + (k || "k") + " of the " + (n || "n") + " members agree on its sign (a sign test at 5 %), grey where they are split"
       : f + ": this run's ensemble mean less the previous run's over the same days, " + u + "; coloured where the change is significant (Welch's t-test, false discovery rate 10 %), grey elsewhere";
-    if (contoursOn()) cap += st.field === "z500" ? " · lines: the ensemble-mean height every 6 dam" : st.field === "msl" ? " · lines: the ensemble-mean pressure every 4 hPa" : " · blue line: the ensemble mean's 0 °C";
-    if (st.field === "msl" && st.view === "anom") cap += " · darker grey: ground above 1,500 m, no anomaly shown";
+    if (contoursOn()) cap += st.field === "z500" ? " · lines: " + who + "'s mean height every 6 dam" : st.field === "msl" ? " · lines: " + who + "'s mean pressure every 4 hPa" : " · blue line: " + who + "'s mean 0 °C";
+    if (st.field === "msl" && st.view !== "change") cap += " · darker grey: ground above 1,500 m, no anomaly shown";
     $("legT").textContent = cap;
+  }
+
+  // ── weather regimes: every ensemble on one day axis, the scenario cards, the change since each previous run ──────
+  // (scripts/ensmaps/ensmaps_regimes.py: counts per regime and day, the significance against the 1991-2020 frequency,
+  // the member-mean maps of each regime holding enough members, the run-to-run test)
+  var REG_ROW = 24, REG_ONLY = 80, REG_AX = 20, REG_LAB = 104, mainEl = $("main");
+  function regModels() { return MODEL_ORDER.filter(function (m) { var c = cycleOf(m); return hasRegimes(c) && c.regimes.sectors[st.sector]; }); }
+  function regDates(ms) { var s = {}; ms.forEach(function (m) { cycleOf(m).regimes.sectors[st.sector].valid.forEach(function (d) { s[d] = 1; }); }); return Object.keys(s).sort(); }
+  function shortDate(d) { return new Date(d + "T12:00Z").toLocaleString("en-US", { timeZone: "UTC", month: "short", day: "numeric" }); }
+  function pct(x) { return Math.round(100 * x) + " %"; }
+  var tlHit = null;                                                // the timeline's rows, dates and columns, for clicks
+  function drawTimeline() {
+    var cv = $("rgTl"), all = regModels(), ms = st.only && all.indexOf(st.model) >= 0 ? [st.model] : all, rh = ms.length === 1 && st.only ? REG_ONLY : REG_ROW;
+    var dates = regDates(all), w = cv.parentNode.clientWidth, h = REG_AX + Math.max(1, ms.length) * (rh + 4) + 4, dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.style.height = h + "px"; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+    var key = all.length ? cycleOf(all[0]).regimes.sectors[st.sector] : null;
+    $("rgKey").innerHTML = key ? key.names.map(function (nm, f) { return nm === null ? "" : "<span><i style=\"background:" + key.colors[f] + "\"></i>" + escH(nm) + "</span>"; }).join("") +
+      "<span>pale: not different from the 1991–2020 frequency for the date · click an ensemble's name to show it alone</span>" : "";
+    mainEl.style.setProperty("--rgh", ($("rgTop").offsetHeight + 12) + "px");
+    if (!ms.length) { ctx.fillStyle = "#6f6b64"; ctx.font = "14px 'Source Sans 3', Arial, sans-serif"; ctx.textBaseline = "middle"; ctx.fillText("No ensemble run with regimes yet.", 10, h / 2); tlHit = null; return; }
+    var x0 = REG_LAB, cw = (w - x0 - 6) / dates.length, step = Math.max(1, Math.ceil(44 / cw));
+    ctx.font = "12px 'Source Sans 3', Arial, sans-serif"; ctx.fillStyle = "#3d4540"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    dates.forEach(function (d, i) { if (!(i % step)) ctx.fillText(shortDate(d), x0 + (i + 0.5) * cw, REG_AX / 2); });
+    var rows = [], c = cyc(), sp = spanOf(c, st.span);
+    ms.forEach(function (m, r) {
+      var cc = cycleOf(m), S = cc.regimes.sectors[st.sector], y0 = REG_AX + r * (rh + 4) + 2;
+      rows.push({ m: m, y0: y0, y1: y0 + rh });
+      ctx.textAlign = "left"; ctx.fillStyle = m === st.model ? "#1f261c" : "#3d4540"; ctx.font = (m === st.model ? "600 " : "") + "13px 'Source Sans 3', Arial, sans-serif";
+      ctx.fillText(MODELS[m], 6, y0 + rh / 2 - (rh > 40 ? 9 : 0));
+      if (rh > 40) { ctx.font = "12px 'Source Sans 3', Arial, sans-serif"; ctx.fillStyle = "#6f6b64"; ctx.fillText("run " + runLabel(cc), 6, y0 + rh / 2 + 9); }
+      S.valid.forEach(function (d, j) {
+        var i = dates.indexOf(d), x = x0 + i * cw, yt = y0;
+        S.names.forEach(function (nm, f) {
+          var v = nm === null ? 0 : S.count[f][j] / S.n; if (!v) return;
+          ctx.globalAlpha = S.sig[f][j] ? 1 : 0.32; ctx.fillStyle = S.colors[f]; ctx.fillRect(x + 0.5, yt, Math.max(1, cw - 1), v * rh);
+          if (rh > 40 && v >= 0.2 && cw > 24) { ctx.globalAlpha = 1; ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "600 11px 'Source Sans 3', Arial, sans-serif"; ctx.fillText(String(Math.round(100 * v)), x + cw / 2, yt + v * rh / 2); }
+          yt += v * rh;
+        });
+        ctx.globalAlpha = 1;
+      });
+      if (m === st.model && sp) {                                  // the period or day on the map
+        var i0 = dates.indexOf(sp.first), i1 = dates.indexOf(sp.last);
+        if (i0 >= 0 && i1 >= 0) { ctx.strokeStyle = "#1f261c"; ctx.lineWidth = 2; ctx.strokeRect(x0 + i0 * cw + 1, y0 - 1, (i1 - i0 + 1) * cw - 2, rh + 2); }
+      }
+    });
+    tlHit = { rows: rows, dates: dates, x0: x0, cw: cw };
+  }
+  function tlAt(e) {
+    if (!tlHit) return null;
+    var r = $("rgTl").getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    var row = tlHit.rows.filter(function (q) { return y >= q.y0 - 2 && y <= q.y1 + 2; })[0];
+    return row ? { row: row, x: x, y: y, d: x >= tlHit.x0 ? tlHit.dates[Math.floor((x - tlHit.x0) / tlHit.cw)] : null } : null;
+  }
+  $("rgTl").addEventListener("click", function (e) {
+    var a = tlAt(e); if (!a) return;
+    if (!a.d) { st.only = !(st.only && st.model === a.row.m); if (a.row.m !== st.model) selectModel(a.row.m); else onChange(); return; }
+    if (a.row.m !== st.model) selectModel(a.row.m);
+    var k = cyc().days.indexOf(a.d); if (k >= 0) pickSpan("D" + ("0" + (k + 1)).slice(-2));
+  });
+  $("rgTl").addEventListener("mousemove", function (e) {
+    var a = tlAt(e), t = $("rgTip");
+    if (!a || !a.d) { t.style.display = "none"; return; }
+    var S = cycleOf(a.row.m).regimes.sectors[st.sector], j = S.valid.indexOf(a.d);
+    if (j < 0) { t.style.display = "none"; return; }
+    t.innerHTML = "<span class=\"v\">" + escH(MODELS[a.row.m] + " · " + shortDate(a.d)) + "</span>" + S.names.map(function (nm, f) {
+      return nm === null ? "" : "<br>" + escH(nm + ": " + S.count[f][j] + " of " + S.n + " (" + pct(S.count[f][j] / S.n) + "), normal " + pct(S.clim[f][j]) + (S.sig[f][j] ? "" : ", not different from it"));
+    }).join("");
+    t.style.display = "block";
+    var wr = $("rgTl").parentNode.clientWidth; t.style.left = Math.min(a.x, wr - t.offsetWidth - 16) + "px"; t.style.top = a.y + "px";
+  });
+  $("rgTl").addEventListener("mouseleave", function () { $("rgTip").style.display = "none"; });
+
+  // scenario cards: one per regime with enough members, its members' mean 500 hPa anomaly over the sector, gated by
+  // the sign test on its own members; a click puts that regime on the map (in the field chosen above)
+  var LUTZ = null, thumbs = [];
+  function lutZ() {
+    if (LUTZ) return LUTZ;
+    var e = enc("z500"), R = RANGE.z500.anom[0]; LUTZ = new Uint8Array(256 * 4);
+    for (var c = 1; c < 256; c++) { var col = interp(DIV, Math.max(-1, Math.min(1, (c - 128) * e.anom / R))); LUTZ[4 * c] = col[0]; LUTZ[4 * c + 1] = col[1]; LUTZ[4 * c + 2] = col[2]; LUTZ[4 * c + 3] = 255; }
+    return LUTZ;
+  }
+  function drawThumb(t) {
+    var e = peek(t.rel); if (!e || !e.dec) return false;
+    var bx = SBOX[t.sk], res = 0.5, nx = Math.round((bx[1] - bx[0]) / res), ny = Math.round((bx[3] - bx[2]) / res), L = lutZ();
+    var img = new ImageData(nx, ny), o = img.data, w = e.dec.w, a = e.dec.data;
+    for (var j = 0; j < ny; j++) for (var i = 0; i < nx; i++) {
+      var gi = (Math.round((bx[0] + (i + 0.5) * res + 180) / res) % w + w) % w, gj = Math.round((90 - bx[3] + (j + 0.5) * res) / res), q = 3 * (gj * w + gi), p = 4 * (j * nx + i);
+      var r = a[q], g = a[q + 1], col = !r ? [MIS[0] * 255, MIS[1] * 255, MIS[2] * 255] : g >= t.k && g < 255 ? [L[4 * r], L[4 * r + 1], L[4 * r + 2]] : [NEU[0] * 255, NEU[1] * 255, NEU[2] * 255];
+      o[p] = col[0]; o[p + 1] = col[1]; o[p + 2] = col[2]; o[p + 3] = 255;
+    }
+    var off = document.createElement("canvas"); off.width = nx; off.height = ny; off.getContext("2d").putImageData(img, 0, 0);
+    var cv = t.cv, cw = cv.clientWidth || 280, ch = cw * ny / nx, dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.style.height = ch + "px"; cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
+    var ctx = cv.getContext("2d"); ctx.imageSmoothingEnabled = true; ctx.drawImage(off, 0, 0, cv.width, cv.height);
+    var sx = cv.width / (bx[1] - bx[0]), sy = cv.height / (bx[3] - bx[2]);
+    ctx.setTransform(sx, 0, 0, -sy, -bx[0] * sx, bx[3] * sy); ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(28,30,28,0.8)"; ctx.lineWidth = 0.9 * dpr / sx;
+    if (geo.coast) geo.coast.tiles.forEach(function (tl) { var b = tl.bb; if (b[1] >= bx[0] && b[0] <= bx[1] && b[3] >= bx[2] && b[2] <= bx[3]) ctx.stroke(tl.path); });
+    return true;
+  }
+  function updateThumbs() { thumbs = thumbs.filter(function (t) { return t.cv.isConnected && !drawThumb(t); }); }
+  function renderCards() {
+    var box = $("rgCards"), c = cyc(), sp = spanOf(c, st.span); box.innerHTML = ""; thumbs = [];
+    if (!hasRegimes(c) || !sp) return;
+    var S = c.regimes.sectors[st.sector], sc = c.regimes.scenarios[st.span], kl = sc ? sc.day - 1 : null, cards = cardsOf(c, st.span, st.sector), cur = cardOf(c);
+    $("rgCardsH").textContent = "Scenarios: " + MODELS[st.model] + ", " + sp.label.split(" · ")[0].toLowerCase() + ", " + SECTORS[st.sector];
+    if (!cards.length) { var p = document.createElement("p"); p.className = "mv-runs"; p.textContent = "No regime holds " + (c.regimes.min_members || 6) + " or more of the " + S.n + " members in this period."; box.appendChild(p); return; }
+    cards.forEach(function (cd) {
+      var b = document.createElement("button"), cnt = S.count[cd.f][kl];
+      b.type = "button"; b.className = "rg-card"; b.setAttribute("aria-pressed", String(!!cur && cd.f === cur.f));
+      b.innerHTML = "<b><i style=\"background:" + S.colors[cd.f] + "\"></i>" + escH(S.names[cd.f]) + "</b><span class=\"sub\">" + cnt + " of " + S.n + " members (" + pct(cnt / S.n) + ") on " + escH(shortDate(S.valid[kl])) +
+        " · normal " + pct(S.clim[cd.f][kl]) + (S.sig[cd.f][kl] ? "" : ", not different from it") + "</span>";
+      var cv = document.createElement("canvas"); cv.setAttribute("role", "img"); cv.setAttribute("aria-label", "500 hPa height anomaly of the members in " + S.names[cd.f]); b.appendChild(cv);
+      b.onclick = function () { st.regime = cd.f; renderCards(); onChange(); mapEl.scrollIntoView({ behavior: "smooth", block: "nearest" }); };
+      box.appendChild(b);
+      if (cd.k.z500) { var t = { cv: cv, rel: relR(c, "z500", st.span, st.sector, cd.f), k: cd.k.z500, sk: st.sector }; decoded(t.rel); thumbs.push(t); }
+    });
+    updateThumbs();
+  }
+  // the change in each regime's share since each ensemble's previous run: coloured where significant
+  function renderChanges() {
+    var box = $("rgChg"); box.innerHTML = "";
+    regModels().forEach(function (m) {
+      var cc = cycleOf(m), S = cc.regimes.sectors[st.sector], ch = S.change, div = document.createElement("div");
+      div.innerHTML = "<b>" + MODELS[m] + "</b> <span class=\"sub\">run " + escH(runLabel(cc)) + (ch ? " against " + escH(ch.cycle.slice(6, 8) + "/" + ch.cycle.slice(4, 6) + " " + ch.cycle.slice(8) + "Z") : ": no earlier run with regimes to compare with yet") + "</span>";
+      box.appendChild(div);
+      if (!ch) return;
+      var fams = S.names.map(function (nm, f) { return nm === null ? -1 : f; }).filter(function (f) { return f >= 0; });
+      var cv = document.createElement("canvas"); div.appendChild(cv);
+      var w = div.clientWidth - 12, lab = 112, rh = 16, h = 16 + fams.length * rh, dpr = Math.min(window.devicePixelRatio || 1, 2), nd = S.valid.length, cw = (w - lab) / nd;
+      cv.style.height = h + "px"; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+      var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.font = "11px 'Source Sans 3', Arial, sans-serif"; ctx.textBaseline = "middle"; ctx.textAlign = "center"; ctx.fillStyle = "#6f6b64";
+      for (var j = 0; j < nd; j += Math.max(1, Math.ceil(26 / cw))) ctx.fillText(String(j + 1), lab + (j + 0.5) * cw, 7);
+      fams.forEach(function (f, r) {
+        var y = 16 + r * rh; ctx.textAlign = "left"; ctx.fillStyle = "#3d4540"; ctx.fillText(S.names[f].length > 18 ? S.names[f].slice(0, 17) + "…" : S.names[f], 0, y + rh / 2);
+        for (var j2 = 0; j2 < nd; j2++) {
+          var dp = ch.dp[f][j2], x = lab + j2 * cw;
+          ctx.fillStyle = dp === null ? "#ffffff" : ch.sig[f][j2] ? rgbStr(interp(DIV, Math.max(-1, Math.min(1, dp / 0.6)))) : "#efefea";
+          ctx.fillRect(x + 0.5, y + 0.5, cw - 1, rh - 1);
+          if (dp !== null && ch.sig[f][j2] && cw >= 24) { ctx.textAlign = "center"; ctx.fillStyle = Math.abs(dp) > 0.35 ? "#fff" : "#1f261c"; ctx.fillText((dp > 0 ? "+" : "−") + Math.round(100 * Math.abs(dp)), x + cw / 2, y + rh / 2); }
+        }
+      });
+    });
+  }
+  function renderRegimes() {
+    var on = st.view === "regimes";
+    $("rgTop").hidden = !on; $("rgMore").hidden = !on; mainEl.classList.toggle("rg", on);
+    if (!on) return;
+    segButtons($("sectors"), ["ea", "na"], function (k) { return SECTORS[k]; }, st.sector, function (k) { if (k === st.sector) return; st.sector = k; st.regime = null; setButtons(); onChange(); });
+    drawTimeline(); renderCards(); renderChanges();
   }
 
   // ── UI ─────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -1156,7 +1369,9 @@
     if (!c) { badgeH = setHTML("badge", "<b>" + MODELS[st.model] + "</b> · no run published yet", badgeH); validH = setHTML("valid", "", validH); return; }
     var sp = spanOf(c, st.span), lab = sp ? (st.view === "change" && sp.change && sp.change[st.field] ? sp.change[st.field].label : sp.label) : "";
     var fl = FIELDS[st.field].label;
-    badgeH = setHTML("badge", "<b>" + MODELS[st.model] + "</b> " + escH(fl.charAt(0).toLowerCase() + fl.slice(1)) + " " + (st.view === "anom" ? "anomaly" : "change") + " · run " + escH(runLabel(c)), badgeH);
+    var cd = st.view === "regimes" ? cardOf(c) : null, rn = cd ? c.regimes.sectors[st.sector].names[cd.f] : "";
+    badgeH = setHTML("badge", "<b>" + MODELS[st.model] + "</b> " + escH(fl.charAt(0).toLowerCase() + fl.slice(1)) + " " + (st.view === "change" ? "change" : "anomaly") +
+      (cd ? " · " + escH(rn) + " members" : "") + " · run " + escH(runLabel(c)), badgeH);
     var parts = lab.split(" · ");
     validH = setHTML("valid", "<span class=\"vt\">" + escH(parts[1] || "") + "</span> <span class=\"loc\">· " + escH(parts[0] || "") + "</span>", validH);
     $("day").setAttribute("aria-valuetext", lab);
@@ -1177,7 +1392,7 @@
     segButtons($("models"), MODEL_ORDER.filter(cycleOf), function (m) { return MODELS[m]; }, st.model, selectModel, function (m) { var x = cycleOf(m); return MODELS[m] + ", run " + runLabel(x); });
     segButtons($("fields"), FIELD_ORDER, function (f) { return FIELDS[f].label; }, st.field, function (f) { if (st.field === f) return; st.field = f; fixView(); setButtons(); onChange(); });
     segButtons($("views"), VIEW_ORDER, function (v) { return VIEWS[v]; }, st.view, function (v) { if (st.view === v) return; st.view = v; setButtons(); onChange(); },
-      null, function (v) { return v === "anom" ? !hasAnom(c, st.field) : !hasChange(c, st.field); });
+      null, function (v) { return v === "anom" ? !hasAnom(c, st.field) : v === "change" ? !hasChange(c, st.field) : !hasRegimes(c); });
     segButtons($("wins"), wins(c).map(function (s) { return s.key; }), function (k) { var s = spanOf(c, k), d = s.label.split(" · ")[0]; return d.replace("Days ", "Days&nbsp;"); },
       st.span, pickSpan, function (k) { return spanOf(c, k).label; });
     segButtons($("units"), ["C", "F"], function (u) { return "°" + u; }, st.unit, function (u) { st.unit = u; setButtons(); onChange(); });
@@ -1187,7 +1402,12 @@
     var cur = st.span[0] === "D" ? +st.span.slice(1) : null;
     $("day").value = cur || 1; $("day").classList.toggle("off", !cur);
   }
-  function fixView() { var c = cyc(); if (st.view === "anom" && !hasAnom(c, st.field) && hasChange(c, st.field)) st.view = "change"; if (st.view === "change" && !hasChange(c, st.field) && hasAnom(c, st.field)) st.view = "anom"; }
+  function fixView() {
+    var c = cyc();
+    if (st.view === "regimes" && !hasRegimes(c)) st.view = "anom";
+    if (st.view === "anom" && !hasAnom(c, st.field) && hasChange(c, st.field)) st.view = "change";
+    if (st.view === "change" && !hasChange(c, st.field) && hasAnom(c, st.field)) st.view = "anom";
+  }
   function pickSpan(k) { if (k === st.span) return; st.span = k; setButtons(); onChange(); }
   // another model: the same calendar days where it has them (its run can be 12 h apart), else the same span
   function selectModel(m) {
@@ -1202,7 +1422,7 @@
     var c = cyc(), n = "";
     if (c && !hasAnom(c, "t2m") && st.field === "t2m") n = "The 2 m temperature normals (ERA5-Land and ERA5, 1991–2020) are still being built; until they are, this ensemble's 2 m temperature has the change maps only.";
     $("note").innerHTML = n;
-    drawLegend(); prefetch(); writeHash(); render();
+    renderRegimes(); drawLegend(); prefetch(); writeHash(); render();
   }
   // Prefetch: the map on screen first (its anomaly frame, the tiles in view, the change frame), then the same map on
   // the other days and periods (the 0.1-deg grids: their overviews), nearest first; on a slow connection only the next
@@ -1210,8 +1430,14 @@
   function prefetch() {
     var c = cyc(); if (!c) return;
     var f = st.field, list = [], spans = c.spans.map(function (s) { return s.key; }), i0 = Math.max(0, spans.indexOf(st.span)), slow = netSlow();
-    function add(sp) { var fr = framesOf(c, f, st.view, sp); if (st.view === "change") { var s = spanOf(c, sp); if (!(s && s.change && s.change[f])) return; list.push(fr.c); } list.push(fr.a); if (sp === st.span) fr.tiles.forEach(function (t) { list.push(t.rel); }); }
+    function add(sp) {
+      var fr = framesOf(c, f, st.view, sp);
+      if (st.view === "change") { var s = spanOf(c, sp); if (!(s && s.change && s.change[f])) return; list.push(fr.c); }
+      if (fr.a) list.push(fr.a);
+      if (sp === st.span) fr.tiles.forEach(function (t) { list.push(t.rel); });
+    }
     add(st.span);
+    if (st.view === "regimes") cardsOf(c, st.span, st.sector).forEach(function (cd) { if (cd.k.z500) list.push(relR(c, "z500", st.span, st.sector, cd.f)); });   // the cards' maps
     var nU = list.length;
     var order = [];
     for (var d = 1; d < spans.length; d++) { if (i0 + d < spans.length) order.push(spans[i0 + d]); if (i0 - d >= 0) order.push(spans[i0 - d]); }
@@ -1224,8 +1450,8 @@
     playT = setTimeout(function () {
       playT = 0; if (!st.playing) return;
       var c = cyc(), ds = days(c), i = st.span[0] === "D" ? +st.span.slice(1) : 0, next = ds[i % ds.length].key;
-      var fr = framesOf(c, st.field, st.view, next), e = frames.get(st.view === "change" ? fr.c : fr.a), ready = !!(e && (e.dec || e.fail));
-      if (ready) { st.span = next; setButtons(); onChange(); } else { decoded(st.view === "change" ? fr.c : fr.a); prefetch(); schedule(); }
+      var fr = framesOf(c, st.field, st.view, next), rel = st.view === "change" ? fr.c : fr.a, e = rel && frames.get(rel), ready = !rel || !!(e && (e.dec || e.fail));
+      if (ready) { st.span = next; setButtons(); onChange(); } else { decoded(rel); prefetch(); schedule(); }
     }, 650);
   }
   function stepDay(dd) { var c = cyc(); if (!c) return; var n = days(c).length, cur = st.span[0] === "D" ? +st.span.slice(1) : (dd > 0 ? 0 : n + 1), d = Math.max(1, Math.min(n, cur + dd)); pickSpan("D" + ("0" + d).slice(-2)); }
@@ -1343,16 +1569,16 @@
     if (lat > 90 || lat < -90) { tip.style.display = "none"; return; }
     var f = d.field, e = d.c.enc[f], u = unitOf(f), dec = f === "t2m" ? 1 : f === "z500" ? 0 : 1, lines = [], head;
     var sa = null; d.tiles.forEach(function (t) { if (!sa) sa = sampleAt(t.e, t.g, lon, lat); });
-    if (!sa) sa = sampleAt(d.a, gridA(d.c, f), lon, lat);
-    var sp = d.sp, n = sp.n ? sp.n[f] : 0, k = kOf(sp, f);
-    if (d.view === "anom") {
+    if (!sa) sa = sampleAt(d.a, d.ga, lon, lat);
+    var n = d.n, k = d.k;
+    if (d.view !== "change") {
       if (!sa) { tip.style.display = "none"; return; }
       if (!sa[0]) head = f === "msl" ? "no anomaly over ground above 1,500 m" : "no data";
       else {
         var an = dispK((sa[0] - 128) * e.anom), edge = sa[0] === 1 || sa[0] === 255 ? " or more" : "";
         var ok = sa[1] >= k && sa[1] < 255;
         head = (ok ? "" : "members split: ") + fmtV(an, dec) + " " + u + edge + (an >= 0 ? " above" : " below") + " normal";
-        lines.push(sa[1] + " of " + n + " members " + (an >= 0 ? FIELDS[f].up : FIELDS[f].dn) + " than normal" + (ok ? "" : " (" + k + " needed)"));
+        lines.push(sa[1] + " of " + n + (d.card ? " members in this regime " : " members ") + (an >= 0 ? FIELDS[f].up : FIELDS[f].dn) + " than normal" + (ok ? "" : " (" + k + " needed)"));
       }
     } else {
       var sc = sampleAt(d.cc, gridC(d.c, f), lon, lat);
@@ -1363,7 +1589,7 @@
     }
     if (sa && sa[2]) {
       var mv = e.lo + (sa[2] - 1) * e.mean;
-      lines.push("ensemble mean " + (f === "t2m" ? (st.unit === "F" ? (mv * KF + 32).toFixed(0) + " °F" : mv.toFixed(1) + " °C") : f === "z500" ? Math.round(mv).toLocaleString("en-US") + " m" : mv.toFixed(1) + " hPa"));
+      lines.push((d.card ? "the regime's members' mean " : "ensemble mean ") + (f === "t2m" ? (st.unit === "F" ? (mv * KF + 32).toFixed(0) + " °F" : mv.toFixed(1) + " °C") : f === "z500" ? Math.round(mv).toLocaleString("en-US") + " m" : mv.toFixed(1) + " hPa"));
     }
     tip.innerHTML = "<span class=\"v\">" + escH(head) + "</span>" + lines.map(function (x) { return "<br>" + escH(x); }).join("") +
       "<br><span class=\"ll\">" + Math.abs(lat).toFixed(1) + "°" + (lat >= 0 ? "N" : "S") + " " + Math.abs(lon).toFixed(1) + "°" + (lon >= 0 ? "E" : "W") + "</span>";
@@ -1373,14 +1599,20 @@
   }
 
   // ── URL hash: #model/field/view/span[/F] ────────────────────────────────────────────────────────────────────────
-  function writeHash() { try { history.replaceState(null, "", "#" + [st.model, st.field, st.view, st.span].join("/") + (st.unit === "F" ? "/F" : "")); } catch (e) {} }
+  // #model/field/view/span, then in any order: F (deg F), the regimes' sector (ea, na) and regime (its family's number)
+  function writeHash() {
+    var x = [st.model, st.field, st.view, st.span];
+    if (st.view === "regimes") { x.push(st.sector); if (st.regime !== null) x.push(String(st.regime)); }
+    if (st.unit === "F") x.push("F");
+    try { history.replaceState(null, "", "#" + x.join("/")); } catch (e) {}
+  }
   function readHash() {
     var p = location.hash.replace("#", "").split("/");
     if (MODELS[p[0]]) st.model = p[0];
     if (FIELDS[p[1]]) st.field = p[1];
     if (VIEWS[p[2]]) st.view = p[2];
     if (/^(P[1-3]|D\d\d)$/.test(p[3] || "")) st.span = p[3];
-    if (p[4] === "F") st.unit = "F";
+    p.slice(4).forEach(function (t) { if (t === "F") st.unit = "F"; else if (SECTORS[t]) st.sector = t; else if (/^\d$/.test(t)) st.regime = +t; });
   }
   function showRuns() {
     $("runs").textContent = "Runs on the page now: " + MODEL_ORDER.filter(cycleOf).map(function (m) { var x = cycleOf(m); return MODELS[m] + " " + runLabel(x) + " (published " + x.made.replace("T", " ") + ")"; }).join(" · ") + ".";
@@ -1415,7 +1647,11 @@
     showRuns();
     setTimeout(pruneCache, 4000);
   });
-  if (typeof ResizeObserver === "function") new ResizeObserver(function () { if (view) { var s = view.s; resize(); view.s = s; clampView(); render(); } }).observe(mapEl);
+  if (typeof ResizeObserver === "function") {
+    new ResizeObserver(function () { if (view) { var s = view.s; resize(); view.s = s; clampView(); render(); } }).observe(mapEl);
+    var rgW = 0;
+    new ResizeObserver(function () { var w = $("rgTop").clientWidth; if (w && w !== rgW && st.view === "regimes") { rgW = w; drawTimeline(); renderChanges(); } }).observe($("rgTop"));
+  }
   else window.addEventListener("resize", resize);
 })();
 </script>
