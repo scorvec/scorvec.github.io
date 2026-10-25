@@ -650,56 +650,105 @@ def _known_not_published(cycle: Cycle, spec: Spec) -> bool:
         return (cycle.tag, spec.model, spec.filename) in _NOT_PUBLISHED
 
 
+def _rangefetch():
+    """rangefetch and the mirrors it may use (the Google mirror alone, never a fallback host)."""
+    sys.path.insert(0, str(Path(__file__).parent))
+    import rangefetch as rf
+
+    srcs = [s for s in google_only(SOURCES) if s in rf.MIRRORS]
+    if not srcs:
+        raise RuntimeError("rangefetch has no Google mirror configured")
+    return rf, srcs
+
+
+def _stream(spec: Spec) -> str:
+    return "oper" if spec.type == "fc" else "enfo"
+
+
+def step_index(cycle: Cycle, spec: Spec, step: int) -> list[dict]:
+    """The index entries of one step of the file stream spec reads (rangefetch.fetch_index); NotPublished when the
+    Google mirror does not have the step's index."""
+    rf, srcs = _rangefetch()
+    try:
+        return rf.fetch_index(
+            cycle.date, cycle.time, spec.model, int(step), spec.type, stream=_stream(spec), sources=srcs
+        )
+    except rf.IndexUnavailable as e:
+        if e.not_found and os.environ.get("ECMWF_NOTFOUND_TERMINAL", "1") != "0":
+            st = " ".join(f"{k}:{v}" for k, v in sorted(e.statuses.items()))
+            raise NotPublished(
+                f"{spec.model}/{spec.filename}: step {step} not on the Google mirror ({st}) — cycle {cycle.tag} not "
+                "published yet"
+            ) from e
+        raise
+
+
+def _wanted(spec: Spec, step: int, idx: list[dict]) -> list[dict]:
+    """The index entries of spec's messages at one step, in index order; RuntimeError when the index lacks any."""
+    rf, _ = _rangefetch()
+    levl = list(spec.levelist) if spec.levtype == "pl" else None
+    want = rf.select(idx, param=list(spec.params), levelist=levl, numbers=spec.members(), type=spec.type)
+    n = spec.n_expected() // len(spec.steps)
+    if len(want) < n:
+        raise RuntimeError(f"{spec.filename} step {step}: {len(want)} of {n} messages in the index")
+    return want
+
+
+def _parts(target: Path) -> Path:
+    """Where a file's steps wait, one file per step, until all of them are in and are joined into it: a fetch that
+    stops part-way resumes from the steps it has, and a landing run (fetch_step, rows_step) stocks each step as soon as
+    the mirror has it."""
+    return target.parent / f".parts_{target.name}"
+
+
+def fetch_step(cycle: Cycle, spec: Spec, step: int, idx: list[dict] | None = None, stats: dict | None = None) -> Path:
+    """One step of spec into its part (written whole or not at all, and kept until ensure() joins every step's), from
+    that step's index entries `idx` when the caller has them. NotPublished when the step's index is not on the
+    Google mirror."""
+    part = _parts(path(cycle, spec)) / f"s{int(step):03d}.grib2"
+    if part.exists():
+        return part
+    rf, srcs = _rangefetch()
+    want = _wanted(spec, step, step_index(cycle, spec, step) if idx is None else idx)
+    rel = rf.path_for(cycle.date, cycle.time, spec.model, int(step), spec.type, stream=_stream(spec)) + ".grib2"
+    blob = rf.fetch_ranges(rel, rf.coalesce(want), sources=srcs, stats=stats)
+    part.parent.mkdir(parents=True, exist_ok=True)
+    tmp = part.with_name(f".{part.name}.{os.getpid()}.{threading.get_ident()}")
+    tmp.write_bytes(blob)
+    got = count_msgs(tmp)
+    if got < len(want):
+        tmp.unlink(missing_ok=True)
+        raise RuntimeError(f"{spec.filename} step {step}: {got} of {len(want)} messages")
+    os.replace(tmp, part)
+    return part
+
+
 def _fetch_v2(cycle: Cycle, spec: Spec, target: str) -> str | None:
-    """Coalesced-range fetch of the whole spec into `target` (all steps,
-    sequential; each step ~24-way parallel inside rangefetch). Returns the
-    source label, or None to signal fallback to the legacy client path.
-    Raises NotPublished (does NOT fall back) when a step's index is missing
-    on the mirrors — see NotPublished."""
+    """Coalesced-range fetch of the whole spec into `target`: every step not yet in its part (fetch_step; each step
+    ~16-way parallel inside rangefetch), then the parts joined in step order. Returns the source label, or None to
+    signal fallback to the legacy client path (the parts not yet joined stay, so a later call resumes from them).
+    Raises NotPublished (does NOT fall back) when a step's index is missing on the mirrors — see NotPublished."""
     if os.environ.get("ECMWF_FETCH", "v2") != "v2":
         return None
     try:
-        sys.path.insert(0, str(Path(__file__).parent))
-        import rangefetch as rf
-    except Exception:  # noqa: BLE001
+        _, srcs = _rangefetch()
+    except ImportError:
         return None
-    srcs = [s for s in google_only(SOURCES) if s in rf.MIRRORS]  # Google only, never a fallback host
-    if not srcs:
-        raise RuntimeError("rangefetch has no Google mirror configured")
-    levl = list(spec.levelist) if spec.levtype == "pl" else None
-    nums = spec.members()
     stats: dict = {}
     try:
+        parts = [fetch_step(cycle, spec, step, stats=stats) for step in spec.steps]
         with open(target, "wb") as out:
-            stream = "oper" if spec.type == "fc" else "enfo"
-            for step in spec.steps:
-                idx = rf.fetch_index(
-                    cycle.date, cycle.time, spec.model, int(step), spec.type, stream=stream, sources=srcs
-                )
-                want = rf.select(idx, param=list(spec.params), levelist=levl, numbers=nums, type=spec.type)
-                if not want:
-                    raise RuntimeError(f"step {step}: 0 msgs matched")
-                ranges = rf.coalesce(want)
-                blob = rf.fetch_ranges(
-                    rf.path_for(cycle.date, cycle.time, spec.model, int(step), spec.type, stream=stream) + ".grib2",
-                    ranges,
-                    sources=srcs,
-                    stats=stats,
-                )
-                out.write(blob)
+            for p in parts:  # each part goes as it is copied, so the join needs little more disk than the file
+                with open(p, "rb") as f:
+                    shutil.copyfileobj(f, out)
+                p.unlink()
         top = max(stats, key=stats.get) if stats else srcs[0]  # mirror that served the most bytes
         return f"v2:{top}"
+    except NotPublished:
+        Path(target).unlink(missing_ok=True)
+        raise
     except Exception as e:  # noqa: BLE001
         Path(target).unlink(missing_ok=True)
-        if (
-            isinstance(e, getattr(rf, "IndexUnavailable", ()))
-            and e.not_found
-            and os.environ.get("ECMWF_NOTFOUND_TERMINAL", "1") != "0"
-        ):
-            st = " ".join(f"{k}:{v}" for k, v in sorted(e.statuses.items()))
-            raise NotPublished(
-                f"{spec.model}/{spec.filename}: not on the Google mirror ({st}) — cycle {cycle.tag} not published yet"
-            ) from e
         print(f"  fetch-v2 failed ({str(e)[:90]}) — falling back to client path", flush=True)
         return None
 
@@ -720,7 +769,9 @@ def ensure(cycle: Cycle, spec: Spec) -> Path:
         _clean(str(stage))
         shutil.rmtree(f"{stage}.parts", ignore_errors=True)
         Path(f"{stage}.src").unlink(missing_ok=True)  # stale source breadcrumb
-        print(f"  ECMWF {cycle.tag} {spec.model}/{spec.filename}: fetching ({expected} msgs) …", flush=True)
+        have = sum((_parts(p) / f"s{int(s):03d}.grib2").exists() for s in spec.steps)
+        print(f"  ECMWF {cycle.tag} {spec.model}/{spec.filename}: fetching ({expected} msgs"
+              f"{f'; {have} of {len(spec.steps)} steps in already' if have else ''}) …", flush=True)  # fmt: skip
         req = _to_req(cycle, spec)
         members = spec.members()
         got, src = 0, None
@@ -733,13 +784,8 @@ def ensure(cycle: Cycle, spec: Spec) -> Path:
             shutil.rmtree(f"{stage}.parts", ignore_errors=True)
             print(f"  ECMWF {cycle.tag} {spec.model}/{spec.filename}: ✗ {e}", flush=True)
             raise
-        if v2src:
-            got = count_msgs(str(stage))
-            if got >= expected:
-                src = v2src
-            else:
-                print(f"  fetch-v2 short ({got}/{expected}) — client fallback", flush=True)
-                _clean(str(stage))
+        if v2src:  # every step's part was counted as it was written
+            got, src = expected, v2src
         for ftry in range(1, FETCH_TRIES + 1):
             if got >= expected:
                 break
@@ -773,6 +819,7 @@ def ensure(cycle: Cycle, spec: Spec) -> Path:
         mbps = os.path.getsize(stage) / 1048576 / secs if secs > 0 else 0.0
         os.replace(stage.with_suffix(stage.suffix + ".json"), p.with_suffix(p.suffix + ".json"))
         os.replace(stage, p)  # atomic publish
+        shutil.rmtree(_parts(p), ignore_errors=True)
         print(f"  ECMWF {cycle.tag} {spec.model}/{spec.filename}: ✓ {got} msgs via {src} ({mbps:.1f} MB/s)", flush=True)
     return p
 
@@ -781,15 +828,115 @@ def rows_path(cycle: Cycle, spec: Spec, rows: tuple, tag: str = "") -> Path:
     return path(cycle, spec).with_suffix(f".rows{rows[0]}-{rows[-1]}{'.' + tag if tag else ''}.npz")
 
 
-def ensure_rows(cycle: Cycle, spec: Spec, rows: tuple, reduce=None, tag: str = "") -> Path:
+def _holds(spec: Spec, step: int, e: dict) -> bool:
+    """Whether a whole-field file of spec carries the message of index entry e (at this step)."""
+    return (
+        step in spec.steps
+        and e.get("type") == spec.type
+        and e.get("param") in spec.params
+        and (spec.levtype != "pl" or int(e.get("levelist", -1)) in spec.levelist)
+        and (spec.type != "pf" or int(e.get("number", 0)) in spec.members())
+    )
+
+
+_MESSAGES: dict = {}
+_MESSAGES_LOCK = threading.Lock()
+
+
+def _messages_in(f: Path) -> dict:
+    """{(param, level, number, step): (offset, length)} of every message of a GRIB file (number 0 for a control run),
+    read once per process."""
+    import eccodes
+
+    st = f.stat()
+    key = (str(f), st.st_size, st.st_mtime_ns)
+    with _MESSAGES_LOCK:
+        if key in _MESSAGES:
+            return _MESSAGES[key]
+    out = {}
+    with open(f, "rb") as fh:
+        while (h := eccodes.codes_grib_new_from_file(fh)) is not None:
+            try:
+                try:
+                    num = int(eccodes.codes_get(h, "number"))
+                except eccodes.KeyValueNotFoundError:  # a control run's messages carry no member number
+                    num = 0
+                k = (eccodes.codes_get(h, "shortName"), int(eccodes.codes_get(h, "level")), num,
+                     int(eccodes.codes_get(h, "endStep")))  # fmt: skip
+                out[k] = (int(eccodes.codes_get(h, "offset")), int(eccodes.codes_get(h, "totalLength")))
+            finally:
+                eccodes.codes_release(h)
+    with _MESSAGES_LOCK:
+        _MESSAGES[key] = out
+    return out
+
+
+def _held(cycle: Cycle, specs, step: int, want: list[dict]) -> dict:
+    """{position in want: the whole message} for the messages of want that a whole-field file of `specs` (of the same
+    cycle) holds on disk at this step - the step's part during a landing run, else the complete file - so that their
+    rows are decoded from it instead of being fetched again."""
+    out: dict = {}
+    for spec in specs:
+        mine = [i for i, e in enumerate(want) if i not in out and _holds(spec, step, e)]
+        if not mine:
+            continue
+        whole = path(cycle, spec)
+        part = _parts(whole) / f"s{int(step):03d}.grib2"
+        f = part if part.exists() else whole if _complete(whole, spec.n_expected()) else None
+        if f is None:
+            continue
+        at = _messages_in(f)
+        with open(f, "rb") as fh:
+            for i in mine:
+                e = want[i]
+                k = (e["param"], int(e.get("levelist", 0)), int(e.get("number", 0)), int(step))
+                if k in at:
+                    fh.seek(at[k][0])
+                    out[i] = fh.read(at[k][1])
+    return out
+
+
+def rows_step(
+    cycle: Cycle, spec: Spec, rows: tuple, step: int, reduce=None, tag: str = "", idx: list[dict] | None = None,
+    local=(), stats: dict | None = None,
+) -> Path:  # fmt: skip
+    """One step of ensure_rows into its part (written whole or not at all, kept until ensure_rows joins every step's),
+    from that step's index entries `idx` when the caller has them; the messages a whole-field file of `local` holds on
+    disk are decoded from it (_held), the others from their leading bytes on the mirror (rangefetch.fetch_rows)."""
+    import numpy as np
+
+    part = _parts(rows_path(cycle, spec, rows, tag)) / f"s{int(step):03d}.npz"
+    if part.exists():
+        return part
+    rf, srcs = _rangefetch()
+    want = _wanted(spec, step, step_index(cycle, spec, step) if idx is None else idx)
+    rel = rf.path_for(cycle.date, cycle.time, spec.model, int(step), spec.type, stream=_stream(spec)) + ".grib2"
+    each = None if reduce is None else (lambda v, la, lo: (reduce(v, la, lo), la))
+    got = rf.fetch_rows(rel, want, rows, sources=srcs, stats=stats, each=each, local=_held(cycle, local, step, want))
+    part.parent.mkdir(parents=True, exist_ok=True)
+    tmp = part.with_name(f".{part.stem}.{os.getpid()}.{threading.get_ident()}.npz")
+    np.savez(
+        tmp,
+        values=np.stack([v for v, _ in got]),
+        lat=got[-1][1],
+        param=np.asarray([e["param"] for e in want]),
+        level=np.asarray([int(e.get("levelist", 0)) for e in want]),
+        number=np.asarray([int(e.get("number", 0)) for e in want]),
+        step=np.asarray([int(step)] * len(want)),
+    )
+    os.replace(tmp, part)
+    return part
+
+
+def ensure_rows(cycle: Cycle, spec: Spec, rows: tuple, reduce=None, tag: str = "", local=()) -> Path:
     """The rows `rows` (indices from the grid's northern edge) of every message of spec, from the leading bytes of
     each message alone (rangefetch.fetch_rows), cached as an npz: values (message, len(rows), Ni) float32, lat, and
     each message's param, level, number (0 for a control) and step - or, with reduce(values, lat, lon), what it returns
     per message (tag names it in the file name). For a product that needs only high northern latitudes; the Google
-    mirror only, NotPublished as ensure()."""
+    mirror only, NotPublished as ensure(). A message that a whole-field file of `local` (specs of the same cycle)
+    already holds on disk is decoded from it, with no request and to the same bits. One step at a time, each kept as
+    it arrives (rows_step), so a fetch that stops part-way resumes from the steps it has."""
     import numpy as np
-
-    import rangefetch as rf
 
     p = rows_path(cycle, spec, rows, tag)
     expected = spec.n_expected()
@@ -802,43 +949,29 @@ def ensure_rows(cycle: Cycle, spec: Spec, rows: tuple, reduce=None, tag: str = "
 
     if complete():
         return p
-    srcs = [s for s in google_only(SOURCES) if s in rf.MIRRORS]
-    if not srcs:
-        raise RuntimeError("rangefetch has no Google mirror configured")
-    stream = "oper" if spec.type == "fc" else "enfo"
-    levl = list(spec.levelist) if spec.levtype == "pl" else None
-    vals, meta, stats, t0 = [], {"param": [], "level": [], "number": [], "step": []}, {}, time.time()
-    each = None if reduce is None else (lambda v, la, lo: (reduce(v, la, lo), la))
+    stats, t0 = {}, time.time()
     with _lock(p):
         if complete():  # another process just finished it
             return p
-        for step in spec.steps:
-            try:
-                idx = rf.fetch_index(
-                    cycle.date, cycle.time, spec.model, int(step), spec.type, stream=stream, sources=srcs
-                )
-            except rf.IndexUnavailable as e:
-                if e.not_found:
-                    raise NotPublished(f"{spec.model}/{p.name}: step {step} not on the Google mirror") from e
-                raise
-            want = rf.select(idx, param=list(spec.params), levelist=levl, numbers=spec.members(), type=spec.type)
-            rel = rf.path_for(cycle.date, cycle.time, spec.model, int(step), spec.type, stream=stream) + ".grib2"
-            for e, (v, la) in zip(want, rf.fetch_rows(rel, want, rows, sources=srcs, stats=stats, each=each)):
-                vals.append(v)
-                lat = la
-                meta["param"].append(e["param"])
-                meta["level"].append(int(e.get("levelist", 0)))
-                meta["number"].append(int(e.get("number", 0)))
-                meta["step"].append(int(step))
-        if len(vals) != expected:
-            raise RuntimeError(f"{spec.model}/{p.name}: {len(vals)} of {expected} messages")
+        parts = [rows_step(cycle, spec, rows, step, reduce, tag, local=local, stats=stats) for step in spec.steps]
+        keys = ("values", "param", "level", "number", "step")
+        cat = {k: [] for k in keys}
+        for q in parts:
+            with np.load(q) as z:
+                for k in keys:
+                    cat[k].append(z[k])
+                lat = z["lat"]
+        cat = {k: np.concatenate(v) for k, v in cat.items()}
+        if len(cat["step"]) != expected:
+            raise RuntimeError(f"{spec.model}/{p.name}: {len(cat['step'])} of {expected} messages")
         stage = p.with_name(".stage_" + p.name)
         p.parent.mkdir(parents=True, exist_ok=True)
         with open(stage, "wb") as f:
-            np.savez(f, values=np.stack(vals), lat=lat, **{k: np.asarray(v) for k, v in meta.items()})
+            np.savez(f, values=cat["values"], lat=lat, **{k: cat[k] for k in keys[1:]})
         os.replace(stage, p)
+        shutil.rmtree(_parts(p), ignore_errors=True)
     mb = sum(stats.values()) / 1048576
-    print(f"  ECMWF {cycle.tag} {spec.model}/{p.name}: ✓ {len(vals)} msgs, rows {rows[0]}-{rows[-1]}, {mb:.0f} MB in "
+    print(f"  ECMWF {cycle.tag} {spec.model}/{p.name}: ✓ {expected} msgs, rows {rows[0]}-{rows[-1]}, {mb:.0f} MB in "
           f"{time.time() - t0:.0f} s", flush=True)  # fmt: skip
     return p
 

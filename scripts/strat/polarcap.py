@@ -11,9 +11,9 @@ build_polarcap_clim.py; scripts/lib/cellmeans.py), so the models compare cell fo
         cells need, store.ensure_rows), and z at 500, 100 and 10 hPa from the wave maps' file; ECMWF open data, Google
         Cloud mirror. The control (member 0) is also drawn on the AIFS-ENS plumes and recorded and mapped on its own
         (aifsc), as the IFS control is.
-  ifs   IFS-ENS, all 50 perturbed members, from the shared IFS-ENS files (ifs_ens.py gh, msl and t10), and the IFS
-        control (its own stream: ctrl_gh, ctrl_msl), drawn on the IFS-ENS plumes and recorded and mapped as a model of
-        its own (hres; its 10 hPa temperature maps are t10_maps.py's).
+  ifs   IFS-ENS, all 50 perturbed members, from the shared IFS-ENS files (ifs_ens.py gh, gh_wind, msl and t10), and
+        the IFS control (its own stream: ctrl_gh, ctrl_msl), drawn on the IFS-ENS plumes and recorded and mapped as a
+        model of its own (hres; its 10 hPa temperature maps are t10_maps.py's).
   gefs  GEFS control + 30 members, geps GEPS control + 20 members: strat_ens.py's "polarcap" part (PRMSL, HGT 500, 100,
         10, TMP 10).
   aifs1 AIFS single, ECMWF's deterministic AIFS run, on its own (no ensemble): msl and t at 10 hPa from the 90-18N rows
@@ -263,11 +263,11 @@ def load_ifs(date: str, hh: str) -> dict:
 
     cyc, out = IE.E.Cycle(date, hh), {}
     for m, ready, msl, gh, t10 in (
-        ("ifs", IE.published, IE.spec_msl, IE.spec_gh, IE.spec_t10),
-        ("hres", IE.ctrl_published, IE.spec_ctrl_msl, IE.spec_ctrl_gh, None),
+        ("ifs", IE.published, IE.spec_msl, IE.gh_spec, IE.spec_t10),
+        ("hres", IE.ctrl_published, IE.spec_ctrl_msl, lambda lev: IE.spec_ctrl_gh(), None),
     ):
         if ready(date, hh):
-            z = read_grib(IE.ensure(cyc, gh()), "gh", (500, 100, 10))
+            z = {lev: read_grib(IE.ensure(cyc, gh(lev)), "gh", (lev,))[lev] for lev in (500, 100, 10)}
             out[m] = {"msl": stack(read_grib(IE.ensure(cyc, msl()), "msl", scale=0.01)[None]),
                       **{f"z{lev}": stack(z[lev]) for lev in (500, 100, 10)}}  # fmt: skip
             if t10 is not None:

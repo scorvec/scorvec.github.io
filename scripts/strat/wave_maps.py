@@ -24,7 +24,7 @@ amplitude grows with height, so the levels cannot share one; NH and SH share a s
 A wave-k ridge recurs every 360/k degrees of longitude, so the westward tilt is read in phase: a wave-2 ridge that
 moves 30 deg west between two levels has turned as far as a wave-1 ridge moving 60 deg.
 
-IFS-ENS: --model ifs maps the mean of ALL 50 IFS-ENS perturbed members from the shared IFS-ENS gh file (ifs_ens.py,
+IFS-ENS: --model ifs maps the mean of ALL 50 IFS-ENS perturbed members from the shared IFS-ENS gh files (ifs_ens.py,
 Google Cloud mirror only) into wave{1,2}_ifs_{nh,sh}/. The ensemble files carry no control at pressure levels, so its
 analysis frame is the IFS control's step 0 - the analysis the ensemble starts from.
 
@@ -186,13 +186,15 @@ def fetch(date: str, time: str):
 
 
 def fetch_ifs(date: str, time: str):
-    """IFS-ENS: ALL 50 perturbed members of gh at 500/100/10 hPa from the shared IFS-ENS file (ifs_ens.py)."""
+    """IFS-ENS: ALL 50 perturbed members of gh at 500/100/10 hPa from the shared IFS-ENS files (ifs_ens.py)."""
     import ifs_ens as IE
 
     if not IE.published(date, time):
         raise SystemExit(f"IFS-ENS {date} {time}Z is not on the Google mirror yet")
-    path = IE.ensure(IE.E.Cycle(date, time), IE.spec_gh())
-    return {lev: open_level(path, lev, "gh") for lev in LEVELS}, f"ensemble mean ({IE.MEMBERS} members)"
+    cyc = IE.E.Cycle(date, time)
+    return {lev: open_level(IE.ensure(cyc, IE.gh_spec(lev)), lev, "gh") for lev in LEVELS}, (
+        f"ensemble mean ({IE.MEMBERS} members)"
+    )
 
 
 def fetch_hres(date: str, time: str):

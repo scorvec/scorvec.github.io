@@ -24,7 +24,7 @@ Model drift - never shown as signal:
   IFS-ENS  no open reforecast either (ECMWF's are not open data), and no control in the ensemble files at pressure
            levels, so the same verification is made with the mean of all 50 perturbed members over the same cycles
            (--measure-drift ifs -> reference/ifs_capdrift.json). 50 members, 0.25 deg, day 15, from the shared
-           IFS-ENS file (ifs_ens.py, Google Cloud mirror only).
+           IFS-ENS gh files (ifs_ens.py, Google Cloud mirror only).
   AIFS-ENS control (--model aifsc) member 0 alone, from the same file as the AIFS-ENS drip's control, day 15, with the
            AIFS-ENS drift (which was measured on the control). One run.
   IFS control (--model hres) the unperturbed run from its own open-data stream (ifs_ens.py ctrl_gh), day 15, with the
@@ -278,14 +278,15 @@ def _caps_members(path, short: str, levs):
 
 def ifs(date: str, time: str):
     """(member, lead, level) cap heights for all 50 IFS-ENS perturbed members (no control exists at pressure levels
-    on open data), daily 0..360 h, from the shared IFS-ENS gh file (ifs_ens.py; gh is already geopotential metres)."""
+    on open data), daily 0..360 h, from the shared IFS-ENS gh files (ifs_ens.py gh_wind at 10 and 100 hPa, gh at the
+    other levels; gh is already geopotential metres)."""
     import ifs_ens as IE
 
     if not IE.published(date, time):
         raise SystemExit(f"IFS-ENS {date} {time}Z is not on the Google mirror yet")
-    path = IE.ensure(IE.E.Cycle(date, time), IE.spec_gh())
-    C, steps = _caps_members(path, "gh", [int(x) for x in LEVELS_10])
-    return C, [int(s) for s in steps]
+    cyc = IE.E.Cycle(date, time)
+    per = [_caps_members(IE.ensure(cyc, IE.gh_spec(L)), "gh", [L]) for L in (int(x) for x in LEVELS_10)]
+    return np.concatenate([c for c, _ in per], axis=2), [int(s) for s in per[0][1]]
 
 
 def hres(date: str, time: str):

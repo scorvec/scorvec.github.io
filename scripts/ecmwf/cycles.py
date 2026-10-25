@@ -95,6 +95,9 @@ class Need:
 AIFS_ENS = (Need("aifs-ens", "pf"), Need("aifs-ens", "cf"))  # 0..360 h by 6: 61 steps
 IFS_STEPS = tuple(range(0, 144, 3)) + tuple(range(144, 361, 6))  # 0..144 by 3, then by 6: 85 steps
 IFS_ENS = (Need("ifs", "ef", every=IFS_STEPS),)  # control + 50 members in one -enfo-ef file per step
+# IFS-ENS has begun to land: its first step is complete. It reaches the mirror over ~50 min (00/12Z: step 0 ~T+7.7 h,
+# day 15 ~T+8.5 h), and the stratosphere jobs (strat-ifs.yml) fetch each step as it lands from here on.
+IFS_ENS_LANDING = (Need("ifs", "ef", step=0, every=(0,)),)
 AIFS_SINGLE = (Need("aifs-single", "fc", "oper"),)
 # IFS HRES to day 10: the dynamic-tropopause maps (aam.yml) and the TC board's maps and phase space. The 00/12Z run
 # reaches day 10 on the mirror ~T+7.5 h.
@@ -121,7 +124,9 @@ IFS_CONTROL_0P1 = tuple(
 IFS_ENS_0P1 = (Need("ifs", "ef", step=360, every=tuple(range(6, 361, 6)), resol="0p1", levtype="sfc"),)
 PROFILES = {
     "aifs-ens": AIFS_ENS,  # strat, mjo, aam, ar
-    "ifs-ens": IFS_ENS,  # strat-ifs (waits for it on the AIFS-ENS cycle)
+    "ifs-ens": IFS_ENS,
+    # strat-ifs.yml can start: the stratosphere page's AIFS-ENS cycle complete and IFS-ENS begun to land on it
+    "strat-ifs": AIFS_ENS + IFS_ENS_LANDING,
     "aifs-single": AIFS_SINGLE,
     "aifs-compare": AIFS_SINGLE + AIFS_ENS,  # aifs-compare: single vs control vs ensemble mean
     "ifs-control": IFS_CONTROL,  # aam.yml
@@ -177,14 +182,32 @@ def _list_names(prefix: str) -> list[str] | None:
     return None
 
 
+def _listing(date: str, hh: str, need: Need) -> set[str] | None:
+    """The object names in the directory of need's file stream; None if the listing failed."""
+    names = _list_names(need.rel(date, hh).rsplit("/", 1)[0] + "/")
+    return None if names is None else set(names)
+
+
+def complete_steps(date: str, hh: str, need: Need) -> set[int] | None:
+    """The steps of need.every up to need.step that are completely on the Google mirror - both the .index and the
+    .grib2, each of which appears only once its upload is complete - from one listing; None if the listing failed. A
+    fetch that follows a run as it lands (ifs_ens.land) takes each of these as soon as it appears."""
+    have = _listing(date, hh, need)
+    if have is None:
+        return None
+    return {
+        st
+        for st in need.every
+        if st <= need.step and all(need.rel(date, hh, st) + x in have for x in (".index", ".grib2"))
+    }
+
+
 def _incomplete(date: str, hh: str, need: Need) -> tuple[list[str] | None, int]:
     """(steps of need.every missing their .index or .grib2, steps expected); (None, n) if the listing failed."""
     want = [st for st in need.every if st <= need.step]
-    prefix = need.rel(date, hh).rsplit("/", 1)[0] + "/"
-    names = _list_names(prefix)
-    if names is None:
+    have = _listing(date, hh, need)
+    if have is None:
         return None, len(want)
-    have = set(names)
     miss = []
     for st in want:
         rel = need.rel(date, hh, st)

@@ -5,7 +5,7 @@ Google mirror into the shared store cache, and does nothing if they are not ther
 
   aifs   strat.yml (light job): wave_maps.py's 50 perturbed members of z at 500/100/10 hPa and polarcap.py's
          control at the same levels, daily steps 0-360 h -> 51 members
-  ifs    strat-ifs.yml (maps job): the shared IFS-ENS gh file (ifs_ens.spec_gh), all 50 perturbed members (open data
+  ifs    strat-ifs.yml (heights job): the shared IFS-ENS gh file (ifs_ens.spec_gh), all 50 perturbed members (open data
          has no IFS control on pressure levels), daily steps 0-360 h -> 50 members
 
 00Z cycles only (day d = the UTC day init + d - 1 = the mean of the 00Z fields at steps 24(d-1) and 24d, so every day
@@ -42,7 +42,6 @@ import regime_core as RC
 
 G0 = 9.80665
 NDAYS = 15
-LEV11 = (1000, 925, 850, 700, 500, 300, 250, 200, 100, 50, 10)
 OUT = REPO / "assets" / "regimes" / "data"
 DRIFT_MIN, DRIFT_K, DRIFT_KEEP = 10, 10.0, 60
 LABEL = {"aifs": "AIFS-ENS", "ifs": "IFS-ENS"}
@@ -57,7 +56,10 @@ def files(model, date, time):
     if model == "aifs":  # the 50 perturbed members from the wave maps' file, the control from the polar cap's
         got = [E.path(cyc, E.Spec("aifs-ens", k, "z", "pl", (500, 100, 10), steps)) for k in ("pf", "cf")]
         return [p for p in got if p.exists()]
-    p = E.path(cyc, E.Spec("ifs", "pf", "gh", "pl", LEV11, steps))
+    sys.path.insert(0, str(REPO / "scripts" / "strat"))
+    import ifs_ens as IE
+
+    p = E.path(cyc, IE.spec_gh())
     return [p] if p.exists() else []
 
 

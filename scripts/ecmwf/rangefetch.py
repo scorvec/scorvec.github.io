@@ -71,6 +71,20 @@ WORKERS = int(os.environ.get("ECMWF_RANGE_WORKERS", "16"))
 # for OTHER processes sharing this IP (pipeline,
 # benchmarks). Adaptive: throttle responses shrink
 # effective concurrency for the rest of the batch, and each is logged.
+# The row fetches (fetch_rows) are one small range per message, bound by requests rather than bytes, so more of them
+# are in flight; the request budget (budget.py) still caps the rate.
+ROW_WORKERS = int(os.environ.get("ECMWF_ROW_WORKERS", "48"))
+
+_THREAD = threading.local()
+
+
+def _session() -> requests.Session:
+    """This thread's HTTP session: its connection to the mirror stays open from one request to the next (a new TLS
+    connection for every request halved the rate of the small row requests)."""
+    s = getattr(_THREAD, "session", None)
+    if s is None:
+        s = _THREAD.session = requests.Session()
+    return s
 
 
 # What this process downloaded, per file stream (model/grid/stream/type): printed once at exit, so every job's log says
@@ -168,7 +182,7 @@ def fetch_index(
         for src in srcs:
             try:
                 budget.acquire(src)
-                r = requests.get(f"{MIRRORS[src]}/{rel}", timeout=TIMEOUT)
+                r = _session().get(f"{MIRRORS[src]}/{rel}", timeout=TIMEOUT)
                 statuses[src] = r.status_code
                 if r.status_code == 200:
                     _count(rel, len(r.content))
@@ -255,7 +269,7 @@ class _Gets:
                 for src in self.sources:
                     try:
                         budget.acquire(src)
-                        r = requests.get(
+                        r = _session().get(
                             f"{MIRRORS[src]}/{self.rel}", headers={"Range": f"bytes={start}-{end - 1}"}, timeout=TIMEOUT
                         )
                         if r.status_code in (200, 206):
@@ -297,13 +311,15 @@ def fetch_ranges(
 
 
 def fetch_rows(
-    rel_grib: str, entries: list[dict], rows: tuple, sources: list[str] | None = None, workers: int = WORKERS,
-    stats: dict | None = None, each=None,
+    rel_grib: str, entries: list[dict], rows: tuple, sources: list[str] | None = None, workers: int = ROW_WORKERS,
+    stats: dict | None = None, each=None, local: dict | None = None,
 ) -> list:  # fmt: skip
     """each(values (len(rows), Ni), latitudes, longitudes) for the rows `rows` (indices from the grid's northern edge)
     of every message in entries - by default the (values, latitudes) pair - from the first ccsds.prefix_share of its
     bytes (ccsds.py): one ranged GET per message, the whole message fetched again for any whose prefix falls short, and
-    decoded with eccodes where ccsds cannot. `each` runs per message, so a reduction never holds a step's rows at once,
+    decoded with eccodes where ccsds cannot. `local` maps an entry's position to its whole message where that is
+    already on disk (a whole-field file of the same cycle holds it): decoded the same way, with no request, so the
+    rows are the same to the bit. `each` runs per message, so a reduction never holds a step's rows at once,
     and one call at a time: a matrix product with a transposed operand from several threads came out corrupt with some
     OpenBLAS builds (63 of 64 concurrent calls wrong), while the fetches and decoding stay parallel."""
     import eccodes
@@ -338,16 +354,23 @@ def fetch_rows(
             eccodes.codes_release(h)
         return vals, la1 - dj * np.asarray(keep, float), lo1 + di * np.arange(ni)
 
-    def one(e):
-        s, n = e["_offset"], e["_length"]
-        got = lead(g.get(s, s + min(n, max(4096, int(n * share)))))
-        if got is None:
-            buf = g.get(s, s + n)
+    local = local or {}
+
+    def one(item):
+        i, e = item
+        buf = local.get(i)
+        if buf is not None:
             got = lead(buf) or whole(buf)
+        else:
+            s, n = e["_offset"], e["_length"]
+            got = lead(g.get(s, s + min(n, max(4096, int(n * share)))))
+            if got is None:
+                buf = g.get(s, s + n)
+                got = lead(buf) or whole(buf)
         with serial:
             return each(*got)
 
-    return g.map(one, entries)
+    return g.map(one, list(enumerate(entries)))
 
 
 def fetch(

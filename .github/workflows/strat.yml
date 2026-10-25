@@ -25,8 +25,8 @@ name: Stratosphere (vortex, waves 1 and 2, E-P flux from GEFS)
 # ranged from NOAA's S3 bucket only (never NOMADS); its 00Z/12Z day 15 is on S3 by ~06:30Z/18:30Z, before these slots,
 # and the epflux job uses the same cycle as the AIFS-ENS products (falling back up to 24 h if GEFS is not complete).
 #
-# IFS-ENS (all 50 members) lives in strat-ifs.yml (09:05/21:05): IFS day 15 reaches the Google mirror ~08:50Z/20:55Z,
-# after these slots. AIFS single, complete ~15 min before AIFS-ENS, has its own workflow (strat-aifs1.yml), so neither
+# IFS-ENS (all 50 members) lives in strat-ifs.yml: it lands on the Google mirror after AIFS-ENS is complete (day 15
+# ~08:31Z/20:31Z), and that workflow fetches it step by step as it lands. AIFS single, complete ~15 min before AIFS-ENS, has its own workflow (strat-aifs1.yml), so neither
 # waits for the other. The polar-vortex figure of every model is drawn from the records by strat-combine.yml.
 #
 # WHY FOUR JOBS. As one job this took ~70 min, and 23 of those were ens_cycle

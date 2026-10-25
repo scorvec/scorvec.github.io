@@ -52,7 +52,8 @@ Opened with dask one step at a time so the member mean never holds more than
 one step's members in memory.
 
 IFS-ENS: --model ifs draws the mean of ALL 50 IFS-ENS perturbed members from the shared IFS-ENS u/v file (ifs_ens.py:
-10 and 100 hPa, 12-hourly, Google Cloud mirror only) and a 12-hourly geopotential-height pull of the same members into
+10 and 100 hPa, 12-hourly, Google Cloud mirror only) and their geopotential height at the two levels - the shared daily
+file (gh_wind) and the 12-hourly steps between its steps (gh_mid), so no step is fetched twice - into
 vortex_ifs_{10,100}_{nh,sh}/, same scales. The ensemble files carry no control at pressure levels, so its analysis frame
 is the IFS control's step 0, the analysis the ensemble starts from.
 
@@ -273,17 +274,19 @@ def fetch_ifs(date: str, time: str):
     if not IE.published(date, time):
         raise SystemExit(f"IFS-ENS {date} {time}Z is not on the Google mirror yet")
     cyc = IE.E.Cycle(date, time)
-    uv = IE.ensure(cyc, IE.spec_uv())
-    gh = IE.ensure(cyc, IE.E.Spec("ifs", "pf", "gh", "pl", LEVELS, STEPS_12H))  # geopotential height, gpm, 12-hourly
+    uv = (IE.ensure(cyc, IE.spec_uv()),)
+    # geopotential height (gpm): the shared daily file and the 12-hourly steps between its steps
+    gh = (IE.ensure(cyc, IE.spec_gh_wind()), IE.ensure(cyc, IE.spec_gh_mid()))
     ana = IE.ensure(cyc, IE.spec_ctrl_wind())
+    keep = ("step", "latitude", "longitude")
     out = {}
     for lev in LEVELS:
         trio = []
-        for sh, path in (("u", uv), ("v", uv), ("gh", gh)):
+        for sh, paths in (("u", uv), ("v", uv), ("gh", gh)):
             a = _with_step(at_step(_mean_field(ana, sh, lev), 0), 0)
-            f = _mean_field(path, sh, lev)
+            f = [_mean_field(p, sh, lev) for p in paths]
+            f = xr.concat([x.drop_vars([c for c in x.coords if c not in keep]) for x in f], dim="step").sortby("step")
             f = f.isel(step=np.flatnonzero(IE.step_hours(f) > 0))
-            f = f.drop_vars([c for c in f.coords if c not in ("step", "latitude", "longitude")])
             trio.append(xr.concat([a, f], dim="step"))
         trio[2] = trio[2] / 10.0  # gpm -> dam
         out[lev] = tuple(trio)

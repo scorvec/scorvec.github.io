@@ -13,6 +13,8 @@ on:
   # 2026-10-04: deploys are BATCHED. Data workflows no longer dispatch this after each commit (that was ~170 deploys
   # a day); the dispatcher (scripts/lib/dispatch_workflows.sh pages_if_stale) fires it every 15 min when main is
   # ahead of the last deploy, and this cron is the backstop for when the dispatcher is off (skips when nothing changed).
+  # One exception: strat-ifs.yml's publish job dispatches this as soon as its commit is on main (a few a day), so the
+  # IFS-ENS stratosphere products go live with it; the concurrency group below queues it behind a deploy in progress.
   schedule:
     - cron: '17,47 * * * *'
 

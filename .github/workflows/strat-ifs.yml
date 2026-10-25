@@ -4,7 +4,7 @@ name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, wave
 # and the IFS control (its own open-data stream, to day 15) in every stratosphere product that their open data can
 # feed, and the days 1-15 GEFS and GEPS versions of the same products (naens job, below):
 #
-#   nh_vortex.py --record-only -> data/runs/vortex_{ifs,hres,gdps,geosfp}.json (maps), vortex_{gefs,geps}.json (naens)
+#   nh_vortex.py --record-only -> data/runs/vortex_{ifs,hres,gdps,geosfp}.json (winds), vortex_{gefs,geps}.json (naens)
 #                            + (--members) assets/sst/vortex_members_{ifs,gefs,geps}.webp, each ensemble member by member
 #   run_record.py capture -> data/runs/{heatflux,drip}_<model>.json + assets/sst/runs/<product>_<model>.webp: each
 #                            model's run-to-run record and figure, from the JSON its products just wrote
@@ -30,14 +30,22 @@ name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, wave
 #                            {polarcap,telecon,vshape}_{gefs,geps}.webp + anim/{polarcap,z100,t10}_{gefs,geps}/
 # The upper-stratosphere item cannot have IFS: its open data stops at 10 hPa (GEPS's too).
 #
-# WHY A SEPARATE WORKFLOW. IFS-ENS day 15 reaches the Google mirror at ~08:50Z and ~20:55Z (object times), over an
-# hour after strat.yml's 07:35/19:35 slots, which are timed for AIFS-ENS; run in strat.yml, the IFS steps would find
-# nothing. This runs at 09:05/21:05.
+# WHY A SEPARATE WORKFLOW. IFS-ENS lands on the Google mirror after AIFS-ENS is complete (12Z on 2026-10-25: AIFS-ENS
+# ~19:42Z, IFS-ENS step 0 19:40Z to day 15 20:31Z), and strat.yml is timed for AIFS-ENS.
 #
-# EVERY MODEL AS IT LANDS. Each job records only the models it renders (strat.yml AIFS-ENS, maps the IFS-ENS, IFS
-# control, GDPS and GEOS FP, naens GEFS and GEPS) into their own files; the figures that hold every model (nh_vortex.webp,
-# nh_vortex_runs.webp) and the SSW summary (ssw_summary.json, read by ssw.html) are drawn from each model's newest
-# record by strat-combine.yml after every run of this workflow and of strat.yml, so they move model by model.
+# AS THE RUN LANDS. The IFS control is on the mirror ~07:36Z / 19:36Z, and IFS-ENS lands over the next ~50 min, a
+# 12-hourly step every ~2 min. The cycle job takes the cycle the page is on (AIFS-ENS complete, the rule strat.yml
+# uses) and waits only for IFS-ENS to begin landing; winds and heights then take each step the moment it is complete
+# on the mirror (ifs_ens.py land), rendering the control meanwhile, so when day 15 lands only its steps are fetched
+# and the IFS-ENS products start. A run still incomplete 100 min in fails visibly (the control's products publish). The
+# fast lane dispatches this when cycles.py --profile strat-ifs is ready for the cycle (~07:45Z / 19:45Z); the
+# dispatcher's 09:05 / 21:05 slots and these crons are the backstop.
+#
+# EVERY MODEL AS IT LANDS. Each job records only the models it renders (strat.yml AIFS-ENS; winds and heights the
+# IFS-ENS, IFS control, GDPS and GEOS FP; naens GEFS and GEPS) into their own files; the figures that hold every model
+# (nh_vortex.webp, nh_vortex_runs.webp) and the SSW summary (ssw_summary.json, read by ssw.html) are drawn from each
+# model's newest record by strat-combine.yml after every run of this workflow and of strat.yml, so they move model by
+# model.
 #
 # GEPS FAST LANE. GEPS day 16 is on the Datamart ~5 h after the start (05:05Z / 17:15Z on 2026-10-21), hours before
 # these slots, so the Canadian fast lane (scripts/lib/canada_fastlane.sh) dispatches this workflow with only=geps the
@@ -49,23 +57,29 @@ name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, wave
 #
 # DATA. Google Cloud mirror only: ECMWF_SOURCES=google for every step, and ifs_ens.py names the
 # Google mirror in every request. A cycle the mirror does not have is skipped with a warning - never fetched elsewhere.
-#   maps    one shared fetch into the store's cache (ifs_ens.py fetch): gh at 11 levels daily (~3.5 GB), u/v at
-#           10/100 hPa 12-hourly (~4.0 GB), t at 100 hPa daily (~0.5 GB), and the same fields of the IFS control
-#           (~0.3 GB; it lands over an hour before the ensemble); every render reads those files. For the descent,
-#           only the leading rows of each field, decoded from each message's first bytes (ifs_ens ROWS,
-#           scripts/ecmwf/ccsds.py): v and t at 10-400 hPa on 65.0-65.5N (~1.1 GB instead of ~7) and w at 9 levels
-#           north of 48.25N, kept as 1.5-deg cells (~1.0 GB instead of ~3.8).
-#   zmu     u at 10/50/250 hPa and v at 250 hPa, streamed a step at a time and never cached (~2 GB a cycle). The
-#           E-P flux comes from GEFS instead (strat.yml), which has levels between 10 and 50 hPa.
-#   naens   GEFS from NOAA's S3 (byte-ranged per message) and GEPS from the MSC Datamart, one shared fetch per model
-#           (strat_ens.py fetch: every member and step pulled once, reduced on the way in), read by all four products
-#           and by the vortex record.
+# The IFS-ENS fields are split between two jobs by level, each fetching its own (ifs_ens.py land), so that their
+# products render on two runners and nothing is fetched twice:
+#   winds    the 10 and 100 hPa fields: u/v 12-hourly (~3.4 GB), gh daily (~0.65 GB) and between the daily steps
+#            (~0.6 GB, the vortex-wind loop's own), t at 100 and 10 hPa (~0.45 GB), the IFS control's u/v/gh and t100
+#            (~0.1 GB), and for the descent the leading rows only (ifs_ens ROWS, scripts/ecmwf/ccsds.py): v and t on
+#            65.0-65.5N at 50-400 hPa (~0.6 GB; at 10 and 100 hPa they are decoded from the whole fields above) and w at
+#            9 levels north of 48.25N, kept as 1.5-deg cells (~1.0 GB instead of ~3.8). It hands gh at 10/100 hPa and t
+#            at 10 hPa (~0.85 GB, the daily steps) to heights as an artifact the moment they are in.
+#   heights  gh at the drip's other 9 levels daily (~3.1 GB), sea-level pressure (~0.4 GB), the control's gh and msl.
+#   zmu      u at 10/50/250 hPa and v at 250 hPa, streamed a step at a time and never cached (~2 GB a cycle). The
+#            E-P flux comes from GEFS instead (strat.yml), which has levels between 10 and 50 hPa.
+#   naens    GEFS from NOAA's S3 (byte-ranged per message) and GEPS from the MSC Datamart, one shared fetch per model
+#            (strat_ens.py fetch: every member and step pulled once, reduced on the way in), read by all four products
+#            and by the vortex record.
 # The ef files hold ~8,500 messages per step in arrival order, so a 50-member selection is a scatter of 0.3-0.7 MB
-# ranges; rangefetch's 0.5 MB gap keeps the wasted bytes near 1 % and its 60/s request budget (scripts/ecmwf/budget.py)
-# gives 25-50 MB/s on them.
+# ranges: rangefetch's 0.5 MB gap keeps the wasted bytes near 1 %, and winds and heights run at 120 requests/s on the
+# Google mirror (scripts/ecmwf/budget.py; a throttle response halves it and is logged as "throttled: HTTP ...").
+#
+# DEPLOY. The publish job dispatches pages.yml as soon as its commit is on main, rather than leave it to the batched
+# deploys (pages.yml explains the batching; its concurrency group serialises the deploys).
 on:
-  # backstop crons: the dispatcher (scripts/lib/dispatch_workflows.sh) fires this on time; these only matter when
-  # it is off
+  # backstop crons: the fast lane and the dispatcher (scripts/lib/dispatch_workflows.sh) fire this on time; these only
+  # matter when they are off
   schedule:
     - cron: '5 9 * * *'
     - cron: '5 21 * * *'
@@ -111,10 +125,10 @@ concurrency:
 jobs:
   # ---------------------------------------------------------------- cycle ---
   # The cycle strat.yml is on - the newest 00/12Z whose AIFS-ENS is completely on Google, by the same shared rule
-  # (scripts/ecmwf/cycles.py) strat.yml's cycle job uses - then up to 45 min for IFS-ENS to be complete there too.
+  # (scripts/ecmwf/cycles.py) strat.yml's cycle job uses - then up to 15 min for IFS-ENS to begin landing there.
   cycle:
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 30
     outputs:
       date: ${{ steps.cyc.outputs.date }}
       time: ${{ steps.cyc.outputs.time }}
@@ -134,7 +148,7 @@ jobs:
       # ifs_ens imports the shared store, which imports ecmwf-opendata; the full set is ~1 min against the cache.
       - name: Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
-      - name: Resolve the cycle and wait for IFS-ENS on the Google mirror
+      - name: Resolve the cycle and whether IFS-ENS is landing on the Google mirror
         id: cyc
         env:
           ONLY: ${{ inputs.only }}
@@ -147,10 +161,10 @@ jobs:
             t=$(( ($(date -u +%s) - 5 * 3600) / 43200 * 43200 ))
             D=$(date -u -d "@$t" +%Y%m%d); T=$(date -u -d "@$t" +%H)
           fi
-          wait=45; [ -n "$ONLY" ] && wait=0   # a GEFS/GEPS-only run does not wait for IFS-ENS
+          wait=15; [ -n "$ONLY" ] && wait=0   # a GEFS/GEPS-only run does not wait for IFS-ENS
           python scripts/strat/ifs_ens.py resolve --date "$D" --time "$T" --wait-min "$wait" --github-output
           if [ -z "$ONLY" ] && grep -q '^ready=false' "$GITHUB_OUTPUT"; then
-            echo "::warning::IFS-ENS is not on the Google mirror for this cycle; the IFS-ENS products and record keep their previous version"
+            echo "::warning::IFS-ENS has not begun to land on the Google mirror for this cycle; the IFS-ENS products and record keep their previous version"
           fi
       # A backstop cron fires hours late and resolves the cycle a dispatcher slot already rendered: when the IFS control
       # products show it, and the IFS-ENS ones too (or IFS-ENS is still not on the mirror), there is nothing new to fetch
@@ -178,23 +192,24 @@ jobs:
           fi
           echo "fresh=$fresh" >> "$GITHUB_OUTPUT"
 
-  # ----------------------------------------------------------------- maps ---
-  # One shared fetch (~8 GB), then every product that reads it. ~35 min: fetch ~5, vortex winds ~15, the rest ~10.
-  # Each heavy step has its own cap (2-3x its measured time) and continues on error: the job ran into its 90-min limit
-  # twice on 2026-10-03 (21-38 min otherwise) and nothing was packed or published. A stuck step now costs only its cap,
-  # the rest still render and publish, and "What was produced" still turns the run red for whatever is missing.
-  maps:
+  # ---------------------------------------------------------------- winds ---
+  # The 10 and 100 hPa fields and every product of theirs: the vortex-wind loops, the heat flux, the polar-vortex run
+  # records and the descent (see DATA above). The IFS control renders while IFS-ENS lands; after day 15 lands, ~12 min:
+  # the IFS-ENS vortex-wind loop (124 frames) is the longest product of the workflow. Each heavy step has its own cap
+  # and continues on error, so a stuck step costs only its cap, the rest still render and publish, and "What was
+  # produced" still turns the run red for whatever is missing.
+  winds:
     needs: cycle
     if: ${{ !inputs.only && needs.cycle.outputs.fresh == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 150
+    permissions:
+      contents: read
     env:
       MPLBACKEND: Agg
       D: ${{ needs.cycle.outputs.date }}
       T: ${{ needs.cycle.outputs.time }}
       READY: ${{ needs.cycle.outputs.ready }}
-      # trial (2026-10-25): twice the default request budget on the Google mirror, since the shared fetch is bound by
-      # its ~25,000 range requests; a throttle response halves it and is logged ("throttled: HTTP ...")
       ECMWF_RPS: "120"
       ECMWF_RPS_GOOGLE: "120"
     steps:
@@ -211,8 +226,9 @@ jobs:
       - name: Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
 
-      # The shared files are ~8 GB. Recent runner images have ~100 GB free but older ones had ~14, so the
-      # preinstalled SDKs are removed (1-2 min) only when under 25 GB is free.
+      # The files are ~6 GB, each joined from its steps once they are all in.
+      # Recent runner images have ~100 GB free but older ones had ~14, so the preinstalled SDKs are removed (1-2 min)
+      # only when under 25 GB is free.
       - name: Free disk
         run: |
           touch /tmp/t0                                   # stamp: the checkout's copies are older than this
@@ -220,28 +236,6 @@ jobs:
           if [ "${free:-0}" -lt 25 ]; then
             sudo rm -rf /usr/share/dotnet /usr/local/lib/android /usr/local/.ghcup ${AGENT_TOOLSDIRECTORY:+"$AGENT_TOOLSDIRECTORY/CodeQL"} || true
           fi
-          df -h / | tail -1
-
-      # The shared IFS-ENS fetch (ifs_ens.py, four files at a time) and, beside it, the IFS control on its own (one run,
-      # ~0.3 GB, on the mirror before the ensemble: its drip and its two loops), all at once (scripts/lib/parallel.sh).
-      # The store's per-file locks keep the fetch and a product from fetching the same file twice.
-      - name: Shared IFS-ENS fetch and the IFS control (Google mirror only)
-        timeout-minutes: 40
-        continue-on-error: true
-        run: |
-          source scripts/lib/parallel.sh
-          if [ "$READY" = "true" ]; then
-            par "the shared IFS-ENS fetch" "the products that need the missing file will say so" \
-              python scripts/strat/ifs_ens.py fetch --date "$D" --time "$T"
-          fi
-          par "IFS control vortex winds" "keeping the previous frames" python scripts/strat/vortex_winds.py --model hres \
-            --date "$D" --time "$T" --anim-dir assets/sst/anim --manifest assets/sst/anim/vortex_winds_hres_manifest.json
-          par "IFS control wave loops" "keeping the previous frames" python scripts/strat/wave_maps.py --model hres \
-            --date "$D" --time "$T" --anim-dir assets/sst/anim
-          par "IFS control drip" "keeping the previous figure" python scripts/strat/forecast_drip.py --model hres \
-            --date "$D" --time "$T" --out-dir assets/sst
-          par_wait
-          du -sh scripts/ecmwf/cache 2>/dev/null || true
           df -h / | tail -1
 
       # A run checks out the commit it was triggered at, and a queued run can start well after main has moved on.
@@ -252,54 +246,78 @@ jobs:
           git fetch -q --depth 1 origin main
           git checkout origin/main -- assets/sst/data/runs || echo "::warning::no run records on main yet"
 
-      # Every product of the shared files, all at once (four at a time):
-      #   nh_vortex       the polar-vortex records of the models this job reads (AIFS-ENS is recorded by strat.yml, GEFS
-      #                   and GEPS by the naens job); strat-combine.yml draws every model's newest run
-      #   heatflux100_ext 100 hPa eddy heat flux (IFS-ENS)
-      #   forecast_drip   dripping paint (IFS-ENS)
-      #   wave_maps, vortex_winds  the IFS-ENS loops
-      #   polarcap        polar cap at sea level and 500 hPa, the AO and NAO, the 100 hPa height, the 10 hPa temperature
-      #                   and the vortex's shape (gh at 500, 100 and 10 hPa and msl, the IFS control's too; t at 10 hPa,
-      #                   the ensemble's only): plumes, maps and the IFS-ENS and IFS control records; the control alone
-      #                   when IFS-ENS is not ready
-      #   polar_descent   descent over the polar cap from the shared w files (the ensemble's and the control's)
-      #   regimes_ecmwf   weather regimes from the 50 IFS-ENS members of the shared gh file (00Z cycles only) ->
-      #                   assets/regimes/data, read by the multi-model regime view (regimes.yml)
-      - name: IFS-ENS and IFS control products
-        timeout-minutes: 45
+      # IFS-ENS step by step as it lands (ifs_ens.py land, up to 100 min) and, beside it, the IFS control (on the mirror
+      # before the ensemble starts: its files, then its vortex-wind loop) and the GDPS and GEOS FP vortex records (no
+      # ECMWF data), all at once (scripts/lib/parallel.sh).
+      - name: IFS control, and IFS-ENS as it lands (Google mirror only)
+        id: land
+        timeout-minutes: 120
         continue-on-error: true
         run: |
           source scripts/lib/parallel.sh
-          M=gdps,geosfp,hres; [ "$READY" = "true" ] && M=gdps,geosfp,hres,ifs
           if [ "$READY" = "true" ]; then
+            par "IFS-ENS as it lands" "the IFS-ENS products keep their previous version" \
+              bash -c 'python scripts/strat/ifs_ens.py land --date "$D" --time "$T" --wait-min 100 \
+                --names uv,gh_wind,gh_mid,t100,t10,edge,w && touch /tmp/ifs-ens.landed'
+          fi
+          python scripts/strat/ifs_ens.py land --date "$D" --time "$T" --wait-min 30 --names ctrl_wind,ctrl_t100,ctrl_edge,ctrl_w \
+            || echo "::warning::the IFS control is not complete on the Google mirror; its products will say so"
+          par "IFS control vortex winds" "keeping the previous frames" python scripts/strat/vortex_winds.py --model hres \
+            --date "$D" --time "$T" --anim-dir assets/sst/anim --manifest assets/sst/anim/vortex_winds_hres_manifest.json
+          par "GDPS and GEOS FP vortex records" "the records keep their previous runs" python scripts/strat/nh_vortex.py \
+            --record-only --models gdps,geosfp --cycle "$D$T"
+          par_wait
+          du -sh scripts/ecmwf/cache 2>/dev/null || true
+          df -h / | tail -1
+          if [ -f /tmp/ifs-ens.landed ]; then echo "landed=true" >> "$GITHUB_OUTPUT"; fi
+
+      # gh at 10 and 100 hPa and t at 10 hPa, the daily steps, for the heights job's products (their store files, which
+      # heights lays into its own cache): handed over before this job's products start, so heights does not wait for them.
+      - name: The fields the heights job reads
+        id: share
+        if: steps.land.outputs.landed == 'true'
+        run: |
+          { echo "paths<<EOF"; python scripts/strat/ifs_ens.py paths --date "$D" --time "$T" --names gh_wind,t10; echo EOF; } >> "$GITHUB_OUTPUT"
+      - name: Hand them to heights
+        if: steps.land.outputs.landed == 'true'
+        continue-on-error: true   # heights then fetches them itself
+        uses: actions/upload-artifact@v7
+        with:
+          name: ifs-fields-for-heights
+          path: ${{ steps.share.outputs.paths }}
+          compression-level: 0   # GRIB is compressed already
+          if-no-files-found: error
+          retention-days: 1
+
+      # The IFS-ENS products, all at once (four at a time), the vortex-wind loop first: it is the longest.
+      #   vortex_winds    the IFS-ENS loops (u, v and gh at 10 and 100 hPa, every 12 h)
+      #   heatflux100_ext 100 hPa eddy heat flux (IFS-ENS)
+      #   nh_vortex       the polar-vortex records of IFS-ENS and the IFS control, and IFS-ENS member by member (AIFS-ENS
+      #                   is recorded by strat.yml, GEFS and GEPS by the naens job); strat-combine.yml draws every model
+      #   polar_descent   descent over the polar cap (the w and edge rows; the ensemble's and the control's)
+      - name: IFS-ENS and IFS control products
+        timeout-minutes: 45
+        continue-on-error: true
+        env:
+          LANDED: ${{ steps.land.outputs.landed }}
+        run: |
+          source scripts/lib/parallel.sh
+          M=hres; [ "$LANDED" = "true" ] && M=hres,ifs
+          if [ "$LANDED" = "true" ]; then
             par "IFS vortex-wind loop" "keeping the previous frames" python scripts/strat/vortex_winds.py --model ifs \
               --date "$D" --time "$T" --anim-dir assets/sst/anim --manifest assets/sst/anim/vortex_winds_ifs_manifest.json
-            par "IFS wave loops" "keeping the previous frames" python scripts/strat/wave_maps.py --model ifs --date "$D" --time "$T" \
-              --anim-dir assets/sst/anim
-            par "IFS drip" "keeping the previous figure" python scripts/strat/forecast_drip.py --model ifs --date "$D" --time "$T" \
-              --out-dir assets/sst
-          fi
-          par "NH polar vortex run records" "the records keep their previous runs" python scripts/strat/nh_vortex.py --record-only \
-            --members --models "$M" --cycle "$D$T"
-          par "IFS polar cap" "keeping the previous figures" python scripts/strat/polarcap.py --model ifs --date "$D" --time "$T"
-          if [ "$READY" = "true" ]; then
             par "IFS heat flux" "keeping the previous figure" python scripts/strat/heatflux100_ext.py --model ifs --date "$D" \
               --time "$T" --out-dir assets/sst
           fi
+          par "NH polar vortex run records" "the records keep their previous runs" python scripts/strat/nh_vortex.py --record-only \
+            --members --models "$M" --cycle "$D$T"
           par "IFS descent" "keeping the previous figures" python scripts/strat/polar_descent.py --model ifs --date "$D" --time "$T"
-          if [ "$READY" = "true" ]; then
-            par "IFS-ENS regimes" "the previous members stay" python scripts/regimes/regimes_ecmwf.py --model ifs --date "$D" --time "$T"
-          fi
           par_wait
 
-      - name: Run records, heat flux and dripping paint
+      - name: Run record, heat flux
+        if: steps.land.outputs.landed == 'true'
         continue-on-error: true
-        run: |
-          python scripts/strat/run_record.py capture drip --model hres || echo "::warning::IFS control drip record failed"
-          if [ "$READY" = "true" ]; then
-            python scripts/strat/run_record.py capture heatflux --model ifs || echo "::warning::IFS heat-flux record failed"
-            python scripts/strat/run_record.py capture drip --model ifs || echo "::warning::IFS drip record failed"
-          fi
+        run: python scripts/strat/run_record.py capture heatflux --model ifs || echo "::warning::IFS heat-flux record failed"
 
       # Red when something that should have rendered did not (every render above is `|| ::warning::`, so a green step
       # proves nothing). Publishing still runs under always().
@@ -307,15 +325,15 @@ jobs:
         if: always()
         run: |
           bad=0
-          want="assets/sst/hres_drip.webp"
-          [ "$READY" = "true" ] && want="$want assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/ifs_drip.webp assets/sst/polarcap_ifs.webp assets/sst/telecon_ifs.webp assets/sst/vshape_ifs.webp assets/sst/descent_ifs.webp"
+          want=""
+          [ "$READY" = "true" ] && want="assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/descent_ifs.webp"
           for f in $want; do
             if [ -f "$f" ] && [ "$f" -nt /tmp/t0 ]; then printf '  %-40s %s\n' "$f" "$(du -h "$f" | cut -f1)"
             else printf '  %-40s MISSING\n' "$f"; bad=$((bad + 1)); fi
           done
           models=hres; [ "$READY" = "true" ] && models="ifs hres"
           for m in $models; do
-            for d in wave1_${m}_nh wave1_${m}_sh wave2_${m}_nh wave2_${m}_sh vortex_${m}_10_nh vortex_${m}_10_sh vortex_${m}_100_nh vortex_${m}_100_sh; do
+            for d in vortex_${m}_10_nh vortex_${m}_10_sh vortex_${m}_100_nh vortex_${m}_100_sh; do
               n=$(ls "assets/sst/anim/$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')
               printf '  %-40s %s frames\n' "$d" "$n"; [ "$n" -eq 0 ] && bad=$((bad + 1))
             done
@@ -326,43 +344,222 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
-          : > /tmp/maps.list
+          : > /tmp/winds.list
           for p in assets/sst/ifs_heatflux100_nh.webp assets/sst/ifs_heatflux100_sh.webp assets/sst/data/ifs_heatflux100.json \
-                   assets/sst/ifs_drip.webp assets/sst/ifs_drip_change.webp assets/sst/data/ifs_drip.json assets/sst/hres_drip.webp assets/sst/hres_drip_change.webp assets/sst/data/hres_drip.json \
-                   assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
                    assets/sst/data/runs/vortex_{ifs,hres,gdps,geosfp}.json assets/sst/vortex_members_ifs.webp \
-                   assets/sst/data/runs/{heatflux,drip,waves}_ifs.json \
-                   assets/sst/data/runs/{drip,waves}_hres.json assets/sst/runs/{heatflux,drip,waves}_ifs.webp \
-                   assets/sst/runs/{drip,waves}_hres.webp \
-                   assets/sst/polarcap_ifs.webp assets/sst/telecon_ifs.webp assets/sst/anim/polarcap_ifs_manifest.json \
-                   assets/sst/anim/z100_{ifs,hres}_manifest.json assets/sst/vshape_ifs.webp assets/sst/anim/t10_ifs_manifest.json \
+                   assets/sst/data/runs/heatflux_ifs.json assets/sst/runs/heatflux_ifs.webp \
                    assets/sst/descent_ifs.webp assets/sst/descent_sectors_ifs.webp assets/sst/anim/descent_{ifs,hres}_manifest.json \
-                   assets/sst/data/runs/{polarcap,telecon,vshape,descent}_{ifs,hres}.json \
-                   assets/sst/runs/{polarcap,telecon,vshape,descent}_{ifs,hres}.webp; do
-            [ -e "$p" ] && [ "$p" -nt /tmp/t0 ] && echo "$p" >> /tmp/maps.list
+                   assets/sst/data/runs/descent_{ifs,hres}.json assets/sst/runs/descent_{ifs,hres}.webp; do
+            [ -e "$p" ] && [ "$p" -nt /tmp/t0 ] && echo "$p" >> /tmp/winds.list
           done
-          for d in assets/sst/anim/polarcap_ifs assets/sst/anim/z100_ifs assets/sst/anim/z100_hres assets/sst/anim/t10_ifs \
-                   assets/sst/anim/descent_ifs assets/sst/anim/descent_hres; do
-            if [ -d "$d" ] && [ "$d" -nt /tmp/t0 ]; then echo "$d" >> /tmp/maps.list; fi
+          for d in assets/sst/anim/descent_ifs assets/sst/anim/descent_hres; do
+            if [ -d "$d" ] && [ "$d" -nt /tmp/t0 ]; then echo "$d" >> /tmp/winds.list; fi
           done
           for m in ifs hres; do
-            for p in assets/sst/anim/wave1_${m}_nh assets/sst/anim/wave1_${m}_sh assets/sst/anim/wave1_maps_${m}_manifest.json \
-                     assets/sst/anim/wave2_${m}_nh assets/sst/anim/wave2_${m}_sh assets/sst/anim/wave2_maps_${m}_manifest.json \
-                     assets/sst/anim/vortex_${m}_10_nh assets/sst/anim/vortex_${m}_10_sh assets/sst/anim/vortex_${m}_100_nh \
+            for p in assets/sst/anim/vortex_${m}_10_nh assets/sst/anim/vortex_${m}_10_sh assets/sst/anim/vortex_${m}_100_nh \
                      assets/sst/anim/vortex_${m}_100_sh assets/sst/anim/vortex_winds_${m}_manifest.json; do
-              [ -e "$p" ] && echo "$p" >> /tmp/maps.list
+              [ -e "$p" ] && echo "$p" >> /tmp/winds.list
             done
           done
-          if [ ! -s /tmp/maps.list ]; then : > /tmp/strat-ifs-maps.tgz; exit 0; fi
-          tar -czf /tmp/strat-ifs-maps.tgz -T /tmp/maps.list
-          echo "  packed $(tar -tzf /tmp/strat-ifs-maps.tgz | grep -c '\.webp$') webp"
+          if [ ! -s /tmp/winds.list ]; then : > /tmp/strat-ifs-winds.tgz; exit 0; fi
+          tar -czf /tmp/strat-ifs-winds.tgz -T /tmp/winds.list
+          echo "  packed $(tar -tzf /tmp/strat-ifs-winds.tgz | grep -c '\.webp$') webp"
 
       - name: Hand off to publish
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: strat-ifs-maps
-          path: /tmp/strat-ifs-maps.tgz
+          name: strat-ifs-winds
+          path: /tmp/strat-ifs-winds.tgz
+          if-no-files-found: warn
+          retention-days: 7
+
+  # -------------------------------------------------------------- heights ---
+  # gh at the drip's other levels, sea-level pressure and the control's gh and msl, and every product of theirs: the
+  # dripping paint, the wave loops, the polar cap (with the AO/NAO, 100 hPa height, 10 hPa temperature and vortex
+  # shape) and the regimes; gh at 10/100 hPa and t at 10 hPa come from the winds job. The IFS control renders while
+  # IFS-ENS lands; after day 15 lands, ~10 min.
+  heights:
+    needs: cycle
+    if: ${{ !inputs.only && needs.cycle.outputs.fresh == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    permissions:
+      contents: read
+      actions: read   # the winds job's fields: this run's artifacts, while that job still runs
+    env:
+      MPLBACKEND: Agg
+      D: ${{ needs.cycle.outputs.date }}
+      T: ${{ needs.cycle.outputs.time }}
+      READY: ${{ needs.cycle.outputs.ready }}
+      ECMWF_RPS: "120"
+      ECMWF_RPS_GOOGLE: "120"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+
+      - name: Free disk
+        run: |
+          touch /tmp/t0                                   # stamp: the checkout's copies are older than this
+          free=$(df -BG --output=avail / | tail -1 | tr -dc 0-9)
+          if [ "${free:-0}" -lt 25 ]; then
+            sudo rm -rf /usr/share/dotnet /usr/local/lib/android /usr/local/.ghcup ${AGENT_TOOLSDIRECTORY:+"$AGENT_TOOLSDIRECTORY/CodeQL"} || true
+          fi
+          df -h / | tail -1
+
+      # the run records accumulate, so they are main's as it is now (a queued run checks out an older commit)
+      - name: The run records as main has them now
+        run: |
+          git fetch -q --depth 1 origin main
+          git checkout origin/main -- assets/sst/data/runs || echo "::warning::no run records on main yet"
+
+      # IFS-ENS step by step as it lands and, beside it, the IFS control: its files, then its drip and wave loops.
+      - name: IFS control, and IFS-ENS as it lands (Google mirror only)
+        id: land
+        timeout-minutes: 120
+        continue-on-error: true
+        run: |
+          source scripts/lib/parallel.sh
+          if [ "$READY" = "true" ]; then
+            par "IFS-ENS as it lands" "the IFS-ENS products keep their previous version" \
+              bash -c 'python scripts/strat/ifs_ens.py land --date "$D" --time "$T" --wait-min 100 --names gh,msl \
+                && touch /tmp/ifs-ens.landed'
+          fi
+          python scripts/strat/ifs_ens.py land --date "$D" --time "$T" --wait-min 30 --names ctrl_gh,ctrl_msl \
+            || echo "::warning::the IFS control is not complete on the Google mirror; its products will say so"
+          par "IFS control wave loops" "keeping the previous frames" python scripts/strat/wave_maps.py --model hres \
+            --date "$D" --time "$T" --anim-dir assets/sst/anim
+          par "IFS control drip" "keeping the previous figure" python scripts/strat/forecast_drip.py --model hres \
+            --date "$D" --time "$T" --out-dir assets/sst
+          par_wait
+          python scripts/strat/run_record.py capture drip --model hres || echo "::warning::IFS control drip record failed"
+          du -sh scripts/ecmwf/cache 2>/dev/null || true
+          if [ -f /tmp/ifs-ens.landed ]; then echo "landed=true" >> "$GITHUB_OUTPUT"; fi
+
+      # gh at 10/100 hPa and t at 10 hPa from the winds job (its artifact, as soon as it is uploaded) into this job's
+      # store cache. Should it not come (the winds job failed first), the products fetch those files from the mirror.
+      - name: The winds job's fields
+        if: steps.land.outputs.landed == 'true'
+        timeout-minutes: 30
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="repos/$GITHUB_REPOSITORY/actions"
+          dir=$(dirname "$(python scripts/strat/ifs_ens.py paths --date "$D" --time "$T" --names t10 | sed -n 1p)")
+          start=$(date +%s)
+          while :; do
+            id=$(gh api "$api/runs/$GITHUB_RUN_ID/artifacts?name=ifs-fields-for-heights" --jq '.artifacts[0].id // ""' || true)
+            if [ -n "$id" ]; then
+              gh api "$api/artifacts/$id/zip" > /tmp/fields.zip
+              unzip -o -q /tmp/fields.zip -d "$dir" && rm /tmp/fields.zip
+              echo "  the winds job's fields after $(( $(date +%s) - start )) s:"; ls -la "$dir"
+              break
+            fi
+            state=$(gh api "$api/runs/$GITHUB_RUN_ID/jobs" --jq '.jobs[] | select(.name == "winds" or (.name | endswith("/ winds"))) | .status' || true)
+            if [ "$state" = completed ]; then
+              echo "::warning::the winds job ended without handing on its fields; the products fetch them from the mirror"
+              break
+            fi
+            sleep 10
+          done
+
+      # The IFS-ENS products, all at once (four at a time):
+      #   forecast_drip   dripping paint (IFS-ENS)
+      #   wave_maps       the IFS-ENS loops
+      #   polarcap        polar cap at sea level and 500 hPa, the AO and NAO, the 100 hPa height, the 10 hPa temperature
+      #                   and the vortex's shape (gh at 500, 100 and 10 hPa and msl, the IFS control's too; t at 10 hPa,
+      #                   the ensemble's only): plumes, maps and the IFS-ENS and IFS control records; the control alone
+      #                   when IFS-ENS is not ready
+      #   regimes_ecmwf   weather regimes from the 50 IFS-ENS members of the shared gh file (00Z cycles only) ->
+      #                   assets/regimes/data, read by the multi-model regime view (regimes.yml)
+      - name: IFS-ENS and IFS control products
+        timeout-minutes: 45
+        continue-on-error: true
+        env:
+          LANDED: ${{ steps.land.outputs.landed }}
+        run: |
+          source scripts/lib/parallel.sh
+          if [ "$LANDED" = "true" ]; then
+            par "IFS drip" "keeping the previous figure" python scripts/strat/forecast_drip.py --model ifs --date "$D" --time "$T" \
+              --out-dir assets/sst
+            par "IFS wave loops" "keeping the previous frames" python scripts/strat/wave_maps.py --model ifs --date "$D" --time "$T" \
+              --anim-dir assets/sst/anim
+          fi
+          par "IFS polar cap" "keeping the previous figures" python scripts/strat/polarcap.py --model ifs --date "$D" --time "$T"
+          if [ "$LANDED" = "true" ]; then
+            par "IFS-ENS regimes" "the previous members stay" python scripts/regimes/regimes_ecmwf.py --model ifs --date "$D" --time "$T"
+          fi
+          par_wait
+
+      - name: Run record, dripping paint
+        if: steps.land.outputs.landed == 'true'
+        continue-on-error: true
+        run: python scripts/strat/run_record.py capture drip --model ifs || echo "::warning::IFS drip record failed"
+
+      - name: What was produced
+        if: always()
+        run: |
+          bad=0
+          want="assets/sst/hres_drip.webp"
+          [ "$READY" = "true" ] && want="$want assets/sst/ifs_drip.webp assets/sst/polarcap_ifs.webp assets/sst/telecon_ifs.webp assets/sst/vshape_ifs.webp"
+          for f in $want; do
+            if [ -f "$f" ] && [ "$f" -nt /tmp/t0 ]; then printf '  %-40s %s\n' "$f" "$(du -h "$f" | cut -f1)"
+            else printf '  %-40s MISSING\n' "$f"; bad=$((bad + 1)); fi
+          done
+          models=hres; [ "$READY" = "true" ] && models="ifs hres"
+          for m in $models; do
+            for d in wave1_${m}_nh wave1_${m}_sh wave2_${m}_nh wave2_${m}_sh; do
+              n=$(ls "assets/sst/anim/$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')
+              printf '  %-40s %s frames\n' "$d" "$n"; [ "$n" -eq 0 ] && bad=$((bad + 1))
+            done
+          done
+          [ "$bad" -gt 0 ] && { echo "::error::$bad IFS-ENS / IFS control product(s) produced nothing"; exit 1; } || true
+
+      - name: Pack the outputs
+        if: always()
+        run: |
+          set -euo pipefail
+          : > /tmp/heights.list
+          for p in assets/sst/ifs_drip.webp assets/sst/ifs_drip_change.webp assets/sst/data/ifs_drip.json assets/sst/hres_drip.webp assets/sst/hres_drip_change.webp assets/sst/data/hres_drip.json \
+                   assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
+                   assets/sst/data/runs/{drip,waves}_{ifs,hres}.json assets/sst/runs/{drip,waves}_{ifs,hres}.webp \
+                   assets/sst/polarcap_ifs.webp assets/sst/telecon_ifs.webp assets/sst/anim/polarcap_ifs_manifest.json \
+                   assets/sst/anim/z100_{ifs,hres}_manifest.json assets/sst/vshape_ifs.webp assets/sst/anim/t10_ifs_manifest.json \
+                   assets/sst/data/runs/{polarcap,telecon,vshape}_{ifs,hres}.json \
+                   assets/sst/runs/{polarcap,telecon,vshape}_{ifs,hres}.webp; do
+            [ -e "$p" ] && [ "$p" -nt /tmp/t0 ] && echo "$p" >> /tmp/heights.list
+          done
+          for d in assets/sst/anim/polarcap_ifs assets/sst/anim/z100_ifs assets/sst/anim/z100_hres assets/sst/anim/t10_ifs; do
+            if [ -d "$d" ] && [ "$d" -nt /tmp/t0 ]; then echo "$d" >> /tmp/heights.list; fi
+          done
+          for m in ifs hres; do
+            for p in assets/sst/anim/wave1_${m}_nh assets/sst/anim/wave1_${m}_sh assets/sst/anim/wave1_maps_${m}_manifest.json \
+                     assets/sst/anim/wave2_${m}_nh assets/sst/anim/wave2_${m}_sh assets/sst/anim/wave2_maps_${m}_manifest.json; do
+              [ -e "$p" ] && echo "$p" >> /tmp/heights.list
+            done
+          done
+          if [ ! -s /tmp/heights.list ]; then : > /tmp/strat-ifs-heights.tgz; exit 0; fi
+          tar -czf /tmp/strat-ifs-heights.tgz -T /tmp/heights.list
+          echo "  packed $(tar -tzf /tmp/strat-ifs-heights.tgz | grep -c '\.webp$') webp"
+
+      - name: Hand off to publish
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: strat-ifs-heights
+          path: /tmp/strat-ifs-heights.tgz
           if-no-files-found: warn
           retention-days: 7
 
@@ -563,14 +760,16 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+
   # ------------------------------------------------------------------ zmu ---
   # u at 10/50/250 and v at 250 hPa for 50 members, ~130 MB a step: streamed step by step (3 at a time), reduced to
-  # the per-member zonal-mean u in memory; the 250 hPa jet sector is left in /tmp/pacjet_ifs.
+  # the per-member zonal-mean u in memory; the 250 hPa jet sector is left in /tmp/pacjet_ifs. Starts when IFS-ENS is
+  # complete on the mirror (~2 min of streaming then; the winds job is the last to finish anyway).
   zmu:
     needs: cycle
     if: needs.cycle.outputs.ready == 'true' && !inputs.only && needs.cycle.outputs.fresh == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 150
     env:
       MPLBACKEND: Agg
       EPFLUX_IFS_WORKERS: "3"
@@ -587,6 +786,11 @@ jobs:
             pip-mjo-${{ runner.os }}-
       - name: Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
+
+      - name: IFS-ENS complete on the Google mirror
+        run: |
+          python scripts/strat/ifs_ens.py wait --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
+            --wait-min 100
 
       # PACJET_IFS_DIR: the stream also leaves the 250 hPa u/v sector of every member for the North Pacific jet below.
       - name: Zonal-mean u and the 250 hPa jet sector (IFS-ENS, streamed)
@@ -651,12 +855,12 @@ jobs:
 
   # -------------------------------------------------------------- imprint ---
   # The downward propagation monitor (ssw_imprint.py): every model's members' sea-level pressure, daily to day 15,
-  # projected on the CMIP6 post-SSW pattern, beside the drips the maps and naens jobs just rendered (their day-15
-  # 100 hPa cap drives the outlook). IFS-ENS ~0.35 GB and AIFS-ENS ~0.4 GB (the 90-20N rows of each message) from
-  # the Google Cloud mirror, GEFS ~0.2 GB byte-ranged from S3, GEPS ~50 MB from the Datamart. Each model on the cycle its drip is on; a GEFS/GEPS cycle main
-  # already shows is not fetched again. ~10 min.
+  # projected on the CMIP6 post-SSW pattern, beside the drips the heights and naens jobs just rendered (their day-15
+  # 100 hPa cap drives the outlook) and the winds job's heat flux. IFS-ENS ~0.35 GB and AIFS-ENS ~0.4 GB (the 90-20N
+  # rows of each message) from the Google Cloud mirror, GEFS ~0.2 GB byte-ranged from S3, GEPS ~50 MB from the
+  # Datamart. Each model on the cycle its drip is on; a GEFS/GEPS cycle main already shows is not fetched again. ~10 min.
   imprint:
-    needs: [cycle, maps, naens]
+    needs: [cycle, winds, heights, naens]
     # nothing to do when no model has a new cycle (a late backstop after the dispatcher slot and the GEPS fast lane)
     if: >-
       ${{ always() && needs.cycle.result == 'success' && (needs.cycle.outputs.fresh == 'true'
@@ -762,12 +966,15 @@ jobs:
 
   # -------------------------------------------------------------- publish ---
   publish:
-    needs: [cycle, maps, naens, zmu, imprint]
+    needs: [cycle, winds, heights, naens, zmu, imprint]
     if: >-
       ${{ always() && needs.imprint.result != 'skipped'
       && (github.event_name == 'schedule' || github.event.inputs.publish == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: write   # the site deploy (pages.yml) right after the commit
     steps:
       - uses: actions/checkout@v7
 
@@ -809,6 +1016,7 @@ jobs:
       # Stills, data and manifests to main. Never rebase: snapshot, reset to a fresh
       # origin/main each attempt, lay the snapshot back on, commit, push.
       - name: Commit & push
+        id: commit
         run: |
           git config user.name "Shawn Corvec"
           git config user.email "26825570+scorvec@users.noreply.github.com"
@@ -852,7 +1060,20 @@ jobs:
             for f in $FILES; do git add "$f"; done
             if git diff --staged --quiet; then echo "no changes after resync"; exit 0; fi
             git commit -q -m "$MSG"
-            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
+            if timeout 180 git push origin HEAD:main; then
+              echo "pushed (attempt $i)"; echo "pushed=true" >> "$GITHUB_OUTPUT"; exit 0
+            fi
             echo "push $i rejected; resyncing"; sleep 5
           done
           echo "push failed after retries"; exit 1
+
+      # The site deploys this commit now rather than at the next batched deploy (the exception pages.yml notes): a
+      # commit pushed with GITHUB_TOKEN does not trigger pages.yml, a dispatch does, and its concurrency group queues
+      # it behind a deploy in progress.
+      - name: Deploy the site
+        if: steps.commit.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main \
+            || echo "::warning::pages.yml dispatch failed; the batched deploy will publish this commit"
