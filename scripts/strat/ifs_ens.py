@@ -6,7 +6,7 @@ WHAT ECMWF OPEN DATA CARRIES (index probed 2026-09-27)
   enfo  the ensemble: the 50 PERTURBED members only at pressure levels - gh, t, u, v (and d, q, r, vo, w) on 1000, 925,
         850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 50 and 10 hPa, 0.25 deg. NO control (type=cf) at any pressure
         level, and nothing above 10 hPa. One `-enfo-ef` file per step, ~8,500 messages in arrival order (no member or
-        level blocks), so any 50-member selection is a scatter of 0.3-0.7 MB ranges: run with ECMWF_RANGE_GAP_MB=0.5.
+        level blocks), so any 50-member selection is a scatter of 0.3-0.7 MB ranges (rangefetch's 0.5 MB gap).
   oper  the IFS control (ECMWF's unperturbed 9 km run, called HRES until May 2026): the same levels at every step to
         360 h (0..144 by 3, then by 6; probed 2026-10-21), one `-oper-fc` file per step. Its step 0 is the 4D-Var
         analysis the ensemble starts from, so the ensemble maps' analysis frames are the control's.

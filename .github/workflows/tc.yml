@@ -55,7 +55,6 @@ env:
   FRAMES_S3_SECRET_ACCESS_KEY: ${{ secrets.FRAMES_S3_SECRET_ACCESS_KEY }}
   FRAMES_BRANCH: ${{ vars.FRAMES_BRANCH }}
   ECMWF_SOURCES: google
-  ECMWF_RANGE_GAP_MB: '0.5'   # IFS-ENS msl: 50 messages scattered through each step's ~8,500 (rangefetch.MAX_GAP)
   PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
 
 jobs:

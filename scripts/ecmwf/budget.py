@@ -11,9 +11,12 @@ as the second line of defence.
 Model: sliding-window rate caps, one global ("*") plus per-mirror. The
 only mirror is Google: ECMWF open data is read from the Google Cloud
 mirror only (no AWS/Azure/data.ecmwf.int entries).
-Defaults are deliberately below the observed throttle threshold:
-  global  ECMWF_RPS        20 req/s  (window-averaged)
-  google  ECMWF_RPS_GOOGLE 14 req/s
+Defaults (window-averaged):
+  global  ECMWF_RPS        60 req/s
+  google  ECMWF_RPS_GOOGLE 60 req/s
+The old 20 and 14 were set for the AWS/Azure mirrors' throttling. The
+Google mirror has not throttled at 60/s (the stratosphere and IFS-ENS
+jobs since 2026-09-27: 25-50 MB/s on scattered ranges instead of 8).
 A 429/503 anywhere calls penalize(host): that host's cap halves for
 PENALTY_S seconds (stacking down to a floor), written into the shared
 state so every process slows down together.
@@ -43,7 +46,7 @@ PENALTY_S = 45.0  # halved-cap duration after a throttle signal
 FLOOR_FRAC = 0.25  # penalties never cut below this fraction
 MAX_WAIT_S = 180.0  # bound the block; then fail-open
 
-_DEFAULTS = {"*": 20.0, "google": 14.0}
+_DEFAULTS = {"*": 60.0, "google": 60.0}
 
 
 def _rps(host: str) -> float:

@@ -46,7 +46,6 @@ env:
   FRAMES_BRANCH: ${{ vars.FRAMES_BRANCH }}
   PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
   ECMWF_SOURCES: google
-  ECMWF_RANGE_GAP_MB: '0.5'   # the 50 2t messages are scattered through each step's file (rangefetch.MAX_GAP)
   PYTHONUNBUFFERED: '1'
 
 jobs:

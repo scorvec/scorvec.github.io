@@ -104,7 +104,6 @@ jobs:
       matrix:
         model: [aifs, ifs, gefs]
     env:
-      ECMWF_RANGE_GAP_MB: '0.5'   # IFS-ENS ef files scatter a member's messages: a 3 MB gap fetches ~2x the bytes
       ARCH: scripts/mjo/data/hbranch
     steps:
       - uses: actions/checkout@v7

@@ -99,6 +99,9 @@ AIFS_SINGLE = (Need("aifs-single", "fc", "oper"),)
 # IFS HRES to day 10: the dynamic-tropopause maps (aam.yml) and the TC board's maps and phase space. The 00/12Z run
 # reaches day 10 on the mirror ~T+7.5 h.
 IFS_HRES_D10 = (Need("ifs", "fc", "oper", step=240, every=IFS_STEPS),)
+# The IFS control to day 15 (00/12Z), ~T+7.6 h: the dynamic tropopause (aam.yml) and the other products of the control's
+# 0.25-deg run.
+IFS_CONTROL = (Need("ifs", "fc", "oper", step=360, every=IFS_STEPS),)
 # The TC board (tc.yml): both ensembles' members to day 10 (each member's surface low is followed on its own ensemble's
 # pressure) and IFS HRES to day 10. IFS-ENS day 10 is the last to land, ~T+8.6 h.
 TC_BOARD = (
@@ -121,6 +124,7 @@ PROFILES = {
     "ifs-ens": IFS_ENS,  # strat-ifs (waits for it on the AIFS-ENS cycle)
     "aifs-single": AIFS_SINGLE,
     "aifs-compare": AIFS_SINGLE + AIFS_ENS,  # aifs-compare: single vs control vs ensemble mean
+    "ifs-control": IFS_CONTROL,  # aam.yml
     "tc": TC_BOARD,  # tc.yml
     "ifs-0p1": IFS_CONTROL_0P1,  # tc.yml, ar-det.yml: whether the IFS control's maps can be drawn at 0.1 deg
     "ifs-ens-0p1": IFS_ENS_0P1,  # natemp.yml
