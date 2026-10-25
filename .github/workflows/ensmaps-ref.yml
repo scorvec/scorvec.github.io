@@ -13,6 +13,11 @@ name: Global ensemble maps, 2 m temperature normals (ERA5-Land + ERA5 1991-2020 
 # again, and fetches only the units the release does not hold. The cron repeats that every 6 h until the release has
 # the normals, then exits at its first step. Licence: Copernicus (the page carries "Contains modified Copernicus Climate
 # Change Service information"). Secrets: CDSAPI_URL and CDSAPI_KEY.
+#
+# Until the release has them, the `interim` job (dispatch with interim=true; no CDS, so outside the seas5 group) builds
+# ensmaps_t2m_normals_interim.npz: ERA5 1.5 deg from WeatherBench 2's public bucket, height-adjusted to the IFS's 0.1-deg
+# orography, with the North America maps' normals (release natemp-ref-v1) over their box (ensmaps_ref.py interim).
+# ensmaps.yml takes it only while ensmaps_t2m_normals.npz is missing; the per-decade units stay in the release.
 on:
   schedule:
     - cron: '40 */6 * * *'
@@ -22,13 +27,13 @@ on:
         description: 'Fit the curves from the units already in the release (no CDS requests)'
         type: boolean
         default: false
+      interim:
+        description: 'Build the interim normals (ERA5 1.5 deg + the North America normals) instead'
+        type: boolean
+        default: false
 
 permissions:
   contents: write   # release assets only; nothing is committed
-
-concurrency:
-  group: seas5
-  cancel-in-progress: false
 
 env:
   TAG: ensmaps-ref-v1
@@ -37,8 +42,12 @@ env:
 
 jobs:
   normals:
+    if: ${{ !inputs.interim }}
     runs-on: ubuntu-latest
     timeout-minutes: 345
+    concurrency:
+      group: seas5
+      cancel-in-progress: false
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
@@ -119,3 +128,38 @@ jobs:
           if [ "$rc" -eq 3 ]; then echo "::notice::units still missing; the next run continues"; exit 0; fi
           [ "$rc" -eq 0 ] || exit "$rc"
           gh release upload "$TAG" ref/ensmaps_t2m_normals.npz -R "$GITHUB_REPOSITORY" --clobber
+
+  interim:
+    if: ${{ inputs.interim }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ECMWF_SOURCES: google
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/ensmaps
+            scripts/ecmwf
+            scripts/lib
+            scripts/constraints.txt
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libeccodes0
+          pip install --quiet numpy scipy pandas eccodes requests 'pyproj>=3.7.2' xarray zarr dask gcsfs
+      - name: The North America maps' normals
+        run: gh release download natemp-ref-v1 -R "$GITHUB_REPOSITORY" -p natemp_normals.npz -D ref --clobber
+      - name: Build the interim normals
+        run: python scripts/ensmaps/ensmaps_ref.py interim --natemp ref/natemp_normals.npz --out ref/ensmaps_t2m_normals_interim.npz
+      - name: Publish them beside the units
+        run: |
+          if ! gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" --title "Global ensemble maps, 2 m temperature normals v1" \
+              --notes "2 m temperature normals for scripts/ensmaps (see ensmaps-ref.yml). Contains modified Copernicus Climate Change Service information 2026."
+          fi
+          gh release upload "$TAG" ref/ensmaps_t2m_normals_interim.npz -R "$GITHUB_REPOSITORY" --clobber

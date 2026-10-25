@@ -965,6 +965,7 @@ def run(a) -> int:
         fdr_q=FDR_Q,
         normals={
             "t2m": t2m_normals.meta.get("label") if t2m_normals else None,
+            "t2m_regions": t2m_normals.meta.get("regions") if t2m_normals else None,  # the interim file's
             "upper": R.UPPER_META["label"],
         },
         regimes=regimes,
