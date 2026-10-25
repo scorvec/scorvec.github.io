@@ -19,6 +19,8 @@ data are fetched.
            set) and the record is regime_core's format; a period's label day is the middle day, whose 5-day running
            mean is the period's own mean; the run-to-run test finds a planted shift and nothing in identical runs; a
            12Z run's day 16 needs +384 h
+  clusters a scenario keeps its letter through a one-scenario day, a split takes a new letter and a scenario that
+           re-forms its old one; the members' moves between two periods' clusters
 """
 
 from __future__ import annotations
@@ -35,6 +37,7 @@ from scipy.stats import ttest_ind
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import ensmaps as E  # (imports pyproj before eccodes)
+import ensmaps_clusters as EC
 import ensmaps_ref as R
 import ensmaps_regimes as ER
 import regime_core as RC
@@ -281,6 +284,32 @@ def regimes():
     check(len(E.full_days(pd.Timestamp("2026-10-25 12:00"), 384)) == 15, "a 12Z run to +384 h has 15 full days")
 
 
+def clusters():
+    print("clusters")
+    keys = [("ifs", i) for i in range(20)]
+    w = np.full(20, 0.05)
+
+    def sol(groups):
+        lab = np.zeros(20, int)
+        for j, g in enumerate(groups):
+            lab[list(g)] = j
+        return {"k": len(groups), "lab": lab}
+
+    seq = [
+        sol([range(10), range(10, 20)]),
+        sol([range(20)]),
+        sol([range(10), range(10, 17), range(17, 20)]),
+        sol([[*range(10), 17, 18, 19], range(10, 17)]),
+        sol([range(10), range(10, 17), range(17, 20)]),
+    ]
+    EC.chain_letters([(keys, s, w) for s in seq])
+    check(
+        [s["letters"] for s in seq] == [["A", "B"], [None], ["A", "B", "C"], ["A", "B"], ["A", "B", "C"]],
+        "letters: kept through a one-scenario day, a new one for a split, the same one when it re-forms",
+    )
+    check(EC.flow((keys, seq[2]), (keys, seq[3], w)) == [[0.5, 0.0], [0.0, 0.35], [0.15, 0.0]], "the members' moves")
+
+
 def main() -> int:
     grids()
     grib_checks()
@@ -290,6 +319,7 @@ def main() -> int:
     test()
     chain()
     regimes()
+    clusters()
     print("all checks passed")
     return 0
 

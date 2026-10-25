@@ -10,8 +10,9 @@ anomalies in the Actions cache (save_fields, from ensmaps.py), and `run` cluster
             fields: the archive of its 00Z runs' ensemble-mean anomalies (DRIFT_KEEP runs, the Actions cache), lead-L
             forecast less the day-1 forecast of the run started on its valid day, shrunk n / (n + 10), at the leads with
             >= 10 verified runs
-  windows   by VALID date from the newest run's first full day: days 3-5, 6-10 and 11-15, each the mean over its days,
-            cut to the days every model in it holds (a model holding fewer than 3 of them is left out of the window)
+  periods   by VALID date from the newest run's first full day: the windows days 3-5, 6-10 and 11-15, each the mean over
+            its days, cut to the days every model in it holds (a model holding fewer than 3 of them is left out of the
+            window), and each day 1..DAYS_MAX, its daily mean, from the models holding it
   domains   regime_core's two sector boxes (Euro-Atlantic, North America and Pacific) and the hemisphere 20-90N
   vector    each field divided by its domain-mean climatological standard deviation for the window's length and time of
             year (SD_FILE: ERA5 1991-2020 from the store, +-15 days), weighted by sqrt(cos lat), the two concatenated
@@ -25,13 +26,16 @@ anomalies in the Actions cache (save_fields, from ensmaps.py), and `run` cluster
             standard deviation (the gap statistic's rule). Otherwise one scenario.
   outputs   per window and domain: each cluster's probability (its weight) and each model's share of its own members in
             it; the nearest regime of each sector (pattern correlation of the cluster's mean 500 hPa anomaly with
-            regime_core's centroids of the season, "no regime" below 0.25); how members move from window to window; a
+            regime_core's centroids of the season, "no regime" below 0.25); how members move from window to window and
+            from day to day; letters that follow a scenario through the windows and through the days (chain_letters); a
             permutation chi-square test of model x cluster independence, naming the models a cluster over- or
             under-represents (adjusted residual beyond 2.58) when it fails at 5 %; polar stereographic Northern
             Hemisphere maps per cluster, 500 hPa height and sea-level pressure, the anomaly (or the standardized anomaly:
             ensmaps_ref.Spread of the window's length) shaded where at least sign_k(n) of its n members agree on its
             sign, dots where its mean differs from the grand ensemble's (N_PERM random member sets of its size,
             Benjamini-Hochberg at FDR_Q)
+  cost      the periods are fitted in parallel processes, then the figures drawn the same way; the synthetic nulls and
+            the bootstrap use N_START_FAST k-means starts against N_START for the fit itself
 
     python scripts/ensmaps/ensmaps_clusters.py sd                    # once: SD_FILE from $ERA5_STORE
     python scripts/ensmaps/ensmaps_clusters.py run --fields f/*.npz --site . --lists /tmp/lists
@@ -43,8 +47,11 @@ import argparse
 import datetime as dt
 import hashlib
 import io
+import itertools
 import json
+import os
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -59,9 +66,10 @@ SD_FILE = HERE / "reference" / "ensmaps_cluster_sd.npz"
 LAT = np.arange(90.0, 19.99, -2.5)  # 29 rows, 90N..20N (the NCEP grid's)
 LON = np.arange(0.0, 360.0, 2.5)  # 144, from 0E (regime_core's order)
 NROW = LAT.size
-WINDOW_DAYS = (3, 4, 5)  # the windows' lengths the SD table holds
+WINDOW_DAYS = (1, 3, 4, 5)  # the periods' lengths the SD table holds: a day, the windows
 HALF = 15  # +- days of the time of year
 WINDOWS = (("d3_5", 3, 5), ("d6_10", 6, 10), ("d11_15", 11, 15))
+DAYS_MAX = 16  # the days clustered one by one (GEFS and GEPS hold the 16th)
 K_MAX, N_START, N_NULL, N_BOOT, STABLE, MIN_W, VAR_KEEP = 5, 100, 100, 50, 0.6, 0.05, 0.80
 N_START_FAST = 10  # starts for the null and bootstrap ensembles
 N_PERM, FDR_Q = 500, 0.10
@@ -217,7 +225,7 @@ def members(ins: list[dict], dates: list[str]):
 
 def sd_of(field: str, n: int, dk: str, dates: list[str]) -> float:
     with np.load(SD_FILE) as z:
-        s = z[f"{field}_{min(max(n, 3), 5)}_{dk}"]
+        s = z[f"{field}_{min(WINDOW_DAYS, key=lambda x: abs(x - n))}_{dk}"]
     doys = [
         (pd.Timestamp(d).dayofyear - (1 if pd.Timestamp(d).is_leap_year and pd.Timestamp(d).month > 2 else 0))
         for d in dates
@@ -365,11 +373,11 @@ def independence(mi: np.ndarray, lab: np.ndarray, k: int, nm: int, rng) -> dict:
     return {"p": round(p, 4), "flags": flags}
 
 
-def nearest_regimes(zc: np.ndarray, season: str, sks: list[str]) -> dict:
-    """{sector: (name, r)}: the regime_core centroid nearest the cluster's mean 500 hPa anomaly; "no regime" below 0.25."""
+def nearest_regimes(ref, zc: np.ndarray, season: str, sks: list[str]) -> dict:
+    """{sector: (name, r)}: the regime_core centroid (ref, a regime_core.Ref) nearest the cluster's mean 500 hPa anomaly;
+    "no regime" below 0.25."""
     import regime_core as RC
 
-    ref = RC.Ref()
     g = np.full((73, 144), np.nan)
     g[:NROW] = zc
     out = {}
@@ -397,16 +405,137 @@ def differs(x: np.ndarray, w: np.ndarray, sel: np.ndarray, rng) -> np.ndarray:
     return benjamini_hochberg(pv, alpha=FDR_Q)
 
 
-def run(paths: list[Path], site: Path, lists: Path | None, manifest_in: Path | None) -> int:
-    import regime_core as RC
+def periods(models: list[dict]) -> list[dict]:
+    """The windows, then the days 1..DAYS_MAX from the newest run's first full day: {key, kind, days, dates, ins}; a
+    day takes the models holding it."""
+    out = []
+    for wk, a, b in WINDOWS:
+        dates, ins = window_dates(models, a, b)
+        if dates:
+            out.append({"key": wk, "kind": "window", "days": [a, b], "dates": dates, "ins": ins})
+    t0 = dt.date.fromisoformat(max(r["valid"][0] for r in models))
+    for n in range(1, DAYS_MAX + 1):
+        d = f"{t0 + dt.timedelta(days=n - 1):%Y-%m-%d}"
+        ins = [r for r in models if d in r["valid"]]
+        if ins:
+            out.append({"key": f"day{n:02d}", "kind": "day", "days": [n, n], "dates": [d], "ins": ins})
+    return out
 
+
+def solve(job: dict) -> dict:
+    """One period's clusters in each domain (a worker process): {domain: k, the labels (the largest cluster 0), the
+    evidence, the independence test, and per cluster its weight, mean, sign agreement and difference from the grand
+    ensemble's mean}."""
     import ensmaps as E
 
+    z, m, w, mi, dates, nm = (job[k] for k in ("z", "m", "w", "mi", "dates", "nm"))
+    out = {}
+    for d, dk in enumerate(job["doms"]):
+        rng = np.random.default_rng([SEED, job["seed"], d])
+        Y, var, share = pca(vectors(z, m, dk, dates), w)
+        k, labs, ev = choose(Y, w, var, mi, rng)
+        lab = order(labs[k - 1], w, k)
+        ind = independence(mi, lab, k, nm, rng)
+        cl = []
+        for j in range(k):
+            sel = lab == j
+            cz = (w[sel, None, None] * z[sel]).sum(0) / w[sel].sum()
+            cm = (w[sel, None, None] * m[sel]).sum(0) / w[sel].sum()
+            n = int(sel.sum())
+            kk = E.sign_k(n) if n >= 6 else n + 1
+            cl.append({
+                "p": float(w[sel].sum() / w.sum()),
+                "n": n,
+                "k": kk,
+                "shares": [float((sel & (mi == i)).sum() / max((mi == i).sum(), 1)) for i in range(nm)],
+                "flags": ind["flags"][j],
+                "cz": cz,
+                "cm": cm,
+                "agz": (np.sign(z[sel]) == np.sign(cz)[None]).sum(0) >= kk,
+                "agm": (np.sign(m[sel]) == np.sign(cm)[None]).sum(0) >= kk,
+                "sig_z": differs(z.reshape(len(w), -1), w, sel, rng).reshape(cz.shape) if k > 1 else np.zeros(cz.shape, bool),
+                "sig_m": differs(m.reshape(len(w), -1), w, sel, rng).reshape(cm.shape) if k > 1 else np.zeros(cm.shape, bool),
+            })  # fmt: skip
+        out[dk] = {"k": k, "lab": lab, "ev": ev, "eofs": int(Y.shape[1]), "share": share, "p_ind": ind["p"], "cl": cl}
+    return out
+
+
+def letter(i: int) -> str:
+    return chr(65 + i % 26) * (1 + i // 26)
+
+
+def chain_letters(seq: list[tuple[list, dict, np.ndarray]]) -> None:
+    """Letters for the clusters of a sequence of periods (keys of the members, the domain's solution, weights), in
+    place (sol["letters"]; None for one scenario). Each period's clusters are matched to the last period's with more
+    than one by the weight of the members they share (the weighted Hungarian assignment); a cluster keeps the letter
+    of the cluster it is matched to when more than half its weight among the members both periods hold was in it.
+    Clusters left over are matched the same way to letters seen earlier but absent from that period, and the rest take
+    new letters: so a scenario keeps its letter while its members stay together, and a new one appears when a scenario
+    splits off."""
+    from scipy.optimize import linear_sum_assignment
+
+    last: dict[str, set] = {}  # letter -> its members, the last time it was seen
+    live: list[str] = []  # the letters of the last period with more than one cluster
+    for keys, sol, w in seq:
+        k, lab = sol["k"], sol["lab"]
+        if k == 1:
+            sol["letters"] = [None]
+            continue
+        out: list = [None] * k
+        for pool in (live, [x for x in last if x not in live]):
+            todo = [j for j in range(k) if out[j] is None]
+            if not pool or not todo:
+                continue
+            seen = set().union(*(last[x] for x in pool))
+            held = np.array([kk in seen for kk in keys])
+            inside = np.array([[kk in last[x] for kk in keys] for x in pool])
+            O = np.array([[w[(lab == j) & inside[b]].sum() for b in range(len(pool))] for j in todo])
+            T = np.array([w[(lab == j) & held].sum() for j in todo])
+            for a, b in zip(*linear_sum_assignment(-O), strict=True):
+                if O[a, b] > 0.5 * T[a] > 0:
+                    out[todo[a]] = pool[b]
+        for j in range(k):
+            if out[j] is None:
+                out[j] = letter(len(last))
+            last[out[j]] = {kk for kk, lb in zip(keys, lab, strict=True) if lb == j}
+        live = out
+        sol["letters"] = out
+
+
+def flow(prev: tuple[list, dict], cur: tuple[list, dict, np.ndarray]) -> list:
+    """The share of the members both periods hold (by the later period's weights) in each pair of the earlier
+    period's clusters (rows) and the later one's (columns)."""
+    pk, ps = prev
+    ck, cs, w = cur
+    where = dict(zip(pk, ps["lab"], strict=True))
+    T = np.zeros((ps["k"], cs["k"]))
+    for kk, lb, wt in zip(ck, cs["lab"], w, strict=True):
+        if kk in where:
+            T[where[kk], lb] += wt
+    return np.round(T / max(T.sum(), 1e-12), 3).tolist()
+
+
+_FIGS: dict = {}  # a worker process's Figures, by output directory
+
+
+def _draw(job: tuple) -> tuple[str, int]:
+    outdir, args = job
+    if outdir not in _FIGS:
+        _FIGS[outdir] = Figures(outdir)
+    fn = _FIGS[outdir].draw(*args)
+    return fn, (outdir / fn).stat().st_size
+
+
+def run(paths: list[Path], site: Path, lists: Path | None, manifest_in: Path | None, workers: int) -> int:
+    from concurrent.futures import ProcessPoolExecutor
+
+    import regime_core as RC
+
+    t_start = time.time()
     models = load(paths)
     if not models:
         log("::notice::no ensemble's fields in the cache yet: no clusters")
         return 0
-    rng = np.random.default_rng(SEED)
     stamp = max(r["cycle"] for r in models)
     outdir = site / DATA / stamp
     if outdir.exists():
@@ -418,81 +547,73 @@ def run(paths: list[Path], site: Path, lists: Path | None, manifest_in: Path | N
     N25 = {f: normals25(f) for f in ("z500", "msl")}
     S25 = {f: spread25(f) for f in ("z500", "msl")}
     doms = domains()
-    figs = Figures(outdir)
-    result, prev_lab = {}, {}
-    windows = []
-    for wk, a, b in WINDOWS:
-        dates, ins = window_dates(models, a, b)
-        if not dates:
-            continue
-        mi, ii, z, m, w = members(ins, dates)
+    per = periods(models)
+    jobs = []
+    for pi, P in enumerate(per):
+        mi, ii, z, m, w = members(P["ins"], P["dates"])
+        P.update(w=w, keys=[(P["ins"][a]["key"], int(b)) for a, b in zip(mi, ii, strict=True)], z=z, m=m)
+        jobs.append({"seed": pi, "z": z, "m": m, "w": w, "mi": mi, "dates": P["dates"], "nm": len(P["ins"]),
+                     "doms": list(doms)})  # fmt: skip
+    with ProcessPoolExecutor(max(1, min(workers, len(jobs)))) as ex:
+        for P, sol in zip(per, ex.map(solve, jobs), strict=True):
+            P["sol"] = sol
+    t_fit = time.time()
+    for dk in doms:
+        for kind in ("window", "day"):
+            seq = [P for P in per if P["kind"] == kind]
+            chain_letters([(P["keys"], P["sol"][dk], P["w"]) for P in seq])
+            for a, b in itertools.pairwise(seq):
+                b["sol"][dk]["from"] = {
+                    "key": a["key"],
+                    "flow": flow((a["keys"], a["sol"][dk]), (b["keys"], b["sol"][dk], b["w"])),
+                }
+
+    ref = RC.Ref()
+    result, draws, where = {}, [], []
+    for P in per:
+        ins, dates = P["ins"], P["dates"]
         t = [pd.Timestamp(d) + pd.Timedelta(hours=12) for d in dates]
         season = RC.season_of_date(dt.date.fromisoformat(dates[len(dates) // 2]))
         nz = np.mean([N25["z500"].at([x])[0] for x in t], axis=0)
         nmsl = np.mean([N25["msl"].at([x])[0] for x in t], axis=0)
         sdz, sdm = S25["z500"].sd(t, min(len(t), 5)), S25["msl"].sd(t, min(len(t), 5))
         high = np.any([r["high"] for r in ins], axis=0)
-        windows.append({"key": wk, "days": [a, b], "dates": dates, "models": [r["key"] for r in ins]})
-        result[wk] = {}
+        result[P["key"]] = {}
         for dk, (dlabel, _, _) in doms.items():
-            X = vectors(z, m, dk, dates)
-            Y, var, share = pca(X, w)
-            k, labs, ev = choose(Y, w, var, mi, rng)
-            lab = order(labs[k - 1], w, k)
-            ind = independence(mi, lab, k, len(ins), rng)
+            sol = P["sol"][dk]
+            k = sol["k"]
             cl = []
-            for j in range(k):
-                sel = lab == j
-                cz = (w[sel, None, None] * z[sel]).sum(0) / w[sel].sum()
-                cm = (w[sel, None, None] * m[sel]).sum(0) / w[sel].sum()
-                sig_z = (
-                    differs(z.reshape(len(w), -1), w, sel, rng).reshape(cz.shape) if k > 1 else np.zeros(cz.shape, bool)
-                )
-                sig_m = (
-                    differs(m.reshape(len(w), -1), w, sel, rng).reshape(cm.shape) if k > 1 else np.zeros(cm.shape, bool)
-                )
-                n = int(sel.sum())
-                kk = E.sign_k(n) if n >= 6 else n + 1
-                agz = (np.sign(z[sel]) == np.sign(cz)[None]).sum(0) >= kk
-                agm = (np.sign(m[sel]) == np.sign(cm)[None]).sum(0) >= kk
-                shares = {
-                    r["key"]: round(float((sel & (mi == i)).sum() / max((mi == i).sum(), 1)), 3)
-                    for i, r in enumerate(ins)
-                }
+            for j, c in enumerate(sol["cl"]):
                 info = {
-                    "p": round(float(w[sel].sum() / w.sum()), 3),
-                    "n": n,
-                    "k": kk,
-                    "shares": shares,
-                    "regimes": nearest_regimes(cz, season, ["ea", "na"] if dk == "nh" else [dk]),
-                    "flags": [{"model": ins[f["i"]]["key"], "over": f["over"]} for f in ind["flags"][j]],
+                    "letter": sol["letters"][j],
+                    "p": round(c["p"], 3),
+                    "n": c["n"],
+                    "k": c["k"],
+                    "shares": {r["key"]: round(s, 3) for r, s in zip(ins, c["shares"], strict=True)},
+                    "regimes": nearest_regimes(ref, c["cz"], season, ["ea", "na"] if dk == "nh" else [dk]),
+                    "flags": [{"model": ins[f["i"]]["key"], "over": f["over"]} for f in c["flags"]],
                 }
-                title = figure_title(info, j, k, dlabel, dates, ins, wk)
-                info["img"] = {
-                    v: figs.draw(f"{wk}_{dk}_{j}_{v}", dk, title, v, cz, cm, nz + cz, nmsl + cm, agz, agm, sig_z, sig_m, high,
-                                 sdz, sdm)
-                    for v in ("phys", "sigma")
-                }  # fmt: skip
+                title = figure_title(info, k, dlabel, P)
+                for v in ("phys", "sigma"):
+                    draws.append((outdir, (f"{P['key']}_{dk}_{j}_{v}", dk, title, v, c["cz"], c["cm"], nz + c["cz"],
+                                           nmsl + c["cm"], c["agz"], c["agm"], c["sig_z"], c["sig_m"], high, sdz, sdm)))  # fmt: skip
+                    where.append((info, v))
                 cl.append(info)
-            res = {"k": k, "eofs": int(Y.shape[1]), "explained": round(share, 3), "evidence": ev, "independence": ind["p"],
-                   "clusters": cl, "members": len(w)}  # fmt: skip
-            key = {(int(a_), int(b_)): j for a_, b_, j in zip(mi, ii, lab)}
-            p = prev_lab.get(dk)
-            if p is not None:  # members' moves from the previous window's clusters (weight shares)
-                kp = max(p["lab"].values()) + 1
-                T = np.zeros((kp, k))
-                for (mm, i), j in key.items():
-                    if (mm_key := (ins[mm]["key"], i)) in p["lab_by_model"]:
-                        T[p["lab_by_model"][mm_key], j] += w[(mi == mm) & (ii == i)].sum()
-                res["from_previous"] = {"window": p["window"], "flow": np.round(T / max(T.sum(), 1e-12), 3).tolist()}
-            prev_lab[dk] = {
-                "window": wk,
-                "lab": key,
-                "lab_by_model": {(ins[mm]["key"], i): j for (mm, i), j in key.items()},
-            }
-            result[wk][dk] = res
-            log(f"  {wk} {dk}: {len(w)} members, {Y.shape[1]} EOFs ({share:.0%}), k = {k} "
-                f"(reductions {ev['reduction'][1:]}, null p95 {ev['null_p95'][1:]}, stability {ev['stability']})")  # fmt: skip
+            ev = sol["ev"]
+            res = {"k": k, "eofs": sol["eofs"], "explained": round(sol["share"], 3), "evidence": ev,
+                   "independence": sol["p_ind"], "clusters": cl, "members": len(P["w"])}  # fmt: skip
+            if "from" in sol:
+                res["from_previous"] = sol["from"]
+            result[P["key"]][dk] = res
+            log(f"  {P['key']} {dk}: {len(P['w'])} members, {sol['eofs']} EOFs ({sol['share']:.0%}), k = {k} "
+                f"{''.join(x or '-' for x in sol['letters'])} (reductions {ev['reduction'][1:]}, null p95 "
+                f"{ev['null_p95'][1:]}, stability {ev['stability']})")  # fmt: skip
+    nbytes = 0
+    with ProcessPoolExecutor(max(1, min(workers, len(draws)))) as ex:
+        for (info, v), (fn, nb) in zip(where, ex.map(_draw, draws, chunksize=4), strict=True):
+            info.setdefault("img", {})[v] = fn
+            nbytes += nb
+    t_end = time.time()
     entry = {
         "stamp": stamp,
         "made": dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%MZ"),
@@ -500,11 +621,21 @@ def run(paths: list[Path], site: Path, lists: Path | None, manifest_in: Path | N
             r["key"]: {"cycle": r["cycle"], "init": r["init"], "drift_days": [int(x) for x in r["drift_days"]]}
             for r in models
         },
-        "windows": windows,
+        "windows": [
+            {"key": P["key"], "days": P["days"], "dates": P["dates"], "models": [r["key"] for r in P["ins"]]}
+            for P in per
+            if P["kind"] == "window"
+        ],
+        "days": [
+            {"key": P["key"], "day": P["days"][0], "date": P["dates"][0], "models": [r["key"] for r in P["ins"]]}
+            for P in per
+            if P["kind"] == "day"
+        ],
         "domains": {k: v[0] for k, v in doms.items()},
         "results": result,
         "files": f"{DATA}/{stamp}",
         "rules": {"k_max": K_MAX, "min_weight": MIN_W, "stable": STABLE, "var_keep": VAR_KEEP, "fdr_q": FDR_Q},
+        "seconds": {"fit": round(t_fit - t_start), "all": round(t_end - t_start)},
     }
     mpath = site / "assets/models/ensmaps_clusters.json"
     try:
@@ -519,22 +650,26 @@ def run(paths: list[Path], site: Path, lists: Path | None, manifest_in: Path | N
         (lists / "publish.txt").write_text(f"{DATA}/{stamp}\n")
         (lists / "prune.txt").write_text("".join(f"{DATA}/{s}\n" for s in drop))
         (lists / "floor.txt").write_text(f"{DATA}:{stamp}\n")
-    log(f"  {figs.n} figures, {figs.bytes / 1e6:.1f} MB -> {outdir}")
+    log(f"  {len(draws)} figures, {nbytes / 1e6:.1f} MB -> {outdir}; clustering {entry['seconds']['fit']} s, "
+        f"all {entry['seconds']['all']} s with {workers} workers")  # fmt: skip
     return 0
 
 
-def figure_title(info: dict, j: int, k: int, dlabel: str, dates: list[str], ins: list[dict], wk: str) -> list[str]:
-    d0, d1 = (pd.Timestamp(x) for x in (dates[0], dates[-1]))
-    span = f"{d0:%a %b %-d} – {d1:%a %b %-d}"
-    head = (
-        f"Scenario {j + 1} of {k}: {info['p']:.0%} of the four ensembles"
-        if k > 1
-        else "One scenario: the four ensembles' mean"
+def ensembles(ins: list[dict]) -> str:
+    return {4: "the four ensembles", 3: "the three ensembles", 2: "the two ensembles"}.get(
+        len(ins), LABEL[ins[0]["key"]]
     )
+
+
+def figure_title(info: dict, k: int, dlabel: str, P: dict) -> list[str]:
+    d0, d1 = (pd.Timestamp(x) for x in (P["dates"][0], P["dates"][-1]))
+    span = f"{d0:%a %b %-d} – {d1:%a %b %-d}" if P["kind"] == "window" else f"{d0:%a %b %-d} (day {P['days'][0]})"
+    ens = ensembles(P["ins"])
+    head = f"Scenario {info['letter']}: {info['p']:.0%} of {ens}" if k > 1 else f"One scenario: the mean of {ens}"
     return [
         f"{head} · {dlabel} · {span}",
         "Members in it: " + " · ".join(f"{LABEL[m]} {s:.0%}" for m, s in info["shares"].items()),
-        "Runs: " + " · ".join(f"{LABEL[r['key']]} {pd.Timestamp(r['init'][:13]):%b %-d %H}Z" for r in ins),
+        "Runs: " + " · ".join(f"{LABEL[r['key']]} {pd.Timestamp(r['init'][:13]):%b %-d %H}Z" for r in P["ins"]),
     ]
 
 
@@ -707,11 +842,12 @@ def main() -> int:
     r.add_argument("--site", type=Path, default=ROOT)
     r.add_argument("--lists", type=Path)
     r.add_argument("--manifest-in", type=Path)
+    r.add_argument("--workers", type=int, default=os.cpu_count() or 1, help="processes for the fits and the figures")
     a = ap.parse_args()
     if a.cmd == "sd":
         build_sd(a.out)
         return 0
-    return run([p for p in a.fields if p.exists()], a.site, a.lists, a.manifest_in)
+    return run([p for p in a.fields if p.exists()], a.site, a.lists, a.manifest_in, a.workers)
 
 
 if __name__ == "__main__":
