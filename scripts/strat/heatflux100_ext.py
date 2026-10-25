@@ -187,6 +187,13 @@ def fluxes_chunked(v, t, n: int = 10):
     return parts[0][0], {k: np.concatenate([p[1][k] for p in parts], axis=0) for k in parts[0][1]}
 
 
+def regional_chunked(v, t, n: int = 10):
+    """HF.regional over member chunks: the same numbers without float64 copies of every member at once (GEFS: 31
+    members x 35 days of 0.5 deg fields peaked at 11 GB)."""
+    parts = [HF.regional(LAT_H, LON_H, v[i : i + n], t[i : i + n]) for i in range(0, len(v), n)]
+    return {k: np.concatenate([p[k] for p in parts], axis=0) for k in parts[0]}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True, choices=("geps", "gefs", "ifs"))
@@ -217,7 +224,7 @@ def main() -> int:
             a.model
         ]()
         lat, f = fluxes_chunked(v, t)  # {tot,k1,k2}: (member, step, lat)
-        reg = HF.regional(LAT_H, LON_H, v, t)
+        reg = regional_chunked(v, t)
         n = int(v.shape[0])
         has_cf = a.model != "ifs"  # IFS-ENS: 50 perturbed members; its control comes from its own stream, below
     fc = {k: x[:1] for k, x in f.items()} if has_cf else None  # control = member 0

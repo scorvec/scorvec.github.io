@@ -28,9 +28,10 @@ of their mean: a two-sided sign test against an even split at 5 % (33 of 50 or 5
 
 Change: this run's members' mean less the run 12 h earlier's over the same calendar days (the days both runs hold), on
 a 0.5-deg grid (each member's field averaged over the cells first: the statistics carried from run to run stay small):
-Welch's t-test on the two runs' members, Benjamini-Hochberg over the map's points at FDR_Q; the page colours the
-significant points only. The same against the run 6 h earlier (c6/) where that run's statistics are there. A run's
-statistics come from its own --save (the Actions cache).
+Welch's t-test on the two runs' members, Benjamini-Hochberg over the map's points at FDR_Q; the page shades the
+change everywhere and dots the significant points. The same against the run 6 h earlier (c6/) and the run 48 h earlier
+(c48/, the trend over two days) where those runs' statistics are there. A run's statistics come from its own --save
+(the Actions cache, which keeps every run of the last 48 h).
 
 Files, per field and span (assets/models/data/ensmaps/<model>/<cycle>/<field>/), rows 90N first, columns from 180W:
   a/<span>.webp   R anomaly of the members' mean, (code - 128) x enc[field]["anom"], 0 = not drawn
@@ -43,7 +44,7 @@ Files, per field and span (assets/models/data/ensmaps/<model>/<cycle>/<field>/),
                   over the sd of an anomaly of the span's own averaging period (a day or its n-day mean; ensmaps_ref
                   Spread), (code - 128) x enc[field]["sigma"]
   c/<span>.webp   R change of the members' mean from the run 12 h earlier, (code - 128) x enc[field]["change"], 0 =
-                  none; G 1 = significant. c6/<span>.webp: the same from the run 6 h earlier
+                  none; G 1 = significant. c6/, c48/<span>.webp: the same from the run 6 h, 48 h earlier
   r/<sector><regime>/<span>.webp   the members of one weather regime (ensmaps_regimes.py), as a/ on the 0.5-deg grid
 The manifest (assets/models/ensmaps_<model>.json: the KEEP_RUNS newest runs, newest first, each in the frames store)
 lists the spans, members, gates, grids, encodings and the regimes; this run's statistics for the next runs go to --save,
@@ -51,7 +52,8 @@ its regime labels to --regimes-out.
 
     python scripts/ensmaps/ensmaps.py plan --model ifs --manifests assets/models
     python scripts/ensmaps/ensmaps.py run --model ifs --cycle 2026102500 --site . --normals ref/ensmaps_t2m_normals.npz \
-        --prev stats/2026102412.npz --prev6 stats/2026102418.npz --save stats/2026102500.npz --lists /tmp/lists
+        --prev stats/2026102412.npz --prev6 stats/2026102418.npz --prev48 stats/2026102300.npz --save stats/2026102500.npz \
+        --lists /tmp/lists
 """
 
 from __future__ import annotations
@@ -589,9 +591,9 @@ def prev_row(days, k0: int, k1: int, prev: dict) -> tuple[int, int] | None:
 
 
 def stat_spans(ndays: int) -> list[tuple[int, int]]:
-    """The spans whose statistics the next run (12 h later) compares with: each day and the windows from day 1 and
-    day 2 (its days 1-5 start on this run's day 1 or 2)."""
-    return [(k, k) for k in range(ndays)] + sorted(set(windows(ndays, 0) + windows(ndays, 1)))
+    """The spans whose statistics the runs 6, 12 and 48 h later compare with: each day and the windows from day 1, 2 and
+    3 (their days 1-5 start on this run's day 1 or 2, and two days later on its day 3)."""
+    return [(k, k) for k in range(ndays)] + sorted(set(windows(ndays, 0) + windows(ndays, 1) + windows(ndays, 2)))
 
 
 def save_stats(path: Path, init: pd.Timestamp, days: list, S: dict, done: dict) -> None:
@@ -901,7 +903,11 @@ def run(a) -> int:
         log(f"::notice::no statistics of the run 12 h earlier ({prev_init:%Y-%m-%d %H}Z): no change maps this run")
     prev6_init = init - pd.Timedelta(hours=6)
     prev6 = load_stats(a.prev6, prev6_init) if a.prev6 is not None else None
-    changes = change_maps(prev, "c", "change") + change_maps(prev6, "c6", "change6")
+    prev48_init = init - pd.Timedelta(hours=48)
+    prev48 = load_stats(a.prev48, prev48_init) if a.prev48 is not None else None
+    changes = (
+        change_maps(prev, "c", "change") + change_maps(prev6, "c6", "change6") + change_maps(prev48, "c48", "change48")
+    )
     if a.save:
         save_stats(a.save, init, days, {f: fd.S for f, fd in F.items()}, {f: fd.done for f, fd in F.items()})
 
@@ -936,7 +942,7 @@ def run(a) -> int:
             continue
         what, when = span_text(days, k0, k1)
         e["label"] = f"{what[0].upper()}{what[1:]} · {when}"
-        for c in [*e.get("change", {}).values(), *e.get("change6", {}).values()]:
+        for c in [v for k in ("change", "change6", "change48") for v in e.get(k, {}).values()]:
             c1 = next(k for k, (d, _) in enumerate(days) if f"{d:%Y-%m-%d}" == c["last"])
             cw, cwhen = span_text(days, k0, c1)
             c["label"] = f"{cw[0].upper()}{cw[1:]} · {cwhen}"
@@ -946,6 +952,7 @@ def run(a) -> int:
         init=f"{init:%Y-%m-%dT%H}:00Z",
         prev=f"{prev_init:%Y-%m-%dT%H}:00Z" if prev else None,
         prev6=f"{prev6_init:%Y-%m-%dT%H}:00Z" if prev6 else None,
+        prev48=f"{prev48_init:%Y-%m-%dT%H}:00Z" if prev48 else None,
         last_step=mod.last(hh),
         days=[f"{d:%Y-%m-%d}" for d, _ in days],
         spans=out_spans,
@@ -1084,6 +1091,7 @@ def main() -> int:
     r.add_argument("--normals", type=Path, help="the 2 m temperature normals (release ensmaps-ref-v1)")
     r.add_argument("--prev", type=Path, help="the statistics of the run 12 h earlier (save_stats)")
     r.add_argument("--prev6", type=Path, help="the statistics of the run 6 h earlier")
+    r.add_argument("--prev48", type=Path, help="the statistics of the run 48 h earlier (the trend over two days)")
     r.add_argument("--save", type=Path, help="write this run's statistics here")
     r.add_argument("--manifest-in", type=Path, help="the manifest on main (default: the site's)")
     r.add_argument("--regimes-out", type=Path, default=ROOT / "assets" / "regimes" / "data",

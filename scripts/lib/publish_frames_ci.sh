@@ -211,7 +211,7 @@ done
 
 local TREE; TREE=$(git write-tree --missing-ok) || return 1
 if [ -n "$BASE" ] && [ "$TREE" = "$(git rev-parse "$BASE^{tree}")" ]; then
-  echo "  no frame changes"; PUBLISHED_SHA="$BASE"; PUBLISHED_NEW=0
+  echo "  no frame changes"; PUBLISHED_SHA="$BASE"
   pin "$BASE"
   return 0
 fi
@@ -251,7 +251,7 @@ elif ! git -c pack.window=0 push -q --atomic --force-with-lease="refs/heads/$BRA
   git -c pack.window=0 push -q --force-with-lease="refs/heads/$BRANCH:$BASE" origin "$C:refs/heads/$BRANCH" || return 75
 fi
 echo "  pushed $(listing "$C" assets | grep -c '\.webp$') frames total to $BRANCH (${C:0:10})"
-PUBLISHED_SHA="$C"; PUBLISHED_NEW=1
+PUBLISHED_SHA="$C"
 return 0
 }
 
@@ -265,29 +265,6 @@ pin() {
   timeout 120 git -c pack.window=0 push -q origin "$1:refs/frames-pins/$1" >/dev/null 2>&1 \
     || echo "  (no pin for ${1:0:10} yet; gc.yml will add it)"
   return 0
-}
-
-# Pre-warm the pinned jsDelivr mirror (2026-10-05). On a network that blocks raw.githubusercontent.com the viewers read
-# cdn.jsdelivr.net/gh/...@<sha>/, and the first request for each file there is a cold fetch from GitHub (measured 1-14 s a
-# frame against ~0.08 s once cached) - a 41-frame loop took minutes for whoever opened it first after a run. So the
-# publisher makes that first request: every .webp it just swapped in (SWAP dirs only; "+dir" archives are not viewed as
-# loops), 4 at a time, best-effort and capped at FRAMES_WARM_MAX_S (default 420 s); FRAMES_WARM=0 turns it off. One GET
-# per new file per run, which is what the first viewer would have sent anyway.
-warm_mirror() {
-  local sha="$1"; shift
-  [ "${FRAMES_WARM:-1}" = "1" ] && [ -n "$sha" ] && [ "${PUBLISHED_NEW:-0}" = "1" ] || return 0
-  local d lst; lst=$(mktemp)
-  for d in "$@"; do
-    case "$d" in +*) continue ;; esac
-    [ -d "$d" ] && find "$d" -type f -name '*.webp' >> "$lst"
-  done
-  local n; n=$(wc -l < "$lst" | tr -d ' ')
-  [ "$n" -gt 0 ] || { rm -f "$lst"; return 0; }
-  local t0=$SECONDS
-  sed "s|^|https://cdn.jsdelivr.net/gh/${GITHUB_REPOSITORY}@${sha}/|" "$lst" |
-    timeout "${FRAMES_WARM_MAX_S:-420}" xargs -P 4 -n 1 curl -s -o /dev/null --max-time 60 --retry 1 || true
-  echo "  warmed the jsDelivr mirror: $n frame(s) at @${sha:0:10} in $((SECONDS - t0)) s"
-  rm -f "$lst"
 }
 
 # Pin the jsDelivr mirror (2026-10-05). jsDelivr holds a BRANCH path (@frames) for up to 12 h and frame names are reused
@@ -326,9 +303,9 @@ for f in files:
     print(f"  {f}: frames_sha {sha[:10]}")
 PY
 }
-PUBLISHED_SHA=""; PUBLISHED_NEW=0
+PUBLISHED_SHA=""
 for attempt in 1 2 3 4 5; do
-  publish_once "$@" && { cd "$ORIG_PWD" && stamp_manifests "$PUBLISHED_SHA" "$@"; warm_mirror "$PUBLISHED_SHA" "$@" || true; exit 0; }
+  publish_once "$@" && { cd "$ORIG_PWD" && stamp_manifests "$PUBLISHED_SHA" "$@"; exit 0; }
   rc=$?
   [ "$rc" -eq 75 ] || exit "$rc"
   echo "  $BRANCH moved under us (another job published) - re-reading, attempt $((attempt + 1))/5"
