@@ -24,6 +24,13 @@ maps use (SPREAD_DAYS: a day, and 3, 4 and 5-day means - a 5-day mean varies far
 variance fitted per cell as a mean + three harmonics of the day of a 366-day year (29 Feb its own slot): the variance
 of an n-day mean anomaly through the year, whose square root divides the anomaly (Spread.sd).
 
+Interim 2 m temperature (INTERIM_OUT, until the CDS build lands; Actions only, ensmaps-ref.yml's interim job): ERA5 at
+1.5 deg from WeatherBench 2's public bucket (the store's source), the 12 monthly normals of the four synoptic hours,
+fitted as below and interpolated bilinearly to the 0.1-deg grid, moved by 6.5 K/km from ERA5's own 1.5-deg surface
+height to the IFS's 0.1-deg height (ifs_height10); inside the North America maps' box (77-9N, 180-26W, release
+natemp-ref-v1, built as the final file will be: ERA5-Land and ERA5's sea) their normals as they are, blended over
+NA_TAPER inside the box's edge. Same layout as the final file; ensmaps.yml takes it only while the final one is absent.
+
 The daily curve: mean + three annual harmonics on the common-year calendar, fitted by least squares so that the curve's
 MONTH AVERAGES - its exact integrals over each month - match the 12 monthly normals (scripts/lib/harmonic_clim: one
 12 x 7 design matrix serves every point). The 2 m file keeps the mean in float32 and the harmonics in float16 (the
@@ -33,6 +40,7 @@ largest annual amplitude, ~30 K, to 0.02 K). Each fit prints its month residuals
     python scripts/ensmaps/ensmaps_ref.py fit --in-dir ref --out ref/ensmaps_t2m_normals.npz   # exit 3: units missing
     python scripts/ensmaps/ensmaps_ref.py upper                      # from $ERA5_STORE -> reference/
     python scripts/ensmaps/ensmaps_ref.py spread                     # from $ERA5_STORE -> reference/
+    python scripts/ensmaps/ensmaps_ref.py interim --natemp natemp_normals.npz --out ref/ensmaps_t2m_normals_interim.npz
 """
 
 from __future__ import annotations
@@ -65,9 +73,26 @@ T2M_OUT = "ensmaps_t2m_normals.npz"  # release ensmaps-ref-v1
 UPPER_OUT = HERE / "reference" / "ensmaps_upper_normals.npz"
 SPREAD_OUT = HERE / "reference" / "ensmaps_upper_sd.npz"
 SPREAD_DAYS = (1, 3, 4, 5)  # the averaging periods standardized: a day, and the 3, 4 and 5-day means
+INTERIM_OUT = "ensmaps_t2m_normals_interim.npz"  # release ensmaps-ref-v1, read only while T2M_OUT is not there
+WB2 = "gs://weatherbench2/datasets/era5/1959-2023_01_10-6h-240x121_equiangular_with_poles_conservative.zarr"
+NA_TAPER = 3.0  # deg inside the North America normals' box over which the interim blends into them
+GAMMA, RD = 6.5e-3, 287.05  # K/m, J/(kg K): the standard column of ifs_height10
 T2M_META = {
     "source": "ERA5-Land monthly means by hour of day over land; ERA5 (0.25 deg, sea nodes) over the sea",
     "label": "ERA5-Land 1991–2020 over land, ERA5 over the sea, as a smooth daily curve",
+}
+INTERIM_META = {
+    "source": "ERA5 1.5 deg (WeatherBench 2, conservative), monthly means of the four synoptic hours, interpolated "
+    "bilinearly and moved by 6.5 K/km from ERA5's 1.5-deg surface height to the IFS's 0.1-deg one; inside 77-9N, "
+    "180-26W the North America maps' normals (ERA5-Land 0.1 deg, ERA5 0.25 deg over the sea), blended over 3 deg "
+    "inside that box's edge",
+    "label": "interim normal: ERA5 1.5°, height-adjusted; ERA5-Land 0.1° to follow",
+    "interim": True,
+    "regions": {
+        "na": "North America (9–77°N, 180–26°W): ERA5-Land 0.1° over land and ERA5 0.25° over the sea, the North "
+        "America maps' normals",
+        "rest": "elsewhere: interim normal: ERA5 1.5°, height-adjusted; ERA5-Land 0.1° to follow",
+    },
 }
 UPPER_META = {
     "source": "ERA5 1.5 deg (WeatherBench 2, conservative), daily means of the four synoptic hours",
@@ -457,6 +482,121 @@ def spread(out: Path) -> None:
     print(f"  -> {out} ({out.stat().st_size / 1e6:.2f} MB)", flush=True)
 
 
+# ── interim 2 m normals, until the CDS build lands (GitHub Actions) ───────────────────────────────────────────────────
+def wb2_t2m() -> tuple[np.ndarray, np.ndarray]:
+    """(the 12 monthly normals (12, LATU, LONU) K, ERA5's surface height on the same grid (m)) from WeatherBench 2's
+    ERA5 1.5-deg 6-hourly fields, 1991-2020, all four synoptic hours, read anonymously from its public bucket; checked:
+    the grid, every step, no missing value."""
+    import xarray as xr
+
+    ds = xr.open_zarr(WB2, storage_options={"token": "anon"})
+
+    def grid(da) -> np.ndarray:
+        da = da.transpose(..., "latitude", "longitude")  # the store keeps (time, longitude, latitude)
+        lat, lon = da["latitude"].values, da["longitude"].values
+        a = da.values.astype(np.float64)
+        if lat[0] < lat[-1]:
+            lat, a = lat[::-1], a[..., ::-1, :]
+        if not np.allclose(lat, LATU) or lon.size != LONU.size:
+            raise SystemExit("WeatherBench 2: not the 1.5-deg global grid")
+        return roll_to(a, float(lon[0]), 1.5, LONU)
+
+    zs = grid(ds["geopotential_at_surface"]) / 9.80665
+    s, n = np.zeros((12, LATU.size, LONU.size)), np.zeros(12)
+    for y in range(YEARS[0], YEARS[1] + 1):
+        da = ds["2m_temperature"].sel(time=str(y))
+        t = pd.DatetimeIndex(da["time"].values)
+        a = grid(da)
+        if a.shape[0] != 4 * pd.Timestamp(f"{y}-12-31").dayofyear or np.isnan(a).any():
+            raise SystemExit(
+                f"WeatherBench 2 2 m temperature {y}: {a.shape[0]} steps, {int(np.isnan(a).sum())} missing"
+            )
+        for m in range(12):
+            sel = t.month == m + 1
+            s[m] += a[sel].sum(0)
+            n[m] += sel.sum()
+        print(f"  ERA5 1.5-deg 2 m temperature {y}: {a.shape[0]} steps, mean {a.mean() - 273.15:.2f} °C", flush=True)
+    return s / n[:, None, None], zs
+
+
+def column_height(msl: np.ndarray, sp: np.ndarray, t: np.ndarray) -> np.ndarray:
+    """m: the depth of a column with the standard lapse rate GAMMA from the surface (pressure sp, temperature t) down to
+    sea level (pressure msl), the inverse of the standard reduction to sea level."""
+    return t / GAMMA * ((msl / sp) ** (RD * GAMMA / 9.80665) - 1.0)
+
+
+def ifs_height10(date: str) -> np.ndarray:
+    """(LAT10, LON10) m: the IFS's surface height on its 0.1-deg grid. The open data carry it at 0.25 deg only (the
+    control's step-0 surface geopotential); the 0.1-deg detail comes from the hypsometric height of one member's
+    step-0 sea-level and surface pressure and 2 m temperature on both grids: z = z(0.25) + h(0.1) - h(0.25), the
+    0.25-deg fields interpolated bilinearly, so the approximations of the reduction to sea level cancel."""
+    import ensmaps as E
+    import rangefetch as rf
+
+    def fields(resol: str, levtype: str | None) -> dict:
+        idx = rf.fetch_index(date, "00", "ifs", 0, "ef", resol=resol, levtype=levtype)
+        want = sorted(
+            (e for e in idx if e.get("param") in ("msl", "sp", "2t") and str(e.get("number")) == "1"),
+            key=lambda e: e["_offset"],
+        )
+        path = rf.path_for(date, "00", "ifs", 0, "ef", resol=resol, levtype=levtype) + ".grib2"
+        if len(want) != 3:
+            raise SystemExit(f"IFS-ENS {date} 00Z {resol}: {len(want)} of the 3 fields of member 1 in the index")
+        blob = rf.fetch_ranges(path, rf.coalesce(want))
+        ends = np.cumsum([e["_length"] for e in want])  # the wanted messages back to back (as ensmaps.ecmwf_messages)
+        return {
+            e["param"]: E.decode(blob[x - e["_length"] : x], "number")[1].astype(np.float64)
+            for e, x in zip(want, ends, strict=True)
+        }
+
+    f10, f25 = fields("0p1", "sfc"), fields("0p25", None)
+    z25 = E.ifs_orography(date, "00").astype(np.float64)
+    h10, h25 = (column_height(f["msl"], f["sp"], f["2t"]) for f in (f10, f25))
+    up = E.bilinear(np.stack([z25, h25]), LAT25, LON25, E.G10)
+    z = up[0] + h10 - up[1]
+    rows = np.rint((90.0 - LAT25[::2]) * 10).astype(int)  # the 0.5-deg nodes, which both grids hold
+    cols = np.rint((LON25[::2] + 180.0) * 10).astype(int)
+    diff = z[np.ix_(rows, cols)] - z25[::2, ::2]
+    print(f"  IFS 0.1-deg height: {z.min():.0f}..{z.max():.0f} m; at the 0.5-deg nodes less the 0.25-deg height: "
+          f"mean {diff.mean():.1f} m, |p99| {np.percentile(np.abs(diff), 99):.0f} m", flush=True)  # fmt: skip
+    return z
+
+
+def interim(natemp: Path, out: Path, date: str) -> None:
+    """INTERIM_OUT: the ERA5 1.5-deg curve on the 0.1-deg grid at the IFS's height (6.5 K/km from ERA5's 1.5-deg
+    height), the North America maps' normals (release natemp-ref-v1) inside their box, blended over NA_TAPER inside its
+    edge; the final file's layout, so ensmaps.py reads either."""
+    import ensmaps as E
+
+    months, zs = wb2_t2m()
+    coef = save_check(months, LATU, LONU, None)
+    meta = INTERIM_META | fit_meta(months, coef)
+    c10 = E.bilinear(np.concatenate([coef, zs[None]]), LATU, LONU, E.G10).astype(np.float64)
+    z10 = ifs_height10(date)
+    c10[0] -= E.LAPSE * (z10 - c10[-1])
+    c10 = c10[:-1]
+    with np.load(natemp) as zn:
+        cn, la, lo = zn["coef"].astype(np.float64), zn["lat"], zn["lon"]
+    r0, k0 = int(np.rint((90.0 - la[0]) * 10)), int(np.rint((lo[0] + 180.0) * 10))
+    if not (np.allclose(LAT10[r0 : r0 + la.size], la) and np.allclose(LON10[k0 : k0 + lo.size], lo)):
+        raise SystemExit(f"{natemp}: not on the 0.1-deg grid")
+    inner = np.minimum.outer(np.minimum(la - la[-1], la[0] - la), np.minimum(lo - lo[0], lo[-1] - lo))
+    w = 0.5 - 0.5 * np.cos(np.pi * np.clip(inner / NA_TAPER, 0.0, 1.0))
+    box = c10[:, r0 : r0 + la.size, k0 : k0 + lo.size]
+    edge = w < 1
+    step = cn[0][edge] - box[0][edge]
+    print(f"  North America normals less the interim inside the {NA_TAPER:.0f}-deg blend: mean {step.mean():.2f} K, "
+          f"|p99| {np.percentile(np.abs(step), 99):.2f} K", flush=True)  # fmt: skip
+    c10[:, r0 : r0 + la.size, k0 : k0 + lo.size] = w * cn + (1 - w) * box
+    for place, (pla, plo) in PLACES.items():
+        j, i = cell(pla, plo, LAT10, LON10)
+        print(f"  {place:22s} interim annual mean {c10[0, j, i] - 273.15:.1f} °C at {z10[j, i]:.0f} m", flush=True)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(out, mean=c10[0].astype(np.float32), harm=c10[1:].astype(np.float16), lat=LAT10, lon=LON10,
+                        meta=json.dumps(meta))  # fmt: skip
+    print(f"  -> {out} ({out.stat().st_size / 1e6:.1f} MB)", flush=True)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -469,7 +609,15 @@ def main() -> int:
     u.add_argument("--out", type=Path, default=UPPER_OUT)
     v = sub.add_parser("spread")
     v.add_argument("--out", type=Path, default=SPREAD_OUT)
+    t = sub.add_parser("interim")
+    t.add_argument("--natemp", type=Path, required=True, help="natemp_normals.npz (release natemp-ref-v1)")
+    t.add_argument("--out", type=Path, required=True)
+    t.add_argument("--date", default=(dt.datetime.now(dt.UTC) - dt.timedelta(days=1)).strftime("%Y%m%d"),
+                   help="the IFS-ENS 00Z run whose step 0 gives the 0.1-deg height (default yesterday's)")  # fmt: skip
     a = ap.parse_args()
+    if a.cmd == "interim":
+        interim(a.natemp, a.out, a.date)
+        return 0
     if a.cmd == "spread":
         spread(a.out)
         return 0

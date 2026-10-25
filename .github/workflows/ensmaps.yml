@@ -33,7 +33,9 @@ name: Global ensemble maps (data)
 #         the .idx files, byte ranges
 #   geps  the MSC Datamart through scripts/geps/datamart.py (honest User-Agent, retries, ledger): three allmbrs files
 #         a step
-# The 2 m temperature normals come from release ensmaps-ref-v1 (ensmaps-ref.yml); without them a run publishes the
+# The 2 m temperature normals come from release ensmaps-ref-v1 (ensmaps-ref.yml): ensmaps_t2m_normals.npz, or until it is
+# built ensmaps_t2m_normals_interim.npz (ERA5 1.5 deg height-adjusted, the North America normals over their box); without
+# either a run publishes the
 # other fields' anomalies and every change map.
 
 on:
@@ -141,12 +143,13 @@ jobs:
           prev=$(date -u -d "${cyc:0:8} ${cyc:8:2}:00 12 hours ago" +%Y%m%d%H)
           prev6=$(date -u -d "${cyc:0:8} ${cyc:8:2}:00 6 hours ago" +%Y%m%d%H)
           echo "cycle=$cyc" >> "$GITHUB_OUTPUT"; echo "prev=$prev" >> "$GITHUB_OUTPUT"; echo "prev6=$prev6" >> "$GITHUB_OUTPUT"
-          normals=false
-          if gh release view ensmaps-ref-v1 -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null | grep -qx ensmaps_t2m_normals.npz; then
-            normals=true
-          fi
+          held=$(gh release view ensmaps-ref-v1 -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null || true)
+          normals=""
+          for f in ensmaps_t2m_normals.npz ensmaps_t2m_normals_interim.npz; do   # the final normals, else the interim
+            if [ -z "$normals" ] && echo "$held" | grep -qx "$f"; then normals=$f; fi
+          done
           echo "normals=$normals" >> "$GITHUB_OUTPUT"
-          echo "$MODEL $cyc (the runs 12 h and 6 h earlier: $prev, $prev6; 2 m normals in the release: $normals)"
+          echo "$MODEL $cyc (the runs 12 h and 6 h earlier: $prev, $prev6; 2 m normals: ${normals:-none})"
       - name: The statistics of the run 12 h earlier
         if: steps.plan.outputs.cycle != ''
         uses: actions/cache/restore@v6
@@ -167,10 +170,11 @@ jobs:
           key: ensmaps-${{ inputs.model }}-cdrift-${{ steps.plan.outputs.cycle }}
           restore-keys: ensmaps-${{ inputs.model }}-cdrift-
       - name: The 2 m temperature normals
-        if: steps.plan.outputs.cycle != '' && steps.plan.outputs.normals == 'true'
+        if: steps.plan.outputs.cycle != '' && steps.plan.outputs.normals != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release download ensmaps-ref-v1 -R "$GITHUB_REPOSITORY" -p ensmaps_t2m_normals.npz -D ref --clobber
+          NORMALS: ${{ steps.plan.outputs.normals }}
+        run: gh release download ensmaps-ref-v1 -R "$GITHUB_REPOSITORY" -p "$NORMALS" -D ref --clobber
       - name: Fetch, compute, publish
         id: run
         if: steps.plan.outputs.cycle != ''
@@ -180,10 +184,11 @@ jobs:
           CYC: ${{ steps.plan.outputs.cycle }}
           PREV: ${{ steps.plan.outputs.prev }}
           PREV6: ${{ steps.plan.outputs.prev6 }}
+          NORMALS: ${{ steps.plan.outputs.normals }}
         run: |
           set -euo pipefail
           L="$RUNNER_TEMP/lists"
-          python scripts/ensmaps/ensmaps.py run --model "$MODEL" --cycle "$CYC" --site . --normals ref/ensmaps_t2m_normals.npz \
+          python scripts/ensmaps/ensmaps.py run --model "$MODEL" --cycle "$CYC" --site . --normals "ref/${NORMALS:-none}" \
             --prev "ensmaps_stats/$PREV.npz" --prev6 "ensmaps_stats/$PREV6.npz" --save "ensmaps_stats/$CYC.npz" --lists "$L" \
             --manifest-in "assets/models/ensmaps_$MODEL.json" --fields-out "clusterfields/$MODEL.npz" --cluster-drift "cdrift/$MODEL.npz"
           rm -f "ensmaps_stats/$PREV.npz" "ensmaps_stats/$PREV6.npz"   # the cache entry keeps this run's statistics only
