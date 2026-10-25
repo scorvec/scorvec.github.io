@@ -986,7 +986,9 @@ def load_manifest(path: Path | None, mod: Model) -> dict:
 
 def write_manifest(site: Path, mod: Model, entry: dict, manifest_in: Path | None, lists: Path | None) -> None:
     """The KEEP_RUNS newest runs, newest first; the lists for publish_data.sh: the cycle to publish (none for a run
-    older than those kept), the cycles to prune and the floor below which the store is pruned."""
+    older than those kept), the cycles to prune and the floor below which the store is pruned. The store keeps one run
+    more than the manifest lists - the one it no longer lists - so a page still holding the previous manifest (the
+    deploy and the browser's cache lag the store by minutes) never names a pruned run."""
     mpath = site / "assets/models" / f"ensmaps_{mod.key}.json"
     man = load_manifest(manifest_in or mpath, mod)
     cycles = sorted(
@@ -1002,9 +1004,10 @@ def write_manifest(site: Path, mod: Model, entry: dict, manifest_in: Path | None
     if lists:
         lists.mkdir(parents=True, exist_ok=True)
         stale = any(c["cycle"] == entry["cycle"] for c in drop)
+        spare = [c for c in drop if c["cycle"] != entry["cycle"]][:1]
         (lists / "publish.txt").write_text("" if stale else f"{data}/{entry['cycle']}\n")
-        (lists / "prune.txt").write_text("".join(f"{data}/{c['cycle']}\n" for c in drop))
-        (lists / "floor.txt").write_text(f"{data}:{keep[-1]['cycle']}\n")
+        (lists / "prune.txt").write_text("".join(f"{data}/{c['cycle']}\n" for c in drop if c not in spare))
+        (lists / "floor.txt").write_text(f"{data}:{(keep + spare)[-1]['cycle']}\n")
     log(f"manifest {mpath.name}: keep {[c['cycle'] for c in keep]}, drop {[c['cycle'] for c in drop]}")
 
 
