@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import sys
 import time as _time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -54,8 +55,8 @@ def fetch_strat(date: str, time: str) -> None:
         store.Spec("aifs-ens", "cf", "u", "pl", store.LEVELS_AAM_REST, S),
         store.Spec("aifs-ens", "pf", "u", "pl", store.LEVELS_AAM_REST, S),
     ]
-    for sp in specs:  # the core u files: let a failure propagate
-        store.ensure(cyc, sp)
+    with ThreadPoolExecutor(len(specs)) as ex:  # all four at once (one request budget); a failure propagates
+        list(ex.map(lambda sp: store.ensure(cyc, sp), specs))
 
 
 def fetch(date: str, time: str, data_root: Path) -> None:
