@@ -21,7 +21,8 @@ What the page shows, and the tests that gate it:
   timeline   per sector and valid day, how many members are in each regime (and in none). A share is marked
              significant where it differs from that regime's 1991-2020 frequency within +-15 days of the date
              (regime_core.climatology): the 95 % interval of [share - normal], members resampled with replacement and
-             the R1 years resampled (both 1000 times), excludes 0 - the multi-model view's test, per day
+             the R1 years resampled (both 1000 times), excludes 0 - the multi-model view's test, per day; the normal's
+             standard error over the resampled years (clim_sd) lets the page test its equal-weight four-ensemble mean
   change     per sector, regime and day both runs hold: the share less the previous run's; significant by Fisher's
              exact test on the two runs' member counts with Benjamini-Hochberg at FDR_Q over the sector's table
   scenarios  per span (the periods take the label of their middle day: the 5-day running mean that is the period's
@@ -127,8 +128,8 @@ def labels(mod, cycle: str, init, dates: list, Z25: np.ndarray, ok: np.ndarray, 
 
 
 def vs_normal(ref, sk: str, fl: np.ndarray, dates: list):
-    """Family slots fl (days, members) -> (the R1 normal (F+1, days), significant (F+1, days)): the 95 % interval of
-    share - normal, members and R1 years resampled, excludes 0."""
+    """Family slots fl (days, members) -> (the R1 normal (F+1, days), its standard error over the resampled years,
+    significant (F+1, days)): the 95 % interval of share - normal, members and R1 years resampled, excludes 0."""
     C, B = RC.climatology(ref, sk, dates, n_boot=BOOT)
     F1 = C.shape[0]
     idx = np.random.default_rng(SEED).integers(0, fl.shape[1], (BOOT, fl.shape[1]))
@@ -136,7 +137,7 @@ def vs_normal(ref, sk: str, fl: np.ndarray, dates: list):
     PB = np.stack([(xs == f).mean(2) for f in range(F1)], axis=1).transpose(2, 1, 0)  # (boot, F+1, days)
     d = PB - B
     lo, hi = np.percentile(d, 2.5, 0), np.percentile(d, 97.5, 0)
-    return C, (lo > 0) | (hi < 0)
+    return C, B.std(0), (lo > 0) | (hi < 0)
 
 
 def vs_previous(counts: np.ndarray, n: int, dates: list, prev: dict | None):
@@ -217,7 +218,7 @@ def run(mod, cycle: str, init, days: list, Z25: np.ndarray, F: dict, high50: np.
         fls[sk] = fl
         F1 = len(RC.FAMILIES[sk]) + 1
         counts = np.stack([(fl == f).sum(1) for f in range(F1)])
-        C, sig = vs_normal(ref, sk, fl, dates)
+        C, C_sd, sig = vs_normal(ref, sk, fl, dates)
         prev = ((before or {}).get("regimes") or {}).get("sectors", {}).get(sk)
         sectors[sk] = {
             "label": RC.SECTORS[sk]["label"],
@@ -233,6 +234,7 @@ def run(mod, cycle: str, init, days: list, Z25: np.ndarray, F: dict, high50: np.
             "n": int(mem.size),
             "count": counts.astype(int).tolist(),
             "clim": np.round(C, 3).tolist(),
+            "clim_sd": np.round(C_sd, 4).tolist(),  # the page's four-model test against the same normal
             "sig": sig.astype(int).tolist(),
             "change": vs_previous(counts, int(mem.size), dates, prev),
         }

@@ -156,13 +156,14 @@
   .rg-more > h2 { font-size: 1.15rem; margin: 1rem 0 0.4rem; }
   .rg-cards { display: flex; flex-wrap: wrap; gap: 10px; }
   .rg-card { font: inherit; text-align: left; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px; padding: 0.45rem 0.5rem 0.4rem;
-             cursor: pointer; width: 300px; max-width: 100%; }
+             cursor: pointer; width: 320px; max-width: 100%; }
   .rg-card[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
   .rg-card b { display: flex; align-items: center; gap: 0.4rem; font-size: 1.04rem; }
   .rg-card b i { width: 13px; height: 13px; border-radius: 3px; flex: 0 0 auto; }
   .rg-card .sub { font-size: 0.92rem; color: var(--muted); }
   .rg-card canvas { display: block; width: 100%; margin-top: 0.3rem; border-radius: 4px; background: var(--map); }
-  .rg-chg { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+  .rg-card canvas.bars { background: transparent; }
+  .rg-chg { display: flex; flex-direction: column; gap: 8px; }
   .rg-chg > div { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 0.45rem 0.55rem; font-size: 0.95rem; }
   .rg-chg canvas { display: block; width: 100%; margin-top: 0.3rem; }
   .rg-chg .sub { color: var(--muted); }
@@ -454,7 +455,8 @@
     <p>This run's ensemble mean less the previous run's (12&nbsp;hours earlier) over the same calendar days, on a common 0.5&deg; grid (each member's field averaged over the 0.5&deg; cells first). It is coloured only where the change is significant: Welch's <i>t</i>-test on the two runs' members at every point, and the Benjamini&ndash;Hochberg procedure over the whole map at a false discovery rate of 10&nbsp;%, so that among the coloured points at most a tenth are expected to be chance. The last period of a 00&nbsp;UTC run is compared over days 11&ndash;14, the days the previous 12&nbsp;UTC run holds. Where the ensembles are confident (the first days) even a small change can be significant: read the size from the colours.</p>
     <h3 id="regimes">Weather regimes</h3>
     <p>Each run of each ensemble sorts every member's 500&nbsp;hPa height on every day into one of four recurring weather regimes of two sectors, the Euro-Atlantic (20&ndash;80&deg;N, 90&deg;W&ndash;30&deg;E) and North America and the Pacific (20&ndash;80&deg;N, 170&ndash;30&deg;W), or into none. These are the regimes of the site's multi-model regime view on the <a href="/subseasonal.html">extended-range page</a>, classified the same way: four patterns per sector and season from NCEP/NCAR reanalysis 1991&ndash;2020 (k-means on 5-day mean height anomalies), one set for October&ndash;March and one for April&ndash;September, every day taking the set of its own season; a member's 5-day running mean anomaly (against ERA5 1991&ndash;2020) goes to the nearest pattern, or to &ldquo;no regime&rdquo; when its pattern correlation with that pattern is below 0.25. No model here has a reforecast, so each ensemble's drift is learned from its own past runs: the ensemble-mean anomaly at each lead day, less what the run started on that valid day showed on its first day, averaged over the runs and removed (shrunk towards zero by <i>n</i>&nbsp;/&nbsp;(<i>n</i>&nbsp;+&nbsp;10)) once ten runs verify a lead.</p>
-    <p><b>The timeline</b> stacks, for each ensemble and day, the share of its members in each regime. A share is drawn pale unless it differs from that regime's 1991&ndash;2020 frequency within 15 days of the date: the 95&nbsp;% interval of their difference, from resampling the members and the reanalysis years 1,000 times, must exclude zero. <b>The scenarios</b> are the regimes that hold at least six members on the period's middle day (a period's label is its own 5-day mean) or on the day: the mean anomaly of just those members, coloured only where at least <i>k</i> of them agree on its sign (the sign test at 5&nbsp;% on that regime's member count; fewer than six members can never pass it). <b>Since the previous run</b>: each regime's share against the run 12&nbsp;hours earlier on the same days, coloured where Fisher's exact test on the two runs' member counts is significant with the false discovery rate held at 10&nbsp;% over the table. Each run's labels are published in the multi-model view's format (<code>assets/regimes/data/ensmaps_members_&lt;model&gt;.json</code>).</p>
+    <p><b>The timeline</b> stacks, for each ensemble and valid date, the share of its members in each regime, every ensemble on the same dates (their newest runs can start 12&nbsp;hours apart; each row gives its run) and every regime in the same colour and place, as on the extended-range page. A share is drawn pale unless it differs from that regime's 1991&ndash;2020 frequency within 15 days of the date: the 95&nbsp;% interval of their difference, from resampling the members and the reanalysis years 1,000 times, must exclude zero. <b>The four-ensemble row</b> averages the shares of the ensembles that hold the date with equal weight per ensemble, so the 50 and 51-member ensembles count no more than GEPS's 21; it is pale unless the mean differs from the normal by more than 1.96 standard errors (each ensemble's sampling error over its members, and the normal's over the reanalysis years). A black tick above it marks a date on which the ensembles' most frequent regime is not the same.</p>
+    <p><b>The scenarios</b> are the regimes that hold at least six members of the chosen ensemble on the period's middle day (a period's label is its own 5-day mean) or on the day: the share of that regime in every ensemble on that date, side by side with the normal as a tick, and the mean anomaly of just its members, coloured only where at least <i>k</i> of them agree on its sign (the sign test at 5&nbsp;% on that regime's member count; fewer than six members can never pass it). <b>Since the previous run</b>: each regime's share against the same ensemble's run 12&nbsp;hours earlier on the same dates, coloured where Fisher's exact test on the two runs' member counts is significant with the false discovery rate held at 10&nbsp;% over the table. Each run's labels are published in the multi-model view's format (<code>assets/regimes/data/ensmaps_members_&lt;model&gt;.json</code>).</p>
     <h3>How the page works</h3>
     <p>Nothing on this page is a picture. Each model, field and period is shipped as the ensemble's own numbers (the mean anomaly to 0.25&nbsp;&deg;C, 4&nbsp;m or 0.4&nbsp;hPa, the number of members agreeing, and the ensemble mean), on its grid, as a lossless WebP image, and your browser colours, gates, contours and reads it. The 0.1&deg; maps come in 36 tiles of 30&deg; by 60&deg;, loaded as you zoom in; the world view draws every fifth point of them.</p>
     <p class="mv-runs" id="checks"></p>
@@ -1209,73 +1211,121 @@
     $("legT").textContent = cap;
   }
 
-  // ── weather regimes: every ensemble on one day axis, the scenario cards, the change since each previous run ──────
+  // ── weather regimes: every ensemble on one valid-date axis, the scenario cards, the change since each previous run ─
   // (scripts/ensmaps/ensmaps_regimes.py: counts per regime and day, the significance against the 1991-2020 frequency,
-  // the member-mean maps of each regime holding enough members, the run-to-run test)
-  var REG_ROW = 24, REG_ONLY = 80, REG_AX = 20, REG_LAB = 104, mainEl = $("main");
+  // the member-mean maps of each regime holding enough members, the run-to-run test). One colour and one stacking
+  // order per regime in every ensemble: the regime families of scripts/regimes/regime_core.py, as on subseasonal.html.
+  var REG_ROW = 24, REG_ONLY = 80, REG_AX = 20, REG_LAB = 150, mainEl = $("main");
   function regModels() { return MODEL_ORDER.filter(function (m) { var c = cycleOf(m); return hasRegimes(c) && c.regimes.sectors[st.sector]; }); }
   function regDates(ms) { var s = {}; ms.forEach(function (m) { cycleOf(m).regimes.sectors[st.sector].valid.forEach(function (d) { s[d] = 1; }); }); return Object.keys(s).sort(); }
   function shortDate(d) { return new Date(d + "T12:00Z").toLocaleString("en-US", { timeZone: "UTC", month: "short", day: "numeric" }); }
+  function initLabel(c) { return shortDate(c.init.slice(0, 10)) + " " + c.init.slice(11, 13) + "Z"; }
+  function cycLabel(k) { return shortDate(k.slice(0, 4) + "-" + k.slice(4, 6) + "-" + k.slice(6, 8)) + " " + k.slice(8) + "Z"; }
   function pct(x) { return Math.round(100 * x) + " %"; }
+  function secOf(m) { return cycleOf(m).regimes.sectors[st.sector]; }
+  // a regime's share in ensemble m on date d (null where m's run does not hold the date), with its test
+  function shareOf(m, d, f) {
+    var S = secOf(m), j = S.valid.indexOf(d);
+    return j < 0 ? null : { p: S.count[f][j] / S.n, n: S.n, sig: !!S.sig[f][j], clim: S.clim[f][j], sd: S.clim_sd ? S.clim_sd[f][j] : 0 };
+  }
+  // the four-ensemble row: each regime's share averaged over the ensembles holding the date, EQUAL weight per ensemble
+  // (a 51-member ensemble counts as much as GEPS's 21); significant when |mean - normal| exceeds 1.96 standard errors
+  // (the mean's binomial variance over the members of each ensemble plus the normal's over the resampled years: the
+  // normal approximation of the per-ensemble test). The ensembles disagree when their most frequent class differs.
+  function pooled(ms, d, F1) {
+    var cov = ms.filter(function (m) { return secOf(m).valid.indexOf(d) >= 0; });
+    if (!cov.length) return null;
+    var p = [], sig = [], lead = {}, M = cov.length;
+    for (var f = 0; f < F1; f++) {
+      var s = 0, v = 0, c0 = null;
+      cov.forEach(function (m) { var x = shareOf(m, d, f); s += x.p; v += x.p * (1 - x.p) / x.n; if (!c0) c0 = x; });
+      p.push(s / M); sig.push(Math.abs(s / M - c0.clim) > 1.96 * Math.sqrt(v / (M * M) + c0.sd * c0.sd));
+    }
+    cov.forEach(function (m) { var S = secOf(m), j = S.valid.indexOf(d), best = 0; for (var f2 = 1; f2 < F1; f2++) if (S.count[f2][j] > S.count[best][j]) best = f2; lead[best] = 1; });
+    return { p: p, sig: sig, models: cov, disagree: M > 1 && Object.keys(lead).length > 1 };
+  }
   var tlHit = null;                                                // the timeline's rows, dates and columns, for clicks
+  function stackBar(ctx, x, y0, cw, rh, S, shares, sigs, labels) {
+    var yt = y0;
+    S.names.forEach(function (nm, f) {
+      var v = nm === null ? 0 : shares[f]; if (!v) return;
+      ctx.globalAlpha = sigs[f] ? 1 : 0.32; ctx.fillStyle = S.colors[f]; ctx.fillRect(x + 0.5, yt, Math.max(1, cw - 1), v * rh);
+      if (labels && v >= 0.2 && cw > 24) { ctx.globalAlpha = 1; ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "600 11px 'Source Sans 3', Arial, sans-serif"; ctx.fillText(String(Math.round(100 * v)), x + cw / 2, yt + v * rh / 2); }
+      yt += v * rh;
+    });
+    ctx.globalAlpha = 1;
+  }
   function drawTimeline() {
-    var cv = $("rgTl"), all = regModels(), ms = st.only && all.indexOf(st.model) >= 0 ? [st.model] : all, rh = ms.length === 1 && st.only ? REG_ONLY : REG_ROW;
-    var dates = regDates(all), w = cv.parentNode.clientWidth, h = REG_AX + Math.max(1, ms.length) * (rh + 4) + 4, dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var cv = $("rgTl"), all = regModels(), only = st.only && all.indexOf(st.model) >= 0, rows = only ? [st.model] : (all.length > 1 ? ["pool"] : []).concat(all);
+    var rh = only ? REG_ONLY : REG_ROW, dates = regDates(all), w = cv.parentNode.clientWidth, h = REG_AX + Math.max(1, rows.length) * (rh + 6) + 4, dpr = Math.min(window.devicePixelRatio || 1, 2);
     cv.style.height = h + "px"; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
     var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
-    var key = all.length ? cycleOf(all[0]).regimes.sectors[st.sector] : null;
+    var key = all.length ? secOf(all[0]) : null;
     $("rgKey").innerHTML = key ? key.names.map(function (nm, f) { return nm === null ? "" : "<span><i style=\"background:" + key.colors[f] + "\"></i>" + escH(nm) + "</span>"; }).join("") +
-      "<span>pale: not different from the 1991–2020 frequency for the date · click an ensemble's name to show it alone</span>" : "";
+      "<span>pale: not different from the 1991–2020 frequency · black tick: the ensembles' most frequent regime differs · click a name to show that ensemble alone</span>" : "";
     mainEl.style.setProperty("--rgh", ($("rgTop").offsetHeight + 12) + "px");
-    if (!ms.length) { ctx.fillStyle = "#6f6b64"; ctx.font = "14px 'Source Sans 3', Arial, sans-serif"; ctx.textBaseline = "middle"; ctx.fillText("No ensemble run with regimes yet.", 10, h / 2); tlHit = null; return; }
-    var x0 = REG_LAB, cw = (w - x0 - 6) / dates.length, step = Math.max(1, Math.ceil(44 / cw));
+    if (!rows.length) { ctx.fillStyle = "#6f6b64"; ctx.font = "14px 'Source Sans 3', Arial, sans-serif"; ctx.textBaseline = "middle"; ctx.fillText("No ensemble run with regimes yet.", 10, h / 2); tlHit = null; return; }
+    var x0 = REG_LAB, cw = (w - x0 - 6) / dates.length, step = Math.max(1, Math.ceil(44 / cw)), F1 = key.names.length;
     ctx.font = "12px 'Source Sans 3', Arial, sans-serif"; ctx.fillStyle = "#3d4540"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     dates.forEach(function (d, i) { if (!(i % step)) ctx.fillText(shortDate(d), x0 + (i + 0.5) * cw, REG_AX / 2); });
-    var rows = [], c = cyc(), sp = spanOf(c, st.span);
-    ms.forEach(function (m, r) {
-      var cc = cycleOf(m), S = cc.regimes.sectors[st.sector], y0 = REG_AX + r * (rh + 4) + 2;
-      rows.push({ m: m, y0: y0, y1: y0 + rh });
-      ctx.textAlign = "left"; ctx.fillStyle = m === st.model ? "#1f261c" : "#3d4540"; ctx.font = (m === st.model ? "600 " : "") + "13px 'Source Sans 3', Arial, sans-serif";
-      ctx.fillText(MODELS[m], 6, y0 + rh / 2 - (rh > 40 ? 9 : 0));
-      if (rh > 40) { ctx.font = "12px 'Source Sans 3', Arial, sans-serif"; ctx.fillStyle = "#6f6b64"; ctx.fillText("run " + runLabel(cc), 6, y0 + rh / 2 + 9); }
-      S.valid.forEach(function (d, j) {
-        var i = dates.indexOf(d), x = x0 + i * cw, yt = y0;
-        S.names.forEach(function (nm, f) {
-          var v = nm === null ? 0 : S.count[f][j] / S.n; if (!v) return;
-          ctx.globalAlpha = S.sig[f][j] ? 1 : 0.32; ctx.fillStyle = S.colors[f]; ctx.fillRect(x + 0.5, yt, Math.max(1, cw - 1), v * rh);
-          if (rh > 40 && v >= 0.2 && cw > 24) { ctx.globalAlpha = 1; ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "600 11px 'Source Sans 3', Arial, sans-serif"; ctx.fillText(String(Math.round(100 * v)), x + cw / 2, yt + v * rh / 2); }
-          yt += v * rh;
-        });
-        ctx.globalAlpha = 1;
+    var hit = [], sp = spanOf(cyc(), st.span);
+    rows.forEach(function (m, r) {
+      var y0 = REG_AX + r * (rh + 6) + 4, pool = m === "pool";
+      hit.push({ m: m, y0: y0, y1: y0 + rh });
+      ctx.textAlign = "left"; ctx.fillStyle = m === st.model || pool ? "#1f261c" : "#3d4540"; ctx.font = (m === st.model || pool ? "600 " : "") + "13px 'Source Sans 3', Arial, sans-serif";
+      var lab = pool ? "Four ensembles" : MODELS[m], sub = pool ? "equal weight each" : initLabel(cycleOf(m));
+      if (rh > 40) { ctx.fillText(lab, 6, y0 + rh / 2 - 9); ctx.font = "12px 'Source Sans 3', Arial, sans-serif"; ctx.fillStyle = "#6f6b64"; ctx.fillText(sub, 6, y0 + rh / 2 + 9); }
+      else { ctx.fillText(lab, 6, y0 + rh / 2); var lw = ctx.measureText(lab).width; ctx.font = "11.5px 'Source Sans 3', Arial, sans-serif"; ctx.fillStyle = "#6f6b64"; ctx.fillText(sub, 10 + lw, y0 + rh / 2); }
+      dates.forEach(function (d, i) {
+        var x = x0 + i * cw;
+        if (pool) {
+          var P = pooled(all, d, F1); if (!P) return;
+          stackBar(ctx, x, y0, cw, rh, key, P.p, P.sig, false);
+          if (P.disagree) { ctx.fillStyle = "#1f261c"; ctx.fillRect(x + 1, y0 - 4, Math.max(1, cw - 2), 3); }
+        } else {
+          var S = secOf(m), j = S.valid.indexOf(d); if (j < 0) return;
+          stackBar(ctx, x, y0, cw, rh, S, S.names.map(function (nm, f) { return S.count[f][j] / S.n; }), S.names.map(function (nm, f) { return S.sig[f][j]; }), rh > 40);
+        }
       });
       if (m === st.model && sp) {                                  // the period or day on the map
         var i0 = dates.indexOf(sp.first), i1 = dates.indexOf(sp.last);
         if (i0 >= 0 && i1 >= 0) { ctx.strokeStyle = "#1f261c"; ctx.lineWidth = 2; ctx.strokeRect(x0 + i0 * cw + 1, y0 - 1, (i1 - i0 + 1) * cw - 2, rh + 2); }
       }
     });
-    tlHit = { rows: rows, dates: dates, x0: x0, cw: cw };
+    tlHit = { rows: hit, dates: dates, x0: x0, cw: cw };
   }
   function tlAt(e) {
     if (!tlHit) return null;
     var r = $("rgTl").getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
-    var row = tlHit.rows.filter(function (q) { return y >= q.y0 - 2 && y <= q.y1 + 2; })[0];
+    var row = tlHit.rows.filter(function (q) { return y >= q.y0 - 4 && y <= q.y1 + 2; })[0];
     return row ? { row: row, x: x, y: y, d: x >= tlHit.x0 ? tlHit.dates[Math.floor((x - tlHit.x0) / tlHit.cw)] : null } : null;
   }
   $("rgTl").addEventListener("click", function (e) {
     var a = tlAt(e); if (!a) return;
-    if (!a.d) { st.only = !(st.only && st.model === a.row.m); if (a.row.m !== st.model) selectModel(a.row.m); else onChange(); return; }
-    if (a.row.m !== st.model) selectModel(a.row.m);
+    var m = a.row.m === "pool" ? st.model : a.row.m;
+    if (!a.d) { if (a.row.m === "pool") return; st.only = !(st.only && st.model === m); if (m !== st.model) selectModel(m); else onChange(); return; }
+    if (m !== st.model) selectModel(m);
     var k = cyc().days.indexOf(a.d); if (k >= 0) pickSpan("D" + ("0" + (k + 1)).slice(-2));
   });
   $("rgTl").addEventListener("mousemove", function (e) {
-    var a = tlAt(e), t = $("rgTip");
-    if (!a || !a.d) { t.style.display = "none"; return; }
-    var S = cycleOf(a.row.m).regimes.sectors[st.sector], j = S.valid.indexOf(a.d);
-    if (j < 0) { t.style.display = "none"; return; }
-    t.innerHTML = "<span class=\"v\">" + escH(MODELS[a.row.m] + " · " + shortDate(a.d)) + "</span>" + S.names.map(function (nm, f) {
-      return nm === null ? "" : "<br>" + escH(nm + ": " + S.count[f][j] + " of " + S.n + " (" + pct(S.count[f][j] / S.n) + "), normal " + pct(S.clim[f][j]) + (S.sig[f][j] ? "" : ", not different from it"));
-    }).join("");
-    t.style.display = "block";
+    var a = tlAt(e), t = $("rgTip"), all = regModels();
+    if (!a || !a.d || !all.length) { t.style.display = "none"; return; }
+    var key = secOf(all[0]), F1 = key.names.length, html;
+    if (a.row.m === "pool") {
+      var P = pooled(all, a.d, F1); if (!P) { t.style.display = "none"; return; }
+      html = "<span class=\"v\">" + escH("Four ensembles · " + shortDate(a.d)) + "</span>" + key.names.map(function (nm, f) {
+        if (nm === null) return "";
+        var each = P.models.map(function (m) { return MODELS[m] + " " + Math.round(100 * shareOf(m, a.d, f).p); }).join(", ");
+        return "<br>" + escH(nm + ": " + pct(P.p[f]) + " (" + each + "), normal " + pct(shareOf(P.models[0], a.d, f).clim) + (P.sig[f] ? "" : ", not different from it"));
+      }).join("") + (P.disagree ? "<br>" + escH("the ensembles' most frequent regime differs") : "");
+    } else {
+      var S = secOf(a.row.m), j = S.valid.indexOf(a.d);
+      if (j < 0) { t.style.display = "none"; return; }
+      html = "<span class=\"v\">" + escH(MODELS[a.row.m] + " " + initLabel(cycleOf(a.row.m)) + " · " + shortDate(a.d)) + "</span>" + S.names.map(function (nm, f) {
+        return nm === null ? "" : "<br>" + escH(nm + ": " + S.count[f][j] + " of " + S.n + " (" + pct(S.count[f][j] / S.n) + "), normal " + pct(S.clim[f][j]) + (S.sig[f][j] ? "" : ", not different from it"));
+      }).join("");
+    }
+    t.innerHTML = html; t.style.display = "block";
     var wr = $("rgTl").parentNode.clientWidth; t.style.left = Math.min(a.x, wr - t.offsetWidth - 16) + "px"; t.style.top = a.y + "px";
   });
   $("rgTl").addEventListener("mouseleave", function () { $("rgTip").style.display = "none"; });
@@ -1308,6 +1358,25 @@
     return true;
   }
   function updateThumbs() { thumbs = thumbs.filter(function (t) { return t.cv.isConnected && !drawThumb(t); }); }
+  // each ensemble's share of a regime on a date, side by side: one bar per ensemble (pale: not different from the
+  // normal, the tick), then the four-ensemble mean
+  function drawShares(cv, d, f) {
+    var all = regModels(), key = all.length ? secOf(all[0]) : null; if (!key) return;
+    var P = pooled(all, d, key.names.length), cols = all.concat(P ? ["pool"] : []), w = cv.clientWidth || 280, h = 66, dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.style.height = h + "px"; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var bw = w / cols.length, top = 14, bh = h - top - 16;
+    ctx.font = "11px 'Source Sans 3', Arial, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    cols.forEach(function (m, i) {
+      var x = i * bw, x1 = x + bw * 0.22, x2 = bw * 0.56, s = m === "pool" ? { p: P.p[f], sig: P.sig[f], clim: shareOf(P.models[0], d, f).clim } : shareOf(m, d, f);
+      ctx.fillStyle = "#f0f1ed"; ctx.fillRect(x1, top, x2, bh);
+      ctx.fillStyle = "#6f6b64"; ctx.fillText(m === "pool" ? "4-ens." : MODELS[m].replace("-ENS", ""), x + bw / 2, h - 7);
+      if (!s) { ctx.fillText("–", x + bw / 2, top + bh / 2); return; }
+      ctx.globalAlpha = s.sig ? 1 : 0.32; ctx.fillStyle = key.colors[f]; ctx.fillRect(x1, top + bh * (1 - s.p), x2, bh * s.p); ctx.globalAlpha = 1;
+      ctx.fillStyle = "#1f261c"; ctx.fillRect(x1 - 2, top + bh * (1 - s.clim) - 0.75, x2 + 4, 1.5);
+      ctx.fillText(Math.round(100 * s.p) + "%", x + bw / 2, top - 7);
+    });
+  }
   function renderCards() {
     var box = $("rgCards"), c = cyc(), sp = spanOf(c, st.span); box.innerHTML = ""; thumbs = [];
     if (!hasRegimes(c) || !sp) return;
@@ -1315,40 +1384,46 @@
     $("rgCardsH").textContent = "Scenarios: " + MODELS[st.model] + ", " + sp.label.split(" · ")[0].toLowerCase() + ", " + SECTORS[st.sector];
     if (!cards.length) { var p = document.createElement("p"); p.className = "mv-runs"; p.textContent = "No regime holds " + (c.regimes.min_members || 6) + " or more of the " + S.n + " members in this period."; box.appendChild(p); return; }
     cards.forEach(function (cd) {
-      var b = document.createElement("button"), cnt = S.count[cd.f][kl];
+      var b = document.createElement("button"), cnt = S.count[cd.f][kl], d = S.valid[kl];
       b.type = "button"; b.className = "rg-card"; b.setAttribute("aria-pressed", String(!!cur && cd.f === cur.f));
-      b.innerHTML = "<b><i style=\"background:" + S.colors[cd.f] + "\"></i>" + escH(S.names[cd.f]) + "</b><span class=\"sub\">" + cnt + " of " + S.n + " members (" + pct(cnt / S.n) + ") on " + escH(shortDate(S.valid[kl])) +
-        " · normal " + pct(S.clim[cd.f][kl]) + (S.sig[cd.f][kl] ? "" : ", not different from it") + "</span>";
+      b.innerHTML = "<b><i style=\"background:" + S.colors[cd.f] + "\"></i>" + escH(S.names[cd.f]) + "</b><span class=\"sub\">" + cnt + " of " + S.n + " " + escH(MODELS[st.model]) +
+        " members on " + escH(shortDate(d)) + "; the share in each ensemble, the normal as a tick:</span>";
+      var bars = document.createElement("canvas"); bars.className = "bars"; bars.setAttribute("role", "img");
+      bars.setAttribute("aria-label", "The share of each ensemble's members in " + S.names[cd.f] + " on " + shortDate(d)); b.appendChild(bars);
       var cv = document.createElement("canvas"); cv.setAttribute("role", "img"); cv.setAttribute("aria-label", "500 hPa height anomaly of the members in " + S.names[cd.f]); b.appendChild(cv);
       b.onclick = function () { st.regime = cd.f; renderCards(); onChange(); mapEl.scrollIntoView({ behavior: "smooth", block: "nearest" }); };
       box.appendChild(b);
+      drawShares(bars, d, cd.f);
       if (cd.k.z500) { var t = { cv: cv, rel: relR(c, "z500", st.span, st.sector, cd.f), k: cd.k.z500, sk: st.sector }; decoded(t.rel); thumbs.push(t); }
     });
     updateThumbs();
   }
-  // the change in each regime's share since each ensemble's previous run: coloured where significant
+  // the change in each regime's share since each ensemble's previous run, one panel per ensemble on the timeline's
+  // valid dates: coloured where significant
   function renderChanges() {
-    var box = $("rgChg"); box.innerHTML = "";
-    regModels().forEach(function (m) {
-      var cc = cycleOf(m), S = cc.regimes.sectors[st.sector], ch = S.change, div = document.createElement("div");
-      div.innerHTML = "<b>" + MODELS[m] + "</b> <span class=\"sub\">run " + escH(runLabel(cc)) + (ch ? " against " + escH(ch.cycle.slice(6, 8) + "/" + ch.cycle.slice(4, 6) + " " + ch.cycle.slice(8) + "Z") : ": no earlier run with regimes to compare with yet") + "</span>";
+    var box = $("rgChg"), all = regModels(), dates = regDates(all); box.innerHTML = "";
+    all.forEach(function (m) {
+      var cc = cycleOf(m), S = secOf(m), ch = S.change, div = document.createElement("div");
+      div.innerHTML = "<b>" + MODELS[m] + "</b> <span class=\"sub\">" + escH(initLabel(cc)) + (ch ? " against " + escH(cycLabel(ch.cycle)) : ": no earlier run with regimes to compare with yet") + "</span>";
       box.appendChild(div);
       if (!ch) return;
       var fams = S.names.map(function (nm, f) { return nm === null ? -1 : f; }).filter(function (f) { return f >= 0; });
       var cv = document.createElement("canvas"); div.appendChild(cv);
-      var w = div.clientWidth - 12, lab = 112, rh = 16, h = 16 + fams.length * rh, dpr = Math.min(window.devicePixelRatio || 1, 2), nd = S.valid.length, cw = (w - lab) / nd;
+      var w = div.clientWidth - 12, lab = REG_LAB, rh = 16, h = 16 + fams.length * rh, dpr = Math.min(window.devicePixelRatio || 1, 2), cw = (w - lab) / dates.length;
       cv.style.height = h + "px"; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
       var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.font = "11px 'Source Sans 3', Arial, sans-serif"; ctx.textBaseline = "middle"; ctx.textAlign = "center"; ctx.fillStyle = "#6f6b64";
-      for (var j = 0; j < nd; j += Math.max(1, Math.ceil(26 / cw))) ctx.fillText(String(j + 1), lab + (j + 0.5) * cw, 7);
+      var step = Math.max(1, Math.ceil(44 / cw));
+      dates.forEach(function (d, i) { if (!(i % step)) ctx.fillText(shortDate(d), lab + (i + 0.5) * cw, 7); });
       fams.forEach(function (f, r) {
-        var y = 16 + r * rh; ctx.textAlign = "left"; ctx.fillStyle = "#3d4540"; ctx.fillText(S.names[f].length > 18 ? S.names[f].slice(0, 17) + "…" : S.names[f], 0, y + rh / 2);
-        for (var j2 = 0; j2 < nd; j2++) {
-          var dp = ch.dp[f][j2], x = lab + j2 * cw;
-          ctx.fillStyle = dp === null ? "#ffffff" : ch.sig[f][j2] ? rgbStr(interp(DIV, Math.max(-1, Math.min(1, dp / 0.6)))) : "#efefea";
+        var y = 16 + r * rh; ctx.textAlign = "left"; ctx.fillStyle = "#3d4540"; ctx.fillText(S.names[f].length > 24 ? S.names[f].slice(0, 23) + "…" : S.names[f], 0, y + rh / 2);
+        S.valid.forEach(function (d, j) {
+          var i = dates.indexOf(d), dp = ch.dp[f][j], x = lab + i * cw;
+          if (dp === null) return;
+          ctx.fillStyle = ch.sig[f][j] ? rgbStr(interp(DIV, Math.max(-1, Math.min(1, dp / 0.6)))) : "#efefea";
           ctx.fillRect(x + 0.5, y + 0.5, cw - 1, rh - 1);
-          if (dp !== null && ch.sig[f][j2] && cw >= 24) { ctx.textAlign = "center"; ctx.fillStyle = Math.abs(dp) > 0.35 ? "#fff" : "#1f261c"; ctx.fillText((dp > 0 ? "+" : "−") + Math.round(100 * Math.abs(dp)), x + cw / 2, y + rh / 2); }
-        }
+          if (ch.sig[f][j] && cw >= 24) { ctx.textAlign = "center"; ctx.fillStyle = Math.abs(dp) > 0.35 ? "#fff" : "#1f261c"; ctx.fillText((dp > 0 ? "+" : "−") + Math.round(100 * Math.abs(dp)), x + cw / 2, y + rh / 2); }
+        });
       });
     });
   }
