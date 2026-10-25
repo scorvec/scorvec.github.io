@@ -99,6 +99,9 @@ def fetch(t0: str, t1: str, lat=LAT, stride=2) -> xr.DataArray:
             parts.append(d["sla"])
         pieces.append(xr.concat(parts, "longitude"))
     s = xr.concat(pieces, "time")
+    # griddap snaps a range's ends to the nearest day it has, so a missing day at a piece's edge (01 Jun 2026) brings
+    # the same day back in both pieces: keep one
+    s = s.isel(time=~s.get_index("time").duplicated())
     s = s.assign_coords(longitude=(s.longitude % 360)).sortby("longitude").sortby("latitude")
     return s.where(np.abs(s) < 3)
 
