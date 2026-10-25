@@ -207,23 +207,27 @@ ROWS = {
 }
 
 
-def fetch_all(cycle: E.Cycle) -> dict:
-    """Stock the shared files; returns {name: path} for the ones that arrived (a failure is reported, not raised, so
-    one missing file does not take the others down)."""
-    out = {}
-    for name in (*SHARED, *ROWS):
+def fetch_all(cycle: E.Cycle, workers: int = 4) -> dict:
+    """Stock the shared files, `workers` at a time (one request budget between them: the whole-field files are bound by
+    bandwidth, the row files by requests, so together they overlap); returns {name: path} for the ones that arrived (a
+    failure is reported, not raised, so one missing file does not take the others down)."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    def one(name):
         t0 = time.time()
         try:
             p = ensure_rows(cycle, name) if name in ROWS else ensure(cycle, SHARED[name]())
-            out[name] = p
             mb = p.stat().st_size / 1e6
-            print(
-                f"  IFS {name}: {mb:,.0f} MB in {time.time() - t0:.0f} s ({mb / max(time.time() - t0, 0.1):.0f} MB/s)",
-                flush=True,
-            )
+            print(f"  IFS {name}: {mb:,.0f} MB in {time.time() - t0:.0f} s", flush=True)
+            return name, p
         except Exception as e:  # noqa: BLE001
             print(f"  IFS {name}: FAILED ({type(e).__name__}: {str(e)[:120]})", flush=True)
-    return out
+            return name, None
+
+    # the request-bound row files first: they take longest
+    names = sorted((*SHARED, *ROWS), key=lambda n: n not in ROWS)
+    with ThreadPoolExecutor(workers) as ex:
+        return {n: p for n, p in ex.map(one, names) if p is not None}
 
 
 def open_field(path, short: str, lev: int, chunks=None):

@@ -200,92 +200,60 @@ jobs:
       - name: The run records as main has them now
         run: git fetch -q --depth 1 origin main && git checkout FETCH_HEAD -- assets/sst/data/runs || echo "::warning::no run records on main yet"
 
-      - name: Wave-1 and wave-2 loops
-        run: |
-          python scripts/strat/wave_maps.py \
-            --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
-            --anim-dir assets/sst/anim \
-            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "wave_maps" "keeping the previous loops"
-
-      # Polar cap at sea level and 500 hPa, the AO and NAO, the 100 hPa height, and at 10 hPa the temperature and the
-      # vortex's shape: msl and t at 10 hPa for the control and the 50 members from the 90-18N rows of each message
-      # (~0.4 GB), z at 500, 100 and 10 hPa from the wave maps' file just cached; plumes, maps and the run records.
+      # The products, all at once (scripts/lib/parallel.sh): each fetches its own files through the shared store (per-file
+      # locks, one request budget) while the others draw, so the downloads overlap the drawing and every core is used.
       # Google mirror only.
-      - name: Polar cap, AO and NAO, 100 and 10 hPa
-        env:
-          ECMWF_SOURCES: google
-          ECMWF_MULTISOURCE: "0"
-        run: |
-          python scripts/strat/polarcap.py --model aifs \
-            --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
-            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "polarcap" "keeping the previous figures"
-
-      # 100 hPa eddy heat flux: v and T for the 50 members, daily steps, ~1 GB. Google mirror only.
-      - name: Eddy heat flux, 100 hPa
-        env:
-          ECMWF_SOURCES: google
-          ECMWF_MULTISOURCE: "0"
-        run: |
-          python scripts/strat/heatflux100.py \
-            --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
-            --out-dir assets/sst \
-            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "heatflux100" "keeping the previous figure"
-
-      # Forecast dripping paint: polar-cap height 1000-10 hPa, GEOS FP tail (bdc.yml keeps
-      # assets/sst/data/geosfp_cap_history.json) + AIFS-ENS control and 50 members to day 15 from the 90-65N rows of
-      # each message, drift measured against GEOS FP (reference/aifs_capdrift.json). ~1.3 GB. Google mirror only.
-      - name: Forecast dripping paint
-        env:
-          ECMWF_SOURCES: google
-          ECMWF_MULTISOURCE: "0"
-        run: |
-          python scripts/strat/forecast_drip.py --model aifs \
-            --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
-            --out-dir assets/sst \
-            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "forecast_drip" "keeping the previous figure"
-
-      # Weather regimes from the AIFS-ENS 500 hPa members the steps above already cached (wave_maps' 50 perturbed
-      # members + polarcap's control): no fetch of its own. 00Z cycles only (a 12Z cycle is a no-op). ->
-      # assets/regimes/data, read by the multi-model regime view (regimes.yml).
-      - name: Weather regimes (AIFS-ENS members)
-        run: |
-          python scripts/regimes/regimes_ecmwf.py --model aifs \
-            --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
-            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AIFS-ENS regimes"
-
-      # The 50 perturbed members of u, v and z at 10/100 hPa every 12 h (~5.6 GB) for the
-      # ensemble-mean maps. Google mirror only.
-      - name: Vortex winds, 10 and 100 hPa
-        env:
-          ECMWF_SOURCES: google
-          ECMWF_MULTISOURCE: "0"
-        run: |
-          python scripts/strat/vortex_winds.py \
-            --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
-            --anim-dir assets/sst/anim \
-            --manifest assets/sst/anim/vortex_winds_manifest.json \
-            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "vortex_winds" "keeping the previous figure"
-
-      # AIFS-ENS's run into its heat-flux and drip records (run_record.py: from the JSON just written, nothing fetched;
-      # wave_maps.py records the waves itself)
-      # The AIFS-ENS control (member 0) on its own, as the IFS control is: its dripping paint (the drip's control
-      # file), wave loops (the polar-cap step's control file) and vortex-wind loops (its own u, v and z at 10 and
-      # 100 hPa, ~0.1 GB); its polar-cap, AO/NAO and 100 hPa products came with the polar-cap step. Google mirror only.
-      - name: Dripping paint and loops (AIFS-ENS control)
+      #   wave_maps     wave-1 and wave-2 loops: z at 500, 100 and 10 hPa of the 50 members (~2 GB)
+      #   polarcap      polar cap at sea level and 500 hPa, the AO and NAO, the 100 hPa height, the 10 hPa temperature and
+      #                 the vortex's shape: msl and t at 10 hPa from the 90-18N rows of each message (~0.4 GB), z from the
+      #                 wave maps' file (whichever of the two gets to it first fetches it)
+      #   heatflux100   100 hPa eddy heat flux: v and T of the 50 members, daily steps (~1 GB)
+      #   forecast_drip polar-cap height 1000-10 hPa, the control and 50 members to day 15 from the 90-65N rows (~1.3 GB),
+      #                 the GEOS FP tail (bdc.yml keeps assets/sst/data/geosfp_cap_history.json), drift measured against
+      #                 GEOS FP (reference/aifs_capdrift.json)
+      #   vortex_winds  the ensemble-mean maps: u, v and z at 10/100 hPa of the 50 members every 12 h (~5.6 GB)
+      - name: Waves, polar cap, heat flux, dripping paint and vortex winds
         env:
           ECMWF_SOURCES: google
           ECMWF_MULTISOURCE: "0"
           D: ${{ needs.cycle.outputs.date }}
           T: ${{ needs.cycle.outputs.time }}
         run: |
-          python scripts/strat/forecast_drip.py --model aifsc --date "$D" --time "$T" --out-dir assets/sst \
-            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AIFS-ENS control drip" "keeping the previous figure"
-          python scripts/strat/wave_maps.py --model aifsc --date "$D" --time "$T" --anim-dir assets/sst/anim \
-            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AIFS-ENS control wave loops" "keeping the previous frames"
-          python scripts/strat/vortex_winds.py --model aifsc --date "$D" --time "$T" --anim-dir assets/sst/anim \
-            --manifest assets/sst/anim/vortex_winds_aifsc_manifest.json \
-            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AIFS-ENS control vortex winds" "keeping the previous frames"
+          source scripts/lib/parallel.sh
+          par vortex_winds "keeping the previous figure" python scripts/strat/vortex_winds.py --date "$D" --time "$T" \
+            --anim-dir assets/sst/anim --manifest assets/sst/anim/vortex_winds_manifest.json
+          par forecast_drip "keeping the previous figure" python scripts/strat/forecast_drip.py --model aifs --date "$D" --time "$T" --out-dir assets/sst
+          par wave_maps "keeping the previous loops" python scripts/strat/wave_maps.py --date "$D" --time "$T" --anim-dir assets/sst/anim
+          par polarcap "keeping the previous figures" python scripts/strat/polarcap.py --model aifs --date "$D" --time "$T"
+          par heatflux100 "keeping the previous figure" python scripts/strat/heatflux100.py --date "$D" --time "$T" --out-dir assets/sst
+          par_wait
 
+      # What reads the files cached above, all at once again:
+      #   regimes_ecmwf  weather regimes from the 500 hPa members (wave_maps' 50 perturbed members + polarcap's control),
+      #                  no fetch of its own; 00Z cycles only (a 12Z cycle is a no-op) -> assets/regimes/data, read by the
+      #                  multi-model regime view (regimes.yml)
+      #   the AIFS-ENS control (member 0) on its own, as the IFS control is: its dripping paint (the drip's control rows),
+      #   wave loops (the polar cap's control file) and vortex-wind loops (its own u, v and z at 10 and 100 hPa, ~0.1 GB);
+      #   its polar-cap, AO/NAO and 100 hPa products came with the polar cap
+      - name: Weather regimes and the AIFS-ENS control
+        env:
+          ECMWF_SOURCES: google
+          ECMWF_MULTISOURCE: "0"
+          D: ${{ needs.cycle.outputs.date }}
+          T: ${{ needs.cycle.outputs.time }}
+        run: |
+          source scripts/lib/parallel.sh
+          par "AIFS-ENS control vortex winds" "keeping the previous frames" python scripts/strat/vortex_winds.py --model aifsc \
+            --date "$D" --time "$T" --anim-dir assets/sst/anim --manifest assets/sst/anim/vortex_winds_aifsc_manifest.json
+          par "AIFS-ENS control wave loops" "keeping the previous frames" python scripts/strat/wave_maps.py --model aifsc \
+            --date "$D" --time "$T" --anim-dir assets/sst/anim
+          par "AIFS-ENS control drip" "keeping the previous figure" python scripts/strat/forecast_drip.py --model aifsc \
+            --date "$D" --time "$T" --out-dir assets/sst
+          par "AIFS-ENS regimes" "the previous members stay" python scripts/regimes/regimes_ecmwf.py --model aifs --date "$D" --time "$T"
+          par_wait
+
+      # AIFS-ENS's run into its heat-flux and drip records (run_record.py: from the JSON just written, nothing fetched;
+      # wave_maps.py records the waves itself)
       - name: Run records, heat flux and dripping paint
         continue-on-error: true
         run: |
@@ -418,58 +386,52 @@ jobs:
             || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "ens_cycle" "downstream uses whatever cached"
           du -sh ../ecmwf/cache 2>/dev/null || true
 
-      # AIFS-ENS's run into the polar-vortex record (run_record.py) from the u files just cached and the 100 hPa height;
-      # strat-combine.yml draws the figure of every model's newest run after this workflow
-      - name: Polar vortex run record (AIFS-ENS)
-        continue-on-error: true
+      # From the u files just cached, all at once (scripts/lib/parallel.sh):
+      #   nh_vortex  AIFS-ENS's run into the polar-vortex record (run_record.py) and its member plumes, with the 100 hPa
+      #              cap height from the 90-65N rows; strat-combine.yml draws every model's newest run after this workflow
+      #   qbo_duct   per-member zonal-mean u at 10/50/100 hPa -> data/zmu_members_aifs.npz, and v at 250 hPa (control +
+      #              50) for the North Pacific jet
+      #   jets       (00/12Z) each member's zonal-mean u at 13 levels to day 15, against the ERA5 jet climatology
+      #              (scripts/mjo/data/reference/jet_clim.nc); no download of its own
+      - name: Vortex record, zonal-mean u and jets
+        env:
+          D: ${{ needs.cycle.outputs.date }}
+          T: ${{ needs.cycle.outputs.time }}
+          MAIN: ${{ needs.cycle.outputs.main }}
         run: |
           git fetch -q --depth 1 origin main && git checkout FETCH_HEAD -- assets/sst/data/runs || echo "::warning::no run records on main yet"
-          python scripts/strat/nh_vortex.py --record-only --members --models aifs,aifsc \
-            --cycle "${{ needs.cycle.outputs.date }}${{ needs.cycle.outputs.time }}" \
-            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AIFS-ENS vortex record" "the record keeps its previous runs"
+          mkdir -p assets/sst/anim/jets
+          source scripts/lib/parallel.sh
+          par "AIFS-ENS vortex record" "the record keeps its previous runs" python scripts/strat/nh_vortex.py --record-only --members \
+            --models aifs,aifsc --cycle "$D$T"
+          par "AIFS-ENS zonal-mean u" "the zero line keeps the analysis" python scripts/strat/qbo_duct.py --model aifs --date "$D" --time "$T"
+          if [ "$MAIN" = true ]; then
+            par "Jets (AIFS-ENS)" "keeping the previous figure" bash -c 'cd scripts/mjo && python src/jets.py --date "$D" --time "$T" \
+              --out ../../assets/sst/jets.webp --anim-dir ../../assets/sst/anim/jets --manifest ../../assets/sst/anim/jets_manifest.json'
+          fi
+          par_wait
 
-      # Per-member zonal-mean u at 10/50/100 hPa from the cached u files -> data/zmu_members_aifs.npz, and v at
-      # 250 hPa (control + 50) for the jet below.
-      - name: Zonal-mean u (zero line) and v250 (jet), AIFS-ENS
-        run: |
-          python scripts/strat/qbo_duct.py --model aifs \
-            --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
-            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "AIFS-ENS zonal-mean u" "the zero line keeps the analysis"
-
-      # QBO zero-wind line: the per-member zonal-mean u at 50/10 hPa that qbo_duct just computed
-      # (data/zmu_members_aifs.npz - no extra download), the GEOS FP analysis tail from the BDC product's cache on the
-      # frames branch (read-only here; bdc.yml owns it), the committed MERRA-2 reference. The IFS-ENS half is added by
-      # strat-ifs.yml, which re-renders the same figures with both models.
-      - name: QBO zero-wind line
+      # Then, at once again:
+      #   qbo_zeroline  the QBO zero-wind line from the per-member zonal-mean u qbo_duct just wrote (no extra download),
+      #                 the GEOS FP analysis tail from the BDC product's cache on the frames branch (read-only here; bdc.yml
+      #                 owns it) and the committed MERRA-2 reference; strat-ifs.yml adds the IFS-ENS half and re-renders
+      #   pacjet        (00/12Z) the North Pacific jet: 250 hPa u from the 12-level pull and v from qbo_duct's fetch; maps,
+      #                 loop, jet axis, phase diagram, the torque research view (the committed torque_ranges.json from
+      #                 aam-ifs.yml) and the phase-impact figures (scripts/mjo/data/reference/pacjet_impacts.npz)
+      - name: QBO zero-wind line and North Pacific jet
+        env:
+          D: ${{ needs.cycle.outputs.date }}
+          T: ${{ needs.cycle.outputs.time }}
+          MAIN: ${{ needs.cycle.outputs.main }}
         run: |
           scripts/lib/fetch_frames_ci.sh assets/sst/anim/bdc_tail || true
-          python scripts/strat/qbo_zeroline.py forecast --model aifs \
-            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "zero-line AIFS-ENS forecast" "the figure keeps the analysis"
-          python scripts/strat/qbo_zeroline.py render \
-            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "zero-line render" "keeping the previous figures"
-
-      # North Pacific jet: 250 hPa u from the AAM pull above and v from the zonal-mean
-      # u step's 250 hPa fetch (control + 50 members). Maps, loop, jet axis, phase diagram, the torque
-      # research view (which reads the committed torque_ranges.json from aam-ifs.yml) and the phase-impact figures (drawn
-      # from the committed ERA5 composites in scripts/mjo/data/reference/pacjet_impacts.npz).
-      - name: North Pacific jet (AIFS-ENS)
-        if: needs.cycle.outputs.main == 'true'
-        run: |
-          python scripts/mjo/src/pacjet.py --model aifs \
-            --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
-            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "North Pacific jet (AIFS-ENS)" "keeping the previous figures"
-
-      # Jets: each member's zonal-mean u at 13 levels to day 15, from the 14-level u files ens_cycle cached above (no
-      # download of its own), against the ERA5 jet climatology (scripts/mjo/data/reference/jet_clim.nc).
-      - name: Jets (AIFS-ENS)
-        if: needs.cycle.outputs.main == 'true'
-        working-directory: scripts/mjo
-        run: |
-          mkdir -p ../../assets/sst/anim/jets
-          python src/jets.py --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
-            --out ../../assets/sst/jets.webp \
-            --anim-dir ../../assets/sst/anim/jets --manifest ../../assets/sst/anim/jets_manifest.json \
-            || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Jets (AIFS-ENS)" "keeping the previous figure"
+          source scripts/lib/parallel.sh
+          par "zero line (AIFS-ENS forecast, render)" "keeping the previous figures" bash -c \
+            'python scripts/strat/qbo_zeroline.py forecast --model aifs || scripts/lib/degraded.sh "zero-line AIFS-ENS forecast" "the figure keeps the analysis"; python scripts/strat/qbo_zeroline.py render'
+          if [ "$MAIN" = true ]; then
+            par "North Pacific jet (AIFS-ENS)" "keeping the previous figures" python scripts/mjo/src/pacjet.py --model aifs --date "$D" --time "$T"
+          fi
+          par_wait
 
       - name: What was produced
         if: always()

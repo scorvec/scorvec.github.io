@@ -126,6 +126,10 @@ jobs:
         env:
           OV: ${{ needs.which.outputs.fc_overturn }}
           HB: ${{ needs.which.outputs.fc_hbranch }}
+          # the ECMWF lead days run four processes at once (hadley_members.DAY_PROCS): one thread each
+          OMP_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
         run: |
           only=; [ "$OV" != "true" ] && only="--only hbranch"; [ "$HB" != "true" ] && only="--only overturn"
           python scripts/mjo/src/hadley_members.py --model ${{ matrix.model }} --date "${{ needs.which.outputs.date }}" \
