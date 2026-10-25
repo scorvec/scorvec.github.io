@@ -1,10 +1,10 @@
 {
- "cycle": "20261023",
- "init": "2026-10-23 00Z",
- "valid": "Oct 23 \u2013 Nov 26",
+ "cycle": "20261024",
+ "init": "2026-10-24 00Z",
+ "valid": "Oct 24 \u2013 Nov 27",
  "members": 31,
- "change_vs": "20261022",
- "generated": "2026-10-24T05:25Z",
+ "change_vs": "20261023",
+ "generated": "2026-10-25T05:21Z",
  "figures": [
   "gefs_na_t2m_weekly.webp",
   "gefs_sa_t2m_weekly.webp",
@@ -82,7 +82,7 @@
  },
  "drift": {
   "inits": 45,
-  "first": "20260804",
-  "last": "20260917"
+  "first": "20260805",
+  "last": "20260918"
  }
 }
