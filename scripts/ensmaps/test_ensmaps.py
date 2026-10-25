@@ -14,7 +14,8 @@ data are fetched.
   gate     agreeing counts the members sharing the mean's sign; sign_k is 33/50, 33/51, 22/31, 16/21
   test     welch_p equals scipy's Welch test
   chain    a run's statistics serve the runs 6 and 12 h later (IFS-ENS 06/18Z to +144 h among them), the last window
-           cut to the shared days; the manifest keeps the four newest runs, the store one more
+           cut to the shared days; the manifest keeps the four newest runs, the store those that left in the last hour
+           and the newest before them; a rebuild publishes add-only
   regimes  members whose 500 hPa anomaly is a regime's centroid are labelled with it (every day in its own season's
            set) and the record is regime_core's format; a period's label day is the middle day, whose 5-day running
            mean is the period's own mean; the run-to-run test finds a planted shift and nothing in identical runs; a
@@ -237,25 +238,34 @@ def chain():
         "15 full days from 00Z, 14 from 06 or 12Z, 5 from an IFS-ENS 06/18Z run to +144 h",
     )
     mod = E.MODELS["aifs"]
+
+    def made(c: str, late: int = 0) -> str:  # each run published 8 h after its start
+        return f"{pd.Timestamp(f'{c[:8]} {c[8:]}:00') + pd.Timedelta(hours=8, minutes=late):%Y-%m-%dT%H:%MZ}"
+
+    def write(c: str, late: int = 0) -> tuple[str, str, str]:
+        E.write_manifest(site, mod, {"cycle": c, "made": made(c, late)}, None, lists)
+        return tuple((lists / f"{k}.txt").read_text().strip() for k in ("publish", "prune", "floor"))
+
     with tempfile.TemporaryDirectory() as d:
         site, lists = Path(d), Path(d) / "lists"
-        for c in ("2026102400", "2026102406", "2026102412", "2026102418", "2026102500", "2026102506"):
-            E.write_manifest(site, mod, {"cycle": c, "made": "now"}, None, lists)
+        for c in ("2026102400", "2026102406", "2026102412", "2026102418", "2026102500"):
+            write(c)
+        _, prune6, floor6 = write("2026102506")
         man = json.loads((site / "assets/models/ensmaps_aifs.json").read_text())
-        floor = (lists / "floor.txt").read_text().strip()
-        prune = (lists / "prune.txt").read_text()
-        E.write_manifest(site, mod, {"cycle": "2026102412", "made": "now"}, None, lists)  # a re-run of the fourth
-        rerun = (lists / "publish.txt").read_text().strip()
-        E.write_manifest(site, mod, {"cycle": "2026102318", "made": "now"}, None, lists)  # older than the four
-        stale = (lists / "publish.txt").read_text()
+        rerun = write("2026102506", 20)[0]  # a rebuild 20 min later
+        stale = write("2026102318", 30)[0]  # older than the four
+        _, prune7, floor7 = write("2026102512")
     check(
         [c["cycle"] for c in man["cycles"]] == ["2026102506", "2026102500", "2026102418", "2026102412"]
-        and floor.endswith(":2026102406")
-        and prune == ""
-        and rerun.endswith("/2026102412")
-        and stale == "",
-        "the manifest keeps the four newest runs, newest first, the store one more; a re-run of one is published, "
-        "an older run is not",
+        and [x["cycle"] for x in man["spare"]] == ["2026102406", "2026102400"]
+        and (prune6, floor6.split(":")[1]) == ("", "2026102400"),
+        "the manifest keeps the four newest runs; the store also the one that just left and the newest one before",
+    )
+    check(rerun.startswith("+") and rerun.endswith("/2026102506") and stale == "", "a rebuild is published add-only; "
+          "an older run is not published")  # fmt: skip
+    check(
+        prune7.endswith("/2026102400") and floor7.endswith(":2026102406"),
+        "a run that left over an hour before a newer leaver is pruned",
     )
 
 

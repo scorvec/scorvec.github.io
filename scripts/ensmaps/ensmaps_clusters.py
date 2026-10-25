@@ -38,7 +38,8 @@ anomalies in the Actions cache (save_fields, from ensmaps.py), and `run` cluster
   cost      the periods are fitted in parallel processes, then the figures drawn the same way; the synthetic nulls and
             the bootstrap use N_START_FAST k-means starts against N_START for the fit itself
   store     each update's figures in DATA/<the newest run's cycle>/<update time> (content-hashed names); the store keeps
-            the previous update's until the next, so a page holding the previous manifest still finds its figures
+            every update of the last ensmaps.RETAIN_MIN minutes and the newest older one, so a page holding an older
+            manifest still finds its figures
 
     python scripts/ensmaps/ensmaps_clusters.py sd                    # once: SD_FILE from $ERA5_STORE
     python scripts/ensmaps/ensmaps_clusters.py run --fields f/*.npz --site . --lists /tmp/lists
@@ -528,6 +529,8 @@ def run(paths: list[Path], site: Path, lists: Path | None, manifest_in: Path | N
 
     import regime_core as RC
 
+    import ensmaps as E
+
     t_start = time.time()
     models = load(paths)
     if not models:
@@ -641,19 +644,21 @@ def run(paths: list[Path], site: Path, lists: Path | None, manifest_in: Path | N
         old = json.loads((manifest_in or mpath).read_text())
     except Exception:  # noqa: BLE001
         old = {}
-    # the store keeps the previous update's figures as well, so a page still holding the previous manifest (the deploy
-    # and the browser's cache lag the store by minutes) never names a pruned figure: prune the update before that one,
-    # and every run's directory older than the previous update's
-    entry["previous"] = old.get("files")
-    drop = [x for x in [old.get("previous")] if x and x not in (files, entry["previous"])]
-    floor = (entry["previous"] or files)[len(DATA) + 1 :].split("/")[0]
+    # the store keeps every update of the last RETAIN_MIN minutes and the newest older one (ensmaps.retained), so a page
+    # still holding an older manifest (the deploy and the browsers' cache lag the store by minutes, and the four models'
+    # updates can land minutes apart) never names a pruned figure; every run's directory older than those goes too
+    was = old.get("kept") or [{"files": f, "made": old["made"]} for f in (old.get("files"), old.get("previous")) if f]
+    entry["kept"] = E.retained([{"files": files, "made": entry["made"]}, *was], "made", entry["made"])
+    held = {k["files"] for k in entry["kept"]}
+    drop = [k["files"] for k in was if k["files"] not in held]
+    floor = min(k[len(DATA) + 1 :].split("/")[0] for k in held)
     mpath.parent.mkdir(parents=True, exist_ok=True)
     mpath.write_text(json.dumps(entry, separators=(",", ":")))
     if lists:
         lists.mkdir(parents=True, exist_ok=True)
         (lists / "publish.txt").write_text(f"{files}\n")
         (lists / "prune.txt").write_text("".join(f"{x}\n" for x in drop))
-        (lists / "floor.txt").write_text(f"{DATA}:{min(floor, stamp)}\n")
+        (lists / "floor.txt").write_text(f"{DATA}:{floor}\n")
     log(f"  {len(draws)} figures, {nbytes / 1e6:.1f} MB -> {outdir}; clustering {entry['seconds']['fit']} s, "
         f"all {entry['seconds']['all']} s with {workers} workers")  # fmt: skip
     return 0
