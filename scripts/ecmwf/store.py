@@ -783,20 +783,21 @@ def ensure(cycle: Cycle, spec: Spec) -> Path:
     return p
 
 
-def rows_path(cycle: Cycle, spec: Spec, rows: tuple) -> Path:
-    return path(cycle, spec).with_suffix(f".rows{rows[0]}-{rows[-1]}.npz")
+def rows_path(cycle: Cycle, spec: Spec, rows: tuple, tag: str = "") -> Path:
+    return path(cycle, spec).with_suffix(f".rows{rows[0]}-{rows[-1]}{'.' + tag if tag else ''}.npz")
 
 
-def ensure_rows(cycle: Cycle, spec: Spec, rows: tuple) -> Path:
+def ensure_rows(cycle: Cycle, spec: Spec, rows: tuple, reduce=None, tag: str = "") -> Path:
     """The rows `rows` (indices from the grid's northern edge) of every message of spec, from the leading bytes of
     each message alone (rangefetch.fetch_rows), cached as an npz: values (message, len(rows), Ni) float32, lat, and
-    each message's param, level, number (0 for a control) and step. For a product that needs only high northern
-    latitudes; the Google mirror only, NotPublished as ensure()."""
+    each message's param, level, number (0 for a control) and step - or, with reduce(values, lat, lon), what it returns
+    per message (tag names it in the file name). For a product that needs only high northern latitudes; the Google
+    mirror only, NotPublished as ensure()."""
     import numpy as np
 
     import rangefetch as rf
 
-    p = rows_path(cycle, spec, rows)
+    p = rows_path(cycle, spec, rows, tag)
     expected = spec.n_expected()
 
     def complete() -> bool:
@@ -813,6 +814,7 @@ def ensure_rows(cycle: Cycle, spec: Spec, rows: tuple) -> Path:
     stream = "oper" if spec.type == "fc" else "enfo"
     levl = list(spec.levelist) if spec.levtype == "pl" else None
     vals, meta, stats, t0 = [], {"param": [], "level": [], "number": [], "step": []}, {}, time.time()
+    each = None if reduce is None else (lambda v, la, lo: (reduce(v, la, lo), la))
     with _lock(p):
         if complete():  # another process just finished it
             return p
@@ -827,7 +829,7 @@ def ensure_rows(cycle: Cycle, spec: Spec, rows: tuple) -> Path:
                 raise
             want = rf.select(idx, param=list(spec.params), levelist=levl, numbers=spec.members(), type=spec.type)
             rel = rf.path_for(cycle.date, cycle.time, spec.model, int(step), spec.type, stream=stream) + ".grib2"
-            for e, (v, la) in zip(want, rf.fetch_rows(rel, want, rows, sources=srcs, stats=stats)):
+            for e, (v, la) in zip(want, rf.fetch_rows(rel, want, rows, sources=srcs, stats=stats, each=each)):
                 vals.append(v)
                 lat = la
                 meta["param"].append(e["param"])

@@ -14,9 +14,9 @@ positive downward. Each member's omega is averaged onto polarcap.py's 1.5-deg ce
             latitude), the ensemble mean shaded only where enough members agree on descent or ascent for a two-sided
             sign test at 5 % (polarcap.agreeing); orographic gravity waves (Greenland, the Rockies) are averaged away
 The models: IFS-ENS 50 members (ECMWF open data, Google Cloud mirror; w at 850, 500, 300, 250, 200, 150, 100, 50 and
-10 hPa), the IFS control drawn on its figures and recorded on its own, and GEFS control + 30 (v and T on the cap's edge
-to 1 hPa: strat_ens.py part "omega"). Each value is the field at its valid time (the run's hour each day). AIFS-ENS is
-left out: its w is a learned output that fails against IFS-ENS from the same analysis (24 Oct 2026 12Z: a one-level
+10 hPa, north of 48.25N only, its cells from each message's first bytes: ifs_ens ROWS, w_cells), the IFS control drawn on
+its figures and recorded on its own, and GEFS control + 30 (v and T on the cap's edge to 1 hPa: strat_ens.py part
+"omega"). Each value is the field at its valid time (the run's hour each day). AIFS-ENS is left out: its w is a learned output that fails against IFS-ENS from the same analysis (24 Oct 2026 12Z: a one-level
 band of ascent at 250 hPa that continuity rules out, and a 10-100 hPa cap mean twice IFS-ENS's from day 1, -5.5
 against -1.5 mm/s, with GEOS FP at -1.3 the day before). The observed record is GEOS FP's analysis (NCCS
 OPeNDAP), the daily mean of its 00/06/12/18Z omega (which cancels the atmospheric tides), `tail` below (bdc.yml).
@@ -208,16 +208,32 @@ def layer(x: np.ndarray, levels, top: float, bot: float) -> np.ndarray:
 
 
 # ── the models ───────────────────────────────────────────────────────────────────────────────────────────────────
-def _from_grib(paths: list, levels) -> dict:
-    """{member: omega (lead, level, CLAT, CLON)} from GRIB files of w (members and the control as their own messages);
+MAP_ROWS = PC.CLAT >= MAP_LAT  # the cells everything here reads: the maps, and the cap and sectors inside them
+
+
+def w_cells(vals: np.ndarray, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
+    """omega on polarcap's cells from MAP_LAT north (MAP_ROWS of CLAT) from the leading rows of one message: what
+    ifs_ens keeps of the IFS w fields (ROWS "w", store.ensure_rows), ~25 % of each message instead of all of it."""
+    if lat.min() > MAP_LAT - PC.CELL / 2:
+        raise ValueError(f"the rows stop at {lat.min()}N, north of the cells' southern edge")
+    h = abs(float(lat[1] - lat[0]))
+    return PC.CM.coarsen(vals, lat, lon, h, PC.CLAT[MAP_ROWS], PC.CLON, PC.CELL, 360.0).astype("float32")
+
+
+def _from_cells(path: Path, levels) -> dict:
+    """{member: omega (lead, level, CLAT, CLON)} from ifs_ens's w cells, NaN south of MAP_LAT (nothing here reads those);
     a member missing any lead or level is left out."""
+    with np.load(path) as z:
+        vals, lev, num, step = (z[k] for k in ("values", "level", "number", "step"))
     got = {}
-    for path in paths:
-        for k, lev in enumerate(levels):
-            for (m, step), cells in PC.read_grib(path, "w", (lev,))[lev].items():
-                got.setdefault(m, np.full((len(PC.LEADS), len(levels), PC.CLAT.size, PC.CLON.size), np.nan, "float32"))
-                got[m][PC.LEADS.index(step), k] = cells
-    return {m: a for m, a in got.items() if np.isfinite(a).all()}
+    for k in range(len(vals)):
+        s, L = int(step[k]), int(lev[k])
+        if s in PC.LEADS and L in levels:
+            a = got.setdefault(
+                int(num[k]), np.full((len(PC.LEADS), len(levels), PC.CLAT.size, PC.CLON.size), np.nan, "float32")
+            )
+            a[PC.LEADS.index(s), levels.index(L), MAP_ROWS] = vals[k]
+    return {m: a for m, a in got.items() if np.isfinite(a[:, :, MAP_ROWS]).all()}
 
 
 def _reduce_members(members: dict, levels) -> dict:
@@ -248,16 +264,13 @@ def load_ifs(date: str, hh: str) -> dict:
     import ifs_ens as IE
 
     cyc, out = IE.E.Cycle(date, hh), {}
-    for m, ready, spec, edge in (
-        ("ifs", IE.published, IE.spec_w, IE.spec_edge),
-        ("hres", IE.ctrl_published, IE.spec_ctrl_w, IE.spec_ctrl_edge),
-    ):
+    for m, ready, w, edge in (("ifs", IE.published, "w", "edge"), ("hres", IE.ctrl_published, "ctrl_w", "ctrl_edge")):
         if not ready(date, hh):
             continue
-        mem = _from_grib([IE.ensure(cyc, spec())], LEVELS_EC)
+        mem = _from_cells(IE.ensure_rows(cyc, w), LEVELS_EC)
         red = _reduce_members(mem, LEVELS_EC)
         try:
-            lv, vt, tb = edge_terms(IE.ensure_rows(cyc, edge()), sorted(mem))
+            lv, vt, tb = edge_terms(IE.ensure_rows(cyc, edge), sorted(mem))
             shift = residual_shift(vt, tb, lv)  # (member, lead, edge level), NaN below RES_BOTTOM
             nan = np.full(shift.shape[:2], np.nan)
             red["res"] = red["series"][..., 0] + np.stack(

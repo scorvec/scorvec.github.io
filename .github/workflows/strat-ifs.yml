@@ -51,9 +51,10 @@ name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, wave
 # Google mirror in every request. A cycle the mirror does not have is skipped with a warning - never fetched elsewhere.
 #   maps    one shared fetch into the store's cache (ifs_ens.py fetch): gh at 11 levels daily (~3.5 GB), u/v at
 #           10/100 hPa 12-hourly (~4.0 GB), t at 100 hPa daily (~0.5 GB), and the same fields of the IFS control
-#           (~0.3 GB; it lands over an hour before the ensemble); every render reads those files. For the descent's
-#           residual, only the rows on 65.0-65.5N of v and t at 10-400 hPa, decoded from each message's first ~16 %
-#           of bytes (ifs_ens ROWS, scripts/ecmwf/ccsds.py; ~1.1 GB instead of ~7).
+#           (~0.3 GB; it lands over an hour before the ensemble); every render reads those files. For the descent,
+#           only the leading rows of each field, decoded from each message's first bytes (ifs_ens ROWS,
+#           scripts/ecmwf/ccsds.py): v and t at 10-400 hPa on 65.0-65.5N (~1.1 GB instead of ~7) and w at 9 levels
+#           north of 48.25N, kept as 1.5-deg cells (~1.0 GB instead of ~3.8).
 #   zmu     u at 10/50/250 hPa and v at 250 hPa, streamed a step at a time and never cached (~2 GB a cycle). The
 #           E-P flux comes from GEFS instead (strat.yml), which has levels between 10 and 50 hPa.
 #   naens   GEFS from NOAA's S3 (byte-ranged per message) and GEPS from the MSC Datamart, one shared fetch per model

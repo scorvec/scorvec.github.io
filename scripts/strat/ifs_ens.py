@@ -22,19 +22,18 @@ THE SHARED FILES (the store's canonical cache, scripts/ecmwf/cache/{cycle}/ifs/)
   u,v  10 and 100 hPa, 12-hourly 0-360 h             ~4.0 GB   vortex_winds; nh_vortex (u); heatflux100 (v at 100)
   t    100 hPa, daily 0-360 h                        ~0.5 GB   heatflux100
   t10  t at 10 hPa, daily 0-360 h                    ~0.3 GB   polarcap (the 10 hPa maps)
-  w    vertical velocity at 9 levels 850..10 hPa,     ~4.3 GB   polar_descent
-       daily 0-360 h
   msl  sea-level pressure, daily 0-360 h                       polarcap
 and the control's (type fc), ~0.3 GB together:
   ctrl_gh    gh at the 11 drip levels, daily 0-360 h              forecast_drip; wave_maps; polarcap (500/100/10)
   ctrl_wind  u, v and gh at 10 and 100 hPa, 12-hourly 0-360 h     vortex_winds; nh_vortex; heatflux100 (v at 100)
   ctrl_t100  t at 100 hPa, daily 0-360 h                          heatflux100
   ctrl_msl   sea-level pressure, daily 0-360 h                    polarcap
-  ctrl_w     w at the 9 descent levels, daily 0-360 h             polar_descent
-and, of the members and the control, only the rows from 90N to 65N (ROWS: each message's first ~16 % of bytes, its
-leading rows decoded from them, store.ensure_rows / ccsds.py), ~1.1 GB together:
-  edge       v and t at 10-400 hPa (8 levels), daily 0-360 h       polar_descent (the residual descent: the eddy heat
-  ctrl_edge  the same for the control                               flux and the stability on the cap's 65.25N edge)
+and, of the members and the control, only the leading rows of each field (ROWS: each message's first bytes, the rows
+decoded from them, store.ensure_rows / ccsds.py), daily 0-360 h:
+  edge       v and t at 10-400 hPa (8 levels), rows 65.5-65N         polar_descent (the residual descent: the eddy heat
+  ctrl_edge  the same for the control                ~1.1 GB        flux and the stability on the cap's 65.25N edge)
+  w          vertical velocity at 9 levels 850..10 hPa,            polar_descent (the column, sectors and maps),
+  ctrl_w     90N-48.25N, kept as its 1.5-deg cells   ~1.0 GB        instead of ~3.8 GB for the whole fields
 The E-P flux (u, v, t at all 14 levels, ~23 GB a cycle) is streamed step by step in qbo_duct.py instead of cached.
 
 GOOGLE MIRROR ONLY: every request here names the Google mirror and nothing else; a cycle the
@@ -126,6 +125,13 @@ def spec_ctrl_t10() -> E.Spec:
 
 EDGE_LEVELS = (10, 50, 100, 150, 200, 250, 300, 400)  # the residual's levels, and 400 for the stability at 300
 EDGE_ROWS = (98, 99, 100)  # 65.5, 65.25 and 65N on the 0.25-deg grid: the cap's edge 65.25N and the rows either side
+W_ROWS = tuple(range(168))  # 90N to 48.25N: polar_descent's cells from 49.5N (southern edge 48.75N), a row to spare
+
+
+def _w_cells(vals, lat, lon):
+    import polar_descent as PD
+
+    return PD.w_cells(vals, lat, lon)
 
 
 def spec_edge() -> E.Spec:
@@ -174,9 +180,11 @@ def ensure(cycle: E.Cycle, spec: E.Spec) -> Path:
     return E.ensure(cycle, spec)
 
 
-def ensure_rows(cycle: E.Cycle, spec: E.Spec) -> Path:
+def ensure_rows(cycle: E.Cycle, name: str) -> Path:
+    """The ROWS entry `name` of a cycle (store.ensure_rows)."""
     _set_env()
-    return E.ensure_rows(cycle, spec, EDGE_ROWS)
+    spec_of, rows, reduce, tag = ROWS[name]
+    return E.ensure_rows(cycle, spec_of(), rows, reduce, tag)
 
 
 SHARED = {
@@ -184,26 +192,29 @@ SHARED = {
     "uv": spec_uv,
     "t100": spec_t100,
     "t10": spec_t10,
-    "w": spec_w,
     "msl": spec_msl,
     "ctrl_gh": spec_ctrl_gh,
     "ctrl_wind": spec_ctrl_wind,
     "ctrl_t100": spec_ctrl_t100,
     "ctrl_msl": spec_ctrl_msl,
-    "ctrl_w": spec_ctrl_w,
 }
-ROWS = {"edge": spec_edge, "ctrl_edge": spec_ctrl_edge}
+# name -> (spec, rows, per-message reduction, its tag in the cache name)
+ROWS = {
+    "edge": (spec_edge, EDGE_ROWS, None, ""),
+    "ctrl_edge": (spec_ctrl_edge, EDGE_ROWS, None, ""),
+    "w": (spec_w, W_ROWS, _w_cells, "cells"),
+    "ctrl_w": (spec_ctrl_w, W_ROWS, _w_cells, "cells"),
+}
 
 
 def fetch_all(cycle: E.Cycle) -> dict:
     """Stock the shared files; returns {name: path} for the ones that arrived (a failure is reported, not raised, so
     one missing file does not take the others down)."""
     out = {}
-    for name, spec_of in {**SHARED, **ROWS}.items():
-        spec = spec_of()
+    for name in (*SHARED, *ROWS):
         t0 = time.time()
         try:
-            p = (ensure_rows if name in ROWS else ensure)(cycle, spec)
+            p = ensure_rows(cycle, name) if name in ROWS else ensure(cycle, SHARED[name]())
             out[name] = p
             mb = p.stat().st_size / 1e6
             print(

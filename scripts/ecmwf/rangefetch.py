@@ -269,11 +269,16 @@ def fetch_ranges(
 
 def fetch_rows(
     rel_grib: str, entries: list[dict], rows: tuple, sources: list[str] | None = None, workers: int = WORKERS,
-    stats: dict | None = None,
-) -> list[tuple]:  # fmt: skip
-    """The rows `rows` (indices from the grid's northern edge) of each message in entries, [(values (len(rows), Ni),
-    latitudes)], from the first ccsds.PREFIX of its bytes (ccsds.py): one ranged GET per message, the whole message
-    fetched again for any whose prefix falls short, and decoded with eccodes where ccsds cannot."""
+    stats: dict | None = None, each=None,
+) -> list:  # fmt: skip
+    """each(values (len(rows), Ni), latitudes, longitudes) for the rows `rows` (indices from the grid's northern edge)
+    of every message in entries - by default the (values, latitudes) pair - from the first ccsds.prefix_share of its
+    bytes (ccsds.py): one ranged GET per message, the whole message fetched again for any whose prefix falls short, and
+    decoded with eccodes where ccsds cannot. `each` runs per message, so a reduction never holds a step's rows at once,
+    and one call at a time: a matrix product with a transposed operand from several threads came out corrupt with some
+    OpenBLAS builds (63 of 64 concurrent calls wrong), while the fetches and decoding stay parallel."""
+    import threading
+
     import eccodes
     import numpy as np
 
@@ -283,10 +288,13 @@ def fetch_rows(
         print("::warning::libaec not found: whole messages fetched for their rows", flush=True)
     g = _Gets(rel_grib, sources, workers, stats)
     keep = list(rows)
+    share = ccsds.prefix_share(max(keep) + 1)
+    each = each or (lambda v, lat, lon: (v, lat))
+    serial = threading.Lock()
 
     def lead(buf):
         got = ccsds.leading_rows(buf, max(keep) + 1)
-        return None if got is None else (got[0][keep], got[1][keep])
+        return None if got is None else (got[0][keep], got[1][keep], got[2])
 
     def whole(buf):
         h = eccodes.codes_new_from_message(buf)
@@ -296,18 +304,21 @@ def fetch_rows(
             ni, nj = eccodes.codes_get(h, "Ni"), eccodes.codes_get(h, "Nj")
             la1 = eccodes.codes_get(h, "latitudeOfFirstGridPointInDegrees")
             dj = eccodes.codes_get(h, "jDirectionIncrementInDegrees")
+            lo1 = eccodes.codes_get(h, "longitudeOfFirstGridPointInDegrees")
+            di = eccodes.codes_get(h, "iDirectionIncrementInDegrees")
             vals = eccodes.codes_get_values(h).reshape(nj, ni)[keep].astype("float32")
         finally:
             eccodes.codes_release(h)
-        return vals, la1 - dj * np.asarray(keep, float)
+        return vals, la1 - dj * np.asarray(keep, float), lo1 + di * np.arange(ni)
 
     def one(e):
         s, n = e["_offset"], e["_length"]
-        got = lead(g.get(s, s + min(n, max(4096, int(n * ccsds.PREFIX)))))
+        got = lead(g.get(s, s + min(n, max(4096, int(n * share)))))
         if got is None:
             buf = g.get(s, s + n)
             got = lead(buf) or whole(buf)
-        return got
+        with serial:
+            return each(*got)
 
     return g.map(one, entries)
 
