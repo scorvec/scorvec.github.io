@@ -14,7 +14,7 @@ data are fetched.
   gate     agreeing counts the members sharing the mean's sign; sign_k is 33/50, 33/51, 22/31, 16/21
   test     welch_p equals scipy's Welch test
   chain    a run's statistics serve the runs 6 and 12 h later (IFS-ENS 06/18Z to +144 h among them), the last window
-           cut to the shared days; the manifest keeps the four newest runs
+           cut to the shared days; the manifest keeps the four newest runs, the store one more
   regimes  members whose 500 hPa anomaly is a regime's centroid are labelled with it (every day in its own season's
            set) and the record is regime_core's format; a period's label day is the middle day, whose 5-day running
            mean is the period's own mean; the run-to-run test finds a planted shift and nothing in identical runs; a
@@ -242,16 +242,18 @@ def chain():
             E.write_manifest(site, mod, {"cycle": c, "made": "now"}, None, lists)
         man = json.loads((site / "assets/models/ensmaps_aifs.json").read_text())
         floor = (lists / "floor.txt").read_text().strip()
+        prune = (lists / "prune.txt").read_text()
         E.write_manifest(site, mod, {"cycle": "2026102412", "made": "now"}, None, lists)  # a re-run of the fourth
         rerun = (lists / "publish.txt").read_text().strip()
         E.write_manifest(site, mod, {"cycle": "2026102318", "made": "now"}, None, lists)  # older than the four
         stale = (lists / "publish.txt").read_text()
     check(
         [c["cycle"] for c in man["cycles"]] == ["2026102506", "2026102500", "2026102418", "2026102412"]
-        and floor.endswith(":2026102412")
+        and floor.endswith(":2026102406")
+        and prune == ""
         and rerun.endswith("/2026102412")
         and stale == "",
-        "the manifest keeps the four newest runs, newest first, pruned below the fourth; a re-run of one is published, "
+        "the manifest keeps the four newest runs, newest first, the store one more; a re-run of one is published, "
         "an older run is not",
     )
 

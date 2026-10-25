@@ -36,6 +36,8 @@ anomalies in the Actions cache (save_fields, from ensmaps.py), and `run` cluster
             Benjamini-Hochberg at FDR_Q)
   cost      the periods are fitted in parallel processes, then the figures drawn the same way; the synthetic nulls and
             the bootstrap use N_START_FAST k-means starts against N_START for the fit itself
+  store     each update's figures in DATA/<the newest run's cycle>/<update time> (content-hashed names); the store keeps
+            the previous update's until the next, so a page holding the previous manifest still finds its figures
 
     python scripts/ensmaps/ensmaps_clusters.py sd                    # once: SD_FILE from $ERA5_STORE
     python scripts/ensmaps/ensmaps_clusters.py run --fields f/*.npz --site . --lists /tmp/lists
@@ -537,11 +539,9 @@ def run(paths: list[Path], site: Path, lists: Path | None, manifest_in: Path | N
         log("::notice::no ensemble's fields in the cache yet: no clusters")
         return 0
     stamp = max(r["cycle"] for r in models)
-    outdir = site / DATA / stamp
-    if outdir.exists():
-        import shutil
-
-        shutil.rmtree(outdir)
+    made = dt.datetime.now(dt.UTC)
+    files = f"{DATA}/{stamp}/{made:%m%d%H%M%S}"  # each update in its own directory (see the lists below)
+    outdir = site / files
     outdir.mkdir(parents=True)
     log("clusters of " + ", ".join(f"{LABEL[r['key']]} {r['cycle']}" for r in models))
     N25 = {f: normals25(f) for f in ("z500", "msl")}
@@ -616,7 +616,7 @@ def run(paths: list[Path], site: Path, lists: Path | None, manifest_in: Path | N
     t_end = time.time()
     entry = {
         "stamp": stamp,
-        "made": dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%MZ"),
+        "made": f"{made:%Y-%m-%dT%H:%MZ}",
         "runs": {
             r["key"]: {"cycle": r["cycle"], "init": r["init"], "drift_days": [int(x) for x in r["drift_days"]]}
             for r in models
@@ -633,7 +633,7 @@ def run(paths: list[Path], site: Path, lists: Path | None, manifest_in: Path | N
         ],
         "domains": {k: v[0] for k, v in doms.items()},
         "results": result,
-        "files": f"{DATA}/{stamp}",
+        "files": files,
         "rules": {"k_max": K_MAX, "min_weight": MIN_W, "stable": STABLE, "var_keep": VAR_KEEP, "fdr_q": FDR_Q},
         "seconds": {"fit": round(t_fit - t_start), "all": round(t_end - t_start)},
     }
@@ -642,14 +642,19 @@ def run(paths: list[Path], site: Path, lists: Path | None, manifest_in: Path | N
         old = json.loads((manifest_in or mpath).read_text())
     except Exception:  # noqa: BLE001
         old = {}
-    drop = [old["stamp"]] if old.get("stamp") and old["stamp"] != stamp else []
+    # the store keeps the previous update's figures as well, so a page still holding the previous manifest (the deploy
+    # and the browser's cache lag the store by minutes) never names a pruned figure: prune the update before that one,
+    # and every run's directory older than the previous update's
+    entry["previous"] = old.get("files")
+    drop = [x for x in [old.get("previous")] if x and x not in (files, entry["previous"])]
+    floor = (entry["previous"] or files)[len(DATA) + 1 :].split("/")[0]
     mpath.parent.mkdir(parents=True, exist_ok=True)
     mpath.write_text(json.dumps(entry, separators=(",", ":")))
     if lists:
         lists.mkdir(parents=True, exist_ok=True)
-        (lists / "publish.txt").write_text(f"{DATA}/{stamp}\n")
-        (lists / "prune.txt").write_text("".join(f"{DATA}/{s}\n" for s in drop))
-        (lists / "floor.txt").write_text(f"{DATA}:{stamp}\n")
+        (lists / "publish.txt").write_text(f"{files}\n")
+        (lists / "prune.txt").write_text("".join(f"{x}\n" for x in drop))
+        (lists / "floor.txt").write_text(f"{DATA}:{min(floor, stamp)}\n")
     log(f"  {len(draws)} figures, {nbytes / 1e6:.1f} MB -> {outdir}; clustering {entry['seconds']['fit']} s, "
         f"all {entry['seconds']['all']} s with {workers} workers")  # fmt: skip
     return 0
