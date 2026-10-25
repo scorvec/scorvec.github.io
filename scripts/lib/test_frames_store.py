@@ -463,7 +463,6 @@ class Site:
             "GH_TOKEN": "unused",
             "GITHUB_REPOSITORY": "owner/repo",
             "FRAMES_URL": self.remote.as_uri(),
-            "FRAMES_WARM": "0",
             **GIT_ENV,
         }
         sh("git", "init", "-q", "--bare", str(self.remote), env=self.env)
