@@ -18,6 +18,12 @@ whatever the files' attributes say): the 12 monthly means of 1991-2020 from the 
 interpolates their curves bilinearly to each model's grid. Built offline from the store, nothing downloaded, and kept
 beside this script (reference/ensmaps_upper_normals.npz).
 
+Their spread, for the standardized anomalies (reference/ensmaps_upper_sd.npz): the same store's daily anomalies from
+that curve, a linear trend removed per cell over 1991-2020, then the n-day running mean for each averaging period the
+maps use (SPREAD_DAYS: a day, and 3, 4 and 5-day means - a 5-day mean varies far less than a day), squared, and the
+variance fitted per cell as a mean + three harmonics of the day of a 366-day year (29 Feb its own slot): the variance
+of an n-day mean anomaly through the year, whose square root divides the anomaly (Spread.sd).
+
 The daily curve: mean + three annual harmonics on the common-year calendar, fitted by least squares so that the curve's
 MONTH AVERAGES - its exact integrals over each month - match the 12 monthly normals (scripts/lib/harmonic_clim: one
 12 x 7 design matrix serves every point). The 2 m file keeps the mean in float32 and the harmonics in float16 (the
@@ -26,6 +32,7 @@ largest annual amplitude, ~30 K, to 0.02 K). Each fit prints its month residuals
     python scripts/ensmaps/ensmaps_ref.py fetch --out-dir ref        # Actions only: CDS, one request at a time
     python scripts/ensmaps/ensmaps_ref.py fit --in-dir ref --out ref/ensmaps_t2m_normals.npz   # exit 3: units missing
     python scripts/ensmaps/ensmaps_ref.py upper                      # from $ERA5_STORE -> reference/
+    python scripts/ensmaps/ensmaps_ref.py spread                     # from $ERA5_STORE -> reference/
 """
 
 from __future__ import annotations
@@ -56,6 +63,8 @@ HOURS = ("00:00", "06:00", "12:00", "18:00")
 DECADES = ((1991, 2000), (2001, 2010), (2011, 2020))  # one CDS request each: 480 fields
 T2M_OUT = "ensmaps_t2m_normals.npz"  # release ensmaps-ref-v1
 UPPER_OUT = HERE / "reference" / "ensmaps_upper_normals.npz"
+SPREAD_OUT = HERE / "reference" / "ensmaps_upper_sd.npz"
+SPREAD_DAYS = (1, 3, 4, 5)  # the averaging periods standardized: a day, and the 3, 4 and 5-day means
 T2M_META = {
     "source": "ERA5-Land monthly means by hour of day over land; ERA5 (0.25 deg, sea nodes) over the sea",
     "label": "ERA5-Land 1991–2020 over land, ERA5 over the sea, as a smooth daily curve",
@@ -111,6 +120,41 @@ class Normals:
     def at(self, times) -> np.ndarray:
         """(len(times), lat, lon) float32: the curve at those times."""
         return HC.evaluate(self.coef, HC.times_of(times)).astype(np.float32)
+
+
+def doy366(times) -> np.ndarray:
+    """Day of a 366-day year, 1..366: 29 Feb is day 60 and 1 Mar day 61 in every year."""
+    t = pd.DatetimeIndex(np.atleast_1d(pd.to_datetime(times)))
+    d = t.dayofyear.to_numpy()
+    return np.where(~t.is_leap_year & (d >= 60), d + 1, d)
+
+
+def basis366(d: np.ndarray, nh: int = HC.NHARM) -> np.ndarray:
+    """(len(d), 1 + 2 nh): the mean and nh harmonics of the 366-day year."""
+    w = 2 * np.pi * np.arange(1, nh + 1) / 366.0
+    x = np.asarray(d, float)[:, None] - 1.0
+    return np.hstack([np.ones((x.size, 1)), np.cos(x * w), np.sin(x * w)])
+
+
+class Spread:
+    """The standard deviation of n-day mean anomalies through the year (SPREAD_OUT), on the store's grid or a
+    model's: coef[n] (1 + 2 NHARM, lat, lon) fit the VARIANCE on 366 slots."""
+
+    def __init__(self, coef: dict, lat: np.ndarray, lon: np.ndarray):
+        self.coef, self.lat, self.lon = coef, lat, lon
+
+    @classmethod
+    def upper(cls, field: str, path: Path = SPREAD_OUT) -> Spread:
+        with np.load(path) as z:
+            coef = {n: z[f"{field}_{n}"].astype(np.float32) for n in SPREAD_DAYS}
+            return cls(coef, z["lat"], z["lon"])
+
+    def sd(self, days, n: int) -> np.ndarray:
+        """(lat, lon): the sd of an n-day mean over `days` (its variance averaged over the days); a period the table
+        does not hold takes the nearest it does."""
+        n = min(self.coef, key=lambda d: (abs(d - n), d))
+        v = np.tensordot(basis366(doy366(days)), self.coef[n], axes=(1, 0)).mean(0)
+        return np.sqrt(np.clip(v, 1e-6, None)).astype(np.float32)
 
 
 # ── 2 m temperature: fetch (GitHub Actions only) ──────────────────────────────────────────────────────────────────────
@@ -335,28 +379,35 @@ def save_check(months: np.ndarray, lat: np.ndarray, lon: np.ndarray, land: np.nd
 
 
 # ── 500 hPa height and sea-level pressure from the ERA5 store (offline) ───────────────────────────────────────────────
-def upper(out: Path) -> None:
+def store_years(var: str, scale: float):
+    """(daily values (days, LATU, LONU) float64, their dates) of each year 1991-2020 of the store's global layer,
+    checked: the 1.5-deg grid, every day, no missing value."""
     import xarray as xr
     from localdirs import env_dir
 
     root = env_dir("ERA5_STORE", "wb2_1p5_daily_global")
+    for y in range(YEARS[0], YEARS[1] + 1):
+        with xr.open_dataset(root / var / f"{var}_{y}.nc") as ds:
+            da = ds[var].transpose("time", "latitude", "longitude")  # dimension orders differ between files
+            lat, lon = da["latitude"].values, da["longitude"].values
+            a = da.values.astype(np.float64) * scale
+            t = pd.DatetimeIndex(da["time"].values)
+        if lat[0] < lat[-1]:
+            lat, a = lat[::-1], a[:, ::-1]
+        if not np.allclose(lat, LATU) or lon.size != LONU.size:
+            raise SystemExit(f"{var} {y}: not the 1.5-deg global grid")
+        if np.isnan(a).any() or a.shape[0] != pd.Timestamp(f"{y}-12-31").dayofyear:
+            raise SystemExit(f"{var} {y}: {a.shape[0]} days, {int(np.isnan(a).sum())} missing values")
+        yield roll_to(a, float(lon[0]), 1.5, LONU), t
+
+
+def upper(out: Path) -> None:
     res, meta = {}, {}
     for field, (var, unit, scale) in UPPER.items():
         s = np.zeros((12, LATU.size, LONU.size))
         n = np.zeros(12)
-        for y in range(YEARS[0], YEARS[1] + 1):
-            with xr.open_dataset(root / var / f"{var}_{y}.nc") as ds:
-                da = ds[var].transpose("time", "latitude", "longitude")  # dimension orders differ between files
-                lat, lon = da["latitude"].values, da["longitude"].values
-                a = da.values.astype(np.float64) * scale
-                mon = pd.DatetimeIndex(da["time"].values).month.to_numpy()
-            if lat[0] < lat[-1]:
-                lat, a = lat[::-1], a[:, ::-1]
-            if not np.allclose(lat, LATU) or lon.size != LONU.size:
-                raise SystemExit(f"{var} {y}: not the 1.5-deg global grid")
-            if np.isnan(a).any() or a.shape[0] != pd.Timestamp(f"{y}-12-31").dayofyear:
-                raise SystemExit(f"{var} {y}: {a.shape[0]} days, {int(np.isnan(a).sum())} missing values")
-            a = roll_to(a, float(lon[0]), 1.5, LONU)
+        for a, t in store_years(var, scale):
+            mon = t.month.to_numpy()
             for m in range(12):
                 s[m] += a[mon == m + 1].sum(0)
                 n[m] += (mon == m + 1).sum()
@@ -366,6 +417,43 @@ def upper(out: Path) -> None:
         meta[field] = {"unit": unit} | fit_meta(months, res[field].astype(np.float64))
     out.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(out, lat=LATU, lon=LONU, meta=json.dumps(UPPER_META | {"fields": meta}), **res)
+    print(f"  -> {out} ({out.stat().st_size / 1e6:.2f} MB)", flush=True)
+
+
+def spread(out: Path) -> None:
+    """SPREAD_OUT: per field and averaging period, the variance curve of the detrended n-day mean anomaly."""
+    from scipy.ndimage import uniform_filter1d
+
+    res = {}
+    for field, (var, unit, scale) in UPPER.items():
+        N = Normals.upper(field)
+        parts, days = [], []
+        for a, t in store_years(var, scale):
+            parts.append((a - N.at(t + pd.Timedelta(hours=12))).astype(np.float32))
+            days.append(t)
+        A = np.concatenate(parts)
+        del parts
+        t = pd.DatetimeIndex(np.concatenate([d.values for d in days]))
+        x = np.arange(A.shape[0], dtype=np.float64) - (A.shape[0] - 1) / 2  # the linear trend per cell, removed
+        A -= A.mean(0)
+        A -= (np.tensordot(x, A, axes=(0, 0)) / (x * x).sum()).astype(np.float32)[None] * x[:, None, None].astype(
+            np.float32
+        )
+        B = basis366(doy366(t))
+        G = B.T @ B
+        for n in SPREAD_DAYS:
+            An = uniform_filter1d(A, n, axis=0, mode="nearest") if n > 1 else A
+            rhs = B.T @ (An * An).reshape(A.shape[0], -1).astype(np.float64)
+            coef = np.linalg.solve(G, rhs).reshape(B.shape[1], LATU.size, LONU.size)
+            res[f"{field}_{n}"] = coef.astype(np.float16)
+            sd = np.sqrt(np.clip(np.tensordot(basis366(np.array([15, 196])), coef, axes=(1, 0)), 0, None))
+            print(f"  {field} ({unit}) {n}-day: sd mid-Jan {sd[0].min():.1f}..{sd[0].max():.1f}, mid-Jul "
+                  f"{sd[1].min():.1f}..{sd[1].max():.1f}", flush=True)  # fmt: skip
+        del A
+    meta = {"source": UPPER_META["source"], "years": f"{YEARS[0]}-{YEARS[1]}", "detrend": "linear per cell",
+            "curve": f"variance: mean + {HC.NHARM} harmonics of the 366-day year", "days": list(SPREAD_DAYS)}  # fmt: skip
+    out.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(out, lat=LATU, lon=LONU, meta=json.dumps(meta), **res)
     print(f"  -> {out} ({out.stat().st_size / 1e6:.2f} MB)", flush=True)
 
 
@@ -379,7 +467,12 @@ def main() -> int:
     b.add_argument("--out", type=Path, required=True)
     u = sub.add_parser("upper")
     u.add_argument("--out", type=Path, default=UPPER_OUT)
+    v = sub.add_parser("spread")
+    v.add_argument("--out", type=Path, default=SPREAD_OUT)
     a = ap.parse_args()
+    if a.cmd == "spread":
+        spread(a.out)
+        return 0
     if a.cmd == "fetch":
         missing = fetch(a.out_dir)
         print(f"  {missing} unit(s) not fetched", flush=True)

@@ -1,12 +1,14 @@
 name: Global ensemble maps — GEFS
 
-# Caller for ensmaps.yml (ens-anomalies.html). The GEFS 00/12Z run reaches +360 h on noaa-gefs-pds ~6 h after the
-# start; the dispatcher fires 06:20 / 18:20 with a backup an hour later. These crons are the backstop; a firing with
-# nothing new exits in about a minute.
+# Caller for ensmaps.yml (ens-anomalies.html). A GEFS run (00, 06, 12 or 18Z) reaches +384 h on noaa-gefs-pds ~6 h
+# after the start; the dispatcher fires 06:20 / 18:20 for the 00/12Z runs with a backup an hour later. These crons are
+# the backstop; a firing with nothing new exits in about a minute.
 on:
   schedule:
   - cron: '30 8 * * *'
+  - cron: '30 14 * * *'
   - cron: '30 20 * * *'
+  - cron: '30 2 * * *'
   workflow_dispatch:
     inputs:
       cycle:

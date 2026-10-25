@@ -13,12 +13,14 @@ data are fetched.
   codes    the anomaly, mean and change codes round-trip within half a step and map NaN to 0
   gate     agreeing counts the members sharing the mean's sign; sign_k is 33/50, 33/51, 22/31, 16/21
   test     welch_p equals scipy's Welch test
-  chain    a run's statistics serve the run 12 h later, 00Z -> 12Z and 12Z -> 00Z, the last window cut to the shared
-           days
+  chain    a run's statistics serve the runs 6 and 12 h later (IFS-ENS 06/18Z to +144 h among them), the last window
+           cut to the shared days; the manifest keeps the four newest runs
   regimes  members whose 500 hPa anomaly is a regime's centroid are labelled with it (every day in its own season's
            set) and the record is regime_core's format; a period's label day is the middle day, whose 5-day running
            mean is the period's own mean; the run-to-run test finds a planted shift and nothing in identical runs; a
            12Z run's day 16 needs +384 h
+  clusters a scenario keeps its letter through a one-scenario day, a split takes a new letter and a scenario that
+           re-forms its old one; the members' moves between two periods' clusters
 """
 
 from __future__ import annotations
@@ -35,6 +37,7 @@ from scipy.stats import ttest_ind
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import ensmaps as E  # (imports pyproj before eccodes)
+import ensmaps_clusters as EC
 import ensmaps_ref as R
 import ensmaps_regimes as ER
 import regime_core as RC
@@ -187,9 +190,16 @@ def test():
 
 def chain():
     print("chain")
-    for c0, c1 in (("2026102412", "2026102500"), ("2026102500", "2026102512")):
+    pairs = (  # the run 12 h earlier, and 6 h earlier; IFS-ENS 06/18Z runs to +144 h
+        ("2026102412", "2026102500", 360, 360),
+        ("2026102500", "2026102512", 360, 360),
+        ("2026102500", "2026102506", 360, 144),
+        ("2026102418", "2026102506", 144, 144),
+        ("2026102506", "2026102512", 144, 360),
+    )
+    for c0, c1, l0, l1 in pairs:
         i0, i1 = (pd.Timestamp(f"{c[:8]} {c[8:]}:00") for c in (c0, c1))
-        d0, d1 = E.full_days(i0), E.full_days(i1)
+        d0, d1 = E.full_days(i0, l0), E.full_days(i1, l1)
         S = {"t2m": RNG.normal(0, 1, (21, len(d0), 2, 3)).astype(np.float32)}
         done = {"t2m": np.ones((21, len(d0)), bool)}
         with tempfile.TemporaryDirectory() as d:
@@ -202,8 +212,9 @@ def chain():
             [c is not None for c in cut] == held,
             f"{c1[8:]}Z: every span starting on a day the {c0[8:]}Z run holds finds its statistics ({sum(held)} of {len(cut)})",
         )
-        name, k0, _ = E.spans(len(d1))[2]
-        last, row = cut[2]
+        j = 2 if cut[2] is not None else next(i for i, c in enumerate(cut) if c is not None)
+        name, k0, _ = E.spans(len(d1))[j]
+        last, row = cut[j]
         j0 = next(j for j, (day, _) in enumerate(d0) if day == d1[k0][0])
         j1 = next(j for j, (day, _) in enumerate(d0) if day == d1[last][0])
         x = S["t2m"][:, j0 : j1 + 1].mean(1)
@@ -218,8 +229,30 @@ def chain():
         )
     check(
         len(E.full_days(pd.Timestamp("2026-10-25 00:00"))) == 15
-        and len(E.full_days(pd.Timestamp("2026-10-25 12:00"))) == 14,
-        "15 full days from 00Z, 14 from 12Z",
+        and len(E.full_days(pd.Timestamp("2026-10-25 12:00"))) == 14
+        and len(E.full_days(pd.Timestamp("2026-10-25 06:00"))) == 14
+        and len(E.full_days(pd.Timestamp("2026-10-25 06:00"), 144)) == 5
+        and len(E.full_days(pd.Timestamp("2026-10-25 18:00"), 144)) == 5,
+        "15 full days from 00Z, 14 from 06 or 12Z, 5 from an IFS-ENS 06/18Z run to +144 h",
+    )
+    mod = E.MODELS["aifs"]
+    with tempfile.TemporaryDirectory() as d:
+        site, lists = Path(d), Path(d) / "lists"
+        for c in ("2026102400", "2026102406", "2026102412", "2026102418", "2026102500", "2026102506"):
+            E.write_manifest(site, mod, {"cycle": c, "made": "now"}, None, lists)
+        man = json.loads((site / "assets/models/ensmaps_aifs.json").read_text())
+        floor = (lists / "floor.txt").read_text().strip()
+        E.write_manifest(site, mod, {"cycle": "2026102412", "made": "now"}, None, lists)  # a re-run of the fourth
+        rerun = (lists / "publish.txt").read_text().strip()
+        E.write_manifest(site, mod, {"cycle": "2026102318", "made": "now"}, None, lists)  # older than the four
+        stale = (lists / "publish.txt").read_text()
+    check(
+        [c["cycle"] for c in man["cycles"]] == ["2026102506", "2026102500", "2026102418", "2026102412"]
+        and floor.endswith(":2026102412")
+        and rerun.endswith("/2026102412")
+        and stale == "",
+        "the manifest keeps the four newest runs, newest first, pruned below the fourth; a re-run of one is published, "
+        "an older run is not",
     )
 
 
@@ -281,6 +314,32 @@ def regimes():
     check(len(E.full_days(pd.Timestamp("2026-10-25 12:00"), 384)) == 15, "a 12Z run to +384 h has 15 full days")
 
 
+def clusters():
+    print("clusters")
+    keys = [("ifs", i) for i in range(20)]
+    w = np.full(20, 0.05)
+
+    def sol(groups):
+        lab = np.zeros(20, int)
+        for j, g in enumerate(groups):
+            lab[list(g)] = j
+        return {"k": len(groups), "lab": lab}
+
+    seq = [
+        sol([range(10), range(10, 20)]),
+        sol([range(20)]),
+        sol([range(10), range(10, 17), range(17, 20)]),
+        sol([[*range(10), 17, 18, 19], range(10, 17)]),
+        sol([range(10), range(10, 17), range(17, 20)]),
+    ]
+    EC.chain_letters([(keys, s, w) for s in seq])
+    check(
+        [s["letters"] for s in seq] == [["A", "B"], [None], ["A", "B", "C"], ["A", "B"], ["A", "B", "C"]],
+        "letters: kept through a one-scenario day, a new one for a split, the same one when it re-forms",
+    )
+    check(EC.flow((keys, seq[2]), (keys, seq[3], w)) == [[0.5, 0.0], [0.0, 0.35], [0.15, 0.0]], "the members' moves")
+
+
 def main() -> int:
     grids()
     grib_checks()
@@ -290,6 +349,7 @@ def main() -> int:
     test()
     chain()
     regimes()
+    clusters()
     print("all checks passed")
     return 0
 

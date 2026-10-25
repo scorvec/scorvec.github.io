@@ -1,19 +1,29 @@
 name: Global ensemble maps (data)
 
-# ens-anomalies.html: one ensemble's 00/12Z run - 2 m temperature, 500 hPa height and sea-level pressure, each member's
-# daily means to day 15 against the 1991-2020 normals (where the members agree on the sign) and the change from the
-# run 12 h earlier (where significant) - as lossless WebP on the model's own grid (scripts/ensmaps/ensmaps.py has the
-# details). One model per run; the callers ensmaps-ifs.yml, ensmaps-aifs.yml, ensmaps-gefs.yml and ensmaps-geps.yml fix
-# it, so each lands as soon as its own run does.
+# ens-anomalies.html: one ensemble's run (00, 06, 12 or 18Z; GEPS 00 and 12Z; IFS-ENS 06/18Z to day 5) - 2 m
+# temperature, 500 hPa height and sea-level pressure, each member's daily means to day 15 against the 1991-2020 normals
+# (where the members agree on the sign) and the change from the runs 12 h and 6 h earlier (where significant) - as
+# lossless WebP on the model's own grid (scripts/ensmaps/ensmaps.py has the details). One model per run; the callers
+# ensmaps-ifs.yml, ensmaps-aifs.yml, ensmaps-gefs.yml and ensmaps-geps.yml fix it, so each lands as soon as its own run
+# does. The page keeps each model's four newest runs.
 #
-# Each run: read that model's CURRENT manifest from main, plan (the newest complete 00/12Z cycle not yet published),
-# fetch + compute + encode, publish the cycle directory to the FRAMES STORE ONLY (FRAMES_BRANCH=off: this product never
-# touches the git `frames` branch; the old cycle is pruned in the store), THEN commit the manifest to main - never the
-# other way round, or the page would point at data that is not there yet. The previous run's statistics (the change
-# test) come from the Actions cache (ensmaps-<model>-stats-<YYYYMMDDHH>; all but the two newest are deleted). The
-# same run labels each member's weather regime from the 500 hPa fields it holds (scripts/ensmaps/ensmaps_regimes.py, no
-# download of its own) and commits the labels (assets/regimes/data/ensmaps_members_<model>.json, regime_core's
-# members_record format) and, on a 00Z run, its drift archive (ensmaps_drift_<model>.json) with the manifest.
+# Each run: read that model's CURRENT manifest from main, plan (the newest complete cycle not yet published), fetch +
+# compute + encode, publish the cycle directory to the FRAMES STORE ONLY (FRAMES_BRANCH=off: this product never touches
+# the git `frames` branch; cycles older than the four kept are pruned in the store), THEN commit the manifest to main -
+# never the other way round, or the page would point at data that is not there yet. The earlier runs' statistics (the
+# change tests) come from the Actions cache (ensmaps-<model>-stats-<YYYYMMDDHH>; all but the two newest are deleted:
+# the next run needs the runs 6 and 12 h before it). The same run labels each member's weather regime from the 500 hPa
+# fields it holds (scripts/ensmaps/ensmaps_regimes.py, no download of its own) and commits the labels
+# (assets/regimes/data/ensmaps_members_<model>.json for the newest run and ensmaps_members_<model>_<cycle>.json for each
+# of the four, regime_core's members_record format) and, on a 00Z run, its drift archive (ensmaps_drift_<model>.json)
+# with the manifest.
+#
+# Then the four-ensemble clusters (scripts/ensmaps/ensmaps_clusters.py): each model job leaves its members' 2.5-deg
+# 500 hPa height and sea-level pressure anomalies in the Actions cache (ensmaps-<model>-fields-<cycle>, its clusters'
+# drift archive in ensmaps-<model>-cdrift-<cycle>; the two newest of each kept; an IFS-ENS 06/18Z run, to day 5, leaves
+# none), and the `clusters` job - one at a time across the four callers - clusters the newest run of each model there,
+# publishes the figures to the frames store and commits assets/models/ensmaps_clusters.json. So the clusters update as
+# each model lands, with no download.
 #
 # Sources per run (the steps of the full days, 6-hourly: 15 or 14, GEFS and GEPS to +384 h one more):
 #   ifs   ECMWF open data, Google Cloud mirror only: 2t of the 50 perturbed members from the 0.1-deg surface files,
@@ -74,6 +84,9 @@ jobs:
   run:
     runs-on: ubuntu-latest
     timeout-minutes: 110
+    outputs:
+      done: ${{ steps.run.outputs.done }}
+      fields: ${{ steps.run.outputs.fields }}
     env:
       MODEL: ${{ inputs.model }}
       GEPS_WORK: ${{ github.workspace }}/../datamart-work   # scripts/geps/datamart.py's request ledger, scratch
@@ -126,19 +139,33 @@ jobs:
           cyc=$(head -n 1 "$RUNNER_TEMP/plan.txt")
           if [ -z "$cyc" ]; then echo "nothing new for $MODEL"; echo "cycle=" >> "$GITHUB_OUTPUT"; exit 0; fi
           prev=$(date -u -d "${cyc:0:8} ${cyc:8:2}:00 12 hours ago" +%Y%m%d%H)
-          echo "cycle=$cyc" >> "$GITHUB_OUTPUT"; echo "prev=$prev" >> "$GITHUB_OUTPUT"
+          prev6=$(date -u -d "${cyc:0:8} ${cyc:8:2}:00 6 hours ago" +%Y%m%d%H)
+          echo "cycle=$cyc" >> "$GITHUB_OUTPUT"; echo "prev=$prev" >> "$GITHUB_OUTPUT"; echo "prev6=$prev6" >> "$GITHUB_OUTPUT"
           normals=false
           if gh release view ensmaps-ref-v1 -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null | grep -qx ensmaps_t2m_normals.npz; then
             normals=true
           fi
           echo "normals=$normals" >> "$GITHUB_OUTPUT"
-          echo "$MODEL $cyc (previous run $prev; 2 m normals in the release: $normals)"
-      - name: The previous run's statistics
+          echo "$MODEL $cyc (the runs 12 h and 6 h earlier: $prev, $prev6; 2 m normals in the release: $normals)"
+      - name: The statistics of the run 12 h earlier
         if: steps.plan.outputs.cycle != ''
         uses: actions/cache/restore@v6
         with:
           path: ensmaps_stats
           key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev }}
+      - name: The statistics of the run 6 h earlier
+        if: steps.plan.outputs.cycle != '' && inputs.model != 'geps'
+        uses: actions/cache/restore@v6
+        with:
+          path: ensmaps_stats
+          key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev6 }}
+      - name: The clusters' drift archive of this model (the newest)
+        if: steps.plan.outputs.cycle != ''
+        uses: actions/cache/restore@v6
+        with:
+          path: cdrift
+          key: ensmaps-${{ inputs.model }}-cdrift-${{ steps.plan.outputs.cycle }}
+          restore-keys: ensmaps-${{ inputs.model }}-cdrift-
       - name: The 2 m temperature normals
         if: steps.plan.outputs.cycle != '' && steps.plan.outputs.normals == 'true'
         env:
@@ -152,45 +179,65 @@ jobs:
           FRAMES_BRANCH: "off"
           CYC: ${{ steps.plan.outputs.cycle }}
           PREV: ${{ steps.plan.outputs.prev }}
+          PREV6: ${{ steps.plan.outputs.prev6 }}
         run: |
           set -euo pipefail
           L="$RUNNER_TEMP/lists"
           python scripts/ensmaps/ensmaps.py run --model "$MODEL" --cycle "$CYC" --site . --normals ref/ensmaps_t2m_normals.npz \
-            --prev "ensmaps_stats/$PREV.npz" --save "ensmaps_stats/$CYC.npz" --lists "$L" --manifest-in "assets/models/ensmaps_$MODEL.json"
-          rm -f "ensmaps_stats/$PREV.npz"   # the cache entry keeps this run's statistics only
+            --prev "ensmaps_stats/$PREV.npz" --prev6 "ensmaps_stats/$PREV6.npz" --save "ensmaps_stats/$CYC.npz" --lists "$L" \
+            --manifest-in "assets/models/ensmaps_$MODEL.json" --fields-out "clusterfields/$MODEL.npz" --cluster-drift "cdrift/$MODEL.npz"
+          rm -f "ensmaps_stats/$PREV.npz" "ensmaps_stats/$PREV6.npz"   # the cache entry keeps this run's statistics only
           if [ "$MODEL" = geps ]; then python scripts/geps/datamart.py; fi    # the run's Datamart requests and bytes
           if [ ! -s "$L/publish.txt" ]; then echo "::warning::$MODEL $CYC is older than the run on the page - not published"; exit 0; fi
           SRC=. PRUNE="$(tr '\n' ' ' < "$L/prune.txt")" PRUNE_OLDER="$(cat "$L/floor.txt")" scripts/models/publish_data.sh $(cat "$L/publish.txt") > /dev/null
           rm -rf "assets/models/data/ensmaps/$MODEL/$CYC"       # in the store now; keep the runner disk free
           echo "done=1" >> "$GITHUB_OUTPUT"
+          if [ -s "clusterfields/$MODEL.npz" ]; then echo "fields=1" >> "$GITHUB_OUTPUT"; fi
       - name: Keep this run's statistics for the next run
         if: steps.run.outcome == 'success'
         uses: actions/cache/save@v6
         with:
           path: ensmaps_stats
           key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.cycle }}
-      - name: Delete superseded statistics (all but the two newest runs)
+      - name: Keep the members' fields for the clusters
+        if: steps.run.outputs.fields == '1'
+        uses: actions/cache/save@v6
+        with:
+          path: clusterfields
+          key: ensmaps-${{ inputs.model }}-fields-${{ steps.plan.outputs.cycle }}
+      - name: Keep the clusters' drift archive
+        if: steps.run.outcome == 'success' && endsWith(steps.plan.outputs.cycle, '00')
+        uses: actions/cache/save@v6
+        with:
+          path: cdrift
+          key: ensmaps-${{ inputs.model }}-cdrift-${{ steps.plan.outputs.cycle }}
+      - name: Delete superseded caches (all but the two newest runs of each kind)
         if: steps.run.outcome == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh cache list -R "$GITHUB_REPOSITORY" --key "ensmaps-$MODEL-stats-" --limit 100 --json id,key -q '.[] | "\(.key) \(.id)"' \
-            | sort -r | tail -n +3 | while read -r k id; do
-              gh cache delete "$id" -R "$GITHUB_REPOSITORY" && echo "deleted $k" || echo "::warning::could not delete $k"
-            done
+          for kind in stats fields cdrift; do
+            gh cache list -R "$GITHUB_REPOSITORY" --key "ensmaps-$MODEL-$kind-" --limit 100 --json id,key -q '.[] | "\(.key) \(.id)"' \
+              | sort -r | tail -n +3 | while read -r k id; do
+                gh cache delete "$id" -R "$GITHUB_REPOSITORY" && echo "deleted $k" || echo "::warning::could not delete $k"
+              done
+          done
       - name: Commit & push the manifest and the regime labels
         if: steps.run.outputs.done == '1'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          outs() { ls "assets/models/ensmaps_$MODEL.json" "assets/regimes/data/ensmaps_members_$MODEL.json" "assets/regimes/data/ensmaps_drift_$MODEL.json" 2>/dev/null; }
+          R=assets/regimes/data
+          outs() { ls "assets/models/ensmaps_$MODEL.json" "$R/ensmaps_members_$MODEL.json" "$R/ensmaps_members_${MODEL}_"*.json "$R/ensmaps_drift_$MODEL.json" 2>/dev/null; }
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" $(outs)
           for i in 1 2 3 4 5; do
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset -q --hard origin/main
+            rm -f "$R/ensmaps_members_${MODEL}_"*.json   # the runs' records: the snapshot's four, the older ones deleted
             tar xf "$SNAP/outs.tar"
             for f in $(outs); do git add -f "$f"; done
+            git ls-files --deleted -- "$R/ensmaps_members_${MODEL}_*.json" | while read -r f; do git rm -q --cached "$f"; done
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -q -m "ensmaps: $MODEL ${{ steps.plan.outputs.cycle }}"
             if timeout 180 git push origin HEAD:main; then echo "Pushed on attempt $i."; exit 0; fi
@@ -198,3 +245,96 @@ jobs:
           done
           echo "ERROR: could not push after 5 attempts." >&2
           exit 1
+
+  clusters:
+    needs: run
+    if: needs.run.outputs.fields == '1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    concurrency:
+      group: ensmaps-clusters
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/ensmaps/
+            /scripts/lib/
+            /scripts/regimes/regime_core.py
+            /scripts/regimes/data/
+            /scripts/models/publish_data.sh
+            /scripts/constraints.txt
+            /assets/models/geo_polar_coarse.json
+            /assets/models/ensmaps_clusters.json
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          pip install --quiet numpy scipy pandas pillow 'pyproj>=3.7.2' matplotlib==3.10.9 \
+            "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+      - name: The newest IFS-ENS fields
+        uses: actions/cache/restore@v6
+        with:
+          path: clusterfields
+          key: ensmaps-ifs-fields-newest
+          restore-keys: ensmaps-ifs-fields-
+      - name: The newest AIFS-ENS fields
+        uses: actions/cache/restore@v6
+        with:
+          path: clusterfields
+          key: ensmaps-aifs-fields-newest
+          restore-keys: ensmaps-aifs-fields-
+      - name: The newest GEFS fields
+        uses: actions/cache/restore@v6
+        with:
+          path: clusterfields
+          key: ensmaps-gefs-fields-newest
+          restore-keys: ensmaps-gefs-fields-
+      - name: The newest GEPS fields
+        uses: actions/cache/restore@v6
+        with:
+          path: clusterfields
+          key: ensmaps-geps-fields-newest
+          restore-keys: ensmaps-geps-fields-
+      - name: Cluster, draw, publish
+        id: cl
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FRAMES_BRANCH: "off"
+        run: |
+          set -euo pipefail
+          ls -la clusterfields 2>/dev/null || true
+          # main's current manifest: the published figures it names are pruned once the new ones are up
+          if timeout 60 git fetch -q --depth 1 origin main && git show FETCH_HEAD:assets/models/ensmaps_clusters.json > /tmp/clusters.json 2>/dev/null; then
+            cp /tmp/clusters.json assets/models/ensmaps_clusters.json
+          fi
+          L="$RUNNER_TEMP/lists"
+          python scripts/ensmaps/ensmaps_clusters.py run --fields clusterfields/*.npz --site . --lists "$L" \
+            --manifest-in assets/models/ensmaps_clusters.json
+          if [ ! -s "$L/publish.txt" ]; then echo "nothing to publish"; exit 0; fi
+          SRC=. PRUNE="$(tr '\n' ' ' < "$L/prune.txt")" PRUNE_OLDER="$(cat "$L/floor.txt")" scripts/models/publish_data.sh $(cat "$L/publish.txt") > /dev/null
+          echo "done=1" >> "$GITHUB_OUTPUT"
+      - name: Commit & push the clusters' manifest
+        if: steps.cl.outputs.done == '1'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT=assets/models/ensmaps_clusters.json
+          SNAP=$(mktemp -d)
+          cp "$OUT" "$SNAP/"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            cp "$SNAP/$(basename "$OUT")" "$OUT"
+            git add -f "$OUT"
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "ensmaps: clusters after $MODEL"
+            if timeout 180 git push origin HEAD:main; then echo "Pushed on attempt $i."; exit 0; fi
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+        env:
+          MODEL: ${{ inputs.model }}
