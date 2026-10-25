@@ -20,6 +20,7 @@ The vortex panel: 60N 10 hPa zonal wind per member, bias-corrected as raw - mode
 both 2000-2019 (data/merra2_u60_10_clim.json).
 
     python gefs_live.py [--date YYYYMMDD] [--members 31] [--site SITE]
+    python gefs_live.py --stage fetch ...; python gefs_live.py --stage draw --date YYYYMMDD ...   # as gefs.yml
 """
 
 from __future__ import annotations
@@ -28,11 +29,13 @@ import textwrap
 import argparse
 import datetime as dt
 import json
+import os
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+import pyproj  # noqa: F401  (load pyproj's libproj before eccodes)
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
@@ -82,32 +85,50 @@ def latest_cycle(explicit=None, weekdays=None) -> str | None:
     return None
 
 
+GAP = 200_000  # wanted messages at most this far apart come in one GET (the RH between HGT/TMP and UGRD/VGRD)
+
+
+def _index(url: str):
+    try:
+        return R.index(url)
+    except Exception:  # noqa: BLE001  (not on S3: the member is incomplete)
+        return None
+
+
 def member(date: str, mem: str):
     """One member through gefs_daily.Acc - the reforecast v2's own reduction - or None if incomplete.
 
     -> dict: w_<tag> weekly (5, lat, lon) for the nine map fields, e_<tag> daily (35, lat, lon) for every field (summed
     into the ensemble mean by fetch), m_<tag> daily 2.5 deg, s vortex scalars (16, 35), band (3, 35, lon)."""
-    jobs = []
-    for h in range(6, 841, 6):
-        url = step_url(date, mem, h)
-        try:
-            idx = R.index(url)
-        except Exception:  # noqa: BLE001
-            return None
+    hours = range(6, 841, 6)
+    urls = [step_url(date, mem, h) for h in hours]
+    with ThreadPoolExecutor(24) as ex:
+        idxs = list(ex.map(_index, urls))
+    if any(idx is None for idx in idxs):
+        return None
+    jobs = []  # (url, start, end or -1, [(tag, day, start, end), ...]): one ranged GET per run of wanted messages
+    for h, url, idx in zip(hours, urls, idxs):
         want = []
         if h % 12 == 0:
             want += [(t, f"{h} hour fcst") for t in G.TABLE if G.TABLE[t][3] == "inst"]
         want += [(t, f"{h - 6}-{h} hour {G.TABLE[t][3]} fcst") for t in G.TABLE if G.TABLE[t][3] != "inst"]
+        msgs = []
         for t, stext in want:
             name, lev = G.TABLE[t][4], G.TABLE[t][2]
             hit = [e for e in idx if e[4] == name and e[2] == lev and e[3] == stext]
             if not hit:
                 return None
-            jobs.append((t, (h + 23) // 24, url, hit[0][0], hit[0][1]))
+            msgs.append((t, (h + 23) // 24, hit[0][0], hit[0][1]))
+        for m in sorted(msgs, key=lambda m: m[2]):
+            if jobs and jobs[-1][0] == url and jobs[-1][2] >= 0 and m[2] - jobs[-1][2] <= GAP:
+                jobs[-1] = (url, jobs[-1][1], m[3], [*jobs[-1][3], m])
+            else:
+                jobs.append((url, m[2], m[3], [m]))
     acc = G.Acc(tuple(G.TABLE))
     with ThreadPoolExecutor(24) as ex:
-        for (t, d, *_), b in zip(jobs, ex.map(lambda j: get(j[2], (j[3], j[4])), jobs)):
-            acc.add(t, d, R.decode(b))
+        for (_, s0, _, msgs), b in zip(jobs, ex.map(lambda j: get(j[0], (j[1], j[2])), jobs)):
+            for t, d, s, e in msgs:
+                acc.add(t, d, R.decode(b[s - s0 : None if e < 0 else e + 1 - s0]))
     r = acc.finish()
     if r is None:
         return None
@@ -169,7 +190,7 @@ def _bracket(init: dt.date):
 def _cached(url: str, p: Path) -> Path:
     if not p.exists():
         p.parent.mkdir(parents=True, exist_ok=True)
-        tmp = p.with_suffix(".part")
+        tmp = p.with_name(f"{p.name}.{os.getpid()}.part")  # several products share the cache at once (gefs.yml)
         tmp.write_bytes(get(url))
         tmp.replace(p)
     return p
@@ -994,9 +1015,19 @@ def load_prev(runs: Path, date: str, max_gap=7):
     return None, None
 
 
-def render(
-    npz: Path, date: str, site: Path, cache: Path, procs: int = 4, runs: Path | None = None, ref_dir: Path | None = None
-):
+def drift(base: dt.date, cache: Path, runs: Path):
+    """The operational drift correction, written to the run archive (runs/gefs_drift_<date>.npz): estimated from the
+    window's verifiable inits (whatever are missing are verified; the first run backfills), else the newest archived."""
+    import gefs_drift as GD
+
+    try:
+        return GD.estimate(base, cache, runs)
+    except (Exception, SystemExit) as e:  # noqa: BLE001
+        print(f"  drift estimate failed ({str(e)[:100]}); using the newest archived one", flush=True)
+        return GD.latest(runs, base)
+
+
+def render(npz: Path, date: str, site: Path, cache: Path, procs: int, runs: Path, ref_dir: Path | None, Dr):
     """Every GEFS page figure this script owns: weekly maps (+ skill-masked), change vs the previous run, the daily
     animation, the vortex diagnostics and the vortex loop; and the run archive the next run compares with."""
     base = dt.date(int(date[:4]), int(date[4:6]), int(date[6:]))
@@ -1006,8 +1037,6 @@ def render(
     data.mkdir(exist_ok=True)
     anim = out / "anim"
     anim.mkdir(exist_ok=True)
-    runs = runs or (anim / "runs")
-    runs.mkdir(parents=True, exist_ok=True)
     z = np.load(npz)
     C2 = clim2_at(base, cache)
     if C2 is None:
@@ -1015,11 +1044,6 @@ def render(
     sh = np.load(ref("era5_shift.npz", cache, ref_dir))
     import gefs_drift as GD
 
-    try:  # verifies whatever inits of the window are missing (the first run backfills)
-        Dr = GD.estimate(base, cache, runs)
-    except (Exception, SystemExit) as e:  # noqa: BLE001
-        print(f"  drift estimate failed ({str(e)[:100]}); using the newest archived one", flush=True)
-        Dr = GD.latest(runs, base)
     A = anomalies(z, C2, sh, base, Dr)
     days = valid_days(base)
     titles = [f"Week {i + 1}   {days[a - 1]:%b %d} – {days[b - 1]:%b %d}" for i, (a, b) in enumerate(R.WEEKS)]
@@ -1151,6 +1175,13 @@ def main() -> int:
     )
     ap.add_argument("--ref", help="local directory holding the gefs-ref-v1 files (default: download the release)")
     ap.add_argument("--force", action="store_true", help="render even if this cycle is already done")
+    ap.add_argument(
+        "--stage",
+        choices=("all", "fetch", "draw"),
+        default="all",
+        help="fetch: the members and the drift estimate only, so the products built on them can start; draw: the "
+        "figures from that fetch (gefs.yml draws them alongside those products)",
+    )
     a = ap.parse_args()
     date = latest_cycle(a.date)
     if not date:
@@ -1162,16 +1193,22 @@ def main() -> int:
         return 0
     print(f"GEFS extended {date} 00Z", flush=True)
     work = Path(a.work)
-    npz = fetch(date, a.members, work, a.procs)
-    render(
-        npz,
-        date,
-        Path(a.site),
-        work / "clim",
-        a.procs,
-        Path(a.runs) if a.runs else None,
-        Path(a.ref) if a.ref else None,
-    )
+    base = dt.datetime.strptime(date, "%Y%m%d").date()
+    runs = Path(a.runs) if a.runs else Path(a.site) / "assets" / "gefs" / "anim" / "runs"
+    runs.mkdir(parents=True, exist_ok=True)
+    if a.stage == "draw":
+        import gefs_drift as GD
+
+        npz, Dr = work / f"gefs2_{date}.npz", GD.latest(runs, base)
+        if not npz.exists():
+            raise SystemExit(f"no fetch of {date} in {work} (run --stage fetch first)")
+    else:
+        npz = fetch(date, a.members, work, a.procs)
+        Dr = drift(base, work / "clim", runs)
+        for c in _bracket(base)[:2]:  # the daily climatology every product of the run reads, downloaded once here
+            R.clim_file(f"gefs_clim2_{c:03d}.npz", work / "clim")
+    if a.stage != "fetch":
+        render(npz, date, Path(a.site), work / "clim", a.procs, runs, Path(a.ref) if a.ref else None, Dr)
     return 0
 
 

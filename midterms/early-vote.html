@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Early Vote: 2026 Midterms</title>
-<meta name="description" content="The 2026 early vote against earlier elections at the same number of days out - turnout so far by state, North Carolina by party, age, race, county and vote history, Georgia, Florida and Nevada's Clark County - and how ballots already cast enter the midterm forecast.">
+<meta name="description" content="The 2026 early vote against earlier elections at the same number of days out - turnout so far by state, North Carolina by party, age, race, county and vote history, Georgia, Florida and Nevada's Clark and Washoe counties - and how ballots already cast enter the midterm forecast.">
 <link rel="canonical" href="https://scorvec.com/midterms/early-vote.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Early Vote: 2026 Midterms">
@@ -280,11 +280,14 @@ a:focus-visible{outline:2px solid var(--d);outline-offset:2px}
 <div class="chips" id="flchips"></div>
 <ul class="find" id="flfind"><li>Loading&hellip;</li></ul>
 
-<h2 id="nv">Nevada (Clark County)</h2>
+<h2 id="nv">Nevada (Clark and Washoe counties)</h2>
 <div class="chips" id="nvchips"></div>
 <ul class="find" id="nvfind"><li>Loading&hellip;</li></ul>
 <div class="tw"><table id="nvcd"></table></div>
 <p class="sans" id="nvcdnote"></p>
+<h3 id="nvw">Washoe County</h3>
+<div class="chips" id="nvwchips"></div>
+<ul class="find" id="nvwfind"><li>Loading&hellip;</li></ul>
 
 <h2 id="tx">Texas</h2>
 <div class="chips" id="txchips"></div>
@@ -347,7 +350,11 @@ return file (each returned ballot with the voter's registered party and the day 
 way, for the same days out) and its daily in-person early vote files, joined on the voter id to the county's active voter list
 for party (a general election's file carries none; voters registered since the list was written are left unmatched). 2024's
 in-person voters are compared on turnout only. The county's daily files are unaudited (corrections reach its later cumulative files),
-and its last day is left out until a night's file holds all of it. Only counts are kept (<code>midterms/nv_clark_early.py</code>). <b>Every state.</b> How much of each state's vote is already in comes from the
+and its last day is left out until a night's file holds all of it. Only counts are kept (<code>midterms/nv_clark_early.py</code>).
+Washoe County (about 17% of the state's voters, all in NV-2): the Registrar of Voters' cumulative daily files, every mailed
+ballot with the voter's registered party and status (Nevada mails one to every active voter, so the file is also the active
+rolls) and every early in-person voter; the county keeps no daily files from earlier generals, so Washoe is compared with its
+own rolls only. Only counts are kept (<code>midterms/nv_washoe_early.py</code>). <b>Every state.</b> How much of each state's vote is already in comes from the
 <a href="https://election.lab.ufl.edu/early-vote/">UF Election Lab</a> (CC BY-NC-ND 4.0), used only to compute each
 state's factor above; its counts are not republished here.</p>
 <p><b>Texas.</b> Turnout only: Texas has no party registration and publishes no party data, so no party split is estimated.
@@ -689,6 +696,24 @@ for day once 2022's final county early vote is added (<code>midterms/tx_early.py
     $("nvcdnote").innerHTML = "By congressional district, each against its own active voters (points; in brackets, the ballots' Rep &minus; Dem less the rolls'). NV-4 is only its Clark County part; its rural counties are not in these files.";
   }
 
+  function washoe(W) {
+    if (!W || !W.mail) { $("nvwchips").innerHTML = ""; $("nvwfind").innerHTML = "<li>Washoe County's files are not available today.</li>"; return; }
+    var M = W.mail, R = M.returned, G = W.registration, P = W.in_person;
+    $("nvwchips").innerHTML = chip("mail ballots returned", n0(R.total), M.days_out + " days out") +
+      chip("Rep &minus; Dem, returned", sgn(M.R_minus_D_pct) + " pts", "share of mail ballots returned") +
+      chip("Rep &minus; Dem, registered", sgn(G.R_minus_D_pct) + " pts", "active voters, " + esc(G.as_of)) +
+      (P ? chip("voted early in person", n0(P.voted.total), P.days_out + " days out") +
+        chip("Rep &minus; Dem, in person", sgn(P.R_minus_D_pct) + " pts", "share of early voters") : "");
+    var f = ["<b>Mail ballots.</b> " + n0(R.total) + " returned by " + date(M.through) + ": " + n0(R.DEM) + " from registered Democrats, " + n0(R.REP) + " Republicans, " + n0(R.NP) +
+      " non-partisan, " + n0(R.OTH) + " other parties. Republicans are " + sgn(M.R_minus_D_pct) + " points against Democrats among them, against " + sgn(G.R_minus_D_pct) +
+      " on the active rolls (" + sgn(M.vs_registration_pts) + " relative to the rolls; " + n0(M.signature_cure) + " awaiting a signature cure are counted)."];
+    if (P) f.push("<b>In person.</b> " + n0(P.voted.total) + " voted early in person over " + P.days + " day" + (P.days > 1 ? "s" : "") + " through " + date(P.through) + ": Republicans are " +
+      sgn(P.R_minus_D_pct) + " points against Democrats among them (" + sgn(P.vs_registration_pts) + " relative to the rolls)" +
+      (W.combined ? "; mail and in person together, " + n0(W.combined.total) + " ballots, are " + sgn(W.combined.R_minus_D_pct) + " points" : "") + ".");
+    f.push("The county publishes no daily files from earlier generals, so Washoe is read against its own rolls only, not against 2022 at the same point.");
+    $("nvwfind").innerHTML = f.map(function (x) { return "<li>" + x + "</li>"; }).join("");
+  }
+
   function texas(T) {
     if (!T) {
       $("txchips").innerHTML = ""; $("txtab").innerHTML = "";
@@ -751,6 +776,7 @@ for day once 2022's final county early vote is added (<code>midterms/tx_early.py
     georgia(E.ga);
     florida(E.fl);
     nevada(E.nv);
+    washoe(E.nv_washoe);
     texas(E.tx);
     turnout(E.turnout);
   }).catch(function () { $("stamp").textContent = "The early-vote data could not be loaded."; });

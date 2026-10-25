@@ -79,10 +79,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release download gefs-ref-v1 --repo "$GITHUB_REPOSITORY" -D /tmp/gefs_work/ref --clobber && ls -la /tmp/gefs_work/ref
-      - name: GEFS extended run
+      - name: GEFS extended run (the members and the drift estimate)
         id: run
         run: |
-          python scripts/gefs/gefs_live.py --site . --procs 4 --ref /tmp/gefs_work/ref ${{ inputs.date && format('--date {0}', inputs.date) || '' }} | tee /tmp/gefs.log
+          python scripts/gefs/gefs_live.py --stage fetch --site . --procs 4 --ref /tmp/gefs_work/ref ${{ inputs.date && format('--date {0}', inputs.date) || '' }} | tee /tmp/gefs.log
           if ls /tmp/gefs_work/gefs2_*.npz >/dev/null 2>&1; then
             echo "new=1" >> "$GITHUB_OUTPUT"
             # the operational drift correction gefs_live just estimated; every product below applies it
@@ -90,45 +90,36 @@ jobs:
             echo "npz=$(ls /tmp/gefs_work/gefs2_*.npz | tail -1)" >> "$GITHUB_OUTPUT"
             echo "date=$(ls /tmp/gefs_work/gefs2_*.npz | tail -1 | sed 's/.*gefs2_\([0-9]*\).npz/\1/')" >> "$GITHUB_OUTPUT"
           fi
-      # the products ported from the GEPS page; each warns rather than failing the run
-      - name: MJO (RMM plume, propagation, hindcast skill)
+      # Everything built on that fetch, all at once (scripts/lib/parallel.sh), each guarded so one failure does not
+      # sink the others:
+      #   gefs_live --stage draw   the page's weekly maps, change maps, daily loops and vortex diagnostics
+      #   forecast_drip            polar-cap height 1000-1 hPa, GEOS FP tail + GEFS days 1-35, drift removed at 10/100/500
+      #                            hPa from the v2 reforecast climatology (the cache gefs_live uses)
+      #   gefs_telecon, gefs_regimes, gefs_clusters, gefs_probs, gefs_mjo   the products ported from the GEPS page
+      #   heatflux100_ext          the stratosphere page's 100 hPa eddy heat flux (wave-1 / wave-2), heatflux100.py's
+      #                            product with the same climatology and analysed tail
+      - name: Figures, dripping paint, teleconnections, regimes, scenarios, terciles, MJO, heat flux
         if: steps.run.outputs.new == '1'
         env:
           GEFS_DRIFT: ${{ steps.run.outputs.drift }}
-        run: |
-          python scripts/gefs/gefs_mjo.py --npz "${{ steps.run.outputs.npz }}" --date "${{ steps.run.outputs.date }}" --site . \
-            --cache /tmp/gefs_work/clim --ref /tmp/gefs_work/ref || echo "::warning::GEFS MJO failed"
-      - name: Weekly terciles, raw and hindcast-calibrated
-        if: steps.run.outputs.new == '1'
-        env:
-          GEFS_DRIFT: ${{ steps.run.outputs.drift }}
-        run: |
-          python scripts/gefs/gefs_probs.py --npz "${{ steps.run.outputs.npz }}" --date "${{ steps.run.outputs.date }}" --site . \
-            --cache /tmp/gefs_work/clim --ref /tmp/gefs_work/ref || echo "::warning::GEFS terciles failed"
-      # the stratosphere page's eddy heat flux, GEFS days 1-35 (heatflux100.py's product, same climatology and analysed tail)
-      - name: 100 hPa eddy heat flux (wave-1 / wave-2)
-        if: steps.run.outputs.new == '1'
-        run: |
-          python scripts/strat/heatflux100_ext.py --model gefs --date "${{ steps.run.outputs.date }}" --out-dir assets/gefs \
-            || echo "::warning::GEFS heat flux failed"
-      # the forecast dripping paint (forecast_drip.py): polar-cap height 1000-10 hPa, GEOS FP tail + GEFS days 1-35,
-      # drift removed at 10/100/500 hPa from the v2 reforecast climatology (the same cache as gefs_live)
-      - name: Forecast dripping paint
-        if: steps.run.outputs.new == '1'
-        env:
           GEFS_CLIM_CACHE: /tmp/gefs_work/clim
+          NPZ: ${{ steps.run.outputs.npz }}
+          D: ${{ steps.run.outputs.date }}
         run: |
-          python scripts/strat/forecast_drip.py --model gefs --date "${{ steps.run.outputs.date }}" --out-dir assets/gefs \
-            || echo "::warning::GEFS dripping paint failed"
-      - name: Teleconnections, weather regimes, 500 hPa scenarios
-        if: steps.run.outputs.new == '1'
-        env:
-          GEFS_DRIFT: ${{ steps.run.outputs.drift }}
-        run: |
+          source scripts/lib/parallel.sh
+          par "GEFS page figures and loops" "the previous figures stay" \
+            python scripts/gefs/gefs_live.py --stage draw --date "$D" --site . --procs 4 --ref /tmp/gefs_work/ref
+          par "GEFS dripping paint" "the previous figure stays" python scripts/strat/forecast_drip.py --model gefs --date "$D" --out-dir assets/gefs
           for p in telecon regimes clusters; do
-            python scripts/gefs/gefs_$p.py --npz "${{ steps.run.outputs.npz }}" --date "${{ steps.run.outputs.date }}" --site . \
-              --cache /tmp/gefs_work/clim || echo "::warning::GEFS $p failed"
+            par "GEFS $p" "the previous figures stay" python "scripts/gefs/gefs_$p.py" --npz "$NPZ" --date "$D" --site . --cache /tmp/gefs_work/clim \
+              --ref /tmp/gefs_work/ref
           done
+          par "GEFS terciles" "the previous figures stay" \
+            python scripts/gefs/gefs_probs.py --npz "$NPZ" --date "$D" --site . --cache /tmp/gefs_work/clim --ref /tmp/gefs_work/ref
+          par "GEFS MJO" "the previous figures stay" \
+            python scripts/gefs/gefs_mjo.py --npz "$NPZ" --date "$D" --site . --cache /tmp/gefs_work/clim --ref /tmp/gefs_work/ref
+          par "GEFS heat flux" "the previous figure stays" python scripts/strat/heatflux100_ext.py --model gefs --date "$D" --out-dir assets/gefs
+          par_wait
       # the cache lives outside the workspace, where hashFiles() cannot see it
       - name: Fingerprint the run cache
         id: gefs_fp

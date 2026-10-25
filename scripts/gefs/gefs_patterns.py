@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import sys
 import time
 import urllib.request
@@ -133,7 +134,7 @@ def get(url, rng=None):
 def cached(url: str, p: Path) -> Path:
     if not p.exists():
         p.parent.mkdir(parents=True, exist_ok=True)
-        tmp = p.with_suffix(p.suffix + ".part")
+        tmp = p.with_name(f"{p.name}.{os.getpid()}.part")  # several products share the cache at once (gefs.yml)
         tmp.write_bytes(get(url))
         tmp.replace(p)
     return p

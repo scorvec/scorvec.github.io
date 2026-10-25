@@ -32,6 +32,8 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import os
+import shutil
 import sys
 import time
 import urllib.request
@@ -147,16 +149,14 @@ def clim_file(name: str, cache: Path) -> Path:
     if cache not in _PRUNED:
         _PRUNED.add(cache)
         for p in [*cache.glob("gefs_clim_[0-9][0-9][0-9].npz"), *cache.glob("gefs_clim2_[0-9][0-9][0-9].npz")]:
-            p.unlink()
+            p.unlink(missing_ok=True)
         for d in cache.glob("gefs-clim-*"):
             if d.is_dir() and d.name != CLIM_TAG:
-                for p in d.iterdir():
-                    p.unlink()
-                d.rmdir()
+                shutil.rmtree(d, ignore_errors=True)
     p = cache / CLIM_TAG / name
     if not p.exists():
         p.parent.mkdir(parents=True, exist_ok=True)
-        tmp = p.with_suffix(".part")
+        tmp = p.with_name(f"{p.name}.{os.getpid()}.part")  # several products share the cache at once (gefs.yml)
         tmp.write_bytes(get(CLIM_URL.format(name=name)))
         tmp.replace(p)
     return p
