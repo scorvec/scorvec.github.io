@@ -1,5 +1,5 @@
 {
- "built": "2026-10-25 19:03Z",
+ "built": "2026-10-25 19:58Z",
  "newest_init": "2026-10-25 12Z",
  "window": [
   "2026-10-26",
@@ -9,6 +9,7 @@
  "names": {
   "aifs": "AIFS-ENS",
   "aifsc": "AIFS-ENS control",
+  "aifs1": "AIFS single",
   "ifs": "IFS-ENS",
   "hres": "IFS control",
   "gefs": "GEFS",
@@ -1243,6 +1244,16 @@
     "init": "2026-10-25 06Z",
     "members": 1,
     "cap100_day15": 1.0,
+    "cap10_day15": 2.9,
+    "frac100_day15": null,
+    "cross100": "2026-10-27",
+    "cross10": "2026-10-29",
+    "kind": "bottom-up"
+   },
+   "aifs1": {
+    "init": "2026-10-25 12Z",
+    "members": 1,
+    "cap100_day15": 1.2,
     "cap10_day15": 2.9,
     "frac100_day15": null,
     "cross100": "2026-10-27",
