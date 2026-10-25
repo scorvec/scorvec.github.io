@@ -9,9 +9,14 @@
 #     par_wait                                   # every product started above has finished; their logs are printed
 #
 # PAR_MAX (default: the number of cores) bounds how many run at once; a further par waits for a free slot.
+#
+# Each product's numerical libraries run single-threaded (OMP/OpenBLAS/MKL threads 1, unless the caller set them): the
+# products already fill the cores, and every library pool sized to all of them on top of that spun the machine on
+# thread contention (a frame pool of 18 workers with 18 BLAS threads each took 14 min on system time, 95 s at 1).
 PAR_DIR="$(mktemp -d)"
 PAR_MAX="${PAR_MAX:-$(nproc 2>/dev/null || echo 4)}"
 PAR_N=0
+export OMP_NUM_THREADS="${OMP_NUM_THREADS:-1}" OPENBLAS_NUM_THREADS="${OPENBLAS_NUM_THREADS:-1}" MKL_NUM_THREADS="${MKL_NUM_THREADS:-1}"
 
 par() {
   local name="$1" why="$2"; shift 2

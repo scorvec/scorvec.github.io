@@ -67,7 +67,9 @@ from quantmet.degdays import doy366
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts" / "ecmwf"))
+sys.path.insert(0, str(REPO / "scripts" / "lib"))
 import store as ecmwf
+import frame_pool as FP
 
 PC = ccrs.PlateCarree()
 G = 9.80665
@@ -558,6 +560,14 @@ def active_hemisphere(full) -> str:
     return "NH" if amp["NH"] >= amp["SH"] else "SH"
 
 
+def _frame(job):
+    hemi, step_h, out, date, time, k, src, model = job
+    src_fields = FP.DATA["ana"] if step_h == 0 else FP.DATA["full"]
+    fields = {lev: at_step(src_fields[lev], step_h) for lev in LEVELS}
+    render(fields, hemi, date, time, step_h, out, k, src, model)
+    print(f"    wave-{k} {hemi}  {'analysis' if step_h == 0 else f'F{step_h:03d}'}", flush=True)
+
+
 def build_loop(full, ana, date, time, anim_root: Path, k: int, source="ensemble mean", default_hemi="NH", model="aifs"):
     """One wave-k frame per step PER HEMISPHERE, and a manifest the animator switches on.
 
@@ -577,7 +587,7 @@ def build_loop(full, ana, date, time, anim_root: Path, k: int, source="ensemble 
         "hres": "analysis",
         "aifsc": "analysis",
     }.get(model, "control (analysis)")
-    regions = {}
+    regions, jobs = {}, []
     for hemi in ("NH", "SH"):
         key = f"{prefix(model, k)}_{hemi.lower()}"
         d = anim_root / key
@@ -586,17 +596,12 @@ def build_loop(full, ana, date, time, anim_root: Path, k: int, source="ensemble 
             old.unlink()
         frames = []
         for i, step_h in enumerate(steps):
-            if step_h == 0:
-                fields = {lev: at_step(ana[lev], 0) for lev in LEVELS}
-                src = ana_label
-            else:
-                fields = {lev: at_step(full[lev], step_h) for lev in LEVELS}
-                src = source
-            render(fields, hemi, date, time, step_h, d / f"F{i:02d}.webp", k, src, model)
+            jobs.append(
+                (hemi, step_h, d / f"F{i:02d}.webp", date, time, k, ana_label if step_h == 0 else source, model)
+            )
             valid = init + pd.Timedelta(hours=step_h)
             lab = f"analysis · {valid:%a %d %b %HZ}" if step_h == 0 else f"F{step_h:03d} · valid {valid:%a %d %b %HZ}"
             frames.append({"idx": i, "file": f"F{i:02d}.webp", "date": f"{valid:%Y-%m-%d}", "label": lab})
-            print(f"    wave-{k} {hemi}  {'analysis' if step_h == 0 else f'F{step_h:03d}'}", flush=True)
         regions[key] = {
             "label": ("Northern" if hemi == "NH" else "Southern")
             + f" Hemisphere — wave-{k} at 500, 100 and 10 hPa"
@@ -604,7 +609,10 @@ def build_loop(full, ana, date, time, anim_root: Path, k: int, source="ensemble 
             "n_frames": len(frames),
             "frames": frames,
         }
-        print(f"  wave-{k} {hemi}: {len(frames)} frames -> {d}")
+    FP.share(full=full, ana=ana)
+    FP.draw(_frame, jobs)  # every frame of both hemispheres at once (scripts/lib/frame_pool.py)
+    for key, r in regions.items():
+        print(f"  wave-{k} {key[-2:].upper()}: {r['n_frames']} frames -> {anim_root / key}")
     man = {
         "ver": f"{date}{time}",
         "days": len(steps),

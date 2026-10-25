@@ -80,6 +80,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -97,7 +98,9 @@ from scipy.ndimage import gaussian_filter
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts" / "ecmwf"))
+sys.path.insert(0, str(REPO / "scripts" / "lib"))
 import store as ecmwf  # shared download manager
+import frame_pool as FP
 
 PC = ccrs.PlateCarree()
 LEVELS = (10, 100)
@@ -196,7 +199,9 @@ def fetch(date: str, time: str):
     fc_steps = tuple(s for s in STEPS_12H if s)
     ana = {sh: ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", sh, "pl", LEVELS, (0,))) for sh in FIELDS}
     try:
-        pf = {sh: ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", sh, "pl", LEVELS, fc_steps)) for sh in FIELDS}
+        with ThreadPoolExecutor(len(FIELDS)) as ex:  # the three files at once (one request budget)
+            got = ex.map(lambda sh: ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", sh, "pl", LEVELS, fc_steps)), FIELDS)
+            pf = dict(zip(FIELDS, got))
         source = f"ensemble mean of {ecmwf.PF_MEMBERS} members"
     except Exception as e:  # noqa: BLE001
         print(f"  perturbed pull failed ({type(e).__name__}: {e}); falling back to the control", flush=True)
@@ -489,8 +494,17 @@ def render(uv, lev, hemi, date, time, step_h, out_path: Path, source: str = "con
     return out_path
 
 
+def _frame(job):
+    lev, h, step_h, out, date, time, source, model = job
+    u, v, z = FP.DATA["full"][lev]
+    render((at_step(u, step_h), at_step(v, step_h), at_step(z, step_h)), lev, h.upper(), date, time, step_h, out, source,
+           model)  # fmt: skip
+    print(f"    {lev} hPa {h.upper()}  F{step_h:03d}", flush=True)
+
+
 def build_loop(full, date, time, anim_root: Path, manifest: Path, source: str = "control", model: str = "aifs") -> int:
-    """One frame per 12 h step per level and hemisphere, and a manifest with a selector over the four.
+    """One frame per 12 h step per level and hemisphere (drawn in parallel, scripts/lib/frame_pool.py), and a
+    manifest with a selector over the four.
 
     anim_root is the animation ROOT (assets/sst/anim); this writes <prefix>_<level>_<nh|sh>/ under it, one region
     each. The manifest opens on 10 hPa in the hemisphere that is in its winter half (October-March: the north).
@@ -498,7 +512,7 @@ def build_loop(full, date, time, anim_root: Path, manifest: Path, source: str = 
     import json
 
     init = pd.Timestamp(f"{date}T{time}:00")
-    regions = {}
+    regions, jobs = {}, []
     for lev in LEVELS:
         for h in HEMIS:
             d = anim_root / f"{PREFIX[model]}_{lev}_{h}"
@@ -507,18 +521,7 @@ def build_loop(full, date, time, anim_root: Path, manifest: Path, source: str = 
                 old.unlink()
             frames = []
             for i, step_h in enumerate(STEPS_12H):
-                u, v, z = full[lev]
-                render(
-                    (at_step(u, step_h), at_step(v, step_h), at_step(z, step_h)),
-                    lev,
-                    h.upper(),
-                    date,
-                    time,
-                    step_h,
-                    d / f"F{i:02d}.webp",
-                    source,
-                    model,
-                )
+                jobs.append((lev, h, step_h, d / f"F{i:02d}.webp", date, time, source, model))
                 valid = init + pd.Timedelta(hours=step_h)
                 frames.append(
                     {
@@ -528,14 +531,16 @@ def build_loop(full, date, time, anim_root: Path, manifest: Path, source: str = 
                         "label": f"F{step_h:03d} · valid {valid:%a %d %b %HZ}",
                     }
                 )
-                print(f"    {lev} hPa {h.upper()}  F{step_h:03d}", flush=True)
             regions[f"{PREFIX[model]}_{lev}_{h}"] = {
                 "label": f"Vortex winds — {lev} hPa, {'northern' if h == 'nh' else 'southern'} hemisphere, "
                 f"{MODEL[model]}" + ("" if model in SINGLE else " ensemble mean"),
                 "n_frames": len(frames),
                 "frames": frames,
             }
-            print(f"  {lev} hPa {h.upper()}: {len(frames)} frames -> {d}")
+    FP.share(full=full)
+    FP.draw(_frame, jobs)
+    for key, r in regions.items():
+        print(f"  {key}: {r['n_frames']} frames -> {anim_root / key}")
     winter = "nh" if init.month in (10, 11, 12, 1, 2, 3) else "sh"
     man = {
         "ver": f"{date}{time}",
