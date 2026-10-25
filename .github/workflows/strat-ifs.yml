@@ -223,15 +223,25 @@ jobs:
           fi
           df -h / | tail -1
 
-      - name: Shared IFS-ENS fetch (Google mirror only)
-        if: env.READY == 'true'
+      # The shared IFS-ENS fetch (ifs_ens.py, four files at a time) and, beside it, the IFS control on its own (one run,
+      # ~0.3 GB, on the mirror before the ensemble: its drip and its two loops), all at once (scripts/lib/parallel.sh).
+      # The store's per-file locks keep the fetch and a product from fetching the same file twice.
+      - name: Shared IFS-ENS fetch and the IFS control (Google mirror only)
         timeout-minutes: 40
         continue-on-error: true
         run: |
-          start=$(date +%s)
-          python scripts/strat/ifs_ens.py fetch --date "$D" --time "$T" \
-            || echo "::warning::the shared IFS-ENS fetch was incomplete; the products that need the missing file will say so"
-          echo "  fetch wall time $(( $(date +%s) - start )) s"
+          source scripts/lib/parallel.sh
+          if [ "$READY" = "true" ]; then
+            par "the shared IFS-ENS fetch" "the products that need the missing file will say so" \
+              python scripts/strat/ifs_ens.py fetch --date "$D" --time "$T"
+          fi
+          par "IFS control vortex winds" "keeping the previous frames" python scripts/strat/vortex_winds.py --model hres \
+            --date "$D" --time "$T" --anim-dir assets/sst/anim --manifest assets/sst/anim/vortex_winds_hres_manifest.json
+          par "IFS control wave loops" "keeping the previous frames" python scripts/strat/wave_maps.py --model hres \
+            --date "$D" --time "$T" --anim-dir assets/sst/anim
+          par "IFS control drip" "keeping the previous figure" python scripts/strat/forecast_drip.py --model hres \
+            --date "$D" --time "$T" --out-dir assets/sst
+          par_wait
           du -sh scripts/ecmwf/cache 2>/dev/null || true
           df -h / | tail -1
 
@@ -243,96 +253,45 @@ jobs:
           git fetch -q --depth 1 origin main
           git checkout origin/main -- assets/sst/data/runs || echo "::warning::no run records on main yet"
 
-      # The polar-vortex record of the models this job reads (AIFS-ENS is recorded by strat.yml, GEFS and GEPS by the
-      # naens job); the figure of every model's newest run is drawn by strat-combine.yml.
-      - name: NH polar vortex run records
-        timeout-minutes: 25
+      # Every product of the shared files, all at once (four at a time):
+      #   nh_vortex       the polar-vortex records of the models this job reads (AIFS-ENS is recorded by strat.yml, GEFS
+      #                   and GEPS by the naens job); strat-combine.yml draws every model's newest run
+      #   heatflux100_ext 100 hPa eddy heat flux (IFS-ENS)
+      #   forecast_drip   dripping paint (IFS-ENS)
+      #   wave_maps, vortex_winds  the IFS-ENS loops
+      #   polarcap        polar cap at sea level and 500 hPa, the AO and NAO, the 100 hPa height, the 10 hPa temperature
+      #                   and the vortex's shape (gh at 500, 100 and 10 hPa and msl, the IFS control's too; t at 10 hPa,
+      #                   the ensemble's only): plumes, maps and the IFS-ENS and IFS control records; the control alone
+      #                   when IFS-ENS is not ready
+      #   polar_descent   descent over the polar cap from the shared w files (the ensemble's and the control's)
+      #   regimes_ecmwf   weather regimes from the 50 IFS-ENS members of the shared gh file (00Z cycles only) ->
+      #                   assets/regimes/data, read by the multi-model regime view (regimes.yml)
+      - name: IFS-ENS and IFS control products
+        timeout-minutes: 45
         continue-on-error: true
         run: |
+          source scripts/lib/parallel.sh
           M=gdps,geosfp,hres; [ "$READY" = "true" ] && M=gdps,geosfp,hres,ifs
-          python scripts/strat/nh_vortex.py --record-only --members --models "$M" --cycle "$D$T" \
-            || echo "::warning::nh_vortex failed; the records keep their previous runs"
-
-      - name: Eddy heat flux, 100 hPa (IFS-ENS)
-        if: env.READY == 'true'
-        timeout-minutes: 10
-        continue-on-error: true
-        run: |
-          python scripts/strat/heatflux100_ext.py --model ifs --date "$D" --time "$T" --out-dir assets/sst \
-            || echo "::warning::IFS heat flux failed; keeping the previous figure"
-
-      - name: Forecast dripping paint (IFS-ENS)
-        if: env.READY == 'true'
-        timeout-minutes: 15
-        continue-on-error: true
-        run: |
-          python scripts/strat/forecast_drip.py --model ifs --date "$D" --time "$T" --out-dir assets/sst \
-            || echo "::warning::IFS drip failed; keeping the previous figure"
-
-      # The two loops are independent and CPU-bound: render them side by side.
-      - name: Wave and vortex-wind loops (IFS-ENS)
-        if: env.READY == 'true'
-        timeout-minutes: 30
-        continue-on-error: true
-        run: |
-          python scripts/strat/wave_maps.py --model ifs --date "$D" --time "$T" \
-            --anim-dir assets/sst/anim > /tmp/waves.log 2>&1 &
-          p1=$!
-          python scripts/strat/vortex_winds.py --model ifs --date "$D" --time "$T" \
-            --anim-dir assets/sst/anim --manifest assets/sst/anim/vortex_winds_ifs_manifest.json > /tmp/vwinds.log 2>&1 &
-          p2=$!
-          wait $p1 || echo "::warning::IFS wave loops failed; keeping the previous frames"
-          wait $p2 || echo "::warning::IFS vortex-wind loop failed; keeping the previous frames"
-          echo "---- wave_maps"; tail -25 /tmp/waves.log
-          echo "---- vortex_winds"; tail -25 /tmp/vwinds.log
-
-      # The IFS control on its own (one run, ~0.3 GB, on the mirror before the ensemble): drip and the two loops.
-      - name: Dripping paint and loops (IFS control)
-        timeout-minutes: 20
-        continue-on-error: true
-        run: |
-          python scripts/strat/forecast_drip.py --model hres --date "$D" --time "$T" --out-dir assets/sst \
-            || echo "::warning::IFS control drip failed; keeping the previous figure"
-          python scripts/strat/wave_maps.py --model hres --date "$D" --time "$T" --anim-dir assets/sst/anim \
-            > /tmp/hwaves.log 2>&1 &
-          p1=$!
-          python scripts/strat/vortex_winds.py --model hres --date "$D" --time "$T" \
-            --anim-dir assets/sst/anim --manifest assets/sst/anim/vortex_winds_hres_manifest.json > /tmp/hwinds.log 2>&1 &
-          p2=$!
-          wait $p1 || echo "::warning::IFS control wave loops failed; keeping the previous frames"
-          wait $p2 || echo "::warning::IFS control vortex-wind loop failed; keeping the previous frames"
-          echo "---- wave_maps"; tail -8 /tmp/hwaves.log
-          echo "---- vortex_winds"; tail -8 /tmp/hwinds.log
-
-      # Polar cap at sea level and 500 hPa, the AO and NAO, the 100 hPa height, and at 10 hPa the temperature and the
-      # vortex's shape from the shared files (gh at 500, 100 and 10 hPa and msl, the IFS control's too; t at 10 hPa, the
-      # ensemble's only): plumes, maps and the IFS-ENS and IFS control records. The control alone when IFS-ENS is not
-      # ready.
-      - name: Polar cap, AO and NAO, 100 and 10 hPa (IFS-ENS, IFS control)
-        timeout-minutes: 15
-        continue-on-error: true
-        run: |
-          python scripts/strat/polarcap.py --model ifs --date "$D" --time "$T" \
-            || echo "::warning::IFS polar cap failed; keeping the previous figures"
-
-      # Descent over the polar cap from the shared w files (the ensemble's and the control's): the column, the sectors,
-      # the maps and the IFS-ENS and IFS control records.
-      - name: Descent over the polar cap (IFS-ENS, IFS control)
-        timeout-minutes: 20
-        continue-on-error: true
-        run: |
-          python scripts/strat/polar_descent.py --model ifs --date "$D" --time "$T" \
-            || echo "::warning::IFS descent failed; keeping the previous figures"
-
-      # Weather regimes from the 50 IFS-ENS members of the shared gh file (no fetch of its own; 00Z cycles only) ->
-      # assets/regimes/data, read by the multi-model regime view (regimes.yml).
-      - name: Weather regimes (IFS-ENS members)
-        if: env.READY == 'true'
-        timeout-minutes: 10
-        continue-on-error: true
-        run: |
-          python scripts/regimes/regimes_ecmwf.py --model ifs --date "$D" --time "$T" \
-            || echo "::warning::IFS-ENS regimes failed"
+          if [ "$READY" = "true" ]; then
+            par "IFS vortex-wind loop" "keeping the previous frames" python scripts/strat/vortex_winds.py --model ifs \
+              --date "$D" --time "$T" --anim-dir assets/sst/anim --manifest assets/sst/anim/vortex_winds_ifs_manifest.json
+            par "IFS wave loops" "keeping the previous frames" python scripts/strat/wave_maps.py --model ifs --date "$D" --time "$T" \
+              --anim-dir assets/sst/anim
+            par "IFS drip" "keeping the previous figure" python scripts/strat/forecast_drip.py --model ifs --date "$D" --time "$T" \
+              --out-dir assets/sst
+          fi
+          par "NH polar vortex run records" "the records keep their previous runs" python scripts/strat/nh_vortex.py --record-only \
+            --members --models "$M" --cycle "$D$T"
+          par "IFS polar cap" "keeping the previous figures" python scripts/strat/polarcap.py --model ifs --date "$D" --time "$T"
+          if [ "$READY" = "true" ]; then
+            par "IFS heat flux" "keeping the previous figure" python scripts/strat/heatflux100_ext.py --model ifs --date "$D" \
+              --time "$T" --out-dir assets/sst
+          fi
+          par "IFS descent" "keeping the previous figures" python scripts/strat/polar_descent.py --model ifs --date "$D" --time "$T"
+          if [ "$READY" = "true" ]; then
+            par "IFS-ENS regimes" "the previous members stay" python scripts/regimes/regimes_ecmwf.py --model ifs --date "$D" --time "$T"
+          fi
+          par_wait
 
       - name: Run records, heat flux and dripping paint
         continue-on-error: true
