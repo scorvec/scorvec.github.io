@@ -93,11 +93,7 @@ def pv_latlon(T, U, V, levs, lat, lon):
     f = (2 * UPR.OMEGA * np.sin(phi))[None, :, None]
     pv = (
         -UPR.G0
-        * (
-            (zeta + f) * np.gradient(th, p, axis=0)
-            - np.gradient(V, p, axis=0) * ddx(th)
-            + np.gradient(U, p, axis=0) * ddy(th)
-        )
+        * ((zeta + f) * UPR.theta_p(th, p) - np.gradient(V, p, axis=0) * ddx(th) + np.gradient(U, p, axis=0) * ddy(th))
         * 1e6
     )
     return UPR._121(pv), th

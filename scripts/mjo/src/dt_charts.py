@@ -121,7 +121,8 @@ def pv_step(T, U, V, p_pa, lat, lon):
 
     zeta = ddx(V) - ddy(U * cosphi) / cosphi
     f = (2 * OMEGA * np.sin(phi))[None, :, None]
-    th_p = np.gradient(th, p_pa, axis=0)
+    # d theta/dp through ln theta in ln p (near-linear there; theta itself curves sharply in p)
+    th_p = th / p_pa[:, None, None] * np.gradient(np.log(th), np.log(p_pa), axis=0)
     u_p = np.gradient(U, p_pa, axis=0)
     v_p = np.gradient(V, p_pa, axis=0)
     pv = -G0 * ((zeta + f) * th_p - v_p * ddx(th) + u_p * ddy(th)) * 1e6

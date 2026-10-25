@@ -1,0 +1,79 @@
+name: Momentum budget, analysis-cache backfill (GEOS FP)
+
+# Refetches the live momentum budget's analysis days (scripts/strat/momentum_budget.py) that are missing from its cache
+# or were made by an older operator (every day records the tem_terms version that made it, OPERATOR, and the budget never
+# draws a day of another): GEOS FP's 3-hourly analyses and tendencies from NASA NCCS OPeNDAP, read sequentially, ~3.5 min
+# a day, newest first, within the time budget. Then the cache goes back to the frames branch and a fresh seed to release
+# mbudget-ref-v1 (what a cold cache is topped up from, so it cannot bring older-operator days back). In bdc.yml's
+# concurrency group: both write the same cache, and bdc.yml would lay the copies it read at its start over the refetched
+# days. Whatever a run leaves stale, bdc.yml's daily update refetches within its own budget.
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: analysis days back from the newest (the budget keeps 100)
+        default: '100'
+      budget_min:
+        description: minutes of fetching after which no new day is started
+        default: '320'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bdc
+  cancel-in-progress: false
+
+env:
+  # Frames store (Bunny Storage, S3 API; scripts/lib/frames_store.py). Unset secrets leave these empty and frames go
+  # to the `frames` branch alone; the repository variable FRAMES_BRANCH=off retires the branch (frames_env.sh).
+  FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}
+  FRAMES_S3_ENDPOINT: ${{ secrets.FRAMES_S3_ENDPOINT }}
+  FRAMES_S3_REGION: ${{ secrets.FRAMES_S3_REGION }}
+  FRAMES_S3_ACCESS_KEY_ID: ${{ secrets.FRAMES_S3_ACCESS_KEY_ID }}
+  FRAMES_S3_SECRET_ACCESS_KEY: ${{ secrets.FRAMES_S3_SECRET_ACCESS_KEY }}
+  FRAMES_BRANCH: ${{ vars.FRAMES_BRANCH }}
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/strat/bdc_dc.py
+            scripts/strat/momentum_budget.py
+            scripts/strat/reference/mbudget_clim.npz
+            scripts/lib
+            scripts/constraints.txt
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: |
+          pip install --quiet numpy scipy pandas xarray netCDF4 matplotlib cartopy==0.25.0
+          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+      - name: The cached days (frames branch)
+        run: |
+          D=scripts/strat/data/mbudget; C=assets/sst/anim/mbudget_tail
+          mkdir -p $D/tail
+          scripts/lib/fetch_frames_ci.sh $C || true
+          cp $C/2*.npz $D/tail/ 2>/dev/null || true
+          echo "cached analysis days: $(ls $D/tail | wc -l)"
+      - name: Refetch the missing and older-operator days
+        env:
+          DAYS: ${{ inputs.days }}
+          BUDGET: ${{ inputs.budget_min }}
+        run: python scripts/strat/momentum_budget.py tail --days "$DAYS" --budget-min "$BUDGET"
+      - name: The cache back to the frames branch, a fresh seed to the release
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          D=scripts/strat/data/mbudget; C=assets/sst/anim/mbudget_tail
+          cp $D/tail/*.npz $C/
+          scripts/lib/publish_frames_ci.sh +assets/sst/anim/mbudget_tail
+          python scripts/strat/momentum_budget.py seed
+          gh release upload mbudget-ref-v1 $D/tail_seed.tar.gz --clobber -R "$GITHUB_REPOSITORY"

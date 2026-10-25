@@ -19,10 +19,11 @@ METHOD. Steady TEM zonal momentum balance in pressure coordinates (Andrews, Holt
   minus the same around the SH one, with the turnaround latitudes FIXED from the MERRA-2 mean circulation for the day of
   year (extremum over 15-40 deg of the 2-deg-smoothed 3-harmonic climatology). Fixing them keeps the index linear in
   psi*, so a 30-day mean of daily values is the index of the 30-day-mean circulation. The earlier choice - each day's
-  own max minus min - is biased high by the day-to-day noise (MERRA-2 70 hPa annual mean 9.4 instead of 6.4).
-  Single days are noisy (sd ~4 at 70 hPa: transient wave forcing, which the steady balance maps straight into v*), so
-  the product is the trailing 30-day mean. Section: 30-day mean psi*; |lat| < 15 is interpolated in sin(lat) (uniform
-  tropical upwelling) because fhat -> 0 there.
+  own max minus min - is biased high by the day-to-day noise (MERRA-2 70 hPa annual mean 9.4 instead of 6.4, on the
+  15-year climatology of 2026-09-27).
+  Single days are noisy (sd ~3 at 70 hPa, ~4 at 100: transient wave forcing, which the steady balance maps straight
+  into v*), so the product is the trailing 30-day mean. Section: 30-day mean psi*; |lat| < 15 is interpolated in
+  sin(lat) (uniform tropical upwelling) because fhat -> 0 there.
 
 DATA.
   Climatology: MERRA-2 GMI replay (MERRA-2 meteorology), NCCS OPeNDAP merra2_gmi/inst3_3d_met_Np (u, v, T, omega at 00Z,
@@ -38,27 +39,30 @@ DATA.
   Every OPeNDAP read is sequential, retried with backoff, and validated (missing/fill, all-zero or constant levels,
   physical ranges) - a parallel OPeNDAP read has silently returned zeros before.
 
-VALIDATION (2026-09-27; numbers also in data/bdc_dc/*.json)
-  MERRA-2 climatology (15 years 1991-94, 1996-2001, 2004, 2006-09 on file 2026-09-27; 552 days): 70 hPa tropical
-    upward mass flux 6.4 x 1e9 kg/s annual mean (literature for reanalysis downward control ~6-7), Dec 9.1 / Jan 8.1
-    vs Jul 5.0 / Aug 5.2, DJF/JJA 1.52; 100 hPa 10.0, DJF/JJA 1.54. Resolved-wave part 5.3 (DJF/JJA 1.40), gravity-
-    wave part 1.05 (DJF/JJA 2.3). Single days scatter with sd ~4 (70 hPa) about the normal; the year-to-year variance of
-    30-day means is not resolvable from every-10th-day samples (estimate -0.44 +- 0.33 at 70 hPa, -0.40 +- 0.53 at
-    100 hPa), so the band and the tests use 0 + one standard error.
-  Same days, GEOS FP vs MERRA-2 (38 days, every 20th day of 2018-19, each with its own drag): 70 hPa 5.67 vs 6.55,
-    GEOS FP - MERRA-2 = -0.88 +- 0.24 (ratio 0.87 +- 0.04), same-day r 0.91; the gravity-wave part is -0.53 +- 0.05
-    (GEOS FP's parameterized drag is 54 % of MERRA-2's), the resolved part -0.35 +- 0.23 (not significant). 100 hPa
-    -0.54 +- 0.39 (ratio 0.95, r 0.85; drag -0.93 +- 0.07, resolved +0.40 +- 0.38). Seasonal means at 70 hPa -1.2 DJF,
-    -0.3 MAM, -1.5 JJA, -0.4 SON: not distinguishable (one-way ANOVA p 0.21; 0.09 at 100 hPa), and scaling only the drag
-    part does not remove the spread, so the shift is one additive constant: GEOS FP values are shifted +0.88 (70 hPa) /
-    +0.54 (100 hPa), and psi* by its per-point mean difference, before any comparison with the MERRA-2 normal; the
-    shift's standard error enters every test. Caveat: GEOS FP's model version (and GWD tuning) has changed since
-    2018-19; its 2026 drag part (0.32 at 70 hPa) against MERRA-2's normal drag on the same days (0.74) is consistent
-    with the 2018-19 ratio.
-  GEOS FP analysis tail, 106 daily analyses 2026-06-13 -> 09-26: unshifted mean 5.27 at 70 hPa vs the MERRA-2 normal
-    for the same days 5.44 (8.17 vs 8.20 at 100 hPa); 68 % / 75 % of single days inside MERRA-2's single-day 10-90 %
-    range (80 % expected). Daily index: lag-1 autocorrelation 0.59 with a ~6-day oscillation; Bartlett variance
-    inflation 1.39 (70 hPa) / 1.63 (100 hPa) for a 30-day mean.
+VALIDATION (numbers also in data/bdc_dc/*.json)
+  MERRA-2 climatology (rebuilt 2026-10-25: 29 years 1991-2019, 1,070 days; the stability through ln theta in ln p,
+    which raised the resolved-wave part 2.3 % at 70 hPa and 4.5 % at 100 hPa against d theta/dp differenced in p, the
+    drag part unchanged): 70 hPa tropical upward mass flux 6.5 x 1e9 kg/s annual mean (literature for reanalysis
+    downward control ~6-7), Dec 8.7 / Jan 8.4 vs Jul 5.8 / Aug 5.3, DJF/JJA 1.38; 100 hPa 10.3, DJF/JJA 1.42.
+    Resolved-wave part 5.5 (DJF/JJA 1.22), gravity-wave part 1.04 (DJF/JJA 2.6). Single days scatter with sd 3.2
+    (70 hPa) / 4.0 (100 hPa) about the normal; the year-to-year variance of 30-day means is not resolvable from
+    every-10th-day samples (estimate -0.10 +- 0.27 at 70 hPa, +0.13 +- 0.43 at 100 hPa), so the band and the tests use
+    0 + one standard error.
+  Same days, GEOS FP vs MERRA-2 (38 days, every 20th day of 2018-19, each with its own drag): 70 hPa 5.75 vs 6.78,
+    GEOS FP - MERRA-2 = -1.03 +- 0.25 (ratio 0.85 +- 0.04), same-day r 0.90; the gravity-wave part is -0.54 +- 0.05
+    (GEOS FP's parameterized drag is 54 % of MERRA-2's), the resolved part -0.49 +- 0.24 (p 0.04). 100 hPa -0.68 +- 0.41
+    (ratio 0.94, r 0.84; drag -0.96 +- 0.07, resolved +0.28 +- 0.40). Seasonal means at 70 hPa -1.3 DJF, -0.6 MAM,
+    -1.6 JJA, -0.6 SON (one-way ANOVA p 0.35); at 100 hPa -1.7, +1.2, -1.6, -0.6 (p 0.03, 0.06 Bonferroni over the two
+    levels; spring alone; 0.09 with the 15-year turnaround latitudes), and scaling only the drag part does not remove
+    the spread, so the shift is one additive constant: GEOS FP values are shifted +1.03 (70 hPa) / +0.68 (100 hPa), and
+    psi* by its per-point mean difference, before any comparison with the MERRA-2 normal; the shift's standard error
+    enters every test. Caveat: GEOS FP's model version (and GWD tuning) has changed since 2018-19; its 2026 drag part
+    (0.32 at 70 hPa) against MERRA-2's normal drag on the same days (0.74, 15-year normal) is consistent with the
+    2018-19 ratio.
+  GEOS FP analysis tail (2026-09-27, against the 15-year climatology), 106 daily analyses 2026-06-13 -> 09-26:
+    unshifted mean 5.27 at 70 hPa vs the MERRA-2 normal for the same days 5.44 (8.17 vs 8.20 at 100 hPa); 68 % / 75 %
+    of single days inside MERRA-2's single-day 10-90 % range (80 % expected). Daily index: lag-1 autocorrelation 0.59
+    with a ~6-day oscillation; Bartlett variance inflation 1.39 (70 hPa) / 1.63 (100 hPa) for a 30-day mean.
   Forecast day 0 (00Z 2026-09-26) = the analysis of that time: 8.21 vs 8.14 at 70 hPa, 11.56 vs 11.48 at 100 hPa
     (the state is identical; only the persisted vs actual drag differs), inside MERRA-2's single-day 10-90 % range for
     the date (1.6-11.1 and 4.3-14.9).
@@ -196,7 +200,7 @@ def downward_control(lat, p_hpa, ubar, tbar, vT, uv, uw, X):
     p = p_hpa * 100.0
     th = tbar * (P0 / p_hpa)[:, None] ** K
     vth = vT * (P0 / p_hpa)[:, None] ** K
-    th_p = np.gradient(th, p, axis=0)
+    th_p = th / p[:, None] * np.gradient(np.log(th), np.log(p), axis=0)  # through ln theta: theta curves sharply in p
     th_p = np.where(np.abs(th_p) < 1e-7, -1e-7, th_p)
     u_p = np.gradient(ubar, p, axis=0)
     f = 2 * OM * np.sin(phi)

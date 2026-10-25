@@ -37,9 +37,13 @@ DATA (NASA NCCS OPeNDAP, sequential reads, every field validated; a parallel OPe
   Forecast: fcast/inst3_3d_asm_Np.<YYYYMMDD_00>, 00/06/12/18Z to 240 h. The forecast collections carry NO tendencies, so
     the forecast days show the resolved terms and the forecast du/dt only; nothing stands in for the drag.
 
+The analysis cache holds one record a day, stamped with the OPERATOR that made it; a day of an older operator is left
+out of every figure and refetched (mbudget-backfill.yml at once, the daily update within its time budget).
+
 USAGE
-    python momentum_budget.py tail --days 100        # outside Actions, once: backfill (~2.5 min a day)
-    python momentum_budget.py live                    # daily (Actions): new analysis days + newest forecast + render
+    python momentum_budget.py tail --days 100 --budget-min 320   # backfill, newest first (~3.5 min a day; Actions:
+                                                                 # mbudget-backfill.yml)
+    python momentum_budget.py live                    # daily (Actions): new and older-operator days + forecast + render
     python momentum_budget.py clim                    # offline: MERRA-2 reference -> reference/mbudget_clim.npz
     python momentum_budget.py render
 """
@@ -111,7 +115,7 @@ def tem_terms(lat, r, levs=None):
     p = levs * 100.0
     pk = (P0 / levs)[:, None] ** K
     th = r["tbar"] * pk
-    th_p = np.gradient(th, p, axis=0)
+    th_p = th / p[:, None] * np.gradient(np.log(th), np.log(p), axis=0)  # through ln theta: theta curves sharply in p
     th_p = np.where(np.abs(th_p) < 1e-7, -1e-7, th_p)
     u = r["ubar"]
     u_p = np.gradient(u, p, axis=0)
@@ -270,12 +274,23 @@ STORE_FIELDS = (
     "ana",
     "epd00",
 )
+# tem_terms' version, stamped in every day record: 2 = the stability through ln theta in ln p (2026-10-25; 1 differenced
+# theta in p, which made the 10 hPa wave drag ~3x too weak in winter). A day of another version is refetched, newest first
+# within each run's time budget, and never drawn, so the record is never a mix of operators.
+OPERATOR = 2
+
+
+def current(path) -> bool:
+    """A day record on disk made by this OPERATOR."""
+    return path.exists() and int(load(path).get("op", 1)) == OPERATOR
 
 
 def compact(path):
     """Rewrite a day record with STORE_FIELDS only (and any audit fields)."""
     z = load(path)
-    keep = {k: v for k, v in z.items() if k in STORE_FIELDS or k.startswith("srv_") or k in ("lat", "lev", "time")}
+    keep = {
+        k: v for k, v in z.items() if k in STORE_FIELDS or k.startswith("srv_") or k in ("lat", "lev", "time", "op")
+    }
     if len(keep) < len(z):
         save(path, keep)
 
@@ -294,7 +309,7 @@ def build_day(dsn, dsu, day, audit=False):
     rec = day_from_snaps(snaps, lat)
     rec.update(udt)
     rec = {k: v for k, v in rec.items() if k in STORE_FIELDS or k.startswith("srv_")}
-    rec.update({"lat": lat, "lev": LEVS, "time": np.array(f"{pd.Timestamp(day):%Y-%m-%d}")})
+    rec.update({"lat": lat, "lev": LEVS, "time": np.array(f"{pd.Timestamp(day):%Y-%m-%d}"), "op": np.array(OPERATOR)})
     save(TAIL / f"{pd.Timestamp(day):%Y%m%d}.npz", rec)
     log(f"  {pd.Timestamp(day):%Y-%m-%d} ok {time.time() - t0:.0f}s")
     return rec
@@ -310,7 +325,7 @@ def fetch_tail(days=100, budget_min=None, audit_every=0):
     last_udt = pd.Timestamp(dsu.time.values[-1])
     newest = min((last_state - pd.Timedelta(days=1)).normalize(), (last_udt - pd.Timedelta(hours=22.5)).normalize())
     targets = [newest - pd.Timedelta(days=k) for k in range(days)]
-    todo = [d for d in targets if not (TAIL / f"{d:%Y%m%d}.npz").exists()]
+    todo = [d for d in targets if not current(TAIL / f"{d:%Y%m%d}.npz")]
     log(f"tail: {len(todo)} of {len(targets)} days to fetch (state to {last_state}, tendencies to {last_udt})")
     for i, d in enumerate(todo):
         if budget_min and (time.time() - t_start) / 60 > budget_min:
@@ -334,7 +349,7 @@ def _merge_part(d):
     except Exception:  # noqa: BLE001  (the other stream is writing)
         return False
     rec = {k: v for k, v in rec.items() if k in STORE_FIELDS or k.startswith("srv_") or k in ("lat", "lev", "time")}
-    save(TAIL / f"{d:%Y%m%d}.npz", rec)
+    save(TAIL / f"{d:%Y%m%d}.npz", {**rec, "op": np.array(OPERATOR)})
     for f in (fs, fu):
         f.unlink(missing_ok=True)
     log(f"  {d:%Y-%m-%d} merged")
@@ -356,7 +371,7 @@ def fetch_stream(which, days=100, audit_every=0, oldest_first=False):
     if oldest_first:  # a second stream of the same kind, working in from the other end
         targets = targets[::-1]
     for i, d in enumerate(targets):
-        if (TAIL / f"{d:%Y%m%d}.npz").exists() or (PART / f"{which}_{d:%Y%m%d}.npz").exists():
+        if current(TAIL / f"{d:%Y%m%d}.npz") or (PART / f"{which}_{d:%Y%m%d}.npz").exists():
             _merge_part(d)
             continue
         t0 = time.time()
@@ -706,7 +721,10 @@ RESOLVED = ("dudt", "cor", "epd", "vad")  # what a forecast without tendencies s
 
 
 def load_tail():
-    files = sorted(f for f in TAIL.glob("*.npz") if re.fullmatch(r"\d{8}\.npz", f.name))[-TAIL_KEEP:]
+    every = sorted(f for f in TAIL.glob("*.npz") if re.fullmatch(r"\d{8}\.npz", f.name))
+    files = [f for f in every if current(f)][-TAIL_KEEP:]
+    if len(files) < len(every[-TAIL_KEEP:]):
+        log(f"tail: {len(every[-TAIL_KEEP:]) - len(files)} day(s) of an older operator left out until refetched")
     if not files:
         raise Bad("no analysis days cached")
     recs = [load(f) for f in files]
@@ -1523,7 +1541,7 @@ def _json_safe(o):
 
 def live(budget_min=12):
     t0 = time.time()
-    fetch_tail(12, budget_min=budget_min)
+    fetch_tail(TAIL_KEEP, budget_min=budget_min)  # the new days, then any older-operator day, newest first
     try:
         fetch_forecast()
     except Exception as e:  # noqa: BLE001
@@ -1543,9 +1561,10 @@ def main() -> int:
     ap.add_argument("--audit-every", type=int, default=0)
     ap.add_argument("--out")
     ap.add_argument("--oldest-first", action="store_true")
+    ap.add_argument("--budget-min", type=float, help="tail: stop starting new days after this many minutes")
     a = ap.parse_args()
     if a.cmd == "tail":
-        fetch_tail(a.days, audit_every=a.audit_every)
+        fetch_tail(a.days, budget_min=a.budget_min, audit_every=a.audit_every)
     elif a.cmd.startswith("stream-"):
         fetch_stream(a.cmd.split("-")[1], a.days, a.audit_every, a.oldest_first)
     elif a.cmd == "day":
@@ -1572,7 +1591,7 @@ def main() -> int:
             compact(f)
         dest = OUT / "tail_seed.tar.gz"
         with tarfile.open(dest, "w:gz") as tf:
-            for f in sorted(f for f in TAIL.glob("*.npz") if re.fullmatch(r"\d{8}\.npz", f.name)):
+            for f in sorted(f for f in TAIL.glob("*.npz") if re.fullmatch(r"\d{8}\.npz", f.name) and current(f)):
                 tf.add(f, arcname=f"tail/{f.name}")
             for f in sorted(FCST.glob("*_00.npz"))[-1:]:  # only a current forecast (a stale one would linger)
                 if pd.Timestamp(f.stem[:8]) >= pd.Timestamp.utcnow().tz_localize(None).normalize() - pd.Timedelta(

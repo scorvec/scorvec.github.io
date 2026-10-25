@@ -83,6 +83,12 @@ def _121(a):
     return c
 
 
+def theta_p(th, p):
+    """d theta / dp on pressure levels (axis 0; p in Pa), through ln theta in ln p, which is nearly linear: theta itself
+    curves sharply in p, and differenced in p directly it comes out a few per cent too strong."""
+    return th / p[:, None, None] * np.gradient(np.log(th), np.log(p), axis=0)
+
+
 def ertel_pv(T, U, V, levs_hpa, lat, m, dX):
     """Ertel PV (PVU) on pressure levels of a conformal grid. T, U, V: (nlev, ny, nx), grid-relative winds; lat, m:
     (ny, nx); dX: grid spacing in projection metres. -> pv, theta"""
@@ -98,7 +104,7 @@ def ertel_pv(T, U, V, levs_hpa, lat, m, dX):
 
     zeta = m3**2 * (dX_(V / m3) - dY_(U / m3))
     f = (2 * OMEGA * np.sin(np.radians(lat)))[None]
-    th_p = np.gradient(th, p, axis=0)
+    th_p = theta_p(th, p)
     u_p = np.gradient(U, p, axis=0)
     v_p = np.gradient(V, p, axis=0)
     pv = -G0 * ((zeta + f) * th_p - v_p * m3 * dX_(th) + u_p * m3 * dY_(th)) * 1e6
@@ -185,11 +191,7 @@ def ertel_pv_rot(T, U, V, levs_hpa, rlat_deg, lat_deg, dlam_deg, dphi_deg):
     f = (2 * OMEGA * np.sin(np.radians(lat_deg)))[None]
     pv = (
         -G0
-        * (
-            (zeta + f) * np.gradient(th, p, axis=0)
-            - np.gradient(V, p, axis=0) * ddx(th)
-            + np.gradient(U, p, axis=0) * ddy(th)
-        )
+        * ((zeta + f) * theta_p(th, p) - np.gradient(V, p, axis=0) * ddx(th) + np.gradient(U, p, axis=0) * ddy(th))
         * 1e6
     )
     return _121(pv), th
