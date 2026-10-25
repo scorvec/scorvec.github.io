@@ -24,7 +24,6 @@ line without wrapping):
            divided by g, metres, per-frame offset and step; B = the pressure of the surface, log 0.2-600 hPa
   o<lev>   (GFS) R = Eulerian vertical motion, hPa/day, DESCENT POSITIVE (omega in Pa/s x 864), smoothed (below):
            -2 X + 4 X / 254 * code, X = the level's colour range (manifest "omega" "ranges")
-  tem.json (GFS) the residual-circulation section, below (one file per run, not per hemisphere)
   255 = missing in every channel. <lev> is the pressure in hPa with "p" for the point (0p4 = 0.4 hPa).
 
 Potential vorticity. Ertel PV on the pressure levels (hydrostatic, isobaric form, spherical derivatives, centred and
@@ -47,25 +46,6 @@ way, over 48 samples of GFS analyses (the 15th of each month, July 2022 - June 2
 the 72 h around it), rounded up -> strat_omega_ranges.json beside this script. Without that file a run writes no
 vertical motion.
 
-Residual circulation (GFS). The Eulerian mean vertical motion over a polar cap often ASCENDS during a wave event: its
-adiabatic cooling offsets the warming by the convergence of the eddy heat flux. The descent that carries the warming
-down is the transformed-Eulerian-mean residual vertical velocity, in pressure coordinates (Andrews, Holton and Leovy
-1987)
-    omega* = [omega] + (1 / (a cos phi)) d/dphi ( cos phi F ),   F = [v' theta'] / d[theta]/dp
-([ ] zonal means, primes departures from them). The GFS's published VVEL cannot be [omega] here: its post-processor
-(UPP, the GFS v16 version) writes the model's GEOMETRIC vertical velocity in pressure units, -w dp/dz, which differs
-from the motion across pressure surfaces by rho g (dz/dt + V.grad z) and does not conserve mass on a pressure level
-(its global mean reached the size of its zonal-mean signal, 2026-10-24). So [omega] is the kinematic one, from the
-GFS's own winds by continuity from the model top (0.01 hPa): with I = integral of [v] dp from the top,
-    [omega] = -(1 / (a cos phi)) d/dphi (cos phi I),   omega* = -(1 / (a cos phi)) d/dphi (cos phi (I - F)),
-    psi* = 2 pi a cos phi (I - F) / g   (the residual mass streamfunction, consistent with omega* by construction).
-Each step's zonal means come from the full fields (the eddy flux holds every wavenumber) at the 15 map levels, and
-[v] also on the six levels above them; d[theta]/dp is from the 27-level column (tem_terms). They are averaged over the
-vertical motion's centred 72 h windows and smoothed along the meridians by the same 600 km Gaussian (continued over
-the poles: evenly for scalars, oddly for meridional fluxes), and the section formed from them (tem_section). tem.json
-holds, on every 4th row of the grid (2 deg), the log-pressure descent (H / p) omega* (= -w*, mm/s, H = 7 km, positive
-down), the same for the Eulerian [omega], and psi*.
-
 Checks, per run (manifest "checks"; the page's method section shows them):
   absv/<lev>     zeta + f from these winds against the model's own absolute vorticity (GFS ABSV at 50 and 10 hPa,
                  GDPS AbsoluteVorticity at 250 and 200 hPa: its only levels above 500 hPa), 20-85 deg
@@ -76,15 +56,6 @@ Checks, per run (manifest "checks"; the page's method section shows them):
   units          (GDPS) what each field turned out to be in, read from its magnitudes, not its GRIB keys (ECCC files
                  have carried decametres under a metres label): temperature in K, heights against a standard
                  atmosphere at every level (the 10 hPa median near 31,000 m), winds, vorticity, the 2-PVU pressure
-  tem (manifest "tem" "checks", medians over the steps)
-                 the polar-cap identity: the section's cos-weighted mean of omega* poleward of 60 deg against the cap
-                 mean of [omega] - (+ in the south) cos phi0 F(phi0) / (a (1 - sin phi0)), at 10 and 100 hPa, relative
-                 to the eddy term; the cap means of the residual and Eulerian descent there;
-                 the kinematic [omega] against an independent route, the GFS's VVEL plus rho g (d[z]/dt + [V.grad z])
-                 (the moving pressure surfaces put back), at 10, 50 and 100 hPa, as they are and with each level's
-                 global mean removed, and the global means of all three;
-                 omega* from the GDPS's levels alone (1-100 hPa, I = 0 at 1 hPa, F from those levels) against the
-                 full column's: the test of whether the GDPS (no vertical velocity above 200 hPa) could have it
   cap            the polar-cap (poleward of 60 deg, cos-weighted) mean PV and log-mean pressure at 475 and 850 K on every
                  step: the quantities the site's GEOS FP PV product (scripts/strat/geos_pv.py) reports, so the page can
                  set the models side by side for the same day
@@ -169,9 +140,6 @@ VV_SIGMA_KM, VV_HALF_H = 600.0, 36  # the vertical motion's smoothing: Gaussian 
 VV_REF = HERE / "strat_omega_ranges.json"  # its colour range per level (omega-clim)
 CLIM_FROM, CLIM_MONTHS, CLIM_LAT = (2022, 7), 48, 20.0  # omega-clim: the 15th of each month from July 2022
 CLIM_BINS = np.linspace(-4.0, 2.0, 601)  # log10 |omega|, hPa/day
-TEM_H, TEM_ROWS, TEM_CAP = 7000.0, 4, 60.0  # log-pressure scale height (m); the section's rows; the cap's edge
-TOP_V = (0.01, 0.02, 0.04, 0.07, 0.1, 0.2)  # the GFS's levels above 0.4 hPa: [v] there, for the column's mass flux
-GDPS_TOP = (1, 5, 10, 20, 30, 50, 100)  # the GDPS's levels above 150 hPa
 # a standard atmosphere's heights (m) at the GDPS's levels, for its units check (the GFS run's global means of
 # 2026-10-24, rounded): a field off by more than 20 % from these is not in metres
 Z_STD = {400: 7200, 350: 8100, 300: 9200, 275: 9800, 250: 10400, 225: 11000, 200: 11800, 175: 12600, 150: 13600}
@@ -322,77 +290,6 @@ def smooth_sphere(a, lat, sigma_km=VV_SIGMA_KM):
     return out
 
 
-def smooth_lat(a, lat, odd=False, sigma_km=VV_SIGMA_KM):
-    """smooth_sphere's meridional Gaussian for zonal means (last axis = the rows, 90 N -> 90 S), continued over each
-    pole: evenly for a scalar, with the sign reversed for a meridional flux (odd)."""
-    ny = a.shape[-1]
-    sr = sigma_km * 1e3 / (A_E * math.radians(abs(lat[1] - lat[0])))
-    half = math.ceil(4 * sr)
-    sg = -1.0 if odd else 1.0
-    ext = np.concatenate(
-        [sg * a[..., 1 : half + 1][..., ::-1], a, sg * a[..., ny - 1 - half : ny - 1][..., ::-1]], axis=-1
-    )
-    w = np.exp(-0.5 * (np.arange(-half, half + 1) / sr) ** 2)
-    out = np.zeros_like(a)
-    for i, wi in enumerate(w / w.sum()):
-        out += wi * ext[..., i : i + ny]
-    return out
-
-
-def mdiv(F, lat):
-    """(1 / (a cos phi)) d(cos phi F)/dphi on the rows (last axis), the pole rows taken from the next ring."""
-    phi = np.radians(lat)
-    c = np.cos(phi)
-    with np.errstate(invalid="ignore", divide="ignore"):
-        d = np.gradient(c * F, phi, axis=-1) / (A_E * np.where(np.abs(lat) > 89.99, np.nan, c))
-    d[..., 0], d[..., -1] = d[..., 1], d[..., -2]
-    return d
-
-
-def tem_terms(T, U, V, Z, th, W, vtop, col, levels, lat):
-    """One step's zonal means for the residual circulation at the map `levels` (module docstring): [v] (and vtop, [v]
-    on the TOP_V levels above them), [v' theta'], [theta] and d[theta]/dp (from the full column), the GFS's VVEL, the
-    height and its advection [V.grad z], and [T]. The eddy fluxes come from the full fields. -> {name: (nlev, ny)}"""
-    pc = np.asarray(col, np.float64) * 100.0
-    thb = th.mean(-1)
-    thp = np.gradient(thb, np.log(pc), axis=0) / pc[:, None]
-    ks = [col.index(q) for q in levels]
-    vb = V[ks].mean(-1)
-    phi = np.radians(np.asarray(lat, np.float64))
-    cph = np.cos(phi)[:, None]
-    cph[np.abs(lat) > 89.99] = np.nan
-    Zk = Z[ks]
-    with np.errstate(invalid="ignore", divide="ignore"):
-        dzdx = (np.roll(Zk, -1, -1) - np.roll(Zk, 1, -1)) / (2 * math.radians(360.0 / Z.shape[-1]) * A_E * cph)
-        adv = np.nan_to_num((U[ks] * dzdx + V[ks] * np.gradient(Zk, phi, axis=-2) / A_E).mean(-1))
-    out = dict(
-        vtop=vtop.mean(-1),
-        v=vb,
-        vt=(V[ks] * th[ks]).mean(-1) - vb * thb[ks],
-        thb=thb[ks],
-        thp=thp[ks],
-        w=W.mean(-1),
-        z=Zk.mean(-1),
-        adv=adv,
-        t=T[ks].mean(-1),
-    )
-    for k in (
-        "vtop",
-        "v",
-        "vt",
-        "adv",
-    ):  # nothing crosses a pole (the rows there hold the wind's direction, not a flux)
-        out[k][..., [0, -1]] = 0.0
-    return out
-
-
-def from_top(x, pr):
-    """The integral of x (nlev, ny) over pressure from the first level down, trapezoidal; pr (nlev,) Pa increasing."""
-    out = np.zeros_like(x)
-    out[1:] = np.cumsum(0.5 * (x[1:] + x[:-1]) * np.diff(pr)[:, None], axis=0)
-    return out
-
-
 def window(steps, t, half=VV_HALF_H):
     """The centred running mean at step t of the 12-hourly `steps`: {step: weight}, trapezoidal over +-h hours (weight
     1 inside, 1/2 at the ends; with 12-hourly steps this cancels the diurnal tide exactly), h = `half`, or less near the
@@ -463,7 +360,7 @@ def fetch_gfs(date, hh, step):
     def want(levels):
         return {(v, f"{p:g} mb") for v in names for p in levels}
 
-    wa = want(M["col_a"]) | {("VVEL", f"{p:g} mb") for p in M["levels"]} | {("VGRD", f"{p:g} mb") for p in TOP_V}
+    wa = want(M["col_a"]) | {("VVEL", f"{p:g} mb") for p in M["levels"]}
     if step in QC_STEPS:
         wa |= {("ABSV", f"{p} mb") for p in M["absv"]} | {("PRES", s) for s in PV2.values()}
     a, grid = sb.fetch_messages(f, gfs_url(date, hh, step), wa)
@@ -654,9 +551,6 @@ def process_step(model, date, hh, step, outdir):
     if M["omega"]:
         W = np.stack([msgs[("w", float(p))] for p in M["levels"]]).astype(np.float64)
         np.save(Path(outdir) / f"_vv_{step:03d}.npy", smooth_sphere(W * HPA_DAY, lat).astype(np.float32))  # vv_level
-        vtop = np.stack([msgs[("v", q)] for q in TOP_V]).astype(np.float64)
-        terms = tem_terms(T, U, V, Z, th, W, vtop, col, list(M["levels"]), lat)
-        np.savez(Path(outdir) / f"_tem_{step:03d}.npz", **terms)  # tem_section
 
     checks = {"cap": cap}
     if step in QC_STEPS:
@@ -697,100 +591,6 @@ def vv_level(outdir, k, p, x_range, steps):
             img = image(MV.q_lin(hemi(x, h), -2 * x_range, 4 * x_range / 254))
             nbytes += write(outdir, h, f"o{lev_key(p)}", t, img)
     return nbytes
-
-
-def tem_section(outdir, steps, lat, levels):
-    """The residual-circulation section on every step with a centred window, from process_step's _tem files (module
-    docstring), and its checks. -> (tem.json document, the manifest's entry)"""
-    one = {s: dict(np.load(Path(outdir) / f"_tem_{s:03d}.npz")) for s in steps}
-    lev = list(levels)
-    down = sorted(range(len(lev)), key=lambda k: lev[k])  # the map levels from the top down
-    back = np.argsort(down)
-    pfull = np.array([*TOP_V, *(lev[k] for k in down)]) * 100.0
-    p = np.asarray(lev, np.float64)[:, None] * 100.0
-    gk = [lev.index(q) for q in GDPS_TOP]  # the GDPS's levels (1-100 hPa), top down
-    pg = np.asarray(GDPS_TOP, np.float64) * 100.0
-    rows, cw = np.arange(0, lat.size, TEM_ROWS), np.cos(np.radians(lat))
-    band20 = band(lat, 20, 85)
-    hours = [t for t in steps if window(steps, t)]
-    doc = dict(lat=[round(float(x), 2) for x in lat[rows]], levels=lev, hours=hours, d=[], e=[], psi=[], cap=[], win=[])
-    ck = {}
-
-    def add(key, v):
-        if v is not None and np.isfinite(v):
-            ck.setdefault(key, []).append(float(v))
-
-    def anom(x):  # less its cos-weighted global mean at each level
-        return x - (x * cw).sum(-1, keepdims=True) / cw.sum()
-
-    def gmean(x):  # the cos-weighted global mean relative to the rms, per level -> the largest
-        return float(np.max(np.abs((x * cw).sum(-1)) / np.sqrt((x**2 * cw).sum(-1) * cw.sum())))
-
-    for t in hours:
-        w = window(steps, t)
-        m = {k: sum(wt * one[s][k] for s, wt in w.items()) for k in one[t]}
-        F = smooth_lat(sum(wt * one[s]["vt"] / one[s]["thp"] for s, wt in w.items()), lat, odd=True)
-        vfull = smooth_lat(np.concatenate([m["vtop"], m["v"][down]]), lat, odd=True)
-        I = from_top(vfull, pfull)[len(TOP_V) :][back]
-        wb, ws = -mdiv(I, lat), -mdiv(I - F, lat)  # kinematic [omega], omega*
-        psi = 2 * math.pi * A_E * cw * (I - F) / G0  # kg/s
-        # the independent route: VVEL (-rho g w) with the moving pressure surfaces put back
-        h0, h1 = min(w), max(w)
-        rho = p / (RD * m["t"])
-        wc = smooth_lat(m["w"] + rho * G0 * ((one[h1]["z"] - one[h0]["z"]) / ((h1 - h0) * 3600.0) + m["adv"]), lat)
-        for q in (10, 50, 100):
-            k = lev.index(q)
-            for name, x, y in (("kin_vs_w", wb, wc), ("kin_vs_w_anom", anom(wb), anom(wc))):  # as is; global means out
-                a, b = x[k][band20], y[k][band20]
-                add(f"{name}/{q}/r", np.corrcoef(a, b)[0, 1])
-                add(f"{name}/{q}/rms_ratio", np.sqrt((a**2).mean() / (b**2).mean()))
-        add("global_mean/vvel", gmean(smooth_lat(m["w"], lat)))
-        add("global_mean/kinematic", gmean(wb))
-        add("global_mean/vvel_corrected", gmean(wc))
-        # omega* from the GDPS's levels alone: [v] integrated from 1 hPa (I = 0 there), F with d[theta]/dp on them
-        Ig = from_top(smooth_lat(m["v"][gk], lat, odd=True), pg)
-        Fg = sum(
-            wt * one[s]["vt"][gk] / (np.gradient(one[s]["thb"][gk], np.log(pg), axis=0) / pg[:, None])
-            for s, wt in w.items()
-        )
-        wsg = -mdiv(Ig - smooth_lat(Fg, lat, odd=True), lat)
-        for q in (10, 50, 100):
-            k, kg = lev.index(q), GDPS_TOP.index(q)
-            add(f"gdps_levels/{q}/r", np.corrcoef(wsg[kg][band20], ws[k][band20])[0, 1])
-            add(f"gdps_levels/{q}/rms_ratio", np.sqrt((wsg[kg][band20] ** 2).mean() / (ws[k][band20] ** 2).mean()))
-        cap = {}
-        for h, sel in (("nh", lat >= TEM_CAP - 1e-6), ("sh", lat <= -TEM_CAP + 1e-6)):
-            k0 = int(np.argmin(np.abs(lat - (TEM_CAP if h == "nh" else -TEM_CAP))))
-            tw = np.where(sel, cw, 0.0)  # the cap's rows, trapezoidal in latitude (half weight at its edge)
-            tw[k0] *= 0.5
-            sgn = -1.0 if h == "nh" else 1.0
-            for q in (10, 100):
-                k, kg = lev.index(q), GDPS_TOP.index(q)
-                sec, eul = float((ws[k] * tw).sum() / tw.sum()), float((wb[k] * tw).sum() / tw.sum())
-                eddy = sgn * math.cos(math.radians(TEM_CAP)) * F[k, k0] / (A_E * (1 - math.sin(math.radians(TEM_CAP))))
-                add("identity_rel", abs(sec - (eul + eddy)) / max(abs(eddy), 1e-15))
-                add(
-                    f"gdps_levels/{q}/cap_ratio_{h}",
-                    float((wsg[kg] * tw).sum() / tw.sum()) / sec if abs(sec) > 1e-12 else None,
-                )
-                hp = TEM_H / (q * 100.0) * 1e3
-                cap[f"{h}/{q}"] = dict(residual=round(sec * hp, 3), eulerian=round(eul * hp, 3))
-        doc["cap"].append(cap)
-        d, e = TEM_H / p * ws * 1e3, TEM_H / p * wb * 1e3  # mm/s, positive down
-        doc["d"].append(np.rint(d[:, rows] * 100).astype(int).tolist())  # 0.01 mm/s
-        doc["e"].append(np.rint(e[:, rows] * 100).astype(int).tolist())
-        doc["psi"].append(np.rint(psi[:, rows] / 1e6).astype(int).tolist())  # 1e6 kg/s
-        doc["win"].append([h0, h1])
-    doc |= dict(
-        unit="d, e: descent (H / p) omega, mm/s x 100, positive down; psi: 1e6 kg/s",
-        sigma_km=VV_SIGMA_KM,
-        window_h=2 * VV_HALF_H,
-        H_m=TEM_H,
-    )
-    checks = {
-        k: dict(median=round(float(np.median(v)), 4), min=round(min(v), 4), max=round(max(v), 4)) for k, v in ck.items()
-    }
-    return doc, dict(file="tem.json", hours=hours, checks=checks, cap=doc["cap"])
 
 
 def vv_ranges():
@@ -1012,16 +812,6 @@ def cmd_run(a):
         for f in outdir.glob("_vv_*.npy"):
             f.unlink()
     di = extras["di"]
-    tem = None
-    if M["omega"]:  # the residual circulation needs the model's omega
-        doc, tem = tem_section(outdir, hours, np.linspace(90.0, -90.0, round(180 / di) + 1), list(M["levels"]))
-        body = json.dumps(doc, separators=(",", ":")).encode()
-        (outdir / "tem.json").write_bytes(body)
-        tem["bytes"] = len(body)
-        nbytes += len(body)
-        print(f"  tem.json {len(body) / 1e3:.0f} KB, checks {json.dumps(tem['checks'])}", flush=True)
-        for f in outdir.glob("_tem_*.npz"):
-            f.unlink()
     wall = time.time() - t_start
     ny, nx = round(90 / di) + 1, round(360 / di) + 2 * PAD
     cap = {
@@ -1046,7 +836,6 @@ def cmd_run(a):
         cap_hpa=extras.get("cap_hpa", {}),
         cap=dict(lat=CAP_LAT, values=cap),
         **({"omega": omega} if omega else {}),
-        **({"tem": tem} if tem else {}),
         bytes=nbytes,
         fetch=dict(requests=nreq, mb=round(nb / 1e6, 1)),
         checks=summarise(checks),

@@ -137,11 +137,7 @@
   .mv-levs button[aria-pressed="true"] small { color: #e8eef6; }
   .mv-levs button:not([aria-pressed="true"]):hover { background: var(--accent-soft); }
   /* the canvas is out of the flow: its backing store is sized from its own box, which in flow would feed back into the row height */
-  .mv-map[hidden], .mv-levs[hidden], .mv-sec[hidden] { display: none; }
-  /* the residual-circulation section: a latitude-pressure chart in the map's place */
-  .mv-sec { position: relative; flex: 1 1 auto; min-width: 0; height: max(340px, min(760px, calc(100vh - 225px))); background: var(--panel);
-            border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
-  .mv-sec canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+  .mv-map[hidden], .mv-levs[hidden] { display: none; }
   .mv-legend { flex: 0 0 96px; margin: 0; position: relative; }
   .mv-legend canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   .mv-legT { margin: 0.3rem 0 0; font-size: 0.97rem; color: var(--muted); }
@@ -177,7 +173,6 @@
     .mv-levs button { flex: 0 0 auto; min-height: 40px; max-height: none; flex-direction: column; justify-content: center; gap: 0; padding: 0.15rem 0.5rem; font-size: 0.95rem; line-height: 1.15; }
     .mv-levs button small { font-size: 0.74rem; }
     .mv-legend { flex: 0 0 auto; }
-    .mv-sec { height: clamp(300px, 80vw, 520px); }
     .mv-legend canvas { position: static; height: 38px; }
     .mv-valid { min-width: 0; flex: 1 1 100%; font-size: 0.95rem; order: -1; }
     .mv-valid .vt { font-size: 1.08rem; }
@@ -409,7 +404,6 @@
     <div class="mv-load" id="load"></div>
     <div class="mv-tip" id="tip"></div>
   </div>
-  <div class="mv-sec" id="sec" hidden><canvas id="secC" role="img" aria-label="Latitude-pressure section of the residual circulation" aria-describedby="legT"></canvas><div class="mv-tip" id="secTip"></div></div>
   <div class="mv-legend"><canvas id="leg" role="img" aria-label="Colour scale" aria-describedby="legT"></canvas></div>
   </div>
   <p class="mv-legT" id="legT"></p>
@@ -432,8 +426,7 @@
       <tr><td>Temperature</td><td>Air temperature on the pressure level, &deg;C, stored to 0.6&nbsp;K; purple below &minus;78&nbsp;&deg;C (195&nbsp;K), where nitric-acid polar stratospheric clouds can form (ice clouds near &minus;85&nbsp;&deg;C, 188&nbsp;K)</td><td>Geopotential height, dam, at a fixed interval for each level (8&nbsp;dam at 100&ndash;40&nbsp;hPa up to 48&nbsp;dam at 0.4&nbsp;hPa)</td></tr>
       <tr><td>Wind: speed</td><td>Wind speed, m/s; barbs in knots (feathers on the Southern Hemisphere side south of the equator)</td><td>Height, as on the temperature map</td></tr>
       <tr><td>Wind: zonal</td><td>The west&ndash;east component: westerlies red, easterlies blue, m/s. A reversal to easterlies at 60&deg; and 10&nbsp;hPa in winter is the usual definition of a major sudden stratospheric warming (Charlton and Polvani 2007)</td><td>Height, and the zero-wind line in black</td></tr>
-      <tr><td>Eulerian vertical motion (GFS)</td><td>The GFS's published vertical velocity in pressure units (VVEL, &ldquo;omega&rdquo;), in hPa/day with <b>descent positive</b>: red where air sinks, blue where it rises. The GFS's post-processor computes it from the model's geometric vertical velocity (&minus;w&nbsp;dp/dz), so it is the air's motion up or down in height, which also counts the rise and fall of the pressure surfaces themselves; the net descent that warms the stratosphere is the <a href="#tem">residual circulation</a>; heavily smoothed in space and time (<a href="#vvmethod">below</a>). The colours saturate at a fixed range for each level, set from four years of GFS analyses, not from this run</td><td>Height, as on the temperature map</td></tr>
-      <tr><td>Residual circulation (GFS)</td><td>A pole-to-pole latitude&ndash;pressure section, 100 to 0.4&nbsp;hPa, of zonal means: the transformed-Eulerian-mean residual descent &minus;w*&nbsp;=&nbsp;(H/p)&nbsp;&omega;*, mm/s (H&nbsp;=&nbsp;7&nbsp;km), red where air sinks; or the Eulerian-mean descent (H/p)&nbsp;[&omega;] for comparison (<a href="#tem">below</a>)</td><td>The residual mass streamfunction &psi;*: air flows along the lines (solid clockwise with north to the right, dashed anticlockwise)</td></tr>
+      <tr><td>Eulerian vertical motion (GFS)</td><td>The GFS's published vertical velocity in pressure units (VVEL, &ldquo;omega&rdquo;), in hPa/day with <b>descent positive</b>: red where air sinks, blue where it rises. The GFS's post-processor computes it from the model's geometric vertical velocity (&minus;w&nbsp;dp/dz), so it is the air's motion up or down in height, which also counts the rise and fall of the pressure surfaces themselves; heavily smoothed in space and time (<a href="#vvmethod">below</a>). The colours saturate at a fixed range for each level, set from four years of GFS analyses, not from this run</td><td>Height, as on the temperature map</td></tr>
       <tr><td>Potential vorticity</td><td>Ertel PV on the isentropic surface (350, 400, 475, 600 or 850&nbsp;K, and for the GFS also 1200 and 1600&nbsp;K), PVU; the colours follow the Lait-scaled value (below), so one colour means the same thing on every surface, and the legend gives the surface's own PV. Southern Hemisphere PV is shown with its sign reversed, so the vortex is positive in both. Blank where the surface lies outside the model's column (400&nbsp;hPa to its top level)</td><td>The Montgomery streamfunction M&nbsp;=&nbsp;c<sub>p</sub>T&nbsp;+&nbsp;gz divided by g, dam: on an isentropic surface the geostrophic wind blows along it as it does along height contours on a pressure surface</td></tr>
     </table></div>
     <h3 id="pvmethod">How the potential vorticity is computed</h3>
@@ -445,16 +438,7 @@
     <p><b>Checks.</b> The formula and the interpolation were tested on idealised atmospheres before the first run: a resting and a solid-body-rotating isothermal atmosphere (PV within 0.3&nbsp;% of the exact value at every level) and a strongly sheared, weakly stratified one where the two tilting terms change PV by 8&ndash;16&nbsp;% and the isobaric form above matches the isentropic form &minus;g&nbsp;(&zeta;<sub>&theta;</sub>&nbsp;+&nbsp;f)&nbsp;&part;&theta;/&part;p to 0.2&nbsp;%. Every run then checks itself against its model's own fields (its absolute vorticity, and the 2-PVU tropopause the model computes on its native levels), and against NASA's GEOS FP analysis, which carries its own PV:</p>
     <p class="mv-runs" id="checks"></p>
     <h3 id="vvmethod">How the vertical motion is smoothed</h3>
-    <p>The GFS publishes VVEL (Pa/s) on all 15 levels of the maps; it is shown as VVEL&nbsp;&times;&nbsp;864&nbsp;=&nbsp;hPa/day, positive downward. (It is the model's geometric vertical velocity in pressure units, not the motion across pressure surfaces: see <a href="#tem">the residual circulation</a>.) On a 0.5&deg; grid in the stratosphere the raw field is dominated by gravity waves and tides, so it is smoothed hard before it is stored. <b>In space</b>: a Gaussian with a standard deviation of 600&nbsp;km along the sphere, applied along each latitude circle exactly (in Fourier space: zonal wavenumber k keeps exp(&minus;&frac12;(k&sigma;&nbsp;/&nbsp;a&nbsp;cos&nbsp;&phi;)<sup>2</sup>) of its amplitude, so wave 3 at 60&deg; keeps 85&nbsp;% and anything shorter than about 2,000&nbsp;km less than a fifth) and then along the meridians, continued over the pole onto the opposite meridian. <b>In time</b>: a running mean centred on the valid time over the 12-hourly steps, trapezoidal over &plusmn;36&nbsp;h (a 72&nbsp;h mean; weight 1 inside, &frac12; at the ends, which cancels the daily tide exactly), shortened near the ends of the run so it stays centred (24&nbsp;h at +12&nbsp;h, 48&nbsp;h at +24&nbsp;h); +0 and +384&nbsp;h have no vertical-motion map. The legend gives the hours each map averages. <b>Colours</b>: for each level the range is the 99th percentile of the same smoothed field&rsquo;s magnitude poleward of 20&deg; in 48 samples of GFS analyses (the 15th of each month from July 2022 to June 2026, the seven 00 and 12&nbsp;UTC analyses around each), rounded up, so a colour means the same from run to run and a strong event stands out. The hover converts to a vertical velocity, w&nbsp;&asymp;&nbsp;&minus;&omega;&nbsp;R&nbsp;T&nbsp;/&nbsp;(p&nbsp;g), with the level's temperature.</p>
-    <h3 id="tem">The residual circulation</h3>
-    <p>The vertical motion that warms a polar cap is not the Eulerian mean. When planetary waves break into the vortex, their poleward eddy heat flux [v&prime;&theta;&prime;] converges over the cap; the zonal-mean (Eulerian) circulation answers with rising motion there, whose adiabatic cooling offsets much of that warming, so the Eulerian mean can show ascent over a cap that is warming from above. The transformed Eulerian mean (Andrews, Holton and Leovy 1987) adds the eddies' heat transport to the mean motion: the residual vertical velocity</p>
-    <p class="eq">&omega;* = [&omega;] + (1&nbsp;/&nbsp;a&nbsp;cos&nbsp;&phi;) &part;/&part;&phi; ( cos&nbsp;&phi; F ),&nbsp;&nbsp; F = [v&prime;&theta;&prime;] / &part;[&theta;]/&part;p</p>
-    <p>is the net vertical motion that carries heat and tracers, and its descent over the winter pole is the descent that brings a warming down. The section shows it as the log-pressure descent &minus;w*&nbsp;=&nbsp;(H/p)&nbsp;&omega;* (H&nbsp;=&nbsp;7&nbsp;km).</p>
-    <p><b>Why [&omega;] comes from the winds.</b> The GFS's published vertical velocity cannot be used here. Its post-processor (the version the operational GFS runs) writes the model's geometric vertical velocity in pressure units, &minus;w&nbsp;dp/dz, which also counts the motion of the pressure surfaces, &rho;g&nbsp;(&part;z/&part;t&nbsp;+&nbsp;V&middot;&nabla;z), and does not conserve mass on a pressure level: on 24 October its global mean at every level was about as large as its zonal-mean signal (1.3&nbsp;mm/s of &ldquo;descent&rdquo; everywhere at 100&nbsp;hPa, where the tropics should rise). So [&omega;] is the kinematic one, from the GFS's own winds by continuity, downward from the model top at 0.01&nbsp;hPa. With I&nbsp;=&nbsp;&int;[v]&nbsp;dp from the top: [&omega;]&nbsp;=&nbsp;&minus;(1/a&nbsp;cos&nbsp;&phi;)&nbsp;&part;(cos&nbsp;&phi;&nbsp;I)/&part;&phi;, &omega;*&nbsp;=&nbsp;&minus;(1/a&nbsp;cos&nbsp;&phi;)&nbsp;&part;(cos&nbsp;&phi;&nbsp;(I&nbsp;&minus;&nbsp;F))/&part;&phi; and &psi;*&nbsp;=&nbsp;2&pi;a&nbsp;cos&nbsp;&phi;&nbsp;(I&nbsp;&minus;&nbsp;F)/g, one consistent set. Each run checks the kinematic [&omega;] against the published one with the motion of the pressure surfaces put back (below). On the first run (24 October 12&nbsp;UTC) the latitude patterns agreed (correlations 0.92&ndash;0.97 at 10&ndash;100&nbsp;hPa, with each level's global mean removed) but the kinematic mean was about a third weaker, and putting the surfaces' motion back did not remove the published field's global mean (85&nbsp;% of its rms), so that error is in the field itself. Which amplitude is right this check cannot say; the kinematic mean conserves mass (its global mean is 0.01&nbsp;% of its rms) and gives the expected tropical upwelling at 100&nbsp;hPa (0.4&nbsp;mm/s at the equator, where the published field showed descent), and it is the one used.</p>
-    <p><b>Smoothing.</b> Zonal means of the full fields at each 12-hourly step (so the eddy flux holds every wavenumber): [v] on the 15 levels and the six GFS levels above 0.4&nbsp;hPa, [v&prime;&theta;&prime;] on the 15, &part;[&theta;]/&part;p from the 27-level column. They get the same centred running mean as the vertical-motion maps (72&nbsp;h, trapezoidal, shorter but still centred near the ends of the run, none at +0 and +384&nbsp;h) and the same 600&nbsp;km Gaussian along the meridians, continued over the poles, before &omega;* and &psi;* are formed. The section is stored every 2&deg; of latitude.</p>
-    <p><b>Checks.</b> The section's mean of &omega;* over each polar cap (poleward of 60&deg;) must equal the cap mean of [&omega;] minus cos&nbsp;&phi;<sub>0</sub>&nbsp;F(&phi;<sub>0</sub>)&nbsp;/&nbsp;a(1&nbsp;&minus;&nbsp;sin&nbsp;&phi;<sub>0</sub>) at &phi;<sub>0</sub>&nbsp;=&nbsp;60&deg; (plus, in the south). Each run reports that identity and the other checks in the line below, with the residual and Eulerian descent over the caps at 10 and 100&nbsp;hPa.</p>
-    <p class="mv-runs" id="temchecks"></p>
-    <p id="temgdps"><b>The GDPS</b> has no residual circulation here. It publishes no vertical velocity above 200&nbsp;hPa, and its winds stop at 1&nbsp;hPa, so the mass flux through 1&nbsp;hPa is unknown; whether &omega;* can be rebuilt from its seven levels from 1 to 100&nbsp;hPa is measured on every GFS run (in the checks above). On the first measurement (24 October 12&nbsp;UTC) it could not: the GFS's &omega;* rebuilt from those levels alone correlated with the full column's at 0.27&ndash;0.91 at 100&nbsp;hPa and 0.56&ndash;0.94 at 10&nbsp;hPa, and its polar-cap means ranged from &minus;5.8 to 2.6 times the full column's. A GDPS section would mostly show the gaps between its levels.</p>
+    <p>The GFS publishes VVEL (Pa/s) on all 15 levels of the maps; it is shown as VVEL&nbsp;&times;&nbsp;864&nbsp;=&nbsp;hPa/day, positive downward. (It is the model's geometric vertical velocity in pressure units, &minus;w&nbsp;dp/dz, not the motion across pressure surfaces: it also counts the rise and fall of the surfaces themselves, &rho;g&nbsp;(&part;z/&part;t&nbsp;+&nbsp;V&middot;&nabla;z), and its mean over a pressure level is far from the zero that mass conservation needs, so read it for its pattern, not as the net descent that warms the stratosphere.) On a 0.5&deg; grid in the stratosphere the raw field is dominated by gravity waves and tides, so it is smoothed hard before it is stored. <b>In space</b>: a Gaussian with a standard deviation of 600&nbsp;km along the sphere, applied along each latitude circle exactly (in Fourier space: zonal wavenumber k keeps exp(&minus;&frac12;(k&sigma;&nbsp;/&nbsp;a&nbsp;cos&nbsp;&phi;)<sup>2</sup>) of its amplitude, so wave 3 at 60&deg; keeps 85&nbsp;% and anything shorter than about 2,000&nbsp;km less than a fifth) and then along the meridians, continued over the pole onto the opposite meridian. <b>In time</b>: a running mean centred on the valid time over the 12-hourly steps, trapezoidal over &plusmn;36&nbsp;h (a 72&nbsp;h mean; weight 1 inside, &frac12; at the ends, which cancels the daily tide exactly), shortened near the ends of the run so it stays centred (24&nbsp;h at +12&nbsp;h, 48&nbsp;h at +24&nbsp;h); +0 and +384&nbsp;h have no vertical-motion map. The legend gives the hours each map averages. <b>Colours</b>: for each level the range is the 99th percentile of the same smoothed field&rsquo;s magnitude poleward of 20&deg; in 48 samples of GFS analyses (the 15th of each month from July 2022 to June 2026, the seven 00 and 12&nbsp;UTC analyses around each), rounded up, so a colour means the same from run to run and a strong event stands out. The hover converts to a vertical velocity, w&nbsp;&asymp;&nbsp;&minus;&omega;&nbsp;R&nbsp;T&nbsp;/&nbsp;(p&nbsp;g), with the level's temperature.</p>
     <h3>How the page works</h3>
     <p>Nothing on this page is a picture. Each field, level and step is shipped as the model's own numbers, rounded to 256 levels, on its latitude&ndash;longitude grid (GFS 0.5&deg;, GDPS 0.45&deg;), and your browser colours, projects, contours and reads it; the shading is interpolated between grid points, and the hover value is the stored one at the nearest point. The maps are polar stereographic, true at the pole (0&deg; longitude at the bottom of the northern map and at the top of the southern one). Contours are drawn by your graphics card from the same numbers after a light smoothing; their labels are placed once the map is at rest. <b>Data use:</b> opening a map loads only the map on screen and the heights drawn on it (about 45&ndash;115&nbsp;KB); stepping through the levels loads that step at every level (0.5&ndash;2&nbsp;MB), and playing or dragging the time slider loads every step of that map (31&ndash;33 files, 1.5&ndash;4&nbsp;MB).</p>
     <p>Data: NOAA GFS through the NOAA Open Data Dissemination program (AWS); ECCC GDPS (Data Source: Environment and Climate Change Canada (MSC Datamart), under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a>); GEOS FP potential vorticity from NASA GMAO (the site's <a href="/stratosphere.html#pv">GEOS FP PV product</a>). Model output as published, uncorrected. Boundaries: Natural Earth. Hoskins, B. J., M. E. McIntyre and A. W. Robertson, 1985, Q. J. R. Meteorol. Soc. 111, 877&ndash;946 &middot; Lait, L. R., 1994, J. Atmos. Sci. 51, 1754&ndash;1759 &middot; Charlton, A. J., and L. M. Polvani, 2007, J. Climate 20, 449&ndash;469.</p>
@@ -484,10 +468,9 @@
   var VV_STOPS = [S(-1, "#173a7e"), S(-0.6, "#3a72b5"), S(-0.3, "#8ab6dc"), S(-0.08, "#e2edf5"), S(0, "#f7f7f4"), S(0.08, "#f8e2d8"),
                   S(0.3, "#eda083"), S(0.6, "#d3563e"), S(1, "#8c1424")];
   var FIELDS = { t: { label: "Temperature", unit: "°C" }, wind: { label: "Wind", unit: "m/s" }, omega: { label: "Eulerian vertical motion", unit: "hPa/day" },
-                 tem: { label: "Residual circulation", unit: "mm/s" }, pv: { label: "Potential vorticity", unit: "PVU" } };
-  var FIELD_ORDER = ["t", "wind", "omega", "tem", "pv"];
-  var TEM_SUBS = { d: "Residual (TEM)", e: "Eulerian mean" };   // both from the winds (the About section says why)
-  function hasField(c, f) { return f === "omega" ? !!(c && c.omega) : f === "tem" ? !!(c && c.tem) : true; }
+                 pv: { label: "Potential vorticity", unit: "PVU" } };
+  var FIELD_ORDER = ["t", "wind", "omega", "pv"];
+  function hasField(c, f) { return f === "omega" ? !!(c && c.omega) : true; }
   var WIND_SUBS = { spd: { label: "Speed" }, u: { label: "Zonal wind" } };
   var HEMIS = { nh: "North", sh: "South" }, HEMI_LONG = { nh: "Northern Hemisphere", sh: "Southern Hemisphere" };
   // contour interval per level (height, dam) and per isentrope (Montgomery streamfunction / g, dam)
@@ -554,7 +537,7 @@
 
   // ── state ──────────────────────────────────────────────────────────────────────────────────────────────────────
   var man = {};
-  var st = { model: "gfs", tv: "d", hemi: "nh", field: "t", lev: "10", th: "850", wv: "spd", hour: 0, playing: false, engT: "", engL: "" };
+  var st = { model: "gfs", hemi: "nh", field: "t", lev: "10", th: "850", wv: "spd", hour: 0, playing: false, engT: "", engL: "" };
   var view = null;                                // {cx, cy, s: metres per CSS px}
   var $ = function (id) { return document.getElementById(id); };
   function escH(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
@@ -567,7 +550,7 @@
   // level)
   function fileOf(field, lev, th) { return field === "pv" ? "pv" + th : ({ t: "t", wind: "w", omega: "o" })[field] + lev; }
   function mainFile() { return fileOf(st.field, st.lev, st.th); }
-  function hoursOf(c) { if (st.field === "tem") return c && c.tem ? c.tem.hours : [0]; var fm = c && c.fields[mainFile()]; return fm ? fm.hours : (c ? c.hours : [0]); }
+  function hoursOf(c) { var fm = c && c.fields[mainFile()]; return fm ? fm.hours : (c ? c.hours : [0]); }
   function nearestHour(c, h) { var hs = hoursOf(c), best = hs[0]; hs.forEach(function (x) { if (Math.abs(x - h) < Math.abs(best - h)) best = x; }); return best; }
   function qOf(c, f, h) { var fm = c.fields[f], k = fm ? fm.hours.indexOf(h) : -1; return k < 0 || !fm.q ? null : fm.q[st.hemi][k]; }   // fixed-code files (vertical motion) have none
   function chOf(f) { return f.slice(0, 2) === "pv" ? 3 : f[0] === "o" ? 1 : 2; }
@@ -1154,7 +1137,6 @@
   }
   function clearGL() { if (gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); } }
   function draw() {
-    if (st.field === "tem") { updateBadge(); drawSection(); return; }
     if (glLost) return;
     if (interacting && fastFrame()) return;
     var c = cyc();
@@ -1446,7 +1428,6 @@
   function minus(v) { return String(v).replace("-", "−"); }
   function drawLegend() {
     if (!ENC) return;
-    if (st.field === "tem") { drawTemLegend(); return; }
     var g = legSetup(38), lo, hi, ticks = [], cap, v;
     var ci = st.field === "pv" ? CI_TH[st.th] : CI_LEV[st.lev], lev = levName(st.lev);
     if (st.field === "t") { lo = -95; hi = 25; for (v = -90; v <= 20; v += 10) ticks.push([v, minus(v)]);
@@ -1472,124 +1453,6 @@
     (g.vert ? vBar : hBar)(g, colAt, ticks.map(function (tk) { return [tOfV(tk[0]), tk[1]]; }));
   }
 
-  // ── the residual-circulation section (tem.json: zonal means, latitude x pressure, every step with a centred window) ──
-  // stepped classes, mm/s, the same on both signs: red descent, blue ascent, near-white inside +-0.05
-  var TEM_LEV = [0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20];
-  var TEM_DOWN = ["#fde3d6", "#f8c0a6", "#f09574", "#e0674a", "#c73e2e", "#a11f25", "#79101f", "#4f0818", "#2d0310"];
-  var TEM_UP = ["#dde9f3", "#b6d1e9", "#88b2d8", "#5a8fc4", "#376ead", "#23508d", "#16396f", "#0d2552", "#061536"];
-  var PSI_LEV = [10, 30, 100, 300, 1000, 3000, 10000];           // 1e6 kg/s, both signs
-  function temRgb(v) {
-    var a = Math.abs(v), i = -1; while (i + 1 < TEM_LEV.length && a >= TEM_LEV[i + 1]) i++;
-    var h = i < 0 ? "#f7f7f4" : (v > 0 ? TEM_DOWN : TEM_UP)[i];
-    return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
-  }
-  var TEMD = {};
-  function temData(c) {                                            // the run's tem.json, read once (Promise -> document or null)
-    var k = c.model + "/" + c.cycle;
-    if (!TEMD[k]) TEMD[k] = getBytes(DATA + c.model + "/" + c.cycle + "/tem.json", "high").then(function (b) { return JSON.parse(new TextDecoder().decode(b)); })
-      .catch(function () { delete TEMD[k]; return null; });
-    return TEMD[k];
-  }
-  var SEC = { doc: null, key: "", geo: null };
-  // the plot's geometry: latitude 90 S at the left, pressure on a log axis, 100 hPa at the bottom
-  function secGeo(doc, Wc, Hc) {
-    var L = Wc < 520 ? 58 : 112, R = 12, T = 34, B = 42, lev = doc.levels, lp0 = Math.log(lev[0]), lp1 = Math.log(lev[lev.length - 1]);
-    return { L: L, T: T, pw: Wc - L - R, ph: Hc - T - B, lp0: lp0, lp1: lp1,
-      x: function (la) { return L + (la + 90) / 180 * (Wc - L - R); }, y: function (pr) { return T + (Math.log(pr) - lp1) / (lp0 - lp1) * (Hc - T - B); } };
-  }
-  // bilinear in latitude and ln p on the section's grid (lat descending, levels bottom to top) -> value or null
-  function secAt(doc, arr, la, lnp) {
-    var lat = doc.lat, st0 = lat[0] - lat[1], fi = (lat[0] - la) / st0, lev = doc.levels, j = 0;
-    if (!(fi >= 0 && fi <= lat.length - 1)) return null;
-    while (j < lev.length - 2 && Math.log(lev[j + 1]) > lnp) j++;
-    var l0 = Math.log(lev[j]), l1 = Math.log(lev[j + 1]), fy = (lnp - l0) / (l1 - l0);
-    if (fy < -1e-6 || fy > 1 + 1e-6) return null;
-    var i0 = Math.min(Math.floor(fi), lat.length - 2), fx = fi - i0, r0 = arr[j], r1 = arr[j + 1];
-    return (1 - fy) * ((1 - fx) * r0[i0] + fx * r0[i0 + 1]) + fy * ((1 - fx) * r1[i0] + fx * r1[i0 + 1]);
-  }
-  function drawSection() {
-    var c = cyc(), cv = $("secC"), box = $("sec").getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
-    var Wc = Math.max(1, Math.round(box.width)), Hc = Math.max(1, Math.round(box.height));
-    if (cv.width !== Math.round(Wc * dpr) || cv.height !== Math.round(Hc * dpr)) { cv.width = Math.round(Wc * dpr); cv.height = Math.round(Hc * dpr); }
-    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, Wc, Hc);
-    ctx.font = "13px 'Source Sans 3', Arial, sans-serif"; ctx.fillStyle = "#3d4540";
-    var k0 = c && c.model + "/" + c.cycle;
-    if (!c || !c.tem) { ctx.fillText("This run has no residual circulation.", 20, 30); return; }
-    if (SEC.key !== k0) { SEC.doc = null; SEC.key = k0; temData(c).then(function (d) { if (SEC.key === k0) { SEC.doc = d; render(); } }); }
-    var doc = SEC.doc;
-    if (!doc) { ctx.fillText(SEC.doc === null ? "Loading the section…" : "", 20, 30); return; }
-    var ix = doc.hours.indexOf(st.hour); if (ix < 0) { ctx.fillText("Not available at +" + st.hour + " h.", 20, 30); return; }
-    var arr = doc[st.tv === "e" ? "e" : "d"][ix], psi = doc.psi ? doc.psi[ix] : null, g = secGeo(doc, Wc, Hc);
-    SEC.geo = g; SEC.ix = ix;
-    var iw = Math.round(g.pw * dpr), ih = Math.round(g.ph * dpr), img = ctx.createImageData(iw, ih), px = img.data;
-    for (var yy = 0; yy < ih; yy++) {
-      var lnp = g.lp1 + (yy + 0.5) / ih * (g.lp0 - g.lp1);
-      for (var xx = 0; xx < iw; xx++) {
-        var v = secAt(doc, arr, -90 + (xx + 0.5) / iw * 180, lnp), o = 4 * (yy * iw + xx);
-        if (v === null) continue;
-        var col = temRgb(v / 100); px[o] = col[0]; px[o + 1] = col[1]; px[o + 2] = col[2]; px[o + 3] = 255;
-      }
-    }
-    ctx.putImageData(img, Math.round(g.L * dpr), Math.round(g.T * dpr));
-    if (psi && $("cont").checked) {                                // psi* lines: marching squares on the section's grid
-      ctx.save(); ctx.beginPath(); ctx.rect(g.L, g.T, g.pw, g.ph); ctx.clip(); ctx.lineWidth = 1.1;
-      var lat = doc.lat, lev = doc.levels;
-      PSI_LEV.concat(PSI_LEV.map(function (q) { return -q; })).forEach(function (lv) {
-        ctx.beginPath(); ctx.setLineDash(lv < 0 ? [5, 4] : []); ctx.strokeStyle = "rgba(20,22,20,0.85)";
-        for (var j = 0; j + 1 < lev.length; j++) for (var i = 0; i + 1 < lat.length; i++) {
-          var a = psi[j][i], b = psi[j][i + 1], cc = psi[j + 1][i + 1], d = psi[j + 1][i], pts = [];
-          [[a, b, i, j, i + 1, j], [b, cc, i + 1, j, i + 1, j + 1], [cc, d, i + 1, j + 1, i, j + 1], [d, a, i, j + 1, i, j]].forEach(function (e) {
-            if ((e[0] - lv) * (e[1] - lv) < 0) { var f = (lv - e[0]) / (e[1] - e[0]); pts.push([e[2] + f * (e[4] - e[2]), e[3] + f * (e[5] - e[3])]); } });
-          for (var q = 0; q + 1 < pts.length; q += 2) {
-            var p0 = pts[q], p1 = pts[q + 1];
-            var X = function (pt) { return g.x(lat[0] - pt[0] * (lat[0] - lat[1])); }, Y = function (pt) {
-              var j0 = Math.floor(pt[1]), j1 = Math.min(j0 + 1, lev.length - 1), f2 = pt[1] - j0; return g.y(Math.exp((1 - f2) * Math.log(lev[j0]) + f2 * Math.log(lev[j1]))); };
-            ctx.moveTo(X(p0), Y(p0)); ctx.lineTo(X(p1), Y(p1));
-          }
-        }
-        ctx.stroke();
-      });
-      ctx.restore(); ctx.setLineDash([]);
-    }
-    // axes: latitude every 30 deg (the 60 deg cap edges dashed), the levels with their heights
-    ctx.strokeStyle = "#8c918b"; ctx.lineWidth = 1; ctx.strokeRect(g.L + 0.5, g.T + 0.5, g.pw - 1, g.ph - 1);
-    ctx.fillStyle = "#3d4540"; ctx.textAlign = "center"; ctx.textBaseline = "top";
-    [-90, -60, -30, 0, 30, 60, 90].forEach(function (la) {
-      var x = g.x(la); ctx.fillRect(x - 0.5, g.T + g.ph, 1, 5);
-      ctx.fillText(la === 0 ? "0°" : Math.abs(la) + "°" + (la > 0 ? "N" : "S"), Math.min(Math.max(x, g.L + 14), g.L + g.pw - 14), g.T + g.ph + 7);
-      if (Math.abs(la) === 60) { ctx.save(); ctx.setLineDash([3, 4]); ctx.strokeStyle = "rgba(40,44,40,0.45)"; ctx.beginPath(); ctx.moveTo(x + 0.5, g.T); ctx.lineTo(x + 0.5, g.T + g.ph); ctx.stroke(); ctx.restore(); }
-    });
-    ctx.textAlign = "right"; ctx.textBaseline = "middle"; var lastY = -1e9;
-    doc.levels.forEach(function (pr) {
-      var y = g.y(pr); if (Math.abs(y - lastY) < 16) return; lastY = y; ctx.fillRect(g.L - 5, y - 0.5, 5, 1);
-      var z = c.zmean_km && c.zmean_km[levKey(pr)];
-      ctx.fillText(pr + " hPa" + (z && Wc >= 520 ? " · " + Math.round(z) + " km" : ""), g.L - 8, y);
-    });
-    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; ctx.font = "600 13.5px 'Source Sans 3', Arial, sans-serif"; ctx.fillStyle = "#1f261c";
-    var w = c.tem && doc.win[ix];
-    ctx.fillText(MODELS[st.model] + " · " + (st.tv === "e" ? "Eulerian mean" : "residual (TEM)") + (Wc < 520 ? "" : " descent, zonal mean") + " · " + (w ? (w[1] - w[0]) + " h mean, +" + w[0] + " to +" + w[1] + " h" : ""), Wc < 520 ? 8 : g.L, 22);
-  }
-  function drawTemLegend() {
-    var g = legSetup(38), n = 2 * TEM_LEV.length + 1, cols = [];
-    TEM_UP.slice().reverse().forEach(function (h) { cols.push(h); }); cols.push("#f7f7f4"); TEM_DOWN.forEach(function (h) { cols.push(h); });
-    var bounds = TEM_LEV.slice().reverse().map(function (v) { return -v; }).concat(TEM_LEV), ticks = bounds.map(function (v, i) { return [(i + 1) / n, minus(+v.toPrecision(2))]; });
-    $("legT").textContent = (st.tv === "e" ? "Eulerian-mean descent (H/p) × [ω], [ω] from the winds by continuity" : "Residual (TEM) descent −w* = (H/p) ω*") + ", mm/s, H = 7 km: red where air sinks, blue where it rises · zonal means, " +
-      "smoothed in latitude (600 km Gaussian) and over up to 72 h centred on the valid time" + (SEC.doc && SEC.doc.psi && $("cont").checked ? " · lines: the residual streamfunction ψ* (solid clockwise with north to the right, dashed anticlockwise), ±1, 3, 10, 30, 100, 300, 1,000 × 10⁷ kg/s" : "");
-    (g.vert ? vBar : hBar)(g, function (t) { var c = cols[Math.min(n - 1, Math.floor(t * n))]; return [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16), 1]; }, ticks);
-  }
-  $("secC").addEventListener("pointermove", function (e) {
-    var doc = SEC.doc, g = SEC.geo, t = $("secTip"); if (!doc || !g || SEC.ix == null) { t.style.display = "none"; return; }
-    var r = $("sec").getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
-    var la = -90 + (x - g.L) / g.pw * 180, lnp = g.lp1 + (y - g.T) / g.ph * (g.lp0 - g.lp1);
-    var d = secAt(doc, doc.d[SEC.ix], la, lnp), eu = secAt(doc, doc.e[SEC.ix], la, lnp), ps = doc.psi ? secAt(doc, doc.psi[SEC.ix], la, lnp) : null;
-    if (d === null) { t.style.display = "none"; return; }
-    function dn(v) { v /= 100; return Math.abs(v) < 0.005 ? "none" : (v > 0 ? "descent " : "ascent ") + Math.abs(v).toPrecision(2) + " mm/s"; }
-    t.innerHTML = "<span class=\"v\">residual: " + dn(d) + "</span><br>Eulerian mean: " + dn(eu) + (ps !== null ? "<br>ψ* " + num(ps / 100, 1) + " × 10⁸ kg/s" : "") +
-      "<br><span class=\"ll\">" + Math.abs(la).toFixed(0) + "°" + (la >= 0 ? "N" : "S") + " · " + Math.exp(lnp).toPrecision(2) + " hPa</span>";
-    t.style.display = "block"; t.style.left = Math.min(x, r.width - t.offsetWidth - 16) + "px"; t.style.top = Math.min(y, r.height - t.offsetHeight - 16) + "px";
-  });
-  $("secC").addEventListener("pointerleave", function () { $("secTip").style.display = "none"; });
-
   // ── UI ─────────────────────────────────────────────────────────────────────────────────────────────────────────
   function fmtTime(ms) {
     var d = new Date(ms);
@@ -1600,7 +1463,6 @@
   function setHTML(id, html, last) { if (html !== last) $(id).innerHTML = html; return html; }
   function what() {
     if (st.field === "pv") return "PV on " + st.th + " K";
-    if (st.field === "tem") return (st.tv === "e" ? "Eulerian-mean" : "residual") + " circulation";
     return levName(st.lev) + " hPa " + (st.field === "t" ? "temperature" : st.field === "omega" ? "Eulerian vertical motion" : st.wv === "u" ? "zonal wind" : "wind");
   }
   function updateBadge() {
@@ -1638,12 +1500,9 @@
     segButtons($("fields"), FIELD_ORDER.filter(function (f) { return hasField(c, f); }), function (f) { return FIELDS[f].label + "<small>" + FIELDS[f].unit + "</small>"; }, st.field, function (f) {
       if (st.field === f) return; st.field = f; if (c) st.hour = nearestHour(c, st.hour); setButtons(); onChange(); });
     $("runT").textContent = c ? "Run " + c.init.slice(5, 10).replace("-", "/") + " " + c.init.slice(11, 13) + "Z, to +" + c.length + " h" : "";
-    $("subSeg").hidden = st.field !== "wind" && st.field !== "tem";
+    $("subSeg").hidden = st.field !== "wind";
     if (st.field === "wind") segButtons($("subSeg"), ["spd", "u"], function (k) { return WIND_SUBS[k].label; }, st.wv, function (k) { st.wv = k; setButtons(); onChange(); });
-    if (st.field === "tem") segButtons($("subSeg"), ["d", "e"], function (k) { return TEM_SUBS[k]; }, st.tv, function (k) { st.tv = k; setButtons(); onChange(); });
     $("barbL").hidden = st.field !== "wind";
-    var sec = st.field === "tem";                                  // the section replaces the map, its levels and hemispheres
-    $("sec").hidden = !sec; mapEl.hidden = sec; $("levs").hidden = sec; $("hemis").hidden = sec;
     var L = $("levs"); L.innerHTML = "";
     var cap = document.createElement("span"); cap.textContent = st.field === "pv" ? "Isentrope" : "Level"; L.appendChild(cap);
     levList().forEach(function (k) {
@@ -1693,9 +1552,7 @@
     if (st.field === "pv") n = "Ertel potential vorticity computed here from the " + MODELS[st.model] + "'s temperature and winds on " + (c && c.pv_levels ? c.pv_levels.length : "its") + " levels" +
       (st.model === "gdps" ? ", shown on 350–850 K only: the GDPS publishes no level between 5 and 1 hPa" : "") + " (<a href=\"#pvmethod\">method and checks</a>)" +
       (st.hemi === "sh" ? "; Southern Hemisphere PV is shown with its sign reversed, so the vortex is positive" : "") + ".";
-    else if (st.field === "omega") n = "The Eulerian vertical motion: the GFS's published vertical velocity (its geometric vertical motion, in pressure units), smoothed hard in space and averaged over up to 3 days centred on the valid time. Over a polar cap it often rises while the cap warms from above: the descent that carries the warming down is the <a href=\"#tem\">residual circulation</a>.";
-    else if (st.field === "tem") n = "Zonal means from pole to pole: the " + (st.tv === "e" ? "Eulerian-mean vertical motion, (H/p) times the zonal mean of omega" : "residual (transformed Eulerian mean) descent, the net vertical motion that carries the warming down") +
-      ", averaged over up to 3 days centred on the valid time (<a href=\"#tem\">method and checks</a>).";
+    else if (st.field === "omega") n = "The Eulerian vertical motion: the GFS's published vertical velocity (its geometric vertical motion, in pressure units), smoothed hard in space and averaged over up to 3 days centred on the valid time. Over a polar cap it often rises while the cap warms from above (<a href=\"#vvmethod\">method</a>).";
     else if (+levName(st.lev) < 1) n = "Above 1 hPa (the stratopause region) the analysis has few observations to draw on: read these maps as the model's picture.";
     $("note").innerHTML = n;
     drawLegend(); prefetch(); writeHash(); render();
@@ -1709,7 +1566,6 @@
   function engageL() { st.engL = engKeyL(); }
   function prefetch() {
     var c = cyc(); if (!c) return;
-    if (st.field === "tem") { if (c.tem) temData(c).then(render); return; }
     var f0 = mainFile(), fm = c.fields[f0]; if (!fm) return;
     var slow = netSlow(), list = [], seen = {};
     function add(f, h) { var k = f + "/" + h; if (seen[k] || !c.fields[f] || c.fields[f].hours.indexOf(h) < 0) return; seen[k] = 1; list.push([c, st.hemi, f, h]); }
@@ -1892,8 +1748,8 @@
   }
 
   // ── URL hash: #[model/]hemisphere/field/level-or-isentrope/step[/u] (no model = the GFS) ────────────────────────────
-  function writeHash() { try { history.replaceState(null, "", "#" + (st.model === "gfs" ? "" : st.model + "/") + st.hemi + "/" + st.field + "/" + (st.field === "tem" ? "-" : levName(curLev())) + "/" + st.hour +
-    (st.field === "wind" && st.wv === "u" ? "/u" : st.field === "tem" && st.tv === "e" ? "/e" : "")); } catch (e) {} }
+  function writeHash() { try { history.replaceState(null, "", "#" + (st.model === "gfs" ? "" : st.model + "/") + st.hemi + "/" + st.field + "/" + levName(curLev()) + "/" + st.hour +
+    (st.field === "wind" && st.wv === "u" ? "/u" : "")); } catch (e) {} }
   function readHash() {
     var p = location.hash.replace("#", "").split("/");
     if (MODELS[p[0]]) st.model = p.shift();
@@ -1902,7 +1758,6 @@
     if (p[2] && p[2] !== "-") { if (st.field === "pv") st.th = p[2]; else st.lev = levKey(p[2]); }
     var hadHour = p[3] !== undefined && /^\d+$/.test(p[3]); if (hadHour) st.hour = +p[3];
     if (p[4] === "u") st.wv = "u";
-    if (p[4] === "e") st.tv = "e";
     return hadHour;
   }
   // the run's checks (scripts/models/strat_maps.py "checks") and the polar-cap PV beside GEOS FP's, for the method section
@@ -1911,23 +1766,6 @@
     if (geos) GEOS = geos;
     var lines = MODEL_ORDER.filter(cycleOf).map(function (mod) { var t = checksOf(mod, cycleOf(mod), GEOS); return t ? MODELS[mod] + " run of " + cycleOf(mod).init.slice(5, 10).replace("-", "/") + " " + cycleOf(mod).init.slice(11, 13) + "Z. " + t : ""; }).filter(Boolean);
     $("checks").textContent = lines.join(" ");
-  }
-  function temChecks(c) {
-    var k0 = c && c.tem && c.tem.checks; if (!k0) return "";
-    var m = function (key) { var x = k0[key]; return x ? x.median : null; }, f = function (v, d) { return v === null ? "–" : v.toFixed(d); }, out = [];
-    out.push("the polar-cap identity holds to " + f(100 * m("identity_rel"), 2) + " % of the eddy term (median over the steps and caps; largest " + f(100 * k0.identity_rel.max, 2) + " %)");
-    out.push("the kinematic Eulerian mean against the GFS's VVEL with the moving pressure surfaces put back (20–85°): " + [10, 50, 100].map(function (q) {
-      return q + " hPa r " + f(m("kin_vs_w/" + q + "/r"), 2) + ", rms ratio " + f(m("kin_vs_w/" + q + "/rms_ratio"), 2); }).join("; "));
-    out.push("the same with each level's global mean removed: " + [10, 50, 100].map(function (q) {
-      return q + " hPa r " + f(m("kin_vs_w_anom/" + q + "/r"), 2) + ", rms ratio " + f(m("kin_vs_w_anom/" + q + "/rms_ratio"), 2); }).join("; "));
-    out.push("global mean as a share of the rms, the largest over the levels: VVEL as published " + f(100 * m("global_mean/vvel"), 0) + " %, with the pressure surfaces put back " + f(100 * m("global_mean/vvel_corrected"), 0) + " %, kinematic " + f(100 * m("global_mean/kinematic"), 2) + " %");
-    out.push("ω* rebuilt from the GDPS's levels alone against the full column: " + [10, 50, 100].map(function (q) {
-      return q + " hPa r " + f(m("gdps_levels/" + q + "/r"), 2) + ", rms ratio " + f(m("gdps_levels/" + q + "/rms_ratio"), 2); }).join("; ") +
-      "; polar-cap means at 10 hPa " + f(m("gdps_levels/10/cap_ratio_nh"), 2) + " north, " + f(m("gdps_levels/10/cap_ratio_sh"), 2) + " south of the full column's");
-    var hs = c.tem.hours, ix = hs.indexOf(36) >= 0 ? hs.indexOf(36) : 0, cp = c.tem.cap && c.tem.cap[ix];
-    if (cp) out.push("over the caps at +" + hs[ix] + " h (the first full 72 h mean): " + ["nh", "sh"].map(function (h) {
-      return (h === "nh" ? "60–90°N" : "60–90°S") + " residual descent " + [10, 100].map(function (q) { var x = cp[h + "/" + q]; return num(x.residual, 2) + " mm/s at " + q + " hPa (Eulerian " + num(x.eulerian, 2) + ")"; }).join(", "); }).join("; "));
-    return "This run (GFS " + c.init.slice(5, 10).replace("-", "/") + " " + c.init.slice(11, 13) + "Z). " + out.map(function (x) { return x.charAt(0).toUpperCase() + x.slice(1); }).join(". ") + ".";
   }
   function checksOf(mod, c, geos) {
     var k0 = c && c.checks; if (!k0) return "";
@@ -1960,7 +1798,6 @@
         out.push("polar-cap (poleward of 60°) mean PV on " + day + " 00 UTC, " + M + " +" + c.hours[ih] + " h against GEOS FP (" + (ig ? "its +" + ig + " d forecast" : "its analysis") + "): " + cmp.join("; "));
       }
     }
-    if (mod === "gfs") $("temchecks").textContent = temChecks(c);
     if (c.omega && c.omega.ref) out.push("the vertical motion's colour ranges come from " + c.omega.ref.samples + " samples of GFS analyses (" + c.omega.ref.period + "): " +
       ["100", "10", "1"].filter(function (k) { return c.omega.ranges[k]; }).map(function (k) { return "±" + c.omega.ranges[k] + " hPa/day at " + k + " hPa"; }).join(", "));
     return out.length ? out.map(function (x) { return x.charAt(0).toUpperCase() + x.slice(1); }).join(". ") + "." : "";
@@ -2002,7 +1839,6 @@
   });
   if (typeof ResizeObserver === "function") {
     new ResizeObserver(function () { if (view && !mapEl.hidden) { var s = view.s; resize(); view.s = s; render(); } }).observe(mapEl);
-    new ResizeObserver(function () { if (st.field === "tem") { drawLegend(); render(); } }).observe($("sec"));
   }
   else window.addEventListener("resize", resize);
 })();
