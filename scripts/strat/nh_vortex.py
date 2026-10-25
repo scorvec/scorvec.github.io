@@ -431,6 +431,9 @@ def load_geosfp(base):
         tt = pd.DatetimeIndex(d.time.values)
         if len(tt) < 70:  # run still being written
             continue
+        if tt[0] != init or not (tt.is_monotonic_increasing and tt.is_unique):
+            print(f"::warning::GEOS FP {init:%Y%m%d} 00Z: time axis corrupt (starts {tt[0]}); skipped", flush=True)
+            continue
         ti = np.flatnonzero(tt.hour == 0)
         lev = d.lev.values
         l10, l100 = int(np.argmin(np.abs(lev - 10))), int(np.argmin(np.abs(lev - 100)))

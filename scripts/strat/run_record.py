@@ -223,15 +223,34 @@ def entry(product: str, frames: dict, scalars: dict | None = None) -> dict | Non
     return rec
 
 
+def sane(r: dict) -> bool:
+    """A run whose valid times strictly increase from its start, a start not in the future. A corrupt time axis (one
+    GEOS FP read put a run's first time four days late) would file a run days ahead, and every other model's newest run
+    would then look too old to draw."""
+    v = pd.DatetimeIndex(r.get("valid", []))
+    i = pd.Timestamp(r["init"])
+    now = pd.Timestamp.now("UTC").tz_localize(None)
+    return len(v) > 0 and v.is_monotonic_increasing and v.is_unique and i <= v[0] and i <= now + pd.Timedelta(hours=6)
+
+
 def record(product: str, model: str, base: pd.Timestamp, rec: dict | None) -> None:
-    """Add (or replace) run `base` of the model to its record; runs older than KEEP_DAYS before it are dropped."""
+    """Add (or replace) run `base` of the model to its record; runs older than KEEP_DAYS before it, and any that is not
+    sane(), are dropped."""
     if rec is None:
+        return
+    if not sane({"init": f"{base:%Y-%m-%dT%H}", **rec}):
+        print(
+            f"::warning::{product} {model} {base:%Y-%m-%d %HZ}: valid times out of order or a start ahead of now; not recorded",
+            flush=True,
+        )
         return
     p = path(product, model)
     doc = json.loads(p.read_text()) if p.exists() else {"product": product, "model": model, "runs": []}
     init = f"{base:%Y-%m-%dT%H}"
     cut = base - pd.Timedelta(days=KEEP_DAYS)
-    runs = [r for r in doc["runs"] if r["init"] != init and pd.Timestamp(r["init"]) >= cut] + [{"init": init, **rec}]
+    runs = [r for r in doc["runs"] if r["init"] != init and pd.Timestamp(r["init"]) >= cut and sane(r)] + [
+        {"init": init, **rec}
+    ]
     doc["runs"] = sorted(runs, key=lambda r: r["init"])
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(doc, separators=(",", ":"), allow_nan=False))
@@ -264,8 +283,9 @@ def merge(src: Path) -> list[Path]:
 
 
 def runs(product: str, model: str) -> list:
+    """The model's recorded runs, oldest first, those that are sane() only."""
     p = path(product, model)
-    return json.loads(p.read_text())["runs"] if p.exists() else []
+    return [r for r in json.loads(p.read_text())["runs"] if sane(r)] if p.exists() else []
 
 
 def series(rec: dict, key: str, stat: str = "mean") -> pd.Series:
