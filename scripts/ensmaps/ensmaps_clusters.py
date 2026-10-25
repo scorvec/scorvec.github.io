@@ -28,8 +28,9 @@ anomalies in the Actions cache (save_fields, from ensmaps.py), and `run` cluster
             it; the nearest regime of each sector (pattern correlation of the cluster's mean 500 hPa anomaly with
             regime_core's centroids of the season, "no regime" below 0.25); how members move from window to window and
             from day to day; letters that follow a scenario through the windows and through the days (chain_letters); a
-            permutation chi-square test of model x cluster independence, naming the models a cluster over- or
-            under-represents (adjusted residual beyond 2.58) when it fails at 5 %; polar stereographic Northern
+            permutation chi-square test of model x cluster independence: a split that fails it at 5 % follows the
+            models, not the weather, and is shown as no scenario but each model's mean (on the drift-corrected fields
+            once the drift is removed); polar stereographic Northern
             Hemisphere maps per cluster, 500 hPa height and sea-level pressure, the anomaly (or the standardized anomaly:
             ensmaps_ref.Spread of the window's length) shaded where at least sign_k(n) of its n members agree on its
             sign, dots where its mean differs from the grand ensemble's (N_PERM random member sets of its size,
@@ -75,6 +76,7 @@ DAYS_MAX = 16  # the days clustered one by one (GEFS and GEPS hold the 16th)
 K_MAX, N_START, N_NULL, N_BOOT, STABLE, MIN_W, VAR_KEEP = 5, 100, 100, 50, 0.6, 0.05, 0.80
 N_START_FAST = 10  # starts for the null and bootstrap ensembles
 N_PERM, FDR_Q = 500, 0.10
+P_MODELS = 0.05  # a split whose model x cluster test is below this follows the models: no scenarios
 DRIFT_MIN, DRIFT_K, DRIFT_KEEP, DRIFT_DAYS = 10, 10.0, 60, 15
 MODEL_ORDER = ("ifs", "aifs", "gefs", "geps")
 LABEL = {"ifs": "IFS-ENS", "aifs": "AIFS-ENS", "gefs": "GEFS", "geps": "GEPS"}
@@ -349,30 +351,19 @@ def order(lab: np.ndarray, w: np.ndarray, k: int) -> np.ndarray:
     return np.argsort(rank)[lab]
 
 
-def independence(mi: np.ndarray, lab: np.ndarray, k: int, nm: int, rng) -> dict:
-    """Permutation chi-square test of model x cluster; the models each cluster over- or under-represents (adjusted
-    residual beyond 2.58) when p < 0.05."""
+def independence(mi: np.ndarray, lab: np.ndarray, k: int, nm: int, rng) -> float | None:
+    """p of a permutation chi-square test of model x cluster (2000 permutations); None for one cluster or one model."""
     if k < 2 or nm < 2:
-        return {"p": None, "flags": [[] for _ in range(k)]}
+        return None
 
     def chi2(lb):
         O = np.array([[np.sum((mi == i) & (lb == j)) for j in range(k)] for i in range(nm)], float)
         E = O.sum(1, keepdims=True) * O.sum(0, keepdims=True) / O.sum()
-        return ((O - E) ** 2 / np.where(E > 0, E, 1)).sum(), O, E
+        return ((O - E) ** 2 / np.where(E > 0, E, 1)).sum()
 
-    x0, O, E = chi2(lab)
-    perm = np.array([chi2(rng.permutation(lab))[0] for _ in range(2000)])
-    p = float((1 + (perm >= x0).sum()) / (1 + perm.size))
-    flags = [[] for _ in range(k)]
-    if p < 0.05:
-        N = O.sum()
-        ri, cj = O.sum(1, keepdims=True) / N, O.sum(0, keepdims=True) / N
-        res = (O - E) / np.sqrt(np.where(E > 0, E, 1) * (1 - ri) * (1 - cj))
-        for i in range(nm):
-            for j in range(k):
-                if abs(res[i, j]) > 2.58:
-                    flags[j].append({"i": i, "over": bool(res[i, j] > 0)})
-    return {"p": round(p, 4), "flags": flags}
+    x0 = chi2(lab)
+    perm = np.array([chi2(rng.permutation(lab)) for _ in range(2000)])
+    return round(float((1 + (perm >= x0).sum()) / (1 + perm.size)), 4)
 
 
 def nearest_regimes(ref, zc: np.ndarray, season: str, sks: list[str]) -> dict:
@@ -427,7 +418,8 @@ def periods(models: list[dict]) -> list[dict]:
 def solve(job: dict) -> dict:
     """One period's clusters in each domain (a worker process): {domain: k, the labels (the largest cluster 0), the
     evidence, the independence test, and per cluster its weight, mean, sign agreement and difference from the grand
-    ensemble's mean}."""
+    ensemble's mean}. A split that follows the models (the independence test at 5 %) is no scenario: one group
+    (k 1) whose panels are the models' own means, and `models` gives the test's p and the clusters found."""
     import ensmaps as E
 
     z, m, w, mi, dates, nm = (job[k] for k in ("z", "m", "w", "mi", "dates", "nm"))
@@ -437,10 +429,11 @@ def solve(job: dict) -> dict:
         Y, var, share = pca(vectors(z, m, dk, dates), w)
         k, labs, ev = choose(Y, w, var, mi, rng)
         lab = order(labs[k - 1], w, k)
-        ind = independence(mi, lab, k, nm, rng)
+        p_ind = independence(mi, lab, k, nm, rng)
+        models = {"p": p_ind, "k": k} if p_ind is not None and p_ind < P_MODELS else None
+        groups = [mi == i for i in range(nm)] if models else [lab == j for j in range(k)]
         cl = []
-        for j in range(k):
-            sel = lab == j
+        for sel in groups:
             cz = (w[sel, None, None] * z[sel]).sum(0) / w[sel].sum()
             cm = (w[sel, None, None] * m[sel]).sum(0) / w[sel].sum()
             n = int(sel.sum())
@@ -450,15 +443,17 @@ def solve(job: dict) -> dict:
                 "n": n,
                 "k": kk,
                 "shares": [float((sel & (mi == i)).sum() / max((mi == i).sum(), 1)) for i in range(nm)],
-                "flags": ind["flags"][j],
                 "cz": cz,
                 "cm": cm,
                 "agz": (np.sign(z[sel]) == np.sign(cz)[None]).sum(0) >= kk,
                 "agm": (np.sign(m[sel]) == np.sign(cm)[None]).sum(0) >= kk,
-                "sig_z": differs(z.reshape(len(w), -1), w, sel, rng).reshape(cz.shape) if k > 1 else np.zeros(cz.shape, bool),
-                "sig_m": differs(m.reshape(len(w), -1), w, sel, rng).reshape(cm.shape) if k > 1 else np.zeros(cm.shape, bool),
+                "sig_z": differs(z.reshape(len(w), -1), w, sel, rng).reshape(cz.shape) if len(groups) > 1 else np.zeros(cz.shape, bool),
+                "sig_m": differs(m.reshape(len(w), -1), w, sel, rng).reshape(cm.shape) if len(groups) > 1 else np.zeros(cm.shape, bool),
             })  # fmt: skip
-        out[dk] = {"k": k, "lab": lab, "ev": ev, "eofs": int(Y.shape[1]), "share": share, "p_ind": ind["p"], "cl": cl}
+        if models:
+            k, lab = 1, np.zeros_like(lab)
+        out[dk] = {"k": k, "lab": lab, "ev": ev, "eofs": int(Y.shape[1]), "share": share, "p_ind": p_ind,
+                   "models": models, "cl": cl}  # fmt: skip
     return out
 
 
@@ -585,15 +580,16 @@ def run(paths: list[Path], site: Path, lists: Path | None, manifest_in: Path | N
             cl = []
             for j, c in enumerate(sol["cl"]):
                 info = {
-                    "letter": sol["letters"][j],
+                    "letter": None if sol["models"] else sol["letters"][j],
                     "p": round(c["p"], 3),
                     "n": c["n"],
                     "k": c["k"],
                     "shares": {r["key"]: round(s, 3) for r, s in zip(ins, c["shares"], strict=True)},
                     "regimes": nearest_regimes(ref, c["cz"], season, ["ea", "na"] if dk == "nh" else [dk]),
-                    "flags": [{"model": ins[f["i"]]["key"], "over": f["over"]} for f in c["flags"]],
                 }
-                title = figure_title(info, k, dlabel, P)
+                if sol["models"]:
+                    info["model"] = ins[j]["key"]
+                title = figure_title(info, k, dlabel, P, sol["models"])
                 for v in ("phys", "sigma"):
                     draws.append((outdir, (f"{P['key']}_{dk}_{j}_{v}", dk, title, v, c["cz"], c["cm"], nz + c["cz"],
                                            nmsl + c["cm"], c["agz"], c["agm"], c["sig_z"], c["sig_m"], high, sdz, sdm)))  # fmt: skip
@@ -602,12 +598,15 @@ def run(paths: list[Path], site: Path, lists: Path | None, manifest_in: Path | N
             ev = sol["ev"]
             res = {"k": k, "eofs": sol["eofs"], "explained": round(sol["share"], 3), "evidence": ev,
                    "independence": sol["p_ind"], "clusters": cl, "members": len(P["w"])}  # fmt: skip
+            if sol["models"]:
+                res["models"] = sol["models"]
             if "from" in sol:
                 res["from_previous"] = sol["from"]
             result[P["key"]][dk] = res
-            log(f"  {P['key']} {dk}: {len(P['w'])} members, {sol['eofs']} EOFs ({sol['share']:.0%}), k = {k} "
-                f"{''.join(x or '-' for x in sol['letters'])} (reductions {ev['reduction'][1:]}, null p95 "
-                f"{ev['null_p95'][1:]}, stability {ev['stability']})")  # fmt: skip
+            what = (f"the split (k = {sol['models']['k']}) follows the models, p {sol['models']['p']}" if sol["models"]
+                    else f"k = {k} {''.join(x or '-' for x in sol['letters'])}")  # fmt: skip
+            log(f"  {P['key']} {dk}: {len(P['w'])} members, {sol['eofs']} EOFs ({sol['share']:.0%}), {what} "
+                f"(reductions {ev['reduction'][1:]}, null p95 {ev['null_p95'][1:]}, stability {ev['stability']})")  # fmt: skip
     nbytes = 0
     with ProcessPoolExecutor(max(1, min(workers, len(draws)))) as ex:
         for (info, v), (fn, nb) in zip(where, ex.map(_draw, draws, chunksize=4), strict=True):
@@ -666,14 +665,19 @@ def ensembles(ins: list[dict]) -> str:
     )
 
 
-def figure_title(info: dict, k: int, dlabel: str, P: dict) -> list[str]:
+def figure_title(info: dict, k: int, dlabel: str, P: dict, models: dict | None) -> list[str]:
     d0, d1 = (pd.Timestamp(x) for x in (P["dates"][0], P["dates"][-1]))
     span = f"{d0:%a %b %-d} – {d1:%a %b %-d}" if P["kind"] == "window" else f"{d0:%a %b %-d} (day {P['days'][0]})"
     ens = ensembles(P["ins"])
-    head = f"Scenario {info['letter']}: {info['p']:.0%} of {ens}" if k > 1 else f"One scenario: the mean of {ens}"
+    if models:
+        head = f"{LABEL[info['model']]} mean: the ensembles differ, the split follows the models (p {models['p']})"
+        who = f"Members: {info['n']} of {LABEL[info['model']]}"
+    else:
+        head = f"Scenario {info['letter']}: {info['p']:.0%} of {ens}" if k > 1 else f"One scenario: the mean of {ens}"
+        who = "Members in it: " + " · ".join(f"{LABEL[m]} {s:.0%}" for m, s in info["shares"].items())
     return [
         f"{head} · {dlabel} · {span}",
-        "Members in it: " + " · ".join(f"{LABEL[m]} {s:.0%}" for m, s in info["shares"].items()),
+        who,
         "Runs: " + " · ".join(f"{LABEL[r['key']]} {pd.Timestamp(r['init'][:13]):%b %-d %H}Z" for r in P["ins"]),
     ]
 
