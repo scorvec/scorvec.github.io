@@ -40,17 +40,7 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Anything to build?
-        id: gate
-        run: |
-          if [ "${{ github.event_name }}" = schedule ] && \
-             gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null | grep -qx ensmaps_t2m_normals.npz; then
-            echo "the release holds the normals: nothing to build"; echo "build=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "build=true" >> "$GITHUB_OUTPUT"
-          fi
       - uses: actions/checkout@v7
-        if: steps.gate.outputs.build == 'true'
         with:
           sparse-checkout: |
             scripts/ensmaps
@@ -60,16 +50,14 @@ jobs:
             .github/workflows
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v7
-        if: steps.gate.outputs.build == 'true'
         with:
           python-version: '3.11'
       - name: Install dependencies
-        if: steps.gate.outputs.build == 'true'
         run: |
           pip install --quiet numpy scipy pandas eccodes cdsapi requests
 
       - name: CDS credentials
-        if: steps.gate.outputs.build == 'true' && !inputs.refit
+        if: ${{ !inputs.refit }}
         env:
           CDSAPI_URL: ${{ secrets.CDSAPI_URL }}
           CDSAPI_KEY: ${{ secrets.CDSAPI_KEY }}
@@ -79,7 +67,6 @@ jobs:
           printf 'url: %s\nkey: %s\n' "${CDSAPI_URL:-https://cds.climate.copernicus.eu/api}" "$CDSAPI_KEY" > ~/.cdsapirc
 
       - name: Release and the units it holds
-        if: steps.gate.outputs.build == 'true'
         run: |
           if ! gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release create "$TAG" -R "$GITHUB_REPOSITORY" --title "Global ensemble maps, 2 m temperature normals v1" \
@@ -92,7 +79,7 @@ jobs:
           cat held.txt
 
       - name: Fetch the missing units (CDS, one request at a time)
-        if: steps.gate.outputs.build == 'true' && !inputs.refit
+        if: ${{ !inputs.refit }}
         timeout-minutes: 300
         env:
           CDS_SEQ_LOG: ${{ runner.temp }}/cds_seq.jsonl
@@ -101,7 +88,7 @@ jobs:
           cat "$CDS_SEQ_LOG" 2>/dev/null || true
 
       - name: Upload the new units
-        if: always() && steps.gate.outputs.build == 'true'
+        if: always()
         run: |
           shopt -s nullglob
           for f in ref/ensmaps_*.npz; do
@@ -110,7 +97,6 @@ jobs:
           done
 
       - name: Fit the daily curves and publish them
-        if: steps.gate.outputs.build == 'true'
         run: |
           rc=0; python scripts/ensmaps/ensmaps_ref.py fit --in-dir ref --out ref/ensmaps_t2m_normals.npz || rc=$?
           if [ "$rc" -eq 3 ]; then echo "::notice::units still missing; the next run continues"; exit 0; fi
