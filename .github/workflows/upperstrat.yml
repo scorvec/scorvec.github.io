@@ -69,7 +69,6 @@ jobs:
             scripts/strat/run_record.py
             assets/sst/data/runs/upperstrat_*.json
             assets/sst/runs/upperstrat_*.webp
-            scripts/strat/geos_pv.py
             scripts/strat/reference/upperstrat_clim.nc
             scripts/strat/reference/upperstrat_tail_seed.json
             scripts/lib

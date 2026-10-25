@@ -120,7 +120,6 @@ scripts/strat/*
 !scripts/strat/heatflux100_ext.py
 !scripts/strat/strat_ens.py
 !scripts/strat/bdc_dc.py
-!scripts/strat/geos_pv.py
 !scripts/strat/momentum_budget.py
 !scripts/strat/build_vt100_clim.py
 !scripts/strat/heatflux100_bias.py

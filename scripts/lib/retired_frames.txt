@@ -9,6 +9,10 @@
 #
 # One path per line.
 
+# Retired 2026-10-25: GEOS FP's PV is on strat-models.html (scripts/models/strat_maps.py --model geos).
+assets/sst/anim/geos_pv_nh
+assets/sst/anim/geos_pv_sh
+
 # Replaced 2026-08-30 by per-hemisphere loops (wave1_nh / wave1_sh).
 assets/sst/anim/wave1_maps
 # Replaced 2026-08-30 by per-level loops (vortex_10 / vortex_100).

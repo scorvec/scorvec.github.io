@@ -527,15 +527,50 @@ def render_sec(M, tail, clim, which, hemi, path):
 
 
 # ------------------------------------------------------------------------------------------------------- maps ---
+class Native:
+    """A regular grid in the polar-stereographic plane (the map's own coordinates) covering 20-90 deg, and the
+    bilinear weights from the lat/lon grid onto it. Shading and contours are drawn on it WITHOUT a transform: no seam
+    at the dateline, no singular row at the pole, and contour lengths come out in metres (a contour drawn with
+    transform=PlateCarree split at 180 and ringed the pole)."""
+
+    def __init__(self, north, lat, lon, n=420):
+        import cartopy.crs as ccrs
+        from scipy.interpolate import RegularGridInterpolator
+
+        self.proj = ccrs.NorthPolarStereo() if north else ccrs.SouthPolarStereo()
+        r = self.proj.transform_point(0.0, 20.0 if north else -20.0, ccrs.PlateCarree())
+        R = float(np.hypot(*r))
+        self.x = np.linspace(-R, R, n)
+        self.y = np.linspace(-R, R, n)
+        X, Y = np.meshgrid(self.x, self.y)
+        ll = ccrs.PlateCarree().transform_points(self.proj, X, Y)
+        self.lon, self.lat = ll[..., 0] % 360, ll[..., 1]
+        self.out = np.hypot(X, Y) > R
+        o = np.argsort(lat)
+        self._lat, self._o = lat[o], o
+        ol = np.argsort(lon % 360)
+        self._ol = ol
+        self._lon = np.append((lon % 360)[ol], (lon % 360)[ol][0] + 360)
+        self._RGI = RegularGridInterpolator
+        self._pts = np.column_stack([np.clip(self.lat.ravel(), self._lat[0], self._lat[-1]), self.lon.ravel()])
+
+    def __call__(self, f):
+        g = f[self._o][:, self._ol]
+        g = np.concatenate([g, g[:, :1]], axis=1)
+        v = self._RGI((self._lat, self._lon), g, bounds_error=False, fill_value=np.nan)(self._pts).reshape(
+            self.lat.shape
+        )
+        v[self.out] = np.nan
+        return v
+
+
 _NAT = {}
 
 
 def native(north):
     if north not in _NAT:
-        import geos_pv
-
         lat = UD.LAT_N if north else -UD.LAT_N
-        _NAT[north] = geos_pv.Native(north, lat, UD.LON_1, n=360)
+        _NAT[north] = Native(north, lat, UD.LON_1, n=360)
     return _NAT[north]
 
 

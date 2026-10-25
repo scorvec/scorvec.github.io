@@ -559,13 +559,11 @@
     else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && inList) { stepProduct(e.key === "ArrowDown" ? 1 : -1); e.preventDefault(); }
   });
   // A stamp more than STALE_K update intervals old says so. The loops with a footer stamp (the circulation and
-  // stratosphere pages) are rebuilt each 00/12Z cycle, 12 h, except those listed by manifest: GEOS FP makes one
-  // forecast a day.
-  var STALE_K = 3, CADENCE_H = { _: 12, "geos_pv_manifest.json": 24 };
-  function stampText(x, f) {
-    var t = String(x.text || ""), at = +x.at, mf = "";
-    try { mf = new URL(f.src, location.href).searchParams.get("manifest") || ""; } catch (e) {}
-    var cad = CADENCE_H[mf] || CADENCE_H._, age = Date.now() - at;
+  // stratosphere pages) are rebuilt each 00/12Z cycle, every CADENCE_H hours.
+  var STALE_K = 3, CADENCE_H = 12;
+  function stampText(x) {
+    var t = String(x.text || ""), at = +x.at;
+    var cad = CADENCE_H, age = Date.now() - at;
     if (!t || !(at > 0) || age <= STALE_K * cad * 3600e3) return t;
     var h = Math.floor(age / 3600e3);
     return t + " · " + (h >= 48 ? Math.floor(h / 24) + " days" : h + " h") + " old; this product normally updates every " + cad + " h";
@@ -575,7 +573,7 @@
     var f = document.querySelector("#stage iframe");
     if (x.type === "sstAnimStamp") {               // the loop on stage names its own run (sst_anim.html postStamp)
       var ss = $("stage-stamp");
-      if (ss && f && f.contentWindow === e.source && e.origin === location.origin) ss.textContent = stampText(x, f);
+      if (ss && f && f.contentWindow === e.source && e.origin === location.origin) ss.textContent = stampText(x);
       return;
     }
     // the loop on stage asks for its frame enlarged (sst_anim.html): the stage's own lightbox, unless the page runs

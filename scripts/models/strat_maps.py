@@ -67,7 +67,7 @@ Checks, per run (manifest "checks"; the page's method section shows them):
                  have carried decametres under a metres label): temperature in K, heights against a standard
                  atmosphere at every level (the 10 hPa median near 31,000 m), winds, vorticity, the 2-PVU pressure
   cap            the polar-cap (poleward of 60 deg, cos-weighted) mean PV and log-mean pressure at 475 and 850 K on every
-                 step: the quantities the site's GEOS FP PV product (scripts/strat/geos_pv.py) reports, so the page can
+                 step: the quantities GEOS FP's run on the page reports (its own EPV), so the page can
                  set the models side by side for the same day
 
 Sources. GFS (hard rule: NOAA models from AWS S3, never NOMADS): noaa-gfs-bdp-pds, byte ranges of only the wanted
