@@ -96,6 +96,7 @@ def wb2_year(y: int, only: list[str] | None = None) -> dict:
 
 # ---------------------------------------------------------------- ARCO (2023 onward): one 6-hourly step at a time
 RAW = "gcp-public-data-arco-era5/raw/date-variable-pressure_level"
+RAW_SL = "gcp-public-data-arco-era5/raw/date-variable-single_level"
 
 
 def _open_raw(b: bytes) -> xr.Dataset:
@@ -126,12 +127,20 @@ class Arco:
 
     def _plev(self, d: date, var: str, lev: int) -> np.ndarray:
         """(4, lat, lon) at HOURS from the raw daily file, latitude 90..-90 like the zarr store."""
-        with self.fs.open(f"{RAW}/{d:%Y/%m/%d}/{var}/{lev}.nc", "rb") as f:
+        return self._raw(f"{RAW}/{d:%Y/%m/%d}/{var}/{lev}.nc", HOURS)
+
+    def _sfc(self, d: date, var: str, hours: tuple = HOURS) -> np.ndarray:
+        """(hours, lat, lon) of a surface field from the raw daily file: the days the zarr store lacks (it has no
+        10 or 14 Oct 2026, which the raw files hold)."""
+        return self._raw(f"{RAW_SL}/{d:%Y/%m/%d}/{var}/surface.nc", hours)
+
+    def _raw(self, path: str, hours: tuple) -> np.ndarray:
+        with self.fs.open(path, "rb") as f:
             ds = _open_raw(f.read())
         da = ds[next(iter(ds.data_vars))].squeeze(drop=True)
         tdim = next(x for x in da.dims if "time" in x)
         hrs = pd.DatetimeIndex(da[tdim].values).hour
-        da = da.isel({tdim: [list(hrs).index(h) for h in HOURS]}).transpose(tdim, "latitude", "longitude")
+        da = da.isel({tdim: [list(hrs).index(h) for h in hours]}).transpose(tdim, "latitude", "longitude")
         if da.latitude.values[0] < da.latitude.values[-1]:
             da = da.isel(latitude=slice(None, None, -1))
         return da.values.astype(np.float32)
@@ -151,6 +160,14 @@ class Arco:
                 sn = self.ds["snow_depth"].sel(time=ts).values[:, self.inh]
                 sw = self.ds["volumetric_soil_water_layer_1"].sel(time=ts).values[:, self.inh]
                 pr = self._prcp(d)
+                if not np.isfinite(t2).any(axis=(1, 2)).all() and pd.Timestamp(d) + pd.Timedelta(hours=18) <= self.last:
+                    t2 = self._sfc(d, "2m_temperature")[:, self.inh] - 273.15  # a day the zarr store dropped
+                    ss = self._sfc(d, "sea_surface_temperature")[:, self.isst] - 273.15
+                    si = self._sfc(d, "sea_ice_cover")[:, self.inh]
+                    sn = self._sfc(d, "snow_depth")[:, self.inh]
+                    sw = self._sfc(d, "volumetric_soil_water_layer_1")[:, self.inh]
+                    pr = self._sfc(d, "total_precipitation", PRCP_HOURS)[:, self.isst] * 24000.0
+                    print(f"    {d}: surface fields from the raw daily files", flush=True)
                 break
             except Exception as e:  # noqa: BLE001  transient GCS errors; retried, then raised
                 if attempt == 3:
@@ -177,7 +194,6 @@ class Arco:
 
 
 SURF = {"snow": "snow_depth", "swvl": "volumetric_soil_water_layer_1"}
-MAX_HOLES = 1  # days a block may lack in the middle (ARCO gaps) and still complete
 PRCP_HOURS = tuple(range(0, 24, 3))  # ARCO precipitation is hourly: sampled every 3 h (the WB2 years are 6-h totals)
 
 
@@ -233,26 +249,19 @@ def arco_blocks(
         t0 = time.time()
         with ThreadPoolExecutor(workers) as ex:
             res = list(ex.map(lambda x: arco.day(x, only), days))
-        # the days through the last published one; a day missing between published ones (ARCO dropped all of
-        # 10 Oct 2026 from ERA5T) is left out of the mean and counted, up to MAX_HOLES a block, so the block can
-        # complete; a missing tail is the part not published yet
-        nd = max((i + 1 for i, r in enumerate(res) if r is not None), default=0)
-        holes = [days[i] for i in range(nd) if res[i] is None]
-        if len(holes) > MAX_HOLES:
-            nd = res.index(None)
-            holes = []
-        res = [r for r in res[:nd] if r is not None]
+        if None in res:
+            res = res[: res.index(None)]
+        nd = len(res)
         if not nd:
             continue
         for k in only or G.FIELDS:  # each day holds a sum over HOURS
             with np.errstate(invalid="ignore"):
-                d[k][mi, h] = np.sum([r[k] for r in res], 0) / (len(res) * len(HOURS))
+                d[k][mi, h] = np.sum([r[k] for r in res], 0) / (nd * len(HOURS))
         if not only:
             for k in G.INDICES:  # each day holds its daily mean
                 d[k][mi, h] = np.mean([r[k] for r in res])
             d["n"][mi, h] = nd * len(HOURS)
-        gap = f", without {', '.join(f'{x:%d %b}' for x in holes)} (not in ARCO)" if holes else ""
-        print(f"    {y}-{mi + 1:02d} block {h}: {nd} days{gap} in {time.time() - t0:.0f}s", flush=True)
+        print(f"    {y}-{mi + 1:02d} block {h}: {nd} days in {time.time() - t0:.0f}s", flush=True)
         G.save_year(y, d, path)
     return d
 
