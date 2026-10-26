@@ -41,6 +41,8 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+import frame_pool as FP
 import strat_maps as sm
 
 OUT = sm.OUT / "anim"
@@ -106,6 +108,151 @@ def map_bias(hemi, base, halfwin=8):
     return get
 
 
+def _frame(job):
+    """One loop frame, job = (region, lead index): its row of panels saved as WebP; the manifest's entry for it. Drawn
+    in parallel (scripts/lib/frame_pool.py) from what main() shares: the region's fields over every lead."""
+    rid, i = job
+    clat, clon, base = FP.DATA["clat"], FP.DATA["clon"], FP.DATA["base"]
+    r = FP.DATA["regions"][rid]
+    per, flds, north, lev, drift = r["per"], r["flds"], r["north"], r["lev"], r["drift"]
+    proj = ccrs.NorthPolarStereo() if north else ccrs.SouthPolarStereo()
+    lat0, lat1 = (20, 90) if north else (-90, -20)
+    phi = 60 if north else -60
+    L = LEADS[i]
+    nc = len(flds)
+    fig = plt.figure(figsize=(3.9 * nc + 0.2, 5.55))
+    span = 1.0 / nc
+    for col, (key, _var, _ckey, _label, _unit, _cmap, _mode0) in enumerate(flds):
+        seq, lim, lab, unit, cmap, mode, vmin = per[key]
+        fld, valid, gz, cav, u60, uu = seq[i]
+        ax = fig.add_axes([0.014 + col * span, 0.145, span * 0.945, 0.755], projection=proj)
+        ax.set_extent([-180, 180, lat0, lat1], crs=ccrs.PlateCarree())
+        ax.add_feature(cfeature.COASTLINE.with_scale("110m"), lw=0.4, edgecolor="#555")
+        ax.gridlines(lw=0.3, color="#bbb", ylocs=[phi], draw_labels=False)
+        fc_, lo_ = sm.cyc(fld, clon)
+        gz_, _ = sm.cyc(gz, clon)
+        if mode == "speed":
+            uu_, _ = sm.cyc(uu, clon)
+            msh = ax.contourf(
+                lo_,
+                clat,
+                fc_,
+                levels=sm.WLEV,
+                cmap=sm.WCMAP,
+                norm=sm.WNORM,
+                extend="both",
+                transform=ccrs.PlateCarree(),
+            )
+            ax.contour(lo_, clat, gz_, levels=10, colors="#1a1a1a", linewidths=0.55, transform=ccrs.PlateCarree())
+            ax.contourf(
+                lo_,
+                clat,
+                uu_,
+                levels=[-1e9, 0.0],
+                colors="none",
+                hatches=["//"],
+                transform=ccrs.PlateCarree(),
+            )
+            ax.contour(lo_, clat, uu_, levels=[0], colors="#c2410c", linewidths=1.1, transform=ccrs.PlateCarree())
+        elif key == "Z" and mode == "abs":
+            # Absolute height as CONTOUR LINES only (no fill): a fixed interval for the whole loop so lines
+            # are comparable frame to frame, every other line heavier and labelled.
+            from matplotlib.ticker import MaxNLocator
+
+            lv = MaxNLocator(nbins=14, steps=[1, 2, 2.5, 4, 5, 8, 10]).tick_values(vmin, lim)
+            ci = float(lv[1] - lv[0]) if len(lv) > 1 else 0.0
+            heavy = lv[::2]
+            light = [v for v in lv if v not in set(heavy)]
+            if light:
+                ax.contour(
+                    lo_,
+                    clat,
+                    fc_,
+                    levels=light,
+                    colors="#3a3a3a",
+                    linewidths=0.6,
+                    transform=ccrs.PlateCarree(),
+                )
+            cs = ax.contour(lo_, clat, fc_, levels=heavy, colors="#111", linewidths=1.25, transform=ccrs.PlateCarree())
+            ax.clabel(cs, fmt="%d", fontsize=6.5, inline=True, inline_spacing=2)
+            msh = None
+        else:
+            from matplotlib.ticker import MaxNLocator
+
+            lv = MaxNLocator(nbins=20).tick_values(vmin, lim) if mode == "abs" else sm.nice_levels(lim)
+            msh = ax.contourf(
+                lo_,
+                clat,
+                fc_,
+                levels=lv,
+                cmap=("viridis" if mode == "abs" else cmap),
+                extend="both",
+                transform=ccrs.PlateCarree(),
+            )
+            if key == "Z":
+                ax.contour(lo_, clat, gz_, levels=8, colors="#333", linewidths=0.45, transform=ccrs.PlateCarree())
+        ax.set_title(lab + ("" if mode != "anom" else " anomaly"), fontsize=11, fontweight="bold", pad=4)
+        note = (
+            f"u(60{'N' if north else 'S'}) {u60 * sm.MS2KT:+.0f} kt"
+            if u60 is not None
+            else (f"cap {cav:.0f}" if mode == "abs" else f"cap {cav:+.1f}") + (" m" if key == "Z" else " K")
+        )
+        ax.text(
+            0.5,
+            -0.055,
+            note,
+            transform=ax.transAxes,
+            ha="center",
+            va="top",
+            fontsize=8.5,
+            color="#2c4a72",
+            fontweight="bold",
+        )
+        if msh is None:  # contour-line panel: an interval note, no colour bar
+            fig.text(
+                0.014 + col * span + span * 0.475,
+                0.082,
+                f"contours every {ci:.0f} {unit}",
+                ha="center",
+                va="center",
+                fontsize=8,
+                color="#333",
+            )
+        else:
+            cax = fig.add_axes([0.014 + col * span + span * 0.16, 0.072, span * 0.63, 0.020])
+            cb = fig.colorbar(
+                msh,
+                cax=cax,
+                orientation="horizontal",
+                extend="both",
+                ticks=sm.WLEV[::2] if mode == "speed" else zero_ticks(msh.levels, 4),
+            )
+            cb.set_label(unit, fontsize=8, labelpad=1)
+            cb.ax.tick_params(labelsize=7, pad=1)
+    valid = base + pd.Timedelta(hours=L)
+    fig.suptitle(
+        f"GEPS · {'Northern' if north else 'Southern'} polar vortex — "
+        f"{lev} hPa · "
+        + ("analysis" if LEADS[i] == 0 else f"day {LEADS[i] // 24}")
+        + f", valid {valid:%a %d %b}"
+        + (" · reforecast drift removed" if drift else ""),
+        fontsize=12.5,
+        fontweight="bold",
+        y=0.988,
+        va="top",
+    )
+    fp = OUT / rid / f"F{i:02d}.webp"
+    # loop frames: WebP q65 method 6 (~30-35 % fewer bytes than q82; text, contours and colour bars unchanged at 1x)
+    fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 65, "method": 6})
+    plt.close(fig)
+    return {
+        "idx": i,
+        "file": fp.name,
+        "date": valid.strftime("%Y-%m-%d"),
+        "label": ("analysis" if L == 0 else f"day {L // 24}") + f" · {valid:%b %d}",
+    }
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date")
@@ -119,7 +266,7 @@ def main() -> int:
     date = a.date or sm.latest_extended(a.cyc)
     base = pd.Timestamp(f"{date} {a.cyc}:00")
     print(f"GEPS extended {base:%Y-%m-%d %H}Z", flush=True)
-    regions = {}
+    regions, loops = {}, {}
     # every file the frames read, downloaded datamart.WORKERS at a time into the cache sm.fetch reads (one at a time
     # took most of this product's 35-47 min), and each ensemble mean decoded once for both hemispheres
     need = set()
@@ -138,7 +285,6 @@ def main() -> int:
 
     for hemi in ("nh", "sh"):
         north = hemi == "nh"
-        proj = ccrs.NorthPolarStereo() if north else ccrs.SouthPolarStereo()
         lat0, lat1 = (20, 90) if north else (-90, -20)
         phi = 60 if north else -60
         sub = (clat >= lat0) & (clat <= lat1)
@@ -201,156 +347,29 @@ def main() -> int:
                         seq.append((an, valid, gz, cav, None, None))
                 per[key] = (seq, lim, label, unit, cmap, mode, vmin)
             rid = f"{hemi}{lev}"
-            d = OUT / rid
-            d.mkdir(parents=True, exist_ok=True)
-            frames = []
-            for i, L in enumerate(LEADS):
-                if any(per[f[0]][0][i] is None for f in flds):
-                    continue
-                nc = len(flds)
-                fig = plt.figure(figsize=(3.9 * nc + 0.2, 5.55))
-                span = 1.0 / nc
-                for col, (key, _var, _ckey, _label, _unit, _cmap, _mode0) in enumerate(flds):
-                    seq, lim, lab, unit, cmap, mode, vmin = per[key]
-                    fld, valid, gz, cav, u60, uu = seq[i]
-                    ax = fig.add_axes([0.014 + col * span, 0.145, span * 0.945, 0.755], projection=proj)
-                    ax.set_extent([-180, 180, lat0, lat1], crs=ccrs.PlateCarree())
-                    ax.add_feature(cfeature.COASTLINE.with_scale("110m"), lw=0.4, edgecolor="#555")
-                    ax.gridlines(lw=0.3, color="#bbb", ylocs=[phi], draw_labels=False)
-                    fc_, lo_ = sm.cyc(fld, clon)
-                    gz_, _ = sm.cyc(gz, clon)
-                    if mode == "speed":
-                        uu_, _ = sm.cyc(uu, clon)
-                        msh = ax.contourf(
-                            lo_,
-                            clat,
-                            fc_,
-                            levels=sm.WLEV,
-                            cmap=sm.WCMAP,
-                            norm=sm.WNORM,
-                            extend="both",
-                            transform=ccrs.PlateCarree(),
-                        )
-                        ax.contour(
-                            lo_, clat, gz_, levels=10, colors="#1a1a1a", linewidths=0.55, transform=ccrs.PlateCarree()
-                        )
-                        ax.contourf(
-                            lo_,
-                            clat,
-                            uu_,
-                            levels=[-1e9, 0.0],
-                            colors="none",
-                            hatches=["//"],
-                            transform=ccrs.PlateCarree(),
-                        )
-                        ax.contour(
-                            lo_, clat, uu_, levels=[0], colors="#c2410c", linewidths=1.1, transform=ccrs.PlateCarree()
-                        )
-                    elif key == "Z" and mode == "abs":
-                        # Absolute height as CONTOUR LINES only (no fill): a fixed interval for the whole loop so lines
-                        # are comparable frame to frame, every other line heavier and labelled.
-                        from matplotlib.ticker import MaxNLocator
+            (OUT / rid).mkdir(parents=True, exist_ok=True)
+            loops[rid] = {
+                "per": per,
+                "flds": flds,
+                "north": north,
+                "lev": lev,
+                "drift": bool(mb) and lev in anom_levels,
+            }
 
-                        lv = MaxNLocator(nbins=14, steps=[1, 2, 2.5, 4, 5, 8, 10]).tick_values(vmin, lim)
-                        ci = float(lv[1] - lv[0]) if len(lv) > 1 else 0.0
-                        heavy = lv[::2]
-                        light = [v for v in lv if v not in set(heavy)]
-                        if light:
-                            ax.contour(
-                                lo_,
-                                clat,
-                                fc_,
-                                levels=light,
-                                colors="#3a3a3a",
-                                linewidths=0.6,
-                                transform=ccrs.PlateCarree(),
-                            )
-                        cs = ax.contour(
-                            lo_, clat, fc_, levels=heavy, colors="#111", linewidths=1.25, transform=ccrs.PlateCarree()
-                        )
-                        ax.clabel(cs, fmt="%d", fontsize=6.5, inline=True, inline_spacing=2)
-                        msh = None
-                    else:
-                        from matplotlib.ticker import MaxNLocator
-
-                        lv = MaxNLocator(nbins=20).tick_values(vmin, lim) if mode == "abs" else sm.nice_levels(lim)
-                        msh = ax.contourf(
-                            lo_,
-                            clat,
-                            fc_,
-                            levels=lv,
-                            cmap=("viridis" if mode == "abs" else cmap),
-                            extend="both",
-                            transform=ccrs.PlateCarree(),
-                        )
-                        if key == "Z":
-                            ax.contour(
-                                lo_, clat, gz_, levels=8, colors="#333", linewidths=0.45, transform=ccrs.PlateCarree()
-                            )
-                    ax.set_title(lab + ("" if mode != "anom" else " anomaly"), fontsize=11, fontweight="bold", pad=4)
-                    note = (
-                        f"u(60{'N' if north else 'S'}) {u60 * sm.MS2KT:+.0f} kt"
-                        if u60 is not None
-                        else (f"cap {cav:.0f}" if mode == "abs" else f"cap {cav:+.1f}") + (" m" if key == "Z" else " K")
-                    )
-                    ax.text(
-                        0.5,
-                        -0.055,
-                        note,
-                        transform=ax.transAxes,
-                        ha="center",
-                        va="top",
-                        fontsize=8.5,
-                        color="#2c4a72",
-                        fontweight="bold",
-                    )
-                    if msh is None:  # contour-line panel: an interval note, no colour bar
-                        fig.text(
-                            0.014 + col * span + span * 0.475,
-                            0.082,
-                            f"contours every {ci:.0f} {unit}",
-                            ha="center",
-                            va="center",
-                            fontsize=8,
-                            color="#333",
-                        )
-                    else:
-                        cax = fig.add_axes([0.014 + col * span + span * 0.16, 0.072, span * 0.63, 0.020])
-                        cb = fig.colorbar(
-                            msh,
-                            cax=cax,
-                            orientation="horizontal",
-                            extend="both",
-                            ticks=sm.WLEV[::2] if mode == "speed" else zero_ticks(msh.levels, 4),
-                        )
-                        cb.set_label(unit, fontsize=8, labelpad=1)
-                        cb.ax.tick_params(labelsize=7, pad=1)
-                valid = base + pd.Timedelta(hours=L)
-                fig.suptitle(
-                    f"GEPS · {'Northern' if north else 'Southern'} polar vortex — "
-                    f"{lev} hPa · "
-                    + ("analysis" if LEADS[i] == 0 else f"day {LEADS[i] // 24}")
-                    + f", valid {valid:%a %d %b}"
-                    + (" · reforecast drift removed" if mb and lev in anom_levels else ""),
-                    fontsize=12.5,
-                    fontweight="bold",
-                    y=0.988,
-                    va="top",
-                )
-                fp = d / f"F{i:02d}.webp"
-                # loop frames: WebP q65 method 6 (~30-35 % fewer bytes than q82; text, contours and colour bars unchanged at 1x)
-                fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 65, "method": 6})
-                plt.close(fig)
-                frames.append(
-                    {
-                        "idx": i,
-                        "file": fp.name,
-                        "date": valid.strftime("%Y-%m-%d"),
-                        "label": ("analysis" if L == 0 else f"day {L // 24}") + f" · {valid:%b %d}",
-                    }
-                )
-            regions[rid] = {"label": f"{'NH' if north else 'SH'} {lev} hPa", "frames": frames}
-            print(f"  {rid}: {len(frames)} frames", flush=True)
+    # pass 2: every frame of the four loops at once, in parallel
+    fetch_mean.cache_clear()  # the loops hold all the frames read
+    FP.share(regions=loops, clat=clat, clon=clon, base=base)
+    jobs = [
+        (rid, i)
+        for rid, r in loops.items()
+        for i in range(len(LEADS))
+        if all(r["per"][f[0]][0][i] is not None for f in r["flds"])
+    ]
+    drawn = FP.draw(_frame, jobs)
+    for rid, r in loops.items():
+        frames = [f for (k, _), f in zip(jobs, drawn, strict=True) if k == rid]
+        regions[rid] = {"label": f"{'NH' if r['north'] else 'SH'} {r['lev']} hPa", "frames": frames}
+        print(f"  {rid}: {len(frames)} frames", flush=True)
 
     order = ["nh10", "nh100", "sh10", "sh100"]
     man = {
