@@ -60,9 +60,9 @@ PRODUCTS = [
             ),
             (
                 "/strat-models.html",
-                "Stratosphere, to day 16",
-                "Zoomable polar maps of the newest GFS (to day 16, 100 to 0.4 hPa) and GDPS (to day 10, 100 to 1 hPa) runs at every stratospheric level they publish: temperature, height, wind speed and zonal wind, the GFS's smoothed vertical motion, and Ertel potential vorticity on isentropic surfaces from 350 to 1600 K, both hemispheres, with contours and hover values.",
-                "Twice daily",
+                "Interactive stratosphere viewer",
+                "Zoomable polar maps of the newest GFS (to day 16, 100 to 0.4 hPa), GDPS (to day 10, 100 to 1 hPa), AIFS single (100, 50 and 10 hPa) and GEOS FP (100 to 0.4 hPa) runs at every stratospheric level they publish: temperature, height, wind speed and zonal wind, the GFS's smoothed vertical motion, and Ertel potential vorticity on isentropic surfaces from 350 to 1600 K (GFS) and GEOS FP's own, both hemispheres, with contours and hover values.",
+                "Four times daily",
             ),
         ],
     ),
