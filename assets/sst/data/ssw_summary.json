@@ -1,5 +1,5 @@
 {
- "built": "2026-10-26 20:37Z",
+ "built": "2026-10-26 20:43Z",
  "newest_init": "2026-10-26 12Z",
  "window": [
   "2026-10-27",
@@ -542,11 +542,11 @@
     ]
    },
    "ifs": {
-    "init": "2026-10-26 00Z",
+    "init": "2026-10-26 12Z",
     "members": 50,
-    "share": 0.4,
-    "u10_min_mean": 1.0,
-    "u10_min_p10": -1.6,
+    "share": 0.52,
+    "u10_min_mean": 0.5,
+    "u10_min_p10": -2.5,
     "runs": [
      [
       "2026-10-01T00",
@@ -801,6 +801,11 @@
      [
       "2026-10-26T00",
       0.4,
+      0.0
+     ],
+     [
+      "2026-10-26T12",
+      0.52,
       0.0
      ]
     ]
@@ -1189,7 +1194,7 @@
     ]
    }
   },
-  "share_mean": 0.48,
+  "share_mean": 0.51,
   "base_rate": {
    "winters": 46,
    "with_onset": 0,
@@ -1238,17 +1243,17 @@
     "z_sib_max": 4.6
    },
    "ifs": {
-    "init": "2026-10-26 00Z",
+    "init": "2026-10-26 12Z",
     "members": 50,
-    "wave2_share": 0.54,
-    "z_peak": 3.9,
+    "wave2_share": 0.57,
+    "z_peak": 3.8,
     "z_peak_day": 3,
-    "flux_min": 10.4,
-    "warning_now": 10.5,
+    "flux_min": 9.5,
+    "warning_now": 11.4,
     "warning_threshold": 27.5,
     "warning_members": 0.0,
-    "ri_event_share": 0.26,
-    "z_can_min": -1.2,
+    "ri_event_share": 0.24,
+    "z_can_min": -1.1,
     "z_sib_max": 4.7
    },
    "gefs": {
@@ -1280,7 +1285,7 @@
     "z_sib_max": 4.8
    }
   },
-  "wave2_share_mean": 0.53,
+  "wave2_share_mean": 0.54,
   "kind": "mixed"
  },
  "descent": {
@@ -1316,20 +1321,20 @@
     "kind": "bottom-up"
    },
    "ifs": {
-    "init": "2026-10-26 00Z",
+    "init": "2026-10-26 12Z",
     "members": 50,
-    "cap100_day15": 2.0,
-    "cap10_day15": 3.3,
-    "frac100_day15": 0.92,
+    "cap100_day15": 2.2,
+    "cap10_day15": 3.5,
+    "frac100_day15": 0.9,
     "cross100": "2026-10-27",
     "cross10": "2026-10-29",
     "kind": "bottom-up"
    },
    "hres": {
-    "init": "2026-10-26 00Z",
+    "init": "2026-10-26 12Z",
     "members": 1,
-    "cap100_day15": 2.2,
-    "cap10_day15": 3.2,
+    "cap100_day15": 2.0,
+    "cap10_day15": 4.0,
     "frac100_day15": null,
     "cross100": "2026-10-27",
     "cross10": "2026-10-29",
@@ -1377,31 +1382,31 @@
    "gefs",
    "geps"
   ],
-  "ri_event_share_mean": 0.23
+  "ri_event_share_mean": 0.22
  },
  "surface": {
   "models": {
    "aifs": {
-    "init": "2026-10-26 00Z",
+    "init": "2026-10-26 12Z",
     "p_positive": 0.75,
     "base_rate": 0.5,
     "window": [
      "2026-11-11",
      "2026-12-10"
     ],
-    "cap100_day15": 1.5,
+    "cap100_day15": 1.4,
     "frac100_day15": 0.65
    },
    "ifs": {
-    "init": "2026-10-26 00Z",
-    "p_positive": 0.83,
+    "init": "2026-10-26 12Z",
+    "p_positive": 0.86,
     "base_rate": 0.5,
     "window": [
      "2026-11-11",
      "2026-12-10"
     ],
-    "cap100_day15": 2.0,
-    "frac100_day15": 0.92
+    "cap100_day15": 2.2,
+    "frac100_day15": 0.9
    },
    "gefs": {
     "init": "2026-10-26 12Z",
@@ -1475,7 +1480,7 @@
     "random_p": 0.0005
    }
   },
-  "p_positive_mean": 0.8,
+  "p_positive_mean": 0.81,
   "cap100_day15_mean": 1.9,
   "regime": "cap_1sd"
  },
