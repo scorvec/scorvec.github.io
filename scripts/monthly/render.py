@@ -211,12 +211,15 @@ def outlook_map(o: dict, s: dict, var: str, region: str, kind: str, path: Path, 
             f"{b['years'][0]}–{b['years'][1]}: blend {bs['acc']:+.2f}, statistical alone {ss['acc']:+.2f}"
         )
     else:
+        what = (
+            "Hindcast" if not s.get("update") else f"Days {G.SPLIT_DAY}+ hindcast"
+        )  # an update's skill: its days 8 on
         skill = (
-            f"Hindcast {s['hindcast'][0]}–{s['hindcast'][1]} (cross-validated): NH ACC {sv['nh_acc_mean']:+.2f}, "
+            f"{what} {s['hindcast'][0]}–{s['hindcast'][1]} (cross-validated): NH ACC {sv['nh_acc_mean']:+.2f}, "
             f"RPSS {sv['rpss_nh']:+.2f}; skill significant over {100 * sv['skill_area_sig']:.0f}% of 20–90N"
         )
     skill += " (hatched: not significant)" if mask else " (skill mask off)"
-    fig.text(0.04, 0.912, skill, fontsize=8, color=MUTED)
+    fig.text(0.04, 0.912, skill, fontsize=8 if len(skill) <= 118 else 8 * 118 / len(skill), color=MUTED)  # one line
     fig.text(0.5, 0.012, CREDIT, ha="center", fontsize=7.5, color=MUTED)
     fig.savefig(path, dpi=105 if nh else 100, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
     plt.close(fig)

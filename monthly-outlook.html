@@ -579,7 +579,7 @@
       " in the month), and the rest of the month the statistical forecast for those days with the lower vortex of the first week as the four ensembles' members predict it: the 50&nbsp;hPa westerlies at 57&ndash;63N over " +
       d(x.window[0]) + "&ndash;" + d(x.window[1]) + " at " + sgn(x.value, 1) + "&nbsp;m/s, <b>" + sgn(x.anomaly, 1) + "&nbsp;m/s</b> from the 1991&ndash;2020 mean of those days (" +
       Object.keys(x.ensembles).map(function (m) { return nm[m] + " " + sgn(x.ensembles[m], 1); }).join(", ") + "; 10&ndash;90&nbsp;% of the members " +
-      sgn(x.q10_q90[0], 1) + " to " + sgn(x.q10_q90[1], 1) + "&nbsp;m/s). That predictor moves the rest of November only a little (see the method), so the update's change from the issue comes mostly from its first week.</p>";
+      sgn(x.q10_q90[0], 1) + " to " + sgn(x.q10_q90[1], 1) + "&nbsp;m/s). In ERA5 that predictor has said little about the rest of the month, and this value lies beyond the record (see the method).</p>";
   }
 
   function guidance(s, k) {
