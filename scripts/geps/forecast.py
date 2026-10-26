@@ -34,10 +34,11 @@ Three joins have to be got right, and each of them is a silent-failure risk:
 
 Extended (day 35) cycles run Monday and Thursday only; other days stop at day 16.
 
-Downloads: every file comes through datamart.py (honest User-Agent, retries, ledger)
-and is read ONCE, decoded with eccodes (datamart.members(): cfgrib's two indexed opens of every file, one per data type, were
-most of the fetch's time), three fields at a time in processes of their own (FIELD_PROCS: 3 x datamart.WORKERS files
-at once on the Datamart). The same GRIBs also feed what other products used to fetch again for themselves:
+Downloads: every file comes through datamart.py (honest User-Agent, retries, ledger) and is read ONCE, decoded with
+eccodes (datamart.members(): cfgrib's two indexed opens of every file, one per data type, were most of the fetch's
+time), the fields in datamart.WORKERS processes of their own, each downloading one file at a time: the Datamart serves
+4 connections from a runner at ~30 MB/s together and 12 at a quarter of that (26 Oct 2026). The same GRIBs also feed
+what other products used to fetch again for themselves:
 
   u850/u200/olr  the per-member 15S-15N band means of the three RMM channels (live/geps_rmm_members_<date>.npz),
                  which mjo_geps.py read by re-downloading the same 316 files
@@ -96,7 +97,6 @@ VARS = {
 # badly wrong for t2m in particular — 00Z is a night-time sample over the Americas.
 # GEPS publishes 6-hourly steps all the way to day 35, so day n averages the four
 # steps 24n-18, 24n-12, 24n-6, 24n.
-FIELD_PROCS = 3  # fields fetched at once, each in a process of its own (eccodes decodes one file at a time in each)
 DAYS = list(range(1, 36))
 SUBSTEPS = (-18, -12, -6, 0)
 
@@ -401,9 +401,9 @@ def main() -> int:
     rmm = {}
     written = 0
     tags = [t.strip() for t in a.tags.split(",") if t.strip()]
-    # each field in a process of its own (eccodes decodes one file at a time in a process), FIELD_PROCS at once
-    with ProcessPoolExecutor(FIELD_PROCS, mp_context=mp.get_context("spawn")) as ex:
-        futs = {t: ex.submit(fetch_var, date, t, a.workers, t in keep_tags) for t in tags}
+    # each field in a process of its own, downloading and decoding one file at a time: a.workers downloads at once in all
+    with ProcessPoolExecutor(a.workers, mp_context=mp.get_context("spawn")) as ex:
+        futs = {t: ex.submit(fetch_var, date, t, 1, t in keep_tags) for t in tags}
     for tag in tags:
         keep = tag in keep_tags
         fc = futs[tag].result()
