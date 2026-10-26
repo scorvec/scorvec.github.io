@@ -1,0 +1,22 @@
+name: Datamart throughput probe (temporary)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Sustained - 280 files (~1 GB) from HPFX, then from the Datamart, 4 connections
+        run: |
+          list() { for v in UGRD_ISBL_0850 VGRD_ISBL_0850; do for L in $(seq 6 6 840); do echo "$v $L"; done; done; }
+          for host in https://hpfx.collab.science.gc.ca https://dd.weather.gc.ca; do
+            t0=$(date +%s)
+            list | xargs -P 4 -n 2 sh -c 'curl -s -o /dev/null -w "%{http_code} %{size_download}\n" "'$host'/20261026/WXO-DD/ensemble/geps/grib2/raw/00/$(printf %03d $1)/CMC_geps-raw_$0_latlon0p5x0p5_2026102600_P$(printf %03d $1)_allmbrs.grib2"' > /tmp/r.txt
+            t1=$(date +%s)
+            awk -v h="$host" -v w=$((t1 - t0)) '{c[$1]++; b+=$2} END {for (k in c) printf "%s HTTP %s x%d\n", h, k, c[k]; printf "%s: %.0f MB in %d s = %.1f MB/s\n", h, b/1e6, w, b/1e6/w}' /tmp/r.txt
+          done
