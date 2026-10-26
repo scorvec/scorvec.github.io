@@ -82,7 +82,7 @@
   .mv-keys kbd { font: inherit; font-size: 0.78rem; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0 0.3em; background: var(--panel); }
 
   /* touch: one finger scrolls the page, two move and zoom the map. Never taller than the window. */
-  .mv-map { position: relative; width: 100%; height: max(340px, calc(100vh - 225px)); background: var(--map); border: 1px solid var(--rule);
+  .mv-map { position: relative; width: 100%; height: max(340px, calc(100vh - 64px - 161px * var(--ui, 1))); background: var(--map); border: 1px solid var(--rule);
             border-radius: 8px; overflow: hidden; touch-action: pan-x pan-y; cursor: grab;
             -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   .mv-map.drag { cursor: grabbing; }
@@ -256,8 +256,24 @@
     .mv-keys { display: none; }
     .mv-badge { font-size: 0.86rem; padding: 0.22rem 0.5rem; }
   }
+  /* the controls scale with the window (--ui, set at the end of the head): full size on a large screen, smaller on a
+     laptop, so the buttons leave the map most of the window; phones (<= 640 px) have their own compact layout */
+  @media (min-width: 641px) { .mv-bar, .mv-time, .mv-show, .mv-find, .mv-zoom { zoom: var(--ui, 1); } }
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
+<script>
+  // --ui: the scale the viewer's controls are drawn at (CSS zoom): 1 in a window about 1000 px tall and 1500 px wide or
+  // larger, less in a smaller one, never under 0.72 (0.85 on a touch screen, so its buttons stay big enough to tap)
+  (function () {
+    var touch = matchMedia("(pointer: coarse)").matches;
+    function ui() {
+      var s = Math.min(1, innerHeight / 1000, innerWidth / 1500);
+      document.documentElement.style.setProperty("--ui", Math.max(touch ? 0.85 : 0.72, s).toFixed(3));
+    }
+    ui();
+    addEventListener("resize", ui);
+  })();
+</script>
 </head>
 <body>
 <!-- sh:start -->
