@@ -93,6 +93,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+import pyproj  # noqa: F401  (load pyproj's libproj before eccodes: gefs_live, read later, uses it)
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
