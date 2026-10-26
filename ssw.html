@@ -37,6 +37,28 @@
   .disc p { font-size: 0.9rem; color: var(--ink2); line-height: 1.75; margin: 0 0 0.85rem; max-width: 110ch; }
   .disc b { color: var(--ink); font-weight: 600; }
   @media (max-width: 600px) { .chips .chip .v { font-size: 1.2rem; } .tblwrap { padding: 0 0.6rem 0.6rem; } }
+  /* a share of members is shaded by its size (heat() below): pale for a few, deep red for most; text inside a shaded
+     cell takes the cell's own colour, not the muted grey, which is too faint on the middle shades */
+  table.rec td.shade small { color: inherit; }
+  table.rec td.hot { color: #fff; }
+  /* phones: no sideways scrolling - a model's row becomes a card of label: value lines, and the run-by-run grid shrinks
+     to the screen with its headers wrapped */
+  @media (max-width: 700px) {
+    table.rec.cards, table.rec.cards tbody, table.rec.cards tr { display: block; width: 100%; }
+    table.rec.cards thead { display: none; }
+    table.rec.cards tr { border: 1px solid var(--rule); border-radius: 8px; margin: 0 0 0.6rem; padding: 0.25rem 0; }
+    table.rec.cards td { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; border: 0;
+                         padding: 0.28rem 0.7rem; white-space: normal; }
+    table.rec.cards td::before { content: attr(data-label); color: var(--muted); text-align: left; }
+    table.rec.cards td.shade::before { color: inherit; }
+    table.rec.cards td:first-child { font-weight: 600; justify-content: flex-start; gap: 0.5rem; }
+    table.rec.cards td:first-child::before { content: none; }
+    table.rec.cards td:first-child small { display: inline; }
+    table.rec.fit { width: 100%; table-layout: fixed; }
+    table.rec.fit th, table.rec.fit td { white-space: normal; padding: 0.32rem 0.3rem; }
+    table.rec.fit th { font-size: 0.78rem; }
+    table.rec.fit td small { font-size: 0.66rem; white-space: nowrap; }
+  }
 </style>
 <link rel="stylesheet" href="/assets/site.css?v=7a63ac564e">
 <script src="/assets/site.js?v=8eca6e56e2" defer></script>
@@ -347,10 +369,25 @@
   function sg(x, n) { return x == null ? "–" : (x >= 0 ? "+" : "−") + Math.abs(x).toFixed(n == null ? 1 : n); }
   function set(k, t) { document.querySelectorAll('[data-k="' + k + '"]').forEach(function (e) { e.textContent = t; }); }
   function ref(k, t) { document.querySelectorAll('[data-r="' + k + '"]').forEach(function (e) { e.textContent = t; }); }
+  // a share of members (0-1) as a shaded cell, in seven steps from near-white to deep red (ColorBrewer Reds); the two
+  // darkest carry white text, the rest the page's ink (each pair at least 4.5:1)
+  var HEAT = [[0.1, "#fff5f0"], [0.25, "#fee0d2"], [0.4, "#fcbba1"], [0.55, "#fc9272"], [0.7, "#fb6a4a"], [0.85, "#de2d26"], [1.01, "#a50f15"]];
+  function heat(x) { return { h: pct(x), v: x }; }
+  function cellHtml(c, label) {
+    var o = c !== null && typeof c === "object" ? c : { h: c }, at = "";
+    if (o.v != null) {
+      var k = 0; while (k < HEAT.length - 1 && o.v >= HEAT[k][0]) k++;
+      at = ' class="' + (k >= 5 ? "shade hot" : "shade") + '" style="background: ' + HEAT[k][1] + '"';
+    }
+    return "<td data-label=\"" + label.replace(/"/g, "&quot;") + "\"" + at + ">" + o.h + "</td>";
+  }
+  // rows of one model each become cards on a phone; the run-by-run grid (first column "run") shrinks to fit instead
   function table(id, head, rows) {
     var h = "<thead><tr>" + head.map(function (c) { return "<th>" + c + "</th>"; }).join("") + "</tr></thead><tbody>";
-    rows.forEach(function (r) { h += "<tr>" + r.map(function (c) { return "<td>" + c + "</td>"; }).join("") + "</tr>"; });
-    document.getElementById(id).innerHTML = h + "</tbody>";
+    rows.forEach(function (r) { h += "<tr>" + r.map(function (c, i) { return cellHtml(c, head[i]); }).join("") + "</tr>"; });
+    var t = document.getElementById(id);
+    t.classList.add(head[0] === "run" ? "fit" : "cards");
+    t.innerHTML = h + "</tbody>";
   }
   function who(name, init) { return name + (init ? "<small>" + init.slice(8, 10).replace(/^0/, "") + " " + M[+init.slice(5, 7) - 1] + " " + init.slice(11) + "</small>" : ""); }
   function p(t) { return t.p < 0.001 ? "p < 0.001" : "p " + t.p.toPrecision(2); }
@@ -372,7 +409,7 @@
     table("t_ssw", ["model", "members", "easterly at 10\u00A0hPa", "and the pole warmer (WMO)", "lowest u, mean (m/s)", "lowest u, 10th pct", "warning meter"],
       shown.map(function (m) {
         var v = S.models[m], w = W.models[m] || {};
-        return [who(N[m], v.init), v.members, pct(v.share), pct(v.wmo), sg(v.u10_min_mean), sg(v.u10_min_p10), w.warning_members == null ? "–" : pct(w.warning_members)];
+        return [who(N[m], v.init), v.members, heat(v.share), heat(v.wmo), sg(v.u10_min_mean), sg(v.u10_min_p10), heat(w.warning_members)];
       }));
 
     // run by run: each ensemble's chance in its last runs, the warning-meter share beside it
@@ -381,7 +418,7 @@
     var last = Object.keys(starts).sort().slice(-6).reverse();
     function runCell(m, t) {
       var r = S.models[m].runs.filter(function (x) { return x[0] === t; })[0];
-      return r ? pct(r[1]) + (r[3] == null ? "" : " <small>WMO " + pct(r[3]) + "</small>") + (r[2] == null ? "" : " <small>warning " + pct(r[2]) + "</small>") : "–";
+      return r ? { h: pct(r[1]) + (r[3] == null ? "" : " <small>WMO " + pct(r[3]) + "</small>") + (r[2] == null ? "" : " <small>warning " + pct(r[2]) + "</small>"), v: r[1] } : "–";
     }
     table("t_runs", ["run"].concat(have.map(function (m) { return N[m]; })),
       last.map(function (t) { return [md(t) + " " + t.slice(11) + "Z"].concat(have.map(function (m) { return runCell(m, t); })); }));
