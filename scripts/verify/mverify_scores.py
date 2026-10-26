@@ -71,7 +71,7 @@ GFS_FIELDS = [
 ]
 GFS_UPPER = [f":{dict(z='HGT', t='TMP', u='UGRD', v='VGRD', q='SPFH')[b]}:{lv} mb:" for b, lv in UPPER]
 GFS_STATIC = [":HGT:surface:", ":LAND:surface:", ":SFCR:surface:"]
-DATAMART = "https://dd.weather.gc.ca"
+DATAMART = "https://hpfx.collab.science.gc.ca"
 GDPS_FIELDS = [
     "AirTemp_AGL-2m",
     "DewPoint_AGL-2m",

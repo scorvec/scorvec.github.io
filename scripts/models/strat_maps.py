@@ -73,7 +73,7 @@ Checks, per run (manifest "checks"; the page's method section shows them):
 
 Sources. GFS (hard rule: NOAA models from AWS S3, never NOMADS): noaa-gfs-bdp-pds, byte ranges of only the wanted
 messages via the .idx files (scripts/snowband/snowband.py's validated transport); +384 h reaches the bucket ~5 h 15 min
-after the start (2026-10-23/24). GDPS: the dated MSC Datamart tree (dd.weather.gc.ca/YYYYMMDD/WXO-DD/model_gdps/15km,
+after the start (2026-10-23/24). GDPS: the dated MSC Datamart tree (hpfx.collab.science.gc.ca/YYYYMMDD/WXO-DD/model_gdps/15km,
 the files scripts/strat/upperstrat_data.py and scripts/models/samerica.py read) through scripts/geps/datamart.py (the
 site's honest User-Agent, retries, a request ledger) with modest concurrency; one global file per variable, level and
 step, read whole (they cannot be cut); +240 h lands ~4 h 50 min after the start, and readiness is a HEAD on two of the
@@ -116,9 +116,7 @@ import snowband as sb  # the shared, validated S3 transport
 import upper as UPR  # per-frame height codes (q_auto) and the downward 2-PVU search
 
 S3 = "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.{d}/{h}/atmos/gfs.t{h}z.{f}.0p50.f{s:03d}"
-DATAMART = (
-    "https://dd.weather.gc.ca/{d}/WXO-DD/model_gdps/15km/{h}/{s:03d}/{d}T{h}Z_MSC_GDPS_{v}_LatLon0.15_PT{s:03d}H.grib2"
-)
+DATAMART = DM.BASE + "/{d}/WXO-DD/model_gdps/15km/{h}/{s:03d}/{d}T{h}Z_MSC_GDPS_{v}_LatLon0.15_PT{s:03d}H.grib2"
 GFS_LEVELS = (100, 70, 50, 40, 30, 20, 15, 10, 7, 5, 3, 2, 1, 0.7, 0.4)
 GDPS_COL = (400, 350, 300, 275, 250, 225, 200, 175, 150, 100, 50, 30, 20, 10, 5, 1)
 GEOS = "https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/fcast/inst3_3d_asm_Np/inst3_3d_asm_Np.{d}_{h}"

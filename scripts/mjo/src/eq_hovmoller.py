@@ -54,7 +54,7 @@ DET = {
     "gdps": "GDPS (physics)",
 }
 GDPS_10U = (
-    "https://dd.weather.gc.ca/{d}/WXO-DD/model_gdps/15km/{c}/{L:03d}/"
+    "https://hpfx.collab.science.gc.ca/{d}/WXO-DD/model_gdps/15km/{c}/{L:03d}/"
     "{d}T{c}Z_MSC_GDPS_WindU_AGL-10m_LatLon0.15_PT{L:03d}H.grib2"
 )
 

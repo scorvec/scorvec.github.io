@@ -396,7 +396,7 @@ def gfs_step(date, hh, step, levels=GFS_LEVELS, crop=CROP, workers=12):
     return d
 
 
-DATAMART = "https://dd.weather.gc.ca"
+DATAMART = "https://hpfx.collab.science.gc.ca"
 GDPS_VARS = {
     "q": "SpecificHumidity_IsbL-{L:04d}",
     "u": "WindU_IsbL-{L:04d}",

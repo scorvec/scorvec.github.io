@@ -8,7 +8,7 @@ One reader per system; each returns rain accumulated from the 00Z start (mm) at 
   gefs           NOAA GEFS v12 0.5° (pgrb2a) from the AWS Open Data bucket noaa-gefs-pds, one byte range per record
                  through each file's .idx (never NOMADS). APCP comes in 6-hour buckets ("{h-6}-{h} hour acc fcst" in
                  every 6-hourly file), so the total from the start is the sum of its buckets. Control + 30 members.
-  geps           ECCC GEPS 0.5° from the MSC Datamart (dd.weather.gc.ca, whose dated directories keep about 30 days):
+  geps           ECCC GEPS 0.5° from the MSC Datamart tree (hpfx.collab.science.gc.ca, dated directories kept ~50 days):
                  one file per step holding every member, APCP_SFC_0 accumulated from the start in kg m-2. Control + 20.
 
 The readers fetch in threads and decode in the calling thread: eccodes inside a thread pool crashed the interpreter on
@@ -67,11 +67,11 @@ ARCH_MEMBERS, ARCH_STEPS = (1, 2, 3, 4, 5, 6), (168, 336)
 LIVE_STEPS = (24, 168, 192, 336, 360)
 WINDOWS = {"wk1": (0, 168), "wk2": (168, 336), "next1": (24, 192), "next2": (192, 360)}  # hours from the start
 FIRST = {"gefs": date(2024, 10, 1)}  # archive start (IMERG archive start; GEFS v12 itself runs since 2020-09-24)
-DATAMART_DAYS = 30  # how far back the Datamart's dated directories reach
+DATAMART_DAYS = 30  # how far back to look in the dated directories (HPFX keeps ~50 days, the Datamart 30)
 
 GEFS_S3 = "https://noaa-gefs-pds.s3.amazonaws.com"
 GEPS_URL = (
-    "https://dd.weather.gc.ca/{d}/WXO-DD/ensemble/geps/grib2/raw/00/{h:03d}/"
+    "https://hpfx.collab.science.gc.ca/{d}/WXO-DD/ensemble/geps/grib2/raw/00/{h:03d}/"
     "CMC_geps-raw_APCP_SFC_0_latlon0p5x0p5_{d}00_P{h:03d}_allmbrs.grib2"
 )
 GEFS_WORKERS, GEPS_WORKERS = 32, 3  # S3 takes many parallel range requests; the Datamart is a shared public service
