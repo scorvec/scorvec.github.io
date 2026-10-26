@@ -24,6 +24,10 @@ Components (each a map of the target month's anomaly):
     AN   analogue years: the eight library years closest to the window's state (tropical SST pattern, ENSO, QBO,
          vortex and the hemispheric 500 hPa pattern); their mean detrended target anomaly
 
+An update (forecast.py --update, late_vortex) takes the vortex index instead over the 31 days ending on the 7th of
+the target month, for every year of the library and every pooled month alike; the year being forecast takes the
+value vortex_window.py builds from ERA5, analyses and the ensembles' members.
+
 IX and PE train on the target month pooled with its two neighbouring calendar months (each with its own window),
 about 200 cases instead of 65; CA and AN use the target month alone, which scored better for them.
 
@@ -195,7 +199,7 @@ def nh_rows(v: str) -> slice:
 class MonthBlock:
     """One target calendar month's library: per year, the predictor window's state and the target month's anomalies."""
 
-    def __init__(self, A: Archive, month: int):
+    def __init__(self, A: Archive, month: int, late_vortex: bool = False, vortex_live: tuple | None = None):
         self.month = month
         self.years = A.years
         nY = len(self.years)
@@ -223,6 +227,10 @@ class MonthBlock:
         self.win = {}
         for v in (*WIN_FIELDS, "u50eq", "u50v"):
             x = month_series(A.win[v], yi, im, y0)
+            if v == "u50v" and late_vortex:  # the update's vortex: the 31 days ending on the 7th of the target month
+                x = month_series(A.win[v], self.years, month, y0)
+                if vortex_live is not None:  # its value for the year being forecast (analyses and forecasts)
+                    x[self.years == vortex_live[0]] = vortex_live[1]
             if v == "prcp":
                 lat = G.LAT_ALL
                 xt = x[:, (lat >= -20) & (lat <= 20)].reshape(nY, -1)
@@ -261,12 +269,14 @@ class Problem:
     window and anomalies), which triples the sample behind every regression; the trend and the analogue years use
     the target month alone."""
 
-    def __init__(self, A: Archive, month: int):
+    def __init__(self, A: Archive, month: int, late_vortex: bool = False, vortex_live: tuple | None = None):
         self.POOL = POOL
         self.A = A
         self.month = month
         self.years = A.years
-        self.blocks = [MonthBlock(A, (month - 1 + d) % 12 + 1) for d in self.POOL]
+        self.blocks = [
+            MonthBlock(A, (month - 1 + d) % 12 + 1, late_vortex, vortex_live if d == 0 else None) for d in self.POOL
+        ]
         self.c = self.blocks[self.POOL.index(0)]  # the target month
         cat = lambda get: np.concatenate([get(b) for b in self.blocks], 0)  # noqa: E731
         self.L = {

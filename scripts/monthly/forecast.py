@@ -6,9 +6,18 @@ Method in mo_method.py.
     python scripts/monthly/forecast.py                       # target = the month after today's
     python scripts/monthly/forecast.py --target 2026-11
     python scripts/monthly/forecast.py --skill-all           # hindcast skill of every target month (no output)
+    python scripts/monthly/forecast.py --target 2026-11 --update vortex_202611.json   # an update (below)
 
 Writes assets/monthly/data/outlook_<YYYYMM>.npz (fields) and .json (summary, analogues, weights, skill), and
 assets/monthly/data/latest.json pointing at the newest outlook. Rendering is render.py.
+
+An update (--update, after the issue on the 15th) re-issues the target month when the stratosphere changes course:
+the vortex predictor becomes the 50 hPa wind over 57-63N in the 31 days ending on the 7th of the TARGET month
+(vortex_window.py: ERA5, then the IFS analyses, then every member of the four ensembles), the whole method is trained
+and cross-validated again with that predictor (mo_method late_vortex), and the forecast is the mean of the forecasts
+for VORTEX_Q quantiles of the members' values (the ensembles a quarter each), whose tercile probabilities are
+averaged: the spread of the vortex forecast widens the probabilities. The blend takes the newest GEFS run (blend.py).
+It is written as outlook_<YYYYMM>u<DD>.* beside the issue it updates, which stays on record and is scored as issued.
 """
 
 from __future__ import annotations
@@ -32,6 +41,7 @@ OUT = REPO / "assets" / "monthly" / "data"
 HIND0 = 1981
 ACC_LAT = 20.0  # hemispheric scores over 20-90N
 CV_GAP = 1.5  # a hindcast leaves out every library sample within 1.5 years of its target month
+VORTEX_Q = 21  # an update's forecasts: one per quantile of the vortex members' distribution
 
 
 def hemi_weights() -> np.ndarray:
@@ -45,8 +55,19 @@ def acc(f: np.ndarray, o: np.ndarray, w: np.ndarray) -> float:
     return float((w * f * o).sum() / np.sqrt((w * f * f).sum() * (w * o * o).sum() + 1e-30))
 
 
-def run(target_year: int, month: int, A: M.Archive, realtime: bool = True) -> dict:
-    P = M.Problem(A, month)
+def run(
+    target_year: int,
+    month: int,
+    A: M.Archive,
+    realtime: bool = True,
+    late_vortex: bool = False,
+    vortex_live: float | None = None,
+    vortex_members: np.ndarray | None = None,
+) -> dict:
+    """The outlook for (target_year, month) with its cross-validated hindcast. late_vortex: the update's vortex
+    predictor (the window ending on the 7th of the target month), vortex_live its value this year and vortex_members
+    the values whose forecasts are averaged (forecast() runs once per value; the hindcast does not depend on them)."""
+    P = M.Problem(A, month, late_vortex, (target_year, vortex_live) if vortex_live is not None else None)
     years = P.years
     hind = [int(y) for y in years if y >= HIND0 and y != target_year and P.available(y)]
     k = len(M.COMPONENTS)
@@ -73,6 +94,16 @@ def run(target_year: int, month: int, A: M.Archive, realtime: bool = True) -> di
         it = target_year - years[0]
         im, yi = (month - 1, target_year) if month > 1 else (12, target_year - 1)
         raw = {k: float(A.win[k][A.t(yi, im)]) for k in ("u50eq", "u50v")}
+        if late_vortex:
+            raw["u50v"] = vortex_live
+        comp_m = [comp_rt]
+        if vortex_members is not None:  # the forecast for each value of the vortex predictor
+            a0 = float(P.c.idx[it, 3])
+            comp_m = []
+            for x in vortex_members:
+                P.c.idx[it, 3] = P.c.win["u50v"][it, 0] = a0 + (x - vortex_live)
+                comp_m.append(P.forecast(target_year, 0.0, target_year))
+            P.c.idx[it, 3] = P.c.win["u50v"][it, 0] = a0
         res["indices"] = {
             "n34r": float(P.n34r[it]),
             "roni": float(P.roni[it]),
@@ -144,11 +175,13 @@ def run(target_year: int, month: int, A: M.Archive, realtime: bool = True) -> di
             "hind_obs": Y,
         }
         if rt_ok:
-            Frt = np.stack([comp_rt[c][v] for c in M.COMPONENTS])  # (k, P)
+            Fm = np.stack([np.stack([cm[c][v] for c in M.COMPONENTS]) for cm in comp_m])  # (members, k, P)
+            Frt = Fm.mean(0)  # (k, P)
             out["comp"] = Frt
             out["fc"] = np.einsum("pk,kp->p", beta, Frt)
             out["contrib"] = beta.T * Frt  # (k, P)
-            b_, a_ = terciles(out["fc"], err, lo, hi_t, P.obs[v][clim])
+            out["fc_members"] = np.einsum("pk,mkp->mp", beta, Fm)
+            b_, a_ = mixed_terciles(out["fc_members"], err, lo, hi_t, P.obs[v][clim])
             out["p_below_raw"], out["p_above_raw"] = b_, a_
             out["p_below"], out["p_above"] = np.where(sig, b_, 1 / 3), np.where(sig, a_, 1 / 3)
             out["tlo"], out["thi"] = lo, hi_t
@@ -181,6 +214,15 @@ def terciles(
     return stats.norm.cdf((lo - x) / h).mean(0), stats.norm.sf((hi - x) / h).mean(0)
 
 
+def mixed_terciles(
+    fcs: np.ndarray, err: np.ndarray, lo: np.ndarray, hi: np.ndarray, clim: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """terciles() of each forecast in fcs (n, P), averaged: one forecast gives terciles() itself; an update's
+    forecasts for the vortex members spread the probabilities by the vortex forecast's own uncertainty."""
+    bs, as_ = zip(*(terciles(f, err, lo, hi, clim) for f in fcs), strict=True)
+    return np.mean(bs, 0), np.mean(as_, 0)
+
+
 def bh_mask(p: np.ndarray, q: float) -> np.ndarray:
     """Benjamini-Hochberg false-discovery-rate control at level q over the 20-90N points."""
     w = hemi_weights() > 0
@@ -207,7 +249,7 @@ def summarise(res: dict, issued: str) -> dict:
         "components": {c: M.NAMES[c] for c in M.COMPONENTS},
         "vars": {},
     }
-    for key in ("analogs", "ca_top", "indices", "blend"):
+    for key in ("analogs", "ca_top", "indices", "blend", "update"):
         if key in res:
             s[key] = res[key]
     for v, o in res["vars"].items():
@@ -239,6 +281,36 @@ def summarise(res: dict, issued: str) -> dict:
     return s
 
 
+def vortex_quantiles(vx: dict) -> np.ndarray:
+    """VORTEX_Q values of the vortex window: the quantiles at the bin midpoints of the members' distribution with each
+    ensemble weighing a quarter (each of its members 1 / (4 n))."""
+    vals, wts = [], []
+    for e in vx["ensembles"].values():
+        vals += e["window"]
+        wts += [1.0 / (len(vx["ensembles"]) * len(e["window"]))] * len(e["window"])
+    order = np.argsort(vals)
+    cw = np.cumsum(np.array(wts)[order])
+    q = (np.arange(VORTEX_Q) + 0.5) / VORTEX_Q
+    return np.array(vals)[order][np.minimum(np.searchsorted(cw, q), len(vals) - 1)]
+
+
+def vortex_summary(vx: dict, res: dict) -> dict:
+    """The update's vortex window for the page: its days, sources, value and anomaly (the 1991-2020 normal of the same
+    window from the archive), each ensemble's mean."""
+    ix = res["indices"]
+    clim = vx["mean"] - ix["u50v"]  # the window's 1991-2020 normal (the predictor is the anomaly)
+    return {
+        "window": vx["window"],
+        "cycle": vx["cycle"],
+        "era5_through": vx["era5"]["through"],
+        "value": round(vx["mean"], 2),
+        "anomaly": round(ix["u50v"], 2),
+        "normal": round(clim, 2),
+        "ensembles": {m: round(e["mean"] - clim, 2) for m, e in vx["ensembles"].items()},
+        "q10_q90": [round(float(np.percentile(vortex_quantiles(vx), p)) - clim, 2) for p in (10, 90)],
+    }
+
+
 def window_label(y: int, m: int) -> str:
     import calendar
 
@@ -247,9 +319,8 @@ def window_label(y: int, m: int) -> str:
     return f"{G.SPLIT_DAY} {calendar.month_abbr[pm]} – {G.SPLIT_DAY - 1} {calendar.month_abbr[im]} {yi}"
 
 
-def save(res: dict, summary: dict) -> None:
+def save(res: dict, summary: dict, tag: str) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
-    tag = res["target"].replace("-", "")
     arrs = {}
     for v, o in res["vars"].items():
         keys = ("fc", "p_below", "p_above", "p_below_raw", "p_above_raw", "tlo", "thi", "r", "sig", "rmse", "rpss")
@@ -269,6 +340,9 @@ def main() -> int:
     ap.add_argument("--target", help="YYYY-MM (default: the month after today's)")
     ap.add_argument("--skill-all", nargs="?", const="1,2,3,4,5,6,7,8,9,10,11,12", help="hindcast skill of months")
     ap.add_argument("--force", action="store_true", help="re-issue an outlook that already exists")
+    ap.add_argument(
+        "--update", type=Path, help="re-issue the target as an update with this vortex window (vortex_window.py)"
+    )
     a = ap.parse_args()
     A = M.load_archive()
     if a.skill_all:
@@ -299,17 +373,29 @@ def main() -> int:
         ty, tm = map(int, a.target.split("-"))
     else:
         ty, tm = (now.year, now.month + 1) if now.month < 12 else (now.year + 1, 1)
-    if (OUT / f"outlook_{ty}{tm:02d}.json").exists() and not a.force:
-        print(f"the {ty}-{tm:02d} outlook was already issued; --force re-issues it")
+    tag = f"{ty}{tm:02d}" + (f"u{now:%d}" if a.update else "")
+    if (OUT / f"outlook_{tag}.json").exists() and not a.force:
+        print(f"the {tag} outlook was already issued; --force re-issues it")
         return 0
-    res = run(ty, tm, A)
+    late = vx = members = None
+    if a.update:
+        of = OUT / f"outlook_{ty}{tm:02d}.json"
+        if not of.exists():
+            raise SystemExit(f"--update: the {ty}-{tm:02d} outlook has not been issued")
+        vx = json.loads(a.update.read_text())
+        if vx["target"] != f"{ty}-{tm:02d}":
+            raise SystemExit(f"--update: {a.update} is the vortex window of {vx['target']}")
+        late, members = True, vortex_quantiles(vx)
+    res = run(ty, tm, A, late_vortex=bool(late), vortex_live=vx["mean"] if vx else None, vortex_members=members)
     if "analogs" not in res:
         raise SystemExit(f"the predictor window for {ty}-{tm:02d} is not complete in the archive")
     import blend as B  # blend imports this module
 
-    res = B.apply(res, A, ty, tm)
+    res = B.apply(res, A, ty, tm, issue=now.date() if a.update else None)
+    if a.update:
+        res["update"] = {"of": json.loads(of.read_text())["issued"], "vortex": vortex_summary(vx, res)}
     summary = summarise(res, now.strftime("%Y-%m-%d"))
-    save(res, summary)
+    save(res, summary, tag)
     print(json.dumps(summary, indent=1)[:3000])
     return 0
 

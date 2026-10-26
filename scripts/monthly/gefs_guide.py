@@ -19,12 +19,15 @@ are taken against the other years' starts of the same month (a linear fit in sta
 the seasonal cycle within the month), re-based to 1991-2020 with ERA5 (1991-2020 minus 2001-2020 normals over each
 week's valid dates, gefs-ref-v1 era5_shift.npz), and 500 hPa height has its global mean removed: the GEFS page's
 anomalies, exactly. Box-averaged onto the outlook's 3° grid and kept as data/gefs_hc_<target MM>.npz (target years: a
-January table holds December starts of the year before).
+January table holds December starts of the year before). An update (forecast.py --update) uses the run of a later
+day DD, so its table takes the starts nearest that day instead (data/gefs_hc_<target MM>_d<DD>.npz, built on demand):
+the same arithmetic at the update's own lead.
 
 Live: the GEFS page's run archive (gefs_live.py, assets/gefs/anim/runs/gefs_run_<YYYYMMDD>.npz on the frames
 branch), the newest run on or before the 15th, 31 members, its anomalies against the same reforecast climatology.
 
     python scripts/monthly/gefs_guide.py --build [MM,...]     # the reforecast tables (one 290 MB download each)
+    python scripts/monthly/gefs_guide.py --build 11 --issue-day 25    # an update's table (starts nearest the 25th)
     python scripts/monthly/gefs_guide.py --live YYYY-MM       # print the live guidance for a target month
 """
 
@@ -130,8 +133,15 @@ def predictors(wk: np.ndarray, wt: np.ndarray, wl: np.ndarray) -> tuple[np.ndarr
 
 
 # ------------------------------------------------------------------------------------------------- the hindcast
-def build(month: int, cache: Path, weekly: Path | None = None) -> Path:
-    """data/gefs_hc_<MM>.npz for target month `month`: years (target years), init (start dates), ndays (target
+def table(month: int, issue_day: int = ISSUE_DAY) -> Path:
+    """The reforecast table of target month `month` for runs started on `issue_day` of the month before."""
+    return DATA / (
+        f"gefs_hc_{month:02d}.npz" if issue_day == ISSUE_DAY else f"gefs_hc_{month:02d}_d{issue_day:02d}.npz"
+    )
+
+
+def build(month: int, cache: Path, weekly: Path | None = None, issue_day: int = ISSUE_DAY) -> Path:
+    """table(month, issue_day) for target month `month`: years (target years), init (start dates), ndays (target
     window length), and per outlook variable v the (n, P) target anomalies, and v_lead the lead-in's for LEAD
     (float16: ample for anomalies). `weekly`: also write the per-year weekly anomalies there (for testing other
     windows)."""
@@ -145,7 +155,7 @@ def build(month: int, cache: Path, weekly: Path | None = None) -> Path:
         starts = sorted({k.split("_")[0] for k in z.files if k.endswith("_members")})
         dates = [dt.date(int(s[:4]), int(s[4:6]), int(s[6:])) for s in starts]
         yr = np.array([d.year for d in dates])
-        x = np.array([(d - dt.date(d.year, mi, ISSUE_DAY)).days for d in dates], float)  # days from the 15th
+        x = np.array([(d - dt.date(d.year, mi, issue_day)).days for d in dates], float)  # days from the issue day
         coarse = G.Coarsener(GR.LAT, GR.LON)
         sel = {}
         for y in YEARS:
@@ -177,7 +187,7 @@ def build(month: int, cache: Path, weekly: Path | None = None) -> Path:
         tl = [predictors(wk, win[0], win[1]) for wk, (_, _, win) in zip(wks[v], sel.values(), strict=True)]
         out_arrs[v] = np.stack([t for t, _ in tl])
         out_arrs[f"{v}_lead"] = np.stack([lead for _, lead in tl])
-    out = DATA / f"gefs_hc_{month:02d}.npz"
+    out = table(month, issue_day)
     meta = {k: out_arrs[k] for k in ("years", "init", "ndays")}
     fields = {k: out_arrs[k].astype(np.float16) for k in (*TAGS, *(f"{v}_lead" for v in LEAD))}
     np.savez_compressed(out, **meta, **fields)
@@ -194,10 +204,10 @@ def build(month: int, cache: Path, weekly: Path | None = None) -> Path:
     return out
 
 
-def hindcast(month: int, v: str) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
+def hindcast(month: int, v: str, issue_day: int = ISSUE_DAY) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
     """(target years, (n, P) target-window anomalies, (n, P) lead-in anomalies or None) of the reforecast table,
     or None."""
-    p = DATA / f"gefs_hc_{month:02d}.npz"
+    p = table(month, issue_day)
     if not p.exists():
         return None
     with np.load(p) as f:
@@ -240,6 +250,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--build", nargs="?", const="1,2,3,4,5,6,7,8,9,10,11,12", help="target months to tabulate")
     ap.add_argument("--weekly", help="also write the per-year weekly anomalies to this directory")
+    ap.add_argument("--issue-day", type=int, default=ISSUE_DAY, help="the tables' runs start nearest this day")
     ap.add_argument("--live", help="YYYY-MM: print the live guidance")
     ap.add_argument("--cache", default=str(Path(tempfile.gettempdir()) / "gefs_guide"))
     a = ap.parse_args()
@@ -247,7 +258,7 @@ def main() -> int:
     cache.mkdir(parents=True, exist_ok=True)
     if a.build:
         for m in map(int, a.build.split(",")):
-            build(m, cache, Path(a.weekly) if a.weekly else None)
+            build(m, cache, Path(a.weekly) if a.weekly else None, a.issue_day)
     if a.live:
         y, m = map(int, a.live.split("-"))
         g = live(y, m, cache=cache)

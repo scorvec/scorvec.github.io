@@ -15,6 +15,13 @@ name: Month-ahead outlook (statistical + GEFS, monthly on the 15th)
 # overwritten unless dispatched with force); verify.py scores every outlook whose target month is now complete, and
 # the C3S benchmark from the c3s-ref-v1 release (public downloads); render.py draws the figures. The predictors end
 # on the 7th of this month, so the run does not depend on the hour ERA5T lands (ARCO trails real time by ~six days).
+#
+# UPDATE (dispatch with update=true, when the stratosphere changes course after the 15th): vortex_window.py takes the
+# 50 hPa vortex over the 31 days ending on the 7th of the target month (ERA5 from the archive just extended, the IFS
+# analyses, then the members of the four ensembles' newest 00/12Z run on ens-anomalies.html: ECMWF from the Google
+# Cloud mirror only, GEFS from NOAA's S3, GEPS from the MSC Datamart), and forecast.py --update re-issues the target
+# beside the issue it updates (outlook_<YYYYMM>u<DD>), blended with the newest GEFS run (its reforecast table for that
+# run's day is built when missing, one 290 MB download from the gefs-clim-v3 release).
 
 on:
   schedule:
@@ -29,6 +36,10 @@ on:
         description: "re-issue the target's outlook even if it exists"
         type: boolean
         default: false
+      update:
+        description: "re-issue the target as an update with the vortex to the 7th of the target month (a sudden warming)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -39,6 +50,8 @@ concurrency:
 
 env:
   PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  ECMWF_SOURCES: google
+  GEPS_WORK: ${{ github.workspace }}/../datamart-work   # scripts/geps/datamart.py's request ledger, scratch
 
 jobs:
   outlook:
@@ -50,6 +63,12 @@ jobs:
           sparse-checkout: |
             scripts/monthly
             scripts/gefs/gefs_reforecast.py
+            scripts/ensmaps
+            scripts/ecmwf
+            scripts/lib
+            scripts/geps/datamart.py
+            scripts/geps/paths.py
+            assets/models/ensmaps_*.json
             assets/monthly
             assets/sst/data/c3s_maps.json
             scripts/constraints.txt
@@ -57,14 +76,22 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
-      - run: pip install --quiet numpy scipy pandas xarray zarr gcsfs h5netcdf h5py matplotlib cartopy pillow
+      - run: pip install --quiet numpy scipy pandas xarray zarr gcsfs h5netcdf h5py matplotlib cartopy pillow eccodes requests
       - name: Extend the ERA5 archive
         run: python scripts/monthly/build_archive.py --tail --workers 8
+      - name: The vortex window of an update
+        if: inputs.update
+        env:
+          TARGET: ${{ inputs.target }}
+        run: |
+          T="${TARGET:-$(date -u -d "$(date -u +%Y-%m-01) +1 month" +%Y-%m)}"
+          python scripts/monthly/vortex_window.py --target "$T" --manifests assets/models --out "$RUNNER_TEMP/vortex.json"
       - name: Issue the outlook
         run: |
           python scripts/monthly/forecast.py \
             ${{ inputs.target && format('--target {0}', inputs.target) || '' }} \
-            ${{ inputs.force && '--force' || '' }}
+            ${{ inputs.force && '--force' || '' }} \
+            ${{ inputs.update && format('--update {0}/vortex.json', runner.temp) || '' }}
       - name: Verify past outlooks
         run: python scripts/monthly/verify.py
       - name: Draw

@@ -275,7 +275,7 @@
 
     <section class="chart-card" id="guidance" hidden>
       <div class="chart-card-header"><h2>Statistical forecast and GEFS</h2>
-        <p>The statistical forecast, the 35-day GEFS run of the 15th (31 members): its forecast of the target month's
+        <p>The statistical forecast, the 35-day GEFS run of the 15th (an update: its newest run; 31 members): its forecast of the target month's
         days it reaches and, for temperature, its &ldquo;lead-in&rdquo; (the days before the month), and the blend.
         The blend's weights come from the 2000&ndash;2019 GEFS reforecast, at each point and smoothed over about
         2500&nbsp;km, fitted against the whole month, so they also say how much of each part carries into the monthly
@@ -349,6 +349,20 @@
     preliminary release (ERA5T) trails real time by about six days, so on the 15th that window is always complete.
     The lead from the end of the predictors to the middle of the target month is about five and a half weeks. The
     hindcast reproduces exactly this timing for every year.</p>
+    <p><b>Updates.</b> When the stratosphere changes course after the 15th (a sudden warming in the forecasts), the
+    month is re-issued as an update, and the issue it updates stays on the record and is scored as issued; the update
+    is scored beside it. The update moves the lower-vortex predictor to the 31 days ending on the 7th of the target
+    month: the 50&nbsp;hPa westerlies at 57&ndash;63N from ERA5 as far as it reaches, then the IFS analyses, then every
+    member of IFS-ENS, AIFS-ENS, GEFS and GEPS (a quarter each). The whole method is trained and cross-validated again
+    with that predictor, every year taking its own ERA5 value of the window. In ERA5 since 1959, the vortex over
+    8&nbsp;October&ndash;7&nbsp;November correlates at &minus;0.51 with November's detrended 500&nbsp;hPa height over the
+    polar cap, against &minus;0.23 for 8&nbsp;September&ndash;7&nbsp;October, and with it November's cross-validated
+    hindcast anomaly correlation rose from +0.115 to +0.125 for 500&nbsp;hPa height and from +0.299 to +0.310 for
+    2&nbsp;m temperature. The hindcast takes each window from ERA5, while the update takes its last week or two from
+    forecasts, so it scores the update a little better than it can be; the members' spread enters instead: the update
+    is the mean of the forecasts for 21 quantiles of the members' window values, and its tercile probabilities the
+    mean of theirs. The GEFS blend takes the newest run on or before the update's date, with weights from reforecast
+    starts nearest that run's day.</p>
     <p><b>Data.</b> ERA5 500&nbsp;hPa height, 2&nbsp;m temperature, precipitation, SST, sea ice, snow depth, topsoil
     moisture and 50&nbsp;hPa wind at 00, 06, 12 and 18&nbsp;UTC (precipitation as 6-hour totals, and from 2023 as
     hourly totals every 3 hours, which match the full totals to a correlation of 0.997), 1959 onward: the WeatherBench&nbsp;2 1.5&deg; copy to 2022 and
@@ -509,7 +523,8 @@
 
   function discussion(s, notes) {
     var p = [], ix = s.indices || {};
-    if (notes && notes[s.target]) p.push('<div class="note">' + notes[s.target] + "</div>");
+    var key = s.update ? s.target + "u" + s.issued.slice(8, 10) : s.target;   // an update has a note of its own
+    if (notes && notes[key]) p.push('<div class="note">' + notes[key] + "</div>");
     var n = ix.roni, enso = n <= -0.5 ? "La Ni&ntilde;a-like" : n >= 0.5 ? "El Ni&ntilde;o-like" : "near neutral";
     var qbo = ix.u50eq_raw <= -3 ? "easterly" : ix.u50eq_raw >= 3 ? "westerly" : "in transition";
     var vtx = ix.u50v >= 3 ? "stronger than normal" : ix.u50v <= -3 ? "weaker than normal" : "near normal";
@@ -518,8 +533,9 @@
     p.push("<p><b>The state on the 7th.</b> Over " + s.window + " the tropical Pacific was <b>" + enso +
       "</b>: relative Ni&ntilde;o-3.4 " + sgn(n, 2) + "&nbsp;&deg;C on the RONI scale (the " + Math.round(100 * ix.n34r_pct) +
       "th percentile of this window since 1959; plain Ni&ntilde;o-3.4 " + sgn(ix.n34, 2) + "&nbsp;&deg;C). The equatorial 50&nbsp;hPa wind was " + sgn(ix.u50eq_raw, 1) +
-      "&nbsp;m/s (QBO <b>" + qbo + "</b>), and the 50&nbsp;hPa westerlies at 60N were " + sgn(ix.u50v_raw, 1) +
-      "&nbsp;m/s, " + sgn(ix.u50v, 1) + "&nbsp;m/s from normal for the time of year (lower vortex <b>" + vtx + "</b>)." + v10 + "</p>");
+      "&nbsp;m/s (QBO <b>" + qbo + "</b>)" + (s.update ? "." : ", and the 50&nbsp;hPa westerlies at 60N were " + sgn(ix.u50v_raw, 1) +
+      "&nbsp;m/s, " + sgn(ix.u50v, 1) + "&nbsp;m/s from normal for the time of year (lower vortex <b>" + vtx + "</b>)." + v10) + "</p>");
+    if (s.update) p.push(updateText(s.update));
     var an = (s.analogs || []).map(function (a) { return a[0]; });
     var ca = (s.ca_top || []).filter(function (a) { return a[1] > 0; }).slice(0, 5).map(function (a) { return String(a[0]).slice(0, 4); });
     var cn = (s.ca_top || []).filter(function (a) { return a[1] < 0; }).slice(0, 4).map(function (a) { return String(a[0]).slice(0, 4); });
@@ -540,6 +556,18 @@
         "&nbsp;% of the hemisphere north of 20N." + guidance(s, k) + "</p>");
     });
     return p.join("");
+  }
+
+  // an update's vortex: the 50 hPa wind over 57-63N in the 31 days ending on the 7th of the target month
+  function updateText(u) {
+    var x = u.vortex, nm = { ifs: "IFS-ENS", aifs: "AIFS-ENS", gefs: "GEFS", geps: "GEPS" };
+    var d = function (iso) { var t = new Date(iso + "T00:00Z"); return t.getUTCDate() + " " + t.toLocaleString("en-GB", { month: "short", timeZone: "UTC" }); };
+    return "<p><b>The update (" + d(x.window[0]) + "&ndash;" + d(x.window[1]) + " vortex).</b> This forecast updates the issue of " + u.of +
+      ": the lower polar vortex enters as the 50&nbsp;hPa westerlies at 57&ndash;63N over " + d(x.window[0]) + "&ndash;" + d(x.window[1]) +
+      ", ERA5 to " + d(x.era5_through) + ", the IFS analyses after that and the four ensembles' members from their runs of " +
+      d(x.cycle.slice(0, 4) + "-" + x.cycle.slice(4, 6) + "-" + x.cycle.slice(6, 8)) + " " + x.cycle.slice(8) + "Z: " + sgn(x.value, 1) + "&nbsp;m/s, <b>" + sgn(x.anomaly, 1) +
+      "&nbsp;m/s</b> from the 1991&ndash;2020 normal of that window (" + Object.keys(x.ensembles).map(function (m) { return nm[m] + " " + sgn(x.ensembles[m], 1); }).join(", ") +
+      "; 10&ndash;90&nbsp;% of the members " + sgn(x.q10_q90[0], 1) + " to " + sgn(x.q10_q90[1], 1) + "&nbsp;m/s). The probabilities average the forecasts made from across that spread.</p>";
   }
 
   function guidance(s, k) {
@@ -568,7 +596,7 @@
       "<th>500 hPa height</th><th></th></tr></thead><tbody>";
     rows.forEach(function (r) {
       h += "<tr><td>" + r.label + "</td><td>" + r.issued + "</td><td>" + cell(r.t2m) + "</td><td>" + cell(r.prcp) +
-        "</td><td>" + cell(r.z500) + "</td><td><a href=\"" + A + "verify_" + r.target.replace("-", "") + '.webp">maps</a></td></tr>';
+        "</td><td>" + cell(r.z500) + "</td><td><a href=\"" + A + "verify_" + (r.tag || r.target.replace("-", "")) + '.webp">maps</a></td></tr>';
     });
     return h + "</tbody></table>";
   }
@@ -580,15 +608,15 @@
     var s = r[0], ver = s.target + "-" + s.issued;
     set("target", s.target_label);
     set("target_label", s.target_label);
-    set("issued", s.issued);
-    set("window", "ERA5 " + s.window);
+    set("issued", s.issued + (s.update ? " (update)" : ""));
+    set("window", s.update ? "vortex to " + parseInt(s.update.vortex.window[1].slice(8), 10) + " " + s.target_label.split(" ")[0].slice(0, 3) + "; ERA5 " + s.window : "ERA5 " + s.window);
     Object.keys(VARS).forEach(function (k) {
       var v = s.vars[k];
       if (!v) return;
       set("acc_" + k, sgn(v.nh_acc_mean, 2));
       set("sub_" + k, "trend alone " + sgn(v.acc_trend_mean, 2) + " &middot; RPSS " + sgn(v.rpss_nh, 2));
     });
-    set("stamp", "issued " + s.issued + " &middot; hindcast " + s.hindcast[0] + "&ndash;" + s.hindcast[1]);
+    set("stamp", (s.update ? "updated " + s.issued + " (issue of " + s.update.of + ")" : "issued " + s.issued) + " &middot; hindcast " + s.hindcast[0] + "&ndash;" + s.hindcast[1]);
     document.querySelectorAll(".ctl .fig-toggle").forEach(function (box) {
       box.addEventListener("click", function (e) {
         var b = e.target.closest("button");

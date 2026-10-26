@@ -3,7 +3,8 @@
 
     python scripts/monthly/verify.py
 
-For each assets/monthly/data/outlook_<YYYYMM>.npz with a complete target month, per variable over 20-90N
+For each assets/monthly/data/outlook_<YYYYMM>.npz with a complete target month (and each update of it,
+outlook_<YYYYMM>u<DD>.npz, scored as a row of its own), per variable over 20-90N
 (area-weighted): the anomaly correlation (uncentred) and RMSE of the outlook, the same for the trend component
 alone (the no-skill-beyond-warming reference), the share of the area where the outlook had the sign right, and the
 ranked probability skill score of its tercile probabilities against climatology (1/3 each). Where the issued
@@ -167,7 +168,7 @@ def main() -> int:
     rows = []
     for p in sorted(DATA.glob("outlook_[0-9]*.npz")):
         tag = p.stem.split("_")[1]
-        y, m = int(tag[:4]), int(tag[4:])
+        y, m = int(tag[:4]), int(tag[4:6])
         with np.load(p) as f:
             o = {k: f[k] for k in f.files}
         variables = [v for v in M.TARGETS if f"{v}_fc" in o]
@@ -175,7 +176,9 @@ def main() -> int:
         if obs is None:
             continue
         summ = json.loads((DATA / f"outlook_{tag}.json").read_text())
-        row = {"target": f"{y}-{m:02d}", "label": summ["target_label"], "issued": summ["issued"]}
+        row = {"target": f"{y}-{m:02d}", "tag": tag, "label": summ["target_label"], "issued": summ["issued"]}
+        if "update" in summ:
+            row["label"] += " (update)"
         bench = c3s_benchmark(A, y, m)
         for v in variables:
             s = scores(o[f"{v}_fc"], obs[v], w)
@@ -195,7 +198,7 @@ def main() -> int:
             figure(summ["target_label"], o, obs, row, variables, fp)
         rows.append(row)
         print(f"verified {tag}: " + ", ".join(f"{v} ACC {row[v]['acc']:+.2f}" for v in variables), flush=True)
-    rows.sort(key=lambda r: r["target"], reverse=True)
+    rows.sort(key=lambda r: (r["target"], r["issued"]), reverse=True)
     (DATA / "verification.json").write_text(json.dumps(rows, indent=1))
     return 0
 

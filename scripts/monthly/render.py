@@ -188,15 +188,20 @@ def outlook_map(o: dict, s: dict, var: str, region: str, kind: str, path: Path, 
     where = "" if nh else f" · {REGIONS[region][0]}"
     fig.text(0.04, 0.965, f"{s['target_label']}: {what}{where}", fontsize=13.5, fontweight="bold", color=INK)
     sub = f"Issued {s['issued']} from ERA5 through {s['window'].split('–')[1].strip()}"
+    if s.get("update"):  # an update: the vortex predictor runs to the 7th of the target month
+        u = s["update"]
+        d1 = datetime.date.fromisoformat(u["vortex"]["window"][1])
+        c = datetime.datetime.strptime(u["vortex"]["cycle"], "%Y%m%d%H")
+        sub = f"Update {s['issued']} (of {u['of']}) · vortex to {d1.day} {d1:%b} from the ensembles of {c.day} {c:%b} {c:%H}Z"
     b = s.get("blend", {}).get(var, {})
     if b.get("issued"):
         init = datetime.date.fromisoformat(b["init"])
-        sub += f" and the GEFS run of {init.day} {init:%b}"
+        sub += f" {'·' if s.get('update') else 'and'} the GEFS run of {init.day} {init:%b}"
     if var == "z500" and kind == "anom":
         sub += " · contours: forecast height (dam)"
     if kind == "prob":
         sub += " · blank: no category above 40% (or equal chances)"
-    fig.text(0.04, 0.937, sub, fontsize=8.6, color=MUTED)
+    fig.text(0.04, 0.937, sub, fontsize=8.6 if len(sub) <= 110 else 8.6 * 110 / len(sub), color=MUTED)  # one line
     if b.get("issued"):
         bs, ss = b["scores"]["blend"], b["scores"]["stat"]
         skill = (
@@ -373,8 +378,8 @@ def main() -> int:
     a = ap.parse_args()
     if a.target:
         tag = a.target.replace("-", "")
-    else:
-        tag = json.loads((DATA / "latest.json").read_text())["target"].replace("-", "")
+    else:  # the newest outlook of the newest target: an update when there is one
+        tag = Path(json.loads((DATA / "latest.json").read_text())["file"]).stem.split("_", 1)[1]
     s = json.loads((DATA / f"outlook_{tag}.json").read_text())
     with np.load(DATA / f"outlook_{tag}.npz") as f:
         o = {k: f[k] for k in f.files}
