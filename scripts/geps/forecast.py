@@ -35,7 +35,9 @@ Three joins have to be got right, and each of them is a silent-failure risk:
 Extended (day 35) cycles run Monday and Thursday only; other days stop at day 16.
 
 Downloads: every file comes through datamart.py (honest User-Agent, retries, ledger)
-and is read ONCE. The same GRIBs also feed what other products used to fetch again for themselves:
+and is read ONCE, decoded with eccodes (members(): cfgrib's two indexed opens of every file, one per data type, were
+most of the fetch's time), three fields at a time in processes of their own (FIELD_PROCS: 3 x datamart.WORKERS files
+at once on the Datamart). The same GRIBs also feed what other products used to fetch again for themselves:
 
   u850/u200/olr  the per-member 15S-15N band means of the three RMM channels (live/geps_rmm_members_<date>.npz),
                  which mjo_geps.py read by re-downloading the same 316 files
@@ -51,10 +53,11 @@ and is read ONCE. The same GRIBs also feed what other products used to fetch aga
 from __future__ import annotations
 
 import argparse
+import multiprocessing as mp
 import os
 import sys
-import tempfile
-from concurrent.futures import ThreadPoolExecutor
+import threading
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -94,6 +97,8 @@ VARS = {
 # badly wrong for t2m in particular — 00Z is a night-time sample over the Americas.
 # GEPS publishes 6-hourly steps all the way to day 35, so day n averages the four
 # steps 24n-18, 24n-12, 24n-6, 24n.
+FIELD_PROCS = 3  # fields fetched at once, each in a process of its own (eccodes decodes one file at a time in each)
+_DECODE = threading.Lock()  # eccodes in one thread at a time: decoding from several has crashed the interpreter
 DAYS = list(range(1, 36))
 SUBSTEPS = (-18, -12, -6, 0)
 
@@ -153,6 +158,44 @@ def band_members(v, lat, lo, lon=LON25):
     return np.stack([np.interp(lon, lo_w, row) for row in b_w])
 
 
+def members(body: bytes) -> xr.DataArray:
+    """Every member of an allmbrs file as (number, latitude, longitude), float32 in the grid's own order: the perturbed
+    members by their perturbation number, then the control, numbered 0..20 - what the two cfgrib opens (pf, cf) gave."""
+    import eccodes
+
+    pf, cf = {}, []
+    lat = lon = None
+    i = 0
+    with _DECODE:
+        while (j := body.find(b"GRIB", i)) >= 0:
+            n = int.from_bytes(body[j + 8 : j + 16], "big")
+            g = eccodes.codes_new_from_message(body[j : j + n])
+            try:
+                ni, nj = eccodes.codes_get(g, "Ni"), eccodes.codes_get(g, "Nj")
+                if lat is None:
+                    lat = np.linspace(
+                        *(eccodes.codes_get_double(g, f"latitudeOf{e}GridPointInDegrees") for e in ("First", "Last")),
+                        nj,
+                    )
+                    lon = np.linspace(
+                        *(eccodes.codes_get_double(g, f"longitudeOf{e}GridPointInDegrees") for e in ("First", "Last")),
+                        ni,
+                    )
+                v = eccodes.codes_get_values(g).reshape(nj, ni)
+                if eccodes.codes_get(g, "bitmapPresent"):
+                    v = np.where(v == eccodes.codes_get_double(g, "missingValue"), np.nan, v)
+                if eccodes.codes_get(g, "dataType") == "pf":
+                    pf[int(eccodes.codes_get(g, "perturbationNumber"))] = v
+                else:
+                    cf.append(v)
+            finally:
+                eccodes.codes_release(g)
+            i = j + n
+    vals = np.stack([pf[k] for k in sorted(pf)] + cf).astype(np.float32)
+    coords = {"number": np.arange(len(vals)), "latitude": lat, "longitude": lon}
+    return xr.DataArray(vals, dims=("number", "latitude", "longitude"), coords=coords)
+
+
 def _grab(
     date: str,
     var: str,
@@ -169,72 +212,31 @@ def _grab(
     what the teleconnection indices and tercile maps are computed from. band=True returns (mean, band) with the
     per-member RMM band means instead. save_as keeps the raw GRIB there (shared GRIB cache); ana_tag writes the
     2.5 deg ensemble mean to the observed-tail cache as <ana_tag>_P<L>_<date>.npz."""
-    # mkstemp hands back an OPEN fd as well as a path. Keeping only the
-    # path leaks that fd on every call: unlink() drops the name, not the
-    # descriptor. At 35 days x 4 substeps = 140 grabs per field it blew
-    # through the process's 256-fd limit partway into the second field and the
-    # 2026-08-31 cycle died as "Too many open files" (plus DNS failures,
-    # which were sockets that could no longer be opened either).
     none = (None, None) if (keep or band) else None
-    _fd, _name = tempfile.mkstemp(suffix=".grib2", dir=os.environ.get("GEPS_TMP"))
-    os.close(_fd)
-    tmp = Path(_name)
     try:
         if save_as is not None and save_as.exists() and save_as.stat().st_size > 0:
-            src = save_as  # already cached this run: no second download
+            body = save_as.read_bytes()  # already cached this run: no second download
         else:
             body = datamart.get(URL.format(d=date, v=var, L=L))
             if body is None:
                 print(f"    miss {var} P{L:03d}", flush=True)
                 return none
-            tmp.write_bytes(body)
-            src = tmp
             if save_as is not None:
                 save_as.parent.mkdir(parents=True, exist_ok=True)
                 save_as.write_bytes(body)
-        # allmbrs files hold the control AND the perturbed members; opening them
-        # unfiltered raises "multiple values for unique key" and drops the model
-        parts, mem = [], []
-        for dt in ("pf", "cf"):
-            try:
-                d = xr.open_dataset(
-                    src, engine="cfgrib", backend_kwargs=dict(filter_by_keys={"dataType": dt}, indexpath="")
-                )
-                a = d[next(iter(d.data_vars))]
-                n = a.sizes["number"] if "number" in a.dims else 1
-                parts.append((a.mean("number") if "number" in a.dims else a, n))
-                if keep or band:
-                    mem.append(a if "number" in a.dims else a.expand_dims(number=[0]))
-            except Exception:  # noqa: BLE001
-                pass
-        if not parts:
-            return none
-        # Weight by MEMBER COUNT, not by file. pf holds 20 perturbed members and cf
-        # a single control; averaging the pf mean and the cf as two equal things
-        # gave the control 1/2 the weight instead of 1/21, which put a single
-        # member's small-scale noise into every "ensemble mean" map (errors to
-        # 12 K, rms 1.7 K at day 21). Fixed 2026-08-29.
-        tot = sum(n for _, n in parts)
-        out = sum(a * n for a, n in parts) / tot
-        out = out.load()
+        m = members(body)  # the control and the perturbed members, each weighing the same in the mean
+        out = m.mean("number")
         if ana_tag is not None:
             paths.ANA.mkdir(parents=True, exist_ok=True)
             np.savez_compressed(paths.ANA / f"{ana_tag}_P{L:03d}_{date}.npz", v=coarsen25(out).values.astype("float32"))
-        if keep or band:
-            m = xr.concat(
-                [x.drop_vars([c for c in x.coords if c not in ("latitude", "longitude", "number")]) for x in mem],
-                dim="number",
-            )
-            m = m.assign_coords(number=np.arange(m.sizes["number"]))
-            if band:
-                return out, band_members(m.values, m.latitude.values, m.longitude.values)
+        if band:
+            return out, band_members(m.values, m.latitude.values, m.longitude.values)
+        if keep:
             return out, coarsen_to(m, step).load().astype("float32")
         return out
     except Exception as e:  # noqa: BLE001
         print(f"    miss {var} P{L:03d}: {str(e)[:60]}", flush=True)
         return none
-    finally:
-        tmp.unlink(missing_ok=True)
 
 
 def fetch_var(date: str, tag: str, workers: int, keep: bool = False):
@@ -438,9 +440,13 @@ def main() -> int:
     keep_tags = {t.strip() for t in a.members.split(",") if t.strip()}
     rmm = {}
     written = 0
-    for tag in [t.strip() for t in a.tags.split(",") if t.strip()]:
+    tags = [t.strip() for t in a.tags.split(",") if t.strip()]
+    # each field in a process of its own (eccodes decodes one file at a time in a process), FIELD_PROCS at once
+    with ProcessPoolExecutor(FIELD_PROCS, mp_context=mp.get_context("spawn")) as ex:
+        futs = {t: ex.submit(fetch_var, date, t, a.workers, t in keep_tags) for t in tags}
+    for tag in tags:
         keep = tag in keep_tags
-        fc = fetch_var(date, tag, a.workers, keep=keep)
+        fc = futs[tag].result()
         if tag in RMM_TAGS:
             fc, (bands, bL) = fc
             if bands is not None:
