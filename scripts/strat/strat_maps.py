@@ -69,7 +69,7 @@ TREND = DATA / "strat_trend.nc"
 OUT = _gp.SITE_ASSETS
 UA = _gp.UA
 GEPS = (
-    "https://dd.weather.gc.ca/{d}/WXO-DD/ensemble/geps/grib2/raw/{c}/{L:03d}/"
+    datamart.BASE + "/{d}/WXO-DD/ensemble/geps/grib2/raw/{c}/{L:03d}/"
     "CMC_geps-raw_{v}_ISBL_{lev:04d}_latlon0p5x0p5_{d}{c}_P{L:03d}_allmbrs.grib2"
 )
 GEPS_MSL = GEPS.replace("{v}_ISBL_{lev:04d}", "{v}_MSL_0")  # a mean-sea-level field (PRMSL)

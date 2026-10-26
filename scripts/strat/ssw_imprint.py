@@ -195,10 +195,7 @@ def slp_gefs(date: str, hh: str, steps=LEADS, workers: int = 32):
     return out[np.isfinite(out).all(axis=(1, 2, 3))], np.array(steps)
 
 
-GEPS_SLP = (
-    "https://dd.weather.gc.ca/{d}/WXO-DD/ensemble/geps/grib2/raw/{c}/{L:03d}/"
-    "CMC_geps-raw_PRMSL_MSL_0_latlon0p5x0p5_{d}{c}_P{L:03d}_allmbrs.grib2"
-)
+GEPS_SLP = "/{d}/WXO-DD/ensemble/geps/grib2/raw/{c}/{L:03d}/CMC_geps-raw_PRMSL_MSL_0_latlon0p5x0p5_{d}{c}_P{L:03d}_allmbrs.grib2"  # under datamart.BASE
 
 
 def slp_geps(date: str, hh: str, steps=LEADS):
@@ -215,7 +212,9 @@ def slp_geps(date: str, hh: str, steps=LEADS):
     per = []
     for L in steps:
         f = datamart.download(
-            GEPS_SLP.format(d=date, c=hh, L=L), sm.DL / f"geps_{date}{hh}_PRMSL_{L:03d}.grib2", timeout=300
+            datamart.BASE + GEPS_SLP.format(d=date, c=hh, L=L),
+            sm.DL / f"geps_{date}{hh}_PRMSL_{L:03d}.grib2",
+            timeout=300,
         )
         if f is None:
             raise SystemExit(f"GEPS {date} {hh}Z: PRMSL +{L} h is not on the Datamart")
