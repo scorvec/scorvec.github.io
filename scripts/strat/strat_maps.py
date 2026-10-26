@@ -157,22 +157,12 @@ def fetch(date, cyc, var, lev, L):
 
 
 def ens_mean(path):
-    """Member-count-weighted mean of the perturbed file and the control."""
-    parts = []
-    for dt in ("pf", "cf"):
-        try:
-            ds = xr.open_dataset(
-                path, engine="cfgrib", backend_kwargs=dict(filter_by_keys={"dataType": dt}, indexpath="")
-            )
-            a = ds[next(iter(ds.data_vars))]
-            n = a.sizes["number"] if "number" in a.dims else 1
-            parts.append(((a.mean("number") if "number" in a.dims else a), n))
-        except Exception:  # noqa: BLE001
-            pass
-    if not parts:
+    """The mean of all members of an allmbrs file (the control and the perturbed members alike), or None."""
+    try:
+        return datamart.members(Path(path).read_bytes()).mean("number")
+    except Exception as e:  # noqa: BLE001  a broken file: the lead is left out, as a missing one
+        print(f"    unreadable {Path(path).name}: {str(e)[:60]}", flush=True)
         return None
-    tot = sum(n for _, n in parts)
-    return (sum(a * n for a, n in parts) / tot).load()
 
 
 def to_clim_grid(a, clat, clon):

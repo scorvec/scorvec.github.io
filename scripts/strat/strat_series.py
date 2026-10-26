@@ -60,25 +60,12 @@ PANELS = [
 
 
 def members(path):
-    """All 21 members as a stacked DataArray (number, lat, lon)."""
-    out = []
-    for dt in ("pf", "cf"):
-        try:
-            ds = xr.open_dataset(
-                path, engine="cfgrib", backend_kwargs=dict(filter_by_keys={"dataType": dt}, indexpath="")
-            )
-            a = ds[next(iter(ds.data_vars))].load()
-            out.append(a if "number" in a.dims else a.expand_dims(number=[0]))
-        except Exception:  # noqa: BLE001
-            pass
-    if not out:
+    """All 21 members as a stacked DataArray (number, lat, lon), or None."""
+    try:
+        return sm.datamart.members(Path(path).read_bytes())
+    except Exception as e:  # noqa: BLE001  a broken file: the lead is left out, as a missing one
+        print(f"    unreadable {Path(path).name}: {str(e)[:60]}", flush=True)
         return None
-    return xr.concat(
-        [o.drop_vars("number").assign_coords(number=np.arange(o.sizes["number"])) if False else o for o in out],
-        dim="number",
-        coords="minimal",
-        compat="override",
-    )
 
 
 def reduce_field(a, kind, north, demean=False):

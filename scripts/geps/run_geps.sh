@@ -12,7 +12,9 @@
 # assets/geps/anim; publishing (frames branch, main) is the workflow's job. Sets new=1 in $GITHUB_OUTPUT when it built.
 #
 # Order matters: the anomalies must exist before anything is drawn, and the OLR channel must be refreshed before the
-# MJO projection reads it. Every product after forecast.py warns rather than failing the run.
+# MJO projection reads it. The OLR channel is refreshed while the forecast is fetched, and the products after the maps
+# run at the same time (scripts/lib/parallel.sh: each from the anomalies and members on disk, none from another's
+# output); every product after forecast.py warns (degraded.sh) rather than failing the run.
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SITE="$(cd "$HERE/../.." && pwd)"
@@ -60,30 +62,34 @@ echo "== GEPS extended cycle $CYCLE =="
 DOY=$(date -u -d "${CYCLE:0:4}-${CYCLE:4:2}-${CYCLE:6:2}" +%j 2>/dev/null || date -u -j -f %Y%m%d "$CYCLE" +%j)
 DOY=$((10#$DOY))
 
-step "forecast: fetch + de-drifted anomalies" "$PY" forecast.py --date "$CYCLE" || exit 1
-
-# observed OLR / wind channels for the MJO: ERA5 (ARCO, incremental) to ~6 days back, GMGSI proxy for the tail
+source "$SITE/scripts/lib/parallel.sh"
+# observed OLR / wind channels for the MJO: ERA5 (ARCO, incremental) to ~6 days back, GMGSI proxy for the tail; no
+# Datamart, so while the forecast is fetched
 if [ "${GEPS_OFFLINE:-0}" != "1" ]; then
-  step "MJO observed channels (ARCO ERA5, new days only)" bash -c "cd '$SITE/scripts/mjo' && '$PY' src/fetch_arco_olr_band.py --workers 4 && '$PY' src/fetch_arco_eq_uv.py --days 55 --workers 4" \
-    || echo "::warning::OLR/wind refresh failed - MJO uses the committed channel"
+  par "MJO observed channels (ARCO ERA5, new days only)" "MJO uses the committed channel" bash -c "cd '$SITE/scripts/mjo' && '$PY' src/fetch_arco_olr_band.py --workers 4 && '$PY' src/fetch_arco_eq_uv.py --days 55 --workers 4"
 fi
+step "forecast: fetch + de-drifted anomalies" "$PY" forecast.py --date "$CYCLE" || exit 1
+par_wait
 
 step "maps (daily frames, weekly, change)" "$PY" render_maps.py --cycle "$CYCLE" --workers "$WORKERS" --base era5 || exit 1
-step "teleconnections" "$PY" telecon_geps.py --cycle "$CYCLE" || echo "::warning::teleconnections failed"
-step "tercile probability maps" "$PY" prob_maps.py --cycle "$CYCLE" || echo "::warning::probability maps failed"
-step "weather regimes" "$PY" regimes_geps.py --cycle "$CYCLE" || echo "::warning::regimes failed"
-step "ensemble clusters" "$PY" cluster_geps.py --cycle "$CYCLE" || echo "::warning::clusters failed"
-step "MJO hindcast skill (replot)" "$PY" mjo_hindcast.py --replot --doy-now "$DOY" || echo "::warning::MJO skill replot failed"
-step "MJO phase + Hovmoller" bash -c "cd '$SITE/scripts/mjo' && '$PY' '$HERE/mjo_geps.py' --cycle '$CYCLE'" || echo "::warning::MJO failed"
-
 # polar vortex: ERA5-referenced, de-drifted with the S2S GEPS reforecast tables in the reference set (fixed; their
-# rebuild needs the ECMWF S2S archive and is not part of this job)
-step "vortex frames + series" bash -c "cd '$SITE/scripts/strat' && '$PY' strat_frames.py --date '$CYCLE' && for h in nh sh; do '$PY' strat_series.py --hemi \$h --date '$CYCLE' || exit 1; done" \
-  || echo "::warning::vortex products failed"
-step "dripping paint" bash -c "cd '$SITE/scripts/strat' && '$PY' forecast_drip.py --model geps --date '$CYCLE' --out-dir '$OUTROOT/assets/geps'" \
-  || echo "::warning::GEPS dripping paint failed"
-step "100 hPa heat flux" bash -c "cd '$SITE' && '$PY' scripts/strat/heatflux100_ext.py --model geps --date '$CYCLE' --out-dir '$OUTROOT/assets/geps'" \
-  || echo "::warning::GEPS heat flux failed"
+# rebuild needs the ECMWF S2S archive and is not part of this job); then the dripping paint, which reads the 10/100 hPa
+# files the frames cached
+vortex() {
+  (cd "$SITE/scripts/strat" && "$PY" strat_frames.py --date "$CYCLE" && for h in nh sh; do "$PY" strat_series.py --hemi "$h" --date "$CYCLE" || exit 1; done) \
+    || "$SITE/scripts/lib/degraded.sh" "vortex frames + series" "the previous vortex products stay"
+  (cd "$SITE/scripts/strat" && "$PY" forecast_drip.py --model geps --date "$CYCLE" --out-dir "$OUTROOT/assets/geps") \
+    || "$SITE/scripts/lib/degraded.sh" "dripping paint" "the previous figure stays"
+}
+par "vortex frames + series, dripping paint" "the previous vortex products and dripping paint stay" vortex
+par "teleconnections" "the previous figures stay" "$PY" telecon_geps.py --cycle "$CYCLE"
+par "tercile probability maps" "the previous maps stay" "$PY" prob_maps.py --cycle "$CYCLE"
+par "weather regimes" "the previous regimes stay" "$PY" regimes_geps.py --cycle "$CYCLE"
+par "ensemble clusters" "the previous clusters stay" "$PY" cluster_geps.py --cycle "$CYCLE"
+par "MJO hindcast skill (replot)" "the previous skill figure stays" "$PY" mjo_hindcast.py --replot --doy-now "$DOY"
+par "MJO phase + Hovmoller" "the previous MJO figures stay" bash -c "cd '$SITE/scripts/mjo' && '$PY' '$HERE/mjo_geps.py' --cycle '$CYCLE'"
+par "100 hPa heat flux" "the previous figure stays" bash -c "cd '$SITE' && '$PY' scripts/strat/heatflux100_ext.py --model geps --date '$CYCLE' --out-dir '$OUTROOT/assets/geps'"
+par_wait
 
 # into the site: static figures + manifests on main, frames (gitignored on main) to the frames branch
 FIGS="$GEPS_WORK/figs"
