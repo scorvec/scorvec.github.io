@@ -323,8 +323,7 @@ def _project(folr, f850, f200, eofs):
 
 
 ANL = (
-    "https://dd.weather.gc.ca/{d}/WXO-DD/ensemble/geps/grib2/raw/00/000/"
-    "CMC_geps-raw_{v}_latlon0p5x0p5_{d}00_P000_allmbrs.grib2"
+    datamart.BASE + "/{d}/WXO-DD/ensemble/geps/grib2/raw/00/000/CMC_geps-raw_{v}_latlon0p5x0p5_{d}00_P000_allmbrs.grib2"
 )
 
 

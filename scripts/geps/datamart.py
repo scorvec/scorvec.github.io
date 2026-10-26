@@ -27,7 +27,9 @@ import webget
 
 import paths
 
-BASE = "https://dd.weather.gc.ca"
+# ECCC's high-performance file exchange, the same dated tree as dd.weather.gc.ca: from a runner it kept 12 MB/s over
+# 1.2 GB of GEPS files where the Datamart held 1 MB/s and dropped 5 of 280 transfers (4 connections, 26 Oct 2026)
+BASE = "https://hpfx.collab.science.gc.ca"
 # one extended-range file per (variable, level, step), all 21 members (control + 20 perturbed) in each
 URL = (
     BASE + "/{d}/WXO-DD/ensemble/geps/grib2/raw/{c}/{L:03d}/"
