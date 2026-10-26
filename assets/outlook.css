@@ -19,8 +19,10 @@
     --serif: 'Source Serif 4', Georgia, serif;   /* the site type system (site.css) sets both; these are its fallbacks */
     --sans: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif;
   }
-  html, body { height: 100%; }
+  /* at least the window tall, so a short page keeps its footer at the bottom; never fixed at the window's height, which
+     made the sticky site header scroll away a screen down (sticky holds only within its parent, here the body) */
   body {
+    min-height: 100vh;
     background: var(--bg);
     color: var(--ink);
     font-family: var(--sans);

@@ -54,6 +54,21 @@
   fitHeader();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitHeader);
   window.addEventListener('load', fitHeader);
+  // The homepage's header lies over the hero and would scroll away with it: once the hero has gone by it is the ordinary
+  // header pinned to the top of the window (fixed, so nothing below moves), and over the hero the overlay again.
+  if (header.classList.contains('sh--overlay')) {
+    var hero = document.querySelector('.hero'), pinned = false;
+    var pin = function () {
+      var on = hero ? hero.getBoundingClientRect().bottom <= header.offsetHeight : window.scrollY > 0;
+      if (on === pinned) return;
+      pinned = on;
+      header.classList.toggle('sh--overlay', !on);
+      header.classList.toggle('sh--pinned', on);
+      fitHeader();
+    };
+    window.addEventListener('scroll', pin, { passive: true });
+    pin();
+  }
   // the stacked menu scrolls inside what is left of the window below the header (2026-10-08 sweep: a fixed
   // calc(100vh - 64px) ran past the bottom of the screen under the taller homepage header and on iOS, whose 100vh
   // is the toolbar-less height, so the last links could not be reached)
