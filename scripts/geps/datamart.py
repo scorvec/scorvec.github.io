@@ -36,6 +36,7 @@ URL = (
 # Concurrency is deliberately modest: the Datamart is a shared public service.
 WORKERS = int(os.environ.get("GEPS_FETCH_WORKERS", "4"))
 _LOCK = threading.Lock()
+_DECODE = threading.Lock()  # eccodes in one thread at a time: decoding from several has crashed the interpreter
 # GEPS_OFFLINE=1: no request leaves the machine (rebuilding a cycle from files already held)
 OFFLINE = os.environ.get("GEPS_OFFLINE") == "1"
 
@@ -78,7 +79,7 @@ def download(u: str, dest: Path, timeout: int = 600) -> Path | None:
     if b is None:
         return None
     dest.parent.mkdir(parents=True, exist_ok=True)
-    tmp = dest.with_suffix(dest.suffix + ".part")
+    tmp = dest.with_name(f"{dest.name}.{os.getpid()}.{threading.get_ident()}.part")  # its own: two writers race safely
     tmp.write_bytes(b)
     tmp.replace(dest)
     return dest
@@ -115,3 +116,43 @@ def report_ledger(path: Path | None = None) -> str:
 
 if __name__ == "__main__":
     print(report_ledger())
+
+
+def members(body: bytes):
+    """Every member of an allmbrs file as (number, latitude, longitude), float32 in the grid's own order: the perturbed
+    members by their perturbation number, then the control, numbered 0..20 - what the two cfgrib opens (pf, cf) gave."""
+    import eccodes
+    import numpy as np
+    import xarray as xr
+
+    pf, cf = {}, []
+    lat = lon = None
+    i = 0
+    with _DECODE:
+        while (j := body.find(b"GRIB", i)) >= 0:
+            n = int.from_bytes(body[j + 8 : j + 16], "big")
+            g = eccodes.codes_new_from_message(body[j : j + n])
+            try:
+                ni, nj = eccodes.codes_get(g, "Ni"), eccodes.codes_get(g, "Nj")
+                if lat is None:
+                    lat = np.linspace(
+                        *(eccodes.codes_get_double(g, f"latitudeOf{e}GridPointInDegrees") for e in ("First", "Last")),
+                        nj,
+                    )
+                    lon = np.linspace(
+                        *(eccodes.codes_get_double(g, f"longitudeOf{e}GridPointInDegrees") for e in ("First", "Last")),
+                        ni,
+                    )
+                v = eccodes.codes_get_values(g).reshape(nj, ni)
+                if eccodes.codes_get(g, "bitmapPresent"):
+                    v = np.where(v == eccodes.codes_get_double(g, "missingValue"), np.nan, v)
+                if eccodes.codes_get(g, "dataType") == "pf":
+                    pf[int(eccodes.codes_get(g, "perturbationNumber"))] = v
+                else:
+                    cf.append(v)
+            finally:
+                eccodes.codes_release(g)
+            i = j + n
+    vals = np.stack([pf[k] for k in sorted(pf)] + cf).astype(np.float32)
+    coords = {"number": np.arange(len(vals)), "latitude": lat, "longitude": lon}
+    return xr.DataArray(vals, dims=("number", "latitude", "longitude"), coords=coords)

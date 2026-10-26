@@ -35,7 +35,7 @@ Three joins have to be got right, and each of them is a silent-failure risk:
 Extended (day 35) cycles run Monday and Thursday only; other days stop at day 16.
 
 Downloads: every file comes through datamart.py (honest User-Agent, retries, ledger)
-and is read ONCE, decoded with eccodes (members(): cfgrib's two indexed opens of every file, one per data type, were
+and is read ONCE, decoded with eccodes (datamart.members(): cfgrib's two indexed opens of every file, one per data type, were
 most of the fetch's time), three fields at a time in processes of their own (FIELD_PROCS: 3 x datamart.WORKERS files
 at once on the Datamart). The same GRIBs also feed what other products used to fetch again for themselves:
 
@@ -56,7 +56,6 @@ import argparse
 import multiprocessing as mp
 import os
 import sys
-import threading
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from pathlib import Path
 
@@ -98,7 +97,6 @@ VARS = {
 # GEPS publishes 6-hourly steps all the way to day 35, so day n averages the four
 # steps 24n-18, 24n-12, 24n-6, 24n.
 FIELD_PROCS = 3  # fields fetched at once, each in a process of its own (eccodes decodes one file at a time in each)
-_DECODE = threading.Lock()  # eccodes in one thread at a time: decoding from several has crashed the interpreter
 DAYS = list(range(1, 36))
 SUBSTEPS = (-18, -12, -6, 0)
 
@@ -158,44 +156,6 @@ def band_members(v, lat, lo, lon=LON25):
     return np.stack([np.interp(lon, lo_w, row) for row in b_w])
 
 
-def members(body: bytes) -> xr.DataArray:
-    """Every member of an allmbrs file as (number, latitude, longitude), float32 in the grid's own order: the perturbed
-    members by their perturbation number, then the control, numbered 0..20 - what the two cfgrib opens (pf, cf) gave."""
-    import eccodes
-
-    pf, cf = {}, []
-    lat = lon = None
-    i = 0
-    with _DECODE:
-        while (j := body.find(b"GRIB", i)) >= 0:
-            n = int.from_bytes(body[j + 8 : j + 16], "big")
-            g = eccodes.codes_new_from_message(body[j : j + n])
-            try:
-                ni, nj = eccodes.codes_get(g, "Ni"), eccodes.codes_get(g, "Nj")
-                if lat is None:
-                    lat = np.linspace(
-                        *(eccodes.codes_get_double(g, f"latitudeOf{e}GridPointInDegrees") for e in ("First", "Last")),
-                        nj,
-                    )
-                    lon = np.linspace(
-                        *(eccodes.codes_get_double(g, f"longitudeOf{e}GridPointInDegrees") for e in ("First", "Last")),
-                        ni,
-                    )
-                v = eccodes.codes_get_values(g).reshape(nj, ni)
-                if eccodes.codes_get(g, "bitmapPresent"):
-                    v = np.where(v == eccodes.codes_get_double(g, "missingValue"), np.nan, v)
-                if eccodes.codes_get(g, "dataType") == "pf":
-                    pf[int(eccodes.codes_get(g, "perturbationNumber"))] = v
-                else:
-                    cf.append(v)
-            finally:
-                eccodes.codes_release(g)
-            i = j + n
-    vals = np.stack([pf[k] for k in sorted(pf)] + cf).astype(np.float32)
-    coords = {"number": np.arange(len(vals)), "latitude": lat, "longitude": lon}
-    return xr.DataArray(vals, dims=("number", "latitude", "longitude"), coords=coords)
-
-
 def _grab(
     date: str,
     var: str,
@@ -224,7 +184,7 @@ def _grab(
             if save_as is not None:
                 save_as.parent.mkdir(parents=True, exist_ok=True)
                 save_as.write_bytes(body)
-        m = members(body)  # the control and the perturbed members, each weighing the same in the mean
+        m = datamart.members(body)  # the control and the perturbed members, each weighing the same in the mean
         out = m.mean("number")
         if ana_tag is not None:
             paths.ANA.mkdir(parents=True, exist_ok=True)

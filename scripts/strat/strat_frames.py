@@ -22,8 +22,11 @@ being renormalised to look equally dramatic.
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import sys
+import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pyproj  # noqa: F401  before xarray/eccodes: eccodes preloads its own libproj
@@ -117,6 +120,21 @@ def main() -> int:
     base = pd.Timestamp(f"{date} {a.cyc}:00")
     print(f"GEPS extended {base:%Y-%m-%d %H}Z", flush=True)
     regions = {}
+    # every file the frames read, downloaded datamart.WORKERS at a time into the cache sm.fetch reads (one at a time
+    # took most of this product's 35-47 min), and each ensemble mean decoded once for both hemispheres
+    need = set()
+    for hemi in ("nh", "sh"):
+        anom = set(sm.ANOM_LEVELS) | ({10, 100} if map_bias(hemi, base) else set())
+        for lev in (10, 100):
+            for key, var, *_ in sm.FIELDS if lev in anom else sm.fields_for(lev):
+                need |= {(v, lev) for v in (("HGT", "UGRD", "VGRD") if key == "W" else ("HGT", var))}
+    t0 = time.time()
+    with ThreadPoolExecutor(sm.datamart.WORKERS) as ex:  # polite: the Datamart is a shared service
+        got = list(ex.map(lambda j: sm.fetch(date, a.cyc, *j), [(v, lev, L) for v, lev in sorted(need) for L in LEADS]))
+    print(
+        f"  {sum(g is not None for g in got)} of {len(got)} files in the cache ({time.time() - t0:.0f} s)", flush=True
+    )
+    fetch_mean = functools.lru_cache(maxsize=None)(sm.sm_fetch_mean)
 
     for hemi in ("nh", "sh"):
         north = hemi == "nh"
@@ -145,15 +163,15 @@ def main() -> int:
                 mode = mode0 if (mode0 == "speed" or lev in anom_levels) else "abs"
                 seq, lim, vmin = [], 0.0, np.inf
                 for L in LEADS:
-                    fz = sm.sm_fetch_mean(date, a.cyc, "HGT", lev, L)
+                    fz = fetch_mean(date, a.cyc, "HGT", lev, L)
                     if fz is None:
                         seq.append(None)
                         continue
                     valid = base + pd.Timedelta(hours=L)
                     gz = sm.to_clim_grid(fz, clat, clon).values
                     if mode == "speed":
-                        fu = sm.sm_fetch_mean(date, a.cyc, "UGRD", lev, L)
-                        fv = sm.sm_fetch_mean(date, a.cyc, "VGRD", lev, L)
+                        fu = fetch_mean(date, a.cyc, "UGRD", lev, L)
+                        fv = fetch_mean(date, a.cyc, "VGRD", lev, L)
                         if fu is None or fv is None:
                             seq.append(None)
                             continue
@@ -163,7 +181,7 @@ def main() -> int:
                         lim = max(lim, float(np.nanpercentile(fld[sub], 99)))
                         seq.append((fld, valid, gz, None, float(np.interp(phi, clat[::-1], u.mean(1)[::-1])), u))
                     else:
-                        src = fz if key == "Z" else sm.sm_fetch_mean(date, a.cyc, var, lev, L)
+                        src = fz if key == "Z" else fetch_mean(date, a.cyc, var, lev, L)
                         if src is None:
                             seq.append(None)
                             continue
