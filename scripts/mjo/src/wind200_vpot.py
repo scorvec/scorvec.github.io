@@ -247,7 +247,13 @@ def _ens_mean(cyc, all_steps, frame_steps) -> xr.Dataset:
     vp = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", "v", "pl", (200,), tuple(frame_steps)))
     v = xr.open_dataset(vp, engine="cfgrib", backend_kwargs={"indexpath": ""})["v"]
     u = u.sel(step=v.step)  # the frame steps only
-    return xr.Dataset({"u": u.mean("number"), "v": v.mean("number")}).squeeze(drop=True)
+
+    # one step's members at a time: averaging the whole array read all 50 members x 16 steps of a component at once
+    # (8.2 GB for u alone, the job's 11.6 GB peak); step by step it is 1.2 GB, with identical means
+    def mean(da):
+        return xr.concat([da.isel(step=i).mean("number") for i in range(da.sizes["step"])], "step", coords="different")
+
+    return xr.Dataset({"u": mean(u), "v": mean(v)}).squeeze(drop=True)
 
 
 def main() -> int:
