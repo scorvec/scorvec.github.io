@@ -39,7 +39,7 @@ Sources (hard rules):
   ifs    ECMWF open data from the Google Cloud mirror ONLY, through scripts/ecmwf/rangefetch.py (byte ranges of only the
          wanted messages; it refuses any other host). 00/12Z, 3-hourly to +144 h then 6-hourly to +240 h; the 0.1 deg
          files are complete on the mirror ~9 h 40 min after the start (cycles.IFS_CONTROL_0P1).
-  gdps   ECCC MSC Datamart (dd.weather.gc.ca): one global GRIB2 file per variable, level and hour, JPEG2000-packed, so a
+  gdps   ECCC MSC Datamart tree (hpfx.collab.science.gc.ca): one global GRIB2 file per variable, level and hour, JPEG2000-packed, so a
          file cannot be cut to the domain and is read whole. 00/12Z to +240 h: surface fields every 3 h (the
          precipitation type, and so the rate map it colours, 6-hourly after +168 h: GDPS_TYPE_6H), the column (20
          pressure levels) on the IFS's steps. Readiness is a HEAD on the last hour's files, never a listing. A file
@@ -309,7 +309,7 @@ def ifs_fetch(date, hh, step, want_sfc, want_pl, levels, stats=None):
 
 def gdps_url(date, hh, hour, var):
     return (
-        f"https://dd.weather.gc.ca/{date}/WXO-DD/model_gdps/15km/{hh}/{hour:03d}/"
+        f"https://hpfx.collab.science.gc.ca/{date}/WXO-DD/model_gdps/15km/{hh}/{hour:03d}/"
         f"{date}T{hh}Z_MSC_GDPS_{var}_LatLon0.15_PT{hour:03d}H.grib2"
     )
 

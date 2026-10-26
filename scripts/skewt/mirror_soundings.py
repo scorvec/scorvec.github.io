@@ -9,7 +9,7 @@ Five public sources, all credited on the page:
     asks for Crawl-delay: 120, so requests are spaced IEM_DELAY s apart, capped per
     run (MAX_IEM_REQ), and each hour slot is asked at most two or three times over
     its first ~12 h (state.json remembers which slots were asked and when).
-  * ECCC MSC Datamart (Environment and Climate Change Canada, dd.weather.gc.ca) - real-time
+  * ECCC MSC Datamart (Environment and Climate Change Canada, hpfx.collab.science.gc.ca) - real-time
     Canada: each Canadian upper-air station's own native ~1-s BUFR (IUK to 100 hPa ~1 h after
     launch, IUS entire ~2 h after), from today's and yesterday's reception-date directories;
     only directories that changed are re-listed, only files that outrank what is held are GET.
@@ -1471,7 +1471,7 @@ def run_wis2(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
 # Environment and Climate Change Canada's MSC Datamart publishes every Canadian upper-air
 # station's own BUFR bulletins within minutes of reception (ECCC Data Servers End-use Licence;
 # attribution "Data Source: Environment and Climate Change Canada"). Layout:
-#   https://dd.weather.gc.ca/YYYYMMDD/WXO-DD/bulletins/alphanumeric/YYYYMMDD/IU/<CCCC>/<HH>/
+#   https://hpfx.collab.science.gc.ca/YYYYMMDD/WXO-DD/bulletins/alphanumeric/YYYYMMDD/IU/<CCCC>/<HH>/
 #   YYYYMMDD and HH are the RECEPTION date and hour (not the nominal time): one directory per
 #   station (CCCC = the station's own indicator, e.g. CWSE = Stony Plain 71119), so a 12Z launch
 #   lands in 12/ (the first part, ~12:15) and 13/ (the entire sounding, ~13:15).
@@ -1480,7 +1480,7 @@ def run_wis2(outdir: Path, state: dict, by_wmo: dict, meta: dict) -> dict:
 #   IUS = the same ascent entire, to burst (~6-7k levels), ~2 h after launch; CCA/CCB = corrections
 #   (often the same ascent with a longer tail); IUW / IUJ = PILOT wind-only (309051) - skipped.
 #   Off-hour specials sit in their own reception-hour directories (18/, 19/ ...).
-ECCC_DD = "https://dd.weather.gc.ca/{d}/WXO-DD/bulletins/alphanumeric/{d}/IU/"
+ECCC_DD = "https://hpfx.collab.science.gc.ca/{d}/WXO-DD/bulletins/alphanumeric/{d}/IU/"
 ECCC_NAME = "Environment and Climate Change Canada (MSC Datamart)"
 ECCC_MAX_LIST = int(os.environ.get("SKEWT_ECCC_MAX_LIST", "200"))
 ECCC_MAX_GET = int(os.environ.get("SKEWT_ECCC_MAX_GET", "90"))

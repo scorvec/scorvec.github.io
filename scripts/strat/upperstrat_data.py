@@ -15,7 +15,7 @@ reuses the day's 00Z read; see upperstrat.yml).
         day 35). 1-7 and 20/30/70 hPa are in the pgrb2b files, 10/50/100 in pgrb2a. Byte-ranged from NOAA's S3 bucket
         through the .idx files (the site rule for NOAA data: S3, never NOMADS). Maps from the control.
   gfs   NOAA GFS, pgrb2.0p25 (~22 MB of messages a step), days 0-16.
-  gdps  ECCC GDPS, 15 km lat-lon GRIB2 from the dated MSC Datamart tree (dd.weather.gc.ca/YYYYMMDD/WXO-DD/...),
+  gdps  ECCC GDPS, 15 km lat-lon GRIB2 from the dated MSC Datamart tree (hpfx.collab.science.gc.ca/YYYYMMDD/WXO-DD/...),
         days 0-10. Pressure levels 1, 5, 10, 20, 30, 50, 100 hPa only (no 2, 3, 7 or 70).
   geos  NASA GMAO GEOS FP 00Z forecast (NCCS OPeNDAP fcast/inst3_3d_asm_Np), days 0-10, read SEQUENTIALLY and
         subset (only the rows and levels used): parallel OPeNDAP reads have silently returned corrupt data here before.
@@ -61,7 +61,7 @@ MODELS = {  # days: the 00Z run's length (n_days gives 12Z's)
 }
 S3_GFS = "https://noaa-gfs-bdp-pds.s3.amazonaws.com"
 S3_GEFS = "https://noaa-gefs-pds.s3.amazonaws.com"
-DATAMART = "https://dd.weather.gc.ca"
+DATAMART = "https://hpfx.collab.science.gc.ca"
 GEOS_FC = "https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/fcast/inst3_3d_asm_Np"
 GEOS_AS = "https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/assim/inst3_3d_asm_Np"
 UA = {"User-Agent": DEFAULT_UA}  # the site's honest one, for S3, the Datamart and NCCS alike

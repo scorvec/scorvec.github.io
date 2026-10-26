@@ -7,8 +7,8 @@ twelve, with the full 1990-2020 hindcast beside it. This module fetches and scre
 forecasts page's CanSIPS entry, assets/sst/data/cansips_dd.json.
 
 Datamart layout (verified 2026-10-07):
-  https://dd.weather.gc.ca/YYYYMMDD/WXO-DD/model_cansips/100km/{forecast,hindcast}/YYYY/MM/
-  YYYYMMDD is a ~30-day rolling window of date prefixes, every one of which serves the SAME static
+  https://hpfx.collab.science.gc.ca/YYYYMMDD/WXO-DD/model_cansips/100km/{forecast,hindcast}/YYYY/MM/
+  YYYYMMDD is a rolling window of date prefixes (~50 days on HPFX), every one of which serves the SAME static
   CanSIPS tree (forecasts from 2023, hindcasts 1990-2020), so today's prefix is used.
   {YYYYMM}_MSC_CanSIPS[-Hindcast]_{Var}_LatLon1.0_P{nn}M.grib2, P00M..P11M; P00M IS the issue month
   (dataDate = YYYYMM01, a one-month mean ending on the 1st of the next month). The issue is posted
@@ -60,7 +60,7 @@ C3S_JSON = SITE_ROOT / "assets" / "sst" / "data" / "enso_forecast.json"
 CLIM_CSV = HERE / "cansips_dd_clim.csv"  # committed: per component, start month, lead
 SIGMA_PATH = HERE / "roni_sigma.json"
 
-DD = "https://dd.weather.gc.ca/{day}/WXO-DD/model_cansips/100km"
+DD = "https://hpfx.collab.science.gc.ca/{day}/WXO-DD/model_cansips/100km"
 UA = {"User-Agent": "scorvec.com seasonal pages (CanSIPS monthly, a few hundred files a month)"}
 ATTRIBUTION = "Data Source: Environment and Climate Change Canada"
 LICENCE = "https://eccc-msc.github.io/open-data/licence/readme_en/"

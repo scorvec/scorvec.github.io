@@ -165,7 +165,7 @@ FILTER_MIN = 110  # of those days that must have a value (olr_channel's min_peri
 # GEPS-minus-observed day-1 difference scatters by 0.04 in RMM from day to day (13 cycles) and persists a few days
 # (correlation 0.3-0.5 across 3-4 days), so a 20-day mean is good to 0.02-0.03 against the 0.08 it moves the track
 FILTER_BRIDGE_MIN = 20
-DATAMART_DAYS = 30  # the Datamart keeps about this many days of runs
+DATAMART_DAYS = 30  # runs kept at least this long (HPFX keeps ~50 days, the Datamart 30)
 OLR_DAY1 = ("OLR_NTAT_0", 24)  # the 00Z run's OLR accumulated over its first 24 h: day 1, as forecast.py builds it
 HIND = (
     paths.TC_REF / "mjo_hindcast.nc"

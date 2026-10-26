@@ -112,7 +112,7 @@ IR_FIGSIZE = (12.4, 6.1)
 IR_DPI = 150
 IR_DLON, IR_DLAT = 20, 20
 
-BASE = "https://dd.weather.gc.ca/{date}/WXO-DD/model_gdps/15km/{cyc}/{lead:03d}"
+BASE = "https://hpfx.collab.science.gc.ca/{date}/WXO-DD/model_gdps/15km/{cyc}/{lead:03d}"
 FILE = "{date}T{cyc}Z_MSC_GDPS_{var}_LatLon0.15_PT{lead:03d}H.grib2"
 VARS = {
     "u": "WindU_AGL-10m",

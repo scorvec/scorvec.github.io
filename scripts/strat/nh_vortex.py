@@ -266,7 +266,7 @@ def load_aifs1(base):
 
 
 GDPS_URL = (
-    "https://dd.weather.gc.ca/{d}/WXO-DD/model_gdps/15km/{c}/{L:03d}/"
+    datamart.BASE + "/{d}/WXO-DD/model_gdps/15km/{c}/{L:03d}/"
     "{d}T{c}Z_MSC_GDPS_{v}_IsbL-{lev:04d}_LatLon0.15_PT{L:03d}H.grib2"
 )
 

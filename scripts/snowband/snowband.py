@@ -42,7 +42,7 @@ is checked for the GRIB magic and length (or the .idx shape) and is never writte
   rrfs  noaa-rrfs-ops-pds  rrfs.YYYYMMDD/HH/rrfs.tHHz.prslev.13km.fFFF.na.grib2 (diagnostics) + 2dfld.3km.fFFF.conus
         (the model's own bands). 00/06/12/18Z, f03-f84 every 3 h. Vertical motion is DZDT (m/s) -> omega
         hydrostatically.
-  rdps  dd.weather.gc.ca/{YYYYMMDD}/WXO-DD/model_rdps/10km/{HH}/{FFF}/..._MSC_RDPS_{Var}_{Level}_RLatLon0.09_PT{FFF}H.grib2
+  rdps  hpfx.collab.science.gc.ca/{YYYYMMDD}/WXO-DD/model_rdps/10km/{HH}/{FFF}/..._MSC_RDPS_{Var}_{Level}_RLatLon0.09_PT{FFF}H.grib2
         00/12Z, f03-f48 every 3 h. VerticalVelocity only at 850/700/500 (and 250) hPa, so the DGZ lift is interpolated
         from three levels; PrecipType-Instant code 5 is snow (code 6 is "none" despite table 4.201 - measured).
 
@@ -339,7 +339,7 @@ def rrfs_file(src, kind, lead):
 
 def rdps_url(date, cyc, lead, var, lev):
     return (
-        f"https://dd.weather.gc.ca/{date}/WXO-DD/model_rdps/10km/{cyc:02d}/{lead:03d}/"
+        f"https://hpfx.collab.science.gc.ca/{date}/WXO-DD/model_rdps/10km/{cyc:02d}/{lead:03d}/"
         f"{date}T{cyc:02d}Z_MSC_RDPS_{var}_{lev}_RLatLon0.09_PT{lead:03d}H.grib2"
     )
 

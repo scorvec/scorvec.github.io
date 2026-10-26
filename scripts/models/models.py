@@ -42,7 +42,7 @@ Sources (NOAA from the AWS open-data buckets byte-ranged via the .idx; ECCC from
          IR = SBTA1613 (GOES-16 ABI band 13, 10.3 um). Ceiling as HRRR. Smoke = COLMD of "particulate organic matter
          dry" (RRFS-SD's smoke tracer). DSWRF instantaneous (the file also has a 1-h mean). The operational files
          (from the 2026-10-15 12Z cycle) carry no FRZR: freezing rain is then derived like sleet (FZRA_DERIVED).
-  rdps   dd.weather.gc.ca/{date}/WXO-DD/model_rdps/10km/HH/FFF/, 00/06/12/18Z to f84.
+  rdps   hpfx.collab.science.gc.ca/{date}/WXO-DD/model_rdps/10km/HH/FFF/, 00/06/12/18Z to f84.
          No simulated brightness temperature, ceiling or visibility exist in the RDPS output. The IR slot shows the
          OLR-derived brightness temperature Tb = (OLR / sigma)^(1/4) from UpwardLongwaveRadiationFlux_NTAtm (an
          instantaneous field, PDT 4.0) - a
@@ -751,14 +751,14 @@ def rdps_sb_jobs(date, cyc, lead):
 
 def rdps_url(date, cyc, lead, var):
     return (
-        f"https://dd.weather.gc.ca/{date}/WXO-DD/model_rdps/10km/{cyc:02d}/{lead:03d}/"
+        f"https://hpfx.collab.science.gc.ca/{date}/WXO-DD/model_rdps/10km/{cyc:02d}/{lead:03d}/"
         f"{date}T{cyc:02d}Z_MSC_RDPS_{var}_RLatLon0.09_PT{lead:03d}H.grib2"
     )
 
 
 def raq_url(date, cyc, lead):
     return (
-        f"https://dd.weather.gc.ca/{date}/WXO-DD/model_raqdps/10km/grib2/{cyc:02d}/{lead:03d}/"
+        f"https://hpfx.collab.science.gc.ca/{date}/WXO-DD/model_raqdps/10km/grib2/{cyc:02d}/{lead:03d}/"
         f"{date}T{cyc:02d}Z_MSC_RAQDPS_PM2.5-WildfireSmokePlume_EAtm_RLatLon0.09_PT{lead:03d}H.grib2"
     )
 

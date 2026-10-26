@@ -20,7 +20,7 @@ always names the one you're looking at, so you're never guessing.
 |---|---|---|---|---|
 | **SPC observed** (`spc.noaa.gov/exper/soundings`) | US | Fastest — ~1 h post-synoptic | ~110–200 levels | ✅ |
 | **IEM RAOB** (`mesonet.agron.iastate.edu`) | US + Canada | ~1 h behind SPC | ~180–250 levels | ✅ |
-| **ECCC MSC Datamart** (`dd.weather.gc.ca`, Environment and Climate Change Canada) | Canada, ~29 stations | ~1 h after launch to 100 hPa, ~2 h entire | Native ~1-s BUFR (3–7k levels) | — (via the mirror) |
+| **ECCC MSC Datamart** (`hpfx.collab.science.gc.ca`, Environment and Climate Change Canada) | Canada, ~29 stations | ~1 h after launch to 100 hPa, ~2 h entire | Native ~1-s BUFR (3–7k levels) | — (via the mirror) |
 | **WMO WIS 2.0 Global Cache** (`s3://wis2globalcache`, AWS Open Data) | Global, ~550 stations/day | ~2 h after launch | Mostly high-res BUFR | — (via the mirror) |
 | **WMO GTS TEMP** (text) via WIS 2.0 | Services sending no BUFR (most of Africa, parts of Asia) | ~2 h after launch | Standard + significant levels (~30–80) | — (via the mirror) |
 | **Mirror** (IEM + ECCC + WIS 2.0 real time, on `skewt-data`) | Global | hourly | As received, thinned to 260 | ✅ (raw.githubusercontent) |
@@ -45,7 +45,7 @@ work outside North America, where no CORS-open real-time feed exists. A GitHub A
 - **North America, real time:** the Iowa Environmental Mesonet RAOB JSON, *one* request per launch
   hour for all stations (each hour slot asked at most 2–3 times, ≥121 s apart for IEM's crawl delay).
 - **Canada, real time:** Environment and Climate Change Canada's MSC Datamart,
-  `dd.weather.gc.ca/YYYYMMDD/WXO-DD/bulletins/alphanumeric/YYYYMMDD/IU/<CCCC>/<HH>/` (reception date and
+  `hpfx.collab.science.gc.ca/YYYYMMDD/WXO-DD/bulletins/alphanumeric/YYYYMMDD/IU/<CCCC>/<HH>/` (reception date and
   hour; one directory per station, e.g. `CWSE` = Stony Plain 71119). `IUK` = the station's native ~1-s
   BUFR ascent to 100 hPa (~1 h after launch), `IUS` = the entire ascent (~2 h), `CCA`… = corrections;
   `IUW`/`IUJ` (PILOT winds) are skipped. Only today's and yesterday's directories are polled, a station
