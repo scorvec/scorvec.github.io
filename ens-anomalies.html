@@ -546,7 +546,10 @@
   var DIV = [S(-1, "#2b1a5e"), S(-0.82, "#23449c"), S(-0.64, "#2f70b6"), S(-0.47, "#5f9ed2"), S(-0.3, "#9cc6e4"), S(-0.13, "#d3e5f1"), S(-0.02, "#f3f4f1"),
              S(0.02, "#f6f2ea"), S(0.13, "#f8dcc4"), S(0.3, "#f3ad85"), S(0.47, "#e37953"), S(0.64, "#c84432"), S(0.82, "#9c1c2a"), S(1, "#5c0a26")];
   var MIS = [0.80, 0.81, 0.78, 1];                                     // not drawn
-  var DOT = [0.09, 0.11, 0.09, 0.85], DOT_SP = 7;   // the dots (members agree; a significant change): colour, mix; spacing, px
+  // the dots (members agree; a significant change): colour and mix; per view their spacing and radius, CSS px (the
+  // anomaly maps' dots cover most of the map, so they are sparser and finer than the change maps')
+  var DOT = [0.09, 0.11, 0.09, 0.85], DOTS = { anom: [11, 0.9], change: [7, 1.4] };
+  function dotsOf() { return st.view === "change" ? DOTS.change : DOTS.anom; }
   var TILE_S = 0.1;                                                    // degrees per CSS px below which the 0.1-deg tiles load
 
   // ── state ──────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -896,7 +899,7 @@
   var FS = [
     "#version 300 es", "precision highp float;precision highp int;precision highp sampler2D;",
     "uniform sampler2D uData;uniform sampler2D uLut;uniform vec2 uC;uniform float uS;uniform vec2 uWH;",
-    "uniform vec3 uG;uniform ivec2 uN;uniform int uWrap;uniform int uMode;uniform float uK;uniform vec4 uMis;uniform vec4 uDot;uniform float uSp;",
+    "uniform vec3 uG;uniform ivec2 uN;uniform int uWrap;uniform int uMode;uniform float uK;uniform vec4 uMis;uniform vec4 uDot;uniform float uSp;uniform float uDr;",
     "out vec4 o;",
     "vec4 tx(int i,int j){return texelFetch(uData,ivec2(i,j),0);}",
     "void main(){",
@@ -913,7 +916,7 @@
     " if(wok<0.5)c=uMis;",
     " else{vec4 gate=uMode==0?step(uK-0.5,g)*step(g,vec4(254.5)):step(0.5,g);float gt=dot(w,gate*ok)/wok;",
     "  float code=dot(w,r*ok)/wok;c=texelFetch(uLut,ivec2(int(floor(code+0.5)),0),0);",
-    "  if(gt>=0.5){vec2 q=mod(vec2(lon,lat)/uS,uSp)-0.5*uSp;if(dot(q,q)<0.04*uSp*uSp)c=vec4(mix(c.rgb,uDot.rgb,uDot.a),c.a);}}",
+    "  if(gt>=0.5){vec2 q=mod(vec2(lon,lat)/uS,uSp)-0.5*uSp;if(dot(q,q)<uDr*uDr)c=vec4(mix(c.rgb,uDot.rgb,uDot.a),c.a);}}",
     " o=vec4(c.rgb*c.a,c.a);",
     "}"].join("\n");
   function initGL() {
@@ -923,7 +926,7 @@
     prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
     gl.bindAttribLocation(prog, 0, "p"); gl.linkProgram(prog); if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
     gl.useProgram(prog);
-    ["uData", "uLut", "uC", "uS", "uWH", "uG", "uN", "uWrap", "uMode", "uK", "uMis", "uDot", "uSp"].forEach(function (n) { loc[n] = gl.getUniformLocation(prog, n); });
+    ["uData", "uLut", "uC", "uS", "uWH", "uG", "uN", "uWrap", "uMode", "uK", "uMis", "uDot", "uSp", "uDr"].forEach(function (n) { loc[n] = gl.getUniformLocation(prog, n); });
     var b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
@@ -960,7 +963,8 @@
     if (!e || !e.dec) return;
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texOf(e));
     gl.uniform3f(loc.uG, g.res, g.c0, g.r0); gl.uniform2i(loc.uN, e.dec.w, e.dec.h); gl.uniform1i(loc.uWrap, g.wrap ? 1 : 0);
-    gl.uniform1i(loc.uMode, mode); gl.uniform1f(loc.uK, k || 0); gl.uniform1f(loc.uSp, DOT_SP * DPR);
+    gl.uniform1i(loc.uMode, mode); gl.uniform1f(loc.uK, k || 0);
+    var dp = dotsOf(); gl.uniform1f(loc.uSp, dp[0] * DPR); gl.uniform1f(loc.uDr, dp[1] * DPR);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
@@ -1264,7 +1268,8 @@
   function markSwatch(ctx, x, y, w, h) {
     ctx.fillStyle = "#f4f4f1"; ctx.fillRect(x, y, w, h);
     ctx.fillStyle = rgbStr([DOT[0] * 255, DOT[1] * 255, DOT[2] * 255]);
-    for (var yy = y + 3.5; yy < y + h - 1; yy += DOT_SP) for (var xx = x + 3.5; xx < x + w - 1; xx += DOT_SP) { ctx.beginPath(); ctx.arc(xx, yy, 1.4, 0, 2 * Math.PI); ctx.fill(); }
+    var dp = dotsOf(), o = dp[0] / 2;
+    for (var yy = y + o; yy < y + h - 1; yy += dp[0]) for (var xx = x + o; xx < x + w - 1; xx += dp[0]) { ctx.beginPath(); ctx.arc(xx, yy, dp[1], 0, 2 * Math.PI); ctx.fill(); }
     ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
   }
   function drawLegend() {
