@@ -98,7 +98,7 @@
      legend ~70): no 880 px cap */
   /* touch: one finger scrolls the page, two move and zoom the map (the map is most of a phone's screen; a one-finger
      pan there left no way to scroll past it) */
-  .mv-map { position: relative; width: 100%; height: max(340px, calc(100vh - 64px - 161px * var(--ui, 1))); background: var(--map); border: 1px solid var(--rule);
+  .mv-map { position: relative; width: 100%; height: max(340px, calc(100vh - 64px - 100px * var(--ui, 1))); background: var(--map); border: 1px solid var(--rule);
             border-radius: 8px; overflow: hidden; touch-action: pan-x pan-y; cursor: grab;
             -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   .mv-map.drag { cursor: grabbing; }
@@ -300,6 +300,31 @@
   /* the controls scale with the window (--ui, set at the end of the head): full size on a large screen, smaller on a
      laptop, so the buttons leave the map most of the window; phones (<= 640 px) have their own compact layout */
   @media (min-width: 641px) { .mv-bar, .mv-time, .mv-show, .mv-find, .mv-zoom { zoom: var(--ui, 1); } }
+  /* above 640 px the viewer opens the page: the introduction and the data note go under the map, its legend caption
+     and Show row; a short window gets a compact title, and the map picker is a menu */
+  @media (min-width: 641px) {
+    main.mv { display: flex; flex-direction: column; }
+    main.mv > .mv-mapwrap ~ * { order: 3; }
+    main.mv > .mv-mapwrap ~ :is(.mv-legT, .mv-show, .mv-find) { order: 1; }
+    main.mv > :is(.lede, .mv-data) { order: 2; margin-top: 0.9rem; }
+  }
+  @media (min-width: 641px) and (max-height: 900px) {
+    main.mv { padding-top: 0.5rem; }
+    main.mv > h1 { font-size: 1.6rem; margin: 0 0 0.45rem; }
+  }
+  @media (min-width: 641px) and (max-height: 820px) {
+    .mv-fields { display: none; }
+    .runsel.mv-fsel { display: inline-flex; flex: 0 1 26rem; }
+    .mv-fsel select { flex: 1 1 auto; min-width: 0; }
+  }
+  /* full screen, or the whole window (the map's corner button) */
+  main.mv.full { position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; overflow: auto;
+                 padding: 0.5rem 0.75rem; background: var(--bg); }
+  main.mv.full > :not(.mv-panel, .mv-mapwrap, .mv-show, .mv-mg) { display: none; }
+  main.mv.full > * { flex: none; }
+  main.mv.full .mv-map { height: calc(100vh - var(--tbh, 70px)); }
+  html.mv-full { overflow: hidden; }
+  .mv-zoom svg { display: block; margin: auto; }
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 <script>
@@ -539,7 +564,7 @@
     <canvas id="lab" aria-hidden="true"></canvas>
     <div class="mv-coop" id="coop" aria-hidden="true"></div>
     <div class="mv-badge" id="badge"></div>
-    <div class="mv-zoom"><button type="button" id="zin" aria-label="Zoom in">+</button><button type="button" id="zout" aria-label="Zoom out">&minus;</button><button type="button" class="txt" id="zfit" aria-label="Reset view">fit</button></div>
+    <div class="mv-zoom"><button type="button" id="zin" aria-label="Zoom in">+</button><button type="button" id="zout" aria-label="Zoom out">&minus;</button><button type="button" class="txt" id="zfit" aria-label="Reset view">fit</button><button type="button" id="zfull" aria-label="Full screen" title="Full screen"><svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M3 8V3h5M12 3h5v5M17 12v5h-5M8 17H3v-5" fill="none" stroke="currentColor" stroke-width="2"/></svg></button></div>
     <div class="mv-msg" id="msg" role="status"></div>
     <div class="mv-load" id="load"></div>
     <div class="mv-tip" id="tip"></div>
@@ -3336,6 +3361,29 @@
   $("zin").onclick = function () { zoomBy(W / 2, H / 2, 0.6, 45); };
   $("zout").onclick = function () { zoomBy(W / 2, H / 2, 1 / 0.6, 45); };
   $("zfit").onclick = function () { var c = cycleObj(st.model, st.ci); if (c) { zA = null; fitBox(prepGrid(c.grids.main)); resize(); fit(prepGrid(c.grids.main)); render(); } };
+  // full screen - or the whole window, where a page may not go full screen (iPhone): the button again or Esc leaves,
+  // and the map box is fitted again to its new size
+  (function () {
+    var b = $("zfull"), m = document.querySelector("main.mv");
+    function set(on) {
+      var t = m.querySelector(".mv-time");
+      m.classList.toggle("full", on); document.documentElement.classList.toggle("mv-full", on);
+      b.classList.toggle("on", on); b.title = on ? "Leave full screen" : "Full screen"; b.setAttribute("aria-label", b.title);
+      requestAnimationFrame(function () {
+        // the time bar and the map take the whole screen; the other controls are a scroll up
+        if (on) m.style.setProperty("--tbh", Math.ceil(mapEl.getBoundingClientRect().top - t.getBoundingClientRect().top + 12) + "px");
+        $("zfit").click();
+        if (on) m.scrollTop = t.getBoundingClientRect().top - m.getBoundingClientRect().top + m.scrollTop - 6;
+      });
+    }
+    b.onclick = function () {
+      if (document.fullscreenElement) { document.exitFullscreen(); return; }
+      if (m.classList.contains("full")) { set(false); return; }
+      (document.fullscreenEnabled && m.requestFullscreen ? m.requestFullscreen() : Promise.reject()).catch(function () { set(true); });
+    };
+    document.addEventListener("fullscreenchange", function () { set(document.fullscreenElement === m); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !document.fullscreenElement && m.classList.contains("full")) set(false); });
+  })();
   // touch handling, so double-tap, press-and-hold, zoom and pan behave reliably: a slop before a press becomes a pan (a
   // finger wobbles 2-10 px on a tap; cancelling at 1 px would cancel the tap and nudge the map), no flick-glide after a
   // gesture that pinched, a cancelled pointer is never a tap, and a single tap on touch waits out the double-tap window
