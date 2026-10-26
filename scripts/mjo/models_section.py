@@ -76,7 +76,8 @@ SCRIPT = r"""
 
   function draw() {
     var W = box.clientWidth; if (!W) return;
-    var size = Math.min(W, 760), dpr = window.devicePixelRatio || 1;
+    // as large as the window allows once scrolled to (the sticky header and the controls above it), 760 px at least
+    var size = Math.min(W, Math.max(760, window.innerHeight - 280)), dpr = window.devicePixelRatio || 1;
     cv.style.width = size + 'px'; cv.style.height = size + 'px';
     cv.width = Math.round(size * dpr); cv.height = Math.round(size * dpr);
     var x = cv.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -232,7 +233,7 @@ CSS = """
   #mjo-models .mm-tog.on i { opacity: 1; }
   #mjo-models .mm-tog small { display: block; font-weight: 400; font-size: 0.78rem; color: var(--muted); }
   #mjo-models .mm-tog:disabled { color: var(--muted); cursor: default; }
-  #mjo-models .mm-box { position: relative; max-width: 760px; margin: 0 auto; }
+  #mjo-models .mm-box { position: relative; max-width: max(760px, calc(100vh - 280px)); margin: 0 auto; }
   #mjo-models canvas { display: block; width: 100%; border: 1px solid var(--rule); border-radius: 6px; touch-action: pan-y; }
   #mjo-models .mm-tip { position: absolute; pointer-events: none; background: rgba(28,28,26,0.92); color: #fff; font-size: 0.9rem; line-height: 1.35; padding: 0.3rem 0.5rem; border-radius: 4px; max-width: 18rem; }
   #mjo-models .mm-idx { color: var(--ink2); font-size: 0.92rem; margin: 0.6rem 0 0; max-width: 90ch; }
