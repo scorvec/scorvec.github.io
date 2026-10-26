@@ -1,20 +1,20 @@
 name: HRRR ECAPE (CONUS)
 
 # Gridded entraining CAPE (Peters et al. 2023) on every column of the HRRR CONUS domain for one extended (00/06/12/18Z)
-# run, hourly to F18 and 3-hourly to F48, shipped as DATA for the short-range model viewer (models.html, HRRR ->
+# run, every 3 hours to F48, shipped as DATA for the short-range model viewer (models.html, HRRR ->
 # "ECAPE / CAPE"): ecape_mu, ecape_ml, mucape, mlcape per hour as lossless 8-bit WebP (scripts/ecape/to_models.py).
 #
 # The former ecape.html (matplotlib/cartopy frames from render_ecape.py / build_manifest.py, assets/ecape/anim on the
 # frames branch + manifests on main) now redirects to models.html. Those render scripts remain in scripts/ecape but are
 # not run, and the "Retire" step below removes the old frames and manifests once.
 #
-# Cost per cycle (runner, 2 cores): ~397 MB wrfnat download and ~100 s of kernel per forecast hour, 29 hours;
-# ~1.5 MB of WebP per hour (4 fields) -> ~43 MB per cycle on the frames branch.
+# Cost per cycle (runner, 2 cores): ~397 MB wrfnat download and ~100 s of kernel per forecast hour, 17 hours;
+# ~1.5 MB of WebP per hour (4 fields) -> ~26 MB per cycle on the frames branch.
 #
 # FORECAST SOUNDINGS (click anywhere on models.html for an HRRR sounding): the same cube, every
 # 4th column (12 km), 42 levels + the surface layer (fetch_hrrr.py --surface: +~3 MB a hour), encoded per hour by
-# scripts/ecape/to_soundings.py (~6 s) and packed at the end into 228 tiles of 24 x 24 columns x every hour:
-# ~14 MB a hour -> ~400 MB per cycle on the frames branch (~1.8 MB per tile = per click). Optional: if it fails the
+# scripts/ecape/to_soundings.py (~6 s) and packed at the end into 228 tiles of 24 x 24 columns x every computed hour:
+# ~14 MB a hour -> ~240 MB per cycle on the frames branch (~1.8 MB per tile = per click). Optional: if it fails the
 # ECAPE maps still publish, without soundings.
 #
 # Only 00/06/12/18Z run past F18, so the driver resolves ONE extended cycle up front (its F00) and FOLLOWS the model:
@@ -39,7 +39,7 @@ on:
   workflow_dispatch:
     inputs:
       fxx:
-        description: 'Forecast hours (space-separated). Default: hourly to 18, 3-hourly to 48'
+        description: 'Forecast hours (space-separated). Default: every 3 hours to 48'
         default: ''
       cycle:
         description: 'Cycle as YYYYMMDDHH (blank = newest extended run with F00 up)'
@@ -68,10 +68,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # The work is compute-bound (~2 min 40 s per forecast hour x 29 = 78 min on one runner), while the model finishes F48
-  # at ~cycle +1 h 47. So: dispatched at cycle +58 min (F00 is on AWS at ~+53), the hours are dealt round-robin to three
-  # parallel runners that each follow the model, and one short job merges, verifies, packs the soundings and publishes
-  # (~cycle +2 h).
+  # ~2 min 40 s of work per forecast hour x 17 = 45 min on one runner, while the model finishes F48 at ~cycle +1 h 47.
+  # So: dispatched at cycle +58 min (F00 is on AWS at ~+53), the hours are dealt round-robin to two parallel runners
+  # that each follow the model (~23 min of work each, inside the model's own ~50 min), and one short job merges,
+  # verifies, packs the soundings and publishes (~cycle +2 h).
   plan:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -81,7 +81,6 @@ jobs:
       hours: ${{ steps.cyc.outputs.hours }}
       shard0: ${{ steps.cyc.outputs.shard0 }}
       shard1: ${{ steps.cyc.outputs.shard1 }}
-      shard2: ${{ steps.cyc.outputs.shard2 }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -129,12 +128,12 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
           FXX="${{ github.event.inputs.fxx }}"
-          [ -n "$FXX" ] || FXX="$(seq 0 1 18) $(seq 21 3 48)"
+          [ -n "$FXX" ] || FXX="$(seq 0 3 48)"
           read -r -a H <<< "$(printf '%s' "$FXX" | tr '\n\t' '  ')"
           echo "hours=${H[*]}" >> "$GITHUB_OUTPUT"
-          # round-robin, so all three runners move through forecast time together and none waits on the model alone
-          for k in 0 1 2; do
-            S=""; for i in "${!H[@]}"; do if [ $((i % 3)) -eq $k ]; then S="$S ${H[$i]}"; fi; done
+          # round-robin, so both runners move through forecast time together and neither waits on the model alone
+          for k in 0 1; do
+            S=""; for i in "${!H[@]}"; do if [ $((i % 2)) -eq $k ]; then S="$S ${H[$i]}"; fi; done
             echo "shard$k=${S# }" >> "$GITHUB_OUTPUT"; echo "shard $k:$S"
           done
 
@@ -146,7 +145,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        shard: [0, 1, 2]
+        shard: [0, 1]
     steps:
       - uses: actions/checkout@v7
 
@@ -166,7 +165,7 @@ jobs:
         run: |
           set -euo pipefail
           CYCLE="${{ needs.plan.outputs.cycle }}"
-          case "${{ matrix.shard }}" in 0) FXX="${{ needs.plan.outputs.shard0 }}";; 1) FXX="${{ needs.plan.outputs.shard1 }}";; *) FXX="${{ needs.plan.outputs.shard2 }}";; esac
+          case "${{ matrix.shard }}" in 0) FXX="${{ needs.plan.outputs.shard0 }}";; *) FXX="${{ needs.plan.outputs.shard1 }}";; esac
           D="assets/models/data/hrrr/$CYCLE"
           rm -rf "$D"
           read -r -a HOURS <<< "$FXX"
