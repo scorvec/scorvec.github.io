@@ -177,6 +177,7 @@ class Arco:
 
 
 SURF = {"snow": "snow_depth", "swvl": "volumetric_soil_water_layer_1"}
+MAX_HOLES = 1  # days a block may lack in the middle (ARCO gaps) and still complete
 PRCP_HOURS = tuple(range(0, 24, 3))  # ARCO precipitation is hourly: sampled every 3 h (the WB2 years are 6-h totals)
 
 
@@ -232,19 +233,26 @@ def arco_blocks(
         t0 = time.time()
         with ThreadPoolExecutor(workers) as ex:
             res = list(ex.map(lambda x: arco.day(x, only), days))
-        if None in res:
-            res = res[: res.index(None)]
-        nd = len(res)
+        # the days through the last published one; a day missing between published ones (ARCO dropped all of
+        # 10 Oct 2026 from ERA5T) is left out of the mean and counted, up to MAX_HOLES a block, so the block can
+        # complete; a missing tail is the part not published yet
+        nd = max((i + 1 for i, r in enumerate(res) if r is not None), default=0)
+        holes = [days[i] for i in range(nd) if res[i] is None]
+        if len(holes) > MAX_HOLES:
+            nd = res.index(None)
+            holes = []
+        res = [r for r in res[:nd] if r is not None]
         if not nd:
             continue
         for k in only or G.FIELDS:  # each day holds a sum over HOURS
             with np.errstate(invalid="ignore"):
-                d[k][mi, h] = np.sum([r[k] for r in res], 0) / (nd * len(HOURS))
+                d[k][mi, h] = np.sum([r[k] for r in res], 0) / (len(res) * len(HOURS))
         if not only:
             for k in G.INDICES:  # each day holds its daily mean
                 d[k][mi, h] = np.mean([r[k] for r in res])
             d["n"][mi, h] = nd * len(HOURS)
-        print(f"    {y}-{mi + 1:02d} block {h}: {nd} days in {time.time() - t0:.0f}s", flush=True)
+        gap = f", without {', '.join(f'{x:%d %b}' for x in holes)} (not in ARCO)" if holes else ""
+        print(f"    {y}-{mi + 1:02d} block {h}: {nd} days{gap} in {time.time() - t0:.0f}s", flush=True)
         G.save_year(y, d, path)
     return d
 

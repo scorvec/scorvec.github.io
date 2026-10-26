@@ -361,19 +361,24 @@
     month is re-issued as an update; the issue it updates stays on the record and is scored as issued, and the update
     is scored beside it. The update's first week (days 1&ndash;7) is the IFS-ENS and AIFS-ENS ensemble-mean anomaly
     (a half each) against the ERA5 1991&ndash;2020 mean of the same days. The rest of the month comes from this
-    page's method trained for days 8 to the month's end, with the lower-vortex predictor (the 50&nbsp;hPa westerlies
-    at 57&ndash;63N) taken over days 1&ndash;7: in the library each year's ERA5 value, for this year the value of each
-    member of IFS-ENS, AIFS-ENS, GEFS and GEPS (a quarter each); its forecast is the mean of the forecasts for 21
-    quantiles of the members' values. The month is the two weighted by their days, and its tercile probabilities
-    average those of the 21 forecasts, from the month's climatology shifted by the forecast and narrowed by both
-    parts' errors (the days-from-the-8th hindcast's cross-validated error and the first week's ensemble spread, each
-    weighted by its days). The skill mask is the days-from-the-8th hindcast's; the first week has no hindcast here.
-    In ERA5 since 1959 the vortex in the first week of November says little about the rest of the month: its
-    correlation with the polar-cap 500&nbsp;hPa height over 8&ndash;30 November is &minus;0.31 (and +0.27 for the
-    polar-cap 100&nbsp;hPa height), no grid point passes the false-discovery test, and as a predictor it moves the
-    days-8&ndash;30 hindcast's anomaly correlation from +0.115 to +0.117 for 500&nbsp;hPa height and from +0.265 to
-    +0.282 for 2&nbsp;m temperature. A warming's pull on the surface is clearest from December to March and weeks
-    after the event, so an update in November rests mostly on its first week.</p>
+    page's method trained for days 8 to the month's end, with every predictor taken over the window ending on the 7th
+    of the target month instead of the month before: in the library each year's ERA5 window, for this year ERA5 as
+    far as it reaches, then the IFS control's analyses, then the two ensembles' means for 500&nbsp;hPa height,
+    2&nbsp;m temperature and precipitation (sea ice, SST, snow, soil moisture and the QBO wind keep the anomaly of
+    the days ERA5 holds). The lower-vortex predictor (the 50&nbsp;hPa westerlies at 57&ndash;63N) is taken over days
+    1&ndash;7, from every member of IFS-ENS, AIFS-ENS, GEFS and GEPS (a quarter each), and the forecast is the mean of
+    the forecasts for 21 quantiles of the members' values. For November the later window raises the days-8&ndash;30
+    hindcast's anomaly correlation from +0.117 to +0.161 for 500&nbsp;hPa height (significant over 32&nbsp;% of the
+    hemisphere instead of 9&nbsp;%), from +0.282 to +0.344 for 2&nbsp;m temperature and from +0.083 to +0.116 for
+    precipitation, mostly through local persistence. The hindcast takes each window from ERA5 alone, while the update
+    takes its last week or two from forecasts, so it scores the update better than it can be. The month is the two
+    parts weighted by their days, and its tercile probabilities average those of the 21 forecasts, from the month's
+    climatology shifted by the forecast and narrowed by both parts' errors (the days-from-the-8th hindcast's
+    cross-validated error and the first week's ensemble spread, each weighted by its days). The skill mask is the
+    days-from-the-8th hindcast's; the first week has no hindcast here. In ERA5 since 1959 the vortex in the first week
+    of November says little about the rest of the month: its correlation with the polar-cap 500&nbsp;hPa height over
+    8&ndash;30 November is &minus;0.31, and no grid point passes the false-discovery test. A warming's pull on the
+    surface is clearest from December to March and weeks after the event.</p>
     <p><b>Data.</b> ERA5 500&nbsp;hPa height, 2&nbsp;m temperature, precipitation, SST, sea ice, snow depth, topsoil
     moisture and 50&nbsp;hPa wind at 00, 06, 12 and 18&nbsp;UTC (precipitation as 6-hour totals, and from 2023 as
     hourly totals every 3 hours, which match the full totals to a correlation of 0.997), 1959 onward: the WeatherBench&nbsp;2 1.5&deg; copy to 2022 and
@@ -541,7 +546,7 @@
     var vtx = ix.u50v >= 3 ? "stronger than normal" : ix.u50v <= -3 ? "weaker than normal" : "near normal";
     var v10 = ix.u10v_raw !== undefined ? " At 10&nbsp;hPa the 60N wind was " + sgn(ix.u10v_raw, 1) + "&nbsp;m/s, " +
       sgn(ix.u10v, 1) + "&nbsp;m/s from normal." : "";
-    p.push("<p><b>The state on the 7th.</b> Over " + s.window + " the tropical Pacific was <b>" + enso +
+    p.push("<p><b>" + (s.update ? "The state of the window." : "The state on the 7th.") + "</b> Over " + s.window + " the tropical Pacific was <b>" + enso +
       "</b>: relative Ni&ntilde;o-3.4 " + sgn(n, 2) + "&nbsp;&deg;C on the RONI scale (the " + Math.round(100 * ix.n34r_pct) +
       "th percentile of this window since 1959; plain Ni&ntilde;o-3.4 " + sgn(ix.n34, 2) + "&nbsp;&deg;C). The equatorial 50&nbsp;hPa wind was " + sgn(ix.u50eq_raw, 1) +
       "&nbsp;m/s (QBO <b>" + qbo + "</b>)" + (s.update ? "." : ", and the 50&nbsp;hPa westerlies at 60N were " + sgn(ix.u50v_raw, 1) +
@@ -621,7 +626,9 @@
     set("target", s.target_label);
     set("target_label", s.target_label);
     set("issued", s.issued + (s.update ? " (update)" : ""));
-    set("window", s.update ? "first week: IFS-ENS, AIFS-ENS; ERA5 " + s.window : "ERA5 " + s.window);
+    var wd = s.update && s.update.medium.window_days;
+    set("window", s.update ? "predictors: " + s.window + " (ERA5 " + wd.era5 + " days, IFS analyses " + wd.analyses + ", the IFS-ENS and AIFS-ENS forecast " + wd.forecast + ")"
+      : "predictors: ERA5 " + s.window);
     Object.keys(VARS).forEach(function (k) {
       var v = s.vars[k];
       if (!v) return;

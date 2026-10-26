@@ -17,10 +17,11 @@ name: Month-ahead outlook (statistical + GEFS, monthly on the 15th)
 # on the 7th of this month, so the run does not depend on the hour ERA5T lands (ARCO trails real time by ~six days).
 #
 # UPDATE (dispatch with update=true, when the stratosphere changes course after the 15th; scripts/monthly/update.py):
-# the newest 00/12Z run that all four ensembles have on ens-anomalies.html gives the target month's first week
-# (medium_week.py: IFS-ENS and AIFS-ENS, z500 and t2m from their run statistics in the Actions cache, precipitation
-# from the rows of two steps) and the lower vortex over that week (vortex_window.py: every member of IFS-ENS,
-# AIFS-ENS, GEFS and GEPS), from which the method forecasts the rest of the month. ECMWF from the Google Cloud mirror
+# the newest 00/12Z run that all four ensembles have on ens-anomalies.html gives the target month's first week and
+# the predictors' window to its 7th after ERA5 and the IFS analyses (update_data.py: IFS-ENS and AIFS-ENS, z500 and t2m
+# from their run statistics in the Actions cache, precipitation from the rows of a few steps) and the lower vortex
+# over that week (vortex_window.py: every member of IFS-ENS, AIFS-ENS, GEFS and GEPS), from which the method
+# forecasts the rest of the month. ECMWF from the Google Cloud mirror
 # only, GEFS from NOAA's S3, GEPS from the MSC Datamart. Written beside the issue it updates (outlook_<YYYYMM>u<DD>).
 
 on:
@@ -107,20 +108,20 @@ jobs:
       - name: Set aside
         if: inputs.update
         run: mkdir -p in/aifs && mv ensmaps_stats/*.npz in/aifs/
-      - name: The update's first week and vortex
+      - name: The update's first week, window and vortex
         if: inputs.update
         env:
           T: ${{ steps.upd.outputs.target }}
           CYC: ${{ steps.upd.outputs.cycle }}
         run: |
           python scripts/monthly/vortex_window.py --target "$T" --cycle "$CYC" --out "$RUNNER_TEMP/vortex.json"
-          python scripts/monthly/medium_week.py --target "$T" --cycle "$CYC" --stats-dir in --out "$RUNNER_TEMP/medium.npz"
+          python scripts/monthly/update_data.py --target "$T" --cycle "$CYC" --stats-dir in --out "$RUNNER_TEMP/upd.npz"
       - name: Issue the outlook
         run: |
           python scripts/monthly/forecast.py \
             ${{ inputs.target && format('--target {0}', inputs.target) || '' }} \
             ${{ inputs.force && '--force' || '' }} \
-            ${{ inputs.update && format('--update {0}/vortex.json --medium {0}/medium.npz', runner.temp) || '' }}
+            ${{ inputs.update && format('--update {0}/vortex.json --data {0}/upd.npz', runner.temp) || '' }}
       - name: Verify past outlooks
         run: python scripts/monthly/verify.py
       - name: Draw

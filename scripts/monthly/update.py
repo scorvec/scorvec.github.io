@@ -1,12 +1,13 @@
 """An update of the month-ahead outlook (forecast.py --update), for when the stratosphere changes course after the
 issue on the 15th: the target month is re-issued from the medium range and the predicted stratosphere.
 
-  days 1-7      the IFS-ENS and AIFS-ENS ensemble-mean anomaly of the target month's first week (medium_week.py)
-  days 8 to end this method (mo_method) trained for those days (the archive's block 1, part=1), with the lower-vortex
-                predictor taken over days 1-7 (vortex="week"): every year of the library its ERA5 value, the year
-                being forecast the value of each member of IFS-ENS, AIFS-ENS, GEFS and GEPS (vortex_window.py; the
-                ensembles a quarter each); its forecast is the mean of the forecasts for VORTEX_Q quantiles of those
-                values
+  days 1-7      the IFS-ENS and AIFS-ENS ensemble-mean anomaly of the target month's first week (update_data.py)
+  days 8 to end this method (mo_method) trained for those days (the archive's block 1, part=1) from the window
+                ending on the 7th of the target month (window="target"), the lower-vortex predictor taken over days
+                1-7 (vortex="week"): every year of the library its ERA5 values; the year being forecast its window from
+                ERA5, the IFS analyses and the two ensembles' means (update_data.py) and the vortex of each member of
+                IFS-ENS, AIFS-ENS, GEFS and GEPS (vortex_window.py; the ensembles a quarter each); its forecast is the
+                mean of the forecasts for VORTEX_Q quantiles of those vortex values
   the month     the days-weighted sum of the two (7 days and the rest). Its tercile probabilities average those of
                 the VORTEX_Q forecasts, each from the month's 1991-2020 climatology shifted by the forecast and
                 narrowed by the error of the two parts: the days-from-the-8th hindcast's cross-validated error and the
@@ -63,7 +64,7 @@ def vortex_summary(vx: dict, res: dict) -> dict:
     }
 
 
-def issue(ty: int, tm: int, A: M.Archive, vortex: Path, medium: Path, original: Path) -> dict:
+def issue(ty: int, tm: int, A: M.Archive, vortex: Path, data: Path, original: Path) -> dict:
     """The update of target (ty, tm): forecast.run's result for the days from the 8th, with each variable's issued
     forecast switched to the month (the days from the 8th kept under stat_*, the first week under mr_fc)."""
     if not original.exists():
@@ -71,16 +72,19 @@ def issue(ty: int, tm: int, A: M.Archive, vortex: Path, medium: Path, original: 
     vx = json.loads(vortex.read_text())
     if vx["target"] != f"{ty}-{tm:02d}":
         raise SystemExit(f"--update: {vortex} is the vortex of {vx['target']}")
-    res = F.run(ty, tm, A, vortex="week", vortex_live=vx["mean"], vortex_members=vortex_quantiles(vx), part=1)
+    with np.load(data) as z:
+        live = {"year": ty} | {v: z[f"win_{v}"] for v in (*M.WIN_FIELDS, "u50eq", "u50v")}
+        mr = {v: (z[f"{v}_anom"].astype(np.float64), z[f"{v}_sd"].astype(np.float64)) for v in M.TARGETS}
+        n_obs, n_an, n_fc = (int(x) for x in z["parts"])
+        win = [str(x) for x in z["window"]]
+        med = {"cycle": str(z["cycle"]), "days": [str(x) for x in z["week"]], "window": win,
+               "window_days": {"era5": n_obs, "analyses": n_an, "forecast": n_fc}}  # fmt: skip
+    res = F.run(ty, tm, A, vortex="week", vortex_live=vx["mean"], vortex_members=vortex_quantiles(vx), part=1,
+                window="target", window_live=live)  # fmt: skip
     if "analogs" not in res:
-        raise SystemExit(f"the predictor window for {ty}-{tm:02d} is not complete in the archive")
-    n0 = G.SPLIT_DAY - 1
-    w0 = n0 / calendar.monthrange(ty, tm)[1]
+        raise SystemExit(f"the predictor window for {ty}-{tm:02d} is not complete")
+    w0 = (G.SPLIT_DAY - 1) / calendar.monthrange(ty, tm)[1]
     w1 = 1.0 - w0
-    with np.load(medium) as mw:
-        mr = {v: (mw[f"{v}_anom"].astype(np.float64), mw[f"{v}_sd"].astype(np.float64)) for v in M.TARGETS}
-        med = {"cycle": str(mw["cycle"]), "days": [str(mw["first"]), str(mw["last"])],
-               "members": {k[:-2].split("_", 1)[1]: int(mw[k]) for k in mw.files if k.startswith("z500_") and k.endswith("_n")}}  # fmt: skip
     for v, o in res["vars"].items():
         mean0, sd0 = mr[v]
         for key in ("fc", "p_below", "p_above", "p_below_raw", "p_above_raw"):

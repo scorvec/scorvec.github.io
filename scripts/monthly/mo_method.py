@@ -24,9 +24,11 @@ Components (each a map of the target month's anomaly):
     AN   analogue years: the eight library years closest to the window's state (tropical SST pattern, ENSO, QBO,
          vortex and the hemispheric 500 hPa pattern); their mean detrended target anomaly
 
-An update (forecast.py --update) forecasts the target month's days from the 8th (part=1, the archive's block 1),
-with the vortex index over the target month's days 1-7 (vortex="week") for every year of the library and every
-pooled month alike; the year being forecast takes the value vortex_window.py builds from the ensembles' members.
+An update (forecast.py --update) forecasts the target month's days from the 8th (part=1, the archive's block 1)
+from the window ending on the 7th of the TARGET month (window="target"), with the vortex index over the target
+month's days 1-7 (vortex="week"), for every year of the library and every pooled month alike; the year being forecast
+takes the window update_data.py builds (ERA5, analyses, the ensembles' forecasts) and the vortex vortex_window.py
+builds from the ensembles' members.
 
 IX and PE train on the target month pooled with its two neighbouring calendar months (each with its own window),
 about 200 cases instead of 65; CA and AN use the target month alone, which scored better for them.
@@ -205,7 +207,14 @@ class MonthBlock:
     """One target calendar month's library: per year, the predictor window's state and the target month's anomalies."""
 
     def __init__(
-        self, A: Archive, month: int, vortex: str = "issue", vortex_live: tuple | None = None, part: int | None = None
+        self,
+        A: Archive,
+        month: int,
+        vortex: str = "issue",
+        vortex_live: tuple | None = None,
+        part: int | None = None,
+        window: str = "issue",
+        window_live: dict | None = None,
     ):
         self.month = month
         self.years = A.years
@@ -213,6 +222,8 @@ class MonthBlock:
         y0 = int(A.years[0])
         im = month - 1 if month > 1 else 12  # the issue month
         yi = self.years + (0 if month > 1 else -1)
+        if window == "target":  # an update's predictors: the window ending on the 7th of the target month
+            im, yi = month, self.years
         # predictands: anomalies vs 1991-2020, flattened (nY, P), 0-90N; the calendar month, or with part=1 its days
         # from the 8th (an update's days after the medium-range forecasts)
         self.obs, self.det, self.seas, self.dseas = {}, {}, {}, {}
@@ -234,8 +245,12 @@ class MonthBlock:
         # predictor window (issued in month im of year yi), detrended like the predictands; precipitation also as
         # its tropical band (prcp_t, 20S-20N) for the constructed analogue
         self.win = {}
+        raw = {}
         for v in (*WIN_FIELDS, "u50eq", "u50v"):
             x = month_series(A.win[v], yi, im, y0)
+            if window_live is not None and v in window_live:  # the window of the year being forecast (update_data.py)
+                x[self.years == window_live["year"]] = window_live[v]
+            raw[v] = x
             if v == "u50v" and vortex == "week":  # an update's vortex (VORTEX)
                 x = month_series(A.blk[v][:, 0], self.years, month, y0)
                 if vortex_live is not None:  # its value for the year being forecast (analyses and forecasts)
@@ -248,7 +263,7 @@ class MonthBlock:
                 x = x[:, nh_rows(v)]
             a = clim_anom(x.reshape(nY, -1), self.years)
             self.win[v] = a - loess(a, self.years) if v not in ("u50eq", "u50v") else a
-        sst = clim_anom(month_series(A.win["sst"], yi, im, y0), self.years)  # (nY, lat, lon), not detrended
+        sst = clim_anom(raw["sst"], self.years)  # (nY, lat, lon), not detrended
         lat_s = G.LAT_SST
         ilat = (lat_s >= -5) & (lat_s <= 5)
         ilon = (G.LON >= 190) & (G.LON <= 240)
@@ -279,14 +294,29 @@ class Problem:
     the target month alone."""
 
     def __init__(
-        self, A: Archive, month: int, vortex: str = "issue", vortex_live: tuple | None = None, part: int | None = None
+        self,
+        A: Archive,
+        month: int,
+        vortex: str = "issue",
+        vortex_live: tuple | None = None,
+        part: int | None = None,
+        window: str = "issue",
+        window_live: dict | None = None,
     ):
         self.POOL = POOL
         self.A = A
         self.month = month
         self.years = A.years
         self.blocks = [
-            MonthBlock(A, (month - 1 + d) % 12 + 1, vortex, vortex_live if d == 0 else None, part) for d in self.POOL
+            MonthBlock(
+                A,
+                (month - 1 + d) % 12 + 1,
+                vortex,
+                part=part,
+                window=window,
+                **({"vortex_live": vortex_live, "window_live": window_live} if d == 0 else {}),
+            )  # this year: the target month
+            for d in self.POOL
         ]
         self.c = self.blocks[self.POOL.index(0)]  # the target month
         cat = lambda get: np.concatenate([get(b) for b in self.blocks], 0)  # noqa: E731

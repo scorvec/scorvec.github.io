@@ -12,9 +12,10 @@ Writes assets/monthly/data/outlook_<YYYYMM>.npz (fields) and .json (summary, ana
 assets/monthly/data/latest.json pointing at the newest outlook. Rendering is render.py.
 
 An update (--update, after the issue on the 15th, when the stratosphere changes course) re-issues the target month
-from the medium range and the predicted stratosphere (update.py): its days 1-7 from IFS-ENS and AIFS-ENS
-(medium_week.py), its days from the 8th from this method trained for those days with the vortex predicted over days
-1-7 (vortex_window.py, every member of four ensembles). It is written as outlook_<YYYYMM>u<DD>.* beside the issue it
+from the medium range and the predicted stratosphere (update.py): its days 1-7 from IFS-ENS and AIFS-ENS, its days
+from the 8th from this method trained for those days, from the window ending on the 7th of the target month (ERA5,
+analyses and the two ensembles: update_data.py) and the vortex predicted over days 1-7 (vortex_window.py, every member
+of four ensembles). It is written as outlook_<YYYYMM>u<DD>.* beside the issue it
 updates, which stays on record and is scored as issued.
 """
 
@@ -61,11 +62,14 @@ def run(
     vortex_live: float | None = None,
     vortex_members: np.ndarray | None = None,
     part: int | None = None,
+    window: str = "issue",
+    window_live: dict | None = None,
 ) -> dict:
     """The outlook for (target_year, month) with its cross-validated hindcast. late_vortex: the update's vortex
     predictor (the window ending on the 7th of the target month), vortex_live its value this year and vortex_members
     the values whose forecasts are averaged (forecast() runs once per value; the hindcast does not depend on them)."""
-    P = M.Problem(A, month, vortex, (target_year, vortex_live) if vortex_live is not None else None, part)
+    P = M.Problem(A, month, vortex, (target_year, vortex_live) if vortex_live is not None else None, part, window,
+                  window_live)  # fmt: skip
     years = P.years
     hind = [int(y) for y in years if y >= HIND0 and y != target_year and P.available(y)]
     k = len(M.COMPONENTS)
@@ -92,6 +96,8 @@ def run(
         it = target_year - years[0]
         im, yi = (month - 1, target_year) if month > 1 else (12, target_year - 1)
         raw = {k: float(A.win[k][A.t(yi, im)]) for k in ("u50eq", "u50v")}
+        if window_live is not None:  # an update's window
+            raw["u50eq"] = float(window_live["u50eq"])
         if vortex != "issue":
             raw["u50v"] = vortex_live
         comp_m = [comp_rt]
@@ -242,7 +248,7 @@ def summarise(res: dict, issued: str) -> dict:
         "target": res["target"],
         "target_label": M.target_label(int(res["target"][:4]), res["month"]),
         "issued": issued,
-        "window": window_label(int(res["target"][:4]), res["month"]),
+        "window": window_label(int(res["target"][:4]), res["month"], res.get("update") is not None),
         "hindcast": [res["hindcast_years"][0], res["hindcast_years"][-1]],
         "components": {c: M.NAMES[c] for c in M.COMPONENTS},
         "vars": {},
@@ -279,10 +285,13 @@ def summarise(res: dict, issued: str) -> dict:
     return s
 
 
-def window_label(y: int, m: int) -> str:
+def window_label(y: int, m: int, update: bool = False) -> str:
+    """The predictor window: the ~30 days ending on the 7th of the issue month (an update's: of the target month)."""
     import calendar
 
     im, yi = (m - 1, y) if m > 1 else (12, y - 1)
+    if update:
+        im, yi = m, y
     pm = im - 1 if im > 1 else 12
     return f"{G.SPLIT_DAY} {calendar.month_abbr[pm]} – {G.SPLIT_DAY - 1} {calendar.month_abbr[im]} {yi}"
 
@@ -309,7 +318,7 @@ def main() -> int:
     ap.add_argument("--skill-all", nargs="?", const="1,2,3,4,5,6,7,8,9,10,11,12", help="hindcast skill of months")
     ap.add_argument("--force", action="store_true", help="re-issue an outlook that already exists")
     ap.add_argument("--update", type=Path, help="an update: the vortex over the target's days 1-7 (vortex_window.py)")
-    ap.add_argument("--medium", type=Path, help="an update: the medium range of the target's days 1-7 (medium_week.py)")
+    ap.add_argument("--data", type=Path, help="an update: its first week and window (update_data.py)")
     a = ap.parse_args()
     A = M.load_archive()
     if a.skill_all:
@@ -347,7 +356,7 @@ def main() -> int:
     if a.update:
         import update as U  # update imports this module
 
-        res = U.issue(ty, tm, A, a.update, a.medium, OUT / f"outlook_{ty}{tm:02d}.json")
+        res = U.issue(ty, tm, A, a.update, a.data, OUT / f"outlook_{ty}{tm:02d}.json")
     else:
         res = run(ty, tm, A)
         if "analogs" not in res:
