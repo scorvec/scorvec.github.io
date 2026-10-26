@@ -1,8 +1,8 @@
 name: Stratosphere, every model's newest run (polar vortex figures, SSW summary)
 
-# The products that hold every model: the polar-vortex figure (scripts/strat/nh_vortex.py --from-records), its
-# run-to-run figure (run_record.py combined vortex), the days 1-15 sudden-warming summary that ssw.html reads
-# (ssw_summary.py), the polar cap at sea level and 500 hPa and the AO and NAO (polarcap.py --combined, run_record.py
+# The products that hold every model: the polar-vortex figures, wind and height and the 10 hPa temperature
+# (scripts/strat/nh_vortex.py --from-records), its run-to-run figure (run_record.py combined vortex), the days 1-15
+# sudden-warming summary that ssw.html reads (ssw_summary.py), the polar cap at sea level and 500 hPa and the AO and NAO (polarcap.py --combined, run_record.py
 # combined polarcap / telecon), the vortex's shape at 10 hPa (vortex_shape.py --combined, run_record.py combined
 # vshape), and how the recent runs verified (strat_verify.py). Each model's job records its own run as it lands (strat.yml AIFS-ENS; strat-ifs.yml the IFS-ENS, IFS
 # control, GDPS, GEOS FP, and GEFS and GEPS - the fast lane too; strat-aifs1.yml AIFS single); after every such run this draws them from each
@@ -51,7 +51,7 @@ jobs:
           pip install -r scripts/mjo/requirements-mjo.txt
       - name: Draw from every model's newest record
         run: |
-          OUT="assets/sst/nh_vortex.webp assets/sst/nh_vortex_runs.webp assets/sst/data/ssw_summary.json
+          OUT="assets/sst/nh_vortex.webp assets/sst/nh_vortex_temp.webp assets/sst/nh_vortex_runs.webp assets/sst/data/ssw_summary.json
                assets/sst/polarcap_models.webp assets/sst/runs/polarcap_all.webp
                assets/sst/telecon_models.webp assets/sst/runs/telecon_all.webp
                assets/sst/vshape_models.webp assets/sst/runs/vshape_all.webp assets/sst/runs/verify_strat.webp

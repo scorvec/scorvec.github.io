@@ -6,7 +6,9 @@ like:
   u60   zonal-mean zonal wind at exactly 60 deg (the sudden-warming criterion latitude), per hemisphere
   capT  polar-cap temperature: the cos-weighted mean over 60-90 deg of the zonal-mean temperature
   maps  geopotential height and temperature at 5 and 1 hPa, 20-90 deg, on a common 1 x 1 deg grid, days 0-10
-One instant per day: the init hour's field at every 24-hour step (migrating tides cancel in a zonal mean).
+One instant per day: the init hour's field at every 24-hour step (migrating tides cancel in a zonal mean). The GEOS FP
+analysis tail also keeps dT, the cos-weighted 85-90 deg mean of the zonal-mean temperature minus its value at 60 deg
+(the polar vortex figure's gradient, nh_vortex.py).
 
 Cycles: 00Z for every model; 12Z for GEFS, GFS and GDPS. GEOS FP is always read from its 00Z forecast (a 12Z update
 reuses the day's 00Z read; see upperstrat.yml).
@@ -346,7 +348,8 @@ class Geos:
                 time.sleep(15 * (k + 1))
 
     def zonal(self, it):
-        """{hemi: (u60 (13,), capT (13,))} at time index it, LEV_ALL order."""
+        """{hemi: (u60, capT, dT)} at time index it, each (13,) in LEV_ALL order: dT is the cos-weighted 85-90 deg mean
+        of the zonal-mean T minus its value at 60 deg (nh_vortex.polar_t's gradient)."""
         res = {}
         for h in HEMIS:
             f, lat, _, lev = self.read(("u", "t"), it, slice(self.l0, self.l1 + 1), self.cap[h], slice(None, None, 4))
@@ -356,9 +359,10 @@ class Geos:
                 zu, zt = np.nanmean(f["u"], -1)[li], np.nanmean(f["t"], -1)[li]  # (level, lat)
             s = 1.0 if h == "nh" else -1.0
             j60 = int(np.argmin(np.abs(lat - 60.0 * s)))
-            m = (lat * s) >= 60.0 - 1e-6
-            w = np.cos(np.deg2rad(lat[m]))
-            res[h] = (zu[:, j60], (zt[:, m] * w).sum(-1) / w.sum())
+            w = np.cos(np.deg2rad(lat))
+            cap, pole = (np.flatnonzero((lat * s) >= lo - 1e-6) for lo in (60.0, 85.0))
+            cap_t, pole_t = ((zt[:, m] * w[m]).sum(-1) / w[m].sum() for m in (cap, pole))
+            res[h] = (zu[:, j60], cap_t, pole_t - zt[:, j60])
         return res
 
     def maps(self, it):
@@ -533,8 +537,12 @@ def load_tail(extra: Path | None = None) -> dict:
     return dict(sorted(h.items()))
 
 
+TAIL_VARS = ("u60", "capT", "dT")  # Geos.zonal's, in its order
+
+
 def tail(a) -> int:
-    """GEOS FP analyses: the daily mean of the 00/06/12/18Z states of u60 and capT (both hemispheres, LEV_ALL)."""
+    """GEOS FP analyses: the daily mean of the 00/06/12/18Z states of u60, capT and dT (both hemispheres, LEV_ALL). A
+    day held without one of them (analysed before the tail carried dT) is analysed again."""
     out = Path(a.out)
     out = out if out.is_absolute() else REPO / out
     have = json.loads(out.read_text()).get("days", {}) if out.exists() else {}
@@ -542,15 +550,16 @@ def tail(a) -> int:
     g = Geos(GEOS_AS)
     tn = g.times[-1]
     end = tn.normalize() if tn.hour >= 18 else tn.normalize() - pd.Timedelta(days=1)
-    days = [
-        d
-        for d in pd.date_range(end - pd.Timedelta(days=a.days - 1), end, freq="D")
-        if a.force or (f"{d:%Y-%m-%d}" not in have and f"{d:%Y-%m-%d}" not in seed)
-    ]
+
+    def held(k: str) -> bool:
+        return all(v in have[k]["nh"] for v in TAIL_VARS) if k in have else k in seed
+
+    window = pd.date_range(end - pd.Timedelta(days=a.days - 1), end, freq="D")
+    days = [d for d in window if a.force or not held(f"{d:%Y-%m-%d}")]
     n = 0
     for d in days:
         t0 = time.time()
-        acc = {h: [[], []] for h in HEMIS}
+        acc = {h: [] for h in HEMIS}
         try:
             for hh in (0, 6, 12, 18):
                 it = int(np.argmin(np.abs(g.times - (d + pd.Timedelta(hours=hh)))))
@@ -558,15 +567,12 @@ def tail(a) -> int:
                     raise RuntimeError(f"{d:%Y-%m-%d} {hh:02d}Z not in the archive")
                 z = g.zonal(it)
                 for h in HEMIS:
-                    acc[h][0].append(z[h][0])
-                    acc[h][1].append(z[h][1])
+                    acc[h].append(z[h])
         except Exception as e:  # noqa: BLE001
             log(f"  {d:%Y-%m-%d}: {str(e)[:100]}")
             continue
-        have[f"{d:%Y-%m-%d}"] = {
-            h: {"u60": np.round(np.mean(acc[h][0], 0), 2).tolist(), "capT": np.round(np.mean(acc[h][1], 0), 2).tolist()}
-            for h in HEMIS
-        }
+        mean = {h: np.round(np.mean(acc[h], 0), 2) for h in HEMIS}  # (variable, level)
+        have[f"{d:%Y-%m-%d}"] = {h: dict(zip(TAIL_VARS, mean[h].tolist())) for h in HEMIS}
         n += 1
         v = have[f"{d:%Y-%m-%d}"]
         log(
@@ -588,7 +594,7 @@ def _write_tail(out: Path, have: dict, keep: int):
             {
                 "source": "GEOS FP inst3_3d_asm_Np analyses (NASA GMAO, NCCS OPeNDAP): daily mean of the "
                 "00/06/12/18Z states; u60 = zonal-mean u at 60 deg (m/s), capT = cos-weighted "
-                "60-90 deg mean of the zonal-mean T (K)",
+                "60-90 deg mean of the zonal-mean T (K), dT = its cos-weighted 85-90 deg mean minus 60 deg (K)",
                 "levels": LEV_ALL,
                 "days": {k: have[k] for k in ks},
             },

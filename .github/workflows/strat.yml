@@ -379,7 +379,8 @@ jobs:
 
       # From the u files just cached, all at once (scripts/lib/parallel.sh):
       #   nh_vortex  AIFS-ENS's run into the polar-vortex record (run_record.py) and its member plumes, with the 100 hPa
-      #              cap height from the 90-65N rows; strat-combine.yml draws every model's newest run after this workflow
+      #              cap height from the 90-65N rows of z and the 10 hPa temperature from the 90-60N rows of t (~50 MB);
+      #              strat-combine.yml draws every model's newest run after this workflow
       #   qbo_duct   per-member zonal-mean u at 10/50/100 hPa -> data/zmu_members_aifs.npz, and v at 250 hPa (control +
       #              50) for the North Pacific jet
       #   jets       (00/12Z) each member's zonal-mean u at 13 levels to day 15, against the ERA5 jet climatology

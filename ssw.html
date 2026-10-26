@@ -249,9 +249,10 @@
       <div class="chart-card-header"><h2>Is a sudden warming forecast?</h2>
         <p data-k="ssw_line">&ndash;</p></div>
       <div class="tblwrap"><table class="rec" id="t_ssw"></table></div>
-      <p class="runs-h">Run by run: members easterly at 10&nbsp;hPa in each ensemble&rsquo;s last runs</p>
+      <p class="runs-h">Run by run: members easterly at 10&nbsp;hPa in each ensemble&rsquo;s last runs, and those meeting the WMO definition</p>
       <div class="tblwrap"><table class="rec" id="t_runs"></table></div>
       <div class="img-wrap"><a href="/stratosphere.html#vortex"><img src="/assets/sst/nh_vortex.webp" alt="u at 60N at 10 and 100 hPa and the polar-cap height, every model, days 1-15" loading="lazy"></a></div>
+      <div class="img-wrap"><a href="/stratosphere.html#vortex/temp"><img src="/assets/sst/nh_vortex_temp.webp" alt="10 hPa polar-cap temperature anomaly and the pole-minus-60N temperature gradient, every model, days 1-15" loading="lazy"></a></div>
     </section>
 
     <section class="chart-card" id="kind">
@@ -288,12 +289,15 @@
         is ECMWF&rsquo;s unperturbed 9&nbsp;km run, called HRES until May 2026; it is one run, so it enters only the
         direction table.</p>
         <p><b>Sudden warming.</b> The zonal-mean wind at 60&deg;N and 10&nbsp;hPa turning easterly on some day in days
-        1&ndash;15 (Charlton and Polvani 2007, who count November&ndash;March onsets only). The warning meter counts
+        1&ndash;15 (Charlton and Polvani 2007, who count November&ndash;March onsets only). The WMO column also asks, as
+        the original definition does (McInturff 1978), for the 10&nbsp;hPa zonal-mean temperature to rise from 60&deg;N
+        to the pole on the same day: the cos-weighted 85&ndash;90&deg;N mean above the value at 60&deg;N (&ndash; for a
+        run recorded without the temperature). The warning meter counts
         members whose 10-day mean 100&nbsp;hPa heat flux crosses the level that preceded the sudden warmings on record
         (<span data-r="warn">&ndash;</span>). The normal rate is the share of MERRA-2 winters since 1980 with an onset in
         the same 15 calendar days. Each ensemble is its newest run, taken as soon as that run is in, so for a few hours
         of a cycle the models stand on different starts. <b>Run by run</b> lists each ensemble&rsquo;s share in its last
-        six runs (and its warning-meter share): a swing between runs is the models&rsquo; view changing, not a forecast
+        six runs (and its WMO and warning-meter shares): a swing between runs is the models&rsquo; view changing, not a forecast
         of its own.</p>
         <p><b>Wave driving.</b> The share of wave-1 and wave-2 in the ensemble-mean 100&nbsp;hPa eddy heat flux
         (45&ndash;75&deg;N) over days 1&ndash;15; a wavenumber carrying <span data-r="wshare">&ndash;</span> or more
@@ -359,12 +363,16 @@
     var sswWord = share == null ? "–" : share < 0.05 ? "No sudden warming" : share < 0.3 ? "A sudden warming in a minority of members"
       : share < 0.6 ? "A sudden warming is possible" : "A sudden warming is likely";
     set("c_ssw", pct(share)); set("c_ssw_s", "of members, four ensembles" + (j.ssw_season ? "" : "; outside Nov–Mar"));
+    var shown = ens.filter(function (m) { return S.models[m]; });
     set("ssw_line", sswWord + " in " + md(j.window[0]) + "–" + md(j.window[1]) + ": the wind at 60°N, 10\u00A0hPa turns easterly in "
-      + pct(share) + " of members on average. Since 1980, " + br.with_onset + " of " + br.winters + " winters had a sudden warming begin in these 15 days.");
-    table("t_ssw", ["model", "members", "easterly at 10\u00A0hPa", "lowest u, mean (m/s)", "lowest u, 10th pct", "warning meter"],
-      ens.filter(function (m) { return S.models[m]; }).map(function (m) {
+      + pct(share) + " of members on average"
+      + (S.wmo_mean == null ? "" : ", with the pole warmer than 60°N the same day as well (the full WMO definition) in " + pct(S.wmo_mean)
+         + (S.wmo_models < shown.length ? " (" + S.wmo_models + " of the " + shown.length + " ensembles so far)" : ""))
+      + ". Since 1980, " + br.with_onset + " of " + br.winters + " winters had a sudden warming begin in these 15 days.");
+    table("t_ssw", ["model", "members", "easterly at 10\u00A0hPa", "and the pole warmer (WMO)", "lowest u, mean (m/s)", "lowest u, 10th pct", "warning meter"],
+      shown.map(function (m) {
         var v = S.models[m], w = W.models[m] || {};
-        return [who(N[m], v.init), v.members, pct(v.share), sg(v.u10_min_mean), sg(v.u10_min_p10), w.warning_members == null ? "–" : pct(w.warning_members)];
+        return [who(N[m], v.init), v.members, pct(v.share), pct(v.wmo), sg(v.u10_min_mean), sg(v.u10_min_p10), w.warning_members == null ? "–" : pct(w.warning_members)];
       }));
 
     // run by run: each ensemble's chance in its last runs, the warning-meter share beside it
@@ -373,7 +381,7 @@
     var last = Object.keys(starts).sort().slice(-6).reverse();
     function runCell(m, t) {
       var r = S.models[m].runs.filter(function (x) { return x[0] === t; })[0];
-      return r ? pct(r[1]) + (r[2] == null ? "" : " <small>warning " + pct(r[2]) + "</small>") : "–";
+      return r ? pct(r[1]) + (r[3] == null ? "" : " <small>WMO " + pct(r[3]) + "</small>") + (r[2] == null ? "" : " <small>warning " + pct(r[2]) + "</small>") : "–";
     }
     table("t_runs", ["run"].concat(have.map(function (m) { return N[m]; })),
       last.map(function (t) { return [md(t) + " " + t.slice(11) + "Z"].concat(have.map(function (m) { return runCell(m, t); })); }));

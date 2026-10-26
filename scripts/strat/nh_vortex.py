@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """NH polar vortex FORECAST monitor -- AIFS-ENS, IFS-ENS, the IFS control, AIFS single, GEFS, GEPS, GDPS and GEOS FP.
 
-Three panels, forecast-first (a short analysis tail for context, then every
-model that publishes the stratosphere):
+Two figures, forecast-first (a short analysis tail for context, then every
+model that publishes the stratosphere). nh_vortex.webp, the wind and the height:
 
   1. u(60N) at 10 hPa  -- the WMO sudden-stratospheric-warming diagnostic.
      Easterly here IS an SSW, so the zero line is heavy and the cross-model
@@ -12,34 +12,45 @@ model that publishes the stratosphere):
   3. 100 hPa polar-cap (65-90N) height anomaly -- positive = weak/displaced
      vortex; the field that leads the AO/NAO response.
 
-Models (probed 2026-08-28, GEFS 2026-10-20; every one publishes u AND height at 10 and 100 hPa):
+nh_vortex_temp.webp, the temperature at 10 hPa (a sudden warming is first of all a warming):
+
+  4. the polar-cap temperature anomaly -- the cos-weighted 60-90N mean of the
+     zonal-mean temperature (NASA Ozone Watch's polar cap).
+  5. the pole-to-60N gradient -- the cos-weighted 85-90N mean minus 60N. Above
+     zero (warmer at the pole) on a day the wind at 60N is easterly is the
+     original WMO major warming, so this zero line is heavy too and the members
+     meeting both halves on the same day are called out.
+
+Models (probed 2026-08-28, GEFS 2026-10-20; every one publishes u, height and temperature at 10 and 100 hPa):
 
   aifs  AIFS-ENS  50 pf + cf, 0.25 deg, day 15.  u FREE -- ens_cycle --only strat
                   caches pf_u_10-50-100-... every cycle. Height: the 90-65N rows of z at
-                  100 hPa, 50 pf + cf (~0.1 GB, store.ensure_rows).
-  gefs  GEFS      30 perturbed + control, 0.5 deg, day 16: u at 10/100 hPa and the 100 hPa height
+                  100 hPa, 50 pf + cf (~0.1 GB, store.ensure_rows); temperature: the 90-60N
+                  rows of t at 10 hPa the same way.
+  gefs  GEFS      30 perturbed + control, 0.5 deg, day 16: u at 10/100 hPa, the 100 hPa height and t at 10 hPa
                   from the shared GEFS fetch (strat_ens.py, part "vortex"; NOAA's S3, ~0.6 GB/cycle).
   geps  GEPS      20 members + control, 0.5 deg, day 16, from the same shared fetch's "vortex" part (strat_ens.py;
                   the MSC Datamart), made by the job that renders GEPS's other products.
-  gdps  GDPS      deterministic, 0.15 deg, day 10 -> ~31 MB/cycle.
+  gdps  GDPS      deterministic, 0.15 deg, day 10 -> ~38 MB/cycle.
   geosfp GEOS FP   NASA GMAO, deterministic, newest 00Z run (day 10; 06/12/18Z stop at day 5), NCCS OPeNDAP
                   MERRA-2's operational sibling.
   ifs   IFS-ENS   all 50 perturbed members, 0.25 deg, day 15. The ensemble files carry
                   no control at these levels - open data publishes only type=pf there.
-                  Read from the shared IFS-ENS files (ifs_ens.py: u at 10/100 hPa and gh
-                  at 100 hPa, fetched once a cycle for every stratosphere product, Google
-                  Cloud mirror only). IFS-ENS lands on the mirror after AIFS-ENS (day 15
-                  ~08:31Z / 20:31Z), so it is recorded in strat-ifs.yml, not strat.yml; a
+                  Read from the shared IFS-ENS files (ifs_ens.py: u at 10/100 hPa, gh
+                  at 100 hPa and t at 10 hPa, fetched once a cycle for every stratosphere
+                  product, Google Cloud mirror only). IFS-ENS lands on the mirror after AIFS-ENS
+                  (day 15 ~08:31Z / 20:31Z), so it is recorded in strat-ifs.yml, not strat.yml; a
                   cycle the mirror does not have yet drops IFS with a message.
   hres  IFS control  the unperturbed run (called HRES until May 2026), 0.25 deg, day 15,
                   from its own open-data stream (oper): u and gh at 10/100 hPa from the
-                  shared control file (ifs_ens.py ctrl_wind, ~0.1 GB). Drawn dashed, as
-                  the other single runs.
+                  shared control file (ifs_ens.py ctrl_wind, ~0.1 GB), and the 90-60N rows of
+                  t at 10 hPa. Drawn dashed, as the other single runs.
   aifsc AIFS-ENS control  member 0 of AIFS-ENS on its own: the "cf" column of the AIFS-ENS frames
                   (no download of its own), recorded and drawn dashed like the IFS control.
   aifs1 AIFS single  ECMWF's deterministic AIFS run, 0.25 deg, day 15: u and gh at 10/100 hPa from the shared
                   file its vortex-wind maps read (aifs_single.py, 12-hourly; nothing fetched when they have run),
-                  recorded by its own workflow (strat-aifs1.yml) and drawn dashed.
+                  and the 90-60N rows of t at 10 hPa; recorded by its own workflow (strat-aifs1.yml) and drawn
+                  dashed.
 
 DETRENDING (the reason the reference is built the way it is)
 ------------------------------------------------------------
@@ -50,31 +61,40 @@ removed first (load_clim prints these every run):
     z100 cap    +18.1 m/decade    (residual sd 100 m)
     u60 @10hPa   -0.23 m/s/decade (residual sd 10.3 m/s)
     u60 @100hPa  -0.03 m/s/decade (residual sd  3.9 m/s)
+    T10 cap      -0.70 K/decade   (residual sd 5.0 K; annual means 1980-2025 p < 1e-5)
+    T10 gradient -0.23 K/decade   (residual sd 6.1 K; annual means p = 0.10)
 
 At today's epoch the z100 trend alone is about +43 m against the record-mean level, so
 an undetrended 1980-2026 band would place every recent day high by construction
 and manufacture a "weak vortex" that is really just climate drift. The height
 climatology is therefore referenced to the CURRENT epoch: the trend is removed
 and every historical day is adjusted to today's level before the day-of-year
-percentiles are taken. The winds are left alone -- their trends are under 2.5% of
-their own variability, and pretending to correct that would be false precision.
+percentiles are taken. The 10 hPa cap temperature is treated the same way: the
+stratosphere's cooling (over 3 K since 1980, more than November's whole sd) would
+otherwise read as a cold vortex. The winds are left alone -- their trends are under
+2.5% of their own variability, and pretending to correct that would be false
+precision -- and so is the temperature gradient, whose trend is not significant.
 
 Reference: MERRA-2 daily from 1980, day-of-year 10th-90th percentiles, from the committed series
 reference/m2_strat_daily.nc (build_m2_reference.py). Its polar cap is the cos-weighted 65-90N mean of zbar,
-the definition used on every forecast. The trends the figure's footer quotes are measured on it every run.
+the definition used on every forecast, and its 10 hPa temperatures are polar_t of its zonal-mean T, as every
+forecast's. The trends the figure's footer quotes are measured on it every run.
 
 ANALYSIS TAIL: GEOS FP, MERRA-2's operational sibling -- the daily mean of its 00/06/12/18Z analyses, read from
-the files the upper-stratosphere and BDC jobs commit every day (u60 at 10 and 100 hPa in upperstrat_tail.json, the
-65-90N cap height in geosfp_cap_history.json). Its heights, and those of the GEOS FP forecast, are put on the
-MERRA-2 scale by the measured GEOS FP - MERRA-2 offset (geosfp_cap.offset_at, -14 m at 100 hPa); the winds need
-none. _consistency() checks the tail against MERRA-2 wherever the two overlap.
+the files the upper-stratosphere and BDC jobs commit every day (u60 at 10 and 100 hPa and the 10 hPa cap temperature
+and gradient in upperstrat_tail.json, the 65-90N cap height in geosfp_cap_history.json). Its heights, and those of
+the GEOS FP forecast, are put on the MERRA-2 scale by the measured GEOS FP - MERRA-2 offset (geosfp_cap.offset_at,
+-14 m at 100 hPa); the winds need none. Its 10 hPa temperatures are drawn as they are: their offset from MERRA-2 is
+not measured. _consistency() checks the tail against MERRA-2 wherever the two overlap.
 
 RUN RECORD: every model's run goes into its own record (run_record.py, assets/sst/data/runs/vortex_<model>.json) from
-the job that renders that model, as soon as it lands; the figure is drawn from each model's newest record (--from-records,
-nothing fetched), so it moves model by model through the cycle.
+the job that renders that model, as soon as it lands; the figures are drawn from each model's newest record
+(--from-records, nothing fetched), so they move model by model through the cycle. Besides the members' summaries an
+ensemble's run records two shares of its members: easterly at 10 hPa on some day to day SSW_DAYS (ssw, the wind
+criterion), and easterly with the gradient reversed on the same day (wmo, the full WMO definition).
 
     python scripts/strat/nh_vortex.py --models ifs,hres --cycle 2026102312 --record-only   # record two models' runs
-    python scripts/strat/nh_vortex.py --from-records                                       # the figure
+    python scripts/strat/nh_vortex.py --from-records                                       # the two figures
 
 MEMBERS (--members, with --record-only): the job that records an ensemble also draws its run member by member,
 vortex_members_{aifs,ifs,gefs,geps}.webp: u60 at 10 and 100 hPa of every member, the members' mean and the control,
@@ -121,16 +141,30 @@ FP_CAP_TAIL = REPO / "assets" / "sst" / "data" / "geosfp_cap_history.json"
 CACHE = REPO / "scripts" / "ecmwf" / "cache"
 DL = DATA / "vortex_dl"  # downloaded GRIB, reused within a cycle
 OUT = REPO / "assets" / "sst" / "nh_vortex.webp"
+OUT_T = REPO / "assets" / "sst" / "nh_vortex_temp.webp"
 MEMBERS_OUT = REPO / "assets" / "sst" / "vortex_members_{m}.webp"
 
 PHI = 60.0  # WMO 60N for the SSW criterion
 CAP = (65.0, 90.0)  # polar cap for the 100 hPa height anomaly
+TCAP = (60.0, 90.0)  # polar cap for the 10 hPa temperature (NASA Ozone Watch's)
+POLE = 85.0  # the gradient: the 85-90N mean minus PHI
 TAIL_DAYS = 21  # short analysis tail: this is a forecast product
 G = 9.80665  # ECMWF `z` is geopotential; `gh` / HGT are already gpm
 U_ROW = round((90.0 - PHI) / 0.25)  # 60N as a row of ECMWF's 0.25 deg grid, counted from 90N
 CAP_ROWS = tuple(range(round((90.0 - CAP[0]) / 0.25) + 1))  # the cap's rows, 90-65N
-DETREND = {"zcap"}  # see the module docstring for why only this one
+T_ROWS = tuple(range(U_ROW + 1))  # the 10 hPa temperature's rows, 90-60N
+TKEYS = ("tcap10", "dT10")  # polar_t's two numbers, in its order
+DETREND = {"zcap", "tcap10"}  # see the module docstring for why only these
 CONTROLS = ("hres", "aifsc")  # an ensemble's control run, drawn and recorded on its own
+# every key of the record, as its panel: the y-axis label, and whether it is an anomaly against the MERRA-2 median
+PANELS = {
+    "u10": ("u at 10 hPa, 60°N  (m s$^{-1}$)", False),
+    "u100": ("u at 100 hPa, 60°N  (m s$^{-1}$)", False),
+    "zcap": (f"100 hPa {CAP[0]:.0f}–{CAP[1]:.0f}°N height anomaly (m)", True),
+    "tcap10": (f"10 hPa {TCAP[0]:.0f}–{TCAP[1]:.0f}°N temperature anomaly (K)", True),
+    "dT10": (f"10 hPa T, {POLE:.0f}–90°N minus {PHI:.0f}°N  (K)", False),
+}
+ANOM = tuple(k for k, (_, anom) in PANELS.items() if anom)
 
 STYLE = {
     "aifs": ("#b4541f", "AIFS-ENS"),
@@ -155,6 +189,30 @@ def cap_mean(da, lo=CAP[0], hi=CAP[1]):
     sel = da.where((lat >= lo) & (lat <= hi), drop=True)
     w = np.cos(np.deg2rad(sel.latitude))
     return (sel.mean("longitude") * w).sum("latitude") / w.sum()
+
+
+def polar_t(tz, lat) -> np.ndarray:
+    """(..., 2): the 10 hPa polar-cap temperature and the pole-to-60N gradient (TKEYS) of the zonal-mean temperature tz
+    (..., latitude) on latitudes lat (degrees north, either order): the cos-weighted mean over TCAP, and the
+    cos-weighted mean over POLE-90N minus the value at PHI. A gradient above zero is reversed (warmer at the pole than
+    at 60N), the temperature half of the WMO major-warming definition."""
+    tz, lat = np.asarray(tz, float), np.asarray(lat, float)
+    w = np.cos(np.deg2rad(lat))
+
+    def mean(lo):
+        m = lat >= lo - 1e-6
+        return (tz[..., m] * w[m]).sum(-1) / w[m].sum()
+
+    return np.stack([mean(TCAP[0]), mean(POLE) - tz[..., int(np.argmin(np.abs(lat - PHI)))]], -1)
+
+
+def polar_t_da(da):
+    """polar_t of a temperature DataArray: latitude and longitude replaced by a trailing dimension "q" (TKEYS)."""
+    sel = da.isel(latitude=np.flatnonzero(da.latitude.values >= TCAP[0] - 1e-6))
+    zm = sel.mean("longitude")
+    return xr.apply_ufunc(
+        polar_t, zm, kwargs={"lat": zm.latitude.values}, input_core_dims=[["latitude"]], output_core_dims=[["q"]]
+    )
 
 
 def _grib(path, **keys):
@@ -190,16 +248,27 @@ def _store():
     return ecmwf
 
 
-def _aifs_rows(base, kind: str, short: str, levels: tuple, rows: tuple, reduce, tag: str) -> dict:
-    """{level: (time, member) DataFrame} of a per-message reduction of the leading rows of AIFS-ENS fields
-    (store.ensure_rows), every daily step."""
+def _rows(base, model: str, kind: str, short: str, levels: tuple, rows: tuple, reduce, tag: str):
+    """(values (member, step, level, ...), valid times, levels) of a per-message reduction of the leading rows of an
+    ECMWF open-data field (store.ensure_rows, the Google Cloud mirror), every daily step."""
     ecmwf = _store()
-    spec = ecmwf.Spec("aifs-ens", kind, short, "pl", levels, tuple(ecmwf.STEPS))
+    spec = ecmwf.Spec(model, kind, short, "pl", levels, tuple(ecmwf.STEPS))
     a, _, steps, levs = ecmwf.load_rows(
         ecmwf.ensure_rows(ecmwf.Cycle(f"{base:%Y%m%d}", f"{base:%H}"), spec, rows, reduce=reduce, tag=tag)
     )
-    t = base + pd.to_timedelta(steps, unit="h")
+    return a, base + pd.to_timedelta(steps, unit="h"), levs
+
+
+def _aifs_rows(base, kind: str, short: str, levels: tuple, rows: tuple, reduce, tag: str) -> dict:
+    """{level: (time, member) DataFrame} of a per-message reduction of the leading rows of AIFS-ENS fields."""
+    a, t, levs = _rows(base, "aifs-ens", kind, short, levels, rows, reduce, tag)
     return {L: pd.DataFrame(a[:, :, i].T.astype(float), index=t) for i, L in enumerate(levs)}
+
+
+def _t_rows(base, model: str, kind: str) -> dict:
+    """{TKEYS: (time, member) DataFrame} from the 90-60N rows of t at 10 hPa (~20 % of each message)."""
+    a, t, _ = _rows(base, model, kind, "t", (10,), T_ROWS, _t10, "t10")
+    return {k: pd.DataFrame(a[:, :, 0, i].T.astype(float), index=t) for i, k in enumerate(TKEYS)}
 
 
 def _u60(v, lat, lon):
@@ -209,6 +278,10 @@ def _u60(v, lat, lon):
 def _zcap(v, lat, lon):
     w = np.cos(np.deg2rad(lat))
     return float((v.astype(float).mean(-1) * w).sum() / w.sum()) / G
+
+
+def _t10(v, lat, lon):
+    return polar_t(v.astype(float).mean(-1), lat).astype("float32")
 
 
 def load_aifs(cdir, base):
@@ -239,12 +312,19 @@ def load_aifs(cdir, base):
     if zp is not None and zc is not None:
         zp["cf"] = zc[0].reindex(zp.index)
     out["zcap"] = zp if zp is not None else zc
+    # The 10 hPa temperature the same way, from the 90-60N rows; without it the run is recorded without the two.
+    try:
+        tc, tp = (_t_rows(base, "aifs-ens", k) for k in ("cf", "pf"))
+        out.update({k: tp[k].assign(cf=tc[k][0].reindex(tp[k].index)) for k in TKEYS})
+    except Exception as e:  # noqa: BLE001
+        print(f"  AIFS-ENS t10 unavailable ({type(e).__name__}: {str(e)[:80]})", flush=True)
     return out
 
 
 def load_aifs1(base):
     """AIFS single at the daily steps: u at 10/100 hPa and gh at 100 hPa from the shared file its vortex-wind maps read
-    (aifs_single.py, 12-hourly). Google Cloud mirror only; a run not there yet is not recorded."""
+    (aifs_single.py, 12-hourly), t at 10 hPa from its 90-60N rows. Google Cloud mirror only; a run not there yet is not
+    recorded."""
     import aifs_single as A1
 
     ecmwf = _store()
@@ -262,6 +342,10 @@ def load_aifs1(base):
         da = _grib(path, shortName=short, level=lev)[short]
         h = (da.step.values / np.timedelta64(1, "h")).astype(int)
         out[key] = _frame(da.isel(step=np.flatnonzero(h % 24 == 0)), red, base)
+    try:
+        out.update(_t_rows(base, "aifs-single", "fc"))
+    except Exception as e:  # noqa: BLE001
+        print(f"  AIFS single t10 unavailable ({type(e).__name__}: {str(e)[:80]})", flush=True)
     return out
 
 
@@ -293,7 +377,7 @@ def _eccc(kind, url_tpl, date, cyc, leads, spec):
 
 
 def load_gdps(date, cyc, leads):
-    return _eccc(
+    out = _eccc(
         "gdps",
         GDPS_URL,
         date,
@@ -305,13 +389,19 @@ def load_gdps(date, cyc, leads):
             ("zcap", "GeopotentialHeight", 100, cap_mean),
         ],
     )
+    if out:
+        # t at 10 hPa, one file a lead read by both reductions (the second finds it cached); without it the run is
+        # recorded without the two
+        spec = [(k, "AirTemp", 10, lambda da, i=i: polar_t_da(da).isel(q=i)) for i, k in enumerate(TKEYS)]
+        out.update(_eccc("gdps", GDPS_URL, date, cyc, leads, spec) or {})
+    return out
 
 
 def load_ens(model, date, cyc):
     """GEFS (control + 30 members) or GEPS (control + 20), to day 16, from the shared fetch's "vortex" part
-    (strat_ens.py: u at 10 and 100 hPa and the 100 hPa height, daily; NOAA's S3, the MSC Datamart), which the job that
-    renders the model's other products has already made. A cycle not complete falls back to the newest complete one
-    within a day; with none the model is not recorded this run."""
+    (strat_ens.py: u at 10 and 100 hPa, the 100 hPa height and the 10 hPa temperature's polar_t, daily; NOAA's S3, the
+    MSC Datamart), which the job that renders the model's other products has already made. A cycle not complete falls
+    back to the newest complete one within a day; with none the model is not recorded this run."""
     import strat_ens as SE
 
     try:
@@ -322,20 +412,23 @@ def load_ens(model, date, cyc):
         return None
     keep = SE.complete_members(d, "zcap")
     idx = pd.Timestamp(f"{d0[:4]}-{d0[4:6]}-{d0[6:]} {h0}:00") + pd.to_timedelta(list(SE.LEADS_VORTEX), unit="h")
-    return {  # columns = member numbers: 0 is the control
+    out = {  # columns = member numbers: 0 is the control
         "u10": pd.DataFrame(d["u60"][keep, :, 0].T, index=idx, columns=keep),
         "u100": pd.DataFrame(d["u60"][keep, :, 1].T, index=idx, columns=keep),
         "zcap": pd.DataFrame(d["zcap"][keep].T, index=idx, columns=keep),
     }
+    if "t10" in d:  # a cycle reduced before the part carried the temperature has none
+        out.update({k: pd.DataFrame(d["t10"][keep, :, i].T, index=idx, columns=keep) for i, k in enumerate(TKEYS)})
+    return out
 
 
 def load_ifs(date, cyc, leads, members, light=False):
     """IFS-ENS, all 50 perturbed members (or the first `members`), from the shared IFS-ENS files.
 
-    ifs_ens.py stocks u/v at 10/100 hPa (12-hourly) and gh at 10/100 hPa (daily) ONCE a cycle for every
-    stratosphere product; this reads u at 10/100 and gh at 100 hPa out of them at the daily steps. `light` (a past run
-    recorded on its own, --record-only) pulls just those fields, ~1.3 GB instead of the bundle's ~7.5, unless the
-    shared files are already on disk (the job that renders IFS-ENS stocks them first). Google Cloud mirror only: a
+    ifs_ens.py stocks u/v at 10/100 hPa (12-hourly), gh at 10/100 hPa and t at 10 hPa (daily) ONCE a cycle for every
+    stratosphere product; this reads u at 10/100, gh at 100 and t at 10 hPa out of them at the daily steps. `light` (a
+    past run recorded on its own, --record-only) pulls just those fields, ~1.5 GB instead of the bundle's ~7.5, unless
+    the shared files are already on disk (the job that renders IFS-ENS stocks them first). Google Cloud mirror only: a
     cycle not yet on Google is dropped rather than pulled slowly from another mirror.
     """
     import sys
@@ -377,13 +470,23 @@ def load_ifs(date, cyc, leads, members, light=False):
         if members and "number" in da.dims and members < da.sizes["number"]:
             da = da.isel(number=slice(0, members))
         out[key] = _frame(da, red, base)
+    try:  # the shared t10 file (on disk where the products run); without it the run is recorded without the two
+        da = IE.open_field(IE.ensure(cycle, IE.spec_t10()), "t", 10)
+        da = da.isel(step=np.flatnonzero(np.isin(IE.step_hours(da), leads)))
+        if members and members < da.sizes["number"]:
+            da = da.isel(number=slice(0, members))
+        q = polar_t_da(da).load()  # one decode for both
+        out.update({k: _frame(q.isel(q=i), lambda x: x, base) for i, k in enumerate(TKEYS)})
+    except Exception as e:  # noqa: BLE001
+        print(f"::warning::IFS-ENS t10 unavailable ({type(e).__name__}: {str(e)[:100]})", flush=True)
     print(f"    IFS-ENS: {out['u10'].shape[1]} members from the shared files", flush=True)
     return out
 
 
 def load_hres(date, cyc, leads):
     """The IFS control at the daily steps: u at 10/100 hPa and gh at 100 hPa from the shared control file
-    (ifs_ens.py ctrl_wind, 12-hourly). Google Cloud mirror only; a cycle not there yet drops it with a message."""
+    (ifs_ens.py ctrl_wind, 12-hourly), t at 10 hPa from its 90-60N rows. Google Cloud mirror only; a cycle not there
+    yet drops it with a message."""
     import sys
 
     sys.path.insert(0, str(HERE))
@@ -409,6 +512,10 @@ def load_hres(date, cyc, leads):
     ):
         da = IE.open_field(path, short, lev)
         out[key] = _frame(da.isel(step=np.flatnonzero(np.isin(IE.step_hours(da), leads))), red, base)
+    try:
+        out.update(_t_rows(base, "ifs", "fc"))
+    except Exception as e:  # noqa: BLE001
+        print(f"::warning::IFS control t10 unavailable ({type(e).__name__}: {str(e)[:100]})", flush=True)
     return out
 
 
@@ -423,8 +530,9 @@ def _fp_offset100(days) -> np.ndarray:
 def load_geosfp(base):
     """NASA GMAO GEOS FP, deterministic, from the NCCS OPeNDAP forecast collection. Only the 00Z run
     goes to day 10 (the 06/12/18Z runs stop at day 5), so this takes the newest 00Z run at or before the figure's cycle,
-    reading the daily 00Z steps of u at 10/100 hPa along 60N and h (geopotential height, m) at 100 hPa over 65-90N.
-    GEOS FP is the operational sibling of MERRA-2, the reference the bands come from. ~1 min over OPeNDAP."""
+    reading the daily 00Z steps of u at 10/100 hPa along 60N, h (geopotential height, m) at 100 hPa over 65-90N and t at
+    10 hPa over 60-90N (every second row and fourth column, as the analysis tail reads it). GEOS FP is the operational
+    sibling of MERRA-2, the reference the bands come from. ~1 min over OPeNDAP."""
     import time as _t
 
     day0 = base.normalize()
@@ -470,11 +578,19 @@ def load_geosfp(base):
             f"cap z100(0) {float(zc.isel(time=0)):.0f} m",
             flush=True,
         )
-        return {
+        out = {
             "u10": pd.DataFrame({0: u.isel(lev=0).values}, index=idx),
             "u100": pd.DataFrame({0: u.isel(lev=1).values}, index=idx),
             "zcap": pd.DataFrame({0: zc.values}, index=idx),
         }
+        try:  # without it the run is recorded without the two
+            t = d["t"].isel(time=ti, lev=l10).sel(lat=slice(TCAP[0], TCAP[1])).isel(lat=slice(None, None, 2))
+            t = t.isel(lon=slice(None, None, 4)).load()
+            q = polar_t(t.mean("lon").values, t.lat.values)
+            out.update({k: pd.DataFrame({0: q[:, i]}, index=idx) for i, k in enumerate(TKEYS)})
+        except Exception as e:  # noqa: BLE001
+            print(f"::warning::GEOS FP {init:%Y%m%d} 00Z t10 read failed ({str(e)[:90]})", flush=True)
+        return out
     print(
         "::warning::no complete GEOS FP 00Z forecast for this cycle or the day before; figure goes without it",
         flush=True,
@@ -512,9 +628,9 @@ def clim_doy(series):
 
 
 def _clim_series():
-    """The three MERRA-2 daily series of reference/m2_strat_daily.nc (build_m2_reference.py)."""
+    """The MERRA-2 daily series of reference/m2_strat_daily.nc (build_m2_reference.py)."""
     with xr.open_dataset(M2_CACHE) as c:
-        return pd.DatetimeIndex(c.time.values), {k: np.asarray(c[k].values) for k in ("u10", "u100", "zcap")}
+        return pd.DatetimeIndex(c.time.values), {k: np.asarray(c[k].values) for k in c.data_vars}
 
 
 # Physically impossible values, used to screen the reference before it becomes a
@@ -524,7 +640,13 @@ def _clim_series():
 # samples visibly drags that day's 10th percentile. An archive-wide check finds the
 # rest of the archive clean; the NaNs at 1000/975 hPa near the pole are just the
 # pressure surface being below ground.
-PHYSICAL = {"u10": (-150.0, 200.0), "u100": (-150.0, 200.0), "zcap": (10000.0, 20000.0)}
+PHYSICAL = {
+    "u10": (-150.0, 200.0),
+    "u100": (-150.0, 200.0),
+    "zcap": (10000.0, 20000.0),
+    "tcap10": (150.0, 300.0),
+    "dT10": (-80.0, 80.0),
+}
 
 
 def _screen(out):
@@ -573,21 +695,22 @@ def load_clim(epoch):
 
 def analysis():
     """The observed tail (see the module docstring): GEOS FP analyses (daily mean of 00/06/12/18Z), u60 at 10 and
-    100 hPa and the 100 hPa 65-90N cap height moved to the MERRA-2 scale. Empty when neither committed file is
-    present."""
+    100 hPa, the 10 hPa cap temperature and gradient (days analysed before the tail carried the gradient have none),
+    and the 100 hPa 65-90N cap height moved to the MERRA-2 scale. Empty when neither committed file is present."""
     days = {}
     for p in FP_U_TAIL:
         if p.exists():
             d = json.loads(p.read_text())
             lev = [float(v) for v in d["levels"]]
             for k, v in d["days"].items():
-                days[k] = dict(zip(lev, v["nh"]["u60"]))
+                days[k] = {var: dict(zip(lev, x)) for var, x in v["nh"].items()}
     out = {}
     if days:
         ks = sorted(days)
         idx = pd.DatetimeIndex(ks)
-        for key, lev in (("u10", 10.0), ("u100", 100.0)):
-            out[key] = pd.Series([days[k].get(lev) for k in ks], index=idx, dtype=float).dropna()
+        tail = (("u10", "u60", 10.0), ("u100", "u60", 100.0), ("tcap10", "capT", 10.0), ("dT10", "dT", 10.0))
+        for key, var, lev in tail:
+            out[key] = pd.Series([days[k].get(var, {}).get(lev) for k in ks], index=idx, dtype=float).dropna()
     cap = geosfp_cap.load_history(FP_CAP_TAIL)
     if len(cap):
         out["zcap"] = (cap[100.0].astype(float) - _fp_offset100(cap.index)).dropna()
@@ -632,23 +755,39 @@ def ssw_chance(u10: pd.DataFrame, init: pd.Timestamp) -> float | None:
     return float((lead.to_numpy() < 0).any(axis=0).mean()) if lead.shape[1] else None
 
 
-def record_runs(fc: dict, zmed: pd.Series) -> None:
-    """Each model's run into its own record (run_record.py): u60 at 10 and 100 hPa and the cap-height anomaly against
-    the detrended MERRA-2 median, the members' mean and 10-90 %, and an ensemble's sudden-warming chance. A run is
-    filed under its own start (its first valid time: GEOS FP's newest 00Z run, a GEFS run that fell back a cycle)."""
+def wmo_chance(u10: pd.DataFrame, dt10: pd.DataFrame, init: pd.Timestamp) -> float | None:
+    """Share of members meeting the WMO major-warming definition on at least one day to day SSW_DAYS: easterly at
+    10 hPa / 60N with the 10 hPa temperature rising from 60N to the pole (dT10 above zero) on the same day, over the
+    members with both in that window (None when none has)."""
+    u = u10[u10.index <= init + pd.Timedelta(days=SSW_DAYS)]
+    t = dt10.reindex(index=u.index, columns=u.columns)
+    have = u.notna().any() & t.notna().any()
+    return float(((u < 0) & (t > 0)).any()[have].mean()) if have.any() else None
+
+
+def record_runs(fc: dict, med: dict) -> None:
+    """Each model's run into its own record (run_record.py): u60 at 10 and 100 hPa, the 10 hPa gradient, and the
+    cap-height and 10 hPa cap-temperature anomalies against the detrended MERRA-2 median (med: {ANOM key: day-of-year
+    median}), the members' mean and 10-90 %, and an ensemble's sudden-warming chances: easterly at 10 hPa (ssw) and
+    the WMO definition, easterly with the gradient reversed (wmo). A run is filed under its own start (its first valid
+    time: GEOS FP's newest 00Z run, a GEFS run that fell back a cycle)."""
     for m, d in fc.items():
         u = d.get("u10")
         if u is None or not len(u):
             continue
         init = u.index[0]
-        z = d.get("zcap")
-        frames = {
-            "u10": u,
-            "u100": d.get("u100"),
-            "zcap": None if z is None else z.sub(zmed.reindex(_cday(z.index)).values, axis=0),
+        frames = {k: d.get(k) for k in PANELS}
+        for k, s in med.items():
+            if frames[k] is not None:
+                frames[k] = frames[k].sub(s.reindex(_cday(frames[k].index)).values, axis=0)
+        ens = u.shape[1] >= 5
+        dt = d.get("dT10")
+        chance = {
+            "ssw": ssw_chance(u, init) if ens else None,
+            "wmo": wmo_chance(u, dt, init) if ens and dt is not None else None,
         }
-        ssw = ssw_chance(u, init) if u.shape[1] >= 5 else None
-        RR.record("vortex", m, init, RR.entry("vortex", frames, {"ssw": None if ssw is None else round(ssw, 3)}))
+        scalars = {k: None if v is None else round(v, 3) for k, v in chance.items()}
+        RR.record("vortex", m, init, RR.entry("vortex", frames, scalars))
 
 
 def newest_runs() -> dict:
@@ -741,7 +880,7 @@ def draw_members(m: str, fc: dict, clim: dict, obs: dict, out: Path) -> bool:
         if key == "u10":
             ax.axhline(0, color="#a33", lw=1.5, zorder=4)
             ax.text(0.005, 0.04, f"{k} of {n} members{' (control included)' * inc} easterly on some day to day {SSW_DAYS} (red) — easterly here "
-                    "= SSW (WMO)", transform=ax.transAxes, fontsize=8.5, color="#a33", style="italic", zorder=8,
+                    "= a major sudden warming (the wind criterion)", transform=ax.transAxes, fontsize=8.5, color="#a33", style="italic", zorder=8,
                     bbox={"fc": "white", "ec": "none", "alpha": 0.85, "pad": 1.5})  # fmt: skip
         elif ax.get_ylim()[0] < 0:
             ax.axhline(0, color="#8a8680", lw=1, ls=":", zorder=4)
@@ -775,8 +914,104 @@ def draw_members(m: str, fc: dict, clim: dict, obs: dict, out: Path) -> bool:
     return True
 
 
-def render(out: Path) -> int:
-    """The figure from every model's newest recorded run (no download): each model on its own start."""
+# the zero lines the two halves of a major warming cross: {key: (the record's share, the words when no member meets it,
+# the words after a model's share)}
+CRITERIA = {
+    "u10": (
+        "ssw",
+        "easterly at 10 hPa / 60°N = a major sudden warming (the wind criterion)",
+        "members easterly on some day to day {d} — easterly here = a major sudden warming (the wind criterion)",
+    ),
+    "dT10": (
+        "wmo",
+        "above 0 = warmer at the pole than at 60°N; with easterlies the same day, a major warming (WMO)",
+        "members easterly at 60°N with this above 0 the same day, by day {d} — the full WMO definition",
+    ),
+}
+SIGNS = {"zcap": "positive = weaker / displaced vortex", "tcap10": "positive = a warmer polar cap than normal"}
+
+
+def _panel(ax, key: str, runs: dict, clim: dict, obs: dict, base: pd.Timestamp, span: pd.DatetimeIndex) -> None:
+    """One panel: the MERRA-2 10-90 % (an ANOM key's about its median), the GEOS FP analysis up to the newest start and
+    every model's newest run."""
+    ylab, anom = PANELS[key]
+    doy = _cday(span)
+    q10, q50, q90 = clim_doy(clim[key])
+    b = q50.reindex(doy).values if anom else np.zeros(len(span))
+    lab = f"MERRA-2 climatology 10–90% ({clim[key].index[0].year}–" + (
+        f", detrended to {base:%Y})" if key in DETREND else ")"
+    )
+    ax.fill_between(
+        span, q10.reindex(doy).values - b, q90.reindex(doy).values - b, color="#e6e3dc", zorder=0, label=lab
+    )
+    if not anom:
+        ax.plot(span, q50.reindex(doy).values, color="#9a958c", ls=":", lw=1.1, zorder=1)
+    o = obs.get(key)
+    o = None if o is None else o[(o.index >= span[0]) & (o.index <= base)]
+    if o is not None and len(o):
+        ob = q50.reindex(_cday(o.index)).values if anom else 0
+        ax.plot(o.index, o.values - ob, color="#1a1a1a", lw=2.4, zorder=7, label="GEOS FP analysis")
+    else:  # in the middle of the analysis days, above the call-outs at the bottom
+        ax.text(
+            span[0] + (base - span[0]) / 2,
+            0.2,
+            "no analysis tail here yet",
+            transform=ax.get_xaxis_transform(),
+            ha="center",
+            fontsize=8,
+            style="italic",
+            color="#6f6b64",
+        )
+    for m, run in runs.items():
+        draw_model(ax, run, key, m)  # the record's ANOM keys are already anomalies
+    if not any(key in r for r in runs.values()):
+        ax.text(
+            0.5,
+            0.5,
+            "no model's newest run carries this yet",
+            transform=ax.transAxes,
+            ha="center",
+            fontsize=9,
+            style="italic",
+            color="#6f6b64",
+        )
+    ax.axvline(base, color="#8a8680", lw=1, zorder=3)
+    ax.set_ylabel(ylab)
+    ax.grid(alpha=0.22)
+    ax.legend(loc="upper left", fontsize=7.4, ncol=3, framealpha=0.9)
+    if key in CRITERIA:
+        name, msg, share = CRITERIA[key]
+        ax.axhline(0, color="#a33", lw=1.5, zorder=4)
+        hits = {m: r[name] for m, r in runs.items() if r.get(name) is not None}
+        if hits and max(hits.values()) > 0:
+            worst = max(hits, key=hits.get)
+            msg = f"{100 * hits[worst]:.0f}% of {STYLE[worst][1]} " + share.format(d=SSW_DAYS)
+        ax.text(0.005, 0.05, msg, transform=ax.transAxes, fontsize=8, color="#a33", style="italic")
+    if key in SIGNS:
+        ax.axhline(0, color="#8a8680", lw=1, ls=":", zorder=4)
+        # at the bottom: at the top the legend hid it
+        ax.text(0.005, 0.04, SIGNS[key], transform=ax.transAxes, fontsize=8, color="#6f6b64", style="italic")
+
+
+def _figure(keys: tuple, title: str, footer: str, out: Path, height: float, ctx: dict) -> None:
+    """A column of _panel()s under one title, the footer beneath, 13 inches wide and `height` tall."""
+    fig, axes = plt.subplots(len(keys), 1, figsize=(13, height), sharex=True)
+    for ax, key in zip(axes, keys):
+        _panel(ax, key, **ctx)
+    fig.suptitle(title, fontsize=14, fontweight="bold", y=0.996)
+    fig.text(0.5, 0.004, footer, ha="center", va="bottom", fontsize=8, color="#6f6b64", linespacing=1.5)
+    fig.autofmt_xdate()
+    foot = 0.17 * (footer.count("\n") + 1) + 0.05  # inches: the footer's lines under the rotated dates
+    fig.tight_layout(rect=(0, foot / height, 1, 1 - 0.17 / height))
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=112, facecolor="white", bbox_inches="tight", pil_kwargs={"quality": 88, "method": 6})
+    plt.close(fig)
+    print(f"wrote {out}")
+
+
+def render(out: Path, out_t: Path) -> int:
+    """The two figures from every model's newest recorded run (no download), each model on its own start: the wind and
+    the height (out), the 10 hPa temperature (out_t). A run recorded before the temperature was has no line there."""
     runs = newest_runs()
     if not runs:
         print("no recorded runs to draw")
@@ -784,113 +1019,50 @@ def render(out: Path) -> int:
     base = max(pd.Timestamp(r["init"]) for r in runs.values())
     epoch = base.year + (base.dayofyear - 1) / 365.25
     clim, trend = load_clim(epoch)
-    y0 = min(s.index[0] for s in clim.values()).year  # the reference's span, for the legend and the footer
+    y0 = min(s.index[0] for s in clim.values()).year  # the reference's span, for the footers
     y1 = max(s.index[-1] for s in clim.values()).year
     obs = analysis()
     _consistency(obs.get("u10"), clim["u10"], "u60 @10 hPa", "m/s", 1.0)
     _consistency(obs.get("zcap"), clim["zcap"], "z100 cap", "m", 60.0)
+    _consistency(obs.get("tcap10"), clim["tcap10"], "T10 cap", "K", 1.0)
     tmax = max(pd.Timestamp(r["valid"][-1]) for r in runs.values())
-    t0 = base - pd.Timedelta(days=TAIL_DAYS)
-    span = pd.date_range(t0, tmax, freq="D")
-    doy = _cday(span)
+    span = pd.date_range(base - pd.Timedelta(days=TAIL_DAYS), tmax, freq="D")
     print("  runs: " + ", ".join(f"{STYLE[m][1]} {r['init']}Z" for m, r in runs.items()), flush=True)
-
-    fig, axes = plt.subplots(3, 1, figsize=(13, 11.4), sharex=True)
-    panels = [
-        ("u10", "u at 10 hPa, 60°N  (m s$^{-1}$)", False),
-        ("u100", "u at 100 hPa, 60°N  (m s$^{-1}$)", False),
-        ("zcap", f"100 hPa {CAP[0]:.0f}–{CAP[1]:.0f}°N height anomaly (m)", True),
-    ]
-    for ax, (key, ylab, anom) in zip(axes, panels):
-        q10, q50, q90 = clim_doy(clim[key])
-        b = q50.reindex(doy).values if anom else np.zeros(len(span))
-        lab = (
-            f"MERRA-2 climatology 10–90% ({y0}–, detrended to {base:%Y})"
-            if key in DETREND
-            else f"MERRA-2 climatology 10–90% ({y0}–)"
-        )
-        ax.fill_between(
-            span, q10.reindex(doy).values - b, q90.reindex(doy).values - b, color="#e6e3dc", zorder=0, label=lab
-        )
-        if not anom:
-            ax.plot(span, q50.reindex(doy).values, color="#9a958c", ls=":", lw=1.1, zorder=1)
-        o = obs.get(key)
-        if o is not None:
-            o = o[(o.index >= t0) & (o.index <= base)]
-            if len(o):
-                ob = q50.reindex(_cday(o.index)).values if anom else 0
-                ax.plot(o.index, o.values - ob, color="#1a1a1a", lw=2.4, zorder=7, label="GEOS FP analysis")
-        for m, run in runs.items():
-            draw_model(ax, run, key, m)  # the record's cap height is already the anomaly
-        ax.axvline(base, color="#8a8680", lw=1, zorder=3)
-        ax.set_ylabel(ylab)
-        ax.grid(alpha=0.22)
-        ax.legend(loc="upper left", fontsize=7.4, ncol=3, framealpha=0.9)
-        if key == "u10":
-            ax.axhline(0, color="#a33", lw=1.5, zorder=4)
-            msg = "easterly at 10 hPa / 60°N = SSW (WMO)"
-            hits = {m: r["ssw"] for m, r in runs.items() if r.get("ssw") is not None}
-            if hits and max(hits.values()) > 0:
-                worst = max(hits, key=hits.get)
-                msg = (
-                    f"{100 * hits[worst]:.0f}% of {STYLE[worst][1]} members easterly on some day to day "
-                    f"{SSW_DAYS} — easterly here = SSW (WMO)"
-                )
-            ax.text(0.005, 0.05, msg, transform=ax.transAxes, fontsize=8, color="#a33", style="italic")
-        if key == "zcap":
-            ax.axhline(0, color="#8a8680", lw=1, ls=":", zorder=4)
-            ax.text(
-                0.005,
-                0.04,
-                "positive = weaker / displaced vortex",  # bottom: at the top the legend hid it
-                transform=ax.transAxes,
-                fontsize=8,
-                color="#6f6b64",
-                style="italic",
-            )
-        if key == "u100" and obs.get("u100") is None:
-            ax.text(
-                0.5,
-                0.05,
-                "no analysis tail at this level",
-                transform=ax.transAxes,
-                ha="center",
-                fontsize=8,
-                style="italic",
-                color="#6f6b64",
-            )
-
-    fig.suptitle(
-        f"Northern polar vortex forecast — the newest run of each model (to {base:%Y-%m-%d %HZ})",
-        fontsize=14,
-        fontweight="bold",
-        y=0.996,
-    )
-    fig.text(
-        0.5,
-        0.004,
-        "Zonal-mean zonal wind at 60°N and the 65–90°N polar-cap height. Shading is each ensemble's 10th–90th member "
-        "percentile, the solid line its mean; dashed = deterministic or control-only. Each model is its newest run "
-        "(start in the legend, day/hour UTC).\n"
+    ctx = {"runs": runs, "clim": clim, "obs": obs, "base": base, "span": span}
+    models = (
+        "Shading is each ensemble's 10th–90th member percentile, the solid line its mean; dashed = deterministic or "
+        "control-only. Each model is its newest run (start in the legend, day/hour UTC).\n"
         "AIFS-ENS (50 members + control), IFS-ENS (50 perturbed members), the IFS control and AIFS single to day 15, "
         "GEFS (30 + control) and GEPS (20 + control) to day 16, GDPS and GEOS FP (00Z run, NASA GMAO) to day 10.\n"
-        f"Reference: MERRA-2 {y0}–{y1} day-of-year percentiles; the height climatology is detrended to the current "
-        f"year ({trend['zcap']:+.1f} m/decade), the winds are not "
+        f"Reference: MERRA-2 {y0}–{y1} day-of-year percentiles; "
+    )
+    _figure(
+        ("u10", "u100", "zcap"),
+        f"Northern polar vortex forecast — the newest run of each model (to {base:%Y-%m-%d %HZ})",
+        "Zonal-mean zonal wind at 60°N and the 65–90°N polar-cap height. "
+        + models
+        + f"the height climatology is detrended to the current year ({trend['zcap']:+.1f} m/decade), the winds are not "
         f"({max(abs(trend['u10']), abs(trend['u100'])):.2f} m/s/decade or less).\n"
         "Vertical line = the newest start. Black: GEOS FP analyses (daily mean of 00/06/12/18Z). GEOS FP heights are on "
         "the MERRA-2 scale (measured offset removed). IFS control: ECMWF's unperturbed 9 km run (HRES until May 2026).",
-        ha="center",
-        va="bottom",
-        fontsize=8,
-        color="#6f6b64",
-        linespacing=1.5,
+        out,
+        11.4,
+        ctx,
     )
-    fig.autofmt_xdate()
-    fig.tight_layout(rect=(0, 0.064, 1, 0.985))  # four footer lines under rotated dates
-    out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=112, facecolor="white", bbox_inches="tight", pil_kwargs={"quality": 88, "method": 6})
-    plt.close(fig)
-    print(f"wrote {out}")
+    _figure(
+        TKEYS,
+        f"Northern polar vortex temperature at 10 hPa — the newest run of each model (to {base:%Y-%m-%d %HZ})",
+        f"Zonal-mean temperature at 10 hPa: the cos-weighted {TCAP[0]:.0f}–90°N polar-cap mean, and the cos-weighted "
+        f"{POLE:.0f}–90°N mean minus {PHI:.0f}°N (above 0: warmer at the pole than at {PHI:.0f}°N, the gradient "
+        "reversed).\n"
+        + models
+        + f"the cap temperature is detrended to the current year ({trend['tcap10']:+.2f} K/decade), the gradient is not "
+        f"({trend['dT10']:+.2f} K/decade).\nVertical line = the newest start. Black: GEOS FP analyses (daily mean of "
+        "00/06/12/18Z), as they are: their 10 hPa offset from MERRA-2 is not measured. Raw model output.",
+        out_t,
+        8.8,
+        ctx,
+    )
     return 0
 
 
@@ -902,6 +1074,7 @@ def main() -> int:
     )
     ap.add_argument("--cycle")
     ap.add_argument("--out", default=str(OUT))
+    ap.add_argument("--out-temp", default=str(OUT_T), help="the 10 hPa temperature figure")
     mode = ap.add_mutually_exclusive_group()
     mode.add_argument(
         "--record-only",
@@ -918,7 +1091,7 @@ def main() -> int:
     )
     a = ap.parse_args()
     if a.from_records:
-        return render(Path(a.out))
+        return render(Path(a.out), Path(a.out_temp))
     want = [m.strip() for m in a.models.split(",") if m.strip()]
 
     cdirs = sorted(glob.glob(str(CACHE / "*z")))
@@ -984,13 +1157,13 @@ def main() -> int:
             f"  {STYLE[k][1]}: " + ", ".join(f"{p}={v[p].shape[1]}m x{len(v[p])}" for p in v if v[p] is not None),
             flush=True,
         )
-    record_runs(fc, clim_doy(clim["zcap"])[1])
+    record_runs(fc, {k: clim_doy(clim[k])[1] for k in ANOM})
     if a.members:
         obs = analysis()
         for m in MEMBER_MODELS:
             if m in fc:
                 draw_members(m, fc, clim, obs, Path(str(MEMBERS_OUT).format(m=m)))
-    return 0 if a.record_only else render(Path(a.out))
+    return 0 if a.record_only else render(Path(a.out), Path(a.out_temp))
 
 
 if __name__ == "__main__":
