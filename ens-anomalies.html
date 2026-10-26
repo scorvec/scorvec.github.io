@@ -147,7 +147,7 @@
   main.mv.rg .mv-map { height: max(300px, calc(100vh - 250px - var(--rgh, 150px))); }
   .rg-top[hidden], .rg-more[hidden], .cl-top[hidden], .cl-view[hidden] { display: none; }
   /* the clusters view: the figures replace the map */
-  main.mv.cl .mv-mapwrap, main.mv.cl #legT, main.mv.cl .mv-show, main.mv.cl .mv-time:not(.cl-time), main.mv.cl #models, main.mv.cl #fields, main.mv.cl #runBox, main.mv.cl #note { display: none; }
+  main.mv.cl .mv-mapwrap, main.mv.cl #legT, main.mv.cl .mv-show, main.mv.cl .mv-time:not(.cl-time), main.mv.cl #models, main.mv.cl #fields, main.mv.cl #units, main.mv.cl #runBox, main.mv.cl #note { display: none; }
   .cl-top { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.9rem; margin: 0 0 0.5rem; }
   .cl-top .seg button { font-size: 1rem; padding: 0.4rem 0.8rem; min-height: 40px; }
   .cl-verdict { font-size: 1.05rem; color: var(--ink2); margin: 0.2rem 0 0.6rem; max-width: 80rem; }
@@ -408,6 +408,7 @@
       <div class="seg" id="models" role="group" aria-label="Ensemble"></div>
       <div class="seg" id="fields" role="group" aria-label="Field"></div>
       <div class="seg" id="views" role="group" aria-label="View"></div>
+      <div class="seg" id="units" role="group" aria-label="Unit, or standardized anomaly"></div>
       <span class="mv-run" id="runBox"><span class="mv-runT">Run</span><span class="seg" id="runPick" role="group" aria-label="Run"></span></span>
     </div>
   </div>
@@ -453,7 +454,6 @@
   <p class="mv-legT" id="legT"></p>
   <div class="mv-show"><b>Show</b>
     <label class="chk" title="The ensemble mean's 500 hPa height every 6 dam, its sea-level pressure every 4 hPa, the 0 °C line of its 2 m temperature"><input type="checkbox" id="cont" checked> Contours</label>
-    <div class="seg" id="units" role="group" aria-label="Unit"></div>
     <div class="seg" id="vsSeg" role="group" aria-label="Change from which run"></div>
     <span class="mv-keys" id="mapKeys">Click the map, then: arrows pan &middot; <kbd>+</kbd> <kbd>&minus;</kbd> zoom &middot; <kbd>0</kbd> reset &middot; <kbd>,</kbd> <kbd>.</kbd> day &middot; <kbd>Space</kbd> play</span>
   </div>
