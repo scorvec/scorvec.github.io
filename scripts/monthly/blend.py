@@ -17,10 +17,6 @@ The lead-in enters for temperature only (gefs_guide.LEAD): in cross-validation o
 (c ~0.09, the correlation 0.290 -> 0.299), and for height and precipitation it earned little (~0.06, ~0.02) and made
 the blend slightly worse. The month's days scored the same whether cut at day 15 or run to the end of the forecast.
 
-An update (forecast.py --update) blends the newest GEFS run on or before its own date instead, with the weights of
-a table whose reforecast starts are nearest that run's day (gefs_guide.table; built here when missing), and applies
-the weights to each of the update's forecasts (one per vortex value), averaging their tercile probabilities.
-
 Its skill is cross-validated the same way (each year's weights fitted without that year), on the same years as the
 statistical forecast it is compared with. The blend is issued only where it beats the statistical forecast in that
 comparison (hemispheric mean-square error); otherwise the statistical forecast stands, and the page says so. When
@@ -32,7 +28,6 @@ where the blend's own 20-year hindcast is significant.
 from __future__ import annotations
 
 import sys
-import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -94,26 +89,20 @@ def scores(cv: np.ndarray, Y: np.ndarray, clim: np.ndarray, lo, hi, w) -> dict:
     }
 
 
-def apply(res: dict, A: M.Archive, target_year: int, month: int, realtime: bool = True, issue=None) -> dict:
+def apply(res: dict, A: M.Archive, target_year: int, month: int, realtime: bool = True) -> dict:
     """Add the blend to a forecast.run() result: res['blend'][v] holds the comparison; where the blend wins (and,
     for a live forecast, the GEFS run is in), res['vars'][v] is switched to the blend and the statistical forecast
-    is kept under stat_* keys (GEFS's two predictors under models_fc and lead_fc). issue: an update's date (the
-    newest run on or before it, and a table for that run's day)."""
+    is kept under stat_* keys (GEFS's two predictors under models_fc and lead_fc)."""
     K = M.sphere_kernel()
     w = F.hemi_weights()
     hy = np.array(res["hindcast_years"])
     res["blend"] = {}
-    g = GG.live(target_year, month, issue) if realtime else None
+    g = GG.live(target_year, month) if realtime else None
     if realtime and g is None:
         print("no GEFS run for this issue: the statistical forecast stands", flush=True)
         return res
-    day = int(g["init"][8:10]) if issue is not None else GG.ISSUE_DAY
-    if not GG.table(month, day).exists():
-        cache = Path(tempfile.gettempdir()) / "gefs_guide"
-        cache.mkdir(parents=True, exist_ok=True)
-        GG.build(month, cache, issue_day=day)
     for v, o in res["vars"].items():
-        hc = GG.hindcast(month, v, day)
+        hc = GG.hindcast(month, v)
         if hc is None:
             continue
         hc_years, table, lead = hc
@@ -154,7 +143,6 @@ def apply(res: dict, A: M.Archive, target_year: int, month: int, realtime: bool 
         if realtime and "fc" in o:
             live, live_lead = g[v].astype(np.float64), g[f"{v}_lead"].astype(np.float64)
             fc_b = beta[:, 0] * o["fc"] + beta[:, 1] * live + (beta[:, 2] * live_lead if uses_lead else 0.0)
-            fcs_b = beta[:, 0] * o["fc_members"] + (fc_b - beta[:, 0] * o["fc"])  # each of the forecasts, blended
             rec["init"] = g["init"]
             rec["days"] = [1, int(g["ndays"])]
             o["models_fc"] = live.astype(np.float32)
@@ -171,7 +159,7 @@ def apply(res: dict, A: M.Archive, target_year: int, month: int, realtime: bool 
                 r = sc["blend"]["r_map"]
                 t = r * np.sqrt((n - 2) / np.maximum(1 - r * r, 1e-9))
                 sig = o["sig"] | F.bh_mask(stats.t.sf(t, n - 2), 0.10)
-                b_, a_ = F.mixed_terciles(fcs_b, err, lo, hi, clim)
+                b_, a_ = F.terciles(fc_b, err, lo, hi, clim)
                 for key in ("fc", "p_below", "p_above", "p_below_raw", "p_above_raw", "sig"):
                     o[f"stat_{key}"] = o[key]
                 o["fc"] = fc_b

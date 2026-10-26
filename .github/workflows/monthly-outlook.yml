@@ -16,12 +16,12 @@ name: Month-ahead outlook (statistical + GEFS, monthly on the 15th)
 # the C3S benchmark from the c3s-ref-v1 release (public downloads); render.py draws the figures. The predictors end
 # on the 7th of this month, so the run does not depend on the hour ERA5T lands (ARCO trails real time by ~six days).
 #
-# UPDATE (dispatch with update=true, when the stratosphere changes course after the 15th): vortex_window.py takes the
-# 50 hPa vortex over the 31 days ending on the 7th of the target month (ERA5 from the archive just extended, the IFS
-# analyses, then the members of the four ensembles' newest 00/12Z run on ens-anomalies.html: ECMWF from the Google
-# Cloud mirror only, GEFS from NOAA's S3, GEPS from the MSC Datamart), and forecast.py --update re-issues the target
-# beside the issue it updates (outlook_<YYYYMM>u<DD>), blended with the newest GEFS run (its reforecast table for that
-# run's day is built when missing, one 290 MB download from the gefs-clim-v3 release).
+# UPDATE (dispatch with update=true, when the stratosphere changes course after the 15th; scripts/monthly/update.py):
+# the newest 00/12Z run that all four ensembles have on ens-anomalies.html gives the target month's first week
+# (medium_week.py: IFS-ENS and AIFS-ENS, z500 and t2m from their run statistics in the Actions cache, precipitation
+# from the rows of two steps) and the lower vortex over that week (vortex_window.py: every member of IFS-ENS,
+# AIFS-ENS, GEFS and GEPS), from which the method forecasts the rest of the month. ECMWF from the Google Cloud mirror
+# only, GEFS from NOAA's S3, GEPS from the MSC Datamart. Written beside the issue it updates (outlook_<YYYYMM>u<DD>).
 
 on:
   schedule:
@@ -37,7 +37,7 @@ on:
         type: boolean
         default: false
       update:
-        description: "re-issue the target as an update with the vortex to the 7th of the target month (a sudden warming)"
+        description: "re-issue the target as an update: its first week from IFS-ENS/AIFS-ENS, the rest with their vortex"
         type: boolean
         default: false
 
@@ -79,19 +79,48 @@ jobs:
       - run: pip install --quiet numpy scipy pandas xarray zarr gcsfs h5netcdf h5py matplotlib cartopy pillow eccodes requests
       - name: Extend the ERA5 archive
         run: python scripts/monthly/build_archive.py --tail --workers 8
-      - name: The vortex window of an update
+      - name: An update's runs
+        id: upd
         if: inputs.update
         env:
           TARGET: ${{ inputs.target }}
         run: |
-          T="${TARGET:-$(date -u -d "$(date -u +%Y-%m-01) +1 month" +%Y-%m)}"
-          python scripts/monthly/vortex_window.py --target "$T" --manifests assets/models --out "$RUNNER_TEMP/vortex.json"
+          echo "target=${TARGET:-$(date -u -d "$(date -u +%Y-%m-01) +1 month" +%Y-%m)}" >> "$GITHUB_OUTPUT"
+          echo "cycle=$(python -c 'import sys; sys.path.insert(0, "scripts/monthly"); import vortex_window as V; from pathlib import Path; print(V.newest_common(Path("assets/models")))')" >> "$GITHUB_OUTPUT"
+      # the two ECMWF ensembles' run statistics (ensmaps.yml), restored one at a time into the path their job saved
+      - name: IFS-ENS run statistics
+        if: inputs.update
+        uses: actions/cache/restore@v6
+        with:
+          path: ensmaps_stats
+          key: ensmaps-ifs-stats-${{ steps.upd.outputs.cycle }}
+          restore-keys: ensmaps-ifs-stats-${{ steps.upd.outputs.cycle }}-partial
+      - name: Set aside
+        if: inputs.update
+        run: mkdir -p in/ifs && mv ensmaps_stats/*.npz in/ifs/
+      - name: AIFS-ENS run statistics
+        if: inputs.update
+        uses: actions/cache/restore@v6
+        with:
+          path: ensmaps_stats
+          key: ensmaps-aifs-stats-${{ steps.upd.outputs.cycle }}
+      - name: Set aside
+        if: inputs.update
+        run: mkdir -p in/aifs && mv ensmaps_stats/*.npz in/aifs/
+      - name: The update's first week and vortex
+        if: inputs.update
+        env:
+          T: ${{ steps.upd.outputs.target }}
+          CYC: ${{ steps.upd.outputs.cycle }}
+        run: |
+          python scripts/monthly/vortex_window.py --target "$T" --cycle "$CYC" --out "$RUNNER_TEMP/vortex.json"
+          python scripts/monthly/medium_week.py --target "$T" --cycle "$CYC" --stats-dir in --out "$RUNNER_TEMP/medium.npz"
       - name: Issue the outlook
         run: |
           python scripts/monthly/forecast.py \
             ${{ inputs.target && format('--target {0}', inputs.target) || '' }} \
             ${{ inputs.force && '--force' || '' }} \
-            ${{ inputs.update && format('--update {0}/vortex.json', runner.temp) || '' }}
+            ${{ inputs.update && format('--update {0}/vortex.json --medium {0}/medium.npz', runner.temp) || '' }}
       - name: Verify past outlooks
         run: python scripts/monthly/verify.py
       - name: Draw

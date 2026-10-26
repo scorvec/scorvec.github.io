@@ -18,6 +18,7 @@ from __future__ import annotations
 import datetime
 
 import argparse
+import calendar
 import json
 import shutil
 import sys
@@ -190,9 +191,10 @@ def outlook_map(o: dict, s: dict, var: str, region: str, kind: str, path: Path, 
     sub = f"Issued {s['issued']} from ERA5 through {s['window'].split('–')[1].strip()}"
     if s.get("update"):  # an update: the vortex predictor runs to the 7th of the target month
         u = s["update"]
-        d1 = datetime.date.fromisoformat(u["vortex"]["window"][1])
-        c = datetime.datetime.strptime(u["vortex"]["cycle"], "%Y%m%d%H")
-        sub = f"Update {s['issued']} (of {u['of']}) · vortex to {d1.day} {d1:%b} from the ensembles of {c.day} {c:%b} {c:%H}Z"
+        d1 = datetime.date.fromisoformat(u["medium"]["days"][1])
+        c = datetime.datetime.strptime(u["medium"]["cycle"], "%Y%m%d%H")
+        sub = (f"Update {s['issued']} (of {u['of']}) · days 1–{d1.day} IFS-ENS and AIFS-ENS ({c.day} {c:%b} {c:%H}Z), "
+               f"the rest statistical with their vortex")  # fmt: skip
     b = s.get("blend", {}).get(var, {})
     if b.get("issued"):
         init = datetime.date.fromisoformat(b["init"])
@@ -247,6 +249,35 @@ def components_fig(o: dict, s: dict, var: str, path: Path) -> None:
     fig.text(0.01, 0.965, f"{s['target_label']}: how the {NAME[var]} forecast is built", fontsize=13, fontweight="bold")
     fig.text(0.5, 0.012, CREDIT, ha="center", fontsize=7.5, color=MUTED)
     fig.savefig(path, dpi=95, facecolor="white", pil_kwargs={"quality": 82, "method": 6})
+    plt.close(fig)
+
+
+def update_fig(o: dict, s: dict, var: str, path: Path) -> None:
+    """An update's two parts and the month: the IFS-ENS and AIFS-ENS days 1-7, the statistical forecast of the days
+    from the 8th with the predicted vortex, and their days-weighted sum (update.py)."""
+    u = s["update"]
+    d0, d1 = (datetime.date.fromisoformat(x) for x in u["medium"]["days"])
+    c = datetime.datetime.strptime(u["medium"]["cycle"], "%Y%m%d%H")
+    last = datetime.date(d1.year, d1.month, calendar.monthrange(d1.year, d1.month)[1])
+    wt = u["weights"]
+    panels = [
+        (o[f"{var}_mr_fc"], f"IFS-ENS and AIFS-ENS, {d0.day}–{d1.day} {d1:%b}\n{c.day} {c:%b} {c:%H}Z runs · weight {wt['first_week']:.2f}"),
+        (o[f"{var}_stat_fc"], f"Statistical, {d1.day + 1}–{last.day} {last:%b}, with the vortex\nof {d0.day}–{d1.day} {d1:%b} · weight {wt['rest']:.2f}"),
+        (o[f"{var}_fc"], "The month\n(the issued forecast)"),
+    ]  # fmt: skip
+    fig = plt.figure(figsize=(13.2, 5.9))
+    for j, (fld, lab) in enumerate(panels):
+        ax = polar_ax(fig, [0.01 + j * 0.33, 0.17, 0.31, 0.66])
+        shade(ax, fld, var)
+        ax.set_title(lab, fontsize=9.2, fontweight="bold", pad=4)
+    cax = fig.add_axes([0.25, 0.1, 0.5, 0.025])
+    sm = plt.cm.ScalarMappable(cmap=CMAP[var], norm=mcolors.BoundaryNorm(LEVELS[var], 256, extend="both"))
+    cb = fig.colorbar(sm, cax=cax, orientation="horizontal", extend="both", ticks=LEVELS[var])
+    cb.ax.tick_params(labelsize=7)
+    cb.set_label(f"{TITLE[var]} ({UNIT[var]}), each part's own anomaly", fontsize=8)
+    fig.text(0.01, 0.95, f"{s['target_label']}: {NAME[var]}, the update's two parts", fontsize=12.5, fontweight="bold")
+    fig.text(0.5, 0.012, CREDIT, ha="center", fontsize=7.5, color=MUTED)
+    fig.savefig(path, dpi=92, facecolor="white", pil_kwargs={"quality": 85, "method": 6})
     plt.close(fig)
 
 
@@ -395,6 +426,8 @@ def main() -> int:
         components_fig(o, s, var, ASSETS / f"components_{var}.webp")
         if var in s.get("blend", {}) and f"{var}_blend_fc" in o:
             blend_fig(o, s, var, ASSETS / f"blend_{var}.webp")
+        if s.get("update"):
+            update_fig(o, s, var, ASSETS / f"update_{var}.webp")
         skill_fig(o, s, var, ASSETS / f"skill_{var}.webp")
         print(f"drew {var}", flush=True)
     return 0

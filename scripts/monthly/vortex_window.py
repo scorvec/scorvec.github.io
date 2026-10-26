@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""The lower polar vortex over the 31 days ending on the 7th of the target month, for an update of the month-ahead
-outlook (forecast.py --update): the zonal-mean 50 hPa wind over 57-63N (the archive's u50v), from ERA5 as far as the
-archive holds it, the IFS analyses (00 and 12 UTC) after that up to the ensembles' start, and then every member of the
-four ensembles (IFS-ENS, AIFS-ENS, GEFS and GEPS, at 00 and 12 UTC valid times) to the window's end. Each member's
-window mean is one value of the predictor; the ensembles weigh a quarter each.
+"""The lower polar vortex over the target month's days 1-7, for an update of the month-ahead outlook (forecast.py
+--update): the zonal-mean 50 hPa wind over 57-63N (the archive's u50v), from ERA5 as far as the archive holds those
+days, the IFS analyses (00 and 12 UTC) after that up to the ensembles' start, and then every member of the four
+ensembles (IFS-ENS, AIFS-ENS, GEFS and GEPS, at 00 and 12 UTC valid times) to the 7th. Each member's mean over the
+days is one value of the predictor; the ensembles weigh a quarter each.
 
 The run used is the newest 00 or 12 UTC start that all four ensembles have on ens-anomalies.html (their manifests
 name only runs that are complete). ECMWF open data from the Google Cloud mirror only (the first rows of each message,
@@ -112,21 +112,20 @@ def newest_common(manifests: Path) -> str:
 
 def window(target: str, manifests: Path, cycle: str | None = None) -> dict:
     ty, tm = map(int, target.split("-"))
-    last = dt.date(ty, tm, G.SPLIT_DAY - 1)  # the 7th
-    im, iy = (tm - 1, ty) if tm > 1 else (12, ty - 1)
-    first = dt.date(iy, im, G.SPLIT_DAY)  # the 8th of the month before
+    first, last = dt.date(ty, tm, 1), dt.date(ty, tm, G.SPLIT_DAY - 1)  # the archive's block 0: days 1-7
     ndays = (last - first).days + 1
-    # ERA5: the archive's block 1 of the month before (its mean over the days it holds)
-    arc = G.load_year(iy)
-    n_obs = int(arc["n"][im - 1, 1]) // 4  # four 6-hourly samples a day
-    obs_mean = float(arc["u50v"][im - 1, 1]) if n_obs else 0.0
+    # ERA5: the archive's block 0 of the target month (its mean over the days it holds)
+    arc = G.load_year(ty)
+    n_obs = int(arc["n"][tm - 1, 0]) // 4  # four 6-hourly samples a day
+    obs_mean = float(arc["u50v"][tm - 1, 0]) if n_obs else 0.0
     obs_end = first + dt.timedelta(days=n_obs - 1)
     cyc = cycle or newest_common(manifests)
     init = dt.datetime.strptime(cyc, "%Y%m%d%H")
-    # the IFS analyses from the day after ERA5's last to the run's start day
-    gap = [obs_end + dt.timedelta(days=k) for k in range(1, (init.date() - obs_end).days + 1)]
+    # the IFS analyses from the day after ERA5's last to the run's start day, then the run's forecasts
+    gap = [obs_end + dt.timedelta(days=k) for k in range(1, (min(init.date(), last) - obs_end).days + 1)]
     an = {d.isoformat(): analysis(d) for d in gap}
-    fc_days = [init.date() + dt.timedelta(days=k) for k in range(1, (last - init.date()).days + 1)]
+    start = max(first, init.date() + dt.timedelta(days=1))
+    fc_days = [start + dt.timedelta(days=k) for k in range((last - start).days + 1)]
     steps = [int((dt.datetime.combine(d, dt.time(h)) - init).total_seconds() // 3600) for d in fc_days for h in HOURS]
     print(f"{target}: window {first} .. {last}; ERA5 {n_obs} days to {obs_end} (mean {obs_mean:.2f} m/s), IFS analyses "
           f"{len(gap)} days, the {cyc} runs {len(fc_days)} days (steps {steps[0]}-{steps[-1]} h)", flush=True)  # fmt: skip
@@ -164,7 +163,7 @@ def main() -> int:
     a = ap.parse_args()
     out = window(a.target, a.manifests, a.cycle)
     a.out.write_text(json.dumps(out, indent=1))
-    print(f"vortex window {out['window'][0]} .. {out['window'][1]}: {out['mean']:.2f} m/s (equal weight per ensemble)")
+    print(f"vortex {out['window'][0]} .. {out['window'][1]}: {out['mean']:.2f} m/s (equal weight per ensemble)")
     return 0
 
 

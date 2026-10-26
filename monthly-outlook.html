@@ -285,6 +285,14 @@
       <div class="img-wrap"><img id="img_blend" alt="Statistical forecast, the GEFS run's two parts and the blend"></div>
     </section>
 
+    <section class="chart-card" id="updateParts" hidden>
+      <div class="chart-card-header"><h2>The update's two parts</h2>
+        <p>The first week from IFS-ENS and AIFS-ENS, the rest of the month from the statistical forecast with their
+        predicted vortex, and the month: the two weighted by their days.</p></div>
+      <div class="fig-toggle" data-fig="update"><button type="button" class="on" data-v="t2m">2 m temperature</button><button type="button" data-v="prcp">Precipitation</button><button type="button" data-v="z500">500 hPa height</button></div>
+      <div class="img-wrap"><img id="img_update" alt="The first week, the rest of the month and the month"></div>
+    </section>
+
     <section class="chart-card" id="components">
       <div class="chart-card-header"><h2>How the statistical forecast is built</h2>
         <p>Each component's forecast multiplied by its consolidation weight at each point, and their sum (the outlook,
@@ -350,19 +358,22 @@
     The lead from the end of the predictors to the middle of the target month is about five and a half weeks. The
     hindcast reproduces exactly this timing for every year.</p>
     <p><b>Updates.</b> When the stratosphere changes course after the 15th (a sudden warming in the forecasts), the
-    month is re-issued as an update, and the issue it updates stays on the record and is scored as issued; the update
-    is scored beside it. The update moves the lower-vortex predictor to the 31 days ending on the 7th of the target
-    month: the 50&nbsp;hPa westerlies at 57&ndash;63N from ERA5 as far as it reaches, then the IFS analyses, then every
-    member of IFS-ENS, AIFS-ENS, GEFS and GEPS (a quarter each). The whole method is trained and cross-validated again
-    with that predictor, every year taking its own ERA5 value of the window. In ERA5 since 1959, the vortex over
-    8&nbsp;October&ndash;7&nbsp;November correlates at &minus;0.51 with November's detrended 500&nbsp;hPa height over the
-    polar cap, against &minus;0.23 for 8&nbsp;September&ndash;7&nbsp;October, and with it November's cross-validated
-    hindcast anomaly correlation rose from +0.115 to +0.125 for 500&nbsp;hPa height and from +0.299 to +0.310 for
-    2&nbsp;m temperature. The hindcast takes each window from ERA5, while the update takes its last week or two from
-    forecasts, so it scores the update a little better than it can be; the members' spread enters instead: the update
-    is the mean of the forecasts for 21 quantiles of the members' window values, and its tercile probabilities the
-    mean of theirs. The GEFS blend takes the newest run on or before the update's date, with weights from reforecast
-    starts nearest that run's day.</p>
+    month is re-issued as an update; the issue it updates stays on the record and is scored as issued, and the update
+    is scored beside it. The update's first week (days 1&ndash;7) is the IFS-ENS and AIFS-ENS ensemble-mean anomaly
+    (a half each) against the ERA5 1991&ndash;2020 mean of the same days. The rest of the month comes from this
+    page's method trained for days 8 to the month's end, with the lower-vortex predictor (the 50&nbsp;hPa westerlies
+    at 57&ndash;63N) taken over days 1&ndash;7: in the library each year's ERA5 value, for this year the value of each
+    member of IFS-ENS, AIFS-ENS, GEFS and GEPS (a quarter each); its forecast is the mean of the forecasts for 21
+    quantiles of the members' values. The month is the two weighted by their days, and its tercile probabilities
+    average those of the 21 forecasts, from the month's climatology shifted by the forecast and narrowed by both
+    parts' errors (the days-from-the-8th hindcast's cross-validated error and the first week's ensemble spread, each
+    weighted by its days). The skill mask is the days-from-the-8th hindcast's; the first week has no hindcast here.
+    In ERA5 since 1959 the vortex in the first week of November says little about the rest of the month: its
+    correlation with the polar-cap 500&nbsp;hPa height over 8&ndash;30 November is &minus;0.31 (and +0.27 for the
+    polar-cap 100&nbsp;hPa height), no grid point passes the false-discovery test, and as a predictor it moves the
+    days-8&ndash;30 hindcast's anomaly correlation from +0.115 to +0.117 for 500&nbsp;hPa height and from +0.265 to
+    +0.282 for 2&nbsp;m temperature. A warming's pull on the surface is clearest from December to March and weeks
+    after the event, so an update in November rests mostly on its first week.</p>
     <p><b>Data.</b> ERA5 500&nbsp;hPa height, 2&nbsp;m temperature, precipitation, SST, sea ice, snow depth, topsoil
     moisture and 50&nbsp;hPa wind at 00, 06, 12 and 18&nbsp;UTC (precipitation as 6-hour totals, and from 2023 as
     hourly totals every 3 hours, which match the full totals to a correlation of 0.997), 1959 onward: the WeatherBench&nbsp;2 1.5&deg; copy to 2022 and
@@ -510,7 +521,7 @@
   function toggles(fig, imgId, ver) {
     var box = document.querySelector('.fig-toggle[data-fig="' + fig + '"]');
     function show(v) {
-      $(imgId).src = A + ({ comp: "components_", skill: "skill_", blend: "blend_" })[fig] + v + ".webp?v=" + ver;
+      $(imgId).src = A + ({ comp: "components_", skill: "skill_", blend: "blend_", update: "update_" })[fig] + v + ".webp?v=" + ver;
       box.querySelectorAll("button").forEach(function (b) { b.classList.toggle("on", b.dataset.v === v); });
     }
     box.addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) show(b.dataset.v); });
@@ -549,7 +560,7 @@
       p.push("<p><b>" + lab.charAt(0).toUpperCase() + lab.slice(1) + ".</b> The hemispheric (20&ndash;90N) mean of the forecast is " +
         sgn(v.fc_nh_mean, VARS[k][2]) + "&nbsp;" + VARS[k][1] + ". The pattern comes mostly from " + NAME[r[0]] +
         (v.contrib_rms[r[1]] > 0.5 * v.contrib_rms[r[0]] ? " and " + NAME[r[1]] : "") +
-        ". For this calendar month the cross-validated hindcast scores a hemispheric anomaly correlation of " +
+        (s.update ? ". For the days from the 8th the" : ". For this calendar month the") + " cross-validated hindcast scores a hemispheric anomaly correlation of " +
         sgn(v.nh_acc_mean, 2) + " (the trend alone " + sgn(v.acc_trend_mean, 2) + "), an RPSS of " + sgn(v.rpss_nh, 2) +
         " for the tercile probabilities, and a skill score of " + sgn(v.msss_trend_nh, 2) +
         " against the trend alone; its skill is significant over " + Math.round(100 * v.skill_area_sig) +
@@ -560,14 +571,15 @@
 
   // an update's vortex: the 50 hPa wind over 57-63N in the 31 days ending on the 7th of the target month
   function updateText(u) {
-    var x = u.vortex, nm = { ifs: "IFS-ENS", aifs: "AIFS-ENS", gefs: "GEFS", geps: "GEPS" };
+    var x = u.vortex, md = u.medium, nm = { ifs: "IFS-ENS", aifs: "AIFS-ENS", gefs: "GEFS", geps: "GEPS" };
     var d = function (iso) { var t = new Date(iso + "T00:00Z"); return t.getUTCDate() + " " + t.toLocaleString("en-GB", { month: "short", timeZone: "UTC" }); };
-    return "<p><b>The update (" + d(x.window[0]) + "&ndash;" + d(x.window[1]) + " vortex).</b> This forecast updates the issue of " + u.of +
-      ": the lower polar vortex enters as the 50&nbsp;hPa westerlies at 57&ndash;63N over " + d(x.window[0]) + "&ndash;" + d(x.window[1]) +
-      ", ERA5 to " + d(x.era5_through) + ", the IFS analyses after that and the four ensembles' members from their runs of " +
-      d(x.cycle.slice(0, 4) + "-" + x.cycle.slice(4, 6) + "-" + x.cycle.slice(6, 8)) + " " + x.cycle.slice(8) + "Z: " + sgn(x.value, 1) + "&nbsp;m/s, <b>" + sgn(x.anomaly, 1) +
-      "&nbsp;m/s</b> from the 1991&ndash;2020 normal of that window (" + Object.keys(x.ensembles).map(function (m) { return nm[m] + " " + sgn(x.ensembles[m], 1); }).join(", ") +
-      "; 10&ndash;90&nbsp;% of the members " + sgn(x.q10_q90[0], 1) + " to " + sgn(x.q10_q90[1], 1) + "&nbsp;m/s). The probabilities average the forecasts made from across that spread.</p>";
+    var run = d(md.cycle.slice(0, 4) + "-" + md.cycle.slice(4, 6) + "-" + md.cycle.slice(6, 8)) + " " + md.cycle.slice(8) + "Z";
+    return "<p><b>The update.</b> This forecast updates the issue of " + u.of + ". Its first week, " + d(md.days[0]) + "&ndash;" + d(md.days[1]) +
+      ", is the IFS-ENS and AIFS-ENS ensemble mean of their " + run + " runs (weight " + u.weights.first_week.toFixed(2) +
+      " in the month), and the rest of the month the statistical forecast for those days with the lower vortex of the first week as the four ensembles' members predict it: the 50&nbsp;hPa westerlies at 57&ndash;63N over " +
+      d(x.window[0]) + "&ndash;" + d(x.window[1]) + " at " + sgn(x.value, 1) + "&nbsp;m/s, <b>" + sgn(x.anomaly, 1) + "&nbsp;m/s</b> from the 1991&ndash;2020 mean of those days (" +
+      Object.keys(x.ensembles).map(function (m) { return nm[m] + " " + sgn(x.ensembles[m], 1); }).join(", ") + "; 10&ndash;90&nbsp;% of the members " +
+      sgn(x.q10_q90[0], 1) + " to " + sgn(x.q10_q90[1], 1) + "&nbsp;m/s). That predictor moves the rest of November only a little (see the method), so the update's change from the issue comes mostly from its first week.</p>";
   }
 
   function guidance(s, k) {
@@ -609,12 +621,12 @@
     set("target", s.target_label);
     set("target_label", s.target_label);
     set("issued", s.issued + (s.update ? " (update)" : ""));
-    set("window", s.update ? "vortex to " + parseInt(s.update.vortex.window[1].slice(8), 10) + " " + s.target_label.split(" ")[0].slice(0, 3) + "; ERA5 " + s.window : "ERA5 " + s.window);
+    set("window", s.update ? "first week: IFS-ENS, AIFS-ENS; ERA5 " + s.window : "ERA5 " + s.window);
     Object.keys(VARS).forEach(function (k) {
       var v = s.vars[k];
       if (!v) return;
       set("acc_" + k, sgn(v.nh_acc_mean, 2));
-      set("sub_" + k, "trend alone " + sgn(v.acc_trend_mean, 2) + " &middot; RPSS " + sgn(v.rpss_nh, 2));
+      set("sub_" + k, (s.update ? "days 8 on &middot; " : "") + "trend alone " + sgn(v.acc_trend_mean, 2) + " &middot; RPSS " + sgn(v.rpss_nh, 2));
     });
     set("stamp", (s.update ? "updated " + s.issued + " (issue of " + s.update.of + ")" : "issued " + s.issued) + " &middot; hindcast " + s.hindcast[0] + "&ndash;" + s.hindcast[1]);
     document.querySelectorAll(".ctl .fig-toggle").forEach(function (box) {
@@ -630,6 +642,7 @@
     $("img_main").addEventListener("click", function () { window.open($("img_main").src, "_blank", "noopener"); });
     toggles("comp", "img_comp", ver);
     if (s.blend && Object.keys(s.blend).length) { $("guidance").hidden = false; toggles("blend", "img_blend", ver); }
+    if (s.update) { $("updateParts").hidden = false; toggles("update", "img_update", ver); }
     toggles("skill", "img_skill", ver);
     $("disc").innerHTML = discussion(s, r[1]);
     $("rec").innerHTML = record(r[2]);
