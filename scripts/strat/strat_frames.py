@@ -17,6 +17,7 @@ so a loop shows the anomaly actually growing and decaying instead of every frame
 being renormalised to look equally dramatic.
 
     python strat_frames.py                  # both hemispheres, both levels
+    python strat_frames.py --fetch-only     # only download what the frames read (the series and drip read it too)
 """
 
 from __future__ import annotations
@@ -258,6 +259,7 @@ def main() -> int:
     ap.add_argument("--date")
     ap.add_argument("--cyc", default="00")
     ap.add_argument("--clim", default=str(sm.CLIM))
+    ap.add_argument("--fetch-only", action="store_true", help="download the files into the cache and stop")
     a = ap.parse_args()
     c = xr.open_dataset(a.clim)
     tr = xr.open_dataset(sm.TREND) if sm.TREND.exists() else None
@@ -281,6 +283,8 @@ def main() -> int:
     print(
         f"  {sum(g is not None for g in got)} of {len(got)} files in the cache ({time.time() - t0:.0f} s)", flush=True
     )
+    if a.fetch_only:
+        return 0
     fetch_mean = functools.lru_cache(maxsize=None)(sm.sm_fetch_mean)
 
     for hemi in ("nh", "sh"):

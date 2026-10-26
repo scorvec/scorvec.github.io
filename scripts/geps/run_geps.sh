@@ -71,21 +71,22 @@ fi
 step "forecast: fetch + de-drifted anomalies" "$PY" forecast.py --date "$CYCLE" || exit 1
 par_wait
 
+# the polar-vortex products' 10/100 hPa files, downloaded while the maps draw
+STRAT="cd '$SITE/scripts/strat' && '$PY'"
+par "vortex files" "the vortex products fetch what they miss" bash -c "$STRAT strat_frames.py --date '$CYCLE' --fetch-only"
 step "maps (daily frames, weekly, change)" "$PY" render_maps.py --cycle "$CYCLE" --workers "$WORKERS" --base era5 || exit 1
+par_wait
+
 # polar vortex: ERA5-referenced, de-drifted with the S2S GEPS reforecast tables in the reference set (fixed; their
-# rebuild needs the ECMWF S2S archive and is not part of this job); then the dripping paint, which reads the 10/100 hPa
-# files the frames cached
-vortex() {
-  (cd "$SITE/scripts/strat" && "$PY" strat_frames.py --date "$CYCLE" && for h in nh sh; do "$PY" strat_series.py --hemi "$h" --date "$CYCLE" || exit 1; done) \
-    || "$SITE/scripts/lib/degraded.sh" "vortex frames + series" "the previous vortex products stay"
-  (cd "$SITE/scripts/strat" && "$PY" forecast_drip.py --model geps --date "$CYCLE" --out-dir "$OUTROOT/assets/geps") \
-    || "$SITE/scripts/lib/degraded.sh" "dripping paint" "the previous figure stays"
-}
-par "vortex frames + series, dripping paint" "the previous vortex products and dripping paint stay" vortex
-par "teleconnections" "the previous figures stay" "$PY" telecon_geps.py --cycle "$CYCLE"
-par "tercile probability maps" "the previous maps stay" "$PY" prob_maps.py --cycle "$CYCLE"
-par "weather regimes" "the previous regimes stay" "$PY" regimes_geps.py --cycle "$CYCLE"
+# rebuild needs the ECMWF S2S archive and is not part of this job). The loops, the series and the dripping paint read
+# the 10/100 hPa files fetched above, so they run side by side; the longest products start first.
+par "vortex loops" "the previous vortex loops stay" bash -c "$STRAT strat_frames.py --date '$CYCLE'"
+par "vortex series" "the previous vortex series stay" bash -c "$STRAT strat_series.py --hemi nh --date '$CYCLE' && $STRAT strat_series.py --hemi sh --date '$CYCLE'"
+par "dripping paint" "the previous figure stays" bash -c "$STRAT forecast_drip.py --model geps --date '$CYCLE' --out-dir '$OUTROOT/assets/geps'"
 par "ensemble clusters" "the previous clusters stay" "$PY" cluster_geps.py --cycle "$CYCLE"
+par "tercile probability maps" "the previous maps stay" "$PY" prob_maps.py --cycle "$CYCLE"
+par "teleconnections" "the previous figures stay" "$PY" telecon_geps.py --cycle "$CYCLE"
+par "weather regimes" "the previous regimes stay" "$PY" regimes_geps.py --cycle "$CYCLE"
 par "MJO hindcast skill (replot)" "the previous skill figure stays" "$PY" mjo_hindcast.py --replot --doy-now "$DOY"
 par "MJO phase + Hovmoller" "the previous MJO figures stay" bash -c "cd '$SITE/scripts/mjo' && '$PY' '$HERE/mjo_geps.py' --cycle '$CYCLE'"
 par "100 hPa heat flux" "the previous figure stays" bash -c "cd '$SITE' && '$PY' scripts/strat/heatflux100_ext.py --model geps --date '$CYCLE' --out-dir '$OUTROOT/assets/geps'"
