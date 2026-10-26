@@ -39,7 +39,8 @@ Welch's t-test on the two runs' members, Benjamini-Hochberg over the map's point
 change everywhere and dots the significant points. The same against the runs 6, 18, 24, 36 and 48 h earlier (c6/,
 c18/, c24/, c36/, c48/: CHANGES) wherever those runs' statistics are there, so the reader can pick the run to compare
 with. A run's statistics come from its own --save (the Actions cache, which keeps every run of the last 48 h;
---stats-dir names the folder the workflow restores them to).
+--stats-dir names the folder the workflow restores them to); a 00/12Z run's also hold what the super-ensemble of the
+four (ensmaps_super.py) combines.
 
 Files, per field and span (assets/models/data/ensmaps/<model>/<cycle>/<field>/), rows 90N first, columns from 180W:
   a/<span>.webp   R anomaly of the members' mean, (code - 128) x enc[field]["anom"], 0 = not drawn
@@ -616,38 +617,91 @@ def prev_row(days, k0: int, k1: int, prev: dict) -> tuple[int, int] | None:
     return None if row is None else (k1, row)
 
 
-def stat_spans(ndays: int) -> list[tuple[int, int]]:
-    """The spans whose statistics the runs up to 48 h later compare with (CHANGES): each day and the windows from day 1,
-    2 and 3 (a later run's days 1-5 start on this run's day 1, 2 or 3)."""
-    return [(k, k) for k in range(ndays)] + sorted(set(windows(ndays, 0) + windows(ndays, 1) + windows(ndays, 2)))
+def stat_spans(ndays: int, cuts: bool = True) -> list[tuple[int, int]]:
+    """The spans whose statistics are kept: each day and the windows from day 1, 2 and 3 (a run up to 48 h later starts
+    its days 1-5 on this run's day 1, 2 or 3: CHANGES); with cuts, the last of those windows cut short too, for the
+    super-ensemble (ensmaps_super.py), whose days are the four runs' common days (GEFS and GEPS hold one more) and whose
+    change from a run up to 48 h earlier ends on that run's last day: the last window from day 1 cut by one to three
+    days, those from day 2 and 3 by one."""
+    ws = set()
+    for anchor in (0, 1, 2):
+        w = windows(ndays, anchor)
+        ws.update(w)
+        if cuts and w:
+            k0, k1 = w[-1]
+            ws.update((k0, c) for c in range(max(k0 + 1, k1 - (3 if anchor == 0 else 1)), k1))
+    return [(k, k) for k in range(ndays)] + sorted(ws)
 
 
-def save_stats(path: Path, init: pd.Timestamp, days: list, S: dict, done: dict) -> None:
+def save_stats(
+    path: Path,
+    init: pd.Timestamp,
+    days: list,
+    S: dict,
+    done: dict,
+    N50: dict | None = None,
+    high50: np.ndarray | None = None,
+) -> None:
     """Per field and span: the mean (float32) and standard deviation (float16) of the members' 0.5-deg cell means and
-    how many members (complete on each of its days) they are from. The other fields' statistics of the same run already
-    in the file (an IFS-ENS first stage) are kept."""
+    how many members (complete on each of its days) they are from. With the day normals N50 (a run the super-ensemble
+    reads: 00/12Z, to its last day), also for each day and window from day 1 (`skeys`) the members' mean anomaly
+    (float16) and how many of them are above normal (uint8), and the sea-level pressure's high ground (high50). The
+    other fields' statistics of the same run already in the file (an IFS-ENS first stage) are kept."""
     sp = stat_spans(len(days))
     out = {"init": f"{init:%Y%m%d%H}", "keys": np.array([key(days, k0, k1) for k0, k1 in sp])}
+    starts = {k0 for k0, _ in windows(len(days))}
+    sup = [i for i, (k0, k1) in enumerate(sp) if k0 == k1 or k0 in starts]  # the super-ensemble's spans
+    if N50:
+        out["skeys"] = out["keys"][sup]
+    if high50 is not None:
+        out["high_msl"] = high50
     if path.exists():
         with np.load(path) as z:
-            if str(z["init"]) == out["init"] and list(z["keys"]) == list(out["keys"]):
-                out |= {
-                    k: z[k]
-                    for k in z.files
-                    if k.split("_", 1)[0] in ("mean", "sd", "n") and k.split("_", 1)[1] not in S
-                }
+            if str(z["init"]) == out["init"]:
+                out |= carried(z, out, set(S))
     for f in S:
-        mean, sd, n = [], [], []
-        for k0, k1 in sp:
+        mean, sd, n, anom, pos = [], [], [], [], []
+        nrm = N50.get(f) if N50 else None
+        for i, (k0, k1) in enumerate(sp):
             mem = np.flatnonzero(done[f][:, k0 : k1 + 1].all(1))
             x = S[f][mem, k0 : k1 + 1].mean(1)
             n.append(mem.size)
             mean.append(x.mean(0) if mem.size > 1 else np.full(x.shape[1:], np.nan, np.float32))
             sd.append((x.std(0, ddof=1) if mem.size > 1 else np.full(x.shape[1:], np.nan)).astype(np.float16))
+            if nrm is not None and i in sup:
+                xa = x - nrm[k0 : k1 + 1].mean(0)
+                anom.append((xa.mean(0) if mem.size > 1 else np.full(x.shape[1:], np.nan)).astype(np.float16))
+                pos.append((xa > 0).sum(0).astype(np.uint8))
         out |= {f"mean_{f}": np.stack(mean).astype(np.float32), f"sd_{f}": np.stack(sd), f"n_{f}": np.array(n)}
+        if anom:
+            out |= {f"anom_{f}": np.stack(anom), f"pos_{f}": np.stack(pos)}
     path.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(path, **out)
     log(f"  statistics for the next run: {path} ({path.stat().st_size / 1e6:.0f} MB, {len(sp)} spans)")
+
+
+def carried(z, out: dict, fields: set) -> dict:
+    """The other fields' arrays in a file of the same run (an IFS-ENS first stage), their rows matched to out's spans by
+    key (a span the file lacks: NaN, no members), and its high ground when out has none."""
+    got = {}
+    for kind, what in (("keys", ("mean", "sd", "n")), ("skeys", ("anom", "pos"))):
+        if kind not in z.files or kind not in out:
+            continue
+        old = {str(k): i for i, k in enumerate(z[kind])}
+        rows = [old.get(str(k)) for k in out[kind]]
+        for name in z.files:
+            stat, _, f = name.partition("_")
+            if stat not in what or f in fields:
+                continue
+            a = z[name]
+            new = np.full((len(rows), *a.shape[1:]), 0 if stat in ("n", "pos") else np.nan, a.dtype)
+            for j, i in enumerate(rows):
+                if i is not None:
+                    new[j] = a[i]
+            got[name] = new
+    if "high_msl" in z.files and "high_msl" not in out:
+        got["high_msl"] = z["high_msl"]
+    return got
 
 
 def load_stats(path: Path | None, want_init: pd.Timestamp) -> dict | None:
@@ -1046,8 +1100,13 @@ def run(a) -> int:
             prev_at[h] = f"{pi:%Y-%m-%dT%H}:00Z"
     if 12 not in prev_at:
         log(f"::notice::no statistics of the run 12 h earlier ({prev_init:%Y-%m-%d %H}Z): no change maps from it")
-    if a.save:
-        save_stats(a.save, init, days, {f: fd.S for f, fd in F.items()}, {f: fd.done for f, fd in F.items()})
+    full = mod.last(hh) == max(r[0] for r in mod.runs.values())  # a run to the model's last step
+    high50 = to_half(F["msl"].high.astype(np.float32), grids["msl"].res) > 0.5 if "msl" in F else None
+    if a.save:  # with what the super-ensemble reads, from the 00/12Z runs it combines
+        to_super = full and hh in ("00", "12")
+        N50 = {f: fd.N50 for f, fd in F.items() if fd.N50 is not None} if to_super else None
+        save_stats(a.save, init, days, {f: fd.S for f, fd in F.items()}, {f: fd.done for f, fd in F.items()}, N50,
+                   high50 if to_super else None)  # fmt: skip
 
     # weather regimes, from the 500 hPa members held (ensmaps_regimes.py); not again when 2 m temperature is added
     import ensmaps_regimes as ER
@@ -1056,9 +1115,8 @@ def run(a) -> int:
     before = next((c for c in man_in.get("cycles", []) if c["cycle"] <= f"{prev_init:%Y%m%d%H}"), None)  # 12 h or more
     regimes = None
     if "z500" in F and "msl" in F:
-        high50 = to_half(F["msl"].high.astype(np.float32), grids["msl"].res) > 0.5
         regimes = ER.run(mod, key_c, init, days, Z25, F, high50, W, a.regimes_out, before)
-    clusters_ok = "z500" in F and "msl" in F and mod.last(hh) == max(r[0] for r in mod.runs.values())
+    clusters_ok = "z500" in F and "msl" in F and full
     if a.fields_out and clusters_ok:  # the clusters' fields: full runs only
         # (the members' 2.5-deg anomalies for the four-ensemble clusters, ensmaps_clusters.py; an IFS-ENS 06/18Z run
         # would cut its windows to day 5)

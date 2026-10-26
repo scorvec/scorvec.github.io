@@ -400,7 +400,7 @@
 <!-- sh:end -->
 <main id="main" class="mv">
   <h1>Ensemble anomaly maps</h1>
-  <p class="lede">Four ensembles to day 15 against the 1991&ndash;2020 normal, dotted where the members agree, what the newest run changed, and each member's weather regime.</p>
+  <p class="lede">Four ensembles and their super-ensemble to day 15 against the 1991&ndash;2020 normal, dotted where the members agree, what the newest run changed, and each member's weather regime.</p>
 
   <div class="mv-panel">
   <div class="mv-bar">
@@ -486,7 +486,9 @@
       <tr><td><b>AIFS-ENS</b>: ECMWF's machine-learned ensemble</td><td>the control and 50 perturbed members</td><td>0.25&deg;</td><td>00, 06, 12 and 18&nbsp;UTC, about 8&nbsp;h after the start</td></tr>
       <tr><td><b>GEFS</b>: NOAA's Global Ensemble Forecast System</td><td>the control and 30 perturbed members</td><td>0.5&deg;</td><td>00, 06, 12 and 18&nbsp;UTC, about 6&frac12;&nbsp;h after the start</td></tr>
       <tr><td><b>GEPS</b>: Environment and Climate Change Canada's Global Ensemble Prediction System</td><td>the control and 20 perturbed members</td><td>0.5&deg;, the finest the MSC Datamart publishes</td><td>00 and 12&nbsp;UTC, about 5&frac12;&nbsp;h after the start</td></tr>
+      <tr><td><b>Super-ensemble</b>: the four above, combined</td><td>their 153 members, each ensemble weighing a quarter</td><td>0.5&deg; cells</td><td>00 and 12&nbsp;UTC, minutes after the last of the four runs from that start</td></tr>
     </table></div>
+    <p><b>The super-ensemble</b> pools the IFS-ENS, AIFS-ENS, GEFS and GEPS runs from the same start, with equal weight per ensemble rather than per member: a quarter each, so the 51 members of AIFS-ENS count as much as the 21 of GEPS (by member, the two ECMWF ensembles would carry two thirds of the vote). It is computed on the 0.5&deg; cells from each ensemble's members averaged over the cells, on the days all four runs hold (15 from 00&nbsp;UTC, 14 from 12&nbsp;UTC), and only where every ensemble has enough complete members, as on its own maps. Its anomaly is the mean of the four ensemble-mean anomalies, each against its own normal; the dots mark where the weighted share of members agreeing on the sign reaches the gate of a two-sided sign test at 5&nbsp;% on the weighted count (exact, about 59&nbsp;% with all 153 members, below any single ensemble's because more members are behind it). Its change is from the super-ensemble run 12, 24, 36 or 48&nbsp;h earlier, Welch's test on the weighted means (the variance of each ensemble's mean, weighted, with Satterthwaite's degrees of freedom), dotted at the same 10&nbsp;% false discovery rate. It runs from 00 and 12&nbsp;UTC only, because GEPS runs no 06 or 18&nbsp;UTC forecast and IFS-ENS's reach day&nbsp;5. A run is made again when one of its four is (IFS-ENS's 2&nbsp;m temperature from the 0.1&deg; files, hours after the rest). The clusters view groups the same four ensembles' members, also a quarter each, and the regimes view shows each ensemble beside their equal-weight mean.</p>
     <p>A run is shown as it arrives: its days&nbsp;1&ndash;5 as soon as they are complete on the model&rsquo;s server, days&nbsp;6&ndash;10 next, and the rest, with the change from earlier runs, the regimes and the clusters, once the whole run is in (the run picker and the caption say how far a run has got).</p>
     <p>Each ensemble is shown on its own published grid, untouched: the finer grids are not smoothed and the coarser ones are not interpolated before the colours (your browser interpolates between grid points as it draws). The page keeps each ensemble's four newest runs, and the buttons beside &ldquo;Run&rdquo; pick one (the newest is shown until another is picked; the regimes' timeline and its comparisons take the runs picked). The ensembles' runs can be hours apart, and the date line under the buttons always gives the calendar days a map covers. The clusters always pool each ensemble's newest run that reaches day&nbsp;15.</p>
     <h3>Days and periods</h3>
@@ -519,7 +521,7 @@
   // ── configuration ─────────────────────────────────────────────────────────────────────────────────────────────
   var LOCAL = /[?&]local=1/.test(location.search);                    // testing: data from this origin
   var DATA = "assets/models/data/ensmaps/";
-  var MODELS = { ifs: "IFS-ENS", aifs: "AIFS-ENS", gefs: "GEFS", geps: "GEPS" }, MODEL_ORDER = ["ifs", "aifs", "gefs", "geps"];
+  var MODELS = { ifs: "IFS-ENS", aifs: "AIFS-ENS", gefs: "GEFS", geps: "GEPS", super: "Super-ensemble" }, MODEL_ORDER = ["ifs", "aifs", "gefs", "geps", "super"];
   var FIELDS = { t2m: { label: "2 m temperature", up: "warmer", dn: "colder" }, z500: { label: "500 hPa height", up: "higher", dn: "lower" },
                  msl: { label: "Sea-level pressure", up: "higher", dn: "lower" } };
   var FIELD_ORDER = ["t2m", "z500", "msl"];
@@ -1058,6 +1060,9 @@
   function markShown() { if (shown) return; shown = true; onShown.splice(0).forEach(idleDo); }
   function clearGL() { if (gl) { gl.viewport(0, 0, glc.width, glc.height); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); } }
   function kOf(sp, f) { return sp && sp.k && sp.k[f] ? sp.k[f] : 0; }
+  // the super-ensemble's agreement is a share of its members, each ensemble weighing a quarter (G = share x c.share)
+  // (a share rounded down, the gate up: a share shown below the gate never passes it)
+  function pctOf(c, g, gate) { return Math[gate ? "ceil" : "floor"](100 * g / c.share - (gate ? 1e-9 : -1e-9)) + " %"; }
   function draw() {
     if (glLost) return;
     if (thumbs.length) updateThumbs();
@@ -1293,7 +1298,9 @@
     var cap = cd
       ? f + " anomaly of the mean of the " + (n || "n") + " members in " + c.regimes.sectors[st.sector].names[cd.f] + " (" + SECTORS[st.sector] + ") against 1991–2020, " + u + "; dots where at least " + (k || "k") + " of them agree on its sign (a sign test at 5 %)"
       : st.view !== "change"
-      ? f + (sigmaOn() ? " standardized anomaly of the ensemble mean: the anomaly against 1991–2020 over the 1991–2020 standard deviation of " + (sp && sp.first !== sp.last ? "a mean over as many days" : "a day") + ", σ" : " anomaly of the ensemble mean against 1991–2020, " + u) + "; dots where at least " + (k || "k") + " of the " + (n || "n") + " members agree on its sign (a sign test at 5 %)"
+      ? f + (sigmaOn() ? " standardized anomaly of the ensemble mean: the anomaly against 1991–2020 over the 1991–2020 standard deviation of " + (sp && sp.first !== sp.last ? "a mean over as many days" : "a day") + ", σ" : " anomaly of the ensemble mean against 1991–2020, " + u) + (c.share
+        ? "; dots where at least " + (k ? pctOf(c, k, true) : "k") + " of the " + (n || "n") + " members, each ensemble a quarter, agree on its sign (a weighted sign test at 5 %)"
+        : "; dots where at least " + (k || "k") + " of the " + (n || "n") + " members agree on its sign (a sign test at 5 %)")
       : f + ": this run's ensemble mean less that of the run " + vsH(c) + " h earlier" + (vsPrev(c) ? " (" + initLabel({ init: vsPrev(c) }) + ")" : "") + " over the same days, " + u + "; dots where the change is significant (Welch's t-test, false discovery rate 10 %)";
     if (contoursOn()) cap += st.field === "z500" ? " · lines: " + who + "'s mean height every 6 dam" : st.field === "msl" ? " · lines: " + who + "'s mean pressure every 4 hPa" : " · blue line: " + who + "'s mean 0 °C";
     if (st.field === "msl" && st.view !== "change") cap += " · darker grey: ground above 1,500 m, no anomaly shown";
@@ -1921,7 +1928,8 @@
         var sg = d.sigma, an = sg ? (sa[0] - 128) * e.sigma : dispK((sa[0] - 128) * e.anom), edge = sa[0] === 1 || sa[0] === 255 ? " or more" : "";
         var ok = sa[1] >= k && sa[1] < 255;
         head = (ok ? "" : "members split: ") + fmtV(an, sg ? 2 : dec) + (sg ? "σ" : " " + u) + edge + (an >= 0 ? " above" : " below") + " normal";
-        lines.push(sa[1] + " of " + n + (d.card ? " members in this regime " : " members ") + (an >= 0 ? FIELDS[f].up : FIELDS[f].dn) + " than normal" + (ok ? "" : " (" + k + " needed)"));
+        if (d.c.share) lines.push(pctOf(d.c, sa[1]) + " of the members (each ensemble a quarter) " + (an >= 0 ? FIELDS[f].up : FIELDS[f].dn) + " than normal" + (ok ? "" : " (" + pctOf(d.c, k, true) + " needed)"));
+        else lines.push(sa[1] + " of " + n + (d.card ? " members in this regime " : " members ") + (an >= 0 ? FIELDS[f].up : FIELDS[f].dn) + " than normal" + (ok ? "" : " (" + k + " needed)"));
       }
     } else {
       var sc = sampleAt(d.cc, gridC(d.c, f), lon, lat);
@@ -1961,13 +1969,13 @@
     if (FIELDS[p[1]]) st.field = p[1];
     if (VIEWS[p[2]]) st.view = p[2];
     if (/^(P[1-3]|D\d\d)$/.test(p[3] || "")) st.span = p[3];
-    p.slice(4).forEach(function (t) { var rm = /^r(ifs|aifs|gefs|geps)(\d{10})$/.exec(t); if (rm) st.run[rm[1]] = rm[2]; else if (/^v(6|18|24|36|48)$/.test(t)) st.vs = t.slice(1); else if (t === "F") st.unit = "F"; else if (t === "s") st.sigma = true; else if (/^day\d\d$/.test(t)) { st.cwin = "day"; st.cday = +t.slice(3); } else if (CWINS[t] && t !== "day") st.cwin = t; else if (t[0] === "c" && CDOMS[t.slice(1)]) st.cdom = t.slice(1); else if (SECTORS[t]) st.sector = t; else if (/^\d$/.test(t)) st.regime = +t; });
+    p.slice(4).forEach(function (t) { var rm = /^r(ifs|aifs|gefs|geps|super)(\d{10})$/.exec(t); if (rm) st.run[rm[1]] = rm[2]; else if (/^v(6|18|24|36|48)$/.test(t)) st.vs = t.slice(1); else if (t === "F") st.unit = "F"; else if (t === "s") st.sigma = true; else if (/^day\d\d$/.test(t)) { st.cwin = "day"; st.cday = +t.slice(3); } else if (CWINS[t] && t !== "day") st.cwin = t; else if (t[0] === "c" && CDOMS[t.slice(1)]) st.cdom = t.slice(1); else if (SECTORS[t]) st.sector = t; else if (/^\d$/.test(t)) st.regime = +t; });
   }
   function showRuns() {
     $("runs").textContent = "Runs on the page now: " + MODEL_ORDER.filter(cycleOf).map(function (m) { var x = cycleOf(m); return MODELS[m] + " " + runLabel(x) + " (published " + x.made.replace("T", " ") + ")"; }).join(" · ") + ".";
     $("checks").textContent = MODEL_ORDER.filter(cycleOf).map(function (m) {
-      var x = cycleOf(m), mb = x.fetch ? (x.fetch.bytes / 1e9).toFixed(1) + " GB fetched in " + x.fetch.messages.toLocaleString("en-US") + " messages" : "";
-      return MODELS[m] + ": " + mb + ", " + (x.bytes / 1e6).toFixed(0) + " MB of maps; units read from the fields: " + Object.keys(x.fields).map(function (f) { return f + " " + (x.fields[f].units_read || []).join("/"); }).join(", ");
+      var x = cycleOf(m), mb = x.fetch ? (x.fetch.bytes / 1e9).toFixed(1) + " GB fetched in " + x.fetch.messages.toLocaleString("en-US") + " messages" : x.share ? "nothing fetched (the four runs' statistics)" : "";
+      return MODELS[m] + ": " + mb + ", " + (x.bytes / 1e6).toFixed(0) + " MB of maps" + (x.share ? "" : "; units read from the fields: " + Object.keys(x.fields).map(function (f) { return f + " " + (x.fields[f].units_read || []).join("/"); }).join(", "));
     }).join(". ") + ".";
   }
 

@@ -1,0 +1,217 @@
+name: Global ensemble maps — super-ensemble
+
+# ens-anomalies.html's super-ensemble (scripts/ensmaps/ensmaps_super.py): the IFS-ENS, AIFS-ENS, GEFS and GEPS runs
+# from the same 00 or 12 UTC start, a quarter each, from the four runs' statistics in the Actions cache (ensmaps.yml
+# keeps them; nothing is fetched from any model's server). After each ensemble's run this plans the newest cycle all
+# four have on their pages; it makes that cycle when it is new or one of its runs was made again since (IFS-ENS adds its
+# 0.1-deg 2 m temperature hours after the rest), and exits in about a minute otherwise. Each super run's own statistics
+# (ensmaps-super-stats-<cycle>-<run id>) serve the change maps of the super runs up to 48 h later; older ones are
+# deleted. Frames to the frames store only, then the manifest (assets/models/ensmaps_super.json) to main.
+on:
+  workflow_run:
+    workflows:
+      - "Global ensemble maps — IFS-ENS"
+      - "Global ensemble maps — AIFS-ENS"
+      - "Global ensemble maps — GEFS"
+      - "Global ensemble maps — GEPS"
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      cycle:
+        description: "Cycle YYYYMMDDHH, 00 or 12Z (blank = the newest all four ensembles have)"
+        required: false
+        default: ""
+      force:
+        description: "Make it again even when it is made from the same four runs"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write   # delete superseded statistics from the Actions cache
+
+concurrency:
+  group: ensmaps-super
+  cancel-in-progress: false
+
+env:
+  FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}
+  FRAMES_S3_ENDPOINT: ${{ secrets.FRAMES_S3_ENDPOINT }}
+  FRAMES_S3_REGION: ${{ secrets.FRAMES_S3_REGION }}
+  FRAMES_S3_ACCESS_KEY_ID: ${{ secrets.FRAMES_S3_ACCESS_KEY_ID }}
+  FRAMES_S3_SECRET_ACCESS_KEY: ${{ secrets.FRAMES_S3_SECRET_ACCESS_KEY }}
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  run:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main   # a workflow_run event checks out the default branch as it is now; the dispatch says so too
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/ensmaps/
+            /scripts/lib/
+            /scripts/models/publish_data.sh
+            /scripts/constraints.txt
+            /assets/models/ensmaps_*.json
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          pip install --quiet numpy scipy pandas pillow 'pyproj>=3.7.2' \
+            "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+      - name: Plan
+        id: plan
+        env:
+          CYCLE: ${{ inputs.cycle }}
+          FORCE: ${{ inputs.force && '--force' || '' }}
+        run: |
+          set -euo pipefail
+          # main's CURRENT manifests, not the checkout's (a run queued behind another checks out an older commit)
+          timeout 60 git fetch -q --depth 1 origin main
+          for m in ifs aifs gefs geps super; do
+            if git show "FETCH_HEAD:assets/models/ensmaps_$m.json" > "/tmp/ensmaps_$m.json" 2>/dev/null; then
+              cp "/tmp/ensmaps_$m.json" "assets/models/ensmaps_$m.json"
+            else rm -f "assets/models/ensmaps_$m.json"; fi
+          done
+          python scripts/ensmaps/ensmaps_super.py plan --manifests assets/models ${CYCLE:+--cycle "$CYCLE"} $FORCE > "$RUNNER_TEMP/plan.txt"
+          read -r cyc < "$RUNNER_TEMP/plan.txt" || true
+          echo "cycle=${cyc:-}" >> "$GITHUB_OUTPUT"
+          if [ -z "${cyc:-}" ]; then echo "nothing new"; exit 0; fi
+          for h in 12 24 36 48; do   # the earlier super runs the change maps compare with (ensmaps_super.CHANGES)
+            echo "prev$h=$(date -u -d "${cyc:0:8} ${cyc:8:2}:00 $h hours ago" +%Y%m%d%H)" >> "$GITHUB_OUTPUT"
+          done
+          echo "super-ensemble $cyc"
+      # each ensemble's statistics of the cycle, restored one at a time into the path its own job saved them from
+      - name: IFS-ENS statistics
+        if: steps.plan.outputs.cycle != ''
+        uses: actions/cache/restore@v6
+        with:
+          path: ensmaps_stats
+          key: ensmaps-ifs-stats-${{ steps.plan.outputs.cycle }}
+          restore-keys: ensmaps-ifs-stats-${{ steps.plan.outputs.cycle }}-partial
+      - name: Set aside
+        if: steps.plan.outputs.cycle != ''
+        run: mkdir -p in/ifs && { mv ensmaps_stats/*.npz in/ifs/ || echo "::warning::no IFS-ENS statistics of this cycle in the cache"; }
+      - name: AIFS-ENS statistics
+        if: steps.plan.outputs.cycle != ''
+        uses: actions/cache/restore@v6
+        with:
+          path: ensmaps_stats
+          key: ensmaps-aifs-stats-${{ steps.plan.outputs.cycle }}
+      - name: Set aside
+        if: steps.plan.outputs.cycle != ''
+        run: mkdir -p in/aifs && { mv ensmaps_stats/*.npz in/aifs/ || echo "::warning::no AIFS-ENS statistics of this cycle in the cache"; }
+      - name: GEFS statistics
+        if: steps.plan.outputs.cycle != ''
+        uses: actions/cache/restore@v6
+        with:
+          path: ensmaps_stats
+          key: ensmaps-gefs-stats-${{ steps.plan.outputs.cycle }}
+      - name: Set aside
+        if: steps.plan.outputs.cycle != ''
+        run: mkdir -p in/gefs && { mv ensmaps_stats/*.npz in/gefs/ || echo "::warning::no GEFS statistics of this cycle in the cache"; }
+      - name: GEPS statistics
+        if: steps.plan.outputs.cycle != ''
+        uses: actions/cache/restore@v6
+        with:
+          path: ensmaps_stats
+          key: ensmaps-geps-stats-${{ steps.plan.outputs.cycle }}
+      - name: Set aside
+        if: steps.plan.outputs.cycle != ''
+        run: mkdir -p in/geps && { mv ensmaps_stats/*.npz in/geps/ || echo "::warning::no GEPS statistics of this cycle in the cache"; }
+      # the earlier super runs' statistics (the newest making of each)
+      - name: The super run 12 h earlier
+        if: steps.plan.outputs.cycle != ''
+        uses: actions/cache/restore@v6
+        with:
+          path: super_stats
+          key: ensmaps-super-stats-${{ steps.plan.outputs.prev12 }}
+          restore-keys: ensmaps-super-stats-${{ steps.plan.outputs.prev12 }}-
+      - name: The super run 24 h earlier
+        if: steps.plan.outputs.cycle != ''
+        uses: actions/cache/restore@v6
+        with:
+          path: super_stats
+          key: ensmaps-super-stats-${{ steps.plan.outputs.prev24 }}
+          restore-keys: ensmaps-super-stats-${{ steps.plan.outputs.prev24 }}-
+      - name: The super run 36 h earlier
+        if: steps.plan.outputs.cycle != ''
+        uses: actions/cache/restore@v6
+        with:
+          path: super_stats
+          key: ensmaps-super-stats-${{ steps.plan.outputs.prev36 }}
+          restore-keys: ensmaps-super-stats-${{ steps.plan.outputs.prev36 }}-
+      - name: The super run 48 h earlier
+        if: steps.plan.outputs.cycle != ''
+        uses: actions/cache/restore@v6
+        with:
+          path: super_stats
+          key: ensmaps-super-stats-${{ steps.plan.outputs.prev48 }}
+          restore-keys: ensmaps-super-stats-${{ steps.plan.outputs.prev48 }}-
+      - name: Combine, publish
+        id: run
+        if: steps.plan.outputs.cycle != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FRAMES_BRANCH: "off"
+          CYC: ${{ steps.plan.outputs.cycle }}
+        run: |
+          set -euo pipefail
+          ls -la in/* super_stats 2>/dev/null || true
+          L="$RUNNER_TEMP/lists"
+          python scripts/ensmaps/ensmaps_super.py run --cycle "$CYC" --stats-dir in --prev-dir super_stats \
+            --save "super_stats/$CYC.npz" --site . --manifests assets/models \
+            --manifest-in assets/models/ensmaps_super.json --lists "$L"
+          if [ -d super_stats ]; then find super_stats -name '*.npz' ! -name "$CYC.npz" -delete; fi   # the cache entry: this run's only
+          if [ ! -f "super_stats/$CYC.npz" ]; then echo "no super run made"; exit 0; fi
+          echo "made=1" >> "$GITHUB_OUTPUT"
+          if [ ! -s "$L/publish.txt" ]; then echo "::warning::super $CYC is older than the run on the page - not published"; exit 0; fi
+          SRC=. PRUNE="$(tr '\n' ' ' < "$L/prune.txt")" PRUNE_OLDER="$(cat "$L/floor.txt")" scripts/models/publish_data.sh $(cat "$L/publish.txt") > /dev/null
+          echo "done=1" >> "$GITHUB_OUTPUT"
+      - name: Keep this super run's statistics for the next ones
+        if: steps.run.outputs.made == '1'
+        uses: actions/cache/save@v6
+        with:
+          path: super_stats
+          key: ensmaps-super-stats-${{ steps.plan.outputs.cycle }}-${{ github.run_id }}
+      - name: Delete superseded caches
+        if: steps.run.outputs.made == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREV48: ${{ steps.plan.outputs.prev48 }}
+          KEEP: ensmaps-super-stats-${{ steps.plan.outputs.cycle }}-${{ github.run_id }}
+          CYC: ${{ steps.plan.outputs.cycle }}
+        run: |
+          # every super run of the last 48 h (the later ones compare with them); of a cycle made again, the newest
+          gh cache list -R "$GITHUB_REPOSITORY" --key ensmaps-super-stats- --limit 100 --json id,key -q '.[] | "\(.key) \(.id)"' \
+            | awk -v floor="$PREV48" -v cyc="$CYC" -v keep="$KEEP" '{ c = substr($1, 21, 10); if (c < floor || (c == cyc && $1 != keep)) print }' \
+            | while read -r k id; do
+              gh cache delete "$id" -R "$GITHUB_REPOSITORY" && echo "deleted $k" || echo "::warning::could not delete $k"
+            done
+      - name: Commit & push the manifest
+        if: steps.run.outputs.done == '1'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT=assets/models/ensmaps_super.json
+          SNAP=$(mktemp -d)
+          cp "$OUT" "$SNAP/"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            cp "$SNAP/$(basename "$OUT")" "$OUT"
+            git add -f "$OUT"
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "ensmaps: super ${{ steps.plan.outputs.cycle }}"
+            if timeout 180 git push origin HEAD:main; then echo "Pushed on attempt $i."; exit 0; fi
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

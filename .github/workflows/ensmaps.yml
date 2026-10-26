@@ -13,7 +13,8 @@ name: Global ensemble maps (data)
 # the git `frames` branch; cycles older than the four kept are pruned in the store), THEN commit the manifest to main -
 # never the other way round, or the page would point at data that is not there yet. The earlier runs' statistics (the
 # change tests) come from the Actions cache (ensmaps-<model>-stats-<YYYYMMDDHH>; those more than 48 h older than this
-# run are deleted: a run compares with the runs up to 48 h before it). The same run labels each member's weather regime from the 500 hPa
+# run are deleted: a run compares with the runs up to 48 h before it; a 00/12Z run's also feed the super-ensemble,
+# ensmaps-super.yml, which runs after each of these). The same run labels each member's weather regime from the 500 hPa
 # fields it holds (scripts/ensmaps/ensmaps_regimes.py, no download of its own) and commits the labels
 # (assets/regimes/data/ensmaps_members_<model>.json for the newest run and ensmaps_members_<model>_<cycle>.json for each
 # of the four, regime_core's members_record format) and, on a 00Z run, its drift archive (ensmaps_drift_<model>.json)

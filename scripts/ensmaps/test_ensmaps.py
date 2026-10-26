@@ -13,7 +13,7 @@ data are fetched.
   codes    the anomaly, mean and change codes round-trip within half a step and map NaN to 0
   gate     agreeing counts the members sharing the mean's sign; sign_k is 33/50, 33/51, 22/31, 16/21
   test     welch_p equals scipy's Welch test
-  chain    a run's statistics serve the runs 6 and 12 h later (IFS-ENS 06/18Z to +144 h among them), the last window
+  chain    a run's statistics serve the runs 6 to 48 h later (IFS-ENS 06/18Z to +144 h among them), the last window
            cut to the shared days; the manifest keeps the four newest runs, the store those that left in the last hour
            and the newest before them; a rebuild publishes add-only
   regimes  members whose 500 hPa anomaly is a regime's centroid are labelled with it (every day in its own season's
@@ -22,10 +22,18 @@ data are fetched.
            12Z run's day 16 needs +384 h
   clusters a scenario keeps its letter through a one-scenario day, a split takes a new letter and a scenario that
            re-forms its old one; the members' moves between two periods' clusters
+  super    a first stage's statistics of an older span layout are carried by span; the weighted sign test's gate is
+           sign_k / n for one ensemble and holds its 5 % for four (simulated); the super-ensemble of four synthetic
+           runs gives the equal-weight mean anomaly, the agreeing share's gate, the variance of the weighted mean, the
+           change from the run 12 h earlier (a planted GEFS shift) and the manifest; its plan waits for all four runs
+           and makes a cycle again when one of them is remade
 """
 
 from __future__ import annotations
 
+import argparse
+import contextlib
+import io
 import json
 import sys
 import tempfile
@@ -41,6 +49,7 @@ import ensmaps as E  # (imports pyproj before eccodes)
 import ensmaps_clusters as EC
 import ensmaps_ref as R
 import ensmaps_regimes as ER
+import ensmaps_super as ES
 import regime_core as RC
 import regimes_ecmwf as RE
 import eccodes
@@ -359,6 +368,142 @@ def clusters():
     check(EC.flow((keys, seq[2]), (keys, seq[3], w)) == [[0.5, 0.0], [0.0, 0.35], [0.15, 0.0]], "the members' moves")
 
 
+def super_ens():
+    print("super")
+    from PIL import Image
+
+    ns = {"ifs": 50, "aifs": 51, "gefs": 31, "geps": 21}
+    check(all(round(ES.gate((n,)) * n) == E.sign_k(n) for n in ns.values()), "one ensemble's gate is sign_k(n) / n")
+    t = ES.gate(tuple(ns.values()))
+    T = (RNG.binomial(list(ns.values()), 0.5, (400_000, 4)) / np.array(list(ns.values()))).mean(1)
+    check(
+        2 * (t - 1e-9 <= T).mean() < 0.052 and 2 * (t - 0.01 <= T).mean() > 0.05,
+        f"four ensembles' gate {t:.3f} holds the sign test's 5 % (simulated)",
+    )
+    g50, E.G50 = E.G50, E.Grid(30.0)  # 7 x 12 cells
+    try:
+        init = pd.Timestamp("2026-10-25 12:00")
+        days = E.full_days(init)
+        sp_old = E.stat_spans(len(days), cuts=False)
+        z = RNG.normal(0, 1, (len(sp_old), *E.G50.shape)).astype(np.float32)
+        with tempfile.TemporaryDirectory() as tmp:
+            f = Path(tmp) / "s.npz"
+            keys = np.array([E.key(days, k0, k1) for k0, k1 in sp_old])
+            np.savez(
+                f,
+                init="2026102512",
+                keys=keys,
+                mean_z500=z,
+                sd_z500=z.astype(np.float16),
+                n_z500=np.full(len(keys), 50),
+            )
+            S = {"t2m": RNG.normal(0, 1, (50, len(days), *E.G50.shape)).astype(np.float32)}
+            E.save_stats(f, init, days, S, {"t2m": np.ones((50, len(days)), bool)})
+            with np.load(f) as out:
+                row = {str(k): i for i, k in enumerate(out["keys"])}
+                old_ok = all(np.array_equal(out["mean_z500"][row[k]], z[i]) for i, k in enumerate(keys))
+                new = [row[k] for k in row if k not in set(keys)]
+                check(
+                    old_ok and len(new) > 0 and np.isnan(out["mean_z500"][new]).all() and not out["n_z500"][new].any(),
+                    f"a first stage's statistics of an older layout are carried by span ({len(new)} new spans empty)",
+                )
+        c0, c1 = "2026102500", "2026102512"
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            raw = {}
+            for cyc in (c0, c1):
+                init = pd.Timestamp(f"{cyc[:8]} {cyc[8:]}:00")
+                for m, n in ns.items():
+                    days = E.full_days(init, E.MODELS[m].last(cyc[8:]))
+                    mu = 0.3 + (0.5 if (cyc, m) == (c1, "gefs") else 0.0)
+                    S = {f: RNG.normal(mu, 1.0, (n, len(days), *E.G50.shape)).astype(np.float32) for f in E.FIELDS}
+                    done = {f: np.ones((n, len(days)), bool) for f in E.FIELDS}
+                    N50 = {f: np.zeros((len(days), *E.G50.shape), np.float32) for f in E.FIELDS}
+                    high = np.zeros(E.G50.shape, bool)
+                    high[0, 0] = m == "geps"
+                    E.save_stats(d / "in" / m / f"{cyc}.npz", init, days, S, done, N50, high)
+                    raw[cyc, m] = S
+                a = argparse.Namespace(cycle=cyc, stats_dir=d / "in", prev_dir=d / "prev", save=d / "prev" / f"{cyc}.npz",
+                                       site=d / "site", manifests=d / "man", manifest_in=None, lists=d / "l", threads=1)  # fmt: skip
+                ES.run(a)
+            man = json.loads((d / "site/assets/models/ensmaps_super.json").read_text())
+            e = man["cycles"][0]
+            p1 = next(s for s in e["spans"] if s["key"] == "P1")
+            p3 = next(s for s in e["spans"] if s["key"] == "P3")
+            check(
+                [c["cycle"] for c in man["cycles"]] == [c1, c0] and e["prev"] == "2026-10-25T00:00Z"
+                and p1["n"]["z500"] == 153 and (p3["first"], p3["last"]) == ("2026-11-05", "2026-11-08") and len(e["days"]) == 14
+                and set(p3["n"]) == set(E.FIELDS),
+                "the 12Z super run: 14 days (GEFS and GEPS cut to them), 153 members, the run 12 h earlier",
+            )  # fmt: skip
+            img = np.asarray(Image.open(d / f"site/{E.DATA}/super/{c1}/z500/a/P1.webp"))
+            x = {m: raw[c1, m]["z500"][:, 0:5].mean(1) for m in ns}  # the members' days 1-5 anomalies
+            A = sum(x[m].mean(0) for m in ns) / 4
+            share = sum((x[m] > 0).mean(0) for m in ns) / 4
+            share = np.where(A > 0, share, 1 - share)
+            check(
+                np.abs(img[..., 0].astype(int) - E.code_signed(A, E.ENC["z500"]["anom"])).max() <= 1,
+                "the anomaly is the equal-weight mean of the four ensembles' means",
+            )
+            check(
+                np.array_equal(img[..., 1] >= p1["k"]["z500"], share >= t - 1e-9)
+                and np.abs(img[..., 1] / ES.SHARE - share).max() <= 1 / ES.SHARE,
+                f"dots where the weighted share agreeing reaches the gate ({p1['k']['z500']} of {ES.SHARE})",
+            )
+            mslp = np.asarray(Image.open(d / f"site/{E.DATA}/super/{c1}/msl/a/P1.webp"))
+            check(
+                mslp[0, 0, 0] == 0 and mslp[0, 0, 1] == 255 and mslp[1, 1, 0] > 0,
+                "no pressure anomaly where an ensemble's ground is high",
+            )
+            runs = {m: ES.load_run(d / "in" / m / f"{c1}.npz", pd.Timestamp("2026-10-25 12:00")) for m in ns}
+            k = E.key(E.full_days(pd.Timestamp("2026-10-25 12:00")), 0, 4)
+            _, V, D, n = ES.combine(runs, "z500", k)
+            Vd = sum(x[m].var(0, ddof=1) / x[m].shape[0] for m in ns) / 16
+            Dd = sum((x[m].var(0, ddof=1) / x[m].shape[0] / 16) ** 2 / (x[m].shape[0] - 1) for m in ns)
+            check(np.allclose(V, Vd, rtol=2e-3) and np.allclose(D, Dd, rtol=5e-3) and n == (50, 51, 31, 21),
+                  "the weighted mean's variance and its Satterthwaite denominator")  # fmt: skip
+            c = np.asarray(Image.open(d / f"site/{E.DATA}/super/{c1}/t2m/c/P1.webp"))
+            y1 = {m: raw[c1, m]["t2m"][:, 0:5].mean(1) for m in ns}  # the 12Z run's days 1-5: the 00Z run's 2-6
+            y0 = {m: raw[c0, m]["t2m"][:, 1:6].mean(1) for m in ns}
+            dd = sum(y1[m].mean(0) - y0[m].mean(0) for m in ns) / 4
+            terms = [y[m].var(0, ddof=1) / y[m].shape[0] / 16 for y in (y1, y0) for m in ns]
+            nn = [y[m].shape[0] for y in (y1, y0) for m in ns]
+            pv = ES.welch_p(dd, sum(terms), sum(t * t / (n - 1) for t, n in zip(terms, nn, strict=True)), 0.0, 0.0, 0.0)
+            check(
+                np.abs(c[..., 0].astype(int) - E.code_signed(dd, E.ENC["t2m"]["change"])).max() <= 1
+                and np.array_equal(c[..., 1] == 1, E.significant(pv))
+                and p1["change"]["t2m"]["n0"] == 153,
+                f"the change from the run 12 h earlier: the weighted Welch test over the eight terms (the GEFS shift "
+                f"x 1/4 = 0.125 K; {dd.mean():.3f} K, {c[..., 1].mean():.0%} of the cells significant)",
+            )
+            mans = d / "plan"
+            mans.mkdir()
+            for m in ns:
+                cyc = [{"cycle": c1, "made": "2026-10-26T01:00Z", "last_step": E.MODELS[m].last("12")}]
+                (mans / f"ensmaps_{m}.json").write_text(json.dumps({"cycles": cyc}))
+
+            def plan(**kw) -> str:
+                out = io.StringIO()
+                with contextlib.redirect_stdout(out):
+                    ES.cmd_plan(argparse.Namespace(manifests=mans, cycle="", force=False, **kw))
+                return out.getvalue().strip()
+
+            first = plan()
+            sup = {
+                "cycles": [{"cycle": c1, "ensembles": {m: {"made": "2026-10-26T01:00Z", "stage": None} for m in ns}}]
+            }
+            (mans / "ensmaps_super.json").write_text(json.dumps(sup))
+            again = plan()
+            sup["cycles"][0]["ensembles"]["ifs"]["made"] = "2026-10-26T00:00Z"
+            (mans / "ensmaps_super.json").write_text(json.dumps(sup))
+            remade = plan()
+            (mans / "ensmaps_gefs.json").write_text(json.dumps({"cycles": []}))
+            check(first == c1 and again == "" and remade == c1 and plan() == "",
+                  "plan: a cycle all four hold, not again, again when one is remade, not without all four")  # fmt: skip
+    finally:
+        E.G50 = g50
+
+
 def main() -> int:
     grids()
     grib_checks()
@@ -369,6 +514,7 @@ def main() -> int:
     chain()
     regimes()
     clusters()
+    super_ens()
     print("all checks passed")
     return 0
 
