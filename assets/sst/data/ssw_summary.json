@@ -1,5 +1,5 @@
 {
- "built": "2026-10-26 05:35Z",
+ "built": "2026-10-26 06:50Z",
  "newest_init": "2026-10-26 00Z",
  "window": [
   "2026-10-27",
@@ -786,11 +786,11 @@
     ]
    },
    "gefs": {
-    "init": "2026-10-25 12Z",
+    "init": "2026-10-26 00Z",
     "members": 31,
-    "share": 0.42,
-    "u10_min_mean": 2.5,
-    "u10_min_p10": -3.2,
+    "share": 0.32,
+    "u10_min_mean": 2.3,
+    "u10_min_p10": -1.6,
     "runs": [
      [
       "2026-10-01T00",
@@ -1041,6 +1041,11 @@
       "2026-10-25T12",
       0.42,
       0.0
+     ],
+     [
+      "2026-10-26T00",
+      0.32,
+      0.0
      ]
     ]
    },
@@ -1154,7 +1159,7 @@
     ]
    }
   },
-  "share_mean": 0.51,
+  "share_mean": 0.48,
   "base_rate": {
    "winters": 46,
    "with_onset": 0,
@@ -1217,13 +1222,13 @@
     "z_sib_max": 4.7
    },
    "gefs": {
-    "init": "2026-10-25 12Z",
+    "init": "2026-10-26 00Z",
     "members": 31,
-    "wave2_share": 0.57,
-    "z_peak": 4.0,
-    "z_peak_day": 4,
-    "flux_min": 11.0,
-    "warning_now": 10.4,
+    "wave2_share": 0.54,
+    "z_peak": 4.1,
+    "z_peak_day": 3,
+    "flux_min": 13.2,
+    "warning_now": 10.5,
     "warning_threshold": 27.5,
     "warning_members": 0.0,
     "ri_event_share": 0.1,
@@ -1301,11 +1306,11 @@
     "kind": "bottom-up"
    },
    "gefs": {
-    "init": "2026-10-25 12Z",
+    "init": "2026-10-26 00Z",
     "members": 31,
-    "cap100_day15": 1.2,
-    "cap10_day15": 2.9,
-    "frac100_day15": 0.58,
+    "cap100_day15": 1.5,
+    "cap10_day15": 3.0,
+    "frac100_day15": 0.81,
     "cross100": "2026-10-27",
     "cross10": "2026-10-29",
     "kind": "bottom-up"
@@ -1369,15 +1374,15 @@
     "frac100_day15": 0.9
    },
    "gefs": {
-    "init": "2026-10-25 12Z",
-    "p_positive": 0.7,
+    "init": "2026-10-26 00Z",
+    "p_positive": 0.75,
     "base_rate": 0.5,
     "window": [
-     "2026-11-10",
-     "2026-12-09"
+     "2026-11-11",
+     "2026-12-10"
     ],
-    "cap100_day15": 1.2,
-    "frac100_day15": 0.58
+    "cap100_day15": 1.5,
+    "frac100_day15": 0.81
    },
    "geps": {
     "init": "2026-10-26 00Z",
@@ -1440,8 +1445,8 @@
     "random_p": 0.0005
    }
   },
-  "p_positive_mean": 0.78,
-  "cap100_day15_mean": 1.7,
+  "p_positive_mean": 0.79,
+  "cap100_day15_mean": 1.8,
   "regime": "cap_1sd"
  },
  "reference": {
