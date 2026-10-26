@@ -1,13 +1,15 @@
 name: Stratosphere model maps — GFS
 
-# Caller for models-strat.yml (strat-models.html). The GFS 00/12Z run reaches +384 h on noaa-gfs-bdp-pds ~5 h 15 min
-# after the start (measured 2026-10-23/24: 05:17Z and 17:12-17:14Z); the readiness check is a HEAD on the last step's
-# two .idx files. The dispatcher fires 05:30 / 17:30 with a backup an hour later; these crons are the backstop. A firing
-# with nothing new exits in about a minute.
+# Caller for models-strat.yml (strat-models.html). Each GFS run (00/06/12/18Z) reaches +384 h on noaa-gfs-bdp-pds ~5 h
+# 15 min after the start (measured 2026-10-23/24: 05:17Z and 17:12-17:14Z); the readiness check is a HEAD on the last
+# step's two .idx files. The dispatcher fires 05:30 / 11:30 / 17:30 / 23:30 with a backup an hour later; these crons are
+# the backstop. A firing with nothing new exits in about a minute.
 on:
   schedule:
   - cron: '40 5 * * *'
+  - cron: '40 11 * * *'
   - cron: '40 17 * * *'
+  - cron: '40 23 * * *'
   workflow_dispatch:
     inputs:
       cycle:

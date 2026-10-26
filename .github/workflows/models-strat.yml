@@ -1,6 +1,6 @@
 name: Stratosphere model maps (data)
 
-# strat-models.html: the GFS, the GDPS, the AIFS single and GEOS FP runs (00/12Z; the AIFS single's 00/06/12/18Z) on
+# strat-models.html: the GFS, the GDPS, the AIFS single and GEOS FP runs (00/12Z; the GFS's and the AIFS single's 00/06/12/18Z) on
 # their pressure levels from 100 hPa up
 # (temperature, height, wind and, for the GFS, the smoothed vertical motion) and, for the GFS, the GDPS and GEOS FP, on
 # the isentropic surfaces their levels support (Ertel potential vorticity, computed here; GEOS FP's own), both

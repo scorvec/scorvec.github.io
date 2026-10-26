@@ -2,7 +2,7 @@
 """Stratosphere model maps for strat-models.html: the GFS, the GDPS, the AIFS single and GEOS FP on their pressure levels
 from 100 hPa up and (GFS, GDPS, GEOS FP) on the isentropic surfaces their levels support, both hemispheres, every 12
 hours (GFS to 16 days, GDPS to 10, AIFS single to 15, GEOS FP to 10 from 00 UTC and 5 from 12 UTC). The 00 and 12 UTC
-runs; the AIFS single's from 00, 06, 12 and 18 UTC (its 06/18 UTC runs reach 15 days too).
+runs; the GFS's and the AIFS single's from 00, 06, 12 and 18 UTC (their 06/18 UTC runs reach as far as the others).
 
 Each model is read on its latitude-longitude output grid (GFS 0.5 deg; GDPS 0.15 deg, averaged over 3 x 3 cells to
 0.45 deg; AIFS single 0.25 deg, one 1-2-1 pass and every second point to 0.5 deg; GEOS FP every second point of its
@@ -137,6 +137,7 @@ MODELS = {
         thetas=(350, 400, 475, 600, 850, 1200, 1600),
         absv=(50, 10),
         omega=True,
+        every=6,  # all four runs (06/18 UTC also to +384 h)
     ),
     "gdps": dict(
         label="GDPS",
