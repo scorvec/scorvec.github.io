@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
-"""Reduce the yearly MERRA-2 stratosphere files to the three daily series nh_vortex.py's reference band is built from.
+"""Reduce the yearly MERRA-2 stratosphere files to the five daily series nh_vortex.py's reference bands are built from.
 
-nh_vortex.load_clim needs only three DAILY SCALAR series from MERRA-2 (1980 on): u60 at 10 hPa, u60 at 100 hPa and
-the cos-weighted 65-90N polar-cap mean of zbar at 100 hPa. At ~17k days that is a few hundred KB, so the series is
-committed as reference/m2_strat_daily.nc and nothing else of MERRA-2 is needed on a runner.
+nh_vortex.load_clim needs only five DAILY SCALAR series from MERRA-2 (1980 on): u60 at 10 hPa, u60 at 100 hPa, the
+cos-weighted 65-90N polar-cap mean of zbar at 100 hPa, and at 10 hPa the polar-cap temperature and the pole-to-60N
+temperature gradient (nh_vortex.polar_t of Tbar). At ~17k days that is a few hundred KB, so the series is committed
+as reference/m2_strat_daily.nc and nothing else of MERRA-2 is needed on a runner.
 
 What is kept is the RAW daily series, deliberately not the day-of-year percentiles: the band is epoch-referenced
-(load_clim detrends the cap height to the current year at runtime, so decades of stratospheric height rise do not
-manufacture a "weak vortex" out of climate drift). Caching post-detrend numbers would freeze that correction.
+(load_clim detrends the cap height and the cap temperature to the current year at runtime, so decades of
+stratospheric height rise and cooling do not manufacture a "weak" or "cold" vortex out of climate drift). Caching
+post-detrend numbers would freeze that correction.
 
 Input (offline, not in the repository): $DATA_ARCHIVE/m2_strat/m2_strat_YYYY.nc, one file a year (~15 MB) holding
-u60(time, lev), the zonal-mean u at 60N, and zbar(time, lev, lat), the zonal-mean geopotential height, as daily means
-of the 00/06/12/18 UTC MERRA-2 M2I3NPASM fields. Run by hand on the machine holding that archive whenever it is
-extended:
+u60(time, lev), the zonal-mean u at 60N, and zbar and Tbar(time, lev, lat), the zonal-mean geopotential height and
+temperature on 1-degree latitudes 40-90N, as daily means of the 00/06/12/18 UTC MERRA-2 M2I3NPASM fields. Run by hand
+on the machine holding that archive whenever it is extended:
 
     python scripts/strat/build_m2_reference.py          # rebuild the series, then check it against the archive
     python scripts/strat/build_m2_reference.py --check  # check only
@@ -32,16 +34,16 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 OUT = HERE / "reference" / "m2_strat_daily.nc"
 
-# CAP is IMPORTED, never restated: a copy that drifted from nh_vortex's (65, 90) would change the published
+# CAP and polar_t are IMPORTED, never restated: a copy that drifted from nh_vortex's would change the published
 # reference band, and the equivalence check below would no longer test the quantity the figure uses.
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(REPO / "scripts" / "lib"))
-from nh_vortex import CAP
+from nh_vortex import CAP, TKEYS, polar_t
 from localdirs import env_dir
 
 
 def reduce_raw() -> pd.DataFrame:
-    """The three daily series from the yearly files."""
+    """The five daily series from the yearly files."""
     src = env_dir("DATA_ARCHIVE", "m2_strat")
     fs = sorted(src.glob("m2_strat_*.nc"))
     if not fs:
@@ -51,11 +53,14 @@ def reduce_raw() -> pd.DataFrame:
     zb = d["zbar"].sel(lev=100.0)
     sel = zb.where((zb.lat >= CAP[0]) & (zb.lat <= CAP[1]), drop=True)
     w = np.cos(np.deg2rad(sel.lat))
+    t10 = d["Tbar"].sel(lev=10.0)
+    q = polar_t(t10.transpose("time", "lat").values, t10.lat.values)
     df = pd.DataFrame(
         {
             "u10": np.asarray(d["u60"].sel(lev=10.0).values),
             "u100": np.asarray(d["u60"].sel(lev=100.0).values),
             "zcap": np.asarray(((sel * w).sum("lat") / w.sum()).values),
+            **{k: q[:, i] for i, k in enumerate(TKEYS)},
         },
         index=idx,
     )
@@ -68,6 +73,9 @@ def write(df: pd.DataFrame) -> None:
     ds = xr.Dataset({c: ("time", df[c].values.astype("float32")) for c in df.columns}, coords={"time": df.index.values})
     ds.attrs["source"] = "MERRA-2 daily, reduced from the yearly m2_strat files by scripts/strat/build_m2_reference.py"
     ds.attrs["cap"] = f"{CAP[0]}-{CAP[1]}N cos-weighted, zbar at 100 hPa"
+    ds.attrs["t10"] = (
+        "Tbar at 10 hPa: tcap10 the cos-weighted 60-90N mean, dT10 the cos-weighted 85-90N mean minus 60N (K)"
+    )
     ds.attrs["note"] = "pre-detrend dailies; nh_vortex applies the epoch referencing at runtime"
     enc = {c: {"zlib": True, "complevel": 6} for c in df.columns}
     ds.to_netcdf(OUT, encoding=enc)
@@ -82,7 +90,7 @@ def check(df: pd.DataFrame) -> int:
     c = xr.open_dataset(OUT)
     ci = pd.DatetimeIndex(c.time.values)
     bad = 0
-    for k in ("u10", "u100", "zcap"):
+    for k in df.columns:
         a = df[k].reindex(ci)
         b = pd.Series(np.asarray(c[k].values), index=ci)
         both = a.notna() & b.notna()

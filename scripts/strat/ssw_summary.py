@@ -8,7 +8,9 @@ the committed references (reference/). Five questions, each answered per model a
 
   SSW      the share of members with u(60N, 10 hPa) easterly on some day 1-15 (each ensemble's newest recorded run,
            run_record.py vortex_<model>.json from nh_vortex.py, and the kept runs before it), raw
-           member counts, not calibrated; the members whose 10-day mean 100 hPa heat flux crosses the SSW warning level
+           member counts, not calibrated; the share easterly with the 10 hPa temperature rising from 60N to the pole on
+           the same day as well (the full WMO definition, McInturff 1978; null for a run recorded without the
+           temperature); the members whose 10-day mean 100 hPa heat flux crosses the SSW warning level
            (heatflux100 ssw_warning); and how often a MERRA-2 sudden warming began in the same 15 calendar days.
            Charlton and Polvani (2007) count November-March onsets only.
   WAVES    the wave-1 and wave-2 shares of the ensemble-mean 100 hPa [v'T'] (45-75N) over days 1-15 and the peak of
@@ -89,9 +91,9 @@ def _r(x, n=2):
 
 
 def ssw_part() -> dict:
-    """{model: {init, members, share, u10_min_mean, u10_min_p10, runs}} from each ensemble's newest recorded run
-    (run_record.py: vortex_<model>.json), with every kept run's chance and its heat-flux warning share by start (runs:
-    [[start, chance, warning share]])."""
+    """{model: {init, members, share, wmo, u10_min_mean, u10_min_p10, runs}} from each ensemble's newest recorded run
+    (run_record.py: vortex_<model>.json), with every kept run's chances and its heat-flux warning share by start (runs:
+    [[start, chance, warning share, WMO chance]])."""
     out = {}
     for m in ENSEMBLES:
         rs = RR.runs("vortex", m)
@@ -103,9 +105,10 @@ def ssw_part() -> dict:
             "init": d["init"].replace("T", " ") + "Z",
             "members": int(d["members"]),
             "share": _r(d["ssw"]),
+            "wmo": _r(d.get("wmo")),
             "u10_min_mean": _r(min(x for x in u["mean"][1:] if x is not None), 1),
             "u10_min_p10": _r(min(x for x in u["p10"][1:] if x is not None), 1),
-            "runs": [[r["init"], _r(r.get("ssw")), _r(warn.get(r["init"]))] for r in rs],
+            "runs": [[r["init"], _r(r.get("ssw")), _r(warn.get(r["init"])), _r(r.get("wmo"))] for r in rs],
         }
     return out
 
@@ -292,6 +295,7 @@ def main() -> int:
     inits = [v["init"] for part in (ssw, waves, descent) for v in part.values()]
     newest = max(pd.Timestamp(i.replace("Z", "")) for i in inits)
     shares = [v["share"] for v in ssw.values() if v["share"] is not None]
+    wmo = [v["wmo"] for v in ssw.values() if v["wmo"] is not None]
     w2 = [w["wave2_share"] for w in waves.values() if w["wave2_share"] is not None]
     w2m = float(np.mean(w2)) if w2 else None
     kinds = [v["kind"] for m, v in descent.items() if m in ENSEMBLES]
@@ -304,6 +308,8 @@ def main() -> int:
         "ssw": {
             "models": ssw,
             "share_mean": _r(np.mean(shares)) if shares else None,
+            "wmo_mean": _r(np.mean(wmo)) if wmo else None,
+            "wmo_models": len(wmo),
             "base_rate": base_rate(newest),
             "warning_record": (_read("heatflux100.json") or {})
             .get("hemispheres", {})

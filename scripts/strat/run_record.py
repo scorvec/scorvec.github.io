@@ -64,7 +64,7 @@ class Product:
     share: bool = True  # the scalar is a share (drawn as a percentage)
     band: str = "members' 10–90 %"  # what the newest run's band is
     note: str = ""  # the footer's source and method line
-    extra: tuple = field(default_factory=tuple)  # keys recorded but not drawn here (nh_vortex's main figure reads them)
+    extra: tuple = field(default_factory=tuple)  # keys recorded but not drawn here (nh_vortex's figures read them)
     models: tuple = ()  # the models that feed it (empty: any); merge() takes no record of another
 
 
@@ -79,7 +79,10 @@ PRODUCTS = {
         note="Height anomaly against the MERRA-2 1980– median detrended to the current year, as on the main vortex figure. "
         "AIFS-ENS 50 members + control, IFS-ENS 50 perturbed members (ECMWF open data, Google Cloud mirror), GEFS 30 "
         "members + control (NOAA), GEPS 20 members + control (ECCC).",
-        extra=("u100",),
+        # the 10 hPa temperature (nh_vortex.polar_t): the 60-90N cap's anomaly against the same detrended MERRA-2
+        # median, and the 85-90N mean minus 60N; the record's other share, wmo, counts the members easterly at 60N
+        # with that gradient above zero on the same day (the full WMO definition)
+        extra=("u100", "tcap10", "dT10"),
     ),
     "heatflux": Product(
         "100 hPa eddy heat flux, 45–75°N",

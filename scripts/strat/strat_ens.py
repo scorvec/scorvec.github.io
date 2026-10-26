@@ -15,8 +15,10 @@ THE MODELS
         divergence needs the stratosphere resolved in the vertical, and the upper stratosphere lies above 10 hPa.
 
 THE PARTS (fetch only what the caller needs; the job that runs every product fetches them all at once)
-  vortex  daily 0-384 h      UGRD 10/100, HGT 100     u60 (member, lead, 2) zonal-mean u at 60N, 10 and 100 hPa;
-                                                       zcap (member, lead) 65-90N height at 100 hPa       nh_vortex
+  vortex  daily 0-384 h      UGRD 10/100, HGT 100,    u60 (member, lead, 2) zonal-mean u at 60N, 10 and 100 hPa;
+                             TMP 10                   zcap (member, lead) 65-90N height at 100 hPa; t10 (member,
+                                                       lead, 2) the 10 hPa cap temperature and gradient
+                                                       (nh_vortex.polar_t)                                nh_vortex
   drip    daily 0-360 h      HGT at the drip levels   caps (member, lead, level) 65-90N height  forecast_drip --cache
                              (GEFS 16 to 1 hPa, GEPS 11 to 10 hPa)
   flux    daily 0-360 h      VGRD 100, TMP 100        flux_tot/_k1/_k2 (member, lead, lat) 100 hPa [v'T'] by latitude
@@ -80,7 +82,7 @@ PARTS = ("vortex", "drip", "flux", "waves", "winds", "polarcap", "omega")
 MODEL_PARTS = {"gefs": PARTS, "geps": tuple(p for p in PARTS if p != "omega")}  # GEPS: v and T at 11 levels only
 # the arrays each part keeps (the last one decides which members are complete) and the members a part needs
 PART_KEYS = {
-    "vortex": ("u60", "zcap"),
+    "vortex": ("u60", "t10", "zcap"),
     "drip": ("caps",),
     "flux": ("flux_sib", "flux_can", "flux_tot", "flux_k1", "flux_k2"),
     "waves": ("zwave",),
@@ -99,7 +101,7 @@ def need(parts, L: int, model: str) -> set[tuple[str, int]]:
     """{(variable, level hPa)} the given parts read at lead L hours."""
     out = set()
     if "vortex" in parts and L in LEADS_VORTEX:
-        out |= {("UGRD", 10), ("UGRD", 100), ("HGT", 100)}
+        out |= {("UGRD", 10), ("UGRD", 100), ("HGT", 100), ("TMP", 10)}
     if "drip" in parts and L in LEADS_DAILY:
         out |= {("HGT", lev) for lev in LEV_DRIP[model]}
     if "flux" in parts and L in LEADS_DAILY:
@@ -249,6 +251,7 @@ def _empty(key: str, nmem: int, model: str) -> np.ndarray:
         return np.full((nmem, len(LEADS_DAILY), LAT.size), np.nan, "float32")
     shape = {
         "u60": (nmem, len(LEADS_VORTEX), 2),
+        "t10": (nmem, len(LEADS_VORTEX), 2),
         "zcap": (nmem, len(LEADS_VORTEX)),
         "caps": (nmem, len(LEADS_DAILY), len(LEV_DRIP[model])),
         "zwave": (nmem, len(LEADS_DAILY), len(LEV_WAVE), LAT.size // 2 + 1, LON.size // 2),
@@ -270,6 +273,7 @@ def fetch(model: str, date: str, hh: str, parts=PARTS, workers: int = 32) -> Pat
     import xarray as xr
 
     import heatflux100 as HF
+    from nh_vortex import polar_t
 
     dest = path(model, date, hh)
     have = {}
@@ -294,6 +298,7 @@ def fetch(model: str, date: str, hh: str, parts=PARTS, workers: int = 32) -> Pat
             i = LEADS_VORTEX.index(L)
             for m in ms:
                 acc["u60"][m, i] = [got[m][("UGRD", lev)][j60].mean() for lev in (10, 100)]
+                acc["t10"][m, i] = polar_t(got[m][("TMP", 10)].mean(-1), LAT)
                 acc["zcap"][m, i] = cap(got[m][("HGT", 100)])
         if L in LEADS_DAILY:
             i = LEADS_DAILY.index(L)

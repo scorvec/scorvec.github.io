@@ -156,11 +156,13 @@ jobs:
             echo "$m=$f" >> "$GITHUB_OUTPUT"; echo "  $m: fetch $f"
           done
 
-      # NCCS is read at the 00Z update only: the tail's newest complete day is already in by 13:10
+      # NCCS is read at the 00Z update only: the tail's newest complete day is already in by 13:10. The last 21 days
+      # (the polar vortex figure's tail) are checked; only a day not held, or held without every variable, is read
+      # (~25 s a day)
       - name: GEOS FP analysis tail
         if: steps.need.outputs.geos == 'true' && steps.cyc.outputs.hour == '00'
         run: |
-          timeout 900 python scripts/strat/upperstrat_data.py tail --days 5 --keep 120 --seed-too \
+          timeout 900 python scripts/strat/upperstrat_data.py tail --days 21 --keep 120 --seed-too \
             --out assets/sst/data/upperstrat_tail.json || echo "::warning::GEOS FP analysis tail failed; the figures keep the older tail"
 
       - name: GFS

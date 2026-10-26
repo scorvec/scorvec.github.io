@@ -473,13 +473,20 @@ After the 14 shallow events there was no significant change.</p>
 <p>The vortex chart tracks the zonal-mean wind at 60°N at 10 and 100 hPa and the polar-cap height at 100 hPa against
 the MERRA-2 percentile bands in three ensembles, ECMWF's AIFS-ENS and IFS-ENS and ECCC's GEPS (each as its members'
 10–90 % range and mean), with the deterministic GDPS and NASA GEOS FP runs dashed. The fraction of members reversing
-the wind (a forecast major warming) is called out.</p>
+the wind (a forecast major warming) is called out. A second chart follows the 10 hPa temperature: the 60–90°N
+polar-cap anomaly and the gradient from 60°N to the pole, whose reversal on a day of easterlies completes the original
+WMO definition (McInturff, 1978); the fraction of members meeting both is called out there.</p>
 """,
         figures=[
             img(
                 "/assets/sst/nh_vortex.webp",
                 "Northern polar vortex forecast: zonal-mean wind at 60°N at 10 and 100 hPa and 100 hPa polar-cap height, AIFS-ENS, IFS-ENS and GEPS ranges against MERRA-2 percentiles",
                 "The live vortex forecast: three ensembles and two deterministic runs against the MERRA-2 1980–2026 range.",
+            ),
+            img(
+                "/assets/sst/nh_vortex_temp.webp",
+                "Northern polar vortex temperature forecast: the 10 hPa 60–90°N polar-cap temperature anomaly and the pole-minus-60°N gradient, every model against MERRA-2 percentiles",
+                "The 10 hPa temperature: the polar-cap anomaly and the gradient from 60°N to the pole.",
             ),
             img(
                 "/assets/sst/strat_hist_timeline.webp",
@@ -503,6 +510,7 @@ the wind (a forecast major warming) is called out.</p>
             "Butler, A. H., J. P. Sjoberg, D. J. Seidel, and K. H. Rosenlof, 2017: A sudden stratospheric warming compendium. <i>Earth Syst. Sci. Data</i>, 9, 63–76.",
             "Baldwin, M. P., et al., 2021: Sudden stratospheric warmings. <i>Rev. Geophys.</i>, 59, e2020RG000708.",
             "Mitchell, D. M., L. J. Gray, J. Anstey, M. P. Baldwin, and A. J. Charlton-Perez, 2013: The influence of stratospheric vortex displacements and splits on surface climate. <i>J. Climate</i>, 26, 2668–2682.",
+            "McInturff, R. M., Ed., 1978: Stratospheric warmings: Synoptic, dynamic and general-circulation aspects. NASA Reference Publication 1017, 166 pp.",
             "Gelaro, R., and co-authors, 2017: The Modern-Era Retrospective Analysis for Research and Applications, Version 2 (MERRA-2). <i>J. Climate</i>, 30, 5419–5454.",
             "Benjamini, Y., and Y. Hochberg, 1995: Controlling the false discovery rate: a practical and powerful approach to multiple testing. <i>J. R. Stat. Soc. B</i>, 57, 289–300.",
             "Wilks, D. S., 2016: “The stippling shows statistically significant grid points”: how research results are routinely overstated and overinterpreted, and what to do about it. <i>Bull. Amer. Meteor. Soc.</i>, 97, 2263–2273.",

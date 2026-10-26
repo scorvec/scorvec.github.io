@@ -160,7 +160,8 @@ jobs:
       #   forecast_drip 500/100/10 hPa from those, the other eight levels from the 90-65N rows (~10 MB); the GEOS FP
       #                 tail (bdc.yml keeps assets/sst/data/geosfp_cap_history.json)
       #   polarcap      msl and t at 10 hPa from the 90-18N rows (~6 MB), gh from the shared files
-      #   nh_vortex     u at 60N and the 100 hPa cap from the wind file, into the vortex record
+      #   nh_vortex     u at 60N and the 100 hPa cap from the wind file, t at 10 hPa from its 90-60N rows (~1 MB), into
+      #                 the vortex record
       - name: AIFS single products
         timeout-minutes: 30
         run: |
