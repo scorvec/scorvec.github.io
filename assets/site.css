@@ -331,12 +331,12 @@ html body {
   font-feature-settings: 'kern' 1, 'liga' 1;
 }
 html body.dense { font-size: 15.5px; line-height: 1.45; }
-/* Larger text on desktop screens: everything sized in rem follows the root and grows ~10 %; text sized in px is raised
-   page by page (the midterms pages). Phones and narrow windows keep the sizes above. */
+/* Desktop screens read at the browser's own text size: the root stays at 100 % (rem = 16 px) and body text is a step
+   smaller than on phones, which are held closer. A ~10 % desktop boost (and the homepage's 122-130 % on wide windows)
+   made text crowd the figures on a large monitor. */
 @media (min-width: 1000px) {
-  html:root { font-size: 110%; }
-  html body { font-size: 18.5px; }
-  html body.dense { font-size: 17px; }
+  html body { font-size: 16px; }
+  html body.dense { font-size: 15px; }
 }
 html h1, html h2 {
   font-family: var(--f-serif);
@@ -603,17 +603,17 @@ html.fp-lock { overflow: hidden; }
    collapse to "Menu" on the next at the same window width. The dropdown panels keep their rem sizes. */
 @media (min-width: 861px) {
   .sh:not(.sh--compact) .sh-in { gap: 20px; }
-  .sh:not(.sh--compact) .sh-brand { font-size: 25px; }
+  .sh:not(.sh--compact) .sh-brand { font-size: 23px; }
   .sh:not(.sh--compact) .sh-list { gap: 2px; }
-  .sh:not(.sh--compact) .sh-link { font-size: 19px; padding: 10px 12px; }
+  .sh:not(.sh--compact) .sh-link { font-size: 17px; padding: 10px 12px; }
   /* the product menus sit centred in the space after the finder; the special button and the person's menu stay at
      the right */
   .sh:not(.sh--compact) nav.sh-nav { flex: 1 1 auto; min-width: 0; }
   .sh:not(.sh--compact) .sh-list > li:first-child { margin-left: auto; }
   .sh:not(.sh--compact) .sh-link::before { left: 11px; right: 11px; bottom: 6px; }
   .sh:not(.sh--compact) .sh-has-menu > .sh-menubtn::before { right: 26px; }
-  .sh:not(.sh--compact) .sh-me { font-size: 17px; }
-  .sh:not(.sh--compact) .sh-special { font-size: 17px; padding: 7px 14px; }
+  .sh:not(.sh--compact) .sh-me { font-size: 15.5px; }
+  .sh:not(.sh--compact) .sh-special { font-size: 15.5px; padding: 7px 14px; }
   .sh:not(.sh--compact) .sh-item--special { margin-left: auto; }
   .sh:not(.sh--compact) .sh-item--me { margin-left: 6px; padding-left: 8px; }
   .sh:not(.sh--compact) .sh-find { font-size: 15px; min-width: 205px; padding: 7px 8px 7px 13px; }
@@ -627,7 +627,7 @@ html.fp-lock { overflow: hidden; }
   .sh.sh--tighter .sh-find { padding: 8px; }
 }
 /* only on genuinely narrow windows does the one-line row step down from 19 px, so 1280-px screens keep the full row */
-@media (min-width: 861px) and (max-width: 1340px) { .sh.sh--tighter .sh-link { font-size: 17.5px; padding: 10px 5px; } }
+@media (min-width: 861px) and (max-width: 1340px) { .sh.sh--tighter .sh-link { font-size: 16px; padding: 10px 5px; } }
 /* a deep link under its own page in a menu column (Atmospheric circulation): indented and quieter */
 .sh-menu li.sh-subitem a { padding-left: 0.95rem; font-size: 1.1rem; color: var(--c-muted); }
 .sh-menu li.sh-subitem a:hover { color: var(--c-accent); }

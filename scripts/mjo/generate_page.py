@@ -405,7 +405,7 @@ def main():
   .nav-links a {{ color: var(--muted); text-decoration: none; font-size: 0.85rem;
                  letter-spacing: 0.02em; }}
   .nav-links a:hover, .nav-links a.active {{ color: var(--ink); }}
-  main {{ max-width: 1500px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }}
+  main {{ max-width: min(94vw, 2000px); margin: 0 auto; padding: 2.5rem 2rem 4rem; }}
   h1 {{ font-family: var(--serif); font-weight: 500; font-size: 1.9rem;
        margin-bottom: 0.4rem; }}
   .lede {{ color: var(--muted); max-width: 70ch; margin-bottom: 2rem; }}
