@@ -12,12 +12,15 @@ significant over the figure's comparisons (sfs_verdicts: its own interval exclud
 rate of 10 %), and an unmarked point means no significant difference.
 """
 
+import sys
 import argparse
 from pathlib import Path
 
 import numpy as np
 
 from sfs_verdicts import table
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
 HERE = Path(__file__).resolve().parent
 SFS_C, CFS_C = "#b0562a", "#5b4a9e"
@@ -294,6 +297,9 @@ def main():
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     weekly(plt, a.site)
     nino34(plt, a.site)

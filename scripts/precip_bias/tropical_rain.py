@@ -41,6 +41,8 @@ from pathlib import Path
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent / "sst"))
@@ -212,6 +214,9 @@ def draw(panels, kind: str, dom: str, title: str, sub: str, cbar: str, out: Path
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     import cartopy.crs as ccrs
     import mapstyle as MS
 

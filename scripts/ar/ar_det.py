@@ -36,6 +36,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import arlib as A
@@ -79,6 +81,9 @@ def coast_figure(out, m, init, valid, cser, tl, levels, grid):
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     import matplotlib.dates as mdates
 
     cm, nm = A.ivt_cmap()

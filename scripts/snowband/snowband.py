@@ -76,6 +76,8 @@ from pathlib import Path
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 UA = {"User-Agent": "scorvec-snowband/1.0 (+https://scorvec.com/models.html)"}
@@ -872,6 +874,9 @@ def _base(ax, c):
 
 def panel_fg(ax, c):
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     from matplotlib.colors import BoundaryNorm
 
     d = c.d

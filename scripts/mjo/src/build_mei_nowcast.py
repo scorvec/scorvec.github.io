@@ -23,6 +23,7 @@ trailing mean (hugs the official value) and a responsive ~14-day mean (leading e
 """
 
 from __future__ import annotations
+import sys
 
 import argparse
 import datetime as dt
@@ -38,6 +39,11 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+import house
+
+house.apply()
 import matplotlib.dates as mdates
 
 HERE = Path(__file__).resolve().parent

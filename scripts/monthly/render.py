@@ -32,6 +32,11 @@ import cartopy.feature as cfeature
 import matplotlib.colors as mcolors
 import matplotlib.path as mpath
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+import house
+
+house.apply()
 import numpy as np
 from cartopy.util import add_cyclic_point
 

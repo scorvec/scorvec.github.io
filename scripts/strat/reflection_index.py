@@ -22,6 +22,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
@@ -111,6 +113,9 @@ def render(out: Path = OUT) -> None:
     matplotlib.use("Agg")
     import matplotlib.dates as mdates
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     clim = xr.open_dataset(HF.CLIM).load()
     ms = model_series(clim)

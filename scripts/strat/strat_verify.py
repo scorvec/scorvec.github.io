@@ -16,6 +16,7 @@ rank the models on.
 """
 
 from __future__ import annotations
+import sys
 
 import argparse
 import json
@@ -26,6 +27,8 @@ import numpy as np
 import pandas as pd
 
 import run_record as RR
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
 MODELS = ("aifs", "ifs", "hres", "gefs", "geps")
 BACK = (15, 12, 9, 6, 3)  # days before the newest run
@@ -72,6 +75,9 @@ def render(out: Path = OUT) -> Path | None:
     matplotlib.use("Agg")
     import matplotlib.dates as mdates
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     truths = {p: daily(truth(p)) for p, *_ in ROWS}
     cols = [m for m in MODELS if any(RR.runs(p, m) for p, *_ in ROWS)]

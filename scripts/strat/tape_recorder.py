@@ -35,6 +35,8 @@ import numpy as np
 import pandas as pd
 from quantmet.degdays import doy366
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 DATA = HERE / "data" / "tape"
@@ -670,6 +672,9 @@ def _save(fig, path):
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, format="webp", pil_kwargs={"quality": 90})
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     plt.close(fig)
 

@@ -93,6 +93,11 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+import house
+
+house.apply()
 import matplotlib.path as mpath
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature

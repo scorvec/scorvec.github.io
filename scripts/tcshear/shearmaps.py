@@ -13,6 +13,7 @@ Longitudes are unwrapped around the map's centre so a track across the dateline 
 """
 
 from __future__ import annotations
+import sys
 
 import datetime as dt
 import math
@@ -21,6 +22,8 @@ from pathlib import Path
 import numpy as np
 
 import shearlib as S
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
 PV_LEV = [0, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12]
 PV_COLS = [
@@ -59,6 +62,9 @@ def render(storm, boxes, recs, init, out_dir: Path, obs=None, grid="0.25°"):
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
     from matplotlib.colors import BoundaryNorm, ListedColormap

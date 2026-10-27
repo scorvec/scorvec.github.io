@@ -42,6 +42,8 @@ from pathlib import Path
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from seas5_outlook import ASSETS, DATA, fc_path, hc_path
 from seas5_build import (
@@ -565,6 +567,9 @@ def render(ym: str, var: str, ref: str, kind: str, panels, lat, lon, out_dir: Pa
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     from matplotlib.colors import BoundaryNorm, ListedColormap
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature

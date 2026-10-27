@@ -87,6 +87,7 @@ scored with ENSO removed on both sides (hindcast_enso_removed).
 
 from __future__ import annotations
 
+import sys
 import argparse
 import json
 from pathlib import Path
@@ -98,9 +99,16 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
+import house
+
+house.apply()
 import matplotlib.colors as mcolors
 
 import sys
+
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import paths

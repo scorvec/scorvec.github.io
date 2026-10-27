@@ -29,6 +29,8 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from seas5_outlook import ASSETS, L7_STATE
 from seas5_popT import REGIONS, month_span, pop_grid, region_grid
@@ -359,6 +361,9 @@ def pct_map(ratio, lat, lon, normal, region, thr_label, plabel, issue_lbl, out: 
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     from matplotlib.colors import BoundaryNorm, ListedColormap
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature

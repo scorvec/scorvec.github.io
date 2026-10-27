@@ -72,6 +72,8 @@ import numpy as np
 from quantmet.degdays import doy366
 from quantmet.stats import benjamini_hochberg as bh  # BH-FDR mask
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent / "lib"))
@@ -913,6 +915,9 @@ def render(doc, sk, cent, out_path):
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     from matplotlib.lines import Line2D
     from matplotlib.patches import Patch
     import cartopy.crs as ccrs

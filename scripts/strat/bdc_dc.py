@@ -100,6 +100,7 @@ USAGE (run manually; nothing here writes into assets/ or commits)
 """
 
 from __future__ import annotations
+import sys
 
 import argparse
 import glob
@@ -113,6 +114,8 @@ import numpy as np
 import pandas as pd
 from quantmet.degdays import doy366
 from quantmet.stats import acf_inflation as _acf_inflation, benjamini_hochberg as bh_fdr
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
 HERE = Path(__file__).resolve().parent
 M2DIR = HERE / "data" / "m2gmi_tem"  # MERRA-2 GMI tem_YYYY.npz + gwd_YYYY.npz (fetch_m2gmi_*.py)
@@ -1076,6 +1079,9 @@ def fig_upwelling(C, an, fc, cyc, stats, notes, off, nm, path):
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     import matplotlib.dates as mdates
 
     lead = fc[fc.index > an.index.max()]

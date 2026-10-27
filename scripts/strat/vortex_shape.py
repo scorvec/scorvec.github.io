@@ -22,6 +22,7 @@ polarcap.py calls shape() and members() for each model's run and records it (run
 """
 
 from __future__ import annotations
+import sys
 
 import argparse
 import textwrap
@@ -31,6 +32,8 @@ import numpy as np
 import pandas as pd
 
 import run_record as RR
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
 EDGE = 30145.0  # m: MERRA-2's DJFM-mean 10 hPa height at 60N, 1980-2026
 SPLIT_OFFSET = 150.0  # m below the edge: two low centres at this contour, the smaller >= FRAC of the larger
@@ -131,6 +134,9 @@ def members(model: str, init: pd.Timestamp, s: dict, ctrl: dict | None, credit: 
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     from matplotlib.colors import ListedColormap
 
     st = s["state"]

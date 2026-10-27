@@ -66,6 +66,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path[:0] = [str(HERE), str(REPO / "scripts" / "lib"), str(REPO / "scripts" / "ecmwf")]
@@ -359,6 +361,9 @@ def plumes(model: str, init: pd.Timestamp, valid, series: dict, panels, title: s
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     col, lab = RR.MODEL_COLOUR[model], RR.MODEL_LABEL[model]
     fig, axes = plt.subplots(len(panels), 1, figsize=(11.5, 8.2), sharex=True)

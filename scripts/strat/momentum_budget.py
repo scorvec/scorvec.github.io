@@ -60,6 +60,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import bdc_dc as B  # (shared constants, readers, statistics)
@@ -844,6 +846,9 @@ def _fc_shade(ax, t_last, t1):
 def _save(fig, path):
     fig.savefig(path.with_suffix(".webp"), format="webp", pil_kwargs={"quality": 90})
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     plt.close(fig)
 

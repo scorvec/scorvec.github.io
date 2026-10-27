@@ -31,6 +31,11 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+import house
+
+house.apply()
 from matplotlib.dates import DateFormatter
 from scipy.ndimage import gaussian_filter1d
 

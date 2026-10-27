@@ -10,12 +10,15 @@ not drawn.
     python scripts/sfs/sfs_skillfig.py [--site .]   -> assets/sfs/sub/sfs_hindcast_skill.webp
 """
 
+import sys
 import argparse
 from pathlib import Path
 
 import numpy as np
 
 from sfs_verdicts import table
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
 HERE = Path(__file__).resolve().parent
 SYS = [("sfs", "SFS beta2", "#b0562a"), ("gefs", "GEFSv12", "#1f5fbf"), ("geps", "GEPS8", "#2f7d4f")]
@@ -32,6 +35,9 @@ def main():
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     d = table("gefs_geps")
     d = d[d.metric == "acc"]

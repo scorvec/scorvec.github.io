@@ -16,6 +16,7 @@ is resampled to daily means. Runs in sst.yml (Copernicus Marine credentials from
 """
 
 from __future__ import annotations
+import sys
 
 import argparse
 from datetime import date, datetime, timedelta, UTC
@@ -30,6 +31,11 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+import house
+
+house.apply()
 from matplotlib.dates import DateFormatter
 
 HERE = Path(__file__).resolve().parent

@@ -61,6 +61,11 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+import house
+
+house.apply()
 import pyshtools as pysh
 import cartopy.crs as ccrs
 

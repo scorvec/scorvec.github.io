@@ -68,6 +68,8 @@ from pathlib import Path
 import numpy as np
 from quantmet.stats import fdr_adjust
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 REPO = HERE.parents[1]
@@ -656,6 +658,9 @@ def render(res: dict) -> str:
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     names = [c for c, _ in CENTRES] + [MMM]
     cols = {"Dec": "#2a78d6", "Jan": "#eb6834", "Feb": "#1baf7a", "DJF": "#eda100"}

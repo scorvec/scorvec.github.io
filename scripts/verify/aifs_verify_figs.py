@@ -15,6 +15,7 @@ the scorecard and has p < ALPHA.
 """
 
 from __future__ import annotations
+import sys
 
 import argparse
 import json
@@ -24,6 +25,8 @@ import numpy as np
 from matplotlib.ticker import NullFormatter
 import pandas as pd
 from quantmet.stats import benjamini_hochberg
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
 ROWS = [
     ("raob", "z500", "nh", "500 hPa height", "radiosondes", "NH 20–80°N"),
@@ -163,6 +166,9 @@ def style():
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     plt.rcParams.update(
         {

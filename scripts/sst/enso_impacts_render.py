@@ -18,12 +18,15 @@ composite placed among 100,000 3-event composites drawn from the models, FDR 10 
 """
 
 from __future__ import annotations
+import sys
 
 import json
 import os
 from pathlib import Path
 
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
 HERE = Path(__file__).resolve().parent
 REF = HERE / "reference"
@@ -75,6 +78,9 @@ def _plt():
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     plt.rcParams.update({"font.family": "DejaVu Sans"})
     return plt

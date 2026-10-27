@@ -96,6 +96,8 @@ from pathlib import Path
 import pyproj  # noqa: F401  (load pyproj's libproj before eccodes: gefs_live, read later, uses it)
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import gefs_reforecast as R  # (get, index, decode, grid, packing)
@@ -488,6 +490,9 @@ def _plt():
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     return plt
 

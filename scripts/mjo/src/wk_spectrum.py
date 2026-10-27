@@ -40,6 +40,8 @@ import pandas as pd
 from quantmet.stats import benjamini_hochberg as bh  # BH-FDR mask
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
 from localdirs import env_dir
 
 NSEG = 96  # WK99 window
@@ -389,6 +391,9 @@ def render(freq, kk, now, clim, t0, t1, out: Path, bands=None, masks=None):
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     m = np.abs(kk) <= KMAX
     f = (freq > 0) & (freq <= FMAX)

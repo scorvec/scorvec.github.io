@@ -38,6 +38,8 @@ import pandas as pd
 import xarray as xr
 from quantmet.degdays import doy366
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 sys.path.insert(0, str(REPO / "scripts" / "ecmwf"))
@@ -216,6 +218,9 @@ def _prewarm_features():
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
 

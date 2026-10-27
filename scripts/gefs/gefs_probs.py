@@ -52,6 +52,8 @@ from pathlib import Path
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import gefs_reforecast as R  # (the climatology release)
@@ -169,6 +171,9 @@ def _plt():
     matplotlib.use("Agg")
     matplotlib.rcParams["hatch.linewidth"] = 0.5
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     return plt
 

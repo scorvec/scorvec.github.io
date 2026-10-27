@@ -30,6 +30,7 @@ offset should be.)
 
 from __future__ import annotations
 
+import sys
 import argparse
 import json
 import time
@@ -43,10 +44,17 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
+import house
+
+house.apply()
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
 import sys
+
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))

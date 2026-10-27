@@ -24,6 +24,7 @@ Outputs:
 """
 
 from __future__ import annotations
+import sys
 
 import contextlib
 import json
@@ -37,6 +38,11 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+import house
+
+house.apply()
 from matplotlib import colors as mcolors
 from PIL import Image
 from quantmet.degdays import doy366

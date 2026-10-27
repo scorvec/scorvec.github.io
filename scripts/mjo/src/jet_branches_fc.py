@@ -46,6 +46,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parents[1] / "ecmwf"))
@@ -345,6 +347,9 @@ def mpl():
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     plt.rcParams.update({"font.size": 10.5, "font.family": "DejaVu Sans"})
     return plt

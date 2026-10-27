@@ -37,6 +37,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from seas5_outlook import ASSETS
@@ -417,6 +419,9 @@ def render(df, res) -> str:
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     from matplotlib.colors import TwoSlopeNorm
 
     fig, ax = plt.subplots(figsize=(10.5, 4.8))

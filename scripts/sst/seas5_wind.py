@@ -29,6 +29,8 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from seas5_outlook import ASSETS, CENTRE, DATA, L7_STATE, SYSTEM, CLIM_YEARS, _client, nleads
 from seas5_popT import REGIONS, in_month, years_hours
@@ -178,6 +180,9 @@ def draw_map(field, lat, lon, levels, colors, label, title, sub, out: Path, exte
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     import matplotlib.patheffects as pe
     import textwrap
     from matplotlib.colors import BoundaryNorm, ListedColormap

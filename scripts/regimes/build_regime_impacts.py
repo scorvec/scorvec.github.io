@@ -4,7 +4,9 @@
 
 IMPACTS. For every regime of both seasonal sets in both sectors: the composite 2 m temperature and precipitation
 anomaly over the days the regime was observed (R1, 1991-2020, each day in its own season's set, data/r1_labels.npz),
+from __future__ import annotations
 from ERA5 daily means at 1.5 deg (t2m: wb2_1p5_daily_global; precipitation: wb2_1p5_daily, mm/day - the store's
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 attributes say m, the README and a value check say mm). Anomaly = the day minus the 1991-2020 day-of-year mean
 (31-day circular smoothing) minus a linear trend fitted per grid point and season over the 30 years, so a regime that
 happened to be more common late in the period does not inherit the warming.
@@ -25,8 +27,6 @@ the share of days in each regime by calendar month (1991-2020).
        (share of the map passing the test, per regime and variable)
 The figures go out with the GEPS page's own publish (run_geps.sh copies figs/*.webp into assets/geps).
 """
-
-from __future__ import annotations
 
 import datetime as dt
 import json
@@ -159,6 +159,9 @@ def main() -> int:
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
 

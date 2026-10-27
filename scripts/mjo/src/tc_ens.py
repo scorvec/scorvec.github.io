@@ -46,6 +46,8 @@ from pathlib import Path
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+
 sys.path.insert(0, str(Path(__file__).parent))
 import tclib as TC
 
@@ -666,6 +668,9 @@ def render_tracks(s: dict, init, out_png: Path, mstat: dict):
     import cartopy.crs as ccrs
     import matplotlib.patheffects as pe
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     from matplotlib.colors import BoundaryNorm, ListedColormap
     from matplotlib.patches import Patch
 

@@ -39,6 +39,8 @@ import pandas as pd
 import xarray as xr
 from quantmet.pv import dynamic_tropopause
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+
 sys.path.insert(0, str(Path(__file__).parent))
 import dt_charts as DT
 import tclib as TC
@@ -100,6 +102,9 @@ def frame(storm, members, det, sector, fields, init, h, lab, grid, out: Path):
     title (rangefetch.RESOL_LABEL)."""
     import cartopy.crs as ccrs
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     lon0, lon1, lat0, lat1, asp = sector
     lat, lon, th, p, adv = fields

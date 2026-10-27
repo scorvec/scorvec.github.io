@@ -27,6 +27,8 @@ from pathlib import Path
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 SCRIPTS = HERE.parent
 sys.path.insert(0, str(SCRIPTS / "ecmwf"))
@@ -527,6 +529,9 @@ def map_axes(dom, width=12.0):
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     import cartopy.crs as ccrs
 
     w, e, s, n = dom["extent"]

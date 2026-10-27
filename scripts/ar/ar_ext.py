@@ -38,6 +38,8 @@ import numpy as np
 from quantmet.degdays import doy366
 from quantmet.stats import benjamini_hochberg as bh  # BH-FDR mask; was a local copy, identical (2026-10-12)
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import arlib as A
@@ -239,6 +241,9 @@ def load_clim(init: dt.date, cache: Path, window=15):
 
 def ext_figure(out, title, sub, anom, sig, clim_f, n_sig, n_test):
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     from matplotlib.colors import BoundaryNorm, ListedColormap
     import cartopy.crs as ccrs
 

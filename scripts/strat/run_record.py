@@ -21,6 +21,7 @@ members.
 """
 
 from __future__ import annotations
+import sys
 
 import argparse
 import json
@@ -30,6 +31,8 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
 REPO = Path(__file__).resolve().parents[2]
 DATA = REPO / "assets" / "sst" / "data"
@@ -365,6 +368,9 @@ def render(product: str, model: str, out: Path | None = None) -> Path | None:
     matplotlib.use("Agg")
     import matplotlib.dates as mdates
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     P = PRODUCTS[product]
     rs = runs(product, model)

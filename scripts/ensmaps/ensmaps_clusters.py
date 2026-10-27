@@ -63,6 +63,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 sys.path[:0] = [str(HERE), str(ROOT / "scripts" / "lib"), str(ROOT / "scripts" / "regimes")]
@@ -777,6 +779,9 @@ class Figures:
 
     def draw(self, name, dk, title, variant, cz, cm, absz, absm, agz, agm, sig_z, sig_m, high, sdz, sdm) -> str:
         import matplotlib.pyplot as plt
+        import house
+
+        house.apply()
         from PIL import Image
 
         import regime_core as RC

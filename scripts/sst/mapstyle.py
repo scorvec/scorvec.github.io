@@ -13,9 +13,13 @@ seas5_build._global_map draws exactly this; sfs_maps imports it.
 """
 
 from __future__ import annotations
+from pathlib import Path
+import sys
 from itertools import pairwise
 
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
 CENTRAL = {"sst": -160.0, "atm": -140.0}
 LAT = {"sst": (-70, 70), "atm": (-60, 85)}
@@ -35,6 +39,9 @@ def open_map(
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     import cartopy.crs as ccrs
 
     pc = ccrs.PlateCarree()

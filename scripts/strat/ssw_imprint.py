@@ -15,12 +15,15 @@ reanalysis' baseline.
 """
 
 from __future__ import annotations
+import sys
 
 from pathlib import Path
 
 import pyproj  # noqa: F401  (load pyproj's libproj before xarray/eccodes: else a double free at exit)
 import numpy as np
 import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
 HERE = Path(__file__).resolve().parent
 REF = HERE / "reference" / "ssw_imprint.nc"
@@ -349,6 +352,9 @@ def render(doc: dict, ref: Ref, out: Path = FIGURE) -> None:
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     INK, MUTED = "#1f2328", "#6f6b64"
     models = [m for m in MODELS if m in doc["models"]]

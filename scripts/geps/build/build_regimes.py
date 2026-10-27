@@ -29,6 +29,7 @@ the centroids never change unless this is rerun, so the names hold.
 """
 
 from __future__ import annotations
+import sys
 
 import json
 import sys as _sys
@@ -38,6 +39,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from scipy.cluster.vq import kmeans2
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
 
 HERE = Path(__file__).resolve().parent
 
@@ -154,6 +157,9 @@ def main() -> int:
 
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
+        import house
+
+        house.apply()
         import cartopy.crs as ccrs
         import cartopy.feature as cfeature
 

@@ -21,14 +21,14 @@ negative, at or after onset. Here each condition must hold at consecutive 12-hou
 One deterministic run, one path through phase space per storm (the ensembles' spread is on the board). The path
 continues past the tracker's last fix: ECMWF's tracker stops at (or near) extratropical transition, exactly when the
 phase diagram gets interesting, so HRES's low is followed on as the surface-pressure minimum (tclib.follow_low, 12-hourly,
+from __future__ import annotations
 from HRES's own msl) and those points are drawn dashed. tcphase.json records a status: "ok", "none" (no storm on the
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
 board, or none HRES tracks long enough for a path) or "missing" (the board is not this cycle's, or HRES's fields could
 not be had).
     python src/tc_phase.py --date 20261002 --time 00 --board ../../assets/sst/data/tc_board.json \
         --out-dir ../../assets/sst --json ../../assets/sst/data/tcphase.json
 """
-
-from __future__ import annotations
 
 import pyproj  # noqa: F401  before eccodes/xarray: eckit's bundled libproj otherwise clashes (double free at exit)
 
@@ -263,6 +263,9 @@ def render(rows, init, out_png):
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     from matplotlib.collections import LineCollection
 
     n = len(rows)

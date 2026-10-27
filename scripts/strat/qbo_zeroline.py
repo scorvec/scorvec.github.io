@@ -29,6 +29,7 @@ ECMWF open data has u at 50 and 10 hPa but not 70 or 30, so those two levels are
 """
 
 from __future__ import annotations
+import sys
 
 import argparse
 import glob
@@ -40,6 +41,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from quantmet.qbo import zero_line, SIGMA, UMIN, BOUND  # the index
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
@@ -185,6 +188,9 @@ def render(out_dir=REPO / "assets" / "sst", data_dir=None, tail_dir=None, days_b
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     import matplotlib.colors as mcolors
     import matplotlib.dates as mdates
     import xarray as xr

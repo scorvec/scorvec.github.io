@@ -36,6 +36,8 @@ import time
 from pathlib import Path
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from seas5_outlook import ASSETS, DATA, CENTRE, SYSTEM, CLIM_YEARS, L7_STATE, _client, hc_path, nleads
 from seas5_build import load_field, valid_months
@@ -275,6 +277,9 @@ def draw_map(field, lat, lon, levels, colors, label, title, sub, out: Path, exte
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     import textwrap
     from matplotlib.colors import BoundaryNorm, ListedColormap
     import cartopy.crs as ccrs

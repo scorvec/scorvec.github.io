@@ -6,6 +6,7 @@ for what each product is and why it is built the way it is.
 """
 
 from __future__ import annotations
+import sys
 
 import json
 import textwrap
@@ -15,6 +16,8 @@ from pathlib import Path
 
 import numpy as np
 import xarray as xr
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", message=".*cfgrib.*")
@@ -999,6 +1002,9 @@ def _global_map(field, lat, lon, var, levels, cmap, cstep, title, sub, cb_label,
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     from matplotlib.colors import BoundaryNorm
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature

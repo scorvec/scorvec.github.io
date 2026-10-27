@@ -23,6 +23,7 @@ Outputs (assets/sst/):
 """
 
 from __future__ import annotations
+import sys
 
 import argparse
 import json
@@ -36,6 +37,11 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+import house
+
+house.apply()
 import matplotlib.colors as mcolors
 import matplotlib.path as mpath
 from quantmet.stats import benjamini_hochberg as fdr  # BH-FDR mask

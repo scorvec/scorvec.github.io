@@ -18,6 +18,7 @@ longitudes / periods are missing — shown as gaps.
 """
 
 from __future__ import annotations
+import sys
 
 import json
 import os
@@ -31,6 +32,11 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+import house
+
+house.apply()
 import matplotlib.colors as mcolors
 
 import tao_subsurface as tao

@@ -37,6 +37,8 @@ from pathlib import Path
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 CASES = {  # name: (index months, field months, field year offset from the index year)
     "SON": ((9, 10, 11), (9, 10, 11), 0),
     "DJF": ((12, 1, 2), (12, 1, 2), 0),
@@ -216,6 +218,9 @@ def figure(maps: dict, lat, lon, path: Path, title: str) -> None:
     matplotlib.use("Agg")
     import cartopy.crs as ccrs
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     lim = {"pr": 0.6, "tas": 0.4, "psl": 0.8, "sfcWind": 0.3}
     cmap = {"pr": "BrBG", "tas": "RdBu_r", "psl": "PuOr_r", "sfcWind": "PiYG"}

@@ -28,6 +28,8 @@ import numpy as np
 import pandas as pd
 from quantmet.pv import dynamic_tropopause, on_isentrope
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
 import cycles
 import tclib as TC
@@ -146,6 +148,9 @@ def _frame():
     import cartopy.crs as ccrs
     import matplotlib.path as mpath
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     fig = plt.figure(figsize=(FIG_W, FIG_H))
     proj = ccrs.NorthPolarStereo(central_longitude=CENTRAL_LON)

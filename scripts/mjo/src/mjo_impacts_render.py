@@ -12,6 +12,7 @@ carries NaN elsewhere).
 """
 
 from __future__ import annotations
+import sys
 
 import argparse
 import json
@@ -21,6 +22,8 @@ from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
 
 ROOT = Path(os.environ.get("SITE_ROOT", Path(__file__).resolve().parents[3]))
 REF = ROOT / "scripts" / "mjo" / "data" / "reference"
@@ -162,6 +165,9 @@ def _note(z, meta, name, data, li, p, m):
 
 def _draw(ax, fig, lat, lon, F, spec, crs):
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     from matplotlib.colors import BoundaryNorm
     import cartopy.feature as cf
     from matplotlib.colors import ListedColormap

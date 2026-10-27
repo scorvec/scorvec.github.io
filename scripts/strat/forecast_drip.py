@@ -66,6 +66,8 @@ import pyproj  # noqa: F401  (load pyproj's libproj before xarray/eccodes)
 import numpy as np
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
@@ -505,6 +507,9 @@ def render(
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     X = np.r_[(tail_days - init).days.values, np.array(leads) / 24.0]
     Z = np.vstack([Zt, np.nanmean(Zf, 0)])  # (time, level)

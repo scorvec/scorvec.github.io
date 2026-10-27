@@ -18,6 +18,11 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+import house
+
+house.apply()
 from matplotlib.colors import LinearSegmentedColormap, BoundaryNorm
 from matplotlib.lines import Line2D
 

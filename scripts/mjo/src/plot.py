@@ -7,10 +7,16 @@ Usage:
                        --out plots/rmm_20240601_00z.webp
 """
 
+import sys
 import argparse
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+import house
+
+house.apply()
 import matplotlib.colors as mcolors
 import numpy as np
 import pandas as pd

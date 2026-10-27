@@ -65,6 +65,8 @@ import pandas as pd
 import xarray as xr
 from quantmet.pv import on_isentrope
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import jet_branches as JB
@@ -484,6 +486,9 @@ def draw(main, r1, n, path, period):
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     fig, axs = plt.subplots(
         4, 1, figsize=(11, 13.5), subplot_kw=dict(projection=ccrs.PlateCarree(central_longitude=180))

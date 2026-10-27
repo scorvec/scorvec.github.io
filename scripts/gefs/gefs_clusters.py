@@ -34,6 +34,8 @@ import warnings
 import numpy as np
 from scipy.cluster.vq import kmeans2
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 warnings.filterwarnings("ignore", message="One of the clusters is empty")  # that restart just loses on inertia
 
 HERE = Path(__file__).resolve().parent
@@ -104,6 +106,9 @@ def main() -> int:
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
 

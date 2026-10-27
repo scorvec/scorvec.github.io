@@ -32,6 +32,11 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+import house
+
+house.apply()
 import cartopy.crs as ccrs  # noqa: F401  loads pyproj before xarray/eccodes (eccodes preloads its own libproj)
 
 HERE = Path(__file__).resolve().parent

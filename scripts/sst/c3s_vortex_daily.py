@@ -81,6 +81,8 @@ from pathlib import Path
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 REPO = HERE.parents[1]
@@ -1192,6 +1194,9 @@ def render(issue, A, R, U, AN, W, CEN, corr, pc, mm, present, dates) -> dict:
     matplotlib.use("Agg")
     import matplotlib.dates as mdates
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     plt.rcParams.update(
         {"font.family": "DejaVu Sans", "font.size": 10.5, "axes.spines.top": False, "axes.spines.right": False}

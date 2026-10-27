@@ -51,6 +51,8 @@ import pyproj  # noqa: F401  (load-order guard, see above)
 import pandas as pd
 import xarray as xr
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 sys.path.insert(0, str(HERE))
@@ -268,6 +270,9 @@ def _mpl():
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     plt.rcParams.update({"font.size": 10.5, "font.family": "DejaVu Sans"})
     return plt

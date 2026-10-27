@@ -48,6 +48,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from seas5_outlook import ASSETS, CENTRE, CLIM_YEARS, DATA, SYSTEM
@@ -666,6 +668,9 @@ def render(ym, dates, f60, cm, q10, q90, z, fsec, hsec, lats, tail, doc) -> dict
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     import matplotlib.dates as mdates
 
     issue = f"{calendar.month_name[int(ym[4:])]} {ym[:4]} issue"

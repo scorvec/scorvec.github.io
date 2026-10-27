@@ -42,6 +42,8 @@ from pathlib import Path
 import numpy as np
 from quantmet.stats import benjamini_hochberg
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import cansips_dd as DDM
@@ -358,6 +360,9 @@ def _beyond_note(idx):
 
 def draw_field(key, ym, idx, A, sig, comps, out: Path, nsig: float):
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     from matplotlib.colors import BoundaryNorm
 
     vs, kind, units, title, cmap, levels, dom = FIELDS[key]

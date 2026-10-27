@@ -35,6 +35,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import arlib as A
@@ -546,6 +548,9 @@ def _render(job):
 
 def pwat_frame(out, R, k):
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     from matplotlib.colors import BoundaryNorm, ListedColormap, LinearSegmentedColormap
     import cartopy.crs as ccrs
 

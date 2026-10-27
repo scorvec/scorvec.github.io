@@ -28,6 +28,11 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[0] / "lib"))
+import house
+
+house.apply()
 from matplotlib.colors import LogNorm
 from matplotlib.ticker import FuncFormatter
 import cartopy.crs as ccrs

@@ -48,6 +48,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+
 sys.path.insert(0, str(Path(__file__).parent))
 import tc_ens as TE
 import tclib as TC
@@ -657,6 +659,9 @@ def render(js: dict, out: Path):
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     fig, axs = plt.subplots(2, 2, figsize=(14.5, 9.4))
     fig.subplots_adjust(left=0.06, right=0.985, top=0.9, bottom=0.13, hspace=0.42, wspace=0.18)

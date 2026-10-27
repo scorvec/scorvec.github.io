@@ -51,6 +51,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 from localdirs import env_dir
@@ -407,6 +409,9 @@ def build(ym: str, replot: bool = False) -> None:
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     from scipy.stats import gaussian_kde
 
     prev = previous_issues(ym, 1)[0]

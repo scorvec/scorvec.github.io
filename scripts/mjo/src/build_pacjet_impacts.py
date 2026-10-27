@@ -35,6 +35,8 @@ from scipy.ndimage import uniform_filter1d
 from quantmet.degdays import doy366
 from quantmet.stats import benjamini_hochberg
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 sys.path.insert(0, str(HERE))
@@ -181,6 +183,9 @@ def render(out_dir=SITE) -> list:
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
 

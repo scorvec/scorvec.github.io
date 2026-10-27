@@ -14,6 +14,7 @@ Every panel is daily-resolution (step columns), nothing is interpolated between 
 """
 
 from __future__ import annotations
+import sys
 
 import datetime as dt
 from pathlib import Path
@@ -21,6 +22,8 @@ from pathlib import Path
 import numpy as np
 
 import regime_core as RC
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
 TAIL = 14
 SKILL_COLORS = {"geps": "#16335c", "gefs": "#0f7c7a"}
@@ -32,6 +35,9 @@ def _mpl():
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     plt.rcParams.update({"font.size": FONT, "font.family": "DejaVu Sans"})
     return plt

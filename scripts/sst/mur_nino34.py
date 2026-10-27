@@ -48,6 +48,8 @@ import numpy as np
 import pandas as pd
 from quantmet.degdays import doy366
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 SITE_ROOT = Path(os.environ["SST_SITE_ROOT"]).resolve() if os.environ.get("SST_SITE_ROOT") else HERE.parent.parent
 ASSETS = SITE_ROOT / "assets" / "sst"
@@ -214,6 +216,9 @@ def render(s: pd.Series, clim) -> None:
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     import matplotlib.dates as mdates
 
     oi = None

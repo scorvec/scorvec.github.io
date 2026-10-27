@@ -41,6 +41,8 @@ import pandas as pd
 import xarray as xr
 from quantmet.degdays import doy366
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 sys.path.insert(0, str(HERE))
@@ -305,6 +307,9 @@ def render(out: Path, rows: list, fc_rows: list, init, lat, lon, cal: dict) -> N
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature

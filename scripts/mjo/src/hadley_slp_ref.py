@@ -45,6 +45,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "era5"))
@@ -508,6 +510,9 @@ def figures(doc: dict, fits: dict, out_dir: Path):
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     fig, axs = plt.subplots(1, 2, figsize=(14, 4.6))
     for d in doc["models"].values():

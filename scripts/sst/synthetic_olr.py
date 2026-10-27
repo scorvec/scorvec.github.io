@@ -2,6 +2,8 @@
 """Synthetic equatorial OLR Hovmöller from GMGSI longwave-IR — real-time convection.
 
 NOAA's interpolated-OLR product ended in 2022, so this derives an OLR proxy in real time
+from __future__ import annotations
+import sys
 from the GMGSI global longwave-IR brightness-temperature mosaic (AWS, hourly, seamless
 lat/lon). The 0-255 byte is the McIDAS IR calibration → brightness temperature, then the
 Ohring-Gruber flux-temperature relation → OLR. The 5°S-5°N zonal mean is appended to a
@@ -13,14 +15,15 @@ shift during El Niño.
     python scripts/sst/synthetic_olr.py --bootstrap 21  # backfill N days (2/day) first
 """
 
-from __future__ import annotations
-
 import argparse
 import re
 import tempfile
 import urllib.request
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
 import numpy as np
 import pandas as pd
@@ -30,6 +33,10 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+import house
+
+house.apply()
 import matplotlib.dates as mdates
 from matplotlib.colors import BoundaryNorm
 

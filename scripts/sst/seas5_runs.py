@@ -31,6 +31,8 @@ import numpy as np
 import xarray as xr
 from quantmet.degdays import doy366
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from seas5_outlook import ASSETS
 from seas5_extremes import xchunk_path, cpc_path, YEARS
@@ -203,6 +205,9 @@ def draw(field, lat, lon, region, levels, colors, label, title, sub, out, extend
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     import textwrap
     from matplotlib.colors import BoundaryNorm, ListedColormap
     import cartopy.crs as ccrs

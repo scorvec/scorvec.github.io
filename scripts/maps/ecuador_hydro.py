@@ -18,6 +18,8 @@ a tailrace (the Paute cascade, Agoyan and San Francisco) share a catchment.
 """
 
 from __future__ import annotations
+from pathlib import Path
+import sys
 
 import argparse
 import json
@@ -27,6 +29,8 @@ from collections import defaultdict
 import pyproj  # noqa: F401  (load order: before the GDAL/PROJ stack)
 import geopandas as gpd
 from shapely.geometry import Point
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
 BBOX = (-81.3, -5.2, -75.1, 1.6)  # lon0, lat0, lon1, lat1
 # scheme: (intake / dam lon, lat, the point's name, plants fed with MW, river, approximate?)
@@ -203,6 +207,9 @@ def main() -> int:
     import cartopy.feature as cf
     import matplotlib.patheffects as pe
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     fig = plt.figure(figsize=(10, 12.2))
     ax = fig.add_axes([0.03, 0.12, 0.94, 0.82], projection=ccrs.PlateCarree())
