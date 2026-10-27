@@ -384,9 +384,13 @@ def panel(ax, z, lev, hemi, k, valid=None):
         cm = band_coeff(M[:, sel, :], la, north, lon[0], k)
         info["coherence"] = float(np.abs(cm.mean()) / np.mean(np.abs(cm)))
 
+    # levels strictly inside the field's range: one exactly at its min or max (whole-metre GEPS control heights, 10 hPa
+    # NH 27 Oct 12Z min 29600 = 185 x 160) contours to a single point that cartopy cannot project (empty Point, getX)
     ci = FULL_CI[lev]
-    lo, hi = np.floor(Z.min() / ci) * ci, np.ceil(Z.max() / ci) * ci
-    ax.contour(lon, la, Z, levels=np.arange(lo, hi + ci, ci), colors="#6e6e6e", linewidths=0.45, transform=PC, zorder=3)
+    lo, hi = (np.floor(Z.min() / ci) + 1) * ci, (np.ceil(Z.max() / ci) - 1) * ci
+    ax.contour(
+        lon, la, Z, levels=np.arange(lo, hi + ci / 2, ci), colors="#6e6e6e", linewidths=0.45, transform=PC, zorder=3
+    )
     ax.add_feature(cfeature.COASTLINE.with_scale("110m"), edgecolor="#0d0d0d", linewidth=0.9, zorder=4)
     gl = ax.gridlines(linewidth=0.3, color="#8a8a8a", alpha=0.45, zorder=5)
     gl.ylocator = plt.FixedLocator([20, 40, 60, 80] if north else [-80, -60, -40, -20])
