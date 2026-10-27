@@ -1,48 +1,48 @@
 {
- "updated": "2026-10-26",
- "total_30d": 926,
- "countries_30d": 34,
- "total_all": 1741,
- "countries_all": 36,
+ "updated": "2026-10-27",
+ "total_30d": 1008,
+ "countries_30d": 35,
+ "total_all": 1832,
+ "countries_all": 37,
  "top_pages_30d": [
   {
    "path": "/",
-   "count": 73
-  },
-  {
-   "path": "/models.html",
-   "count": 72
-  },
-  {
-   "path": "/aifs-aam-budget.html",
-   "count": 64
+   "count": 81
   },
   {
    "path": "/stratosphere.html",
-   "count": 62
+   "count": 77
+  },
+  {
+   "path": "/models.html",
+   "count": 73
+  },
+  {
+   "path": "/aifs-aam-budget.html",
+   "count": 65
   },
   {
    "path": "/mjo.html",
-   "count": 57
-  },
-  {
-   "path": "/enso.html",
-   "count": 44
+   "count": 59
   },
   {
    "path": "/circulation.html",
-   "count": 43
+   "count": 49
+  },
+  {
+   "path": "/enso.html",
+   "count": 48
   },
   {
    "path": "/midterms",
-   "count": 42
-  },
-  {
-   "path": "/gefs.html",
-   "count": 31
+   "count": 44
   },
   {
    "path": "/subseasonal.html",
+   "count": 34
+  },
+  {
+   "path": "/gefs.html",
    "count": 31
   }
  ]

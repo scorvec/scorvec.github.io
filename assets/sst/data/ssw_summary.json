@@ -1,9 +1,9 @@
 {
- "built": "2026-10-27 00:24Z",
- "newest_init": "2026-10-26 12Z",
+ "built": "2026-10-27 09:12Z",
+ "newest_init": "2026-10-27 00Z",
  "window": [
-  "2026-10-27",
-  "2026-11-10"
+  "2026-10-28",
+  "2026-11-11"
  ],
  "ssw_season": true,
  "names": {
@@ -18,12 +18,12 @@
  "ssw": {
   "models": {
    "aifs": {
-    "init": "2026-10-26 12Z",
+    "init": "2026-10-27 00Z",
     "members": 51,
-    "share": 0.23,
-    "wmo": null,
-    "u10_min_mean": 3.1,
-    "u10_min_p10": -1.0,
+    "share": 0.35,
+    "wmo": 0.35,
+    "u10_min_mean": 1.9,
+    "u10_min_p10": -3.1,
     "runs": [
      [
       "2026-10-01T00",
@@ -642,16 +642,28 @@
       0.23,
       0.0,
       null
+     ],
+     [
+      "2026-10-26T18",
+      0.2,
+      0.0,
+      0.2
+     ],
+     [
+      "2026-10-27T00",
+      0.35,
+      0.0,
+      0.35
      ]
     ]
    },
    "ifs": {
-    "init": "2026-10-26 12Z",
+    "init": "2026-10-27 00Z",
     "members": 50,
-    "share": 0.52,
-    "wmo": null,
-    "u10_min_mean": 0.5,
-    "u10_min_p10": -2.5,
+    "share": 0.86,
+    "wmo": 0.4,
+    "u10_min_mean": -1.4,
+    "u10_min_p10": -3.6,
     "runs": [
      [
       "2026-10-01T00",
@@ -964,16 +976,22 @@
       0.52,
       0.0,
       null
+     ],
+     [
+      "2026-10-27T00",
+      0.86,
+      0.0,
+      0.4
      ]
     ]
    },
    "gefs": {
-    "init": "2026-10-26 12Z",
+    "init": "2026-10-27 00Z",
     "members": 31,
-    "share": 0.39,
-    "wmo": null,
-    "u10_min_mean": 1.8,
-    "u10_min_p10": -1.5,
+    "share": 0.65,
+    "wmo": 0.52,
+    "u10_min_mean": 0.5,
+    "u10_min_p10": -2.6,
     "runs": [
      [
       "2026-10-01T00",
@@ -1286,16 +1304,22 @@
       0.39,
       0.0,
       null
+     ],
+     [
+      "2026-10-27T00",
+      0.65,
+      0.0,
+      0.52
      ]
     ]
    },
    "geps": {
-    "init": "2026-10-26 12Z",
+    "init": "2026-10-27 00Z",
     "members": 21,
-    "share": 0.91,
-    "wmo": null,
-    "u10_min_mean": -2.1,
-    "u10_min_p10": -7.1,
+    "share": 1.0,
+    "wmo": 1.0,
+    "u10_min_mean": -3.9,
+    "u10_min_p10": -8.1,
     "runs": [
      [
       "2026-10-16T12",
@@ -1422,13 +1446,19 @@
       0.91,
       0.05,
       null
+     ],
+     [
+      "2026-10-27T00",
+      1.0,
+      0.05,
+      1.0
      ]
     ]
    }
   },
-  "share_mean": 0.51,
-  "wmo_mean": null,
-  "wmo_models": 0,
+  "share_mean": 0.71,
+  "wmo_mean": 0.57,
+  "wmo_models": 4,
   "base_rate": {
    "winters": 46,
    "with_onset": 0,
@@ -1463,134 +1493,134 @@
  "waves": {
   "models": {
    "aifs": {
-    "init": "2026-10-26 12Z",
+    "init": "2026-10-27 00Z",
     "members": 50,
-    "wave2_share": 0.48,
+    "wave2_share": 0.45,
     "z_peak": 3.8,
-    "z_peak_day": 3,
-    "flux_min": 13.4,
-    "warning_now": 11.4,
+    "z_peak_day": 2,
+    "flux_min": 13.5,
+    "warning_now": 12.5,
     "warning_threshold": 27.5,
     "warning_members": 0.0,
-    "ri_event_share": 0.18,
-    "z_can_min": -1.2,
-    "z_sib_max": 4.6
-   },
-   "ifs": {
-    "init": "2026-10-26 12Z",
-    "members": 50,
-    "wave2_share": 0.57,
-    "z_peak": 3.8,
-    "z_peak_day": 3,
-    "flux_min": 9.5,
-    "warning_now": 11.4,
-    "warning_threshold": 27.5,
-    "warning_members": 0.0,
-    "ri_event_share": 0.24,
+    "ri_event_share": 0.08,
     "z_can_min": -1.1,
     "z_sib_max": 4.7
    },
-   "gefs": {
-    "init": "2026-10-26 12Z",
-    "members": 31,
-    "wave2_share": 0.53,
-    "z_peak": 4.2,
-    "z_peak_day": 3,
-    "flux_min": 11.2,
+   "ifs": {
+    "init": "2026-10-27 00Z",
+    "members": 50,
+    "wave2_share": 0.54,
+    "z_peak": 3.8,
+    "z_peak_day": 2,
+    "flux_min": 8.8,
     "warning_now": 11.4,
     "warning_threshold": 27.5,
     "warning_members": 0.0,
-    "ri_event_share": 0.23,
-    "z_can_min": -1.0,
+    "ri_event_share": 0.26,
+    "z_can_min": -1.1,
     "z_sib_max": 4.8
    },
+   "gefs": {
+    "init": "2026-10-27 00Z",
+    "members": 31,
+    "wave2_share": 0.52,
+    "z_peak": 4.0,
+    "z_peak_day": 2,
+    "flux_min": 10.3,
+    "warning_now": 11.4,
+    "warning_threshold": 27.5,
+    "warning_members": 0.0,
+    "ri_event_share": 0.26,
+    "z_can_min": -1.2,
+    "z_sib_max": 4.9
+   },
    "geps": {
-    "init": "2026-10-26 12Z",
+    "init": "2026-10-27 00Z",
     "members": 21,
-    "wave2_share": 0.58,
-    "z_peak": 3.8,
-    "z_peak_day": 3,
-    "flux_min": 8.9,
+    "wave2_share": 0.56,
+    "z_peak": 3.9,
+    "z_peak_day": 5,
+    "flux_min": 10.2,
     "warning_now": 11.4,
     "warning_threshold": 27.5,
     "warning_members": 0.05,
-    "ri_event_share": 0.24,
+    "ri_event_share": 0.29,
     "z_can_min": -1.2,
-    "z_sib_max": 4.8
+    "z_sib_max": 4.6
    }
   },
-  "wave2_share_mean": 0.54,
+  "wave2_share_mean": 0.52,
   "kind": "mixed"
  },
  "descent": {
   "models": {
    "aifs": {
-    "init": "2026-10-26 12Z",
+    "init": "2026-10-27 00Z",
     "members": 51,
-    "cap100_day15": 1.4,
-    "cap10_day15": 3.4,
-    "frac100_day15": 0.65,
-    "cross100": "2026-10-27",
+    "cap100_day15": 1.7,
+    "cap10_day15": 3.6,
+    "frac100_day15": 0.82,
+    "cross100": "2026-10-28",
     "cross10": "2026-10-29",
     "kind": "bottom-up"
    },
    "aifsc": {
-    "init": "2026-10-26 12Z",
+    "init": "2026-10-27 00Z",
     "members": 1,
-    "cap100_day15": 0.9,
-    "cap10_day15": 3.5,
+    "cap100_day15": 1.9,
+    "cap10_day15": 4.0,
     "frac100_day15": null,
-    "cross100": "2026-10-27",
+    "cross100": "2026-10-28",
     "cross10": "2026-10-29",
     "kind": "bottom-up"
    },
    "aifs1": {
-    "init": "2026-10-26 12Z",
+    "init": "2026-10-27 00Z",
     "members": 1,
-    "cap100_day15": 1.1,
-    "cap10_day15": 2.7,
+    "cap100_day15": 0.9,
+    "cap10_day15": 3.2,
     "frac100_day15": null,
-    "cross100": "2026-10-27",
+    "cross100": "2026-10-28",
     "cross10": "2026-10-29",
     "kind": "bottom-up"
    },
    "ifs": {
-    "init": "2026-10-26 12Z",
+    "init": "2026-10-27 00Z",
     "members": 50,
-    "cap100_day15": 2.2,
+    "cap100_day15": 2.5,
     "cap10_day15": 3.5,
-    "frac100_day15": 0.9,
-    "cross100": "2026-10-27",
+    "frac100_day15": 1.0,
+    "cross100": "2026-10-28",
     "cross10": "2026-10-29",
     "kind": "bottom-up"
    },
    "hres": {
-    "init": "2026-10-26 12Z",
+    "init": "2026-10-27 00Z",
     "members": 1,
-    "cap100_day15": 2.0,
-    "cap10_day15": 4.0,
+    "cap100_day15": 2.7,
+    "cap10_day15": 3.5,
     "frac100_day15": null,
-    "cross100": "2026-10-27",
+    "cross100": "2026-10-28",
     "cross10": "2026-10-29",
     "kind": "bottom-up"
    },
    "gefs": {
-    "init": "2026-10-26 12Z",
+    "init": "2026-10-27 00Z",
     "members": 31,
-    "cap100_day15": 1.4,
-    "cap10_day15": 2.8,
-    "frac100_day15": 0.65,
-    "cross100": "2026-10-27",
+    "cap100_day15": 1.7,
+    "cap10_day15": 2.9,
+    "frac100_day15": 0.77,
+    "cross100": "2026-10-28",
     "cross10": "2026-10-29",
     "kind": "bottom-up"
    },
    "geps": {
-    "init": "2026-10-26 12Z",
+    "init": "2026-10-27 00Z",
     "members": 21,
-    "cap100_day15": 2.5,
-    "cap10_day15": 4.1,
+    "cap100_day15": 2.8,
+    "cap10_day15": 4.3,
     "frac100_day15": 1.0,
-    "cross100": "2026-10-27",
+    "cross100": "2026-10-28",
     "cross10": "2026-10-29",
     "kind": "bottom-up"
    }
@@ -1599,9 +1629,9 @@
  },
  "reflect": {
   "verdict": "absorbing",
-  "shear_init": "2026-10-26 12Z",
-  "shear_min": 26.6,
-  "shear_max": 34.6,
+  "shear_init": "2026-10-27 00Z",
+  "shear_min": 27.6,
+  "shear_max": 36.3,
   "shear_normal": 23.2,
   "zonal_mean_downward": [],
   "canada_downward": [
@@ -1621,47 +1651,47 @@
  "surface": {
   "models": {
    "aifs": {
-    "init": "2026-10-26 12Z",
-    "p_positive": 0.75,
+    "init": "2026-10-27 00Z",
+    "p_positive": 0.8,
     "base_rate": 0.5,
     "window": [
-     "2026-11-11",
-     "2026-12-10"
+     "2026-11-12",
+     "2026-12-11"
     ],
-    "cap100_day15": 1.4,
-    "frac100_day15": 0.65
+    "cap100_day15": 1.7,
+    "frac100_day15": 0.82
    },
    "ifs": {
-    "init": "2026-10-26 12Z",
-    "p_positive": 0.86,
+    "init": "2026-10-27 00Z",
+    "p_positive": 0.9,
     "base_rate": 0.5,
     "window": [
-     "2026-11-11",
-     "2026-12-10"
-    ],
-    "cap100_day15": 2.2,
-    "frac100_day15": 0.9
-   },
-   "gefs": {
-    "init": "2026-10-26 12Z",
-    "p_positive": 0.74,
-    "base_rate": 0.5,
-    "window": [
-     "2026-11-11",
-     "2026-12-10"
-    ],
-    "cap100_day15": 1.4,
-    "frac100_day15": 0.65
-   },
-   "geps": {
-    "init": "2026-10-26 12Z",
-    "p_positive": 0.89,
-    "base_rate": 0.5,
-    "window": [
-     "2026-11-11",
-     "2026-12-10"
+     "2026-11-12",
+     "2026-12-11"
     ],
     "cap100_day15": 2.5,
+    "frac100_day15": 1.0
+   },
+   "gefs": {
+    "init": "2026-10-27 00Z",
+    "p_positive": 0.82,
+    "base_rate": 0.5,
+    "window": [
+     "2026-11-12",
+     "2026-12-11"
+    ],
+    "cap100_day15": 1.7,
+    "frac100_day15": 0.77
+   },
+   "geps": {
+    "init": "2026-10-27 00Z",
+    "p_positive": 0.92,
+    "base_rate": 0.5,
+    "window": [
+     "2026-11-12",
+     "2026-12-11"
+    ],
+    "cap100_day15": 2.8,
     "frac100_day15": 1.0
    }
   },
@@ -1714,8 +1744,8 @@
     "random_p": 0.0005
    }
   },
-  "p_positive_mean": 0.81,
-  "cap100_day15_mean": 1.9,
+  "p_positive_mean": 0.86,
+  "cap100_day15_mean": 2.2,
   "regime": "cap_1sd"
  },
  "reference": {
