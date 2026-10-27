@@ -2033,7 +2033,7 @@
       if (!ss || !ss[0]) { tip.style.display = "none"; return; }
       if (d.spr === "change") {
         var rv = (ss[0] - 128) * e.spread_rel, sv = dispK((ss[2] - 128) * e.spread_change);
-        head = fmtV(rv, 0) + " %" + (ss[0] === 1 || ss[0] === 255 ? " or more" : "") + " spread against the typical change at this latitude";
+        head = "spread " + Math.abs(rv).toFixed(0) + " %" + (ss[0] === 1 || ss[0] === 255 ? " or more" : "") + (rv < 0 ? " below" : " above") + " what this latitude's typical change gives";
         lines.push((ss[1] ? "significant" : "not significant") + " · the spread itself " + fmtV(sv, sdec) + " " + u + " since the run " + vsH(d.c) + " h earlier");
       } else {
         head = "spread " + dispK((ss[0] - 1) * e.spread).toFixed(sdec) + " " + u + (ss[0] === 255 ? " or more" : "") + ": the members' standard deviation";
