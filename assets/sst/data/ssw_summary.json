@@ -1,6 +1,6 @@
 {
- "built": "2026-10-27 15:20Z",
- "newest_init": "2026-10-27 06Z",
+ "built": "2026-10-27 17:22Z",
+ "newest_init": "2026-10-27 12Z",
  "window": [
   "2026-10-28",
   "2026-11-11"
@@ -1320,12 +1320,12 @@
     ]
    },
    "geps": {
-    "init": "2026-10-27 00Z",
+    "init": "2026-10-27 12Z",
     "members": 21,
-    "share": 1.0,
-    "wmo": 1.0,
-    "u10_min_mean": -3.9,
-    "u10_min_p10": -8.1,
+    "share": 0.95,
+    "wmo": 0.95,
+    "u10_min_mean": -3.5,
+    "u10_min_p10": -6.1,
     "runs": [
      [
       "2026-10-16T12",
@@ -1458,12 +1458,18 @@
       1.0,
       0.05,
       1.0
+     ],
+     [
+      "2026-10-27T12",
+      0.95,
+      0.0,
+      0.95
      ]
     ]
    }
   },
-  "share_mean": 0.71,
-  "wmo_mean": 0.56,
+  "share_mean": 0.7,
+  "wmo_mean": 0.54,
   "wmo_models": 4,
   "base_rate": {
    "winters": 46,
@@ -1541,18 +1547,18 @@
     "z_sib_max": 4.9
    },
    "geps": {
-    "init": "2026-10-27 00Z",
+    "init": "2026-10-27 12Z",
     "members": 21,
     "wave2_share": 0.56,
-    "z_peak": 3.9,
+    "z_peak": 4.0,
     "z_peak_day": 5,
-    "flux_min": 10.2,
-    "warning_now": 11.4,
+    "flux_min": 8.8,
+    "warning_now": 12.5,
     "warning_threshold": 27.5,
-    "warning_members": 0.05,
-    "ri_event_share": 0.29,
-    "z_can_min": -1.2,
-    "z_sib_max": 4.6
+    "warning_members": 0.0,
+    "ri_event_share": 0.14,
+    "z_can_min": -1.1,
+    "z_sib_max": 4.7
    }
   },
   "wave2_share_mean": 0.51,
@@ -1621,11 +1627,11 @@
     "kind": "bottom-up"
    },
    "geps": {
-    "init": "2026-10-27 00Z",
+    "init": "2026-10-27 12Z",
     "members": 21,
-    "cap100_day15": 2.8,
-    "cap10_day15": 4.3,
-    "frac100_day15": 1.0,
+    "cap100_day15": 2.3,
+    "cap10_day15": 4.0,
+    "frac100_day15": 0.91,
     "cross100": "2026-10-28",
     "cross10": "2026-10-29",
     "kind": "bottom-up"
@@ -1652,7 +1658,7 @@
    "gefs",
    "geps"
   ],
-  "ri_event_share_mean": 0.25
+  "ri_event_share_mean": 0.21
  },
  "surface": {
   "models": {
@@ -1690,15 +1696,15 @@
     "frac100_day15": 0.77
    },
    "geps": {
-    "init": "2026-10-27 00Z",
-    "p_positive": 0.92,
+    "init": "2026-10-27 12Z",
+    "p_positive": 0.87,
     "base_rate": 0.5,
     "window": [
      "2026-11-12",
      "2026-12-11"
     ],
-    "cap100_day15": 2.8,
-    "frac100_day15": 1.0
+    "cap100_day15": 2.3,
+    "frac100_day15": 0.91
    }
   },
   "skill": {
@@ -1750,8 +1756,8 @@
     "random_p": 0.0005
    }
   },
-  "p_positive_mean": 0.86,
-  "cap100_day15_mean": 2.2,
+  "p_positive_mean": 0.85,
+  "cap100_day15_mean": 2.0,
   "regime": "cap_1sd"
  },
  "reference": {
