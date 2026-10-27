@@ -1,7 +1,7 @@
 /* stage.css — layout for the stage.js viewer pages (a list of plots beside one figure: circulation.html,
    enso.html, subseasonal.html and the others). Sits on /assets/outlook.css. */
 .ss-layout { display: grid; grid-template-columns: clamp(184px, 16vw, 240px) minmax(0, 1fr); gap: 1.1rem; align-items: start; }
-.ss-rail { position: sticky; top: 4.6rem; max-height: calc(100vh - 5.4rem); overflow: auto; background: var(--surface); border: 1.5px solid var(--edge); border-radius: 4px; padding: 0.7rem 0.6rem 0.4rem; }
+.ss-rail { position: sticky; top: 4.6rem; max-height: calc(100vh - 5.4rem); overflow: auto; background: var(--surface); border: 1px solid var(--edge); border-radius: 8px; padding: 0.7rem 0.6rem 0.4rem; }
 .rail-group { margin-bottom: 0.75rem; }
 /* accordion: group titles are buttons; only .open groups list their figures (stage.js opens the
    group of the selected figure and collapses the rest, so the rail fits without scrolling) */
@@ -21,7 +21,7 @@
 .rail-group button.on { background: var(--accent-light); color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
 .rail-group button .ico { width: 1.1rem; text-align: center; font-size: 0.9rem; opacity: 0.85; }
 .rail-group button small { display: block; font-weight: 400; font-size: 0.78rem; color: var(--muted); }
-.ss-main { background: var(--surface); border: 1.5px solid var(--edge); border-radius: 4px; overflow: hidden; overflow: clip; min-width: 0; }   /* clip, not hidden: hidden makes a scroll container and breaks position:sticky inside (the TC shear time bar, 2026-10-08) */
+.ss-main { background: var(--surface); border: 1px solid var(--edge); border-radius: 8px; overflow: hidden; overflow: clip; min-width: 0; }   /* clip, not hidden: hidden makes a scroll container and breaks position:sticky inside (the TC shear time bar, 2026-10-08) */
 .crumb { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; padding: 0.7rem 1.2rem; border-bottom: 1px solid var(--rule); background: #fbfaf7; }
 .crumb .path { font-family: var(--serif); font-size: 1.1rem; color: var(--ink); }
 .crumb .path span { color: var(--muted); margin: 0 0.35rem; }
@@ -54,7 +54,7 @@
 .ss-main .cap { font-size: 0.9rem; color: var(--ink2); margin: 0.6rem 1.2rem 0; max-width: 110ch; }
 .ss-main .about { margin: 0.7rem 1.2rem 0.4rem; border-top: 1px solid var(--rule); padding-top: 0.5rem; }
 .ss-main .about summary { cursor: pointer; font-size: 0.9rem; color: var(--accent); font-weight: 600; }
-.ss-main .about p { font-size: 0.95rem; color: var(--ink2); line-height: 1.65; max-width: 90ch; margin: 0.6rem 0; }
+.ss-main .about p { font-size: 0.95rem; color: var(--ink2); line-height: 1.65; max-width: 125ch; margin: 0.6rem 0; }
 .ss-main .about .chart-sources, .ss-main .about .chart-card-footer { font-size: 0.85rem; color: var(--muted); display: block; margin-top: 0.4rem; }
 .ss-main .about h2, .ss-main .about h3 { font-size: 1.05rem; margin: 0.6rem 0 0.2rem; }
 .kbd { font: 600 0.7rem var(--sans); color: var(--muted); border: 1px solid var(--rule); border-radius: 3px; padding: 0 0.3rem; }

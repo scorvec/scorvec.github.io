@@ -34,7 +34,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=6cd8ec62da">
+<link rel="stylesheet" href="/assets/site.css?v=0816bc7047">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -53,17 +53,19 @@
   h1 { font-family: var(--serif); font-weight: 400; font-size: var(--t-h1); margin-bottom: 0.6rem; text-wrap: balance; }
   .lede { font-size: 0.88rem; color: var(--muted); line-height: 1.7; max-width: 62rem; margin-bottom: 1.8rem; }
   .lede b { color: var(--ink); font-weight: 500; }
-  .verdict { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.7rem; margin-bottom: 1.6rem; }
-  .verdict .kpi { border: 1px solid var(--rule); background: #fff; border-radius: 9px; padding: 0.75rem 0.95rem; }
-  .kpi .lab { font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  /* the headline numbers: one band of cells divided by hairlines, as the site's .chips */
+  .verdict { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); margin-bottom: 1.2rem;
+             background: #fff; border: 1px solid var(--edge); border-radius: 8px; overflow: hidden; }
+  .verdict .kpi { padding: 0.6rem 0.95rem 0.7rem; box-shadow: 1px 0 0 var(--rule), 0 1px 0 var(--rule); }
+  .kpi .lab { font-size: 0.74rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
   .kpi .val { font-family: var(--serif); font-size: 1.45rem; margin-top: 0.15rem; font-variant-numeric: tabular-nums; }
-  .kpi .val small { font-family: var(--sans); font-size: 0.68rem; color: var(--muted); margin-left: 0.35rem; }
+  .kpi .val small { font-family: var(--sans); font-size: 0.78rem; color: var(--muted); margin-left: 0.35rem; }
   .kpi .val.single { color: var(--single); } .kpi .val.control { color: var(--control); }
-  .card { border: 1px solid var(--rule); background: #fff; border-radius: 10px; margin-bottom: 1.6rem; overflow: hidden; }
+  .card { border: 1px solid var(--edge); background: #fff; border-radius: 8px; margin-bottom: 1.6rem; overflow: hidden; }
   .card-head { padding: 1rem 1.4rem 0.4rem; }
   .card-head h2 { font-family: var(--serif); font-weight: 500; font-size: 1.12rem; }
   .card-head p { font-size: 0.78rem; color: var(--muted); line-height: 1.55; margin-top: 0.25rem; max-width: 72rem; }
-  .card-foot { padding: 0.65rem 1.4rem; border-top: 1px solid var(--rule); font-size: 0.7rem; color: var(--muted); }
+  .card-foot { padding: 0.65rem 1.4rem; border-top: 1px solid var(--rule); font-size: 0.78rem; color: var(--muted); }
   .controls { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center; padding: 0.5rem 1.4rem 0.6rem; }
   .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 7px; overflow: hidden; background: #fff; }
   /* a segmented strip wider than the screen scrolls sideways; the shadows (painted under the
@@ -127,7 +129,7 @@
   .sc-empty { padding: 2rem 1.4rem; color: var(--muted); font-size: 0.85rem; text-align: center; }
 </style>
 <link rel="canonical" href="https://scorvec.com/aifs-verify.html">
-<link rel="stylesheet" href="/assets/stage.css?v=c690054b8e">
+<link rel="stylesheet" href="/assets/stage.css?v=9270b2fc3d">
 <script src="/assets/site.js?v=7134a53040" defer></script>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>

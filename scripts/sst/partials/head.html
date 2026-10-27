@@ -97,7 +97,7 @@
     gap: 1rem; margin-bottom: 1.5rem;
   }
   .topic-card {
-    display: block; border: 1.5px solid var(--edge); background: #fff;
+    display: block; border: 1px solid var(--edge); border-radius: 8px; background: #fff;
     padding: 1.2rem 1.3rem; text-decoration: none;
     transition: border-color 0.2s, background 0.2s;
   }
@@ -111,12 +111,11 @@
   .chart-stack { display: flex; flex-direction: column; gap: 1.5rem; }
 
   .chart-card {
-    border: 1.5px solid var(--edge);
+    border: 1px solid var(--edge); border-radius: 8px;
     background: #fff;
     overflow: hidden;
   }
   /* a deck holds many figures, so give it a slightly heavier frame than a lone card */
-  .chart-card.plot-deck { border-width: 2px; border-color: #b8b3a8; }
   .chart-card-header {
     padding: 1rem 1.4rem 0.85rem;
     border-bottom: 1px solid var(--rule);
@@ -360,7 +359,7 @@
 
   /* the legacy plain `card` container — same box as .chart-card */
   .card {
-    background: var(--surface); border: 1.5px solid var(--edge); border-radius: 4px;
+    background: var(--surface); border: 1px solid var(--edge); border-radius: 8px;
     padding: 1rem 1.4rem 0.6rem; margin-bottom: 1.5rem;
   }
   .card h2, .card-header h2 { font-family: var(--serif); font-weight: 500;

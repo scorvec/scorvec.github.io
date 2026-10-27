@@ -667,9 +667,9 @@ html.fp-lock { overflow: hidden; }
 
 /* The explanation section at the bottom of a page: a page opens on its numbers and figures, and its methods, caveats
    and definitions go here, below them. */
-.page-about{max-width:62rem;margin:2.5rem auto 0;padding:1.2rem 0 0;border-top:1px solid var(--rule)}
+.page-about{max-width:75rem;margin:2.5rem auto 0;padding:1.2rem 0 0;border-top:1px solid var(--rule)}
 .page-about h2{font-family:var(--f-serif);font-weight:500;font-size:1.15rem;margin:0 0 .6rem;text-align:left}
-.page-about p,.page-about li{font-size:.95rem;line-height:1.65;color:var(--ink);margin:0 0 .7rem;max-width:62rem}
+.page-about p,.page-about li{font-size:.95rem;line-height:1.65;color:var(--ink);margin:0 0 .7rem;max-width:75rem}
 /* A word naming a line or a shading in the figure: the text in ink after a swatch of that colour (yellows, oranges and
    light greens set as text fall under 4.5:1). <b class="key" style="--key:#e8c04d">Indian Ocean Dipole</b> */
 .key::before{content:'';display:inline-block;width:.72em;height:.72em;margin-right:.3em;border-radius:2px;background:var(--key);vertical-align:-.02em}
