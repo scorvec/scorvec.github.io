@@ -650,36 +650,36 @@ BY_SLUG = {t["slug"]: t for t in TOPICS}
 
 STYLE = """
 <style>
-  body { background: var(--c-bg, #f5f6f3); color: var(--c-ink, #29321f); margin: 0; }
+  body { background: var(--bg); color: var(--ink); margin: 0; }
   .topic { font-size: clamp(1rem, 0.92rem + 0.22vw, 1.14rem); max-width: clamp(46rem, 32rem + 22vw, 60rem); margin: 0 auto; padding: 2rem clamp(1rem, 4vw, 3rem) 3.5rem; }   /* the column widens with the window: ~810 px up to a 1120 px window, ~880 at 1440 px, ~985 at 1920, 60rem max; 18-20 px text, ~90-100 characters a line */
-  .ai-note { font-size: 0.9em; line-height: 1.5; margin: 0 0 1.3rem; padding: 0.65rem 0.95rem; background: var(--c-panel, #eef1ea); border-left: 3px solid var(--c-accent, #274b7a); border-radius: 0 4px 4px 0; }
+  .ai-note { font-size: 0.9em; line-height: 1.5; margin: 0 0 1.3rem; padding: 0.65rem 0.95rem; background: var(--accent-light); border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0; }
   .topic figcaption, .figs figcaption { font-size: clamp(0.88rem, 0.84rem + 0.15vw, 0.95rem); }   /* a step below the text (site.css pins rem) */
-  .topic .crumbs { font-size: 0.92em; color: var(--c-muted, #5c6b73); margin-bottom: 1.2rem; }
+  .topic .crumbs { font-size: 0.92em; color: var(--muted); margin-bottom: 1.2rem; }
   .topic .crumbs a { color: inherit; }
   .topic h1 { text-align: left; margin: 0 0 0.4rem; }
-  .topic .aka { color: var(--c-muted, #5c6b73); font-size: 0.95em; margin: 0 0 1.6rem; }
+  .topic .aka { color: var(--muted); font-size: 0.95em; margin: 0 0 1.6rem; }
   .topic h2 { margin: 2.2rem 0 0.7rem; text-align: left; }
   .topic p, .topic li { line-height: 1.6; }
   .topic ul { padding-left: 1.2rem; }
   .topic li { margin: 0.45rem 0; }
-  .topic a { color: var(--c-accent, #274b7a); text-underline-offset: 0.2em; }
+  .topic a { color: var(--accent); text-underline-offset: 0.2em; }
   .topic .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
   .figs { max-width: clamp(62rem, 48rem + 22vw, 76rem); margin: 1.6rem auto 0; padding: 0 clamp(1rem, 4vw, 3rem); }   /* wider than the text, and widening with it: the live charts are dense */
   .figs figure { margin: 0 0 2rem; }
-  .figs img { display: block; width: auto; max-width: 100%; height: auto; margin: 0 auto; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }   /* never wider than the file */
-  .figs iframe { display: block; width: 100%; aspect-ratio: 16 / 10; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
-  .figs figcaption { color: var(--c-muted, #5c6b73); margin-top: 0.5rem; }
+  .figs img { display: block; width: auto; max-width: 100%; height: auto; margin: 0 auto; border: 1px solid var(--rule); background: #fff; }   /* never wider than the file */
+  .figs iframe { display: block; width: 100%; aspect-ratio: 16 / 10; border: 1px solid var(--rule); background: #fff; }
+  .figs figcaption { color: var(--muted); margin-top: 0.5rem; }
   .live { display: inline-block; margin: 0.6rem 0 0; font-weight: 600; }
-  .related { border-top: 1px solid var(--c-rule, #dfe3dc); margin-top: 2.6rem; padding-top: 1.2rem; }
+  .related { border-top: 1px solid var(--rule); margin-top: 2.6rem; padding-top: 1.2rem; }
   .related ul { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.6rem; }
   .refs { font-size: 0.95em; }
   .refs li { margin: 0.4rem 0; }
-  .byline { color: var(--c-muted, #5c6b73); font-size: 0.92em; margin-top: 2.2rem; }
+  .byline { color: var(--muted); font-size: 0.92em; margin-top: 2.2rem; }
   .hub-list { list-style: none; padding: 0; }
-  .hub-list li { border-top: 1px solid var(--c-rule, #dfe3dc); padding: 1rem 0; margin: 0; }
+  .hub-list li { border-top: 1px solid var(--rule); padding: 1rem 0; margin: 0; }
   .hub-list a { font-family: var(--f-serif); font-size: 1.3em; text-decoration: none; }
   .hub-list a:hover { text-decoration: underline; }
-  .hub-list p { margin: 0.3rem 0 0; color: var(--c-muted, #5c6b73); }
+  .hub-list p { margin: 0.3rem 0 0; color: var(--muted); }
 </style>"""
 
 KATEX = """<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">

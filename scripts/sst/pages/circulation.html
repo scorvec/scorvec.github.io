@@ -81,12 +81,6 @@
 <p>The large-scale divergent circulation aloft from the AIFS-ENS ensemble mean: the 200 hPa velocity-potential anomaly shaded, with the irrotational (divergent) wind as vectors. <b style="color:#2e7d32">Green</b> is upper-level divergence (the outflow above deep convection); <b style="color:#df6a1e">orange</b> is convergence (subsidence). The vectors point out of the divergence centres, tracing the rising and sinking branches of the Walker and Hadley circulations; in El&nbsp;Ni&ntilde;o the divergence shifts east over the central Pacific. Anomaly is versus the ERA5 1991&ndash;2020 climatology. The first frame is the analysis, the rest is the forecast to day&nbsp;14.</p>
 <p class="chart-sources">ECMWF AIFS-ENS 200 hPa u/v, 50-member mean (open data, CC&nbsp;BY&nbsp;4.0) &middot; velocity potential via spherical-harmonic inversion &middot; anomaly vs ERA5 1991&ndash;2020 &middot; updated each 00/12Z cycle</p>
 </template>
-<!-- The North America 2 m temperature item: the maps live on ens-anomalies.html (scripts/ensmaps/, ensmaps.yml); this
-     card, mounted by the natemp product, points there and keeps the old #natemp links working. -->
-<div id="dom-natemp" class="card" hidden>
-  <p class="lede">2&nbsp;m temperature, 500&nbsp;hPa height and sea-level pressure anomalies from the IFS-ENS, AIFS-ENS, GEFS and GEPS to day&nbsp;15, for the whole world, zoomable to the IFS-ENS 0.1&deg; grid, with the significant changes between runs, each member's weather regime and the four ensembles' scenarios: <a href="/ens-anomalies.html">Ensemble anomaly maps</a>.</p>
-  <p><a href="/ens-anomalies.html#ifs/t2m/anom/P1"><b>Open the maps</b></a> &middot; <a href="/ens-anomalies.html#ifs/t2m/change/P1">what the newest run changed</a></p>
-</div>
 <template id="about-waf">
 <p><a href="/topics/wave-activity-flux.html">The explainer</a>: what the Takaya–Nakamura wave activity flux measures, the equations and how to read the chart.</p>
 <p>The <b>Takaya&ndash;Nakamura (2001) wave activity flux</b> is a phase-independent vector diagnostic of quasi-stationary <b>Rossby wave propagation</b>: unlike watching ridges and troughs move, the flux <b>W</b> points along the wave packet's <i>group velocity</i> &mdash; where the wave energy itself is travelling, ducted along the jet-stream waveguides &mdash; and its <b>convergence marks where the downstream flow will amplify</b> days later. That makes it a practical forecast tool for <b>downstream development, blocking onset, and teleconnection excitation</b>: watch packets radiate out of the tropical Pacific convection (the El&nbsp;Ni&ntilde;o&ndash;PNA pathway) or off a mountain-torque event, arc along the subtropical jet, and pile into an amplifying ridge.</p>
@@ -464,11 +458,12 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
 var JETBR_SHOW = true;  // the jet-branch view of the North Pacific jet card; its leads follow scripts/mjo/data/reference/jet_branches_skill.json
 window.STAGE = {
   aliases: {hbranch: "hadley/branches",     // the outflow and descent views joined the Hadley cells product
+            natemp: "/ens-anomalies.html#ifs/t2m/anom/P1",   // the ensemble anomaly maps are the world ensemble viewer
             // the tropical-cyclone products became parts of one (a deep link's own state, #tcshear/<storm>/..., follows)
             tcshear: "tc/shear", tcjet: "tc/jet", tcens: "tc/storms", tcphase: "tc/phase"},
   groups: [
   {label: "Tropical Pacific", ico: "\u{1F30A}", items: [["mslp","MSLP and 10 m wind","ensembles and single runs, to day 15"],["gdps_ir","GDPS simulated IR","forecast satellite loop"]]},
-  {label: "Mid-latitude weather", ico: "\u{1F5FA}", items: [["natemp","Ensemble anomaly maps","four ensembles, the world, to day 15: opens the viewer"],["dt","Dynamic tropopause","θ on 2 PVU, hemisphere and five regions"],["pacjet","North Pacific jet","250 hPa maps, jet axis, phases"],["waf","Wave activity flux","Rossby packets, 250 hPa"]]},
+  {label: "Mid-latitude weather", ico: "\u{1F5FA}", items: [["dt","Dynamic tropopause","θ on 2 PVU, hemisphere and five regions"],["pacjet","North Pacific jet","250 hPa maps, jet axis, phases"],["waf","Wave activity flux","Rossby packets, 250 hPa"]]},
   {label: "Tropical cyclones", ico: "\u{1F300}", items: [["tc","Tropical cyclones","storms and odds, maps, phase space, shear, track record"]]},
   {label: "Tropical circulation", ico: "\u{1F327}", items: [["walker","Walker circulation","analysis, forecasts, by basin"],["hadley","Hadley cells","the cells, outflow and descent, turnover, sea-level pressure"],["vpot","Velocity potential","200 hPa, irrotational wind"],["gdps150","GDPS 150 hPa","outflow layer, wind and height"],["gillrain","Rain-forced circulation","Gill model vs the observed χ200"],["rainfc","Rain forecast, weeks 1–2","bias-adjusted, four ensembles and their blend"]]},
   {label: "Jets & angular momentum", ico: "\u2696", items: [["jets","Subtropical jets","strength and position"],["aam","Atmospheric angular momentum","series, trend, phase, by latitude"],["torque","Surface torques","friction and mountain"]]}
@@ -492,7 +487,6 @@ window.STAGE = {
   gdps_ir: {label: "GDPS simulated infrared", frame: function () { return "sst_anim.html?embed=1&manifest=gdps_ir_manifest.json&region=gdps_ir"; }, about: "about-gdps_ir", cap: function () { return "Forecast top-of-atmosphere brightness temperature from the GDPS, read like a satellite loop."; }},
   gdps150: {label: "GDPS 150 hPa wind and height", frame: function () { return "sst_anim.html?embed=1&manifest=gdps_outflow_manifest.json&region=gdps_outflow"; }, about: "about-gdps150", cap: function () { return "Isotach fill, barbs and 6 dam height contours at 150 hPa, days 1–10."; }},
   vpot: {label: "200 hPa velocity potential", frame: function () { return "sst_anim.html?embed=1&manifest=wind200_manifest.json&region=wind200"; }, about: "about-vpot", cap: function () { return "χ200 anomaly and irrotational wind, ensemble mean: where the tropics are venting and where they are subsiding."; }},
-  natemp: {label: "Ensemble anomaly maps", dom: function () { return "dom-natemp"; }},
   waf: {label: "Wave activity flux", frame: function () { return "sst_anim.html?embed=1&manifest=waf_manifest.json&region=waf"; }, about: "about-waf", cap: function () { return "Takaya–Nakamura flux at 250 hPa, mean of 50 members' fluxes on the low-passed analysis basic state; red = wave activity converging, hatched where members disagree."; }},
   dt: {label: "Dynamic tropopause", a: {label: "Field", items: [["dt","θ on 2 PVU"],["dt_pv330","PV on 330 K"],["dt_pv350","PV on 350 K"]]},
           b: {label: "Region", items: [["nh","Northern Hemisphere"],["npac","North Pacific"],["na","North America"],["atl","North Atlantic & Europe"],["asia","East Asia"],["sam","South America"]]},

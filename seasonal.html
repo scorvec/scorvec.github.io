@@ -38,15 +38,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/outlook.css?v=c8c0a2188e">
-<link rel="stylesheet" href="/assets/stage.css?v=41d1b81a10">
+<link rel="stylesheet" href="/assets/site.css?v=f93076748d">
+<link rel="stylesheet" href="/assets/outlook.css?v=68936064bc">
+<link rel="stylesheet" href="/assets/stage.css?v=cf91b5cce2">
 <script>
 // SEAS5 stratosphere cards moved to the stratosphere page (2026-10-08): forward old deep links before the stage reads the hash
-(function () { var m = {"stratCard": "s5vortex", "sswCard": "s5ssw", "polar-stratosphere": "s5cap"};
+(function () { var m = {"stratCard": "s5vortex", "sswCard": "s5ssw", "polar-stratosphere": "s5cap", "stratLinkCard": "s5vortex"};
   var id = location.hash.replace(/^#/, "").split("/")[0]; if (m[id]) location.replace("/stratosphere.html#" + m[id]); })();
 </script>
 <style>
-  .strat-links { margin: 0.6rem 0 0.2rem 1.1rem; line-height: 1.9; font-size: 0.95rem; }
   .idx-note { font-size: 0.8rem; color: var(--ink2); margin: 0.2rem 0 0.6rem; min-height: 1.2em; }
   .map-grid { display: grid; gap: 1rem; }
   .map-grid figure { margin: 0; background: #fff; border: 1px solid var(--rule); padding: 0.5rem; }
@@ -86,7 +86,6 @@
   table.chg td.flat { color: var(--muted); }
 </style>
 
-<link rel="stylesheet" href="/assets/site.css?v=7a63ac564e">
 <script src="/assets/site.js?v=8eca6e56e2" defer></script>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>
@@ -579,18 +578,6 @@ window.afterPlotly = function (fn) {
       <span class="chart-updated" id="teleUpdated">&mdash;</span>
     </div>
   </div>
-  <div class="card" id="stratLinkCard" data-label="Stratosphere" data-group="SEAS5 &middot; Teleconnections &amp; regimes">
-    <h2>SEAS5 stratosphere: on the stratosphere page</h2>
-    <p class="note">The SEAS5 stratosphere products from this page &mdash; the vortex, QBO and annular-mode plumes, the polar vortex
-    and sudden-warming risk against the model&rsquo;s own normal, and the polar-cap heights &mdash; moved on 8 October 2026 to the
-    <a href="/stratosphere.html#s5vortex">stratosphere page</a>, where they sit beside every other model&rsquo;s vortex forecast,
-    from the next two weeks out to the season.</p>
-    <ul class="strat-links">
-      <li><a href="/stratosphere.html#s5vortex">Vortex, QBO and annular mode &rarr;</a></li>
-      <li><a href="/stratosphere.html#s5ssw">Polar vortex and sudden-warming risk &rarr;</a></li>
-      <li><a href="/stratosphere.html#s5cap">Polar-cap heights &rarr;</a></li>
-    </ul>
-  </div>
   <div class="card" id="popCard" data-label="Population-weighted, daily" data-group="SEAS5 &middot; Impacts">
     <h2>Population-weighted temperature: the forecast for each month, against normal and record</h2>
     <p class="note">For the United States and Brazil, each member&rsquo;s 6-hourly 2 m temperature is weighted by where
@@ -903,7 +890,7 @@ window.afterPlotly = function (fn) {
   </div>
 <script>
 window.STAGE = {
-  groups: [{"label": "Every model", "items": [["c3sMapCard", "Anomaly maps", ""], ["c3sTercCard", "Tercile probabilities", ""], ["c3sIdxCard", "Ocean indices", ""], ["c3sPopCard", "Population-weighted, monthly", ""], ["c3sDayCard", "Population-weighted, daily", ""], ["ni-o-3-4-every-member", "Niño-3.4, every member", ""]]}, {"label": "SEAS5 · ENSO & oceans", "items": [["enso-indices", "ENSO indices", ""], ["pdo-amo-iod-atlantic-ni-o", "PDO, AMO, IOD, Atlantic Niño", ""]]}, {"label": "SEAS5 · Maps", "items": [["changeCard", "Maps and changes", ""], ["calibrated-terciles", "Bias-corrected terciles", ""], ["normCard", "Against observed normals", ""]]}, {"label": "SEAS5 · Teleconnections & regimes", "items": [["teleCard", "Teleconnection indices", ""], ["stratLinkCard", "Stratosphere", "moved to the stratosphere page"], ["regimeCard", "Weather regimes", ""]]}, {"label": "SEAS5 · Impacts", "items": [["popCard", "Population-weighted, daily", ""], ["xdaysCard", "Threshold days", ""], ["runsCard", "Cold-snap risk", ""], ["windCard", "Wind events", ""], ["snowCard", "Snowfall", ""]]}, {"label": "NOAA SFS (beta)", "items": [["sfs-plume", "Niño-3.4 plume", "all 31 members"], ["sfs-indices", "Climate indices", "IOD, SASD, Niño flavours, PDO"], ["sfs-maps", "Monthly anomaly maps", "eight fields, every lead"], ["sfs-skill", "Hindcast skill", "against CFSv2"]]}, {"label": "CanSIPS (Environment Canada, 12 months)", "items": [["cs-plume", "Niño-3.4 plume", "40 members, 12 months"], ["cs-maps", "Anomaly maps", "nine fields, monthly and 3-month"], ["cs-terc", "Tercile probabilities", "ECCC's own: temperature, rain, snow"], ["cs-tails", "Decile tails", "ECCC's own: warmest, coldest, wettest, driest 10%"]]}, {"label": "About", "items": [["aboutCard", "About this page", ""]]}],
+  groups: [{"label": "Every model", "items": [["c3sMapCard", "Anomaly maps", ""], ["c3sTercCard", "Tercile probabilities", ""], ["c3sIdxCard", "Ocean indices", ""], ["c3sPopCard", "Population-weighted, monthly", ""], ["c3sDayCard", "Population-weighted, daily", ""], ["ni-o-3-4-every-member", "Niño-3.4, every member", ""]]}, {"label": "SEAS5 · ENSO & oceans", "items": [["enso-indices", "ENSO indices", ""], ["pdo-amo-iod-atlantic-ni-o", "PDO, AMO, IOD, Atlantic Niño", ""]]}, {"label": "SEAS5 · Maps", "items": [["changeCard", "Maps and changes", ""], ["calibrated-terciles", "Bias-corrected terciles", ""], ["normCard", "Against observed normals", ""]]}, {"label": "SEAS5 · Teleconnections & regimes", "items": [["teleCard", "Teleconnection indices", ""], ["regimeCard", "Weather regimes", ""]]}, {"label": "SEAS5 · Impacts", "items": [["popCard", "Population-weighted, daily", ""], ["xdaysCard", "Threshold days", ""], ["runsCard", "Cold-snap risk", ""], ["windCard", "Wind events", ""], ["snowCard", "Snowfall", ""]]}, {"label": "NOAA SFS (beta)", "items": [["sfs-plume", "Niño-3.4 plume", "all 31 members"], ["sfs-indices", "Climate indices", "IOD, SASD, Niño flavours, PDO"], ["sfs-maps", "Monthly anomaly maps", "eight fields, every lead"], ["sfs-skill", "Hindcast skill", "against CFSv2"]]}, {"label": "CanSIPS (Environment Canada, 12 months)", "items": [["cs-plume", "Niño-3.4 plume", "40 members, 12 months"], ["cs-maps", "Anomaly maps", "nine fields, monthly and 3-month"], ["cs-terc", "Tercile probabilities", "ECCC's own: temperature, rain, snow"], ["cs-tails", "Decile tails", "ECCC's own: warmest, coldest, wettest, driest 10%"]]}, {"label": "About", "items": [["aboutCard", "About this page", ""]]}],
   products: {
     "c3sMapCard": { label: "Anomaly maps", gated: true, dom: function () { return "c3sMapCard"; } },
     "c3sTercCard": { label: "Tercile probabilities", gated: true, dom: function () { return "c3sTercCard"; } },
@@ -916,7 +903,6 @@ window.STAGE = {
     "changeCard": { label: "Maps and changes", gated: true, dom: function () { return "changeCard"; } },
     "calibrated-terciles": { label: "Bias-corrected terciles", gated: true, dom: function () { return "calibrated-terciles"; } },
     "teleCard": { label: "Teleconnection indices", gated: true, dom: function () { return "teleCard"; } },
-    "stratLinkCard": { label: "Stratosphere: moved to the stratosphere page", dom: function () { return "stratLinkCard"; } },
     "popCard": { label: "Population-weighted, daily", gated: true, dom: function () { return "popCard"; } },
     "xdaysCard": { label: "Threshold days", gated: true, dom: function () { return "xdaysCard"; } },
     "runsCard": { label: "Cold-snap risk", gated: true, dom: function () { return "runsCard"; } },
@@ -2283,6 +2269,6 @@ afterPlotly(function () {
   </div>
 </footer>
 <!-- sf:end -->
-<script src="/assets/stage.js?v=29ca7c877b" defer></script>
+<script src="/assets/stage.js?v=9936161cab" defer></script>
 </body>
 </html>

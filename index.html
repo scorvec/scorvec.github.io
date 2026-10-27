@@ -94,6 +94,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 
+<link rel="stylesheet" href="/assets/site.css?v=f93076748d">
 <style>
   /* Palette sampled from the photograph: sky, cloud, storm base, hills, prairie. */
   :root {
@@ -105,8 +106,6 @@
     --prairie: #29321f;
     --grass: #9a8342;       /* outline / underline accent (non-text, 3:1 is enough) */
     --grass-ink: #74622f;   /* the same gold as text: 5.2:1 on the row background */
-    --serif: 'Newsreader', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
-    --sans: 'Schibsted Grotesk', 'Helvetica Neue', Arial, sans-serif;
     --measure: 66rem;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -163,7 +162,7 @@
   }
   .hero-text h1 {
     font-family: var(--serif);
-    font-size: clamp(2.6rem, 6.2vw, 4.6rem);
+    font-size: var(--t-hero);
     font-weight: 400; line-height: 1.02; letter-spacing: -0.012em;
     font-variation-settings: 'opsz' 72;
     margin-bottom: 0.55rem;
@@ -303,7 +302,6 @@
     .hero-text { position: relative; left: auto; bottom: auto; transform: none; margin: 0 auto clamp(2rem, 6vh, 4.5rem); }
   }
 </style>
-<link rel="stylesheet" href="/assets/site.css?v=7a63ac564e">
 <script src="/assets/site.js?v=8eca6e56e2" defer></script>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>

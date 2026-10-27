@@ -672,6 +672,28 @@ def font_links(path: str) -> str:
     )
 
 
+_SITE_CSS = re.compile(r'[ \t]*<link rel="stylesheet" href="/assets/site\.css[^"]*">[ \t]*\n?')
+_FIRST_CSS = re.compile(r'<link\b(?![^>]*fonts\.googleapis)[^>]*rel="stylesheet"[^>]*>|<style\b')  # not the font link
+
+
+def css_first(html: str) -> str:
+    """The site stylesheet ahead of every other stylesheet and style block in the head: it carries the site tokens
+    (site.css html:root) and the pages' own CSS layers on them in cascade order, so a theme stylesheet (outlook.css)
+    or a page can override a token without a specificity contest."""
+    end = html.find("</head>")
+    if end < 0:
+        return html
+    head, rest = html[:end], html[end:]
+    m = _SITE_CSS.search(head)
+    if not m:
+        return html
+    tag = m.group(0).strip() + "\n"
+    head = head[: m.start()] + head[m.end() :]
+    first = _FIRST_CSS.search(head)
+    at = first.start() if first else len(head)
+    return head[:at] + tag + head[at:] + rest
+
+
 def with_fonts(html: str, path: str) -> str:
     """The page's head with its one font block where its first font tag was (else right before the site
     stylesheet); every other font tag removed."""
@@ -1094,6 +1116,7 @@ def stamp(cfg: dict) -> tuple[str, str]:
             html = html.replace("</head>", HEAD_SNIPPET + "</head>", 1)
         else:  # bare HTML5 document without <head> tags
             html = html.replace("<!-- sh:start -->", HEAD_SNIPPET + "<!-- sh:start -->", 1)
+    html = css_first(html)
 
     if not cfg.get("synced"):
         html = head_tags(html)

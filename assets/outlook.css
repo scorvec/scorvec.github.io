@@ -3,21 +3,13 @@
    each page; anything that describes a card, a pill, a chip, a deck or a table lives here.
    The site chrome (header, tabs, footer) is assets/site.css, applied by scripts/site/apply_chrome.py. */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #fcfcfa;
-    --ink: #1a1a1a;
-    --ink2: #4a4744;          /* body copy inside cards */
-    --muted: #6f6b64;        /* 5.2:1 on --bg: WCAG AA for body text */
-    --accent: #8a4b2a;        /* burnt sienna — links, active tab, selected button */
+  /* The palette and type scale are the site tokens (site.css, first in every head). This family's one difference
+     is its accent: burnt sienna for links, the active tab and the selected pill. */
+  html:root {
+    --accent: #8a4b2a;
     --accent-hi: #a85c33;
-    --accent-light: #f6efe9;  /* accent at ~8%, for hover fills */
-    --rule: #e2e0da;
-    --edge: #c9c5bb;      /* card outline — deliberately darker than --rule */
-    --surface: #ffffff;
-    --warm: #b4541f;          /* El Nino / positive anomaly */
-    --cool: #3f6f8f;          /* La Nina / negative anomaly (data only, muted) */
-    --serif: 'Source Serif 4', Georgia, serif;   /* the site type system (site.css) sets both; these are its fallbacks */
-    --sans: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif;
+    --accent-light: #f6efe9;  /* the accent at ~8 %, for hover fills */
+    --accent-soft: rgba(138, 75, 42, 0.09);
   }
   /* at least the window tall, so a short page keeps its footer at the bottom; never fixed at the window's height, which
      made the sticky site header scroll away a screen down (sticky holds only within its parent, here the body) */
@@ -47,7 +39,7 @@
   }
   /* a large title and a wide lede */
   .page-header h1 {
-    font-family: var(--serif); font-weight: 400; font-size: 2.8rem;
+    font-family: var(--serif); font-weight: 400; font-size: var(--t-h1);
     margin-bottom: 0.5rem;
   }
   .page-header p {
@@ -204,7 +196,6 @@
     .enso-subnav { padding: 0.5rem 1.5rem 0.6rem; gap: 1.1rem; }
     main { padding: 1.5rem 1rem 2rem; max-width: 100%; }
     .page-header { margin-bottom: 1.2rem; padding-bottom: 0.8rem; }
-    .page-header h1 { font-size: 1.9rem; }
     .chart-stack { gap: 1.1rem; }
     .chart-card-header { padding: 1.2rem 1.3rem 1rem; }
     .chart-card-footer { padding: 0.75rem 1.3rem; }
@@ -218,7 +209,6 @@
     .enso-subnav { padding: 0.5rem 1.1rem 0.6rem; gap: 0.85rem; }
     .enso-subnav a { font-size: 0.74rem; }
     main { padding: 1.5rem 1rem 3rem; }
-    .page-header h1 { font-size: 1.4rem; line-height: 1.3; }
     .chart-card-header h2 { font-size: 1.02rem; }
     .chart-card-header p { font-size: 0.82rem; line-height: 1.6; }
     .img-wrap { padding: 0.7rem 0.7rem; }
@@ -229,7 +219,6 @@
     .nav-links { gap: 0.8rem; }
     .nav-links a { font-size: 0.72rem; }
     .enso-subnav { gap: 0.7rem; }
-    .page-header h1 { font-size: 1.28rem; }
   }
 
   /* Figure toggles — one card, several versions of the same figure.
@@ -314,7 +303,7 @@
 
   /* hero */
   .eyebrow { font-size: 0.9rem; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--muted); }
-  h1 { font-family: var(--serif); font-weight: 400; font-size: 2.1rem;
+  h1 { font-family: var(--serif); font-weight: 400; font-size: var(--t-h1);
        letter-spacing: 0.01em; margin: 0.3rem 0 0.2rem; color: var(--ink); }
   h1 em { font-style: normal; color: inherit; }
   /* page title block: centred under the section tabs, no accent colour */
@@ -414,7 +403,6 @@
   .colophon p { margin-bottom: 0.45rem; max-width: 110ch; }
 
   @media (max-width: 700px) {
-    h1 { font-size: 1.55rem; }
     .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }   /* equal two-up chips instead of ragged content-width boxes */
     .chip { min-width: 0; }
     .chip .l { white-space: normal; overflow-wrap: anywhere; }   /* two-up on phones: long labels ("RELATIVE NIÑO-3.4 · DJF 2026-27") wrap instead of being clipped */

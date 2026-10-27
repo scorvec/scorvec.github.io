@@ -1,12 +1,13 @@
-name: Lint (ruff)
+name: Lint (ruff, site style)
 
-# ruff check + format check over the pipeline scripts (config: ruff.toml). Data commits from the other workflows
-# touch no .py files, so the path filter keeps this off them.
+# ruff check + format check over the pipeline scripts (config: ruff.toml), and the site's style rules over the pages
+# and stylesheets (scripts/site/style_check.py: one token set, one type scale, the contrast of the tokens). Data
+# commits from the other workflows touch neither, so the path filter keeps this off them.
 on:
   push:
-    paths: ['**.py', 'ruff.toml', '.github/workflows/lint.yml']
+    paths: ['**.py', 'ruff.toml', '**.html', 'assets/*.css', '.github/workflows/lint.yml']
   pull_request:
-    paths: ['**.py', 'ruff.toml', '.github/workflows/lint.yml']
+    paths: ['**.py', 'ruff.toml', '**.html', 'assets/*.css', '.github/workflows/lint.yml']
 
 permissions:
   contents: read
@@ -27,3 +28,4 @@ jobs:
       - run: pip install ruff==0.17.1
       - run: ruff check --output-format=github .
       - run: ruff format --check .
+      - run: python scripts/site/style_check.py

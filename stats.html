@@ -35,18 +35,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css?v=f93076748d">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #fafaf8;
-    --ink: #1c1c1a;
-    --muted: #6f6b64;
-    --accent: #2c4a72;
-    --accent-light: #e8eef5;
-    --rule: #e4e2dc;
-    --serif: 'Lora', Georgia, serif;
-    --sans: 'Inter', sans-serif;
-  }
   body {
     min-height: 100vh;
     background: var(--bg);
@@ -92,7 +83,7 @@
     border-bottom: 1px solid var(--rule);
   }
   .page-header h1 {
-    font-family: var(--serif); font-weight: 400; font-size: 1.9rem;
+    font-family: var(--serif); font-weight: 400; font-size: var(--t-h1);
     margin-bottom: 0.5rem;
   }
   .page-header p {
@@ -194,7 +185,6 @@
     .nav-links { gap: 1.3rem; }
     main { padding: 1.5rem 1.5rem 3.5rem; }
     .page-header { margin-bottom: 2.2rem; padding-bottom: 1.5rem; }
-    .page-header h1 { font-size: 1.6rem; }
     .chart-stack { gap: 2.2rem; }
     .chart-card-header { padding: 1.2rem 1.3rem 1rem; }
     .chart-card-header h2 { font-size: 1.08rem; }
@@ -212,7 +202,6 @@
     .nav-links a { font-size: 0.78rem; }
     main { padding: 1rem 1rem 3rem; }
     .page-header { margin-bottom: 1.8rem; padding-bottom: 1.3rem; }
-    .page-header h1 { font-size: 1.4rem; line-height: 1.3; }
     .page-header p { font-size: 0.85rem; }
     .chart-stack { gap: 1.8rem; }
     .chart-card-header { padding: 1.1rem 1.1rem 0.9rem; }
@@ -232,7 +221,6 @@
   @media (max-width: 360px) {
     .nav-links { gap: 0.8rem; }
     .nav-links a { font-size: 0.72rem; }
-    .page-header h1 { font-size: 1.28rem; }
   }
 
   /* ── Live wind+solar grid-penetration hero ── */
@@ -258,7 +246,6 @@
 </style>
 <link rel="stylesheet" href="/assets/lightbox.css?v=f28cd59002">
 <script src="/assets/lightbox.js?v=d088301855" defer></script>
-<link rel="stylesheet" href="/assets/site.css?v=7a63ac564e">
 <script src="/assets/site.js?v=8eca6e56e2" defer></script>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>
@@ -453,7 +440,7 @@
 <main id="main">
   <div class="content">
     <header class="page-header" style="margin:0.5rem 0 0.5rem;">
-      <h1 style="font-family:var(--serif);font-size:1.9rem;margin:2rem 0 0.6rem;">Visitor statistics</h1>
+      <h1 style="margin:2rem 0 0.6rem;">Visitor statistics</h1>
       <p style="color:var(--muted);max-width:56rem;">Privacy-friendly, cookie-free analytics via GoatCounter. Total unique visitors: <b id="count">&mdash;</b></p>
     </header>
 

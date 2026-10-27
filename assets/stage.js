@@ -14,7 +14,8 @@
      ownHash:true (dom) -> the block keeps its own state after "#id/" in the hash and the stage leaves it; a function of
        (a,b,c) does so for the views it is true for, after "#id/a/" (a product whose parts mount different blocks).
    STAGE.aliases maps old ids to products, or to a product and its options ("product/a"); an old link's own state after
-   the id (#oldid/x/y) follows it (#product/a/x/y). STAGE.related = false
+   the id (#oldid/x/y) follows it (#product/a/x/y). An alias to a URL ("/page.html#view") sends the old link to the
+   page the product moved to. STAGE.related = false
    drops the related-plots strip; STAGE.onRender(sel) runs after each render. An optional #stage-stamp element
    shows the stamp the figure on stage reports for itself.
    Selection lives in the hash (#product/a/b/c); with the focus in the viewer ← → step the deepest option row and,
@@ -482,21 +483,21 @@
     // the catalogue entry for this figure: its own id, an old id that aliases to it, or failing both the page itself
     var here = pagePath(), me = null, ids = {};
     ids[here + "#" + sel.p] = 1;
-    Object.keys(AL).forEach(function (k) { if (AL[k].split("/")[0] === sel.p) ids[here + "#" + k] = 1; });
+    Object.keys(AL).forEach(function (k) { if (AL[k].charAt(0) !== "/" && AL[k].split("/")[0] === sel.p) ids[here + "#" + k] = 1; });
     relCat.items.forEach(function (it) { if (it.page === here && ids[it.id]) me = it; });
     if (!me) relCat.items.forEach(function (it) { if (!me && it.id === here) me = it; });
     if (!me) { relBox.hidden = true; return; }
     var set = function (a) { var o = {}; (a || []).forEach(function (x) { o[x] = 1; }); return o; };
     var V = set(me.variables), R = set(me.regions), M = set(me.models);
-    var scored = relCat.items.filter(function (it) { return it.page !== here && it.page !== "/catalog.html"; }).map(function (it) {
-      var sc = 0;
-      (it.variables || []).forEach(function (x) { if (V[x]) sc += 3; });
-      (it.regions || []).forEach(function (x) { if (R[x]) sc += 1.5; });
+    // plots with a thumbnail that share a variable or a region with this one, the closest first
+    var scored = relCat.items.filter(function (it) { return it.thumb && it.page !== here && it.page !== "/catalog.html"; }).map(function (it) {
+      var sc = 0, shared = false;
+      (it.variables || []).forEach(function (x) { if (V[x]) { sc += 3; shared = true; } });
+      (it.regions || []).forEach(function (x) { if (R[x]) { sc += 1.5; shared = true; } });
       (it.models || []).forEach(function (x) { if (M[x]) sc += 1; });
       if (it.topic === me.topic) sc += 1.5;
       if (it.horizon && me.horizon) sc += it.horizon === me.horizon ? 2 : -1.5;   // a forecast next to a forecast
-      if (it.thumb) sc += 0.5;
-      return { it: it, sc: sc };
+      return { it: it, sc: shared ? sc : 0 };
     }).filter(function (x) { return x.sc >= 5; }).sort(function (a, b) { return b.sc - a.sc; });
     var seenPage = {}, pick = [];                     // at most two from any one page, six in all
     scored.forEach(function (x) { if (pick.length < 6 && (seenPage[x.it.page] || 0) < 2) { seenPage[x.it.page] = (seenPage[x.it.page] || 0) + 1; pick.push(x.it); } });
@@ -508,10 +509,9 @@
     }).join("") + "</div>";
     pick.forEach(function (it, i) {
       var box = relBox.querySelector('.ss-rel-th[data-i="' + i + '"]');
-      if (!it.thumb) { box.classList.add("none"); return; }
       var im = new Image(); im.alt = "";
       im.onload = function () { box.appendChild(im); };
-      window.SiteFind.thumbInto(im, it.thumb, function () { box.classList.add("none"); });
+      window.SiteFind.thumbInto(im, it.thumb, function () { box.parentNode.hidden = true; });   // no picture, no tile
     });
   }
   function lastRow() { var rows = ["c", "b", "a"]; for (var i = 0; i < rows.length; i++) { var bs = document.querySelectorAll("#opts-" + rows[i] + " button"); if (bs.length > 1) return bs; } return null; }
@@ -632,6 +632,7 @@
   function hashParts() {
     var h = location.hash.replace(/^#/, "").split("/");
     if (!(h[0] && !P[h[0]] && AL[h[0]])) return h;
+    if (AL[h[0]].charAt(0) === "/") { location.replace(AL[h[0]]); return [ORDER[0]]; }
     var n = AL[h[0]].split("/");
     if (h.length > 1) { n = n.concat(h.slice(1)); history.replaceState(null, "", "#" + n.join("/")); }
     return n;

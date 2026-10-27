@@ -29,16 +29,15 @@
  }
 }
 </script>
+<link rel="stylesheet" href="/assets/site.css?v=f93076748d">
 <style>
   :root {
-    --bg: #fafaf8; --ink: #1c1c1a; --ink2: #3d3b37; --muted: #6f6b64; --accent: #2c4a72; --rule: #e6e3dc; --panel: #ffffff;
     --better: #2c6e9e; --worse: #b4321f;
-    --serif: "Newsreader", Georgia, serif; --sans: "Schibsted Grotesk", Inter, -apple-system, sans-serif;
   }
   *, *::before, *::after { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.55; }
   main { max-width: min(94vw, 1500px); margin: 0 auto; padding: 1.5rem 1.2rem 3rem; }
-  h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(1.7rem, 3.4vw, 2.5rem); line-height: 1.15; margin: 0.4rem 0 0.6rem; }
+  h1 { font-family: var(--serif); font-weight: 500; font-size: var(--t-h1); line-height: 1.15; margin: 0.4rem 0 0.6rem; }
   h2 { font-family: var(--serif); font-weight: 500; font-size: 1.35rem; margin: 0 0 0.4rem; }
   .ai-note { max-width: 62rem; font-size: 0.95rem; line-height: 1.5; margin: 0.6rem 0 1rem; padding: 0.6rem 0.95rem; background: var(--panel); border: 1px solid var(--rule); border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0; color: var(--ink2); }
   .kicker { font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
@@ -73,7 +72,7 @@
   table.sc th.r { text-align: left; color: var(--ink2); }
   table.sc th.g { padding-top: 0.6rem; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
   table.sc td { min-width: 3.1rem; height: 1.9rem; text-align: center; border-radius: 4px; background: #f3f2ee; color: var(--muted); }
-  table.sc td.s { color: #fff; font-weight: 600; }
+  table.sc td.s { font-weight: 600; }   /* colour set with the fill (inkOn) */
   table.pg { border-collapse: collapse; font-size: 0.9rem; font-variant-numeric: tabular-nums; margin-top: 0.3rem; }
   table.pg th, table.pg td { padding: 0.3rem 0.7rem; text-align: right; border-bottom: 1px solid var(--rule); }
   table.pg th:first-child, table.pg td:first-child { text-align: left; }
@@ -106,7 +105,6 @@ window.plotlyP = new Promise(function (ok, no) {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=7a63ac564e">
 <script src="/assets/site.js?v=8eca6e56e2" defer></script>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>
@@ -687,8 +685,8 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
           if (p == null || p >= 0.05) return `<td title="${esc(tip)}">·${sub}</td>`;
           const k = Math.min(1, Math.abs(pct) / 20);
           const base = pct < 0 ? [44, 110, 158] : [180, 50, 31];
-          const bg = `rgba(${base.join(",")},${(0.35 + 0.65 * k).toFixed(2)})`;
-          return `<td class="s" style="background:${bg}" title="${esc(tip)}">${pct > 0 ? "+" : ""}${pct.toFixed(0)}%${sub}</td>`;
+          const cell = inkOn(base, 0.35 + 0.65 * k);
+          return `<td class="s" style="background:${cell.bg};color:${cell.ink}" title="${esc(tip)}">${pct > 0 ? "+" : ""}${pct.toFixed(0)}%${sub}</td>`;
         }).join("") + "</tr>";
       }
       $("scorecard").innerHTML = html;
@@ -765,6 +763,17 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
   // Station maps: sequential colours for RMSE, diverging (blue below zero, red above) for bias and differences.
   const SEQ = ["#fcfbf6", "#f6e3a6", "#f2b45f", "#e0743d", "#b8412f", "#7d1d2f", "#3e0d2a"];
   const DIV = ["#24527f", "#5b8fbf", "#a9c8e2", "#f2f0ea", "#efb29a", "#cf5e47", "#8f1f24"];
+  // The text colour for a cell filled with `base` at alpha `a` over the page: white where it reads at 4.5:1, the
+  // page ink where that does, else the fill at full strength (every base colour carries white at 4.5:1).
+  const PAGE = [250, 250, 248], INK = "#1c1c1a";
+  function lum(c) { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); }
+  function inkOn(base, a) {
+    const mix = base.map((v, i) => Math.round(a * v + (1 - a) * PAGE[i]));
+    const L = lum(mix);
+    if (1.05 / (L + 0.05) >= 4.5) return { bg: `rgb(${mix.join(",")})`, ink: "#fff" };
+    if ((L + 0.05) / (lum([28, 28, 26]) + 0.05) >= 4.5) return { bg: `rgb(${mix.join(",")})`, ink: INK };
+    return { bg: `rgb(${base.join(",")})`, ink: "#fff" };
+  }
   function ramp(stops, t) {
     t = Math.max(0, Math.min(1, t)) * (stops.length - 1);
     const i = Math.min(stops.length - 2, Math.floor(t)), f = t - i;

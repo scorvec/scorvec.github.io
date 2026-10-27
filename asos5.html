@@ -34,16 +34,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=7a63ac564e">
 <script src="/assets/site.js?v=8eca6e56e2" defer></script>
+<link rel="stylesheet" href="/assets/site.css?v=f93076748d">
 <style>
   :root {
-    --bg: #f7f7f4; --panel: #ffffff; --ink: #1d211b; --muted: #5f6660; --rule: #dfe2dc;
-    --accent: #274b7a; --accent-soft: #e6edf6; --hot: #b3372f; --cold: #2c5f8a; --gust: #a05a12; --speci: #d0681e;
+--hot: #b3372f; --cold: #2c5f8a; --gust: #a05a12; --speci: #d0681e;
   }
   body { background: var(--bg); color: var(--ink); }
   main.ao { max-width: min(96vw, 1900px); margin: 0 auto; padding: 1.4rem 1.2rem 3rem; font-family: var(--f-sans, sans-serif); }
-  main.ao h1 { font-family: var(--f-serif, serif); font-weight: 400; font-size: 1.9rem; text-align: center; margin: 0.4rem 0 0; }
+  main.ao h1 { font-family: var(--f-serif, serif); font-weight: 400; font-size: var(--t-h1); text-align: center; margin: 0.4rem 0 0; }
   .ao-lede { max-width: 82ch; margin: 0.9rem auto 1rem; padding: 0.9rem 1.2rem; font-size: 1.05rem; line-height: 1.55;
     border: 1px solid var(--rule); background: #fbfbf8; border-radius: 8px; }
   .ao-lede b { font-weight: 600; }
@@ -118,7 +117,6 @@
   .ao-note b { color: var(--ink); font-weight: 600; }
   @media (max-width: 640px) {
     main.ao { padding: 1rem 0.6rem 2rem; }
-    main.ao h1 { font-size: 1.5rem; }
     .ao-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .ao-seg button { padding: 0.55rem 0.7rem; font-size: 0.95rem; }
     /* the six variables in a 3 x 2 grid: as one scrolling row, Ceiling and Weather sat off screen with no hint (2026-10-08) */
