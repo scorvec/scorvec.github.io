@@ -53,6 +53,9 @@
 
   .mv-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.9rem; margin: 0 0 0.4rem; }
   .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule); border-radius: 7px; background: var(--panel); overflow: hidden; }
+  .seg--menu { border: 0; background: none; overflow: visible; flex: 1 1 10rem; }
+  .seg--menu select { width: 100%; font: inherit; font-size: 1.04rem; font-weight: 600; padding: 0.5rem 0.6rem; min-height: 46px;
+                      border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); }
   .seg button { font: inherit; font-size: 1.14rem; font-weight: 600; border: 0; border-right: 1px solid var(--rule); background: transparent; color: var(--ink);
                 padding: 0.62rem 1.05rem; min-height: 46px; cursor: pointer; white-space: nowrap; }
   .seg button:last-child { border-right: 0; }
@@ -1865,8 +1868,25 @@
     validH = setHTML("valid", "<span class=\"vt\">" + escH(parts[1] || "") + "</span> <span class=\"loc\">· " + escH(parts[0] || "") + "</span>", validH);
     $("day").setAttribute("aria-valuetext", lab);
   }
+  // a group of choices: joined buttons, or on a phone a menu once it has more than three or its labels run past a line
+  // (five ensembles, three long field names, five views and four runs as buttons filled a phone's first screen)
+  var PHONE = matchMedia("(max-width: 640px)");
+  PHONE.addEventListener("change", function () { if (cyc()) setButtons(); });
   function segButtons(el, keys, label, pressed, onPick, title, off) {
     el.innerHTML = "";
+    var chars = keys.reduce(function (n, k) { return n + String(label(k)).replace(/<[^>]*>|&\w+;/g, " ").length; }, 0);
+    el.classList.toggle("seg--menu", PHONE.matches && (keys.length > 3 || (keys.length > 2 && chars > 30)) && !el.closest(".mv-time"));
+    if (el.classList.contains("seg--menu")) {
+      var m = document.createElement("select"); m.setAttribute("aria-label", el.getAttribute("aria-label") || "");
+      keys.forEach(function (key) {
+        var o = document.createElement("option"); o.value = key; o.textContent = String(label(key)).replace(/&nbsp;/g, " ").replace(/<[^>]*>/g, "");
+        if (title) o.title = title(key);
+        if (off && off(key)) o.disabled = true;
+        m.appendChild(o);
+      });
+      m.value = pressed; m.onchange = function () { onPick(m.value); }; el.appendChild(m);
+      return;
+    }
     keys.forEach(function (key) {
       var b = document.createElement("button"); b.type = "button"; b.innerHTML = label(key); b.setAttribute("aria-pressed", String(key === pressed));
       if (title) b.title = title(key);
