@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Global ensemble maps for ens-anomalies.html: 2 m temperature, 500 hPa height and sea-level pressure from four
-ensembles (IFS-ENS, AIFS-ENS, GEFS, GEPS), each member's daily means against the 1991-2020 normals and how the run moved
-the ensemble mean from the run 12 hours earlier, to day 15. Nothing is rendered here: every map is a lossless WebP of
+ensembles (IFS-ENS, AIFS-ENS, GEFS, GEPS), each member's daily means against the 1991-2020 normals, the members' spread
+and how the run moved the ensemble mean and the spread from the run 12 hours earlier, to day 15. Nothing is rendered here: every map is a lossless WebP of
 the model's own numbers on its own grid, which the page colours, contours and reads.
 
 Ensembles and grids (one job per model, each as its run lands; ensmaps.yml):
@@ -55,6 +55,16 @@ Files, per field and span (assets/models/data/ensmaps/<model>/<cycle>/<field>/),
   c/<span>.webp   R change of the members' mean from the run 12 h earlier, (code - 128) x enc[field]["change"], 0 =
                   none; G 1 = significant. c6/, c18/, c24/, c36/, c48/<span>.webp: the same from the run that many hours
                   earlier
+  sd/<span>.webp  the spread on the 0.5-deg cells: R the members' standard deviation (of the span's mean), (code - 1) x
+                  enc[field]["spread"], 0 = none; G (500 hPa height, sea-level pressure) that over the 1991-2020 sd of
+                  an anomaly of the span's own averaging period (ensmaps_ref Spread), (code - 1) x enc[field]["ratio"],
+                  0 = none (sea-level pressure over high ground); B 0
+  cs/<span>.webp  the spread's change from the run 12 h earlier against the typical change at the same latitude (a
+                  newer run is nearer the same days, so its spread is smaller nearly everywhere): R the ratio of the
+                  two runs' spreads over its median within BAND rows, less 1, %, (code - 128) x enc[field]["spread_rel"];
+                  G 1 = significant (the F-test of that ratio on the two runs' members, Benjamini-Hochberg at FDR_Q over
+                  the map); B the plain change, (code - 128) x enc[field]["spread_change"]. c6s/ .. c48s/ from the other
+                  runs, as c6/ .. c48/
   r/<sector><regime>/<span>.webp   the members of one weather regime (ensmaps_regimes.py), as a/ on the 0.5-deg grid
 The manifest (assets/models/ensmaps_<model>.json: the KEEP_RUNS newest runs, newest first, each in the frames store)
 lists the spans, members, gates, grids, encodings and the regimes; this run's statistics for the next runs go to --save,
@@ -121,12 +131,18 @@ CHANGES = (
 )
 TILE = (300, 600)  # rows, columns of a 0.1-deg tile
 DATA = "assets/models/data/ensmaps"
-# per field: anomaly step, the mean's lowest value and step, change step (K or deg C, m, hPa)
+# per field: anomaly step, the mean's lowest value and step, change step, the members' spread and its change from an
+# earlier run (K or deg C, m, hPa), that change against the typical one at the same latitude (spread_rel, %), the spread
+# over the normal spread (ratio)
 ENC = {
-    "t2m": {"anom": 0.25, "lo": -78.0, "mean": 0.5, "change": 0.1},
-    "z500": {"anom": 4.0, "lo": 4600.0, "mean": 6.0, "change": 2.0, "sigma": 0.025},
-    "msl": {"anom": 0.4, "lo": 920.0, "mean": 0.6, "change": 0.2, "sigma": 0.025},
-}
+    "t2m": {"anom": 0.25, "lo": -78.0, "mean": 0.5, "change": 0.1, "spread": 0.05, "spread_change": 0.05, "spread_rel": 1.0},
+    "z500": {"anom": 4.0, "lo": 4600.0, "mean": 6.0, "change": 2.0, "sigma": 0.025, "spread": 1.0, "spread_change": 1.0,
+             "spread_rel": 1.0, "ratio": 0.01},
+    "msl": {"anom": 0.4, "lo": 920.0, "mean": 0.6, "change": 0.2, "sigma": 0.025, "spread": 0.1, "spread_change": 0.1,
+            "spread_rel": 1.0, "ratio": 0.01},
+}  # fmt: skip
+# 0.5-deg rows each side of a row: the latitude band whose typical spread change a point's is measured against
+BAND = 20
 UNIT = {"t2m": "K", "z500": "m", "msl": "hPa"}
 S3 = "https://noaa-gefs-pds.s3.amazonaws.com"
 GEFS_IDX = {"t2m": ("TMP", "2 m above ground"), "z500": ("HGT", "500 mb"), "msl": ("PRMSL", "mean sea level")}
@@ -561,6 +577,30 @@ def welch_p(m1, s1, n1, m0, s0, n0) -> np.ndarray:
     return np.where(tested, 2 * student.sf(np.abs(t), df), np.nan)
 
 
+def var_p(s1, n1, s0, n0, ratio=1.0) -> np.ndarray:
+    """Two-sided p of the F-test that the standard deviations of two runs' members (s, sizes n) stand in `ratio` (1:
+    equal variances); NaN where either run's members do not vary."""
+    from scipy.stats import f as fisher
+
+    v1, v0 = s1.astype(np.float64) ** 2, s0.astype(np.float64) ** 2
+    tested = np.isfinite(v1) & np.isfinite(v0) & (v1 > 0) & (v0 > 0) & np.isfinite(ratio)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        F = np.where(tested, v1 / (v0 * np.square(ratio)), 1.0)
+    p = 2 * np.minimum(fisher.cdf(F, n1 - 1, n0 - 1), fisher.sf(F, n1 - 1, n0 - 1))
+    return np.where(tested, np.minimum(p, 1.0), np.nan)
+
+
+def band_ratio(r: np.ndarray, half: int = BAND) -> np.ndarray:
+    """(lat, 1): the median over the rows within `half` of each row of r (lat, lon), NaN ignored - a run's typical spread
+    change at that latitude, which a shorter lead makes smaller everywhere."""
+    out = np.full((r.shape[0], 1), np.nan)
+    for j in range(r.shape[0]):
+        w = r[max(0, j - half) : j + half + 1]
+        if np.isfinite(w).any():
+            out[j, 0] = np.nanmedian(w)
+    return out
+
+
 def significant(p: np.ndarray) -> np.ndarray:
     """Benjamini-Hochberg at FDR_Q over the map's tested points."""
     from quantmet.stats import benjamini_hochberg
@@ -876,6 +916,7 @@ def run(a) -> int:
         )
     normals, high = {}, {}
     spread = {f: spread_on(f, grids[f]) for f in ("z500", "msl") if f in fields}
+    spread50 = {f: spread[f] if grids[f].res == G50.res else spread_on(f, G50) for f in spread}  # the spread maps' grid
     for f in fields:
         g = grids[f]
         if f == "t2m":
@@ -888,6 +929,7 @@ def run(a) -> int:
             high[f] = zs > HIGH_M
     n = mod.members
     F = {f: Field(f, grids[f], n, len(days), normals[f], high.get(f)) for f in fields}
+    high50 = to_half(F["msl"].high.astype(np.float32), grids["msl"].res) > 0.5 if "msl" in F else None
     W = Writer(outdir, a.threads)
     Z25 = np.full((n, len(days), 73, 144), np.nan, np.float32)  # the regimes' field: 500 hPa height on 2.5 deg
     M25 = np.full((n, len(days), 73, 144), np.nan, np.float32)  # and the clusters': sea-level pressure
@@ -917,6 +959,23 @@ def run(a) -> int:
                 W.put(f"{fd.name}/s/{name}", si, False)
         entry["n"][fd.name] = int(mem.size)
         W.put(f"{fd.name}/a/{name}", img, fd.g.tiled)
+        spread_frame(fd, name, k0, k1, mem)
+
+    def spread_frame(fd: Field, name: str, k0: int, k1: int, mem: np.ndarray) -> None:
+        """The members' spread over the span on the 0.5-deg cells (sd/): R their standard deviation, G that over the
+        1991-2020 sd of an anomaly of the span's own averaging period (500 hPa height, sea-level pressure; 0 = none, as
+        over high ground for the pressure, whose reduction to sea level the reanalysis does its own way)."""
+        y = fd.S[mem, k0 : k1 + 1].mean(1)
+        sd = y.std(0, ddof=1)
+        e = ENC[fd.name]
+        ratio = np.zeros(sd.shape, np.uint8)
+        if fd.name in spread50:
+            clim = spread50[fd.name].sd([days[k][0] + pd.Timedelta(hours=12) for k in range(k0, k1 + 1)], k1 - k0 + 1)
+            ratio = code_mean(sd / clim, 0.0, e["ratio"])
+            if high50 is not None and fd.name == "msl":
+                ratio[high50] = 0
+        img = np.dstack([code_mean(sd, 0.0, e["spread"]), ratio, np.zeros(sd.shape, np.uint8)])
+        W.put(f"{fd.name}/sd/{name}", img, False)
 
     def entry_of(through: int | None, **extra) -> dict:
         """The run's manifest entry: every span drawn, or (a checkpoint) those to day index `through`, which it names."""
@@ -946,6 +1005,8 @@ def run(a) -> int:
                     "change_grid": G50.desc(),
                     "anomaly": F[f].normals is not None,
                     "sigma": f in spread,
+                    "spread": True,  # sd/ frames, and <change>s/ beside each change map
+                    "spread_ratio": f in spread50,
                     "units_read": sorted(units.get(f, [])),
                 }
                 for f in F
@@ -1059,6 +1120,8 @@ def run(a) -> int:
     for fd in F.values():  # the 0.1 / 0.25-deg sums are done with
         fd.acc = fd.win = None
 
+    coslat = np.cos(np.deg2rad(G50.lat))  # the change maps' latitude weights
+
     def change_maps(prev: dict | None, sub: str, meta: str) -> int:
         """The change from a run's statistics (load_stats) on the 0.5-deg cells: frames <field>/<sub>/<span>, the
         spans' `meta` entries."""
@@ -1081,11 +1144,23 @@ def run(a) -> int:
                 d = my - m0
                 img = np.dstack([code_signed(d, ENC[f]["change"]), sig.astype(np.uint8), np.zeros(d.shape, np.uint8)])
                 W.put(f"{f}/{sub}/{name}", img, False)
+                # the spread's change against the typical one at the same latitude (a newer run, nearer the same days,
+                # has less spread everywhere): the F-test of that ratio on the two runs' members, the same FDR
+                with np.errstate(invalid="ignore", divide="ignore"):
+                    r = np.where((s0 > 0) & (sy > 0), sy / s0, np.nan)
+                rb = band_ratio(r)
+                sig_sd = significant(var_p(sy, mem.size, s0, n0, rb))
+                rel = code_signed(100 * (r / rb - 1), ENC[f]["spread_rel"])
+                img = np.dstack([rel, sig_sd.astype(np.uint8), code_signed(sy - s0, ENC[f]["spread_change"])])
+                W.put(f"{f}/{sub}s/{name}", img, False)
+                conv = float(np.nansum(rb[:, 0] * coslat) / np.sum(coslat[np.isfinite(rb[:, 0])]))
                 spans_meta[name].setdefault(meta, {})[f] = {
                     "last": f"{days[c1][0]:%Y-%m-%d}",
                     "n": int(mem.size),
                     "n0": n0,
                     "sig": round(float(sig.mean()), 4),
+                    "sig_sd": round(float(sig_sd.mean()), 4),
+                    "conv": round(conv, 3),  # the typical spread ratio, latitude-weighted
                 }
                 n_maps += 1
         return n_maps
@@ -1101,7 +1176,6 @@ def run(a) -> int:
     if 12 not in prev_at:
         log(f"::notice::no statistics of the run 12 h earlier ({prev_init:%Y-%m-%d %H}Z): no change maps from it")
     full = mod.last(hh) == max(r[0] for r in mod.runs.values())  # a run to the model's last step
-    high50 = to_half(F["msl"].high.astype(np.float32), grids["msl"].res) > 0.5 if "msl" in F else None
     if a.save:  # with what the super-ensemble reads, from the 00/12Z runs it combines
         to_super = full and hh in ("00", "12")
         N50 = {f: fd.N50 for f, fd in F.items() if fd.N50 is not None} if to_super else None
