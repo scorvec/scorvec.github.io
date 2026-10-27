@@ -54,6 +54,14 @@
   .chip .v { font-size: 1.7rem; font-weight: 600; line-height: 1.15; margin-top: 0.15rem; font-variant-numeric: tabular-nums; }
   .chip .v small { font-size: 0.9rem; font-weight: 500; color: var(--muted); margin-left: 0.3rem; white-space: nowrap; }
   .chip .s { font-size: 0.86rem; color: var(--ink2); line-height: 1.35; margin-top: 0.15rem; }
+  /* the run window: the newest 10 runs, or the newest 30 of the verification database */
+  .vwin { display: flex; align-items: center; flex-wrap: wrap; gap: 0.3rem 0.6rem; margin: 0.9rem 0 0; font-size: 0.82rem; font-weight: 600; color: var(--muted); }
+  .vwin a { font: 500 0.84rem/1.3 var(--sans); color: var(--ink2); text-decoration: none; background: var(--panel); border: 1px solid var(--edge);
+            margin-left: -1px; padding: 0.3rem 0.75rem; }
+  .vwin a:first-child { margin-left: 0; border-radius: 6px 0 0 6px; }
+  .vwin a:last-child { border-radius: 0 6px 6px 0; }
+  .vwin a:hover { background: var(--accent-light); color: var(--accent); }
+  .vwin a[aria-current="true"] { position: relative; z-index: 1; background: var(--accent); border-color: var(--accent); color: #fff; }
   /* the section bar: jump links held under the site header, the section in view marked */
   .vnav { position: sticky; top: 64px; z-index: 20; display: flex; flex-wrap: wrap; row-gap: 0.3rem; margin: 1rem 0 0;
           padding: 0.45rem 0; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(6px); }
@@ -343,6 +351,8 @@ window.plotlyP = new Promise(function (ok, no) {
   <h1>How the global models score</h1>
   <p class="lede">GFS, IFS, AIFS and GDPS against the same observations: surface stations, radiosondes and, for US rain, Stage IV.</p>
 
+  <div class="vwin" id="vwin" hidden><span>Runs scored</span><span class="pills" role="group" aria-label="Runs scored">
+    <a href="?runs=10" data-w="10">Latest 10</a><a href="?runs=30" data-w="30">Latest 30, from the database</a></span></div>
   <div class="chips vband" id="vband" aria-label="Each model's record in the pairwise tests"></div>
   <p class="src" id="asof">Loading the scores…</p>
 
@@ -617,7 +627,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     const wide = regs.includes("Global") ? "Global" : regs[0];
     const inits = Object.values(card.inits).flat().sort();
     const nruns = Math.max(...Object.values(card.inits).map(a => a.length));
-    $("asof").textContent = `${nruns} runs per model, ${inits[0].replace("T", " ")}Z to ${inits[inits.length - 1].replace("T", " ")}Z. ` +
+    $("asof").textContent = (card.window ? "The newest runs of the verification database: " : "") + `${nruns} runs per model, ${inits[0].replace("T", " ")}Z to ${inits[inits.length - 1].replace("T", " ")}Z. ` +
       `Scored ${card.generated} with ${card.package}.`;
 
     // lead-time chart
@@ -1107,15 +1117,24 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     render();
   }
 
+  // the run window (?runs=30): the newest 30 runs of the verification database instead of the nightly 10; its
+  // scorecard and station maps come from the database, the wind and rain cards stay on the nightly runs
+  const W30 = new URLSearchParams(location.search).get("runs") === "30";
+  const suffix = W30 ? "_30" : "";
+  fetch("/assets/verification/scores_30.json", { method: "HEAD" }).then(r => {
+    if (!r.ok) return;
+    $("vwin").hidden = false;
+    $("vwin").querySelectorAll("a").forEach(a => a.setAttribute("aria-current", String((a.dataset.w === "30") === W30)));
+  }).catch(() => {});
   Promise.all([
-    fetch("/assets/verification/scores.json").then(r => r.json()),
+    fetch(`/assets/verification/scores${suffix}.json`).then(r => r.json()),
     window.plotlyP,
   ]).then(([card]) => {
     draw(card);
     // Leaflet loads deferred, so it is ready once the document is parsed.
     const parsed = new Promise(ok => document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", ok) : ok());
     const get = u => fetch(u).then(r => r.ok ? r.json() : null);
-    return Promise.all([get("/assets/verification/stations.json"), get("/assets/verification/precip_maps.json"),
+    return Promise.all([get(`/assets/verification/stations${suffix}.json`), get("/assets/verification/precip_maps.json"),
       get("/assets/verification/wind_dist.json"), parsed])
       .then(([sm, pm, wd]) => {
         if (sm) drawMap(sm);

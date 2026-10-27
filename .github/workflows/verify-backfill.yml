@@ -1,0 +1,132 @@
+name: Verification database backfill
+
+# Adds earlier 00Z runs to the verification database (scripts/verify/verifydb.sh, the releases verify-db-YYYY-MM):
+# each run's surface and radiosonde pairs for every model its source still holds, matched exactly as the nightly
+# verification.yml matches them (scripts/verify/mverify_scores.py --archive-only). GFS reaches back years on AWS;
+# IFS from March 2024 and AIFS from 2025 on the ECMWF open-data mirror; GDPS only the Datamart's last ~30 days, so a
+# run older than that is archived without it. Runs the database already holds are skipped, so a range can be
+# dispatched again after a failure.
+#
+# One job builds the observation database for the whole range (GHCNh for its years, IGRA2 radiosondes: this year's
+# files, or each station's whole record for an earlier year), then chunks of runs are matched side by side, each run
+# uploaded as soon as it is done.
+on:
+  workflow_dispatch:
+    inputs:
+      first:
+        description: 'First 00Z run, YYYYMMDD'
+        required: true
+      last:
+        description: 'Last 00Z run, YYYYMMDD (blank = 14 days ago, the newest the nightly would archive)'
+        default: ''
+      chunk:
+        description: 'Runs per job'
+        default: '12'
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt
+  MVERIFY_DB: ${{ github.workspace }}/.obs/obs.duckdb
+  MVERIFY: "mverify[grib,zarr] @ git+https://github.com/scorvec/nwp_verification@7934629f302a2c8b195f829bd3e07c000e7c5f6e"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: verify-backfill
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      chunks: ${{ steps.p.outputs.chunks }}
+      first: ${{ steps.p.outputs.first }}
+      end: ${{ steps.p.outputs.end }}
+      years: ${{ steps.p.outputs.years }}
+      igra: ${{ steps.p.outputs.igra }}
+    steps:
+      - id: p
+        env:
+          FIRST: ${{ inputs.first }}
+          LAST: ${{ inputs.last }}
+          CHUNK: ${{ inputs.chunk }}
+        run: |
+          LAST=${LAST:-$(date -u -d '14 days ago' +%Y%m%d)}
+          python3 - "$FIRST" "$LAST" "$CHUNK" >> "$GITHUB_OUTPUT" <<'EOF'
+          import json, sys
+          from datetime import date, datetime, timedelta
+          first, last = (datetime.strptime(x, "%Y%m%d").date() for x in sys.argv[1:3])
+          n = max(1, int(sys.argv[3]))
+          days = [first + timedelta(d) for d in range((last - first).days + 1)]
+          chunks = [{"first": c[0].strftime("%Y%m%d"), "last": c[-1].strftime("%Y%m%d")} for c in (days[i:i + n] for i in range(0, len(days), n))]
+          end = last + timedelta(days=10)                      # observations to day 10 of the last run
+          print("chunks=" + json.dumps(chunks))
+          print(f"first={first:%Y-%m-%d}")
+          print(f"end={end:%Y-%m-%d}")
+          print("years=" + " ".join(str(y) for y in range(first.year, end.year + 1)))
+          print("igra=" + ("y2d" if first.year == date.today().year else "por"))
+          EOF
+          cat "$GITHUB_OUTPUT"
+
+  observations:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/constraints.txt
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet "$MVERIFY"
+      - name: Observation database
+        run: |
+          mverify db init
+          mverify db ghcnh --year ${{ needs.plan.outputs.years }} --max-stations 2500
+          mverify db igra --archive ${{ needs.plan.outputs.igra }} --since ${{ needs.plan.outputs.first }} --until ${{ needs.plan.outputs.end }}
+          mverify db status
+      - uses: actions/upload-artifact@v7
+        with:
+          name: obs-db
+          path: .obs/obs.duckdb
+          include-hidden-files: true   # .obs is a dot directory
+          retention-days: 3
+          compression-level: 1
+
+  archive:
+    needs: [plan, observations]
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        chunk: ${{ fromJson(needs.plan.outputs.chunks) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet "$MVERIFY"
+      - uses: actions/download-artifact@v7
+        with:
+          name: obs-db
+          path: .obs
+      - name: Match and archive, one run at a time
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FIRST: ${{ matrix.chunk.first }}
+          LAST: ${{ matrix.chunk.last }}
+        run: |
+          scripts/verify/verifydb.sh list > "$RUNNER_TEMP/have.txt"
+          d=$FIRST
+          while [ "$d" -le "$LAST" ]; do
+            python scripts/verify/mverify_scores.py --archive-only --db "$MVERIFY_DB" --work "$RUNNER_TEMP/fc" \
+              --inits "${d}00" "${d}00" --have "$RUNNER_TEMP/have.txt" --archive-out "$RUNNER_TEMP/db-new"
+            scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"
+            rm -f "$RUNNER_TEMP"/db-new/*.parquet "$RUNNER_TEMP"/fc/pairs/*.parquet "$RUNNER_TEMP"/fc/sfc/*.parquet
+            d=$(date -u -d "$d + 1 day" +%Y%m%d)
+          done
