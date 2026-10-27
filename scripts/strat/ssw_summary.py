@@ -10,8 +10,7 @@ the committed references (reference/). Five questions, each answered per model a
            run_record.py vortex_<model>.json from nh_vortex.py, and the kept runs before it), raw
            member counts, not calibrated; the share easterly with the 10 hPa temperature rising from 60N to the pole on
            the same day as well (the full WMO definition, McInturff 1978; null for a run recorded without the
-           temperature); the members whose 10-day mean 100 hPa heat flux crosses the SSW warning level
-           (heatflux100 ssw_warning); and how often a MERRA-2 sudden warming began in the same 15 calendar days.
+           temperature); and how often a MERRA-2 sudden warming began in the same 15 calendar days.
            Charlton and Polvani (2007) count November-March onsets only.
   WAVES    the wave-1 and wave-2 shares of the ensemble-mean 100 hPa [v'T'] (45-75N) over days 1-15 and the peak of
            the total against its ERA5 day-of-year sd. A description of the forcing, not a split or displacement
@@ -92,15 +91,13 @@ def _r(x, n=2):
 
 def ssw_part() -> dict:
     """{model: {init, members, share, wmo, u10_min_mean, u10_min_p10, runs}} from each ensemble's newest recorded run
-    (run_record.py: vortex_<model>.json), with every kept run's chances and its heat-flux warning share by start (runs:
-    [[start, chance, warning share, WMO chance]])."""
+    (run_record.py: vortex_<model>.json), with every kept run's chances by start (runs: [[start, chance, WMO chance]])."""
     out = {}
     for m in ENSEMBLES:
         rs = RR.runs("vortex", m)
         if not rs:
             continue
         d, u = rs[-1], rs[-1]["u10"]
-        warn = {r["init"]: r.get("warn") for r in RR.runs("heatflux", m)}
         out[m] = {
             "init": d["init"].replace("T", " ") + "Z",
             "members": int(d["members"]),
@@ -108,7 +105,7 @@ def ssw_part() -> dict:
             "wmo": _r(d.get("wmo")),
             "u10_min_mean": _r(min(x for x in u["mean"][1:] if x is not None), 1),
             "u10_min_p10": _r(min(x for x in u["p10"][1:] if x is not None), 1),
-            "runs": [[r["init"], _r(r.get("ssw")), _r(warn.get(r["init"])), _r(r.get("wmo"))] for r in rs],
+            "runs": [[r["init"], _r(r.get("ssw")), _r(r.get("wmo"))] for r in rs],
         }
     return out
 
@@ -128,7 +125,7 @@ def base_rate(init: pd.Timestamp) -> dict:
 
 
 def waves_part(hf: dict, clim) -> dict:
-    """Per model: wave shares, the peak standardised total flux, the warning meter, the regional boxes."""
+    """Per model: wave shares, the peak standardised total flux, the regional boxes."""
     out = {}
     reg = RX.model_series(clim)
     for m, f in HEATFLUX.items():
@@ -141,7 +138,6 @@ def waves_part(hf: dict, clim) -> dict:
         tot = np.array(nh["tot"]["mean"][1:], float)
         # every model on one scale: the ensemble-mean total against the ERA5 day-of-year normal
         z = (tot - HF.clim_at(clim, "nh", "tot", "mean", v)) / HF.clim_at(clim, "nh", "tot", "sd", v)
-        w = nh.get("ssw_warning") or {}
         r = reg.get(m)
         out[m] = {
             "init": pd.Timestamp(d["init"]).strftime("%Y-%m-%d %HZ"),
@@ -150,9 +146,6 @@ def waves_part(hf: dict, clim) -> dict:
             "z_peak": _r(np.nanmax(z), 1),
             "z_peak_day": int(np.nanargmax(z)) + 1,
             "flux_min": _r(np.nanmin(tot), 1),
-            "warning_now": _r(w.get("now"), 1),
-            "warning_threshold": w.get("threshold"),
-            "warning_members": _r(w.get("members_crossing")),
             "ri_event_share": _r(nh.get("regional", {}).get("event_share")),
             "z_can_min": _r(np.nanmin(r["z_can"][1:]), 1) if r else None,
             "z_sib_max": _r(np.nanmax(r["z_sib"][1:]), 1) if r else None,
@@ -311,11 +304,6 @@ def main() -> int:
             "wmo_mean": _r(np.mean(wmo)) if wmo else None,
             "wmo_models": len(wmo),
             "base_rate": base_rate(newest),
-            "warning_record": (_read("heatflux100.json") or {})
-            .get("hemispheres", {})
-            .get("nh", {})
-            .get("ssw_warning", {})
-            .get("record"),
         },
         "waves": {
             "models": waves,

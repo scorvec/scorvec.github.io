@@ -389,11 +389,6 @@ def main():
 </script>
 <style>
   *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  :root {{
-    --bg: #fafaf8; --ink: #1c1c1a; --muted: #6f6b64;
-    --accent: #2c4a72; --rule: #e4e2dc;
-    --serif: 'Lora', Georgia, serif; --sans: 'Inter', sans-serif;
-  }}
   body {{ background: var(--bg); color: var(--ink); font-family: var(--sans);
          font-weight: 300; line-height: 1.6; }}
   nav {{ display: flex; align-items: center; justify-content: space-between;
@@ -406,7 +401,7 @@ def main():
                  letter-spacing: 0.02em; }}
   .nav-links a:hover, .nav-links a.active {{ color: var(--ink); }}
   main {{ max-width: min(94vw, 2000px); margin: 0 auto; padding: 2.5rem 2rem 4rem; }}
-  h1 {{ font-family: var(--serif); font-weight: 500; font-size: 1.9rem;
+  h1 {{ font-family: var(--serif); font-weight: 500; font-size: var(--t-h1);
        margin-bottom: 0.4rem; }}
   .lede {{ color: var(--muted); max-width: 70ch; margin-bottom: 2rem; }}
   .hero {{ text-align: center; margin: 0 auto 2.5rem; }}
@@ -446,8 +441,6 @@ def main():
   .mi-about p {{ margin: 0.6rem 0; font-size: 0.92rem; }}
   .chart-sources {{ color: var(--muted); font-size: 0.82rem; }}
   a {{ color: var(--accent); }}
-  /* the stage viewer (assets/stage.css) on this page's palette */
-  :root {{ --surface: #ffffff; --edge: #d9d5cc; --ink2: #444; --accent-light: rgba(44, 74, 114, 0.08); }}
   .page-header {{ margin-bottom: 1rem; }}
   .stage section h2 {{ margin-top: 0.2rem; }}
   .stage #mjo-models h2 {{ margin-top: 0.2rem; }}
