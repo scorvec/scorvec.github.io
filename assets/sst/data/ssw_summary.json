@@ -1,5 +1,5 @@
 {
- "built": "2026-10-27 18:44Z",
+ "built": "2026-10-27 18:53Z",
  "newest_init": "2026-10-27 12Z",
  "window": [
   "2026-10-28",
@@ -833,12 +833,12 @@
     ]
    },
    "gefs": {
-    "init": "2026-10-27 00Z",
+    "init": "2026-10-27 12Z",
     "members": 31,
-    "share": 0.65,
+    "share": 0.71,
     "wmo": 0.52,
-    "u10_min_mean": 0.5,
-    "u10_min_p10": -2.6,
+    "u10_min_mean": -0.1,
+    "u10_min_p10": -3.1,
     "runs": [
      [
       "2026-10-01T00",
@@ -1104,6 +1104,11 @@
       "2026-10-27T00",
       0.65,
       0.52
+     ],
+     [
+      "2026-10-27T12",
+      0.71,
+      0.52
      ]
     ]
    },
@@ -1233,7 +1238,7 @@
     ]
    }
   },
-  "share_mean": 0.7,
+  "share_mean": 0.72,
   "wmo_mean": 0.54,
   "wmo_models": 4,
   "base_rate": {
@@ -1268,15 +1273,15 @@
     "z_sib_max": 4.8
    },
    "gefs": {
-    "init": "2026-10-27 00Z",
+    "init": "2026-10-27 12Z",
     "members": 31,
-    "wave2_share": 0.52,
-    "z_peak": 4.0,
+    "wave2_share": 0.5,
+    "z_peak": 3.9,
     "z_peak_day": 2,
-    "flux_min": 10.3,
-    "ri_event_share": 0.26,
+    "flux_min": 10.2,
+    "ri_event_share": 0.19,
     "z_can_min": -1.2,
-    "z_sib_max": 4.9
+    "z_sib_max": 4.7
    },
    "geps": {
     "init": "2026-10-27 12Z",
@@ -1346,11 +1351,11 @@
     "kind": "bottom-up"
    },
    "gefs": {
-    "init": "2026-10-27 00Z",
+    "init": "2026-10-27 12Z",
     "members": 31,
-    "cap100_day15": 1.7,
-    "cap10_day15": 2.9,
-    "frac100_day15": 0.77,
+    "cap100_day15": 1.9,
+    "cap10_day15": 3.0,
+    "frac100_day15": 0.84,
     "cross100": "2026-10-28",
     "cross10": "2026-10-29",
     "kind": "bottom-up"
@@ -1387,7 +1392,7 @@
    "gefs",
    "geps"
   ],
-  "ri_event_share_mean": 0.21
+  "ri_event_share_mean": 0.19
  },
  "surface": {
   "models": {
@@ -1414,15 +1419,15 @@
     "frac100_day15": 1.0
    },
    "gefs": {
-    "init": "2026-10-27 00Z",
-    "p_positive": 0.82,
+    "init": "2026-10-27 12Z",
+    "p_positive": 0.84,
     "base_rate": 0.5,
     "window": [
      "2026-11-12",
      "2026-12-11"
     ],
-    "cap100_day15": 1.7,
-    "frac100_day15": 0.77
+    "cap100_day15": 1.9,
+    "frac100_day15": 0.84
    },
    "geps": {
     "init": "2026-10-27 12Z",
@@ -1486,7 +1491,7 @@
    }
   },
   "p_positive_mean": 0.85,
-  "cap100_day15_mean": 2.0,
+  "cap100_day15_mean": 2.1,
   "regime": "cap_1sd"
  },
  "reference": {
