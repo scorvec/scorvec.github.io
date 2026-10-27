@@ -35,7 +35,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-<script src="/assets/site.js?v=ffe54c4dba" defer></script>
+<script src="/assets/site.js?v=7134a53040" defer></script>
 <script src="/assets/frames_root.js?v=bdced09224"></script>
 <link rel="stylesheet" href="/assets/site.css?v=6cd8ec62da">
 <style>
@@ -74,7 +74,9 @@
   .mv-keys kbd { font: inherit; font-size: 0.78rem; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0 0.3em; background: var(--panel); }
 
   /* touch: one finger scrolls the page, two move and zoom the map. Never taller than the window. */
-  .mv-map { position: relative; width: 100%; height: max(340px, calc(100vh - 64px - 125px * var(--ui, 1))); background: var(--map); border: 1px solid var(--rule);
+  /* the map fills the window under its controls with its Show row still on screen (site.js sets --fit-top and
+     --fit-below), never shorter than 420 px */
+  .mv-map { position: relative; width: 100%; height: max(420px, calc(100vh - var(--fit-top, 260px) - var(--fit-below, 0px) - 14px)); background: var(--map); border: 1px solid var(--rule);
             border-radius: 8px; overflow: hidden; touch-action: pan-x pan-y; cursor: grab;
             -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   .mv-map.drag { cursor: grabbing; }
@@ -142,7 +144,6 @@
   .mv-runs { font-size: 0.95rem; color: var(--muted); margin: 0.2rem 0 0; }
   /* the regimes view: the timeline in the panel (the map gives up its height), scenario cards and the run-to-run
      table below the map */
-  main.mv.rg .mv-map { height: max(300px, calc(100vh - 64px - 125px * var(--ui, 1) - var(--rgh, 150px))); }
   .rg-top[hidden], .rg-more[hidden], .cl-top[hidden], .cl-view[hidden] { display: none; }
   /* the clusters view: the figures replace the map */
   main.mv.cl .mv-mapwrap, main.mv.cl #legT, main.mv.cl .mv-show, main.mv.cl .mv-time:not(.cl-time), main.mv.cl #models, main.mv.cl #fields, main.mv.cl #units, main.mv.cl #runBox, main.mv.cl #note { display: none; }
@@ -441,7 +442,9 @@
       <div class="seg" id="models" role="group" aria-label="Ensemble"></div>
       <div class="seg" id="fields" role="group" aria-label="Field"></div>
       <div class="seg" id="views" role="group" aria-label="View"></div>
+      <div class="seg" id="vsSeg" role="group" aria-label="Change from which run"></div>
       <div class="seg" id="units" role="group" aria-label="Unit, or standardized anomaly"></div>
+      <div class="seg" id="projSeg" role="group" aria-label="Map or globe"></div>
       <div class="seg" id="sprSeg" role="group" aria-label="Spread measure" hidden></div>
       <span class="mv-run" id="runBox"><span class="mv-runT">Run</span><span class="seg" id="runPick" role="group" aria-label="Run"></span></span>
     </div>
@@ -472,7 +475,7 @@
   </div>
   </div>
   <div class="mv-mapwrap">
-  <div class="mv-map" id="map" tabindex="0" role="application" aria-roledescription="map" aria-label="World map" aria-describedby="badge mapKeys">
+  <div class="mv-map" id="map" data-fit-below=".mv-legT, .mv-show" tabindex="0" role="application" aria-roledescription="map" aria-label="World map" aria-describedby="badge mapKeys">
     <canvas id="gl" aria-hidden="true"></canvas>
     <canvas id="ov" aria-hidden="true"></canvas>
     <canvas id="lab" aria-hidden="true"></canvas>
@@ -488,7 +491,6 @@
   <p class="mv-legT" id="legT"></p>
   <div class="mv-show"><b>Show</b>
     <label class="chk" title="The ensemble mean's 500 hPa height every 6 dam, its sea-level pressure every 4 hPa, the 0 °C line of its 2 m temperature"><input type="checkbox" id="cont" checked> Contours</label>
-    <div class="seg" id="vsSeg" role="group" aria-label="Change from which run"></div>
     <span class="mv-keys" id="mapKeys">Click the map, then: arrows pan &middot; <kbd>+</kbd> <kbd>&minus;</kbd> zoom &middot; <kbd>0</kbd> reset &middot; <kbd>,</kbd> <kbd>.</kbd> day &middot; <kbd>Space</kbd> play</span>
   </div>
   <p class="mv-note" id="note"></p>
@@ -599,7 +601,7 @@
   // ── state ──────────────────────────────────────────────────────────────────────────────────────────────────────
   var man = {};
   var st = { model: "ifs", field: "t2m", view: "anom", span: "P1", unit: "C", playing: false, sector: "ea", regime: null, only: false, sigma: false, sprd: "sd",
-             cdom: "nh", cwin: "d6_10", cday: 1, run: {}, vs: "12" };
+             cdom: "nh", cwin: "d6_10", cday: 1, run: {}, vs: "12", proj: "map" };
   var CL = null;                                                       // assets/models/ensmaps_clusters.json
   var view = null;                                                     // {cx, cy: degrees, s: degrees per CSS px}
   var $ = function (id) { return document.getElementById(id); };
@@ -947,19 +949,25 @@
   var gl = glc.getContext("webgl2", { premultipliedAlpha: true, antialias: false, preserveDrawingBuffer: false });
   var prog, loc = {}, lutTex, lutKey = "";
   var VS = "#version 300 es\nin vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
-  // display pixel -> longitude, latitude (equirectangular) -> the texture's grid index; R = the value's code (0 = not
+  // display pixel -> longitude, latitude (equirectangular, or the orthographic globe: uS is then the degrees per pixel
+  // at its centre, uC the point at its centre) -> the texture's grid index; R = the value's code (0 = not
   // drawn), G = the members agreeing (anomaly; 255 = not drawn) or the significance flag (change). The value is
   // bilinear over the drawn corners, the gate bilinear over them too, so its edge is smooth. Both are shaded
   // everywhere, with dots where the gate holds - the members agree on the anomaly's sign, the change is significant -
-  // spaced uSp device pixels and anchored to longitude and latitude so they move with the map.
+  // spaced uSp device pixels and anchored to longitude and latitude so they move with the map (on the globe, rows of
+  // latitude with the longitude spacing widened by 1/cos(latitude), so the dots stay evenly spaced over the sphere).
   var FS = [
     "#version 300 es", "precision highp float;precision highp int;precision highp sampler2D;",
     "uniform sampler2D uData;uniform sampler2D uLut;uniform vec2 uC;uniform float uS;uniform vec2 uWH;",
-    "uniform vec3 uG;uniform ivec2 uN;uniform int uWrap;uniform int uMode;uniform float uK;uniform vec4 uMis;uniform vec4 uDot;uniform float uSp;uniform float uDr;",
+    "uniform vec3 uG;uniform ivec2 uN;uniform int uWrap;uniform int uMode;uniform float uK;uniform vec4 uMis;uniform vec4 uDot;uniform float uSp;uniform float uDr;uniform int uProj;",
     "out vec4 o;",
     "vec4 tx(int i,int j){return texelFetch(uData,ivec2(i,j),0);}",
     "void main(){",
-    " vec2 p=gl_FragCoord.xy;float lon=uC.x+(p.x-0.5*uWH.x)*uS,lat=uC.y+(p.y-0.5*uWH.y)*uS;",
+    " vec2 p=gl_FragCoord.xy;float lon,lat;",
+    " if(uProj==1){vec2 v=(p-0.5*uWH)*uS/57.29578;float r2=dot(v,v);if(r2>1.)discard;",
+    "  float z=sqrt(1.-r2),sp=sin(radians(uC.y)),cp=cos(radians(uC.y));",
+    "  lat=degrees(asin(clamp(v.y*cp+z*sp,-1.,1.)));lon=uC.x+degrees(atan(v.x,z*cp-v.y*sp));}",
+    " else{lon=uC.x+(p.x-0.5*uWH.x)*uS;lat=uC.y+(p.y-0.5*uWH.y)*uS;}",
     " if(lat>90.||lat<-90.)discard;",
     " float gx=mod(lon+180.,360.)/uG.x-uG.y,gy=(90.-lat)/uG.x-uG.z;",
     " if(uWrap==0){if(gx<0.||gy<0.||gx>float(uN.x-1)||gy>float(uN.y-1))discard;}else gy=clamp(gy,0.,float(uN.y-1));",
@@ -973,7 +981,8 @@
     " else{vec4 gate=uMode==0?step(uK-0.5,g)*step(g,vec4(254.5)):(uMode==1||uMode==4)?step(0.5,g):vec4(0.);float gt=dot(w,gate*ok)/wok;",
     "  float code=dot(w,src*ok)/wok;c=texelFetch(uLut,ivec2(int(floor(code+0.5)),0),0);",
     "  if(uMode==4){if(gt<0.5)c=vec4(0.);}",   // 4: colour only where significant, no dots (the spread change)
-    "  else if(gt>=0.5){vec2 q=mod(vec2(lon,lat)/uS,uSp)-0.5*uSp;if(dot(q,q)<uDr*uDr)c=vec4(mix(c.rgb,uDot.rgb,uDot.a),c.a);}}",
+    "  else if(gt>=0.5){vec2 q;if(uProj==1){float sd=uSp*uS,la=(floor(lat/sd)+0.5)*sd;q=vec2(mod(lon*cos(radians(la)),sd),mod(lat,sd))/uS-0.5*uSp;}",
+    "   else q=mod(vec2(lon,lat)/uS,uSp)-0.5*uSp;if(dot(q,q)<uDr*uDr)c=vec4(mix(c.rgb,uDot.rgb,uDot.a),c.a);}}",
     " o=vec4(c.rgb*c.a,c.a);",
     "}"].join("\n");
   function initGL() {
@@ -983,7 +992,7 @@
     prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
     gl.bindAttribLocation(prog, 0, "p"); gl.linkProgram(prog); if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
     gl.useProgram(prog);
-    ["uData", "uLut", "uC", "uS", "uWH", "uG", "uN", "uWrap", "uMode", "uK", "uMis", "uDot", "uSp", "uDr"].forEach(function (n) { loc[n] = gl.getUniformLocation(prog, n); });
+    ["uData", "uLut", "uC", "uS", "uWH", "uG", "uN", "uWrap", "uMode", "uK", "uMis", "uDot", "uSp", "uDr", "uProj"].forEach(function (n) { loc[n] = gl.getUniformLocation(prog, n); });
     var b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
@@ -1036,7 +1045,11 @@
     var abs = new URL(url, location.href).href;
     var job = workers.length ? workerCall({ op: "geo", url: abs }).then(function (r) { return r.layers; }) : Promise.reject(new Error("no worker"));
     job.then(function (L) {
-      L.forEach(function (x) { if (geo[x.name] && geo[x.name].rank > rank) return; geo[x.name] = { tiles: buildTiles(x.xy, x.off, 30), rank: rank }; });
+      L.forEach(function (x) {
+        if (geo[x.name] && geo[x.name].rank > rank) return;
+        var raw = { xy: x.xy, off: x.off }, was = geo[x.name];
+        geo[x.name] = { tiles: buildTiles(x.xy, x.off, 30), rank: rank, raw: raw, coarse: was ? was.coarse || was.raw : raw };   // coarse: the globe's set while it turns
+      });
       drawOverlay(); if (st.view === "regimes") renderCards();   // the cards' maps carry the coastlines
     }).catch(function (e) { console.warn("boundaries", e); });
   }
@@ -1066,24 +1079,51 @@
     [glc, ovc, labc].forEach(function (c) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); });
     ovView = null; drawLegend(); if (view) clampView(); render();
   }
-  function sFit() { return Math.max(360 / W, 180 / H); }
+  // two projections share one view {cx, cy, s}: the map (equirectangular, s degrees per pixel) and the globe
+  // (orthographic, centred on cx, cy, s degrees per pixel at its centre: a radius of 57.3 / s pixels)
+  var D2R = Math.PI / 180;
+  function globe() { return st.proj === "globe"; }
+  function sFit() { return globe() ? 57.29578 / (0.47 * Math.min(W, H)) : Math.max(360 / W, 180 / H); }
   // the whole world; on a phone, 150 degrees of latitude from the pole down, centred on the reader's own longitude (from
-  // the time zone), since the whole world would be a thin strip
+  // the time zone), since the whole world would be a thin strip; the globe faces the reader's longitude at 30 degrees N
   function fit() {
     var phone = W < 640, lon = -new Date().getTimezoneOffset() / 4;
-    view = phone ? { cx: lon, cy: 15, s: 150 / H } : { cx: 0, cy: 0, s: sFit() }; clampView();
+    view = globe() ? { cx: lon, cy: 30, s: sFit() } : phone ? { cx: lon, cy: 15, s: 150 / H } : { cx: 0, cy: 0, s: sFit() }; clampView();
   }
-  function toLL(px, py) { return [view.cx + (px - W / 2) * view.s, view.cy - (py - H / 2) * view.s]; }
+  // a pixel's longitude and latitude (null off the globe)
+  function toLL(px, py) {
+    if (!globe()) return [view.cx + (px - W / 2) * view.s, view.cy - (py - H / 2) * view.s];
+    var r = 57.29578 / view.s, x = (px - W / 2) / r, y = (H / 2 - py) / r, r2 = x * x + y * y;
+    if (r2 > 1) return null;
+    var z = Math.sqrt(1 - r2), sp = Math.sin(view.cy * D2R), cp = Math.cos(view.cy * D2R);
+    return [view.cx + Math.atan2(x, z * cp - y * sp) / D2R, Math.asin(Math.max(-1, Math.min(1, y * cp + z * sp))) / D2R];
+  }
+  // the globe's forward projection for the view now: longitude, latitude -> pixel, or null on the far side
+  function globeP() {
+    var r = 57.29578 / view.s, sp = Math.sin(view.cy * D2R), cp = Math.cos(view.cy * D2R), l0 = view.cx * D2R, ox = W / 2, oy = H / 2;
+    return function (lon, lat) {
+      var la = lat * D2R, dl = lon * D2R - l0, cl = Math.cos(la), sl = Math.sin(la), cd = Math.cos(dl);
+      return sp * sl + cp * cl * cd < 0 ? null : [ox + r * cl * Math.sin(dl), oy - r * (cp * sl - sp * cl * cd)];
+    };
+  }
   var S_MIN = 0.008;
   function clampView() {
     view.s = Math.max(S_MIN, Math.min(view.s, sFit()));
     var hh = H * view.s / 2;
-    view.cy = hh >= 90 ? 0 : Math.max(-90 + hh, Math.min(90 - hh, view.cy));
+    view.cy = globe() ? Math.max(-90, Math.min(90, view.cy)) : hh >= 90 ? 0 : Math.max(-90 + hh, Math.min(90 - hh, view.cy));
     view.cx = ((view.cx + 180) % 360 + 360) % 360 - 180;
   }
+  // the longitudes and latitudes on screen [lon0, lon1, lat0, lat1]; on the globe the cap the window's corners reach
+  function visBox() {
+    if (!globe()) return [view.cx - W / 2 * view.s, view.cx + W / 2 * view.s, view.cy - H / 2 * view.s, view.cy + H / 2 * view.s];
+    var a = Math.asin(Math.min(1, Math.hypot(W, H) / 2 * view.s / 57.29578)) / D2R, la0 = view.cy - a, la1 = view.cy + a;
+    if (la0 <= -90 || la1 >= 90) return [view.cx - 180, view.cx + 180, Math.max(-90, la0), Math.min(90, la1)];
+    var dl = Math.asin(Math.min(1, Math.sin(a * D2R) / Math.cos(view.cy * D2R))) / D2R;
+    return [view.cx - dl, view.cx + dl, la0, la1];
+  }
   function lonShifts(lo0, lo1) {                                  // the multiples of 360 deg a world-wide layer is drawn at
-    var out = []; for (var k = Math.floor((view.cx - W / 2 * view.s + 180) / 360) - 1; k <= Math.floor((view.cx + W / 2 * view.s + 180) / 360) + 1; k++) {
-      if (lo1 + 360 * k >= view.cx - W / 2 * view.s && lo0 + 360 * k <= view.cx + W / 2 * view.s) out.push(360 * k); }
+    var b = visBox(), out = [];
+    for (var k = Math.floor((b[0] + 180) / 360) - 1; k <= Math.floor((b[1] + 180) / 360) + 1; k++) if (lo1 + 360 * k >= b[0] && lo0 + 360 * k <= b[1]) out.push(360 * k);
     return out;
   }
 
@@ -1092,8 +1132,7 @@
   // in, the change frame
   function tilesInView(c, f) {
     var t = c.fields[f].tiles; if (!t || !view || view.s > TILE_S) return [];
-    var g = c.fields[f].grid, dlon = t.cols * g.res, dlat = t.rows * g.res, out = [];
-    var la0 = view.cy - H / 2 * view.s, la1 = view.cy + H / 2 * view.s, lo0 = view.cx - W / 2 * view.s, lo1 = view.cx + W / 2 * view.s;
+    var g = c.fields[f].grid, dlon = t.cols * g.res, dlat = t.rows * g.res, out = [], vb = visBox(), la0 = vb[2], la1 = vb[3];
     for (var r = 0; r < (g.ny - 1) / t.rows; r++) {
       var top = 90 - r * dlat, bot = top - dlat; if (bot > la1 || top < la0) continue;
       for (var k = 0; k < g.nx / t.cols; k++) {
@@ -1163,7 +1202,7 @@
     var lk = f + "|" + scale() + "|" + st.unit + "|" + stepOf() + "|" + sigmaOn();
     if (lk !== lutKey) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, lutTex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, buildLut()); lutKey = lk; }
     clearGL();
-    gl.uniform2f(loc.uC, view.cx, view.cy); gl.uniform1f(loc.uS, view.s / DPR); gl.uniform2f(loc.uWH, glc.width, glc.height);
+    gl.uniform2f(loc.uC, view.cx, view.cy); gl.uniform1f(loc.uS, view.s / DPR); gl.uniform2f(loc.uWH, glc.width, glc.height); gl.uniform1i(loc.uProj, globe() ? 1 : 0);
     drawFrames(dd);
     drawn = dd; markShown();
     ensureContours(dd);
@@ -1174,7 +1213,7 @@
   function fastFrame() {
     var d = drawn; if (!gl || glLost || !view || !d) return false;
     clearGL();
-    gl.uniform2f(loc.uC, view.cx, view.cy); gl.uniform1f(loc.uS, view.s / DPR); gl.uniform2f(loc.uWH, glc.width, glc.height);
+    gl.uniform2f(loc.uC, view.cx, view.cy); gl.uniform1f(loc.uS, view.s / DPR); gl.uniform2f(loc.uWH, glc.width, glc.height); gl.uniform1i(loc.uProj, globe() ? 1 : 0);
     drawFrames(d);
     moveOverlay();
     return true;
@@ -1190,6 +1229,7 @@
   function beginInteract() { interacting = true; clearTimeout(settleT); }
   function settleSoon(ms) { clearTimeout(settleT); settleT = setTimeout(function () { interacting = false; render(); prefetch(); }, ms || 140); }
   function moveOverlay() {
+    if (globe()) { drawGlobeOverlay(true); if (labc.style.visibility !== "hidden") { labc.style.visibility = "hidden"; tip.style.display = "none"; } return; }
     if (!ovView) return;
     var k = ovView.s / view.s, tx = W / 2 * (1 - k) + (ovView.cx - view.cx) / view.s, ty = H / 2 * (1 - k) - (ovView.cy - view.cy) / view.s;
     ovc.style.transform = "matrix(" + k + ",0,0," + k + "," + tx + "," + ty + ")"; ovMoved = true;
@@ -1207,6 +1247,12 @@
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ovc.width, ovc.height);
     if (!view) { ovView = null; return; }
     geoWant();
+    if (globe()) {
+      drawGlobeOverlay(false);
+      ovView = { cx: view.cx, cy: view.cy, s: view.s };
+      cancelAnimationFrame(labT); labT = requestAnimationFrame(function () { labT = 0; drawLabels(); });
+      return;
+    }
     var dpp = view.s / DPR, shifts = lonShifts(-180, 180);        // degrees per device pixel
     ctx.lineJoin = "round"; ctx.lineCap = "round";
     shifts.forEach(function (dx) {
@@ -1228,6 +1274,45 @@
     ovView = { cx: view.cx, cy: view.cy, s: view.s };
     cancelAnimationFrame(labT);
     labT = requestAnimationFrame(function () { labT = 0; drawLabels(); });
+  }
+  // the globe's overlay, projected point by point: boundaries (the coarse set while it turns), graticule, contours, the rim
+  function strokeLines(ctx, xy, off, P) {                          // polylines of lon, lat pairs, lifted where they go behind
+    ctx.beginPath();
+    for (var li = 0; li + 1 < off.length; li++) {
+      var pen = false;
+      for (var k = off[li]; k < off[li + 1]; k++) { var q = P(xy[2 * k], xy[2 * k + 1]); if (!q) { pen = false; continue; } if (pen) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); pen = true; }
+    }
+    ctx.stroke();
+  }
+  var GRAT = (function () {                                        // 30-degree graticule, 2-degree steps
+    var xy = [], off = [0], la, lo;
+    for (la = -60; la <= 60; la += 30) { for (lo = -180; lo <= 180; lo += 2) xy.push(lo, la); off.push(xy.length / 2); }
+    for (lo = -180; lo < 180; lo += 30) { for (la = -90; la <= 90; la += 2) xy.push(lo, la); off.push(xy.length / 2); }
+    return { xy: xy, off: off };
+  })();
+  function drawGlobeOverlay(moving) {
+    var ctx = ovc.getContext("2d"), P = globeP(), r = 57.29578 / view.s;
+    if (ovMoved) { ovc.style.transform = ""; ovMoved = false; }
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ovc.width, ovc.height);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.lineJoin = "round"; ctx.lineCap = "round";
+    ["lakes", "coast", "countries"].forEach(function (name) {
+      var L = geo[name]; if (!L) return;
+      var raw = moving && L.coarse ? L.coarse : L.raw, sty = GEO_STYLE[name];
+      ctx.strokeStyle = "rgba(28,30,28,0.8)"; ctx.globalAlpha = sty[1]; ctx.lineWidth = sty[0];
+      strokeLines(ctx, raw.xy, raw.off, P);
+    });
+    ctx.globalAlpha = 1;
+    ctx.save(); ctx.strokeStyle = "rgba(40,44,40,0.3)"; ctx.lineWidth = 0.7; ctx.setLineDash([4, 4]); strokeLines(ctx, GRAT.xy, GRAT.off, P); ctx.restore();
+    var C = contNow();
+    if (C) {
+      var wide = C.field === "t2m" ? 1.6 : 1.0;
+      [["rgba(255,255,255,0.55)", wide + 1.8], [C.field === "t2m" ? "rgba(20,40,120,0.92)" : "rgba(15,15,15,0.85)", wide]].forEach(function (pen) {
+        ctx.strokeStyle = pen[0]; ctx.lineWidth = pen[1];
+        C.lines.forEach(function (ln) { strokeLines(ctx, ln.xy, [0, ln.xy.length / 2], P); });
+      });
+    }
+    ctx.strokeStyle = "rgba(40,44,40,0.55)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(W / 2, H / 2, r, 0, 2 * Math.PI); ctx.stroke();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
   function drawLabels() {
     var ctx = labc.getContext("2d");
@@ -1287,18 +1372,21 @@
     var C = contNow(); if (!C || st.playing) return;
     var fmt = CONT[C.field].fmt, GAP = W < 640 ? 170 : 240, FONT = "600 11.5px 'Source Sans 3', Arial, sans-serif", boxes = [];
     ctx.font = FONT; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    lonShifts(-180, 180).forEach(function (dx) {
-      var lo0 = view.cx - W / 2 * view.s - dx, lo1 = view.cx + W / 2 * view.s - dx, la0 = view.cy - H / 2 * view.s, la1 = view.cy + H / 2 * view.s;
+    var G = globe() ? globeP() : null;
+    (G ? [0] : lonShifts(-180, 180)).forEach(function (dx) {
+      var vb = visBox(), lo0 = vb[0] - dx, lo1 = vb[1] - dx, la0 = vb[2], la1 = vb[3];
       C.lines.forEach(function (L) {
-        if (L.bb[1] < lo0 || L.bb[0] > lo1 || L.bb[3] < la0 || L.bb[2] > la1) return;
+        if (!G && (L.bb[1] < lo0 || L.bb[0] > lo1 || L.bb[3] < la0 || L.bb[2] > la1)) return;
         var a = L.xy, n = a.length, txt = fmt(L.v), tw = textW(ctx, FONT, txt) + 6;
-        var sx = function (k) { return W / 2 + (a[k] + dx - view.cx) / view.s; }, sy = function (k) { return H / 2 - (a[k + 1] - view.cy) / view.s; };
-        var acc = GAP * 0.45, px = sx(0), py = sy(0);
+        var pt = G ? function (k) { return G(a[k], a[k + 1]); } : function (k) { return [W / 2 + (a[k] + dx - view.cx) / view.s, H / 2 - (a[k + 1] - view.cy) / view.s]; };
+        var acc = GAP * 0.45, p0 = pt(0), px = p0 ? p0[0] : 0, py = p0 ? p0[1] : 0;
         for (var k = 2; k < n; k += 2) {
-          var cx = sx(k), cy = sy(k), ddx = cx - px, ddy = cy - py;
+          var q = pt(k); if (!q) { acc = GAP * 0.45; continue; }
+          var cx = q[0], cy = q[1], ddx = cx - px, ddy = cy - py;
           px = cx; py = cy; acc += Math.sqrt(ddx * ddx + ddy * ddy);
           if (acc < GAP || cx < tw || cx > W - tw || cy < 12 || cy > H - 12) continue;
-          var ka = Math.max(0, k - 6), kb = Math.min(n - 2, k + 6), ang = Math.atan2(sy(kb) - sy(ka), sx(kb) - sx(ka));
+          var qa = pt(Math.max(0, k - 6)), qb = pt(Math.min(n - 2, k + 6)); if (!qa || !qb) continue;
+          var ang = Math.atan2(qb[1] - qa[1], qb[0] - qa[0]);
           if (ang > Math.PI / 2) ang -= Math.PI; if (ang < -Math.PI / 2) ang += Math.PI;
           var r = Math.max(tw, 16) / 2 + 2, hit = false;
           for (var b = 0; b < boxes.length; b++) { var bx = boxes[b]; if (Math.abs(bx[0] - cx) < bx[2] + r && Math.abs(bx[1] - cy) < 9 + r * Math.abs(Math.sin(ang)) + 4) { hit = true; break; } }
@@ -1437,7 +1525,6 @@
     var key = all.length ? secOf(all[0]) : null;
     $("rgKey").innerHTML = key ? key.names.map(function (nm, f) { return nm === null ? "" : "<span><i style=\"background:" + key.colors[f] + "\"></i>" + escH(nm) + "</span>"; }).join("") +
       "<span>pale: not different from the 1991–2020 frequency · black tick: the ensembles' most frequent regime differs · click a name to show that ensemble alone</span>" : "";
-    mainEl.style.setProperty("--rgh", ($("rgTop").offsetHeight + 12) + "px");
     if (!rows.length) { ctx.fillStyle = "#6f6b64"; ctx.font = "14px 'Source Sans 3', Arial, sans-serif"; ctx.textBaseline = "middle"; ctx.fillText("No ensemble run with regimes yet.", 10, h / 2); tlHit = null; return; }
     var x0 = REG_LAB, cw = (w - x0 - 6) / dates.length, step = Math.max(1, Math.ceil(44 / cw)), F1 = key.names.length;
     ctx.font = "12px 'Source Sans 3', Arial, sans-serif"; ctx.fillStyle = "#3d4540"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
@@ -1808,6 +1895,9 @@
       function (v) { st.sigma = v === "sigma"; setButtons(); onChange(); },
       function (v) { return v === "sigma" ? "Standardized: the anomaly over the 1991–2020 standard deviation of the same averaging period" : "The anomaly in " + unitOf(st.field); });
     $("units").hidden = st.field !== "t2m" && (st.view !== "anom" || !(c && c.fields[st.field] && c.fields[st.field].sigma));
+    segButtons($("projSeg"), ["map", "globe"], function (v) { return v === "map" ? "Map" : "Globe"; }, st.proj,
+      function (v) { if (st.proj === v) return; st.proj = v; setButtons(); fit(); render(); prefetch(); writeHash(); },
+      function (v) { return v === "map" ? "The whole world flat (equirectangular)" : "An interactive globe: drag to turn it, zoom about its centre"; });
     var rs = runsOf(st.model);
     $("runBox").hidden = !rs.length;
     segButtons($("runPick"), rs.map(function (x) { return x.cycle; }), function (k) { var x = rs.filter(function (y) { return y.cycle === k; })[0]; return escH(initLabel(x)); },
@@ -1914,6 +2004,7 @@
   var zA = null;
   function zoomBy(px, py, f, tau) {
     if (!view) return;
+    if (globe()) { px = W / 2; py = H / 2; }                         // the globe zooms about its centre
     var w0 = toLL(px, py);
     if (!zA) zA = { target: view.s, raf: 0 };
     zA.target = Math.max(S_MIN, Math.min(sFit(), zA.target * f)); zA.px = px; zA.py = py; zA.wx = w0[0]; zA.wy = w0[1]; zA.tau = tau || 45;
@@ -1941,7 +2032,7 @@
   mapEl.addEventListener("touchmove", function (e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
   var gS = 0;
   mapEl.addEventListener("gesturestart", function (e) { e.preventDefault(); gS = view ? view.s : 0; beginInteract(); });
-  mapEl.addEventListener("gesturechange", function (e) { e.preventDefault(); if (!view || !gS) return; var r = mapEl.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top, a = toLL(px, py); view.s = gS / e.scale; clampView(); var b = toLL(px, py); view.cx += a[0] - b[0]; view.cy += a[1] - b[1]; clampView(); render(); });
+  mapEl.addEventListener("gesturechange", function (e) { e.preventDefault(); if (!view || !gS) return; var r = mapEl.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top, a = toLL(px, py); view.s = gS / e.scale; clampView(); var b = toLL(px, py); if (a && b && !globe()) { view.cx += a[0] - b[0]; view.cy += a[1] - b[1]; } clampView(); render(); });
   mapEl.addEventListener("gestureend", function (e) { e.preventDefault(); settleSoon(120); });
   $("zin").onclick = function () { zoomBy(W / 2, H / 2, 0.6, 45); };
   $("zout").onclick = function () { zoomBy(W / 2, H / 2, 1 / 0.6, 45); };
@@ -1985,7 +2076,7 @@
       if (ptrs.size === 2 && pinch) {
         var p = Array.from(ptrs.values()), d = Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]), mx = (p[0][0] + p[1][0]) / 2 - r.left, my = (p[0][1] + p[1][1]) / 2 - r.top;
         var a = toLL(mx, my); view.s = pinch.s * pinch.d / Math.max(d, 1); clampView(); var b = toLL(mx, my);
-        view.cx += a[0] - b[0]; view.cy += a[1] - b[1]; view.cx -= (e.clientX - old[0]) * view.s / 2; view.cy += (e.clientY - old[1]) * view.s / 2; clampView();
+        if (a && b && !globe()) { view.cx += a[0] - b[0]; view.cy += a[1] - b[1]; } view.cx -= (e.clientX - old[0]) * view.s / 2; view.cy += (e.clientY - old[1]) * view.s / 2; clampView();
         moved = true; gest.pinched = true; if (!fastFrame()) render(); return;
       }
       if (ptrs.size === 1 && !moved && !gest.pinched && gest.start) {
@@ -2020,7 +2111,8 @@
   function hover(px, py, sticky) {
     var d = drawn;
     if (!d || !view) { tip.style.display = "none"; return; }
-    var ll = toLL(px, py), lon = ((ll[0] + 180) % 360 + 360) % 360 - 180, lat = ll[1];
+    var ll = toLL(px, py); if (!ll) { tip.style.display = "none"; return; }
+    var lon = ((ll[0] + 180) % 360 + 360) % 360 - 180, lat = ll[1];
     if (lat > 90 || lat < -90) { tip.style.display = "none"; return; }
     var f = d.field, e = d.c.enc[f], u = unitOf(f), dec = f === "t2m" ? 1 : f === "z500" ? 0 : 1, lines = [], head;
     var sa = null; d.tiles.forEach(function (t) { if (!sa) sa = sampleAt(t.e, t.g, lon, lat); });
@@ -2076,6 +2168,7 @@
     if (st.view === "clusters") x.push("c" + st.cdom, st.cwin === "day" ? "day" + ("0" + st.cday).slice(-2) : st.cwin);
     if (st.unit === "F") x.push("F");
     if (st.sigma) x.push("s");
+    if (st.proj === "globe") x.push("g");
     if (st.view === "spread" && st.sprd !== "sd") x.push(st.sprd === "ratio" ? "pr" : "pc");
     if ((st.view === "change" || (st.view === "spread" && st.sprd === "change")) && st.vs !== "12" && vsOf(cyc()) === st.vs) x.push("v" + st.vs);
     MODEL_ORDER.forEach(function (m) { if (st.run[m]) x.push("r" + m + st.run[m]); });
@@ -2087,7 +2180,7 @@
     if (FIELDS[p[1]]) st.field = p[1];
     if (VIEWS[p[2]]) st.view = p[2];
     if (/^(P[1-3]|D\d\d)$/.test(p[3] || "")) st.span = p[3];
-    p.slice(4).forEach(function (t) { var rm = /^r(ifs|aifs|gefs|geps|super)(\d{10})$/.exec(t); if (rm) st.run[rm[1]] = rm[2]; else if (/^v(6|18|24|36|48)$/.test(t)) st.vs = t.slice(1); else if (t === "F") st.unit = "F"; else if (t === "s") st.sigma = true; else if (t === "pr" || t === "pc") st.sprd = t === "pr" ? "ratio" : "change"; else if (/^day\d\d$/.test(t)) { st.cwin = "day"; st.cday = +t.slice(3); } else if (CWINS[t] && t !== "day") st.cwin = t; else if (t[0] === "c" && CDOMS[t.slice(1)]) st.cdom = t.slice(1); else if (SECTORS[t]) st.sector = t; else if (/^\d$/.test(t)) st.regime = +t; });
+    p.slice(4).forEach(function (t) { var rm = /^r(ifs|aifs|gefs|geps|super)(\d{10})$/.exec(t); if (rm) st.run[rm[1]] = rm[2]; else if (/^v(6|18|24|36|48)$/.test(t)) st.vs = t.slice(1); else if (t === "F") st.unit = "F"; else if (t === "s") st.sigma = true; else if (t === "g") st.proj = "globe"; else if (t === "pr" || t === "pc") st.sprd = t === "pr" ? "ratio" : "change"; else if (/^day\d\d$/.test(t)) { st.cwin = "day"; st.cday = +t.slice(3); } else if (CWINS[t] && t !== "day") st.cwin = t; else if (t[0] === "c" && CDOMS[t.slice(1)]) st.cdom = t.slice(1); else if (SECTORS[t]) st.sector = t; else if (/^\d$/.test(t)) st.regime = +t; });
   }
   function showRuns() {
     $("runs").textContent = "Runs on the page now: " + MODEL_ORDER.filter(cycleOf).map(function (m) { var x = cycleOf(m); return MODELS[m] + " " + runLabel(x) + " (published " + x.made.replace("T", " ") + ")"; }).join(" · ") + ".";
@@ -2124,7 +2217,8 @@
     setTimeout(pruneCache, 4000);
   });
   if (typeof ResizeObserver === "function") {
-    new ResizeObserver(function () { if (view) { var s = view.s; resize(); view.s = s; clampView(); render(); } }).observe(mapEl);
+    // a new box size keeps the zoom, except a view still at the whole-world fit, which fits the new box
+    new ResizeObserver(function () { if (view) { var s = view.s, fitted = s >= sFit() * 0.999; resize(); view.s = fitted ? sFit() : s; clampView(); render(); } }).observe(mapEl);
     var rgW = 0;
     new ResizeObserver(function () { var w = $("rgTop").clientWidth; if (w && w !== rgW && st.view === "regimes") { rgW = w; drawTimeline(); renderChanges(); } }).observe($("rgTop"));
     var clW = 0;

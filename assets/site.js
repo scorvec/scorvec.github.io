@@ -672,3 +672,25 @@ document.addEventListener('click', function (e) {
   var mo = new MutationObserver(function (recs) { recs.forEach(function (r) { balance(r.target); }); });
   bands.forEach(function (band) { ro.observe(band); mo.observe(band, { childList: true }); balance(band); });
 })();
+
+// Maps that fill the window (the viewers' .mv-map, or any element marked data-fit): --fit-top is the element's top on
+// the page and --fit-below the height of what must stay on screen under it (data-fit-below, a selector: the viewers'
+// Show row), so a height of calc(100vh - var(--fit-top) - var(--fit-below)) puts the whole map and its controls on
+// the first screen, at any window size, with nothing to scroll. Re-measured when anything above it changes height.
+(function () {
+  var els = document.querySelectorAll('.mv-map, [data-fit]');
+  if (!els.length) return;
+  function measure() {
+    els.forEach(function (el) {
+      var top = el.getBoundingClientRect().top + window.scrollY, below = 0;
+      var sel = el.getAttribute('data-fit-below');
+      if (sel) document.querySelectorAll(sel).forEach(function (b) { if (b.offsetParent) below += b.getBoundingClientRect().height; });
+      el.style.setProperty('--fit-top', Math.round(top) + 'px');
+      el.style.setProperty('--fit-below', Math.round(below) + 'px');
+    });
+  }
+  measure();
+  addEventListener('resize', measure);
+  addEventListener('load', measure);
+  if (window.ResizeObserver) { var ro = new ResizeObserver(measure); ro.observe(document.body); }
+})();

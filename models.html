@@ -37,7 +37,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-<script src="/assets/site.js?v=ffe54c4dba" defer></script>
+<script src="/assets/site.js?v=7134a53040" defer></script>
 <script src="/assets/frames_root.js?v=bdced09224"></script>
 <link rel="stylesheet" href="/assets/site.css?v=6cd8ec62da">
 <style>
@@ -99,7 +99,9 @@
      legend ~70): no 880 px cap */
   /* touch: one finger scrolls the page, two move and zoom the map (the map is most of a phone's screen; a one-finger
      pan there left no way to scroll past it) */
-  .mv-map { position: relative; width: 100%; height: max(340px, calc(100vh - 64px - 100px * var(--ui, 1))); background: var(--map); border: 1px solid var(--rule);
+  /* the map fills the window under its controls with its Show row still on screen (site.js sets --fit-top and
+     --fit-below), never shorter than 420 px */
+  .mv-map { position: relative; width: 100%; height: max(420px, calc(100vh - var(--fit-top, 260px) - var(--fit-below, 0px) - 14px)); background: var(--map); border: 1px solid var(--rule);
             border-radius: 8px; overflow: hidden; touch-action: pan-x pan-y; cursor: grab;
             -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   .mv-map.drag { cursor: grabbing; }
@@ -556,7 +558,7 @@
   </div>
   </div>
   <div class="mv-mapwrap">
-  <div class="mv-map" id="map" tabindex="0" role="application" aria-roledescription="map" aria-label="Model map" aria-describedby="badge mapKeys">
+  <div class="mv-map" id="map" data-fit-below=".mv-legT, .mv-show" tabindex="0" role="application" aria-roledescription="map" aria-label="Model map" aria-describedby="badge mapKeys">
     <canvas id="gl" aria-hidden="true"></canvas>
     <canvas id="ov" aria-hidden="true"></canvas>
     <canvas id="lab" aria-hidden="true"></canvas>
@@ -2027,6 +2029,8 @@
     view = { cx: (bb[0] + bb[1]) / 2, cy: (bb[2] + bb[3]) / 2, s: Math.max((bb[1] - bb[0]) / W, (bb[3] - bb[2]) / H) * (1 + pad) };
     if (st.model === "rdps") view = { cx: -300000, cy: 1300000, s: Math.max(7600000 / W, 5200000 / H) };   // North America, not the whole rotated grid
   }
+  // a view still at the grid's fit (as opened, or after "fit"): a new box size fits it again; any other view keeps its zoom
+  function isFit(g) { var v = view; fit(g); var f = view; view = v; return Math.abs(v.s - f.s) <= 1e-9 * f.s && v.cx === f.cx && v.cy === f.cy; }
   function toXY(px, py) { return [view.cx + (px - W / 2) * view.s, view.cy - (py - H / 2) * view.s]; }
   function toPx(x, y) { return [W / 2 + (x - view.cx) / view.s, H / 2 - (y - view.cy) / view.s]; }
   function clampView() { view.s = Math.max(40, Math.min(view.s, 30000)); }
@@ -4505,7 +4509,11 @@
       var a = (APTS || []).filter(function (x) { return x[2] === hashStation; })[0]; if (a && MG.id === hashStation) $("mgS").textContent = a[3]; }, 400); }); }
     setTimeout(function () { loadGeo(GEO.replace(".json", "_counties.json")); }, 1200);   // counties after the first frame
   });
-  if (typeof ResizeObserver === "function") new ResizeObserver(function () { if (view) { var s = view.s; resize(); view.s = s; render(); } }).observe(mapEl);
+  if (typeof ResizeObserver === "function") new ResizeObserver(function () {
+    if (!view) return;
+    var c = cycleObj(st.model, st.ci), g = c && prepGrid(c.grids.main), fitted = g && isFit(g), s = view.s;
+    resize(); if (fitted) fit(g); else view.s = s; render();
+  }).observe(mapEl);
   else window.addEventListener("resize", resize);
 })();
 </script>
