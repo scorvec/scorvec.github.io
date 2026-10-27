@@ -1,5 +1,5 @@
 {
- "built": "2026-10-27 01:45Z",
+ "built": "2026-10-27 02:18Z",
  "newest_init": "2026-10-26 18Z",
  "window": [
   "2026-10-27",
@@ -18,12 +18,12 @@
  "ssw": {
   "models": {
    "aifs": {
-    "init": "2026-10-26 12Z",
+    "init": "2026-10-26 18Z",
     "members": 51,
-    "share": 0.23,
-    "wmo": null,
-    "u10_min_mean": 3.1,
-    "u10_min_p10": -1.0,
+    "share": 0.2,
+    "wmo": 0.2,
+    "u10_min_mean": 4.1,
+    "u10_min_p10": -0.4,
     "runs": [
      [
       "2026-10-01T00",
@@ -642,6 +642,12 @@
       0.23,
       0.0,
       null
+     ],
+     [
+      "2026-10-26T18",
+      0.2,
+      0.0,
+      0.2
      ]
     ]
    },
@@ -1427,8 +1433,8 @@
    }
   },
   "share_mean": 0.51,
-  "wmo_mean": null,
-  "wmo_models": 0,
+  "wmo_mean": 0.2,
+  "wmo_models": 1,
   "base_rate": {
    "winters": 46,
    "with_onset": 0,
@@ -1463,18 +1469,18 @@
  "waves": {
   "models": {
    "aifs": {
-    "init": "2026-10-26 12Z",
+    "init": "2026-10-26 18Z",
     "members": 50,
-    "wave2_share": 0.48,
-    "z_peak": 3.8,
+    "wave2_share": 0.43,
+    "z_peak": 3.7,
     "z_peak_day": 3,
-    "flux_min": 13.4,
+    "flux_min": 10.2,
     "warning_now": 11.4,
     "warning_threshold": 27.5,
     "warning_members": 0.0,
-    "ri_event_share": 0.18,
-    "z_can_min": -1.2,
-    "z_sib_max": 4.6
+    "ri_event_share": 0.24,
+    "z_can_min": -1.1,
+    "z_sib_max": 4.2
    },
    "ifs": {
     "init": "2026-10-26 12Z",
@@ -1519,26 +1525,26 @@
     "z_sib_max": 4.8
    }
   },
-  "wave2_share_mean": 0.54,
+  "wave2_share_mean": 0.53,
   "kind": "mixed"
  },
  "descent": {
   "models": {
    "aifs": {
-    "init": "2026-10-26 12Z",
+    "init": "2026-10-26 18Z",
     "members": 51,
-    "cap100_day15": 1.4,
-    "cap10_day15": 3.4,
-    "frac100_day15": 0.65,
+    "cap100_day15": 1.3,
+    "cap10_day15": 3.2,
+    "frac100_day15": 0.63,
     "cross100": "2026-10-27",
     "cross10": "2026-10-29",
     "kind": "bottom-up"
    },
    "aifsc": {
-    "init": "2026-10-26 12Z",
+    "init": "2026-10-26 18Z",
     "members": 1,
-    "cap100_day15": 0.9,
-    "cap10_day15": 3.5,
+    "cap100_day15": 1.1,
+    "cap10_day15": 2.6,
     "frac100_day15": null,
     "cross100": "2026-10-27",
     "cross10": "2026-10-29",
@@ -1616,7 +1622,7 @@
    "gefs",
    "geps"
   ],
-  "ri_event_share_mean": 0.22
+  "ri_event_share_mean": 0.24
  },
  "surface": {
   "models": {
@@ -1629,7 +1635,7 @@
      "2026-12-10"
     ],
     "cap100_day15": 1.4,
-    "frac100_day15": 0.65
+    "frac100_day15": 0.63
    },
    "ifs": {
     "init": "2026-10-26 12Z",
