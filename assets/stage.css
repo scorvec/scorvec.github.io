@@ -44,7 +44,7 @@
 /* pictures inside a mounted block; the stage's own still (in its zoom button) is sized by stage.js fitStage, and this
    cap on it as well squashed it on screens under ~1000 px tall (full width, clipped height) */
 .ss-main .stage > :not(img):not(.ss-zoom) img { width: auto; max-width: 100%; height: auto; max-height: max(320px, calc(100svh - 14rem)); margin: 0 auto; }
-.stage > .card > .note, .stage > .card > .lede, .stage > .chart-card > .note, .stage > .chart-card > .lede { order: 5; margin: 0.8rem 0 0; }
+.stage > .card > .note, .stage > .card > .lede, .stage > .card > .about, .stage > .chart-card > .note, .stage > .chart-card > .lede { order: 5; margin: 0.8rem 0 0; }
 .stage > .card > .chart-card-footer, .stage > .chart-card > .chart-card-footer { order: 6; }
 .stage > .card h2, .stage > .chart-card h2 { font-size: 1.15rem; margin-bottom: 0.4rem; }
 .ss-main .cap { font-size: 0.9rem; color: var(--ink2); margin: 0.6rem 1.2rem 0; max-width: 110ch; }
@@ -120,12 +120,11 @@
   .ss-main .controls.more-r, .ss-main .controls.more-l { -webkit-mask-image: none; mask-image: none; }
   .opts .seg-label { min-width: 0; margin-right: 0.1rem; flex: 0 0 100% !important; font-size: 0.82rem; }
   .opts .pill { min-height: 40px; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-  /* the headline chips above the stage: one sideways line (outlook.css makes them a two-column grid on phones,
-     nine chips = 790 px), so the figure is not pushed below the fold */
-  .page-header .chips, main > header .chips { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
-                                             justify-content: flex-start; gap: 0.45rem; }
-  .page-header .chips::-webkit-scrollbar, main > header .chips::-webkit-scrollbar { display: none; }
-  .page-header .chips > *, main > header .chips > * { flex: none; min-width: 0; max-width: 72vw; }
+  /* the headline chips follow the figure on phones (below), so they take a grid: every number in view, none cut by a
+     sideways strip */
+  .page-header .chips, main > header .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); overflow: visible; gap: 0.45rem; }
+  .page-header .chips > *, main > header .chips > * { max-width: none; min-width: 0; }
+  .page-header .chip .l, main > header .chip .l { white-space: normal; overflow-wrap: anywhere; }
   /* figure first: the title, then the picker and the figure, then everything else that used to sit above them
      (introduction, headline chips, notes). The page-header / header box is flattened so its parts can be ordered. */
   .ss-host { display: flex; flex-direction: column; }

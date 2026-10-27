@@ -7,10 +7,8 @@
     <p class="chipnote"><b>*</b> Graded on RONI, CPC&rsquo;s official index since February 2026; estimates from OISST, not final (<a href="#page-about">details</a>).</p>
   </div>
   <style>
-  /* phones and tablets: the figure comes first and the headline numbers follow it, so the sideways one-line chip
-     strip (stage.css, written for chips above the figure) would show only one and a half of the nine numbers.
-     Below the figure they can take a grid. The clamped caveat box would show half a fourth line in its bottom
-     padding: the padding becomes a transparent border, which the clamp does not reach. */
+  /* phones and tablets: the clamped caveat box would show half a fourth line in its bottom padding: the padding
+     becomes a transparent border, which the clamp does not reach. */
   /* desktop: --cols equal cards a row (set by the chip builder), the last row centred, so nine cards are not six and
      three with three empty slots; wider cards wrap their notes less, and the numbers and the week's change read larger */
   @media (min-width: 1001px) {
@@ -23,9 +21,6 @@
   }
   .ss-host .page-header .chip .wk { font-size: 1.1rem; font-weight: 600; margin-top: 2px; }
   @media (max-width: 1000px) {
-    .ss-host .page-header .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); overflow: visible; gap: 0.45rem; }
-    .ss-host .page-header .chips > * { max-width: none; min-width: 0; }
-    .ss-host .page-header .chip .l { white-space: normal; overflow-wrap: anywhere; }
     .ss-host .page-header .chipnote.ss-clamp:not(.ss-open) { padding-bottom: 0; border-bottom: 0.7rem solid transparent; box-shadow: 0 1px 0 var(--edge, #c9c5bb); }
   }
   </style>

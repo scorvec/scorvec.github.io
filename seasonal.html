@@ -40,7 +40,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css?v=0270370237">
 <link rel="stylesheet" href="/assets/outlook.css?v=68936064bc">
-<link rel="stylesheet" href="/assets/stage.css?v=cf91b5cce2">
+<link rel="stylesheet" href="/assets/stage.css?v=360b0a6886">
 <script>
 // SEAS5 stratosphere cards moved to the stratosphere page (2026-10-08): forward old deep links before the stage reads the hash
 (function () { var m = {"stratCard": "s5vortex", "sswCard": "s5ssw", "polar-stratosphere": "s5cap", "stratLinkCard": "s5vortex"};
@@ -321,6 +321,7 @@ window.afterPlotly = function (fn) {
   <div class="dom-holder">
   <div class="card" id="c3sMapCard" data-label="Anomaly maps" data-group="Every model">
     <h2>Anomaly maps &mdash; one system at a time, or their mean</h2>
+    <details class="about"><summary>Method and sources</summary>
     <p class="note">Each system&rsquo;s <b>ensemble-mean anomaly</b>: the mean of its members&rsquo; anomalies, which C3S
     takes against that system&rsquo;s own 1993&ndash;2016 hindcast. That is the comparison you want &mdash; a seasonal
     model&rsquo;s raw field is dominated by its own drift. A cell is <b>shaded only where the anomaly is significant</b>: a
@@ -331,6 +332,7 @@ window.afterPlotly = function (fn) {
     20-member system count the same; ECCC runs two systems (GEM5-NEMO and CanESM5), so Canada carries two shares wherever
     both supply the field. It is tested the same way, with every system&rsquo;s member and hindcast spread. Where the
     systems disagree, step through them: the mean alone will not tell you.</p>
+    </details>
     <div class="controls" id="c3sMapModel" style="margin-top:0.8rem"></div>
     <div class="controls" id="c3sMapField" style="margin-top:0.4rem"></div>
     <div class="controls" id="c3sMapPeriod" style="margin-top:0.4rem"></div>
@@ -342,6 +344,7 @@ window.afterPlotly = function (fn) {
   </div>
   <div class="card" id="c3sTercCard" data-label="Tercile probabilities" data-group="Every model">
     <h2>Tercile probabilities &mdash; how firmly, not just which way</h2>
+    <details class="about"><summary>Method and sources</summary>
     <p class="note">Each system&rsquo;s live members counted against <b>its own 1993&ndash;2016 hindcast distribution at
     every grid point</b> &mdash; the 33rd and 67th percentiles of that model&rsquo;s own climate. Colour is the probability
     of whichever category is most likely, only where it reaches 40&nbsp;% <b>and</b> the members&rsquo; split differs
@@ -351,6 +354,7 @@ window.afterPlotly = function (fn) {
     linear trend extrapolated to this start</b> (the trend runs over the hindcast&rsquo;s start years) &mdash; against a flat 1993&ndash;2016 base the warming alone puts most
     of the tropics in the upper tercile every month. The multi-model map averages the per-system probabilities with equal
     weight per system.</p>
+    </details>
     <div class="controls" id="c3sTercModel" style="margin-top:0.8rem"></div>
     <div class="controls" id="c3sTercField" style="margin-top:0.4rem"></div>
     <div class="controls" id="c3sTercPeriod" style="margin-top:0.4rem"></div>
@@ -362,11 +366,13 @@ window.afterPlotly = function (fn) {
   </div>
   <div class="card" id="c3sIdxCard" data-label="Ocean indices" data-group="Every model">
     <h2>Ocean indices &mdash; every system on one axis</h2>
+    <details class="about"><summary>Method and sources</summary>
     <p class="note">The same boxes and the same PDO projection the SEAS5 card below uses, applied to each
     system&rsquo;s <b>ensemble-mean anomaly</b> against its own 1993&ndash;2016 hindcast. That is what the
     postprocessed collection carries for every system, so every system gets a curve &mdash; but only a curve: there is
     <b>no member spread on this basis</b>, and the fan for SEAS5 lives in the member-level card. The black line
     is the multi-model mean, equal weight per system, drawn only where at least half of them have the index.</p>
+    </details>
     <div class="controls" id="c3sIdxPick" style="margin-top:0.8rem"></div>
     <p class="idx-note" id="c3sIdxNote"></p>
     <div id="c3sIdxPlot" style="width:100%;min-height:380px"></div>
@@ -377,12 +383,14 @@ window.afterPlotly = function (fn) {
   </div>
   <div class="card" id="c3sPopCard" data-label="Population-weighted, monthly" data-group="Every model">
     <h2>Population-weighted temperature &mdash; monthly means, every system</h2>
+    <details class="about"><summary>Method and sources</summary>
     <p class="note">How warm the month is <b>for the people who feel it</b>: every member weighted by population on the
     same geonames cells the SEAS5 card uses, for the United States and Brazil. Anomalies are each member minus that
     system&rsquo;s own 1993&ndash;2016 hindcast mean at the same lead, so the systems are comparable; raw levels carry each
     model&rsquo;s bias and are there for the read within one system. The band is P10&ndash;P90 across that system&rsquo;s
     members, with P25&ndash;P75 darker; <b>Multi-model</b> pools every system&rsquo;s members with equal weight per system, so
     NCEP&rsquo;s 120-odd members and a 20-member system count the same.</p>
+    </details>
     <p class="note">The black line is <b>observed</b> &mdash; CPC daily Tmax/Tmin on the same cells, averaged to a monthly
     mean, with anomalies against the observed 1993&ndash;2016 mean so history and forecast share one base. It carries no band:
     the width here is the spread across members, and an observed month has one realisation.</p>
@@ -400,6 +408,7 @@ window.afterPlotly = function (fn) {
   </div>
   <div class="card" id="c3sDayCard" data-label="Population-weighted, daily" data-group="Every model">
     <h2>Population-weighted temperature &mdash; the daily distribution, every system</h2>
+    <details class="about"><summary>Method and sources</summary>
     <p class="note">Every member, <b>every day</b>, population-weighted into one national number and pooled by month:
     1,500 member-days in a 30-day month for a 50-member system, about 3,600 for NCEP&rsquo;s 120-odd. This is the distribution a cold snap lives in
     &mdash; the monthly card above shows the spread of monthly MEANS, which is a different and much narrower thing.
@@ -408,6 +417,7 @@ window.afterPlotly = function (fn) {
     models&rsquo; <b>raw</b> spread, not calibrated probabilities: days within a member are strongly correlated, so a
     month&rsquo;s 1,500 member-days carry far fewer independent cases than their count, and the
     tails also carry the month&rsquo;s own seasonal cycle, because the anomalies subtract one monthly mean.</p>
+    </details>
     <p class="note">The black line is <b>observed</b>: CPC Global Unified daily Tmax/Tmin, population-weighted on the
     same cells and pooled the same way, with anomalies against the observed <b>1993&ndash;2016</b> mean &mdash; the models&rsquo;
     hindcast period, not CPC&rsquo;s 1991&ndash;2020 normal &mdash; so history and forecast share one base. Its P10&ndash;P90 band is
