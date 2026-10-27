@@ -37,7 +37,8 @@
 
   // o: {kind: "generic" | "approval", label, color, trend [[date, v]], band [[date, lo, hi]], polls [[date, adjusted,
   // published, pollster, pop, n]], t1 [date, v] (today), ci [lo, hi], marks [{label, v}] (published averages),
-  // weights {key: {w, influence}} keyed by weightKey}
+  // weights {key: {w, influence}} keyed by weightKey, eday [[date, lo95, lo80, hi80, hi95]] (where today's value may
+  // stand on each day to election day)}
   function mount(box, o) {
     const fmtn = (v, k) => o.kind === "generic"
       ? (Math.abs(v) < 0.05 ? "Even" : (v > 0 ? "D+" : "R+") + Math.abs(v).toFixed(k))
@@ -54,10 +55,15 @@
     const polls = (o.polls || []).map((p) => ({ d: day(p[0]), date: p[0], adj: p[1], raw: p[2], who: p[3], pop: p[4], n: p[5] }));
     for (const p of polls) p.wt = o.weights ? o.weights[weightKey(p.date, p.who, p.pop, p.raw)] : null;
     const now = o.t1 ? [day(o.t1[0]), o.t1[1]] : null;
+    // the fan from today's point to election day (rows after today only; none once the election has passed)
+    const fan = now && o.eday ? o.eday.map(([d, ...q]) => [day(d), ...q]).filter((p) => p[0] > now[0]) : [];
+    if (fan.length) fan.unshift([now[0], now[1], now[1], now[1], now[1]]);
+    const last = fan.length ? fan[fan.length - 1] : null;
     const head = box.querySelector(".pc-now");
     head.innerHTML = now
       ? `${esc(o.label)}: <b style="color:${o.color}">${fmt(now[1])}</b> today` +
-        (o.ci ? ` <span class="pc-dim">likely range ${fmt(o.ci[0])} to ${fmt(o.ci[1])}</span>` : "")
+        (o.ci ? ` <span class="pc-dim">likely range ${fmt(o.ci[0])} to ${fmt(o.ci[1])}</span>` : "") +
+        (last ? ` <span class="pc-dim">· ${d3.timeFormat("%b %-d")(last[0])}: likely ${fmt(last[1])} to ${fmt(last[4])}</span>` : "")
       : esc(o.label);
     box.querySelectorAll(".pc-ctl button").forEach((b) =>
       b.addEventListener("click", () => {
@@ -80,7 +86,7 @@
       const m = { l: 52, r: marks.length ? 150 : 22, t: 14, b: 30 };
       const svg = d3.select(box.querySelector(".pc-svg")).attr("width", W).attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
       svg.selectAll("*").remove();
-      const end = new Date(Math.max(now ? +now[0] : 0, d3.max(polls, (p) => +p.d) || 0, Date.now() - 864e5));
+      const end = new Date(Math.max(now ? +now[0] : 0, d3.max(polls, (p) => +p.d) || 0, Date.now() - 864e5, last ? +last[0] : 0));
       const first = d3.min([...polls.map((p) => +p.d), ...(o.trend || []).map((p) => +day(p[0]))]);
       const start = new Date(st.range ? +end - st.range * 864e5 : first);
       // the trend to today, today's value appended (the fitted series is stored at intervals)
@@ -97,7 +103,7 @@
       const vis = polls.filter((p) => p.d >= start && p.d <= end);
       const val = (p) => (st.adj ? p.adj : p.raw);
       const xs = d3.scaleTime().domain([start, end]).range([m.l, W - m.r]);
-      const ext = d3.extent(vis.map(val).concat(bd.flatMap((b) => [b[1], b[2]]), tr.map((p) => p[1]), marks.map((k) => k.v), [0]));
+      const ext = d3.extent(vis.map(val).concat(bd.flatMap((b) => [b[1], b[2]]), tr.map((p) => p[1]), marks.map((k) => k.v), fan.flatMap((f) => [f[1], f[4]]), [0]));
       const ys = d3.scaleLinear().domain(ext).nice().range([H - m.b, m.t]);
       const [lo, hi] = ys.domain();
       svg.append("g").attr("class", "pc-grid").selectAll("line").data(ys.ticks(narrow ? 5 : 7)).join("line")
@@ -121,6 +127,13 @@
         .attr("fill", o.color).attr("fill-opacity", 0.42).attr("stroke", o.color).attr("stroke-opacity", 0.75).attr("stroke-width", 0.8);
       g.append("path").attr("d", d3.line().x((p) => xs(p[0])).y((p) => ys(p[1])).curve(d3.curveMonotoneX)(tr))
         .attr("fill", "none").attr("stroke", o.color).attr("stroke-width", 2.8);
+      if (fan.length) {
+        [[1, 4, 0.08], [2, 3, 0.16]].forEach(([a, b, op]) =>
+          g.append("path").attr("d", d3.area().x((p) => xs(p[0])).y0((p) => ys(p[a])).y1((p) => ys(p[b])).curve(d3.curveMonotoneX)(fan))
+            .attr("fill", o.color).attr("opacity", op));
+        g.append("line").attr("x1", xs(now[0])).attr("x2", xs(last[0])).attr("y1", ys(now[1])).attr("y2", ys(now[1]))
+          .attr("stroke", o.color).attr("stroke-width", 1.4).attr("stroke-dasharray", "4 3");
+      }
       if (now) svg.append("circle").attr("cx", xs(now[0])).attr("cy", ys(now[1])).attr("r", 5.5).attr("fill", o.color).attr("stroke", "#fff").attr("stroke-width", 1.5);
       if (marks.length) {
         const short = (l) => l.replace("Decision Desk HQ", "DDHQ").replace("FiftyPlusOne", "50+1");
@@ -137,7 +150,7 @@
       svg.attr("aria-label", `${o.label}: ${vis.length} polls since ${d3.timeFormat("%B %-d, %Y")(start)}` + (now ? `; the trend today ${fmt(now[1])}` : ""));
       box.querySelector(".pc-note").innerHTML =
         `${vis.length} polls. Each dot is one poll (bigger: a larger sample), ${st.adj ? "adjusted for its pollster's lean" : "as published"}; ` +
-        `the line is the trend, shaded its likely range` + ((o.marks || []).length ? (narrow ? `. Published averages: ${(o.marks || []).filter((k) => !/^average$/i.test(k.label)).map((k) => `${esc(k.label)} ${fmt(k.v)}`).join(", ")}.` : "; diamonds are published averages.") : ".");
+        `the line is the trend, shaded its likely range` + (fan.length ? `; the fan is where the trend may stand by ${d3.timeFormat("%B %-d")(last[0])} (darker: 80 %)` : "") + ((o.marks || []).length ? (narrow ? `. Published averages: ${(o.marks || []).filter((k) => !/^average$/i.test(k.label)).map((k) => `${esc(k.label)} ${fmt(k.v)}`).join(", ")}.` : "; diamonds are published averages.") : ".");
       // hover: the nearest poll within reach, else the trend at that date
       const guide = svg.append("g").style("display", "none");
       guide.append("line").attr("y1", m.t).attr("y2", H - m.b).attr("stroke", "#b9b6ad");
@@ -160,7 +173,14 @@
               (p.wt ? `<br>Weight ${p.wt.w.toFixed(2)} · ${(100 * p.wt.influence).toFixed(1)}% of today's value` : ""));
           } else {
             ring.style("display", "none");
-            const d = xs.invert(mx), i = d3.bisector((p) => p[0]).center(tr, d), p = tr[i];
+            const d = xs.invert(mx);
+            if (fan.length && d > now[0]) {
+              const f = fan[d3.bisector((p) => p[0]).center(fan, d)];
+              guide.style("display", null).attr("transform", `translate(${xs(f[0])},0)`);
+              showTip(e, `${d3.timeFormat("%b %-d, %Y")(f[0])}: trend likely <b>${fmt(f[1])} to ${fmt(f[4])}</b><br>80 %: ${fmt(f[2])} to ${fmt(f[3])}`);
+              return;
+            }
+            const i = d3.bisector((p) => p[0]).center(tr, d), p = tr[i];
             if (!p) return;
             guide.style("display", null).attr("transform", `translate(${xs(p[0])},0)`);
             showTip(e, `${d3.timeFormat("%b %-d, %Y")(p[0])}: trend <b>${fmt(p[1])}</b>`);

@@ -637,7 +637,7 @@ function hist(sel,h,thr,Hh){const svg=$(sel),W=360;const ks=Object.keys(h).map(N
 function pollsTab(){const P=D.polls;if(!P)return;
  if(D.national_vote)genDist(D.national_vote);else{$('#gdcard').hidden=true;$('#toDist').parentNode.hidden=true}
  $('#toDist').onclick=e=>{e.preventDefault();tab('polls');$('#gdcard').scrollIntoView({behavior:'smooth',block:'start'})};
- PollChart.mount($('#gc'),{kind:'generic',label:'Generic ballot',color:'#1f5fbf',trend:P.generic_trend,band:P.generic_band,polls:P.generic_polls,t1:P.generic_t1,ci:P.generic_ci,marks:D.generic.map(a=>({label:a.source,v:a.margin}))});
+ PollChart.mount($('#gc'),{kind:'generic',label:'Generic ballot',color:'#1f5fbf',trend:P.generic_trend,band:P.generic_band,polls:P.generic_polls,t1:P.generic_t1,ci:P.generic_ci,eday:P.generic_eday,marks:D.generic.map(a=>({label:a.source,v:a.margin}))});
  PollChart.mount($('#ac'),{kind:'approval',label:'Trump net approval',color:'#8a2d1c',trend:P.approval_trend,band:P.approval_band,polls:P.approval_polls,t1:P.approval_t1,ci:P.approval_ci});
  const he=Object.entries(P.house_effects).sort((a,b)=>b[1].effect-a[1].effect);
  $('#phouse').innerHTML='<thead><tr><th>Pollster</th><th class="n">Lean</th><th class="n">Polls, 120 days</th></tr></thead><tbody>'+he.map(([k,v])=>`<tr><td>${esc(PollChart.pname(k))}</td><td class="n" style="color:${v.effect>0?'#0b3d91':'#a32215'}">${mg(v.effect)}</td><td class="n" style="color:var(--muted)">${esc(v.polls_120d)}</td></tr>`).join('')+'</tbody>'}
