@@ -916,6 +916,9 @@ def plot_series(doc: dict, group: str, out: Path) -> None:
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     from matplotlib.lines import Line2D
 
     keys = doc["groups"][group]
@@ -1104,6 +1107,9 @@ def plot_probs(doc: dict, out: Path) -> None:
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     from matplotlib.patches import Patch, Rectangle
 
     keys = [k for k in doc["groups"]["tele"] if doc["indices"][k].get("p_neg05")]

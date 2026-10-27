@@ -39,6 +39,7 @@ from scipy import stats
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE.parent / "lib"))
 sys.path.insert(0, str(HERE.parents[1] / "scripts" / "mjo" / "src"))
 import oisst9120
 from gill_model import LAT2, LON2, A_EARTH, basin_mask, gill_response, heating_from_ssta
@@ -242,6 +243,9 @@ def render(out: Path, weeks: list, month_sst: dict, gill: dict, lat, lon, sig_sh
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     from matplotlib.colors import BoundaryNorm
     from matplotlib.gridspec import GridSpec
     import cartopy.crs as ccrs

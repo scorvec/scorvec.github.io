@@ -39,6 +39,7 @@ from quantmet.stats import benjamini_hochberg
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE.parent / "lib"))
 import oisst9120
 from gill_model import LAT2, LON2, band_u, basin_mask, gill_response, heating_from_ssta
 
@@ -285,6 +286,9 @@ def render(
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     from matplotlib.gridspec import GridSpec
     import cartopy.crs as ccrs
     import textwrap

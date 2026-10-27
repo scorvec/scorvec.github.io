@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -29,6 +30,11 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+import house
+
+house.apply()
 from matplotlib.dates import DateFormatter
 
 HERE = Path(__file__).resolve().parent

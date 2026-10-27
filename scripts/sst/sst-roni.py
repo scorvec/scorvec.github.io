@@ -44,6 +44,11 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+import house
+
+house.apply()
 import cartopy.crs as ccrs
 import xarray as xr
 
@@ -826,7 +831,7 @@ def render_daily_three_metrics(n34, trop, out_path):
         0.005,
         "Daily values from NOAA OISST v2.1 daily means, anomalies vs "
         "1991\u20132020. Daily \u2014 noisier than the 3-month running indices.",
-        fontsize=7,
+        fontsize=8,
         color="#6f6b64",
     )
 
@@ -901,7 +906,7 @@ def render_nino_region_series(a_ser, b_ser, out_path):
         "Niño-4 160°E–150°W · 3.4 170–120°W · "
         "3 150–90°W · 1+2 90–80°W, 0–10°S · "
         "daily values (noisier than 3-month indices).",
-        fontsize=7,
+        fontsize=8,
         color="#6f6b64",
     )
     for _a in (axA, axN):
@@ -999,7 +1004,7 @@ def _style_mode_axes(ax, t):
     ax.set_xlim(t[0], t[-1])
 
 
-_MODE_FOOTNOTE_KW = dict(fontsize=7, color="#6f6b64")
+_MODE_FOOTNOTE_KW = dict(fontsize=8, color="#6f6b64")
 _MODE_SAVE_KW = dict(
     dpi=100,
     facecolor="white",
@@ -1369,7 +1374,7 @@ def render_roni(
         "Red >+0.5, blue <−0.5, grey neutral; each bar is a centred season (Jul = JJA).\n"
         "Whiskers on our bars: ±1σ, the RMS of our estimate minus CPC over the last three published seasons, at least "
         f"{EST_SIGMA:.2f} °C (OISST vs ERSSTv6 on a matched base): ONI ±{sig_oni:.2f}, RONI ±{sig_roni:.2f} °C.",
-        fontsize=7,
+        fontsize=8,
         color="#6f6b64",
     )
 

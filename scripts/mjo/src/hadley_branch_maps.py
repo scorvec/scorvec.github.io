@@ -41,6 +41,11 @@ matplotlib.use("Agg")
 import cartopy.crs as ccrs
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+import house
+
+house.apply()
 import numpy as np
 import pandas as pd
 import xarray as xr
