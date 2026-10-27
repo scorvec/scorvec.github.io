@@ -652,3 +652,23 @@ document.addEventListener('click', function (e) {
   if (!main.hasAttribute('tabindex')) main.setAttribute('tabindex', '-1');
   main.focus();
 });
+
+// Headline-number bands (.chips): as many equal cells a row as fit at 8.5rem or more, the rows balanced, so nine
+// numbers are one row of nine on a wide screen and five and four on a narrower one, never eight and a lone one; the
+// last cell spans what its row leaves empty. Pages fill their bands after loading, so the count is re-read when the
+// cells change.
+(function () {
+  var bands = document.querySelectorAll('.chips');
+  if (!bands.length || !window.ResizeObserver) return;
+  function balance(band) {
+    var n = band.children.length, w = band.clientWidth;
+    if (!n || !w) return;
+    var cell = 8.5 * parseFloat(getComputedStyle(document.documentElement).fontSize);
+    var rows = Math.ceil(n / Math.max(1, Math.floor(w / cell))), cols = Math.ceil(n / rows), gap = rows * cols - n;
+    band.style.setProperty('--cols', String(cols));
+    for (var i = 0; i < n; i++) band.children[i].style.gridColumn = i === n - 1 && gap ? 'span ' + (gap + 1) : '';
+  }
+  var ro = new ResizeObserver(function (entries) { entries.forEach(function (e) { balance(e.target); }); });
+  var mo = new MutationObserver(function (recs) { recs.forEach(function (r) { balance(r.target); }); });
+  bands.forEach(function (band) { ro.observe(band); mo.observe(band, { childList: true }); balance(band); });
+})();

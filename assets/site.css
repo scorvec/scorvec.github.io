@@ -389,19 +389,20 @@ html .chart-sources, html .chart-updated, html small, html figcaption { font-siz
 html table, html th, html td, html select, html input, html button { font-family: var(--f-sans); }
 html td, html th { font-variant-numeric: tabular-nums; }
 
-/* ── Page title blocks: centred, plain, no coloured accent word, no tracked all-caps eyebrow.
-   Matches the pages' three title structures: children of <main> or .wrap, a .page-header box,
-   or a top-level <header> (the ENSO decks). The site header
-   (.sh) and the homepage hero are excluded. */
+/* ── Page title blocks: on the content's left edge, where the list of plots, the number band and the cards below
+   start too; plain, no coloured accent word, no tracked all-caps eyebrow. Matches the pages' three title structures:
+   children of <main> or .wrap, a .page-header box, or a top-level <header> (the ENSO decks). The site header (.sh)
+   and the homepage hero are excluded. */
 html h1 em, html h1 i, html h1 span.accent { font-style: normal; color: inherit; }
 html .kicker, html .eyebrow { font-size: 0.92rem; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--muted); }
 html main > :is(h1, .kicker, .eyebrow, .lede, .sub),
 html .wrap > :is(h1, .kicker, .eyebrow, .lede),
 html .page-header,
 html body > header:not(.sh) > :is(h1, .kicker, .eyebrow, .lede, .sub),
-html main > header:not(.sh) { text-align: center; }
+html main > header:not(.sh) { text-align: left; }
 html main > :is(.lede, .sub, .kicker, .eyebrow), html .wrap > :is(.lede, .kicker, .eyebrow), html .page-header > p,
-html body > header:not(.sh) > :is(.lede, .sub), html main > header:not(.sh) > :is(.lede, .sub, p) { margin-left: auto; margin-right: auto; }
+html body > header:not(.sh) > :is(.lede, .sub), html main > header:not(.sh) > :is(.lede, .sub, p) { margin-left: 0; margin-right: 0; }
+html :is(main, .wrap, .page-header, main > header) > :is(.kicker, .eyebrow) { margin-bottom: 0.1rem; }
 
 .sf .sf-disclaimer { font-size: 0.9rem; color: var(--c-muted); max-width: 80ch; margin-top: 0.7rem; }
 /* two groups: the site, and the person */
@@ -409,12 +410,12 @@ html body > header:not(.sh) > :is(.lede, .sub), html main > header:not(.sh) > :i
 .sf-group--me { flex: 0 1 22rem; }
 .sf .sf-h { margin: 0 0 0.45rem; font-size: 0.9rem; font-weight: 600; color: var(--c-ink); }
 
-/* The lede (the one line under a page title): a plain subtitle, centred with the title. A page opens on its
-   numbers and figures; anything longer belongs in the explainer section at the bottom (.page-about). */
+/* The lede (the one line under a page title): a plain subtitle under the title. A page opens on its numbers and
+   figures; anything longer belongs in the explainer section at the bottom (.page-about). */
 html main > .lede, html .wrap > .lede, html body > header:not(.sh) > .lede, html main > header:not(.sh) > .lede {
-  text-align: center;
-  max-width: 100ch;
-  margin: 0.4rem auto 1.4rem;
+  text-align: left;
+  max-width: 110ch;
+  margin: 0.3rem 0 1.2rem;
   font-size: var(--t-lede);
   line-height: 1.5;
   color: var(--ink2);
@@ -672,3 +673,28 @@ html.fp-lock { overflow: hidden; }
 /* A word naming a line or a shading in the figure: the text in ink after a swatch of that colour (yellows, oranges and
    light greens set as text fall under 4.5:1). <b class="key" style="--key:#e8c04d">Indian Ocean Dipole</b> */
 .key::before{content:'';display:inline-block;width:.72em;height:.72em;margin-right:.3em;border-radius:2px;background:var(--key);vertical-align:-.02em}
+
+/* ── Option buttons: one look on every page ──────────────────────────────────────────────────────────────────────────
+   A row of choices is a segmented control, as on the map viewers: the buttons joined in one outline, the chosen one
+   filled with the accent. A row of .pill buttons, a .fig-toggle, a .pills or an .mm-seg group all draw this way; a
+   label (.seg-label) or a separator (.ctlsep) between pills starts a new group, and a pill on its own (a toggle such as
+   "Show all members") is a rounded button. */
+:is(button.pill, .fig-toggle > button, .pills > button, .mm-seg > button) {
+  font: 500 0.84rem/1.3 var(--f-sans); letter-spacing: 0; color: var(--ink2); white-space: nowrap;
+  background: var(--panel); border: 1px solid var(--edge); border-radius: 0; margin: 0 0 0 -1px;
+  padding: 0.3rem 0.75rem; cursor: pointer; box-shadow: none; transition: background-color 0.12s, color 0.12s;
+}
+:is(button.pill:first-child, :not(.pill) + button.pill, .fig-toggle > button:first-child, .pills > button:first-child,
+    .mm-seg > button:first-child) { margin-left: 0; border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
+:is(button.pill:last-child, button.pill:has(+ :not(.pill)), .fig-toggle > button:last-child, .pills > button:last-child,
+    .mm-seg > button:last-child) { border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+:is(button.pill, .fig-toggle > button, .pills > button, .mm-seg > button):hover { background: var(--accent-light); color: var(--accent); }
+:is(button.pill, .fig-toggle > button, .pills > button, .mm-seg > button):is(.on, [aria-pressed="true"]) {
+  position: relative; z-index: 1; color: #fff; background: var(--accent); border-color: var(--accent);
+}
+:is(button.pill, .fig-toggle > button, .pills > button, .mm-seg > button):focus-visible {
+  position: relative; z-index: 2; outline: 2px solid var(--accent); outline-offset: 2px;
+}
+:is(button.pill, .fig-toggle > button, .pills > button, .mm-seg > button):disabled { color: var(--muted); background: var(--bg); cursor: default; }
+.fig-toggle, .pills, .mm-seg { display: inline-flex; flex-wrap: wrap; row-gap: 0.3rem; }
+.ctlsep { display: inline-block; width: 0.75rem; overflow: hidden; color: transparent; }   /* a gap between two groups */

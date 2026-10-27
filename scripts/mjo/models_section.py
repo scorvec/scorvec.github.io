@@ -223,13 +223,11 @@ SCRIPT = r"""
 CSS = """
   #mjo-models .mm-ctl { display: flex; flex-wrap: wrap; gap: 0.5rem 1.4rem; align-items: center; margin: 0.6rem 0 0.8rem; font-size: 0.92rem; color: var(--muted); }
   #mjo-models .mm-ctl > span { display: inline-flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
-  #mjo-models .mm-seg button, #mjo-models .mm-tog { font: 600 0.84rem var(--sans); color: var(--ink2); background: #fff; border: 1.5px solid var(--edge); border-radius: 999px; padding: 0.3rem 0.75rem; cursor: pointer; }
-  #mjo-models .mm-seg button.on { color: #fff; background: var(--accent); border-color: var(--accent); }
-  #mjo-models .mm-seg button:disabled { color: var(--muted); cursor: default; }
+  #mjo-models .mm-tog { font: 500 0.84rem var(--sans); color: var(--ink2); background: #fff; border: 1px solid var(--edge); border-radius: 6px; cursor: pointer; }
   #mjo-models .mm-legend { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0 0 0.6rem; }
   #mjo-models .mm-tog { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.85rem 0.35rem 0.6rem; text-align: left; }
   #mjo-models .mm-tog i { width: 1.1rem; height: 0.3rem; border-radius: 2px; background: var(--c); opacity: 0.35; flex: none; }
-  #mjo-models .mm-tog.on { border-color: var(--c); }
+  #mjo-models .mm-tog.on { border-color: var(--c); box-shadow: inset 0 0 0 1px var(--c); }
   #mjo-models .mm-tog.on i { opacity: 1; }
   #mjo-models .mm-tog small { display: block; font-weight: 400; font-size: 0.78rem; color: var(--muted); }
   #mjo-models .mm-tog:disabled { color: var(--muted); cursor: default; }

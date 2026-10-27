@@ -7,22 +7,9 @@
     <p class="chipnote"><b>*</b> Graded on RONI, CPC&rsquo;s official index since February 2026; estimates from OISST, not final (<a href="#page-about">details</a>).</p>
   </div>
   <style>
-  /* phones and tablets: the clamped caveat box would show half a fourth line in its bottom padding: the padding
-     becomes a transparent border, which the clamp does not reach. */
-  /* desktop: --cols equal cards a row (set by the chip builder), the last row centred, so nine cards are not six and
-     three with three empty slots; wider cards wrap their notes less, and the numbers and the week's change read larger */
-  @media (min-width: 1001px) {
-    .ss-host .page-header .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; max-width: 1400px; }
-    .ss-host .page-header .chips > .chip { flex: 0 0 calc((100% - (var(--cols, 5) - 1) * 0.5rem) / var(--cols, 5));
-      display: flex; flex-direction: column; justify-content: center; }
-    .ss-host .page-header .chip .v { font-size: 2.15rem; }
-    .ss-host .page-header .chip .v.txt { font-size: 1.6rem; }
-    .ss-host .page-header .chip .s { font-size: 1rem; }
-  }
-  .ss-host .page-header .chip .wk { font-size: 1.1rem; font-weight: 600; margin-top: 2px; }
-  @media (max-width: 1000px) {
-    .ss-host .page-header .chipnote.ss-clamp:not(.ss-open) { padding-bottom: 0; border-bottom: 0.7rem solid transparent; box-shadow: 0 1px 0 var(--edge, #c9c5bb); }
-  }
+  /* a state in words ("very strong El Niño") is set smaller than a number, so it fits a cell of the band */
+  .ss-host .page-header .chip .v.txt { font-size: 1.2rem; line-height: 1.25; }
+  .ss-host .page-header .chip .wk { font-size: 0.95rem; font-weight: 600; margin-top: 2px; }
   </style>
   <div class="ss-layout">
     <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
@@ -933,9 +920,7 @@ window.loadPlotly = function () {
     window.ENSO_EST_OFF = offSentence(EO, false);
     var eo = document.getElementById("estOff"); if (eo) eo.innerHTML = offSentence(EO, true);
     document.querySelectorAll(".estoff").forEach(function (el) { el.innerHTML = window.ENSO_EST_OFF; });
-    var box = document.getElementById("chips");
-    // desktop rows of equal cards, the last row centred: 9 cards are 5 + 4, 8 are 4 + 4
-    box.style.setProperty("--cols", Math.ceil(chips.length / Math.ceil(chips.length / 5)));
+    var box = document.getElementById("chips");   // its rows are balanced by site.js
     box.innerHTML = chips.map(function (c) {
       return '<div class="chip' + (c.prelim ? ' chip--prelim' : '') +
                     (c.strength ? ' ' + c.strength : '') + '">' +

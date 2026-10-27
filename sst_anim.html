@@ -15,7 +15,7 @@
   :root {
     --page: #fcfcfa; --surface: #ffffff; --border: #e2e0da;
     --ink: #1a1a1a; --ink2: #4a4744; --muted: #6f6b64;
-    --aqua: #8a4b2a; --aqua-deep: #a85c33;
+    --aqua: #274b7a; --aqua-deep: #35609a; --edge: #c9c5bb;   /* the site accent (assets/site.css) */
     --sans: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif;
   }
   body {
@@ -72,18 +72,18 @@
     width: 100%; max-width: 1280px; display: flex; align-items: center;
     flex-wrap: wrap; gap: 0.3rem 0.6rem; padding: 0.1rem 0.15rem 0;
   }
-  .regbtns { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  /* the site's segmented control (assets/site.css): joined buttons, the chosen one filled */
+  .regbtns { display: flex; flex-wrap: wrap; row-gap: 0.3rem; }
   .regbtns button {
-    font: inherit; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.01em;
-    padding: 0.32rem 0.8rem; cursor: pointer; border-radius: 3px;
-    border: 1.5px solid var(--aqua); background: #f6efe9; color: var(--aqua);
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    font: inherit; font-size: 0.8rem; font-weight: 500;
+    padding: 0.3rem 0.75rem; cursor: pointer; border-radius: 0; margin-left: -1px;
+    border: 1px solid var(--edge); background: var(--surface); color: var(--ink2);
+    transition: background 0.12s, color 0.12s;
   }
-  .regbtns button:hover { background: #ecdfd4; border-color: var(--aqua-deep); color: var(--aqua); }   /* --aqua-deep text is 3.8:1 on the hover fill */
-  .regbtns button.on {
-    background: var(--aqua); border-color: var(--aqua); color: #fff;
-    box-shadow: 0 1px 5px rgba(138,75,42,0.38);
-  }
+  .regbtns button:first-child { margin-left: 0; border-radius: 6px 0 0 6px; }
+  .regbtns button:last-child { border-radius: 0 6px 6px 0; }
+  .regbtns button:hover { background: #e8eef5; color: var(--aqua); }
+  .regbtns button.on { position: relative; z-index: 1; background: var(--aqua); border-color: var(--aqua); color: #fff; }
   select {
     border: 1px solid var(--border); background: var(--surface); color: var(--ink2);
     border-radius: 999px; padding: 0.3rem 0.55rem; font-size: 0.8rem;

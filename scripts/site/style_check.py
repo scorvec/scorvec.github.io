@@ -53,7 +53,6 @@ PAIRS = [
     ("--accent", "--panel", "links on a card"),
     ("--warm", "--panel", "a positive anomaly in text"),
     ("--cool", "--panel", "a negative anomaly in text"),
-    ("#8a4b2a", "--bg", "the outlook pages' sienna accent on the page"),
 ]
 
 

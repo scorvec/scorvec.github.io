@@ -3,14 +3,7 @@
    each page; anything that describes a card, a pill, a chip, a deck or a table lives here.
    The site chrome (header, tabs, footer) is assets/site.css, applied by scripts/site/apply_chrome.py. */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  /* The palette and type scale are the site tokens (site.css, first in every head). This family's one difference
-     is its accent: burnt sienna for links, the active tab and the selected pill. */
-  html:root {
-    --accent: #8a4b2a;
-    --accent-hi: #a85c33;
-    --accent-light: #f6efe9;  /* the accent at ~8 %, for hover fills */
-    --accent-soft: rgba(138, 75, 42, 0.09);
-  }
+  /* The palette, the type scale and the option buttons are the site's (site.css, first in every head). */
   /* at least the window tall, so a short page keeps its footer at the bottom; never fixed at the window's height, which
      made the sticky site header scroll away a screen down (sticky holds only within its parent, here the body) */
   body {
@@ -32,11 +25,7 @@
     width: 100%;
   }
 
-  .page-header {
-    margin-bottom: 1rem;
-    padding-bottom: 0.6rem;
-    border-bottom: 1px solid var(--rule);
-  }
+  .page-header { margin-bottom: 1rem; }
   /* a large title and a wide lede */
   .page-header h1 {
     font-family: var(--serif); font-weight: 400; font-size: var(--t-h1);
@@ -225,15 +214,7 @@
      Pairs like raw/de-trended or the same field from two models are the same
      panel with one thing changed, so they share a card and a switch instead of
      doubling the scroll length. */
-  .fig-toggle { display: flex; gap: 0.4rem; padding: 0 1.8rem 0.7rem; flex-wrap: wrap; }
-  .fig-toggle button {
-    font: inherit; font-size: 0.86rem; font-weight: 600; letter-spacing: 0.01em;
-    padding: 0.4rem 0.95rem; cursor: pointer; border-radius: 3px;
-    border: 1.5px solid var(--accent); background: var(--accent-light);
-    color: var(--accent);
-  }
-  .fig-toggle button:hover { background: #ecdfd4; }
-  .fig-toggle button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .fig-toggle { display: flex; padding: 0 1.8rem 0.7rem; }   /* the buttons: site.css's segmented control */
 
   /* Section grouping. The Atmospheric Response page carries ~22 cards across
      five quite different topics; grouping them in place (no reordering) plus a
@@ -279,10 +260,9 @@
     color: var(--accent);
     transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
-  .plot-deck .deck-tabs button:hover { background: #ecdfd4; border-color: var(--accent-hi); color: var(--accent); }   /* --accent-hi text is 3.8:1 on the hover fill */
+  .plot-deck .deck-tabs button:hover { background: var(--accent-light); border-color: var(--accent-hi); color: var(--accent); }
   .plot-deck .deck-tabs button.on {
     background: var(--accent); border-color: var(--accent); color: #fff;
-    box-shadow: 0 1px 5px rgba(138,75,42,0.38);
   }
   .plot-deck .deck-panel[hidden] { display: none; }
   .plot-deck .deck-panel > .chart-card-header { padding-top: 0.9rem; }
@@ -306,61 +286,32 @@
   h1 { font-family: var(--serif); font-weight: 400; font-size: var(--t-h1);
        letter-spacing: 0.01em; margin: 0.3rem 0 0.2rem; color: var(--ink); }
   h1 em { font-style: normal; color: inherit; }
-  /* page title block: centred under the section tabs, no accent colour */
-  main > header { text-align: center; }
-  main > header .sub { margin-left: auto; margin-right: auto; }
-  main > header .chips { justify-content: center; }
-  .page-header { text-align: center; }
-  .page-header p { margin-left: auto; margin-right: auto; max-width: 150ch; }
+  /* page title block: on the content's left edge (site.css), no accent colour */
+  .sub { color: var(--ink2); max-width: 110ch; margin-bottom: 0.9rem; }
+  .page-header .sub, main > header .sub { margin-bottom: 0.8rem; }
 
-  .sub { color: var(--ink2); max-width: 76ch; margin-bottom: 0.9rem; }
-  .page-header .sub { max-width: 150ch; margin-bottom: 0.7rem; }
-
-  /* stat chips */
-  .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.9rem; }
-  /* desktop: the headline numbers under a page title in equal columns that fill their rows, not content-width boxes
-     in ragged rows. Phones take the two-up grid below; the stage pages' narrow layout (stage.css, up to 1000px) keeps
-     the wrapping row, since there the header sits in a shrink-to-fit box where an auto-fit grid would not wrap. */
-  @media (min-width: 1001px) {
-    main > header .chips, .page-header .chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); max-width: 1400px; margin-left: auto; margin-right: auto; }
-    main > header .chip, .page-header .chip { min-width: 0; }
-    main > header .chip .l, .page-header .chip .l { white-space: normal; }
-  }
-  /* larger stat cards, centred under the title */
-  /* A value that is NOT the official published index, or not yet final.
-     Dashed edge + an explicit flag, because a number on a chip reads as
-     authoritative and these two are an OISST estimate on a centred 3-month
-     window whose newest month is still incomplete. */
-  /* Footnote under the chip strip. The asterisked chips assert a state and a
-     number; this is where the basis for both is written out, so the claim and
-     its caveats travel together rather than living in a tooltip. */
-  /* This note carries the caveats for every number above it, so it has to be
-     read, not skimmed past: a bounded block on white, at body-copy contrast. */
-  .chipnote { max-width: 82ch; margin: 0.5rem auto 1rem; font-size: 0.82rem;
-              line-height: 1.62; color: var(--ink, #1a1a1a); text-align: left;
-              background: var(--surface, #fff); border: 1px solid var(--edge, #c9c5bb);
-              border-left: 3px solid #c9a227; border-radius: 4px;
-              padding: 0.7rem 0.95rem; }
-  .chipnote b { color: #000; font-weight: 700; }
-  .page-header .chipnote { margin-left: auto; margin-right: auto; }
-  /* dashed edge + a warm ground, so "not final" is legible at a glance rather
-     than resting on a border-style nobody notices */
-  .chip--prelim { border-style: dashed; border-color: #d3a63a;
-                  background: #fffdf6; }
-  .chip--prelim .v { opacity: 1; }
+  /* The headline numbers: one band under the title, the numbers in equal cells divided by hairlines: a label, the
+     value, a line of context. site.js sets --cols so the rows come out even. */
+  .chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); margin: 0 0 1rem;
+           background: var(--surface); border: 1px solid var(--edge); border-radius: 8px; overflow: hidden; }
+  .chips[style*="--cols"] { grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); }
+  .chip { min-width: 0; padding: 0.6rem 0.95rem 0.7rem; text-align: left; box-shadow: 1px 0 0 var(--rule), 0 1px 0 var(--rule); }
+  .chip .l { font-size: 0.74rem; font-weight: 600; letter-spacing: 0.05em; line-height: 1.3;
+             text-transform: uppercase; color: var(--muted); }
+  .chip .v { font-size: 1.6rem; font-weight: 600; margin-top: 0.15rem; line-height: 1.15;
+             font-variant-numeric: tabular-nums; }
+  .chip .s { font-size: 0.84rem; line-height: 1.35; color: var(--ink2); margin-top: 0.2rem; }
+  /* A value that is NOT the official published index, or not yet final: a warm cell and a PRELIM flag in its label,
+     because a number in the band reads as authoritative. */
+  .chip--prelim { background: #fff8e8; }
   .pflag { display: inline-block; margin-left: 0.35em; padding: 0 0.3em;
-           font-size: 0.8rem; font-weight: 700; letter-spacing: 0.04em;   /* the label's size, not a fraction of it */
+           font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em;
            color: #6d4600; background: rgba(237,161,0,0.24);
            border: 1px solid rgba(184,126,0,0.7); border-radius: 3px;
            vertical-align: baseline; text-transform: uppercase; }
-  .chip { background: var(--surface); border: 1.5px solid #b3aea2; border-radius: 4px;
-          padding: 0.7rem 1.05rem 0.65rem; min-width: 168px; text-align: center;
-          box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-  .chip .l { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.09em;
-             text-transform: uppercase; color: #57534b; white-space: nowrap; }
-  .chip .v { font-size: 1.85rem; font-weight: 600; margin-top: 3px; line-height: 1.2;
-             font-variant-numeric: tabular-nums; }
-  .chip .s { font-size: 0.95rem; color: #3f3c37; margin-top: 3px; }
+  /* The footnote under the band: the basis for the asterisked numbers, read with them. */
+  .chipnote { margin: -0.4rem 0 1rem; font-size: 0.86rem; line-height: 1.5; color: var(--ink2); max-width: 110ch; }
+  .chipnote b { color: var(--ink); font-weight: 700; }
   .warm { color: var(--warm); } .cool { color: var(--cool); } .neut { color: var(--ink2); }
 
   /* the legacy plain `card` container — same box as .chart-card */
@@ -375,15 +326,8 @@
   .card-header { padding: 1rem 1.4rem 0.85rem; }
 
   /* controls */
-  .controls { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center;
-              margin-bottom: 0.3rem; }
-  .pill { font: 600 0.78rem var(--sans); letter-spacing: 0.02em; color: var(--accent);
-          background: var(--accent-light); border: 1.5px solid var(--accent); border-radius: 999px;
-          padding: 0.22rem 0.7rem; cursor: pointer; transition: all .15s; }
-  .pill:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
-  .pill.on { color: #fff; background: var(--accent); border-color: var(--accent); }
-  .pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .ctlsep { color: var(--muted); font-size: 0.74rem; margin: 0 2px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 0.35rem 0; align-items: center;   /* joined: site.css's segmented control */
+              margin-bottom: 0.4rem; }
 
   /* media */
   .img-label { font-size: 0.8rem; color: var(--muted); margin: 0.55rem 0 0.2rem; }
@@ -403,9 +347,11 @@
   .colophon p { margin-bottom: 0.45rem; max-width: 110ch; }
 
   @media (max-width: 700px) {
-    .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }   /* equal two-up chips instead of ragged content-width boxes */
-    .chip { min-width: 0; }
-    .chip .l { white-space: normal; overflow-wrap: anywhere; }   /* two-up on phones: long labels ("RELATIVE NIÑO-3.4 · DJF 2026-27") wrap instead of being clipped */
+    .chips { grid-template-columns: 1fr 1fr; }   /* two numbers a row */
+    .chip { padding: 0.5rem 0.75rem 0.55rem; }
+    .chip .l { overflow-wrap: anywhere; }   /* long labels ("RELATIVE NIÑO-3.4 · DJF 2026-27") wrap instead of being clipped */
+    .chip .v { font-size: 1.35rem; }
+    .chip .s { font-size: 0.8rem; }
   }
   @media (max-width: 480px) {
     .chart-updated { white-space: normal; }                                  /* a long build stamp must not widen the page */
