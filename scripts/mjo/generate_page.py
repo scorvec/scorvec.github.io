@@ -188,7 +188,7 @@ def impacts_section():
     return f"""
   <section class="mi" id="mjo-impacts">
   <h2>MJO impacts by phase and season: {n_mod} CMIP6 models ({n_mem} members, 1979&ndash;2014), with the observed record for comparison</h2>
-  <p class="lede lede--wide">Coloured only where the models agree; blank means no significant signal.</p>
+  <p class="lede">Coloured only where the models agree; blank means no significant signal.</p>
   <div class="mi-ctl">
     <label>Field <select id="mi-f">{opts_f}</select></label>
     <label>Data <select id="mi-d"><option value="cmip6">CMIP6 ({n_mod} models)</option><option value="obs">Observed (for comparison)</option></select></label>

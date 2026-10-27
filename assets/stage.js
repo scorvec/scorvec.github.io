@@ -270,7 +270,9 @@
   // …and the height a figure may take before it is shrunk at all: a full viewport. A tall panel is
   // then whole on the screen after one scroll — much larger than a first-screen cap would allow,
   // without ever being taller than the window.
-  function tallCap() { return Math.round(Math.max(stageCap(), window.innerHeight * 0.98)); }
+  // a tall figure may use the window less the sticky site header (74 px, as stageCap allows) and a margin: at 98 % of
+  // the window a 4:5 Hovmöller lost its colour bar under the fold on 850 px screens
+  function tallCap() { return Math.round(Math.max(stageCap(), window.innerHeight - 90)); }
   function fitStage() {
     // the stage's own still or embed only: a mounted block's pictures size themselves (stage.css)
     var st = $("stage"), img = st.querySelector(":scope > .ss-zoom > img"), fr = st.querySelector(":scope > iframe");

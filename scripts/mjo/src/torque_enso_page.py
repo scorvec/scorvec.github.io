@@ -669,7 +669,6 @@ def main() -> int:
     body = f"""
 <article class="study">
   <p class="crumbs"><a href="/">Home</a> › Studies › El Niño and angular momentum</p>
-  <p class="ai-note"><b>Made with Claude Code.</b> This study is a just-for-fun project: researched, coded and written entirely by Claude, Anthropic's AI model, working in Claude Code, to show what today's AI models can do with open meteorological data. It has not been peer reviewed.</p>
   <h1>{H1}</h1>
   <p class="dek">In El Niño the westerlies strengthen and the day lengthens by a fraction of a millisecond: the atmosphere takes
   angular momentum from the solid Earth. This study traces how it gets in, mainly through a pressure difference across the Andes that
@@ -1201,6 +1200,7 @@ def main() -> int:
   functions: ESMGFZ, GFZ Helmholtz Centre for Geosciences (Dobslaw and Dill 2018), via the IERS Global
   Geophysical Fluids Centre. About 400 GB of ERA5 and 450 GB of CMIP6 fields were read, in GitHub Actions.</p>
   <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/about.html">Shawn Corvec</a>, meteorologist. Published 13 October 2026. Not updated since.</p>
+  <p class="ai-note"><b>Made with Claude Code.</b> This study is a just-for-fun project: researched, coded and written entirely by Claude, Anthropic's AI model, working in Claude Code, to show what today's AI models can do with open meteorological data. It has not been peer reviewed.</p>
 </article>
 """
     ld = {

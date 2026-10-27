@@ -35,7 +35,7 @@
 }
 </script>
 <script src="/assets/frames_root.js?v=bdced09224"></script>
-<link rel="stylesheet" href="/assets/site.css?v=f93076748d">
+<link rel="stylesheet" href="/assets/site.css?v=0270370237">
 <style>
   :root {
     --muted-tint: #625e58;   /* muted text on the topic tints below: #6f6b64 falls under 4.5:1 there */
@@ -322,7 +322,7 @@
 <!-- sh:end -->
 <main id="main">
   <h1>Every plot on the site</h1>
-  <p class="lede" id="lede">The figures and animations of the site&rsquo;s forecast and analysis pages in one sheet, gathered from the pages themselves and rebuilt whenever one changes. Each card opens the exact view. Filter below, or press <kbd>Ctrl K</kbd> on any page to search from anywhere.</p>
+  <p class="lede" id="lede">Every figure and animation of the forecast and analysis pages in one sheet; each card opens the exact view.</p>
 
   <form class="cf" id="cf" role="search" onsubmit="return false">
     <label class="cf-q"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="#274b7a" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none"/><path d="M12.6 12.6 17 17" style="fill:none"/></svg>
@@ -342,6 +342,10 @@
 
   <div id="sheet"></div>
   <noscript><p class="none">The catalogue needs JavaScript. Every page is in the menus at the top.</p></noscript>
+  <section class="page-about" id="page-about">
+    <h2>About this sheet</h2>
+    <p>The cards are gathered from the pages themselves and rebuilt whenever one changes. Filter above, or press <kbd>Ctrl K</kbd> on any page to search from anywhere.</p>
+  </section>
 </main>
 <script>
 document.addEventListener('DOMContentLoaded', function () {

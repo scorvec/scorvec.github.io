@@ -85,11 +85,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <script src="/assets/site.js?v=8eca6e56e2" defer></script>
 
-<link rel="stylesheet" href="/assets/site.css?v=f93076748d">
+<link rel="stylesheet" href="/assets/site.css?v=0270370237">
 <style>
   body { background: var(--bg); color: var(--ink); margin: 0; }
   .topic { font-size: clamp(1rem, 0.92rem + 0.22vw, 1.14rem); max-width: clamp(46rem, 32rem + 22vw, 60rem); margin: 0 auto; padding: 2rem clamp(1rem, 4vw, 3rem) 3.5rem; }   /* the column widens with the window: ~810 px up to a 1120 px window, ~880 at 1440 px, ~985 at 1920, 60rem max; 18-20 px text, ~90-100 characters a line */
-  .ai-note { font-size: 0.9em; line-height: 1.5; margin: 0 0 1.3rem; padding: 0.65rem 0.95rem; background: var(--accent-light); border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0; }
+  .ai-note { font-size: 0.9em; line-height: 1.5; margin: 2.2rem 0 0; padding: 0.65rem 0.95rem; background: var(--accent-light); border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0; }
   .topic figcaption, .figs figcaption { font-size: clamp(0.88rem, 0.84rem + 0.15vw, 0.95rem); }   /* a step below the text (site.css pins rem) */
   .topic .crumbs { font-size: 0.92em; color: var(--muted); margin-bottom: 1.2rem; }
   .topic .crumbs a { color: inherit; }
@@ -103,7 +103,7 @@
   .topic .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
   .figs { max-width: clamp(62rem, 48rem + 22vw, 76rem); margin: 1.6rem auto 0; padding: 0 clamp(1rem, 4vw, 3rem); }   /* wider than the text, and widening with it: the live charts are dense */
   .figs figure { margin: 0 0 2rem; }
-  .figs img { display: block; width: auto; max-width: 100%; height: auto; margin: 0 auto; border: 1px solid var(--rule); background: #fff; }   /* never wider than the file */
+  .figs img { display: block; width: auto; max-width: 100%; height: auto; max-height: 85vh; margin: 0 auto; border: 1px solid var(--rule); background: #fff; }   /* never wider than the file, nor taller than the window */
   .figs iframe { display: block; width: 100%; aspect-ratio: 16 / 10; border: 1px solid var(--rule); background: #fff; }
   .figs figcaption { color: var(--muted); margin-top: 0.5rem; }
   .live { display: inline-block; margin: 0.6rem 0 0; font-weight: 600; }
@@ -309,7 +309,6 @@
 <main id="main">
 <article class="topic">
   <p class="crumbs"><a href="/">Home</a> › Explainers</p>
-  <p class="ai-note"><b>Made with Claude Code.</b> This explainer is a just-for-fun project: researched, coded and written entirely by Claude, Anthropic's AI model, working in Claude Code, to show what today's AI models can do with open meteorological data. It has not been peer reviewed.</p>
   <h1>Atmospheric dynamics explainers, with live forecasts</h1>
   <p>The diagnostics behind this site's circulation and stratosphere products, each explained with its equations and
   shown with its current forecast. They are written for meteorologists and students who want to know what a chart is
@@ -317,6 +316,7 @@
   <ul class="hub-list"><li><a href="/topics/ep-flux.html">Eliassen–Palm flux and E–P flux divergence</a><p>What the Eliassen–Palm (E–P) flux and its divergence measure, how to read an E–P cross-section, and a live 15-day GEFS forecast of the wave driving up to 1 hPa.</p></li><li><a href="/topics/mountain-torque.html">Mountain torque and friction torque</a><p>How mountain and friction torques trade angular momentum between the Earth and the atmosphere, how to read torque maps, and live IFS-ENS forecasts by range.</p></li><li><a href="/topics/atmospheric-angular-momentum.html">Atmospheric angular momentum (AAM)</a><p>What atmospheric angular momentum measures, why it tracks El Niño and the length of day, the GWO phase space, and a live IFS-ENS forecast by hemisphere.</p></li><li><a href="/topics/wave-activity-flux.html">Wave activity flux (Takaya–Nakamura)</a><p>What the Takaya–Nakamura wave activity flux shows about Rossby wave packets, downstream development and blocking, and a live AIFS-ENS forecast at 250 hPa.</p></li><li><a href="/topics/eddy-heat-flux.html">100 hPa eddy heat flux</a><p>Why the 100 hPa poleward eddy heat flux measures planetary waves entering the stratosphere, how its 40-day mean leads the vortex, and a live AIFS-ENS forecast.</p></li><li><a href="/topics/sudden-stratospheric-warming.html">Sudden stratospheric warmings and the polar vortex</a><p>What a sudden stratospheric warming is, splits and displacements, how SSWs reach the surface, every major SSW since 1980, and a live polar vortex forecast.</p></li><li><a href="/topics/hadley-cell.html">Hadley cell and the mean meridional mass streamfunction</a><p>How the mean meridional mass streamfunction describes the Hadley, Ferrel and polar cells, how their edges are measured, and a live ECMWF analysis.</p></li><li><a href="/topics/dynamic-tropopause.html">Dynamic tropopause and potential vorticity (2 PVU)</a><p>What the dynamic tropopause is, how to read θ on the 2-PVU surface and potential vorticity on 330 and 350 K, and live IFS control forecast maps to day 10.</p></li></ul>
   <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/">Shawn Corvec</a>, meteorologist. Last revised 2026-10-18.</p>
 </article>
+  <p class="ai-note"><b>Made with Claude Code.</b> This explainer is a just-for-fun project: researched, coded and written entirely by Claude, Anthropic's AI model, working in Claude Code, to show what today's AI models can do with open meteorological data. It has not been peer reviewed.</p>
 </main>
 <!-- sf:start -->
 <footer class="sf">

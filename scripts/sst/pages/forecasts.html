@@ -42,7 +42,6 @@ window.plotlyP = new Promise(function (ok, no) {
   .ef-odds td { text-align: right; }
   .ef-p { display: inline-block; min-width: 4.4em; padding: 0.1rem 0.35rem; border-radius: 3px;
           background: linear-gradient(to right, rgba(180,84,31,0.20) calc(var(--p, 0) * 100%), rgba(26,26,26,0.04) 0); }
-  .ef-def { font-size: 0.9rem; color: var(--ink2); margin: 0.7rem 0 0; }
   .ef-facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
   .ef-facts li { padding-left: 0.9rem; border-left: 3px solid var(--rule); }
   .ef-facts .k { display: block; font-size: 0.9rem; color: var(--muted); }
@@ -173,8 +172,6 @@ window.plotlyP = new Promise(function (ok, no) {
           <thead><tr><th scope="col">Level</th><th scope="col">ONI</th><th scope="col">RONI</th></tr></thead>
           <tbody><tr><td colspan="3">&hellip;</td></tr></tbody>
         </table>
-        <p class="ef-def" id="ef-odds-cal" hidden></p>
-        <p class="ef-def"><b>ONI</b> is the three-month average of the sea-surface temperature anomaly in the Ni&ntilde;o-3.4 region of the equatorial Pacific. <b>RONI</b> first subtracts the warming of the whole tropics, so a warmer world does not inflate it; NOAA&rsquo;s Climate Prediction Center made RONI its official ENSO index in February 2026.</p>
       </div>
       <ul class="ef-facts" id="ef-facts"></ul>
     </div>
@@ -850,13 +847,11 @@ window.STAGE = {
         "<td><span class=\"ef-p\" style=\"--p:" + on[k].toFixed(3) + "\">" + pctTxt(on[k]) + "</span></td>" +
         "<td><span class=\"ef-p\" style=\"--p:" + ro[k].toFixed(3) + "\">" + pctTxt(ro[k]) + "</span></td></tr>";
     }).join("");
-    var cO = !!peakCal("n34"), cR = !!peakCal("rnino"), pc = D.pc && D.pc.issue === F.issue ? D.pc : null;
+    var cO = !!peakCal("n34"), cR = !!peakCal("rnino");
     el("ef-odds-cap").textContent = cO || cR
       ? "Chance that the peak 3-month value reaches each level (each model weighted equally; " + (cO && cR
         ? "calibrated on the hindcasts)" : (cO ? "ONI" : "RONI") + " calibrated on the hindcasts, " + (cO ? "RONI" : "ONI") + " the raw share of members)")
       : "Share of members whose peak 3-month value reaches each level (each model weighted equally; raw, not calibrated)";
-    el("ef-odds-cal").hidden = !pc;
-    if (pc) el("ef-odds-cal").textContent = pc.text;
 
     // facts
     var facts = [];

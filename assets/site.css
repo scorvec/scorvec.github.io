@@ -409,30 +409,20 @@ html body > header:not(.sh) > :is(.lede, .sub), html main > header:not(.sh) > :i
 .sf-group--me { flex: 0 1 22rem; }
 .sf .sf-h { margin: 0 0 0.45rem; font-size: 0.9rem; font-weight: 600; color: var(--c-ink); }
 
-/* Lede paragraphs (the descriptor under a page title): left-aligned text in a quiet box, centred
-   as a block — a long paragraph set centred is hard to read. Colours
-   derive from the page's own text colour so dark pages get the same treatment. */
+/* The lede (the one line under a page title): a plain subtitle, centred with the title. A page opens on its
+   numbers and figures; anything longer belongs in the explainer section at the bottom (.page-about). */
 html main > .lede, html .wrap > .lede, html body > header:not(.sh) > .lede, html main > header:not(.sh) > .lede {
-  text-align: left;
+  text-align: center;
   max-width: 100ch;
-  margin: 0.9rem auto 1.4rem;
-  padding: 1rem 1.3rem;
-  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
-  background: color-mix(in srgb, currentColor 4%, transparent);
-  border-radius: 8px;
-  font-size: 1.08rem;
-  line-height: 1.6;
+  margin: 0.4rem auto 1.4rem;
+  font-size: var(--t-lede);
+  line-height: 1.5;
+  color: var(--ink2);
 }
-html main > .lede + .lede, html .wrap > .lede + .lede { margin-top: -0.6rem; }
 
 /* explainer blocks (.howto) at body size */
 html .howto { font-size: 1.02rem; line-height: 1.55; padding: 0.8rem 1.3rem; }
 
-/* A long lede: full content width in two columns instead of a tall narrow box. */
-html main > .lede.lede--wide, html .wrap > .lede.lede--wide {
-  max-width: none; column-count: 2; column-gap: 2.6rem; font-size: 1rem; line-height: 1.55; padding: 0.9rem 1.3rem;
-}
-@media (max-width: 900px) { html main > .lede.lede--wide, html .wrap > .lede.lede--wide { column-count: 1; } }
 
 /* Every figure fits the viewport it is shown on: images, loops and
    embedded plots never exceed their container; wide tables scroll inside their wrapper. */

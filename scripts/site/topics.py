@@ -652,7 +652,7 @@ STYLE = """
 <style>
   body { background: var(--bg); color: var(--ink); margin: 0; }
   .topic { font-size: clamp(1rem, 0.92rem + 0.22vw, 1.14rem); max-width: clamp(46rem, 32rem + 22vw, 60rem); margin: 0 auto; padding: 2rem clamp(1rem, 4vw, 3rem) 3.5rem; }   /* the column widens with the window: ~810 px up to a 1120 px window, ~880 at 1440 px, ~985 at 1920, 60rem max; 18-20 px text, ~90-100 characters a line */
-  .ai-note { font-size: 0.9em; line-height: 1.5; margin: 0 0 1.3rem; padding: 0.65rem 0.95rem; background: var(--accent-light); border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0; }
+  .ai-note { font-size: 0.9em; line-height: 1.5; margin: 2.2rem 0 0; padding: 0.65rem 0.95rem; background: var(--accent-light); border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0; }
   .topic figcaption, .figs figcaption { font-size: clamp(0.88rem, 0.84rem + 0.15vw, 0.95rem); }   /* a step below the text (site.css pins rem) */
   .topic .crumbs { font-size: 0.92em; color: var(--muted); margin-bottom: 1.2rem; }
   .topic .crumbs a { color: inherit; }
@@ -666,7 +666,7 @@ STYLE = """
   .topic .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
   .figs { max-width: clamp(62rem, 48rem + 22vw, 76rem); margin: 1.6rem auto 0; padding: 0 clamp(1rem, 4vw, 3rem); }   /* wider than the text, and widening with it: the live charts are dense */
   .figs figure { margin: 0 0 2rem; }
-  .figs img { display: block; width: auto; max-width: 100%; height: auto; margin: 0 auto; border: 1px solid var(--rule); background: #fff; }   /* never wider than the file */
+  .figs img { display: block; width: auto; max-width: 100%; height: auto; max-height: 85vh; margin: 0 auto; border: 1px solid var(--rule); background: #fff; }   /* never wider than the file, nor taller than the window */
   .figs iframe { display: block; width: 100%; aspect-ratio: 16 / 10; border: 1px solid var(--rule); background: #fff; }
   .figs figcaption { color: var(--muted); margin-top: 0.5rem; }
   .live { display: inline-block; margin: 0.6rem 0 0; font-weight: 600; }
@@ -799,7 +799,6 @@ def topic_page(t: dict, today: str) -> str:
         + f"""<main>
 <article class="topic">
   <p class="crumbs"><a href="/">Home</a> › <a href="/topics/">Explainers</a> › {html.escape(t["short"])}</p>
-  <p class="ai-note"><b>Made with Claude Code.</b> This explainer is a just-for-fun project: researched, coded and written entirely by Claude, Anthropic's AI model, working in Claude Code, to show what today's AI models can do with open meteorological data. It has not been peer reviewed.</p>
   <h1>{html.escape(t["term"])}</h1>
   <p class="aka">{aka}</p>
 {t["body"].strip()}
@@ -813,6 +812,7 @@ def topic_page(t: dict, today: str) -> str:
   <section><h2>References and further reading</h2><ol class="refs">{refs}</ol></section>
 {data_credits(t)}  <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/">Shawn Corvec</a>, meteorologist. The figures on this page are live and update with each forecast cycle; the text was last revised {today}.</p>
 </div>
+  <p class="ai-note"><b>Made with Claude Code.</b> This explainer is a just-for-fun project: researched, coded and written entirely by Claude, Anthropic's AI model, working in Claude Code, to show what today's AI models can do with open meteorological data. It has not been peer reviewed.</p>
 </main>
 {RESIZE}
 </body>
@@ -884,7 +884,6 @@ def hub_page(today: str) -> str:
         + f"""<main>
 <article class="topic">
   <p class="crumbs"><a href="/">Home</a> › Explainers</p>
-  <p class="ai-note"><b>Made with Claude Code.</b> This explainer is a just-for-fun project: researched, coded and written entirely by Claude, Anthropic's AI model, working in Claude Code, to show what today's AI models can do with open meteorological data. It has not been peer reviewed.</p>
   <h1>Atmospheric dynamics explainers, with live forecasts</h1>
   <p>The diagnostics behind this site's circulation and stratosphere products, each explained with its equations and
   shown with its current forecast. They are written for meteorologists and students who want to know what a chart is
@@ -892,6 +891,7 @@ def hub_page(today: str) -> str:
   <ul class="hub-list">{items}</ul>
   <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/">Shawn Corvec</a>, meteorologist. Last revised {today}.</p>
 </article>
+  <p class="ai-note"><b>Made with Claude Code.</b> This explainer is a just-for-fun project: researched, coded and written entirely by Claude, Anthropic's AI model, working in Claude Code, to show what today's AI models can do with open meteorological data. It has not been peer reviewed.</p>
 </main>
 </body>
 </html>
