@@ -35,7 +35,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <script src="/assets/site.js?v=8eca6e56e2" defer></script>
-<link rel="stylesheet" href="/assets/site.css?v=0270370237">
+<link rel="stylesheet" href="/assets/site.css?v=82ad76dcf4">
 <style>
   :root {
 --hot: #b3372f; --cold: #2c5f8a; --gust: #a05a12; --speci: #d0681e;
@@ -43,8 +43,7 @@
   body { background: var(--bg); color: var(--ink); }
   main.ao { max-width: min(96vw, 1900px); margin: 0 auto; padding: 1.4rem 1.2rem 3rem; font-family: var(--f-sans, sans-serif); }
   main.ao h1 { font-family: var(--f-serif, serif); font-weight: 400; font-size: var(--t-h1); text-align: center; margin: 0.4rem 0 0; }
-  .ao-lede { max-width: 82ch; margin: 0.9rem auto 1rem; padding: 0.9rem 1.2rem; font-size: 1.05rem; line-height: 1.55;
-    border: 1px solid var(--rule); background: #fbfbf8; border-radius: 8px; }
+  .ao-lede { margin: 0.4rem auto 1rem; font-size: 1rem; line-height: 1.5; color: var(--ink2); text-align: center; }
   .ao-lede b { font-weight: 600; }
   .ao-stale { max-width: 82ch; margin: 0 auto 0.8rem; padding: 0.5rem 0.9rem; background: #fdf3e4; border: 1px solid #ecd9b0;
     border-radius: 6px; font-size: 0.95rem; color: #6e5218; }
@@ -353,6 +352,9 @@
   </section>
 
   <footer class="ao-note">
+    <p><b>What it shows.</b> Live five-minute ASOS observations from 22 major US airports, plotted on each station&rsquo;s
+    local clock so today lines up against yesterday. The cards give the latest reading, today&rsquo;s extremes and, for
+    wind, the direction and how it has turned.</p>
     <p><b>Sources.</b> Live: Iowa State&rsquo;s <a href="https://mesonet.agron.iastate.edu/api/1/docs">IEM</a>
     observation history, fetched in your browser (each station again 5 minutes after its last read, hourly stations 10) &mdash; every 5-minute ASOS row the station transmitted
     plus every METAR and SPECI. The 5-minute rows carry temperature and dewpoint in <b>whole degrees Celsius</b> (hence the
@@ -1151,9 +1153,8 @@
     var data = state.data.filter(Boolean), newest = 0;
     data.forEach(function (st) { if (st.obs.length) newest = Math.max(newest, st.obs[st.obs.length - 1][E]); });
     var asof = newest ? new Date(newest * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZoneName: "short" }) : "–";
-    document.getElementById("subline").innerHTML = "Live five-minute ASOS observations from <b>22 major US airports</b>, plotted on each station&rsquo;s " +
-      "local clock so today lines up against yesterday. Cards show the latest reading, today&rsquo;s extremes and, for wind, the direction and how it has turned. " +
-      "Latest observation <b>" + asof + "</b>" + (state.cached ? " (from your last visit; updating&hellip;)" : "") + " &middot; " + data.length + " of 22 stations loaded &middot; each station refreshes every 5 minutes.";
+    document.getElementById("subline").innerHTML = "Latest observation <b>" + asof + "</b>" + (state.cached ? " (from your last visit; updating&hellip;)" : "") +
+      " &middot; " + data.length + " of 22 airports loaded &middot; each refreshes every 5 minutes";
     var stale = document.getElementById("stale");
     if (state.failed >= 6) { stale.hidden = false; stale.textContent = state.failed + " stations could not be reached just now; they are tried again within a few minutes."; }
     else stale.hidden = true;

@@ -2108,7 +2108,7 @@ function buildExportCanvas(fscale = 1) {
     const cw = totalW * weights[ci] / wSum - 14;
     let cy = tTop + 8;
     for (const [title, rows] of col) {
-      x.fillStyle = "#c8c8dc"; x.font = `600 ${F(15)}px Lora, Georgia, serif`;
+      x.fillStyle = "#c8c8dc"; x.font = `600 ${F(15)}px 'Source Serif 4', Georgia, serif`;
       x.textAlign = "left";
       x.fillText(title, cx, cy + F(12));
       cy += TITLE;

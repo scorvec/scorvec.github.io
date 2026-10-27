@@ -259,7 +259,6 @@ def models_section() -> str:
     inits = ", ".join(f"{m['label']} {m['init']}" for m in data.get("models", {}).values())
     return f"""
   <section id="mjo-models">
-  <h2>MJO forecasts from the global ensembles</h2>
   {f'<p style="font-size:0.95rem;line-height:1.55;margin:0.4rem 0 0.6rem">{head}</p>' if head else ""}
   <div class="mm-legend" id="mm-legend"></div>
   <div class="mm-ctl">

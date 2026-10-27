@@ -658,7 +658,6 @@ FONT_BASE = (
 )
 FONT_EXTRA = {
     "resume.html": ("DM+Mono:wght@400",),  # the dates and tags column (--mono)
-    "skewt/index.html": ("Inter:wght@400;600;700", "Lora:wght@600"),  # the sounding canvas and its export (app.js)
 }
 _FONT_TAG = re.compile(r'[ \t]*<link\b[^>]*\bhref="https://fonts\.(?:googleapis|gstatic)\.com[^"]*"[^>]*>[ \t]*\n?')
 
@@ -943,6 +942,13 @@ HOME = {
         ["/catalog.html", "/skewt/", "/asos5.html", "/climate.html", "/fci.html"],
     ),
 }
+# The tiles in three stacks that each run straight down, so a short tile leaves no hole beside a long one: the
+# forecasts, what drives them, then the studies and tools. A group missing here joins the last stack.
+HOME_COLUMNS = (
+    ("Model maps", "Mid-latitude weather", "Weeks to seasons"),
+    ("Global circulation and tropics", "Stratosphere"),
+    ("Studies and verification", "Tools"),
+)
 
 
 def homepage_rows() -> str:
@@ -952,7 +958,7 @@ def homepage_rows() -> str:
     def esc(t):
         return t.replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;")
 
-    out = ["<!-- hp:start -->", '    <div class="sgs">']
+    tiles = {}
     for title, blurb, items, *_ in PRODUCTS:
         allit = group_items(items)
         by = {h: (lab, what) for h, lab, what, _ in allit}
@@ -961,19 +967,28 @@ def homepage_rows() -> str:
         rest = [h for h, *_ in allit if h not in feat]
 
         def li(h, by=by):
-            return f'          <li><a href="{h}" title="{esc(by[h][1])}">{by[h][0]}</a></li>'
+            return f'            <li><a href="{h}" title="{esc(by[h][1])}">{by[h][0]}</a></li>'
 
-        out.append(f'      <section class="sg" data-topic="{topic or ""}">')
-        out.append(f"        <h3>{title}</h3>\n        <p>{short}</p>\n        <ul>")
-        out += [li(h) for h in feat]
-        out.append("        </ul>")
+        tile = [f'        <section class="sg" data-topic="{topic or ""}">']
+        tile.append(f"          <h3>{title}</h3>\n          <p>{short}</p>\n          <ul>")
+        tile += [li(h) for h in feat]
+        tile.append("          </ul>")
         if rest:  # the theme's other pages, one tap away instead of on show
-            out.append(f'        <details class="sg-more"><summary>{len(rest)} more</summary>\n          <ul>')
-            out += ["  " + li(h) for h in rest]
-            out.append("          </ul>\n        </details>")
+            tile.append(f'          <details class="sg-more"><summary>{len(rest)} more</summary>\n            <ul>')
+            tile += ["  " + li(h) for h in rest]
+            tile.append("            </ul>\n          </details>")
         if topic and topic != "tools":
-            out.append(f'        <a class="sg-all" href="/catalog.html?topic={topic}">All plots in this theme</a>')
-        out.append("      </section>")
+            tile.append(f'          <a class="sg-all" href="/catalog.html?topic={topic}">All plots in this theme</a>')
+        tile.append("        </section>")
+        tiles[title] = tile
+    stacks = [[t for t in col if t in tiles] for col in HOME_COLUMNS]
+    stacks[-1] += [t for t in tiles if not any(t in col for col in HOME_COLUMNS)]
+    out = ["<!-- hp:start -->", '    <div class="sgs">']
+    for col in stacks:
+        out.append('      <div class="sg-col">')
+        for title in col:
+            out += tiles[title]
+        out.append("      </div>")
     out.append("    </div>")
     out.append("    <!-- hp:end -->")
     return "\n".join(out)

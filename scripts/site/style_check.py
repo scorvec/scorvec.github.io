@@ -6,6 +6,8 @@ pages draw on them:
   - a page does not redefine a site token (--bg, --panel, --surface, --ink, --ink2, --muted, --rule, --edge, --serif,
     --sans) at :root / html / body; a dark page's own theme (a block whose --bg is dark, or a selector naming its
     theme) is the exception, and a theme accent (--accent*) is set on html:root only, as outlook.css does;
+  - a dark page's theme sets every colour the site's type layer reads (DARK_SET), its text tokens at 4.5:1 on its
+    --bg, so no site rule falls back to a light-theme grey on the dark ground;
   - no inline h1 rule carries a literal size: a title is var(--t-h1), var(--t-h1-compact) or var(--t-hero);
   - the site stylesheet precedes every other stylesheet and style block in the head (apply_chrome.css_first);
   - every text token reads at 4.5:1 on the surfaces it is used on (WCAG AA), computed from the tokens themselves.
@@ -24,10 +26,12 @@ PAGES = (
     sorted(REPO.glob("*.html"))
     + sorted((REPO / "scripts/sst/pages").glob("*.html"))
     + sorted((REPO / "topics").glob("*.html"))
+    + sorted((REPO / "skewt").glob("*.html"))
 )
 SITE_CSS = REPO / "assets/site.css"
 TOKENS = ("--bg", "--panel", "--surface", "--ink", "--ink2", "--muted", "--rule", "--edge", "--serif", "--sans")
 ACCENTS = ("--accent", "--accent-hi", "--accent-light", "--accent-soft")
+DARK_SET = ("--panel", "--ink", "--ink2", "--muted", "--muted-tint", "--rule", "--edge")
 ROOT_SEL = re.compile(r"^(:root|html:root|html|body|html,\s*body)$")
 STYLE = re.compile(r"<style[^>]*>(.*?)</style>", re.S)
 RULE = re.compile(r"([^{}]+)\{([^{}]*)\}")
@@ -97,8 +101,11 @@ def page_findings(path: Path) -> list[str]:
             if not ROOT_SEL.match(selector):
                 continue
             bg = re.search(r"--bg\s*:\s*(#[0-9a-fA-F]{6})", body)
-            if (bg and luminance(bg.group(1)) < 0.18) or "dark" in sel or "theme" in sel:
+            if bg and luminance(bg.group(1)) < 0.18:
+                out.extend(dark_findings(rel, selector, bg.group(1), dict(DECL.findall(body))))
                 continue  # a dark page's own theme
+            if "dark" in sel or "theme" in sel:
+                continue
             names = [n for n, _ in DECL.findall(body)]
             for n in names:
                 if n in TOKENS:
@@ -109,6 +116,20 @@ def page_findings(path: Path) -> list[str]:
             f"{rel}: an inline h1 rule sets a literal size ({m.group(0).strip()[:60]}…); use var(--t-h1)"
             for m in H1_SIZE.finditer(block)
         )
+    return out
+
+
+def dark_findings(rel: str, selector: str, bg: str, decl: dict[str, str]) -> list[str]:
+    """A dark theme block: the full colour set, and its text tokens readable on its own ground."""
+    out = [
+        f"{rel}: {selector} is a dark theme without {n} (site rules would read the light one)"
+        for n in DARK_SET
+        if n not in decl
+    ]
+    for n in ("--ink", "--ink2", "--muted"):
+        v = decl.get(n, "").strip()
+        if HEX.fullmatch(v) and contrast(v, bg) < 4.5:
+            out.append(f"{rel}: {selector} {n} {v} on --bg {bg} is {contrast(v, bg):.2f}:1 (4.5 needed)")
     return out
 
 

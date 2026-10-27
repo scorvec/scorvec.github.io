@@ -443,7 +443,6 @@ def main():
   a {{ color: var(--accent); }}
   .page-header {{ margin-bottom: 1rem; }}
   .stage section h2 {{ margin-top: 0.2rem; }}
-  .stage #mjo-models h2 {{ margin-top: 0.2rem; }}
 {MODELS_CSS}
 </style>
 <link rel="stylesheet" href="/assets/stage.css">
