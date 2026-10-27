@@ -538,7 +538,7 @@
     <h3>Change from an earlier run</h3>
     <p>This run's ensemble mean less that of the same ensemble's run 12&nbsp;hours earlier, or of the run picked with the &ldquo;vs &hellip; h earlier&rdquo; buttons: 6, 12, 18, 24, 36 or 48&nbsp;hours earlier, whichever the ensemble ran (GEPS runs twice a day, so 12, 24, 36 and 48 only; 48&nbsp;h is the trend over two days), over the same calendar days, on a common 0.5&deg; grid (each member's field averaged over the 0.5&deg; cells first). The change is shaded everywhere and dotted where it is significant: Welch's <i>t</i>-test on the two runs' members at every point, and the Benjamini&ndash;Hochberg procedure over the whole map at a false discovery rate of 10&nbsp;%, so that among the dotted points at most a tenth are expected to be chance. Shading without dots is a change within what the two runs' members could give by chance: read it as a hint, not an established shift. The last period of a 00&nbsp;UTC run is compared over days 11&ndash;14, the days the earlier run holds, and an IFS-ENS run from 06 or 18&nbsp;UTC only over the days both runs hold. Where the ensembles are confident (the first days) even a small change can be significant: read the size from the colours.</p>
     <h3 id="spread">Spread</h3>
-    <p>How far the members disagree: their standard deviation for each day or period (each member's mean over the period's days), on the same 0.5&deg; cells as the change maps (each member's field averaged over the cells first, so on the finer grids it is the spread of 0.5&deg; cells). <b>vs normal</b> (500&nbsp;hPa height and sea-level pressure): that spread over the 1991&ndash;2020 standard deviation of an anomaly over the same averaging period, from ERA5 as for the standardized anomalies. Near 1 the members are spread as widely as the weather itself varies at that time of year, so the forecast carries little information there beyond the normal; well below 1 it still narrows the outcome. Over ground above 1,500&nbsp;m the pressure has no ratio (the reanalysis reduces pressure to sea level its own way), and 2&nbsp;m temperature has no such normal yet, so it shows the spread only. <b>Change</b>: this run's spread less that of the same ensemble's run 6 to 48&nbsp;hours earlier (the run picked with the &ldquo;vs &hellip; h earlier&rdquo; buttons), over the same calendar days, dotted where an <i>F</i>-test on the two runs' members finds their variances different, with the Benjamini&ndash;Hochberg procedure over the whole map at a false discovery rate of 10&nbsp;%. A newer run is nearer the same days, so its spread is usually smaller: blue is the normal case, and red, where the spread grew in spite of the shorter lead, is the signal to look at. The test assumes roughly normally distributed members, which holds better for 500&nbsp;hPa height and sea-level pressure than for 2&nbsp;m temperature under shallow cold air, and with 21 members (GEPS) it seldom has the power to call a change significant. The super-ensemble has no spread maps.</p>
+    <p>How far the members disagree: their standard deviation for each day or period (each member's mean over the period's days), on the same 0.5&deg; cells as the change maps (each member's field averaged over the cells first, so on the finer grids it is the spread of 0.5&deg; cells). <b>vs climate</b> (500&nbsp;hPa height and sea-level pressure): that spread over the 1991&ndash;2020 standard deviation of an anomaly over the same averaging period, from ERA5 as for the standardized anomalies. Near 1 the members are spread as widely as the weather itself varies at that time of year, so the forecast says little there beyond the climatology; well below 1 it still narrows the outcome. It is not a comparison with the ensemble's usual spread at the same lead time, which rises toward 1 with the lead whatever the weather. Over ground above 1,500&nbsp;m the pressure has no ratio (the reanalysis reduces pressure to sea level its own way), and 2&nbsp;m temperature has no such normal yet, so it shows the spread only. <b>Change</b>: whether this run is more or less certain than the same ensemble's run 6 to 48&nbsp;hours earlier (the run picked with the &ldquo;vs &hellip; h earlier&rdquo; buttons), over the same calendar days. A newer run is nearer those days, so its spread is smaller nearly everywhere, by an amount that depends on the lead time and the latitude; the map therefore measures each point's ratio of the two runs' spreads against the typical ratio at the same latitude between the same two runs (the median within 10&deg; of latitude), in per cent. Red: the spread shrank less than is typical there, or grew (this run is relatively less certain); blue: it shrank more. The points are dotted where an <i>F</i>-test of the two runs' members against that typical ratio is significant, with the Benjamini&ndash;Hochberg procedure over the whole map at a false discovery rate of 10&nbsp;%; the hover gives the plain change in the field's units too. Measured this way, a change that covers a whole latitude band is folded into the typical one, so the map shows where the change is regional. The test assumes roughly normally distributed members, which holds better for 500&nbsp;hPa height and sea-level pressure than for 2&nbsp;m temperature under shallow cold air, and with 21 members (GEPS) it seldom has the power to call a change significant. The super-ensemble has no spread maps.</p>
     <h3 id="regimes">Weather regimes</h3>
     <p>Each run of each ensemble sorts every member's 500&nbsp;hPa height on every day into one of four recurring weather regimes of two sectors, the Euro-Atlantic (20&ndash;80&deg;N, 90&deg;W&ndash;30&deg;E) and North America and the Pacific (20&ndash;80&deg;N, 170&ndash;30&deg;W), or into none. These are the regimes of the site's multi-model regime view on the <a href="/subseasonal.html">extended-range page</a>, classified the same way: four patterns per sector and season from NCEP/NCAR reanalysis 1991&ndash;2020 (k-means on 5-day mean height anomalies), one set for October&ndash;March and one for April&ndash;September, every day taking the set of its own season; a member's 5-day running mean anomaly (against ERA5 1991&ndash;2020) goes to the nearest pattern, or to &ldquo;no regime&rdquo; when its pattern correlation with that pattern is below 0.25. No model here has a reforecast, so each ensemble's drift is learned from its own past runs: the ensemble-mean anomaly at each lead day, less what the run started on that valid day showed on its first day, averaged over the runs and removed (shrunk towards zero by <i>n</i>&nbsp;/&nbsp;(<i>n</i>&nbsp;+&nbsp;10)) once ten runs verify a lead.</p>
     <p><b>The timeline</b> stacks, for each ensemble and valid date, the share of its members in each regime, every ensemble on the same dates (their newest runs can start 12&nbsp;hours apart; each row gives its run) and every regime in the same colour and place, as on the extended-range page. A share is drawn pale unless it differs from that regime's 1991&ndash;2020 frequency within 15 days of the date: the 95&nbsp;% interval of their difference, from resampling the members and the reanalysis years 1,000 times, must exclude zero. <b>The four-ensemble row</b> averages the shares of the ensembles that hold the date with equal weight per ensemble, so the 50 and 51-member ensembles count no more than GEPS's 21; it is pale unless the mean differs from the normal by more than 1.96 standard errors (each ensemble's sampling error over its members, and the normal's over the reanalysis years). A black tick above it marks a date on which the ensembles' most frequent regime is not the same.</p>
@@ -565,7 +565,7 @@
                  msl: { label: "Sea-level pressure", up: "higher", dn: "lower" } };
   var FIELD_ORDER = ["t2m", "z500", "msl"];
   var VIEWS = { anom: "Anomaly", change: "Change from an earlier run", spread: "Spread", regimes: "Regimes", clusters: "Clusters" }, VIEW_ORDER = ["anom", "change", "spread", "regimes", "clusters"];
-  var SPRS = { sd: "Spread", ratio: "vs normal", change: "Change" }, SPR_ORDER = ["sd", "ratio", "change"];   // the spread view's measures
+  var SPRS = { sd: "Spread", ratio: "vs climate", change: "Change" }, SPR_ORDER = ["sd", "ratio", "change"];   // the spread view's measures
   var CDOMS = { nh: "Northern Hemisphere", ea: "Euro-Atlantic", na: "North America and Pacific" }, CDOM_ORDER = ["nh", "ea", "na"];
   var CWINS = { d3_5: "Days 3–5", d6_10: "Days 6–10", d11_15: "Days 11–15", day: "By day" }, CWIN_ORDER = ["d3_5", "d6_10", "d11_15", "day"];
   // the scenarios' letters, A first, in the categorical order (a ninth letter on is grey); one scenario is neutral grey
@@ -576,12 +576,13 @@
   var KF = 1.8;
   // the colour scales' half-ranges (colours saturate beyond): 2 m temperature [deg C, deg F], height m, pressure hPa
   // (the spread's scale runs from 0 to its range; its change from an earlier run is diverging like the others)
-  var RANGE = { t2m: { anom: [12, 20], change: [6, 10], spread: [6, 10.8], spread_change: [2, 3.6] }, z500: { anom: [300], change: [150], spread: [150], spread_change: [40] },
-                msl: { anom: [24], change: [12], spread: [15], spread_change: [4] } };
-  var TICK = { t2m: { anom: [3, 5], change: [1.5, 2.5], spread: [1, 2], spread_change: [0.5, 1] }, z500: { anom: [75], change: [50], spread: [30], spread_change: [10] },
-               msl: { anom: [6], change: [3], spread: [3], spread_change: [1] } };
+  // (spread_rel: the spread's change against the typical one at the same latitude, %, the same in either unit)
+  var RANGE = { t2m: { anom: [12, 20], change: [6, 10], spread: [6, 10.8], spread_rel: [50, 50] }, z500: { anom: [300], change: [150], spread: [150], spread_rel: [50] },
+                msl: { anom: [24], change: [12], spread: [15], spread_rel: [50] } };
+  var TICK = { t2m: { anom: [3, 5], change: [1.5, 2.5], spread: [1, 2], spread_rel: [10, 10] }, z500: { anom: [75], change: [50], spread: [30], spread_rel: [10] },
+               msl: { anom: [6], change: [3], spread: [3], spread_rel: [10] } };
   var SIGMA = 3;                                                       // the standardized anomalies' half-range, sd
-  var RATIO = 1.5, RATIO_TICK = 0.25;                                  // the spread over the normal spread: its scale's top
+  var RATIO = 1.5, RATIO_TICK = 0.25;                                  // the spread over the climate's sd: its scale's top
   // contour levels of the ensemble mean (its B channel): height every 60 m (labelled in dam), pressure every 4 hPa,
   // and the 0 deg C line of the 2 m temperature
   var CONT = { z500: { ci: 60, lo: 4620, hi: 6120, fmt: function (v) { return String(Math.round(v / 10)); } },
@@ -589,8 +590,8 @@
   function S(v, c) { return [v, parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]; }
   var DIV = [S(-1, "#2b1a5e"), S(-0.82, "#23449c"), S(-0.64, "#2f70b6"), S(-0.47, "#5f9ed2"), S(-0.3, "#9cc6e4"), S(-0.13, "#d3e5f1"), S(-0.02, "#f3f4f1"),
              S(0.02, "#f6f2ea"), S(0.13, "#f8dcc4"), S(0.3, "#f3ad85"), S(0.47, "#e37953"), S(0.64, "#c84432"), S(0.82, "#9c1c2a"), S(1, "#5c0a26")];
-  // the spread: one hue, light (no spread) to dark
-  var SEQ = [S(0, "#f4f2f7"), S(0.14, "#dcd6ec"), S(0.29, "#bcb0de"), S(0.43, "#9a89cc"), S(0.57, "#7a66b8"), S(0.71, "#5c48a0"), S(0.86, "#412f80"), S(1, "#2a1c5c")];
+  // the spread: one hue, light (no spread) to a mid violet, so the contours and coasts stay readable at the longest leads
+  var SEQ = [S(0, "#f6f5f9"), S(0.14, "#e1dcee"), S(0.29, "#cdc5e3"), S(0.43, "#b8add6"), S(0.57, "#a296c9"), S(0.71, "#8c80ba"), S(0.86, "#7669ab"), S(1, "#61579c")];
   var MIS = [0.80, 0.81, 0.78, 1];                                     // not drawn
   // the dots (members agree; a significant change): colour and mix; per view their spacing and radius, CSS px (the
   // anomaly maps' dots cover most of the map, so they are sparser and finer than the change maps')
@@ -639,12 +640,14 @@
   function unitOf(f) { return f === "t2m" ? (st.unit === "F" ? "°F" : "°C") : f === "z500" ? "m" : "hPa"; }
   // the standardized anomaly (s/ frames: the anomaly over the sd of the same averaging period) on screen
   function sigmaOn() { var c = cyc(); return st.sigma && st.view === "anom" && st.field !== "t2m" && !!(c && c.fields[st.field] && c.fields[st.field].sigma); }
-  // the spread view (sd/ frames: R the members' standard deviation, G that over the normal sd; <change>s/: its change from
+  // the spread view (sd/ frames: R the members' standard deviation, G that over the climate's sd; <change>s/: its change from
   // the run picked with the change buttons); the measure on screen, or null outside the view
   function hasSpread(c, f) { return !!(c && c.fields[f] && c.fields[f].spread); }
+  // the spread's change measured against the typical change at the same latitude (runs with enc spread_rel)
+  function hasSprChange(c, f) { return hasSpread(c, f) && hasChange(c, f) && c.enc[f].spread_rel != null; }
   function sprOn() {
     var c = cyc(), f = st.field; if (st.view !== "spread" || !hasSpread(c, f)) return null;
-    return st.sprd === "ratio" && c.fields[f].spread_ratio ? "ratio" : st.sprd === "change" && hasChange(c, f) ? "change" : "sd";
+    return st.sprd === "ratio" && c.fields[f].spread_ratio ? "ratio" : st.sprd === "change" && hasSprChange(c, f) ? "change" : "sd";
   }
 
   // grids of a frame: {res, nx, ny, c0, r0 (first point in the global grid's indices), wrap}
@@ -668,15 +671,16 @@
     }
     return stops[stops.length - 1].slice(1);
   }
-  function scale() { var s = sprOn(); return st.view === "change" ? "change" : s === "sd" ? "spread" : s === "change" ? "spread_change" : s || "anom"; }   // the regimes view shows anomalies
+  function scale() { var s = sprOn(); return st.view === "change" ? "change" : s === "sd" ? "spread" : s === "change" ? "spread_rel" : s || "anom"; }   // the regimes view shows anomalies
   function seqScale() { var s = scale(); return s === "spread" || s === "ratio"; }   // from 0 at the light end
   function halfRange() { if (sigmaOn()) return SIGMA; if (scale() === "ratio") return RATIO; var r = RANGE[st.field][scale()]; return st.field === "t2m" && st.unit === "F" ? r[1] : r[0]; }
   function stepOf() { var e = enc(st.field), s = scale(); return sigmaOn() ? e.sigma : e[s]; }
   // 256-entry colour table: the shader looks up the (interpolated) code; codes run (code - 128) x step
   function buildLut() {
-    var lut = new Uint8Array(256 * 4), R = halfRange(), stp = stepOf(), seq = seqScale(), rat = scale() === "ratio";
+    var lut = new Uint8Array(256 * 4), R = halfRange(), stp = stepOf(), seq = seqScale(), plain = scale() === "ratio" || scale() === "spread_rel";   // plain: no K -> F
     for (var c = 1; c < 256; c++) {   // a sequential code runs (code - 1) x step from 0, a diverging one (code - 128) x step
-      var col = seq ? interp(SEQ, Math.min(1, (rat ? (c - 1) * stp : dispK((c - 1) * stp)) / R)) : interp(DIV, Math.max(-1, Math.min(1, dispK((c - 128) * stp) / R)));
+      var v = seq ? (c - 1) * stp : (c - 128) * stp; if (!plain) v = dispK(v);
+      var col = seq ? interp(SEQ, Math.min(1, v / R)) : interp(DIV, Math.max(-1, Math.min(1, v / R)));
       lut[4 * c] = col[0]; lut[4 * c + 1] = col[1]; lut[4 * c + 2] = col[2]; lut[4 * c + 3] = 255;
     }
     return lut;
@@ -1335,9 +1339,9 @@
   }
   function drawLegend() {
     var c = cyc(); if (!c) return;
-    var sc = scale(), seq = seqScale(), sig = st.view === "change" || sc === "spread_change";   // sig: the dots mark a significant change
+    var sc = scale(), seq = seqScale(), sig = st.view === "change" || sc === "spread_rel";   // sig: the dots mark a significant change
     var g = legSetup(38), R = halfRange(), tk = sigmaOn() ? 1 : sc === "ratio" ? RATIO_TICK : TICK[st.field][sc][st.field === "t2m" && st.unit === "F" ? 1 : 0], ctx = g.ctx,
-      u = sigmaOn() ? "σ" : sc === "ratio" ? "× normal" : unitOf(st.field), ticks = [], lo = seq ? 0 : -R;
+      u = sigmaOn() ? "σ" : sc === "ratio" ? "× climate sd" : sc === "spread_rel" ? "%" : unitOf(st.field), ticks = [], lo = seq ? 0 : -R;
     for (var v = lo; v <= R + 1e-9; v += tk) ticks.push(+v.toFixed(2));
     var colAt = function (t) { return seq ? interp(SEQ, t) : interp(DIV, 2 * t - 1); }, at = function (t) { return (t - lo) / (R - lo); }, lab = function (t) { return seq ? minus(t) : sgn(t); };
     if (g.vert) {
@@ -1362,13 +1366,14 @@
     var sp = spanOf(c, st.span), n = sp && sp.n ? sp.n[st.field] : null, k = kOf(sp, st.field), f = FIELDS[st.field].label;
     var cd = st.view === "regimes" ? cardOf(c) : null, who = cd ? "the regime's members" : "the ensemble";
     if (cd) { n = cd.n[st.field]; k = cd.k[st.field]; }
-    var avg = sp && sp.first !== sp.last ? "a mean over as many days" : "a day";
+    var avg = sp && sp.first !== sp.last ? "a mean over as many days" : "a day", cv = sc === "spread_rel" && chOf(c, sp, st.field) ? chOf(c, sp, st.field).conv : null;
     var cap = cd
       ? f + " anomaly of the mean of the " + (n || "n") + " members in " + c.regimes.sectors[st.sector].names[cd.f] + " (" + SECTORS[st.sector] + ") against 1991–2020, " + u + "; dots where at least " + (k || "k") + " of them agree on its sign (a sign test at 5 %)"
       : sc === "spread" ? f + ": the spread of the " + (n || "n") + " members, their standard deviation" + (sp && sp.first !== sp.last ? " of the period's mean" : "") + ", " + u + ", on 0.5° cells"
-      : sc === "ratio" ? f + ": the members' spread over the 1991–2020 standard deviation of " + avg + " (1 = as uncertain as the climate itself)"
-      : sc === "spread_change" ? f + ": this run's spread less that of the run " + vsH(c) + " h earlier" + (vsPrev(c) ? " (" + initLabel({ init: vsPrev(c) }) + ")" : "") + " over the same days, " + u +
-        "; a newer run is nearer those days, so its spread is usually smaller (blue); dots where the change is significant (F-test, false discovery rate 10 %)"
+      : sc === "ratio" ? f + ": the members' spread over the 1991–2020 standard deviation of " + avg + " (1: the members vary as much as the weather does at this time of year)"
+      : sc === "spread_rel" ? f + ": this run's spread against that of the run " + vsH(c) + " h earlier" + (vsPrev(c) ? " (" + initLabel({ init: vsPrev(c) }) + ")" : "") +
+        " over the same days, against the typical change at the same latitude" + (cv ? " (overall this run's spread is " + Math.round(100 * Math.abs(1 - cv)) + " % " + (cv < 1 ? "smaller" : "larger") + ")" : "") +
+        ", %; red: less certain than that, blue: more certain; dots where the difference is significant (F-test, false discovery rate 10 %)"
       : st.view !== "change"
       ? f + (sigmaOn() ? " standardized anomaly of the ensemble mean: the anomaly against 1991–2020 over the 1991–2020 standard deviation of " + (sp && sp.first !== sp.last ? "a mean over as many days" : "a day") + ", σ" : " anomaly of the ensemble mean against 1991–2020, " + u) + (c.share
         ? "; dots where at least " + (k ? pctOf(c, k, true) : "k") + " of the " + (n || "n") + " members, each ensemble a quarter, agree on its sign (a weighted sign test at 5 %)"
@@ -1769,7 +1774,7 @@
     var sp = spanOf(c, st.span), ch = st.view === "change" || sprOn() === "change" ? chOf(c, sp, st.field) : null, lab = sp ? (ch ? ch.label : sp.label) : "";
     var fl = FIELDS[st.field].label;
     var cd = st.view === "regimes" ? cardOf(c) : null, rn = cd ? c.regimes.sectors[st.sector].names[cd.f] : "";
-    badgeH = setHTML("badge", "<b>" + MODELS[st.model] + "</b> " + escH(fl.charAt(0).toLowerCase() + fl.slice(1)) + " " + (st.view === "change" ? "change" : sprOn() === "change" ? "spread change" : sprOn() === "ratio" ? "spread against the normal" : sprOn() ? "spread" : sigmaOn() ? "standardized anomaly" : "anomaly") +
+    badgeH = setHTML("badge", "<b>" + MODELS[st.model] + "</b> " + escH(fl.charAt(0).toLowerCase() + fl.slice(1)) + " " + (st.view === "change" ? "change" : sprOn() === "change" ? "spread change" : sprOn() === "ratio" ? "spread against the climate's variability" : sprOn() ? "spread" : sigmaOn() ? "standardized anomaly" : "anomaly") +
       (cd ? " · " + escH(rn) + " members" : "") + " · run " + escH(runLabel(c)), badgeH);
     var parts = lab.split(" · ");
     validH = setHTML("valid", "<span class=\"vt\">" + escH(parts[1] || "") + "</span> <span class=\"loc\">· " + escH(parts[0] || "") + "</span>", validH);
@@ -1796,8 +1801,8 @@
       null, function (v) { return v === "anom" ? !hasAnom(c, st.field) : v === "change" ? !hasChange(c, st.field) : v === "spread" ? !hasSpread(c, st.field) : v === "regimes" ? !hasRegimes(c) : !CL; });
     $("sprSeg").hidden = !sprOn();
     if (sprOn()) segButtons($("sprSeg"), SPR_ORDER, function (v) { return SPRS[v]; }, sprOn(), function (v) { st.sprd = v; setButtons(); onChange(); },
-      function (v) { return v === "sd" ? "The members' standard deviation" : v === "ratio" ? "The spread over the 1991–2020 standard deviation of the same averaging period: 1 = as uncertain as the climate" : "The spread's change from an earlier run of the same ensemble"; },
-      function (v) { return v === "ratio" ? !c.fields[st.field].spread_ratio : v === "change" ? !hasChange(c, st.field) : false; });
+      function (v) { return v === "sd" ? "The members' standard deviation" : v === "ratio" ? "The spread over the 1991–2020 standard deviation of the same averaging period: 1 = the members vary as much as the weather does at this time of year" : "The spread's change from an earlier run of the same ensemble, against the typical change at the same latitude"; },
+      function (v) { return v === "ratio" ? !c.fields[st.field].spread_ratio : v === "change" ? !hasSprChange(c, st.field) : false; });
     segButtons($("wins"), wins(c).map(function (s) { return s.key; }), function (k) { var s = spanOf(c, k), d = s.label.split(" · ")[0]; return d.replace("Days ", "Days&nbsp;"); },
       st.span, pickSpan, function (k) { return spanOf(c, k).label; });
     if (st.field === "t2m") segButtons($("units"), ["C", "F"], function (u) { return "°" + u; }, st.unit, function (u) { st.unit = u; setButtons(); onChange(); });
@@ -2027,9 +2032,9 @@
       var ss = sampleAt(d.ss, gridC(d.c, f), lon, lat), sdec = f === "z500" ? 0 : 1;
       if (!ss || !ss[0]) { tip.style.display = "none"; return; }
       if (d.spr === "change") {
-        var sv = dispK((ss[0] - 128) * e.spread_change);
-        head = "spread " + fmtV(sv, sdec) + " " + u + (ss[0] === 1 || ss[0] === 255 ? " or more" : "") + " since the run " + vsH(d.c) + " h earlier";
-        lines.push(ss[1] ? "significant" : "not significant");
+        var rv = (ss[0] - 128) * e.spread_rel, sv = dispK((ss[2] - 128) * e.spread_change);
+        head = fmtV(rv, 0) + " %" + (ss[0] === 1 || ss[0] === 255 ? " or more" : "") + " spread against the typical change at this latitude";
+        lines.push((ss[1] ? "significant" : "not significant") + " · the spread itself " + fmtV(sv, sdec) + " " + u + " since the run " + vsH(d.c) + " h earlier");
       } else {
         head = "spread " + dispK((ss[0] - 1) * e.spread).toFixed(sdec) + " " + u + (ss[0] === 255 ? " or more" : "") + ": the members' standard deviation";
         if (ss[1]) lines.push(((ss[1] - 1) * e.ratio).toFixed(2) + " × the 1991–2020 spread of " + (d.sp && d.sp.first !== d.sp.last ? "a mean over as many days" : "a day"));
@@ -2063,7 +2068,7 @@
   }
 
   // ── URL hash: #model/field/view/span[/F] ────────────────────────────────────────────────────────────────────────
-  // #model/field/view/span, then in any order: F (deg F), s (standardized), pr / pc (the spread over the normal / its change),
+  // #model/field/view/span, then in any order: F (deg F), s (standardized), pr / pc (the spread over the climate's sd / its change),
   // v6 to v48 (the change from 6-48 h earlier), r<model><cycle>
   // (a model's run other than its newest), the regimes' sector (ea, na) and regime (its family's number), the clusters'
   // domain (c<domain>) and window or day

@@ -13,7 +13,8 @@ data are fetched.
   codes    the anomaly, mean and change codes round-trip within half a step and map NaN to 0
   gate     agreeing counts the members sharing the mean's sign; sign_k is 33/50, 33/51, 22/31, 16/21
   test     welch_p equals scipy's Welch test; var_p equals the F-test from scipy's F distribution, finds a planted
-           doubling of the spread across a map and nothing between two runs of the same spread; the spread codes
+           doubling of the spread across a map and nothing between two runs of the same spread; against band_ratio's
+           typical change at the latitude it finds a planted rise and not a uniform shrinkage; the spread codes
            round-trip
   chain    a run's statistics serve the runs 6 to 48 h later (IFS-ENS 06/18Z to +144 h among them), the last window
            cut to the shared days; the manifest keeps the four newest runs, the store those that left in the last hour
@@ -213,6 +214,23 @@ def test():
         f"a doubled spread is found ({found:.0%} of points), identical spreads not ({none:.1%})",
     )
     check(np.isnan(E.var_p(np.zeros(3), 50, np.ones(3), 50)).all(), "var_p: NaN where a run's members do not vary")
+    # a newer run's spread 20 % smaller everywhere (the shorter lead): against the band's typical ratio nothing stands
+    # out; with twice that spread in a band of columns, those are found and the false discoveries stay near the FDR
+    old = RNG.normal(0, 1.0, (50, 60, 400))
+    new = RNG.normal(0, 0.8, (50, 60, 400))
+    rb = E.band_ratio(sd(new) / sd(old), half=10)
+    flat = E.significant(E.var_p(sd(new), 50, sd(old), 50, rb)).mean()
+    check(
+        np.allclose(rb, 0.8, atol=0.03) and flat < 0.01,
+        f"a uniform shrinkage is the typical ratio ({np.median(rb):.2f}) and is not flagged ({flat:.1%})",
+    )
+    new[:, :, :40] *= 2.0
+    s1, s0 = sd(new), sd(old)
+    sig = E.significant(E.var_p(s1, 50, s0, 50, E.band_ratio(s1 / s0, half=10)))
+    hit, fdp = sig[:, :40].mean(), sig[:, 40:].sum() / max(sig.sum(), 1)
+    check(
+        hit > 0.9 and fdp < 0.15, f"a planted rise is found ({hit:.0%}); false discoveries {fdp:.0%} of those flagged"
+    )
     c = E.code_mean(np.array([0.0, 37.4, np.nan]), 0.0, E.ENC["z500"]["spread"])
     check(
         c[0] == 1 and abs((c[1] - 1) * E.ENC["z500"]["spread"] - 37.4) <= 0.5 and c[2] == 0, "spread codes round-trip"
