@@ -314,13 +314,11 @@
         1&ndash;15 (Charlton and Polvani 2007, who count November&ndash;March onsets only). The WMO column also asks, as
         the original definition does (McInturff 1978), for the 10&nbsp;hPa zonal-mean temperature to rise from 60&deg;N
         to the pole on the same day: the cos-weighted 85&ndash;90&deg;N mean above the value at 60&deg;N (&ndash; for a
-        run recorded without the temperature). The warning meter counts
-        members whose 10-day mean 100&nbsp;hPa heat flux crosses the level that preceded the sudden warmings on record
-        (<span data-r="warn">&ndash;</span>). The normal rate is the share of MERRA-2 winters since 1980 with an onset in
-        the same 15 calendar days. Each ensemble is its newest run, taken as soon as that run is in, so for a few hours
+        run recorded without the temperature). The normal rate is the share of MERRA-2 winters since 1980 with an onset
+        in the same 15 calendar days. Each ensemble is its newest run, taken as soon as that run is in, so for a few hours
         of a cycle the models stand on different starts. <b>Run by run</b> lists each ensemble&rsquo;s share in its last
-        six runs (and its WMO and warning-meter shares): a swing between runs is the models&rsquo; view changing, not a forecast
-        of its own.</p>
+        six runs (and its WMO share): a swing between runs is the models&rsquo; view changing, not a forecast of its
+        own.</p>
         <p><b>Wave driving.</b> The share of wave-1 and wave-2 in the ensemble-mean 100&nbsp;hPa eddy heat flux
         (45&ndash;75&deg;N) over days 1&ndash;15; a wavenumber carrying <span data-r="wshare">&ndash;</span> or more
         names the forcing, otherwise it is mixed. The peak is the total flux against its ERA5 1991&ndash;2020
@@ -406,19 +404,19 @@
       + (S.wmo_mean == null ? "" : ", with the pole warmer than 60°N the same day as well (the full WMO definition) in " + pct(S.wmo_mean)
          + (S.wmo_models < shown.length ? " (" + S.wmo_models + " of the " + shown.length + " ensembles so far)" : ""))
       + ". Since 1980, " + br.with_onset + " of " + br.winters + " winters had a sudden warming begin in these 15 days.");
-    table("t_ssw", ["model", "members", "easterly at 10\u00A0hPa", "and the pole warmer (WMO)", "lowest u, mean (m/s)", "lowest u, 10th pct", "warning meter"],
+    table("t_ssw", ["model", "members", "easterly at 10\u00A0hPa", "and the pole warmer (WMO)", "lowest u, mean (m/s)", "lowest u, 10th pct"],
       shown.map(function (m) {
-        var v = S.models[m], w = W.models[m] || {};
-        return [who(N[m], v.init), v.members, heat(v.share), heat(v.wmo), sg(v.u10_min_mean), sg(v.u10_min_p10), heat(w.warning_members)];
+        var v = S.models[m];
+        return [who(N[m], v.init), v.members, heat(v.share), heat(v.wmo), sg(v.u10_min_mean), sg(v.u10_min_p10)];
       }));
 
-    // run by run: each ensemble's chance in its last runs, the warning-meter share beside it
+    // run by run: each ensemble's chance in its last runs, its WMO share beside it
     var have = ens.filter(function (m) { return S.models[m] && S.models[m].runs; }), starts = {};
     have.forEach(function (m) { S.models[m].runs.forEach(function (r) { starts[r[0]] = 1; }); });
     var last = Object.keys(starts).sort().slice(-6).reverse();
     function runCell(m, t) {
       var r = S.models[m].runs.filter(function (x) { return x[0] === t; })[0];
-      return r ? { h: pct(r[1]) + (r[3] == null ? "" : " <small>WMO " + pct(r[3]) + "</small>") + (r[2] == null ? "" : " <small>warning " + pct(r[2]) + "</small>"), v: r[1] } : "–";
+      return r ? { h: pct(r[1]) + (r[2] == null ? "" : " <small>WMO " + pct(r[2]) + "</small>"), v: r[1] } : "–";
     }
     table("t_runs", ["run"].concat(have.map(function (m) { return N[m]; })),
       last.map(function (t) { return [md(t) + " " + t.slice(11) + "Z"].concat(have.map(function (m) { return runCell(m, t); })); }));
@@ -473,8 +471,7 @@
     set("stamp", "newest run " + j.newest_init + " · built " + j.built);
 
     // method references
-    var c = X.cmip6, r = S.warning_record;
-    if (r) ref("warn", "hit " + Math.round(100 * r.hit_rate) + "\u00A0% of " + r.n_events + " events, false alarms " + Math.round(100 * r.false_alarm_rate) + "\u00A0%");
+    var c = X.cmip6;
     ref("wshare", pct(j.thresholds.wave_share)); ref("active", "+" + j.thresholds.active_z + "\u00A0sd");
     var st = X.split_test; ref("split", st.splits + " splits, " + st.displacements + " displacements, wave-2 share " + st.split_median.toFixed(2) + " against " + st.displacement_median.toFixed(2) + ", area under the curve " + st.auc.toFixed(2) + ", p " + st.p.toFixed(2));
     ref("cm_n", X.cmip6_model_years.toLocaleString("en") + " model-years from " + X.cmip6_models + " CMIP6 models");
