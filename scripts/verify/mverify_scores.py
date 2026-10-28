@@ -487,6 +487,12 @@ def window_runs(stats: pd.DataFrame, share: float = WINDOW_SHARE) -> tuple[list[
     )
 
 
+def run_span(runs: list) -> dict:
+    """How many ``runs`` (sorted) and the first and last, YYYYMMDDHH."""
+    first, last = (pd.Timestamp(i).strftime("%Y%m%d%H") for i in (runs[0], runs[-1]))
+    return {"runs": len(runs), "first": first, "last": last}
+
+
 def window_card(stats: pd.DataFrame) -> dict | None:
     """The scorecard (mverify.report.scorecard) of the runs in ``stats`` (``run_stats`` rows): the scores from the
     summed sums, and for every pair of models the paired test of mverify.significance on the per-run mean squared
@@ -528,8 +534,7 @@ def window_card(stats: pd.DataFrame) -> dict | None:
     tests = pd.DataFrame(rows, columns=[*BY, "model", "reference", "runs", "runs_eff", "p"])
     inits = {m: [pd.Timestamp(i).strftime("%Y-%m-%dT%H") for i in used] for m in models}
     card = report.scorecard(table, inits, tests)
-    first, last = (pd.Timestamp(i).strftime("%Y%m%d%H") for i in (used[0], used[-1]))
-    card["window"] = {"runs": len(used), "first": first, "last": last, "left_out": left_out}
+    card["window"] = run_span(used) | {"left_out": left_out}
     return card
 
 
@@ -553,7 +558,10 @@ def rain_map(paths: list[Path]) -> dict | None:
     the cells and the mean analysed rain, mm per window; and whether the bias is more than chance, tested over the
     valid days as mverify.precip.maps does for cells (the day's error averaged over the box and the runs that verify
     it, through the paired test with its allowance for errors that persist from day to day) and the boxes of a map
-    through the Benjamini-Hochberg procedure. As JSON shaped like mverify.report.precip_maps, plus the window."""
+    through the Benjamini-Hochberg procedure. The models with WINDOW_SHARE of the runs are mapped on the runs they all
+    have; one with fewer but at least RAIN_MIN_RUNS (GDPS before the database began, say) on its own, since a box's test
+    needs only that model's days. As JSON shaped like mverify.report.precip_maps, plus the window and the runs of each
+    model mapped on its own."""
     from mverify.precip.maps import FDR_Q, LEAD_GROUPS, MIN_DAYS
     from mverify.significance import fdr, paired_test
 
@@ -579,7 +587,11 @@ def rain_map(paths: list[Path]) -> dict | None:
     models, used, left_out = window_runs(boxes)
     if not used:
         return None
-    boxes = boxes[boxes["model"].isin(models) & boxes["init"].isin(used)]
+    own = {
+        m: sorted(boxes.loc[boxes["model"] == m, "init"].unique()) for m, k in left_out.items() if k >= RAIN_MIN_RUNS
+    }
+    runs_of = dict.fromkeys(models, used) | own
+    boxes = pd.concat([boxes[(boxes["model"] == m) & boxes["init"].isin(r)] for m, r in runs_of.items()])
     daily = boxes.groupby(["model", "group", "blat", "blon", "valid_time"])[["n", "err", "sq", "obs"]].sum()
     lats, lons = (np.sort(boxes[c].unique()) for c in ("blat", "blon"))
     out = {
@@ -592,7 +604,7 @@ def rain_map(paths: list[Path]) -> dict | None:
         "groups": [{"label": label, "ends_h": [a, b]} for label, a, b in LEAD_GROUPS],
         "models": {},
     }
-    for m in models:
+    for m in sorted(runs_of):
         maps = {k: np.full((len(LEAD_GROUPS), lats.size, lons.size), np.nan) for k in ("bias", "rmse", "obs", "p")}
         days = np.zeros((len(LEAD_GROUPS), lats.size, lons.size), int)
         for (g, la, lo), d in daily.loc[m].groupby(level=["group", "blat", "blon"]):
@@ -614,8 +626,10 @@ def rain_map(paths: list[Path]) -> dict | None:
             "days": [g.ravel().tolist() for g in days],
             "significant": [fdr(g.ravel(), FDR_Q).astype(int).tolist() for g in maps["p"]],
         }
-    first, last = (pd.Timestamp(i).strftime("%Y%m%d%H") for i in (used[0], used[-1]))
-    out["window"] = {"runs": len(used), "first": first, "last": last, "left_out": left_out}
+    out["window"] = run_span(used) | {
+        "left_out": {m: k for m, k in left_out.items() if m not in own},
+        "own": {m: run_span(r) for m, r in own.items()},
+    }
     return out
 
 

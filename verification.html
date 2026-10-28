@@ -550,7 +550,9 @@ window.plotlyP = new Promise(function (ok, no) {
       through the scorecard's paired t-test with its allowance for errors that persist from day to day, once a box has 8
       days. The p values of all the boxes of a map then go through the Benjamini–Hochberg procedure at a 10%
       false-discovery rate, so the coloured boxes are ones whose bias is unlikely to be noise. RMSE (of the 0.5° cells)
-      and the mean amounts are shown everywhere.</p>
+      and the mean amounts are shown everywhere. The models with 95% of the year's runs are mapped on the runs they all
+      have, and one with fewer (GDPS, whose runs reach back only to September 2026) on its own runs, which its map's
+      note gives.</p>
     <p><b>The verification database.</b> Every 00Z run, once 14 days old, is kept for good: every model's pairs against
       every GHCNh station, the radiosondes and Stage IV, including the pairs the scores leave out (marked, with the
       terrain mismatch and sensor height that decide it), and each run's sums, from which a window of any length is
@@ -1131,8 +1133,10 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
       $("r-ticks").innerHTML = [0, 0.25, 0.5, 0.75, 1].map((f, j) => `<span>${j === 4 && s !== "bias" ? "≥ " : ""}${+(lo + f * (hi - lo)).toFixed(1)}</span>`).join("");
       $("r-cap").textContent = s === "bias" ? `${name} minus ${truth}, mm per ${pm.accum_hours} h; brown too dry, teal too wet, grey within chance`
         : `${NAMES[s].replace("model", name)}, mm per ${pm.accum_hours} h`;
-      const w = pm.window, day = t => `${t.slice(0, 4)}-${t.slice(4, 6)}-${t.slice(6, 8)}`;
-      $("r-note").innerHTML = `${pm.accum_hours} h totals ending 12Z against ${esc(pm.truth)} in ${pm.box}° boxes, over the ${w.runs} newest runs of the verification database (${day(w.first)} to ${day(w.last)}) and the windows of the lead group. ` +
+      const w = pm.window, own = (w.own || {})[name], day = t => `${t.slice(0, 4)}-${t.slice(4, 6)}-${t.slice(6, 8)}`;
+      const runs = own ? `the ${own.runs} runs ${esc(name)} has in the verification database (${day(own.first)} to ${day(own.last)}; the other models' maps use the ${w.runs} newest runs, from ${day(w.first)})`
+        : `the ${w.runs} newest runs of the verification database (${day(w.first)} to ${day(w.last)})`;
+      $("r-note").innerHTML = `${pm.accum_hours} h totals ending 12Z against ${esc(pm.truth)} in ${pm.box}° boxes, over ${runs} and the windows of the lead group. ` +
         (s !== "bias" ? "Hover a box for its numbers." : passed
           ? `The bias is coloured in ${passed.toLocaleString()} of ${shown.toLocaleString()} boxes, those that pass a box-by-box test at a ${Math.round(100 * pm.fdr_q)}% false-discovery rate; grey boxes are within chance.`
           : `No box's bias is distinguishable from chance yet (a box-by-box test at a ${Math.round(100 * pm.fdr_q)}% false-discovery rate, on ${Math.max(...m.days[g])} valid days at most), so every box is grey; RMSE and the mean amounts show every box.`);
