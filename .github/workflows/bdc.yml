@@ -16,6 +16,8 @@ name: Brewer-Dobson upwelling (downward control)
 # the Aura MLS record (committed reference, built offline with Earthdata login) extended past the last MLS day with
 # GEOS FP's 10S-10N water vapour, one 12Z analysis a day (~5 s each; the new days go to assets/sst/data/
 # tape_geosfp_tail.json on main). It runs before the momentum budget and never holds it up.
+# And THIS WINTER on the "every winter since 1980" chart (scripts/strat/strat_season.py, 2026-10-28): GEOS FP's daily u at
+# 60N 10 hPa and 65-90N cap temperature and height, every day since 1 October, in assets/sst/data/strat_season.json.
 
 on:
   schedule:
@@ -52,6 +54,10 @@ jobs:
           sparse-checkout: |
             scripts/strat/bdc_dc.py
             scripts/strat/geosfp_cap.py
+            scripts/strat/strat_season.py
+            scripts/strat/upperstrat_data.py
+            scripts/strat/build_drip_ref.py
+            scripts/strat/reference/drip_std.json
             scripts/strat/polar_descent.py
             scripts/strat/polarcap.py
             scripts/strat/run_record.py
@@ -82,6 +88,14 @@ jobs:
         run: |
           python scripts/strat/geosfp_cap.py tail --days 10 --keep 120 --procs 3 \
             --out assets/sst/data/geosfp_cap_history.json || echo "::warning::GEOS FP cap tail failed"
+      # this winter on the history chart (stratosphere.html#shwinters, strat_season.py): GEOS FP u at 60N 10 hPa and
+      # the 65-90N cap temperature at 10 hPa and height at 100 hPa, daily mean of 00/06/12/18Z; every day of the winter
+      # axis not yet held (a cold record backfills from 1 October, ~10 s a day), kept for good
+      - name: GEOS FP this winter (history chart)
+        if: ${{ !cancelled() }}
+        timeout-minutes: 25
+        continue-on-error: true
+        run: python scripts/strat/strat_season.py update || echo "::warning::GEOS FP winter record failed"
       # the observed record of the polar-cap descent (polar_descent.py, read by strat.yml and strat-ifs.yml): GEOS FP
       # omega over the cap and its six sectors, daily mean of 00/06/12/18Z; only the days of the last 45 not yet held,
       # newest first and saved day by day (~30 s a day; NCCS stalls cost minutes each, hence the step's own limit)
@@ -178,7 +192,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           SNAP=$(mktemp -d)
-          OUTS="assets/sst/bdc_dc_upwelling.webp assets/sst/bdc_dc_section.webp assets/sst/data/bdc_dc.json assets/sst/data/geosfp_cap_history.json assets/sst/data/descent_tail.json assets/sst/data/mbudget.json assets/sst/data/tape_recorder.json assets/sst/data/tape_geosfp_tail.json assets/sst/data/tape_mls_tail.json $(ls assets/sst/mbudget_*.webp assets/sst/tape_*.webp 2>/dev/null | tr '\n' ' ')"
+          OUTS="assets/sst/bdc_dc_upwelling.webp assets/sst/bdc_dc_section.webp assets/sst/data/bdc_dc.json assets/sst/data/geosfp_cap_history.json assets/sst/data/strat_season.json assets/sst/data/descent_tail.json assets/sst/data/mbudget.json assets/sst/data/tape_recorder.json assets/sst/data/tape_geosfp_tail.json assets/sst/data/tape_mls_tail.json $(ls assets/sst/mbudget_*.webp assets/sst/tape_*.webp 2>/dev/null | tr '\n' ' ')"
           for f in $OUTS; do [ -f "$f" ] && git add -f "$f"; done
           git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
           git reset -q
