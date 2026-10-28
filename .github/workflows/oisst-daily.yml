@@ -1,0 +1,63 @@
+name: Daily OISST record for the long-range forecast
+
+# scripts/monthly/oisst_daily.py: daily OISST v2.1 over 25S-25N on ERSSTv6's 2° cells, one file per year
+# (oisst2_<YYYY>.npz, ~1.8 MB), kept as assets of the release `oisst-daily-v1`. It is the record for testing a fresher
+# start of Claude's Niño-3.4 model (the 30 days to the 14th instead of the last complete month). Each year's PSL file
+# (~0.5 GB, scripts/sst/oisst9120.ensure_mean with its NCEI fallback) is reduced as it lands and deleted, one at a
+# time. Dispatch only: the whole record once (years 1982-<now>), the current year again to extend it.
+
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: "YYYY or YYYY-YYYY (empty = 1982 to this year)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write   # upload to the oisst-daily-v1 release
+
+concurrency:
+  group: oisst-daily
+  cancel-in-progress: false
+
+env:
+  TAG: oisst-daily-v1
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/monthly/oisst_daily.py
+            scripts/sst/oisst9120.py
+            scripts/constraints.txt
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet numpy pandas xarray netCDF4 h5netcdf
+      - name: The release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" --title "Daily OISST, 25S-25N on 2-degree cells (long-range forecast)" \
+            --notes "Tables of scripts/monthly/oisst_daily.py from NOAA OISST v2.1 (NOAA PSL / NCEI): daily SST over 25S-25N on ERSSTv6's 2-degree cells, one file per year."
+      - name: Build and upload, year by year
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          YEARS: ${{ inputs.years }}
+        run: |
+          Y=${YEARS:-1982-$(date -u +%Y)}
+          Y0=${Y%-*}; Y1=${Y#*-}
+          mkdir -p out
+          for y in $(seq "$Y0" "$Y1"); do
+            python scripts/monthly/oisst_daily.py --years "$y" --out out
+            gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "out/oisst2_$y.npz"
+          done

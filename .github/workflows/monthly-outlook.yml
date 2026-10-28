@@ -83,6 +83,8 @@ jobs:
             assets/sst/data/subsurface_hc.json
             assets/sst/data/enso_forecast.json
             assets/sst/data/nino_history.json
+            scripts/mjo/data/reference/rmm_era5.nc
+            assets/geps/data/geps_rmm.json
             scripts/gefs/gefs_reforecast.py
             scripts/ensmaps
             scripts/ecmwf

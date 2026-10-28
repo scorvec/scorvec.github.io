@@ -624,17 +624,19 @@ def rmm_members(cycle, base, clim, eofs, maps):
     return L, r1, r2, w1, w2
 
 
-def write_wind_track(L, w1, w2, base: pd.Timestamp) -> None:
-    """The wind-only track for the MJO page's multi-model diagram (assets/geps/data/geps_rmm_wind.json), in the
-    layout of scripts/mjo/src/rmm_export.track. GEPS day L is the UTC day base + L - 1."""
+def write_track(L, a1, a2, base: pd.Timestamp, name: str, note: str) -> None:
+    """One RMM track of the members in the layout of scripts/mjo/src/rmm_export.track, as assets/geps/data/<name>:
+    the wind-only one for the MJO page's multi-model diagram (geps_rmm_wind.json), the raw three-field one for the
+    long-range forecast's Niño-3.4 model (geps_rmm.json, scripts/monthly/enso_fc.py). GEPS day L is the UTC day
+    base + L - 1."""
     sys.path.insert(0, str(_MJO / "src"))
     from rmm_export import track
 
     valid = [base + pd.Timedelta(days=int(x) - 1) for x in L]
     d = paths.SITE_ASSETS / "data"
     d.mkdir(parents=True, exist_ok=True)
-    t = track(w1.T, w2.T, L, valid, "GEPS", f"{base:%Y-%m-%d} 00Z", note="wind-only RMM (U850 + U200)")
-    (d / "geps_rmm_wind.json").write_text(json.dumps(t, separators=(",", ":")))
+    t = track(a1.T, a2.T, L, valid, "GEPS", f"{base:%Y-%m-%d} 00Z", note=note)
+    (d / name).write_text(json.dumps(t, separators=(",", ":")))
 
 
 def nino34_now() -> float | None:
@@ -793,7 +795,8 @@ def plot_phase(cycle: str, base: pd.Timestamp):
     # ensemble plume: every member, faint, under the mean
     try:
         Lm, m1, m2, w1, w2 = rmm_members(cycle, base, clim, eofs, fmaps)
-        write_wind_track(Lm, w1, w2, base)  # the MJO page removes ENSO from the wind-only tracks itself
+        write_track(Lm, w1, w2, base, "geps_rmm_wind.json", "wind-only RMM (U850 + U200)")  # the page removes ENSO
+        write_track(Lm, m1, m2, base, "geps_rmm.json", "three-field RMM (OLR + U850 + U200), ENSO not removed")
         m1, m2 = m1 - shift[0], m2 - shift[1]
         for k in range(m1.shape[1]):
             ax.plot(np.r_[or1[-1], m1[:, k]], np.r_[or2[-1], m2[:, k]], color="#4a7bb5", alpha=0.42, lw=0.9, zorder=3)

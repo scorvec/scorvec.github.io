@@ -13,6 +13,14 @@ trend is added back) and relative Niño-3.4 (no trend: the tropical mean removes
 ridge-damped (RIDGE x the sample size on the diagonal), with the starts of the two calendar months either side
 pooled in (POOL). Training runs from 1980 (the heat-content record) to the last complete month.
 
+The MJO: two more predictors, the mean RMM1 and RMM2 (three-field) over the 35 days from the 15th of the month after the
+start, the issue date. They are trained on the observed RMM (ERA5, scripts/mjo/data/reference/rmm_era5.nc: perfect
+prog) and forecast with GEPS's 35-day run (its newest within MJO_SLACK days of the 15th, assets/geps/data/geps_rmm.json
+written by scripts/geps/mjo_geps.py; in the hindcast the GEPS reforecast, 2001-2020, data/geps_mjo_hc.npz; no MJO
+information where there is none). Over 2001-2020 GEPS's forecast cut the mean-square error by 11 % at two months and
+14 % at three (95 % year-block bootstrap intervals excluding zero), most of what a perfect 35-day MJO forecast gives
+(15 %, 16 %); GEFS's reforecast MJO, a third too strong in its 35-day mean, gave 5 % (not significant), so it is not used.
+
 Heat content: ECMWF ORAS5 at the moorings (scripts/sst/reference/reanalysis_hc_monthly.csv, reanalysis_hc.py) for
 training, then the TAO moorings themselves (assets/sst/data/subsurface_hc.json, sst_subsurface_events.py: each
 mooring's monthly mean of the screened daily index), less each mooring's mean TAO-minus-ORAS5 difference over the
@@ -31,7 +39,7 @@ alone at leads 7-9 and was no worse at 10-12). Its spread is the hindcast's: the
 and lead, scaled where the models enter by the consensus-to-statistical RMSE ratio of the 1993-2016 hindcast
 (c3s_hc_n34.npz, the C3S hindcast Niño-3.4 of each system), and the probabilities are normal about the forecast.
 
-Outputs: scripts/monthly/data/enso_hc.npz (the hindcast table, read by mo_method's forecast-ENSO component through
+Outputs (the MJO run used, if any, under inputs.mjo): scripts/monthly/data/enso_hc.npz (the hindcast table, read by mo_method's forecast-ENSO component through
 EnsoTable) and assets/monthly/data/enso_<YYYYMM>.json (the issue of month YYYYMM; latest.json names it).
 """
 
@@ -59,6 +67,9 @@ HC_CSV = REPO / "scripts" / "sst" / "reference" / "reanalysis_hc_monthly.csv"
 TAO_JSON = REPO / "assets" / "sst" / "data" / "subsurface_hc.json"
 C3S_JSON = REPO / "assets" / "sst" / "data" / "enso_forecast.json"
 C3S_HC = DATA / "c3s_hc_n34.npz"
+RMM_NC = REPO / "scripts" / "mjo" / "data" / "reference" / "rmm_era5.nc"  # observed RMM (ERA5), daily
+GEPS_MJO_HC = DATA / "geps_mjo_hc.npz"  # the GEPS reforecast's 35-day mean RMM per start, 2001-2020
+GEPS_MJO = REPO / "assets" / "geps" / "data" / "geps_rmm.json"  # the newest GEPS run's three-field RMM track
 RONI_SCALE = REPO / "scripts" / "sst" / "roni_sigma.json"
 HC_TABLE = DATA / "enso_hc.npz"
 
@@ -70,6 +81,9 @@ POOL = 2
 RIDGE = 0.05
 CLIM = (1991, 2020)
 SCORE_FROM = 1982  # hindcast scores and error spreads: starts from this year
+MJO_DAYS = 35  # the MJO predictor: the mean RMM over the 35 days from the 15th of the month after the start
+MJO_FROM = 15
+MJO_SLACK = 3  # a GEPS run (reforecast or live) counts when it starts within this many days of that 15th
 C3S_WEIGHT = 0.5
 DECAY = 0.8
 INDICES = ("n34", "rel")
@@ -167,18 +181,22 @@ def _pcs(x: np.ndarray, train: np.ndarray, k: int) -> np.ndarray:
 
 
 class Model:
-    """The state and the regressions for one training set (`train`: a mask over the months)."""
+    """The state and the regressions for one training set (`train`: a mask over the months). The last two columns of
+    the state are the MJO predictor: trained on the observed RMM (perfect prog), forecast with GEPS's."""
 
-    def __init__(self, field: np.ndarray, hc: np.ndarray, n34: np.ndarray, rel: np.ndarray, train: np.ndarray):
-        tt = np.arange(len(n34)) / 120.0
-        sst, _ = _detrend(field, tt, train)
-        hcd, _ = _detrend(hc, tt, train)
-        self.n34d, c = _detrend(n34, tt, train)
+    def __init__(self, D: dict, train: np.ndarray):
+        tt = np.arange(len(D["n34"])) / 120.0
+        sst, _ = _detrend(D["field"], tt, train)
+        hcd, _ = _detrend(D["hc"], tt, train)
+        self.n34d, c = _detrend(D["n34"], tt, train)
         self.trend = lambda i: c[0] + c[1] * i / 120.0  # Niño-3.4's linear trend at month index i
-        self.X = np.concatenate([_pcs(sst, train, K_SST), _pcs(hcd, train, K_HC), self.n34d[:, None], rel[:, None]], 1)
-        self.rel = rel
+        mjo = D["mjo_obs"]
+        self.mjo_ok = np.isfinite(mjo).all(1)
+        self.mjo_sd = mjo[train & self.mjo_ok].std(0)
+        base = [_pcs(sst, train, K_SST), _pcs(hcd, train, K_HC), self.n34d[:, None], D["rel"][:, None]]
+        self.X = np.concatenate([*base, np.nan_to_num(mjo) / self.mjo_sd], 1)
+        self.rel = D["rel"]
         self.train = train
-        self.mo = None
 
     def betas(self, mo: np.ndarray, start_month: int) -> dict:
         """{index: (LEADS, k) coefficients} for starts in calendar month `start_month`."""
@@ -186,18 +204,71 @@ class Model:
         dm = np.minimum((mo - start_month) % 12, (start_month - mo) % 12)
         out = {k: np.zeros((LEADS, self.X.shape[1])) for k in INDICES}
         for L in range(1, LEADS + 1):
-            rows = np.where(self.train[: T - L] & self.train[L:] & (dm[: T - L] <= POOL))[0]
+            rows = np.where(self.train[: T - L] & self.train[L:] & self.mjo_ok[: T - L] & (dm[: T - L] <= POOL))[0]
             A = self.X[rows]
             AtA = A.T @ A + RIDGE * len(rows) * np.eye(A.shape[1])
             for k, y in (("n34", self.n34d), ("rel", self.rel)):
                 out[k][L - 1] = np.linalg.solve(AtA, A.T @ y[rows + L])
         return out
 
-    def forecast(self, i: int, b: dict) -> dict:
-        """{index: (LEADS,)} from the state at month index i (Niño-3.4 with its trend added back)."""
-        f = {k: b[k] @ self.X[i] for k in INDICES}
+    def forecast(self, i: int, b: dict, mjo: np.ndarray) -> dict:
+        """{index: (LEADS,)} from the state at month index i with the MJO forecast `mjo` (RMM1, RMM2; zeros: none),
+        Niño-3.4 with its trend added back."""
+        x = np.r_[self.X[i, :-2], mjo / self.mjo_sd]
+        f = {k: b[k] @ x for k in INDICES}
         f["n34"] = f["n34"] + np.array([self.trend(i + L) for L in range(1, LEADS + 1)])
         return f
+
+
+def mjo_window(start: str) -> pd.Timestamp:
+    """The first day of a start month's MJO predictor window: the 15th of the month after it (the issue date)."""
+    return (pd.Period(start, "M") + 1).to_timestamp() + pd.Timedelta(days=MJO_FROM - 1)
+
+
+def mjo_observed(months: list[str]) -> np.ndarray:
+    """(T, 2) observed RMM1/RMM2 (ERA5, three-field) averaged over each start's window; NaN where under 80 % of it is
+    in the record."""
+    import xarray as xr
+
+    with xr.open_dataset(RMM_NC) as ds:
+        r = pd.DataFrame({"r1": ds["rmm1"].values, "r2": ds["rmm2"].values}, index=pd.DatetimeIndex(ds["time"].values))
+    out = np.full((len(months), 2), np.nan)
+    for i, m in enumerate(months):
+        d0 = mjo_window(m)
+        w = r.loc[d0 : d0 + pd.Timedelta(days=MJO_DAYS - 1)].dropna()
+        if len(w) >= 0.8 * MJO_DAYS:
+            out[i] = w.mean().to_numpy()
+    return out
+
+
+def mjo_hindcast(months: list[str]) -> np.ndarray:
+    """(T, 2) the GEPS reforecast's 35-day mean RMM from the start nearest each window's first day (within MJO_SLACK
+    days), zeros where there is none (no MJO information: before 2001 and after 2020)."""
+    out = np.zeros((len(months), 2))
+    if not GEPS_MJO_HC.exists():
+        return out
+    with np.load(GEPS_MJO_HC) as z:
+        S, r = pd.DatetimeIndex(z["starts"]), np.stack([z["r1"], z["r2"]], 1)
+    for i, m in enumerate(months):
+        k = int(np.argmin(np.abs((S - mjo_window(m)).days)))
+        if abs((S[k] - mjo_window(m)).days) <= MJO_SLACK:
+            out[i] = r[k]
+    return out
+
+
+def mjo_live(start: str) -> dict | None:
+    """The newest GEPS run's ensemble-mean RMM over the window of `start` (the days of its 35 from the window's first
+    day on), when the run starts within MJO_SLACK days of that day; else None."""
+    if not GEPS_MJO.exists():
+        return None
+    g = json.loads(GEPS_MJO.read_text())
+    init, d0 = pd.Timestamp(g["init"][:10]), mjo_window(start)
+    if abs((init - d0).days) > MJO_SLACK:
+        return None
+    t = pd.DatetimeIndex([x[:10] for x in g["t"]])
+    sel = (t >= d0) & (t < d0 + pd.Timedelta(days=MJO_DAYS))
+    r1, r2 = np.array(g["r1"], float)[sel], np.array(g["r2"], float)[sel]
+    return {"init": g["init"], "days": int(sel.sum()), "rmm": [round(float(r1.mean()), 3), round(float(r2.mean()), 3)]}
 
 
 def inputs(ersst_path: Path) -> dict:
@@ -217,6 +288,8 @@ def inputs(ersst_path: Path) -> dict:
         "hc": hc,
         "n34": np.array([E["n34"][m] for m in months]),
         "rel": np.array([E["rel"][m] for m in months]),
+        "mjo_obs": mjo_observed(months),
+        "mjo_fc": mjo_hindcast(months),
         "obs_n34": E["n34"],
         "obs_rel": E["rel"],
         "meta": meta,
@@ -230,11 +303,11 @@ def hindcast(D: dict) -> dict:
     F = {k: np.full((T, LEADS), np.nan) for k in INDICES}
     for y in np.unique(D["yr"]):
         train = np.abs(D["yr"] - y) > 1
-        m = Model(D["field"], D["hc"], D["n34"], D["rel"], train)
+        m = Model(D, train)
         for sm in np.unique(D["mo"][D["yr"] == y]):
             b = m.betas(D["mo"], int(sm))
             for i in np.where((D["yr"] == y) & (D["mo"] == sm))[0]:
-                f = m.forecast(int(i), b)
+                f = m.forecast(int(i), b, D["mjo_fc"][i])
                 for k in INDICES:
                     F[k][i] = f[k]
     return F
@@ -340,6 +413,23 @@ def c3s_hindcast_ratio(D: dict, F: dict) -> dict:
     return out
 
 
+def build_geps_mjo_hc(src: Path) -> None:
+    """data/geps_mjo_hc.npz from the GEPS reforecast's RMM (scripts/geps/mjo_hindcast.py: mjo_hindcast.nc, the
+    ensemble-mean three-field RMM of every 2001-2020 start, projected as mjo_geps.py does the live run): per start
+    the mean over days 1-35."""
+    import xarray as xr
+
+    with xr.open_dataset(src) as ds:
+        lead = ds["L"].values
+        sel = (lead >= 0.5) & (lead <= MJO_DAYS - 0.5)  # day d is lead d - 0.5
+        r1, r2 = ds["f1"].values[:, sel].mean(1), ds["f2"].values[:, sel].mean(1)
+        starts = pd.DatetimeIndex(ds["S"].values)
+    ok = np.isfinite(r1) & np.isfinite(r2)
+    np.savez_compressed(GEPS_MJO_HC, starts=np.array([f"{d:%Y-%m-%d}" for d in starts[ok]]),
+                        r1=r1[ok].astype(np.float32), r2=r2[ok].astype(np.float32))  # fmt: skip
+    print(f"{GEPS_MJO_HC.name}: {ok.sum()} starts {starts[ok][0]:%Y-%m-%d}..{starts[ok][-1]:%Y-%m-%d}")
+
+
 def build_c3s_hc(src: Path) -> None:
     """data/c3s_hc_n34.npz from the C3S hindcast box files c3s_nino34.py caches (src = its data/hindcast): per system
     and start month, the (24, 6) ensemble-mean Niño-3.4 and relative Niño-3.4 of 1993-2016, leads 1-6 (lead 1 = the
@@ -424,14 +514,16 @@ def issue(D: dict, F: dict, issued: str) -> dict:
     """The forecast from the newest start (D['months'][-1]) and its record for the page."""
     T = len(D["months"])
     init = D["months"][-1]
-    m = Model(D["field"], D["hc"], D["n34"], D["rel"], np.ones(T, bool))
-    stat = m.forecast(T - 1, m.betas(D["mo"], int(D["mo"][-1])))
+    m = Model(D, np.ones(T, bool))
+    mjo = mjo_live(init)
+    stat = m.forecast(T - 1, m.betas(D["mo"], int(D["mo"][-1])), np.array(mjo["rmm"]) if mjo else np.zeros(2))
     targets = [str(pd.Period(init, "M") + L) for L in range(1, LEADS + 1)]
     sc = roni_scale()
     tsc = np.array([sc[int(t[5:]) - 1] for t in targets])
     c3 = c3s_issue()
     ratio = c3s_hindcast_ratio(D, F)
-    out = {"issued": issued, "init": init, "targets": targets, "inputs": D["meta"], "series": {}, "skill": {}}
+    meta = {**D["meta"], "mjo": mjo and {"source": "GEPS", **mjo, "window": f"{mjo_window(init):%Y-%m-%d}"}}
+    out = {"issued": issued, "init": init, "targets": targets, "inputs": meta, "series": {}, "skill": {}}
     sm = int(D["mo"][-1]) - 1
     for k in INDICES:
         O = truth(D, k)
@@ -510,9 +602,13 @@ def main() -> int:
     ap.add_argument("--hindcast-only", action="store_true", help="write the hindcast table, no issue")
     ap.add_argument("--force", action="store_true", help="re-issue this month's forecast if it exists")
     ap.add_argument("--build-c3s-hc", type=Path, help="c3s_nino34.py's hindcast directory: write data/c3s_hc_n34.npz")
+    ap.add_argument("--build-geps-mjo", type=Path, help="mjo_hindcast.py's mjo_hindcast.nc: write data/geps_mjo_hc.npz")
     a = ap.parse_args()
     if a.build_c3s_hc:
         build_c3s_hc(a.build_c3s_hc)
+        return 0
+    if a.build_geps_mjo:
+        build_geps_mjo_hc(a.build_geps_mjo)
         return 0
     D = inputs(a.ersst)
     F = hindcast(D)

@@ -382,7 +382,10 @@
       TAO/TRITON moorings (165E to 95W), and Ni&ntilde;o-3.4 and relative Ni&ntilde;o-3.4 themselves. For each lead (1&ndash;12 months) and
       start month, Ni&ntilde;o-3.4 and the relative index are regressed on that state (ridge-damped, starts two months either side
       pooled), trained from 1980. The heat content trains on ECMWF ORAS5 at the moorings and starts from the moorings
-      themselves (ORAS5 lags real time by about six weeks), less each mooring&rsquo;s mean TAO-minus-ORAS5 difference. Adding the
+      themselves (ORAS5 lags real time by about six weeks), less each mooring&rsquo;s mean TAO-minus-ORAS5 difference. Two more
+      predictors carry the MJO: its mean state over the 35 days from the issue, trained on the observed index and taken
+      from GEPS&rsquo;s 35-day run (over 2001&ndash;2020 that cut the error variance by 11&nbsp;% at two months and 14&nbsp;% at three,
+      most of what a perfect MJO forecast would give). Adding the
       heat content lifted the 6-month correlation from 0.69 to 0.81 and the 9-month from 0.57 to 0.69, and the eight
       moorings did as well as the whole ORAS5 field.</p>
       <p><b>Skill.</b> Cross-validated from 1982 (each year and its neighbours left out of everything fitted), the correlation
@@ -413,8 +416,9 @@
       vortex in place of 50&nbsp;hPa (&plusmn;0.007), a warming-index trend, 90-day windows, extratropical SST in the analogue, an
       anchored C3S blend (the statistical weight pulled toward 1: worse than the free blend), a linear inverse model for
       Ni&ntilde;o-3.4 (a lead-6 correlation of 0.74 against the regressions&rsquo; 0.81), the whole ORAS5 heat-content field in place
-      of the moorings (no better) and OISST in place of ERSSTv6 for the model&rsquo;s SST (equal to six months, 0.52 against 0.55 at
-      twelve).</p>
+      of the moorings (no better) OISST in place of ERSSTv6 for the model&rsquo;s SST (equal to six months, 0.52 against 0.55 at
+      twelve), GEFS&rsquo;s MJO forecast for Ni&ntilde;o-3.4 (5&nbsp;%, not significant, against GEPS&rsquo;s 11&ndash;14&nbsp;%) and the MJO forecast in
+      the maps (with GEFS blended in, only December gained; November and January to March moved by &plusmn;0.02).</p>
     </details>
     <details>
       <summary>Data and credits</summary>
@@ -642,6 +646,7 @@
     ensoChart(); ensoOdds();
     var c3m = e.targets.filter(function (t, j) { return sr.c3s[j] !== null; });
     $("ensoLine").innerHTML = "From " + ym(e.init) + " (ERSSTv6; heat content at the TAO moorings to " + ym(e.inputs.tao_through || e.inputs.oras5_through) + ")" +
+      (e.inputs.mjo ? " &middot; MJO from GEPS " + dateLabel(e.inputs.mjo.init).replace(/ \d{4}$/, "") : "") +
       (c3m.length ? " &middot; C3S " + issueMonth(e.c3s.issue) + " issue, " + e.c3s.systems.length + " systems, to " + ym(c3m[c3m.length - 1]) : "") +
       " &middot; hindcast correlation by lead: " + [0, 2, 5, 8, 11].map(function (L) { return (L + 1) + "&nbsp;mo " + sk.r[L].toFixed(2); }).join(", ") +
       " (" + sk.years[0] + "&ndash;" + sk.years[1] + ") &middot; odds: &plusmn;0.5&nbsp;&deg;C on the 3-month mean";
