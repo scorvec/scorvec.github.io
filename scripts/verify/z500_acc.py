@@ -11,9 +11,11 @@ centres' headline score (verification.html draws it as NCEP EMC does, a time ser
           grid of the teleconnection patterns north of 20N, in whole metres (int16).
   truth   ERA5 at 00Z of each day (ARCO, 0.25 deg) on the same grid, era5-z500_<YYYYMMDD00>.npz, once ARCO holds it
           (its ERA5T, about a week behind real time).
-  clim    The anomalies' normal: ERA5 1991-2020 at 00Z, WeatherBench 2's conservative 1.5 deg ERA5 (the same grid),
-          each slot of the 366-day calendar (29 February = 59, 1 March = 60 in every year) the mean of the days within
-          7 slots of it in all 30 years. Built once, release verify-clim-z500-v1.
+  clim    The anomalies' normal: ERA5 1991-2020, the daily means of WeatherBench 2's conservative 1.5 deg ERA5 (the
+          same grid) in the local ERA5 store ($ERA5_STORE/wb2_1p5_daily_global/z500), each slot of the 366-day calendar
+          (29 February = 59, 1 March = 60 in every year) the mean of the days within 7 slots of it in all 30 years.
+          A daily mean, where the fields are 00Z: they differ by the atmospheric tide at 500 hPa, a metre or two.
+          Built once, offline, release verify-clim-z500-v1.
   acc     Per run, each model and lead over 20-80N and 20-80S (EMC's areas), cosine-of-latitude weighted: the anomaly
           correlation, centred (each anomaly less its area mean; WMO-No. 485) and uncentred, the RMSE, the mean error
           and the standard deviation of each anomaly field. acc_<init>.parquet, once ERA5 covers the run's day 15 and
@@ -47,7 +49,6 @@ G = 9.80665
 DET = {"GFS": "gfs", "IFS": "ifs", "AIFS": "aifs", "GDPS": "gdps"}  # the deterministic models (mverify_scores.MODELS)
 DET_LEADS = range(24, 241, 24)  # 00Z of every day to day 10, the deterministic runs' length in the database
 ARCO = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"
-WB2 = "gs://weatherbench2/datasets/era5/1959-2023_01_10-6h-240x121_equiangular_with_poles_conservative.zarr"
 CLIM_YEARS = (1991, 2020)
 CLIM_HALF = 7  # slots either side of each slot of the normal
 REGIONS = {"NH": (20.0, 80.0), "SH": (-80.0, -20.0)}  # EMC's extratropical belts
@@ -192,22 +193,22 @@ def truth(a) -> None:
 
 def clim(a) -> None:
     import xarray as xr
+    from localdirs import env_dir
 
-    ds = xr.open_zarr(WB2, storage_options={"token": "anon"})
-    z = ds["geopotential"].sel(level=500, time=slice(f"{CLIM_YEARS[0]}-01-01", f"{CLIM_YEARS[1]}-12-31T00"))
-    z = z.sel(time=z["time"].dt.hour == 0).transpose("time", "latitude", "longitude")
-    lat = z["latitude"].values
-    if not (np.allclose(np.sort(lat)[::-1], G15.lat) and np.allclose(z["longitude"].values, G15.lon)):
-        raise RuntimeError("WeatherBench 2's grid is not the verification grid")
-    t = pd.DatetimeIndex(z["time"].values)
-    s, total, count = slot366(t), np.zeros((366, *G15.shape)), np.zeros(366)
-    for y in range(CLIM_YEARS[0], CLIM_YEARS[1] + 1):  # a year at a time, ~40 MB
-        k = t.year == y
-        v = z.isel(time=np.flatnonzero(k)).values / G
+    total, count = np.zeros((366, *G15.shape)), np.zeros(366)
+    for y in range(CLIM_YEARS[0], CLIM_YEARS[1] + 1):
+        z = xr.open_dataset(env_dir("ERA5_STORE", "wb2_1p5_daily_global", "z500", f"z500_{y}.nc"))["z500"]
+        z = z.transpose("time", "latitude", "longitude")  # the store's dimension order is not uniform: by name
+        lat = z["latitude"].values
+        if not (np.allclose(np.sort(lat)[::-1], G15.lat) and np.allclose(z["longitude"].values, G15.lon)):
+            raise RuntimeError(f"z500_{y}.nc is not on the verification grid")
+        v = z.values.astype(np.float64)
         v = v[:, ::-1] if lat[0] < lat[-1] else v
-        np.add.at(total, s[k], v)
-        np.add.at(count, s[k], 1)
-        print(f"normal: {y} read", flush=True)
+        if not 4500 < np.median(v) < 6200:  # metres, whatever the attributes say (the store's README)
+            raise RuntimeError(f"z500_{y}.nc: median {np.median(v):.0f}, not 500 hPa heights in metres")
+        s = slot366(pd.DatetimeIndex(z["time"].values))
+        np.add.at(total, s, v)
+        np.add.at(count, s, 1)
     rows = np.arange(366)
     near = (np.abs((rows[:, None] - rows[None, :] + 183) % 366 - 183) <= CLIM_HALF).astype(float)  # around the year
     normal = (near @ total.reshape(366, -1)).reshape(total.shape) / (near @ count)[:, None, None]
@@ -345,7 +346,7 @@ def main() -> None:
     t = sub.add_parser("truth", help="ERA5's 500 hPa height at 00Z of each day ARCO holds")
     t.add_argument("--first", required=True, help="YYYYMMDD")
     t.add_argument("--last", required=True, help="YYYYMMDD")
-    c = sub.add_parser("clim", help="the ERA5 1991-2020 normal on the verification grid (built once)")
+    c = sub.add_parser("clim", help="the ERA5 1991-2020 normal on the verification grid (built once, offline)")
     c.add_argument("--out", type=Path, required=True)
     s = sub.add_parser("acc", help="each due run's scores against ERA5")
     s.add_argument("--list", action="store_true", help="print each due run and the files its scores are made from")

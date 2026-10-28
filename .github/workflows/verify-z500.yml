@@ -3,8 +3,9 @@ name: 500 hPa height database and anomaly correlations
 # Adds every model's 500 hPa height to the verification database (scripts/verify/z500_acc.py, scripts/verify/verifydb.sh):
 # GFS, the IFS control, AIFS and GDPS to day 10 (z500-<m>_<init>.npz), the IFS-ENS, AIFS-ENS, GEFS and GEPS means and
 # members to day 15 (ens-z500-<m>_, ens-z500m-<m>_), ERA5 at 00Z of each day (era5-z500_<day>.npz), and each run's
-# anomaly correlations against ERA5 once ERA5 covers its day 15 (acc_<init>.parquet). Runs and days the database holds
-# are skipped, so a range can be dispatched again after a failure.
+# anomaly correlations against ERA5 once ERA5 covers its day 15 (acc_<init>.parquet), the anomalies from the ERA5
+# 1991-2020 normal of release verify-clim-z500-v1 (z500_acc.py clim, built once offline from the local ERA5 store). Runs
+# and days the database holds are skipped, so a range can be dispatched again after a failure.
 #
 # Each day it catches up the runs 1 to 47 days old (HPFX keeps GDPS about 52 days and GEPS about 48) and the days ERA5
 # has added on ARCO (about a week behind). Dispatched with a range it backfills: the ECMWF runs stay on the open-data
@@ -28,10 +29,6 @@ on:
       chunk:
         description: 'Ensemble runs per job (a deterministic job takes eight times as many)'
         default: '6'
-      clim:
-        description: 'Build the ERA5 1991-2020 normal first (release verify-clim-z500-v1; once)'
-        type: boolean
-        default: false
 
 env:
   PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt
@@ -93,28 +90,6 @@ jobs:
           EOF
           cat "$GITHUB_OUTPUT"
 
-  clim:
-    if: ${{ inputs.clim }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 300
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          sparse-checkout: scripts
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.11'
-      - run: pip install --quiet "$MVERIFY" gcsfs
-      - name: ERA5 1991-2020 at 00Z on the verification grid
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          python scripts/verify/z500_acc.py clim --out "$RUNNER_TEMP/clim_z500_1p5.npz"
-          gh release view "$CLIM_TAG" >/dev/null 2>&1 && { echo "::error::$CLIM_TAG exists: a normal is never replaced"; exit 1; }
-          gh release create "$CLIM_TAG" "$RUNNER_TEMP/clim_z500_1p5.npz" --latest=false \
-            --title "500 hPa height normal for the anomaly correlations" \
-            --notes "ERA5 1991-2020 at 00Z on the WMO 1.5 degree grid with poles (WeatherBench 2's conservative ERA5), each slot of the 366-day calendar the mean of the days within 7 slots of it (scripts/verify/z500_acc.py clim)."
-
   fields:
     needs: plan
     if: needs.plan.outputs.chunks != '[]'
@@ -174,9 +149,9 @@ jobs:
           scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"
 
   acc:
-    needs: [fields, truth, clim]
-    # also when there was nothing to fetch or no normal to build; not after a failed fetch, which may still be filled
-    if: ${{ !cancelled() && needs.truth.result == 'success' && needs.fields.result != 'failure' && needs.clim.result != 'failure' }}
+    needs: [fields, truth]
+    # also when there was nothing to fetch; not after a failed fetch, which may still be filled
+    if: ${{ !cancelled() && needs.truth.result == 'success' && needs.fields.result != 'failure' }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
