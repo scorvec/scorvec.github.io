@@ -1,0 +1,224 @@
+name: 500 hPa height database and anomaly correlations
+
+# Adds every model's 500 hPa height to the verification database (scripts/verify/z500_acc.py, scripts/verify/verifydb.sh):
+# GFS, the IFS control, AIFS and GDPS to day 10 (z500-<m>_<init>.npz), the IFS-ENS, AIFS-ENS, GEFS and GEPS means and
+# members to day 15 (ens-z500-<m>_, ens-z500m-<m>_), ERA5 at 00Z of each day (era5-z500_<day>.npz), and each run's
+# anomaly correlations against ERA5 once ERA5 covers its day 15 (acc_<init>.parquet). Runs and days the database holds
+# are skipped, so a range can be dispatched again after a failure.
+#
+# Each day it catches up the runs 1 to 47 days old (HPFX keeps GDPS about 52 days and GEPS about 48) and the days ERA5
+# has added on ARCO (about a week behind). Dispatched with a range it backfills: the ECMWF runs stay on the open-data
+# mirror and GFS and GEFS on NOAA's buckets, GDPS and GEPS only within HPFX's days, so their runs go first.
+on:
+  schedule:
+    - cron: '40 7 * * *'
+  workflow_dispatch:
+    inputs:
+      first:
+        description: 'First 00Z run, YYYYMMDD (blank = 47 days ago)'
+        default: ''
+      last:
+        description: 'Last 00Z run, YYYYMMDD (blank = yesterday)'
+        default: ''
+      models:
+        description: 'Models (space-separated: GFS IFS AIFS GDPS IFS-ENS AIFS-ENS GEFS GEPS)'
+        default: 'GFS IFS AIFS GDPS IFS-ENS AIFS-ENS GEFS GEPS'
+      chunk:
+        description: 'Ensemble runs per job (a deterministic job takes eight times as many)'
+        default: '6'
+      clim:
+        description: 'Build the ERA5 1991-2020 normal first (release verify-clim-z500-v1; once)'
+        type: boolean
+        default: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt
+  MVERIFY: "mverify[grib,zarr] @ git+https://github.com/scorvec/nwp_verification@f81968d42a703f0e42eb75acd526fadd3ba567e9"
+  CLIM_TAG: verify-clim-z500-v1
+
+permissions:
+  contents: write
+
+concurrency:
+  group: verify-z500
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      chunks: ${{ steps.p.outputs.chunks }}
+      first: ${{ steps.p.outputs.first }}
+      last: ${{ steps.p.outputs.last }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/verify
+      - id: p
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FIRST: ${{ inputs.first }}
+          LAST: ${{ inputs.last }}
+          MODELS: ${{ inputs.models || 'GFS IFS AIFS GDPS IFS-ENS AIFS-ENS GEFS GEPS' }}
+          CHUNK: ${{ inputs.chunk || '6' }}
+        run: |
+          FIRST=${FIRST:-$(date -u -d '47 days ago' +%Y%m%d)}
+          LAST=${LAST:-$(date -u -d '1 day ago' +%Y%m%d)}
+          scripts/verify/verifydb.sh list > have.txt
+          python3 - "$FIRST" "$LAST" "$CHUNK" "$MODELS" have.txt >> "$GITHUB_OUTPUT" <<'EOF'
+          import json, sys
+          from datetime import date, datetime, timedelta
+          first, last = (datetime.strptime(x, "%Y%m%d").date() for x in sys.argv[1:3])
+          n, models = max(1, int(sys.argv[3])), sys.argv[4].split()
+          have = set(open(sys.argv[5]).read().split())
+          code = {"GFS": "z500-gfs", "IFS": "z500-ifs", "AIFS": "z500-aifs", "GDPS": "z500-gdps", "IFS-ENS": "ens-z500-ifs",
+                  "AIFS-ENS": "ens-z500-aifs", "GEFS": "ens-z500-gefs", "GEPS": "ens-z500-geps"}  # z500_acc.file_of
+          hpfx = {"GDPS": 52, "GEPS": 48}  # mverify_scores.HPFX_DAYS, ens_verify.HPFX_DAYS
+          days = [first + timedelta(d) for d in range((last - first).days + 1)]
+          chunks = []
+          for m in sorted(models, key=lambda m: m not in hpfx):  # GDPS and GEPS first: HPFX deletes them
+              oldest = date.today() - timedelta(days=hpfx.get(m, 100000))
+              todo = [d for d in days if d >= oldest and f"{code[m]}_{d:%Y%m%d}00.npz" not in have]
+              k = n if m.endswith(("ENS", "GEFS", "GEPS")) else 8 * n
+              chunks += [{"model": m, "runs": " ".join(f"{d:%Y%m%d}" for d in todo[i:i + k])}
+                         for i in range(0, len(todo), k)]
+              print(f"{m}: {len(todo)} runs to add", file=sys.stderr)
+          print("chunks=" + json.dumps(chunks))
+          print(f"first={first + timedelta(days=1):%Y%m%d}")  # ERA5 from the first run's day 1
+          print(f"last={min(last + timedelta(days=15), date.today()):%Y%m%d}")  # to the last run's day 15
+          EOF
+          cat "$GITHUB_OUTPUT"
+
+  clim:
+    if: ${{ inputs.clim }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet "$MVERIFY" gcsfs
+      - name: ERA5 1991-2020 at 00Z on the verification grid
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/verify/z500_acc.py clim --out "$RUNNER_TEMP/clim_z500_1p5.npz"
+          gh release view "$CLIM_TAG" >/dev/null 2>&1 && { echo "::error::$CLIM_TAG exists: a normal is never replaced"; exit 1; }
+          gh release create "$CLIM_TAG" "$RUNNER_TEMP/clim_z500_1p5.npz" --latest=false \
+            --title "500 hPa height normal for the anomaly correlations" \
+            --notes "ERA5 1991-2020 at 00Z on the WMO 1.5 degree grid with poles (WeatherBench 2's conservative ERA5), each slot of the 366-day calendar the mean of the days within 7 slots of it (scripts/verify/z500_acc.py clim)."
+
+  fields:
+    needs: plan
+    if: needs.plan.outputs.chunks != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        chunk: ${{ fromJson(needs.plan.outputs.chunks) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet "$MVERIFY"
+      - name: Fetch and archive, one run at a time
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODEL: ${{ matrix.chunk.model }}
+          RUNS: ${{ matrix.chunk.runs }}
+        run: |
+          scripts/verify/verifydb.sh list > "$RUNNER_TEMP/have.txt"
+          failed=""
+          for d in $RUNS; do   # a run that fails is left for the next pass; the chunk's other runs go on
+            if python scripts/verify/z500_acc.py fields --model "$MODEL" --inits "${d}00" "${d}00" \
+                --work "$RUNNER_TEMP/fc" --have "$RUNNER_TEMP/have.txt" --archive-out "$RUNNER_TEMP/db-new"; then
+              scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"
+            else
+              echo "::warning::$MODEL ${d}00 failed, left for the next pass"; failed="$failed $d"
+            fi
+            rm -rf "$RUNNER_TEMP"/db-new "$RUNNER_TEMP"/fc
+          done
+          if [ -n "$failed" ]; then echo "::error::$MODEL runs not archived:$failed"; exit 1; fi
+
+  truth:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 350   # a backfill reads ~110 MB of ARCO a day (one chunk holds all 37 levels)
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet "$MVERIFY" gcsfs
+      - name: ERA5 at 00Z of each day ARCO holds
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          scripts/verify/verifydb.sh list > "$RUNNER_TEMP/have.txt"
+          python scripts/verify/z500_acc.py truth --first ${{ needs.plan.outputs.first }} --last ${{ needs.plan.outputs.last }} \
+            --have "$RUNNER_TEMP/have.txt" --archive-out "$RUNNER_TEMP/db-new"
+          scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"
+
+  acc:
+    needs: [fields, truth, clim]
+    # also when there was nothing to fetch or no normal to build; not after a failed fetch, which may still be filled
+    if: ${{ !cancelled() && needs.truth.result == 'success' && needs.fields.result != 'failure' && needs.clim.result != 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet "$MVERIFY"
+      - name: Each due run's anomaly correlations, one run at a time
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "$CLIM_TAG" -D "$RUNNER_TEMP" -p clim_z500_1p5.npz
+          scripts/verify/verifydb.sh list > "$RUNNER_TEMP/have.txt"
+          python scripts/verify/z500_acc.py acc --list --have "$RUNNER_TEMP/have.txt" > "$RUNNER_TEMP/due.txt"
+          echo "$(wc -l < "$RUNNER_TEMP/due.txt") runs due"
+          while read -r init files; do
+            # shellcheck disable=SC2086  # the file names are meant to split
+            scripts/verify/verifydb.sh get "$RUNNER_TEMP/fields" $files
+            python scripts/verify/z500_acc.py acc --init "$init" --derived "$RUNNER_TEMP/fields" \
+              --clim "$RUNNER_TEMP/clim_z500_1p5.npz" --have "$RUNNER_TEMP/have.txt" --archive-out "$RUNNER_TEMP/db-new"
+            scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"
+            rm -rf "$RUNNER_TEMP"/fields "$RUNNER_TEMP"/db-new
+          done < "$RUNNER_TEMP/due.txt"
+
+  mirror:
+    needs: acc
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}
+      FRAMES_S3_ENDPOINT: ${{ secrets.FRAMES_S3_ENDPOINT }}
+      FRAMES_S3_REGION: ${{ secrets.FRAMES_S3_REGION }}
+      FRAMES_S3_ACCESS_KEY_ID: ${{ secrets.FRAMES_S3_ACCESS_KEY_ID }}
+      FRAMES_S3_SECRET_ACCESS_KEY: ${{ secrets.FRAMES_S3_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: The database's second copy, in the object store
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/verify/verifydb.sh mirror

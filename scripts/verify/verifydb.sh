@@ -3,11 +3,13 @@
 # verify-db-YYYY-MM of this repository: against the surface stations (sfc_<init>.parquet), the radiosondes (raob_)
 # and Stage IV (rain_), and the pairs' sums that windows of runs are scored from (stats_, stn_), all written by
 # scripts/verify/mverify_scores.py; the ensembles' cases and sums (ens-sfc-<m>_, ens-raob-<m>_, ens-rain-<m>_,
-# ens-stats_, ens-rel_) by scripts/verify/ens_verify.py. A second copy is kept in the site's object store, under
-# verify-db/YYYY-MM/. A file is never replaced or deleted in either place.
+# ens-stats_, ens-rel_) by scripts/verify/ens_verify.py; every model's 500 hPa height (z500-<m>_, ens-z500-<m>_,
+# ens-z500m-<m>_<init>.npz), ERA5's (era5-z500_<day>.npz, filed under the month of the day) and each run's anomaly
+# correlations (acc_<init>.parquet) by scripts/verify/z500_acc.py. A second copy is kept in the site's object store,
+# under verify-db/YYYY-MM/. A file is never replaced or deleted in either place.
 #
 #   verifydb.sh list                 every file the database holds, one name per line
-#   verifydb.sh fetch KIND N DIR     the newest N runs' KIND_<init>.parquet files (N 'all': every run) into DIR
+#   verifydb.sh fetch KIND N DIR     the newest N runs' KIND_<init> files (N 'all': every run) into DIR
 #   verifydb.sh get DIR NAME...      the named files into DIR
 #   verifydb.sh upload DIR           DIR's files into their months' releases (made when missing), but none it holds
 #   verifydb.sh mirror               every file the object store lacks into it, checked against GitHub's SHA-256
@@ -24,7 +26,7 @@ case "${1:-}" in
     ;;
   fetch)
     kind=${2:?KIND}; n=${3:?N}; dir=${4:?DIR}; mkdir -p "$dir"
-    names=$("$0" list | grep -E "^${kind}_[0-9]{10}\.parquet$" || true)
+    names=$("$0" list | grep -E "^${kind}_[0-9]{10}\.(parquet|npz)$" || true)
     [ "$n" = all ] || names=$(tail -n "$n" <<< "$names")
     # one download per month's release, its files named
     sed -nE "s/^${kind}_([0-9]{4})([0-9]{2}).*/\1-\2 &/p" <<< "$names" | awk '
@@ -32,7 +34,7 @@ case "${1:-}" in
       # shellcheck disable=SC2086  # the -p arguments are meant to split
       gh release download "verify-db-$month" -R "$R" -D "$dir" --clobber $pats
     done
-    echo "database: $(find "$dir" -name "${kind}_*.parquet" | wc -l) ${kind} files"
+    echo "database: $(find "$dir" -name "${kind}_*" | wc -l) ${kind} files"
     ;;
   get)
     dir=${2:?DIR}; shift 2; mkdir -p "$dir"
@@ -45,14 +47,14 @@ case "${1:-}" in
     ;;
   upload)
     dir=${2:?DIR}
-    for f in "$dir"/*_*.parquet; do
+    for f in "$dir"/*_*.parquet "$dir"/*_*.npz; do
       [ -e "$f" ] || continue
-      name=$(basename "$f"); init=${name%.parquet}; init=${init#*_}
+      name=$(basename "$f"); init=${name%.*}; init=${init#*_}
       tag="verify-db-${init:0:4}-${init:4:2}"
       if ! held=$(gh release view "$tag" -R "$R" --json assets -q '.assets[].name' 2>/dev/null); then
         # another job may make the same month's release at the same moment: a failed create is fine if it now exists
         gh release create "$tag" -R "$R" --latest=false --title "Verification database ${init:0:4}-${init:4:2}" \
-          --notes "Every 00Z run of the month matched with the observations, every model (scripts/verify/mverify_scores.py, mverify), one row per pair (mverify.match.PAIR_COLUMNS, and kept: whether mverify's default cuts keep it): sfc_<init>.parquet against surface stations (GHCNh), raob_<init>.parquet against radiosondes (IGRA2), rain_<init>.parquet 24 h totals against Stage IV on the 0.5 degree grid. stats_ and stn_ hold the pairs' sums that windows of runs are scored from. The ensembles (scripts/verify/ens_verify.py: IFS-ENS, AIFS-ENS, GEFS, GEPS to day 15) keep one row per case with its members summarised (mverify.ensemble.summarise): ens-sfc-<m>_, ens-raob-<m>_ and ens-rain-<m>_<init>.parquet, and their sums ens-stats_ and ens-rel_." \
+          --notes "Every 00Z run of the month matched with the observations, every model (scripts/verify/mverify_scores.py, mverify), one row per pair (mverify.match.PAIR_COLUMNS, and kept: whether mverify's default cuts keep it): sfc_<init>.parquet against surface stations (GHCNh), raob_<init>.parquet against radiosondes (IGRA2), rain_<init>.parquet 24 h totals against Stage IV on the 0.5 degree grid. stats_ and stn_ hold the pairs' sums that windows of runs are scored from. The ensembles (scripts/verify/ens_verify.py: IFS-ENS, AIFS-ENS, GEFS, GEPS to day 15) keep one row per case with its members summarised (mverify.ensemble.summarise): ens-sfc-<m>_, ens-raob-<m>_ and ens-rain-<m>_<init>.parquet, and their sums ens-stats_ and ens-rel_. The 500 hPa height (scripts/verify/z500_acc.py) on the WMO 1.5 degree grid: z500-<m>_<init>.npz (deterministic, to day 10), ens-z500-<m>_ (ensemble mean) and ens-z500m-<m>_ (every member, 2.5 degree, 20-90N) to day 15, era5-z500_<day>.npz (ERA5 at 00Z), and acc_<init>.parquet, each run's anomaly correlations against ERA5." \
           || gh release view "$tag" -R "$R" >/dev/null
         held=""
       fi
@@ -93,6 +95,6 @@ case "${1:-}" in
     echo "database: $(wc -l < "$work/github.txt") files on GitHub, $(wc -l < "$work/want.txt") of them copied to the object store now"
     ;;
   *)
-    sed -n '2,16p' "$0"; exit 2
+    sed -n '2,17p' "$0"; exit 2
     ;;
 esac

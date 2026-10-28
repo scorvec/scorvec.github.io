@@ -61,6 +61,7 @@ ECMWF = {
     ],
     "tp": [("tp", "sfc", None)],
     "static": [("z", "sfc", None), ("lsm", "sfc", None)],
+    "z500": [("{z}", "pl", "500")],  # the gridded anomaly correlations (z500_acc.py)
 }
 GEFS = {
     "sfc": [
@@ -73,6 +74,7 @@ GEFS = {
     "upper": ["HGT:500 mb", "TMP:850 mb", "UGRD:850 mb", "VGRD:850 mb", "UGRD:250 mb", "VGRD:250 mb"],
     "tp": ["APCP:surface"],
     "static": ["HGT:surface"],
+    "z500": ["HGT:500 mb"],
 }
 GEFS_MEMBERS = ["gec00"] + [f"gep{i:02d}" for i in range(1, 31)]
 GEFS_URL = "https://noaa-gefs-pds.s3.amazonaws.com/gefs.{d}/{h}/atmos/pgrb2ap5/{m}.t{h}z.pgrb2a.0p50.f{L:03d}"
@@ -81,6 +83,7 @@ GEPS = {
     "upper": ["HGT_ISBL_0500", "TMP_ISBL_0850", "UGRD_ISBL_0850", "VGRD_ISBL_0850", "UGRD_ISBL_0250", "VGRD_ISBL_0250"],
     "tp": ["APCP_SFC_0"],
     "static": ["HGT_SFC_0"],
+    "z500": ["HGT_ISBL_0500"],
 }
 GEPS_URL = (
     D.DATAMART
@@ -115,7 +118,7 @@ def gefs_member(url: str, want: list[str]) -> bytes:
 
 
 def fetch(model: str, init: str, lead: int, kind: str, dest: Path) -> Path:
-    """One step's fields of ``kind`` (sfc, upper, tp, static) of every member, into ``dest``."""
+    """One step's fields of ``kind`` (sfc, upper, tp, static, z500) of every member, into ``dest``."""
     if dest.exists():
         return dest
     day, hh = init[:8], init[8:]
