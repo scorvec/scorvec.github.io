@@ -124,8 +124,8 @@
   .scg rect.n { fill: #f3f2ee; }
   .scg circle { fill: var(--muted); }
   .scg path, .scg circle, .scg text { pointer-events: none; }
-  #s-region-l { display: none; }
-  @media (max-width: 700px) { .scg .blk:not(.on) { display: none; } #s-region-l { display: inline-flex; } }
+  #s-region-l, #e-region-l { display: none; }
+  @media (max-width: 700px) { .scg .blk:not(.on) { display: none; } #s-region-l, #e-region-l { display: inline-flex; } }
   .sc-detail { font-size: 0.86rem; color: var(--ink2); margin: 0.5rem 0 0; min-height: 2.6em; font-variant-numeric: tabular-nums; }
   .lgd svg.kg { width: 1.25rem; height: 1.08rem; vertical-align: -0.25rem; margin-right: 0.3rem; }
   table.pg { border-collapse: collapse; font-size: 0.9rem; font-variant-numeric: tabular-nums; margin-top: 0.3rem; }
@@ -365,7 +365,7 @@ window.plotlyP = new Promise(function (ok, no) {
   <p class="src" id="asof">Loading the scores…</p>
 
   <nav class="vnav" id="vnav" aria-label="Sections of this page">
-    <a href="#glance">At a glance</a><a href="#lead">Error by lead</a><a href="#scores">Scorecard</a><a href="#profiles">Upper air</a><a href="#stations">Stations</a><a href="#wind">Wind</a><a href="#rain">Rain</a>
+    <a href="#glance">At a glance</a><a href="#lead">Error by lead</a><a href="#scores">Scorecard</a><a href="#profiles">Upper air</a><a href="#stations">Stations</a><a href="#wind">Wind</a><a href="#rain">Rain</a><a href="#ens">Ensembles</a>
   </nav>
 
   <section class="card" id="glance">
@@ -495,6 +495,37 @@ window.plotlyP = new Promise(function (ok, no) {
     <p class="note" id="r-note"></p>
   </section>
 
+  <span class="vanchor" id="ens"></span>
+  <section class="card" id="ens-card" hidden>
+    <h2>Ensembles</h2>
+    <p class="note" id="ens-asof"></p>
+    <div class="controls">
+      <label>Ensemble<select id="e-model"></select></label>
+      <label>against<select id="e-ref"></select></label>
+      <label id="e-region-l">Region<select id="e-region"></select></label>
+    </div>
+    <div class="scg" id="e-scorecard"></div>
+    <p class="sc-detail" id="e-detail"></p>
+    <div class="lgd" id="e-key"></div>
+    <div class="controls">
+      <label>Variable<select id="e-var"></select></label>
+      <label>Region<select id="e-vregion"></select></label>
+    </div>
+    <div class="pair">
+      <div><h3>CRPS (smaller is better)</h3><div class="chart" id="c-ens-crps"></div></div>
+      <div><h3>Spread / error of the ensemble mean (1 = calibrated)</h3><div class="chart" id="c-ens-ssr"></div></div>
+    </div>
+    <div class="controls">
+      <label>Days<select id="e-group"></select></label>
+      <label>Event<select id="e-event"></select></label>
+      <label>Threshold<select id="e-thr"></select></label>
+    </div>
+    <div class="pair">
+      <div><h3 id="e-rank-h">Rank histogram</h3><div class="chart" id="c-ens-rank"></div></div>
+      <div><h3>Reliability (on the diagonal = calibrated)</h3><div class="chart" id="c-ens-rel"></div></div>
+    </div>
+  </section>
+
   <details class="method" id="method">
     <summary>How the scores are made</summary>
     <p><b>Made with Claude Code.</b> The verification package behind this page, mverify, was written by Claude,
@@ -528,6 +559,21 @@ window.plotlyP = new Promise(function (ok, no) {
       longer windows as the database grows. Each run's observations are those every model it has was matched to. The
       database begins with the 13 May 2026 run, the first of the current IFS (Cycle 50r1) and AIFS (version 2), and is
       kept in two places, the site's GitHub releases and its file store, every copy checked against the original.</p>
+    <p><b>Ensembles.</b> IFS-ENS, AIFS-ENS, GEFS and GEPS are verified member by member against the same stations,
+      radiosondes and Stage IV, at 00Z of every day to day 15, averaged first onto the same 0.5° grid. ECMWF's open data
+      carries the IFS ensemble's 50 perturbed members but not its control; the others are scored with theirs (AIFS-ENS 51
+      members, GEFS 31, GEPS 21), and GEFS and GEPS dew points come from their 2 m relative humidity. The database keeps
+      every case of every run (each observation against each run), its members summarised: their mean, spread, range, the
+      CRPS and where the observation falls among them. The CRPS (continuous ranked probability score) measures the whole
+      forecast distribution against the observation, in the variable's unit, and reduces to the absolute error for a single
+      forecast; the fair CRPS used here does not favour larger ensembles. The scorecard compares two ensembles' CRPS on the
+      cases both have, with the same paired test across runs as the deterministic scorecard, and marks only significant
+      differences. Spread/skill divides the members' spread, with the observation's own error added where it is known, by
+      the RMSE of the ensemble mean: 1 for a calibrated ensemble, below 1 for an overconfident one. A rank histogram counts
+      where each observation falls among the members, flat when the ensemble is calibrated, U-shaped when it is too narrow;
+      reliability compares the share of members forecasting an event with how often it happened, with the Brier skill score
+      against the sample's own frequency. A wind is scored as its two components, each level's CRPS their mean. These
+      panels describe the ensembles; only the scorecard tests a difference between them.</p>
     <p><b>Wind speed as a distribution.</b> Wind speed is skewed and cannot go below zero, so RMSE and bias, which reward
       a forecast that hedges towards the middle, are joined by the whole distribution, on the same station pairs for every
       model: forecast and observed quantiles from 1 to 99.5% (a QQ plot: a model on the dashed line has the observed
@@ -586,6 +632,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
 (function () {
   "use strict";
   const COLORS = { GFS: "#2c5f8a", IFS: "#b3372f", AIFS: "#7b4fb0", GDPS: "#2e7d4f" };   // each carries white text at 4.5:1
+  Object.assign(COLORS, { GEFS: COLORS.GFS, "IFS-ENS": COLORS.IFS, "AIFS-ENS": COLORS.AIFS, GEPS: COLORS.GDPS });   // an ensemble, its centre's
   const FALLBACK = ["#2c5f8a", "#b3372f", "#7b4fb0", "#2e7d4f", "#8a6a1f"];
   // Surface first, then upper air by quantity and from the ground up (1000 to 100 hPa); precipitation has its own card.
   const SURFACE = ["t2m", "td2m", "msl", "ws10", "wind10", "u10", "v10"];
@@ -623,6 +670,12 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     }, extra || {});
   }
   const CONFIG = { displaylogo: false, responsive: true, modeBarButtonsToRemove: ["lasso2d", "select2d"] };
+  // the scorecards' symbols: blue where the model's error is the smaller, red where larger, a triangle pointing the same way
+  const BETTER = [44, 110, 158], WORSE = [180, 50, 31];
+  const tri = (cx, cy, up) => up ? `M${cx - 5},${cy + 4}L${cx + 5},${cy + 4}L${cx},${cy - 5}Z` : `M${cx - 5},${cy - 4}L${cx + 5},${cy - 4}L${cx},${cy + 5}Z`;
+  const glyph = (base, up) => { const c = inkOn(base, 0.8);
+    return `<svg class="kg" viewBox="0 0 22 19"><rect width="22" height="19" rx="3" fill="${c.bg}"/><path d="${tri(11, 9.5, up)}" fill="${c.ink}"/></svg>`; };
+  const NOGLYPH = `<svg class="kg" viewBox="0 0 22 19"><rect width="22" height="19" rx="3" fill="#f3f2ee"/><circle cx="11" cy="9.5" r="1.6" fill="#6f6b64"/></svg>`;
 
   function draw(card) {
     const models = card.models, leads = card.leads;
@@ -757,8 +810,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
                   "wind250", "q850", "q700"];
     const SHORT = { t2m: "2 m T", td2m: "2 m Td", msl: "MSLP", wind10: "10 m wind" }, QS = { z: "Z", t: "T", wind: "Wind", q: "Q" };
     const short = v => SHORT[v] || `${QS[split(v)[0]]} ${split(v)[1]}`;
-    const BETTER = [44, 110, 158], WORSE = [180, 50, 31], LW = 64, CW = 25, RH = 22;
-    const tri = (cx, cy, up) => up ? `M${cx - 5},${cy + 4}L${cx + 5},${cy + 4}L${cx},${cy - 5}Z` : `M${cx - 5},${cy - 4}L${cx + 5},${cy - 4}L${cx},${cy + 5}Z`;
+    const LW = 64, CW = 25, RH = 22;
     let details = [];
     function scorecard() {
       const a = sm.value, b = sr.value;
@@ -799,11 +851,9 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
           `aria-label="${esc(`Scorecard, ${g}: ${a} against ${b}`)}">${head}${body}</svg></div>`;
       });
       $("scorecard").innerHTML = blocks.join("");
-      const glyph = (base, up) => { const c = inkOn(base, 0.8);
-        return `<svg class="kg" viewBox="0 0 22 19"><rect width="22" height="19" rx="3" fill="${c.bg}"/><path d="${tri(11, 9.5, up)}" fill="${c.ink}"/></svg>`; };
       $("s-key").innerHTML = `<span>${glyph(BETTER, true)}${esc(a)} has the smaller error</span>` +
         `<span>${glyph(WORSE, false)}${esc(a)} has the larger error</span>` +
-        `<span><svg class="kg" viewBox="0 0 22 19"><rect width="22" height="19" rx="3" fill="#f3f2ee"/><circle cx="11" cy="9.5" r="1.6" fill="#6f6b64"/></svg>no significant difference</span>` +
+        `<span>${NOGLYPH}no significant difference</span>` +
         `<span>Darker: a larger difference, the darkest at 20%</span>` +
         `<span>Z height, T temperature, Td dew point, Q specific humidity, Wind vector wind; numbers are hPa</span>`;
     }
@@ -1155,6 +1205,138 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     render();
   }
 
+  // ── the ensembles (ens_scores_<runs>.json): a CRPS scorecard against a reference ensemble, CRPS and spread/skill by
+  // lead, rank histograms and the reliability of rain and wind events, all on the cases every ensemble has
+  function drawEns(card) {
+    const models = card.models, leads = card.leads, days = leads.filter(h => h > 0 && h % 24 === 0);
+    const ORDER = ["t2m", "td2m", "msl", "ws10", "wind10", "pr24", "z500", "t850", "wind850", "wind250"];
+    const SHORT = { t2m: "2 m T", td2m: "2 m Td", msl: "MSLP", ws10: "10 m speed", wind10: "10 m wind", pr24: "24 h rain",
+                    z500: "Z 500", t850: "T 850", wind850: "Wind 850", wind250: "Wind 250" };
+    const rows = card.rows.filter(r => ORDER.includes(r.var));
+    const vars = ORDER.filter(v => rows.some(r => r.var === v));
+    const regions = ["Global", "NH 20-90N", "SH 20-90S", "Tropics 20S-20N", "Europe", "North America", "CONUS"]
+      .filter(g => rows.some(r => r.region === g));
+    const label = Object.fromEntries(rows.map(r => [r.key.split(":")[2], r.region]));   // a key's region code -> its name
+    const row = (v, g) => rows.find(r => r.var === v && r.region === g);
+    const w = card.window, day = s => `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
+    const out = Object.entries(w.left_out || {}).map(([m, k]) => `${m} (${k} of the runs)`);
+    $("ens-asof").textContent = `The newest ${w.runs} runs of the verification database, ${day(w.first)} to ${day(w.last)} 00Z, ` +
+      `every ensemble on the same runs and observations, to day 15.` + (out.length ? ` Left out, with too few of these runs: ${out.join(", ")}.` : "");
+
+    const em = $("e-model"), er = $("e-ref"), eg = $("e-region");
+    fill(em, models); fill(er, models);
+    em.value = models.includes("AIFS-ENS") ? "AIFS-ENS" : models[0];
+    er.value = models.includes("IFS-ENS") ? "IFS-ENS" : models[models.length - 1];
+    const blocks = regions.filter(g => g !== "Global");
+    fill(eg, blocks, g => g.replace(/ \d.*$/, ""));
+    const LW = 64, CW = 21, RH = 21;
+    let details = [];
+    function scorecard() {
+      const a = em.value, b = er.value;
+      details = [];
+      $("e-scorecard").innerHTML = blocks.map(g => {
+        let y = 38, body = "";
+        for (const v of vars) {
+          const r = row(v, g);
+          if (!r || a === b || !r.scores[a]?.crps || !r.scores[b]?.crps) continue;
+          body += `<text x="${LW - 5}" y="${y + 13}" text-anchor="end" class="l">${esc(SHORT[v])}</text>`;
+          days.forEach((h, j) => {
+            const i = leads.indexOf(h), ca = r.scores[a].crps[i], cb = r.scores[b].crps[i];
+            if (ca == null || cb == null) return;
+            const x = LW + j * CW, cx = x + 9, cy = y + 9, pct = 100 * (ca - cb) / cb, p = r.p?.[`${a}|${b}`]?.[i];
+            const pair = a < b ? `${a}|${b}` : `${b}|${a}`, runs = r.runs?.[pair]?.[i], eff = r.runs_eff?.[pair]?.[i];
+            const k = details.push(`${g}, ${r.label}, day ${h / 24}: CRPS ${a} ${ca.toFixed(3)}, ${b} ${cb.toFixed(3)} ${unit(r.unit)} ` +
+              `(${pct > 0 ? "+" : ""}${pct.toFixed(1)}%)` + (p == null ? ", not tested" : `, p = ${p.toFixed(3)}`) +
+              (runs ? `; ${runs} paired runs, counted as ${eff >= runs - 0.05 ? runs : eff.toFixed(1)} by the test` : "")) - 1;
+            if (p == null || p >= 0.05) {
+              body += `<rect data-k="${k}" x="${x}" y="${y}" width="18" height="18" rx="3" class="n"/><circle cx="${cx}" cy="${cy}" r="1.5"/>`;
+              return;
+            }
+            const cell = inkOn(pct < 0 ? BETTER : WORSE, 0.35 + 0.65 * Math.min(1, Math.abs(pct) / 20));
+            body += `<rect data-k="${k}" x="${x}" y="${y}" width="18" height="18" rx="3" fill="${cell.bg}"/>` +
+              `<path d="${tri(cx, cy, pct < 0)}" fill="${cell.ink}"/>`;
+          });
+          y += RH;
+        }
+        const head = `<text x="0" y="13" class="t">${esc(g)}</text><text x="${LW - 5}" y="31" text-anchor="end" class="h">Day</text>` +
+          days.map((h, j) => `<text x="${LW + j * CW + 9}" y="31" text-anchor="middle" class="h">${h / 24}</text>`).join("");
+        return `<div class="blk${g === eg.value ? " on" : ""}"><svg viewBox="0 0 ${LW + days.length * CW} ${y + 2}" role="img" ` +
+          `aria-label="${esc(`Ensemble scorecard, ${g}: ${a} against ${b}`)}">${head}${body}</svg></div>`;
+      }).join("");
+      $("e-key").innerHTML = `<span>${glyph(BETTER, true)}${esc(a)} has the smaller CRPS</span>` +
+        `<span>${glyph(WORSE, false)}${esc(a)} has the larger CRPS</span><span>${NOGLYPH}no significant difference</span>` +
+        `<span>Darker: a larger difference, the darkest at 20%</span>` +
+        `<span>Z height, T temperature, Td dew point, Wind vector wind; numbers are hPa</span>`;
+    }
+    const detail = e => { const k = e.target.dataset?.k; if (k != null) $("e-detail").textContent = details[+k]; };
+    $("e-scorecard").addEventListener("pointerover", detail);
+    $("e-scorecard").addEventListener("click", detail);
+    [em, er, eg].forEach(el => el.addEventListener("change", scorecard));
+    scorecard();
+
+    // CRPS and spread/skill by lead for one variable and region
+    const ev = $("e-var"), evr = $("e-vregion"), egr = $("e-group");
+    fill(ev, vars, v => rows.find(r => r.var === v).label);
+    ev.value = vars.includes("t2m") ? "t2m" : vars[0];
+    fill(egr, card.lead_groups, g => g.replace(/^days/, "Days"));
+    const x = leads.map(h => h / 24);
+    const xaxis = { title: { text: "Day" }, gridcolor: "#ece9e2", zeroline: false, dtick: 1 };
+    function leadCharts() {
+      fill(evr, regions.filter(g => row(ev.value, g)), null, true);
+      const r = row(ev.value, evr.value);
+      if (!r) return;
+      const trace = (m, k, y) => ({ x, y, name: m, mode: "lines+markers", line: { color: color(m, k), width: 2 }, marker: { size: 5 } });
+      const have = models.filter(m => r.scores[m]);
+      Plotly.react("c-ens-crps", have.map((m, k) => trace(m, models.indexOf(m), r.scores[m].crps)),
+        layout(`CRPS (${unit(r.unit)})`, { xaxis }), CONFIG);
+      // with the observations' own error added to the spread where it is known (ssr_oe), else the members' spread alone
+      Plotly.react("c-ens-ssr", have.map(m => trace(m, models.indexOf(m), r.scores[m].ssr_oe || r.scores[m].ssr)),
+        layout("Spread / RMSE of the mean", { xaxis, shapes: [{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 1, y1: 1,
+          line: { color: "#8a857b", width: 1, dash: "dash" } }] }), CONFIG);
+      rankChart();
+    }
+    function rankChart() {
+      const r = row(ev.value, evr.value), h = r && card.rank[r.key];
+      $("e-rank-h").textContent = `Rank histogram, ${r ? r.label : ""}`;
+      const bins = [...Array(10).keys()].map(i => (i + 0.5) / 10);
+      const traces = h ? models.filter(m => h[m]?.[egr.value]).map(m => ({ type: "bar", name: m, x: bins, y: h[m][egr.value],
+        marker: { color: color(m, models.indexOf(m)) } })) : [];
+      Plotly.react("c-ens-rank", traces, layout("Share of the observations", { barmode: "group", hovermode: "closest",
+        xaxis: { title: { text: "Where the observation falls among the members (0 below all, 1 above all)" }, range: [0, 1], dtick: 0.1, gridcolor: "#ece9e2" },
+        shapes: [{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 0.1, y1: 0.1, line: { color: "#8a857b", width: 1, dash: "dash" } }] }), CONFIG);
+    }
+
+    // reliability: one event (rain at gauges or on Stage IV cells, 10 m wind at stations), threshold and lead group
+    const EVENT = { "stageiv:tp": "Rain, Stage IV", "ghcnh:pr24": "Rain, gauges", "ghcnh:ws10": "10 m wind" };
+    const ee = $("e-event"), et = $("e-thr");
+    const events = Object.keys(card.reliability).filter(k => EVENT[k.split(":").slice(0, 2).join(":")]);
+    fill(ee, events, k => `${EVENT[k.split(":").slice(0, 2).join(":")]}, ${(label[k.split(":")[2]] || k.split(":")[2]).replace(/ \d.*$/, "")}`);
+    if (events.includes("stageiv:tp:conus")) ee.value = "stageiv:tp:conus";
+    function relChart() {
+      const rel = card.reliability[ee.value];
+      if (!rel) return;
+      const thr = Object.keys(rel).sort((a, b) => a - b), mm = ee.value.includes(":ws10:") ? "m/s" : "mm";
+      fill(et, thr, t => `≥ ${t} ${mm}`, true);
+      const by = rel[et.value] || {};
+      const traces = models.filter(m => by[m]?.[egr.value]).map(m => {
+        const c = by[m][egr.value], k = models.indexOf(m);
+        return { x: c.p, y: c.o, name: `${m}${c.bss == null ? "" : ` · BSS ${c.bss.toFixed(2)}`}`, mode: "lines+markers",
+          line: { color: color(m, k), width: 2 }, marker: { size: c.n.map(n => Math.min(14, 4 + 2 * Math.log10(n))) },
+          customdata: c.n, hovertemplate: `${m}: forecast %{x:.2f}, observed %{y:.2f} (%{customdata} cases)<extra></extra>` };
+      });
+      Plotly.react("c-ens-rel", traces, layout("Observed frequency", { hovermode: "closest",
+        xaxis: { title: { text: "Forecast probability (share of members)" }, range: [0, 1], gridcolor: "#ece9e2" },
+        yaxis: { title: { text: "Observed frequency" }, range: [0, 1], gridcolor: "#ece9e2" },
+        shapes: [{ type: "line", x0: 0, x1: 1, y0: 0, y1: 1, line: { color: "#8a857b", width: 1, dash: "dash" } }] }), CONFIG);
+    }
+    ev.addEventListener("change", leadCharts);
+    evr.addEventListener("change", leadCharts);
+    egr.addEventListener("change", () => { rankChart(); relChart(); });
+    [ee, et].forEach(el => el.addEventListener("change", relChart));
+    leadCharts();
+    relChart();
+  }
+
   // the run window (?runs=30, 90, 365, all): the newest runs of the verification database instead of the nightly 10;
   // its scorecard and station maps come from the database (the windows past 90 runs map the newest 90), the wind card
   // stays on the nightly runs and the rain maps cover the database's newest year in every window
@@ -1186,6 +1368,13 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
   }).catch(e => {
     $("asof").textContent = "The scores could not be loaded (" + e.message + ").";
   });
+  // the ensembles score windows of the database only: the nightly 10 runs show its newest 30
+  Promise.all([fetch(`/assets/verification/ens_scores_${W === "10" ? "30" : W}.json`).then(r => r.ok ? r.json() : null),
+    window.plotlyP]).then(([card]) => {
+    if (!card) return;
+    $("ens-card").hidden = false;
+    drawEns(card);
+  }).catch(() => {});
 
   // A short list of choices (up to seven short names) is drawn as the site's segmented buttons; the <select> stays,
   // hidden, as the state the charts read and change, so filling it or setting its value redraws the buttons.
