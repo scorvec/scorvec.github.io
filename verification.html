@@ -127,8 +127,8 @@
   .scg circle { fill: var(--muted); }
   .scg path, .scg circle, .scg text { pointer-events: none; }
   #s-region-l, #e-region-l { display: none; }
-  #s-region-l.figs { display: inline-flex; }
-  img.fig[hidden], .chart[hidden], .ctl[hidden], #scorecard[hidden] { display: none; }   /* a figure stands in for the drawn chart */
+  #s-region-l.figs, #e-region-l.figs { display: inline-flex; }
+  img.fig[hidden], .chart[hidden], .ctl[hidden], .pair[hidden], .scg[hidden], #scorecard[hidden] { display: none; }   /* a figure stands in for the drawn chart */
   @media (max-width: 700px) { .scg .blk:not(.on) { display: none; } #s-region-l, #e-region-l { display: inline-flex; } }
   .sc-detail { font-size: 0.86rem; color: var(--ink2); margin: 0.5rem 0 0; min-height: 2.6em; font-variant-numeric: tabular-nums; }
   .lgd svg.kg { width: 1.25rem; height: 1.08rem; vertical-align: -0.25rem; margin-right: 0.3rem; }
@@ -523,25 +523,29 @@ window.plotlyP = new Promise(function (ok, no) {
       <label id="e-region-l">Region<select id="e-region"></select></label>
     </div>
     <div class="scg" id="e-scorecard"></div>
+    <img class="fig" id="e-card-fig" alt="" hidden>
     <p class="sc-detail" id="e-detail"></p>
     <div class="lgd" id="e-key"></div>
     <div class="controls">
       <label>Variable<select id="e-var"></select></label>
       <label>Region<select id="e-vregion"></select></label>
     </div>
-    <div class="pair">
+    <div class="pair" id="e-pair1">
       <div><h3>CRPS (smaller is better)</h3><div class="chart" id="c-ens-crps"></div></div>
       <div><h3>Spread / error of the ensemble mean (1 = calibrated)</h3><div class="chart" id="c-ens-ssr"></div></div>
     </div>
+    <img class="fig" id="e-lead-fig" alt="" hidden>
     <div class="controls">
       <label>Days<select id="e-group"></select></label>
       <label>Event<select id="e-event"></select></label>
       <label>Threshold<select id="e-thr"></select></label>
     </div>
-    <div class="pair">
+    <div class="pair" id="e-pair2">
       <div><h3 id="e-rank-h">Rank histogram</h3><div class="chart" id="c-ens-rank"></div></div>
       <div><h3>Reliability (on the diagonal = calibrated)</h3><div class="chart" id="c-ens-rel"></div></div>
     </div>
+    <img class="fig" id="e-rank-fig" alt="" hidden>
+    <img class="fig" id="e-rel-fig" alt="" hidden>
   </section>
 
   <details class="method" id="method">
@@ -1155,6 +1159,36 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     [sm, sr, sg].forEach(el => el.addEventListener("change", card));
     lead(); card();
   }
+  // the ensembles' figures for the window (the nightly ten runs show its newest 30), where the night drew them
+  function ensFigs(figs, card) {
+    const en = (figs.ensembles || {})[W === "10" ? "30" : W];
+    if (!en) return;
+    const ver = figs.generated.replace(/\D/g, ""), named = Object.fromEntries(card.rows.map(r => [r.key.split(":")[2], r.region]));
+    const em = $("e-model"), er = $("e-ref"), eg = $("e-region"), ev = $("e-var"), evr = $("e-vregion"), ee = $("e-event"), et = $("e-thr");
+    const show = (img, f, alt, ...drawn) => {
+      $(img).hidden = !f; drawn.forEach(id => { if ($(id)) $(id).hidden = !!f; });
+      if (f) figure($(img), f, ver, alt);
+      return !!f;
+    };
+    const cardF = () => {
+      const on = show("e-card-fig", (en.card[eg.value] || {})[`${em.value}|${er.value}`],
+        `Ensemble scorecard, ${em.value} against ${er.value}, ${eg.value}: CRPS difference in percent where significant`, "e-scorecard", "e-detail", "e-key");
+      eg.closest(".ctl, label").classList.toggle("figs", on);
+    };
+    const leadF = () => show("e-lead-fig", (en.lead[ev.value] || {})[evr.value], `CRPS and spread over error by lead with 95% intervals, ${ev.value}, ${evr.value}`, "e-pair1");
+    const lowerF = () => {
+      const [, v, code] = ee.value.split(":");
+      const rank = (en.rank[ev.value] || {})[evr.value], rel = (en.rel[`${v}|${et.value}`] || {})[named[code]];
+      show("e-rank-fig", rank, `Rank histograms by lead group with 95% intervals, ${ev.value}, ${evr.value}`);
+      show("e-rel-fig", rel, `Reliability diagrams by lead group with 95% intervals, ${v} at ${et.value}, ${named[code]}`);
+      $("e-pair2").hidden = !!(rank && rel);
+      $("e-group").closest(".ctl, label").hidden = !!(rank && rel);
+    };
+    [em, er, eg].forEach(el => el.addEventListener("change", cardF));
+    [ev, evr].forEach(el => el.addEventListener("change", () => { leadF(); lowerF(); }));
+    [ee, et].forEach(el => el.addEventListener("change", lowerF));
+    cardF(); leadF(); lowerF();
+  }
   function drawFigs(figs) {
     const ver = figs.generated.replace(/\D/g, ""), acc = figs.acc || {}, rain = figs.rain || {};
     const win = W === "10" ? "30" : W;
@@ -1479,6 +1513,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     if (!card) return;
     $("ens-card").hidden = false;
     drawEns(card);
+    figsP.then(f => { if (f) ensFigs(f, card); });
   }).catch(() => {});
 
   // A short list of choices (up to seven short names) is drawn as the site's segmented buttons; the <select> stays,
