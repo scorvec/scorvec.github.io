@@ -10,8 +10,8 @@ name: Ensemble verification database
 # GEPS about 50 days. Dispatched with a range it backfills: IFS-ENS and AIFS-ENS stay on the open-data mirror and GEFS
 # on NOAA's bucket, GEPS only within HPFX's days, so its runs go first.
 #
-# One job reads the radiosondes for the whole range (IGRA2, this year's files), then chunks of one ensemble's runs are
-# matched side by side, each adding GHCNh and Stage IV for its own weeks and uploading every run as soon as it is done.
+# One job reads the observations for the whole range (IGRA2 radiosondes, GHCNh stations, Stage IV), so each source is
+# read once, then chunks of one ensemble's runs are matched side by side, each uploading every run as soon as it is done.
 on:
   schedule:
     - cron: '50 10 * * *'
@@ -49,6 +49,7 @@ jobs:
       chunks: ${{ steps.p.outputs.chunks }}
       first: ${{ steps.p.outputs.first }}
       end: ${{ steps.p.outputs.end }}
+      years: ${{ steps.p.outputs.years }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -77,24 +78,24 @@ jobs:
           for m in sorted(models, key=lambda m: m != "GEPS"):  # GEPS first: HPFX deletes it
               todo = [d for d in days if (m != "GEPS" or d >= hpfx)
                       and not all(f"ens-{k}-{code[m]}_{d:%Y%m%d}00.parquet" in have for k in ("sfc", "raob"))]
-              for c in (todo[i:i + n] for i in range(0, len(todo), n)):
-                  until = c[-1] + timedelta(days=16)  # observations to day 15 of the chunk's last run
-                  chunks.append({"model": m, "runs": " ".join(f"{d:%Y%m%d}" for d in c), "since": f"{c[0]:%Y-%m-%d}",
-                                 "until": f"{until:%Y-%m-%d}",
-                                 "years": " ".join(str(y) for y in range(c[0].year, until.year + 1))})
+              chunks += [{"model": m, "runs": " ".join(f"{d:%Y%m%d}" for d in todo[i:i + n])}
+                         for i in range(0, len(todo), n)]
               print(f"{m}: {len(todo)} runs to add", file=sys.stderr)
           print("chunks=" + json.dumps(chunks))
           if chunks:
-              print("first=" + min(c["since"] for c in chunks))
-              print("end=" + max(c["until"] for c in chunks))
+              runs = [datetime.strptime(r, "%Y%m%d").date() for c in chunks for r in c["runs"].split()]
+              end = max(runs) + timedelta(days=16)  # observations to day 15 of the last run
+              print(f"first={min(runs):%Y-%m-%d}")
+              print(f"end={end:%Y-%m-%d}")
+              print("years=" + " ".join(str(y) for y in range(min(runs).year, end.year + 1)))
           EOF
           cat "$GITHUB_OUTPUT"
 
-  radiosondes:
+  observations:
     needs: plan
     if: needs.plan.outputs.chunks != '[]'
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v7
         with:
@@ -103,21 +104,23 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install --quiet "$MVERIFY"
-      - name: Radiosondes for the whole range
+      - name: Radiosondes, surface stations and Stage IV for the whole range
         run: |
           mverify db init
           mverify db igra --archive y2d --since ${{ needs.plan.outputs.first }} --until ${{ needs.plan.outputs.end }}
+          mverify db ghcnh --year ${{ needs.plan.outputs.years }} --since ${{ needs.plan.outputs.first }} --until ${{ needs.plan.outputs.end }}
+          mverify db precip --product stageiv --start ${{ needs.plan.outputs.first }} --end ${{ needs.plan.outputs.end }}
           mverify db status
       - uses: actions/upload-artifact@v7
         with:
           name: ens-obs-db
           path: .obs/obs.duckdb
           include-hidden-files: true   # .obs is a dot directory
-          retention-days: 3
+          retention-days: 7    # a backfill's last chunks start days after this job
           compression-level: 1
 
   match:
-    needs: [plan, radiosondes]
+    needs: [plan, observations]
     runs-on: ubuntu-latest
     timeout-minutes: 350
     strategy:
@@ -137,11 +140,6 @@ jobs:
         with:
           name: ens-obs-db
           path: .obs
-      - name: Surface stations and Stage IV for the chunk's weeks
-        run: |
-          mverify db ghcnh --year ${{ matrix.chunk.years }} --since ${{ matrix.chunk.since }} --until ${{ matrix.chunk.until }}
-          mverify db precip --product stageiv --start ${{ matrix.chunk.since }} --end ${{ matrix.chunk.until }}
-          mverify db status
       - name: Match and archive, one run at a time
         env:
           GH_TOKEN: ${{ github.token }}

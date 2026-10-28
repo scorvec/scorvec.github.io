@@ -105,12 +105,13 @@ def gefs_member(url: str, want: list[str]) -> bytes:
     """One member's messages of ``want`` (variable:level) from its file, by its .idx."""
     lines = D.get(url + ".idx").decode().splitlines()
     offsets = [int(line.split(":")[1]) for line in lines]
-    spans = [
-        (offsets[i], offsets[i + 1] - 1) for i, line in enumerate(lines[:-1]) if any(f":{w}:" in line for w in want)
-    ]
-    if len(spans) < len(want):
+    keep = [i for i, line in enumerate(lines) if any(f":{w}:" in line for w in want)]
+    if len(keep) < len(want):
         raise RuntimeError(f"{url}: not all of {want} in the .idx")
-    return b"".join(D.get(url, f"{a}-{b}") for a, b in D.merged(spans))
+    ranges = [f"{a}-{b}" for a, b in D.merged([(offsets[i], offsets[i + 1] - 1) for i in keep if i < len(lines) - 1])]
+    if keep[-1] == len(lines) - 1:  # the index gives no end for the file's last message (PRMSL): it runs to the end
+        ranges.append(f"{offsets[-1]}-")
+    return b"".join(D.get(url, r) for r in ranges)
 
 
 def fetch(model: str, init: str, lead: int, kind: str, dest: Path) -> Path:
