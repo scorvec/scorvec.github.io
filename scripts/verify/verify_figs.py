@@ -262,6 +262,7 @@ def draw_lead(wide: pd.DataFrame, models: list[str], region: str, span: dict, pa
 def acc_figs(derived: Path, clim: Path, out: Path) -> dict:
     t = Z.table(derived, np.load(clim)["z500"])
     t["init"], t["valid_time"] = pd.to_datetime(t["init"]), pd.to_datetime(t["valid_time"])
+    t = t[t["init"] >= pd.to_datetime(Z.START, format="%Y%m%d%H")]  # the verification database's runs, as the page's
     manifest = {}
     for region in Z.REGIONS:
         for w in WINDOWS:

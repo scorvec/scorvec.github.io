@@ -4,7 +4,8 @@ centres' headline score (verification.html draws it as NCEP EMC does, a time ser
 
   fields  For each 00Z run, the 500 hPa height at 00Z of every day of the forecast: GFS, the IFS control, AIFS and
           GDPS to day 10 (z500-<m>_<init>.npz), and IFS-ENS, AIFS-ENS, GEFS and GEPS to day 15, as the ensemble mean
-          (ens-z500-<m>_) and every member (ens-z500m-<m>_), downloaded with the database's own fetchers
+          (ens-z500-<m>_) and every member (ens-z500m-<m>_), from each model's SINCE (the ensembles' archived runs
+          back to 2024 and 2025, which calibrate the teleconnection forecasts), downloaded with the database's own fetchers
           (mverify_scores, ens_verify). Every field is remapped conservatively (``remap``: the overlap of the cells'
           areas) onto the WMO 1.5 deg grid with poles (121 x 240, WeatherBench 2's), the members also onto the 2.5 deg
           grid of the teleconnection patterns north of 20N, in whole metres (int16).
@@ -48,6 +49,16 @@ CLIM_YEARS = (1991, 2020)
 CLIM_HALF = 7  # slots either side of each slot of the normal
 REGIONS = {"NH": (20.0, 80.0), "SH": (-80.0, -20.0)}  # EMC's extratropical belts
 HPFX = {"GDPS": D.HPFX_DAYS, "GEPS": E.HPFX_DAYS}  # days ECCC's HPFX keeps a run; the other sources keep them all
+START = "2026051300"  # the verification database's first run (IFS 50r1, AIFS v2): the deterministic models from here
+# each model's first run here: the ensembles go back as far as their archives (IFS-ENS on its 0.25 deg grid, AIFS-ENS
+# from its first open run) to give the days 1-15 teleconnection forecasts winters to be calibrated and tested on
+SINCE = {
+    "IFS-ENS": "2024030100",
+    "GEFS": "2024030100",
+    "AIFS-ENS": "2025070200",
+    "GEPS": START,
+    **dict.fromkeys(DET, START),
+}
 GIVE_UP_DAYS = 365  # a run this old is scored with the models it has (a backfill can still fetch any other source)
 RECENT_DAYS = 30  # runs this new without their scores yet are scored at the leads ERA5 covers (``table``)
 
@@ -315,13 +326,17 @@ def models_of(init: str, have: set[str]) -> list[str]:
 
 def due(have: set[str], today: pd.Timestamp) -> dict[str, list[str]]:
     """The runs whose scores are due, with their models: ERA5 covers day 15, and every model is in that can still
-    come (GDPS and GEPS while HPFX keeps the run, the others for GIVE_UP_DAYS)."""
+    come (from its SINCE; GDPS and GEPS while HPFX keeps the run, the others for GIVE_UP_DAYS)."""
     out = {}
     for init in sorted({n.split("_")[1][:10] for n in have if n.startswith(("z500-", "ens-z500-"))}):
         t0 = pd.to_datetime(init, format="%Y%m%d%H")
         days = pd.date_range(t0 + pd.Timedelta(days=1), t0 + pd.Timedelta(days=15), freq="D")
         models = models_of(init, have)
-        coming = [m for m in [*DET, *E.ENSEMBLES] if t0 >= today - pd.Timedelta(days=HPFX.get(m, GIVE_UP_DAYS))]
+        coming = [
+            m
+            for m in [*DET, *E.ENSEMBLES]
+            if init >= SINCE[m] and t0 >= today - pd.Timedelta(days=HPFX.get(m, GIVE_UP_DAYS))
+        ]
         if (
             f"acc_{init}.parquet" not in have
             and set(coming) <= set(models)

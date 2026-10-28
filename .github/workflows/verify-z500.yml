@@ -8,7 +8,9 @@ name: 500 hPa height database and anomaly correlations
 #
 # Each day it catches up the runs 1 to 47 days old (HPFX keeps GDPS about 52 days and GEPS about 48) and the days ERA5
 # has added on ARCO (about a week behind). Dispatched with a range it backfills: the ECMWF runs stay on the open-data
-# mirror and GFS and GEFS on NOAA's buckets, GDPS and GEPS only within HPFX's days, so their runs go first.
+# mirror and GFS and GEFS on NOAA's buckets, GDPS and GEPS only within HPFX's days, so their runs go first. Each model
+# from its first run in the database (z500_acc.SINCE): the deterministic models and GEPS from 13 May 2026, the other
+# ensembles from their archives' starts (2024 and 2025), the teleconnection forecasts' calibration sample.
 on:
   schedule:
     - cron: '40 7 * * *'
@@ -74,10 +76,12 @@ jobs:
           code = {"GFS": "z500-gfs", "IFS": "z500-ifs", "AIFS": "z500-aifs", "GDPS": "z500-gdps", "IFS-ENS": "ens-z500-ifs",
                   "AIFS-ENS": "ens-z500-aifs", "GEFS": "ens-z500-gefs", "GEPS": "ens-z500-geps"}  # z500_acc.file_of
           hpfx = {"GDPS": 52, "GEPS": 48}  # mverify_scores.HPFX_DAYS, ens_verify.HPFX_DAYS
+          since = {"IFS-ENS": date(2024, 3, 1), "GEFS": date(2024, 3, 1), "AIFS-ENS": date(2025, 7, 2)}  # z500_acc.SINCE
+          start = date(2026, 5, 13)  # z500_acc.START: the deterministic models and GEPS from here
           days = [first + timedelta(d) for d in range((last - first).days + 1)]
           chunks = []
           for m in sorted(models, key=lambda m: m not in hpfx):  # GDPS and GEPS first: HPFX deletes them
-              oldest = date.today() - timedelta(days=hpfx.get(m, 100000))
+              oldest = max(date.today() - timedelta(days=hpfx.get(m, 100000)), since.get(m, start))
               todo = [d for d in days if d >= oldest and f"{code[m]}_{d:%Y%m%d}00.npz" not in have]
               k = n if m.endswith(("ENS", "GEFS", "GEPS")) else 8 * n
               chunks += [{"model": m, "runs": " ".join(f"{d:%Y%m%d}" for d in todo[i:i + k])}
