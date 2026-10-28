@@ -89,6 +89,7 @@ GFS_FIELDS = [
 GFS_UPPER = [f":{dict(z='HGT', t='TMP', u='UGRD', v='VGRD', q='SPFH')[b]}:{lv} mb:" for b, lv in UPPER]
 GFS_STATIC = [":HGT:surface:", ":LAND:surface:", ":SFCR:surface:"]
 DATAMART = "https://hpfx.collab.science.gc.ca"
+HPFX_DAYS = 52  # HPFX keeps about 50 days: a GDPS run older than this is not asked for
 GDPS_FIELDS = [
     "AirTemp_AGL-2m",
     "DewPoint_AGL-2m",
@@ -107,6 +108,7 @@ UA = "scorvec.com data pipeline (+https://scorvec.com)"  # the site's honest Use
 
 
 def get(url: str, rng: str | None = None) -> bytes:
+    err = None
     for attempt in range(8):
         try:
             headers = {"User-Agent": UA, **({"Range": f"bytes={rng}"} if rng else {})}
@@ -116,10 +118,11 @@ def get(url: str, rng: str | None = None) -> bytes:
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 raise
-        except (urllib.error.URLError, TimeoutError, ConnectionError, http.client.HTTPException):
-            pass  # HTTPException covers a body cut off mid-transfer (IncompleteRead)
+            err = e
+        except (urllib.error.URLError, TimeoutError, ConnectionError, http.client.HTTPException) as e:
+            err = e  # HTTPException covers a body cut off mid-transfer (IncompleteRead)
         time.sleep(min(60, 2**attempt))
-    raise RuntimeError(f"gave up on {url}")
+    raise RuntimeError(f"gave up on {url}: {err!r}")
 
 
 def merged(spans: list[tuple[int, int]]) -> list[tuple[int, int]]:
@@ -181,10 +184,11 @@ def fetch(model: str, init: str, lead: int, dest: Path, upper: bool) -> None:
 
 
 def download(jobs: list[tuple[str, str, int]], root: Path, upper: bool) -> None:
-    """Every (model, init, lead) into ``root``. A run a source does not hold (404: GDPS beyond HPFX's ~50 days,
-    AIFS before it was published) leaves that model out of that run: its files of the run are removed, so the run is
-    scored with the models that have it."""
-    missing: set[tuple[str, str]] = set()
+    """Every (model, init, lead) into ``root``. A run a source does not hold (GDPS beyond HPFX's ~50 days, not asked
+    for; a 404, as for AIFS before it was published) leaves that model out of that run: its files of the run are
+    removed, so the run is scored with the models that have it."""
+    oldest = f"{pd.Timestamp.now('UTC') - pd.Timedelta(days=HPFX_DAYS):%Y%m%d}"
+    missing = {(m, init) for m, init, _ in jobs if m == "GDPS" and init[:8] < oldest}
 
     def one(job: tuple[str, str, int]) -> None:
         try:
@@ -195,7 +199,7 @@ def download(jobs: list[tuple[str, str, int]], root: Path, upper: bool) -> None:
             missing.add(job[:2])
 
     with ThreadPoolExecutor(6) as ex:
-        list(ex.map(one, jobs))
+        list(ex.map(one, [j for j in jobs if j[:2] not in missing]))
     for m, init in sorted(missing):
         print(f"::warning::{m} {init}: not on the source, left out of this run", flush=True)
         for f in (root / MODELS[m]).glob(f"{init}_*.grib2"):

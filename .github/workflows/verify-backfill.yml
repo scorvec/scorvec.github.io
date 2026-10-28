@@ -10,9 +10,9 @@ name: Verification database backfill
 # Each day it also catches up: the runs 21 to 50 days old that the nightly (which archives runs 14-20 days old)
 # missed, while HPFX still has their GDPS. With nothing missing it stops after the plan.
 #
-# One job reads the radiosondes for the whole range (IGRA2: this year's files, or each station's whole record for an
-# earlier year), then chunks of runs are matched side by side, each adding GHCNh and Stage IV for its own weeks and
-# uploading every run as soon as it is done. Last, every database file the site's object store lacks is copied there,
+# One job reads the observations for the whole range (IGRA2 radiosondes: this year's files, or each station's whole
+# record for an earlier year; GHCNh stations; Stage IV), so each source is read once, then chunks of runs are matched
+# side by side, each uploading every run as soon as it is done. Last, every database file the site's object store lacks is copied there,
 # the database's second copy (verifydb.sh mirror), whether or not this pass added runs.
 on:
   schedule:
@@ -48,6 +48,7 @@ jobs:
       chunks: ${{ steps.p.outputs.chunks }}
       first: ${{ steps.p.outputs.first }}
       end: ${{ steps.p.outputs.end }}
+      years: ${{ steps.p.outputs.years }}
       igra: ${{ steps.p.outputs.igra }}
     steps:
       - uses: actions/checkout@v7
@@ -72,22 +73,19 @@ jobs:
           kinds = ("sfc", "raob", "stats", "stn")  # mverify_scores.held
           days = [first + timedelta(d) for d in range((last - first).days + 1)]
           todo = [d for d in days if not all(f"{k}_{d:%Y%m%d}00.parquet" in have for k in kinds)]
-          chunks = []
-          for c in (todo[i:i + n] for i in range(0, len(todo), n)):
-              until = c[-1] + timedelta(days=10)  # observations to day 10 of the chunk's last run
-              chunks.append({"runs": " ".join(f"{d:%Y%m%d}" for d in c), "since": f"{c[0]:%Y-%m-%d}",
-                             "until": f"{until:%Y-%m-%d}",
-                             "years": " ".join(str(y) for y in range(c[0].year, until.year + 1))})
+          chunks = [{"runs": " ".join(f"{d:%Y%m%d}" for d in todo[i:i + n])} for i in range(0, len(todo), n)]
           print("chunks=" + json.dumps(chunks))
           if todo:
+              end = todo[-1] + timedelta(days=10)  # observations to day 10 of the last run
               print(f"first={todo[0]:%Y-%m-%d}")
-              print(f"end={todo[-1] + timedelta(days=10):%Y-%m-%d}")
+              print(f"end={end:%Y-%m-%d}")
+              print("years=" + " ".join(str(y) for y in range(todo[0].year, end.year + 1)))
               print("igra=" + ("y2d" if todo[0].year == date.today().year else "por"))
           print(f"{len(todo)} of {len(days)} runs to add, in {len(chunks)} jobs", file=sys.stderr)
           EOF
           cat "$GITHUB_OUTPUT"
 
-  radiosondes:
+  observations:
     needs: plan
     if: needs.plan.outputs.chunks != '[]'
     runs-on: ubuntu-latest
@@ -100,10 +98,12 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install --quiet "$MVERIFY"
-      - name: Radiosondes for the whole range
+      - name: Radiosondes, surface stations and Stage IV for the whole range
         run: |
           mverify db init
           mverify db igra --archive ${{ needs.plan.outputs.igra }} --since ${{ needs.plan.outputs.first }} --until ${{ needs.plan.outputs.end }}
+          mverify db ghcnh --year ${{ needs.plan.outputs.years }} --since ${{ needs.plan.outputs.first }} --until ${{ needs.plan.outputs.end }}
+          mverify db precip --product stageiv --start ${{ needs.plan.outputs.first }} --end ${{ needs.plan.outputs.end }}
           mverify db status
       - uses: actions/upload-artifact@v7
         with:
@@ -114,7 +114,7 @@ jobs:
           compression-level: 1
 
   archive:
-    needs: [plan, radiosondes]
+    needs: [plan, observations]
     runs-on: ubuntu-latest
     timeout-minutes: 350
     strategy:
@@ -134,11 +134,6 @@ jobs:
         with:
           name: obs-db
           path: .obs
-      - name: Surface stations and Stage IV for the chunk's weeks
-        run: |
-          mverify db ghcnh --year ${{ matrix.chunk.years }} --since ${{ matrix.chunk.since }} --until ${{ matrix.chunk.until }}
-          mverify db precip --product stageiv --start ${{ matrix.chunk.since }} --end ${{ matrix.chunk.until }}
-          mverify db status
       - name: Match and archive, one run at a time
         env:
           GH_TOKEN: ${{ github.token }}
