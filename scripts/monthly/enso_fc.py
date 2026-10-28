@@ -15,11 +15,13 @@ pooled in (POOL). Training runs from 1980 (the heat-content record) to the last 
 
 The MJO: two more predictors, the mean RMM1 and RMM2 (three-field) over the 35 days from the 15th of the month after the
 start, the issue date. They are trained on the observed RMM (ERA5, scripts/mjo/data/reference/rmm_era5.nc: perfect
-prog) and forecast with GEPS's 35-day run (its newest within MJO_SLACK days of the 15th, assets/geps/data/geps_rmm.json
-written by scripts/geps/mjo_geps.py; in the hindcast the GEPS reforecast, 2001-2020, data/geps_mjo_hc.npz; no MJO
-information where there is none). Over 2001-2020 GEPS's forecast cut the mean-square error by 11 % at two months and
-14 % at three (95 % year-block bootstrap intervals excluding zero), most of what a perfect 35-day MJO forecast gives
-(15 %, 16 %); GEFS's reforecast MJO, a third too strong in its 35-day mean, gave 5 % (not significant), so it is not used.
+prog) and forecast with the 35-day GEPS and GEFS runs (each model's newest within MJO_SLACK days of the 15th, the
+three-field tracks of scripts/geps/mjo_geps.py and scripts/gefs/gefs_mjo.py; in the hindcast their reforecasts, GEPS
+2001-2020 and GEFS 2000-2019, data/*_mjo_hc.npz), half each, GEFS damped (MJO_DAMPED), either alone when only one has
+a run, nothing where neither has. Over 2001-2020 GEPS alone cut the mean-square error by 11 % at two months and 14 %
+at three (95 % year-block bootstrap intervals excluding zero), most of what a perfect 35-day MJO forecast gives
+(15 %, 16 %); GEFS alone, its 35-day mean a third too strong, 5 % (not significant), damped 7 %; the two together as
+much as GEPS (11 %, 12 %) with intervals half as wide.
 
 Heat content: ECMWF ORAS5 at the moorings (scripts/sst/reference/reanalysis_hc_monthly.csv, reanalysis_hc.py) for
 training, then the TAO moorings themselves (assets/sst/data/subsurface_hc.json, sst_subsurface_events.py: each
@@ -68,8 +70,13 @@ TAO_JSON = REPO / "assets" / "sst" / "data" / "subsurface_hc.json"
 C3S_JSON = REPO / "assets" / "sst" / "data" / "enso_forecast.json"
 C3S_HC = DATA / "c3s_hc_n34.npz"
 RMM_NC = REPO / "scripts" / "mjo" / "data" / "reference" / "rmm_era5.nc"  # observed RMM (ERA5), daily
-GEPS_MJO_HC = DATA / "geps_mjo_hc.npz"  # the GEPS reforecast's 35-day mean RMM per start, 2001-2020
-GEPS_MJO = REPO / "assets" / "geps" / "data" / "geps_rmm.json"  # the newest GEPS run's three-field RMM track
+# the MJO forecasts: per model, its reforecast's 35-day mean RMM per start (GEPS 2001-2020, GEFS 2000-2019) and the
+# newest run's three-field track (scripts/geps/mjo_geps.py, scripts/gefs/gefs_mjo.py)
+MJO_MODELS = {
+    "GEPS": (DATA / "geps_mjo_hc.npz", REPO / "assets" / "geps" / "data" / "geps_rmm.json"),
+    "GEFS": (DATA / "gefs_mjo_hc.npz", REPO / "assets" / "gefs" / "data" / "gefs_rmm.json"),
+}
+MJO_DAMPED = ("GEFS",)  # its 35-day mean runs ~35 % too strong: scaled by the slope of the observed on it
 RONI_SCALE = REPO / "scripts" / "sst" / "roni_sigma.json"
 HC_TABLE = DATA / "enso_hc.npz"
 
@@ -83,7 +90,7 @@ CLIM = (1991, 2020)
 SCORE_FROM = 1982  # hindcast scores and error spreads: starts from this year
 MJO_DAYS = 35  # the MJO predictor: the mean RMM over the 35 days from the 15th of the month after the start
 MJO_FROM = 15
-MJO_SLACK = 3  # a GEPS run (reforecast or live) counts when it starts within this many days of that 15th
+MJO_SLACK = 3  # a run (reforecast or live) counts when it starts within this many days of that 15th
 C3S_WEIGHT = 0.5
 DECAY = 0.8
 INDICES = ("n34", "rel")
@@ -241,13 +248,14 @@ def mjo_observed(months: list[str]) -> np.ndarray:
     return out
 
 
-def mjo_hindcast(months: list[str]) -> np.ndarray:
-    """(T, 2) the GEPS reforecast's 35-day mean RMM from the start nearest each window's first day (within MJO_SLACK
-    days), zeros where there is none (no MJO information: before 2001 and after 2020)."""
-    out = np.zeros((len(months), 2))
-    if not GEPS_MJO_HC.exists():
+def mjo_matched(months: list[str], model: str) -> np.ndarray:
+    """(T, 2) a model's reforecast 35-day mean RMM from the start nearest each window's first day (within MJO_SLACK
+    days), NaN where it has none."""
+    out = np.full((len(months), 2), np.nan)
+    path = MJO_MODELS[model][0]
+    if not path.exists():
         return out
-    with np.load(GEPS_MJO_HC) as z:
+    with np.load(path) as z:
         S, r = pd.DatetimeIndex(z["starts"]), np.stack([z["r1"], z["r2"]], 1)
     for i, m in enumerate(months):
         k = int(np.argmin(np.abs((S - mjo_window(m)).days)))
@@ -256,19 +264,50 @@ def mjo_hindcast(months: list[str]) -> np.ndarray:
     return out
 
 
-def mjo_live(start: str) -> dict | None:
-    """The newest GEPS run's ensemble-mean RMM over the window of `start` (the days of its 35 from the window's first
-    day on), when the run starts within MJO_SLACK days of that day; else None."""
-    if not GEPS_MJO.exists():
+def mjo_combine(values: dict, damp: dict) -> np.ndarray:
+    """The MJO forecast from the models that have one: the mean of each (damped where MJO_DAMPED); zeros (no MJO
+    information) where none has. values: {model: (..., 2)} with NaN where missing."""
+    x = np.stack([v * damp[m] for m, v in values.items()])  # (models, ..., 2)
+    have = np.isfinite(x).all(-1, keepdims=True)
+    n = have.sum(0)
+    return np.where(n > 0, np.where(have, x, 0.0).sum(0) / np.maximum(n, 1), 0.0)
+
+
+def mjo_hindcast(months: list[str], obs: np.ndarray) -> tuple[np.ndarray, dict]:
+    """(T, 2) the combined reforecast MJO forecast of every start, and each model's damping (2,): the slope through
+    the origin of the observed window means on its reforecast's, for MJO_DAMPED models (1 otherwise). Over 2001-2019
+    GEPS + damped GEFS cut the error variance as much as GEPS alone (11 % at two months, 12 % at three) with intervals
+    half as wide; damped GEFS alone 7 %, so it also stands in when no GEPS run is near the 15th."""
+    vals = {m: mjo_matched(months, m) for m in MJO_MODELS}
+    damp = {}
+    for m, v in vals.items():
+        ok = np.isfinite(v).all(1) & np.isfinite(obs).all(1)
+        damp[m] = (np.array([(v[ok, k] * obs[ok, k]).sum() / (v[ok, k] ** 2).sum() for k in range(2)])
+                   if m in MJO_DAMPED and ok.sum() > 50 else np.ones(2))  # fmt: skip
+    return mjo_combine(vals, damp), damp
+
+
+def mjo_live(start: str, damp: dict) -> dict | None:
+    """The combined MJO forecast over the window of `start` from each model's newest run that starts within
+    MJO_SLACK days of the window's first day (the days of its 35 from that day on): {"runs": {model: {init, days,
+    rmm}}, "rmm": combined}, or None when no model has such a run."""
+    d0, runs, vals = mjo_window(start), {}, {}
+    for m, (_, track) in MJO_MODELS.items():
+        if not track.exists():
+            continue
+        g = json.loads(track.read_text())
+        init = pd.Timestamp(g["init"][:10])
+        if abs((init - d0).days) > MJO_SLACK:
+            continue
+        t = pd.DatetimeIndex([x[:10] for x in g["t"]])
+        sel = (t >= d0) & (t < d0 + pd.Timedelta(days=MJO_DAYS))
+        r = np.array([np.array(g["r1"], float)[sel].mean(), np.array(g["r2"], float)[sel].mean()])
+        runs[m] = {"init": g["init"], "days": int(sel.sum()), "rmm": [round(float(x), 3) for x in r]}
+        vals[m] = r
+    if not runs:
         return None
-    g = json.loads(GEPS_MJO.read_text())
-    init, d0 = pd.Timestamp(g["init"][:10]), mjo_window(start)
-    if abs((init - d0).days) > MJO_SLACK:
-        return None
-    t = pd.DatetimeIndex([x[:10] for x in g["t"]])
-    sel = (t >= d0) & (t < d0 + pd.Timedelta(days=MJO_DAYS))
-    r1, r2 = np.array(g["r1"], float)[sel], np.array(g["r2"], float)[sel]
-    return {"init": g["init"], "days": int(sel.sum()), "rmm": [round(float(r1.mean()), 3), round(float(r2.mean()), 3)]}
+    rmm = mjo_combine({m: vals.get(m, np.full(2, np.nan)) for m in MJO_MODELS}, damp)
+    return {"runs": runs, "rmm": [round(float(x), 3) for x in rmm]}
 
 
 def inputs(ersst_path: Path) -> dict:
@@ -280,6 +319,8 @@ def inputs(ersst_path: Path) -> dict:
     last = int(np.where(ok)[0][-1])  # the newest month with both SST and heat content
     months, field, hc = months[: last + 1], field[: last + 1], hc[: last + 1]
     meta.update(sst_through=E["months"][-1], init=months[-1])
+    mjo_obs = mjo_observed(months)
+    mjo_fc, mjo_damp = mjo_hindcast(months, mjo_obs)
     return {
         "months": months,
         "mo": np.array([int(m[5:]) for m in months]),
@@ -288,8 +329,9 @@ def inputs(ersst_path: Path) -> dict:
         "hc": hc,
         "n34": np.array([E["n34"][m] for m in months]),
         "rel": np.array([E["rel"][m] for m in months]),
-        "mjo_obs": mjo_observed(months),
-        "mjo_fc": mjo_hindcast(months),
+        "mjo_obs": mjo_obs,
+        "mjo_fc": mjo_fc,
+        "mjo_damp": mjo_damp,
         "obs_n34": E["n34"],
         "obs_rel": E["rel"],
         "meta": meta,
@@ -413,6 +455,21 @@ def c3s_hindcast_ratio(D: dict, F: dict) -> dict:
     return out
 
 
+def build_gefs_mjo_hc(src: Path) -> None:
+    """data/gefs_mjo_hc.npz from the GEFS reforecast's RMM (gefs_mjo_hindcast.npz of release gefs-ref-v1, written by
+    scripts/gefs/build_gefs_mjo.py: every member of the 2000-2019 Wednesday starts, projected as gefs_mjo.py does the
+    live run): per start the members' mean over days 1-35."""
+    with np.load(src) as z:
+        starts = z["starts"]
+        r1 = z["fm1"][:, :, :MJO_DAYS].astype(np.float64).mean((1, 2))
+        r2 = z["fm2"][:, :, :MJO_DAYS].astype(np.float64).mean((1, 2))
+    ok = np.isfinite(r1) & np.isfinite(r2)
+    np.savez_compressed(
+        MJO_MODELS["GEFS"][0], starts=starts[ok], r1=r1[ok].astype(np.float32), r2=r2[ok].astype(np.float32)
+    )
+    print(f"{MJO_MODELS['GEFS'][0].name}: {ok.sum()} starts {starts[ok][0]}..{starts[ok][-1]}")
+
+
 def build_geps_mjo_hc(src: Path) -> None:
     """data/geps_mjo_hc.npz from the GEPS reforecast's RMM (scripts/geps/mjo_hindcast.py: mjo_hindcast.nc, the
     ensemble-mean three-field RMM of every 2001-2020 start, projected as mjo_geps.py does the live run): per start
@@ -425,9 +482,10 @@ def build_geps_mjo_hc(src: Path) -> None:
         r1, r2 = ds["f1"].values[:, sel].mean(1), ds["f2"].values[:, sel].mean(1)
         starts = pd.DatetimeIndex(ds["S"].values)
     ok = np.isfinite(r1) & np.isfinite(r2)
-    np.savez_compressed(GEPS_MJO_HC, starts=np.array([f"{d:%Y-%m-%d}" for d in starts[ok]]),
+    out = MJO_MODELS["GEPS"][0]
+    np.savez_compressed(out, starts=np.array([f"{d:%Y-%m-%d}" for d in starts[ok]]),
                         r1=r1[ok].astype(np.float32), r2=r2[ok].astype(np.float32))  # fmt: skip
-    print(f"{GEPS_MJO_HC.name}: {ok.sum()} starts {starts[ok][0]:%Y-%m-%d}..{starts[ok][-1]:%Y-%m-%d}")
+    print(f"{out.name}: {ok.sum()} starts {starts[ok][0]:%Y-%m-%d}..{starts[ok][-1]:%Y-%m-%d}")
 
 
 def build_c3s_hc(src: Path) -> None:
@@ -515,14 +573,14 @@ def issue(D: dict, F: dict, issued: str) -> dict:
     T = len(D["months"])
     init = D["months"][-1]
     m = Model(D, np.ones(T, bool))
-    mjo = mjo_live(init)
+    mjo = mjo_live(init, D["mjo_damp"])
     stat = m.forecast(T - 1, m.betas(D["mo"], int(D["mo"][-1])), np.array(mjo["rmm"]) if mjo else np.zeros(2))
     targets = [str(pd.Period(init, "M") + L) for L in range(1, LEADS + 1)]
     sc = roni_scale()
     tsc = np.array([sc[int(t[5:]) - 1] for t in targets])
     c3 = c3s_issue()
     ratio = c3s_hindcast_ratio(D, F)
-    meta = {**D["meta"], "mjo": mjo and {"source": "GEPS", **mjo, "window": f"{mjo_window(init):%Y-%m-%d}"}}
+    meta = {**D["meta"], "mjo": mjo and {**mjo, "window": f"{mjo_window(init):%Y-%m-%d}"}}
     out = {"issued": issued, "init": init, "targets": targets, "inputs": meta, "series": {}, "skill": {}}
     sm = int(D["mo"][-1]) - 1
     for k in INDICES:
@@ -603,12 +661,18 @@ def main() -> int:
     ap.add_argument("--force", action="store_true", help="re-issue this month's forecast if it exists")
     ap.add_argument("--build-c3s-hc", type=Path, help="c3s_nino34.py's hindcast directory: write data/c3s_hc_n34.npz")
     ap.add_argument("--build-geps-mjo", type=Path, help="mjo_hindcast.py's mjo_hindcast.nc: write data/geps_mjo_hc.npz")
+    ap.add_argument(
+        "--build-gefs-mjo", type=Path, help="gefs_mjo_hindcast.npz (gefs-ref-v1): write data/gefs_mjo_hc.npz"
+    )
     a = ap.parse_args()
     if a.build_c3s_hc:
         build_c3s_hc(a.build_c3s_hc)
         return 0
     if a.build_geps_mjo:
         build_geps_mjo_hc(a.build_geps_mjo)
+        return 0
+    if a.build_gefs_mjo:
+        build_gefs_mjo_hc(a.build_gefs_mjo)
         return 0
     D = inputs(a.ersst)
     F = hindcast(D)

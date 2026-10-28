@@ -252,9 +252,11 @@ def channels_rmm_wind(ch: np.ndarray, ref: dict, pc_wind_std) -> tuple[np.ndarra
     return (comb @ e1) / float(pc_wind_std[0]), (comb @ e2) / float(pc_wind_std[1])
 
 
-def write_wind_track(m1: np.ndarray, m2: np.ndarray, init: dt.date, out: Path) -> None:
-    """One model's track in the layout of scripts/mjo/src/rmm_export.track (the MJO page reads it): the ensemble mean,
-    the members, lead days and valid times. GEFS day d is the UTC day init + d - 1."""
+def write_track(m1: np.ndarray, m2: np.ndarray, init: dt.date, out: Path, note: str) -> None:
+    """One RMM track of the members in the layout of scripts/mjo/src/rmm_export.track: the ensemble mean, the members,
+    lead days and valid times; the wind-only one for the MJO page (gefs_rmm_wind.json), the raw three-field one for
+    the long-range forecast's Niño-3.4 model (gefs_rmm.json, scripts/monthly/enso_fc.py). GEFS day d is the UTC day
+    init + d - 1."""
 
     def r(a, nd=3):
         return [None if not np.isfinite(v) else round(float(v), nd) for v in np.asarray(a, float).ravel()]
@@ -272,7 +274,7 @@ def write_wind_track(m1: np.ndarray, m2: np.ndarray, init: dt.date, out: Path) -
                 "r2": r(m2.mean(0)),
                 "m1": [r(x, 2) for x in m1],
                 "m2": [r(x, 2) for x in m2],
-                "note": "wind-only RMM (U850 + U200), GEFS analyses for the 120-day filter",
+                "note": note,
             },
             separators=(",", ":"),
         )
@@ -1044,6 +1046,8 @@ def main() -> int:
     )
     ch, anom = forecast_channels(band, init, ref, map_now)
     m1, m2 = channels_rmm(ch, ref)  # (M, 35)
+    data.mkdir(parents=True, exist_ok=True)
+    write_track(m1, m2, init, data / "gefs_rmm.json", "three-field RMM (OLR + U850 + U200), ENSO not removed")
     c, so, sf, dn, enso_note = enso_removal(ref, Path(a.site), init, odates)
     raw = np.hypot(m1.mean(0), m2.mean(0)), np.hypot(or1[-1], or2[-1])
     or1, or2, m1, m2 = or1 - so[:, 0], or2 - so[:, 1], m1 - sf[0], m2 - sf[1]
@@ -1057,9 +1061,9 @@ def main() -> int:
     )
     norm = HERE / "data" / "mjo_wind_norm.json"
     if norm.exists():
-        data.mkdir(parents=True, exist_ok=True)
         w1, w2 = channels_rmm_wind(ch, ref, json.loads(norm.read_text())["pc_wind_std"])
-        write_wind_track(w1, w2, init, data / "gefs_rmm_wind.json")
+        note = "wind-only RMM (U850 + U200), GEFS analyses for the 120-day filter"
+        write_track(w1, w2, init, data / "gefs_rmm_wind.json", note)
     else:
         print("::warning::data/mjo_wind_norm.json missing: no wind-only track for the MJO page", flush=True)
     warn = track_check(ref_path(HIND_FILE, dirs), m1.mean(0), m2.mean(0), nino34_now(Path(a.site)), c)
