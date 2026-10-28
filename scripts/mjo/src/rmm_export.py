@@ -1,6 +1,6 @@
 """The multi-model RMM phase diagram's data (assets/mjo/rmm_models.json): the wind-only RMM of the AIFS-ENS and
-IFS-ENS forecasts (ensemble mean and every member), the observed track, and the ENSO correction (enso_rmm.py), which
-mjo.html applies in the browser so the same diagram can show the raw or the ENSO-removed index for every model.
+IFS-ENS forecasts (ensemble mean and every member), the observed track, and the ENSO and IOD corrections (enso_rmm.py),
+which mjo.html applies in the browser so the same diagram can show the raw or the cleaned index for every model.
 
 The GEPS and GEFS pages write the same track layout (track()) for their ensembles to assets/geps/data and
 assets/gefs/data; the page reads all three files.
@@ -64,7 +64,12 @@ def write(
     dn: float | None = None,
     c: np.ndarray | None = None,
     n34: pd.Series | None = None,
+    dd: float | None = None,
+    d: np.ndarray | None = None,
+    dmi: pd.Series | None = None,
 ) -> None:
+    """dn/c: the Nino-3.4 change at the init and its correction vector; dd/d: the DMI's (dd 0 outside the IOD's season,
+    None when the IOD term is not applied); n34/dmi: the daily series, for the observed days' own changes."""
     models = {"aifs": ecmwf_track(rmm, init, "AIFS-ENS")}
     if rmm_ifs is not None:
         models["ifs"] = ecmwf_track(rmm_ifs, init, "IFS-ENS")
@@ -73,16 +78,20 @@ def write(
         t = pd.to_datetime(obs["time"].values)
         o = {"t": [x.strftime("%Y-%m-%dT%H") for x in t], "r1": _r(obs["rmm1"].values), "r2": _r(obs["rmm2"].values)}
         if n34 is not None and c is not None:
-            from enso_rmm import delta_n34
+            from enso_rmm import daily_terms
 
-            d = np.array([delta_n34(n34, x) for x in t])
-            o["dn"] = _r(np.where(np.isfinite(d), d, 0.0))  # the correction per observed day (ENSO moves over 60 days)
+            dn_o, dd_o = daily_terms(t, n34, dmi if dd is not None else None)
+            o["dn"] = _r(dn_o)  # the corrections per observed day (ENSO and the IOD move over 60 days)
+            if dd is not None:
+                o["dd"] = _r(dd_o)
     out = {
         "updated": datetime.now(UTC).strftime("%Y-%m-%d %H:%MZ"),
         "init": init.strftime("%Y-%m-%d %HZ"),
         "index": INDEX_NOTE,
         "dn34": None if dn is None or not np.isfinite(dn) else round(float(dn), 3),
         "c": None if c is None else _r(c, 4),
+        "ddmi": None if dd is None else round(float(dd), 3),
+        "d": None if dd is None or d is None else _r(d, 4),
         "obs": o,
         "models": models,
     }

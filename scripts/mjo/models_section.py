@@ -1,8 +1,8 @@
 """The 'MJO forecast, all ensembles' block of mjo.html: one phase diagram drawn in the browser from
 assets/mjo/rmm_models.json (AIFS-ENS and IFS-ENS, src/rmm_export.py), assets/gefs/data/gefs_rmm_wind.json and
 assets/geps/data/geps_rmm_wind.json (the GEFS and GEPS pages' wind-only tracks), with the models, their members, the
-horizon and the raw / ENSO-removed index switchable. Called by generate_page.py; returns "" until the first data
-file exists, so the page never shows an empty block."""
+horizon and the raw / cleaned index (ENSO removed, and the IOD from June to December) switchable. Called by
+generate_page.py; returns "" until the first data file exists, so the page never shows an empty block."""
 
 import json
 import sys
@@ -12,10 +12,11 @@ ASSETS = Path("assets/mjo")
 DATA = ASSETS / "rmm_models.json"
 STATUS = ASSETS / "rmm_clean_status.json"
 CORR = Path("scripts/mjo/data/reference/enso_rmm_correction.json")
+CORR_IOD = Path("scripts/mjo/data/reference/iod_rmm_correction.json")
 
 
 def load_status() -> dict | None:
-    """The ENSO-removed forecast's diagnosis (run_rmm.py -> enso_rmm.diagnose), or None before the first one."""
+    """The cleaned forecast's diagnosis (run_rmm.py -> enso_rmm.diagnose), or None before the first one."""
     return json.loads(STATUS.read_text()) if STATUS.exists() and DATA.exists() else None
 
 
@@ -54,6 +55,28 @@ def _validation_text() -> str:
     return out
 
 
+def _iod_text() -> str:
+    """The IOD term's fit and its check on the years before the fit (build_iod_rmm.py)."""
+    v = json.loads(CORR_IOD.read_text()) if CORR_IOD.exists() else {}
+    val = v.get("validation", {})
+    key = next((k for k in val if k.startswith("era5_rmm_") and k.endswith("_out_of_sample")), "")
+    a, d = val.get(key), v.get("applied")
+    if not (a and d):
+        return ""
+    y0, y1 = key.split("_")[2:4]
+    r2 = "" if d["rmm2"] else "; its RMM2 part is not significant and is not applied"
+    return (
+        "From June to December the cleaned index also subtracts &Delta;DMI&nbsp;&times;&nbsp;d: &Delta;DMI is the Indian Ocean "
+        "Dipole index (western minus south-eastern tropical Indian Ocean, Saji et al. 1999; NOAA OISST, 31-day mean) minus "
+        "its mean over the same window, and d is the slope of the ENSO-corrected index on it, fitted on the observed RMM "
+        f"2003&ndash;2024 with the ERSST&nbsp;v6 DMI ({d['rmm1']:+.2f} per &deg;C on RMM1{r2}). A growing positive IOD&rsquo;s "
+        "easterlies over the equatorial Indian Ocean otherwise hold the index in phases 8&ndash;1&ndash;2, as in the autumns "
+        f"of 1982, 1997 and 2026. Over {y0}&ndash;{y1} the term removes RMM1&rsquo;s correlation with the DMI change "
+        f"({a['corr_ddmi_r1']['enso']:+.2f} &rarr; {round(a['corr_ddmi_r1']['enso_iod'], 2) + 0.0:+.2f}), and the slope "
+        f"refitted on those years alone is {a['refit_d_rmm1']:+.2f}."
+    )
+
+
 SCRIPT = r"""
 (function () {
   var box = document.getElementById('mm-box'), cv = document.getElementById('mm-cv'), tip = document.getElementById('mm-tip');
@@ -64,15 +87,16 @@ SCRIPT = r"""
     ['gefs', 'GEFS',     '#2e7d32', '/assets/gefs/data/gefs_rmm_wind.json'],
     ['geps', 'GEPS',     '#7b3fa0', '/assets/geps/data/geps_rmm_wind.json']
   ];
-  var D = { obs: null, dn34: null, c: null, models: {} };
+  var D = { obs: null, dn34: null, c: null, ddmi: null, d: null, models: {} };
   var S = { on: { aifs: true, ifs: true, gefs: true, geps: true }, members: false, clean: box.dataset.clean === '1', horizon: 15, obsDays: 40 };
   var REGION = [['West. Hem. and Africa', -3.75, 0, -Math.PI / 2], ['Indian Ocean', 0, -3.75, 0], ['Maritime Continent', 3.75, 0, Math.PI / 2], ['Western Pacific', 0, 3.75, 0]];
   var PHASE = { 1: 202.5, 2: 247.5, 3: 292.5, 4: 337.5, 5: 22.5, 6: 67.5, 7: 112.5, 8: 157.5 };
   var pts = [];   // hover targets
 
   function fmtDate(s) { var d = new Date(s + ':00Z'); return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }); }
-  function clean1(r, dn) { return S.clean && D.c && dn != null ? r - dn * D.c[0] : r; }
-  function clean2(r, dn) { return S.clean && D.c && dn != null ? r - dn * D.c[1] : r; }
+  // cleaned = raw - dN34 * c - dDMI * d (the DMI term only where the run applied it: June-December, with the DMI series)
+  function clean1(r, dn, dd) { return S.clean && D.c && dn != null ? r - dn * D.c[0] - (D.d && dd ? dd * D.d[0] : 0) : r; }
+  function clean2(r, dn, dd) { return S.clean && D.c && dn != null ? r - dn * D.c[1] - (D.d && dd ? dd * D.d[1] : 0) : r; }
 
   function draw() {
     var W = box.clientWidth; if (!W) return;
@@ -115,14 +139,15 @@ SCRIPT = r"""
       var idx = []; for (var q = 0; q < o.t.length; q++) if (o.t[q].slice(11) === '00') idx.push(q);
       idx = idx.slice(-S.obsDays);
       var n = idx.length, lastMonth = '';
-      var ox = function (q) { return X(clean1(o.r1[q], o.dn && o.dn[q])); }, oy = function (q) { return Y(clean2(o.r2[q], o.dn && o.dn[q])); };
+      var odn = function (q) { return o.dn && o.dn[q]; }, odd = function (q) { return o.dd && o.dd[q]; };
+      var ox = function (q) { return X(clean1(o.r1[q], odn(q), odd(q))); }, oy = function (q) { return Y(clean2(o.r2[q], odn(q), odd(q))); };
       for (var i = 1; i < n; i++) {
         x.strokeStyle = 'rgba(40,40,40,' + (0.25 + 0.7 * i / n).toFixed(2) + ')'; x.lineWidth = 1.8;
         x.beginPath(); x.moveTo(ox(idx[i - 1]), oy(idx[i - 1])); x.lineTo(ox(idx[i]), oy(idx[i])); x.stroke();
       }
       for (var j = 0; j < n; j++) {
         var q2 = idx[j], px = ox(q2), py = oy(q2), mo = o.t[q2].slice(0, 7);
-        pts.push({ x: px, y: py, s: 'Observed ' + fmtDate(o.t[q2]), r1: clean1(o.r1[q2], o.dn && o.dn[q2]), r2: clean2(o.r2[q2], o.dn && o.dn[q2]) });
+        pts.push({ x: px, y: py, s: 'Observed ' + fmtDate(o.t[q2]), r1: clean1(o.r1[q2], odn(q2), odd(q2)), r2: clean2(o.r2[q2], odn(q2), odd(q2)) });
         x.fillStyle = 'rgba(40,40,40,' + (0.35 + 0.65 * j / n).toFixed(2) + ')'; x.beginPath(); x.arc(px, py, 2.4, 0, 2 * Math.PI); x.fill();
         if (j && mo !== lastMonth) label(x, px, py, new Date(o.t[q2] + ':00Z').toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' }), '#444', -11);
         lastMonth = mo;
@@ -136,22 +161,22 @@ SCRIPT = r"""
     // the models: members faint under the means; a marker every 5 days on the mean, the end point squared
     MODELS.forEach(function (M) {
       var key = M[0], col = M[2], m = D.models[key]; if (!m || !S.on[key]) return;
-      var dn = D.dn34, L = m.lead.length, last = L - 1;
+      var dn = D.dn34, dd = D.ddmi, L = m.lead.length, last = L - 1;
       while (last > 0 && m.lead[last] > S.horizon + 0.01) last--;
       if (S.members) {
         x.strokeStyle = hexa(col, 0.11); x.lineWidth = 0.9;
         for (var mi = 0; mi < m.m1.length; mi++) {
           x.beginPath();
-          for (var li = 0; li <= last; li++) { var a1 = m.m1[mi][li], a2 = m.m2[mi][li]; if (a1 == null) continue; var qx = X(clean1(a1, dn)), qy = Y(clean2(a2, dn)); li ? x.lineTo(qx, qy) : x.moveTo(qx, qy); }
+          for (var li = 0; li <= last; li++) { var a1 = m.m1[mi][li], a2 = m.m2[mi][li]; if (a1 == null) continue; var qx = X(clean1(a1, dn, dd)), qy = Y(clean2(a2, dn, dd)); li ? x.lineTo(qx, qy) : x.moveTo(qx, qy); }
           x.stroke();
         }
       }
       x.strokeStyle = col; x.lineWidth = 2.6; x.lineJoin = 'round'; x.beginPath();
-      for (var li2 = 0; li2 <= last; li2++) { var bx = X(clean1(m.r1[li2], dn)), by = Y(clean2(m.r2[li2], dn)); li2 ? x.lineTo(bx, by) : x.moveTo(bx, by); }
+      for (var li2 = 0; li2 <= last; li2++) { var bx = X(clean1(m.r1[li2], dn, dd)), by = Y(clean2(m.r2[li2], dn, dd)); li2 ? x.lineTo(bx, by) : x.moveTo(bx, by); }
       x.stroke();
       for (var li3 = 0; li3 <= last; li3++) {
-        var ld = m.lead[li3], px2 = X(clean1(m.r1[li3], dn)), py2 = Y(clean2(m.r2[li3], dn));
-        pts.push({ x: px2, y: py2, s: m.label + ' day ' + Math.round(ld) + ' · ' + fmtDate(m.t[li3]), r1: clean1(m.r1[li3], dn), r2: clean2(m.r2[li3], dn) });
+        var ld = m.lead[li3], px2 = X(clean1(m.r1[li3], dn, dd)), py2 = Y(clean2(m.r2[li3], dn, dd));
+        pts.push({ x: px2, y: py2, s: m.label + ' day ' + Math.round(ld) + ' · ' + fmtDate(m.t[li3]), r1: clean1(m.r1[li3], dn, dd), r2: clean2(m.r2[li3], dn, dd) });
         var five = Math.abs(ld / 5 - Math.round(ld / 5)) < 0.01 && ld > 0.01;
         if (five || li3 === last) {
           x.fillStyle = col; x.strokeStyle = '#fff'; x.lineWidth = 1.4; x.beginPath();
@@ -190,9 +215,12 @@ SCRIPT = r"""
   }
   function note() {
     var el = document.getElementById('mm-idx'); if (!el) return;
-    el.textContent = S.clean
-      ? 'ENSO removed: every track minus ΔNiño-3.4 × c (ΔNiño-3.4 ' + (D.dn34 == null ? '—' : (D.dn34 > 0 ? '+' : '') + D.dn34.toFixed(2) + ' °C' + '), the part of the wind index tied to the Niño-3.4 change over the 120-day filter window.')
-      : 'Standard index (ENSO not removed): the wind-only RMM with the previous 120-day mean removed, the filter of the observed index on this site.';
+    var f = function (v) { return v == null ? '—' : (v > 0 ? '+' : '') + v.toFixed(2) + ' °C'; };
+    el.textContent = !S.clean
+      ? 'Standard index (' + (D.d && D.ddmi ? 'ENSO and IOD' : 'ENSO') + ' not removed): the wind-only RMM with the previous 120-day mean removed, the filter of the observed index on this site.'
+      : D.d && D.ddmi
+        ? 'ENSO and IOD removed: every track minus ΔNiño-3.4 × c and ΔDMI × d (ΔNiño-3.4 ' + f(D.dn34) + ', ΔDMI ' + f(D.ddmi) + '), the parts of the wind index tied to the changes of Niño-3.4 and of the Indian Ocean Dipole over the 120-day filter window.'
+        : 'ENSO removed: every track minus ΔNiño-3.4 × c (ΔNiño-3.4 ' + f(D.dn34) + '), the part of the wind index tied to the Niño-3.4 change over the 120-day filter window' + (D.ddmi === 0 ? '; the IOD term applies from June to December.' : '.');
   }
   cv.addEventListener('pointermove', function (e) {
     var r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top, best = null, bd = 144;
@@ -205,7 +233,7 @@ SCRIPT = r"""
   cv.addEventListener('pointerleave', function () { tip.hidden = true; });
 
   function got(key, j) {
-    if (key === 'aifs') { D.obs = j.obs; D.dn34 = j.dn34; D.c = j.c; Object.keys(j.models || {}).forEach(function (k) { D.models[k] = j.models[k]; }); }
+    if (key === 'aifs') { D.obs = j.obs; D.dn34 = j.dn34; D.c = j.c; D.ddmi = j.ddmi; D.d = j.d; Object.keys(j.models || {}).forEach(function (k) { D.models[k] = j.models[k]; }); }
     else if (j && j.r1) D.models[key] = j;
   }
   var urls = {}; MODELS.forEach(function (M) { urls[M[3]] = urls[M[3]] || []; urls[M[3]].push(M[0]); });
@@ -253,21 +281,22 @@ def models_section() -> str:
         clean_first = bool(st and abs(st["dn34"]) >= ENSO_STRONG_DN34)
     except Exception as e:  # noqa: BLE001
         print(f"models_section: no status line ({type(e).__name__}: {e})", file=sys.stderr)
-        clean_first = False
+        st, clean_first = None, False
+    clean_label = "ENSO + IOD removed" if st and st.get("ddmi") else "ENSO removed"
     inits = ", ".join(f"{m['label']} {m['init']}" for m in data.get("models", {}).values())
     return f"""
   <section id="mjo-models">
   {f'<p style="font-size:0.95rem;line-height:1.55;margin:0.4rem 0 0.6rem">{head}</p>' if head else ""}
   <div class="mm-legend" id="mm-legend"></div>
   <div class="mm-ctl">
-    <span>Index <span class="mm-seg" id="mm-index"><button type="button" data-v="0">standard</button><button type="button" data-v="1">ENSO removed</button></span></span>
+    <span>Index <span class="mm-seg" id="mm-index"><button type="button" data-v="0">standard</button><button type="button" data-v="1">{clean_label}</button></span></span>
     <span>Horizon <span class="mm-seg" id="mm-horizon"><button type="button" data-v="15">15 days</button><button type="button" data-v="35">35 days</button></span></span>
     <span>Members <span class="mm-seg" id="mm-members"><button type="button" data-v="0">off</button><button type="button" data-v="1">on</button></span></span>
   </div>
   <div class="mm-box" id="mm-box" data-clean="{1 if clean_first else 0}"><canvas id="mm-cv" role="img" aria-label="MJO phase diagram: observed track and the ensembles' forecast tracks"></canvas><div class="mm-tip" id="mm-tip" hidden></div></div>
   <p class="mm-idx" id="mm-idx"></p>
   <p style="color:var(--muted);font-size:0.95rem;line-height:1.55;margin:0.6rem 0 0">{detail} Latest inits: {inits}.</p>
-  <details style="margin-top:1rem;font-size:0.92rem"><summary style="cursor:pointer;color:var(--accent)">About this diagram and the ENSO removal</summary>
+  <details style="margin-top:1rem;font-size:0.92rem"><summary style="cursor:pointer;color:var(--accent)">About this diagram and the ENSO and IOD removal</summary>
   <p>The Wheeler&ndash;Hendon phase diagram with the observed track of the last 40 days and the ensemble-mean forecast of each
   model, one marker every five days and a square at the horizon. Members are off by default and faint when on. ECMWF&rsquo;s
   ensembles reach day 15; GEFS and GEPS reach day 35.</p>
@@ -282,8 +311,8 @@ def models_section() -> str:
   standing convection over the central Pacific projects onto phases 6&ndash;8, which reads as a stalled MJO. The ENSO-removed index
   subtracts &Delta;N34&nbsp;&times;&nbsp;c, where &Delta;N34 is Ni&ntilde;o-3.4 (NOAA OISST, 31-day mean) minus its mean over the
   same 120-day window, and c is the regression of the 120-day-filtered equatorial winds on &Delta;N34, longitude by longitude,
-  projected onto the MJO patterns, fitted on ERA5 (ARCO) 2003&ndash;2024 with ERSST&nbsp;v6 Ni&ntilde;o-3.4. {_validation_text()} The
-  forecast holds Ni&ntilde;o-3.4 at its latest value, since ENSO changes little in 15 days. The correction is linear, so it removes
+  projected onto the MJO patterns, fitted on ERA5 (ARCO) 2003&ndash;2024 with ERSST&nbsp;v6 Ni&ntilde;o-3.4. {_validation_text()}
+  {_iod_text()} The forecast holds both indices at their latest values, since they change little in 15 days. The corrections are linear, so they remove
   part of a growing El Ni&ntilde;o&rsquo;s projection, not all of it; the status line therefore also quotes NOAA&rsquo;s OLR-based
   real-time OMI (ROMI), which removes the previous 40 days and so is far less sensitive to slow signals. ECMWF&rsquo;s 12Z runs are
   offset-corrected onto the 00Z family as in the successive-runs view.</p>

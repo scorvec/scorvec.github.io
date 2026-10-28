@@ -101,7 +101,8 @@ def ecmwf_bytes(url: str, want: set[tuple], types: tuple[str, ...]) -> bytes:
             found.add(key)
     if found != want:
         raise RuntimeError(f"{url}: no {sorted(want - found)} in the index")
-    return b"".join(D.get(url + ".grib2", f"{a}-{b}") for a, b in D.merged(spans))
+    with ThreadPoolExecutor(8) as ex:  # a member's message is a range of its own: side by side, in the file's order
+        return b"".join(ex.map(lambda ab: D.get(url + ".grib2", f"{ab[0]}-{ab[1]}"), D.merged(spans)))
 
 
 def gefs_member(url: str, want: list[str]) -> bytes:

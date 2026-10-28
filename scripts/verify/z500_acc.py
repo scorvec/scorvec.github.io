@@ -4,7 +4,8 @@ centres' headline score (verification.html draws it as NCEP EMC does, a time ser
 
   fields  For each 00Z run, the 500 hPa height at 00Z of every day of the forecast: GFS, the IFS control, AIFS and
           GDPS to day 10 (z500-<m>_<init>.npz), and IFS-ENS, AIFS-ENS, GEFS and GEPS to day 15, as the ensemble mean
-          (ens-z500-<m>_) and every member (ens-z500m-<m>_), downloaded with the database's own fetchers
+          (ens-z500-<m>_) and every member (ens-z500m-<m>_), from each model's SINCE (the ensembles' archived runs
+          back to 2024 and 2025, which calibrate the teleconnection forecasts), downloaded with the database's own fetchers
           (mverify_scores, ens_verify). Every field is remapped conservatively (``remap``: the overlap of the cells'
           areas) onto the WMO 1.5 deg grid with poles (121 x 240, WeatherBench 2's), the members also onto the 2.5 deg
           grid of the teleconnection patterns north of 20N, in whole metres (int16).
@@ -25,17 +26,22 @@ A run whose files the database holds is not fetched again, and no file is ever r
     python z500_acc.py clim --out clim_z500_1p5.npz
     python z500_acc.py acc --list --have have.txt
     python z500_acc.py acc --init 2026051300 --derived db --clim clim_z500_1p5.npz --have have.txt --archive-out db-new
+    python z500_acc.py recent --have have.txt    # the files verify_figs.py scores the newest runs from
 """
 
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 import ens_verify as E
 import mverify_scores as D
 import numpy as np
 import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+from latlon import G15, G25N, remap, slot366
 
 G = 9.80665
 DET = {"GFS": "gfs", "IFS": "ifs", "AIFS": "aifs", "GDPS": "gdps"}  # the deterministic models (mverify_scores.MODELS)
@@ -46,56 +52,18 @@ CLIM_YEARS = (1991, 2020)
 CLIM_HALF = 7  # slots either side of each slot of the normal
 REGIONS = {"NH": (20.0, 80.0), "SH": (-80.0, -20.0)}  # EMC's extratropical belts
 HPFX = {"GDPS": D.HPFX_DAYS, "GEPS": E.HPFX_DAYS}  # days ECCC's HPFX keeps a run; the other sources keep them all
+START = "2026051300"  # the verification database's first run (IFS 50r1, AIFS v2): the deterministic models from here
+# each model's first run here: the ensembles go back as far as their archives (IFS-ENS on its 0.25 deg grid, AIFS-ENS
+# from its first open run) to give the days 1-15 teleconnection forecasts winters to be calibrated and tested on
+SINCE = {
+    "IFS-ENS": "2024030100",
+    "GEFS": "2024030100",
+    "AIFS-ENS": "2025070200",
+    "GEPS": START,
+    **dict.fromkeys(DET, START),
+}
 GIVE_UP_DAYS = 365  # a run this old is scored with the models it has (a backfill can still fetch any other source)
-
-
-# --------------------------------------------------------------------------- grids
-class Grid:
-    """A regular latitude-longitude grid of cell centres, north to south, longitudes from 0 east."""
-
-    def __init__(self, step: float, south: float = -90.0):
-        self.lat = np.round(90.0 - step * np.arange(round((90.0 - south) / step) + 1), 6)
-        self.lon = np.round(step * np.arange(round(360.0 / step)), 6)
-        self.shape = (self.lat.size, self.lon.size)
-
-
-G15 = Grid(1.5)  # WMO's standard verification grid, WeatherBench 2's 240 x 121
-G25N = Grid(2.5, south=20.0)  # the teleconnection patterns' NCEP/NCAR grid, 20-90N
-
-
-def _edges(c: np.ndarray, lo: float | None = None, hi: float | None = None) -> np.ndarray:
-    """Edges of the cells of regularly spaced centres ``c`` (ascending), clipped to [lo, hi] (the poles)."""
-    d = c[1] - c[0]
-    e = np.concatenate([c - d / 2, c[-1:] + d / 2])
-    return np.clip(e, lo, hi) if lo is not None else e
-
-
-def _overlap(src: np.ndarray, dst: np.ndarray, period: float | None = None) -> np.ndarray:
-    """(destination cells, source cells): the length shared by each pair of cells, of ascending edge arrays; with a
-    period (longitude) a source cell counts once more a period either side."""
-    shifts = (-period, 0.0, period) if period else (0.0,)
-    out = np.zeros((dst.size - 1, src.size - 1))
-    for s in shifts:
-        lo = np.maximum(dst[:-1, None], src[None, :-1] + s)
-        hi = np.minimum(dst[1:, None], src[None, 1:] + s)
-        out += np.clip(hi - lo, 0.0, None)
-    return out
-
-
-def remap(v: np.ndarray, lat: np.ndarray, lon: np.ndarray, g: Grid) -> np.ndarray:
-    """A global field on its own regular grid (centres ``lat`` x ``lon``, any order) as the area mean over each cell of
-    ``g``: first-order conservative remapping, latitude weighted by the cells' areas (overlaps in sin(latitude))."""
-    v = np.asarray(v, np.float64)
-    if lat[0] > lat[-1]:
-        lat, v = lat[::-1], v[::-1]
-    lon = np.mod(lon, 360.0)
-    o = np.argsort(lon, kind="stable")
-    lon, v = lon[o], v[:, o]
-    s_lat = np.sin(np.radians(_edges(lat, -90.0, 90.0)))
-    d_lat = np.sin(np.radians(_edges(g.lat[::-1], -90.0, 90.0)))
-    wy = _overlap(s_lat, d_lat)[::-1]  # rows north to south, as g
-    wx = _overlap(_edges(lon), _edges(g.lon), 360.0)
-    return ((wy @ v @ wx.T) / (wy.sum(1)[:, None] * wx.sum(1)[None, :])).astype(np.float32)
+RECENT_DAYS = 30  # runs this new without their scores yet are scored at the leads ERA5 covers (``table``)
 
 
 # --------------------------------------------------------------------------- fields
@@ -222,11 +190,6 @@ def truth(a) -> None:
         print(f"ERA5 {day:%Y-%m-%d} 00Z: archived", flush=True)
 
 
-def slot366(t: pd.DatetimeIndex) -> np.ndarray:
-    """Row of the 366-day calendar: 29 February = 59, 1 March = 60 in every year."""
-    return np.asarray(t.dayofyear - 1 + ((t.month > 2) & ~t.is_leap_year))
-
-
 def clim(a) -> None:
     import xarray as xr
 
@@ -279,12 +242,15 @@ def scores(z: np.ndarray, era: np.ndarray, normal: np.ndarray) -> dict[str, dict
 
 
 def run_scores(init: str, files: dict[str, Path], truth_dir: Path, normal: np.ndarray) -> pd.DataFrame:
-    """Every lead of every model of one run, for the regions, against the ERA5 files in ``truth_dir``."""
+    """Every lead of every model of one run, for the regions, against the ERA5 files in ``truth_dir`` (a lead ERA5
+    does not cover yet is left out: ``due`` waits for all of them, ``table`` scores what there is)."""
     t0, rows = pd.to_datetime(init, format="%Y%m%d%H"), []
     for model, path in files.items():
         d = np.load(path)
         for lead, z in zip(d["lead_h"], d["z"], strict=True):
             valid = t0 + pd.Timedelta(hours=int(lead))
+            if not (truth_dir / truth_file(valid)).exists():
+                continue
             era = np.load(truth_dir / truth_file(valid))["z"]
             for region, s in scores(z, era, normal[slot366(pd.DatetimeIndex([valid]))[0]]).items():
                 rows.append(
@@ -299,13 +265,17 @@ def models_of(init: str, have: set[str]) -> list[str]:
 
 def due(have: set[str], today: pd.Timestamp) -> dict[str, list[str]]:
     """The runs whose scores are due, with their models: ERA5 covers day 15, and every model is in that can still
-    come (GDPS and GEPS while HPFX keeps the run, the others for GIVE_UP_DAYS)."""
+    come (from its SINCE; GDPS and GEPS while HPFX keeps the run, the others for GIVE_UP_DAYS)."""
     out = {}
     for init in sorted({n.split("_")[1][:10] for n in have if n.startswith(("z500-", "ens-z500-"))}):
         t0 = pd.to_datetime(init, format="%Y%m%d%H")
         days = pd.date_range(t0 + pd.Timedelta(days=1), t0 + pd.Timedelta(days=15), freq="D")
         models = models_of(init, have)
-        coming = [m for m in [*DET, *E.ENSEMBLES] if t0 >= today - pd.Timedelta(days=HPFX.get(m, GIVE_UP_DAYS))]
+        coming = [
+            m
+            for m in [*DET, *E.ENSEMBLES]
+            if init >= SINCE[m] and t0 >= today - pd.Timedelta(days=HPFX.get(m, GIVE_UP_DAYS))
+        ]
         if (
             f"acc_{init}.parquet" not in have
             and set(coming) <= set(models)
@@ -313,6 +283,31 @@ def due(have: set[str], today: pd.Timestamp) -> dict[str, list[str]]:
         ):
             out[init] = models
     return out
+
+
+def recent(have: set[str], today: pd.Timestamp) -> list[str]:
+    """The files ``table`` scores the runs of the newest RECENT_DAYS without their scores from: their fields (the
+    ensembles' means) and the ERA5 days the database has of their forecasts."""
+    out = set()
+    for init in sorted({n.split("_")[1][:10] for n in have if n.startswith(("z500-", "ens-z500-"))}):
+        t0 = pd.to_datetime(init, format="%Y%m%d%H")
+        if f"acc_{init}.parquet" in have or t0 < today - pd.Timedelta(days=RECENT_DAYS):
+            continue
+        out |= {file_of(m, init) for m in models_of(init, have)}
+        out |= {n for d in range(1, 16) if (n := truth_file(t0 + pd.Timedelta(days=d))) in have}
+    return sorted(out)
+
+
+def table(derived: Path, normal: np.ndarray) -> pd.DataFrame:
+    """Every run's scores: its acc_ file in ``derived``, or for a recent run without one, its fields there scored at
+    the leads ERA5 covers."""
+    done = {f.stem.split("_")[1]: f for f in derived.glob("acc_*.parquet")}
+    frames = [pd.read_parquet(f) for f in done.values()]
+    for init in sorted({f.stem.split("_")[1] for f in derived.glob("*z500-*_*.npz")} - set(done)):
+        files = {m: f for m in [*DET, *E.ENSEMBLES] if (f := derived / file_of(m, init)).exists()}
+        frames.append(run_scores(init, files, derived, normal))
+    t = pd.concat([f for f in frames if not f.empty], ignore_index=True)
+    return t.astype({"model": str, "region": str})
 
 
 def acc(a) -> None:
@@ -357,10 +352,14 @@ def main() -> None:
     s.add_argument("--init", help="only this run (YYYYMMDDHH)")
     s.add_argument("--derived", type=Path, default=Path("."), help="the due runs' fields and ERA5 files, downloaded")
     s.add_argument("--clim", type=Path, help="the normal (release verify-clim-z500-v1)")
-    for p in (f, t, s):
+    r = sub.add_parser("recent", help="print the files the nightly scores the newest runs without their scores from")
+    for p in (f, t, s, r):
         p.add_argument("--have", type=Path, help="names of the files the database holds, one per line")
         p.add_argument("--archive-out", type=Path, default=Path("db-new"), help="where the files to add are written")
     a = ap.parse_args()
+    if a.cmd == "recent":
+        print(*recent(_have(a.have), pd.Timestamp.now(tz="UTC").tz_localize(None).normalize()))
+        return
     {"fields": fields, "truth": truth, "clim": clim, "acc": acc}[a.cmd](a)
 
 
