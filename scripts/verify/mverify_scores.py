@@ -28,7 +28,7 @@ kept for good: every model's pairs against the surface stations (sfc_<init>.parq
 Stage IV (rain_), and their sums (stats_, stn_; ``run_stats``), from which any window of runs is scored without its
 pairs. The newest 30, 90 and 365 runs and the whole database are scored from those (scores_30.json ...
 scores_all.json, stations_30.json, stations_90.json; ``windows``), and its newest year of rain against Stage IV is
-mapped on 2 deg boxes, the bias tested box by box (precip_maps.json, ``rain_map``). --archive-only adds runs without scoring
+mapped cell by cell, the ratio of totals and the frequency of wet days tested in each (precip_maps.json, ``rain_map``). --archive-only adds runs without scoring
 (.github/workflows/verify-backfill.yml): a model a source no longer holds for a run (GDPS after ~50 days) is left out
 of that run.
 
@@ -57,8 +57,11 @@ MAP_LEADS = [24, 72, 120, 168, 240]
 MAP_VARS = ["t2m", "td2m", "msl", "wind10"] + [f"{b}{lv}" for lv in (850, 500, 250) for b in ("z", "t", "wind")]
 MAP_VARS += ["q850", "q700"]
 WINDOWS = {30: True, 90: True, 365: False, None: False}  # runs of a window (None: all) -> with station maps
-RAIN_BOX = 2.0  # degrees: the rain maps' boxes, 16 cells of the common grid
 RAIN_RUNS, RAIN_MIN_RUNS = 365, 30  # the rain maps' window: the newest year of the database, once it has a month
+RAIN_THRESHOLDS = (1.0, 10.0, 25.0)  # mm in 24 h: the rain maps' frequency biases
+RAIN_EVENTS = tuple(f"fb{t:g}" for t in RAIN_THRESHOLDS)
+RAIN_MIN_EVENTS = 5  # analysed days over a threshold a cell needs before its frequency bias is mapped
+RAIN_LAT0, RAIN_LON0, RAIN_GRID = 15.25, -139.75, (90, 180)  # the common grid's cells over Stage IV's domain
 WINDOW_SHARE = 0.95  # a model is scored in a window that it has at least this share of the runs of
 PAIR_KEY = ["model", "init", "lead_h", "valid_time", "station_id", "variable"]
 STAT_BY = ["model", "network", "variable", "region", "lead_h"]
@@ -551,93 +554,109 @@ def window_map(stn: pd.DataFrame, models: list[str], used: list) -> dict:
     return report.station_map(st, MAP_LEADS, MAP_VARS)
 
 
-def rain_map(paths: list[Path]) -> dict | None:
-    """Rain against Stage IV over the runs of ``paths`` (``rain_pairs`` files) on boxes of RAIN_BOX degrees: the
-    common grid's cells pooled into boxes, which are tested where single cells never could be (a cell's daily rain
-    error is mostly noise). Per model, lead group (mverify.precip.maps.LEAD_GROUPS) and box: the bias, the RMSE of
-    the cells and the mean analysed rain, mm per window; and whether the bias is more than chance, tested over the
-    valid days as mverify.precip.maps does for cells (the day's error averaged over the box and the runs that verify
-    it, through the paired test with its allowance for errors that persist from day to day) and the boxes of a map
-    through the Benjamini-Hochberg procedure. The models with WINDOW_SHARE of the runs are mapped on the runs they all
-    have; one with fewer but at least RAIN_MIN_RUNS (GDPS before the database began, say) on its own, since a box's test
-    needs only that model's days. As JSON shaped like mverify.report.precip_maps, plus the window and the runs of each
-    model mapped on its own."""
+def rain_map(paths: list[Path]) -> tuple[dict, dict] | None:
+    """Rain against Stage IV over the runs of ``paths`` (``rain_pairs`` files), cell by cell on the common grid: per
+    model, lead group (mverify.precip.maps.LEAD_GROUPS) and cell, the ratio of the forecast total to the analysed one
+    and the frequency bias of days over each of RAIN_THRESHOLDS (the days the forecast puts over it, as a share of its
+    runs that verify the day, against the days the analysis does), each with whether it is more than chance.
+
+    The test is mverify.precip.maps's: over the valid days, the day's difference (the forecast less the analysis, or
+    the share of the group's runs forecasting the event less whether it happened), averaged over the runs of the group
+    that verify that day, through the paired t-test with its allowance for differences that persist from day to day
+    (mverify.significance.paired_test), and the cells of each map through Benjamini-Hochberg at FDR_Q. Whether it
+    rained is far less noisy than how much, so the frequency biases find what the ratio of totals cannot. A frequency
+    bias is mapped where the analysis has RAIN_MIN_EVENTS days over the threshold. The models with WINDOW_SHARE of the
+    runs are mapped on the runs they all have; one with fewer but at least RAIN_MIN_RUNS (GDPS before the database
+    began, say) on its own, since a cell's test needs only that model's days.
+
+    Returns the page's summary (precip_maps.json: the window and, per model and map, the cells tested and significant)
+    and the maps for the figures (precip_maps.npz, scripts/verify/verify_figs.py): per model and map the value, whether
+    it is significant, and what the analysis gave on the same days (<metric>_obs: mean rain in mm, or the share of days
+    over the threshold), each (lead group, latitude, longitude)."""
     from mverify.precip.maps import FDR_Q, LEAD_GROUPS, MIN_DAYS
     from mverify.significance import fdr, paired_test
 
-    cols = ["model", "init", "lead_h", "valid_time", "lat", "lon", "fcst", "obs"]
-    per_run = []  # one run at a time: a year of cells would not fit in memory, its box sums do
-    for f in paths:
-        r = pd.read_parquet(f, columns=cols)
-        r["group"] = np.select(
-            [r["lead_h"].between(a, b) for _, a, b in LEAD_GROUPS], list(range(len(LEAD_GROUPS))), -1
-        )
-        r = r[r["group"] >= 0]
-        e = r["fcst"] - r["obs"]
-        r = r.assign(
-            blat=np.floor(r["lat"] / RAIN_BOX) * RAIN_BOX + RAIN_BOX / 2,
-            blon=np.floor(r["lon"] / RAIN_BOX) * RAIN_BOX + RAIN_BOX / 2,
-            n=1,
-            err=e,
-            sq=e * e,
-        )
-        keys = ["model", "group", "valid_time", "blat", "blon"]
-        per_run.append(r.groupby(keys)[["n", "err", "sq", "obs"]].sum().reset_index().assign(init=r["init"].iloc[0]))
-    boxes = pd.concat(per_run, ignore_index=True)
-    models, used, left_out = window_runs(boxes)
+    present = pd.concat([pd.read_parquet(f, columns=["model", "init"]).drop_duplicates() for f in paths])
+    models, used, left_out = window_runs(present)
     if not used:
         return None
     own = {
-        m: sorted(boxes.loc[boxes["model"] == m, "init"].unique()) for m, k in left_out.items() if k >= RAIN_MIN_RUNS
+        m: sorted(present.loc[present["model"] == m, "init"].unique())
+        for m, k in left_out.items()
+        if k >= RAIN_MIN_RUNS
     }
-    runs_of = dict.fromkeys(models, used) | own
-    boxes = pd.concat([boxes[(boxes["model"] == m) & boxes["init"].isin(r)] for m, r in runs_of.items()])
-    daily = boxes.groupby(["model", "group", "blat", "blon", "valid_time"])[["n", "err", "sq", "obs"]].sum()
-    lats, lons = (np.sort(boxes[c].unique()) for c in ("blat", "blon"))
+    runs_of = {m: set(r) for m, r in (dict.fromkeys(models, used) | own).items()}
+    t0 = min(present["init"])
+    ndays = (max(present["init"]) - t0).days + 12  # a run's last window ends on its day 10
+    shape = (len(LEAD_GROUPS), ndays, *RAIN_GRID)
+    acc = {m: {k: np.zeros(shape, np.float32) for k in ("n", "f", *RAIN_EVENTS)} for m in runs_of}
+    obs = np.full((ndays, *RAIN_GRID), np.nan, np.float32)  # the analysis is the same whichever run verifies it
+    for f in paths:  # one run at a time: a year of cells would not fit in memory, its daily sums do
+        r = pd.read_parquet(f, columns=["model", "init", "lead_h", "valid_time", "lat", "lon", "fcst", "obs"])
+        g = np.select([r["lead_h"].between(a, b) for _, a, b in LEAD_GROUPS], list(range(len(LEAD_GROUPS))), -1)
+        day = (r["valid_time"] - t0).dt.days.to_numpy()
+        j, i = (np.rint((r[c].to_numpy() - o) / GRID).astype(int) for c, o in (("lat", RAIN_LAT0), ("lon", RAIN_LON0)))
+        ok = (g >= 0) & (j >= 0) & (j < RAIN_GRID[0]) & (i >= 0) & (i < RAIN_GRID[1])
+        obs[day[ok], j[ok], i[ok]] = r["obs"].to_numpy()[ok]
+        for m, runs in runs_of.items():
+            k = ok & (r["model"] == m).to_numpy() & r["init"].isin(runs).to_numpy()
+            at = (g[k], day[k], j[k], i[k])
+            fc = r["fcst"].to_numpy()[k]
+            np.add.at(acc[m]["n"], at, 1)
+            np.add.at(acc[m]["f"], at, fc)
+            for name, t in zip(RAIN_EVENTS, RAIN_THRESHOLDS, strict=True):
+                np.add.at(acc[m][name], at, fc >= t)
     out = {
         "product": "stageiv",
         "truth": "Stage IV analysis",
         "accum_hours": 24,
         "fdr_q": FDR_Q,
         "min_days": MIN_DAYS,
-        "box": RAIN_BOX,
+        "min_events": RAIN_MIN_EVENTS,
+        "thresholds_mm": list(RAIN_THRESHOLDS),
+        "grid": GRID,
         "groups": [{"label": label, "ends_h": [a, b]} for label, a, b in LEAD_GROUPS],
         "models": {},
+        "window": run_span(used)
+        | {
+            "left_out": {m: k for m, k in left_out.items() if m not in own},
+            "own": {m: run_span(r) for m, r in own.items()},
+        },
     }
-    for m in sorted(runs_of):
-        maps = {k: np.full((len(LEAD_GROUPS), lats.size, lons.size), np.nan) for k in ("bias", "rmse", "obs", "p")}
-        days = np.zeros((len(LEAD_GROUPS), lats.size, lons.size), int)
-        for (g, la, lo), d in daily.loc[m].groupby(level=["group", "blat", "blon"]):
-            j, i = np.searchsorted(lats, la), np.searchsorted(lons, lo)
-            n = d["n"].sum()
-            maps["bias"][g, j, i] = d["err"].sum() / n
-            maps["rmse"][g, j, i] = np.sqrt(d["sq"].sum() / n)
-            maps["obs"][g, j, i] = d["obs"].sum() / n
-            days[g, j, i] = len(d)
-            if len(d) >= MIN_DAYS:
-                maps["p"][g, j, i] = paired_test((d["err"] / d["n"]).to_numpy())
-        out["models"][m] = {
-            "lat": lats.round(4).tolist(),
-            "lon": lons.round(4).tolist(),
-            **{
-                k: [[None if not np.isfinite(v) else int(np.rint(10 * v)) for v in g.ravel()] for g in maps[k]]
-                for k in ("bias", "rmse", "obs")
-            },
-            "days": [g.ravel().tolist() for g in days],
-            "significant": [fdr(g.ravel(), FDR_Q).astype(int).tolist() for g in maps["p"]],
-        }
-    out["window"] = run_span(used) | {
-        "left_out": {m: k for m, k in left_out.items() if m not in own},
-        "own": {m: run_span(r) for m, r in own.items()},
-    }
-    return out
+    maps = {"lat": RAIN_LAT0 + GRID * np.arange(RAIN_GRID[0]), "lon": RAIN_LON0 + GRID * np.arange(RAIN_GRID[1])}
+    for m, a in acc.items():
+        seen = a["n"] > 0
+        days = seen.sum(1)
+        summary = {}
+        for metric, num, event in [("ratio", "f", None), *zip(RAIN_EVENTS, RAIN_EVENTS, RAIN_THRESHOLDS, strict=True)]:
+            o = obs if event is None else (obs >= event).astype(np.float32)
+            d = np.where(seen, a[num] / np.maximum(a["n"], 1) - o[None], np.nan)  # the day's difference
+            fsum = np.nansum(np.where(seen, a[num] / np.maximum(a["n"], 1), np.nan), 1)
+            osum = np.nansum(np.where(seen, o[None], np.nan), 1)
+            enough = (days >= MIN_DAYS) & (osum >= (RAIN_MIN_EVENTS if event else 0.1 * days))
+            value = np.where(enough, fsum / np.where(osum > 0, osum, np.nan), np.nan)
+            p = np.full(value.shape, np.nan)
+            for gk, jj, ii in zip(*np.nonzero(enough), strict=True):
+                col = d[gk, :, jj, ii]
+                p[gk, jj, ii] = paired_test(col[np.isfinite(col)])
+            sig = np.stack([fdr(pg.ravel(), FDR_Q).reshape(pg.shape) for pg in p])
+            maps[f"{m}/{metric}"], maps[f"{m}/{metric}_sig"] = value.astype(np.float32), sig
+            maps[f"{m}/{metric}_obs"] = np.divide(osum, days, out=np.full(osum.shape, np.nan), where=days > 0)
+            summary[metric] = [
+                {"tested": int(np.isfinite(pg).sum()), "significant": int(sg.sum())}
+                for pg, sg in zip(p, sig, strict=True)
+            ]
+        maps[f"{m}/days"] = days
+        out["models"][m] = {"runs": len(runs_of[m]), "maps": summary}
+    return out, maps
 
 
 def windows(derived: Path) -> None:
     """The scorecards of the newest 30, 90 and 365 runs of the database and of all of it once it is longer
     (scores_<runs>.json, scores_all.json), and station maps for the shorter ones (stations_<runs>.json), each
     once the database holds that many runs, from the runs' sums (``run_stats``) in ``derived``; and the rain maps
-    of its newest year (precip_maps.json, ``rain_map``) once it holds RAIN_MIN_RUNS runs."""
+    of its newest year (precip_maps.json, and the maps themselves in ``derived``/precip_maps.npz, ``rain_map``) once
+    it holds RAIN_MIN_RUNS runs."""
     from mverify import report
 
     inits = sorted(f.stem[6:] for f in derived.glob("stats_*.parquet"))
@@ -658,7 +677,9 @@ def windows(derived: Path) -> None:
         print(f"window {name}: {w['runs']} runs {w['first']} to {w['last']}, left out {w['left_out']}", flush=True)
     wet = sorted(derived.glob("rain_*.parquet"))[-RAIN_RUNS:]
     if len(wet) >= RAIN_MIN_RUNS and (rm := rain_map(wet)) is not None:
-        report.write_json(rm, OUT_DIR / "precip_maps.json")
+        summary, maps = rm
+        report.write_json(summary, OUT_DIR / "precip_maps.json")
+        np.savez_compressed(derived / "precip_maps.npz", **maps)
         print(f"rain maps: {len(wet)} runs", flush=True)
 
 
