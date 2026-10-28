@@ -30,7 +30,9 @@ case "${1:-}" in
     # a name counts in the release it belongs in (tag_of): a 500 hPa file filed in a verify-db- release before they had
     # their own is not counted, so it is fetched again into its own
     for t in $(tags); do
-      gh release view "$t" -R "$R" --json assets -q '.assets[].name' | while read -r n; do [ "$(tag_of "$n")" = "$t" ] && echo "$n"; done
+      gh release view "$t" -R "$R" --json assets -q '.assets[].name' | while read -r n; do
+        if [ "$(tag_of "$n")" = "$t" ]; then echo "$n"; fi   # not `[ ] && echo`: under -e a false test ends the script
+      done
     done | sort
     ;;
   fetch)
@@ -88,7 +90,7 @@ case "${1:-}" in
     # both kinds of release in one folder a month, each file from the release it belongs in (as list)
     for t in $(tags); do
       gh release view "$t" -R "$R" --json assets -q '.assets[] | "\(.name) \(.size) \(.digest)"' | while read -r n size digest; do
-        [ "$(tag_of "$n")" = "$t" ] && echo "verify-db/${t: -7}/$n $size $digest"
+        if [ "$(tag_of "$n")" = "$t" ]; then echo "verify-db/${t: -7}/$n $size $digest"; fi
       done
     done > "$work/github.txt"
     # the files the store lacks; one it holds at another size, or that GitHub no longer holds, is reported, not changed
