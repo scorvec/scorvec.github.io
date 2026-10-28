@@ -27,8 +27,8 @@ on:
         description: 'Ensembles (space-separated: IFS-ENS AIFS-ENS GEFS GEPS)'
         default: 'IFS-ENS AIFS-ENS GEFS GEPS'
       chunk:
-        description: 'Runs per job'
-        default: '6'
+        description: 'Runs per job (an AIFS-ENS run takes over an hour, a job at most 6 h)'
+        default: '3'
 
 env:
   PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt
@@ -60,7 +60,7 @@ jobs:
           FIRST: ${{ inputs.first }}
           LAST: ${{ inputs.last }}
           MODELS: ${{ inputs.models || 'IFS-ENS AIFS-ENS GEFS GEPS' }}
-          CHUNK: ${{ inputs.chunk || '6' }}
+          CHUNK: ${{ inputs.chunk || '3' }}
         run: |
           FIRST=${FIRST:-$(date -u -d '47 days ago' +%Y%m%d)}
           LAST=${LAST:-$(date -u -d '16 days ago' +%Y%m%d)}
