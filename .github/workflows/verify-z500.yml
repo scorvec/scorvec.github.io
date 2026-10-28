@@ -4,7 +4,7 @@ name: 500 hPa height database and anomaly correlations
 # GFS, the IFS control, AIFS and GDPS to day 10 (z500-<m>_<init>.npz), the IFS-ENS, AIFS-ENS, GEFS and GEPS means and
 # members to day 15 (ens-z500-<m>_, ens-z500m-<m>_), ERA5 at 00Z of each day (era5-z500_<day>.npz), and each run's
 # anomaly correlations against ERA5 once ERA5 covers its day 15 (acc_<init>.parquet), the anomalies from the ERA5
-# 1991-2020 normal of release verify-clim-z500-v1 (z500_acc.py clim, built once offline from the local ERA5 store). Runs
+# 1991-2020 normal at 00Z of release verify-clim-z500-v1 (z500_acc.py clim, built once by verify-clim.yml). Runs
 # and days the database holds are skipped, so a range can be dispatched again after a failure.
 #
 # Each day it catches up the runs 1 to 47 days old (HPFX keeps GDPS about 52 days and GEPS about 48) and the days ERA5

@@ -1,0 +1,53 @@
+name: 500 hPa height normal
+
+# Builds the normal the 500 hPa anomaly correlations are taken against (scripts/verify/z500_acc.py clim): ERA5 1991-2020
+# at 00Z, the hour of the fields, from WeatherBench 2's 6-hourly 1.5 deg ERA5, filed as release verify-clim-z500-v1.
+# Dispatch only, once; a normal the release already holds is replaced only when asked (replace), before any run's
+# scores are made with it.
+on:
+  workflow_dispatch:
+    inputs:
+      replace:
+        description: 'Replace the normal the release holds'
+        type: boolean
+        default: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt
+  MVERIFY: "mverify[grib,zarr] @ git+https://github.com/scorvec/nwp_verification@f81968d42a703f0e42eb75acd526fadd3ba567e9"
+  TAG: verify-clim-z500-v1
+
+permissions:
+  contents: write
+
+concurrency:
+  group: verify-clim
+  cancel-in-progress: false
+
+jobs:
+  clim:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet "$MVERIFY" gcsfs
+      - name: ERA5 1991-2020 at 00Z on the verification grid
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPLACE: ${{ inputs.replace }}
+        run: |
+          python scripts/verify/z500_acc.py clim --out "$RUNNER_TEMP/clim_z500_1p5.npz"
+          notes="ERA5 1991-2020 at 00Z on the WMO 1.5 degree grid with poles (WeatherBench 2's 6-hourly conservative 1.5 degree ERA5), each slot of the 366-day calendar (29 February = 59, 1 March = 60 in every year) the mean of the days within 7 slots of it in all 30 years (scripts/verify/z500_acc.py clim). Keys: z500 (366, 121, 240) metres, lat, lon, days (the days in each slot's window)."
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            [ "$REPLACE" = true ] || { echo "::error::$TAG holds a normal: dispatch with replace to replace it"; exit 1; }
+            gh release upload "$TAG" "$RUNNER_TEMP/clim_z500_1p5.npz" --clobber
+            gh release edit "$TAG" --notes "$notes"
+          else
+            gh release create "$TAG" "$RUNNER_TEMP/clim_z500_1p5.npz" --latest=false \
+              --title "500 hPa height normal for the anomaly correlations" --notes "$notes"
+          fi
