@@ -165,6 +165,7 @@ jobs:
       - name: Publish the figures
         env:
           GH_TOKEN: ${{ github.token }}
+          FRAMES_BRANCH: "off"   # the frames store only: the figures and station tiles are never on the frames branch
           FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}
           FRAMES_S3_ENDPOINT: ${{ secrets.FRAMES_S3_ENDPOINT }}
           FRAMES_S3_REGION: ${{ secrets.FRAMES_S3_REGION }}
