@@ -37,6 +37,7 @@ jobs:
           sparse-checkout: |
             scripts/strat/age_of_air.py
             scripts/strat/reference/age_of_air.nc
+            scripts/lib
             assets/sst/data/age_of_air.json
             assets/sst/aoa_*.webp
             scripts/constraints.txt

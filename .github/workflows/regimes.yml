@@ -14,8 +14,8 @@ on:
   workflow_run:
     workflows:
       - "GEFS extended outlook"
-      - "Stratosphere (vortex, wave-1, E-P flux)"
-      - "Stratosphere, IFS-ENS (vortex, heat flux, wave-1, winds, drip, E-P flux)"
+      - "Stratosphere (vortex, waves 1 and 2, E-P flux from GEFS)"
+      - "Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, waves 1 and 2, winds, drip, zero line, jet)"
     types: [completed]
   schedule:
     - cron: "50 11 * * *"
@@ -47,6 +47,7 @@ jobs:
         with:
           sparse-checkout: |
             scripts/regimes
+            scripts/lib
             assets/regimes
             assets/geps/regimes_members.json
             assets/gefs/data/gefs_regimes_members.json
@@ -59,6 +60,7 @@ jobs:
       - name: Multi-model regime view
         id: run
         run: |
+          set -o pipefail   # a failed render fails the step, not hidden behind tee
           python scripts/regimes/regimes_combined.py ${{ inputs.force && '--force' || '' }} | tee /tmp/regimes.log
       # snapshot + clean resync each attempt (mjo.yml / gefs.yml pattern); never rebase
       - name: Commit & push
