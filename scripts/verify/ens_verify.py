@@ -46,6 +46,8 @@ RAIN_ENDS = range(24, 361, 12)  # ends of the 24 h totals: the gauges' 00Z and 1
 HPFX_DAYS = 48  # GEPS runs older than this are gone from HPFX (it keeps ~50 days)
 RANK_BINS = 10  # rank histograms in tenths of the members' range (ensembles of different sizes compare)
 STAT_SUMS = ["n", "crps", "crps_oe", "se", "sse", "svar", "sov"]
+WINDOWS = (30, 90, 365, None)  # runs of a scorecard window (None: all), as the deterministic ones
+LEAD_GROUPS = (("days 1-3", 24, 72), ("days 4-7", 96, 168), ("days 8-15", 192, 360))  # rank and reliability
 
 ECMWF = {
     "sfc": [("2t", "sfc", None), ("2d", "sfc", None), ("msl", "sfc", None), ("10u", "sfc", None), ("10v", "sfc", None)],
@@ -300,6 +302,136 @@ def stats(a) -> None:
         print(f"{init}: sums of {', '.join(models)}", flush=True)
 
 
+# --------------------------------------------------------------------------- windows
+def with_wind(s: pd.DataFrame) -> pd.DataFrame:
+    """``s`` (sums per run) with the wind at each level from its components: the mean CRPS of u and v, the error and
+    spread of the vector (sse and svar added; n the cases of one component)."""
+    rows = []
+    for var_u in sorted(v for v in s["variable"].astype(str).unique() if v.startswith("u")):
+        key = ["model", "network", "region", "lead_h", "init"]
+        u = s[s["variable"] == var_u].set_index(key)
+        v = s[s["variable"] == "v" + var_u[1:]].set_index(key)
+        j = u.join(v, how="inner", lsuffix="_u", rsuffix="_v")
+        if j.empty:
+            continue
+        w = pd.DataFrame({"n": j["n_u"], "variable": "wind" + var_u[1:]}, index=j.index)
+        for c in ("crps", "crps_oe"):
+            w[c] = (j[f"{c}_u"] + j[f"{c}_v"]) / 2
+        for c in ("sse", "svar", "sov"):
+            w[c] = j[f"{c}_u"] + j[f"{c}_v"]
+        rows.append(w.reset_index())
+    return pd.concat([s.astype(dict.fromkeys(D.STAT_BY[:4], str)), *rows], ignore_index=True)
+
+
+def ens_table(t: pd.DataFrame) -> pd.DataFrame:
+    """Scores from summed sums: CRPS (and with observation error), the RMSE of the ensemble mean, the spread (and with
+    observation error) and the spread/skill ratios (mverify.scores.ensemble's)."""
+    n = t["n"]
+    with np.errstate(invalid="ignore", divide="ignore"):
+        rmse, spread = np.sqrt(t["sse"] / n), np.sqrt(t["svar"] / n)
+        spread_oe = np.sqrt((t["svar"] + t["sov"]) / n)
+        return pd.DataFrame(
+            {
+                "n": n,
+                "crps": t["crps"] / n,
+                "crps_oe": t["crps_oe"] / n,
+                "rmse": rmse,
+                "spread": spread,
+                "spread_oe": spread_oe,
+                "ssr": spread / rmse,
+                "ssr_oe": spread_oe / rmse,
+            }
+        ).reset_index()
+
+
+def _groups(lead) -> pd.Series:
+    return pd.Series(
+        np.select([lead.between(a, b) for _, a, b in LEAD_GROUPS], [g for g, _, _ in LEAD_GROUPS], ""), index=lead.index
+    )
+
+
+def ens_card(stats: pd.DataFrame, rel: pd.DataFrame) -> dict | None:
+    """The scorecard of the runs in ``stats`` (``run_stats`` rows; mverify.report.scorecard, CRPS tested pair by pair
+    with mverify.significance's paired test on the per-run mean CRPS), with each row's rank histograms and, for the
+    event thresholds, reliability and Brier scores, per lead group."""
+    from mverify import report
+    from mverify.report import TRUTH
+    from mverify.significance import BY, effective_runs, paired_test
+
+    models, used, left_out = D.window_runs(stats)
+    if not used:
+        return None
+    s = with_wind(stats[stats["model"].isin(models) & stats["init"].isin(used)])
+    table = ens_table(s.groupby(D.STAT_BY)[STAT_SUMS].sum(min_count=1))
+    runs = s.assign(c=s["crps"] / s["n"]).set_index([*BY, "init", "model"])["c"].unstack("model").sort_index()
+    rows = []
+    for i, a in enumerate(models):
+        for b in models[i + 1 :]:
+            for key, g in (runs[a] - runs[b]).dropna().groupby(level=BY):
+                d = g.to_numpy()
+                found = (len(d), effective_runs(d), paired_test(d))
+                rows += [(*key, a, b, *found), (*key, b, a, *found)]
+    tests = pd.DataFrame(rows, columns=[*BY, "model", "reference", "runs", "runs_eff", "p"])
+    inits = {m: [pd.Timestamp(i).strftime("%Y-%m-%dT%H") for i in used] for m in models}
+    card = report.scorecard(table, inits, tests)
+
+    def key(net, var, region):
+        return f"{TRUTH.get(net, (net.lower(),))[0]}:{var}:{region}"
+
+    ranks = [c for c in s.columns if c.startswith("rank_")]
+    h = s.dropna(subset=ranks, how="all").assign(group=lambda x: _groups(x["lead_h"]))
+    h = h[h["group"] != ""].groupby(["network", "variable", "region", "group", "model"])[ranks].sum()
+    rank: dict = {}
+    for (net, var, region, group, model), r in h.iterrows():
+        f = r.to_numpy(float)
+        rank.setdefault(key(net, var, region), {}).setdefault(model, {})[group] = list(np.round(f / f.sum(), 4))
+    r = rel[rel["model"].isin(models) & rel["init"].isin(used)].astype(dict.fromkeys(D.STAT_BY[:4], str))
+    r = r.assign(group=_groups(r["lead_h"]))
+    r = (
+        r[r["group"] != ""]
+        .groupby(["network", "variable", "region", "threshold", "group", "model", "bin"])[["n", "p", "o", "bs"]]
+        .sum()
+    )
+    reliability: dict = {}
+    for (net, var, region, thr, group, model), cell in r.groupby(level=[0, 1, 2, 3, 4, 5]):
+        g = cell.droplevel([0, 1, 2, 3, 4, 5])
+        n, o = g["n"].sum(), g["o"].sum()
+        clim = o / n * (1 - o / n)  # the Brier score of the sample's base rate
+        reliability.setdefault(key(net, var, region), {}).setdefault(f"{thr:g}", {}).setdefault(model, {})[group] = {
+            "bins": [int(b) for b in g.index],
+            "n": [int(x) for x in g["n"]],
+            "p": list(np.round(g["p"] / g["n"], 4)),
+            "o": list(np.round(g["o"] / g["n"], 4)),
+            "brier": round(float(g["bs"].sum() / n), 5),
+            "bss": round(float(1 - g["bs"].sum() / n / clim), 4) if clim else None,
+            "base_rate": round(float(o / n), 4),
+        }
+    card["rank"], card["reliability"] = rank, reliability
+    card["lead_groups"] = [g for g, _, _ in LEAD_GROUPS]
+    first, last = (pd.Timestamp(i).strftime("%Y%m%d%H") for i in (used[0], used[-1]))
+    card["window"] = {"runs": len(used), "first": first, "last": last, "left_out": left_out}
+    return card
+
+
+def windows(a) -> None:
+    """The ensembles' scorecards of the newest 30, 90 and 365 runs and of the whole database once it is longer
+    (ens_scores_<runs>.json, ens_scores_all.json), each once the database holds that many runs' sums."""
+    from mverify import report
+
+    inits = sorted(f.stem.split("_")[1] for f in a.derived.glob("ens-stats_*.parquet"))
+    for runs in WINDOWS:
+        if len(inits) < (runs or 366):
+            continue
+        use = inits[-runs:] if runs else inits
+        stats = pd.read_parquet([a.derived / f"ens-stats_{i}.parquet" for i in use])
+        rel = pd.read_parquet([a.derived / f"ens-rel_{i}.parquet" for i in use])
+        if (card := ens_card(stats, rel)) is None:
+            continue
+        report.write_json(card, D.OUT_DIR / f"ens_scores_{runs or 'all'}.json")
+        w = card["window"]
+        print(f"ensembles {runs or 'all'}: {w['runs']} runs {w['first']} to {w['last']}, left out {w['left_out']}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -312,11 +444,13 @@ def main() -> None:
     s.add_argument("--derived", type=Path, default=Path("."), help="the due runs' ens-sfc/raob/rain files, downloaded")
     s.add_argument("--init", help="only this run (YYYYMMDDHH)")
     s.add_argument("--list", action="store_true", help="print each due run and the files its sums are made from")
+    w = sub.add_parser("windows", help="the scorecards of windows of runs, from the runs' sums")
+    w.add_argument("--derived", type=Path, required=True, help="the database's ens-stats and ens-rel files, downloaded")
     for p in (m, s):
         p.add_argument("--have", type=Path, help="names of the files the database holds, one per line")
         p.add_argument("--archive-out", type=Path, required=True, help="where the files to add are written")
     a = ap.parse_args()
-    {"match": match, "stats": stats}[a.cmd](a)
+    {"match": match, "stats": stats, "windows": windows}[a.cmd](a)
 
 
 if __name__ == "__main__":

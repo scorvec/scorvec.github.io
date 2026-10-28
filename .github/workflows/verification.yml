@@ -10,7 +10,9 @@ name: Model verification scores
 # every pair against the stations, radiosondes and Stage IV, and their sums, in the monthly release
 # verify-db-YYYY-MM). The newest 30, 90 and 365 runs of the database and all of it are scored from the sums
 # (scores_30.json ... scores_all.json, stations_30.json, stations_90.json), and its newest year of rain is mapped
-# (precip_maps.json). verify-backfill.yml fills the database for earlier runs and catches up any it missed. Every
+# (precip_maps.json). The ensembles' runs (verify-ens.yml) are scored the same way from their sums
+# (ens_scores_30.json ... ens_scores_all.json, scripts/verify/ens_verify.py windows).
+# verify-backfill.yml fills the database for earlier runs and catches up any it missed. Every
 # file is copied to the site's object store as well (verifydb.sh mirror), so the database is kept in two places.
 #
 # Time: about 25 min for the surface and 13 min per run for every pressure level, plus the database. The
@@ -93,11 +95,14 @@ jobs:
           scripts/verify/verifydb.sh fetch stats all "$RUNNER_TEMP/derived"
           scripts/verify/verifydb.sh fetch stn 90 "$RUNNER_TEMP/derived"
           scripts/verify/verifydb.sh fetch rain 365 "$RUNNER_TEMP/derived"
+          scripts/verify/verifydb.sh fetch ens-stats all "$RUNNER_TEMP/derived"
+          scripts/verify/verifydb.sh fetch ens-rel all "$RUNNER_TEMP/derived"
       - name: Score
         run: |
           python scripts/verify/mverify_scores.py --db "$MVERIFY_DB" --clean --work "$RUNNER_TEMP/fc" \
             --inits "${{ steps.w.outputs.first }}00" "${{ steps.w.outputs.last }}00" \
             --have "$RUNNER_TEMP/have.txt" --archive-out "$RUNNER_TEMP/db-new" --derived "$RUNNER_TEMP/derived"
+          python scripts/verify/ens_verify.py windows --derived "$RUNNER_TEMP/derived"
       - name: Add the runs to the database
         env:
           GH_TOKEN: ${{ github.token }}
@@ -121,6 +126,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           PATHS="assets/verification/scores.json assets/verification/stations.json assets/verification/precip_maps.json assets/verification/wind_dist.json"
           PATHS="$PATHS $(echo assets/verification/scores_{30,90,365,all}.json assets/verification/stations_{30,90}.json)"
+          PATHS="$PATHS $(echo assets/verification/ens_scores_{30,90,365,all}.json)"
           for i in 1 2 3 4 5; do
             timeout 120 git fetch origin main || { sleep 5; continue; }
             git reset -q FETCH_HEAD
