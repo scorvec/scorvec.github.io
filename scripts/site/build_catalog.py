@@ -229,11 +229,11 @@ PAGES = {
         topic="outlooks",
         tier=1,
         prio=5,
-        models=["ERA5", "GEFS", "C3S"],
-        horizon="Weeks 1–5",  # the target month runs from week 3 to week 7 after the issue
-        region=["Northern Hemisphere", "North America", "Europe"],
-        thumb="assets/monthly/latest_t2m_nh_anom.webp",
-        variable=["Temperature", "Precipitation"],
+        models=["ERA5", "C3S", "GEFS", "ERSST", "TAO"],
+        horizon="Seasons",  # next month, the seasons to month 5 after the issue, Niño-3.4 to month 12
+        region=["Northern Hemisphere", "North America", "Europe", "Tropical Pacific"],
+        thumb="assets/monthly/fc_s1_t2m_nh_anom.webp",
+        variable=["Temperature", "Precipitation", "Height", "SST"],
     ),
     "/models.html": dict(
         kind="page",
