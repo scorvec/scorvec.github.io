@@ -235,8 +235,8 @@ def matched(fc, store, networks: list[str]) -> pd.DataFrame:
 def rain_pairs(fc, store, product: str = "stageiv") -> pd.DataFrame:
     """The 24 h rain of ``fc`` against ``product`` cell by cell on the common grid, every window the analysis has
     inside the forecast's leads: the analysis averaged onto the grid where it covers at least half a cell
-    (mverify.precip.maps.MIN_COVER), one row per model, run, window and cell with the window's end as lead_h and
-    valid_time, fcst and obs in mm and the share of the cell the analysis covers."""
+    (mverify.precip.maps.MIN_COVER), one row per model, run, window and cell (and member, for an ensemble) with the
+    window's end as lead_h and valid_time, fcst and obs in mm and the share of the cell the analysis covers."""
     from mverify.precip.accum import by_run
     from mverify.precip.analyses import PRODUCTS
     from mverify.precip.maps import MIN_COVER
@@ -260,7 +260,7 @@ def rain_pairs(fc, store, product: str = "stageiv") -> pd.DataFrame:
         rg = regridders.setdefault(key, Regridder(tgrid, grid))
         cover = rg.coverage(truth.values)
         obs = np.where(cover >= MIN_COVER, rg(truth.values), np.nan)
-        for (init, _member, _grid), acc in runs.items():
+        for (init, member, _grid), acc in runs.items():
             a, b = end - span - init, end - init
             if a < pd.Timedelta(0) or (total := acc.total(a, b)) is None:
                 continue
@@ -270,6 +270,7 @@ def rain_pairs(fc, store, product: str = "stageiv") -> pd.DataFrame:
                     {
                         "model": fc.name,
                         "init": init,
+                        **({} if member is None else {"member": member}),
                         "lead_h": b / pd.Timedelta("1h"),
                         "valid_time": end,
                         "lat": lat[ok],
