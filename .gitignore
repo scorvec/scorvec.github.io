@@ -260,3 +260,6 @@ assets/sst/anim/tcshear/
 assets/sst/anim/tcshear_hc/
 scripts/tcshear/__pycache__/
 assets/sst/anim/.aifs_anim.lock
+
+# the long-range forecast's C3S tables (c3s_em.py; kept in the c3s-em-v1 release)
+scripts/monthly/data/c3s_em/

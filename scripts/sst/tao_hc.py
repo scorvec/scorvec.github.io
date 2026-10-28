@@ -280,7 +280,8 @@ def index(
     longitude interpolation 0.04-0.09 C.
 
     cat: 0 all 8 live; 1 >= min_moorings live, or (no reanalysis used) live + carried >=
-    min_moorings; 2 complete only through the reanalysis (fewer than min_moorings live); 3 none."""
+    min_moorings; 2 complete only through the reanalysis (fewer than min_moorings live); 3 none.
+    m_<mooring>: each mooring's value in the mean (NaN on days the index is NaN)."""
     idx = pd.date_range(df.index.min(), df.index.max(), freq="D")
     df = df.reindex(idx)
     filled, age = carry(df, persist)
@@ -308,6 +309,7 @@ def index(
         [0, 1, 2],
         3,
     )
+    per = est.where(ok, axis=0).rename(columns=lambda c: f"m_{LON_LABEL[c]}")
     return pd.DataFrame(
         {
             "hc": hc,
@@ -318,7 +320,7 @@ def index(
             "cat": cat,
             "max_age": age.where(src_carry).max(axis=1),
         }
-    )
+    ).join(per)
 
 
 def smooth(s: pd.Series, n: int = 15) -> pd.Series:

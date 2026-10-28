@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GEFS guidance: the dynamical input to Claude's month-ahead forecast, from the whole 35-day GEFS run.
+"""GEFS guidance: the month's second dynamical input to Claude's long-range forecast, the whole 35-day GEFS run.
 
 GEFS runs 35 days from 00Z every day, so the run of the 15th reaches the 18th or 19th of the target month. The run
 gives two predictors, and the blend (blend.py) weighs each against the statistical forecast per grid point on the

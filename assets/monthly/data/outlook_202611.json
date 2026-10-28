@@ -1,6 +1,9 @@
 {
  "target": "2026-11",
+ "span": 1,
+ "lead": 1,
  "target_label": "November 2026",
+ "target_short": "Nov 2026",
  "issued": "2026-10-17",
  "window": "8 Sep \u2013 7 Oct 2026",
  "hindcast": [
@@ -138,6 +141,18 @@
     "CA": 7.392,
     "PE": 0.487,
     "AN": 3.004
+   },
+   "issued": {
+    "inputs": [
+     "statistical",
+     "GEFS"
+    ],
+    "acc": 0.06,
+    "rpss": -0.0,
+    "years": [
+     2000,
+     2019
+    ]
    }
   },
   "t2m": {
@@ -263,6 +278,18 @@
     "CA": 0.362,
     "PE": 0.125,
     "AN": 0.07
+   },
+   "issued": {
+    "inputs": [
+     "statistical",
+     "GEFS"
+    ],
+    "acc": 0.22,
+    "rpss": 0.019,
+    "years": [
+     2000,
+     2019
+    ]
    }
   },
   "prcp": {
@@ -388,6 +415,18 @@
     "CA": 0.163,
     "PE": 0.02,
     "AN": 0.065
+   },
+   "issued": {
+    "inputs": [
+     "statistical",
+     "GEFS"
+    ],
+    "acc": 0.119,
+    "rpss": -0.0,
+    "years": [
+     2000,
+     2019
+    ]
    }
   }
  },

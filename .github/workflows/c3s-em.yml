@@ -1,0 +1,135 @@
+name: C3S ensemble means for the long-range forecast
+
+# Claude's long-range forecast (monthly-outlook.html) blends its statistical forecast with the C3S multi-system mean
+# (scripts/monthly/blend.py). This job keeps the tables that blend reads, as assets of the release `c3s-em-v1`
+# (scripts/monthly/c3s_em.py): per system and variable (2 m temperature, precipitation, 500 hPa height) the
+# ensemble mean of lead months 1-6 on the outlook's 3° Northern Hemisphere cells, for the 1993-2016 hindcast of a
+# start month (hc_em_*_<MM>, built once and kept) and for each issue (fc_em_*_<YYYYMM>). Each raw GRIB (0-90N at 1°)
+# is reduced as it lands and deleted.
+#
+# WHEN. C3S publishes around the 13th; the outlook issues on the 15th (monthly-outlook.yml), so this runs on the
+# 13th-15th (window=true: the laptop dispatcher's daily slot and the crons) and fetches the issue once
+# assets/sst/data/c3s_status.json says c3s.yml has the issue's plume (the systems are out). Each run also builds the
+# hindcast tables still missing for this start month and the next, within a budget; a dispatch with `hindcast` builds
+# any start months (the backfill).
+#
+# CDS: one key, so this shares the `seas5` concurrency group with seas5.yml, seas5-lead7.yml and c3s.yml (never two
+# CDS requests at once). Secrets: CDSAPI_URL, CDSAPI_KEY (as seas5.yml). Licence: Copernicus.
+
+on:
+  schedule:
+    - cron: "50 13 13,14 * *"
+    - cron: "50 3 15 * *"
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: "C3S issue YYYYMM (empty = this month)"
+        required: false
+        default: ""
+      hindcast:
+        description: "start months whose missing hindcast tables to build, e.g. 11,12,01 (empty = this month and the next)"
+        required: false
+        default: ""
+      window:
+        description: "run only on the 13th-16th (the dispatcher's daily slot)"
+        type: boolean
+        default: false
+      budget_min:
+        description: "stop starting new CDS requests after this many minutes"
+        required: false
+        default: "300"
+
+permissions:
+  contents: write   # upload tables to the c3s-em-v1 release
+
+concurrency:
+  group: seas5
+  cancel-in-progress: false
+
+env:
+  TAG: c3s-em-v1
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  em:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      C3S_EM_DIR: ${{ github.workspace }}/c3s_em
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/monthly/c3s_em.py
+            scripts/monthly/mo_grid.py
+            scripts/sst/c3s_nino34.py
+            scripts/sst/c3s_grib.py
+            scripts/sst/c3s_ref.py
+            scripts/lib
+            assets/sst/data/c3s_status.json
+            scripts/constraints.txt
+          sparse-checkout-cone-mode: false
+      - name: Resolve the issue and the start months
+        id: gate
+        run: |
+          I="${{ inputs.issue }}"; [ -n "$I" ] || I=$(date -u +%Y%m)
+          D=$((10#$(date -u +%d)))
+          M=$((10#${I:4:2})); N=$(( M % 12 + 1 ))
+          H="${{ inputs.hindcast }}"; [ -n "$H" ] || H="$M,$N"
+          RUN=1
+          if { [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.window }}" = "true" ]; } && { [ $D -lt 13 ] || [ $D -gt 16 ]; }; then
+            RUN=0
+          fi
+          SI=$(python3 -c "import json; s = json.load(open('assets/sst/data/c3s_status.json')); print(s['issue'].replace('-', '') if s['done']['plume'] else '-')" 2>/dev/null || echo "-")
+          ISSUE=""; [ "$SI" = "$I" ] && ISSUE="--issue $I"
+          echo "issue $I (C3S plume in for: $SI) -> ${ISSUE:-no issue fetch}; hindcast start months $H; run=$RUN"
+          { echo "run=$RUN"; echo "issue=$I"; echo "issue_arg=$ISSUE"; echo "months=$(echo "$H" | tr ',' ' ')"; } >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@v7
+        if: steps.gate.outputs.run == '1'
+        with:
+          python-version: "3.12"
+      - name: Install
+        if: steps.gate.outputs.run == '1'
+        run: pip install --quiet numpy pandas matplotlib eccodes cdsapi 'pyproj>=3.7.2'
+      - name: CDS credentials
+        if: steps.gate.outputs.run == '1'
+        env:
+          CDSAPI_URL: ${{ secrets.CDSAPI_URL }}
+          CDSAPI_KEY: ${{ secrets.CDSAPI_KEY }}
+        run: |
+          if [ -z "$CDSAPI_KEY" ]; then echo "::error::secret CDSAPI_KEY is not set"; exit 1; fi
+          umask 077
+          printf 'url: %s\nkey: %s\n' "${CDSAPI_URL:-https://cds.climate.copernicus.eu/api}" "$CDSAPI_KEY" > ~/.cdsapirc
+      - name: The tables already in the release
+        if: steps.gate.outputs.run == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$C3S_EM_DIR"
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "C3S ensemble means (long-range forecast)" \
+              --notes "Tables of scripts/monthly/c3s_em.py: C3S seasonal ensemble means on the 3-degree NH cells of monthly-outlook.html (hindcast per start month, issue per month). Contains modified Copernicus Climate Change Service information."
+          fi
+          PAT=(-p "fc_em_*_${{ steps.gate.outputs.issue }}.npz")
+          for m in ${{ steps.gate.outputs.months }}; do PAT+=(-p "hc_em_*_$(printf '%02d' $((10#$m))).npz"); done
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" -D "$C3S_EM_DIR" --clobber "${PAT[@]}" \
+            || echo "::warning::no tables of these months in $TAG yet"
+          touch "$RUNNER_TEMP/marker"
+          ls "$C3S_EM_DIR" | wc -l
+      - name: Build what is missing
+        if: steps.gate.outputs.run == '1'
+        run: |
+          python scripts/monthly/c3s_em.py ${{ steps.gate.outputs.issue_arg }} --hindcast ${{ steps.gate.outputs.months }} \
+            --budget-min "${{ inputs.budget_min || '300' }}"
+          python scripts/monthly/c3s_em.py --status "${{ steps.gate.outputs.issue }}"
+      - name: Upload new tables
+        if: always() && steps.gate.outputs.run == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          [ -f "$RUNNER_TEMP/marker" ] || exit 0
+          NEW=$(find "$C3S_EM_DIR" -maxdepth 1 -name '*.npz' -newer "$RUNNER_TEMP/marker" | sort)
+          if [ -z "$NEW" ]; then echo "no new tables"; exit 0; fi
+          echo "$NEW"
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber $NEW

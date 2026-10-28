@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build or extend the ERA5 half-month archive of the month-ahead outlook (layout in mo_grid.py).
+"""Build or extend the ERA5 half-month archive of the long-range outlook (layout in mo_grid.py).
 
 Sources: WeatherBench 2 ERA5 1.5° 6-hourly (1959 to 2022) and ARCO-ERA5 0.25° (ERA5 then ERA5T, 2023 onward), both
 anonymous Google Cloud reads; ARCO is sampled at 00/06/12/18 UTC like the WB2 store, so both halves of the archive

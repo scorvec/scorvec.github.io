@@ -1,27 +1,32 @@
 #!/usr/bin/env python3
-"""Issue the month-ahead outlook (the target month's mean 500 hPa height, 2 m temperature and precipitation
-anomalies and tercile probabilities, Northern Hemisphere) from the ERA5 archive, with its cross-validated hindcast.
-Method in mo_method.py.
+"""Issue the long-range outlook: the month after the issue and the three seasons from it (500 hPa height, 2 m
+temperature and precipitation anomalies and tercile probabilities, Northern Hemisphere), each the statistical
+forecast (mo_method.py) with its cross-validated hindcast, blended with the C3S multi-system mean and, for the month,
+the GEFS run of the 15th (blend.py).
 
-    python scripts/monthly/forecast.py                       # target = the month after today's
+    python scripts/monthly/forecast.py                       # the issue for the month after today's
     python scripts/monthly/forecast.py --target 2026-11
+    python scripts/monthly/forecast.py --seasons-only        # the seasons alone, the month standing as issued
     python scripts/monthly/forecast.py --skill-all           # hindcast skill of every target month (no output)
     python scripts/monthly/forecast.py --target 2026-11 --update vortex_202611.json   # an update (below)
 
-Writes assets/monthly/data/outlook_<YYYYMM>.npz (fields) and .json (summary, analogues, weights, skill), and
-assets/monthly/data/latest.json pointing at the newest outlook. Rendering is render.py.
+Writes assets/monthly/data/outlook_<YYYYMM>.npz (fields) and .json (summary, analogues, weights, skill) for the month
+and season_<YYYYMM>_l<lead>.* for the seasons (YYYYMM their first month), and latest.json naming the newest issue's
+files (and enso_<YYYYMM>.json, enso_fc.py's Niño-3.4 forecast of the issue month, which runs first and also feeds the
+forecast-ENSO component). Rendering is render.py.
 
 An update (--update, after the issue on the 15th, when the stratosphere changes course) re-issues the target month
 from the medium range and the predicted stratosphere (update.py): its days 1-7 from IFS-ENS and AIFS-ENS, its days
 from the 8th from this method trained for those days, from the window ending on the 7th of the target month (ERA5,
 analyses and the two ensembles: update_data.py) and the vortex predicted over days 1-7 (vortex_window.py, every member
-of four ensembles). It is written as outlook_<YYYYMM>u<DD>.* beside the issue it
-updates, which stays on record and is scored as issued.
+of four ensembles). It is written as outlook_<YYYYMM>u<DD>.* beside the issue it updates, which stays on record and is
+scored as issued; the seasons stand.
 """
 
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import sys
 from datetime import UTC, datetime
@@ -64,12 +69,15 @@ def run(
     part: int | None = None,
     window: str = "issue",
     window_live: dict | None = None,
+    lead: int = 1,
+    span: int = 1,
+    enso=None,
 ) -> dict:
     """The outlook for (target_year, month) with its cross-validated hindcast. late_vortex: the update's vortex
     predictor (the window ending on the 7th of the target month), vortex_live its value this year and vortex_members
     the values whose forecasts are averaged (forecast() runs once per value; the hindcast does not depend on them)."""
     P = M.Problem(A, month, vortex, (target_year, vortex_live) if vortex_live is not None else None, part, window,
-                  window_live)  # fmt: skip
+                  window_live, lead, span, enso)  # fmt: skip
     years = P.years
     hind = [int(y) for y in years if y >= HIND0 and y != target_year and P.available(y)]
     k = len(M.COMPONENTS)
@@ -83,9 +91,12 @@ def run(
     hi = np.array([y - years[0] for y in hind])
     K = M.sphere_kernel()
     w = hemi_weights()
-    res = {"target": f"{target_year}-{month:02d}", "month": month, "hindcast_years": hind, "vars": {}}
-    zc = M.month_series(A.cal["z500"], years, month, int(years[0])).reshape(len(years), -1)
-    res["z500_clim"] = np.nanmean(zc[(years >= M.CLIM[0]) & (years <= M.CLIM[1])], 0)
+    res = {"target": f"{target_year}-{month:02d}", "month": month, "lead": lead, "span": span, "hindcast_years": hind,
+           "vars": {}}  # fmt: skip
+    zc = sum(
+        M.month_series(A.cal["z500"], years, month + d, int(years[0])).reshape(len(years), -1) for d in range(span)
+    )
+    res["z500_clim"] = np.nanmean(zc[(years >= M.CLIM[0]) & (years <= M.CLIM[1])], 0) / span
     rt_ok = realtime and P.available(target_year, need_target=False)
     if rt_ok:
         comp_rt = P.forecast(target_year, 0.0, target_year)
@@ -94,7 +105,7 @@ def run(
         top = np.argsort(-np.abs(alpha))[:10]
         res["ca_top"] = [(f"{int(ca_t[t]):d}-{round(ca_t[t] % 1 * 12) + 1:02d}", float(alpha[t])) for t in top]
         it = target_year - years[0]
-        im, yi = (month - 1, target_year) if month > 1 else (12, target_year - 1)
+        im, yi = (month - lead - 1) % 12 + 1, target_year + (month - lead - 1) // 12
         raw = {k: float(A.win[k][A.t(yi, im)]) for k in ("u50eq", "u50v")}
         if window_live is not None:  # an update's window
             raw["u50eq"] = float(window_live["u50eq"])
@@ -177,6 +188,9 @@ def run(
             "msss_trend_nh": float(1 - (w * e2.sum(0)).sum() / (w * ((TRf - Y) ** 2).sum(0)).sum()),
             "hind_cv": cv,
             "hind_obs": Y,
+            "clim_anoms": P.obs[v][clim],
+            "tlo": lo,
+            "thi": hi_t,
         }
         if rt_ok:
             Fm = np.stack([np.stack([cm[c][v] for c in M.COMPONENTS]) for cm in comp_m])  # (members, k, P)
@@ -188,7 +202,6 @@ def run(
             b_, a_ = mixed_terciles(out["fc_members"], err, lo, hi_t, P.obs[v][clim])
             out["p_below_raw"], out["p_above_raw"] = b_, a_
             out["p_below"], out["p_above"] = np.where(sig, b_, 1 / 3), np.where(sig, a_, 1 / 3)
-            out["tlo"], out["thi"] = lo, hi_t
         res["vars"][v] = out
     return res
 
@@ -244,16 +257,20 @@ def bh_mask(p: np.ndarray, q: float) -> np.ndarray:
 
 def summarise(res: dict, issued: str) -> dict:
     w = hemi_weights()
+    y, span, lead = int(res["target"][:4]), res.get("span", 1), res.get("lead", 1)
     s = {
         "target": res["target"],
-        "target_label": M.target_label(int(res["target"][:4]), res["month"]),
+        "span": span,
+        "lead": lead,
+        "target_label": M.target_label(y, res["month"], span),
+        "target_short": M.target_short(y, res["month"], span),
         "issued": issued,
-        "window": window_label(int(res["target"][:4]), res["month"], res.get("update") is not None),
+        "window": window_label(y, res["month"], res.get("update") is not None, lead),
         "hindcast": [res["hindcast_years"][0], res["hindcast_years"][-1]],
         "components": {c: M.NAMES[c] for c in M.COMPONENTS},
         "vars": {},
     }
-    for key in ("analogs", "ca_top", "indices", "blend", "update"):
+    for key in ("analogs", "ca_top", "indices", "c3s", "blend", "update", "enso"):
         if key in res:
             s[key] = res[key]
     for v, o in res["vars"].items():
@@ -274,6 +291,14 @@ def summarise(res: dict, issued: str) -> dict:
                 c: round(float((w * o["beta"][:, i]).sum() / w.sum()), 3) for i, c in enumerate(M.COMPONENTS)
             },
         }
+        # the issued forecast's own hindcast: the statistical forecast's, or the last blend stage issued
+        sv["issued"] = {"inputs": ["statistical"], "acc": sv["nh_acc_mean"], "rpss": sv["rpss_nh"],
+                        "years": s["hindcast"]}  # fmt: skip
+        for key, name in (("c3s", "C3S"), ("blend", "GEFS")):
+            st = res.get(key, {}).get(v)
+            if st and st["issued"]:
+                sv["issued"] = {"inputs": [*sv["issued"]["inputs"], name], "acc": st["scores"]["blend"]["acc"],
+                                "rpss": st["scores"]["blend"]["rpss"], "years": st["years"]}  # fmt: skip
         if "fc" in o:
             fc = o["fc"]
             sv["fc_nh_mean"] = round(float((w * fc).sum() / w.sum()), 3)
@@ -285,31 +310,106 @@ def summarise(res: dict, issued: str) -> dict:
     return s
 
 
-def window_label(y: int, m: int, update: bool = False) -> str:
-    """The predictor window: the ~30 days ending on the 7th of the issue month (an update's: of the target month)."""
+def window_label(y: int, m: int, update: bool = False, lead: int = 1) -> str:
+    """The predictor window: the ~30 days ending on the 7th of the issue month, `lead` months before the target's
+    first month (an update's: of the target month)."""
     import calendar
 
-    im, yi = (m - 1, y) if m > 1 else (12, y - 1)
+    im, yi = (m - lead - 1) % 12 + 1, y + (m - lead - 1) // 12
     if update:
         im, yi = m, y
     pm = im - 1 if im > 1 else 12
     return f"{G.SPLIT_DAY} {calendar.month_abbr[pm]} – {G.SPLIT_DAY - 1} {calendar.month_abbr[im]} {yi}"
 
 
-def save(res: dict, summary: dict, tag: str) -> None:
+def save(res: dict, summary: dict, name: str) -> None:
+    """assets/monthly/data/<name>.npz (the fields) and .json (the summary)."""
     OUT.mkdir(parents=True, exist_ok=True)
     arrs = {}
     for v, o in res["vars"].items():
         keys = ("fc", "p_below", "p_above", "p_below_raw", "p_above_raw", "tlo", "thi", "r", "sig", "rmse", "rpss")
-        keys = (*keys, "msss_trend", "comp", "contrib", "models_fc", "lead_fc", "blend_fc", "blend_beta", "mr_fc")
+        keys = (*keys, "msss_trend", "comp", "contrib", "models_fc", "lead_fc", "mr_fc", "c3s_fc")
+        keys = (*keys, "c3s_beta", "c3s_blend_fc", "models_beta", "models_blend_fc", "issued_r")
         keys = (*keys, *(f"stat_{k}" for k in ("fc", "p_below", "p_above", "p_below_raw", "p_above_raw", "sig", "r")))
         for key in (*keys, "beta"):
             if key in o:
                 arrs[f"{v}_{key}"] = np.asarray(o[key]).astype(np.bool_ if key.endswith("sig") else np.float32)
     arrs["z500_clim"] = res["z500_clim"].astype(np.float32)
-    np.savez_compressed(OUT / f"outlook_{tag}.npz", **arrs)
-    (OUT / f"outlook_{tag}.json").write_text(json.dumps(summary, indent=1))
-    (OUT / "latest.json").write_text(json.dumps({"target": res["target"], "file": f"outlook_{tag}.json"}, indent=1))
+    np.savez_compressed(OUT / f"{name}.npz", **arrs)
+    (OUT / f"{name}.json").write_text(json.dumps(summary, indent=1))
+
+
+def season_name(ty: int, tm: int, lead: int) -> str:
+    """The file stem of a season outlook: its first month and its lead (months from the issue)."""
+    return f"season_{ty}{tm:02d}_l{lead}"
+
+
+def write_latest(**kw) -> None:
+    """latest.json: the newest issue's files (an update replaces the month's file and keeps the rest)."""
+    p = OUT / "latest.json"
+    cur = json.loads(p.read_text()) if p.exists() else {}
+    cur.update(kw)
+    p.write_text(json.dumps(cur, indent=1))
+
+
+def enso_live(issue: str, target_year: int):
+    """The forecast-ENSO component's input with this issue's Niño-3.4 forecast (enso_fc.py writes it first), or the
+    hindcast table alone when there is no issue (the component is then zero for the year being forecast)."""
+    import enso_fc as EF
+
+    if not EF.HC_TABLE.exists():
+        return None
+    live = None
+    p = OUT / f"enso_{issue.replace('-', '')}.json"
+    if p.exists():
+        e = json.loads(p.read_text())
+        sc = EF.roni_scale()
+        rel = {t: x / sc[int(t[5:]) - 1] for t, x in zip(e["targets"], e["series"]["roni"]["claude"], strict=True)}
+        live = {"year": target_year, "rel": rel}
+    return EF.EnsoTable(live=live)
+
+
+def issue_all(A: M.Archive, ty: int, tm: int, issued: str, force: bool, seasons_only: bool = False) -> None:
+    """The issue for target month (ty, tm) on the 15th of the month before: the month itself and the three seasons
+    from it (lead 1-3), each the statistical forecast blended with C3S where that beats it, the month also with
+    GEFS. seasons_only: the seasons alone, the month's outlook standing as issued."""
+    import blend as B  # blend imports this module
+
+    iy, im = (ty, tm - 1) if tm > 1 else (ty - 1, 12)
+    issue = f"{iy}{im:02d}"
+    done = (OUT / season_name(ty, tm, 1)).with_suffix(".json") if seasons_only else OUT / f"outlook_{ty}{tm:02d}.json"
+    if done.exists() and not force:
+        print(f"the {issue} issue was already made; --force re-issues it")
+        return
+    E = enso_live(f"{iy}-{im:02d}", ty)
+    seasons = []
+    for span, lead in ((3, 1), (3, 2), (3, 3)) if seasons_only else ((1, 1), (3, 1), (3, 2), (3, 3)):
+        m0 = (tm - 1 + max(lead - 1, 0)) % 12 + 1
+        y0 = ty + (tm - 1 + max(lead - 1, 0)) // 12
+        E_k = E
+        if E is not None and E.live is not None:  # the season's year: the forecast fills that year's row
+            E_k = copy.copy(E)
+            E_k.live = {**E.live, "year": y0}
+        res = run(y0, m0, A, lead=lead, span=span, enso=E_k)
+        if "analogs" not in res:
+            raise SystemExit(f"the predictor window for the {issue} issue is not complete in the archive")
+        res = B.apply_c3s(res, issue, m0, span)
+        if span == 1:
+            res = B.apply_gefs(res, y0, m0)
+        name = f"outlook_{y0}{m0:02d}" if span == 1 else season_name(y0, m0, lead)
+        res["enso"] = {"used": E_k is not None and E_k.live is not None}
+        summary = summarise(res, issued)
+        save(res, summary, name)
+        if span == 3:
+            seasons.append(f"{name}.json")
+        print(f"{name}: " + ", ".join(f"{v} ACC {summary['vars'][v]['nh_acc_mean']:+.3f}"
+                                      + (" +C3S" if res["c3s"].get(v, {}).get("issued") else "")
+                                      + (" +GEFS" if res.get("blend", {}).get(v, {}).get("issued") else "")
+                                      for v in M.TARGETS), flush=True)  # fmt: skip
+    enso = f"enso_{issue}.json"
+    month = {} if seasons_only else {"file": f"outlook_{ty}{tm:02d}.json"}
+    write_latest(issue=f"{iy}-{im:02d}", target=f"{ty}-{tm:02d}", seasons=seasons,
+                 enso=enso if (OUT / enso).exists() else None, **month)  # fmt: skip
 
 
 def main() -> int:
@@ -317,6 +417,7 @@ def main() -> int:
     ap.add_argument("--target", help="YYYY-MM (default: the month after today's)")
     ap.add_argument("--skill-all", nargs="?", const="1,2,3,4,5,6,7,8,9,10,11,12", help="hindcast skill of months")
     ap.add_argument("--force", action="store_true", help="re-issue an outlook that already exists")
+    ap.add_argument("--seasons-only", action="store_true", help="issue the seasons alone (the month stands as issued)")
     ap.add_argument("--update", type=Path, help="an update: the vortex over the target's days 1-7 (vortex_window.py)")
     ap.add_argument("--data", type=Path, help="an update: its first week and window (update_data.py)")
     a = ap.parse_args()
@@ -325,7 +426,7 @@ def main() -> int:
         import blend as B  # blend imports this module
 
         for m in map(int, a.skill_all.split(",")):
-            res = B.apply(run(9999, m, A, realtime=False), A, 9999, m, realtime=False)
+            res = B.apply_gefs(run(9999, m, A, realtime=False), 9999, m, realtime=False)
             line = [f"{m:2d}"]
             for v in M.TARGETS:
                 s = summarise(res, "")["vars"][v]
@@ -349,23 +450,19 @@ def main() -> int:
         ty, tm = map(int, a.target.split("-"))
     else:
         ty, tm = (now.year, now.month + 1) if now.month < 12 else (now.year + 1, 1)
-    tag = f"{ty}{tm:02d}" + (f"u{now:%d}" if a.update else "")
+    if not a.update:
+        issue_all(A, ty, tm, now.strftime("%Y-%m-%d"), a.force, a.seasons_only)
+        return 0
+    tag = f"{ty}{tm:02d}u{now:%d}"
     if (OUT / f"outlook_{tag}.json").exists() and not a.force:
         print(f"the {tag} outlook was already issued; --force re-issues it")
         return 0
-    if a.update:
-        import update as U  # update imports this module
+    import update as U  # update imports this module
 
-        res = U.issue(ty, tm, A, a.update, a.data, OUT / f"outlook_{ty}{tm:02d}.json")
-    else:
-        res = run(ty, tm, A)
-        if "analogs" not in res:
-            raise SystemExit(f"the predictor window for {ty}-{tm:02d} is not complete in the archive")
-        import blend as B  # blend imports this module
-
-        res = B.apply(res, A, ty, tm)
+    res = U.issue(ty, tm, A, a.update, a.data, OUT / f"outlook_{ty}{tm:02d}.json")
     summary = summarise(res, now.strftime("%Y-%m-%d"))
-    save(res, summary, tag)
+    save(res, summary, f"outlook_{tag}")
+    write_latest(file=f"outlook_{tag}.json")
     print(json.dumps(summary, indent=1)[:3000])
     return 0
 

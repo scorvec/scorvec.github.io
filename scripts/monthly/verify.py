@@ -1,25 +1,27 @@
 #!/usr/bin/env python3
-"""Score every issued month-ahead outlook whose target month is complete in the ERA5 archive.
+"""Score every issued outlook whose target is complete in the ERA5 archive, and every Niño-3.4 forecast's months.
 
     python scripts/monthly/verify.py
 
 For each assets/monthly/data/outlook_<YYYYMM>.npz with a complete target month (and each update of it,
-outlook_<YYYYMM>u<DD>.npz, scored as a row of its own), per variable over 20-90N
-(area-weighted): the anomaly correlation (uncentred) and RMSE of the outlook, the same for the trend component
-alone (the no-skill-beyond-warming reference), the share of the area where the outlook had the sign right, and the
-ranked probability skill score of its tercile probabilities against climatology (1/3 each). Where the issued
-forecast was the blend with GEFS (blend.py), its inputs are scored too (stat_acc, and models_acc for GEFS's forecast of
-the month's days it reaches, against the whole month).
+outlook_<YYYYMM>u<DD>.npz, scored as a row of its own) and each season, season_<YYYYMM>_l<lead>.npz, per variable
+over 20-90N (area-weighted): the anomaly correlation (uncentred) and RMSE of the outlook, the same for the trend
+component alone (the no-skill-beyond-warming reference), the share of the area where the outlook had the sign right,
+and the ranked probability skill score of its tercile probabilities against climatology (1/3 each). The issued
+forecast's inputs are scored too where it was a blend (stat_acc; c3s_acc for the C3S multi-system mean; models_acc
+for GEFS's forecast of the month's days it reaches, against the whole month).
 
-Benchmark: the C3S multi-system seasonal forecast issued in the same month (published around the 13th, two days
-before this outlook), at its lead month 2, which is the same target month. Its ensemble-mean anomalies per system
-(2 m temperature and precipitation; C3S has no 500 hPa height in its anomaly set) are the `is_anom_*` tables that
-c3s.yml keeps in the `c3s-ref-v1` release; they are averaged with equal weight, moved from the C3S 1993-2016 base to
-1991-2020 with ERA5, regridded onto the outlook's 3° cells and cached as bench_c3s_<YYYYMM>.npz. The benchmark is a
-yardstick only: nothing from it enters the outlook.
+C3S: an outlook that blended it keeps the multi-system mean it used (c3s_fc). One issued before the blend, or where
+C3S did not enter, is scored against the C3S issue of the same month at lead month 2 as a yardstick: the systems'
+ensemble-mean anomalies (2 m temperature and precipitation) are the `is_anom_*` tables of the `c3s-ref-v1` release,
+averaged with equal weight, moved from the C3S 1993-2016 base to 1991-2020 with ERA5, regridded onto the outlook's
+3° cells and cached as bench_c3s_<YYYYMM>.npz.
 
-Writes assets/monthly/data/verification.json (one row per target month, newest first) and
-assets/monthly/verify_<YYYYMM>.webp (outlook beside what happened).
+Niño-3.4: each enso_<YYYYMM>.json (enso_fc.py) against the observed months of assets/sst/data/nino_history.json
+(ERSSTv6, 1991-2020): the error of Claude's forecast, the statistical model and the C3S mean at every lead observed.
+
+Writes assets/monthly/data/verification.json (one row per target, newest first), verification_enso.json and
+assets/monthly/verify_<YYYYMM>.webp (a month's outlook beside what happened).
 """
 
 from __future__ import annotations
@@ -80,12 +82,18 @@ def month_anoms(A: M.Archive, v: str, m: int) -> np.ndarray:
     return M.clim_anom(x, years)
 
 
-def observed(A: M.Archive, y: int, m: int, variables) -> dict | None:
-    if y > A.years[-1]:
-        return None
+def observed(A: M.Archive, y: int, m: int, variables, span: int = 1) -> dict | None:
+    """The target's observed anomalies (the `span` months from (y, m), day-weighted), or None if incomplete."""
+    wd = M.span_days(np.array([y]), m, span)[0]
     out = {}
     for v in variables:
-        a = month_anoms(A, v, m)[y - A.years[0]]
+        parts = []
+        for d in range(span):
+            yy, mm = y + (m + d - 1) // 12, (m + d - 1) % 12 + 1
+            if not A.years[0] <= yy <= A.years[-1]:
+                return None
+            parts.append(month_anoms(A, v, mm)[yy - A.years[0]])
+        a = sum(w * x for w, x in zip(wd / wd.sum(), parts, strict=True))
         if not np.isfinite(a).all():
             return None
         out[v] = a
@@ -167,44 +175,84 @@ def figure(label: str, o: dict, obs: dict, sc: dict, variables, path: Path) -> N
     plt.close(fig)
 
 
+def enso_rows() -> list[dict]:
+    """Each Niño-3.4 issue's error at the leads observed so far (Niño-3.4, ERSSTv6 against 1991-2020)."""
+    hist = json.loads((REPO / "assets" / "sst" / "data" / "nino_history.json").read_text())
+    obs = dict(zip(hist["months"], hist["series"]["nino34"]["anom"], strict=True))
+    out = []
+    for p in sorted(DATA.glob("enso_[0-9]*.json")):
+        e = json.loads(p.read_text())
+        s = e["series"]["n34"]
+        seen = [j for j, t in enumerate(e["targets"]) if obs.get(t) is not None]
+        if not seen:
+            continue
+        o = np.array([obs[e["targets"][j]] for j in seen])
+        row = {
+            "issued": e["issued"],
+            "init": e["init"],
+            "months": [e["targets"][j] for j in seen],
+            "obs": o.round(3).tolist(),
+        }
+        for key in ("claude", "stat", "c3s"):
+            f = np.array([np.nan if s[key][j] is None else s[key][j] for j in seen], float)
+            ok = np.isfinite(f)
+            if ok.any():
+                row[key] = f.round(3).tolist()
+                row[f"{key}_mae"] = round(float(np.abs(f[ok] - o[ok]).mean()), 3)
+        out.append(row)
+    return sorted(out, key=lambda r: r["init"], reverse=True)
+
+
 def main() -> int:
     A = M.load_archive()
     w = weights()
     rows = []
-    for p in sorted(DATA.glob("outlook_[0-9]*.npz")):
+    files = [(p, 1) for p in sorted(DATA.glob("outlook_[0-9]*.npz"))] + [
+        (p, 3) for p in sorted(DATA.glob("season_*.npz"))
+    ]
+    for p, span in files:
         tag = p.stem.split("_")[1]
         y, m = int(tag[:4]), int(tag[4:6])
         with np.load(p) as f:
             o = {k: f[k] for k in f.files}
         variables = [v for v in M.TARGETS if f"{v}_fc" in o]
-        obs = observed(A, y, m, variables)
+        obs = observed(A, y, m, variables, span)
         if obs is None:
             continue
-        summ = json.loads((DATA / f"outlook_{tag}.json").read_text())
-        row = {"target": f"{y}-{m:02d}", "tag": tag, "label": summ["target_label"], "issued": summ["issued"]}
+        summ = json.loads(p.with_suffix(".json").read_text())
+        row = {
+            "target": f"{y}-{m:02d}",
+            "tag": p.stem,
+            "label": summ["target_label"],
+            "issued": summ["issued"],
+            "span": span,
+        }
         if "update" in summ:
             row["label"] += " (update)"
-        bench = c3s_benchmark(A, y, m)
+        bench = None if span > 1 or any(f"{v}_c3s_fc" in o for v in variables) else c3s_benchmark(A, y, m)
         for v in variables:
             s = scores(o[f"{v}_fc"], obs[v], w)
             tr = scores(o[f"{v}_comp"][M.COMPONENTS.index("TR")], obs[v], w)
             s["acc_trend"], s["rmse_trend"] = tr["acc"], tr["rmse"]
             if f"{v}_p_below" in o and f"{v}_tlo" in o:
                 s["rpss"] = rpss(o[f"{v}_p_below"], o[f"{v}_p_above"], obs[v], o[f"{v}_tlo"], o[f"{v}_thi"], w)
-            for key, lab in (("stat_fc", "stat"), ("models_fc", "models")):  # the blend's two inputs, when blended
+            for key, lab in (("stat_fc", "stat"), ("c3s_fc", "c3s"), ("models_fc", "models")):  # a blend's inputs
                 if f"{v}_{key}" in o:
                     s[f"{lab}_acc"] = scores(o[f"{v}_{key}"], obs[v], w)["acc"]
             if bench is not None and v in bench:
                 b = scores(bench[v], obs[v], w)
                 s["c3s_acc"], s["c3s_rmse"], s["c3s_n"] = b["acc"], b["rmse"], int(bench[f"{v}_n"])
             row[v] = s
-        fp = R.ASSETS / f"verify_{tag}.webp"
-        if not fp.exists():  # drawn once; the scores are recomputed every run (ERA5T is replaced by ERA5 later)
-            figure(summ["target_label"], o, obs, row, variables, fp)
+        if span == 1:
+            fp = R.ASSETS / f"verify_{tag}.webp"
+            if not fp.exists():  # drawn once; the scores are recomputed every run (ERA5T is replaced by ERA5 later)
+                figure(summ["target_label"], o, obs, row, variables, fp)
+            row["figure"] = fp.name
         rows.append(row)
-        print(f"verified {tag}: " + ", ".join(f"{v} ACC {row[v]['acc']:+.2f}" for v in variables), flush=True)
+        print(f"verified {p.stem}: " + ", ".join(f"{v} ACC {row[v]['acc']:+.2f}" for v in variables), flush=True)
     rows.sort(key=lambda r: (r["target"], r["issued"]), reverse=True)
     (DATA / "verification.json").write_text(json.dumps(rows, indent=1))
+    (DATA / "verification_enso.json").write_text(json.dumps(enso_rows(), indent=1))
     return 0
 
 

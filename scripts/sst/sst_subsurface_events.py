@@ -565,6 +565,23 @@ def heat_content(
     return cur
 
 
+def monthly_moorings(cur: pd.DataFrame) -> dict:
+    """Each mooring's monthly mean anomaly (the values the daily index averages: live, reanalysis fill, carried or
+    interpolated) for every month of the frame with an index on at least 20 days; the month-ahead outlook's ENSO
+    model (scripts/monthly/enso_fc.py) starts from these, the ORAS5 record it was trained on lagging by weeks."""
+    cols = [f"m_{H.LON_LABEL[lo]}" for lo in H.LONS]
+    g = cur[cols].groupby(cur.index.to_period("M"))
+    n = cur["hc"].groupby(cur.index.to_period("M")).count()
+    keep = n[n >= 20].index
+    mean = g.mean().loc[keep]
+    return {
+        "moorings": [H.LON_LABEL[lo] for lo in H.LONS],
+        "months": [str(m) for m in keep],
+        "days": [int(n[m]) for m in keep],
+        "anom": [[round(float(x), 3) for x in row] for row in mean.to_numpy()],
+    }
+
+
 def write_json(frames: dict, cur_year: int, meta: dict) -> None:
     """Small companion JSON (latest value, coverage of the last 60 days) for the page and for checks."""
     cur = frames[cur_year]
@@ -586,6 +603,7 @@ def write_json(frames: dict, cur_year: int, meta: dict) -> None:
         },
         "validation": meta.get("validation", {}),
         "fill_used": bool(meta.get("fill", {}).get("use")),
+        "monthly": monthly_moorings(cur),
         "recent": [
             {
                 "date": d.strftime("%Y-%m-%d"),

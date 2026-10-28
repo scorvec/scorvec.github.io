@@ -1,4 +1,4 @@
-"""Shared grid, coarsening and archive I/O of the month-ahead outlook (scripts/monthly/).
+"""Shared grid, coarsening and archive I/O of the long-range outlook (scripts/monthly/).
 
 The archive holds ERA5 half-month blocks on a 3° grid, one file per year (scripts/monthly/data/era5_<YYYY>.npz):
 

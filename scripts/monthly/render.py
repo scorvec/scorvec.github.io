@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
-"""Draw the month-ahead outlook figures from assets/monthly/data/outlook_<YYYYMM>.{npz,json} (forecast.py).
+"""Draw the outlook figures of the newest issue (latest.json): the month and the three seasons (forecast.py).
 
-    python scripts/monthly/render.py                 # the outlook named by latest.json
-    python scripts/monthly/render.py --target 2026-11
+    python scripts/monthly/render.py
 
-Figures (assets/monthly/, webp), for each variable (z500, t2m, prcp):
-    latest_<var>_<region>_<kind>[_nomask].webp   region nh / na / eu, kind anom (expected anomaly) or prob (tercile
-                                                 probabilities), with and without the skill mask
-    outlook_<YYYYMM>_<var>_<kind>.webp           the hemispheric maps of every issue, kept (skill mask on)
-    components_<var>.webp                        each component's weighted contribution and the sum
-    blend_<var>.webp                             statistical forecast, model mean and blend (when there is guidance)
-    skill_<var>.webp                             cross-validated hindcast skill of this target month
+Figures (assets/monthly/, webp), per target key (m1 = the month, s1-s3 = the seasons from it) and variable (z500,
+t2m, prcp):
+    fc_<key>_<var>_<region>_<kind>.webp   region nh / na / eu, kind anom (expected anomaly) or prob (tercile
+                                          probabilities); grey where the hindcast has no significant skill
+    ingredients_<key>_<var>.webp          the statistical forecast, the C3S mean, GEFS (the month) and the issue
+    components_<key>_<var>.webp           the statistical forecast's six weighted components and their sum
+    skill_<key>_<var>.webp                the issued forecast's hindcast correlation and the yearly scores
+    outlook_<YYYYMM>_<var>_<kind>.webp    the month's hemispheric maps of every issue, kept
+    update_<var>.webp                     an update's two parts (forecast.py --update)
 """
 
 from __future__ import annotations
 
-import datetime
-
 import argparse
 import calendar
+import datetime
 import json
 import shutil
 import sys
@@ -43,14 +43,13 @@ from cartopy.util import add_cyclic_point
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import mo_grid as G
-import mo_method as M
 
 REPO = HERE.parents[1]
 ASSETS = REPO / "assets" / "monthly"
 DATA = ASSETS / "data"
 LAT0 = 20.0
-INK, MUTED = "#1a1a1a", "#5b6470"
-CREDIT = "scorvec.com · Claude's month-ahead forecast · ERA5 statistics, blended with the 35-day GEFS where it adds skill · anomalies vs 1991–2020"
+INK, MUTED, NOSKILL = house.INK, house.MUTED, "#e9e7e2"
+CREDIT = "scorvec.com · Claude's long-range forecast · anomalies vs 1991–2020"
 
 LEVELS = {
     "z500": np.array([-90, -75, -60, -48, -36, -24, -15, -8, 8, 15, 24, 36, 48, 60, 75, 90], float),
@@ -68,6 +67,7 @@ CAT = {
     "prcp": (("above", "Greens"), ("below", "YlOrBr")),
 }
 PROB_LEVELS = np.array([40, 50, 60, 70, 80, 100], float)
+INPUT_LABEL = {"statistical": "statistical", "C3S": "C3S", "GEFS": "GEFS"}
 
 REGIONS = {
     "nh": ("Northern Hemisphere", None, None),
@@ -88,7 +88,7 @@ def polar_ax(fig, rect):
     th = np.linspace(0, 2 * np.pi, 200)
     circle = mpath.Path(np.vstack([np.sin(th), np.cos(th)]).T * 0.5 + 0.5)
     ax.set_boundary(circle, transform=ax.transAxes)
-    ax.add_feature(cfeature.COASTLINE.with_scale("110m"), lw=0.45, edgecolor="#3a3a3a")
+    ax.add_feature(cfeature.COASTLINE.with_scale("110m"), lw=0.45, edgecolor="#3a3a3a", zorder=4)
     ax.gridlines(lw=0.3, color="#9aa3ad", alpha=0.6, xlocs=range(-180, 180, 30), ylocs=[30, 45, 60, 75])
     return ax
 
@@ -99,164 +99,248 @@ def map_ax(fig, rect, region: str):
     _, proj, ext = REGIONS[region]
     ax = fig.add_axes(rect, projection=proj)
     ax.set_extent(ext, crs=ccrs.PlateCarree())
-    ax.add_feature(cfeature.COASTLINE.with_scale("50m"), lw=0.5, edgecolor="#3a3a3a")
-    ax.add_feature(cfeature.BORDERS.with_scale("50m"), lw=0.3, edgecolor="#777")
+    ax.add_feature(cfeature.COASTLINE.with_scale("50m"), lw=0.5, edgecolor="#3a3a3a", zorder=4)
+    ax.add_feature(cfeature.BORDERS.with_scale("50m"), lw=0.3, edgecolor="#777", zorder=4)
     if region == "na":
-        ax.add_feature(cfeature.STATES.with_scale("50m"), lw=0.2, edgecolor="#999")
+        ax.add_feature(cfeature.STATES.with_scale("50m"), lw=0.2, edgecolor="#999", zorder=4)
     ax.gridlines(lw=0.3, color="#9aa3ad", alpha=0.6, xlocs=range(-180, 180, 20), ylocs=range(10, 90, 10))
     return ax
 
 
-def shade(ax, v, var, alpha=1.0):
+def shade(ax, v, var):
     f, lon = grid(v)
-    m = ax.contourf(
-        lon, G.LAT_NH, f, levels=LEVELS[var], cmap=CMAP[var], extend="both", alpha=alpha, transform=ccrs.PlateCarree()
-    )
+    m = ax.contourf(lon, G.LAT_NH, f, levels=LEVELS[var], cmap=CMAP[var], extend="both", transform=ccrs.PlateCarree())
     m.set_edgecolor("face")
     return m
 
 
-def hatch(ax, sig):
-    """Fade and hatch where the hindcast shows no significant skill."""
+def no_skill(ax, sig):
+    """Grey over the points without significant hindcast skill: nothing is shown there."""
     sg, lon = grid(sig.astype(float))
-    ax.contourf(lon, G.LAT_NH, sg, levels=[-1, 0.5], colors=["white"], alpha=0.55, transform=ccrs.PlateCarree())
-    ax.contourf(lon, G.LAT_NH, sg, levels=[-1, 0.5], colors="none", hatches=["////"], transform=ccrs.PlateCarree())
+    ax.contourf(lon, G.LAT_NH, sg, levels=[-1, 0.5], colors=[NOSKILL], transform=ccrs.PlateCarree(), zorder=3)
 
 
-def prob_layers(o: dict, var: str, raw: bool = False) -> list[tuple[np.ndarray, str]]:
+def prob_layers(o: dict, var: str) -> list[tuple[np.ndarray, str]]:
     """The tercile-probability map as CPC draws it: where above (below) normal is the most likely category and
-    reaches 40 %, its probability in that category's colours; elsewhere blank (near normal or equal chances). The
-    issued probabilities are equal chances where the hindcast has no skill; raw=True shows them unmasked."""
-    suf = "_raw" if raw else ""
-    pa, pb = 100 * o[f"{var}_p_above{suf}"], 100 * o[f"{var}_p_below{suf}"]
+    reaches 40 %, its probability in that category's colours; elsewhere blank (near normal or equal chances)."""
+    pa, pb = 100 * o[f"{var}_p_above"], 100 * o[f"{var}_p_below"]
     pn = 100 - pa - pb
     up = np.where((pa >= 40) & (pa > pb) & (pa > pn), pa, np.nan)
     dn = np.where((pb >= 40) & (pb > pa) & (pb > pn), pb, np.nan)
     return [(up, CAT[var][0][1]), (dn, CAT[var][1][1])]
 
 
-def draw_prob(ax, o, var, raw=False):
-    for f, cmap in prob_layers(o, var, raw):
+def draw_prob(ax, o, var):
+    for f, cmap in prob_layers(o, var):
         g, lon = grid(f)
-        cm = plt.get_cmap(cmap)
-        cols = cm(np.linspace(0.3, 0.95, len(PROB_LEVELS) - 1))
+        cols = plt.get_cmap(cmap)(np.linspace(0.3, 0.95, len(PROB_LEVELS) - 1))
         m = ax.contourf(lon, G.LAT_NH, g, levels=PROB_LEVELS, colors=cols, transform=ccrs.PlateCarree())
         m.set_edgecolor("face")
 
 
+def anom_bar(fig, rect, var, label):
+    cax = fig.add_axes(rect)
+    sm = plt.cm.ScalarMappable(cmap=CMAP[var], norm=mcolors.BoundaryNorm(LEVELS[var], 256, extend="both"))
+    cb = fig.colorbar(sm, cax=cax, orientation="horizontal", extend="both", ticks=LEVELS[var])
+    cb.ax.tick_params(labelsize=7.5, length=2)
+    cb.outline.set_edgecolor(house.EDGE)
+    cb.set_label(label, fontsize=8.5, color=house.INK2)
+
+
 def prob_legend(fig, rect, var):
     """Two small colour bars: above normal and below normal."""
-    for (lab, cmap), x0 in zip(CAT[var], (rect[0], rect[0] + rect[2] / 2 + 0.02)):
+    for (lab, cmap), x0 in zip(CAT[var], (rect[0], rect[0] + rect[2] / 2 + 0.02), strict=True):
         cax = fig.add_axes([x0, rect[1], rect[2] / 2 - 0.02, rect[3]])
         cols = plt.get_cmap(cmap)(np.linspace(0.3, 0.95, len(PROB_LEVELS) - 1))
         cmp = mcolors.ListedColormap(cols)
         norm = mcolors.BoundaryNorm(PROB_LEVELS, cmp.N)
         cb = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmp), cax=cax, orientation="horizontal")
         cb.set_ticks(PROB_LEVELS[:-1])
-        cb.ax.tick_params(labelsize=7.5)
-        cb.set_label(f"probability of {lab} normal (%)", fontsize=8.5)
+        cb.ax.tick_params(labelsize=7.5, length=2)
+        cb.outline.set_edgecolor(house.EDGE)
+        cb.set_label(f"probability of {lab} normal (%)", fontsize=8.5, color=house.INK2)
 
 
-def outlook_map(o: dict, s: dict, var: str, region: str, kind: str, path: Path, mask: bool = True) -> None:
-    fc = o[f"{var}_fc"]
-    nh = region == "nh"
-    fig = plt.figure(figsize=(7.6, 8.4) if nh else (8.6, 7.4))
-    rect = [0.04, 0.135, 0.92, 0.735] if nh else [0.03, 0.15, 0.94, 0.71]
-    ax = map_ax(fig, rect, region)
-    if kind == "anom":
-        shade(ax, fc, var)
-    else:
-        draw_prob(ax, o, var, raw=not mask)
-    if mask:
-        hatch(ax, o[f"{var}_sig"])
-    if var == "z500" and kind == "anom":
-        full, lon2 = grid(o["z500_clim"] + fc)
-        cs = ax.contour(
-            lon2,
-            G.LAT_NH,
-            full / 10.0,
-            levels=np.arange(480, 600, 6),
-            colors=INK,
-            linewidths=0.7,
-            transform=ccrs.PlateCarree(),
-        )
-        ax.clabel(cs, cs.levels[::2], inline=True, fontsize=6.5, fmt="%d")
-    if kind == "anom":
-        cax = fig.add_axes([0.14, 0.09, 0.72, 0.02])
-        sm = plt.cm.ScalarMappable(cmap=CMAP[var], norm=mcolors.BoundaryNorm(LEVELS[var], 256, extend="both"))
-        cb = fig.colorbar(sm, cax=cax, orientation="horizontal", extend="both", ticks=LEVELS[var])
-        cb.ax.tick_params(labelsize=7.5)
-        cb.set_label(f"{TITLE[var]} ({UNIT[var]})", fontsize=8.5)
-    else:
-        prob_legend(fig, [0.1, 0.09, 0.8, 0.02], var)
-    sv = s["vars"][var]
-    what = TITLE[var] if kind == "anom" else f"{NAME[var]}, tercile probabilities"
-    where = "" if nh else f" · {REGIONS[region][0]}"
-    fig.text(0.04, 0.965, f"{s['target_label']}: {what}{where}", fontsize=13.5, fontweight="bold", color=INK)
-    sub = f"Issued {s['issued']} from ERA5 through {s['window'].split('–')[1].strip()}"
-    if s.get("update"):  # an update: the vortex predictor runs to the 7th of the target month
-        u = s["update"]
-        d1 = datetime.date.fromisoformat(u["medium"]["days"][1])
-        c = datetime.datetime.strptime(u["medium"]["cycle"], "%Y%m%d%H")
-        sub = (f"Update {s['issued']} (of {u['of']}) · days 1–{d1.day} IFS-ENS and AIFS-ENS ({c.day} {c:%b} {c:%H}Z), "
-               f"the rest statistical with their vortex")  # fmt: skip
+def inputs_text(s: dict, var: str) -> str:
+    """'statistical + C3S (6 systems, Nov issue) + GEFS 15 Nov': what the issued forecast is made of."""
+    parts = ["statistical"]
+    c = s.get("c3s", {}).get(var, {})
+    if c.get("issued"):
+        mon = calendar.month_abbr[int(c["issue"][4:])]
+        parts.append(f"C3S ({len(c['systems'])} centres, {mon} issue)")
     b = s.get("blend", {}).get(var, {})
     if b.get("issued"):
         init = datetime.date.fromisoformat(b["init"])
-        sub += f" {'·' if s.get('update') else 'and'} the GEFS run of {init.day} {init:%b}"
+        parts.append(f"GEFS {init.day} {init:%b}")
+    return " + ".join(parts)
+
+
+def head(fig, s: dict, var: str, what: str, sub2: str, y0: float = 0.965, x0: float = 0.04) -> None:
+    """Title, inputs line and skill line, left on the figure from (x0, y0) down."""
+    fig.text(x0, y0, f"{s['target_label']} · {what}", fontsize=13.5, fontweight="semibold", color=INK)
+    sub = (
+        f"Claude's forecast: {inputs_text(s, var)} · issued {s['issued']}, ERA5 to {s['window'].split('–')[1].strip()}"
+    )
+    if s.get("update"):
+        u = s["update"]
+        d1 = datetime.date.fromisoformat(u["medium"]["days"][1])
+        c = datetime.datetime.strptime(u["medium"]["cycle"], "%Y%m%d%H")
+        sub = (f"Update {s['issued']} (of {u['of']}): days 1–{d1.day} IFS-ENS and AIFS-ENS ({c.day} {c:%b} {c:%H}Z), "
+               f"the rest statistical with their vortex")  # fmt: skip
+    fig.text(x0, y0 - 0.03, sub, fontsize=min(8.8, 8.8 * 112 / len(sub)), color=house.INK2)
+    fig.text(x0, y0 - 0.055, sub2, fontsize=min(8.2, 8.2 * 118 / len(sub2)), color=MUTED)
+
+
+def skill_line(s: dict, var: str, kind: str) -> str:
+    iv = s["vars"][var]["issued"]
+    y0, y1 = iv["years"]
+    out = f"Hindcast {y0}–{y1}, cross-validated: ACC {iv['acc']:+.2f}, RPSS {iv['rpss']:+.2f} · grey: no significant skill"
     if var == "z500" and kind == "anom":
-        sub += " · contours: forecast height (dam)"
+        out += " · contours: height (dam)"
     if kind == "prob":
-        sub += " · blank: no category above 40% (or equal chances)"
-    fig.text(0.04, 0.937, sub, fontsize=8.6 if len(sub) <= 110 else 8.6 * 110 / len(sub), color=MUTED)  # one line
-    if b.get("issued"):
-        bs, ss = b["scores"]["blend"], b["scores"]["stat"]
-        skill = (
-            f"Cross-validated NH ACC {sv['nh_acc_mean']:+.2f} ({s['hindcast'][0]}–{s['hindcast'][1]}); "
-            f"{b['years'][0]}–{b['years'][1]}: blend {bs['acc']:+.2f}, statistical alone {ss['acc']:+.2f}"
-        )
+        out += " · white: no category above 40 %"
+    return out
+
+
+def outlook_map(o: dict, s: dict, var: str, region: str, kind: str, path: Path) -> None:
+    fc = o[f"{var}_fc"]
+    nh = region == "nh"
+    fig = plt.figure(figsize=(7.6, 8.25) if nh else (8.6, 7.6))
+    ax = map_ax(fig, [0.03, 0.12, 0.94, 0.76], region)
+    if kind == "anom":
+        shade(ax, fc, var)
     else:
-        what = (
-            "Hindcast" if not s.get("update") else f"Days {G.SPLIT_DAY}+ hindcast"
-        )  # an update's skill: its days 8 on
-        skill = (
-            f"{what} {s['hindcast'][0]}–{s['hindcast'][1]} (cross-validated): NH ACC {sv['nh_acc_mean']:+.2f}, "
-            f"RPSS {sv['rpss_nh']:+.2f}; skill significant over {100 * sv['skill_area_sig']:.0f}% of 20–90N"
-        )
-    skill += " (hatched: not significant)" if mask else " (skill mask off)"
-    fig.text(0.04, 0.912, skill, fontsize=8 if len(skill) <= 118 else 8 * 118 / len(skill), color=MUTED)  # one line
-    fig.text(0.5, 0.012, CREDIT, ha="center", fontsize=7.5, color=MUTED)
-    fig.savefig(path, dpi=105 if nh else 100, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
+        draw_prob(ax, o, var)
+    no_skill(ax, o[f"{var}_sig"])
+    if var == "z500" and kind == "anom":
+        full, lon2 = grid(o["z500_clim"] + fc)
+        cs = ax.contour(lon2, G.LAT_NH, full / 10.0, levels=np.arange(480, 600, 6), colors=INK, linewidths=0.7,
+                        transform=ccrs.PlateCarree(), zorder=5)  # fmt: skip
+        ax.clabel(cs, cs.levels[::2], inline=True, fontsize=6.5, fmt="%d")
+    ax.apply_aspect()  # the map's drawn box: the titles and the colour bar hug it, and the canvas is cropped to them
+    b = ax.get_position()
+    if kind == "anom":
+        anom_bar(fig, [b.x0 + 0.1 * b.width, b.y0 - 0.055, 0.8 * b.width, 0.018], var, f"{TITLE[var]} ({UNIT[var]})")
+    else:
+        prob_legend(fig, [b.x0 + 0.05 * b.width, b.y0 - 0.055, 0.9 * b.width, 0.018], var)
+    what = TITLE[var] if kind == "anom" else f"{NAME[var]}, tercile probabilities"
+    if not nh:
+        what += f" · {REGIONS[region][0]}"
+    head(fig, s, var, what, skill_line(s, var, kind), y0=b.y1 + 0.075, x0=b.x0)
+    fig.text(b.x0 + b.width / 2, b.y0 - 0.112, CREDIT, ha="center", fontsize=7.5, color=MUTED)
+    fig.savefig(path, dpi=105 if nh else 100, bbox_inches="tight", pad_inches=0.12,
+                pil_kwargs={"quality": 86, "method": 6})  # fmt: skip
+    plt.close(fig)
+
+
+def panel_row(fig, panels: list, var: str, top: float = 0.82, bar: str = "") -> None:
+    """Hemispheric maps side by side (title, field) with one colour bar under them."""
+    n = len(panels)
+    wd = 0.98 / n
+    for j, (lab, fld, sig) in enumerate(panels):
+        ax = polar_ax(fig, [0.01 + j * wd, 0.16, wd - 0.01, top - 0.16])
+        shade(ax, fld, var)
+        if sig is not None:
+            no_skill(ax, sig)
+        ax.set_title(lab, fontsize=9.2, fontweight="semibold", pad=4, loc="center")
+    anom_bar(fig, [0.25, 0.085, 0.5, 0.025], var, bar or f"{TITLE[var]} ({UNIT[var]})")
+
+
+def ingredients_fig(o: dict, s: dict, var: str, path: Path) -> None:
+    """What the issued forecast is made of: the statistical forecast, the C3S mean, GEFS (the month) and the issue,
+    each with its weight and its cross-validated ACC on the stage's hindcast years."""
+    c, b = s.get("c3s", {}).get(var, {}), s.get("blend", {}).get(var, {})
+    stat = o.get(f"{var}_stat_fc", o[f"{var}_fc"])
+    panels = [
+        (f"Statistical\nACC {s['vars'][var]['nh_acc_mean']:+.2f} ({s['hindcast'][0]}–{s['hindcast'][1]})", stat, None)
+    ]
+    if f"{var}_c3s_fc" in o and c:
+        sc = c["scores"]["c3s"]
+        mark = f"weight {c['weight_nh']['c3s']:.2f}" if c["issued"] else "not used"
+        panels.append((f"C3S, {len(c['systems'])} centres\nACC {sc['acc']:+.2f} ({c['years'][0]}–{c['years'][1]}) · {mark}",
+                       o[f"{var}_c3s_fc"], None))  # fmt: skip
+    if f"{var}_models_fc" in o and b:
+        first = datetime.date(int(s["target"][:4]), int(s["target"][5:]), 1)
+        mark = f"weight {b['weight_nh']['models']:.2f}" if b["issued"] else "not used"
+        panels.append((f"GEFS {b['days'][0]}–{b['days'][1]} {first:%b}\nACC {b['scores']['models']['acc']:+.2f} · {mark}",
+                       o[f"{var}_models_fc"], None))  # fmt: skip
+    iv = s["vars"][var]["issued"]
+    panels.append((f"Issued: {' + '.join(iv['inputs'])}\nACC {iv['acc']:+.2f} ({iv['years'][0]}–{iv['years'][1]})",
+                   o[f"{var}_fc"], o[f"{var}_sig"]))  # fmt: skip
+    n = len(panels)
+    fig = plt.figure(figsize=(3.9 * n + 0.4, 5.4))
+    panel_row(fig, panels, var)
+    fig.text(0.01, 0.95, f"{s['target_label']} · {NAME[var]}: what the forecast is made of", fontsize=12.5,
+             fontweight="semibold")  # fmt: skip
+    fig.text(0.5, 0.012, CREDIT + " · ACC: cross-validated hindcast, 20–90N", ha="center", fontsize=7.5, color=MUTED)
+    fig.savefig(path, dpi=88, pil_kwargs={"quality": 85, "method": 6})
     plt.close(fig)
 
 
 def components_fig(o: dict, s: dict, var: str, path: Path) -> None:
-    """The statistical forecast's five weighted components and their sum (before any blend with GEFS)."""
+    """The statistical forecast's weighted components (those it was issued with) and their sum (before any blend)."""
     contrib = o[f"{var}_contrib"]
     beta = o[f"{var}_beta"]
     w = np.cos(np.deg2rad(G.LAT_NH))[:, None] * np.ones(len(G.LON))
     w = (w * (G.LAT_NH[:, None] >= LAT0)).ravel()
-    fig = plt.figure(figsize=(13.2, 7.6))
-    panels = [*list(enumerate(M.COMPONENTS)), (None, "sum")]
+    panels = [*list(enumerate(s["components"])), (None, "sum")]
+    fig = plt.figure(figsize=(14.0, 7.4))
     for j, (i, c) in enumerate(panels):
-        r, col = divmod(j, 3)
-        ax = polar_ax(fig, [0.01 + col * 0.33, 0.52 - r * 0.44, 0.31, 0.37])
+        r, col = divmod(j, 4)
+        ax = polar_ax(fig, [0.005 + col * 0.25, 0.53 - r * 0.42, 0.24, 0.36])
         v = contrib[i] if i is not None else o.get(f"{var}_stat_fc", o[f"{var}_fc"])
         shade(ax, v, var)
-        if i is not None:
-            wb = float((w * beta[:, i]).sum() / w.sum())
-            lab = f"{M.NAMES[c]}\nmean weight {wb:.2f}"
-        else:
-            lab = "Statistical forecast (sum of the five)"
-        ax.set_title(lab, fontsize=9.5, fontweight="bold", pad=3)
-    cax = fig.add_axes([0.25, 0.05, 0.5, 0.018])
-    sm = plt.cm.ScalarMappable(cmap=CMAP[var], norm=mcolors.BoundaryNorm(LEVELS[var], 256, extend="both"))
-    cb = fig.colorbar(sm, cax=cax, orientation="horizontal", extend="both", ticks=LEVELS[var])
-    cb.ax.tick_params(labelsize=7)
-    cb.set_label(f"{TITLE[var]} ({UNIT[var]}), each component times its consolidation weight", fontsize=8)
-    fig.text(0.01, 0.965, f"{s['target_label']}: how the {NAME[var]} forecast is built", fontsize=13, fontweight="bold")
+        lab = (
+            f"{s['components'][c]}\nmean weight {float((w * beta[:, i]).sum() / w.sum()):.2f}"
+            if i is not None
+            else "Sum"
+        )
+        ax.set_title(lab, fontsize=9.2, fontweight="semibold", pad=3, loc="center")
+    anom_bar(fig, [0.77, 0.27, 0.2, 0.025], var, f"{UNIT[var]}, component × weight")
+    fig.text(0.01, 0.965, f"{s['target_label']} · {NAME[var]}: the statistical forecast's components", fontsize=12.5,
+             fontweight="semibold")  # fmt: skip
     fig.text(0.5, 0.012, CREDIT, ha="center", fontsize=7.5, color=MUTED)
-    fig.savefig(path, dpi=95, facecolor="white", pil_kwargs={"quality": 82, "method": 6})
+    fig.savefig(path, dpi=85, pil_kwargs={"quality": 82, "method": 6})
+    plt.close(fig)
+
+
+def skill_fig(o: dict, s: dict, var: str, path: Path) -> None:
+    """The issued forecast's hindcast correlation at each point (significant inside the line) and the statistical
+    forecast's anomaly correlation year by year against the trend alone."""
+    sv = s["vars"][var]
+    iv = sv["issued"]
+    fig = plt.figure(figsize=(12.6, 5.5))
+    ax = polar_ax(fig, [0.0, 0.14, 0.4, 0.72])
+    f, lon = grid(o.get(f"{var}_issued_r", o[f"{var}_r"]))
+    lv = np.array([-0.6, -0.45, -0.3, -0.15, -0.05, 0.05, 0.15, 0.3, 0.45, 0.6, 0.75])
+    m = ax.contourf(lon, G.LAT_NH, f, levels=lv, cmap="PuOr_r", extend="both", transform=ccrs.PlateCarree())
+    m.set_edgecolor("face")
+    sg, lon = grid(o[f"{var}_sig"].astype(float))
+    ax.contour(lon, G.LAT_NH, sg, levels=[0.5], colors=INK, linewidths=0.9, transform=ccrs.PlateCarree())
+    cb = fig.colorbar(m, ax=ax, orientation="horizontal", fraction=0.05, pad=0.03, ticks=lv[::2])
+    cb.ax.tick_params(labelsize=7.5)
+    cb.set_label("correlation with ERA5 · black line: significant (one-sided 5 %, FDR 10 %)", fontsize=8)
+    ax.set_title(f"Issued forecast ({' + '.join(iv['inputs'])}), {iv['years'][0]}–{iv['years'][1]}", fontsize=9.5,
+                 fontweight="semibold", pad=3, loc="center")  # fmt: skip
+    bx = fig.add_axes([0.5, 0.2, 0.47, 0.63])
+    acc = sv["nh_acc_by_year"]
+    ys = np.array([int(k) for k in acc])
+    vals = np.array(list(acc.values()))
+    bx.bar(ys, vals, color=np.where(vals >= 0, house.WARM, house.COOL), width=0.8, label="statistical forecast")
+    tr = sv["acc_trend_by_year"]
+    bx.plot(ys, [tr[str(y)] for y in ys], color=INK, lw=0.9, marker="o", ms=2.2, label="trend alone")
+    bx.legend(fontsize=8, loc="lower left")
+    bx.axhline(0, color=INK, lw=0.6)
+    bx.set_ylim(-1, 1)
+    bx.set_ylabel("anomaly correlation, 20–90N")
+    bx.set_title(f"Statistical forecast by year: mean {vals.mean():+.2f} (trend alone {sv['acc_trend_mean']:+.2f})",
+                 fontsize=9.5)  # fmt: skip
+    for sp in ("top", "right"):
+        bx.spines[sp].set_visible(False)
+    fig.text(0.01, 0.95, f"{s['target_label']} · {NAME[var]}: cross-validated hindcast skill", fontsize=12.5,
+             fontweight="semibold")  # fmt: skip
+    fig.text(0.5, 0.008, CREDIT, ha="center", fontsize=7.5, color=MUTED)
+    fig.savefig(path, dpi=90, pil_kwargs={"quality": 85, "method": 6})
     plt.close(fig)
 
 
@@ -269,175 +353,49 @@ def update_fig(o: dict, s: dict, var: str, path: Path) -> None:
     last = datetime.date(d1.year, d1.month, calendar.monthrange(d1.year, d1.month)[1])
     wt = u["weights"]
     panels = [
-        (o[f"{var}_mr_fc"], f"IFS-ENS and AIFS-ENS, {d0.day}–{d1.day} {d1:%b}\n{c.day} {c:%b} {c:%H}Z runs · weight {wt['first_week']:.2f}"),
-        (o[f"{var}_stat_fc"], f"Statistical, {d1.day + 1}–{last.day} {last:%b}, with the vortex\nof {d0.day}–{d1.day} {d1:%b} · weight {wt['rest']:.2f}"),
-        (o[f"{var}_fc"], "The month\n(the issued forecast)"),
+        (f"IFS-ENS and AIFS-ENS, {d0.day}–{d1.day} {d1:%b}\n{c.day} {c:%b} {c:%H}Z runs · weight {wt['first_week']:.2f}", o[f"{var}_mr_fc"], None),
+        (f"Statistical, {d1.day + 1}–{last.day} {last:%b}, with the vortex\nof {d0.day}–{d1.day} {d1:%b} · weight {wt['rest']:.2f}", o[f"{var}_stat_fc"], None),
+        ("The month\n(the issued forecast)", o[f"{var}_fc"], o[f"{var}_sig"]),
     ]  # fmt: skip
-    fig = plt.figure(figsize=(13.2, 5.9))
-    for j, (fld, lab) in enumerate(panels):
-        ax = polar_ax(fig, [0.01 + j * 0.33, 0.17, 0.31, 0.66])
-        shade(ax, fld, var)
-        ax.set_title(lab, fontsize=9.2, fontweight="bold", pad=4)
-    cax = fig.add_axes([0.25, 0.1, 0.5, 0.025])
-    sm = plt.cm.ScalarMappable(cmap=CMAP[var], norm=mcolors.BoundaryNorm(LEVELS[var], 256, extend="both"))
-    cb = fig.colorbar(sm, cax=cax, orientation="horizontal", extend="both", ticks=LEVELS[var])
-    cb.ax.tick_params(labelsize=7)
-    cb.set_label(f"{TITLE[var]} ({UNIT[var]}), each part's own anomaly", fontsize=8)
-    fig.text(0.01, 0.95, f"{s['target_label']}: {NAME[var]}, the update's two parts", fontsize=12.5, fontweight="bold")
+    fig = plt.figure(figsize=(12.4, 5.4))
+    panel_row(fig, panels, var, bar=f"{TITLE[var]} ({UNIT[var]}), each part's own anomaly")
+    fig.text(0.01, 0.95, f"{s['target_label']} · {NAME[var]}: the update's two parts", fontsize=12.5,
+             fontweight="semibold")  # fmt: skip
     fig.text(0.5, 0.012, CREDIT, ha="center", fontsize=7.5, color=MUTED)
-    fig.savefig(path, dpi=92, facecolor="white", pil_kwargs={"quality": 85, "method": 6})
+    fig.savefig(path, dpi=90, pil_kwargs={"quality": 85, "method": 6})
     plt.close(fig)
 
 
-def blend_fig(o: dict, s: dict, var: str, path: Path) -> None:
-    """The statistical forecast, the GEFS run's two parts (the target month's days it reaches, and its days before
-    the month) and the blend, with the weights and the shared-years cross-validated scores (against the whole
-    month); the issued one is marked."""
-    b = s["blend"][var]
-    sc = b["scores"]
-    wn = b["weight_nh"]
-    issued = "blend" if b["issued"] else "stat"
-    init = datetime.date.fromisoformat(b["init"])
-    first = datetime.date(int(s["target"][:4]), int(s["target"][5:]), 1)
-    last_lead = first - datetime.timedelta(days=1)
-    mon = f"{first:%b}"
-    panels = [
-        ("stat", o.get(f"{var}_stat_fc", o[f"{var}_fc"]), "Statistical (this page's method)", wn["stat"]),
-        ("models", o[f"{var}_models_fc"], f"GEFS, {b['days'][0]}–{b['days'][1]} {mon}", wn["models"]),
-        ("blend", o[f"{var}_blend_fc"], "Blend", None),
-    ]
-    if "lead" in wn:  # temperature: the run's days before the month enter too
-        lab = f"GEFS lead-in, {init.day} {init:%b}–{last_lead.day} {last_lead:%b}"
-        panels.insert(2, ("lead", o[f"{var}_lead_fc"], lab, wn["lead"]))
-    npan = len(panels)
-    fig = plt.figure(figsize=(15.6, 5.5) if npan == 4 else (13.2, 5.9))
-    for j, (k, fld, lab, wt) in enumerate(panels):
-        rect = [0.005 + j * 0.249, 0.19, 0.24, 0.62] if npan == 4 else [0.01 + j * 0.33, 0.17, 0.31, 0.66]
-        ax = polar_ax(fig, rect)
-        shade(ax, fld, var)
-        if k in sc:
-            line = f"ACC {sc[k]['acc']:+.2f}" + (f" · RPSS {sc[k]['rpss']:+.2f}" if k != "models" else "")
-        else:
-            line = ""
-        if wt is not None:
-            line += f"{' · ' if line else ''}weight {wt:.2f}"
-        mark = "  ← issued" if k == issued else ""
-        ax.set_title(f"{lab}{mark}\n{line}", fontsize=9.2, fontweight="bold", pad=4)
-    cax = fig.add_axes([0.25, 0.1, 0.5, 0.025])
-    sm = plt.cm.ScalarMappable(cmap=CMAP[var], norm=mcolors.BoundaryNorm(LEVELS[var], 256, extend="both"))
-    cb = fig.colorbar(sm, cax=cax, orientation="horizontal", extend="both", ticks=LEVELS[var])
-    cb.ax.tick_params(labelsize=7)
-    cb.set_label(
-        f"{TITLE[var]} ({UNIT[var]}); scores and weights: cross-validated against the whole month, "
-        f"{b['years'][0]}–{b['years'][1]}",
-        fontsize=8,
-    )
-    fig.text(
-        0.01,
-        0.95,
-        f"{s['target_label']}: {NAME[var]}, statistical forecast and the {init.day} {init:%b} GEFS run",
-        fontsize=12.5,
-        fontweight="bold",
-    )
-    fig.text(0.5, 0.012, CREDIT, ha="center", fontsize=7.5, color=MUTED)
-    fig.savefig(path, dpi=88, facecolor="white", pil_kwargs={"quality": 85, "method": 6})
-    plt.close(fig)
+def load(name: str) -> tuple[dict, dict]:
+    s = json.loads((DATA / name).read_text())
+    with np.load(DATA / name.replace(".json", ".npz")) as f:
+        return s, {k: f[k] for k in f.files}
 
 
-def skill_map(fig, rect, field, sig, title, label):
-    ax = polar_ax(fig, rect)
-    f, lon = grid(field)
-    lv = np.array([-0.6, -0.45, -0.3, -0.15, -0.05, 0.05, 0.15, 0.3, 0.45, 0.6, 0.75])
-    m = ax.contourf(lon, G.LAT_NH, f, levels=lv, cmap="PuOr_r", extend="both", transform=ccrs.PlateCarree())
-    m.set_edgecolor("face")
-    if sig is not None:
-        sg, lon = grid(sig.astype(float))
-        ax.contour(lon, G.LAT_NH, sg, levels=[0.5], colors=INK, linewidths=0.9, transform=ccrs.PlateCarree())
-    cb = fig.colorbar(m, ax=ax, orientation="horizontal", fraction=0.05, pad=0.03, ticks=lv[::2])
-    cb.ax.tick_params(labelsize=7)
-    cb.set_label(label, fontsize=7.5)
-    ax.set_title(title, fontsize=9.5, fontweight="bold", pad=3)
-
-
-def skill_fig(o: dict, s: dict, var: str, path: Path) -> None:
-    sv = s["vars"][var]
-    mon = M.target_label(0, int(s["target"][5:])).split()[0]
-    fig = plt.figure(figsize=(15.0, 5.6))
-    skill_map(
-        fig,
-        [0.0, 0.14, 0.3, 0.72],
-        o[f"{var}_r"],
-        o[f"{var}_sig"],
-        "Correlation with ERA5",
-        "black line: significant (one-sided 5%, FDR 10%)",
-    )
-    skill_map(
-        fig,
-        [0.3, 0.14, 0.3, 0.72],
-        o[f"{var}_msss_trend"],
-        None,
-        "Skill beyond the trend (MSSS vs trend alone)",
-        f"> 0: better than the trend component by itself (20–90N: {sv['msss_trend_nh']:+.2f})",
-    )
-    bx = fig.add_axes([0.66, 0.2, 0.32, 0.63])
-    acc = sv["nh_acc_by_year"]
-    ys = np.array([int(k) for k in acc])
-    vals = np.array(list(acc.values()))
-    bx.bar(ys, vals, color=np.where(vals >= 0, "#c2410c", "#2563eb"), width=0.8, label="forecast")
-    tr = sv.get("acc_trend_by_year")
-    if tr:
-        bx.plot(ys, [tr[str(y)] for y in ys], color=INK, lw=0.9, marker="o", ms=2.2, label="trend alone")
-        bx.legend(fontsize=7.5, loc="lower left", frameon=False)
-    bx.axhline(0, color=INK, lw=0.6)
-    bx.set_ylim(-1, 1)
-    bx.set_ylabel("anomaly correlation, 20–90N", fontsize=9)
-    bx.set_title(
-        f"By year: mean {vals.mean():+.2f} (trend alone {sv['acc_trend_mean']:+.2f}), RPSS {sv['rpss_nh']:+.2f}",
-        fontsize=9.5,
-        fontweight="bold",
-    )
-    bx.tick_params(labelsize=8)
-    for sp in ("top", "right"):
-        bx.spines[sp].set_visible(False)
-    fig.text(
-        0.01,
-        0.95,
-        f"Cross-validated hindcast {s['hindcast'][0]}–{s['hindcast'][1]}: {mon} {NAME[var]}",
-        fontsize=12.5,
-        fontweight="bold",
-    )
-    fig.text(0.5, 0.008, CREDIT, ha="center", fontsize=7.5, color=MUTED)
-    fig.savefig(path, dpi=92, facecolor="white", pil_kwargs={"quality": 85, "method": 6})
-    plt.close(fig)
-
-
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--target")
-    a = ap.parse_args()
-    if a.target:
-        tag = a.target.replace("-", "")
-    else:  # the newest outlook of the newest target: an update when there is one
-        tag = Path(json.loads((DATA / "latest.json").read_text())["file"]).stem.split("_", 1)[1]
-    s = json.loads((DATA / f"outlook_{tag}.json").read_text())
-    with np.load(DATA / f"outlook_{tag}.npz") as f:
-        o = {k: f[k] for k in f.files}
-    ASSETS.mkdir(parents=True, exist_ok=True)
+def draw_target(key: str, name: str) -> None:
+    s, o = load(name)
     for var in s["vars"]:
         for region in REGIONS:
             for kind in ("anom", "prob"):
-                for mask, suf in ((True, ""), (False, "_nomask")):
-                    p = ASSETS / f"latest_{var}_{region}_{kind}{suf}.webp"
-                    outlook_map(o, s, var, region, kind, p, mask)
-                    if region == "nh" and mask:
-                        shutil.copyfile(p, ASSETS / f"outlook_{tag}_{var}_{kind}.webp")
-        components_fig(o, s, var, ASSETS / f"components_{var}.webp")
-        if var in s.get("blend", {}) and f"{var}_blend_fc" in o:
-            blend_fig(o, s, var, ASSETS / f"blend_{var}.webp")
-        if s.get("update"):
-            update_fig(o, s, var, ASSETS / f"update_{var}.webp")
-        skill_fig(o, s, var, ASSETS / f"skill_{var}.webp")
-        print(f"drew {var}", flush=True)
+                outlook_map(o, s, var, region, kind, ASSETS / f"fc_{key}_{var}_{region}_{kind}.webp")
+        if key == "m1":
+            for kind in ("anom", "prob"):
+                shutil.copyfile(ASSETS / f"fc_m1_{var}_nh_{kind}.webp", ASSETS / f"{name[:-5]}_{var}_{kind}.webp")
+            if s.get("update"):
+                update_fig(o, s, var, ASSETS / f"update_{var}.webp")
+        ingredients_fig(o, s, var, ASSETS / f"ingredients_{key}_{var}.webp")
+        components_fig(o, s, var, ASSETS / f"components_{key}_{var}.webp")
+        skill_fig(o, s, var, ASSETS / f"skill_{key}_{var}.webp")
+    print(f"drew {key} ({name})", flush=True)
+
+
+def main() -> int:
+    argparse.ArgumentParser(description=__doc__.splitlines()[0]).parse_args()
+    latest = json.loads((DATA / "latest.json").read_text())
+    ASSETS.mkdir(parents=True, exist_ok=True)
+    draw_target("m1", latest["file"])
+    for k, name in enumerate(latest.get("seasons", []), 1):
+        draw_target(f"s{k}", name)
     return 0
 
 

@@ -1,10 +1,12 @@
-"""The month-ahead outlook's statistical method: five empirical components and their cross-validated consolidation.
+"""The long-range outlook's statistical method: six empirical components and their cross-validated consolidation.
 
-Targets: 500 hPa height, 2 m temperature and precipitation, monthly means over 0-90N on the archive's 3° grid.
+Targets: 500 hPa height, 2 m temperature and precipitation over 0-90N on the archive's 3° grid, as the mean of one
+calendar month or of a three-month season (span), issued `lead` months before the target's first month.
 
-Nothing here reads a dynamical forecast. The outlook for target month T of year Y is issued on the 15th of month
-T-1, and its predictors are the ERA5 means of the ~30-day window ending on the 7th of T-1 (mo_grid: block 1 of T-2
-plus block 0 of T-1). The predictand is the calendar-month anomaly against 1991-2020.
+Nothing here reads a dynamical model (blend.py adds C3S and GEFS afterwards). The outlook issued on the 15th of month
+I has as predictors the ERA5 means of the ~30-day window ending on the 7th of I (mo_grid: block 1 of I-1 plus block 0
+of I); its month is I+1 (lead 1) and its seasons start in I+1, I+2 and I+3 (leads 1-3). The predictand is the
+target's anomaly against 1991-2020 (a season's months day-weighted).
 
 Components (each a map of the target month's anomaly):
     TR   trend: per grid point, the linear trend of the 3-month (T-1..T+1) anomaly over the 30 years before Y,
@@ -13,6 +15,12 @@ Components (each a map of the target month's anomaly):
     IX   index regression: the detrended target anomaly regressed on four indices of the window - relative
          Niño-3.4 (the RONI quantity) split into its El Niño and La Niña halves, equatorial u50 (QBO) and 57-63N u50
          (the lower polar vortex)
+    EN   forecast ENSO teleconnection: the detrended target anomaly regressed (perfect prog) on the relative Niño-3.4
+         of the target's own months, El Niño and La Niña apart, trained on the observed values (ERSSTv6) and applied
+         to the forecast from the month before the issue (enso_fc.py: its cross-validated hindcast for the hindcast
+         years, the issue's own forecast for the year being forecast). It carries ENSO across a change between the
+         issue and the target (the spring after an El Niño); through winter, when ENSO persists, IX and CA already
+         hold it, and the consolidation weighs it accordingly
     CA   constructed analogue on the tropics (Van den Dool 1994): the window's detrended SST and rainfall anomalies
          20S-20N (each scaled to unit total variance) are written as a ridge-regularised combination of the library
          years', and the same weights combine those years' detrended target-month anomalies. Rainfall is the
@@ -30,10 +38,10 @@ month's days 1-7 (vortex="week"), for every year of the library and every pooled
 takes the window update_data.py builds (ERA5, analyses, the ensembles' forecasts) and the vortex vortex_window.py
 builds from the ensembles' members.
 
-IX and PE train on the target month pooled with its two neighbouring calendar months (each with its own window),
-about 200 cases instead of 65; CA and AN use the target month alone, which scored better for them.
+IX, EN and PE train on the target pooled with the targets one calendar month either side at the same lead (each
+with its own window), about 200 cases instead of 65; CA and AN use the target alone, which scored better for them.
 
-Consolidation: per grid point a non-negative least-squares regression of the observed anomaly on the five
+Consolidation: per grid point a non-negative least-squares regression of the observed anomaly on the six
 components' cross-validated hindcasts, with the normal equations smoothed over ~2500 km so the weights vary only on
 large scales. Hindcast years leave out the target year and its neighbours (Y-1, Y, Y+1) from every training step;
 the consolidation weights for a hindcast year leave that year out as well, so the skill maps are fully
@@ -52,10 +60,11 @@ import numpy as np
 import mo_grid as G
 
 CLIM = (1991, 2020)
-COMPONENTS = ("TR", "IX", "CA", "PE", "AN")
+COMPONENTS = ("TR", "IX", "EN", "CA", "PE", "AN")
 NAMES = {
     "TR": "Trend",
     "IX": "RONI (El Niño, La Niña) / QBO / vortex regression",
+    "EN": "Forecast ENSO teleconnection",
     "CA": "Tropical SST and rainfall constructed analogue",
     "PE": "Local persistence",
     "AN": "Analogue years",
@@ -67,7 +76,7 @@ VORTEX = ("issue", "week")
 TREND_YEARS = 30
 TREND_ENSO_ADJUST = True
 POOL = (-1, 0, 1)  # calendar-month offsets pooled into the training library
-POOLED = ("IX", "PE")  # the components trained on the pooled library (the rest use the target month alone)
+POOLED = ("IX", "EN", "PE")  # the components trained on the pooled library (the rest use the target month alone)
 PE_EXTRA = {"t2m": ("sic", "snow", "swvl"), "prcp": ("swvl",)}  # local surface predictors beside a field's own window
 PE_FLOOR = {"win_sic": 0.01, "win_snow": 0.003, "win_swvl": 0.003}  # rms anomaly below which a predictor is dropped
 SST_LAT = (20, 20)  # the constructed analogue's SST domain: 20S-20N
@@ -99,7 +108,9 @@ class Archive:
 def load_archive(y0: int = 1959, y1: int | None = None) -> Archive:
     ys = sorted(int(p.stem.split("_")[1]) for p in G.DATA.glob("era5_[0-9]*.npz"))
     ys = [y for y in ys if y >= y0 and (y1 is None or y <= y1)]
-    years = np.arange(ys[0], ys[-1] + 1)
+    # one empty year past the last file, so a target in the next calendar year (a January outlook issued in
+    # December, a season reaching into the new year) has rows to be forecast into
+    years = np.arange(ys[0], (ys[-1] + 2) if y1 is None else ys[-1] + 1)
     per = [G.load_year(int(y)) for y in years]
     keys = list(G.FIELDS) + list(G.INDICES)
     blk = {k: np.concatenate([p[k] for p in per], 0) for k in keys}  # (nY*12, 2, ...)
@@ -203,8 +214,19 @@ def nh_rows(v: str) -> slice:
     return slice(int(np.searchsorted(G.LAT_ALL, 0.0)), None) if G.FIELDS.get(v) is G.LAT_ALL else slice(None)
 
 
+def span_days(years: np.ndarray, month: int, span: int) -> np.ndarray:
+    """(nY, span) days of the `span` calendar months from `month` (may run past December) in each year."""
+    return np.array(
+        [[calendar.monthrange(int(y) + (month + d - 1) // 12, (month + d - 1) % 12 + 1)[1] for d in range(span)]
+         for y in years],
+        float,
+    )  # fmt: skip
+
+
 class MonthBlock:
-    """One target calendar month's library: per year, the predictor window's state and the target month's anomalies."""
+    """One target's library: per year, the predictor window's state and the target's anomalies. The target is the
+    `span` calendar months from `month` (1: a month, 3: a season, day-weighted), issued `lead` months before
+    `month` (1: on the 15th of the month before it); each year's sample is labelled by the target's first month."""
 
     def __init__(
         self,
@@ -215,30 +237,37 @@ class MonthBlock:
         part: int | None = None,
         window: str = "issue",
         window_live: dict | None = None,
+        lead: int = 1,
+        span: int = 1,
+        enso=None,
     ):
         self.month = month
         self.years = A.years
         nY = len(self.years)
         y0 = int(A.years[0])
-        im = month - 1 if month > 1 else 12  # the issue month
-        yi = self.years + (0 if month > 1 else -1)
+        im = month - lead  # the issue month (month_series steps into the year before for im < 1)
+        yi = self.years
         if window == "target":  # an update's predictors: the window ending on the 7th of the target month
-            im, yi = month, self.years
-        # predictands: anomalies vs 1991-2020, flattened (nY, P), 0-90N; the calendar month, or with part=1 its days
-        # from the 8th (an update's days after the medium-range forecasts)
+            im = month
+        # predictands: anomalies vs 1991-2020, flattened (nY, P), 0-90N; the target's months day-weighted, or with
+        # part=1 the month's days from the 8th (an update's days after the medium-range forecasts)
+        wd = span_days(self.years, month, span)
+        wd = wd / wd.sum(1, keepdims=True)
         self.obs, self.det, self.seas, self.dseas = {}, {}, {}, {}
         for v in TARGETS:
             r = nh_rows(v)
             src = A.cal[v] if part is None else A.blk[v][:, part]
-            self.obs[v] = clim_anom(month_series(src, self.years, month, y0)[:, r].reshape(nY, -1), self.years)
+            x = sum(wd[:, d, None] * month_series(src, self.years, month + d, y0)[:, r].reshape(nY, -1)
+                    for d in range(span))  # fmt: skip
+            self.obs[v] = clim_anom(x, self.years)
             s3 = np.stack(
                 [
                     clim_anom(month_series(A.cal[v], self.years, month + d, y0)[:, r].reshape(nY, -1), self.years)
-                    for d in (-1, 0, 1)
+                    for d in range(-1, span + 1)
                 ]
             )
             self.seas[v] = np.nanmean(s3, 0)
-            # detrended anomaly: minus the slow (LOESS) part of the 3-month anomaly
+            # detrended anomaly: minus the slow (LOESS) part of the anomaly of the target and the months either side
             slow = loess(self.seas[v], self.years)
             self.det[v] = self.obs[v] - slow
             self.dseas[v] = self.seas[v] - slow
@@ -279,8 +308,13 @@ class MonthBlock:
         c = (self.years >= CLIM[0]) & (self.years <= CLIM[1])
         self.roni = self.n34r * np.nanstd(n34[c]) / np.nanstd(self.n34r[c])
         # El Niño and La Niña enter as separate predictors (their teleconnections are not mirror images)
-        enso = [np.maximum(self.n34r, 0), np.minimum(self.n34r, 0)] if ENSO_SPLIT else [self.n34r, 0 * self.n34r]
-        self.idx = np.stack([*enso, self.win["u50eq"][:, 0], self.win["u50v"][:, 0]], 1)
+        halves = [np.maximum(self.n34r, 0), np.minimum(self.n34r, 0)] if ENSO_SPLIT else [self.n34r, 0 * self.n34r]
+        self.idx = np.stack([*halves, self.win["u50eq"][:, 0], self.win["u50v"][:, 0]], 1)
+        # EN: relative Niño-3.4 over the target's own months (ERSSTv6, enso_fc.py), observed for training and as
+        # forecast from the month before the issue for the hindcast years and the year being forecast
+        self.en_obs = self.en_fc = np.full(nY, np.nan)
+        if enso is not None:
+            self.en_obs, self.en_fc = enso.target(self.years, month, span, lead)
         self.valid = np.isfinite(self.idx).all(1) & np.isfinite(self.win["z500"]).all(1)
         for v in TARGETS:
             self.valid &= np.isfinite(self.obs[v]).all(1)
@@ -289,9 +323,9 @@ class MonthBlock:
 
 
 class Problem:
-    """The target month's library, pooled with the two neighbouring calendar months (each with its own predictor
-    window and anomalies), which triples the sample behind every regression; the trend and the analogue years use
-    the target month alone."""
+    """The target's library, pooled with the targets one calendar month either side at the same lead (each with its
+    own predictor window and anomalies), which triples the sample behind every regression; the trend and the
+    analogue years use the target alone."""
 
     def __init__(
         self,
@@ -302,6 +336,9 @@ class Problem:
         part: int | None = None,
         window: str = "issue",
         window_live: dict | None = None,
+        lead: int = 1,
+        span: int = 1,
+        enso=None,
     ):
         self.POOL = POOL
         self.A = A
@@ -314,6 +351,9 @@ class Problem:
                 vortex,
                 part=part,
                 window=window,
+                lead=lead,
+                span=span,
+                enso=enso,
                 **({"vortex_live": vortex_live, "window_live": window_live} if d == 0 else {}),
             )  # this year: the target month
             for d in self.POOL
@@ -324,6 +364,7 @@ class Problem:
             "time": cat(lambda b: b.time),
             "valid": cat(lambda b: b.valid),
             "idx": cat(lambda b: b.idx),
+            "en_obs": cat(lambda b: b.en_obs),
             **{f"det_{v}": cat(lambda b, v=v: b.det[v]) for v in TARGETS},
             **{f"win_{v}": cat(lambda b, v=v: b.win[v]) for v in (*WIN_FIELDS, "prcp_t")},
         }
@@ -377,6 +418,20 @@ class Problem:
         sd = np.maximum(np.sqrt((X**2).mean(0)), 1e-9)
         for v in TARGETS:
             out["IX"][v] = regress(X / sd, L[f"det_{v}"][m], c.idx[i] / sd, ridge=0.05)
+        # EN: the target's own relative Niño-3.4, El Niño and La Niña apart, regressed on the observed values over the
+        # pooled library (the teleconnection) and applied to the forecast value: without a forecast (before the
+        # ENSO hindcast begins) the component is zero
+        m = lib["EN"] & np.isfinite(L["en_obs"])
+        x_fc = c.en_fc[i]
+        split = lambda x: np.stack([np.maximum(x, 0), np.minimum(x, 0)], -1)  # noqa: E731
+        X = split(L["en_obs"][m])
+        sd = np.maximum(np.sqrt((X**2).mean(0)), 1e-9)
+        for v in TARGETS:
+            out["EN"][v] = (
+                regress(X / sd, L[f"det_{v}"][m], split(x_fc) / sd, ridge=0.05)
+                if np.isfinite(x_fc)
+                else np.zeros(L[f"det_{v}"].shape[1], np.float32)
+            )
         # CA: constructed analogue on tropical SST, pooled library
         S = self.ca_state()
         m = lib["CA"]
@@ -455,7 +510,7 @@ def sphere_kernel(L_km: float | None = None) -> np.ndarray:
 
 def nnls_batched(A: np.ndarray, b: np.ndarray) -> np.ndarray:
     """Non-negative solution of A β = b for every point: A (P, k, k) normal matrix, b (P, k). Exhaustive over the
-    active sets (k = 5: 31 subsets), choosing the feasible subset of least quadratic loss ½βᵀAβ − bᵀβ."""
+    active sets (k = 6: 63 subsets), choosing the feasible subset of least quadratic loss ½βᵀAβ − bᵀβ."""
     P, k = b.shape
     best = np.zeros((P, k))
     best_loss = np.zeros(P)  # β = 0 has loss 0
@@ -489,5 +544,18 @@ def consolidation_weights(F: np.ndarray, Y: np.ndarray, K: np.ndarray, ridge: fl
     return nnls_batched(A, b)
 
 
-def target_label(y: int, m: int) -> str:
-    return f"{calendar.month_name[m]} {y}"
+def target_label(y: int, m: int, span: int = 1) -> str:
+    """'December 2026', or for a season 'December 2026 – February 2027'."""
+    if span == 1:
+        return f"{calendar.month_name[m]} {y}"
+    m1, y1 = (m + span - 2) % 12 + 1, y + (m + span - 2) // 12
+    return f"{calendar.month_name[m]} {y} – {calendar.month_name[m1]} {y1}"
+
+
+def target_short(y: int, m: int, span: int = 1) -> str:
+    """'Dec 2026', or for a season its initials and year(s): 'DJF 2026/27'."""
+    if span == 1:
+        return f"{calendar.month_abbr[m]} {y}"
+    ms = [(m + d - 1) % 12 + 1 for d in range(span)]
+    y1 = y + (m + span - 2) // 12
+    return "".join(calendar.month_abbr[k][0] for k in ms) + (f" {y}" if y1 == y else f" {y}/{str(y1)[2:]}")
