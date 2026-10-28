@@ -525,7 +525,9 @@ window.plotlyP = new Promise(function (ok, no) {
       terrain mismatch and sensor height that decide it), and each run's sums, from which a window of any length is
       scored without its pairs. A model is scored in a window when it has at least 95% of its runs, on the runs every
       such model has, so all are judged on the same runs; GDPS, whose runs reach back only to September 2026, joins the
-      longer windows as the database grows. Each run's observations are those every model it has was matched to.</p>
+      longer windows as the database grows. Each run's observations are those every model it has was matched to. The
+      database begins with the 13 May 2026 run, the first of the current IFS (Cycle 50r1) and AIFS (version 2), and is
+      kept in two places, the site's GitHub releases and its file store, every copy checked against the original.</p>
     <p><b>Wind speed as a distribution.</b> Wind speed is skewed and cannot go below zero, so RMSE and bias, which reward
       a forecast that hedges towards the middle, are joined by the whole distribution, on the same station pairs for every
       model: forecast and observed quantiles from 1 to 99.5% (a QQ plot: a model on the dashed line has the observed

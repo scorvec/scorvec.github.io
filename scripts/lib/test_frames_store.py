@@ -10,8 +10,8 @@ Retry-After) or hands out ETags that are not the MD5. The branch is a local bare
 (FRAMES_URL), so nothing here touches the network; boto3 is the only dependency.
 
   frames_store.py   sync (add / replace / delete, "+dir", a single file, sibling prefixes, dry run, --no-replace),
-                    seed (directory markers), prune (directories and single files), prune-cycles, ls,
-                    check, Retry-After, non-MD5 ETags, Cache-Control only on request
+                    seed (directory markers), prune (directories and single files), prune-cycles, ls, files,
+                    protected prefixes, check, Retry-After, non-MD5 ETags, Cache-Control only on request
   the wrappers      FRAMES_S3_* empty: the branch alone, the store never consulted (publish_frames_ci.sh,
                     fetch_frames_ci.sh, publish_data.sh); store configured: both (seeds still from the branch);
                     FRAMES_BRANCH=off: the store alone, git never touched; off without a usable store: a refusal, and
@@ -355,6 +355,21 @@ def test_client(stub: Stub) -> None:
         check(False, "a bad floor must be refused")
     except SystemExit:
         pass
+
+    # files: keys and sizes; the verification database's copy is never deleted, by a prune or a sync that names it
+    db = "verify-db/2026-09"
+    stub.put(f"{db}/sfc_2026090600.parquet", b"pairs")
+    _, out = quiet(S.cmd_files, "verify-db")
+    check(out.split() == [f"{db}/sfc_2026090600.parquet", "5"], out)
+    with tempfile.TemporaryDirectory() as td:
+        write(Path(td), f"{db}/raob_2026090600.parquet", "soundings")
+        for fn, a in ((S.cmd_prune, ([db], False)), (S.cmd_sync, ([db], Path(td), False, False))):
+            try:
+                quiet(fn, *a)
+                check(False, f"{fn.__name__} deleted a protected file")
+            except SystemExit as e:
+                check("protected" in str(e), e)
+            check(stub.body(f"{db}/sfc_2026090600.parquet") == b"pairs", f"{fn.__name__} kept it")
 
     # ls: frame directories and counts
     _, out = quiet(S.cmd_ls, h)

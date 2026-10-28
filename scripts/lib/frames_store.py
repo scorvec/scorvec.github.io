@@ -6,12 +6,14 @@
     python scripts/lib/frames_store.py prune assets/sst/anim/old_thing assets/site/thumbs/x.webp  # delete
     python scripts/lib/frames_store.py prune-cycles assets/models/data/hrrr:2026102012       # older cycles
     python scripts/lib/frames_store.py ls    [assets/sst/anim]                               # dir -> frame count
+    python scripts/lib/frames_store.py files verify-db                                       # key -> size
     python scripts/lib/frames_store.py check                                 # round trip on a scratch key
     python scripts/lib/frames_store.py configured                            # exit 0 if usable
 
 Keys mirror repo paths exactly (assets/<product>/anim/<dir>/<frame>.webp), so the store's pull zone plays the role
 raw.githubusercontent.com/.../frames/ did: STORE + path (assets/frames_root.js), nothing else changes for the
-viewers. Local paths are relative to --root (default: the current directory, the repository root on a runner).
+viewers. The store also keeps the second copy of the verification database (verify-db/, scripts/verify/verifydb.sh
+mirror), which nothing here deletes: a delete that names a key under a PROTECTED prefix is refused. Local paths are relative to --root (default: the current directory, the repository root on a runner).
 
 WHY AN OBJECT STORE. The `frames` branch was ONE parentless commit force-pushed
 by every publisher. Whatever was not in the tree you pushed was deleted, so two
@@ -73,6 +75,7 @@ CONTENT_TYPES = {
     ".json": "application/json",
     ".txt": "text/plain",
     ".csv": "text/csv",
+    ".parquet": "application/vnd.apache.parquet",
 }
 MANIFEST_SUFFIX = "_manifest.json"
 CYCLE = re.compile(r"\d{10}")  # a model cycle directory, YYYYMMDDHH (publish_data.sh PRUNE_OLDER)
@@ -80,6 +83,7 @@ ATTEMPTS = 8
 RETRY_STATUS = {429, 500, 502, 503, 504}  # throttled or transient; 501 (an operation the store lacks) is final
 RETRY_AFTER_MAX_S = 60
 CHECK_PREFIX = "_frames_check"  # `check` writes one scratch object here and deletes it
+PROTECTED = ("verify-db/",)  # kept for good: never deleted, whatever a sync or prune names
 
 
 def configured() -> bool:
@@ -262,7 +266,10 @@ def _get(s3, key: str, dst: Path) -> None:
 
 
 def _delete(s3, keys: list[str]) -> None:
-    """Single deletes in parallel (Bunny answers the batch DeleteObjects with 501)."""
+    """Single deletes in parallel (Bunny answers the batch DeleteObjects with 501). None at all if one is protected."""
+    kept = [k for k in keys if k.startswith(PROTECTED)]
+    if kept:
+        raise SystemExit(f"frames_store: refusing to delete {len(kept)} protected file(s), e.g. {kept[0]}")
     with ThreadPoolExecutor(WORKERS) as ex:
         list(ex.map(lambda k: _call(s3.delete_object, Bucket=bucket(), Key=k), keys))
 
@@ -409,6 +416,12 @@ def cmd_ls(prefix: str) -> int:
     return 0
 
 
+def cmd_files(prefix: str) -> int:
+    for k, o in sorted(remote_listing(client(), _rel(prefix)).items()):
+        print(k, o["size"])
+    return 0
+
+
 def cmd_check() -> int:
     """put / head / list / get (whole and a range) / delete on a scratch key, after finding the regions that sign.
 
@@ -520,6 +533,8 @@ def main() -> int:
     p.add_argument("specs", nargs="+", metavar="DIR:YYYYMMDDHH")
     p = sub.add_parser("ls")
     p.add_argument("prefix", nargs="?", default="assets")
+    p = sub.add_parser("files")
+    p.add_argument("prefix")
     sub.add_parser("check")
     sub.add_parser("configured")
     a = ap.parse_args()
@@ -536,6 +551,7 @@ def main() -> int:
         "prune": lambda: cmd_prune(a.paths, a.dry_run),
         "prune-cycles": lambda: cmd_prune_cycles(a.specs, a.dry_run),
         "ls": lambda: cmd_ls(a.prefix),
+        "files": lambda: cmd_files(a.prefix),
         "check": cmd_check,
     }[a.cmd]()
     print(f"  ({time.time() - t0:.1f}s)")
