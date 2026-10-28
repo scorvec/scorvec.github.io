@@ -391,7 +391,7 @@ def det_window(derived: Path, runs: int | None) -> tuple[pd.DataFrame, list, dic
     """The per-run sums of the window's runs that every model it scores has (``mverify_scores.window_card``'s)."""
     inits = sorted(f.stem.split("_")[1] for f in derived.glob("stats_*.parquet"))
     use = inits[-runs:] if runs else inits
-    if len(use) < (runs or 1) or not use:
+    if not use or len(use) < (runs or 366):  # a window once the database holds it (mverify_scores.windows)
         return None
     stats = pd.read_parquet(
         [derived / f"stats_{i}.parquet" for i in use], columns=[*D.STAT_BY, "n", "se", "sse", "init"]
@@ -542,7 +542,7 @@ def ens_window(derived: Path, runs: int | None) -> tuple[pd.DataFrame, pd.DataFr
     .ens_card``'s), with the wind at each level from its components."""
     inits = sorted(f.stem.split("_")[1] for f in derived.glob("ens-stats_*.parquet"))
     use = inits[-runs:] if runs else inits
-    if not use or len(use) < (runs or 1):
+    if not use or len(use) < (runs or 366):  # a window once the database holds it (ens_verify.windows)
         return None
     stats = pd.read_parquet([derived / f"ens-stats_{i}.parquet" for i in use])
     rel = pd.read_parquet([derived / f"ens-rel_{i}.parquet" for i in use])
