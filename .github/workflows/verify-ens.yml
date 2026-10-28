@@ -114,7 +114,9 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: ens-obs-db
-          path: .obs/obs.duckdb
+          path: |   # the database and its gridded analyses (Stage IV), not the download cache
+            .obs/obs.duckdb
+            .obs/obs_grids
           include-hidden-files: true   # .obs is a dot directory
           retention-days: 7    # a backfill's last chunks start days after this job
           compression-level: 1
