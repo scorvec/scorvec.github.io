@@ -25,11 +25,13 @@ A run whose files the database holds is not fetched again, and no file is ever r
     python z500_acc.py clim --out clim_z500_1p5.npz
     python z500_acc.py acc --list --have have.txt
     python z500_acc.py acc --init 2026051300 --derived db --clim clim_z500_1p5.npz --have have.txt --archive-out db-new
+    python z500_acc.py recent --have have.txt    # the files verify_figs.py scores the newest runs from
 """
 
 from __future__ import annotations
 
 import argparse
+import functools
 from pathlib import Path
 
 import ens_verify as E
@@ -47,6 +49,7 @@ CLIM_HALF = 7  # slots either side of each slot of the normal
 REGIONS = {"NH": (20.0, 80.0), "SH": (-80.0, -20.0)}  # EMC's extratropical belts
 HPFX = {"GDPS": D.HPFX_DAYS, "GEPS": E.HPFX_DAYS}  # days ECCC's HPFX keeps a run; the other sources keep them all
 GIVE_UP_DAYS = 365  # a run this old is scored with the models it has (a backfill can still fetch any other source)
+RECENT_DAYS = 30  # runs this new without their scores yet are scored at the leads ERA5 covers (``table``)
 
 
 # --------------------------------------------------------------------------- grids
@@ -82,20 +85,30 @@ def _overlap(src: np.ndarray, dst: np.ndarray, period: float | None = None) -> n
     return out
 
 
-def remap(v: np.ndarray, lat: np.ndarray, lon: np.ndarray, g: Grid) -> np.ndarray:
-    """A global field on its own regular grid (centres ``lat`` x ``lon``, any order) as the area mean over each cell of
-    ``g``: first-order conservative remapping, latitude weighted by the cells' areas (overlaps in sin(latitude))."""
-    v = np.asarray(v, np.float64)
-    if lat[0] > lat[-1]:
-        lat, v = lat[::-1], v[::-1]
-    lon = np.mod(lon, 360.0)
-    o = np.argsort(lon, kind="stable")
-    lon, v = lon[o], v[:, o]
+@functools.cache
+def _weights(lat0: float, lat1: float, nlat: int, lon0: float, dlon: float, nlon: int, g: Grid) -> tuple:
+    """The remapping onto ``g`` of a regular source grid, as (rows, columns) weight matrices whose rows sum to one,
+    whether the source runs south to north and the order that sorts its longitudes from 0 east."""
+    lat, up = np.linspace(lat0, lat1, nlat), lat0 < lat1
+    lat = lat if up else lat[::-1]
+    lon = np.mod(lon0 + dlon * np.arange(nlon), 360.0)
+    order = np.argsort(lon, kind="stable")
     s_lat = np.sin(np.radians(_edges(lat, -90.0, 90.0)))
     d_lat = np.sin(np.radians(_edges(g.lat[::-1], -90.0, 90.0)))
     wy = _overlap(s_lat, d_lat)[::-1]  # rows north to south, as g
-    wx = _overlap(_edges(lon), _edges(g.lon), 360.0)
-    return ((wy @ v @ wx.T) / (wy.sum(1)[:, None] * wx.sum(1)[None, :])).astype(np.float32)
+    wx = _overlap(_edges(lon[order]), _edges(g.lon), 360.0)
+    return wy / wy.sum(1)[:, None], wx / wx.sum(1)[:, None], up, order
+
+
+def remap(v: np.ndarray, lat: np.ndarray, lon: np.ndarray, g: Grid) -> np.ndarray:
+    """A global field on its own regular grid (centres ``lat`` x ``lon``, either way up) as the area mean over each
+    cell of ``g``: first-order conservative remapping, latitude weighted by the cells' areas (overlaps in sin(lat))."""
+    wy, wx, up, order = _weights(
+        float(lat[0]), float(lat[-1]), lat.size, float(lon[0]), float(lon[1] - lon[0]), lon.size, g
+    )
+    v = np.asarray(v, np.float64)
+    v = (v if up else v[::-1])[:, order]  # south to north, as the weights
+    return (wy @ v @ wx.T).astype(np.float32)
 
 
 # --------------------------------------------------------------------------- fields
@@ -279,12 +292,15 @@ def scores(z: np.ndarray, era: np.ndarray, normal: np.ndarray) -> dict[str, dict
 
 
 def run_scores(init: str, files: dict[str, Path], truth_dir: Path, normal: np.ndarray) -> pd.DataFrame:
-    """Every lead of every model of one run, for the regions, against the ERA5 files in ``truth_dir``."""
+    """Every lead of every model of one run, for the regions, against the ERA5 files in ``truth_dir`` (a lead ERA5
+    does not cover yet is left out: ``due`` waits for all of them, ``table`` scores what there is)."""
     t0, rows = pd.to_datetime(init, format="%Y%m%d%H"), []
     for model, path in files.items():
         d = np.load(path)
         for lead, z in zip(d["lead_h"], d["z"], strict=True):
             valid = t0 + pd.Timedelta(hours=int(lead))
+            if not (truth_dir / truth_file(valid)).exists():
+                continue
             era = np.load(truth_dir / truth_file(valid))["z"]
             for region, s in scores(z, era, normal[slot366(pd.DatetimeIndex([valid]))[0]]).items():
                 rows.append(
@@ -313,6 +329,31 @@ def due(have: set[str], today: pd.Timestamp) -> dict[str, list[str]]:
         ):
             out[init] = models
     return out
+
+
+def recent(have: set[str], today: pd.Timestamp) -> list[str]:
+    """The files ``table`` scores the runs of the newest RECENT_DAYS without their scores from: their fields (the
+    ensembles' means) and the ERA5 days the database has of their forecasts."""
+    out = set()
+    for init in sorted({n.split("_")[1][:10] for n in have if n.startswith(("z500-", "ens-z500-"))}):
+        t0 = pd.to_datetime(init, format="%Y%m%d%H")
+        if f"acc_{init}.parquet" in have or t0 < today - pd.Timedelta(days=RECENT_DAYS):
+            continue
+        out |= {file_of(m, init) for m in models_of(init, have)}
+        out |= {n for d in range(1, 16) if (n := truth_file(t0 + pd.Timedelta(days=d))) in have}
+    return sorted(out)
+
+
+def table(derived: Path, normal: np.ndarray) -> pd.DataFrame:
+    """Every run's scores: its acc_ file in ``derived``, or for a recent run without one, its fields there scored at
+    the leads ERA5 covers."""
+    done = {f.stem.split("_")[1]: f for f in derived.glob("acc_*.parquet")}
+    frames = [pd.read_parquet(f) for f in done.values()]
+    for init in sorted({f.stem.split("_")[1] for f in derived.glob("*z500-*_*.npz")} - set(done)):
+        files = {m: f for m in [*DET, *E.ENSEMBLES] if (f := derived / file_of(m, init)).exists()}
+        frames.append(run_scores(init, files, derived, normal))
+    t = pd.concat([f for f in frames if not f.empty], ignore_index=True)
+    return t.astype({"model": str, "region": str})
 
 
 def acc(a) -> None:
@@ -357,10 +398,14 @@ def main() -> None:
     s.add_argument("--init", help="only this run (YYYYMMDDHH)")
     s.add_argument("--derived", type=Path, default=Path("."), help="the due runs' fields and ERA5 files, downloaded")
     s.add_argument("--clim", type=Path, help="the normal (release verify-clim-z500-v1)")
-    for p in (f, t, s):
+    r = sub.add_parser("recent", help="print the files the nightly scores the newest runs without their scores from")
+    for p in (f, t, s, r):
         p.add_argument("--have", type=Path, help="names of the files the database holds, one per line")
         p.add_argument("--archive-out", type=Path, default=Path("db-new"), help="where the files to add are written")
     a = ap.parse_args()
+    if a.cmd == "recent":
+        print(*recent(_have(a.have), pd.Timestamp.now(tz="UTC").tz_localize(None).normalize()))
+        return
     {"fields": fields, "truth": truth, "clim": clim, "acc": acc}[a.cmd](a)
 
 
