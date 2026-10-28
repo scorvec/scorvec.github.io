@@ -15,7 +15,6 @@
 # Needs gh with GH_TOKEN and GITHUB_REPOSITORY (as in Actions); mirror, the FRAMES_S3_* store settings as well.
 set -euo pipefail
 R=${GITHUB_REPOSITORY:?}
-LIB="$(cd "$(dirname "$0")/../lib" && pwd)"
 
 tags() { gh release list -R "$R" --limit 1000 --json tagName -q '.[].tagName' | grep '^verify-db-' | sort || true; }
 
@@ -65,6 +64,7 @@ case "${1:-}" in
     done
     ;;
   mirror)
+    LIB="$(cd "$(dirname "$0")/../lib" && pwd)"   # here only: the other commands run from a checkout of scripts/verify
     # shellcheck source=../lib/frames_env.sh
     . "$LIB/frames_env.sh"
     frames_store_ready || { echo "::error::the object store is not usable: the database's second copy is not made"; exit 1; }
