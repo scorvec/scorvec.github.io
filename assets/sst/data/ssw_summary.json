@@ -1,6 +1,6 @@
 {
- "built": "2026-10-28 16:00Z",
- "newest_init": "2026-10-28 06Z",
+ "built": "2026-10-28 17:34Z",
+ "newest_init": "2026-10-28 12Z",
  "window": [
   "2026-10-29",
   "2026-11-12"
@@ -1148,12 +1148,12 @@
     ]
    },
    "geps": {
-    "init": "2026-10-28 00Z",
+    "init": "2026-10-28 12Z",
     "members": 21,
     "share": 1.0,
     "wmo": 1.0,
-    "u10_min_mean": -5.0,
-    "u10_min_p10": -7.9,
+    "u10_min_mean": -4.6,
+    "u10_min_p10": -7.3,
     "runs": [
      [
       "2026-10-16T12",
@@ -1274,6 +1274,11 @@
       "2026-10-28T00",
       1.0,
       1.0
+     ],
+     [
+      "2026-10-28T12",
+      1.0,
+      1.0
      ]
     ]
    }
@@ -1324,15 +1329,15 @@
     "z_sib_max": 4.8
    },
    "geps": {
-    "init": "2026-10-28 00Z",
+    "init": "2026-10-28 12Z",
     "members": 21,
-    "wave2_share": 0.5,
-    "z_peak": 4.1,
+    "wave2_share": 0.48,
+    "z_peak": 3.9,
     "z_peak_day": 4,
-    "flux_min": 7.8,
-    "ri_event_share": 0.24,
+    "flux_min": 6.6,
+    "ri_event_share": 0.1,
     "z_can_min": -1.2,
-    "z_sib_max": 4.9
+    "z_sib_max": 4.7
    }
   },
   "wave2_share_mean": 0.46,
@@ -1401,12 +1406,12 @@
     "kind": "bottom-up"
    },
    "geps": {
-    "init": "2026-10-28 00Z",
+    "init": "2026-10-28 12Z",
     "members": 21,
-    "cap100_day15": 2.2,
-    "cap10_day15": 4.3,
+    "cap100_day15": 2.1,
+    "cap10_day15": 4.1,
     "frac100_day15": 0.95,
-    "cross100": "2026-10-29",
+    "cross100": "2026-10-27",
     "cross10": "2026-10-29",
     "kind": "bottom-up"
    }
@@ -1432,7 +1437,7 @@
    "gefs",
    "geps"
   ],
-  "ri_event_share_mean": 0.17
+  "ri_event_share_mean": 0.13
  },
  "surface": {
   "models": {
@@ -1470,14 +1475,14 @@
     "frac100_day15": 0.9
    },
    "geps": {
-    "init": "2026-10-28 00Z",
-    "p_positive": 0.87,
+    "init": "2026-10-28 12Z",
+    "p_positive": 0.86,
     "base_rate": 0.5,
     "window": [
      "2026-11-13",
      "2026-12-12"
     ],
-    "cap100_day15": 2.2,
+    "cap100_day15": 2.1,
     "frac100_day15": 0.95
    }
   },
