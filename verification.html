@@ -54,7 +54,7 @@
   .chip .v { font-size: 1.7rem; font-weight: 600; line-height: 1.15; margin-top: 0.15rem; font-variant-numeric: tabular-nums; }
   .chip .v small { font-size: 0.9rem; font-weight: 500; color: var(--muted); margin-left: 0.3rem; white-space: nowrap; }
   .chip .s { font-size: 0.86rem; color: var(--ink2); line-height: 1.35; margin-top: 0.15rem; }
-  /* the run window: the newest 10 runs, or the newest 30 of the verification database */
+  /* the run window: the newest 10 runs, or the newest 30, 90 or 365 of the verification database, or all of it */
   .vwin { display: flex; align-items: center; flex-wrap: wrap; gap: 0.3rem 0.6rem; margin: 0.9rem 0 0; font-size: 0.82rem; font-weight: 600; color: var(--muted); }
   .vwin a { font: 500 0.84rem/1.3 var(--sans); color: var(--ink2); text-decoration: none; background: var(--panel); border: 1px solid var(--edge);
             margin-left: -1px; padding: 0.3rem 0.75rem; }
@@ -352,7 +352,7 @@ window.plotlyP = new Promise(function (ok, no) {
   <p class="lede">GFS, IFS, AIFS and GDPS against the same observations: surface stations, radiosondes and, for US rain, Stage IV.</p>
 
   <div class="vwin" id="vwin" hidden><span>Runs scored</span><span class="pills" role="group" aria-label="Runs scored">
-    <a href="?runs=10" data-w="10">Latest 10</a><a href="?runs=30" data-w="30">Latest 30, from the database</a></span></div>
+    <a href="?runs=10" data-w="10">Latest 10</a><a href="?runs=30" data-w="30" hidden>30</a><a href="?runs=90" data-w="90" hidden>90</a><a href="?runs=365" data-w="365" hidden>365</a><a href="?runs=all" data-w="all" hidden>All</a></span></div>
   <div class="chips vband" id="vband" aria-label="Each model's record in the pairwise tests"></div>
   <p class="src" id="asof">Loading the scores…</p>
 
@@ -480,7 +480,7 @@ window.plotlyP = new Promise(function (ok, no) {
       <label>Model<select id="r-model"></select></label>
       <label>Lead<select id="r-group"></select></label>
     </div>
-    <div id="rmap" role="img" aria-label="Map of rain forecast error on a half-degree grid"></div>
+    <div id="rmap" role="img" aria-label="Map of rain forecast error in two-degree boxes"></div>
     <div class="cbar"><div class="col"><div class="ramp" id="r-ramp"></div><div class="ticks" id="r-ticks"></div></div>
       <span id="r-cap"></span></div>
     <p class="note" id="r-note"></p>
@@ -497,17 +497,26 @@ window.plotlyP = new Promise(function (ok, no) {
       every other model, and faint stripes mark the models that cannot be told apart from the smallest. The head-to-head
       table counts, for each pair, the variable-days on which each model is significantly ahead, and the band at the top
       adds up each model's wins and losses over every pair. With ten runs the test is strict: a tie says the runs so far
-      cannot separate the models, not that they are equal.</p>
+      cannot separate the models, not that they are equal. The longer windows of the run switch, from the verification
+      database, separate more of them.</p>
     <p><b>Rain over the US.</b> 24 hour totals ending 12Z against the Stage IV analysis, on the analysis's 4 km grid. The equitable threat
       score is the share of rain areas the model gets right beyond chance (1 is perfect). The fractions skill score asks the
       same question in neighbourhoods of growing size, so it forgives a band forecast a few tens of kilometres off.</p>
     <p><b>Rain errors on the map.</b> The same Stage IV totals averaged onto the common 0.5° grid wherever they cover at
-      least half a cell, against each model's total for the same 24 hours, pooled over the runs and over the windows of a
-      lead group (days 1–2, 3–5, 6–9). Each cell's bias is tested over the valid days: the day's error, averaged over the
-      runs that verify it, goes through the scorecard's paired t-test with its allowance for errors that persist from day
-      to day, once a cell has 8 days. The p values of all the cells of a map then go through the Benjamini–Hochberg
-      procedure at a 10% false-discovery rate, so the coloured cells are ones whose bias is unlikely to be noise. RMSE and
-      the mean amounts are shown everywhere.</p>
+      least half a cell, against each model's total for the same 24 hours, over the newest year of runs in the
+      verification database, and pooled into 2° boxes of 16 cells and over the windows of a lead group (days 1–2, 3–5,
+      6–9). A single cell's daily rain error is mostly noise, which no number of days tests well; a box's is not. Each
+      box's bias is tested over the valid days: the day's error, averaged over the box and the runs that verify it, goes
+      through the scorecard's paired t-test with its allowance for errors that persist from day to day, once a box has 8
+      days. The p values of all the boxes of a map then go through the Benjamini–Hochberg procedure at a 10%
+      false-discovery rate, so the coloured boxes are ones whose bias is unlikely to be noise. RMSE (of the 0.5° cells)
+      and the mean amounts are shown everywhere.</p>
+    <p><b>The verification database.</b> Every 00Z run, once 14 days old, is kept for good: every model's pairs against
+      every GHCNh station, the radiosondes and Stage IV, including the pairs the scores leave out (marked, with the
+      terrain mismatch and sensor height that decide it), and each run's sums, from which a window of any length is
+      scored without its pairs. A model is scored in a window when it has at least 95% of its runs, on the runs every
+      such model has, so all are judged on the same runs; GDPS, whose runs reach back only to September 2026, joins the
+      longer windows as the database grows. Each run's observations are those every model it has was matched to.</p>
     <p><b>Wind speed as a distribution.</b> Wind speed is skewed and cannot go below zero, so RMSE and bias, which reward
       a forecast that hedges towards the middle, are joined by the whole distribution, on the same station pairs for every
       model: forecast and observed quantiles from 1 to 99.5% (a QQ plot: a model on the dashed line has the observed
@@ -539,7 +548,7 @@ window.plotlyP = new Promise(function (ok, no) {
       <li><b>Matching.</b> Forecasts are interpolated bilinearly to each station from land points only, so coastal stations
         are not scored against sea temperatures. 2 m temperature is moved to station height with a standard lapse rate,
         10 m wind is adjusted to the anemometer height, and stations where model and station heights differ by more than
-        100 m are dropped.</li>
+        100 m are left out of the scores (the database keeps them, marked).</li>
       <li><b>Pressure.</b> Mean sea-level pressure, at stations where every model's terrain is at most 500 m. The
         reduction to sea level runs through the ground under the station, each model and station makes it its own way, and
         the differences grow with the height reduced.</li>
@@ -552,12 +561,12 @@ window.plotlyP = new Promise(function (ok, no) {
         differences are correlated (Geer 2016). The small number in each scorecard cell is that count of runs;
         hovering a cell gives the paired runs and the observations behind it.</li>
       <li><b>Data.</b> GFS from NOAA on AWS; IFS and AIFS from ECMWF open data (Google Cloud mirror), all published at
-        0.25°; GDPS from the ECCC Datamart at 0.15°; all scored on the common 0.5° grid.</li>
+        0.25°; GDPS from ECCC's HPFX server at 0.15°; all scored on the common 0.5° grid.</li>
     </ul>
     <p>The package is open source (<a href="https://github.com/scorvec/nwp_verification">github.com/scorvec/nwp_verification</a>),
       so anyone can score their own model against the same observations. It reads GRIB, netCDF and Zarr:</p>
     <pre>pip install git+https://github.com/scorvec/nwp_verification
-mverify db ghcnh --year 2026 --max-stations 4500     # build the observation database
+mverify db ghcnh --year 2026 --since 2026-10-01     # every station, from that date
 mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
   </details>
   <p class="src" id="src"></p>
@@ -986,7 +995,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     render();
   }
 
-  // rain against Stage IV in every cell of the common grid; the bias is coloured only where its test passes
+  // rain against Stage IV in 2° boxes over the database's newest year; the bias is coloured only where its test passes
   function drawRainMap(pm) {
     const models = Object.keys(pm.models);
     if (!window.L || !models.length) return;
@@ -1044,16 +1053,17 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
       $("r-ticks").innerHTML = [0, 0.25, 0.5, 0.75, 1].map((f, j) => `<span>${j === 4 && s !== "bias" ? "≥ " : ""}${+(lo + f * (hi - lo)).toFixed(1)}</span>`).join("");
       $("r-cap").textContent = s === "bias" ? `${name} minus ${truth}, mm per ${pm.accum_hours} h; brown too dry, teal too wet, grey within chance`
         : `${NAMES[s].replace("model", name)}, mm per ${pm.accum_hours} h`;
-      $("r-note").innerHTML = `${pm.accum_hours} h totals ending 12Z against ${esc(pm.truth)} on the common 0.5° grid, over the runs and windows of the lead group. ` +
-        (s !== "bias" ? "Hover a cell for its numbers." : passed
-          ? `The bias is coloured in ${passed.toLocaleString()} of ${shown.toLocaleString()} cells, those that pass a cell-by-cell test at a ${Math.round(100 * pm.fdr_q)}% false-discovery rate; grey cells are within chance.`
-          : `No cell's bias is distinguishable from chance yet (a cell-by-cell test at a ${Math.round(100 * pm.fdr_q)}% false-discovery rate, on ${Math.max(...m.days[g])} valid days at most), so every cell is grey; RMSE and the mean amounts show every cell.`);
+      const w = pm.window, day = t => `${t.slice(0, 4)}-${t.slice(4, 6)}-${t.slice(6, 8)}`;
+      $("r-note").innerHTML = `${pm.accum_hours} h totals ending 12Z against ${esc(pm.truth)} in ${pm.box}° boxes, over the ${w.runs} newest runs of the verification database (${day(w.first)} to ${day(w.last)}) and the windows of the lead group. ` +
+        (s !== "bias" ? "Hover a box for its numbers." : passed
+          ? `The bias is coloured in ${passed.toLocaleString()} of ${shown.toLocaleString()} boxes, those that pass a box-by-box test at a ${Math.round(100 * pm.fdr_q)}% false-discovery rate; grey boxes are within chance.`
+          : `No box's bias is distinguishable from chance yet (a box-by-box test at a ${Math.round(100 * pm.fdr_q)}% false-discovery rate, on ${Math.max(...m.days[g])} valid days at most), so every box is grey; RMSE and the mean amounts show every box.`);
     }
     [rs, rm, rg].forEach(el => el.addEventListener("change", render));
     render();
   }
 
-  function drawMap(sm) {
+  function drawMap(sm, runs) {
     if (!window.L || !sm.layers.length) return;
     $("map-card").hidden = false;
     const models = sm.models, leads = sm.leads;
@@ -1110,22 +1120,26 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
       $("m-ticks").innerHTML = ticks.map((t, j) => `<span>${j === 4 && s === "rmse" ? "≥ " : ""}${+t.toFixed(Math.abs(hi) < 2 ? 2 : 1)}</span>`).join("");
       $("m-cap").textContent = s === "rmse" ? `${a} RMSE (${u})` : s === "bias" ? `${a} ${isWind ? "speed bias" : "bias"}, forecast − observed (${u})`
         : `${a} RMSE minus ${b} RMSE (${u}); blue where ${a} is better`;
-      $("map-note").innerHTML = `${esc(l.label)} against ${esc(l.truth)}, day ${+ml.value / 24}, averaged over the runs. ` +
+      $("map-note").innerHTML = `${esc(l.label)} against ${esc(l.truth)}, day ${+ml.value / 24}, averaged over ${runs}. ` +
         `${idx.length.toLocaleString()} stations that every model was scored at. Hover a dot for every model's numbers.`;
     }
     [mv, ms, mm, mr, ml].forEach(el => el.addEventListener("change", render));
     render();
   }
 
-  // the run window (?runs=30): the newest 30 runs of the verification database instead of the nightly 10; its
-  // scorecard and station maps come from the database, the wind and rain cards stay on the nightly runs
-  const W30 = new URLSearchParams(location.search).get("runs") === "30";
-  const suffix = W30 ? "_30" : "";
-  fetch("/assets/verification/scores_30.json", { method: "HEAD" }).then(r => {
-    if (!r.ok) return;
+  // the run window (?runs=30, 90, 365, all): the newest runs of the verification database instead of the nightly 10;
+  // its scorecard and station maps come from the database (the windows past 90 runs map the newest 90), the wind card
+  // stays on the nightly runs and the rain maps cover the database's newest year in every window
+  const WINDOWS = ["30", "90", "365", "all"], asked = new URLSearchParams(location.search).get("runs");
+  const W = WINDOWS.includes(asked) ? asked : "10";
+  const suffix = W === "10" ? "" : `_${W}`, mapRuns = W === "10" || W === "30" ? W : "90";
+  const probes = WINDOWS.map(w => fetch(`/assets/verification/scores_${w}.json`, { method: "HEAD" })
+    .then(r => { if (r.ok) $("vwin").querySelector(`[data-w="${w}"]`).hidden = false; return r.ok; }).catch(() => false));
+  Promise.all(probes).then(ok => {
+    if (!ok.some(Boolean)) return;
     $("vwin").hidden = false;
-    $("vwin").querySelectorAll("a").forEach(a => a.setAttribute("aria-current", String((a.dataset.w === "30") === W30)));
-  }).catch(() => {});
+    $("vwin").querySelectorAll("a").forEach(a => a.setAttribute("aria-current", String(a.dataset.w === W)));
+  });
   Promise.all([
     fetch(`/assets/verification/scores${suffix}.json`).then(r => r.json()),
     window.plotlyP,
@@ -1134,10 +1148,10 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     // Leaflet loads deferred, so it is ready once the document is parsed.
     const parsed = new Promise(ok => document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", ok) : ok());
     const get = u => fetch(u).then(r => r.ok ? r.json() : null);
-    return Promise.all([get(`/assets/verification/stations${suffix}.json`), get("/assets/verification/precip_maps.json"),
+    return Promise.all([get(`/assets/verification/stations${mapRuns === "10" ? "" : "_" + mapRuns}.json`), get("/assets/verification/precip_maps.json"),
       get("/assets/verification/wind_dist.json"), parsed])
       .then(([sm, pm, wd]) => {
-        if (sm) drawMap(sm);
+        if (sm) drawMap(sm, mapRuns === "10" ? "the latest 10 runs" : `the newest ${mapRuns} runs of the database`);
         if (pm) drawRainMap(pm);
         if (wd) drawWind(wd);
       });

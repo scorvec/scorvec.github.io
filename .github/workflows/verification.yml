@@ -2,13 +2,15 @@ name: Model verification scores
 
 # GFS, IFS, AIFS and GDPS against surface stations, radiosondes and Stage IV, scored with mverify
 # (github.com/scorvec/nwp_verification) for verification.html. Each night it builds an observation
-# database from GHCNh, IGRA2 and Stage IV, scores the ten most recent 00Z runs whose day 10 has been
-# observed, and commits the scorecard and station maps (assets/verification/). The Datamart keeps
-# GDPS for about 30 days, so a window further back than that loses GDPS.
+# database from GHCNh (every station, the window's weeks only), IGRA2 and Stage IV, scores the ten most
+# recent 00Z runs whose day 10 has been observed, and commits the scorecard and station maps
+# (assets/verification/). HPFX keeps GDPS for about 50 days, so a window further back than that loses GDPS.
 #
 # The database: each run, once 14 days old, joins the verification database for good (scripts/verify/verifydb.sh:
-# its surface and radiosonde pairs in the monthly release verify-db-YYYY-MM), and the newest 30 runs of the database
-# are scored too (scores_30.json, stations_30.json). verify-backfill.yml fills the database for earlier runs.
+# every pair against the stations, radiosondes and Stage IV, and their sums, in the monthly release
+# verify-db-YYYY-MM). The newest 30, 90 and 365 runs of the database and all of it are scored from the sums
+# (scores_30.json ... scores_all.json, stations_30.json, stations_90.json), and its newest year of rain is mapped
+# (precip_maps.json). verify-backfill.yml fills the database for earlier runs and catches up any it missed.
 #
 # Time: about 25 min for the surface and 13 min per run for every pressure level, plus the database. The
 # radiosonde pairs of each run are kept between nights (Actions cache), so a night downloads the pressure
@@ -52,7 +54,7 @@ jobs:
           key: pip-verification-${{ runner.os }}-v1
       - name: Install mverify
         # pinned to a commit so a change upstream cannot alter the scores without a commit here
-        run: pip install --quiet "mverify[grib,zarr] @ git+https://github.com/scorvec/nwp_verification@7934629f302a2c8b195f829bd3e07c000e7c5f6e"
+        run: pip install --quiet "mverify[grib,zarr] @ git+https://github.com/scorvec/nwp_verification@783fd7fbf55047a59566b575d15c7e319d18567d"
       - name: Window
         id: w
         env:
@@ -70,7 +72,7 @@ jobs:
         run: |
           F=${{ steps.w.outputs.first }}
           mverify db init
-          mverify db ghcnh --year ${{ steps.w.outputs.years }} --max-stations 2500
+          mverify db ghcnh --year ${{ steps.w.outputs.years }} --since "${F:0:4}-${F:4:2}-${F:6:2}" --until "${{ steps.w.outputs.end }}"
           mverify db igra --since "${F:0:4}-${F:4:2}-${F:6:2}"
           mverify db precip --product stageiv --start "${F:0:4}-${F:4:2}-${F:6:2}" --end "${{ steps.w.outputs.end }}"
           mverify db status
@@ -87,12 +89,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           scripts/verify/verifydb.sh list > "$RUNNER_TEMP/have.txt"
-          scripts/verify/verifydb.sh fetch 30 "$RUNNER_TEMP/pairs-db"
+          scripts/verify/verifydb.sh fetch stats all "$RUNNER_TEMP/derived"
+          scripts/verify/verifydb.sh fetch stn 90 "$RUNNER_TEMP/derived"
+          scripts/verify/verifydb.sh fetch rain 365 "$RUNNER_TEMP/derived"
       - name: Score
         run: |
           python scripts/verify/mverify_scores.py --db "$MVERIFY_DB" --clean --work "$RUNNER_TEMP/fc" \
             --inits "${{ steps.w.outputs.first }}00" "${{ steps.w.outputs.last }}00" \
-            --have "$RUNNER_TEMP/have.txt" --archive-out "$RUNNER_TEMP/db-new" --pairs-db "$RUNNER_TEMP/pairs-db"
+            --have "$RUNNER_TEMP/have.txt" --archive-out "$RUNNER_TEMP/db-new" --derived "$RUNNER_TEMP/derived"
       - name: Add the runs to the database
         env:
           GH_TOKEN: ${{ github.token }}
@@ -106,11 +110,12 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          PATHS="assets/verification/scores.json assets/verification/stations.json assets/verification/precip_maps.json assets/verification/wind_dist.json assets/verification/scores_30.json assets/verification/stations_30.json"
+          PATHS="assets/verification/scores.json assets/verification/stations.json assets/verification/precip_maps.json assets/verification/wind_dist.json"
+          PATHS="$PATHS $(echo assets/verification/scores_{30,90,365,all}.json assets/verification/stations_{30,90}.json)"
           for i in 1 2 3 4 5; do
             timeout 120 git fetch origin main || { sleep 5; continue; }
             git reset -q FETCH_HEAD
-            git add $(ls $PATHS 2>/dev/null)   # precip_maps.json only once a run has Stage IV windows, *_30 once the database has runs
+            git add $(ls $PATHS 2>/dev/null)   # a window's files once the database holds that many runs
             if git diff --staged --quiet; then echo "no changes"; exit 0; fi
             git commit -q -m "data update: verification scores $(date -u +%Y-%m-%d)"
             if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi

@@ -1,23 +1,28 @@
 name: Verification database backfill
 
-# Adds earlier 00Z runs to the verification database (scripts/verify/verifydb.sh, the releases verify-db-YYYY-MM):
-# each run's surface and radiosonde pairs for every model its source still holds, matched exactly as the nightly
-# verification.yml matches them (scripts/verify/mverify_scores.py --archive-only). GFS reaches back years on AWS;
-# IFS from March 2024 and AIFS from 2025 on the ECMWF open-data mirror; GDPS only the Datamart's last ~30 days, so a
-# run older than that is archived without it. Runs the database already holds are skipped, so a range can be
-# dispatched again after a failure.
+# Adds the 00Z runs the verification database lacks (scripts/verify/verifydb.sh, the releases verify-db-YYYY-MM):
+# each run's pairs against every GHCNh station, the radiosondes and Stage IV, for every model its source still
+# holds, and their sums, matched exactly as the nightly verification.yml matches them
+# (scripts/verify/mverify_scores.py --archive-only). GFS reaches back years on AWS; IFS from March 2024 and AIFS
+# from 2025 on the ECMWF open-data mirror; GDPS only HPFX's last ~50 days, so a run older than that is archived
+# without it. Runs the database holds are skipped, so a range can be dispatched again after a failure.
 #
-# One job builds the observation database for the whole range (GHCNh for its years, IGRA2 radiosondes: this year's
-# files, or each station's whole record for an earlier year), then chunks of runs are matched side by side, each run
-# uploaded as soon as it is done.
+# Each day it also catches up: the runs 21 to 50 days old that the nightly (which archives runs 14-20 days old)
+# missed, while HPFX still has their GDPS. With nothing missing it stops after the plan.
+#
+# One job reads the radiosondes for the whole range (IGRA2: this year's files, or each station's whole record for an
+# earlier year), then chunks of runs are matched side by side, each adding GHCNh and Stage IV for its own weeks and
+# uploading every run as soon as it is done.
 on:
+  schedule:
+    - cron: '20 9 * * *'
   workflow_dispatch:
     inputs:
       first:
-        description: 'First 00Z run, YYYYMMDD'
-        required: true
+        description: 'First 00Z run, YYYYMMDD (blank = 50 days ago)'
+        default: ''
       last:
-        description: 'Last 00Z run, YYYYMMDD (blank = 14 days ago, the newest the nightly would archive)'
+        description: 'Last 00Z run, YYYYMMDD (blank = 21 days ago)'
         default: ''
       chunk:
         description: 'Runs per job'
@@ -26,7 +31,7 @@ on:
 env:
   PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt
   MVERIFY_DB: ${{ github.workspace }}/.obs/obs.duckdb
-  MVERIFY: "mverify[grib,zarr] @ git+https://github.com/scorvec/nwp_verification@7934629f302a2c8b195f829bd3e07c000e7c5f6e"
+  MVERIFY: "mverify[grib,zarr] @ git+https://github.com/scorvec/nwp_verification@783fd7fbf55047a59566b575d15c7e319d18567d"
 
 permissions:
   contents: write
@@ -42,34 +47,48 @@ jobs:
       chunks: ${{ steps.p.outputs.chunks }}
       first: ${{ steps.p.outputs.first }}
       end: ${{ steps.p.outputs.end }}
-      years: ${{ steps.p.outputs.years }}
       igra: ${{ steps.p.outputs.igra }}
     steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/verify
       - id: p
         env:
+          GH_TOKEN: ${{ github.token }}
           FIRST: ${{ inputs.first }}
           LAST: ${{ inputs.last }}
-          CHUNK: ${{ inputs.chunk }}
+          CHUNK: ${{ inputs.chunk || '12' }}
         run: |
-          LAST=${LAST:-$(date -u -d '14 days ago' +%Y%m%d)}
-          python3 - "$FIRST" "$LAST" "$CHUNK" >> "$GITHUB_OUTPUT" <<'EOF'
+          FIRST=${FIRST:-$(date -u -d '50 days ago' +%Y%m%d)}
+          LAST=${LAST:-$(date -u -d '21 days ago' +%Y%m%d)}
+          scripts/verify/verifydb.sh list > have.txt
+          python3 - "$FIRST" "$LAST" "$CHUNK" have.txt >> "$GITHUB_OUTPUT" <<'EOF'
           import json, sys
           from datetime import date, datetime, timedelta
           first, last = (datetime.strptime(x, "%Y%m%d").date() for x in sys.argv[1:3])
           n = max(1, int(sys.argv[3]))
+          have = set(open(sys.argv[4]).read().split())
+          kinds = ("sfc", "raob", "stats", "stn")  # mverify_scores.held
           days = [first + timedelta(d) for d in range((last - first).days + 1)]
-          chunks = [{"first": c[0].strftime("%Y%m%d"), "last": c[-1].strftime("%Y%m%d")} for c in (days[i:i + n] for i in range(0, len(days), n))]
-          end = last + timedelta(days=10)                      # observations to day 10 of the last run
+          todo = [d for d in days if not all(f"{k}_{d:%Y%m%d}00.parquet" in have for k in kinds)]
+          chunks = []
+          for c in (todo[i:i + n] for i in range(0, len(todo), n)):
+              until = c[-1] + timedelta(days=10)  # observations to day 10 of the chunk's last run
+              chunks.append({"runs": " ".join(f"{d:%Y%m%d}" for d in c), "since": f"{c[0]:%Y-%m-%d}",
+                             "until": f"{until:%Y-%m-%d}",
+                             "years": " ".join(str(y) for y in range(c[0].year, until.year + 1))})
           print("chunks=" + json.dumps(chunks))
-          print(f"first={first:%Y-%m-%d}")
-          print(f"end={end:%Y-%m-%d}")
-          print("years=" + " ".join(str(y) for y in range(first.year, end.year + 1)))
-          print("igra=" + ("y2d" if first.year == date.today().year else "por"))
+          if todo:
+              print(f"first={todo[0]:%Y-%m-%d}")
+              print(f"end={todo[-1] + timedelta(days=10):%Y-%m-%d}")
+              print("igra=" + ("y2d" if todo[0].year == date.today().year else "por"))
+          print(f"{len(todo)} of {len(days)} runs to add, in {len(chunks)} jobs", file=sys.stderr)
           EOF
           cat "$GITHUB_OUTPUT"
 
-  observations:
+  radiosondes:
     needs: plan
+    if: needs.plan.outputs.chunks != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 350
     steps:
@@ -80,10 +99,9 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install --quiet "$MVERIFY"
-      - name: Observation database
+      - name: Radiosondes for the whole range
         run: |
           mverify db init
-          mverify db ghcnh --year ${{ needs.plan.outputs.years }} --max-stations 2500
           mverify db igra --archive ${{ needs.plan.outputs.igra }} --since ${{ needs.plan.outputs.first }} --until ${{ needs.plan.outputs.end }}
           mverify db status
       - uses: actions/upload-artifact@v7
@@ -95,7 +113,7 @@ jobs:
           compression-level: 1
 
   archive:
-    needs: [plan, observations]
+    needs: [plan, radiosondes]
     runs-on: ubuntu-latest
     timeout-minutes: 350
     strategy:
@@ -115,18 +133,25 @@ jobs:
         with:
           name: obs-db
           path: .obs
+      - name: Surface stations and Stage IV for the chunk's weeks
+        run: |
+          mverify db ghcnh --year ${{ matrix.chunk.years }} --since ${{ matrix.chunk.since }} --until ${{ matrix.chunk.until }}
+          mverify db precip --product stageiv --start ${{ matrix.chunk.since }} --end ${{ matrix.chunk.until }}
+          mverify db status
       - name: Match and archive, one run at a time
         env:
           GH_TOKEN: ${{ github.token }}
-          FIRST: ${{ matrix.chunk.first }}
-          LAST: ${{ matrix.chunk.last }}
+          RUNS: ${{ matrix.chunk.runs }}
         run: |
           scripts/verify/verifydb.sh list > "$RUNNER_TEMP/have.txt"
-          d=$FIRST
-          while [ "$d" -le "$LAST" ]; do
-            python scripts/verify/mverify_scores.py --archive-only --db "$MVERIFY_DB" --work "$RUNNER_TEMP/fc" \
-              --inits "${d}00" "${d}00" --have "$RUNNER_TEMP/have.txt" --archive-out "$RUNNER_TEMP/db-new"
-            scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"
-            rm -f "$RUNNER_TEMP"/db-new/*.parquet "$RUNNER_TEMP"/fc/pairs/*.parquet "$RUNNER_TEMP"/fc/sfc/*.parquet
-            d=$(date -u -d "$d + 1 day" +%Y%m%d)
+          failed=""
+          for d in $RUNS; do   # a run that fails is left for the next pass; the chunk's other runs go on
+            if python scripts/verify/mverify_scores.py --archive-only --db "$MVERIFY_DB" --work "$RUNNER_TEMP/fc" \
+                --inits "${d}00" "${d}00" --have "$RUNNER_TEMP/have.txt" --archive-out "$RUNNER_TEMP/db-new"; then
+              scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"
+            else
+              echo "::warning::${d}00 failed, left for the next pass"; failed="$failed $d"
+            fi
+            rm -rf "$RUNNER_TEMP"/db-new "$RUNNER_TEMP"/fc
           done
+          if [ -n "$failed" ]; then echo "::error::runs not archived:$failed"; exit 1; fi
