@@ -279,7 +279,7 @@ def cmd_extract(a) -> int:
     if rows.empty:
         raise SystemExit(f"{a.model}: not in {MEMBERS.name}")
     if a.max_members:
-        rows = rows.head(a.max_members)
+        rows = rows.sort_values("mjo", ascending=False, kind="stable").head(a.max_members)  # a trial reaches the RMM
     t0 = time.time()
     PT.land_geom()  # the Natural Earth download once, before the member threads
     print(f"{a.model}: {len(rows)} members ({a.workers} workers)", flush=True)
