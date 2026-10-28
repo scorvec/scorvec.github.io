@@ -1,0 +1,63 @@
+name: GEOS FP minus MERRA-2 on the history chart's variables (2025/26 overlap)
+
+# scripts/strat/strat_season.py overlap: this winter's line on stratosphere.html#shwinters is GEOS FP (bdc.yml appends
+# it daily); this measures GEOS FP minus MERRA-2 for the same three variables (u 60N 10 hPa, 65-90N cap T 10 hPa and
+# height 100 hPa) on every day of the 2025/26 winter axis that MERRA-2 holds (reference/strat_season_m2.json, reduced
+# from the offline MERRA-2 archive) -> scripts/strat/reference/strat_season_overlap.json, the numbers the chart's
+# explainer quotes. Dispatch only: once, or after the reduction changes. Reads NCCS sequentially (~240 days).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: strat-season-ref
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  overlap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/strat/strat_season.py
+            scripts/strat/upperstrat_data.py
+            scripts/strat/build_drip_ref.py
+            scripts/strat/reference/drip_std.json
+            scripts/strat/reference/strat_season_m2.json
+            scripts/strat/reference/strat_season_overlap.json
+            assets/sst/data/strat_history.json
+            scripts/lib
+            scripts/constraints.txt
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Python dependencies
+        run: pip install --quiet numpy pandas xarray netCDF4
+      - name: GEOS FP minus MERRA-2
+        run: python scripts/strat/strat_season.py overlap
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          FILES="scripts/strat/reference/strat_season_overlap.json"
+          SNAP=$(mktemp -d); tar cf "$SNAP/outs.tar" $FILES
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add -f $FILES
+            if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+            git commit -q -m "GEOS FP minus MERRA-2 on the history chart's variables (2025/26 overlap)"
+            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
+            echo "push $i rejected; resyncing"; sleep 5
+          done
+          echo "push failed after retries"; exit 1
