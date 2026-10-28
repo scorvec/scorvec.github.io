@@ -95,7 +95,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.chunks != '[]'
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 350   # a backfill's months of GHCNh take hours
     steps:
       - uses: actions/checkout@v7
         with:
