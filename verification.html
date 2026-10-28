@@ -127,6 +127,8 @@
   .scg circle { fill: var(--muted); }
   .scg path, .scg circle, .scg text { pointer-events: none; }
   #s-region-l, #e-region-l { display: none; }
+  #s-region-l.figs { display: inline-flex; }
+  img.fig[hidden], .chart[hidden], .ctl[hidden], #scorecard[hidden] { display: none; }   /* a figure stands in for the drawn chart */
   @media (max-width: 700px) { .scg .blk:not(.on) { display: none; } #s-region-l, #e-region-l { display: inline-flex; } }
   .sc-detail { font-size: 0.86rem; color: var(--ink2); margin: 0.5rem 0 0; min-height: 2.6em; font-variant-numeric: tabular-nums; }
   .lgd svg.kg { width: 1.25rem; height: 1.08rem; vertical-align: -0.25rem; margin-right: 0.3rem; }
@@ -413,6 +415,7 @@ window.plotlyP = new Promise(function (ok, no) {
       <label>Score<select id="l-stat"></select></label>
     </div>
     <div class="chart" id="c-lead"></div>
+    <img class="fig" id="l-fig" alt="" hidden>
   </section>
 
   <section class="card" id="scores">
@@ -424,6 +427,7 @@ window.plotlyP = new Promise(function (ok, no) {
       <label>Rows<select id="s-rows"></select></label>
       <label id="s-region-l">Region<select id="s-region"></select></label>
     </div>
+    <img class="fig" id="s-fig" alt="" hidden>
     <div class="scg" id="scorecard"></div>
     <p class="sc-detail" id="sc-detail" aria-live="polite">Tap or hover a square for both errors and the test.</p>
     <div class="lgd" id="s-key"></div>
@@ -1120,6 +1124,31 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
   }
   const ymd = t => new Date(Date.UTC(+t.slice(0, 4), +t.slice(4, 6) - 1, +t.slice(6, 8)))
     .toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  // the window's scorecard and error by lead as figures, where the night drew them (the page's ten runs: the database's
+  // newest ten); a variable or pair without one keeps the drawn chart
+  function detFigs(figs) {
+    const sc = (figs.scores || {})[W];
+    if (!sc) return;
+    const ver = figs.generated.replace(/\D/g, "");
+    const lv = $("l-var"), lr = $("l-region"), sm = $("s-model"), sr = $("s-ref"), sg = $("s-region");
+    const ctl = id => $(id).closest(".ctl") || $(id).closest("label");
+    const lead = () => {
+      const f = (sc.lead[lv.value] || {})[lr.value];
+      $("l-fig").hidden = !f; $("c-lead").hidden = !!f; ctl("l-stat").hidden = !!f;
+      if (f) figure($("l-fig"), f, ver, `RMSE and bias by lead with 95% intervals: ${lv.selectedOptions[0]?.text || lv.value}, ${lr.value}`);
+    };
+    const card = () => {
+      const f = (sc.card[sg.value] || {})[`${sm.value}|${sr.value}`];
+      $("s-fig").hidden = !f;
+      ["scorecard", "s-key", "sc-detail"].forEach(id => { if ($(id)) $(id).hidden = !!f; });
+      ctl("s-rows").hidden = !!f;
+      $("s-region").closest(".ctl, label").classList.toggle("figs", !!f);
+      if (f) figure($("s-fig"), f, ver, `Scorecard, ${sm.value} against ${sr.value}, ${sg.value}: RMSE difference in percent where significant`);
+    };
+    [lv, lr].forEach(el => el.addEventListener("change", lead));
+    [sm, sr, sg].forEach(el => el.addEventListener("change", card));
+    lead(); card();
+  }
   function drawFigs(figs) {
     const ver = figs.generated.replace(/\D/g, ""), acc = figs.acc || {}, rain = figs.rain || {};
     const win = W === "10" ? "30" : W;
@@ -1374,11 +1403,14 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     $("vwin").hidden = false;
     $("vwin").querySelectorAll("a").forEach(a => a.setAttribute("aria-current", String(a.dataset.w === W)));
   });
+  const figsP = fetch("/assets/verification/figs.json").then(r => r.ok ? r.json() : null).catch(() => null);
+  figsP.then(f => { if (f) drawFigs(f); });
   Promise.all([
     fetch(`/assets/verification/scores${suffix}.json`).then(r => r.json()),
     window.plotlyP,
   ]).then(([card]) => {
     draw(card);
+    figsP.then(f => { if (f) detFigs(f); });
     // Leaflet loads deferred, so it is ready once the document is parsed.
     const parsed = new Promise(ok => document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", ok) : ok());
     const get = u => fetch(u).then(r => r.ok ? r.json() : null);
@@ -1391,7 +1423,6 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
   }).catch(e => {
     $("asof").textContent = "The scores could not be loaded (" + e.message + ").";
   });
-  fetch("/assets/verification/figs.json").then(r => r.ok ? r.json() : null).then(f => { if (f) drawFigs(f); }).catch(() => {});
   // the ensembles score windows of the database only: the nightly 10 runs show its newest 30
   Promise.all([fetch(`/assets/verification/ens_scores_${W === "10" ? "30" : W}.json`).then(r => r.ok ? r.json() : null),
     window.plotlyP]).then(([card]) => {

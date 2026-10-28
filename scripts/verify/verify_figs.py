@@ -26,6 +26,7 @@ the figure.
 from __future__ import annotations
 
 import argparse
+import itertools
 import json
 import sys
 from pathlib import Path
@@ -89,7 +90,7 @@ def style() -> None:
 
 
 def save(fig, path: Path) -> str:
-    fig.savefig(path, dpi=DPI, format="webp", pil_kwargs={"quality": 92, "method": 6})
+    fig.savefig(path, dpi=DPI, format="webp", pil_kwargs={"quality": 92, "method": 4})
     plt.close(fig)
     return path.name
 
@@ -336,6 +337,164 @@ def rain_figs(derived: Path, out: Path) -> dict:
     return {"maps": manifest, "groups": [g[0] for g in LEAD_GROUPS], "window": w, "models": models}
 
 
+# --------------------------------------------------------------------------- the deterministic models
+CARD_ROWS = ["t2m", "td2m", "msl", "wind10", "z850", "z500", "z250", "t850", "t500", "t250", "wind850", "wind500",
+             "wind250", "q850", "q700"]  # fmt: skip  # the page's main rows (verification.html MAIN)
+LEAD_VARS = [*CARD_ROWS, "pr24"]
+CARD_REGIONS = ("NH 20-90N", "SH 20-90S", "Tropics 20S-20N", "Europe", "North America", "CONUS")
+DET_WINDOWS = (10, 30, 90, 365, None)  # the page's run switch (its nightly ten are the database's newest ten here)
+SURFACE = {"t2m", "td2m", "msl", "wind10", "pr24"}  # scored at the GHCNh stations, the rest against radiosondes
+BETTER, WORSE = (44, 110, 158), (180, 50, 31)  # verification.html's scorecard colours
+SIG_P = 0.05  # the scorecard's level, as on the page
+
+
+def slug(text: str) -> str:
+    return "".join(c for c in text.split(" 20")[0] if c.isalnum())
+
+
+def short(v: str) -> str:
+    named = {"t2m": "2 m T", "td2m": "2 m Td", "msl": "MSLP", "wind10": "10 m wind", "pr24": "24 h rain"}
+    if v in named:
+        return named[v]
+    q = next(q for q in ("wind", "z", "t", "q") if v.startswith(q))
+    return f"{dict(wind='Wind', z='Z', t='T', q='Q')[q]} {v[len(q) :]}"
+
+
+def det_window(derived: Path, runs: int | None) -> tuple[pd.DataFrame, list, dict] | None:
+    """The per-run sums of the window's runs that every model it scores has (``mverify_scores.window_card``'s)."""
+    inits = sorted(f.stem.split("_")[1] for f in derived.glob("stats_*.parquet"))
+    use = inits[-runs:] if runs else inits
+    if len(use) < (runs or 1) or not use:
+        return None
+    stats = pd.read_parquet(
+        [derived / f"stats_{i}.parquet" for i in use], columns=[*D.STAT_BY, "n", "se", "sse", "init"]
+    )
+    stats = stats.astype(dict.fromkeys(D.STAT_BY[:4], str))
+    stats = stats[stats["network"] == np.where(stats["variable"].isin(SURFACE), "GHCNH", "RAOB")]
+    models, used, left_out = D.window_runs(stats)
+    if not used:
+        return None
+    s = stats[stats["model"].isin(models) & stats["init"].isin(used)]
+    return s.assign(mse=s["sse"] / s["n"], bias=s["se"] / s["n"]), models, D.run_span(used) | {"left_out": left_out}
+
+
+def draw_card(s: pd.DataFrame, region: str, a: str, b: str, span: dict, path: Path) -> str | None:
+    """``a`` against ``b`` in one region: the RMSE difference in %, in the cells where the paired test on the runs'
+    mean squared errors passes at SIG_P; a dot where it does not."""
+    from mverify.significance import paired_test
+
+    g = s[(s["region"] == region) & s["variable"].isin(CARD_ROWS) & (s["lead_h"] % 24 == 0) & (s["lead_h"] > 0)]
+    if g.empty:
+        return None
+    pooled = g.groupby(["variable", "lead_h", "model"])[["n", "sse"]].sum()
+    rmse = np.sqrt(pooled["sse"] / pooled["n"]).unstack("model")
+    per = g.pivot_table(index=["variable", "lead_h", "init"], columns="model", values="mse")
+    rows = [v for v in CARD_ROWS if v in rmse.index.get_level_values(0)]
+    days = sorted(rmse.index.get_level_values(1).unique() // 24)
+    groups = [next(q for q in ("wind", "z", "t", "q") if v.startswith(q)) if v not in SURFACE else "sfc" for v in rows]
+    gaps = np.cumsum([0] + [0.35 * (g1 != g0) for g0, g1 in itertools.pairwise(groups)])
+    fig = plt.figure(figsize=(1.6 + 0.78 * len(days), 1.55 + 0.48 * len(rows) + gaps[-1] * 0.48))
+    ax = fig.add_axes((0, 0, 1, 1))
+    ax.set_xlim(-1.75, len(days) + 0.1)
+    ax.set_ylim(len(rows) + gaps[-1] + 0.15, -2.6)
+    ax.axis("off")
+    for j, d in enumerate(days):
+        ax.text(j + 0.5, -0.35, str(d), ha="center", va="bottom", fontsize=14, color=house.INK2)
+    ax.text(-0.15, -0.35, "Day", ha="right", va="bottom", fontsize=14, color=house.INK2)
+    for i, (v, gap) in enumerate(zip(rows, gaps, strict=True)):
+        y = i + gap
+        ax.text(-0.15, y + 0.5, short(v), ha="right", va="center", fontsize=14.5, color=house.INK)
+        for j, d in enumerate(days):
+            key = (v, 24 * d)
+            if key not in rmse.index or not np.isfinite(rmse.loc[key, [a, b]]).all():
+                continue
+            pct = 100 * (rmse.loc[key, a] - rmse.loc[key, b]) / rmse.loc[key, b]
+            diff = (per.loc[key, a] - per.loc[key, b]).dropna().to_numpy()
+            sig = paired_test(diff) < SIG_P
+            if sig:
+                k = 0.35 + 0.65 * min(1.0, abs(pct) / 20)
+                rgb = [(k * c + (1 - k) * 255) / 255 for c in (BETTER if pct < 0 else WORSE)]
+                ink = "white" if k > 0.55 else house.INK
+                label = f"{pct:+.0f}" if abs(pct) >= 1 else f"{pct:+.1f}"
+                ax.add_patch(plt.Rectangle((j + 0.04, y + 0.05), 0.92, 0.9, color=rgb, lw=0))
+                ax.text(j + 0.5, y + 0.52, label.replace("-", "−"), ha="center", va="center", fontsize=13.5,
+                        color=ink, weight="semibold")  # fmt: skip
+            else:
+                ax.add_patch(plt.Rectangle((j + 0.04, y + 0.05), 0.92, 0.9, color="#f3f2ee", lw=0))
+                ax.plot(j + 0.5, y + 0.5, "o", ms=2.5, color=house.MUTED)
+    ax.text(-1.7, -2.15, f"{a} against {b}, {region}: RMSE difference, %", fontsize=17, weight="semibold",
+            va="center", color=house.INK)  # fmt: skip
+    ax.text(-1.7, -1.45, f"blue: {a} smaller error · red: larger · dot: no significant difference · {span['runs']} runs",
+            fontsize=12.5, va="center", color=house.INK2)  # fmt: skip
+    return save(fig, path)
+
+
+def draw_det_lead(s: pd.DataFrame, models: list[str], v: str, region: str, label: str, unit: str, span: dict,
+                  path: Path) -> str | None:  # fmt: skip
+    """RMSE and bias by lead with their 95 % intervals: the window's pooled score, its interval from the spread of
+    the runs' own scores (the sample cut for autocorrelation)."""
+    g = s[(s["variable"] == v) & (s["region"] == region)]
+    if g.empty:
+        return None
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=house.size(15, 0.4), constrained_layout=True)
+    for k, m in enumerate(models):
+        gm = g[g["model"] == m]
+        rows = []
+        for lead, d in gm.sort_values("init").groupby("lead_h"):
+            n = d["n"].sum()
+            mse, (_, mlo, mhi) = d["sse"].sum() / n, ci(d["mse"].to_numpy())
+            half = (mhi - mlo) / 2
+            bias, (_, blo, bhi) = d["se"].sum() / n, ci(d["bias"].to_numpy())
+            rows.append((lead / 24, np.sqrt(mse), np.sqrt(max(mse - half, 0)), np.sqrt(mse + half), bias,
+                         bias - (bhi - blo) / 2, bias + (bhi - blo) / 2))  # fmt: skip
+        if not rows:
+            continue
+        x, r, rlo, rhi, b, blo, bhi = np.array(rows).T
+        x = x + (k - (len(models) - 1) / 2) * 0.06
+        for ax, y, lo, hi in ((a1, r, rlo, rhi), (a2, b, blo, bhi)):
+            ax.errorbar(x, y, yerr=[y - lo, hi - y], color=COLORS.get(m, house.INK2), lw=2.2, elinewidth=1.6,
+                        marker="o", ms=4.5, label=m)  # fmt: skip
+    a2.axhline(0, color=house.INK2, lw=1)
+    for ax, what in ((a1, "RMSE"), (a2, "Bias (forecast − observed)")):
+        ax.set(xlabel="Lead (days)", ylabel=f"{what.split(' ')[0]} ({unit})", title=f"{what}, with its 95 % interval")
+        ax.set_xticks(range(11))
+        ax.grid(True, color=house.GRID, lw=0.8)
+    fig.legend(*a1.get_legend_handles_labels(), loc="outside lower center", ncols=len(models), frameon=False)
+    fig.suptitle(f"{label[0].upper()}{label[1:]}, {region}: {span['runs']} runs", x=0.01, ha="left")
+    return save(fig, path)
+
+
+def det_figs(derived: Path, out: Path) -> dict:
+    """The scorecards and the error by lead of each window of runs of the database."""
+    meta = {}
+    for f in sorted(D.OUT_DIR.glob("scores*.json")):
+        for r in json.loads(f.read_text())["rows"]:
+            meta.setdefault(r["var"], (r["label"], r["unit"]))
+    manifest = {}
+    for w in DET_WINDOWS:
+        if (found := det_window(derived, w)) is None:
+            continue
+        s, models, span = found
+        name, cards, leads = name_of(w), {}, {}
+        for region in CARD_REGIONS:
+            for a in models:
+                for b in models:
+                    if a != b and (
+                        f := draw_card(s, region, a, b, span, out / f"card_{name}_{slug(region)}_{a}_{b}.webp")
+                    ):
+                        cards.setdefault(region, {})[f"{a}|{b}"] = f
+        for v in LEAD_VARS:
+            label, unit = meta.get(v, (short(v), ""))
+            for region in sorted(s.loc[s["variable"] == v, "region"].unique()):
+                if f := draw_det_lead(
+                    s, models, v, region, label, unit, span, out / f"lead_{name}_{v}_{slug(region)}.webp"
+                ):
+                    leads.setdefault(v, {})[region] = f
+        manifest[name] = {"window": span, "models": models, "card": cards, "lead": leads}
+        print(f"scores {name}: {span['runs']} runs, {len(cards)} scorecard regions, {len(leads)} variables", flush=True)
+    return manifest
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--derived", type=Path, required=True, help="the database files the scores are drawn from")
@@ -348,6 +507,7 @@ def main() -> None:
     if a.clim and a.clim.exists():
         manifest["acc"] = acc_figs(a.derived, a.clim, a.out)
     manifest["rain"] = rain_figs(a.derived, a.out)
+    manifest["scores"] = det_figs(a.derived, a.out)
     (D.OUT_DIR / "figs.json").write_text(json.dumps(manifest, indent=1) + "\n")
 
 
