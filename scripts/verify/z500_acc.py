@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import urllib.error
 from pathlib import Path
 
 import ens_verify as E
@@ -156,13 +157,22 @@ def run_fields(model: str, init: str, work: Path, out: Path) -> None:
 
 
 def fields(a) -> None:
+    """The runs of one model the database lacks. A run its source no longer holds (HPFX's GDPS and GEPS past their
+    days, a 404; a bucket answers 403) is left out with a warning, as mverify_scores.download does: no later pass
+    can fetch it, so it is not a failure."""
     have = _have(a.have)
     a.archive_out.mkdir(parents=True, exist_ok=True)
     a.work.mkdir(parents=True, exist_ok=True)
     for init in D.runs(*a.inits):
         if file_of(a.model, init) in have:
             continue
-        run_fields(a.model, init, a.work, a.archive_out)
+        try:
+            run_fields(a.model, init, a.work, a.archive_out)
+        except urllib.error.HTTPError as e:
+            if e.code not in (403, 404):
+                raise
+            print(f"::warning::{a.model} {init}: not on the source ({e.code}), left out", flush=True)
+            continue
         print(f"{a.model} {init}: archived", flush=True)
 
 
