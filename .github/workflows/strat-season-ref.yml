@@ -4,7 +4,8 @@ name: GEOS FP minus MERRA-2 on the history chart's variables (2025/26 overlap)
 # it daily); this measures GEOS FP minus MERRA-2 for the same three variables (u 60N 10 hPa, 65-90N cap T 10 hPa and
 # height 100 hPa) on every day of the 2025/26 winter axis that MERRA-2 holds (reference/strat_season_m2.json, reduced
 # from the offline MERRA-2 archive) -> scripts/strat/reference/strat_season_overlap.json, the numbers the chart's
-# explainer quotes. Dispatch only: once, or after the reduction changes. Reads NCCS sequentially (~240 days).
+# explainer quotes. Dispatch only: once, or after the reduction changes (delete the file's "geosfp" days to re-read).
+# Reads NCCS sequentially (239 days, ~2 h).
 on:
   workflow_dispatch:
 
@@ -42,13 +43,17 @@ jobs:
           python-version: '3.11'
       - name: Python dependencies
         run: pip install --quiet numpy pandas xarray netCDF4
+      # NCCS takes ~20-35 s a day: a run cut short still commits the days it read, and the next dispatch resumes
       - name: GEOS FP minus MERRA-2
+        timeout-minutes: 130
         run: python scripts/strat/strat_season.py overlap
       - name: Commit & push
+        if: ${{ !cancelled() }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           FILES="scripts/strat/reference/strat_season_overlap.json"
+          [ -f "$FILES" ] || { echo "::warning::no overlap file written"; exit 0; }
           SNAP=$(mktemp -d); tar cf "$SNAP/outs.tar" $FILES
           for i in 1 2 3 4 5; do
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi

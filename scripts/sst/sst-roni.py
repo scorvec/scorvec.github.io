@@ -1400,8 +1400,10 @@ def publish_enso_daily_json(mean_fields, la, lo, idx, valid, out_path):
     daily   : ~2 years of daily box series — anomaly AND absolute SST for the
               four Niño regions, the 20°S–20°N tropical mean, the relative
               index (Niño-3.4 − tropical), the daily RONI (relative × the
-              CPC/ECMWF per-month σ-scale) and a 90-day trailing mean of
-              Niño-3.4 as the running daily ONI estimate.
+              CPC/ECMWF per-month σ-scale), a 90-day trailing mean of
+              Niño-3.4 as the running daily ONI estimate, and the Indian
+              Ocean Dipole (DMI), which the MJO page's IOD correction reads
+              (scripts/mjo/src/enso_rmm.py).
     monthly : the official-convention ONI/RONI (3-month centered) table.
     latest  : current values with 7- and 30-day changes, for the stat chips.
     """
@@ -1418,6 +1420,7 @@ def publish_enso_daily_json(mean_fields, la, lo, idx, valid, out_path):
     months = pd.DatetimeIndex(rel.index).month
     roni_d = rel * pd.Series([sc.get(int(m), 1.0) for m in months], index=rel.index)
     oni90 = a["nino34"].rolling(90, min_periods=90).mean()
+    dmi = _cat(oisst9120.box_anom_series, IOD_WEST) - _cat(oisst9120.box_anom_series, IOD_EAST)
 
     dates = pd.DatetimeIndex(a["nino34"].index)
 
@@ -1430,6 +1433,7 @@ def publish_enso_daily_json(mean_fields, la, lo, idx, valid, out_path):
         "rel": rnd(rel),
         "roni_d": rnd(roni_d),
         "oni90": rnd(oni90),
+        "dmi": rnd(dmi.reindex(dates)),
     }
     for k in NINO_REGIONS:
         daily[k] = rnd(a[k])

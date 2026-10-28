@@ -1,16 +1,19 @@
-"""ENSO-removed wind-only RMM: an ENSO-cleaned MJO index shown beside the raw RMM.
+"""ENSO- and IOD-removed wind-only RMM: a cleaned MJO index shown beside the raw RMM.
 
 Why. Wheeler & Hendon (2004) removed the part of each field linearly related to ENSO (an Indo-Pacific SST index)
 before the previous-120-day mean; the site's RMM, forecast and observed (rmm_era5.py), removes the 120-day mean only.
 While an El Nino is GROWING, the 120-day mean lags the warming and the standing convection and wind anomaly over the
 central Pacific project onto phases 6-8/1, which reads as a stalled MJO (Sep 2026: phases 6-8/1 for 60 days at
-+0.6 deg/day, where a real MJO moves at about +7 deg/day).
++0.6 deg/day, where a real MJO moves at about +7 deg/day). A growing positive Indian Ocean Dipole does the same in
+phases 8-1-2 (autumn 2026, as in 1982 and 1997).
 
-What. RMM_clean = RMM_wind - dN34 * c. dN34 is Nino-3.4 minus its mean over the 120 days of the wind filter window,
-and c is the projection onto the two wind EOFs of the per-longitude regression of the 120-day-filtered u850/u200
-anomalies on dN34, fitted on ARCO/ERA5 2003-2024 (data/reference/enso_rmm_correction.json; its validation on the
-observed RMM, out of sample over 1980-2002, is build_enso_rmm3.py's). The forecast holds Nino-3.4 at its latest value
-(ENSO changes little in 15 days).
+What. RMM_clean = RMM_wind - dN34 * c - dDMI * d. dN34 is Nino-3.4 minus its mean over the 120 days of the wind filter
+window, and c is the projection onto the two wind EOFs of the per-longitude regression of the 120-day-filtered
+u850/u200 anomalies on dN34, fitted on ARCO/ERA5 2003-2024 (data/reference/enso_rmm_correction.json; its validation on
+the observed RMM, out of sample over 1980-2002, is build_enso_rmm3.py's). dDMI is the Dipole Mode Index's change over
+the same window and d the slope of the ENSO-corrected index on it, applied in the IOD's season only (June-December;
+build_iod_rmm.py -> data/reference/iod_rmm_correction.json). The forecast holds both indices at their latest values
+(they change little in 15 days).
 
 The linear correction removes part of a growing El Nino's projection, not all of it, so the page also shows NOAA's
 OLR-based real-time OMI (ROMI; 40-day mean removed, which suppresses slow signals) as an independent check.
@@ -34,12 +37,15 @@ HERE = Path(__file__).resolve().parent
 REF = HERE.parent / "data" / "reference"
 CORR = REF / "enso_rmm_correction.json"
 CORR3 = REF / "enso_rmm3_correction.json"
+CORR_IOD = REF / "iod_rmm_correction.json"
 ERSST_N34 = REF / "nina34.anom.data"
+ERSST_DMI = REF / "dmi_ersst6.csv"
 REPO = HERE.parents[2]
 ENSO_DAILY = REPO / "assets" / "sst" / "data" / "enso_daily.json"
 ROMI_URL = "https://psl.noaa.gov/mjo/mjoindex/romi.cpcolr.1x.txt"
 LAG_DAYS = 7  # the wind filter map's window typically ends about a week before init (ARCO lag + refresh cadence)
 WINDOW = 120  # days of the RMM's low-frequency filter, over which dN34 takes its mean
+IOD_MONTHS = (6, 7, 8, 9, 10, 11, 12)  # the IOD's season: the DMI term applies on these months only
 
 
 def load_c(fitted: bool = False):
@@ -57,6 +63,23 @@ def load_c3() -> dict[str, np.ndarray]:
     return {k: np.array([d[k]["rmm1"], d[k]["rmm2"]], float) for k in ("olr", "wind")}
 
 
+def load_d() -> np.ndarray:
+    """The wind-only RMM's IOD correction as applied, (RMM1, RMM2) per degree C of dDMI; a component whose fit is not
+    significant is 0 (iod_rmm_correction.json)."""
+    d = json.loads(CORR_IOD.read_text())["applied"]
+    return np.array([d["rmm1"], d["rmm2"]], float)
+
+
+def _mid_month_daily(rows: list[tuple[int, int, float]]) -> pd.Series:
+    """(year, month, value) monthly rows -> daily, interpolated between mid-months."""
+    s = pd.Series(
+        {(t0 := pd.Timestamp(y, m, 1)) + pd.Timedelta(days=(t0.days_in_month - 1) / 2): v for y, m, v in rows},
+        dtype=float,
+    )
+    days = pd.date_range(s.index[0].normalize() + pd.Timedelta(days=1), s.index[-1].normalize())
+    return s.reindex(s.index.union(days)).interpolate("time").reindex(days)
+
+
 def ersst_n34() -> pd.Series:
     """ERSST v6 Nino-3.4 anomaly (PSL nina34.anom.data, monthly) interpolated to daily between mid-months: the index
     both corrections were fitted on, and the one the hindcast scores use."""
@@ -65,18 +88,21 @@ def ersst_n34() -> pd.Series:
         p = ln.split()
         if len(p) != 13 or not p[0].isdigit():
             continue
-        for m, v in enumerate(p[1:], 1):
-            if float(v) > -99:
-                t0 = pd.Timestamp(int(p[0]), m, 1)
-                rows.append((t0 + pd.Timedelta(days=(t0.days_in_month - 1) / 2), float(v)))
-    s = pd.Series(dict(rows), dtype=float)
-    days = pd.date_range(s.index[0].normalize() + pd.Timedelta(days=1), s.index[-1].normalize())
-    return s.reindex(s.index.union(days)).interpolate("time").reindex(days)
+        rows += [(int(p[0]), m, float(v)) for m, v in enumerate(p[1:], 1) if float(v) > -99]
+    return _mid_month_daily(rows)
+
+
+def ersst_dmi() -> pd.Series:
+    """ERSST v6 DMI (data/reference/dmi_ersst6.csv, monthly, build_iod_rmm.py) interpolated to daily between
+    mid-months: the index the IOD correction was fitted on."""
+    m = pd.read_csv(ERSST_DMI)
+    p = pd.PeriodIndex(m["month"], freq="M")
+    return _mid_month_daily(list(zip(p.year, p.month, m["dmi"].astype(float))))
 
 
 def window_dn34(n34: pd.Series, days, ends) -> np.ndarray:
-    """dN34 for a daily series: n34 on each of `days` minus its mean over the WINDOW days ending on the matching `ends`
-    (inclusive). NaN where either is missing."""
+    """dN34 for a daily series (Nino-3.4, or the DMI for dDMI): n34 on each of `days` minus its mean over the WINDOW days
+    ending on the matching `ends` (inclusive). NaN where either is missing."""
     m = n34.rolling(WINDOW, min_periods=WINDOW).mean()
     return n34.reindex(pd.DatetimeIndex(days)).values - m.reindex(pd.DatetimeIndex(ends)).values
 
@@ -95,19 +121,31 @@ def hindcast_dn34(starts, valid) -> tuple[np.ndarray, np.ndarray]:
     return dn_f, dn_o
 
 
-def n34_smoothed() -> pd.Series | None:
-    """Daily OISST Nino-3.4 anomaly, 31-day trailing mean (the fit used monthly ERSST, so day-to-day noise is
-    smoothed out). None when the file is missing, so the caller can skip the cleaned index."""
+def _daily_feed(key: str) -> pd.Series | None:
+    """A daily OISST index of enso_daily.json, 31-day trailing mean (the fits used monthly ERSST, so day-to-day noise is
+    smoothed out). None when the file or the series is missing, so the caller can skip that correction."""
     if not ENSO_DAILY.exists():
         return None
     d = json.loads(ENSO_DAILY.read_text())["daily"]
-    s = pd.Series(d["nino34"], index=pd.to_datetime(d["dates"]), dtype=float).asfreq("D").interpolate()
+    if key not in d:
+        return None
+    s = pd.Series(d[key], index=pd.to_datetime(d["dates"]), dtype=float).asfreq("D").interpolate()
     return s.rolling(31, min_periods=20).mean().dropna()
 
 
+def n34_smoothed() -> pd.Series | None:
+    """Daily OISST Nino-3.4 anomaly, 31-day trailing mean; None without the file."""
+    return _daily_feed("nino34")
+
+
+def dmi_smoothed() -> pd.Series | None:
+    """Daily OISST DMI, 31-day trailing mean; None without it (the cleaned index then removes ENSO alone)."""
+    return _daily_feed("dmi")
+
+
 def delta_n34(n34: pd.Series, t, window_end=None) -> float:
-    """N34 at t (latest value at or before t, i.e. persisted into the forecast) minus the mean over the 120 days
-    ending at window_end (the wind filter's window) or t - LAG_DAYS."""
+    """The index (Nino-3.4, or the DMI) at t (latest value at or before t, i.e. persisted into the forecast) minus the
+    mean over the 120 days ending at window_end (the wind filter's window) or t - LAG_DAYS."""
     t = pd.Timestamp(t).tz_localize(None).normalize()
     end = pd.Timestamp(window_end).normalize() if window_end else t - pd.Timedelta(days=LAG_DAYS)
     win = n34.loc[end - pd.Timedelta(days=119) : end]
@@ -117,23 +155,44 @@ def delta_n34(n34: pd.Series, t, window_end=None) -> float:
     return float(now.iloc[-1] - win.mean())
 
 
-def clean_forecast(rmm: xr.Dataset, dn: float, c: np.ndarray, label: str) -> xr.Dataset:
+def iod_on(t) -> np.ndarray:
+    """True on the days (a date or dates) the DMI term applies: the IOD's season."""
+    return np.isin(pd.DatetimeIndex(np.atleast_1d(np.asarray(t, dtype="datetime64[D]"))).month, IOD_MONTHS)
+
+
+def iod_delta(dmi: pd.Series | None, t, window_end=None) -> float | None:
+    """dDMI at t as the correction applies it: 0 outside the IOD's season, None without a usable DMI series (the IOD
+    term is then not applied)."""
+    if not iod_on(pd.Timestamp(t).tz_localize(None))[0]:
+        return 0.0
+    dd = delta_n34(dmi, t, window_end) if dmi is not None else float("nan")
+    return dd if np.isfinite(dd) else None
+
+
+def daily_terms(t: pd.DatetimeIndex, n34: pd.Series, dmi: pd.Series | None) -> tuple[np.ndarray, np.ndarray]:
+    """dN34 and dDMI on each observed day (each against its own day's window), 0 where missing."""
+    dn = np.array([delta_n34(n34, x) for x in t])
+    dd = np.array([iod_delta(dmi, x) or 0.0 for x in t])
+    return np.where(np.isfinite(dn), dn, 0.0), dd
+
+
+def clean_forecast(rmm: xr.Dataset, dn: float, c: np.ndarray, label: str, dd: float = 0.0, d=(0.0, 0.0)) -> xr.Dataset:
     """The cleaned wind-only forecast in the shape plot.plot_rmm expects (rmm1/rmm2 over member x lead_day)."""
-    out = xr.Dataset(
-        {"rmm1": rmm["rmm1_wind"] - dn * c[0], "rmm2": rmm["rmm2_wind"] - dn * c[1]}, attrs=dict(rmm.attrs)
+    s = dn * np.asarray(c) + dd * np.asarray(d)
+    out = xr.Dataset({"rmm1": rmm["rmm1_wind"] - s[0], "rmm2": rmm["rmm2_wind"] - s[1]}, attrs=dict(rmm.attrs))
+    out.attrs.update(
+        model_label=label, channels="u850+u200 (ENSO and IOD removed)", enso_dn34=round(dn, 3), iod_ddmi=round(dd, 3)
     )
-    out.attrs.update(model_label=label, channels="u850+u200 (ENSO removed)", enso_dn34=round(dn, 3))
     return out
 
 
-def clean_obs(obs: xr.Dataset | None, n34: pd.Series, c: np.ndarray) -> xr.Dataset | None:
+def clean_obs(obs: xr.Dataset | None, n34: pd.Series, c: np.ndarray, dmi=None, d=(0.0, 0.0)) -> xr.Dataset | None:
     if obs is None or obs.sizes.get("time", 0) == 0:
         return obs
-    t = pd.to_datetime(obs["time"].values)
-    dn = np.array([delta_n34(n34, x) for x in t])
-    dn = np.where(np.isfinite(dn), dn, 0.0)
+    dn, dd = daily_terms(pd.to_datetime(obs["time"].values), n34, dmi)
+    s = np.outer(dn, c) + np.outer(dd, d)
     return xr.Dataset(
-        {"rmm1": ("time", obs["rmm1"].values - dn * c[0]), "rmm2": ("time", obs["rmm2"].values - dn * c[1])},
+        {"rmm1": ("time", obs["rmm1"].values - s[:, 0]), "rmm2": ("time", obs["rmm2"].values - s[:, 1])},
         coords={"time": obs["time"].values},
     )
 
@@ -181,7 +240,11 @@ def romi_status(timeout=40):
     }
 
 
-def diagnose(clean: xr.Dataset, clean_tail: xr.Dataset | None, dn: float, romi: dict | None) -> dict:
+def diagnose(
+    clean: xr.Dataset, clean_tail: xr.Dataset | None, dn: float, romi: dict | None, dd: float | None = None
+) -> dict:
+    """The cleaned forecast's verdict for the page and the homepage: its amplitude and phase speed, the cleaned observed
+    tail's, ROMI and the corrections applied (ddmi None when the IOD term was not, 0 outside the IOD's season)."""
     m1 = clean["rmm1"].mean("member").values
     m2 = clean["rmm2"].mean("member").values
     lead = clean["lead_day"].values.astype(float)
@@ -197,7 +260,13 @@ def diagnose(clean: xr.Dataset, clean_tail: xr.Dataset | None, dn: float, romi: 
         "days": int(np.rint(lead[-1])),
     }
     coherent = fc["amp_mean"] >= 1.0 and fc["speed"] >= 3.0
-    out = {"dn34": round(dn, 2), "forecast": fc, "coherent_mjo_forecast": bool(coherent), "romi": romi}
+    out = {
+        "dn34": round(dn, 2),
+        "ddmi": None if dd is None else round(dd, 2),
+        "forecast": fc,
+        "coherent_mjo_forecast": bool(coherent),
+        "romi": romi,
+    }
     if clean_tail is not None and clean_tail.sizes.get("time", 0):
         t = pd.to_datetime(clean_tail["time"].values)
         sel = t >= t.max() - pd.Timedelta(days=60)
@@ -228,21 +297,34 @@ def _phases(fc: dict) -> str:
     return ""
 
 
+def _removed(st: dict) -> tuple[str, str, str]:
+    """What the cleaned index takes out: (the signals, the index's name, the changes removed). The IOD is named only
+    when its term was applied (ddmi is 0 outside its season and None without the DMI series)."""
+    terms = f"&Delta;Ni&ntilde;o-3.4 {st['dn34']:+.2f}&nbsp;&deg;C"
+    if st.get("ddmi"):
+        return (
+            "the ENSO and IOD signals",
+            "ENSO- and IOD-removed",
+            terms + f", &Delta;DMI {st['ddmi']:+.2f}&nbsp;&deg;C",
+        )
+    return "the ENSO signal", "ENSO-removed", terms
+
+
 def raw_caption(st: dict) -> str:
-    """The lead sentence of the raw RMM view: the ENSO-removed verdict, so the standard index is never shown without
+    """The lead sentence of the raw RMM view: the cleaned index's verdict, so the standard index is never shown without
     it. Names no phase (the cleaned view's status line does, under the amplitude rule)."""
     fc, dn = st["forecast"], st["dn34"]
-    head = "<b>ENSO not removed.</b> "
+    what, name, terms = _removed(st)
+    head = f"<b>{'ENSO and IOD' if st.get('ddmi') else 'ENSO'} not removed.</b> "
     if st["coherent_mjo_forecast"]:
         return head + (
-            f"With the ENSO signal taken out (&Delta;Ni&ntilde;o-3.4 {dn:+.2f}&nbsp;&deg;C) the forecast still shows an MJO: "
-            f"ensemble-mean amplitude {fc['amp_mean']:.1f}, moving east at about {fc['speed']:+.0f}&deg;/day (see the "
-            "ENSO-removed index)."
+            f"With {what} taken out ({terms}) the forecast still shows an MJO: ensemble-mean amplitude "
+            f"{fc['amp_mean']:.1f}, moving east at about {fc['speed']:+.0f}&deg;/day (see the {name} index)."
         )
     s = head + (
-        f"With the ENSO signal taken out (&Delta;Ni&ntilde;o-3.4 {dn:+.2f}&nbsp;&deg;C) there is no coherent MJO in this "
-        f"forecast: ensemble-mean amplitude {fc['amp_mean']:.1f} and a phase speed of {fc['speed']:+.1f}&deg;/day, where "
-        "a real MJO moves at about +7&deg;/day."
+        f"With {what} taken out ({terms}) there is no coherent MJO in this forecast: ensemble-mean amplitude "
+        f"{fc['amp_mean']:.1f} and a phase speed of {fc['speed']:+.1f}&deg;/day, where a real MJO moves at about "
+        "+7&deg;/day."
     )
     if abs(dn) >= ENSO_STRONG_DN34:
         s += " A large or slow track in this diagram is most likely the ENSO change projecting onto the index, not an MJO."
@@ -253,13 +335,12 @@ def status_sentence(st: dict) -> tuple[str, str]:
     """The diagram's status: a one-line verdict for above it, and the detail (phase speed, ROMI, the correction) for
     below it."""
     fc = st["forecast"]
+    _, name, terms = _removed(st)
     if st["coherent_mjo_forecast"]:
-        head = (
-            f"<b>The ENSO-removed forecast shows an MJO:</b> ensemble-mean amplitude {fc['amp_mean']:.1f}{_phases(fc)}."
-        )
+        head = f"<b>The {name} forecast shows an MJO:</b> ensemble-mean amplitude {fc['amp_mean']:.1f}{_phases(fc)}."
         s = f"It moves east at about {fc['speed']:+.0f}&deg;/day."
     else:
-        head = f"<b>No coherent MJO in the ENSO-removed forecast:</b> ensemble-mean amplitude {fc['amp_mean']:.1f}."
+        head = f"<b>No coherent MJO in the {name} forecast:</b> ensemble-mean amplitude {fc['amp_mean']:.1f}."
         s = (
             f"Its maximum is {fc['amp_max']:.1f} and its phase speed {fc['speed']:+.1f}&deg;/day, where a real MJO moves at "
             "about +7&deg;/day."
@@ -276,5 +357,5 @@ def status_sentence(st: dict) -> tuple[str, str]:
             f" NOAA&rsquo;s OLR-based ROMI on {r['date']}: {now}; over the last "
             f"60 days {round(100 * r['active_60d'])}&nbsp;% of days reached amplitude 1."
         )
-    s += f" Correction applied: &Delta;Ni&ntilde;o-3.4 = {st['dn34']:+.2f}&nbsp;&deg;C."
+    s += f" Correction applied: {terms}."
     return head, s
