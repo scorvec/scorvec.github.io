@@ -1,17 +1,17 @@
 {
  "updated": "2026-10-28",
- "total_30d": 1073,
+ "total_30d": 1089,
  "countries_30d": 36,
- "total_all": 1908,
+ "total_all": 1924,
  "countries_all": 38,
  "top_pages_30d": [
   {
    "path": "/stratosphere.html",
-   "count": 94
+   "count": 97
   },
   {
    "path": "/",
-   "count": 90
+   "count": 93
   },
   {
    "path": "/models.html",
@@ -27,7 +27,7 @@
   },
   {
    "path": "/midterms",
-   "count": 53
+   "count": 55
   },
   {
    "path": "/circulation.html",
@@ -42,7 +42,7 @@
    "count": 32
   },
   {
-   "path": "/gefs.html",
+   "path": "/ssw.html",
    "count": 29
   }
  ]
