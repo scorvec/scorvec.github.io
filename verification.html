@@ -113,19 +113,27 @@
   .cbar .ticks { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
   .cbar .col { display: flex; flex-direction: column; gap: 2px; width: min(360px, 100%); }
   .tblwrap { overflow-x: auto; }
-  table.sc { border-collapse: separate; border-spacing: 2px; font-size: 0.86rem; font-variant-numeric: tabular-nums; }
-  table.sc th { font-size: 0.78rem; color: var(--muted); font-weight: 600; padding: 0.2rem 0.4rem; text-align: center; white-space: nowrap; }
-  table.sc th.r { text-align: left; color: var(--ink2); }
-  table.sc th.g { padding-top: 0.6rem; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
-  table.sc td { min-width: 3.1rem; height: 1.9rem; text-align: center; border-radius: 4px; background: #f3f2ee; color: var(--muted); }
-  table.sc td.s { font-weight: 600; }   /* colour set with the fill (inkOn) */
+  /* the scorecard as the forecast centres draw theirs: a block per region, a symbol per variable and day; a phone shows
+     one region at a time (its switch is hidden on wider screens, where every region is side by side) */
+  .scg { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); gap: 0.9rem 1.6rem; margin-top: 0.3rem; }
+  .scg svg { display: block; width: 100%; height: auto; font-family: var(--sans); }
+  .scg .t { font-size: 13px; font-weight: 600; fill: var(--ink); }
+  .scg .h { font-size: 11px; fill: var(--muted); }
+  .scg .l { font-size: 12px; fill: var(--ink2); }
+  .scg rect { cursor: pointer; }
+  .scg rect.n { fill: #f3f2ee; }
+  .scg circle { fill: var(--muted); }
+  .scg path, .scg circle, .scg text { pointer-events: none; }
+  #s-region-l { display: none; }
+  @media (max-width: 700px) { .scg .blk:not(.on) { display: none; } #s-region-l { display: inline-flex; } }
+  .sc-detail { font-size: 0.86rem; color: var(--ink2); margin: 0.5rem 0 0; min-height: 2.6em; font-variant-numeric: tabular-nums; }
+  .lgd svg.kg { width: 1.25rem; height: 1.08rem; vertical-align: -0.25rem; margin-right: 0.3rem; }
   table.pg { border-collapse: collapse; font-size: 0.9rem; font-variant-numeric: tabular-nums; margin-top: 0.3rem; }
   table.pg th, table.pg td { padding: 0.3rem 0.7rem; text-align: right; border-bottom: 1px solid var(--rule); }
   table.pg th:first-child, table.pg td:first-child { text-align: left; }
   table.pg thead th { font-size: 0.78rem; color: var(--muted); font-weight: 600; }
-  table.sc td small { display: block; font-size: 0.66rem; font-weight: 500; line-height: 1; margin-top: 1px; opacity: 0.85; }
-  .key { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; font-size: 0.82rem; color: var(--ink2); margin-top: 0.5rem; }
-  .key i { display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: 3px; vertical-align: -0.15rem; margin-right: 0.3rem; }
+  .lgd { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; font-size: 0.82rem; color: var(--ink2); margin-top: 0.5rem; }
+  .lgd i { display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: 3px; vertical-align: -0.15rem; margin-right: 0.3rem; }
   details.method { margin-top: 1.4rem; }
   details.method summary { cursor: pointer; font-weight: 600; color: var(--accent); }
   details.method p, details.method li { color: var(--ink2); font-size: 0.95rem; max-width: 72rem; }
@@ -367,7 +375,7 @@ window.plotlyP = new Promise(function (ok, no) {
       <div>
         <h3>The smallest error, day by day</h3>
         <div class="tblwrap"><table class="gl" id="gl-best"></table></div>
-        <div class="key" id="gl-key"></div>
+        <div class="lgd" id="gl-key"></div>
       </div>
       <div>
         <h3>Head to head</h3>
@@ -376,7 +384,7 @@ window.plotlyP = new Promise(function (ok, no) {
       </div>
     </div>
     <h3 class="gl-h">How the error grows</h3>
-    <div class="key" id="gl-mkey"></div>
+    <div class="lgd" id="gl-mkey"></div>
     <div class="minis" id="gl-minis"></div>
   </section>
 
@@ -394,15 +402,16 @@ window.plotlyP = new Promise(function (ok, no) {
 
   <section class="card" id="scores">
     <h2>Scorecard</h2>
-    <p class="note">RMSE of one model against another, by day; coloured where the difference passes a paired test (5% level). Hover a cell for both errors.</p>
+    <p class="note">One model's RMSE against another's, every variable by day in each region: a triangle where a paired test (5% level) finds a difference.</p>
     <div class="controls">
       <label>Model<select id="s-model"></select></label>
       <label>against<select id="s-ref"></select></label>
-      <label>Region<select id="s-region"></select></label>
       <label>Rows<select id="s-rows"></select></label>
+      <label id="s-region-l">Region<select id="s-region"></select></label>
     </div>
-    <div class="tblwrap"><table class="sc" id="scorecard"></table></div>
-    <div class="key" id="s-key"></div>
+    <div class="scg" id="scorecard"></div>
+    <p class="sc-detail" id="sc-detail" aria-live="polite">Tap or hover a square for both errors and the test.</p>
+    <div class="lgd" id="s-key"></div>
   </section>
 
   <span class="vanchor" id="profiles"></span>
@@ -558,8 +567,8 @@ window.plotlyP = new Promise(function (ok, no) {
         whose terrain or coastline drops a station is not judged on an easier set.</li>
       <li><b>Significance.</b> The scorecard tests each model pair with a paired t-test on the per-run mean squared errors.
         Runs a day apart share much of their weather, so the test counts fewer effective runs when the run-to-run
-        differences are correlated (Geer 2016). The small number in each scorecard cell is that count of runs;
-        hovering a cell gives the paired runs and the observations behind it.</li>
+        differences are correlated (Geer 2016). Tapping or hovering a scorecard square gives both errors, the p value,
+        the paired runs, that count of effective runs and the observations behind it.</li>
       <li><b>Data.</b> GFS from NOAA on AWS; IFS and AIFS from ECMWF open data (Google Cloud mirror), all published at
         0.25°; GDPS from ECCC's HPFX server at 0.15°; all scored on the common 0.5° grid.</li>
     </ul>
@@ -731,57 +740,74 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
       profiles();
     }
 
-    // scorecard
-    const sm = $("s-model"), sr = $("s-ref"), sg = $("s-region");
+    // scorecard, drawn as the forecast centres draw theirs: a block per region, every variable by day, a triangle where
+    // the paired test finds a difference (blue: the model's error is the smaller), darker as the difference grows
+    const sm = $("s-model"), sr = $("s-ref"), sg = $("s-region"), sw = $("s-rows");
     fill(sm, models); fill(sr, models);
     sm.value = models.includes("AIFS") ? "AIFS" : models[0];
     sr.value = models.includes("IFS") ? "IFS" : models[models.length - 1];
-    fill(sg, [...new Set(surface.map(r => r.region))]);
-    sg.value = wide;
-    const sw = $("s-rows");
-    fill(sw, ["all", "surface", "upper"], v => ({ all: "Surface and radiosondes", surface: "Surface stations",
-                                                  upper: "Radiosondes, every level" })[v]);
+    const SC_REGIONS = ["NH 20-90N", "SH 20-90S", "Tropics 20S-20N", "Europe", "North America", "CONUS"]
+      .filter(g => surface.some(r => r.region === g));
+    fill(sg, SC_REGIONS, g => g.replace(/ \d.*$/, ""));   // a phone's one region at a time: NH, SH, Tropics ...
+    fill(sw, ["main", "all"], v => ({ main: "Main levels", all: "Every level" })[v]);
     const days = leads.filter(h => h > 0 && h % 24 === 0);
+    const MAIN = ["t2m", "td2m", "msl", "wind10", "z850", "z500", "z250", "t850", "t500", "t250", "wind850", "wind500",
+                  "wind250", "q850", "q700"];
+    const SHORT = { t2m: "2 m T", td2m: "2 m Td", msl: "MSLP", wind10: "10 m wind" }, QS = { z: "Z", t: "T", wind: "Wind", q: "Q" };
+    const short = v => SHORT[v] || `${QS[split(v)[0]]} ${split(v)[1]}`;
+    const BETTER = [44, 110, 158], WORSE = [180, 50, 31], LW = 64, CW = 25, RH = 22;
+    const tri = (cx, cy, up) => up ? `M${cx - 5},${cy + 4}L${cx + 5},${cy + 4}L${cx},${cy - 5}Z` : `M${cx - 5},${cy - 4}L${cx + 5},${cy - 4}L${cx},${cy + 5}Z`;
+    let details = [];
     function scorecard() {
-      const a = sm.value, b = sr.value, region = sg.value;
-      let html = `<tr><th></th>${days.map(h => `<th>Day ${h / 24}</th>`).join("")}</tr>`;
-      let group = "";
-      for (const v of vars) {
+      const a = sm.value, b = sr.value;
+      const rows = vars.filter(v => {
         const up = split(v);
-        // the vector wind stands for its components at upper levels, keeping the card to one row per level
-        if (up && (up[0] === "u" || up[0] === "v")) continue;
-        if (v === "pr24") continue;  // gauge totals end 12 h past the day columns; the rain card shows them
-        if ((sw.value === "surface" && up) || (sw.value === "upper" && !up)) continue;
-        const g = up ? `Radiosondes · ${QTY[up[0]] || up[0]}` : "Surface stations";
-        const r = row(v, region);
-        if (!r || a === b || !r.scores[a]?.rmse || !r.scores[b]?.rmse) continue;
-        if (g !== group) {
-          html += `<tr><th class="r g" colspan="${days.length + 1}">${g}</th></tr>`;
-          group = g;
+        return sw.value === "main" ? MAIN.includes(v) : up ? !["u", "v"].includes(up[0]) : v in SHORT;
+      });
+      details = [];
+      const blocks = SC_REGIONS.map(g => {
+        let y = 38, last = null, body = "";
+        for (const v of rows) {
+          const r = row(v, g);
+          if (!r || a === b || !r.scores[a]?.rmse || !r.scores[b]?.rmse) continue;
+          const grp = split(v)?.[0] || "surface";
+          if (last && grp !== last) y += 7;
+          last = grp;
+          body += `<text x="${LW - 5}" y="${y + 13.5}" text-anchor="end" class="l">${esc(short(v))}</text>`;
+          days.forEach((h, j) => {
+            const i = leads.indexOf(h), ra = r.scores[a].rmse[i], rb = r.scores[b].rmse[i];
+            if (ra == null || rb == null) return;
+            const x = LW + j * CW, cx = x + 11, cy = y + 9.5, pct = 100 * (ra - rb) / rb;
+            const p = r.p?.[`${a}|${b}`]?.[i], c = cases(r, a, b, i);
+            const k = details.push(`${g}, ${r.label}, day ${h / 24}: RMSE ${a} ${ra.toFixed(2)}, ${b} ${rb.toFixed(2)} ${unit(r.unit)} ` +
+              `(${pct > 0 ? "+" : ""}${pct.toFixed(1)}%)` + (p == null ? ", not tested" : `, p = ${p.toFixed(3)}`) + (c ? `; ${c.text}` : "")) - 1;
+            if (p == null || p >= 0.05) {
+              body += `<rect data-k="${k}" x="${x}" y="${y}" width="22" height="19" rx="3" class="n"/><circle cx="${cx}" cy="${cy}" r="1.6"/>`;
+              return;
+            }
+            const cell = inkOn(pct < 0 ? BETTER : WORSE, 0.35 + 0.65 * Math.min(1, Math.abs(pct) / 20));
+            body += `<rect data-k="${k}" x="${x}" y="${y}" width="22" height="19" rx="3" fill="${cell.bg}"/>` +
+              `<path d="${tri(cx, cy, pct < 0)}" fill="${cell.ink}"/>`;
+          });
+          y += RH;
         }
-        const t = r.p;
-        html += `<tr><th class="r">${esc(up ? `${up[1]} hPa` : r.label)}</th>` + days.map(h => {
-          const i = leads.indexOf(h);
-          const ra = r.scores[a]?.rmse?.[i], rb = r.scores[b]?.rmse?.[i];
-          if (ra == null || rb == null) return "<td>–</td>";
-          const pct = 100 * (ra - rb) / rb;
-          const p = t?.[`${a}|${b}`]?.[i], c = cases(r, a, b, i);
-          const tip = `${a} ${ra.toFixed(2)}, ${b} ${rb.toFixed(2)} ${unit(r.unit)} (${pct > 0 ? "+" : ""}${pct.toFixed(1)}%)` +
-                      (p == null ? "" : `, p = ${p.toFixed(3)}`) + (c ? `; ${c.text}` : "");
-          const sub = c ? `<small>${c.eff}</small>` : "";
-          if (p == null || p >= 0.05) return `<td title="${esc(tip)}">·${sub}</td>`;
-          const k = Math.min(1, Math.abs(pct) / 20);
-          const base = pct < 0 ? [44, 110, 158] : [180, 50, 31];
-          const cell = inkOn(base, 0.35 + 0.65 * k);
-          return `<td class="s" style="background:${cell.bg};color:${cell.ink}" title="${esc(tip)}">${pct > 0 ? "+" : ""}${pct.toFixed(0)}%${sub}</td>`;
-        }).join("") + "</tr>";
-      }
-      $("scorecard").innerHTML = html;
-      $("s-key").innerHTML = `<span><i style="background:var(--better)"></i>${esc(a)} has the smaller error</span>` +
-        `<span><i style="background:var(--worse)"></i>${esc(a)} has the larger error</span>` +
-        `<span>Numbers: ${esc(a)}'s RMSE relative to ${esc(b)}'s</span>` +
-        (surface.some(x => x.runs) ? "<span>Small numbers: the runs the test counts (fewer than the paired runs where consecutive runs see the same weather)</span>" : "");
+        const head = `<text x="0" y="13" class="t">${esc(g)}</text><text x="${LW - 5}" y="31" text-anchor="end" class="h">Day</text>` +
+          days.map((h, j) => `<text x="${LW + j * CW + 11}" y="31" text-anchor="middle" class="h">${h / 24}</text>`).join("");
+        return `<div class="blk${g === sg.value ? " on" : ""}"><svg viewBox="0 0 ${LW + days.length * CW} ${y + 2}" role="img" ` +
+          `aria-label="${esc(`Scorecard, ${g}: ${a} against ${b}`)}">${head}${body}</svg></div>`;
+      });
+      $("scorecard").innerHTML = blocks.join("");
+      const glyph = (base, up) => { const c = inkOn(base, 0.8);
+        return `<svg class="kg" viewBox="0 0 22 19"><rect width="22" height="19" rx="3" fill="${c.bg}"/><path d="${tri(11, 9.5, up)}" fill="${c.ink}"/></svg>`; };
+      $("s-key").innerHTML = `<span>${glyph(BETTER, true)}${esc(a)} has the smaller error</span>` +
+        `<span>${glyph(WORSE, false)}${esc(a)} has the larger error</span>` +
+        `<span><svg class="kg" viewBox="0 0 22 19"><rect width="22" height="19" rx="3" fill="#f3f2ee"/><circle cx="11" cy="9.5" r="1.6" fill="#6f6b64"/></svg>no significant difference</span>` +
+        `<span>Darker: a larger difference, the darkest at 20%</span>` +
+        `<span>Z height, T temperature, Td dew point, Q specific humidity, Wind vector wind; numbers are hPa</span>`;
     }
+    const detail = e => { const k = e.target.dataset?.k; if (k != null) $("sc-detail").textContent = details[+k]; };
+    $("scorecard").addEventListener("pointerover", detail);
+    $("scorecard").addEventListener("click", detail);
     [sm, sr, sg, sw].forEach(el => el.addEventListener("change", scorecard));
     summary();
     sr.addEventListener("change", () => { const p = $("p-ref"); if (p && p.value !== sr.value) { p.value = sr.value; p.dispatchEvent(new Event("change")); } });
