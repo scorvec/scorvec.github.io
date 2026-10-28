@@ -223,18 +223,18 @@ def _sums(c: pd.DataFrame, rng: np.random.Generator) -> pd.DataFrame:
 
 
 def _reliability(c: pd.DataFrame) -> pd.DataFrame:
-    """Per event threshold (p_ge_<t> columns) and forecast probability in tenths: the cases, their summed probability
-    and the events observed, for Brier scores and reliability diagrams."""
+    """Per event threshold (p_ge_<t> columns) and forecast probability in tenths: the cases, their summed probability,
+    the events observed and the summed Brier score, for Brier scores (exact) and reliability diagrams."""
     out = []
     for col in [k for k in c.columns if k.startswith("p_ge_")]:
         e = c.dropna(subset=[col])
         if e.empty:
             continue
         t = float(col.removeprefix("p_ge_"))
-        e = e.assign(threshold=t, bin=(e[col] * 10).round().astype(int), p=e[col], o=(e["obs"] >= t).astype(int), n=1)
-        out.append(
-            e.groupby([*D.STAT_BY, "threshold", "bin"], sort=False, observed=True)[["n", "p", "o"]].sum().reset_index()
-        )
+        o = (e["obs"] >= t).astype(int)
+        e = e.assign(threshold=t, bin=(e[col] * 10).round().astype(int), p=e[col], o=o, bs=(e[col] - o) ** 2, n=1)
+        g = e.groupby([*D.STAT_BY, "threshold", "bin"], sort=False, observed=True)
+        out.append(g[["n", "p", "o", "bs"]].sum().reset_index())
     return D._cat(out)
 
 
