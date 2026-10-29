@@ -61,7 +61,7 @@ RAIN_RUNS, RAIN_MIN_RUNS = 365, 30  # the rain maps' window: the newest year of 
 RAIN_THRESHOLDS = (1.0, 10.0, 25.0)  # mm in 24 h: the rain maps' frequency biases
 RAIN_EVENTS = tuple(f"fb{t:g}" for t in RAIN_THRESHOLDS)
 RAIN_MIN_EVENTS = 5  # analysed days over a threshold a cell needs before its frequency bias is mapped
-RAIN_LAT0, RAIN_LON0, RAIN_GRID = 15.25, -139.75, (90, 180)  # the common grid's cells over Stage IV's domain
+RAIN_MARGIN = 2.0  # degrees around the newest run's cells that the rain maps' frame takes in
 WINDOW_SHARE = 0.95  # a model is scored in a window that it has at least this share of the runs of
 PAIR_KEY = ["model", "init", "lead_h", "valid_time", "station_id", "variable"]
 STAT_BY = ["model", "network", "variable", "region", "lead_h"]
@@ -588,15 +588,20 @@ def rain_map(paths: list[Path]) -> tuple[dict, dict] | None:
     runs_of = {m: set(r) for m, r in (dict.fromkeys(models, used) | own).items()}
     t0 = min(present["init"])
     ndays = (max(present["init"]) - t0).days + 12  # a run's last window ends on its day 10
-    shape = (len(LEAD_GROUPS), ndays, *RAIN_GRID)
+    # the maps' frame: cells of the common grid, from one of its own cell centres (whole or half degrees: an origin
+    # off the centres would put two cells in one bin), around the newest run's cells
+    edge = pd.read_parquet(paths[-1], columns=["lat", "lon"])
+    lat0, lon0 = (float(edge[c].min()) - RAIN_MARGIN for c in ("lat", "lon"))
+    frame = tuple(int(np.rint((edge[c].max() + RAIN_MARGIN - o) / GRID)) + 1 for c, o in (("lat", lat0), ("lon", lon0)))
+    shape = (len(LEAD_GROUPS), ndays, *frame)
     acc = {m: {k: np.zeros(shape, np.float32) for k in ("n", "f", *RAIN_EVENTS)} for m in runs_of}
-    obs = np.full((ndays, *RAIN_GRID), np.nan, np.float32)  # the analysis is the same whichever run verifies it
+    obs = np.full((ndays, *frame), np.nan, np.float32)  # the analysis is the same whichever run verifies it
     for f in paths:  # one run at a time: a year of cells would not fit in memory, its daily sums do
         r = pd.read_parquet(f, columns=["model", "init", "lead_h", "valid_time", "lat", "lon", "fcst", "obs"])
         g = np.select([r["lead_h"].between(a, b) for _, a, b in LEAD_GROUPS], list(range(len(LEAD_GROUPS))), -1)
         day = (r["valid_time"] - t0).dt.days.to_numpy()
-        j, i = (np.rint((r[c].to_numpy() - o) / GRID).astype(int) for c, o in (("lat", RAIN_LAT0), ("lon", RAIN_LON0)))
-        ok = (g >= 0) & (j >= 0) & (j < RAIN_GRID[0]) & (i >= 0) & (i < RAIN_GRID[1])
+        j, i = (np.rint((r[c].to_numpy() - o) / GRID).astype(int) for c, o in (("lat", lat0), ("lon", lon0)))
+        ok = (g >= 0) & (j >= 0) & (j < frame[0]) & (i >= 0) & (i < frame[1])
         obs[day[ok], j[ok], i[ok]] = r["obs"].to_numpy()[ok]
         for m, runs in runs_of.items():
             k = ok & (r["model"] == m).to_numpy() & r["init"].isin(runs).to_numpy()
@@ -621,7 +626,7 @@ def rain_map(paths: list[Path]) -> tuple[dict, dict] | None:
             "own": {m: run_span(r) for m, r in own.items()},
         },
     }
-    maps = {"lat": RAIN_LAT0 + GRID * np.arange(RAIN_GRID[0]), "lon": RAIN_LON0 + GRID * np.arange(RAIN_GRID[1])}
+    maps = {"lat": lat0 + GRID * np.arange(frame[0]), "lon": lon0 + GRID * np.arange(frame[1])}
     for m, a in acc.items():
         seen = a["n"] > 0
         days = seen.sum(1)
