@@ -488,9 +488,11 @@ jobs:
         run: |
           set -euo pipefail
           ls -la telecon tbl 2>/dev/null || true
-          if ! gh release download telecon15-ref-v1 -R "$GITHUB_REPOSITORY" -p telecon15_ref.npz -D "$RUNNER_TEMP"; then
-            echo "::notice::no teleconnection reference yet (telecon15.yml builds it): nothing drawn"; exit 0
-          fi
+          # the release's download URL, not the API (whose hourly limit a verification backfill can use up)
+          code=$(curl -sSL -o "$RUNNER_TEMP/telecon15_ref.npz" -w '%{http_code}' \
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/telecon15-ref-v1/telecon15_ref.npz")
+          if [ "$code" = 404 ]; then echo "::notice::no teleconnection reference yet (telecon15.yml): nothing drawn"; exit 0; fi
+          if [ "$code" != 200 ]; then echo "::error::telecon15-ref-v1: HTTP $code"; exit 1; fi
           python scripts/ensmaps/ensmaps_telecon.py run --fields telecon/*.npz --ref "$RUNNER_TEMP/telecon15_ref.npz" \
             --table tbl --site .
           scripts/lib/publish_frames_ci.sh assets/telecon15/fig
