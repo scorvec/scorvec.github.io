@@ -26,8 +26,8 @@ the newest run of each model there.
                give no probability
   probability  P(index >= +THR) and P(index <= -THR) from the regression's predictive Student t (cal_cdf: n_eff - 2
                degrees of freedom, s widened for the fit's own uncertainty), at the skilful leads
-  blend        per index, the models whose past runs share two seasons or more (subset), from their newest common start
-               in the run records: equal or skill weights per lead, chosen out of sample (leave-one-season-out, the
+  blend        per index, the most models whose past runs can be tested leave-one-season-out at every lead (subset), from
+               their newest common start in the run records: equal or skill weights per lead, chosen out of sample (the
                paired CRPS test; blend_fit), calibrated as a model is and gated on its cross-validated correlation in
                the same false-discovery family (DelSole 2007 on why equal weights are hard to beat)
   observed     ERA5's index at 00Z of the last TAIL_DAYS days, from the same table (ERA5T, about a week behind)
@@ -326,18 +326,23 @@ def wide(fc: pd.DataFrame, obs: pd.DataFrame, sid: str, keys: list[str], t0: pd.
 
 
 def subset(w: pd.DataFrame, keys: list[str], t0: pd.Timestamp) -> list[str]:
-    """The models the blend takes: the most of them (two at least) whose common day-1 sample holds MIN_RUNS starts in
-    two seasons or more, so that its weights can be tested out of sample; the larger sample breaks a tie."""
+    """The models the blend takes: the most of them (two at least) whose weights can be tested out of sample at every
+    lead (blend_fit): a common sample at the last lead in two seasons or more, with MIN_RUNS starts outside each season
+    to fit on. The current season is short at the long leads (ERA5 a week behind), so a model with one season besides
+    it waits for a second. The sample only shrinks with lead, so the last lead decides; the larger sample breaks a
+    tie."""
     import itertools
 
-    if w.empty or min(T.LEADS) not in w.index.get_level_values("lead_h"):
+    last = max(T.LEADS)
+    if w.empty or last not in w.index.get_level_values("lead_h"):
         return []
-    day1 = w.xs(min(T.LEADS), level="lead_h")
+    end = w.xs(last, level="lead_h")
     for n in range(len(keys), 1, -1):
         found = []
-        for sub in itertools.combinations([k for k in keys if k in day1], n):
-            g = day1[list(sub)].dropna()
-            if len(g) >= MIN_RUNS and len(np.unique(season(g.index, t0))) >= 2:
+        for sub in itertools.combinations([k for k in keys if k in end], n):
+            g = end[list(sub)].dropna()
+            seasons, count = np.unique(season(g.index, t0), return_counts=True)
+            if len(seasons) >= 2 and (len(g) - count).min() >= MIN_RUNS:
                 found.append((len(g), list(sub)))
         if found:
             return max(found)[1]
