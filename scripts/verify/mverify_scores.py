@@ -600,12 +600,10 @@ def rain_map(paths: list[Path]) -> tuple[dict, dict] | None:
         obs[day[ok], j[ok], i[ok]] = r["obs"].to_numpy()[ok]
         for m, runs in runs_of.items():
             k = ok & (r["model"] == m).to_numpy() & r["init"].isin(runs).to_numpy()
-            at = (g[k], day[k], j[k], i[k])
+            at = np.ravel_multi_index((g[k], day[k], j[k], i[k]), shape)  # bincount: np.add.at is ~5x slower here
             fc = r["fcst"].to_numpy()[k]
-            np.add.at(acc[m]["n"], at, 1)
-            np.add.at(acc[m]["f"], at, fc)
-            for name, t in zip(RAIN_EVENTS, RAIN_THRESHOLDS, strict=True):
-                np.add.at(acc[m][name], at, fc >= t)
+            for name, w in [("n", None), ("f", fc), *((n, fc >= t) for n, t in zip(RAIN_EVENTS, RAIN_THRESHOLDS))]:
+                acc[m][name] += np.bincount(at, w, minlength=acc[m][name].size).reshape(shape).astype(np.float32)
     out = {
         "product": "stageiv",
         "truth": "Stage IV analysis",
