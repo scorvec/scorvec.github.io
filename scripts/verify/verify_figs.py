@@ -228,7 +228,7 @@ def draw_lead(wide: pd.DataFrame, models: list[str], region: str, span: dict, pa
     a1.axhline(USEFUL, color=house.MUTED, lw=1.2, ls=":")
     a1.set(xlabel="Lead (days)", ylabel="Anomaly correlation", title="Mean over the window, with its 95 % interval")
     a1.set_xticks(range(1, 16))
-    a1.set_xlim(0.6, 15.4)
+    a1.set_xlim(0.6, max(lead for _, lead in wide.columns) / 24 + 0.4)  # to the longest lead the window holds
     a1.grid(True, color=house.GRID, lw=0.8)
     a1.legend(loc="lower left", ncols=2, frameon=False, handlelength=2.6)
     single = [m for m in models if m in Z.DET and m != REF]
@@ -247,6 +247,12 @@ def draw_lead(wide: pd.DataFrame, models: list[str], region: str, span: dict, pa
         for m in ms:
             ax.plot([], [], color=COLORS[CENTRE.get(m, m)], marker="o", ls="none", ms=7, label=LABEL.get(m, m))
         ax.set_xlim(0.5, (max(Z.DET_LEADS) if ax is a2 else max(Z.E.LEADS)) / 24 + 0.5)
+        if not rows[id(ax)]:  # no model of the kind has the window's runs yet (WINDOW_SHARE)
+            ax.cla()
+            ax.set_axis_off()
+            kind = "single runs" if ax is a2 else "ensemble means"
+            ax.text(0.5, 0.5, f"No {kind} with 95 % of the window's runs yet", ha="center", va="center",
+                    transform=ax.transAxes, color=house.INK2)  # fmt: skip
     a2.set_ylabel("Difference in anomaly correlation")
     handles, labels = a2.get_legend_handles_labels()
     more = a3.get_legend_handles_labels()
@@ -387,6 +393,16 @@ def short(v: str) -> str:
     return f"{dict(wind='Wind', z='Z', t='T', q='Q')[q]} {v[len(q) :]}"
 
 
+def region_labels() -> dict[str, str]:
+    """The sums' region codes (nh, north_america ...) as the page names them (NH 20-90N, North America ...), from the
+    scorecards' own keys (network:variable:code)."""
+    out = {}
+    for f in sorted(D.OUT_DIR.glob("*scores*.json")):
+        for r in json.loads(f.read_text()).get("rows", []):
+            out.setdefault(r["key"].split(":")[-1], r["region"])
+    return out
+
+
 def det_window(derived: Path, runs: int | None) -> tuple[pd.DataFrame, list, dict] | None:
     """The per-run sums of the window's runs that every model it scores has (``mverify_scores.window_card``'s)."""
     inits = sorted(f.stem.split("_")[1] for f in derived.glob("stats_*.parquet"))
@@ -398,6 +414,8 @@ def det_window(derived: Path, runs: int | None) -> tuple[pd.DataFrame, list, dic
     )
     stats = stats.astype(dict.fromkeys(D.STAT_BY[:4], str))
     stats = stats[stats["network"] == np.where(stats["variable"].isin(SURFACE), "GHCNH", "RAOB")]
+    labels = region_labels()
+    stats["region"] = stats["region"].map(lambda c: labels.get(c, c))
     models, used, left_out = D.window_runs(stats)
     if not used:
         return None
@@ -552,6 +570,8 @@ def ens_window(derived: Path, runs: int | None) -> tuple[pd.DataFrame, pd.DataFr
     s = Z.E.with_wind(stats[stats["model"].isin(models) & stats["init"].isin(used)])
     s = s[s["network"] == np.where(s["variable"].isin(ENS_SURFACE), "GHCNH", "RAOB")]
     r = rel[rel["model"].isin(models) & rel["init"].isin(used)].astype(dict.fromkeys(D.STAT_BY[:4], str))
+    labels = region_labels()
+    s["region"], r["region"] = (x["region"].map(lambda c: labels.get(c, c)) for x in (s, r))
     return s.sort_values("init"), r.sort_values("init"), models, D.run_span(used) | {"left_out": left_out}
 
 
