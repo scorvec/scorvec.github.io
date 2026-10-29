@@ -7,11 +7,12 @@ name: C3S ensemble means for the long-range forecast
 # start month (hc_em_*_<MM>, built once and kept) and for each issue (fc_em_*_<YYYYMM>). Each raw GRIB (0-90N at 1°)
 # is reduced as it lands and deleted.
 #
-# WHEN. C3S publishes around the 13th; the outlook issues on the 15th (monthly-outlook.yml), so this runs on the
-# 13th-15th (window=true: the laptop dispatcher's daily slot and the crons) and fetches the issue once
-# assets/sst/data/c3s_status.json says c3s.yml has the issue's plume (the systems are out). Each run also builds the
-# hindcast tables still missing for this start month and the next, within a budget; a dispatch with `hindcast` builds
-# any start months (the backfill).
+# WHEN. C3S publishes around the 13th; the outlook issues on the 15th (monthly-outlook.yml), so on the 13th-16th
+# (window=true: the laptop dispatcher's daily slot and the crons) this fetches the issue once
+# assets/sst/data/c3s_status.json says c3s.yml has the issue's plume (the systems are out), with any hindcast table
+# of this start month still missing. Next month's hindcast (about six hours of CDS requests) is built on the
+# 21st-28th, clear of seas5.yml (5th-12th) and c3s.yml (9th-16th), so the window runs stay short. A plain dispatch
+# builds the issue and the `hindcast` start months (default this month and the next).
 #
 # CDS: one key, so this shares the `seas5` concurrency group with seas5.yml, seas5-lead7.yml and c3s.yml (never two
 # CDS requests at once). Secrets: CDSAPI_URL, CDSAPI_KEY (as seas5.yml). Licence: Copernicus.
@@ -20,6 +21,7 @@ on:
   schedule:
     - cron: "50 13 13,14 * *"
     - cron: "50 3 15 * *"
+    - cron: "50 13 21,24,27 * *"
   workflow_dispatch:
     inputs:
       issue:
@@ -31,13 +33,13 @@ on:
         required: false
         default: ""
       window:
-        description: "run only on the 13th-16th (the dispatcher's daily slot)"
+        description: "behave like the cron: the issue on the 13th-16th, next month's hindcast on the 21st-28th"
         type: boolean
         default: false
       budget_min:
         description: "stop starting new CDS requests after this many minutes"
         required: false
-        default: "300"
+        default: "240"
 
 permissions:
   contents: write   # upload tables to the c3s-em-v1 release
@@ -77,12 +79,14 @@ jobs:
           D=$((10#$(date -u +%d)))
           M=$((10#${I:4:2})); N=$(( M % 12 + 1 ))
           H="${{ inputs.hindcast }}"; [ -n "$H" ] || H="$M,$N"
-          RUN=1
-          if { [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.window }}" = "true" ]; } && { [ $D -lt 13 ] || [ $D -gt 16 ]; }; then
-            RUN=0
+          RUN=1; FETCH=1
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.window }}" = "true" ]; then
+            if [ $D -ge 13 ] && [ $D -le 16 ]; then H=$M
+            elif [ $D -ge 21 ] && [ $D -le 28 ]; then H=$N; FETCH=0
+            else RUN=0; fi
           fi
           SI=$(python3 -c "import json; s = json.load(open('assets/sst/data/c3s_status.json')); print(s['issue'].replace('-', '') if s['done']['plume'] else '-')" 2>/dev/null || echo "-")
-          ISSUE=""; [ "$SI" = "$I" ] && ISSUE="--issue $I"
+          ISSUE=""; [ "$FETCH" = 1 ] && [ "$SI" = "$I" ] && ISSUE="--issue $I"
           echo "issue $I (C3S plume in for: $SI) -> ${ISSUE:-no issue fetch}; hindcast start months $H; run=$RUN"
           { echo "run=$RUN"; echo "issue=$I"; echo "issue_arg=$ISSUE"; echo "months=$(echo "$H" | tr ',' ' ')"; } >> "$GITHUB_OUTPUT"
       - uses: actions/setup-python@v7
@@ -125,7 +129,7 @@ jobs:
             --budget-min 0
           touch "$RUNNER_TEMP/marker"
           python scripts/monthly/c3s_em.py ${{ steps.gate.outputs.issue_arg }} --hindcast ${{ steps.gate.outputs.months }} \
-            --budget-min "${{ inputs.budget_min || '300' }}"
+            --budget-min "${{ inputs.budget_min || '240' }}"
           python scripts/monthly/c3s_em.py --status "${{ steps.gate.outputs.issue }}"
       - name: Upload new tables
         if: always() && steps.gate.outputs.run == '1'

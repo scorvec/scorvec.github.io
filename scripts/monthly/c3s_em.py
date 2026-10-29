@@ -13,7 +13,7 @@ A hindcast table is built once per start month and kept for good; an issue's whe
 Raw GRIBs (0-90N at 1°, a few hundred MB for a hindcast) are reduced as they land and deleted. CDS downloads run in
 Actions only (c3s-em.yml, in the `seas5` concurrency group: one CDS key, never two requests at once).
 
-    python c3s_em.py --hindcast 11 12 --budget-min 300     # hindcast tables still missing for these start months
+    python c3s_em.py --hindcast 11 12 --budget-min 240     # hindcast tables still missing for these start months
     python c3s_em.py --issue 202611                         # the issue's tables
     python c3s_em.py --status 202611                        # what is in C3S_EM_DIR for that issue
     python c3s_em.py --pull --status 202611                 # first fetch the issue's tables from the release
@@ -234,7 +234,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--hindcast", nargs="*", type=int, help="start months whose missing hindcast tables to build")
     ap.add_argument("--issue", help="YYYYMM: build the issue's missing tables")
-    ap.add_argument("--budget-min", type=float, default=300.0, help="stop starting new requests after this")
+    ap.add_argument("--budget-min", type=float, default=240.0, help="stop starting new requests after this")
     ap.add_argument("--status", help="YYYYMM: list the tables an issue's blend needs")
     ap.add_argument("--pull", action="store_true", help="first fetch the named tables from the release")
     a = ap.parse_args()
