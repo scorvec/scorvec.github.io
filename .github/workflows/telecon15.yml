@@ -100,9 +100,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if ! gh release download "$REF_TAG" -p telecon15_ref.npz -D "$RUNNER_TEMP"; then
-            echo "::notice::no reference yet ($REF_TAG; dispatch with ref): nothing added"; exit 0
-          fi
+          # the release's download URL, not the API (whose hourly limit a database backfill can use up)
+          code=$(curl -sSL -o "$RUNNER_TEMP/telecon15_ref.npz" -w '%{http_code}' \
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$REF_TAG/telecon15_ref.npz")
+          if [ "$code" = 404 ]; then echo "::notice::no reference yet ($REF_TAG; dispatch with ref): nothing added"; exit 0; fi
+          if [ "$code" != 200 ]; then echo "::error::$REF_TAG: HTTP $code"; exit 1; fi
           scripts/verify/verifydb.sh list > "$RUNNER_TEMP/have.txt"
           python scripts/ensmaps/telecon15.py hindcast --list --table tbl --have "$RUNNER_TEMP/have.txt" > "$RUNNER_TEMP/want.txt"
           echo "$(grep -c . "$RUNNER_TEMP/want.txt" || true) database files to add"
