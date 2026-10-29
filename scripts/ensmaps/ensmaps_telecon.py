@@ -319,8 +319,9 @@ def plume(sid: str, k: int, runs: list[dict], ind: dict, cal: dict, obs: pd.Data
         axes.flat[j - nc].tick_params(labelbottom=True)
     for ax in axes[:, 0]:
         ax.set_ylabel("Seasonal sd")
-    loc = mdates.AutoDateLocator(minticks=4, maxticks=9)
-    axes[0, 0].xaxis.set(major_locator=loc, major_formatter=mdates.DateFormatter("%-d %b"))
+    # every other day from the first: a calendar locator restarts at each month, putting 31 Oct beside 1 Nov
+    axes[0, 0].set_xticks(pd.date_range(pd.Timestamp(t_first).normalize(), t_last, freq="2D"))
+    axes[0, 0].xaxis.set_major_formatter(mdates.DateFormatter("%-d %b"))
     axes[0, 0].set_xlim(t_first, t_last + pd.Timedelta(hours=12))
     handles = [
         plt.Line2D([], [], color=house.INK2, lw=0.9, alpha=0.6, label="each member"),
