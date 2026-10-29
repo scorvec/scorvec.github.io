@@ -1024,7 +1024,7 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
 <li><b>GEPS</b>: from the GEPS reforecasts in the ECMWF S2S archive (2001&ndash;2020, control + 3 members, start dates
         within 8 days of the forecast's day of year). 10 and 100&nbsp;hPa are corrected; the other levels are added as
         their reforecasts arrive from the archive.</li>
-<li><b>GEFS</b>: from the GEFSv12 reforecast daily climatology (2000&ndash;2019), which holds 10, 100 and 500&nbsp;hPa; its five levels above 10&nbsp;hPa (7, 5, 3, 2 and 1&nbsp;hPa, from its pgrb2b files) are hatched. Their MERRA-2 scale includes the step at August 2004, when MERRA-2 starts assimilating Aura MLS, as the history drips&rsquo; does at 5&nbsp;hPa and above.</li>
+<li><b>GEFS</b>: from the GEFSv12 reforecast daily climatology (2000&ndash;2019), which holds 10, 100 and 500&nbsp;hPa; its five levels above 10&nbsp;hPa (7, 5, 3, 2 and 1&nbsp;hPa, from its pgrb2b files) are marked. Their MERRA-2 scale includes the step at August 2004, when MERRA-2 starts assimilating Aura MLS, as the history drips&rsquo; does at 5&nbsp;hPa and above.</li>
 <li><b>AIFS-ENS</b>: no reforecast exists, so its control's cap forecasts from 25 recent cycles are verified against
         the GEOS FP analyses and the mean error at each level and lead is removed where it is significant (more than
         twice its standard error). It is small for the first week and rises to +15 to +45&nbsp;m by days 10&ndash;15.</li>
@@ -1042,7 +1042,7 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
 </ul>
 <p>The days 1&ndash;15 item shows <b>GEFS</b> (control + 30) and <b>GEPS</b> (control + 20) as well, on the cycle the
         IFS-ENS chart is on, with the same reforecast drift corrections as their 35-day versions.</p>
-<p>Levels where a model's drift has not been measured are <b>hatched</b>: there only the model's offset from the
+<p>Levels where a model's drift has not been measured are <b>marked</b> by a grey triangle on the chart's right edge: there only the model's offset from the
         GEOS FP analysis over its first day is removed, so read them with caution, especially at long lead. The
         1000&nbsp;hPa cap needs that offset most: models extrapolate heights below the ground, while GEOS FP and MERRA-2
         leave those points out (and on some summer days the observed value is undefined), so GEPS and GEFS read about
@@ -1440,7 +1440,7 @@ window.STAGE = {
           img: function (a) { return a === "gefs" ? "assets/gefs/gefs_drip.webp" : "assets/geps/geps_drip.webp"; },
           bust: "hourly", about: "about-fdrip", fit: false,
           cap: function (a) { return "Standardised polar-cap height from 1000 to " + (a === "gefs" ? "1" : "10") + " hPa: the last 60 days observed (GEOS FP), then the "
-                                     + (a === "gefs" ? "GEFS" : "GEPS") + " ensemble mean to day 35 with the model's drift removed where it has been measured; hatched levels are not drift-corrected. Same scale as the history drips."; }},
+                                     + (a === "gefs" ? "GEFS" : "GEPS") + " ensemble mean to day 35 with the model's drift removed where it has been measured; levels marked by a grey triangle on the right are not drift-corrected. Same scale as the history drips."; }},
   descent: {label: "Downward propagation monitor", img: function () { return "assets/sst/ssw_imprint.webp"; }, bust: "hourly", about: "about-descent", fit: false,
           cap: function () { return "Is the stratosphere's anomaly coming down? The 10 and 100 hPa polar cap and the surface's SSW imprint index (sea-level pressure on the CMIP6 post-SSW pattern) for every ensemble, and the chance the imprint is positive over the month after day 15. November to April."; }},
   telecon: {label: "Arctic Oscillation and NAO", a: {label: "View", items: [["plumes","Members"],["all","All models"],["runs","Run to run"]]},
@@ -1502,7 +1502,7 @@ window.STAGE = {
                                      + (a === "hres" ? "IFS control, one run, to day 15 with the IFS-ENS drift removed where it has been measured" : a === "aifsc" ? "AIFS-ENS control, one run, to day 15 with the AIFS-ENS drift removed where it has been measured"
                                                      : a === "aifs1" ? "AIFS single, one run, to day 15 with its own drift removed where it has been measured"
                                                      : {aifs: "AIFS-ENS", ifs: "IFS-ENS (50 members)", gefs: "GEFS (31 members)", geps: "GEPS (21 members)"}[a] + " ensemble mean to day 15 with the model's drift removed where it has been measured")
-                                     + "; hatched levels are not drift-corrected. Same scale as the history drips."; }},
+                                     + "; levels marked by a grey triangle on the right are not drift-corrected. Same scale as the history drips."; }},
   // split by range (as the drips): heatflux = days 1-15 (AIFS-ENS, IFS-ENS, GEFS, GEPS), heatflux35 = GEPS/GEFS to day 35
   reflect: {label: "Regional reflection index", img: function () { return "assets/sst/reflection_index.webp"; }, bust: "hourly", about: "about-reflect", fit: false,
           cap: function () { return "Upward wave flux over Siberia against downward flux over Canada at 100 hPa, standardised: Messori et al.'s regional reflection index for every ensemble, the two boxes, and the share of members with an event. In ERA5 an event has been followed by a ridge over Alaska (EPO negative) and North American cold."; }},

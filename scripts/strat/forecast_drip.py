@@ -15,9 +15,9 @@ Model drift - never shown as signal:
   GEPS     measured per level and lead on the ECMWF S2S GEPS reforecasts (geps_s2s_hindcast.py capdrift: 2001-2020,
            control + 3 members, start dates within 8 days of the init's day of year), as (reforecast cap - MERRA-2
            reference) - so it includes GEPS's analysis offset. Levels whose reforecast part has not arrived are drawn
-           but HATCHED as uncorrected.
+           but MARKED as uncorrected.
   GEFS     from the GEFSv12 reforecast daily climatology (gefs-clim-v3, 2000-2019): (model climate cap at that lead -
-           MERRA-2 reference at the reforecast epoch). It holds 10, 100 and 500 hPa; the other levels are hatched.
+           MERRA-2 reference at the reforecast epoch). It holds 10, 100 and 500 hPa; the other levels are marked.
   AIFS-ENS no reforecast exists, so the control's cap forecasts from recent 00Z cycles are verified against the GEOS FP
            analyses (plus the GEOS FP - MERRA-2 offset) and the mean error per level and lead is removed
            (--measure-aifs-drift -> reference/aifs_capdrift.json).
@@ -35,7 +35,7 @@ Model drift - never shown as signal:
            AIFS-ENS, so AIFS-ENS's drift is never applied to it: its own cap forecasts from recent 00Z cycles are
            verified against GEOS FP the same way (--measure-drift aifs1 -> reference/aifs1_capdrift.json). One run.
   At any level without a measured drift, only the model's offset from GEOS FP at the analysis and day 1 is removed and
-  the level is HATCHED. The 1000 hPa cap needs that offset most: models extrapolate heights below ground where GEOS FP
+  the level is MARKED (a grey triangle on the chart's right edge). The 1000 hPa cap needs that offset most: models extrapolate heights below ground where GEOS FP
   and MERRA-2 leave those points out (in summer whole rows near the pole are underground and the observed 1000 hPa cap
   is undefined), so a model's 1000 hPa cap reads ~30-40 m (about 1 sd) low at analysis time.
 Ensemble mean of the members' standardised anomalies; the lower panels are the 1000 hPa cap (an AO proxy: high cap =
@@ -465,7 +465,7 @@ def measure_drift(model: str, history: Path, cycles: int = 25, every: int = 3, s
 def drift_aifs(init, leads, ref, tail_z_raw, model: str = "aifs"):
     """Measured drift (measure_drift): applied at a level only where it is significant at some lead (|mean| >
     2 se); interpolated linearly in lead between the measured steps. Levels where it is not significant are left
-    uncorrected and hatched."""
+    uncorrected and marked."""
     f = DRIFT_FILE[model]
     name = {"aifs": "AIFS", "ifs": "IFS-ENS", "aifs1": "AIFS single"}[model]
     if not f.exists():
@@ -533,8 +533,8 @@ def render(
         "Standardised 65–90°N geopotential height (MERRA-2 1980–2026 scale, as the history drips). Left of "
         "the line: GEOS FP analyses (offset to MERRA-2 removed). Right: "
         + (f"{name}, one run" if single else f"ensemble mean of {nmem} members")
-        + f", model drift removed where measured ({note}); hatched = drift not measured at that level (only the "
-        f"analysis-time offset from GEOS FP removed), read with caution.",
+        + f", model drift removed where measured ({note}); a grey triangle on the right edge = drift not measured at that "
+        f"level (only the analysis-time offset from GEOS FP removed), read with caution.",
         ha="left",
         va="top",
         fontsize=9.4,
@@ -545,11 +545,9 @@ def render(
     lv = np.arange(-2.4, 2.41, 0.3)
     cf = ax.contourf(X, p, Z.T, levels=lv, cmap="RdBu_r", extend="both")
     ax.contour(X, p, Z.T, levels=[x for x in lv if abs(x) > 1e-6], colors="#333", linewidths=0.3)
-    unc = [k for k, L in enumerate(levels) if L not in corrected]
-    if unc:
-        mask = np.zeros_like(Z.T)
-        mask[unc, len(tail_days) :] = 1
-        ax.contourf(X, p, mask, levels=[0.5, 1.5], colors="none", hatches=["////"])
+    unc = [L for L in levels if L not in corrected]  # marked beside the chart, not drawn over it
+    ax.plot(np.full(len(unc), 1.003), unc, ls="none", marker="<", ms=6, color=MUTED, clip_on=False,
+            transform=ax.get_yaxis_transform())  # fmt: skip
     ax.axvline(0, color=INK, lw=1.4)
     ax.text(-0.5, 1.2 * min(levels), "observed", ha="right", va="top", fontsize=9, color=INK)
     ax.text(0.5, 1.2 * min(levels), "forecast", ha="left", va="top", fontsize=9, color=INK)
