@@ -228,7 +228,7 @@ def draw_lead(wide: pd.DataFrame, models: list[str], region: str, span: dict, pa
     a1.axhline(USEFUL, color=house.MUTED, lw=1.2, ls=":")
     a1.set(xlabel="Lead (days)", ylabel="Anomaly correlation", title="Mean over the window, with its 95 % interval")
     a1.set_xticks(range(1, 16))
-    a1.set_xlim(0.6, 15.4)
+    a1.set_xlim(0.6, max(lead for _, lead in wide.columns) / 24 + 0.4)  # to the longest lead the window holds
     a1.grid(True, color=house.GRID, lw=0.8)
     a1.legend(loc="lower left", ncols=2, frameon=False, handlelength=2.6)
     single = [m for m in models if m in Z.DET and m != REF]
@@ -247,6 +247,12 @@ def draw_lead(wide: pd.DataFrame, models: list[str], region: str, span: dict, pa
         for m in ms:
             ax.plot([], [], color=COLORS[CENTRE.get(m, m)], marker="o", ls="none", ms=7, label=LABEL.get(m, m))
         ax.set_xlim(0.5, (max(Z.DET_LEADS) if ax is a2 else max(Z.E.LEADS)) / 24 + 0.5)
+        if not rows[id(ax)]:  # no model of the kind has the window's runs yet (WINDOW_SHARE)
+            ax.cla()
+            ax.set_axis_off()
+            kind = "single runs" if ax is a2 else "ensemble means"
+            ax.text(0.5, 0.5, f"No {kind} with 95 % of the window's runs yet", ha="center", va="center",
+                    transform=ax.transAxes, color=house.INK2)  # fmt: skip
     a2.set_ylabel("Difference in anomaly correlation")
     handles, labels = a2.get_legend_handles_labels()
     more = a3.get_legend_handles_labels()
