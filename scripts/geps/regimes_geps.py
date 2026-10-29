@@ -45,7 +45,8 @@ SITE = paths.SITE_ASSETS
 
 
 def member_labels(ref, cycle):
-    """-> (valid dates of days 1..35, {sk: labels (35, 21)}) or None."""
+    """-> (valid dates of days 1..35, {sk: labels (35, 21)}, {sk: the same members' strong labels,
+    regime_core.Ref.classify_series}) or None."""
     a = tg.members_anom("zg500", cycle, pd.Timestamp(cycle))  # (L, number, lat, lon)
     if a is None:
         return None
@@ -54,14 +55,15 @@ def member_labels(ref, cycle):
     L = a.L.values.astype(int)
     days = [base + pd.Timedelta(days=int(x) - 1) for x in L]  # day L = the UTC day base + L - 1
     days = [d.date() if hasattr(d, "date") else d for d in days]
-    out = {}
+    out, strong = {}, {}
     for sk, spec in RC.SECTORS.items():
         sec, _, _ = RC.sector_cut(a.values, spec)
         v = RC.running_partial(sec, RC.SMOOTH, axis=0)
         n, m = v.shape[:2]
         lab, _ = ref.classify_dated(v.reshape(n * m, *v.shape[2:]), np.repeat(days, m), sk)
         out[sk] = lab.reshape(n, m)
-    return days, out
+        strong[sk] = ref.classify_series(v, days, sk)
+    return days, out, strong
 
 
 def analysis_labels(ref, base, days=45):
@@ -102,7 +104,7 @@ def main() -> int:
     if got is None:
         print("  no zg500 members for this cycle")
         return 1
-    days, labs = got
+    days, labs, strong = got
     prev_cycle = a.prev or tg.previous_cycle(a.cycle)
     prev = member_labels(ref, prev_cycle) if prev_cycle else None
     obs = analysis_labels(ref, pd.Timestamp(a.cycle))
@@ -185,6 +187,7 @@ def main() -> int:
         notes="ECCC GEPS extended ensemble, 00Z, control + 20; anomalies vs the GEPS8 hindcast "
         "climatology re-based to 1991-2020",
         max_age_days=5,
+        strong_by_sector=strong,
     )
     (SITE / "regimes_members.json").write_text(json.dumps(mem))
     return 0

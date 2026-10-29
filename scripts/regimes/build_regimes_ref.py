@@ -5,11 +5,13 @@ data/regimes_ref.npz   the centroids of geps_subx/telecon/regimes.nc (k-means, k
                        1991-2020, cold and warm sets, EA and NA sectors) with their names; the family pairing checked
                        against the centroid correlations (regime_core.FAMILIES, >= 0.6 or the build stops); the
                        base-period statistics with every day classified by its OWN season's set: frequency by
-                       calendar month, overall frequency, mean episode length.
+                       calendar month, overall frequency, mean episode length (and the strong labels' frequency and
+                       episode length); pstat_<sector>_<season>, the strong labels' index statistics.
 data/r1_labels.npz     the R1 regime of every day 1991-2020 in both sets (int8; lab_<sector>_<season> from the
                        centred 5-day mean, trail_<sector>_<season> from the 3 days ending that day, the persistence
-                       forecast's input, own_<sector> in the day's own set) - the observed regime days of the impact
-                       composites and of the hindcast verification.
+                       forecast's input, own_<sector> in the day's own set, strong_<sector> the strong-and-persistent
+                       label, regime_core.Ref.classify_series) - the observed regime days of the impact composites and
+                       of the hindcast verification.
 data/era5_z500_clim.npz  ERA5 1991-2020 day-of-year 500 hPa height climatology on the 2.5 deg grid, 90N-0, as
                        annual harmonics (the ERA5 daily 1.5 deg global file, box-averaged to 2.5 deg like
                        the forecasts, 10 harmonics) - the anomaly base of AIFS-ENS and IFS-ENS, which have no reforecast.
@@ -53,7 +55,8 @@ def centroid_corr(a, b, lat):
 def r1_labels(cent, lat_s, lon_s):
     """R1 daily z500 1991-2020 -> anomalies vs the 1991-2020 day-of-year climatology (366-slot calendar, 29 Feb from
     the leap years alone, 31-day circular running mean, as build_regimes' own but with 1 March in the same slot every
-    year), 5-day running mean, classified in both sets."""
+    year), 5-day running mean, classified in both sets; the strong labels' index statistics (pstat, per sector and
+    set: the mean and sd of each centroid's projections over the set's season) and the strong labels themselves."""
     from build_telecon_patterns import daily
     from scipy.ndimage import uniform_filter1d
 
@@ -68,7 +71,7 @@ def r1_labels(cent, lat_s, lon_s):
     t = pd.DatetimeIndex(z.time.values)
     an = z.values - clim[doy366(t)]
     assert np.allclose(z.lat.values, RC.LAT25) and np.allclose(z.lon.values, RC.LON25)
-    labs = {}
+    labs, pstat, strong = {}, {}, {}
     for sk, spec in RC.SECTORS.items():
         sec, la, lo = RC.sector_cut(an, spec)
         assert np.allclose(la, lat_s[sk]) and np.allclose(lo, lon_s[sk])
@@ -84,12 +87,23 @@ def r1_labels(cent, lat_s, lon_s):
         for s in RC.SEASONS:
             labs[f"{sk}_{s}"] = ref_like.classify(v, sk, s)[0]
             labs[f"trail_{sk}_{s}"] = ref_like.classify(tr, sk, s)[0]
-    return t, labs
+            # the strong labels' index: each centroid's projections over the season's days (the record is 1991-2020)
+            P = ref_like.projection(v[np.array([RC.season_of(mo) == s for mo in t.month])], sk, s)
+            pstat[f"{sk}_{s}"] = ref_like.pstat[f"{sk}_{s}"] = np.stack([P.mean(0), P.std(0)])
+        strong[sk] = ref_like.classify_series(v, t.date, sk)
+    return t, labs, pstat, strong
+
+
+def episode_days(lab, m) -> float:
+    """Mean length of the runs of one regime (not no regime) on the days m, inside the season."""
+    x = np.where(m, lab, -9)
+    cut = np.flatnonzero(np.diff(x) != 0) + 1
+    return round(float(np.mean([len(g) for g in np.split(x, cut) if g[0] >= 0 and g[0] != RC.NONE])), 1)
 
 
 class _Tmp(RC.Ref):
     def __init__(self, cent, lat, lon):  # (no file yet)
-        self.cent, self.lat, self.lon, self.names, self.meta = cent, lat, lon, {}, {}
+        self.cent, self.lat, self.lon, self.names, self.meta, self.pstat = cent, lat, lon, {}, {}, {}
 
 
 def era5_clim():
@@ -157,7 +171,7 @@ def main() -> int:
                 print(f"  {sk} family {f['key']:6s} {s} only {nm!r}: best {o} match r = {best:+.2f}")
                 if best >= RC.FAMILY_MIN_R:
                     raise SystemExit(f"{sk} {f['key']} has a counterpart (r {best:.2f}): pair it")
-    t, labs = r1_labels(cent, lat_s, lon_s)
+    t, labs, pstat, strong = r1_labels(cent, lat_s, lon_s)
     own = {}
     base = (t.year >= 1991) & (t.year <= 2020)
     stats = {}
@@ -175,18 +189,19 @@ def main() -> int:
                 .tolist()
                 for mo in months
             }
-            # mean episode length (consecutive days in one regime, inside the season)
-            x = np.where(m, lab, -9)
-            cut = np.flatnonzero(np.diff(x) != 0) + 1
-            ep = [len(g) for g in np.split(x, cut) if g[0] >= 0 and g[0] != RC.NONE]
+            fs = np.bincount(strong[sk][m], minlength=RC.K + 1) / m.sum()
             stats[f"{sk}_{s}"] = dict(
                 freq=f.round(4).tolist(),
                 by_month=bym,
-                mean_episode_days=round(float(np.mean(ep)), 1),
+                mean_episode_days=episode_days(lab, m),
                 n_days=int(m.sum()),
+                strong_freq=fs.round(4).tolist(),
+                strong_mean_episode_days=episode_days(strong[sk], m),
             )
             print(
-                f"  {sk} {s}: freq {np.round(f * 100).astype(int).tolist()} (last = none), episodes {np.mean(ep):.1f} d"
+                f"  {sk} {s}: freq {np.round(f * 100).astype(int).tolist()} (last = none), episodes "
+                f"{episode_days(lab, m)} d; strong {np.round(fs * 100).astype(int).tolist()}, "
+                f"{episode_days(strong[sk], m)} d"
             )
     meta = dict(
         names=names,
@@ -197,6 +212,7 @@ def main() -> int:
         "running-mean NCEP/NCAR R1 500 hPa anomalies 1991-2020, cold Oct-Mar / warm Apr-Sep",
         r_min=RC.R_MIN,
         smooth_days=RC.SMOOTH,
+        strong=dict(iwr_min=RC.IWR_MIN, persist_days=RC.PERSIST),
         note="stats: every day classified with its own season's set, 1991-2020",
     )
     RC.DATA.mkdir(exist_ok=True)
@@ -206,12 +222,14 @@ def main() -> int:
         **{f"cent_{k}": v.astype("float32") for k, v in cent.items()},
         **{f"lat_{sk}": lat_s[sk] for sk in RC.SECTORS},
         **{f"lon_{sk}": lon_s[sk] for sk in RC.SECTORS},
+        **{f"pstat_{k}": v for k, v in pstat.items()},
     )
     np.savez_compressed(
         RC.DATA / "r1_labels.npz",
         t=np.array([int(x.strftime("%Y%m%d")) for x in t], "int32"),
         **{(k if k.startswith("trail_") else f"lab_{k}"): v.astype("int8") for k, v in labs.items()},
         **{f"own_{sk}": v.astype("int8") for sk, v in own.items()},
+        **{f"strong_{sk}": v.astype("int8") for sk, v in strong.items()},
     )
     coef = era5_clim()
     np.savez_compressed(

@@ -20,7 +20,9 @@ data are fetched.
            cut to the shared days; the manifest keeps the four newest runs, the store those that left in the last hour
            and the newest before them; a rebuild publishes add-only
   regimes  members whose 500 hPa anomaly is a regime's centroid are labelled with it (every day in its own season's
-           set) and the record is regime_core's format; a period's label day is the middle day, whose 5-day running
+           set) and the record is regime_core's format, with their strong labels; the strong labels keep a 7-day run
+           of a regime's index above the threshold and one cut by the series' end or a missing day, not a 3-day one,
+           and follow a run through Oct 1 in its family; a period's label day is the middle day, whose 5-day running
            mean is the period's own mean; the run-to-run test finds a planted shift and nothing in identical runs; a
            12Z run's day 16 needs +384 h
   clusters a scenario keeps its letter through a one-scenario day, a split takes a new letter and a scenario that
@@ -43,6 +45,7 @@ data are fetched.
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import contextlib
 import io
 import json
@@ -372,6 +375,32 @@ def regimes():
         list(arch["runs"]) == ["20261025"] and len(arch["runs"]["20261025"]["ea"]) == RE.NDAYS,
         "the 00Z run joins the drift archive",
     )
+    check("strong" in rec["sectors"]["ea"] and np.shape(rec["sectors"]["ea"]["strong"]) == (nd, nm),
+          "the record carries the members' strong labels")  # fmt: skip
+
+    def scaled(sk, s, k, on):  # a field whose index of regime k in set s is 1.5 where on, 0 elsewhere
+        cent, _, _ = ref.centroids(sk, s)
+        mu, sd = ref.pstat[f"{sk}_{s}"]
+        return (mu[k] + 1.5 * sd[k] * np.asarray(on, float))[:, None, None] * cent[k][None]
+
+    nov = [dt.date(2026, 11, 1) + dt.timedelta(days=i) for i in range(20)]
+    on = np.zeros(20, bool)
+    on[2:5] = on[8:15] = on[18:] = True
+    f = np.stack([scaled("ea", "cold", 0, on)] * 2, 1)
+    f[3, 1] = np.nan
+    lab = ref.classify_series(f, nov, "ea")
+    want = np.where(on, 0, RC.NONE)
+    want[2:5] = RC.NONE
+    check((lab[:, 0] == want).all(), "strong labels: a 7-day run is kept, a 3-day one is not, one cut by the end is")
+    check(lab[3, 1] == -1 and lab[2, 1] == lab[4, 1] == 0, "a missing day is -1 and the runs it cuts are kept")
+    sw = [dt.date(2026, 9, 25) + dt.timedelta(days=i) for i in range(10)]  # 25 Sep - 4 Oct
+    run = np.array([2 <= i <= 7 for i in range(10)])  # 27 Sep - 2 Oct: 4 warm days and 2 cold ones
+    fam = next(x for x in RC.FAMILIES["ea"] if x["key"] == "scbl")
+    g = np.where((np.array([d.month for d in sw]) == 9)[:, None, None], scaled("ea", "warm", fam["warm"], run),
+                 scaled("ea", "cold", fam["cold"], run))  # fmt: skip
+    lab = ref.classify_series(g, sw, "ea")
+    check((lab == np.where(run, [fam["warm"] if d.month == 9 else fam["cold"] for d in sw], RC.NONE)).all(),
+          "a run continues through Oct 1 in its family, in each set's own index")  # fmt: skip
     a = RNG.normal(size=14)
     rp = RC.running_partial(a, RC.SMOOTH)
     check(
