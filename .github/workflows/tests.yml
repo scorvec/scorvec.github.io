@@ -3,13 +3,14 @@ name: Tests (offline checks)
 # The offline checks that live beside their pipelines: synthetic-data tests of the tropical rainfall blend fit, the recon
 # decoders against the sample bulletins, the sounding climatology's split by synoptic hour, the sounding
 # station list's positions and WMO indexes, the global ensemble maps' grids, decoding, codes, gates, run-to-run
-# statistics, weather regimes, clusters and teleconnection calibration, and the polar vortex's 10 hPa temperature
-# reductions and sudden-warming shares. No network, no figures.
+# statistics, weather regimes, clusters and teleconnection calibration, the polar vortex's 10 hPa temperature
+# reductions and sudden-warming shares, and the wave compass's ridges, ERA5 relation and member test. No network,
+# no figures.
 on:
   push:
-    paths: ['scripts/precip_bias/**', 'scripts/recon/**', 'scripts/skewt/**.py', 'skewt/stations.json', 'scripts/lib/**', 'scripts/ensmaps/**', 'scripts/regimes/**', 'scripts/strat/nh_vortex.py', 'scripts/strat/test_nh_vortex.py', '.github/workflows/tests.yml']
+    paths: ['scripts/precip_bias/**', 'scripts/recon/**', 'scripts/skewt/**.py', 'skewt/stations.json', 'scripts/lib/**', 'scripts/ensmaps/**', 'scripts/regimes/**', 'scripts/strat/nh_vortex.py', 'scripts/strat/test_nh_vortex.py', 'scripts/strat/wave_compass.py', 'scripts/strat/test_wave_compass.py', 'scripts/strat/build_wave_clim.py', '.github/workflows/tests.yml']
   pull_request:
-    paths: ['scripts/precip_bias/**', 'scripts/recon/**', 'scripts/skewt/**.py', 'skewt/stations.json', 'scripts/lib/**', 'scripts/ensmaps/**', 'scripts/regimes/**', 'scripts/strat/nh_vortex.py', 'scripts/strat/test_nh_vortex.py', '.github/workflows/tests.yml']
+    paths: ['scripts/precip_bias/**', 'scripts/recon/**', 'scripts/skewt/**.py', 'skewt/stations.json', 'scripts/lib/**', 'scripts/ensmaps/**', 'scripts/regimes/**', 'scripts/strat/nh_vortex.py', 'scripts/strat/test_nh_vortex.py', 'scripts/strat/wave_compass.py', 'scripts/strat/test_wave_compass.py', 'scripts/strat/build_wave_clim.py', '.github/workflows/tests.yml']
   workflow_dispatch:
 
 permissions:
