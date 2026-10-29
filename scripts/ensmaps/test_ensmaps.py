@@ -26,7 +26,8 @@ data are fetched.
            mean is the period's own mean; the run-to-run test finds a planted shift and nothing in identical runs; a
            12Z run's day 16 needs +384 h
   clusters a scenario keeps its letter through a one-scenario day, a split takes a new letter and a scenario that
-           re-forms its old one; the members' moves between two periods' clusters
+           re-forms its old one; the members' moves between two periods' clusters; the members' main difference passes
+           where one direction leads the spread (its two sides each about half the weight) and not where none does
   super    a first stage's statistics of an older span layout are carried by span; the weighted sign test's gate is
            sign_k / n for one ensemble and holds its 5 % for four (simulated); the super-ensemble of four synthetic
            runs gives the equal-weight mean anomaly, the agreeing share's gate, the variance of the weighted mean, the
@@ -444,6 +445,17 @@ def clusters():
         "letters: kept through a one-scenario day, a new one for a split, the same one when it re-forms",
     )
     check(EC.flow((keys, seq[2]), (keys, seq[3], w)) == [[0.5, 0.0], [0.0, 0.35], [0.15, 0.0]], "the members' moves")
+
+    sizes = (50, 51, 31, 21)  # four ensembles, a quarter of the weight each
+    wm = np.concatenate([np.full(n, 0.25 / n) for n in sizes])
+    rng = np.random.default_rng(4)
+    for lam, want in ((np.r_[3, 1 / np.arange(1, 40)], True), (np.ones(25), False)):
+        Y, var, share = EC.pca(rng.standard_normal((wm.size, lam.size)) * np.sqrt(lam), wm)
+        info, side = EC.main_pattern(Y, wm, var, share, rng)
+        half = wm[side == 1].sum()
+        check(info["robust"] == want and (not want or 0.35 < half < 0.65),
+              f"main difference {'found' if want else 'absent'}: p {info['p']}, {info['explained']:.0%} of the spread, "
+              f"sides {half:.2f}/{1 - half:.2f}")  # fmt: skip
 
 
 def super_ens():

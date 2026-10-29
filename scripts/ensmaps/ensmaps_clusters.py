@@ -18,18 +18,18 @@ anomalies in the Actions cache (save_fields, from ensmaps.py), and `run` cluster
             year (SD_FILE: ERA5 1991-2020 from the store, +-15 days), weighted by sqrt(cos lat), the two concatenated
   weights   each model's members share 1/M of the weight (M models in the window), so 51 members count as much as 21
   EOFs      of the weighted deviations from the grand-ensemble mean, as many as explain VAR_KEEP of that spread
-  shadow    a second choice on the same EOFs, by prediction strength (Tibshirani and Walther 2005): N_SPLIT random
-            halvings of the members within each model, each half clustered and the test half's member pairs that share a
-            cluster checked against the training half's centroids (weighted pairs); PS(k), the mean over the halvings
-            of the worst-kept cluster, and k the largest with PS >= PS_MIN whose clusters all hold >= MIN_W. Recorded
-            per period and domain in the manifest ("shadow": PS and the independence test's p for each k, k) and not
-            drawn: how often it finds scenarios
   k-means   weighted, k = 1..K_MAX, N_START starts (k-means++), in the EOFs' space
   choice    k > 1 only when (1) its within-cluster variance reduction beats the 95th percentile of N_NULL synthetic Gaussian
             ensembles with the same covariance and weights, (2) every cluster holds >= MIN_W of the weight, (3) the same
             k is chosen in >= STABLE of N_BOOT bootstrap resamples of the members (within each model); among the passing
             k the smallest whose gap (null less observed log within-variance) is at least the next k's less one null
-            standard deviation (the gap statistic's rule). Otherwise one scenario.
+            standard deviation (the gap statistic's rule). Otherwise no scenarios (pattern, below).
+  pattern   where no k > 1 passes, the members' main difference instead: their leading EOF and its share of the spread,
+            tested against the second (a Monte Carlo test: N_NULL Gaussian ensembles with the members' weights and the
+            EOFs' variances, the first two set equal; p, the share whose second-to-first variance ratio is at most the
+            members' own). Where p < P_EOF and each side of the grand-ensemble mean along it holds >= MIN_W of the
+            weight, the two sides are the groups (with letters, maps and moves as scenarios have) and the model x group
+            test below applies to them as to a split; otherwise one scenario, the grand mean
   outputs   per window and domain: each cluster's probability (its weight) and each model's share of its own members in
             it; the nearest regime of each sector (pattern correlation of the cluster's mean 500 hPa anomaly with
             regime_core's centroids of the season, "no regime" below 0.25); how members move from window to window and
@@ -83,7 +83,7 @@ HALF = 15  # +- days of the time of year
 WINDOWS = (("d3_5", 3, 5), ("d6_10", 6, 10), ("d11_15", 11, 15))
 DAYS_MAX = 16  # the days clustered one by one (GEFS and GEPS hold the 16th)
 K_MAX, N_START, N_NULL, N_BOOT, STABLE, MIN_W, VAR_KEEP = 5, 100, 100, 50, 0.6, 0.05, 0.80
-N_SPLIT, PS_MIN = 20, 0.8  # the shadow's halvings and its prediction-strength gate (see the module docstring)
+P_EOF = 0.05  # the main difference's test of its leading EOF against the second (see the module docstring)
 N_START_FAST = 10  # starts for the null and bootstrap ensembles
 N_PERM, FDR_Q = 500, 0.10
 P_MODELS = 0.05  # a split whose model x cluster test is below this follows the models: no scenarios
@@ -354,28 +354,25 @@ def choose(Y, w, var, mi, rng) -> tuple[int, list, dict]:
     return k, labs, ev
 
 
-def strength(Y, w, mi, k, rng) -> float:
-    """Prediction strength PS(k) of the weighted k-means (see the module docstring): the mean over N_SPLIT halvings."""
-    out = []
-    for _ in range(N_SPLIT):
-        tr = np.zeros(len(w), bool)
-        for j in np.unique(mi):
-            ix = rng.permutation(np.flatnonzero(mi == j))
-            tr[ix[: len(ix) // 2]] = True
-        te = ~tr
-        lab = kmeans(Y[tr], w[tr], k, N_START_FAST, rng)[0]
-        C = np.array([(w[tr][lab == j, None] * Y[tr][lab == j]).sum(0) / w[tr][lab == j].sum() for j in np.unique(lab)])
-        near = ((Y[te][:, None] - C[None]) ** 2).sum(2).argmin(1)
-        test, wt = kmeans(Y[te], w[te], k, N_START_FAST, rng)[0], w[te]
-        kept = []
-        for j in np.unique(test):
-            s = test == j
-            if s.sum() < 2:
-                continue
-            same = sum(wt[s & (near == c)].sum() ** 2 - (wt[s & (near == c)] ** 2).sum() for c in np.unique(near[s]))
-            kept.append(same / (wt[s].sum() ** 2 - (wt[s] ** 2).sum()))
-        out.append(min(kept))
-    return float(np.mean(out))
+def main_pattern(Y, w, var, share, rng) -> tuple[dict, np.ndarray]:
+    """The members' main difference (see the module docstring): ({its share of the spread, the test's p, whether p is
+    below P_EOF}, each member's side of the grand-ensemble mean along it). A leading EOF alone above VAR_KEEP passes."""
+    W = w / w.sum()
+
+    def ratio(Ys):
+        D = Ys - (W[:, None] * Ys).sum(0)
+        s = np.linalg.svd(np.sqrt(W)[:, None] * D, compute_uv=False)
+        return s[1] ** 2 / s[0] ** 2
+
+    p = 1 / (1 + N_NULL)
+    if var.size > 1:
+        v0 = var.copy()
+        v0[:2] = var[:2].mean()
+        null = np.array([ratio(rng.standard_normal(Y.shape) * np.sqrt(v0)) for _ in range(N_NULL)])
+        p = (1 + (null <= var[1] / var[0]).sum()) / (1 + N_NULL)
+    p = round(float(p), 4)  # plain floats and bools for the manifest
+    info = {"explained": round(float(var[0] / var.sum() * share), 3), "p": p, "robust": p < P_EOF}
+    return info, (Y[:, 0] > 0).astype(int)
 
 
 def order(lab: np.ndarray, w: np.ndarray, k: int) -> np.ndarray:
@@ -451,9 +448,10 @@ def periods(models: list[dict]) -> list[dict]:
 
 def solve(job: dict) -> dict:
     """One period's clusters in each domain (a worker process): {domain: k, the labels (the largest cluster 0), the
-    evidence, the independence test, and per cluster its weight, mean, sign agreement and difference from the grand
-    ensemble's mean}. A split that follows the models (the independence test at 5 %) is no scenario: one group
-    (k 1) whose panels are the models' own means, and `models` gives the test's p and the clusters found."""
+    evidence, the independence test, the main difference where no scenarios pass (`pattern`; its two sides are the
+    groups when it is robust), and per group its weight, mean, sign agreement and difference from the grand ensemble's
+    mean}. A split that follows the models (the independence test at 5 %) is no scenario: one group (k 1) whose panels
+    are the models' own means, and `models` gives the test's p and the groups found."""
     import ensmaps as E
 
     z, m, w, mi, dates, nm = (job[k] for k in ("z", "m", "w", "mi", "dates", "nm"))
@@ -463,13 +461,11 @@ def solve(job: dict) -> dict:
         X = vectors(z, m, dk, dates)
         Y, var, share = pca(X, w)
         k, labs, ev = choose(Y, w, var, mi, rng)
-        rs = np.random.default_rng([SEED, job["seed"], d, 1])  # the shadow's own draws: the fit above is unchanged
-        ps = [strength(Y, w, mi, kk, rs) for kk in range(2, K_MAX + 1)]
-        ks = max((kk for kk in range(2, K_MAX + 1) if ps[kk - 2] >= PS_MIN and ev["min_weight"][kk - 1] >= MIN_W),
-                 default=1)  # fmt: skip
-        shadow = {"rule": "prediction strength", "ps": [round(x, 2) for x in ps], "k": ks,
-                  "independence": [independence(mi, order(labs[kk - 1], w, kk), kk, nm, rs) for kk in range(2, K_MAX + 1)]}  # fmt: skip
-        lab = order(labs[k - 1], w, k)
+        lab, pat = order(labs[k - 1], w, k), None
+        if k == 1:
+            pat, side = main_pattern(Y, w, var, share, rng)
+            if pat["robust"] and min(w[side == j].sum() for j in (0, 1)) >= MIN_W * w.sum():
+                k, lab = 2, order(side, w, 2)
         p_ind = independence(mi, lab, k, nm, rng)
         models = {"p": p_ind, "k": k} if p_ind is not None and p_ind < P_MODELS else None
         groups = [mi == i for i in range(nm)] if models else [lab == j for j in range(k)]
@@ -494,7 +490,7 @@ def solve(job: dict) -> dict:
         if models:
             k, lab = 1, np.zeros_like(lab)
         out[dk] = {"k": k, "lab": lab, "ev": ev, "eofs": int(Y.shape[1]), "share": share, "p_ind": p_ind,
-                   "models": models, "cl": cl, "shadow": shadow}  # fmt: skip
+                   "models": models, "cl": cl, "pattern": pat}  # fmt: skip
     return out
 
 
@@ -632,7 +628,7 @@ def run(paths: list[Path], site: Path, lists: Path | None, manifest_in: Path | N
                 }
                 if sol["models"]:
                     info["model"] = ins[j]["key"]
-                title = figure_title(info, k, dlabel, P, sol["models"])
+                title = figure_title(info, k, dlabel, P, sol["models"], bool(sol["pattern"]))
                 for v in ("phys", "sigma"):
                     draws.append((outdir, (f"{P['key']}_{dk}_{j}_{v}", dk, title, v, c["cz"], c["cm"], nz + c["cz"],
                                            nmsl + c["cm"], c["agz"], c["agm"], c["sig_z"], c["sig_m"], high, sdz, sdm)))  # fmt: skip
@@ -645,14 +641,15 @@ def run(paths: list[Path], site: Path, lists: Path | None, manifest_in: Path | N
                 res["models"] = sol["models"]
             if "from" in sol:
                 res["from_previous"] = sol["from"]
-            res["shadow"] = sol["shadow"]
+            if sol["pattern"]:
+                res["pattern"] = sol["pattern"]
             result[P["key"]][dk] = res
             what = (f"the split (k = {sol['models']['k']}) follows the models, p {sol['models']['p']}" if sol["models"]
                     else f"k = {k} {''.join(x or '-' for x in sol['letters'])}")  # fmt: skip
+            pat = sol["pattern"]
             log(f"  {P['key']} {dk}: {len(P['w'])} members, {sol['eofs']} EOFs ({sol['share']:.0%}), {what} "
-                f"(reductions {ev['reduction'][1:]}, null p95 {ev['null_p95'][1:]}, stability {ev['stability']}); "
-                f"shadow: PS {sol['shadow']['ps']}, k = {sol['shadow']['k']}, independence "
-                f"{sol['shadow']['independence']}")  # fmt: skip
+                f"(reductions {ev['reduction'][1:]}, null p95 {ev['null_p95'][1:]}, stability {ev['stability']})"
+                + (f"; main difference {pat['explained']:.0%} of the spread, p {pat['p']}" if pat else ""))  # fmt: skip
     nbytes = 0
     with ProcessPoolExecutor(max(1, min(workers, len(draws)))) as ex:
         for (info, v), (fn, nb) in zip(where, ex.map(_draw, draws, chunksize=4), strict=True):
@@ -679,7 +676,14 @@ def run(paths: list[Path], site: Path, lists: Path | None, manifest_in: Path | N
         "domains": {k: v[0] for k, v in doms.items()},
         "results": result,
         "files": files,
-        "rules": {"k_max": K_MAX, "min_weight": MIN_W, "stable": STABLE, "var_keep": VAR_KEEP, "fdr_q": FDR_Q},
+        "rules": {
+            "k_max": K_MAX,
+            "min_weight": MIN_W,
+            "stable": STABLE,
+            "var_keep": VAR_KEEP,
+            "fdr_q": FDR_Q,
+            "p_eof": P_EOF,
+        },
         "seconds": {"fit": round(t_fit - t_start), "all": round(t_end - t_start)},
     }
     mpath = site / "assets/models/ensmaps_clusters.json"
@@ -713,7 +717,7 @@ def ensembles(ins: list[dict]) -> str:
     )
 
 
-def figure_title(info: dict, k: int, dlabel: str, P: dict, models: dict | None) -> list[str]:
+def figure_title(info: dict, k: int, dlabel: str, P: dict, models: dict | None, pattern: bool) -> list[str]:
     d0, d1 = (pd.Timestamp(x) for x in (P["dates"][0], P["dates"][-1]))
     span = f"{d0:%a %b %-d} – {d1:%a %b %-d}" if P["kind"] == "window" else f"{d0:%a %b %-d} (day {P['days'][0]})"
     ens = ensembles(P["ins"])
@@ -721,7 +725,13 @@ def figure_title(info: dict, k: int, dlabel: str, P: dict, models: dict | None) 
         head = f"{LABEL[info['model']]} mean: the ensembles differ, the split follows the models (p {models['p']})"
         who = f"Members: {info['n']} of {LABEL[info['model']]}"
     else:
-        head = f"Scenario {info['letter']}: {info['p']:.0%} of {ens}" if k > 1 else f"One scenario: the mean of {ens}"
+        head = (
+            f"Side {info['letter']} of the main difference: {info['p']:.0%} of {ens}"
+            if k > 1 and pattern
+            else f"Scenario {info['letter']}: {info['p']:.0%} of {ens}"
+            if k > 1
+            else f"One scenario: the mean of {ens}"
+        )
         who = "Members in it: " + " · ".join(f"{LABEL[m]} {s:.0%}" for m, s in info["shares"].items())
     return [
         f"{head} · {dlabel} · {span}",
