@@ -13,7 +13,7 @@ name: Model verification scores
 # (precip_maps.json). The ensembles' runs (verify-ens.yml) are scored the same way from their sums
 # (ens_scores_30.json ... ens_scores_all.json, scripts/verify/ens_verify.py windows), and every model's 500 hPa
 # anomaly correlation against ERA5 (verify-z500.yml) from its runs' scores. The figures of the page are drawn here
-# (scripts/verify/verify_figs.py: the anomaly correlations, the rain maps, the scorecards and error by lead) into the
+# (scripts/verify/verify_figs.py: every chart of the page but a station's series, each with its uncertainty) into the
 # frames store, with their list, figs.json, and so are each station's series for the station map (station_series.py).
 # verify-backfill.yml fills the database for earlier runs and catches up any it missed. Every
 # file is copied to the site's object store as well (verifydb.sh mirror), so the database is kept in two places.
