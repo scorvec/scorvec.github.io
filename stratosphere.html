@@ -1679,7 +1679,7 @@ window.STAGE = {
     wcSel = sel;
     if (window.WaveCompass) return window.WaveCompass.draw(sel);
     if (wcLoading) return; wcLoading = true;
-    var sc = document.createElement("script"); sc.src = "/assets/wave-compass.js?v=b0c4aa3b68";
+    var sc = document.createElement("script"); sc.src = "/assets/wave-compass.js?v=af13fa3f88";
     sc.onload = function () { window.WaveCompass.draw(wcSel); };
     sc.onerror = function () { $("wcNote").textContent = "This product could not be loaded just now; try reloading in a minute."; };
     document.head.appendChild(sc);

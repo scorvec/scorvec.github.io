@@ -310,12 +310,16 @@
     st.model = model; st.k = k; if (fresh) st.rot = 0;
     var go = function () {
       var doc = docs[model];
-      if (!doc) { $("wcChips").innerHTML = ""; $("wcNote").textContent = "The " + LABEL[model] + " compass has not been published yet: it appears with that ensemble's next run."; return; }
+      // without the ensemble's file the run's numbers, figures and day controls go; the schematic needs no run
+      [$("wcChips"), $("wcMap").closest(".wc-cols"), $("wcDay").closest(".wc-controls")].forEach(function (el) { el.style.display = doc ? "" : "none"; });
+      $("wcLeanSeed").disabled = !doc;
+      drawLean(); $("wcLeanVal").textContent = leanText(); $("wcSizeVal").textContent = fmt(st.size, 1) + "×";
+      if (!doc) { $("wcNote").textContent = "The " + LABEL[model] + " compass has not been published yet: it appears with that ensemble's next run."; return; }
       $("wcDay").max = doc.valid.length - 1;
       if (fresh || st.day === null || st.day >= doc.valid.length) st.day = bestDay(doc, k);
       $("wcNote").textContent = doc.label + " run of " + doc.init.slice(0, 10) + " " + doc.init.slice(11, 13) + "Z, " + doc.n_members +
         " members. Drag the map (or use the arrow keys on it) to move the anomaly round the pole: the normal wave stays where the mountains and coasts put it.";
-      redraw(); drawLean(); $("wcLeanVal").textContent = leanText(); $("wcSizeVal").textContent = fmt(st.size, 1) + "×";
+      redraw();
     };
     var want = [];
     if (!docs[model]) want.push(getJSON("/assets/sst/data/wave_compass_" + model + ".json?v=" + hour()).then(function (d) { docs[model] = d; }));
