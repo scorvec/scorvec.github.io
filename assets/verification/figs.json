@@ -1,0 +1,1000 @@
+{
+ "generated": "2026-10-29 07:39 UTC",
+ "acc": {
+  "NH_all": {
+   "series": {
+    "1": "acc_series_NH_all_d1.webp",
+    "3": "acc_series_NH_all_d3.webp",
+    "5": "acc_series_NH_all_d5.webp",
+    "7": "acc_series_NH_all_d7.webp",
+    "10": "acc_series_NH_all_d10.webp",
+    "15": "acc_series_NH_all_d15.webp"
+   },
+   "lead": "acc_lead_NH_all.webp",
+   "window": {
+    "left_out": {
+     "AIFS-ENS": 6,
+     "GEFS": 6,
+     "GEPS": 6,
+     "IFS-ENS": 6
+    },
+    "runs": 11,
+    "first": "2026092900",
+    "last": "2026100900"
+   },
+   "mean": {
+    "AIFS": {
+     "1": [
+      0.9987,
+      0.9984,
+      0.9989
+     ],
+     "2": [
+      0.9958,
+      0.9952,
+      0.9963
+     ],
+     "3": [
+      0.9876,
+      0.9858,
+      0.9892
+     ],
+     "4": [
+      0.9711,
+      0.9672,
+      0.9744
+     ],
+     "5": [
+      0.9402,
+      0.9332,
+      0.9465
+     ],
+     "6": [
+      0.8928,
+      0.8799,
+      0.9044
+     ],
+     "7": [
+      0.823,
+      0.79,
+      0.8512
+     ],
+     "8": [
+      0.7206,
+      0.6406,
+      0.7851
+     ],
+     "9": [
+      0.6014,
+      0.5347,
+      0.6606
+     ],
+     "10": [
+      0.4935,
+      0.4141,
+      0.5655
+     ]
+    },
+    "GDPS": {
+     "1": [
+      0.9977,
+      0.9973,
+      0.9981
+     ],
+     "2": [
+      0.9921,
+      0.9908,
+      0.9932
+     ],
+     "3": [
+      0.98,
+      0.9768,
+      0.9828
+     ],
+     "4": [
+      0.9568,
+      0.9485,
+      0.9638
+     ],
+     "5": [
+      0.9145,
+      0.9002,
+      0.9268
+     ],
+     "6": [
+      0.8483,
+      0.8131,
+      0.8773
+     ],
+     "7": [
+      0.7628,
+      0.7312,
+      0.7912
+     ],
+     "8": [
+      0.6384,
+      0.5966,
+      0.6767
+     ],
+     "9": [
+      0.5195,
+      0.403,
+      0.6195
+     ],
+     "10": [
+      0.4349,
+      0.2933,
+      0.5578
+     ]
+    },
+    "GFS": {
+     "1": [
+      0.9962,
+      0.9957,
+      0.9968
+     ],
+     "2": [
+      0.9893,
+      0.9876,
+      0.9907
+     ],
+     "3": [
+      0.9746,
+      0.9703,
+      0.9783
+     ],
+     "4": [
+      0.9443,
+      0.9305,
+      0.9554
+     ],
+     "5": [
+      0.886,
+      0.8559,
+      0.91
+     ],
+     "6": [
+      0.8032,
+      0.7458,
+      0.8487
+     ],
+     "7": [
+      0.6929,
+      0.6164,
+      0.7564
+     ],
+     "8": [
+      0.5749,
+      0.4928,
+      0.6469
+     ],
+     "9": [
+      0.4414,
+      0.3433,
+      0.53
+     ],
+     "10": [
+      0.3538,
+      0.2283,
+      0.4677
+     ]
+    },
+    "IFS": {
+     "1": [
+      0.9985,
+      0.9981,
+      0.9988
+     ],
+     "2": [
+      0.9951,
+      0.9945,
+      0.9956
+     ],
+     "3": [
+      0.985,
+      0.9824,
+      0.9872
+     ],
+     "4": [
+      0.9661,
+      0.9563,
+      0.9737
+     ],
+     "5": [
+      0.9241,
+      0.9149,
+      0.9323
+     ],
+     "6": [
+      0.8594,
+      0.8401,
+      0.8765
+     ],
+     "7": [
+      0.7666,
+      0.7217,
+      0.8052
+     ],
+     "8": [
+      0.6509,
+      0.5822,
+      0.7103
+     ],
+     "9": [
+      0.5352,
+      0.4395,
+      0.6188
+     ],
+     "10": [
+      0.466,
+      0.3236,
+      0.5878
+     ]
+    }
+   }
+  },
+  "SH_all": {
+   "series": {
+    "1": "acc_series_SH_all_d1.webp",
+    "3": "acc_series_SH_all_d3.webp",
+    "5": "acc_series_SH_all_d5.webp",
+    "7": "acc_series_SH_all_d7.webp",
+    "10": "acc_series_SH_all_d10.webp",
+    "15": "acc_series_SH_all_d15.webp"
+   },
+   "lead": "acc_lead_SH_all.webp",
+   "window": {
+    "left_out": {
+     "AIFS-ENS": 6,
+     "GEFS": 6,
+     "GEPS": 6,
+     "IFS-ENS": 6
+    },
+    "runs": 11,
+    "first": "2026092900",
+    "last": "2026100900"
+   },
+   "mean": {
+    "AIFS": {
+     "1": [
+      0.9992,
+      0.9991,
+      0.9993
+     ],
+     "2": [
+      0.9974,
+      0.9969,
+      0.9978
+     ],
+     "3": [
+      0.992,
+      0.9894,
+      0.9939
+     ],
+     "4": [
+      0.9809,
+      0.9718,
+      0.9871
+     ],
+     "5": [
+      0.9602,
+      0.9291,
+      0.9778
+     ],
+     "6": [
+      0.9238,
+      0.8428,
+      0.9639
+     ],
+     "7": [
+      0.8719,
+      0.7874,
+      0.9243
+     ],
+     "8": [
+      0.8049,
+      0.7582,
+      0.8434
+     ],
+     "9": [
+      0.7384,
+      0.6874,
+      0.7821
+     ],
+     "10": [
+      0.7089,
+      0.6398,
+      0.7666
+     ]
+    },
+    "GDPS": {
+     "1": [
+      0.9984,
+      0.998,
+      0.9988
+     ],
+     "2": [
+      0.9948,
+      0.9943,
+      0.9953
+     ],
+     "3": [
+      0.9861,
+      0.984,
+      0.988
+     ],
+     "4": [
+      0.9701,
+      0.962,
+      0.9765
+     ],
+     "5": [
+      0.9412,
+      0.8677,
+      0.9744
+     ],
+     "6": [
+      0.8913,
+      0.7209,
+      0.9601
+     ],
+     "7": [
+      0.8361,
+      0.7105,
+      0.9101
+     ],
+     "8": [
+      0.7946,
+      0.7426,
+      0.8371
+     ],
+     "9": [
+      0.7513,
+      0.6625,
+      0.8193
+     ],
+     "10": [
+      0.7021,
+      0.55,
+      0.8091
+     ]
+    },
+    "GFS": {
+     "1": [
+      0.9973,
+      0.9969,
+      0.9977
+     ],
+     "2": [
+      0.9922,
+      0.9905,
+      0.9936
+     ],
+     "3": [
+      0.9812,
+      0.9769,
+      0.9847
+     ],
+     "4": [
+      0.9619,
+      0.9553,
+      0.9675
+     ],
+     "5": [
+      0.9318,
+      0.9268,
+      0.9364
+     ],
+     "6": [
+      0.8926,
+      0.875,
+      0.9078
+     ],
+     "7": [
+      0.8379,
+      0.7994,
+      0.8695
+     ],
+     "8": [
+      0.7972,
+      0.7593,
+      0.8297
+     ],
+     "9": [
+      0.7304,
+      0.654,
+      0.792
+     ],
+     "10": [
+      0.6401,
+      0.5007,
+      0.7472
+     ]
+    },
+    "IFS": {
+     "1": [
+      0.9992,
+      0.9991,
+      0.9993
+     ],
+     "2": [
+      0.9969,
+      0.9962,
+      0.9974
+     ],
+     "3": [
+      0.9901,
+      0.988,
+      0.9918
+     ],
+     "4": [
+      0.9759,
+      0.9669,
+      0.9824
+     ],
+     "5": [
+      0.9489,
+      0.9175,
+      0.9686
+     ],
+     "6": [
+      0.9063,
+      0.8574,
+      0.9389
+     ],
+     "7": [
+      0.8526,
+      0.7651,
+      0.9092
+     ],
+     "8": [
+      0.7998,
+      0.6162,
+      0.901
+     ],
+     "9": [
+      0.7373,
+      0.5319,
+      0.8608
+     ],
+     "10": [
+      0.659,
+      0.401,
+      0.8201
+     ]
+    }
+   }
+  }
+ },
+ "rain": {
+  "maps": {
+   "ratio_0": "rain_ratio_0.webp",
+   "ratio_1": "rain_ratio_1.webp",
+   "ratio_2": "rain_ratio_2.webp",
+   "ratio_obs": "rain_ratio_obs.webp",
+   "fb1_0": "rain_fb1_0.webp",
+   "fb1_1": "rain_fb1_1.webp",
+   "fb1_2": "rain_fb1_2.webp",
+   "fb1_obs": "rain_fb1_obs.webp",
+   "fb10_0": "rain_fb10_0.webp",
+   "fb10_1": "rain_fb10_1.webp",
+   "fb10_2": "rain_fb10_2.webp",
+   "fb10_obs": "rain_fb10_obs.webp",
+   "fb25_0": "rain_fb25_0.webp",
+   "fb25_1": "rain_fb25_1.webp",
+   "fb25_2": "rain_fb25_2.webp",
+   "fb25_obs": "rain_fb25_obs.webp"
+  },
+  "groups": [
+   "days 1-2",
+   "days 3-5",
+   "days 6-9"
+  ],
+  "window": {
+   "runs": 156,
+   "first": "2026051300",
+   "last": "2026101500",
+   "left_out": {},
+   "own": {
+    "GDPS": {
+     "runs": 40,
+     "first": "2026090600",
+     "last": "2026101500"
+    }
+   }
+  },
+  "models": [
+   "GFS",
+   "IFS",
+   "AIFS",
+   "GDPS"
+  ]
+ },
+ "scores": {
+  "10": {
+   "window": {
+    "runs": 10,
+    "first": "2026100600",
+    "last": "2026101500",
+    "left_out": {}
+   },
+   "models": [
+    "AIFS",
+    "GDPS",
+    "GFS",
+    "IFS"
+   ],
+   "card": {},
+   "lead": {
+    "t2m": {
+     "conus": "lead_10_t2m_conus.webp",
+     "europe": "lead_10_t2m_europe.webp",
+     "global": "lead_10_t2m_global.webp",
+     "nh": "lead_10_t2m_nh.webp",
+     "north_america": "lead_10_t2m_northamerica.webp",
+     "sh": "lead_10_t2m_sh.webp",
+     "tropics": "lead_10_t2m_tropics.webp"
+    },
+    "td2m": {
+     "conus": "lead_10_td2m_conus.webp",
+     "europe": "lead_10_td2m_europe.webp",
+     "global": "lead_10_td2m_global.webp",
+     "nh": "lead_10_td2m_nh.webp",
+     "north_america": "lead_10_td2m_northamerica.webp",
+     "sh": "lead_10_td2m_sh.webp",
+     "tropics": "lead_10_td2m_tropics.webp"
+    },
+    "msl": {
+     "conus": "lead_10_msl_conus.webp",
+     "europe": "lead_10_msl_europe.webp",
+     "global": "lead_10_msl_global.webp",
+     "nh": "lead_10_msl_nh.webp",
+     "north_america": "lead_10_msl_northamerica.webp",
+     "sh": "lead_10_msl_sh.webp",
+     "tropics": "lead_10_msl_tropics.webp"
+    },
+    "wind10": {
+     "conus": "lead_10_wind10_conus.webp",
+     "europe": "lead_10_wind10_europe.webp",
+     "global": "lead_10_wind10_global.webp",
+     "nh": "lead_10_wind10_nh.webp",
+     "north_america": "lead_10_wind10_northamerica.webp",
+     "sh": "lead_10_wind10_sh.webp",
+     "tropics": "lead_10_wind10_tropics.webp"
+    },
+    "z850": {
+     "conus": "lead_10_z850_conus.webp",
+     "europe": "lead_10_z850_europe.webp",
+     "global": "lead_10_z850_global.webp",
+     "nh": "lead_10_z850_nh.webp",
+     "north_america": "lead_10_z850_northamerica.webp",
+     "sh": "lead_10_z850_sh.webp",
+     "tropics": "lead_10_z850_tropics.webp"
+    },
+    "z500": {
+     "conus": "lead_10_z500_conus.webp",
+     "europe": "lead_10_z500_europe.webp",
+     "global": "lead_10_z500_global.webp",
+     "nh": "lead_10_z500_nh.webp",
+     "north_america": "lead_10_z500_northamerica.webp",
+     "sh": "lead_10_z500_sh.webp",
+     "tropics": "lead_10_z500_tropics.webp"
+    },
+    "z250": {
+     "conus": "lead_10_z250_conus.webp",
+     "europe": "lead_10_z250_europe.webp",
+     "global": "lead_10_z250_global.webp",
+     "nh": "lead_10_z250_nh.webp",
+     "north_america": "lead_10_z250_northamerica.webp",
+     "sh": "lead_10_z250_sh.webp",
+     "tropics": "lead_10_z250_tropics.webp"
+    },
+    "t850": {
+     "conus": "lead_10_t850_conus.webp",
+     "europe": "lead_10_t850_europe.webp",
+     "global": "lead_10_t850_global.webp",
+     "nh": "lead_10_t850_nh.webp",
+     "north_america": "lead_10_t850_northamerica.webp",
+     "sh": "lead_10_t850_sh.webp",
+     "tropics": "lead_10_t850_tropics.webp"
+    },
+    "t500": {
+     "conus": "lead_10_t500_conus.webp",
+     "europe": "lead_10_t500_europe.webp",
+     "global": "lead_10_t500_global.webp",
+     "nh": "lead_10_t500_nh.webp",
+     "north_america": "lead_10_t500_northamerica.webp",
+     "sh": "lead_10_t500_sh.webp",
+     "tropics": "lead_10_t500_tropics.webp"
+    },
+    "t250": {
+     "conus": "lead_10_t250_conus.webp",
+     "europe": "lead_10_t250_europe.webp",
+     "global": "lead_10_t250_global.webp",
+     "nh": "lead_10_t250_nh.webp",
+     "north_america": "lead_10_t250_northamerica.webp",
+     "sh": "lead_10_t250_sh.webp",
+     "tropics": "lead_10_t250_tropics.webp"
+    },
+    "wind850": {
+     "conus": "lead_10_wind850_conus.webp",
+     "europe": "lead_10_wind850_europe.webp",
+     "global": "lead_10_wind850_global.webp",
+     "nh": "lead_10_wind850_nh.webp",
+     "north_america": "lead_10_wind850_northamerica.webp",
+     "sh": "lead_10_wind850_sh.webp",
+     "tropics": "lead_10_wind850_tropics.webp"
+    },
+    "wind500": {
+     "conus": "lead_10_wind500_conus.webp",
+     "europe": "lead_10_wind500_europe.webp",
+     "global": "lead_10_wind500_global.webp",
+     "nh": "lead_10_wind500_nh.webp",
+     "north_america": "lead_10_wind500_northamerica.webp",
+     "sh": "lead_10_wind500_sh.webp",
+     "tropics": "lead_10_wind500_tropics.webp"
+    },
+    "wind250": {
+     "conus": "lead_10_wind250_conus.webp",
+     "europe": "lead_10_wind250_europe.webp",
+     "global": "lead_10_wind250_global.webp",
+     "nh": "lead_10_wind250_nh.webp",
+     "north_america": "lead_10_wind250_northamerica.webp",
+     "sh": "lead_10_wind250_sh.webp",
+     "tropics": "lead_10_wind250_tropics.webp"
+    },
+    "q850": {
+     "conus": "lead_10_q850_conus.webp",
+     "europe": "lead_10_q850_europe.webp",
+     "global": "lead_10_q850_global.webp",
+     "nh": "lead_10_q850_nh.webp",
+     "north_america": "lead_10_q850_northamerica.webp",
+     "sh": "lead_10_q850_sh.webp",
+     "tropics": "lead_10_q850_tropics.webp"
+    },
+    "q700": {
+     "conus": "lead_10_q700_conus.webp",
+     "europe": "lead_10_q700_europe.webp",
+     "global": "lead_10_q700_global.webp",
+     "nh": "lead_10_q700_nh.webp",
+     "north_america": "lead_10_q700_northamerica.webp",
+     "sh": "lead_10_q700_sh.webp",
+     "tropics": "lead_10_q700_tropics.webp"
+    },
+    "pr24": {
+     "conus": "lead_10_pr24_conus.webp",
+     "europe": "lead_10_pr24_europe.webp",
+     "global": "lead_10_pr24_global.webp",
+     "nh": "lead_10_pr24_nh.webp",
+     "north_america": "lead_10_pr24_northamerica.webp",
+     "sh": "lead_10_pr24_sh.webp",
+     "tropics": "lead_10_pr24_tropics.webp"
+    }
+   }
+  },
+  "30": {
+   "window": {
+    "runs": 30,
+    "first": "2026091600",
+    "last": "2026101500",
+    "left_out": {}
+   },
+   "models": [
+    "AIFS",
+    "GDPS",
+    "GFS",
+    "IFS"
+   ],
+   "card": {},
+   "lead": {
+    "t2m": {
+     "conus": "lead_30_t2m_conus.webp",
+     "europe": "lead_30_t2m_europe.webp",
+     "global": "lead_30_t2m_global.webp",
+     "nh": "lead_30_t2m_nh.webp",
+     "north_america": "lead_30_t2m_northamerica.webp",
+     "sh": "lead_30_t2m_sh.webp",
+     "tropics": "lead_30_t2m_tropics.webp"
+    },
+    "td2m": {
+     "conus": "lead_30_td2m_conus.webp",
+     "europe": "lead_30_td2m_europe.webp",
+     "global": "lead_30_td2m_global.webp",
+     "nh": "lead_30_td2m_nh.webp",
+     "north_america": "lead_30_td2m_northamerica.webp",
+     "sh": "lead_30_td2m_sh.webp",
+     "tropics": "lead_30_td2m_tropics.webp"
+    },
+    "msl": {
+     "conus": "lead_30_msl_conus.webp",
+     "europe": "lead_30_msl_europe.webp",
+     "global": "lead_30_msl_global.webp",
+     "nh": "lead_30_msl_nh.webp",
+     "north_america": "lead_30_msl_northamerica.webp",
+     "sh": "lead_30_msl_sh.webp",
+     "tropics": "lead_30_msl_tropics.webp"
+    },
+    "wind10": {
+     "conus": "lead_30_wind10_conus.webp",
+     "europe": "lead_30_wind10_europe.webp",
+     "global": "lead_30_wind10_global.webp",
+     "nh": "lead_30_wind10_nh.webp",
+     "north_america": "lead_30_wind10_northamerica.webp",
+     "sh": "lead_30_wind10_sh.webp",
+     "tropics": "lead_30_wind10_tropics.webp"
+    },
+    "z850": {
+     "conus": "lead_30_z850_conus.webp",
+     "europe": "lead_30_z850_europe.webp",
+     "global": "lead_30_z850_global.webp",
+     "nh": "lead_30_z850_nh.webp",
+     "north_america": "lead_30_z850_northamerica.webp",
+     "sh": "lead_30_z850_sh.webp",
+     "tropics": "lead_30_z850_tropics.webp"
+    },
+    "z500": {
+     "conus": "lead_30_z500_conus.webp",
+     "europe": "lead_30_z500_europe.webp",
+     "global": "lead_30_z500_global.webp",
+     "nh": "lead_30_z500_nh.webp",
+     "north_america": "lead_30_z500_northamerica.webp",
+     "sh": "lead_30_z500_sh.webp",
+     "tropics": "lead_30_z500_tropics.webp"
+    },
+    "z250": {
+     "conus": "lead_30_z250_conus.webp",
+     "europe": "lead_30_z250_europe.webp",
+     "global": "lead_30_z250_global.webp",
+     "nh": "lead_30_z250_nh.webp",
+     "north_america": "lead_30_z250_northamerica.webp",
+     "sh": "lead_30_z250_sh.webp",
+     "tropics": "lead_30_z250_tropics.webp"
+    },
+    "t850": {
+     "conus": "lead_30_t850_conus.webp",
+     "europe": "lead_30_t850_europe.webp",
+     "global": "lead_30_t850_global.webp",
+     "nh": "lead_30_t850_nh.webp",
+     "north_america": "lead_30_t850_northamerica.webp",
+     "sh": "lead_30_t850_sh.webp",
+     "tropics": "lead_30_t850_tropics.webp"
+    },
+    "t500": {
+     "conus": "lead_30_t500_conus.webp",
+     "europe": "lead_30_t500_europe.webp",
+     "global": "lead_30_t500_global.webp",
+     "nh": "lead_30_t500_nh.webp",
+     "north_america": "lead_30_t500_northamerica.webp",
+     "sh": "lead_30_t500_sh.webp",
+     "tropics": "lead_30_t500_tropics.webp"
+    },
+    "t250": {
+     "conus": "lead_30_t250_conus.webp",
+     "europe": "lead_30_t250_europe.webp",
+     "global": "lead_30_t250_global.webp",
+     "nh": "lead_30_t250_nh.webp",
+     "north_america": "lead_30_t250_northamerica.webp",
+     "sh": "lead_30_t250_sh.webp",
+     "tropics": "lead_30_t250_tropics.webp"
+    },
+    "wind850": {
+     "conus": "lead_30_wind850_conus.webp",
+     "europe": "lead_30_wind850_europe.webp",
+     "global": "lead_30_wind850_global.webp",
+     "nh": "lead_30_wind850_nh.webp",
+     "north_america": "lead_30_wind850_northamerica.webp",
+     "sh": "lead_30_wind850_sh.webp",
+     "tropics": "lead_30_wind850_tropics.webp"
+    },
+    "wind500": {
+     "conus": "lead_30_wind500_conus.webp",
+     "europe": "lead_30_wind500_europe.webp",
+     "global": "lead_30_wind500_global.webp",
+     "nh": "lead_30_wind500_nh.webp",
+     "north_america": "lead_30_wind500_northamerica.webp",
+     "sh": "lead_30_wind500_sh.webp",
+     "tropics": "lead_30_wind500_tropics.webp"
+    },
+    "wind250": {
+     "conus": "lead_30_wind250_conus.webp",
+     "europe": "lead_30_wind250_europe.webp",
+     "global": "lead_30_wind250_global.webp",
+     "nh": "lead_30_wind250_nh.webp",
+     "north_america": "lead_30_wind250_northamerica.webp",
+     "sh": "lead_30_wind250_sh.webp",
+     "tropics": "lead_30_wind250_tropics.webp"
+    },
+    "q850": {
+     "conus": "lead_30_q850_conus.webp",
+     "europe": "lead_30_q850_europe.webp",
+     "global": "lead_30_q850_global.webp",
+     "nh": "lead_30_q850_nh.webp",
+     "north_america": "lead_30_q850_northamerica.webp",
+     "sh": "lead_30_q850_sh.webp",
+     "tropics": "lead_30_q850_tropics.webp"
+    },
+    "q700": {
+     "conus": "lead_30_q700_conus.webp",
+     "europe": "lead_30_q700_europe.webp",
+     "global": "lead_30_q700_global.webp",
+     "nh": "lead_30_q700_nh.webp",
+     "north_america": "lead_30_q700_northamerica.webp",
+     "sh": "lead_30_q700_sh.webp",
+     "tropics": "lead_30_q700_tropics.webp"
+    },
+    "pr24": {
+     "conus": "lead_30_pr24_conus.webp",
+     "europe": "lead_30_pr24_europe.webp",
+     "global": "lead_30_pr24_global.webp",
+     "nh": "lead_30_pr24_nh.webp",
+     "north_america": "lead_30_pr24_northamerica.webp",
+     "sh": "lead_30_pr24_sh.webp",
+     "tropics": "lead_30_pr24_tropics.webp"
+    }
+   }
+  },
+  "90": {
+   "window": {
+    "runs": 90,
+    "first": "2026071800",
+    "last": "2026101500",
+    "left_out": {
+     "GDPS": 40
+    }
+   },
+   "models": [
+    "AIFS",
+    "GFS",
+    "IFS"
+   ],
+   "card": {},
+   "lead": {
+    "t2m": {
+     "conus": "lead_90_t2m_conus.webp",
+     "europe": "lead_90_t2m_europe.webp",
+     "global": "lead_90_t2m_global.webp",
+     "nh": "lead_90_t2m_nh.webp",
+     "north_america": "lead_90_t2m_northamerica.webp",
+     "sh": "lead_90_t2m_sh.webp",
+     "tropics": "lead_90_t2m_tropics.webp"
+    },
+    "td2m": {
+     "conus": "lead_90_td2m_conus.webp",
+     "europe": "lead_90_td2m_europe.webp",
+     "global": "lead_90_td2m_global.webp",
+     "nh": "lead_90_td2m_nh.webp",
+     "north_america": "lead_90_td2m_northamerica.webp",
+     "sh": "lead_90_td2m_sh.webp",
+     "tropics": "lead_90_td2m_tropics.webp"
+    },
+    "msl": {
+     "conus": "lead_90_msl_conus.webp",
+     "europe": "lead_90_msl_europe.webp",
+     "global": "lead_90_msl_global.webp",
+     "nh": "lead_90_msl_nh.webp",
+     "north_america": "lead_90_msl_northamerica.webp",
+     "sh": "lead_90_msl_sh.webp",
+     "tropics": "lead_90_msl_tropics.webp"
+    },
+    "wind10": {
+     "conus": "lead_90_wind10_conus.webp",
+     "europe": "lead_90_wind10_europe.webp",
+     "global": "lead_90_wind10_global.webp",
+     "nh": "lead_90_wind10_nh.webp",
+     "north_america": "lead_90_wind10_northamerica.webp",
+     "sh": "lead_90_wind10_sh.webp",
+     "tropics": "lead_90_wind10_tropics.webp"
+    },
+    "z850": {
+     "conus": "lead_90_z850_conus.webp",
+     "europe": "lead_90_z850_europe.webp",
+     "global": "lead_90_z850_global.webp",
+     "nh": "lead_90_z850_nh.webp",
+     "north_america": "lead_90_z850_northamerica.webp",
+     "sh": "lead_90_z850_sh.webp",
+     "tropics": "lead_90_z850_tropics.webp"
+    },
+    "z500": {
+     "conus": "lead_90_z500_conus.webp",
+     "europe": "lead_90_z500_europe.webp",
+     "global": "lead_90_z500_global.webp",
+     "nh": "lead_90_z500_nh.webp",
+     "north_america": "lead_90_z500_northamerica.webp",
+     "sh": "lead_90_z500_sh.webp",
+     "tropics": "lead_90_z500_tropics.webp"
+    },
+    "z250": {
+     "conus": "lead_90_z250_conus.webp",
+     "europe": "lead_90_z250_europe.webp",
+     "global": "lead_90_z250_global.webp",
+     "nh": "lead_90_z250_nh.webp",
+     "north_america": "lead_90_z250_northamerica.webp",
+     "sh": "lead_90_z250_sh.webp",
+     "tropics": "lead_90_z250_tropics.webp"
+    },
+    "t850": {
+     "conus": "lead_90_t850_conus.webp",
+     "europe": "lead_90_t850_europe.webp",
+     "global": "lead_90_t850_global.webp",
+     "nh": "lead_90_t850_nh.webp",
+     "north_america": "lead_90_t850_northamerica.webp",
+     "sh": "lead_90_t850_sh.webp",
+     "tropics": "lead_90_t850_tropics.webp"
+    },
+    "t500": {
+     "conus": "lead_90_t500_conus.webp",
+     "europe": "lead_90_t500_europe.webp",
+     "global": "lead_90_t500_global.webp",
+     "nh": "lead_90_t500_nh.webp",
+     "north_america": "lead_90_t500_northamerica.webp",
+     "sh": "lead_90_t500_sh.webp",
+     "tropics": "lead_90_t500_tropics.webp"
+    },
+    "t250": {
+     "conus": "lead_90_t250_conus.webp",
+     "europe": "lead_90_t250_europe.webp",
+     "global": "lead_90_t250_global.webp",
+     "nh": "lead_90_t250_nh.webp",
+     "north_america": "lead_90_t250_northamerica.webp",
+     "sh": "lead_90_t250_sh.webp",
+     "tropics": "lead_90_t250_tropics.webp"
+    },
+    "wind850": {
+     "conus": "lead_90_wind850_conus.webp",
+     "europe": "lead_90_wind850_europe.webp",
+     "global": "lead_90_wind850_global.webp",
+     "nh": "lead_90_wind850_nh.webp",
+     "north_america": "lead_90_wind850_northamerica.webp",
+     "sh": "lead_90_wind850_sh.webp",
+     "tropics": "lead_90_wind850_tropics.webp"
+    },
+    "wind500": {
+     "conus": "lead_90_wind500_conus.webp",
+     "europe": "lead_90_wind500_europe.webp",
+     "global": "lead_90_wind500_global.webp",
+     "nh": "lead_90_wind500_nh.webp",
+     "north_america": "lead_90_wind500_northamerica.webp",
+     "sh": "lead_90_wind500_sh.webp",
+     "tropics": "lead_90_wind500_tropics.webp"
+    },
+    "wind250": {
+     "conus": "lead_90_wind250_conus.webp",
+     "europe": "lead_90_wind250_europe.webp",
+     "global": "lead_90_wind250_global.webp",
+     "nh": "lead_90_wind250_nh.webp",
+     "north_america": "lead_90_wind250_northamerica.webp",
+     "sh": "lead_90_wind250_sh.webp",
+     "tropics": "lead_90_wind250_tropics.webp"
+    },
+    "q850": {
+     "conus": "lead_90_q850_conus.webp",
+     "europe": "lead_90_q850_europe.webp",
+     "global": "lead_90_q850_global.webp",
+     "nh": "lead_90_q850_nh.webp",
+     "north_america": "lead_90_q850_northamerica.webp",
+     "sh": "lead_90_q850_sh.webp",
+     "tropics": "lead_90_q850_tropics.webp"
+    },
+    "q700": {
+     "conus": "lead_90_q700_conus.webp",
+     "europe": "lead_90_q700_europe.webp",
+     "global": "lead_90_q700_global.webp",
+     "nh": "lead_90_q700_nh.webp",
+     "north_america": "lead_90_q700_northamerica.webp",
+     "sh": "lead_90_q700_sh.webp",
+     "tropics": "lead_90_q700_tropics.webp"
+    },
+    "pr24": {
+     "conus": "lead_90_pr24_conus.webp",
+     "europe": "lead_90_pr24_europe.webp",
+     "global": "lead_90_pr24_global.webp",
+     "nh": "lead_90_pr24_nh.webp",
+     "north_america": "lead_90_pr24_northamerica.webp",
+     "sh": "lead_90_pr24_sh.webp",
+     "tropics": "lead_90_pr24_tropics.webp"
+    }
+   }
+  }
+ },
+ "ensembles": {}
+}
