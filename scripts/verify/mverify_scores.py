@@ -62,6 +62,8 @@ RAIN_THRESHOLDS = (1.0, 10.0, 25.0)  # mm in 24 h: the rain maps' frequency bias
 RAIN_EVENTS = tuple(f"fb{t:g}" for t in RAIN_THRESHOLDS)
 RAIN_MIN_EVENTS = 5  # analysed days over a threshold a cell needs before its frequency bias is mapped
 RAIN_MARGIN = 2.0  # degrees around the newest run's cells that the rain maps' frame takes in
+RAIN_LAND = 50  # % land a cell needs to be mapped (reference/land_0p5.npz, build_land_mask.py): Stage IV over water is
+# radar alone, far from the gauges that correct it, and misses light rain at range
 WINDOW_SHARE = 0.95  # a model is scored in a window that it has at least this share of the runs of
 PAIR_KEY = ["model", "init", "lead_h", "valid_time", "station_id", "variable"]
 STAT_BY = ["model", "network", "variable", "region", "lead_h"]
@@ -565,7 +567,7 @@ def rain_map(paths: list[Path]) -> tuple[dict, dict] | None:
     that verify that day, through the paired t-test with its allowance for differences that persist from day to day
     (mverify.significance.paired_test), and the cells of each map through Benjamini-Hochberg at FDR_Q. Whether it
     rained is far less noisy than how much, so the frequency biases find what the ratio of totals cannot. A frequency
-    bias is mapped where the analysis has RAIN_MIN_EVENTS days over the threshold. The models with WINDOW_SHARE of the
+    bias is mapped where the analysis has RAIN_MIN_EVENTS days over the threshold, and only cells RAIN_LAND % land are. The models with WINDOW_SHARE of the
     runs are mapped on the runs they all have; one with fewer but at least RAIN_MIN_RUNS (GDPS before the database
     began, say) on its own, since a cell's test needs only that model's days.
 
@@ -596,12 +598,17 @@ def rain_map(paths: list[Path]) -> tuple[dict, dict] | None:
     shape = (len(LEAD_GROUPS), ndays, *frame)
     acc = {m: {k: np.zeros(shape, np.float32) for k in ("n", "f", *RAIN_EVENTS)} for m in runs_of}
     obs = np.full((ndays, *frame), np.nan, np.float32)  # the analysis is the same whichever run verifies it
+    mask = np.load(Path(__file__).resolve().parent / "reference" / "land_0p5.npz")
+    rows = np.rint((lat0 + GRID * np.arange(frame[0]) + 90) / GRID).astype(int)
+    cols = np.rint(((lon0 + GRID * np.arange(frame[1]) + 180) % 360) / GRID).astype(int)
+    land = mask["land"][np.ix_(rows, cols)] >= RAIN_LAND
     for f in paths:  # one run at a time: a year of cells would not fit in memory, its daily sums do
         r = pd.read_parquet(f, columns=["model", "init", "lead_h", "valid_time", "lat", "lon", "fcst", "obs"])
         g = np.select([r["lead_h"].between(a, b) for _, a, b in LEAD_GROUPS], list(range(len(LEAD_GROUPS))), -1)
         day = (r["valid_time"] - t0).dt.days.to_numpy()
         j, i = (np.rint((r[c].to_numpy() - o) / GRID).astype(int) for c, o in (("lat", lat0), ("lon", lon0)))
         ok = (g >= 0) & (j >= 0) & (j < frame[0]) & (i >= 0) & (i < frame[1])
+        ok[ok] &= land[j[ok], i[ok]]
         obs[day[ok], j[ok], i[ok]] = r["obs"].to_numpy()[ok]
         for m, runs in runs_of.items():
             k = ok & (r["model"] == m).to_numpy() & r["init"].isin(runs).to_numpy()

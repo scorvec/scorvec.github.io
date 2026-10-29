@@ -454,7 +454,7 @@ def card_figure(score: pd.DataFrame, per: pd.DataFrame, order: list[str], a: str
     from mverify.significance import paired_test
 
     rows = [v for v in order if v in score.index.get_level_values(0)]
-    days = sorted(score.index.get_level_values(1).unique() // 24)
+    days = sorted({int(h) // 24 for h in score.index.get_level_values(1)})
     groups = [
         "sfc" if v in SURFACE | ENS_SURFACE else next(q for q in ("wind", "z", "t", "q") if v.startswith(q))
         for v in rows
