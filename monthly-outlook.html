@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Claude&rsquo;s long-range forecast &mdash; Shawn Corvec</title>
-<meta name="description" content="Claude's long-range forecast: next month and the next three seasons of 2 m temperature, precipitation and 500 hPa height over the Northern Hemisphere, and Niño-3.4 for twelve months, from Claude's own statistical models blended with the C3S seasonal systems and GEFS where the hindcast shows they help.">
+<meta name="description" content="Claude's long-range forecast: next month and the next three seasons of 2 m temperature, precipitation and 500 hPa height over the Northern Hemisphere, and Niño-3.4 for twelve months, from Claude's own statistical models blended with the C3S seasonal systems, GEFS and GEPS where the hindcast shows they help.">
 <link rel="canonical" href="https://scorvec.com/monthly-outlook.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Claude's long-range forecast">
-<meta property="og:description" content="Claude's long-range forecast: next month and the next three seasons of 2 m temperature, precipitation and 500 hPa height over the Northern Hemisphere, and Niño-3.4 for twelve months, from Claude's own statistical models blended with the C3S seasonal systems and GEFS where the hindcast shows they help.">
+<meta property="og:description" content="Claude's long-range forecast: next month and the next three seasons of 2 m temperature, precipitation and 500 hPa height over the Northern Hemisphere, and Niño-3.4 for twelve months, from Claude's own statistical models blended with the C3S seasonal systems, GEFS and GEPS where the hindcast shows they help.">
 <meta property="og:url" content="https://scorvec.com/monthly-outlook.html">
 <meta property="og:image" content="https://scorvec.com/assets/monthly/fc_s1_t2m_nh_anom.webp">
 <meta name="twitter:card" content="summary_large_image">
@@ -268,7 +268,7 @@
   <div class="page-header">
     <p class="eyebrow">Next month, the next three seasons and ENSO &middot; issued on the 15th</p>
     <h1>Claude&rsquo;s long-range forecast</h1>
-    <p class="sub">Claude&rsquo;s own statistical forecast, blended with the C3S seasonal models and GEFS wherever the hindcast shows they help.</p>
+    <p class="sub">Claude&rsquo;s own statistical forecast, blended with the C3S seasonal models, GEFS and GEPS wherever the hindcast shows they help.</p>
     <div class="chips">
       <div class="chip"><div class="l">issued</div><div class="v" data-k="issued">&ndash;</div><div class="s" data-k="issued_s">&nbsp;</div></div>
       <div class="chip"><div class="l" data-k="n34_l">Ni&ntilde;o-3.4</div><div class="v" data-k="n34_v">&ndash;</div><div class="s" data-k="n34_s">&nbsp;</div></div>
@@ -358,7 +358,7 @@
       forecast directly as its own three-month mean, not as three months averaged.</p>
     </details>
     <details>
-      <summary>The blend with C3S and GEFS</summary>
+      <summary>The blend with C3S, GEFS and GEPS</summary>
       <p><b>C3S</b> (every target): the multi-system mean of the seven C3S seasonal systems (ECMWF, UK Met Office, M&eacute;t&eacute;o-France,
       DWD, NCEP, and ECCC&rsquo;s two CanSIPS components counted as one; each centre weighing the same) from the issue
       published two days before ours, against each system&rsquo;s own 1993&ndash;2016 hindcast and moved to 1991&ndash;2020 with
@@ -367,10 +367,12 @@
       issues, the C3S mean beat the statistical forecast at every lead for all three variables (December&ndash;February
       temperature ACC 0.39 against 0.19; precipitation 0.32 against 0.27; 500&nbsp;hPa height from SEAS5 0.27 against 0.18),
       and the blend matched or beat C3S alone.</p>
-      <p><b>GEFS</b> (next month): the whole 35-day GEFS run of the 15th, which reaches the 18th or 19th of the month, as its
-      mean over the month&rsquo;s days it reaches and (temperature) over its days before the month, blended on top with weights
-      from the 2000&ndash;2019 GEFS reforecast; over 2000&ndash;2016 it added to the C3S blend for temperature (November ACC 0.21
-      to 0.24) and nothing for precipitation.</p>
+      <p><b>GEFS and GEPS</b> (next month): the 35-day GEFS run of the 15th and GEPS&rsquo;s newest run (Mondays and Thursdays),
+      which reach the 15th&ndash;19th of the month, averaged: their mean over the month&rsquo;s days they reach and (temperature)
+      over their days before the month, blended on top with weights from their reforecasts (2001&ndash;2019 in common). Beside
+      the statistical forecast, GEPS alone beat GEFS alone for all three variables and the two averaged did best:
+      twelve-month mean hindcast ACC 0.18 for 500&nbsp;hPa height, 0.34 for temperature and 0.18 for precipitation, against
+      GEFS&rsquo;s 0.15, 0.30 and 0.15. Either model alone stands in when the other has no run.</p>
       <p>A stage is issued for a variable only where it beats the forecast before it in its cross-validated hindcast. The
       Ingredients view shows each input with its weight and its own hindcast score; the headline skill is that of what was
       issued, on that stage&rsquo;s years.</p>
@@ -469,7 +471,8 @@
   function inputs(s, v) {
     var iv = s.vars[v].issued, out = s.update ? "update: days 1&ndash;7 IFS-ENS and AIFS-ENS, then statistical" : "statistical";
     if (iv.inputs.indexOf("C3S") >= 0) out += " + C3S (" + s.c3s[v].systems.length + " centres)";
-    if (iv.inputs.indexOf("GEFS") >= 0) out += " + GEFS " + dateLabel(s.blend[v].init).replace(/ \d{4}$/, "");
+    if (s.blend && s.blend[v] && s.blend[v].issued && s.blend[v].runs) out += " + " + Object.keys(s.blend[v].runs).map(function (k) {
+      return k + " " + dateLabel(s.blend[v].runs[k].init).replace(/ \d{4}$/, ""); }).join(" + ");
     return out;
   }
 

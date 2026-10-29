@@ -321,7 +321,7 @@ PRODUCTS = [
                     (
                         "/monthly-outlook.html",
                         "Claude's long-range forecast",
-                        "A forecast designed and run by Claude, issued on the 15th: next month and the next three seasons of 2 m temperature, precipitation and 500 hPa height over the Northern Hemisphere, as anomalies and tercile probabilities, and Niño-3.4 for twelve months from SST and the TAO moorings' heat content. Claude's statistical forecasts are blended with the C3S seasonal systems and GEFS where the hindcast shows they help, with skill masks and a running record against ERA5.",
+                        "A forecast designed and run by Claude, issued on the 15th: next month and the next three seasons of 2 m temperature, precipitation and 500 hPa height over the Northern Hemisphere, as anomalies and tercile probabilities, and Niño-3.4 for twelve months from SST and the TAO moorings' heat content. Claude's statistical forecasts are blended with the C3S seasonal systems, GEFS and GEPS where the hindcast shows they help, with skill masks and a running record against ERA5.",
                         "Monthly, on the 15th",
                     ),
                 ],

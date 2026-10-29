@@ -1,5 +1,5 @@
 """Blend Claude's statistical forecast with the dynamical models: the C3S seasonal systems at every lead, then, for
-next month, the whole 35-day GEFS run.
+next month, the whole 35-day GEFS and GEPS runs.
 
 Stage 1, C3S (apply_c3s). The multi-system mean of the C3S issue published two days before the outlook (c3s_em.py:
 seven systems from six centres, CanSIPS's two components pooled, each group weighing the same), over the target's
@@ -15,19 +15,21 @@ lead 6) the C3S mean beat the statistical forecast for 2 m temperature (e.g. Dec
 0.19), precipitation and 500 hPa height, and the free blend matched or beat C3S alone; an anchored blend (the
 statistical weight pulled toward 1, as for GEFS) scored worse, so the weights here are free.
 
-Stage 2, GEFS (apply_gefs, next month only). The GEFS run of the 15th (gefs_guide.py) reaches the 18th or 19th of
-the target month. It gives two predictors: its mean over the target month's days it reaches, and its mean over its
-days before the month (the lead-in: the state the month starts from). The blend is
+Stage 2, GEFS and GEPS (apply_models, next month only). The GEFS run of the 15th (gefs_guide.py) and the newest GEPS
+run on or before it (geps_guide.py, Mondays and Thursdays) reach the 15th-19th of the target month. Averaged, they
+give two predictors: their mean over the target month's days they reach, and over their days before the month (the
+lead-in: the state the month starts from). The blend is
 
-    forecast = a(x) * stage-1 forecast + b(x) * GEFS in the month + c(x) * GEFS lead-in,     a, b, c >= 0
+    forecast = a(x) * stage-1 forecast + b(x) * models in the month + c(x) * models' lead-in,     a, b, c >= 0
 
-fitted on the years both exist (the GEFS reforecast 2000-2019 against the stage-1 forecast's cross-validated
-hindcast: 2000-2016 when C3S entered, 2000-2019 otherwise). The stage-1 forecast is already calibrated on its own
+fitted on the years the reforecasts share (GEFS 2000-2019, GEPS 2001-2020) against the stage-1 forecast's
+cross-validated hindcast (2001-2016 when C3S entered). Beside the statistical forecast over 2001-2019 GEPS alone beat
+GEFS alone for all three variables and the two averaged did best (twelve-month mean ACC 500 hPa 0.18, 2 m
+temperature 0.34, precipitation 0.18, against GEFS's 0.15, 0.30, 0.15; separate weights for the two scored the same,
+with more to fit). Either model alone stands in when the other has no run. The stage-1 forecast is already calibrated on its own
 hindcast, so a is pulled toward 1 (a ridge penalty as strong as the years' own data, PRIOR) rather than toward 0:
 refitted freely on 20 years the statistical weight fell to ~0.3, damping the whole forecast for a sampling accident
-of those years. b and c are damped toward 0. The lead-in enters for temperature only (gefs_guide.LEAD), and over
-2000-2016 GEFS added nothing to precipitation once C3S was in (it still enters; the regression gives it what it
-earns).
+of those years. b and c are damped toward 0. The lead-in enters for temperature only (gefs_guide.LEAD).
 
 Each stage is cross-validated (each year's weights fitted without that year) and issued for a variable only where it
 beats the forecast before it in that comparison (hemispheric mean-square error); otherwise that forecast stands, and
@@ -49,9 +51,11 @@ sys.path.insert(0, str(HERE))
 import c3s_em as CE
 import forecast as F
 import gefs_guide as GG
+import geps_guide as PG
 import mo_method as M
 
 PRIOR = 1.0  # ridge pulling the stage-1 weight toward 1, in units of its own smoothed sum of squares
+MODELS = (GG, PG)  # the month's 35-day runs: GEFS and GEPS
 MIN_YEARS = 15
 
 
@@ -193,39 +197,52 @@ def apply_c3s(res: dict, issue: str, month: int, span: int, realtime: bool = Tru
     return res
 
 
-def apply_gefs(res: dict, target_year: int, month: int, realtime: bool = True) -> dict:
-    """Stage 2 (next month): res['blend'][v] holds the comparison; where the blend wins, res['vars'][v] is switched
-    to it (GEFS's two predictors kept under models_fc and lead_fc)."""
+def mean_of(parts: dict, shift: dict) -> np.ndarray:
+    """The models' mean of one predictor, each on 1991-2020 (shift: what a model's table needs added)."""
+    return np.mean([x + shift[k] for k, x in parts.items()], 0)
+
+
+def apply_models(res: dict, target_year: int, month: int, realtime: bool = True) -> dict:
+    """Stage 2 (next month): the 35-day GEFS and GEPS runs (gefs_guide, geps_guide), their target-window and lead-in
+    anomalies averaged into one predictor each, either model alone when only one has a run for the issue.
+    res['blend'][v] holds the comparison; where the blend wins, res['vars'][v] is switched to it (the models' two
+    predictors kept under models_fc and lead_fc). GEPS's tables hold anomalies about their own 2001-2020 mean; the
+    observed mean anomaly of the years puts them on 1991-2020 beside GEFS's."""
     res["blend"] = {}
-    g = GG.live(target_year, month) if realtime else None
-    if realtime and g is None:
-        print("no GEFS run for this issue: the forecast stands without it", flush=True)
+    lives = {mod.NAME: mod.live(target_year, month) for mod in MODELS} if realtime else {}
+    lives = {k: g for k, g in lives.items() if g is not None}
+    if realtime and not lives:
+        print("no GEFS or GEPS run for this issue: the forecast stands without them", flush=True)
         return res
+    names_used = [mod.NAME for mod in MODELS if not realtime or mod.NAME in lives]
     for v, o in res["vars"].items():
-        hc = GG.hindcast(month, v)
-        if hc is None:
+        tabs = {mod.NAME: mod.hindcast(month, v) for mod in MODELS if mod.NAME in names_used}
+        tabs = {k: t for k, t in tabs.items() if t is not None}
+        if not tabs:
             continue
-        hc_years, table, lead = hc
         hy, hcv, hobs, scale0 = base(res, o)
-        use = [y for y in hc_years if y in hy]
+        use = [y for y in hy if all(y in t[0] for t in tabs.values())]
         if len(use) < MIN_YEARS:
             continue
         ih = [int(np.where(hy == y)[0][0]) for y in use]
-        im = [int(np.where(hc_years == y)[0][0]) for y in use]
-        uses_lead = v in GG.LEAD and lead is not None
-        Xh = np.stack([hcv[ih], table[im], lead[im]] if uses_lead else [hcv[ih], table[im]], 1)  # (n, 2 or 3, P)
+        Y = hobs[ih]
+        shift = {k: Y.mean(0) if k == PG.NAME else 0.0 for k in tabs}
+        uses_lead = v in GG.LEAD and all(t[2] is not None for t in tabs.values())
+        rows = {k: [int(np.where(t[0] == y)[0][0]) for y in use] for k, t in tabs.items()}
+        cols = [hcv[ih], mean_of({k: t[1][rows[k]] for k, t in tabs.items()}, shift)]
+        if uses_lead:
+            cols.append(mean_of({k: t[2][rows[k]] for k, t in tabs.items()}, shift))
         names = ["base", "models", "lead"] if uses_lead else ["base", "models"]
         live = None
         if realtime and "fc" in o:
-            o["models_fc"] = g[v].astype(np.float32)
-            live = [o["fc"], g[v].astype(np.float64)]
+            o["models_fc"] = mean_of({k: lives[k][v] for k in tabs}, shift).astype(np.float32)
+            live = [o["fc"], o["models_fc"].astype(np.float64)]
             if uses_lead:
-                o["lead_fc"] = g[f"{v}_lead"].astype(np.float32)
-                live.append(g[f"{v}_lead"].astype(np.float64))
-        rec = stage(o, np.array(use), Xh, hobs[ih], live, names, free=False, scale0=scale0)
-        rec["models"] = [GG.NAME]
+                o["lead_fc"] = mean_of({k: lives[k][f"{v}_lead"] for k in tabs}, shift).astype(np.float32)
+                live.append(o["lead_fc"].astype(np.float64))
+        rec = stage(o, np.array(use), np.stack(cols, 1), Y, live, names, free=False, scale0=scale0)
+        rec["models"] = list(tabs)
         if live is not None:
-            rec["init"] = g["init"]
-            rec["days"] = [1, int(g["ndays"])]
+            rec["runs"] = {k: {"init": lives[k]["init"], "days": [1, int(lives[k]["ndays"])]} for k in tabs}
         res["blend"][v] = rec
     return res

@@ -2,7 +2,7 @@
 """Issue the long-range outlook: the month after the issue and the three seasons from it (500 hPa height, 2 m
 temperature and precipitation anomalies and tercile probabilities, Northern Hemisphere), each the statistical
 forecast (mo_method.py) with its cross-validated hindcast, blended with the C3S multi-system mean and, for the month,
-the GEFS run of the 15th (blend.py).
+the 35-day GEFS and GEPS runs of the 15th (blend.py).
 
     python scripts/monthly/forecast.py                       # the issue for the month after today's
     python scripts/monthly/forecast.py --target 2026-11
@@ -294,9 +294,10 @@ def summarise(res: dict, issued: str) -> dict:
         # the issued forecast's own hindcast: the statistical forecast's, or the last blend stage issued
         sv["issued"] = {"inputs": ["statistical"], "acc": sv["nh_acc_mean"], "rpss": sv["rpss_nh"],
                         "years": s["hindcast"]}  # fmt: skip
-        for key, name in (("c3s", "C3S"), ("blend", "GEFS")):
+        for key in ("c3s", "blend"):
             st = res.get(key, {}).get(v)
             if st and st["issued"]:
+                name = "C3S" if key == "c3s" else " + ".join(st["models"])
                 sv["issued"] = {"inputs": [*sv["issued"]["inputs"], name], "acc": st["scores"]["blend"]["acc"],
                                 "rpss": st["scores"]["blend"]["rpss"], "years": st["years"]}  # fmt: skip
         if "fc" in o:
@@ -372,7 +373,7 @@ def enso_live(issue: str, target_year: int):
 def issue_all(A: M.Archive, ty: int, tm: int, issued: str, force: bool, seasons_only: bool = False) -> None:
     """The issue for target month (ty, tm) on the 15th of the month before: the month itself and the three seasons
     from it (lead 1-3), each the statistical forecast blended with C3S where that beats it, the month also with
-    GEFS. seasons_only: the seasons alone, the month's outlook standing as issued."""
+    GEFS and GEPS. seasons_only: the seasons alone, the month's outlook standing as issued."""
     import blend as B  # blend imports this module
 
     iy, im = (ty, tm - 1) if tm > 1 else (ty - 1, 12)
@@ -395,7 +396,7 @@ def issue_all(A: M.Archive, ty: int, tm: int, issued: str, force: bool, seasons_
             raise SystemExit(f"the predictor window for the {issue} issue is not complete in the archive")
         res = B.apply_c3s(res, issue, m0, span)
         if span == 1:
-            res = B.apply_gefs(res, y0, m0)
+            res = B.apply_models(res, y0, m0)
         name = f"outlook_{y0}{m0:02d}" if span == 1 else season_name(y0, m0, lead)
         res["enso"] = {"used": E_k is not None and E_k.live is not None}
         summary = summarise(res, issued)
@@ -404,7 +405,7 @@ def issue_all(A: M.Archive, ty: int, tm: int, issued: str, force: bool, seasons_
             seasons.append(f"{name}.json")
         print(f"{name}: " + ", ".join(f"{v} ACC {summary['vars'][v]['nh_acc_mean']:+.3f}"
                                       + (" +C3S" if res["c3s"].get(v, {}).get("issued") else "")
-                                      + (" +GEFS" if res.get("blend", {}).get(v, {}).get("issued") else "")
+                                      + (" +models" if res.get("blend", {}).get(v, {}).get("issued") else "")
                                       for v in M.TARGETS), flush=True)  # fmt: skip
     enso = f"enso_{issue}.json"
     month = {} if seasons_only else {"file": f"outlook_{ty}{tm:02d}.json"}
@@ -426,7 +427,7 @@ def main() -> int:
         import blend as B  # blend imports this module
 
         for m in map(int, a.skill_all.split(",")):
-            res = B.apply_gefs(run(9999, m, A, realtime=False), 9999, m, realtime=False)
+            res = B.apply_models(run(9999, m, A, realtime=False), 9999, m, realtime=False)
             line = [f"{m:2d}"]
             for v in M.TARGETS:
                 s = summarise(res, "")["vars"][v]

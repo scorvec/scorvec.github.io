@@ -7,7 +7,7 @@ Figures (assets/monthly/, webp), per target key (m1 = the month, s1-s3 = the sea
 t2m, prcp):
     fc_<key>_<var>_<region>_<kind>.webp   region nh / na / eu, kind anom (expected anomaly) or prob (tercile
                                           probabilities); grey where the hindcast has no significant skill
-    ingredients_<key>_<var>.webp          the statistical forecast, the C3S mean, GEFS (the month) and the issue
+    ingredients_<key>_<var>.webp          the statistical forecast, the C3S mean, GEFS + GEPS (the month) and the issue
     components_<key>_<var>.webp           the statistical forecast's six weighted components and their sum
     skill_<key>_<var>.webp                the issued forecast's hindcast correlation and the yearly scores
     outlook_<YYYYMM>_<var>_<kind>.webp    the month's hemispheric maps of every issue, kept
@@ -67,7 +67,6 @@ CAT = {
     "prcp": (("above", "Greens"), ("below", "YlOrBr")),
 }
 PROB_LEVELS = np.array([40, 50, 60, 70, 80, 100], float)
-INPUT_LABEL = {"statistical": "statistical", "C3S": "C3S", "GEFS": "GEFS"}
 
 REGIONS = {
     "nh": ("Northern Hemisphere", None, None),
@@ -162,7 +161,7 @@ def prob_legend(fig, rect, var):
 
 
 def inputs_text(s: dict, var: str) -> str:
-    """'statistical + C3S (6 systems, Nov issue) + GEFS 15 Nov': what the issued forecast is made of."""
+    """'statistical + C3S (6 centres, Nov issue) + GEFS 15 Nov + GEPS 12 Nov': what the issued forecast is made of."""
     parts = ["statistical"]
     c = s.get("c3s", {}).get(var, {})
     if c.get("issued"):
@@ -170,8 +169,9 @@ def inputs_text(s: dict, var: str) -> str:
         parts.append(f"C3S ({len(c['systems'])} centres, {mon} issue)")
     b = s.get("blend", {}).get(var, {})
     if b.get("issued"):
-        init = datetime.date.fromisoformat(b["init"])
-        parts.append(f"GEFS {init.day} {init:%b}")
+        for k, r in b["runs"].items():
+            init = datetime.date.fromisoformat(r["init"])
+            parts.append(f"{k} {init.day} {init:%b}")
     return " + ".join(parts)
 
 
@@ -247,7 +247,7 @@ def panel_row(fig, panels: list, var: str, top: float = 0.82, bar: str = "") -> 
 
 
 def ingredients_fig(o: dict, s: dict, var: str, path: Path) -> None:
-    """What the issued forecast is made of: the statistical forecast, the C3S mean, GEFS (the month) and the issue,
+    """What the issued forecast is made of: the statistical forecast, the C3S mean, GEFS + GEPS (the month) and the issue,
     each with its weight and its cross-validated ACC on the stage's hindcast years."""
     c, b = s.get("c3s", {}).get(var, {}), s.get("blend", {}).get(var, {})
     stat = o.get(f"{var}_stat_fc", o[f"{var}_fc"])
@@ -262,7 +262,8 @@ def ingredients_fig(o: dict, s: dict, var: str, path: Path) -> None:
     if f"{var}_models_fc" in o and b:
         first = datetime.date(int(s["target"][:4]), int(s["target"][5:]), 1)
         mark = f"weight {b['weight_nh']['models']:.2f}" if b["issued"] else "not used"
-        panels.append((f"GEFS {b['days'][0]}–{b['days'][1]} {first:%b}\nACC {b['scores']['models']['acc']:+.2f} · {mark}",
+        days = max(r["days"][1] for r in b["runs"].values())
+        panels.append((f"{' + '.join(b['models'])}, 1–{days} {first:%b}\nACC {b['scores']['models']['acc']:+.2f} · {mark}",
                        o[f"{var}_models_fc"], None))  # fmt: skip
     iv = s["vars"][var]["issued"]
     panels.append((f"Issued: {' + '.join(iv['inputs'])}\nACC {iv['acc']:+.2f} ({iv['years'][0]}–{iv['years'][1]})",
