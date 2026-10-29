@@ -152,19 +152,15 @@ jobs:
         run: |
           curl -sSfL --retry 4 --retry-delay 20 -o "$RUNNER_TEMP/ersst.nc" https://downloads.psl.noaa.gov/Datasets/noaa.ersst.v6/sst.mnmean.nc
           python scripts/monthly/enso_fc.py --ersst "$RUNNER_TEMP/ersst.nc" ${{ inputs.force && '--force' || '' }}
-      - name: C3S ensemble means (release c3s-em-v1)
+      - name: C3S ensemble means (release c3s-em-v1, public download links)
         if: steps.win.outputs.run == '1' && !inputs.update
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           C3S_EM_DIR: ${{ runner.temp }}/c3s_em
           TARGET: ${{ inputs.target }}
         run: |
           T=${TARGET:-$(date -u -d "$(date -u +%Y-%m-01) +1 month" +%Y-%m)}
           I=$(date -u -d "${T}-01 -1 month" +%Y%m)
-          mkdir -p "$C3S_EM_DIR"
-          gh release download c3s-em-v1 --repo "$GITHUB_REPOSITORY" -D "$C3S_EM_DIR" -p "hc_em_*_${I:4:2}.npz" -p "fc_em_*_${I}.npz" \
-            || echo "::warning::no C3S tables for the $I issue: the forecast is issued without C3S"
-          python scripts/monthly/c3s_em.py --status "$I"
+          python scripts/monthly/c3s_em.py --pull --status "$I"   # missing tables: the forecast goes without C3S
       - name: Issue the outlook
         if: steps.win.outputs.run == '1'
         env:

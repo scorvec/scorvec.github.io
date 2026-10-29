@@ -16,6 +16,11 @@ Actions only (c3s-em.yml, in the `seas5` concurrency group: one CDS key, never t
     python c3s_em.py --hindcast 11 12 --budget-min 300     # hindcast tables still missing for these start months
     python c3s_em.py --issue 202611                         # the issue's tables
     python c3s_em.py --status 202611                        # what is in C3S_EM_DIR for that issue
+    python c3s_em.py --pull --status 202611                 # first fetch the issue's tables from the release
+
+--pull fetches the tables the other arguments name from the release's public download links (no GitHub API: the
+repository's hourly API allowance is shared by every workflow and ran out on the first run, 2026-10-29); a table not
+there yet is simply missing.
 """
 
 from __future__ import annotations
@@ -37,6 +42,7 @@ import mo_grid as G
 
 EM_DIR = Path(os.environ.get("C3S_EM_DIR", HERE / "data" / "c3s_em"))
 TAG = "c3s-em-v1"
+RELEASE_URL = f"https://github.com/scorvec/scorvec.github.io/releases/download/{TAG}/{{}}"
 HC_YEARS = range(1993, 2017)
 LEADS = range(1, 7)
 VARS = {  # outlook variable -> (CDS dataset, CDS variable, pressure level, eccodes cfVarName)
@@ -205,14 +211,43 @@ def target(issue: str, v: str, month: int, span: int, live: bool = True) -> dict
     }
 
 
+def pull(paths: list[Path]) -> int:
+    """Download the named tables that are not on disk from the release; returns how many arrived."""
+    import urllib.error
+    import urllib.request
+
+    got = 0
+    for p in paths:
+        if p.exists():
+            continue
+        try:
+            with urllib.request.urlopen(RELEASE_URL.format(p.name), timeout=120) as r:
+                p.write_bytes(r.read())
+            got += 1
+        except urllib.error.HTTPError as e:
+            if e.code != 404:  # 404: not built yet
+                raise
+    return got
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--hindcast", nargs="*", type=int, help="start months whose missing hindcast tables to build")
     ap.add_argument("--issue", help="YYYYMM: build the issue's missing tables")
     ap.add_argument("--budget-min", type=float, default=300.0, help="stop starting new requests after this")
     ap.add_argument("--status", help="YYYYMM: list the tables an issue's blend needs")
+    ap.add_argument("--pull", action="store_true", help="first fetch the named tables from the release")
     a = ap.parse_args()
     EM_DIR.mkdir(parents=True, exist_ok=True)
+    if a.pull:
+        want = []
+        for c, s in systems():
+            for var in VARS:
+                want += [fc_path(c, s, var, i) for i in {a.issue, a.status} - {None}]
+                want += [
+                    hc_path(c, s, var, mm) for mm in {*(a.hindcast or []), *([int(a.status[4:])] if a.status else [])}
+                ]
+        print(f"pulled {pull(want)} of {len(want)} tables from {TAG}", flush=True)
     t0 = time.time()
     left = lambda: (time.time() - t0) / 60 < a.budget_min  # noqa: E731
     if a.issue:
