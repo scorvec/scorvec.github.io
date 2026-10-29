@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""The PNA, EPO and WPO indices of the days 1-15 teleconnection forecasts (ensmaps_telecon.py), defined once: the GEFS
-and GEPS pages' projectors applied to the 500 hPa height at one synoptic hour, and the table of every archived run's
-index against ERA5's that calibrates them.
+"""The teleconnection indices of the days 1-15 forecasts (ensmaps_telecon.py), defined once: the eleven 500 hPa patterns
+of the GEFS and GEPS pages (IDS: CPC's NAO, PNA, EA, WP, EP/NP, EA/WR, SCA, TNH and POL, PSL's EPO and WPO), their
+projectors applied to the 500 hPa height at one synoptic hour, and the table of every archived run's indices against
+ERA5's that calibrates them.
 
-  ref       The reference, built once in Actions (telecon15.yml; release telecon15-ref-v1, telecon15_ref.npz):
+  ref       The reference, built once in Actions (telecon15.yml; release REF_TAG, telecon15_ref.npz):
             - the projectors of release gefs-ref-v1 (gefs_patterns_ref.npz; method and validation in
-              scripts/geps/build/build_telecon_patterns.py): the PNA the month-specific least-squares projector of the
-              regression on CPC's monthly indices, applied to 500 hPa height anomalies over std_month (the sd of the
-              calendar month's monthly anomalies) weighted by sqrt(cos lat); EPO and WPO PSL's box differences in metres.
+              scripts/geps/build/build_telecon_patterns.py): CPC's patterns the month-specific least-squares projector
+              of the regression on CPC's monthly indices (the nine together), applied to 500 hPa height anomalies over
+              std_month (the sd of the calendar month's monthly anomalies) weighted by sqrt(cos lat); EPO and WPO PSL's
+              box differences in metres.
               The weight is folded into the projector, which is cut to the 2.5 deg rows 20-90N (latlon.G25N), with
               std_month on the same rows: the build stops if any weight south of 20N would be lost.
             - sigma, the seasonal sd of each daily index (1991-2020, within 15 days of the day of year), and the months
@@ -21,7 +23,7 @@ index against ERA5's that calibrates them.
             The build checks the cut projectors against gefs_patterns.Ref.index on random global fields and prints the
             tide's part of each index.
   index     (field - normal of its hour and day) [/ std_month] . projector / sigma, in seasonal sd of the daily index;
-            NaN in a month CPC does not define a pattern (every month for these three).
+            NaN in a month CPC does not define a pattern (EP/NP: not in December; TNH: December to February only).
   hindcast  The table the calibration reads (the Actions cache, telecon15.yml): for every archived 00Z run of the
             500 hPa database from z500_acc.SINCE (scripts/verify/verifydb.sh), the ensemble-mean index at each lead,
             the mean of the members' indices (the index is linear in the field, so it is the index of the members'
@@ -49,9 +51,21 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[0] / "lib"))
 from latlon import G15, G25N, remap, slot366
 
-REF_TAG = "telecon15-ref-v1"
+REF_TAG = "telecon15-ref-v2"  # v1: the PNA, EPO and WPO only
 REF_NAME = "telecon15_ref.npz"
-IDS = ("pna", "epo", "wpo")
+IDS = (
+    "nao",
+    "pna",
+    "epo",
+    "wpo",
+    "ea",
+    "wp",
+    "epnp",
+    "eawr",
+    "sca",
+    "tnh",
+    "pol",
+)  # gefs_patterns.ORDER's 500 hPa ones
 HOURS = (0, 12)  # the synoptic hours a forecast is read at: a 00Z run's 00Z, a 12Z run's 12Z
 CLIM_HOUR = 0  # the hour of verify-clim-z500-v1's normal
 LEADS = tuple(range(24, 361, 24))  # hours: 00Z of each day to day 15, the database's ensemble leads (ens_verify.LEADS)
@@ -92,7 +106,8 @@ class Ref:
         out = np.empty((len(times), len(self.ids)))
         for k in range(len(self.ids)):
             a = anom / self.std[mo] if self.standardize[k] else anom
-            out[:, k] = np.einsum("nij,nij->n", a, self.P[k][mo]) / self.sigma[k, s]
+            with np.errstate(invalid="ignore", divide="ignore"):  # sigma is NaN where CPC defines no pattern
+                out[:, k] = np.einsum("nij,nij->n", a, self.P[k][mo]) / self.sigma[k, s]
             out[~self.defined[k, mo], k] = np.nan
         return out
 
@@ -184,9 +199,11 @@ def check_ref(r: Ref, gp, GR, td25: np.ndarray) -> None:
     mine = r.index(anom[:, : G25N.lat.size], t)
     keys = GR.noleap_doy(t.values.astype("datetime64[D]"))
     ref = np.stack([gp.index(s, anom, t.month, keys) for s in r.ids], 1)
-    err = float(np.abs(mine - ref).max())
-    print(f"check: the cut projectors against gefs_patterns.Ref.index, largest difference {err:.2e} sd", flush=True)
-    if err > 1e-6:
+    same = np.isfinite(mine) == np.isfinite(ref)  # undefined (NaN) in the same months
+    err = float(np.nanmax(np.abs(mine - ref)))
+    print(f"check: the cut projectors against gefs_patterns.Ref.index, largest difference {err:.2e} sd, "
+          f"{int((~np.isfinite(ref)).sum())} undefined index-days alike: {same.all()}", flush=True)  # fmt: skip
+    if not (same.all() and err <= 1e-6):
         raise SystemExit("the cut projectors do not reproduce the GEFS page's indices")
     days = pd.date_range("2024-01-01", "2024-12-31", freq="D")
     for h, hour in enumerate(HOURS):

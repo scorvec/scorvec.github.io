@@ -1,16 +1,17 @@
 name: Teleconnections days 1-15 (reference and hindcast)
 
-# What the PNA, EPO and WPO forecasts of circulation.html#telecon15 (scripts/ensmaps/ensmaps_telecon.py, drawn by the
+# What the teleconnection forecasts of circulation.html#telecon15 (scripts/ensmaps/ensmaps_telecon.py, drawn by the
 # `telecon` job of ensmaps.yml after each ensemble's run) are calibrated with, made by scripts/ensmaps/telecon15.py:
-#   ref       the reference, once (dispatch with ref): the GEFS page's projectors cut to 20-90N, each index's seasonal
-#             sd, and the ERA5 1991-2020 normal at 00 and 12 UTC on the 2.5 deg grid, from releases gefs-ref-v1 and
-#             verify-clim-z500-v1 and WeatherBench 2's ERA5 climatology by hour of day; release telecon15-ref-v1, never
-#             replaced
+#   ref       the reference, once per version (dispatch with ref): the GEFS page's eleven 500 hPa projectors cut to
+#             20-90N, each index's seasonal sd, and the ERA5 1991-2020 normal at 00 and 12 UTC on the 2.5 deg grid,
+#             from releases gefs-ref-v1 and verify-clim-z500-v1 and WeatherBench 2's ERA5 climatology by hour of day;
+#             release REF_TAG (telecon15.REF_TAG), never replaced
 #   hindcast  the table every calibration reads: each archived 00Z run of the 500 hPa database (verify-z500.yml) as its
 #             ensemble-mean index at each lead, and ERA5's index each day, kept in the Actions cache
 #             (telecon15-hindcast-<hash of telecon15.py>-<run id>, the two newest kept). A pass downloads only the runs
 #             and days the table lacks, a hundred files at a time, so the table fills as the database's backfill lands
-#             and a pass that stops part way keeps what it added.
+#             and a pass that stops part way keeps what it added. Each pass prints what the skill gate passes for
+#             starts near today, every model and the blend (ensmaps_telecon.py skill).
 # After each pass of the 500 hPa database, daily as a backstop, or dispatched.
 on:
   workflow_run:
@@ -21,14 +22,18 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Build the reference first (release telecon15-ref-v1; once)'
+        description: 'Build the reference first (release REF_TAG; once per version)'
+        type: boolean
+        default: false
+      qc:
+        description: 'Also check a few runs of the database against ERA5 (files, leads, members, NH ACC, indices)'
         type: boolean
         default: false
 
 env:
   PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt
   MVERIFY: "mverify @ git+https://github.com/scorvec/nwp_verification@f81968d42a703f0e42eb75acd526fadd3ba567e9"
-  REF_TAG: telecon15-ref-v1
+  REF_TAG: telecon15-ref-v2   # telecon15.REF_TAG
 
 permissions:
   contents: write
@@ -68,7 +73,7 @@ jobs:
             --clim "$RUNNER_TEMP/clim_z500_1p5.npz" --out "$RUNNER_TEMP/telecon15_ref.npz"
           gh release create "$REF_TAG" "$RUNNER_TEMP/telecon15_ref.npz" --latest=false \
             --title "Teleconnections, days 1-15: reference" \
-            --notes "The PNA, EPO and WPO projectors of gefs-ref-v1 cut to 20-90N on the 2.5 degree grid, each index's seasonal standard deviation on the 366-day calendar, and the ERA5 1991-2020 500 hPa normal at 00 UTC of verify-clim-z500-v1 and at 12 UTC (the same plus the 12 less 00 UTC difference in WeatherBench 2's ERA5 climatology by hour of day), for scripts/ensmaps/ensmaps_telecon.py (scripts/ensmaps/telecon15.py ref)."
+            --notes "The eleven 500 hPa teleconnection projectors of gefs-ref-v1 (CPC's NAO, PNA, EA, WP, EP/NP, EA/WR, SCA, TNH and POL, PSL's EPO and WPO) cut to 20-90N on the 2.5 degree grid, each index's seasonal standard deviation on the 366-day calendar, and the ERA5 1991-2020 500 hPa normal at 00 UTC of verify-clim-z500-v1 and at 12 UTC (the same plus the 12 less 00 UTC difference in WeatherBench 2's ERA5 climatology by hour of day), for scripts/ensmaps/ensmaps_telecon.py (scripts/ensmaps/telecon15.py ref)."
 
   hindcast:
     needs: ref
@@ -81,13 +86,14 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             /scripts/ensmaps/telecon15.py
+            /scripts/ensmaps/ensmaps_telecon.py
             /scripts/verify/
             /scripts/lib/
             /scripts/constraints.txt
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-      - run: pip install --quiet "$MVERIFY"
+      - run: pip install --quiet "$MVERIFY" "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
       - name: The table so far
         uses: actions/cache/restore@v6
         with:
@@ -132,3 +138,19 @@ jobs:
             --json id,key -q '.[] | "\(.key) \(.id)"' | tail -n +3 | while read -r k id; do
             gh cache delete "$id" -R "$GITHUB_REPOSITORY" && echo "deleted $k" || echo "::warning::could not delete $k"
           done
+      - name: What the gate passes today, from the table alone
+        if: ${{ !cancelled() && hashFiles('tbl/fc.parquet') != '' }}
+        run: python scripts/ensmaps/ensmaps_telecon.py skill --table tbl
+      - name: A few runs' files against ERA5 (dispatch with qc)
+        if: ${{ !cancelled() && inputs.qc }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          names=$(python scripts/ensmaps/ensmaps_telecon.py qc --list --have "$RUNNER_TEMP/have.txt")
+          # shellcheck disable=SC2086  # the file names are meant to split
+          scripts/verify/verifydb.sh get "$RUNNER_TEMP/qc" $names
+          curl -fsSL -o "$RUNNER_TEMP/clim_z500_1p5.npz" \
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/verify-clim-z500-v1/clim_z500_1p5.npz"
+          python scripts/ensmaps/ensmaps_telecon.py qc --derived "$RUNNER_TEMP/qc" --clim "$RUNNER_TEMP/clim_z500_1p5.npz" \
+            --ref "$RUNNER_TEMP/telecon15_ref.npz"

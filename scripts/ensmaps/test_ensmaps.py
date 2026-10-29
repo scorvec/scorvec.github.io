@@ -34,7 +34,10 @@ data are fetched.
            steps are skipped, a missing lead is marked); an index of a reference with known projectors is the planted
            amplitude, read against the normal of the field's own hour, and the ensemble mean's index is the members'
            mean; the hindcast fit finds a planted correlation, counts consecutive daily starts as partly one case, and
-           its predictive probabilities are reliable on fresh data; the gate passes the skilful leads only
+           its predictive probabilities are reliable on fresh data; the gate passes the skilful leads only; a run is
+           recorded once; the CRPS of a Student t is the integral of its squared CDF error; the seasons of a window around
+           5 January join November and February; the blend of two equally skilful models takes equal weights and beats
+           either significantly, and that of a skilful model and a noise one takes skill weights
 """
 
 from __future__ import annotations
@@ -576,8 +579,8 @@ def telecon():
         meta = {"patterns": {s: {"name": s.upper()} for s in ids}}
         refp = Path(tmp) / "ref.npz"
         np.savez(refp, ids=np.array(ids), proj=proj, std_month=np.full((12, *rows), 2.0),
-                 standardize=np.array([True, False, False]), sigma=np.full((3, 366), 4.0),
-                 defined=np.ones((3, 12), bool), normal=normal, meta=np.array(json.dumps(meta)))  # fmt: skip
+                 standardize=np.arange(len(ids)) == 0, sigma=np.full((len(ids), 366), 4.0),
+                 defined=np.ones((len(ids), 12), bool), normal=normal, meta=np.array(json.dumps(meta)))  # fmt: skip
         ref = T15.Ref(refp)
         t = pd.DatetimeIndex(["2026-01-15 00:00", "2026-07-15 12:00"])
         fields = np.stack([5500 + 3 * pat[0] + 8 * pat[1], 5510 + 3 * pat[0] + 8 * pat[1]])
@@ -591,6 +594,16 @@ def telecon():
         whole = ref.index(ref.anomaly(run["z"].astype(float).mean(0), tt), tt)
         check(np.allclose(mean, whole) and np.allclose(mean, mem.mean(0)),
               "the ensemble mean's index is the index of the members' mean field")  # fmt: skip
+        site = Path(tmp) / "site"
+        added = []
+        for back in (12 * 24, 36, 24, 0, 0):  # one run older than KEEP_DAYS before the newest, the newest twice
+            r = dict(run, init=run["init"] - pd.Timedelta(hours=back))
+            added.append(ET.record(site, ref, r, (tt - pd.Timedelta(hours=back), mem, mean)))
+        rec = ET.recorded(site)["gefs"]
+        check(added == [True, True, True, True, False] and [x["init"] for x in rec] == ["2026-10-26T12", "2026-10-27T00",
+              "2026-10-28T00"] and len(rec[-1]["pna"]["members"]) == 15 and len(rec[-1]["pna"]["members"][0]) == 5
+              and np.allclose(rec[-1]["epo"]["mean"], np.round(mean[:, ids.index("epo")], 2)),
+              "run record: a run is added once, runs over KEEP_DAYS older than the newest dropped, every member kept")  # fmt: skip
 
     # the hindcast fit on daily starts: an AR(1) observed index, forecasts that lose skill with lead
     starts = pd.date_range("2024-09-01", "2026-10-20", freq="D")
@@ -634,6 +647,43 @@ def telecon():
     check(abs(p_pos.mean() - hit.mean()) < 0.04 and abs(p_pos[top].mean() - hit[top].mean()) < 0.06,
           f"P(>= +0.5) is reliable on fresh cases: {p_pos.mean():.3f} forecast, {hit.mean():.3f} observed; the top "
           f"fifth {p_pos[top].mean():.3f}, {hit[top].mean():.3f}")  # fmt: skip
+
+    from scipy.stats import t as tdist
+
+    xs = np.linspace(-60, 60, 240001)
+    num = np.trapezoid((tdist.cdf((xs - 0.3) / 1.4, 5.0) - (xs >= 1.1)) ** 2, xs)
+    check(
+        abs(ET.crps_t(np.array([1.1]), 0.3, 1.4, 5.0)[0] - num) < 5e-4,
+        "the CRPS of a Student t, by its formula and by integration",
+    )
+    sea = ET.season(pd.DatetimeIndex(["2024-11-21", "2025-02-19", "2025-11-21"]), pd.Timestamp("2026-01-05"))
+    check(sea[0] == sea[1] != sea[2], "a window of starts around 5 January: November and February in one season")
+
+    # the blend over three seasons of daily starts: an AR(1) observed index and models with independent errors
+    starts = pd.DatetimeIndex([d for y in (2024, 2025, 2026) for d in pd.date_range(f"{y}-09-14", f"{y}-12-11")])
+    o = np.zeros(len(starts))
+    for k in range(1, len(o)):
+        o[k] = 0.85 * o[k - 1] + RNG.normal(0, np.sqrt(1 - 0.85**2))
+
+    def table(fs: dict) -> pd.DataFrame:
+        idx = pd.MultiIndex.from_arrays([starts, np.full(len(starts), 24)], names=["init", "lead_h"])
+        return pd.DataFrame(fs | {"obs": o}, index=idx)
+
+    def err() -> np.ndarray:
+        e = np.zeros(len(o))
+        for k in range(1, len(o)):  # forecast errors persist from one start to the next, as real ones do
+            e[k] = 0.6 * e[k - 1] + RNG.normal(0, 0.8)
+        return e
+
+    t0 = pd.Timestamp("2026-10-28")
+    same = ET.blend_fit(table({"ifs": 0.7 * o + err(), "gefs": 0.7 * o + err()}), ["ifs", "gefs"], 24, t0)
+    single = min(same["crps"]["ifs"], same["crps"]["gefs"])
+    check(same["kind"] == "ew" and same["crps"]["ew"] < single and same["p_best"] <= 0.05 and same["n"] == len(starts),
+          f"two equally skilful models: equal weights, cross-validated CRPS {same['crps']['ew']:.3f} against the best "
+          f"model's {single:.3f} (paired p {same['p_best']:.3f})")  # fmt: skip
+    noise = ET.blend_fit(table({"ifs": 0.8 * o + err(), "gefs": err()}), ["ifs", "gefs"], 24, t0)
+    check(noise["kind"] == "sw" and noise["weights"]["ifs"] > 5 * abs(noise["weights"]["gefs"]),
+          f"a skilful model and a noise one: skill weights {noise['weights']} (paired p {noise['p_sw']:.4f})")  # fmt: skip
 
 
 def main() -> int:

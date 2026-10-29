@@ -70,7 +70,7 @@ Files, per field and span (assets/models/data/ensmaps/<model>/<cycle>/<field>/),
 The manifest (assets/models/ensmaps_<model>.json: the KEEP_RUNS newest runs, newest first, each in the frames store)
 lists the spans, members, gates, grids, encodings and the regimes; this run's statistics for the next runs go to --save,
 its regime labels to --regimes-out, and a 00 or 12Z run's members' 500 hPa height at the run's own hour of each day
-to --telecon-out (ensmaps_telecon.py: the PNA, EPO and WPO forecasts of circulation.html).
+to --telecon-out (ensmaps_telecon.py: the teleconnection forecasts of circulation.html).
 
     python scripts/ensmaps/ensmaps.py plan --model ifs --manifests assets/models
     python scripts/ensmaps/ensmaps.py run --model ifs --cycle 2026102500 --site . --normals ref/ensmaps_t2m_normals.npz \

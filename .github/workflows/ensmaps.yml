@@ -30,8 +30,10 @@ name: Global ensemble maps (data)
 # And the days 1-15 teleconnections of circulation.html#telecon15 (scripts/ensmaps/ensmaps_telecon.py) the same way: a
 # 00 or 12Z run leaves each member's 500 hPa height at the run's own hour of each day in the Actions cache
 # (ensmaps-<model>-telecon-<cycle>, the two newest kept), and the `telecon` job - one at a time - reads the newest run of
-# each model, the hindcast table and the reference (telecon15.yml), draws the PNA, EPO and WPO figures into the frames
-# store and commits assets/sst/data/telecon15.json. Either job failing leaves the maps as published.
+# each model, the hindcast table and the reference (telecon15.yml), adds each new run to its model's run record
+# (assets/sst/data/runs/telecon15_<model>.json, the last ten days of runs, read from main as it stands), draws the
+# figures into the frames store and commits the records and assets/sst/data/telecon15.json. Either job failing leaves
+# the maps as published.
 #
 # Sources per run (the steps of the full days, 6-hourly: 15 or 14, GEFS and GEPS to +384 h one more):
 #   ifs   ECMWF open data, Google Cloud mirror only: 2t of the 50 perturbed members from the 0.1-deg surface files,
@@ -442,6 +444,7 @@ jobs:
             /scripts/verify/
             /scripts/constraints.txt
             /assets/sst/data/telecon15.json
+            /assets/sst/data/runs/telecon15_*.json
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
@@ -485,31 +488,40 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FRAMES_BRANCH: "off"
+          TC_REF: telecon15-ref-v2   # telecon15.REF_TAG
         run: |
           set -euo pipefail
           ls -la telecon tbl 2>/dev/null || true
+          # main's CURRENT run records, not the checkout's (an earlier job of this group may have added a run since)
+          mkdir -p assets/sst/data/runs
+          if timeout 60 git fetch -q --depth 1 origin main; then
+            for m in ifs aifs gefs geps; do
+              R=assets/sst/data/runs/telecon15_$m.json
+              if git show "FETCH_HEAD:$R" > "$R.main" 2>/dev/null; then mv "$R.main" "$R"; else rm -f "$R.main"; fi
+            done
+          fi
           # the release's download URL, not the API (whose hourly limit a verification backfill can use up)
           code=$(curl -sSL -o "$RUNNER_TEMP/telecon15_ref.npz" -w '%{http_code}' \
-            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/telecon15-ref-v1/telecon15_ref.npz")
-          if [ "$code" = 404 ]; then echo "::notice::no teleconnection reference yet (telecon15.yml): nothing drawn"; exit 0; fi
-          if [ "$code" != 200 ]; then echo "::error::telecon15-ref-v1: HTTP $code"; exit 1; fi
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$TC_REF/telecon15_ref.npz")
+          if [ "$code" = 404 ]; then echo "::notice::no teleconnection reference $TC_REF yet (telecon15.yml): nothing drawn"; exit 0; fi
+          if [ "$code" != 200 ]; then echo "::error::$TC_REF: HTTP $code"; exit 1; fi
           python scripts/ensmaps/ensmaps_telecon.py run --fields telecon/*.npz --ref "$RUNNER_TEMP/telecon15_ref.npz" \
             --table tbl --site .
           scripts/lib/publish_frames_ci.sh assets/telecon15/fig
           echo "done=1" >> "$GITHUB_OUTPUT"
-      - name: Commit & push the summary
+      - name: Commit & push the summary and the run records
         if: steps.tc.outputs.done == '1'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          OUT=assets/sst/data/telecon15.json
+          outs() { ls assets/sst/data/telecon15.json assets/sst/data/runs/telecon15_*.json 2>/dev/null; }
           SNAP=$(mktemp -d)
-          cp "$OUT" "$SNAP/"
+          tar cf "$SNAP/outs.tar" $(outs)
           for i in 1 2 3 4 5; do
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset -q --hard origin/main
-            cp "$SNAP/$(basename "$OUT")" "$OUT"
-            git add -f "$OUT"
+            tar xf "$SNAP/outs.tar"
+            for f in $(outs); do git add -f "$f"; done
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -q -m "ensmaps: teleconnections after $MODEL"
             if timeout 180 git push origin HEAD:main; then echo "Pushed on attempt $i."; exit 0; fi
