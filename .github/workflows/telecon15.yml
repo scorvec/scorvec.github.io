@@ -10,7 +10,8 @@ name: Teleconnections days 1-15 (reference and hindcast)
 #             ensemble-mean index at each lead, and ERA5's index each day, kept in the Actions cache
 #             (telecon15-hindcast-<hash of telecon15.py>-<run id>, the two newest kept). A pass downloads only the runs
 #             and days the table lacks, a hundred files at a time, so the table fills as the database's backfill lands
-#             and a pass that stops part way keeps what it added.
+#             and a pass that stops part way keeps what it added. Each pass prints what the skill gate passes for
+#             starts near today, every model and the blend (ensmaps_telecon.py skill).
 # After each pass of the 500 hPa database, daily as a backstop, or dispatched.
 on:
   workflow_run:
@@ -81,13 +82,14 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             /scripts/ensmaps/telecon15.py
+            /scripts/ensmaps/ensmaps_telecon.py
             /scripts/verify/
             /scripts/lib/
             /scripts/constraints.txt
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-      - run: pip install --quiet "$MVERIFY"
+      - run: pip install --quiet "$MVERIFY" "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
       - name: The table so far
         uses: actions/cache/restore@v6
         with:
@@ -132,3 +134,6 @@ jobs:
             --json id,key -q '.[] | "\(.key) \(.id)"' | tail -n +3 | while read -r k id; do
             gh cache delete "$id" -R "$GITHUB_REPOSITORY" && echo "deleted $k" || echo "::warning::could not delete $k"
           done
+      - name: What the gate passes today, from the table alone
+        if: ${{ !cancelled() && hashFiles('tbl/fc.parquet') != '' }}
+        run: python scripts/ensmaps/ensmaps_telecon.py skill --table tbl

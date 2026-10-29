@@ -933,6 +933,31 @@ def cmd_run(a) -> int:
     return 0
 
 
+def cmd_skill(a) -> int:
+    """What the gate passes on a date from the hindcast table alone, every model and the blend of all four: the
+    skilful leads (days) per index, and the samples. Printed for the hindcast pass's log (telecon15.yml)."""
+    fc, obs = pd.read_parquet(a.table / T.FC), pd.read_parquet(a.table / T.OBS)
+    t0 = pd.Timestamp(a.date) if a.date else pd.Timestamp.now(tz="UTC").tz_localize(None).normalize()
+    cal = {k: calibrate(fc, obs, m, t0) for k, m in MODELS.items()}
+    cal["blend"], used = {}, {}
+    for sid in T.IDS:
+        w = wide(fc, obs, sid, list(MODELS), t0)
+        used[sid] = subset(w, list(MODELS), t0)
+        cal["blend"] |= {(sid, lead): blend_fit(w, used[sid], lead, t0) if used[sid] else None for lead in T.LEADS}
+    gate(cal)
+    print(f"hindcast skill for starts near {t0:%-d %B} (skilful lead days; runs at day 1):")
+    for key, per in cal.items():
+        for sid in T.IDS:
+            days = [lead // 24 for lead in T.LEADS if skilful(per[sid, lead])]
+            c1 = per[sid, min(T.LEADS)]
+            extra = ""
+            if key == "blend" and used[sid]:
+                sw = sum(per[sid, x]["kind"] == "sw" for x in T.LEADS if per[sid, x])
+                extra = f" of {'+'.join(used[sid])}, skill weights at {sw} leads"
+            print(f"  {key:5s} {SHORT[sid]:6s} n {c1['n'] if c1 else 0:4d}{extra}: {days}")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -941,8 +966,11 @@ def main() -> int:
     r.add_argument("--ref", type=Path, required=True, help=f"{T.REF_NAME} (release {T.REF_TAG})")
     r.add_argument("--table", type=Path, help="the hindcast table's directory (telecon15.py hindcast)")
     r.add_argument("--site", type=Path, default=HERE.parents[1])
+    k = sub.add_parser("skill", help="print what the gate passes on a date from the hindcast table alone")
+    k.add_argument("--table", type=Path, required=True)
+    k.add_argument("--date", help="YYYY-MM-DD (default today)")
     a = ap.parse_args()
-    return cmd_run(a)
+    return cmd_run(a) if a.cmd == "run" else cmd_skill(a)
 
 
 if __name__ == "__main__":
