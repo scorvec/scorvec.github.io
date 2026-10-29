@@ -440,6 +440,16 @@ def run_label(r: dict) -> str:
     return f"{MODELS[r['key']]} · {r['ok'].shape[0]} members · {r['init']:%-d %b %HZ} run"
 
 
+def date_ticks(ax, t0, t1, nc: int) -> None:
+    """A tick every few days from t0, as many as a panel of an nc-column figure holds (a date label takes about
+    0.62 in): a calendar locator restarts at each month and puts 31 Oct beside 1 Nov."""
+    import matplotlib.dates as mdates
+
+    step = max(int(np.ceil((pd.Timestamp(t1) - pd.Timestamp(t0)).days * 0.62 / (14.0 / nc))), 1)
+    ax.set_xticks(pd.date_range(pd.Timestamp(t0).normalize(), t1, freq=f"{step}D"))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%-d %b"))
+
+
 def spans(t: pd.DatetimeIndex, bad: np.ndarray) -> list[tuple]:
     """The runs of consecutive leads marked bad, as (start, end) half a day either side."""
     out, k = [], 0
@@ -469,7 +479,6 @@ def plume(sid: str, k: int, runs: list[dict], ind: dict, cal: dict, obs, b: dict
     calibrated mean and 10-90 % range in a panel of its own; the leads without demonstrated skill hatched."""
     plt, VF = _plt()
     import house
-    import matplotlib.dates as mdates
     from matplotlib.patches import Patch
 
     t_last = max(ind[r["key"]][0][-1] for r in runs)
@@ -525,11 +534,7 @@ def plume(sid: str, k: int, runs: list[dict], ind: dict, cal: dict, obs, b: dict
         axes.flat[j - nc].tick_params(labelbottom=True)
     for ax in axes[:, 0]:
         ax.set_ylabel("Seasonal sd")
-    # every other day from the first (weekly on three columns): a calendar locator restarts at each month, putting
-    # 31 Oct beside 1 Nov
-    step = "7D" if nc > 2 else "2D"
-    axes[0, 0].set_xticks(pd.date_range(pd.Timestamp(t_first).normalize(), t_last, freq=step))
-    axes[0, 0].xaxis.set_major_formatter(mdates.DateFormatter("%-d %b"))
+    date_ticks(axes[0, 0], t_first, t_last, nc)
     axes[0, 0].set_xlim(t_first, t_last + pd.Timedelta(hours=12))
     handles = [
         plt.Line2D([], [], color=house.INK2, lw=0.9, alpha=0.6, label="each member"),
@@ -725,7 +730,6 @@ def evolution(sid: str, runs: list[dict], rec: dict, cal: dict, name: str, path:
     hatched."""
     plt, VF = _plt()
     import house
-    import matplotlib.dates as mdates
     from matplotlib.patches import Patch
 
     have = {r["key"]: [x for x in rec.get(r["key"], []) if sid in x] for r in runs}  # runs recorded with the index
@@ -733,7 +737,7 @@ def evolution(sid: str, runs: list[dict], rec: dict, cal: dict, name: str, path:
     if not keys:
         return note(name, "No run has been recorded with this index yet: the runs appear here as they arrive.", path)
     starts = sorted({x["init"] for k in keys for x in have[k][-SHOW:]})[-SHOW:]  # one shade per start, every panel
-    white = {i: 0.85 * (1 - j / max(len(starts) - 1, 1)) for j, i in enumerate(starts)}
+    white = {i: 0.85 * (len(starts) - 1 - j) / max(len(starts) - 1, 1) for j, i in enumerate(starts)}  # newest: 0
     nr, nc = (1, len(keys)) if len(keys) <= 2 else (2, 2)
     fig, axes = plt.subplots(nr, nc, figsize=house.size(15, 0.36 if nr == 1 else 0.62), sharex=True, sharey=True,
                              constrained_layout=True, squeeze=False)  # fmt: skip
@@ -768,8 +772,7 @@ def evolution(sid: str, runs: list[dict], rec: dict, cal: dict, name: str, path:
         axes.flat[j - nc].tick_params(labelbottom=True)
     for ax in axes[:, 0]:
         ax.set_ylabel("Seasonal sd")
-    loc = mdates.AutoDateLocator(minticks=4, maxticks=9)
-    axes[0, 0].xaxis.set(major_locator=loc, major_formatter=mdates.DateFormatter("%-d %b"))
+    date_ticks(axes[0, 0], min(t_lo).normalize(), max(t_hi), nc)
     axes[0, 0].set_xlim(min(t_lo) - pd.Timedelta(hours=12), max(t_hi) + pd.Timedelta(hours=12))
     lines = [
         plt.Line2D(
