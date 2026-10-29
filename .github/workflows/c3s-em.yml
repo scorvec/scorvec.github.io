@@ -1,18 +1,20 @@
 name: C3S ensemble means for the long-range forecast
 
 # Claude's long-range forecast (monthly-outlook.html) blends its statistical forecast with the C3S multi-system mean
-# (scripts/monthly/blend.py). This job keeps the tables that blend reads, as assets of the release `c3s-em-v1`
-# (scripts/monthly/c3s_em.py): per system and variable (2 m temperature, precipitation, 500 hPa height) the
-# ensemble mean of lead months 1-6 on the outlook's 3° Northern Hemisphere cells, for the 1993-2016 hindcast of a
-# start month (hc_em_*_<MM>, built once and kept) and for each issue (fc_em_*_<YYYYMM>). Each raw GRIB (0-90N at 1°)
-# is reduced as it lands and deleted.
+# (scripts/monthly/blend.py), from tables in the release `c3s-em-v1` (scripts/monthly/c3s_em.py): per system and
+# variable the ensemble mean of lead months 1-6 on the outlook's 3° Northern Hemisphere cells, for the 1993-2016
+# hindcast of a start month (hc_em_*_<MM>, built once and kept) and for each issue (fc_em_*_<YYYYMM>). The 2 m
+# temperature and precipitation tables come from c3s.yml, which downloads both for its tercile maps (next month's
+# hindcast on the 21st-28th, the issue's members on the 9th-16th); this job fetches 500 hPa height, which nothing
+# else needs, for 0-90N (each raw GRIB reduced as it lands and deleted).
 #
 # WHEN. C3S publishes around the 13th; the outlook issues on the 15th (monthly-outlook.yml), so on the 13th-16th
 # (window=true: the laptop dispatcher's daily slot and the crons) this fetches the issue once
 # assets/sst/data/c3s_status.json says c3s.yml has the issue's plume (the systems are out), with any hindcast table
-# of this start month still missing. Next month's hindcast (about six hours of CDS requests) is built on the
-# 21st-28th, clear of seas5.yml (5th-12th) and c3s.yml (9th-16th), so the window runs stay short. A plain dispatch
-# builds the issue and the `hindcast` start months (default this month and the next).
+# of this start month still missing (UKMO's hindcast appears with its issue). Next month's hindcast (two to three
+# hours of CDS requests) is built on the 21st-28th, clear of seas5.yml (5th-12th) and c3s.yml (9th-16th). A start the
+# CDS catalogue does not list is skipped without queueing. A plain dispatch builds the issue and the `hindcast` start
+# months (default this month and the next).
 #
 # CDS: one key, so this shares the `seas5` concurrency group with seas5.yml, seas5-lead7.yml and c3s.yml (never two
 # CDS requests at once). Secrets: CDSAPI_URL, CDSAPI_KEY (as seas5.yml). Licence: Copernicus.
@@ -29,7 +31,7 @@ on:
         required: false
         default: ""
       hindcast:
-        description: "start months whose missing hindcast tables to build, e.g. 11,12,01 (empty = this month and the next)"
+        description: "start months whose missing 500 hPa hindcast tables to build, e.g. 11,12,01 (empty = this month and the next)"
         required: false
         default: ""
       window:

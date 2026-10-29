@@ -21,11 +21,15 @@ In c3s.yml (Actions) every raw file is reduced to a table the moment it lands
 of hindcast is downloaded once, ever, and an interrupted issue resumes without fetching again.
 The same raw hindcast also gives the anomaly maps' test its spread (c3s_maps.hindcast_spread,
 hc_anom_*) before it goes; the maps' sea-level pressure and SST hindcasts come through fetch()
-here as well (RAW_VARS), for that test alone.
+here as well (RAW_VARS), for that test alone. Every raw t2m and precipitation file, hindcast and
+forecast, also gives the long-range forecast its ensemble-mean table (scripts/monthly/c3s_em.py,
+release c3s-em-v1), so that product never fetches them itself. c3s.yml's `hindcast` job fetches next
+month's start (--kind hc) on the 21st-28th, before the issue window.
 The renderers (c3s_terciles_render, c3s_popt_monthly, c3s_popt_daily) read the tables.
 
     python scripts/sst/c3s_terciles.py --issue 202610 --budget-min 120   # Actions
     python scripts/sst/c3s_terciles.py --only dwd_22 --kind hc
+    python scripts/sst/c3s_terciles.py --issue 202612 --kind hc   # a start month's hindcast tables only
 """
 
 from __future__ import annotations
@@ -44,6 +48,7 @@ from c3s_nino34 import MODELS, _client
 import c3s_ref as CR
 
 STORE = HERE / "data" / "c3s" / "terc"
+MONTHLY = HERE.parent / "monthly"  # c3s_em, the long-range forecast's tables
 SEAS5 = HERE / "data" / "seas5"
 DATASET = "seasonal-monthly-single-levels"
 HC_YEARS = [str(y) for y in range(1993, 2017)]  # the C3S common hindcast period
@@ -104,6 +109,12 @@ def fetch(kind: str, centre: str, system: str, var: str, issue: str, force: bool
         "data_format": "grib",
         "grid": GRID,
     }
+    from cds_seq import available
+
+    # a start the CDS does not hold yet (UKMO's hindcast of a month appears with its issue) waits hours, then fails
+    if available(DATASET, req) is False:
+        print(f"  {centre}/{system} {var} {kind}: not in the CDS catalogue yet", flush=True)
+        return False
     tmp = p.with_suffix(".part")
     t0 = time.time()
     try:
@@ -124,6 +135,22 @@ def _drop_raw(p: Path) -> None:
 
 
 # ── tables (c3s_ref) ─────────────────────────────────────────────────────────
+def _blend_table(kind: str, centre: str, system: str, var: str, when: str, raw: Path) -> None:
+    """The long-range forecast's ensemble-mean table (c3s_em) of the same raw file: hc for start month `when` (MM),
+    fc for issue `when` (YYYYMM)."""
+    if str(MONTHLY) not in sys.path:
+        sys.path.insert(0, str(MONTHLY))
+    import c3s_em as CE
+
+    try:
+        if kind == "hc":
+            CE.write_hindcast(centre, system, var, int(when), raw)
+        else:
+            CE.write_issue(centre, system, var, when, raw)
+    except Exception as e:  # noqa: BLE001
+        print(f"  {centre}/{system} {var} {kind}: blend table failed ({str(e)[:90]})", file=sys.stderr, flush=True)
+
+
 def _pop_w(region: str, lat: np.ndarray, lon: np.ndarray):
     w = CR.pop_weights(region, lat, np.where(lon > 180.0, lon - 360.0, lon))
     return None if w.sum() <= 0 else w / w.sum()
@@ -156,6 +183,7 @@ def derive_hc_table(centre: str, system: str, var: str, month: str, hp: Path) ->
                 [float((hl[k] * w[None]).sum(axis=(1, 2)).mean()) for k in POP_LEADS if k in hl]
             )
     CR.save(CR.hc_terc(centre, system, var, month), meta=meta, **arrs)
+    _blend_table("hc", centre, system, var, month, hp)
     return CR.load(CR.hc_terc(centre, system, var, month))
 
 
@@ -221,6 +249,7 @@ def derive_issue_table(centre: str, system: str, var: str, issue: str, fp: Path,
         except Exception:  # noqa: BLE001
             pass
     CR.save(CR.is_terc(centre, system, var, issue), meta=meta, **arrs)
+    _blend_table("fc", centre, system, var, issue, fp)
     return CR.load(CR.is_terc(centre, system, var, issue))
 
 
@@ -334,6 +363,11 @@ def main() -> int:
                 if issue_table(centre, system, var, a.issue, rederive=a.force) is not None:
                     got += 1
                 _drop_raw(path_for("fc", centre, system, var, a.issue))
+    if "fc" not in kinds:  # a hindcast-only run (c3s.yml's `hindcast` job): systems not published yet come later
+        sel = [(e[0], str(e[1])) for e in MODELS if not a.only or f"{e[0]}_{e[1]}" == a.only]
+        n = sum(CR.hc_terc(c, s, v, a.issue[4:6]).exists() for c, s in sel for v in want)
+        print(f"{n}/{len(sel) * len(want)} hindcast table(s) for start month {a.issue[4:6]} under {CR.REF}")
+        return 0
     print(f"{got}/{need} issue table(s) ready under {CR.REF}")
     # the multi-model tercile is only honest if most systems are in it
     return 0 if got >= 0.75 * need else 1

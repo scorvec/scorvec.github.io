@@ -11,7 +11,8 @@ name: Long-range outlook (Claude's statistical forecast + C3S + GEFS, monthly on
 # The maps (forecast.py): the statistical forecast from ERA5 alone (mo_method.py: trend, RONI/QBO/vortex regression,
 # forecast-ENSO teleconnection, tropical constructed analogue, persistence, analogue years, consolidated on a
 # cross-validated 1981-onward hindcast), blended with the C3S multi-system mean (blend.py; its tables come from the
-# c3s-em-v1 release, c3s-em.yml, which fetches each issue on the 13th-16th) and, for the month, with the whole 35-day GEFS run of
+# c3s-em-v1 release: 2 m temperature and precipitation from c3s.yml's tercile downloads, 500 hPa height from c3s-em.yml,
+# which fetches each issue on the 13th-16th) and, for the month, with the whole 35-day GEFS run of
 # the 15th (gefs.yml writes gefs_run_<YYYYMMDD>.npz to the frames store; the 00Z run is normally there by ~07Z, hence
 # 10:23; the run of the 14th stands in), each stage only where its hindcast shows it beats the forecast before it.
 #

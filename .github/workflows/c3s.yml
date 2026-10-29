@@ -10,7 +10,8 @@ name: C3S multi-system seasonal (monthly)
 #     hindcast spread the anomaly maps are tested against -- ~17 GB of raw hindcast paid once per calendar month,
 #     ever) and per ISSUE (is_terc_*: tercile probabilities + member series; is_anom_*: ensemble-mean anomaly and
 #     member spread; is_sixh_*: each member's population-weighted daily mean), kept as assets of the release
-#     `c3s-ref-v1`;
+#     `c3s-ref-v1`; every raw 2 m temperature and precipitation file (hindcast and members) also gives the long-range
+#     forecast its ensemble-mean table (scripts/monthly/c3s_em.py, release `c3s-em-v1`), which never fetches them;
 #   * the static references (geonames places, the CPC 1993-2016 base) were built once offline from existing data stores;
 #   * the ENSO plume's hindcast climatology stays the committed c3s_nino34_clim.csv (a new start month adds rows);
 #     the flavour's hindcast test result is committed per start month (reference/enso_flavour_hindcast_MM.json), and
@@ -19,7 +20,10 @@ name: C3S multi-system seasonal (monthly)
 # WHEN. The C3S centres publish around the 10th-13th. Cron 9th-16th twice a day + the dispatcher (window=true);
 # each part is gated on assets/sst/data/c3s_status.json, so a run after the issue is complete exits in ~30 s, and an
 # incomplete issue keeps being continued to the 20th. Until QUORUM (4) systems have published the issue, the plume
-# step answers "not yet" and nothing else runs.
+# step answers "not yet" and nothing else runs. On the 21st-28th the `hindcast` job fetches NEXT month's 2 m
+# temperature and precipitation hindcast (hc_terc, hc_anom and the long-range forecast's hc_em), so the issue window
+# starts with a start month's heaviest download done; a system not on the CDS yet (UKMO's hindcast appears with its
+# issue) is fetched in the window. `hindcast=YYYYMM` runs that job alone for one start month.
 #
 # CDS: one key, so this shares the `seas5` concurrency group with seas5.yml and seas5-lead7.yml (never two jobs
 # requesting at once) and every request inside the job is sequential. The heavy fetches (tercile members/hindcasts,
@@ -39,6 +43,7 @@ on:
   schedule:
   - cron: '20 3 9-16 * *'
   - cron: '20 9 9-16 * *'
+  - cron: '20 3 21,24,27 * *'
   workflow_dispatch:
     inputs:
       issue:
@@ -69,6 +74,10 @@ on:
         description: 'false = build and upload the outputs as an artifact, commit nothing (validation)'
         required: false
         default: 'true'
+      hindcast:
+        description: 'YYYYMM: only fetch that start month''s t2m + precipitation hindcast tables (the hindcast job)'
+        required: false
+        default: ''
 
 permissions:
   contents: write   # commit outputs, upload tables to the c3s-ref-v1 release
@@ -80,6 +89,7 @@ concurrency:
 
 env:
   REF_TAG: c3s-ref-v1
+  EM_TAG: c3s-em-v1
   MPLBACKEND: Agg
   PYTHONUNBUFFERED: '1'
 
@@ -90,6 +100,7 @@ jobs:
     env:
       SST_SITE_ROOT: ${{ github.workspace }}
       C3S_REF_DIR: ${{ github.workspace }}/c3s_ref
+      C3S_EM_DIR: ${{ github.workspace }}/c3s_em
       C3S_DISCARD_RAW: '1'
     steps:
       - uses: actions/checkout@v7
@@ -112,7 +123,8 @@ jobs:
           EOF
           )
           RUN=1; WHY="manual dispatch"
-          if [ "${{ inputs.force }}" = "true" ]; then WHY="forced"
+          if [ -n "${{ inputs.hindcast }}" ]; then RUN=0; WHY="hindcast-only dispatch"
+          elif [ "${{ inputs.force }}" = "true" ]; then WHY="forced"
           elif [ "$SISSUE" = "$I" ] && [ "$COMPLETE" = "1" ]; then RUN=0; WHY="$I already complete"
           elif [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.window }}" = "true" ]; then
             if [ $D -ge 9 ] && [ $D -le 16 ]; then WHY="release window, day $D"
@@ -333,10 +345,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           [ -f "$RUNNER_TEMP/ref_marker" ] || exit 0
-          NEW=$(find "$C3S_REF_DIR" -name '*.npz' -newer "$RUNNER_TEMP/ref_marker" | sort)
-          if [ -z "$NEW" ]; then echo "no new tables"; exit 0; fi
-          echo "$NEW"
-          gh release upload "$REF_TAG" --repo "$GITHUB_REPOSITORY" --clobber $NEW
+          up() {  # release, folder: the tables written since the download
+            local new; new=$(find "$2" -name '*.npz' -newer "$RUNNER_TEMP/ref_marker" 2>/dev/null | sort)
+            if [ -z "$new" ]; then echo "$1: no new tables"; return 0; fi
+            echo "$new"; gh release upload "$1" --repo "$GITHUB_REPOSITORY" --clobber $new
+          }
+          up "$REF_TAG" "$C3S_REF_DIR"
+          up "$EM_TAG" "$C3S_EM_DIR"
 
       - name: Status
         if: always() && steps.gate.outputs.run == '1' && steps.enso.outputs.ready == '1'
@@ -418,3 +433,91 @@ jobs:
             [ -f assets/sst/data/c3s_status.json ] && echo "- status: $(cat assets/sst/data/c3s_status.json)"
             echo "- Pages: [/enso-forecasts.html](https://scorvec.com/enso-forecasts.html), [/seasonal.html](https://scorvec.com/seasonal.html)"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # Next month's 2 m temperature and precipitation hindcast (1993-2016) on the 21st-28th: one raw file per system gives
+  # the tercile tables (hc_terc, hc_anom) and the long-range forecast's (hc_em) before it is deleted. After `build`, so
+  # the two never request at once.
+  hindcast:
+    needs: build
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    env:
+      SST_SITE_ROOT: ${{ github.workspace }}
+      C3S_REF_DIR: ${{ github.workspace }}/c3s_ref
+      C3S_EM_DIR: ${{ github.workspace }}/c3s_em
+      C3S_DISCARD_RAW: '1'
+    steps:
+      - name: Which start month
+        id: gate
+        run: |
+          D=$((10#$(date -u +%d))); I="${{ inputs.hindcast }}"; RUN=1
+          if [ -z "$I" ]; then
+            if { [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.window }}" = "true" ]; } && [ $D -ge 21 ] && [ $D -le 28 ]; then
+              I=$(date -u -d "$(date -u +%Y-%m-01) +1 month" +%Y%m)
+            else RUN=0; fi
+          fi
+          echo "start month ${I:-none} (day $D) -> run=$RUN"
+          { echo "run=$RUN"; echo "issue=$I"; echo "month=${I:4:2}"; } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        if: steps.gate.outputs.run == '1'
+
+      - uses: actions/setup-python@v7
+        if: steps.gate.outputs.run == '1'
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies (as the build job)
+        if: steps.gate.outputs.run == '1'
+        run: |
+          pip install --quiet numpy pandas scipy xarray dask cfgrib eccodes cdsapi requests \
+            matplotlib==3.10.9 cartopy==0.25.0 'shapely>=2.1.2' 'pyproj>=3.7.2' Pillow netCDF4 h5netcdf
+          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+
+      - name: Free runner disk
+        if: steps.gate.outputs.run == '1'
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /usr/local/.ghcup 2>/dev/null || true
+
+      - name: CDS credentials
+        if: steps.gate.outputs.run == '1'
+        env:
+          CDSAPI_URL: ${{ secrets.CDSAPI_URL }}
+          CDSAPI_KEY: ${{ secrets.CDSAPI_KEY }}
+        run: |
+          if [ -z "$CDSAPI_KEY" ]; then echo "::error::secret CDSAPI_KEY is not set"; exit 1; fi
+          umask 077
+          printf 'url: %s\nkey: %s\n' "${CDSAPI_URL:-https://cds.climate.copernicus.eu/api}" "$CDSAPI_KEY" > ~/.cdsapirc
+
+      # the places table weights the population cards' hindcast means; the start month's tables already built are kept
+      - name: Download the tables (release ${{ env.REF_TAG }})
+        if: steps.gate.outputs.run == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$C3S_REF_DIR" "$C3S_EM_DIR"
+          M=${{ steps.gate.outputs.month }}
+          gh release download "$REF_TAG" --repo "$GITHUB_REPOSITORY" -D "$C3S_REF_DIR" -p 'obs_*'
+          gh release download "$REF_TAG" --repo "$GITHUB_REPOSITORY" -D "$C3S_REF_DIR" \
+            -p "hc_terc_*_${M}.npz" -p "hc_anom_*_${M}.npz" || echo "none of start month $M's tables yet"
+          touch "$RUNNER_TEMP/ref_marker"
+
+      - name: The hindcast (t2m, precipitation)
+        if: steps.gate.outputs.run == '1'
+        run: |
+          timeout --signal=INT 290m python scripts/sst/c3s_terciles.py --issue "${{ steps.gate.outputs.issue }}" \
+            --kind hc --budget-min 240 || echo "::warning::hindcast tables incomplete (the next run continues)"
+
+      - name: Upload new tables
+        if: always() && steps.gate.outputs.run == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          [ -f "$RUNNER_TEMP/ref_marker" ] || exit 0
+          up() {  # release, folder: the tables written since the download
+            local new; new=$(find "$2" -name '*.npz' -newer "$RUNNER_TEMP/ref_marker" 2>/dev/null | sort)
+            if [ -z "$new" ]; then echo "$1: no new tables"; return 0; fi
+            echo "$new"; gh release upload "$1" --repo "$GITHUB_REPOSITORY" --clobber $new
+          }
+          up "$REF_TAG" "$C3S_REF_DIR"
+          up "$EM_TAG" "$C3S_EM_DIR"

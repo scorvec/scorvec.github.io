@@ -2,19 +2,23 @@
 """C3S seasonal ensemble means on the long-range outlook's 3° Northern Hemisphere cells, for the blend (blend.py).
 
 Per system (c3s_nino34.MODELS: seven systems from six centres) and variable (2 m temperature, precipitation, 500 hPa
-height), the ensemble mean of every lead month 1-6 (lead 1 = the start month) is box-averaged from the CDS's 1°
-grid onto the outlook's cells and kept as two kinds of table, assets of the release `c3s-em-v1`:
+height), the ensemble mean of every lead month 1-6 (lead 1 = the start month) is box-averaged from a 1° grid onto
+the outlook's cells and kept as two kinds of table, assets of the release `c3s-em-v1`:
 
     hc_em_{centre}_{system}_{var}_{MM}.npz    the 1993-2016 hindcast of start month MM: per year and lead the
                                               anomaly against the system's own 1993-2016 mean (float16), and that mean
     fc_em_{centre}_{system}_{var}_{YYYYMM}.npz  the issue of YYYYMM: the ensemble mean per lead and the member count
 
 A hindcast table is built once per start month and kept for good; an issue's when C3S publishes it (around the 13th).
-Raw GRIBs (0-90N at 1°, a few hundred MB for a hindcast) are reduced as they land and deleted. CDS downloads run in
+2 m temperature and precipitation are never fetched here: c3s.yml downloads both, hindcast and members, for its tercile
+maps, and c3s_terciles writes these tables from the same raw files (write_hindcast / write_issue) on the C3S grid
+(points at half degrees). This module requests 500 hPa height alone, for 0-90N, which the CDS interpolates to whole
+degrees; a table records which grid it came from and a forecast is only set against a hindcast of the same one (the
+two differ by up to 1 °C at steep coasts). Raw GRIBs are reduced as they land and deleted. CDS downloads run in
 Actions only (c3s-em.yml, in the `seas5` concurrency group: one CDS key, never two requests at once).
 
-    python c3s_em.py --hindcast 11 12 --budget-min 240     # hindcast tables still missing for these start months
-    python c3s_em.py --issue 202611                         # the issue's tables
+    python c3s_em.py --hindcast 11 12 --budget-min 240     # 500 hPa hindcast tables still missing for these months
+    python c3s_em.py --issue 202611                         # the issue's 500 hPa tables
     python c3s_em.py --status 202611                        # what is in C3S_EM_DIR for that issue
     python c3s_em.py --pull --status 202611                 # first fetch the issue's tables from the release
 
@@ -45,11 +49,8 @@ TAG = "c3s-em-v1"
 RELEASE_URL = f"https://github.com/scorvec/scorvec.github.io/releases/download/{TAG}/{{}}"
 HC_YEARS = range(1993, 2017)
 LEADS = range(1, 7)
-VARS = {  # outlook variable -> (CDS dataset, CDS variable, pressure level, eccodes cfVarName)
-    "t2m": ("seasonal-monthly-single-levels", "2m_temperature", None, ("t2m",)),
-    "tp": ("seasonal-monthly-single-levels", "total_precipitation", None, ("tprate", "tp")),
-    "z500": ("seasonal-monthly-pressure-levels", "geopotential", "500", ("z",)),
-}
+VARS = {"t2m": ("t2m",), "tp": ("tprate", "tp"), "z500": ("z",)}  # table variable -> eccodes cfVarName
+REQUEST = {"z500": ("seasonal-monthly-pressure-levels", "geopotential", "500")}  # what this module fetches itself
 OUTLOOK_VAR = {"t2m": "t2m", "prcp": "tp", "z500": "z500"}
 AREA = [90, -180, -2, 180]  # N, W, S, E: the 0-90N cells reach 1.5° south of the equator
 MIN_SYSTEMS = 4  # groups (CanSIPS's two components count once) needed for a multi-system mean
@@ -66,6 +67,11 @@ def group(centre: str, system: str) -> str:
     return centre if centre == "eccc" else f"{centre}_{system}"
 
 
+def grid_of(lat: np.ndarray) -> str:
+    """'cells' for the C3S grid (points at half degrees), 'nodes' for whole degrees (an area request, interpolated)."""
+    return "nodes" if np.allclose(lat, np.round(lat)) else "cells"
+
+
 def hc_path(centre: str, system: str, var: str, mm: int) -> Path:
     return EM_DIR / f"hc_em_{centre}_{system}_{var}_{mm:02d}.npz"
 
@@ -76,13 +82,14 @@ def fc_path(centre: str, system: str, var: str, issue: str) -> Path:
 
 # ------------------------------------------------------------------------------------------------------- fetching
 def retrieve(centre: str, system: str, var: str, years, month: int, dest: Path) -> bool:
+    """One CDS request of a REQUEST variable for 0-90N on whole degrees (the grid its tables have always had)."""
     from c3s_ref import guard_fetch
     from cds_seq import available
 
     guard_fetch("Copernicus CDS")
     import cdsapi
 
-    ds, cvar, level, _ = VARS[var]
+    ds, cvar, level = REQUEST[var]
     req = {
         "originating_centre": centre,
         "system": system,
@@ -116,18 +123,18 @@ def retrieve(centre: str, system: str, var: str, years, month: int, dest: Path) 
     return False
 
 
-def reduce(path: Path, var: str, hindcast: bool) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """(years, ensemble mean (Y, 6, P) in °C / mm/day / m on the outlook's 0-90N cells, members (Y, 6)) of a
-    monthly-mean GRIB. A lagged member is filed under its nominal start (indexingDate) where the file says so."""
+def reduce(path: Path, var: str, hindcast: bool) -> tuple[np.ndarray, np.ndarray, np.ndarray, str]:
+    """(years, ensemble mean (Y, 6, P) in °C / mm/day / m on the outlook's 0-90N cells, members (Y, 6), grid_of) of
+    a monthly-mean GRIB. A lagged member is filed under its nominal start (indexingDate) where the file says so."""
     import c3s_grib
 
-    names = VARS[var][3]
-    acc, cnt, co = {}, {}, None
+    names = VARS[var]
+    acc, cnt, co, grid = {}, {}, None, ""
     for m, v, g in c3s_grib.messages(path, ("dataDate", "forecastMonth", "indexingDate", "cfVarName")):
         if m["cfVarName"] not in names or not 1 <= int(m["forecastMonth"]) <= 6:
             continue
         if co is None:
-            co = G.Coarsener(g.lat, g.lon)
+            co, grid = G.Coarsener(g.lat, g.lon), grid_of(g.lat)
         y = int(str(m["indexingDate"] or m["dataDate"])[:4])
         x = {"t2m": v - 273.15, "tp": v * 86400e3, "z500": v / 9.80665}[var]  # K, m s-1, m2 s-2
         k = (y, int(m["forecastMonth"]))
@@ -144,38 +151,53 @@ def reduce(path: Path, var: str, hindcast: bool) -> tuple[np.ndarray, np.ndarray
         if y in years:
             mean[years.index(y), L - 1] = co(a / cnt[(y, L)], "nh").ravel()
             nmem[years.index(y), L - 1] = cnt[(y, L)]
-    return np.array(years), mean, nmem
+    return np.array(years), mean, nmem, grid
 
 
-def build_hindcast(centre: str, system: str, var: str, mm: int) -> bool:
+def write_hindcast(centre: str, system: str, var: str, mm: int, raw: Path) -> bool:
+    """The hc_em table of start month mm from a raw 1993-2016 hindcast GRIB (this module's request, or c3s_terciles'
+    for 2 m temperature and precipitation)."""
     out = hc_path(centre, system, var, mm)
-    raw = EM_DIR / "raw" / f"hc_{centre}_{system}_{var}_{mm:02d}.grib"
-    if not retrieve(centre, system, var, HC_YEARS, mm, raw):
-        return False
-    years, mean, nmem = reduce(raw, var, hindcast=True)
-    raw.unlink()
+    years, mean, nmem, grid = reduce(raw, var, hindcast=True)
     if list(years) != list(HC_YEARS) or not np.isfinite(mean).all():
         print(f"  {out.name}: incomplete hindcast ({len(years)} years) - not kept", flush=True)
         return False
     clim = mean.mean(0)
-    np.savez_compressed(out, years=years, clim=clim, anom=(mean - clim).astype(np.float16), nmem=nmem)
-    print(f"  {out.name}: {years[0]}-{years[-1]}, {int(nmem.min())}-{int(nmem.max())} members", flush=True)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(out, years=years, clim=clim, anom=(mean - clim).astype(np.float16), nmem=nmem, grid=grid)
+    print(f"  {out.name}: {years[0]}-{years[-1]}, {int(nmem.min())}-{int(nmem.max())} members, {grid}", flush=True)
     return True
 
 
-def build_issue(centre: str, system: str, var: str, issue: str) -> bool:
+def write_issue(centre: str, system: str, var: str, issue: str, raw: Path) -> bool:
+    """The fc_em table of issue YYYYMM from its raw members' GRIB (as write_hindcast)."""
     out = fc_path(centre, system, var, issue)
-    raw = EM_DIR / "raw" / f"fc_{centre}_{system}_{var}_{issue}.grib"
-    if not retrieve(centre, system, var, [int(issue[:4])], int(issue[4:]), raw):
-        return False
-    years, mean, nmem = reduce(raw, var, hindcast=False)
-    raw.unlink()
+    years, mean, nmem, grid = reduce(raw, var, hindcast=False)
     if len(years) != 1 or not np.isfinite(mean).all():
         print(f"  {out.name}: incomplete ({len(years)} start years) - not kept", flush=True)
         return False
-    np.savez_compressed(out, em=mean[0], nmem=nmem[0])
-    print(f"  {out.name}: {int(nmem[0].min())} members", flush=True)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(out, em=mean[0], nmem=nmem[0], grid=grid)
+    print(f"  {out.name}: {int(nmem[0].min())} members, {grid}", flush=True)
     return True
+
+
+def build_hindcast(centre: str, system: str, var: str, mm: int) -> bool:
+    raw = EM_DIR / "raw" / f"hc_{centre}_{system}_{var}_{mm:02d}.grib"
+    if not retrieve(centre, system, var, HC_YEARS, mm, raw):
+        return False
+    ok = write_hindcast(centre, system, var, mm, raw)
+    raw.unlink()
+    return ok
+
+
+def build_issue(centre: str, system: str, var: str, issue: str) -> bool:
+    raw = EM_DIR / "raw" / f"fc_{centre}_{system}_{var}_{issue}.grib"
+    if not retrieve(centre, system, var, [int(issue[:4])], int(issue[4:]), raw):
+        return False
+    ok = write_issue(centre, system, var, issue, raw)
+    raw.unlink()
+    return ok
 
 
 # ------------------------------------------------------------------------------------------------------- reading
@@ -183,7 +205,9 @@ def _load(p: Path) -> dict | None:
     if not p.exists():
         return None
     with np.load(p) as z:
-        return {k: z[k] for k in z.files}
+        t = {k: z[k] for k in z.files}
+    t["grid"] = str(t.get("grid", "nodes"))  # tables from before the grid was recorded all came from area requests
+    return t
 
 
 def target(issue: str, v: str, month: int, span: int, live: bool = True) -> dict | None:
@@ -200,7 +224,7 @@ def target(issue: str, v: str, month: int, span: int, live: bool = True) -> dict
     groups: dict[str, list] = {}
     for c, s in systems():
         h, f = _load(hc_path(c, s, var, mm)), _load(fc_path(c, s, var, issue)) if live else None
-        if h is None or (live and f is None):
+        if h is None or (live and (f is None or f["grid"] != h["grid"])):
             continue
         hind = h["anom"][:, l0 : l0 + span].astype(np.float64).mean(1)
         now = (f["em"][l0 : l0 + span] - h["clim"][l0 : l0 + span]).mean(0) if live else None
@@ -257,12 +281,12 @@ def main() -> int:
     left = lambda: (time.time() - t0) / 60 < a.budget_min  # noqa: E731
     if a.issue:
         for c, s in systems():
-            for var in VARS:
+            for var in REQUEST:
                 if not fc_path(c, s, var, a.issue).exists() and left():
                     build_issue(c, s, var, a.issue)
     for mm in a.hindcast or []:
         for c, s in systems():
-            for var in VARS:
+            for var in REQUEST:
                 if not hc_path(c, s, var, mm).exists() and left():
                     build_hindcast(c, s, var, mm)
     if a.status:
@@ -270,7 +294,13 @@ def main() -> int:
         for var in VARS:
             hc = [f"{c}_{s}" for c, s in systems() if hc_path(c, s, var, mm).exists()]
             fc = [f"{c}_{s}" for c, s in systems() if fc_path(c, s, var, a.status).exists()]
-            print(f"{var}: hindcast {len(hc)}/{len(systems())} {hc}; issue {len(fc)}/{len(systems())} {fc}")
+            odd = []
+            for c, s in systems():
+                h, f = _load(hc_path(c, s, var, mm)), _load(fc_path(c, s, var, a.status))
+                if h and f and h["grid"] != f["grid"]:
+                    odd.append(f"{c}_{s}")
+            tail = f"; grids differ, left out: {odd}" if odd else ""
+            print(f"{var}: hindcast {len(hc)}/{len(systems())} {hc}; issue {len(fc)}/{len(systems())} {fc}{tail}")
     return 0
 
 
