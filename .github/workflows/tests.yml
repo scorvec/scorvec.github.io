@@ -44,3 +44,5 @@ jobs:
         run: python scripts/ensmaps/test_ensmaps.py
       - name: Polar vortex temperature and sudden-warming shares
         run: python scripts/strat/test_nh_vortex.py
+      - name: Wave compass
+        run: python scripts/strat/test_wave_compass.py

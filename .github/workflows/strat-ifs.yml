@@ -11,7 +11,8 @@ name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, wave
 #   heatflux100_ext.py    -> assets/sst/ifs_heatflux100_{nh,sh}.webp   + data/ifs_heatflux100.json (the control line)
 #   forecast_drip.py      -> assets/sst/{ifs,hres}_drip{,_change}.webp + data/{ifs,hres}_drip.json (_change: against the run a day earlier)
 #                            (both with the IFS-ENS drift, reference/ifs_capdrift.json)
-#   wave_maps.py          -> assets/sst/anim/wave{1,2}_{ifs,hres}_{nh,sh}/ + wave{1,2}_maps_{ifs,hres}_manifest.json
+#   wave_maps.py          -> assets/sst/anim/wave{1,2}_{ifs,hres}_{nh,sh}/ + wave{1,2}_maps_{ifs,hres}_manifest.json,
+#                            data/wave_compass_{ifs,gefs,geps}.json (wave_compass.py; GEFS and GEPS in the naens job)
 #   vortex_winds.py       -> assets/sst/anim/vortex_{ifs,hres}_{10,100}_{nh,sh}/ + vortex_winds_{ifs,hres}_manifest.json
 #   polarcap.py           -> assets/sst/{polarcap,telecon,vshape}_ifs.webp + anim/{polarcap,t10}_ifs/, anim/z100_{ifs,hres}/
 #                            + data/runs/{polarcap,telecon,vshape}_{ifs,hres}.json: polar cap, AO/NAO, 100 hPa height,
@@ -538,7 +539,7 @@ jobs:
           for p in assets/sst/ifs_drip.webp assets/sst/ifs_drip_change.webp assets/sst/data/ifs_drip.json assets/sst/hres_drip.webp assets/sst/hres_drip_change.webp assets/sst/data/hres_drip.json \
                    assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
                    assets/sst/data/runs/{drip,waves}_{ifs,hres}.json assets/sst/runs/{drip,waves}_{ifs,hres}.webp \
-                   assets/sst/polarcap_ifs.webp assets/sst/telecon_ifs.webp assets/sst/anim/polarcap_ifs_manifest.json \
+                   assets/sst/data/wave_compass_ifs.json assets/sst/polarcap_ifs.webp assets/sst/telecon_ifs.webp assets/sst/anim/polarcap_ifs_manifest.json \
                    assets/sst/anim/z100_{ifs,hres}_manifest.json assets/sst/vshape_ifs.webp assets/sst/anim/t10_ifs_manifest.json \
                    assets/sst/data/runs/{polarcap,telecon,vshape}_{ifs,hres}.json \
                    assets/sst/runs/{polarcap,telecon,vshape}_{ifs,hres}.webp; do
@@ -738,7 +739,7 @@ jobs:
             for p in assets/sst/${m}_heatflux100_nh.webp assets/sst/${m}_heatflux100_sh.webp assets/sst/data/${m}_heatflux100.json \
                      assets/sst/${m}_drip.webp assets/sst/${m}_drip_change.webp assets/sst/data/${m}_drip.json \
                      assets/sst/anim/wave1_${m}_nh assets/sst/anim/wave1_${m}_sh assets/sst/anim/wave2_${m}_nh assets/sst/anim/wave2_${m}_sh \
-                     assets/sst/anim/wave1_maps_${m}_manifest.json assets/sst/anim/wave2_maps_${m}_manifest.json \
+                     assets/sst/anim/wave1_maps_${m}_manifest.json assets/sst/anim/wave2_maps_${m}_manifest.json assets/sst/data/wave_compass_${m}.json \
                      assets/sst/anim/vortex_${m}_10_nh assets/sst/anim/vortex_${m}_10_sh assets/sst/anim/vortex_${m}_100_nh \
                      assets/sst/anim/vortex_${m}_100_sh assets/sst/anim/vortex_winds_${m}_manifest.json \
                      assets/sst/polarcap_${m}.webp assets/sst/anim/polarcap_${m} assets/sst/anim/polarcap_${m}_manifest.json \
@@ -1035,6 +1036,7 @@ jobs:
                    assets/sst/anim/wave1_maps_gefs_manifest.json assets/sst/anim/wave2_maps_gefs_manifest.json assets/sst/anim/vortex_winds_gefs_manifest.json \
                    assets/sst/anim/wave1_maps_geps_manifest.json assets/sst/anim/wave2_maps_geps_manifest.json assets/sst/anim/vortex_winds_geps_manifest.json \
                    assets/sst/anim/pacjet_ifs_manifest.json assets/sst/pacjet_ifs_*.webp assets/sst/data/pacjet_ifs.json \
+                   assets/sst/data/wave_compass_{ifs,gefs,geps}.json \
                    assets/sst/polarcap_ifs.webp assets/sst/polarcap_gefs.webp assets/sst/polarcap_geps.webp \
                    assets/sst/anim/polarcap_ifs_manifest.json assets/sst/anim/polarcap_gefs_manifest.json \
                    assets/sst/anim/polarcap_geps_manifest.json \

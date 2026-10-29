@@ -20,7 +20,7 @@
   </div>
   <section class="page-about" id="page-about">
     <h2>About this page</h2>
-    <p>Whether the winter polar vortex is about to weaken, and what that has meant at the surface before, in one place, opening on the next two weeks. <b>The vortex, days 1&ndash;15</b>: its strength and the chance of a sudden warming in every model, its shape member by member (split or displaced), the 10&nbsp;hPa temperature, the vortex winds and the 100&nbsp;hPa height, the dripping paint, the upper stratosphere to 1&nbsp;hPa, and how the recent runs verified (every model&rsquo;s maps and potential vorticity, GEOS FP&rsquo;s among them, are on the <a href="/strat-models.html">stratosphere model maps</a>). <b>The waves driving it</b>: the 100&nbsp;hPa eddy heat flux with the SSW warning meter, planetary waves 1 and 2, the E&ndash;P flux and refractive index, and the regional reflection index. <b>Down to the surface</b>: the downward-propagation monitor, the polar cap at sea level and 500&nbsp;hPa, and the AO and NAO, from AIFS-ENS, IFS-ENS, GEFS and GEPS member by member, and the descent over the polar cap by sector. <b>Weeks 3&ndash;5</b>: the GEPS and GEFS extended runs, drift-corrected. <b>The season ahead</b>: the December vortex from the seven C3S seasonal systems together, calibrated on their hindcast (the one seasonal vortex forecast here with demonstrated skill), and SEAS5&rsquo;s vortex, QBO and sudden-warming risk against its own hindcast. <b>The QBO and today&rsquo;s analyses</b>: the QBO from radiosondes and its zero-wind line forecast, the momentum budget, the Brewer&ndash;Dobson circulation and the water-vapour tape recorder. <b>History and studies</b>: every winter and every major sudden warming since 1980 from MERRA-2 (this winter from GEOS FP analyses, daily), with only the statistically significant results shown. Where several models answer the same question they share one figure slot with a model switch. Background on each diagnostic is in the <a href="/topics/sudden-stratospheric-warming.html">sudden stratospheric warming</a>, <a href="/topics/ep-flux.html">E&ndash;P flux</a> and <a href="/topics/eddy-heat-flux.html">eddy heat flux</a> explainers. Every pressure level from 100 to 0.4&nbsp;hPa and the PV on seven isentropes, from the GFS to day 16, are on the interactive <a href="/strat-models.html">stratosphere model maps</a>. The tropospheric circulation is on <a href="/circulation.html">Global circulation and jets</a>.</p>
+    <p>Whether the winter polar vortex is about to weaken, and what that has meant at the surface before, in one place, opening on the next two weeks. <b>The vortex, days 1&ndash;15</b>: its strength and the chance of a sudden warming in every model, its shape member by member (split or displaced), the 10&nbsp;hPa temperature, the vortex winds and the 100&nbsp;hPa height, the dripping paint, the upper stratosphere to 1&nbsp;hPa, and how the recent runs verified (every model&rsquo;s maps and potential vorticity, GEOS FP&rsquo;s among them, are on the <a href="/strat-models.html">stratosphere model maps</a>). <b>The waves driving it</b>: the 100&nbsp;hPa eddy heat flux with the SSW warning meter, planetary waves 1 and 2, the wave compass (why some wave patterns feed the vortex), the E&ndash;P flux and refractive index, and the regional reflection index. <b>Down to the surface</b>: the downward-propagation monitor, the polar cap at sea level and 500&nbsp;hPa, and the AO and NAO, from AIFS-ENS, IFS-ENS, GEFS and GEPS member by member, and the descent over the polar cap by sector. <b>Weeks 3&ndash;5</b>: the GEPS and GEFS extended runs, drift-corrected. <b>The season ahead</b>: the December vortex from the seven C3S seasonal systems together, calibrated on their hindcast (the one seasonal vortex forecast here with demonstrated skill), and SEAS5&rsquo;s vortex, QBO and sudden-warming risk against its own hindcast. <b>The QBO and today&rsquo;s analyses</b>: the QBO from radiosondes and its zero-wind line forecast, the momentum budget, the Brewer&ndash;Dobson circulation and the water-vapour tape recorder. <b>History and studies</b>: every winter and every major sudden warming since 1980 from MERRA-2 (this winter from GEOS FP analyses, daily), with only the statistically significant results shown. Where several models answer the same question they share one figure slot with a model switch. Background on each diagnostic is in the <a href="/topics/sudden-stratospheric-warming.html">sudden stratospheric warming</a>, <a href="/topics/ep-flux.html">E&ndash;P flux</a> and <a href="/topics/eddy-heat-flux.html">eddy heat flux</a> explainers. Every pressure level from 100 to 0.4&nbsp;hPa and the PV on seven isentropes, from the GFS to day 16, are on the interactive <a href="/strat-models.html">stratosphere model maps</a>. The tropospheric circulation is on <a href="/circulation.html">Global circulation and jets</a>.</p>
   </section>
   <div class="lightbox" id="lightbox"><img alt=""></div>
   <div class="dom-holder" id="dom-holder">
@@ -113,6 +113,48 @@
       <div class="chips" id="frChips"></div>
       <div class="sh-tablewrap"><table class="sh-table fr-table" id="frTable"></table></div>
       <p class="note" id="frNote"></p>
+    </div>
+    <!-- the wave compass: assets/sst/data/wave_compass_<model>.json (wave_compass.py), drawn by /assets/wave-compass.js -->
+    <div id="dom-compass" class="card wc-card" hidden>
+      <div class="chips" id="wcChips"></div>
+      <div class="wc-cols">
+        <figure class="wc-fig">
+          <svg id="wcMap" viewBox="0 0 440 440" tabindex="0" role="img" aria-label="The 500 hPa wave round the North Pole: the normal standing wave, this run's anomaly and the two added. Drag, or use the left and right arrow keys, to move the anomaly."></svg>
+          <figcaption class="wc-key"><span class="wc-k wc-k-normal"></span>normal wave <span class="wc-k wc-k-total"></span>this run: normal + anomaly <span class="wc-k wc-k-warm"></span><span class="wc-k wc-k-cool"></span>the anomaly, raising / lowering the heights <span class="wc-k wc-k-member"></span>each member&rsquo;s ridge</figcaption>
+        </figure>
+        <figure class="wc-fig">
+          <p class="wc-sum" id="wcSum"></p>
+          <svg id="wcPhasor" viewBox="0 0 440 200" role="img" aria-label="How the normal wave and the anomaly add"></svg>
+          <figcaption>How they add: the anomaly (red) on the end of the normal wave (grey) makes this run&rsquo;s wave (black). Pointing the same way they build a bigger wave; pointing opposite ways they cancel.</figcaption>
+        </figure>
+        <figure class="wc-fig">
+          <svg id="wcCurve" viewBox="0 0 440 270" role="img" aria-label="ERA5 heat flux at 100 hPa against where the 500 hPa anomaly sits"></svg>
+          <figcaption id="wcCurveCap"></figcaption>
+        </figure>
+      </div>
+      <div class="wc-controls">
+        <label for="wcDay">Day</label><input type="range" id="wcDay" min="0" max="15" step="1" value="1"><span id="wcDate"></span>
+        <button type="button" class="pill" id="wcPlay" aria-pressed="false">Play</button>
+        <span class="pills" id="wcTurn"><button type="button" data-r="0">As forecast</button><button type="button" data-r="half">Same anomaly, half a wave away</button></span>
+      </div>
+      <p class="wc-run" id="wcNote"></p>
+      <h3 class="wc-head">How it works</h3>
+      <div class="wc-cols">
+        <figure class="wc-fig wc-fig-wide">
+          <svg id="wcLean" viewBox="0 0 520 220" role="img" aria-label="Schematic: air following a wavy jet round 60 degrees north, coloured by its temperature, and the heat it carries north"></svg>
+          <div class="wc-controls">
+            <label for="wcLeanSlider">Lean with height</label><input type="range" id="wcLeanSlider" min="-90" max="90" step="5" value="40"><span id="wcLeanVal"></span>
+            <label for="wcSizeSlider">Size</label><input type="range" id="wcSizeSlider" min="0.5" max="3" step="0.1" value="1.5"><span id="wcSizeVal"></span>
+            <button type="button" class="pill" id="wcLeanSeed">Set from this run</button>
+          </div>
+          <figcaption id="wcLeanRun"></figcaption>
+        </figure>
+        <div class="wc-text">
+          <p><b>1. Lining up.</b> The 500&nbsp;hPa flow always carries a standing wave-1 and wave-2, set by the Rockies, the Tibetan Plateau and the contrast between oceans and continents. A forecast&rsquo;s wave is that normal wave plus the anomaly the weather adds. Where the anomaly&rsquo;s ridges sit on the normal ridges, the two add up to a bigger wave; half a wave away, they cancel. That, more than the anomaly&rsquo;s size, sets how much wave activity goes up: in ERA5 the largest anomalies have been followed by several times more heat flux at 100&nbsp;hPa lined up than opposed (the curve above).</p>
+          <p><b>2. Leaning.</b> A planetary wave carries heat toward the pole only if it leans westward with height. In the schematic the air follows the meandering jet: north on the western side of each ridge, south on the eastern side. Stand the wave upright and the warm air sits right over the ridges, so as much warm air goes south as north and nothing is carried. Lean the upper ridge west and the warm air moves onto the northward side: heat goes north, and at 100&nbsp;hPa that heat flux is the upward flux of wave activity into the vortex. It grows with the square of the wave&rsquo;s size, so the bigger wave that lining up makes carries far more. Lean it east and heat goes south: wave activity coming back down.</p>
+          <p><b>3. The door.</b> The waves still have to get in. Planetary waves climb only through westerly winds that are not too strong (Charney and Drazin 1961): the summer easterlies stop them all, and a winter vortex lets through only the longest, waves 1 and 2 above all. Once inside, the vortex steers them: one already disturbed can funnel them toward the pole, and a strong jet aloft can turn them back down. That is why lining up explains only part of the 100&nbsp;hPa flux, about a quarter of its five-day changes in ERA5; the rest is the lean, the travelling waves and the door. The <a href="#refract">refractive index</a> shows this forecast&rsquo;s waveguide, and the <a href="#reflect">regional reflection index</a> whether waves are being turned back.</p>
+        </div>
+      </div>
     </div>
     <!-- the QBO tracker's station table (qbo.yml writes qbo/qbo.json) -->
     <div id="dom-qbostations" class="card" hidden>
@@ -728,6 +770,12 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
 <p><b>Limits.</b> The forecast values are the members&rsquo; daily fields at the run&rsquo;s hour, with the model&rsquo;s significant mean error against ERA5 removed as on the heat-flux figure (GEPS uncorrected), ranked among ERA5&rsquo;s 00 and 12&nbsp;UTC fields; the 10-day means run through the analysed days before the start. The record is 36 years long: the record for a time of year is the highest of about 2,200 daily values (1,100 ten-day means) in that history. Descriptive ranks, not a statistical test.</p>
 <p class="chart-sources">The heat-flux runs of the item above (ECMWF AIFS-ENS, IFS-ENS and IFS control open data, CC&nbsp;BY&nbsp;4.0, Google Cloud mirror; NOAA GEFS; ECCC GEPS) &middot; ERA5 (Copernicus Climate Change Service; Hersbach et al. 2020) via WeatherBench&nbsp;2 and ARCO-ERA5</p>
 </template>
+<template id="about-compass">
+<p><b>What it shows.</b> The 500&nbsp;hPa planetary wave-1 or wave-2 along 55&ndash;65&deg;N in an ensemble&rsquo;s newest run, day by day to day&nbsp;15. The grey dashed line is the normal standing wave for the date, drawn as a 60&deg;N height contour: pulled poleward where the wave raises the heights (its ridges, the open dots) and pushed equatorward at its troughs, exaggerated. The shading is this run&rsquo;s anomaly, the members&rsquo; mean departure from the normal, warm where it raises the heights. The black line is the two added, the wave the stratosphere actually feels, its ridges the filled dots; the ticks round the rim are each member&rsquo;s ridges. The panel beside the map adds the same three as arrows, in phase, with the normal pointing right. The chips give the wave&rsquo;s size against the normal, the anomaly&rsquo;s offset from the normal ridges (in phase: for wave-2, 90&deg; is a quarter of the way round the pole), what ERA5 says the 100&nbsp;hPa heat flux of that wave does over the five days from it, and the model&rsquo;s own 100&nbsp;hPa flux over the same days (the heat-flux item&rsquo;s members&rsquo; mean, shown when both come from the same run). The anomaly is drawn faint and called undecided when a Hotelling test cannot tell the members&rsquo; mean anomaly from zero (p&nbsp;&ge;&nbsp;0.05). Moving the anomaly turns every member&rsquo;s anomaly by the same angle; the normal wave stays where it is. The day it opens on is the one, in days 0&ndash;10, where ERA5 expects the most flux.</p>
+<p><b>The ERA5 relation.</b> Every day within 30 days of the run&rsquo;s calendar date in ERA5 1990&ndash;2026 gives the 500&nbsp;hPa wave&rsquo;s normal N and anomaly A (daily means, WeatherBench&nbsp;2, 1.5&deg;) and the wave&rsquo;s 100&nbsp;hPa eddy heat flux [v&prime;T&prime;], 45&ndash;75&deg;N, over that day and the next four (00 and 12&nbsp;UTC fields, as in the heat-flux item). A least-squares fit, flux = a + b&middot;2Re(N&#8239;A*) + c|A|&sup2;, gives the interference its own weight: its middle term is 2|N||A|&nbsp;cos(offset). The expected flux is that fit averaged over the members (the flux is quadratic, so member by member), and it is drawn only where b&rsquo;s 90&nbsp;% range over 1,000 resamples of whole winters is above zero. The dots are the mean flux for the largest third of anomalies in 30&deg; bins of offset, with the same resampling&rsquo;s 90&nbsp;% range. The normal wave is the ERA5 1991&ndash;2020 climatology the planetary-wave maps use.</p>
+<p><b>Limits.</b> The fit is a statistical link, not a forecast of the flux: across ERA5 it explains about a quarter of the five-day flux&rsquo;s changes (r&nbsp;&asymp;&nbsp;0.5, given under the curve for the date). The rest comes from the wave&rsquo;s lean between 500 and 100&nbsp;hPa, from the travelling waves and from whether the stratosphere lets the waves in. The lean panel is a schematic of the mechanism, not data; &ldquo;Set from this run&rdquo; takes the ensemble-mean 100&nbsp;hPa ridge&rsquo;s offset from the 500&nbsp;hPa one, and the 500&nbsp;hPa wave&rsquo;s size against its normal. Northern Hemisphere only.</p>
+<p class="chart-sources">ECMWF AIFS-ENS and IFS-ENS open data (CC&nbsp;BY&nbsp;4.0, Google Cloud mirror) &middot; NOAA GEFS (AWS Open Data) &middot; ECCC GEPS (MSC Datamart, ECCC Data Servers End-use Licence) &middot; ERA5 (Copernicus Climate Change Service; Hersbach et al. 2020) via WeatherBench&nbsp;2 &middot; coastlines: Natural Earth &middot; Charney, J. G., and P. G. Drazin, 1961: Propagation of planetary-scale disturbances from the lower into the upper atmosphere, <i>J. Geophys. Res.</i> 66, 83&ndash;109 &middot; Garfinkel, C. I., D. L. Hartmann and F. Sassi, 2010: Tropospheric precursors of anomalous Northern Hemisphere stratospheric polar vortices, <i>J. Climate</i> 23, 3282&ndash;3299 &middot; Smith, K. L., and P. J. Kushner, 2012: Linear interference and the initiation of extratropical stratosphere&ndash;troposphere interactions, <i>J. Geophys. Res.</i> 117, D13107 &middot; updated with each ensemble&rsquo;s run</p>
+</template>
 <template id="about-heatflux">
 <p><a href="/topics/eddy-heat-flux.html">The explainer</a>: what the 100 hPa eddy heat flux measures, the equations and how to read the chart.</p>
 <p>The wave maps show how large the planetary waves are and where their ridges sit; they do not show
@@ -924,7 +972,7 @@ window.STAGE = {
   aliases: {wave1: "waves/1"},  // the wave-1 maps became one product with wave-2
   groups: [
   {label: "The vortex, days 1–15", ico: "\u2744", items: [["vortex","Vortex strength and sudden-warming odds","every model's u(60°N) at 10 hPa, polar-cap height and 10 hPa temperature"],["vshape","Split or displaced","every member's vortex shape at 10 hPa"],["t10","Polar temperature and the vortex, 10 hPa","every ensemble's mean and members, the controls and AIFS single"],["vwinds","Vortex winds","10 and 100 hPa: every ensemble, both controls and AIFS single"],["z100","100 hPa height: anomaly and 24 h change","every ensemble's mean, the controls and AIFS single"],["fdrip15","Dripping paint, ground to 10 hPa","AIFS-ENS, AIFS single, IFS-ENS, IFS control, GEFS, GEPS; ground to 10 hPa"],["upperstrat","Upper stratosphere","to 1 hPa: GEFS, GFS, GEOS FP, GDPS"],["verify","How the recent runs verified","each model's runs of the last two weeks against the analysis"]]},
-  {label: "The waves driving it, days 1–15", ico: "\u{1F30A}", items: [["heatflux","Eddy heat flux, 100 hPa","[v′T′] and the SSW warning meter, every ensemble"],["fluxrec","How unusual is the wave driving","every ensemble's heat-flux peak against the ERA5 record"],["waves","Planetary waves 1 and 2","AIFS-ENS, AIFS single, IFS-ENS, IFS control, GEFS, GEPS; 500, 100 and 10 hPa"],["epflux","E–P flux","GEFS wave driving to 1 hPa, k = 1–3"],["refract","Refractive index","GEFS waveguide for waves 1 and 2, 300–1 hPa"],["reflect","Regional reflection index","Siberia vs Canada wave flux at 100 hPa (Messori et al. 2022), every ensemble"]]},
+  {label: "The waves driving it, days 1–15", ico: "\u{1F30A}", items: [["heatflux","Eddy heat flux, 100 hPa","[v′T′] and the SSW warning meter, every ensemble"],["fluxrec","How unusual is the wave driving","every ensemble's heat-flux peak against the ERA5 record"],["waves","Planetary waves 1 and 2","AIFS-ENS, AIFS single, IFS-ENS, IFS control, GEFS, GEPS; 500, 100 and 10 hPa"],["compass","Wave compass","why some 500 hPa waves feed the vortex, every ensemble"],["epflux","E–P flux","GEFS wave driving to 1 hPa, k = 1–3"],["refract","Refractive index","GEFS waveguide for waves 1 and 2, 300–1 hPa"],["reflect","Regional reflection index","Siberia vs Canada wave flux at 100 hPa (Messori et al. 2022), every ensemble"]]},
   {label: "Down to the surface, days 1–15", ico: "\u{1F30E}", items: [["descent","Downward propagation monitor","10 and 100 hPa cap and the SSW surface imprint, every ensemble"],["polarcap","Polar cap: sea level and 500 hPa","every ensemble's members, maps and run to run"],["telecon","Arctic Oscillation and NAO","every ensemble's members, all models and run to run"],["pdescent","Descent over the polar cap","the column and six sectors, every ensemble and GEOS FP"]]},
   {label: "Weeks 3–5", ico: "\u{1F4C5}", items: [["vortex35","Polar vortex, days 1–35","GEFS and GEPS, drift-corrected"],["vloop35","Polar vortex loop, days 1–35","GEFS and GEPS, 10 and 100 hPa"],["heatflux35","Eddy heat flux, days 1–35","100 hPa [v′T′]: GEPS and GEFS"],["fdrip","Forecast dripping paint, days 1–35","GEPS and GEFS, drift-corrected"]]},
   {label: "The season ahead", ico: "\u{1F5D3}", items: [["c3svortex","December vortex: C3S multi-model","calibrated; hindcast r 0.67, significant"],["c3svdaily","December vortex, day by day","C3S members, spells and sudden warmings"],["s5vortex","SEAS5: vortex, QBO, annular mode","51 members, seven months; hindcast skill for the annular mode"],["s5ssw","SEAS5: sudden-warming risk","no demonstrated skill: the model's view"],["s5cap","SEAS5: polar-cap heights","100, 50 and 10 hPa, both hemispheres"],["shseason","This winter's odds","QBO and ENSO, model-based"]]},
@@ -1142,6 +1190,11 @@ window.STAGE = {
           b: {label: "Measure", items: [["tot","All waves"],["k1","Wave 1"],["k2","Wave 2"],["ten","10-day mean"]]},
           dom: function () { return "dom-fluxrec"; }, about: "about-fluxrec",
           cap: function (a, b) { return "Each ensemble's peak 100 hPa heat flux in days 1–15 (" + {tot: "all waves", k1: "wave 1", k2: "wave 2", ten: "10-day mean of all waves"}[b || "tot"] + "), 45–75°" + (a === "sh" ? "S" : "N") + ", ranked among every ERA5 value within 15 days of the same date, 1990–2026, and set against the record for that time of year."; }},
+  compass: {label: "Wave compass", a: {label: "Wave", items: [["1","Wave-1"],["2","Wave-2"]]},
+          b: {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"],["gefs","GEFS"],["geps","GEPS"]]},
+          dom: function () { return "dom-compass"; }, about: "about-compass",
+          cap: function (a, b) { return "Why some wave patterns feed the vortex: the 500 hPa wave-" + (a === "2" ? 2 : 1) + " round the pole in " + {aifs: "AIFS-ENS", ifs: "IFS-ENS", gefs: "GEFS", geps: "GEPS"}[b || "aifs"]
+                                        + "'s newest run, the normal standing wave plus the anomaly the weather adds, and the ERA5 100 hPa heat flux when an anomaly sits where this one does. Move the anomaly to see the flux change."; }},
   heatflux: {label: "100 hPa eddy heat flux, days 1–15", a: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
           b: {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"],["gefs","GEFS"],["geps","GEPS"]]},
           c: {label: "View", items: [["now","This run"],["runs","Run to run (north)"]]},
@@ -1301,16 +1354,64 @@ window.STAGE = {
     Promise.all(keys.map(function (k) { return fetch("/assets/sst/data/" + files[k] + "?v=" + new Date().toISOString().slice(0, 13)).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); }))
       .then(function (docs) { frData = {}; keys.forEach(function (k, i) { frData[k] = docs[i]; }); go(); });
   }
+  var wcSel = null, wcLoading = false;
+  function startCompass(sel) {               // the wave compass: its script on the first visit, then each render redraws
+    wcSel = sel;
+    if (window.WaveCompass) return window.WaveCompass.draw(sel);
+    if (wcLoading) return; wcLoading = true;
+    var sc = document.createElement("script"); sc.src = "/assets/wave-compass.js?v=__CACHE__";
+    sc.onload = function () { window.WaveCompass.draw(wcSel); };
+    sc.onerror = function () { $("wcNote").textContent = "This product could not be loaded just now; try reloading in a minute."; };
+    document.head.appendChild(sc);
+  }
   window.STAGE.onRender = function (sel) {
     if (sel.p === "s5vortex" || sel.p === "s5ssw" || sel.p === "s5cap") startS5();
     if (sel.p === "c3svortex") startVX();
     if (sel.p === "c3svdaily") startVX(true);
     if (sel.p === "qbo" && sel.a === "stations") startQBO();
     if (sel.p === "fluxrec") drawFluxRec(sel);
+    if (sel.p === "compass") startCompass(sel);
   };
 })();
 </script>
 <style>
+/* the wave compass */
+.wc-cols { display: flex; flex-wrap: wrap; gap: 1rem 1.6rem; align-items: flex-start; margin: 0.6rem 0 0.2rem; }
+.wc-fig { margin: 0; flex: 1 1 340px; max-width: 480px; min-width: 0; }
+.wc-fig-wide { max-width: 600px; } .wc-text { flex: 1 1 380px; max-width: 46rem; }
+.wc-fig svg { display: block; width: 100%; height: auto; }
+.wc-fig figcaption { font-size: var(--t-small); color: var(--ink2); line-height: 1.5; margin-top: 0.35rem; }
+.wc-key .wc-k { display: inline-block; width: 1.5em; height: 0; vertical-align: middle; margin: 0 0.3em 0 0.7em; }
+.wc-key .wc-k:first-child { margin-left: 0; }
+.wc-k-normal { border-top: 2px dashed #8a857c; } .wc-k-total { border-top: 3px solid var(--ink); }
+.wc-key .wc-k-warm, .wc-key .wc-k-cool { width: 0.8em; height: 0.8em; opacity: 0.75; } .wc-key .wc-k-cool { margin-left: 0; }
+.wc-k-warm { background: var(--warm); } .wc-k-cool { background: var(--cool); }
+.wc-key .wc-k-member { width: 0; height: 0.9em; border-left: 1.5px solid var(--ink2); opacity: 0.6; }
+#wcMap { touch-action: none; cursor: grab; } #wcMap.wc-dragging { cursor: grabbing; }
+#wcMap:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wc-disc { fill: var(--panel); } .wc-rim { fill: none; stroke: var(--edge); }
+.wc-coast { fill: none; stroke: #aaa59b; stroke-width: 0.8; } .wc-grat { fill: none; stroke: var(--rule); stroke-dasharray: 3 3; }
+.wc-warm { fill: var(--warm); } .wc-cool { fill: var(--cool); }
+.wc-normal { fill: none; stroke: #8a857c; stroke-width: 2.2; stroke-dasharray: 7 5; } .wc-total { fill: none; stroke: var(--ink); stroke-width: 2.8; }
+.wc-mark-normal { fill: var(--panel); stroke: #8a857c; stroke-width: 2.2; } .wc-mark-total { fill: var(--ink); stroke: var(--panel); stroke-width: 1.5; }
+.wc-member { stroke: var(--ink2); stroke-opacity: 0.4; }
+.wc-tick { font: 16px var(--f-sans); fill: var(--ink2); }   /* viewBox units: about 12 px on a phone */
+.wc-sum { font-size: var(--t-small); color: var(--ink2); margin: 0 0 0.3rem; } .wc-t-normal { color: #6f6a62; } .wc-t-anom { color: var(--warm); } .wc-t-total { color: var(--ink); }
+.wc-sum b { font-weight: 600; }
+.wc-gl { stroke: var(--rule); } .wc-usual { stroke: var(--muted); stroke-width: 1.3; stroke-dasharray: 5 4; }
+.wc-bar { stroke: var(--ink2); stroke-width: 1.5; } .wc-bin { fill: var(--panel); stroke: var(--ink2); stroke-width: 1.8; }
+.wc-fit { fill: none; stroke: var(--warm); stroke-width: 2.2; } .wc-now { fill: var(--warm); stroke: var(--panel); stroke-width: 2; }
+.wc-v-normal { stroke: #8a857c; stroke-width: 3; } .wc-v-anom { stroke: var(--warm); stroke-width: 3; } .wc-v-total { stroke: var(--ink); stroke-width: 3.5; }
+.wc-v-normal-head { fill: #8a857c; } .wc-v-anom-head { fill: var(--warm); } .wc-v-total-head { fill: var(--ink); }
+.wc-stream { fill: none; stroke: var(--ink); stroke-width: 2; } .wc-gauge { fill: none; stroke: var(--edge); }
+.wc-parcel { stroke-width: 2.5; } .wc-parcel-warm { fill: var(--warm); stroke: var(--warm); } .wc-parcel-cool { fill: var(--cool); stroke: var(--cool); }
+.wc-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.6rem; margin: 0.6rem 0 0.3rem; font-size: var(--t-small); color: var(--ink2); }
+.wc-controls input[type=range] { width: 10rem; accent-color: var(--accent); }
+.wc-controls #wcDate { min-width: 6.5em; font-variant-numeric: tabular-nums; }
+.wc-run { font-size: var(--t-small); color: var(--muted); margin: 0.2rem 0 0; }   /* the run and how to use it, kept by the controls (a .note moves to the card's foot) */
+.wc-card .chip .v.wc-up { color: var(--warm); } .wc-card .chip .v.wc-down { color: var(--cool); }
+.wc-head { font: 600 var(--t-h3)/1.3 var(--f-sans); margin: 1.4rem 0 0.3rem; padding-top: 0.9rem; border-top: 1px solid var(--rule); }
+.wc-text p { color: var(--ink2); margin: 0 0 0.75rem; }
 /* SEAS5 cards and the QBO station table */
 /* the C3S December vortex card */
 .vx-card .idx-note { font-size: 0.86rem; color: var(--ink, #1a1a1a); line-height: 1.6; }
