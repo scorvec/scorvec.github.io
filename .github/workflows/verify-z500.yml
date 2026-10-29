@@ -67,6 +67,7 @@ jobs:
           python3 - "$FIRST" "$LAST" "$CHUNK" "$MODELS" have.txt >> "$GITHUB_OUTPUT" <<'EOF'
           import json, sys
           from datetime import date, datetime, timedelta
+          from itertools import zip_longest
           first, last = (datetime.strptime(x, "%Y%m%d").date() for x in sys.argv[1:3])
           n, models = max(1, int(sys.argv[3])), sys.argv[4].split()
           have = set(open(sys.argv[5]).read().split())
@@ -76,14 +77,23 @@ jobs:
           since = {"IFS-ENS": date(2024, 3, 1), "GEFS": date(2024, 3, 1), "AIFS-ENS": date(2025, 7, 2)}  # z500_acc.SINCE
           start = date(2026, 5, 13)  # z500_acc.START: the deterministic models and GEPS from here
           days = [first + timedelta(d) for d in range((last - first).days + 1)]
-          chunks = []
+          def season(d):  # days from today's day of year, around the year
+              x = abs(d.timetuple().tm_yday - date.today().timetuple().tm_yday)
+              return min(x, 365 - x)
+          hpfx_chunks, per_model = [], []
           for m in sorted(models, key=lambda m: m not in hpfx):  # GDPS and GEPS first: HPFX deletes them
               oldest = max(date.today() - timedelta(days=hpfx.get(m, 100000)), since.get(m, start))
               todo = [d for d in days if d >= oldest and f"{code[m]}_{d:%Y%m%d}00.npz" not in have]
+              # the season of the teleconnection forecasts' calibration first (the runs nearest today's day of year in
+              # every year, newest first), so their skill can be tested within hours rather than at the backfill's end
+              todo.sort(key=lambda d: (season(d) // 15, -d.toordinal()))
               k = n if m.endswith(("ENS", "GEFS", "GEPS")) else 8 * n
-              chunks += [{"model": m, "runs": " ".join(f"{d:%Y%m%d}" for d in todo[i:i + k])}
-                         for i in range(0, len(todo), k)]
+              mc = [{"model": m, "runs": " ".join(f"{d:%Y%m%d}" for d in sorted(todo[i:i + k]))}
+                    for i in range(0, len(todo), k)]
+              (hpfx_chunks.extend if m in hpfx else per_model.append)(mc)
               print(f"{m}: {len(todo)} runs to add", file=sys.stderr)
+          # then the other models' chunks taken in turn, so each model's season comes in early
+          chunks = hpfx_chunks + [c for row in zip_longest(*per_model) for c in row if c]
           print("chunks=" + json.dumps(chunks))
           print(f"first={first + timedelta(days=1):%Y%m%d}")  # ERA5 from the first run's day 1
           print(f"last={min(last + timedelta(days=15), date.today()):%Y%m%d}")  # to the last run's day 15
@@ -146,16 +156,27 @@ jobs:
         run: |
           scripts/verify/verifydb.sh list > "$RUNNER_TEMP/have.txt"
           FIRST=${{ needs.plan.outputs.first }}; LAST=${{ needs.plan.outputs.last }}
-          # a month at a time, each uploaded before the next is read: a job cut short keeps what it read
-          m=${FIRST:0:6}01
-          while [ "$m" -le "$LAST" ]; do
-            end=$(date -u -d "$m + 1 month - 1 day" +%Y%m%d)
-            python scripts/verify/z500_acc.py truth --first "$(( m > FIRST ? m : FIRST ))" --last "$(( end < LAST ? end : LAST ))" \
-              --have "$RUNNER_TEMP/have.txt" --archive-out "$RUNNER_TEMP/db-new"
+          # a month at a time, each uploaded before the next is read (a job cut short keeps what it read), the months
+          # nearest today's in the year first, newest first, as the runs (plan)
+          python3 - "$FIRST" "$LAST" > "$RUNNER_TEMP/months.txt" <<'EOF'
+          import sys
+          from datetime import date, datetime, timedelta
+          first, last = (datetime.strptime(x, "%Y%m%d").date() for x in sys.argv[1:3])
+          months, m = [], first.replace(day=1)
+          while m <= last:
+              nxt = (m + timedelta(days=32)).replace(day=1)
+              months.append((max(m, first), min(nxt - timedelta(days=1), last)))
+              m = nxt
+          gap = lambda a: min(abs(a.month - date.today().month), 12 - abs(a.month - date.today().month))
+          for a, b in sorted(months, key=lambda r: (gap(r[0]), -r[0].toordinal())):
+              print(f"{a:%Y%m%d} {b:%Y%m%d}")
+          EOF
+          while read -r a b; do
+            python scripts/verify/z500_acc.py truth --first "$a" --last "$b" --have "$RUNNER_TEMP/have.txt" \
+              --archive-out "$RUNNER_TEMP/db-new"
             scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"
             rm -rf "$RUNNER_TEMP/db-new"
-            m=$(date -u -d "$m + 1 month" +%Y%m%d)
-          done
+          done < "$RUNNER_TEMP/months.txt"
 
   acc:
     needs: [fields, truth]
