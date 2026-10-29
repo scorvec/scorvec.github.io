@@ -387,6 +387,16 @@ def short(v: str) -> str:
     return f"{dict(wind='Wind', z='Z', t='T', q='Q')[q]} {v[len(q) :]}"
 
 
+def region_labels() -> dict[str, str]:
+    """The sums' region codes (nh, north_america ...) as the page names them (NH 20-90N, North America ...), from the
+    scorecards' own keys (network:variable:code)."""
+    out = {}
+    for f in sorted(D.OUT_DIR.glob("*scores*.json")):
+        for r in json.loads(f.read_text()).get("rows", []):
+            out.setdefault(r["key"].split(":")[-1], r["region"])
+    return out
+
+
 def det_window(derived: Path, runs: int | None) -> tuple[pd.DataFrame, list, dict] | None:
     """The per-run sums of the window's runs that every model it scores has (``mverify_scores.window_card``'s)."""
     inits = sorted(f.stem.split("_")[1] for f in derived.glob("stats_*.parquet"))
@@ -398,6 +408,8 @@ def det_window(derived: Path, runs: int | None) -> tuple[pd.DataFrame, list, dic
     )
     stats = stats.astype(dict.fromkeys(D.STAT_BY[:4], str))
     stats = stats[stats["network"] == np.where(stats["variable"].isin(SURFACE), "GHCNH", "RAOB")]
+    labels = region_labels()
+    stats["region"] = stats["region"].map(lambda c: labels.get(c, c))
     models, used, left_out = D.window_runs(stats)
     if not used:
         return None
@@ -552,6 +564,8 @@ def ens_window(derived: Path, runs: int | None) -> tuple[pd.DataFrame, pd.DataFr
     s = Z.E.with_wind(stats[stats["model"].isin(models) & stats["init"].isin(used)])
     s = s[s["network"] == np.where(s["variable"].isin(ENS_SURFACE), "GHCNH", "RAOB")]
     r = rel[rel["model"].isin(models) & rel["init"].isin(used)].astype(dict.fromkeys(D.STAT_BY[:4], str))
+    labels = region_labels()
+    s["region"], r["region"] = (x["region"].map(lambda c: labels.get(c, c)) for x in (s, r))
     return s.sort_values("init"), r.sort_values("init"), models, D.run_span(used) | {"left_out": left_out}
 
 
