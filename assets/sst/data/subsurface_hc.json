@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-29T00:24Z",
+ "generated": "2026-10-29T09:23Z",
  "event_year": 2026,
  "last_day": "2026-10-27",
  "value_raw": 2.762,
@@ -737,7 +737,7 @@
    "n_fill": 1,
    "n_carried": 0,
    "cat": 1,
-   "raw": 2.877
+   "raw": 2.878
   },
   {
    "date": "2026-10-16",
