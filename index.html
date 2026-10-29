@@ -205,19 +205,30 @@
   .nc:hover { box-shadow: 0 2px 14px rgba(39, 75, 122, 0.13); }
   .nc:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
   .nc .k { font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--storm); font-weight: 500; }
-  .nc .v { display: flex; flex-wrap: wrap; gap: 0.2rem 1.4rem; margin-top: 0.45rem; }
-  .nc .v span { display: flex; flex-direction: column; min-width: 0; }
   .nc b {
     font-family: var(--serif); font-weight: 400; font-size: clamp(2rem, 3.2vw, 2.6rem); line-height: 1.05;
     font-variation-settings: 'opsz' 72; color: var(--acc, var(--sky-deep)); font-variant-numeric: tabular-nums;
   }
-  .nc .v small { font-size: 0.86rem; color: var(--prairie); line-height: 1.3; }
   .nc .s { margin-top: 0.55rem; font-size: 0.88rem; line-height: 1.4; color: var(--storm); }
   .nc .s.src { margin-top: 0.4rem; font-size: 0.76rem; }
   .nc .go { margin-top: auto; padding-top: 0.6rem; font-size: 0.9rem; font-weight: 500; color: var(--acc, var(--sky-deep));
             text-decoration: underline; text-underline-offset: 0.2em; text-decoration-color: transparent; }
   .nc:hover .go { text-decoration-color: currentColor; }
-  .nc--en { --acc: #9a3f14; }
+  /* El Niño card: a warm wash, the state in CPC's terms as a pill, three readings side by side, then the year and the
+     models' forecast, warm above zero and cool below, the models' range shaded */
+  .nc--en { --acc: #9a3f14; background: linear-gradient(180deg, #fff6f0 0%, #fff 48%); }
+  .nc--en:hover { box-shadow: 0 4px 22px rgba(154, 63, 20, 0.16); }
+  .en-top { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+  .en-pill { flex: none; padding: 0.2rem 0.7rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; color: #fff;
+             background: var(--acc); white-space: nowrap; }
+  .en-pill.cool { background: #2c5f8a; }
+  .en-pill.neutral { background: #6f6b64; }
+  .en-pill[hidden] { display: none; }
+  .en-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem 1rem; margin-top: 0.65rem; }
+  .en-stats > span { display: flex; flex-direction: column; min-width: 0; padding-left: 0.8rem; border-left: 2px solid #f1d8c8; }
+  .en-stats > span:first-child { padding-left: 0; border-left: 0; }
+  .en-stats small { font-size: 0.86rem; color: var(--prairie); line-height: 1.3; }
+  .en-stats em { margin-top: 0.15rem; font-style: normal; font-size: 0.78rem; line-height: 1.35; color: var(--storm); }
   /* midterm card: the forecast page's navy band and seat arcs (its colours: night #0e2140, ratings Solid D .. Solid R),
      every seat filled in on load, the odds counting up under each arc */
   .nc--mt { --acc: #9cc0ff; background: #0e2140; border-color: #0e2140; color: #fff; }
@@ -249,8 +260,10 @@
   @media (max-width: 640px) { .mt-arc text { display: none; } }
   /* drawn at its real pixel width (viewBox = the element's width, height fixed): a fixed 320-wide viewBox stretched to
      a 560 px card would blow the labels up to ~17 px and the chart to 160 px */
-  .spark { display: block; width: 100%; height: 92px; margin-top: 0.5rem; }
-  .spark text { font-family: var(--sans); font-size: 12px; fill: var(--storm); }
+  .spark { display: block; width: 100%; flex: 1 1 170px; min-height: 170px; margin-top: 0.8rem; }   /* fills the card's height */
+  .spark text { font-family: var(--sans); font-size: 11.5px; fill: var(--storm); }
+  .spark .lab { font-weight: 600; fill: #9a3f14; }
+  .spark .lab.cool { fill: #2c5f8a; }
 
   /* ── The themes: the menus' six groups as tiles, their key pages as plain links (the descriptions are tooltips and
      live on the pages and in the catalogue); the rest of a theme's pages sit behind "n more". ── */
@@ -536,12 +549,13 @@
       <span class="go">Every race</span>
     </a>
     <a class="nc nc--en" href="/enso.html">
-      <span class="k">El Niño and La Niña</span>
-      <span class="v" aria-live="polite">
-        <span><b id="en-now">–</b><small>Niño-3.4 today, °C</small></span>
-        <span><b id="en-pk">–</b><small id="en-pkl">expected Niño-3.4 peak, models</small></span>
+      <span class="en-top"><span class="k">El Niño and La Niña</span><span class="en-pill" id="en-pill" hidden></span></span>
+      <span class="en-stats" aria-live="polite">
+        <span><b id="en-now">–</b><small>Niño-3.4 today, °C</small><em id="en-nowd"></em></span>
+        <span><b id="en-roni">–</b><small id="en-ronil">RONI this season</small><em id="en-ronid"></em></span>
+        <span><b id="en-pk">–</b><small id="en-pkl">expected peak, models</small><em id="en-pkd"></em></span>
       </span>
-      <svg class="spark" id="en-spark" viewBox="0 0 320 92" role="img" aria-label="Niño-3.4 over the past year and the model forecast" hidden></svg>
+      <svg class="spark" id="en-spark" viewBox="0 0 320 170" role="img" aria-label="Niño-3.4 over the past year and the model forecast" hidden></svg>
       <span class="s" id="en-sub">Sea temperatures, the official indices and the seasonal models.</span>
       <span class="s src">NOAA OISST v2.1 and CPC; C3S seasonal forecasts. Contains modified Copernicus Climate Change Service information 2026.</span>
       <span class="go">El Niño monitor</span>
@@ -752,42 +766,51 @@
     requestAnimationFrame(() => requestAnimationFrame(() => arcs.forEach(([id]) => document.getElementById(id).classList.add('on'))));
   });
 
-  // El Niño card: Niño-3.4 today; the model-mean Niño-3.4 peak with the range of the model means (DWD left out,
-  // as on the ENSO forecasts page) and its value on the RONI scale; our RONI estimate beside CPC's latest
-  // official season; a year-plus-forecast sparkline
+  // El Niño card: Niño-3.4 today; our RONI estimate for the season so far beside CPC's latest official season, whose
+  // strength in CPC's terms is the pill; the model-mean Niño-3.4 peak with the range of the model means (DWD left out,
+  // as on the ENSO forecasts page) and its value on the RONI scale; the past year and the models' forecast, warm above
+  // zero and cool below, the models' range shaded
   Promise.all(['/assets/sst/data/enso_daily.json', '/assets/sst/data/enso_forecast.json', '/assets/sst/data/cpc_official.json'].map(getJSON)).then(([D, F, O]) => {
     const sg = v => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1);
     const SEAS = 'JFMAMJJASONDJF';
     const season = ym => { const m = +ym.slice(5, 7), k = m - 2 < 0 ? 11 : m - 2; return SEAS.slice(k, k + 3); };
     const nextMonth = ym => { const y = +ym.slice(0, 4), m = +ym.slice(5, 7); return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`; };
     const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
-    let sub = '';
+    const strength = v => { const a = Math.abs(v); return a >= 2 ? 'Very strong' : a >= 1.5 ? 'Strong' : a >= 1 ? 'Moderate' : 'Weak'; };
     if (D && D.latest) {
       const L = D.latest;
       $set('en-now', sg(L.nino34));
-      sub = `${day(L.date)}, ${L.nino34_d30 >= 0 ? 'up' : 'down'} ${Math.abs(L.nino34_d30).toFixed(1)} in 30 days` +
-            (D.final_through && L.date > D.final_through ? ' (preliminary)' : '');
+      $set('en-nowd', `${day(L.date)}, ${L.nino34_d30 >= 0 ? 'up' : 'down'} ${Math.abs(L.nino34_d30).toFixed(1)} in 30 days` +
+                      (D.final_through && L.date > D.final_through ? ', preliminary' : ''));
       // a centred season is still open until its last month has closed
-      if (L.roni != null) sub += `; RONI est. ${sg(L.roni)} for ${season(L.oni_month)}` +
-                                 `${L.date.slice(0, 7) <= nextMonth(L.oni_month) ? ' to date' : ''} (OISST, not CPC)`;
-      sub += '.';
+      if (L.roni != null) {
+        $set('en-roni', sg(L.roni));
+        $set('en-ronil', `RONI, ${season(L.oni_month)}${L.date.slice(0, 7) <= nextMonth(L.oni_month) ? ' so far' : ''}`);
+      }
     }
     if (O && O.roni) {
       const k = Object.keys(O.roni).sort().pop();
-      if (k) sub += ` CPC's official RONI: ${sg(O.roni[k])} for ${season(k)}.`;
+      if (k) {
+        const v = O.roni[k], pill = document.getElementById('en-pill');
+        $set('en-ronid', `our estimate from OISST; CPC's official ${sg(v)} for ${season(k)}`);
+        pill.textContent = Math.abs(v) < 0.5 ? 'ENSO-neutral' : `${strength(v)} ${v > 0 ? 'El Niño' : 'La Niña'}`;
+        pill.title = `CPC's official RONI for ${season(k)}: ${sg(v)} °C`;
+        pill.className = 'en-pill' + (Math.abs(v) < 0.5 ? ' neutral' : v < 0 ? ' cool' : '');
+        pill.hidden = false;
+      }
     }
-    let mmm = null;
+    let mmm = null, lo = null, hi = null;
     if (F && F.models) {
       const models = Object.entries(F.models).filter(([k]) => !/^DWD\b/.test(k)).map(([, v]) => v), nL = F.valid_months.length;
       const per = models.map(m => m.n34.map(mean));  // each model's ensemble mean by lead
       mmm = [...Array(nL).keys()].map(l => mean(per.map(p => p[l])));
+      lo = [...Array(nL).keys()].map(l => Math.min(...per.map(p => p[l])));
+      hi = [...Array(nL).keys()].map(l => Math.max(...per.map(p => p[l])));
       const s3 = (p, l) => (p[l] + p[l + 1] + p[l + 2]) / 3;
       let best = -1, bv = -9;
       for (let l = 0; l + 2 < nL; l++) { const v = s3(mmm, l); if (v > bv) { bv = v; best = l; } }
       if (best >= 0) {
         const pk = per.map(p => s3(p, best));
-        $set('en-pk', sg(bv));
-        $set('en-pkl', `expected Niño-3.4 peak, ${season(F.valid_months[best + 1])} (models ${sg(Math.min(...pk))} to ${sg(Math.max(...pk))})`);
         let rel = '';
         if (models.every(m => m.rnino)) {
           const rp = models.map(m => m.rnino.map(mean)), rm = [...Array(nL).keys()].map(l => mean(rp.map(p => p[l])));
@@ -795,37 +818,74 @@
           for (let l = 1; l + 2 < nL; l++) if (s3(rm, l) > s3(rm, rb)) rb = l;
           rel = `; ${sg(s3(rm, rb))} on the RONI scale` + (rb !== best ? ` (${season(F.valid_months[rb + 1])})` : '');
         }
-        sub += ` Peak: 3-month mean of ${models.length} models' Niño-3.4, each against its own 1993–2016 hindcast${rel}.`;
+        $set('en-pk', sg(bv));
+        $set('en-pkl', `expected peak, ${season(F.valid_months[best + 1])}`);
+        $set('en-pkd', `${models.length} models, ${sg(Math.min(...pk))} to ${sg(Math.max(...pk))}${rel}`);
+        $set('en-sub', `The peak is the 3-month mean of ${models.length} C3S models' Niño-3.4, each against its own 1993–2016 ` +
+                       'hindcast; the shading is their range.');
       }
     }
-    if (sub) $set('en-sub', sub.trim());
     if (D && D.daily && D.daily.nino34) {
       const dd = D.daily.dates, v = D.daily.nino34, n = dd.length, k0 = Math.max(0, n - 365);
       const t = s => Date.parse(s.length === 7 ? s + '-15' : s);
       const obs = dd.slice(k0).map((s, i) => [t(s), v[k0 + i]]).filter(p => p[1] != null);
       if (obs.length < 2) return;
-      const fc = mmm ? F.valid_months.map((m, i) => [t(m), mmm[i]]) : [];
-      const last = obs[obs.length - 1], fcp = fc.length ? [last].concat(fc.filter(p => p[0] > last[0])) : [];
-      const all = obs.concat(fcp), x0 = all[0][0], x1 = all[all.length - 1][0];
-      const ys = all.map(p => p[1]), y0 = Math.min(-0.5, ...ys), y1 = Math.max(1, ...ys);
+      const last = obs[obs.length - 1];
+      // the forecast from today's value on: the model mean and the models' range by valid month
+      const ahead = mmm ? F.valid_months.map((m, i) => [t(m), mmm[i], lo[i], hi[i]]).filter(p => p[0] > last[0]) : [];
+      const fc = ahead.length ? [[last[0], last[1], last[1], last[1]]].concat(ahead) : [];
+      const x0 = obs[0][0], x1 = (fc.length ? fc[fc.length - 1] : last)[0];
+      const ys = obs.map(p => p[1]).concat(...fc.map(p => [p[2], p[3]]));
+      const y0 = Math.floor(Math.min(-1, ...ys)), y1 = Math.ceil(Math.max(1, ...ys));
       const svg = document.getElementById('en-spark');
       svg.hidden = false;
+      const top = 8;
       const draw = () => {
-      const W = Math.max(200, Math.round(svg.getBoundingClientRect().width) || 320);
-      svg.setAttribute('viewBox', `0 0 ${W} 92`);
-      const X = x => 4 + (W - 8) * (x - x0) / (x1 - x0), Y = y => 8 + 64 * (y1 - y) / (y1 - y0);
-      const path = pts => pts.map((p, i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1)).join('');
-      svg.innerHTML =
-        `<line x1="4" x2="${W - 4}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}" stroke="#c9ccc4" stroke-width="1"/>` +
-        `<path d="${path(obs)}" fill="none" stroke="#9a3f14" stroke-width="1.6" stroke-linejoin="round"/>` +
-        (fcp.length > 1 ? `<path d="${path(fcp)}" fill="none" stroke="#9a3f14" stroke-width="1.6" stroke-dasharray="4 3"/>` : '') +
-        `<circle cx="${X(last[0]).toFixed(1)}" cy="${Y(last[1]).toFixed(1)}" r="2.8" fill="#9a3f14"/>` +
-        `<text x="4" y="88">${new Date(x0).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })}</text>` +
-        (fcp.length > 1 ? `<text x="${W - 4}" y="88" text-anchor="end">models to ${new Date(x1).toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })}</text>` : '') +
-        `<text x="8" y="${(Y(0) - 3).toFixed(1)}">0</text>`;
+        const r = svg.getBoundingClientRect(), W = Math.max(220, Math.round(r.width) || 320), L0 = 26, R0 = 8;
+        const H = Math.max(170, Math.round(r.height) || 170), bot = H - 22;
+        svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+        const X = x => L0 + (W - L0 - R0) * (x - x0) / (x1 - x0), Y = y => top + (bot - top) * (y1 - y) / (y1 - y0);
+        const f1 = z => z.toFixed(1), z0 = f1(Y(0));
+        const path = (pts, k = 1) => pts.map((p, i) => (i ? 'L' : 'M') + f1(X(p[0])) + ' ' + f1(Y(p[k]))).join('');
+        const line = path(obs);
+        const area = `${line}L${f1(X(last[0]))} ${z0}L${f1(X(obs[0][0]))} ${z0}Z`;
+        let g = '<defs><clipPath id="en-up"><rect x="0" y="0" width="' + W + '" height="' + z0 + '"/></clipPath>' +
+                '<clipPath id="en-dn"><rect x="0" y="' + z0 + '" width="' + W + '" height="' + H + '"/></clipPath>' +
+                '<linearGradient id="en-warm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9622b" stop-opacity="0.42"/>' +
+                '<stop offset="1" stop-color="#d9622b" stop-opacity="0.06"/></linearGradient>' +
+                '<linearGradient id="en-cool" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3f7fb5" stop-opacity="0.06"/>' +
+                '<stop offset="1" stop-color="#3f7fb5" stop-opacity="0.38"/></linearGradient></defs>';
+        for (let y = y0; y <= y1; y++)   // a line and a label for every whole degree
+          g += `<line x1="${L0}" x2="${W - R0}" y1="${f1(Y(y))}" y2="${f1(Y(y))}" stroke="${y ? '#ece9e2' : '#bdb8ad'}" stroke-width="1"/>` +
+               `<text x="${L0 - 5}" y="${f1(Y(y) + 4)}" text-anchor="end">${y > 0 ? '+' + y : y < 0 ? '−' + -y : '0'}</text>`;
+        for (const [th, name, cls] of [[0.5, 'El Niño', ''], [-0.5, 'La Niña', ' cool']])   // the thresholds, where in range
+          if (th > y0 && th < y1)
+            g += `<line x1="${L0}" x2="${W - R0}" y1="${f1(Y(th))}" y2="${f1(Y(th))}" stroke="${cls ? '#3f7fb5' : '#d9622b'}" stroke-width="1" stroke-dasharray="3 3" opacity="0.6"/>` +
+                 `<text class="lab${cls}" x="${W - R0 - 2}" y="${f1(Y(th) + (th > 0 ? -4 : 12))}" text-anchor="end">${name}</text>`;
+        g += `<path d="${area}" fill="url(#en-warm)" clip-path="url(#en-up)"/><path d="${area}" fill="url(#en-cool)" clip-path="url(#en-dn)"/>`;
+        if (fc.length > 1) {
+          const band = fc.map(p => [p[0], p[3]]).concat(fc.slice().reverse().map(p => [p[0], p[2]]));
+          g += `<path d="${path(band)}Z" fill="#9a3f14" opacity="0.13"/>` +
+               `<path d="${path(fc)}" fill="none" stroke="#9a3f14" stroke-width="2" stroke-dasharray="5 4"/>` +
+               `<text x="${f1((X(last[0]) + X(x1)) / 2)}" y="${f1(Math.max(top + 10, Y(Math.max(...fc.map(p => p[3]))) - 6))}" text-anchor="middle">models</text>`;
+        }
+        g += `<path d="${line}" fill="none" stroke="#9a3f14" stroke-width="2.2" stroke-linejoin="round"/>` +
+             `<circle cx="${f1(X(last[0]))}" cy="${f1(Y(last[1]))}" r="4" fill="#9a3f14" stroke="#fff" stroke-width="1.6"/>`;
+        // month ticks along the bottom, every third month, the year at January and at the first tick
+        const d0 = new Date(x0), ticks = [];
+        for (let d = new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth() + 1, 1)); d.getTime() <= x1; d.setUTCMonth(d.getUTCMonth() + 1))
+          if (d.getUTCMonth() % 3 === 0) ticks.push(new Date(d));
+        ticks.forEach((d, i) => {
+          const x = X(d.getTime()), mon = d.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' });
+          if (x > W - R0 - 14) return;
+          g += `<line x1="${f1(x)}" x2="${f1(x)}" y1="${bot}" y2="${bot + 4}" stroke="#bdb8ad"/>` +
+               `<text x="${f1(x)}" y="${bot + 17}" text-anchor="middle">${mon}${d.getUTCMonth() === 0 || i === 0 ? ' ' + d.getUTCFullYear() : ''}</text>`;
+        });
+        svg.innerHTML = g;
       };
       draw();
-      let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(draw, 150); });
+      // drawn again whenever the card's size changes: the window, or the midterm card beside it filling in
+      let rt; new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(draw, 100); }).observe(svg);
     }
   });
 
