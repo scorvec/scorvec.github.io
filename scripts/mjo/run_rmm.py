@@ -157,13 +157,14 @@ def main() -> None:
         title=f"ENSO not removed: RMM{' (AIFS vs IFS)' if rmm_ifs is not None else ' (AIFS)'}  —  Init: {d0}",
     )
 
-    # 4b. The multi-model phase diagram's data (src/rmm_export.py) and the ENSO-removed diagnosis (src/enso_rmm.py):
-    #     the wind-only RMM of both ensembles, the observed tail and the correction for the Nino-3.4 change over the
-    #     filter window, which the page applies in the browser. Best-effort: a failure here never touches the raw
-    #     product above; without the Nino-3.4 series the file carries the raw tracks alone.
+    # 4b. The multi-model phase diagram's data (src/rmm_export.py) and the cleaned index's diagnosis (src/enso_rmm.py):
+    #     the wind-only RMM of both ensembles, the observed tail and the corrections for the Nino-3.4 and (June to
+    #     December) DMI changes over the filter window, which the page applies in the browser. Best-effort: a failure
+    #     here never touches the raw product above; without the Nino-3.4 series the file carries the raw tracks alone,
+    #     without the DMI series the ENSO correction alone.
     import rmm_export
 
-    dn = c = n34 = None
+    dn = c = n34 = dd = d = dmi = None
     try:
         import enso_rmm
 
@@ -174,20 +175,24 @@ def main() -> None:
         dn = enso_rmm.delta_n34(n34, init, mean120.get("window_end"))
         if not np.isfinite(dn):
             raise ValueError("Nino-3.4 series too short for the 120-day window")
-        rc = enso_rmm.clean_forecast(rmm, dn, c, "AIFS")
-        oc = enso_rmm.clean_obs(obs, n34, c)
-        st = enso_rmm.diagnose(rc, oc, dn, enso_rmm.romi_status())
+        dmi, d = enso_rmm.dmi_smoothed(), enso_rmm.load_d()
+        dd = enso_rmm.iod_delta(dmi, init, mean120.get("window_end"))
+        if dd is None:
+            print("::warning::no DMI series for the 120-day window: the cleaned RMM removes ENSO only")
+        rc = enso_rmm.clean_forecast(rmm, dn, c, "AIFS", dd or 0.0, d)
+        oc = enso_rmm.clean_obs(obs, n34, c, dmi, d)
+        st = enso_rmm.diagnose(rc, oc, dn, enso_rmm.romi_status(), dd)
         st.update(init=d0, updated=pd.Timestamp.now("UTC").strftime("%Y-%m-%d %H:%MZ"))
         (Path(args.out_dir) / "rmm_clean_status.json").write_text(__import__("json").dumps(st))
         print(
-            f"ENSO-removed RMM: dN34 {dn:+.2f} K, forecast amp {st['forecast']['amp_mean']}, "
-            f"speed {st['forecast']['speed']} deg/day, coherent={st['coherent_mjo_forecast']}"
+            f"Cleaned RMM: dN34 {dn:+.2f} K, dDMI {dd if dd is None else round(dd, 2)} C, forecast amp "
+            f"{st['forecast']['amp_mean']}, speed {st['forecast']['speed']} deg/day, coherent={st['coherent_mjo_forecast']}"
         )
     except Exception as e:  # noqa: BLE001
-        print(f"::warning::ENSO-removed RMM diagnosis skipped ({repr(e)[:120]})")
-        dn = c = n34 = None
+        print(f"::warning::cleaned RMM diagnosis skipped ({repr(e)[:120]})")
+        dn = c = n34 = dd = d = dmi = None
     try:
-        rmm_export.write(Path(args.out_dir) / "rmm_models.json", init, rmm, rmm_ifs, obs, dn, c, n34)
+        rmm_export.write(Path(args.out_dir) / "rmm_models.json", init, rmm, rmm_ifs, obs, dn, c, n34, dd, d, dmi)
     except Exception as e:  # noqa: BLE001
         print(f"::warning::rmm_models.json not written ({repr(e)[:120]})")
 

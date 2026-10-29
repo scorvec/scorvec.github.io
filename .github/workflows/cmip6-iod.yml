@@ -1,0 +1,243 @@
+name: CMIP6 positive IOD and super El Niño (large-sample test)
+
+# The large-sample test of a positive Indian Ocean Dipole in super El Niños (scripts/sst/cmip6_iod.py): the historical
+# runs of scripts/sst/reference/cmip6_iod_members.csv (22 models, 1950-2014) from the Pangeo CMIP6 archive on Google
+# Cloud (anonymous). One job per model streams Amon ts, pr, tas and psl and keeps the ocean ts strip (20S-20N) and the
+# September-February fields (extract); one job per MJO-screened model rebuilds the raw RMM of its runs from the band
+# reductions of release mjo-impacts-ref-v1 (rmm); the build job runs the tests and commits
+# scripts/sst/reference/cmip6_iod_tests.json (report only: no page reads it). The per-model files and the multi-model
+# maps go to release cmip6-iod-v1, so `extract: false` rebuilds from them without streaming CMIP6 again, and `models: X`
+# re-extracts X into it (the full build refuses to run without every model). A validation run (max_members > 0) keeps
+# everything as artifacts: no release upload, no commit. Dispatch only.
+on:
+  workflow_dispatch:
+    inputs:
+      extract:
+        description: "Stream CMIP6 (false: rebuild from the release's per-model files)"
+        type: boolean
+        default: true
+      models:
+        description: "Models to extract, comma-separated (empty: all 22)"
+        default: ""
+      max_members:
+        description: "Members per model, for a validation run (0: all; any other value never commits)"
+        default: "0"
+      commit:
+        description: "Commit the tests"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cmip6-iod
+  cancel-in-progress: false
+
+env:
+  REL: cmip6-iod-v1
+  MJO_REL: mjo-impacts-ref-v1
+  MEMBERS: scripts/sst/reference/cmip6_iod_members.csv
+  MPLBACKEND: Agg
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      models: ${{ steps.m.outputs.models }}
+      mjo_models: ${{ steps.m.outputs.mjo_models }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/sst/reference/cmip6_iod_members.csv
+          sparse-checkout-cone-mode: false
+      - id: m
+        env:
+          MODELS: ${{ inputs.models }}
+        run: |
+          python3 - >> "$GITHUB_OUTPUT" <<'EOF'
+          import csv, json, os
+          with open(os.environ["MEMBERS"]) as fh:
+              rows = list(csv.DictReader(fh))
+          have = sorted({r["source_id"] for r in rows})
+          want = [m.strip() for m in os.environ["MODELS"].split(",") if m.strip()] or have
+          if set(want) - set(have):
+              raise SystemExit(f"not in the member list: {sorted(set(want) - set(have))}")
+          mjo = sorted({r["source_id"] for r in rows if r["mjo"] == "True" and r["source_id"] in want})
+          print("models=" + json.dumps(want))
+          print("mjo_models=" + json.dumps(mjo))
+          EOF
+
+  extract:
+    needs: plan
+    if: inputs.extract
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        model: ${{ fromJSON(needs.plan.outputs.models) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-cmip6-${{ runner.os }}-${{ hashFiles('scripts/sst/requirements-sst.txt') }}
+          restore-keys: |
+            pip-cmip6-${{ runner.os }}-
+      - name: Install
+        run: |
+          pip install -r scripts/sst/requirements-sst.txt
+          pip install dask zarr cftime "gcsfs==2026.5.0"   # the Pangeo zarr stores on Google Cloud
+      - name: Extract ${{ matrix.model }}
+        run: |
+          python scripts/sst/cmip6_iod.py extract --model "${{ matrix.model }}" --out fields \
+            --max-members "${{ inputs.max_members }}" --workers 2
+      - uses: actions/upload-artifact@v7
+        with:
+          name: fields-${{ matrix.model }}
+          path: fields/fields_${{ matrix.model }}.npz
+          retention-days: 7
+
+  rmm:
+    needs: [plan, extract]
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.mjo_models != '[]' && (needs.extract.result == 'success' || needs.extract.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        model: ${{ fromJSON(needs.plan.outputs.mjo_models) }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      MODEL: ${{ matrix.model }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-sst-${{ runner.os }}-${{ hashFiles('scripts/sst/requirements-sst.txt') }}
+          restore-keys: |
+            pip-sst-${{ runner.os }}-
+      - name: Install
+        run: pip install -r scripts/sst/requirements-sst.txt
+      - name: This run's ${{ matrix.model }} file
+        if: inputs.extract
+        uses: actions/download-artifact@v7
+        with:
+          name: fields-${{ matrix.model }}
+          path: fields
+      - name: ${{ matrix.model }}'s file from the release
+        if: ${{ !inputs.extract }}
+        run: gh release download "$REL" --repo "$GITHUB_REPOSITORY" -p "fields_${MODEL}.npz" -D fields
+      - name: ${{ matrix.model }}'s band reductions
+        run: |
+          gh release download "$MJO_REL" --repo "$GITHUB_REPOSITORY" -p "${MODEL}_*_ua.npz" -p "${MODEL}_*_rlut.npz" -D band
+          du -sh band
+      - name: RMM of ${{ matrix.model }}
+        env:
+          DATA_ARCHIVE: ${{ runner.temp }}/archive   # mjo_impacts resolves its archive at import; nothing is read there
+        run: python scripts/sst/cmip6_iod.py rmm --model "$MODEL" --src fields --band band --out rmm
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rmm-${{ matrix.model }}
+          path: rmm/rmm_${{ matrix.model }}.npz
+          retention-days: 7
+
+  build:
+    needs: [plan, extract, rmm]
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}   # also after a failed model: the others reach the release
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-sst-${{ runner.os }}-${{ hashFiles('scripts/sst/requirements-sst.txt') }}
+          restore-keys: |
+            pip-sst-${{ runner.os }}-
+      - name: Install
+        run: pip install -r scripts/sst/requirements-sst.txt
+      - name: This run's per-model files
+        if: inputs.extract
+        uses: actions/download-artifact@v7
+        with:
+          pattern: fields-*
+          path: fresh
+          merge-multiple: true
+      - name: This run's RMM files
+        if: needs.rmm.result == 'success' || needs.rmm.result == 'failure'   # the models that finished
+        uses: actions/download-artifact@v7
+        with:
+          pattern: rmm-*
+          path: fresh
+          merge-multiple: true
+      - name: Gather the per-model files
+        run: |
+          mkdir -p src
+          if [ "${{ inputs.max_members }}" != "0" ]; then
+            cp fresh/*.npz src/   # validation: this run's files only
+          else
+            gh release view "$REL" >/dev/null 2>&1 \
+              || gh release create "$REL" --title "CMIP6 positive IOD and super El Niño: per-model files" \
+                   --notes "Per-model reductions of the CMIP6 historical runs (Eyring et al. 2016, CC BY 4.0; Pangeo archive on Google Cloud) behind scripts/sst/reference/cmip6_iod_tests.json: fields_<model>.npz holds the monthly ocean ts strip (20S-20N, 1949-12 to 2014-12) and the September-February pr, tas and psl on the 2.5-degree grid 60S-75N; rmm_<model>.npz the autumn RMM and the rebuilt ENSO and IOD terms of its MJO-screened runs; cmip6_iod_maps.npz the multi-model maps (scripts/sst/cmip6_iod.py)."
+            if [ -d fresh ]; then gh release upload "$REL" fresh/*.npz --clobber; fi
+            gh release download "$REL" -p 'fields_*.npz' -p 'rmm_*.npz' -D src --clobber
+          fi
+          ls -la src
+      - name: Build the tests
+        run: |
+          set -o pipefail
+          all=""
+          if [ "${{ inputs.max_members }}" = "0" ]; then all="--require-all"; fi   # a full run needs every model
+          python scripts/sst/cmip6_iod.py build --src src --maps out/cmip6_iod_maps.npz $all | tee build.log
+          { echo '#### build'; echo '```'; tail -40 build.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cmip6-iod-tests
+          path: |
+            scripts/sst/reference/cmip6_iod_tests.json
+            out/cmip6_iod_maps.npz
+          retention-days: 14
+      - name: Maps to the release
+        if: inputs.max_members == '0'
+        run: gh release upload "$REL" out/cmip6_iod_maps.npz --clobber
+      - name: Commit & push
+        if: inputs.commit && inputs.max_members == '0'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUTS="scripts/sst/reference/cmip6_iod_tests.json"
+          # snapshot + clean resync each attempt (the enso-impacts.yml pattern); merges, never rebases
+          SNAP=$(mktemp -d)
+          git add -A $OUTS
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -A $OUTS
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "data update: CMIP6 positive IOD and super El Niño tests"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

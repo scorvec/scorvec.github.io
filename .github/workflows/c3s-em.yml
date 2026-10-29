@@ -101,25 +101,29 @@ jobs:
           if [ -z "$CDSAPI_KEY" ]; then echo "::error::secret CDSAPI_KEY is not set"; exit 1; fi
           umask 077
           printf 'url: %s\nkey: %s\n' "${CDSAPI_URL:-https://cds.climate.copernicus.eu/api}" "$CDSAPI_KEY" > ~/.cdsapirc
-      - name: The tables already in the release
+      # tables are fetched from the release's public download links (c3s_em.py --pull): the repository's hourly API
+      # allowance is shared by every workflow and ran out on this job's first run; only creating the release and
+      # uploading use the API, with retries
+      - name: The release
         if: steps.gate.outputs.run == '1'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mkdir -p "$C3S_EM_DIR"
-          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          for i in 1 2 3 4 5; do
+            gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 && exit 0
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "C3S ensemble means (long-range forecast)" \
-              --notes "Tables of scripts/monthly/c3s_em.py: C3S seasonal ensemble means on the 3-degree NH cells of monthly-outlook.html (hindcast per start month, issue per month). Contains modified Copernicus Climate Change Service information."
-          fi
-          PAT=(-p "fc_em_*_${{ steps.gate.outputs.issue }}.npz")
-          for m in ${{ steps.gate.outputs.months }}; do PAT+=(-p "hc_em_*_$(printf '%02d' $((10#$m))).npz"); done
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" -D "$C3S_EM_DIR" --clobber "${PAT[@]}" \
-            || echo "::warning::no tables of these months in $TAG yet"
-          touch "$RUNNER_TEMP/marker"
-          ls "$C3S_EM_DIR" | wc -l
+              --notes "Tables of scripts/monthly/c3s_em.py: C3S seasonal ensemble means on the 3-degree NH cells of monthly-outlook.html (hindcast per start month, issue per month). Contains modified Copernicus Climate Change Service information." \
+              && exit 0
+            echo "release not reachable (try $i); waiting"; sleep 120
+          done
+          exit 1
       - name: Build what is missing
         if: steps.gate.outputs.run == '1'
         run: |
+          mkdir -p "$C3S_EM_DIR"
+          python scripts/monthly/c3s_em.py --pull ${{ steps.gate.outputs.issue_arg }} --hindcast ${{ steps.gate.outputs.months }} \
+            --budget-min 0
+          touch "$RUNNER_TEMP/marker"
           python scripts/monthly/c3s_em.py ${{ steps.gate.outputs.issue_arg }} --hindcast ${{ steps.gate.outputs.months }} \
             --budget-min "${{ inputs.budget_min || '300' }}"
           python scripts/monthly/c3s_em.py --status "${{ steps.gate.outputs.issue }}"
@@ -132,4 +136,8 @@ jobs:
           NEW=$(find "$C3S_EM_DIR" -maxdepth 1 -name '*.npz' -newer "$RUNNER_TEMP/marker" | sort)
           if [ -z "$NEW" ]; then echo "no new tables"; exit 0; fi
           echo "$NEW"
-          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber $NEW
+          for i in 1 2 3 4 5; do
+            gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber $NEW && exit 0
+            echo "upload failed (try $i); waiting"; sleep 180
+          done
+          exit 1

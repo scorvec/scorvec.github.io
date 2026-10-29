@@ -1,0 +1,140 @@
+{
+ "title": "IOD correction for the wind-only RMM, on top of the ENSO correction (enso_rmm_correction.json)",
+ "made": "2026-10-28",
+ "builder": "scripts/mjo/src/build_iod_rmm.py",
+ "index": "DMI (Saji et al. 1999), 50-70E 10S-10N minus 90-110E 10S-0, anomalies against 1991-2020. Fit: ERSST v6 monthly (data/reference/dmi_ersst6.csv) interpolated to daily between mid-months. Real time: NOAA OISST v2.1 daily (assets/sst/data/enso_daily.json), 31-day trailing mean.",
+ "fit": "2003-2024: slope of the observed wind-only RMM (rmm_era5.nc) minus dN34 * c (c as applied) on dDMI, the DMI minus its mean over the 120 days ending on the day, over June-December (dDMI 0 in January-May)",
+ "apply": "RMM_clean = RMM_wind - dN34 * c - dDMI * d in June-December, dDMI = the DMI at the day (forecasts: at the init, held through the forecast) minus its mean over the 120 days of the wind filter window",
+ "months": [
+  6,
+  7,
+  8,
+  9,
+  10,
+  11,
+  12
+ ],
+ "fitted": {
+  "rmm1": -0.2956,
+  "rmm2": -0.0163
+ },
+ "bootstrap": {
+  "method": "2000 resamples of whole years (22), slope refitted",
+  "d_ci95": {
+   "rmm1": [
+    -0.6736,
+    -0.0213
+   ],
+   "rmm2": [
+    -0.3715,
+    0.3046
+   ]
+  },
+  "significant": {
+   "rmm1": true,
+   "rmm2": false
+  }
+ },
+ "applied": {
+  "rmm1": -0.2956,
+  "rmm2": 0.0
+ },
+ "validation": {
+  "index": "the observed wind-only RMM (rmm_era5.nc) with the ENSO correction as applied (dN34 * c), without and with the IOD term; dDMI from the ERSST v6 DMI, dN34 from ERSST v6 Nino-3.4, each minus its mean over the 120 days ending on the day",
+  "era5_rmm_1980_2002_out_of_sample": {
+   "n_season": 4922,
+   "corr_ddmi_r1": {
+    "enso": -0.08,
+    "enso_iod": -0.003
+   },
+   "sond_r1_variance_removed_pct": 2.2,
+   "refit_d_rmm1": -0.3247
+  },
+  "autumns_sep15_nov30": {
+   "1982": {
+    "ddmi_mean": 0.07,
+    "dn34_mean": 0.8,
+    "enso": {
+     "amp": 0.69,
+     "stationarity": 0.64
+    },
+    "enso_iod": {
+     "amp": 0.68,
+     "stationarity": 0.64
+    }
+   },
+   "1994": {
+    "ddmi_mean": -0.12,
+    "dn34_mean": 0.34,
+    "enso": {
+     "amp": 0.72,
+     "stationarity": 0.53
+    },
+    "enso_iod": {
+     "amp": 0.76,
+     "stationarity": 0.56
+    }
+   },
+   "1997": {
+    "ddmi_mean": 0.4,
+    "dn34_mean": 0.44,
+    "enso": {
+     "amp": 0.98,
+     "stationarity": 0.73
+    },
+    "enso_iod": {
+     "amp": 0.91,
+     "stationarity": 0.71
+    }
+   },
+   "2006": {
+    "ddmi_mean": 0.24,
+    "dn34_mean": 0.42,
+    "enso": {
+     "amp": 0.28,
+     "stationarity": 0.18
+    },
+    "enso_iod": {
+     "amp": 0.25,
+     "stationarity": 0.16
+    }
+   },
+   "2015": {
+    "ddmi_mean": 0.03,
+    "dn34_mean": 0.54,
+    "enso": {
+     "amp": 0.83,
+     "stationarity": 0.61
+    },
+    "enso_iod": {
+     "amp": 0.83,
+     "stationarity": 0.61
+    }
+   },
+   "2019": {
+    "ddmi_mean": 0.09,
+    "dn34_mean": 0.16,
+    "enso": {
+     "amp": 0.68,
+     "stationarity": 0.46
+    },
+    "enso_iod": {
+     "amp": 0.66,
+     "stationarity": 0.45
+    }
+   },
+   "2023": {
+    "ddmi_mean": 0.21,
+    "dn34_mean": 0.44,
+    "enso": {
+     "amp": 0.41,
+     "stationarity": 0.38
+    },
+    "enso_iod": {
+     "amp": 0.37,
+     "stationarity": 0.35
+    }
+   }
+  }
+ }
+}

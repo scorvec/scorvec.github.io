@@ -308,9 +308,10 @@ def band_mean(a, lat):
 
 
 def rmm_from_band(olr, u850, uup, frac, t, eofs, olr_sign=1.0):
-    """Daily (t, lon) band means -> RMM1, RMM2 (unit variance), amplitude, phase."""
+    """Daily (t, lon) band means -> RMM1, RMM2 (unit variance); olr None gives the wind-only index (u850 + upper u)."""
+    tags = ("u850", "u200") if olr is None else ("olr", "u850", "u200")
     comps = []
-    for x in (olr * olr_sign, u850, uup):
+    for x in (u850, uup) if olr is None else (olr * olr_sign, u850, uup):
         a, _ = anomalies(x, frac, t, trend=False)
         a = a.astype(np.float64)
         c = np.cumsum(np.nan_to_num(a), axis=0)
@@ -321,8 +322,8 @@ def rmm_from_band(olr, u850, uup, frac, t, eofs, olr_sign=1.0):
         a = a / sd if sd > 0 else np.zeros_like(a)
         comps.append(a)
     V = np.concatenate(comps, axis=1)
-    e1 = np.concatenate([eofs["eof_olr"][0], eofs["eof_u850"][0], eofs["eof_u200"][0]])
-    e2 = np.concatenate([eofs["eof_olr"][1], eofs["eof_u850"][1], eofs["eof_u200"][1]])
+    e1 = np.concatenate([eofs[f"eof_{k}"][0] for k in tags])
+    e2 = np.concatenate([eofs[f"eof_{k}"][1] for k in tags])
     r1 = V @ e1
     r2 = V @ e2
     r1 = r1 / np.nanstd(r1)

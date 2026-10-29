@@ -6,7 +6,8 @@
        img(a,b,c)   -> image url            frame(a,b,c) -> iframe url (sst_anim embed), ratio(a,b,c)
        dom(a,b,c)   -> id of a hidden element to mount (interactive blocks, widgets)
      cap(a,b,c) -> caption text; about -> id of a <template> whose HTML goes under the caption
-     (the vetted explanatory text and sources, collapsed); bust:"hourly" appends an hour cache key.
+     (the vetted explanatory text and sources, collapsed); bust:"hourly" appends an hour cache key; frames:true -> img
+     returns a path in the frames store (assets/...), loaded through the hosts of frames_root.js (which the page loads).
      STAGE.version() -> the run's key (or null), appended to every other still as ?v= so a new run's figures, which keep
        their file names, never come from a browser cache; the page calls STAGE.refresh() when its key arrives.
      An option row of more than MANY choices is one menu (a <select>) on narrow screens instead of a wall of pills.
@@ -368,13 +369,16 @@
       var zb = document.createElement("button"); zb.type = "button"; zb.className = "ss-zoom"; zb.setAttribute("aria-label", "Enlarge: " + p.label);
       zb.style.cssText = "display:block;width:100%;padding:0;margin:0;border:0;background:none;font:inherit;color:inherit;cursor:zoom-in";
       // a figure whose first build has not been published yet (new product) 404s: say so instead of a broken icon
-      im.onerror = function () {
+      var missing = function () {
         var m = document.createElement("p"); m.className = "stage-missing";
         m.textContent = "This chart has not been published yet - it appears after the next update of this product (usually within a few hours).";
         m.style.cssText = "padding:2.5rem 1rem;text-align:center;color:#6f6b64;font-size:1.05rem;border:1px dashed #cfcac2;border-radius:8px;margin:0.5rem 0";
         if (zb.parentNode) zb.parentNode.replaceChild(m, zb);
       };
-      im.src = src; zb.appendChild(im); st.appendChild(zb);
+      var qs = src.indexOf("?");
+      if (p.frames && window.frameLoad) window.frameLoad(im, qs < 0 ? src : src.slice(0, qs), qs < 0 ? "" : src.slice(qs), null, missing);
+      else { im.onerror = missing; im.src = src; }
+      zb.appendChild(im); st.appendChild(zb);
       im.onload = fitStage; zb.onclick = function () { lbOpen(im.src, im.alt, zb); };
     }
     $("cap").innerHTML = p.cap ? p.cap(sel.a, sel.b, sel.c) : "";
