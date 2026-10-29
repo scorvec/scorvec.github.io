@@ -1,9 +1,9 @@
 {
- "built": "2026-10-29 02:49Z",
- "newest_init": "2026-10-28 18Z",
+ "built": "2026-10-29 05:22Z",
+ "newest_init": "2026-10-29 00Z",
  "window": [
-  "2026-10-29",
-  "2026-11-12"
+  "2026-10-30",
+  "2026-11-13"
  ],
  "ssw_season": true,
  "names": {
@@ -1168,12 +1168,12 @@
     ]
    },
    "geps": {
-    "init": "2026-10-28 12Z",
+    "init": "2026-10-29 00Z",
     "members": 21,
     "share": 1.0,
     "wmo": 1.0,
-    "u10_min_mean": -4.6,
-    "u10_min_p10": -7.3,
+    "u10_min_mean": -4.5,
+    "u10_min_p10": -8.0,
     "runs": [
      [
       "2026-10-16T12",
@@ -1299,6 +1299,11 @@
       "2026-10-28T12",
       1.0,
       1.0
+     ],
+     [
+      "2026-10-29T00",
+      1.0,
+      1.0
      ]
     ]
    }
@@ -1349,18 +1354,18 @@
     "z_sib_max": 4.6
    },
    "geps": {
-    "init": "2026-10-28 12Z",
+    "init": "2026-10-29 00Z",
     "members": 21,
-    "wave2_share": 0.48,
-    "z_peak": 3.9,
-    "z_peak_day": 4,
-    "flux_min": 6.6,
-    "ri_event_share": 0.1,
-    "z_can_min": -1.2,
-    "z_sib_max": 4.7
+    "wave2_share": 0.42,
+    "z_peak": 3.8,
+    "z_peak_day": 3,
+    "flux_min": 7.8,
+    "ri_event_share": 0.05,
+    "z_can_min": -1.1,
+    "z_sib_max": 4.1
    }
   },
-  "wave2_share_mean": 0.45,
+  "wave2_share_mean": 0.44,
   "kind": "mixed"
  },
  "descent": {
@@ -1426,13 +1431,13 @@
     "kind": "bottom-up"
    },
    "geps": {
-    "init": "2026-10-28 12Z",
+    "init": "2026-10-29 00Z",
     "members": 21,
-    "cap100_day15": 2.1,
-    "cap10_day15": 4.1,
+    "cap100_day15": 1.9,
+    "cap10_day15": 4.3,
     "frac100_day15": 0.95,
     "cross100": "2026-10-27",
-    "cross10": "2026-10-29",
+    "cross10": "2026-10-30",
     "kind": "bottom-up"
    }
   },
@@ -1457,7 +1462,7 @@
    "gefs",
    "geps"
   ],
-  "ri_event_share_mean": 0.09
+  "ri_event_share_mean": 0.08
  },
  "surface": {
   "models": {
@@ -1495,14 +1500,14 @@
     "frac100_day15": 0.74
    },
    "geps": {
-    "init": "2026-10-28 12Z",
-    "p_positive": 0.86,
+    "init": "2026-10-29 00Z",
+    "p_positive": 0.85,
     "base_rate": 0.5,
     "window": [
-     "2026-11-13",
-     "2026-12-12"
+     "2026-11-14",
+     "2026-12-13"
     ],
-    "cap100_day15": 2.1,
+    "cap100_day15": 1.9,
     "frac100_day15": 0.95
    }
   },
