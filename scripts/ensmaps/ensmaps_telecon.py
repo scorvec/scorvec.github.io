@@ -294,7 +294,9 @@ def plume(sid: str, k: int, runs: list[dict], ind: dict, cal: dict, obs: pd.Data
         vals.append(tail.to_numpy())
     t_first = t0 - pd.Timedelta(days=TAIL_DAYS) if len(tail) else t0
     top = max(2.5, 1.08 * float(np.nanmax(np.abs(np.concatenate([v.ravel() for v in vals])))))
-    fig, axes = plt.subplots(2, 2, figsize=house.size(15, 0.62), sharex=True, sharey=True, constrained_layout=True)
+    nr, nc = (1, len(runs)) if len(runs) <= 2 else (2, 2)
+    fig, axes = plt.subplots(nr, nc, figsize=house.size(15, 0.36 if nr == 1 else 0.62), sharex=True, sharey=True,
+                             constrained_layout=True, squeeze=False)  # fmt: skip
     for ax, r in zip(axes.ravel(), runs, strict=False):
         t, v, mean = ind[r["key"]]
         v, mean = v[..., k], mean[:, k]
@@ -312,13 +314,14 @@ def plume(sid: str, k: int, runs: list[dict], ind: dict, cal: dict, obs: pd.Data
         ax.set_title(run_label(r), color=house.INK)
         ax.grid(True, color=house.GRID, lw=0.8)
         ax.set_ylim(-top, top)
-    for ax in axes.ravel()[len(runs) :]:
-        ax.set_axis_off()
+    for j in range(len(runs), nr * nc):  # three models: the panel above the empty one carries the dates
+        axes.flat[j].set_axis_off()
+        axes.flat[j - nc].tick_params(labelbottom=True)
     for ax in axes[:, 0]:
         ax.set_ylabel("Seasonal sd")
-    axes[-1, 0].xaxis.set(major_locator=mdates.DayLocator(bymonthday=(1, 8, 15, 22)),
-                          major_formatter=mdates.DateFormatter("%-d %b"))  # fmt: skip
-    axes[-1, 0].set_xlim(t_first, t_last + pd.Timedelta(hours=12))
+    loc = mdates.AutoDateLocator(minticks=4, maxticks=9)
+    axes[0, 0].xaxis.set(major_locator=loc, major_formatter=mdates.DateFormatter("%-d %b"))
+    axes[0, 0].set_xlim(t_first, t_last + pd.Timedelta(hours=12))
     handles = [
         plt.Line2D([], [], color=house.INK2, lw=0.9, alpha=0.6, label="each member"),
         plt.Line2D([], [], color=house.INK2, lw=3.0, label="ensemble mean"),
