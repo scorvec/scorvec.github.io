@@ -634,8 +634,7 @@ function odds(){const el=$('#oddsC');if(!RH||!RH.nat||!RH.nat.h)return;el.innerH
  svg.append('line').attr('x1',m.l).attr('x2',W-m.r).attr('y1',y1(.5)).attr('y2',y1(.5)).attr('stroke','#9a978e').attr('stroke-dasharray','3,3');
  svg.append('g').attr('class','ax').attr('transform',`translate(${m.l},0)`).call(d3.axisLeft(y1).tickValues([0,.5,1]).tickFormat(t=>(100*t)+'%').tickSizeOuter(0));
  const C={h:'#0b3d91',s:'#3a7fd8'},NM={h:'House',s:'Senate'};
- for(const k of ['s','h']){const IP=I.filter(q=>q[k]!=null);if(IP.length>1)svg.append('path').attr('d',d3.line().x(q=>xs(q.d)).y(q=>y1(q[k]))(IP)).attr('fill','none').attr('stroke',C[k]).attr('stroke-opacity',.45).attr('stroke-width',1.4).attr('stroke-dasharray','4,3');
-  svg.append('path').attr('d',d3.line().defined(q=>q[k]!=null).x(q=>xs(q.d)).y(q=>y1(q[k])).curve(d3.curveMonotoneX)(P)).attr('fill','none').attr('stroke',C[k]).attr('stroke-width',k==='h'?3:2.6)}
+ for(const k of ['s','h'])svg.append('path').attr('d',d3.line().defined(q=>q[k]!=null).x(q=>xs(q.d)).y(q=>y1(q[k])).curve(d3.curveMonotoneX)(P)).attr('fill','none').attr('stroke',C[k]).attr('stroke-width',k==='h'?3:2.6);
  {const L=P[P.length-1];let a=y1(L.h),b=y1(L.s);if(Math.abs(a-b)<34){const mid=(a+b)/2,s=a<=b?-1:1;a=mid+s*17;b=mid-s*17}
   for(const [k,y] of [['h',a],['s',b]]){svg.append('circle').attr('cx',xs(L.d)).attr('cy',y1(L[k])).attr('r',4).attr('fill',C[k]);
    svg.append('text').attr('class','sl').attr('x',xs(L.d)+9).attr('y',y-3).text(NM[k]);svg.append('text').attr('class','el').attr('x',xs(L.d)+9).attr('y',y+13).style('fill',C[k]).text(pct(L[k]))}}
@@ -655,11 +654,11 @@ function odds(){const el=$('#oddsC');if(!RH||!RH.nat||!RH.nat.h)return;el.innerH
    tipAt(e,`<b>${fmtD(q.d)}</b> <span style="opacity:.8">${q.src==='r'?'reconstructed':'as issued'}</span><br>House ${pct(q.h)}${q.s!=null?`<br>Senate ${pct(q.s)}`:''}${q.e!=null?`<br>National mood ${mg(q.e)}`:''}${iq&&q.src==='r'?`<br><span style="opacity:.8">As issued that day: House ${pct(iq.h)}${iq.s!=null?`, Senate ${pct(iq.s)}${q.d<new Date('2026-09-26T00:00:00')?' (51+ seats)':''}`:''}</span>`:''}`)})
   .on('pointerleave',()=>{g.style('display','none');$('#tip').style.display='none'});
  svg.attr('aria-label',`Chance Democrats win the House, ${pct(P[0].h)} on ${fmtD(P[0].d)} to ${pct(P[P.length-1].h)} now; the Senate, ${P[0].s!=null?pct(P[0].s):'–'} to ${P[P.length-1].s!=null?pct(P[P.length-1].s):'–'}`);
- const M=RH.method||{};$('#oddsNote').textContent=(M.reconstructed_from?`Reconstructed with the current model from the polls released by each date (weekly from ${fmtD(day(M.reconstructed_from))}, daily from ${fmtD(day(M.weekly_until||M.reconstructed_from))}). `:'')+(I.length>1?'Dashed: as published on this page at the time. ':'')+'At each day’s national mood, not the slider’s.'}
+ const M=RH.method||{};$('#oddsNote').textContent=(M.reconstructed_from?`Reconstructed with the current model from the polls released by each date (weekly from ${fmtD(day(M.reconstructed_from))}, daily from ${fmtD(day(M.weekly_until||M.reconstructed_from))}). `:'')+'At each day’s national mood, not the slider’s.'}
 
 // Chance of winning over time (race_history.json, midterms/race_history.py + backfill.py): the CURRENT model reconstructed
 // as of each past date with only the polls released by then (weekly to June, daily after), then each day's own run; the
-// faint dashed line is what the board showed at the time (since 16 Sep). Independent of the slider. Days that modelled a
+// tooltip adds what the board showed that day (since 16 Sep). Independent of the slider. Days that modelled a
 // different challenger party are left out.
 const fmtD=d3.timeFormat('%b %-d'),fmtDY=d3.timeFormat('%b %-d, %Y');
 function rhPts(B,T,cur){if(!B||!T)return[];const cps=T[2]||null;return B.dates.map((d,i)=>({d:new Date(d+'T12:00:00'),p:T[0][i]==null?null:T[0][i]/1000,m:T[1][i],cp:cps?cps[i]:'D',src:B.src?B.src[i]:'i'})).filter(x=>x.p!=null&&(!cur||x.cp===cur))}
@@ -673,7 +672,7 @@ function trend(el,sec,key,dn,big){if(!RH||!RH[sec])return;const nat=sec==='nat',
  const box=document.createElement('div');box.className='trend';
  const t0=new Date(RH.start+'T12:00:00'),first=pts[0].d,one=pts.length===1;
  box.innerHTML=`<h4>${big?'':'Chance of winning over time'}${big?'':`<button type="button" class="enl" aria-label="Enlarge this chart">Enlarge</button>`}</h4><svg class="rtc" role="img" aria-label="${dn} and Republican chance of winning, reconstructed, ${fmtD(first)} to ${fmtD(pts[pts.length-1].d)}"></svg>`+
-  `<p class="mt-note">${rhNote()} At each day’s national mood, not the slider’s.${ipts.length>1?' Faint dashed lines: as issued on this page at the time, under the methodology of the day.':''}${first>t0?` This race from ${fmtD(first)}.`:''}${one?' Only one day so far.':''}${dropped?` Days that modelled a ${cur==='I'?'Democratic':'different'} challenger are left out.`:''}</p>`;
+  `<p class="mt-note">${rhNote()} At each day’s national mood, not the slider’s.${first>t0?` This race from ${fmtD(first)}.`:''}${one?' Only one day so far.':''}${dropped?` Days that modelled a ${cur==='I'?'Democratic':'different'} challenger are left out.`:''}</p>`;
  el.appendChild(box);if(!big){const b=box.querySelector('.enl');if(b)b.onclick=()=>{const st=key.split('|')[0],nm=sec==='house'?key:(NAMES[st]||st)+(key.includes('|sp')?' special':'')+(sec==='senate'?' Senate':' governor');bigChart(sec,key,dn,nm+' — chance of winning over time')}}
  const W=Math.max(220,Math.round(box.getBoundingClientRect().width)||300),Hh=big?Math.round(Math.min(innerHeight*0.62,Math.max(280,W*0.42))):140,m={l:38,r:40,t:10,b:22},svg=d3.select(box.querySelector('svg')).attr('viewBox',`0 0 ${W} ${Hh}`);   // drawn at the panel's own pixel width so the labels stay 11 px
  const last=pts[pts.length-1].d,x1=new Date(Math.max(+last,+t0+6*864e5)),long=(x1-t0)>70*864e5;
@@ -683,7 +682,6 @@ function trend(el,sec,key,dn,big){if(!RH||!RH[sec])return;const nat=sec==='nat',
  svg.append('g').attr('class','ax').attr('transform',`translate(0,${Hh-m.b})`).call(d3.axisBottom(xs).ticks(long?d3.timeMonth.every(W<420?2:1):d3.timeDay.every(7)).tickFormat(long?d3.timeFormat('%b'):fmtD).tickSizeOuter(0));
  svg.append('g').attr('class','ax').attr('transform',`translate(${m.l},0)`).call(d3.axisLeft(ys).tickValues([0,.5,1]).tickFormat(v=>(100*v)+'%').tickSizeOuter(0));
  const S=[{f:p=>p,c:'#1f5fbf',t:'#0b3d91',n:dn},{f:p=>1-p,c:'#b3261e',t:'#a32215',n:'Republican'}];
- if(ipts.length>1)S.forEach(o=>svg.append('path').attr('d',d3.line().x(p=>xs(p.d)).y(p=>ys(o.f(p.p)))(ipts)).attr('fill','none').attr('stroke',o.c).attr('stroke-opacity',.45).attr('stroke-width',1.3).attr('stroke-dasharray','3,2'));
  S.forEach(o=>{if(!one)svg.append('path').attr('d',d3.line().x(p=>xs(p.d)).y(p=>ys(o.f(p.p)))(pts)).attr('fill','none').attr('stroke',o.c).attr('stroke-width',2.2);
   svg.append('g').selectAll('circle').data(pts).join('circle').attr('cx',p=>xs(p.d)).attr('cy',p=>ys(o.f(p.p))).attr('r',one?3.5:(pts.length>30?0:2)).attr('fill',o.c)});
  {const pl=pts[pts.length-1],yd=ys(pl.p),yr=ys(1-pl.p);let a=yd,b=yr;if(Math.abs(a-b)<13){const mid=(a+b)/2,s=a<=b?-1:1;a=mid+s*6.5;b=mid-s*6.5}
