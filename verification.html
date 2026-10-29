@@ -127,6 +127,8 @@
   .scg circle { fill: var(--muted); }
   .scg path, .scg circle, .scg text { pointer-events: none; }
   #s-region-l, #e-region-l { display: none; }
+  #s-region-l.figs, #e-region-l.figs { display: inline-flex; }
+  img.fig[hidden], .chart[hidden], .ctl[hidden], .pair[hidden], .scg[hidden], #scorecard[hidden] { display: none; }   /* a figure stands in for the drawn chart */
   @media (max-width: 700px) { .scg .blk:not(.on) { display: none; } #s-region-l, #e-region-l { display: inline-flex; } }
   .sc-detail { font-size: 0.86rem; color: var(--ink2); margin: 0.5rem 0 0; min-height: 2.6em; font-variant-numeric: tabular-nums; }
   .lgd svg.kg { width: 1.25rem; height: 1.08rem; vertical-align: -0.25rem; margin-right: 0.3rem; }
@@ -210,6 +212,7 @@ window.plotlyP = new Promise(function (ok, no) {
                   <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
                   <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
                   <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+                  <li><a href="/circulation.html#telecon15">Teleconnections, days 1–15</a></li>
                 </ul>
               </div>
             </div>
@@ -358,9 +361,9 @@ window.plotlyP = new Promise(function (ok, no) {
 </header>
 <!-- sh:end -->
 <main id="main">
-  <div class="kicker">Model verification · days 1–10 · scored with mverify</div>
+  <div class="kicker">Model verification · days 1–15 · scored with mverify</div>
   <h1>How the global models score</h1>
-  <p class="lede">GFS, IFS, AIFS and GDPS against the same observations: surface stations, radiosondes and, for US rain, Stage IV.</p>
+  <p class="lede">GFS, IFS, AIFS and GDPS to day 10 and the IFS, AIFS, GEFS and GEPS ensembles to day 15, against the same observations: surface stations, radiosondes, Stage IV for US rain and ERA5 for the 500&nbsp;hPa anomaly correlation.</p>
 
   <div class="vwin" id="vwin" hidden><span>Runs scored</span><span class="pills" role="group" aria-label="Runs scored">
     <a href="?runs=10" data-w="10">Latest 10</a><a href="?runs=30" data-w="30" hidden>30</a><a href="?runs=90" data-w="90" hidden>90</a><a href="?runs=365" data-w="365" hidden>365</a><a href="?runs=all" data-w="all" hidden>All</a></span></div>
@@ -413,6 +416,7 @@ window.plotlyP = new Promise(function (ok, no) {
       <label>Score<select id="l-stat"></select></label>
     </div>
     <div class="chart" id="c-lead"></div>
+    <img class="fig" id="l-fig" alt="" hidden>
   </section>
 
   <section class="card" id="scores">
@@ -424,6 +428,7 @@ window.plotlyP = new Promise(function (ok, no) {
       <label>Rows<select id="s-rows"></select></label>
       <label id="s-region-l">Region<select id="s-region"></select></label>
     </div>
+    <img class="fig" id="s-fig" alt="" hidden>
     <div class="scg" id="scorecard"></div>
     <p class="sc-detail" id="sc-detail" aria-live="polite">Tap or hover a square for both errors and the test.</p>
     <div class="lgd" id="s-key"></div>
@@ -451,6 +456,7 @@ window.plotlyP = new Promise(function (ok, no) {
   <section class="card" id="map-card" hidden>
     <h2>Error at each station</h2>
     <p class="note" id="map-note">Each dot is a station, coloured by the model's error over all runs at that lead.</p>
+    <div id="stn-series" hidden><h3 id="stn-title"></h3><div class="chart" id="c-stn"></div><p class="note" id="stn-note"></p></div>
     <div class="controls">
       <label>Variable<select id="m-var"></select></label>
       <label>Show<select id="m-stat"></select></label>
@@ -518,25 +524,29 @@ window.plotlyP = new Promise(function (ok, no) {
       <label id="e-region-l">Region<select id="e-region"></select></label>
     </div>
     <div class="scg" id="e-scorecard"></div>
+    <img class="fig" id="e-card-fig" alt="" hidden>
     <p class="sc-detail" id="e-detail"></p>
     <div class="lgd" id="e-key"></div>
     <div class="controls">
       <label>Variable<select id="e-var"></select></label>
       <label>Region<select id="e-vregion"></select></label>
     </div>
-    <div class="pair">
+    <div class="pair" id="e-pair1">
       <div><h3>CRPS (smaller is better)</h3><div class="chart" id="c-ens-crps"></div></div>
       <div><h3>Spread / error of the ensemble mean (1 = calibrated)</h3><div class="chart" id="c-ens-ssr"></div></div>
     </div>
+    <img class="fig" id="e-lead-fig" alt="" hidden>
     <div class="controls">
       <label>Days<select id="e-group"></select></label>
       <label>Event<select id="e-event"></select></label>
       <label>Threshold<select id="e-thr"></select></label>
     </div>
-    <div class="pair">
+    <div class="pair" id="e-pair2">
       <div><h3 id="e-rank-h">Rank histogram</h3><div class="chart" id="c-ens-rank"></div></div>
       <div><h3>Reliability (on the diagonal = calibrated)</h3><div class="chart" id="c-ens-rel"></div></div>
     </div>
+    <img class="fig" id="e-rank-fig" alt="" hidden>
+    <img class="fig" id="e-rel-fig" alt="" hidden>
   </section>
 
   <details class="method" id="method">
@@ -593,6 +603,11 @@ window.plotlyP = new Promise(function (ok, no) {
       its paired test passes the Benjamini–Hochberg procedure at a 10% false-discovery rate over every model and lead
       of a figure, so that testing many leads does not manufacture a winner; a hollow marker or grey cell is within the
       noise of the runs so far, not proof that the models are equal.</p>
+    <p><b>A station's series.</b> A click on a surface station of the map draws what it reported against every
+      model's forecast for the same hours at the map's lead, over the newest 45 days of the database (a run joins it
+      once its day 10 is observed, so the newest point is about two weeks old), with each model's error beneath. One
+      station is one place and a few dozen runs: the series is for seeing what happened there, not for ranking the
+      models, which the map's colours and the scorecard's tests do.</p>
     <p><b>The verification database.</b> Every 00Z run, once 14 days old, is kept for good: every model's pairs against
       every GHCNh station, the radiosondes and Stage IV, including the pairs the scores leave out (marked, with the
       terrain mismatch and sensor height that decide it), and each run's sums, from which a window of any length is
@@ -1120,6 +1135,61 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
   }
   const ymd = t => new Date(Date.UTC(+t.slice(0, 4), +t.slice(4, 6) - 1, +t.slice(6, 8)))
     .toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  // the window's scorecard and error by lead as figures, where the night drew them (the page's ten runs: the database's
+  // newest ten); a variable or pair without one keeps the drawn chart
+  function detFigs(figs) {
+    const sc = (figs.scores || {})[W];
+    if (!sc) return;
+    const ver = figs.generated.replace(/\D/g, "");
+    const lv = $("l-var"), lr = $("l-region"), sm = $("s-model"), sr = $("s-ref"), sg = $("s-region");
+    const ctl = id => $(id).closest(".ctl") || $(id).closest("label");
+    const lead = () => {
+      const f = (sc.lead[lv.value] || {})[lr.value];
+      $("l-fig").hidden = !f; $("c-lead").hidden = !!f; ctl("l-stat").hidden = !!f;
+      if (f) figure($("l-fig"), f, ver, `RMSE and bias by lead with 95% intervals: ${lv.selectedOptions[0]?.text || lv.value}, ${lr.value}`);
+    };
+    const card = () => {
+      const f = (sc.card[sg.value] || {})[`${sm.value}|${sr.value}`];
+      $("s-fig").hidden = !f;
+      ["scorecard", "s-key", "sc-detail"].forEach(id => { if ($(id)) $(id).hidden = !!f; });
+      ctl("s-rows").hidden = !!f;
+      $("s-region").closest(".ctl, label").classList.toggle("figs", !!f);
+      if (f) figure($("s-fig"), f, ver, `Scorecard, ${sm.value} against ${sr.value}, ${sg.value}: RMSE difference in percent where significant`);
+    };
+    [lv, lr].forEach(el => el.addEventListener("change", lead));
+    [sm, sr, sg].forEach(el => el.addEventListener("change", card));
+    lead(); card();
+  }
+  // the ensembles' figures for the window (the nightly ten runs show its newest 30), where the night drew them
+  function ensFigs(figs, card) {
+    const en = (figs.ensembles || {})[W === "10" ? "30" : W];
+    if (!en) return;
+    const ver = figs.generated.replace(/\D/g, ""), named = Object.fromEntries(card.rows.map(r => [r.key.split(":")[2], r.region]));
+    const em = $("e-model"), er = $("e-ref"), eg = $("e-region"), ev = $("e-var"), evr = $("e-vregion"), ee = $("e-event"), et = $("e-thr");
+    const show = (img, f, alt, ...drawn) => {
+      $(img).hidden = !f; drawn.forEach(id => { if ($(id)) $(id).hidden = !!f; });
+      if (f) figure($(img), f, ver, alt);
+      return !!f;
+    };
+    const cardF = () => {
+      const on = show("e-card-fig", (en.card[eg.value] || {})[`${em.value}|${er.value}`],
+        `Ensemble scorecard, ${em.value} against ${er.value}, ${eg.value}: CRPS difference in percent where significant`, "e-scorecard", "e-detail", "e-key");
+      eg.closest(".ctl, label").classList.toggle("figs", on);
+    };
+    const leadF = () => show("e-lead-fig", (en.lead[ev.value] || {})[evr.value], `CRPS and spread over error by lead with 95% intervals, ${ev.value}, ${evr.value}`, "e-pair1");
+    const lowerF = () => {
+      const [, v, code] = ee.value.split(":");
+      const rank = (en.rank[ev.value] || {})[evr.value], rel = (en.rel[`${v}|${et.value}`] || {})[named[code]];
+      show("e-rank-fig", rank, `Rank histograms by lead group with 95% intervals, ${ev.value}, ${evr.value}`);
+      show("e-rel-fig", rel, `Reliability diagrams by lead group with 95% intervals, ${v} at ${et.value}, ${named[code]}`);
+      $("e-pair2").hidden = !!(rank && rel);
+      $("e-group").closest(".ctl, label").hidden = !!(rank && rel);
+    };
+    [em, er, eg].forEach(el => el.addEventListener("change", cardF));
+    [ev, evr].forEach(el => el.addEventListener("change", () => { leadF(); lowerF(); }));
+    [ee, et].forEach(el => el.addEventListener("change", lowerF));
+    cardF(); leadF(); lowerF();
+  }
   function drawFigs(figs) {
     const ver = figs.generated.replace(/\D/g, ""), acc = figs.acc || {}, rain = figs.rain || {};
     const win = W === "10" ? "30" : W;
@@ -1215,7 +1285,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
         }).join("<br>") + ` <span style="color:#6f6b64">${esc(u)}</span><br>${l.scores[a].n[i][k]} runs`;
         L.circleMarker([l.lat[k], l.lon[k]], { renderer: rend, radius: l.truth === "radiosondes" ? 5.5 : 4, weight: 0.6,
           color: "rgba(40,40,40,0.55)", fillColor: ramp(stops, (v - lo) / (hi - lo)), fillOpacity: 0.92 })
-          .bindTooltip(tip, { sticky: true }).addTo(dots);
+          .bindTooltip(tip, { sticky: true }).on("click", () => stationSeries(l, k, +ml.value)).addTo(dots);
       }
       $("m-ramp").style.background = `linear-gradient(90deg, ${stops.join(",")})`;
       const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => lo + f * (hi - lo));
@@ -1223,10 +1293,54 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
       $("m-cap").textContent = s === "rmse" ? `${a} RMSE (${u})` : s === "bias" ? `${a} ${isWind ? "speed bias" : "bias"}, forecast − observed (${u})`
         : `${a} RMSE minus ${b} RMSE (${u}); blue where ${a} is better`;
       $("map-note").innerHTML = `${esc(l.label)} against ${esc(l.truth)}, day ${+ml.value / 24}, averaged over ${runs}. ` +
-        `${idx.length.toLocaleString()} stations that every model was scored at. Hover a dot for every model's numbers.`;
+        `${idx.length.toLocaleString()} stations that every model was scored at. Hover a dot for every model's numbers; ` +
+        (l.truth === "radiosondes" ? "the surface layers' dots open a station's own series." : "click one for its own series.");
     }
     [mv, ms, mm, mr, ml].forEach(el => el.addEventListener("change", render));
     render();
+  }
+
+  // a station's own series (scripts/verify/station_series.py): what it observed and every model's forecast for the same
+  // hours at the map's lead over the newest weeks of the database, from the tile of the frames store it is filed under
+  const SERIES_VARS = { t2m: "2 m temperature", td2m: "2 m dew point", msl: "sea-level pressure", wind10: "10 m wind speed" };
+  const TILE = 10;
+  async function firstJson(urls) {
+    for (const u of urls) {
+      try { const r = await fetch(u); if (r.ok) return await r.json(); } catch (e) { /* the next host */ }
+    }
+    return null;
+  }
+  async function stationSeries(l, k, lead) {
+    const box = $("stn-series"), id = l.ids[k];
+    if (!SERIES_VARS[l.var] || l.truth === "radiosondes") return;
+    box.hidden = false;
+    $("stn-title").textContent = `${id}: loading its series…`;
+    const tile = `${Math.floor(l.lat[k] / TILE) * TILE}_${Math.floor(l.lon[k] / TILE) * TILE}`;
+    const [d] = await Promise.all([firstJson(window.frameUrls(`assets/verification/stn/${l.var}/${tile}.json`)), window.plotlyP]);
+    const st = d && d.stations[id], fc = st && st.f[String(lead)];
+    if (!st || !fc) {
+      $("stn-title").textContent = `${id}: no series for day ${lead / 24} yet`;
+      Plotly.purge("c-stn");
+      return;
+    }
+    const t0 = Date.parse(d.t0.replace("Z", ":00Z")), x = st.t.map(h => new Date(t0 + h * 3600e3));
+    const traces = [{ x, y: st.o, name: "Observed", mode: "lines+markers", line: { color: "#1c1c1a", width: 2.6 }, marker: { size: 4 } }];
+    for (const [m, y] of Object.entries(fc)) {
+      traces.push({ x, y, name: m, mode: "lines", line: { color: color(m, traces.length), width: 2 } });
+      traces.push({ x, y: y.map((v, j) => v == null || st.o[j] == null ? null : +(v - st.o[j]).toFixed(1)), name: m, mode: "lines",
+        line: { color: color(m, traces.length), width: 1.6 }, yaxis: "y2", showlegend: false });
+    }
+    const name = SERIES_VARS[l.var];
+    $("stn-title").textContent = `${id} (${l.lat[k].toFixed(2)}°, ${l.lon[k].toFixed(2)}°): ${name}, day ${lead / 24} forecasts`;
+    Plotly.react("c-stn", traces, layout(`${name[0].toUpperCase()}${name.slice(1)} (${d.unit})`, {
+      height: 560, font: Object.assign({}, FONT, { size: 15 }), hovermode: "x unified",
+      yaxis: { domain: [0.38, 1], title: { text: `${name[0].toUpperCase()}${name.slice(1)} (${d.unit})` }, gridcolor: "#ece9e2" },
+      yaxis2: { domain: [0, 0.3], title: { text: `Forecast − observed` }, gridcolor: "#ece9e2", zerolinecolor: "#4a4744", zerolinewidth: 1.5 },
+      xaxis: { anchor: "y2", gridcolor: "#ece9e2" },
+    }), Object.assign({}, CONFIG, { displayModeBar: false }));
+    $("stn-note").textContent = `Each point is one 00Z run's forecast for the time it verifies, against the station's report then; ` +
+      `${st.t.length} times over the newest ${Math.round((st.t[st.t.length - 1] - st.t[0]) / 24) + 1} days of the database.`;
+    box.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
 
   // ── the ensembles (ens_scores_<runs>.json): a CRPS scorecard against a reference ensemble, CRPS and spread/skill by
@@ -1374,11 +1488,14 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     $("vwin").hidden = false;
     $("vwin").querySelectorAll("a").forEach(a => a.setAttribute("aria-current", String(a.dataset.w === W)));
   });
+  const figsP = fetch("/assets/verification/figs.json").then(r => r.ok ? r.json() : null).catch(() => null);
+  figsP.then(f => { if (f) drawFigs(f); });
   Promise.all([
     fetch(`/assets/verification/scores${suffix}.json`).then(r => r.json()),
     window.plotlyP,
   ]).then(([card]) => {
     draw(card);
+    figsP.then(f => { if (f) detFigs(f); });
     // Leaflet loads deferred, so it is ready once the document is parsed.
     const parsed = new Promise(ok => document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", ok) : ok());
     const get = u => fetch(u).then(r => r.ok ? r.json() : null);
@@ -1391,13 +1508,13 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
   }).catch(e => {
     $("asof").textContent = "The scores could not be loaded (" + e.message + ").";
   });
-  fetch("/assets/verification/figs.json").then(r => r.ok ? r.json() : null).then(f => { if (f) drawFigs(f); }).catch(() => {});
   // the ensembles score windows of the database only: the nightly 10 runs show its newest 30
   Promise.all([fetch(`/assets/verification/ens_scores_${W === "10" ? "30" : W}.json`).then(r => r.ok ? r.json() : null),
     window.plotlyP]).then(([card]) => {
     if (!card) return;
     $("ens-card").hidden = false;
     drawEns(card);
+    figsP.then(f => { if (f) ensFigs(f, card); });
   }).catch(() => {});
 
   // A short list of choices (up to seven short names) is drawn as the site's segmented buttons; the <select> stays,

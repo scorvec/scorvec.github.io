@@ -9,9 +9,11 @@ degrees of longitude, the zonal mean of each, their daily mean, then
   u10    the zonal-mean wind at 60N, 10 hPa (m/s)
   t10    the cos-weighted 65-90N mean of the zonal-mean temperature at 10 hPa (K)
   z100   the same mean of the height at 100 hPa (m), and z100s, that height standardised against the MERRA-2 fit of the
-         history (reference/drip_std.json, build_drip_ref.py: 4 harmonics + trend, 3-harmonic sd)
+         history (reference/drip_std.json, build_drip_ref.py: 4 harmonics + trend, 3-harmonic sd, on the common-year
+         day; over an October-May winter its mean and sd sit within 0.03 sd of the fit behind the chart's own z100s)
 GEOS FP is drawn as it is, with no offset applied; GEOS FP minus MERRA-2 is measured on the 2025/26 winter, every day
-both hold (`overlap` -> reference/strat_season_overlap.json, quoted on the page). The MERRA-2 side of those days is
+both hold (`overlap` -> reference/strat_season_overlap.json, quoted on the page: on 239 days u10 -0.19 m/s, t10
++0.33 K, z100 -8.9 m = -0.09 sd, 1-4 % of the chart's 10-90 % band over the winter). The MERRA-2 side of those days is
 reduced once from the local MERRA-2 archive (`m2-overlap` -> reference/strat_season_m2.json), so the overlap itself
 runs in Actions (strat-season-ref.yml).
 
@@ -221,19 +223,42 @@ def stats(diff: pd.Series, spread: float | None) -> dict:
 
 
 def overlap(a) -> int:
+    """GEOS FP on every MERRA-2 overlap day, then the statistics. The GEOS FP values are kept in the output and saved
+    every 10 days, so a run cut short (NCCS reads take ~20-35 s a day) is resumed by the next."""
     j = json.loads(M2_SIDE.read_text())
     m2 = pd.DataFrame.from_dict(j["days"], orient="index", columns=j["columns"])
     m2.index = pd.DatetimeIndex(m2.index)
-    fp = Fp()
-    got = {}
-    for k, d in enumerate(m2.index):
+    got = json.loads(OVERLAP.read_text()).get("geosfp", {}) if OVERLAP.exists() else {}
+    todo = [d for d in m2.index if f"{d:%Y-%m-%d}" not in got]
+    log(f"GEOS FP minus MERRA-2: {len(got)} of {len(m2)} days held, {len(todo)} to fetch")
+    fp = Fp() if todo else None
+    for k, d in enumerate(todo):
         r = fp.day(d)
         if r is not None:
-            got[d] = r
-        if k % 20 == 0:
-            log(f"  {k + 1}/{len(m2)} {d:%Y-%m-%d} {'ok' if r is not None else 'missing'}")
-    g = pd.DataFrame.from_dict(got, orient="index", columns=["u10", "t10", "z100"]).sort_index()
-    m2 = m2.loc[g.index]
+            got[f"{d:%Y-%m-%d}"] = [round(v, 3) for v in r]
+        if k % 10 == 9 and len(got) > 2:
+            log(f"  {k + 1}/{len(todo)} {d:%Y-%m-%d}, {len(got)} held")
+            write_overlap(m2, got)
+    if len(got) < 30:
+        raise SystemExit(f"only {len(got)} overlap days from GEOS FP: too few for the statistics")
+    res = write_overlap(m2, got)
+    for c in COLS:
+        s = res[c]
+        share = f", {100 * s['mean_share_of_band']:.1f} % of the chart's band" if c in CHART else ""
+        log(
+            f"  {c:6s} n {s['n']}: mean {s['mean']:+.3f} [{s['ci95'][0]:+.3f}, {s['ci95'][1]:+.3f}], sd {s['sd']:.3f}, "
+            f"RMS {s['rms']:.3f}, r {s['r']:.4f}{share}"
+        )
+    log(f"wrote {OVERLAP.name} ({len(got)} of {len(m2)} days)")
+    return 0
+
+
+def write_overlap(m2: pd.DataFrame, got: dict) -> dict:
+    """The statistics on the days held so far, written with the GEOS FP values themselves."""
+    g = pd.DataFrame.from_dict(got, orient="index", columns=["u10", "t10", "z100"])
+    g.index = pd.DatetimeIndex(g.index)
+    g = g.sort_index()
+    m2 = m2.loc[g.index].copy()
     g["z100s"], m2["z100s"] = z100s(g.index, g.z100), z100s(m2.index, m2.z100)
     clim = json.loads(HISTORY.read_text())["vars"]
     band = {c: float(np.median(np.subtract(clim[c]["clim"]["p90"], clim[c]["clim"]["p10"]))) for c in CHART}
@@ -248,17 +273,10 @@ def overlap(a) -> int:
         "period": [f"{g.index[0]:%Y-%m-%d}", f"{g.index[-1]:%Y-%m-%d}"],
         "units": {"u10": "m/s", "t10": "K", "z100": "m", "z100s": "sd"},
         "stats": res,
+        "geosfp": dict(sorted(got.items())),
     }
     OVERLAP.write_text(json.dumps(out, indent=1))
-    for c in COLS:
-        s = res[c]
-        share = f", {100 * s['mean_share_of_band']:.1f} % of the chart's band" if c in CHART else ""
-        log(
-            f"  {c:6s} n {s['n']}: mean {s['mean']:+.3f} [{s['ci95'][0]:+.3f}, {s['ci95'][1]:+.3f}], sd {s['sd']:.3f}, "
-            f"RMS {s['rms']:.3f}, r {s['r']:.4f}{share}"
-        )
-    log(f"wrote {OVERLAP.relative_to(REPO)}")
-    return 0
+    return res
 
 
 def main() -> int:

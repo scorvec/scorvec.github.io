@@ -30,6 +30,11 @@ data are fetched.
            runs gives the equal-weight mean anomaly, the agreeing share's gate, the variance of the weighted mean, the
            change from the run 12 h earlier (a planted GEFS shift) and the manifest; its plan waits for all four runs
            and makes a cycle again when one of them is remade
+  telecon  Capture keeps a member's field at each day's step on the patterns' grid (a constant stays constant, other
+           steps are skipped, a missing lead is marked); an index of a reference with known projectors is the planted
+           amplitude, read against the normal of the field's own hour, and the ensemble mean's index is the members'
+           mean; the hindcast fit finds a planted correlation, counts consecutive daily starts as partly one case, and
+           its predictive probabilities are reliable on fresh data; the gate passes the skilful leads only
 """
 
 from __future__ import annotations
@@ -53,8 +58,10 @@ import ensmaps_clusters as EC
 import ensmaps_ref as R
 import ensmaps_regimes as ER
 import ensmaps_super as ES
+import ensmaps_telecon as ET
 import regime_core as RC
 import regimes_ecmwf as RE
+import telecon15 as T15
 import eccodes
 
 RNG = np.random.default_rng(20261025)
@@ -543,6 +550,92 @@ def super_ens():
         E.G50 = g50
 
 
+def telecon():
+    from latlon import G25N
+
+    print("telecon")
+    lat, lon = E.G50.lat, E.G50.lon
+    cap = ET.Capture(2)
+    for step in (18, 24, 48):
+        cap.put(0, step, np.full(E.G50.shape, 5600.0, np.float32), lat, lon)
+    cap.put(1, 24, np.full(E.G50.shape, 5500.0, np.float32), lat, lon)
+    with tempfile.TemporaryDirectory() as tmp:
+        f = Path(tmp) / "gefs.npz"
+        cap.save(f, "gefs", "2026102800", pd.Timestamp("2026-10-28"))
+        z = np.load(f)
+        check(np.all(z["z"][0, :2] == 5600) and np.all(z["z"][1, 0] == 5500) and z["ok"][0, :2].all()
+              and not z["ok"][0, 2:].any() and z["ok"][1].tolist() == [True] + [False] * 14,
+              "Capture: a constant 500 hPa field stays constant on the 2.5-deg grid; off-day steps skipped, gaps marked")  # fmt: skip
+
+        # a reference with known projectors: the index of normal + c x pattern is c x <p, p> / sigma
+        ids, rows = T15.IDS, G25N.shape
+        pat = np.linalg.qr(RNG.normal(size=(np.prod(rows), len(ids))))[0].T.reshape(len(ids), *rows)  # orthonormal
+        proj = np.stack([np.broadcast_to(p / (p**2).sum(), (12, *rows)) for p in pat])
+        normal = np.zeros((366, 2, *rows), np.float32)
+        normal[:, 0], normal[:, 1] = 5500.0, 5510.0  # 00 and 12 UTC
+        meta = {"patterns": {s: {"name": s.upper()} for s in ids}}
+        refp = Path(tmp) / "ref.npz"
+        np.savez(refp, ids=np.array(ids), proj=proj, std_month=np.full((12, *rows), 2.0),
+                 standardize=np.array([True, False, False]), sigma=np.full((3, 366), 4.0),
+                 defined=np.ones((3, 12), bool), normal=normal, meta=np.array(json.dumps(meta)))  # fmt: skip
+        ref = T15.Ref(refp)
+        t = pd.DatetimeIndex(["2026-01-15 00:00", "2026-07-15 12:00"])
+        fields = np.stack([5500 + 3 * pat[0] + 8 * pat[1], 5510 + 3 * pat[0] + 8 * pat[1]])
+        v = ref.index(ref.anomaly(fields, t), t)
+        check(np.allclose(v[:, 0], 3 / 2 / 4) and np.allclose(v[:, 1], 8 / 4),
+              "index: the planted amplitude (over std_month where standardized, over sigma), each hour's own normal")  # fmt: skip
+        run = {"key": "gefs", "init": pd.Timestamp("2026-10-28"), "lead_h": np.array(T15.LEADS),
+               "ok": np.ones((5, 15), bool),
+               "z": (5500 + RNG.normal(0, 40, (5, 15, *rows))).astype(np.int16)}  # fmt: skip
+        tt, mem, mean = ET.member_indices(ref, run)
+        whole = ref.index(ref.anomaly(run["z"].astype(float).mean(0), tt), tt)
+        check(np.allclose(mean, whole) and np.allclose(mean, mem.mean(0)),
+              "the ensemble mean's index is the index of the members' mean field")  # fmt: skip
+
+    # the hindcast fit on daily starts: an AR(1) observed index, forecasts that lose skill with lead
+    starts = pd.date_range("2024-09-01", "2026-10-20", freq="D")
+    obs = np.zeros(len(starts) + 16)
+    for k in range(1, obs.size):
+        obs[k] = 0.85 * obs[k - 1] + RNG.normal(0, np.sqrt(1 - 0.85**2))
+    days = pd.date_range(starts[0], periods=obs.size, freq="D")
+    rho = {24: 0.95, 240: 0.4, 360: 0.0}
+    fc = []
+    for h, r in rho.items():
+        o = obs[h // 24 : h // 24 + len(starts)]
+        f = r * o + np.sqrt(1 - r * r) * RNG.normal(size=len(starts)) if r else RNG.normal(size=len(starts))
+        fc.append(pd.DataFrame({"model": "GEFS", "init": starts, "lead_h": h} | dict.fromkeys(T15.IDS, f)))
+    fc = pd.concat(fc, ignore_index=True)
+    ob = pd.DataFrame({"valid": days} | dict.fromkeys(T15.IDS, obs))
+    t0 = pd.Timestamp("2026-10-28")
+    cal = ET.calibrate(fc, ob, "GEFS", t0)
+    c1, c10, c15 = cal["pna", 24], cal["pna", 240], cal["pna", 360]
+    near = np.abs((starts.dayofyear - t0.dayofyear + 183) % 366 - 183) <= ET.WINDOW
+    check(abs(c1["r"] - 0.95) < 0.03 and abs(c10["r"] - 0.4) < 0.15 and abs(c15["r"]) < 0.2 and c1["n"] == near.sum()
+          and cal["pna", 48] is None, f"the fit's correlations at days 1, 10, 15 ({c1['r']:.2f}, {c10['r']:.2f}, "
+          f"{c15['r']:.2f}) from the {c1['n']} starts within {ET.WINDOW} days of the date")  # fmt: skip
+    check(
+        c1["n_eff"] < 0.4 * c1["n"],
+        f"consecutive daily starts are partly one case: day 1's n_eff {c1['n_eff']:.0f} of {c1['n']}",
+    )
+    allc = {"gefs": cal}
+    ET.gate(allc)
+    check(ET.skilful(c1) and ET.skilful(c10) and not ET.skilful(c15), "the gate passes days 1 and 10, not day 15")
+
+    # fitted on a large sample of independent cases, the chance of the positive phase matches its frequency on fresh ones
+    def cases(n):
+        y = 0.3 + 1.2 * RNG.normal(size=n)
+        return 0.5 * y + RNG.normal(size=n), y
+
+    c = ET.fit(*cases(4000), np.full(4000, -1))
+    x, y = cases(20000)
+    p_pos = 1.0 - ET.cal_cdf(0.5, c, x)
+    hit = y >= 0.5
+    top = p_pos > np.quantile(p_pos, 0.8)
+    check(abs(p_pos.mean() - hit.mean()) < 0.04 and abs(p_pos[top].mean() - hit[top].mean()) < 0.06,
+          f"P(>= +0.5) is reliable on fresh cases: {p_pos.mean():.3f} forecast, {hit.mean():.3f} observed; the top "
+          f"fifth {p_pos[top].mean():.3f}, {hit[top].mean():.3f}")  # fmt: skip
+
+
 def main() -> int:
     grids()
     grib_checks()
@@ -554,6 +647,7 @@ def main() -> int:
     regimes()
     clusters()
     super_ens()
+    telecon()
     print("all checks passed")
     return 0
 

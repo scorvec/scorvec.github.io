@@ -3,12 +3,15 @@ name: 500 hPa height database and anomaly correlations
 # Adds every model's 500 hPa height to the verification database (scripts/verify/z500_acc.py, scripts/verify/verifydb.sh):
 # GFS, the IFS control, AIFS and GDPS to day 10 (z500-<m>_<init>.npz), the IFS-ENS, AIFS-ENS, GEFS and GEPS means and
 # members to day 15 (ens-z500-<m>_, ens-z500m-<m>_), ERA5 at 00Z of each day (era5-z500_<day>.npz), and each run's
-# anomaly correlations against ERA5 once ERA5 covers its day 15 (acc_<init>.parquet). Runs and days the database holds
-# are skipped, so a range can be dispatched again after a failure.
+# anomaly correlations against ERA5 once ERA5 covers its day 15 (acc_<init>.parquet), the anomalies from the ERA5
+# 1991-2020 normal at 00Z of release verify-clim-z500-v1 (z500_acc.py clim, built once by verify-clim.yml). Runs
+# and days the database holds are skipped, so a range can be dispatched again after a failure.
 #
 # Each day it catches up the runs 1 to 47 days old (HPFX keeps GDPS about 52 days and GEPS about 48) and the days ERA5
 # has added on ARCO (about a week behind). Dispatched with a range it backfills: the ECMWF runs stay on the open-data
-# mirror and GFS and GEFS on NOAA's buckets, GDPS and GEPS only within HPFX's days, so their runs go first.
+# mirror and GFS and GEFS on NOAA's buckets, GDPS and GEPS only within HPFX's days, so their runs go first. Each model
+# from its first run in the database (z500_acc.SINCE): the deterministic models and GEPS from 13 May 2026, the other
+# ensembles from their archives' starts (2024 and 2025), the teleconnection forecasts' calibration sample.
 on:
   schedule:
     - cron: '40 7 * * *'
@@ -26,10 +29,6 @@ on:
       chunk:
         description: 'Ensemble runs per job (a deterministic job takes eight times as many)'
         default: '6'
-      clim:
-        description: 'Build the ERA5 1991-2020 normal first (release verify-clim-z500-v1; once)'
-        type: boolean
-        default: false
 
 env:
   PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt
@@ -74,10 +73,12 @@ jobs:
           code = {"GFS": "z500-gfs", "IFS": "z500-ifs", "AIFS": "z500-aifs", "GDPS": "z500-gdps", "IFS-ENS": "ens-z500-ifs",
                   "AIFS-ENS": "ens-z500-aifs", "GEFS": "ens-z500-gefs", "GEPS": "ens-z500-geps"}  # z500_acc.file_of
           hpfx = {"GDPS": 52, "GEPS": 48}  # mverify_scores.HPFX_DAYS, ens_verify.HPFX_DAYS
+          since = {"IFS-ENS": date(2024, 3, 1), "GEFS": date(2024, 3, 1), "AIFS-ENS": date(2025, 7, 2)}  # z500_acc.SINCE
+          start = date(2026, 5, 13)  # z500_acc.START: the deterministic models and GEPS from here
           days = [first + timedelta(d) for d in range((last - first).days + 1)]
           chunks = []
           for m in sorted(models, key=lambda m: m not in hpfx):  # GDPS and GEPS first: HPFX deletes them
-              oldest = date.today() - timedelta(days=hpfx.get(m, 100000))
+              oldest = max(date.today() - timedelta(days=hpfx.get(m, 100000)), since.get(m, start))
               todo = [d for d in days if d >= oldest and f"{code[m]}_{d:%Y%m%d}00.npz" not in have]
               k = n if m.endswith(("ENS", "GEFS", "GEPS")) else 8 * n
               chunks += [{"model": m, "runs": " ".join(f"{d:%Y%m%d}" for d in todo[i:i + k])}
@@ -88,28 +89,6 @@ jobs:
           print(f"last={min(last + timedelta(days=15), date.today()):%Y%m%d}")  # to the last run's day 15
           EOF
           cat "$GITHUB_OUTPUT"
-
-  clim:
-    if: ${{ inputs.clim }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 300
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          sparse-checkout: scripts
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.11'
-      - run: pip install --quiet "$MVERIFY" gcsfs
-      - name: ERA5 1991-2020 at 00Z on the verification grid
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          python scripts/verify/z500_acc.py clim --out "$RUNNER_TEMP/clim_z500_1p5.npz"
-          gh release view "$CLIM_TAG" >/dev/null 2>&1 && { echo "::error::$CLIM_TAG exists: a normal is never replaced"; exit 1; }
-          gh release create "$CLIM_TAG" "$RUNNER_TEMP/clim_z500_1p5.npz" --latest=false \
-            --title "500 hPa height normal for the anomaly correlations" \
-            --notes "ERA5 1991-2020 at 00Z on the WMO 1.5 degree grid with poles (WeatherBench 2's conservative ERA5), each slot of the 366-day calendar the mean of the days within 7 slots of it (scripts/verify/z500_acc.py clim)."
 
   fields:
     needs: plan
@@ -170,9 +149,9 @@ jobs:
           scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"
 
   acc:
-    needs: [fields, truth, clim]
-    # also when there was nothing to fetch or no normal to build; not after a failed fetch, which may still be filled
-    if: ${{ !cancelled() && needs.truth.result == 'success' && needs.fields.result != 'failure' && needs.clim.result != 'failure' }}
+    needs: [fields, truth]
+    # also when there was nothing to fetch; not after a failed fetch, which may still be filled
+    if: ${{ !cancelled() && needs.truth.result == 'success' && needs.fields.result != 'failure' }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:

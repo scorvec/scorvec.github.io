@@ -4,15 +4,17 @@ centres' headline score (verification.html draws it as NCEP EMC does, a time ser
 
   fields  For each 00Z run, the 500 hPa height at 00Z of every day of the forecast: GFS, the IFS control, AIFS and
           GDPS to day 10 (z500-<m>_<init>.npz), and IFS-ENS, AIFS-ENS, GEFS and GEPS to day 15, as the ensemble mean
-          (ens-z500-<m>_) and every member (ens-z500m-<m>_), downloaded with the database's own fetchers
+          (ens-z500-<m>_) and every member (ens-z500m-<m>_), from each model's SINCE (the ensembles' archived runs
+          back to 2024 and 2025, which calibrate the teleconnection forecasts), downloaded with the database's own fetchers
           (mverify_scores, ens_verify). Every field is remapped conservatively (``remap``: the overlap of the cells'
           areas) onto the WMO 1.5 deg grid with poles (121 x 240, WeatherBench 2's), the members also onto the 2.5 deg
           grid of the teleconnection patterns north of 20N, in whole metres (int16).
   truth   ERA5 at 00Z of each day (ARCO, 0.25 deg) on the same grid, era5-z500_<YYYYMMDD00>.npz, once ARCO holds it
           (its ERA5T, about a week behind real time).
-  clim    The anomalies' normal: ERA5 1991-2020 at 00Z, WeatherBench 2's conservative 1.5 deg ERA5 (the same grid),
-          each slot of the 366-day calendar (29 February = 59, 1 March = 60 in every year) the mean of the days within
-          7 slots of it in all 30 years. Built once, release verify-clim-z500-v1.
+  clim    The anomalies' normal: ERA5 1991-2020 at 00Z, the hour of the fields, from WeatherBench 2's 6-hourly
+          conservative 1.5 deg ERA5 (the same grid), each slot of the 366-day calendar (29 February = 59, 1 March = 60
+          in every year) the mean of the days within 7 slots of it in all 30 years. Built once (verify-clim.yml),
+          release verify-clim-z500-v1.
   acc     Per run, each model and lead over 20-80N and 20-80S (EMC's areas), cosine-of-latitude weighted: the anomaly
           correlation, centred (each anomaly less its area mean; WMO-No. 485) and uncentred, the RMSE, the mean error
           and the standard deviation of each anomaly field. acc_<init>.parquet, once ERA5 covers the run's day 15 and
@@ -31,7 +33,8 @@ A run whose files the database holds is not fetched again, and no file is ever r
 from __future__ import annotations
 
 import argparse
-import functools
+import sys
+import urllib.error
 from pathlib import Path
 
 import ens_verify as E
@@ -39,76 +42,30 @@ import mverify_scores as D
 import numpy as np
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+from latlon import G15, G25N, remap, slot366
+
 G = 9.80665
 DET = {"GFS": "gfs", "IFS": "ifs", "AIFS": "aifs", "GDPS": "gdps"}  # the deterministic models (mverify_scores.MODELS)
 DET_LEADS = range(24, 241, 24)  # 00Z of every day to day 10, the deterministic runs' length in the database
 ARCO = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"
-WB2 = "gs://weatherbench2/datasets/era5/1959-2023_01_10-6h-240x121_equiangular_with_poles_conservative.zarr"
+WB2 = "weatherbench2/datasets/era5/1959-2023_01_10-6h-240x121_equiangular_with_poles_conservative.zarr"
 CLIM_YEARS = (1991, 2020)
 CLIM_HALF = 7  # slots either side of each slot of the normal
 REGIONS = {"NH": (20.0, 80.0), "SH": (-80.0, -20.0)}  # EMC's extratropical belts
 HPFX = {"GDPS": D.HPFX_DAYS, "GEPS": E.HPFX_DAYS}  # days ECCC's HPFX keeps a run; the other sources keep them all
+START = "2026051300"  # the verification database's first run (IFS 50r1, AIFS v2): the deterministic models from here
+# each model's first run here: the ensembles go back as far as their archives (IFS-ENS on its 0.25 deg grid, AIFS-ENS
+# from its first open run) to give the days 1-15 teleconnection forecasts winters to be calibrated and tested on
+SINCE = {
+    "IFS-ENS": "2024030100",
+    "GEFS": "2024030100",
+    "AIFS-ENS": "2025070200",
+    "GEPS": START,
+    **dict.fromkeys(DET, START),
+}
 GIVE_UP_DAYS = 365  # a run this old is scored with the models it has (a backfill can still fetch any other source)
 RECENT_DAYS = 30  # runs this new without their scores yet are scored at the leads ERA5 covers (``table``)
-
-
-# --------------------------------------------------------------------------- grids
-class Grid:
-    """A regular latitude-longitude grid of cell centres, north to south, longitudes from 0 east."""
-
-    def __init__(self, step: float, south: float = -90.0):
-        self.lat = np.round(90.0 - step * np.arange(round((90.0 - south) / step) + 1), 6)
-        self.lon = np.round(step * np.arange(round(360.0 / step)), 6)
-        self.shape = (self.lat.size, self.lon.size)
-
-
-G15 = Grid(1.5)  # WMO's standard verification grid, WeatherBench 2's 240 x 121
-G25N = Grid(2.5, south=20.0)  # the teleconnection patterns' NCEP/NCAR grid, 20-90N
-
-
-def _edges(c: np.ndarray, lo: float | None = None, hi: float | None = None) -> np.ndarray:
-    """Edges of the cells of regularly spaced centres ``c`` (ascending), clipped to [lo, hi] (the poles)."""
-    d = c[1] - c[0]
-    e = np.concatenate([c - d / 2, c[-1:] + d / 2])
-    return np.clip(e, lo, hi) if lo is not None else e
-
-
-def _overlap(src: np.ndarray, dst: np.ndarray, period: float | None = None) -> np.ndarray:
-    """(destination cells, source cells): the length shared by each pair of cells, of ascending edge arrays; with a
-    period (longitude) a source cell counts once more a period either side."""
-    shifts = (-period, 0.0, period) if period else (0.0,)
-    out = np.zeros((dst.size - 1, src.size - 1))
-    for s in shifts:
-        lo = np.maximum(dst[:-1, None], src[None, :-1] + s)
-        hi = np.minimum(dst[1:, None], src[None, 1:] + s)
-        out += np.clip(hi - lo, 0.0, None)
-    return out
-
-
-@functools.cache
-def _weights(lat0: float, lat1: float, nlat: int, lon0: float, dlon: float, nlon: int, g: Grid) -> tuple:
-    """The remapping onto ``g`` of a regular source grid, as (rows, columns) weight matrices whose rows sum to one,
-    whether the source runs south to north and the order that sorts its longitudes from 0 east."""
-    lat, up = np.linspace(lat0, lat1, nlat), lat0 < lat1
-    lat = lat if up else lat[::-1]
-    lon = np.mod(lon0 + dlon * np.arange(nlon), 360.0)
-    order = np.argsort(lon, kind="stable")
-    s_lat = np.sin(np.radians(_edges(lat, -90.0, 90.0)))
-    d_lat = np.sin(np.radians(_edges(g.lat[::-1], -90.0, 90.0)))
-    wy = _overlap(s_lat, d_lat)[::-1]  # rows north to south, as g
-    wx = _overlap(_edges(lon[order]), _edges(g.lon), 360.0)
-    return wy / wy.sum(1)[:, None], wx / wx.sum(1)[:, None], up, order
-
-
-def remap(v: np.ndarray, lat: np.ndarray, lon: np.ndarray, g: Grid) -> np.ndarray:
-    """A global field on its own regular grid (centres ``lat`` x ``lon``, either way up) as the area mean over each
-    cell of ``g``: first-order conservative remapping, latitude weighted by the cells' areas (overlaps in sin(lat))."""
-    wy, wx, up, order = _weights(
-        float(lat[0]), float(lat[-1]), lat.size, float(lon[0]), float(lon[1] - lon[0]), lon.size, g
-    )
-    v = np.asarray(v, np.float64)
-    v = (v if up else v[::-1])[:, order]  # south to north, as the weights
-    return (wy @ v @ wx.T).astype(np.float32)
 
 
 # --------------------------------------------------------------------------- fields
@@ -200,13 +157,22 @@ def run_fields(model: str, init: str, work: Path, out: Path) -> None:
 
 
 def fields(a) -> None:
+    """The runs of one model the database lacks. A run its source no longer holds (HPFX's GDPS and GEPS past their
+    days, a 404; a bucket answers 403) is left out with a warning, as mverify_scores.download does: no later pass
+    can fetch it, so it is not a failure."""
     have = _have(a.have)
     a.archive_out.mkdir(parents=True, exist_ok=True)
     a.work.mkdir(parents=True, exist_ok=True)
     for init in D.runs(*a.inits):
         if file_of(a.model, init) in have:
             continue
-        run_fields(a.model, init, a.work, a.archive_out)
+        try:
+            run_fields(a.model, init, a.work, a.archive_out)
+        except urllib.error.HTTPError as e:
+            if e.code not in (403, 404):
+                raise
+            print(f"::warning::{a.model} {init}: not on the source ({e.code}), left out", flush=True)
+            continue
         print(f"{a.model} {init}: archived", flush=True)
 
 
@@ -235,29 +201,50 @@ def truth(a) -> None:
         print(f"ERA5 {day:%Y-%m-%d} 00Z: archived", flush=True)
 
 
-def slot366(t: pd.DatetimeIndex) -> np.ndarray:
-    """Row of the 366-day calendar: 29 February = 59, 1 March = 60 in every year."""
-    return np.asarray(t.dayofyear - 1 + ((t.month > 2) & ~t.is_leap_year))
-
-
 def clim(a) -> None:
+    """Every 00Z 500 hPa field of CLIM_YEARS from WeatherBench 2's zarr. A chunk holds 8 six-hourly steps of all 13
+    levels, so every chunk is read whatever is wanted of it: they are fetched side by side over HTTPS (xarray reads them
+    a few at a time, over two hours) and only the 00Z 500 hPa slices kept."""
+    import json
+    from concurrent.futures import ThreadPoolExecutor
+
+    import numcodecs
     import xarray as xr
 
-    ds = xr.open_zarr(WB2, storage_options={"token": "anon"})
-    z = ds["geopotential"].sel(level=500, time=slice(f"{CLIM_YEARS[0]}-01-01", f"{CLIM_YEARS[1]}-12-31T00"))
-    z = z.sel(time=z["time"].dt.hour == 0).transpose("time", "latitude", "longitude")
+    url = f"https://storage.googleapis.com/{WB2}/geopotential"
+    meta = json.loads(D.get(f"{url}/.zarray"))  # the chunks' own layout, whatever the zarr library makes of it
+    z = xr.open_zarr(f"gs://{WB2}", storage_options={"token": "anon"})["geopotential"]  # the coordinates
+    if z.dims != ("time", "level", "longitude", "latitude") or meta.get("dimension_separator", ".") != ".":
+        raise RuntimeError(f"WeatherBench 2's geopotential is {z.dims}, not as read here")
     lat = z["latitude"].values
     if not (np.allclose(np.sort(lat)[::-1], G15.lat) and np.allclose(z["longitude"].values, G15.lon)):
         raise RuntimeError("WeatherBench 2's grid is not the verification grid")
+    shape, dtype, codec = meta["chunks"], np.dtype(meta["dtype"]), numcodecs.get_codec(meta["compressor"])
+    nt = shape[0]
+    level = int(np.flatnonzero(z["level"].values == 500)[0])
     t = pd.DatetimeIndex(z["time"].values)
-    s, total, count = slot366(t), np.zeros((366, *G15.shape)), np.zeros(366)
-    for y in range(CLIM_YEARS[0], CLIM_YEARS[1] + 1):  # a year at a time, ~40 MB
-        k = t.year == y
-        v = z.isel(time=np.flatnonzero(k)).values / G
-        v = v[:, ::-1] if lat[0] < lat[-1] else v
-        np.add.at(total, s[k], v)
-        np.add.at(count, s[k], 1)
-        print(f"normal: {y} read", flush=True)
+    want = (t.year >= CLIM_YEARS[0]) & (t.year <= CLIM_YEARS[1]) & (t.hour == 0)
+
+    def block(b: int) -> np.ndarray:
+        """The 500 hPa slice of time chunk ``b``: (steps, longitude, latitude)."""
+        raw = codec.decode(D.get(f"{url}/{b}.0.0.0"))
+        return np.frombuffer(raw, dtype).reshape(shape)[:, level]
+
+    blocks = np.unique(np.flatnonzero(want) // nt)
+    total, count = np.zeros((366, *G15.shape)), np.zeros(366)
+    with ThreadPoolExecutor(32) as ex:
+        for i in range(0, blocks.size, 256):  # a batch at a time, so the chunks waiting in order stay few
+            batch = blocks[i : i + 256]
+            for b, v in zip(batch, ex.map(block, batch), strict=True):
+                k = np.flatnonzero(want[b * nt : (b + 1) * nt])
+                f = v[k].transpose(0, 2, 1).astype(np.float64) / G  # (steps, lat, lon), metres
+                f = f[:, ::-1] if lat[0] < lat[-1] else f
+                s = slot366(t[b * nt + k])
+                np.add.at(total, s, f)
+                np.add.at(count, s, 1)
+            print(f"normal: read to {t[batch[-1] * nt]:%Y-%m-%d}", flush=True)
+    if count.sum() != want.sum():
+        raise RuntimeError(f"normal: {int(count.sum())} of {int(want.sum())} 00Z fields read")
     rows = np.arange(366)
     near = (np.abs((rows[:, None] - rows[None, :] + 183) % 366 - 183) <= CLIM_HALF).astype(float)  # around the year
     normal = (near @ total.reshape(366, -1)).reshape(total.shape) / (near @ count)[:, None, None]
@@ -315,13 +302,17 @@ def models_of(init: str, have: set[str]) -> list[str]:
 
 def due(have: set[str], today: pd.Timestamp) -> dict[str, list[str]]:
     """The runs whose scores are due, with their models: ERA5 covers day 15, and every model is in that can still
-    come (GDPS and GEPS while HPFX keeps the run, the others for GIVE_UP_DAYS)."""
+    come (from its SINCE; GDPS and GEPS while HPFX keeps the run, the others for GIVE_UP_DAYS)."""
     out = {}
     for init in sorted({n.split("_")[1][:10] for n in have if n.startswith(("z500-", "ens-z500-"))}):
         t0 = pd.to_datetime(init, format="%Y%m%d%H")
         days = pd.date_range(t0 + pd.Timedelta(days=1), t0 + pd.Timedelta(days=15), freq="D")
         models = models_of(init, have)
-        coming = [m for m in [*DET, *E.ENSEMBLES] if t0 >= today - pd.Timedelta(days=HPFX.get(m, GIVE_UP_DAYS))]
+        coming = [
+            m
+            for m in [*DET, *E.ENSEMBLES]
+            if init >= SINCE[m] and t0 >= today - pd.Timedelta(days=HPFX.get(m, GIVE_UP_DAYS))
+        ]
         if (
             f"acc_{init}.parquet" not in have
             and set(coming) <= set(models)
@@ -391,7 +382,7 @@ def main() -> None:
     t = sub.add_parser("truth", help="ERA5's 500 hPa height at 00Z of each day ARCO holds")
     t.add_argument("--first", required=True, help="YYYYMMDD")
     t.add_argument("--last", required=True, help="YYYYMMDD")
-    c = sub.add_parser("clim", help="the ERA5 1991-2020 normal on the verification grid (built once)")
+    c = sub.add_parser("clim", help="the ERA5 1991-2020 normal on the verification grid (built once, offline)")
     c.add_argument("--out", type=Path, required=True)
     s = sub.add_parser("acc", help="each due run's scores against ERA5")
     s.add_argument("--list", action="store_true", help="print each due run and the files its scores are made from")

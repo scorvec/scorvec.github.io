@@ -138,6 +138,7 @@ PAGES = {
             "verify": dict(models=["AIFS-ENS", "IFS-ENS", "GEFS", "GEPS", "GEOS FP"]),
             "pdescent": dict(models=["IFS-ENS", "IFS control", "GEFS", "GEOS FP"]),
             "fluxrec": dict(models=["AIFS-ENS", "IFS-ENS", "GEFS", "GEPS", "ERA5"]),
+            "shwinters": dict(models=["MERRA-2", "GEOS FP"]),  # this winter from GEOS FP analyses
         },
     ),
     # circulation.html's groups follow the theme-first menus: its days 1-15 maps under Mid-latitude weather, the
@@ -161,6 +162,7 @@ PAGES = {
             ),
             "Jets & angular momentum": dict(topic="drivers", region=["Global"]),
         },
+        items={"telecon15": dict(models=["IFS-ENS", "AIFS-ENS", "GEFS", "GEPS", "ERA5"])},
     ),
     # "/snowbands.html" retired: its diagnostics are the "Winter: snow bands" maps of /models.html
     "/subseasonal.html": dict(

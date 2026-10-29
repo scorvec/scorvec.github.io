@@ -16,13 +16,14 @@ Runs: 00, 06, 12 and 18Z (GEPS 00 and 12Z), each to +360 h (GEFS and GEPS +384 h
 runs to +144 h (Model.runs). A run can be followed as it lands (--follow, planned with --started once its first day is
 complete): each step is fetched as soon as its source has it, and at the end of days 5 and 10 what is done is published
 (--checkpoint: the days and the windows they close, "through" in the manifest entry); the change maps, the regimes,
-the clusters' fields and the statistics come with the whole run. IFS-ENS comes in two stages: its 0.25-deg files land hours before the 0.1-deg
-surface files, so the first stage (--first) publishes every field as soon as they are complete, 2 m temperature from
-the 0.25-deg files (with the regimes and the clusters' fields; the run statistics kept as <cycle>-partial; "stage":
-"first" in the entry), and the second replaces 2 m temperature with the 0.1-deg one when its files land (--fields t2m
---merge: its maps, changes and statistics replaced, nothing else redone). A day is a calendar UTC day, the mean of 06, 12, 18 and 24 UTC: a 00Z run has 15 full
-days, a 06, 12 or 18Z run 14 (its first and last partial days are not read), GEFS and GEPS one more, an IFS-ENS 06/18Z
-run 5. Spans: days 1-5, 6-10, 11-15 (the last cut at the run's last day) and each day.
+the clusters' and the teleconnections' fields and the statistics come with the whole run. IFS-ENS comes in two
+stages: its 0.25-deg files land hours before the 0.1-deg surface files, so the first stage (--first) publishes every
+field as soon as they are complete, 2 m temperature from the 0.25-deg files (with the regimes and the clusters' and
+teleconnections' fields; the run statistics kept as <cycle>-partial; "stage": "first" in the entry), and the second
+replaces 2 m temperature with the 0.1-deg one when its files land (--fields t2m --merge: its maps, changes and
+statistics replaced, nothing else redone). A day is a calendar UTC day, the mean of 06, 12, 18 and 24 UTC: a 00Z run
+has 15 full days, a 06, 12 or 18Z run 14 (its first and last partial days are not read), GEFS and GEPS one more, an
+IFS-ENS 06/18Z run 5. Spans: days 1-5, 6-10, 11-15 (the last cut at the run's last day) and each day.
 
 Anomaly: each member's daily mean less the day's normal (ensmaps_ref.Normals: the curve averaged over the day's four
 times). 2 m temperature: ERA5-Land/ERA5 at 0.1 deg; on a coarser grid it is averaged over each cell (cellmeans) and
@@ -68,7 +69,8 @@ Files, per field and span (assets/models/data/ensmaps/<model>/<cycle>/<field>/),
   r/<sector><regime>/<span>.webp   the members of one weather regime (ensmaps_regimes.py), as a/ on the 0.5-deg grid
 The manifest (assets/models/ensmaps_<model>.json: the KEEP_RUNS newest runs, newest first, each in the frames store)
 lists the spans, members, gates, grids, encodings and the regimes; this run's statistics for the next runs go to --save,
-its regime labels to --regimes-out.
+its regime labels to --regimes-out, and a 00 or 12Z run's members' 500 hPa height at the run's own hour of each day
+to --telecon-out (ensmaps_telecon.py: the PNA, EPO and WPO forecasts of circulation.html).
 
     python scripts/ensmaps/ensmaps.py plan --model ifs --manifests assets/models
     python scripts/ensmaps/ensmaps.py run --model ifs --cycle 2026102500 --site . --normals ref/ensmaps_t2m_normals.npz \
@@ -933,6 +935,16 @@ def run(a) -> int:
     W = Writer(outdir, a.threads)
     Z25 = np.full((n, len(days), 73, 144), np.nan, np.float32)  # the regimes' field: 500 hPa height on 2.5 deg
     M25 = np.full((n, len(days), 73, 144), np.nan, np.float32)  # and the clusters': sea-level pressure
+    # the teleconnection forecasts' fields (ensmaps_telecon.py): each member's 500 hPa height at the run's own hour of
+    # each day, of a 00 or 12Z run to day 15 (its first stage for IFS-ENS)
+    tele = None
+    if a.telecon_out and "z500" in fields and hh in ("00", "12") and mod.last(hh) >= LAST_STEP:
+        try:
+            import ensmaps_telecon as ET
+
+            tele = ET.Capture(n)
+        except Exception as e:  # noqa: BLE001  the maps never wait on the teleconnections
+            log(f"::warning::teleconnection fields: {type(e).__name__}: {e}")
     spans_meta: dict = {}
     min_n = int(np.ceil(MIN_SHARE * n))
 
@@ -1076,6 +1088,8 @@ def run(a) -> int:
                 seen.add((f, i))
                 fd.acc[i] += v
                 fd.cnt[i] += 1
+                if tele is not None and f == "z500":
+                    tele.put(i, s, v, fd.g.lat, fd.g.lon)
             if s not in last_of:
                 continue
             k = last_of[s]
@@ -1200,6 +1214,8 @@ def run(a) -> int:
         high25 = to25(F["msl"].high.astype(np.float32), grids["msl"].res) > 0.5
         EC.save_fields(a.fields_out, mod, key_c, init, days, Z25, M25, ok, high25, a.cluster_drift)
     del Z25, M25
+    if tele is not None:
+        tele.save(a.telecon_out, mod.key, key_c, init)
     nbytes_out = W.close()
     wall = time.time() - t_start
     log(f"{mod.label} {key_c}: {nbytes_out / 1e6:.0f} MB of frames ({changes} change maps), fetched "
@@ -1384,6 +1400,7 @@ def main() -> int:
     r.add_argument("--lists", type=Path, help="write publish.txt, prune.txt and floor.txt here")
     r.add_argument("--fields-out", type=Path, help="write the members' 2.5-deg anomalies for the clusters here")
     r.add_argument("--cluster-drift", type=Path, help="the clusters' drift archive of this model (read, and extended)")
+    r.add_argument("--telecon-out", type=Path, help="write the members' 500 hPa heights for the teleconnections here")
     r.add_argument("--threads", type=int, default=min(4, os.cpu_count() or 1))
     r.add_argument("--fields", default="", help="IFS-ENS second stage: t2m, with --merge (default every field)")
     r.add_argument("--first", action="store_true", help="IFS-ENS first stage: 2 m temperature from the 0.25-deg files")

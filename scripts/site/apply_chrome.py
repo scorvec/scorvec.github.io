@@ -103,6 +103,12 @@ PRODUCTS = [
                         "Takaya–Nakamura wave activity flux at 250 hPa, the ensemble's quasi-stationary wave trains.",
                         "Daily",
                     ),
+                    (
+                        "/circulation.html#telecon15",
+                        "Teleconnections, days 1–15",
+                        "The PNA, EPO and WPO from every member of the IFS-ENS, AIFS-ENS, GEFS and GEPS runs, each ensemble calibrated against its own archived runs, with the chance of each phase only at the leads where it has shown skill.",
+                        "Twice daily",
+                    ),
                 ],
             ),
         ],
@@ -890,6 +896,7 @@ HOME = {
             "/circulation.html#dt",
             "/circulation.html#pacjet",
             "/circulation.html#waf",
+            "/circulation.html#telecon15",
         ],
     ),
     "Global circulation and tropics": (
