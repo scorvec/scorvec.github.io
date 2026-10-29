@@ -27,6 +27,12 @@ name: Global ensemble maps (data)
 # publishes the figures to the frames store and commits assets/models/ensmaps_clusters.json. So the clusters update as
 # each model lands, with no download.
 #
+# And the days 1-15 teleconnections of circulation.html#telecon15 (scripts/ensmaps/ensmaps_telecon.py) the same way: a
+# 00 or 12Z run leaves each member's 500 hPa height at the run's own hour of each day in the Actions cache
+# (ensmaps-<model>-telecon-<cycle>, the two newest kept), and the `telecon` job - one at a time - reads the newest run of
+# each model, the hindcast table and the reference (telecon15.yml), draws the PNA, EPO and WPO figures into the frames
+# store and commits assets/sst/data/telecon15.json. Either job failing leaves the maps as published.
+#
 # Sources per run (the steps of the full days, 6-hourly: 15 or 14, GEFS and GEPS to +384 h one more):
 #   ifs   ECMWF open data, Google Cloud mirror only: 2t of the 50 perturbed members from the 0.1-deg surface files,
 #         msl and gh 500 from the 0.25-deg files, byte ranges of the wanted messages
@@ -103,6 +109,7 @@ jobs:
     outputs:
       done: ${{ steps.run.outputs.done }}
       fields: ${{ steps.run.outputs.fields }}
+      telecon: ${{ steps.run.outputs.telecon }}
     env:
       MODEL: ${{ inputs.model }}
       GEPS_WORK: ${{ github.workspace }}/../datamart-work   # scripts/geps/datamart.py's request ledger, scratch
@@ -249,7 +256,8 @@ jobs:
             $S ${FOLLOW:+--follow 200 --checkpoint scripts/ensmaps/checkpoint.sh} \
             --stats-dir ensmaps_stats \
             --save "ensmaps_stats/$CYC.npz" --lists "$L" \
-            --manifest-in "assets/models/ensmaps_$MODEL.json" --fields-out "clusterfields/$MODEL.npz" --cluster-drift "cdrift/$MODEL.npz"
+            --manifest-in "assets/models/ensmaps_$MODEL.json" --fields-out "clusterfields/$MODEL.npz" --cluster-drift "cdrift/$MODEL.npz" \
+            --telecon-out "telecon/$MODEL.npz"
           if [ -d ensmaps_stats ]; then find ensmaps_stats -name '*.npz' ! -name "$CYC.npz" -delete; fi   # the cache entry: this run's statistics only
           if [ "$MODEL" = geps ]; then python scripts/geps/datamart.py; fi    # the run's Datamart requests and bytes
           if [ ! -s "$L/publish.txt" ]; then echo "::warning::$MODEL $CYC is older than the run on the page - not published"; exit 0; fi
@@ -257,6 +265,7 @@ jobs:
           rm -rf "assets/models/data/ensmaps/$MODEL/$CYC"       # in the store now; keep the runner disk free
           echo "done=1" >> "$GITHUB_OUTPUT"
           if [ -s "clusterfields/$MODEL.npz" ]; then echo "fields=1" >> "$GITHUB_OUTPUT"; fi
+          if [ -s "telecon/$MODEL.npz" ]; then echo "telecon=1" >> "$GITHUB_OUTPUT"; fi
       - name: Keep this run's statistics for the next run
         if: steps.run.outcome == 'success'
         uses: actions/cache/save@v6
@@ -269,6 +278,12 @@ jobs:
         with:
           path: clusterfields
           key: ensmaps-${{ inputs.model }}-fields-${{ steps.plan.outputs.cycle }}
+      - name: Keep the members' fields for the teleconnections
+        if: steps.run.outputs.telecon == '1'
+        uses: actions/cache/save@v6
+        with:
+          path: telecon
+          key: ensmaps-${{ inputs.model }}-telecon-${{ steps.plan.outputs.cycle }}
       - name: Keep the clusters' drift archive
         if: steps.run.outputs.fields == '1' && endsWith(steps.plan.outputs.cycle, '00')
         uses: actions/cache/save@v6
@@ -283,7 +298,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PREV48: ${{ steps.plan.outputs.prev48 }}
         run: |
-          for kind in stats fields cdrift; do
+          for kind in stats fields cdrift telecon; do
             gh cache list -R "$GITHUB_REPOSITORY" --key "ensmaps-$MODEL-$kind-" --limit 100 --json id,key -q '.[] | "\(.key) \(.id)"' \
               | sort -r | { if [ "$kind" = stats ]; then awk -v floor="$PREV48" '{ if (match($1, /[0-9]{10}/) && substr($1, RSTART, 10) < floor) print }'; else tail -n +3; fi; } \
               | while read -r k id; do
@@ -399,6 +414,102 @@ jobs:
             git add -f "$OUT"
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -q -m "ensmaps: clusters after $MODEL"
+            if timeout 180 git push origin HEAD:main; then echo "Pushed on attempt $i."; exit 0; fi
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+        env:
+          MODEL: ${{ inputs.model }}
+
+  telecon:
+    needs: run
+    if: needs.run.outputs.telecon == '1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: ensmaps-telecon
+      cancel-in-progress: false
+    env:
+      MVERIFY: "mverify @ git+https://github.com/scorvec/nwp_verification@f81968d42a703f0e42eb75acd526fadd3ba567e9"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/ensmaps/
+            /scripts/lib/
+            /scripts/verify/
+            /scripts/constraints.txt
+            /assets/sst/data/telecon15.json
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        # mverify for the verification figures' style (scripts/verify/verify_figs.py), verify-z500.yml's pin
+        run: |
+          pip install --quiet numpy scipy pandas pyarrow pillow matplotlib==3.10.9 "$MVERIFY" \
+            "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+      - name: The newest IFS-ENS fields
+        uses: actions/cache/restore@v6
+        with:
+          path: telecon
+          key: ensmaps-ifs-telecon-newest
+          restore-keys: ensmaps-ifs-telecon-
+      - name: The newest AIFS-ENS fields
+        uses: actions/cache/restore@v6
+        with:
+          path: telecon
+          key: ensmaps-aifs-telecon-newest
+          restore-keys: ensmaps-aifs-telecon-
+      - name: The newest GEFS fields
+        uses: actions/cache/restore@v6
+        with:
+          path: telecon
+          key: ensmaps-gefs-telecon-newest
+          restore-keys: ensmaps-gefs-telecon-
+      - name: The newest GEPS fields
+        uses: actions/cache/restore@v6
+        with:
+          path: telecon
+          key: ensmaps-geps-telecon-newest
+          restore-keys: ensmaps-geps-telecon-
+      - name: The hindcast table (telecon15.yml)
+        uses: actions/cache/restore@v6
+        with:
+          path: tbl
+          key: telecon15-hindcast-${{ hashFiles('scripts/ensmaps/telecon15.py') }}-newest
+          restore-keys: telecon15-hindcast-${{ hashFiles('scripts/ensmaps/telecon15.py') }}-
+      - name: Indices, calibration, figures
+        id: tc
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FRAMES_BRANCH: "off"
+        run: |
+          set -euo pipefail
+          ls -la telecon tbl 2>/dev/null || true
+          if ! gh release download telecon15-ref-v1 -R "$GITHUB_REPOSITORY" -p telecon15_ref.npz -D "$RUNNER_TEMP"; then
+            echo "::notice::no teleconnection reference yet (telecon15.yml builds it): nothing drawn"; exit 0
+          fi
+          python scripts/ensmaps/ensmaps_telecon.py run --fields telecon/*.npz --ref "$RUNNER_TEMP/telecon15_ref.npz" \
+            --table tbl --site .
+          scripts/lib/publish_frames_ci.sh assets/telecon15/fig
+          echo "done=1" >> "$GITHUB_OUTPUT"
+      - name: Commit & push the summary
+        if: steps.tc.outputs.done == '1'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT=assets/sst/data/telecon15.json
+          SNAP=$(mktemp -d)
+          cp "$OUT" "$SNAP/"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            cp "$SNAP/$(basename "$OUT")" "$OUT"
+            git add -f "$OUT"
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "ensmaps: teleconnections after $MODEL"
             if timeout 180 git push origin HEAD:main; then echo "Pushed on attempt $i."; exit 0; fi
             sleep 5
           done

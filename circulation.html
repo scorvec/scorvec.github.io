@@ -68,6 +68,7 @@
                   <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
                   <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
                   <li><a href="/circulation.html#waf">Wave activity flux</a></li>
+                  <li><a href="/circulation.html#telecon15">Teleconnections, days 1–15</a></li>
                 </ul>
               </div>
             </div>
@@ -239,7 +240,7 @@
       <p class="hint">With the list of plots focused: <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure, <span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; click a still to enlarge</p>
 <!-- plots:start -->
 <details class="about" id="every-plot">
-<summary>Every plot on this page (15)</summary>
+<summary>Every plot on this page (16)</summary>
 <h2>Tropical Pacific</h2>
 <p><a href="#mslp"><b>MSLP and 10 m wind</b></a> &middot; ensembles and single runs, to day 15<br>
 The full-field Pacific surface forecast behind the equatorial diagnostics: mean-sea-level pressure (contours, with H/L centres) and 10&nbsp;m wind (speed shaded in knots, plus barbs), animated over the tropical and subtropical Pacific. An equatorial westerly push between the Maritime Continent and the dateline is a wind-burst signature. Choose the <b>blend</b> (AIFS-ENS&nbsp;+&nbsp;IFS-ENS, member-weighted, days&nbsp;1&ndash;15) or <b>either ensemble alone</b>: where the AI ensemble and the physics ensemble agree at days 11&ndash;15, confidence is higher, although agreement alone does not show what forces the pattern; where they part, treat it with care. AIFS-ENS has no ocean model of its own; IFS-ENS runs a coupled ocean. Each map's title lists exactly which members went in (when IFS-ENS has not reached the mirror in time the blend says it is AIFS-ENS only).</p>
@@ -253,6 +254,8 @@ The upper-level flow as PV thinkers read it. Ertel potential vorticity is comput
 <p><b>What this shows.</b> The jet stream over the North Pacific at 250&nbsp;hPa (about 10&nbsp;km up), from 100&deg;E to 60&deg;W so the downstream half over North America is in view, for the next two weeks. <b>Jet maps</b>: the week-1 and week-2 ensemble-mean wind speed with isotachs, the jet axis (the latitude of the fastest wind at each longitude, where it reaches 30&nbsp;m/s) against the ERA5 1991&ndash;2020 normal axis, and the share of member-days with a jet core of 50&nbsp;m/s or more against the line where such winds occur on 20% of days normally; the loop steps the same two panels day by day. <b>Jet axis</b>: every member&rsquo;s axis on days 3, 7, 10 and 14 against the normal axis and its usual (10&ndash;90%) range &mdash; where the lines fan out, the forecast does not know where the jet, and the storm track beneath it, will be. Members: AIFS-ENS control + 50 perturbed members, IFS-ENS all 50 perturbed members (open data has no IFS control on pressure levels), all on the same 0.5&deg; grid.</p>
 <p><a href="#waf"><b>Wave activity flux</b></a> &middot; Rossby packets, 250 hPa &middot; <a href="/topics/wave-activity-flux.html">explainer</a><br>
 The <b>Takaya&ndash;Nakamura (2001) wave activity flux</b> is a phase-independent vector diagnostic of quasi-stationary <b>Rossby wave propagation</b>: unlike watching ridges and troughs move, the flux <b>W</b> points along the wave packet's <i>group velocity</i> &mdash; where the wave energy itself is travelling, ducted along the jet-stream waveguides &mdash; and its <b>convergence marks where the downstream flow will amplify</b> days later. That makes it a practical forecast tool for <b>downstream development, blocking onset, and teleconnection excitation</b>: watch packets radiate out of the tropical Pacific convection (the El&nbsp;Ni&ntilde;o&ndash;PNA pathway) or off a mountain-torque event, arc along the subtropical jet, and pile into an amplifying ridge.</p>
+<p><a href="#telecon15"><b>Teleconnections, days 1–15</b></a> &middot; PNA, EPO and WPO, four ensembles<br>
+<b>What this shows.</b> Three patterns of the North Pacific and North American flow at 500&nbsp;hPa, from every member of the newest IFS-ENS (50 members), AIFS-ENS (51), GEFS (31) and GEPS (21) runs to day 15. The <i>Pacific&ndash;North American pattern</i> (PNA) is positive with higher heights near Hawaii and over western North America and lower heights south of the Aleutians and over the southeastern United States. The <i>Eastern Pacific Oscillation</i> (EPO) and <i>Western Pacific Oscillation</i> (WPO) compare the heights of a subtropical box with those of a high-latitude box over the eastern and the western North Pacific: negative when the high latitudes are high, as under a ridge over Alaska (EPO) or the Bering Sea and Kamchatka (WPO).</p>
 <h2>Tropical cyclones</h2>
 <p><a href="#tc"><b>Tropical cyclones</b></a> &middot; storms and odds, maps, phase space, shear, track record<br>
 <b>What it shows.</b> Every tropical storm in the Northern Hemisphere that ECMWF's two ensembles carry, from ECMWF's own tropical-cyclone tracker in the open data: the 50 perturbed members of the AI ensemble (AIFS-ENS) and the 50 of the physics ensemble (IFS-ENS), from each run started at 00 or 12&nbsp;UTC. A storm is listed when it was observed at the start, or when at least 40&nbsp;% of the members of either ensemble take a developing system to tropical-storm strength (17&nbsp;m/s). The board describes the storms: where they go, when they turn, when they lose their tropical character and how deep they get afterwards. It says nothing about what a storm does to the weather downstream.</p>
@@ -533,6 +536,15 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
 <p><b>Season.</b> The layers are the cold season&rsquo;s; in the warm season the two jets become one on other isentropes, so runs are shown from 1 November to 31 March.</p>
 <p class="chart-sources">ECMWF IFS-ENS open data (CC BY 4.0), 50 perturbed members, t, u and v on nine levels 700&ndash;100&nbsp;hPa, Google Cloud mirror &middot; normals: ERA5 1991&ndash;2020 via WeatherBench&nbsp;2 (Copernicus C3S) &middot; method: Winters &amp; Martin (2014, <i>Wea. Forecasting</i> 29, 954&ndash;974), Christenson, Martin &amp; Handlos (2017, <i>J. Climate</i> 30, 7231&ndash;7246), Winters, Keyser, Bosart &amp; Martin (2020, <i>Mon. Wea. Rev.</i> 148, 1987&ndash;2008) &middot; updated daily</p>
 </template>
+<template id="about-telecon15">
+<p><b>What this shows.</b> Three patterns of the North Pacific and North American flow at 500&nbsp;hPa, from every member of the newest IFS-ENS (50 members), AIFS-ENS (51), GEFS (31) and GEPS (21) runs to day 15. The <i>Pacific&ndash;North American pattern</i> (PNA) is positive with higher heights near Hawaii and over western North America and lower heights south of the Aleutians and over the southeastern United States. The <i>Eastern Pacific Oscillation</i> (EPO) and <i>Western Pacific Oscillation</i> (WPO) compare the heights of a subtropical box with those of a high-latitude box over the eastern and the western North Pacific: negative when the high latitudes are high, as under a ridge over Alaska (EPO) or the Bering Sea and Kamchatka (WPO).</p>
+<p><b>The indices</b> are the GEFS and GEPS pages&rsquo; own, so all three agree with theirs. The PNA projects the 500&nbsp;hPa height anomaly over 20&ndash;90&deg;N, divided by its standard deviation for the calendar month and weighted by &radic;cos(latitude), on that month&rsquo;s least-squares projector from the regression of NCEP/NCAR reanalysis heights on CPC&rsquo;s monthly indices (CPC&rsquo;s method, after Barnston &amp; Livezey 1987; out of sample it follows CPC&rsquo;s daily PNA with r&nbsp;=&nbsp;0.70). The EPO and WPO are PSL&rsquo;s box differences in metres: EPO = 20&ndash;35&deg;N minus 55&ndash;65&deg;N, both 160&ndash;125&deg;W; WPO = 25&ndash;40&deg;N minus 50&ndash;70&deg;N, both 140&deg;E&ndash;150&deg;W. Each index is in seasonal standard deviations: the standard deviation of the daily index within 15 days of the date over 1991&ndash;2020, so &plusmn;1 means as much in July as in January.</p>
+<p><b>The anomalies.</b> Each member&rsquo;s 500&nbsp;hPa height at 00&nbsp;UTC of each day of a 00Z run (12&nbsp;UTC of a 12Z run), not a daily mean, averaged conservatively onto the patterns&rsquo; 2.5&deg; grid, less the ERA5 1991&ndash;2020 normal for that day and hour (the daily-mean normal plus ERA5&rsquo;s mean 500&nbsp;hPa tide at that hour). The ensemble mean is the mean of the members&rsquo; indices.</p>
+<p><b>Calibration.</b> Each ensemble is calibrated against its own past runs, scored the same way: every archived 00Z run in the 500&nbsp;hPa verification database, from March 2024 for IFS-ENS and GEFS, July 2025 for AIFS-ENS and 2026 for GEPS (its open archive keeps only about 50 days), against ERA5 at 00&nbsp;UTC with the same normal. From the runs started within 45 days of today&rsquo;s date in any year, a regression of ERA5&rsquo;s index on the ensemble-mean index at each lead gives the calibrated forecast and its error; the chance of the positive phase (&ge;&nbsp;+0.5&nbsp;sd) or the negative phase (&le;&nbsp;&minus;0.5&nbsp;sd) comes from that regression&rsquo;s Student&nbsp;t predictive distribution, widened for the uncertainty of the fit itself (the GEFS page&rsquo;s method). A 12Z run takes the 00Z runs&rsquo; fit at the same lead in hours.</p>
+<p><b>Skill.</b> A lead counts only when the hindcast correlation is at least 0.25, significant at 5% (one-sided, on the effective number of runs, which counts consecutive daily starts as largely the same case: n(1&nbsp;&minus;&nbsp;r<sub>1</sub>r<sub>2</sub>)/(1&nbsp;+&nbsp;r<sub>1</sub>r<sub>2</sub>), with r<sub>1</sub> and r<sub>2</sub> the day-to-day autocorrelations of the forecast and observed series; Bretherton et al. 1999), and still significant when the false discovery rate is held at 10% over every ensemble, index and lead of the update (Benjamini &amp; Hochberg 1995). Elsewhere the figures hatch the lead and give no probability. A lead with fewer than 30 runs is not tested. The skill view gives each correlation and the number of runs behind it.</p>
+<p><b>Limits.</b> The record mixes model versions: IFS-ENS cycles 48r1, 49r1 (from 12 November 2024) and 50r1 (from 13 May 2026), AIFS-ENS versions 1 and 2 (from 13 May 2026); GEFS is version 12 throughout. Two or three autumns are a short record, so the calibration and the skill will firm up as runs accumulate, and the correlations of neighbouring leads and indices are not independent. ERA5 reaches the database about a week behind real time, hence the gap before each run.</p>
+<p class="chart-sources">ECMWF IFS-ENS and AIFS-ENS open data (CC BY 4.0), Google Cloud mirror &middot; NOAA GEFS, AWS open data &middot; ECCC GEPS, MSC Datamart and HPFX &middot; ERA5 (Copernicus C3S) via ARCO-ERA5 and WeatherBench&nbsp;2 &middot; patterns: NCEP/NCAR reanalysis and CPC&rsquo;s monthly indices, PSL&rsquo;s EPO and WPO definitions &middot; Barnston &amp; Livezey (1987, <i>Mon. Wea. Rev.</i> 115, 1083&ndash;1126) &middot; Bretherton, Widmann, Dymnikov, Wallace &amp; Blad&eacute; (1999, <i>J. Climate</i> 12, 1990&ndash;2009) &middot; Benjamini &amp; Hochberg (1995, <i>J. R. Stat. Soc. B</i> 57, 289&ndash;300) &middot; updated after each 00 and 12Z run</p>
+</template>
 </main>
 <script type="application/ld+json">
     {
@@ -724,6 +736,7 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
 <div id="hbd-list"></div>
 </div>
 <script src="/assets/hbranch/drop.js?v=43aa845a888b" defer></script>
+<script src="/assets/frames_root.js?v=bdced09224"></script>
 <script>
 var JETBR_SHOW = true;  // the jet-branch view of the North Pacific jet card; its leads follow scripts/mjo/data/reference/jet_branches_skill.json
 window.STAGE = {
@@ -733,12 +746,20 @@ window.STAGE = {
             tcshear: "tc/shear", tcjet: "tc/jet", tcens: "tc/storms", tcphase: "tc/phase"},
   groups: [
   {label: "Tropical Pacific", ico: "\u{1F30A}", items: [["mslp","MSLP and 10 m wind","ensembles and single runs, to day 15"],["gdps_ir","GDPS simulated IR","forecast satellite loop"]]},
-  {label: "Mid-latitude weather", ico: "\u{1F5FA}", items: [["dt","Dynamic tropopause","θ on 2 PVU, hemisphere and five regions"],["pacjet","North Pacific jet","250 hPa maps, jet axis, phases"],["waf","Wave activity flux","Rossby packets, 250 hPa"]]},
+  {label: "Mid-latitude weather", ico: "\u{1F5FA}", items: [["dt","Dynamic tropopause","θ on 2 PVU, hemisphere and five regions"],["pacjet","North Pacific jet","250 hPa maps, jet axis, phases"],["waf","Wave activity flux","Rossby packets, 250 hPa"],["telecon15","Teleconnections, days 1–15","PNA, EPO and WPO, four ensembles"]]},
   {label: "Tropical cyclones", ico: "\u{1F300}", items: [["tc","Tropical cyclones","storms and odds, maps, phase space, shear, track record"]]},
   {label: "Tropical circulation", ico: "\u{1F327}", items: [["walker","Walker circulation","analysis, forecasts, by basin"],["hadley","Hadley cells","the cells, outflow and descent, turnover, sea-level pressure"],["vpot","Velocity potential","200 hPa, irrotational wind"],["gdps150","GDPS 150 hPa","outflow layer, wind and height"],["gillrain","Rain-forced circulation","Gill model vs the observed χ200"],["rainfc","Rain forecast, weeks 1–2","bias-adjusted, four ensembles and their blend"]]},
   {label: "Jets & angular momentum", ico: "\u2696", items: [["jets","Subtropical jets","strength and position"],["aam","Atmospheric angular momentum","series, trend, phase, by latitude"],["torque","Surface torques","friction and mountain"]]}
 ],
   products: {
+  // the days 1-15 teleconnections (scripts/ensmaps/ensmaps_telecon.py): figures in the frames store
+  telecon15: {label: "Teleconnections, days 1–15", a: {label: "Index", items: [["pna","PNA"],["epo","EPO"],["wpo","WPO"]]},
+          b: {label: "View", items: [["plume","Members and means"],["prob","Phase probabilities"],["skill","Hindcast skill"]]},
+          img: function (a, b) { return "assets/telecon15/fig/" + a + "_" + b + ".webp"; }, frames: true, bust: "hourly", fit: false,
+          about: "about-telecon15", cap: function (a, b) { var n = {pna: "Pacific–North American pattern", epo: "Eastern Pacific Oscillation", wpo: "Western Pacific Oscillation"}[a];
+            return {plume: "The " + n + " index of every member of the newest IFS-ENS, AIFS-ENS, GEFS and GEPS runs and each ensemble's mean, after ERA5's last weeks; hatched where that model has not shown skill.",
+                    prob: "The chance that the " + n + " index is positive (≥ +0.5 sd) or negative (≤ −0.5 sd) on each day, each ensemble calibrated against its own past runs, only where it has shown skill.",
+                    skill: "How each ensemble's mean " + n + " index has matched ERA5's at each lead in its runs started near this date in past years, and how many runs each number rests on."}[b]; }},
   rainfc: {label: "Rain forecast, weeks 1–2 (bias-adjusted)",
           a: {label: "Show", items: [["anom","Anomaly"],["terc","Favoured tercile"],["rain","Rain"],["dod","Change since yesterday"],["bias","Bias removed"]]},
           b: function (a) { return a === "bias" ? {label: "Model", items: [["ifs","IFS-ENS"],["aifs","AIFS-ENS"],["gefs","GEFS"],["geps","GEPS"]]}
@@ -857,7 +878,7 @@ window.STAGE = {
       }).catch(function () {});
   })();
 </script>
-<script src="/assets/stage.js?v=cd6d1e7db7" defer></script>
+<script src="/assets/stage.js?v=1131fdb671" defer></script>
 <!-- sf:start -->
 <footer class="sf">
   <div class="sf-in">

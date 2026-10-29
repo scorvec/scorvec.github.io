@@ -1,6 +1,6 @@
 """Regular latitude-longitude grids: first-order conservative remapping between them, and the 366-day calendar of
 their daily normals. Shared by the 500 hPa verification (scripts/verify/z500_acc.py) and the days 1-15 teleconnection
-forecasts (scripts/telecon/index15.py, scripts/ensmaps/ensmaps.py), so a field is put on a grid one way everywhere.
+forecasts (scripts/ensmaps/telecon15.py, ensmaps_telecon.py), so a field is put on a grid one way everywhere.
 
     from latlon import G15, remap
     z15 = remap(z, lat, lon, G15)    # any regular global grid, either way up, longitudes from anywhere
