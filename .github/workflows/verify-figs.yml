@@ -4,7 +4,9 @@ name: Verification figures
 # and rain maps (mverify_scores.windows), the ensembles' windows (ens_verify.py windows), the 500 hPa anomaly
 # correlations and scripts/verify/verify_figs.py, published and committed as the nightly (verification.yml) does. Half
 # an hour where the nightly takes hours, for a change to the figures; the nightly keeps doing it all every day. The
-# station series are the nightly's alone. Dispatch only; one at a time with the nightly.
+# station series are the nightly's alone. Dispatch only. Its own concurrency group: in the nightly's, a dispatch would
+# displace a nightly waiting its turn (a group keeps only its newest pending run); run beside one, the later complete
+# set of figures is the one the store keeps.
 on:
   workflow_dispatch:
 
@@ -15,7 +17,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: verification
+  group: verify-figs
   cancel-in-progress: false
 
 jobs:
