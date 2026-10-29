@@ -18,8 +18,8 @@ Datamart keeps too few runs for that test, so GEPS is uncorrected.
         no finer grid. The ensemble files carry no control at pressure levels; the control line is the IFS control from
         its own stream (ifs_ens.py ctrl_wind / ctrl_t100). Actions, in strat-ifs.yml.
   --days 15 (GEFS, GEPS): the days 1-15 product beside AIFS-ENS and IFS-ENS - the cycle strat-ifs.yml is on (00 or
-        12Z), analysis to day 15, the members' fluxes from the shared fetch (strat_ens.py, part "flux"), the control
-        first. GEFS keeps its measured error correction; GEPS stays uncorrected.
+        12Z; GEFS also 06 and 18Z), analysis to day 15, the members' fluxes from the shared fetch (strat_ens.py, part
+        "flux"), the control first. GEFS keeps its measured error correction; GEPS stays uncorrected.
 
     python heatflux100_ext.py --model geps --date 20260924 --out-dir assets/geps
     python heatflux100_ext.py --model gefs --date 20260926 --out-dir assets/gefs
@@ -199,7 +199,9 @@ def main() -> int:
     ap.add_argument("--model", required=True, choices=("geps", "gefs", "ifs"))
     ap.add_argument("--date", required=True)
     ap.add_argument(
-        "--time", default="00", help="cycle hour (IFS-ENS and --days 15: 00 or 12; the 35-day runs are 00Z)"
+        "--time",
+        default="00",
+        help="cycle hour (IFS-ENS and --days 15: 00 or 12, GEFS also 06 or 18; the 35-day runs are 00Z)",
     )
     ap.add_argument(
         "--days", type=int, choices=(15, 35), help="GEPS/GEFS: 35 (default, the 00Z extended run) or 15 (any cycle)"

@@ -115,7 +115,7 @@ jobs:
       date: ${{ steps.cyc.outputs.date }}
       time: ${{ steps.cyc.outputs.time }}
       fresh: ${{ steps.cyc.outputs.fresh }}
-      main: ${{ steps.cyc.outputs.main }}   # a 00/12Z cycle (the jet and the E-P flux run on those only)
+      main: ${{ steps.cyc.outputs.main }}   # a 00/12Z cycle (the jets and the North Pacific jet run on those only)
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -474,10 +474,11 @@ jobs:
   # -------------------------------------------- epflux: GEFS, self-fetching ---
   # E-P flux loop from the NOAA GEFS ensemble (control + 30), u/v/T at all 31 levels 1000-1 hPa, days 0-15 daily:
   # 93 messages per member-step byte-ranged from the pgrb2a/pgrb2b .idx on S3 (~8 GB a cycle), decoded and reduced to
-  # per-member eddy quadratics in 4 processes, never written to disk. Independent of the ECMWF cache.
+  # per-member eddy quadratics in 4 processes, never written to disk. Independent of the ECMWF cache. Every cycle:
+  # GEFS runs at 00, 06, 12 and 18Z as AIFS-ENS does, each to day 16, complete on S3 an hour or more before it.
   epflux:
     needs: cycle
-    if: needs.cycle.outputs.fresh == 'true' && needs.cycle.outputs.main == 'true'
+    if: needs.cycle.outputs.fresh == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:

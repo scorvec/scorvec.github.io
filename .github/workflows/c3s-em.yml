@@ -68,6 +68,7 @@ jobs:
             scripts/sst/c3s_nino34.py
             scripts/sst/c3s_grib.py
             scripts/sst/c3s_ref.py
+            scripts/sst/cds_seq.py
             scripts/lib
             assets/sst/data/c3s_status.json
             scripts/constraints.txt

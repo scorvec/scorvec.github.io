@@ -89,7 +89,7 @@ def labels(mod, cycle: str, init, dates: list, Z25: np.ndarray, ok: np.ndarray, 
         arch_p.write_text(json.dumps(arch, separators=(",", ":")))
     # pairs verified before this run's first day only (a 12Z run's first day is the day after its start)
     table = RE.drift_table(arch, first)
-    out, applied = {}, {}
+    out, strong, applied = {}, {}, {}
     ref = RC.Ref()
     for sk, spec in RC.SECTORS.items():
         sec, _, _ = RC.sector_cut(an, spec)
@@ -105,6 +105,7 @@ def labels(mod, cycle: str, init, dates: list, Z25: np.ndarray, ok: np.ndarray, 
         v = RC.running_partial(sec, RC.SMOOTH, axis=0)
         lab, _ = ref.classify_dated(v.reshape(nd * mem.size, *v.shape[2:]), np.repeat(dates, mem.size), sk)
         out[sk] = lab.reshape(nd, mem.size)
+        strong[sk] = ref.classify_series(v, dates, sk)
     note = (
         "lead-dependent drift removed (zonal mean by latitude, shrunk n/(n+10)) at the leads with >= 10 verified runs: "
         + "; ".join(f"{sk} days {v}" for sk, v in applied.items() if v)
@@ -120,6 +121,7 @@ def labels(mod, cycle: str, init, dates: list, Z25: np.ndarray, ok: np.ndarray, 
         out,
         notes=f"{mod.source}; daily means 06-24 UTC; anomalies vs ERA5 1991-2020; {note}",
         max_age_days=2,
+        strong_by_sector=strong,
     )
     rec["cycle"] = cycle
     if not cycle.endswith("00"):

@@ -20,6 +20,15 @@ families of their own).
 
 LABELS. A label is the regime index WITHIN the set of that day (0..3, frequency-ordered as in regimes.nc) or 4 = no
 regime; -1 = missing. `family_probs` turns labels into probabilities per family, "no regime" last.
+
+STRONG AND PERSISTENT LABELS (`Ref.classify_series`, beside the nearest-centroid labels until every product switches).
+The four k-means regimes are no tighter a partition than red noise and do not reproduce across halves of 1991-2020,
+so a day is not forced into its nearest one. Following Grams et al. (2017), each regime's index is the day's
+projection on its centroid (cos-lat area weights), standardised by the projections' mean and sd over the 1991-2020 days
+of that set's season (R1, the centroids' own data; data/regimes_ref.npz pstat_<sector>_<season>). A regime is active
+on the days of a run of at least PERSIST days with its index >= IWR_MIN - a run cut by either end of the series or by
+missing days counts, its length unknown - and a day takes the active regime with the largest index, else no regime.
+Runs follow the families across Oct 1 and Apr 1, so a pattern that continues through the switch keeps its run.
 """
 
 from __future__ import annotations
@@ -35,6 +44,7 @@ DATA = HERE / "data"
 REF_FILE = DATA / "regimes_ref.npz"
 
 K, R_MIN, SMOOTH = 4, 0.25, 5
+IWR_MIN, PERSIST = 1.0, 5  # the strong-and-persistent labels' index threshold (sd) and shortest run (days)
 NONE = K
 SECTORS = {
     "ea": dict(label="Euro-Atlantic", lat=(80, 20), lon=(-90, 30)),
@@ -105,6 +115,7 @@ class Ref:
         self.lat = {sk: z[f"lat_{sk}"].astype("float64") for sk in SECTORS}
         self.lon = {sk: z[f"lon_{sk}"].astype("float64") for sk in SECTORS}
         self.names = self.meta["names"]
+        self.pstat = {k[6:]: z[k].astype("float64") for k in z.files if k.startswith("pstat_")}
 
     def centroids(self, sk, season):
         return self.cent[f"{sk}_{season}"], self.lat[sk], self.lon[sk]
@@ -138,6 +149,60 @@ class Ref:
             if m.any():
                 lab[m], corr[m] = self.classify(np.asarray(field)[m], sk, s)
         return lab, corr
+
+    def projection(self, field, sk, season):
+        """field (n, lat, lon) smoothed sector anomalies (m) -> (n, K): the projection on each centroid, cos-lat area
+        weights, in units of the centroid."""
+        cent, lat, _ = self.centroids(sk, season)
+        w = np.clip(np.cos(np.deg2rad(lat)), 0, None)[:, None]
+        norm = np.einsum("kij,kij->k", cent * w, cent)
+        return np.einsum("nij,kij->nk", np.asarray(field, dtype="float64") * w, cent) / norm
+
+    def index(self, field, sk, season):
+        """(n, K) regime indices: the projections standardised by those of the set's season's 1991-2020 days (pstat:
+        mean, sd)."""
+        mu, sd = self.pstat[f"{sk}_{season}"]
+        return (self.projection(field, sk, season) - mu) / sd
+
+    def classify_series(self, field, dates, sk):
+        """The strong-and-persistent labels (see the module docstring) of a daily series: field (days, [members,] lat,
+        lon) smoothed sector anomalies, dates (days,) -> labels (days, [members]) within each day's set; -1 where the
+        field is missing."""
+        a = np.asarray(field, dtype="float64")
+        shape = a.shape[:-2]
+        a = a.reshape(len(dates), -1, *a.shape[-2:])
+        n, m = a.shape[:2]
+        seasons = [season_of_date(d) for d in dates]
+        fam = FAMILIES[sk]
+        ok = np.isfinite(a).all((-2, -1))
+        I = np.full((n, m, len(fam)), -np.inf)
+        for s in SEASONS:
+            d = np.array([x == s for x in seasons])
+            if d.any():
+                ix = self.index(np.nan_to_num(a[d]).reshape(-1, *a.shape[-2:]), sk, s).reshape(d.sum(), m, K)
+                for f, spec in enumerate(fam):
+                    if spec[s] is not None:
+                        I[d, :, f] = ix[..., spec[s]]
+        slot = np.array([[NONE if spec[s] is None else spec[s] for spec in fam] for s in seasons])  # (days, families)
+        on = (I >= IWR_MIN) & ok[..., None]
+        act = np.zeros_like(on)
+        for j, f in np.ndindex(m, len(fam)):  # the runs of each member's index above the threshold
+            i = 0
+            while i < n:
+                if not on[i, j, f]:
+                    i += 1
+                    continue
+                e = i
+                while e + 1 < n and on[e + 1, j, f]:
+                    e += 1
+                # cut by an end of the series, a missing day or the season switch of a family the other set lacks
+                cut = i == 0 or e == n - 1 or not (ok[i - 1, j] and ok[e + 1, j])
+                cut = cut or slot[i - 1, f] == NONE or slot[e + 1, f] == NONE
+                act[i : e + 1, j, f] = cut or e - i + 1 >= PERSIST
+                i = e + 1
+        best = np.where(act, I, -np.inf).argmax(-1)
+        lab = np.where(act.any(-1), np.take_along_axis(slot, best, 1), NONE)
+        return np.where(ok, lab, -1).astype("int8").reshape(shape)
 
     # families
     def families(self, sk):
@@ -423,10 +488,21 @@ SCHEMA = "regimes-members-v1"
 
 
 def members_record(
-    model, label, init, n_members, days, labels_by_sector, observed_by_sector=None, notes=None, max_age_days=None
+    model,
+    label,
+    init,
+    n_members,
+    days,
+    labels_by_sector,
+    observed_by_sector=None,
+    notes=None,
+    max_age_days=None,
+    strong_by_sector=None,
 ):
     """The per-model JSON the multi-model view reads. days: valid dates of forecast day 1..N (day d = init + d - 1);
-    labels_by_sector: {sk: (N, members) int labels within each day's set}; observed: {sk: (dates, labels)}."""
+    labels_by_sector: {sk: (N, members) int labels within each day's set}; observed: {sk: (dates, labels)};
+    strong_by_sector: the same members' strong-and-persistent labels (Ref.classify_series), kept beside the others
+    as "strong" until the products switch to them."""
     days = [parse_date(d) for d in days]
     rec = {
         "schema": SCHEMA,
@@ -448,6 +524,8 @@ def members_record(
         rec["notes"] = notes
     for sk, lab in labels_by_sector.items():
         s = {"lab": np.asarray(lab).astype(int).tolist()}
+        if strong_by_sector and sk in strong_by_sector:
+            s["strong"] = np.asarray(strong_by_sector[sk]).astype(int).tolist()
         if observed_by_sector and sk in observed_by_sector and observed_by_sector[sk] is not None:
             od, ol = observed_by_sector[sk]
             s["observed"] = {"t": [parse_date(d).isoformat() for d in od], "lab": [int(x) for x in ol]}

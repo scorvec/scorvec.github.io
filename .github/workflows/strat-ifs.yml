@@ -49,10 +49,12 @@ name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, wave
 #
 # GEPS FAST LANE. GEPS day 16 is on the Datamart ~5 h after the start (05:05Z / 17:15Z on 2026-10-21), hours before
 # these slots, so the Canadian fast lane (scripts/lib/canada_fastlane.sh) dispatches this workflow with only=geps the
-# moment that run is complete: the naens job alone, for GEPS alone, its vortex record with it. GEFS day 16 is on S3
-# by ~06:30Z / 18:30Z, and dispatcher slots at 06:45/18:45 run only=gefs the same way (no date: the 00/12Z start at
-# least 5 h ago, or the one before when that is not complete yet). A GEFS or GEPS cycle
-# that main already shows in every product is not fetched
+# moment that run is complete: the naens job alone, for GEPS alone, its vortex record with it. GEFS runs every 6 h,
+# each to day 16 (on S3 ~6.5 h after its start: ~06:30Z, 12:30Z, 18:30Z, 00:30-01:00Z); the model fast lane
+# dispatches only=gefs with the cycle as soon as its last member's day 16 is there, and dispatcher slots at
+# 06:45/12:45/18:45/01:15 run it the same way (no date: the GEFS cycle that started at least 5 h ago, or the one
+# before when that is not complete yet). The 06/18Z GEFS runs feed every days 1-15 product but the imprint monitor,
+# whose index is on 00/12Z instants. A GEFS or GEPS cycle that main already shows in every product is not fetched
 # again (strat_ens.py --skip-shown; force=true re-renders it), so the full run after the fast lane skips GEPS.
 #
 # DATA. Google Cloud mirror only: ECMWF_SOURCES=google for every step, and ifs_ens.py names the
@@ -90,7 +92,7 @@ on:
         description: 'Cycle date YYYYMMDD (blank = the cycle strat.yml is on)'
         default: ''
       time:
-        description: 'Cycle hour 00 or 12 (blank = latest)'
+        description: 'Cycle hour 00 or 12, or 06/18 with only=gefs (blank = latest)'
         default: ''
       publish:
         description: 'Commit the figures (false = render + artifacts only)'
@@ -156,9 +158,10 @@ jobs:
           set -euo pipefail
           D="${{ github.event.inputs.date }}"; T="${{ github.event.inputs.time }}"
           if [ -n "$ONLY" ] && [ -z "$D" ]; then
-            # a GEFS/GEPS-only run is on that model's own newest cycle, not the one AIFS-ENS has reached: the 00/12Z
-            # start at least 5 h ago (strat_ens.py falls back a cycle when it is not complete yet)
-            t=$(( ($(date -u +%s) - 5 * 3600) / 43200 * 43200 ))
+            # a GEFS/GEPS-only run is on that model's own newest cycle, not the one AIFS-ENS has reached: the start at
+            # least 5 h ago, GEFS every 6 h and GEPS every 12 (strat_ens.py falls back when it is not complete yet)
+            every=43200; [ "$ONLY" = gefs ] && every=21600
+            t=$(( ($(date -u +%s) - 5 * 3600) / every * every ))
             D=$(date -u -d "@$t" +%Y%m%d); T=$(date -u -d "@$t" +%H)
           fi
           wait=15; [ -n "$ONLY" ] && wait=0   # a GEFS/GEPS-only run does not wait for IFS-ENS
@@ -858,7 +861,8 @@ jobs:
   # projected on the CMIP6 post-SSW pattern, beside the drips the heights and naens jobs just rendered (their day-15
   # 100 hPa cap drives the outlook) and the winds job's heat flux. IFS-ENS ~0.35 GB and AIFS-ENS ~0.4 GB (the 90-20N
   # rows of each message) from the Google Cloud mirror, GEFS ~0.2 GB byte-ranged from S3, GEPS ~50 MB from the
-  # Datamart. Each model on the cycle its drip is on; a GEFS/GEPS cycle main already shows is not fetched again. ~10 min.
+  # Datamart. Each model on the cycle its drip is on, 00/12Z only (the index is on 00/12Z instants: a 06/18Z GEFS run
+  # leaves GEFS's 00/12Z one in the monitor); a GEFS/GEPS cycle main already shows is not fetched again. ~10 min.
   imprint:
     needs: [cycle, winds, heights, naens]
     # nothing to do when no model has a new cycle (a late backstop after the dispatcher slot and the GEPS fast lane)
@@ -932,6 +936,7 @@ jobs:
           for x in $MODELS; do
             X=$(echo "$x" | tr a-z A-Z); dv=${X}_D tv=${X}_T sv=${X}_SKIP
             if [ -z "${!dv}" ]; then echo "  $x: no cycle"; continue; fi
+            case "${!tv}" in 06|18) echo "  $x: ${!dv} ${!tv}Z not in the monitor (00/12Z instants only)"; continue ;; esac
             # a cycle the drips already showed may still be missing here (the monitor's first run, a failed one)
             if [ "${!sv}" = "true" ] && python scripts/strat/ssw_imprint.py has --model "$x" --date "${!dv}" --time "${!tv}"; then
               echo "  $x: ${!dv} ${!tv}Z already in the monitor"; continue

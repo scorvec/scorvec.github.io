@@ -182,7 +182,7 @@ def main() -> int:
     )
     table = drift_table(arch, init)
     applied = {}
-    labs = {}
+    labs, strong = {}, {}
     for sk, spec in RC.SECTORS.items():
         sec, _lat, _ = RC.sector_cut(an, spec)  # (15, M, lat, lon)
         dr = table.get(sk)
@@ -198,6 +198,7 @@ def main() -> int:
         ref = RC.Ref()
         lab, _ = ref.classify_dated(v.reshape(nd * nm, *v.shape[2:]), np.repeat(days, nm), sk)
         labs[sk] = lab.reshape(nd, nm)
+        strong[sk] = ref.classify_series(v, days, sk)
     drift_note = (
         "lead-dependent drift removed (zonal mean by latitude, shrunk n/(n+10)) at the leads with >= 10 verified "
         "runs: " + "; ".join(f"{sk} days {v['leads_corrected']}" for sk, v in applied.items() if v["leads_corrected"])
@@ -213,6 +214,7 @@ def main() -> int:
         labs,
         notes=f"ECMWF {LABEL[a.model]} open data (Google Cloud mirror), 00Z; anomalies vs ERA5 1991-2020; {drift_note}",
         max_age_days=2,
+        strong_by_sector=strong,
     )
     rec["drift"] = {"applied": applied, "note": drift_note}
     (out / f"regimes_members_{a.model}.json").write_text(json.dumps(rec))

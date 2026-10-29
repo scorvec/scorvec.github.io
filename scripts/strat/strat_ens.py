@@ -91,6 +91,7 @@ PART_KEYS = {
     "omega": ("om_n", "om_res", "om_cap"),
 }
 FLOOR = {"gefs": 16, "geps": 11}  # of 31 and 21
+EVERY_H = {"gefs": 6, "geps": 12}  # hours between cycles: GEFS runs at 00, 06, 12 and 18Z, GEPS at 00 and 12Z
 LAT = np.arange(90.0, -90.0 - 1e-6, -0.5)  # both models' 0.5 deg grid, north to south
 LON = np.arange(0.0, 360.0 - 1e-6, 0.5)  # from 0 E
 GEFS_S3 = "https://noaa-gefs-pds.s3.amazonaws.com"
@@ -403,19 +404,21 @@ def complete_members(d: dict, key: str) -> np.ndarray:
     return np.flatnonzero(_complete(d[key]))
 
 
-def resolve(model: str, date: str, hh: str, last_h: int = 384, back: int = 2) -> tuple[str, str]:
-    """The asked-for cycle if it has reached last_h, else the newest of the `back` previous 12-hourly cycles that has
-    (strat-ifs.yml passes the IFS-ENS cycle; GEFS and GEPS are normally complete hours before it)."""
+def resolve(model: str, date: str, hh: str, last_h: int = 384, back_h: int = 24) -> tuple[str, str]:
+    """The asked-for cycle if it has reached last_h, else the newest of the model's cycles in the back_h hours before
+    it that has (strat-ifs.yml passes the IFS-ENS cycle, which GEFS and GEPS normally complete hours before, or with
+    only=gefs/geps the model's own newest)."""
     ready = gefs_ready if model == "gefs" else geps_ready
+    every = EVERY_H[model]
     t = dt.datetime.strptime(date + hh, "%Y%m%d%H")
-    for k in range(back + 1):
-        c = t - dt.timedelta(hours=12 * k)
+    for k in range(back_h // every + 1):
+        c = t - dt.timedelta(hours=every * k)
         d, h = c.strftime("%Y%m%d"), c.strftime("%H")
         if ready(d, h, last_h):
             if k:
                 print(f"  {MODELS[model]} {date} {hh}Z not complete to {last_h} h; using {d} {h}Z", flush=True)
             return d, h
-    raise SystemExit(f"no {MODELS[model]} cycle complete to {last_h} h within {12 * back} h of {date} {hh}Z")
+    raise SystemExit(f"no {MODELS[model]} cycle complete to {last_h} h within {back_h} h of {date} {hh}Z")
 
 
 def shown(model: str, ref: str = "origin/main") -> str:

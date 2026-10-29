@@ -36,15 +36,17 @@ import regime_figure as RF
 
 
 def member_labels(ref, z500, days):
-    """z500 (35, M, 73, 144) -> {sk: labels (35, M)}, each day in its own season's set."""
-    out = {}
+    """z500 (35, M, 73, 144) -> ({sk: labels (35, M)}, each day in its own season's set; the same members' strong
+    labels, regime_core.Ref.classify_series)."""
+    out, strong = {}, {}
     for sk, spec in RC.SECTORS.items():
         sec, _, _ = RC.sector_cut(z500, spec)
         v = RC.running_partial(sec, RC.SMOOTH, axis=0)
         n, m = v.shape[:2]
         lab, _ = ref.classify_dated(v.reshape(n * m, *v.shape[2:]), np.repeat(days, m), sk)
         out[sk] = lab.reshape(n, m)
-    return out
+        strong[sk] = ref.classify_series(v, days, sk)
+    return out, strong
 
 
 def previous(ref, runs, date):
@@ -77,7 +79,7 @@ def main() -> int:
     n_members = len(z["members"])
     days = GP.valid_days(base)
     z500 = GP.member_anoms(z, base, gref, {"zg500": clim["zg500"]})["zg500"]
-    labs = member_labels(ref, z500, days)
+    labs, strong = member_labels(ref, z500, days)
     prev_date, prev = previous(ref, runs, a.date)
     obs_fields, ts = GP.observed_anoms(base, gref, runs)
     GP.prune_tail(runs, base)
@@ -165,6 +167,7 @@ def main() -> int:
         notes="NOAA GEFS 00Z, control + 30; anomalies vs the GEFSv12 reforecast climatology with the "
         "operational drift removed, re-based to 1991-2020",
         max_age_days=3,
+        strong_by_sector=strong,
     )
     (data / "gefs_regimes_members.json").write_text(json.dumps(mem))
     np.savez_compressed(
