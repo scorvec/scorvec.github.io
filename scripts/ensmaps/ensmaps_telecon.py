@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Teleconnections, days 1-15, for circulation.html#telecon15: the PNA, EPO and WPO indices of every member of the
-newest IFS-ENS, AIFS-ENS, GEFS and GEPS runs, each model's ensemble mean calibrated against its own archived runs, and
-the chance of each index's positive and negative phase at the leads where that model has demonstrated skill. No
+"""Teleconnections, days 1-15, for circulation.html#telecon15: the eleven 500 hPa teleconnection indices (telecon15.IDS)
+of every member of the newest IFS-ENS, AIFS-ENS, GEFS and GEPS runs, each model's ensemble mean calibrated against its
+own archived runs, and the chance of each index's positive and negative phase at the leads where that model has
+demonstrated skill. An index CPC does not define in any of the forecast's months gets a figure saying so. No
 download: each ensmaps job leaves its members' fields in the Actions cache (Capture, from ensmaps.py), and `run` reads
 the newest run of each model there.
 
@@ -53,6 +54,8 @@ import telecon15 as T
 from latlon import G25N, remap, slot366
 
 MODELS = {"ifs": "IFS-ENS", "aifs": "AIFS-ENS", "gefs": "GEFS", "geps": "GEPS"}  # ensmaps keys, the database's names
+SHORT = {"nao": "NAO", "pna": "PNA", "epo": "EPO", "wpo": "WPO", "ea": "EA", "wp": "WP", "epnp": "EP/NP", "eawr": "EA/WR",
+         "sca": "SCA", "tnh": "TNH", "pol": "POL"}  # fmt: skip
 COLORS = {"ifs": "#b3372f", "aifs": "#7b4fb0", "gefs": "#2c5f8a", "geps": "#2e7d4f"}  # verification.html's centres
 WINDOW = 45  # days of the year either side of the run's: the hindcast starts its calibration pools
 MIN_RUNS = 30
@@ -142,7 +145,8 @@ def member_indices(ref: T.Ref, r: dict) -> tuple[pd.DatetimeIndex, np.ndarray, n
     v[~r["ok"]] = np.nan
     enough = r["ok"].sum(0) >= np.ceil(MIN_SHARE * n)
     mean = np.full(v.shape[1:], np.nan)
-    mean[enough] = np.nanmean(v[:, enough], 0)
+    mean[enough] = np.nansum(v[:, enough], 0) / r["ok"].sum(0)[enough, None]
+    mean[~np.isfinite(v).any(0)] = np.nan  # an index CPC does not define on the date
     return t, v, mean
 
 
@@ -300,7 +304,7 @@ def plume(sid: str, k: int, runs: list[dict], ind: dict, cal: dict, obs: pd.Data
         tail = obs[obs["valid"] >= t0 - pd.Timedelta(days=TAIL_DAYS)].set_index("valid")[sid].dropna()
         vals.append(tail.to_numpy())
     t_first = t0 - pd.Timedelta(days=TAIL_DAYS) if len(tail) else t0
-    top = max(2.5, 1.08 * float(np.nanmax(np.abs(np.concatenate([v.ravel() for v in vals])))))
+    top = max(2.5, 1.08 * _absmax(*vals))
     nr, nc = (1, len(runs)) if len(runs) <= 2 else (2, 2)
     fig, axes = plt.subplots(nr, nc, figsize=house.size(15, 0.36 if nr == 1 else 0.62), sharex=True, sharey=True,
                              constrained_layout=True, squeeze=False)  # fmt: skip
@@ -429,22 +433,39 @@ def _list(a: np.ndarray, nd: int = 2) -> list:
     return [round(float(x), nd) if np.isfinite(x) else None for x in a]
 
 
+def _pct(m: np.ndarray, q: float) -> np.ndarray:
+    """The q-th percentile of the members (member, lead) at each lead, NaN where none has a value."""
+    out = np.full(m.shape[1], np.nan)
+    ok = np.isfinite(m).any(0)
+    out[ok] = np.nanpercentile(m[:, ok], q, 0)
+    return out
+
+
+def _absmax(*a: np.ndarray) -> float:
+    v = np.abs(np.concatenate([np.ravel(x) for x in a]))
+    v = v[np.isfinite(v)]
+    return float(v.max()) if v.size else 0.0
+
+
 def record(site: Path, ref: T.Ref, r: dict, ind: tuple) -> bool:
     """Add a run to its model's record unless the record holds it: per index, at each valid time where the run has an
-    ensemble mean, the mean, the members' 10th and 90th percentiles and every member (null where incomplete); runs more
-    than KEEP_DAYS older than the newest dropped. True when the record changed."""
+    ensemble mean, the mean, the members' 10th and 90th percentiles and every member (null where incomplete, or where
+    CPC does not define the pattern; an index undefined at every lead left out); runs more than KEEP_DAYS older than the
+    newest dropped. True when the record changed."""
     t, v, mean = ind
     p = site / RECORD.format(r["key"])
     doc = json.loads(p.read_text()) if p.exists() else {"product": "telecon15", "model": r["key"], "runs": []}
     init = f"{r['init']:%Y-%m-%dT%H}"
     if any(x["init"] == init for x in doc["runs"]):
         return False
-    have = np.isfinite(mean).all(1)
+    have = np.isfinite(mean).any(1)
     rec = {"init": init, "members": int(v.shape[0]), "valid": [f"{x:%Y-%m-%dT%H}" for x in t[have]]}
     for k, s in enumerate(ref.ids):
-        m = v[:, have, k]
-        rec[s] = {"mean": _list(mean[have, k]), "p10": _list(np.nanpercentile(m, 10, 0)),
-                  "p90": _list(np.nanpercentile(m, 90, 0)), "members": [_list(m[:, j]) for j in range(m.shape[1])]}  # fmt: skip
+        if not np.isfinite(mean[have, k]).any():
+            continue
+        m = np.where(np.isfinite(mean[None, have, k]), v[:, have, k], np.nan)
+        rec[s] = {"mean": _list(mean[have, k]), "p10": _list(_pct(m, 10)), "p90": _list(_pct(m, 90)),
+                  "members": [_list(m[:, j]) for j in range(m.shape[1])]}  # fmt: skip
     runs = sorted([*doc["runs"], rec], key=lambda x: x["init"])
     cut = pd.Timestamp(runs[-1]["init"]) - pd.Timedelta(days=KEEP_DAYS)
     doc["runs"] = [x for x in runs if pd.Timestamp(x["init"]) >= cut]
@@ -485,8 +506,11 @@ def evolution(sid: str, runs: list[dict], rec: dict, cal: dict, name: str, path:
     import matplotlib.dates as mdates
     from matplotlib.patches import Patch
 
-    keys = [r["key"] for r in runs if rec.get(r["key"])]
-    starts = sorted({x["init"] for k in keys for x in rec[k][-SHOW:]})[-SHOW:]  # one shade per start, every panel
+    have = {r["key"]: [x for x in rec.get(r["key"], []) if sid in x] for r in runs}  # runs recorded with the index
+    keys = [k for k, x in have.items() if x]
+    if not keys:
+        return note(name, "No run has been recorded with this index yet: the runs appear here as they arrive.", path)
+    starts = sorted({x["init"] for k in keys for x in have[k][-SHOW:]})[-SHOW:]  # one shade per start, every panel
     white = {i: 0.85 * (1 - j / max(len(starts) - 1, 1)) for j, i in enumerate(starts)}
     nr, nc = (1, len(keys)) if len(keys) <= 2 else (2, 2)
     fig, axes = plt.subplots(nr, nc, figsize=house.size(15, 0.36 if nr == 1 else 0.62), sharex=True, sharey=True,
@@ -494,7 +518,7 @@ def evolution(sid: str, runs: list[dict], rec: dict, cal: dict, name: str, path:
     top, t_lo, t_hi = 2.5, [], []
     for ax, key in zip(axes.ravel(), keys, strict=False):
         r = next(x for x in runs if x["key"] == key)
-        shown = [x for x in rec[key] if x["init"] in white]
+        shown = [x for x in have[key] if x["init"] in white]
         col = COLORS[key]
         ax.axhspan(-THR, THR, color=NEUTRAL, alpha=0.55, lw=0, zorder=0)
         ax.axhline(0, color=house.EDGE, lw=1.0, zorder=1)
@@ -507,7 +531,7 @@ def evolution(sid: str, runs: list[dict], rec: dict, cal: dict, name: str, path:
             if new:
                 lo, hi = _arr(x[sid]["p10"]), _arr(x[sid]["p90"])
                 ax.fill_between(tv, lo, hi, color=col, alpha=0.16, lw=0, zorder=2)
-                top = max(top, 1.08 * float(np.nanmax(np.abs(np.r_[lo, hi]))))
+                top = max(top, 1.08 * _absmax(lo, hi))
             ax.plot(tv, m, color=tint(col, white[x["init"]]), lw=3.0 if new else 1.6, zorder=3 + j)
             t_lo.append(tv[0])
             t_hi.append(tv[-1])
@@ -544,6 +568,31 @@ def evolution(sid: str, runs: list[dict], rec: dict, cal: dict, name: str, path:
     fig.suptitle(f"{name}: each run's ensemble mean by valid date, the oldest run lightest, the newest darkest", x=0.01,
                  ha="left")  # fmt: skip
     return VF.save(fig, path)
+
+
+def note(name: str, text: str, path: Path):
+    """A figure that only says why there is nothing to draw (never a stale figure under the same name)."""
+    import textwrap
+
+    plt, VF = _plt()
+    import house
+
+    fig = plt.figure(figsize=house.size(15, 0.16))
+    fig.text(0.015, 0.7, name, fontsize=19, fontweight="semibold", color=house.INK, va="center")
+    fig.text(0.015, 0.36, "\n".join(textwrap.wrap(text, 130)), fontsize=15, color=house.INK2, va="center")
+    return VF.save(fig, path)
+
+
+def undefined(k: int, ref: T.Ref, runs: list[dict]) -> str:
+    """Why an index has no forecast: the months CPC defines its pattern in, none of them the forecast's."""
+    months = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    t0 = min(r["init"] for r in runs) + pd.Timedelta(hours=min(T.LEADS))
+    t1 = max(r["init"] for r in runs) + pd.Timedelta(hours=max(T.LEADS))
+    ok = ref.defined[k]
+    first = next((i for i in range(12) if ok[i] and not ok[i - 1]), 0)  # the season in order: Dec, Jan, Feb
+    have = ", ".join(months[(first + i) % 12] for i in range(12) if ok[(first + i) % 12])
+    return (f"CPC defines this pattern only in {have}: none of this forecast's valid days ({t0:%-d %b} to {t1:%-d %b}) "
+            "falls in them, so there is no index to draw.")  # fmt: skip
 
 
 # ── the update ────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -619,7 +668,12 @@ def cmd_run(a) -> int:
     t0 = max(r["init"] for r in runs)
     figs = []
     for k, s in enumerate(ref.ids):
-        name = f"{s.upper()} ({ref.meta['patterns'][s]['name']})"
+        name = f"{SHORT[s]} ({ref.meta['patterns'][s]['name']})"
+        if not any(np.isfinite(ind[r["key"]][1][..., k]).any() for r in runs):
+            figs += [
+                note(name, undefined(k, ref, runs), out / f"{s}_{v}.webp") for v in ("plume", "prob", "runs", "skill")
+            ]
+            continue
         figs.append(plume(s, k, runs, ind, cal, obs, name, out / f"{s}_plume.webp"))
         figs.append(prob(s, k, runs, ind, probs, cal, name, out / f"{s}_prob.webp"))
         figs.append(evolution(s, runs, rec, cal, name, out / f"{s}_runs.webp"))

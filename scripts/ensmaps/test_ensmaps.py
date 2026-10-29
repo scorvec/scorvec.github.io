@@ -576,8 +576,8 @@ def telecon():
         meta = {"patterns": {s: {"name": s.upper()} for s in ids}}
         refp = Path(tmp) / "ref.npz"
         np.savez(refp, ids=np.array(ids), proj=proj, std_month=np.full((12, *rows), 2.0),
-                 standardize=np.array([True, False, False]), sigma=np.full((3, 366), 4.0),
-                 defined=np.ones((3, 12), bool), normal=normal, meta=np.array(json.dumps(meta)))  # fmt: skip
+                 standardize=np.arange(len(ids)) == 0, sigma=np.full((len(ids), 366), 4.0),
+                 defined=np.ones((len(ids), 12), bool), normal=normal, meta=np.array(json.dumps(meta)))  # fmt: skip
         ref = T15.Ref(refp)
         t = pd.DatetimeIndex(["2026-01-15 00:00", "2026-07-15 12:00"])
         fields = np.stack([5500 + 3 * pat[0] + 8 * pat[1], 5510 + 3 * pat[0] + 8 * pat[1]])
@@ -599,7 +599,7 @@ def telecon():
         rec = ET.recorded(site)["gefs"]
         check(added == [True, True, True, True, False] and [x["init"] for x in rec] == ["2026-10-26T12", "2026-10-27T00",
               "2026-10-28T00"] and len(rec[-1]["pna"]["members"]) == 15 and len(rec[-1]["pna"]["members"][0]) == 5
-              and np.allclose(rec[-1]["epo"]["mean"], np.round(mean[:, 1], 2)),
+              and np.allclose(rec[-1]["epo"]["mean"], np.round(mean[:, ids.index("epo")], 2)),
               "run record: a run is added once, runs over KEEP_DAYS older than the newest dropped, every member kept")  # fmt: skip
 
     # the hindcast fit on daily starts: an AR(1) observed index, forecasts that lose skill with lead
