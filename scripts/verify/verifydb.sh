@@ -22,19 +22,26 @@ R=${GITHUB_REPOSITORY:?}
 # every file of the database as "TAG NAME SIZE DIGEST", in the release it belongs in (tag_of: a 500 hPa file filed in a
 # verify-db- release before they had their own is not counted, so it is fetched again into its own). One paginated
 # request for all the releases with their files: a request per release, in every job of a backfill, spent the API's
-# hourly allowance (403 "API rate limit exceeded").
+# hourly allowance (403 "API rate limit exceeded"). Ten releases a page: a page of a hundred carries every file's record
+# (16 MB) and GitHub's answer timed out (HTTP 504).
 assets() {
-  gh api --paginate "repos/$R/releases?per_page=100" \
+  gh_wait gh api --paginate "repos/$R/releases?per_page=10" \
     -q '.[] | select(.tag_name | test("^verify-(db|z500)-")) | .tag_name as $t | .assets[] | "\($t) \(.name) \(.size) \(.digest)"' |
     awk '{ d = substr($2, index($2, "_") + 1); f = ($2 ~ /^(z500-|ens-z500|era5-z500_|acc_)/) ? "verify-z500" : "verify-db"
            if ($1 == f "-" substr(d, 1, 4) "-" substr(d, 5, 2)) print }'
 }
-# a gh command, again after the API's hourly allowance resets when it answers "rate limit" (a few tries)
+# a gh command, again after the API's hourly allowance resets when it answers "rate limit", or a minute or two later
+# when GitHub answers with a server error (HTTP 5xx: "We couldn't respond to your request in time"); a few tries
 gh_wait() {
   local k out
   for k in 1 2 3; do
     if out=$("$@" 2>&1); then [ -z "$out" ] || echo "$out"; return 0; fi
     echo "$out" >&2
+    if grep -qE "HTTP 5[0-9]{2}" <<< "$out"; then
+      echo "::warning::GitHub answered with a server error: again in $(( 60 * k )) s (try $k)" >&2
+      sleep $(( 60 * k ))
+      continue
+    fi
     grep -qi "rate limit" <<< "$out" || return 1
     local reset; reset=$(gh api rate_limit -q .resources.core.reset 2>/dev/null || echo $(( $(date +%s) + 600 )))
     echo "::warning::GitHub's API allowance is spent: waiting $(( reset - $(date +%s) + 30 )) s (try $k)" >&2

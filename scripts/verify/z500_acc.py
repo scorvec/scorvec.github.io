@@ -26,7 +26,7 @@ A run whose files the database holds is not fetched again, and no file is ever r
     python z500_acc.py truth --first 20260514 --last 20261020 --have have.txt --archive-out db-new
     python z500_acc.py clim --out clim_z500_1p5.npz
     python z500_acc.py acc --list --have have.txt
-    python z500_acc.py acc --init 2026051300 --derived db --clim clim_z500_1p5.npz --have have.txt --archive-out db-new
+    python z500_acc.py acc --init 2026051300 2026051400 --derived db --clim clim_z500_1p5.npz --have have.txt --archive-out db-new
     python z500_acc.py recent --have have.txt    # the files verify_figs.py scores the newest runs from
 """
 
@@ -359,7 +359,7 @@ def acc(a) -> None:
     normal = np.load(a.clim)["z500"]
     a.archive_out.mkdir(parents=True, exist_ok=True)
     for init, models in runs.items():
-        if a.init and init != a.init:
+        if a.init and init not in a.init:
             continue
         frame = run_scores(init, {m: a.derived / file_of(m, init) for m in models}, a.derived, normal)
         frame.astype({"model": "category", "region": "category"}).to_parquet(
@@ -386,7 +386,7 @@ def main() -> None:
     c.add_argument("--out", type=Path, required=True)
     s = sub.add_parser("acc", help="each due run's scores against ERA5")
     s.add_argument("--list", action="store_true", help="print each due run and the files its scores are made from")
-    s.add_argument("--init", help="only this run (YYYYMMDDHH)")
+    s.add_argument("--init", nargs="+", help="only these runs (YYYYMMDDHH)")
     s.add_argument("--derived", type=Path, default=Path("."), help="the due runs' fields and ERA5 files, downloaded")
     s.add_argument("--clim", type=Path, help="the normal (release verify-clim-z500-v1)")
     r = sub.add_parser("recent", help="print the files the nightly scores the newest runs without their scores from")
