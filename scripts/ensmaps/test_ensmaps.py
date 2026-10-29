@@ -714,6 +714,19 @@ def telecon():
     check(noise["kind"] == "sw" and noise["weights"]["ifs"] > 5 * abs(noise["weights"]["gefs"]),
           f"a skilful model and a noise one: skill weights {noise['weights']} (paired p {noise['p_sw']:.4f})")  # fmt: skip
 
+    # the blend's models: IFS-ENS and GEFS from 2024, AIFS-ENS from 2025, and this autumn's starts so far (fewer at
+    # day 15, ERA5 a week behind). Holding 2025 out would leave AIFS-ENS this autumn's starts alone to fit on at day 15.
+    last, rows = max(ET.T.LEADS), []
+    for lead, end in ((24, "2026-10-18"), (last, "2026-10-04")):
+        for y in (2024, 2025, 2026):
+            for d in pd.date_range(f"{y}-09-14", end if y == 2026 else f"{y}-12-11"):
+                rows.append((d, lead, 0.5, np.nan if y == 2024 else 0.5, 0.5, 0.0))
+    w = pd.DataFrame(rows, columns=["init", "lead_h", "ifs", "aifs", "gefs", "obs"]).set_index(["init", "lead_h"])
+    got = ET.subset(w, ["ifs", "aifs", "gefs"], t0)
+    check(got == ["ifs", "gefs"], f"a model with one season besides the current one waits for a second: {got}")
+    got = ET.subset(w.drop(index=w.index[w.index.get_level_values("lead_h") == last]), ["ifs", "aifs", "gefs"], t0)
+    check(got == [], f"no blend without a sample at the last lead: {got}")
+
 
 def main() -> int:
     grids()

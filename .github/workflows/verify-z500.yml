@@ -192,7 +192,9 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install --quiet "$MVERIFY"
-      - name: Each due run's anomaly correlations, one run at a time
+      - name: Each due run's anomaly correlations, fifty runs at a time
+        # a batch's files in one download a release and its scores in one upload: a listing of the database and a
+        # download for every run of a backfill spent the API's allowance and timed out
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -200,14 +202,17 @@ jobs:
           scripts/verify/verifydb.sh list > "$RUNNER_TEMP/have.txt"
           python scripts/verify/z500_acc.py acc --list --have "$RUNNER_TEMP/have.txt" > "$RUNNER_TEMP/due.txt"
           echo "$(wc -l < "$RUNNER_TEMP/due.txt") runs due"
-          while read -r init files; do
-            # shellcheck disable=SC2086  # the file names are meant to split
-            scripts/verify/verifydb.sh get "$RUNNER_TEMP/fields" $files
-            python scripts/verify/z500_acc.py acc --init "$init" --derived "$RUNNER_TEMP/fields" \
+          split -l 50 "$RUNNER_TEMP/due.txt" "$RUNNER_TEMP/batch-"
+          for b in "$RUNNER_TEMP"/batch-*; do
+            [ -e "$b" ] || continue   # nothing due: the glob stays as written
+            # shellcheck disable=SC2046  # the file names are meant to split
+            scripts/verify/verifydb.sh get "$RUNNER_TEMP/fields" $(cut -d' ' -f2- "$b" | tr ' ' '\n' | sort -u)
+            # shellcheck disable=SC2046  # the runs are meant to split
+            python scripts/verify/z500_acc.py acc --init $(cut -d' ' -f1 "$b") --derived "$RUNNER_TEMP/fields" \
               --clim "$RUNNER_TEMP/clim_z500_1p5.npz" --have "$RUNNER_TEMP/have.txt" --archive-out "$RUNNER_TEMP/db-new"
             scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"
             rm -rf "$RUNNER_TEMP"/fields "$RUNNER_TEMP"/db-new
-          done < "$RUNNER_TEMP/due.txt"
+          done
 
   mirror:
     needs: acc
