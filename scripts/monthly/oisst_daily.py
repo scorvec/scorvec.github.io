@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
-"""Daily OISST v2.1 over 25S-25N on ERSSTv6's 2° cells, 1982 on: the record for a fresher start of the Niño-3.4 model.
+"""Daily OISST v2.1 over 25S-25N on ERSSTv6's 2° cells, 1982 on: the record of the Niño-3.4 model's fresh state.
 
-enso_fc.py starts from the last complete month of ERSSTv6. On the 15th, OISST already holds the first two weeks of
-the issue month; a state averaged over the 30 days to the 14th, trained the same way on this record, can be two weeks
-fresher at ERSSTv6's resolution (the one-week-fresher test on the outlook's 3° ERA5 archive cut the one-month error
-variance by 12 %, but the coarser grid cost as much against ERSSTv6). This module only builds the record; whether the
-model uses it is decided by that test once the record exists.
+On the 15th ERSSTv6 ends with the month before; OISST already holds the first two weeks of the issue month.
+enso_fc.py adds the OISST anomaly over the 30 days to the 14th to its state for the forecasts to six months
+(oisst_state), trained on this record.
 
 Each year: PSL's sst.day.mean.<YYYY>.nc (scripts/sst/oisst9120.ensure_mean: PSL with the NCEI fallback and top-up),
 box-averaged (cos-weighted, at least half the 0.25° cells ocean) onto the 2° cells centred on ERSSTv6's points
@@ -13,16 +11,19 @@ box-averaged (cos-weighted, at least half the 0.25° cells ocean) onto the 2° c
 
     oisst2_<YYYY>.npz   dates (str, one per day), sst (days, 25, 180) int16 (FILL where not ocean), lat, lon
 
-The yearly raw file is deleted once reduced (OISST_KEEP_RAW=1 keeps it). Downloads run in Actions (oisst-daily.yml,
-release `oisst-daily-v1`).
+The yearly raw file is deleted once reduced (OISST_KEEP_RAW=1 keeps it). Downloads run in Actions: the record is
+kept in the release `oisst-daily-v1` (built whole by oisst-daily.yml), and each outlook issue (monthly-outlook.yml)
+rebuilds this year's table, and last year's through February (its last days are preliminary for about two weeks) or
+while it stops short of 31 December, and uploads them.
 
     python scripts/monthly/oisst_daily.py --years 1982-2025 --out DIR
-    python scripts/monthly/oisst_daily.py --years 2026 --out DIR      # the current year, re-run to extend it
+    python scripts/monthly/oisst_daily.py --refresh --out DIR          # this year (and last year, as above)
 """
 
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import os
 import sys
 from pathlib import Path
@@ -96,16 +97,32 @@ def load(paths: list[Path]) -> tuple[np.ndarray, np.ndarray]:
     return np.concatenate(d), np.concatenate(x)
 
 
+def complete(path: Path, year: int) -> bool:
+    """Whether the table at `path` holds `year` to 31 December."""
+    if not path.exists():
+        return False
+    with np.load(path) as z:
+        return str(z["dates"][-1]) == f"{year}-12-31"
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--years", required=True, help="YYYY or YYYY-YYYY")
+    g = ap.add_mutually_exclusive_group(required=True)
+    g.add_argument("--years", help="YYYY or YYYY-YYYY")
+    g.add_argument("--refresh", action="store_true", help="this year, and last year through February or until whole")
     ap.add_argument("--out", type=Path, required=True)
     a = ap.parse_args()
-    y0, _, y1 = a.years.partition("-")
     a.out.mkdir(parents=True, exist_ok=True)
+    if a.refresh:
+        today = dt.datetime.now(dt.UTC).date()
+        last = today.year - 1
+        years = [*([last] if today.month <= 2 or not complete(a.out / f"oisst2_{last}.npz", last) else []), today.year]
+    else:
+        y0, _, y1 = a.years.partition("-")
+        years = range(int(y0), int(y1 or y0) + 1)
     import oisst9120
 
-    for y in range(int(y0), int(y1 or y0) + 1):
+    for y in years:
         raw = oisst9120.ensure_mean(y)
         dates, sst = reduce_year(raw)
         p = save(y, dates, sst, a.out)

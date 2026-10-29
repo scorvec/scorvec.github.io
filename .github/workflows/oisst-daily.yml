@@ -1,10 +1,11 @@
 name: Daily OISST record for the long-range forecast
 
 # scripts/monthly/oisst_daily.py: daily OISST v2.1 over 25S-25N on ERSSTv6's 2° cells, one file per year
-# (oisst2_<YYYY>.npz, ~1.8 MB), kept as assets of the release `oisst-daily-v1`. It is the record for testing a fresher
-# start of Claude's Niño-3.4 model (the 30 days to the 14th instead of the last complete month). Each year's PSL file
-# (~0.5 GB, scripts/sst/oisst9120.ensure_mean with its NCEI fallback) is reduced as it lands and deleted, one at a
-# time. Dispatch only: the whole record once (years 1982-<now>), the current year again to extend it.
+# (oisst2_<YYYY>.npz, ~1.8 MB), kept as assets of the release `oisst-daily-v1`: the record of the fresh state of
+# Claude's Niño-3.4 model (scripts/monthly/enso_fc.py, the 30 days to the 14th). Each year's PSL file (~0.5 GB,
+# scripts/sst/oisst9120.ensure_mean with its NCEI fallback) is reduced as it lands and deleted, one at a time.
+# monthly-outlook.yml keeps the newest years current at each issue; this dispatch rebuilds the record (all years
+# 1982-<now>, or the years given), e.g. after NOAA reprocesses OISST.
 
 on:
   workflow_dispatch:

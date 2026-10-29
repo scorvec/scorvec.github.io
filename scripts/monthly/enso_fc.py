@@ -2,8 +2,10 @@
 """Claude's Niño-3.4 forecast: the next twelve months of Niño-3.4 and of the relative index (RONI), from the tropical
 SST and the equatorial Pacific heat content, combined with the C3S seasonal models where they reach.
 
-    python scripts/monthly/enso_fc.py --ersst sst.mnmean.nc            # hindcast table + the issue
-    python scripts/monthly/enso_fc.py --ersst sst.mnmean.nc --hindcast-only
+    python scripts/monthly/enso_fc.py --ersst sst.mnmean.nc --oisst DIR            # hindcast table + the issue
+    python scripts/monthly/enso_fc.py --ersst sst.mnmean.nc --oisst DIR --hindcast-only
+
+DIR holds the daily OISST tables oisst2_<YYYY>.npz (oisst_daily.py; release oisst-daily-v1).
 
 Statistical model. The state at the end of a month is the leading 8 EOFs of the monthly SST anomaly over 25S-25N
 (ERSSTv6, every longitude), the leading 3 of the 0-300 m temperature anomaly at the 8 equatorial TAO/TRITON
@@ -12,6 +14,13 @@ over the training years. For each lead (1-12 months) and calendar month of the s
 trend is added back) and relative Niño-3.4 (no trend: the tropical mean removes it) are regressed on the state,
 ridge-damped (RIDGE x the sample size on the diagonal), with the starts of the two calendar months either side
 pooled in (POOL). Training runs from 1980 (the heat-content record) to the last complete month.
+
+The fresh state, for the forecasts to FRESH_LEADS months: the month state plus the leading 8 EOFs, Niño-3.4 and
+relative Niño-3.4 of the daily OISST anomaly over the 30 days to the 14th of the month after the start, the issue
+date (on ERSSTv6's 2° cells, oisst_daily.py), trained from 1982 (the OISST record). Cross-validated from 1982 it cut the
+mean-square error of Niño-3.4 by 28 % at one month, 11 % at two and 6-8 % at three to five (95 % year-block bootstrap
+intervals excluding zero; relative Niño-3.4 30 %, 14 %, 9 %); at six months 2 % (not significant), and past six it
+did worse (6 % at eleven months: the shorter record and the extra predictors), so the month state serves leads 7-12.
 
 The MJO: two more predictors, the mean RMM1 and RMM2 (three-field) over the 35 days from the 15th of the month after the
 start, the issue date. They are trained on the observed RMM (ERA5, scripts/mjo/data/reference/rmm_era5.nc: perfect
@@ -84,6 +93,8 @@ T0 = "1980-01"  # the heat-content record's first month
 LEADS = 12
 K_SST, K_HC = 8, 3
 SST_LAT = 25.0
+FRESH_LEADS = 6  # the leads whose state adds the OISST window (the leads the C3S models reach)
+FRESH_DAY, FRESH_DAYS, FRESH_MIN = 14, 30, 24  # the window: the 30 days to the 14th of the issue month (24 at least)
 POOL = 2
 RIDGE = 0.05
 CLIM = (1991, 2020)
@@ -150,6 +161,45 @@ def ersst(path: Path, start: str = "1959-01") -> dict:
     }
 
 
+def oisst_state(folder: Path, months: list[str]) -> dict:
+    """The fresh SST state of each start month: the daily OISST anomaly (against 1991-2020, per common-year day) over
+    the FRESH_DAYS days to the FRESH_DAY of the month after the start, on oisst_daily's 2° cells: the 25S-25N field
+    (T, cells; sqrt(cos)-weighted for the EOFs, the cells ocean in every window), Niño-3.4 and relative Niño-3.4 (T,);
+    NaN for a start whose window holds fewer than FRESH_MIN days (before the record or past its end)."""
+    import oisst_daily
+
+    dates, x = oisst_daily.load(sorted(folder.glob("oisst2_*.npz")))
+    t = pd.DatetimeIndex(dates)
+    day = np.asarray(t.dayofyear)
+    doy = day - (t.is_leap_year & (day > 59))  # common-year day: 29 February shares the 28th's
+    base = (t.year >= CLIM[0]) & (t.year <= CLIM[1])
+    for d in range(1, 366):
+        s = doy == d
+        x[s] -= np.nanmean(x[s & base], 0)
+    W = np.full((len(months), *x.shape[1:]), np.nan)
+    for i, m in enumerate(months):
+        end = (pd.Period(m, "M") + 1).start_time + pd.Timedelta(days=FRESH_DAY - 1)
+        a, b = t.searchsorted(end - pd.Timedelta(days=FRESH_DAYS - 1)), t.searchsorted(end, "right")
+        if b - a >= FRESH_MIN:
+            W[i] = np.nanmean(x[a:b], 0)
+    lat, lon = oisst_daily.LAT, oisst_daily.LON
+    have = np.isfinite(W).any((1, 2))
+    ok = np.isfinite(W[have]).all(0)
+    la, lo = np.abs(lat) <= 5, (lon >= 190) & (lon <= 240)
+    w = np.cos(np.deg2rad(lat[la]))
+    n34 = np.nansum(W[:, la][:, :, lo] * w[None, :, None], (1, 2)) / (w.sum() * lo.sum())
+    tr = np.abs(lat) <= 20
+    wt = np.cos(np.deg2rad(lat[tr]))[:, None] * ok[tr]
+    trop = np.nansum(np.nan_to_num(W[:, tr]) * wt, (1, 2)) / wt.sum()
+    cw = np.sqrt(np.cos(np.deg2rad(lat)))[:, None] * np.ones(len(lon))
+    return {
+        "field": W[:, ok] * cw[ok],
+        "n34": np.where(have, n34, np.nan),
+        "rel": np.where(have, n34 - trop, np.nan),
+        "through": str(dates[-1]),
+    }
+
+
 def heat_content(months: list[str]) -> tuple[np.ndarray, dict]:
     """(T, 8) 0-300 m anomaly at the 8 moorings for `months`: ORAS5 while it lasts, then TAO less each mooring's mean
     TAO-minus-ORAS5 difference over the months both hold; NaN where neither has the month."""
@@ -188,8 +238,10 @@ def _pcs(x: np.ndarray, train: np.ndarray, k: int) -> np.ndarray:
 
 
 class Model:
-    """The state and the regressions for one training set (`train`: a mask over the months). The last two columns of
-    the state are the MJO predictor: trained on the observed RMM (perfect prog), forecast with GEPS's."""
+    """The states and the regressions for one training set (`train`: a mask over the months). The month state (SST and
+    heat-content EOFs, Niño-3.4, relative Niño-3.4) serves every lead; to FRESH_LEADS the fresh state, the month state
+    with the OISST window's EOFs, Niño-3.4 and relative Niño-3.4 added, serves the starts that have a window. The last
+    two columns of each are the MJO predictor: trained on the observed RMM (perfect prog), forecast with the models'."""
 
     def __init__(self, D: dict, train: np.ndarray):
         tt = np.arange(len(D["n34"])) / 120.0
@@ -200,29 +252,43 @@ class Model:
         mjo = D["mjo_obs"]
         self.mjo_ok = np.isfinite(mjo).all(1)
         self.mjo_sd = mjo[train & self.mjo_ok].std(0)
+        mj = np.nan_to_num(mjo) / self.mjo_sd
         base = [_pcs(sst, train, K_SST), _pcs(hcd, train, K_HC), self.n34d[:, None], D["rel"][:, None]]
-        self.X = np.concatenate([*base, np.nan_to_num(mjo) / self.mjo_sd], 1)
+        self.fresh_ok = np.isfinite(D["fresh"]).all(1)
+        tf = train & self.fresh_ok
+        fr, _ = _detrend(D["fresh"], tt, tf)
+        fn, _ = _detrend(D["fresh_n34"], tt, tf)
+        fresh = np.nan_to_num(np.concatenate([_pcs(fr, tf, K_SST), fn[:, None], D["fresh_rel"][:, None]], 1))
+        self.X = {"month": np.concatenate([*base, mj], 1), "fresh": np.concatenate([*base, fresh, mj], 1)}
         self.rel = D["rel"]
         self.train = train
 
     def betas(self, mo: np.ndarray, start_month: int) -> dict:
-        """{index: (LEADS, k) coefficients} for starts in calendar month `start_month`."""
+        """{state: {index: (leads, k) coefficients}} for starts in calendar month `start_month`: the month state's to
+        LEADS, the fresh state's to FRESH_LEADS."""
         T = len(self.rel)
         dm = np.minimum((mo - start_month) % 12, (start_month - mo) % 12)
-        out = {k: np.zeros((LEADS, self.X.shape[1])) for k in INDICES}
-        for L in range(1, LEADS + 1):
-            rows = np.where(self.train[: T - L] & self.train[L:] & self.mjo_ok[: T - L] & (dm[: T - L] <= POOL))[0]
-            A = self.X[rows]
-            AtA = A.T @ A + RIDGE * len(rows) * np.eye(A.shape[1])
-            for k, y in (("n34", self.n34d), ("rel", self.rel)):
-                out[k][L - 1] = np.linalg.solve(AtA, A.T @ y[rows + L])
+        out = {}
+        for s, X in self.X.items():
+            n, ok = (FRESH_LEADS, self.mjo_ok & self.fresh_ok) if s == "fresh" else (LEADS, self.mjo_ok)
+            out[s] = {k: np.zeros((n, X.shape[1])) for k in INDICES}
+            for L in range(1, n + 1):
+                rows = np.where(self.train[: T - L] & self.train[L:] & ok[: T - L] & (dm[: T - L] <= POOL))[0]
+                A = X[rows]
+                AtA = A.T @ A + RIDGE * len(rows) * np.eye(A.shape[1])
+                for k, y in (("n34", self.n34d), ("rel", self.rel)):
+                    out[s][k][L - 1] = np.linalg.solve(AtA, A.T @ y[rows + L])
         return out
 
     def forecast(self, i: int, b: dict, mjo: np.ndarray) -> dict:
-        """{index: (LEADS,)} from the state at month index i with the MJO forecast `mjo` (RMM1, RMM2; zeros: none),
-        Niño-3.4 with its trend added back."""
-        x = np.r_[self.X[i, :-2], mjo / self.mjo_sd]
-        f = {k: b[k] @ x for k in INDICES}
+        """{index: (LEADS,)} from the states at month index i with the MJO forecast `mjo` (RMM1, RMM2; zeros: none):
+        the fresh state to FRESH_LEADS where the start has an OISST window, the month state beyond; Niño-3.4 with its
+        trend added back."""
+        m = mjo / self.mjo_sd
+        f = {k: b["month"][k] @ np.r_[self.X["month"][i, :-2], m] for k in INDICES}
+        if self.fresh_ok[i]:
+            for k in INDICES:
+                f[k][:FRESH_LEADS] = b["fresh"][k] @ np.r_[self.X["fresh"][i, :-2], m]
         f["n34"] = f["n34"] + np.array([self.trend(i + L) for L in range(1, LEADS + 1)])
         return f
 
@@ -310,7 +376,7 @@ def mjo_live(start: str, damp: dict) -> dict | None:
     return {"runs": runs, "rmm": [round(float(x), 3) for x in rmm]}
 
 
-def inputs(ersst_path: Path) -> dict:
+def inputs(ersst_path: Path, oisst_dir: Path) -> dict:
     E = ersst(ersst_path)
     months = E["months"][E["months"].index(T0) :]
     hc, meta = heat_content(months)
@@ -318,7 +384,10 @@ def inputs(ersst_path: Path) -> dict:
     ok = np.isfinite(hc).all(1) & np.isfinite(field).all(1)
     last = int(np.where(ok)[0][-1])  # the newest month with both SST and heat content
     months, field, hc = months[: last + 1], field[: last + 1], hc[: last + 1]
-    meta.update(sst_through=E["months"][-1], init=months[-1])
+    S = oisst_state(oisst_dir, months)
+    end = f"{(pd.Period(months[-1], 'M') + 1).start_time + pd.Timedelta(days=FRESH_DAY - 1):%Y-%m-%d}"
+    to = min(S["through"], end) if np.isfinite(S["field"][-1]).all() else None  # the newest start's window
+    meta.update(sst_through=E["months"][-1], oisst_to=to, init=months[-1])
     mjo_obs = mjo_observed(months)
     mjo_fc, mjo_damp = mjo_hindcast(months, mjo_obs)
     return {
@@ -326,6 +395,9 @@ def inputs(ersst_path: Path) -> dict:
         "mo": np.array([int(m[5:]) for m in months]),
         "yr": np.array([int(m[:4]) for m in months]),
         "field": field,
+        "fresh": S["field"],
+        "fresh_n34": S["n34"],
+        "fresh_rel": S["rel"],
         "hc": hc,
         "n34": np.array([E["n34"][m] for m in months]),
         "rel": np.array([E["rel"][m] for m in months]),
@@ -657,6 +729,7 @@ def save_table(D: dict, F: dict) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--ersst", type=Path, required=False, help="ERSSTv6 sst.mnmean.nc (ERSST_URL)")
+    ap.add_argument("--oisst", type=Path, required=False, help="the oisst2_<YYYY>.npz tables (oisst_daily.py)")
     ap.add_argument("--hindcast-only", action="store_true", help="write the hindcast table, no issue")
     ap.add_argument("--force", action="store_true", help="re-issue this month's forecast if it exists")
     ap.add_argument("--build-c3s-hc", type=Path, help="c3s_nino34.py's hindcast directory: write data/c3s_hc_n34.npz")
@@ -674,7 +747,7 @@ def main() -> int:
     if a.build_gefs_mjo:
         build_gefs_mjo_hc(a.build_gefs_mjo)
         return 0
-    D = inputs(a.ersst)
+    D = inputs(a.ersst, a.oisst)
     F = hindcast(D)
     save_table(D, F)
     print(f"hindcast {D['months'][0]}..{D['months'][-1]} -> {HC_TABLE.name}; inputs {D['meta']}", flush=True)
