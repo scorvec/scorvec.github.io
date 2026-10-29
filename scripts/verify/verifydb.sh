@@ -19,7 +19,29 @@
 set -euo pipefail
 R=${GITHUB_REPOSITORY:?}
 
-tags() { gh release list -R "$R" --limit 1000 --json tagName -q '.[].tagName' | grep -E '^verify-(db|z500)-' | sort || true; }
+# every file of the database as "TAG NAME SIZE DIGEST", in the release it belongs in (tag_of: a 500 hPa file filed in a
+# verify-db- release before they had their own is not counted, so it is fetched again into its own). One paginated
+# request for all the releases with their files: a request per release, in every job of a backfill, spent the API's
+# hourly allowance (403 "API rate limit exceeded").
+assets() {
+  gh api --paginate "repos/$R/releases?per_page=100" \
+    -q '.[] | select(.tag_name | test("^verify-(db|z500)-")) | .tag_name as $t | .assets[] | "\($t) \(.name) \(.size) \(.digest)"' |
+    awk '{ d = substr($2, index($2, "_") + 1); f = ($2 ~ /^(z500-|ens-z500|era5-z500_|acc_)/) ? "verify-z500" : "verify-db"
+           if ($1 == f "-" substr(d, 1, 4) "-" substr(d, 5, 2)) print }'
+}
+# a gh command, again after the API's hourly allowance resets when it answers "rate limit" (a few tries)
+gh_wait() {
+  local k out
+  for k in 1 2 3; do
+    if out=$("$@" 2>&1); then [ -z "$out" ] || echo "$out"; return 0; fi
+    echo "$out" >&2
+    grep -qi "rate limit" <<< "$out" || return 1
+    local reset; reset=$(gh api rate_limit -q .resources.core.reset 2>/dev/null || echo $(( $(date +%s) + 600 )))
+    echo "::warning::GitHub's API allowance is spent: waiting $(( reset - $(date +%s) + 30 )) s (try $k)" >&2
+    sleep $(( reset - $(date +%s) > 0 ? reset - $(date +%s) + 30 : 30 ))
+  done
+  return 1
+}
 # the release a file belongs in: the 500 hPa kinds in verify-z500-, the rest in verify-db-, by the month in its name
 tag_of() { local d=${1#*_} p=verify-db; [[ $1 =~ ^(z500-|ens-z500|era5-z500_|acc_) ]] && p=verify-z500; echo "$p-${d:0:4}-${d:4:2}"; }
 # NAME... as "TAG -p NAME -p NAME ...", one line per release
@@ -27,13 +49,7 @@ by_tag() { for n in "$@"; do echo "$(tag_of "$n") $n"; done | awk '{ p[$1] = p[$
 
 case "${1:-}" in
   list)
-    # a name counts in the release it belongs in (tag_of): a 500 hPa file filed in a verify-db- release before they had
-    # their own is not counted, so it is fetched again into its own
-    for t in $(tags); do
-      gh release view "$t" -R "$R" --json assets -q '.assets[].name' | while read -r n; do
-        if [ "$(tag_of "$n")" = "$t" ]; then echo "$n"; fi   # not `[ ] && echo`: under -e a false test ends the script
-      done
-    done | sort
+    assets | cut -d' ' -f2 | sort
     ;;
   fetch)
     kind=${2:?KIND}; n=${3:?N}; dir=${4:?DIR}; mkdir -p "$dir"
@@ -43,7 +59,7 @@ case "${1:-}" in
     # shellcheck disable=SC2086  # the names are meant to split
     [ -z "$names" ] || by_tag $names | while read -r tag pats; do
       # shellcheck disable=SC2086  # the -p arguments are meant to split
-      gh release download "$tag" -R "$R" -D "$dir" --clobber $pats
+      gh_wait gh release download "$tag" -R "$R" -D "$dir" --clobber $pats
     done
     echo "database: $(find "$dir" -name "${kind}_*" | wc -l) ${kind} files"
     ;;
@@ -52,14 +68,17 @@ case "${1:-}" in
     # one download per release, its files named
     by_tag "$@" | while read -r tag pats; do
       # shellcheck disable=SC2086  # the -p arguments are meant to split
-      gh release download "$tag" -R "$R" -D "$dir" --clobber $pats
+      gh_wait gh release download "$tag" -R "$R" -D "$dir" --clobber $pats
     done
     ;;
   upload)
+    # VERIFYDB_PACE (seconds, optional): a pause after each file, for a batch of many (a backfill's ERA5 days)
     dir=${2:?DIR}
-    for f in "$dir"/*_*.parquet "$dir"/*_*.npz; do
-      [ -e "$f" ] || continue
-      name=$(basename "$f"); tag=$(tag_of "$name"); month=${tag: -7}
+    files=$(find "$dir" -maxdepth 1 \( -name '*_*.parquet' -o -name '*_*.npz' \) | sort)
+    [ -n "$files" ] || exit 0
+    held=$(assets | awk '{ print $1 "/" $2 }')
+    for tag in $(for f in $files; do tag_of "$(basename "$f")"; done | sort -u); do
+      month=${tag: -7}
       if [[ $tag == verify-z500-* ]]; then
         title="500 hPa height database $month"
         notes="Every model's 500 hPa height (scripts/verify/z500_acc.py) on the WMO 1.5 degree grid: z500-<m>_<init>.npz (deterministic, to day 10), ens-z500-<m>_ (ensemble mean) and ens-z500m-<m>_ (every member, 2.5 degree, 20-90N) to day 15, era5-z500_<day>.npz (ERA5 at 00Z), and acc_<init>.parquet, each run's anomaly correlations against ERA5."
@@ -67,17 +86,24 @@ case "${1:-}" in
         title="Verification database $month"
         notes="Every 00Z run of the month matched with the observations, every model (scripts/verify/mverify_scores.py, mverify), one row per pair (mverify.match.PAIR_COLUMNS, and kept: whether mverify's default cuts keep it): sfc_<init>.parquet against surface stations (GHCNh), raob_<init>.parquet against radiosondes (IGRA2), rain_<init>.parquet 24 h totals against Stage IV on the 0.5 degree grid. stats_ and stn_ hold the pairs' sums that windows of runs are scored from. The ensembles (scripts/verify/ens_verify.py: IFS-ENS, AIFS-ENS, GEFS, GEPS to day 15) keep one row per case with its members summarised (mverify.ensemble.summarise): ens-sfc-<m>_, ens-raob-<m>_ and ens-rain-<m>_<init>.parquet, and their sums ens-stats_ and ens-rel_."
       fi
-      if ! held=$(gh release view "$tag" -R "$R" --json assets -q '.assets[].name' 2>/dev/null); then
+      if ! grep -q "^$tag/" <<< "$held" && ! gh release view "$tag" -R "$R" >/dev/null 2>&1; then
         # another job may make the same month's release at the same moment: a failed create is fine if it now exists
-        gh release create "$tag" -R "$R" --latest=false --title "$title" --notes "$notes" \
+        gh_wait gh release create "$tag" -R "$R" --latest=false --title "$title" --notes "$notes" \
           || gh release view "$tag" -R "$R" >/dev/null
-        held=""
       fi
-      # a file the database holds stays as it is: a run matched again later (a half-finished upload) may have lost a
-      # model its source no longer keeps
-      if grep -qxF "$name" <<< "$held"; then echo "database: $name already in $tag, kept"; continue; fi
-      gh release upload "$tag" "$f" -R "$R"   # no --clobber: a file that appeared meanwhile fails, never replaced
-      echo "database: $name in $tag"
+      for f in $files; do
+        name=$(basename "$f")
+        [ "$(tag_of "$name")" = "$tag" ] || continue
+        # a file the database holds stays as it is: a run matched again later (a half-finished upload) may have lost a
+        # model its source no longer keeps
+        if grep -qxF "$tag/$name" <<< "$held"; then echo "database: $name already in $tag, kept"; continue; fi
+        if ! gh_wait gh release upload "$tag" "$f" -R "$R"; then   # no --clobber: never replaced
+          # an upload cut off by the allowance may have landed: what the release holds now decides
+          gh release view "$tag" -R "$R" --json assets -q '.assets[].name' | grep -qxF "$name" || exit 1
+        fi
+        echo "database: $name in $tag"
+        sleep "${VERIFYDB_PACE:-0}"
+      done
     done
     ;;
   mirror)
@@ -88,11 +114,7 @@ case "${1:-}" in
     work=$(mktemp -d); trap 'rm -rf "$work"' EXIT
     "$FRAMES_PY" "$LIB/frames_store.py" files verify-db > "$work/store.txt"
     # both kinds of release in one folder a month, each file from the release it belongs in (as list)
-    for t in $(tags); do
-      gh release view "$t" -R "$R" --json assets -q '.assets[] | "\(.name) \(.size) \(.digest)"' | while read -r n size digest; do
-        if [ "$(tag_of "$n")" = "$t" ]; then echo "verify-db/${t: -7}/$n $size $digest"; fi
-      done
-    done > "$work/github.txt"
+    assets | awk '{ print "verify-db/" substr($1, length($1) - 6) "/" $2, $3, $4 }' > "$work/github.txt"
     # the files the store lacks; one it holds at another size, or that GitHub no longer holds, is reported, not changed
     awk 'FILENAME == ARGV[1] { if (NF == 2) s[$1] = $2; next }
       { g[$1] = 1 }
@@ -106,7 +128,7 @@ case "${1:-}" in
       # shellcheck disable=SC2046  # the names are meant to split
       by_tag $(awk -F'[/ ]' '{ print $3 }' "$work/month.txt") | while read -r tag pats; do
         # shellcheck disable=SC2086  # the -p arguments are meant to split
-        gh release download "$tag" -R "$R" -D "$work/verify-db/$m" $pats
+        gh_wait gh release download "$tag" -R "$R" -D "$work/verify-db/$m" $pats
       done
       awk -F'[/ ]' '{ sub(/^sha256:/, "", $5); print $5 "  " $3 }' "$work/month.txt" > "$work/sums.txt"
       (cd "$work/verify-db/$m" && sha256sum --quiet -c "$work/sums.txt")

@@ -142,11 +142,20 @@ jobs:
       - name: ERA5 at 00Z of each day ARCO holds
         env:
           GH_TOKEN: ${{ github.token }}
+          VERIFYDB_PACE: "10"   # a backfill's hundreds of days stay within the API's hourly allowance (~360 an hour)
         run: |
           scripts/verify/verifydb.sh list > "$RUNNER_TEMP/have.txt"
-          python scripts/verify/z500_acc.py truth --first ${{ needs.plan.outputs.first }} --last ${{ needs.plan.outputs.last }} \
-            --have "$RUNNER_TEMP/have.txt" --archive-out "$RUNNER_TEMP/db-new"
-          scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"
+          FIRST=${{ needs.plan.outputs.first }}; LAST=${{ needs.plan.outputs.last }}
+          # a month at a time, each uploaded before the next is read: a job cut short keeps what it read
+          m=${FIRST:0:6}01
+          while [ "$m" -le "$LAST" ]; do
+            end=$(date -u -d "$m + 1 month - 1 day" +%Y%m%d)
+            python scripts/verify/z500_acc.py truth --first "$(( m > FIRST ? m : FIRST ))" --last "$(( end < LAST ? end : LAST ))" \
+              --have "$RUNNER_TEMP/have.txt" --archive-out "$RUNNER_TEMP/db-new"
+            scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"
+            rm -rf "$RUNNER_TEMP/db-new"
+            m=$(date -u -d "$m + 1 month" +%Y%m%d)
+          done
 
   acc:
     needs: [fields, truth]
