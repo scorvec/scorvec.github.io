@@ -91,22 +91,14 @@
   table.h2h td { min-width: 4.6rem; height: 2.4rem; text-align: center; border-radius: 4px; background: #f1f0eb; font-weight: 600; }
   table.h2h td.self { background: transparent; color: var(--muted); font-weight: 400; }
   table.h2h td small { display: block; font-size: 0.72rem; font-weight: 500; opacity: 0.9; line-height: 1.1; }
-  .minis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.4rem 1rem; }
-  .minis .mini { min-width: 0; }
-  .minis .mini h4 { font: 600 0.86rem var(--sans); color: var(--ink2); margin: 0.3rem 0 0; }
-  .minis .chart { height: 210px; }
   /* a short list of choices is the site's segmented control; a long one stays a menu */
   .controls .ctl { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0.3rem 0.55rem; font-size: 0.82rem; color: var(--muted); font-weight: 600; }
   .controls .pills { margin: 0; }
   .controls { display: flex; flex-wrap: wrap; gap: 0.5rem 1.2rem; margin: 0 0 0.6rem; align-items: center; }
   .controls label { font-size: 0.82rem; color: var(--muted); font-weight: 600; }
   .controls select { font: 500 0.9rem var(--sans); color: var(--ink); background: var(--panel); border: 1px solid var(--edge); border-radius: 6px; padding: 0.3rem 0.6rem; margin-left: 0.3rem; max-width: 100%; }
-  .chart { width: 100%; height: 420px; }
-  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-  .pair > div { min-width: 0; }
-  .pair h3 { font: 600 0.95rem var(--sans); margin: 0.2rem 0; color: var(--ink2); }
-  .pair .chart { height: 340px; }
-  .pair .chart.prof { height: 460px; }
+  .chart { width: 100%; height: 560px; }   /* a station's series, the one chart drawn in the page */
+  #stn-series h3 { font: 600 1rem var(--sans); margin: 0.4rem 0 0; color: var(--ink); }
   #map { width: 100%; height: min(70vh, 620px); border-radius: 8px; border: 1px solid var(--rule); background: #e9e8e4; }
   .leaflet-container { font-family: var(--sans); }
   .leaflet-container .leaflet-control-attribution a { color: #274b7a; }
@@ -128,7 +120,7 @@
   .scg path, .scg circle, .scg text { pointer-events: none; }
   #s-region-l, #e-region-l { display: none; }
   #s-region-l.figs, #e-region-l.figs { display: inline-flex; }
-  img.fig[hidden], .chart[hidden], .ctl[hidden], .pair[hidden], .scg[hidden], #scorecard[hidden] { display: none; }   /* a figure stands in for the drawn chart */
+  img.fig[hidden], .ctl[hidden], .scg[hidden], #scorecard[hidden] { display: none; }   /* a figure stands in for the drawn scorecard */
   @media (max-width: 700px) { .scg .blk:not(.on) { display: none; } #s-region-l, #e-region-l { display: inline-flex; } }
   .sc-detail { font-size: 0.86rem; color: var(--ink2); margin: 0.5rem 0 0; min-height: 2.6em; font-variant-numeric: tabular-nums; }
   .lgd svg.kg { width: 1.25rem; height: 1.08rem; vertical-align: -0.25rem; margin-right: 0.3rem; }
@@ -141,28 +133,32 @@
   details.method { margin-top: 1.4rem; }
   details.method summary { cursor: pointer; font-weight: 600; color: var(--accent); }
   details.method p, details.method li { color: var(--ink2); font-size: 0.95rem; max-width: 72rem; }
+  ul.db { color: var(--ink2); font-size: 0.95rem; max-width: 72rem; padding-left: 1.2rem; margin: 0.6rem 0; }
+  ul.db li { margin: 0.3rem 0; }
+  ul.db code { font-size: 0.88em; background: #f1efe9; padding: 0.05rem 0.3rem; border-radius: 3px; }
   details.method code, .note code { font-size: 0.88em; background: #f1efe9; padding: 0.05rem 0.3rem; border-radius: 3px; }
   pre { background: #f1efe9; border-radius: 6px; padding: 0.7rem 0.9rem; overflow-x: auto; font-size: 0.85rem; max-width: 72rem; }
   .src { font-size: 0.82rem; color: var(--muted); margin-top: 0.6rem; }
-  @media (max-width: 1100px) { .gl-grid { grid-template-columns: minmax(0, 1fr); } .minis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @media (max-width: 900px) { .pair { grid-template-columns: 1fr; } .chart { height: 360px; } }
+  @media (max-width: 1100px) { .gl-grid { grid-template-columns: minmax(0, 1fr); } }
   @media (max-width: 640px) {
-    .minis { grid-template-columns: minmax(0, 1fr); } .vnav a { padding: 0.45rem 0.7rem; }
+    .vnav a { padding: 0.45rem 0.7rem; }
     .chip .v small { display: block; margin: 0; }
     table.gl { border-spacing: 2px; } table.gl td { min-width: 1.9rem; font-size: 0.62rem; } table.gl th.r { font-size: 0.8rem; white-space: normal; min-width: 7rem; }
   }
-  @media (max-width: 640px) { .chart, .pair .chart { height: 420px; } }
+  @media (max-width: 640px) { .chart { height: 460px; } }
 </style>
 <script>
-// Plotly (the cartesian bundle) loads alongside the page; the drawing waits for it and the scores (window.plotlyP).
-// Integrity as in scripts/site/apply_chrome.py SRI.
-window.plotlyP = new Promise(function (ok, no) {
-  var s = document.createElement("script");
-  s.src = "https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js";
-  s.integrity = "sha384-gKF7EaMDoWW1zLWkouldmVWF5jqEKrAswAciW73iNzqlomabVVPO60XkJvL5q/Ie"; s.crossOrigin = "anonymous";
-  s.onload = ok; s.onerror = no;
-  document.head.appendChild(s);
-});
+// Plotly (the cartesian bundle) loads on a station's first click, for its series: every other chart is a figure drawn
+// each night. Integrity as in scripts/site/apply_chrome.py SRI.
+window.plotly = function () {
+  return window.plotlyP || (window.plotlyP = new Promise(function (ok, no) {
+    var s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js";
+    s.integrity = "sha384-gKF7EaMDoWW1zLWkouldmVWF5jqEKrAswAciW73iNzqlomabVVPO60XkJvL5q/Ie"; s.crossOrigin = "anonymous";
+    s.onload = ok; s.onerror = no;
+    document.head.appendChild(s);
+  }));
+};
 </script>
 <link rel="stylesheet" href="/skewt/vendor/leaflet.css">
 <script src="/skewt/vendor/leaflet.js" defer></script>
@@ -371,7 +367,7 @@ window.plotlyP = new Promise(function (ok, no) {
   <p class="src" id="asof">Loading the scores…</p>
 
   <nav class="vnav" id="vnav" aria-label="Sections of this page">
-    <a href="#glance">At a glance</a><a href="#acc">500 hPa ACC</a><a href="#lead">Error by lead</a><a href="#scores">Scorecard</a><a href="#profiles">Upper air</a><a href="#stations">Stations</a><a href="#wind">Wind</a><a href="#rain">Rain</a><a href="#ens">Ensembles</a>
+    <a href="#glance">At a glance</a><a href="#acc">500 hPa ACC</a><a href="#lead">Error by lead</a><a href="#scores">Scorecard</a><a href="#profiles">Upper air</a><a href="#stations">Stations</a><a href="#wind">Wind</a><a href="#rain">Rain</a><a href="#ens">Ensembles</a><a href="#database">Database</a>
   </nav>
 
   <section class="card" id="glance">
@@ -390,8 +386,7 @@ window.plotlyP = new Promise(function (ok, no) {
       </div>
     </div>
     <h3 class="gl-h">How the error grows</h3>
-    <div class="lgd" id="gl-mkey"></div>
-    <div class="minis" id="gl-minis"></div>
+    <img class="fig" id="g-fig" alt="" loading="lazy" hidden>
   </section>
 
   <span class="vanchor" id="acc"></span>
@@ -406,17 +401,15 @@ window.plotlyP = new Promise(function (ok, no) {
     <img class="fig" id="a-lead" alt="" loading="lazy">
   </section>
 
-  <section class="card" id="lead">
+  <span class="vanchor" id="lead"></span>
+  <section class="card" id="lead-card" hidden>
     <h2>Error by lead time</h2>
-    <p class="note" id="lead-note">Lower is better for RMSE and MAE; bias is forecast minus observed. Each point averages every
-      station and run at that lead.</p>
     <div class="controls">
       <label>Variable<select id="l-var"></select></label>
       <label>Region<select id="l-region"></select></label>
-      <label>Score<select id="l-stat"></select></label>
     </div>
-    <div class="chart" id="c-lead"></div>
-    <img class="fig" id="l-fig" alt="" hidden>
+    <img class="fig" id="l-fig" alt="">
+    <p class="note" id="lead-note"></p>
   </section>
 
   <section class="card" id="scores">
@@ -441,15 +434,10 @@ window.plotlyP = new Promise(function (ok, no) {
       <label>Quantity<select id="p-qty"></select></label>
       <label>Region<select id="p-region"></select></label>
       <label>Lead<select id="p-day"></select></label>
-      <label>Relative to<select id="p-ref"></select></label>
     </div>
-    <div class="pair">
-      <div><h3>RMSE</h3><div class="chart prof" id="c-prof-rmse"></div></div>
-      <div><h3 id="prof-rel-h">RMSE relative to IFS</h3><div class="chart prof" id="c-prof-rel"></div></div>
-      <div><h3 id="prof-bias-h">Bias (forecast − observed)</h3><div class="chart prof" id="c-prof-bias"></div></div>
-    </div>
-    <p class="note" id="prof-note">Error against radiosondes at every standard level from 1000 to 100 hPa (humidity to
-      300 hPa, above which sonde humidity is unreliable).</p>
+    <img class="fig" id="u-fig" alt="">
+    <p class="note">Against radiosondes at the standard levels from 1000 to 100&nbsp;hPa (humidity to 300&nbsp;hPa, above
+      which sonde humidity is unreliable), every model on the same soundings.</p>
   </section>
 
   <span class="vanchor" id="stations"></span>
@@ -476,10 +464,7 @@ window.plotlyP = new Promise(function (ok, no) {
       <label>Region<select id="w-region"></select></label>
       <label>Lead<select id="w-group"></select></label>
     </div>
-    <div class="pair">
-      <div><h3>Quantiles, forecast against observed</h3><div class="chart" id="c-qq"></div></div>
-      <div><h3>Fitted distribution (hybrid Weibull)</h3><div class="chart" id="c-weib"></div></div>
-    </div>
+    <img class="fig" id="w-fig" alt="" hidden>
     <div class="tblwrap"><table class="pg" id="w-table"></table></div>
     <p class="note" id="w-note"></p>
   </section>
@@ -487,15 +472,12 @@ window.plotlyP = new Promise(function (ok, no) {
   <span class="vanchor" id="rain"></span>
   <section class="card" id="precip-card" hidden>
     <h2>Rain over the US</h2>
-    <p class="note">24-hour totals ending 12Z against the Stage IV analysis on its 4&nbsp;km grid.</p>
     <div class="controls">
       <label>Window ending<select id="p-lead"></select></label>
       <label>Threshold<select id="p-thr"></select></label>
     </div>
-    <div class="pair">
-      <div><h3>Equitable threat score by threshold</h3><div class="chart" id="c-ets"></div></div>
-      <div><h3>Fractions skill score by neighbourhood</h3><div class="chart" id="c-fss"></div></div>
-    </div>
+    <img class="fig" id="pr-fig" alt="">
+    <p class="note" id="pr-note"></p>
     <div id="p-gauge-box" hidden>
       <h3>Against Stage IV and against rain gauges</h3>
       <div class="tblwrap"><table class="pg" id="p-gauge"></table></div>
@@ -531,22 +513,36 @@ window.plotlyP = new Promise(function (ok, no) {
       <label>Variable<select id="e-var"></select></label>
       <label>Region<select id="e-vregion"></select></label>
     </div>
-    <div class="pair" id="e-pair1">
-      <div><h3>CRPS (smaller is better)</h3><div class="chart" id="c-ens-crps"></div></div>
-      <div><h3>Spread / error of the ensemble mean (1 = calibrated)</h3><div class="chart" id="c-ens-ssr"></div></div>
-    </div>
     <img class="fig" id="e-lead-fig" alt="" hidden>
+    <img class="fig" id="e-rank-fig" alt="" hidden>
     <div class="controls">
-      <label>Days<select id="e-group"></select></label>
       <label>Event<select id="e-event"></select></label>
       <label>Threshold<select id="e-thr"></select></label>
     </div>
-    <div class="pair" id="e-pair2">
-      <div><h3 id="e-rank-h">Rank histogram</h3><div class="chart" id="c-ens-rank"></div></div>
-      <div><h3>Reliability (on the diagonal = calibrated)</h3><div class="chart" id="c-ens-rel"></div></div>
-    </div>
-    <img class="fig" id="e-rank-fig" alt="" hidden>
     <img class="fig" id="e-rel-fig" alt="" hidden>
+  </section>
+
+  <span class="vanchor" id="database"></span>
+  <section class="card" id="db-card" hidden>
+    <h2>The verification database</h2>
+    <p class="note">Every run this page scores is kept for good, every pair and sum, free to download and score again
+      with any method.</p>
+    <div class="tblwrap"><table class="pg" id="db-table"></table></div>
+    <ul class="db">
+      <li><a href="https://github.com/scorvec/scorvec.github.io/releases?q=verify-db&amp;expanded=true">verify-db-YYYY-MM</a>,
+        one GitHub release a month: each run's pairs against the surface stations (<code>sfc_&lt;init&gt;.parquet</code>),
+        the radiosondes (<code>raob_</code>) and Stage IV (<code>rain_</code>), their sums (<code>stats_</code>,
+        <code>stn_</code>), and the ensembles' cases and sums (<code>ens-sfc-&lt;model&gt;_</code>, <code>ens-raob-</code>,
+        <code>ens-rain-</code>, <code>ens-stats_</code>, <code>ens-rel_</code>).</li>
+      <li><a href="https://github.com/scorvec/scorvec.github.io/releases?q=verify-z500&amp;expanded=true">verify-z500-YYYY-MM</a>:
+        every model's 500&nbsp;hPa height on the 1.5° grid (<code>z500-&lt;model&gt;_</code>, ensemble means
+        <code>ens-z500-</code> and members <code>ens-z500m-</code>), ERA5's (<code>era5-z500_</code>) and each run's
+        anomaly correlations (<code>acc_</code>).</li>
+      <li>The code that writes and reads it: <a href="https://github.com/scorvec/scorvec.github.io/tree/main/scripts/verify">scripts/verify</a>
+        (<code>verifydb.sh</code> lists and fetches it), scored with <a href="https://github.com/scorvec/nwp_verification">mverify</a>.</li>
+    </ul>
+    <pre>gh release download verify-db-2026-10 -R scorvec/scorvec.github.io -p 'sfc_*'
+python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').head())"</pre>
   </section>
 
   <details class="method" id="method">
@@ -559,12 +555,20 @@ window.plotlyP = new Promise(function (ok, no) {
       the scorecard's paired test at the 5% level: a model drawn alone in its colour has a significantly smaller error than
       every other model, and faint stripes mark the models that cannot be told apart from the smallest. The head-to-head
       table counts, for each pair, the variable-days on which each model is significantly ahead, and the band at the top
-      adds up each model's wins and losses over every pair. With ten runs the test is strict: a tie says the runs so far
-      cannot separate the models, not that they are equal. The longer windows of the run switch, from the verification
-      database, separate more of them.</p>
-    <p><b>Rain over the US.</b> 24 hour totals ending 12Z against the Stage IV analysis, on the analysis's 4 km grid. The equitable threat
-      score is the share of rain areas the model gets right beyond chance (1 is perfect). The fractions skill score asks the
-      same question in neighbourhoods of growing size, so it forgives a band forecast a few tens of kilometres off.</p>
+      adds up each model's wins and losses over every pair; the figure below the tables draws each headline variable's
+      RMSE by lead with its 95% interval. With ten runs the test is strict: a tie says the runs so far cannot separate the
+      models, not that they are equal. The longer windows of the run switch, from the verification database, separate
+      more of them.</p>
+    <p><b>Rain over the US.</b> 24 hour totals ending 12Z against the Stage IV analysis, from the verification database's
+      newest runs (the window's, at most a year), on the land cells of the common 0.5° grid as the rain maps, every model
+      on the same runs and cells, each cell weighted by its area. The equitable threat score is the share of rain areas
+      the model gets right beyond chance (1 is perfect, 0 no better than chance). The fractions skill score asks the same
+      question in neighbourhoods of growing size, 50 to 400&nbsp;km (Roberts and Lean 2008), so it forgives a band forecast
+      a few tens of kilometres off. Both are summed over every run before they are scored, and their 95% intervals
+      treat each run as one block of cells that share its weather: the threat score's from a jackknife that leaves out one
+      run at a time, the skill score's from the ratio of its two sums, each with the allowance for runs that resemble the
+      day before. A threshold that too few cells reach in the analysis (100 over the window) is left out. The table
+      beneath compares the latest ten runs against Stage IV and against the rain gauges.</p>
     <p><b>500 hPa anomaly correlation.</b> The headline score of the WMO's lead centres, drawn as NCEP's Environmental
       Modeling Center draws it, one lead at a time against the date the forecast verifies. Every model's 500&nbsp;hPa height
       at 00Z of each day of its 00Z run (each ensemble's mean over every member the open data carries) and ERA5's at the
@@ -602,7 +606,11 @@ window.plotlyP = new Promise(function (ok, no) {
       would hide differences that are real (Geer 2016, Tellus A 68, 30229). A difference counts as significant when
       its paired test passes the Benjamini–Hochberg procedure at a 10% false-discovery rate over every model and lead
       of a figure, so that testing many leads does not manufacture a winner; a hollow marker or grey cell is within the
-      noise of the runs so far, not proof that the models are equal.</p>
+      noise of the runs so far, not proof that the models are equal. A pooled score, an RMSE or a bias summed over
+      every station and run, takes its interval from the runs' own sums, each run one cluster of observations that share
+      its weather; an upper-air profile's RMSE against the IFS control is the square root of the ratio of the two models'
+      summed squared errors on the same soundings, its interval from the same clusters, and filled where that interval
+      leaves out no difference.</p>
     <p><b>A station's series.</b> A click on a surface station of the map draws what it reported against every
       model's forecast for the same hours at the map's lead, over the newest 45 days of the database (a run joins it
       once its day 10 is observed, so the newest point is about two weeks old), with each model's error beneath. One
@@ -633,11 +641,12 @@ window.plotlyP = new Promise(function (ok, no) {
       panels describe the ensembles; only the scorecard tests a difference between them.</p>
     <p><b>Wind speed as a distribution.</b> Wind speed is skewed and cannot go below zero, so RMSE and bias, which reward
       a forecast that hedges towards the middle, are joined by the whole distribution, on the same station pairs for every
-      model: forecast and observed quantiles from 1 to 99.5% (a QQ plot: a model on the dashed line has the observed
-      distribution); the hybrid Weibull of Takle and Brown (1978), that is the share of calms (under 0.5 m/s, as reports
+      model: forecast and observed quantiles from 1 to 99.5%; the hybrid Weibull of Takle and Brown (1978), that is the share of calms (under 0.5 m/s, as reports
       come in whole knots) and a Weibull shape k and scale c fitted by maximum likelihood to the rest (a smaller k is a
       wider spread, a smaller c weaker winds); and how often 5, 10 and 15 m/s are reached. Each run's speeds are binned at
-      0.05 m/s and the runs resampled whole, model and observation together, for a 95% interval on every difference.</p>
+      0.05 m/s and the runs resampled whole, model and observation together, for a 95% interval on every difference; the
+      figure draws each model's quantiles less the observed ones with those intervals, so zero is the observed
+      distribution.</p>
     <p><b>Rain gauges.</b> The 24 hour totals that stations report (GHCNh; at 12Z from US ASOS stations, the same window
       as Stage IV) are scored like the other station variables, each model's total for those 24 hours interpolated to
       the gauge from the common grid, every model on the same readings. In the US they check the gridded scores at
@@ -666,14 +675,15 @@ window.plotlyP = new Promise(function (ok, no) {
       <li><b>Pressure.</b> Mean sea-level pressure, at stations where every model's terrain is at most 500 m. The
         reduction to sea level runs through the ground under the station, each model and station makes it its own way, and
         the differences grow with the height reduced.</li>
-      <li><b>Scores.</b> RMSE, bias, MAE and correlation for each variable, region and lead; precipitation on the analysis
-        grid with the equitable threat score, frequency bias and the fractions skill score (Roberts and Lean 2008).</li>
+      <li><b>Scores.</b> RMSE, bias, MAE and correlation for each variable, region and lead; precipitation on the common
+        grid's land cells with the equitable threat score, the frequency bias and the fractions skill score (Roberts and
+        Lean 2008).</li>
       <li><b>Same sample.</b> Each model is scored only on the observations every model was matched to, so a model
         whose terrain or coastline drops a station is not judged on an easier set.</li>
       <li><b>Significance.</b> The scorecard tests each model pair with a paired t-test on the per-run mean squared errors.
         Runs a day apart share much of their weather, so the test counts fewer effective runs when the run-to-run
-        differences are correlated (Geer 2016). Tapping or hovering a scorecard square gives both errors, the p value,
-        the paired runs, that count of effective runs and the observations behind it.</li>
+        differences are correlated (Geer 2016). A scorecard cell gives the difference in percent where the test passes
+        at the 5% level, and a dot where it does not.</li>
       <li><b>Data.</b> GFS from NOAA on AWS; IFS and AIFS from ECMWF open data (Google Cloud mirror), all published at
         0.25°; GDPS from ECCC's HPFX server at 0.15°; all scored on the common 0.5° grid.</li>
     </ul>
@@ -739,9 +749,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     // Rows need scores at a few leads to be worth a chart (radiosondes only reach back a few days so far).
     const enough = r => Object.values(r.scores).some(s => (s.rmse || []).filter(v => v != null).length >= 3);
     const surface = card.rows.filter(r => !r.var.startsWith("tp") && enough(r));
-    const precip = card.rows.filter(r => r.var.startsWith("tp"));
     const vars = [...new Set(surface.map(r => r.var))].sort((a, b) => rank(a) - rank(b));
-    const label = Object.fromEntries(surface.map(r => [r.var, r.label]));
     const regionsFor = v => [...new Set(surface.filter(r => r.var === v).map(r => r.region))];
     const row = (v, region) => surface.find(r => r.var === v && r.region === region);
     // the cases a comparison of models a and b rests on at lead index i: paired runs, the effective runs the test
@@ -759,98 +767,6 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     const nruns = Math.max(...Object.values(card.inits).map(a => a.length));
     $("asof").textContent = (card.window ? "The newest runs of the verification database: " : "") + `${nruns} runs per model, ${inits[0].replace("T", " ")}Z to ${inits[inits.length - 1].replace("T", " ")}Z. ` +
       `Scored ${card.generated} with ${card.package}.`;
-
-    // lead-time chart
-    const lv = $("l-var"), lr = $("l-region"), ls = $("l-stat");
-    fill(lv, vars, v => label[v]);
-    lv.value = vars.includes("t2m") ? "t2m" : vars[0];
-    function leadChart() {
-      fill(lr, regionsFor(lv.value), null, true);
-      if (!lr.dataset.set) { lr.dataset.set = "1"; if (regionsFor(lv.value).includes(wide)) lr.value = wide; }
-      const r = row(lv.value, lr.value);
-      const stats = ["rmse", "bias", "mae", "corr", "n"].filter(s => models.some(m => r.scores[m]?.[s]));
-      fill(ls, stats, s => STAT_NAMES[s], true);
-      const s = ls.value;
-      const traces = models.filter(m => r.scores[m]?.[s]).map((m, i) => ({
-        x: leads.map(h => h / 24), y: r.scores[m][s], name: m, mode: "lines+markers", connectgaps: true,
-        line: { color: color(m, models.indexOf(m)), width: 2.4 }, marker: { size: 5 },
-        hovertemplate: `%{y:.3~f}`,
-      }));
-      const u = ["corr", "n"].includes(s) ? "" : ` (${unit(r.unit)})`;
-      Plotly.react("c-lead", traces, layout(`${STAT_NAMES[s]}${u}`, {
-        xaxis: { title: { text: "Lead (days)" }, dtick: 1, gridcolor: "#ece9e2", zeroline: false },
-        shapes: s === "bias" ? [{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 0, y1: 0, line: { color: "#9a958b", width: 1 } }] : [],
-      }), CONFIG);
-      $("lead-note").innerHTML = `${esc(r.label)} against ${esc(r.truth)}, ${esc(r.region)}. Lower is better for RMSE and MAE; ` +
-        "bias is forecast minus observed. Each point averages every station and run at that lead.";
-    }
-    [lv, lr, ls].forEach(el => el.addEventListener("change", leadChart));
-    leadChart();
-
-    // upper-air profiles: error against pressure at one lead
-    const qtys = Object.keys(QTY).filter(q => surface.some(r => split(r.var)?.[0] === q));
-    if (qtys.length) {
-      $("profile-card").hidden = false;
-      const pq = $("p-qty"), pg = $("p-region"), pd = $("p-day");
-      fill(pq, qtys, q => QTY[q]);
-      const upRegions = [...new Set(surface.filter(r => split(r.var)).map(r => r.region))];
-      fill(pg, upRegions);
-      pg.value = upRegions.includes("Global") ? "Global" : upRegions[0];
-      const pdays = leads.filter(h => h % 24 === 0);
-      fill(pd, pdays.map(String), h => h === "0" ? "Analysis (hour 0)" : `Day ${+h / 24}`);
-      pd.value = pdays.includes(120) ? "120" : String(pdays[0]);
-      const pr = $("p-ref");
-      fill(pr, models);
-      pr.value = models.includes("IFS") ? "IFS" : models[0];
-      function profiles() {
-        const q = pq.value, region = pg.value, i = leads.indexOf(+pd.value);
-        const rows = surface.filter(r => r.region === region && split(r.var)?.[0] === q)
-          .map(r => ({ r, p: split(r.var)[1] })).sort((x, y) => y.p - x.p);
-        if (!rows.length) return;
-        const u = unit(rows[0].r.unit);
-        const lines = s => models.map((m, k) => ({
-          x: rows.map(x => x.r.scores[m]?.[s]?.[i] ?? null), y: rows.map(x => x.p), name: m,
-          mode: "lines+markers", line: { color: color(m, k), width: 2.4 }, marker: { size: 6 },
-          hovertemplate: `${m} %{x:.3~f} ${u} at %{y} hPa<extra></extra>`,
-        }));
-        const yaxis = { type: "log", autorange: "reversed", tickvals: rows.map(x => x.p), title: { text: "Pressure (hPa)" },
-                        gridcolor: "#ece9e2" };
-        const ext = { hovermode: "closest", yaxis, margin: { l: 62, r: 12, t: 34, b: 50 } };
-        Plotly.react("c-prof-rmse", lines("rmse"), layout("", Object.assign({}, ext, {
-          xaxis: { title: { text: `RMSE (${u})` }, rangemode: "tozero", gridcolor: "#ece9e2", zeroline: false } })), CONFIG);
-        // the scorecard's numbers at this lead: each model's RMSE against the reference, filled where its paired test passes
-        const ref = pr.value;
-        const rel = models.filter(m => m !== ref).map(m => {
-          const k = models.indexOf(m), pv = rows.map(x => x.r.p?.[`${m}|${ref}`]?.[i]), cs = rows.map(x => cases(x.r, m, ref, i));
-          return {
-            x: rows.map(x => { const a = x.r.scores[m]?.rmse?.[i], b = x.r.scores[ref]?.rmse?.[i];
-                               return a == null || b == null ? null : 100 * (a - b) / b; }),
-            y: rows.map(x => x.p), name: m, mode: "lines+markers", line: { color: color(m, k), width: 2 },
-            marker: { size: 8, color: color(m, k), line: { color: color(m, k), width: 1.6 },
-                      symbol: pv.map(v => v != null && v < 0.05 ? "circle" : "circle-open") },
-            customdata: pv.map((v, j) => (v == null ? "" : v < 0.05 ? `significant, p = ${v.toFixed(3)}` : `not significant, p = ${v.toFixed(2)}`) +
-                                          (cs[j] ? `; ${cs[j].text}` : "")),
-            hovertemplate: `${m} %{x:+.1f}% against ${ref} at %{y} hPa (%{customdata})<extra></extra>`,
-          };
-        });
-        Plotly.react("c-prof-rel", rel, layout("", Object.assign({}, ext, {
-          xaxis: { title: { text: `% (below 0: smaller error than ${ref})` }, ticksuffix: "%", gridcolor: "#ece9e2",
-                   zeroline: true, zerolinecolor: "#9a958b" } })), CONFIG);
-        $("prof-rel-h").textContent = `RMSE relative to ${ref}`;
-        Plotly.react("c-prof-bias", q === "wind" ? [] : lines("bias"), layout("", Object.assign({}, ext, {
-          xaxis: { title: { text: `Bias (${u})` }, gridcolor: "#ece9e2", zeroline: true, zerolinecolor: "#9a958b" } })), CONFIG);
-        $("prof-bias-h").textContent = q === "wind" ? "Bias (not defined for vector wind)" : "Bias (forecast − observed)";
-        const n = rows[0].r.scores[models[0]]?.n?.[i];
-        $("prof-note").innerHTML = `${esc(QTY[q])} against radiosondes, ${esc(region)}, ` +
-          (+pd.value === 0 ? "at the start of the forecast" : `day ${+pd.value / 24}`) +
-          (n ? ` (${n.toLocaleString()} soundings at ${rows[0].p} hPa)` : "") +
-          `. In the middle panel, filled points are significant (the scorecard's test, 5% level). Every model is scored on the same soundings. Humidity is verified up to 300 hPa, above which sonde humidity is unreliable.`;
-      }
-      [pq, pg, pd].forEach(el => el.addEventListener("change", profiles));
-      // one reference model for the profile and the scorecard, so both compare the same pair
-      pr.addEventListener("change", () => { const s = $("s-ref"); if (s.value !== pr.value) { s.value = pr.value; s.dispatchEvent(new Event("change")); } profiles(); });
-      profiles();
-    }
 
     // scorecard, drawn as the forecast centres draw theirs: a block per region, every variable by day, a triangle where
     // the paired test finds a difference (blue: the model's error is the smaller), darker as the difference grows
@@ -919,13 +835,12 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     $("scorecard").addEventListener("click", detail);
     [sm, sr, sg, sw].forEach(el => el.addEventListener("change", scorecard));
     summary();
-    sr.addEventListener("change", () => { const p = $("p-ref"); if (p && p.value !== sr.value) { p.value = sr.value; p.dispatchEvent(new Event("change")); } });
     scorecard();
 
     // ── at a glance: the headline variables in one region. For each variable and day the models whose error is not
     // significantly larger than the smallest (the scorecard's paired test, 5 %): one model alone is drawn in its colour,
     // several in faint stripes; the head-to-head counts each pair's significant wins over the same variables and days;
-    // the band gives each model's record over every pair, and the small charts the error by lead.
+    // the band gives each model's record over every pair, and a figure the error by lead (detFigs).
     function summary() {
       const gr = $("g-region"), HEAD = ["z500", "t850", "wind250", "q700", "t2m", "td2m", "msl", "wind10"];
       const heads = HEAD.filter(v => vars.includes(v));
@@ -973,77 +888,9 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
       $("vband").innerHTML = order.map(m => `<div class="chip"><div class="l"><i style="background:${color(m, models.indexOf(m))}"></i>${esc(m)}</div>` +
         `<div class="v">${rec[m].w}–${rec[m].l}<small>wins–losses</small></div>` +
         `<div class="s">smallest error outright on ${rec[m].best} of ${cells} variable-days · ${esc(region)}</div></div>`).join("");
-      // how the error grows: the headline variables' RMSE by lead
-      $("gl-mkey").innerHTML = models.map((m, k) => `<span><i style="background:${color(m, k)}"></i>${esc(m)}</span>`).join("") +
-        "<span>RMSE against the observations by day of the forecast, " + esc(region) + "</span>";
-      $("gl-minis").innerHTML = heads.filter(v => row(v, region)).map(v => `<div class="mini"><h4>${esc(row(v, region).label.replace(/^./, c => c.toUpperCase()))}</h4><div class="chart" id="mini-${v}"></div></div>`).join("");
-      heads.forEach((v, j) => {
-        const r = row(v, region); if (!r) return;
-        const tr = models.filter(m => r.scores[m]?.rmse).map(m => ({
-          x: leads.map(h => h / 24), y: r.scores[m].rmse, name: m, mode: "lines", connectgaps: true, showlegend: false,
-          line: { color: color(m, models.indexOf(m)), width: 2 }, hovertemplate: `${m} %{y:.3~f} ${unit(r.unit)}<extra></extra>`,
-        }));
-        Plotly.react(`mini-${v}`, tr, layout(`RMSE (${unit(r.unit)})`, {
-          margin: { l: 44, r: 6, t: 8, b: 30 }, hovermode: "x unified", font: Object.assign({}, FONT, { size: 11.5 }),
-          showlegend: false, xaxis: { range: [0, 10], tickvals: [0, 2, 4, 6, 8, 10], ticksuffix: " d", gridcolor: "#ece9e2", zeroline: false, title: { text: "" } },
-          yaxis: { title: { text: unit(r.unit), standoff: 4 }, rangemode: "tozero", gridcolor: "#ece9e2" },
-        }), Object.assign({}, CONFIG, { displayModeBar: false }));
-      });
     }
     $("g-region").addEventListener("change", summary);
 
-    // precipitation
-    const amount = precip.filter(r => !r.var.includes(">="));
-    const thrRows = precip.filter(r => r.var.includes(">=")).map(r => ({ r, t: +r.var.split(">=")[1].replace("mm", "") }))
-      .sort((x, y) => x.t - y.t);
-    if (thrRows.length) {
-      $("precip-card").hidden = false;
-      const pl = $("p-lead"), pt = $("p-thr");
-      const plead = leads.filter(h => thrRows.some(({ r }) => models.some(m => r.scores[m]?.ets?.[leads.indexOf(h)] != null)));
-      fill(pl, plead.map(String), h => `${h} h (day ${(h / 24).toFixed(1).replace(".0", "")})`);
-      fill(pt, thrRows.map(x => String(x.t)), t => `${t} mm`);
-      pt.value = thrRows.some(x => x.t === 10) ? "10" : String(thrRows[0].t);
-      const fss = ["fss_50km", "fss_100km", "fss_200km", "fss_400km"];
-      function precipCharts() {
-        const i = leads.indexOf(+pl.value);
-        const ets = models.map((m, k) => ({
-          x: thrRows.map(x => x.t), y: thrRows.map(x => x.r.scores[m]?.ets?.[i] ?? null), name: m, type: "bar",
-          marker: { color: color(m, k) }, hovertemplate: "%{y:.2f}",
-        }));
-        Plotly.react("c-ets", ets, layout("Equitable threat score", {
-          barmode: "group", xaxis: { title: { text: "Threshold (mm per 24 h)" }, type: "category" },
-        }), CONFIG);
-        const tr = thrRows.find(x => String(x.t) === pt.value).r;
-        const f = models.map((m, k) => ({
-          x: fss.map(s => +s.slice(4, -2)), y: fss.map(s => tr.scores[m]?.[s]?.[i] ?? null), name: m,
-          mode: "lines+markers", line: { color: color(m, k), width: 2.4 }, hovertemplate: "%{y:.2f}",
-        }));
-        Plotly.react("c-fss", f, layout(`FSS at ${pt.value} mm`, {
-          xaxis: { title: { text: "Neighbourhood width (km)" }, type: "log", tickvals: [50, 100, 200, 400] },
-          yaxis: { range: [0, 1], gridcolor: "#ece9e2", title: { text: `FSS at ${pt.value} mm` } },
-        }), CONFIG);
-        // the same window against the gauges: do the two truths rank the models alike?
-        const grid = amount.find(r => r.region === "CONUS"), gauge = card.rows.find(r => r.var === "pr24" && r.region === "CONUS");
-        $("p-gauge-box").hidden = !(grid && gauge);
-        if (grid && gauge) {
-          const num = (r, m, st) => r.scores[m]?.[st]?.[i];
-          const cell = v => v == null ? "–" : v.toFixed(2);
-          const sgn = v => v == null ? "–" : `${v > 0 ? "+" : ""}${v.toFixed(2)}`;
-          $("p-gauge").innerHTML = `<thead><tr><th>Model</th><th>Bias, Stage IV</th><th>RMSE, Stage IV</th><th>Bias, gauges</th><th>RMSE, gauges</th></tr></thead><tbody>` +
-            models.map(m => `<tr><td>${esc(m)}</td><td>${sgn(num(grid, m, "bias"))}</td><td>${cell(num(grid, m, "rmse"))}</td>` +
-              `<td>${sgn(num(gauge, m, "bias"))}</td><td>${cell(num(gauge, m, "rmse"))}</td></tr>`).join("") + "</tbody>";
-          const order = r => models.filter(m => num(r, m, "rmse") != null).sort((a, b) => num(r, a, "rmse") - num(r, b, "rmse"));
-          const og = order(grid), ob = order(gauge), n = gauge.scores[models[0]]?.n?.[i];
-          $("p-gauge-note").innerHTML = `mm per 24 h over CONUS, window ending ${pl.value} h. Smallest to largest RMSE: ${og.map(esc).join(", ")} against Stage IV, ` +
-            `${ob.map(esc).join(", ")} against the gauges (${og.join() === ob.join() ? "the same order" : "a different order"})` +
-            (n ? `; ${n.toLocaleString()} gauge readings, every model on the same ones.` : ".") +
-            " A gauge measures a point and a model cell averages half a degree, so RMSE against gauges runs higher.";
-        }
-      }
-      [pl, pt].forEach(el => el.addEventListener("change", precipCharts));
-      precipCharts();
-      void amount;
-    }
     $("src").innerHTML = "Sources: NOAA NCEI GHCNh; radiosondes from NOAA NCEI IGRA2 and the scorvec.com sounding mirror; NCEP Stage IV (Iowa " +
       "Environmental Mesonet archive); NOAA GFS on AWS; ECMWF open data: © 2026 European Centre for Medium-Range Weather " +
       "Forecasts (ECMWF), source <a href=\"https://www.ecmwf.int\">www.ecmwf.int</a>, " +
@@ -1076,9 +923,9 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
   const q95 = xs => { const v = xs.filter(x => x != null && isFinite(x)).sort((a, b) => a - b); return v.length ? v[Math.floor(0.95 * (v.length - 1))] : 1; };
   const nice = x => { const e = Math.pow(10, Math.floor(Math.log10(x))); return [1, 2, 2.5, 5, 10].map(m => m * e).find(m => m >= x) || x; };
 
-  // 10 m wind speed as a distribution: QQ, the hybrid Weibull and exceedance, filled or starred where the model differs
-  // from the observed beyond the bootstrap interval
-  function drawWind(wd) {
+  // 10 m wind speed as a distribution: the quantiles and the hybrid Weibull as a figure (verify_figs.py), the fit and
+  // exceedance as a table, starred where the model differs from the observed beyond the bootstrap interval
+  function drawWind(wd, figs) {
     if (!wd.rows.length) return;
     $("wind-card").hidden = false;
     const wr = $("w-region"), wg = $("w-group"), models = wd.models, LABEL = { global: "Global", nh: "NH 20-90N",
@@ -1090,26 +937,12 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     const out = (lo, hi, at) => lo != null && hi != null && (lo > at || hi < at);
     function render() {
       const row = wd.rows.find(r => r.region === wr.value && r.group === wg.value);
-      if (!row) { Plotly.purge("c-qq"); Plotly.purge("c-weib"); $("w-table").innerHTML = ""; $("w-note").textContent = "No pairs for this choice."; return; }
-      const o = row.obs, top = Math.max(...o.q, ...models.map(m => Math.max(...row.models[m].q)));
-      const qq = [{ x: [0, top], y: [0, top], mode: "lines", line: { color: "#9a958b", dash: "dash", width: 1 }, hoverinfo: "skip", showlegend: false }]
-        .concat(models.map((m, k) => {
-          const r = row.models[m], sig = r.q.map((_, i) => out(r.q_lo[i], r.q_hi[i], 0));
-          return { x: o.q, y: r.q, name: m, mode: "lines+markers", line: { color: color(m, k), width: 2 },
-            marker: { size: 7, color: sig.map(v => v ? color(m, k) : "#fff"), line: { color: color(m, k), width: 1.6 } },
-            customdata: wd.probs.map((p, i) => [pct(p), (r.q[i] - o.q[i]).toFixed(2), sig[i] ? "beyond chance" : "within chance"]),
-            hovertemplate: `${m}: %{customdata[0]} quantile %{y:.2f} m/s, observed %{x:.2f} (%{customdata[1]}, %{customdata[2]})<extra></extra>` };
-        }));
-      Plotly.react("c-qq", qq, layout("Forecast quantile (m/s)", {
-        hovermode: "closest", xaxis: { title: { text: "Observed quantile (m/s)" }, gridcolor: "#ece9e2", zeroline: false, range: [0, top * 1.03] },
-        yaxis: { title: { text: "Forecast quantile (m/s)" }, gridcolor: "#ece9e2", zeroline: false, range: [0, top * 1.03], scaleanchor: "x" } }), CONFIG);
-      const u = Array.from({ length: 120 }, (_, i) => wd.calm + i * (Math.min(top * 1.2, 30) - wd.calm) / 119);
-      const pdf = (k, c, calm) => u.map(x => (1 - calm) * (k / c) * Math.pow(x / c, k - 1) * Math.exp(-Math.pow(x / c, k)));
-      const wb = [{ x: u, y: pdf(o.k, o.c, o.calm), name: "Observed", mode: "lines", line: { color: "#2b2a27", width: 3 } }]
-        .concat(models.map((m, k) => { const r = row.models[m];
-          return { x: u, y: pdf(r.k, r.c, r.calm), name: m, mode: "lines", line: { color: color(m, k), width: 2 } }; }));
-      Plotly.react("c-weib", wb, layout("Density (per m/s)", {
-        xaxis: { title: { text: "10 m wind speed (m/s)" }, gridcolor: "#ece9e2", zeroline: false } }), CONFIG);
+      const f = ((figs || {}).wind || {})[wr.value]?.[wg.value];
+      $("w-fig").hidden = !(row && f);
+      if (row && f) figure($("w-fig"), f, figs.generated.replace(/\D/g, ""), `10 m wind speed, ${LABEL[wr.value] || wr.value}, ${wg.value}: ` +
+        "each model's quantiles less the observed ones with 95% intervals, and the fitted hybrid Weibull densities");
+      if (!row) { $("w-table").innerHTML = ""; $("w-note").textContent = "No pairs for this choice."; return; }
+      const o = row.obs;
       const star = (v, f) => `${v}${f ? "<b>*</b>" : ""}`, t10 = wd.thresholds.indexOf(10);
       $("w-table").innerHTML = `<thead><tr><th></th><th>Calm</th><th>Weibull k</th><th>Weibull c (m/s)</th>` +
         wd.thresholds.map(t => `<th>≥ ${t} m/s</th>`).join("") + "</tr></thead><tbody>" +
@@ -1135,19 +968,58 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
   }
   const ymd = t => new Date(Date.UTC(+t.slice(0, 4), +t.slice(4, 6) - 1, +t.slice(6, 8)))
     .toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
-  // the window's scorecard and error by lead as figures, where the night drew them (the page's ten runs: the database's
-  // newest ten); a variable or pair without one keeps the drawn chart
-  function detFigs(figs) {
+  // the window's figures, drawn each night (the page's ten runs: the database's newest ten): error by lead, the
+  // headline variables at a glance, the upper-air profiles and the scorecard (a pair without a figure keeps the drawn one)
+  function detFigs(figs, scores) {
     const sc = (figs.scores || {})[W];
     if (!sc) return;
     const ver = figs.generated.replace(/\D/g, "");
+    const named = Object.fromEntries(scores.rows.map(r => [r.var, r]));
     const lv = $("l-var"), lr = $("l-region"), sm = $("s-model"), sr = $("s-ref"), sg = $("s-region");
     const ctl = id => $(id).closest(".ctl") || $(id).closest("label");
+    const lvars = Object.keys(sc.lead).sort((a, b) => rank(a) - rank(b));
+    fill(lv, lvars, v => named[v]?.label || v);
+    lv.value = lvars.includes("t2m") ? "t2m" : lvars[0];
     const lead = () => {
-      const f = (sc.lead[lv.value] || {})[lr.value];
-      $("l-fig").hidden = !f; $("c-lead").hidden = !!f; ctl("l-stat").hidden = !!f;
-      if (f) figure($("l-fig"), f, ver, `RMSE and bias by lead with 95% intervals: ${lv.selectedOptions[0]?.text || lv.value}, ${lr.value}`);
+      const regs = Object.keys(sc.lead[lv.value] || {});
+      fill(lr, regs, null, true);
+      if (!lr.dataset.set) { lr.dataset.set = "1"; if (regs.includes("Global")) lr.value = "Global"; }
+      const f = (sc.lead[lv.value] || {})[lr.value], what = lv.selectedOptions[0]?.text || lv.value;
+      $("l-fig").hidden = !f;
+      if (f) figure($("l-fig"), f, ver, `RMSE and bias by lead with 95% intervals: ${what}, ${lr.value}`);
+      $("lead-note").textContent = `${what} against ${named[lv.value]?.truth || "the observations"}, ${lr.value}: RMSE (lower is better) ` +
+        "and bias, forecast minus observed, each pooling every station and run at that lead.";
     };
+    $("lead-card").hidden = !lvars.length;
+    // how the error grows: the headline variables' RMSE by lead in the region of "at a glance"
+    const gr = $("g-region");
+    const glance = () => {
+      const f = (sc.glance || {})[gr.value];
+      $("g-fig").hidden = !f;
+      if (f) figure($("g-fig"), f, ver, `RMSE by lead with 95% intervals of the headline variables, ${gr.value}`);
+    };
+    gr.addEventListener("change", glance);
+    glance();
+    // the upper-air profiles: error against pressure at one lead
+    const prof = sc.profile || {}, qtys = Object.keys(QTY).filter(q => prof[q]);
+    if (qtys.length) {
+      const pq = $("p-qty"), pg = $("p-region"), pd = $("p-day");
+      fill(pq, qtys, q => QTY[q]);
+      const render = () => {
+        const regs = Object.keys(prof[pq.value]);
+        fill(pg, regs, null, true);
+        if (!pg.dataset.set) { pg.dataset.set = "1"; if (regs.includes("Global")) pg.value = "Global"; }
+        const days = Object.keys(prof[pq.value][pg.value] || {}).sort((a, b) => a - b);
+        fill(pd, days, d => `Day ${d}`, true);
+        if (!pd.dataset.set) { pd.dataset.set = "1"; if (days.includes("5")) pd.value = "5"; }
+        const f = (prof[pq.value][pg.value] || {})[pd.value];
+        $("u-fig").hidden = !f;
+        if (f) figure($("u-fig"), f, ver, `${QTY[pq.value]} against radiosondes, ${pg.value}, day ${pd.value}: RMSE, RMSE against the IFS control and bias by pressure, with 95% intervals`);
+      };
+      [pq, pg, pd].forEach(el => el.addEventListener("change", render));
+      $("profile-card").hidden = false;
+      render();
+    }
     const card = () => {
       const f = (sc.card[sg.value] || {})[`${sm.value}|${sr.value}`];
       $("s-fig").hidden = !f;
@@ -1160,7 +1032,56 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     [sm, sr, sg].forEach(el => el.addEventListener("change", card));
     lead(); card();
   }
-  // the ensembles' figures for the window (the nightly ten runs show its newest 30), where the night drew them
+
+  // rain over the US from the database's newest runs (the whole database: its newest year), with the nightly's ten
+  // runs against the gauges as a table where the page shows them
+  function rainFigs(figs, scores) {
+    const rk = (figs.rain_skill || {})[W === "all" ? "365" : W];
+    if (!rk) return;
+    const ver = figs.generated.replace(/\D/g, ""), pl = $("p-lead"), pt = $("p-thr"), w = rk.window;
+    fill(pl, rk.leads.map(String), h => `${h} h (day ${+h / 24})`);
+    fill(pt, rk.thresholds, t => `${t} mm`);
+    pt.value = rk.thresholds.includes("10") ? "10" : rk.thresholds[0];
+    const leads = scores.leads, grid = scores.rows.find(r => r.var === "tp24" && r.region === "CONUS"),
+      gauge = scores.rows.find(r => r.var === "pr24" && r.region === "CONUS");
+    const render = () => {
+      figure($("pr-fig"), rk.fig[`${pl.value}|${pt.value}`], ver, `24 hour rain to ${pl.value} h against Stage IV: equitable threat score ` +
+        `by threshold and fractions skill score by neighbourhood at ${pt.value} mm, with 95% intervals`);
+      $("pr-note").textContent = `24 hour totals ending 12Z against Stage IV on the land cells of the 0.5° grid, the database's ${w.runs} runs ` +
+        `from ${ymd(w.first)} to ${ymd(w.last)}, every model on the same runs and cells.`;
+      // the same window against the gauges, the nightly's ten runs: do the two truths rank the models alike?
+      const i = leads.indexOf(+pl.value);
+      $("p-gauge-box").hidden = !(grid && gauge && i >= 0);
+      if (!(grid && gauge && i >= 0)) return;
+      const models = scores.models, num = (r, m, st) => r.scores[m]?.[st]?.[i];
+      const cell = v => v == null ? "–" : v.toFixed(2);
+      const sgn = v => v == null ? "–" : `${v > 0 ? "+" : ""}${v.toFixed(2)}`;
+      $("p-gauge").innerHTML = `<thead><tr><th>Model</th><th>Bias, Stage IV</th><th>RMSE, Stage IV</th><th>Bias, gauges</th><th>RMSE, gauges</th></tr></thead><tbody>` +
+        models.map(m => `<tr><td>${esc(m)}</td><td>${sgn(num(grid, m, "bias"))}</td><td>${cell(num(grid, m, "rmse"))}</td>` +
+          `<td>${sgn(num(gauge, m, "bias"))}</td><td>${cell(num(gauge, m, "rmse"))}</td></tr>`).join("") + "</tbody>";
+      const order = r => models.filter(m => num(r, m, "rmse") != null).sort((a, b) => num(r, a, "rmse") - num(r, b, "rmse"));
+      const og = order(grid), ob = order(gauge), n = gauge.scores[models[0]]?.n?.[i];
+      $("p-gauge-note").innerHTML = `mm per 24 h over CONUS, window ending ${pl.value} h, the latest ten runs. Smallest to largest RMSE: ${og.map(esc).join(", ")} against Stage IV, ` +
+        `${ob.map(esc).join(", ")} against the gauges (${og.join() === ob.join() ? "the same order" : "a different order"})` +
+        (n ? `; ${n.toLocaleString()} gauge readings, every model on the same ones.` : ".") +
+        " A gauge measures a point and a model cell averages half a degree, so RMSE against gauges runs higher.";
+    };
+    [pl, pt].forEach(el => el.addEventListener("change", render));
+    $("precip-card").hidden = false;
+    render();
+  }
+
+  // what the database holds: each model's runs, from the night's figures (figs.json)
+  function dbCard(figs) {
+    const db = figs.database || {}, rows = [...Object.entries(db.models || {}), ...Object.entries(db.ensembles || {})];
+    if (!rows.length) return;
+    const tr = (name, w) => `<tr><td>${esc(name)}</td><td>${w.runs}</td><td>${ymd(w.first)}</td><td>${ymd(w.last)}</td></tr>`;
+    $("db-table").innerHTML = "<thead><tr><th>00Z runs of</th><th>Runs</th><th>First</th><th>Last</th></tr></thead><tbody>" +
+      rows.map(([m, w]) => tr(m, w)).join("") + (db.z500 ? tr("500 hPa anomaly correlations", db.z500) : "") + "</tbody>";
+    $("db-card").hidden = false;
+  }
+  // the ensembles' figures for the window (the nightly ten runs show its newest 30); a pair without a scorecard figure
+  // keeps the drawn one
   function ensFigs(figs, card) {
     const en = (figs.ensembles || {})[W === "10" ? "30" : W];
     if (!en) return;
@@ -1176,19 +1097,18 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
         `Ensemble scorecard, ${em.value} against ${er.value}, ${eg.value}: CRPS difference in percent where significant`, "e-scorecard", "e-detail", "e-key");
       eg.closest(".ctl, label").classList.toggle("figs", on);
     };
-    const leadF = () => show("e-lead-fig", (en.lead[ev.value] || {})[evr.value], `CRPS and spread over error by lead with 95% intervals, ${ev.value}, ${evr.value}`, "e-pair1");
-    const lowerF = () => {
+    const leadF = () => {
+      show("e-lead-fig", (en.lead[ev.value] || {})[evr.value], `CRPS and spread over error by lead with 95% intervals, ${ev.value}, ${evr.value}`);
+      show("e-rank-fig", (en.rank[ev.value] || {})[evr.value], `Rank histograms by lead group with 95% intervals, ${ev.value}, ${evr.value}`);
+    };
+    const relF = () => {
       const [, v, code] = ee.value.split(":");
-      const rank = (en.rank[ev.value] || {})[evr.value], rel = (en.rel[`${v}|${et.value}`] || {})[named[code]];
-      show("e-rank-fig", rank, `Rank histograms by lead group with 95% intervals, ${ev.value}, ${evr.value}`);
-      show("e-rel-fig", rel, `Reliability diagrams by lead group with 95% intervals, ${v} at ${et.value}, ${named[code]}`);
-      $("e-pair2").hidden = !!(rank && rel);
-      $("e-group").closest(".ctl, label").hidden = !!(rank && rel);
+      show("e-rel-fig", (en.rel[`${v}|${et.value}`] || {})[named[code]], `Reliability diagrams by lead group with 95% intervals, ${v} at ${et.value}, ${named[code]}`);
     };
     [em, er, eg].forEach(el => el.addEventListener("change", cardF));
-    [ev, evr].forEach(el => el.addEventListener("change", () => { leadF(); lowerF(); }));
-    [ee, et].forEach(el => el.addEventListener("change", lowerF));
-    cardF(); leadF(); lowerF();
+    [ev, evr].forEach(el => el.addEventListener("change", leadF));
+    [ee, et].forEach(el => el.addEventListener("change", relF));
+    cardF(); leadF(); relF();
   }
   function drawFigs(figs) {
     const ver = figs.generated.replace(/\D/g, ""), acc = figs.acc || {}, rain = figs.rain || {};
@@ -1316,11 +1236,11 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     box.hidden = false;
     $("stn-title").textContent = `${id}: loading its series…`;
     const tile = `${Math.floor(l.lat[k] / TILE) * TILE}_${Math.floor(l.lon[k] / TILE) * TILE}`;
-    const [d] = await Promise.all([firstJson(window.frameUrls(`assets/verification/stn/${l.var}/${tile}.json`)), window.plotlyP]);
+    const [d] = await Promise.all([firstJson(window.frameUrls(`assets/verification/stn/${l.var}/${tile}.json`)), window.plotly()]);
     const st = d && d.stations[id], fc = st && st.f[String(lead)];
+    $("c-stn").hidden = !(st && fc);
     if (!st || !fc) {
       $("stn-title").textContent = `${id}: no series for day ${lead / 24} yet`;
-      Plotly.purge("c-stn");
       return;
     }
     const t0 = Date.parse(d.t0.replace("Z", ":00Z")), x = st.t.map(h => new Date(t0 + h * 3600e3));
@@ -1412,72 +1332,30 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     [em, er, eg].forEach(el => el.addEventListener("change", scorecard));
     scorecard();
 
-    // CRPS and spread/skill by lead for one variable and region
-    const ev = $("e-var"), evr = $("e-vregion"), egr = $("e-group");
+    // the variable, region, event and threshold of the figures (ensFigs)
+    const ev = $("e-var"), evr = $("e-vregion"), ee = $("e-event"), et = $("e-thr");
     fill(ev, vars, v => rows.find(r => r.var === v).label);
     ev.value = vars.includes("t2m") ? "t2m" : vars[0];
-    fill(egr, card.lead_groups, g => g.replace(/^days/, "Days"));
-    const x = leads.map(h => h / 24);
-    const xaxis = { title: { text: "Day" }, gridcolor: "#ece9e2", zeroline: false, dtick: 1 };
-    function leadCharts() {
-      fill(evr, regions.filter(g => row(ev.value, g)), null, true);
-      const r = row(ev.value, evr.value);
-      if (!r) return;
-      const trace = (m, k, y) => ({ x, y, name: m, mode: "lines+markers", line: { color: color(m, k), width: 2 }, marker: { size: 5 } });
-      const have = models.filter(m => r.scores[m]);
-      Plotly.react("c-ens-crps", have.map((m, k) => trace(m, models.indexOf(m), r.scores[m].crps)),
-        layout(`CRPS (${unit(r.unit)})`, { xaxis }), CONFIG);
-      // with the observations' own error added to the spread where it is known (ssr_oe), else the members' spread alone
-      Plotly.react("c-ens-ssr", have.map(m => trace(m, models.indexOf(m), r.scores[m].ssr_oe || r.scores[m].ssr)),
-        layout("Spread / RMSE of the mean", { xaxis, shapes: [{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 1, y1: 1,
-          line: { color: "#8a857b", width: 1, dash: "dash" } }] }), CONFIG);
-      rankChart();
-    }
-    function rankChart() {
-      const r = row(ev.value, evr.value), h = r && card.rank[r.key];
-      $("e-rank-h").textContent = `Rank histogram, ${r ? r.label : ""}`;
-      const bins = [...Array(10).keys()].map(i => (i + 0.5) / 10);
-      const traces = h ? models.filter(m => h[m]?.[egr.value]).map(m => ({ type: "bar", name: m, x: bins, y: h[m][egr.value],
-        marker: { color: color(m, models.indexOf(m)) } })) : [];
-      Plotly.react("c-ens-rank", traces, layout("Share of the observations", { barmode: "group", hovermode: "closest",
-        xaxis: { title: { text: "Where the observation falls among the members (0 below all, 1 above all)" }, range: [0, 1], dtick: 0.1, gridcolor: "#ece9e2" },
-        shapes: [{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 0.1, y1: 0.1, line: { color: "#8a857b", width: 1, dash: "dash" } }] }), CONFIG);
-    }
-
-    // reliability: one event (rain at gauges or on Stage IV cells, 10 m wind at stations), threshold and lead group
+    const regionsOf = () => fill(evr, regions.filter(g => row(ev.value, g)), null, true);
+    ev.addEventListener("change", regionsOf);
+    regionsOf();
+    // reliability: one event (rain at gauges or on Stage IV cells, 10 m wind at stations) and threshold
     const EVENT = { "stageiv:tp": "Rain, Stage IV", "ghcnh:pr24": "Rain, gauges", "ghcnh:ws10": "10 m wind" };
-    const ee = $("e-event"), et = $("e-thr");
     const events = Object.keys(card.reliability).filter(k => EVENT[k.split(":").slice(0, 2).join(":")]);
     fill(ee, events, k => `${EVENT[k.split(":").slice(0, 2).join(":")]}, ${(label[k.split(":")[2]] || k.split(":")[2]).replace(/ \d.*$/, "")}`);
     if (events.includes("stageiv:tp:conus")) ee.value = "stageiv:tp:conus";
-    function relChart() {
-      const rel = card.reliability[ee.value];
-      if (!rel) return;
-      const thr = Object.keys(rel).sort((a, b) => a - b), mm = ee.value.includes(":ws10:") ? "m/s" : "mm";
-      fill(et, thr, t => `≥ ${t} ${mm}`, true);
-      const by = rel[et.value] || {};
-      const traces = models.filter(m => by[m]?.[egr.value]).map(m => {
-        const c = by[m][egr.value], k = models.indexOf(m);
-        return { x: c.p, y: c.o, name: `${m}${c.bss == null ? "" : ` · BSS ${c.bss.toFixed(2)}`}`, mode: "lines+markers",
-          line: { color: color(m, k), width: 2 }, marker: { size: c.n.map(n => Math.min(14, 4 + 2 * Math.log10(n))) },
-          customdata: c.n, hovertemplate: `${m}: forecast %{x:.2f}, observed %{y:.2f} (%{customdata} cases)<extra></extra>` };
-      });
-      Plotly.react("c-ens-rel", traces, layout("Observed frequency", { hovermode: "closest",
-        xaxis: { title: { text: "Forecast probability (share of members)" }, range: [0, 1], gridcolor: "#ece9e2" },
-        yaxis: { title: { text: "Observed frequency" }, range: [0, 1], gridcolor: "#ece9e2" },
-        shapes: [{ type: "line", x0: 0, x1: 1, y0: 0, y1: 1, line: { color: "#8a857b", width: 1, dash: "dash" } }] }), CONFIG);
-    }
-    ev.addEventListener("change", leadCharts);
-    evr.addEventListener("change", leadCharts);
-    egr.addEventListener("change", () => { rankChart(); relChart(); });
-    [ee, et].forEach(el => el.addEventListener("change", relChart));
-    leadCharts();
-    relChart();
+    const thresholds = () => {
+      const rel = card.reliability[ee.value] || {}, mm = ee.value.includes(":ws10:") ? "m/s" : "mm";
+      fill(et, Object.keys(rel).sort((a, b) => a - b), t => `≥ ${t} ${mm}`, true);
+    };
+    ee.addEventListener("change", thresholds);
+    thresholds();
   }
 
   // the run window (?runs=30, 90, 365, all): the newest runs of the verification database instead of the nightly 10;
   // its scorecard and station maps come from the database (the windows past 90 runs map the newest 90), the wind card
-  // stays on the nightly runs and the rain maps cover the database's newest year in every window
+  // stays on the nightly runs and the rain maps cover the database's newest year in every window, as do the rain
+  // scores of the whole database
   const WINDOWS = ["30", "90", "365", "all"], asked = new URLSearchParams(location.search).get("runs");
   const W = WINDOWS.includes(asked) ? asked : "10";
   const suffix = W === "10" ? "" : `_${W}`, mapRuns = W === "10" || W === "30" ? W : "90";
@@ -1489,13 +1367,10 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     $("vwin").querySelectorAll("a").forEach(a => a.setAttribute("aria-current", String(a.dataset.w === W)));
   });
   const figsP = fetch("/assets/verification/figs.json").then(r => r.ok ? r.json() : null).catch(() => null);
-  figsP.then(f => { if (f) drawFigs(f); });
-  Promise.all([
-    fetch(`/assets/verification/scores${suffix}.json`).then(r => r.json()),
-    window.plotlyP,
-  ]).then(([card]) => {
+  figsP.then(f => { if (f) { drawFigs(f); dbCard(f); } });
+  fetch(`/assets/verification/scores${suffix}.json`).then(r => r.json()).then(card => {
     draw(card);
-    figsP.then(f => { if (f) detFigs(f); });
+    figsP.then(f => { if (f) { detFigs(f, card); rainFigs(f, card); } });
     // Leaflet loads deferred, so it is ready once the document is parsed.
     const parsed = new Promise(ok => document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", ok) : ok());
     const get = u => fetch(u).then(r => r.ok ? r.json() : null);
@@ -1503,14 +1378,13 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
       get("/assets/verification/wind_dist.json"), parsed])
       .then(([sm, wd]) => {
         if (sm) drawMap(sm, mapRuns === "10" ? "the latest 10 runs" : `the newest ${mapRuns} runs of the database`);
-        if (wd) drawWind(wd);
+        if (wd) figsP.then(f => drawWind(wd, f));
       });
   }).catch(e => {
     $("asof").textContent = "The scores could not be loaded (" + e.message + ").";
   });
   // the ensembles score windows of the database only: the nightly 10 runs show its newest 30
-  Promise.all([fetch(`/assets/verification/ens_scores_${W === "10" ? "30" : W}.json`).then(r => r.ok ? r.json() : null),
-    window.plotlyP]).then(([card]) => {
+  fetch(`/assets/verification/ens_scores_${W === "10" ? "30" : W}.json`).then(r => r.ok ? r.json() : null).then(card => {
     if (!card) return;
     $("ens-card").hidden = false;
     drawEns(card);
