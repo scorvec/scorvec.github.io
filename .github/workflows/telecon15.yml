@@ -25,6 +25,10 @@ on:
         description: 'Build the reference first (release REF_TAG; once per version)'
         type: boolean
         default: false
+      qc:
+        description: 'Also check a few runs of the database against ERA5 (files, leads, members, NH ACC, indices)'
+        type: boolean
+        default: false
 
 env:
   PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt
@@ -137,3 +141,16 @@ jobs:
       - name: What the gate passes today, from the table alone
         if: ${{ !cancelled() && hashFiles('tbl/fc.parquet') != '' }}
         run: python scripts/ensmaps/ensmaps_telecon.py skill --table tbl
+      - name: A few runs' files against ERA5 (dispatch with qc)
+        if: ${{ !cancelled() && inputs.qc }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          names=$(python scripts/ensmaps/ensmaps_telecon.py qc --list --have "$RUNNER_TEMP/have.txt")
+          # shellcheck disable=SC2086  # the file names are meant to split
+          scripts/verify/verifydb.sh get "$RUNNER_TEMP/qc" $names
+          curl -fsSL -o "$RUNNER_TEMP/clim_z500_1p5.npz" \
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/verify-clim-z500-v1/clim_z500_1p5.npz"
+          python scripts/ensmaps/ensmaps_telecon.py qc --derived "$RUNNER_TEMP/qc" --clim "$RUNNER_TEMP/clim_z500_1p5.npz" \
+            --ref "$RUNNER_TEMP/telecon15_ref.npz"

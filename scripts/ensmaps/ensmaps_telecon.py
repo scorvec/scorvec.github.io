@@ -33,7 +33,7 @@ the newest run of each model there.
   observed     ERA5's index at 00Z of the last TAIL_DAYS days, from the same table (ERA5T, about a week behind)
   record       each run's indices, kept as the runs arrive in one record per model (RECORD, the KEEP_DAYS newest days of
                runs; scripts/strat/run_record.py's layout: per index the members' mean and 10th/90th percentiles at each
-               valid time, and here every member as well), so the run-to-run figure needs nothing but the record
+               valid time, and every member of the newest run), so the run-to-run figure needs nothing but the record
   outputs      per index the members and means (<id>_plume.webp), the phase probabilities (<id>_prob.webp), the last
                SHOW runs' ensemble means against valid date (<id>_runs.webp) and the hindcast skill with each cell's
                sample (<id>_skill.webp) in FIG (the frames store); the numbers in JSON
@@ -78,6 +78,7 @@ NEG, POS, NEUTRAL = "#3f6f8f", "#b4541f", "#e4e2dc"  # the site's cool and warm 
 NOT_SIG = "#dcd9d1"  # tested, not skilful (verify_figs.NOT_SIG)
 BLEND_INK = "#3d3a35"  # the blend's line: none of the models' colours
 NU_MIN = 2.0
+QC_RUNS = 3
 
 
 def log(*a):
@@ -217,6 +218,12 @@ def pairs(fc: pd.DataFrame, obs: pd.DataFrame, model: str) -> pd.DataFrame:
     return f.join(o, on="valid", how="inner")
 
 
+def near(p: pd.DataFrame, t0: pd.Timestamp) -> pd.DataFrame:
+    """The rows whose start is within WINDOW days of t0's day of the year, any year."""
+    d = (slot366(pd.DatetimeIndex(p["init"])) - slot366(pd.DatetimeIndex([t0]))[0] + 183) % 366 - 183
+    return p[np.abs(d) <= WINDOW]
+
+
 def calibrate(fc: pd.DataFrame | None, obs: pd.DataFrame | None, model: str, t0: pd.Timestamp) -> dict:
     """{(index, lead_h): fit or None} of one model from the runs started within WINDOW days of t0's day of the year."""
     out = dict.fromkeys(((s, lead) for s in T.IDS for lead in T.LEADS), None)
@@ -225,13 +232,24 @@ def calibrate(fc: pd.DataFrame | None, obs: pd.DataFrame | None, model: str, t0:
     p = pairs(fc, obs, model)
     if p.empty:
         return out
-    d = (slot366(pd.DatetimeIndex(p["init"])) - slot366(pd.DatetimeIndex([t0]))[0] + 183) % 366 - 183
-    p = p[np.abs(d) <= WINDOW]
-    for lead, g in p.sort_values("init").groupby("lead_h"):
+    for lead, g in near(p, t0).sort_values("init").groupby("lead_h"):
         pos = {t: k for k, t in enumerate(g["init"])}
         nxt = np.array([pos.get(t + pd.Timedelta(days=1), -1) for t in g["init"]])
         for s in T.IDS:
             out[s, int(lead)] = fit(g[s].to_numpy(np.float64), g[f"obs_{s}"].to_numpy(np.float64), nxt)
+    return out
+
+
+def raw(fc: pd.DataFrame, obs: pd.DataFrame, model: str, t0: pd.Timestamp) -> dict:
+    """{(index, lead_h): (r, n)}: the plain correlation of the model's ensemble-mean index with ERA5's over the same
+    starts as calibrate, before any calibration or gate, whatever their number."""
+    out = {}
+    p = pairs(fc, obs, model)
+    for lead, g in near(p, t0).groupby("lead_h") if not p.empty else ():
+        for s in T.IDS:
+            f, o = g[s].to_numpy(np.float64), g[f"obs_{s}"].to_numpy(np.float64)
+            ok = np.isfinite(f) & np.isfinite(o)
+            out[s, int(lead)] = (float(np.corrcoef(f[ok], o[ok])[0, 1]) if ok.sum() > 2 else np.nan, int(ok.sum()))
     return out
 
 
@@ -676,9 +694,9 @@ def _absmax(*a: np.ndarray) -> float:
 
 def record(site: Path, ref: T.Ref, r: dict, ind: tuple) -> bool:
     """Add a run to its model's record unless the record holds it: per index, at each valid time where the run has an
-    ensemble mean, the mean, the members' 10th and 90th percentiles and every member (null where incomplete, or where
-    CPC does not define the pattern; an index undefined at every lead left out); runs more than KEEP_DAYS older than the
-    newest dropped. True when the record changed."""
+    ensemble mean, the mean and the members' 10th and 90th percentiles, and for the newest run every member as well
+    (null where incomplete, or where CPC does not define the pattern; an index undefined at every lead left out); runs
+    more than KEEP_DAYS older than the newest dropped. True when the record changed."""
     t, v, mean = ind
     p = site / RECORD.format(r["key"])
     doc = json.loads(p.read_text()) if p.exists() else {"product": "telecon15", "model": r["key"], "runs": []}
@@ -696,6 +714,10 @@ def record(site: Path, ref: T.Ref, r: dict, ind: tuple) -> bool:
     runs = sorted([*doc["runs"], rec], key=lambda x: x["init"])
     cut = pd.Timestamp(runs[-1]["init"]) - pd.Timedelta(days=KEEP_DAYS)
     doc["runs"] = [x for x in runs if pd.Timestamp(x["init"]) >= cut]
+    for x in doc["runs"][:-1]:  # every member of the newest run only: the older ones keep their mean and 10-90 %
+        for v in x.values():
+            if isinstance(v, dict):
+                v.pop("members", None)
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(doc, separators=(",", ":"), allow_nan=False))
     log(f"  run record {p.name}: {len(doc['runs'])} runs, {init} added")
@@ -948,16 +970,85 @@ def cmd_skill(a) -> int:
         used[sid] = subset(w, list(MODELS), t0)
         cal["blend"] |= {(sid, lead): blend_fit(w, used[sid], lead, t0) if used[sid] else None for lead in T.LEADS}
     gate(cal)
-    print(f"hindcast skill for starts near {t0:%-d %B} (skilful lead days; runs at day 1):")
+    plain = {k: raw(fc, obs, m, t0) for k, m in MODELS.items()}
+    print(f"hindcast skill for starts within {WINDOW} days of {t0:%-d %B}: at each lead day 1-15 the correlation of "
+          "the ensemble-mean index with ERA5's and the number of starts (r/n; the blend's cross-validated), then * "
+          f"skilful, x tested and not, - fewer than {MIN_RUNS} starts")  # fmt: skip
     for key, per in cal.items():
+        print(f"{MODELS.get(key, 'Blend')}")
         for sid in T.IDS:
-            days = [lead // 24 for lead in T.LEADS if skilful(per[sid, lead])]
-            c1 = per[sid, min(T.LEADS)]
-            extra = ""
-            if key == "blend" and used[sid]:
-                sw = sum(per[sid, x]["kind"] == "sw" for x in T.LEADS if per[sid, x])
-                extra = f" of {'+'.join(used[sid])}, skill weights at {sw} leads"
-            print(f"  {key:5s} {SHORT[sid]:6s} n {c1['n'] if c1 else 0:4d}{extra}: {days}")
+            cells = []
+            for lead in T.LEADS:
+                c = per[sid, lead]
+                r, n = (c["r"], c["n"]) if c else plain.get(key, {}).get((sid, lead), (np.nan, 0))
+                cells.append(f"{r:+.2f}/{n:<3d}{'*' if skilful(c) else 'x' if c else '-'}")
+            extra = f"  ({'+'.join(used[sid])})" if key == "blend" and used[sid] else ""
+            print(f"  {SHORT[sid]:6s} {' '.join(cells)}{extra}")
+    return 0
+
+
+def cmd_qc(a) -> int:
+    """A few runs' database files checked against ERA5, for IFS-ENS, AIFS-ENS and GEFS on the same starts: the leads
+    and members each file holds, the valid time each lead is read at, the members' mean on the patterns' grid against
+    the database's ensemble mean, the NH anomaly correlation of the ensemble mean with ERA5 (z500_acc.scores, as the
+    verification page scores it) and the index of the forecast against ERA5's. --list prints the files, for the
+    newest QC_RUNS starts all three hold with ERA5 on days 1, 5 and 10."""
+    sys.path.insert(0, str(HERE.parents[0] / "verify"))
+    import z500_acc as Z
+
+    keys = ("ifs", "aifs", "gefs")
+    days = (1, 5, 10)
+    if a.list:
+        have = set(a.have.read_text().split())
+        inits = sorted({n.split("_")[1][:10] for n in have if n.startswith("ens-z500m-ifs_")}, reverse=True)
+        picked = []
+        for init in inits:
+            t0 = pd.to_datetime(init, format="%Y%m%d%H")
+            want = [Z.file_of(MODELS[k], init, members) for k in keys for members in (False, True)]
+            want += [Z.truth_file(t0 + pd.Timedelta(days=d)) for d in days]
+            if all(n in have for n in want):
+                picked += want + [n for n in (f"acc_{init}.parquet",) if n in have]
+            if len(picked) and len({x.split("_")[1][:10] for x in picked if x.startswith("ens-")}) >= QC_RUNS:
+                break
+        print(" ".join(dict.fromkeys(picked)))
+        return 0
+    from latlon import G15
+
+    ref = T.Ref(a.ref)
+    normal = np.load(a.clim)["z500"]
+    for f in sorted(a.derived.glob("ens-z500m-ifs_*.npz")):
+        init = f.stem.split("_")[1]
+        t0 = pd.to_datetime(init, format="%Y%m%d%H")
+        acc = pd.read_parquet(p) if (p := a.derived / f"acc_{init}.parquet").exists() else None
+        print(f"start {t0:%Y-%m-%d %HZ}")
+        for k in keys:
+            m, e = (
+                np.load(a.derived / Z.file_of(MODELS[k], init, True)),
+                np.load(a.derived / Z.file_of(MODELS[k], init)),
+            )
+            z = m["z"].astype(np.float64)
+            print(f"  {MODELS[k]:8s} members file: leads {m['lead_h'][0]}..{m['lead_h'][-1]} h ({len(m['lead_h'])}, as "
+                  f"LEADS: {list(m['lead_h']) == list(T.LEADS)}), {z.shape[1]} members {m['member'].min()}-"
+                  f"{m['member'].max()}, NaN {int(np.isnan(z).sum())}, {z.min():.0f}-{z.max():.0f} m; mean file: leads as "
+                  f"members' {list(e['lead_h']) == list(m['lead_h'])}, n_members {int(e['n_members'])}")  # fmt: skip
+            for d in days:
+                j = list(m["lead_h"]).index(24 * d)
+                valid = t0 + pd.Timedelta(hours=int(m["lead_h"][j]))
+                era = np.load(a.derived / Z.truth_file(valid))["z"]
+                sc = Z.scores(e["z"][j], era, normal[slot366(pd.DatetimeIndex([valid]))[0]])["NH"]
+                mean25 = z[j].mean(0)
+                diff = mean25 - remap(e["z"][j], G15.lat, G15.lon, G25N)
+                t = pd.DatetimeIndex([valid, valid])
+                fi, oi = ref.index(ref.anomaly(np.stack([mean25, remap(era, G15.lat, G15.lon, G25N)]), t), t)
+                db = ""
+                if acc is not None:
+                    row = acc[(acc["model"] == MODELS[k]) & (acc["lead_h"] == 24 * d) & (acc["region"] == "NH")]
+                    db = f", database {float(row['acc'].iloc[0]):.3f}" if len(row) else ""
+                idx = " ".join(
+                    f"{SHORT[s]} {fi[i]:+.2f}/{oi[i]:+.2f}" for i, s in enumerate(ref.ids) if s in ("nao", "pna", "epo")
+                )
+                print(f"    day {d:2d} valid {valid:%Y-%m-%d %HZ}: NH ACC {sc['acc']:.3f}{db}; members' mean less the "
+                      f"mean file {np.abs(diff).mean():.1f} m; index fc/ERA5 {idx}")  # fmt: skip
     return 0
 
 
@@ -972,8 +1063,14 @@ def main() -> int:
     k = sub.add_parser("skill", help="print what the gate passes on a date from the hindcast table alone")
     k.add_argument("--table", type=Path, required=True)
     k.add_argument("--date", help="YYYY-MM-DD (default today)")
+    q = sub.add_parser("qc", help="check a few runs' database files against ERA5")
+    q.add_argument("--list", action="store_true", help="print the files to download (--have)")
+    q.add_argument("--have", type=Path, help="names of the files the database holds")
+    q.add_argument("--derived", type=Path, help="the files, downloaded")
+    q.add_argument("--clim", type=Path, help="clim_z500_1p5.npz (release verify-clim-z500-v1)")
+    q.add_argument("--ref", type=Path, help=f"{T.REF_NAME}")
     a = ap.parse_args()
-    return cmd_run(a) if a.cmd == "run" else cmd_skill(a)
+    return {"run": cmd_run, "skill": cmd_skill, "qc": cmd_qc}[a.cmd](a)
 
 
 if __name__ == "__main__":
