@@ -18,8 +18,12 @@ anomalies in the Actions cache (save_fields, from ensmaps.py), and `run` cluster
             year (SD_FILE: ERA5 1991-2020 from the store, +-15 days), weighted by sqrt(cos lat), the two concatenated
   weights   each model's members share 1/M of the weight (M models in the window), so 51 members count as much as 21
   EOFs      of the weighted deviations from the grand-ensemble mean, as many as explain VAR_KEEP of that spread
-  shadow    the same choice on the leading EOFs only (SHADOW_KEEP of the spread), recorded per period and domain in the
-            manifest ("shadow": k, EOFs, evidence, independence) and not drawn: how often fewer EOFs find scenarios
+  shadow    a second choice on the same EOFs, by prediction strength (Tibshirani and Walther 2005): N_SPLIT random
+            halvings of the members within each model, each half clustered and the test half's member pairs that share a
+            cluster checked against the training half's centroids (weighted pairs); PS(k), the mean over the halvings
+            of the worst-kept cluster, and k the largest with PS >= PS_MIN whose clusters all hold >= MIN_W. Recorded
+            per period and domain in the manifest ("shadow": PS and the independence test's p for each k, k) and not
+            drawn: how often it finds scenarios
   k-means   weighted, k = 1..K_MAX, N_START starts (k-means++), in the EOFs' space
   choice    k > 1 only when (1) its within-cluster variance reduction beats the 95th percentile of N_NULL synthetic Gaussian
             ensembles with the same covariance and weights, (2) every cluster holds >= MIN_W of the weight, (3) the same
@@ -79,7 +83,7 @@ HALF = 15  # +- days of the time of year
 WINDOWS = (("d3_5", 3, 5), ("d6_10", 6, 10), ("d11_15", 11, 15))
 DAYS_MAX = 16  # the days clustered one by one (GEFS and GEPS hold the 16th)
 K_MAX, N_START, N_NULL, N_BOOT, STABLE, MIN_W, VAR_KEEP = 5, 100, 100, 50, 0.6, 0.05, 0.80
-SHADOW_KEEP = 0.60  # the shadow fit's share of the spread (see the module docstring)
+N_SPLIT, PS_MIN = 20, 0.8  # the shadow's halvings and its prediction-strength gate (see the module docstring)
 N_START_FAST = 10  # starts for the null and bootstrap ensembles
 N_PERM, FDR_Q = 500, 0.10
 P_MODELS = 0.05  # a split whose model x cluster test is below this follows the models: no scenarios
@@ -350,6 +354,30 @@ def choose(Y, w, var, mi, rng) -> tuple[int, list, dict]:
     return k, labs, ev
 
 
+def strength(Y, w, mi, k, rng) -> float:
+    """Prediction strength PS(k) of the weighted k-means (see the module docstring): the mean over N_SPLIT halvings."""
+    out = []
+    for _ in range(N_SPLIT):
+        tr = np.zeros(len(w), bool)
+        for j in np.unique(mi):
+            ix = rng.permutation(np.flatnonzero(mi == j))
+            tr[ix[: len(ix) // 2]] = True
+        te = ~tr
+        lab = kmeans(Y[tr], w[tr], k, N_START_FAST, rng)[0]
+        C = np.array([(w[tr][lab == j, None] * Y[tr][lab == j]).sum(0) / w[tr][lab == j].sum() for j in np.unique(lab)])
+        near = ((Y[te][:, None] - C[None]) ** 2).sum(2).argmin(1)
+        test, wt = kmeans(Y[te], w[te], k, N_START_FAST, rng)[0], w[te]
+        kept = []
+        for j in np.unique(test):
+            s = test == j
+            if s.sum() < 2:
+                continue
+            same = sum(wt[s & (near == c)].sum() ** 2 - (wt[s & (near == c)] ** 2).sum() for c in np.unique(near[s]))
+            kept.append(same / (wt[s].sum() ** 2 - (wt[s] ** 2).sum()))
+        out.append(min(kept))
+    return float(np.mean(out))
+
+
 def order(lab: np.ndarray, w: np.ndarray, k: int) -> np.ndarray:
     """Labels renumbered by weight, the largest cluster 0."""
     wt = [w[lab == j].sum() for j in range(k)]
@@ -436,10 +464,11 @@ def solve(job: dict) -> dict:
         Y, var, share = pca(X, w)
         k, labs, ev = choose(Y, w, var, mi, rng)
         rs = np.random.default_rng([SEED, job["seed"], d, 1])  # the shadow's own draws: the fit above is unchanged
-        Ys, vs, ss = pca(X, w, SHADOW_KEEP)
-        ks, labs_s, evs = choose(Ys, w, vs, mi, rs)
-        shadow = {"keep": SHADOW_KEEP, "k": ks, "eofs": int(Ys.shape[1]), "explained": round(ss, 3), "evidence": evs,
-                  "independence": independence(mi, order(labs_s[ks - 1], w, ks), ks, nm, rs)}  # fmt: skip
+        ps = [strength(Y, w, mi, kk, rs) for kk in range(2, K_MAX + 1)]
+        ks = max((kk for kk in range(2, K_MAX + 1) if ps[kk - 2] >= PS_MIN and ev["min_weight"][kk - 1] >= MIN_W),
+                 default=1)  # fmt: skip
+        shadow = {"rule": "prediction strength", "ps": [round(x, 2) for x in ps], "k": ks,
+                  "independence": [independence(mi, order(labs[kk - 1], w, kk), kk, nm, rs) for kk in range(2, K_MAX + 1)]}  # fmt: skip
         lab = order(labs[k - 1], w, k)
         p_ind = independence(mi, lab, k, nm, rng)
         models = {"p": p_ind, "k": k} if p_ind is not None and p_ind < P_MODELS else None
@@ -622,8 +651,8 @@ def run(paths: list[Path], site: Path, lists: Path | None, manifest_in: Path | N
                     else f"k = {k} {''.join(x or '-' for x in sol['letters'])}")  # fmt: skip
             log(f"  {P['key']} {dk}: {len(P['w'])} members, {sol['eofs']} EOFs ({sol['share']:.0%}), {what} "
                 f"(reductions {ev['reduction'][1:]}, null p95 {ev['null_p95'][1:]}, stability {ev['stability']}); "
-                f"shadow ({sol['shadow']['eofs']} EOFs): k = {sol['shadow']['k']}, stability "
-                f"{sol['shadow']['evidence']['stability']}, independence {sol['shadow']['independence']}")  # fmt: skip
+                f"shadow: PS {sol['shadow']['ps']}, k = {sol['shadow']['k']}, independence "
+                f"{sol['shadow']['independence']}")  # fmt: skip
     nbytes = 0
     with ProcessPoolExecutor(max(1, min(workers, len(draws)))) as ex:
         for (info, v), (fn, nb) in zip(where, ex.map(_draw, draws, chunksize=4), strict=True):
