@@ -332,8 +332,8 @@
     The stratosphere, which that hindcast does not cover, is taken against ERA5 and de-drifted with
     the GEPS reforecasts in the ECMWF S2S archive. Teleconnection probabilities, tercile maps, regime hit rates and the MJO
     score are calibrated on the same hindcast &mdash; all but the MJO score out of sample, each hindcast start de-drifted
-    and re-based without its own year, as a live forecast is &mdash; and the skill masks hatch wherever its anomaly
-    correlation is not significantly above zero (one-sided 5&nbsp;% test on the 20 hindcast years, false-discovery rate 10&nbsp;% across the map). <a href="/subseasonal-method.html">Read the full method &rarr;</a></p>
+    and re-based without its own year, as a live forecast is &mdash; and the maps are dotted wherever its anomaly
+    correlation is significantly above zero (one-sided 5&nbsp;% test on the 20 hindcast years, false-discovery rate 10&nbsp;% across the map). <a href="/subseasonal-method.html">Read the full method &rarr;</a></p>
   </section>
 </main>
 
@@ -358,10 +358,10 @@ var P = {
         a: {label:"Domain", items:[["na","North America"],["sa","South America"],
                                    ["glb","Global (Mercator)"]]},
         b: {label:"Field", items: FIELDS},
-        c: function (a,b) { return MASKABLE.indexOf(b) >= 0 ? {label:"Skill mask", items:[["off","Off"],["on","On"]]} : null; },
+        c: function (a,b) { return MASKABLE.indexOf(b) >= 0 ? {label:"Skill dots", items:[["off","Off"],["on","On"]]} : null; },
         img: function (a,b,c) { return "assets/geps/geps_" + a + "_" + b + "_weekly" + (c==="on" ? "_masked" : "") + ".webp"; },
         cap: function (a,b,c) { return "Five seven-day means, anomaly vs the lead-matched GEPS hindcast."
-          + (c==="on" ? " Hatched where the 2001\u20132020 hindcast's anomaly correlation for this week and season, scored out of sample (each hindcast start de-drifted and re-based without its own year), is not significantly above zero (one-sided 5 % test, 20 years, false-discovery rate 10 % across the map); cross-hatched where there is no verification data." : ""); }},
+          + (c==="on" ? " Dotted where the 2001\u20132020 hindcast's anomaly correlation for this week and season, scored out of sample (each hindcast start de-drifted and re-based without its own year), is significantly above zero (one-sided 5 % test, 20 years, false-discovery rate 10 % across the map); cross-hatched where there is no verification data." : ""); }},
   probs: {label: "Weekly terciles \u2014 temperature & precipitation", fit: false,
         a: {label:"Domain", items:[["na","North America"],["sa","South America"],
                                    ["glb","Global (Mercator)"]]},
@@ -371,7 +371,7 @@ var P = {
         cap: function (a,b,c) { return (c==="raw"
           ? "Most likely tercile by week: colour is the category (blue below, grey near, red above normal), intensity its probability, from the fraction of the 21 members in each tercile of the 2016\u20132025 weekly anomaly \u2014 a recent-decade normal, not the maps\u2019 1991\u20132020, so the warming since then is not counted as a forecast."
           : "Most likely tercile by week, calibrated: the ensemble-mean departure from the 2016\u20132025 mean, in units of the hindcast ensemble mean\u2019s spread, weighted by the gridpoint anomaly correlation fitted on 2001\u20132020 hindcasts for this month and week (out of sample: each start de-drifted and re-based without its own year), with the residual spread giving the three tercile probabilities \u2014 exactly one third each where the model has no skill, amplitude restored where it has some.")
-          + " Hatched: hindcast skill not significantly above zero (one-sided 5 % test, false-discovery rate 10 %)." + (b==="pr" ? " Cross-hatched: no gauge truth over the ocean, or a dry climatological week where terciles are undefined." : ""); }},
+          + " Dots: hindcast skill significantly above zero (one-sided 5 % test, false-discovery rate 10 %); the probabilities are shown everywhere." + (b==="pr" ? " Cross-hatched: no gauge truth over the ocean, or a dry climatological week where terciles are undefined." : ""); }},
   change: {label: "Change vs previous run, weeks 1\u20135", fit: false,
         a: {label:"Domain", items:[["na","North America"],["sa","South America"],
                                    ["glb","Global (Mercator)"]]},

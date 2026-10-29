@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Weekly TERCILE probability maps for 2 m temperature and precipitation from
-the 21 GEPS members, raw and hindcast-calibrated, with a skill mask.
+the 21 GEPS members, raw and hindcast-calibrated, dotted where the hindcast has skill.
 
 Categories  below / near / above normal, the terciles of the 7-day-mean
             anomaly for that week of the year over the RECENT DECADE
@@ -21,9 +21,10 @@ Calibrated  standardised form (since 2026-09-26): x = (m - mean) / fsd, the
             the 2001-2020 mean state. A tie that includes near goes to near.
 Display     CPC-style: hue for the most likely tercile (blue below, grey
             near, red above), intensity for its probability from 33% up.
-Mask        hatched where the hindcast anomaly correlation for this month
-            and week is not significant skill (render_maps.noskill, tested
-            on the hindcast's own 2.5 deg grid); cross-hatched where there is no
+Skill       dotted where the hindcast anomaly correlation for this month
+            and week is significant skill (render_maps.noskill, tested on
+            the hindcast's own 2.5 deg grid; house.stipple), the probabilities
+            shown everywhere; cross-hatched where there is no
             truth (precipitation over the ocean — the CPC gauge analysis is
             land only) or where the climatological week is dry (< DRY_MM
             mm/day: the terciles collapse onto zero and mean nothing, the
@@ -227,23 +228,22 @@ def draw(tag, cycle, base, weeks, kind):
                 )
             ax.add_feature(cfeature.OCEAN.with_scale("50m"), facecolor="white", alpha=0.45, zorder=2)
             r = wrap(wk["r"])
-            noskill = (np.isfinite(r) & wrap(wk["noskill"])).astype(float)
-            notruth = (~np.isfinite(r) | wrap(wk["dry"])).astype(float)
-            for fld, hatch, col in ((noskill, "////", "#2f2c28"), (notruth, "xx", "#a6a29a")):
-                if fld.any():
-                    cs = ax.contourf(
-                        lon_w,
-                        lat,
-                        fld,
-                        levels=[0.5, 1.5],
-                        colors="none",
-                        hatches=[hatch],
-                        transform=ccrs.PlateCarree(),
-                        zorder=3,
-                    )
-                    for c in getattr(cs, "collections", [cs]):
-                        c.set_edgecolor(col)
-                        c.set_linewidth(0.0)
+            notruth = ~np.isfinite(r) | wrap(wk["dry"])
+            house.stipple(ax, lon_w, lat, ~notruth & ~wrap(wk["noskill"]), transform=ccrs.PlateCarree())
+            if notruth.any():
+                cs = ax.contourf(
+                    lon_w,
+                    lat,
+                    notruth.astype(float),
+                    levels=[0.5, 1.5],
+                    colors="none",
+                    hatches=["xx"],
+                    transform=ccrs.PlateCarree(),
+                    zorder=3,
+                )
+                for c in getattr(cs, "collections", [cs]):
+                    c.set_edgecolor(rm.NO_TRUTH)
+                    c.set_linewidth(0.0)
             ax.add_feature(cfeature.COASTLINE.with_scale("50m"), lw=0.7, edgecolor="#1f1f1f", zorder=4)
             ax.add_feature(cfeature.BORDERS.with_scale("50m"), lw=0.4, edgecolor="#3a3a3a", zorder=4)
             ax.add_feature(cfeature.STATES.with_scale("50m"), lw=0.25, edgecolor="#5a5a5a", zorder=4)
@@ -279,7 +279,7 @@ def draw(tag, cycle, base, weeks, kind):
         )
         note = (
             f"2016–2025 terciles · colour = most likely tercile, intensity = its probability "
-            f"(33% = no signal) · hatched = skill not significant ({rm.TEST_NOTE})"
+            f"(33% = no signal) · dots = significant skill ({rm.TEST_NOTE})"
             + (" · cross-hatched = no gauge truth / dry week" if tag == "pr" else "")
             + (" · raw: 5% steps" if kind == "raw" else " · calibrated: no skill → ⅓ each")
         )

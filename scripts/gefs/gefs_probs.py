@@ -26,11 +26,11 @@ Calibrated  GEPS's gridpoint regression obs = a*m + b, fitted on the 2000-2019 r
             Tested out of sample on the reforecast (build_gefs_mapskill.py assess; numbers in gefs_probs.json):
             t2m RPSS +0.46/+0.24/+0.13/+0.10/+0.08 by week and reliable; pr +0.18/+0.04/+0.01/0/0 where GEPS's form
             scores -0.00/-0.04/-0.04/-0.05 from week 2.
-Mask        hatched where the hindcast anomaly correlation for this month and week is not significant skill
+Skill       dotted where the hindcast anomaly correlation for this month and week is significant skill
             (gefs_skill.noskill: one-sided 5 % t-test on the 20 reforecast years, Benjamini-Hochberg FDR q 0.10 over
-            the map); cross-hatched where there is no gauge truth (precipitation over the ocean) or the climatological
-            week is dry (< 0.5 mm/day: the terciles collapse onto zero and mean nothing). A week dict may carry its
-            own "neff" (the SFS page: one start a year).
+            the map; house.stipple), the probabilities shown everywhere; cross-hatched where there is no gauge truth
+            (precipitation over the ocean) or the climatological week is dry (< 0.5 mm/day: the terciles collapse
+            onto zero and mean nothing). A week dict may carry its own "neff" (the SFS page: one start a year).
 Display     CPC-style: hue for the most likely tercile, intensity for its probability from 33 % up; precipitation
             brown below / green above.
 
@@ -254,6 +254,7 @@ def draw(tag, base, weeks, kind, n_members, out: Path):
     plt = _plt()
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
+    import house
     from matplotlib.colors import LinearSegmentedColormap
 
     title = TAGS[tag]
@@ -305,22 +306,22 @@ def draw(tag, base, weeks, kind, n_members, out: Path):
                     rasterized=True,
                 )
             ax.add_feature(cfeature.OCEAN.with_scale("50m"), facecolor="white", alpha=0.45, zorder=2)
-            noskill = wrap(SK.noskill(wk["r"], wk.get("neff", SK.N_EFF))).astype(float)
-            notruth = wrap(~np.isfinite(wk["r"]) | wk["dry"]).astype(float)
-            for fld, hatch, col in ((noskill, "////", "#2f2c28"), (notruth, "xx", "#a6a29a")):
-                if fld.any():
-                    cs = ax.contourf(
-                        lon_w,
-                        LAT,
-                        fld,
-                        levels=[0.5, 1.5],
-                        colors="none",
-                        hatches=[hatch],
-                        transform=ccrs.PlateCarree(),
-                        zorder=3,
-                    )
-                    cs.set_edgecolor(col)
-                    cs.set_linewidth(0.0)
+            notruth = wrap(~np.isfinite(wk["r"]) | wk["dry"])
+            skilful = ~wrap(SK.noskill(wk["r"], wk.get("neff", SK.N_EFF))) & ~notruth
+            house.stipple(ax, lon_w, LAT, skilful, transform=ccrs.PlateCarree())
+            if notruth.any():
+                cs = ax.contourf(
+                    lon_w,
+                    LAT,
+                    notruth.astype(float),
+                    levels=[0.5, 1.5],
+                    colors="none",
+                    hatches=["xx"],
+                    transform=ccrs.PlateCarree(),
+                    zorder=3,
+                )
+                cs.set_edgecolor(SK.NO_TRUTH)
+                cs.set_linewidth(0.0)
             ax.add_feature(cfeature.COASTLINE.with_scale("50m"), lw=0.7, edgecolor="#1f1f1f", zorder=4)
             ax.add_feature(cfeature.BORDERS.with_scale("50m"), lw=0.4, edgecolor="#3a3a3a", zorder=4)
             ax.add_feature(cfeature.STATES.with_scale("50m"), lw=0.25, edgecolor="#5a5a5a", zorder=4)
@@ -358,7 +359,7 @@ def draw(tag, base, weeks, kind, n_members, out: Path):
         )
         note = (
             f"{TERC_NOTE} · colour = most likely tercile, intensity = its probability "
-            f"(33% = no signal) · hatched = skill not significant ({SK.test_note(weeks[0].get('neff', SK.N_EFF))})"
+            f"(33% = no signal) · dots = significant skill ({SK.test_note(weeks[0].get('neff', SK.N_EFF))})"
             + (" · cross-hatched = no gauge truth / dry week" if tag == "pr" else "")
             + (f" · raw: {100 / n_members:.0f}% steps" if kind == "raw" else " · calibrated: no skill → ⅓ each")
         )

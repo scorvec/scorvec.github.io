@@ -17,9 +17,9 @@ Anomalies   ensemble mean minus the SFS's OWN 1991-2020 reforecast mean for the 
             September's copy).
 Weekly      weeks 1-6, days 1-7 ... 36-42 (day 1 = the start date = lead 0).
 Terciles    raw member fractions against the terciles of the reforecast's own weekly anomalies (330 per gridpoint and week).
-Skill mask  gridpoint anomaly correlation of the reforecast ensemble mean (11 members, leave-one-year-out climatology)
+Skill       gridpoint anomaly correlation of the reforecast ensemble mean (11 members, leave-one-year-out climatology)
             with ERA5 over 1991-2025 for this start month and week (release sfs-ref-v1, scripts/sfs/sfs_truth.py: 2 m
-            temperature global, precipitation Northern Hemisphere only); hatched where r is not significant skill
+            temperature global, precipitation Northern Hemisphere only); dotted where r is significant skill
             (gefs_skill.noskill: one-sided 5 % t-test on the n years with truth - one start a year, so n_eff = n,
             r >= 0.283 at 35 years - and Benjamini-Hochberg FDR q 0.10 over the map), cross-hatched where there is no
             truth or the week is climatologically dry.
@@ -404,27 +404,13 @@ def n_years(ref, tag) -> int:
 
 
 def skill_hatcher(r_week, n_eff):
+    """GL.map_figure's `hatcher`: each weekly panel's skill marks (gefs_skill.marks), dots where the reforecast's r is
+    significant skill."""
     import cartopy.crs as ccrs
 
     def h(ax, i):
         r = r_week[i]
-        for fld, hatch, col in (
-            (SK.noskill(r, n_eff).astype(float), "////", "#2f2c28"),
-            ((~np.isfinite(r)).astype(float), "xx", "#a6a29a"),
-        ):
-            if fld.any():
-                cs = ax.contourf(
-                    R.LON,
-                    R.LAT,
-                    fld,
-                    levels=[0.5, 1.5],
-                    colors="none",
-                    hatches=[hatch],
-                    transform=ccrs.PlateCarree(),
-                    zorder=3,
-                )
-                cs.set_edgecolor(col)
-                cs.set_linewidth(0.0)
+        SK.marks(ax, R.LAT, R.LON, SK.noskill(r, n_eff), ~np.isfinite(r), ccrs.PlateCarree(), zorder=3)
 
     return h
 
@@ -460,7 +446,7 @@ def render(issue, base, F, nm, ref, site: Path, procs: int):
             )
         if f"r_{tag}" in ref:
             mnote = (note + "   ·   " if note else "") + (
-                f"hatched: no significant reforecast skill against ERA5 for this week "
+                f"dots: significant reforecast skill against ERA5 for this week "
                 f"({SK.test_note(n_years(ref, tag), 'yrs with truth')}{', Northern Hemisphere only' if tag == 'pr' else ''}); "
                 "cross-hatched: no ERA5 truth"
             )

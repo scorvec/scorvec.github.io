@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""GEFS weekly-map skill mask, and the date / re-basing bookkeeping the GEFS tercile maps share with it (2026-09-26;
-port of the GEPS page's render_maps.skill_mask / hatch_skill and hindcast_maps.py).
+"""GEFS weekly-map skill, and the date / re-basing bookkeeping the GEFS tercile maps share with it (2026-09-26;
+port of the GEPS page's render_maps.skill_mask / mark_skill and hindcast_maps.py).
 
 What the mask is. For every field (t2m, pr, zg500, mslp), calendar month of the INIT (reforecast starts within +-45
 days of the 15th, as GEPS pools them) and week 1-5, the gridpoint anomaly correlation r of the GEFSv12 reforecast's
@@ -31,10 +31,10 @@ Use from gefs_live.py's weekly figure (the `_masked` variants):
     m = SK.masks(tag, base, ref_dir)                  # None if the tag has no skill file (not one of MASK_TAGS)
     ...
     if m is not None:
-        SK.hatch(ax, R.LAT, R.LON, m[0][i], m[1][i], ccrs.PlateCarree())   # i = week index 0-4
+        SK.marks(ax, R.LAT, R.LON, m[0][i], m[1][i], ccrs.PlateCarree())   # i = week index 0-4
     note: SK.MASK_NOTE[tag]
 
-numpy, scipy and quantmet (the significance test), matplotlib for hatch.
+numpy, scipy and quantmet (the significance test), matplotlib and the house style (scripts/lib/house.py) for the marks.
 """
 
 from __future__ import annotations
@@ -62,9 +62,10 @@ def test_note(n_eff: int = N_EFF, what: str = "yrs") -> str:
 
 
 # the footnote the GEPS weekly_masked figures carry (render_maps.weekly), GEFS facts
+NO_TRUTH = "#a6a29a"  # the light cross-hatching where there is nothing to verify against (render_maps.NO_TRUTH)
 MASK_NOTE = {
     t: (
-        f"hatched: no significant hindcast skill for this week and season ({test_note()})"
+        f"dots: significant hindcast skill for this week and season ({test_note()})"
         + ("; cross-hatched: no gauge truth (ocean)" if t == "pr" else "")
     )
     for t in MASK_TAGS
@@ -160,7 +161,7 @@ def skill(tag: str, init, ref_dir) -> np.ndarray | None:
 
 def mask(tag: str, init, week: int, ref_dir) -> np.ndarray | None:
     """(121, 240) bool on the 1.5 deg grid (gefs_reforecast.LAT 90 -> -90, LON 0 -> 358.5): True where the hindcast
-    anomaly correlation for this init month and week (1-5) is not significant skill (noskill) - the cells hatched ////."""
+    anomaly correlation for this init month and week (1-5) is not significant skill (noskill) - the cells left undotted."""
     r = skill(tag, init, ref_dir)
     if r is None:
         return None
@@ -184,19 +185,22 @@ def masks(tag: str, init, ref_dir):
     return noskill(r), ~np.isfinite(r)
 
 
-def hatch(ax, lat, lon, mask_skill, mask_notruth, transform, zorder=None):
-    """Draw GEPS's skill hatching on one map panel (render_maps.hatch_skill): //// where mask_skill, xxxx where
-    mask_notruth, black at matplotlib's default hatch width, no fill. lat/lon are the mask's grid (1-D, lon 0-360
-    ascending; the 0E column is repeated at 360 so the hatching closes across the seam). Either mask may be None."""
+def marks(ax, lat, lon, mask_skill, mask_notruth, transform, zorder=None):
+    """GEPS's skill marks on one map panel (render_maps.mark_skill): dots where the hindcast has significant skill
+    (neither mask_skill, the cells without it, nor mask_notruth; house.stipple), and a light xxxx where there is no
+    verification data, the map's colours showing everywhere. lat/lon are the masks' grid (1-D, lon 0-360 ascending;
+    the 0E column is repeated at 360 so the marks close across the seam). Either mask may be None."""
+    import house
+
     lat = np.asarray(lat)
     lon = np.asarray(lon)
-    lon_w = np.r_[lon, lon[0] + 360.0]
     kw = {} if zorder is None else {"zorder": zorder}
-    for fld, pat in ((mask_skill, "////"), (mask_notruth, "xxxx")):
-        if fld is None or not np.any(fld):
-            continue
-        f = np.concatenate([fld, fld[:, :1]], axis=1).astype(float)
-        cs = ax.contourf(lon_w, lat, f, levels=[0.5, 1.5], colors="none", hatches=[pat], transform=transform, **kw)
-        # pin the hatch colour (GEPS draws matplotlib's default black) and no outline, whatever the rcParams
-        cs.set_edgecolor("black")
+    none = np.zeros((len(lat), len(lon)), bool) if mask_notruth is None else np.asarray(mask_notruth, bool)
+    if mask_skill is not None:
+        house.stipple(ax, lon, lat, ~np.asarray(mask_skill, bool) & ~none, transform=transform, **kw)
+    if none.any():
+        f = np.concatenate([none, none[:, :1]], axis=1).astype(float)
+        cs = ax.contourf(np.r_[lon, lon[0] + 360.0], lat, f, levels=[0.5, 1.5], colors="none", hatches=["xxxx"],
+                         transform=transform, **kw)  # fmt: skip
+        cs.set_edgecolor(NO_TRUTH)  # pinned, whatever the rcParams, and no outline
         cs.set_linewidth(0.0)

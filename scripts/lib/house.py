@@ -4,6 +4,7 @@
     house.apply()                      # once, before the first figure (after matplotlib.use("Agg"))
     fig, ax = plt.subplots(figsize=house.size(13, 9 / 16))
     house.source(fig, "NOAA OISST v2.1 · anomaly vs 1991–2020")
+    house.stipple(ax, lon, lat, skilful, transform=ccrs.PlateCarree())   # dots where a forecast map has skill
 
 Type: Source Sans 3 from scripts/lib/fonts when the files are there (the site's text face, OFL), else DejaVu Sans;
 nothing below 8 pt at the canvas size. Colours: the site tokens (assets/site.css); titles set left, semibold; legends
@@ -16,6 +17,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import matplotlib as mpl
+import numpy as np
 from matplotlib import font_manager
 
 FONTS = Path(__file__).resolve().parent / "fonts"
@@ -85,3 +87,23 @@ def size(width: float, ratio: float) -> tuple[float, float]:
 def source(fig, text: str, y: float = 0.004) -> None:
     """The small source and method line along a figure's bottom edge."""
     fig.text(0.5, y, text, ha="center", va="bottom", fontsize=8, color=MUTED, linespacing=1.5)
+
+
+def stipple(ax, lon, lat, mask, transform=None, zorder: float = 3.5, color: str = INK2) -> None:
+    """Dots over the cells of a map where ``mask`` is true (lat x lon, 1-D coordinates), with no fill: the house mark
+    for significant skill on a forecast map, which shows its colours everywhere. A global grid's seam closes when its
+    longitudes span the globe (the first column is repeated at +360)."""
+    mask = np.asarray(mask, bool)
+    if not mask.any():
+        return
+    lon = np.asarray(lon, float)
+    step = lon[1] - lon[0]
+    if abs(lon[-1] - lon[0] + step - 360) < step / 2:  # a global grid not yet closed: close the seam
+        lon, mask = np.r_[lon, lon[0] + 360.0], np.concatenate([mask, mask[:, :1]], axis=1)
+    kw = {} if transform is None else {"transform": transform}
+    cs = ax.contourf(
+        lon, lat, mask.astype(float), levels=[0.5, 1.5], colors="none", hatches=[".."], zorder=zorder, **kw
+    )
+    for c in getattr(cs, "collections", [cs]):  # the dots' colour, whatever the rcParams, and no outline
+        c.set_edgecolor(color)
+        c.set_linewidth(0.0)

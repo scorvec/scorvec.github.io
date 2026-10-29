@@ -326,7 +326,7 @@
       <p>A forecast designed and run by Claude (Anthropic&rsquo;s AI model), issued unattended on the 15th of every month: the
       coming month and the three overlapping seasons from it (2&nbsp;m temperature, precipitation and 500&nbsp;hPa height over the
       Northern Hemisphere, as expected anomalies against 1991&ndash;2020 and as tercile probabilities), and Ni&ntilde;o-3.4 for the
-      next twelve months. Every map is grey where its own cross-validated hindcast shows no significant skill, and every
+      next twelve months. Every map is dotted where its own cross-validated hindcast shows significant skill, and every
       forecast is scored against ERA5 once its target is over.</p>
     </details>
     <details>
@@ -407,12 +407,13 @@
       season odds use &plusmn;0.5&nbsp;&deg;C on the three-month mean.</p>
     </details>
     <details>
-      <summary>Probabilities, skill mask and updates</summary>
+      <summary>Probabilities, skill and updates</summary>
       <p>Each point&rsquo;s terciles are its 1991&ndash;2020 33rd and 67th percentiles. The forecast distribution is that point&rsquo;s own
       climatology, shifted by the forecast and narrowed by the hindcast&rsquo;s error relative to the climatological spread, so a
-      skill-less forecast of zero is exactly a third each and precipitation keeps its skew. Where the hindcast has no
-      significant skill (one-sided 5&nbsp;%, false-discovery rate 10&nbsp;% across the hemisphere) the map is grey and the
-      probabilities are equal chances.</p>
+      skill-less forecast of zero is exactly a third each and precipitation keeps its skew. The maps are dotted where the
+      hindcast has significant skill (one-sided 5&nbsp;%, false-discovery rate 10&nbsp;% across the hemisphere). Elsewhere the
+      colours are still the forecast&rsquo;s lean, but the hindcast cannot tell it from chance, so the issued probabilities
+      there, and the ones scored, are equal chances.</p>
       <p>When the stratosphere changes course after the 15th, the month can be re-issued as an update: its first week from
       the IFS-ENS and AIFS-ENS, the rest from the statistical forecast with their predicted vortex. The issue it updates stays
       on the record; the update is scored beside it.</p>
@@ -489,7 +490,7 @@
     $("mapTitle").innerHTML = s.target_label + " &middot; " + VARS[st.var][0];
     var iv = s.vars[st.var].issued;
     $("mapLine").innerHTML = "Claude&rsquo;s forecast: " + inputs(s, st.var) + " &middot; hindcast " + iv.years[0] + "&ndash;" + iv.years[1] +
-      " ACC " + sgn(iv.acc, 2) + ", RPSS " + sgn(iv.rpss, 2) + " &middot; grey: no significant skill";
+      " ACC " + sgn(iv.acc, 2) + ", RPSS " + sgn(iv.rpss, 2) + " &middot; dots: significant skill";
     document.querySelectorAll("#mapCtl .fig-toggle").forEach(function (box) {
       box.querySelectorAll("button").forEach(function (b) {
         b.classList.toggle("on", b.dataset.v === st[box.dataset.sel]);

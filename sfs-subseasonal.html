@@ -322,8 +322,8 @@
     because the reforecast spans the normal period itself, no further re-basing is needed. 500 hPa height has its global mean removed so
     the circulation shows. The tercile maps count the 31 members against the terciles of the reforecast's own weekly anomalies
     (330 per gridpoint and week), so their normal is 1991&ndash;2020, not the 2016&ndash;2025 terciles of the GEFS and GEPS pages:
-    part of any &ldquo;above normal&rdquo; here is the warming since then. The skill masks hatch wherever the reforecast ensemble mean's anomaly correlation with ERA5, over the
-    starts of the same month with a leave-one-year-out climatology, is not significantly above zero (one-sided 5&nbsp;% test, false-discovery
+    part of any &ldquo;above normal&rdquo; here is the warming since then. The maps are dotted wherever the reforecast ensemble mean's anomaly correlation with ERA5, over the
+    starts of the same month with a leave-one-year-out climatology, is significantly above zero (one-sided 5&nbsp;% test, false-discovery
     rate 10&nbsp;% across the map): temperature worldwide on the 1991&ndash;2025 starts, precipitation over the Northern Hemisphere on
     1991&ndash;2023, the extent of the site's ERA5 precipitation store. NOAA's own published climatology files are not used: the October one
     was found to be a copy of September's. The hindcast comparison scores SFS, GEFSv12 and GEPS on 38 starts (1 September and 1 October,
@@ -350,10 +350,10 @@
     so far for September and October starts only). This site reads those Zarr stores anonymously over HTTPS in GitHub Actions, keeps only
     the fields and regions it draws, and builds its own reforecast climatology from them rather than using NOAA's climatology files.</p>
     <p><b>Terms.</b> NOAA data distributed through NODD are free and open to the public; credit NOAA when reusing them. Everything done to
-    them here &mdash; regridding, anomalies, terciles, skill masks, the daily-store check and the recovery of interleaved issues &mdash; is this
+    them here &mdash; regridding, anomalies, terciles, skill tests, the daily-store check and the recovery of interleaved issues &mdash; is this
     site's own processing, not NOAA's, and NOAA has not reviewed it. More about the system:
     <a href="https://epic.noaa.gov/?p=37688">NOAA EPIC: the SFS beta near-real-time launch</a> (2026).</p>
-    <p><b>The other data on this page.</b> ERA5 reanalysis (Copernicus Climate Change Service, ECMWF), the truth for the skill masks and
+    <p><b>The other data on this page.</b> ERA5 reanalysis (Copernicus Climate Change Service, ECMWF), the truth for the skill tests and
     the hindcast scores; the GEFSv12 reforecast (NOAA, NODD); the GEPS hindcast (Data Source: Environment and Climate Change Canada, under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a>); and CFSv2
     (NOAA NCEP) from the IRI Data Library's SubX and NMME archives and NOAA's operational CFSv2 files on AWS, for the comparison with the
     system SFS is meant to replace. Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission
@@ -375,16 +375,16 @@ var MASKABLE = ["t2m","pr"];
 var gated = function () { return SUB && !SUB.ok ? "dom-status" : null; };
 var P = {
   weekly: {label: "Weekly means", fit: false, a: DOMAINS, b: {label:"Field", items: FIELDS},
-        c: function (a,b) { return MASKABLE.indexOf(b) >= 0 ? {label:"Skill mask", items:[["off","Off"],["on","On"]]} : null; },
+        c: function (a,b) { return MASKABLE.indexOf(b) >= 0 ? {label:"Skill dots", items:[["off","Off"],["on","On"]]} : null; },
         dom: gated,
         img: function (a,b,c) { return "assets/sfs/sub/sfs_" + a + "_" + b + "_weekly" + (c==="on" ? "_masked" : "") + ".webp"; },
         cap: function (a,b,c) { if (gated()) return ""; return "Seven-day means of the 31-member ensemble mean, anomaly against SFS's own 1991–2020 reforecast at the same lead."
-          + (c==="on" ? " Hatched where the reforecast's anomaly correlation with ERA5 for this week and start month is not significantly above zero (one-sided 5 % test on 35 years for temperature, 33 for precipitation; false-discovery rate 10 % across the map); cross-hatched where there is no ERA5 truth." : ""); }},
+          + (c==="on" ? " Dotted where the reforecast's anomaly correlation with ERA5 for this week and start month is significantly above zero (one-sided 5 % test on 35 years for temperature, 33 for precipitation; false-discovery rate 10 % across the map); cross-hatched where there is no ERA5 truth." : ""); }},
   probs: {label: "Weekly terciles — temperature & precipitation", fit: false, a: DOMAINS,
         b: {label:"Field", items:[["t2m","2 m temp"],["pr","Precip"]]},
         dom: gated,
         img: function (a,b) { return "assets/sfs/sub/sfs_" + a + "_" + b + "_prob_raw.webp"; },
-        cap: function (a,b) { if (gated()) return ""; return "Most likely tercile by week: colour is the category (blue below, grey near, red above normal), intensity its probability, from the fraction of the 31 members in each tercile of the reforecast's own 1991–2020 weekly anomalies (the GEFS and GEPS pages use 2016–2025 terciles, so part of any ‘above’ here is the warming since then). Hatched: reforecast skill not significantly above zero (one-sided 5 % test on 35 years for temperature, 33 for precipitation; false-discovery rate 10 %)."
+        cap: function (a,b) { if (gated()) return ""; return "Most likely tercile by week: colour is the category (blue below, grey near, red above normal), intensity its probability, from the fraction of the 31 members in each tercile of the reforecast's own 1991–2020 weekly anomalies (the GEFS and GEPS pages use 2016–2025 terciles, so part of any ‘above’ here is the warming since then). Dots: reforecast skill significantly above zero (one-sided 5 % test on 35 years for temperature, 33 for precipitation; false-discovery rate 10 %); the probabilities are shown everywhere."
           + (b==="pr" ? " Cross-hatched: no precipitation truth (the site's ERA5 store holds Northern Hemisphere precipitation only, to 2023) or a dry climatological week." : ""); }},
   daily: {label: "Daily animation", a: DOMAINS,
         dom: gated,

@@ -468,6 +468,7 @@ ALPHA = 0.05
 FDR_Q = 0.10
 N_EFF = 20  # 2001-2020
 TEST_NOTE = f"one-sided {ALPHA:.0%}, {N_EFF} hindcast yrs, FDR {FDR_Q:.2f}"
+NO_TRUTH = "#a6a29a"  # the light cross-hatching where there is nothing to verify against
 
 
 def noskill(r, n_eff=N_EFF):
@@ -501,24 +502,17 @@ def skill_mask(tag, base):
     return ds.lat.values, ds.lon.values, r, noskill(r)
 
 
-def hatch_skill(ax, mask, i):
-    """Hatch a weekly panel where the hindcast says the week has no
-    significant skill (////) or no verification data at all (xxxx)."""
+def mark_skill(ax, mask, i):
+    """Dot a weekly panel where the hindcast says the week has significant skill (house.stipple), and cross-hatch
+    it, light, where there is no verification data at all (xxxx): the map's colours show everywhere."""
     lat, lon, r, ns = mask
-    rw = np.concatenate([r[i], r[i][:, :1]], axis=1)
-    nsw = np.concatenate([ns[i], ns[i][:, :1]], axis=1)
-    lon_w = np.r_[lon, 360.0]
-    for fld, hatch in ((nsw, "////"), (~np.isfinite(rw), "xxxx")):
-        if fld.any():
-            ax.contourf(
-                lon_w,
-                lat,
-                fld.astype(float),
-                levels=[0.5, 1.5],
-                colors="none",
-                hatches=[hatch],
-                transform=ccrs.PlateCarree(),
-            )
+    house.stipple(ax, lon, lat, np.isfinite(r[i]) & ~ns[i], transform=ccrs.PlateCarree())
+    none = ~np.isfinite(np.concatenate([r[i], r[i][:, :1]], axis=1))
+    if none.any():
+        cs = ax.contourf(np.r_[lon, 360.0], lat, none.astype(float), levels=[0.5, 1.5], colors="none",
+                         hatches=["xxxx"], transform=ccrs.PlateCarree())  # fmt: skip
+        cs.set_edgecolor(NO_TRUTH)
+        cs.set_linewidth(0.0)
 
 
 def weekly(tag, cycle, base, base_kind="model", only=None, masked=False):
@@ -555,7 +549,7 @@ def weekly(tag, cycle, base, base_kind="model", only=None, masked=False):
             clev, clw = CONTOUR.get(tag, (None, 0.5))
             mesh = _panel(ax, mn, dom, lim, cmap, over=(fcm[i] if fcm else None), clev=clev, clw=clw)
             if mask is not None:
-                hatch_skill(ax, mask, i)
+                mark_skill(ax, mask, i)
             d0 = base + pd.Timedelta(days=w0 - 1)
             d1 = base + pd.Timedelta(days=w1 - 1)
             ax.set_title(
@@ -583,7 +577,7 @@ def weekly(tag, cycle, base, base_kind="model", only=None, masked=False):
         if mask is not None:
             note = (
                 (note + "   ·   " if note else "")
-                + f"hatched: no significant hindcast skill for this week and season ({TEST_NOTE})"
+                + f"dots: significant hindcast skill for this week and season ({TEST_NOTE})"
                 + ("; cross-hatched: no gauge truth (ocean)" if tag == "pr" else "")
             )
         fig.suptitle(

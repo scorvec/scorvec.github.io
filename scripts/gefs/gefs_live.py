@@ -429,7 +429,7 @@ def map_figure(
     hatcher=None,
     suffix="",
 ):
-    """One weekly figure, the GEPS page's geometry. `hatcher(ax, i)` hatches panel i (the skill-masked variant)."""
+    """One weekly figure, the GEPS page's geometry. `hatcher(ax, i)` marks panel i's skill (the `_masked` variant)."""
     plt = _plt()
     title, unit, cmap, _demean, scale = FIELDS[tag]
     rows = domain_rows(dom)
@@ -1055,7 +1055,7 @@ def render(npz: Path, date: str, site: Path, cache: Path, procs: int, runs: Path
     gap, prev = load_prev(runs, date)
     names = []
     try:
-        import gefs_skill as SK  # the terciles port: skill masks + hatching
+        import gefs_skill as SK  # the terciles port: skill tests + their marks
     except Exception:  # noqa: BLE001
         SK = None
     for tag in ANIM_ORDER:
@@ -1077,7 +1077,7 @@ def render(npz: Path, date: str, site: Path, cache: Path, procs: int, runs: Path
                 import cartopy.crs as ccrs
 
                 def hat(ax, i, m=mk):
-                    return SK.hatch(ax, R.LAT, R.LON, m[0][i], m[1][i], ccrs.PlateCarree())
+                    return SK.marks(ax, R.LAT, R.LON, m[0][i], m[1][i], ccrs.PlateCarree())
 
                 mnote = (note + "   ·   " if note else "") + SK.MASK_NOTE[tag]
                 for key, dom in DOMAINS.items():

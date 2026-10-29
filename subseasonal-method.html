@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>How the subseasonal outlook is built &mdash; Shawn Corvec</title>
-<meta name="description" content="How the GEPS subseasonal outlook is built: the 1991–2020 reference from the 2001–2020 hindcast, drift and bias removal, calibration, skill masks and regimes.">
+<meta name="description" content="How the GEPS subseasonal outlook is built: the 1991–2020 reference from the 2001–2020 hindcast, drift and bias removal, calibration, skill tests and regimes.">
 <link rel="canonical" href="https://scorvec.com/subseasonal-method.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="article">
@@ -19,7 +19,7 @@
  "@type": "TechArticle",
  "headline": "How the subseasonal outlook is built",
  "url": "https://scorvec.com/subseasonal-method.html",
- "description": "How the GEPS subseasonal outlook is built: the 1991–2020 reference from the 2001–2020 hindcast, drift and bias removal, calibration, skill masks and regimes.",
+ "description": "How the GEPS subseasonal outlook is built: the 1991–2020 reference from the 2001–2020 hindcast, drift and bias removal, calibration, skill tests and regimes.",
  "image": "https://scorvec.com/assets/geps/geps_na_t2m_weekly.webp",
  "isPartOf": {
   "@type": "WebSite",
@@ -487,8 +487,8 @@
     amplitude, the slope restores it. The hindcast mean is four members against 21 live, so the
     slope is slightly conservative. A weekly mean of a daily-sd index is a smoother quantity than
     the daily values, so a weekly mean beyond &plusmn;1 is a strong signal.</p>
-    <h2>Skill masks and tercile probabilities</h2>
-    <p><b>Skill mask and probability maps.</b> The same hindcast that calibrates the indices
+    <h2>Skill and tercile probabilities</h2>
+    <p><b>Skill and probability maps.</b> The same hindcast that calibrates the indices
     is scored gridpoint by gridpoint: every 2001&ndash;2020 start&rsquo;s weekly-mean anomaly,
     de-drifted and re-based as the live maps but, like the indices, <b>leave-one-year-out</b>
     (precipitation, which the tercile maps take un-re-based, is only de-drifted), against an independent analysis
@@ -497,8 +497,8 @@
     &mdash; pooled by calendar month. Scored in sample, the week-3 to week-5 correlations of temperature, height and
     pressure came out 0.02&ndash;0.04 higher, and 8&ndash;16&nbsp;% of the temperature and height cells that passed
     the test below in those weeks (72&nbsp;% of the week-3 pressure cells) do not pass out of sample; precipitation
-    is unchanged. The anomaly correlation from that is the skill mask (hatched
-    where it is not significantly above zero: a one-sided 5&nbsp;% test on the 20 hindcast years, with a 10&nbsp;%
+    is unchanged. The anomaly correlation from that marks the skill (the maps,
+    shown everywhere, are dotted where it is significantly above zero: a one-sided 5&nbsp;% test on the 20 hindcast years, with a 10&nbsp;%
     false-discovery rate across the map; cross-hatched where there is no truth), and the gridpoint regression of observed on
     forecast weekly anomaly, with its residual spread, turns the ensemble mean into calibrated
     <b>tercile</b> probabilities, below, near and above normal, drawn CPC-style as the most likely

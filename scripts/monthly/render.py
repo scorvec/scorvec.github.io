@@ -6,7 +6,7 @@
 Figures (assets/monthly/, webp), per target key (m1 = the month, s1-s3 = the seasons from it) and variable (z500,
 t2m, prcp):
     fc_<key>_<var>_<region>_<kind>.webp   region nh / na / eu, kind anom (expected anomaly) or prob (tercile
-                                          probabilities); grey where the hindcast has no significant skill
+                                          probabilities), dotted where the hindcast has significant skill
     ingredients_<key>_<var>.webp          the statistical forecast, the C3S mean, GEFS + GEPS (the month) and the issue
     components_<key>_<var>.webp           the statistical forecast's six weighted components and their sum
     skill_<key>_<var>.webp                the issued forecast's hindcast correlation and the yearly scores
@@ -48,7 +48,7 @@ REPO = HERE.parents[1]
 ASSETS = REPO / "assets" / "monthly"
 DATA = ASSETS / "data"
 LAT0 = 20.0
-INK, MUTED, NOSKILL = house.INK, house.MUTED, "#e9e7e2"
+INK, MUTED = house.INK, house.MUTED
 CREDIT = "scorvec.com · Claude's long-range forecast · anomalies vs 1991–2020"
 
 LEVELS = {
@@ -113,16 +113,18 @@ def shade(ax, v, var):
     return m
 
 
-def no_skill(ax, sig):
-    """Grey over the points without significant hindcast skill: nothing is shown there."""
+def skill_dots(ax, sig):
+    """Dots over the points with significant hindcast skill (house.stipple); the forecast's colours show everywhere."""
     sg, lon = grid(sig.astype(float))
-    ax.contourf(lon, G.LAT_NH, sg, levels=[-1, 0.5], colors=[NOSKILL], transform=ccrs.PlateCarree(), zorder=3)
+    house.stipple(ax, lon, G.LAT_NH, sg >= 0.5, transform=ccrs.PlateCarree())
 
 
 def prob_layers(o: dict, var: str) -> list[tuple[np.ndarray, str]]:
     """The tercile-probability map as CPC draws it: where above (below) normal is the most likely category and
-    reaches 40 %, its probability in that category's colours; elsewhere blank (near normal or equal chances)."""
-    pa, pb = 100 * o[f"{var}_p_above"], 100 * o[f"{var}_p_below"]
+    reaches 40 %, its probability in that category's colours; elsewhere blank (near normal or equal chances). The
+    probabilities before the skill test sets the points without skill to equal chances (p_*_raw): the dots say where
+    the hindcast backs them."""
+    pa, pb = 100 * o[f"{var}_p_above_raw"], 100 * o[f"{var}_p_below_raw"]
     pn = 100 - pa - pb
     up = np.where((pa >= 40) & (pa > pb) & (pa > pn), pa, np.nan)
     dn = np.where((pb >= 40) & (pb > pa) & (pb > pn), pb, np.nan)
@@ -194,7 +196,7 @@ def head(fig, s: dict, var: str, what: str, sub2: str, y0: float = 0.965, x0: fl
 def skill_line(s: dict, var: str, kind: str) -> str:
     iv = s["vars"][var]["issued"]
     y0, y1 = iv["years"]
-    out = f"Hindcast {y0}–{y1}, cross-validated: ACC {iv['acc']:+.2f}, RPSS {iv['rpss']:+.2f} · grey: no significant skill"
+    out = f"Hindcast {y0}–{y1}, cross-validated: ACC {iv['acc']:+.2f}, RPSS {iv['rpss']:+.2f} · dots: significant skill"
     if var == "z500" and kind == "anom":
         out += " · contours: height (dam)"
     if kind == "prob":
@@ -211,7 +213,7 @@ def outlook_map(o: dict, s: dict, var: str, region: str, kind: str, path: Path) 
         shade(ax, fc, var)
     else:
         draw_prob(ax, o, var)
-    no_skill(ax, o[f"{var}_sig"])
+    skill_dots(ax, o[f"{var}_sig"])
     if var == "z500" and kind == "anom":
         full, lon2 = grid(o["z500_clim"] + fc)
         cs = ax.contour(lon2, G.LAT_NH, full / 10.0, levels=np.arange(480, 600, 6), colors=INK, linewidths=0.7,
@@ -241,7 +243,7 @@ def panel_row(fig, panels: list, var: str, top: float = 0.82, bar: str = "") -> 
         ax = polar_ax(fig, [0.01 + j * wd, 0.16, wd - 0.01, top - 0.16])
         shade(ax, fld, var)
         if sig is not None:
-            no_skill(ax, sig)
+            skill_dots(ax, sig)
         ax.set_title(lab, fontsize=9.2, fontweight="semibold", pad=4, loc="center")
     anom_bar(fig, [0.25, 0.085, 0.5, 0.025], var, bar or f"{TITLE[var]} ({UNIT[var]})")
 
