@@ -77,6 +77,7 @@ def fc_path(centre: str, system: str, var: str, issue: str) -> Path:
 # ------------------------------------------------------------------------------------------------------- fetching
 def retrieve(centre: str, system: str, var: str, years, month: int, dest: Path) -> bool:
     from c3s_ref import guard_fetch
+    from cds_seq import available
 
     guard_fetch("Copernicus CDS")
     import cdsapi
@@ -96,6 +97,10 @@ def retrieve(centre: str, system: str, var: str, years, month: int, dest: Path) 
     }
     if level:
         req["pressure_level"] = level
+    # a start the CDS does not hold yet (UKMO's hindcast of a month appears with its issue) waits hours, then fails
+    if available(ds, req) is False:
+        print(f"  {centre}_{system} {var} {month:02d}: not in the CDS catalogue yet", flush=True)
+        return False
     dest.parent.mkdir(parents=True, exist_ok=True)
     for attempt in range(2):
         try:
