@@ -9,8 +9,16 @@ controls pick one), every score with its uncertainty.
         (acc_lead_<region>_<window>.webp).
   rain  Rain against Stage IV cell by cell (mverify_scores.rain_map): the ratio of the totals and the frequency
         biases at 1, 10 and 25 mm for each lead group, significant cells only (rain_<map>_<group>.webp), and what the
-        analysis gave over the same days (rain_<map>_obs.webp).
-figs.json lists what was drawn, for the page.
+        analysis gave over the same days (rain_<map>_obs.webp); and for each window of runs and 24 h window, the
+        equitable threat score by threshold and the fractions skill score by neighbourhood on the common grid
+        (rainskill_<window>_<lead>_<threshold>.webp).
+  scores  For each window of runs of the database: the scorecards (card_), the RMSE and bias by lead (lead_), the
+        headline variables' RMSE by lead in each region (glance_) and the error against pressure at a lead
+        (profile_<window>_<quantity>_<region>_d<day>.webp).
+  wind  10 m wind speed as a distribution over the nightly's runs (wind_dist.json): the quantiles' differences from the
+        observed ones and the fitted hybrid Weibull (wind_<region>_<group>.webp).
+  ensembles  The ensembles' scorecards, CRPS and spread by lead, rank histograms and reliability (ecard_ ... erel_).
+figs.json lists what was drawn, for the page, and what the database holds (database: each model's runs).
 
 Uncertainty. A window's runs are a sample: the same models over other weeks would score differently, and runs a day
 apart share their weather, so they are not independent. Every interval is a 95 % Student t interval on the runs' own
@@ -373,6 +381,223 @@ def rain_figs(derived: Path, out: Path) -> dict:
     return {"maps": manifest, "groups": [g[0] for g in LEAD_GROUPS], "window": w, "models": models}
 
 
+RAIN_SKILL_THRESHOLDS = (1.0, 10.0, 25.0, 50.0)  # mm in 24 h, as the nightly's Stage IV scores
+RAIN_SKILL_WINDOWS = (10, 30, 90, 365)  # the newest runs of the database; its rain files reach back a year (RAIN_RUNS)
+RAIN_SKILL_MIN = 100  # cells over a threshold in the analysis (summed over the runs) before a score is drawn
+
+
+def jack_ci(tables: np.ndarray, score, level: float = 0.95) -> tuple[float, float, float]:
+    """A score of runs' tables summed (``tables``: runs x counts, in run order) and its interval: the leave-one-run-out
+    jackknife's variance, the sample cut for lag-1 autocorrelation of the runs' pseudo-values (a run is a cluster of
+    cells that share its weather, as in ``ratio_ci``)."""
+    from mverify.significance import effective_runs
+
+    n = len(tables)
+    if n < 3:
+        return float("nan"), float("nan"), float("nan")
+    total = tables.sum(0)
+    full = score(total)
+    pseudo = n * full - (n - 1) * np.array([score(total - t) for t in tables])
+    n_eff = effective_runs(pseudo)
+    h = stats.t.ppf(0.5 + level / 2, max(n_eff - 1, 1.0)) * pseudo.std(ddof=1) / np.sqrt(n_eff)
+    return float(full), float(full - h), float(full + h)
+
+
+def ets(t: np.ndarray) -> float:
+    """The equitable threat score of summed (hits, misses, false alarms, cells) (mverify.precip.scores.finish)."""
+    h, mi, fa, w = t
+    rh = (h + mi) * (h + fa) / w
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return (h - rh) / (h + mi + fa - rh)
+
+
+def rain_sums(paths: list[Path]) -> pd.DataFrame:
+    """Each run's Stage IV sums on the common grid (mverify.precip.scores.case_sums, cosine-of-latitude weights):
+    per model, 24 h window and threshold the hits, misses, false alarms and the fractions skill score's sums, over the
+    land cells (as the rain maps') that every model of the run has."""
+    from mverify.precip.regrid import EARTH_KM_PER_DEG
+    from mverify.precip.scores import FSS_KM, case_sums
+
+    edge = pd.read_parquet(paths[-1], columns=["lat", "lon"])
+    lat0, lon0 = (float(edge[c].min()) - D.RAIN_MARGIN for c in ("lat", "lon"))
+    frame = tuple(
+        int(np.rint((edge[c].max() + D.RAIN_MARGIN - o) / D.GRID)) + 1 for c, o in (("lat", lat0), ("lon", lon0))
+    )
+    mask = np.load(Path(__file__).resolve().parent / "reference" / "land_0p5.npz")
+    lats = lat0 + D.GRID * np.arange(frame[0])
+    rows = np.rint((lats + 90) / D.GRID).astype(int)
+    cols = np.rint(((lon0 + D.GRID * np.arange(frame[1]) + 180) % 360) / D.GRID).astype(int)
+    land = mask["land"][np.ix_(rows, cols)] >= D.RAIN_LAND
+    weights = np.repeat(np.cos(np.deg2rad(lats))[:, None], frame[1], 1)
+    out = []
+    for f in paths:
+        r = pd.read_parquet(f, columns=["model", "init", "lead_h", "lat", "lon", "fcst", "obs"])
+        r["j"], r["i"] = (np.rint((r[c] - o) / D.GRID).astype(int) for c, o in (("lat", lat0), ("lon", lon0)))
+        r = r[r["j"].between(0, frame[0] - 1) & r["i"].between(0, frame[1] - 1)]
+        models = sorted(r["model"].unique())
+        for lead, g in r.groupby("lead_h"):
+            obs = np.full(frame, np.nan)
+            obs[g["j"], g["i"]] = g["obs"]
+            fc = {m: np.full(frame, np.nan) for m in models}
+            for m, gm in g.groupby("model", observed=True):
+                fc[m][gm["j"], gm["i"]] = gm["fcst"]
+            ok = land & np.isfinite(obs) & np.logical_and.reduce([np.isfinite(x) for x in fc.values()])
+            for m, x in fc.items():
+                sums = case_sums(np.where(ok, x, np.nan), np.where(ok, obs, np.nan), ok, weights,
+                                 D.GRID * EARTH_KM_PER_DEG, False, RAIN_SKILL_THRESHOLDS, FSS_KM)  # fmt: skip
+                out.extend({"init": g["init"].iloc[0], "model": m, "lead_h": int(lead), "threshold": t, **sums[t]}
+                           for t in RAIN_SKILL_THRESHOLDS)  # fmt: skip
+    return pd.DataFrame(out)
+
+
+def rain_skill_figs(derived: Path, out: Path) -> dict:
+    """For each window of the database's newest runs and each 24 h window ending 12Z: the equitable threat score by
+    threshold and the fractions skill score by neighbourhood width at each threshold, every model on the same runs
+    and cells, each with its 95 % interval (``jack_ci``, ``ratio_ci``)."""
+    from mverify.precip.scores import FSS_KM
+
+    wet = sorted(derived.glob("rain_*.parquet"))
+    if len(wet) < min(RAIN_SKILL_WINDOWS):
+        return {}
+    sums = rain_sums(wet[-max(RAIN_SKILL_WINDOWS) :]).sort_values("init")
+    manifest = {}
+    for runs in RAIN_SKILL_WINDOWS:
+        inits = sorted(sums["init"].unique())
+        if len(inits) < runs:
+            continue
+        models, used, left_out = D.window_runs(sums[sums["init"].isin(inits[-runs:])])
+        s = sums[sums["model"].isin(models) & sums["init"].isin(used)]
+        span = D.run_span(used) | {"left_out": left_out}
+        figs = {}
+        for lead, g in s.groupby("lead_h"):
+            score = {}  # (model, threshold) -> ETS and its interval, and per width the FSS and its interval
+            for (m, t), d in g.groupby(["model", "threshold"]):
+                if (d["hits"] + d["misses"]).sum() < RAIN_SKILL_MIN * np.cos(
+                    np.deg2rad(40)
+                ):  # cells weighted as at 40N
+                    continue
+                score[m, t] = (
+                    jack_ci(d[["hits", "misses", "false_alarms", "w"]].to_numpy(float), ets),
+                    [1 - np.array(ratio_ci(d[f"fss_num_{km}"].to_numpy(float), d[f"fss_den_{km}"].to_numpy(float)))[[0, 2, 1]]
+                     for km in FSS_KM],
+                )  # fmt: skip
+            for thr in RAIN_SKILL_THRESHOLDS:
+                fig, (a1, a2) = plt.subplots(1, 2, figsize=house.size(15, 0.4), constrained_layout=True)
+                width = 0.8 / len(models)
+                for k, m in enumerate(models):
+                    c = COLORS.get(m, house.INK2)
+                    have = [j for j, t in enumerate(RAIN_SKILL_THRESHOLDS) if (m, t) in score]
+                    e = np.clip([score[m, RAIN_SKILL_THRESHOLDS[j]][0] for j in have], -1 / 3, 1).reshape(-1, 3)
+                    x = np.array(have) + (k - (len(models) - 1) / 2) * width
+                    a1.bar(x, e[:, 0], width, color=c, label=m)
+                    a1.errorbar(x, e[:, 0], yerr=[e[:, 0] - e[:, 1], e[:, 2] - e[:, 0]], fmt="none", ecolor=house.INK,
+                                lw=1.2)  # fmt: skip
+                    if (m, thr) not in score:
+                        continue
+                    fs = np.array(score[m, thr][1])
+                    xs = np.array(FSS_KM) * (1 + (k - (len(models) - 1) / 2) * 0.03)
+                    a2.errorbar(xs, fs[:, 0], yerr=[fs[:, 0] - fs[:, 1], fs[:, 2] - fs[:, 0]], color=c, lw=2.2,
+                                elinewidth=1.6, marker="o", ms=5, label=m)  # fmt: skip
+                a1.set_xticks(range(len(RAIN_SKILL_THRESHOLDS)), [f"{t:g}" for t in RAIN_SKILL_THRESHOLDS])
+                a1.set(xlabel="Threshold (mm in 24 h)", ylabel="Equitable threat score",
+                       ylim=(min(0, a1.get_ylim()[0]), 1), title="Equitable threat score, with its 95 % interval")  # fmt: skip
+                a1.axhline(0, color=house.INK2, lw=1)
+                for j, t in enumerate(RAIN_SKILL_THRESHOLDS):
+                    if not any((m, t) in score for m in models):
+                        a1.text(j, 0.5, "too few\ncells", ha="center", va="center", color=house.INK2, fontsize=13)
+                if not any((m, thr) in score for m in models):
+                    a2.text(0.5, 0.5, f"Too few cells reach {thr:g} mm in the analysis", ha="center", va="center",
+                            transform=a2.transAxes, color=house.INK2)  # fmt: skip
+                a2.set_xscale("log")
+                a2.set_xticks(FSS_KM, [str(km) for km in FSS_KM])
+                a2.xaxis.set_minor_locator(plt.NullLocator())
+                a2.set(xlabel="Neighbourhood width (km)", ylabel="Fractions skill score", ylim=(0, 1),
+                       title=f"Fractions skill score at {thr:g} mm, with its 95 % interval")  # fmt: skip
+                for ax in (a1, a2):
+                    ax.set_axisbelow(True)
+                    ax.grid(True, axis="y" if ax is a1 else "both", color=house.GRID, lw=0.8)
+                fig.legend(*a1.get_legend_handles_labels(), loc="outside lower center", ncols=len(models),
+                           frameon=False)  # fmt: skip
+                fig.suptitle(f"24 h rain to {lead} h (day {lead / 24:g}) against Stage IV, land cells of the 0.5° grid: "
+                             f"{span['runs']} runs", x=0.01, ha="left")  # fmt: skip
+                figs[f"{lead}|{thr:g}"] = save(fig, out / f"rainskill_{runs}_{lead}_{thr:g}.webp")
+        manifest[str(runs)] = {"window": span, "models": models, "leads": sorted(int(x) for x in s["lead_h"].unique()),
+                               "thresholds": [f"{t:g}" for t in RAIN_SKILL_THRESHOLDS], "fig": figs}  # fmt: skip
+        print(f"rain skill {runs}: {span['runs']} runs, {len(figs)} figures", flush=True)
+    return manifest
+
+
+# --------------------------------------------------------------------------- wind speed as a distribution
+def weibull_pdf(u: np.ndarray, f: dict) -> np.ndarray:
+    """The hybrid Weibull's density above the calms: the share that is not calm times the fitted Weibull's."""
+    k, c = f["k"], f["c"]
+    return (1 - f["calm"]) * (k / c) * (u / c) ** (k - 1) * np.exp(-((u / c) ** k))
+
+
+def wind_figs(out: Path) -> dict:
+    """10 m wind speed as a distribution over the nightly's runs (wind_dist.json, mverify.distribution): per region and
+    lead group, each model's quantiles less the observed ones with their 95 % bootstrap intervals (whole runs
+    resampled), filled where the interval leaves out no difference, and the fitted hybrid Weibull densities."""
+    path = D.OUT_DIR / "wind_dist.json"
+    if not path.exists():
+        return {}
+    wd, labels = json.loads(path.read_text()), region_labels()
+    probs = np.array(wd["probs"])
+    manifest = {}
+    for row in wd["rows"]:
+        o = row["obs"]
+        fig, (a1, a2) = plt.subplots(1, 2, figsize=house.size(15, 0.42), constrained_layout=True)
+        top = max([*o["q"], *(q for m in wd["models"] for q in row["models"][m]["q"])])
+        u = np.linspace(wd["calm"], min(1.2 * top, 30), 200)
+        a2.plot(u, weibull_pdf(u, o), color=house.INK, lw=3, label="Observed")
+        for k, m in enumerate(wd["models"]):
+            r, c = row["models"][m], COLORS.get(m, house.INK2)
+            d = np.array(r["q"], float) - np.array(o["q"], float)
+            lo, hi = np.array(r["q_lo"], float), np.array(r["q_hi"], float)
+            x = probs * (1 + (k - (len(wd["models"]) - 1) / 2) * 0.02)
+            a1.errorbar(x, d, yerr=[d - lo, hi - d], fmt="none", ecolor=c, elinewidth=1.6, alpha=0.75)
+            a1.plot(x, d, color=c, lw=2.2, label=m)
+            a1.scatter(x, d, s=34, facecolors=[c if f else "white" for f in (lo > 0) | (hi < 0)], edgecolors=c,
+                       linewidths=1.8, zorder=3)  # fmt: skip
+            a2.plot(u, weibull_pdf(u, r), color=c, lw=2, label=m)
+        a1.axhline(0, color=house.INK2, lw=1)
+        a1.set_xscale("logit")
+        ticks = [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99]
+        a1.set_xticks(ticks, [f"{100 * t:g}" for t in ticks])
+        a1.xaxis.set_minor_locator(plt.NullLocator())
+        a1.set_xlim(probs[0] * 0.8, 1 - (1 - probs[-1]) * 0.8)
+        a1.set(xlabel="Quantile (%, logit scale)", ylabel="Forecast − observed (m/s)",
+               title="Quantiles less the observed ones, with their 95 % intervals")  # fmt: skip
+        a1.text(0.02, 0.02, "filled: the interval leaves out no difference", transform=a1.transAxes, fontsize=12,
+                color=house.INK2)  # fmt: skip
+        a2.set(xlabel="10 m wind speed (m/s)", ylabel="Density (per m/s)", title="Fitted hybrid Weibull")
+        for ax in (a1, a2):
+            ax.grid(True, color=house.GRID, lw=0.8)
+        fig.legend(*a2.get_legend_handles_labels(), loc="outside lower center", ncols=len(wd["models"]) + 1,
+                   frameon=False)  # fmt: skip
+        region = labels.get(row["region"], row["region"])
+        fig.suptitle(f"10 m wind speed, {region}, {row['group']}: {row['n']:,} pairs from {row['runs']} runs", x=0.01,
+                     ha="left")  # fmt: skip
+        f = save(fig, out / f"wind_{row['region']}_{row['group'].replace(' ', '').replace('-', '_')}.webp")
+        manifest.setdefault(row["region"], {})[row["group"]] = f
+    print(f"wind: {sum(len(g) for g in manifest.values())} figures", flush=True)
+    return manifest
+
+
+def database(derived: Path) -> dict:
+    """What the verification database holds, for the page's pointer to it: each model's and ensemble's runs (from
+    the runs' sums, which every run has) and the 500 hPa anomaly correlations'."""
+    out = {}
+    for kind, pattern in (("models", "stats_*.parquet"), ("ensembles", "ens-stats_*.parquet")):
+        files = sorted(derived.glob(pattern))
+        if files:
+            t = pd.concat([pd.read_parquet(f, columns=["model", "init"]).drop_duplicates() for f in files])
+            out[kind] = {str(m): D.run_span(sorted(g["init"].unique())) for m, g in t.groupby("model", observed=True)}
+    if acc := sorted(f.stem.split("_")[1] for f in derived.glob("acc_*.parquet")):
+        out["z500"] = D.run_span([pd.to_datetime(i, format="%Y%m%d%H") for i in acc])
+    return out
+
+
 # --------------------------------------------------------------------------- the deterministic models
 CARD_ROWS = ["t2m", "td2m", "msl", "wind10", "z850", "z500", "z250", "t850", "t500", "t250", "wind850", "wind500",
              "wind250", "q850", "q700"]  # fmt: skip  # the page's main rows (verification.html MAIN)
@@ -382,6 +607,10 @@ DET_WINDOWS = (10, 30, 90, 365, None)  # the page's run switch (its nightly ten 
 SURFACE = {"t2m", "td2m", "msl", "wind10", "pr24"}  # scored at the GHCNh stations, the rest against radiosondes
 BETTER, WORSE = (44, 110, 158), (180, 50, 31)  # verification.html's scorecard colours
 SIG_P = 0.05  # the scorecard's level, as on the page
+GLANCE_VARS = ["z500", "t850", "wind250", "q700", "t2m", "td2m", "msl", "wind10"]  # the page's headline variables
+QTY = {"z": "Geopotential height", "t": "Temperature", "wind": "Vector wind", "q": "Specific humidity"}
+PROFILE_DAYS = (1, 3, 5, 7, 10)
+UNITS = {"degC": "°C", "m s-1": "m/s", "g kg-1": "g/kg"}  # the scores' units as the page writes them
 
 
 def slug(text: str) -> str:
@@ -430,8 +659,14 @@ def det_window(derived: Path, runs: int | None) -> tuple[pd.DataFrame, list, dic
     models, used, left_out = D.window_runs(stats)
     if not used:
         return None
-    s = stats[stats["model"].isin(models) & stats["init"].isin(used)]
+    s = stats[stats["model"].isin(models) & stats["init"].isin(used)].sort_values("init")  # run order: ratio_ci
     return s.assign(mse=s["sse"] / s["n"], bias=s["se"] / s["n"]), models, D.run_span(used) | {"left_out": left_out}
+
+
+def pooled(d: pd.DataFrame) -> tuple:
+    """RMSE and bias of one model's per-run sums (in run order), each with its interval (``ratio_ci``)."""
+    mse = ratio_ci(d["sse"].to_numpy(float), d["n"].to_numpy(float))
+    return (*np.sqrt(np.clip(mse, 0, None)), *ratio_ci(d["se"].to_numpy(float), d["n"].to_numpy(float)))
 
 
 def draw_card(s: pd.DataFrame, region: str, a: str, b: str, span: dict, path: Path) -> str | None:
@@ -504,12 +739,7 @@ def draw_det_lead(s: pd.DataFrame, models: list[str], v: str, region: str, label
         return None
     fig, (a1, a2) = plt.subplots(1, 2, figsize=house.size(15, 0.4), constrained_layout=True)
     for k, m in enumerate(models):
-        gm = g[g["model"] == m]
-        rows = []
-        for lead, d in gm.sort_values("init").groupby("lead_h"):
-            mse = ratio_ci(d["sse"].to_numpy(float), d["n"].to_numpy(float))
-            bias = ratio_ci(d["se"].to_numpy(float), d["n"].to_numpy(float))
-            rows.append((lead / 24, *np.sqrt(np.clip(mse, 0, None)), *bias))
+        rows = [(lead / 24, *pooled(d)) for lead, d in g[g["model"] == m].groupby("lead_h")]
         if not rows:
             continue
         x, r, rlo, rhi, b, blo, bhi = np.array(rows).T
@@ -519,7 +749,8 @@ def draw_det_lead(s: pd.DataFrame, models: list[str], v: str, region: str, label
                         marker="o", ms=4.5, label=m)  # fmt: skip
     a2.axhline(0, color=house.INK2, lw=1)
     for ax, what in ((a1, "RMSE"), (a2, "Bias (forecast − observed)")):
-        ax.set(xlabel="Lead (days)", ylabel=f"{what.split(' ')[0]} ({unit})", title=f"{what}, with its 95 % interval")
+        ax.set(xlabel="Lead (days)", ylabel=f"{what.split(' ')[0]} ({UNITS.get(unit, unit)})",
+               title=f"{what}, with its 95 % interval")  # fmt: skip
         ax.set_xticks(range(11))
         ax.grid(True, color=house.GRID, lw=0.8)
     fig.legend(*a1.get_legend_handles_labels(), loc="outside lower center", ncols=len(models), frameon=False)
@@ -527,8 +758,97 @@ def draw_det_lead(s: pd.DataFrame, models: list[str], v: str, region: str, label
     return save(fig, path)
 
 
+def draw_glance(s: pd.DataFrame, models: list[str], region: str, meta: dict, span: dict, path: Path) -> str | None:
+    """How the error grows: the headline variables' RMSE by lead in one region, each with its 95 % interval."""
+    vs = [v for v in GLANCE_VARS if ((s["variable"] == v) & (s["region"] == region)).any()]
+    if not vs:
+        return None
+    fig, axes = plt.subplots(2, 4, figsize=house.size(15, 0.52), constrained_layout=True)
+    for ax, v in zip(axes.flat, vs, strict=False):
+        g = s[(s["variable"] == v) & (s["region"] == region)]
+        for m in models:
+            rows = [(lead / 24, *pooled(d)[:3]) for lead, d in g[g["model"] == m].groupby("lead_h")]
+            if rows:
+                x, r, lo, hi = np.array(rows).T
+                ax.fill_between(x, lo, hi, color=COLORS.get(m, house.INK2), alpha=0.2, lw=0)
+                ax.plot(x, r, color=COLORS.get(m, house.INK2), lw=2.2, label=m)
+        label, unit = meta.get(v, (short(v), ""))
+        ax.set(title=label[0].upper() + label[1:], xlim=(0, 10), ylabel=f"RMSE ({UNITS.get(unit, unit)})")
+        ax.set_xticks(range(0, 11, 2))
+        ax.title.set_fontsize(15)
+        ax.grid(True, color=house.GRID, lw=0.8)
+    for ax in axes.flat[len(vs) :]:
+        ax.set_visible(False)
+    fig.legend(*axes.flat[0].get_legend_handles_labels(), loc="outside lower center", ncols=len(models), frameon=False)
+    fig.suptitle(f"RMSE by lead (days), {region}, with its 95 % interval: {span['runs']} runs", x=0.01, ha="left")
+    return save(fig, path)
+
+
+def draw_profile(s: pd.DataFrame, models: list[str], qty: str, region: str, day: int, unit: str, span: dict,
+                 path: Path) -> str | None:  # fmt: skip
+    """Error against pressure at one lead, against the radiosondes: each model's RMSE and bias with their 95 %
+    intervals, and its RMSE against the IFS control's on the same soundings, from the ratio of their pooled squared
+    errors with each run a cluster (``ratio_ci``): filled where the interval leaves out no difference."""
+    g = s[(s["region"] == region) & (s["lead_h"] == 24 * day) & s["variable"].str.fullmatch(rf"{qty}\d+")]
+    if g.empty:
+        return None
+    g = g.assign(p=g["variable"].str[len(qty) :].astype(int))
+    levels = sorted(g["p"].unique(), reverse=True)
+    fig, (a1, a2, a3) = plt.subplots(1, 3, figsize=house.size(15, 0.56), sharey=True, constrained_layout=True)
+    u = UNITS.get(unit, unit)
+
+    def draw(ax, k: int, m: str, x, lo, hi, y, filled=None) -> None:
+        y = y * (1 + (k - (len(models) - 1) / 2) * 0.012)  # side by side on the log axis
+        c = COLORS.get(m, house.INK2)
+        ax.errorbar(x, y, xerr=[x - lo, hi - x], fmt="none", ecolor=c, elinewidth=1.6, alpha=0.75)
+        ax.plot(x, y, color=c, lw=2.2, label=m)
+        face = c if filled is None else [c if f else "white" for f in filled]
+        ax.scatter(x, y, s=34, facecolors=face, edgecolors=c, linewidths=1.8, zorder=3)
+
+    for k, m in enumerate(models):
+        rows = [(p, *pooled(d)) for p, d in g[g["model"] == m].groupby("p")]
+        if not rows:
+            continue
+        y, r, rlo, rhi, b, blo, bhi = np.array(rows).T
+        draw(a1, k, m, r, rlo, rhi, y)
+        if qty != "wind":
+            draw(a3, k, m, b, blo, bhi, y)
+        if REF in models and m != REF:
+            pct = []
+            for p, d in g[g["model"].isin([m, REF])].groupby("p"):
+                w = d.pivot_table(index="init", columns="model", values="sse").dropna()  # the runs both have
+                if m in w and REF in w and len(w) >= 3:
+                    pct.append((p, *(100 * (np.sqrt(np.clip(ratio_ci(w[m].to_numpy(float), w[REF].to_numpy(float)),
+                                                            0, None)) - 1))))  # fmt: skip
+            if pct:
+                y2, c, lo, hi = np.array(pct).T
+                draw(a2, k, m, c, lo, hi, y2, filled=(lo > 0) | (hi < 0))
+    a1.set(title=f"RMSE ({u})", ylabel="Pressure (hPa)", yscale="log")
+    a1.set_ylim(max(levels) * 1.06, min(levels) / 1.06)
+    a1.set_yticks(levels, [str(p) for p in levels])
+    a1.yaxis.set_minor_locator(plt.NullLocator())
+    a2.axvline(0, color=COLORS[REF], lw=2)
+    a2.set(title=f"RMSE against the {LABEL[REF]}, %")
+    a2.text(0.02, 0.01, "filled: the 95 % interval leaves out no difference", transform=a2.transAxes, fontsize=12,
+            color=house.INK2, va="bottom")  # fmt: skip
+    if qty == "wind":
+        a3.text(0.5, 0.5, "No bias for a vector wind", ha="center", va="center", transform=a3.transAxes,
+                color=house.INK2)  # fmt: skip
+        a3.set_xticks([])
+    else:
+        a3.axvline(0, color=house.INK2, lw=1)
+    a3.set(title=f"Bias, forecast − observed ({u})")
+    for ax in (a1, a2, a3):
+        ax.grid(True, color=house.GRID, lw=0.8)
+    fig.legend(*a1.get_legend_handles_labels(), loc="outside lower center", ncols=len(models), frameon=False)
+    fig.suptitle(f"{QTY[qty]} against radiosondes, {region}, day {day}, with 95 % intervals: {span['runs']} runs",
+                 x=0.01, ha="left")  # fmt: skip
+    return save(fig, path)
+
+
 def det_figs(derived: Path, out: Path) -> dict:
-    """The scorecards and the error by lead of each window of runs of the database."""
+    """The scorecards, the error by lead, the headline variables at a glance and the upper-air profiles of each window
+    of runs of the database."""
     meta = {}
     for f in sorted(D.OUT_DIR.glob("scores*.json")):
         for r in json.loads(f.read_text())["rows"]:
@@ -538,7 +858,7 @@ def det_figs(derived: Path, out: Path) -> dict:
         if (found := det_window(derived, w)) is None:
             continue
         s, models, span = found
-        name, cards, leads = name_of(w), {}, {}
+        name, cards, leads, glance, profile = name_of(w), {}, {}, {}, {}
         for region in CARD_REGIONS:
             for a in models:
                 for b in models:
@@ -553,8 +873,21 @@ def det_figs(derived: Path, out: Path) -> dict:
                     s, models, v, region, label, unit, span, out / f"lead_{name}_{v}_{slug(region)}.webp"
                 ):
                     leads.setdefault(v, {})[region] = f
-        manifest[name] = {"window": span, "models": models, "card": cards, "lead": leads}
-        print(f"scores {name}: {span['runs']} runs, {len(cards)} scorecard regions, {len(leads)} variables", flush=True)
+        for region in sorted(s.loc[s["variable"] == "t2m", "region"].unique()):
+            if f := draw_glance(s, models, region, meta, span, out / f"glance_{name}_{slug(region)}.webp"):
+                glance[region] = f
+        upper = s[s["network"] == "RAOB"]
+        for qty in QTY:
+            unit = next((u for v, (_, u) in meta.items() if v.removeprefix(qty).isdigit()), "")
+            for region in sorted(upper["region"].unique()):
+                for day in PROFILE_DAYS:
+                    if f := draw_profile(upper, models, qty, region, day, unit, span,
+                                         out / f"profile_{name}_{qty}_{slug(region)}_d{day}.webp"):  # fmt: skip
+                        profile.setdefault(qty, {}).setdefault(region, {})[str(day)] = f
+        manifest[name] = {"window": span, "models": models, "card": cards, "lead": leads, "glance": glance,
+                          "profile": profile}  # fmt: skip
+        print(f"scores {name}: {span['runs']} runs, {len(cards)} scorecard regions, {len(leads)} variables, "
+              f"{sum(len(r) for q in profile.values() for r in q.values())} profiles", flush=True)  # fmt: skip
     return manifest
 
 
@@ -740,8 +1073,11 @@ def main() -> None:
     if a.clim and a.clim.exists():
         manifest["acc"] = acc_figs(a.derived, a.clim, a.out)
     manifest["rain"] = rain_figs(a.derived, a.out)
+    manifest["rain_skill"] = rain_skill_figs(a.derived, a.out)
     manifest["scores"] = det_figs(a.derived, a.out)
+    manifest["wind"] = wind_figs(a.out)
     manifest["ensembles"] = ens_figs(a.derived, a.out)
+    manifest["database"] = database(a.derived)
     (D.OUT_DIR / "figs.json").write_text(json.dumps(manifest, indent=1) + "\n")
 
 

@@ -348,10 +348,17 @@ jobs:
           up() {  # release, folder: the tables written since the download
             local new; new=$(find "$2" -name '*.npz' -newer "$RUNNER_TEMP/ref_marker" 2>/dev/null | sort)
             if [ -z "$new" ]; then echo "$1: no new tables"; return 0; fi
-            echo "$new"; gh release upload "$1" --repo "$GITHUB_REPOSITORY" --clobber $new
+            echo "$new"
+            for i in 1 2 3 4 5; do  # the API allowance is shared: wait it out rather than lose the tables
+              gh release upload "$1" --repo "$GITHUB_REPOSITORY" --clobber $new && return 0
+              echo "upload to $1 failed (try $i); waiting"; sleep 180
+            done
+            return 1
           }
-          up "$REF_TAG" "$C3S_REF_DIR"
-          up "$EM_TAG" "$C3S_EM_DIR"
+          F=0
+          up "$REF_TAG" "$C3S_REF_DIR" || F=1
+          up "$EM_TAG" "$C3S_EM_DIR" || F=1
+          exit $F
 
       - name: Status
         if: always() && steps.gate.outputs.run == '1' && steps.enso.outputs.ready == '1'
@@ -489,24 +496,27 @@ jobs:
           umask 077
           printf 'url: %s\nkey: %s\n' "${CDSAPI_URL:-https://cds.climate.copernicus.eu/api}" "$CDSAPI_KEY" > ~/.cdsapirc
 
-      # the places table weights the population cards' hindcast means; the start month's tables already built are kept
+      # the places table weights the population cards' hindcast means; the start month's tables already built are kept.
+      # Public download links, not the API: the repository's hourly API allowance is shared by every workflow
       - name: Download the tables (release ${{ env.REF_TAG }})
         if: steps.gate.outputs.run == '1'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p "$C3S_REF_DIR" "$C3S_EM_DIR"
-          M=${{ steps.gate.outputs.month }}
-          gh release download "$REF_TAG" --repo "$GITHUB_REPOSITORY" -D "$C3S_REF_DIR" -p 'obs_*'
-          gh release download "$REF_TAG" --repo "$GITHUB_REPOSITORY" -D "$C3S_REF_DIR" \
-            -p "hc_terc_*_${M}.npz" -p "hc_anom_*_${M}.npz" || echo "none of start month $M's tables yet"
+          M=${{ steps.gate.outputs.month }}; U="https://github.com/$GITHUB_REPOSITORY/releases/download/$REF_TAG"
+          curl -sSfL --retry 4 --retry-delay 20 -o "$C3S_REF_DIR/obs_c3s_places.npz" "$U/obs_c3s_places.npz"
+          SYS=$(python -c 'import sys; sys.path.insert(0, "scripts/sst"); from c3s_nino34 import MODELS; print(*(f"{m[0]}_{m[1]}" for m in MODELS))')
+          for cs in $SYS; do for v in t2m tp; do for k in hc_terc hc_anom; do
+            f="${k}_${cs}_${v}_${M}.npz"
+            curl -sfL --retry 3 -o "$C3S_REF_DIR/$f" "$U/$f" || rm -f "$C3S_REF_DIR/$f"   # 404: not built yet
+          done; done; done
+          ls "$C3S_REF_DIR"
           touch "$RUNNER_TEMP/ref_marker"
 
       - name: The hindcast (t2m, precipitation)
         if: steps.gate.outputs.run == '1'
         run: |
-          timeout --signal=INT 290m python scripts/sst/c3s_terciles.py --issue "${{ steps.gate.outputs.issue }}" \
-            --kind hc --budget-min 240 || echo "::warning::hindcast tables incomplete (the next run continues)"
+          timeout --signal=INT 270m python scripts/sst/c3s_terciles.py --issue "${{ steps.gate.outputs.issue }}" \
+            --kind hc --budget-min 220 || echo "::warning::hindcast tables incomplete (the next run continues)"
 
       - name: Upload new tables
         if: always() && steps.gate.outputs.run == '1'
@@ -517,7 +527,14 @@ jobs:
           up() {  # release, folder: the tables written since the download
             local new; new=$(find "$2" -name '*.npz' -newer "$RUNNER_TEMP/ref_marker" 2>/dev/null | sort)
             if [ -z "$new" ]; then echo "$1: no new tables"; return 0; fi
-            echo "$new"; gh release upload "$1" --repo "$GITHUB_REPOSITORY" --clobber $new
+            echo "$new"
+            for i in 1 2 3 4 5; do  # the API allowance is shared: wait it out rather than lose the tables
+              gh release upload "$1" --repo "$GITHUB_REPOSITORY" --clobber $new && return 0
+              echo "upload to $1 failed (try $i); waiting"; sleep 180
+            done
+            return 1
           }
-          up "$REF_TAG" "$C3S_REF_DIR"
-          up "$EM_TAG" "$C3S_EM_DIR"
+          F=0
+          up "$REF_TAG" "$C3S_REF_DIR" || F=1
+          up "$EM_TAG" "$C3S_EM_DIR" || F=1
+          exit $F
