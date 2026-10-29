@@ -16,6 +16,7 @@
 #   verifydb.sh mirror               every file the object store lacks into it, checked against GitHub's SHA-256
 #
 # Needs gh with GH_TOKEN and GITHUB_REPOSITORY (as in Actions); mirror, the FRAMES_S3_* store settings as well.
+# VERIFYDB_RESERVE (default 400): the requests of the hour's API allowance every command leaves to the other workflows.
 set -euo pipefail
 R=${GITHUB_REPOSITORY:?}
 
@@ -30,11 +31,24 @@ assets() {
     awk '{ d = substr($2, index($2, "_") + 1); f = ($2 ~ /^(z500-|ens-z500|era5-z500_|acc_)/) ? "verify-z500" : "verify-db"
            if ($1 == f "-" substr(d, 1, 4) "-" substr(d, 5, 2)) print }'
 }
+# the API's hourly allowance is the repository's, shared by every workflow: a batch of files (a backfill's uploads, two
+# requests each) waits for its reset rather than spend the last VERIFYDB_RESERVE requests the site's deploys and the
+# other jobs need. Asking for the allowance is not counted against it.
+reserve() {
+  local left reset wait
+  read -r left reset <<< "$(gh api rate_limit -q '.resources.core | "\(.remaining) \(.reset)"' 2>/dev/null || true)"
+  [[ $left =~ ^[0-9]+$ && $reset =~ ^[0-9]+$ ]] && (( left < ${VERIFYDB_RESERVE:-400} )) || return 0
+  wait=$(( reset - $(date +%s) + 30 ))
+  (( wait > 0 )) || return 0
+  echo "::warning::GitHub's API allowance is down to $left requests: waiting $wait s for its reset" >&2
+  sleep "$wait"
+}
 # a gh command, again after the API's hourly allowance resets when it answers "rate limit", or a minute or two later
 # when GitHub answers with a server error (HTTP 5xx: "We couldn't respond to your request in time"); a few tries
 gh_wait() {
   local k out
   for k in 1 2 3; do
+    reserve
     if out=$("$@" 2>&1); then [ -z "$out" ] || echo "$out"; return 0; fi
     echo "$out" >&2
     if grep -qE "HTTP 5[0-9]{2}" <<< "$out"; then
