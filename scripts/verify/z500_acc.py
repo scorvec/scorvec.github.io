@@ -11,11 +11,10 @@ centres' headline score (verification.html draws it as NCEP EMC does, a time ser
           grid of the teleconnection patterns north of 20N, in whole metres (int16).
   truth   ERA5 at 00Z of each day (ARCO, 0.25 deg) on the same grid, era5-z500_<YYYYMMDD00>.npz, once ARCO holds it
           (its ERA5T, about a week behind real time).
-  clim    The anomalies' normal: ERA5 1991-2020, the daily means of WeatherBench 2's conservative 1.5 deg ERA5 (the
-          same grid) in the local ERA5 store ($ERA5_STORE/wb2_1p5_daily_global/z500), each slot of the 366-day calendar
-          (29 February = 59, 1 March = 60 in every year) the mean of the days within 7 slots of it in all 30 years.
-          A daily mean, where the fields are 00Z: they differ by the atmospheric tide at 500 hPa, a metre or two.
-          Built once, offline, release verify-clim-z500-v1.
+  clim    The anomalies' normal: ERA5 1991-2020 at 00Z, the hour of the fields, from WeatherBench 2's 6-hourly
+          conservative 1.5 deg ERA5 (the same grid), each slot of the 366-day calendar (29 February = 59, 1 March = 60
+          in every year) the mean of the days within 7 slots of it in all 30 years. Built once (verify-clim.yml),
+          release verify-clim-z500-v1.
   acc     Per run, each model and lead over 20-80N and 20-80S (EMC's areas), cosine-of-latitude weighted: the anomaly
           correlation, centred (each anomaly less its area mean; WMO-No. 485) and uncentred, the RMSE, the mean error
           and the standard deviation of each anomaly field. acc_<init>.parquet, once ERA5 covers the run's day 15 and
@@ -35,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import urllib.error
 from pathlib import Path
 
 import ens_verify as E
@@ -49,6 +49,7 @@ G = 9.80665
 DET = {"GFS": "gfs", "IFS": "ifs", "AIFS": "aifs", "GDPS": "gdps"}  # the deterministic models (mverify_scores.MODELS)
 DET_LEADS = range(24, 241, 24)  # 00Z of every day to day 10, the deterministic runs' length in the database
 ARCO = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"
+WB2 = "weatherbench2/datasets/era5/1959-2023_01_10-6h-240x121_equiangular_with_poles_conservative.zarr"
 CLIM_YEARS = (1991, 2020)
 CLIM_HALF = 7  # slots either side of each slot of the normal
 REGIONS = {"NH": (20.0, 80.0), "SH": (-80.0, -20.0)}  # EMC's extratropical belts
@@ -156,13 +157,22 @@ def run_fields(model: str, init: str, work: Path, out: Path) -> None:
 
 
 def fields(a) -> None:
+    """The runs of one model the database lacks. A run its source no longer holds (HPFX's GDPS and GEPS past their
+    days, a 404; a bucket answers 403) is left out with a warning, as mverify_scores.download does: no later pass
+    can fetch it, so it is not a failure."""
     have = _have(a.have)
     a.archive_out.mkdir(parents=True, exist_ok=True)
     a.work.mkdir(parents=True, exist_ok=True)
     for init in D.runs(*a.inits):
         if file_of(a.model, init) in have:
             continue
-        run_fields(a.model, init, a.work, a.archive_out)
+        try:
+            run_fields(a.model, init, a.work, a.archive_out)
+        except urllib.error.HTTPError as e:
+            if e.code not in (403, 404):
+                raise
+            print(f"::warning::{a.model} {init}: not on the source ({e.code}), left out", flush=True)
+            continue
         print(f"{a.model} {init}: archived", flush=True)
 
 
@@ -192,23 +202,49 @@ def truth(a) -> None:
 
 
 def clim(a) -> None:
-    import xarray as xr
-    from localdirs import env_dir
+    """Every 00Z 500 hPa field of CLIM_YEARS from WeatherBench 2's zarr. A chunk holds 8 six-hourly steps of all 13
+    levels, so every chunk is read whatever is wanted of it: they are fetched side by side over HTTPS (xarray reads them
+    a few at a time, over two hours) and only the 00Z 500 hPa slices kept."""
+    import json
+    from concurrent.futures import ThreadPoolExecutor
 
+    import numcodecs
+    import xarray as xr
+
+    url = f"https://storage.googleapis.com/{WB2}/geopotential"
+    meta = json.loads(D.get(f"{url}/.zarray"))  # the chunks' own layout, whatever the zarr library makes of it
+    z = xr.open_zarr(f"gs://{WB2}", storage_options={"token": "anon"})["geopotential"]  # the coordinates
+    if z.dims != ("time", "level", "longitude", "latitude") or meta.get("dimension_separator", ".") != ".":
+        raise RuntimeError(f"WeatherBench 2's geopotential is {z.dims}, not as read here")
+    lat = z["latitude"].values
+    if not (np.allclose(np.sort(lat)[::-1], G15.lat) and np.allclose(z["longitude"].values, G15.lon)):
+        raise RuntimeError("WeatherBench 2's grid is not the verification grid")
+    shape, dtype, codec = meta["chunks"], np.dtype(meta["dtype"]), numcodecs.get_codec(meta["compressor"])
+    nt = shape[0]
+    level = int(np.flatnonzero(z["level"].values == 500)[0])
+    t = pd.DatetimeIndex(z["time"].values)
+    want = (t.year >= CLIM_YEARS[0]) & (t.year <= CLIM_YEARS[1]) & (t.hour == 0)
+
+    def block(b: int) -> np.ndarray:
+        """The 500 hPa slice of time chunk ``b``: (steps, longitude, latitude)."""
+        raw = codec.decode(D.get(f"{url}/{b}.0.0.0"))
+        return np.frombuffer(raw, dtype).reshape(shape)[:, level]
+
+    blocks = np.unique(np.flatnonzero(want) // nt)
     total, count = np.zeros((366, *G15.shape)), np.zeros(366)
-    for y in range(CLIM_YEARS[0], CLIM_YEARS[1] + 1):
-        z = xr.open_dataset(env_dir("ERA5_STORE", "wb2_1p5_daily_global", "z500", f"z500_{y}.nc"))["z500"]
-        z = z.transpose("time", "latitude", "longitude")  # the store's dimension order is not uniform: by name
-        lat = z["latitude"].values
-        if not (np.allclose(np.sort(lat)[::-1], G15.lat) and np.allclose(z["longitude"].values, G15.lon)):
-            raise RuntimeError(f"z500_{y}.nc is not on the verification grid")
-        v = z.values.astype(np.float64)
-        v = v[:, ::-1] if lat[0] < lat[-1] else v
-        if not 4500 < np.median(v) < 6200:  # metres, whatever the attributes say (the store's README)
-            raise RuntimeError(f"z500_{y}.nc: median {np.median(v):.0f}, not 500 hPa heights in metres")
-        s = slot366(pd.DatetimeIndex(z["time"].values))
-        np.add.at(total, s, v)
-        np.add.at(count, s, 1)
+    with ThreadPoolExecutor(32) as ex:
+        for i in range(0, blocks.size, 256):  # a batch at a time, so the chunks waiting in order stay few
+            batch = blocks[i : i + 256]
+            for b, v in zip(batch, ex.map(block, batch), strict=True):
+                k = np.flatnonzero(want[b * nt : (b + 1) * nt])
+                f = v[k].transpose(0, 2, 1).astype(np.float64) / G  # (steps, lat, lon), metres
+                f = f[:, ::-1] if lat[0] < lat[-1] else f
+                s = slot366(t[b * nt + k])
+                np.add.at(total, s, f)
+                np.add.at(count, s, 1)
+            print(f"normal: read to {t[batch[-1] * nt]:%Y-%m-%d}", flush=True)
+    if count.sum() != want.sum():
+        raise RuntimeError(f"normal: {int(count.sum())} of {int(want.sum())} 00Z fields read")
     rows = np.arange(366)
     near = (np.abs((rows[:, None] - rows[None, :] + 183) % 366 - 183) <= CLIM_HALF).astype(float)  # around the year
     normal = (near @ total.reshape(366, -1)).reshape(total.shape) / (near @ count)[:, None, None]
