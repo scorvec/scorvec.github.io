@@ -161,6 +161,7 @@ jobs:
         run: |
           pip install --quiet matplotlib==3.10.9 cartopy==0.25.0
           python scripts/verify/verify_figs.py --derived "$RUNNER_TEMP/derived" --clim "$RUNNER_TEMP/clim_z500_1p5.npz" \
+            --have "$RUNNER_TEMP/have.txt" \
             --out assets/verification/fig
       - name: Publish the figures
         env:

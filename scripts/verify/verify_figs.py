@@ -584,15 +584,20 @@ def wind_figs(out: Path) -> dict:
     return manifest
 
 
-def database(derived: Path) -> dict:
-    """What the verification database holds, for the page's pointer to it: each model's and ensemble's runs (from
-    the runs' sums, which every run has) and the 500 hPa anomaly correlations'."""
-    out = {}
-    for kind, pattern in (("models", "stats_*.parquet"), ("ensembles", "ens-stats_*.parquet")):
-        files = sorted(derived.glob(pattern))
-        if files:
-            t = pd.concat([pd.read_parquet(f, columns=["model", "init"]).drop_duplicates() for f in files])
-            out[kind] = {str(m): D.run_span(sorted(g["init"].unique())) for m, g in t.groupby("model", observed=True)}
+def database(derived: Path, have: Path | None) -> dict:
+    """What the verification database holds, for the page's pointer to it: each model's runs (from the runs' sums,
+    which every model of a run is in), each ensemble's (from the names of its station cases, ens-sfc-<m>_<init>: a
+    run's sums wait for every ensemble that can still come) and the 500 hPa anomaly correlations'."""
+    out, names = {}, have.read_text().split() if have and have.exists() else []
+    if files := sorted(derived.glob("stats_*.parquet")):
+        t = pd.concat([pd.read_parquet(f, columns=["model", "init"]).drop_duplicates() for f in files])
+        out["models"] = {str(m): D.run_span(sorted(g["init"].unique())) for m, g in t.groupby("model", observed=True)}
+    ens = {}
+    for name, code in Z.E.ENSEMBLES.items():
+        if inits := sorted(n[len(f"ens-sfc-{code}_") : -8] for n in names if n.startswith(f"ens-sfc-{code}_")):
+            ens[name] = D.run_span([pd.to_datetime(i, format="%Y%m%d%H") for i in inits])
+    if ens:
+        out["ensembles"] = ens
     if acc := sorted(f.stem.split("_")[1] for f in derived.glob("acc_*.parquet")):
         out["z500"] = D.run_span([pd.to_datetime(i, format="%Y%m%d%H") for i in acc])
     return out
@@ -1066,6 +1071,7 @@ def main() -> None:
     ap.add_argument("--derived", type=Path, required=True, help="the database files the scores are drawn from")
     ap.add_argument("--clim", type=Path, help="the 500 hPa normal (release verify-clim-z500-v1)")
     ap.add_argument("--out", type=Path, required=True, help="the figures' directory")
+    ap.add_argument("--have", type=Path, help="names of the files the database holds, one per line (verifydb.sh list)")
     a = ap.parse_args()
     style()
     a.out.mkdir(parents=True, exist_ok=True)
@@ -1077,7 +1083,7 @@ def main() -> None:
     manifest["scores"] = det_figs(a.derived, a.out)
     manifest["wind"] = wind_figs(a.out)
     manifest["ensembles"] = ens_figs(a.derived, a.out)
-    manifest["database"] = database(a.derived)
+    manifest["database"] = database(a.derived, a.have)
     (D.OUT_DIR / "figs.json").write_text(json.dumps(manifest, indent=1) + "\n")
 
 
