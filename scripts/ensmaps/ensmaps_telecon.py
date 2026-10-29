@@ -26,8 +26,12 @@ the newest run of each model there.
   probability  P(index >= +THR) and P(index <= -THR) from the regression's predictive Student t (cal_cdf: n_eff - 2
                degrees of freedom, s widened for the fit's own uncertainty), at the skilful leads
   observed     ERA5's index at 00Z of the last TAIL_DAYS days, from the same table (ERA5T, about a week behind)
-  outputs      per index the members and means (<id>_plume.webp), the phase probabilities (<id>_prob.webp) and the
-               hindcast skill with each cell's sample (<id>_skill.webp) in FIG (the frames store); the numbers in JSON
+  record       each run's indices, kept as the runs arrive in one record per model (RECORD, the KEEP_DAYS newest days of
+               runs; scripts/strat/run_record.py's layout: per index the members' mean and 10th/90th percentiles at each
+               valid time, and here every member as well), so the run-to-run figure needs nothing but the record
+  outputs      per index the members and means (<id>_plume.webp), the phase probabilities (<id>_prob.webp), the last
+               SHOW runs' ensemble means against valid date (<id>_runs.webp) and the hindcast skill with each cell's
+               sample (<id>_skill.webp) in FIG (the frames store); the numbers in JSON
 
     python scripts/ensmaps/ensmaps_telecon.py run --fields f/*.npz --ref telecon15_ref.npz --table tbl --site .
 """
@@ -60,6 +64,9 @@ MIN_SHARE = 0.8  # the members complete at a lead for its ensemble mean
 TAIL_DAYS = 21
 FIG = "assets/telecon15/fig"
 JSON_OUT = "assets/sst/data/telecon15.json"
+RECORD = "assets/sst/data/runs/telecon15_{}.json"  # each model's runs, beside the stratosphere products' records
+KEEP_DAYS = 10
+SHOW = 8  # runs drawn over one another: four days of 00 and 12Z runs
 NEG, POS, NEUTRAL = "#3f6f8f", "#b4541f", "#e4e2dc"  # the site's cool and warm tokens, its rule grey
 NOT_SIG = "#dcd9d1"  # tested, not skilful (verify_figs.NOT_SIG)
 
@@ -417,6 +424,128 @@ def skill(sid: str, runs: list[dict], cal: dict, name: str, t0: pd.Timestamp, pa
     return VF.save(fig, path)
 
 
+# ── run to run ────────────────────────────────────────────────────────────────────────────────────────────────────────
+def _list(a: np.ndarray, nd: int = 2) -> list:
+    return [round(float(x), nd) if np.isfinite(x) else None for x in a]
+
+
+def record(site: Path, ref: T.Ref, r: dict, ind: tuple) -> bool:
+    """Add a run to its model's record unless the record holds it: per index, at each valid time where the run has an
+    ensemble mean, the mean, the members' 10th and 90th percentiles and every member (null where incomplete); runs more
+    than KEEP_DAYS older than the newest dropped. True when the record changed."""
+    t, v, mean = ind
+    p = site / RECORD.format(r["key"])
+    doc = json.loads(p.read_text()) if p.exists() else {"product": "telecon15", "model": r["key"], "runs": []}
+    init = f"{r['init']:%Y-%m-%dT%H}"
+    if any(x["init"] == init for x in doc["runs"]):
+        return False
+    have = np.isfinite(mean).all(1)
+    rec = {"init": init, "members": int(v.shape[0]), "valid": [f"{x:%Y-%m-%dT%H}" for x in t[have]]}
+    for k, s in enumerate(ref.ids):
+        m = v[:, have, k]
+        rec[s] = {"mean": _list(mean[have, k]), "p10": _list(np.nanpercentile(m, 10, 0)),
+                  "p90": _list(np.nanpercentile(m, 90, 0)), "members": [_list(m[:, j]) for j in range(m.shape[1])]}  # fmt: skip
+    runs = sorted([*doc["runs"], rec], key=lambda x: x["init"])
+    cut = pd.Timestamp(runs[-1]["init"]) - pd.Timedelta(days=KEEP_DAYS)
+    doc["runs"] = [x for x in runs if pd.Timestamp(x["init"]) >= cut]
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(doc, separators=(",", ":"), allow_nan=False))
+    log(f"  run record {p.name}: {len(doc['runs'])} runs, {init} added")
+    return True
+
+
+def recorded(site: Path) -> dict:
+    """{model: its recorded runs, oldest first}."""
+    out = {}
+    for key in MODELS:
+        p = site / RECORD.format(key)
+        if p.exists():
+            out[key] = json.loads(p.read_text())["runs"]
+    return out
+
+
+def tint(colour, white: float) -> tuple:
+    """The colour mixed with white (0: itself, 1: white)."""
+    from matplotlib.colors import to_rgb
+
+    c = np.array(to_rgb(colour))
+    return tuple(c + (1.0 - c) * white)
+
+
+def _arr(x: list) -> np.ndarray:
+    return np.array([np.nan if y is None else y for y in x], np.float64)
+
+
+def evolution(sid: str, runs: list[dict], rec: dict, cal: dict, name: str, path: Path):
+    """The last SHOW runs' ensemble means against valid date, one panel per model: one shade per run start, the oldest
+    lightest, the newest darkest with its members' 10-90 % band; the newest run's leads without demonstrated skill
+    hatched."""
+    plt, VF = _plt()
+    import house
+    import matplotlib.dates as mdates
+    from matplotlib.patches import Patch
+
+    keys = [r["key"] for r in runs if rec.get(r["key"])]
+    starts = sorted({x["init"] for k in keys for x in rec[k][-SHOW:]})[-SHOW:]  # one shade per start, every panel
+    white = {i: 0.85 * (1 - j / max(len(starts) - 1, 1)) for j, i in enumerate(starts)}
+    nr, nc = (1, len(keys)) if len(keys) <= 2 else (2, 2)
+    fig, axes = plt.subplots(nr, nc, figsize=house.size(15, 0.36 if nr == 1 else 0.62), sharex=True, sharey=True,
+                             constrained_layout=True, squeeze=False)  # fmt: skip
+    top, t_lo, t_hi = 2.5, [], []
+    for ax, key in zip(axes.ravel(), keys, strict=False):
+        r = next(x for x in runs if x["key"] == key)
+        shown = [x for x in rec[key] if x["init"] in white]
+        col = COLORS[key]
+        ax.axhspan(-THR, THR, color=NEUTRAL, alpha=0.55, lw=0, zorder=0)
+        ax.axhline(0, color=house.EDGE, lw=1.0, zorder=1)
+        t = pd.DatetimeIndex(r["init"] + pd.to_timedelta(r["lead_h"].astype(int), unit="h"))
+        for a0, a1 in spans(t, np.array([not skilful(cal[key][sid, int(h)]) for h in r["lead_h"]])):
+            ax.axvspan(a0, a1, facecolor="none", edgecolor=house.EDGE, hatch="//", lw=0, zorder=0)
+        for j, x in enumerate(shown):
+            tv, m = pd.DatetimeIndex(x["valid"]), _arr(x[sid]["mean"])
+            new = j == len(shown) - 1
+            if new:
+                lo, hi = _arr(x[sid]["p10"]), _arr(x[sid]["p90"])
+                ax.fill_between(tv, lo, hi, color=col, alpha=0.16, lw=0, zorder=2)
+                top = max(top, 1.08 * float(np.nanmax(np.abs(np.r_[lo, hi]))))
+            ax.plot(tv, m, color=tint(col, white[x["init"]]), lw=3.0 if new else 1.6, zorder=3 + j)
+            t_lo.append(tv[0])
+            t_hi.append(tv[-1])
+        few = len(rec[key]) < SHOW
+        since = f" · recorded since {pd.Timestamp(rec[key][0]['init']):%-d %b %HZ}" if few else ""
+        ax.set_title(f"{MODELS[key]} · {len(shown)} run{'s' * (len(shown) != 1)}{since}", color=house.INK)
+        ax.grid(True, color=house.GRID, lw=0.8)
+    for ax in axes.ravel():
+        ax.set_ylim(-top, top)
+    for j in range(len(keys), nr * nc):
+        axes.flat[j].set_axis_off()
+        axes.flat[j - nc].tick_params(labelbottom=True)
+    for ax in axes[:, 0]:
+        ax.set_ylabel("Seasonal sd")
+    loc = mdates.AutoDateLocator(minticks=4, maxticks=9)
+    axes[0, 0].xaxis.set(major_locator=loc, major_formatter=mdates.DateFormatter("%-d %b"))
+    axes[0, 0].set_xlim(min(t_lo) - pd.Timedelta(hours=12), max(t_hi) + pd.Timedelta(hours=12))
+    lines = [
+        plt.Line2D(
+            [],
+            [],
+            color=tint(house.INK, white[i]),
+            lw=3.0 if i == starts[-1] else 1.6,
+            label=f"{pd.Timestamp(i):%-d %b %HZ}",
+        )
+        for i in starts
+    ]
+    handles = [
+        *lines,
+        Patch(color=house.INK2, alpha=0.16, label="newest run's members, 10–90 %"),
+        Patch(facecolor="white", edgecolor=house.EDGE, hatch="//", label="no demonstrated skill"),
+    ]
+    fig.legend(handles=handles, loc="outside lower center", ncols=min(len(handles), 6), frameon=False)
+    fig.suptitle(f"{name}: each run's ensemble mean by valid date, the oldest run lightest, the newest darkest", x=0.01,
+                 ha="left")  # fmt: skip
+    return VF.save(fig, path)
+
+
 # ── the update ────────────────────────────────────────────────────────────────────────────────────────────────────────
 def _r(x, nd=3):
     return None if x is None or not np.isfinite(x) else round(float(x), nd)
@@ -482,6 +611,9 @@ def cmd_run(a) -> int:
             for j, h in enumerate(r["lead_h"])
             if skilful(c := cal[r["key"]][s, int(h)]) and np.isfinite(mean[j, k])
         }
+    for r in runs:
+        record(a.site, ref, r, ind[r["key"]])
+    rec = recorded(a.site)
     out = a.site / FIG
     out.mkdir(parents=True, exist_ok=True)
     t0 = max(r["init"] for r in runs)
@@ -490,6 +622,7 @@ def cmd_run(a) -> int:
         name = f"{s.upper()} ({ref.meta['patterns'][s]['name']})"
         figs.append(plume(s, k, runs, ind, cal, obs, name, out / f"{s}_plume.webp"))
         figs.append(prob(s, k, runs, ind, probs, cal, name, out / f"{s}_prob.webp"))
+        figs.append(evolution(s, runs, rec, cal, name, out / f"{s}_runs.webp"))
         figs.append(skill(s, runs, cal, name, t0, out / f"{s}_skill.webp"))
     js = a.site / JSON_OUT
     js.parent.mkdir(parents=True, exist_ok=True)

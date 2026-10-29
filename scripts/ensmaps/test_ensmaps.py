@@ -591,6 +591,16 @@ def telecon():
         whole = ref.index(ref.anomaly(run["z"].astype(float).mean(0), tt), tt)
         check(np.allclose(mean, whole) and np.allclose(mean, mem.mean(0)),
               "the ensemble mean's index is the index of the members' mean field")  # fmt: skip
+        site = Path(tmp) / "site"
+        added = []
+        for back in (12 * 24, 36, 24, 0, 0):  # one run older than KEEP_DAYS before the newest, the newest twice
+            r = dict(run, init=run["init"] - pd.Timedelta(hours=back))
+            added.append(ET.record(site, ref, r, (tt - pd.Timedelta(hours=back), mem, mean)))
+        rec = ET.recorded(site)["gefs"]
+        check(added == [True, True, True, True, False] and [x["init"] for x in rec] == ["2026-10-26T12", "2026-10-27T00",
+              "2026-10-28T00"] and len(rec[-1]["pna"]["members"]) == 15 and len(rec[-1]["pna"]["members"][0]) == 5
+              and np.allclose(rec[-1]["epo"]["mean"], np.round(mean[:, 1], 2)),
+              "run record: a run is added once, runs over KEEP_DAYS older than the newest dropped, every member kept")  # fmt: skip
 
     # the hindcast fit on daily starts: an AR(1) observed index, forecasts that lose skill with lead
     starts = pd.date_range("2024-09-01", "2026-10-20", freq="D")
