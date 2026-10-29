@@ -68,7 +68,7 @@ jobs:
             --clim "$RUNNER_TEMP/clim_z500_1p5.npz" --out "$RUNNER_TEMP/telecon15_ref.npz"
           gh release create "$REF_TAG" "$RUNNER_TEMP/telecon15_ref.npz" --latest=false \
             --title "Teleconnections, days 1-15: reference" \
-            --notes "The PNA, EPO and WPO projectors of gefs-ref-v1 cut to 20-90N on the 2.5 degree grid, each index's seasonal standard deviation on the 366-day calendar, and the ERA5 1991-2020 500 hPa normal of verify-clim-z500-v1 at 00 and 12 UTC (with the tide from WeatherBench 2's ERA5 climatology by hour of day), for scripts/ensmaps/ensmaps_telecon.py (scripts/ensmaps/telecon15.py ref)."
+            --notes "The PNA, EPO and WPO projectors of gefs-ref-v1 cut to 20-90N on the 2.5 degree grid, each index's seasonal standard deviation on the 366-day calendar, and the ERA5 1991-2020 500 hPa normal at 00 UTC of verify-clim-z500-v1 and at 12 UTC (the same plus the 12 less 00 UTC difference in WeatherBench 2's ERA5 climatology by hour of day), for scripts/ensmaps/ensmaps_telecon.py (scripts/ensmaps/telecon15.py ref)."
 
   hindcast:
     needs: ref

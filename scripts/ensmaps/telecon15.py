@@ -13,10 +13,11 @@ index against ERA5's that calibrates them.
             - sigma, the seasonal sd of each daily index (1991-2020, within 15 days of the day of year), and the months
               CPC defines it in, on the 366-slot calendar (latlon.slot366), 29 February the mean of 28 February and
               1 March as the GEFS page reads it (gefs_reforecast.at_key).
-            - the normal: ERA5 1991-2020 of release verify-clim-z500-v1 (daily means, 1.5 deg) remapped conservatively
-              onto the same grid, plus the 500 hPa tide at 00 and 12 UTC, each hour's departure from the mean of the
-              four synoptic hours in WeatherBench 2's ERA5 climatology by hour of day (1990-2019, 1.5 deg), fitted
-              with a mean and three annual harmonics: a 00Z or 12Z field is compared with the normal of its own hour.
+            - the normal: ERA5 1991-2020 at 00Z of release verify-clim-z500-v1 (1.5 deg, z500_acc.clim: the normal of
+              the hindcast's ERA5 and of the 500 hPa anomaly correlations) remapped conservatively onto the same grid;
+              at 12Z the same plus the tide between the two hours, 12Z less 00Z in WeatherBench 2's ERA5 climatology
+              by hour of day (1990-2019, 1.5 deg) fitted with a mean and three annual harmonics, so a 12Z run's
+              field is compared with a normal of its own hour.
             The build checks the cut projectors against gefs_patterns.Ref.index on random global fields and prints the
             tide's part of each index.
   index     (field - normal of its hour and day) [/ std_month] . projector / sigma, in seasonal sd of the daily index;
@@ -52,6 +53,7 @@ REF_TAG = "telecon15-ref-v1"
 REF_NAME = "telecon15_ref.npz"
 IDS = ("pna", "epo", "wpo")
 HOURS = (0, 12)  # the synoptic hours a forecast is read at: a 00Z run's 00Z, a 12Z run's 12Z
+CLIM_HOUR = 0  # the hour of verify-clim-z500-v1's normal
 LEADS = tuple(range(24, 361, 24))  # hours: 00Z of each day to day 15, the database's ensemble leads (ens_verify.LEADS)
 WB2_CLIM = (
     "gs://weatherbench2/datasets/era5-hourly-climatology/1990-2019_6h_240x121_equiangular_with_poles_conservative.zarr"
@@ -96,10 +98,10 @@ class Ref:
 
 
 def tide(path: str = WB2_CLIM) -> np.ndarray:
-    """(366, 2, 121, 240) on the 1.5 deg grid, 90N first, from 0E: ERA5's 500 hPa height at 00 and 12 UTC less the mean
-    of the four synoptic hours, by slot of the 366-day calendar, as a mean and TIDE_HARMONICS annual harmonics.
-    WeatherBench 2 keys its climatology by the raw day of the year; slot s is read as its day s + 1 (a day apart after
-    February in common years, nothing in a curve this smooth)."""
+    """(366, HOURS, 121, 240) on the 1.5 deg grid, 90N first, from 0E: ERA5's 500 hPa height at each of HOURS less that
+    at CLIM_HOUR, by slot of the 366-day calendar, as a mean and TIDE_HARMONICS annual harmonics. WeatherBench 2 keys its
+    climatology by the raw day of the year; slot s is read as its day s + 1 (a day apart after February in common
+    years, nothing in a curve this smooth)."""
     import xarray as xr
 
     z = xr.open_zarr(path, chunks=None, storage_options={"token": "anon"})["geopotential"].sel(level=500)
@@ -111,7 +113,8 @@ def tide(path: str = WB2_CLIM) -> np.ndarray:
         raise RuntimeError("WeatherBench 2's climatology is not on the verification grid")
     v = z.values.astype(np.float64) / G
     v = v[:, :, ::-1] if lat[0] < lat[-1] else v
-    d = v[:, [0, 2]] - v.mean(1, keepdims=True)  # 00 and 12 UTC
+    hour = list(z["hour"].values)
+    d = v[:, [hour.index(h) for h in HOURS]] - v[:, [hour.index(CLIM_HOUR)]]
     x = 2 * np.pi * np.arange(366)[:, None] * np.arange(1, TIDE_HARMONICS + 1)[None] / 366.0
     B = np.hstack([np.ones((366, 1)), np.cos(x), np.sin(x)])
     coef, *_ = np.linalg.lstsq(B, d.reshape(366, -1), rcond=None)
@@ -153,10 +156,9 @@ def build_ref(a) -> None:
     clim = np.load(a.clim)
     if clim["z500"].shape != (366, *G15.shape):
         raise SystemExit(f"{a.clim}: not the 366 slots of the 1.5 deg normal")
-    daily = np.stack([remap(c, G15.lat, G15.lon, G25N) for c in clim["z500"]]).astype(np.float64)
-    td = tide()
-    td25 = np.stack([[remap(t, G15.lat, G15.lon, G25N) for t in s] for s in td])
-    ref["normal"] = (daily[:, None] + td25).astype(np.float32)
+    normal = np.stack([remap(c, G15.lat, G15.lon, G25N) for c in clim["z500"]]).astype(np.float64)
+    td25 = np.stack([[remap(t, G15.lat, G15.lon, G25N) for t in s] for s in tide()])
+    ref["normal"] = (normal[:, None] + td25).astype(np.float32)
     sha = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in (a.patterns, a.clim)}
     meta = {
         "patterns": {s: gp.pat[s] for s in IDS},
@@ -164,7 +166,7 @@ def build_ref(a) -> None:
         "sources": {
             "patterns": f"gefs-ref-v1/{a.patterns.name} sha256 {sha[a.patterns.name]}",
             "normal": f"verify-clim-z500-v1/{a.clim.name} sha256 {sha[a.clim.name]}",
-            "tide": f"{WB2_CLIM}, hours 00 and 12 less the four hours' mean, mean + {TIDE_HARMONICS} harmonics",
+            "tide": f"{WB2_CLIM}, each hour less {CLIM_HOUR:02d} UTC, mean + {TIDE_HARMONICS} annual harmonics",
         },
     }
     ref["meta"] = np.array(json.dumps(meta))
@@ -188,10 +190,12 @@ def check_ref(r: Ref, gp, GR, td25: np.ndarray) -> None:
         raise SystemExit("the cut projectors do not reproduce the GEFS page's indices")
     days = pd.date_range("2024-01-01", "2024-12-31", freq="D")
     for h, hour in enumerate(HOURS):
+        if hour == CLIM_HOUR:
+            continue
         part = r.index(td25[slot366(days), h], days)
         by = pd.DataFrame(part, index=days, columns=r.ids).groupby(days.month).agg(lambda x: np.abs(x).max())
-        print(f"check: the {hour:02d} UTC tide, largest {np.abs(td25[:, h]).max():.1f} m 20-90N; its part of each "
-              f"index, largest |sd| in each month:\n{by.round(3)}", flush=True)  # fmt: skip
+        print(f"check: {hour:02d} UTC less {CLIM_HOUR:02d} UTC, largest {np.abs(td25[:, h]).max():.1f} m 20-90N; its "
+              f"part of each index, largest |sd| in each month:\n{by.round(3)}", flush=True)  # fmt: skip
 
 
 # ── the hindcast table ────────────────────────────────────────────────────────────────────────────────────────────────
