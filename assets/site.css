@@ -110,47 +110,42 @@
 .sh-has-menu.is-open > .sh-menubtn { background: var(--c-accent-soft); }
 .sh-has-menu.is-open > .sh-menubtn::after { transform: rotate(225deg); margin-top: 0.2em; }
 
-/* Products dropdown */
+/* Products dropdown: a panel of two columns, each a small-caps heading over its links; a link is its name over a
+   one-line note, the whole row the target, tinted with an accent bar on hover. The 10 px transparent top border
+   bridges the gap under the button, so the pointer keeps the menu open on its way down. */
 .sh-menu {
-  position: absolute; top: 100%; right: 0; border-top: 10px solid transparent; background-clip: padding-box;
-  display: none; grid-template-columns: repeat(2, minmax(14rem, 1fr)); gap: 1.1rem 2rem;
-  width: min(50rem, calc(100vw - 2rem));
-  padding: 1.25rem 1.5rem 1.1rem;
+  position: absolute; top: 100%; left: 0; border-top: 10px solid transparent; background-clip: padding-box;
+  display: none; grid-template-columns: repeat(2, minmax(15rem, 19rem)); gap: 0 0.8rem;
+  width: max-content; max-width: calc(100vw - 2rem);
+  padding: 0.75rem 0.6rem 0.7rem;
   background: var(--c-panel); color: var(--c-ink);
-  border: 1px solid var(--c-rule); border-radius: 10px;
-  box-shadow: 0 14px 36px rgba(20, 30, 45, 0.16);
+  border: 1px solid var(--c-rule); border-radius: 14px;
+  box-shadow: 0 20px 44px -14px rgba(20, 30, 45, 0.3), 0 2px 6px rgba(20, 30, 45, 0.06);
   text-align: left;
 }
 .sh-menu { border-left-color: var(--c-rule); border-right-color: var(--c-rule); border-bottom-color: var(--c-rule); }
-.sh-has-menu.is-open > .sh-menu { display: grid; }
+.sh-has-menu.is-open > .sh-menu { display: grid; animation: sh-drop 0.14s ease-out; }
+@keyframes sh-drop { from { opacity: 0; translate: 0 -4px; } }   /* translate, not transform: site.js shifts the panel with transform */
+.sh-item:nth-last-child(-n + 3) > .sh-menu { left: auto; right: 0; }   /* the last menus open leftwards */
+.sh-col { display: grid; align-content: start; gap: 0.5rem; }
 .sh-menu h3 {
-  font-family: var(--f-serif); font-size: 1.25rem; font-weight: 500; line-height: 1.3;
-  color: var(--c-accent); margin: 0 0 0.4rem;
+  font: 600 0.7rem/1.2 var(--f-sans); letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--c-muted); margin: 0.35rem 0 0.25rem; padding: 0 0.75rem;
 }
 .sh-menu ul { list-style: none; margin: 0; padding: 0; }
 .sh-menu li { margin: 0; padding: 0; }
 .sh-menu a {
-  display: block; padding: 0.42rem 0; font-size: 1.22rem;
-  color: var(--c-ink); text-decoration: none;
+  display: grid; gap: 0.1rem; padding: 0.45rem 0.75rem; border-radius: 9px;
+  color: var(--c-ink); text-decoration: none; transition: background-color 0.12s, box-shadow 0.12s;
 }
-.sh-menu a:hover { color: var(--c-accent); text-decoration: underline; text-underline-offset: 0.16em; }
-.sh-menu a[aria-current="page"] { font-weight: 500; color: var(--c-accent); }
-.sh-menu .sh-all {
-  grid-column: 1 / -1; margin-top: 0.3rem; padding-top: 0.8rem;
-  border-top: 1px solid var(--c-rule); font-size: 0.92rem; color: var(--c-muted);
-}
-.sh-menu .sh-all a { display: inline; padding: 0; color: var(--c-accent); text-decoration: underline; text-underline-offset: 0.16em; }
-/* One short list per top-level group: a narrow panel under its own button. The last
-   groups open leftwards so nothing spills past the right edge of the page. */
-.sh-menu--list { left: 0; right: auto; width: max-content; min-width: 15rem; max-width: 24rem; grid-template-columns: 1fr; padding: 0.7rem 1.1rem 0.75rem; }
-.sh-item:nth-last-child(-n + 4) > .sh-menu--list { left: auto; right: 0; }
-.sh-menu--list a { padding: 0.3rem 0; white-space: nowrap; }
-.sh-menu--cols { left: 0; right: auto; width: max-content; min-width: 30rem; max-width: 48rem; grid-template-columns: repeat(2, minmax(14rem, auto)); gap: 0 2.2rem; padding: 0.8rem 1.2rem 0.7rem; }
-.sh-menu--one { min-width: 17rem; max-width: 28rem; grid-template-columns: 1fr; }
-/* each column stacks its groups on its own (apply_chrome._split_columns), so a short group leaves no hole beside a long one */
-.sh-col { display: grid; align-content: start; gap: 0.7rem; }
-.sh-menu--cols a { padding: 0.26rem 0; white-space: nowrap; }
-.sh-menu--cols h3 { font-size: 1rem; font-family: var(--f-sans); font-weight: 500; letter-spacing: 0.04em; color: var(--c-muted); margin: 0 0 0.25rem; }
+.sh-menu .sh-t { font-size: 1.04rem; font-weight: 500; line-height: 1.25; }
+.sh-menu .sh-d { font-size: 0.85rem; line-height: 1.3; color: var(--c-muted); }
+.sh-menu a:hover, .sh-menu a:focus-visible { background: var(--c-accent-soft); box-shadow: inset 3px 0 0 var(--c-accent); }
+.sh-menu a:hover .sh-t, .sh-menu a[aria-current="page"] .sh-t { color: var(--c-accent); }
+.sh-menu a[aria-current="page"] { box-shadow: inset 3px 0 0 var(--c-accent); }
+/* the About menu: one short list of plain links */
+.sh-menu--list { grid-template-columns: 1fr; min-width: 13rem; padding: 0.45rem; }
+.sh-menu--list a { padding: 0.4rem 0.75rem; font-size: 1rem; white-space: nowrap; }
 
 /* mobile toggle */
 .sh-toggle {
@@ -187,14 +182,15 @@
   .sh-link:hover { background: none; color: var(--c-accent); }
   .sh-menu {
     position: static; width: auto; grid-template-columns: 1fr; gap: 0.9rem;
-    padding: 0.5rem 0.25rem 0.9rem; background: none; border: 0; border-radius: 0; box-shadow: none;
+    padding: 0.5rem 0.25rem 0.9rem; background: none; border: 0; border-radius: 0; box-shadow: none; animation: none;
   }
-  .sh-menu h3 { margin-bottom: 0.15rem; }
-  .sh-menu a { padding: 0.35rem 0; }
-  /* phones: every group is shown open, so a page is one tap away — the group buttons are headings here */
+  /* phones: every group is shown open, so a page is one tap away — the group buttons are headings here, and a link
+     is its name alone (the notes would double the list) */
   .sh-menu--list, .sh-menu--cols { display: grid; min-width: 0; width: auto; max-width: none; padding: 0.15rem 0 0.7rem 0.9rem; grid-template-columns: 1fr; gap: 0.5rem; }
-  .sh-menu--cols h3 { margin-top: 0.4rem; }
-  .sh-menu--list a, .sh-menu--cols a { white-space: normal; font-size: 1.02rem; }
+  .sh-menu h3 { margin: 0.4rem 0 0.15rem; padding: 0; }
+  .sh-menu a { padding: 0.35rem 0; border-radius: 0; white-space: normal; font-size: 1.02rem; }
+  .sh-menu a:hover, .sh-menu a:focus-visible, .sh-menu a[aria-current="page"] { background: none; box-shadow: none; }
+  .sh-menu .sh-d { display: none; }
   .sh-has-menu > .sh-menubtn { pointer-events: none; color: var(--c-muted); font-size: 0.95rem; text-transform: none; padding-top: 1rem; padding-bottom: 0.3rem; border-bottom: 0; }
   .sh-has-menu > .sh-menubtn::after, .sh-has-menu > .sh-menubtn::before { display: none; }
 }
@@ -215,9 +211,12 @@
 .sh--compact .sh-list { flex-direction: column; align-items: stretch; gap: 0; }
 .sh--compact .sh-link { width: 100%; padding: 0.95rem 0.25rem; border-radius: 0; border-bottom: 1px solid var(--c-rule); justify-content: space-between; font-size: 1.1rem; }
 .sh--compact .sh-link:hover { background: none; color: var(--c-accent); }
-.sh--compact .sh-menu { position: static; width: auto; grid-template-columns: 1fr; gap: 0.9rem; padding: 0.5rem 0.25rem 0.9rem; background: none; border: 0; border-radius: 0; box-shadow: none; }
+.sh--compact .sh-menu { position: static; width: auto; grid-template-columns: 1fr; gap: 0.9rem; padding: 0.5rem 0.25rem 0.9rem; background: none; border: 0; border-radius: 0; box-shadow: none; animation: none; }
 .sh--compact .sh-menu--list, .sh--compact .sh-menu--cols { display: grid; min-width: 0; width: auto; max-width: none; padding: 0.15rem 0 0.7rem 0.9rem; grid-template-columns: 1fr; gap: 0.5rem; }
-.sh--compact .sh-menu--list a, .sh--compact .sh-menu--cols a { white-space: normal; font-size: 1.02rem; }
+.sh--compact .sh-menu h3 { margin: 0.4rem 0 0.15rem; padding: 0; }
+.sh--compact .sh-menu a { padding: 0.35rem 0; border-radius: 0; white-space: normal; font-size: 1.02rem; }
+.sh--compact .sh-menu a:hover, .sh--compact .sh-menu a:focus-visible, .sh--compact .sh-menu a[aria-current="page"] { background: none; box-shadow: none; }
+.sh--compact .sh-menu .sh-d { display: none; }
 .sh--compact .sh-has-menu > .sh-menubtn { pointer-events: none; color: var(--c-muted); font-size: 0.95rem; padding-top: 1rem; padding-bottom: 0.3rem; border-bottom: 0; }
 .sh--compact .sh-has-menu > .sh-menubtn::after, .sh--compact .sh-has-menu > .sh-menubtn::before { display: none; }
 .sh--compact .sh-item--special { margin: 0.4rem 0 0.2rem; }
@@ -241,18 +240,16 @@
 .sh--overlay .sh-link::before { background: #fff; }
 .sh--overlay .sh-link:hover, .sh--overlay .sh-has-menu.is-open > .sh-menubtn { background: rgba(255, 255, 255, 0.18); }
 .sh--overlay .sh-toggle { font-size: 1.1rem; padding: 0.65rem 1.1rem; }
-.sh--overlay .sh-menu { --c-ink: #29321f; --c-accent: #274b7a; --c-muted: #5c6b73; --c-rule: #dfe3dc; text-shadow: none; }
+.sh--overlay .sh-menu { --c-ink: #29321f; --c-accent: #274b7a; --c-accent-soft: rgba(39, 75, 122, 0.08); --c-muted: #5c6b73; --c-rule: #dfe3dc; text-shadow: none; }
 .sh--overlay .sh-toggle { border-color: rgba(255, 255, 255, 0.55); }
 /* the stacked menu over the hero: opaque (at 0.94 the hero's title reads through the links), and the same dark sheet
    when a mid-width window collapses the row (a light sheet would leave the white group titles unreadable) */
 @media (max-width: 860px) {
   .sh--overlay nav.sh-nav { background: #121a0e; border-bottom: 0; --c-rule: rgba(255, 255, 255, 0.16); --c-muted: rgba(255, 255, 255, 0.72); }
   .sh--overlay .sh-menu { --c-ink: #ffffff; --c-accent: #ffffff; --c-muted: rgba(255,255,255,0.7); --c-rule: rgba(255,255,255,0.16); }
-  html .sh--overlay .sh-menu li.sh-subitem a { color: rgba(255,255,255,0.7); }
 }
 .sh--overlay.sh--compact nav.sh-nav { background: #121a0e; border-bottom: 0; --c-rule: rgba(255, 255, 255, 0.16); --c-muted: rgba(255, 255, 255, 0.72); }
 .sh--overlay.sh--compact .sh-menu { --c-ink: #ffffff; --c-accent: #ffffff; --c-muted: rgba(255,255,255,0.7); --c-rule: rgba(255,255,255,0.16); }
-html .sh--overlay.sh--compact .sh-menu li.sh-subitem a { color: rgba(255,255,255,0.7); }
 
 /* ── Section tabs (a product family's pages) ─────────────────────────── */
 .st {
@@ -614,7 +611,7 @@ html.fp-lock { overflow: hidden; }
 .sh .sh-me { color: var(--c-muted); font-size: 0.98rem; }
 .sh .sh-me:hover, .sh-item--me.is-open > .sh-me { color: var(--c-ink); }
 .sh-link.sh-me[aria-current="page"] { color: var(--c-accent); }
-.sh-menu--me { left: auto; right: 0; min-width: 12rem; }
+.sh-menu--me { left: auto; right: 0; }
 .sh-menu--me .sh-me-ext { margin-top: 0.35rem; padding-top: 0.35rem; border-top: 1px solid var(--c-rule); }
 .sh--overlay .sh-item--me::before { background: rgba(255, 255, 255, 0.45); }
 .sh--overlay .sh .sh-me, .sh--overlay .sh-me { color: rgba(255, 255, 255, 0.92); }
@@ -655,15 +652,6 @@ html.fp-lock { overflow: hidden; }
 }
 /* only on genuinely narrow windows does the one-line row step down from 19 px, so 1280-px screens keep the full row */
 @media (min-width: 861px) and (max-width: 1340px) { .sh.sh--tighter .sh-link { font-size: 16px; padding: 10px 5px; } }
-/* a deep link under its own page in a menu column (Atmospheric circulation): indented and quieter */
-.sh-menu li.sh-subitem a { padding-left: 0.95rem; font-size: 1.1rem; color: var(--c-muted); }
-.sh-menu li.sh-subitem a:hover { color: var(--c-accent); }
-.sh--overlay .sh-menu li.sh-subitem a { color: #5c6b73; }
-/* a menu's full title in the stacked phone / compact menu, its short label on the one-line desktop row */
-.sh .sh-lf { display: none; }
-@media (max-width: 860px) { .sh .sh-lf { display: inline; } .sh .sh-ls { display: none; } }
-.sh.sh--compact .sh-lf { display: inline; }
-.sh.sh--compact .sh-ls { display: none; }
 
 /* The explanation section at the bottom of a page: a page opens on its numbers and figures, and its methods, caveats
    and definitions go here, below them. */

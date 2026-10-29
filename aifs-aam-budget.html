@@ -38,8 +38,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-<script src="/assets/site.js?v=7134a53040" defer></script>
-<link rel="stylesheet" href="/assets/site.css?v=0816bc7047">
+<script src="/assets/site.js?v=6a624e5f1e" defer></script>
+<link rel="stylesheet" href="/assets/site.css?v=08996a48dc">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
@@ -100,137 +100,120 @@
     <nav class="sh-nav" id="sh-menu" aria-label="Site">
       <ul class="sh-list">
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Model maps</button>
-          <div class="sh-menu sh-menu--list" id="sh-g0">
-            <ul>
-              <li><a href="/models.html">North America, short range</a></li>
-              <li><a href="/samerica-models.html">South America, to day 10</a></li>
-              <li><a href="/ens-anomalies.html">World ensembles, to day 15</a></li>
-              <li><a href="/strat-models.html">Interactive stratosphere viewer</a></li>
-            </ul>
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div class="sh-col">
+              <div>
+                <h3>Model maps</h3>
+                <ul>
+                  <li><a href="/models.html"><span class="sh-t">North America, short range</span><span class="sh-d">HRRR, RRFS and RDPS: radar, snow, storms</span></a></li>
+                  <li><a href="/samerica-models.html"><span class="sh-t">South America, to day 10</span><span class="sh-d">IFS control and GDPS, with soundings</span></a></li>
+                  <li><a href="/ens-anomalies.html"><span class="sh-t">World ensembles, to day 15</span><span class="sh-d">Four ensembles: anomalies and regimes</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Days 1–15</h3>
+                <ul>
+                  <li><a href="/ar.html"><span class="sh-t">Atmospheric rivers</span><span class="sh-d">Moisture plumes, landfall and their odds</span></a></li>
+                  <li><a href="/circulation.html#dt"><span class="sh-t">Jet stream and tropopause</span><span class="sh-d">Tropopause, Pacific jet and wave trains</span></a></li>
+                  <li><a href="/circulation.html#telecon15"><span class="sh-t">Teleconnections</span><span class="sh-d">NAO, PNA, EPO and more, calibrated</span></a></li>
+                  <li><a href="/circulation.html#tc"><span class="sh-t">Tropical cyclones</span><span class="sh-d">Tracks and recurvature from 100 members</span></a></li>
+                  <li><a href="/recon.html"><span class="sh-t">Hurricane reconnaissance</span><span class="sh-d">Flights, dropsondes and vortex fixes</span></a></li>
+                </ul>
+              </div>
+            </div>
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1"><span class="sh-lf">Mid-latitude weather</span><span class="sh-ls">Mid-latitudes</span></button>
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Tropics</button>
           <div class="sh-menu sh-menu--cols" id="sh-g1">
-            <div class="sh-col">
-              <div>
-                <h3>Surface and hazards</h3>
-                <ul>
-                  <li><a href="/ar.html">Atmospheric rivers</a></li>
-                </ul>
-              </div>
-            </div>
-            <div class="sh-col">
-              <div>
-                <h3>Upper air</h3>
-                <ul>
-                  <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
-                  <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
-                  <li><a href="/circulation.html#waf">Wave activity flux</a></li>
-                  <li><a href="/circulation.html#telecon15">Teleconnections, days 1–15</a></li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </li>
-        <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2"><span class="sh-lf">Global circulation and tropics</span><span class="sh-ls">Tropics</span></button>
-          <div class="sh-menu sh-menu--cols" id="sh-g2">
             <div class="sh-col">
               <div>
                 <h3>ENSO and the MJO</h3>
                 <ul>
-                  <li><a href="/enso.html">El Niño monitor</a></li>
-                  <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
-                  <li><a href="/circulation.html#gdps_ir">Simulated satellite (GDPS)</a></li>
-                  <li><a href="/mjo.html">MJO forecast</a></li>
-                  <li><a href="/tropical-waves.html">Tropical waves</a></li>
-                </ul>
-              </div>
-              <div>
-                <h3>Tropical cyclones</h3>
-                <ul>
-                  <li><a href="/circulation.html#tc">Tropical cyclones</a></li>
-                  <li><a href="/recon.html">Hurricane reconnaissance</a></li>
+                  <li><a href="/enso.html"><span class="sh-t">El Niño monitor</span><span class="sh-d">ONI, RONI, the subsurface and winds</span></a></li>
+                  <li><a href="/mjo.html"><span class="sh-t">MJO forecast</span><span class="sh-d">Four ensembles on one phase diagram</span></a></li>
+                  <li><a href="/tropical-waves.html"><span class="sh-t">Tropical waves</span><span class="sh-d">Kelvin and Rossby waves, now and ahead</span></a></li>
+                  <li><a href="/circulation.html#mslp"><span class="sh-t">Pacific pressure and satellite</span><span class="sh-d">Pressure, wind and simulated IR</span></a></li>
                 </ul>
               </div>
             </div>
             <div class="sh-col">
               <div>
-                <h3>Jets and momentum</h3>
+                <h3>Circulation</h3>
                 <ul>
-                  <li><a href="/circulation.html#jets">Subtropical jets</a></li>
-                  <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
-                </ul>
-              </div>
-              <div>
-                <h3>Tropical overturning</h3>
-                <ul>
-                  <li><a href="/circulation.html#walker">Walker circulation</a></li>
-                  <li><a href="/circulation.html#hadley">Hadley cells</a></li>
-                  <li><a href="/circulation.html#vpot">Velocity potential</a></li>
-                  <li><a href="/circulation.html#gdps150">Upper-level outflow (GDPS)</a></li>
-                  <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
-                  <li><a href="/circulation.html#rainfc">Rain forecast, weeks 1–2</a></li>
+                  <li><a href="/circulation.html#walker"><span class="sh-t">Walker and Hadley cells</span><span class="sh-d">The overturning, its outflow and descent</span></a></li>
+                  <li><a href="/circulation.html#jets"><span class="sh-t">Jets and angular momentum</span><span class="sh-d">Jet cores, momentum and torques</span></a></li>
+                  <li><a href="/circulation.html#rainfc"><span class="sh-t">Rain forecast, weeks 1–2</span><span class="sh-d">Four ensembles, bias-adjusted, blended</span></a></li>
                 </ul>
               </div>
             </div>
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Stratosphere</button>
-          <div class="sh-menu sh-menu--list" id="sh-g3">
-            <ul>
-              <li><a href="/ssw.html">SSW outlook</a></li>
-              <li><a href="/stratosphere.html#vortex">The vortex, days 1–15</a></li>
-              <li><a href="/stratosphere.html#heatflux">The waves driving it, days 1–15</a></li>
-              <li><a href="/stratosphere.html#descent">Down to the surface, days 1–15</a></li>
-              <li><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
-              <li><a href="/stratosphere.html#s5vortex">The season ahead</a></li>
-              <li><a href="/stratosphere.html#qbo">The QBO and today's analyses</a></li>
-              <li><a href="/stratosphere.html#shwinters">History and studies</a></li>
-              <li><a href="/stratosphere.html">All stratosphere products</a></li>
-            </ul>
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div class="sh-col">
+              <div>
+                <h3>Forecasts</h3>
+                <ul>
+                  <li><a href="/ssw.html"><span class="sh-t">SSW outlook</span><span class="sh-d">Is a sudden warming coming?</span></a></li>
+                  <li><a href="/stratosphere.html#vortex"><span class="sh-t">The next two weeks</span><span class="sh-d">The vortex, its waves and the surface</span></a></li>
+                  <li><a href="/stratosphere.html#vortex35"><span class="sh-t">Weeks 3–5 and the season</span><span class="sh-d">GEPS, GEFS, C3S and SEAS5</span></a></li>
+                  <li><a href="/strat-models.html"><span class="sh-t">Stratosphere model maps</span><span class="sh-d">Polar maps at every level, zoomable</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Analyses and history</h3>
+                <ul>
+                  <li><a href="/stratosphere.html#qbo"><span class="sh-t">The QBO and today's analyses</span><span class="sh-d">QBO, momentum and the Brewer–Dobson</span></a></li>
+                  <li><a href="/stratosphere.html#shwinters"><span class="sh-t">History and studies</span><span class="sh-d">Every winter and warming since 1980</span></a></li>
+                </ul>
+              </div>
+            </div>
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4">Weeks to seasons</button>
-          <div class="sh-menu sh-menu--cols" id="sh-g4">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div class="sh-col">
               <div>
                 <h3>Extended range</h3>
                 <ul>
-                  <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
-                  <li><a href="/gefs.html">GEFS extended ensemble</a></li>
-                  <li><a href="/sfs-subseasonal.html">SFS extended (experimental)</a></li>
-                  <li><a href="/monthly-outlook.html">Claude's long-range forecast</a></li>
+                  <li><a href="/subseasonal.html"><span class="sh-t">GEPS, to day 35</span><span class="sh-d">Canada's extended ensemble</span></a></li>
+                  <li><a href="/gefs.html"><span class="sh-t">GEFS, to day 35</span><span class="sh-d">NOAA's extended ensemble</span></a></li>
+                  <li><a href="/sfs-subseasonal.html"><span class="sh-t">SFS, to six weeks</span><span class="sh-d">NOAA's experimental new system</span></a></li>
                 </ul>
               </div>
             </div>
             <div class="sh-col">
               <div>
-                <h3>Seasons</h3>
+                <h3>Months and seasons</h3>
                 <ul>
-                  <li><a href="/seasonal.html">Seasonal model forecasts</a></li>
-                  <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                  <li><a href="/monthly-outlook.html"><span class="sh-t">Claude's long-range forecast</span><span class="sh-d">The month and three seasons ahead</span></a></li>
+                  <li><a href="/seasonal.html"><span class="sh-t">Seasonal model forecasts</span><span class="sh-d">Seven C3S systems and NOAA's SFS</span></a></li>
+                  <li><a href="/enso-forecasts.html"><span class="sh-t">ENSO forecasts</span><span class="sh-d">Niño-3.4 from five centres</span></a></li>
                 </ul>
               </div>
             </div>
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5" aria-current="page"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies</span></button>
-          <div class="sh-menu sh-menu--cols" id="sh-g5">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4" aria-current="page">Studies and tools</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
             <div class="sh-col">
               <div>
                 <h3>Studies</h3>
                 <ul>
-                  <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
-                  <li><a href="/mjo.html#mi">MJO impacts</a></li>
-                  <li><a href="/aifs-aam-budget.html" aria-current="page">AI models and conservation laws</a></li>
-                  <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
-                  <li><a href="/topics/">Explainers</a></li>
+                  <li><a href="/enso.html#imp_reg"><span class="sh-t">ENSO impacts on the Americas</span><span class="sh-d">CMIP6 and the observed record</span></a></li>
+                  <li><a href="/mjo.html#mi"><span class="sh-t">MJO impacts</span><span class="sh-d">Each phase, season by season</span></a></li>
+                  <li><a href="/aifs-aam-budget.html" aria-current="page"><span class="sh-t">AI models and conservation laws</span><span class="sh-d">Does the AIFS keep the budgets?</span></a></li>
+                  <li><a href="/torque-enso.html"><span class="sh-t">El Niño and angular momentum</span><span class="sh-d">Why the atmosphere spins up</span></a></li>
+                  <li><a href="/topics/"><span class="sh-t">Explainers</span><span class="sh-d">The physics behind the products</span></a></li>
                 </ul>
               </div>
             </div>
@@ -238,23 +221,21 @@
               <div>
                 <h3>Verification</h3>
                 <ul>
-                  <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
-                  <li><a href="/verification.html">Global models against observations</a></li>
+                  <li><a href="/verification.html"><span class="sh-t">Global models against observations</span><span class="sh-d">Scorecards, maps and the database</span></a></li>
+                  <li><a href="/aifs-verify.html"><span class="sh-t">AIFS single versus ensemble control</span><span class="sh-d">Two AIFS configurations compared</span></a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tools</h3>
+                <ul>
+                  <li><a href="/catalog.html"><span class="sh-t">Every plot on the site</span><span class="sh-d">Search and filter every figure</span></a></li>
+                  <li><a href="/skewt/"><span class="sh-t">Sounding explorer</span><span class="sh-d">Radiosondes worldwide, live</span></a></li>
+                  <li><a href="/asos5.html"><span class="sh-t">Five-minute airport observations</span><span class="sh-d">22 major US airports, live</span></a></li>
+                  <li><a href="/climate.html"><span class="sh-t">US climate trends</span><span class="sh-d">Every county and month since 1895</span></a></li>
+                  <li><a href="/fci.html"><span class="sh-t">US credit conditions</span><span class="sh-d">Financial conditions, weekly since 1990</span></a></li>
                 </ul>
               </div>
             </div>
-          </div>
-        </li>
-        <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g6">Tools</button>
-          <div class="sh-menu sh-menu--list" id="sh-g6">
-            <ul>
-              <li><a href="/catalog.html">Every plot on the site</a></li>
-              <li><a href="/skewt/">Sounding explorer</a></li>
-              <li><a href="/asos5.html">Five-minute airport observations</a></li>
-              <li><a href="/climate.html">US climate trends</a></li>
-              <li><a href="/fci.html">US credit conditions</a></li>
-            </ul>
           </div>
         </li>
         <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>

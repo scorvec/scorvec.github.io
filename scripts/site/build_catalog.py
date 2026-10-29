@@ -52,23 +52,23 @@ EVAL = Path(__file__).resolve().parent / "catalog_eval.js"
 THUMB_DIR = "assets/site/thumbs"  # in the frames store
 THUMB_INDEX_URL = "https://scorvec-store.b-cdn.net/" + THUMB_DIR + "/index.json"
 
-# ids stay stable (they are in catalogue URLs, ?topic=...); labels are the menu group titles in apply_chrome.PRODUCTS
+# ids stay stable (they are in catalogue URLs, ?topic=...); labels are the menu group titles in apply_chrome.PRODUCTS.
+# The five menus of 2026-10-29 folded two topics into others: "models" into "weather" (Forecasts) and "tools" into
+# "research" (Studies and tools); catalog.html reads an old id as its new one (TOPIC_ALIAS there).
 TOPICS = [  # the theme-first menus (ids stable; labels = apply_chrome.PRODUCTS titles, in menu order)
-    ("models", "Model maps", "Zoomable maps of the newest model runs, with contours and hover values"),
-    ("weather", "Mid-latitude weather", "The next two weeks: storms, hazards and the flow aloft"),
-    (
-        "drivers",
-        "Global circulation and tropics",
-        "ENSO, the MJO, tropical cyclones, the Walker and Hadley cells, the jets and the atmosphere's angular momentum",
-    ),
+    ("weather", "Forecasts", "The newest model runs and the next two weeks' weather"),
+    ("drivers", "Tropics", "El Niño, the MJO, tropical waves and the tropical circulation"),
     (
         "circulation",
         "Stratosphere",
         "The polar vortex and the waves going up into it, from today's analysis to the season, and the QBO",
     ),
     ("outlooks", "Weeks to seasons", "From weeks two to five out to the coming seasons"),
-    ("research", "Studies and verification", "What the record and the models say, and how the forecasts score"),
-    ("tools", "Tools", "Explore the data yourself"),
+    (
+        "research",
+        "Studies and tools",
+        "What the record and the models say, how the forecasts score, and the data to explore",
+    ),
 ]
 HORIZONS = ["Observed", "Days 1–15", "Weeks 1–5", "Seasons", "Climate record"]
 TIERS = ["Live forecasts and monitors", "Research, history and tools", "Seasonal and out of season"]
@@ -239,7 +239,7 @@ PAGES = {
     ),
     "/models.html": dict(
         kind="page",
-        topic="models",
+        topic="weather",
         tier=0,
         prio=4,
         models=["HRRR", "RRFS", "RDPS"],
@@ -249,7 +249,7 @@ PAGES = {
     ),
     "/samerica-models.html": dict(
         kind="page",
-        topic="models",
+        topic="weather",
         tier=0,
         prio=5,
         models=["IFS", "GDPS"],
@@ -259,7 +259,7 @@ PAGES = {
     ),
     "/ens-anomalies.html": dict(
         kind="page",
-        topic="models",
+        topic="weather",
         tier=0,
         prio=6,
         models=["IFS-ENS", "AIFS-ENS", "GEFS", "GEPS", "ERA5-Land", "ERA5"],
@@ -269,7 +269,7 @@ PAGES = {
     ),
     "/strat-models.html": dict(
         kind="page",
-        topic="models",
+        topic="weather",
         tier=0,
         prio=6,
         models=["GFS", "GDPS", "AIFS", "GEOS FP"],
@@ -334,10 +334,10 @@ PAGES = {
     ),
     "/topics/": dict(kind="page", topic="research", tier=1, prio=26, models=[], horizon=None, region=[]),
     "/research.html": dict(kind="page", topic="research", tier=1, prio=27, models=[], horizon=None, region=[]),
-    "/catalog.html": dict(kind="page", topic="tools", tier=1, prio=28, models=[], horizon=None, region=[]),
+    "/catalog.html": dict(kind="page", topic="research", tier=1, prio=28, models=[], horizon=None, region=[]),
     "/skewt/": dict(
         kind="page",
-        topic="tools",
+        topic="research",
         tier=1,
         prio=24,
         models=["Radiosondes"],
@@ -358,7 +358,7 @@ PAGES = {
     ),
     "/asos5.html": dict(
         kind="page",
-        topic="tools",
+        topic="research",
         tier=1,
         prio=25,
         models=["ASOS"],
@@ -368,7 +368,7 @@ PAGES = {
     ),
     "/climate.html": dict(
         kind="page",
-        topic="tools",
+        topic="research",
         tier=1,
         prio=25,
         models=["nClimDiv", "PRISM"],
@@ -868,8 +868,8 @@ def mjo_items() -> list:
 def page_items() -> list:
     """Single-figure / app pages, described from the chrome's PRODUCTS table."""
     items = []
-    for _title, _blurb, grp, *_ in A.PRODUCTS:
-        for href, label, what, _when in A.group_items(grp):
+    for _title, _blurb, grp in A.PRODUCTS:
+        for href, label, what, *_ in A.group_items(grp):
             cfg = PAGES.get(href)
             if not cfg or cfg["kind"] != "page":
                 continue
@@ -1011,8 +1011,8 @@ def build(index_path: str | None = None) -> dict:
     tid = {l: t for t, l, _ in TOPICS}
     pages = [
         dict(href=href, label=label, what=what, when=when, topic=tid[title])
-        for title, _b, grp, *_ in A.PRODUCTS
-        for href, label, what, when in A.group_items(grp)
+        for title, _b, grp in A.PRODUCTS
+        for href, label, what, when, _note in A.group_items(grp)
     ]
     for pg in pages:
         if PRIVATE.search(pg["label"] + " " + pg["what"]):

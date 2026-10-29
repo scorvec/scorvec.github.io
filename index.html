@@ -94,7 +94,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="/assets/site.css?v=0816bc7047">
+<link rel="stylesheet" href="/assets/site.css?v=08996a48dc">
 <style>
   /* Palette sampled from the photograph: sky, cloud, storm base, hills, prairie. */
   :root {
@@ -333,7 +333,7 @@
     .hero-text { position: relative; left: auto; bottom: auto; transform: none; margin: 0 auto clamp(2rem, 6vh, 4.5rem); }
   }
 </style>
-<script src="/assets/site.js?v=7134a53040" defer></script>
+<script src="/assets/site.js?v=6a624e5f1e" defer></script>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>
 
@@ -348,137 +348,120 @@
     <nav class="sh-nav" id="sh-menu" aria-label="Site">
       <ul class="sh-list">
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Model maps</button>
-          <div class="sh-menu sh-menu--list" id="sh-g0">
-            <ul>
-              <li><a href="/models.html">North America, short range</a></li>
-              <li><a href="/samerica-models.html">South America, to day 10</a></li>
-              <li><a href="/ens-anomalies.html">World ensembles, to day 15</a></li>
-              <li><a href="/strat-models.html">Interactive stratosphere viewer</a></li>
-            </ul>
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div class="sh-col">
+              <div>
+                <h3>Model maps</h3>
+                <ul>
+                  <li><a href="/models.html"><span class="sh-t">North America, short range</span><span class="sh-d">HRRR, RRFS and RDPS: radar, snow, storms</span></a></li>
+                  <li><a href="/samerica-models.html"><span class="sh-t">South America, to day 10</span><span class="sh-d">IFS control and GDPS, with soundings</span></a></li>
+                  <li><a href="/ens-anomalies.html"><span class="sh-t">World ensembles, to day 15</span><span class="sh-d">Four ensembles: anomalies and regimes</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Days 1–15</h3>
+                <ul>
+                  <li><a href="/ar.html"><span class="sh-t">Atmospheric rivers</span><span class="sh-d">Moisture plumes, landfall and their odds</span></a></li>
+                  <li><a href="/circulation.html#dt"><span class="sh-t">Jet stream and tropopause</span><span class="sh-d">Tropopause, Pacific jet and wave trains</span></a></li>
+                  <li><a href="/circulation.html#telecon15"><span class="sh-t">Teleconnections</span><span class="sh-d">NAO, PNA, EPO and more, calibrated</span></a></li>
+                  <li><a href="/circulation.html#tc"><span class="sh-t">Tropical cyclones</span><span class="sh-d">Tracks and recurvature from 100 members</span></a></li>
+                  <li><a href="/recon.html"><span class="sh-t">Hurricane reconnaissance</span><span class="sh-d">Flights, dropsondes and vortex fixes</span></a></li>
+                </ul>
+              </div>
+            </div>
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1"><span class="sh-lf">Mid-latitude weather</span><span class="sh-ls">Mid-latitudes</span></button>
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Tropics</button>
           <div class="sh-menu sh-menu--cols" id="sh-g1">
-            <div class="sh-col">
-              <div>
-                <h3>Surface and hazards</h3>
-                <ul>
-                  <li><a href="/ar.html">Atmospheric rivers</a></li>
-                </ul>
-              </div>
-            </div>
-            <div class="sh-col">
-              <div>
-                <h3>Upper air</h3>
-                <ul>
-                  <li><a href="/circulation.html#dt">Dynamic tropopause</a></li>
-                  <li><a href="/circulation.html#pacjet">North Pacific jet</a></li>
-                  <li><a href="/circulation.html#waf">Wave activity flux</a></li>
-                  <li><a href="/circulation.html#telecon15">Teleconnections, days 1–15</a></li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </li>
-        <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2"><span class="sh-lf">Global circulation and tropics</span><span class="sh-ls">Tropics</span></button>
-          <div class="sh-menu sh-menu--cols" id="sh-g2">
             <div class="sh-col">
               <div>
                 <h3>ENSO and the MJO</h3>
                 <ul>
-                  <li><a href="/enso.html">El Niño monitor</a></li>
-                  <li><a href="/circulation.html#mslp">Pacific pressure and wind</a></li>
-                  <li><a href="/circulation.html#gdps_ir">Simulated satellite (GDPS)</a></li>
-                  <li><a href="/mjo.html">MJO forecast</a></li>
-                  <li><a href="/tropical-waves.html">Tropical waves</a></li>
-                </ul>
-              </div>
-              <div>
-                <h3>Tropical cyclones</h3>
-                <ul>
-                  <li><a href="/circulation.html#tc">Tropical cyclones</a></li>
-                  <li><a href="/recon.html">Hurricane reconnaissance</a></li>
+                  <li><a href="/enso.html"><span class="sh-t">El Niño monitor</span><span class="sh-d">ONI, RONI, the subsurface and winds</span></a></li>
+                  <li><a href="/mjo.html"><span class="sh-t">MJO forecast</span><span class="sh-d">Four ensembles on one phase diagram</span></a></li>
+                  <li><a href="/tropical-waves.html"><span class="sh-t">Tropical waves</span><span class="sh-d">Kelvin and Rossby waves, now and ahead</span></a></li>
+                  <li><a href="/circulation.html#mslp"><span class="sh-t">Pacific pressure and satellite</span><span class="sh-d">Pressure, wind and simulated IR</span></a></li>
                 </ul>
               </div>
             </div>
             <div class="sh-col">
               <div>
-                <h3>Jets and momentum</h3>
+                <h3>Circulation</h3>
                 <ul>
-                  <li><a href="/circulation.html#jets">Subtropical jets</a></li>
-                  <li><a href="/circulation.html#aam">Angular momentum and torques</a></li>
-                </ul>
-              </div>
-              <div>
-                <h3>Tropical overturning</h3>
-                <ul>
-                  <li><a href="/circulation.html#walker">Walker circulation</a></li>
-                  <li><a href="/circulation.html#hadley">Hadley cells</a></li>
-                  <li><a href="/circulation.html#vpot">Velocity potential</a></li>
-                  <li><a href="/circulation.html#gdps150">Upper-level outflow (GDPS)</a></li>
-                  <li><a href="/circulation.html#gillrain">Rain-forced circulation (Gill model)</a></li>
-                  <li><a href="/circulation.html#rainfc">Rain forecast, weeks 1–2</a></li>
+                  <li><a href="/circulation.html#walker"><span class="sh-t">Walker and Hadley cells</span><span class="sh-d">The overturning, its outflow and descent</span></a></li>
+                  <li><a href="/circulation.html#jets"><span class="sh-t">Jets and angular momentum</span><span class="sh-d">Jet cores, momentum and torques</span></a></li>
+                  <li><a href="/circulation.html#rainfc"><span class="sh-t">Rain forecast, weeks 1–2</span><span class="sh-d">Four ensembles, bias-adjusted, blended</span></a></li>
                 </ul>
               </div>
             </div>
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Stratosphere</button>
-          <div class="sh-menu sh-menu--list" id="sh-g3">
-            <ul>
-              <li><a href="/ssw.html">SSW outlook</a></li>
-              <li><a href="/stratosphere.html#vortex">The vortex, days 1–15</a></li>
-              <li><a href="/stratosphere.html#heatflux">The waves driving it, days 1–15</a></li>
-              <li><a href="/stratosphere.html#descent">Down to the surface, days 1–15</a></li>
-              <li><a href="/stratosphere.html#vortex35">Weeks 3–5</a></li>
-              <li><a href="/stratosphere.html#s5vortex">The season ahead</a></li>
-              <li><a href="/stratosphere.html#qbo">The QBO and today's analyses</a></li>
-              <li><a href="/stratosphere.html#shwinters">History and studies</a></li>
-              <li><a href="/stratosphere.html">All stratosphere products</a></li>
-            </ul>
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div class="sh-col">
+              <div>
+                <h3>Forecasts</h3>
+                <ul>
+                  <li><a href="/ssw.html"><span class="sh-t">SSW outlook</span><span class="sh-d">Is a sudden warming coming?</span></a></li>
+                  <li><a href="/stratosphere.html#vortex"><span class="sh-t">The next two weeks</span><span class="sh-d">The vortex, its waves and the surface</span></a></li>
+                  <li><a href="/stratosphere.html#vortex35"><span class="sh-t">Weeks 3–5 and the season</span><span class="sh-d">GEPS, GEFS, C3S and SEAS5</span></a></li>
+                  <li><a href="/strat-models.html"><span class="sh-t">Stratosphere model maps</span><span class="sh-d">Polar maps at every level, zoomable</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Analyses and history</h3>
+                <ul>
+                  <li><a href="/stratosphere.html#qbo"><span class="sh-t">The QBO and today's analyses</span><span class="sh-d">QBO, momentum and the Brewer–Dobson</span></a></li>
+                  <li><a href="/stratosphere.html#shwinters"><span class="sh-t">History and studies</span><span class="sh-d">Every winter and warming since 1980</span></a></li>
+                </ul>
+              </div>
+            </div>
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4">Weeks to seasons</button>
-          <div class="sh-menu sh-menu--cols" id="sh-g4">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div class="sh-col">
               <div>
                 <h3>Extended range</h3>
                 <ul>
-                  <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
-                  <li><a href="/gefs.html">GEFS extended ensemble</a></li>
-                  <li><a href="/sfs-subseasonal.html">SFS extended (experimental)</a></li>
-                  <li><a href="/monthly-outlook.html">Claude's long-range forecast</a></li>
+                  <li><a href="/subseasonal.html"><span class="sh-t">GEPS, to day 35</span><span class="sh-d">Canada's extended ensemble</span></a></li>
+                  <li><a href="/gefs.html"><span class="sh-t">GEFS, to day 35</span><span class="sh-d">NOAA's extended ensemble</span></a></li>
+                  <li><a href="/sfs-subseasonal.html"><span class="sh-t">SFS, to six weeks</span><span class="sh-d">NOAA's experimental new system</span></a></li>
                 </ul>
               </div>
             </div>
             <div class="sh-col">
               <div>
-                <h3>Seasons</h3>
+                <h3>Months and seasons</h3>
                 <ul>
-                  <li><a href="/seasonal.html">Seasonal model forecasts</a></li>
-                  <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                  <li><a href="/monthly-outlook.html"><span class="sh-t">Claude's long-range forecast</span><span class="sh-d">The month and three seasons ahead</span></a></li>
+                  <li><a href="/seasonal.html"><span class="sh-t">Seasonal model forecasts</span><span class="sh-d">Seven C3S systems and NOAA's SFS</span></a></li>
+                  <li><a href="/enso-forecasts.html"><span class="sh-t">ENSO forecasts</span><span class="sh-d">Niño-3.4 from five centres</span></a></li>
                 </ul>
               </div>
             </div>
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies</span></button>
-          <div class="sh-menu sh-menu--cols" id="sh-g5">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4">Studies and tools</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
             <div class="sh-col">
               <div>
                 <h3>Studies</h3>
                 <ul>
-                  <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
-                  <li><a href="/mjo.html#mi">MJO impacts</a></li>
-                  <li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li>
-                  <li><a href="/torque-enso.html">El Niño and angular momentum</a></li>
-                  <li><a href="/topics/">Explainers</a></li>
+                  <li><a href="/enso.html#imp_reg"><span class="sh-t">ENSO impacts on the Americas</span><span class="sh-d">CMIP6 and the observed record</span></a></li>
+                  <li><a href="/mjo.html#mi"><span class="sh-t">MJO impacts</span><span class="sh-d">Each phase, season by season</span></a></li>
+                  <li><a href="/aifs-aam-budget.html"><span class="sh-t">AI models and conservation laws</span><span class="sh-d">Does the AIFS keep the budgets?</span></a></li>
+                  <li><a href="/torque-enso.html"><span class="sh-t">El Niño and angular momentum</span><span class="sh-d">Why the atmosphere spins up</span></a></li>
+                  <li><a href="/topics/"><span class="sh-t">Explainers</span><span class="sh-d">The physics behind the products</span></a></li>
                 </ul>
               </div>
             </div>
@@ -486,23 +469,21 @@
               <div>
                 <h3>Verification</h3>
                 <ul>
-                  <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
-                  <li><a href="/verification.html">Global models against observations</a></li>
+                  <li><a href="/verification.html"><span class="sh-t">Global models against observations</span><span class="sh-d">Scorecards, maps and the database</span></a></li>
+                  <li><a href="/aifs-verify.html"><span class="sh-t">AIFS single versus ensemble control</span><span class="sh-d">Two AIFS configurations compared</span></a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tools</h3>
+                <ul>
+                  <li><a href="/catalog.html"><span class="sh-t">Every plot on the site</span><span class="sh-d">Search and filter every figure</span></a></li>
+                  <li><a href="/skewt/"><span class="sh-t">Sounding explorer</span><span class="sh-d">Radiosondes worldwide, live</span></a></li>
+                  <li><a href="/asos5.html"><span class="sh-t">Five-minute airport observations</span><span class="sh-d">22 major US airports, live</span></a></li>
+                  <li><a href="/climate.html"><span class="sh-t">US climate trends</span><span class="sh-d">Every county and month since 1895</span></a></li>
+                  <li><a href="/fci.html"><span class="sh-t">US credit conditions</span><span class="sh-d">Financial conditions, weekly since 1990</span></a></li>
                 </ul>
               </div>
             </div>
-          </div>
-        </li>
-        <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g6">Tools</button>
-          <div class="sh-menu sh-menu--list" id="sh-g6">
-            <ul>
-              <li><a href="/catalog.html">Every plot on the site</a></li>
-              <li><a href="/skewt/">Sounding explorer</a></li>
-              <li><a href="/asos5.html">Five-minute airport observations</a></li>
-              <li><a href="/climate.html">US climate trends</a></li>
-              <li><a href="/fci.html">US credit conditions</a></li>
-            </ul>
           </div>
         </li>
         <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
@@ -576,42 +557,38 @@
     <!-- hp:start -->
     <div class="sgs">
       <div class="sg-col">
-        <section class="sg" data-topic="models">
-          <h3>Model maps</h3>
-          <p>The newest model runs, zoomable, with hover values and soundings</p>
+        <section class="sg" data-topic="weather">
+          <h3>Forecasts</h3>
+          <p>The newest model runs, zoomable, and the next two weeks' storms and flow aloft</p>
           <ul>
             <li><a href="/models.html" title="Zoomable maps of the newest HRRR, RRFS and RDPS runs for aviation, severe and winter weather and renewables: radar with precipitation type, accumulation, snow-band diagnostics (frontogenesis, EPV*, dendritic-zone lift), ceiling, visibility, temperature, dewpoint, wind, HRRR entraining CAPE (ECAPE), smoke and sunshine, with contours and hover values.">North America, short range</a></li>
             <li><a href="/samerica-models.html" title="Zoomable maps of the newest IFS control (ECMWF's unperturbed 9 km run) and GDPS runs over South America to day 10: temperature, wind at the surface and at 925 and 850 hPa, rain and its type, accumulation, precipitable water, 850 hPa θe and simulated IR, with ECAPE, CAPE, shear and helicity computed on every column, airport meteograms, forecast soundings, contours and hover values.">South America, to day 10</a></li>
             <li><a href="/ens-anomalies.html" title="Zoomable world maps of the newest IFS-ENS, AIFS-ENS, GEFS and GEPS runs to day 15: 2 m temperature (the IFS-ENS on its 0.1° grid), 500 hPa height and sea-level pressure against the 1991–2020 normal where the members agree on the sign, and the significant changes from the previous run, for days 1–5, 6–10, 11–15 and each day, with contours and hover values; each member's weather regime over the Euro-Atlantic and North America, with each regime's scenario maps.">World ensembles, to day 15</a></li>
-            <li><a href="/strat-models.html" title="Zoomable polar maps of the newest GFS (to day 16, 100 to 0.4 hPa), GDPS (to day 10, 100 to 1 hPa), AIFS single (100, 50 and 10 hPa) and GEOS FP (100 to 0.4 hPa) runs at every stratospheric level they publish: temperature, height, wind speed and zonal wind, the GFS's smoothed vertical motion, and Ertel potential vorticity on isentropic surfaces from 350 to 1600 K (GFS) and GEOS FP's own, both hemispheres, with contours and hover values.">Interactive stratosphere viewer</a></li>
-          </ul>
-          <a class="sg-all" href="/catalog.html?topic=models">All plots in this theme</a>
-        </section>
-        <section class="sg" data-topic="weather">
-          <h3>Mid-latitude weather</h3>
-          <p>Storms, hazards and the flow aloft over the next two weeks</p>
-          <ul>
             <li><a href="/ar.html" title="Integrated vapour transport maps to day 7 from AIFS, IFS, GFS and GDPS; West Coast landfall and AR-scale ranks; AR probabilities to day 15 from four ensembles and their blend; GEFS weeks 3–5 AR-frequency anomalies where significant.">Atmospheric rivers</a></li>
-            <li><a href="/circulation.html#dt" title="The 2-PVU surface and PV on the 330 and 350 K isentropes from the IFS control (ECMWF's unperturbed 9 km run, called HRES until May 2026): the hemisphere and five regions.">Dynamic tropopause</a></li>
-            <li><a href="/circulation.html#pacjet" title="250 hPa jet maps, the jet axis from every member, and the jet's extension and shift phases with what they usually bring downstream.">North Pacific jet</a></li>
-            <li><a href="/circulation.html#waf" title="Takaya–Nakamura wave activity flux at 250 hPa, the ensemble's quasi-stationary wave trains.">Wave activity flux</a></li>
-            <li><a href="/circulation.html#telecon15" title="The NAO, PNA, EPO, WPO and seven more 500 hPa teleconnection patterns from every member of the IFS-ENS, AIFS-ENS, GEFS and GEPS runs, each ensemble calibrated against its own archived runs, with the chance of each phase only at the leads where it has shown skill and how the forecast has moved from run to run.">Teleconnections, days 1–15</a></li>
+            <li><a href="/circulation.html#dt" title="The flow aloft: the 2-PVU dynamic tropopause and PV on the 330 and 350 K isentropes from the IFS control (ECMWF's unperturbed 9 km run), the North Pacific jet from every member with its extension and shift phases and what they usually bring downstream, and the Takaya–Nakamura wave activity flux at 250 hPa, the ensemble's quasi-stationary wave trains.">Jet stream and tropopause</a></li>
+            <li><a href="/circulation.html#telecon15" title="The NAO, PNA, EPO, WPO and seven more 500 hPa teleconnection patterns from every member of the IFS-ENS, AIFS-ENS, GEFS and GEPS runs, each ensemble calibrated against its own archived runs, with the chance of each phase only at the leads where it has shown skill and how the forecast has moved from run to run.">Teleconnections</a></li>
           </ul>
+          <details class="sg-more"><summary>2 more</summary>
+            <ul>
+              <li><a href="/circulation.html#tc" title="Every storm ECMWF's two ensembles carry: where their 100 members take it, the chance it recurves by day 10 and when, when it becomes post-tropical and how deep it gets after; each storm on the IFS control's dynamic tropopause and in phase space; its shear and environment, profile, tilt and ventilation; and the track record of the odds against best tracks.">Tropical cyclones</a></li>
+              <li><a href="/recon.html" title="Atlantic hurricane hunter flights decoded and mapped: the track by SFMR or flight-level wind, dropsonde skew-Ts, vortex fixes, best track and forecast, with the aircraft's quality flags respected.">Hurricane reconnaissance</a></li>
+            </ul>
+          </details>
           <a class="sg-all" href="/catalog.html?topic=weather">All plots in this theme</a>
         </section>
         <section class="sg" data-topic="outlooks">
           <h3>Weeks to seasons</h3>
-          <p>Extended ensembles to day 35 and the seasonal models</p>
+          <p>Extended ensembles to day 35, Claude's long-range forecast and the seasonal models</p>
           <ul>
-            <li><a href="/subseasonal.html" title="Environment Canada's extended ensemble to day 35 for the Americas and the tropics: weekly anomalies against its own reforecast, terciles, teleconnections, regimes and change since the previous run (its polar vortex is on the stratosphere page).">GEPS extended ensemble</a></li>
-            <li><a href="/gefs.html" title="NOAA's GEFS extended ensemble to day 35 in the same layout: weekly anomalies against its own reforecast and the change since a week earlier (its drift-corrected polar vortex is on the stratosphere page).">GEFS extended ensemble</a></li>
+            <li><a href="/subseasonal.html" title="Environment Canada's extended ensemble to day 35 for the Americas and the tropics: weekly anomalies against its own reforecast, terciles, teleconnections, regimes and change since the previous run (its polar vortex is on the stratosphere page).">GEPS, to day 35</a></li>
+            <li><a href="/gefs.html" title="NOAA's GEFS extended ensemble to day 35 in the same layout: weekly anomalies against its own reforecast and the change since a week earlier (its drift-corrected polar vortex is on the stratosphere page).">GEFS, to day 35</a></li>
+            <li><a href="/monthly-outlook.html" title="A forecast designed and run by Claude, issued on the 15th: next month and the next three seasons of 2 m temperature, precipitation and 500 hPa height over the Northern Hemisphere, as anomalies and tercile probabilities, and Niño-3.4 for twelve months from SST and the TAO moorings' heat content. Claude's statistical forecasts are blended with the C3S seasonal systems, GEFS and GEPS where the hindcast shows they help, dotted where it shows skill, with a running record against ERA5.">Claude's long-range forecast</a></li>
             <li><a href="/seasonal.html" title="Seven C3S systems from six centres plus NOAA's SFS beta: anomaly maps and tercile probabilities for every C3S model and their mean, the member-level ECMWF SEAS5 outlook (indices, teleconnections, impacts; its stratosphere is on the stratosphere page) and the 31-member SFS plumes and monthly maps.">Seasonal model forecasts</a></li>
             <li><a href="/enso-forecasts.html" title="Every member of five centres' seasonal models for Niño-3.4, with percentile fans and a record of how past forecasts did.">ENSO forecasts</a></li>
           </ul>
-          <details class="sg-more"><summary>2 more</summary>
+          <details class="sg-more"><summary>1 more</summary>
             <ul>
-              <li><a href="/sfs-subseasonal.html" title="NOAA's experimental SFS beta2, 31 members from the first of each month, up to six weeks in the same layout against its own 1991–2020 reforecast, with its hindcast skill against GEFS, GEPS and CFSv2.">SFS extended (experimental)</a></li>
-              <li><a href="/monthly-outlook.html" title="A forecast designed and run by Claude, issued on the 15th: next month and the next three seasons of 2 m temperature, precipitation and 500 hPa height over the Northern Hemisphere, as anomalies and tercile probabilities, and Niño-3.4 for twelve months from SST and the TAO moorings' heat content. Claude's statistical forecasts are blended with the C3S seasonal systems, GEFS and GEPS where the hindcast shows they help, dotted where it shows skill, with a running record against ERA5.">Claude's long-range forecast</a></li>
+              <li><a href="/sfs-subseasonal.html" title="NOAA's experimental SFS beta2, 31 members from the first of each month, up to six weeks in the same layout against its own 1991–2020 reforecast, with its hindcast skill against GEFS, GEPS and CFSv2.">SFS, to six weeks</a></li>
             </ul>
           </details>
           <a class="sg-all" href="/catalog.html?topic=outlooks">All plots in this theme</a>
@@ -619,77 +596,60 @@
       </div>
       <div class="sg-col">
         <section class="sg" data-topic="drivers">
-          <h3>Global circulation and tropics</h3>
-          <p>El Niño, the MJO, cyclones, the overturning cells, the jets and the atmosphere's momentum</p>
+          <h3>Tropics</h3>
+          <p>El Niño, the MJO, the tropical waves and the overturning cells</p>
           <ul>
             <li><a href="/enso.html" title="Daily ONI and RONI, Niño-region sea surface temperatures, the subsurface, winds and convection, with SST anomaly maps and animation.">El Niño monitor</a></li>
             <li><a href="/mjo.html" title="Real-time multivariate MJO index from the AIFS-ENS, IFS-ENS, GEFS and GEPS ensembles on one phase diagram, standard or ENSO-removed, with the observed track and what each phase has meant for temperature and rain.">MJO forecast</a></li>
             <li><a href="/tropical-waves.html" title="Where the equatorial waves are now: Kelvin and Rossby wave trackers along the equator with the forecast, the OLR wave decomposition and ocean Kelvin waves.">Tropical waves</a></li>
-            <li><a href="/circulation.html#tc" title="Every storm ECMWF's two ensembles carry: where their 100 members take it, the chance it recurves by day 10 and when, when it becomes post-tropical and how deep it gets after; each storm on the IFS control's dynamic tropopause and in phase space; its shear and environment, profile, tilt and ventilation; and the track record of the odds against best tracks.">Tropical cyclones</a></li>
-            <li><a href="/circulation.html#walker" title="The equatorial Walker circulation: every analysed week since July 2025 and the AIFS-ENS, IFS-ENS and GEFS forecasts to day 15 against ERA5, the circulation by ocean basin, and its weekly departure from Pacific forcing.">Walker circulation</a></li>
-            <li><a href="/circulation.html#hadley" title="The meridional overturning in four parts: the cells themselves (every analysed week since July 2025, three ensembles' forecasts to day 15 against ERA5, each cell's strength and poleward edge, El Niño years); their outflow on the dynamic tropopause, their descent and the subtropical ridges and highs it builds, tracked basin by basin; back-trajectories timing how fast the cells turn over, with a map to drop a particle in the tropics and follow it; and the tropical sea-level pressure against ERA5, daily analyses and three ensembles' forecasts to day 14, in hPa or normalised by the day's spread.">Hadley cells</a></li>
-            <li><a href="/circulation.html#jets" title="Speed and latitude of each hemisphere's subtropical jet core in the AIFS ensemble against the normal, and the zonal-mean wind cross-section through the 15-day forecast.">Subtropical jets</a></li>
-            <li><a href="/circulation.html#aam" title="Global atmospheric angular momentum and the mountain and friction torques that change it.">Angular momentum and torques</a></li>
+            <li><a href="/circulation.html#walker" title="The tropical overturning: the Walker circulation and the Hadley cells in every analysed week since July 2025 and in the AIFS-ENS, IFS-ENS and GEFS forecasts to day 15 against ERA5, by ocean basin; the cells' outflow, descent and turnover; 200 hPa velocity potential and the GDPS 150 hPa outflow; and how much of it the rain itself explains (a Gill model forced by IMERG and AIFS-ENS rainfall).">Walker and Hadley cells</a></li>
+            <li><a href="/circulation.html#jets" title="Speed and latitude of each hemisphere's subtropical jet core in the AIFS ensemble against the normal, the zonal-mean wind through the 15-day forecast, and global atmospheric angular momentum with the mountain and friction torques that change it.">Jets and angular momentum</a></li>
+            <li><a href="/circulation.html#rainfc" title="Bias-adjusted rain for weeks 1 and 2 from four ensembles (IFS-ENS, AIFS-ENS, GEFS, GEPS) and their verified blend over the tropics and the globe: corrected rain, its anomaly, the favoured tercile against the GPCP normal and the change since the previous day's runs, where significant.">Rain forecast, weeks 1–2</a></li>
           </ul>
-          <details class="sg-more"><summary>7 more</summary>
+          <details class="sg-more"><summary>1 more</summary>
             <ul>
-              <li><a href="/circulation.html#mslp" title="Sea-level pressure and 10 m wind over the tropical and subtropical Pacific to day 15: the AIFS and IFS ensembles, separately and blended, and the AIFS, IFS and GDPS single runs.">Pacific pressure and wind</a></li>
-              <li><a href="/circulation.html#gdps_ir" title="Environment Canada's GDPS forecast drawn as an infrared satellite loop over the tropical Pacific, 3-hourly to day 10: the cold cloud tops are deep convection.">Simulated satellite (GDPS)</a></li>
-              <li><a href="/recon.html" title="Atlantic hurricane hunter flights decoded and mapped: the track by SFMR or flight-level wind, dropsonde skew-Ts, vortex fixes, best track and forecast, with the aircraft's quality flags respected.">Hurricane reconnaissance</a></li>
-              <li><a href="/circulation.html#vpot" title="200 hPa velocity potential and the irrotational wind: where the tropics are venting and where they are subsiding.">Velocity potential</a></li>
-              <li><a href="/circulation.html#gdps150" title="Environment Canada's GDPS 150 hPa wind and height to day 10: the outflow layer of the Hadley and Walker cells and the subtropical jets.">Upper-level outflow (GDPS)</a></li>
-              <li><a href="/circulation.html#gillrain" title="How much of the tropical upper-level circulation the rain itself explains: the Gill (1980) model forced by IMERG and AIFS-ENS rainfall against the observed and forecast velocity potential.">Rain-forced circulation (Gill model)</a></li>
-              <li><a href="/circulation.html#rainfc" title="Bias-adjusted rain for weeks 1 and 2 from four ensembles (IFS-ENS, AIFS-ENS, GEFS, GEPS) and their verified blend over the tropics and the globe: corrected rain, its anomaly, the favoured tercile against the GPCP normal and the change since the previous day's runs, where significant.">Rain forecast, weeks 1–2</a></li>
+              <li><a href="/circulation.html#mslp" title="Sea-level pressure and 10 m wind over the tropical and subtropical Pacific to day 15 (the AIFS and IFS ensembles, separately and blended, and the AIFS, IFS and GDPS single runs), and Environment Canada's GDPS drawn as an infrared satellite loop, 3-hourly to day 10.">Pacific pressure and satellite</a></li>
             </ul>
           </details>
           <a class="sg-all" href="/catalog.html?topic=drivers">All plots in this theme</a>
         </section>
         <section class="sg" data-topic="circulation">
           <h3>Stratosphere</h3>
-          <p>The polar vortex from today's analysis to the season, and the QBO</p>
+          <p>The polar vortex from the next two weeks to the season, and the QBO</p>
           <ul>
             <li><a href="/ssw.html" title="Is a sudden warming coming in the next 15 days, what kind of event it is (wave-1 or wave-2, bottom-up or top-down, reflecting or absorbing) and whether it will reach the surface: one summary of every ensemble.">SSW outlook</a></li>
-            <li><a href="/stratosphere.html#vortex" title="Every model's vortex to day 15: its strength and the chance of a sudden warming, split or displaced member by member, the 10 hPa temperature, the vortex winds and the 100 hPa height, the dripping paint, the upper stratosphere to 1 hPa, GEOS FP potential vorticity, and how the recent runs verified.">The vortex, days 1–15</a></li>
-            <li><a href="/stratosphere.html#heatflux" title="The 100 hPa eddy heat flux with the SSW warning meter, planetary waves 1 and 2, the GEFS E–P flux and refractive index, and the regional reflection index.">The waves driving it, days 1–15</a></li>
-            <li><a href="/stratosphere.html#descent" title="Whether the stratosphere's anomaly is coming down: the downward-propagation monitor, the polar cap at sea level and 500 hPa, the Arctic Oscillation and NAO from every ensemble's members, and where the air over the cap is sinking.">Down to the surface, days 1–15</a></li>
-            <li><a href="/stratosphere.html#vortex35" title="GEPS and GEFS to day 35: drift-corrected vortex diagnostics, loops and dripping paint, and the 100 hPa heat flux.">Weeks 3–5</a></li>
-            <li><a href="/stratosphere.html#s5vortex" title="The C3S multi-model December vortex, calibrated on its hindcasts; SEAS5's vortex, QBO and annular mode, sudden-warming risk and polar-cap heights; and this winter's odds from the QBO and ENSO.">The season ahead</a></li>
+            <li><a href="/stratosphere.html#vortex" title="Every model's vortex to day 15 (its strength and the chance of a sudden warming, split or displaced member by member, the 10 hPa temperature, the vortex winds, the dripping paint, the upper stratosphere to 1 hPa), the waves driving it (the 100 hPa heat flux with the warning meter, waves 1 and 2, the E–P flux) and whether its anomaly is coming down to the surface (the polar cap, the Arctic Oscillation and NAO from every ensemble's members).">The next two weeks</a></li>
+            <li><a href="/stratosphere.html#vortex35" title="GEPS and GEFS to day 35 (drift-corrected vortex diagnostics, loops and dripping paint, the 100 hPa heat flux), the C3S multi-model December vortex calibrated on its hindcasts, SEAS5's vortex, QBO and annular mode, and this winter's odds from the QBO and ENSO.">Weeks 3–5 and the season</a></li>
+            <li><a href="/strat-models.html" title="Zoomable polar maps of the newest GFS (to day 16, 100 to 0.4 hPa), GDPS (to day 10, 100 to 1 hPa), AIFS single (100, 50 and 10 hPa) and GEOS FP (100 to 0.4 hPa) runs at every stratospheric level they publish: temperature, height, wind speed and zonal wind, the GFS's smoothed vertical motion, and Ertel potential vorticity on isentropic surfaces from 350 to 1600 K (GFS) and GEOS FP's own, both hemispheres, with contours and hover values.">Stratosphere model maps</a></li>
+            <li><a href="/stratosphere.html#qbo" title="The QBO from radiosondes since the 1950s and its zero-wind line forecast, the momentum budget, the Brewer–Dobson circulation and the water-vapour tape recorder.">The QBO and today's analyses</a></li>
+            <li><a href="/stratosphere.html#shwinters" title="Every winter and sudden warming since 1980 in MERRA-2 and 15,000 more in CMIP6, with what followed at the surface.">History and studies</a></li>
           </ul>
-          <details class="sg-more"><summary>3 more</summary>
-            <ul>
-              <li><a href="/stratosphere.html#qbo" title="The QBO from radiosondes since the 1950s and its zero-wind line forecast, the momentum budget, the Brewer–Dobson circulation and the water-vapour tape recorder.">The QBO and today's analyses</a></li>
-              <li><a href="/stratosphere.html#shwinters" title="Every winter and sudden warming since 1980 in MERRA-2 and 15,000 more in CMIP6, with what followed at the surface.">History and studies</a></li>
-              <li><a href="/stratosphere.html" title="Every stratosphere product in one place, opening on the next two weeks: the vortex, the waves driving it and what reaches the surface from AIFS-ENS, IFS-ENS, GEFS and the Canadian models; GEPS and GEFS to day 35; the C3S models and SEAS5 for the season; the QBO and today's analyses; and every sudden warming since 1980 with what followed.">All stratosphere products</a></li>
-            </ul>
-          </details>
           <a class="sg-all" href="/catalog.html?topic=circulation">All plots in this theme</a>
         </section>
       </div>
       <div class="sg-col">
         <section class="sg" data-topic="research">
-          <h3>Studies and verification</h3>
-          <p>What the record and the models say, and how forecasts score</p>
+          <h3>Studies and tools</h3>
+          <p>What the record and the models say, how forecasts score, and the data to explore</p>
           <ul>
+            <li><a href="/verification.html" title="GFS, ECMWF IFS, AIFS and Canada's GDPS to day 10 and four ensembles to day 15, scored on the same surface stations, radiosondes, Stage IV rain and ERA5, with the uncertainty of every score and a database of every run. Scored with mverify, an open-source verification package.">Global models against observations</a></li>
+            <li><a href="/aifs-verify.html" title="The two ECMWF AIFS configurations compared as deterministic models against radiosondes and ERA5, with the ensemble member spectrally matched to the single model and the ensemble mean for reference.">AIFS single versus ensemble control</a></li>
             <li><a href="/enso.html#imp_reg" title="Thousands of El Niño and La Niña events in 16 CMIP6 models against the observed record: regressions, composites, super and east-based El Niños, 500 hPa wave trains, and why the PDO mostly follows the atmosphere rather than driving it. Significant results only.">ENSO impacts on the Americas</a></li>
             <li><a href="/mjo.html#mi" title="What each MJO phase has meant for temperature and rain, season by season, in CMIP6 models and the observed record. Significant results only.">MJO impacts</a></li>
             <li><a href="/aifs-aam-budget.html" title="Do AI weather models obey the conservation laws? ECMWF's AI ensemble (AIFS-ENS), the single AIFS and the physics ensemble against angular momentum and its torques, dry-air mass, water and energy. Winter 2025–26, days 1–15.">AI models and conservation laws</a></li>
             <li><a href="/torque-enso.html" title="Why the atmosphere spins up in El Niño: a standing shift in the Andes mountain torque supplies the extra angular momentum, and ERA5's model loses westerly momentum that its analysis puts back, mostly over the oceans. ERA5 1959–2026, 41 CMIP6 models, the 2026 budget hour by hour. Significant results only.">El Niño and angular momentum</a></li>
-            <li><a href="/aifs-verify.html" title="The two ECMWF AIFS configurations compared as deterministic models against radiosondes and ERA5, with the ensemble member spectrally matched to the single model and the ensemble mean for reference.">AIFS single versus ensemble control</a></li>
-            <li><a href="/verification.html" title="GFS, ECMWF IFS, AIFS and Canada's GDPS scored on the same surface stations, radiosondes and Stage IV rain analyses out to day 10, with a scorecard of the differences that pass a significance test. Scored with mverify, an open-source verification package.">Global models against observations</a></li>
-            <li><a href="/topics/" title="How to read the products: the equations and the physics behind each diagnostic.">Explainers</a></li>
-          </ul>
-          <a class="sg-all" href="/catalog.html?topic=research">All plots in this theme</a>
-        </section>
-        <section class="sg" data-topic="tools">
-          <h3>Tools</h3>
-          <p>Explore the data yourself</p>
-          <ul>
             <li><a href="/catalog.html" title="One searchable sheet of every figure and loop, filterable by topic, model, forecast range and region, each linked to its exact view.">Every plot on the site</a></li>
             <li><a href="/skewt/" title="Real-time and archived radiosondes worldwide, drawn and analysed in the browser, with launch history and record rings.">Sounding explorer</a></li>
-            <li><a href="/asos5.html" title="Five-minute ASOS observations at 22 major US airports: temperature, dewpoint, wind, visibility, ceiling and weather, with running daily highs and lows.">Five-minute airport observations</a></li>
             <li><a href="/climate.html" title="Every US county and calendar month since 1895: temperature, precipitation and degree-day trends per decade with significance, the 1991–2020 normal and what normal is now.">US climate trends</a></li>
-            <li><a href="/fci.html" title="How tight credit is in the US, weekly since 1990: corporate bond spreads, commercial paper, bank lending and the loan officer survey, mortgage rates, the fed funds rate, the yield curve, stocks and the dollar, with sub-indices for companies, mortgages, rates, markets, liquidity and private credit.">US credit conditions</a></li>
           </ul>
+          <details class="sg-more"><summary>3 more</summary>
+            <ul>
+              <li><a href="/topics/" title="How to read the products: the equations and the physics behind each diagnostic.">Explainers</a></li>
+              <li><a href="/asos5.html" title="Five-minute ASOS observations at 22 major US airports: temperature, dewpoint, wind, visibility, ceiling and weather, with running daily highs and lows.">Five-minute airport observations</a></li>
+              <li><a href="/fci.html" title="How tight credit is in the US, weekly since 1990: corporate bond spreads, commercial paper, bank lending and the loan officer survey, mortgage rates, the fed funds rate, the yield curve, stocks and the dollar, with sub-indices for companies, mortgages, rates, markets, liquidity and private credit.">US credit conditions</a></li>
+            </ul>
+          </details>
+          <a class="sg-all" href="/catalog.html?topic=research">All plots in this theme</a>
         </section>
       </div>
     </div>

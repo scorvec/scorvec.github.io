@@ -41,7 +41,7 @@
       if (!btn) return;
       if (collapsed) {
         btn.setAttribute('tabindex', '-1'); btn.setAttribute('aria-hidden', 'true'); btn.removeAttribute('aria-expanded');
-        if (menu) { menu.setAttribute('role', 'group'); menu.setAttribute('aria-label', (btn.querySelector('.sh-lf') || btn).textContent.trim()); }   // the full label shows here
+        if (menu) { menu.setAttribute('role', 'group'); menu.setAttribute('aria-label', btn.textContent.trim()); }
       } else if (btn.hasAttribute('aria-hidden')) {
         btn.removeAttribute('tabindex'); btn.removeAttribute('aria-hidden');
         btn.setAttribute('aria-expanded', item.classList.contains('is-open') ? 'true' : 'false');

@@ -24,54 +24,51 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 
 # ── the navigation, as data ──────────────────────────────────────────────────
-# Menus are BY THEME, with a ⌘K finder and a catalogue for individual plots. The product menus hold products only;
+# Five menus BY THEME, with a ⌘K finder and a catalogue for individual plots. The product menus hold products only;
 # the person (about, resume, publications, profiles) lives in PERSONAL, apart.
-# A page lives under its topic whatever model it comes from. Items are (href, label, what, when): the menus use
-# the first two, the homepage rows (between <!-- hp:start --> and <!-- hp:end --> in index.html) all four.
-# A group's items may be a flat list or a list of (subtitle, items) columns. Group titles are also the catalogue's
-# topic labels (scripts/site/build_catalog.py TOPICS) - rename both together.
+# A page lives under its topic whatever model it comes from. A group is (title, blurb, columns), its columns
+# (subtitle, items) and its items (href, label, what, when, note): the menus show the label with its short note,
+# the homepage rows (between <!-- hp:start --> and <!-- hp:end --> in index.html) the label with `what` as its
+# tooltip, the finder all of them. One entry per product: the sections of a stage page (circulation.html#...,
+# stratosphere.html#...) that belong together share one entry, and the page's own section bar and the finder reach
+# the rest. Group titles are also the catalogue's topic labels (scripts/site/build_catalog.py TOPICS) - rename both
+# together.
 PRODUCTS = [
-    # THEME-FIRST: Model maps (the interactive model viewers, every region) / Mid-latitude weather / Global circulation
-    # and tropics / Stratosphere / Weeks to seasons / Studies and verification / Tools. Tropical cyclones and the days
-    # 1-15 upper-air loops have their own entries; the tropical-
-    # cyclone products are diagnostic only. Products only (the person lives in PERSONAL) and never a group called
-    # "Weather" or "Research".
+    # THEME-FIRST: Forecasts (the model maps and the days 1-15 weather) / Tropics / Stratosphere / Weeks to seasons /
+    # Studies and tools. The tropical-cyclone products are diagnostic only. Products only (the person lives in
+    # PERSONAL) and never a group called "Weather" or "Research".
     (
-        "Model maps",
-        "Zoomable maps of the newest model runs, with contours and hover values",
+        "Forecasts",
+        "The newest model runs and the next two weeks' weather",
         [
             (
-                "/models.html",
-                "North America, short range",
-                "Zoomable maps of the newest HRRR, RRFS and RDPS runs for aviation, severe and winter weather and renewables: radar with precipitation type, accumulation, snow-band diagnostics (frontogenesis, EPV*, dendritic-zone lift), ceiling, visibility, temperature, dewpoint, wind, HRRR entraining CAPE (ECAPE), smoke and sunshine, with contours and hover values.",
-                "Four times daily",
+                "Model maps",
+                [
+                    (
+                        "/models.html",
+                        "North America, short range",
+                        "Zoomable maps of the newest HRRR, RRFS and RDPS runs for aviation, severe and winter weather and renewables: radar with precipitation type, accumulation, snow-band diagnostics (frontogenesis, EPV*, dendritic-zone lift), ceiling, visibility, temperature, dewpoint, wind, HRRR entraining CAPE (ECAPE), smoke and sunshine, with contours and hover values.",
+                        "Four times daily",
+                        "HRRR, RRFS and RDPS: radar, snow, storms",
+                    ),
+                    (
+                        "/samerica-models.html",
+                        "South America, to day 10",
+                        "Zoomable maps of the newest IFS control (ECMWF's unperturbed 9 km run) and GDPS runs over South America to day 10: temperature, wind at the surface and at 925 and 850 hPa, rain and its type, accumulation, precipitable water, 850 hPa θe and simulated IR, with ECAPE, CAPE, shear and helicity computed on every column, airport meteograms, forecast soundings, contours and hover values.",
+                        "Twice daily",
+                        "IFS control and GDPS, with soundings",
+                    ),
+                    (
+                        "/ens-anomalies.html",
+                        "World ensembles, to day 15",
+                        "Zoomable world maps of the newest IFS-ENS, AIFS-ENS, GEFS and GEPS runs to day 15: 2 m temperature (the IFS-ENS on its 0.1° grid), 500 hPa height and sea-level pressure against the 1991–2020 normal where the members agree on the sign, and the significant changes from the previous run, for days 1–5, 6–10, 11–15 and each day, with contours and hover values; each member's weather regime over the Euro-Atlantic and North America, with each regime's scenario maps.",
+                        "Twice daily",
+                        "Four ensembles: anomalies and regimes",
+                    ),
+                ],
             ),
             (
-                "/samerica-models.html",
-                "South America, to day 10",
-                "Zoomable maps of the newest IFS control (ECMWF's unperturbed 9 km run) and GDPS runs over South America to day 10: temperature, wind at the surface and at 925 and 850 hPa, rain and its type, accumulation, precipitable water, 850 hPa θe and simulated IR, with ECAPE, CAPE, shear and helicity computed on every column, airport meteograms, forecast soundings, contours and hover values.",
-                "Twice daily",
-            ),
-            (
-                "/ens-anomalies.html",
-                "World ensembles, to day 15",
-                "Zoomable world maps of the newest IFS-ENS, AIFS-ENS, GEFS and GEPS runs to day 15: 2 m temperature (the IFS-ENS on its 0.1° grid), 500 hPa height and sea-level pressure against the 1991–2020 normal where the members agree on the sign, and the significant changes from the previous run, for days 1–5, 6–10, 11–15 and each day, with contours and hover values; each member's weather regime over the Euro-Atlantic and North America, with each regime's scenario maps.",
-                "Twice daily",
-            ),
-            (
-                "/strat-models.html",
-                "Interactive stratosphere viewer",
-                "Zoomable polar maps of the newest GFS (to day 16, 100 to 0.4 hPa), GDPS (to day 10, 100 to 1 hPa), AIFS single (100, 50 and 10 hPa) and GEOS FP (100 to 0.4 hPa) runs at every stratospheric level they publish: temperature, height, wind speed and zonal wind, the GFS's smoothed vertical motion, and Ertel potential vorticity on isentropic surfaces from 350 to 1600 K (GFS) and GEOS FP's own, both hemispheres, with contours and hover values.",
-                "Four times daily",
-            ),
-        ],
-    ),
-    (
-        "Mid-latitude weather",
-        "The next two weeks: storms, hazards and the flow aloft",
-        [
-            (
-                "Surface and hazards",
+                "Days 1–15",
                 [
                     # snowbands.html is retired: its maps are the "Winter: snow bands" group of /models.html
                     (
@@ -79,46 +76,45 @@ PRODUCTS = [
                         "Atmospheric rivers",
                         "Integrated vapour transport maps to day 7 from AIFS, IFS, GFS and GDPS; West Coast landfall and AR-scale ranks; AR probabilities to day 15 from four ensembles and their blend; GEFS weeks 3–5 AR-frequency anomalies where significant.",
                         "Twice daily",
+                        "Moisture plumes, landfall and their odds",
                     ),
-                ],
-            ),
-            (
-                "Upper air",
-                [
                     (
                         "/circulation.html#dt",
-                        "Dynamic tropopause",
-                        "The 2-PVU surface and PV on the 330 and 350 K isentropes from the IFS control (ECMWF's unperturbed 9 km run, called HRES until May 2026): the hemisphere and five regions.",
+                        "Jet stream and tropopause",
+                        "The flow aloft: the 2-PVU dynamic tropopause and PV on the 330 and 350 K isentropes from the IFS control (ECMWF's unperturbed 9 km run), the North Pacific jet from every member with its extension and shift phases and what they usually bring downstream, and the Takaya–Nakamura wave activity flux at 250 hPa, the ensemble's quasi-stationary wave trains.",
                         "Twice daily",
-                    ),
-                    (
-                        "/circulation.html#pacjet",
-                        "North Pacific jet",
-                        "250 hPa jet maps, the jet axis from every member, and the jet's extension and shift phases with what they usually bring downstream.",
-                        "Twice daily",
-                    ),
-                    (
-                        "/circulation.html#waf",
-                        "Wave activity flux",
-                        "Takaya–Nakamura wave activity flux at 250 hPa, the ensemble's quasi-stationary wave trains.",
-                        "Daily",
+                        "Tropopause, Pacific jet and wave trains",
                     ),
                     (
                         "/circulation.html#telecon15",
-                        "Teleconnections, days 1–15",
+                        "Teleconnections",
                         "The NAO, PNA, EPO, WPO and seven more 500 hPa teleconnection patterns from every member of the IFS-ENS, AIFS-ENS, GEFS and GEPS runs, each ensemble calibrated against its own archived runs, with the chance of each phase only at the leads where it has shown skill and how the forecast has moved from run to run.",
                         "Twice daily",
+                        "NAO, PNA, EPO and more, calibrated",
+                    ),
+                    (
+                        "/circulation.html#tc",
+                        "Tropical cyclones",
+                        "Every storm ECMWF's two ensembles carry: where their 100 members take it, the chance it recurves by day 10 and when, when it becomes post-tropical and how deep it gets after; each storm on the IFS control's dynamic tropopause and in phase space; its shear and environment, profile, tilt and ventilation; and the track record of the odds against best tracks.",
+                        "Every 00Z and 12Z run; shear every 6 hours",
+                        "Tracks and recurvature from 100 members",
+                    ),
+                    (
+                        "/recon.html",
+                        "Hurricane reconnaissance",
+                        "Atlantic hurricane hunter flights decoded and mapped: the track by SFMR or flight-level wind, dropsonde skew-Ts, vortex fixes, best track and forecast, with the aircraft's quality flags respected.",
+                        "Live during flights",
+                        "Flights, dropsondes and vortex fixes",
                     ),
                 ],
             ),
         ],
-        "Mid-latitudes",
     ),
     # the subtropical jets and the angular-momentum products sit here with the tropics (the North Pacific jet is
-    # mid-latitude weather); the columns follow circulation.html's groups, and the menu keeps a short label
+    # mid-latitude weather); the entries follow circulation.html's groups
     (
-        "Global circulation and tropics",
-        "ENSO, the MJO, tropical cyclones, the Walker and Hadley cells, the jets and the atmosphere's angular momentum",
+        "Tropics",
+        "El Niño, the MJO, tropical waves and the tropical circulation",
         [
             (
                 "ENSO and the MJO",
@@ -128,171 +124,116 @@ PRODUCTS = [
                         "El Niño monitor",
                         "Daily ONI and RONI, Niño-region sea surface temperatures, the subsurface, winds and convection, with SST anomaly maps and animation.",
                         "Daily",
-                    ),
-                    (
-                        "/circulation.html#mslp",
-                        "Pacific pressure and wind",
-                        "Sea-level pressure and 10 m wind over the tropical and subtropical Pacific to day 15: the AIFS and IFS ensembles, separately and blended, and the AIFS, IFS and GDPS single runs.",
-                        "Twice daily",
-                    ),
-                    (
-                        "/circulation.html#gdps_ir",
-                        "Simulated satellite (GDPS)",
-                        "Environment Canada's GDPS forecast drawn as an infrared satellite loop over the tropical Pacific, 3-hourly to day 10: the cold cloud tops are deep convection.",
-                        "Daily",
+                        "ONI, RONI, the subsurface and winds",
                     ),
                     (
                         "/mjo.html",
                         "MJO forecast",
                         "Real-time multivariate MJO index from the AIFS-ENS, IFS-ENS, GEFS and GEPS ensembles on one phase diagram, standard or ENSO-removed, with the observed track and what each phase has meant for temperature and rain.",
                         "Twice daily",
+                        "Four ensembles on one phase diagram",
                     ),
                     (
                         "/tropical-waves.html",
                         "Tropical waves",
                         "Where the equatorial waves are now: Kelvin and Rossby wave trackers along the equator with the forecast, the OLR wave decomposition and ocean Kelvin waves.",
                         "Daily",
+                        "Kelvin and Rossby waves, now and ahead",
+                    ),
+                    (
+                        "/circulation.html#mslp",
+                        "Pacific pressure and satellite",
+                        "Sea-level pressure and 10 m wind over the tropical and subtropical Pacific to day 15 (the AIFS and IFS ensembles, separately and blended, and the AIFS, IFS and GDPS single runs), and Environment Canada's GDPS drawn as an infrared satellite loop, 3-hourly to day 10.",
+                        "Twice daily",
+                        "Pressure, wind and simulated IR",
                     ),
                 ],
             ),
             (
-                "Tropical cyclones",
-                [
-                    (
-                        "/circulation.html#tc",
-                        "Tropical cyclones",
-                        "Every storm ECMWF's two ensembles carry: where their 100 members take it, the chance it recurves by day 10 and when, when it becomes post-tropical and how deep it gets after; each storm on the IFS control's dynamic tropopause and in phase space; its shear and environment, profile, tilt and ventilation; and the track record of the odds against best tracks.",
-                        "Every 00Z and 12Z run; shear every 6 hours",
-                    ),
-                    (
-                        "/recon.html",
-                        "Hurricane reconnaissance",
-                        "Atlantic hurricane hunter flights decoded and mapped: the track by SFMR or flight-level wind, dropsonde skew-Ts, vortex fixes, best track and forecast, with the aircraft's quality flags respected.",
-                        "Live during flights",
-                    ),
-                ],
-            ),
-            (
-                "Jets and momentum",
-                [
-                    (
-                        "/circulation.html#jets",
-                        "Subtropical jets",
-                        "Speed and latitude of each hemisphere's subtropical jet core in the AIFS ensemble against the normal, and the zonal-mean wind cross-section through the 15-day forecast.",
-                        "Daily",
-                    ),
-                    (
-                        "/circulation.html#aam",
-                        "Angular momentum and torques",
-                        "Global atmospheric angular momentum and the mountain and friction torques that change it.",
-                        "Daily",
-                    ),
-                ],
-            ),
-            (
-                "Tropical overturning",
+                "Circulation",
                 [
                     (
                         "/circulation.html#walker",
-                        "Walker circulation",
-                        "The equatorial Walker circulation: every analysed week since July 2025 and the AIFS-ENS, IFS-ENS and GEFS forecasts to day 15 against ERA5, the circulation by ocean basin, and its weekly departure from Pacific forcing.",
+                        "Walker and Hadley cells",
+                        "The tropical overturning: the Walker circulation and the Hadley cells in every analysed week since July 2025 and in the AIFS-ENS, IFS-ENS and GEFS forecasts to day 15 against ERA5, by ocean basin; the cells' outflow, descent and turnover; 200 hPa velocity potential and the GDPS 150 hPa outflow; and how much of it the rain itself explains (a Gill model forced by IMERG and AIFS-ENS rainfall).",
                         "Daily",
+                        "The overturning, its outflow and descent",
                     ),
                     (
-                        "/circulation.html#hadley",
-                        "Hadley cells",
-                        "The meridional overturning in four parts: the cells themselves (every analysed week since July 2025, three ensembles' forecasts to day 15 against ERA5, each cell's strength and poleward edge, El Niño years); their outflow on the dynamic tropopause, their descent and the subtropical ridges and highs it builds, tracked basin by basin; back-trajectories timing how fast the cells turn over, with a map to drop a particle in the tropics and follow it; and the tropical sea-level pressure against ERA5, daily analyses and three ensembles' forecasts to day 14, in hPa or normalised by the day's spread.",
+                        "/circulation.html#jets",
+                        "Jets and angular momentum",
+                        "Speed and latitude of each hemisphere's subtropical jet core in the AIFS ensemble against the normal, the zonal-mean wind through the 15-day forecast, and global atmospheric angular momentum with the mountain and friction torques that change it.",
                         "Daily",
-                    ),
-                    (
-                        "/circulation.html#vpot",
-                        "Velocity potential",
-                        "200 hPa velocity potential and the irrotational wind: where the tropics are venting and where they are subsiding.",
-                        "Twice daily",
-                    ),
-                    (
-                        "/circulation.html#gdps150",
-                        "Upper-level outflow (GDPS)",
-                        "Environment Canada's GDPS 150 hPa wind and height to day 10: the outflow layer of the Hadley and Walker cells and the subtropical jets.",
-                        "Daily",
-                    ),
-                    (
-                        "/circulation.html#gillrain",
-                        "Rain-forced circulation (Gill model)",
-                        "How much of the tropical upper-level circulation the rain itself explains: the Gill (1980) model forced by IMERG and AIFS-ENS rainfall against the observed and forecast velocity potential.",
-                        "Twice daily",
+                        "Jet cores, momentum and torques",
                     ),
                     (
                         "/circulation.html#rainfc",
                         "Rain forecast, weeks 1–2",
                         "Bias-adjusted rain for weeks 1 and 2 from four ensembles (IFS-ENS, AIFS-ENS, GEFS, GEPS) and their verified blend over the tropics and the globe: corrected rain, its anomaly, the favoured tercile against the GPCP normal and the change since the previous day's runs, where significant.",
                         "Daily",
+                        "Four ensembles, bias-adjusted, blended",
                     ),
                 ],
             ),
         ],
-        "Tropics",
     ),
     # one hub: stratosphere.html holds every stratosphere product (including the GEPS/GEFS/SEAS5 vortex products and the
-    # QBO tracker); this menu is a flat list of its sections in the page's order (days 1-15 by theme, then the longer
-    # ranges, the QBO and today's analyses, and the history), and the hub itself last
+    # QBO tracker); the entries are its sections in the page's order, the days 1-15 sections as one
     (
         "Stratosphere",
         "The polar vortex and the waves going up into it, from today's analysis to the season, and the QBO",
         [
             (
-                "/ssw.html",
-                "SSW outlook",
-                "Is a sudden warming coming in the next 15 days, what kind of event it is (wave-1 or wave-2, bottom-up or top-down, reflecting or absorbing) and whether it will reach the surface: one summary of every ensemble.",
-                "Twice daily",
+                "Forecasts",
+                [
+                    (
+                        "/ssw.html",
+                        "SSW outlook",
+                        "Is a sudden warming coming in the next 15 days, what kind of event it is (wave-1 or wave-2, bottom-up or top-down, reflecting or absorbing) and whether it will reach the surface: one summary of every ensemble.",
+                        "Twice daily",
+                        "Is a sudden warming coming?",
+                    ),
+                    (
+                        "/stratosphere.html#vortex",
+                        "The next two weeks",
+                        "Every model's vortex to day 15 (its strength and the chance of a sudden warming, split or displaced member by member, the 10 hPa temperature, the vortex winds, the dripping paint, the upper stratosphere to 1 hPa), the waves driving it (the 100 hPa heat flux with the warning meter, waves 1 and 2, the E–P flux) and whether its anomaly is coming down to the surface (the polar cap, the Arctic Oscillation and NAO from every ensemble's members).",
+                        "Twice daily",
+                        "The vortex, its waves and the surface",
+                    ),
+                    (
+                        "/stratosphere.html#vortex35",
+                        "Weeks 3–5 and the season",
+                        "GEPS and GEFS to day 35 (drift-corrected vortex diagnostics, loops and dripping paint, the 100 hPa heat flux), the C3S multi-model December vortex calibrated on its hindcasts, SEAS5's vortex, QBO and annular mode, and this winter's odds from the QBO and ENSO.",
+                        "Daily",
+                        "GEPS, GEFS, C3S and SEAS5",
+                    ),
+                    (
+                        "/strat-models.html",
+                        "Stratosphere model maps",
+                        "Zoomable polar maps of the newest GFS (to day 16, 100 to 0.4 hPa), GDPS (to day 10, 100 to 1 hPa), AIFS single (100, 50 and 10 hPa) and GEOS FP (100 to 0.4 hPa) runs at every stratospheric level they publish: temperature, height, wind speed and zonal wind, the GFS's smoothed vertical motion, and Ertel potential vorticity on isentropic surfaces from 350 to 1600 K (GFS) and GEOS FP's own, both hemispheres, with contours and hover values.",
+                        "Four times daily",
+                        "Polar maps at every level, zoomable",
+                    ),
+                ],
             ),
             (
-                "/stratosphere.html#vortex",
-                "The vortex, days 1–15",
-                "Every model's vortex to day 15: its strength and the chance of a sudden warming, split or displaced member by member, the 10 hPa temperature, the vortex winds and the 100 hPa height, the dripping paint, the upper stratosphere to 1 hPa, GEOS FP potential vorticity, and how the recent runs verified.",
-                "Twice daily",
-            ),
-            (
-                "/stratosphere.html#heatflux",
-                "The waves driving it, days 1–15",
-                "The 100 hPa eddy heat flux with the SSW warning meter, planetary waves 1 and 2, the GEFS E–P flux and refractive index, and the regional reflection index.",
-                "Twice daily",
-            ),
-            (
-                "/stratosphere.html#descent",
-                "Down to the surface, days 1–15",
-                "Whether the stratosphere's anomaly is coming down: the downward-propagation monitor, the polar cap at sea level and 500 hPa, the Arctic Oscillation and NAO from every ensemble's members, and where the air over the cap is sinking.",
-                "Twice daily",
-            ),
-            (
-                "/stratosphere.html#vortex35",
-                "Weeks 3–5",
-                "GEPS and GEFS to day 35: drift-corrected vortex diagnostics, loops and dripping paint, and the 100 hPa heat flux.",
-                "Daily",
-            ),
-            (
-                "/stratosphere.html#s5vortex",
-                "The season ahead",
-                "The C3S multi-model December vortex, calibrated on its hindcasts; SEAS5's vortex, QBO and annular mode, sudden-warming risk and polar-cap heights; and this winter's odds from the QBO and ENSO.",
-                "Monthly",
-            ),
-            (
-                "/stratosphere.html#qbo",
-                "The QBO and today's analyses",
-                "The QBO from radiosondes since the 1950s and its zero-wind line forecast, the momentum budget, the Brewer–Dobson circulation and the water-vapour tape recorder.",
-                "Daily",
-            ),
-            (
-                "/stratosphere.html#shwinters",
-                "History and studies",
-                "Every winter and sudden warming since 1980 in MERRA-2 and 15,000 more in CMIP6, with what followed at the surface.",
-                "Static",
-            ),
-            (
-                "/stratosphere.html",
-                "All stratosphere products",
-                "Every stratosphere product in one place, opening on the next two weeks: the vortex, the waves driving it and what reaches the surface from AIFS-ENS, IFS-ENS, GEFS and the Canadian models; GEPS and GEFS to day 35; the C3S models and SEAS5 for the season; the QBO and today's analyses; and every sudden warming since 1980 with what followed.",
-                "Twice daily",
+                "Analyses and history",
+                [
+                    (
+                        "/stratosphere.html#qbo",
+                        "The QBO and today's analyses",
+                        "The QBO from radiosondes since the 1950s and its zero-wind line forecast, the momentum budget, the Brewer–Dobson circulation and the water-vapour tape recorder.",
+                        "Daily",
+                        "QBO, momentum and the Brewer–Dobson",
+                    ),
+                    (
+                        "/stratosphere.html#shwinters",
+                        "History and studies",
+                        "Every winter and sudden warming since 1980 in MERRA-2 and 15,000 more in CMIP6, with what followed at the surface.",
+                        "Static",
+                        "Every winter and warming since 1980",
+                    ),
+                ],
             ),
         ],
     ),
@@ -305,56 +246,62 @@ PRODUCTS = [
                 [
                     (
                         "/subseasonal.html",
-                        "GEPS extended ensemble",
+                        "GEPS, to day 35",
                         "Environment Canada's extended ensemble to day 35 for the Americas and the tropics: weekly anomalies against its own reforecast, terciles, teleconnections, regimes and change since the previous run (its polar vortex is on the stratosphere page).",
                         "Mondays and Thursdays",
+                        "Canada's extended ensemble",
                     ),
                     (
                         "/gefs.html",
-                        "GEFS extended ensemble",
+                        "GEFS, to day 35",
                         "NOAA's GEFS extended ensemble to day 35 in the same layout: weekly anomalies against its own reforecast and the change since a week earlier (its drift-corrected polar vortex is on the stratosphere page).",
                         "Daily",
+                        "NOAA's extended ensemble",
                     ),
-                    # the GEPS/GEFS layout for NOAA's SFS beta2; its daily products are gated on a data check (NOAA's beta2 daily
-                    # forecast store was defective in its first two issues)
+                    # the GEPS/GEFS layout for NOAA's SFS beta2; its daily products are gated on a data check (NOAA's
+                    # beta2 daily forecast store was defective in its first two issues)
                     (
                         "/sfs-subseasonal.html",
-                        "SFS extended (experimental)",
+                        "SFS, to six weeks",
                         "NOAA's experimental SFS beta2, 31 members from the first of each month, up to six weeks in the same layout against its own 1991–2020 reforecast, with its hindcast skill against GEFS, GEPS and CFSv2.",
                         "Monthly",
+                        "NOAA's experimental new system",
                     ),
+                ],
+            ),
+            (
+                "Months and seasons",
+                [
                     # Claude's statistical forecasts blended with C3S and GEFS (scripts/monthly, monthly-outlook.yml)
                     (
                         "/monthly-outlook.html",
                         "Claude's long-range forecast",
                         "A forecast designed and run by Claude, issued on the 15th: next month and the next three seasons of 2 m temperature, precipitation and 500 hPa height over the Northern Hemisphere, as anomalies and tercile probabilities, and Niño-3.4 for twelve months from SST and the TAO moorings' heat content. Claude's statistical forecasts are blended with the C3S seasonal systems, GEFS and GEPS where the hindcast shows they help, dotted where it shows skill, with a running record against ERA5.",
                         "Monthly, on the 15th",
+                        "The month and three seasons ahead",
                     ),
-                ],
-            ),
-            (
-                "Seasons",
-                [
                     # the C3S systems with the NOAA SFS page folded in
                     (
                         "/seasonal.html",
                         "Seasonal model forecasts",
                         "Seven C3S systems from six centres plus NOAA's SFS beta: anomaly maps and tercile probabilities for every C3S model and their mean, the member-level ECMWF SEAS5 outlook (indices, teleconnections, impacts; its stratosphere is on the stratosphere page) and the 31-member SFS plumes and monthly maps.",
                         "Monthly",
+                        "Seven C3S systems and NOAA's SFS",
                     ),
                     (
                         "/enso-forecasts.html",
                         "ENSO forecasts",
                         "Every member of five centres' seasonal models for Niño-3.4, with percentile fans and a record of how past forecasts did.",
                         "Monthly",
+                        "Niño-3.4 from five centres",
                     ),
                 ],
             ),
         ],
     ),
     (
-        "Studies and verification",
-        "What the record and the models say, and how the forecasts score",
+        "Studies and tools",
+        "What the record and the models say, how the forecasts score, and the data to explore",
         [
             (
                 "Studies",
@@ -364,30 +311,35 @@ PRODUCTS = [
                         "ENSO impacts on the Americas",
                         "Thousands of El Niño and La Niña events in 16 CMIP6 models against the observed record: regressions, composites, super and east-based El Niños, 500 hPa wave trains, and why the PDO mostly follows the atmosphere rather than driving it. Significant results only.",
                         "Static",
+                        "CMIP6 and the observed record",
                     ),
                     (
                         "/mjo.html#mi",
                         "MJO impacts",
                         "What each MJO phase has meant for temperature and rain, season by season, in CMIP6 models and the observed record. Significant results only.",
                         "Static",
+                        "Each phase, season by season",
                     ),
                     (
                         "/aifs-aam-budget.html",
                         "AI models and conservation laws",
                         "Do AI weather models obey the conservation laws? ECMWF's AI ensemble (AIFS-ENS), the single AIFS and the physics ensemble against angular momentum and its torques, dry-air mass, water and energy. Winter 2025–26, days 1–15.",
                         "Static",
+                        "Does the AIFS keep the budgets?",
                     ),
                     (
                         "/torque-enso.html",
                         "El Niño and angular momentum",
                         "Why the atmosphere spins up in El Niño: a standing shift in the Andes mountain torque supplies the extra angular momentum, and ERA5's model loses westerly momentum that its analysis puts back, mostly over the oceans. ERA5 1959–2026, 41 CMIP6 models, the 2026 budget hour by hour. Significant results only.",
                         "Static",
+                        "Why the atmosphere spins up",
                     ),
                     (
                         "/topics/",
                         "Explainers",
                         "How to read the products: the equations and the physics behind each diagnostic.",
                         "As written",
+                        "The physics behind the products",
                     ),
                 ],
             ),
@@ -395,55 +347,60 @@ PRODUCTS = [
                 "Verification",
                 [
                     (
+                        "/verification.html",
+                        "Global models against observations",
+                        "GFS, ECMWF IFS, AIFS and Canada's GDPS to day 10 and four ensembles to day 15, scored on the same surface stations, radiosondes, Stage IV rain and ERA5, with the uncertainty of every score and a database of every run. Scored with mverify, an open-source verification package.",
+                        "Daily",
+                        "Scorecards, maps and the database",
+                    ),
+                    (
                         "/aifs-verify.html",
                         "AIFS single versus ensemble control",
                         "The two ECMWF AIFS configurations compared as deterministic models against radiosondes and ERA5, with the ensemble member spectrally matched to the single model and the ensemble mean for reference.",
                         "Every 00Z and 12Z run",
-                    ),
-                    (
-                        "/verification.html",
-                        "Global models against observations",
-                        "GFS, ECMWF IFS, AIFS and Canada's GDPS scored on the same surface stations, radiosondes and Stage IV rain analyses out to day 10, with a scorecard of the differences that pass a significance test. Scored with mverify, an open-source verification package.",
-                        "First sample, 10 runs",
+                        "Two AIFS configurations compared",
                     ),
                 ],
             ),
-        ],
-        "Studies",
-    ),
-    (
-        "Tools",
-        "Explore the data yourself",
-        [
             (
-                "/catalog.html",
-                "Every plot on the site",
-                "One searchable sheet of every figure and loop, filterable by topic, model, forecast range and region, each linked to its exact view.",
-                "Rebuilt with the pages",
-            ),
-            (
-                "/skewt/",
-                "Sounding explorer",
-                "Real-time and archived radiosondes worldwide, drawn and analysed in the browser, with launch history and record rings.",
-                "Hourly mirror",
-            ),
-            (
-                "/asos5.html",
-                "Five-minute airport observations",
-                "Five-minute ASOS observations at 22 major US airports: temperature, dewpoint, wind, visibility, ceiling and weather, with running daily highs and lows.",
-                "Live",
-            ),
-            (
-                "/climate.html",
-                "US climate trends",
-                "Every US county and calendar month since 1895: temperature, precipitation and degree-day trends per decade with significance, the 1991–2020 normal and what normal is now.",
-                "Monthly",
-            ),
-            (
-                "/fci.html",
-                "US credit conditions",
-                "How tight credit is in the US, weekly since 1990: corporate bond spreads, commercial paper, bank lending and the loan officer survey, mortgage rates, the fed funds rate, the yield curve, stocks and the dollar, with sub-indices for companies, mortgages, rates, markets, liquidity and private credit.",
-                "Daily",
+                "Tools",
+                [
+                    (
+                        "/catalog.html",
+                        "Every plot on the site",
+                        "One searchable sheet of every figure and loop, filterable by topic, model, forecast range and region, each linked to its exact view.",
+                        "Rebuilt with the pages",
+                        "Search and filter every figure",
+                    ),
+                    (
+                        "/skewt/",
+                        "Sounding explorer",
+                        "Real-time and archived radiosondes worldwide, drawn and analysed in the browser, with launch history and record rings.",
+                        "Hourly mirror",
+                        "Radiosondes worldwide, live",
+                    ),
+                    (
+                        "/asos5.html",
+                        "Five-minute airport observations",
+                        "Five-minute ASOS observations at 22 major US airports: temperature, dewpoint, wind, visibility, ceiling and weather, with running daily highs and lows.",
+                        "Live",
+                        "22 major US airports, live",
+                    ),
+                    (
+                        "/climate.html",
+                        "US climate trends",
+                        "Every US county and calendar month since 1895: temperature, precipitation and degree-day trends per decade with significance, the 1991–2020 normal and what normal is now.",
+                        "Monthly",
+                        "Every county and month since 1895",
+                    ),
+                    (
+                        "/fci.html",
+                        "US credit conditions",
+                        "How tight credit is in the US, weekly since 1990: corporate bond spreads, commercial paper, bank lending and the loan officer survey, mortgage rates, the fed funds rate, the yield curve, stocks and the dollar, with sub-indices for companies, mortgages, rates, markets, liquidity and private credit.",
+                        "Daily",
+                        "Financial conditions, weekly since 1990",
+                    ),
+                ],
             ),
         ],
     ),
@@ -460,8 +417,8 @@ PERSONAL = [("/about.html", "About me"), ("/resume.html", "Resume"), ("/research
 
 
 def _split_columns(items):
-    """A columned menu's (subtitle, items) groups in two stacks, in order, split where the stacks' heights (a heading
-    plus its links) come closest: each column then runs straight down, with no gap beside a shorter neighbour."""
+    """A menu's (subtitle, items) groups in two stacks, in order, split where the stacks' heights (a heading plus its
+    links) come closest: each column then runs straight down, with no gap beside a shorter neighbour."""
     if len(items) < 2:
         return [items]
     h = [1 + len(its) for _, its in items]
@@ -469,11 +426,9 @@ def _split_columns(items):
     return [items[:k], items[k:]]
 
 
-def group_items(items):
-    """Flatten a group's items whether it is a flat list or (subtitle, items) columns."""
-    if items and isinstance(items[0][1], list):
-        return [it for _, sub in items for it in sub]
-    return list(items)
+def group_items(columns):
+    """A group's items, every column's in order."""
+    return [it for _, sub in columns for it in sub]
 
 
 # Plain header links between the product menus and the special button (none since the About menu took Resume).
@@ -822,37 +777,27 @@ def header_html(page: str, skin: str, skip: bool = False) -> str:
         '    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>',
         '    <nav class="sh-nav" id="sh-menu" aria-label="Site">\n      <ul class="sh-list">',
     ]
-    for n, (title, _blurb, items, *short) in enumerate(PRODUCTS):
-        # the header's short label on the one-line desktop row, the full title in the phone / compact menu
-        label = (f'<span class="sh-lf">{title}</span><span class="sh-ls">{short[0]}</span>') if short else title
-        in_group = any(it[0] == page for it in group_items(items))
+    for n, (title, _blurb, columns) in enumerate(PRODUCTS):
+        in_group = any(it[0] == page for it in group_items(columns))
         mid = f"sh-g{n}"
-        columns = bool(items) and isinstance(items[0][1], list)
         out.append('        <li class="sh-item sh-has-menu">')
         out.append(
             f'          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="{mid}"'
-            f"{' aria-current=page' if in_group else ''}>{label}</button>"
+            f"{' aria-current=page' if in_group else ''}>{title}</button>"
         )
-        if columns:
-            cols = _split_columns(items)
-            one = " sh-menu--one" if len(cols) == 1 else ""  # a group with one column: a narrow panel, no empty half
-            out.append(f'          <div class="sh-menu sh-menu--cols{one}" id="{mid}">')
-            for col in cols:
-                out.append('            <div class="sh-col">')
-                for sub, its in col:
-                    out.append(f"              <div>\n                <h3>{sub}</h3>\n                <ul>")
-                    pages_here = {h for h, *_ in its if "#" not in h}
-                    for href, text, *_ in its:
-                        cls = ' class="sh-subitem"' if "#" in href and href.split("#")[0] in pages_here else ""
-                        out.append(f'                  <li{cls}><a href="{href}"{_current(href, page)}>{text}</a></li>')
-                    out.append("                </ul>\n              </div>")
-                out.append("            </div>")
-            out.append("          </div>\n        </li>")
-        else:
-            out.append(f'          <div class="sh-menu sh-menu--list" id="{mid}">\n            <ul>')
-            for href, text, *_ in items:
-                out.append(f'              <li><a href="{href}"{_current(href, page)}>{text}</a></li>')
-            out.append("            </ul>\n          </div>\n        </li>")
+        out.append(f'          <div class="sh-menu sh-menu--cols" id="{mid}">')
+        for col in _split_columns(columns):
+            out.append('            <div class="sh-col">')
+            for sub, its in col:
+                out.append(f"              <div>\n                <h3>{sub}</h3>\n                <ul>")
+                for href, text, _what, _when, note in its:  # each link its name over its one-line note
+                    out.append(
+                        f'                  <li><a href="{href}"{_current(href, page)}><span class="sh-t">{text}</span>'
+                        f'<span class="sh-d">{note}</span></a></li>'
+                    )
+                out.append("                </ul>\n              </div>")
+            out.append("            </div>")
+        out.append("          </div>\n        </li>")
     for href, label in PRIMARY:
         out.append(
             f'        <li class="sh-item"><a class="sh-link" href="{href}"{_current(href, page)}>{label}</a></li>'
@@ -879,83 +824,74 @@ def header_html(page: str, skin: str, skip: bool = False) -> str:
     return "\n".join(out).replace(" aria-current=page", ' aria-current="page"')
 
 
-# The homepage shows the menus' six themes as tiles: per theme a one-line purpose, its key pages as plain
+# The homepage shows the menus' five themes as tiles: per theme a one-line purpose, its key pages as plain
 # links (the long descriptions live in the menus' pages and the catalogue) and a link to the theme's plots in the
 # catalogue. HOME: group title -> (catalogue topic id, short purpose, featured hrefs in order). A group missing here
 # features its first six pages.
 HOME = {
-    "Model maps": (
-        "models",
-        "The newest model runs, zoomable, with hover values and soundings",
-        ["/models.html", "/samerica-models.html", "/ens-anomalies.html", "/strat-models.html"],
-    ),
-    "Mid-latitude weather": (
+    "Forecasts": (
         "weather",
-        "Storms, hazards and the flow aloft over the next two weeks",
+        "The newest model runs, zoomable, and the next two weeks' storms and flow aloft",
         [
+            "/models.html",
+            "/samerica-models.html",
+            "/ens-anomalies.html",
             "/ar.html",
             "/circulation.html#dt",
-            "/circulation.html#pacjet",
-            "/circulation.html#waf",
             "/circulation.html#telecon15",
         ],
     ),
-    "Global circulation and tropics": (
+    "Tropics": (
         "drivers",
-        "El Niño, the MJO, cyclones, the overturning cells, the jets and the atmosphere's momentum",
+        "El Niño, the MJO, the tropical waves and the overturning cells",
         [
             "/enso.html",
             "/mjo.html",
             "/tropical-waves.html",
-            "/circulation.html#tc",
             "/circulation.html#walker",
-            "/circulation.html#hadley",
             "/circulation.html#jets",
-            "/circulation.html#aam",
+            "/circulation.html#rainfc",
         ],
     ),
     "Stratosphere": (
         "circulation",
-        "The polar vortex from today's analysis to the season, and the QBO",
+        "The polar vortex from the next two weeks to the season, and the QBO",
         [
             "/ssw.html",
             "/stratosphere.html#vortex",
-            "/stratosphere.html#heatflux",
-            "/stratosphere.html#descent",
             "/stratosphere.html#vortex35",
-            "/stratosphere.html#s5vortex",
+            "/strat-models.html",
+            "/stratosphere.html#qbo",
+            "/stratosphere.html#shwinters",
         ],
     ),
     "Weeks to seasons": (
         "outlooks",
-        "Extended ensembles to day 35 and the seasonal models",
-        ["/subseasonal.html", "/gefs.html", "/seasonal.html", "/enso-forecasts.html"],
+        "Extended ensembles to day 35, Claude's long-range forecast and the seasonal models",
+        ["/subseasonal.html", "/gefs.html", "/monthly-outlook.html", "/seasonal.html", "/enso-forecasts.html"],
     ),
-    "Studies and verification": (
+    "Studies and tools": (
         "research",
-        "What the record and the models say, and how forecasts score",
-        [
+        "What the record and the models say, how forecasts score, and the data to explore",
+        [  # the third stack's only tile: as long as the two beside it
+            "/verification.html",
+            "/aifs-verify.html",
             "/enso.html#imp_reg",
             "/mjo.html#mi",
             "/aifs-aam-budget.html",
             "/torque-enso.html",
-            "/aifs-verify.html",
-            "/verification.html",
-            "/topics/",
+            "/catalog.html",
+            "/skewt/",
+            "/climate.html",
         ],
-    ),
-    "Tools": (
-        "tools",
-        "Explore the data yourself",
-        ["/catalog.html", "/skewt/", "/asos5.html", "/climate.html", "/fci.html"],
     ),
 }
 # The tiles in three stacks that each run straight down, so a short tile leaves no hole beside a long one: the
 # forecasts, what drives them, then the studies and tools. A group missing here joins the last stack.
 HOME_COLUMNS = (
-    ("Model maps", "Mid-latitude weather", "Weeks to seasons"),
-    ("Global circulation and tropics", "Stratosphere"),
-    ("Studies and verification", "Tools"),
+    ("Forecasts", "Weeks to seasons"),
+    ("Tropics", "Stratosphere"),
+    ("Studies and tools",),
 )
 
 
@@ -967,9 +903,9 @@ def homepage_rows() -> str:
         return t.replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;")
 
     tiles = {}
-    for title, blurb, items, *_ in PRODUCTS:
-        allit = group_items(items)
-        by = {h: (lab, what) for h, lab, what, _ in allit}
+    for title, blurb, columns in PRODUCTS:
+        allit = group_items(columns)
+        by = {h: (lab, what) for h, lab, what, *_ in allit}
         topic, short, feat = HOME.get(title, (None, blurb, [h for h, *_ in allit if "#" not in h][:6]))
         feat = [h for h in feat if h in by]
         rest = [h for h, *_ in allit if h not in feat]
@@ -985,7 +921,7 @@ def homepage_rows() -> str:
             tile.append(f'          <details class="sg-more"><summary>{len(rest)} more</summary>\n            <ul>')
             tile += ["  " + li(h) for h in rest]
             tile.append("            </ul>\n          </details>")
-        if topic and topic != "tools":
+        if topic:
             tile.append(f'          <a class="sg-all" href="/catalog.html?topic={topic}">All plots in this theme</a>')
         tile.append("        </section>")
         tiles[title] = tile
