@@ -152,22 +152,31 @@ def area_of(region: str) -> str:
 
 def draw_series(t: pd.DataFrame, region: str, day: int, start: pd.Timestamp, path: Path) -> str | None:
     """The anomaly correlation at one lead against the date it verifies, as EMC's charts, as a running mean of the runs
-    (each run's own score swings with the day's weather far more than the models differ)."""
+    (each run's own score swings with the day's weather far more than the models differ), each model's mean over the
+    period in the legend: over the days every model with WINDOW_SHARE of them has, so those compare on one sample; a
+    model with fewer (GDPS and GEPS, kept by HPFX for their last weeks only) over its own days, which it names."""
     r = t[(t["region"] == region) & (t["valid_time"] >= start) & (t["lead_h"] == 24 * day)]
     if r.empty:
         return None
     days = pd.date_range(r["valid_time"].min().normalize(), r["valid_time"].max().normalize(), freq="D")
+    daily = {}
+    for m in [*Z.DET, *Z.E.ENSEMBLES]:
+        x = r[r["model"] == m].set_index("valid_time")["acc"].sort_index()
+        if not x.empty:
+            daily[m] = x.groupby(x.index.normalize()).mean().reindex(days)  # a missing run leaves a gap
+    most = max(x.notna().sum() for x in daily.values())
+    full = [m for m, x in daily.items() if x.notna().sum() >= D.WINDOW_SHARE * most]
+    common = pd.concat([daily[m] for m in full], axis=1).notna().all(axis=1)
     fig, ax = plt.subplots(figsize=house.size(15, 0.45), constrained_layout=True)
     seen = []
-    for m in [*Z.DET, *Z.E.ENSEMBLES]:
-        s = r[r["model"] == m].set_index("valid_time")["acc"].sort_index()
-        if s.empty:
-            continue
-        s = s.groupby(s.index.normalize()).mean().reindex(days)  # a missing run leaves a gap
-        s = s.rolling(SMOOTH_DAYS, center=True, min_periods=SMOOTH_DAYS // 2 + 1).mean()
-        ax.plot(s.index, s.to_numpy(), color=COLORS[CENTRE.get(m, m)], lw=2.4, ls=(0, (4, 2)) if m in CENTRE else "-",
-                label=LABEL.get(m, m))  # fmt: skip
-        seen.append(s.to_numpy())
+    for m, x in daily.items():
+        on = x[common] if m in full else x.dropna()
+        mean = np.tanh(np.arctanh(np.clip(on.dropna().to_numpy(), -0.9999, 0.9999)).mean())  # through Fisher's z
+        label = f"{LABEL.get(m, m)}  {mean:.3f}" + ("" if m in full else f" ({on.notna().sum()} days)")
+        smooth = x.rolling(SMOOTH_DAYS, center=True, min_periods=SMOOTH_DAYS // 2 + 1).mean()
+        ax.plot(smooth.index, smooth.to_numpy(), color=COLORS[CENTRE.get(m, m)], lw=2.4,
+                ls=(0, (4, 2)) if m in CENTRE else "-", label=label)  # fmt: skip
+        seen.append(smooth.to_numpy())
     lo, hi = np.nanmin(np.concatenate(seen)), np.nanmax(np.concatenate(seen))
     pad = 0.08 * max(hi - lo, 0.01)
     ax.set(xlim=(days[0], days[-1]), ylim=(lo - pad, min(1.0, hi + pad)), ylabel="Anomaly correlation")
@@ -176,7 +185,9 @@ def draw_series(t: pd.DataFrame, region: str, day: int, start: pd.Timestamp, pat
     loc = mdates.AutoDateLocator(minticks=5, maxticks=12)
     ax.xaxis.set(major_locator=loc, major_formatter=mdates.ConciseDateFormatter(loc))
     ax.grid(True, color=house.GRID, lw=0.8)
-    fig.legend(loc="outside right upper", frameon=False, handlelength=2.6)
+    fig.legend(loc="outside right upper", frameon=False, handlelength=2.6,
+               title=f"Mean over the {int(common.sum())} days\nthe models share", title_fontsize=13,
+               alignment="left")  # fmt: skip
     fig.suptitle(
         f"Day {day}: 500 hPa height anomaly correlation against ERA5, {area_of(region)}, {SMOOTH_DAYS}-day running mean",
         x=0.01,
