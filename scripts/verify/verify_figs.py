@@ -85,7 +85,8 @@ NOT_SIG = "#dcd9d1"  # tested, not significant
 
 
 def style() -> None:
-    """The house style, a size up: the figures are read at the page's width, scorecards and maps most of all."""
+    """The house style, a size up: the figures are read at the page's width, scorecards and maps most of all; the
+    legends a size above the tick labels, since a tall figure is shown shrunk to fit the window."""
     house.apply()
     plt.rcParams.update(
         {
@@ -94,7 +95,8 @@ def style() -> None:
             "axes.labelsize": 15,
             "xtick.labelsize": 14,
             "ytick.labelsize": 14,
-            "legend.fontsize": 14,
+            "legend.fontsize": 17,
+            "legend.title_fontsize": 17,
             "figure.titlesize": 19,
         }
     )
@@ -251,7 +253,7 @@ def draw_series(t: pd.DataFrame, region: str, day: int, start: pd.Timestamp, pat
     ax.xaxis.set(major_locator=loc, major_formatter=mdates.ConciseDateFormatter(loc))
     ax.grid(True, color=house.GRID, lw=0.8)
     fig.legend(loc="outside right upper", frameon=False, handlelength=2.6,
-               title=f"Mean over the {int(common.sum())} days\nthe models share", title_fontsize=13,
+               title=f"Mean over the {int(common.sum())} days\nthe models share",
                alignment="left")  # fmt: skip
     fig.suptitle(
         f"Day {day}: 500 hPa height anomaly correlation against ERA5, {area_of(region)}, {SMOOTH_DAYS}-day running mean",
@@ -419,7 +421,7 @@ def rain_figs(derived: Path, out: Path) -> dict:
             fig.suptitle(f"{title}, {glabel}", x=0.01, y=0.985, ha="left")
             first, last = (pd.to_datetime(w[k], format="%Y%m%d%H") for k in ("first", "last"))
             fig.text(0.01, 0.93, f"00Z runs {first:%-d %b} to {last:%-d %b %Y} on the 0.5° common grid · cells "
-                     "significant at a 10 % false-discovery rate", color=house.INK2, fontsize=12.5)  # fmt: skip
+                     "significant at a 10 % false-discovery rate", color=house.INK2, fontsize=15)  # fmt: skip
             manifest[f"{metric}_{g}"] = save(fig, out / f"rain_{metric}_{g}.webp")
         # what the analysis gave over the days of the maps (the reference model's days, every lead group alike)
         ref = REF if REF in models else models[0]
@@ -621,7 +623,7 @@ def wind_figs(out: Path) -> dict:
         a1.set_xlim(probs[0] * 0.8, 1 - (1 - probs[-1]) * 0.8)
         a1.set(xlabel="Quantile (%, logit scale)", ylabel="Forecast − observed (m/s)",
                title="Quantiles less the observed ones, with their 95 % intervals")  # fmt: skip
-        a1.text(0.02, 0.02, "filled: the interval leaves out no difference", transform=a1.transAxes, fontsize=12,
+        a1.text(0.02, 0.02, "filled: the interval leaves out no difference", transform=a1.transAxes, fontsize=15,
                 color=house.INK2)  # fmt: skip
         a2.set(xlabel="10 m wind speed (m/s)", ylabel="Density (per m/s)", title="Fitted hybrid Weibull")
         for ax in (a1, a2):
@@ -797,7 +799,7 @@ def card_figure(score: pd.DataFrame, per: pd.DataFrame, order: list[str], a: str
     ax.text(-1.7, -2.15, title, fontsize=17, weight="semibold",
             va="center", color=house.INK)  # fmt: skip
     ax.text(-1.7, -1.45, f"blue: {a} smaller error · red: larger · dot: no significant difference · {span['runs']} runs",
-            fontsize=12.5, va="center", color=house.INK2)  # fmt: skip
+            fontsize=15, va="center", color=house.INK2)  # fmt: skip
     return save(fig, path)
 
 
@@ -904,7 +906,7 @@ def draw_profile(s: pd.DataFrame, models: list[str], qty: str, region: str, day:
     a1.yaxis.set_minor_locator(plt.NullLocator())
     a2.axvline(0, color=COLORS[REF], lw=2)
     a2.set(title=f"RMSE against the {LABEL[REF]}, %")
-    a2.text(0.02, 0.01, "filled: the 95 % interval leaves out no difference", transform=a2.transAxes, fontsize=12,
+    a2.text(0.02, 0.01, "filled: the 95 % interval leaves out no difference", transform=a2.transAxes, fontsize=15,
             color=house.INK2, va="bottom")  # fmt: skip
     if qty == "wind":
         a3.text(0.5, 0.5, "No bias for a vector wind", ha="center", va="center", transform=a3.transAxes,
@@ -1114,7 +1116,7 @@ def ens_rel(r: pd.DataFrame, models: list, v: str, thr: float, region: str, span
                         ms=4.5, label=f"{m} (BSS {bss:+.2f})")  # fmt: skip
         ax.set(title=label[0].upper() + label[1:], xlim=(0, 1), ylim=(0, 1), xlabel="Forecast probability")
         ax.grid(True, color=house.GRID, lw=0.8)
-        ax.legend(loc="upper left", frameon=False, fontsize=12)
+        ax.legend(loc="upper left", frameon=False)
     axes[0].set_ylabel("Observed frequency")
     unit = "m/s" if v.startswith("ws") else "mm"
     fig.suptitle(f"Reliability, {short(v)} ≥ {thr:g} {unit}, {region}: {span['runs']} runs (dashed: calibrated)", x=0.01,
