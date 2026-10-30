@@ -7,14 +7,16 @@ name: Ensemble verification database
 # again after a failure.
 #
 # Each day it catches up the runs 16 to 47 days old: a run's day 15 is observed once it is 16 days old, and HPFX keeps
-# GEPS about 50 days. Dispatched with a range it backfills: IFS-ENS and AIFS-ENS stay on the open-data mirror and GEFS
-# on NOAA's bucket, GEPS only within HPFX's days, so its runs go first.
+# GEPS about 50 days. Each Sunday it takes every run since the database's first (13 May 2026) that it still lacks, so a
+# run that failed is tried again. Dispatched with a range it backfills: IFS-ENS and AIFS-ENS stay on the open-data
+# mirror and GEFS on NOAA's bucket, GEPS only within HPFX's days, so its runs go first.
 #
 # One job reads the observations for the whole range (IGRA2 radiosondes, GHCNh stations, Stage IV), so each source is
 # read once, then chunks of one ensemble's runs are matched side by side, each uploading every run as soon as it is done.
 on:
   schedule:
     - cron: '50 10 * * *'
+    - cron: '20 4 * * 0'   # Sundays: every run the database lacks (FIRST below)
   workflow_dispatch:
     inputs:
       first:
@@ -27,8 +29,8 @@ on:
         description: 'Ensembles (space-separated: IFS-ENS AIFS-ENS GEFS GEPS)'
         default: 'IFS-ENS AIFS-ENS GEFS GEPS'
       chunk:
-        description: 'Runs per job (an AIFS-ENS run takes over an hour, a job at most 6 h)'
-        default: '3'
+        description: 'Runs per job (a run takes about an hour, more when the mirror is busy; a job at most 6 h)'
+        default: '2'
 
 env:
   PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt
@@ -57,10 +59,10 @@ jobs:
       - id: p
         env:
           GH_TOKEN: ${{ github.token }}
-          FIRST: ${{ inputs.first }}
+          FIRST: ${{ inputs.first || (github.event.schedule == '20 4 * * 0' && '20260513' || '') }}
           LAST: ${{ inputs.last }}
           MODELS: ${{ inputs.models || 'IFS-ENS AIFS-ENS GEFS GEPS' }}
-          CHUNK: ${{ inputs.chunk || '3' }}
+          CHUNK: ${{ inputs.chunk || '2' }}
         run: |
           FIRST=${FIRST:-$(date -u -d '47 days ago' +%Y%m%d)}
           LAST=${LAST:-$(date -u -d '16 days ago' +%Y%m%d)}
@@ -127,7 +129,7 @@ jobs:
     timeout-minutes: 350
     strategy:
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 6
       matrix:
         chunk: ${{ fromJson(needs.plan.outputs.chunks) }}
     steps:
