@@ -40,8 +40,8 @@ GEFS and GEPS: --model gefs / geps map the mean of every member (control + 30 / 
 their analysis frame is the control at step 0.
 
 The wave compass: an ensemble's live run (not --record-only, not the single runs) also writes every member's 500 hPa
-wave-1 and wave-2 band coefficient and the ensemble-mean 100 hPa one to data/wave_compass_<model>.json (compass(),
-wave_compass.py), for stratosphere.html#compass.
+wave-1 and wave-2 band coefficient at 500 and 100 hPa to data/wave_compass_<model>.json (compass(), wave_compass.py),
+for stratosphere.html#compass and the checklist on ssw.html.
 
 Usage (frames under --anim-dir: wave{k}[_<model>]_{nh,sh}/ and wave{k}_maps[_<model>]_manifest.json for k = 1, 2; no
 suffix for AIFS-ENS):
@@ -682,11 +682,11 @@ def record_run(full, date: str, time: str, model: str) -> None:
 
 
 def compass(full, date: str, time: str, model: str) -> None:
-    """The run into the wave compass (wave_compass.py -> data/wave_compass_<model>.json): every member's 500 hPa wave-1
-    and wave-2 over the 55-65N band and the ensemble-mean 100 hPa wave, daily to day 15."""
+    """The run into the wave compass (wave_compass.py -> data/wave_compass_<model>.json): every member's 500 and 100 hPa
+    wave-1 and wave-2 over the 55-65N band, daily to day 15."""
     import wave_compass as WC
 
-    if "number" not in full[500].dims:
+    if any("number" not in full[lev].dims for lev in (500, 100)):
         print("  wave compass: no members (the control fallback), left as it was", flush=True)
         return
     init = pd.Timestamp(f"{date}T{time}:00")
@@ -695,10 +695,10 @@ def compass(full, date: str, time: str, model: str) -> None:
     for h in hours:
         for lev, out in ((500, c500), (100, c100)):
             z = at_step(full[lev], h)
-            mean, members = split(z)
-            field, lat, lon0 = members if lev == 500 else mean, z.latitude.values, z.longitude.values[0]
+            members = split(z)[1]
+            lat, lon0 = z.latitude.values, z.longitude.values[0]
             for k in WAVES:
-                out[k].append(band_coeff(field, lat, True, lon0, k))
+                out[k].append(band_coeff(members, lat, True, lon0, k))
     c500, c100 = ({k: np.array(v) for k, v in c.items()} for c in (c500, c100))
     WC.write(init, [init + pd.Timedelta(hours=h) for h in hours], c500, c100, model, MODEL[model])
 

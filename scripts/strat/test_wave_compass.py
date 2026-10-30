@@ -89,7 +89,7 @@ def write():
     rng = np.random.default_rng(5)
     c500 = {k: WC.normal(valid, k)[:, None] + 50 * (rng.standard_normal((16, 31)) + 1j * rng.standard_normal((16, 31)))
             for k in WC.WAVES}  # fmt: skip
-    c100 = {k: c500[k].mean(1) * 1.8 for k in WC.WAVES}
+    c100 = {k: c500[k] * 1.8 for k in WC.WAVES}
     with tempfile.TemporaryDirectory() as d:
         WC.write(init, valid, c500, c100, "gefs", "GEFS", Path(d), series(True))
         doc = json.loads((Path(d) / "wave_compass_gefs.json").read_text())
@@ -98,6 +98,8 @@ def write():
     check(np.shape(w["members"]) == (16, 31, 2) and np.shape(w["normal"]) == (16, 2) and len(w["p_anomaly"]) == 16,
           "write: members (day, member, re/im), normals and tests per day")  # fmt: skip
     check(abs(w["members"][3][7][0] - round(c500[2][3, 7].real, 1)) < 1e-9, "write: member values to 0.1 m")
+    check(np.shape(w["members_100"]) == (16, 31, 2) and abs(w["mean_100"][3][1] - round(c100[2][3].mean().imag, 1)) < 1e-9,
+          "write: 100 hPa members and their mean")  # fmt: skip
     check(w["era5"]["linked"] and len(w["era5"]["bins"]) == 6, "write: the ERA5 relation for the run's date")
 
 

@@ -23,12 +23,13 @@ ERA5 RELATION (`relation`). Within WINDOW days of a run's calendar date, every E
 The window's days are grouped by winter (each window lies inside one shifted year), so the resampling keeps a winter's
 days, which are far from independent, together.
 
-PER RUN (`write`, called by wave_maps.py after an ensemble's loops): every member's 500 hPa wave-1 and wave-2
-coefficient for each day to day 15, the normal at 500 and 100 hPa, the ensemble-mean 100 hPa coefficient (the wave's
-lean between the levels) and a Hotelling test of the members' mean anomaly against zero (does the ensemble agree where
-the anomaly sits?), with the ERA5 relation for the run's date -> assets/sst/data/wave_compass_<model>.json. The page
-computes the expected flux member by member from the fit (the flux is quadratic, so the flux of the mean is not the
-mean flux) and turns every member's anomaly by the same angle when the reader moves the ridge.
+PER RUN (`write`, called by wave_maps.py after an ensemble's loops): every member's 500 and 100 hPa wave-1 and wave-2
+coefficient for each day to day 15 and the 100 hPa members' mean (the wave's lean between the levels; ssw.html's
+checklist reads each member's own lean), the normal at 500 and 100 hPa and a Hotelling test of the members' mean
+anomaly against zero (does the ensemble agree where the anomaly sits?), with the ERA5 relation for the run's date ->
+assets/sst/data/wave_compass_<model>.json. The page computes the expected flux member by member from the fit (the flux
+is quadratic, so the flux of the mean is not the mean flux) and turns every member's anomaly by the same angle when the
+reader moves the ridge.
 
 REFERENCE (`build`, offline from the local ERA5 store; scripts/strat/reference/wave_compass_era5.npz): the daily-mean
 500 hPa wave-1 and wave-2 coefficients over 55-65N (WeatherBench 2's 1.5 deg ERA5, the band and rfft scaling of
@@ -69,7 +70,7 @@ def normal(dates, k: int, lev: int = 500) -> np.ndarray:
     """The normal standing wave-k at `lev` over 55-65N on each date (wave_clim.nc, 366-slot calendar), complex gpm."""
     with xr.open_dataset(CLIM) as d:
         c = d[f"nh{lev}_k{k}_re"].values + 1j * d[f"nh{lev}_k{k}_im"].values
-    return c[doy366(pd.DatetimeIndex(dates)) - 1]
+    return c[doy366(pd.DatetimeIndex(dates))]
 
 
 def build() -> None:
@@ -187,8 +188,8 @@ def _pairs(c) -> list:
 
 
 def write(init: pd.Timestamp, valid, c500: dict, c100: dict, model: str, label: str, out_dir: Path = OUT, ref=None):
-    """One ensemble run -> wave_compass_<model>.json (module docstring). c500[k]: (day, member) complex 500 hPa
-    coefficients; c100[k]: (day,) the ensemble-mean 100 hPa coefficient; valid: the days' valid times."""
+    """One ensemble run -> wave_compass_<model>.json (module docstring). c500[k], c100[k]: (day, member) complex 500
+    and 100 hPa coefficients; valid: the days' valid times."""
     valid = pd.DatetimeIndex(valid)
     waves = {}
     for k in WAVES:
@@ -197,7 +198,8 @@ def write(init: pd.Timestamp, valid, c500: dict, c100: dict, model: str, label: 
             "normal": _pairs(N),
             "normal_100": _pairs(normal(valid, k, 100)),
             "members": _pairs(c500[k]),
-            "mean_100": _pairs(c100[k]),
+            "members_100": _pairs(c100[k]),
+            "mean_100": _pairs(np.mean(c100[k], 1)),
             "p_anomaly": [None if p is None else round(p, 4) for p in (agreement(c - n) for c, n in zip(c500[k], N))],
             "era5": relation(init, k, ref),
         }

@@ -42,6 +42,10 @@
      cell takes the cell's own colour, not the muted grey, which is too faint on the middle shades */
   table.rec td.shade small { color: inherit; }
   table.rec td.hot { color: #fff; }
+  /* the checklist (#checklist): a tick where an ensemble has what most past warmings had, a cross where it has not */
+  table.rec.check td:first-child { white-space: normal; min-width: 16rem; }
+  table.rec .ck { font-weight: 700; margin-right: 0.2em; }
+  table.rec .ck.no { color: var(--muted); }
   /* the coupling clock (#clock): the past warmings and each ensemble on one chart, drawn from the summary as SVG */
   .clock-key { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; padding: 0.1rem 1.4rem 0; font-size: 0.84rem; color: var(--ink2); }
   .clock-key span { display: inline-flex; align-items: center; gap: 0.45rem; }
@@ -84,6 +88,8 @@
     table.rec.fit th, table.rec.fit td { white-space: normal; padding: 0.32rem 0.3rem; }
     table.rec.fit th { font-size: 0.78rem; }
     table.rec.fit td small { font-size: 0.66rem; white-space: nowrap; }
+    table.rec.check td:first-child { flex-direction: column; align-items: flex-start; gap: 0.1rem; }
+    table.rec.check td:first-child small { display: block; }
   }
 </style>
 <script src="/assets/site.js?v=6a624e5f1e" defer></script>
@@ -284,6 +290,12 @@
       <div class="img-wrap"><a href="/stratosphere.html#vortex/temp"><img src="/assets/sst/nh_vortex_temp.webp" alt="10 hPa polar-cap temperature anomaly and the pole-minus-60N temperature gradient, every model, days 1-15" loading="lazy"></a></div>
     </section>
 
+    <section class="chart-card" id="checklist" hidden>
+      <div class="chart-card-header"><h2>What a sudden warming takes</h2>
+        <p data-k="check_line">&ndash;</p></div>
+      <div class="tblwrap"><table class="rec check" id="t_check"></table></div>
+    </section>
+
     <section class="chart-card" id="kind">
       <div class="chart-card-header"><h2>What kind of event</h2>
         <p data-k="kind_line">&ndash;</p></div>
@@ -335,6 +347,26 @@
         of a cycle the models stand on different starts. <b>Run by run</b> lists each ensemble&rsquo;s share in its last
         six runs (and its WMO share): a swing between runs is the models&rsquo; view changing, not a forecast of its
         own.</p>
+        <p id="m_check"><b>Checklist.</b> Each ingredient is what most MERRA-2 sudden warmings since 1980 had over the 15
+        days before their onset and quiet winter windows mostly did not: windows ending on a November&ndash;March day at
+        least 60 days before and 30 days after any onset, weighted to the onsets&rsquo; months. <b>Waves pumped up from
+        below</b>: the size (squared amplitude) of wave-1 in the 500&nbsp;hPa height over 55&ndash;65&deg;N against its
+        ERA5 1991&ndash;2020 normal for the date, averaged over the days. <b>Tilting west with height</b>: a wave carrying
+        activity upward leans west with height; how far west the wave-1 ridge at 100&nbsp;hPa sits of the one at
+        500&nbsp;hPa, averaged over the days (ERA5; each ensemble member by member, from its wave compass run).
+        <b>Heat flux</b>: the 100&nbsp;hPa eddy heat flux (45&ndash;75&deg;N) against its ERA5 normal, averaged over the
+        days (the analyses, then each ensemble&rsquo;s forecast mean). <b>Not reflected</b>: that flux above zero on
+        every day, no waves coming back down. <b>Absorbed</b>: waves breaking in the vortex slow it; the largest fall of
+        the wind at 60&deg;N, 10&nbsp;hPa within 10 days, the reversal day included. The last two rows are the event
+        itself, ticked when most members have it: the wind turning easterly, with the day the ensemble-mean wind does
+        (the reversal the coupling clock starts from), and the WMO definition. Each ensemble is read over the 15 days before its own
+        reversal, or over its days 1&ndash;15 when it has none; a run reaching fewer of those days is read against the
+        past warmings over the same number of days, and gets no tick when that shorter test does not separate them.
+        Past warmings against quiet windows (one-sided binomial): <span data-r="cl_tests">&ndash;</span>. Not on the
+        list because they did not separate the two: <span data-r="cl_others">&ndash;</span>. A wind weaker at
+        1&nbsp;hPa than at 10&nbsp;hPa, the reflecting layer of the section below, came on more of those days before
+        warmings than in quiet windows (<span data-r="cl_aloft">&ndash;</span>): a warming reaches the upper
+        stratosphere first, so it is no sign against one.</p>
         <p><b>Wave driving.</b> The share of wave-1 and wave-2 in the ensemble-mean 100&nbsp;hPa eddy heat flux
         (45&ndash;75&deg;N) over days 1&ndash;15; a wavenumber carrying <span data-r="wshare">&ndash;</span> or more
         names the forcing, otherwise it is mixed. The peak is the total flux against its ERA5 1991&ndash;2020
@@ -532,6 +564,60 @@
     }
     table("t_runs", ["run"].concat(have.map(function (m) { return N[m]; })),
       last.map(function (t) { return [md(t) + " " + t.slice(11) + "Z"].concat(have.map(function (m) { return runCell(m, t); })); }));
+
+    // the checklist: what most past warmings had over the 15 days before their onset, each ensemble over the same days
+    // before its own reversal (or its days 1-15); an ingredient is listed only while its test on the past warmings passes
+    var K = j.checklist, KR = K && K.reference;
+    var kk = KR ? ["source", "tilt", "flux", "upward", "slowing"].filter(function (k) { return KR.items[k] && KR.items[k].passes; }) : [];
+    if (kk.length) {
+      document.getElementById("checklist").hidden = false;
+      var KD = KR.definitions, km = ens.filter(function (m) { return K.models[m]; });
+      function thr(k) { return KR.items[k].threshold; }
+      var ING = {
+        source: ["Waves pumped up from below", "500\u00A0hPa wave-1 at least its normal size (55–65°N)", function (v) { return sg(v) + "\u00A0sd"; }],
+        tilt: ["Tilting west with height", "the wave-1 ridge at 100\u00A0hPa " + thr("tilt") + "° or more west of the 500\u00A0hPa ridge",
+          function (v) { return Math.abs(Math.round(v)) + "°\u00A0" + (v >= 0 ? "W" : "E"); }],
+        flux: ["Heat flux up into the vortex", "100\u00A0hPa flux (45–75°N) +" + thr("flux") + "\u00A0sd or more above normal", function (v) { return sg(v) + "\u00A0sd"; }],
+        upward: ["Not reflected", "the 100\u00A0hPa flux upward on every day", function (v) { return "lowest " + sg(v, 0) + "\u00A0K\u00A0m/s"; }],
+        slowing: ["Absorbed: the vortex slows", "the 10\u00A0hPa wind falls " + thr("slowing") + "\u00A0m/s or more within " + KD.slow_span + " days",
+          function (v) { return v > 0 ? "falls " + v.toFixed(0) + "\u00A0m/s" : "no fall"; }]
+      };
+      var TICK = '<span class="ck">✓</span>', CROSS = '<span class="ck no">✗</span>';
+      var rows = kk.map(function (k, i) {
+        var b = KR.items[k].by_days[String(KD.window)];
+        return ["<b>" + (i + 1) + ". " + ING[k][0] + "</b><small>" + ING[k][1] + "</small>", b.hits + " of " + b.n + "<small>quiet winters " + pct(b.quiet) + "</small>"]
+          .concat(km.map(function (m) {
+            var x = K.models[m].items[k];
+            if (!x || x.value == null) return "–<small>not in this run</small>";
+            return "<span>" + (x.tested ? (x.met ? TICK : CROSS) : "") + ING[k][2](x.value) + "</span>"
+              + (x.days < KD.window ? "<small>" + x.days + " days" + (x.tested ? "" : ", too few to tell") + "</small>" : "");
+          }));
+      });
+      rows.push(["<b>" + (kk.length + 1) + ". The wind reverses</b><small>easterly at 60°N, 10\u00A0hPa: the event itself</small>", "–"].concat(km.map(function (m) {
+        var o = K.models[m].onset, v = S.models[m];
+        return (v && v.share != null ? "<span>" + (v.share >= 0.5 ? TICK : CROSS) + pct(v.share) + "</span>" : "–")
+          + "<small>" + (o ? "mean easterly from " + md(o) : "mean stays westerly") + "</small>";
+      })));
+      rows.push(["<b>" + (kk.length + 2) + ". The polar cap warms</b><small>10\u00A0hPa temperature rising to the pole the same day (WMO)</small>", "–"].concat(km.map(function (m) {
+        var v = S.models[m];
+        return v && v.wmo != null ? "<span>" + (v.wmo >= 0.5 ? TICK : CROSS) + pct(v.wmo) + "</span><small>of members</small>" : "–";
+      })));
+      table("t_check", ["ingredient", "before past warmings"].concat(km.map(function (m) { return N[m]; })), rows);
+      var none = km.filter(function (m) { return !K.models[m].onset; });
+      set("check_line", "Ingredients met over the " + KD.window + " days before each ensemble’s mean reversal at 10\u00A0hPa"
+        + (none.length ? " (" + none.map(function (m) { return N[m]; }).join(", ") + (none.length > 1 ? " have" : " has") + " none: days 1–" + KD.window + ")" : "") + ": "
+        + km.map(function (m) {
+          var it = K.models[m].items, done = kk.filter(function (k) { return it[k] && it[k].tested; });
+          return N[m] + " " + done.filter(function (k) { return it[k].met; }).length + " of " + done.length + (done.length < kk.length ? " checked" : "");
+        }).join(", ") + ".");
+      var CN = { source: "waves", tilt: "tilt", flux: "heat flux", upward: "not reflected", slowing: "absorbed" }, O = KR.others;
+      ref("cl_tests", kk.map(function (k) { var b = KR.items[k].by_days[String(KD.window)]; return CN[k] + " " + b.hits + " of " + b.n + " against " + pct(b.quiet) + " (" + p(b) + ")"; }).join(", "));
+      ref("cl_others", "the 500\u00A0hPa wave-2 size (" + p(O.wave2_size) + ") and tilt (" + p(O.wave2_tilt) + "), and the 10\u00A0hPa wind "
+        + O.weak_before.days_before[1] + "–" + O.weak_before.days_before[0] + " days before the onset, a weakened vortex beforehand (" + p(O.weak_before) + ")");
+      ref("cl_aloft", pct(O.weaker_aloft.mean) + " of the days against " + pct(O.weaker_aloft.quiet) + ", " + p(O.weaker_aloft));
+    } else {
+      document.getElementById("m_check").hidden = true;
+    }
 
     // what kind
     var w2 = W.wave2_share_mean, kind = W.kind, dk = D.kind;

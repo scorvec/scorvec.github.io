@@ -4,8 +4,8 @@
     python ssw_summary.py      # reads the published JSON and the committed references -> assets/sst/data/ssw_summary.json
 
 It downloads nothing: every number comes from what the other stratosphere products publish (assets/sst/data) or from
-the committed references (reference/). Five questions, each answered per model and then across the ensembles, and the
-coupling clock:
+the committed references (reference/). Five questions, each answered per model and then across the ensembles, the
+checklist and the coupling clock:
 
   SSW      the share of members with u(60N, 10 hPa) easterly on some day 1-15 (each ensemble's newest recorded run,
            run_record.py vortex_<model>.json from nh_vortex.py, and the kept runs before it), raw
@@ -33,6 +33,13 @@ coupling clock:
            its mean u(60N, 100 hPa) over days 0-10 after it on the MERRA-2 scale (reference/u100_std.json), the third
            of the past warmings that puts it in and when a lasting surface signal began after those, and its own
            1000 hPa cap over days 6-15 (its dripping paint).
+  CHECKLIST what the MERRA-2 sudden warmings had over the 15 days before their onset that quiet winter windows mostly
+           did not (reference/ssw_checklist.json, build_ssw_checklist.py: the ingredients, thresholds and tests), each
+           ensemble over the same days before its own reversal (the clock's onset) or over its days 1-15 when it has
+           none: its 500 hPa wave-1 size and the wave-1 tilt from 500 to 100 hPa (its newest wave compass run,
+           wave_compass_<model>.json), the 100 hPa flux (the analyses, then its forecast mean) and the largest fall of
+           its 10 hPa wind within 10 days (its recorded runs). A window the run covers only partly is read against the
+           past warmings over the same number of days.
 """
 
 from __future__ import annotations
@@ -44,10 +51,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
+from quantmet.degdays import doy366
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
+import build_ssw_checklist as CK
 import heatflux100 as HF
 import reflection_index as RX
 import run_record as RR
@@ -282,6 +291,16 @@ def onset_of(u10: pd.Series) -> pd.Timestamp | None:
     return onset
 
 
+def vortex_daily(rs: list) -> pd.DataFrame:
+    """An ensemble's daily ensemble-mean u(60N) at 10 and 100 hPa from its recorded runs (run_record.py): each earlier
+    run's first day, then the newest run's days, from CLOCK_LOOKBACK days before the newest run."""
+    days = {r["valid"][0][:10]: (r["u10"]["mean"][0], r["u100"]["mean"][0]) for r in rs[:-1]}  # the analyses
+    days.update({v[:10]: uu for v, *uu in zip(rs[-1]["valid"], rs[-1]["u10"]["mean"], rs[-1]["u100"]["mean"])})
+    s = pd.DataFrame.from_dict(days, orient="index", columns=["u10", "u100"]).dropna()
+    s.index = pd.DatetimeIndex(s.index)
+    return s.sort_index().loc[pd.Timestamp(rs[-1]["valid"][0][:10]) - pd.Timedelta(days=CLOCK_LOOKBACK) :]
+
+
 def clock_part() -> dict:
     """Each ensemble on the coupling clock (module docstring, CLOCK), with the reference the page draws it against."""
     ref = json.loads((REF / "coupling_clock.json").read_text())
@@ -291,11 +310,7 @@ def clock_part() -> dict:
         rs = [r for r in RR.runs("vortex", m) if "u100" in r]
         if not rs:
             continue
-        days = {r["valid"][0][:10]: (r["u10"]["mean"][0], r["u100"]["mean"][0]) for r in rs[:-1]}  # the analyses
-        days.update({v[:10]: uu for v, *uu in zip(rs[-1]["valid"], rs[-1]["u10"]["mean"], rs[-1]["u100"]["mean"])})
-        s = pd.DataFrame.from_dict(days, orient="index", columns=["u10", "u100"]).dropna()
-        s.index = pd.DatetimeIndex(s.index)
-        s = s.sort_index().loc[pd.Timestamp(rs[-1]["valid"][0][:10]) - pd.Timedelta(days=CLOCK_LOOKBACK) :]
+        s = vortex_daily(rs)
         row = {"init": rs[-1]["init"].replace("T", " ") + "Z", "onset": None}
         onset = onset_of(s["u10"])
         out[m] = row
@@ -324,6 +339,79 @@ def clock_part() -> dict:
             ]
             row.update(sea=_r(sea.mean()), sea_days=[lags[0], lags[-1]], sea_past=[_r(min(past)), _r(max(past))],
                        sea_drift_removed=1000.0 in d.get("corrected_levels", []))  # fmt: skip
+    return {"models": out, "reference": ref}
+
+
+def compass_daily(m: str, norm: dict) -> pd.DataFrame:
+    """An ensemble's newest wave compass run (wave_compass_<model>.json) by day, the mean over its members: the 500 hPa
+    wave-1 size against the ERA5 normal (sd) and how far west the wave-1 ridge at 100 hPa sits of the one at 500 hPa
+    (degrees longitude; none from a run written before the compass kept the 100 hPa members)."""
+    d = _read(f"wave_compass_{m}.json")
+    if not d:
+        return pd.DataFrame(columns=["source", "tilt"], dtype=float)
+    w = d["waves"]["1"]
+    t = pd.DatetimeIndex([v[:10] for v in d["valid"]])
+    c500 = np.array([[complex(*p) for p in day] for day in w["members"]])  # (day, member)
+    i = doy366(t)
+    size = (np.abs(c500) ** 2 - np.array(norm["mean"])[i, None]) / np.array(norm["sd"])[i, None]
+    tilt = np.full(len(t), np.nan)
+    if "members_100" in w:
+        c100 = np.array([[complex(*p) for p in day] for day in w["members_100"]])
+        tilt = np.angle(c100 * np.conj(c500), deg=True).mean(1)  # wave-1: phase degrees are longitude degrees
+    return pd.DataFrame({"source": size.mean(1), "tilt": tilt}, index=t)
+
+
+def flux_daily(m: str, clim) -> pd.DataFrame:
+    """The 100 hPa [v'T'] (45-75N) by day, in K m/s and against its ERA5 normal (sd): the analyses (heatflux100.json's
+    record: the AIFS-ENS control at step 0), then the ensemble's forecast mean (its own heatflux JSON)."""
+    parts = []
+    obs = (_read(HEATFLUX["aifs"]) or {}).get("hemispheres", {}).get("nh", {}).get("observed")
+    if obs:
+        parts.append(pd.Series(obs["tot"], pd.DatetimeIndex(obs["dates"]), dtype=float))
+    d = _read(HEATFLUX[m])
+    if d:
+        valid = pd.DatetimeIndex([v[:10] for v in d["valid"]])
+        parts.append(pd.Series(d["hemispheres"]["nh"]["tot"]["mean"], valid, dtype=float))
+    if not parts:
+        return pd.DataFrame(columns=["vt", "flux"], dtype=float)
+    vt = pd.concat(parts)
+    vt = vt[~vt.index.duplicated(keep="last")].sort_index()
+    z = (vt - HF.clim_at(clim, "nh", "tot", "mean", vt.index)) / HF.clim_at(clim, "nh", "tot", "sd", vt.index)
+    return pd.DataFrame({"vt": vt, "flux": z})
+
+
+def checklist_part(clock: dict, clim) -> dict:
+    """Each ensemble against the checklist (module docstring, CHECKLIST), with the reference the page reads it against."""
+    ref = json.loads(CK.OUT.read_text())
+    norm, dfn = ref.pop("normal_source"), ref["definitions"]
+    out = {}
+    for m in ENSEMBLES:
+        rs = [r for r in RR.runs("vortex", m) if "u100" in r]
+        if not rs:
+            continue
+        onset = clock["models"].get(m, {}).get("onset")
+        init = pd.Timestamp(rs[-1]["valid"][0][:10])
+        end = pd.Timestamp(onset) if onset else init + pd.Timedelta(days=dfn["window"] + 1)
+        cp, fx = compass_daily(m, norm), flux_daily(m, clim)
+        series = {"source": cp["source"], "tilt": cp["tilt"], "flux": fx["flux"], "vt": fx["vt"],
+                  "u10": vortex_daily(rs)["u10"]}  # fmt: skip
+        items = {}
+        for key, (src, f) in CK.VALUE.items():
+            # the WINDOW days before the reversal (the slowing through it), or days 1-15 (the slowing from day 0)
+            through = key == "slowing"
+            stop = end if through and onset else end - pd.Timedelta(days=1)
+            x = series[src].loc[stop - pd.Timedelta(days=dfn["window"] - 1 + through) : stop].dropna()
+            days = len(x) - through
+            if days < dfn["min_days"]:
+                items[key] = {"days": max(days, 0), "value": None, "met": None, "tested": False}
+                continue
+            v = f(x)
+            p = ref["items"][key]["by_days"][str(days)]["p"]
+            items[key] = {"days": days, "value": _r(v, 2 if key in ("source", "flux") else 1),
+                          "met": CK.meets(key, v), "tested": p < dfn["alpha"]}  # fmt: skip
+        first = end - pd.Timedelta(days=dfn["window"])
+        out[m] = {"onset": onset, "window": [f"{first:%Y-%m-%d}", f"{end - pd.Timedelta(days=1):%Y-%m-%d}"],
+                  "items": items}  # fmt: skip
     return {"models": out, "reference": ref}
 
 
@@ -359,6 +447,7 @@ def main() -> int:
     descent = descent_part()
     reflect = reflect_part(waves)
     surface = surface_part(descent)
+    clock = clock_part()
     inits = [v["init"] for part in (ssw, waves, descent) for v in part.values()]
     newest = max(pd.Timestamp(i.replace("Z", "")) for i in inits)
     shares = [v["share"] for v in ssw.values() if v["share"] is not None]
@@ -393,7 +482,8 @@ def main() -> int:
         "descent": {"models": descent, "kind": max(set(kinds), key=kinds.count) if kinds else None},
         "reflect": reflect,
         "surface": surface,
-        "clock": clock_part(),
+        "clock": clock,
+        "checklist": checklist_part(clock, clim),
         "reference": references(),
         "thresholds": {"one_sd": ONE_SD, "lag_days": list(LAG), "wave_share": WAVE_SHARE, "active_z": ACTIVE_Z},
     }
