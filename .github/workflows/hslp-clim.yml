@@ -59,7 +59,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install -r scripts/mjo/requirements-mjo.txt
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: hslpclim-*
           path: parts

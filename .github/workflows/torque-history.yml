@@ -178,7 +178,7 @@ jobs:
             scripts/mjo/src/build_torque_map_clim.py
             scripts/mjo/src/doycal.py
           sparse-checkout-cone-mode: false
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: torque_*
           path: parts
