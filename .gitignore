@@ -151,6 +151,7 @@ scripts/strat/*
 !scripts/strat/fetch_m2_zmu.py
 !scripts/strat/ssw_imprint.py
 !scripts/strat/build_ssw_imprint.py
+!scripts/strat/build_coupling_clock.py
 !scripts/strat/build_reflection_index.py
 !scripts/strat/reflection_index.py
 !scripts/strat/ssw_summary.py

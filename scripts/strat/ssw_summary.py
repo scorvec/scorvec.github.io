@@ -4,7 +4,8 @@
     python ssw_summary.py      # reads the published JSON and the committed references -> assets/sst/data/ssw_summary.json
 
 It downloads nothing: every number comes from what the other stratosphere products publish (assets/sst/data) or from
-the committed references (reference/). Five questions, each answered per model and then across the ensembles:
+the committed references (reference/). Five questions, each answered per model and then across the ensembles, and the
+coupling clock:
 
   SSW      the share of members with u(60N, 10 hPa) easterly on some day 1-15 (each ensemble's newest recorded run,
            run_record.py vortex_<model>.json from nh_vortex.py, and the kept runs before it), raw
@@ -27,6 +28,11 @@ the committed references (reference/). Five questions, each answered per model a
   SURFACE  the members with the 100 hPa cap at +1 sd or more on day 15 (forecast_drip), and the SSW imprint outlook
            (ssw_imprint.py): the chance the surface pattern that follows sudden warmings is positive over the 30 days
            after day 15, against its 50 % base rate, with the skill of the regime it is in (|cap| >= 1 sd or not).
+  CLOCK    the coupling clock (reference/coupling_clock.json, build_coupling_clock.py): each ensemble's onset, the first
+           day its ensemble-mean u(60N, 10 hPa) turns easterly (its recorded runs' first days, then its newest run),
+           its mean u(60N, 100 hPa) over days 0-10 after it on the MERRA-2 scale (reference/u100_std.json), the third
+           of the past warmings that puts it in and when a lasting surface signal began after those, and its own
+           1000 hPa cap over days 6-15 (its dripping paint).
 """
 
 from __future__ import annotations
@@ -45,6 +51,7 @@ sys.path.insert(0, str(HERE))
 import heatflux100 as HF
 import reflection_index as RX
 import run_record as RR
+from build_drip_ref import Ref
 
 DATA = REPO / "assets" / "sst" / "data"
 REF = HERE / "reference"
@@ -66,6 +73,9 @@ ONE_SD = 1.0
 LAG = (3, 20)  # days before the 100 hPa crossing that a 10 hPa crossing makes the event top-down (cmip6_coupling.py)
 WAVE_SHARE = 0.6  # a wavenumber carrying this share of the wave-1 + wave-2 flux names the forcing
 ACTIVE_Z = 1.0  # upward flux this many sd above normal on some day is an active wave event
+CLOCK_LOOKBACK = 30  # days of analyses before the newest run searched for the onset
+CLOCK_MIN_DAYS = 6  # days of the clock's wind window a placement needs
+WEST_GAP = 20  # westerly days after which a reversal is a new event (Charlton and Polvani 2007)
 # ERA5 100 hPa wave-2 share of the wave-1 + wave-2 flux over days -10..-1 before the MERRA-2 sudden warmings since
 # 1990, splits against displacements (one-sided Mann-Whitney): why WAVES does not forecast the vortex's geometry
 SPLIT_TEST = {
@@ -154,6 +164,19 @@ def waves_part(hf: dict, clim) -> dict:
     return out
 
 
+def drip_series(d: dict, level: float) -> pd.Series:
+    """One level of a dripping paint (forecast_drip.py) as a daily series in sd: the analyses, then the forecast's
+    ensemble mean."""
+    i = d["levels"].index(level)
+    init = pd.Timestamp(d["init"].replace("Z", ""))
+    fc_t = pd.DatetimeIndex([init + pd.Timedelta(hours=h) for h in d["lead_h"]]).normalize()
+    s = pd.concat([
+        pd.Series(np.array(d["tail_sd"], float)[:, i], pd.DatetimeIndex(d["tail_days"])),
+        pd.Series(np.array(d["forecast_mean_sd"], float)[:, i], fc_t),
+    ])  # fmt: skip
+    return s[~s.index.duplicated(keep="last")]
+
+
 def descent_part() -> dict:
     """Per model (ensemble-mean dripping paint): the first +1 sd crossing at 100 hPa and whether 10 hPa led it."""
     out = {}
@@ -161,21 +184,13 @@ def descent_part() -> dict:
         d = _read(f"{m}_drip.json")
         if not d:
             continue
-        lev = d["levels"]
-        i10, i100 = lev.index(10.0), lev.index(100.0)
-        init = pd.Timestamp(d["init"].replace("Z", ""))
-        tail_t = pd.DatetimeIndex(d["tail_days"])
-        fc_t = pd.DatetimeIndex([init + pd.Timedelta(hours=h) for h in d["lead_h"]]).normalize()
-        tail, fc = np.array(d["tail_sd"], float), np.array(d["forecast_mean_sd"], float)
-        s100 = pd.concat([pd.Series(tail[:, i100], tail_t), pd.Series(fc[:, i100], fc_t)])
-        s10 = pd.concat([pd.Series(tail[:, i10], tail_t), pd.Series(fc[:, i10], fc_t)])
-        s100, s10 = (s[~s.index.duplicated(keep="last")] for s in (s100, s10))
+        s100, s10 = drip_series(d, 100.0), drip_series(d, 10.0)
         up = s100[(s100 >= ONE_SD) & (s100.shift(1) < ONE_SD)]
         row = {
             "init": d["init"],
             "members": d["members"],
-            "cap100_day15": _r(fc[-1, i100], 1),
-            "cap10_day15": _r(fc[-1, i10], 1),
+            "cap100_day15": _r(s100.iloc[-1], 1),
+            "cap10_day15": _r(s10.iloc[-1], 1),
             "frac100_day15": _r(d["frac100_ge1"][-1]) if d.get("frac100_ge1") else None,
             "cross100": None,
             "cross10": None,
@@ -253,6 +268,65 @@ def surface_part(descent: dict) -> dict:
     return out
 
 
+def onset_of(u10: pd.Series) -> pd.Timestamp | None:
+    """The first easterly day of the newest event in a daily u(60N, 10 hPa) series: a reversal after WEST_GAP or more
+    westerly days starts a new event."""
+    onset, west = None, WEST_GAP
+    for day, u in u10.items():
+        if u < 0:
+            if west >= WEST_GAP:
+                onset = day
+            west = 0
+        else:
+            west += 1
+    return onset
+
+
+def clock_part() -> dict:
+    """Each ensemble on the coupling clock (module docstring, CLOCK), with the reference the page draws it against."""
+    ref = json.loads((REF / "coupling_clock.json").read_text())
+    dfn, norm = ref["definitions"], Ref(REF / "u100_std.json")
+    out = {}
+    for m in ENSEMBLES:
+        rs = [r for r in RR.runs("vortex", m) if "u100" in r]
+        if not rs:
+            continue
+        days = {r["valid"][0][:10]: (r["u10"]["mean"][0], r["u100"]["mean"][0]) for r in rs[:-1]}  # the analyses
+        days.update({v[:10]: uu for v, *uu in zip(rs[-1]["valid"], rs[-1]["u10"]["mean"], rs[-1]["u100"]["mean"])})
+        s = pd.DataFrame.from_dict(days, orient="index", columns=["u10", "u100"]).dropna()
+        s.index = pd.DatetimeIndex(s.index)
+        s = s.sort_index().loc[pd.Timestamp(rs[-1]["valid"][0][:10]) - pd.Timedelta(days=CLOCK_LOOKBACK) :]
+        row = {"init": rs[-1]["init"].replace("T", " ") + "Z", "onset": None}
+        onset = onset_of(s["u10"])
+        out[m] = row
+        if onset is None:
+            continue
+        w0, w1 = (onset + pd.Timedelta(days=k) for k in dfn["wind_days"])
+        win = s.loc[w0:w1, "u100"]
+        row.update(onset=f"{onset:%Y-%m-%d}", wind_days=len(win), wind=None, third=None, start_dates=None, sea=None)
+        if len(win) < CLOCK_MIN_DAYS:
+            continue
+        z = float(np.mean(norm.z(win.index, 100, win.values)))
+        third = next(k for k, g in enumerate(ref["thirds"]) if g["wind"][1] is None or z <= g["wind"][1])
+        g = ref["thirds"][third]
+        row.update(wind=_r(z), third=third, start_dates=[
+            None if q > dfn["start_max"] else f"{onset + pd.Timedelta(days=q):%Y-%m-%d}" for q in g["start_quartiles"]])  # fmt: skip
+        d = _read(f"{m}_drip.json")
+        if not d:
+            continue
+        # its own 1000 hPa cap over the days 6-15 it reaches, beside the same days after that third's warmings
+        sea = drip_series(d, 1000.0)
+        sea = sea.loc[onset + pd.Timedelta(days=dfn["sea_days"][0]) : onset + pd.Timedelta(days=dfn["sea_days"][1])]
+        if len(sea):
+            lags = [(t - onset).days for t in sea.index]
+            past = [
+                float(np.mean([e["sea_daily"][k] for k in lags])) for e in ref["events"] if e["onset"] in g["onsets"]
+            ]
+            row.update(sea=_r(sea.mean()), sea_days=[lags[0], lags[-1]], sea_past=[_r(min(past)), _r(max(past))],
+                       sea_drift_removed=1000.0 in d.get("corrected_levels", []))  # fmt: skip
+    return {"models": out, "reference": ref}
+
+
 def references() -> dict:
     """The committed results the page's method section quotes."""
     c = json.loads((REF / "cmip6_coupling_tests.json").read_text())
@@ -319,6 +393,7 @@ def main() -> int:
         "descent": {"models": descent, "kind": max(set(kinds), key=kinds.count) if kinds else None},
         "reflect": reflect,
         "surface": surface,
+        "clock": clock_part(),
         "reference": references(),
         "thresholds": {"one_sd": ONE_SD, "lag_days": list(LAG), "wave_share": WAVE_SHARE, "active_z": ACTIVE_Z},
     }

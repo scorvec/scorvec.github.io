@@ -42,6 +42,31 @@
      cell takes the cell's own colour, not the muted grey, which is too faint on the middle shades */
   table.rec td.shade small { color: inherit; }
   table.rec td.hot { color: #fff; }
+  /* the coupling clock (#clock): the past warmings and each ensemble on one chart, drawn from the summary as SVG */
+  .clock-key { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; padding: 0.1rem 1.4rem 0; font-size: 0.84rem; color: var(--ink2); }
+  .clock-key span { display: inline-flex; align-items: center; gap: 0.45rem; }
+  .clock-key i { display: inline-block; width: 18px; border-top: 2.5px solid; }
+  .clock-key i.dot { width: 10px; height: 10px; border: 0; border-radius: 50%; background: #4a4744; }
+  .clock-fig { position: relative; padding: 0.3rem 1.4rem 0.2rem; }
+  .clock-fig svg { display: block; width: 100%; height: auto; font-family: inherit; }
+  .clock-fig .band { fill: #f4f2ec; }
+  .clock-fig .band2 { fill: #fbfaf7; }
+  .clock-fig .grid { stroke: #e4e0d7; stroke-width: 1; }
+  .clock-fig .tick { stroke: var(--muted); stroke-width: 1; }
+  .clock-fig .ax, .clock-fig .cap { fill: var(--muted); }
+  .clock-fig .cap { paint-order: stroke; stroke-width: 5px; stroke-linejoin: round; }
+  .clock-fig .cap.on-band { stroke: #f4f2ec; }
+  .clock-fig .cap.on-band2 { stroke: #fbfaf7; }
+  .clock-fig .lab { fill: var(--ink); font-weight: 600; }
+  .clock-fig .fc { stroke-width: 2.2; }
+  .clock-fig .hit { stroke: transparent; stroke-width: 14; }
+  .clock-fig .dot { fill: #4a4744; stroke: #fff; stroke-width: 1.5; outline: none; }
+  .clock-fig .dot:focus-visible { stroke: var(--ink); stroke-width: 2.5; }
+  .clock-tip { position: absolute; z-index: 2; pointer-events: none; background: #fff; border: 1px solid var(--rule);
+               border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.8rem; line-height: 1.45; color: var(--ink);
+               box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08); max-width: 270px; }
+  .clock-note { margin: 0.1rem 0 0.5rem; padding: 0 1.4rem; font-size: 0.8rem; line-height: 1.5; color: var(--muted); }
+  @media (max-width: 600px) { .clock-key, .clock-fig, .clock-note { padding-left: 0.6rem; padding-right: 0.6rem; } }
   /* phones: no sideways scrolling - a model's row becomes a card of label: value lines, and the run-by-run grid shrinks
      to the screen with its headers wrapped */
   @media (max-width: 700px) {
@@ -279,6 +304,15 @@
         <p data-k="sfc_line">&ndash;</p></div>
       <div class="tblwrap"><table class="rec" id="t_sfc"></table></div>
       <div class="img-wrap"><a href="/stratosphere.html#descent"><img src="/assets/sst/ssw_imprint.webp" alt="The 10 and 100 hPa polar cap and the SSW surface imprint index, every ensemble" loading="lazy"></a></div>
+    </section>
+
+    <section class="chart-card" id="clock" hidden>
+      <div class="chart-card-header"><h2>When could it reach the surface?</h2>
+        <p data-k="clock_line">&ndash;</p></div>
+      <div class="clock-key" id="clock_key"></div>
+      <div class="clock-fig" id="clock_fig"><div class="clock-tip" id="clock_tip" hidden></div></div>
+      <p class="clock-note" id="clock_note" hidden></p>
+      <div class="tblwrap"><table class="rec" id="t_clock"></table></div>
       <div class="chart-card-footer">
         <span class="chart-sources">Data: ECMWF open data (CC&nbsp;BY&nbsp;4.0, Google Cloud mirror) &middot; NOAA GEFS (AWS Open Data) &middot; ECCC GEPS (MSC Datamart, ECCC Data Servers End-use Licence) &middot; ERA5 (Copernicus Climate Change Service) &middot; MERRA-2 (NASA GMAO) &middot; CMIP6 (Pangeo)</span>
         <span class="chart-updated" data-k="stamp">&ndash;</span>
@@ -331,6 +365,19 @@
         the index itself, fitted on ERA5 November&ndash;April days since 1959. Skill (Brier skill score, cross-validated
         by winter): <span data-r="bss">&ndash;</span>. After the MERRA-2 sudden warmings the index averaged
         <span data-r="era5_imp">&ndash;</span>; in CMIP6 <span data-r="cm_ssw">&ndash;</span>.</p>
+        <p id="m_clock"><b>Coupling clock.</b> In the <span data-r="ck_n">&ndash;</span> MERRA-2 sudden warmings since 1980, the
+        weaker the wind at 60&deg;N, 100&nbsp;hPa over days 0&ndash;10 after the first easterly day at 10&nbsp;hPa (in
+        standard deviations of its day-of-year normal, fitted as the dripping paint&rsquo;s polar cap is), the sooner a
+        lasting surface signal began (Spearman <span data-r="ck_start">&ndash;</span>) and the stronger the imprint
+        index ran over days 11&ndash;40 (<span data-r="ck_str">&ndash;</span>; both against shuffles of the wind). A
+        lasting signal begins on the first day whose next 14 days average <span data-r="ck_thr">&ndash;</span> or more
+        on the imprint index; the thirds split the warmings by the wind. Each ensemble&rsquo;s reversal is the first day
+        its ensemble-mean 10&nbsp;hPa wind turns easterly (the analyses of its recorded runs, then its newest run), and
+        its wind is the mean over the days of that window its forecast reaches, six at least. Its sea-level cap is the
+        1000&nbsp;hPa polar-cap height of its dripping paint (high = negative Arctic Oscillation; drift removed for
+        IFS-ENS and AIFS-ENS, only the analysis offset for GEFS and GEPS), set against the same days after the
+        warmings of its third. The two layers move together once a warming reaches down, so the wind reads the next two
+        weeks rather than the season, and none of the warmings began before December.</p>
         <p>Messori, G. et al. (2022), <i>Weather Clim. Dynam.</i> 3, 1215&ndash;1236 &middot; Perlwitz, J. and Harnik, N.
         (2003), <i>J. Climate</i> 16, 3011&ndash;3026 &middot; Charlton, A.&nbsp;J. and Polvani, L.&nbsp;M. (2007),
         <i>J. Climate</i> 20, 449&ndash;469 &middot; Kodera, K. et al. (2016), <i>J. Geophys. Res.</i> 121,
@@ -371,6 +418,89 @@
   }
   function who(name, init) { return name + (init ? "<small>" + init.slice(8, 10).replace(/^0/, "") + " " + M[+init.slice(5, 7) - 1] + " " + init.slice(11) + "</small>" : ""); }
   function p(t) { return t.p < 0.001 ? "p < 0.001" : "p " + t.p.toPrecision(2); }
+  function mean(a) { return a.reduce(function (s, x) { return s + x; }, 0) / a.length; }
+
+  // the coupling clock: every past warming as a dot (its wind, the day its lasting surface signal began) over the
+  // shaded thirds, each placed ensemble as a line at its wind; redrawn when the card changes width
+  var COL = { aifs: "#b4541f", ifs: "#1f4b6e", gefs: "#3b88c4", geps: "#2f7d4f" };
+  var THIRD = ["weakest", "middle", "strongest"];
+  function thirdOf(R, w) { for (var k = 0; k < R.thirds.length - 1; k++) if (w <= R.thirds[k].wind[1]) return k; return k; }
+  function drawClock(C, N) {
+    var R = C.reference, D = R.definitions, ev = R.events, box = document.getElementById("clock_fig"), tip = document.getElementById("clock_tip");
+    var cs = getComputedStyle(box), W = Math.round(box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+    if (W < 200 || W === drawClock.w) return;
+    drawClock.w = W;
+    var placed = Object.keys(C.models).filter(function (m) { return C.models[m].wind != null; })
+      .sort(function (a, b) { return C.models[a].wind - C.models[b].wind; });
+    var H = W < 560 ? 330 : 400, NONE = D.start_max + 9, TOP = NONE + 5, fs = W < 560 ? 11 : 12;
+    var xs = ev.map(function (e) { return e.wind; }).concat(placed.map(function (m) { return C.models[m].wind; }));
+    var x0 = Math.floor(Math.min.apply(null, xs) * 2) / 2 - 0.2, x1 = Math.ceil(Math.max.apply(null, xs) * 2) / 2 + 0.2;
+    var L = { l: 46, r: 10, t: 12 + 17 * placed.length, b: W < 560 ? 40 : 46 };
+    function X(v) { return L.l + (v - x0) / (x1 - x0) * (W - L.l - L.r); }
+    function Y(d) { return H - L.b - d / TOP * (H - L.t - L.b); }
+    function tx(x, y, t, cls, anchor, extra) {
+      return '<text class="' + cls + '" x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" text-anchor="' + (anchor || "start") + '"' + (extra || "") + ">" + t + "</text>";
+    }
+    function ln(a, b, c, d, cls, extra) {
+      return '<line class="' + cls + '" x1="' + a.toFixed(1) + '" y1="' + b.toFixed(1) + '" x2="' + c.toFixed(1) + '" y2="' + d.toFixed(1) + '"' + (extra || "") + "/>";
+    }
+    var s = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Days from the 10 hPa reversal to a lasting surface signal against the wind at 100 hPa in '
+      + ev.length + ' past sudden warmings, with each ensemble’s wind" style="font-size:' + fs + 'px">';
+    // each third's caption sits in its band over the ensembles' lines, haloed in the band's colour; when a band is too
+    // narrow for its words (phones), the captions move to one line under the chart
+    var caps = "", fits = true, words = [];
+    R.thirds.forEach(function (g, k) {
+      var a = X(g.wind[0] == null ? x0 : g.wind[0]), b = X(g.wind[1] == null ? x1 : g.wind[1]), cls = k % 2 ? "band2" : "band";
+      var t1 = THIRD[k] + " third", t2 = g.soon + " of " + g.n + " by day " + D.soon;
+      s += '<rect x="' + a.toFixed(1) + '" y="' + L.t + '" width="' + (b - a).toFixed(1) + '" height="' + (Y(0) - L.t).toFixed(1) + '" class="' + cls + '"/>';
+      caps += tx((a + b) / 2, Y(40), t1, "cap on-" + cls, "middle") + tx((a + b) / 2, Y(40) + fs + 4, t2, "cap on-" + cls, "middle");
+      fits = fits && b - a >= 0.56 * fs * Math.max(t1.length, t2.length) + 8;
+      words.push(THIRD[k] + " " + g.soon + " of " + g.n);
+    });
+    var note = document.getElementById("clock_note");
+    note.hidden = fits;
+    note.textContent = fits ? "" : "Shaded: the past warmings in thirds by the wind; a lasting surface signal by day " + D.soon + " in the " + words.join(", the ") + ".";
+    if (!fits) caps = "";
+    for (var d = 0; d <= D.start_max; d += 10) s += ln(L.l, Y(d), W - L.r, Y(d), "grid") + tx(L.l - 6, Y(d) + 4, d, "ax", "end");
+    s += ln(L.l, Y(D.start_max + 4.5), W - L.r, Y(D.start_max + 4.5), "grid", ' stroke-dasharray="4 3"') + tx(L.l - 6, Y(NONE) + 4, "none", "ax", "end");
+    for (var v = Math.ceil(x0 * 2) / 2; v <= x1 + 1e-9; v += 0.5) s += ln(X(v), Y(0), X(v), Y(0) + 5, "tick") + tx(X(v), Y(0) + fs + 7, sg(v), "ax", "middle");
+    s += tx(L.l + (W - L.l - L.r) / 2, H - 6, "wind at 60°N, 100 hPa, days " + D.wind_days[0] + "–" + D.wind_days[1] + " (sd from normal)", "ax", "middle");
+    if (W >= 640) s += tx(L.l, H - 6, "← weaker", "ax") + tx(W - L.r, H - 6, "stronger →", "ax", "end");
+    s += tx(13, (L.t + Y(0)) / 2, "days to a lasting surface signal", "ax", "middle", ' transform="rotate(-90 13 ' + ((L.t + Y(0)) / 2).toFixed(1) + ')"');
+    placed.forEach(function (m, i) {
+      var c = C.models[m], x = X(c.wind), y = 12 + 17 * i, right = x > W - 150;
+      s += ln(x, Y(0), x, y + 4, "fc", ' style="stroke:' + COL[m] + '"') + tx(right ? x - 6 : x + 6, y + 8, N[m] + " " + sg(c.wind, 2), "lab", right ? "end" : "start");
+      s += ln(x, Y(0), x, y, "hit", ' data-m="' + m + '"');
+    });
+    s += caps;
+    ev.forEach(function (e, i) {
+      s += '<circle data-i="' + i + '" tabindex="0" cx="' + X(e.wind).toFixed(1) + '" cy="' + Y(e.start == null ? NONE : e.start).toFixed(1) + '" r="5" class="dot"/>';
+    });
+    var old = box.querySelector("svg");
+    if (old) old.remove();
+    box.insertAdjacentHTML("afterbegin", s + "</svg>");
+    function show(el, h) {
+      tip.innerHTML = h; tip.hidden = false;
+      var b = el.getBoundingClientRect(), o = box.getBoundingClientRect(), left = b.left - o.left + b.width / 2 + 12;
+      if (left + tip.offsetWidth > o.width) left = b.left - o.left + b.width / 2 - tip.offsetWidth - 12;
+      tip.style.left = Math.max(0, left) + "px"; tip.style.top = Math.max(0, b.top - o.top + b.height / 2 - tip.offsetHeight / 2) + "px";
+    }
+    function hover(el, h) {
+      el.addEventListener("mouseenter", function () { show(el, h); }); el.addEventListener("focus", function () { show(el, h); });
+      el.addEventListener("mouseleave", function () { tip.hidden = true; }); el.addEventListener("blur", function () { tip.hidden = true; });
+    }
+    box.querySelectorAll("[data-i]").forEach(function (el) {
+      var e = ev[+el.getAttribute("data-i")];
+      hover(el, "<b>" + md(e.onset) + " " + e.onset.slice(0, 4) + "</b><br>wind " + sg(e.wind, 2) + " sd<br>"
+        + (e.start == null ? "no lasting surface signal by day " + D.start_max : "lasting surface signal from day " + e.start)
+        + "<br>imprint index, days " + D.strength_days[0] + "–" + D.strength_days[1] + ": " + sg(e.strength));
+    });
+    box.querySelectorAll("[data-m]").forEach(function (el) {
+      var m = el.getAttribute("data-m"), c = C.models[m];
+      hover(el, "<b>" + N[m] + "</b>, run " + c.init + "<br>reversal " + md(c.onset) + "<br>wind " + sg(c.wind, 2) + " sd over " + c.wind_days + " days");
+    });
+    if (!drawClock.ro && window.ResizeObserver) { drawClock.ro = new ResizeObserver(function () { drawClock(C, N); }); drawClock.ro.observe(box); }
+  }
   fetch("assets/sst/data/ssw_summary.json", { cache: "no-cache" }).then(function (r) { if (!r.ok) throw r.status; return r.json(); }).then(function (j) {
     var N = j.names, S = j.ssw, W = j.waves, D = j.descent, R = j.reflect, F = j.surface, X = j.reference;
     var ens = ["aifs", "ifs", "gefs", "geps"];
@@ -446,6 +576,51 @@
       ens.filter(function (m) { return F.models[m]; }).map(function (m) {
         var v = F.models[m]; return [who(N[m], v.init), pct(v.p_positive), sg(v.cap100_day15), pct(v.frac100_day15)];
       }));
+
+    // the coupling clock, shown only while its start-day test passes
+    var C = j.clock;
+    if (C && C.reference.passes) {
+      document.getElementById("clock").hidden = false;
+      var CR = C.reference, CD = CR.definitions, ck = ens.filter(function (m) { return C.models[m]; });
+      var P = ck.filter(function (m) { return C.models[m].wind != null; });
+      if (!P.length) {
+        set("clock_line", ck.some(function (m) { return C.models[m].onset; })
+          ? "The ensembles’ reversal at 10 hPa comes too near the end of their forecasts for the clock: it needs six of the days after it."
+          : "No ensemble’s mean wind at 60°N, 10 hPa turns easterly in the last month of analyses or in the forecast; the clock starts at a reversal.");
+      } else {
+        var wm = mean(P.map(function (m) { return C.models[m].wind; })), k = thirdOf(CR, wm), g = CR.thirds[k];
+        var ons = P.map(function (m) { return C.models[m].onset; }).sort();
+        var seas = P.filter(function (m) { return C.models[m].sea != null; });
+        var below = seas.filter(function (m) { return C.models[m].sea < C.models[m].sea_past[0]; });
+        var o0 = md(ons[0]), o1 = md(ons[ons.length - 1]);
+        set("clock_line", "Over the days after the 10 hPa reversal (" + (o0 === o1 ? o0 : o0.split(" ")[1] === o1.split(" ")[1] ? o0.split(" ")[0] + "–" + o1 : o0 + "–" + o1)
+          + "), the wind at 60°N, 100 hPa runs " + sg(wm) + " sd from normal in the ensembles’ mean: the " + THIRD[k] + " third of the "
+          + CR.events.length + " warmings since 1980. After those, a lasting surface signal began within " + CD.soon + " days in " + g.soon + " of " + g.n
+          + ", half of them by day " + g.start_quartiles[1] + "."
+          + (seas.length ? " The ensembles’ own sea-level polar cap over the same days runs " + sg(mean(seas.map(function (m) { return C.models[m].sea; })))
+            + " sd, " + (below.length ? "lower than every one of those warmings in " + below.length + " of " + seas.length + " ensembles." : "within the range of those warmings.") : ""));
+      }
+      document.getElementById("clock_key").innerHTML = '<span><i class="dot"></i>past sudden warmings, MERRA-2 since 1980</span>'
+        + P.map(function (m) { return '<span><i style="border-color:' + COL[m] + '"></i>' + N[m] + "</span>"; }).join("");
+      table("t_clock", ["model", "reversal at 10 hPa", "wind at 100 hPa (sd)", "past warmings with that wind", "a lasting surface signal after those", "its own sea-level cap (sd)"],
+        ck.map(function (m) {
+          var v = C.models[m];
+          if (!v.onset) return [who(N[m], v.init), "none in the ensemble mean", "–", "–", "–", "–"];
+          if (v.wind == null) return [who(N[m], v.init), md(v.onset), "–<small>" + v.wind_days + " days after it in the forecast</small>", "–", "–", "–"];
+          var g3 = CR.thirds[v.third], sd = v.start_dates;
+          return [who(N[m], v.init), md(v.onset), sg(v.wind, 2) + "<small>over " + v.wind_days + " days</small>",
+            THIRD[v.third] + " third<small>" + g3.soon + " of " + g3.n + " within " + CD.soon + " days</small>",
+            (sd[1] ? "half by " + md(sd[1]) : "half after day " + CD.start_max) + "<small>" + (sd[2] ? "three in four by " + md(sd[2]) : "three in four after day " + CD.start_max) + "</small>",
+            v.sea == null ? "–" : sg(v.sea) + "<small>days " + v.sea_days[0] + "–" + v.sea_days[1] + "; past " + sg(v.sea_past[0]) + " to " + sg(v.sea_past[1])
+              + (v.sea_drift_removed ? "" : "; analysis offset only") + "</small>"];
+        }));
+      drawClock(C, N);
+      ref("ck_n", CR.events.length); ref("ck_thr", "+" + CD.start_threshold);
+      ref("ck_start", "ρ " + sg(CR.tests.start.rho, 2) + " with the start day, " + p(CR.tests.start));
+      ref("ck_str", "ρ " + sg(CR.tests.strength.rho, 2) + ", " + p(CR.tests.strength));
+    } else {
+      document.getElementById("m_clock").hidden = true;
+    }
 
     document.getElementById("lede").textContent = sswWord + " in the next 15 days. "
       + (dk === "none" ? "No polar-cap weakening reaches the lower stratosphere" : "A " + (kind || "") + ", " + dk + " weakening" + (rv === "absorbing" ? ", absorbed rather than reflected" : rv === "reflecting" ? ", with waves reflected back down" : ""))

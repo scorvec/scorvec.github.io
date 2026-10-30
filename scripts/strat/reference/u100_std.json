@@ -1,0 +1,32 @@
+{
+ "source": "MERRA-2 u at 60N, 100 hPa (zonal mean, daily mean of 00/06/12/18Z), 1980-01-01..2026-06-26, build_strat_history QC and gap filling",
+ "method": "as reference/drip_std.json (build_drip_ref.fit): mean 4 annual harmonics + linear trend per decade from 2000; sd sqrt of a 3-harmonic fit to the squared residual (top 0.1 % clipped), floored at a third of its seasonal maximum",
+ "levels": {
+  "100.0": {
+   "b": [
+    9.781233071997532,
+    6.650985292719534,
+    -0.34669750417730455,
+    -0.5838253166003997,
+    0.8149837464905837,
+    0.1587213787443841,
+    -0.15039255276204633,
+    0.20038196610537543,
+    -0.06943090732556947,
+    -0.03208988446695754
+   ],
+   "bs": [
+    15.4011349402262,
+    15.486831612206931,
+    9.346282357375488,
+    1.5965549476731014,
+    6.649938213334807,
+    -1.0920187105953132,
+    1.4794343388972642
+   ],
+   "sd_floor": 2.1602172393460086,
+   "var_floor": 1.5570382146134884e-05,
+   "step": false
+  }
+ }
+}
