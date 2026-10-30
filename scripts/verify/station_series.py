@@ -87,9 +87,10 @@ def tiles(series: pd.DataFrame, out: Path) -> int:
             fc = {}
             for lead, gl in g.groupby("lead_h"):
                 on = gl.set_index("valid_time").reindex(times)
-                fc[str(lead)] = {m: _round(on[m]) for m in models if on[m].notna().any()}
+                fc[str(int(lead))] = {m: _round(on[m]) for m in models if on[m].notna().any()}
             la, lo = pos.loc[sid]
-            stations.setdefault(tile_of(la, lo), {})[sid] = {
+            # keyed as the station map keys them: the station without its network ("GHCNH:"), the lead in whole hours
+            stations.setdefault(tile_of(la, lo), {})[sid.split(":", 1)[-1]] = {
                 "lat": round(float(la), 3),
                 "lon": round(float(lo), 3),
                 "t": ((pd.DatetimeIndex(times) - t0) / pd.Timedelta("1h")).astype(int).tolist(),
