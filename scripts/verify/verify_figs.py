@@ -22,8 +22,9 @@ figs.json lists what was drawn, for the page, and what the database holds (datab
 
 Uncertainty. A window's runs are a sample: the same models over other weeks would score differently, and runs a day
 apart share their weather, so they are not independent. Every interval is a 95 % Student t interval on the runs' own
-scores with the sample cut for lag-1 autocorrelation, n (1 - rho) / (1 + rho), the anomaly correlation averaged through
-Fisher's z = artanh(r) and turned back. rho is one value per lead for a window's figures (pooled_rho): estimated from
+scores, its variance inflated for lag-1 autocorrelation (the n runs count as n (1 - rho) / (1 + rho), t_crit), the
+anomaly correlation averaged through Fisher's z = artanh(r) and turned back, and a score that cannot go below zero
+(an RMSE, a CRPS, a ratio) taken on its logarithm. rho is one value per lead for a window's figures (pooled_rho): estimated from
 a single series of ten runs it swings by +-0.3, and a high draw would cut the sample to about one run and widen an
 interval tenfold. A difference from the reference is the
 mean of the runs' paired differences (Geer 2016: unpaired intervals hide most of what separates two models) and is
@@ -137,13 +138,20 @@ def n_eff(n: int, rho: float) -> float:
     return n * (1 - rho) / (1 + rho)
 
 
+def t_crit(n: int, level: float) -> float:
+    """The Student t quantile of an interval on n runs. The autocorrelation inflates the variance (n_eff) but not this
+    quantile: on n_eff - 1 degrees of freedom, a window of ten runs whose leads are strongly autocorrelated (n_eff near
+    two) would take the quantile of one degree of freedom, 12.7 for 95 % against 2.3."""
+    return float(stats.t.ppf(0.5 + level / 2, n - 1))
+
+
 def ci(x: np.ndarray, rho: float, level: float = 0.95) -> tuple[float, float, float]:
-    """The mean of a run series and its interval, the sample cut for the lag-1 autocorrelation rho (pooled_rho)."""
+    """The mean of a run series and its interval, the variance inflated for the lag-1 autocorrelation rho
+    (pooled_rho)."""
     x = x[np.isfinite(x)]
     if len(x) < 3:
         return float("nan"), float("nan"), float("nan")
-    n = n_eff(len(x), rho)
-    h = stats.t.ppf(0.5 + level / 2, max(n - 1, 1.0)) * x.std(ddof=1) / np.sqrt(n)
+    h = t_crit(len(x), level) * x.std(ddof=1) / np.sqrt(n_eff(len(x), rho))
     return float(x.mean()), float(x.mean() - h), float(x.mean() + h)
 
 
@@ -154,10 +162,13 @@ def ratio_resid(num: np.ndarray, den: np.ndarray) -> np.ndarray:
     return num - num.sum() / den.sum() * den if den.sum() > 0 else num[:0]
 
 
-def ratio_ci(num: np.ndarray, den: np.ndarray, rho: float, level: float = 0.95) -> tuple[float, float, float]:
+def ratio_ci(
+    num: np.ndarray, den: np.ndarray, rho: float, level: float = 0.95, log: bool = False
+) -> tuple[float, float, float]:
     """A pooled score sum(num) / sum(den) over runs (in run order) and its interval: the ratio estimator's variance
-    from each run's residual num - R den (a run is a cluster of cases that share its weather), the sample cut for the
-    lag-1 autocorrelation rho (pooled_rho)."""
+    from each run's residual num - R den (a run is a cluster of cases that share its weather), inflated for the lag-1
+    autocorrelation rho (pooled_rho). With ``log`` the interval is taken on log R (delta method), for a score that
+    cannot go below zero (a mean squared error, a CRPS, a ratio of two): it stays above zero and is wider above."""
     ok = np.isfinite(num) & np.isfinite(den) & (den > 0)
     num, den = num[ok], den[ok]
     if len(num) < 3 or den.sum() <= 0:
@@ -165,9 +176,10 @@ def ratio_ci(num: np.ndarray, den: np.ndarray, rho: float, level: float = 0.95) 
     r = num.sum() / den.sum()
     d = num - r * den
     n = len(d)
-    ne = n_eff(n, rho)
-    se = np.sqrt(n / (n - 1) * (d**2).sum()) / den.sum() * np.sqrt(n / ne)
-    h = stats.t.ppf(0.5 + level / 2, max(ne - 1, 1.0)) * se
+    se = np.sqrt(n / (n - 1) * (d**2).sum()) / den.sum() * np.sqrt(n / n_eff(n, rho))
+    h = t_crit(n, level) * se
+    if log and r > 0:
+        return float(r), float(r * np.exp(-h / r)), float(r * np.exp(h / r))
     return float(r), float(r - h), float(r + h)
 
 
@@ -441,8 +453,7 @@ def jack_ci(tables: np.ndarray, score, rho: float, level: float = 0.95) -> tuple
     total = tables.sum(0)
     full = score(total)
     pseudo = n * full - (n - 1) * np.array([score(total - t) for t in tables])
-    ne = n_eff(n, rho)
-    h = stats.t.ppf(0.5 + level / 2, max(ne - 1, 1.0)) * pseudo.std(ddof=1) / np.sqrt(ne)
+    h = t_crit(n, level) * pseudo.std(ddof=1) / np.sqrt(n_eff(n, rho))
     return float(full), float(full - h), float(full + h)
 
 
@@ -716,7 +727,7 @@ def det_window(derived: Path, runs: int | None) -> tuple[pd.DataFrame, list, dic
 def pooled(d: pd.DataFrame, rho: tuple[float, float]) -> tuple:
     """RMSE and bias of one model's per-run sums (in run order), each with its interval (``ratio_ci``; rho, the lead's
     autocorrelations of the squared and the plain errors, det_rho)."""
-    mse = ratio_ci(d["sse"].to_numpy(float), d["n"].to_numpy(float), rho[0])
+    mse = ratio_ci(d["sse"].to_numpy(float), d["n"].to_numpy(float), rho[0], log=True)
     return (*np.sqrt(np.clip(mse, 0, None)), *ratio_ci(d["se"].to_numpy(float), d["n"].to_numpy(float), rho[1]))
 
 
@@ -882,7 +893,7 @@ def draw_profile(s: pd.DataFrame, models: list[str], qty: str, region: str, day:
             for p, d in g[g["model"].isin([m, REF])].groupby("p"):
                 w = d.pivot_table(index="init", columns="model", values="sse").dropna()  # the runs both have
                 if m in w and REF in w and len(w) >= 3:
-                    ratio = ratio_ci(w[m].to_numpy(float), w[REF].to_numpy(float), rho[0])
+                    ratio = ratio_ci(w[m].to_numpy(float), w[REF].to_numpy(float), rho[0], log=True)
                     pct.append((p, *(100 * (np.sqrt(np.clip(ratio, 0, None)) - 1))))
             if pct:
                 y2, c, lo, hi = np.array(pct).T
@@ -955,7 +966,8 @@ def det_figs(derived: Path, out: Path) -> dict:
         manifest[name] = {"window": span, "models": models, "card": cards, "lead": leads, "glance": glance,
                           "profile": profile}  # fmt: skip
         print(f"scores {name}: {span['runs']} runs, {len(cards)} scorecard regions, {len(leads)} variables, "
-              f"{sum(len(r) for q in profile.values() for r in q.values())} profiles", flush=True)  # fmt: skip
+              f"{sum(len(r) for q in profile.values() for r in q.values())} profiles; autocorrelation of the squared "
+              f"errors by day: {' '.join(f'{rho[h][0]:.2f}' for h in sorted(rho) if h % 24 == 0)}", flush=True)  # fmt: skip
     return manifest
 
 
@@ -1007,8 +1019,8 @@ def ens_lead(s: pd.DataFrame, models: list, v: str, region: str, span: dict, rho
     for k, m in enumerate(models):
         rows = []
         for lead, d in g[g["model"] == m].groupby("lead_h"):
-            crps = ratio_ci(d["crps"].to_numpy(float), d["n"].to_numpy(float), rho[lead])
-            var = ratio_ci((d["svar"] + d["sov"]).to_numpy(float), d["sse"].to_numpy(float), rho[lead])
+            crps = ratio_ci(d["crps"].to_numpy(float), d["n"].to_numpy(float), rho[lead], log=True)
+            var = ratio_ci((d["svar"] + d["sov"]).to_numpy(float), d["sse"].to_numpy(float), rho[lead], log=True)
             rows.append((lead / 24, *crps, *np.sqrt(np.clip(var, 0, None))))
         if not rows:
             continue

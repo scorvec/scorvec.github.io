@@ -584,9 +584,11 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       autocorrelation of the runs' scores (often a half to a third of them). For the intervals that autocorrelation is
       estimated once for each lead of a window, pooled over every model, variable and region, with the small-sample
       correction of Kendall (1954): from one series of ten runs the estimate swings so widely that a high draw would
-      leave about one effective run and an interval ten times too wide. Intervals are 95% Student t intervals on
-      those runs, the anomaly correlation averaged through Fisher's z = artanh(r) and turned back, so that a run's score
-      near 1 is not given the same room as one near 0.5. Two models are compared run by run (the paired difference):
+      leave about one effective run and an interval ten times too wide. Intervals are 95% Student t intervals on the
+      runs, their variance inflated for that autocorrelation; a score that cannot go below zero (an RMSE, a CRPS, a
+      ratio of two) is taken on its logarithm, so its interval stays above zero and reaches further up than down; and
+      the anomaly correlation is averaged through Fisher's z = artanh(r) and turned back, so that a run's score near 1
+      is not given the same room as one near 0.5. Two models are compared run by run (the paired difference):
       most of a model's run-to-run swing is the weather, which both models share, and an interval on each model alone
       would hide differences that are real (Geer 2016, Tellus A 68, 30229). A difference counts as significant when
       its paired test passes the Benjamini–Hochberg procedure at a 10% false-discovery rate over every model and lead
