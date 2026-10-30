@@ -264,6 +264,19 @@
   .spark text { font-family: var(--sans); font-size: 11.5px; fill: var(--storm); }
   .spark .lab { font-weight: 600; fill: #9a3f14; }
   .spark .lab.cool { fill: #2c5f8a; }
+  /* SSW card: the whole row; the outlook page's three readings beside each ensemble's chance run by run, in the
+     stratosphere figures' model colours, named at the line ends and in the key */
+  .nc--ssw { --acc: #3b3f8c; grid-column: 1 / -1; background: linear-gradient(180deg, #f3f3fb 0%, #fff 48%); }
+  .nc--ssw:hover { box-shadow: 0 4px 22px rgba(59, 63, 140, 0.16); }
+  .nc--ssw .en-stats > span { border-left-color: #d8daef; }
+  .ss-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.6rem; align-items: start; }
+  .ss-text, .ss-chart { display: flex; flex-direction: column; min-width: 0; }
+  .ss-chart[hidden] { display: none; }
+  .ss-chart .spark { flex: none; height: 190px; margin-top: 0.65rem; }
+  .ss-key { display: flex; flex-wrap: wrap; gap: 0.25rem 0.9rem; margin-top: 0.35rem; font-size: 0.78rem; color: var(--storm); }
+  .ss-key span { display: inline-flex; align-items: center; gap: 0.35rem; }
+  .ss-key i { display: inline-block; width: 0.9rem; height: 2px; border-radius: 1px; }
+  @media (max-width: 820px) { .ss-body { grid-template-columns: 1fr; } }
 
   /* ── The themes: the menus' six groups as tiles, their key pages as plain links (the descriptions are tooltips and
      live on the pages and in the catalogue); the rest of a theme's pages sit behind "n more". ── */
@@ -559,6 +572,25 @@
       <span class="s" id="en-sub">Sea temperatures, the official indices and the seasonal models.</span>
       <span class="s src">NOAA OISST v2.1 and CPC; C3S seasonal forecasts. Contains modified Copernicus Climate Change Service information 2026.</span>
       <span class="go">El Niño monitor</span>
+    </a>
+    <a class="nc nc--ssw" href="/ssw.html">
+      <span class="en-top"><span class="k">Sudden stratospheric warming</span><span class="en-pill" id="ss-pill" hidden></span></span>
+      <span class="ss-body">
+        <span class="ss-text">
+          <span class="en-stats" aria-live="polite">
+            <span><b id="ss-p">–</b><small id="ss-pl">chance in the next 15 days</small><em id="ss-pd"></em></span>
+            <span><b id="ss-kind">–</b><small>wave driving</small><em id="ss-kd"></em></span>
+            <span><b id="ss-sfc">–</b><small>surface pattern after day 15</small><em id="ss-sd"></em></span>
+          </span>
+          <span class="s" id="ss-sub">The 10&nbsp;hPa wind at 60°N turning easterly in each ensemble's members, what drives it and the surface after.</span>
+          <span class="s src">ECMWF IFS-ENS and AIFS-ENS open data (CC BY 4.0), NOAA GEFS, ECCC GEPS.</span>
+        </span>
+        <span class="ss-chart" id="ss-chart" hidden>
+          <svg class="spark" id="ss-spark" role="img" aria-label="Each ensemble's chance of a sudden warming, run by run"></svg>
+          <span class="ss-key" id="ss-key"></span>
+        </span>
+      </span>
+      <span class="go">SSW outlook</span>
     </a>
   </section>
 
@@ -887,6 +919,79 @@
       // drawn again whenever the card's size changes: the window, or the midterm card beside it filling in
       let rt; new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(draw, 100); }).observe(svg);
     }
+  });
+
+  // SSW card: the outlook page's summary: the four ensembles' chance of a sudden warming in the next 15 days (their
+  // members' mean share, as on ssw.html), what drives it and the chance of the post-warming surface pattern after day
+  // 15, beside each ensemble's chance in its runs of the last three weeks
+  getJSON('/assets/sst/data/ssw_summary.json').then(j => {
+    if (!j || !j.ssw) return;
+    const S = j.ssw, W = j.waves, D = j.descent, F = j.surface, N = j.names, br = S.base_rate;
+    const pct = v => v == null ? '–' : Math.round(100 * v) + ' %';
+    const share = S.share_mean;
+    if (share != null) {
+      $set('ss-p', pct(share));
+      $set('ss-pl', `chance, ${day(j.window[0])} to ${day(j.window[1])}`);
+      $set('ss-pd', `members, four ensembles · since 1980: ${br.with_onset} of ${br.winters} winters` + (j.ssw_season ? '' : ' · outside Nov–Mar'));
+      const pill = document.getElementById('ss-pill');
+      pill.textContent = share >= 0.6 ? 'Likely' : share >= 0.3 ? 'Possible' : share >= 0.05 ? 'In a few members' : 'None';
+      pill.className = 'en-pill' + (share < 0.3 ? ' neutral' : '');
+      pill.hidden = false;
+    }
+    if (W && W.kind) {
+      $set('ss-kind', { 'wave-1': 'Wave-1', 'wave-2': 'Wave-2', mixed: 'Mixed' }[W.kind] || '–');
+      $set('ss-kd', `${pct(W.wave2_share_mean)} wave-2` + (D && D.kind && D.kind !== 'none' ? ` · ${D.kind}` : ''));
+    }
+    if (F && F.p_positive_mean != null) {
+      $set('ss-sfc', pct(F.p_positive_mean));
+      $set('ss-sd', 'chance; normal 50 %');
+    }
+    $set('ss-sub', `The 10 hPa wind at 60°N turning easterly in each ensemble's members; newest run ${day(j.newest_init)} ${j.newest_init.slice(11)}.`);
+
+    const COL = { aifs: '#b4541f', ifs: '#1f4b6e', gefs: '#3b88c4', geps: '#2f7d4f' };   // the stratosphere figures'
+    const t = s => Date.parse(s + ':00:00Z');
+    const x1 = Math.max(...Object.keys(COL).map(m => S.models[m] && S.models[m].runs ? t(S.models[m].runs.at(-1)[0]) : 0)), x0 = x1 - 21 * 864e5;
+    const runs = Object.fromEntries(Object.keys(COL).map(m => [m, ((S.models[m] || {}).runs || []).filter(r => r[1] != null && t(r[0]) >= x0)]));
+    const ens = Object.keys(COL).filter(m => runs[m].length);
+    if (!ens.length) return;
+    const svg = document.getElementById('ss-spark');
+    svg.setAttribute('aria-label', 'Each ensemble\'s chance of a sudden warming, run by run; newest: ' +
+      ens.map(m => `${N[m]} ${pct(runs[m].at(-1)[1])}`).join(', '));
+    document.getElementById('ss-key').innerHTML = ens.map(m => `<span><i style="background:${COL[m]}"></i>${N[m]} ${pct(S.models[m].share)}</span>`).join('');
+    document.getElementById('ss-chart').hidden = false;
+    const draw = () => {
+      const r = svg.getBoundingClientRect(), Wd = Math.max(220, Math.round(r.width) || 320), H = Math.max(170, Math.round(r.height) || 190);
+      const L0 = 34, R0 = 62, top = 20, bot = H - 22;
+      svg.setAttribute('viewBox', `0 0 ${Wd} ${H}`);
+      const X = x => L0 + (Wd - L0 - R0) * (x - x0) / (x1 - x0 || 1), Y = v => top + (bot - top) * (1 - v);
+      const f1 = z => z.toFixed(1);
+      let g = `<text x="${L0}" y="11">each run's chance in its next 15 days</text>`;
+      for (const v of [0, 0.5, 1])
+        g += `<line x1="${L0}" x2="${Wd - R0}" y1="${f1(Y(v))}" y2="${f1(Y(v))}" stroke="${v ? '#ece9e2' : '#bdb8ad'}" stroke-width="1"/>` +
+             `<text x="${L0 - 5}" y="${f1(Y(v) + 4)}" text-anchor="end">${100 * v}%</text>`;
+      // a tick a week from the first whole day
+      for (let d = Math.ceil(x0 / 864e5) * 864e5; d <= x1; d += 7 * 864e5) {
+        const x = X(d);
+        if (x > Wd - R0 - 16) break;
+        g += `<line x1="${f1(x)}" x2="${f1(x)}" y1="${bot}" y2="${bot + 4}" stroke="#bdb8ad"/>` +
+             `<text x="${f1(x)}" y="${bot + 17}" text-anchor="middle">${day(new Date(d).toISOString())}</text>`;
+      }
+      const ends = ens.map(m => {
+        const p = runs[m], e = p.at(-1);
+        g += `<path d="${p.map((q, i) => (i ? 'L' : 'M') + f1(X(t(q[0]))) + ' ' + f1(Y(q[1]))).join('')}" fill="none" stroke="${COL[m]}" stroke-width="2" stroke-linejoin="round"/>`;
+        return { m, x: X(t(e[0])), y: Y(e[1]) };
+      });
+      ends.forEach(e => { g += `<circle cx="${f1(e.x)}" cy="${f1(e.y)}" r="3.5" fill="${COL[e.m]}" stroke="#fff" stroke-width="1.5"/>`; });
+      // the names beside the line ends, pushed apart where the ensembles end together
+      ends.sort((a, b) => a.y - b.y);
+      let prev = -Infinity;
+      for (const e of ends) prev = e.ly = Math.max(e.y + 4, prev + 13);
+      const over = prev - (bot + 4);
+      ends.forEach(e => { g += `<text x="${f1(Wd - R0 + 8)}" y="${f1(e.ly - Math.max(0, over))}">${N[e.m]}</text>`; });
+      svg.innerHTML = g;
+    };
+    draw();
+    let rt; new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(draw, 100); }).observe(svg);
   });
 
   fetch('https://scorvec.goatcounter.com/counter/TOTAL.json')
