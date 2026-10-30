@@ -5,8 +5,9 @@ The raw inputs are gigabytes of GRIB: each system's 1993-2016 hindcast per start
 for the tercile maps alone), the 6-hourly members (~4 GB an issue), the CPC daily record, geonames
 and the 2.2 GB OISST monthly file. Downloads and processing run in Actions only, and nothing is
 downloaded twice. So, as for SEAS5 (seas5_ref.py, release seas5-ref-v1), every product reads
-compact tables kept as assets of the GitHub release `c3s-ref-v1`, and a raw file is reduced the
-moment it lands and then deleted:
+compact tables kept as assets of the GitHub release `c3s-ref-v1`; a raw file is reduced the
+moment it lands, and c3s.yml hands every raw file a run downloaded to the local store (a 90-day
+artifact, c3s-raw-*):
 
   hc_terc_{centre}_{system}_{var}_{MM}.npz   per system, variable and hindcast START MONTH: the
         tercile bounds per period (and the per-point trend for t2m) and, for t2m, the population-
@@ -80,11 +81,6 @@ def guard_fetch(what: str) -> None:
             f"download refused ({what}): C3S data is fetched in GitHub Actions only "
             "(.github/workflows/c3s.yml; set C3S_ALLOW_FETCH=1 to override deliberately)"
         )
-
-
-def discard_raw() -> bool:
-    """Delete a raw GRIB as soon as its table is written (Actions: disk and the never-twice rule)."""
-    return os.environ.get("C3S_DISCARD_RAW") == "1"
 
 
 # ── paths and I/O ────────────────────────────────────────────────────────────

@@ -10,10 +10,10 @@ download. The map is their ensemble mean.
 Whether that mean is more than noise is a test (c3s_maps_render, seas5_build.shift_signal): the members' spread
 around it, and the hindcast's own spread -- one member's period mean over the 24 hindcast years, which only the raw
 hindcast (`seasonal-monthly-single-levels`, 1993-2016, the start month, 1 deg) has. The tercile maps fetch that raw
-hindcast for 2 m temperature and precipitation anyway (c3s_terciles.py, same file, reduced for both before it goes);
+hindcast for 2 m temperature and precipitation anyway (c3s_terciles.py, the same file reduced for both);
 for sea-level pressure and SST it is fetched for this test alone, once per start month.
 
-Everything is reduced to a table the moment it lands (c3s_ref) and the raw GRIB deleted in Actions:
+Everything is reduced to a table the moment it lands (c3s_ref); the raw GRIBs go to the local store (c3s.yml):
   is_anom_{centre}_{system}_{field}_{YYYYMM}   ensemble-mean anomaly per lead, the members' spread per period
   hc_anom_{centre}_{system}_{field}_{MM}       the hindcast's single-member spread per period
 Periods are c3s_maps_render.PERIODS, day-weighted means of the lead months (a leap February counts 29 days; a
@@ -163,11 +163,6 @@ def member_stats(path: Path, short: str | None, fac: float, month: int, periods:
 
 
 # ── the tables ───────────────────────────────────────────────────────────────
-def _drop(p: Path) -> None:
-    if CR.discard_raw() and p.exists():
-        p.unlink()
-
-
 def issue_anom(centre: str, system: str, key: str, issue: str) -> dict | None:
     """is_anom table of one system and field (derived from this issue's member GRIB when only that is on disk)."""
     from c3s_maps_render import PERIODS
@@ -195,7 +190,6 @@ def issue_anom(centre: str, system: str, key: str, issue: str) -> dict | None:
         lon=s["lon"],
         **arrs,
     )
-    _drop(p)
     return CR.load(CR.is_anom(centre, system, key, issue))
 
 
@@ -274,7 +268,6 @@ def main() -> int:
                     hindcast_spread(centre, system, key, a.issue)
                     if key in CT.VARS:  # the same raw hindcast makes the tercile table too: never fetched twice
                         CT.hc_table(centre, system, key, a.issue)
-                    CT._drop_raw(CT.path_for("hc", centre, system, key, a.issue))
     except KeyboardInterrupt:
         print("  hindcast fetching stopped (time limit); the next run continues", flush=True)
     tested = sum(CR.hc_anom(c, s, k, a.issue[4:6]).exists() for c, s in systems for k in want)

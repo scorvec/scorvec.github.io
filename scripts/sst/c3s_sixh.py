@@ -168,15 +168,11 @@ def main() -> int:
                     print(f"{got}/{need} chunk(s) ready (budget stop)")
                     return 0 if got >= 0.75 * need else 1
                 ok = fetch_chunk(centre, system, region, a.issue, k)
-                if ok:
-                    # reduce at once to the daily card's table and drop the raw chunk (Actions)
+                if ok:  # reduce at once to the daily card's table
                     from c3s_popt_daily import daily_for
 
                     vals, _days = daily_for(centre, system, region, a.issue, k)
                     ok = vals is not None
-                    p = path_for(centre, system, region, a.issue, k)
-                    if ok and CR.discard_raw() and STORE in p.parents:
-                        p.unlink(missing_ok=True)
                 got += ok
                 if a.probe:
                     print(f"probe: {got}/{need} chunk(s) in {(time.time() - t0) / 60:.1f} min")

@@ -14,8 +14,9 @@ A hindcast table is built once per start month and kept for good; an issue's whe
 maps, and c3s_terciles writes these tables from the same raw files (write_hindcast / write_issue) on the C3S grid
 (points at half degrees). This module requests 500 hPa height alone, for 0-90N, which the CDS interpolates to whole
 degrees; a table records which grid it came from and a forecast is only set against a hindcast of the same one (the
-two differ by up to 1 °C at steep coasts). Raw GRIBs are reduced as they land and deleted. CDS downloads run in
-Actions only (c3s-em.yml, in the `seas5` concurrency group: one CDS key, never two requests at once).
+two differ by up to 1 °C at steep coasts). Raw GRIBs are reduced as they land; c3s-em.yml hands them (EM_DIR/raw) to
+the local store as an artifact. CDS downloads run in Actions only (c3s-em.yml, in the `seas5` concurrency group: one
+CDS key, never two requests at once).
 
     python c3s_em.py --hindcast 11 12 --budget-min 240     # 500 hPa hindcast tables still missing for these months
     python c3s_em.py --issue 202611                         # the issue's 500 hPa tables
@@ -186,18 +187,14 @@ def build_hindcast(centre: str, system: str, var: str, mm: int) -> bool:
     raw = EM_DIR / "raw" / f"hc_{centre}_{system}_{var}_{mm:02d}.grib"
     if not retrieve(centre, system, var, HC_YEARS, mm, raw):
         return False
-    ok = write_hindcast(centre, system, var, mm, raw)
-    raw.unlink()
-    return ok
+    return write_hindcast(centre, system, var, mm, raw)
 
 
 def build_issue(centre: str, system: str, var: str, issue: str) -> bool:
     raw = EM_DIR / "raw" / f"fc_{centre}_{system}_{var}_{issue}.grib"
     if not retrieve(centre, system, var, [int(issue[:4])], int(issue[4:]), raw):
         return False
-    ok = write_issue(centre, system, var, issue, raw)
-    raw.unlink()
-    return ok
+    return write_issue(centre, system, var, issue, raw)
 
 
 # ------------------------------------------------------------------------------------------------------- reading

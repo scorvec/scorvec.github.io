@@ -17,10 +17,11 @@ restores the issue's forecast from seas5.yml's cache); otherwise its t2m and pre
 fetched like any other system.
 
 In c3s.yml (Actions) every raw file is reduced to a table the moment it lands
-(c3s_ref: hc_terc_* per start month, is_terc_* per issue) and deleted, so a start month's ~9 GB
-of hindcast is downloaded once, ever, and an interrupted issue resumes without fetching again.
+(c3s_ref: hc_terc_* per start month, is_terc_* per issue), so a start month's ~9 GB of hindcast
+is downloaded once, ever, an interrupted issue resumes without fetching again, and the raw files
+go to the local store at the end of the run (artifact c3s-raw-*).
 The same raw hindcast also gives the anomaly maps' test its spread (c3s_maps.hindcast_spread,
-hc_anom_*) before it goes; the maps' sea-level pressure and SST hindcasts come through fetch()
+hc_anom_*); the maps' sea-level pressure and SST hindcasts come through fetch()
 here as well (RAW_VARS), for that test alone. Every raw t2m and precipitation file, hindcast and
 forecast, also gives the long-range forecast its ensemble-mean table (scripts/monthly/c3s_em.py,
 release c3s-em-v1), so that product never fetches them itself. c3s.yml's `hindcast` job fetches next
@@ -126,12 +127,6 @@ def fetch(kind: str, centre: str, system: str, var: str, issue: str, force: bool
     tmp.replace(p)
     print(f"  {centre}/{system} {var} {kind}: {p.stat().st_size / 1e6:.0f} MB in {time.time() - t0:.0f}s", flush=True)
     return True
-
-
-def _drop_raw(p: Path) -> None:
-    """Delete a reduced raw file in Actions -- never the SEAS5 page's own files."""
-    if CR.discard_raw() and p.exists() and STORE in p.parents:
-        p.unlink()
 
 
 # ── tables (c3s_ref) ─────────────────────────────────────────────────────────
@@ -346,13 +341,11 @@ def main() -> int:
                     fetch("hc", centre, system, var, a.issue, a.force)
                     and hc_table(centre, system, var, a.issue) is not None
                 )
-                if ok:  # the anomaly maps' test reads the same raw hindcast: reduce it for them too before it goes
-                    from c3s_maps import hindcast_spread
-
-                    hindcast_spread(centre, system, var, a.issue)
-                _drop_raw(path_for("hc", centre, system, var, a.issue))
                 if not ok:
                     continue
+                from c3s_maps import hindcast_spread  # the anomaly maps' test reads the same raw hindcast
+
+                hindcast_spread(centre, system, var, a.issue)
             if "fc" in kinds:
                 if not path_for("fc", centre, system, var, a.issue).exists():
                     if not budget_left():
@@ -362,7 +355,6 @@ def main() -> int:
                         continue
                 if issue_table(centre, system, var, a.issue, rederive=a.force) is not None:
                     got += 1
-                _drop_raw(path_for("fc", centre, system, var, a.issue))
     if "fc" not in kinds:  # a hindcast-only run (c3s.yml's `hindcast` job): systems not published yet come later
         sel = [(e[0], str(e[1])) for e in MODELS if not a.only or f"{e[0]}_{e[1]}" == a.only]
         n = sum(CR.hc_terc(c, s, v, a.issue[4:6]).exists() for c, s in sel for v in want)

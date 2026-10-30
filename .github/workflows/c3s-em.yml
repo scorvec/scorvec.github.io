@@ -6,7 +6,8 @@ name: C3S ensemble means for the long-range forecast
 # hindcast of a start month (hc_em_*_<MM>, built once and kept) and for each issue (fc_em_*_<YYYYMM>). The 2 m
 # temperature and precipitation tables come from c3s.yml, which downloads both for its tercile maps (next month's
 # hindcast on the 21st-28th, the issue's members on the 9th-16th); this job fetches 500 hPa height, which nothing
-# else needs, for 0-90N (each raw GRIB reduced as it lands and deleted).
+# else needs, for 0-90N (each raw GRIB reduced as it lands, then kept as a 90-day artifact, c3s-raw-em, that the local
+# data store takes once).
 #
 # WHEN. C3S publishes around the 13th; the outlook issues on the 15th (monthly-outlook.yml), so on the 13th-16th
 # (window=true: the laptop dispatcher's daily slot and the crons) this fetches the issue once
@@ -148,3 +149,19 @@ jobs:
             echo "upload failed (try $i); waiting"; sleep 180
           done
           exit 1
+      # the raw 500 hPa files for the local data store, in its layout (scripts/sst/data/c3s/em)
+      - name: Keep this run's raw files
+        if: always() && steps.gate.outputs.run == '1'
+        run: |
+          K="$RUNNER_TEMP/keep/c3s/em"; mkdir -p "$K"
+          [ -f "$RUNNER_TEMP/marker" ] || exit 0
+          find "$C3S_EM_DIR/raw" -name '*.grib' -newer "$RUNNER_TEMP/marker" -print0 2>/dev/null | xargs -0 -r cp -l -t "$K"
+          echo "$(find "$K" -type f | wc -l) raw file(s), $(du -sh "$K" | cut -f1)"
+      - uses: actions/upload-artifact@v7
+        if: always() && steps.gate.outputs.run == '1'
+        with:
+          name: c3s-raw-em
+          path: ${{ runner.temp }}/keep
+          retention-days: 90
+          compression-level: 1
+          if-no-files-found: ignore
