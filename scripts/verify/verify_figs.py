@@ -13,7 +13,7 @@ controls pick one), every score with its uncertainty.
         equitable threat score by threshold and the fractions skill score by neighbourhood on the common grid
         (rainskill_<window>_<lead>_<threshold>.webp).
   scores  For each window of runs of the database: the scorecards (card_), the RMSE and bias by lead (lead_), the
-        headline variables' RMSE by lead in each region (glance_) and the error against pressure at a lead
+        headline variables' RMSE by lead in each region, upper air and surface (glance_), and the error against pressure at a lead
         (profile_<window>_<quantity>_<region>_d<day>.webp).
   wind  10 m wind speed as a distribution over the nightly's runs (wind_dist.json): the quantiles' differences from the
         observed ones and the fitted hybrid Weibull (wind_<region>_<group>.webp).
@@ -22,8 +22,10 @@ figs.json lists what was drawn, for the page, and what the database holds (datab
 
 Uncertainty. A window's runs are a sample: the same models over other weeks would score differently, and runs a day
 apart share their weather, so they are not independent. Every interval is a 95 % Student t interval on the runs' own
-scores with the sample cut for lag-1 autocorrelation (mverify.significance.effective_runs, the scorecards' rule), the
-anomaly correlation averaged through Fisher's z = artanh(r) and turned back. A difference from the reference is the
+scores with the sample cut for lag-1 autocorrelation, n (1 - rho) / (1 + rho), the anomaly correlation averaged through
+Fisher's z = artanh(r) and turned back. rho is one value per lead for a window's figures (pooled_rho): estimated from
+a single series of ten runs it swings by +-0.3, and a high draw would cut the sample to about one run and widen an
+interval tenfold. A difference from the reference is the
 mean of the runs' paired differences (Geer 2016: unpaired intervals hide most of what separates two models) and is
 significant when its paired test passes Benjamini-Hochberg at a 10 % false-discovery rate over every model and lead of
 the figure.
@@ -107,34 +109,77 @@ def name_of(w) -> str:
     return str(w or "all")
 
 
-def ci(x: np.ndarray, level: float = 0.95) -> tuple[float, float, float]:
-    """The mean of a run series and its interval, the sample cut for lag-1 autocorrelation."""
-    from mverify.significance import effective_runs
+def lag1(x: np.ndarray) -> float:
+    """The lag-1 autocorrelation of one series (in run order); NaN for a constant one."""
+    a = x - x.mean()
+    den = (a * a).sum()
+    return float((a[1:] * a[:-1]).sum() / den) if den > 0 else float("nan")
 
+
+def pooled_rho(series) -> float:
+    """The lag-1 autocorrelation that many run series share (each in run order, four runs or more): the mean of their
+    estimates with Kendall's small-sample correction, E[r] = rho - (1 + 3 rho) / n, clipped to [0, 0.9]."""
+    rs, ns = [], []
+    for one in series:
+        x = np.asarray(one, float)
+        x = x[np.isfinite(x)]
+        if len(x) >= 4 and np.isfinite(r := lag1(x)):
+            rs.append(r)
+            ns.append(len(x))
+    if not rs:
+        return 0.0
+    n = float(np.mean(ns))
+    return float(np.clip((np.mean(rs) + 1 / n) / (1 - 3 / n), 0.0, 0.9)) if n > 3 else 0.0
+
+
+def n_eff(n: int, rho: float) -> float:
+    """Runs left after allowing for a lag-1 autocorrelation rho."""
+    return n * (1 - rho) / (1 + rho)
+
+
+def ci(x: np.ndarray, rho: float, level: float = 0.95) -> tuple[float, float, float]:
+    """The mean of a run series and its interval, the sample cut for the lag-1 autocorrelation rho (pooled_rho)."""
     x = x[np.isfinite(x)]
     if len(x) < 3:
         return float("nan"), float("nan"), float("nan")
-    n = effective_runs(x)
+    n = n_eff(len(x), rho)
     h = stats.t.ppf(0.5 + level / 2, max(n - 1, 1.0)) * x.std(ddof=1) / np.sqrt(n)
     return float(x.mean()), float(x.mean() - h), float(x.mean() + h)
 
 
-def ratio_ci(num: np.ndarray, den: np.ndarray, level: float = 0.95) -> tuple[float, float, float]:
-    """A pooled score sum(num) / sum(den) over runs (in run order) and its interval: the ratio estimator's variance
-    from each run's residual num - R den (a run is a cluster of cases that share its weather), the sample cut for
-    lag-1 autocorrelation of the residuals."""
-    from mverify.significance import effective_runs
+def ratio_resid(num: np.ndarray, den: np.ndarray) -> np.ndarray:
+    """Each run's residual num - R den from a pooled score R = sum(num) / sum(den) (the runs both have)."""
+    ok = np.isfinite(num) & np.isfinite(den) & (den > 0)
+    num, den = num[ok], den[ok]
+    return num - num.sum() / den.sum() * den if den.sum() > 0 else num[:0]
 
+
+def ratio_ci(num: np.ndarray, den: np.ndarray, rho: float, level: float = 0.95) -> tuple[float, float, float]:
+    """A pooled score sum(num) / sum(den) over runs (in run order) and its interval: the ratio estimator's variance
+    from each run's residual num - R den (a run is a cluster of cases that share its weather), the sample cut for the
+    lag-1 autocorrelation rho (pooled_rho)."""
     ok = np.isfinite(num) & np.isfinite(den) & (den > 0)
     num, den = num[ok], den[ok]
     if len(num) < 3 or den.sum() <= 0:
         return float("nan"), float("nan"), float("nan")
     r = num.sum() / den.sum()
     d = num - r * den
-    n, n_eff = len(d), effective_runs(d)
-    se = np.sqrt(n / (n - 1) * (d**2).sum()) / den.sum() * np.sqrt(n / n_eff)
-    h = stats.t.ppf(0.5 + level / 2, max(n_eff - 1, 1.0)) * se
+    n = len(d)
+    ne = n_eff(n, rho)
+    se = np.sqrt(n / (n - 1) * (d**2).sum()) / den.sum() * np.sqrt(n / ne)
+    h = stats.t.ppf(0.5 + level / 2, max(ne - 1, 1.0)) * se
     return float(r), float(r - h), float(r + h)
+
+
+def run_rho(s: pd.DataFrame, num: str, den: str, by: list[str]) -> dict:
+    """Per lead, the lag-1 autocorrelation (pooled_rho) of the runs' residuals num - R den over every series ``by``
+    identifies in the window's per-run sums ``s`` (in run order)."""
+    return {
+        lead: pooled_rho(
+            ratio_resid(d[num].to_numpy(float), d[den].to_numpy(float)) for _, d in g.groupby(by, observed=True)
+        )
+        for lead, g in s.groupby("lead_h")
+    }
 
 
 # --------------------------------------------------------------------------- anomaly correlation
@@ -204,7 +249,7 @@ def draw_series(t: pd.DataFrame, region: str, day: int, start: pd.Timestamp, pat
     return save(fig, path)
 
 
-def differences(ax, wide: pd.DataFrame, models: list[str], ref: str) -> list[tuple]:
+def differences(ax, wide: pd.DataFrame, models: list[str], ref: str, rho: dict) -> list[tuple]:
     """Each model's paired difference from ``ref`` by lead, with its interval, on ``ax``; returns the rows drawn."""
     from mverify.significance import paired_test
 
@@ -213,7 +258,7 @@ def differences(ax, wide: pd.DataFrame, models: list[str], ref: str) -> list[tup
         for lead in sorted(lead for mm, lead in wide.columns if mm == m):
             if (ref, lead) in wide.columns:
                 d = (wide[(m, lead)] - wide[(ref, lead)]).to_numpy()
-                rows.append((m, lead, *ci(d), paired_test(d[np.isfinite(d)])))
+                rows.append((m, lead, *ci(d, rho[lead]), paired_test(d[np.isfinite(d)])))
     ax.axhline(0, color=COLORS[CENTRE.get(ref, ref)], lw=2, ls=(0, (4, 2)) if ref in CENTRE else "-")
     ax.set(xlabel="Lead (days)", title=f"Minus the {LABEL.get(ref, ref)}")
     ax.set_xticks(range(1, 16))
@@ -231,12 +276,11 @@ def draw_lead(wide: pd.DataFrame, models: list[str], region: str, span: dict, pa
     a1 = top.subplots()
     a2, a3 = bottom.subplots(1, 2)
     table = {}
+    z = np.arctanh(wide.clip(-0.9999, 0.9999))  # each run's score through Fisher's z
+    rho = {lead: pooled_rho(z[c].to_numpy() for c in z.columns if c[1] == lead) for lead in {c[1] for c in z.columns}}
     for m in models:
         leads = sorted(lead for mm, lead in wide.columns if mm == m)
-        # each lead's mean and interval through Fisher's z
-        mean, lo, hi = np.tanh(
-            [ci(np.arctanh(np.clip(wide[(m, lead)].to_numpy(), -0.9999, 0.9999))) for lead in leads]
-        ).T
+        mean, lo, hi = np.tanh([ci(z[(m, lead)].to_numpy(), rho[lead]) for lead in leads]).T
         x, color = np.array(leads) / 24, COLORS[CENTRE.get(m, m)]
         a1.fill_between(x, lo, hi, color=color, alpha=0.18, lw=0)
         a1.plot(x, mean, color=color, lw=2.4, ls=(0, (4, 2)) if m in CENTRE else "-", marker="o", ms=5,
@@ -254,7 +298,7 @@ def draw_lead(wide: pd.DataFrame, models: list[str], region: str, span: dict, pa
     ens_ref = "IFS-ENS"
     means = [m for m in models if m in CENTRE and m != ens_ref]
     panels = [(a2, single, REF), (a3, means, ens_ref)]
-    rows = {id(ax): differences(ax, wide, ms, ref) if ref in models else [] for ax, ms, ref in panels}
+    rows = {id(ax): differences(ax, wide, ms, ref, rho) if ref in models else [] for ax, ms, ref in panels}
     every = [row for r in rows.values() for row in r]
     sig = iter(fdr(np.array([row[-1] for row in every]), FDR_Q)) if every else iter(())
     for ax, ms, _ in panels:
@@ -383,23 +427,22 @@ def rain_figs(derived: Path, out: Path) -> dict:
 
 RAIN_SKILL_THRESHOLDS = (1.0, 10.0, 25.0, 50.0)  # mm in 24 h, as the nightly's Stage IV scores
 RAIN_SKILL_WINDOWS = (10, 30, 90, 365)  # the newest runs of the database; its rain files reach back a year (RAIN_RUNS)
-RAIN_SKILL_MIN = 100  # cells over a threshold in the analysis (summed over the runs) before a score is drawn
+RAIN_SKILL_MIN = 100 * np.cos(np.deg2rad(40))  # cells over a threshold in the analysis (summed over the runs, each
+# weighted by the cosine of its latitude: 100 cells at 40N) before a score is drawn
 
 
-def jack_ci(tables: np.ndarray, score, level: float = 0.95) -> tuple[float, float, float]:
+def jack_ci(tables: np.ndarray, score, rho: float, level: float = 0.95) -> tuple[float, float, float]:
     """A score of runs' tables summed (``tables``: runs x counts, in run order) and its interval: the leave-one-run-out
-    jackknife's variance, the sample cut for lag-1 autocorrelation of the runs' pseudo-values (a run is a cluster of
-    cells that share its weather, as in ``ratio_ci``)."""
-    from mverify.significance import effective_runs
-
+    jackknife's variance (a run is a cluster of cells that share its weather, as in ``ratio_ci``), the sample cut for
+    the lag-1 autocorrelation rho (pooled_rho)."""
     n = len(tables)
     if n < 3:
         return float("nan"), float("nan"), float("nan")
     total = tables.sum(0)
     full = score(total)
     pseudo = n * full - (n - 1) * np.array([score(total - t) for t in tables])
-    n_eff = effective_runs(pseudo)
-    h = stats.t.ppf(0.5 + level / 2, max(n_eff - 1, 1.0)) * pseudo.std(ddof=1) / np.sqrt(n_eff)
+    ne = n_eff(n, rho)
+    h = stats.t.ppf(0.5 + level / 2, max(ne - 1, 1.0)) * pseudo.std(ddof=1) / np.sqrt(ne)
     return float(full), float(full - h), float(full + h)
 
 
@@ -470,17 +513,16 @@ def rain_skill_figs(derived: Path, out: Path) -> dict:
         span = D.run_span(used) | {"left_out": left_out}
         figs = {}
         for lead, g in s.groupby("lead_h"):
+            # one autocorrelation for the lead's intervals: of the runs' hit rates, over every model and threshold
+            rho = pooled_rho(ratio_resid(d["hits"].to_numpy(float), (d["hits"] + d["misses"]).to_numpy(float))
+                             for _, d in g.groupby(["model", "threshold"]))  # fmt: skip
             score = {}  # (model, threshold) -> ETS and its interval, and per width the FSS and its interval
             for (m, t), d in g.groupby(["model", "threshold"]):
-                if (d["hits"] + d["misses"]).sum() < RAIN_SKILL_MIN * np.cos(
-                    np.deg2rad(40)
-                ):  # cells weighted as at 40N
+                if (d["hits"] + d["misses"]).sum() < RAIN_SKILL_MIN:
                     continue
-                score[m, t] = (
-                    jack_ci(d[["hits", "misses", "false_alarms", "w"]].to_numpy(float), ets),
-                    [1 - np.array(ratio_ci(d[f"fss_num_{km}"].to_numpy(float), d[f"fss_den_{km}"].to_numpy(float)))[[0, 2, 1]]
-                     for km in FSS_KM],
-                )  # fmt: skip
+                fss = [1 - np.array(ratio_ci(d[f"fss_num_{km}"].to_numpy(float), d[f"fss_den_{km}"].to_numpy(float),
+                                             rho))[[0, 2, 1]] for km in FSS_KM]  # fmt: skip
+                score[m, t] = (jack_ci(d[["hits", "misses", "false_alarms", "w"]].to_numpy(float), ets, rho), fss)
             for thr in RAIN_SKILL_THRESHOLDS:
                 fig, (a1, a2) = plt.subplots(1, 2, figsize=house.size(15, 0.4), constrained_layout=True)
                 width = 0.8 / len(models)
@@ -612,7 +654,10 @@ DET_WINDOWS = (10, 30, 90, 365, None)  # the page's run switch (its nightly ten 
 SURFACE = {"t2m", "td2m", "msl", "wind10", "pr24"}  # scored at the GHCNh stations, the rest against radiosondes
 BETTER, WORSE = (44, 110, 158), (180, 50, 31)  # verification.html's scorecard colours
 SIG_P = 0.05  # the scorecard's level, as on the page
-GLANCE_VARS = ["z500", "t850", "wind250", "q700", "t2m", "td2m", "msl", "wind10"]  # the page's headline variables
+GLANCE = {  # the page's headline variables, a figure each for the upper air and the surface
+    "upper": ("Upper air", ["z500", "t850", "wind250", "q700"]),
+    "surface": ("Surface", ["t2m", "td2m", "msl", "wind10"]),
+}
 QTY = {"z": "Geopotential height", "t": "Temperature", "wind": "Vector wind", "q": "Specific humidity"}
 PROFILE_DAYS = (1, 3, 5, 7, 10)
 UNITS = {"degC": "°C", "m s-1": "m/s", "g kg-1": "g/kg"}  # the scores' units as the page writes them
@@ -668,10 +713,19 @@ def det_window(derived: Path, runs: int | None) -> tuple[pd.DataFrame, list, dic
     return s.assign(mse=s["sse"] / s["n"], bias=s["se"] / s["n"]), models, D.run_span(used) | {"left_out": left_out}
 
 
-def pooled(d: pd.DataFrame) -> tuple:
-    """RMSE and bias of one model's per-run sums (in run order), each with its interval (``ratio_ci``)."""
-    mse = ratio_ci(d["sse"].to_numpy(float), d["n"].to_numpy(float))
-    return (*np.sqrt(np.clip(mse, 0, None)), *ratio_ci(d["se"].to_numpy(float), d["n"].to_numpy(float)))
+def pooled(d: pd.DataFrame, rho: tuple[float, float]) -> tuple:
+    """RMSE and bias of one model's per-run sums (in run order), each with its interval (``ratio_ci``; rho, the lead's
+    autocorrelations of the squared and the plain errors, det_rho)."""
+    mse = ratio_ci(d["sse"].to_numpy(float), d["n"].to_numpy(float), rho[0])
+    return (*np.sqrt(np.clip(mse, 0, None)), *ratio_ci(d["se"].to_numpy(float), d["n"].to_numpy(float), rho[1]))
+
+
+def det_rho(s: pd.DataFrame) -> dict:
+    """Per lead, the window's autocorrelations of the runs' squared and plain errors (run_rho over every model,
+    variable and region): one pair for every interval of the window's figures at that lead."""
+    by = ["model", "variable", "region"]
+    sq, plain = run_rho(s, "sse", "n", by), run_rho(s, "se", "n", by)
+    return {lead: (sq[lead], plain[lead]) for lead in sq}
 
 
 def draw_card(s: pd.DataFrame, region: str, a: str, b: str, span: dict, path: Path) -> str | None:
@@ -737,14 +791,14 @@ def card_figure(score: pd.DataFrame, per: pd.DataFrame, order: list[str], a: str
 
 
 def draw_det_lead(s: pd.DataFrame, models: list[str], v: str, region: str, label: str, unit: str, span: dict,
-                  path: Path) -> str | None:  # fmt: skip
+                  rho: dict, path: Path) -> str | None:  # fmt: skip
     """RMSE and bias by lead: the window's pooled scores with their 95 % intervals (``ratio_ci``)."""
     g = s[(s["variable"] == v) & (s["region"] == region)]
     if g.empty:
         return None
     fig, (a1, a2) = plt.subplots(1, 2, figsize=house.size(15, 0.4), constrained_layout=True)
     for k, m in enumerate(models):
-        rows = [(lead / 24, *pooled(d)) for lead, d in g[g["model"] == m].groupby("lead_h")]
+        rows = [(lead / 24, *pooled(d, rho[lead])) for lead, d in g[g["model"] == m].groupby("lead_h")]
         if not rows:
             continue
         x, r, rlo, rhi, b, blo, bhi = np.array(rows).T
@@ -763,34 +817,39 @@ def draw_det_lead(s: pd.DataFrame, models: list[str], v: str, region: str, label
     return save(fig, path)
 
 
-def draw_glance(s: pd.DataFrame, models: list[str], region: str, meta: dict, span: dict, path: Path) -> str | None:
-    """How the error grows: the headline variables' RMSE by lead in one region, each with its 95 % interval."""
-    vs = [v for v in GLANCE_VARS if ((s["variable"] == v) & (s["region"] == region)).any()]
+def draw_glance(s: pd.DataFrame, models: list[str], region: str, kind: str, meta: dict, span: dict, rho: dict,
+                path: Path) -> str | None:  # fmt: skip
+    """How the error grows: four headline variables' RMSE (GLANCE[kind]) by day in one region, each with its 95 %
+    interval. Whole days only: the stations reporting at 12Z are not those at 00Z, and the half-days zigzag."""
+    title, vs = GLANCE[kind]
+    vs = [v for v in vs if ((s["variable"] == v) & (s["region"] == region)).any()]
     if not vs:
         return None
-    fig, axes = plt.subplots(2, 4, figsize=house.size(15, 0.52), constrained_layout=True)
+    fig, axes = plt.subplots(2, 2, figsize=house.size(15, 0.56), constrained_layout=True)
     for ax, v in zip(axes.flat, vs, strict=False):
-        g = s[(s["variable"] == v) & (s["region"] == region)]
+        g = s[(s["variable"] == v) & (s["region"] == region) & (s["lead_h"] % 24 == 0)]
         for m in models:
-            rows = [(lead / 24, *pooled(d)[:3]) for lead, d in g[g["model"] == m].groupby("lead_h")]
+            rows = [(lead / 24, *pooled(d, rho[lead])[:3]) for lead, d in g[g["model"] == m].groupby("lead_h")]
             if rows:
                 x, r, lo, hi = np.array(rows).T
-                ax.fill_between(x, lo, hi, color=COLORS.get(m, house.INK2), alpha=0.2, lw=0)
-                ax.plot(x, r, color=COLORS.get(m, house.INK2), lw=2.2, label=m)
+                ax.fill_between(x, lo, hi, color=COLORS.get(m, house.INK2), alpha=0.16, lw=0)
+                ax.plot(x, r, color=COLORS.get(m, house.INK2), lw=2.6, marker="o", ms=4.5, label=m)
         label, unit = meta.get(v, (short(v), ""))
         ax.set(title=label[0].upper() + label[1:], xlim=(0, 10), ylabel=f"RMSE ({UNITS.get(unit, unit)})")
-        ax.set_xticks(range(0, 11, 2))
-        ax.title.set_fontsize(15)
+        ax.set_xticks(range(11))
+        ax.set_ylim(bottom=0)
         ax.grid(True, color=house.GRID, lw=0.8)
     for ax in axes.flat[len(vs) :]:
         ax.set_visible(False)
+    for ax in axes[-1]:
+        ax.set_xlabel("Lead (days)")
     fig.legend(*axes.flat[0].get_legend_handles_labels(), loc="outside lower center", ncols=len(models), frameon=False)
-    fig.suptitle(f"RMSE by lead (days), {region}, with its 95 % interval: {span['runs']} runs", x=0.01, ha="left")
+    fig.suptitle(f"{title}: RMSE by lead, {region}, with its 95 % interval · {span['runs']} runs", x=0.01, ha="left")
     return save(fig, path)
 
 
 def draw_profile(s: pd.DataFrame, models: list[str], qty: str, region: str, day: int, unit: str, span: dict,
-                 path: Path) -> str | None:  # fmt: skip
+                 rho: dict, path: Path) -> str | None:  # fmt: skip
     """Error against pressure at one lead, against the radiosondes: each model's RMSE and bias with their 95 %
     intervals, and its RMSE against the IFS control's on the same soundings, from the ratio of their pooled squared
     errors with each run a cluster (``ratio_ci``): filled where the interval leaves out no difference."""
@@ -811,7 +870,7 @@ def draw_profile(s: pd.DataFrame, models: list[str], qty: str, region: str, day:
         ax.scatter(x, y, s=34, facecolors=face, edgecolors=c, linewidths=1.8, zorder=3)
 
     for k, m in enumerate(models):
-        rows = [(p, *pooled(d)) for p, d in g[g["model"] == m].groupby("p")]
+        rows = [(p, *pooled(d, rho)) for p, d in g[g["model"] == m].groupby("p")]
         if not rows:
             continue
         y, r, rlo, rhi, b, blo, bhi = np.array(rows).T
@@ -823,8 +882,8 @@ def draw_profile(s: pd.DataFrame, models: list[str], qty: str, region: str, day:
             for p, d in g[g["model"].isin([m, REF])].groupby("p"):
                 w = d.pivot_table(index="init", columns="model", values="sse").dropna()  # the runs both have
                 if m in w and REF in w and len(w) >= 3:
-                    pct.append((p, *(100 * (np.sqrt(np.clip(ratio_ci(w[m].to_numpy(float), w[REF].to_numpy(float)),
-                                                            0, None)) - 1))))  # fmt: skip
+                    ratio = ratio_ci(w[m].to_numpy(float), w[REF].to_numpy(float), rho[0])
+                    pct.append((p, *(100 * (np.sqrt(np.clip(ratio, 0, None)) - 1))))
             if pct:
                 y2, c, lo, hi = np.array(pct).T
                 draw(a2, k, m, c, lo, hi, y2, filled=(lo > 0) | (hi < 0))
@@ -863,6 +922,7 @@ def det_figs(derived: Path, out: Path) -> dict:
         if (found := det_window(derived, w)) is None:
             continue
         s, models, span = found
+        rho = det_rho(s)
         name, cards, leads, glance, profile = name_of(w), {}, {}, {}, {}
         for region in CARD_REGIONS:
             for a in models:
@@ -875,18 +935,21 @@ def det_figs(derived: Path, out: Path) -> dict:
             label, unit = meta.get(v, (short(v), ""))
             for region in sorted(s.loc[s["variable"] == v, "region"].unique()):
                 if f := draw_det_lead(
-                    s, models, v, region, label, unit, span, out / f"lead_{name}_{v}_{slug(region)}.webp"
+                    s, models, v, region, label, unit, span, rho, out / f"lead_{name}_{v}_{slug(region)}.webp"
                 ):
                     leads.setdefault(v, {})[region] = f
         for region in sorted(s.loc[s["variable"] == "t2m", "region"].unique()):
-            if f := draw_glance(s, models, region, meta, span, out / f"glance_{name}_{slug(region)}.webp"):
-                glance[region] = f
+            for kind in GLANCE:
+                if f := draw_glance(
+                    s, models, region, kind, meta, span, rho, out / f"glance_{name}_{slug(region)}_{kind}.webp"
+                ):
+                    glance.setdefault(region, {})[kind] = f
         upper = s[s["network"] == "RAOB"]
         for qty in QTY:
             unit = next((u for v, (_, u) in meta.items() if v.removeprefix(qty).isdigit()), "")
             for region in sorted(upper["region"].unique()):
                 for day in PROFILE_DAYS:
-                    if f := draw_profile(upper, models, qty, region, day, unit, span,
+                    if f := draw_profile(upper, models, qty, region, day, unit, span, rho[24 * day],
                                          out / f"profile_{name}_{qty}_{slug(region)}_d{day}.webp"):  # fmt: skip
                         profile.setdefault(qty, {}).setdefault(region, {})[str(day)] = f
         manifest[name] = {"window": span, "models": models, "card": cards, "lead": leads, "glance": glance,
@@ -935,7 +998,7 @@ def ens_card(s: pd.DataFrame, region: str, a: str, b: str, span: dict, path: Pat
     return card_figure(crps, per, ENS_ROWS, a, b, title, span, path)
 
 
-def ens_lead(s: pd.DataFrame, models: list, v: str, region: str, span: dict, path: Path) -> str | None:
+def ens_lead(s: pd.DataFrame, models: list, v: str, region: str, span: dict, rho: dict, path: Path) -> str | None:
     """CRPS and the spread/skill ratio by lead with their 95 % intervals."""
     g = s[(s["variable"] == v) & (s["region"] == region)]
     if g.empty:
@@ -944,8 +1007,8 @@ def ens_lead(s: pd.DataFrame, models: list, v: str, region: str, span: dict, pat
     for k, m in enumerate(models):
         rows = []
         for lead, d in g[g["model"] == m].groupby("lead_h"):
-            crps = ratio_ci(d["crps"].to_numpy(float), d["n"].to_numpy(float))
-            var = ratio_ci((d["svar"] + d["sov"]).to_numpy(float), d["sse"].to_numpy(float))
+            crps = ratio_ci(d["crps"].to_numpy(float), d["n"].to_numpy(float), rho[lead])
+            var = ratio_ci((d["svar"] + d["sov"]).to_numpy(float), d["sse"].to_numpy(float), rho[lead])
             rows.append((lead / 24, *crps, *np.sqrt(np.clip(var, 0, None))))
         if not rows:
             continue
@@ -965,7 +1028,13 @@ def ens_lead(s: pd.DataFrame, models: list, v: str, region: str, span: dict, pat
     return save(fig, path)
 
 
-def ens_rank(s: pd.DataFrame, models: list, v: str, region: str, span: dict, path: Path) -> str | None:
+def group_rho(rho: dict, a: int, b: int) -> float:
+    """A lead group's autocorrelation: the mean of its leads' (run_rho)."""
+    vals = [r for lead, r in rho.items() if a <= lead <= b]
+    return float(np.mean(vals)) if vals else 0.0
+
+
+def ens_rank(s: pd.DataFrame, models: list, v: str, region: str, span: dict, rho: dict, path: Path) -> str | None:
     """Rank histograms for each lead group, each bar with its 95 % interval; flat (a tenth each) is calibrated."""
     ranks = [c for c in s.columns if c.startswith("rank_")]
     g = s[(s["variable"] == v) & (s["region"] == region)].dropna(subset=ranks, how="all")
@@ -981,7 +1050,7 @@ def ens_rank(s: pd.DataFrame, models: list, v: str, region: str, span: dict, pat
             if per.empty:
                 continue
             tot = per.sum(axis=1).to_numpy(float)
-            f = np.array([ratio_ci(per[c].to_numpy(float), tot) for c in ranks])
+            f = np.array([ratio_ci(per[c].to_numpy(float), tot, group_rho(rho, a, b)) for c in ranks])
             x = np.arange(len(ranks)) + (k - (len(models) - 1) / 2) * width
             ax.bar(x, f[:, 0], width, color=COLORS[CENTRE.get(m, m)], label=m)
             ax.errorbar(x, f[:, 0], yerr=[f[:, 0] - f[:, 1], f[:, 2] - f[:, 0]], fmt="none", ecolor=house.INK, lw=1)
@@ -995,7 +1064,8 @@ def ens_rank(s: pd.DataFrame, models: list, v: str, region: str, span: dict, pat
     return save(fig, path)
 
 
-def ens_rel(r: pd.DataFrame, models: list, v: str, thr: float, region: str, span: dict, path: Path) -> str | None:
+def ens_rel(r: pd.DataFrame, models: list, v: str, thr: float, region: str, span: dict, rho: dict,
+            path: Path) -> str | None:  # fmt: skip
     """Reliability diagrams for each lead group: the observed frequency of the event in each forecast probability
     bin, with its 95 % interval, against the forecast probability; the Brier skill score against the sample's base
     rate in the legend."""
@@ -1019,7 +1089,10 @@ def ens_rel(r: pd.DataFrame, models: list, v: str, thr: float, region: str, span
                     continue
                 per = d.groupby("init")[["n", "p", "o"]].sum()
                 pts.append(
-                    (per["p"].sum() / per["n"].sum(), *ratio_ci(per["o"].to_numpy(float), per["n"].to_numpy(float)))
+                    (
+                        per["p"].sum() / per["n"].sum(),
+                        *ratio_ci(per["o"].to_numpy(float), per["n"].to_numpy(float), group_rho(rho, a, b)),
+                    )
                 )
             if not pts:
                 continue
@@ -1044,6 +1117,7 @@ def ens_figs(derived: Path, out: Path) -> dict:
         if (found := ens_window(derived, w)) is None:
             continue
         s, r, models, span = found
+        rho = run_rho(s, "crps", "n", ["model", "variable", "region"])  # per lead, for every interval of the window
         name, m = name_of(w), {"window": span, "models": models, "card": {}, "lead": {}, "rank": {}, "rel": {}}
         for region in ENS_REGIONS:
             key = slug(region)
@@ -1052,13 +1126,13 @@ def ens_figs(derived: Path, out: Path) -> dict:
                     if a != b and (f := ens_card(s, region, a, b, span, out / f"ecard_{name}_{key}_{a}_{b}.webp")):
                         m["card"].setdefault(region, {})[f"{a}|{b}"] = f
             for v in ENS_ROWS:
-                if f := ens_lead(s, models, v, region, span, out / f"elead_{name}_{v}_{key}.webp"):
+                if f := ens_lead(s, models, v, region, span, rho, out / f"elead_{name}_{v}_{key}.webp"):
                     m["lead"].setdefault(v, {})[region] = f
-                if f := ens_rank(s, models, v, region, span, out / f"erank_{name}_{v}_{key}.webp"):
+                if f := ens_rank(s, models, v, region, span, rho, out / f"erank_{name}_{v}_{key}.webp"):
                     m["rank"].setdefault(v, {})[region] = f
             for (v, thr), _ in r[r["region"] == region].groupby(["variable", "threshold"]):
                 if v in [*ENS_ROWS, "tp"] and (
-                    f := ens_rel(r, models, v, thr, region, span, out / f"erel_{name}_{v}_{thr:g}_{key}.webp")
+                    f := ens_rel(r, models, v, thr, region, span, rho, out / f"erel_{name}_{v}_{thr:g}_{key}.webp")
                 ):
                     m["rel"].setdefault(f"{v}|{thr:g}", {})[region] = f
         manifest[name] = m

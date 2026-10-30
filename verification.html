@@ -367,6 +367,7 @@ window.plotly = function () {
       </div>
     </div>
     <h3 class="gl-h">How the error grows</h3>
+    <div class="controls"><label>Show<select id="g-kind"></select></label></div>
     <img class="fig" id="g-fig" alt="" loading="lazy" hidden>
   </section>
 
@@ -536,8 +537,8 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       the scorecard's paired test at the 5% level: a model drawn alone in its colour has a significantly smaller error than
       every other model, and faint stripes mark the models that cannot be told apart from the smallest. The head-to-head
       table counts, for each pair, the variable-days on which each model is significantly ahead, and the band at the top
-      adds up each model's wins and losses over every pair; the figure below the tables draws each headline variable's
-      RMSE by lead with its 95% interval. With ten runs the test is strict: a tie says the runs so far cannot separate the
+      adds up each model's wins and losses over every pair; the figures below the tables draw each headline variable's
+      RMSE by day with its 95% interval, upper air and surface apart. With ten runs the test is strict: a tie says the runs so far cannot separate the
       models, not that they are equal. The longer windows of the run switch, from the verification database, separate
       more of them.</p>
     <p><b>Rain over the US.</b> 24 hour totals ending 12Z against the Stage IV analysis, from the verification database's
@@ -580,7 +581,10 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
     <p><b>Uncertainty.</b> Every score here comes from a sample of runs, and a different few weeks would give different
       numbers: the intervals and tests say how different. Runs a day apart share most of their weather, so they are not
       independent samples; every interval and test cuts the number of runs to an effective number from the lag-1
-      autocorrelation of the runs' scores (often a half to a third of them). Intervals are 95% Student t intervals on
+      autocorrelation of the runs' scores (often a half to a third of them). For the intervals that autocorrelation is
+      estimated once for each lead of a window, pooled over every model, variable and region, with the small-sample
+      correction of Kendall (1954): from one series of ten runs the estimate swings so widely that a high draw would
+      leave about one effective run and an interval ten times too wide. Intervals are 95% Student t intervals on
       those runs, the anomaly correlation averaged through Fisher's z = artanh(r) and turned back, so that a run's score
       near 1 is not given the same room as one near 0.5. Two models are compared run by run (the paired difference):
       most of a model's run-to-run swing is the weather, which both models share, and an interval on each model alone
@@ -972,14 +976,15 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
         "and bias, forecast minus observed, each pooling every station and run at that lead.";
     };
     $("lead-card").hidden = !lvars.length;
-    // how the error grows: the headline variables' RMSE by lead in the region of "at a glance"
-    const gr = $("g-region");
+    // how the error grows: the headline variables' RMSE by lead in the region of "at a glance", upper air or surface
+    const gr = $("g-region"), gk = $("g-kind"), KIND = { upper: "Upper air", surface: "Surface" };
+    fill(gk, Object.keys(KIND), k => KIND[k]);
     const glance = () => {
-      const f = (sc.glance || {})[gr.value];
+      const f = ((sc.glance || {})[gr.value] || {})[gk.value];
       $("g-fig").hidden = !f;
-      if (f) figure($("g-fig"), f, ver, `RMSE by lead with 95% intervals of the headline variables, ${gr.value}`);
+      if (f) figure($("g-fig"), f, ver, `${KIND[gk.value]}: RMSE by lead with 95% intervals of the headline variables, ${gr.value}`);
     };
-    gr.addEventListener("change", glance);
+    [gr, gk].forEach(el => el.addEventListener("change", glance));
     glance();
     // the upper-air profiles: error against pressure at one lead
     const prof = sc.profile || {}, qtys = Object.keys(QTY).filter(q => prof[q]);
