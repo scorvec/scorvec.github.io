@@ -14,7 +14,7 @@ name: SEAS5 lead month 7 (consistency test / one-time hindcast tables)
 #   mode=probe   the AWS store's layout.
 #
 # seas5.yml builds these tables itself for a new start month; this workflow is the one-time path that keeps the
-# monthly job within its time budget. Shares the `seas5` concurrency group: one CDS key, never two requests at once.
+# monthly job within its time budget. Raw files fetched here go to the local data store (artifact seas5-raw-lead7). Shares the `seas5` concurrency group: one CDS key, never two requests at once.
 
 on:
   workflow_dispatch:
@@ -159,7 +159,7 @@ jobs:
           )
           echo "missing units: $L7"; [ -n "$L7" ] || exit 0
           TL=$(( 340 - ( $(date +%s) - ${JOB_T0} ) / 60 - 25 ))
-          timeout --signal=INT "${TL}m" python seas5_ref.py hindcast --month "$M" --only $L7 --fetch --discard-raw --budget-min $((TL - 30)) \
+          timeout --signal=INT "${TL}m" python seas5_ref.py hindcast --month "$M" --only $L7 --fetch --budget-min $((TL - 30)) \
             || echo "::warning::some lead-7 tables are still missing"
           python seas5_ref.py missing --month "$M" || true
           cat data/seas5/l7_volume.jsonl 2>/dev/null || true
@@ -171,7 +171,7 @@ jobs:
           SEAS5_REF_UPLOAD_TAG: ${{ env.REF_TAG }}
         run: |
           cd scripts/sst
-          python seas5_ref.py hindcast --month "${{ steps.gate.outputs.month }}" --only ssw --fetch --discard-raw
+          python seas5_ref.py hindcast --month "${{ steps.gate.outputs.month }}" --only ssw --fetch
 
       - name: Upload new tables
         if: always() && (inputs.mode == 'tables' || inputs.mode == 'aws')
@@ -182,3 +182,23 @@ jobs:
           if [ -z "$NEW" ]; then echo "no new tables"; exit 0; fi
           ls -la $NEW
           gh release upload "$REF_TAG" --repo "$GITHUB_REPOSITORY" --clobber $NEW
+
+      # every SEAS5 file this run downloaded or extracted under scripts/sst/data/seas5 (newer than the tables'
+      # download; the issue's GRIBs restored from the cache keep their old times; CPC's index files left out),
+      # hard-linked in the store's layout, for the local data store, which takes each artifact once
+      - name: Keep this run's raw files
+        if: always() && inputs.mode != 'probe'
+        run: |
+          K="$RUNNER_TEMP/keep"; mkdir -p "$K"
+          [ -f "$RUNNER_TEMP/ref_marker" ] && [ -d scripts/sst/data/seas5 ] || exit 0
+          cd scripts/sst/data
+          find seas5 -path seas5/cpc_tele -prune -o -type f -newer "$RUNNER_TEMP/ref_marker" -print0 | xargs -0 -r cp -l --parents -t "$K"
+          echo "$(find "$K" -type f | wc -l) file(s), $(du -sh "$K" | cut -f1)"; df -h . | tail -1
+      - uses: actions/upload-artifact@v7
+        if: always() && inputs.mode != 'probe'
+        with:
+          name: seas5-raw-lead7
+          path: ${{ runner.temp }}/keep
+          retention-days: 90
+          compression-level: 1
+          if-no-files-found: ignore

@@ -46,7 +46,7 @@ sys.path.insert(0, str(HERE))
 from seas5_outlook import CENTRE, DATA, KINDS, SYSTEM, fc_path
 
 LEAD = 7
-RAW = DATA / "l7raw"  # sub-daily GRIBs: reduced at once, then deleted
+RAW = DATA / "l7raw"  # sub-daily GRIBs: reduced at once, kept for the local store (seas5.yml's artifact)
 STEP_RULE = "right"  # (H0, H1] — fixed by the lead-6 test (module docstring)
 SECONDS_PER_HOUR = 3600.0
 
@@ -497,7 +497,6 @@ def forecast(
     lead: int = LEAD,
     kinds=None,
     tag: str | None = None,
-    keep_raw: bool = False,
     budget_min: float | None = None,
 ) -> dict:
     """This issue's month `lead` for every monthly kind → fc_{kind}_{ym}_L7.npz, from the COMBINED requests in order
@@ -553,8 +552,6 @@ def forecast(
                     source="CDS seasonal-original-* (sub-daily), reduced to the monthly-product definition",
                 ),
             )
-        if not keep_raw:
-            dest.unlink()
     # the Americas t2m/tp kind: a cut of the global 1° kind's supplement (same grid points)
     if "sfc" in want and complete("gl", ym) and not complete("sfc", ym):
         g = grid_of("sfc", ym)
@@ -597,7 +594,6 @@ def check(ym: str, out: Path | None = None) -> dict:
             for rule in ("left", "right"):
                 for k, (v, la, lo) in reduce_group(p, None, ym[4:], [6], rule).items():
                     fields_by_rule.setdefault(rule, {})[k] = (v[:, 0], la, lo)
-            p.unlink()
         for (mvar, lev), (vl, _lat, _lon) in fields_by_rule.get("left", {}).items():
             try:
                 mon, _mlat, _mlon = load_field(

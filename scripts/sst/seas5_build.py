@@ -1520,8 +1520,7 @@ def build(ym: str, n_prev: int = 3) -> None:
 # from this one. render_terciles / render_global_maps / sst_indices / polar_caps read only these.
 REF_UNITS = {
     "build_sst": dict(raw=["m:sst"], fn=_sst_hc_table),
-    # each kind's map statistics and the spread its maps are tested with, one after the other, so a raw kind is
-    # deleted (derive_hindcast --discard-raw) before the next is fetched
+    # each kind's map statistics and the spread its maps are tested with, one after the other
     **{
         u: spec
         for k in ("gl", "gl_z500", "gl_u850", "gl_v850", "na_snow", "na_snowdepth")

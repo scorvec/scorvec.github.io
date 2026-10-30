@@ -308,7 +308,6 @@ def _cds_hindcast(kind: str, key: str, month: str, lat, lon) -> np.ndarray | Non
             return None
         _CDS_FIELDS.clear()  # one request's fields in memory at a time
         _CDS_FIELDS[rk] = L7.reduce_group(dest, YEARS, f"{int(month):02d}", leads)
-        dest.unlink()
     fields = _CDS_FIELDS[rk]
     mvar, _, lev = key.partition("_")
     fk = (mvar, int(lev) if lev else None)

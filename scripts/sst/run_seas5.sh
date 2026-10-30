@@ -72,7 +72,7 @@ ssw)
   ;;
 tables)
   ARGS=(hindcast --month "$MM")
-  if [ "${TABLES_FETCH:-0}" = "1" ]; then ARGS+=(--fetch --discard-raw --budget-min "${BUDGET_MIN:-200}"); fi
+  if [ "${TABLES_FETCH:-0}" = "1" ]; then ARGS+=(--fetch --budget-min "${BUDGET_MIN:-200}"); fi
   "$PY" seas5_ref.py "${ARGS[@]}"
   "$PY" seas5_ref.py missing --month "$MM" >/dev/null
   exit $?

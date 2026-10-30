@@ -34,7 +34,7 @@ Each product module declares what it derives:
 Raw keys "m:{kind}" are the monthly-mean hindcast kinds of seas5_outlook.KINDS.
 
     python seas5_ref.py hindcast --month 09                # derive what the GRIBs on disk allow (never fetches)
-    python seas5_ref.py hindcast --month 10 --fetch --discard-raw --budget-min 240   # Actions
+    python seas5_ref.py hindcast --month 10 --fetch --budget-min 240   # Actions
     python seas5_ref.py issue --issue 202609               # per-issue summaries from forecasts on disk
     python seas5_ref.py obs                                # observed references from the observed stores (offline)
     python seas5_ref.py missing --month 10                 # units without a table (exit 1 if any)
@@ -331,15 +331,13 @@ def missing(month: str, only=None) -> list[str]:
 def derive_hindcast(
     month: str,
     fetch: bool = False,
-    discard_raw: bool = False,
     budget_min: float | None = None,
     only=None,
     force: bool = False,
 ) -> list[str]:
     """Build every missing hc_{unit}_{MM}.npz. With `fetch`, raw hindcast kinds that are not on disk are
-    pulled (Actions only, sequentially — one CDS key, never parallel); with `discard_raw`, a raw kind is
-    deleted as soon as no remaining unit needs it, so a runner's disk holds one start month's raw kind at a
-    time. Stops starting new fetches after `budget_min`. Returns the units still missing."""
+    pulled (Actions only, sequentially — one CDS key, never parallel) and kept: seas5.yml hands them to the local
+    store as an artifact. Stops starting new fetches after `budget_min`. Returns the units still missing."""
     t0 = time.time()
     month = f"{int(month):02d}"
     reg = raw_registry()
@@ -349,7 +347,7 @@ def derive_hindcast(
         if (not only or u in only) and (force or not hc_ref(u, month).exists())
     ]
     left = []
-    for i, (u, m, spec) in enumerate(todo):
+    for u, m, spec in todo:
         raws = spec["raw"]
         absent = [r for r in raws if not raw_present(r, month, reg)]
         if absent and not fetch:
@@ -381,14 +379,6 @@ def derive_hindcast(
         except Exception as e:  # noqa: BLE001 — one unit must not sink the rest
             print(f"  {u} {month}: derive FAILED ({str(e)[:200]})", flush=True)
             left.append(u)
-        if discard_raw:
-            later = {r for (_, _, s) in todo[i + 1 :] for r in s["raw"]}
-            for r in raws:
-                if r not in later:
-                    for p in reg[r][0](month):
-                        if p.exists():
-                            p.unlink()
-                            print(f"    discarded raw {p.name}", flush=True)
     return left
 
 
@@ -418,12 +408,11 @@ def main(argv=None) -> int:
     ap.add_argument("--issue")
     ap.add_argument("--only", nargs="*")
     ap.add_argument("--fetch", action="store_true", help="pull absent raw hindcast kinds (Actions only)")
-    ap.add_argument("--discard-raw", action="store_true")
     ap.add_argument("--budget-min", type=float, default=None)
     ap.add_argument("--force", action="store_true", help="rebuild tables that exist")
     a = ap.parse_args(argv)
     if a.cmd == "hindcast":
-        left = derive_hindcast(a.month, a.fetch, a.discard_raw, a.budget_min, a.only, a.force)
+        left = derive_hindcast(a.month, a.fetch, a.budget_min, a.only, a.force)
         print(f"hindcast tables {a.month}: {len(left)} missing" + (f" {left}" if left else ""), flush=True)
         return 0
     if a.cmd == "issue":

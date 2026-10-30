@@ -11,7 +11,9 @@ name: ECMWF SEAS5 seasonal outlook (monthly)
 #     `seas5-ref-v1` — built offline from existing data stores where those exist;
 #   * this job downloads only this issue's forecasts (~1.3 GB from the CDS) plus, for a start month
 #     whose tables do not exist yet, that month's raw hindcast kinds one at a time — each reduced to its
-#     table, uploaded to the release and deleted at once, so it is never fetched again;
+#     table and uploaded to the release at once, so it is never fetched again;
+#   * every raw file a run downloads is kept as a 90-day artifact (seas5-raw-issue; the store's own layout
+#     under scripts/sst/data) that the local data store takes once, so offline work never fetches it again;
 #   * everything an issue needs from the previous issue (change maps, plume evolution) is kept as a
 #     per-issue summary table (is_*), so earlier forecasts are not fetched twice either.
 #
@@ -132,7 +134,7 @@ jobs:
             'icechunk==2.2.2' 'zarr>=3'
           pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag (seas5_regimes.py)
 
-      - name: Free runner disk (raw hindcast kinds are up to ~3 GB each)
+      - name: Free runner disk (the raw files stay for the artifact, ~12 GB in a start month's first run)
         if: steps.gate.outputs.run == '1'
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /usr/local/.ghcup 2>/dev/null || true
@@ -262,8 +264,8 @@ jobs:
             scripts/sst/data/seas5/ssw/fc_*_${{ steps.gate.outputs.issue }}.grib
           key: seas5-fc-${{ steps.gate.outputs.issue }}-${{ github.run_id }}-l7
 
-      # Only while a table for this start month is missing: fetch that raw hindcast kind, reduce it,
-      # delete it. Uploaded straight away (next step) so a later timeout cannot lose the work.
+      # Only while a table for this start month is missing: fetch that raw hindcast kind and reduce it.
+      # Uploaded straight away (next step) so a later timeout cannot lose the work.
       - name: Hindcast tables for start month ${{ steps.gate.outputs.month }} (one-time per start month)
         if: steps.gate.outputs.run == '1' && steps.fetch.outputs.ready == '1'
         env:
@@ -311,6 +313,26 @@ jobs:
           NEW=$(find "$SEAS5_REF_DIR" -name "is_*_${{ steps.gate.outputs.issue }}.npz" -newer "$RUNNER_TEMP/ref_marker" | sort)
           [ -n "$NEW" ] || { echo "::warning::no issue summaries written"; exit 0; }
           gh release upload "$REF_TAG" --repo "$GITHUB_REPOSITORY" --clobber $NEW
+
+      # every SEAS5 file this run downloaded or extracted under scripts/sst/data/seas5 (newer than the tables'
+      # download; the issue's GRIBs restored from the cache keep their old times; CPC's index files left out),
+      # hard-linked in the store's layout, for the local data store, which takes each artifact once
+      - name: Keep this run's raw files
+        if: always() && steps.gate.outputs.run == '1'
+        run: |
+          K="$RUNNER_TEMP/keep"; mkdir -p "$K"
+          [ -f "$RUNNER_TEMP/ref_marker" ] && [ -d scripts/sst/data/seas5 ] || exit 0
+          cd scripts/sst/data
+          find seas5 -path seas5/cpc_tele -prune -o -type f -newer "$RUNNER_TEMP/ref_marker" -print0 | xargs -0 -r cp -l --parents -t "$K"
+          echo "$(find "$K" -type f | wc -l) file(s), $(du -sh "$K" | cut -f1)"; df -h . | tail -1
+      - uses: actions/upload-artifact@v7
+        if: always() && steps.gate.outputs.run == '1'
+        with:
+          name: seas5-raw-issue
+          path: ${{ runner.temp }}/keep
+          retention-days: 90
+          compression-level: 1
+          if-no-files-found: ignore
 
       - name: Commit & push (generated outputs)
         if: steps.gate.outputs.run == '1' && steps.fetch.outputs.ready == '1'
