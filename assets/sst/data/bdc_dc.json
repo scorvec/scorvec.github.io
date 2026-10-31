@@ -1,6 +1,6 @@
 {
  "cycle": "20261031_00",
- "made": "2026-10-31T18:37Z",
+ "made": "2026-10-31T21:51Z",
  "units": "1e9 kg/s",
  "method": "downward control: psi* = -(2 pi a cos phi / g) * int_top^p (div F / (a cos phi) + X) / fhat dp",
  "gwd_source": {
@@ -2251,5 +2251,5 @@
    }
   }
  },
- "runtime_s": 116
+ "runtime_s": 316
 }
