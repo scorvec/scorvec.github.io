@@ -1,6 +1,6 @@
 {
  "cycle": "20261031_00",
- "made": "2026-10-31T17:22Z",
+ "made": "2026-10-31T18:37Z",
  "units": "1e9 kg/s",
  "method": "downward control: psi* = -(2 pi a cos phi / g) * int_top^p (div F / (a cos phi) + X) / fhat dp",
  "gwd_source": {
@@ -960,7 +960,7 @@
   }
  },
  "forecast": {
-  "2026-10-31": {
+  "1726-10-31": {
    "F70": 3.91,
    "F70_ep": 3.14,
    "F70_gw": 0.77,
@@ -2251,5 +2251,5 @@
    }
   }
  },
- "runtime_s": 131
+ "runtime_s": 116
 }
