@@ -470,7 +470,7 @@ def regions(land: np.ndarray) -> dict[str, tuple[str, dict[str, np.ndarray]]]:
 
     lat, lon = G15.lat[:, None], G15.lon[None, :]
     lon180 = np.where(lon > 180, lon - 360, lon)
-    box = {"nh": ("Northern extratropics, 20–90°N", lat >= 20), "tropics": ("Tropics, 20°S–20°N", np.abs(lat) <= 20)}
+    box = {"nh": ("Extratropics, 20–90°N", lat >= 20), "tropics": ("Tropics, 20°S–20°N", np.abs(lat) <= 20)}
     for key in ("na", "sa"):
         w, e, s, n = L.DOMAINS[key]["extent"]
         box[key] = (L.DOMAINS[key]["label"], (lat >= s) & (lat <= n) & (lon180 >= w) & (lon180 <= e))
