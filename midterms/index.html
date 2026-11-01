@@ -481,11 +481,11 @@ function init(){const H=D.house;
 function preselect(){const near=a=>a.slice().sort((x,y)=>Math.abs(x.p[gi]-.5)-Math.abs(y.p[gi]-.5))[0];
  SEL.house=near(D.house.seats).seat;const s=near(D.senate.races);SEL.senate=s.state+(s.special?'|sp':'');if(D.governor)SEL.gov=near(D.governor.races).state;for(const k of ['house','senate','gov'])if(SEL[k])panel(k)}
 
-// Election Day is Tuesday 3 November; Eastern time is UTC-5 by then. A frozen forecast says so instead.
+// Election Day is Tuesday 3 November, counted in calendar days on Eastern time (UTC-5 from 1 November), so Sunday reads
+// "in 2 days" and Monday "tomorrow". A frozen forecast says so instead.
 function countdown(){const el=$('#cd');if(D&&D.final&&D.final.at){el.textContent=`Final forecast, locked ${new Date(D.final.at).toLocaleString('en-US',{month:'long',day:'numeric',hour:'numeric',minute:'2-digit',timeZone:'America/New_York'})} Eastern`;return}
- const now=Date.now(),t0=Date.UTC(2026,10,3,5),t1=Date.UTC(2026,10,4,5),ms=t0-now,pl=(n,w)=>`<b>${n}</b> ${w}${n===1?'':'s'}`;
- if(ms>0){const d=Math.floor(ms/864e5),h=Math.floor(ms%864e5/36e5),m=Math.floor(ms%36e5/6e4);el.innerHTML=`Election Day in ${d?pl(d,'day')+' ':''}${pl(h,'hour')}${d?'':' '+pl(m,'minute')}`}
- else el.innerHTML=now<t1?'<b>Election Day</b> is today':'Election Day was November 3'}
+ const d=Math.floor(Date.UTC(2026,10,3)/864e5)-Math.floor((Date.now()-5*36e5)/864e5);
+ el.innerHTML=d>1?`Election Day in <b>${d}</b> days`:d===1?'Election Day is <b>tomorrow</b>':d===0?'<b>Election Day</b> is today':'Election Day was November 3'}
 
 function tab(p){$$('.mt-tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.p===p));$$('.mt-pane').forEach(x=>x.classList.toggle('on',x.id==='p-'+p));history.replaceState(null,'','#'+p);if(RH&&D&&gi!=null){const k=p==='gov'?'gov':p;if(SEL[k])panel(k)}if(p==='polls'&&D&&D.national_vote)genDist(D.national_vote)}   // hidden panels drew their chart at a guessed width
 
