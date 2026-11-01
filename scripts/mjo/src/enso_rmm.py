@@ -340,7 +340,8 @@ def status_sentence(st: dict) -> tuple[str, str]:
         head = f"<b>The {name} forecast shows an MJO:</b> ensemble-mean amplitude {fc['amp_mean']:.1f}{_phases(fc)}."
         s = f"It moves east at about {fc['speed']:+.0f}&deg;/day."
     else:
-        head = f"<b>No coherent MJO in the {name} forecast:</b> ensemble-mean amplitude {fc['amp_mean']:.1f}."
+        why = ", but the track does not move east as an MJO does" if fc["amp_mean"] >= 1.0 else ""
+        head = f"<b>No coherent MJO in the {name} forecast:</b> ensemble-mean amplitude {fc['amp_mean']:.1f}{why}."
         s = (
             f"Its maximum is {fc['amp_max']:.1f} and its phase speed {fc['speed']:+.1f}&deg;/day, where a real MJO moves at "
             "about +7&deg;/day."

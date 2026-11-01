@@ -935,9 +935,10 @@
     "uniform vec4 uG;uniform ivec2 uN;uniform float uGw;uniform int uMode;uniform vec3 uW;uniform vec2 uP;",
     "out vec4 o;",
     // display metres (polar stereographic; uP = hemisphere sign, central longitude in radians) -> grid index on the
-    // padded regular lat-lon grid G = (lon of column 0, lat of row 0, di, dj), longitude counted from uGw
+    // padded regular lat-lon grid G = (lon of column 0, lat of row 0, di, dj), longitude counted from uGw; atan's x
+    // is kept off an exact 0, where ANGLE on Metal drew the pixel row through the pole as a line
     "vec2 gIdx(vec2 xy){float rho=length(xy);float lat=uP.x*(90.-degrees(2.*atan(rho/12742458.)));",
-    " float lon=degrees(uP.y+atan(xy.x,-uP.x*xy.y));float di=mod(lon-uGw,360.)+(uGw-uG.x);return vec2(di/uG.z,(lat-uG.y)/uG.w);}",
+    " float yy=-uP.x*xy.y;float lon=degrees(uP.y+atan(xy.x,yy==0.?1e-3:yy));float di=mod(lon-uGw,360.)+(uGw-uG.x);return vec2(di/uG.z,(lat-uG.y)/uG.w);}",
     "vec4 ov(vec4 c,vec4 s,float a){a*=s.a;return vec4(s.rgb*a,a)+c*(1.-a);}",
     cDecl("A"), cDecl("B"),
     "vec4 tx(int i,int j){return texelFetch(uData,ivec2(i,uN.y-1-j),0);}",

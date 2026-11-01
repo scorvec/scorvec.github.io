@@ -524,15 +524,26 @@ def ifs_orography(date: str, hh: str) -> np.ndarray:
 
 
 def model_orography(mod: Model, date: str, hh: str) -> np.ndarray:
-    """The model's own surface height (m) on its 2 m grid: AIFS-ENS its control's step-0 surface geopotential, GEFS its
-    control's HGT at +0 h, GEPS the control's HGT at +0 h (the Datamart's in DECAMETRES under a metres label, 24 Oct
-    2026: read from the field's maximum, so a corrected encoding is taken as it comes)."""
+    """The model's own surface height (m) on its 2 m grid: AIFS-ENS its control's step-0 surface geopotential (from the
+    newest run on the mirror up to this one: the mirror can copy step 0 after the steps a following run starts on),
+    GEFS its control's HGT at +0 h, GEPS the control's HGT at +0 h (the Datamart's in DECAMETRES under a metres label,
+    24 Oct 2026: read from the field's maximum, so a corrected encoding is taken as it comes)."""
     if mod.key == "aifs":
         import rangefetch as rf
 
-        idx = rf.fetch_index(date, hh, "aifs-ens", 0, "cf")
+        t0 = pd.Timestamp(f"{date} {hh}:00")
+        for back in range(9):
+            t = t0 - pd.Timedelta(hours=6 * back)
+            d, h = f"{t:%Y%m%d}", f"{t:%H}"
+            try:
+                idx = rf.fetch_index(d, h, "aifs-ens", 0, "cf")
+                break
+            except rf.IndexUnavailable:
+                continue
+        else:
+            raise SystemExit(f"no AIFS-ENS control step 0 on the mirror in the 48 h before {t0:%Y-%m-%d %H}Z")
         want = [e for e in idx if e.get("param") == "z" and e.get("levtype") == "sfc"]
-        blob = rf.fetch_ranges(rf.path_for(date, hh, "aifs-ens", 0, "cf") + ".grib2", rf.coalesce(want))
+        blob = rf.fetch_ranges(rf.path_for(d, h, "aifs-ens", 0, "cf") + ".grib2", rf.coalesce(want))
         return decode(split_grib(blob)[0], "number")[1] / G
     if mod.key == "gefs":
         url = gefs_url(date, hh, GEFS_MEMBERS[0], 0)

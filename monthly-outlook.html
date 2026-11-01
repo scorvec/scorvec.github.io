@@ -487,7 +487,8 @@
     var m1 = S.m1;
     set("issued", dateLabel(m1.issued));
     var c3 = (m1.c3s && (m1.c3s.t2m || m1.c3s.prcp)) || null;
-    set("issued_s", "ERA5 to " + m1.window.split("–")[1].trim() + (c3 ? " &middot; C3S " + issueMonth(c3.issue) + " issue" : ""));
+    var thru = m1.window.split("–")[1].trim();                // an update's window runs on through its forecast days
+    set("issued_s", (m1.update ? "observed and forecast to " : "ERA5 to ") + thru + (c3 ? " &middot; C3S " + issueMonth(c3.issue) + " issue" : ""));
     var iv = m1.vars.t2m.issued;
     set("sk_l", "skill, " + m1.target_short + " temperature");
     set("sk_v", "ACC " + sgn(iv.acc, 2));

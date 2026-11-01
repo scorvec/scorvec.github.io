@@ -69,13 +69,10 @@
   .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
   .chip[aria-pressed="true"] small { color: rgba(255, 255, 255, 0.8); }
   .chip:disabled { opacity: 0.4; cursor: default; border-color: var(--rule); color: var(--ink); }
-  .chip:focus-visible, .cf-q button:focus-visible, .ct:focus-visible, .sort button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .chip:focus-visible, .cf-q button:focus-visible, .ct:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .cf-sum { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem 1rem; flex-wrap: wrap; margin-top: 0.7rem; font-size: 0.92rem; color: var(--muted); }
   .cf-sum .reset { font: inherit; font-size: 0.92rem; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 0.16em; }
   .cf-sum .reset[hidden] { display: none; }
-  .sort { display: inline-flex; border: 1px solid var(--rule); border-radius: 999px; padding: 2px; background: var(--panel); }
-  .sort button { font: inherit; font-size: 0.9rem; color: var(--muted); background: none; border: 0; border-radius: 999px; padding: 0.2rem 0.8rem; cursor: pointer; }
-  .sort button[aria-pressed="true"] { background: var(--ink); color: #fff; }
   .sort[hidden] { display: none; }
 
   /* the sheet */
@@ -316,7 +313,7 @@
     <div class="cf-sum">
       <span id="sum" aria-live="polite">Loading the index…</span>
       <button type="button" class="reset" id="reset" hidden>Clear all filters</button>
-      <span class="sort" role="group" aria-label="Order">
+      <span class="sort fig-toggle" role="group" aria-label="Order">
         <button type="button" data-sort="latest" aria-pressed="true">Live first</button><button type="button" data-sort="page" aria-pressed="false">By page</button>
       </span>
     </div>
@@ -326,7 +323,7 @@
   <noscript><p class="none">The catalogue needs JavaScript. Every page is in the menus at the top.</p></noscript>
   <section class="page-about" id="page-about">
     <h2>About this sheet</h2>
-    <p>The cards are gathered from the pages themselves and rebuilt whenever one changes. Filter above, or press <kbd>Ctrl K</kbd> on any page to search from anywhere.</p>
+    <p>The cards are gathered from the pages themselves and rebuilt whenever one changes. <span id="kbhint">Filter above, or press <kbd>Ctrl K</kbd> on any page to search from anywhere.</span></p>
   </section>
 </main>
 <script>
@@ -338,7 +335,8 @@ document.addEventListener('DOMContentLoaded', function () {
   if (!F) { sum.textContent = 'The index could not be loaded.'; return; }
   var MAC = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent || '');
   var TOUCH = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-  var kb = document.querySelector('#lede kbd'); if (kb) kb.textContent = MAC ? '⌘K' : 'Ctrl K';
+  var kb = document.querySelector('#kbhint kbd'); if (kb) kb.textContent = MAC ? '⌘K' : 'Ctrl K';
+  if (TOUCH) document.getElementById('kbhint').textContent = 'Filter above, or use the search button in the header on any page.';  // no keyboard
 
   // facets: key in the URL, label, how to read an item's values
   var FACETS = [
@@ -381,13 +379,8 @@ document.addEventListener('DOMContentLoaded', function () {
     items.forEach(function (it, i) { it._order = i; it._age = age(it.page); });
     var pages = {}; items.forEach(function (it) { pages[it.page] = 1; });
     var nv = items.reduce(function (s, it) { return s + Math.max(1, (it.variants || []).length); }, 0);
-    var lede = document.getElementById('lede');
-    lede.firstChild.nodeValue =
-      items.length + ' plots on ' + Object.keys(pages).length + ' pages, ' + nv + ' views counting every option, gathered from the pages themselves and rebuilt whenever one changes. Each card opens the exact view, live forecasts first. Filter below, or press ';
-    lede.lastChild.nodeValue = ' on any page to search from anywhere.';
-    if (TOUCH) {                                   // no keyboard: point at the header's search button instead
-      lede.innerHTML = F.esc(lede.firstChild.nodeValue.replace(/, or press $/, '.')) + ' The search button in the header does the same from any page.';
-    }
+    document.getElementById('lede').textContent = items.length + ' plots on ' + Object.keys(pages).length + ' pages (' + nv +
+      ' views counting every option); each card opens the exact view.';
 
     // the values each facet offers, most used first (models and regions), in the site's order otherwise
     var values = {};
