@@ -61,6 +61,9 @@
   .method-note b { color: var(--ink); font-weight: 500; }
   .method-note a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); white-space: nowrap; }
   .method-note a:hover { border-bottom-color: var(--accent); }
+  /* the weeks 1-5 track record against ERA5 (verification.html#weeks), above the method */
+  .track { margin: 2rem 0 0; font-size: 0.9rem; color: var(--ink2); max-width: 62rem; }
+  .track a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); white-space: nowrap; }
   /* the viewer is /assets/stage.css; the number tables sit under the caption */
   #tele-table, #mjo-table { padding: 0 1.2rem; overflow-x: auto; }   /* phones: the five-week table scrolls inside the card (it was clipped) */
   @media (max-width: 640px) { #tele-table, #mjo-table { padding: 0 0.5rem; } }
@@ -282,6 +285,23 @@
     </section>
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>
+  <p class="track" id="wk-track" hidden></p>
+  <script>
+  // the weeks 1-5 track record (verification.html#weeks, scripts/verify/weeks_acc.py): 500 hPa height over 20-90N,
+  // a week's mean only where its test passed
+  fetch("/assets/verification/weeks.json").then(r => r.ok ? r.json() : null).then(wk => {
+    const c = wk && wk.cells["zg500/nh"], el = document.getElementById("wk-track"), M = "GEFS";
+    if (!c || !c[M]) return;
+    const show = rs => rs.map(r => r.ns ? "n.s." : r.few ? "not yet" : r.mean.toFixed(2)).join(", ");
+    const link = '<a href="/verification.html#weeks">Weeks 1–5 on the verification page &rarr;</a>';
+    const ns = [...c[M], ...c.persistence].some(r => r.ns) ? " (n.s.: not significant)" : "";
+    el.innerHTML = c[M].every(r => r.few)
+      ? `Track record against ERA5: not enough runs yet (${wk.runs[M].n || "none"} scored so far; a week is tested from ${wk.test.min_weeks} weeks of starts). ${link}`
+      : `Track record against ERA5, 500&nbsp;hPa height over 20–90°N, weeks 1 to 5: anomaly correlation ${show(c[M])} over ` +
+        `${wk.runs[M].n} runs; persistence ${show(c.persistence)}${ns}. ${link}`;
+    el.hidden = false;
+  }).catch(() => {});
+  </script>
   <section class="method-note" id="method">
     <h2>How it is built</h2>
     <p>Anomalies against the <b>1991&ndash;2020 normal</b>, with the model's own drift removed first using

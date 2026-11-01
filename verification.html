@@ -128,6 +128,14 @@
   table.pg th, table.pg td { padding: 0.3rem 0.7rem; text-align: right; border-bottom: 1px solid var(--rule); }
   table.pg th:first-child, table.pg td:first-child { text-align: left; }
   table.pg thead th { font-size: 0.78rem; color: var(--muted); font-weight: 600; }
+  /* weeks 1-5: a mean and its 90% interval per week, "n.s." where the test does not pass */
+  table.wk th, table.wk td { text-align: center; min-width: 4.6rem; }
+  table.wk td:first-child { white-space: nowrap; }
+  table.wk td b { font-weight: 600; }
+  table.wk small { display: block; font-size: 0.74rem; font-weight: 400; color: var(--muted); white-space: nowrap; }
+  table.wk td.ns, table.wk td.few { color: var(--muted); }
+  table.wk tr.first td { border-top: 1px solid var(--edge); }
+  table.wk i { display: inline-block; width: 0.8rem; height: 0.8rem; border-radius: 2px; vertical-align: -0.08rem; margin-right: 0.4rem; }
   .lgd { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; font-size: 0.82rem; color: var(--ink2); margin-top: 0.5rem; }
   .lgd i { display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: 3px; vertical-align: -0.15rem; margin-right: 0.3rem; }
   details.method { margin-top: 1.4rem; }
@@ -340,7 +348,7 @@ window.plotly = function () {
 <main id="main">
   <div class="kicker">Model verification · days 1–15 · scored with mverify</div>
   <h1>How the global models score</h1>
-  <p class="lede">GFS, IFS, AIFS and GDPS to day 10 and the IFS, AIFS, GEFS and GEPS ensembles to day 15, against the same observations: surface stations, radiosondes, Stage IV for US rain and ERA5 for the 500&nbsp;hPa anomaly correlation.</p>
+  <p class="lede">GFS, IFS, AIFS and GDPS to day 10 and the IFS, AIFS, GEFS and GEPS ensembles to day 15, against the same observations: surface stations, radiosondes, Stage IV for US rain and ERA5 for the 500&nbsp;hPa anomaly correlation, and the GEFS and GEPS days 1–35 forecasts week by week against ERA5.</p>
 
   <div class="vwin" id="vwin" hidden><span>Runs scored</span><span class="pills" role="group" aria-label="Runs scored">
     <a href="?runs=10" data-w="10">Latest 10</a><a href="?runs=30" data-w="30" hidden>30</a><a href="?runs=90" data-w="90" hidden>90</a><a href="?runs=365" data-w="365" hidden>365</a><a href="?runs=all" data-w="all" hidden>All</a></span></div>
@@ -348,7 +356,7 @@ window.plotly = function () {
   <p class="src" id="asof">Loading the scores…</p>
 
   <nav class="vnav" id="vnav" aria-label="Sections of this page">
-    <a href="#glance">At a glance</a><a href="#acc">500 hPa ACC</a><a href="#lead">Error by lead</a><a href="#scores">Scorecard</a><a href="#profiles">Upper air</a><a href="#stations">Stations</a><a href="#wind">Wind</a><a href="#rain">Rain</a><a href="#ens">Ensembles</a><a href="#database">Database</a>
+    <a href="#glance">At a glance</a><a href="#acc">500 hPa ACC</a><a href="#lead">Error by lead</a><a href="#scores">Scorecard</a><a href="#profiles">Upper air</a><a href="#stations">Stations</a><a href="#wind">Wind</a><a href="#rain">Rain</a><a href="#ens">Ensembles</a><a href="#weeks">Weeks 1–5</a><a href="#database">Database</a>
   </nav>
 
   <section class="card" id="glance">
@@ -504,6 +512,17 @@ window.plotly = function () {
     <img class="fig" id="e-rel-fig" alt="" hidden>
   </section>
 
+  <span class="vanchor" id="weeks"></span>
+  <section class="card" id="weeks-card" hidden>
+    <h2>Weeks 1–5: GEFS and GEPS</h2>
+    <div class="controls">
+      <label>Field<select id="wk-field"></select></label>
+      <label>Region<select id="wk-region"></select></label>
+    </div>
+    <div class="tblwrap"><table class="pg wk" id="wk-table"></table></div>
+    <p class="note" id="wk-note"></p>
+  </section>
+
   <span class="vanchor" id="database"></span>
   <section class="card" id="db-card" hidden>
     <h2>The verification database</h2>
@@ -520,6 +539,12 @@ window.plotly = function () {
         every model's 500&nbsp;hPa height on the 1.5° grid (<code>z500-&lt;model&gt;_</code>, ensemble means
         <code>ens-z500-</code> and members <code>ens-z500m-</code>), ERA5's (<code>era5-z500_</code>) and each run's
         anomaly correlations (<code>acc_</code>).</li>
+      <li><a href="https://github.com/scorvec/scorvec.github.io/releases?q=verify-weeks&amp;expanded=true">verify-weeks-YYYY</a>,
+        one release a year, for weeks 1–5: each Monday and Thursday GEFS run's weekly anomaly maps before the drift
+        correction and the daily zonal means the correction is estimated from (<code>wk-gefs_&lt;init&gt;.npz</code>), each
+        GEPS run's weekly anomaly maps (<code>wk-geps_</code>) and ERA5's 00Z and 12Z fields a month a file
+        (<code>wk-era5_&lt;YYYYMM&gt;.npz</code>), all on the 1.5° grid; the ERA5 1991–2020 normal they are taken against is
+        <a href="https://github.com/scorvec/scorvec.github.io/releases/tag/verify-clim-weeks-v1">verify-clim-weeks-v1</a>.</li>
       <li>The code that writes and reads it: <a href="https://github.com/scorvec/scorvec.github.io/tree/main/scripts/verify">scripts/verify</a>
         (<code>verifydb.sh</code> lists and fetches it), scored with <a href="https://github.com/scorvec/nwp_verification">mverify</a>.</li>
     </ul>
@@ -626,6 +651,33 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       reliability compares the share of members forecasting an event with how often it happened, with the Brier skill score
       against the sample's own frequency. A wind is scored as its two components, each level's CRPS their mean. These
       panels describe the ensembles; only the scorecard tests a difference between them.</p>
+    <p><b>Weeks 1–5.</b> The weekly anomaly maps of the two days 1–35 pages, <a href="/gefs.html">GEFS</a> and
+      <a href="/subseasonal.html">GEPS</a>, against ERA5: the ensemble mean's anomaly from the 1991–2020 normal of 2&nbsp;m
+      temperature, 500&nbsp;hPa height and sea-level pressure, averaged over days 1–7, 8–14, 15–21, 22–28 and 29–35, on the
+      WMO's 1.5° grid. Each run's score is the centred anomaly correlation over the region (each map less its mean,
+      every cell weighted by the cosine of its latitude, 2&nbsp;m temperature over land only): 1 for a perfect forecast, 0
+      for the normal, which is the climatology benchmark. Persistence, the other benchmark, forecasts every week with the
+      observed anomaly of the 7 days before the start. GEFS is scored on its Monday and Thursday 00Z runs, GEPS's start
+      days, from 1 November 2025; the runs from 18 August 2025 feed only the drift correction. GEFS's ensemble mean is
+      NCEP's own (the 0.5° <code>geavg</code> files on NOAA's open-data bucket) rather than the mean of the members the page
+      reads, reduced to days and to 1.5° as the page reduces its members and taken as the page takes its anomalies: the
+      reforecast climatology for the lead and start date, the ERA5 shift to 1991–2020, and the operational drift, which is
+      estimated by the page's method from the runs started 36 to 80 days before but against ERA5 rather than GEFS's own
+      analyses (the difference from day 1 removes a steady offset between the two) and from this series' Monday and
+      Thursday runs only, about 13 rather than the page's 45. GEPS is filed by its own page's build, each run's weekly maps
+      as the page draws them, from the 2 November 2026 run on; its earlier runs were not kept, so it has no backfill. ERA5
+      comes from Google's ARCO copy at 00Z and 12Z, averaged onto the grid by area; a day is the mean of its 12Z and the
+      next day's 00Z, as GEFS's day, while GEPS averages four six-hour steps, which the two samples come nearest. The newest
+      months are ERA5's preliminary release (ERA5T), kept as they were read. The normal is ERA5 1991–2020 from WeatherBench
+      2's 1.5° copy, the same two samples a day, each day of a 366-day calendar the mean of the days within a week of it
+      in all thirty years. A score in the table is the mean over the runs with a 90% interval from a moving-block bootstrap
+      over weeks of starts, in blocks of four weeks, since runs a few days apart share their weather. It is printed only
+      where its test passes the Benjamini–Hochberg procedure at a 10% false-discovery rate over every test of every field,
+      region and week (each mean against zero, each model against persistence, and GEPS against GEFS on the starts both
+      have), so its
+      interval leaves out the benchmark; n.s. marks a test that did not pass, and a mean over fewer than 16 weeks of starts
+      is not tested. A week is scored once ERA5 covers all its days, so the later weeks hold fewer runs; the number is
+      in each cell's tooltip.</p>
     <p><b>Wind speed as a distribution.</b> Wind speed is skewed and cannot go below zero, so RMSE and bias, which reward
       a forecast that hedges towards the middle, are joined by the whole distribution, on the same station pairs for every
       model: forecast and observed quantiles from 1 to 99.5%; the hybrid Weibull of Takle and Brown (1978), that is the share of calms (under 0.5 m/s, as reports
@@ -1340,6 +1392,46 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     thresholds();
   }
 
+  // weeks 1-5 of the GEFS and GEPS pages (weeks.json, scripts/verify/weeks_acc.py): a mean only where its test passed,
+  // "n.s." where it was tested and did not, and a row with no tested week says how many runs it has so far
+  function drawWeeks(wk) {
+    const wf = $("wk-field"), wr = $("wk-region"), names = Object.fromEntries([...wk.fields, ...wk.regions]);
+    fill(wf, wk.fields.map(f => f[0]), v => names[v]);
+    fill(wr, wk.regions.map(r => r[0]), v => names[v]);
+    const ROWS = [["GEFS", "GEFS", COLORS.GEFS], ["GEPS", "GEPS", COLORS.GEPS], ["persistence", "Persistence", "#6f6b64"],
+      ["GEFS-persistence", "GEFS − persistence"], ["GEPS-persistence", "GEPS − persistence"], ["GEPS-GEFS", "GEPS − GEFS"]];
+    const f2 = (x, signed) => (signed && x > 0 ? "+" : "") + x.toFixed(2).replace("-", "−");
+    const day = s => new Date(s + "T00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+    function cell(r, signed) {
+      const tip = `${r.n} runs, ${r.w} weeks of starts`;
+      if (r.ns) return `<td class="ns" title="${tip}: not significant">n.s.</td>`;
+      if (r.few) return `<td class="few" title="${tip}">not enough runs yet<small>${r.n} runs</small></td>`;
+      return `<td title="${tip}"><b>${f2(r.mean, signed)}</b><small>${f2(r.lo, signed)} to ${f2(r.hi, signed)}</small></td>`;
+    }
+    function render() {
+      const c = wk.cells[`${wf.value}/${wr.value}`] || {};
+      const head = "<thead><tr><th></th>" + wk.weeks.map((d, i) => `<th>Week ${i + 1}<small>days ${d}</small></th>`).join("") + "</tr></thead>";
+      const body = ROWS.filter(([k]) => c[k]).map(([k, label, col]) => {
+        const res = c[k], signed = !col, name = (col ? `<i style="background:${col}"></i>` : "") + esc(label);
+        const cls = k === "GEFS-persistence" ? ' class="first"' : "";
+        if (res.every(r => r.few)) {
+          const n = Math.max(...res.map(r => r.n)), w = Math.max(...res.map(r => r.w));
+          const have = n ? `${n} runs over ${w} weeks of starts` : "none scored so far";
+          return `<tr${cls}><td>${name}</td><td class="few" colspan="${res.length}">not enough runs yet: ${have} (a test needs ${wk.test.min_weeks} weeks)</td></tr>`;
+        }
+        return `<tr${cls}><td>${name}</td>${res.map(r => cell(r, signed)).join("")}</tr>`;
+      }).join("");
+      $("wk-table").innerHTML = head + "<tbody>" + body + "</tbody>";
+    }
+    [wf, wr].forEach(el => el.addEventListener("change", render));
+    render();
+    const g = wk.runs.GEFS, e = wk.runs.GEPS;
+    $("wk-note").textContent = `Mean anomaly correlation with ERA5 and its 90% interval; 0 is the normal. GEFS ${g.n} runs` +
+      (g.n ? ` (${day(g.first)} to ${day(g.last)})` : "") + (e.n ? `, GEPS ${e.n} (from ${day(e.first)})` : ", GEPS none scored yet") +
+      (wk.era5_through ? `; ERA5 through ${day(wk.era5_through)}.` : ".");
+    $("weeks-card").hidden = false;
+  }
+
   // the run window (?runs=30, 90, 365, all): the newest runs of the verification database instead of the nightly 10;
   // its scorecard and station maps come from the database (the windows past 90 runs map the newest 90), the wind card
   // stays on the nightly runs and the rain maps cover the database's newest year in every window, as do the rain
@@ -1378,6 +1470,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     drawEns(card);
     figsP.then(f => { if (f) ensFigs(f, card); });
   }).catch(() => {});
+  fetch("/assets/verification/weeks.json").then(r => r.ok ? r.json() : null).then(wk => { if (wk) drawWeeks(wk); }).catch(() => {});
 
   // A short list of choices (up to seven short names) is drawn as the site's segmented buttons; the <select> stays,
   // hidden, as the state the charts read and change, so filling it or setting its value redraws the buttons.
