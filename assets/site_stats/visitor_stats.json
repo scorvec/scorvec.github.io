@@ -1,21 +1,21 @@
 {
- "updated": "2026-10-31",
- "total_30d": 1377,
- "countries_30d": 41,
- "total_all": 2257,
- "countries_all": 42,
+ "updated": "2026-11-01",
+ "total_30d": 1388,
+ "countries_30d": 42,
+ "total_all": 2280,
+ "countries_all": 43,
  "top_pages_30d": [
   {
    "path": "/stratosphere.html",
-   "count": 149
+   "count": 155
   },
   {
    "path": "/",
-   "count": 129
+   "count": 130
   },
   {
    "path": "/circulation.html",
-   "count": 79
+   "count": 80
   },
   {
    "path": "/models.html",
@@ -23,7 +23,7 @@
   },
   {
    "path": "/midterms",
-   "count": 72
+   "count": 73
   },
   {
    "path": "/aifs-aam-budget.html",
@@ -43,7 +43,7 @@
   },
   {
    "path": "/gefs.html",
-   "count": 37
+   "count": 38
   }
  ]
 }
