@@ -201,6 +201,23 @@ def _smooth(a):
     return b
 
 
+def combine(D):
+    """Delta from the verified inits' D (n, tags, 35, lat) in date order: (delta, raw mean, SE, effective n). Shared
+    with the weekly verification (scripts/verify/weeks_acc.py), which estimates it against ERA5."""
+    D = np.asarray(D, dtype="float64")
+    n = len(D)
+    m = D.mean(0)
+    # effective sample size: successive inits share most of their valid days, so they are not independent
+    late = D[:, :, 20:, :].mean(2)  # (n, tags, lat)
+    a0, a1 = late[:-1] - late[:-1].mean(0), late[1:] - late[1:].mean(0)
+    rho = np.clip((a0 * a1).sum(0) / np.sqrt((a0**2).sum(0) * (a1**2).sum(0) + 1e-12), 0.0, 0.95)  # (tags, lat)
+    neff = n * (1 - rho) / (1 + rho)
+    se = D.std(0, ddof=1) / np.sqrt(np.maximum(neff, 2.0))[:, None, :]
+    sm, ses = _smooth(m), _smooth(se)
+    shrink = sm**2 / (sm**2 + ses**2 + 1e-12)
+    return (sm * shrink).astype("float32"), m, se, neff
+
+
 def estimate(today: dt.date, cache: Path, runs: Path, window=WINDOW, fetch=True):
     """Delta (15, 35, 121) from the trailing `window` verifiable inits; writes runs/gefs_drift_<today>.npz and returns
     it with its diagnostics. Inits whose verification cannot be built (missing analyses) are skipped."""
@@ -215,18 +232,8 @@ def estimate(today: dt.date, cache: Path, runs: Path, window=WINDOW, fetch=True)
             print(f"  verify {i}: {str(e)[:80]}", flush=True)
     if len(Ds) < 15:
         raise SystemExit(f"only {len(Ds)} verified inits - no drift estimate")
-    D = np.stack(Ds).astype("float64")  # (n, 15, 35, 121), newest first
-    n = len(D)
-    m = D.mean(0)
-    # effective sample size: successive inits share most of their valid days, so they are not independent
-    late = D[:, :, 20:, :].mean(2)  # (n, 15, 121)
-    a0, a1 = late[:-1] - late[:-1].mean(0), late[1:] - late[1:].mean(0)
-    rho = np.clip((a0 * a1).sum(0) / np.sqrt((a0**2).sum(0) * (a1**2).sum(0) + 1e-12), 0.0, 0.95)  # (15, 121)
-    neff = n * (1 - rho) / (1 + rho)
-    se = D.std(0, ddof=1) / np.sqrt(np.maximum(neff, 2.0))[:, None, :]
-    sm, ses = _smooth(m), _smooth(se)
-    shrink = sm**2 / (sm**2 + ses**2 + 1e-12)
-    delta = (sm * shrink).astype("float32")
+    delta, m, se, neff = combine(np.stack(Ds))
+    n = len(Ds)
     out = runs / f"gefs_drift_{today:%Y%m%d}.npz"
     np.savez_compressed(
         out,

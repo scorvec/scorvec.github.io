@@ -6,8 +6,10 @@
 # ens-stats_, ens-rel_) by scripts/verify/ens_verify.py; every model's 500 hPa height (z500-<m>_, ens-z500-<m>_,
 # ens-z500m-<m>_<init>.npz), ERA5's (era5-z500_<day>.npz, filed under the month of the day) and each run's anomaly
 # correlations (acc_<init>.parquet) by scripts/verify/z500_acc.py, in releases of their own, verify-z500-YYYY-MM (a
-# month of every kind would pass GitHub's 1000 files a release). A second copy is kept in the site's object store,
-# under verify-db/YYYY-MM/. A file is never replaced or deleted in either place.
+# month of every kind would pass GitHub's 1000 files a release); the days 1-35 runs' weekly anomalies (wk-gefs_,
+# wk-geps_<init>.npz) and ERA5's samples (wk-era5_<YYYYMM>.npz) by scripts/verify/weeks_acc.py, in yearly releases
+# verify-weeks-YYYY. A second copy is kept in the site's object store, under verify-db/YYYY-MM/ (the month in the
+# file's name). A file is never replaced or deleted in either place.
 #
 #   verifydb.sh list                 every file the database holds, one name per line
 #   verifydb.sh fetch KIND N DIR     the newest N runs' KIND_<init> files (N 'all': every run) into DIR
@@ -27,9 +29,10 @@ R=${GITHUB_REPOSITORY:?}
 # (16 MB) and GitHub's answer timed out (HTTP 504).
 assets() {
   gh_wait gh api --paginate "repos/$R/releases?per_page=10" \
-    -q '.[] | select(.tag_name | test("^verify-(db|z500)-")) | .tag_name as $t | .assets[] | "\($t) \(.name) \(.size) \(.digest)"' |
+    -q '.[] | select(.tag_name | test("^verify-(db|z500|weeks)-")) | .tag_name as $t | .assets[] | "\($t) \(.name) \(.size) \(.digest)"' |
     awk '{ d = substr($2, index($2, "_") + 1); f = ($2 ~ /^(z500-|ens-z500|era5-z500_|acc_)/) ? "verify-z500" : "verify-db"
-           if ($1 == f "-" substr(d, 1, 4) "-" substr(d, 5, 2)) print }'
+           f = ($2 ~ /^wk-/) ? "verify-weeks-" substr(d, 1, 4) : f "-" substr(d, 1, 4) "-" substr(d, 5, 2)
+           if ($1 == f) print }'
 }
 # the API's hourly allowance is the repository's, shared by every workflow: a batch of files (a backfill's uploads, two
 # requests each) waits for its reset rather than spend the last VERIFYDB_RESERVE requests the site's deploys and the
@@ -63,8 +66,14 @@ gh_wait() {
   done
   return 1
 }
-# the release a file belongs in: the 500 hPa kinds in verify-z500-, the rest in verify-db-, by the month in its name
-tag_of() { local d=${1#*_} p=verify-db; [[ $1 =~ ^(z500-|ens-z500|era5-z500_|acc_) ]] && p=verify-z500; echo "$p-${d:0:4}-${d:4:2}"; }
+# the release a file belongs in: the 500 hPa kinds in verify-z500-, the rest in verify-db-, by the month in its name;
+# the weekly kinds in verify-weeks-, by its year
+tag_of() {
+  local d=${1#*_} p=verify-db
+  [[ $1 == wk-* ]] && { echo "verify-weeks-${d:0:4}"; return; }
+  [[ $1 =~ ^(z500-|ens-z500|era5-z500_|acc_) ]] && p=verify-z500
+  echo "$p-${d:0:4}-${d:4:2}"
+}
 # NAME... as "TAG -p NAME -p NAME ...", one line per release
 by_tag() { for n in "$@"; do echo "$(tag_of "$n") $n"; done | awk '{ p[$1] = p[$1] " -p " $2 } END { for (t in p) print t p[t] }'; }
 
@@ -100,7 +109,10 @@ case "${1:-}" in
     held=$(assets | awk '{ print $1 "/" $2 }')
     for tag in $(for f in $files; do tag_of "$(basename "$f")"; done | sort -u); do
       month=${tag: -7}
-      if [[ $tag == verify-z500-* ]]; then
+      if [[ $tag == verify-weeks-* ]]; then
+        title="Weekly verification database ${tag: -4}"
+        notes="The days 1-35 ensembles' weekly-mean anomalies against 1991-2020 and their truth (scripts/verify/weeks_acc.py), on the WMO 1.5 degree grid: wk-gefs_<init>.npz (GEFS, Monday and Thursday 00Z: the weeks' anomalies before the drift correction and the daily zonal means it is estimated from), wk-geps_<init>.npz (GEPS, the page's weekly maps) and wk-era5_<YYYYMM>.npz (ERA5 at 00Z and 12Z of each day of the month, int16 as gefs_daily.pack). 2 m temperature, 500 hPa height and sea-level pressure; verification.html scores them."
+      elif [[ $tag == verify-z500-* ]]; then
         title="500 hPa height database $month"
         notes="Every model's 500 hPa height (scripts/verify/z500_acc.py) on the WMO 1.5 degree grid: z500-<m>_<init>.npz (deterministic, to day 10), ens-z500-<m>_ (ensemble mean) and ens-z500m-<m>_ (every member, 2.5 degree, 20-90N) to day 15, era5-z500_<day>.npz (ERA5 at 00Z), and acc_<init>.parquet, each run's anomaly correlations against ERA5."
       else
@@ -134,8 +146,10 @@ case "${1:-}" in
     frames_store_ready || { echo "::error::the object store is not usable: the database's second copy is not made"; exit 1; }
     work=$(mktemp -d); trap 'rm -rf "$work"' EXIT
     "$FRAMES_PY" "$LIB/frames_store.py" files verify-db > "$work/store.txt"
-    # both kinds of release in one folder a month, each file from the release it belongs in (as list)
-    assets | awk '{ print "verify-db/" substr($1, length($1) - 6) "/" $2, $3, $4 }' > "$work/github.txt"
+    # every kind of release in one folder a month (the month in the file's name), each file from the release it belongs
+    # in (as list)
+    assets | awk '{ d = substr($2, index($2, "_") + 1); print "verify-db/" substr(d, 1, 4) "-" substr(d, 5, 2) "/" $2, $3, $4 }' \
+      > "$work/github.txt"
     # the files the store lacks; one it holds at another size, or that GitHub no longer holds, is reported, not changed
     awk 'FILENAME == ARGV[1] { if (NF == 2) s[$1] = $2; next }
       { g[$1] = 1 }

@@ -3,7 +3,7 @@ name: GEPS days 1-35 (subseasonal)
 # subseasonal.html: the ECCC GEPS extended ensemble (Mon/Thu 00Z, 21 members, day 35) against a lead-matched GEPS8
 # hindcast climatology - maps and loops, change vs the previous run, teleconnections, tercile maps, weather regimes,
 # ensemble clusters, the MJO and the polar vortex. scripts/geps/run_geps.sh does the work; this file seeds, publishes
-# and commits.
+# and commits, then files the run's weekly anomalies for the weeks 1-5 verification (verify-weeks.yml).
 #
 # IN ACTIONS SINCE 2026-10-04. The ~150 GB of hindcast and reanalysis stores are not downloaded here: everything the
 # build reads from them was reduced ONCE, offline, to the release asset geps-ref-v3 (scripts/geps/make_reference.py,
@@ -72,6 +72,8 @@ jobs:
             scripts/regimes
             scripts/lib
             scripts/sst/metar
+            scripts/verify
+            scripts/gefs
             assets/geps
             assets/sst/data
       - uses: actions/setup-python@v7
@@ -194,6 +196,17 @@ jobs:
           echo "site deploy is batched - the dispatcher deploys within 15 min (pages.yml)"
           # the multi-model regime view (subseasonal.html) reads assets/geps/regimes_members.json
           gh workflow run regimes.yml --repo "$GITHUB_REPOSITORY" || echo "::warning::regimes dispatch failed"
+
+      # the run's weekly anomalies, as the page's weekly maps, into the verification database (scripts/verify/weeks_acc.py,
+      # verify-weeks.yml scores them on verification.html): after the page is out, and never failing the run
+      - name: Weekly anomalies for the verification
+        if: ${{ !cancelled() && steps.run.outputs.new == '1' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/verify/weeks_acc.py geps --cycle "${{ steps.run.outputs.cycle }}" --archive-out "$RUNNER_TEMP/weeks"
+          scripts/verify/verifydb.sh upload "$RUNNER_TEMP/weeks"
 
       - name: Summary
         if: always()

@@ -1,0 +1,224 @@
+name: Weeks 1-5 verification
+
+# The two days 1-35 ensemble pages, GEFS (gefs.html) and GEPS (subseasonal.html), verified on their weekly anomaly maps
+# against ERA5 (scripts/verify/weeks_acc.py; verification.html#weeks). Each day it adds what is new to the verification
+# database (scripts/verify/verifydb.sh, releases verify-weeks-YYYY): the days ERA5 has added on ARCO (about a week
+# behind; a month a file once complete, the month in progress kept in this job's cache) and the Monday and Thursday
+# 00Z GEFS runs that have reached day 35. geps.yml adds each GEPS run itself. Then every run whose weeks ERA5 covers is
+# scored and assets/verification/weeks.json committed.
+#
+# Dispatched: clim builds the ERA5 1991-2020 normal the anomalies are taken against (release verify-clim-weeks-v1,
+# once); backfill fills the database from the first run of the drift's spin-up (18 August 2025), a few months a job,
+# then scores. Files the database holds are skipped, so either can be dispatched again after a failure.
+on:
+  schedule:
+    - cron: '20 8 * * *'
+    - cron: '20 16 * * *'
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'daily (add and score), backfill (fill the database, then score) or clim (the normal, once)'
+        type: choice
+        options: [daily, backfill, clim]
+        default: daily
+      months:
+        description: 'backfill: months per job'
+        default: '3'
+      replace:
+        description: 'clim: replace the normal the release holds'
+        type: boolean
+        default: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  CLIM_TAG: verify-clim-weeks-v1
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: verify-weeks
+  cancel-in-progress: false
+
+jobs:
+  clim:
+    if: github.event_name == 'workflow_dispatch' && inputs.job == 'clim'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy scipy pandas numcodecs
+      - name: ERA5 1991-2020 of the day mean on the verification grid
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPLACE: ${{ inputs.replace }}
+        run: |
+          set -o pipefail
+          python scripts/verify/weeks_acc.py clim --out "$RUNNER_TEMP/clim_weeks_1p5.npz" | tee "$RUNNER_TEMP/clim.log"
+          check=$(grep '^check ' "$RUNNER_TEMP/clim.log" | sed 's/^check //' | paste -sd ';' -)
+          notes="ERA5 1991-2020 normal of the day mean the days 1-35 verification uses (the 12Z sample and the next day's 00Z) on the WMO 1.5 degree grid with poles, from WeatherBench 2's 6-hourly conservative 1.5 degree ERA5: each slot of the 366-day calendar (29 February = 59, 1 March = 60 in every year) the mean of the days within 7 slots of it in all 30 years (scripts/verify/weeks_acc.py clim). Keys: t2m, zg500, mslp (366, 121, 240) int16 as gefs_daily.pack (K, m, Pa), land (ERA5's land fraction), lat, lon, days. ARCO's ERA5 remapped by the script against WeatherBench 2 at one time: $check."
+          if gh release view "$CLIM_TAG" >/dev/null 2>&1; then
+            [ "$REPLACE" = true ] || { echo "::error::$CLIM_TAG holds a normal: dispatch with replace to replace it"; exit 1; }
+            gh release upload "$CLIM_TAG" "$RUNNER_TEMP/clim_weeks_1p5.npz" --clobber
+            gh release edit "$CLIM_TAG" --notes "$notes"
+          else
+            gh release create "$CLIM_TAG" "$RUNNER_TEMP/clim_weeks_1p5.npz" --latest=false \
+              --title "ERA5 normal for the weeks 1-5 verification" --notes "$notes"
+          fi
+
+  plan:
+    if: github.event_name == 'workflow_dispatch' && inputs.job == 'backfill'
+    runs-on: ubuntu-latest
+    outputs:
+      chunks: ${{ steps.p.outputs.chunks }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy pandas
+      - id: p
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          scripts/verify/verifydb.sh list > have.txt
+          python scripts/verify/weeks_acc.py plan --have have.txt --months "${{ inputs.months }}" >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
+
+  backfill:
+    needs: plan
+    if: needs.plan.outputs.chunks != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        chunk: ${{ fromJson(needs.plan.outputs.chunks) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy scipy pandas numcodecs eccodes pyproj
+      - name: ${{ matrix.chunk.kind }} ${{ matrix.chunk.first }} to ${{ matrix.chunk.last }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KIND: ${{ matrix.chunk.kind }}
+          FIRST: ${{ matrix.chunk.first }}
+          LAST: ${{ matrix.chunk.last }}
+        run: |
+          W="python scripts/verify/weeks_acc.py"
+          scripts/verify/verifydb.sh list > "$RUNNER_TEMP/have.txt"
+          if [ "$KIND" = era5 ]; then
+            $W era5 --complete --first "$FIRST" --last "$LAST" --store "$RUNNER_TEMP/wk" --have "$RUNNER_TEMP/have.txt" \
+              --archive-out "$RUNNER_TEMP/db-new"
+            scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"
+            exit 0
+          fi
+          failed=""
+          for d in $($W gefs --list --first "$FIRST" --last "$LAST" --have "$RUNNER_TEMP/have.txt"); do
+            # a run at a time, each uploaded before the next is read: a job cut short keeps what it read
+            if $W gefs --first "$d" --last "$d" --cache "$RUNNER_TEMP/gefs-clim" --have "$RUNNER_TEMP/have.txt" \
+                --archive-out "$RUNNER_TEMP/db-new"; then
+              scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"
+            else
+              failed="$failed $d"
+            fi
+            rm -rf "$RUNNER_TEMP/db-new"
+          done
+          if [ -n "$failed" ]; then echo "::error::GEFS runs not archived:$failed"; exit 1; fi
+
+  daily:
+    needs: backfill
+    # also after a backfill that left some runs out (the next pass fills them); never with clim
+    if: ${{ !cancelled() && (github.event_name == 'schedule' || inputs.job != 'clim') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts
+            assets/verification
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy scipy pandas numcodecs eccodes pyproj
+      # the store: the database's weekly files and the normal, and ERA5's days of the month in progress, which only
+      # this cache holds (lost, they are read from ARCO again)
+      - name: Restore the store
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ runner.temp }}/wk
+          key: verify-weeks-
+          restore-keys: verify-weeks-
+      - name: The database's files the store lacks
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          S="$RUNNER_TEMP/wk"; mkdir -p "$S/db"
+          scripts/verify/verifydb.sh list > "$RUNNER_TEMP/have.txt"
+          names=$(python scripts/verify/weeks_acc.py missing --store "$S" --have "$RUNNER_TEMP/have.txt")
+          echo "$(wc -w <<< "$names") files to download"
+          # shellcheck disable=SC2086  # the file names are meant to split
+          [ -z "$names" ] || scripts/verify/verifydb.sh get "$S/db" $names
+          [ -f "$S/clim_weeks_1p5.npz" ] || gh release download "$CLIM_TAG" -D "$S" -p clim_weeks_1p5.npz
+      # a source that fails is a warning: what the database already holds is still scored, and the next pass catches up
+      - name: New ERA5 days and GEFS runs into the database
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          S="$RUNNER_TEMP/wk"
+          W="python scripts/verify/weeks_acc.py"
+          mkdir -p "$RUNNER_TEMP/db-new"
+          $W era5 --store "$S" --have "$RUNNER_TEMP/have.txt" --archive-out "$RUNNER_TEMP/db-new" \
+            || echo "::warning::ERA5 not read; the next pass tries again"
+          $W gefs --cache "$RUNNER_TEMP/gefs-clim" --have "$RUNNER_TEMP/have.txt" --archive-out "$RUNNER_TEMP/db-new" \
+            || echo "::warning::some GEFS runs were not archived; the next pass tries them again"
+          scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"
+          find "$RUNNER_TEMP/db-new" -maxdepth 1 -name 'wk-*.npz' -exec mv -t "$S/db" {} +
+      - name: Score
+        run: |
+          python scripts/verify/weeks_acc.py score --store "$RUNNER_TEMP/wk" --clim "$RUNNER_TEMP/wk/clim_weeks_1p5.npz" \
+            --out assets/verification/weeks.json
+      - name: Save the store
+        if: always()
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}/wk
+          key: verify-weeks-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # snapshot + clean resync each attempt (the gefs/geps pattern): never a rebase
+          SNAP=$(mktemp -d)
+          cp assets/verification/weeks.json "$SNAP/"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            cp "$SNAP/weeks.json" assets/verification/weeks.json
+            git add assets/verification/weeks.json
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "data update: weeks 1-5 verification $(date -u +%Y-%m-%d)"
+            if timeout 180 git push origin HEAD:main; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          exit 1
+      - name: Drop superseded caches
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/lib/cache_prune.sh verify-weeks-
