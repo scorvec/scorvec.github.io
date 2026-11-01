@@ -406,12 +406,9 @@ def gefs_run(init: dt.date, cache: Path) -> dict | None:
 
 
 def gefs(a) -> None:
-    """The Monday and Thursday runs the database lacks that are complete on S3 (--list: print them, nothing fetched)."""
+    """The Monday and Thursday runs the database lacks that are complete on S3."""
     have = _have(a.have)
     due = [d for d in starts(a.first or FIRST_INIT, a.last or _today()) if run_file("GEFS", d) not in have]
-    if a.list:
-        print(*(f"{d:%Y%m%d}" for d in due))
-        return
     a.archive_out.mkdir(parents=True, exist_ok=True)
     failed = []
     for d in due:
@@ -684,7 +681,6 @@ def main() -> None:
     e.add_argument("--complete", action="store_true", help="complete months only (a backfill job keeps no days)")
     f = sub.add_parser("gefs", help="the Monday and Thursday GEFS runs")
     f.add_argument("--cache", type=Path, default=Path("gefs-clim"), help="the GEFS reforecast climatology's files")
-    f.add_argument("--list", action="store_true", help="print the runs the database lacks")
     g = sub.add_parser("geps", help="a GEPS run's weekly anomalies, in geps.yml")
     g.add_argument("--cycle", required=True)
     m = sub.add_parser("missing", help="print the database's files the store lacks")

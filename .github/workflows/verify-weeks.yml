@@ -117,27 +117,22 @@ jobs:
           KIND: ${{ matrix.chunk.kind }}
           FIRST: ${{ matrix.chunk.first }}
           LAST: ${{ matrix.chunk.last }}
+        # the chunk read whole, then one upload: each upload lists the database first (8 API requests), so not one a run
         run: |
           W="python scripts/verify/weeks_acc.py"
           scripts/verify/verifydb.sh list > "$RUNNER_TEMP/have.txt"
+          ok=1
           if [ "$KIND" = era5 ]; then
             $W era5 --complete --first "$FIRST" --last "$LAST" --store "$RUNNER_TEMP/wk" --have "$RUNNER_TEMP/have.txt" \
-              --archive-out "$RUNNER_TEMP/db-new"
-            scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"
-            exit 0
+              --archive-out "$RUNNER_TEMP/db-new" || ok=0
+          else
+            # a run that fails is reported at the end; the others are uploaded
+            $W gefs --first "$FIRST" --last "$LAST" --cache "$RUNNER_TEMP/gefs-clim" --have "$RUNNER_TEMP/have.txt" \
+              --archive-out "$RUNNER_TEMP/db-new" || ok=0
           fi
-          failed=""
-          for d in $($W gefs --list --first "$FIRST" --last "$LAST" --have "$RUNNER_TEMP/have.txt"); do
-            # a run at a time, each uploaded before the next is read: a job cut short keeps what it read
-            if $W gefs --first "$d" --last "$d" --cache "$RUNNER_TEMP/gefs-clim" --have "$RUNNER_TEMP/have.txt" \
-                --archive-out "$RUNNER_TEMP/db-new"; then
-              scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"
-            else
-              failed="$failed $d"
-            fi
-            rm -rf "$RUNNER_TEMP/db-new"
-          done
-          if [ -n "$failed" ]; then echo "::error::GEFS runs not archived:$failed"; exit 1; fi
+          mkdir -p "$RUNNER_TEMP/db-new"
+          scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"
+          [ "$ok" = 1 ] || { echo "::error::$KIND $FIRST to $LAST: not all archived (above)"; exit 1; }
 
   daily:
     needs: backfill
