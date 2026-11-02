@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Claude's Call &middot; 2026 Midterms</title>
-<meta name="description" content="One election night, called race by race: Claude's single deterministic prediction for the 2026 House, Senate and governor elections, made the morning of November 3, set against the forecast's odds.">
+<meta name="description" content="One election night, called race by race: Claude's single deterministic prediction for the 2026 House, Senate and governor elections, made before Election Day, set against the forecast's odds.">
 <link rel="canonical" href="https://scorvec.com/midterms/call.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Claude's Call: the 2026 midterms, race by race">
-<meta property="og:description" content="Claude's single deterministic prediction for the 2026 House, Senate and governor elections, made the morning of November 3.">
+<meta property="og:description" content="Claude's single deterministic prediction for the 2026 House, Senate and governor elections, made before Election Day.">
 <meta property="og:url" content="https://scorvec.com/midterms/call.html">
 <meta name="twitter:card" content="summary">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,8 +14,8 @@
 <link rel="stylesheet" href="/assets/site.css?v=08996a48dc">
 <link rel="stylesheet" href="mt.css">
 <style>
-/* call.html: Claude's call, one deterministic election night (data/claudes_call.json, written once on the morning of
-   November 3 against that morning's forecast); the maps share the forecast page's district file. */
+/* call.html: Claude's call, one deterministic election night (data/claudes_call.json, written once before Election Day
+   against the forecast's latest run); the maps share the forecast page's district file. */
 .cc{--d:#1f5fbf;--r:#b3261e;--i:#6b3fa0;--dlt:#9cc0ff;--rlt:#ff9f92;--ilt:#c9a8f0;--night:#0e2140;--nmuted:#b9c5da;--flag:#e8a400;
  max-width:1180px;margin:0 auto;padding:22px 24px 60px}
 .cc h1{font:600 var(--t-h1)/1.2 var(--serif);margin:0 0 6px}
@@ -31,7 +31,7 @@
 .cc-tile .s{font:15px/1.4 var(--sans);color:var(--nmuted);margin:3px 0 0}
 .cc-tile .s b{color:#fff;font-weight:600}
 .cc-scen{font:17px/1.55 var(--sans);color:#e8edf5;margin:16px 0 0;padding-top:14px;border-top:1px solid rgba(255,255,255,.16)}
-.cc-bold{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:12px 0 0}
+.cc-bold{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;margin:12px 0 0}
 .cc-card{background:var(--panel);border:1px solid var(--rule);border-left:4px solid var(--flag);border-radius:8px;padding:11px 15px}
 .cc-card h3{font:600 18px/1.3 var(--serif);margin:0 0 4px}
 .cc-card p{font:16px/1.5 var(--sans);color:var(--ink2);margin:0}
@@ -250,7 +250,7 @@
 <main class="cc" id="main">
 <h1>Claude&rsquo;s call</h1>
 <nav class="mt-nav" aria-label="Forecast pages"><a href="./">Forecast</a><a href="polls.html">Every poll and its weight</a><a href="about.html">How it works</a><a href="whatif.html">What if? Test the assumptions</a><a href="legislatures.html">State legislatures</a><a href="early-vote.html">Early vote</a><a href="call.html" aria-current="page">Claude&rsquo;s call</a></nav>
-<p class="mt-lede">One election night, called race by race: a single prediction made the morning of November 3, not the forecast&rsquo;s odds.</p>
+<p class="mt-lede">One election night, called race by race before the polls open: a single prediction, not the forecast&rsquo;s odds.</p>
 <p class="mt-stamp" id="stamp">Loading&hellip;</p>
 
 <section class="cc-band" aria-label="The call in numbers">
@@ -290,7 +290,7 @@
 <h3>What it is built from</h3>
 <p>The forecast&rsquo;s final run is the starting point: its odds and margins for every race, at the national vote it expected. On top of that is judgement the forecast does not encode: how the final polls compare with how pollsters missed in recent elections, late movement, and what the early vote does and does not tell us. The reason for each call that leaves the forecast is given beside it. The margins are the call&rsquo;s point estimates; the forecast&rsquo;s chance for each called winner shows how likely the forecast thought that outcome was.</p>
 <h3>When it was made</h3>
-<p>The call was made once, on the morning of November 3, 2026, against that morning&rsquo;s forecast, and is not updated during the count. It is Claude&rsquo;s own call, made by Anthropic&rsquo;s Claude for this site; it is not a projection of results. In Maine and Alaska, where the count runs ranked-choice rounds, the call names the winner after the final round, and Alaska&rsquo;s count is not complete until about November 18.</p>
+<p>The call was made once, the day before the election, against the forecast&rsquo;s latest run (both times are at the top of the page). It is not updated for later polls or during the count. It is Claude&rsquo;s own call, made by Anthropic&rsquo;s Claude for this site; it is not a projection of results. In Maine and Alaska, where the count runs ranked-choice rounds, the call names the winner after the final round, and Alaska&rsquo;s count is not complete until about November 18.</p>
 </section>
 
 <footer class="mt-foot"><nav class="mt-nav" aria-label="Forecast pages"><a href="./">Forecast</a><a href="polls.html">Every poll and its weight</a><a href="about.html">How it works</a><a href="whatif.html">What if? Test the assumptions</a><a href="legislatures.html">State legislatures</a><a href="early-vote.html">Early vote</a><a href="call.html" aria-current="page">Claude&rsquo;s call</a></nav></footer>
@@ -379,7 +379,7 @@ Promise.all([fetch('data/claudes_call.json').then(r=>{if(!r.ok)throw new Error(r
  const all=[...H.races].sort(byClose),few=all.filter(key);let open=false;
  const drawH=()=>{table('#houseTab',open?all:few,hl,{why:true});$('#houseMore').textContent=open?`Show only the ${few.length} competitive seats`:`Show all ${all.length} seats`};
  $('#houseMore').hidden=false;$('#houseMore').addEventListener('click',()=>{open=!open;drawH()});drawH();
-}).catch(e=>{console.error(e);$('#stamp').textContent='The call is made on the morning of November 3, 2026.'});
+}).catch(e=>{console.error(e);$('#stamp').textContent='The call is made before Election Day, November 3, 2026.'});
 </script>
 <!-- sf:start -->
 <footer class="sf">
