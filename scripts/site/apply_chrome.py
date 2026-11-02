@@ -451,6 +451,9 @@ TABS = {
     ],
 }
 
+# The link the synced midterms pages' navigation gains (both copies on a page: the top one and the footer's).
+MT_CALL = ("Early vote</a></nav>", 'Early vote</a><a href="call.html">Claude&rsquo;s call</a></nav>')
+
 # ── pages ────────────────────────────────────────────────────────────────────
 # mode:
 #   nav          replace the first <nav>…</nav>
@@ -566,24 +569,28 @@ PAGES = [
     dict(path="skewt/methodology.html", mode="nav", tabs="skewt"),
     dict(path="skewt/gaps.html", mode="nav", tabs="skewt"),
     # qbo/index.html: folded into stratosphere.html ("QBO from radiosondes"), now a redirect stub (no chrome)
+    # the synced midterms pages: their page navigation (upstream) gains the site's own midterms page, Claude's call
     dict(
-        path="midterms/index.html", mode="after-body", footer=True, synced=True
+        path="midterms/index.html", mode="after-body", footer=True, synced=True, fixes=[MT_CALL]
     ),  # 2026 midterm forecast (synced daily from github.com/scorvec/midterms-2026 by midterms-sync.yml)
     dict(
-        path="midterms/about.html", mode="after-body", footer=True, synced=True
+        path="midterms/about.html", mode="after-body", footer=True, synced=True, fixes=[MT_CALL]
     ),  # how the midterm forecast works + sources
     dict(
-        path="midterms/polls.html", mode="after-body", footer=True, synced=True
+        path="midterms/polls.html", mode="after-body", footer=True, synced=True, fixes=[MT_CALL]
     ),  # every poll in the midterm forecast and its weight
     dict(
-        path="midterms/whatif.html", mode="after-body", footer=True, synced=True
+        path="midterms/whatif.html", mode="after-body", footer=True, synced=True, fixes=[MT_CALL]
     ),  # "What if?": the forecast re-simulated with the reader's assumptions
     dict(
-        path="midterms/legislatures.html", mode="after-body", footer=True, synced=True
+        path="midterms/legislatures.html", mode="after-body", footer=True, synced=True, fixes=[MT_CALL]
     ),  # state legislative chambers (experimental)
     dict(
-        path="midterms/early-vote.html", mode="after-body", footer=True, synced=True
+        path="midterms/early-vote.html", mode="after-body", footer=True, synced=True, fixes=[MT_CALL]
     ),  # the early vote against earlier elections, and how banked ballots enter the forecast
+    dict(
+        path="midterms/call.html", mode="after-body", footer=True
+    ),  # Claude's call: one deterministic election night (the site's own page; data/claudes_call.json, written once)
     # the 404 body is a centring flexbox: stack it so the header spans the top and the message centres below
     dict(
         path="404.html",

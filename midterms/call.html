@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Claude's Call &middot; 2026 Midterms</title>
+<meta name="description" content="One election night, called race by race: Claude's single deterministic prediction for the 2026 House, Senate and governor elections, made the morning of November 3, set against the forecast's odds.">
+<link rel="canonical" href="https://scorvec.com/midterms/call.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Claude's Call: the 2026 midterms, race by race">
+<meta property="og:description" content="Claude's single deterministic prediction for the 2026 House, Senate and governor elections, made the morning of November 3.">
+<meta property="og:url" content="https://scorvec.com/midterms/call.html">
+<meta name="twitter:card" content="summary">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css?v=08996a48dc">
+<link rel="stylesheet" href="mt.css">
+<style>
+/* call.html: Claude's call, one deterministic election night (data/claudes_call.json, written once on the morning of
+   November 3 against that morning's forecast); the maps share the forecast page's district file. */
+.cc{--d:#1f5fbf;--r:#b3261e;--i:#6b3fa0;--dlt:#9cc0ff;--rlt:#ff9f92;--ilt:#c9a8f0;--night:#0e2140;--nmuted:#b9c5da;--flag:#e8a400;
+ max-width:1180px;margin:0 auto;padding:22px 24px 60px}
+.cc h1{font:600 var(--t-h1)/1.2 var(--serif);margin:0 0 6px}
+.cc a{color:var(--d)}
+.cc h2{font:600 24px/1.3 var(--serif);margin:44px 0 6px;padding-top:8px;border-top:1px solid var(--rule)}
+.cc p{max-width:110ch}
+.cc-band{background:var(--night);color:#fff;border-radius:10px;padding:20px 22px 18px;margin:16px 0 0}
+.cc-head{font:500 clamp(24px,1rem + 1.6vw,38px)/1.18 var(--serif);margin:0 0 16px;max-width:36ch;text-wrap:balance}
+.cc-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px 22px}
+.cc-tile .l{font:600 13px/1.3 var(--sans);text-transform:uppercase;letter-spacing:.06em;color:var(--nmuted);margin:0}
+.cc-tile .v{font:600 clamp(30px,1.3rem + 1.4vw,42px)/1.15 var(--serif);margin:2px 0 0;font-variant-numeric:tabular-nums}
+.cc-tile .v .dn{color:var(--dlt)}.cc-tile .v .rn{color:var(--rlt)}.cc-tile .v .in{color:var(--ilt)}.cc-tile .v .sep{color:var(--nmuted);font-weight:400}
+.cc-tile .s{font:15px/1.4 var(--sans);color:var(--nmuted);margin:3px 0 0}
+.cc-tile .s b{color:#fff;font-weight:600}
+.cc-scen{font:17px/1.55 var(--sans);color:#e8edf5;margin:16px 0 0;padding-top:14px;border-top:1px solid rgba(255,255,255,.16)}
+.cc-bold{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:12px 0 0}
+.cc-card{background:var(--panel);border:1px solid var(--rule);border-left:4px solid var(--flag);border-radius:8px;padding:11px 15px}
+.cc-card h3{font:600 18px/1.3 var(--serif);margin:0 0 4px}
+.cc-card p{font:16px/1.5 var(--sans);color:var(--ink2);margin:0}
+.cc-sub{font:16.5px/1.5 var(--sans);color:var(--muted);margin:2px 0 10px}
+.cc-sub b{color:var(--ink);font-weight:600}
+.cc-fig{position:relative;background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:8px}
+.cc-fig svg{display:block;width:100%;height:auto;max-height:78vh}
+.cc-fig path.st,.cc-fig path.ds{stroke:#fff;stroke-width:.8;vector-effect:non-scaling-stroke}
+.cc-fig path.ds{stroke-width:.35}
+.cc-fig path.off{stroke:var(--flag);stroke-width:2.6}
+.cc-fig path.ds.off{stroke-width:1.6}
+.cc-fig path.stb{fill:none;stroke:#fff;stroke-width:1.1;vector-effect:non-scaling-stroke;pointer-events:none}
+.cc-zr{position:absolute;top:12px;right:12px;font:500 14px var(--sans);border:1px solid var(--rule);background:var(--panel);border-radius:6px;padding:3px 9px;cursor:pointer}
+.cc-leg{display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px;font:14.5px var(--sans);color:var(--muted);margin:8px 0 0;padding:0;list-style:none}
+.cc-leg li{display:flex;align-items:center;gap:3px;white-space:nowrap}
+.cc-leg i{display:inline-block;width:13px;height:13px;border-radius:2px}
+.cc-leg i.off{background:none;border:2.5px solid var(--flag);margin-right:3px}
+.tw{overflow-x:auto;margin:14px 0 0}
+.cc table{border-collapse:collapse;width:100%;font:15.5px/1.4 var(--sans);font-variant-numeric:tabular-nums}
+.cc th{text-align:left;font-weight:600;color:var(--muted);font-size:14px;border-bottom:1px solid var(--rule);padding:6px 10px 6px 0;white-space:nowrap}
+.cc td{border-bottom:1px solid var(--rule);padding:7px 10px 7px 0;vertical-align:top}
+.cc td.n,.cc th.n{text-align:right}
+.cc td.who{white-space:nowrap}
+.cc td.why{color:var(--ink2);min-width:18ch}
+.cc tr.off td:first-child{box-shadow:inset 4px 0 0 var(--flag);padding-left:10px}
+.cc .pt{display:inline-block;min-width:1.6em;text-align:center;border-radius:4px;color:#fff;font-weight:600;font-size:13.5px;padding:0 4px;margin-right:6px}
+.cc .pt.D{background:var(--d)}.cc .pt.R{background:var(--r)}.cc .pt.I{background:var(--i)}
+.cc .tag{font-size:13px;font-weight:600;color:#8a5a00;white-space:nowrap}
+.cc-more{font:500 15px var(--sans);border:1px solid var(--rule);background:var(--panel);border-radius:6px;padding:5px 12px;margin:10px 0 0;cursor:pointer}
+.cc-rcv{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin:14px 0 0}
+.cc-rcv .cc-card{border-left-color:var(--rule)}
+.cc-rcv .rd{font:14px/1.3 var(--sans);color:var(--muted);margin:8px 0 2px}
+.cc-rcv .bar{display:flex;height:22px;border-radius:4px;overflow:hidden}
+.cc-rcv .bar span{display:flex;align-items:center;justify-content:center;color:#fff;font:600 13px var(--sans);white-space:nowrap;overflow:hidden}
+.cc-rcv .names{display:flex;flex-wrap:wrap;gap:2px 12px;font:14.5px var(--sans);color:var(--ink2);margin:3px 0 0}
+.cc-about h3{font:600 18px/1.3 var(--serif);margin:20px 0 4px}
+.cc-about p{font:17px/1.6 var(--serif);margin:8px 0}
+#tip{position:fixed;display:none;pointer-events:none;z-index:20;background:#fff;border:1px solid var(--rule);border-radius:6px;padding:6px 9px;font:14.5px/1.4 var(--sans);box-shadow:0 2px 10px rgba(0,0,0,.14);max-width:280px}
+.mt-foot{margin-top:40px}
+.cc tr.whyr{display:none}
+.cc tr.whyr td{color:var(--ink2);font-size:14.5px;padding-top:0}
+@media(max-width:640px){.cc{padding:16px 16px 48px}.cc-band{padding:16px}.cc td.why,.cc th.why{display:none}.cc tr.whyr{display:table-row}.cc tr.hw td{border-bottom:0}.cc th,.cc td.who{white-space:normal}}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js" integrity="sha384-9dCJK6nh7skY14HrcvlLYlFga9/MehJjL9ONWRflmiXNRuf8p2jiF4Y5PR881PTq" crossorigin="anonymous"></script>
+<script src="/assets/site.js?v=6a624e5f1e" defer></script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
+</head><body>
+<!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div class="sh-col">
+              <div>
+                <h3>Model maps</h3>
+                <ul>
+                  <li><a href="/models.html"><span class="sh-t">North America, short range</span><span class="sh-d">HRRR, RRFS and RDPS: radar, snow, storms</span></a></li>
+                  <li><a href="/samerica-models.html"><span class="sh-t">South America, to day 10</span><span class="sh-d">IFS control and GDPS, with soundings</span></a></li>
+                  <li><a href="/ens-anomalies.html"><span class="sh-t">World ensembles, to day 15</span><span class="sh-d">Four ensembles: anomalies and regimes</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Days 1–15</h3>
+                <ul>
+                  <li><a href="/ar.html"><span class="sh-t">Atmospheric rivers</span><span class="sh-d">Moisture plumes, landfall and their odds</span></a></li>
+                  <li><a href="/circulation.html#dt"><span class="sh-t">Jet stream and tropopause</span><span class="sh-d">Tropopause, Pacific jet and wave trains</span></a></li>
+                  <li><a href="/circulation.html#telecon15"><span class="sh-t">Teleconnections</span><span class="sh-d">NAO, PNA, EPO and more, calibrated</span></a></li>
+                  <li><a href="/circulation.html#tc"><span class="sh-t">Tropical cyclones</span><span class="sh-d">Tracks and recurvature from 100 members</span></a></li>
+                  <li><a href="/recon.html"><span class="sh-t">Hurricane reconnaissance</span><span class="sh-d">Flights, dropsondes and vortex fixes</span></a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Tropics</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div class="sh-col">
+              <div>
+                <h3>ENSO and the MJO</h3>
+                <ul>
+                  <li><a href="/enso.html"><span class="sh-t">El Niño monitor</span><span class="sh-d">ONI, RONI, the subsurface and winds</span></a></li>
+                  <li><a href="/mjo.html"><span class="sh-t">MJO forecast</span><span class="sh-d">Four ensembles on one phase diagram</span></a></li>
+                  <li><a href="/tropical-waves.html"><span class="sh-t">Tropical waves</span><span class="sh-d">Kelvin and Rossby waves, now and ahead</span></a></li>
+                  <li><a href="/circulation.html#mslp"><span class="sh-t">Pacific pressure and satellite</span><span class="sh-d">Pressure, wind and simulated IR</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Circulation</h3>
+                <ul>
+                  <li><a href="/circulation.html#walker"><span class="sh-t">Walker and Hadley cells</span><span class="sh-d">The overturning, its outflow and descent</span></a></li>
+                  <li><a href="/circulation.html#jets"><span class="sh-t">Jets and angular momentum</span><span class="sh-d">Jet cores, momentum and torques</span></a></li>
+                  <li><a href="/circulation.html#rainfc"><span class="sh-t">Rain forecast, weeks 1–2</span><span class="sh-d">Four ensembles, bias-adjusted, blended</span></a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div class="sh-col">
+              <div>
+                <h3>Forecasts</h3>
+                <ul>
+                  <li><a href="/ssw.html"><span class="sh-t">SSW outlook</span><span class="sh-d">Is a sudden warming coming?</span></a></li>
+                  <li><a href="/stratosphere.html#vortex"><span class="sh-t">The next two weeks</span><span class="sh-d">The vortex, its waves and the surface</span></a></li>
+                  <li><a href="/stratosphere.html#vortex35"><span class="sh-t">Weeks 3–5 and the season</span><span class="sh-d">GEPS, GEFS, C3S and SEAS5</span></a></li>
+                  <li><a href="/strat-models.html"><span class="sh-t">Stratosphere model maps</span><span class="sh-d">Polar maps at every level, zoomable</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Analyses and history</h3>
+                <ul>
+                  <li><a href="/stratosphere.html#qbo"><span class="sh-t">The QBO and today's analyses</span><span class="sh-d">QBO, momentum and the Brewer–Dobson</span></a></li>
+                  <li><a href="/stratosphere.html#shwinters"><span class="sh-t">History and studies</span><span class="sh-d">Every winter and warming since 1980</span></a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div class="sh-col">
+              <div>
+                <h3>Extended range</h3>
+                <ul>
+                  <li><a href="/subseasonal.html"><span class="sh-t">GEPS, to day 35</span><span class="sh-d">Canada's extended ensemble</span></a></li>
+                  <li><a href="/gefs.html"><span class="sh-t">GEFS, to day 35</span><span class="sh-d">NOAA's extended ensemble</span></a></li>
+                  <li><a href="/sfs-subseasonal.html"><span class="sh-t">SFS, to six weeks</span><span class="sh-d">NOAA's experimental new system</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Months and seasons</h3>
+                <ul>
+                  <li><a href="/monthly-outlook.html"><span class="sh-t">Claude's long-range forecast</span><span class="sh-d">The month and three seasons ahead</span></a></li>
+                  <li><a href="/seasonal.html"><span class="sh-t">Seasonal model forecasts</span><span class="sh-d">Seven C3S systems and NOAA's SFS</span></a></li>
+                  <li><a href="/enso-forecasts.html"><span class="sh-t">ENSO forecasts</span><span class="sh-d">Niño-3.4 from five centres</span></a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4">Studies and tools</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div class="sh-col">
+              <div>
+                <h3>Studies</h3>
+                <ul>
+                  <li><a href="/enso.html#imp_reg"><span class="sh-t">ENSO impacts on the Americas</span><span class="sh-d">CMIP6 and the observed record</span></a></li>
+                  <li><a href="/mjo.html#mi"><span class="sh-t">MJO impacts</span><span class="sh-d">Each phase, season by season</span></a></li>
+                  <li><a href="/aifs-aam-budget.html"><span class="sh-t">AI models and conservation laws</span><span class="sh-d">Does the AIFS keep the budgets?</span></a></li>
+                  <li><a href="/torque-enso.html"><span class="sh-t">El Niño and angular momentum</span><span class="sh-d">Why the atmosphere spins up</span></a></li>
+                  <li><a href="/topics/"><span class="sh-t">Explainers</span><span class="sh-d">The physics behind the products</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Verification</h3>
+                <ul>
+                  <li><a href="/verification.html"><span class="sh-t">Global models against observations</span><span class="sh-d">Scorecards, maps and the database</span></a></li>
+                  <li><a href="/aifs-verify.html"><span class="sh-t">AIFS single versus ensemble control</span><span class="sh-d">Two AIFS configurations compared</span></a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tools</h3>
+                <ul>
+                  <li><a href="/catalog.html"><span class="sh-t">Every plot on the site</span><span class="sh-d">Search and filter every figure</span></a></li>
+                  <li><a href="/skewt/"><span class="sh-t">Sounding explorer</span><span class="sh-d">Radiosondes worldwide, live</span></a></li>
+                  <li><a href="/asos5.html"><span class="sh-t">Five-minute airport observations</span><span class="sh-d">22 major US airports, live</span></a></li>
+                  <li><a href="/climate.html"><span class="sh-t">US climate trends</span><span class="sh-d">Every county and month since 1895</span></a></li>
+                  <li><a href="/fci.html"><span class="sh-t">US credit conditions</span><span class="sh-d">Financial conditions, weekly since 1990</span></a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/" aria-current="page">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main class="cc" id="main">
+<h1>Claude&rsquo;s call</h1>
+<nav class="mt-nav" aria-label="Forecast pages"><a href="./">Forecast</a><a href="polls.html">Every poll and its weight</a><a href="about.html">How it works</a><a href="whatif.html">What if? Test the assumptions</a><a href="legislatures.html">State legislatures</a><a href="early-vote.html">Early vote</a><a href="call.html" aria-current="page">Claude&rsquo;s call</a></nav>
+<p class="mt-lede">One election night, called race by race: a single prediction made the morning of November 3, not the forecast&rsquo;s odds.</p>
+<p class="mt-stamp" id="stamp">Loading&hellip;</p>
+
+<section class="cc-band" aria-label="The call in numbers">
+ <p class="cc-head" id="headline"></p>
+ <div class="cc-tiles" id="tiles"></div>
+ <p class="cc-scen" id="scenario"></p>
+</section>
+
+<h2 id="bold">The bold calls</h2>
+<div class="cc-bold" id="boldcards"></div>
+
+<h2 id="senate">Senate</h2>
+<p class="cc-sub" id="senSub"></p>
+<div class="cc-fig"><svg id="smap" viewBox="0 0 960 600" role="img" aria-label="Map of Claude's Senate calls"></svg></div>
+<ul class="cc-leg" id="senLeg"></ul>
+<div class="cc-rcv" id="rcv"></div>
+<div class="tw"><table id="senTab"></table></div>
+
+<h2 id="house">House</h2>
+<p class="cc-sub" id="houseSub"></p>
+<div class="cc-fig"><svg id="hmap" viewBox="0 0 960 600" role="img" aria-label="Map of Claude's House calls by district"></svg><button class="cc-zr" id="zreset" type="button" hidden>Reset zoom</button></div>
+<ul class="cc-leg" id="houseLeg"></ul>
+<div class="tw"><table id="houseTab"></table></div>
+<button class="cc-more" id="houseMore" type="button" hidden></button>
+
+<h2 id="governors">Governors</h2>
+<p class="cc-sub" id="govSub"></p>
+<div class="cc-fig"><svg id="gmap" viewBox="0 0 960 600" role="img" aria-label="Map of Claude's governor calls"></svg></div>
+<ul class="cc-leg" id="govLeg"></ul>
+<div class="tw"><table id="govTab"></table></div>
+
+<section class="cc-about" aria-labelledby="about">
+<h2 id="about">About Claude&rsquo;s call</h2>
+<p>The forecast on this site gives every race, and each chamber, a probability. Only one election actually happens. Claude&rsquo;s call is that one election, named in advance: a winner and a margin in every race, so the seat counts above are what the call adds up to.</p>
+<h3>Why it is not just the favourite in every race</h3>
+<p>Picking the forecast&rsquo;s favourite everywhere gives a map no single election night produces. Polling errors move races together: if a party underperforms its polls in one state, it usually underperforms them in its neighbours too. So the call starts from one national picture, the size and direction of the overall polling miss and the national House vote, and calls each race inside that picture. A night that is a point worse for Democrats than their polls flips the close races that lean their way together, not a scattering of them at random. Races called against the forecast&rsquo;s favourite are outlined in amber on the maps and marked in the tables.</p>
+<h3>What it is built from</h3>
+<p>The forecast&rsquo;s final run is the starting point: its odds and margins for every race, at the national vote it expected. On top of that is judgement the forecast does not encode: how the final polls compare with how pollsters missed in recent elections, late movement, and what the early vote does and does not tell us. The reason for each call that leaves the forecast is given beside it. The margins are the call&rsquo;s point estimates; the forecast&rsquo;s chance for each called winner shows how likely the forecast thought that outcome was.</p>
+<h3>When it was made</h3>
+<p>The call was made once, on the morning of November 3, 2026, against that morning&rsquo;s forecast, and is not updated during the count. It is Claude&rsquo;s own call, made by Anthropic&rsquo;s Claude for this site; it is not a projection of results. In Maine and Alaska, where the count runs ranked-choice rounds, the call names the winner after the final round, and Alaska&rsquo;s count is not complete until about November 18.</p>
+</section>
+
+<footer class="mt-foot"><nav class="mt-nav" aria-label="Forecast pages"><a href="./">Forecast</a><a href="polls.html">Every poll and its weight</a><a href="about.html">How it works</a><a href="whatif.html">What if? Test the assumptions</a><a href="legislatures.html">State legislatures</a><a href="early-vote.html">Early vote</a><a href="call.html" aria-current="page">Claude&rsquo;s call</a></nav></footer>
+</main>
+<div id="tip" role="tooltip"></div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+const NAMES={AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',DE:'Delaware',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming'};
+const PARTY={D:'Democrats',R:'Republicans',I:'Independents'};
+// map shades by the called margin: under 3 points, 3 to 10, 10 or more
+const SHADE={D:['#a9c6ef','#5b8fdc','#1f5fbf'],R:['#f0b1a6','#d9604f','#b3261e'],I:['#d5bdf2','#9a6fcf','#6b3fa0']},NONE='#ebe9e4';
+const shade=r=>SHADE[r.call][Math.abs(r.margin)<3?0:Math.abs(r.margin)<10?1:2];
+const mg=r=>`+${Math.abs(r.margin).toFixed(1)}`;
+const pc=v=>v<.005?'<1%':v>.995?'>99%':`${Math.round(100*v)}%`;
+// the forecast's favourite: the Democrat or independent at P >= 0.5, else the Republican; pWin = its chance for the called winner
+const fav=r=>r.p>=.5?(r.dem_party||'D'):'R',off=r=>r.call!==fav(r),pWin=r=>r.call==='R'?1-r.p:r.p;
+const winner=r=>r.call==='R'?r.rep:r.dem;
+const who=r=>`<span class="pt ${r.call}">${r.call}</span>${esc(winner(r)||PARTY[r.call].replace(/s$/,''))}`;
+const fmtE=v=>Math.abs(v)<.05?'Even':(v>0?'D+':'R+')+Math.abs(v).toFixed(1);
+function tipAt(e,html){const t=$('#tip');t.innerHTML=html;t.style.display='block';const w=t.offsetWidth,h=t.offsetHeight;
+ t.style.left=Math.min(e.clientX+14,innerWidth-w-8)+'px';t.style.top=(e.clientY+h+20>innerHeight?e.clientY-h-12:e.clientY+16)+'px'}
+const untip=()=>{$('#tip').style.display='none'};
+function count(races,base){const n={D:base?.D||0,R:base?.R||0,I:base?.I||0};races.forEach(r=>n[r.call]++);return n}
+function seats(n){return `<span class="dn">${n.D}</span><span class="sep">&ndash;</span><span class="rn">${n.R}</span>${n.I?`<span class="sep"> &middot; </span><span class="in">${n.I} I</span>`:''}`}
+function legend(sel,races){const has=k=>races.some(r=>r.call===k);
+ const items=['D','R','I'].filter(has).map(k=>`<li><i style="background:${SHADE[k][2]}"></i><i style="background:${SHADE[k][1]}"></i><i style="background:${SHADE[k][0]}"></i>&nbsp;${PARTY[k]}</li>`);
+ $(sel).innerHTML=items.join('')+'<li>darker: wider called margin (10+, 3&ndash;10, under 3 points)</li><li><i class="off"></i>called against the forecast&rsquo;s favourite</li>'}
+function table(sel,races,label,opts={}){
+ // on a phone the reason drops to a full-width row under its race (the Why column is hidden there)
+ const rows=races.map(r=>`<tr class="${off(r)?'off':''}${opts.why&&r.why?' hw':''}"><td>${label(r)}${off(r)?'<br><span class="tag">against the forecast</span>':''}</td><td class="who">${who(r)}</td><td class="n">${mg(r)}</td><td class="n">${pc(pWin(r))}</td>${opts.why?`<td class="why">${esc(r.why||'')}</td>`:''}</tr>${opts.why&&r.why?`<tr class="whyr${off(r)?' off':''}"><td colspan="4">${esc(r.why)}</td></tr>`:''}`).join('');
+ $(sel).innerHTML=`<thead><tr><th>Race</th><th>Claude&rsquo;s call</th><th class="n">Margin</th><th class="n">Forecast&rsquo;s chance</th>${opts.why?'<th class="why">Why</th>':''}</tr></thead><tbody>${rows}</tbody>`}
+const byClose=(a,b)=>Math.abs(a.margin)-Math.abs(b.margin);
+function rcv(list){$('#rcv').innerHTML=(list||[]).map(c=>`<div class="cc-card"><h3>${esc(c.race)}: ranked-choice rounds</h3>${c.rounds.map(rd=>{const tot=d3.sum(rd.cands,x=>x[2]);
+ return `<p class="rd">${esc(rd.label)}</p><div class="bar">${rd.cands.map(([n,p,v])=>`<span style="width:${100*v/tot}%;background:${p?SHADE[p][p==='I'?1:2]:'#8a8f98'}" title="${esc(n)} ${v.toFixed(1)}%">${v>=12?v.toFixed(1):''}</span>`).join('')}</div><p class="names">${rd.cands.map(([n,p,v])=>`<span>${esc(n)}${p?` (${p})`:''} ${v.toFixed(1)}</span>`).join('')}</p>`}).join('')}${c.note?`<p style="margin-top:8px">${esc(c.note)}</p>`:''}</div>`).join('')}
+function stateMap(sel,races,path,STATES,kind){const by=Object.fromEntries(races.map(r=>[r.state,r]));
+ d3.select(sel).selectAll('path.st').data(STATES).join('path').attr('class',d=>'st'+(by[d.st]&&off(by[d.st])?' off':'')).attr('d',d=>path(d.f))
+  .attr('fill',d=>by[d.st]?shade(by[d.st]):NONE)
+  .on('mousemove',(e,d)=>{const r=by[d.st];tipAt(e,r?`<b>${esc(NAMES[d.st]||d.st)}</b>${r.special?' (special)':''}<br>${who(r)} ${mg(r)}<br>Forecast&rsquo;s chance: ${pc(pWin(r))}`:`<b>${esc(NAMES[d.st]||d.st)}</b><br>No ${kind} race`)})
+  .on('mouseleave',untip);
+ d3.select(sel).selectAll('path.off').raise()}
+function tipping(sec,key){const r=sec.races.find(x=>x.key===key);return r?`${esc(r.label)}, ${who(r)} ${mg(r)}`:esc(key)}
+function sub(sec,n,word){const nOff=sec.races.filter(off).length;
+ return `${seats(n).replace(/class="(dn|rn|in)"/g,'')} &middot; ${nOff} call${nOff===1?'':'s'} against the forecast&rsquo;s favourite${sec.tipping?` &middot; tipping point: <b>${tipping(sec,sec.tipping)}</b>`:''}${word?` &middot; ${word}`:''}`}
+
+Promise.all([fetch('data/claudes_call.json').then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}),fetch('data/districts_2026.topo.json').then(r=>r.json())]).then(([C,topo])=>{
+ const made=new Date(C.made);
+ $('#stamp').textContent=`Called ${made.toLocaleString('en-US',{weekday:'long',month:'long',day:'numeric',hour:'numeric',minute:'2-digit',timeZone:'America/New_York',timeZoneName:'short'})}, against the forecast run of ${C.forecast.generated}.`;
+ $('#headline').textContent=C.headline;$('#scenario').textContent=C.scenario;
+ const S=C.senate,H=C.house,G=C.governor,ns=count(S.races,S.not_up),nh=count(H.races),ng=count(G.races,G.not_up);
+ // the Republican vice president breaks a tie; independents who win count as siding with neither party
+ const sCtrl=ns.D>ns.R+ns.I?'Democrats control the Senate':ns.R>=ns.D+ns.I?'Republicans control the Senate':'independents decide the Senate';
+ const hCtrl=nh.D>=218?'Democrats win the House':nh.R>=218?'Republicans hold the House':'no House majority';
+ $('#tiles').innerHTML=[
+  ['Senate',seats(ns),`${sCtrl}. Forecast: Democrats ${pc(S.forecast_p)}, <b>${S.forecast_mean.toFixed(1)}</b> seats on average`],
+  ['House',seats(nh),`${hCtrl}. Forecast: Democrats ${pc(H.forecast_p)}, <b>${H.forecast_mean.toFixed(1)}</b> seats on average`],
+  ['Governors',seats(ng),`After the 36 races. Forecast: <b>${G.forecast_mean.toFixed(1)}</b> Democratic governors on average`],
+  ['National House vote',`<span class="${C.national.call>=0?'dn':'rn'}">${fmtE(C.national.call)}</span>`,`Forecast: <b>${fmtE(C.national.forecast)}</b>`]
+ ].map(([l,v,s])=>`<div class="cc-tile"><p class="l">${l}</p><p class="v">${v}</p><p class="s">${s}</p></div>`).join('');
+ $('#boldcards').innerHTML=C.bold.map(b=>`<div class="cc-card"><h3>${esc(b.title)}</h3><p>${esc(b.why)}</p></div>`).join('');
+ $('#senSub').innerHTML=sub(S,ns,`${S.not_up.D+S.not_up.R+(S.not_up.I||0)} seats not up this year`);
+ $('#govSub').innerHTML=sub(G,ng);
+ $('#houseSub').innerHTML=sub(H,nh,'218 for a majority');
+ const obj=topo.objects[Object.keys(topo.objects)[0]],fc=topojson.feature(topo,obj);
+ const path=d3.geoPath(d3.geoAlbersUsa().fitSize([960,600],fc));
+ const groups={};obj.geometries.forEach(gm=>{const k=gm.properties.seat.split('-')[0];(groups[k]=groups[k]||[]).push(gm)});
+ const STATES=Object.entries(groups).map(([st,gs])=>({st,f:topojson.merge(topo,gs)}));
+ stateMap('#smap',S.races,path,STATES,'Senate');stateMap('#gmap',G.races,path,STATES,'governor');
+ legend('#senLeg',S.races);legend('#govLeg',G.races);legend('#houseLeg',H.races);
+ const lab=r=>esc(r.label)+(r.special?' <span style="color:var(--muted)">(special)</span>':'');
+ table('#senTab',[...S.races].sort(byClose),lab,{why:true});table('#govTab',[...G.races].sort(byClose),lab,{why:true});
+ rcv(C.rcv);
+ // House: every seat on the map; the table opens on the seats that could plausibly go either way, the rest a click away
+ const bySeat=Object.fromEntries(H.races.map(r=>[r.key,r]));
+ const svg=d3.select('#hmap'),g=svg.append('g');
+ g.selectAll('path.ds').data(fc.features).join('path').attr('class',f=>'ds'+(bySeat[f.properties.seat]&&off(bySeat[f.properties.seat])?' off':'')).attr('d',path)
+  .attr('fill',f=>bySeat[f.properties.seat]?shade(bySeat[f.properties.seat]):NONE)
+  .on('mousemove',(e,f)=>{const r=bySeat[f.properties.seat];if(r)tipAt(e,`<b>${esc(r.key)}</b>${r.member?` &middot; ${esc(r.member)}`:''}<br>${who(r)} ${mg(r)}<br>Forecast&rsquo;s chance: ${pc(pWin(r))}`)}).on('mouseleave',untip);
+ g.selectAll('path.off').raise();
+ const st=f=>f.properties.seat.split('-')[0];
+ g.append('path').attr('class','stb').attr('d',path(topojson.mesh(topo,obj,(a,b)=>a===b||st(a)!==st(b))));
+ const zoom=d3.zoom().scaleExtent([1,24]).translateExtent([[0,0],[960,600]]).on('zoom',e=>{g.attr('transform',e.transform);$('#zreset').hidden=e.transform.k<1.001});
+ svg.call(zoom);$('#zreset').addEventListener('click',()=>svg.transition().duration(400).call(zoom.transform,d3.zoomIdentity));
+ const key=r=>off(r)||r.why||(r.p>.1&&r.p<.9);
+ const hl=r=>`${esc(r.key)}${r.member?`<br><span style="color:var(--muted)">${esc(r.member)}</span>`:''}`;
+ const all=[...H.races].sort(byClose),few=all.filter(key);let open=false;
+ const drawH=()=>{table('#houseTab',open?all:few,hl,{why:true});$('#houseMore').textContent=open?`Show only the ${few.length} competitive seats`:`Show all ${all.length} seats`};
+ $('#houseMore').hidden=false;$('#houseMore').addEventListener('click',()=>{open=!open;drawH()});drawH();
+}).catch(e=>{console.error(e);$('#stamp').textContent='The call is made on the morning of November 3, 2026.'});
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+</body></html>
