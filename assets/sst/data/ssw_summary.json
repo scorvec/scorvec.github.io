@@ -1,5 +1,5 @@
 {
- "built": "2026-11-02 19:08Z",
+ "built": "2026-11-02 19:51Z",
  "newest_init": "2026-11-02 12Z",
  "window": [
   "2026-11-03",
@@ -1596,9 +1596,9 @@
     "kind": "bottom-up"
    },
    "hres": {
-    "init": "2026-11-02 00Z",
+    "init": "2026-11-02 12Z",
     "members": 1,
-    "cap100_day15": 0.3,
+    "cap100_day15": 1.1,
     "cap10_day15": 2.3,
     "frac100_day15": null,
     "cross100": "2026-10-27",
@@ -1647,14 +1647,14 @@
  "surface": {
   "models": {
    "aifs": {
-    "init": "2026-11-02 00Z",
-    "p_positive": 0.75,
+    "init": "2026-11-02 12Z",
+    "p_positive": 0.72,
     "base_rate": 0.5,
     "window": [
      "2026-11-18",
      "2026-12-17"
     ],
-    "cap100_day15": 1.3,
+    "cap100_day15": 1.1,
     "frac100_day15": 0.59
    },
    "ifs": {
@@ -1740,7 +1740,7 @@
     "random_p": 0.0005
    }
   },
-  "p_positive_mean": 0.77,
+  "p_positive_mean": 0.76,
   "cap100_day15_mean": 1.4,
   "regime": "cap_1sd"
  },
