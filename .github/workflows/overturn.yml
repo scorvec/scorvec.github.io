@@ -160,7 +160,7 @@ jobs:
           gh release download overturn-ref-v1 -R "$GITHUB_REPOSITORY" -p overturn_ref.npz -p overturn_rf_drift.npz \
             -D scripts/mjo/data/reference --clobber
           scripts/lib/fetch_frames_ci.sh assets/sst/anim/overturn_hist || echo "::warning::no analysis archive on the frames branch yet"
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         if: needs.which.outputs.fc_overturn == 'true'
         with:
           pattern: hadley-members-*
@@ -242,7 +242,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install -r scripts/mjo/requirements-mjo.txt
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: hadley-members-*
           path: runs
