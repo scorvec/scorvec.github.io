@@ -452,7 +452,10 @@ TABS = {
 }
 
 # The link the synced midterms pages' navigation gains (both copies on a page: the top one and the footer's).
-MT_CALL = ("Early vote</a></nav>", 'Early vote</a><a href="call.html">Claude&rsquo;s call</a></nav>')
+MT_CALL = (
+    "Early vote</a></nav>",
+    'Early vote</a><a href="call.html">Claude&rsquo;s call</a><a href="live.html">Live results</a></nav>',
+)  # ... and the election-night page, live.html
 
 # ── pages ────────────────────────────────────────────────────────────────────
 # mode:
@@ -591,6 +594,9 @@ PAGES = [
     dict(
         path="midterms/call.html", mode="after-body", footer=True
     ),  # Claude's call: one deterministic election night (the site's own page; data/claudes_call.json, written once)
+    dict(
+        path="midterms/live.html", mode="after-body", footer=True
+    ),  # election night: the forecast reweighted by partial counts and AP calls (data/live/, scripts/midterms_live/live.js)
     # the 404 body is a centring flexbox: stack it so the header spans the top and the message centres below
     dict(
         path="404.html",
