@@ -1,0 +1,285 @@
+<meta name="dash-one-writer">
+<style>
+  .en { --dem: #3a6fd8; --rep: #d4483f; font-family: var(--font-anthropic-sans); display: grid; gap: var(--cds-gap-lg); }
+  .en h1 { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; }
+  .en h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; }
+  .en .lede { color: var(--color-fg-muted); margin: var(--cds-gap-xs) 0 0; max-width: 70ch; }
+  .en .lede b, .en .tile b { font-weight: 600; }
+  .en .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: var(--cds-gap-md); }
+  .en .tile, .en .card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); min-width: 0; }
+  .en .tile { display: grid; gap: var(--cds-gap-xs); align-content: start; }
+  .en .tile .lab { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); letter-spacing: .02em; }
+  .en .tile .big { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .en .tile .sub { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+  .en .card { display: grid; gap: var(--cds-gap-sm); }
+  .en .note { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin: 0; max-width: 75ch; }
+  .en .d { color: var(--dem); } .en .r { color: var(--rep); }
+  .en .chart { position: relative; min-height: 260px; }
+  .en .tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); white-space: nowrap; }
+  .en .tip .t { color: var(--cds-text-secondary); }
+  .en .tip i { display: inline-block; width: .6rem; height: .6rem; border-radius: 2px; margin-right: .35rem; vertical-align: baseline; }
+  .en .controls { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm); align-items: center; }
+  .en .controls button { font: inherit; font-size: var(--cds-font-size-caption); padding: .25rem .7rem; border-radius: 999px; border: 1px solid var(--color-border-line); background: transparent; color: var(--color-fg); cursor: pointer; }
+  .en .controls button[aria-pressed="true"] { background: var(--color-fg); color: var(--color-bg); border-color: var(--color-fg); }
+  .en .controls button:focus-visible, .en .controls input:focus-visible { outline: 2px solid var(--dem); outline-offset: 2px; }
+  .en .controls input { font: inherit; font-size: var(--cds-font-size-caption); padding: .3rem .6rem; border-radius: var(--cds-radius); border: 1px solid var(--color-border-line); background: var(--color-bg); color: var(--color-fg); min-width: 0; flex: 1 1 10rem; max-width: 16rem; }
+  .en .tbox { overflow: auto; max-height: 30rem; }
+  .en table { border-collapse: collapse; width: 100%; font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+  .en th { position: sticky; top: 0; background: var(--color-panel); text-align: left; font-weight: var(--cds-font-weight-medium); color: var(--color-fg-muted); padding: .4rem .5rem; border-bottom: 1px solid var(--color-border-line); white-space: nowrap; }
+  .en td { padding: .4rem .5rem; border-bottom: 1px solid var(--color-border-line); white-space: nowrap; }
+  .en td.num, .en th.num { text-align: right; }
+  .en .pill { display: inline-block; padding: 0 .45rem; border-radius: 999px; font-size: .75em; font-weight: 600; color: #fff; }
+  .en .pill.pd { background: var(--dem); } .en .pill.pr { background: var(--rep); }
+  .en .bar { display: inline-block; height: .5rem; border-radius: 2px; vertical-align: middle; margin-left: .35rem; }
+  .en .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: var(--cds-gap-md); }
+  .en .hide-narrow { }
+  @media (max-width: 560px) { .en .hide-narrow { display: none; } }
+  .en [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+  .en [data-dash-source-state=empty] { color: transparent; }
+  .en .fail { display: flex; align-items: center; justify-content: center; gap: .4rem; min-height: inherit; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+  .en .fail::before { content: ""; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
+</style>
+
+<div class="en">
+  <header>
+    <h1 id="top">Midterms election night</h1>
+    <p class="lede">The published forecast, updated live from partial counts and AP calls. Democrats' House odds are <b data-draw="t-house" data-source="latest" data-field="house_p" data-row="0">—</b>, <span data-draw="t-hdir" data-source="latest" data-field="d_house_p" data-row="0">—</span> since the final forecast; Senate odds are <b data-draw="t-senate" data-source="latest" data-field="senate_p" data-row="0">—</b>. Last model run <span data-draw="t-at" data-source="latest" data-field="at" data-row="0">—</span>.</p>
+  </header>
+
+  <section class="tiles" aria-label="Headline odds">
+    <div class="tile">
+      <span class="lab">House: chance Democrats win control</span>
+      <span class="big d" data-draw="hp" data-source="latest" data-field="house_p" data-row="0">—</span>
+      <span class="sub">Final forecast <span data-draw="hp0" data-source="latest" data-field="house_p_pub" data-row="0">—</span> · change <span data-draw="hpd" data-source="latest" data-field="d_house_p" data-row="0">—</span></span>
+    </div>
+    <div class="tile">
+      <span class="lab">Senate: chance Democrats win control</span>
+      <span class="big d" data-draw="sp" data-source="latest" data-field="senate_p" data-row="0">—</span>
+      <span class="sub">Final forecast <span data-draw="sp0" data-source="latest" data-field="senate_p_pub" data-row="0">—</span> · change <span data-draw="spd" data-source="latest" data-field="d_senate_p" data-row="0">—</span></span>
+    </div>
+    <div class="tile">
+      <span class="lab">National environment (House vote margin)</span>
+      <span class="big" data-draw="nat" data-source="latest" data-field="nat" data-row="0">—</span>
+      <span class="sub">Final forecast <span data-draw="nat0" data-source="latest" data-field="nat_pub" data-row="0">—</span></span>
+    </div>
+    <div class="tile">
+      <span class="lab">Expected Democratic House seats</span>
+      <span class="big" data-draw="hs" data-source="latest" data-field="house_mean" data-row="0">—</span>
+      <span class="sub">80% range <span data-draw="hs10" data-source="latest" data-field="house_p10" data-row="0">—</span>–<span data-draw="hs90" data-source="latest" data-field="house_p90" data-row="0">—</span> · 218 for a majority</span>
+    </div>
+  </section>
+
+  <section class="card" id="odds-over-time">
+    <h2>Odds through the night</h2>
+    <p class="note">Chance Democrats win each chamber, at the final forecast (17:04 UTC) and after each model run. The dashed line is 50%.</p>
+    <div class="chart" data-draw="oddschart" data-source="odds"></div>
+  </section>
+
+  <section class="card" id="races">
+    <h2>Races the results have moved</h2>
+    <p class="note">Every Senate race plus competitive House and governor races, largest change first. "So far" is the current count (Democratic margin and share of the expected vote counted). Early batches are often mostly mail or early ballots, so a lopsided count with little in moves the odds only a little.</p>
+    <div class="controls">
+      <button type="button" class="kind" data-kind="" aria-pressed="true">All</button>
+      <button type="button" class="kind" data-kind="Senate" aria-pressed="false">Senate</button>
+      <button type="button" class="kind" data-kind="House" aria-pressed="false">House</button>
+      <button type="button" class="kind" data-kind="Governor" aria-pressed="false">Governor</button>
+      <input id="race-search" type="search" placeholder="Search races or candidates" aria-label="Search races or candidates">
+    </div>
+    <div class="tbox">
+      <table data-source="races race_view" data-row-key="race">
+        <thead><tr>
+          <th data-field="label">Race</th>
+          <th data-field="dem" class="hide-narrow">Democrat</th>
+          <th data-field="rep" class="hide-narrow">Republican</th>
+          <th data-source="race_view" data-field="so_far">So far</th>
+          <th data-field="model_p" class="num">Final forecast</th>
+          <th data-field="now_p" class="num">Now</th>
+          <th data-source="race_view" data-field="change" class="num">Change</th>
+        </tr></thead>
+        <tbody data-draw="moves"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <h2 id="florida">Florida</h2>
+  <section class="tiles" aria-label="Florida turnout">
+    <div class="tile">
+      <span class="lab">Ballots cast</span>
+      <span class="big" data-draw="fl-total" data-source="fl_turnout" data-field="total" data-row="0">—</span>
+      <span class="sub"><span data-draw="fl-tpct" data-source="fl_turnout" data-field="registered" data-row="0">—</span> of registered voters</span>
+    </div>
+    <div class="tile">
+      <span class="lab">Republican lead in ballots cast</span>
+      <span class="big r" data-draw="fl-lead" data-source="fl_turnout" data-field="gop_lead" data-row="0">—</span>
+      <span class="sub">By party registration, not votes</span>
+    </div>
+    <div class="tile">
+      <span class="lab">Turnout by party</span>
+      <span class="sub">Republicans <b data-draw="fl-rp" data-source="fl_turnout" data-field="rep_pct" data-row="0">—</b> · Democrats <b data-draw="fl-dp" data-source="fl_turnout" data-field="dem_pct" data-row="0">—</b> · Other <b data-draw="fl-op" data-source="fl_turnout" data-field="oth_pct" data-row="0">—</b></span>
+      <span class="sub">As of <span data-draw="fl-at" data-source="fl_turnout" data-field="at" data-row="0">—</span></span>
+    </div>
+    <div class="tile">
+      <span class="lab">Election Day ballots</span>
+      <span class="big" data-draw="fl-ed" data-source="fl_turnout" data-field="eday_total" data-row="0">—</span>
+      <span class="sub">R <span data-draw="fl-edr" data-source="fl_turnout" data-field="eday_rep" data-row="0">—</span> · D <span data-draw="fl-edd" data-source="fl_turnout" data-field="eday_dem" data-row="0">—</span></span>
+    </div>
+  </section>
+  <section class="card">
+    <h2>Florida races</h2>
+    <p class="note">Governor (Donalds v. Jolly), the Senate special (Moody v. Nixon) and all 28 House seats. The state posts its first counts at 8 PM ET.</p>
+    <div class="tbox">
+      <table data-source="races race_view" data-row-key="race">
+        <thead><tr>
+          <th data-field="label">Race</th>
+          <th data-field="dem" class="hide-narrow">Democrat</th>
+          <th data-field="rep" class="hide-narrow">Republican</th>
+          <th data-source="race_view" data-field="so_far">So far</th>
+          <th data-field="model_p" class="num">Final forecast</th>
+          <th data-field="now_p" class="num">Now</th>
+        </tr></thead>
+        <tbody data-draw="fl-races"></tbody>
+      </table>
+    </div>
+  </section>
+  <p class="note">Method: the forecast's 20,000 simulations are reweighted by how closely each matches the counts so far. A count's weight grows with the share of the vote in, and results move every race through the model's shared national, state and group swings. Shares of 0–1 are shown as percentages; margins are Democratic minus Republican points.</p>
+</div>
+
+<script>
+  dash.calc('latest', {
+    title: 'Latest run vs final forecast',
+    description: 'The newest model run beside the final pre-election forecast (the first row), with the change in each chamber.',
+    inputs: ['odds'],
+    fn: (odds) => {
+      if (!odds.length) return [];
+      const a = odds[0], b = odds[odds.length - 1];
+      return [{ at: b.at, house_p: +b.house_p, senate_p: +b.senate_p, nat: +b.nat, house_mean: +b.house_mean, house_p10: +b.house_p10, house_p90: +b.house_p90,
+        house_p_pub: +a.house_p, senate_p_pub: +a.senate_p, nat_pub: +a.nat, d_house_p: b.house_p - a.house_p, d_senate_p: b.senate_p - a.senate_p }];
+    }
+  });
+  dash.calc('race_view', {
+    title: 'Race count and change',
+    description: 'For each race: the current count as a Democratic margin with the share counted, and the change in the Democratic win chance since the final forecast.',
+    inputs: ['races'],
+    fn: (races) => races.map((r) => ({
+      race: r.race,
+      so_far: r.call ? 'Called ' + r.call : (r.pct_in == null ? '' : ((r.d_share - r.r_share) >= 0 ? 'D+' : 'R+') + Math.abs(r.d_share - r.r_share).toFixed(1) + ' at ' + r.pct_in + '%'),
+      change: r.now_p - r.model_p
+    }))
+  });
+  window.EN = { kind: '', q: '' };
+</script>
+
+<script>
+  const pct = (x) => (x == null || isNaN(x) ? '—' : (x < 0.001 ? '<0.1%' : x > 0.999 ? '>99.9%' : (100 * x).toFixed(1) + '%'));
+  const pts = (x) => (x == null || isNaN(x) ? '—' : (x >= 0 ? 'D+' : 'R+') + Math.abs(x).toFixed(1));
+  const sgn = (x) => (x == null || isNaN(x) ? '—' : (x >= 0 ? '+' : '−') + Math.abs(100 * x).toFixed(1) + ' pts');
+  const n0 = d3.format(',');
+  const when = (s) => { const d = new Date(s); return isNaN(d) ? s : d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET'; };
+  const one = (id) => { const d = dash.data(id); return d.status === 'ok' && d.data.length ? d.data[0] : null; };
+  const val = (name, id, f) => dash.draw(name, (el) => { const r = one(id); el.textContent = r ? f(r) : '—'; });
+  val('t-house', 'latest', (r) => pct(r.house_p));
+  val('t-senate', 'latest', (r) => pct(r.senate_p));
+  val('t-hdir', 'latest', (r) => Math.abs(r.d_house_p) < 0.0005 ? 'unchanged' : (r.d_house_p > 0 ? 'up ' : 'down ') + Math.abs(100 * r.d_house_p).toFixed(1) + ' points');
+  val('t-at', 'latest', (r) => when(r.at));
+  val('hp', 'latest', (r) => pct(r.house_p)); val('hp0', 'latest', (r) => pct(r.house_p_pub)); val('hpd', 'latest', (r) => sgn(r.d_house_p));
+  val('sp', 'latest', (r) => pct(r.senate_p)); val('sp0', 'latest', (r) => pct(r.senate_p_pub)); val('spd', 'latest', (r) => sgn(r.d_senate_p));
+  val('nat', 'latest', (r) => pts(r.nat)); val('nat0', 'latest', (r) => pts(r.nat_pub));
+  val('hs', 'latest', (r) => (+r.house_mean).toFixed(0)); val('hs10', 'latest', (r) => r.house_p10); val('hs90', 'latest', (r) => r.house_p90);
+  val('fl-total', 'fl_turnout', (r) => n0(+r.total)); val('fl-tpct', 'fl_turnout', (r) => (100 * r.total / r.registered).toFixed(1) + '%');
+  val('fl-lead', 'fl_turnout', (r) => n0(+r.gop_lead)); val('fl-at', 'fl_turnout', (r) => when(r.at));
+  val('fl-rp', 'fl_turnout', (r) => (+r.rep_pct).toFixed(1) + '%'); val('fl-dp', 'fl_turnout', (r) => (+r.dem_pct).toFixed(1) + '%'); val('fl-op', 'fl_turnout', (r) => (+r.oth_pct).toFixed(1) + '%');
+  val('fl-ed', 'fl_turnout', (r) => n0(+r.eday_total)); val('fl-edr', 'fl_turnout', (r) => n0(+r.eday_rep)); val('fl-edd', 'fl_turnout', (r) => n0(+r.eday_dem));
+
+  function rows(tb, list, withChange) {
+    const v = dash.data('race_view'), byKey = new Map((v.status === 'ok' ? v.data : []).map((x) => [x.race, x]));
+    tb.replaceChildren();
+    for (const r of list) {
+      const x = byKey.get(r.race) || {}, tr = document.createElement('tr');
+      tr.dataset.key = r.race;
+      const td = (t, cls) => { const c = document.createElement('td'); if (cls) c.className = cls; c.textContent = t; tr.appendChild(c); return c; };
+      td(r.label);
+      td(r.dem || '', 'hide-narrow'); td(r.rep || '', 'hide-narrow');
+      const sf = td(''); if (r.call) { const p = document.createElement('span'); p.className = 'pill ' + (r.call === 'D' ? 'pd' : 'pr'); p.textContent = x.so_far || ''; sf.appendChild(p); } else sf.textContent = x.so_far || '';
+      td(pct(+r.model_p), 'num'); td(pct(+r.now_p), 'num ' + (r.now_p >= 0.5 ? 'd' : 'r'));
+      if (withChange) {
+        const ch = x.change ?? (r.now_p - r.model_p), c = td(Math.abs(ch) < 0.0005 ? '0.0' : sgn(ch).replace(' pts', ''), 'num ' + (ch > 0.0005 ? 'd' : ch < -0.0005 ? 'r' : ''));
+        const b = document.createElement('span'); b.className = 'bar'; b.style.width = Math.min(48, Math.abs(ch) * 240) + 'px'; b.style.background = ch >= 0 ? 'var(--dem)' : 'var(--rep)'; c.appendChild(b);
+      }
+      tb.appendChild(tr);
+    }
+  }
+  dash.draw('moves', (tb) => {
+    const d = dash.data('races'); if (d.status !== 'ok') { tb.replaceChildren(); return; }
+    const q = window.EN.q.trim().toLowerCase(), k = window.EN.kind;
+    const list = d.data.filter((r) => (!k || r.kind === k) && (!q || [r.label, r.dem, r.rep, r.state].join(' ').toLowerCase().includes(q)))
+      .sort((a, b) => Math.abs(b.now_p - b.model_p) - Math.abs(a.now_p - a.model_p));
+    rows(tb, list, true);
+  });
+  dash.draw('fl-races', (tb) => {
+    const d = dash.data('races'); if (d.status !== 'ok') { tb.replaceChildren(); return; }
+    const order = { Governor: 0, Senate: 1, House: 2 };
+    const list = d.data.filter((r) => r.state === 'FL').sort((a, b) => order[a.kind] - order[b.kind] || (parseInt(a.label.split('-')[1]) || 0) - (parseInt(b.label.split('-')[1]) || 0));
+    rows(tb, list, false);
+  });
+
+  document.querySelectorAll('.en .kind').forEach((b) => b.addEventListener('click', () => {
+    window.EN.kind = b.dataset.kind;
+    document.querySelectorAll('.en .kind').forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+    dash.draw('moves');
+  }));
+  document.querySelectorAll('#race-search').forEach((i) => i.addEventListener('input', () => { window.EN.q = i.value; dash.draw('moves'); }));
+</script>
+
+<script>
+  dash.draw('oddschart', (el) => {
+    const d = dash.data('odds');
+    el.replaceChildren();
+    if (d.status === 'error') { const f = document.createElement('div'); f.className = 'fail'; f.textContent = 'Failed to load'; el.appendChild(f); return; }
+    if (d.status !== 'ok' || !d.data.length) { el.className = 'chart dash-skeleton'; return; }
+    el.className = 'chart';
+    const data = d.data.map((r) => ({ t: new Date(r.at), h: +r.house_p, s: +r.senate_p, nat: +r.nat })).sort((a, b) => a.t - b.t);
+    const series = [{ k: 'h', name: 'House', c: dash.colors[0] }, { k: 's', name: 'Senate', c: dash.colors[1] }];
+    const W = Math.max(280, el.clientWidth), H = 260;
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'Chance Democrats win the House and Senate over the night');
+    // measure end labels to size the right margin
+    const probe = svg.append('text').attr('font-size', 12).text('Senate 100.0%');
+    const lw = probe.node().getComputedTextLength(); probe.remove();
+    const m = { t: 12, r: lw + 14, b: 26, l: 40 };
+    let [t0, t1] = d3.extent(data, (r) => r.t); if (+t0 === +t1) t1 = new Date(+t0 + 3600e3);
+    const x = d3.scaleUtc([t0, t1], [m.l, W - m.r]), y = d3.scaleLinear([0, 1], [H - m.b, m.t]);
+    const tickFmt = (dt) => dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
+    svg.append('g').selectAll('line').data(y.ticks(4)).join('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y).attr('y2', y).attr('stroke', 'var(--cds-chart-grid)');
+    svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(0.5)).attr('y2', y(0.5)).attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '4 4');
+    svg.append('g').selectAll('text').data(y.ticks(4)).join('text').attr('x', m.l - 6).attr('y', (v) => y(v) + 4).attr('text-anchor', 'end').attr('fill', 'var(--color-fg-muted)').attr('font-size', 11).text(d3.format('.0%'));
+    const nt = Math.max(2, Math.min(6, Math.floor((W - m.l - m.r) / 80)));
+    svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(nt).tickFormat(tickFmt).tickSizeOuter(0))
+      .attr('font-size', null).attr('font-family', null).call((g) => { g.select('.domain').attr('stroke', 'var(--cds-chart-axis)'); g.selectAll('line').attr('stroke', 'var(--cds-chart-axis)'); g.selectAll('text').attr('fill', 'var(--color-fg-muted)').attr('font-size', 11); });
+    const last = data[data.length - 1], ends = [];
+    for (const s of series) {
+      svg.append('path').datum(data).attr('fill', 'none').attr('stroke', s.c).attr('stroke-width', 2).attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round')
+        .attr('d', d3.line().x((r) => x(r.t)).y((r) => y(r[s.k])));
+      svg.append('g').selectAll('circle').data(data).join('circle').attr('cx', (r) => x(r.t)).attr('cy', (r) => y(r[s.k])).attr('r', 3).attr('fill', s.c);
+      ends.push({ s, y: y(last[s.k]) });
+    }
+    ends.sort((a, b) => a.y - b.y); if (ends.length === 2 && ends[1].y - ends[0].y < 14) { const mid = (ends[0].y + ends[1].y) / 2; ends[0].y = mid - 7; ends[1].y = mid + 7; }
+    for (const e of ends) svg.append('text').attr('x', W - m.r + 8).attr('y', e.y + 4).attr('font-size', 12).attr('fill', e.s.c).text(e.s.name + ' ' + (100 * last[e.s.k]).toFixed(1) + '%');
+    // tooltip
+    const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; el.appendChild(tip);
+    const rule = svg.append('line').attr('y1', m.t).attr('y2', H - m.b).attr('stroke', 'var(--cds-chart-axis)').attr('opacity', 0);
+    const pts = data.map((r) => x(r.t));
+    svg.append('rect').attr('x', m.l).attr('y', m.t).attr('width', W - m.l - m.r).attr('height', H - m.t - m.b).attr('fill', 'transparent')
+      .on('pointermove', (ev) => {
+        const [px] = d3.pointer(ev), i = d3.leastIndex(pts, (p) => Math.abs(p - px)), r = data[i];
+        rule.attr('x1', pts[i]).attr('x2', pts[i]).attr('opacity', 1);
+        tip.replaceChildren();
+        const t = document.createElement('div'); t.className = 't'; t.textContent = (i === 0 ? 'Final forecast · ' : '') + tickFmt(r.t) + ' ET'; tip.appendChild(t);
+        for (const s of series) { const l = document.createElement('div'), sw = document.createElement('i'); sw.style.background = s.c; l.appendChild(sw); l.appendChild(document.createTextNode(s.name + ' ' + (100 * r[s.k]).toFixed(1) + '%')); tip.appendChild(l); }
+        const n = document.createElement('div'); n.textContent = 'Environment ' + (r.nat >= 0 ? 'D+' : 'R+') + Math.abs(r.nat).toFixed(1); tip.appendChild(n);
+        tip.hidden = false;
+        const box = el.getBoundingClientRect(), sx = box.width / W, tw = tip.offsetWidth;
+        let left = pts[i] * sx + 10; if (left + tw > box.width) left = pts[i] * sx - tw - 10;
+        tip.style.left = Math.max(0, left) + 'px'; tip.style.top = '8px';
+      })
+      .on('pointerleave', () => { tip.hidden = true; rule.attr('opacity', 0); });
+  });
+</script>

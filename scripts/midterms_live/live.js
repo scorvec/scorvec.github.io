@@ -101,4 +101,35 @@ for (const r of watch) { const k = idx[r]; if (!k) continue; const [t, j] = k;
   const b = t === "H" ? [base.hMean[j], base.hWin[j]] : [base.sMean[j], base.sWin[j]], n = t === "H" ? [now.hMean[j], now.hWin[j]] : [now.sMean[j], now.sWin[j]];
   const o = OBS.find(x => x.race === r), tag = o ? (o.call ? ` [called ${o.call}]` : ` [${(o.d - o.r >= 0 ? "D+" : "R+") + Math.abs(o.d - o.r).toFixed(1)} at ${o.pct}%]`) : "";
   console.log(`${r.padEnd(10)} ${sg(b[0]).padStart(7)} -> ${sg(n[0]).padStart(7)}   ${pc(b[1]).padStart(6)} -> ${pc(n[1]).padStart(6)}${tag}`); }
+if (process.env.OUT) writeOut(process.env.OUT);
+function writeOut(dir) {
+  // dashboard files: odds.json (history, one row per run, the published forecast first), races.json (key races)
+  fs.mkdirSync(dir, { recursive: true });
+  const at = process.env.AT || new Date().toISOString().slice(0, 16) + "Z";
+  const row = (lab, r) => ({ at: lab, nat: +(D.E0 + r.nat).toFixed(2), house_p: +r.house.p.toFixed(4), senate_p: +r.senate.p.toFixed(4),
+    house_mean: +r.house.mean.toFixed(1), house_p10: r.house.p10, house_p90: r.house.p90, senate_mean: +r.senate.mean.toFixed(2),
+    senate_p10: r.senate.p10, senate_p90: r.senate.p90, gov_mean: +r.gov.mean.toFixed(1), ess: Math.round(r.ess), n_obs: r.used.length });
+  const hp = path.join(__dirname, "history.json");
+  let hist = []; try { hist = JSON.parse(fs.readFileSync(hp, "utf8")); } catch (e) {}
+  if (!hist.length) hist.push(row("2026-11-03T17:04Z", base));
+  hist = hist.filter(h => h.at !== at); hist.push(row(at, now));
+  fs.writeFileSync(hp, JSON.stringify(hist, null, 1));
+  fs.writeFileSync(path.join(dir, "odds.json"), JSON.stringify(hist));
+  const out = [];
+  for (const [key, [t, j]] of Object.entries(idx)) {
+    const isH = t === "H", x = isH ? H.seats[j] : races[j], kind = key[0] === "H" ? "House" : key[0] === "S" ? "Senate" : "Governor";
+    const bp = isH ? base.hWin[j] : base.sWin[j], np = isH ? now.hWin[j] : now.sWin[j];
+    const o = OBS.find(q => q.race === key) || null, st = isH ? x.seat.split("-")[0] : x.st;
+    const keep = o || kind === "Senate" || st === "FL" ? true : (bp > 0.08 && bp < 0.92) || (np > 0.08 && np < 0.92);
+    if (!keep || (isH && x.fix)) continue;
+    out.push({ race: key, kind, state: st, label: isH ? x.seat : kind + " " + st + (x.sp ? " (special)" : ""),
+      dem: (o && o.dn) || (isH ? "" : x.d || ""), rep: (o && o.rn) || (isH ? "" : x.r || ""),
+      model_margin: +(isH ? base.hMean[j] : base.sMean[j]).toFixed(1), now_margin: +(isH ? now.hMean[j] : now.sMean[j]).toFixed(1),
+      model_p: +bp.toFixed(4), now_p: +np.toFixed(4),
+      d_share: o && o.d != null ? o.d : null, r_share: o && o.d != null ? o.r : null, pct_in: o && o.pct != null ? o.pct : null, call: o && o.call ? o.call : "" });
+  }
+  out.sort((a, b) => Math.abs(b.now_p - b.model_p) - Math.abs(a.now_p - a.model_p));
+  fs.writeFileSync(path.join(dir, "races.json"), JSON.stringify(out));
+  console.log(`wrote ${dir}/odds.json (${hist.length} rows) and races.json (${out.length} races)`);
+}
 if (process.env.JSON) fs.writeFileSync(process.env.JSON, JSON.stringify({ at: new Date().toISOString(), ess: now.ess, nat: D.E0 + now.nat, house: now.house, senate: now.senate, gov: now.gov }, null, 1));
