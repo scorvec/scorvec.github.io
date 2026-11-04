@@ -90,12 +90,7 @@
   "call": "R",
   "dn": "Angie Nixon",
   "rn": "Ashley Moody",
-  "note": "NBC projection 8:34 ET (Moody 50.7-48.2 at 95.5%)",
-  "d": 48.0,
-  "r": 50.8,
-  "pct": 96.8,
-  "skew": 0,
-  "skew_sd": 1.5
+  "note": "NBC projection 8:34 ET (Moody 50.7-48.2 at 95.5%)"
  },
  {
   "race": "H:FL-20",
@@ -266,12 +261,7 @@
  {
   "race": "S:WV",
   "call": "R",
-  "note": "NBC projection (Capito)",
-  "d": 42.2,
-  "r": 54.5,
-  "pct": 51.1,
-  "skew": 4,
-  "skew_sd": 5
+  "note": "NBC projection (Capito)"
  },
  {
   "race": "H:FL-1",
@@ -295,12 +285,7 @@
  {
   "race": "S:NH",
   "call": "D",
-  "note": "NBC projection 8:20 ET (Pappas)",
-  "d": 59.5,
-  "r": 38.7,
-  "pct": 27.0,
-  "skew": 2,
-  "skew_sd": 5
+  "note": "NBC projection 8:20 ET (Pappas)"
  },
  {
   "race": "G:NH",
@@ -379,12 +364,7 @@
  {
   "race": "S:GA",
   "call": "D",
-  "note": "NBC projection (Ossoff)",
-  "d": 61.8,
-  "r": 38.2,
-  "pct": 63.0,
-  "skew": 5,
-  "skew_sd": 5
+  "note": "NBC projection (Ossoff)"
  },
  {
   "race": "G:PA",
@@ -489,12 +469,7 @@
  {
   "race": "S:NC",
   "call": "D",
-  "note": "NBC projection 8:24 ET (Cooper)",
-  "d": 63.0,
-  "r": 35.3,
-  "pct": 66.8,
-  "skew": 8,
-  "skew_sd": 6
+  "note": "NBC projection 8:24 ET (Cooper)"
  },
  {
   "race": "H:NC-11",
