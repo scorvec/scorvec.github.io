@@ -728,12 +728,12 @@
  },
  {
   "race": "S:MS",
-  "d": 47.4,
-  "r": 50.5,
-  "pct": 82.4,
-  "skew": -2.5,
-  "skew_sd": 3,
-  "note": "NBC 10:51 ET county projection: Hinds (~30k left, Colom +66), DeSoto/Jackson (~45k left, near even) and 10 unreported counties (size-weighted Trump ~+4 in 2024). Completed counties swing ~20 vs Harris. Projects final ~R+1 to R+2; skew -3 +/- 3."
+  "d": 48.4,
+  "r": 49.4,
+  "pct": 86.5,
+  "skew": -0.3,
+  "skew_sd": 1.5,
+  "note": "NBC ~11:25 ET. Hinds now 95% in. Left: DeSoto ~19k (Colom +3.7 so far), Jackson Co. ~15k (R+17), Rankin ~6k (R+24), ~40k in unreported counties (mixed Delta D and NE-Miss R). County projection R+0.4 to R+0.7; skew -0.3 +/- 1.5."
  },
  {
   "race": "H:AR-1",
