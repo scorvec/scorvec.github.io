@@ -583,7 +583,7 @@
   "race": "H:MI-7",
   "d": 44.4,
   "r": 54.4,
-  "pct": 51.1,
+  "pct": 51.6,
   "dn": "Lawrence",
   "rn": "Barrett",
   "skew": -4,
@@ -689,14 +689,10 @@
  },
  {
   "race": "G:IA",
-  "d": 57.9,
-  "r": 42.1,
-  "pct": 74.7,
   "dn": "Rob Sand",
   "rn": "Lahn",
-  "skew": 22,
-  "skew_sd": 10,
-  "note": "NBC 9:09 ET. Iowa reports absentee/early ballots first; these have run 30-40 points more D than the final count in recent cycles; skew 35 +/- 12."
+  "note": "NBC projected Sand (D) ~11:14 ET; Dem gain. Call-only.",
+  "call": "D"
  },
  {
   "race": "H:IA-3",
@@ -794,8 +790,8 @@
  {
   "race": "H:WI-3",
   "d": 53.1,
-  "r": 45.2,
-  "pct": 66.5,
+  "r": 45.1,
+  "pct": 67.7,
   "dn": "Cooke",
   "rn": "Van Orden",
   "skew": 2,
@@ -879,9 +875,9 @@
  },
  {
   "race": "H:IA-1",
-  "d": 54.4,
-  "r": 41.9,
-  "pct": 73.0,
+  "d": 53.7,
+  "r": 42.7,
+  "pct": 77.6,
   "dn": "Bohannan",
   "rn": "Miller-Meeks",
   "skew": 3,
@@ -924,9 +920,9 @@
  },
  {
   "race": "H:ME-2",
-  "d": 46.6,
-  "r": 53.4,
-  "pct": 42.3,
+  "d": 46.5,
+  "r": 53.5,
+  "pct": 43.5,
   "skew": -4,
   "skew_sd": 5,
   "dn": "Dunlap",
@@ -957,9 +953,9 @@
  },
  {
   "race": "H:AZ-6",
-  "d": 57.5,
-  "r": 40.6,
-  "pct": 66.0,
+  "d": 57.2,
+  "r": 40.9,
+  "pct": 66.5,
   "dn": "Mendoza",
   "rn": "Ciscomani",
   "skew": 5,
@@ -1061,5 +1057,23 @@
   "dn": "Todd Achilles",
   "rn": "Jim Risch",
   "note": "NBC 11:10 ET. Only Ada (42% in, Achilles +12.6 vs Trump +10.3 in 2024), Nez Perce and Payette reporting; 41 of 44 counties at 0. A ~23-pt swing on Trump +36.5 statewide still leaves Risch ~+13; skew 23 +/- 8."
+ },
+ {
+  "race": "H:MO-2",
+  "call": "D",
+  "dn": "Wellman",
+  "rn": "Wagner",
+  "note": "NBC projected Wellman (D) 11:14 ET (51.1-46.2); Dem gain; % in not shown, call only."
+ },
+ {
+  "race": "H:CA-22",
+  "d": 59.9,
+  "r": 40.1,
+  "pct": 12.6,
+  "dn": "Villegas",
+  "rn": "Valadao",
+  "skew": 10,
+  "skew_sd": 8,
+  "note": "NBC 11:14 ET. First California drop is early mail, heavily D; skew 10 +/- 8."
  }
 ]
