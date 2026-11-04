@@ -577,6 +577,9 @@ PAGES = [
         path="midterms/index.html", mode="after-body", footer=True, synced=True, fixes=[MT_CALL]
     ),  # 2026 midterm results and the scorecard (synced from github.com/scorvec/midterms-2026 by midterms-sync.yml)
     dict(
+        path="midterms/live.html", mode="after-body", footer=True, synced=True, fixes=[MT_CALL]
+    ),  # the races still out: the frozen forecast's simulations reweighted by every call and count
+    dict(
         path="midterms/forecast.html", mode="after-body", footer=True, synced=True, fixes=[MT_CALL]
     ),  # the final midterm forecast, frozen before the polls closed
     dict(

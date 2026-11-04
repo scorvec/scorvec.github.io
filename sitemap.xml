@@ -124,6 +124,10 @@
     <changefreq>daily</changefreq>
   </url>
   <url>
+    <loc>https://scorvec.com/midterms/live.html</loc>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
     <loc>https://scorvec.com/midterms/forecast.html</loc>
     <changefreq>monthly</changefreq>
   </url>
