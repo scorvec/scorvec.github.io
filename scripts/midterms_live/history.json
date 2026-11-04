@@ -631,17 +631,17 @@
  },
  {
   "at": "2026-11-04T01:47Z",
-  "nat": 10.5,
-  "house_p": 0.9995,
-  "senate_p": 0.9498,
-  "house_mean": 247.7,
-  "house_p10": 235,
-  "house_p90": 261,
-  "senate_mean": 53.3,
-  "senate_p10": 51,
-  "senate_p90": 55,
-  "gov_mean": 28.4,
-  "ess": 2525,
+  "nat": 10.76,
+  "house_p": 0.9999,
+  "senate_p": 0.9867,
+  "house_mean": 249.5,
+  "house_p10": 237,
+  "house_p90": 263,
+  "senate_mean": 53.95,
+  "senate_p10": 52,
+  "senate_p90": 56,
+  "gov_mean": 29.4,
+  "ess": 603,
   "n_obs": 82
  }
 ]

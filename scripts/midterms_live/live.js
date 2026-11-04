@@ -62,8 +62,8 @@ function summarize(obs) {
   const lw = new Float64Array(N), used = [];
   for (const o of obs) {
     const k = idx[o.race]; if (!k) { console.error("unknown race " + o.race); continue; }
-    if (o.call) { for (let i = 0; i < N; i++) if ((margin(i, k) > 0) !== (o.call === "D")) lw[i] = -Infinity; used.push(o); continue; }
-    if (o.pct == null || !(o.pct > 0)) continue;
+    if (o.call) { for (let i = 0; i < N; i++) if ((margin(i, k) > 0) !== (o.call === "D")) lw[i] = -Infinity; }
+    if (o.pct == null || !(o.pct > 0)) { if (o.call) used.push(o); continue; }   // a called race keeps its count too, when given
     const f = Math.min(1, o.pct / 100), m = o.d - o.r - (o.skew || 0), sd = Math.hypot(countSd(f), o.skew_sd || 0);
     for (let i = 0; i < N; i++) lw[i] += logT4((margin(i, k) - m) / sd);
     used.push(o);
