@@ -189,10 +189,10 @@
  },
  {
   "race": "S:OH",
-  "d": 50.4,
-  "r": 45.2,
-  "pct": 53.4,
-  "skew": 4,
+  "d": 49.8,
+  "r": 45.7,
+  "pct": 55.5,
+  "skew": 3.5,
   "skew_sd": 4,
   "dn": "Sherrod Brown",
   "rn": "Jon Husted",
@@ -275,20 +275,20 @@
  },
  {
   "race": "G:NH",
-  "d": 49.6,
-  "r": 48.5,
-  "pct": 34.4,
+  "d": 49.1,
+  "r": 49.1,
+  "pct": 37.0,
   "skew": 1,
   "skew_sd": 4,
   "note": "NBC 8:05 ET. "
  },
  {
   "race": "G:OH",
-  "d": 52.4,
-  "r": 44.5,
-  "pct": 53.3,
-  "skew": 4,
-  "skew_sd": 5,
+  "d": 51.8,
+  "r": 45.1,
+  "pct": 55.5,
+  "skew": 3.5,
+  "skew_sd": 4,
   "note": "NBC 8:05 ET. Same as Senate; skew 12 +/- 6."
  },
  {
@@ -384,9 +384,9 @@
  },
  {
   "race": "S:KS",
-  "d": 60.5,
-  "r": 37.4,
-  "pct": 40.6,
+  "d": 60.1,
+  "r": 37.7,
+  "pct": 42.2,
   "skew": 10,
   "skew_sd": 8,
   "note": "NBC 8:50 ET. Johnson/Wyandotte/Douglas advance ballots dominate so far; skew 14 +/- 8."
@@ -476,7 +476,8 @@
   "rn": "Flores",
   "skew": 2,
   "skew_sd": 4,
-  "note": "NBC 8:20 ET. RGV early vote has not leaned D recently; no skew, +/- 5."
+  "note": "NBC projection 9:24 ET (Gonzalez 56.8-38.8 at 74%)",
+  "call": "D"
  },
  {
   "race": "S:MI",
@@ -512,9 +513,9 @@
  },
  {
   "race": "S:OK",
-  "d": 36.7,
-  "r": 59.9,
-  "pct": 46.7,
+  "d": 36.3,
+  "r": 60.2,
+  "pct": 53.4,
   "dn": "Thomas",
   "rn": "Kevin Hern",
   "skew": 3,
@@ -600,9 +601,9 @@
  },
  {
   "race": "H:MI-7",
-  "d": 40.1,
-  "r": 58.7,
-  "pct": 28.0,
+  "d": 40.4,
+  "r": 58.4,
+  "pct": 31.0,
   "dn": "Lawrence",
   "rn": "Barrett",
   "skew": -4,
@@ -684,10 +685,10 @@
  },
  {
   "race": "G:TN",
-  "d": 45.0,
-  "r": 44.1,
-  "pct": 32.1,
-  "skew": 10,
+  "d": 44.2,
+  "r": 44.7,
+  "pct": 34.8,
+  "skew": 9,
   "skew_sd": 8,
   "note": "NBC 9:04 ET. Same as Senate; skew 12 +/- 8."
  },
@@ -708,33 +709,33 @@
  {
   "race": "S:IA",
   "d": 62.1,
-  "r": 35.6,
-  "pct": 13.9,
+  "r": 35.5,
+  "pct": 15.7,
   "dn": "Josh Turek",
   "rn": "Ashley Hinson",
-  "skew": 25,
+  "skew": 24,
   "skew_sd": 10,
   "note": "NBC 9:22 ET. Absentee share falling as precincts report; skew 25 +/- 10."
  },
  {
   "race": "G:IA",
-  "d": 73.3,
-  "r": 26.7,
-  "pct": 5.8,
+  "d": 67.1,
+  "r": 32.9,
+  "pct": 15.7,
   "dn": "Rob Sand",
   "rn": "Lahn",
-  "skew": 35,
-  "skew_sd": 12,
+  "skew": 25,
+  "skew_sd": 10,
   "note": "NBC 9:09 ET. Iowa reports absentee/early ballots first; these have run 30-40 points more D than the final count in recent cycles; skew 35 +/- 12."
  },
  {
   "race": "H:IA-3",
-  "d": 61.8,
-  "r": 38.2,
-  "pct": 50.3,
+  "d": 62.1,
+  "r": 37.9,
+  "pct": 52.6,
   "dn": "Trone Garriott",
   "rn": "Zach Nunn",
-  "skew": 14,
+  "skew": 13,
   "skew_sd": 7,
   "note": "NBC 9:22 ET. Half counted, absentee-heavy; skew 14 +/- 7."
  },
@@ -776,5 +777,10 @@
   "race": "H:AR-1",
   "call": "R",
   "note": "NBC projection (Crawford)"
+ },
+ {
+  "race": "H:OK-4",
+  "call": "R",
+  "note": "NBC projection (Cole)"
  }
 ]
