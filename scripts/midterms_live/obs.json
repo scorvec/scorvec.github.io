@@ -169,8 +169,8 @@
  {
   "race": "H:VA-2",
   "d": 52.1,
-  "r": 45.6,
-  "pct": 69.4,
+  "r": 45.5,
+  "pct": 68.9,
   "skew_sd": 3,
   "dn": "Elaine Luria",
   "rn": "Jen Kiggans",
@@ -189,14 +189,14 @@
  },
  {
   "race": "S:OH",
-  "d": 48.7,
-  "r": 46.6,
-  "pct": 65.5,
+  "d": 48.5,
+  "r": 46.8,
+  "pct": 67.5,
   "skew": 3.5,
   "skew_sd": 4,
   "dn": "Sherrod Brown",
   "rn": "Jon Husted",
-  "note": "NBC 9:43 ET. Batch trend: 55.4%->62.3% ran ~R+15 (Election Day precincts); if that continued the final would be ~R+4, but large urban counties may still be out, which would help Brown; skew 4 +/- 4.5."
+  "note": "NBC 9:53 ET. Batches since 9:30 ran ~R+11 to R+17 (Election Day precincts); some urban vote may still be out; skew 3.5 +/- 4."
  },
  {
   "race": "H:FL-17",
@@ -215,9 +215,9 @@
  },
  {
   "race": "S:SC",
-  "d": 51.1,
+  "d": 51.0,
   "r": 46.8,
-  "pct": 82.4,
+  "pct": 87.7,
   "skew": 1,
   "skew_sd": 2.5,
   "dn": "Annie Andrews",
@@ -320,9 +320,9 @@
  },
  {
   "race": "S:TX",
-  "d": 59.5,
-  "r": 39.0,
-  "pct": 52.8,
+  "d": 59.0,
+  "r": 39.4,
+  "pct": 54.9,
   "skew": 10,
   "skew_sd": 6,
   "note": "NBC 9:27 ET. Early votes (7.7M, ~3/4 of the expected total) dominate the count; Election Day votes still to come lean R; skew 10 +/- 6.",
@@ -385,8 +385,8 @@
  {
   "race": "S:KS",
   "d": 57.7,
-  "r": 39.9,
-  "pct": 53.3,
+  "r": 39.8,
+  "pct": 56.9,
   "skew": 7,
   "skew_sd": 8,
   "note": "NBC 8:50 ET. Johnson/Wyandotte/Douglas advance ballots dominate so far; skew 14 +/- 8."
@@ -483,9 +483,9 @@
  },
  {
   "race": "S:MI",
-  "d": 55.2,
-  "r": 43.2,
-  "pct": 13.1,
+  "d": 54.3,
+  "r": 44.0,
+  "pct": 18.4,
   "dn": "Abdul El-Sayed",
   "rn": "Mike Rogers",
   "skew": 15,
@@ -504,9 +504,9 @@
  },
  {
   "race": "H:NC-1",
-  "d": 50.1,
-  "r": 46.8,
-  "pct": 81.1,
+  "d": 49.7,
+  "r": 47.2,
+  "pct": 79.7,
   "dn": "Don Davis",
   "rn": "Buckhout",
   "skew": 1.5,
@@ -618,9 +618,9 @@
  },
  {
   "race": "S:NE",
-  "d": 57.3,
-  "r": 37.6,
-  "pct": 24.0,
+  "d": 54.1,
+  "r": 40.7,
+  "pct": 35.8,
   "dn": "Dan Osborn",
   "rn": "Pete Ricketts",
   "skew": 11,
@@ -640,12 +640,12 @@
  },
  {
   "race": "S:AR",
-  "d": 46.6,
-  "r": 50.7,
-  "pct": 61.5,
-  "skew": 3,
+  "d": 45.3,
+  "r": 51.9,
+  "pct": 66.3,
+  "skew": 8,
   "skew_sd": 8,
-  "note": "NBC 9:01 ET. Pulaski early votes appear to dominate (Cotton led 67-28 at 3%); skew 20 +/- 10."
+  "note": "NBC 9:53 ET. Latest batch ran ~R+39 as rural counties report after Pulaski early votes; skew 8 +/- 8."
  },
  {
   "race": "H:MI-10",
@@ -698,9 +698,9 @@
  },
  {
   "race": "S:IA",
-  "d": 60.8,
-  "r": 36.9,
-  "pct": 22.4,
+  "d": 58.6,
+  "r": 39.0,
+  "pct": 26.6,
   "dn": "Josh Turek",
   "rn": "Ashley Hinson",
   "skew": 20,
@@ -756,9 +756,9 @@
  },
  {
   "race": "S:MS",
-  "d": 47.6,
-  "r": 50.4,
-  "pct": 38.2,
+  "d": 46.7,
+  "r": 51.1,
+  "pct": 47.6,
   "skew": 4,
   "skew_sd": 5,
   "note": "NBC 9:22 ET. Mississippi; skew 6 +/- 8."
@@ -813,9 +813,9 @@
  },
  {
   "race": "H:WI-3",
-  "d": 51.2,
+  "d": 51.3,
   "r": 47.1,
-  "pct": 24.0,
+  "pct": 23.9,
   "dn": "Cooke",
   "rn": "Van Orden",
   "skew": 2,
@@ -867,9 +867,9 @@
  },
  {
   "race": "S:LA",
-  "d": 48.0,
-  "r": 52.0,
-  "pct": 19.4,
+  "d": 47.0,
+  "r": 53.0,
+  "pct": 26.2,
   "skew": 6,
   "skew_sd": 8,
   "note": "NBC 9:40 ET; early count; skew 6 +/- 8."
@@ -916,7 +916,7 @@
   "race": "S:ME",
   "d": 50.4,
   "r": 49.6,
-  "pct": 11.7,
+  "pct": 12.5,
   "dn": "Troy Jackson",
   "rn": "Susan Collins",
   "skew": -4,
@@ -937,5 +937,9 @@
   "rn": "Tijerina",
   "skew": 8,
   "skew_sd": 8
+ },
+ {
+  "race": "H:NY-22",
+  "call": "D"
  }
 ]
