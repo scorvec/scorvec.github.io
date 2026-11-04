@@ -765,7 +765,8 @@
       svg.setAttribute('aria-label', `${name} seats as called: ${c.d} Democratic, ${c.r} Republican${other(c)}, ${c.open} not called`);
     }
     const ck = s.check;
-    const med = H.median && S.median ? `Median outcome with the races still out: House ${H.median.join('–')}, Senate ${S.median.join('–')}. ` : '';
+    const nat = s.national == null ? '' : `, national House vote ${Math.abs(s.national) < 0.05 ? 'even' : (s.national > 0 ? 'D+' : 'R+') + Math.abs(s.national).toFixed(1)}`;
+    const med = H.median && S.median ? `Median outcome with the races still out: House ${H.median.join('–')}, Senate ${S.median.join('–')}${nat}. ` : '';
     $set('mt-sub', med + (ck ? `The forecast's favourite won ${ck.won} of the ${ck.called} races called so far. ` : '') +
                    `Forecast: ${H.forecast_d} Democratic House seats, ${S.forecast_d} Senate seats. Updated ${day(s.generated)}.`);
     if (H.i || S.i)
