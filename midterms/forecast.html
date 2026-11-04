@@ -360,7 +360,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
 </section>
 
 <div class="mt-in">
-<nav class="mt-nav" aria-label="Forecast pages"><a href="./">Results</a><a href="live.html">Races still out</a><a href="forecast.html" aria-current="page">Final forecast</a><a href="about.html">How the forecast works</a><a href="legislatures.html">State legislatures</a><a href="call.html">Claude&rsquo;s call</a></nav>
+<nav class="mt-nav" aria-label="Forecast pages"><a href="./">Races still out</a><a href="results.html">Results</a><a href="forecast.html" aria-current="page">Final forecast</a><a href="about.html">How the forecast works</a><a href="legislatures.html">State legislatures</a><a href="call.html">Claude&rsquo;s call</a></nav>
 
 <section class="sec" id="watch" aria-labelledby="h-watch">
  <div class="sec-head"><div><h2 id="h-watch">Races to watch</h2><p class="sec-sub" id="watchSub"></p></div>
@@ -432,7 +432,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
  <p>Every race combines all of its polls, its fundamentals and a polling miss shared across the country; <a href="about.html">how it works</a> has the details.</p>
  <p id="seatAbout"></p><p id="moodAbout"></p><p id="senAbout"></p><p id="distAbout"></p></section>
 
-<footer class="mt-foot"><nav class="mt-nav" aria-label="Forecast pages"><a href="./">Results</a><a href="live.html">Races still out</a><a href="forecast.html">Final forecast</a><a href="about.html">How the forecast works</a><a href="legislatures.html">State legislatures</a><a href="call.html">Claude&rsquo;s call</a></nav></footer>
+<footer class="mt-foot"><nav class="mt-nav" aria-label="Forecast pages"><a href="./">Races still out</a><a href="results.html">Results</a><a href="forecast.html">Final forecast</a><a href="about.html">How the forecast works</a><a href="legislatures.html">State legislatures</a><a href="call.html">Claude&rsquo;s call</a></nav></footer>
 </div>
 </main>
 <div class="tip" id="tip"></div>
@@ -483,7 +483,7 @@ function preselect(){const near=a=>a.slice().sort((x,y)=>Math.abs(x.p[gi]-.5)-Ma
 
 // Election Day is Tuesday 3 November, counted in calendar days on Eastern time (UTC-5 from 1 November), so Sunday reads
 // "in 2 days" and Monday "tomorrow". A frozen forecast says so instead.
-function countdown(){const el=$('#cd');if(D&&D.final&&D.final.at){el.innerHTML=`Final forecast, locked ${new Date(D.final.at).toLocaleString('en-US',{month:'long',day:'numeric',hour:'numeric',minute:'2-digit',timeZone:'America/New_York'})} Eastern · <a href="./">the results</a>`;return}
+function countdown(){const el=$('#cd');if(D&&D.final&&D.final.at){el.innerHTML=`Final forecast, locked ${new Date(D.final.at).toLocaleString('en-US',{month:'long',day:'numeric',hour:'numeric',minute:'2-digit',timeZone:'America/New_York'})} Eastern · <a href="results.html">the results</a>`;return}
  const d=Math.floor(Date.UTC(2026,10,3)/864e5)-Math.floor((Date.now()-5*36e5)/864e5);
  el.innerHTML=d>1?`Election Day in <b>${d}</b> days`:d===1?'Election Day is <b>tomorrow</b>':d===0?'<b>Election Day</b> is today':'Election Day was November 3'}
 
