@@ -753,10 +753,10 @@
   "race": "S:MS",
   "d": 46.9,
   "r": 50.9,
-  "pct": 79.3,
-  "skew": 1,
-  "skew_sd": 4,
-  "note": "NBC 10:29 ET. Batch 65.6->67.2% ran strongly D (likely Hinds); skew 1 +/- 4."
+  "pct": 79.1,
+  "skew": -3,
+  "skew_sd": 3,
+  "note": "NBC 10:51 ET county projection: Hinds (~30k left, Colom +66), DeSoto/Jackson (~45k left, near even) and 10 unreported counties (size-weighted Trump ~+4 in 2024). Completed counties swing ~20 vs Harris. Projects final ~R+1 to R+2; skew -3 +/- 3."
  },
  {
   "race": "H:AR-1",
