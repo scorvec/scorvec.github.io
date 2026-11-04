@@ -215,14 +215,10 @@
  },
  {
   "race": "S:SC",
-  "d": 51.0,
-  "r": 46.8,
-  "pct": 87.7,
-  "skew": 1,
-  "skew_sd": 2.5,
   "dn": "Annie Andrews",
   "rn": "Lindsey Graham",
-  "note": "NBC 8:05 ET. Absentee-heavy early batches; skew 6 +/- 5."
+  "note": "NBC projected Andrews (D) ~10:00 ET; Dem gain. Call-only.",
+  "call": "D"
  },
  {
   "race": "H:VT-1",
