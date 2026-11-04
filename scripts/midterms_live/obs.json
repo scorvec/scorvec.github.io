@@ -189,14 +189,14 @@
  },
  {
   "race": "S:OH",
-  "d": 48.9,
-  "r": 46.5,
-  "pct": 61.9,
-  "skew": 2.5,
-  "skew_sd": 3.5,
+  "d": 48.8,
+  "r": 46.6,
+  "pct": 62.3,
+  "skew": 4,
+  "skew_sd": 4.5,
   "dn": "Sherrod Brown",
   "rn": "Jon Husted",
-  "note": "NBC 8:05 ET. Ohio counts absentee/early first; skew 12 +/- 6."
+  "note": "NBC 9:43 ET. Batch trend: 55.4%->62.3% ran ~R+15 (Election Day precincts); if that continued the final would be ~R+4, but large urban counties may still be out, which would help Brown; skew 4 +/- 4.5."
  },
  {
   "race": "H:FL-17",
@@ -215,9 +215,9 @@
  },
  {
   "race": "S:SC",
-  "d": 51.2,
+  "d": 51.1,
   "r": 46.8,
-  "pct": 82.2,
+  "pct": 82.4,
   "skew": 1,
   "skew_sd": 2.5,
   "dn": "Annie Andrews",
@@ -276,19 +276,19 @@
  {
   "race": "G:NH",
   "d": 48.6,
-  "r": 49.6,
-  "pct": 39.5,
+  "r": 49.7,
+  "pct": 43.2,
   "skew": 1,
-  "skew_sd": 4,
+  "skew_sd": 3.5,
   "note": "NBC 8:05 ET. "
  },
  {
   "race": "G:OH",
-  "d": 51.8,
-  "r": 45.1,
-  "pct": 55.5,
-  "skew": 3.5,
-  "skew_sd": 4,
+  "d": 51.0,
+  "r": 45.8,
+  "pct": 61.8,
+  "skew": 4,
+  "skew_sd": 4.5,
   "note": "NBC 8:05 ET. Same as Senate; skew 12 +/- 6."
  },
  {
@@ -311,9 +311,9 @@
  },
  {
   "race": "G:SC",
-  "d": 47.5,
-  "r": 51.3,
-  "pct": 81.2,
+  "d": 47.3,
+  "r": 51.5,
+  "pct": 82.1,
   "skew": 1,
   "skew_sd": 2.5,
   "note": "NBC 8:05 ET. Same as Senate; skew 6 +/- 5."
@@ -340,9 +340,9 @@
  },
  {
   "race": "G:VT",
-  "d": 45.1,
-  "r": 53.1,
-  "pct": 64.9,
+  "d": 45.4,
+  "r": 52.9,
+  "pct": 72.2,
   "skew": 0,
   "skew_sd": 3,
   "note": "NBC 8:05 ET. "
@@ -384,9 +384,9 @@
  },
  {
   "race": "S:KS",
-  "d": 57.8,
-  "r": 39.8,
-  "pct": 53.0,
+  "d": 57.7,
+  "r": 39.9,
+  "pct": 53.3,
   "skew": 7,
   "skew_sd": 8,
   "note": "NBC 8:50 ET. Johnson/Wyandotte/Douglas advance ballots dominate so far; skew 14 +/- 8."
@@ -555,10 +555,10 @@
  },
  {
   "race": "G:KS",
-  "d": 57.5,
-  "r": 42.5,
-  "pct": 51.2,
-  "skew": 8,
+  "d": 57.3,
+  "r": 42.7,
+  "pct": 51.6,
+  "skew": 7,
   "skew_sd": 8,
   "note": "NBC 8:41 ET. Advance ballots from Johnson/Wyandotte first; skew 18 +/- 10."
  },
@@ -669,9 +669,9 @@
  },
  {
   "race": "S:TN",
-  "d": 44.7,
-  "r": 53.5,
-  "pct": 58.3,
+  "d": 44.2,
+  "r": 53.9,
+  "pct": 59.4,
   "dn": "Bradshaw",
   "rn": "Bill Hagerty",
   "skew": 5,
@@ -680,10 +680,10 @@
  },
  {
   "race": "G:TN",
-  "d": 43.3,
-  "r": 45.3,
-  "pct": 37.6,
-  "skew": 8,
+  "d": 47.3,
+  "r": 42.1,
+  "pct": 47.6,
+  "skew": 7,
   "skew_sd": 8,
   "note": "NBC 9:04 ET. Same as Senate; skew 12 +/- 8."
  },
@@ -761,11 +761,11 @@
  },
  {
   "race": "S:MS",
-  "d": 45.4,
-  "r": 52.4,
-  "pct": 29.7,
-  "skew": 5,
-  "skew_sd": 8,
+  "d": 47.8,
+  "r": 50.1,
+  "pct": 35.4,
+  "skew": 4,
+  "skew_sd": 5,
   "note": "NBC 9:22 ET. Mississippi; skew 6 +/- 8."
  },
  {
@@ -878,5 +878,27 @@
   "skew": 6,
   "skew_sd": 8,
   "note": "NBC 9:40 ET; early count; skew 6 +/- 8."
+ },
+ {
+  "race": "G:WI",
+  "d": 53.1,
+  "r": 46.9,
+  "pct": 18.5,
+  "dn": "Crowley",
+  "rn": "Tiffany",
+  "skew": 4,
+  "skew_sd": 8,
+  "note": "NBC 9:42 ET; early Wisconsin count; skew 4 +/- 8."
+ },
+ {
+  "race": "H:OH-1",
+  "d": 54.8,
+  "r": 42.8,
+  "pct": 51.1,
+  "dn": "Greg Landsman",
+  "rn": "Eric Conroy",
+  "skew": 4,
+  "skew_sd": 5,
+  "note": "NBC 9:24 ET; skew 4 +/- 5."
  }
 ]
