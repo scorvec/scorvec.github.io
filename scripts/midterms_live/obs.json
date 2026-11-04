@@ -189,11 +189,11 @@
  },
  {
   "race": "S:OH",
-  "d": 50.8,
-  "r": 44.9,
-  "pct": 52.1,
+  "d": 50.4,
+  "r": 45.2,
+  "pct": 53.4,
   "skew": 4,
-  "skew_sd": 5,
+  "skew_sd": 4,
   "dn": "Sherrod Brown",
   "rn": "Jon Husted",
   "note": "NBC 8:05 ET. Ohio counts absentee/early first; skew 12 +/- 6."
@@ -216,8 +216,8 @@
  {
   "race": "S:SC",
   "d": 52.0,
-  "r": 46.0,
-  "pct": 77.1,
+  "r": 45.9,
+  "pct": 77.5,
   "skew": 1.5,
   "skew_sd": 3,
   "dn": "Annie Andrews",
@@ -293,18 +293,18 @@
  },
  {
   "race": "H:OH-7",
-  "d": 59.2,
-  "r": 40.8,
-  "pct": 42.6,
-  "skew": 7,
-  "skew_sd": 8,
+  "d": 55.0,
+  "r": 45.0,
+  "pct": 52.5,
+  "skew": 5,
+  "skew_sd": 5,
   "note": "NBC 8:05 ET. Early/absentee first; skew 12 +/- 8."
  },
  {
   "race": "H:OH-9",
-  "d": 40.8,
-  "r": 59.2,
-  "pct": 37.7,
+  "d": 40.6,
+  "r": 59.4,
+  "pct": 38.3,
   "skew": 5,
   "skew_sd": 6,
   "note": "NBC 8:05 ET. Early/absentee first; skew 8 +/- 8."
@@ -320,20 +320,20 @@
  },
  {
   "race": "S:TX",
-  "d": 58.3,
-  "r": 40.1,
-  "pct": 41.3,
-  "skew": 9,
-  "skew_sd": 6,
+  "d": 59.8,
+  "r": 38.7,
+  "pct": 51.9,
+  "skew": 7,
+  "skew_sd": 5,
   "note": "NBC 8:33 ET. Early votes from the big urban counties (Harris, Dallas, Travis, Bexar) report first; rural Election Day votes come later; skew 12 +/- 7.",
   "dn": "James Talarico",
   "rn": "Ken Paxton"
  },
  {
   "race": "H:VA-1",
-  "d": 49.5,
-  "r": 50.2,
-  "pct": 80.3,
+  "d": 49.3,
+  "r": 50.4,
+  "pct": 81.9,
   "skew": 0,
   "skew_sd": 3,
   "note": "NBC 8:05 ET. Virginia mixes precincts and central absentee; no skew, +/- 6."
@@ -384,19 +384,19 @@
  },
  {
   "race": "S:KS",
-  "d": 61.1,
-  "r": 36.8,
-  "pct": 40.0,
-  "skew": 11,
+  "d": 60.5,
+  "r": 37.4,
+  "pct": 40.6,
+  "skew": 10,
   "skew_sd": 8,
   "note": "NBC 8:50 ET. Johnson/Wyandotte/Douglas advance ballots dominate so far; skew 14 +/- 8."
  },
  {
   "race": "H:PA-8",
-  "d": 64.2,
-  "r": 35.8,
-  "pct": 47.7,
-  "skew": 11,
+  "d": 63.7,
+  "r": 36.3,
+  "pct": 50.2,
+  "skew": 10,
   "skew_sd": 8,
   "note": "NBC 8:17 ET. Pennsylvania counts mail ballots first (heavily D); skew 22 +/- 10 while under ~15% in."
  },
@@ -422,10 +422,10 @@
  },
  {
   "race": "H:PA-7",
-  "d": 67.9,
-  "r": 32.1,
-  "pct": 31.4,
-  "skew": 16,
+  "d": 65.0,
+  "r": 35.0,
+  "pct": 38.9,
+  "skew": 14,
   "skew_sd": 10,
   "note": "NBC 8:17 ET. Pennsylvania counts mail ballots first (heavily D); skew 22 +/- 10 while under ~15% in."
  },
@@ -440,11 +440,11 @@
  },
  {
   "race": "H:NJ-7",
-  "d": 64.0,
-  "r": 34.8,
-  "pct": 32.1,
-  "skew": 12,
-  "skew_sd": 8,
+  "d": 65.4,
+  "r": 33.5,
+  "pct": 46.0,
+  "skew": 9,
+  "skew_sd": 6,
   "note": "NBC 8:17 ET. New Jersey reports mail ballots first; skew 18 +/- 10."
  },
  {
@@ -502,12 +502,12 @@
  {
   "race": "H:NC-1",
   "d": 49.6,
-  "r": 47.4,
-  "pct": 63.5,
+  "r": 47.3,
+  "pct": 70.0,
   "dn": "Don Davis",
   "rn": "Buckhout",
-  "skew": 4,
-  "skew_sd": 5,
+  "skew": 3,
+  "skew_sd": 3,
   "note": "NBC 8:24 ET. NC early votes first; skew 10 +/- 6."
  },
  {
@@ -591,10 +591,10 @@
  },
  {
   "race": "H:PA-1",
-  "d": 65.9,
-  "r": 34.1,
-  "pct": 28.4,
-  "skew": 18,
+  "d": 64.7,
+  "r": 35.3,
+  "pct": 30.5,
+  "skew": 16,
   "skew_sd": 8,
   "note": "NBC 8:50 ET. Bucks mail ballots counted first; skew 20 +/- 8."
  },
@@ -621,12 +621,12 @@
  },
  {
   "race": "S:NE",
-  "d": 58.0,
-  "r": 36.9,
-  "pct": 23.4,
+  "d": 57.3,
+  "r": 37.6,
+  "pct": 24.0,
   "dn": "Dan Osborn",
   "rn": "Pete Ricketts",
-  "skew": 12,
+  "skew": 11,
   "skew_sd": 9,
   "note": "NBC 9:01 ET. Douglas/Lancaster early votes first; skew 14 +/- 9 (Osborn is the independent in the D slot)."
  },
@@ -652,9 +652,9 @@
  },
  {
   "race": "H:MI-10",
-  "d": 50.6,
-  "r": 46.9,
-  "pct": 11.2,
+  "d": 50.4,
+  "r": 47.0,
+  "pct": 11.6,
   "dn": "Hines",
   "rn": "Bouchard",
   "skew": 0,
@@ -673,12 +673,12 @@
  },
  {
   "race": "S:TN",
-  "d": 43.1,
-  "r": 55.1,
-  "pct": 40.7,
+  "d": 42.8,
+  "r": 55.4,
+  "pct": 42.8,
   "dn": "Bradshaw",
   "rn": "Bill Hagerty",
-  "skew": 8,
+  "skew": 7,
   "skew_sd": 8,
   "note": "NBC 9:04 ET. Davidson/Shelby early votes first; skew 12 +/- 8."
  },
@@ -707,14 +707,14 @@
  },
  {
   "race": "S:IA",
-  "d": 69.3,
-  "r": 29.0,
-  "pct": 5.8,
+  "d": 62.1,
+  "r": 35.6,
+  "pct": 13.9,
   "dn": "Josh Turek",
   "rn": "Ashley Hinson",
-  "skew": 35,
-  "skew_sd": 12,
-  "note": "NBC 9:09 ET. Iowa reports absentee/early ballots first; these have run 30-40 points more D than the final count in recent cycles; skew 35 +/- 12."
+  "skew": 25,
+  "skew_sd": 10,
+  "note": "NBC 9:22 ET. Absentee share falling as precincts report; skew 25 +/- 10."
  },
  {
   "race": "G:IA",
@@ -729,14 +729,14 @@
  },
  {
   "race": "H:IA-3",
-  "d": 72.9,
-  "r": 27.1,
-  "pct": 18.1,
+  "d": 61.8,
+  "r": 38.2,
+  "pct": 50.3,
   "dn": "Trone Garriott",
   "rn": "Zach Nunn",
-  "skew": 30,
-  "skew_sd": 12,
-  "note": "NBC 9:09 ET. Iowa reports absentee/early ballots first; these have run 30-40 points more D than the final count in recent cycles; skew 30 +/- 12."
+  "skew": 14,
+  "skew_sd": 7,
+  "note": "NBC 9:22 ET. Half counted, absentee-heavy; skew 14 +/- 7."
  },
  {
   "race": "H:VA-6",
@@ -762,5 +762,19 @@
   "race": "H:PA-13",
   "call": "R",
   "note": "NBC projection (Joyce)"
+ },
+ {
+  "race": "S:MS",
+  "d": 43.8,
+  "r": 54.2,
+  "pct": 15.1,
+  "skew": 6,
+  "skew_sd": 8,
+  "note": "NBC 9:22 ET. Mississippi; skew 6 +/- 8."
+ },
+ {
+  "race": "H:AR-1",
+  "call": "R",
+  "note": "NBC projection (Crawford)"
  }
 ]
