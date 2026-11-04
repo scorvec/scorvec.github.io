@@ -2,8 +2,8 @@
  {
   "race": "S:KY",
   "d": 44.6,
-  "r": 53.6,
-  "pct": 16.2,
+  "r": 53.5,
+  "pct": 16.7,
   "skew": 13,
   "dn": "Charles Booker",
   "rn": "Andy Barr",
@@ -75,8 +75,8 @@
  {
   "race": "G:FL",
   "d": 50.3,
-  "r": 48.5,
-  "pct": 60.0,
+  "r": 48.6,
+  "pct": 60.4,
   "skew": 3.3,
   "dn": "David Jolly",
   "rn": "Byron Donalds",
@@ -85,9 +85,9 @@
  },
  {
   "race": "S:FL",
-  "d": 50.7,
+  "d": 50.6,
   "r": 48.3,
-  "pct": 72.2,
+  "pct": 72.6,
   "skew": 3.0,
   "dn": "Angie Nixon",
   "rn": "Ashley Moody",
@@ -183,14 +183,14 @@
  },
  {
   "race": "H:FL-4",
-  "d": 52.5,
-  "r": 46.0,
-  "pct": 73.4,
-  "skew": 8,
+  "d": 52.8,
+  "r": 45.7,
+  "pct": 77.1,
+  "skew": 6,
   "skew_sd": 7,
   "dn": "LaShonda Holloway",
   "rn": "Aaron Bean",
-  "note": "NBC 7:32 ET, 219,494 votes. Batches disagree: 179,896->211,888 ran ~R+38, 211,888->219,494 ran ~D+12; skew 8 +/- 7."
+  "note": "NBC 7:40 ET, 230,453 votes. Batches mixed: ~R+38 (180k->212k), ~D+12 (212k->219k), ~D+19 (219k->230k); skew 6 +/- 7."
  },
  {
   "race": "H:VA-2",
@@ -204,14 +204,14 @@
  },
  {
   "race": "H:FL-3",
-  "d": 49.5,
-  "r": 48.8,
-  "pct": 59.8,
+  "d": 49.1,
+  "r": 49.3,
+  "pct": 60.5,
   "skew": 4,
   "skew_sd": 5,
   "dn": "Seth Harp",
   "rn": "Kat Cammack",
-  "note": "NBC 7:36 ET, 179,753 votes. Recent batches run R (178,100->179,753 ~R+40 on a small batch; 123,276->178,100 ~R+6); projected final ~R+3, skew 4 +/- 5."
+  "note": "NBC 7:40 ET, 181,930 votes; Cammack now leads. Batches since 7:32 run R; skew 4 +/- 5."
  },
  {
   "race": "H:FL-5",
@@ -220,9 +220,9 @@
  },
  {
   "race": "S:OH",
-  "d": 67.1,
-  "r": 30.1,
-  "pct": 5.5,
+  "d": 66.8,
+  "r": 30.3,
+  "pct": 6.2,
   "skew": 18,
   "skew_sd": 8,
   "dn": "Sherrod Brown",
@@ -233,5 +233,10 @@
   "race": "H:FL-17",
   "call": "R",
   "note": "NBC projection 7:38 ET (Steube)"
+ },
+ {
+  "race": "H:OH-3",
+  "call": "D",
+  "note": "NBC projection 7:40 ET (Beatty)"
  }
 ]
