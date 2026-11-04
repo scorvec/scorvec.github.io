@@ -189,11 +189,11 @@
  },
  {
   "race": "S:OH",
-  "d": 49.3,
-  "r": 46.2,
-  "pct": 60.4,
-  "skew": 3,
-  "skew_sd": 4,
+  "d": 48.9,
+  "r": 46.5,
+  "pct": 61.9,
+  "skew": 2.5,
+  "skew_sd": 3.5,
   "dn": "Sherrod Brown",
   "rn": "Jon Husted",
   "note": "NBC 8:05 ET. Ohio counts absentee/early first; skew 12 +/- 6."
@@ -384,19 +384,19 @@
  },
  {
   "race": "S:KS",
-  "d": 58.3,
-  "r": 39.4,
-  "pct": 51.8,
-  "skew": 8,
+  "d": 57.8,
+  "r": 39.8,
+  "pct": 53.0,
+  "skew": 7,
   "skew_sd": 8,
   "note": "NBC 8:50 ET. Johnson/Wyandotte/Douglas advance ballots dominate so far; skew 14 +/- 8."
  },
  {
   "race": "H:PA-8",
-  "d": 61.1,
-  "r": 38.9,
-  "pct": 60.5,
-  "skew": 8,
+  "d": 60.8,
+  "r": 39.2,
+  "pct": 62.3,
+  "skew": 7,
   "skew_sd": 8,
   "note": "NBC 8:17 ET. Pennsylvania counts mail ballots first (heavily D); skew 22 +/- 10 while under ~15% in."
  },
@@ -431,10 +431,10 @@
  },
  {
   "race": "H:PA-10",
-  "d": 59.1,
-  "r": 40.9,
-  "pct": 28.4,
-  "skew": 15,
+  "d": 58.4,
+  "r": 41.6,
+  "pct": 30.7,
+  "skew": 14,
   "skew_sd": 10,
   "note": "NBC 8:17 ET. Pennsylvania counts mail ballots first (heavily D); skew 22 +/- 10 while under ~15% in."
  },
@@ -445,7 +445,8 @@
   "pct": 58.4,
   "skew": 7,
   "skew_sd": 6,
-  "note": "NBC 8:17 ET. New Jersey reports mail ballots first; skew 18 +/- 10."
+  "note": "NBC projection 9:40 ET (Bennett), Democratic flip",
+  "call": "D"
  },
  {
   "race": "H:NJ-10",
@@ -502,9 +503,9 @@
  },
  {
   "race": "H:NC-1",
-  "d": 50.2,
-  "r": 46.8,
-  "pct": 76.0,
+  "d": 49.8,
+  "r": 47.1,
+  "pct": 77.7,
   "dn": "Don Davis",
   "rn": "Buckhout",
   "skew": 2,
@@ -668,12 +669,12 @@
  },
  {
   "race": "S:TN",
-  "d": 45.2,
-  "r": 52.9,
-  "pct": 55.2,
+  "d": 44.7,
+  "r": 53.5,
+  "pct": 58.3,
   "dn": "Bradshaw",
   "rn": "Bill Hagerty",
-  "skew": 6,
+  "skew": 5,
   "skew_sd": 8,
   "note": "NBC 9:04 ET. Davidson/Shelby early votes first; skew 12 +/- 8."
  },
@@ -724,12 +725,12 @@
  },
  {
   "race": "H:IA-3",
-  "d": 60.8,
-  "r": 39.2,
-  "pct": 59.1,
+  "d": 60.5,
+  "r": 39.5,
+  "pct": 60.2,
   "dn": "Trone Garriott",
   "rn": "Zach Nunn",
-  "skew": 11,
+  "skew": 10,
   "skew_sd": 7,
   "note": "NBC 9:22 ET. Half counted, absentee-heavy; skew 14 +/- 7."
  },
@@ -840,7 +841,8 @@
   "rn": "Gabe Evans",
   "skew": 0,
   "skew_sd": 3,
-  "note": "NBC 9:33 ET. Colorado votes almost entirely by mail, so the count is representative; no skew, +/- 3."
+  "note": "NBC projection 9:40 ET (Rutinel), Democratic flip",
+  "call": "D"
  },
  {
   "race": "H:MD-6",
@@ -859,13 +861,22 @@
  },
  {
   "race": "H:NY-17",
-  "d": 56.2,
-  "r": 43.8,
-  "pct": 11.1,
+  "d": 54.0,
+  "r": 45.9,
+  "pct": 12.7,
   "dn": "Conley",
   "rn": "Mike Lawler",
   "skew": 5,
   "skew_sd": 8,
   "note": "NBC 9:37 ET; early count; skew 5 +/- 8."
+ },
+ {
+  "race": "S:LA",
+  "d": 48.0,
+  "r": 52.0,
+  "pct": 19.4,
+  "skew": 6,
+  "skew_sd": 8,
+  "note": "NBC 9:40 ET; early count; skew 6 +/- 8."
  }
 ]
