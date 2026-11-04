@@ -21,6 +21,7 @@ const E = new WhatIf.Engine(D, N);
 
 function Phi(x) { const t = 1 / (1 + 0.2316419 * Math.abs(x)), d = 0.3989423 * Math.exp(-x * x / 2), p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return x > 0 ? 1 - p : p; }
 function countSd(f) { return 2 + 28 * Math.pow(Math.max(0, 1 - f), 1.5); }
+function logPhi(x) { return x > -5 ? Math.log(Math.max(Phi(x), 1e-300)) : -0.5 * x * x - Math.log(-x) - 0.9189385; }
 function logT4(z) { return -2.5 * Math.log(1 + z * z / 4); }   // Student-t df 4, up to a constant
 
 function simulate() {
@@ -60,10 +61,19 @@ races.forEach((x, j) => (idx[(j < nS ? "S:" : "G:") + x.st] = ["S", j]));
 const margin = (i, [t, j]) => (t === "H" ? HM[i * nH + j] : SM[i * nSG + j]);
 
 function summarize(obs) {
-  const lw = new Float64Array(N), used = [], own = [];
+  const lw = new Float64Array(N), used = [], own = [], forced = new Map();
+  // Calls (SOFT_CALLS=0 restores hard constraints): a called race is counted exactly for its winner in every seat
+  // total and race odd below, but it informs the national environment only softly, as log Phi(+-margin / CALL_SD):
+  // a simulation where the called winner lost by more than a few points is down-weighted, not discarded. Hard
+  // constraints left too few simulations once a dozen upsets had been called.
+  const soft = process.env.SOFT_CALLS !== "0", callSd = +(process.env.CALL_SD || 3);
   for (const o of obs) {
     const k = idx[o.race]; if (!k) { console.error("unknown race " + o.race); continue; }
-    if (o.call) { for (let i = 0; i < N; i++) if ((margin(i, k) > 0) !== (o.call === "D")) lw[i] = -Infinity; }
+    if (o.call) {
+      const s = o.call === "D" ? 1 : -1;
+      if (soft) { forced.set(k[0] + ":" + k[1], s > 0); for (let i = 0; i < N; i++) lw[i] += logPhi(s * margin(i, k) / callSd); }
+      else for (let i = 0; i < N; i++) if ((margin(i, k) > 0) !== (o.call === "D")) lw[i] = -Infinity;
+    }
     if (o.pct == null || !(o.pct > 0)) { if (o.call) used.push(o); continue; }   // a called race keeps its count too, when given
     const f = Math.min(1, o.pct / 100), m = o.d - o.r - (o.skew || 0), sd = Math.hypot(countSd(f), o.skew_sd || 0);
     const ow = new Float32Array(N);
@@ -74,7 +84,7 @@ function summarize(obs) {
   let mx = -Infinity; for (const v of lw) if (v > mx) mx = v;
   // Adaptive tempering (TEMPER_ESS=0 turns it off): with ~100 correlated counts the weights collapse onto a few
   // simulations, so the counts' joint log-likelihood is scaled by a <= 1, the largest value that keeps the effective
-  // sample at TEMPER_ESS (default 2000). AP calls stay hard constraints. Race-level odds below still read each race's
+  // sample at TEMPER_ESS (default 2000). Calls enter softly (see above) and are tempered with the counts. Race-level odds below still read each race's
   // own count at full strength.
   const w = new Float64Array(N); let sw = 0, sw2 = 0, alpha = 1;
   const fill = (a) => { sw = 0; sw2 = 0; for (let i = 0; i < N; i++) { w[i] = mx === -Infinity ? 0 : Math.exp(a * (lw[i] - mx)); sw += w[i]; sw2 += w[i] * w[i]; } return sw * sw / sw2; };
@@ -84,11 +94,14 @@ function summarize(obs) {
   const hSeats = new Float64Array(N), sSeats = new Float64Array(N), gSeats = new Float64Array(N);
   let hMaj = 0, sCtl = 0, gMaj = 0, natM = 0;
   const hWin = new Float64Array(nH), sWin = new Float64Array(nSG), hMean = new Float64Array(nH), sMean = new Float64Array(nSG);
+  const fH = new Int8Array(nH), fS = new Int8Array(nSG);   // 0 = not called, 1 = called D, -1 = called R
+  for (const [key, d] of forced) { const [t, j] = key.split(":"); (t === "H" ? fH : fS)[+j] = d ? 1 : -1; }
+  const won = (f, v) => (f ? f > 0 : v > 0);
   for (let i = 0; i < N; i++) {
     const wi = w[i] / sw; if (!wi) continue;
-    let hd = 0; for (let j = 0; j < nH; j++) { const v = HM[i * nH + j]; hMean[j] += wi * v; if (v > 0) { hWin[j] += wi; if (!H.seats[j].ind) hd++; } }
-    let sd = S.holdD, si = 0; for (let j = 0; j < nS; j++) { const v = SM[i * nSG + j]; sMean[j] += wi * v; if (v > 0) { sWin[j] += wi; races[j].ind ? si++ : sd++; } }
-    let gd = Gv.holdD; for (let j = nS; j < nSG; j++) { const v = SM[i * nSG + j]; sMean[j] += wi * v; if (v > 0) { sWin[j] += wi; gd++; } }
+    let hd = 0; for (let j = 0; j < nH; j++) { const v = HM[i * nH + j]; hMean[j] += wi * v; if (won(fH[j], v)) { hWin[j] += wi; if (!H.seats[j].ind) hd++; } }
+    let sd = S.holdD, si = 0; for (let j = 0; j < nS; j++) { const v = SM[i * nSG + j]; sMean[j] += wi * v; if (won(fS[j], v)) { sWin[j] += wi; races[j].ind ? si++ : sd++; } }
+    let gd = Gv.holdD; for (let j = nS; j < nSG; j++) { const v = SM[i * nSG + j]; sMean[j] += wi * v; if (won(fS[j], v)) { sWin[j] += wi; gd++; } }
     hSeats[i] = hd; sSeats[i] = sd; gSeats[i] = gd;
     hMaj += wi * (hd >= H.need); sCtl += wi * (sd > 100 - sd - si); gMaj += wi * (gd >= Gv.need); natM += wi * NAT[i];
   }
@@ -105,6 +118,8 @@ function summarize(obs) {
     const pD = Phi(pm / ps), [t, j] = c.k;
     if (t === "H") { hWin[j] = pD; hMean[j] = pm; } else { sWin[j] = pD; sMean[j] = pm; }
   }
+  for (let j = 0; j < nH; j++) if (fH[j]) hMean[j] = fH[j] > 0 ? Math.max(hMean[j], 0.5) : Math.min(hMean[j], -0.5);
+  for (let j = 0; j < nSG; j++) if (fS[j]) sMean[j] = fS[j] > 0 ? Math.max(sMean[j], 0.5) : Math.min(sMean[j], -0.5);
   const q = (a, p) => { const o = Array.from(a.keys()).filter(i => w[i] > 0).sort((x, y) => a[x] - a[y]); let c = 0; for (const i of o) { c += w[i] / sw; if (c >= p) return a[i]; } return a[o[o.length - 1]]; };
   const wmean = (a) => { let s = 0; for (let i = 0; i < N; i++) s += w[i] / sw * a[i]; return s; };
   const natArr = Float64Array.from(NAT, (v) => D.E0 + v);
