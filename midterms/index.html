@@ -1,25 +1,26 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>2026 Midterm Results</title>
-<meta name="description" content="Results of the 2026 U.S. House, Senate and governor elections, race by race, next to the final forecast frozen before the polls closed, and how that forecast did.">
+<title>2026 Midterms: Races Still Out</title>
+<meta name="description" content="Projected final seat counts for the 2026 House, Senate and governorships, and every race not yet called: the frozen forecast's own simulations updated with every call and count so far.">
 <link rel="canonical" href="https://scorvec.com/midterms/">
 <meta property="og:type" content="website">
-<meta property="og:title" content="2026 Midterm Results">
-<meta property="og:description" content="Results of the 2026 U.S. House, Senate and governor elections, race by race, next to the final forecast frozen before the polls closed, and how that forecast did.">
+<meta property="og:title" content="2026 Midterms: Races Still Out">
+<meta property="og:description" content="Projected final seat counts for the 2026 House, Senate and governorships, and every race not yet called: the frozen forecast's own simulations updated with every call and count so far.">
 <meta property="og:url" content="https://scorvec.com/midterms/">
 <meta name="twitter:card" content="summary">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap">
 <link rel="stylesheet" href="/assets/site.css">
 <link rel="stylesheet" href="mt.css">
 <style>
-:root{--ink:#1b1d22;--muted:#6f6b64;--rule:#e3e1db;--bg:#fcfcfa;--card:#fff;--d:#1f5fbf;--r:#b3261e;--i:#6b3fa0;--und:#c9c6bd;--focus:#1f5fbf;
- --night:#0e2140;--nmuted:#b9c5da;--nrule:rgba(255,255,255,.16);--dlt:#7fb0ff;--rlt:#ff8a7a;--ilt:#c9a8f0;--ult:#56637a}
+/* the races still out (the midterm pages' front page). The frozen forecast's simulations reweighted by every call and count
+   (live/remaining.js -> data/live.json, data/live_history.json), beside the calls and counts in data/results.json. */
+:root{--ink:#1b1d22;--muted:#6f6b64;--rule:#e3e1db;--bg:#fcfcfa;--card:#fff;--d:#1f5fbf;--r:#b3261e;--i:#6b3fa0;--focus:#1f5fbf;
+ --night:#0e2140;--nmuted:#b9c5da;--dlt:#7fb0ff;--rlt:#ff8a7a;--ilt:#c9a8f0;--ult:#56637a}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Source Sans 3",-apple-system,Helvetica,Arial,sans-serif}
 .mt-in{max-width:1180px;margin:0 auto;padding:0 20px}
 a{color:var(--d)}
-a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
-/* the opening band: each chamber's seats as called, against the forecast's range */
+a:focus-visible,button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 .hx{background:var(--night);color:#fff;padding:22px 0 26px}
 .hx a{color:var(--dlt)}
 .hx :focus-visible{outline-color:#fff}
@@ -28,9 +29,9 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(-
 .hx-head{font:500 clamp(27px,1.1rem + 1.9vw,44px)/1.14 "Source Serif 4",Georgia,serif;margin:14px 0 0;max-width:34ch;text-wrap:balance;letter-spacing:-.005em}
 .hx-ch{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px 40px;margin-top:22px}
 .ch h2{font:600 18px/1.3 "Source Serif 4",Georgia,serif;margin:0;color:#fff}
-.ch-n{display:flex;align-items:baseline;gap:10px;margin:6px 0 8px;font:600 44px/1 "Source Serif 4",Georgia,serif;font-variant-numeric:tabular-nums}
-.ch-n .d{color:var(--dlt)}.ch-n .r{color:var(--rlt)}.ch-n .sep{color:var(--nmuted);font-size:30px}
+.ch-n{display:flex;align-items:baseline;gap:10px;margin:6px 0 8px;font:600 44px/1 "Source Serif 4",Georgia,serif;font-variant-numeric:tabular-nums;color:var(--dlt)}
 .ch-n small{font:400 15px/1.3 "Source Sans 3",sans-serif;color:var(--nmuted)}
+.ch-n .r{color:var(--rlt)}.ch-n .sep{color:var(--nmuted);font-size:30px}
 .seats{display:block;width:100%;height:auto;overflow:visible}
 .seats text{font:13px "Source Sans 3",sans-serif;fill:var(--nmuted)}
 .seats .mj{stroke:#fff;stroke-width:1.5;stroke-dasharray:3 3}
@@ -41,63 +42,39 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(-
 .ch-leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px}
 .ch-leg b{color:#fff;font-weight:600;font-variant-numeric:tabular-nums}
 @media(max-width:900px){.hx-ch{grid-template-columns:1fr;max-width:560px}}
-/* below the band */
 .sec{margin-top:34px}
 .sec-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:8px 16px;margin:0 0 12px}
 .sec-head h2{font:600 26px/1.2 "Source Serif 4",Georgia,serif;margin:0}
 .sec-sub{margin:2px 0 0;color:var(--muted);font-size:16px}
-.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
-.tile{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:13px 15px}
-.tile b{display:block;font:600 34px/1.05 "Source Serif 4",Georgia,serif;font-variant-numeric:tabular-nums}
-.tile span{display:block;margin-top:4px;font-size:15.5px}
-.tile small{display:block;margin-top:3px;font-size:14.5px;color:var(--muted)}
-.figs{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px;margin-top:16px}
-@media(max-width:900px){.tiles{grid-template-columns:1fr 1fr}.figs{grid-template-columns:1fr}}
+.figs{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px}
+@media(max-width:900px){.figs{grid-template-columns:1fr}}
 .mt-card{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:14px 16px}
 .mt-card h3{font:600 18px/1.3 "Source Serif 4",Georgia,serif;margin:0 0 2px}
 .mt-note{color:var(--muted);font-size:15px;margin:6px 0 0}
 .fig{display:block;width:100%;height:auto;overflow:visible;max-height:72vh}
 .fig text{font-size:13px;fill:var(--muted)}
-.fig .ax line{stroke:#d8d6cf}.fig .grid line{stroke:#eeece6}.fig .eq{stroke:#8f8b82;stroke-dasharray:4 4}
-.fig .zero{stroke:#cfccc4}
-.fig circle.pt{stroke:#fff;stroke-width:1}
-.fig circle.prov{fill:#fff!important;stroke-width:1.6}
+.fig .ax line{stroke:#d8d6cf}.fig .grid line{stroke:#eeece6}
+.fig .mj{stroke:var(--ink);stroke-width:1.2;stroke-dasharray:4 4}
 .fig .hit{fill:transparent;cursor:pointer}
-.fig .ci{stroke:var(--ink);stroke-width:1.5}
-.fig .bd{fill:var(--d)}.fig .br{fill:var(--r)}.fig .pres{fill-opacity:.4}.fig .fc{stroke:var(--ink);stroke-width:2;stroke-dasharray:4 2}
-.fig .lab{fill:var(--ink);font-weight:600}
-#natFig{max-height:none}
 .leg{display:flex;flex-wrap:wrap;gap:2px 16px;margin:8px 0 0;padding:0;list-style:none;font-size:14.5px;color:var(--muted)}
-.leg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
-.leg i.o{background:#fff;border:1.6px solid var(--muted)}
-.leg i.sq{border-radius:2px}.leg i.ln{width:14px;height:0;border-radius:0;border-top:2px dashed var(--ink);vertical-align:3px}.leg i.wh{width:2px;height:12px;border-radius:0;background:var(--ink)}
-.ups{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
-.up{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:13px 15px}
-.up h3{font:600 18px/1.25 "Source Serif 4",Georgia,serif;margin:0}
-.up p{margin:4px 0 0;font-size:15.5px}
-.up .ch{font:600 28px/1.1 "Source Serif 4",Georgia,serif;margin-top:8px;font-variant-numeric:tabular-nums}
-.up small{display:block;color:var(--muted);font-size:14.5px}
-.empty{color:var(--muted);font-size:16px;margin:0}
-/* every race */
+.leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
 .mt-bar2{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 10px}
 .mt-tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--rule)}
 .mt-tabs button{border:0;background:none;font:inherit;font-size:16px;padding:8px 14px;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px}
 .mt-tabs button[aria-selected=true]{color:var(--ink);font-weight:600;border-bottom-color:var(--ink)}
-.mt-find input{font:inherit;font-size:17px;padding:6px 10px;border:1px solid var(--rule);border-radius:6px;width:260px;max-width:100%}
 .mt-tw{overflow-x:auto}
 table{border-collapse:collapse;width:100%;font-size:16px}
 th,td{padding:5px 6px;border-bottom:1px solid var(--rule);text-align:left;vertical-align:top}
 th{font-weight:600;color:var(--muted);font-size:14.5px}
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 td small{display:block;color:var(--muted);font-size:14px}
-.wd{color:var(--d);font-weight:700}.wr{color:var(--r);font-weight:700}.wi{color:var(--i);font-weight:700}
 .st{color:var(--muted)}
 .mt-more{border:0;background:none;color:var(--d);font:inherit;font-size:16px;padding:6px 0;cursor:pointer}
 .tip{position:fixed;pointer-events:none;background:#1b1d22;color:#fff;font-size:14.5px;padding:6px 9px;border-radius:6px;display:none;max-width:min(320px,calc(100vw - 16px));z-index:9}
 .mt-about{margin-top:40px;max-width:80ch}.mt-about h2{font:600 22px/1.3 "Source Serif 4",Georgia,serif;margin:0 0 6px}.mt-about h3{font:600 17px/1.3 "Source Serif 4",Georgia,serif;margin:18px 0 4px}.mt-about p{font-size:16px;line-height:1.55;margin:0 0 10px}
-.mt-about code{font-size:14px;word-break:break-all}
+.hx-nat{margin:20px 0 0;font-size:16px;color:#e8edf5}
 .mt-foot{margin-top:26px;padding:14px 0 40px;border-top:1px solid var(--rule)}
-@media(max-width:640px){.mt-in{padding:0 16px}.hx-upd{display:block;margin:2px 0 0}.mt-find,.mt-find input{width:100%}.sec-head h2{font-size:23px}.tile b{font-size:28px}}
+@media(max-width:640px){.mt-in{padding:0 16px}.hx-upd{display:block;margin:2px 0 0}.sec-head h2{font-size:23px}}
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 <script src="/assets/site.js" defer></script>
@@ -270,71 +247,52 @@ td small{display:block;color:var(--muted);font-size:14px}
 </header>
 <!-- sh:end -->
 <main id="main">
-<section class="hx" aria-label="The results at a glance">
+<section class="hx" aria-label="The projection at a glance">
  <div class="mt-in">
-  <h1>2026 Midterm Results<span class="hx-upd" id="upd">loading…</span></h1>
+  <h1>Races Still Out<span class="hx-upd" id="upd">loading…</span></h1>
   <p class="hx-head" id="head"></p>
   <div class="hx-ch">
    <div class="ch" id="chH"><h2>House</h2></div>
    <div class="ch" id="chS"><h2>Senate</h2></div>
    <div class="ch" id="chG"><h2>Governors</h2></div>
   </div>
+  <p class="hx-nat" id="nat"></p>
  </div>
 </section>
 
 <div class="mt-in">
-<nav class="mt-nav" aria-label="Midterm pages"><a href="./" aria-current="page">Results</a><a href="live.html">Races still out</a><a href="forecast.html">Final forecast</a><a href="about.html">How the forecast works</a><a href="legislatures.html">State legislatures</a><a href="call.html">Claude&rsquo;s call</a></nav>
+<nav class="mt-nav" aria-label="Midterm pages"><a href="./" aria-current="page">Races still out</a><a href="results.html">Results</a><a href="forecast.html">Final forecast</a><a href="about.html">How the forecast works</a><a href="legislatures.html">State legislatures</a><a href="call.html">Claude&rsquo;s call</a></nav>
 
-<section class="sec" id="national" aria-labelledby="h-nat" hidden>
- <div class="sec-head"><div><h2 id="h-nat">The national House vote</h2><p class="sec-sub">The Democratic lead in the two-party vote for the House, against every House election since 1946</p></div></div>
- <div class="tiles" id="natTiles"></div>
- <div class="mt-card" style="margin-top:16px"><h3>House vote margin by election, 1946–2026</h3>
-  <svg class="fig" id="natFig" role="img" aria-label="The national House vote margin in every election since 1946, with the 2026 projection and the forecast"></svg>
-  <ul class="leg" id="natLeg"></ul></div>
-</section>
-
-<section class="sec" id="check" aria-labelledby="h-check">
- <div class="sec-head"><div><h2 id="h-check">How the forecast did</h2><p class="sec-sub">The forecast frozen at noon Eastern on Election Day, against every race called so far</p></div></div>
- <div class="tiles" id="tiles"></div>
+<section class="sec" id="moves" aria-labelledby="h-moves">
+ <div class="sec-head"><div><h2 id="h-moves">The House</h2><p class="sec-sub">Projected Democratic seats, from the final forecast to the latest run</p></div></div>
  <div class="figs">
-  <div class="mt-card"><h3>Forecast margin and result</h3><p class="mt-note" style="margin:0">Each counted race; above the line, the Democrat or independent did better than forecast</p>
-   <svg class="fig" id="scat" viewBox="0 0 560 400" role="img" aria-label="Forecast margin against the counted margin, one dot per race"></svg>
-   <ul class="leg" id="scatLeg"></ul></div>
-  <div class="mt-card"><h3>Were the chances right?</h3><p class="mt-note" style="margin:0">Called races grouped by their forecast chance, with the share each side actually won</p>
-   <svg class="fig" id="cal" viewBox="0 0 400 400" role="img" aria-label="Forecast chance against the share of races won"></svg>
-   <p class="mt-note" id="calNote"></p></div>
+  <div class="mt-card"><h3>How the projection has moved</h3><p class="mt-note" style="margin:0">The median and the 80 % range after each run; the first point is the final forecast</p>
+   <svg class="fig" id="hist" viewBox="0 0 560 330" role="img" aria-label="Projected Democratic House seats over time"></svg></div>
+  <div class="mt-card"><h3>Every seat total</h3><p class="mt-note" style="margin:0" id="distSub">The chance of each number of Democratic House seats</p>
+   <svg class="fig" id="dist" viewBox="0 0 400 330" role="img" aria-label="The chance of each number of Democratic House seats"></svg>
+   <ul class="leg"><li><i style="background:var(--d)"></i>Democratic majority</li><li><i style="background:var(--r)"></i>Republican majority</li></ul></div>
  </div>
 </section>
 
-<section class="sec" id="upsets" aria-labelledby="h-up">
- <div class="sec-head"><div><h2 id="h-up">Upsets</h2><p class="sec-sub">Called races the forecast's favourite lost, the least expected first</p></div></div>
- <div class="ups" id="ups"></div>
- <button class="mt-more" id="upMore" type="button" hidden></button>
-</section>
-
-<section class="sec" id="races" aria-labelledby="h-races">
- <div class="sec-head"><h2 id="h-races">Every race</h2></div>
+<section class="sec" id="out" aria-labelledby="h-out">
+ <div class="sec-head"><div><h2 id="h-out">Every race still out</h2><p class="sec-sub" id="outSub"></p></div></div>
  <div class="mt-bar2">
-  <div class="mt-tabs" role="tablist" aria-label="Office"><button type="button" role="tab" aria-selected="true" data-o="senate">Senate</button><button type="button" role="tab" aria-selected="false" data-o="governor">Governors</button><button type="button" role="tab" aria-selected="false" data-o="house">House</button></div>
-  <label class="mt-find"><input type="search" id="find" placeholder="Find a state, district or candidate" aria-label="Find a race"></label>
+  <div class="mt-tabs" role="tablist" aria-label="Office"><button type="button" role="tab" aria-selected="true" data-o="all">All</button><button type="button" role="tab" aria-selected="false" data-o="senate">Senate</button><button type="button" role="tab" aria-selected="false" data-o="governor">Governors</button><button type="button" role="tab" aria-selected="false" data-o="house">House</button></div>
  </div>
  <div class="mt-tw"><table id="tbl"></table></div>
  <button class="mt-more" id="more" type="button" hidden></button>
 </section>
 
 <section class="mt-about" id="about" aria-labelledby="h-about"><h2 id="h-about">About this page</h2>
- <h3>The results</h3>
- <p>Calls and vote counts come from Wikipedia's 2026 election pages (text available under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>), read every hour. A race counts as called once its winner is marked there. Counts are added as editors fill in each race's results table. Until a state certifies, every margin on this page is the latest count and is marked provisional. Certified official returns replace these numbers as states certify, and from then on the official figures are used. A close race whose results table is still empty can take its count from news reports of the unofficial returns instead, with the share of the expected vote counted: Mississippi's Senate race uses the AP count as reported in the press and NBC News's estimate of the vote counted.</p>
- <p>The projections under each chamber come from the <a href="live.html">races still out</a>: the forecast's own simulations, updated with every call and count so far.</p>
- <h3>The national House vote</h3>
- <p>The margin is the Democratic lead as a share of the two parties' House votes, (D − R) / (D + R), the measure the forecast uses. Leads quoted as shares of every vote run a few tenths of a point smaller. Past elections are the House totals on Wikipedia's election pages. The projection is the national vote in the forecast's simulations, reweighted by every call and count so far (the <a href="live.html">races still out</a>). The counted tally is Wikipedia's national results table, read every hour once editors fill it in. Until every state has counted it runs behind the final vote, and late ballots have run Democratic in recent elections, so the shifts use the projection until the count is final. Seats with only one party on the ballot add no votes for the other, which pulls the national vote a little away from the generic ballot.</p>
- <h3>What is scored</h3>
- <p>The forecast gave each race a chance that the Republican's opponent (a Democrat, or an independent where one led the challenge) wins, and a range for the margin. The chances are scored on every called race: how often the favourite won, the Brier score (the mean squared gap between the chance and what happened; 0 is perfect, and always saying 50 % scores 0.25) and, for House seats, the same score for the race raters' average on the same seats. Margins are scored only once a count is final or certified. The figures above show provisional margins as hollow dots and final ones as solid dots. In the calibration chart, each group's bar is a 95 % interval for its share won, given how few races it holds.</p>
- <h3>The forecast</h3>
- <p id="frozen"></p>
+ <h3>What the projection is</h3>
+ <p>The final forecast simulated the election 20,000 times. Each simulation shares national, state, urban and demographic-group swings across every race. This page gives each simulation a weight for how well it matches the races called so far and every count so far, and reads the seat totals and race chances from the weighted simulations. A surprise in one race therefore moves every race that shares its swings. A called race counts for its winner in every seat total. In the weights, a call counts heavily against simulations where the called winner lost by more than a few points, rather than ruling them out. With hundreds of calls, the weights would otherwise rest on a handful of simulations, so their combined pull is softened just enough to keep about 2,000 effective simulations.</p>
+ <h3>The counts</h3>
+ <p>A count is taken to differ from the final margin by an error with heavy tails, so that one odd count cannot take over. A race that is still out and has a count of its own gets its chance by combining what every other call and count implies for it with its own count, read directly. When the share of the vote counted is reported (official returns, or a news count with its estimate of the expected vote), the error comes from the vote still out: the uncounted ballots may run about 25 points apart from the counted ones, so a count with 4 % of the vote left is good to about a point. Wikipedia's results tables do not say how much of the vote is counted, so for those counts it is estimated from the district's or state's 2024 presidential vote, scaled to a midterm turnout of 80 % of it (2018 ran about 90 % and 2022 about 71 %). The estimate is never allowed above 95 %, and because it can be well off, such a count's error never falls below 2 points. Arizona, Alaska, California, Colorado, Nevada, Oregon, Utah and Washington count most ballots after Election Day, and their late ballots can run well apart from the early count, so their counts carry extra uncertainty. Once states publish official returns with the share counted, those figures are used instead of the estimate.</p>
+ <h3>Sources and limits</h3>
+ <p>Calls and most counts come from Wikipedia's 2026 election pages (text available under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>), read every hour; see the <a href="results.html">results page</a>. Wikipedia marks winners some hours after the news organisations call them, so many races listed here as still out may already be called elsewhere. For those, the chance shown is what the forecast and every other call imply. Margins are the Democrat's (or independent's) share of the vote minus the Republican's. The simulations come from the final forecast's own frozen code and data (commit <a id="cm" href="https://github.com/scorvec/midterms-2026">in the model repository</a>), so before any call or count they reproduce the forecast within simulation noise of a few tenths of a point. This page is automated and unreviewed, and it is not a race call.</p>
 </section>
 
-<footer class="mt-foot"><nav class="mt-nav" aria-label="Midterm pages"><a href="./">Results</a><a href="live.html">Races still out</a><a href="forecast.html">Final forecast</a><a href="about.html">How the forecast works</a><a href="legislatures.html">State legislatures</a><a href="call.html">Claude&rsquo;s call</a></nav></footer>
+<footer class="mt-foot"><nav class="mt-nav" aria-label="Midterm pages"><a href="./">Races still out</a><a href="results.html">Results</a><a href="forecast.html">Final forecast</a><a href="about.html">How the forecast works</a><a href="legislatures.html">State legislatures</a><a href="call.html">Claude&rsquo;s call</a></nav></footer>
 </div>
 </main>
 <div class="tip" id="tip"></div>
@@ -343,176 +301,106 @@ const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));   // names arrive from scraped pages
 const getJSON=u=>fetch(u).then(r=>{if(!r.ok)throw new Error(`${u}: HTTP ${r.status}`);return r.json()});
 const pct=p=>p>=.995?'>99%':p<=.005?'<1%':(100*p).toFixed(0)+'%';
-const side=pt=>pt&&pt!=='D'?'I':'D';                                    // the challenger's letter: an independent reads I+
+const side=pt=>pt&&pt!=='D'?'I':'D';
 const mg=(v,pt)=>v==null?'–':Math.abs(v)<0.05?'Even':(v>0?side(pt)+'+':'R+')+Math.abs(v).toFixed(1);
-const PCOL={D:'var(--d)',R:'var(--r)',I:'var(--i)',O:'var(--muted)'},WCLS={D:'wd',R:'wr',I:'wi'};
-const OFFICE={senate:'Senate',governor:'Governor',house:'House'},OCOL={senate:'#1b1d22',governor:'#8a6d1f',house:'#2f8f83'};
-const won=r=>r.winner&&r.winner!==(r.opp||'R');                          // the Republican's opponent won (the event p is about)
-const raceName=r=>r.office==='house'?r.seat:`${r.seat} ${OFFICE[r.office]}`;
-const sname=n=>String(n||'?').replace(/,?\s+(Jr\.?|Sr\.?|II|III|IV)$/,'').split(' ').pop();
-let J,LIVE,TAB='senate',SHOWN=60;
-Promise.all([getJSON('data/results.json'),getJSON('data/live.json').catch(()=>null)]).then(([j,l])=>{J=j;LIVE=l;init()}).catch(e=>{console.error(e);$('#upd').textContent='The results could not be loaded. Reload the page to try again.'});
+const PCOL={D:'var(--d)',R:'var(--r)',I:'var(--i)'};
+const OFFICE={senate:'Senate',governor:'Governor',house:'House'},KEY={house:'H',senate:'S',governor:'G'};
+const when=s=>new Date(s).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
+const chance=(p,pt)=>`<span style="color:${p>=.5?PCOL[side(pt)]:PCOL.R}">${pct(p>=.5?p:1-p)} ${p>=.5?side(pt):'R'}</span>`;
+let L,R,HIST,TAB='all',SHOWN=40,ALL=false,LEFT=0;
+Promise.all([getJSON('data/live.json'),getJSON('data/results.json'),getJSON('data/live_history.json')]).then(([l,r,h])=>{L=l;R=r;HIST=h;init()})
+ .catch(e=>{console.error(e);$('#upd').textContent='The projection could not be loaded. Reload the page to try again.'});
 
 function init(){
- const t=new Date(J.generated);$('#upd').textContent='Updated '+t.toLocaleString('en-US',{month:'long',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
- const F=J.forecast,R=J.races;
- const cnt=o=>{const g=R.filter(r=>r.office===o);return{D:g.filter(r=>r.winner==='D').length,R:g.filter(r=>r.winner==='R').length,I:g.filter(r=>r.winner&&r.winner!=='D'&&r.winner!=='R').length,open:g.filter(r=>!r.winner).length}};
+ $('#upd').textContent=`Updated ${when(L.generated)} from ${L.calls} calls and ${L.counts} counts`;
+ const F=R.forecast,cnt=o=>{const g=R.races.filter(r=>r.office===o);return{D:g.filter(r=>r.winner==='D').length,R:g.filter(r=>r.winner==='R').length,I:g.filter(r=>r.winner&&r.winner!=='D'&&r.winner!=='R').length,open:g.filter(r=>!r.winner).length}};
  const H=cnt('house'),S=cnt('senate'),G=cnt('governor');
- const hD=F.house.fixed_d+H.D,hR=F.house.fixed_r+H.R,sD=F.senate.holdover_d+S.D,sR=F.senate.holdover_r+S.R,gD=F.governor.holdover_d+G.D,gR=F.governor.holdover_r+G.R;
- const ctl={House:hD>=218?'D':hR>=218?'R':null,Senate:sD>=51?'D':sR>=50?'R':null};   // the vice president breaks a 50-50 Senate
- const of=w=>Object.keys(ctl).filter(k=>ctl[k]===w).map(k=>'the '+k).join(' and ');
- const parts=[of('D')&&`Democrats win ${of('D')}`,of('R')&&`Republicans hold ${of('R')}`].filter(Boolean);
- $('#head').textContent=parts.length?parts.join('; ')+'.':`${H.open+S.open+G.open} races still to be called.`;
- const P=o=>LIVE&&LIVE[o];   // the projection for the races still out (live.html), when it loads
- chamber('#chH',{d:hD,r:hR,i:H.I,open:H.open,total:435,maj:218,F:F.house,P:P('house'),what:'seats',ctl:'chance of a Democratic majority'});
- chamber('#chS',{d:sD,r:sR,i:S.I,open:S.open,total:100,maj:51,F:F.senate,P:P('senate'),what:'seats',ctl:'chance of Democratic control'});
- chamber('#chG',{d:gD,r:gR,i:G.I,open:G.open,total:50,maj:null,F:F.governor,P:P('governor'),what:'governors'});
- national();tiles();scatter();calib();upsets();$('#upMore').onclick=()=>{UPS=1e9;upsets()};
- $$('.mt-tabs button').forEach(b=>b.onclick=()=>{TAB=b.dataset.o;SHOWN=60;$$('.mt-tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));table()});
- $('#find').oninput=()=>{SHOWN=60;table()};$('#more').onclick=()=>{SHOWN+=120;table()};
+ const hp=L.house,sp=L.senate;
+ const lead=x=>x.p_control>=.5?['Democrats',x.p_control]:['Republicans',1-x.p_control];
+ const [hw,hc]=lead(hp),[sw,sc]=lead(sp);
+ const r50=(x,n)=>x.r50??n-x.p50;   // the median Republican seats (older files: the rest)
+ $('#head').textContent=`Median outcome: ${hp.p50}–${r50(hp,435)} in the House and ${sp.p50}–${r50(sp,100)} in the Senate; ${hw} ${hc>=.995?'are all but certain to':'have a '+pct(hc)+' chance to'} control the House.`;
+ chamber('#chH',{d:F.house.fixed_d+H.D,r:F.house.fixed_r+H.R,i:H.I,open:H.open,total:435,maj:218,P:hp,F:F.house,what:'seats',ctl:'chance of a Democratic majority'});
+ chamber('#chS',{d:F.senate.holdover_d+S.D,r:F.senate.holdover_r+S.R,i:S.I,open:S.open,total:100,maj:51,P:sp,F:F.senate,what:'seats',ctl:'chance of Democratic control'});
+ chamber('#chG',{d:F.governor.holdover_d+G.D,r:F.governor.holdover_r+G.R,i:G.I,open:G.open,total:50,maj:null,P:L.governor,F:F.governor,what:'governors'});
+ const fmtE=v=>Math.abs(v)<0.05?'Even':(v>0?'D+':'R+')+Math.abs(v).toFixed(1),N=L.national;
+ $('#nat').innerHTML=`National House vote, projected: ${fmtE(N.mean)} (80 % range ${fmtE(N.p10)} to ${fmtE(N.p90)}). <a href="results.html#national">Against every election since 1946</a>`;
+ history();dist();
+ $$('.mt-tabs button').forEach(b=>b.onclick=()=>{TAB=b.dataset.o;SHOWN=40;ALL=false;$$('.mt-tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));table()});
+ $('#more').onclick=()=>{if(LEFT>0)SHOWN+=100;else ALL=true;table()};
  table();
- const fz=J.frozen;$('#frozen').innerHTML=`The <a href="forecast.html">final forecast</a> was frozen at ${esc(new Date(fz.at).toLocaleString('en-US',{month:'long',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'}))}, before the first polls closed, and nothing in it has changed since. Its file's SHA-256 fingerprint is <code>${esc(fz.sha256)}</code>, and the code that made it is commit <a href="https://github.com/scorvec/midterms-2026/tree/${esc(fz.commit)}"><code>${esc(fz.commit.slice(0,12))}</code></a> of the public model repository, where the file (<code>data/final/forecast_2026.json</code>) can be checked against it. <a href="about.html">How the forecast works</a> describes the model.`;
+ const fz=R.frozen;$('#cm').href=`https://github.com/scorvec/midterms-2026/tree/${encodeURIComponent(fz.commit)}`;$('#cm').textContent=`commit ${fz.commit.slice(0,12)} in the model repository`;
 }
 
-// a chamber: seats called for each side and still open on one bar, the majority line, and the forecast's 80 % range of
+// a chamber: seats called for each side and still open on one bar, the majority line, and the projection's 80 % range of
 // Democratic seats as a bracket above it
 function chamber(sel,c){
- const W=360,y0=26,h=18,x=v=>v/c.total*W,el=$(sel);
+ const W=360,y0=26,h=18,x=v=>v/c.total*W,el=$(sel),P=c.P,F=c.F;
  const seg=[[c.d,'var(--dlt)'],[c.i,'var(--ilt)'],[c.open,'var(--ult)'],[c.r,'var(--rlt)']];let at=0,rects='';
  for(const [n,f] of seg){if(n>0)rects+=`<rect x="${x(at)}" y="${y0}" width="${Math.max(0,x(n)-1)}" height="${h}" fill="${f}"/>`;at+=n}
- const f=c.F,b0=x(f.p10),b1=x(f.p90),bm=x(f.p50);
+ const b0=x(P.p10),b1=x(P.p90),bm=x(P.p50);
  const maj=c.maj?`<line class="mj" x1="${x(c.maj)}" x2="${x(c.maj)}" y1="${y0-4}" y2="${y0+h+4}"/><text class="mjt" x="${x(c.maj)}" y="${y0+h+18}" text-anchor="middle">${c.maj} for ${c.maj===51?'control':'a majority'}</text>`:'';
- el.insertAdjacentHTML('beforeend',`<p class="ch-n"><span class="d">${c.d}</span><span class="sep">–</span><span class="r">${c.r}</span><small>${c.open?`${c.open} not yet called`:'every race called'}</small></p>
- <svg class="seats" viewBox="0 0 ${W} ${y0+h+(c.maj?24:4)}" role="img" aria-label="${c.d} Democratic, ${c.r} Republican${c.i?`, ${c.i} other`:''}, ${c.open} not called, of ${c.total} ${c.what}; forecast ${f.p10} to ${f.p90} Democratic">
-  <path class="fr" d="M${b0},${y0-6}V${y0-11}H${b1}V${y0-6}M${bm},${y0-11}V${y0-15}"/><text x="${bm}" y="${y0-19}" text-anchor="middle">forecast</text>${rects}${maj}</svg>
- <ul class="ch-leg"><li><i style="background:var(--dlt)"></i>Democratic <b>${c.d}</b></li>${c.i?`<li><i style="background:var(--ilt)"></i>Other <b>${c.i}</b></li>`:''}<li><i style="background:var(--ult)"></i>Not called <b>${c.open}</b></li><li><i style="background:var(--rlt)"></i>Republican <b>${c.r}</b></li></ul>
- <p class="ch-sum">Forecast: ${f.p50} Democratic ${c.what} (80 % range ${f.p10}–${f.p90})${f.p_control!=null?`, ${pct(f.p_control)} ${c.ctl}`:''}</p>${c.P&&c.open?`
- <p class="ch-sum">Projected with the calls and counts so far: ${c.P.p50} (80 % range ${c.P.p10}–${c.P.p90})${c.ctl?`, ${pct(c.P.p_control)} ${c.ctl}`:''}. <a href="live.html">The races still out</a></p>`:''}`);
-}
-
-// the national House vote: the projection, the count so far, and both against past elections and the forecast
-const fmtE=v=>Math.abs(v)<0.05?'Even':(v>0?'D+':'R+')+Math.abs(v).toFixed(1);
-const lean=v=>`${v>=0?'D':'R'} +${Math.abs(v).toFixed(1)}`;
-function national(){
- const N=J.national;if(!N)return;
- $('#national').hidden=false;
- const c=N.count,P=LIVE&&LIVE.national,h=Object.fromEntries(N.history),out=[];
- const best=c&&c.final?{v:c.margin,what:'the final count'}:P?{v:P.mean,what:'the projection'}:null;   // what the shifts use
- out.push(P?[fmtE(P.mean),'projected national House vote',`80 % range ${fmtE(P.p10)} to ${fmtE(P.p90)}, from the calls and counts so far`]:['–','projected national House vote','the projection could not be loaded']);
- out.push(c?[fmtE(c.margin),c.final?'final national House vote':'counted so far',`Democrats ${c.dem_pct.toFixed(1)} %, Republicans ${c.rep_pct.toFixed(1)} % of ${(c.total/1e6).toFixed(1)} million votes`]:['–','counted national House vote','Wikipedia\'s national tally is not filled in yet']);
- if(best){
-  out.push([lean(best.v-h[2024]),'shift since 2024',`2024 ${fmtE(h[2024])}, 2022 ${fmtE(h[2022])}, 2018 ${fmtE(h[2018])}; 2026 from ${best.what}`]);
-  out.push([lean(best.v-N.forecast.center),'against the forecast',`forecast ${fmtE(N.forecast.center)}, 80 % range ${fmtE(N.forecast.p10)} to ${fmtE(N.forecast.p90)}`]);
- }
- $('#natTiles').innerHTML=out.map(([b,s,m])=>`<div class="tile"><b>${b}</b><span>${s}</span><small>${m}</small></div>`).join('');
- natFig();let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(natFig,150)});
-}
-function natFig(){
- const svg=$('#natFig'),N=J.national,c=N.count,P=LIVE&&LIVE.national,fc=N.forecast;
- const W=Math.max(300,Math.round(svg.getBoundingClientRect().width)||700),H=W<600?250:290,L=48,T=16,Rr=10,B=26;
- const rows=N.history.map(([y,m])=>({y,m}));
- rows.push({y:2026,m:P?P.mean:null,P,c,fc});
- const n=rows.length,bw=(W-L-Rr)/n,vals=[...rows.map(r=>r.m).filter(v=>v!=null),fc.p10,fc.p90,...(P?[P.p10,P.p90]:[]),...(c?[c.margin]:[])];
- const lo=Math.min(-10,Math.floor(Math.min(...vals)/10)*10),hi=Math.max(20,Math.ceil(Math.max(...vals)/10)*10);
- const x=k=>L+(k+.5)*bw,y=v=>T+(hi-v)/(hi-lo)*(H-T-B),y0=y(0),step=W<600?20:10;
- let g='<g class="grid">',ax='<g class="ax">',marks='',hits='';
- for(let v=lo;v<=hi;v+=10){g+=`<line x1="${L}" x2="${W-Rr}" y1="${y(v)}" y2="${y(v)}"/>`;ax+=`<text x="${L-6}" y="${y(v)+4}" text-anchor="end">${fmtE(v).replace('.0','')}</text>`}
- g+='</g>';
- rows.forEach((r,k)=>{
-  if((r.y%step===0&&r.y<=2026-step/2)||r.y===2026)ax+=`<text x="${x(k)}" y="${H-8}" text-anchor="middle">${r.y}</text>`;
-  if(r.m!=null){const y1=y(r.m),proj=r.y===2026;   // 2026 is the projection, hatched
-   marks+=`<rect class="${r.m>=0?'bd':'br'}${r.y%4?'':' pres'}" x="${x(k)-bw*.36}" y="${Math.min(y0,y1)}" width="${bw*.72}" height="${Math.max(1,Math.abs(y1-y0))}" rx="1.5"${proj?` style="fill:url(#h${r.m>=0?'d':'r'});stroke:var(--${r.m>=0?'d':'r'});stroke-width:1.5"`:''}/>`}
-  hits+=`<rect class="hit" data-k="${k}" x="${x(k)-bw/2}" y="${T}" width="${bw}" height="${H-T-B}"/>`;
- });
- ax+='</g>';
- const k6=n-1,x6=x(k6);
- if(P)marks+=`<line class="ci" x1="${x6}" x2="${x6}" y1="${y(P.p10)}" y2="${y(P.p90)}"/><text class="lab" x="${x6+bw*.5}" y="${y(P.p90)-7}" text-anchor="end">${fmtE(P.mean)} projected</text>`;
- marks+=`<line class="fc" x1="${x6-bw*.6}" x2="${x6+bw*.6}" y1="${y(fc.center)}" y2="${y(fc.center)}"/>`;
- if(c)marks+=`<circle class="pt prov" cx="${x6}" cy="${y(c.margin)}" r="4.5" style="stroke:var(--ink)"/>`;
- svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
- const hatch=c=>`<pattern id="h${c}" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="#fff"/><line x1="1" x2="1" y1="0" y2="5" style="stroke:var(--${c});stroke-width:2.5"/></pattern>`;
- svg.innerHTML=`<defs>${hatch('d')}${hatch('r')}</defs>`+g+ax+`<line class="zero" x1="${L}" x2="${W-Rr}" y1="${y0}" y2="${y0}"/>`+marks+hits;
- bindTips(svg,rows,r=>r.y<2026?`<b>${r.y}</b>, ${r.y%4?'midterm':'presidential year'}<br>${fmtE(r.m)}: Democrats ${(50+r.m/2).toFixed(1)} % of the two-party vote`
-  :`<b>2026</b>, midterm${r.P?`<br>Projected ${fmtE(r.P.mean)} (80 %: ${fmtE(r.P.p10)} to ${fmtE(r.P.p90)})`:''}<br>Forecast ${fmtE(r.fc.center)}${r.c?`<br>${r.c.final?'Final':'Counted so far'} ${fmtE(r.c.margin)}`:''}`);
- $('#natLeg').innerHTML='<li><i class="sq" style="background:var(--d)"></i>Democratic lead</li><li><i class="sq" style="background:var(--r)"></i>Republican lead</li><li><i class="sq" style="background:var(--muted);opacity:.4"></i>Presidential years, lighter</li>'
-  +(P?'<li><i class="sq" style="background:repeating-linear-gradient(45deg,var(--d) 0 2px,#fff 2px 4px);border:1px solid var(--d)"></i>2026 projected</li><li><i class="wh"></i>its 80 % range</li>':'')+'<li><i class="ln"></i>The forecast</li>'+(c?'<li><i class="o"></i>Counted so far</li>':'');
-}
-
-function counted(){return J.races.filter(r=>r.margin!=null)}
-function tiles(){
- const A=J.scores.all||{},Hs=(J.scores.house||{}).raters,M=counted(),out=[];
- out.push(A.called?[`${Math.round(A.favourite_won*A.called)} of ${A.called}`,'called races won by the forecast\'s favourite',`Brier score ${A.brier.toFixed(3)}`]:['–','called races won by the forecast\'s favourite','no race called yet']);
- out.push(Hs?[Hs.brier_model.toFixed(3),'Brier score on House seats (lower is better)',`race raters' average ${Hs.brier_raters.toFixed(3)} on the same ${Hs.n} seats`]:['–','Brier score on House seats','compared with the race raters once seats are called']);
- if(M.length){
-  const err=M.map(r=>r.margin-r.med),mean=err.reduce((a,b)=>a+b,0)/err.length,inr=M.filter(r=>r.margin>=r.lo&&r.margin<=r.hi).length;
-  const fin=M.filter(r=>r.final).length;
-  out.push([`${mean>=0?'D':'R'} +${Math.abs(mean).toFixed(1)}`,`average gap between the counted and forecast margins`,`${M.length} counted race${M.length>1?'s':''}${fin<M.length?`, ${M.length-fin} provisional`:''}`]);
-  out.push([`${Math.round(100*inr/M.length)}%`,'counted margins inside the forecast\'s 80 % range',`${inr} of ${M.length}; a well-sized range holds about 80 %`]);
- }else{
-  out.push(['–','average gap between the counted and forecast margins','once counts are in']);
-  out.push(['–','counted margins inside the forecast\'s 80 % range','once counts are in']);
- }
- $('#tiles').innerHTML=out.map(([b,s,m])=>`<div class="tile"><b>${b}</b><span>${s}</span><small>${m}</small></div>`).join('');
+ el.insertAdjacentHTML('beforeend',`<p class="ch-n"><span>${P.p50}</span><span class="sep">–</span><span class="r">${P.r50??c.total-P.p50}</span><small>median outcome; 80 % range of Democratic ${c.what} ${P.p10}–${P.p90}</small></p>
+ <svg class="seats" viewBox="0 0 ${W} ${y0+h+(c.maj?24:4)}" role="img" aria-label="${c.d} Democratic and ${c.r} Republican ${c.what} called, ${c.open} not called; projected ${P.p10} to ${P.p90} Democratic">
+  <path class="fr" d="M${b0},${y0-6}V${y0-11}H${b1}V${y0-6}M${bm},${y0-11}V${y0-15}"/><text x="${bm}" y="${y0-19}" text-anchor="middle">projected</text>${rects}${maj}</svg>
+ <ul class="ch-leg"><li><i style="background:var(--dlt)"></i>Called D <b>${c.d}</b></li>${c.i?`<li><i style="background:var(--ilt)"></i>Other <b>${c.i}</b></li>`:''}<li><i style="background:var(--ult)"></i>Not called <b>${c.open}</b></li><li><i style="background:var(--rlt)"></i>Called R <b>${c.r}</b></li></ul>
+ <p class="ch-sum">${c.ctl?`${pct(P.p_control)} ${c.ctl} (the forecast: ${pct(F.p_control)}). `:''}The forecast: ${F.p50} (${F.p10}–${F.p90}).</p>`);
 }
 
 const tip=$('#tip');
 function showTip(e,html){tip.innerHTML=html;tip.style.display='block';const r=tip.getBoundingClientRect();let x=e.clientX+12,y=e.clientY+12;if(x+r.width>innerWidth-8)x=e.clientX-r.width-12;if(y+r.height>innerHeight-8)y=e.clientY-r.height-12;tip.style.left=x+'px';tip.style.top=y+'px'}
 function hideTip(){tip.style.display='none'}
 function bindTips(svg,rows,html){svg.querySelectorAll('[data-k]').forEach(n=>{const r=rows[+n.dataset.k];n.onmousemove=e=>showTip(e,html(r));n.onmouseleave=hideTip;n.onclick=e=>showTip(e,html(r))})}
-function raceTip(r){return `<b>${esc(raceName(r))}</b><br>${esc(r.challenger)} v ${esc(r.republican)}<br>Forecast ${mg(r.med,r.party)} (80 %: ${mg(r.lo,r.party)} to ${mg(r.hi,r.party)}), ${pct(r.p)}<br>${r.final?'Final':'Latest count'}: ${mg(r.margin,r.party)}`}
 
-function scatter(){
- const svg=$('#scat'),M=counted(),W=560,H=400,L=46,T=12,Rr=12,B=40;
- if(!M.length){svg.innerHTML=`<text x="${W/2}" y="${H/2}" text-anchor="middle">No counts yet: races appear here as their counts come in.</text>`;$('#scatLeg').innerHTML='';return}
- const vals=M.flatMap(r=>[r.med,r.margin]),ext=Math.min(60,Math.max(10,Math.ceil(Math.max(...vals.map(Math.abs))/10)*10));
- const x=v=>L+(Math.max(-ext,Math.min(ext,v))+ext)/(2*ext)*(W-L-Rr),y=v=>T+(ext-Math.max(-ext,Math.min(ext,v)))/(2*ext)*(H-T-B);
+// projected House seats after each run, the final forecast first: the median as a line, the 80 % range as a band
+function history(){
+ const F=R.forecast.house,pts=[{at:R.frozen.at,p10:F.p10,p50:F.p50,p90:F.p90,p:F.p_control,first:true},...HIST.map(h=>({at:h.at,p10:h.house_p10,p50:h.house_p50,p90:h.house_p90,p:h.house_p,calls:h.calls,counts:h.counts}))];
+ const svg=$('#hist'),W=560,H=330,Lm=40,T=12,Rm=14,B=34,t=pts.map(p=>+new Date(p.at)),t0=t[0],t1=Math.max(t[t.length-1],t0+36e5);
+ const lo=Math.floor(Math.min(...pts.map(p=>p.p10),218)/10)*10-5,hi=Math.ceil(Math.max(...pts.map(p=>p.p90),218)/10)*10+5;
+ const x=v=>Lm+(v-t0)/(t1-t0)*(W-Lm-Rm),y=v=>T+(hi-v)/(hi-lo)*(H-T-B);
  let g='<g class="grid">',ax='<g class="ax">';
- for(let v=-ext;v<=ext;v+=ext>=40?20:10){g+=`<line x1="${x(v)}" x2="${x(v)}" y1="${T}" y2="${H-B}"/><line x1="${L}" x2="${W-Rr}" y1="${y(v)}" y2="${y(v)}"/>`;
-  ax+=`<text x="${x(v)}" y="${H-B+16}" text-anchor="middle">${mg(v).replace('.0','')}</text><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${mg(v).replace('.0','')}</text>`}
- g+='</g>';ax+=`<text x="${(L+W-Rr)/2}" y="${H-4}" text-anchor="middle">Forecast margin</text><text transform="translate(12,${(T+H-B)/2}) rotate(-90)" text-anchor="middle">Counted margin</text></g>`;
- const lines=`<line class="zero" x1="${x(0)}" x2="${x(0)}" y1="${T}" y2="${H-B}"/><line class="zero" x1="${L}" x2="${W-Rr}" y1="${y(0)}" y2="${y(0)}"/><line class="eq" x1="${x(-ext)}" y1="${y(-ext)}" x2="${x(ext)}" y2="${y(ext)}"/>`;
- const ord=M.map((r,k)=>[r,k]).sort((a,b)=>(a[0].office==='house')-(b[0].office==='house'));   // statewide races drawn on top
- const pts=ord.map(([r,k])=>`<circle class="pt${r.final?'':' prov'}" cx="${x(r.med)}" cy="${y(r.margin)}" r="${r.office==='house'?4:5.5}" style="fill:${OCOL[r.office]};stroke:${r.final?'#fff':OCOL[r.office]}"/><circle class="hit" data-k="${k}" cx="${x(r.med)}" cy="${y(r.margin)}" r="9"/>`).join('');
- svg.innerHTML=g+ax+lines+pts;bindTips(svg,M,raceTip);
- const has=o=>M.some(r=>r.office===o);
- $('#scatLeg').innerHTML=['senate','governor','house'].filter(has).map(o=>`<li><i style="background:${OCOL[o]}"></i>${OFFICE[o]}</li>`).join('')+(M.some(r=>!r.final)?'<li><i class="o"></i>Provisional count</li>':'');
+ for(let v=Math.ceil(lo/10)*10;v<=hi;v+=10){g+=`<line x1="${Lm}" x2="${W-Rm}" y1="${y(v)}" y2="${y(v)}"/>`;ax+=`<text x="${Lm-6}" y="${y(v)+4}" text-anchor="end">${v}</text>`}
+ const days=[];for(let d=new Date(t0);+d<=t1;d.setHours(d.getHours()+12))days.push(+d);
+ ax+=days.map(d=>`<text x="${x(d)}" y="${H-B+18}" text-anchor="middle">${new Date(d).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric'})}</text>`).join('');
+ g+='</g>';ax+='</g>';
+ const band=`<path d="M${pts.map((p,i)=>`${x(t[i])},${y(p.p90)}`).join('L')}L${pts.map((p,i)=>[x(t[i]),y(p.p10)]).reverse().map(a=>a.join(',')).join('L')}Z" fill="var(--d)" fill-opacity=".14"/>`;
+ const line=`<path d="M${pts.map((p,i)=>`${x(t[i])},${y(p.p50)}`).join('L')}" fill="none" stroke="var(--d)" stroke-width="2"/>`;
+ const maj=`<line class="mj" x1="${Lm}" x2="${W-Rm}" y1="${y(218)}" y2="${y(218)}"/><text x="${W-Rm}" y="${y(218)-5}" text-anchor="end">218 for a majority</text>`;
+ const dots=pts.map((p,i)=>`<circle cx="${x(t[i])}" cy="${y(p.p50)}" r="${p.first?5:3.5}" fill="${p.first?'#fff':'var(--d)'}" stroke="var(--d)" stroke-width="2"/><circle class="hit" data-k="${i}" cx="${x(t[i])}" cy="${y(p.p50)}" r="10"/>`).join('');
+ svg.innerHTML=g+ax+band+maj+line+dots;
+ bindTips(svg,pts,p=>`<b>${p.first?'Final forecast':'Run of '+esc(when(p.at))}</b><br>${p.p50} Democratic seats (80 %: ${p.p10}–${p.p90})<br>${pct(p.p)} chance of a Democratic majority${p.first?'':`<br>from ${p.calls} calls and ${p.counts} counts`}`);
 }
 
-// Wilson 95 % interval for k of n
-function wilson(k,n){const z=1.96,p=k/n,d=1+z*z/n,c=(p+z*z/(2*n))/d,h=z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n))/d;return[Math.max(0,c-h),Math.min(1,c+h)]}
-function calib(){
- const svg=$('#cal'),C=(J.scores.all||{}).calibration||[],W=400,H=400,L=46,T=12,Rr=12,B=40;
- if(!C.length){svg.innerHTML=`<text x="${W/2}" y="${H/2}" text-anchor="middle">No race called yet.</text>`;return}
- const x=v=>L+v*(W-L-Rr),y=v=>T+(1-v)*(H-T-B),nmax=Math.max(...C.map(c=>c.n));
+// the latest run's chance of every Democratic House seat total
+function dist(){
+ const h=L.house.hist,ks=Object.keys(h).map(Number).sort((a,b)=>a-b).filter(k=>h[k]>=5e-4),svg=$('#dist'),W=400,H=330,Lm=40,T=12,Rm=8,B=34;
+ const k0=Math.min(ks[0],218)-2,k1=Math.max(ks[ks.length-1],218)+2,top=Math.max(...ks.map(k=>h[k]));
+ const ymax=Math.ceil(top*100/2)*2/100||.02,x=v=>Lm+(v-k0)/(k1-k0)*(W-Lm-Rm),y=v=>T+(1-v/ymax)*(H-T-B),bw=Math.max(1,(W-Lm-Rm)/(k1-k0)-1);
  let g='<g class="grid">',ax='<g class="ax">';
- for(let v=0;v<=1.001;v+=.25){g+=`<line x1="${x(v)}" x2="${x(v)}" y1="${T}" y2="${H-B}"/><line x1="${L}" x2="${W-Rr}" y1="${y(v)}" y2="${y(v)}"/>`;ax+=`<text x="${x(v)}" y="${H-B+16}" text-anchor="middle">${v*100}%</text><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${v*100}%</text>`}
- g+='</g>';ax+=`<text x="${(L+W-Rr)/2}" y="${H-4}" text-anchor="middle">Forecast chance</text><text transform="translate(12,${(T+H-B)/2}) rotate(-90)" text-anchor="middle">Share won</text></g>`;
- const rows=C.map(c=>{const k=Math.round(c.won*c.n),[a,b]=wilson(k,c.n);return{...c,k,a,b}});
- const marks=rows.map((c,i)=>`<line class="ci" x1="${x(c.forecast)}" x2="${x(c.forecast)}" y1="${y(c.a)}" y2="${y(c.b)}"/><circle class="pt" cx="${x(c.forecast)}" cy="${y(c.won)}" r="${4+8*Math.sqrt(c.n/nmax)}" style="fill:var(--ink)"/><circle class="hit" data-k="${i}" cx="${x(c.forecast)}" cy="${y(c.won)}" r="14"/>`).join('');
- svg.innerHTML=g+ax+`<line class="eq" x1="${x(0)}" y1="${y(0)}" x2="${x(1)}" y2="${y(1)}"/>`+marks;
- bindTips(svg,rows,c=>`Forecast chance ${c.band.replace(/0\.(\d\d)/g,(m,d)=>+d+'%').replace('1.00','100%')}<br>${c.n} race${c.n>1?'s':''}, average forecast ${pct(c.forecast)}<br>Won ${c.k} (${pct(c.won)}), 95 % interval ${pct(c.a)}–${pct(c.b)}`);
- $('#calNote').textContent='Dot size: the number of races. On the dashed line, races given 70 % were won 70 % of the time; a bar that crosses it is consistent with the forecast.';
+ for(let v=0;v<=ymax+1e-9;v+=ymax/4){g+=`<line x1="${Lm}" x2="${W-Rm}" y1="${y(v)}" y2="${y(v)}"/>`;ax+=`<text x="${Lm-6}" y="${y(v)+4}" text-anchor="end">${Math.round(v*100)}%</text>`}
+ const step=(k1-k0)>60?20:10;for(let v=Math.ceil(k0/step)*step;v<=k1;v+=step)ax+=`<text x="${x(v)}" y="${H-B+18}" text-anchor="middle">${v}</text>`;
+ g+='</g>';ax+='</g>';
+ const bars=ks.map((k,i)=>`<rect x="${x(k)-bw/2}" y="${y(h[k])}" width="${bw}" height="${Math.max(0,y(0)-y(h[k]))}" fill="${k>=218?'var(--d)':'var(--r)'}"/><rect class="hit" data-k="${i}" x="${x(k)-bw/2-1}" y="${T}" width="${bw+2}" height="${H-T-B}"/>`).join('');
+ const maj=`<line class="mj" x1="${x(217.5)}" x2="${x(217.5)}" y1="${T}" y2="${y(0)}"/>`;
+ svg.innerHTML=g+ax+bars+maj;
+ bindTips(svg,ks,k=>`${k} Democratic seats: ${(100*h[k]).toFixed(1)} %`);
+ $('#distSub').textContent=`The chance of each number of Democratic House seats; ${pct(L.house.p_control)} for 218 or more`;
 }
 
-let UPS=12;
-function upsets(){
- const all=J.races.filter(r=>r.winner&&(r.p>=.5)!==won(r)).map(r=>({...r,pw:won(r)?r.p:1-r.p})).sort((a,b)=>a.pw-b.pw),U=all.slice(0,UPS);
- $('#upMore').hidden=all.length<=UPS;$('#upMore').textContent=`Show all ${all.length} upsets`;
- if(!U.length){$('#ups').innerHTML='<p class="empty">None so far: every called race went to the forecast\'s favourite.</p>';return}
- $('#ups').innerHTML=U.map(r=>{const w=won(r)?r.challenger:r.republican,wp=won(r)?side(r.party):'R';
-  return `<div class="up"><h3>${esc(raceName(r))}</h3><p><span class="${WCLS[r.winner]||''}">${esc(w)}</span> beat ${esc(won(r)?r.republican:r.challenger)}</p><div class="ch">${pct(r.pw)}</div><small>the forecast's chance of ${wp==='R'?'a Republican':wp==='I'?'an independent':'a Democratic'} win${r.margin!=null?`; ${r.final?'final':'latest count'} ${mg(r.margin,r.party)}, forecast ${mg(r.med,r.party)}`:''}</small></div>`}).join('');
+function rowsOut(){
+ const by=new Map(L.races.map(x=>[x.race,x]));
+ return R.races.filter(r=>!r.winner).map(r=>{const k=`${KEY[r.office]}:${r.seat}`,x=by.get(k);return x?{...r,now:x}:null}).filter(Boolean);
 }
-
 function table(){
- const q=$('#find').value.trim().toLowerCase();
- let rows=J.races.filter(r=>r.office===TAB&&(!q||`${r.seat} ${r.challenger} ${r.republican}`.toLowerCase().includes(q)));
- rows.sort((a,b)=>a.seat.localeCompare(b.seat,'en',{numeric:true}));
- const all=rows.length;rows=rows.slice(0,SHOWN);
- const res=r=>!r.winner?`<span class="st">${r.margin!=null?'Counting':'Not called'}</span>`:`<span class="${WCLS[r.winner]||''}">${esc(r.winner==='R'?sname(r.republican):r.winner===side(r.party)?sname(r.challenger):'Other')}</span>`;
- const miss=r=>r.margin==null?'':`${mg(r.margin-r.med,r.party)}`;
- $('#tbl').setAttribute('aria-label',`${OFFICE[TAB]} races: forecast and result`);
- $('#tbl').innerHTML=`<thead><tr><th>Race</th><th>Candidates</th><th class="n">Forecast chance</th><th class="n">Forecast margin</th><th>Winner</th><th class="n">Margin</th><th class="n">Gap</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.seat)}</td><td>${esc(r.challenger)} <small>v ${esc(r.republican)}</small></td><td class="n" style="color:${r.p>=.5?PCOL[side(r.party)]:PCOL.R}">${pct(r.p>=.5?r.p:1-r.p)} ${r.p>=.5?side(r.party):'R'}</td><td class="n">${mg(r.med,r.party)}<small>${mg(r.lo,r.party)} to ${mg(r.hi,r.party)}</small></td><td>${res(r)}</td><td class="n">${mg(r.margin,r.party)}${r.margin!=null&&!r.final?'<small>provisional</small>':''}</td><td class="n">${miss(r)}</td></tr>`).join('')}</tbody>`;
- $('#more').hidden=all<=SHOWN;$('#more').textContent=`Show more (${all-SHOWN} left)`;
+ const all=rowsOut().filter(r=>TAB==='all'||r.office===TAB).sort((a,b)=>Math.abs(a.now.p-.5)-Math.abs(b.now.p-.5));
+ const close=all.filter(r=>r.now.p>.02&&r.now.p<.98),rows=(ALL?all:close).slice(0,SHOWN),list=ALL?all:close;
+ $('#outSub').textContent=`${all.length} race${all.length===1?'':'s'} not called yet; ${close.length} with each side above 2 %, the closest first`;
+ const name=r=>r.office==='house'?r.seat:`${r.seat} ${OFFICE[r.office]}`;
+ const cnt=r=>r.now.count?`${mg(r.now.count.margin,r.party)}<small>${r.now.count.est?`about ${Math.round(r.now.count.pct)}`:r.now.count.pct.toFixed(1)} % in</small>`:'<span class="st">–</span>';
+ $('#tbl').setAttribute('aria-label','Races not called yet: forecast and projection');
+ $('#tbl').innerHTML=`<thead><tr><th>Race</th><th>Candidates</th><th class="n">Count so far</th><th class="n">Forecast chance</th><th class="n">Chance now</th><th class="n">Projected margin</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(name(r))}</td><td>${esc(r.challenger)} <small>v ${esc(r.republican)}</small></td><td class="n">${cnt(r)}</td><td class="n">${chance(r.p,r.party)}</td><td class="n"><b>${chance(r.now.p,r.party)}</b></td><td class="n">${mg(r.now.med,r.party)}<small>${mg(r.now.lo,r.party)} to ${mg(r.now.hi,r.party)}</small></td></tr>`).join('')||'<tr><td colspan="6" class="st">None: every race in this group has been called.</td></tr>'}</tbody>`;
+ LEFT=list.length-rows.length;
+ $('#more').hidden=LEFT<=0&&(ALL||all.length===close.length);$('#more').textContent=LEFT>0?`Show more (${LEFT} left)`:`Show all ${all.length}, the safe seats too`;
 }
 </script>
 <!-- sf:start -->

@@ -1,8 +1,8 @@
 # Pulls the results and the frozen forecast from the public model repository (scorvec/midterms-2026, whose results.yml
 # reads the count every hour) into the site's midterms/ folder and re-applies the site chrome:
-#   * copy web/index.html (the results), live.html (the races still out), forecast.html (the final forecast), about.html,
-#     pollchart.js, mt.css and web/data/{results, results_summary, live, live_history, model, race_history,
-#     districts_2026.topo}.json into midterms/ and midterms/data/;
+#   * copy web/index.html (the races still out, the front page), results.html (the results), forecast.html (the final
+#     forecast), about.html, pollchart.js, mt.css and web/data/{results, results_summary, live, live_history, model,
+#     race_history, districts_2026.topo}.json into midterms/ and midterms/data/;
 #     legislatures.html, its data/stateleg_seats.json and data/stateleg_geo/ (index.json + the per-state TopoJSON it lists)
 #     when published;
 #   * drop any robots noindex tag (a guard; the model repo's pages carry none);
@@ -53,7 +53,7 @@ jobs:
           echo "model repo at $sha"
           base="https://raw.githubusercontent.com/$MODEL_REPO/$sha/web"
           tmp=$(mktemp -d); mkdir -p "$tmp/data"
-          for f in index.html live.html forecast.html about.html pollchart.js mt.css; do
+          for f in index.html results.html forecast.html about.html pollchart.js mt.css; do
             curl -fsSL --retry 3 -o "$tmp/$f" "$base/$f"
           done
           # legislatures.html (state legislative chambers, experimental) - optional
@@ -90,7 +90,7 @@ jobs:
           print("results", new["generated"], "frozen forecast", new["frozen"]["at"])
           EOF
           mkdir -p midterms/data
-          for f in index.html live.html forecast.html about.html legislatures.html; do
+          for f in index.html results.html forecast.html about.html legislatures.html; do
             [ -f "$tmp/$f" ] || continue
             sed 's|<meta name="robots" content="noindex">||' "$tmp/$f" > "midterms/$f"
           done
@@ -109,7 +109,7 @@ jobs:
 
       - name: Stamp the site chrome
         run: |
-          python -c "import sys; sys.path.insert(0, 'scripts/site'); import apply_chrome as A; A.stamp_all(only={'midterms/index.html', 'midterms/live.html', 'midterms/forecast.html', 'midterms/about.html', 'midterms/legislatures.html'}, quiet=True)"
+          python -c "import sys; sys.path.insert(0, 'scripts/site'); import apply_chrome as A; A.stamp_all(only={'midterms/index.html', 'midterms/results.html', 'midterms/forecast.html', 'midterms/about.html', 'midterms/legislatures.html'}, quiet=True)"
 
       - name: Commit & push
         run: |
@@ -127,7 +127,7 @@ jobs:
             tar xf "$SNAP/outs.tar" 2>/dev/null || true
             # the pages come from the model repo, but their chrome is the site's: re-stamp it from main's CURRENT
             # apply_chrome.py so a menu change pushed during this run is not reverted
-            python -c "import sys; sys.path.insert(0, 'scripts/site'); import apply_chrome as A; A.stamp_all(only={'midterms/index.html', 'midterms/live.html', 'midterms/forecast.html', 'midterms/about.html', 'midterms/legislatures.html'}, quiet=True)" || echo "::warning::chrome re-stamp failed"
+            python -c "import sys; sys.path.insert(0, 'scripts/site'); import apply_chrome as A; A.stamp_all(only={'midterms/index.html', 'midterms/results.html', 'midterms/forecast.html', 'midterms/about.html', 'midterms/legislatures.html'}, quiet=True)" || echo "::warning::chrome re-stamp failed"
             git add -A midterms
             if git diff --staged --quiet; then echo "No changes; skipping commit."; echo "PUSHED=0" >> "$GITHUB_ENV"; exit 0; fi
             git commit -q -m "midterms: results $stamp" -- midterms

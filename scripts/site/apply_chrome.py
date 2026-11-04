@@ -575,10 +575,11 @@ PAGES = [
     # the synced midterms pages: their page navigation (upstream) gains the site's own midterms page, Claude's call
     dict(
         path="midterms/index.html", mode="after-body", footer=True, synced=True, fixes=[MT_CALL]
-    ),  # 2026 midterm results and the scorecard (synced from github.com/scorvec/midterms-2026 by midterms-sync.yml)
+    ),  # the races still out, the midterms front page: the frozen forecast's simulations reweighted by every call and
+    # count (synced from github.com/scorvec/midterms-2026 by midterms-sync.yml); live.html is its redirect stub
     dict(
-        path="midterms/live.html", mode="after-body", footer=True, synced=True, fixes=[MT_CALL]
-    ),  # the races still out: the frozen forecast's simulations reweighted by every call and count
+        path="midterms/results.html", mode="after-body", footer=True, synced=True, fixes=[MT_CALL]
+    ),  # 2026 midterm results, the national House vote and the scorecard
     dict(
         path="midterms/forecast.html", mode="after-body", footer=True, synced=True, fixes=[MT_CALL]
     ),  # the final midterm forecast, frozen before the polls closed
