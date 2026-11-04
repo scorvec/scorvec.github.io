@@ -706,17 +706,17 @@
  },
  {
   "at": "2026-11-04T02:10Z",
-  "nat": 11.09,
+  "nat": 11.06,
   "house_p": 1,
-  "senate_p": 0.9914,
-  "house_mean": 250.7,
+  "senate_p": 0.9908,
+  "house_mean": 250.5,
   "house_p10": 239,
   "house_p90": 264,
-  "senate_mean": 53.98,
+  "senate_mean": 53.92,
   "senate_p10": 52,
   "senate_p90": 55,
-  "gov_mean": 29.3,
-  "ess": 281,
+  "gov_mean": 29.2,
+  "ess": 292,
   "n_obs": 98
  }
 ]

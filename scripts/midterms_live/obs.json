@@ -720,9 +720,9 @@
   "pct": 5.1,
   "dn": "Josh Turek",
   "rn": "Ashley Hinson",
-  "skew": 25,
-  "skew_sd": 10,
-  "note": "NBC 9:09 ET. Iowa reports absentee/early ballots first (heavily D); skew 25 +/- 10."
+  "skew": 35,
+  "skew_sd": 12,
+  "note": "NBC 9:09 ET. Iowa reports absentee/early ballots first; these have run 30-40 points more D than the final count in recent cycles; skew 35 +/- 12."
  },
  {
   "race": "G:IA",
@@ -731,9 +731,9 @@
   "pct": 5.1,
   "dn": "Rob Sand",
   "rn": "Lahn",
-  "skew": 25,
-  "skew_sd": 10,
-  "note": "NBC 9:09 ET. Iowa reports absentee/early ballots first (heavily D); skew 25 +/- 10."
+  "skew": 35,
+  "skew_sd": 12,
+  "note": "NBC 9:09 ET. Iowa reports absentee/early ballots first; these have run 30-40 points more D than the final count in recent cycles; skew 35 +/- 12."
  },
  {
   "race": "H:IA-3",
@@ -742,8 +742,8 @@
   "pct": 18.1,
   "dn": "Trone Garriott",
   "rn": "Zach Nunn",
-  "skew": 20,
-  "skew_sd": 10,
-  "note": "NBC 9:09 ET. Polk absentee first; skew 20 +/- 10."
+  "skew": 30,
+  "skew_sd": 12,
+  "note": "NBC 9:09 ET. Iowa reports absentee/early ballots first; these have run 30-40 points more D than the final count in recent cycles; skew 30 +/- 12."
  }
 ]
