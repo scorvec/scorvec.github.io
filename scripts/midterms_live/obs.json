@@ -1,21 +1,25 @@
 [
  {
   "race": "S:KY",
-  "d": 43.8,
-  "r": 54.3,
-  "pct": 19.5,
-  "skew": 13,
+  "d": 41.8,
+  "r": 56.1,
+  "pct": 29.0,
+  "skew": 8,
   "dn": "Charles Booker",
   "rn": "Andy Barr",
-  "note": "NBC 7:16 ET. Louisville over-represented early (KY-3 22% in vs ~10% statewide at 7:10); skew 13 +/- 5, falling as the rest of the state reports.",
+  "note": "NBC 8:05 ET. Louisville share falling; skew 8 +/- 5.",
   "skew_sd": 5
  },
  {
   "race": "S:VA",
-  "call": "D",
   "dn": "Mark Warner",
   "rn": "Bert Mizusawa",
-  "note": "NBC projection 7:00 ET"
+  "note": "NBC 8:05 ET. ",
+  "d": 59.6,
+  "r": 40.1,
+  "pct": 31.3,
+  "skew": 0,
+  "skew_sd": 4
  },
  {
   "race": "H:KY-3",
@@ -74,25 +78,25 @@
  },
  {
   "race": "G:FL",
-  "d": 49.0,
-  "r": 49.8,
-  "pct": 67.6,
-  "skew": 2.7,
+  "d": 49.3,
+  "r": 49.5,
+  "pct": 79.2,
+  "skew": 1.8,
   "dn": "David Jolly",
   "rn": "Byron Donalds",
-  "note": "NBC/AP 7:32 ET (57.6% expected in). Florida registration method: more Election Day precincts in, so skew falls to 3.5 +/- 3.",
-  "skew_sd": 3
+  "note": "NBC 8:05 ET. Registration method: most Election Day precincts now in; skew 1.8 +/- 2.5.",
+  "skew_sd": 2.5
  },
  {
   "race": "S:FL",
-  "d": 49.6,
-  "r": 49.3,
-  "pct": 81.4,
-  "skew": 1.9,
+  "d": 49.1,
+  "r": 49.8,
+  "pct": 87.7,
+  "skew": 1.2,
   "dn": "Angie Nixon",
   "rn": "Ashley Moody",
-  "note": "NBC/AP 7:38 ET (72.2% expected in). The 64.1->72.2% batch ran ~D+15 (likely a large South Florida county); remaining vote still Election Day-heavy, so registration-method skew ~3, +/- 3.5 for county mix.",
-  "skew_sd": 3.5
+  "note": "NBC 8:05 ET. Registration method; skew 1.2 +/- 2.",
+  "skew_sd": 2
  },
  {
   "race": "H:FL-20",
@@ -106,14 +110,14 @@
  },
  {
   "race": "H:FL-25",
-  "d": 52.7,
-  "r": 45.3,
-  "pct": 84.4,
-  "skew": 1,
+  "d": 51.6,
+  "r": 46.3,
+  "pct": 94.0,
+  "skew": 0.5,
   "dn": "Jared Moskowitz",
   "rn": "Singer",
-  "note": "NBC 7:32 ET; mostly counted, skew 2 +/- 3.",
-  "skew_sd": 3
+  "note": "NBC 8:05 ET. ",
+  "skew_sd": 2
  },
  {
   "race": "H:FL-19",
@@ -121,22 +125,15 @@
   "note": "NBC projection 7:12 ET (Schwartzel)"
  },
  {
-  "race": "S:GA",
-  "call": "D",
-  "dn": "Jon Ossoff",
-  "rn": "Mike Collins",
-  "note": "NBC projection 7:32 ET; Ossoff 67.3% at 23.5%"
- },
- {
   "race": "G:GA",
-  "d": 62.1,
-  "r": 37.9,
-  "pct": 12.5,
-  "skew": 10,
-  "skew_sd": 6,
+  "d": 56.9,
+  "r": 43.1,
+  "pct": 41.5,
+  "skew": 7,
+  "skew_sd": 5,
   "dn": "Keisha Lance Bottoms",
   "rn": "Rick Jackson",
-  "note": "NBC 7:21 ET. Metro Atlanta mail/early ballots dominate the first batches; skew 10 +/- 6 assumed."
+  "note": "NBC 8:05 ET. Metro Atlanta still over-represented; skew 7 +/- 5."
  },
  {
   "race": "H:GA-1",
@@ -183,35 +180,36 @@
  },
  {
   "race": "H:FL-4",
-  "d": 49.7,
-  "r": 48.7,
-  "pct": 90.9,
-  "skew": 3,
-  "skew_sd": 5,
+  "d": 50.0,
+  "r": 48.4,
+  "pct": 92.8,
+  "skew": 2,
+  "skew_sd": 4,
   "dn": "LaShonda Holloway",
   "rn": "Aaron Bean",
-  "note": "NBC 7:46 ET, 271,758 votes at 90.9%. Last batches alternate (230k->265k ~R+44, 265k->272k ~D+24); skew 3 +/- 5."
+  "note": "NBC 8:05 ET. 277,472 votes; last batches mixed (R+44, D+24, D+30); skew 2 +/- 4."
  },
  {
   "race": "H:VA-2",
-  "d": 42.8,
-  "r": 54.5,
-  "pct": 4.6,
+  "d": 46.1,
+  "r": 51.4,
+  "pct": 7.7,
   "skew_sd": 6,
   "dn": "Elaine Luria",
   "rn": "Jen Kiggans",
-  "note": "NBC 7:28 ET. Virginia counts Election Day precincts first and central absentee ballots later, so the early count may lean R; no skew, +/- 6."
+  "note": "NBC 8:05 ET. ",
+  "skew": 0
  },
  {
   "race": "H:FL-3",
-  "d": 48.1,
-  "r": 50.2,
-  "pct": 63.6,
-  "skew": 3,
-  "skew_sd": 5,
+  "d": 45.8,
+  "r": 52.5,
+  "pct": 71.3,
+  "skew": 2,
+  "skew_sd": 4,
   "dn": "Seth Harp",
   "rn": "Kat Cammack",
-  "note": "NBC 7:40 ET, 181,930 votes; Cammack now leads. Batches since 7:32 run R; skew 4 +/- 5."
+  "note": "NBC 8:05 ET. Alachua dilution continuing; skew 2 +/- 4."
  },
  {
   "race": "H:FL-5",
@@ -220,14 +218,14 @@
  },
  {
   "race": "S:OH",
-  "d": 62.4,
-  "r": 34.3,
-  "pct": 14.5,
-  "skew": 15,
-  "skew_sd": 8,
+  "d": 60.5,
+  "r": 36.3,
+  "pct": 28.1,
+  "skew": 12,
+  "skew_sd": 6,
   "dn": "Sherrod Brown",
   "rn": "Jon Husted",
-  "note": "NBC 7:38 ET. Ohio reports early/absentee ballots first and they lean heavily D; skew 18 +/- 8 assumed."
+  "note": "NBC 8:05 ET. Ohio counts absentee/early first; skew 12 +/- 6."
  },
  {
   "race": "H:FL-17",
@@ -246,14 +244,14 @@
  },
  {
   "race": "S:SC",
-  "d": 51.0,
-  "r": 47.9,
-  "pct": 8.9,
-  "skew": 8,
-  "skew_sd": 6,
+  "d": 51.4,
+  "r": 47.2,
+  "pct": 17.3,
+  "skew": 6,
+  "skew_sd": 5,
   "dn": "Annie Andrews",
   "rn": "Lindsey Graham",
-  "note": "NBC 7:44 ET. Early SC batches are absentee/early ballots (lean D; Andrews fell from 57 to 50 as precincts came in); skew 8 +/- 6."
+  "note": "NBC 8:05 ET. Absentee-heavy early batches; skew 6 +/- 5."
  },
  {
   "race": "H:VT-1",
@@ -277,13 +275,144 @@
  },
  {
   "race": "S:WV",
-  "d": 49.0,
-  "r": 47.9,
-  "pct": 5.8,
+  "d": 51.0,
+  "r": 46.4,
+  "pct": 10.4,
   "skew": 15,
   "skew_sd": 10,
   "dn": "Fetty Anderson",
   "rn": "Shelley Moore Capito",
-  "note": "NBC 7:50 ET. Early WV batches (absentee, Charleston/Morgantown area) lean D; skew 15 +/- 10 assumed."
+  "note": "NBC 8:05 ET. Early batches lean D; skew 15 +/- 10."
+ },
+ {
+  "race": "H:FL-1",
+  "d": 43.0,
+  "r": 55.6,
+  "pct": 36.7,
+  "skew": 5,
+  "skew_sd": 5,
+  "note": "NBC 8:05 ET. Panhandle polls closed at 8 ET; first batch is mail/early; skew 5 +/- 5."
+ },
+ {
+  "race": "H:FL-2",
+  "d": 54.7,
+  "r": 45.3,
+  "pct": 70.7,
+  "skew": 8,
+  "skew_sd": 6,
+  "note": "NBC 8:05 ET. Leon (Tallahassee) counted first; D lead fell from 71.6 to 54.7 as other counties reported; skew 8 +/- 6."
+ },
+ {
+  "race": "S:NH",
+  "d": 60.8,
+  "r": 37.4,
+  "pct": 16.2,
+  "skew": 3,
+  "skew_sd": 5,
+  "note": "NBC 8:05 ET. "
+ },
+ {
+  "race": "G:NH",
+  "d": 51.8,
+  "r": 46.0,
+  "pct": 16.9,
+  "skew": 3,
+  "skew_sd": 5,
+  "note": "NBC 8:05 ET. "
+ },
+ {
+  "race": "G:OH",
+  "d": 62.2,
+  "r": 35.6,
+  "pct": 28.0,
+  "skew": 12,
+  "skew_sd": 6,
+  "note": "NBC 8:05 ET. Same as Senate; skew 12 +/- 6."
+ },
+ {
+  "race": "H:OH-7",
+  "d": 66.3,
+  "r": 33.7,
+  "pct": 22.9,
+  "skew": 12,
+  "skew_sd": 8,
+  "note": "NBC 8:05 ET. Early/absentee first; skew 12 +/- 8."
+ },
+ {
+  "race": "H:OH-9",
+  "d": 47.9,
+  "r": 52.1,
+  "pct": 10.4,
+  "skew": 8,
+  "skew_sd": 8,
+  "note": "NBC 8:05 ET. Early/absentee first; skew 8 +/- 8."
+ },
+ {
+  "race": "G:SC",
+  "d": 48.1,
+  "r": 50.8,
+  "pct": 17.3,
+  "skew": 6,
+  "skew_sd": 5,
+  "note": "NBC 8:05 ET. Same as Senate; skew 6 +/- 5."
+ },
+ {
+  "race": "S:TX",
+  "d": 73.2,
+  "r": 25.4,
+  "pct": 6.0,
+  "skew": 20,
+  "skew_sd": 10,
+  "note": "NBC 8:05 ET. First Texas batches are big-county (Harris/Travis/Dallas) early votes; skew 20 +/- 10.",
+  "dn": "James Talarico",
+  "rn": "Ken Paxton"
+ },
+ {
+  "race": "H:VA-1",
+  "d": 49.9,
+  "r": 49.8,
+  "pct": 35.3,
+  "skew": 0,
+  "skew_sd": 6,
+  "note": "NBC 8:05 ET. Virginia mixes precincts and central absentee; no skew, +/- 6."
+ },
+ {
+  "race": "G:VT",
+  "d": 44.1,
+  "r": 54.1,
+  "pct": 26.0,
+  "skew": 0,
+  "skew_sd": 5,
+  "note": "NBC 8:05 ET. "
+ },
+ {
+  "race": "S:GA",
+  "call": "D",
+  "note": "NBC projection (Ossoff)"
+ },
+ {
+  "race": "G:PA",
+  "call": "D",
+  "note": "NBC projection 8:05 ET (Shapiro)"
+ },
+ {
+  "race": "S:DE",
+  "call": "D",
+  "note": "NBC projection (Coons)"
+ },
+ {
+  "race": "G:IL",
+  "call": "D",
+  "note": "NBC projection (Pritzker)"
+ },
+ {
+  "race": "G:MD",
+  "call": "D",
+  "note": "NBC projection (Moore)"
+ },
+ {
+  "race": "H:VA-10",
+  "call": "D",
+  "note": "NBC projection (Subramanyam)"
  }
 ]
