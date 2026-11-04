@@ -1,13 +1,13 @@
 [
  {
   "race": "S:KY",
-  "d": 51.3,
-  "r": 47.3,
-  "pct": 9.6,
-  "skew": 19,
+  "d": 49.3,
+  "r": 49.2,
+  "pct": 10.4,
+  "skew": 15,
   "dn": "Charles Booker",
   "rn": "Andy Barr",
-  "note": "NBC 7:06 ET. Louisville over-counted: KY-3 at 22.1% in vs 8.9% statewide (~45% of counted votes vs ~18% of the final). Reweighting the count to the final mix gives about R+14, hence skew 19."
+  "note": "NBC 7:12 ET. Louisville still over-represented in the count (KY-3 22% in at 7:10 vs ~10% statewide); skew cut to 15 as the rest of the state reports."
  },
  {
   "race": "S:VA",
@@ -71,23 +71,23 @@
  },
  {
   "race": "G:FL",
-  "d": 52.8,
-  "r": 46.1,
-  "pct": 33.1,
+  "d": 52.6,
+  "r": 46.3,
+  "pct": 40.4,
   "skew": 5,
   "dn": "David Jolly",
   "rn": "Byron Donalds",
-  "note": "NBC/AP 7:10 ET (33.1% expected in). NBC is later than the state feed via FreshTake (7:08: Jolly 56.5, Nixon 53.2), so newer batches with Election Day votes are probably in; the rest of the uncounted vote is still mostly Election Day ballots (R+21.6 by registration), so skew 5 assumed."
+  "note": "NBC/AP 7:12 ET (40.4% expected in). Uncounted vote is still mostly Election Day ballots (R+21.6 by registration vs R+2.3 for mail/early), so skew 5 assumed."
  },
  {
   "race": "S:FL",
-  "d": 48.1,
-  "r": 50.8,
-  "pct": 27.7,
+  "d": 51.5,
+  "r": 47.5,
+  "pct": 40.5,
   "skew": 5,
   "dn": "Angie Nixon",
   "rn": "Ashley Moody",
-  "note": "NBC/AP 7:10 ET (27.7% expected in). NBC is later than the state feed via FreshTake (7:08: Jolly 56.5, Nixon 53.2), so newer batches with Election Day votes are probably in; the rest of the uncounted vote is still mostly Election Day ballots (R+21.6 by registration), so skew 5 assumed."
+  "note": "NBC/AP 7:12 ET (40.5% expected in). Uncounted vote is still mostly Election Day ballots (R+21.6 by registration vs R+2.3 for mail/early), so skew 5 assumed."
  },
  {
   "race": "H:FL-20",
@@ -108,5 +108,10 @@
   "dn": "Jared Moskowitz",
   "rn": "Singer",
   "note": "NBC 7:09 ET; mostly mail/early ballots so far, skew 5 assumed. FL-2/3/4 counts (Leon, Alachua, Duval-dominated) left out until more is in."
+ },
+ {
+  "race": "H:FL-19",
+  "call": "R",
+  "note": "NBC projection 7:12 ET (Schwartzel)"
  }
 ]
