@@ -107,14 +107,15 @@ function summarize(obs) {
   }
   const q = (a, p) => { const o = Array.from(a.keys()).filter(i => w[i] > 0).sort((x, y) => a[x] - a[y]); let c = 0; for (const i of o) { c += w[i] / sw; if (c >= p) return a[i]; } return a[o[o.length - 1]]; };
   const wmean = (a) => { let s = 0; for (let i = 0; i < N; i++) s += w[i] / sw * a[i]; return s; };
-  return { used, ess, alpha, nat: natM, house: { p: hMaj, mean: wmean(hSeats), p10: q(hSeats, .1), p90: q(hSeats, .9) }, senate: { p: sCtl, mean: wmean(sSeats), p10: q(sSeats, .1), p90: q(sSeats, .9) },
+  const natArr = Float64Array.from(NAT, (v) => D.E0 + v);
+  return { used, ess, alpha, nat: natM, nat10: q(natArr, .1), nat90: q(natArr, .9), house: { p: hMaj, mean: wmean(hSeats), p10: q(hSeats, .1), p90: q(hSeats, .9) }, senate: { p: sCtl, mean: wmean(sSeats), p10: q(sSeats, .1), p90: q(sSeats, .9) },
            gov: { p: gMaj, mean: wmean(gSeats) }, hWin, sWin, hMean, sMean };
 }
 
 const base = summarize([]), now = summarize(OBS);
 const pc = (x) => (100 * x).toFixed(1) + "%", sg = (x) => (x >= 0 ? "D+" : "R+") + Math.abs(x).toFixed(1);
 console.log(`simulations ${N}, effective after weighting ${now.ess.toFixed(0)}, tempering ${now.alpha.toFixed(3)}  (observations used: ${now.used.length})`);
-console.log(`national environment: ${sg(D.E0 + base.nat)} -> ${sg(D.E0 + now.nat)}  (House-vote margin)`);
+console.log(`national environment: ${sg(D.E0 + base.nat)} -> ${sg(D.E0 + now.nat)}  (House-vote margin; 80% ${sg(now.nat10)} to ${sg(now.nat90)})`);
 console.log(`House   P(D) ${pc(base.house.p)} -> ${pc(now.house.p)}   D seats ${base.house.mean.toFixed(1)} -> ${now.house.mean.toFixed(1)} (80% ${now.house.p10}-${now.house.p90})`);
 console.log(`Senate  P(D) ${pc(base.senate.p)} -> ${pc(now.senate.p)}   D seats ${base.senate.mean.toFixed(1)} -> ${now.senate.mean.toFixed(1)} (80% ${now.senate.p10}-${now.senate.p90})`);
 console.log(`Govs    D mean ${base.gov.mean.toFixed(1)} -> ${now.gov.mean.toFixed(1)}`);
@@ -129,7 +130,7 @@ function writeOut(dir) {
   // dashboard files: odds.json (history, one row per run, the published forecast first), races.json (key races)
   fs.mkdirSync(dir, { recursive: true });
   const at = process.env.AT || new Date().toISOString().slice(0, 16) + "Z";
-  const row = (lab, r) => ({ at: lab, nat: +(D.E0 + r.nat).toFixed(2), house_p: +r.house.p.toFixed(4), senate_p: +r.senate.p.toFixed(4),
+  const row = (lab, r) => ({ at: lab, nat: +(D.E0 + r.nat).toFixed(2), nat10: +(+r.nat10).toFixed(2), nat90: +(+r.nat90).toFixed(2), house_p: +r.house.p.toFixed(4), senate_p: +r.senate.p.toFixed(4),
     house_mean: +r.house.mean.toFixed(1), house_p10: r.house.p10, house_p90: r.house.p90, senate_mean: +r.senate.mean.toFixed(2),
     senate_p10: r.senate.p10, senate_p90: r.senate.p90, gov_mean: +r.gov.mean.toFixed(1), ess: Math.round(r.ess), n_obs: r.used.length });
   const hp = path.join(__dirname, "history.json");
