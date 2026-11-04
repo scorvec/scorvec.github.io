@@ -674,14 +674,10 @@
  },
  {
   "race": "S:IA",
-  "d": 52.1,
-  "r": 44.9,
-  "pct": 83.0,
   "dn": "Josh Turek",
   "rn": "Ashley Hinson",
-  "skew": 3,
-  "skew_sd": 5,
-  "note": "NBC 11:04 ET. Batch 57.9->70.6% ran ~D+19 (absentee/urban); skew 3 +/- 5."
+  "note": "NBC projected Turek (D) ~11:27 ET (50.9-46.0 at 89.5%); Dem gain. Call-only.",
+  "call": "D"
  },
  {
   "race": "G:IA",
