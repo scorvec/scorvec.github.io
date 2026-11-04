@@ -168,9 +168,9 @@
  },
  {
   "race": "H:VA-2",
-  "d": 52.9,
-  "r": 44.8,
-  "pct": 61.5,
+  "d": 52.1,
+  "r": 45.5,
+  "pct": 68.4,
   "skew_sd": 3,
   "dn": "Elaine Luria",
   "rn": "Jen Kiggans",
@@ -302,9 +302,9 @@
  },
  {
   "race": "H:OH-9",
-  "d": 40.7,
-  "r": 59.3,
-  "pct": 42.3,
+  "d": 40.3,
+  "r": 59.7,
+  "pct": 44.7,
   "skew": 5,
   "skew_sd": 6,
   "note": "NBC 8:05 ET. Early/absentee first; skew 8 +/- 8."
@@ -393,12 +393,13 @@
  },
  {
   "race": "H:PA-8",
-  "d": 60.8,
-  "r": 39.2,
-  "pct": 62.3,
-  "skew": 7,
-  "skew_sd": 8,
-  "note": "NBC 8:17 ET. Pennsylvania counts mail ballots first (heavily D); skew 22 +/- 10 while under ~15% in."
+  "d": 60.3,
+  "r": 39.7,
+  "pct": 65.0,
+  "skew": 6,
+  "skew_sd": 5,
+  "note": "NBC projection 9:46 ET (Cognetti), Democratic flip",
+  "call": "D"
  },
  {
   "race": "H:FL-22",
@@ -422,11 +423,11 @@
  },
  {
   "race": "H:PA-7",
-  "d": 61.5,
-  "r": 38.5,
-  "pct": 46.2,
-  "skew": 10,
-  "skew_sd": 10,
+  "d": 59.6,
+  "r": 40.4,
+  "pct": 60.3,
+  "skew": 6,
+  "skew_sd": 5,
   "note": "NBC 8:17 ET. Pennsylvania counts mail ballots first (heavily D); skew 22 +/- 10 while under ~15% in."
  },
  {
@@ -503,9 +504,9 @@
  },
  {
   "race": "H:NC-1",
-  "d": 49.8,
-  "r": 47.1,
-  "pct": 77.7,
+  "d": 49.9,
+  "r": 47.0,
+  "pct": 78.9,
   "dn": "Don Davis",
   "rn": "Buckhout",
   "skew": 2,
@@ -587,18 +588,18 @@
  },
  {
   "race": "H:PA-1",
-  "d": 61.5,
-  "r": 38.5,
-  "pct": 37.2,
-  "skew": 12,
+  "d": 60.6,
+  "r": 39.4,
+  "pct": 39.7,
+  "skew": 10,
   "skew_sd": 8,
   "note": "NBC 8:50 ET. Bucks mail ballots counted first; skew 20 +/- 8."
  },
  {
   "race": "H:MI-7",
-  "d": 41.7,
-  "r": 57.1,
-  "pct": 32.9,
+  "d": 42.0,
+  "r": 56.8,
+  "pct": 34.1,
   "dn": "Lawrence",
   "rn": "Barrett",
   "skew": -4,
@@ -628,12 +629,12 @@
  },
  {
   "race": "H:NE-2",
-  "d": 63.8,
-  "r": 34.2,
-  "pct": 35.7,
+  "d": 61.6,
+  "r": 36.4,
+  "pct": 39.0,
   "dn": "Powell",
   "rn": "Harding",
-  "skew": 10,
+  "skew": 8,
   "skew_sd": 6,
   "note": "NBC 9:01 ET. Douglas early votes first; skew 10 +/- 6."
  },
@@ -763,7 +764,7 @@
   "race": "S:MS",
   "d": 47.8,
   "r": 50.1,
-  "pct": 35.4,
+  "pct": 36.4,
   "skew": 4,
   "skew_sd": 5,
   "note": "NBC 9:22 ET. Mississippi; skew 6 +/- 8."
@@ -818,13 +819,13 @@
  },
  {
   "race": "H:WI-3",
-  "d": 50.5,
-  "r": 47.9,
-  "pct": 11.4,
+  "d": 53.1,
+  "r": 45.3,
+  "pct": 19.1,
   "dn": "Cooke",
   "rn": "Van Orden",
-  "skew": 0,
-  "skew_sd": 8,
+  "skew": 2,
+  "skew_sd": 7,
   "note": "NBC 9:30 ET; early Wisconsin count, no skew, +/- 8."
  },
  {
@@ -900,5 +901,20 @@
   "skew": 4,
   "skew_sd": 5,
   "note": "NBC 9:24 ET; skew 4 +/- 5."
+ },
+ {
+  "race": "H:WI-4",
+  "call": "D",
+  "note": "NBC projection (Moore)"
+ },
+ {
+  "race": "H:IA-1",
+  "d": 44.4,
+  "r": 51.8,
+  "pct": 1.3,
+  "dn": "Bohannan",
+  "rn": "Miller-Meeks",
+  "skew": 0,
+  "skew_sd": 10
  }
 ]
