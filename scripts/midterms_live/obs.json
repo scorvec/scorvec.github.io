@@ -68,5 +68,30 @@
   "r": 61.5,
   "pct": 4.8,
   "note": "NBC 7:02 ET"
+ },
+ {
+  "race": "G:FL",
+  "d": 55.54,
+  "r": 44.46,
+  "pct": 27,
+  "skew": 8,
+  "dn": "David Jolly",
+  "rn": "Byron Donalds",
+  "note": "State feed via FreshTake 7:06 ET: 383/4,385 precincts but ~2.22M votes (~27% of ~8.2M) - the counties' first batches of mail and early ballots. Those ballots are R+2.3 by party registration vs R+8.7 for all ballots cast, and Election Day ballots are R+21.6, so the count so far runs well left of the final; skew 8 assumed."
+ },
+ {
+  "race": "S:FL",
+  "d": 53.81,
+  "r": 45.15,
+  "pct": 27,
+  "skew": 8,
+  "dn": "Angie Nixon",
+  "rn": "Ashley Moody",
+  "note": "State feed via FreshTake 7:06 ET: 383/4,385 precincts but ~2.22M votes (~27% of ~8.2M) - the counties' first batches of mail and early ballots. Those ballots are R+2.3 by party registration vs R+8.7 for all ballots cast, and Election Day ballots are R+21.6, so the count so far runs well left of the final; skew 8 assumed."
+ },
+ {
+  "race": "H:FL-20",
+  "call": "D",
+  "note": "NBC projection (Wasserman Schultz) 7:07 ET"
  }
 ]
