@@ -1,9 +1,9 @@
 [
  {
   "race": "S:KY",
-  "d": 46.4,
-  "r": 51.9,
-  "pct": 13.0,
+  "d": 45.9,
+  "r": 52.3,
+  "pct": 13.9,
   "skew": 13,
   "dn": "Charles Booker",
   "rn": "Andy Barr",
@@ -74,24 +74,24 @@
  },
  {
   "race": "G:FL",
-  "d": 51.1,
-  "r": 47.8,
-  "pct": 54.4,
-  "skew": 3.8,
+  "d": 50.6,
+  "r": 48.2,
+  "pct": 57.6,
+  "skew": 3.5,
   "dn": "David Jolly",
   "rn": "Byron Donalds",
-  "note": "NBC/AP 7:26 ET (53.2% expected in). State feed down; Election Day share counted estimated ~20% (new batches since 7:16 run ~R+20, i.e. Election Day precincts). Same registration method gives a final ~4 right of the count; skew 3.8 +/- 3.",
+  "note": "NBC/AP 7:32 ET (57.6% expected in). Florida registration method: more Election Day precincts in, so skew falls to 3.5 +/- 3.",
   "skew_sd": 3
  },
  {
   "race": "S:FL",
-  "d": 50.6,
-  "r": 48.3,
-  "pct": 59.4,
-  "skew": 3.8,
+  "d": 50.0,
+  "r": 49.0,
+  "pct": 63.4,
+  "skew": 3.2,
   "dn": "Angie Nixon",
   "rn": "Ashley Moody",
-  "note": "NBC/AP 7:26 ET (53.9% expected in). State feed down; Election Day share counted estimated ~20% (new batches since 7:16 run ~R+20, i.e. Election Day precincts). Same registration method gives a final ~4 right of the count; skew 3.8 +/- 3.",
+  "note": "NBC/AP 7:32 ET (63.4% expected in). Florida registration method: more Election Day precincts in, so skew falls to 3.2 +/- 3.",
   "skew_sd": 3
  },
  {
@@ -106,13 +106,13 @@
  },
  {
   "race": "H:FL-25",
-  "d": 55.9,
-  "r": 42.1,
-  "pct": 42.7,
-  "skew": 4,
+  "d": 54.5,
+  "r": 43.5,
+  "pct": 71.7,
+  "skew": 2,
   "dn": "Jared Moskowitz",
   "rn": "Singer",
-  "note": "NBC 7:15 ET; mostly mail/early so far, skew 4 +/- 3.",
+  "note": "NBC 7:32 ET; mostly counted, skew 2 +/- 3.",
   "skew_sd": 3
  },
  {
@@ -122,14 +122,10 @@
  },
  {
   "race": "S:GA",
-  "d": 70.4,
-  "r": 29.6,
-  "pct": 21.1,
-  "skew": 12,
-  "skew_sd": 6,
+  "call": "D",
   "dn": "Jon Ossoff",
   "rn": "Mike Collins",
-  "note": "NBC 7:22 ET. Metro Atlanta mail/early ballots dominate so far (D share rose as more came in); skew 12 +/- 6 assumed."
+  "note": "NBC projection 7:32 ET; Ossoff 67.3% at 23.5%"
  },
  {
   "race": "G:GA",
@@ -187,14 +183,14 @@
  },
  {
   "race": "H:FL-4",
-  "d": 52.4,
-  "r": 46.1,
-  "pct": 70.9,
-  "skew": 12,
-  "skew_sd": 5,
+  "d": 52.5,
+  "r": 46.0,
+  "pct": 73.4,
+  "skew": 8,
+  "skew_sd": 7,
   "dn": "LaShonda Holloway",
   "rn": "Aaron Bean",
-  "note": "NBC 7:28 ET, 211,888 votes at 70.9%. The last batch (179,896 -> 211,888 votes) ran ~R+38, i.e. the Election Day vote outside Duval; if the remaining ~29% runs like it the final is ~R+6.6, so skew 12 +/- 5."
+  "note": "NBC 7:32 ET, 219,494 votes. Batches disagree: 179,896->211,888 ran ~R+38, 211,888->219,494 ran ~D+12; skew 8 +/- 7."
  },
  {
   "race": "H:VA-2",
@@ -205,5 +201,21 @@
   "dn": "Elaine Luria",
   "rn": "Jen Kiggans",
   "note": "NBC 7:28 ET. Virginia counts Election Day precincts first and central absentee ballots later, so the early count may lean R; no skew, +/- 6."
+ },
+ {
+  "race": "H:FL-3",
+  "d": 49.7,
+  "r": 48.6,
+  "pct": 59.2,
+  "skew": 3,
+  "skew_sd": 5,
+  "dn": "Seth Harp",
+  "rn": "Kat Cammack",
+  "note": "NBC 7:32 ET, 178,100 votes. Alachua-heavy early count diluted; newest batch (123,276 -> 178,100) ran ~R+6, projecting a final ~R+1.8, so skew 3 +/- 5."
+ },
+ {
+  "race": "H:FL-5",
+  "call": "R",
+  "note": "NBC projection 7:32 ET (Rutherford)"
  }
 ]
