@@ -279,7 +279,7 @@ td small{display:block;color:var(--muted);font-size:14px}
 </section>
 
 <div class="mt-in">
-<nav class="mt-nav" aria-label="Midterm pages"><a href="./" aria-current="page">Results</a><a href="forecast.html">Final forecast</a><a href="about.html">How the forecast works</a><a href="legislatures.html">State legislatures</a><a href="call.html">Claude&rsquo;s call</a></nav>
+<nav class="mt-nav" aria-label="Midterm pages"><a href="./" aria-current="page">Results</a><a href="live.html">Races still out</a><a href="forecast.html">Final forecast</a><a href="about.html">How the forecast works</a><a href="legislatures.html">State legislatures</a><a href="call.html">Claude&rsquo;s call</a></nav>
 
 <section class="sec" id="check" aria-labelledby="h-check">
  <div class="sec-head"><div><h2 id="h-check">How the forecast did</h2><p class="sec-sub">The forecast frozen at noon Eastern on Election Day, against every race called so far</p></div></div>
@@ -312,14 +312,15 @@ td small{display:block;color:var(--muted);font-size:14px}
 
 <section class="mt-about" id="about" aria-labelledby="h-about"><h2 id="h-about">About this page</h2>
  <h3>The results</h3>
- <p>Calls and vote counts come from Wikipedia's 2026 election pages (text available under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>), read every two hours. A race counts as called once its winner is marked there. Counts are added as editors fill in each race's results table. Until a state certifies, every margin on this page is the latest count and is marked provisional. Certified official returns replace these numbers as states certify, and from then on the official figures are used.</p>
+ <p>Calls and vote counts come from Wikipedia's 2026 election pages (text available under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>), read every hour. A race counts as called once its winner is marked there. Counts are added as editors fill in each race's results table. Until a state certifies, every margin on this page is the latest count and is marked provisional. Certified official returns replace these numbers as states certify, and from then on the official figures are used.</p>
+ <p>The projections under each chamber come from the <a href="live.html">races still out</a>: the forecast's own simulations, updated with every call and count so far.</p>
  <h3>What is scored</h3>
  <p>The forecast gave each race a chance that the Republican's opponent (a Democrat, or an independent where one led the challenge) wins, and a range for the margin. The chances are scored on every called race: how often the favourite won, the Brier score (the mean squared gap between the chance and what happened; 0 is perfect, and always saying 50 % scores 0.25) and, for House seats, the same score for the race raters' average on the same seats. Margins are scored only once a count is final or certified. The figures above show provisional margins as hollow dots and final ones as solid dots. In the calibration chart, each group's bar is a 95 % interval for its share won, given how few races it holds.</p>
  <h3>The forecast</h3>
  <p id="frozen"></p>
 </section>
 
-<footer class="mt-foot"><nav class="mt-nav" aria-label="Midterm pages"><a href="./">Results</a><a href="forecast.html">Final forecast</a><a href="about.html">How the forecast works</a><a href="legislatures.html">State legislatures</a><a href="call.html">Claude&rsquo;s call</a></nav></footer>
+<footer class="mt-foot"><nav class="mt-nav" aria-label="Midterm pages"><a href="./">Results</a><a href="live.html">Races still out</a><a href="forecast.html">Final forecast</a><a href="about.html">How the forecast works</a><a href="legislatures.html">State legislatures</a><a href="call.html">Claude&rsquo;s call</a></nav></footer>
 </div>
 </main>
 <div class="tip" id="tip"></div>
@@ -335,8 +336,8 @@ const OFFICE={senate:'Senate',governor:'Governor',house:'House'},OCOL={senate:'#
 const won=r=>r.winner&&r.winner!==(r.opp||'R');                          // the Republican's opponent won (the event p is about)
 const raceName=r=>r.office==='house'?r.seat:`${r.seat} ${OFFICE[r.office]}`;
 const sname=n=>String(n||'?').replace(/,?\s+(Jr\.?|Sr\.?|II|III|IV)$/,'').split(' ').pop();
-let J,TAB='senate',SHOWN=60;
-getJSON('data/results.json').then(j=>{J=j;init()}).catch(e=>{console.error(e);$('#upd').textContent='The results could not be loaded. Reload the page to try again.'});
+let J,LIVE,TAB='senate',SHOWN=60;
+Promise.all([getJSON('data/results.json'),getJSON('data/live.json').catch(()=>null)]).then(([j,l])=>{J=j;LIVE=l;init()}).catch(e=>{console.error(e);$('#upd').textContent='The results could not be loaded. Reload the page to try again.'});
 
 function init(){
  const t=new Date(J.generated);$('#upd').textContent='Updated '+t.toLocaleString('en-US',{month:'long',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
@@ -348,9 +349,10 @@ function init(){
  const of=w=>Object.keys(ctl).filter(k=>ctl[k]===w).map(k=>'the '+k).join(' and ');
  const parts=[of('D')&&`Democrats win ${of('D')}`,of('R')&&`Republicans hold ${of('R')}`].filter(Boolean);
  $('#head').textContent=parts.length?parts.join('; ')+'.':`${H.open+S.open+G.open} races still to be called.`;
- chamber('#chH',{d:hD,r:hR,i:H.I,open:H.open,total:435,maj:218,F:F.house,what:'seats',ctl:'chance of a Democratic majority'});
- chamber('#chS',{d:sD,r:sR,i:S.I,open:S.open,total:100,maj:51,F:F.senate,what:'seats',ctl:'chance of Democratic control'});
- chamber('#chG',{d:gD,r:gR,i:G.I,open:G.open,total:50,maj:null,F:F.governor,what:'governors'});
+ const P=o=>LIVE&&LIVE[o];   // the projection for the races still out (live.html), when it loads
+ chamber('#chH',{d:hD,r:hR,i:H.I,open:H.open,total:435,maj:218,F:F.house,P:P('house'),what:'seats',ctl:'chance of a Democratic majority'});
+ chamber('#chS',{d:sD,r:sR,i:S.I,open:S.open,total:100,maj:51,F:F.senate,P:P('senate'),what:'seats',ctl:'chance of Democratic control'});
+ chamber('#chG',{d:gD,r:gR,i:G.I,open:G.open,total:50,maj:null,F:F.governor,P:P('governor'),what:'governors'});
  tiles();scatter();calib();upsets();$('#upMore').onclick=()=>{UPS=1e9;upsets()};
  $$('.mt-tabs button').forEach(b=>b.onclick=()=>{TAB=b.dataset.o;SHOWN=60;$$('.mt-tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));table()});
  $('#find').oninput=()=>{SHOWN=60;table()};$('#more').onclick=()=>{SHOWN+=120;table()};
@@ -370,7 +372,8 @@ function chamber(sel,c){
  <svg class="seats" viewBox="0 0 ${W} ${y0+h+(c.maj?24:4)}" role="img" aria-label="${c.d} Democratic, ${c.r} Republican${c.i?`, ${c.i} other`:''}, ${c.open} not called, of ${c.total} ${c.what}; forecast ${f.p10} to ${f.p90} Democratic">
   <path class="fr" d="M${b0},${y0-6}V${y0-11}H${b1}V${y0-6}M${bm},${y0-11}V${y0-15}"/><text x="${bm}" y="${y0-19}" text-anchor="middle">forecast</text>${rects}${maj}</svg>
  <ul class="ch-leg"><li><i style="background:var(--dlt)"></i>Democratic <b>${c.d}</b></li>${c.i?`<li><i style="background:var(--ilt)"></i>Other <b>${c.i}</b></li>`:''}<li><i style="background:var(--ult)"></i>Not called <b>${c.open}</b></li><li><i style="background:var(--rlt)"></i>Republican <b>${c.r}</b></li></ul>
- <p class="ch-sum">Forecast: ${f.p50} Democratic ${c.what} (80 % range ${f.p10}–${f.p90})${f.p_control!=null?`, ${pct(f.p_control)} ${c.ctl}`:''}</p>`);
+ <p class="ch-sum">Forecast: ${f.p50} Democratic ${c.what} (80 % range ${f.p10}–${f.p90})${f.p_control!=null?`, ${pct(f.p_control)} ${c.ctl}`:''}</p>${c.P&&c.open?`
+ <p class="ch-sum">Projected with the calls and counts so far: ${c.P.p50} (80 % range ${c.P.p10}–${c.P.p90})${c.ctl?`, ${pct(c.P.p_control)} ${c.ctl}`:''}. <a href="live.html">The races still out</a></p>`:''}`);
 }
 
 function counted(){return J.races.filter(r=>r.margin!=null)}
