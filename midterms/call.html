@@ -60,6 +60,14 @@
 .cc .pt{display:inline-block;min-width:1.6em;text-align:center;border-radius:4px;color:#fff;font-weight:600;font-size:13.5px;padding:0 4px;margin-right:6px}
 .cc .pt.D{background:var(--d)}.cc .pt.R{background:var(--r)}.cc .pt.I{background:var(--i)}
 .cc .tag{font-size:13px;font-weight:600;color:#8a5a00;white-space:nowrap}
+.cc .pt.O{background:#6f6b64}
+.cc .ok{color:#1d6b3a;font-weight:600;white-space:nowrap}.cc .no{color:var(--r);font-weight:600;white-space:nowrap}.cc .nc{color:var(--muted);white-space:nowrap}
+.cc-stiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin:12px 0 0}
+.cc-stile{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:12px 15px}
+.cc-stile .l{font:600 16px/1.3 var(--serif);margin:0}
+.cc-stile .v{font:600 32px/1.15 var(--serif);margin:4px 0 0;font-variant-numeric:tabular-nums}
+.cc-stile .v .dn{color:var(--d)}.cc-stile .v .rn{color:var(--r)}.cc-stile .v .in{color:var(--i)}.cc-stile .v .sep{color:var(--muted);font-weight:400}
+.cc-stile .s{font:15px/1.45 var(--sans);color:var(--ink2);margin:4px 0 0}
 .cc-more{font:500 15px var(--sans);border:1px solid var(--rule);background:var(--panel);border-radius:6px;padding:5px 12px;margin:10px 0 0;cursor:pointer}
 .cc-rcv{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin:14px 0 0}
 .cc-rcv .cc-card{border-left-color:var(--rule)}
@@ -259,6 +267,12 @@
  <p class="cc-scen" id="scenario"></p>
 </section>
 
+<section id="score" aria-labelledby="h-score" hidden>
+<h2 id="h-score">How the call did</h2>
+<p class="cc-sub" id="scoreSub"></p>
+<div class="cc-stiles" id="stiles"></div>
+</section>
+
 <h2 id="bold">The bold calls</h2>
 <div class="cc-bold" id="boldcards"></div>
 
@@ -289,6 +303,8 @@
 <p>Picking the forecast&rsquo;s favourite everywhere gives a map no single election night produces. Polling errors move races together: if a party underperforms its polls in one state, it usually underperforms them in its neighbours too. So the call starts from one national picture, the size and direction of the overall polling miss and the national House vote, and calls each race inside that picture. A night that is a point worse for Democrats than their polls flips the close races that lean their way together, not a scattering of them at random. Races called against the forecast&rsquo;s favourite are outlined in amber on the maps and marked in the tables.</p>
 <h3>What it is built from</h3>
 <p>The forecast&rsquo;s final run is the starting point: its odds and margins for every race, at the national vote it expected. On top of that is judgement the forecast does not encode: how the final polls compare with how pollsters missed in recent elections, late movement, and what the early vote does and does not tell us. The reason for each call that leaves the forecast is given beside it. The margins are the call&rsquo;s point estimates; the forecast&rsquo;s chance for each called winner shows how likely the forecast thought that outcome was.</p>
+<h3>How it is scored</h3>
+<p>Each call is scored once its race is called on the <a href="./">results page</a>: it is right if the called winner won. The margins are compared with the latest count, which stays provisional until the state certifies, beside the forecast&rsquo;s median margin on the same races. The seat totals so far and the projections for the races still out come from the results page and from <a href="live.html">the races still out</a>.</p>
 <h3>When it was made</h3>
 <p>The call was made once, the day before the election, against the forecast&rsquo;s latest run (both times are at the top of the page). It is not updated for later polls or during the count. It is Claude&rsquo;s own call, made by Anthropic&rsquo;s Claude for this site; it is not a projection of results. In Maine and Alaska, where the count runs ranked-choice rounds, the call names the winner after the final round, and Alaska&rsquo;s count is not complete until about November 18.</p>
 </section>
@@ -319,10 +335,41 @@ function seats(n){return `<span class="dn">${n.D}</span><span class="sep">&ndash
 function legend(sel,races){const has=k=>races.some(r=>r.call===k);
  const items=['D','R','I'].filter(has).map(k=>`<li><i style="background:${SHADE[k][2]}"></i><i style="background:${SHADE[k][1]}"></i><i style="background:${SHADE[k][0]}"></i>&nbsp;${PARTY[k]}</li>`);
  $(sel).innerHTML=items.join('')+'<li>darker: wider called margin (10+, 3&ndash;10, under 3 points)</li><li><i class="off"></i>called against the forecast&rsquo;s favourite</li>'}
+// the result of a called race (results page data), once the results load: who won and whether the call had it
+let RES=null;
+const result=(o,r)=>RES&&RES.get(`${o}:${r.key}`);
+function resCell(o,r){const x=result(o,r);if(!x||!x.winner)return '<span class="nc">not called</span>';
+ return `<span class="pt ${esc(x.winner)}">${esc(x.winner)}</span>${x.winner===r.call?'<span class="ok">&#10003; right</span>':'<span class="no">&#10007; wrong</span>'}`}
 function table(sel,races,label,opts={}){
  // on a phone the reason drops to a full-width row under its race (the Why column is hidden there)
- const rows=races.map(r=>`<tr class="${off(r)?'off':''}${opts.why&&r.why?' hw':''}"><td>${label(r)}${off(r)?'<br><span class="tag">against the forecast</span>':''}</td><td class="who">${who(r)}</td><td class="n">${mg(r)}</td><td class="n">${pc(pWin(r))}</td>${opts.why?`<td class="why">${esc(r.why||'')}</td>`:''}</tr>${opts.why&&r.why?`<tr class="whyr${off(r)?' off':''}"><td colspan="4">${esc(r.why)}</td></tr>`:''}`).join('');
- $(sel).innerHTML=`<thead><tr><th>Race</th><th>Claude&rsquo;s call</th><th class="n">Margin</th><th class="n">Forecast&rsquo;s chance</th>${opts.why?'<th class="why">Why</th>':''}</tr></thead><tbody>${rows}</tbody>`}
+ const rc=RES&&opts.office,span=rc?5:4;
+ const rows=races.map(r=>`<tr class="${off(r)?'off':''}${opts.why&&r.why?' hw':''}"><td>${label(r)}${off(r)?'<br><span class="tag">against the forecast</span>':''}</td><td class="who">${who(r)}</td><td class="n">${mg(r)}</td><td class="n">${pc(pWin(r))}</td>${rc?`<td class="who">${resCell(opts.office,r)}</td>`:''}${opts.why?`<td class="why">${esc(r.why||'')}</td>`:''}</tr>${opts.why&&r.why?`<tr class="whyr${off(r)?' off':''}"><td colspan="${span}">${esc(r.why)}</td></tr>`:''}`).join('');
+ $(sel).innerHTML=`<thead><tr><th>Race</th><th>Claude&rsquo;s call</th><th class="n">Margin</th><th class="n">Forecast&rsquo;s chance</th>${rc?'<th>Result</th>':''}${opts.why?'<th class="why">Why</th>':''}</tr></thead><tbody>${rows}</tbody>`}
+
+// the score: calls right of the races called, the calls that left the forecast, the margins against the latest counts,
+// and each chamber as called, as it stands and as projected for the races still out
+function score(C,R,L){
+ const secs=[['senate',C.senate,'Senate'],['house',C.house,'House'],['governor',C.governor,'governors']];
+ let n=0,k=0,fk=0,nOff=0,kOff=0,eC=0,eF=0,nM=0;const per=[];
+ for(const [o,S,name] of secs){let a=0,b=0;
+  for(const r of S.races){const x=result(o,r);if(!x||!x.winner)continue;b++;const hit=x.winner===r.call;a+=hit;fk+=(x.p>=.5)===(x.winner!==(x.opp||'R'));if(off(r)){nOff++;kOff+=hit}
+   if(x.margin!=null&&r.margin!=null){eC+=Math.abs(x.margin-r.margin);eF+=Math.abs(x.margin-x.med);nM++}}
+  per.push(`${name} ${a} of ${b}`);n+=b;k+=a}
+ if(!n)return;
+ const F=R.forecast,cnt=o=>{const g=R.races.filter(x=>x.office===o),c=w=>g.filter(x=>x.winner===w).length;return{D:c('D'),R:c('R'),I:g.filter(x=>x.winner&&x.winner!=='D'&&x.winner!=='R').length,open:g.filter(x=>!x.winner).length}};
+ const ch=(o,label,called,keepD,keepR)=>{const c=cnt(o),now={D:c.D+keepD,R:c.R+keepR,I:c.I},P=L&&L[o];
+  return [label,seats(now),`Called ${called.D}&ndash;${called.R}${called.I?`, ${called.I} I`:''}. ${c.open?`${c.open} not called yet${P?`; projected <b>${P.p50}</b> Democratic (80&nbsp;% range ${P.p10}&ndash;${P.p90})`:''}`:'Every race called.'}`]};
+ const tiles=[
+  ['Races called right',`${k} of ${n}`,`${per.join(', ')}. The forecast&rsquo;s favourite won ${fk} of the same ${n}.`],
+  ['Calls against the forecast',nOff?`${kOff} of ${nOff}`:'&ndash;',nOff?`came true, of the decided races where the call left the forecast&rsquo;s favourite`:'none of them decided yet'],
+ ];
+ if(nM)tiles.push(['Margins',`${(eC/nM).toFixed(1)} pts`,`average miss of the called margins on the ${nM} counted race${nM>1?'s':''}; the forecast&rsquo;s median missed by ${(eF/nM).toFixed(1)}. The counts are provisional.`]);
+ tiles.push(ch('senate','Senate so far',count(C.senate.races,C.senate.not_up),F.senate.holdover_d,F.senate.holdover_r));
+ tiles.push(ch('house','House so far',count(C.house.races),F.house.fixed_d,F.house.fixed_r));
+ tiles.push(ch('governor','Governors so far',count(C.governor.races,C.governor.not_up),F.governor.holdover_d,F.governor.holdover_r));
+ $('#stiles').innerHTML=tiles.map(([l,v,s])=>`<div class="cc-stile"><p class="l">${l}</p><p class="v">${v}</p><p class="s">${s}</p></div>`).join('');
+ $('#scoreSub').textContent=`Against the races called by ${new Date(R.generated).toLocaleString('en-US',{month:'long',day:'numeric',hour:'numeric',minute:'2-digit',timeZone:'America/New_York',timeZoneName:'short'})}`;
+ $('#score').hidden=false}
 const byClose=(a,b)=>Math.abs(a.margin)-Math.abs(b.margin);
 function rcv(list){$('#rcv').innerHTML=(list||[]).map(c=>`<div class="cc-card"><h3>${esc(c.race)}: ranked-choice rounds</h3>${c.rounds.map(rd=>{const tot=d3.sum(rd.cands,x=>x[2]);
  return `<p class="rd">${esc(rd.label)}</p><div class="bar">${rd.cands.map(([n,p,v])=>`<span style="width:${100*v/tot}%;background:${p?SHADE[p][p==='I'?1:2]:'#8a8f98'}" title="${esc(n)} ${v.toFixed(1)}%">${v>=12?v.toFixed(1):''}</span>`).join('')}</div><p class="names">${rd.cands.map(([n,p,v])=>`<span>${esc(n)}${p?` (${p})`:''} ${v.toFixed(1)}</span>`).join('')}</p>`}).join('')}${c.note?`<p style="margin-top:8px">${esc(c.note)}</p>`:''}</div>`).join('')}
@@ -336,7 +383,9 @@ function tipping(sec,key){const r=sec.races.find(x=>x.key===key);return r?`${esc
 function sub(sec,n,word){const nOff=sec.races.filter(off).length;
  return `${seats(n).replace(/class="(dn|rn|in)"/g,'')} &middot; ${nOff} call${nOff===1?'':'s'} against the forecast&rsquo;s favourite${sec.tipping?` &middot; tipping point: <b>${tipping(sec,sec.tipping)}</b>`:''}${word?` &middot; ${word}`:''}`}
 
-Promise.all([fetch('data/claudes_call.json').then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}),fetch('data/districts_2026.topo.json').then(r=>r.json())]).then(([C,topo])=>{
+const optional=u=>fetch(u).then(r=>r.ok?r.json():null).catch(()=>null);
+Promise.all([fetch('data/claudes_call.json').then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}),fetch('data/districts_2026.topo.json').then(r=>r.json()),optional('data/results.json'),optional('data/live.json')]).then(([C,topo,R,L])=>{
+ if(R)RES=new Map(R.races.map(x=>[`${x.office}:${x.seat}`,x]));
  const made=new Date(C.made);
  $('#stamp').textContent=`Called ${made.toLocaleString('en-US',{weekday:'long',month:'long',day:'numeric',hour:'numeric',minute:'2-digit',timeZone:'America/New_York',timeZoneName:'short'})}, against the forecast run of ${C.forecast.generated}.`;
  $('#headline').textContent=C.headline;$('#scenario').textContent=C.scenario;
@@ -350,6 +399,7 @@ Promise.all([fetch('data/claudes_call.json').then(r=>{if(!r.ok)throw new Error(r
   ['Governors',seats(ng),`After the 36 races. Forecast: <b>${G.forecast_mean.toFixed(1)}</b> Democratic governors on average`],
   ['National House vote',`<span class="${C.national.call>=0?'dn':'rn'}">${fmtE(C.national.call)}</span>`,`Forecast: <b>${fmtE(C.national.forecast)}</b>`]
  ].map(([l,v,s])=>`<div class="cc-tile"><p class="l">${l}</p><p class="v">${v}</p><p class="s">${s}</p></div>`).join('');
+ if(R)score(C,R,L);
  $('#boldcards').innerHTML=C.bold.map(b=>`<div class="cc-card"><h3>${esc(b.title)}</h3><p>${esc(b.why)}</p></div>`).join('');
  $('#senSub').innerHTML=sub(S,ns,`${S.not_up.D+S.not_up.R+(S.not_up.I||0)} seats not up this year`);
  $('#govSub').innerHTML=sub(G,ng);
@@ -361,7 +411,7 @@ Promise.all([fetch('data/claudes_call.json').then(r=>{if(!r.ok)throw new Error(r
  stateMap('#smap',S.races,path,STATES,'Senate');stateMap('#gmap',G.races,path,STATES,'governor');
  legend('#senLeg',S.races);legend('#govLeg',G.races);legend('#houseLeg',H.races);
  const lab=r=>esc(r.label)+(r.special?' <span style="color:var(--muted)">(special)</span>':'');
- table('#senTab',[...S.races].sort(byClose),lab,{why:true});table('#govTab',[...G.races].sort(byClose),lab,{why:true});
+ table('#senTab',[...S.races].sort(byClose),lab,{why:true,office:'senate'});table('#govTab',[...G.races].sort(byClose),lab,{why:true,office:'governor'});
  rcv(C.rcv);
  // House: every seat on the map; the table opens on the seats that could plausibly go either way, the rest a click away
  const bySeat=Object.fromEntries(H.races.map(r=>[r.key,r]));
@@ -377,7 +427,7 @@ Promise.all([fetch('data/claudes_call.json').then(r=>{if(!r.ok)throw new Error(r
  const key=r=>off(r)||r.why||(r.p>.1&&r.p<.9);
  const hl=r=>`${esc(r.key)}${r.member?`<br><span style="color:var(--muted)">${esc(r.member)}</span>`:''}`;
  const all=[...H.races].sort(byClose),few=all.filter(key);let open=false;
- const drawH=()=>{table('#houseTab',open?all:few,hl,{why:true});$('#houseMore').textContent=open?`Show only the ${few.length} competitive seats`:`Show all ${all.length} seats`};
+ const drawH=()=>{table('#houseTab',open?all:few,hl,{why:true,office:'house'});$('#houseMore').textContent=open?`Show only the ${few.length} competitive seats`:`Show all ${all.length} seats`};
  $('#houseMore').hidden=false;$('#houseMore').addEventListener('click',()=>{open=!open;drawH()});drawH();
 }).catch(e=>{console.error(e);$('#stamp').textContent='The call is made before Election Day, November 3, 2026.'});
 </script>
