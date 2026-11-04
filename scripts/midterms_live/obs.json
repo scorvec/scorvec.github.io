@@ -168,8 +168,8 @@
  },
  {
   "race": "H:VA-2",
-  "d": 51.9,
-  "r": 45.8,
+  "d": 51.8,
+  "r": 46.0,
   "pct": 78.1,
   "skew_sd": 3,
   "dn": "Elaine Luria",
@@ -189,14 +189,14 @@
  },
  {
   "race": "S:OH",
-  "d": 48.1,
-  "r": 47.1,
-  "pct": 74.4,
-  "skew": 3.5,
-  "skew_sd": 4,
+  "d": 48.2,
+  "r": 47.0,
+  "pct": 79.4,
+  "skew": 1.5,
+  "skew_sd": 3,
   "dn": "Sherrod Brown",
   "rn": "Jon Husted",
-  "note": "NBC 9:53 ET. Batches since 9:30 ran ~R+11 to R+17 (Election Day precincts); some urban vote may still be out; skew 3.5 +/- 4."
+  "note": "NBC 10:22 ET. Batch 74.4->79.4% ran ~D+4 (urban votes arriving after earlier R+11-17 batches); skew 1.5 +/- 3."
  },
  {
   "race": "H:FL-17",
@@ -271,18 +271,18 @@
  },
  {
   "race": "G:NH",
-  "d": 47.9,
-  "r": 50.3,
-  "pct": 56.1,
+  "d": 47.7,
+  "r": 50.6,
+  "pct": 57.7,
   "skew": 1,
   "skew_sd": 3,
   "note": "NBC 8:05 ET. "
  },
  {
   "race": "G:OH",
-  "d": 50.2,
-  "r": 46.4,
-  "pct": 74.3,
+  "d": 50.4,
+  "r": 46.2,
+  "pct": 79.4,
   "skew": 3,
   "skew_sd": 4,
   "note": "NBC 8:05 ET. Same as Senate; skew 12 +/- 6."
@@ -316,9 +316,9 @@
  },
  {
   "race": "S:TX",
-  "d": 58.3,
-  "r": 40.1,
-  "pct": 56.5,
+  "d": 58.2,
+  "r": 40.2,
+  "pct": 57.0,
   "skew": 10,
   "skew_sd": 6,
   "note": "NBC 9:27 ET. Early votes (7.7M, ~3/4 of the expected total) dominate the count; Election Day votes still to come lean R; skew 10 +/- 6.",
@@ -336,9 +336,9 @@
  },
  {
   "race": "G:VT",
-  "d": 46.4,
-  "r": 51.9,
-  "pct": 82.0,
+  "d": 46.7,
+  "r": 51.6,
+  "pct": 85.3,
   "skew": 0,
   "skew_sd": 3,
   "note": "NBC 8:05 ET. "
@@ -380,9 +380,9 @@
  },
  {
   "race": "S:KS",
-  "d": 55.4,
-  "r": 41.9,
-  "pct": 69.4,
+  "d": 55.0,
+  "r": 42.2,
+  "pct": 70.5,
   "skew": 8,
   "skew_sd": 6,
   "note": "NBC 10:07 ET. Batch trend ~R+12 since 56.9%; if it holds final ~D+5; skew 9 +/- 6."
@@ -419,12 +419,13 @@
  },
  {
   "race": "H:PA-7",
-  "d": 56.9,
-  "r": 43.1,
+  "d": 56.7,
+  "r": 43.3,
   "pct": 77.4,
   "skew": 5,
   "skew_sd": 5,
-  "note": "NBC 8:17 ET. Pennsylvania counts mail ballots first (heavily D); skew 22 +/- 10 while under ~15% in."
+  "note": "NBC 8:17 ET. Pennsylvania counts mail ballots first (heavily D); skew 22 +/- 10 while under ~15% in.",
+  "call": "D"
  },
  {
   "race": "H:PA-10",
@@ -480,9 +481,9 @@
  },
  {
   "race": "S:MI",
-  "d": 53.8,
-  "r": 44.5,
-  "pct": 20.5,
+  "d": 54.3,
+  "r": 44.0,
+  "pct": 22.6,
   "dn": "Abdul El-Sayed",
   "rn": "Mike Rogers",
   "skew": 15,
@@ -501,9 +502,9 @@
  },
  {
   "race": "H:NC-1",
-  "d": 49.9,
-  "r": 46.9,
-  "pct": 89.3,
+  "d": 49.4,
+  "r": 47.4,
+  "pct": 92.4,
   "dn": "Don Davis",
   "rn": "Buckhout",
   "skew": 1.5,
@@ -532,9 +533,9 @@
  },
  {
   "race": "G:TX",
-  "d": 56.3,
-  "r": 42.4,
-  "pct": 56.7,
+  "d": 56.0,
+  "r": 42.7,
+  "pct": 57.7,
   "skew": 10,
   "skew_sd": 6,
   "dn": "Gina Hinojosa",
@@ -553,9 +554,9 @@
  },
  {
   "race": "G:KS",
-  "d": 54.6,
-  "r": 45.4,
-  "pct": 68.9,
+  "d": 54.2,
+  "r": 45.8,
+  "pct": 70.2,
   "skew": 7,
   "skew_sd": 8,
   "note": "NBC 8:41 ET. Advance ballots from Johnson/Wyandotte first; skew 18 +/- 10."
@@ -585,18 +586,18 @@
  },
  {
   "race": "H:PA-1",
-  "d": 57.4,
-  "r": 42.6,
-  "pct": 48.1,
+  "d": 55.3,
+  "r": 44.7,
+  "pct": 55.9,
   "skew": 10,
   "skew_sd": 8,
   "note": "NBC 8:50 ET. Bucks mail ballots counted first; skew 20 +/- 8."
  },
  {
   "race": "H:MI-7",
-  "d": 42.1,
-  "r": 56.7,
-  "pct": 37.0,
+  "d": 43.4,
+  "r": 55.3,
+  "pct": 40.4,
   "dn": "Lawrence",
   "rn": "Barrett",
   "skew": -4,
@@ -615,9 +616,9 @@
  },
  {
   "race": "S:NE",
-  "d": 53.0,
-  "r": 41.7,
-  "pct": 37.3,
+  "d": 52.9,
+  "r": 41.8,
+  "pct": 37.4,
   "dn": "Dan Osborn",
   "rn": "Pete Ricketts",
   "skew": 11,
@@ -637,9 +638,9 @@
  },
  {
   "race": "S:AR",
-  "d": 44.1,
-  "r": 52.9,
-  "pct": 73.2,
+  "d": 43.7,
+  "r": 53.4,
+  "pct": 75.0,
   "skew": 8,
   "skew_sd": 8,
   "note": "NBC 9:53 ET. Latest batch ran ~R+39 as rural counties report after Pulaski early votes; skew 8 +/- 8."
@@ -673,8 +674,8 @@
  {
   "race": "G:TN",
   "d": 43.4,
-  "r": 45.1,
-  "pct": 73.0,
+  "r": 45.0,
+  "pct": 74.9,
   "skew": 4,
   "skew_sd": 5,
   "note": "NBC 9:04 ET. Same as Senate; skew 12 +/- 8."
@@ -691,20 +692,20 @@
  },
  {
   "race": "S:IA",
-  "d": 54.6,
-  "r": 42.7,
-  "pct": 34.2,
+  "d": 53.3,
+  "r": 43.8,
+  "pct": 38.7,
   "dn": "Josh Turek",
   "rn": "Ashley Hinson",
-  "skew": 20,
-  "skew_sd": 10,
-  "note": "NBC 10:07 ET. Latest batch ~R+20 as precincts report; skew 20 +/- 10."
+  "skew": 13,
+  "skew_sd": 8,
+  "note": "NBC 10:22 ET. Batches since 30% running R+9 to R+20; skew 13 +/- 8."
  },
  {
   "race": "G:IA",
-  "d": 60.0,
-  "r": 40.0,
-  "pct": 32.7,
+  "d": 58.7,
+  "r": 41.3,
+  "pct": 38.0,
   "dn": "Rob Sand",
   "rn": "Lahn",
   "skew": 22,
@@ -749,9 +750,9 @@
  },
  {
   "race": "S:MS",
-  "d": 46.3,
-  "r": 51.5,
-  "pct": 63.3,
+  "d": 46.8,
+  "r": 51.0,
+  "pct": 65.6,
   "skew": 2,
   "skew_sd": 5,
   "note": "NBC 10:07 ET. Batch 47.6->57.4% ran ~R+4; skew 2 +/- 5."
@@ -806,9 +807,9 @@
  },
  {
   "race": "H:WI-3",
-  "d": 52.6,
-  "r": 45.7,
-  "pct": 46.4,
+  "d": 53.6,
+  "r": 44.7,
+  "pct": 54.3,
   "dn": "Cooke",
   "rn": "Van Orden",
   "skew": 2,
@@ -849,9 +850,9 @@
  },
  {
   "race": "H:NY-17",
-  "d": 49.2,
-  "r": 50.7,
-  "pct": 32.8,
+  "d": 49.4,
+  "r": 50.5,
+  "pct": 35.7,
   "dn": "Conley",
   "rn": "Mike Lawler",
   "skew": 5,
@@ -860,18 +861,18 @@
  },
  {
   "race": "S:LA",
-  "d": 44.1,
-  "r": 55.9,
-  "pct": 52.0,
+  "d": 43.3,
+  "r": 56.7,
+  "pct": 58.5,
   "skew": 6,
   "skew_sd": 8,
   "note": "NBC 9:40 ET; early count; skew 6 +/- 8."
  },
  {
   "race": "G:WI",
-  "d": 55.0,
-  "r": 45.0,
-  "pct": 51.2,
+  "d": 55.2,
+  "r": 44.8,
+  "pct": 59.3,
   "dn": "Crowley",
   "rn": "Tiffany",
   "skew": 4,
@@ -896,9 +897,9 @@
  },
  {
   "race": "H:IA-1",
-  "d": 47.0,
-  "r": 48.9,
-  "pct": 13.2,
+  "d": 46.2,
+  "r": 49.7,
+  "pct": 14.9,
   "dn": "Bohannan",
   "rn": "Miller-Meeks",
   "skew": 25,
@@ -907,9 +908,9 @@
  },
  {
   "race": "S:ME",
-  "d": 50.0,
-  "r": 49.9,
-  "pct": 18.1,
+  "d": 51.1,
+  "r": 48.9,
+  "pct": 22.9,
   "dn": "Troy Jackson",
   "rn": "Susan Collins",
   "skew": -4,
@@ -941,9 +942,9 @@
  },
  {
   "race": "H:ME-2",
-  "d": 46.1,
-  "r": 53.9,
-  "pct": 23.6,
+  "d": 46.5,
+  "r": 53.5,
+  "pct": 25.1,
   "skew": -4,
   "skew_sd": 5,
   "dn": "Dunlap",
@@ -953,8 +954,8 @@
  {
   "race": "G:ME",
   "d": 51.5,
-  "r": 40.6,
-  "pct": 15.9,
+  "r": 40.2,
+  "pct": 21.6,
   "skew": -4,
   "skew_sd": 5,
   "dn": "Pingree",
@@ -995,5 +996,12 @@
   "skew": 5,
   "skew_sd": 6,
   "note": "NBC 10:13 ET. Arizona early ballots first; skew 5 +/- 6."
+ },
+ {
+  "race": "H:SC-5",
+  "d": 47.6,
+  "r": 52.3,
+  "pct": 95.0,
+  "call": "R"
  }
 ]
