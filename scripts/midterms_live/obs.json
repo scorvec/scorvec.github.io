@@ -1,14 +1,10 @@
 [
  {
   "race": "S:KY",
-  "d": 44.6,
-  "r": 53.4,
-  "pct": 71.3,
-  "skew": 0.5,
+  "call": "R",
   "dn": "Charles Booker",
   "rn": "Andy Barr",
-  "note": "NBC 8:05 ET. Louisville share falling; skew 8 +/- 5.",
-  "skew_sd": 5
+  "note": "NBC projection 9:19 ET (Barr)"
  },
  {
   "race": "S:VA",
@@ -193,10 +189,10 @@
  },
  {
   "race": "S:OH",
-  "d": 51.3,
-  "r": 44.4,
-  "pct": 48.9,
-  "skew": 5,
+  "d": 50.8,
+  "r": 44.9,
+  "pct": 52.1,
+  "skew": 4,
   "skew_sd": 5,
   "dn": "Sherrod Brown",
   "rn": "Jon Husted",
@@ -219,9 +215,9 @@
  },
  {
   "race": "S:SC",
-  "d": 52.5,
-  "r": 45.6,
-  "pct": 75.0,
+  "d": 52.0,
+  "r": 46.0,
+  "pct": 77.1,
   "skew": 1.5,
   "skew_sd": 3,
   "dn": "Annie Andrews",
@@ -288,10 +284,10 @@
  },
  {
   "race": "G:OH",
-  "d": 53.2,
-  "r": 43.7,
-  "pct": 48.8,
-  "skew": 5,
+  "d": 52.4,
+  "r": 44.5,
+  "pct": 53.3,
+  "skew": 4,
   "skew_sd": 5,
   "note": "NBC 8:05 ET. Same as Senate; skew 12 +/- 6."
  },
@@ -306,18 +302,18 @@
  },
  {
   "race": "H:OH-9",
-  "d": 41.5,
-  "r": 58.5,
-  "pct": 36.2,
+  "d": 40.8,
+  "r": 59.2,
+  "pct": 37.7,
   "skew": 5,
   "skew_sd": 6,
   "note": "NBC 8:05 ET. Early/absentee first; skew 8 +/- 8."
  },
  {
   "race": "G:SC",
-  "d": 48.6,
-  "r": 50.1,
-  "pct": 74.9,
+  "d": 48.3,
+  "r": 50.5,
+  "pct": 76.4,
   "skew": 1.5,
   "skew_sd": 3,
   "note": "NBC 8:05 ET. Same as Senate; skew 6 +/- 5."
@@ -344,9 +340,9 @@
  },
  {
   "race": "G:VT",
-  "d": 45.3,
-  "r": 53.0,
-  "pct": 57.4,
+  "d": 45.4,
+  "r": 52.8,
+  "pct": 61.2,
   "skew": 0,
   "skew_sd": 3,
   "note": "NBC 8:05 ET. "
@@ -389,18 +385,18 @@
  {
   "race": "S:KS",
   "d": 61.1,
-  "r": 36.3,
-  "pct": 39.2,
+  "r": 36.8,
+  "pct": 40.0,
   "skew": 11,
   "skew_sd": 8,
   "note": "NBC 8:50 ET. Johnson/Wyandotte/Douglas advance ballots dominate so far; skew 14 +/- 8."
  },
  {
   "race": "H:PA-8",
-  "d": 65.9,
-  "r": 34.1,
-  "pct": 43.3,
-  "skew": 12,
+  "d": 64.2,
+  "r": 35.8,
+  "pct": 47.7,
+  "skew": 11,
   "skew_sd": 8,
   "note": "NBC 8:17 ET. Pennsylvania counts mail ballots first (heavily D); skew 22 +/- 10 while under ~15% in."
  },
@@ -516,12 +512,12 @@
  },
  {
   "race": "S:OK",
-  "d": 37.8,
-  "r": 58.8,
-  "pct": 39.4,
+  "d": 36.7,
+  "r": 59.9,
+  "pct": 46.7,
   "dn": "Thomas",
   "rn": "Kevin Hern",
-  "skew": 4,
+  "skew": 3,
   "skew_sd": 10,
   "note": "NBC 8:24 ET. Early batches (Oklahoma/Tulsa counties, early votes) lean D; skew 15 +/- 10."
  },
@@ -581,10 +577,10 @@
  },
  {
   "race": "G:OK",
-  "d": 44.6,
-  "r": 53.2,
-  "pct": 38.1,
-  "skew": 5,
+  "d": 43.3,
+  "r": 54.5,
+  "pct": 46.7,
+  "skew": 3,
   "skew_sd": 10,
   "note": "NBC 8:41 ET. Early votes first; skew 14 +/- 10."
  },
@@ -625,9 +621,9 @@
  },
  {
   "race": "S:NE",
-  "d": 58.7,
-  "r": 36.3,
-  "pct": 22.8,
+  "d": 58.0,
+  "r": 36.9,
+  "pct": 23.4,
   "dn": "Dan Osborn",
   "rn": "Pete Ricketts",
   "skew": 12,
@@ -647,10 +643,10 @@
  },
  {
   "race": "S:AR",
-  "d": 46.5,
-  "r": 50.9,
-  "pct": 32.8,
-  "skew": 10,
+  "d": 45.2,
+  "r": 52.1,
+  "pct": 36.4,
+  "skew": 8,
   "skew_sd": 8,
   "note": "NBC 9:01 ET. Pulaski early votes appear to dominate (Cotton led 67-28 at 3%); skew 20 +/- 10."
  },
@@ -677,30 +673,30 @@
  },
  {
   "race": "S:TN",
-  "d": 44.2,
-  "r": 54.0,
-  "pct": 38.4,
+  "d": 43.1,
+  "r": 55.1,
+  "pct": 40.7,
   "dn": "Bradshaw",
   "rn": "Bill Hagerty",
-  "skew": 9,
+  "skew": 8,
   "skew_sd": 8,
   "note": "NBC 9:04 ET. Davidson/Shelby early votes first; skew 12 +/- 8."
  },
  {
   "race": "G:TN",
-  "d": 46.0,
-  "r": 43.4,
-  "pct": 30.6,
-  "skew": 11,
+  "d": 45.0,
+  "r": 44.1,
+  "pct": 32.1,
+  "skew": 10,
   "skew_sd": 8,
   "note": "NBC 9:04 ET. Same as Senate; skew 12 +/- 8."
  },
  {
   "race": "G:AR",
-  "d": 42.6,
-  "r": 50.9,
-  "pct": 32.5,
-  "skew": 10,
+  "d": 41.5,
+  "r": 51.8,
+  "pct": 36.1,
+  "skew": 8,
   "skew_sd": 8,
   "note": "NBC 9:04 ET. Pulaski early votes first; skew 20 +/- 10."
  },
@@ -711,9 +707,9 @@
  },
  {
   "race": "S:IA",
-  "d": 71.5,
-  "r": 27.0,
-  "pct": 5.1,
+  "d": 69.3,
+  "r": 29.0,
+  "pct": 5.8,
   "dn": "Josh Turek",
   "rn": "Ashley Hinson",
   "skew": 35,
@@ -722,9 +718,9 @@
  },
  {
   "race": "G:IA",
-  "d": 75.3,
-  "r": 24.7,
-  "pct": 5.1,
+  "d": 73.3,
+  "r": 26.7,
+  "pct": 5.8,
   "dn": "Rob Sand",
   "rn": "Lahn",
   "skew": 35,
@@ -746,5 +742,25 @@
   "race": "H:VA-6",
   "call": "R",
   "note": "NBC projection 9:12 ET (Cline)"
+ },
+ {
+  "race": "H:WV-2",
+  "call": "R",
+  "note": "NBC projection 9:18 ET (Moore)"
+ },
+ {
+  "race": "H:NJ-4",
+  "call": "R",
+  "note": "NBC projection (Smith)"
+ },
+ {
+  "race": "H:PA-6",
+  "call": "D",
+  "note": "NBC projection (Houlahan)"
+ },
+ {
+  "race": "H:PA-13",
+  "call": "R",
+  "note": "NBC projection (Joyce)"
  }
 ]
