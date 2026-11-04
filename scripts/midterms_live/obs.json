@@ -286,9 +286,9 @@
  },
  {
   "race": "H:OH-7",
-  "d": 53.7,
-  "r": 46.3,
-  "pct": 66.5,
+  "d": 53.9,
+  "r": 46.1,
+  "pct": 69.2,
   "skew": 4,
   "skew_sd": 5,
   "note": "NBC 8:05 ET. Early/absentee first; skew 12 +/- 8."
@@ -527,14 +527,10 @@
  },
  {
   "race": "G:TX",
-  "d": 57.4,
-  "r": 41.4,
-  "pct": 66.2,
-  "skew": 10,
-  "skew_sd": 6,
   "dn": "Gina Hinojosa",
   "rn": "Greg Abbott",
-  "note": "NBC 9:27 ET. Early votes (7.7M, ~3/4 of the expected total) dominate the count; Election Day votes still to come lean R; skew 10 +/- 6."
+  "note": "NBC projected Hinojosa (D) ~11:08 ET; Dem gain. Call-only.",
+  "call": "D"
  },
  {
   "race": "H:NJ-3",
@@ -548,18 +544,18 @@
  },
  {
   "race": "G:KS",
-  "d": 51.8,
-  "r": 48.2,
-  "pct": 84.8,
+  "d": 51.7,
+  "r": 48.3,
+  "pct": 85.4,
   "skew": 7,
   "skew_sd": 8,
   "note": "NBC 8:41 ET. Advance ballots from Johnson/Wyandotte first; skew 18 +/- 10."
  },
  {
   "race": "G:MI",
-  "d": 53.4,
-  "r": 45.0,
-  "pct": 29.9,
+  "d": 53.3,
+  "r": 45.1,
+  "pct": 30.7,
   "skew": 14,
   "skew_sd": 10,
   "note": "NBC 8:41 ET. Absentee first; skew 18 +/- 10."
@@ -589,9 +585,9 @@
  },
  {
   "race": "H:MI-7",
-  "d": 44.3,
-  "r": 54.5,
-  "pct": 50.3,
+  "d": 44.4,
+  "r": 54.4,
+  "pct": 51.1,
   "dn": "Lawrence",
   "rn": "Barrett",
   "skew": -4,
@@ -697,9 +693,9 @@
  },
  {
   "race": "G:IA",
-  "d": 58.1,
-  "r": 41.9,
-  "pct": 68.6,
+  "d": 57.9,
+  "r": 42.1,
+  "pct": 74.7,
   "dn": "Rob Sand",
   "rn": "Lahn",
   "skew": 22,
@@ -710,7 +706,7 @@
   "race": "H:IA-3",
   "d": 57.2,
   "r": 42.8,
-  "pct": 76.8,
+  "pct": 77.0,
   "dn": "Trone Garriott",
   "rn": "Zach Nunn",
   "skew": 10,
@@ -844,9 +840,9 @@
  },
  {
   "race": "H:NY-17",
-  "d": 53.3,
-  "r": 46.6,
-  "pct": 55.7,
+  "d": 52.4,
+  "r": 47.5,
+  "pct": 57.1,
   "dn": "Conley",
   "rn": "Mike Lawler",
   "skew": 3,
@@ -887,9 +883,9 @@
  },
  {
   "race": "H:IA-1",
-  "d": 54.5,
-  "r": 42.1,
-  "pct": 51.7,
+  "d": 54.4,
+  "r": 41.9,
+  "pct": 73.0,
   "dn": "Bohannan",
   "rn": "Miller-Meeks",
   "skew": 3,
@@ -932,9 +928,9 @@
  },
  {
   "race": "H:ME-2",
-  "d": 46.2,
-  "r": 53.8,
-  "pct": 40.0,
+  "d": 46.6,
+  "r": 53.4,
+  "pct": 42.3,
   "skew": -4,
   "skew_sd": 5,
   "dn": "Dunlap",
@@ -1043,5 +1039,20 @@
   "skew": -3,
   "skew_sd": 6,
   "note": "NBC 11:04 ET. Rural-heavy early count; skew -3 +/- 6."
+ },
+ {
+  "race": "H:KS-4",
+  "call": "R"
+ },
+ {
+  "race": "H:WA-3",
+  "d": 42.9,
+  "r": 56.3,
+  "pct": 22.9,
+  "dn": "Gluesenkamp Perez",
+  "rn": "Braun",
+  "skew": -3,
+  "skew_sd": 6,
+  "note": "NBC 11:08 ET. First Washington mail drop; later ballots tend to lean D; skew -3 +/- 6."
  }
 ]
