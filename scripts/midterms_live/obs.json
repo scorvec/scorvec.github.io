@@ -78,9 +78,9 @@
  },
  {
   "race": "G:FL",
-  "d": 49.7,
+  "d": 49.6,
   "r": 49.1,
-  "pct": 89.6,
+  "pct": 89.7,
   "skew": 1.0,
   "dn": "David Jolly",
   "rn": "Byron Donalds",
@@ -89,9 +89,9 @@
  },
  {
   "race": "S:FL",
-  "d": 48.9,
+  "d": 48.8,
   "r": 50.0,
-  "pct": 89.8,
+  "pct": 89.9,
   "skew": 0.8,
   "dn": "Angie Nixon",
   "rn": "Ashley Moody",
@@ -185,9 +185,9 @@
  },
  {
   "race": "H:VA-2",
-  "d": 46.1,
-  "r": 51.4,
-  "pct": 8.0,
+  "d": 46.3,
+  "r": 51.1,
+  "pct": 8.3,
   "skew_sd": 6,
   "dn": "Elaine Luria",
   "rn": "Jen Kiggans",
@@ -196,9 +196,9 @@
  },
  {
   "race": "H:FL-3",
-  "d": 44.5,
-  "r": 53.7,
-  "pct": 75.7,
+  "d": 44.6,
+  "r": 53.6,
+  "pct": 78.8,
   "skew": 1,
   "skew_sd": 4,
   "dn": "Seth Harp",
@@ -212,9 +212,9 @@
  },
  {
   "race": "S:OH",
-  "d": 60.1,
-  "r": 36.8,
-  "pct": 28.7,
+  "d": 59.9,
+  "r": 36.9,
+  "pct": 28.9,
   "skew": 12,
   "skew_sd": 6,
   "dn": "Sherrod Brown",
@@ -238,9 +238,9 @@
  },
  {
   "race": "S:SC",
-  "d": 50.3,
-  "r": 48.3,
-  "pct": 19.4,
+  "d": 50.4,
+  "r": 48.2,
+  "pct": 20.3,
   "skew": 5,
   "skew_sd": 5,
   "dn": "Annie Andrews",
@@ -269,9 +269,9 @@
  },
  {
   "race": "S:WV",
-  "d": 49.3,
-  "r": 48.0,
-  "pct": 12.1,
+  "d": 49.0,
+  "r": 48.4,
+  "pct": 12.4,
   "skew": 14,
   "skew_sd": 10,
   "dn": "Fetty Anderson",
@@ -298,9 +298,9 @@
  },
  {
   "race": "S:NH",
-  "d": 60.6,
-  "r": 37.7,
-  "pct": 17.7,
+  "d": 61.0,
+  "r": 37.2,
+  "pct": 18.4,
   "skew": 3,
   "skew_sd": 5,
   "note": "NBC 8:05 ET. "
@@ -334,9 +334,9 @@
  },
  {
   "race": "H:OH-9",
-  "d": 47.9,
-  "r": 52.1,
-  "pct": 10.4,
+  "d": 47.4,
+  "r": 52.6,
+  "pct": 11.9,
   "skew": 8,
   "skew_sd": 8,
   "note": "NBC 8:05 ET. Early/absentee first; skew 8 +/- 8."
@@ -352,12 +352,12 @@
  },
  {
   "race": "S:TX",
-  "d": 73.2,
-  "r": 25.4,
-  "pct": 6.0,
-  "skew": 20,
-  "skew_sd": 10,
-  "note": "NBC 8:05 ET. First Texas batches are big-county (Harris/Travis/Dallas) early votes; skew 20 +/- 10.",
+  "d": 65.4,
+  "r": 33.1,
+  "pct": 9.2,
+  "skew": 17,
+  "skew_sd": 9,
+  "note": "NBC 8:09 ET. Big-county early votes still dominate; D share fell from 73 to 65 as more came in; skew 17 +/- 9.",
   "dn": "James Talarico",
   "rn": "Ken Paxton"
  },
@@ -413,5 +413,33 @@
   "race": "H:TX-33",
   "call": "D",
   "note": "NBC projection 8:07 ET (Allred)"
+ },
+ {
+  "race": "S:KS",
+  "d": 57.1,
+  "r": 41.1,
+  "pct": 7.9,
+  "skew": 18,
+  "skew_sd": 10,
+  "note": "NBC 8:09 ET. First Kansas batches are early/advance ballots from Johnson/Wyandotte; skew 18 +/- 10."
+ },
+ {
+  "race": "H:PA-8",
+  "d": 74.9,
+  "r": 25.1,
+  "pct": 5.7,
+  "skew": 20,
+  "skew_sd": 10,
+  "note": "NBC 8:09 ET. Pennsylvania counts mail ballots first (heavily D); skew 20 +/- 10."
+ },
+ {
+  "race": "H:FL-22",
+  "call": "D",
+  "note": "NBC projection 8:09 ET"
+ },
+ {
+  "race": "H:TX-30",
+  "call": "D",
+  "note": "NBC projection 8:09 ET (Haynes)"
  }
 ]
