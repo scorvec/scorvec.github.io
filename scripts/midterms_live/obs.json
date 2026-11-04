@@ -320,12 +320,12 @@
  },
  {
   "race": "S:TX",
-  "d": 59.8,
-  "r": 38.7,
-  "pct": 51.9,
-  "skew": 7,
-  "skew_sd": 5,
-  "note": "NBC 8:33 ET. Early votes from the big urban counties (Harris, Dallas, Travis, Bexar) report first; rural Election Day votes come later; skew 12 +/- 7.",
+  "d": 59.7,
+  "r": 38.8,
+  "pct": 52.1,
+  "skew": 10,
+  "skew_sd": 6,
+  "note": "NBC 9:27 ET. Early votes (7.7M, ~3/4 of the expected total) dominate the count; Election Day votes still to come lean R; skew 10 +/- 6.",
   "dn": "James Talarico",
   "rn": "Ken Paxton"
  },
@@ -539,14 +539,14 @@
  },
  {
   "race": "G:TX",
-  "d": 56.1,
-  "r": 42.7,
-  "pct": 41.8,
-  "skew": 9,
+  "d": 57.4,
+  "r": 41.4,
+  "pct": 52.7,
+  "skew": 10,
   "skew_sd": 6,
   "dn": "Gina Hinojosa",
   "rn": "Greg Abbott",
-  "note": "NBC 8:33 ET. Early votes from the big urban counties (Harris, Dallas, Travis, Bexar) report first; rural Election Day votes come later; skew 12 +/- 7."
+  "note": "NBC 9:27 ET. Early votes (7.7M, ~3/4 of the expected total) dominate the count; Election Day votes still to come lean R; skew 10 +/- 6."
  },
  {
   "race": "H:NJ-3",
@@ -782,5 +782,43 @@
   "race": "H:OK-4",
   "call": "R",
   "note": "NBC projection (Cole)"
+ },
+ {
+  "race": "H:TX-2",
+  "d": 50.1,
+  "r": 49.9,
+  "pct": 74.6,
+  "dn": "Shaun Finnie",
+  "rn": "Steve Toth",
+  "skew": 6,
+  "skew_sd": 5,
+  "note": "NBC 9:27 ET. Early votes (7.7M, ~3/4 of the expected total) dominate the count; Election Day votes still to come lean R; skew 6 +/- 5."
+ },
+ {
+  "race": "H:TX-3",
+  "d": 52.1,
+  "r": 47.9,
+  "pct": 62.0,
+  "dn": "Evan Hunt",
+  "rn": "Keith Self",
+  "skew": 7,
+  "skew_sd": 5,
+  "note": "NBC 9:27 ET. Early votes (7.7M, ~3/4 of the expected total) dominate the count; Election Day votes still to come lean R; skew 7 +/- 5."
+ },
+ {
+  "race": "H:TX-4",
+  "d": 47.4,
+  "r": 52.6,
+  "pct": 67.9,
+  "dn": "Jason Pearce",
+  "rn": "Pat Fallon",
+  "skew": 6,
+  "skew_sd": 5,
+  "note": "NBC 9:27 ET. Early votes (7.7M, ~3/4 of the expected total) dominate the count; Election Day votes still to come lean R; skew 6 +/- 5."
+ },
+ {
+  "race": "H:TX-29",
+  "call": "D",
+  "note": "NBC projection (Garcia)"
  }
 ]
