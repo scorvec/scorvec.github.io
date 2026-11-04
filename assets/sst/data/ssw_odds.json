@@ -4,12 +4,12 @@
  "qbo_label": "October 2026",
  "qbo_source": "KIT/FU Berlin",
  "enso": {
-  "oni": 2.16,
-  "oni_season": "JAS 2026",
-  "roni": 1.7,
-  "roni_season": "JAS 2026",
-  "nino34": 3.39,
-  "date": "2026-11-01"
+  "oni": 2.46,
+  "oni_season": "ASO 2026",
+  "roni": 2.0,
+  "roni_season": "ASO 2026",
+  "nino34": 3.35,
+  "date": "2026-11-02"
  },
  "enso_bin": "> 2",
  "qbo_phase": "W",
