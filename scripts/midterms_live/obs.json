@@ -1,9 +1,9 @@
 [
  {
   "race": "S:KY",
-  "d": 47.6,
-  "r": 50.8,
-  "pct": 11.5,
+  "d": 47.2,
+  "r": 51.2,
+  "pct": 11.8,
   "skew": 13,
   "dn": "Charles Booker",
   "rn": "Andy Barr",
@@ -74,24 +74,24 @@
  },
  {
   "race": "G:FL",
-  "d": 52.2,
-  "r": 46.7,
-  "pct": 50.8,
-  "skew": 4.5,
+  "d": 51.9,
+  "r": 47.0,
+  "pct": 51.4,
+  "skew": 4.3,
   "dn": "David Jolly",
   "rn": "Byron Donalds",
-  "note": "NBC/AP 7:20 ET (50.8% expected in, ~4.2-4.3M votes). State feed down (503), so Election Day share estimated at ~16% of 2.75M (~0.45M) from the drift since 7:16 (12% of precincts). Counted ballots ~R+4.3 by registration vs ~R+13.4 uncounted; carrying the over-performance onto the rest gives a final ~4.4 right of the count. Skew 4.5 +/- 3.",
+  "note": "NBC/AP 7:22 ET (50.8% expected in, ~4.2-4.3M votes). State feed down (503), so Election Day share estimated at ~16% of 2.75M (~0.45M) from the drift since 7:16 (12% of precincts). Counted ballots ~R+4.3 by registration vs ~R+13.4 uncounted; carrying the over-performance onto the rest gives a final ~4.4 right of the count. Skew 4.3 +/- 3.",
   "skew_sd": 3
  },
  {
   "race": "S:FL",
-  "d": 50.9,
-  "r": 48.1,
-  "pct": 51.5,
-  "skew": 4.5,
+  "d": 50.7,
+  "r": 48.2,
+  "pct": 52.0,
+  "skew": 4.3,
   "dn": "Angie Nixon",
   "rn": "Ashley Moody",
-  "note": "NBC/AP 7:20 ET (51.5% expected in, ~4.2-4.3M votes). State feed down (503), so Election Day share estimated at ~16% of 2.75M (~0.45M) from the drift since 7:16 (12% of precincts). Counted ballots ~R+4.3 by registration vs ~R+13.4 uncounted; carrying the over-performance onto the rest gives a final ~4.4 right of the count. Skew 4.5 +/- 3.",
+  "note": "NBC/AP 7:22 ET (51.5% expected in, ~4.2-4.3M votes). State feed down (503), so Election Day share estimated at ~16% of 2.75M (~0.45M) from the drift since 7:16 (12% of precincts). Counted ballots ~R+4.3 by registration vs ~R+13.4 uncounted; carrying the over-performance onto the rest gives a final ~4.4 right of the count. Skew 4.3 +/- 3.",
   "skew_sd": 3
  },
  {
@@ -122,14 +122,14 @@
  },
  {
   "race": "S:GA",
-  "d": 65.9,
-  "r": 34.1,
-  "pct": 12.5,
-  "skew": 10,
+  "d": 72.1,
+  "r": 27.9,
+  "pct": 19.8,
+  "skew": 12,
   "skew_sd": 6,
   "dn": "Jon Ossoff",
   "rn": "Mike Collins",
-  "note": "NBC 7:20 ET. First Georgia batches are metro Atlanta mail/early ballots (Fulton, DeKalb, Cobb report early), skew 10 +/- 6 assumed."
+  "note": "NBC 7:22 ET. Metro Atlanta mail/early ballots dominate so far (D share rose as more came in); skew 12 +/- 6 assumed."
  },
  {
   "race": "G:GA",
@@ -168,5 +168,10 @@
   "race": "H:GA-4",
   "call": "D",
   "note": "NBC projection 7:21 ET (Johnson)"
+ },
+ {
+  "race": "H:GA-6",
+  "call": "D",
+  "note": "NBC projection 7:22 ET (McBath)"
  }
 ]
