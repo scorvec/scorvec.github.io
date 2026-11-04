@@ -15,9 +15,9 @@
   "dn": "Mark Warner",
   "rn": "Bert Mizusawa",
   "note": "NBC 8:05 ET. ",
-  "d": 58.2,
-  "r": 41.5,
-  "pct": 37.9,
+  "d": 57.9,
+  "r": 41.8,
+  "pct": 38.6,
   "skew": 0,
   "skew_sd": 4
  },
@@ -79,8 +79,8 @@
  {
   "race": "G:FL",
   "d": 49.4,
-  "r": 49.3,
-  "pct": 91.3,
+  "r": 49.4,
+  "pct": 92.0,
   "skew": 0.8,
   "dn": "David Jolly",
   "rn": "Byron Donalds",
@@ -90,8 +90,8 @@
  {
   "race": "S:FL",
   "d": 48.6,
-  "r": 50.2,
-  "pct": 91.7,
+  "r": 50.3,
+  "pct": 92.2,
   "skew": 0.6,
   "dn": "Angie Nixon",
   "rn": "Ashley Moody",
@@ -185,9 +185,9 @@
  },
  {
   "race": "H:VA-2",
-  "d": 48.0,
-  "r": 49.2,
-  "pct": 27.8,
+  "d": 47.8,
+  "r": 49.4,
+  "pct": 28.0,
   "skew_sd": 6,
   "dn": "Elaine Luria",
   "rn": "Jen Kiggans",
@@ -206,9 +206,9 @@
  },
  {
   "race": "S:OH",
-  "d": 59.1,
-  "r": 37.7,
-  "pct": 31.0,
+  "d": 58.9,
+  "r": 37.9,
+  "pct": 31.2,
   "skew": 11,
   "skew_sd": 6,
   "dn": "Sherrod Brown",
@@ -234,7 +234,7 @@
   "race": "S:SC",
   "d": 50.7,
   "r": 47.8,
-  "pct": 23.8,
+  "pct": 24.1,
   "skew": 5,
   "skew_sd": 5,
   "dn": "Annie Andrews",
@@ -263,9 +263,9 @@
  },
  {
   "race": "S:WV",
-  "d": 47.1,
-  "r": 50.3,
-  "pct": 14.6,
+  "d": 45.5,
+  "r": 51.8,
+  "pct": 17.6,
   "skew": 14,
   "skew_sd": 10,
   "dn": "Fetty Anderson",
@@ -283,18 +283,18 @@
  },
  {
   "race": "H:FL-2",
-  "d": 53.2,
-  "r": 46.8,
-  "pct": 75.7,
+  "d": 53.3,
+  "r": 46.7,
+  "pct": 76.7,
   "skew": 9,
   "skew_sd": 5,
   "note": "NBC 8:07 ET. 218k->228k batch ran ~R+27 (non-Leon counties); if the last ~26% runs like it the final is ~R+1; skew 9 +/- 5."
  },
  {
   "race": "S:NH",
-  "d": 60.9,
-  "r": 37.4,
-  "pct": 18.7,
+  "d": 60.6,
+  "r": 37.6,
+  "pct": 19.7,
   "skew": 3,
   "skew_sd": 5,
   "note": "NBC 8:05 ET. "
@@ -346,9 +346,9 @@
  },
  {
   "race": "S:TX",
-  "d": 67.7,
-  "r": 30.7,
-  "pct": 19.1,
+  "d": 66.4,
+  "r": 31.9,
+  "pct": 19.8,
   "skew": 14,
   "skew_sd": 9,
   "note": "NBC 8:09 ET. Big-county early votes still dominate; D share fell from 73 to 65 as more came in; skew 17 +/- 9.",
@@ -357,9 +357,9 @@
  },
  {
   "race": "H:VA-1",
-  "d": 50.3,
-  "r": 49.4,
-  "pct": 38.0,
+  "d": 50.0,
+  "r": 49.7,
+  "pct": 38.3,
   "skew": 0,
   "skew_sd": 6,
   "note": "NBC 8:05 ET. Virginia mixes precincts and central absentee; no skew, +/- 6."
@@ -419,12 +419,12 @@
  },
  {
   "race": "H:PA-8",
-  "d": 74.9,
-  "r": 25.1,
-  "pct": 5.7,
-  "skew": 20,
+  "d": 73.1,
+  "r": 26.9,
+  "pct": 14.1,
+  "skew": 22,
   "skew_sd": 10,
-  "note": "NBC 8:09 ET. Pennsylvania counts mail ballots first (heavily D); skew 20 +/- 10."
+  "note": "NBC 8:17 ET. Pennsylvania counts mail ballots first (heavily D); skew 22 +/- 10 while under ~15% in."
  },
  {
   "race": "H:FL-22",
@@ -445,5 +445,37 @@
   "race": "H:FL-16",
   "call": "R",
   "note": "NBC projection 8:15 ET (Gruters 50.8-47.4)"
+ },
+ {
+  "race": "H:PA-7",
+  "d": 73.8,
+  "r": 26.2,
+  "pct": 11.5,
+  "skew": 22,
+  "skew_sd": 10,
+  "note": "NBC 8:17 ET. Pennsylvania counts mail ballots first (heavily D); skew 22 +/- 10 while under ~15% in."
+ },
+ {
+  "race": "H:PA-10",
+  "d": 71.6,
+  "r": 28.4,
+  "pct": 6.3,
+  "skew": 22,
+  "skew_sd": 10,
+  "note": "NBC 8:17 ET. Pennsylvania counts mail ballots first (heavily D); skew 22 +/- 10 while under ~15% in."
+ },
+ {
+  "race": "H:NJ-7",
+  "d": 63.0,
+  "r": 36.1,
+  "pct": 7.8,
+  "skew": 18,
+  "skew_sd": 10,
+  "note": "NBC 8:17 ET. New Jersey reports mail ballots first; skew 18 +/- 10."
+ },
+ {
+  "race": "H:NJ-10",
+  "call": "D",
+  "note": "NBC projection 8:17 ET (McIver)"
  }
 ]
