@@ -342,12 +342,12 @@
  },
  {
   "race": "S:TX",
-  "d": 59.7,
-  "r": 38.8,
-  "pct": 23.1,
+  "d": 59.2,
+  "r": 39.3,
+  "pct": 23.8,
   "skew": 12,
   "skew_sd": 7,
-  "note": "NBC 8:09 ET. Big-county early votes still dominate; D share fell from 73 to 65 as more came in; skew 17 +/- 9.",
+  "note": "NBC 8:33 ET. Early votes from the big urban counties (Harris, Dallas, Travis, Bexar) report first; rural Election Day votes come later; skew 12 +/- 7.",
   "dn": "James Talarico",
   "rn": "Ken Paxton"
  },
@@ -558,5 +558,16 @@
   "race": "H:NH-1",
   "call": "D",
   "note": "NBC projection 8:26 ET (Shaheen)"
+ },
+ {
+  "race": "G:TX",
+  "d": 56.9,
+  "r": 41.8,
+  "pct": 23.8,
+  "skew": 12,
+  "skew_sd": 7,
+  "dn": "Gina Hinojosa",
+  "rn": "Greg Abbott",
+  "note": "NBC 8:33 ET. Early votes from the big urban counties (Harris, Dallas, Travis, Bexar) report first; rural Election Day votes come later; skew 12 +/- 7."
  }
 ]
