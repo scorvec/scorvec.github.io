@@ -74,10 +74,10 @@
  },
  {
   "race": "G:FL",
-  "d": 49.4,
-  "r": 49.4,
-  "pct": 64.4,
-  "skew": 3.0,
+  "d": 49.3,
+  "r": 49.5,
+  "pct": 65.1,
+  "skew": 2.9,
   "dn": "David Jolly",
   "rn": "Byron Donalds",
   "note": "NBC/AP 7:32 ET (57.6% expected in). Florida registration method: more Election Day precincts in, so skew falls to 3.5 +/- 3.",
@@ -85,10 +85,10 @@
  },
  {
   "race": "S:FL",
-  "d": 49.8,
-  "r": 49.1,
-  "pct": 76.8,
-  "skew": 2.3,
+  "d": 49.6,
+  "r": 49.3,
+  "pct": 77.6,
+  "skew": 2.2,
   "dn": "Angie Nixon",
   "rn": "Ashley Moody",
   "note": "NBC/AP 7:38 ET (72.2% expected in). The 64.1->72.2% batch ran ~D+15 (likely a large South Florida county); remaining vote still Election Day-heavy, so registration-method skew ~3, +/- 3.5 for county mix.",
@@ -183,14 +183,14 @@
  },
  {
   "race": "H:FL-4",
-  "d": 49.4,
-  "r": 49.0,
-  "pct": 88.6,
-  "skew": 4.5,
-  "skew_sd": 4,
+  "d": 49.7,
+  "r": 48.7,
+  "pct": 90.9,
+  "skew": 3,
+  "skew_sd": 5,
   "dn": "LaShonda Holloway",
   "rn": "Aaron Bean",
-  "note": "NBC 7:42 ET, 264,842 votes at 88.6%. The 230k->265k batch ran ~R+44; if the last ~11% runs strongly R the final is ~R+4, so skew 4.5 +/- 4."
+  "note": "NBC 7:46 ET, 271,758 votes at 90.9%. Last batches alternate (230k->265k ~R+44, 265k->272k ~D+24); skew 3 +/- 5."
  },
  {
   "race": "H:VA-2",
@@ -206,7 +206,7 @@
   "race": "H:FL-3",
   "d": 48.5,
   "r": 49.8,
-  "pct": 62.7,
+  "pct": 62.9,
   "skew": 3,
   "skew_sd": 5,
   "dn": "Seth Harp",
@@ -220,9 +220,9 @@
  },
  {
   "race": "S:OH",
-  "d": 66.6,
-  "r": 30.4,
-  "pct": 8.7,
+  "d": 64.6,
+  "r": 32.4,
+  "pct": 9.9,
   "skew": 18,
   "skew_sd": 8,
   "dn": "Sherrod Brown",
@@ -246,8 +246,8 @@
  },
  {
   "race": "S:SC",
-  "d": 50.4,
-  "r": 48.4,
+  "d": 50.3,
+  "r": 48.5,
   "pct": 8.3,
   "skew": 8,
   "skew_sd": 6,
@@ -259,5 +259,10 @@
   "race": "H:VT-1",
   "call": "D",
   "note": "NBC projection 7:43 ET (Balint)"
+ },
+ {
+  "race": "H:FL-12",
+  "call": "R",
+  "note": "NBC projection 7:46 ET (Bilirakis 52.7-46.0)"
  }
 ]
