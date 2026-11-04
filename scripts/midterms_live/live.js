@@ -7,6 +7,7 @@
 //     d, r   current vote shares; pct = % of expected vote counted
 //     skew   how many points more Democratic the counted batch is expected to be than the final (e.g. +8 if it is mostly
 //            mail/early ballots in a state where those lean D); default 0
+//     skew_sd how unsure that skew is (points, default 0): added in quadrature to the count noise
 //     call   an AP call: hard condition (simulations that disagree are dropped)
 // Count noise: final margin ~ current margin - skew + t4 error with sd 2 + 28*(1-f)^1.5 (f = share counted) - wide early,
 // tight once most of the vote is in; t tails so one odd batch cannot take over the whole forecast.
@@ -63,7 +64,7 @@ function summarize(obs) {
     const k = idx[o.race]; if (!k) { console.error("unknown race " + o.race); continue; }
     if (o.call) { for (let i = 0; i < N; i++) if ((margin(i, k) > 0) !== (o.call === "D")) lw[i] = -Infinity; used.push(o); continue; }
     if (o.pct == null || !(o.pct > 0)) continue;
-    const f = Math.min(1, o.pct / 100), m = o.d - o.r - (o.skew || 0), sd = countSd(f);
+    const f = Math.min(1, o.pct / 100), m = o.d - o.r - (o.skew || 0), sd = Math.hypot(countSd(f), o.skew_sd || 0);
     for (let i = 0; i < N; i++) lw[i] += logT4((margin(i, k) - m) / sd);
     used.push(o);
   }
