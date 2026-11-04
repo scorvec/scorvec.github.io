@@ -72,9 +72,15 @@ function summarize(obs) {
     used.push(o);
   }
   let mx = -Infinity; for (const v of lw) if (v > mx) mx = v;
-  const w = new Float64Array(N); let sw = 0, sw2 = 0;
-  for (let i = 0; i < N; i++) { w[i] = mx === -Infinity ? 0 : Math.exp(lw[i] - mx); sw += w[i]; sw2 += w[i] * w[i]; }
-  const ess = sw * sw / sw2;
+  // Adaptive tempering (TEMPER_ESS=0 turns it off): with ~100 correlated counts the weights collapse onto a few
+  // simulations, so the counts' joint log-likelihood is scaled by a <= 1, the largest value that keeps the effective
+  // sample at TEMPER_ESS (default 2000). AP calls stay hard constraints. Race-level odds below still read each race's
+  // own count at full strength.
+  const w = new Float64Array(N); let sw = 0, sw2 = 0, alpha = 1;
+  const fill = (a) => { sw = 0; sw2 = 0; for (let i = 0; i < N; i++) { w[i] = mx === -Infinity ? 0 : Math.exp(a * (lw[i] - mx)); sw += w[i]; sw2 += w[i] * w[i]; } return sw * sw / sw2; };
+  const target = +(process.env.TEMPER_ESS ?? 2000);
+  let ess = fill(1);
+  if (target > 0 && ess < target) { let lo = 0.01, hi = 1; for (let it = 0; it < 30; it++) { const a = (lo + hi) / 2; if (fill(a) < target) hi = a; else lo = a; } alpha = lo; ess = fill(alpha); }
   const hSeats = new Float64Array(N), sSeats = new Float64Array(N), gSeats = new Float64Array(N);
   let hMaj = 0, sCtl = 0, gMaj = 0, natM = 0;
   const hWin = new Float64Array(nH), sWin = new Float64Array(nSG), hMean = new Float64Array(nH), sMean = new Float64Array(nSG);
@@ -92,7 +98,7 @@ function summarize(obs) {
   // error cut to 60% (the skew already carries the vote-type uncertainty) plus skew_sd; normal posterior.
   if (process.env.RACE_LOCAL !== "0") for (const c of own) {
     let a = 0, b = 0, z = 0;
-    for (let i = 0; i < N; i++) { if (!w[i]) continue; const wi = w[i] * Math.exp(-c.ow[i]), v = margin(i, c.k); z += wi; a += wi * v; b += wi * v * v; }
+    for (let i = 0; i < N; i++) { if (!w[i]) continue; const wi = w[i] * Math.exp(-alpha * c.ow[i]), v = margin(i, c.k); z += wi; a += wi * v; b += wi * v * v; }
     if (!(z > 0)) continue;
     const m0 = a / z, s0 = Math.sqrt(Math.max(b / z - m0 * m0, 1)), so = Math.hypot(0.6 * countSd(c.f), c.ssd);
     const pm = (m0 / (s0 * s0) + c.m / (so * so)) / (1 / (s0 * s0) + 1 / (so * so)), ps = Math.sqrt(1 / (1 / (s0 * s0) + 1 / (so * so)));
@@ -101,13 +107,13 @@ function summarize(obs) {
   }
   const q = (a, p) => { const o = Array.from(a.keys()).filter(i => w[i] > 0).sort((x, y) => a[x] - a[y]); let c = 0; for (const i of o) { c += w[i] / sw; if (c >= p) return a[i]; } return a[o[o.length - 1]]; };
   const wmean = (a) => { let s = 0; for (let i = 0; i < N; i++) s += w[i] / sw * a[i]; return s; };
-  return { used, ess, nat: natM, house: { p: hMaj, mean: wmean(hSeats), p10: q(hSeats, .1), p90: q(hSeats, .9) }, senate: { p: sCtl, mean: wmean(sSeats), p10: q(sSeats, .1), p90: q(sSeats, .9) },
+  return { used, ess, alpha, nat: natM, house: { p: hMaj, mean: wmean(hSeats), p10: q(hSeats, .1), p90: q(hSeats, .9) }, senate: { p: sCtl, mean: wmean(sSeats), p10: q(sSeats, .1), p90: q(sSeats, .9) },
            gov: { p: gMaj, mean: wmean(gSeats) }, hWin, sWin, hMean, sMean };
 }
 
 const base = summarize([]), now = summarize(OBS);
 const pc = (x) => (100 * x).toFixed(1) + "%", sg = (x) => (x >= 0 ? "D+" : "R+") + Math.abs(x).toFixed(1);
-console.log(`simulations ${N}, effective after weighting ${now.ess.toFixed(0)}  (observations used: ${now.used.length})`);
+console.log(`simulations ${N}, effective after weighting ${now.ess.toFixed(0)}, tempering ${now.alpha.toFixed(3)}  (observations used: ${now.used.length})`);
 console.log(`national environment: ${sg(D.E0 + base.nat)} -> ${sg(D.E0 + now.nat)}  (House-vote margin)`);
 console.log(`House   P(D) ${pc(base.house.p)} -> ${pc(now.house.p)}   D seats ${base.house.mean.toFixed(1)} -> ${now.house.mean.toFixed(1)} (80% ${now.house.p10}-${now.house.p90})`);
 console.log(`Senate  P(D) ${pc(base.senate.p)} -> ${pc(now.senate.p)}   D seats ${base.senate.mean.toFixed(1)} -> ${now.senate.mean.toFixed(1)} (80% ${now.senate.p10}-${now.senate.p90})`);
