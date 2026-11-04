@@ -190,9 +190,9 @@
  },
  {
   "race": "S:OH",
-  "d": 48.3,
+  "d": 48.4,
   "r": 46.8,
-  "pct": 80.4,
+  "pct": 81.5,
   "skew": 1.5,
   "skew_sd": 3,
   "dn": "Sherrod Brown",
@@ -317,9 +317,9 @@
  },
  {
   "race": "S:TX",
-  "d": 58.1,
-  "r": 40.3,
-  "pct": 57.9,
+  "d": 58.0,
+  "r": 40.4,
+  "pct": 58.0,
   "skew": 10,
   "skew_sd": 6,
   "note": "NBC 9:27 ET. Early votes (7.7M, ~3/4 of the expected total) dominate the count; Election Day votes still to come lean R; skew 10 +/- 6.",
@@ -381,12 +381,12 @@
  },
  {
   "race": "S:KS",
-  "d": 54.3,
-  "r": 42.9,
-  "pct": 74.4,
-  "skew": 8,
-  "skew_sd": 6,
-  "note": "NBC 10:07 ET. Batch trend ~R+12 since 56.9%; if it holds final ~D+5; skew 9 +/- 6."
+  "d": 53.5,
+  "r": 43.7,
+  "pct": 79.4,
+  "skew": 5,
+  "skew_sd": 5,
+  "note": "NBC 10:38 ET. Batch 74.4->79.4% ran ~R+14; skew 5 +/- 5."
  },
  {
   "race": "H:PA-8",
@@ -482,9 +482,9 @@
  },
  {
   "race": "S:MI",
-  "d": 53.3,
-  "r": 44.9,
-  "pct": 24.5,
+  "d": 52.9,
+  "r": 45.3,
+  "pct": 25.5,
   "dn": "Abdul El-Sayed",
   "rn": "Mike Rogers",
   "skew": 15,
@@ -503,9 +503,9 @@
  },
  {
   "race": "H:NC-1",
-  "d": 49.4,
-  "r": 47.4,
-  "pct": 91.5,
+  "d": 49.5,
+  "r": 47.3,
+  "pct": 91.8,
   "dn": "Don Davis",
   "rn": "Buckhout",
   "skew": 1.5,
@@ -589,7 +589,7 @@
   "race": "H:PA-1",
   "d": 54.5,
   "r": 45.5,
-  "pct": 60.7,
+  "pct": 60.9,
   "skew": 10,
   "skew_sd": 8,
   "note": "NBC 8:50 ET. Bucks mail ballots counted first; skew 20 +/- 8."
@@ -617,9 +617,9 @@
  },
  {
   "race": "S:NE",
-  "d": 52.3,
-  "r": 42.4,
-  "pct": 38.6,
+  "d": 52.0,
+  "r": 42.7,
+  "pct": 39.4,
   "dn": "Dan Osborn",
   "rn": "Pete Ricketts",
   "skew": 11,
@@ -648,9 +648,9 @@
  },
  {
   "race": "H:MI-10",
-  "d": 47.9,
-  "r": 49.6,
-  "pct": 14.2,
+  "d": 48.4,
+  "r": 48.9,
+  "pct": 21.3,
   "dn": "Hines",
   "rn": "Bouchard",
   "skew": 0,
@@ -693,9 +693,9 @@
  },
  {
   "race": "S:IA",
-  "d": 53.1,
-  "r": 44.1,
-  "pct": 48.7,
+  "d": 52.8,
+  "r": 44.3,
+  "pct": 49.9,
   "dn": "Josh Turek",
   "rn": "Ashley Hinson",
   "skew": 9,
@@ -751,9 +751,9 @@
  },
  {
   "race": "S:MS",
-  "d": 47.5,
-  "r": 50.3,
-  "pct": 71.6,
+  "d": 47.8,
+  "r": 50.0,
+  "pct": 74.5,
   "skew": 1,
   "skew_sd": 4,
   "note": "NBC 10:29 ET. Batch 65.6->67.2% ran strongly D (likely Hinds); skew 1 +/- 4."
@@ -808,9 +808,9 @@
  },
  {
   "race": "H:WI-3",
-  "d": 53.1,
+  "d": 53.0,
   "r": 45.2,
-  "pct": 57.0,
+  "pct": 57.2,
   "dn": "Cooke",
   "rn": "Van Orden",
   "skew": 2,
@@ -851,14 +851,14 @@
  },
  {
   "race": "H:NY-17",
-  "d": 49.1,
-  "r": 50.8,
-  "pct": 36.6,
+  "d": 54.9,
+  "r": 45.0,
+  "pct": 50.8,
   "dn": "Conley",
   "rn": "Mike Lawler",
-  "skew": 5,
-  "skew_sd": 8,
-  "note": "NBC 9:37 ET; early count; skew 5 +/- 8."
+  "skew": 3,
+  "skew_sd": 6,
+  "note": "NBC 10:37 ET. Big D batch took Conley ahead; skew 3 +/- 6."
  },
  {
   "race": "S:LA",
@@ -898,9 +898,9 @@
  },
  {
   "race": "H:IA-1",
-  "d": 49.2,
-  "r": 46.7,
-  "pct": 22.2,
+  "d": 48.8,
+  "r": 47.2,
+  "pct": 22.6,
   "dn": "Bohannan",
   "rn": "Miller-Meeks",
   "skew": 8,
@@ -910,8 +910,8 @@
  {
   "race": "S:ME",
   "d": 51.3,
-  "r": 48.6,
-  "pct": 26.7,
+  "r": 48.7,
+  "pct": 26.9,
   "dn": "Troy Jackson",
   "rn": "Susan Collins",
   "skew": -4,
@@ -943,9 +943,9 @@
  },
  {
   "race": "H:ME-2",
-  "d": 46.2,
-  "r": 53.8,
-  "pct": 27.8,
+  "d": 46.0,
+  "r": 53.9,
+  "pct": 28.3,
   "skew": -4,
   "skew_sd": 5,
   "dn": "Dunlap",
@@ -1015,5 +1015,9 @@
   "skew": 0,
   "skew_sd": 6,
   "note": "NBC 10:35 ET. Bodnar (I) in the D slot; Bankhead (D) also on ballot at ~12%. Early count, order unknown; skew 0 +/- 6."
+ },
+ {
+  "race": "H:NE-3",
+  "call": "R"
  }
 ]
