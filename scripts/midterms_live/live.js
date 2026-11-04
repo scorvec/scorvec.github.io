@@ -19,6 +19,7 @@ const OBS = JSON.parse(fs.readFileSync(process.argv[2] || path.join(__dirname, "
 const N = +(process.env.N || 20000);
 const E = new WhatIf.Engine(D, N);
 
+function Phi(x) { const t = 1 / (1 + 0.2316419 * Math.abs(x)), d = 0.3989423 * Math.exp(-x * x / 2), p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return x > 0 ? 1 - p : p; }
 function countSd(f) { return 2 + 28 * Math.pow(Math.max(0, 1 - f), 1.5); }
 function logT4(z) { return -2.5 * Math.log(1 + z * z / 4); }   // Student-t df 4, up to a constant
 
@@ -59,13 +60,15 @@ races.forEach((x, j) => (idx[(j < nS ? "S:" : "G:") + x.st] = ["S", j]));
 const margin = (i, [t, j]) => (t === "H" ? HM[i * nH + j] : SM[i * nSG + j]);
 
 function summarize(obs) {
-  const lw = new Float64Array(N), used = [];
+  const lw = new Float64Array(N), used = [], own = [];
   for (const o of obs) {
     const k = idx[o.race]; if (!k) { console.error("unknown race " + o.race); continue; }
     if (o.call) { for (let i = 0; i < N; i++) if ((margin(i, k) > 0) !== (o.call === "D")) lw[i] = -Infinity; }
     if (o.pct == null || !(o.pct > 0)) { if (o.call) used.push(o); continue; }   // a called race keeps its count too, when given
     const f = Math.min(1, o.pct / 100), m = o.d - o.r - (o.skew || 0), sd = Math.hypot(countSd(f), o.skew_sd || 0);
-    for (let i = 0; i < N; i++) lw[i] += logT4((margin(i, k) - m) / sd);
+    const ow = new Float32Array(N);
+    for (let i = 0; i < N; i++) { ow[i] = logT4((margin(i, k) - m) / sd); lw[i] += ow[i]; }
+    if (!o.call) own.push({ k, m, f, ssd: o.skew_sd || 0, ow });
     used.push(o);
   }
   let mx = -Infinity; for (const v of lw) if (v > mx) mx = v;
@@ -82,6 +85,19 @@ function summarize(obs) {
     let gd = Gv.holdD; for (let j = nS; j < nSG; j++) { const v = SM[i * nSG + j]; sMean[j] += wi * v; if (v > 0) { sWin[j] += wi; gd++; } }
     hSeats[i] = hd; sSeats[i] = sd; gSeats[i] = gd;
     hMaj += wi * (hd >= H.need); sCtl += wi * (sd > 100 - sd - si); gMaj += wi * (gd >= Gv.need); natM += wi * NAT[i];
+  }
+  // Race-level odds for counted, uncalled races (RACE_LOCAL=0 turns this off): with ~90 counts the importance weights
+  // collapse onto a few hundred simulations, so a race's own count is read directly instead. Prior = the race's margin
+  // under the weights WITHOUT its own count (leave-one-out), normal approximation; likelihood = its count with the count
+  // error cut to 60% (the skew already carries the vote-type uncertainty) plus skew_sd; normal posterior.
+  if (process.env.RACE_LOCAL !== "0") for (const c of own) {
+    let a = 0, b = 0, z = 0;
+    for (let i = 0; i < N; i++) { if (!w[i]) continue; const wi = w[i] * Math.exp(-c.ow[i]), v = margin(i, c.k); z += wi; a += wi * v; b += wi * v * v; }
+    if (!(z > 0)) continue;
+    const m0 = a / z, s0 = Math.sqrt(Math.max(b / z - m0 * m0, 1)), so = Math.hypot(0.6 * countSd(c.f), c.ssd);
+    const pm = (m0 / (s0 * s0) + c.m / (so * so)) / (1 / (s0 * s0) + 1 / (so * so)), ps = Math.sqrt(1 / (1 / (s0 * s0) + 1 / (so * so)));
+    const pD = Phi(pm / ps), [t, j] = c.k;
+    if (t === "H") { hWin[j] = pD; hMean[j] = pm; } else { sWin[j] = pD; sMean[j] = pm; }
   }
   const q = (a, p) => { const o = Array.from(a.keys()).filter(i => w[i] > 0).sort((x, y) => a[x] - a[y]); let c = 0; for (const i of o) { c += w[i] / sw; if (c >= p) return a[i]; } return a[o[o.length - 1]]; };
   const wmean = (a) => { let s = 0; for (let i = 0; i < N; i++) s += w[i] / sw * a[i]; return s; };
