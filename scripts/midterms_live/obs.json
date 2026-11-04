@@ -45,20 +45,20 @@
  },
  {
   "race": "H:IN-2",
-  "d": 50.5,
-  "r": 48.2,
-  "pct": 6.6,
-  "note": "NBC 7:06 ET. Skew 8 assumed: St. Joseph County (South Bend), the Democratic base of the district, likely dominates the early count; not confirmed.",
-  "skew": 8,
+  "d": 47.0,
+  "r": 51.3,
+  "pct": 7.9,
+  "note": "NBC 7:21 ET. St. Joseph County (South Bend) likely still over-represented; skew cut to 5 +/- 5.",
+  "skew": 5,
   "dn": "Jamee Decio",
   "rn": "Rudy Yakym",
   "skew_sd": 5
  },
  {
   "race": "H:IN-3",
-  "d": 54.5,
-  "r": 45.5,
-  "pct": 36.6,
+  "d": 54.8,
+  "r": 45.2,
+  "pct": 37,
   "skew": 10,
   "dn": "Kelly Thompson",
   "rn": "Marlin Stutzman",
@@ -67,9 +67,9 @@
  },
  {
   "race": "H:IN-4",
-  "d": 38.5,
-  "r": 61.5,
-  "pct": 4.8,
+  "d": 39.2,
+  "r": 60.8,
+  "pct": 6.8,
   "note": "NBC 7:02 ET"
  },
  {
@@ -122,13 +122,51 @@
  },
  {
   "race": "S:GA",
-  "d": 66.8,
-  "r": 33.2,
-  "pct": 11.9,
+  "d": 65.9,
+  "r": 34.1,
+  "pct": 12.5,
   "skew": 10,
   "skew_sd": 6,
   "dn": "Jon Ossoff",
   "rn": "Mike Collins",
   "note": "NBC 7:20 ET. First Georgia batches are metro Atlanta mail/early ballots (Fulton, DeKalb, Cobb report early), skew 10 +/- 6 assumed."
+ },
+ {
+  "race": "G:GA",
+  "d": 62.1,
+  "r": 37.9,
+  "pct": 12.5,
+  "skew": 10,
+  "skew_sd": 6,
+  "dn": "Keisha Lance Bottoms",
+  "rn": "Rick Jackson",
+  "note": "NBC 7:21 ET. Metro Atlanta mail/early ballots dominate the first batches; skew 10 +/- 6 assumed."
+ },
+ {
+  "race": "H:GA-1",
+  "d": 46.2,
+  "r": 53.8,
+  "pct": 20,
+  "skew": 5,
+  "skew_sd": 5,
+  "dn": "Amanda Hollowell",
+  "rn": "Jim Kingston",
+  "note": "NBC 7:21 ET; early batches likely Chatham (Savannah) mail/early, skew 5 +/- 5."
+ },
+ {
+  "race": "H:GA-2",
+  "d": 53.5,
+  "r": 46.5,
+  "pct": 11,
+  "skew": 3,
+  "skew_sd": 5,
+  "dn": "Sanford Bishop",
+  "rn": "Matt Day",
+  "note": "NBC 7:21 ET; skew 3 +/- 5."
+ },
+ {
+  "race": "H:GA-4",
+  "call": "D",
+  "note": "NBC projection 7:21 ET (Johnson)"
  }
 ]
