@@ -191,7 +191,7 @@
   "race": "S:OH",
   "d": 48.2,
   "r": 47.0,
-  "pct": 73.1,
+  "pct": 74.1,
   "skew": 3.5,
   "skew_sd": 4,
   "dn": "Sherrod Brown",
@@ -289,9 +289,9 @@
  },
  {
   "race": "H:OH-7",
-  "d": 54.4,
-  "r": 45.6,
-  "pct": 57.3,
+  "d": 54.3,
+  "r": 45.7,
+  "pct": 58.9,
   "skew": 4,
   "skew_sd": 5,
   "note": "NBC 8:05 ET. Early/absentee first; skew 12 +/- 8."
@@ -316,9 +316,9 @@
  },
  {
   "race": "S:TX",
-  "d": 58.9,
-  "r": 39.6,
-  "pct": 55.3,
+  "d": 58.5,
+  "r": 39.9,
+  "pct": 56.1,
   "skew": 10,
   "skew_sd": 6,
   "note": "NBC 9:27 ET. Early votes (7.7M, ~3/4 of the expected total) dominate the count; Election Day votes still to come lean R; skew 10 +/- 6.",
@@ -380,10 +380,10 @@
  },
  {
   "race": "S:KS",
-  "d": 56.0,
-  "r": 41.4,
-  "pct": 63.9,
-  "skew": 9,
+  "d": 55.5,
+  "r": 41.8,
+  "pct": 69.1,
+  "skew": 8,
   "skew_sd": 6,
   "note": "NBC 10:07 ET. Batch trend ~R+12 since 56.9%; if it holds final ~D+5; skew 9 +/- 6."
  },
@@ -419,21 +419,21 @@
  },
  {
   "race": "H:PA-7",
-  "d": 58.7,
-  "r": 41.3,
-  "pct": 65.0,
+  "d": 56.9,
+  "r": 43.1,
+  "pct": 77.4,
   "skew": 5,
   "skew_sd": 5,
   "note": "NBC 8:17 ET. Pennsylvania counts mail ballots first (heavily D); skew 22 +/- 10 while under ~15% in."
  },
  {
   "race": "H:PA-10",
-  "d": 61.4,
-  "r": 38.6,
-  "pct": 48.3,
-  "skew": 10,
-  "skew_sd": 10,
-  "note": "NBC 8:17 ET. Pennsylvania counts mail ballots first (heavily D); skew 22 +/- 10 while under ~15% in."
+  "d": 58.9,
+  "r": 41.1,
+  "pct": 65.7,
+  "skew": 6,
+  "skew_sd": 6,
+  "note": "NBC 10:12 ET. Mail counted first; skew shrinking to 6 +/- 6 at 66% in."
  },
  {
   "race": "H:NJ-7",
@@ -479,9 +479,9 @@
  },
  {
   "race": "S:MI",
-  "d": 54.2,
-  "r": 44.2,
-  "pct": 19.9,
+  "d": 53.9,
+  "r": 44.4,
+  "pct": 20.2,
   "dn": "Abdul El-Sayed",
   "rn": "Mike Rogers",
   "skew": 15,
@@ -502,7 +502,7 @@
   "race": "H:NC-1",
   "d": 49.9,
   "r": 47.0,
-  "pct": 86.6,
+  "pct": 86.9,
   "dn": "Don Davis",
   "rn": "Buckhout",
   "skew": 1.5,
@@ -584,9 +584,9 @@
  },
  {
   "race": "H:PA-1",
-  "d": 58.6,
-  "r": 41.4,
-  "pct": 44.3,
+  "d": 57.4,
+  "r": 42.6,
+  "pct": 48.1,
   "skew": 10,
   "skew_sd": 8,
   "note": "NBC 8:50 ET. Bucks mail ballots counted first; skew 20 +/- 8."
@@ -637,8 +637,8 @@
  {
   "race": "S:AR",
   "d": 44.1,
-  "r": 53.0,
-  "pct": 72.0,
+  "r": 52.9,
+  "pct": 73.2,
   "skew": 8,
   "skew_sd": 8,
   "note": "NBC 9:53 ET. Latest batch ran ~R+39 as rural counties report after Pulaski early votes; skew 8 +/- 8."
@@ -694,9 +694,9 @@
  },
  {
   "race": "S:IA",
-  "d": 55.9,
-  "r": 41.5,
-  "pct": 30.6,
+  "d": 55.1,
+  "r": 42.2,
+  "pct": 32.9,
   "dn": "Josh Turek",
   "rn": "Ashley Hinson",
   "skew": 20,
@@ -752,9 +752,9 @@
  },
  {
   "race": "S:MS",
-  "d": 46.8,
-  "r": 51.1,
-  "pct": 57.4,
+  "d": 46.6,
+  "r": 51.2,
+  "pct": 60.8,
   "skew": 2,
   "skew_sd": 5,
   "note": "NBC 10:07 ET. Batch 47.6->57.4% ran ~R+4; skew 2 +/- 5."
@@ -809,9 +809,9 @@
  },
  {
   "race": "H:WI-3",
-  "d": 54.5,
-  "r": 43.8,
-  "pct": 36.8,
+  "d": 53.0,
+  "r": 45.3,
+  "pct": 44.1,
   "dn": "Cooke",
   "rn": "Van Orden",
   "skew": 2,
@@ -852,9 +852,9 @@
  },
  {
   "race": "H:NY-17",
-  "d": 51.6,
-  "r": 48.3,
-  "pct": 22.8,
+  "d": 49.2,
+  "r": 50.7,
+  "pct": 32.8,
   "dn": "Conley",
   "rn": "Mike Lawler",
   "skew": 5,
@@ -863,9 +863,9 @@
  },
  {
   "race": "S:LA",
-  "d": 44.4,
-  "r": 55.6,
-  "pct": 40.8,
+  "d": 44.9,
+  "r": 55.1,
+  "pct": 46.3,
   "skew": 6,
   "skew_sd": 8,
   "note": "NBC 9:40 ET; early count; skew 6 +/- 8."
@@ -899,9 +899,9 @@
  },
  {
   "race": "H:IA-1",
-  "d": 45.8,
-  "r": 50.0,
-  "pct": 11.5,
+  "d": 45.2,
+  "r": 50.5,
+  "pct": 12.0,
   "dn": "Bohannan",
   "rn": "Miller-Meeks",
   "skew": 25,
@@ -910,9 +910,9 @@
  },
  {
   "race": "S:ME",
-  "d": 50.8,
-  "r": 49.2,
-  "pct": 16.5,
+  "d": 50.7,
+  "r": 49.3,
+  "pct": 17.1,
   "dn": "Troy Jackson",
   "rn": "Susan Collins",
   "skew": -4,
@@ -926,9 +926,9 @@
  },
  {
   "race": "H:TX-28",
-  "d": 69.2,
-  "r": 24.3,
-  "pct": 23.4,
+  "d": 64.2,
+  "r": 29.8,
+  "pct": 28.6,
   "dn": "Henry Cuellar",
   "rn": "Tijerina",
   "skew": 8,
@@ -944,9 +944,9 @@
  },
  {
   "race": "H:ME-2",
-  "d": 46.2,
-  "r": 53.8,
-  "pct": 21.0,
+  "d": 46.3,
+  "r": 53.7,
+  "pct": 22.5,
   "skew": -4,
   "skew_sd": 5,
   "dn": "Dunlap",
@@ -963,5 +963,31 @@
   "dn": "Pingree",
   "rn": "Charles",
   "note": "NBC 10:07 ET. Same Maine town skew as Senate; -4 +/- 5."
+ },
+ {
+  "race": "H:AZ-1",
+  "d": 54.9,
+  "r": 43.2,
+  "pct": 70.8,
+  "dn": "Shah",
+  "rn": "Feely",
+  "skew": 5,
+  "skew_sd": 6,
+  "note": "NBC 10:12 ET. Arizona early ballots received before Election Day reported first; late early drop-offs and Election Day votes lean R; skew 5 +/- 6."
+ },
+ {
+  "race": "H:AZ-6",
+  "d": 58.3,
+  "r": 39.8,
+  "pct": 63.8,
+  "dn": "Mendoza",
+  "rn": "Ciscomani",
+  "skew": 5,
+  "skew_sd": 6,
+  "note": "NBC 10:12 ET. Arizona early ballots first; skew 5 +/- 6."
+ },
+ {
+  "race": "H:NY-20",
+  "call": "D"
  }
 ]
