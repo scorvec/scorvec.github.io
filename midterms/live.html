@@ -272,7 +272,7 @@
 <div class="tw"><table><thead><tr><th>Race</th><th class="hn">Democrat</th><th class="hn">Republican</th><th>So far</th><th class="num">Final forecast</th><th class="num">Now</th></tr></thead><tbody id="flraces"></tbody></table></div>
 
 <h2 id="method">How the update works</h2>
-<p class="lv-note">The forecast&rsquo;s simulations share national, state, urban and demographic-group swings. Each simulation is weighted by how closely it matches every count so far: the final margin is taken to be the current margin plus a count error whose spread is about &plusmn;28 points with 1% counted and &plusmn;3 points with 90% counted, with heavy tails so one odd batch cannot take over. AP calls drop the simulations that disagree. The &ldquo;final forecast&rdquo; figures here are this page&rsquo;s own re-run of the forecast&rsquo;s simulations before any count, so they can differ from the <a href="./">forecast page</a> by simulation noise (a few tenths of a point). Counts are read by hand from news results pages during the night, so they trail the live tallies by up to 15 minutes. This page is automated and unreviewed; it is not a race call. Margins are Democratic minus Republican, in points.</p>
+<p class="lv-note">The forecast&rsquo;s simulations share national, state, urban and demographic-group swings. Each simulation is weighted by how closely it matches every count so far: the final margin is taken to be the current margin plus a count error whose spread is about &plusmn;28 points with 1% counted and &plusmn;3 points with 90% counted, with heavy tails so one odd batch cannot take over. AP calls drop the simulations that disagree. The &ldquo;final forecast&rdquo; figures here are this page&rsquo;s own re-run of the forecast&rsquo;s simulations before any count, so they can differ from the <a href="./">forecast page</a> by simulation noise (a few tenths of a point). Counts are read by hand from news results pages during the night, so they trail the live tallies by a few minutes. This page is automated and unreviewed; it is not a race call. Margins are Democratic minus Republican, in points.</p>
 </main>
 <script>
 (function(){
@@ -294,7 +294,7 @@ function tiles(){
  set('hs',(+b.house_mean).toFixed(0));set('hsr',b.house_p10+'–'+b.house_p90);
  const dh=b.house_p-a.house_p, word=Math.abs(dh)<.0005?'unchanged at':dh>0?'up to':'down to';
  set('headline',o.length<2?'No results counted yet: the odds are the final forecast’s.':`Democrats’ House odds are ${word} ${pct(b.house_p)} and their Senate odds are ${pct(b.senate_p)}, with the national environment at ${pts(b.nat)}.`);
- set('stamp',`Last model run ${et(b.at)}, from ${b.n_obs} counts and calls. Updated about every 15 minutes; this page reloads its data every 5.`);
+ set('stamp',`Last model run ${et(b.at)}, from ${b.n_obs} counts and calls. Updated every few minutes; this page reloads its data every minute.`);
 }
 
 function chart(){
@@ -366,7 +366,7 @@ function load(){
 $$('.kind').forEach(b=>b.addEventListener('click',()=>{S.kind=b.dataset.kind;$$('.kind').forEach(o=>o.setAttribute('aria-pressed',String(o===b)));tables()}));
 $('#q').addEventListener('input',e=>{S.q=e.target.value;tables()});
 let w=0;window.addEventListener('resize',()=>{clearTimeout(w);w=setTimeout(chart,150)});
-load();setInterval(load,5*60e3);
+load();setInterval(load,60e3);
 })();
 </script>
 <!-- sf:start -->
