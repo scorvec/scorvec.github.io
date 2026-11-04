@@ -568,22 +568,16 @@ PAGES = [
     # qbo/index.html: folded into stratosphere.html ("QBO from radiosondes"), now a redirect stub (no chrome)
     dict(
         path="midterms/index.html", mode="after-body", footer=True, synced=True
-    ),  # 2026 midterm forecast (synced daily from github.com/scorvec/midterms-2026 by midterms-sync.yml)
+    ),  # 2026 midterm results and the scorecard (synced from github.com/scorvec/midterms-2026 by midterms-sync.yml)
+    dict(
+        path="midterms/forecast.html", mode="after-body", footer=True, synced=True
+    ),  # the final midterm forecast, frozen before the polls closed
     dict(
         path="midterms/about.html", mode="after-body", footer=True, synced=True
     ),  # how the midterm forecast works + sources
     dict(
-        path="midterms/polls.html", mode="after-body", footer=True, synced=True
-    ),  # every poll in the midterm forecast and its weight
-    dict(
-        path="midterms/whatif.html", mode="after-body", footer=True, synced=True
-    ),  # "What if?": the forecast re-simulated with the reader's assumptions
-    dict(
         path="midterms/legislatures.html", mode="after-body", footer=True, synced=True
     ),  # state legislative chambers (experimental)
-    dict(
-        path="midterms/early-vote.html", mode="after-body", footer=True, synced=True
-    ),  # the early vote against earlier elections, and how banked ballots enter the forecast
     # the 404 body is a centring flexbox: stack it so the header spans the top and the message centres below
     dict(
         path="404.html",

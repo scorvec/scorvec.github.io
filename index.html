@@ -193,7 +193,7 @@
      box and the About menu instead of a 74rem column with ~430 px empty on each side at 2160 px */
   @media (min-width: 1100px) { .wrap { max-width: min(94vw, 2000px); padding: 0 clamp(1rem, 3vw, 2.5rem); } }
 
-  /* ── Right now: compact live readings, few and uncluttered. Every number is read live (midterms summary.json, the
+  /* ── Right now: compact live readings, few and uncluttered. Every number is read live (midterms results_summary.json, the
      ENSO feeds); on any failure the dashes stay and the card still links. ── */
   .now { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: clamp(1.75rem, 4vw, 2.75rem); }
   .nc {
@@ -239,8 +239,6 @@
   .nc--mt .k { color: #fff; }
   .nc--mt .s { color: #b9c5da; }
   .mt-top { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
-  .mt-cd { flex: none; padding: 0.18rem 0.6rem; border: 1px solid rgba(255, 255, 255, 0.28); border-radius: 999px;
-           font-size: 0.8rem; font-weight: 500; color: #fff; font-variant-numeric: tabular-nums; }
   .mt-arcs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4rem 1.2rem; margin-top: 0.6rem; }
   .mt-ch { display: flex; flex-direction: column; align-items: center; min-width: 0; text-align: center; }
   .mt-arc { display: block; width: 100%; height: auto; }
@@ -551,19 +549,19 @@
 <main id="main" class="wrap">
   <section class="now" aria-label="Right now">
     <a class="nc nc--mt" href="/midterms/">
-      <span class="mt-top"><span class="k">2026 midterm forecast</span><span class="mt-cd" id="mt-cd" hidden></span></span>
+      <span class="mt-top"><span class="k">2026 midterm results</span></span>
       <span class="mt-arcs" aria-live="polite">
-        <span class="mt-ch"><svg class="mt-arc" id="mt-ah" viewBox="0 -18 300 170" role="img" aria-label="House seats by rating" hidden></svg><b id="mt-h">–</b><small id="mt-hl">chance Democrats win the House</small></span>
-        <span class="mt-ch"><svg class="mt-arc" id="mt-as" viewBox="0 -18 300 170" role="img" aria-label="Senate seats by rating" hidden></svg><b id="mt-s">–</b><small id="mt-sl">chance Democrats win the Senate</small></span>
+        <span class="mt-ch"><svg class="mt-arc" id="mt-ah" viewBox="0 -18 300 170" role="img" aria-label="House seats as called" hidden></svg><b id="mt-h">–</b><small id="mt-hl">House, Democratic–Republican</small></span>
+        <span class="mt-ch"><svg class="mt-arc" id="mt-as" viewBox="0 -18 300 170" role="img" aria-label="Senate seats as called" hidden></svg><b id="mt-s">–</b><small id="mt-sl">Senate, Democratic–Republican</small></span>
       </span>
       <span class="mt-key" id="mt-key" hidden>
-        <span><span class="sw"><i style="background:#4a8af0"></i><i style="background:#8db4f2"></i><i style="background:#c6d8f6"></i></span>Solid, likely, lean D</span>
-        <span><i style="background:#e6dcc5"></i>Toss-up</span>
-        <span><span class="sw"><i style="background:#f5c3b9"></i><i style="background:#ec8a7b"></i><i style="background:#de4f3e"></i></span>Lean, likely, solid R</span>
+        <span><i style="background:#4a8af0"></i>Democratic</span>
+        <span><i style="background:#e6dcc5"></i>Not called</span>
+        <span><i style="background:#de4f3e"></i>Republican</span>
         <span><i class="ring"></i>Senate seat not up</span>
       </span>
-      <span class="s" id="mt-sub">Democrats' chances, from the polls, fundraising and the national mood.</span>
-      <span class="go">Every race</span>
+      <span class="s" id="mt-sub">Every race as called, next to the forecast frozen before the polls closed.</span>
+      <span class="go">Every race, and how the forecast did</span>
     </a>
     <a class="nc nc--en" href="/enso.html">
       <span class="en-top"><span class="k">El Niño and La Niña</span><span class="en-pill" id="en-pill" hidden></span></span>
@@ -725,22 +723,11 @@
   const getJSON = u => fetch(u, { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).catch(() => null);
   const day = iso => new Date(iso.slice(0, 10) + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 
-  // midterm card: the chamber odds and the forecast page's seat arcs (summary.json carries every seat's rating, most
-  // Democratic first); on any failure the dashes stay and the card still links
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  {
-    // days to Election Day (3 Nov) on the Eastern calendar; the pill goes once the day has passed
-    const [y, m, d] = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date()).split('-').map(Number);
-    const n = Math.round((Date.UTC(2026, 10, 3) - Date.UTC(y, m - 1, d)) / 864e5);
-    if (n >= 0) {
-      $set('mt-cd', n > 1 ? `${n} days to Election Day` : n === 1 ? 'Election Day tomorrow' : 'Election Day today');
-      document.getElementById('mt-cd').hidden = false;
-    }
-  }
-  const RATE = ['Solid D', 'Likely D', 'Lean D', 'Toss-up', 'Lean R', 'Likely R', 'Solid R'];
+  // midterm card: each chamber's seats as called, on the forecast page's seat arcs (results_summary.json carries one
+  // character per seat, most Democratic first); on any failure the dashes stay and the card still links
   const FILL = ['#4a8af0', '#8db4f2', '#c6d8f6', '#e6dcc5', '#f5c3b9', '#ec8a7b', '#de4f3e'], FILLI = ['#a57bdc', '#c2a6e8', '#ddd0f2'];
-  // seats in concentric rows filled left to right in the given order, laid out as on the forecast page; a Senate seat
-  // not up this year ('D'/'R') is a ring, an independent's seat ('a'-'c') purple
+  // seats in concentric rows filled left to right in the given order, laid out as on the forecast page: 0 a Democratic
+  // win, 3 not called, 6 a Republican win, an independent's seat ('a') purple, a Senate seat not up ('D'/'R') a ring
   function arc(svg, seats, maj, what) {
     const n = seats.length, R = 138, cx = 150, cy = 146, R0 = 0.38;
     let k = 2;
@@ -765,38 +752,20 @@
       `<text x="${X(1.08, am)}" y="${Y(1.08, am)}" text-anchor="middle">${maj} ${what}</text>`;
     svg.removeAttribute('hidden');  // SVG elements have no .hidden property
   }
-  getJSON('/midterms/data/summary.json').then(s => {
+  getJSON('/midterms/data/results_summary.json').then(s => {
     if (!s || !s.house) return;
-    const pct = p => Math.round(100 * p) + '%';
-    // each chamber's chance for the favoured side, in that side's colour, counting up on load
-    const odds = (id, p, chamber) => {
-      const dem = p >= 0.5, v = Math.round(100 * (dem ? p : 1 - p)), el = document.getElementById(id);
-      el.style.color = dem ? '#9cc0ff' : '#ff9f92';
-      $set(id + 'l', `chance ${dem ? 'Democrats win' : 'Republicans keep'} the ${chamber}`);
-      if (reduced) { el.textContent = v + '%'; return; }
-      const t0 = performance.now(), step = now => {
-        const f = Math.min(1, (now - t0) / 850);
-        el.textContent = Math.round(v * (1 - Math.pow(1 - f, 3))) + '%';
-        if (f < 1) requestAnimationFrame(step);
-      };
-      requestAnimationFrame(step);
-    };
-    const H = s.house, S = s.senate;
-    odds('mt-h', H.p, 'House');
-    odds('mt-s', S.p, 'Senate');
-    $set('mt-sub', `${Math.round(H.mean)} Democratic House seats expected, 218 needed` +
-                   (H.p10 != null ? ` (8 in 10 simulations ${H.p10}–${H.p90})` : '') +
-                   `; ${Math.round(S.mean)} Senate seats, 51 needed (a 50–50 Senate stays Republican)` +
-                   (s.both != null ? `; both chambers ${pct(s.both)}` : '') + `. Forecast of ${day(s.asof)}.`);
-    if (!H.seats || !S.seats) return;
-    const arcs = [['mt-ah', H.seats, 218, 'for a majority', 'House'], ['mt-as', S.seats, 51, 'for control', 'Senate']];
-    for (const [id, seats, maj, what, name] of arcs) {
-      const svg = document.getElementById(id), n = RATE.map((_, i) => [...seats].filter(c => c === String(i)).length);
-      arc(svg, seats, maj, what);
-      svg.setAttribute('aria-label', `${name} seats by rating: ${RATE.map((r, i) => `${r} ${n[i]}`).join(', ')}`);
+    const H = s.house, S = s.senate, other = c => (c.i ? `, ${c.i} other` : '');
+    const arcs = [['mt-ah', 'mt-h', H, 218, 'for a majority', 'House'], ['mt-as', 'mt-s', S, 51, 'for control', 'Senate']];
+    for (const [id, num, c, maj, what, name] of arcs) {
+      $set(num, `${c.d}–${c.r}`);
+      $set(num + 'l', `${name}, Democratic–Republican${other(c)}${c.open ? `; ${c.open} not called` : ''}`);
+      const svg = document.getElementById(id);
+      arc(svg, c.seats, maj, what);
+      svg.setAttribute('aria-label', `${name} seats as called: ${c.d} Democratic, ${c.r} Republican${other(c)}, ${c.open} not called`);
     }
-    if (/[abc]/.test(H.seats + S.seats))
-      document.querySelector('#mt-key .ring').parentElement.insertAdjacentHTML('beforebegin', `<span><i style="background:${FILLI[1]}"></i>Independent favoured</span>`);
+    $set('mt-sub', `Forecast: ${H.forecast_d} Democratic House seats and ${S.forecast_d} Senate seats. Updated ${day(s.generated)}.`);
+    if (H.i || S.i)
+      document.querySelector('#mt-key .ring').parentElement.insertAdjacentHTML('beforebegin', `<span><i style="background:${FILLI[0]}"></i>Independent</span>`);
     document.getElementById('mt-key').hidden = false;
     // the seats fill in from the left once painted
     requestAnimationFrame(() => requestAnimationFrame(() => arcs.forEach(([id]) => document.getElementById(id).classList.add('on'))));

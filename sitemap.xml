@@ -121,27 +121,19 @@
   </url>
   <url>
     <loc>https://scorvec.com/midterms/</loc>
-    <changefreq>weekly</changefreq>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://scorvec.com/midterms/forecast.html</loc>
+    <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://scorvec.com/midterms/about.html</loc>
     <changefreq>weekly</changefreq>
   </url>
   <url>
-    <loc>https://scorvec.com/midterms/polls.html</loc>
-    <changefreq>weekly</changefreq>
-  </url>
-  <url>
     <loc>https://scorvec.com/midterms/legislatures.html</loc>
     <changefreq>weekly</changefreq>
-  </url>
-  <url>
-    <loc>https://scorvec.com/midterms/whatif.html</loc>
-    <changefreq>weekly</changefreq>
-  </url>
-  <url>
-    <loc>https://scorvec.com/midterms/early-vote.html</loc>
-    <changefreq>daily</changefreq>
   </url>
   <url>
     <loc>https://scorvec.com/topics/</loc>
