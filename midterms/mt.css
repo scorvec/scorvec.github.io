@@ -1,4 +1,4 @@
-/* Shared by the five forecast pages (index, polls, about, whatif, legislatures): the page navigation under each title,
+/* Shared by the midterm pages (index = the results, forecast, about, legislatures): the page navigation under each title,
    the call-out links and the national poll charts (pollchart.js). Each page keeps its own layout styles. */
 .mt-nav{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 20px;padding:0}
 .mt-nav a{display:inline-block;padding:7px 15px;border:1px solid var(--rule,#e3e1db);border-radius:999px;background:#fff;color:var(--ink,#1b1d22);text-decoration:none;font-size:16px;font-weight:600;line-height:1.3}

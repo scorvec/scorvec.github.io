@@ -1,170 +1,100 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>2026 Midterm Forecast</title>
-<meta name="description" content="A daily forecast of the 2026 U.S. House, Senate and governor elections: 20,000 simulated elections built from every poll, each race's fundamentals and a shared national polling miss.">
+<title>2026 Midterm Results</title>
+<meta name="description" content="Results of the 2026 U.S. House, Senate and governor elections, race by race, next to the final forecast frozen before the polls closed, and how that forecast did.">
 <link rel="canonical" href="https://scorvec.com/midterms/">
 <meta property="og:type" content="website">
-<meta property="og:title" content="2026 Midterm Forecast">
-<meta property="og:description" content="A daily forecast of the 2026 U.S. House, Senate and governor elections: 20,000 simulated elections built from every poll, each race's fundamentals and a shared national polling miss.">
+<meta property="og:title" content="2026 Midterm Results">
+<meta property="og:description" content="Results of the 2026 U.S. House, Senate and governor elections, race by race, next to the final forecast frozen before the polls closed, and how that forecast did.">
 <meta property="og:url" content="https://scorvec.com/midterms/">
 <meta name="twitter:card" content="summary">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap">
 <link rel="stylesheet" href="/assets/site.css">
 <link rel="stylesheet" href="mt.css">
 <style>
-:root{--ink:#1b1d22;--muted:#6f6b64;--rule:#e3e1db;--bg:#fcfcfa;--card:#fff;--d:#1f5fbf;--dd:#0b3d91;--r:#b3261e;--rd:#a32215;--i:#6b3fa0;--focus:#1f5fbf;
- --night:#0e2140;--nmuted:#b9c5da;--nrule:rgba(255,255,255,.16);--dlt:#9cc0ff;--rlt:#ff9f92;--ilt:#c9a8f0}
+:root{--ink:#1b1d22;--muted:#6f6b64;--rule:#e3e1db;--bg:#fcfcfa;--card:#fff;--d:#1f5fbf;--r:#b3261e;--i:#6b3fa0;--und:#c9c6bd;--focus:#1f5fbf;
+ --night:#0e2140;--nmuted:#b9c5da;--nrule:rgba(255,255,255,.16);--dlt:#7fb0ff;--rlt:#ff8a7a;--ilt:#c9a8f0;--ult:#56637a}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Source Sans 3",-apple-system,Helvetica,Arial,sans-serif}
 .mt-in{max-width:1180px;margin:0 auto;padding:0 20px}
+a{color:var(--d)}
 a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
-/* the opening band: both chambers seat by seat, the national-mood bar that redraws them, control of Congress */
-.hx{background:var(--night);color:#fff;padding:22px 0 0}
+/* the opening band: each chamber's seats as called, against the forecast's range */
+.hx{background:var(--night);color:#fff;padding:22px 0 26px}
 .hx a{color:var(--dlt)}
 .hx :focus-visible{outline-color:#fff}
-.hx-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:4px 24px}
 .hx h1{font:600 21px/1.3 "Source Serif 4",Georgia,serif;margin:0;color:#fff}
 .hx-upd{font:400 15px/1.3 "Source Sans 3",sans-serif;color:var(--nmuted);margin-left:10px}
-.hx-cd{margin:0;font-size:15.5px;color:var(--nmuted)}
-.hx-cd b{font:600 19px/1 "Source Serif 4",Georgia,serif;color:#fff;font-variant-numeric:tabular-nums}
-.hx-head{font:500 clamp(27px,1.1rem + 1.9vw,44px)/1.14 "Source Serif 4",Georgia,serif;margin:14px 0 0;max-width:34ch;min-height:2.28em;text-wrap:balance;letter-spacing:-.005em}
-.hx-ch{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 44px;margin-top:16px}
-.ch h2{font:600 18px/1.3 "Source Serif 4",Georgia,serif;margin:0 0 2px;color:#fff;text-align:center}
-.hemi{display:block;width:100%;max-width:560px;height:auto;margin:0 auto;overflow:visible}
-.hemi circle{cursor:pointer}
-.hemi .hn{font:600 56px "Source Serif 4",Georgia,serif;text-anchor:middle;font-variant-numeric:tabular-nums}
-.hemi .hl{font:15px "Source Sans 3",sans-serif;fill:var(--nmuted);text-anchor:middle}
-.hemi .mj{stroke:#fff;stroke-width:1.5;stroke-dasharray:3 3;pointer-events:none}
-.hemi .mjt{font:600 13.5px "Source Sans 3",sans-serif;fill:#fff;text-anchor:middle}
-.ch-sum{margin:6px 0 0;text-align:center;font-size:16.5px;color:#e8edf5}
-.ch-leg{display:flex;flex-wrap:wrap;justify-content:center;gap:2px 12px;margin:6px 0 0;padding:0;list-style:none;font-size:14.5px;color:var(--nmuted)}
-.ch-leg li{white-space:nowrap}
-.ch-leg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+.hx-head{font:500 clamp(27px,1.1rem + 1.9vw,44px)/1.14 "Source Serif 4",Georgia,serif;margin:14px 0 0;max-width:34ch;text-wrap:balance;letter-spacing:-.005em}
+.hx-ch{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px 40px;margin-top:22px}
+.ch h2{font:600 18px/1.3 "Source Serif 4",Georgia,serif;margin:0;color:#fff}
+.ch-n{display:flex;align-items:baseline;gap:10px;margin:6px 0 8px;font:600 44px/1 "Source Serif 4",Georgia,serif;font-variant-numeric:tabular-nums}
+.ch-n .d{color:var(--dlt)}.ch-n .r{color:var(--rlt)}.ch-n .sep{color:var(--nmuted);font-size:30px}
+.ch-n small{font:400 15px/1.3 "Source Sans 3",sans-serif;color:var(--nmuted)}
+.seats{display:block;width:100%;height:auto;overflow:visible}
+.seats text{font:13px "Source Sans 3",sans-serif;fill:var(--nmuted)}
+.seats .mj{stroke:#fff;stroke-width:1.5;stroke-dasharray:3 3}
+.seats .mjt{fill:#fff;font-weight:600}
+.seats .fr{stroke:#fff;stroke-width:1.5;fill:none}
+.ch-sum{margin:8px 0 0;font-size:15.5px;color:#e8edf5}
+.ch-leg{display:flex;flex-wrap:wrap;gap:2px 12px;margin:6px 0 0;padding:0;list-style:none;font-size:14.5px;color:var(--nmuted)}
+.ch-leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px}
 .ch-leg b{color:#fff;font-weight:600;font-variant-numeric:tabular-nums}
-.ch-leg i.ring{background:none;border:1.8px solid;margin-right:3px}.ch-leg i.ring+i.ring{margin-right:5px}
-.ch-leg .br{flex-basis:100%;height:0}
-.hx-mood{margin-top:22px;padding:16px 0 2px;border-top:1px solid var(--nrule)}
-.hx-mood .q{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;margin:0 0 2px;font:600 20px/1.3 "Source Serif 4",Georgia,serif}
-.hx-mood output{font-variant-numeric:tabular-nums;color:var(--ev,var(--dlt))}
-.hx-mood .qs{margin:0 0 12px;color:var(--nmuted);font-size:15.5px}
-.mt-bar{position:relative;padding:4px 0 26px}
-.mt-bar input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:14px;border-radius:7px;margin:0;
-  background:linear-gradient(90deg,#a32215 0%,#e8a597 32%,#ebe9e4 41.7%,#9dbbe6 55%,#2f6fd0 100%);cursor:pointer}
-.mt-bar input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:#fff;border:4px solid var(--night);box-shadow:0 0 0 2px #fff,0 2px 8px rgba(0,0,0,.45)}
-.mt-bar input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;border:4px solid var(--night);box-shadow:0 0 0 2px #fff}
-.mt-tick{position:absolute;top:22px;transform:translateX(var(--tx,-50%));font-size:13px;color:var(--nmuted);white-space:nowrap;pointer-events:none}
-.mt-tick::before{content:"";display:block;width:1px;height:7px;background:var(--nmuted);margin:0 auto 1px}
-.mt-tick.today{color:#fff;font-weight:600}
-.mt-tick.today::before{width:2px;background:#fff}
-.mt-ends{display:flex;justify-content:space-between;font-size:14px;color:var(--nmuted);margin-top:-2px}
-.mt-reset{border:1px solid rgba(255,255,255,.55);background:transparent;color:#fff;border-radius:6px;padding:3px 10px;font:500 15px/1.3 "Source Sans 3",sans-serif;cursor:pointer}
-.mt-reset:hover{background:rgba(255,255,255,.12)}
-.mt-reset[hidden]{display:none}
-.hx-foot{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(0,1fr) minmax(0,1fr);margin-top:16px;border-top:1px solid var(--nrule)}
-.hx-foot>div{padding:16px 22px 26px 0}
-.hx-foot>div+div{padding-left:22px;border-left:1px solid var(--nrule)}
-.hx-foot h2{font:600 17px/1.3 "Source Serif 4",Georgia,serif;margin:0;color:#fff}
-.waf{display:grid;grid-template-columns:repeat(25,minmax(0,1fr));gap:4px;max-width:540px;margin:12px 0 12px}
-.waf i{display:block;aspect-ratio:1;border-radius:3px}
-.waf-leg{display:flex;flex-wrap:wrap;gap:2px 18px;margin:0;padding:0;list-style:none;font-size:14.5px;color:var(--nmuted)}
-.waf-leg i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:6px;vertical-align:-1px}
-.waf-leg b{color:#fff;font-variant-numeric:tabular-nums}
-.st-n{display:block;font:600 44px/1.05 "Source Serif 4",Georgia,serif;margin:8px 0 3px;font-variant-numeric:tabular-nums}
-.st-l{display:block;font-size:16px;color:#e8edf5}
-.st-s{display:block;font-size:14.5px;color:var(--nmuted);margin-top:3px}
-@media(max-width:900px){.hx-ch{grid-template-columns:1fr}.hx-foot{grid-template-columns:1fr 1fr}.hx-foot>div:first-child{grid-column:1/-1;padding-right:0}.hx-foot>div:nth-child(2){padding-left:0;border-left:0}.hx-foot>div+div{border-top:1px solid var(--nrule)}}
-@media(max-width:560px){.waf{gap:3px}.hemi .hn{font-size:62px}.hemi .hl{font-size:18px}.hemi .mjt{font-size:18px}.hx-foot>div{padding-right:12px}.hx-foot>div+div{padding-left:12px}.st-n{font-size:36px}}
+@media(max-width:900px){.hx-ch{grid-template-columns:1fr;max-width:560px}}
 /* below the band */
 .sec{margin-top:34px}
 .sec-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:8px 16px;margin:0 0 12px}
 .sec-head h2{font:600 26px/1.2 "Source Serif 4",Georgia,serif;margin:0}
 .sec-sub{margin:2px 0 0;color:var(--muted);font-size:16px}
-.mt-seg{display:inline-flex;border:1px solid #c9c5bb;border-radius:8px;overflow:hidden;background:#fff}
-.mt-seg button{border:0;background:none;font:inherit;font-size:15.5px;padding:6px 14px;cursor:pointer;color:var(--ink)}
-.mt-seg button+button{border-left:1px solid #c9c5bb}
-.mt-seg button[aria-pressed=true]{background:var(--ink);color:#fff}
-.rw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
-.rc{display:block;width:100%;min-width:0;text-align:left;font:inherit;color:inherit;background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:13px 15px 10px;cursor:pointer}
-.rc:hover{border-color:#9a978e}
-.rc h3{font:600 18px/1.25 "Source Serif 4",Georgia,serif;margin:0}
-.rc .cn{display:block;margin:1px 0 8px;font-size:15px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rc .ld{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:15.5px;font-weight:600}
-.rc .ld b{font:600 30px/1 "Source Serif 4",Georgia,serif;font-variant-numeric:tabular-nums}
-.rc .bar{display:flex;height:8px;border-radius:4px;overflow:hidden;margin:8px 0 6px}
-.rc .mt{display:flex;justify-content:space-between;gap:8px;font-size:14.5px;color:var(--muted)}
-.rc svg{display:block;width:100%;height:34px;margin-top:8px;overflow:visible}
-.odds{width:100%;height:auto;display:block;overflow:visible;touch-action:pan-y}
-.odds text{font-size:13px;fill:#6f6b64}
-.odds .ax line,.odds .ax path{stroke:#d8d6cf}.odds .grid line{stroke:#eeece6}
-.odds text.el{font-weight:700;font-size:14.5px}.odds text.sl{fill:#1b1d22;font-weight:600}
-/* every race: tabs, maps, race panel, tables */
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.tile{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:13px 15px}
+.tile b{display:block;font:600 34px/1.05 "Source Serif 4",Georgia,serif;font-variant-numeric:tabular-nums}
+.tile span{display:block;margin-top:4px;font-size:15.5px}
+.tile small{display:block;margin-top:3px;font-size:14.5px;color:var(--muted)}
+.figs{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px;margin-top:16px}
+@media(max-width:900px){.tiles{grid-template-columns:1fr 1fr}.figs{grid-template-columns:1fr}}
+.mt-card{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:14px 16px}
+.mt-card h3{font:600 18px/1.3 "Source Serif 4",Georgia,serif;margin:0 0 2px}
+.mt-note{color:var(--muted);font-size:15px;margin:6px 0 0}
+.fig{display:block;width:100%;height:auto;overflow:visible;max-height:72vh}
+.fig text{font-size:13px;fill:var(--muted)}
+.fig .ax line{stroke:#d8d6cf}.fig .grid line{stroke:#eeece6}.fig .eq{stroke:#8f8b82;stroke-dasharray:4 4}
+.fig .zero{stroke:#cfccc4}
+.fig circle.pt{stroke:#fff;stroke-width:1}
+.fig circle.prov{fill:#fff!important;stroke-width:1.6}
+.fig .hit{fill:transparent;cursor:pointer}
+.fig .ci{stroke:var(--ink);stroke-width:1.5}
+.leg{display:flex;flex-wrap:wrap;gap:2px 16px;margin:8px 0 0;padding:0;list-style:none;font-size:14.5px;color:var(--muted)}
+.leg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.leg i.o{background:#fff;border:1.6px solid var(--muted)}
+.ups{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.up{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:13px 15px}
+.up h3{font:600 18px/1.25 "Source Serif 4",Georgia,serif;margin:0}
+.up p{margin:4px 0 0;font-size:15.5px}
+.up .ch{font:600 28px/1.1 "Source Serif 4",Georgia,serif;margin-top:8px;font-variant-numeric:tabular-nums}
+.up small{display:block;color:var(--muted);font-size:14.5px}
+.empty{color:var(--muted);font-size:16px;margin:0}
+/* every race */
 .mt-bar2{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 10px}
 .mt-tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--rule)}
 .mt-tabs button{border:0;background:none;font:inherit;font-size:16px;padding:8px 14px;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px}
 .mt-tabs button[aria-selected=true]{color:var(--ink);font-weight:600;border-bottom-color:var(--ink)}
 .mt-find input{font:inherit;font-size:17px;padding:6px 10px;border:1px solid var(--rule);border-radius:6px;width:260px;max-width:100%}
-.mt-pane{display:none}.mt-pane.on{display:block}
-/* map above the race table on the left, the race card and the seat histogram on the right spanning both rows, so the
-   map's row has no empty space under it; one column on narrow screens, in source order */
-.mt-grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px 20px;align-items:start}
-.mt-grid>:nth-child(1),.mt-grid>:nth-child(3){grid-column:1}.mt-grid>:nth-child(2){grid-column:2;grid-row:1/span 2}
-@media(max-width:940px){.mt-grid{grid-template-columns:1fr}.mt-grid>:nth-child(n){grid-column:auto;grid-row:auto}}
-.mt-card{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:14px 16px}
-.mt-card h2{font:600 18px/1.3 "Source Serif 4",Georgia,serif;margin:0 0 8px}
-.mt-note{color:var(--muted);font-size:15px;margin:6px 0 0}
-.mt-map{position:relative}
-.mt-map svg{width:100%;height:auto;display:block;touch-action:none}
-.mt-zoom{display:block;margin:6px 0 0 auto;border:1px solid var(--rule);background:#fff;border-radius:6px;padding:3px 9px;font:inherit;font-size:14.5px;cursor:pointer}
-.mt-zoom[hidden]{display:none}
-.mt-leg{display:flex;align-items:center;gap:6px;font-size:14.5px;color:var(--muted);margin-top:8px;flex-wrap:wrap}
-.mt-leg i{display:inline-block;width:34px;height:10px;border-radius:2px}
-path.t{stroke:#fff;stroke-width:.35;vector-effect:non-scaling-stroke;cursor:pointer}
-path.t.open{stroke:#1b1d22;stroke-width:1}
-path.t:hover,path.t.sel{stroke:#000;stroke-width:2}
-path.stb{fill:none;stroke:#5c5a55;stroke-width:.9;vector-effect:non-scaling-stroke;pointer-events:none}
-path.sp{stroke:#fff;stroke-width:.8;cursor:pointer}path.sp.none{fill:#eceae4;cursor:default}path.sp:hover,path.sp.sel{stroke:#000;stroke-width:2}
-.mt-race{min-height:120px}
-.mt-race .empty{color:var(--muted);font-size:16px}
-.mt-race h3{font:600 20px/1.25 "Source Serif 4",Georgia,serif;margin:0}
-.mt-race .who{margin:2px 0 10px;font-size:17px}
-.mt-race .pbar{display:flex;height:12px;border-radius:6px;overflow:hidden;margin:6px 0 4px}
-.mt-race .pbar i:first-child{background:var(--d)}.mt-race .pbar i:last-child{background:var(--r)}
-.mt-race .pp{display:flex;justify-content:space-between;font-weight:600;font-variant-numeric:tabular-nums}
-.mt-race dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:12px 0 0;font-size:16px}
-.mt-race dt{color:var(--muted)}.mt-race dd{margin:0;font-variant-numeric:tabular-nums}
-.mt-race .trend{margin:12px 0 0;padding-top:10px;border-top:1px solid var(--rule)}
-.mt-race .trend h4{font-size:15.5px;font-weight:600;margin:0 0 4px}
-.rtc{width:100%;height:auto;display:block;overflow:visible;touch-action:pan-y}.rtc text{font-size:11px;fill:#6f6b64}.rtc .ax line,.rtc .ax path{stroke:#d8d6cf}.rtc .grid line{stroke:#eeece6}.rtc text.ev{font-weight:700;font-size:12px}
-table{border-collapse:collapse;width:100%;font-size:16px}
-th,td{padding:5px 6px;border-bottom:1px solid var(--rule);text-align:left}
-th{font-weight:600;color:var(--muted);font-size:14.5px}
-td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
-tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
-.pd{font-weight:700}
-.mt-more{border:0;background:none;color:var(--d);font:inherit;font-size:16px;padding:6px 0;cursor:pointer}
 .mt-tw{overflow-x:auto}
-.mt-hist{width:100%;height:auto;display:block}
-.mt-hist text{font-size:12.5px;fill:var(--muted)}
-.mt-sum{font-size:17px;margin:0 0 6px}
-.tsc{width:100%;height:auto;display:block;overflow:visible}.gdist text{font-size:13px}.gdist .lab{fill:#1b1d22;font-weight:600}.tsc text{font-size:12px;fill:#6f6b64}.tsc .ax line,.tsc .ax path{stroke:#d8d6cf}.tsc .grid line{stroke:#eeece6}
-.tip{position:fixed;pointer-events:none;background:#1b1d22;color:#fff;font-size:14.5px;padding:6px 9px;border:1px solid rgba(255,255,255,.28);border-radius:6px;display:none;max-width:min(320px,calc(100vw - 16px));z-index:9}
-.mt-about{margin-top:34px;max-width:80ch}.mt-about h2{font:600 20px/1.3 "Source Serif 4",Georgia,serif;margin:0 0 6px}.mt-about p{font-size:16px;line-height:1.55;color:var(--ink);margin:0 0 10px}
-.mt-foot{margin-top:26px;padding:14px 0 40px;border-top:1px solid var(--rule);font-size:17px}
-.mt-foot a{color:var(--d)}
-@media(max-width:640px){.mt-in{padding:0 14px}.hx-head{min-height:0}.hx-upd{display:block;margin:2px 0 0}.rw-grid{grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:10px}.rc{padding:11px 12px 8px}.rc h3{font-size:16.5px}.rc .cn{font-size:14px}.rc .ld{font-size:14.5px}.rc .ld b{font-size:25px}.rc .mt{font-size:13.5px}.mt-find input{width:100%}.mt-find{width:100%}.sec-head h2{font-size:23px}}
-@media(prefers-reduced-motion:reduce){*{transition:none!important}}
-#bigc{position:fixed;inset:0;background:rgba(20,20,18,.55);display:none;align-items:center;justify-content:center;z-index:1000;padding:16px}
-#bigc.on{display:flex}
-.bigc-box{background:var(--card,#fff);border-radius:10px;width:min(1100px,100%);max-height:94vh;overflow:auto;padding:14px 18px 10px;box-shadow:0 10px 40px rgba(0,0,0,.35)}
-.bigc-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.bigc-head h3{margin:0;font:600 18px/1.3 "Source Serif 4",Georgia,serif}
-.bigc-x{border:0;background:transparent;font-size:28px;line-height:1;cursor:pointer;color:inherit;padding:2px 8px}
-.bigc-body .trend h4{display:none}.bigc-body .trend{margin-top:6px}
-.trend h4{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.enl{font:500 13.5px/1 inherit;border:1px solid var(--rule,#d6d3cb);background:transparent;border-radius:6px;padding:4px 8px;cursor:zoom-in;color:inherit}
+table{border-collapse:collapse;width:100%;font-size:16px}
+th,td{padding:5px 6px;border-bottom:1px solid var(--rule);text-align:left;vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:14.5px}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td small{display:block;color:var(--muted);font-size:14px}
+.wd{color:var(--d);font-weight:700}.wr{color:var(--r);font-weight:700}.wi{color:var(--i);font-weight:700}
+.st{color:var(--muted)}
+.mt-more{border:0;background:none;color:var(--d);font:inherit;font-size:16px;padding:6px 0;cursor:pointer}
+.tip{position:fixed;pointer-events:none;background:#1b1d22;color:#fff;font-size:14.5px;padding:6px 9px;border-radius:6px;display:none;max-width:min(320px,calc(100vw - 16px));z-index:9}
+.mt-about{margin-top:40px;max-width:80ch}.mt-about h2{font:600 22px/1.3 "Source Serif 4",Georgia,serif;margin:0 0 6px}.mt-about h3{font:600 17px/1.3 "Source Serif 4",Georgia,serif;margin:18px 0 4px}.mt-about p{font-size:16px;line-height:1.55;margin:0 0 10px}
+.mt-about code{font-size:14px;word-break:break-all}
+.mt-foot{margin-top:26px;padding:14px 0 40px;border-top:1px solid var(--rule)}
+@media(max-width:640px){.mt-in{padding:0 16px}.hx-upd{display:block;margin:2px 0 0}.mt-find,.mt-find input{width:100%}.sec-head h2{font-size:23px}.tile b{font-size:28px}}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
-<script src="pollchart.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js" integrity="sha384-9dCJK6nh7skY14HrcvlLYlFga9/MehJjL9ONWRflmiXNRuf8p2jiF4Y5PR881PTq" crossorigin="anonymous"></script>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 <script src="/assets/site.js" defer></script>
 </head><body>
@@ -336,494 +266,191 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
 </header>
 <!-- sh:end -->
 <main id="main">
-<section class="hx" aria-label="The forecast at a glance">
+<section class="hx" aria-label="The results at a glance">
  <div class="mt-in">
-  <div class="hx-top"><h1>2026 Midterm Forecast<span class="hx-upd" id="upd">loading…</span></h1><p class="hx-cd" id="cd"></p></div>
+  <h1>2026 Midterm Results<span class="hx-upd" id="upd">loading…</span></h1>
   <p class="hx-head" id="head"></p>
   <div class="hx-ch">
-   <div class="ch"><h2>House</h2><svg class="hemi" id="hemiH" viewBox="0 0 560 338" role="img" aria-label="House seats by rating"></svg><p class="ch-sum" id="sumH"></p><ul class="ch-leg" id="legH"></ul></div>
-   <div class="ch"><h2>Senate</h2><svg class="hemi" id="hemiS" viewBox="0 0 560 338" role="img" aria-label="Senate seats by rating"></svg><p class="ch-sum" id="sumS"></p><ul class="ch-leg" id="legS"></ul></div>
-  </div>
-  <div class="hx-mood">
-   <p class="q"><span>National mood: <output id="Ev" for="E">…</output></span><button class="mt-reset" id="reset" type="button">Back to today's polls</button></p>
-   <p class="qs" id="Evs"></p>
-   <div class="mt-bar"><input type="range" id="E" min="-10" max="14" step="0.5" aria-label="National mood: Democratic lead in the generic ballot, points">
-    <span class="mt-tick" id="tick0">Even</span><span class="mt-tick today" id="tickT">Today's polls</span></div>
-   <div class="mt-ends"><span id="endR">Republicans +10</span><span id="endD">Democrats +14</span></div>
-  </div>
-  <div class="hx-foot">
-   <div><h2>Control of Congress in 100 simulated elections</h2><div class="waf" id="waf" role="img"></div><ul class="waf-leg" id="wafLeg"></ul></div>
-   <div><h2>Governors</h2><b class="st-n" id="gN">–</b><span class="st-l">Democratic governors expected, of 50</span><small class="st-s" id="gS"></small></div>
-   <div id="nv"><h2>National House vote</h2><b class="st-n" id="nvN">–</b><span class="st-l" id="nvL"></span><small class="st-s"><a href="#polls" id="toDist">Every possible margin</a></small></div>
+   <div class="ch" id="chH"><h2>House</h2></div>
+   <div class="ch" id="chS"><h2>Senate</h2></div>
+   <div class="ch" id="chG"><h2>Governors</h2></div>
   </div>
  </div>
 </section>
 
 <div class="mt-in">
-<nav class="mt-nav" aria-label="Forecast pages"><a href="./" aria-current="page">Forecast</a><a href="polls.html">Every poll and its weight</a><a href="about.html">How it works</a><a href="whatif.html">What if? Test the assumptions</a><a href="legislatures.html">State legislatures</a><a href="early-vote.html">Early vote</a><a href="call.html">Claude&rsquo;s call</a><a href="live.html">Live results</a></nav>
+<nav class="mt-nav" aria-label="Midterm pages"><a href="./" aria-current="page">Results</a><a href="forecast.html">Final forecast</a><a href="about.html">How the forecast works</a><a href="legislatures.html">State legislatures</a><a href="call.html">Claude&rsquo;s call</a></nav>
 
-<section class="sec" id="watch" aria-labelledby="h-watch">
- <div class="sec-head"><div><h2 id="h-watch">Races to watch</h2><p class="sec-sub" id="watchSub"></p></div>
-  <div class="mt-seg" role="group" aria-label="Which races"><button type="button" aria-pressed="true" data-w="senate">Senate</button><button type="button" aria-pressed="false" data-w="gov">Governors</button><button type="button" aria-pressed="false" data-w="house">House</button></div></div>
- <div class="rw-grid" id="rw"></div>
-</section>
-
-<section class="sec" id="odds" aria-labelledby="h-odds">
- <div class="sec-head"><div><h2 id="h-odds">How the odds have moved</h2><p class="sec-sub">Chance Democrats win each chamber, and the national mood, through the campaign</p></div></div>
- <div class="mt-card"><div id="oddsC"></div><p class="mt-note" id="oddsNote"></p></div>
-</section>
-
-<section class="sec" id="explore" aria-labelledby="h-exp">
-<div class="sec-head"><h2 id="h-exp">Every race</h2></div>
-<div class="mt-bar2">
- <div class="mt-tabs" role="tablist">
-  <button role="tab" aria-selected="true" data-p="house">House</button><button role="tab" aria-selected="false" data-p="senate">Senate</button>
-  <button role="tab" aria-selected="false" data-p="gov">Governors</button><button role="tab" aria-selected="false" data-p="polls">Polls</button></div>
- <div class="mt-find"><input id="find" list="places" placeholder="Find a district or state, e.g. TX-28, Maine" aria-label="Find a district or state"><datalist id="places"></datalist></div>
-</div>
-
-<section class="mt-pane on" id="p-house" role="tabpanel">
- <div class="mt-grid">
-  <div class="mt-card"><div class="mt-map"><svg id="hmapsvg" viewBox="0 0 960 600" aria-label="House districts by chance of a Democratic win"></svg><button class="mt-zoom" id="zreset" type="button" hidden>Reset zoom</button></div>
-   <div class="mt-leg"><span>Republican</span><i style="background:linear-gradient(90deg,#a32215,#e6e6e6,#0b3d91)"></i><span>Democratic</span>&nbsp;·&nbsp;outlined: open seat &nbsp;·&nbsp;scroll or pinch to zoom, click a district for details</div></div>
-  <div>
-   <div class="mt-card mt-race" id="race-house"><p class="empty">Click a district on the map, or search above.</p></div>
-   <div class="mt-card" style="margin-top:14px"><h2>House seats</h2><p class="mt-sum" id="hsum"></p><svg class="mt-hist" id="hhist" viewBox="0 0 360 140"></svg></div>
-  </div>
-  <div class="mt-card"><h2>Closest House races</h2><div class="mt-tw"><table id="close"></table></div><button class="mt-more" id="closeMore" type="button">Show 30 more</button><p class="mt-note"><a class="mt-cta" href="polls.html#house">Every House poll, and how much each counts</a></p></div>
+<section class="sec" id="check" aria-labelledby="h-check">
+ <div class="sec-head"><div><h2 id="h-check">How the forecast did</h2><p class="sec-sub">The forecast frozen at noon Eastern on Election Day, against every race called so far</p></div></div>
+ <div class="tiles" id="tiles"></div>
+ <div class="figs">
+  <div class="mt-card"><h3>Forecast margin and result</h3><p class="mt-note" style="margin:0">Each counted race; above the line, the Democrat or independent did better than forecast</p>
+   <svg class="fig" id="scat" viewBox="0 0 560 400" role="img" aria-label="Forecast margin against the counted margin, one dot per race"></svg>
+   <ul class="leg" id="scatLeg"></ul></div>
+  <div class="mt-card"><h3>Were the chances right?</h3><p class="mt-note" style="margin:0">Called races grouped by their forecast chance, with the share each side actually won</p>
+   <svg class="fig" id="cal" viewBox="0 0 400 400" role="img" aria-label="Forecast chance against the share of races won"></svg>
+   <p class="mt-note" id="calNote"></p></div>
  </div>
 </section>
 
-<section class="mt-pane" id="p-senate" role="tabpanel">
- <div class="mt-grid">
-  <div class="mt-card"><div class="mt-map"><svg class="smap" id="smap" viewBox="0 0 960 600" aria-label="Senate races by chance of a Democratic win"></svg></div>
-   <div class="mt-leg"><span>Republican</span><i style="background:linear-gradient(90deg,#a32215,#e6e6e6,#0b3d91)"></i><span>Democratic or independent</span>&nbsp;·&nbsp;grey: no race</div></div>
-  <div>
-   <div class="mt-card mt-race" id="race-senate"><p class="empty">Click a state on the map, or a race below.</p></div>
-   <div class="mt-card" style="margin-top:14px"><h2>Senate seats</h2><p class="mt-sum" id="ssum"></p><svg class="mt-hist" id="shist" viewBox="0 0 360 170"></svg></div>
-  </div>
-  <div class="mt-card"><h2>Senate races</h2><div class="mt-tw"><table id="sen"></table></div><button class="mt-more" id="senMore" type="button"></button><p class="mt-note"><a class="mt-cta" href="polls.html#senate">Every Senate poll, and how much each counts</a></p></div>
+<section class="sec" id="upsets" aria-labelledby="h-up">
+ <div class="sec-head"><div><h2 id="h-up">Upsets</h2><p class="sec-sub">Called races the forecast's favourite lost, the least expected first</p></div></div>
+ <div class="ups" id="ups"></div>
+ <button class="mt-more" id="upMore" type="button" hidden></button>
+</section>
+
+<section class="sec" id="races" aria-labelledby="h-races">
+ <div class="sec-head"><h2 id="h-races">Every race</h2></div>
+ <div class="mt-bar2">
+  <div class="mt-tabs" role="tablist" aria-label="Office"><button type="button" role="tab" aria-selected="true" data-o="senate">Senate</button><button type="button" role="tab" aria-selected="false" data-o="governor">Governors</button><button type="button" role="tab" aria-selected="false" data-o="house">House</button></div>
+  <label class="mt-find"><input type="search" id="find" placeholder="Find a state, district or candidate" aria-label="Find a race"></label>
  </div>
+ <div class="mt-tw"><table id="tbl"></table></div>
+ <button class="mt-more" id="more" type="button" hidden></button>
 </section>
 
-<section class="mt-pane" id="p-gov" role="tabpanel">
- <div class="mt-grid">
-  <div class="mt-card"><div class="mt-map"><svg class="smap" id="gmap" viewBox="0 0 960 600" aria-label="Governor races by chance of a Democratic win"></svg></div>
-   <div class="mt-leg"><span>Republican</span><i style="background:linear-gradient(90deg,#a32215,#e6e6e6,#0b3d91)"></i><span>Democratic</span>&nbsp;·&nbsp;grey: no race</div></div>
-  <div><div class="mt-card mt-race" id="race-gov"><p class="empty">Click a state on the map, or a race below.</p></div>
-   <div class="mt-card" style="margin-top:14px"><h2>Governors</h2><p class="mt-sum" id="gsum"></p></div></div>
-  <div class="mt-card"><h2>Governor races</h2><div class="mt-tw"><table id="gov"></table></div><button class="mt-more" id="govMore" type="button"></button><p class="mt-note"><a class="mt-cta" href="polls.html#governor">Every governor poll, and how much each counts</a></p></div>
- </div>
+<section class="mt-about" id="about" aria-labelledby="h-about"><h2 id="h-about">About this page</h2>
+ <h3>The results</h3>
+ <p>Calls and vote counts come from Wikipedia's 2026 election pages (text available under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>), read every two hours. A race counts as called once its winner is marked there. Counts are added as editors fill in each race's results table. Until a state certifies, every margin on this page is the latest count and is marked provisional. Certified official returns replace these numbers as states certify, and from then on the official figures are used.</p>
+ <h3>What is scored</h3>
+ <p>The forecast gave each race a chance that the Republican's opponent (a Democrat, or an independent where one led the challenge) wins, and a range for the margin. The chances are scored on every called race: how often the favourite won, the Brier score (the mean squared gap between the chance and what happened; 0 is perfect, and always saying 50 % scores 0.25) and, for House seats, the same score for the race raters' average on the same seats. Margins are scored only once a count is final or certified. The figures above show provisional margins as hollow dots and final ones as solid dots. In the calibration chart, each group's bar is a 95 % interval for its share won, given how few races it holds.</p>
+ <h3>The forecast</h3>
+ <p id="frozen"></p>
 </section>
 
-<section class="mt-pane" id="p-polls" role="tabpanel">
- <div class="mt-card" id="gdcard"><h2>Where the national House vote could land</h2>
-  <p class="mt-sum" id="gdsum"></p>
-  <svg id="gdist" class="tsc gdist" viewBox="0 0 960 360" role="img" aria-label="Probability distribution of the national House vote margin on Election Day"></svg>
-  <p class="mt-note" id="gdnote"></p></div>
- <div class="mt-card" style="margin-top:16px"><h2>National polls</h2>
-  <div id="gc"></div><div id="ac" style="margin-top:20px"></div>
-  <p class="mt-note"><a href="polls.html#national">Every national poll and its weight</a> · <a href="about.html#polls">How the poll trend is built</a></p></div>
- <div class="mt-card" style="margin-top:16px"><h2>How each pollster leans</h2><p class="mt-note" style="margin:0 0 8px">Points each pollster runs above (Democratic) or below (Republican) the field, pollsters active in the last 120 days.</p><div class="mt-tw"><table id="phouse"></table></div></div>
-</section>
-</section>
-
-<section class="mt-about" id="about" aria-labelledby="h-about"><h2 id="h-about">About these numbers</h2>
- <p>Every race combines all of its polls, its fundamentals and a polling miss shared across the country; <a href="about.html">how it works</a> has the details.</p>
- <p id="seatAbout"></p><p id="moodAbout"></p><p id="senAbout"></p><p id="distAbout"></p></section>
-
-<footer class="mt-foot"><nav class="mt-nav" aria-label="Forecast pages"><a href="./">Forecast</a><a href="polls.html">Every poll and its weight</a><a href="about.html">How it works</a><a href="whatif.html">What if? Test the assumptions</a><a href="legislatures.html">State legislatures</a><a href="early-vote.html">Early vote</a><a href="call.html">Claude&rsquo;s call</a><a href="live.html">Live results</a></nav></footer>
+<footer class="mt-foot"><nav class="mt-nav" aria-label="Midterm pages"><a href="./">Results</a><a href="forecast.html">Final forecast</a><a href="about.html">How the forecast works</a><a href="legislatures.html">State legislatures</a><a href="call.html">Claude&rsquo;s call</a></nav></footer>
 </div>
 </main>
 <div class="tip" id="tip"></div>
 <script>
-const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];let D,gi,E=0,STATES=[],SEL={house:null,senate:null,gov:null},SHOW={close:18,sen:false,gov:false},WATCH='senate',HO=[],SO=[],HEMI={};
-const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
-const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));   // data into markup: names arrive from scraped pages
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));   // names arrive from scraped pages
 const getJSON=u=>fetch(u).then(r=>{if(!r.ok)throw new Error(`${u}: HTTP ${r.status}`);return r.json()});
-const col=p=>{const t=Math.max(0,Math.min(1,p));if(t>=.5)return mix('#e6e6e6','#0b3d91',(t-.5)/.5);return mix('#e6e6e6','#a32215',(.5-t)/.5)};
-function mix(a,b,k){const h=x=>[1,3,5].map(i=>parseInt(x.slice(i,i+2),16));const A=h(a),B=h(b);return '#'+A.map((v,i)=>Math.round(v+(B[i]-v)*k).toString(16).padStart(2,'0')).join('')}
 const pct=p=>p>=.995?'>99%':p<=.005?'<1%':(100*p).toFixed(0)+'%';
-const mg=(v,pt)=>v==null?'–':(v>=0?(pt&&pt!=='D'?'I+':'D+'):'R+')+Math.abs(v).toFixed(1);   // pt: the challenger's party ('I' -> I+)
-const lean=v=>v==null?'':Math.abs(v)<0.05?'Even':(v>0?'D+':'R+')+Math.abs(v).toFixed(1);   // presidential margin against the nation's, points
-const pc=p=>`<td class="n pd" style="color:${p>=.5?'#0b3d91':'#a32215'}">${pct(p)}</td>`;
-const who=s=>/^none|new seat/i.test(s.member||'')||!s.member?'New seat':s.open?`Open seat (${esc(s.member)} not running)`:esc(s.member);   // markup
-const hInd=s=>s.challenger_party&&s.challenger_party!=='D';   // House seat whose challenger is an independent (AK-1)
-const hOpp=s=>s.opponent_party==='I'?'Independent':'Republican';   // the other side: CA-6's incumbent is an independent
-const sInd=r=>r.dem_party&&r.dem_party!=='D';                 // Senate or governor race whose challenger is an independent
-const rcvTxt=r=>r.rcv?`<p class="mt-note">Ranked-choice: ${esc(r.rcv)} · <a href="about.html#rcv">how</a></p>`:'';
-const pollTxt=r=>r.n_polls?`${esc(r.n_polls)} poll${r.n_polls>1?'s':''}, average ${mg(r.poll_margin,r.dem_party||r.challenger_party)}`:'no polls';
-const surname=n=>String(n||'?').replace(/,?\s+(Jr\.?|Sr\.?|II|III|IV)$/,'').split(' ').pop();
-// Seat ratings from each race's chance (Democratic or independent side): solid 95 %+, likely 80-95, lean 60-80, toss-up
-// 40-60. The colours are drawn for the navy band; an independent's side is purple.
-const CLS=['Solid D','Likely D','Lean D','Toss-up','Lean R','Likely R','Solid R'];
-const cls=p=>p>=.95?0:p>=.8?1:p>=.6?2:p>.4?3:p>.2?4:p>.05?5:6;
-const FILL=['#4a8af0','#8db4f2','#c6d8f6','#e6dcc5','#f5c3b9','#ec8a7b','#de4f3e'],FILLI=['#a57bdc','#c2a6e8','#ddd0f2'];
-const fillOf=(p,ind)=>{const c=cls(p);return ind&&c<3?FILLI[c]:FILL[c]};
-getJSON('data/model.json').then(j=>{D=j;init();if(RH)histReady()}).catch(e=>{console.error(e);$('#upd').textContent='The forecast could not be loaded. Reload the page to try again.'});
-let RH=null;fetch('data/race_history.json').then(r=>r.ok?r.json():null).then(j=>{RH=j;if(D&&RH)histReady()}).catch(()=>{});
+const side=pt=>pt&&pt!=='D'?'I':'D';                                    // the challenger's letter: an independent reads I+
+const mg=(v,pt)=>v==null?'–':Math.abs(v)<0.05?'Even':(v>0?side(pt)+'+':'R+')+Math.abs(v).toFixed(1);
+const PCOL={D:'var(--d)',R:'var(--r)',I:'var(--i)',O:'var(--muted)'},WCLS={D:'wd',R:'wr',I:'wi'};
+const OFFICE={senate:'Senate',governor:'Governor',house:'House'},OCOL={senate:'#1b1d22',governor:'#8a6d1f',house:'#2f8f83'};
+const won=r=>r.winner&&r.winner!==(r.opp||'R');                          // the Republican's opponent won (the event p is about)
+const raceName=r=>r.office==='house'?r.seat:`${r.seat} ${OFFICE[r.office]}`;
+const sname=n=>String(n||'?').replace(/,?\s+(Jr\.?|Sr\.?|II|III|IV)$/,'').split(' ').pop();
+let J,TAB='senate',SHOWN=60;
+getJSON('data/results.json').then(j=>{J=j;init()}).catch(e=>{console.error(e);$('#upd').textContent='The results could not be loaded. Reload the page to try again.'});
 
-function init(){const H=D.house;
- const d=new Date(D.asof+'T12:00:00');$('#upd').textContent='Updated '+d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
- const G0=H.grid[0],G1=H.grid[H.grid.length-1];$('#E').min=G0;$('#E').max=G1;$('#E').value=H.E0;const pos=v=>`${(v-G0)/(G1-G0)*100}%`;$('#tick0').style.left=pos(0);$('#tickT').style.left=pos(H.E0);const f=(H.E0-G0)/(G1-G0);$('#tickT').style.setProperty('--tx',f>.8?'-85%':f<.2?'-15%':'-50%');$('#tickT').textContent=`Today's polls ${mg(H.E0).replace('.0','')}`;
- $('#endR').textContent=`Republicans +${Math.round(-G0)}`;$('#endD').textContent=`Democrats +${Math.round(G1)}`;
- $('#E').addEventListener('input',render);$('#reset').addEventListener('click',()=>{$('#E').value=H.E0;render()});
- $$('.mt-tabs button').forEach(b=>b.addEventListener('click',()=>tab(b.dataset.p)));
- $$('#watch .mt-seg button').forEach(b=>b.addEventListener('click',()=>{WATCH=b.dataset.w;$$('#watch .mt-seg button').forEach(x=>x.setAttribute('aria-pressed',x===b));watch()}));
- const opts=[...H.seats.map(s=>`${s.seat} · ${s.member||'open seat'}`),...D.senate.races.map(r=>`${r.state} Senate${r.special?' (special)':''} · ${r.dem||'?'} v ${r.rep||'?'}`),...(D.governor?D.governor.races.map(r=>`${r.state} Governor · ${r.dem||'?'} v ${r.rep||'?'}`):[])];
- $('#places').innerHTML=opts.map(o=>`<option value="${esc(o)}">`).join('');
- $('#find').addEventListener('change',e=>find(e.target.value));$('#find').addEventListener('keydown',e=>{if(e.key==='Enter')find(e.target.value)});
- $('#closeMore').addEventListener('click',()=>{SHOW.close+=30;render()});$('#senMore').addEventListener('click',()=>{SHOW.sen=!SHOW.sen;render()});$('#govMore').addEventListener('click',()=>{SHOW.gov=!SHOW.gov;render()});
- const hash=location.hash.slice(1);if(['house','senate','gov','polls'].includes(hash))tab(hash);
- const S=D.senate;HEMI.H=hemi('#hemiH',H.seats.length,218,'house');HEMI.S=hemi('#hemiS',(S.now_d-S.d_up)+S.races.length+(S.now_r-S.r_up),51,'senate');
- countdown();setInterval(countdown,30000);
- buildMaps();pollsTab();render();preselect()}
-function preselect(){const near=a=>a.slice().sort((x,y)=>Math.abs(x.p[gi]-.5)-Math.abs(y.p[gi]-.5))[0];
- SEL.house=near(D.house.seats).seat;const s=near(D.senate.races);SEL.senate=s.state+(s.special?'|sp':'');if(D.governor)SEL.gov=near(D.governor.races).state;for(const k of ['house','senate','gov'])if(SEL[k])panel(k)}
+function init(){
+ const t=new Date(J.generated);$('#upd').textContent='Updated '+t.toLocaleString('en-US',{month:'long',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
+ const F=J.forecast,R=J.races;
+ const cnt=o=>{const g=R.filter(r=>r.office===o);return{D:g.filter(r=>r.winner==='D').length,R:g.filter(r=>r.winner==='R').length,I:g.filter(r=>r.winner&&r.winner!=='D'&&r.winner!=='R').length,open:g.filter(r=>!r.winner).length}};
+ const H=cnt('house'),S=cnt('senate'),G=cnt('governor');
+ const hD=F.house.fixed_d+H.D,hR=F.house.fixed_r+H.R,sD=F.senate.holdover_d+S.D,sR=F.senate.holdover_r+S.R,gD=F.governor.holdover_d+G.D,gR=F.governor.holdover_r+G.R;
+ const ctl={House:hD>=218?'D':hR>=218?'R':null,Senate:sD>=51?'D':sR>=50?'R':null};   // the vice president breaks a 50-50 Senate
+ const of=w=>Object.keys(ctl).filter(k=>ctl[k]===w).map(k=>'the '+k).join(' and ');
+ const parts=[of('D')&&`Democrats win ${of('D')}`,of('R')&&`Republicans hold ${of('R')}`].filter(Boolean);
+ $('#head').textContent=parts.length?parts.join('; ')+'.':`${H.open+S.open+G.open} races still to be called.`;
+ chamber('#chH',{d:hD,r:hR,i:H.I,open:H.open,total:435,maj:218,F:F.house,what:'seats',ctl:'chance of a Democratic majority'});
+ chamber('#chS',{d:sD,r:sR,i:S.I,open:S.open,total:100,maj:51,F:F.senate,what:'seats',ctl:'chance of Democratic control'});
+ chamber('#chG',{d:gD,r:gR,i:G.I,open:G.open,total:50,maj:null,F:F.governor,what:'governors'});
+ tiles();scatter();calib();upsets();$('#upMore').onclick=()=>{UPS=1e9;upsets()};
+ $$('.mt-tabs button').forEach(b=>b.onclick=()=>{TAB=b.dataset.o;SHOWN=60;$$('.mt-tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));table()});
+ $('#find').oninput=()=>{SHOWN=60;table()};$('#more').onclick=()=>{SHOWN+=120;table()};
+ table();
+ const fz=J.frozen;$('#frozen').innerHTML=`The <a href="forecast.html">final forecast</a> was frozen at ${esc(new Date(fz.at).toLocaleString('en-US',{month:'long',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'}))}, before the first polls closed, and nothing in it has changed since. Its file's SHA-256 fingerprint is <code>${esc(fz.sha256)}</code>, and the code that made it is commit <a href="https://github.com/scorvec/midterms-2026/tree/${esc(fz.commit)}"><code>${esc(fz.commit.slice(0,12))}</code></a> of the public model repository, where the file (<code>data/final/forecast_2026.json</code>) can be checked against it. <a href="about.html">How the forecast works</a> describes the model.`;
+}
 
-// Election Day is Tuesday 3 November, counted in calendar days on Eastern time (UTC-5 from 1 November), so Sunday reads
-// "in 2 days" and Monday "tomorrow". A frozen forecast says so instead.
-function countdown(){const el=$('#cd');if(D&&D.final&&D.final.at){el.textContent=`Final forecast, locked ${new Date(D.final.at).toLocaleString('en-US',{month:'long',day:'numeric',hour:'numeric',minute:'2-digit',timeZone:'America/New_York'})} Eastern`;return}
- const d=Math.floor(Date.UTC(2026,10,3)/864e5)-Math.floor((Date.now()-5*36e5)/864e5);
- el.innerHTML=d>1?`Election Day in <b>${d}</b> days`:d===1?'Election Day is <b>tomorrow</b>':d===0?'<b>Election Day</b> is today':'Election Day was November 3'}
+// a chamber: seats called for each side and still open on one bar, the majority line, and the forecast's 80 % range of
+// Democratic seats as a bracket above it
+function chamber(sel,c){
+ const W=360,y0=26,h=18,x=v=>v/c.total*W,el=$(sel);
+ const seg=[[c.d,'var(--dlt)'],[c.i,'var(--ilt)'],[c.open,'var(--ult)'],[c.r,'var(--rlt)']];let at=0,rects='';
+ for(const [n,f] of seg){if(n>0)rects+=`<rect x="${x(at)}" y="${y0}" width="${Math.max(0,x(n)-1)}" height="${h}" fill="${f}"/>`;at+=n}
+ const f=c.F,b0=x(f.p10),b1=x(f.p90),bm=x(f.p50);
+ const maj=c.maj?`<line class="mj" x1="${x(c.maj)}" x2="${x(c.maj)}" y1="${y0-4}" y2="${y0+h+4}"/><text class="mjt" x="${x(c.maj)}" y="${y0+h+18}" text-anchor="middle">${c.maj} for ${c.maj===51?'control':'a majority'}</text>`:'';
+ el.insertAdjacentHTML('beforeend',`<p class="ch-n"><span class="d">${c.d}</span><span class="sep">–</span><span class="r">${c.r}</span><small>${c.open?`${c.open} not yet called`:'every race called'}</small></p>
+ <svg class="seats" viewBox="0 0 ${W} ${y0+h+(c.maj?24:4)}" role="img" aria-label="${c.d} Democratic, ${c.r} Republican${c.i?`, ${c.i} other`:''}, ${c.open} not called, of ${c.total} ${c.what}; forecast ${f.p10} to ${f.p90} Democratic">
+  <path class="fr" d="M${b0},${y0-6}V${y0-11}H${b1}V${y0-6}M${bm},${y0-11}V${y0-15}"/><text x="${bm}" y="${y0-19}" text-anchor="middle">forecast</text>${rects}${maj}</svg>
+ <ul class="ch-leg"><li><i style="background:var(--dlt)"></i>Democratic <b>${c.d}</b></li>${c.i?`<li><i style="background:var(--ilt)"></i>Other <b>${c.i}</b></li>`:''}<li><i style="background:var(--ult)"></i>Not called <b>${c.open}</b></li><li><i style="background:var(--rlt)"></i>Republican <b>${c.r}</b></li></ul>
+ <p class="ch-sum">Forecast: ${f.p50} Democratic ${c.what} (80 % range ${f.p10}–${f.p90})${f.p_control!=null?`, ${pct(f.p_control)} ${c.ctl}`:''}</p>`);
+}
 
-function tab(p){$$('.mt-tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.p===p));$$('.mt-pane').forEach(x=>x.classList.toggle('on',x.id==='p-'+p));history.replaceState(null,'','#'+p);if(RH&&D&&gi!=null){const k=p==='gov'?'gov':p;if(SEL[k])panel(k)}if(p==='polls'&&D&&D.national_vote)genDist(D.national_vote)}   // hidden panels drew their chart at a guessed width
+function counted(){return J.races.filter(r=>r.margin!=null)}
+function tiles(){
+ const A=J.scores.all||{},Hs=(J.scores.house||{}).raters,M=counted(),out=[];
+ out.push(A.called?[`${Math.round(A.favourite_won*A.called)} of ${A.called}`,'called races won by the forecast\'s favourite',`Brier score ${A.brier.toFixed(3)}`]:['–','called races won by the forecast\'s favourite','no race called yet']);
+ out.push(Hs?[Hs.brier_model.toFixed(3),'Brier score on House seats (lower is better)',`race raters' average ${Hs.brier_raters.toFixed(3)} on the same ${Hs.n} seats`]:['–','Brier score on House seats','compared with the race raters once seats are called']);
+ if(M.length){
+  const err=M.map(r=>r.margin-r.med),mean=err.reduce((a,b)=>a+b,0)/err.length,inr=M.filter(r=>r.margin>=r.lo&&r.margin<=r.hi).length;
+  const fin=M.filter(r=>r.final).length;
+  out.push([`${mean>=0?'D':'R'} +${Math.abs(mean).toFixed(1)}`,`average gap between the counted and forecast margins`,`${M.length} counted race${M.length>1?'s':''}${fin<M.length?`, ${M.length-fin} provisional`:''}`]);
+  out.push([`${Math.round(100*inr/M.length)}%`,'counted margins inside the forecast\'s 80 % range',`${inr} of ${M.length}; a well-sized range holds about 80 %`]);
+ }else{
+  out.push(['–','average gap between the counted and forecast margins','once counts are in']);
+  out.push(['–','counted margins inside the forecast\'s 80 % range','once counts are in']);
+ }
+ $('#tiles').innerHTML=out.map(([b,s,m])=>`<div class="tile"><b>${b}</b><span>${s}</span><small>${m}</small></div>`).join('');
+}
 
-const NAMES={AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',DE:'Delaware',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming'};
-function find(v){v=(v||'').trim();if(!v)return;const H=D.house;
- let m=v.match(/^([A-Za-z]{2})-(\d+)/);if(m){const s=H.seats.find(x=>x.seat.toUpperCase()===(m[1]+'-'+(+m[2])).toUpperCase());if(s){tab('house');pick('house',s.seat);return}}
- m=v.match(/^([A-Za-z]{2}) (Senate|Governor)/i);let st=m?m[1].toUpperCase():null,kind=m?m[2].toLowerCase():null;
- if(!st){const n=Object.entries(NAMES).find(([k,nm])=>nm.toLowerCase().startsWith(v.toLowerCase())||k.toLowerCase()===v.toLowerCase());if(n)st=n[0]}
- if(!st)return;if(!kind)kind=D.senate.races.some(r=>r.state===st)?'senate':(D.governor&&D.governor.races.some(r=>r.state===st))?'governor':'house';
- if(kind==='senate'){tab('senate');pick('senate',st+(/special/i.test(v)?'|sp':''))}else if(kind==='governor'){tab('gov');pick('gov',st)}
- else{tab('house');const s=H.seats.find(x=>x.state===st);if(s)pick('house',s.seat)}}
+const tip=$('#tip');
+function showTip(e,html){tip.innerHTML=html;tip.style.display='block';const r=tip.getBoundingClientRect();let x=e.clientX+12,y=e.clientY+12;if(x+r.width>innerWidth-8)x=e.clientX-r.width-12;if(y+r.height>innerHeight-8)y=e.clientY-r.height-12;tip.style.left=x+'px';tip.style.top=y+'px'}
+function hideTip(){tip.style.display='none'}
+function bindTips(svg,rows,html){svg.querySelectorAll('[data-k]').forEach(n=>{const r=rows[+n.dataset.k];n.onmousemove=e=>showTip(e,html(r));n.onmouseleave=hideTip;n.onclick=e=>showTip(e,html(r))})}
+function raceTip(r){return `<b>${esc(raceName(r))}</b><br>${esc(r.challenger)} v ${esc(r.republican)}<br>Forecast ${mg(r.med,r.party)} (80 %: ${mg(r.lo,r.party)} to ${mg(r.hi,r.party)}), ${pct(r.p)}<br>${r.final?'Final':'Latest count'}: ${mg(r.margin,r.party)}`}
 
-function pick(sec,key){SEL[sec]=key;$$(sec==='house'?'path.t':`#${sec==='senate'?'smap':'gmap'} path.sp`).forEach(p=>p.classList.toggle('sel',(p.dataset.seat||p.dataset.st)===String(key).split('|')[0]));panel(sec)}
-// open a race in "Every race" from the band or a card
-function openRace(sec,key){tab(sec);pick(sec,key);$('#explore').scrollIntoView({behavior:REDUCED?'auto':'smooth',block:'start'})}
+function scatter(){
+ const svg=$('#scat'),M=counted(),W=560,H=400,L=46,T=12,Rr=12,B=40;
+ if(!M.length){svg.innerHTML=`<text x="${W/2}" y="${H/2}" text-anchor="middle">No counts yet: races appear here as their counts come in.</text>`;$('#scatLeg').innerHTML='';return}
+ const vals=M.flatMap(r=>[r.med,r.margin]),ext=Math.min(60,Math.max(10,Math.ceil(Math.max(...vals.map(Math.abs))/10)*10));
+ const x=v=>L+(Math.max(-ext,Math.min(ext,v))+ext)/(2*ext)*(W-L-Rr),y=v=>T+(ext-Math.max(-ext,Math.min(ext,v)))/(2*ext)*(H-T-B);
+ let g='<g class="grid">',ax='<g class="ax">';
+ for(let v=-ext;v<=ext;v+=ext>=40?20:10){g+=`<line x1="${x(v)}" x2="${x(v)}" y1="${T}" y2="${H-B}"/><line x1="${L}" x2="${W-Rr}" y1="${y(v)}" y2="${y(v)}"/>`;
+  ax+=`<text x="${x(v)}" y="${H-B+16}" text-anchor="middle">${mg(v).replace('.0','')}</text><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${mg(v).replace('.0','')}</text>`}
+ g+='</g>';ax+=`<text x="${(L+W-Rr)/2}" y="${H-4}" text-anchor="middle">Forecast margin</text><text transform="translate(12,${(T+H-B)/2}) rotate(-90)" text-anchor="middle">Counted margin</text></g>`;
+ const lines=`<line class="zero" x1="${x(0)}" x2="${x(0)}" y1="${T}" y2="${H-B}"/><line class="zero" x1="${L}" x2="${W-Rr}" y1="${y(0)}" y2="${y(0)}"/><line class="eq" x1="${x(-ext)}" y1="${y(-ext)}" x2="${x(ext)}" y2="${y(ext)}"/>`;
+ const ord=M.map((r,k)=>[r,k]).sort((a,b)=>(a[0].office==='house')-(b[0].office==='house'));   // statewide races drawn on top
+ const pts=ord.map(([r,k])=>`<circle class="pt${r.final?'':' prov'}" cx="${x(r.med)}" cy="${y(r.margin)}" r="${r.office==='house'?4:5.5}" style="fill:${OCOL[r.office]};stroke:${r.final?'#fff':OCOL[r.office]}"/><circle class="hit" data-k="${k}" cx="${x(r.med)}" cy="${y(r.margin)}" r="9"/>`).join('');
+ svg.innerHTML=g+ax+lines+pts;bindTips(svg,M,raceTip);
+ const has=o=>M.some(r=>r.office===o);
+ $('#scatLeg').innerHTML=['senate','governor','house'].filter(has).map(o=>`<li><i style="background:${OCOL[o]}"></i>${OFFICE[o]}</li>`).join('')+(M.some(r=>!r.final)?'<li><i class="o"></i>Provisional count</li>':'');
+}
 
-function panel(sec){const el=$('#race-'+sec);const key=SEL[sec];if(!key)return;
- if(sec==='house'){const s=D.house.seats.find(x=>x.seat===key);if(!s)return;const p=s.p[gi],m=s.mu+(E-D.house.E_now);
-  const ind=hInd(s);
-  el.innerHTML=`<h3>${esc(s.seat)}</h3><p class="who">${who(s)}${s.open?'':(s.inc>0?' · Democratic incumbent':s.inc<0?(s.opponent_party==='I'?' · independent incumbent':' · Republican incumbent'):'')}${ind?` · challenger ${esc(s.challenger)} (I)`:''}</p>${bar(p,ind?'Independent':'Democrat',hOpp(s))}
-  <dl><dt>Expected margin</dt><dd>${mg(m,s.challenger_party)}</dd><dt>Partisan lean</dt><dd>${lean(s.lean)}</dd><dt>Polls</dt><dd>${pollTxt(s)}${s.n_polls?` · <a href="polls.html#house:${esc(s.seat)}">every poll for this race</a>`:''}</dd>${s.rating!=null?`<dt>Race raters</dt><dd>${pct(s.rating)} ${ind?'against the Republican':'Democratic'}</dd>`:''}${s.money_d!=null&&!ind?`<dt>Raised by June 30</dt><dd>D $${(s.money_d/1e6).toFixed(1)}M · R $${(s.money_r/1e6).toFixed(1)}M</dd>`:''}</dl>${rcvTxt(s)}`;trend(el,'house',s.seat,ind?'Independent':'Democrat');return}
- const S=sec==='senate'?D.senate:D.governor,[st,sp]=String(key).split('|');const r=S.races.find(x=>x.state===st&&(!!x.special)===(sp==='sp'))||S.races.find(x=>x.state===st);if(!r)return;
- const m=expM(sec,r),p=r.p[gi],ind=sInd(r);
- el.innerHTML=`<h3>${esc(NAMES[r.state]||r.state)} ${sec==='senate'?'Senate':'Governor'}${r.special?' (special)':''}</h3><p class="who">${esc(r.dem||'?')} (${esc(r.dem_party||'D')}) v ${esc(r.rep||'?')} (R)${r.inc?'':' · open seat'}</p>${bar(p,ind?'Independent':'Democrat','Republican')}
-  <dl><dt>Expected margin</dt><dd>${mg(m,r.dem_party)}</dd>${r.lean!=null?`<dt>Partisan lean</dt><dd>${lean(r.lean)}</dd>`:''}<dt>Polls</dt><dd>${pollTxt(r)}${r.n_polls?` · <a href="polls.html#${sec==='senate'?'senate':'governor'}:${esc(r.state)}">every poll for this race</a>`:''}</dd>${r.cook?`<dt>Cook rating</dt><dd>${esc(r.cook)}</dd>`:''}</dl>${r.prior_note?`<p class="mt-note">${esc(r.prior_note)}</p>`:''}${r.majority?`<p class="mt-note">Nobody wins a majority: ${pct(r.majority.p[gi])}; ${esc(r.majority.rule)} · <a href="about.html#majority">how</a></p>`:''}${rcvTxt(r)}`;trend(el,sec,r.state+(r.special?'|sp':''),ind?'Independent':'Democrat')}
-// a race's expected margin at the slider's national mood (each chamber moves with its own slope)
-function expM(sec,r){if(sec==='house')return r.mu+(E-D.house.E_now);const S=sec==='senate'?D.senate:D.governor;return r.mu+(E-S.E_now)*(sec==='senate'?S.nat_slope:S.slope)}
+// Wilson 95 % interval for k of n
+function wilson(k,n){const z=1.96,p=k/n,d=1+z*z/n,c=(p+z*z/(2*n))/d,h=z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n))/d;return[Math.max(0,c-h),Math.min(1,c+h)]}
+function calib(){
+ const svg=$('#cal'),C=(J.scores.all||{}).calibration||[],W=400,H=400,L=46,T=12,Rr=12,B=40;
+ if(!C.length){svg.innerHTML=`<text x="${W/2}" y="${H/2}" text-anchor="middle">No race called yet.</text>`;return}
+ const x=v=>L+v*(W-L-Rr),y=v=>T+(1-v)*(H-T-B),nmax=Math.max(...C.map(c=>c.n));
+ let g='<g class="grid">',ax='<g class="ax">';
+ for(let v=0;v<=1.001;v+=.25){g+=`<line x1="${x(v)}" x2="${x(v)}" y1="${T}" y2="${H-B}"/><line x1="${L}" x2="${W-Rr}" y1="${y(v)}" y2="${y(v)}"/>`;ax+=`<text x="${x(v)}" y="${H-B+16}" text-anchor="middle">${v*100}%</text><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${v*100}%</text>`}
+ g+='</g>';ax+=`<text x="${(L+W-Rr)/2}" y="${H-4}" text-anchor="middle">Forecast chance</text><text transform="translate(12,${(T+H-B)/2}) rotate(-90)" text-anchor="middle">Share won</text></g>`;
+ const rows=C.map(c=>{const k=Math.round(c.won*c.n),[a,b]=wilson(k,c.n);return{...c,k,a,b}});
+ const marks=rows.map((c,i)=>`<line class="ci" x1="${x(c.forecast)}" x2="${x(c.forecast)}" y1="${y(c.a)}" y2="${y(c.b)}"/><circle class="pt" cx="${x(c.forecast)}" cy="${y(c.won)}" r="${4+8*Math.sqrt(c.n/nmax)}" style="fill:var(--ink)"/><circle class="hit" data-k="${i}" cx="${x(c.forecast)}" cy="${y(c.won)}" r="14"/>`).join('');
+ svg.innerHTML=g+ax+`<line class="eq" x1="${x(0)}" y1="${y(0)}" x2="${x(1)}" y2="${y(1)}"/>`+marks;
+ bindTips(svg,rows,c=>`Forecast chance ${c.band.replace(/0\.(\d\d)/g,(m,d)=>+d+'%').replace('1.00','100%')}<br>${c.n} race${c.n>1?'s':''}, average forecast ${pct(c.forecast)}<br>Won ${c.k} (${pct(c.won)}), 95 % interval ${pct(c.a)}–${pct(c.b)}`);
+ $('#calNote').textContent='Dot size: the number of races. On the dashed line, races given 70 % were won 70 % of the time; a bar that crosses it is consistent with the forecast.';
+}
 
-// ---- the band: a chamber drawn seat by seat ------------------------------------------------------------------------
-// Rows of an arc, as many rows as keep the seats evenly spaced both ways; seats ordered by angle across all rows, so
-// the leftmost `maj` seats form one wedge and the majority line is a single ray.
-function hemi(sel,n,maj,kind){const W=560,R=255,cx=W/2,cy=300,R0=.38;
- let k=2;while(Math.PI*k*(1+R0)/(2*n)<(1-R0)/(k-1))k++;
- const radii=d3.range(k).map(i=>R0+(1-R0)*i/(k-1)),tot=d3.sum(radii),cnt=radii.map(r=>Math.floor(n*r/tot)),left=n-d3.sum(cnt);
- radii.map((r,i)=>[n*r/tot-cnt[i],i]).sort((a,b)=>b[0]-a[0]).slice(0,left).forEach(([,i])=>cnt[i]++);
- const pts=[];radii.forEach((r,i)=>{for(let j=0;j<cnt[i];j++)pts.push({a:Math.PI*(1-j/(cnt[i]-1)),r})});
- pts.sort((p,q)=>q.a-p.a||p.r-q.r).forEach((p,i)=>p.i=i);
- const dot=Math.min(Math.PI*k*(1+R0)/(2*n),(1-R0)/(k-1))*R*.43,svg=d3.select(sel),X=(r,a)=>cx+R*r*Math.cos(a),Y=(r,a)=>cy-R*r*Math.sin(a);
- const c=svg.append('g').selectAll('circle').data(pts).join('circle').attr('cx',p=>X(p.r,p.a)).attr('cy',p=>Y(p.r,p.a)).attr('r',dot).attr('fill','#2a3d5e').attr('opacity',REDUCED?1:0)
-  .on('mousemove',(e,p)=>tipAt(e,kind==='house'?houseTip(p.i):senateTip(p.i))).on('mouseleave',()=>{$('#tip').style.display='none'})
-  .on('click',(e,p)=>{if(kind==='house')openRace('house',HO[p.i].seat);else if(!SO[p.i].held){const r=SO[p.i];openRace('senate',r.state+(r.special?'|sp':''))}});
- const am=(pts[maj-1].a+pts[maj].a)/2;
- svg.append('line').attr('class','mj').attr('x1',X(R0-.07,am)).attr('y1',Y(R0-.07,am)).attr('x2',X(1.04,am)).attr('y2',Y(1.04,am));
- svg.append('text').attr('class','mjt').attr('x',X(1.08,am)).attr('y',Y(1.08,am)+4).text(`${maj} for ${kind==='house'?'a majority':'control'}`);
- return {c,n,shown:false,counting:false,tn:svg.append('text').attr('class','hn').attr('x',cx).attr('y',cy-12),tl:svg.append('text').attr('class','hl').attr('x',cx).attr('y',cy+31),svg}}
-// fills: one colour per position (left to right); ring: positions drawn hollow (Senate seats not up). The first paint
-// sweeps the seats in.
-function paint(h,fills,ring){const sel=h.c.attr('fill',p=>ring&&ring[p.i]?'var(--night)':fills[p.i]).attr('stroke',p=>ring&&ring[p.i]?fills[p.i]:null).attr('stroke-width',1.8);
- if(!h.shown&&!REDUCED)sel.transition().delay(p=>p.i*650/h.n).duration(200).attr('opacity',1);h.shown=true}
-function big(h,p,dLabel,rLabel,ind){const dl=p>=.5,q=dl?p:1-p,txt=pct(q);h.final=txt;h.tn.style('fill',dl?(ind?'var(--ilt)':'var(--dlt)'):'var(--rlt)');h.tl.text(dl?dLabel:rLabel);
- if(h.counting)return;if(h.first===undefined&&!REDUCED){h.first=false;h.counting=true;const v=Math.round(100*q),t0=performance.now();
-  const step=now=>{const k=Math.min(1,(now-t0)/850);if(k<1){h.tn.text(Math.round(v*(1-Math.pow(1-k,3)))+'%');requestAnimationFrame(step)}else{h.counting=false;h.tn.text(h.final)}};requestAnimationFrame(step)}
- else{h.first=false;h.tn.text(txt)}}
-function legend(sel,counts,extra){$(sel).innerHTML=CLS.map((n,i)=>(i===4?'<li class="br" aria-hidden="true"></li>':'')+(counts[i]?`<li><i style="background:${FILL[i]}"></i>${n} <b>${counts[i]}</b></li>`:'')).join('')+(extra||'')}
-function houseTip(i){const s=HO[i];if(!s)return'';const p=s.p[gi];return `<b>${esc(s.seat)}</b> ${who(s)}<br>${hInd(s)?`${esc(s.challenger)} (I)`:'Democrat'} ${pct(p)} · ${hInd(s)&&cls(p)<3?CLS[cls(p)].replace('D','I'):CLS[cls(p)]}`}
-function senateTip(i){const r=SO[i];if(!r)return'';if(r.held)return `${r.held==='D'?'Democratic':'Republican'} seat, not up this year`;const p=r.p[gi],ind=sInd(r);
- return `<b>${esc(NAMES[r.state]||r.state)}${r.special?' special':''}</b><br>${esc(r.dem||'?')} (${ind?'I':'D'}) v ${esc(r.rep||'?')} (R)<br>${ind?'Independent':'Democrat'} ${pct(p)} · ${ind&&cls(p)<3?CLS[cls(p)].replace('D','I'):CLS[cls(p)]}`}
-function heroHouse(hd){const H=D.house;HO=H.seats.slice().sort((a,b)=>b.p[gi]-a.p[gi]||b.mu-a.mu);
- paint(HEMI.H,HO.map(s=>fillOf(s.p[gi],hInd(s))));big(HEMI.H,hd.p_maj,'chance Democrats win','chance Republicans keep it');
- const n=[0,0,0,0,0,0,0];let ni=0;HO.forEach(s=>{const c=cls(s.p[gi]);if(hInd(s)&&c<3)ni++;else n[c]++});
- legend('#legH',n,ni?`<li><i style="background:${FILLI[1]}"></i>Independent favoured <b>${ni}</b></li>`:'');
- $('#sumH').innerHTML=`<b>${hd.mean.toFixed(0)}</b> Democratic seats expected; 8 in 10 simulations land between ${esc(hd.p10)} and ${esc(hd.p90)}`;
- HEMI.H.svg.attr('aria-label',`House: Democrats win in ${pct(hd.p_maj)} of simulations. Seats by rating: ${CLS.map((c,i)=>`${c} ${n[i]}`).join(', ')}`)}
-function heroSenate(sd){const S=D.senate,hd=S.now_d-S.d_up,hr=S.now_r-S.r_up,races=S.races.slice().sort((a,b)=>b.p[gi]-a.p[gi]||b.mu-a.mu);
- SO=[...Array(hd).fill({held:'D'}),...races,...Array(hr).fill({held:'R'})];
- paint(HEMI.S,SO.map(x=>x.held?FILL[x.held==='D'?0:6]:fillOf(x.p[gi],sInd(x))),SO.map(x=>!!x.held));
- const p=sd.p_ctrl!=null?sd.p_ctrl:sd.p51plus;big(HEMI.S,p,'chance Democrats win control','chance Republicans keep control');
- const n=[0,0,0,0,0,0,0];let ni=0;races.forEach(r=>{const c=cls(r.p[gi]);if(sInd(r)&&c<3)ni++;else n[c]++});
- legend('#legS',n,(ni?`<li><i style="background:${FILLI[1]}"></i>Independent favoured <b>${ni}</b></li>`:'')+`<li><i class="ring" style="border-color:${FILL[0]}"></i><i class="ring" style="border-color:${FILL[6]}"></i>Not up this year <b>${hd}</b> D, <b>${hr}</b> R</li>`);
- $('#sumS').innerHTML=`<b>${sd.mean.toFixed(1)}</b> Democratic seats expected (${esc(sd.p10)}–${esc(sd.p90)})${sd.ind_mean>=.05?`, independents <b>${sd.ind_mean.toFixed(1)}</b>`:''}`;
- HEMI.S.svg.attr('aria-label',`Senate: Democrats win control in ${pct(p)} of simulations. Races by rating: ${CLS.map((c,i)=>`${c} ${n[i]}`).join(', ')}; ${hd} Democratic and ${hr} Republican seats not up`)}
-// the headline reads the two chances at the slider's setting
-function headline(pH,pS){const N={D:'Democrats',R:'Republicans'},side=p=>p>=.5?'D':'R',q=p=>Math.max(p,1-p),str=x=>x>=.95?'clear favourites':x>=.8?'favoured':'slight favourites';
- const part=(p,ch)=>q(p)<.6?null:{p:side(p),s:str(q(p)),o:`to ${side(p)==='D'?'win':'keep'} the ${ch}`},a=part(pH,'House'),b=part(pS,'Senate');
- if(!a&&!b)return 'Both chambers are toss-ups.';
- if(!a)return `The House is a toss-up; ${N[b.p]} are ${b.s} ${b.o}.`;
- if(!b)return `${N[a.p]} are ${a.s} ${a.o}; the Senate is a toss-up.`;
- if(a.p===b.p)return a.s===b.s?`${N[a.p]} are ${a.s} ${a.o.replace(' the House','')} both the House and the Senate.`:`${N[a.p]} are ${a.s} ${a.o} and ${b.s} ${b.o}.`;
- return `${N[a.p]} are ${a.s} ${a.o}, ${N[b.p]} ${b.s} ${b.o}.`}
-// 100 squares split by largest remainder; a split square is House (upper left) and Senate (lower right)
-function waffle(jt){const K=['dd','dr','rd','rr'],v=K.map(k=>100*jt[k]),f=v.map(Math.floor),left=100-d3.sum(f);
- v.map((x,i)=>[x-f[i],i]).sort((a,b)=>b[0]-a[0]).slice(0,left).forEach(([,i])=>f[i]++);
- const B=FILL[0],R=FILL[6],bg={dd:B,dr:`linear-gradient(135deg,${B} 50%,${R} 50%)`,rd:`linear-gradient(135deg,${R} 50%,${B} 50%)`,rr:R},
-  L={dd:'Democrats win both',dr:'Democratic House, Republican Senate',rd:'Republican House, Democratic Senate',rr:'Republicans keep both'};
- $('#waf').innerHTML=K.map((k,i)=>`<i style="background:${bg[k]}"></i>`.repeat(f[i])).join('');
- $('#waf').setAttribute('aria-label',K.map(k=>`${L[k]} ${pct(jt[k])}`).join(', '));
- $('#wafLeg').innerHTML=K.map(k=>`<li><i style="background:${bg[k]}"></i>${L[k]} <b>${pct(jt[k])}</b></li>`).join('')}
-// the national House vote: the model's draws about today's trend, moved by the slider's offset
-function natVote(){const N=D.national_vote;if(!N){$('#nv').hidden=true;return}const s=E-D.house.E0;
- let p=N.p.dem;if(Math.abs(s)>1e-6){let a=0,t=0;N.grid.forEach((x,i)=>{t+=N.dens[i];if(x+s>0)a+=N.dens[i]});p=a/t}
- const m=N.q['50']+s;$('#nvN').textContent=Math.abs(m)<.05?'Even':(m>0?'D+':'R+')+Math.abs(m).toFixed(1);$('#nvN').style.color=m>=0?'var(--dlt)':'var(--rlt)';
- $('#nvL').textContent=`Democrats win it in ${pct(p)} of simulations`}
+let UPS=12;
+function upsets(){
+ const all=J.races.filter(r=>r.winner&&(r.p>=.5)!==won(r)).map(r=>({...r,pw:won(r)?r.p:1-r.p})).sort((a,b)=>a.pw-b.pw),U=all.slice(0,UPS);
+ $('#upMore').hidden=all.length<=UPS;$('#upMore').textContent=`Show all ${all.length} upsets`;
+ if(!U.length){$('#ups').innerHTML='<p class="empty">None so far: every called race went to the forecast\'s favourite.</p>';return}
+ $('#ups').innerHTML=U.map(r=>{const w=won(r)?r.challenger:r.republican,wp=won(r)?side(r.party):'R';
+  return `<div class="up"><h3>${esc(raceName(r))}</h3><p><span class="${WCLS[r.winner]||''}">${esc(w)}</span> beat ${esc(won(r)?r.republican:r.challenger)}</p><div class="ch">${pct(r.pw)}</div><small>the forecast's chance of ${wp==='R'?'a Republican':wp==='I'?'an independent':'a Democratic'} win${r.margin!=null?`; ${r.final?'final':'latest count'} ${mg(r.margin,r.party)}, forecast ${mg(r.med,r.party)}`:''}</small></div>`}).join('');
+}
 
-// ---- races to watch: the closest races at the slider's setting --------------------------------------------------------
-function watch(){const k=WATCH;let it;
- if(k==='senate')it=D.senate.races.map(r=>({sec:'senate',key:r.state+(r.special?'|sp':''),r}));
- else if(k==='gov')it=(D.governor?D.governor.races:[]).map(r=>({sec:'gov',key:r.state,r}));
- else it=D.house.seats.map(s=>({sec:'house',key:s.seat,r:s}));
- it.forEach(x=>x.p=x.r.p[gi]);it=it.sort((a,b)=>Math.abs(a.p-.5)-Math.abs(b.p-.5)).slice(0,8);
- $('#watchSub').textContent=`The ${it.length} closest ${k==='senate'?'Senate':k==='gov'?'governor':'House'} races at this national mood; each line is its chance over the last 90 days`;
- $('#rw').innerHTML=it.map(card).join('');
- $$('#rw .rc').forEach((b,i)=>{b.onclick=()=>openRace(it[i].sec,it[i].key);spark(b.querySelector('svg'),it[i])})}
-function card(x){const r=x.r,p=x.p,h=x.sec==='house',ind=h?hInd(r):sInd(r),dc=ind?'var(--i)':'var(--dd)';
- const dn=h?(ind?esc(surname(r.challenger)):'Democrat'):esc(surname(r.dem)),rn=h?hOpp(r):esc(surname(r.rep)),dl=p>=.5;
- const title=h?esc(r.seat):esc(NAMES[r.state]||r.state)+(r.special?' (special)':''),sub=h?`${who(r)}${ind?` v ${esc(r.challenger)} (I)`:''}`:`${esc(r.dem||'?')} (${ind?'I':'D'}) v ${esc(r.rep||'?')} (R)`;
- return `<button type="button" class="rc" aria-label="${title}: ${dl?dn:rn} ${pct(dl?p:1-p)}. Open in every race"><h3>${title}</h3><span class="cn">${sub}</span>`
-  +`<span class="ld" style="color:${dl?dc:'var(--rd)'}"><span>${dl?dn:rn}</span><b>${pct(dl?p:1-p)}</b></span>`
-  +`<span class="bar"><i style="width:${100*p}%;background:${ind?'#7b4fa6':'var(--d)'}"></i><i style="width:${100*(1-p)}%;background:var(--r)"></i></span>`
-  +`<span class="mt"><span>Expected ${mg(expM(x.sec,r),h?r.challenger_party:r.dem_party)}</span><span>${r.n_polls?`${esc(r.n_polls)} poll${r.n_polls>1?'s':''}`:'No polls'}</span></span><svg aria-hidden="true"></svg></button>`}
-function spark(el,x){if(!RH||!RH[x.sec]||!el)return;const T=RH[x.sec][x.key];if(!T)return;const cps=T[2]||null,cur=cps?cps.filter(Boolean).pop():'D',t0=Date.now()-90*864e5;
- const pts=rhPts(RH,T,cur).filter(q=>+q.d>=t0);if(pts.length<2)return;const W=Math.max(120,Math.round(el.getBoundingClientRect().width)||220),Hh=34,ind=x.sec==='house'?hInd(x.r):sInd(x.r);
- const xs=d3.scaleTime().domain(d3.extent(pts,q=>q.d)).range([1,W-5]),ys=d3.scaleLinear().domain([0,1]).range([Hh-2,2]),svg=d3.select(el).attr('viewBox',`0 0 ${W} ${Hh}`);svg.selectAll('*').remove();
- svg.append('line').attr('x1',1).attr('x2',W-5).attr('y1',ys(.5)).attr('y2',ys(.5)).attr('stroke','#c9c6bd').attr('stroke-dasharray','3,3');
- svg.append('path').attr('d',d3.line().x(q=>xs(q.d)).y(q=>ys(q.p)).curve(d3.curveMonotoneX)(pts)).attr('fill','none').attr('stroke',ind?'#7b4fa6':'#1f5fbf').attr('stroke-width',2);
- const l=pts[pts.length-1];svg.append('circle').attr('cx',xs(l.d)).attr('cy',ys(l.p)).attr('r',3).attr('fill',l.p>=.5?(ind?'#7b4fa6':'#1f5fbf'):'#b3261e')}
-
-// ---- how the odds have moved: the national chances (race_history.json) and the national mood under them ----------------
-function odds(){const el=$('#oddsC');if(!RH||!RH.nat||!RH.nat.h)return;el.innerHTML='';
- const W=Math.max(300,Math.round(el.getBoundingClientRect().width)||900),nw=W<600,H1=Math.round(Math.min(360,Math.max(220,W*.32))),H2=nw?74:90,gap=30,m={l:nw?36:44,r:nw?84:104,t:12,b:26},Ht=m.t+H1+gap+H2+m.b;
- const day=s=>new Date(s+'T12:00:00'),v=(a,i)=>a&&a[i]!=null?a[i]/1000:null;
- const P=RH.dates.map((d,i)=>({d:day(d),h:v(RH.nat.h,i),s:v(RH.nat.s,i),e:RH.nat.E?RH.nat.E[i]:null,src:RH.src?RH.src[i]:'i'})).filter(q=>q.h!=null);if(P.length<2)return;
- const IB=RH.issued&&RH.issued.nat?RH.issued:null,I=IB?IB.dates.map((d,i)=>({d:day(d),h:v(IB.nat.h,i),s:v(IB.nat.s,i)})):[],iby=new Map(I.map(q=>[+q.d,q]));
- const svg=d3.select(el).append('svg').attr('class','odds').attr('viewBox',`0 0 ${W} ${Ht}`).attr('role','img');
- const xs=d3.scaleTime().domain(d3.extent(P,q=>q.d)).range([m.l,W-m.r]),y1=d3.scaleLinear().domain([0,1]).range([m.t+H1,m.t]);
- const E2=P.filter(q=>q.e!=null),lo=Math.min(0,d3.min(E2,q=>q.e)-.5),hi=d3.max(E2,q=>q.e)+.5,top2=m.t+H1+gap,y2=d3.scaleLinear().domain([Math.floor(lo),Math.ceil(hi)]).range([top2+H2,top2]);
- svg.append('g').attr('class','grid').selectAll('line').data([.25,.75,1]).join('line').attr('x1',m.l).attr('x2',W-m.r).attr('y1',y1).attr('y2',y1);
- svg.append('line').attr('x1',m.l).attr('x2',W-m.r).attr('y1',y1(.5)).attr('y2',y1(.5)).attr('stroke','#9a978e').attr('stroke-dasharray','3,3');
- svg.append('g').attr('class','ax').attr('transform',`translate(${m.l},0)`).call(d3.axisLeft(y1).tickValues([0,.5,1]).tickFormat(t=>(100*t)+'%').tickSizeOuter(0));
- const C={h:'#0b3d91',s:'#3a7fd8'},NM={h:'House',s:'Senate'};
- for(const k of ['s','h'])svg.append('path').attr('d',d3.line().defined(q=>q[k]!=null).x(q=>xs(q.d)).y(q=>y1(q[k])).curve(d3.curveMonotoneX)(P)).attr('fill','none').attr('stroke',C[k]).attr('stroke-width',k==='h'?3:2.6);
- {const L=P[P.length-1];let a=y1(L.h),b=y1(L.s);if(Math.abs(a-b)<34){const mid=(a+b)/2,s=a<=b?-1:1;a=mid+s*17;b=mid-s*17}
-  for(const [k,y] of [['h',a],['s',b]]){svg.append('circle').attr('cx',xs(L.d)).attr('cy',y1(L[k])).attr('r',4).attr('fill',C[k]);
-   svg.append('text').attr('class','sl').attr('x',xs(L.d)+9).attr('y',y-3).text(NM[k]);svg.append('text').attr('class','el').attr('x',xs(L.d)+9).attr('y',y+13).style('fill',C[k]).text(pct(L[k]))}}
- // national mood strip
- svg.append('text').attr('class','sl').attr('x',m.l).attr('y',top2-9).text('National mood');
- svg.append('g').attr('class','ax').attr('transform',`translate(${m.l},0)`).call(d3.axisLeft(y2).ticks(3).tickFormat(t=>t===0?'Even':(t>0?'D+':'R+')+Math.abs(t)).tickSizeOuter(0));
- if(y2.domain()[0]<=0)svg.append('line').attr('x1',m.l).attr('x2',W-m.r).attr('y1',y2(0)).attr('y2',y2(0)).attr('stroke','#9a978e').attr('stroke-dasharray','3,3');
- svg.append('path').attr('d',d3.area().defined(q=>q.e!=null).x(q=>xs(q.d)).y0(y2(Math.max(0,y2.domain()[0]))).y1(q=>y2(q.e)).curve(d3.curveMonotoneX)(P)).attr('fill','#1f5fbf').attr('fill-opacity',.12);
- svg.append('path').attr('d',d3.line().defined(q=>q.e!=null).x(q=>xs(q.d)).y(q=>y2(q.e)).curve(d3.curveMonotoneX)(P)).attr('fill','none').attr('stroke','#3d3b37').attr('stroke-width',1.8);
- const LE=E2[E2.length-1];if(LE)svg.append('text').attr('class','el').attr('x',xs(LE.d)+9).attr('y',y2(LE.e)+5).style('fill','#3d3b37').text(mg(LE.e));
- svg.append('g').attr('class','ax').attr('transform',`translate(0,${top2+H2})`).call(d3.axisBottom(xs).ticks(d3.timeMonth.every(nw?2:1)).tickFormat(d3.timeFormat('%b')).tickSizeOuter(0));
- const g=svg.append('g').style('display','none');g.append('line').attr('y1',m.t).attr('y2',top2+H2).attr('stroke','#9a978e');
- const dots={h:g.append('circle').attr('r',4).attr('fill',C.h),s:g.append('circle').attr('r',4).attr('fill',C.s),e:g.append('circle').attr('r',3.5).attr('fill','#3d3b37')};
- svg.append('rect').attr('x',m.l).attr('y',m.t).attr('width',W-m.l-m.r+20).attr('height',top2+H2-m.t).attr('fill','transparent')
-  .on('pointermove pointerdown',e=>{const[mx]=d3.pointer(e),q=P[d3.bisector(p=>p.d).center(P,xs.invert(mx))],iq=iby.get(+q.d);g.style('display',null).attr('transform',`translate(${xs(q.d)},0)`);
-   dots.h.attr('cy',y1(q.h));dots.s.attr('cy',q.s!=null?y1(q.s):-99);dots.e.attr('cy',q.e!=null?y2(q.e):-99);
-   tipAt(e,`<b>${fmtD(q.d)}</b> <span style="opacity:.8">${q.src==='r'?'reconstructed':'as issued'}</span><br>House ${pct(q.h)}${q.s!=null?`<br>Senate ${pct(q.s)}`:''}${q.e!=null?`<br>National mood ${mg(q.e)}`:''}${iq&&q.src==='r'?`<br><span style="opacity:.8">As issued that day: House ${pct(iq.h)}${iq.s!=null?`, Senate ${pct(iq.s)}${q.d<new Date('2026-09-26T00:00:00')?' (51+ seats)':''}`:''}</span>`:''}`)})
-  .on('pointerleave',()=>{g.style('display','none');$('#tip').style.display='none'});
- svg.attr('aria-label',`Chance Democrats win the House, ${pct(P[0].h)} on ${fmtD(P[0].d)} to ${pct(P[P.length-1].h)} now; the Senate, ${P[0].s!=null?pct(P[0].s):'–'} to ${P[P.length-1].s!=null?pct(P[P.length-1].s):'–'}`);
- const M=RH.method||{};$('#oddsNote').textContent=(M.reconstructed_from?`Reconstructed with the current model from the polls released by each date (weekly from ${fmtD(day(M.reconstructed_from))}, daily from ${fmtD(day(M.weekly_until||M.reconstructed_from))}). `:'')+'At each day’s national mood, not the slider’s.'}
-
-// Chance of winning over time (race_history.json, midterms/race_history.py + backfill.py): the CURRENT model reconstructed
-// as of each past date with only the polls released by then (weekly to June, daily after), then each day's own run; the
-// tooltip adds what the board showed that day (since 16 Sep). Independent of the slider. Days that modelled a
-// different challenger party are left out.
-const fmtD=d3.timeFormat('%b %-d'),fmtDY=d3.timeFormat('%b %-d, %Y');
-function rhPts(B,T,cur){if(!B||!T)return[];const cps=T[2]||null;return B.dates.map((d,i)=>({d:new Date(d+'T12:00:00'),p:T[0][i]==null?null:T[0][i]/1000,m:T[1][i],cp:cps?cps[i]:'D',src:B.src?B.src[i]:'i'})).filter(x=>x.p!=null&&(!cur||x.cp===cur))}
-function rhNote(){const M=RH.method||{},r=M.reconstructed_from;if(!r)return'One point per day, as each day’s forecast was issued.';
- return `Reconstructed with the current model, using only polls released by each date (weekly from ${fmtDY(new Date(r+'T12:00:00'))}, daily from ${fmtD(new Date((M.weekly_until||r)+'T12:00:00'))}${M.appended_as_issued_from?`; each day’s own forecast from ${fmtD(new Date(M.appended_as_issued_from+'T12:00:00'))}`:''}). Nominees are today’s throughout, so before a primary the line shows the eventual matchup.`}
-function trend(el,sec,key,dn,big){if(!RH||!RH[sec])return;const nat=sec==='nat',nul=a=>a?a.map(()=>null):null;
- const T=nat?(RH.nat[key]?[RH.nat[key],nul(RH.nat[key])]:null):RH[sec][key];if(!T)return;
- const cps=T[2]||null,cur=cps?cps.filter(Boolean).pop():'D';
- const all=rhPts(RH,T,null),pts=all.filter(x=>x.cp===cur);if(!pts.length)return;const dropped=all.length-pts.length;
- const IB=RH.issued,IT=IB&&IB[sec]?(nat?(IB.nat[key]?[IB.nat[key],nul(IB.nat[key])]:null):IB[sec][key]):null,ipts=IT?rhPts(IB,IT,cur):[],iby=new Map(ipts.map(q=>[+q.d,q]));
- const box=document.createElement('div');box.className='trend';
- const t0=new Date(RH.start+'T12:00:00'),first=pts[0].d,one=pts.length===1;
- box.innerHTML=`<h4>${big?'':'Chance of winning over time'}${big?'':`<button type="button" class="enl" aria-label="Enlarge this chart">Enlarge</button>`}</h4><svg class="rtc" role="img" aria-label="${dn} and Republican chance of winning, reconstructed, ${fmtD(first)} to ${fmtD(pts[pts.length-1].d)}"></svg>`+
-  `<p class="mt-note">${rhNote()} At each day’s national mood, not the slider’s.${first>t0?` This race from ${fmtD(first)}.`:''}${one?' Only one day so far.':''}${dropped?` Days that modelled a ${cur==='I'?'Democratic':'different'} challenger are left out.`:''}</p>`;
- el.appendChild(box);if(!big){const b=box.querySelector('.enl');if(b)b.onclick=()=>{const st=key.split('|')[0],nm=sec==='house'?key:(NAMES[st]||st)+(key.includes('|sp')?' special':'')+(sec==='senate'?' Senate':' governor');bigChart(sec,key,dn,nm+' — chance of winning over time')}}
- const W=Math.max(220,Math.round(box.getBoundingClientRect().width)||300),Hh=big?Math.round(Math.min(innerHeight*0.62,Math.max(280,W*0.42))):140,m={l:38,r:40,t:10,b:22},svg=d3.select(box.querySelector('svg')).attr('viewBox',`0 0 ${W} ${Hh}`);   // drawn at the panel's own pixel width so the labels stay 11 px
- const last=pts[pts.length-1].d,x1=new Date(Math.max(+last,+t0+6*864e5)),long=(x1-t0)>70*864e5;
- const xs=d3.scaleTime().domain([t0,x1]).range([m.l,W-m.r]),ys=d3.scaleLinear().domain([0,1]).range([Hh-m.b,m.t]);
- svg.append('g').attr('class','grid').selectAll('line').data([0,.25,.5,.75,1]).join('line').attr('x1',m.l).attr('x2',W-m.r).attr('y1',ys).attr('y2',ys);
- svg.append('line').attr('x1',m.l).attr('x2',W-m.r).attr('y1',ys(.5)).attr('y2',ys(.5)).attr('stroke','#9a978e').attr('stroke-dasharray','3,3');
- svg.append('g').attr('class','ax').attr('transform',`translate(0,${Hh-m.b})`).call(d3.axisBottom(xs).ticks(long?d3.timeMonth.every(W<420?2:1):d3.timeDay.every(7)).tickFormat(long?d3.timeFormat('%b'):fmtD).tickSizeOuter(0));
- svg.append('g').attr('class','ax').attr('transform',`translate(${m.l},0)`).call(d3.axisLeft(ys).tickValues([0,.5,1]).tickFormat(v=>(100*v)+'%').tickSizeOuter(0));
- const S=[{f:p=>p,c:'#1f5fbf',t:'#0b3d91',n:dn},{f:p=>1-p,c:'#b3261e',t:'#a32215',n:'Republican'}];
- S.forEach(o=>{if(!one)svg.append('path').attr('d',d3.line().x(p=>xs(p.d)).y(p=>ys(o.f(p.p)))(pts)).attr('fill','none').attr('stroke',o.c).attr('stroke-width',2.2);
-  svg.append('g').selectAll('circle').data(pts).join('circle').attr('cx',p=>xs(p.d)).attr('cy',p=>ys(o.f(p.p))).attr('r',one?3.5:(pts.length>30?0:2)).attr('fill',o.c)});
- {const pl=pts[pts.length-1],yd=ys(pl.p),yr=ys(1-pl.p);let a=yd,b=yr;if(Math.abs(a-b)<13){const mid=(a+b)/2,s=a<=b?-1:1;a=mid+s*6.5;b=mid-s*6.5}
-  svg.append('text').attr('class','ev').attr('x',xs(pl.d)+6).attr('y',a+4).style('fill','#0b3d91').text(pct(pl.p));
-  svg.append('text').attr('class','ev').attr('x',xs(pl.d)+6).attr('y',b+4).style('fill','#a32215').text(pct(1-pl.p))}
- const g=svg.append('g').style('display','none');g.append('line').attr('y1',m.t).attr('y2',Hh-m.b).attr('stroke','#9a978e');
- const cd=g.append('circle').attr('r',3.5).attr('fill','#1f5fbf'),cr=g.append('circle').attr('r',3.5).attr('fill','#b3261e');
- const mv=e=>{const[mx]=d3.pointer(e);const i=d3.bisector(p=>p.d).center(pts,xs.invert(mx)),p=pts[i],q=iby.get(+p.d);g.style('display',null).attr('transform',`translate(${xs(p.d)},0)`);cd.attr('cy',ys(p.p));cr.attr('cy',ys(1-p.p));
-  tipAt(e,`<b>${fmtD(p.d)}</b> <span style="opacity:.8">${p.src==='r'?'reconstructed':'as issued'}</span><br>${dn} ${pct(p.p)}<br>Republican ${pct(1-p.p)}${p.m!=null?`<br>Expected ${mg(p.m,dn==='Independent'?'I':'D')}`:''}${q&&p.src==='r'?`<br><span style="opacity:.8">As issued that day: ${dn} ${pct(q.p)}</span>`:''}`)},
-  out=()=>{g.style('display','none');$('#tip').style.display='none'};
- svg.append('rect').attr('x',m.l).attr('y',m.t).attr('width',W-m.l-m.r+30).attr('height',Hh-m.t-m.b).attr('fill','transparent').on('pointermove',mv).on('pointerdown',mv).on('pointerleave',out)}
-// Enlarged chart: the same drawing at the dialog's width, so every line, dot and tooltip is the same as the small chart.
-function bigChart(sec,key,dn,title){let o=$('#bigc');if(!o){o=document.createElement('div');o.id='bigc';o.setAttribute('role','dialog');o.setAttribute('aria-modal','true');
-  o.innerHTML='<div class="bigc-box"><div class="bigc-head"><h3></h3><button type="button" class="bigc-x" aria-label="Close">×</button></div><div class="bigc-body"></div></div>';document.body.appendChild(o);
-  o.addEventListener('click',e=>{if(e.target===o)closeBig()});o.querySelector('.bigc-x').onclick=closeBig;addEventListener('keydown',e=>{if(e.key==='Escape'&&o.classList.contains('on'))closeBig()})}
- o.querySelector('h3').textContent=title;const b=o.querySelector('.bigc-body');b.innerHTML='';o.classList.add('on');document.body.style.overflow='hidden';
- o._args=[sec,key,dn,title];trend(b,sec,key,dn,true);o.querySelector('.bigc-x').focus()}
-function closeBig(){const o=$('#bigc');if(!o)return;o.classList.remove('on');document.body.style.overflow='';$('#tip').style.display='none'}
-addEventListener('resize',()=>{const o=$('#bigc');if(o&&o.classList.contains('on')&&o._args){clearTimeout(o._t);o._t=setTimeout(()=>bigChart(...o._args),200)}});
-let rsz,lastW=innerWidth;addEventListener('resize',()=>{if(innerWidth===lastW)return;lastW=innerWidth;clearTimeout(rsz);rsz=setTimeout(()=>{if(RH&&D){for(const k of ['house','senate','gov'])if(SEL[k])panel(k);odds();watch()}if(D&&D.national_vote)genDist(D.national_vote)},200)});   // width only: a phone's address bar resizes the height
-function histReady(){for(const k of ['house','senate','gov'])if(SEL[k])panel(k);odds();watch()}
-function bar(p,a,b){return `<div class="pp"><span style="color:var(--dd)">${a} ${pct(p)}</span><span style="color:var(--rd)">${pct(1-p)} ${b}</span></div><div class="pbar" role="img" aria-label="${a} ${pct(p)}, ${b} ${pct(1-p)}"><i style="width:${100*p}%"></i><i style="width:${100*(1-p)}%"></i></div>`}
-
-function buildMaps(){getJSON('data/districts_2026.topo.json').then(topo=>{
- const H=D.house,obj=topo.objects[Object.keys(topo.objects)[0]],fc=topojson.feature(topo,obj);
- const proj=d3.geoAlbersUsa().fitSize([960,600],fc),path=d3.geoPath(proj),bySeat=Object.fromEntries(H.seats.map(s=>[s.seat,s]));
- const svg=d3.select('#hmapsvg'),g=svg.append('g');
- g.selectAll('path.t').data(fc.features).join('path').attr('class',f=>'t'+((bySeat[f.properties.seat]||{}).open?' open':'')).attr('d',path).attr('data-seat',f=>f.properties.seat)
-  .on('mousemove',(e,f)=>{const s=bySeat[f.properties.seat];if(s)tipAt(e,`<b>${esc(s.seat)}</b> ${who(s)}<br>${hInd(s)?`${esc(s.challenger)} (I)`:'Democrat'} ${pct(s.p[gi])}`)}).on('mouseleave',()=>{$('#tip').style.display='none'})
-  .on('click',(e,f)=>pick('house',f.properties.seat));
- const st=f=>f.properties.seat.split('-')[0];
- g.append('path').attr('class','stb').attr('d',path(topojson.mesh(topo,obj,(a,b)=>a===b||st(a)!==st(b))));
- const zoom=d3.zoom().scaleExtent([1,24]).translateExtent([[0,0],[960,600]]).on('zoom',e=>{g.attr('transform',e.transform);$('#zreset').hidden=e.transform.k<1.001});
- svg.call(zoom);$('#zreset').addEventListener('click',()=>svg.transition().duration(400).call(zoom.transform,d3.zoomIdentity));
- const states={};obj.geometries.forEach(gm=>{const k=gm.properties.seat.split('-')[0];(states[k]=states[k]||[]).push(gm)});
- STATES=Object.entries(states).map(([k,gs])=>({st:k,f:topojson.merge(topo,gs)}));
- for(const [id,sec,key] of [['#smap','senate','senate'],['#gmap','governor','gov']]){if(!D[sec])continue;const races=Object.fromEntries(D[sec].races.map(r=>[r.state,r]));
-  d3.select(id).selectAll('path.sp').data(STATES).join('path').attr('class',d=>'sp'+(races[d.st]?'':' none')).attr('d',d=>path(d.f)).attr('data-st',d=>d.st).attr('data-sec',sec)
-   .on('mousemove',(e,d)=>{const r=races[d.st];if(r)tipAt(e,`<b>${esc(NAMES[d.st]||d.st)}</b><br>${esc(r.dem||'?')} v ${esc(r.rep||'?')}<br>${sInd(r)?'Independent':'Democrat'} ${pct(r.p[gi])}`)})
-   .on('mouseleave',()=>{$('#tip').style.display='none'}).on('click',(e,d)=>{if(races[d.st])pick(key,d.st)})}
- render();for(const k of ['house','senate','gov'])if(SEL[k])pick(k,SEL[k])})
-  .catch(e=>{console.error(e);for(const id of ['hmapsvg','smap','gmap'])document.getElementById(id).insertAdjacentHTML('beforebegin','<p class="mt-note">The map could not be loaded. Reload the page to try again.</p>')})}
-// The national House vote on Election Day: the model's own 20,000 draws (build_web.national_vote), smoothed, with a normal
-// of the same spread dashed for comparison (the draws need not be Gaussian). Hover for the chance of at least that margin.
-function genDist(N){const svg=d3.select('#gdist');svg.selectAll('*').remove();if(!N||!N.grid)return;
- const mg=v=>Math.abs(v)<.05?'Even':(v>0?'D+':'R+')+Math.abs(v).toFixed(1),q=N.q;
- // drawn at the card's own width so text stays readable on a phone (a 960-wide viewBox shrank it to ~5 px); redrawn when the tab opens
- const cw=$('#gdist').getBoundingClientRect().width||960,W=Math.round(Math.max(340,Math.min(1100,cw))),Hh=W<600?300:360,M={l:W<600?14:46,r:W<600?10:18,t:22,b:84};
- svg.attr('viewBox',`0 0 ${W} ${Hh}`);
- const pts=N.grid.map((x,i)=>({x,y:N.dens[i],n:N.normal[i]}));
- const x0=Math.max(N.grid[0],Math.min(Math.floor(q['1']-4),-8)),x1=Math.min(N.grid[N.grid.length-1],Math.ceil(q['99']+4)),P=pts.filter(p=>p.x>=x0&&p.x<=x1);
- const xs=d3.scaleLinear().domain([x0,x1]).range([M.l,W-M.r]),ymax=d3.max(P,p=>Math.max(p.y,p.n))*1.15,ys=d3.scaleLinear().domain([0,ymax]).range([Hh-M.b,M.t]);
- // cumulative from the right: P(margin >= x)
- const cum=[];let acc=0;for(let i=pts.length-1;i>=0;i--){acc+=pts[i].y*.25;cum[i]=acc}const tot=acc,atLeast=x=>{const i=Math.max(0,Math.min(pts.length-1,Math.round((x-N.grid[0])/.25)));return cum[i]/tot};
- const area=(lo,hi,fill,op)=>svg.append('path').attr('d',d3.area().x(p=>xs(p.x)).y0(ys(0)).y1(p=>ys(p.y)).curve(d3.curveBasis)(P.filter(p=>p.x>=lo-1e-9&&p.x<=hi+1e-9))).attr('fill',fill).attr('fill-opacity',op);
- svg.append('g').attr('class','grid').selectAll('line').data(ys.ticks(4).slice(1)).join('line').attr('x1',M.l).attr('x2',W-M.r).attr('y1',ys).attr('y2',ys);
- area(x0,Math.min(0,x1),'#b3261e',.55);                                   // Republicans win the vote
- area(Math.max(0,x0),x1,'#1f5fbf',.18);                                    // Democrats win it
- area(Math.max(q['10'],x0),Math.min(q['90'],x1),'#1f5fbf',.22);           // middle 80%
- area(Math.max(q['25'],x0),Math.min(q['75'],x1),'#1f5fbf',.25);           // middle 50%
- svg.append('path').attr('d',d3.line().x(p=>xs(p.x)).y(p=>ys(p.y)).curve(d3.curveBasis)(P)).attr('fill','none').attr('stroke','#0b3d91').attr('stroke-width',2.2);
- svg.append('path').attr('d',d3.line().x(p=>xs(p.x)).y(p=>ys(p.n)).curve(d3.curveBasis)(P)).attr('fill','none').attr('stroke','#6f6b64').attr('stroke-width',1.3).attr('stroke-dasharray','5,4');
- const ax=svg.append('g').attr('class','ax').attr('transform',`translate(0,${Hh-M.b})`).call(d3.axisBottom(xs).ticks(Math.max(4,Math.round(W/95))).tickFormat(v=>v===0?'Even':(v>0?'D+':'R+')+Math.abs(v)));
- ax.selectAll('text').attr('font-size',13);
- const vline=(v,lab,col,dash,dy)=>{if(v<x0||v>x1)return;svg.append('line').attr('x1',xs(v)).attr('x2',xs(v)).attr('y1',ys(0)).attr('y2',M.t+dy).attr('stroke',col).attr('stroke-width',1.4).attr('stroke-dasharray',dash||null);
-  svg.append('text').attr('class','lab').attr('x',xs(v)).attr('y',M.t+dy-6).attr('text-anchor','middle').attr('fill',col).text(lab)};
- vline(q['50'],'Median '+mg(q['50']),'#0b3d91',null,0);
- if(x0<0)vline(0,'Even','#6f6b64','3,3',22);
- // past midterms: national House vote (Clerk of the House)
- const PAST=[[2006,8.0],[2010,-6.8],[2014,-5.7],[2018,8.6],[2022,-2.8]];
- const g=svg.append('g').attr('transform',`translate(0,${Hh-M.b+34})`);
- // labels stacked in rows so close results (2006 D+8.0, 2018 D+8.6) do not print on top of each other
- const rowEnd=[];PAST.filter(([,v])=>v>=x0&&v<=x1).sort((a,b)=>a[1]-b[1]).forEach(([y,v])=>{const X=xs(v),lab=`${y} ${mg(v)}`,half=lab.length*3.4;
-  let r=0;while(rowEnd[r]!=null&&X-half<rowEnd[r]+6)r++;rowEnd[r]=X+half;
-  g.append('path').attr('d',`M${X},-6l-4,-7h8z`).attr('fill','#6f6b64');
-  g.append('text').attr('x',Math.max(half,Math.min(W-half,X))).attr('y',8+r*15).attr('text-anchor','middle').attr('font-size',12).attr('fill','#6f6b64').text(lab)});
- // hover: the chance of at least this margin
- const hv=svg.append('line').attr('y1',ys(0)).attr('y2',M.t).attr('stroke','#1b1d22').attr('stroke-width',1).style('display','none');
- svg.append('rect').attr('x',M.l).attr('y',M.t).attr('width',W-M.l-M.r).attr('height',Hh-M.b-M.t).attr('fill','transparent')
-  .on('pointermove pointerdown',e=>{const[mx]=d3.pointer(e),v=Math.round(xs.invert(mx)*2)/2;hv.style('display',null).attr('x1',xs(v)).attr('x2',xs(v));
-   const pa=atLeast(v);tipAt(e,v>0?`<b>Democrats by ${v.toFixed(1)} or more</b>: ${pct(pa)}<br>Democrats by less, or Republicans win the vote: ${pct(1-pa)}`
-    :v<0?`<b>Republicans by ${(-v).toFixed(1)} or more</b>: ${pct(1-pa)}`:`<b>Democrats win the national vote</b>: ${pct(N.p.dem)}`)})
-  .on('pointerleave',()=>{hv.style('display','none');$('#tip').style.display='none'});
- $('#gdsum').innerHTML=`Democrats win the national House vote in <b>${pct(N.p.dem)}</b> of the simulated elections. The middle 80% runs from <b>${mg(q['10'])}</b> to <b>${mg(q['90'])}</b>, the median is ${mg(q['50'])}; `
-  +`Democrats by 10 or more ${pct(N.p.d10)}, by 15 or more ${pct(N.p.d15)}; Republicans by 5 or more ${pct(N.p.r5)}.`;
- $('#distAbout').innerHTML=`<b>National House vote.</b> Each of the ${esc(N.n.toLocaleString())} simulated elections draws the national vote around today's poll trend (${mg(N.center)}) with the size of past generic-ballot misses at this distance, ${esc(N.lead)} days out (sd ${N.sd.toFixed(1)} points), in either direction: no direction is assumed for the miss`
-  +(N.early_vote&&D.mood&&D.mood.early_vote&&D.mood.early_vote.m>0?', and the part of it that is late movement is narrowed by the votes already banked':'')+`. The draws are Student-t with ${esc(N.t_df)} degrees of freedom, so the tails are fatter than a normal curve with the same spread (dashed): a miss beyond 3 sd happens in ${(100*N.p.beyond3sd).toFixed(1)}% of draws, against ${(100*N.p.beyond3sd_normal).toFixed(1)}% under the normal. The band's figure follows the slider by moving these draws with it.`;
- $('#gdnote').innerHTML=`Shading: <span style="color:var(--d)">middle 50% and 80%</span>; <span style="color:var(--r)">red</span> where Republicans win the vote. Triangles: the national House vote in past midterms. Hover for the chance of at least a given margin.`}
-// beside the pointer, flipped to its other side where it would run off the screen (a district near the right edge on a phone)
-function tipAt(e,h){const t=$('#tip');t.innerHTML=h;t.style.display='block';const w=t.offsetWidth,ht=t.offsetHeight;let x=e.clientX+14,y=e.clientY+14;if(x+w>innerWidth-8)x=Math.max(8,e.clientX-w-14);if(y+ht>innerHeight-8)y=Math.max(8,e.clientY-ht-14);t.style.left=x+'px';t.style.top=y+'px'}
-
-function render(){const H=D.house;E=+$('#E').value;gi=H.grid.reduce((b,x,i)=>Math.abs(x-E)<Math.abs(H.grid[b]-E)?i:b,0);E=H.grid[gi];
- $('#Ev').textContent=Math.abs(E)<0.05?'Even':(E>0?`Democrats +${E.toFixed(1)}`:`Republicans +${Math.abs(E).toFixed(1)}`);
- {const P=D.polls,mg1=v=>Math.abs(v)<0.05?'even':(v>0?'Democrats +':'Republicans +')+Math.abs(v).toFixed(1),at=Math.abs(E-H.E0)<1e-6;
-  $('#Evs').innerHTML=at?`Today's generic-ballot average, adjusted for each pollster's lean${P&&P.bias?` and a ${Math.abs(P.bias).toFixed(1)}-point correction`:''}. Drag the bar to redraw the forecast for a better or worse year for either party.`
-   :`Everything on this page now shows a national mood of <b>${mg1(E)}</b> instead of today's ${mg1(H.E0)}.`;
-  $('#moodAbout').innerHTML=`<b>National mood.</b> Our estimate of how the country would vote for the House right now: the generic-ballot polling average${P?` (${mg1(P.generic_now)}, after correcting for each pollster's lean)`:''}${P&&P.bias?`, minus ${Math.abs(P.bias).toFixed(1)}, which gives ${mg1(H.E0)}`:''}. The model takes it as it stands and does not assume which way the polls will miss. It is a starting point, not an assumed result: each of the 20,000 simulated elections lets the national result land away from it, typically within about ±${D.mood?D.mood.s_house.toFixed(0):4} points in the House, because polls miss, opinion moves before November, and votes do not turn into seats the same way every year. Every race then gets its own error on top. The bar in the band at the top redraws the chances for a better or worse mood for either party.`}document.documentElement.style.setProperty('--ev',E>=0?'var(--dlt)':'var(--rlt)');
- $('#reset').hidden=Math.abs(E-H.E0)<1e-6;
- const k=H.keys?H.keys[gi]:E.toFixed(1),hd=H.dist[k],sd=D.senate.dist[k],gd=D.governor?D.governor.dist[k]:null,jt=D.senate.joint?D.senate.joint[k]:null;
- heroHouse(hd);heroSenate(sd);natVote();
- $('#head').textContent=headline(hd.p_maj,sd.p_ctrl!=null?sd.p_ctrl:sd.p51plus);
- if(jt)waffle(jt);else $('#waf').parentNode.hidden=true;
- if(gd){$('#gN').textContent=gd.mean.toFixed(0);$('#gS').textContent=`8 in 10 simulations: ${gd.p10}–${gd.p90}. Democrats hold ${D.governor.now.now_d} today; a majority of 26 or more in ${pct(gd.p_d_majority)}.`}
- if(sd.p_ctrl!=null){const piv=sd.p_ctrl_id-sd.p_ctrl_ir,ind=D.senate.races.filter(r=>r.dem_party==='I').map(r=>`${esc(r.dem)} (${esc(r.state)})`);
-  $('#senAbout').innerHTML=`<b>Senate control.</b> Who organises the Senate: the Democrats, with the independents who already caucus with them, need more senators than the Republicans, because the Republican vice president breaks a 50–50 tie.${ind.length?` ${ind.join(', ')} are the independent challengers to the Republican in their states. Every headline number counts any who win as siding with neither party. In ${pct(piv)} of the simulations their choice decides control: if they side with the Democrats, Democrats control the Senate in ${pct(sd.p_ctrl_id)}; if they side with the Republicans, in ${pct(sd.p_ctrl_ir)}.`:''}`}
- else $('#senAbout').innerHTML='';
- $('#seatAbout').innerHTML=`<b>The seat charts.</b> Every dot is one seat, coloured by its race's chance at the slider's setting: solid at 95% or more for one side, likely at 80–95%, lean at 60–80%, toss-up between 40% and 60% (purple: an independent challenger's side). Seats run from the safest Democratic on the left to the safest Republican on the right, and the dashed line marks the seat that gives control: 218 in the House, 51 in the Senate, where the Republican vice president breaks a 50–50 tie. Faded Senate dots are the seats not on the ballot this year. The ratings are a summary of each race; the big chance in the middle comes from the 20,000 simulated elections, in which races move together. In the 100 squares, a split square is a divided Congress: the upper left is the House, the lower right the Senate.`;
- $$('path.t').forEach(t=>{const s=H.seats.find(x=>x.seat===t.dataset.seat);if(s)t.style.fill=col(s.p[gi])});
- $$('path.sp').forEach(p=>{const sec=D[p.dataset.sec];if(!sec)return;const r=sec.races.find(x=>x.state===p.dataset.st&&!x.special)||sec.races.find(x=>x.state===p.dataset.st);if(r)p.style.fill=col(r.p[gi])});
- $('#hsum').innerHTML=`Democrats win <b>${hd.mean.toFixed(0)}</b> seats in the average simulation; 8 in 10 land between ${esc(hd.p10)} and ${esc(hd.p90)}.`;hist('#hhist',hd.hist,218,140);
- $('#ssum').innerHTML=`Democrats hold <b>${sd.mean.toFixed(1)}</b> seats on average (${esc(sd.p10)}–${esc(sd.p90)})${sd.ind_mean?`; independents win ${sd.ind_mean.toFixed(1)} more on average, stacked on each bar (x-axis: Democratic seats)`:''}.${Object.entries(sd.decides||{}).filter(([,v])=>v>=0.005).map(([st,v])=>` ${esc(NAMES[st]||st)} decides control in ${pct(v)} of the simulations: ${esc((D.senate.late_count||{})[st]||'')}.`).join('')}`;(sd.hist2?shist('#shist',sd.hist2,170):hist('#shist',sd.hist,51,130));
- // closest House races
- const close=H.seats.map(s=>({...s,pp:s.p[gi]})).sort((a,b)=>Math.abs(a.pp-.5)-Math.abs(b.pp-.5)).slice(0,SHOW.close);
- $('#close').innerHTML=`<thead><tr><th>District</th><th>Member</th><th class="n">Lean</th><th class="n">Polls</th><th class="n">Chance ${close.some(hInd)?'D/I':'D'}</th></tr></thead><tbody>`+close.map(s=>`<tr data-k="${esc(s.seat)}"><td><b>${esc(s.seat)}</b></td><td>${who(s)}${hInd(s)?` v ${esc(s.challenger)} (I)`:''}</td><td class="n">${lean(s.lean)}</td><td class="n">${s.n_polls?mg(s.poll_margin,s.challenger_party):'–'}</td>${pc(s.pp)}</tr>`).join('')+'</tbody>';
- $$('#close tbody tr').forEach(tr=>tr.addEventListener('click',()=>{pick('house',tr.dataset.k);$('#race-house').scrollIntoView({block:'nearest',behavior:'smooth'})}));
- // Senate
- const S=D.senate,sr=S.races.map(r=>({...r,pp:r.p[gi]})).sort((a,b)=>Math.abs(a.pp-.5)-Math.abs(b.pp-.5)),scomp=sr.filter(r=>r.pp>0.03&&r.pp<0.97),sshow=SHOW.sen?sr:scomp;
- $('#sen').innerHTML='<thead><tr><th>State</th><th>Race</th><th class="n">Polls</th><th class="n">Expected</th><th class="n">Chance D/I</th></tr></thead><tbody>'+sshow.map(r=>`<tr data-k="${esc(r.state)}${r.special?'|sp':''}"><td><b>${esc(NAMES[r.state]||r.state)}</b>${r.special?' (special)':''}</td><td>${esc(r.dem||'?')}${sInd(r)?' (I)':''} v ${esc(r.rep||'?')}</td><td class="n">${r.n_polls?mg(r.poll_margin,r.dem_party):'–'}</td><td class="n">${mg(expM('senate',r),r.dem_party)}</td>${pc(r.pp)}</tr>`).join('')+'</tbody>';
- $('#senMore').textContent=SHOW.sen?`Show competitive races only`:`Show all ${sr.length} races (${sr.length-scomp.length} safe)`;
- $$('#sen tbody tr').forEach(tr=>tr.addEventListener('click',()=>{pick('senate',tr.dataset.k);$('#race-senate').scrollIntoView({block:'nearest',behavior:'smooth'})}));
- // governors
- if(D.governor){const G=D.governor,gr=G.races.map(r=>({...r,pp:r.p[gi]})).sort((a,b)=>Math.abs(a.pp-.5)-Math.abs(b.pp-.5)),gc=gr.filter(r=>r.pp>0.03&&r.pp<0.97),gs=SHOW.gov?gr:gc;
-  $('#gsum').innerHTML=`Democrats hold <b>${gd.mean.toFixed(1)}</b> governorships on average (${esc(gd.p10)}–${esc(gd.p90)}); a majority of 26 or more: ${pct(gd.p_d_majority)}. Today ${esc(G.now.now_d)} Democratic, ${esc(G.now.now_r)} Republican.`;
-  $('#gov').innerHTML='<thead><tr><th>State</th><th>Race</th><th class="n">Polls</th><th class="n">Expected</th><th class="n">Chance D</th></tr></thead><tbody>'+gs.map(r=>`<tr data-k="${esc(r.state)}"><td><b>${esc(NAMES[r.state]||r.state)}</b></td><td>${esc(r.dem||'?')} v ${esc(r.rep||'?')}${r.inc?'':' · open'}</td><td class="n">${r.n_polls?mg(r.poll_margin):'–'}</td><td class="n">${mg(expM('gov',r))}</td>${pc(r.pp)}</tr>`).join('')+'</tbody>';
-  $('#govMore').textContent=SHOW.gov?`Show competitive races only`:`Show all ${gr.length} races (${gr.length-gc.length} safe)`;
-  $$('#gov tbody tr').forEach(tr=>tr.addEventListener('click',()=>{pick('gov',tr.dataset.k);$('#race-gov').scrollIntoView({block:'nearest',behavior:'smooth'})}))}
- watch();
- for(const s of ['house','senate','gov'])if(SEL[s])panel(s)}
-
-// Senate: one bar per Democratic seat count, stacked by independent wins (0 at the bottom). Each segment is coloured by who
-// organises the Senate (pro tem; the VP breaks a tie for the Republicans): blue Democrats whatever the independents do,
-// red Republicans whatever they do, purple where the independents decide.
-function shist(sel,h2,Hh){const svg=$(sel),W=360;const P=Object.entries(h2).map(([k,v])=>{const[d,i]=k.split('|').map(Number);return{d,i,v}});
- const tot=P.reduce((a,p)=>a+p.v,0),byD={};P.forEach(p=>{(byD[p.d]=byD[p.d]||[]).push(p)});const ks=Object.keys(byD).map(Number).sort((a,b)=>a-b);
- const sum=k=>byD[k].reduce((a,p)=>a+p.v,0);let c=0,lo=ks[0],hi=ks[ks.length-1];for(const k of ks){c+=sum(k);if(c/tot>0.005){lo=k;break}}c=0;for(const k of [...ks].reverse()){c+=sum(k);if(c/tot>0.005){hi=k;break}}
- const who=(d,i)=>{const r=100-d-i;return d>r+i?'d':(d+i>r?'x':'r')},fill={d:'#1f5fbf',r:'#b3261e',x:'#7b4fa6'};
- const x0=lo-1,x1=hi+1,mx=Math.max(...ks.filter(k=>k>=lo&&k<=hi).map(sum)),base=Hh-58,sx=v=>12+(v-x0)/(x1-x0)*(W-24),sy=v=>(v/mx)*(base-24),bw=Math.max(1,(W-24)/(x1-x0)-1);
- let s='',share={d:0,r:0,x:0};P.forEach(p=>share[who(p.d,p.i)]+=p.v/tot);
- ks.filter(k=>k>=lo&&k<=hi).forEach(k=>{let y=base;byD[k].sort((a,b)=>a.i-b.i).forEach(p=>{const hgt=sy(p.v);y-=hgt;
-  s+=`<rect x="${sx(k)-bw/2}" y="${y}" width="${bw}" height="${hgt}" fill="${fill[who(p.d,p.i)]}" opacity="${p.i?.95:.85}" stroke="${p.i?'#fff':'none'}" stroke-width=".6"><title>${k} Democrats, ${p.i} independent${p.i==1?'':'s'}, ${100-k-p.i} Republicans: ${(100*p.v/tot).toFixed(1)}% of simulations</title></rect>`})});
- s+=`<line x1="${sx(50.5)}" x2="${sx(50.5)}" y1="16" y2="${base}" stroke="#1b1d22" stroke-dasharray="3 2"/><text x="${sx(50.5)+4}" y="12">51 Democratic seats</text>`;
- [lo,Math.round((lo+hi)/2),hi].forEach(t=>{s+=`<text x="${sx(t)}" y="${base+14}" text-anchor="middle">${t}</text>`});
- [['d','Democrats control',12,Hh-26],['r','Republicans control',190,Hh-26],['x','independents decide who controls',12,Hh-10]].forEach(([k,l,lx,ly])=>{s+=`<rect x="${lx}" y="${ly-8}" width="9" height="9" fill="${fill[k]}"/><text x="${lx+13}" y="${ly}">${l} ${Math.round(100*share[k])}%</text>`});
- svg.innerHTML=s}
-function hist(sel,h,thr,Hh){const svg=$(sel),W=360;const ks=Object.keys(h).map(Number).sort((a,b)=>a-b);const tot=Object.values(h).reduce((a,b)=>a+b,0);
- // trim the far tails (<0.5% of simulations) so the body is readable
- let c=0,lo=ks[0],hi=ks[ks.length-1];for(const k of ks){c+=h[k];if(c/tot>0.005){lo=k;break}}c=0;for(const k of [...ks].reverse()){c+=h[k];if(c/tot>0.005){hi=k;break}}
- const x0=lo-1,x1=hi+1,mx=Math.max(...ks.filter(k=>k>=lo&&k<=hi).map(k=>h[k]));const sx=v=>12+(v-x0)/(x1-x0)*(W-24),sy=v=>Hh-22-(v/mx)*(Hh-44),bw=Math.max(1,(W-24)/(x1-x0)-1);
- let s='';ks.filter(k=>k>=lo&&k<=hi).forEach(k=>{s+=`<rect x="${sx(k)-bw/2}" y="${sy(h[k])}" width="${bw}" height="${Hh-22-sy(h[k])}" fill="${k>=thr?'#1f5fbf':'#b3261e'}" opacity=".85"/>`});
- s+=`<line x1="${sx(thr-.5)}" x2="${sx(thr-.5)}" y1="16" y2="${Hh-22}" stroke="#1b1d22" stroke-dasharray="3 2"/><text x="${sx(thr-.5)+4}" y="12">${thr} seats for control</text>`;
- [lo,Math.round((lo+hi)/2),hi].forEach(t=>{s+=`<text x="${sx(t)}" y="${Hh-6}" text-anchor="middle">${t}</text>`});svg.innerHTML=s}
-
-function pollsTab(){const P=D.polls;if(!P)return;
- if(D.national_vote)genDist(D.national_vote);else $('#gdcard').hidden=true;
- $('#toDist').onclick=e=>{e.preventDefault();tab('polls');$('#gdcard').scrollIntoView({behavior:REDUCED?'auto':'smooth',block:'start'})};
- PollChart.mount($('#gc'),{kind:'generic',label:'Generic ballot',color:'#1f5fbf',trend:P.generic_trend,band:P.generic_band,polls:P.generic_polls,t1:P.generic_t1,ci:P.generic_ci,eday:P.generic_eday,marks:D.generic.map(a=>({label:a.source,v:a.margin}))});
- PollChart.mount($('#ac'),{kind:'approval',label:'Trump net approval',color:'#8a2d1c',trend:P.approval_trend,band:P.approval_band,polls:P.approval_polls,t1:P.approval_t1,ci:P.approval_ci});
- const he=Object.entries(P.house_effects).sort((a,b)=>b[1].effect-a[1].effect);
- $('#phouse').innerHTML='<thead><tr><th>Pollster</th><th class="n">Lean</th><th class="n">Polls, 120 days</th></tr></thead><tbody>'+he.map(([k,v])=>`<tr><td>${esc(PollChart.pname(k))}</td><td class="n" style="color:${v.effect>0?'#0b3d91':'#a32215'}">${mg(v.effect)}</td><td class="n" style="color:var(--muted)">${esc(v.polls_120d)}</td></tr>`).join('')+'</tbody>'}
-
-</script><!-- sf:start -->
+function table(){
+ const q=$('#find').value.trim().toLowerCase();
+ let rows=J.races.filter(r=>r.office===TAB&&(!q||`${r.seat} ${r.challenger} ${r.republican}`.toLowerCase().includes(q)));
+ rows.sort((a,b)=>a.seat.localeCompare(b.seat,'en',{numeric:true}));
+ const all=rows.length;rows=rows.slice(0,SHOWN);
+ const res=r=>!r.winner?`<span class="st">${r.margin!=null?'Counting':'Not called'}</span>`:`<span class="${WCLS[r.winner]||''}">${esc(r.winner==='R'?sname(r.republican):r.winner===side(r.party)?sname(r.challenger):'Other')}</span>`;
+ const miss=r=>r.margin==null?'':`${mg(r.margin-r.med,r.party)}`;
+ $('#tbl').setAttribute('aria-label',`${OFFICE[TAB]} races: forecast and result`);
+ $('#tbl').innerHTML=`<thead><tr><th>Race</th><th>Candidates</th><th class="n">Forecast chance</th><th class="n">Forecast margin</th><th>Winner</th><th class="n">Margin</th><th class="n">Gap</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.seat)}</td><td>${esc(r.challenger)} <small>v ${esc(r.republican)}</small></td><td class="n" style="color:${r.p>=.5?PCOL[side(r.party)]:PCOL.R}">${pct(r.p>=.5?r.p:1-r.p)} ${r.p>=.5?side(r.party):'R'}</td><td class="n">${mg(r.med,r.party)}<small>${mg(r.lo,r.party)} to ${mg(r.hi,r.party)}</small></td><td>${res(r)}</td><td class="n">${mg(r.margin,r.party)}${r.margin!=null&&!r.final?'<small>provisional</small>':''}</td><td class="n">${miss(r)}</td></tr>`).join('')}</tbody>`;
+ $('#more').hidden=all<=SHOWN;$('#more').textContent=`Show more (${all-SHOWN} left)`;
+}
+</script>
+<!-- sf:start -->
 <footer class="sf">
   <div class="sf-in">
     <div class="sf-group">
