@@ -71,6 +71,7 @@ td small{display:block;color:var(--muted);font-size:14px}
 .mt-more{border:0;background:none;color:var(--d);font:inherit;font-size:16px;padding:6px 0;cursor:pointer}
 .tip{position:fixed;pointer-events:none;background:#1b1d22;color:#fff;font-size:14.5px;padding:6px 9px;border-radius:6px;display:none;max-width:min(320px,calc(100vw - 16px));z-index:9}
 .mt-about{margin-top:40px;max-width:80ch}.mt-about h2{font:600 22px/1.3 "Source Serif 4",Georgia,serif;margin:0 0 6px}.mt-about h3{font:600 17px/1.3 "Source Serif 4",Georgia,serif;margin:18px 0 4px}.mt-about p{font-size:16px;line-height:1.55;margin:0 0 10px}
+.hx-nat{margin:20px 0 0;font-size:16px;color:#e8edf5}
 .mt-foot{margin-top:26px;padding:14px 0 40px;border-top:1px solid var(--rule)}
 @media(max-width:640px){.mt-in{padding:0 16px}.hx-upd{display:block;margin:2px 0 0}.sec-head h2{font-size:23px}}
 </style>
@@ -254,6 +255,7 @@ td small{display:block;color:var(--muted);font-size:14px}
    <div class="ch" id="chS"><h2>Senate</h2></div>
    <div class="ch" id="chG"><h2>Governors</h2></div>
   </div>
+  <p class="hx-nat" id="nat"></p>
  </div>
 </section>
 
@@ -284,9 +286,9 @@ td small{display:block;color:var(--muted);font-size:14px}
  <h3>What the projection is</h3>
  <p>The final forecast simulated the election 20,000 times. Each simulation shares national, state, urban and demographic-group swings across every race. This page gives each simulation a weight for how well it matches the races called so far and every count so far, and reads the seat totals and race chances from the weighted simulations. A surprise in one race therefore moves every race that shares its swings. A called race counts for its winner in every seat total. In the weights, a call counts heavily against simulations where the called winner lost by more than a few points, rather than ruling them out. With hundreds of calls, the weights would otherwise rest on a handful of simulations, so their combined pull is softened just enough to keep about 2,000 effective simulations.</p>
  <h3>The counts</h3>
- <p>A count is taken to differ from the final margin by an error that is wide while little of the vote is in and narrow once most of it is, with heavy tails so that one odd count cannot take over. A race that is still out and has a count of its own gets its chance by combining what every other call and count implies for it with its own count, read directly. Wikipedia's results tables do not say how much of the vote is counted, so it is estimated from the district's or state's 2024 presidential vote, scaled to a midterm turnout of 80 % of it (2018 ran about 90 % and 2022 about 71 %). The estimate is never allowed above 95 %. Arizona, Alaska, California, Colorado, Nevada, Oregon, Utah and Washington count most ballots after Election Day, and their late ballots can run well apart from the early count, so their counts carry extra uncertainty. Once states publish official returns with the share counted, those figures are used instead of the estimate.</p>
+ <p>A count is taken to differ from the final margin by an error with heavy tails, so that one odd count cannot take over. A race that is still out and has a count of its own gets its chance by combining what every other call and count implies for it with its own count, read directly. When the share of the vote counted is reported (official returns, or a news count with its estimate of the expected vote), the error comes from the vote still out: the uncounted ballots may run about 25 points apart from the counted ones, so a count with 4 % of the vote left is good to about a point. Wikipedia's results tables do not say how much of the vote is counted, so for those counts it is estimated from the district's or state's 2024 presidential vote, scaled to a midterm turnout of 80 % of it (2018 ran about 90 % and 2022 about 71 %). The estimate is never allowed above 95 %, and because it can be well off, such a count's error never falls below 2 points. Arizona, Alaska, California, Colorado, Nevada, Oregon, Utah and Washington count most ballots after Election Day, and their late ballots can run well apart from the early count, so their counts carry extra uncertainty. Once states publish official returns with the share counted, those figures are used instead of the estimate.</p>
  <h3>Sources and limits</h3>
- <p>Calls and counts come from Wikipedia's 2026 election pages (text available under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>), read every hour; see the <a href="./">results page</a>. Wikipedia marks winners some hours after the news organisations call them, so many races listed here as still out may already be called elsewhere. For those, the chance shown is what the forecast and every other call imply. Margins are the Democrat's (or independent's) share of the vote minus the Republican's. The simulations come from the final forecast's own frozen code and data (commit <a id="cm" href="https://github.com/scorvec/midterms-2026">in the model repository</a>), so before any call or count they reproduce the forecast within simulation noise of a few tenths of a point. This page is automated and unreviewed, and it is not a race call.</p>
+ <p>Calls and most counts come from Wikipedia's 2026 election pages (text available under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>), read every hour; see the <a href="./">results page</a>. Wikipedia marks winners some hours after the news organisations call them, so many races listed here as still out may already be called elsewhere. For those, the chance shown is what the forecast and every other call imply. Margins are the Democrat's (or independent's) share of the vote minus the Republican's. The simulations come from the final forecast's own frozen code and data (commit <a id="cm" href="https://github.com/scorvec/midterms-2026">in the model repository</a>), so before any call or count they reproduce the forecast within simulation noise of a few tenths of a point. This page is automated and unreviewed, and it is not a race call.</p>
 </section>
 
 <footer class="mt-foot"><nav class="mt-nav" aria-label="Midterm pages"><a href="./">Results</a><a href="live.html">Races still out</a><a href="forecast.html">Final forecast</a><a href="about.html">How the forecast works</a><a href="legislatures.html">State legislatures</a><a href="call.html">Claude&rsquo;s call</a></nav></footer>
@@ -319,6 +321,8 @@ function init(){
  chamber('#chH',{d:F.house.fixed_d+H.D,r:F.house.fixed_r+H.R,i:H.I,open:H.open,total:435,maj:218,P:hp,F:F.house,what:'seats',ctl:'chance of a Democratic majority'});
  chamber('#chS',{d:F.senate.holdover_d+S.D,r:F.senate.holdover_r+S.R,i:S.I,open:S.open,total:100,maj:51,P:sp,F:F.senate,what:'seats',ctl:'chance of Democratic control'});
  chamber('#chG',{d:F.governor.holdover_d+G.D,r:F.governor.holdover_r+G.R,i:G.I,open:G.open,total:50,maj:null,P:L.governor,F:F.governor,what:'governors'});
+ const fmtE=v=>Math.abs(v)<0.05?'Even':(v>0?'D+':'R+')+Math.abs(v).toFixed(1),N=L.national;
+ $('#nat').innerHTML=`National House vote, projected: ${fmtE(N.mean)} (80 % range ${fmtE(N.p10)} to ${fmtE(N.p90)}). <a href="./#national">Against every election since 1946</a>`;
  history();dist();
  $$('.mt-tabs button').forEach(b=>b.onclick=()=>{TAB=b.dataset.o;SHOWN=40;ALL=false;$$('.mt-tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));table()});
  $('#more').onclick=()=>{if(LEFT>0)SHOWN+=100;else ALL=true;table()};
@@ -390,7 +394,7 @@ function table(){
  const close=all.filter(r=>r.now.p>.02&&r.now.p<.98),rows=(ALL?all:close).slice(0,SHOWN),list=ALL?all:close;
  $('#outSub').textContent=`${all.length} race${all.length===1?'':'s'} not called yet; ${close.length} with each side above 2 %, the closest first`;
  const name=r=>r.office==='house'?r.seat:`${r.seat} ${OFFICE[r.office]}`;
- const cnt=r=>r.now.count?`${mg(r.now.count.margin,r.party)}<small>about ${Math.round(r.now.count.pct)} % in</small>`:'<span class="st">–</span>';
+ const cnt=r=>r.now.count?`${mg(r.now.count.margin,r.party)}<small>${r.now.count.est?`about ${Math.round(r.now.count.pct)}`:r.now.count.pct.toFixed(1)} % in</small>`:'<span class="st">–</span>';
  $('#tbl').setAttribute('aria-label','Races not called yet: forecast and projection');
  $('#tbl').innerHTML=`<thead><tr><th>Race</th><th>Candidates</th><th class="n">Count so far</th><th class="n">Forecast chance</th><th class="n">Chance now</th><th class="n">Projected margin</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(name(r))}</td><td>${esc(r.challenger)} <small>v ${esc(r.republican)}</small></td><td class="n">${cnt(r)}</td><td class="n">${chance(r.p,r.party)}</td><td class="n"><b>${chance(r.now.p,r.party)}</b></td><td class="n">${mg(r.now.med,r.party)}<small>${mg(r.now.lo,r.party)} to ${mg(r.now.hi,r.party)}</small></td></tr>`).join('')||'<tr><td colspan="6" class="st">None: every race in this group has been called.</td></tr>'}</tbody>`;
  LEFT=list.length-rows.length;

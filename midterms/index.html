@@ -64,9 +64,13 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(-
 .fig circle.prov{fill:#fff!important;stroke-width:1.6}
 .fig .hit{fill:transparent;cursor:pointer}
 .fig .ci{stroke:var(--ink);stroke-width:1.5}
+.fig .bd{fill:var(--d)}.fig .br{fill:var(--r)}.fig .pres{fill-opacity:.4}.fig .fc{stroke:var(--ink);stroke-width:2;stroke-dasharray:4 2}
+.fig .lab{fill:var(--ink);font-weight:600}
+#natFig{max-height:none}
 .leg{display:flex;flex-wrap:wrap;gap:2px 16px;margin:8px 0 0;padding:0;list-style:none;font-size:14.5px;color:var(--muted)}
 .leg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
 .leg i.o{background:#fff;border:1.6px solid var(--muted)}
+.leg i.sq{border-radius:2px}.leg i.ln{width:14px;height:0;border-radius:0;border-top:2px dashed var(--ink);vertical-align:3px}.leg i.wh{width:2px;height:12px;border-radius:0;background:var(--ink)}
 .ups{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
 .up{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:13px 15px}
 .up h3{font:600 18px/1.25 "Source Serif 4",Georgia,serif;margin:0}
@@ -281,6 +285,14 @@ td small{display:block;color:var(--muted);font-size:14px}
 <div class="mt-in">
 <nav class="mt-nav" aria-label="Midterm pages"><a href="./" aria-current="page">Results</a><a href="live.html">Races still out</a><a href="forecast.html">Final forecast</a><a href="about.html">How the forecast works</a><a href="legislatures.html">State legislatures</a><a href="call.html">Claude&rsquo;s call</a></nav>
 
+<section class="sec" id="national" aria-labelledby="h-nat" hidden>
+ <div class="sec-head"><div><h2 id="h-nat">The national House vote</h2><p class="sec-sub">The Democratic lead in the two-party vote for the House, against every House election since 1946</p></div></div>
+ <div class="tiles" id="natTiles"></div>
+ <div class="mt-card" style="margin-top:16px"><h3>House vote margin by election, 1946–2026</h3>
+  <svg class="fig" id="natFig" role="img" aria-label="The national House vote margin in every election since 1946, with the 2026 projection and the forecast"></svg>
+  <ul class="leg" id="natLeg"></ul></div>
+</section>
+
 <section class="sec" id="check" aria-labelledby="h-check">
  <div class="sec-head"><div><h2 id="h-check">How the forecast did</h2><p class="sec-sub">The forecast frozen at noon Eastern on Election Day, against every race called so far</p></div></div>
  <div class="tiles" id="tiles"></div>
@@ -312,8 +324,10 @@ td small{display:block;color:var(--muted);font-size:14px}
 
 <section class="mt-about" id="about" aria-labelledby="h-about"><h2 id="h-about">About this page</h2>
  <h3>The results</h3>
- <p>Calls and vote counts come from Wikipedia's 2026 election pages (text available under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>), read every hour. A race counts as called once its winner is marked there. Counts are added as editors fill in each race's results table. Until a state certifies, every margin on this page is the latest count and is marked provisional. Certified official returns replace these numbers as states certify, and from then on the official figures are used.</p>
+ <p>Calls and vote counts come from Wikipedia's 2026 election pages (text available under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>), read every hour. A race counts as called once its winner is marked there. Counts are added as editors fill in each race's results table. Until a state certifies, every margin on this page is the latest count and is marked provisional. Certified official returns replace these numbers as states certify, and from then on the official figures are used. A close race whose results table is still empty can take its count from news reports of the unofficial returns instead, with the share of the expected vote counted: Mississippi's Senate race uses the AP count as reported in the press and NBC News's estimate of the vote counted.</p>
  <p>The projections under each chamber come from the <a href="live.html">races still out</a>: the forecast's own simulations, updated with every call and count so far.</p>
+ <h3>The national House vote</h3>
+ <p>The margin is the Democratic lead as a share of the two parties' House votes, (D − R) / (D + R), the measure the forecast uses. Leads quoted as shares of every vote run a few tenths of a point smaller. Past elections are the House totals on Wikipedia's election pages. The projection is the national vote in the forecast's simulations, reweighted by every call and count so far (the <a href="live.html">races still out</a>). The counted tally is Wikipedia's national results table, read every hour once editors fill it in. Until every state has counted it runs behind the final vote, and late ballots have run Democratic in recent elections, so the shifts use the projection until the count is final. Seats with only one party on the ballot add no votes for the other, which pulls the national vote a little away from the generic ballot.</p>
  <h3>What is scored</h3>
  <p>The forecast gave each race a chance that the Republican's opponent (a Democrat, or an independent where one led the challenge) wins, and a range for the margin. The chances are scored on every called race: how often the favourite won, the Brier score (the mean squared gap between the chance and what happened; 0 is perfect, and always saying 50 % scores 0.25) and, for House seats, the same score for the race raters' average on the same seats. Margins are scored only once a count is final or certified. The figures above show provisional margins as hollow dots and final ones as solid dots. In the calibration chart, each group's bar is a 95 % interval for its share won, given how few races it holds.</p>
  <h3>The forecast</h3>
@@ -353,7 +367,7 @@ function init(){
  chamber('#chH',{d:hD,r:hR,i:H.I,open:H.open,total:435,maj:218,F:F.house,P:P('house'),what:'seats',ctl:'chance of a Democratic majority'});
  chamber('#chS',{d:sD,r:sR,i:S.I,open:S.open,total:100,maj:51,F:F.senate,P:P('senate'),what:'seats',ctl:'chance of Democratic control'});
  chamber('#chG',{d:gD,r:gR,i:G.I,open:G.open,total:50,maj:null,F:F.governor,P:P('governor'),what:'governors'});
- tiles();scatter();calib();upsets();$('#upMore').onclick=()=>{UPS=1e9;upsets()};
+ national();tiles();scatter();calib();upsets();$('#upMore').onclick=()=>{UPS=1e9;upsets()};
  $$('.mt-tabs button').forEach(b=>b.onclick=()=>{TAB=b.dataset.o;SHOWN=60;$$('.mt-tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));table()});
  $('#find').oninput=()=>{SHOWN=60;table()};$('#more').onclick=()=>{SHOWN+=120;table()};
  table();
@@ -374,6 +388,54 @@ function chamber(sel,c){
  <ul class="ch-leg"><li><i style="background:var(--dlt)"></i>Democratic <b>${c.d}</b></li>${c.i?`<li><i style="background:var(--ilt)"></i>Other <b>${c.i}</b></li>`:''}<li><i style="background:var(--ult)"></i>Not called <b>${c.open}</b></li><li><i style="background:var(--rlt)"></i>Republican <b>${c.r}</b></li></ul>
  <p class="ch-sum">Forecast: ${f.p50} Democratic ${c.what} (80 % range ${f.p10}–${f.p90})${f.p_control!=null?`, ${pct(f.p_control)} ${c.ctl}`:''}</p>${c.P&&c.open?`
  <p class="ch-sum">Projected with the calls and counts so far: ${c.P.p50} (80 % range ${c.P.p10}–${c.P.p90})${c.ctl?`, ${pct(c.P.p_control)} ${c.ctl}`:''}. <a href="live.html">The races still out</a></p>`:''}`);
+}
+
+// the national House vote: the projection, the count so far, and both against past elections and the forecast
+const fmtE=v=>Math.abs(v)<0.05?'Even':(v>0?'D+':'R+')+Math.abs(v).toFixed(1);
+const lean=v=>`${v>=0?'D':'R'} +${Math.abs(v).toFixed(1)}`;
+function national(){
+ const N=J.national;if(!N)return;
+ $('#national').hidden=false;
+ const c=N.count,P=LIVE&&LIVE.national,h=Object.fromEntries(N.history),out=[];
+ const best=c&&c.final?{v:c.margin,what:'the final count'}:P?{v:P.mean,what:'the projection'}:null;   // what the shifts use
+ out.push(P?[fmtE(P.mean),'projected national House vote',`80 % range ${fmtE(P.p10)} to ${fmtE(P.p90)}, from the calls and counts so far`]:['–','projected national House vote','the projection could not be loaded']);
+ out.push(c?[fmtE(c.margin),c.final?'final national House vote':'counted so far',`Democrats ${c.dem_pct.toFixed(1)} %, Republicans ${c.rep_pct.toFixed(1)} % of ${(c.total/1e6).toFixed(1)} million votes`]:['–','counted national House vote','Wikipedia\'s national tally is not filled in yet']);
+ if(best){
+  out.push([lean(best.v-h[2024]),'shift since 2024',`2024 ${fmtE(h[2024])}, 2022 ${fmtE(h[2022])}, 2018 ${fmtE(h[2018])}; 2026 from ${best.what}`]);
+  out.push([lean(best.v-N.forecast.center),'against the forecast',`forecast ${fmtE(N.forecast.center)}, 80 % range ${fmtE(N.forecast.p10)} to ${fmtE(N.forecast.p90)}`]);
+ }
+ $('#natTiles').innerHTML=out.map(([b,s,m])=>`<div class="tile"><b>${b}</b><span>${s}</span><small>${m}</small></div>`).join('');
+ natFig();let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(natFig,150)});
+}
+function natFig(){
+ const svg=$('#natFig'),N=J.national,c=N.count,P=LIVE&&LIVE.national,fc=N.forecast;
+ const W=Math.max(300,Math.round(svg.getBoundingClientRect().width)||700),H=W<600?250:290,L=48,T=16,Rr=10,B=26;
+ const rows=N.history.map(([y,m])=>({y,m}));
+ rows.push({y:2026,m:P?P.mean:null,P,c,fc});
+ const n=rows.length,bw=(W-L-Rr)/n,vals=[...rows.map(r=>r.m).filter(v=>v!=null),fc.p10,fc.p90,...(P?[P.p10,P.p90]:[]),...(c?[c.margin]:[])];
+ const lo=Math.min(-10,Math.floor(Math.min(...vals)/10)*10),hi=Math.max(20,Math.ceil(Math.max(...vals)/10)*10);
+ const x=k=>L+(k+.5)*bw,y=v=>T+(hi-v)/(hi-lo)*(H-T-B),y0=y(0),step=W<600?20:10;
+ let g='<g class="grid">',ax='<g class="ax">',marks='',hits='';
+ for(let v=lo;v<=hi;v+=10){g+=`<line x1="${L}" x2="${W-Rr}" y1="${y(v)}" y2="${y(v)}"/>`;ax+=`<text x="${L-6}" y="${y(v)+4}" text-anchor="end">${fmtE(v).replace('.0','')}</text>`}
+ g+='</g>';
+ rows.forEach((r,k)=>{
+  if((r.y%step===0&&r.y<=2026-step/2)||r.y===2026)ax+=`<text x="${x(k)}" y="${H-8}" text-anchor="middle">${r.y}</text>`;
+  if(r.m!=null){const y1=y(r.m),proj=r.y===2026;   // 2026 is the projection, hatched
+   marks+=`<rect class="${r.m>=0?'bd':'br'}${r.y%4?'':' pres'}" x="${x(k)-bw*.36}" y="${Math.min(y0,y1)}" width="${bw*.72}" height="${Math.max(1,Math.abs(y1-y0))}" rx="1.5"${proj?` style="fill:url(#h${r.m>=0?'d':'r'});stroke:var(--${r.m>=0?'d':'r'});stroke-width:1.5"`:''}/>`}
+  hits+=`<rect class="hit" data-k="${k}" x="${x(k)-bw/2}" y="${T}" width="${bw}" height="${H-T-B}"/>`;
+ });
+ ax+='</g>';
+ const k6=n-1,x6=x(k6);
+ if(P)marks+=`<line class="ci" x1="${x6}" x2="${x6}" y1="${y(P.p10)}" y2="${y(P.p90)}"/><text class="lab" x="${x6+bw*.5}" y="${y(P.p90)-7}" text-anchor="end">${fmtE(P.mean)} projected</text>`;
+ marks+=`<line class="fc" x1="${x6-bw*.6}" x2="${x6+bw*.6}" y1="${y(fc.center)}" y2="${y(fc.center)}"/>`;
+ if(c)marks+=`<circle class="pt prov" cx="${x6}" cy="${y(c.margin)}" r="4.5" style="stroke:var(--ink)"/>`;
+ svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+ const hatch=c=>`<pattern id="h${c}" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="#fff"/><line x1="1" x2="1" y1="0" y2="5" style="stroke:var(--${c});stroke-width:2.5"/></pattern>`;
+ svg.innerHTML=`<defs>${hatch('d')}${hatch('r')}</defs>`+g+ax+`<line class="zero" x1="${L}" x2="${W-Rr}" y1="${y0}" y2="${y0}"/>`+marks+hits;
+ bindTips(svg,rows,r=>r.y<2026?`<b>${r.y}</b>, ${r.y%4?'midterm':'presidential year'}<br>${fmtE(r.m)}: Democrats ${(50+r.m/2).toFixed(1)} % of the two-party vote`
+  :`<b>2026</b>, midterm${r.P?`<br>Projected ${fmtE(r.P.mean)} (80 %: ${fmtE(r.P.p10)} to ${fmtE(r.P.p90)})`:''}<br>Forecast ${fmtE(r.fc.center)}${r.c?`<br>${r.c.final?'Final':'Counted so far'} ${fmtE(r.c.margin)}`:''}`);
+ $('#natLeg').innerHTML='<li><i class="sq" style="background:var(--d)"></i>Democratic lead</li><li><i class="sq" style="background:var(--r)"></i>Republican lead</li><li><i class="sq" style="background:var(--muted);opacity:.4"></i>Presidential years, lighter</li>'
+  +(P?'<li><i class="sq" style="background:repeating-linear-gradient(45deg,var(--d) 0 2px,#fff 2px 4px);border:1px solid var(--d)"></i>2026 projected</li><li><i class="wh"></i>its 80 % range</li>':'')+'<li><i class="ln"></i>The forecast</li>'+(c?'<li><i class="o"></i>Counted so far</li>':'');
 }
 
 function counted(){return J.races.filter(r=>r.margin!=null)}
