@@ -451,6 +451,12 @@ TABS = {
     ],
 }
 
+# The link the synced midterms pages' navigation gains: Claude's call, the site's own page (call.html)
+MT_CALL = (
+    "State legislatures</a></nav>",
+    'State legislatures</a><a href="call.html">Claude&rsquo;s call</a></nav>',
+)
+
 # ── pages ────────────────────────────────────────────────────────────────────
 # mode:
 #   nav          replace the first <nav>…</nav>
@@ -566,18 +572,22 @@ PAGES = [
     dict(path="skewt/methodology.html", mode="nav", tabs="skewt"),
     dict(path="skewt/gaps.html", mode="nav", tabs="skewt"),
     # qbo/index.html: folded into stratosphere.html ("QBO from radiosondes"), now a redirect stub (no chrome)
+    # the synced midterms pages: their page navigation (upstream) gains the site's own midterms page, Claude's call
     dict(
-        path="midterms/index.html", mode="after-body", footer=True, synced=True
+        path="midterms/index.html", mode="after-body", footer=True, synced=True, fixes=[MT_CALL]
     ),  # 2026 midterm results and the scorecard (synced from github.com/scorvec/midterms-2026 by midterms-sync.yml)
     dict(
-        path="midterms/forecast.html", mode="after-body", footer=True, synced=True
+        path="midterms/forecast.html", mode="after-body", footer=True, synced=True, fixes=[MT_CALL]
     ),  # the final midterm forecast, frozen before the polls closed
     dict(
-        path="midterms/about.html", mode="after-body", footer=True, synced=True
+        path="midterms/about.html", mode="after-body", footer=True, synced=True, fixes=[MT_CALL]
     ),  # how the midterm forecast works + sources
     dict(
-        path="midterms/legislatures.html", mode="after-body", footer=True, synced=True
+        path="midterms/legislatures.html", mode="after-body", footer=True, synced=True, fixes=[MT_CALL]
     ),  # state legislative chambers (experimental)
+    dict(
+        path="midterms/call.html", mode="after-body", footer=True
+    ),  # Claude's call: one deterministic election night (the site's own page; data/claudes_call.json, written once)
     # the 404 body is a centring flexbox: stack it so the header spans the top and the message centres below
     dict(
         path="404.html",
