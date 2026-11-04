@@ -74,9 +74,9 @@
  },
  {
   "race": "G:FL",
-  "d": 51.4,
-  "r": 47.4,
-  "pct": 53.2,
+  "d": 51.3,
+  "r": 47.6,
+  "pct": 54,
   "skew": 3.8,
   "dn": "David Jolly",
   "rn": "Byron Donalds",
@@ -85,9 +85,9 @@
  },
  {
   "race": "S:FL",
-  "d": 50.2,
-  "r": 48.8,
-  "pct": 53.9,
+  "d": 50.7,
+  "r": 48.2,
+  "pct": 59,
   "skew": 3.8,
   "dn": "Angie Nixon",
   "rn": "Ashley Moody",
@@ -173,5 +173,16 @@
   "race": "H:GA-6",
   "call": "D",
   "note": "NBC projection 7:22 ET (McBath)"
+ },
+ {
+  "race": "H:SC-3",
+  "d": 52.2,
+  "r": 46.5,
+  "pct": 4.1,
+  "skew": 8,
+  "skew_sd": 8,
+  "dn": "Eunice Lehmacher",
+  "rn": "Sheri Biggs",
+  "note": "NBC 7:28 ET, 11,589 votes. First South Carolina batches are absentee/early ballots; skew 8 +/- 8 assumed."
  }
 ]
