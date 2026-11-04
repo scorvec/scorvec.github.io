@@ -1,9 +1,9 @@
 [
  {
   "race": "S:KY",
-  "d": 43.0,
-  "r": 54.9,
-  "pct": 40.2,
+  "d": 42.3,
+  "r": 55.6,
+  "pct": 42.4,
   "skew": 4,
   "dn": "Charles Booker",
   "rn": "Andy Barr",
@@ -15,9 +15,9 @@
   "dn": "Mark Warner",
   "rn": "Bert Mizusawa",
   "note": "NBC 8:05 ET. ",
-  "d": 58.5,
-  "r": 41.3,
-  "pct": 42.6,
+  "d": 58.1,
+  "r": 41.6,
+  "pct": 44.9,
   "skew": 0,
   "skew_sd": 4
  },
@@ -78,9 +78,9 @@
  },
  {
   "race": "G:FL",
-  "d": 49.2,
+  "d": 49.1,
   "r": 49.6,
-  "pct": 93.4,
+  "pct": 93.9,
   "skew": 0.5,
   "dn": "David Jolly",
   "rn": "Byron Donalds",
@@ -91,7 +91,7 @@
   "race": "S:FL",
   "d": 48.4,
   "r": 50.5,
-  "pct": 93.6,
+  "pct": 94.1,
   "skew": 0.4,
   "dn": "Angie Nixon",
   "rn": "Ashley Moody",
@@ -176,7 +176,7 @@
   "race": "H:FL-4",
   "d": 48.3,
   "r": 50.1,
-  "pct": 98.1,
+  "pct": 98.5,
   "skew": 1,
   "skew_sd": 2,
   "dn": "LaShonda Holloway",
@@ -185,9 +185,9 @@
  },
  {
   "race": "H:VA-2",
-  "d": 47.5,
+  "d": 47.6,
   "r": 49.7,
-  "pct": 29.0,
+  "pct": 29.2,
   "skew_sd": 6,
   "dn": "Elaine Luria",
   "rn": "Jen Kiggans",
@@ -206,9 +206,9 @@
  },
  {
   "race": "S:OH",
-  "d": 58.1,
-  "r": 38.6,
-  "pct": 33.2,
+  "d": 57.7,
+  "r": 39.0,
+  "pct": 34.1,
   "skew": 10,
   "skew_sd": 6,
   "dn": "Sherrod Brown",
@@ -232,10 +232,10 @@
  },
  {
   "race": "S:SC",
-  "d": 52.0,
-  "r": 46.4,
-  "pct": 30.9,
-  "skew": 5,
+  "d": 51.8,
+  "r": 46.5,
+  "pct": 38.6,
+  "skew": 4,
   "skew_sd": 5,
   "dn": "Annie Andrews",
   "rn": "Lindsey Graham",
@@ -263,9 +263,9 @@
  },
  {
   "race": "S:WV",
-  "d": 46.0,
-  "r": 51.4,
-  "pct": 27.6,
+  "d": 45.3,
+  "r": 52.0,
+  "pct": 30.4,
   "skew": 8,
   "skew_sd": 10,
   "dn": "Fetty Anderson",
@@ -315,9 +315,9 @@
  },
  {
   "race": "H:OH-7",
-  "d": 62.8,
-  "r": 37.2,
-  "pct": 34.7,
+  "d": 62.2,
+  "r": 37.8,
+  "pct": 37.4,
   "skew": 10,
   "skew_sd": 8,
   "note": "NBC 8:05 ET. Early/absentee first; skew 12 +/- 8."
@@ -342,9 +342,9 @@
  },
  {
   "race": "S:TX",
-  "d": 60.2,
-  "r": 38.3,
-  "pct": 22.6,
+  "d": 59.7,
+  "r": 38.8,
+  "pct": 23.1,
   "skew": 12,
   "skew_sd": 7,
   "note": "NBC 8:09 ET. Big-county early votes still dominate; D share fell from 73 to 65 as more came in; skew 17 +/- 9.",
@@ -353,9 +353,9 @@
  },
  {
   "race": "H:VA-1",
-  "d": 49.6,
-  "r": 50.1,
-  "pct": 53.0,
+  "d": 49.1,
+  "r": 50.7,
+  "pct": 55.0,
   "skew": 0,
   "skew_sd": 6,
   "note": "NBC 8:05 ET. Virginia mixes precincts and central absentee; no skew, +/- 6."
@@ -406,18 +406,18 @@
  },
  {
   "race": "S:KS",
-  "d": 58.0,
-  "r": 39.9,
-  "pct": 11.4,
+  "d": 57.4,
+  "r": 40.6,
+  "pct": 12.1,
   "skew": 18,
   "skew_sd": 10,
   "note": "NBC 8:09 ET. First Kansas batches are early/advance ballots from Johnson/Wyandotte; skew 18 +/- 10."
  },
  {
   "race": "H:PA-8",
-  "d": 71.6,
-  "r": 28.4,
-  "pct": 16.0,
+  "d": 70.2,
+  "r": 29.8,
+  "pct": 18.8,
   "skew": 20,
   "skew_sd": 10,
   "note": "NBC 8:17 ET. Pennsylvania counts mail ballots first (heavily D); skew 22 +/- 10 while under ~15% in."
@@ -503,9 +503,9 @@
  },
  {
   "race": "S:MI",
-  "d": 58.5,
-  "r": 39.8,
-  "pct": 5.6,
+  "d": 57.4,
+  "r": 41.0,
+  "pct": 6.5,
   "dn": "Abdul El-Sayed",
   "rn": "Mike Rogers",
   "skew": 18,
@@ -535,13 +535,28 @@
  },
  {
   "race": "S:OK",
-  "d": 49.6,
-  "r": 47.7,
-  "pct": 10.4,
+  "d": 48.3,
+  "r": 48.9,
+  "pct": 11.5,
   "dn": "Thomas",
   "rn": "Kevin Hern",
   "skew": 15,
   "skew_sd": 10,
   "note": "NBC 8:24 ET. Early batches (Oklahoma/Tulsa counties, early votes) lean D; skew 15 +/- 10."
+ },
+ {
+  "race": "H:PA-2",
+  "call": "D",
+  "note": "NBC projection 8:29 ET (Boyle)"
+ },
+ {
+  "race": "H:IN-7",
+  "call": "D",
+  "note": "NBC projection 8:27 ET (Carson)"
+ },
+ {
+  "race": "H:NH-1",
+  "call": "D",
+  "note": "NBC projection 8:26 ET (Shaheen)"
  }
 ]
