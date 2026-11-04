@@ -724,7 +724,8 @@
   const day = iso => new Date(iso.slice(0, 10) + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 
   // midterm card: each chamber's seats as called, on the forecast page's seat arcs (results_summary.json carries one
-  // character per seat, most Democratic first); on any failure the dashes stay and the card still links
+  // character per seat, most Democratic first), and how the frozen forecast did; on any failure the dashes stay and the
+  // card still links
   const FILL = ['#4a8af0', '#8db4f2', '#c6d8f6', '#e6dcc5', '#f5c3b9', '#ec8a7b', '#de4f3e'], FILLI = ['#a57bdc', '#c2a6e8', '#ddd0f2'];
   // seats in concentric rows filled left to right in the given order, laid out as on the forecast page: 0 a Democratic
   // win, 3 not called, 6 a Republican win, an independent's seat ('a') purple, a Senate seat not up ('D'/'R') a ring
@@ -763,7 +764,9 @@
       arc(svg, c.seats, maj, what);
       svg.setAttribute('aria-label', `${name} seats as called: ${c.d} Democratic, ${c.r} Republican${other(c)}, ${c.open} not called`);
     }
-    $set('mt-sub', `Forecast: ${H.forecast_d} Democratic House seats and ${S.forecast_d} Senate seats. Updated ${day(s.generated)}.`);
+    const ck = s.check;
+    $set('mt-sub', (ck ? `The forecast's favourite won ${ck.won} of the ${ck.called} races called so far. ` : '') +
+                   `Forecast: ${H.forecast_d} Democratic House seats, ${S.forecast_d} Senate seats. Updated ${day(s.generated)}.`);
     if (H.i || S.i)
       document.querySelector('#mt-key .ring').parentElement.insertAdjacentHTML('beforebegin', `<span><i style="background:${FILLI[0]}"></i>Independent</span>`);
     document.getElementById('mt-key').hidden = false;
