@@ -1,9 +1,9 @@
 [
  {
   "race": "S:KY",
-  "d": 44.3,
-  "r": 53.6,
-  "pct": 55.8,
+  "d": 44.2,
+  "r": 53.7,
+  "pct": 56.4,
   "skew": 2,
   "dn": "Charles Booker",
   "rn": "Andy Barr",
@@ -42,10 +42,8 @@
  },
  {
   "race": "H:KY-4",
-  "d": 35.5,
-  "r": 61.0,
-  "pct": 2.6,
-  "note": "NBC 7:02 ET"
+  "call": "R",
+  "note": "NBC projection 8:45 ET (Gallrein)"
  },
  {
   "race": "H:IN-2",
@@ -264,21 +262,17 @@
  },
  {
   "race": "H:FL-1",
-  "d": 37.3,
-  "r": 60.9,
-  "pct": 84.8,
+  "d": 36.0,
+  "r": 62.2,
+  "pct": 92.6,
   "skew": 2,
   "skew_sd": 5,
   "note": "NBC 8:05 ET. Panhandle polls closed at 8 ET; first batch is mail/early; skew 5 +/- 5."
  },
  {
   "race": "H:FL-2",
-  "d": 48.8,
-  "r": 51.2,
-  "pct": 93.5,
-  "skew": 1,
-  "skew_sd": 2,
-  "note": "NBC 8:37 ET, 280,178 votes. Rogers (R) took the lead; the 267k->280k batch ran ~R+43; skew 2 +/- 2."
+  "call": "R",
+  "note": "NBC projection 8:46 ET (Rogers 52.1-47.9)"
  },
  {
   "race": "S:NH",
@@ -396,9 +390,9 @@
  },
  {
   "race": "S:KS",
-  "d": 62.2,
-  "r": 35.8,
-  "pct": 18.2,
+  "d": 61.7,
+  "r": 36.3,
+  "pct": 18.5,
   "skew": 18,
   "skew_sd": 10,
   "note": "NBC 8:09 ET. First Kansas batches are early/advance ballots from Johnson/Wyandotte; skew 18 +/- 10."
@@ -471,14 +465,8 @@
  },
  {
   "race": "H:NC-11",
-  "d": 60.8,
-  "r": 38.0,
-  "pct": 77.0,
-  "dn": "Ager",
-  "rn": "Balkcom",
-  "skew": 10,
-  "skew_sd": 6,
-  "note": "NBC 8:20 ET. Count is mostly early votes, Buncombe-heavy; remaining rural Election Day vote leans strongly R; skew 15 +/- 8 (it moved the national estimate 0.5 pt at skew 10)."
+  "call": "D",
+  "note": "NBC projection 8:45 ET (Ager), Democratic flip"
  },
  {
   "race": "H:TX-34",
@@ -525,9 +513,9 @@
  },
  {
   "race": "S:OK",
-  "d": 45.1,
-  "r": 51.9,
-  "pct": 19.6,
+  "d": 44.0,
+  "r": 53.0,
+  "pct": 20.6,
   "dn": "Thomas",
   "rn": "Kevin Hern",
   "skew": 14,
