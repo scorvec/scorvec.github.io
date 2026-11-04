@@ -190,11 +190,11 @@
   "d": 52.4,
   "r": 46.1,
   "pct": 70.9,
-  "skew": 4,
-  "skew_sd": 4,
+  "skew": 12,
+  "skew_sd": 5,
   "dn": "LaShonda Holloway",
   "rn": "Aaron Bean",
-  "note": "NBC 7:28 ET, 211,888 votes. Duval-heavy early count now diluted (D lead fell from 16 to 6 as more came in); skew 4 +/- 4 for the rest being Election Day votes in Clay/St. Johns."
+  "note": "NBC 7:28 ET, 211,888 votes at 70.9%. The last batch (179,896 -> 211,888 votes) ran ~R+38, i.e. the Election Day vote outside Duval; if the remaining ~29% runs like it the final is ~R+6.6, so skew 12 +/- 5."
  },
  {
   "race": "H:VA-2",
