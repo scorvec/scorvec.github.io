@@ -1054,5 +1054,16 @@
   "skew": -3,
   "skew_sd": 6,
   "note": "NBC 11:08 ET. First Washington mail drop; later ballots tend to lean D; skew -3 +/- 6."
+ },
+ {
+  "race": "S:ID",
+  "d": 50.6,
+  "r": 40.9,
+  "pct": 14.6,
+  "skew": 23,
+  "skew_sd": 8,
+  "dn": "Todd Achilles",
+  "rn": "Jim Risch",
+  "note": "NBC 11:10 ET. Only Ada (42% in, Achilles +12.6 vs Trump +10.3 in 2024), Nez Perce and Payette reporting; 41 of 44 counties at 0. A ~23-pt swing on Trump +36.5 statewide still leaves Risch ~+13; skew 23 +/- 8."
  }
 ]
