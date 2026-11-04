@@ -192,7 +192,7 @@
   "race": "S:OH",
   "d": 48.5,
   "r": 46.6,
-  "pct": 86.2,
+  "pct": 86.5,
   "skew": 1,
   "skew_sd": 3,
   "dn": "Sherrod Brown",
@@ -272,21 +272,17 @@
  },
  {
   "race": "G:NH",
-  "d": 47.4,
-  "r": 51.0,
-  "pct": 60.6,
+  "d": 48.0,
+  "r": 50.3,
+  "pct": 70.4,
   "skew": 1,
   "skew_sd": 3,
   "note": "NBC 8:05 ET. "
  },
  {
   "race": "G:OH",
-  "d": 50.6,
-  "r": 46.1,
-  "pct": 80.4,
-  "skew": 3,
-  "skew_sd": 4,
-  "note": "NBC 8:05 ET. Same as Senate; skew 12 +/- 6."
+  "note": "NBC projected Acton (D) ~11:00 ET; Dem gain. Call-only.",
+  "call": "D"
  },
  {
   "race": "H:OH-7",
@@ -308,9 +304,9 @@
  },
  {
   "race": "G:SC",
-  "d": 47.1,
-  "r": 51.6,
-  "pct": 87.1,
+  "d": 47.0,
+  "r": 51.7,
+  "pct": 97.6,
   "skew": 1,
   "skew_sd": 2,
   "note": "NBC 8:05 ET. Same as Senate; skew 6 +/- 5."
@@ -334,9 +330,9 @@
  },
  {
   "race": "G:VT",
-  "d": 46.7,
-  "r": 51.6,
-  "pct": 85.3,
+  "d": 46.3,
+  "r": 52.0,
+  "pct": 91.6,
   "skew": 0,
   "skew_sd": 3,
   "note": "NBC 8:05 ET. "
@@ -378,9 +374,9 @@
  },
  {
   "race": "S:KS",
-  "d": 52.6,
+  "d": 52.5,
   "r": 44.5,
-  "pct": 84.4,
+  "pct": 84.8,
   "skew": 6,
   "skew_sd": 5,
   "note": "NBC 10:43 ET. Batches since 74% running R+14 to R+26; skew 6 +/- 5."
@@ -479,9 +475,9 @@
  },
  {
   "race": "S:MI",
-  "d": 51.8,
-  "r": 46.4,
-  "pct": 29.2,
+  "d": 51.5,
+  "r": 46.6,
+  "pct": 29.8,
   "dn": "Abdul El-Sayed",
   "rn": "Mike Rogers",
   "skew": 15,
@@ -501,8 +497,8 @@
  {
   "race": "H:NC-1",
   "d": 49.4,
-  "r": 47.4,
-  "pct": 93.8,
+  "r": 47.3,
+  "pct": 94.1,
   "dn": "Don Davis",
   "rn": "Buckhout",
   "skew": 1.5,
@@ -531,9 +527,9 @@
  },
  {
   "race": "G:TX",
-  "d": 55.9,
-  "r": 42.8,
-  "pct": 58.6,
+  "d": 57.4,
+  "r": 41.4,
+  "pct": 66.2,
   "skew": 10,
   "skew_sd": 6,
   "dn": "Gina Hinojosa",
@@ -552,18 +548,18 @@
  },
  {
   "race": "G:KS",
-  "d": 54.2,
-  "r": 45.8,
-  "pct": 70.2,
+  "d": 51.8,
+  "r": 48.2,
+  "pct": 84.8,
   "skew": 7,
   "skew_sd": 8,
   "note": "NBC 8:41 ET. Advance ballots from Johnson/Wyandotte first; skew 18 +/- 10."
  },
  {
   "race": "G:MI",
-  "d": 55.5,
-  "r": 42.9,
-  "pct": 24.2,
+  "d": 53.4,
+  "r": 45.0,
+  "pct": 29.9,
   "skew": 14,
   "skew_sd": 10,
   "note": "NBC 8:41 ET. Absentee first; skew 18 +/- 10."
@@ -584,9 +580,9 @@
  },
  {
   "race": "H:PA-1",
-  "d": 53.7,
-  "r": 46.3,
-  "pct": 69.4,
+  "d": 53.6,
+  "r": 46.4,
+  "pct": 72.0,
   "skew": 10,
   "skew_sd": 8,
   "note": "NBC 8:50 ET. Bucks mail ballots counted first; skew 20 +/- 8."
@@ -595,7 +591,7 @@
   "race": "H:MI-7",
   "d": 44.3,
   "r": 54.5,
-  "pct": 50.0,
+  "pct": 50.3,
   "dn": "Lawrence",
   "rn": "Barrett",
   "skew": -4,
@@ -614,9 +610,9 @@
  },
  {
   "race": "S:NE",
-  "d": 51.2,
+  "d": 51.1,
   "r": 43.4,
-  "pct": 41.9,
+  "pct": 43.2,
   "dn": "Dan Osborn",
   "rn": "Pete Ricketts",
   "skew": 11,
@@ -625,9 +621,9 @@
  },
  {
   "race": "H:NE-2",
-  "d": 58.7,
-  "r": 39.1,
-  "pct": 62.7,
+  "d": 58.4,
+  "r": 39.3,
+  "pct": 63.9,
   "dn": "Powell",
   "rn": "Harding",
   "skew": 5,
@@ -671,9 +667,9 @@
  },
  {
   "race": "G:TN",
-  "d": 43.3,
-  "r": 45.1,
-  "pct": 75.3,
+  "d": 43.6,
+  "r": 45.0,
+  "pct": 86.1,
   "skew": 4,
   "skew_sd": 5,
   "note": "NBC 9:04 ET. Same as Senate; skew 12 +/- 8."
@@ -690,20 +686,20 @@
  },
  {
   "race": "S:IA",
-  "d": 51.0,
-  "r": 45.3,
-  "pct": 57.9,
+  "d": 52.3,
+  "r": 44.2,
+  "pct": 70.6,
   "dn": "Josh Turek",
   "rn": "Ashley Hinson",
-  "skew": 9,
-  "skew_sd": 6,
-  "note": "NBC 10:57 ET. Batch 54.8->57.9% ran ~R+17; trend projects ~R+3 to R+4; skew 9 +/- 6."
+  "skew": 3,
+  "skew_sd": 5,
+  "note": "NBC 11:04 ET. Batch 57.9->70.6% ran ~D+19 (absentee/urban); skew 3 +/- 5."
  },
  {
   "race": "G:IA",
-  "d": 58.7,
-  "r": 41.3,
-  "pct": 47.8,
+  "d": 58.1,
+  "r": 41.9,
+  "pct": 68.6,
   "dn": "Rob Sand",
   "rn": "Lahn",
   "skew": 22,
@@ -712,9 +708,9 @@
  },
  {
   "race": "H:IA-3",
-  "d": 57.8,
-  "r": 42.2,
-  "pct": 74.9,
+  "d": 57.2,
+  "r": 42.8,
+  "pct": 76.8,
   "dn": "Trone Garriott",
   "rn": "Zach Nunn",
   "skew": 10,
@@ -748,10 +744,10 @@
  },
  {
   "race": "S:MS",
-  "d": 46.9,
-  "r": 50.9,
-  "pct": 79.1,
-  "skew": -3,
+  "d": 47.1,
+  "r": 50.7,
+  "pct": 81.5,
+  "skew": -2.5,
   "skew_sd": 3,
   "note": "NBC 10:51 ET county projection: Hinds (~30k left, Colom +66), DeSoto/Jackson (~45k left, near even) and 10 unreported counties (size-weighted Trump ~+4 in 2024). Completed counties swing ~20 vs Harris. Projects final ~R+1 to R+2; skew -3 +/- 3."
  },
@@ -805,9 +801,9 @@
  },
  {
   "race": "H:WI-3",
-  "d": 52.9,
-  "r": 45.4,
-  "pct": 65.1,
+  "d": 53.1,
+  "r": 45.2,
+  "pct": 66.5,
   "dn": "Cooke",
   "rn": "Van Orden",
   "skew": 2,
@@ -861,21 +857,17 @@
   "race": "S:LA",
   "d": 45.3,
   "r": 54.7,
-  "pct": 81.5,
-  "skew": -5,
+  "pct": 82.3,
+  "skew": -4,
   "skew_sd": 3,
   "note": "NBC 10:57 ET. Orleans partly in now; county projection ~R+4; skew -5 +/- 3."
  },
  {
   "race": "G:WI",
-  "d": 54.7,
-  "r": 45.3,
-  "pct": 65.1,
   "dn": "Crowley",
   "rn": "Tiffany",
-  "skew": 4,
-  "skew_sd": 6,
-  "note": "NBC 9:42 ET; early Wisconsin count; skew 4 +/- 8."
+  "note": "NBC projected Crowley (D) ~11:00 ET. Call-only.",
+  "call": "D"
  },
  {
   "race": "H:OH-1",
@@ -895,25 +887,25 @@
  },
  {
   "race": "H:IA-1",
-  "d": 46.6,
-  "r": 49.4,
-  "pct": 38.7,
+  "d": 54.5,
+  "r": 42.1,
+  "pct": 51.7,
   "dn": "Bohannan",
   "rn": "Miller-Meeks",
-  "skew": 8,
-  "skew_sd": 10,
-  "note": "NBC 10:32 ET. Early count was precinct-heavy (MMM led), latest batch ran ~D+28 (absentees arriving); mixed, skew 8 +/- 10."
+  "skew": 3,
+  "skew_sd": 6,
+  "note": "NBC 11:04 ET. Large D batch (likely Johnson/Scott absentees) gave Bohannan the lead; skew 3 +/- 6."
  },
  {
   "race": "S:ME",
-  "d": 50.6,
-  "r": 49.4,
-  "pct": 33.8,
+  "d": 50.1,
+  "r": 49.9,
+  "pct": 36.4,
   "dn": "Troy Jackson",
   "rn": "Susan Collins",
-  "skew": -4,
+  "skew": -2,
   "skew_sd": 4,
-  "note": "NBC 9:48 ET. Town comparison vs 2024 (Press Herald town results + MEDSL 2024): Collins running ~2 pts better than Trump on median, implying ~Jackson +5 statewide (Harris +6.9 in 2024); early count is rural-heavy, so skew -4 +/- 4."
+  "note": "NBC 11:04 ET. Latest Maine batch ran ~R+13; town-based skew cut to -2 +/- 4."
  },
  {
   "race": "H:MO-6",
@@ -922,9 +914,9 @@
  },
  {
   "race": "H:TX-28",
-  "d": 64.2,
-  "r": 29.8,
-  "pct": 28.6,
+  "d": 67.0,
+  "r": 28.0,
+  "pct": 57.0,
   "dn": "Henry Cuellar",
   "rn": "Tijerina",
   "skew": 8,
@@ -940,9 +932,9 @@
  },
  {
   "race": "H:ME-2",
-  "d": 46.4,
-  "r": 53.6,
-  "pct": 35.8,
+  "d": 46.2,
+  "r": 53.8,
+  "pct": 40.0,
   "skew": -4,
   "skew_sd": 5,
   "dn": "Dunlap",
@@ -951,9 +943,9 @@
  },
  {
   "race": "G:ME",
-  "d": 51.5,
-  "r": 40.2,
-  "pct": 21.6,
+  "d": 51.1,
+  "r": 40.7,
+  "pct": 35.1,
   "skew": -4,
   "skew_sd": 5,
   "dn": "Pingree",
@@ -988,9 +980,9 @@
  },
  {
   "race": "G:AZ",
-  "d": 58.4,
-  "r": 40.1,
-  "pct": 65.9,
+  "d": 58.5,
+  "r": 40.0,
+  "pct": 66.3,
   "skew": 5,
   "skew_sd": 6,
   "note": "NBC 10:13 ET. Arizona early ballots first; skew 5 +/- 6."
@@ -1004,9 +996,9 @@
  },
  {
   "race": "S:MT",
-  "d": 35.8,
-  "r": 50.6,
-  "pct": 15.4,
+  "d": 38.9,
+  "r": 48.1,
+  "pct": 21.2,
   "dn": "Seth Bodnar",
   "rn": "Kurt Alme",
   "skew": 0,
@@ -1021,5 +1013,35 @@
   "race": "H:OH-15",
   "call": "D",
   "note": "NBC projected Leonard (D) 10:43 ET (51.8-45.4); % in not shown, call only."
+ },
+ {
+  "race": "S:OR",
+  "call": "D",
+  "note": "NBC projected Merkley (D) ~11:00 ET."
+ },
+ {
+  "race": "G:CA",
+  "call": "D",
+  "note": "NBC projected Becerra (D) at poll close."
+ },
+ {
+  "race": "S:MN",
+  "d": 45.9,
+  "r": 51.3,
+  "pct": 25.0,
+  "dn": "Flanagan",
+  "rn": "Tafoya",
+  "skew": -3,
+  "skew_sd": 6,
+  "note": "NBC 11:04 ET. Minnesota early count rural-heavy; skew -3 +/- 6."
+ },
+ {
+  "race": "G:MN",
+  "d": 48.0,
+  "r": 50.3,
+  "pct": 23.2,
+  "skew": -3,
+  "skew_sd": 6,
+  "note": "NBC 11:04 ET. Rural-heavy early count; skew -3 +/- 6."
  }
 ]
