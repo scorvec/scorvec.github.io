@@ -43,5 +43,20 @@
   "gov_mean": 27.7,
   "ess": 14338,
   "n_obs": 9
+ },
+ {
+  "at": "2026-11-04T00:07Z",
+  "nat": 10.72,
+  "house_p": 0.9715,
+  "senate_p": 0.8326,
+  "house_mean": 251.4,
+  "house_p10": 227,
+  "house_p90": 279,
+  "senate_mean": 52.69,
+  "senate_p10": 49,
+  "senate_p90": 56,
+  "gov_mean": 27.7,
+  "ess": 13856,
+  "n_obs": 9
  }
 ]
