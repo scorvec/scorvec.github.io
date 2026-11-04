@@ -1,9 +1,9 @@
 [
  {
   "race": "S:KY",
-  "d": 44.4,
-  "r": 53.7,
-  "pct": 17.1,
+  "d": 43.7,
+  "r": 54.4,
+  "pct": 18.1,
   "skew": 13,
   "dn": "Charles Booker",
   "rn": "Andy Barr",
@@ -74,10 +74,10 @@
  },
  {
   "race": "G:FL",
-  "d": 49.7,
-  "r": 49.1,
-  "pct": 61.7,
-  "skew": 3.2,
+  "d": 49.4,
+  "r": 49.4,
+  "pct": 64.4,
+  "skew": 3.0,
   "dn": "David Jolly",
   "rn": "Byron Donalds",
   "note": "NBC/AP 7:32 ET (57.6% expected in). Florida registration method: more Election Day precincts in, so skew falls to 3.5 +/- 3.",
@@ -85,10 +85,10 @@
  },
  {
   "race": "S:FL",
-  "d": 50.1,
-  "r": 48.8,
-  "pct": 74.2,
-  "skew": 2.6,
+  "d": 49.8,
+  "r": 49.1,
+  "pct": 76.8,
+  "skew": 2.3,
   "dn": "Angie Nixon",
   "rn": "Ashley Moody",
   "note": "NBC/AP 7:38 ET (72.2% expected in). The 64.1->72.2% batch ran ~D+15 (likely a large South Florida county); remaining vote still Election Day-heavy, so registration-method skew ~3, +/- 3.5 for county mix.",
@@ -204,10 +204,10 @@
  },
  {
   "race": "H:FL-3",
-  "d": 49.1,
-  "r": 49.3,
-  "pct": 61.7,
-  "skew": 4,
+  "d": 48.5,
+  "r": 49.8,
+  "pct": 62.7,
+  "skew": 3,
   "skew_sd": 5,
   "dn": "Seth Harp",
   "rn": "Kat Cammack",
@@ -220,9 +220,9 @@
  },
  {
   "race": "S:OH",
-  "d": 66.8,
-  "r": 30.3,
-  "pct": 6.2,
+  "d": 66.6,
+  "r": 30.4,
+  "pct": 8.7,
   "skew": 18,
   "skew_sd": 8,
   "dn": "Sherrod Brown",
@@ -243,5 +243,21 @@
   "race": "H:FL-11",
   "call": "R",
   "note": "NBC projection 7:42 ET (Strada 52.8-46.1)"
+ },
+ {
+  "race": "S:SC",
+  "d": 50.4,
+  "r": 48.4,
+  "pct": 8.3,
+  "skew": 8,
+  "skew_sd": 6,
+  "dn": "Annie Andrews",
+  "rn": "Lindsey Graham",
+  "note": "NBC 7:44 ET. Early SC batches are absentee/early ballots (lean D; Andrews fell from 57 to 50 as precincts came in); skew 8 +/- 6."
+ },
+ {
+  "race": "H:VT-1",
+  "call": "D",
+  "note": "NBC projection 7:43 ET (Balint)"
  }
 ]
