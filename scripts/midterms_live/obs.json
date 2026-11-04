@@ -202,10 +202,10 @@
  },
  {
   "race": "S:OH",
-  "d": 57.0,
-  "r": 39.5,
-  "pct": 35.2,
-  "skew": 10,
+  "d": 56.4,
+  "r": 40.1,
+  "pct": 36.3,
+  "skew": 9,
   "skew_sd": 6,
   "dn": "Sherrod Brown",
   "rn": "Jon Husted",
@@ -259,14 +259,8 @@
  },
  {
   "race": "S:WV",
-  "d": 42.8,
-  "r": 54.3,
-  "pct": 38.7,
-  "skew": 6,
-  "skew_sd": 10,
-  "dn": "Fetty Anderson",
-  "rn": "Shelley Moore Capito",
-  "note": "NBC 8:05 ET. Early batches lean D; skew 15 +/- 10."
+  "call": "R",
+  "note": "NBC projection 8:38 ET (Capito)"
  },
  {
   "race": "H:FL-1",
@@ -320,9 +314,9 @@
  },
  {
   "race": "H:OH-9",
-  "d": 46.4,
-  "r": 53.6,
-  "pct": 22.6,
+  "d": 43.9,
+  "r": 56.1,
+  "pct": 24.7,
   "skew": 6,
   "skew_sd": 6,
   "note": "NBC 8:05 ET. Early/absentee first; skew 8 +/- 8."
@@ -338,9 +332,9 @@
  },
  {
   "race": "S:TX",
-  "d": 59.5,
-  "r": 39.0,
-  "pct": 24.7,
+  "d": 59.0,
+  "r": 39.5,
+  "pct": 25.7,
   "skew": 12,
   "skew_sd": 7,
   "note": "NBC 8:33 ET. Early votes from the big urban counties (Harris, Dallas, Travis, Bexar) report first; rural Election Day votes come later; skew 12 +/- 7.",
@@ -403,8 +397,8 @@
  {
   "race": "S:KS",
   "d": 57.5,
-  "r": 40.4,
-  "pct": 14.1,
+  "r": 40.3,
+  "pct": 14.4,
   "skew": 18,
   "skew_sd": 10,
   "note": "NBC 8:09 ET. First Kansas batches are early/advance ballots from Johnson/Wyandotte; skew 18 +/- 10."
@@ -499,9 +493,9 @@
  },
  {
   "race": "S:MI",
-  "d": 57.2,
-  "r": 41.2,
-  "pct": 8.8,
+  "d": 57.1,
+  "r": 41.3,
+  "pct": 9.1,
   "dn": "Abdul El-Sayed",
   "rn": "Mike Rogers",
   "skew": 18,
@@ -531,9 +525,9 @@
  },
  {
   "race": "S:OK",
-  "d": 48.9,
-  "r": 48.2,
-  "pct": 15.8,
+  "d": 47.9,
+  "r": 49.2,
+  "pct": 16.5,
   "dn": "Thomas",
   "rn": "Kevin Hern",
   "skew": 14,
