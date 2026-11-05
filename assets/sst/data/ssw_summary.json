@@ -1,5 +1,5 @@
 {
- "built": "2026-11-05 13:04Z",
+ "built": "2026-11-05 14:15Z",
  "newest_init": "2026-11-05 06Z",
  "window": [
   "2026-11-06",
@@ -18,18 +18,13 @@
  "ssw": {
   "models": {
    "aifs": {
-    "init": "2026-11-05 00Z",
+    "init": "2026-11-05 06Z",
     "members": 51,
-    "share": 0.96,
-    "wmo": 0.96,
-    "u10_min_mean": -1.8,
-    "u10_min_p10": -3.9,
+    "share": 0.9,
+    "wmo": 0.9,
+    "u10_min_mean": -1.2,
+    "u10_min_p10": -2.6,
     "runs": [
-     [
-      "2026-10-06T00",
-      0.0,
-      null
-     ],
      [
       "2026-10-06T06",
       0.0,
@@ -629,6 +624,11 @@
       "2026-11-05T00",
       0.96,
       0.96
+     ],
+     [
+      "2026-11-05T06",
+      0.9,
+      0.9
      ]
     ]
    },
@@ -1543,8 +1543,8 @@
     ]
    }
   },
-  "share_mean": 0.97,
-  "wmo_mean": 0.97,
+  "share_mean": 0.96,
+  "wmo_mean": 0.96,
   "wmo_models": 4,
   "base_rate": {
    "winters": 46,
@@ -1556,15 +1556,15 @@
  "waves": {
   "models": {
    "aifs": {
-    "init": "2026-11-05 00Z",
+    "init": "2026-11-05 06Z",
     "members": 50,
     "wave2_share": 0.1,
-    "z_peak": 0.5,
+    "z_peak": 0.2,
     "z_peak_day": 1,
-    "flux_min": 10.1,
+    "flux_min": 8.8,
     "ri_event_share": 0.0,
     "z_can_min": -0.2,
-    "z_sib_max": 0.2
+    "z_sib_max": -0.0
    },
    "ifs": {
     "init": "2026-11-05 00Z",
@@ -1606,24 +1606,24 @@
  "descent": {
   "models": {
    "aifs": {
-    "init": "2026-11-05 00Z",
+    "init": "2026-11-05 06Z",
     "members": 51,
-    "cap100_day15": 1.2,
-    "cap10_day15": 2.3,
-    "frac100_day15": 0.55,
-    "cross100": "2026-10-27",
+    "cap100_day15": 1.1,
+    "cap10_day15": 2.2,
+    "frac100_day15": 0.63,
+    "cross100": "2026-11-16",
     "cross10": "2026-10-29",
-    "kind": "bottom-up"
+    "kind": "top-down"
    },
    "aifsc": {
-    "init": "2026-11-05 00Z",
+    "init": "2026-11-05 06Z",
     "members": 1,
-    "cap100_day15": 0.4,
-    "cap10_day15": 2.2,
+    "cap100_day15": 1.1,
+    "cap10_day15": 2.6,
     "frac100_day15": null,
-    "cross100": "2026-10-27",
+    "cross100": "2026-11-14",
     "cross10": "2026-10-29",
-    "kind": "bottom-up"
+    "kind": "top-down"
    },
    "aifs1": {
     "init": "2026-11-05 06Z",
@@ -1676,14 +1676,14 @@
     "kind": "top-down"
    }
   },
-  "kind": "bottom-up"
+  "kind": "top-down"
  },
  "reflect": {
   "verdict": "quiet",
-  "shear_init": "2026-11-05 00Z",
-  "shear_min": 8.2,
-  "shear_max": 48.0,
-  "shear_normal": 23.4,
+  "shear_init": "2026-11-05 06Z",
+  "shear_min": 8.1,
+  "shear_max": 45.8,
+  "shear_normal": 23.3,
   "zonal_mean_downward": [],
   "canada_downward": [],
   "active": [],
@@ -1700,7 +1700,7 @@
      "2026-12-20"
     ],
     "cap100_day15": 1.2,
-    "frac100_day15": 0.55
+    "frac100_day15": 0.63
    },
    "ifs": {
     "init": "2026-11-05 00Z",
@@ -1792,24 +1792,24 @@
  "clock": {
   "models": {
    "aifs": {
-    "init": "2026-11-05 00Z",
+    "init": "2026-11-05 06Z",
     "onset": "2026-11-11",
     "wind_days": 10,
-    "wind": -1.25,
-    "third": 0,
+    "wind": -1.12,
+    "third": 1,
     "start_dates": [
      "2026-11-12",
-     "2026-11-12",
-     "2026-11-14"
+     "2026-11-15",
+     "2026-11-19"
     ],
-    "sea": -0.96,
+    "sea": -1.16,
     "sea_days": [
      6,
      9
     ],
     "sea_past": [
-     -0.91,
-     2.27
+     -1.09,
+     0.53
     ],
     "sea_drift_removed": true
    },
@@ -2728,31 +2728,31 @@
     "items": {
      "source": {
       "days": 6,
-      "value": 1.68,
+      "value": 1.48,
       "met": true,
       "tested": true
      },
      "tilt": {
       "days": 6,
-      "value": 37.3,
+      "value": 38.9,
       "met": false,
       "tested": true
      },
      "flux": {
       "days": 15,
-      "value": 1.74,
+      "value": 1.63,
       "met": true,
       "tested": true
      },
      "upward": {
       "days": 15,
-      "value": 10.2,
+      "value": 9.3,
       "met": true,
       "tested": true
      },
      "slowing": {
       "days": 15,
-      "value": 18.7,
+      "value": 18.5,
       "met": false,
       "tested": true
      }
