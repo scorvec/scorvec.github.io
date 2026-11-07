@@ -20,8 +20,10 @@
 //   MIRROR cdn.jsdelivr.net @<sha>, then @frames (a branch path there can be 12 h old)
 //   local  the copy on main, where one still exists
 // Everything after the CDN is a silent fallback: a page says nothing about hosts unless the CDN itself has failed
-// in this tab. There is deliberately no load-time probe of RAW: on a network that blocks GitHub it would flip the tab
-// to jsDelivr and report RAW unreachable while the CDN was serving every frame.
+// in this tab. A tab parked off the store still asks it last, since some products live only there (the ensemble
+// maps' data), and a file the store serves un-parks the tab. There is deliberately no load-time probe of RAW: on a
+// network that blocks GitHub it would flip the tab to jsDelivr and report RAW unreachable while the CDN was serving
+// every frame.
 (function () {
   var STORE = "https://scorvec-store.b-cdn.net/";
   var CDN = "https://frames.scorvec.com/";
@@ -60,7 +62,10 @@
       try { sessionStorage.setItem(BAD_KEY, String(Date.now())); } catch (e) {}
     }
   }
-  function served() { cdnServed = true; strikes = 0; }
+  function served() {
+    cdnServed = true; strikes = 0;
+    if (cdnBad) { cdnBad = false; try { sessionStorage.removeItem(BAD_KEY); } catch (e) {} }   // it answers after all
+  }
   function stalled(url) {
     if (cdnBad || cdnServed || probing || probes >= STRIKES + 1 || typeof fetch !== "function") return;
     probing = true; probes++;
@@ -116,6 +121,7 @@
     mir.push(MIRROR + rel + q);
     if (onMirror) out = out.concat(mir, [RAW + rel + q]);
     else out = out.concat([RAW + rel + q], mir);
+    if (cdnBad && STORE) out.push(STORE + rel);         // parked, but the only host of a store-only file
     if (local) out.push(local + q);
     return out;
   }
