@@ -1,14 +1,14 @@
 {
-  "updated": "2026-11-07T13:10Z",
+  "updated": "2026-11-07T17:45Z",
   "stations": {
     "NGTA": {
       "name": "Tarawa",
       "lat": 1.4,
       "lon": 173.0,
-      "time": "2026-11-07T08:00Z",
-      "dir": 230,
-      "spd_kt": 9,
-      "u_ms": 3.5
+      "time": "2026-11-07T16:00Z",
+      "dir": 110,
+      "spd_kt": 3,
+      "u_ms": -1.5
     },
     "PLCH": {
       "name": "Christmas Is.",
