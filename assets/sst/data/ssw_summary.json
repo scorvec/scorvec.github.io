@@ -1,5 +1,5 @@
 {
- "built": "2026-11-07 17:17Z",
+ "built": "2026-11-07 18:28Z",
  "newest_init": "2026-11-07 12Z",
  "window": [
   "2026-11-08",
@@ -1666,10 +1666,10 @@
     "kind": "bottom-up"
    },
    "aifs1": {
-    "init": "2026-11-07 06Z",
+    "init": "2026-11-07 12Z",
     "members": 1,
     "cap100_day15": 0.5,
-    "cap10_day15": 1.0,
+    "cap10_day15": 0.9,
     "frac100_day15": null,
     "cross100": "2026-10-27",
     "cross10": "2026-10-29",
@@ -1723,7 +1723,7 @@
   "shear_init": "2026-11-07 06Z",
   "shear_min": 5.1,
   "shear_max": 47.0,
-  "shear_normal": 22.9,
+  "shear_normal": 23.4,
   "zonal_mean_downward": [],
   "canada_downward": [],
   "active": [],
