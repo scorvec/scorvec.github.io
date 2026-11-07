@@ -1,5 +1,5 @@
 {
- "built": "2026-11-07 06:39Z",
+ "built": "2026-11-07 06:51Z",
  "newest_init": "2026-11-07 00Z",
  "window": [
   "2026-11-08",
@@ -18,18 +18,13 @@
  "ssw": {
   "models": {
    "aifs": {
-    "init": "2026-11-06 18Z",
+    "init": "2026-11-07 00Z",
     "members": 51,
-    "share": 0.96,
-    "wmo": 0.96,
-    "u10_min_mean": -1.2,
-    "u10_min_p10": -2.0,
+    "share": 1.0,
+    "wmo": 1.0,
+    "u10_min_mean": -1.8,
+    "u10_min_p10": -3.0,
     "runs": [
-     [
-      "2026-10-07T18",
-      0.0,
-      null
-     ],
      [
       "2026-10-08T00",
       0.0,
@@ -629,6 +624,11 @@
       "2026-11-06T18",
       0.96,
       0.96
+     ],
+     [
+      "2026-11-07T00",
+      1.0,
+      1.0
      ]
     ]
    },
@@ -1573,8 +1573,8 @@
     ]
    }
   },
-  "share_mean": 0.99,
-  "wmo_mean": 0.99,
+  "share_mean": 1.0,
+  "wmo_mean": 1.0,
   "wmo_models": 4,
   "base_rate": {
    "winters": 46,
@@ -1586,15 +1586,15 @@
  "waves": {
   "models": {
    "aifs": {
-    "init": "2026-11-06 18Z",
+    "init": "2026-11-07 00Z",
     "members": 50,
-    "wave2_share": 0.15,
-    "z_peak": 0.2,
+    "wave2_share": 0.23,
+    "z_peak": 0.4,
     "z_peak_day": 13,
-    "flux_min": 7.8,
+    "flux_min": 8.0,
     "ri_event_share": 0.0,
-    "z_can_min": -0.2,
-    "z_sib_max": -0.1
+    "z_can_min": -0.3,
+    "z_sib_max": 0.2
    },
    "ifs": {
     "init": "2026-11-06 12Z",
@@ -1630,30 +1630,30 @@
     "z_sib_max": 0.3
    }
   },
-  "wave2_share_mean": 0.15,
+  "wave2_share_mean": 0.17,
   "kind": "wave-1"
  },
  "descent": {
   "models": {
    "aifs": {
-    "init": "2026-11-06 18Z",
+    "init": "2026-11-07 00Z",
     "members": 51,
-    "cap100_day15": 0.9,
+    "cap100_day15": 1.2,
     "cap10_day15": 1.7,
-    "frac100_day15": 0.39,
-    "cross100": "2026-10-27",
+    "frac100_day15": 0.63,
+    "cross100": "2026-11-20",
     "cross10": "2026-10-29",
-    "kind": "bottom-up"
+    "kind": "top-down"
    },
    "aifsc": {
-    "init": "2026-11-06 18Z",
+    "init": "2026-11-07 00Z",
     "members": 1,
-    "cap100_day15": 1.0,
-    "cap10_day15": 1.9,
+    "cap100_day15": 1.9,
+    "cap10_day15": 1.7,
     "frac100_day15": null,
-    "cross100": "2026-10-27",
+    "cross100": "2026-11-20",
     "cross10": "2026-10-29",
-    "kind": "bottom-up"
+    "kind": "top-down"
    },
    "aifs1": {
     "init": "2026-11-07 00Z",
@@ -1710,9 +1710,9 @@
  },
  "reflect": {
   "verdict": "quiet",
-  "shear_init": "2026-11-06 18Z",
-  "shear_min": 6.3,
-  "shear_max": 45.8,
+  "shear_init": "2026-11-07 00Z",
+  "shear_min": 2.0,
+  "shear_max": 46.5,
   "shear_normal": 23.5,
   "zonal_mean_downward": [],
   "canada_downward": [],
@@ -1730,7 +1730,7 @@
      "2026-12-21"
     ],
     "cap100_day15": 1.1,
-    "frac100_day15": 0.39
+    "frac100_day15": 0.63
    },
    "ifs": {
     "init": "2026-11-06 12Z",
@@ -1822,17 +1822,17 @@
  "clock": {
   "models": {
    "aifs": {
-    "init": "2026-11-06 18Z",
-    "onset": "2026-11-10",
+    "init": "2026-11-07 00Z",
+    "onset": "2026-11-11",
     "wind_days": 11,
-    "wind": -0.95,
+    "wind": -0.92,
     "third": 1,
     "start_dates": [
-     "2026-11-11",
-     "2026-11-14",
-     "2026-11-18"
+     "2026-11-12",
+     "2026-11-15",
+     "2026-11-19"
     ],
-    "sea": -1.58,
+    "sea": -1.39,
     "sea_days": [
      6,
      11
@@ -2750,21 +2750,21 @@
  "checklist": {
   "models": {
    "aifs": {
-    "onset": "2026-11-10",
+    "onset": "2026-11-11",
     "window": [
-     "2026-10-26",
-     "2026-11-09"
+     "2026-10-27",
+     "2026-11-10"
     ],
     "items": {
      "source": {
       "days": 4,
-      "value": 1.2,
+      "value": 1.21,
       "met": true,
       "tested": true
      },
      "tilt": {
       "days": 4,
-      "value": 38.8,
+      "value": 37.8,
       "met": false,
       "tested": true
      },
@@ -2776,14 +2776,14 @@
      },
      "upward": {
       "days": 15,
-      "value": 8.9,
+      "value": 9.2,
       "met": true,
       "tested": true
      },
      "slowing": {
       "days": 15,
-      "value": 21.1,
-      "met": true,
+      "value": 18.4,
+      "met": false,
       "tested": true
      }
     }
