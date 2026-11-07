@@ -11,8 +11,8 @@ mean sea-level pressure, which the days 1-15 Arctic Oscillation is calibrated wi
           areas) onto the WMO 1.5 deg grid with poles (121 x 240, WeatherBench 2's), the members also onto the 2.5 deg
           grid of the teleconnection patterns north of 20N, in whole metres (int16).
           The ensembles' sea-level pressure at the same steps from MSL_SINCE, as the ensemble mean on the patterns'
-          grid in hPa (ens-msl-<m>_<init>.npz, ``run_msl``): IFS-ENS's and GEFS's published means where they publish
-          one (IFS-ENS: em, the control and 50 members; GEFS: geavg, the control and 30), else every member's mean.
+          grid in hPa (ens-msl-<m>_<init>.npz, ``run_msl``): GEFS's published mean (geavg, the control and 30
+          members), the others' members averaged (the open data's IFS-ENS files carry no mean).
   truth   ERA5 at 00Z of each day (ARCO, 0.25 deg) on the same grid, era5-z500_<YYYYMMDD00>.npz, once ARCO holds it
           (its ERA5T, about a week behind real time); its sea-level pressure on the patterns' grid, era5-msl_.
   clim    The anomalies' normal: ERA5 1991-2020 at 00Z, the hour of the fields, from WeatherBench 2's 6-hourly
@@ -70,8 +70,8 @@ SINCE = {
     "GEPS": START,
     **dict.fromkeys(DET, START),
 }
-# each ensemble's first run with its sea-level pressure: IFS-ENS and GEFS as their 500 hPa height, from their published
-# means; AIFS-ENS and GEPS from every member, from the oldest run GEPS's HPFX still held when they were added
+# each ensemble's first run with its sea-level pressure: IFS-ENS and GEFS as their 500 hPa height; AIFS-ENS and GEPS
+# from the oldest run GEPS's HPFX still held when they were added
 MSL_SINCE = {"IFS-ENS": "2024030100", "GEFS": "2024030100", "AIFS-ENS": "2026092100", "GEPS": "2026092100"}
 GIVE_UP_DAYS = 365  # a run this old is scored with the models it has (a backfill can still fetch any other source)
 RECENT_DAYS = 30  # runs this new without their scores yet are scored at the leads ERA5 covers (``table``)
@@ -175,20 +175,11 @@ def msl_file(model: str, init: str) -> str:
     return f"ens-msl-{E.ENSEMBLES[model]}_{init}.npz"
 
 
-def msl_bytes(model: str, init: str, lead: int, work: Path, published: dict) -> tuple[bytes, str]:
-    """One step's sea-level pressure: the mean the centre publishes (IFS-ENS's em, in the members' file, while the run
-    has it: ``published``; GEFS's own mean file), else every member's field."""
-    day, hh = init[:8], init[8:]
+def msl_bytes(model: str, init: str, lead: int, work: Path) -> tuple[bytes, str]:
+    """One step's sea-level pressure: GEFS's own mean file, the other ensembles' every member."""
     if model == "GEFS":
-        url = E.GEFS_URL.format(d=day, h=hh, m=E.GEFS_MEAN, L=lead)
+        url = E.GEFS_URL.format(d=init[:8], h=init[8:], m=E.GEFS_MEAN, L=lead)
         return E.gefs_member(url, E.GEFS["msl"]), E.GEFS_MEAN
-    if model == "IFS-ENS" and published.get(model, True):
-        url = f"{D.GOOGLE}/{day}/{hh}z/ifs/0p25/enfo/{day}{hh}0000-{lead}h-enfo-ef"
-        try:
-            return E.ecmwf_bytes(url, set(E.ECMWF["msl"]), ("em",)), "em"
-        except RuntimeError as e:  # no mean in the file's index
-            print(f"::warning::IFS-ENS {init} +{lead} h: {e}; the members' mean from here", flush=True)
-            published[model] = False
     f = E.fetch(model, init, lead, "msl", work / f"msl-{E.ENSEMBLES[model]}_{init}_{lead:03d}.grib2")
     blob = f.read_bytes()
     f.unlink()
@@ -197,9 +188,9 @@ def msl_bytes(model: str, init: str, lead: int, work: Path, published: dict) -> 
 
 def run_msl(model: str, init: str, work: Path, out: Path) -> None:
     """One run's ensemble-mean sea-level pressure at 00Z of each day to day 15, on the patterns' grid, in hPa."""
-    mean, source, count, published = [], [], [], {}
+    mean, source, count = [], [], []
     for lead in E.LEADS:
-        blob, kind = msl_bytes(model, init, lead, work, published)
+        blob, kind = msl_bytes(model, init, lead, work)
         msgs = messages(blob, "msl")
         if kind != "members" and len(msgs) != 1:
             raise RuntimeError(f"{model} {init} +{lead} h: {len(msgs)} messages of the published mean")
