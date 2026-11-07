@@ -95,9 +95,9 @@ PRODUCTS = [
                     (
                         "/circulation.html#telecon15",
                         "Teleconnections",
-                        "The NAO, PNA, EPO, WPO and seven more 500 hPa teleconnection patterns from every member of the IFS-ENS, AIFS-ENS, GEFS and GEPS runs, each ensemble calibrated against its own archived runs, with the chance of each phase only at the leads where it has shown skill and how the forecast has moved from run to run.",
+                        "The AO, NAO, PNA, EPO, WPO and seven more teleconnection patterns from every member of the IFS-ENS, AIFS-ENS, GEFS and GEPS runs, each ensemble calibrated against its own archived runs, with the chance of each phase only at the leads where it has shown skill and how the forecast has moved from run to run.",
                         "Twice daily",
-                        "NAO, PNA, EPO and more, calibrated",
+                        "AO, NAO, PNA and more, calibrated",
                     ),
                     (
                         "/circulation.html#tc",

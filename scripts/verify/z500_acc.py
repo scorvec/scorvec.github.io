@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """500 hPa height of every model in the verification database, and its anomaly correlation against ERA5, the WMO lead
-centres' headline score (verification.html draws it as NCEP EMC does, a time series for each lead).
+centres' headline score (verification.html draws it as NCEP EMC does, a time series for each lead); and the ensembles'
+mean sea-level pressure, which the days 1-15 Arctic Oscillation is calibrated with (scripts/ensmaps/telecon15.py).
 
   fields  For each 00Z run, the 500 hPa height at 00Z of every day of the forecast: GFS, the IFS control, AIFS and
           GDPS to day 10 (z500-<m>_<init>.npz), and IFS-ENS, AIFS-ENS, GEFS and GEPS to day 15, as the ensemble mean
@@ -9,12 +10,16 @@ centres' headline score (verification.html draws it as NCEP EMC does, a time ser
           (mverify_scores, ens_verify). Every field is remapped conservatively (``remap``: the overlap of the cells'
           areas) onto the WMO 1.5 deg grid with poles (121 x 240, WeatherBench 2's), the members also onto the 2.5 deg
           grid of the teleconnection patterns north of 20N, in whole metres (int16).
+          The ensembles' sea-level pressure at the same steps from MSL_SINCE, as the ensemble mean on the patterns'
+          grid in hPa (ens-msl-<m>_<init>.npz, ``run_msl``): IFS-ENS's and GEFS's published means where they publish
+          one (IFS-ENS: em, the control and 50 members; GEFS: geavg, the control and 30), else every member's mean.
   truth   ERA5 at 00Z of each day (ARCO, 0.25 deg) on the same grid, era5-z500_<YYYYMMDD00>.npz, once ARCO holds it
-          (its ERA5T, about a week behind real time).
+          (its ERA5T, about a week behind real time); its sea-level pressure on the patterns' grid, era5-msl_.
   clim    The anomalies' normal: ERA5 1991-2020 at 00Z, the hour of the fields, from WeatherBench 2's 6-hourly
           conservative 1.5 deg ERA5 (the same grid), each slot of the 366-day calendar (29 February = 59, 1 March = 60
           in every year) the mean of the days within 7 slots of it in all 30 years. Built once (verify-clim.yml),
-          release verify-clim-z500-v1.
+          release verify-clim-z500-v1. --field msl: sea-level pressure the same way at 00Z and 12Z, in hPa
+          (telecon15.yml, with the teleconnections' reference).
   acc     Per run, each model and lead over 20-80N and 20-80S (EMC's areas), cosine-of-latitude weighted: the anomaly
           correlation, centred (each anomaly less its area mean; WMO-No. 485) and uncentred, the RMSE, the mean error
           and the standard deviation of each anomaly field. acc_<init>.parquet, once ERA5 covers the run's day 15 and
@@ -25,6 +30,7 @@ A run whose files the database holds is not fetched again, and no file is ever r
     python z500_acc.py fields --model GEPS --inits 2026091600 2026092000 --have have.txt --archive-out db-new
     python z500_acc.py truth --first 20260514 --last 20261020 --have have.txt --archive-out db-new
     python z500_acc.py clim --out clim_z500_1p5.npz
+    python z500_acc.py clim --field msl --out clim_msl_1p5.npz
     python z500_acc.py acc --list --have have.txt
     python z500_acc.py acc --init 2026051300 2026051400 --derived db --clim clim_z500_1p5.npz --have have.txt --archive-out db-new
     python z500_acc.py recent --have have.txt    # the files verify_figs.py scores the newest runs from
@@ -64,14 +70,18 @@ SINCE = {
     "GEPS": START,
     **dict.fromkeys(DET, START),
 }
+# each ensemble's first run with its sea-level pressure: IFS-ENS and GEFS as their 500 hPa height, from their published
+# means; AIFS-ENS and GEPS from every member, from the oldest run GEPS's HPFX still held when they were added
+MSL_SINCE = {"IFS-ENS": "2024030100", "GEFS": "2024030100", "AIFS-ENS": "2026092100", "GEPS": "2026092100"}
 GIVE_UP_DAYS = 365  # a run this old is scored with the models it has (a backfill can still fetch any other source)
 RECENT_DAYS = 30  # runs this new without their scores yet are scored at the leads ERA5 covers (``table``)
 
 
 # --------------------------------------------------------------------------- fields
-def messages(blob: bytes) -> list[tuple[int, np.ndarray, np.ndarray, np.ndarray]]:
-    """(member, latitudes, longitudes, 500 hPa height in metres) of every GRIB message of a download. The unit is read
-    from the magnitude, as ensmaps.to_units does: AIFS publishes geopotential, and ECCC files have carried decametres."""
+def messages(blob: bytes, field: str = "z500") -> list[tuple[int, np.ndarray, np.ndarray, np.ndarray]]:
+    """(member, latitudes, longitudes, values) of every GRIB message of a download: 500 hPa height in metres, or with
+    field msl sea-level pressure in hPa. The unit is read from the magnitude, as ensmaps.to_units does: AIFS publishes
+    geopotential, ECCC files have carried decametres, and pressure comes in Pa."""
     import eccodes
 
     out, i = [], 0
@@ -96,9 +106,14 @@ def messages(blob: bytes) -> list[tuple[int, np.ndarray, np.ndarray, np.ndarray]
         finally:
             eccodes.codes_release(gid)
         med = float(np.median(v[::7, ::7]))
-        v = v / G if med > 20000 else v * 10.0 if med < 1000 else v
-        if not 4500 < np.median(v) < 6200:
-            raise RuntimeError(f"500 hPa height of member {num}: median {np.median(v):.0f} m, not a 500 hPa field")
+        if field == "msl":
+            v = v / 100.0 if med > 2000 else v
+            if not 950 < np.median(v) < 1050:
+                raise RuntimeError(f"sea-level pressure of member {num}: median {np.median(v):.0f} hPa")
+        else:
+            v = v / G if med > 20000 else v * 10.0 if med < 1000 else v
+            if not 4500 < np.median(v) < 6200:
+                raise RuntimeError(f"500 hPa height of member {num}: median {np.median(v):.0f} m, not a 500 hPa field")
         out.append((num, lat, lon, v))
     return out
 
@@ -156,18 +171,73 @@ def run_fields(model: str, init: str, work: Path, out: Path) -> None:
     )
 
 
+def msl_file(model: str, init: str) -> str:
+    return f"ens-msl-{E.ENSEMBLES[model]}_{init}.npz"
+
+
+def msl_bytes(model: str, init: str, lead: int, work: Path, published: dict) -> tuple[bytes, str]:
+    """One step's sea-level pressure: the mean the centre publishes (IFS-ENS's em, in the members' file, while the run
+    has it: ``published``; GEFS's own mean file), else every member's field."""
+    day, hh = init[:8], init[8:]
+    if model == "GEFS":
+        url = E.GEFS_URL.format(d=day, h=hh, m=E.GEFS_MEAN, L=lead)
+        return E.gefs_member(url, E.GEFS["msl"]), E.GEFS_MEAN
+    if model == "IFS-ENS" and published.get(model, True):
+        url = f"{D.GOOGLE}/{day}/{hh}z/ifs/0p25/enfo/{day}{hh}0000-{lead}h-enfo-ef"
+        try:
+            return E.ecmwf_bytes(url, set(E.ECMWF["msl"]), ("em",)), "em"
+        except RuntimeError as e:  # no mean in the file's index
+            print(f"::warning::IFS-ENS {init} +{lead} h: {e}; the members' mean from here", flush=True)
+            published[model] = False
+    f = E.fetch(model, init, lead, "msl", work / f"msl-{E.ENSEMBLES[model]}_{init}_{lead:03d}.grib2")
+    blob = f.read_bytes()
+    f.unlink()
+    return blob, "members"
+
+
+def run_msl(model: str, init: str, work: Path, out: Path) -> None:
+    """One run's ensemble-mean sea-level pressure at 00Z of each day to day 15, on the patterns' grid, in hPa."""
+    mean, source, count, published = [], [], [], {}
+    for lead in E.LEADS:
+        blob, kind = msl_bytes(model, init, lead, work, published)
+        msgs = messages(blob, "msl")
+        if kind != "members" and len(msgs) != 1:
+            raise RuntimeError(f"{model} {init} +{lead} h: {len(msgs)} messages of the published mean")
+        if count and kind == "members" == source[-1] and len(msgs) != count[-1]:
+            raise RuntimeError(f"{model} {init} +{lead} h: {len(msgs)} members, not those of the step before")
+        _, lat, lon, _ = msgs[0]
+        mean.append(remap(np.mean([v for *_, v in msgs], axis=0), lat, lon, G25N))  # the members share a grid
+        source.append(kind)
+        count.append(len(msgs))
+    np.savez_compressed(
+        out / msl_file(model, init),
+        lead_h=np.array(E.LEADS),
+        msl=np.stack(mean).astype(np.float32),
+        source=np.array(source),
+        n_fields=np.array(count, np.int16),
+        lat=G25N.lat,
+        lon=G25N.lon,
+    )
+    print(f"{model} {init}: sea-level pressure from {', '.join(sorted(set(source)))} ({max(count)} fields)", flush=True)
+
+
 def fields(a) -> None:
-    """The runs of one model the database lacks. A run its source no longer holds (HPFX's GDPS and GEPS past their
-    days, a 404; a bucket answers 403) is left out with a warning, as mverify_scores.download does: no later pass
-    can fetch it, so it is not a failure."""
+    """The runs of one model the database lacks, and the ensembles' sea-level pressure of runs from MSL_SINCE that
+    lack it. A run its source no longer holds (HPFX's GDPS and GEPS past their days, a 404; a bucket answers 403) is
+    left out with a warning, as mverify_scores.download does: no later pass can fetch it, so it is not a failure."""
     have = _have(a.have)
     a.archive_out.mkdir(parents=True, exist_ok=True)
     a.work.mkdir(parents=True, exist_ok=True)
     for init in D.runs(*a.inits):
-        if file_of(a.model, init) in have:
+        z500 = file_of(a.model, init) not in have
+        msl = a.model in MSL_SINCE and init >= MSL_SINCE[a.model] and msl_file(a.model, init) not in have
+        if not (z500 or msl):
             continue
         try:
-            run_fields(a.model, init, a.work, a.archive_out)
+            if z500:
+                run_fields(a.model, init, a.work, a.archive_out)
+            if msl:
+                run_msl(a.model, init, a.work, a.archive_out)
         except urllib.error.HTTPError as e:
             if e.code not in (403, 404):
                 raise
@@ -177,81 +247,104 @@ def fields(a) -> None:
 
 
 # --------------------------------------------------------------------------- truth and normal
-def truth_file(day: pd.Timestamp) -> str:
-    return f"era5-z500_{day:%Y%m%d}00.npz"
+def truth_file(day: pd.Timestamp, field: str = "z500") -> str:
+    return f"era5-{field}_{day:%Y%m%d}00.npz"
 
 
 def truth(a) -> None:
+    """ERA5's 500 hPa height on the verification grid (z) and its sea-level pressure on the patterns' grid (msl, hPa)
+    at 00Z of each day the database lacks, each archived once ARCO holds it."""
     import xarray as xr
 
     have = _have(a.have)
     a.archive_out.mkdir(parents=True, exist_ok=True)
     ds = xr.open_zarr(ARCO, chunks=None, storage_options={"token": "anon"})
     stop = pd.Timestamp(ds.attrs["valid_time_stop_era5t"])
-    z = ds["geopotential"].sel(level=500)
-    lat, lon = z["latitude"].values, z["longitude"].values
+    read = {
+        "z500": (ds["geopotential"].sel(level=500), 1.0 / G, G15, "z"),
+        "msl": (ds["mean_sea_level_pressure"], 0.01, G25N, "msl"),
+    }
     for day in pd.date_range(pd.Timestamp(a.first), min(pd.Timestamp(a.last), stop), freq="D"):
-        if truth_file(day) in have:
-            continue
-        v = z.sel(time=day).transpose("latitude", "longitude").values / G
-        if not np.isfinite(v).all():
-            print(f"::warning::ERA5 {day:%Y-%m-%d} 00Z: incomplete in ARCO, left for the next pass", flush=True)
-            continue
-        np.savez_compressed(a.archive_out / truth_file(day), z=remap(v, lat, lon, G15))
-        print(f"ERA5 {day:%Y-%m-%d} 00Z: archived", flush=True)
+        for field, (x, scale, grid, key) in read.items():
+            if truth_file(day, field) in have:
+                continue
+            v = x.sel(time=day).transpose("latitude", "longitude").values * scale
+            if not np.isfinite(v).all():
+                print(f"::warning::ERA5 {field} {day:%Y-%m-%d} 00Z: incomplete in ARCO, for the next pass", flush=True)
+                continue
+            lat, lon = x["latitude"].values, x["longitude"].values
+            np.savez_compressed(a.archive_out / truth_file(day, field), **{key: remap(v, lat, lon, grid)})
+            print(f"ERA5 {field} {day:%Y-%m-%d} 00Z: archived", flush=True)
 
 
-def clim(a) -> None:
-    """Every 00Z 500 hPa field of CLIM_YEARS from WeatherBench 2's zarr. A chunk holds 8 six-hourly steps of all 13
-    levels, so every chunk is read whatever is wanted of it: they are fetched side by side over HTTPS (xarray reads them
-    a few at a time, over two hours) and only the 00Z 500 hPa slices kept."""
+def wb2_normal(var: str, level: int | None, hours: tuple[int, ...], scale: float) -> tuple[np.ndarray, np.ndarray]:
+    """The CLIM_YEARS normal of one variable of WeatherBench 2's zarr (at one level) at each of ``hours``: (366, hours,
+    lat, lon) times ``scale``, 90N first, and the days behind each slot (366, hours). A chunk holds several six-hourly
+    steps (geopotential: 8, of all 13 levels), so every chunk is read whatever is wanted of it: they are fetched side by
+    side over HTTPS (xarray reads them a few at a time, over two hours) and only the wanted slices kept."""
     import json
     from concurrent.futures import ThreadPoolExecutor
 
     import numcodecs
     import xarray as xr
 
-    url = f"https://storage.googleapis.com/{WB2}/geopotential"
+    url = f"https://storage.googleapis.com/{WB2}/{var}"
     meta = json.loads(D.get(f"{url}/.zarray"))  # the chunks' own layout, whatever the zarr library makes of it
-    z = xr.open_zarr(f"gs://{WB2}", storage_options={"token": "anon"})["geopotential"]  # the coordinates
-    if z.dims != ("time", "level", "longitude", "latitude") or meta.get("dimension_separator", ".") != ".":
-        raise RuntimeError(f"WeatherBench 2's geopotential is {z.dims}, not as read here")
+    z = xr.open_zarr(f"gs://{WB2}", storage_options={"token": "anon"})[var]  # the coordinates
+    dims = ("time", *(("level",) if level is not None else ()), "longitude", "latitude")
+    if z.dims != dims or meta.get("dimension_separator", ".") != "." or meta["chunks"][1:] != meta["shape"][1:]:
+        raise RuntimeError(f"WeatherBench 2's {var} is {z.dims} in chunks {meta['chunks']}, not as read here")
     lat = z["latitude"].values
     if not (np.allclose(np.sort(lat)[::-1], G15.lat) and np.allclose(z["longitude"].values, G15.lon)):
         raise RuntimeError("WeatherBench 2's grid is not the verification grid")
     shape, dtype, codec = meta["chunks"], np.dtype(meta["dtype"]), numcodecs.get_codec(meta["compressor"])
     nt = shape[0]
-    level = int(np.flatnonzero(z["level"].values == 500)[0])
+    pick = (slice(None), int(np.flatnonzero(z["level"].values == level)[0])) if level is not None else (slice(None),)
     t = pd.DatetimeIndex(z["time"].values)
-    want = (t.year >= CLIM_YEARS[0]) & (t.year <= CLIM_YEARS[1]) & (t.hour == 0)
+    want = (t.year >= CLIM_YEARS[0]) & (t.year <= CLIM_YEARS[1]) & np.isin(t.hour, hours)
 
     def block(b: int) -> np.ndarray:
-        """The 500 hPa slice of time chunk ``b``: (steps, longitude, latitude)."""
-        raw = codec.decode(D.get(f"{url}/{b}.0.0.0"))
-        return np.frombuffer(raw, dtype).reshape(shape)[:, level]
+        """The wanted level of time chunk ``b``: (steps, longitude, latitude)."""
+        raw = codec.decode(D.get(f"{url}/{b}.{'.'.join('0' * (len(shape) - 1))}"))
+        return np.frombuffer(raw, dtype).reshape(shape)[pick]
 
     blocks = np.unique(np.flatnonzero(want) // nt)
-    total, count = np.zeros((366, *G15.shape)), np.zeros(366)
+    total, count = np.zeros((366, len(hours), *G15.shape)), np.zeros((366, len(hours)))
     with ThreadPoolExecutor(32) as ex:
         for i in range(0, blocks.size, 256):  # a batch at a time, so the chunks waiting in order stay few
             batch = blocks[i : i + 256]
             for b, v in zip(batch, ex.map(block, batch), strict=True):
                 k = np.flatnonzero(want[b * nt : (b + 1) * nt])
-                f = v[k].transpose(0, 2, 1).astype(np.float64) / G  # (steps, lat, lon), metres
+                f = v[k].transpose(0, 2, 1).astype(np.float64) * scale  # (steps, lat, lon)
                 f = f[:, ::-1] if lat[0] < lat[-1] else f
-                s = slot366(t[b * nt + k])
-                np.add.at(total, s, f)
-                np.add.at(count, s, 1)
+                tk = t[b * nt + k]
+                s, h = slot366(tk), np.searchsorted(hours, tk.hour)
+                np.add.at(total, (s, h), f)
+                np.add.at(count, (s, h), 1)
             print(f"normal: read to {t[batch[-1] * nt]:%Y-%m-%d}", flush=True)
     if count.sum() != want.sum():
-        raise RuntimeError(f"normal: {int(count.sum())} of {int(want.sum())} 00Z fields read")
+        raise RuntimeError(f"normal: {int(count.sum())} of {int(want.sum())} fields read")
     rows = np.arange(366)
     near = (np.abs((rows[:, None] - rows[None, :] + 183) % 366 - 183) <= CLIM_HALF).astype(float)  # around the year
-    normal = (near @ total.reshape(366, -1)).reshape(total.shape) / (near @ count)[:, None, None]
-    np.savez_compressed(
-        a.out, z500=normal.astype(np.float32), lat=G15.lat, lon=G15.lon, days=(near @ count).astype(np.int32)
-    )
-    print(f"normal: {a.out} ({int(count.sum())} days)", flush=True)
+    days = near @ count
+    normal = np.tensordot(near, total, axes=1) / days[:, :, None, None]
+    return normal, days
+
+
+def clim(a) -> None:
+    """The normal on the verification grid: 500 hPa height (m) at 00Z, the hour of the fields, or with --field msl
+    sea-level pressure (hPa) at 00Z and 12Z, the teleconnections' hours."""
+    if a.field == "msl":
+        hours = (0, 12)
+        normal, days = wb2_normal("mean_sea_level_pressure", None, hours, 0.01)
+        np.savez_compressed(a.out, msl=normal.astype(np.float32), hours=np.array(hours), lat=G15.lat, lon=G15.lon,
+                            days=days.astype(np.int32))  # fmt: skip
+    else:
+        normal, days = wb2_normal("geopotential", 500, (0,), 1.0 / G)
+        np.savez_compressed(
+            a.out, z500=normal[:, 0].astype(np.float32), lat=G15.lat, lon=G15.lon, days=days[:, 0].astype(np.int32)
+        )
+    print(f"normal: {a.out} ({int(days[0].max())} days a slot)", flush=True)
 
 
 # --------------------------------------------------------------------------- scores
@@ -383,6 +476,7 @@ def main() -> None:
     t.add_argument("--first", required=True, help="YYYYMMDD")
     t.add_argument("--last", required=True, help="YYYYMMDD")
     c = sub.add_parser("clim", help="the ERA5 1991-2020 normal on the verification grid (built once, offline)")
+    c.add_argument("--field", choices=("z500", "msl"), default="z500")
     c.add_argument("--out", type=Path, required=True)
     s = sub.add_parser("acc", help="each due run's scores against ERA5")
     s.add_argument("--list", action="store_true", help="print each due run and the files its scores are made from")

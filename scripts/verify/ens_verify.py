@@ -62,6 +62,7 @@ ECMWF = {
     "tp": [("tp", "sfc", None)],
     "static": [("z", "sfc", None), ("lsm", "sfc", None)],
     "z500": [("{z}", "pl", "500")],  # the gridded anomaly correlations (z500_acc.py)
+    "msl": [("msl", "sfc", None)],  # the days 1-15 Arctic Oscillation's calibration (z500_acc.run_msl)
 }
 GEFS = {
     "sfc": [
@@ -75,15 +76,18 @@ GEFS = {
     "tp": ["APCP:surface"],
     "static": ["HGT:surface"],
     "z500": ["HGT:500 mb"],
+    "msl": ["PRMSL:mean sea level"],
 }
 GEFS_MEMBERS = ["gec00"] + [f"gep{i:02d}" for i in range(1, 31)]
 GEFS_URL = "https://noaa-gefs-pds.s3.amazonaws.com/gefs.{d}/{h}/atmos/pgrb2ap5/{m}.t{h}z.pgrb2a.0p50.f{L:03d}"
+GEFS_MEAN = "geavg"  # NCEP's own mean of the control and 30 members, in a file of the same layout
 GEPS = {
     "sfc": ["TMP_TGL_2m", "RH_TGL_2m", "PRMSL_MSL_0", "UGRD_TGL_10m", "VGRD_TGL_10m"],
     "upper": ["HGT_ISBL_0500", "TMP_ISBL_0850", "UGRD_ISBL_0850", "VGRD_ISBL_0850", "UGRD_ISBL_0250", "VGRD_ISBL_0250"],
     "tp": ["APCP_SFC_0"],
     "static": ["HGT_SFC_0"],
     "z500": ["HGT_ISBL_0500"],
+    "msl": ["PRMSL_MSL_0"],
 }
 GEPS_URL = (
     D.DATAMART
@@ -119,7 +123,7 @@ def gefs_member(url: str, want: list[str]) -> bytes:
 
 
 def fetch(model: str, init: str, lead: int, kind: str, dest: Path) -> Path:
-    """One step's fields of ``kind`` (sfc, upper, tp, static, z500) of every member, into ``dest``."""
+    """One step's fields of ``kind`` (sfc, upper, tp, static, z500, msl) of every member, into ``dest``."""
     if dest.exists():
         return dest
     day, hh = init[:8], init[8:]

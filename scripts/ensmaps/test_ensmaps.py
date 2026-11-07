@@ -568,6 +568,7 @@ def telecon():
     for step in (18, 24, 48):
         cap.put(0, step, np.full(E.G50.shape, 5600.0, np.float32), lat, lon)
     cap.put(1, 24, np.full(E.G50.shape, 5500.0, np.float32), lat, lon)
+    cap.put(0, 24, np.full(E.G50.shape, 1013.27, np.float32), lat, lon, "msl")
     with tempfile.TemporaryDirectory() as tmp:
         f = Path(tmp) / "gefs.npz"
         cap.save(f, "gefs", "2026102800", pd.Timestamp("2026-10-28"))
@@ -575,31 +576,61 @@ def telecon():
         check(np.all(z["z"][0, :2] == 5600) and np.all(z["z"][1, 0] == 5500) and z["ok"][0, :2].all()
               and not z["ok"][0, 2:].any() and z["ok"][1].tolist() == [True] + [False] * 14,
               "Capture: a constant 500 hPa field stays constant on the 2.5-deg grid; off-day steps skipped, gaps marked")  # fmt: skip
+        check(np.all(z["msl"][0, 0] == 10133) and z["ok_msl"].sum() == 1 and z["ok_msl"][0, 0],
+              "Capture: sea-level pressure kept in tenths of hPa, beside the heights, its own gaps marked")  # fmt: skip
+        bad = ET.Capture(1)
+        bad.put(0, 24, np.full(E.G50.shape, 5600.0, np.float32), lat, lon)
+        bad.put(0, 24, np.full((3, 3), 1013.0, np.float32), lat, lon, "msl")  # not on the grid it names: remap fails
+        with contextlib.redirect_stderr(io.StringIO()):
+            saved = bad.save(Path(tmp) / "bad.npz", "gefs", "2026102800", pd.Timestamp("2026-10-28"))
+        b = np.load(Path(tmp) / "bad.npz")
+        check(saved and b["ok"][0, 0] and not b["ok_msl"].any(),
+              "Capture: a field that fails is saved as no member complete, the other field kept")  # fmt: skip
 
         # a reference with known projectors: the index of normal + c x pattern is c x <p, p> / sigma
         ids, rows = T15.IDS, G25N.shape
+        ao, pna, nao = ids.index("ao"), ids.index("pna"), ids.index("nao")
         pat = np.linalg.qr(RNG.normal(size=(np.prod(rows), len(ids))))[0].T.reshape(len(ids), *rows)  # orthonormal
         proj = np.stack([np.broadcast_to(p / (p**2).sum(), (12, *rows)) for p in pat])
-        normal = np.zeros((366, 2, *rows), np.float32)
+        normal, normal_msl = np.zeros((366, 2, *rows), np.float32), np.zeros((366, 2, *rows), np.float32)
         normal[:, 0], normal[:, 1] = 5500.0, 5510.0  # 00 and 12 UTC
+        normal_msl[:, 0], normal_msl[:, 1] = 1010.0, 1012.0
         meta = {"patterns": {s: {"name": s.upper()} for s in ids}}
         refp = Path(tmp) / "ref.npz"
-        np.savez(refp, ids=np.array(ids), proj=proj, std_month=np.full((12, *rows), 2.0),
-                 standardize=np.arange(len(ids)) == 0, sigma=np.full((len(ids), 366), 4.0),
-                 defined=np.ones((len(ids), 12), bool), normal=normal, meta=np.array(json.dumps(meta)))  # fmt: skip
+        np.savez(refp, ids=np.array(ids), field=np.array([T15.FIELD[s] for s in ids]), proj=proj,
+                 std_month=np.full((12, *rows), 2.0), standardize=np.arange(len(ids)) == nao,
+                 sigma=np.full((len(ids), 366), 4.0), defined=np.ones((len(ids), 12), bool), normal=normal,
+                 normal_msl=normal_msl, meta=np.array(json.dumps(meta)))  # fmt: skip
         ref = T15.Ref(refp)
         t = pd.DatetimeIndex(["2026-01-15 00:00", "2026-07-15 12:00"])
-        fields = np.stack([5500 + 3 * pat[0] + 8 * pat[1], 5510 + 3 * pat[0] + 8 * pat[1]])
-        v = ref.index(ref.anomaly(fields, t), t)
-        check(np.allclose(v[:, 0], 3 / 2 / 4) and np.allclose(v[:, 1], 8 / 4),
-              "index: the planted amplitude (over std_month where standardized, over sigma), each hour's own normal")  # fmt: skip
+        z500 = np.stack([5500 + 3 * pat[nao] + 8 * pat[pna], 5510 + 3 * pat[nao] + 8 * pat[pna]])
+        msl = np.stack([1010 + 5 * pat[ao] + 8 * pat[pna], 1012 + 5 * pat[ao] + 8 * pat[pna]])
+        v = ref.index({"z500": ref.anomaly(z500, t), "msl": ref.anomaly(msl, t, "msl")}, t)
+        only = ref.index({"z500": ref.anomaly(z500, t)}, t)
+        check(np.allclose(v[:, nao], 3 / 2 / 4) and np.allclose(v[:, pna], 8 / 4) and np.allclose(v[:, ao], 5 / 4)
+              and np.isnan(only[:, ao]).all() and np.allclose(np.delete(only, ao, 1), np.delete(v, ao, 1)),
+              "index: the planted amplitude (over std_month where standardized, over sigma), each hour's own normal, "
+              "each index from its own field (the AO from sea-level pressure, NaN without it)")  # fmt: skip
         run = {"key": "gefs", "init": pd.Timestamp("2026-10-28"), "lead_h": np.array(T15.LEADS),
-               "ok": np.ones((5, 15), bool),
-               "z": (5500 + RNG.normal(0, 40, (5, 15, *rows))).astype(np.int16)}  # fmt: skip
+               "ok": np.ones((5, 15), bool), "ok_msl": np.ones((5, 15), bool),
+               "z": (5500 + RNG.normal(0, 40, (5, 15, *rows))).astype(np.int16),
+               "msl": (10100 + RNG.normal(0, 80, (5, 15, *rows))).astype(np.int16)}  # fmt: skip
+        run["ok_msl"][0, 3] = False  # one member's pressure incomplete on day 4
         tt, mem, mean = ET.member_indices(ref, run)
-        whole = ref.index(ref.anomaly(run["z"].astype(float).mean(0), tt), tt)
-        check(np.allclose(mean, whole) and np.allclose(mean, mem.mean(0)),
-              "the ensemble mean's index is the index of the members' mean field")  # fmt: skip
+        whole = ref.index({"z500": ref.anomaly(run["z"].astype(float).mean(0), tt),
+                           "msl": ref.anomaly(run["msl"].astype(float).mean(0) / 10, tt, "msl")}, tt)  # fmt: skip
+        part = ref.index({"msl": ref.anomaly(run["msl"][1:, 3].astype(float).mean(0) / 10, tt[:1], "msl")}, tt[:1])
+        keep = np.arange(15) != 3
+        check(np.allclose(mean[keep], whole[keep]) and np.allclose(mean[3, ao], part[0, ao])
+              and np.allclose(mean[3, pna], whole[3, pna]) and np.isnan(mem[0, 3, ao]) and np.allclose(mean, np.nanmean(mem, 0)),
+              "the ensemble mean's index is the index of the members' mean field, of the members complete in its field")  # fmt: skip
+        old = {k: x for k, x in run.items() if k not in ("msl", "ok_msl")}  # a capture from before the AO
+        _, mem_old, mean_old = ET.member_indices(ref, old)
+        check(np.isnan(mean_old[:, ao]).all() and np.isnan(mem_old[..., ao]).all()
+              and np.allclose(np.delete(mean_old, ao, 1), np.delete(mean, ao, 1)),
+              "a run captured without its sea-level pressure: no AO, the other indices as before")  # fmt: skip
+        note = ET.undefined(ao, ref, [old])
+        check("sea-level pressure" in note, f"the AO's figure says why it is missing: {note}")
         site = Path(tmp) / "site"
         added = []
         for back in (12 * 24, 36, 24, 0, 0):  # one run older than KEEP_DAYS before the newest, the newest twice
@@ -608,8 +639,28 @@ def telecon():
         rec = ET.recorded(site)["gefs"]
         check(added == [True, True, True, True, False] and [x["init"] for x in rec] == ["2026-10-26T12", "2026-10-27T00",
               "2026-10-28T00"] and len(rec[-1]["pna"]["members"]) == 15 and len(rec[-1]["pna"]["members"][0]) == 5
-              and np.allclose(rec[-1]["epo"]["mean"], np.round(mean[:, ids.index("epo")], 2)),
+              and np.allclose(rec[-1]["epo"]["mean"], np.round(mean[:, ids.index("epo")], 2)) and "ao" in rec[-1],
               "run record: a run is added once, runs over KEEP_DAYS older than the newest dropped, every member kept")  # fmt: skip
+
+        # the hindcast table's fields side by side: the AO where its run and day have sea-level pressure
+        tbl = Path(tmp) / "tbl"
+        tbl.mkdir()
+        inits = pd.to_datetime(["2025-11-01", "2025-11-02"])
+        fz = pd.DataFrame(
+            {"model": "GEFS", "init": inits, "lead_h": np.int16(24)} | {s: np.float32(1.0) for s in ids if s != "ao"}
+        )
+        fz.to_parquet(tbl / T15.FC["z500"])
+        pd.DataFrame(
+            {"valid": inits + pd.Timedelta(days=1)} | {s: np.float32(0.5) for s in ids if s != "ao"}
+        ).to_parquet(tbl / T15.OBS["z500"])
+        pd.DataFrame({"model": "GEFS", "init": inits[1:], "lead_h": np.int16(24), "ao": np.float32(2.0)}).to_parquet(
+            tbl / T15.FC["msl"]
+        )
+        fc, ob = T15.tables(tbl)
+        check(list(fc["ao"].isna()) == [True, False] and fc["ao"].iloc[1] == 2.0 and ob["ao"].isna().all()
+              and set(ids) <= set(fc) and set(ids) <= set(ob) and len(fc) == 2,
+              "hindcast table: the AO beside the 500 hPa indices where its run has it, NaN elsewhere")  # fmt: skip
+        check(T15.tables(Path(tmp) / "none") == (None, None), "no hindcast table: nothing to calibrate with")
 
     # the hindcast fit on daily starts: an AR(1) observed index, forecasts that lose skill with lead
     starts = pd.date_range("2024-09-01", "2026-10-20", freq="D")

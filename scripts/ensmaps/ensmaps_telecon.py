@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-"""Teleconnections, days 1-15, for circulation.html#telecon15: the eleven 500 hPa teleconnection indices (telecon15.IDS)
-of every member of the newest IFS-ENS, AIFS-ENS, GEFS and GEPS runs, each model's ensemble mean calibrated against its
+"""Teleconnections, days 1-15, for circulation.html#telecon15: the twelve teleconnection indices (telecon15.IDS: the AO
+from sea-level pressure, eleven from 500 hPa height) of every member of the newest IFS-ENS, AIFS-ENS, GEFS and GEPS runs, each model's ensemble mean calibrated against its
 own archived runs, and the chance of each index's positive and negative phase at the leads where that model has
 demonstrated skill. An index CPC does not define in any of the forecast's months gets a figure saying so. No
 download: each ensmaps job leaves its members' fields in the Actions cache (Capture, from ensmaps.py), and `run` reads
 the newest run of each model there.
 
-  fields       each member's instantaneous 500 hPa height at 00Z of each day of a 00Z run (12Z of a 12Z run), days
-               1-15, remapped conservatively from the model's grid onto the patterns' 2.5 deg grid 20-90N
-               (latlon.remap) in whole metres, as the verification database keeps its members (z500_acc.run_fields):
-               not the maps' daily means, since the hindcast is read at one hour
+  fields       each member's instantaneous 500 hPa height and sea-level pressure at 00Z of each day of a 00Z run (12Z
+               of a 12Z run), days 1-15, remapped conservatively from the model's grid onto the patterns' 2.5 deg grid
+               20-90N (latlon.remap), in whole metres and tenths of hPa, as the verification database keeps its
+               members (z500_acc.run_fields): not the maps' daily means, since the hindcast is read at one hour
   indices      telecon15.Ref: the GEFS page's projectors on the anomaly from ERA5 1991-2020 at that hour, in seasonal
                sd of the daily index; the ensemble mean is the mean of the members' indices (the index is linear),
                at a lead where at least MIN_SHARE of the members are complete
-  calibration  per model, index and lead, from the hindcast table (telecon15.py hindcast: every 00Z run the 500 hPa
-               database holds from z500_acc.SINCE, against ERA5 at 00Z), the runs started within WINDOW days of this
+  calibration  per model, index and lead, from the hindcast table (telecon15.py hindcast: every 00Z run the database
+               holds, from z500_acc.SINCE for the 500 hPa indices and MSL_SINCE for the AO, against ERA5 at 00Z), the runs started within WINDOW days of this
                run's day of the year in any year: the regression obs = a m + b of ERA5's index on the ensemble-mean
                index m, its residual sd s, and the correlation r with its one-sided p on the effective sample
                n (1 - r1 r2) / (1 + r1 r2) (Bretherton et al. 1999; r1, r2 the lag-1 autocorrelations of the forecast
@@ -58,7 +58,7 @@ import telecon15 as T
 from latlon import G25N, remap, slot366
 
 MODELS = {"ifs": "IFS-ENS", "aifs": "AIFS-ENS", "gefs": "GEFS", "geps": "GEPS"}  # ensmaps keys, the database's names
-SHORT = {"nao": "NAO", "pna": "PNA", "epo": "EPO", "wpo": "WPO", "ea": "EA", "wp": "WP", "epnp": "EP/NP", "eawr": "EA/WR",
+SHORT = {"nao": "NAO", "ao": "AO", "pna": "PNA", "epo": "EPO", "wpo": "WPO", "ea": "EA", "wp": "WP", "epnp": "EP/NP", "eawr": "EA/WR",
          "sca": "SCA", "tnh": "TNH", "pol": "POL"}  # fmt: skip
 COLORS = {"ifs": "#b3372f", "aifs": "#7b4fb0", "gefs": "#2c5f8a", "geps": "#2e7d4f"}  # verification.html's centres
 WINDOW = 45  # days of the year either side of the run's: the hindcast starts its calibration pools
@@ -86,30 +86,40 @@ def log(*a):
 
 
 # ── the fields, from ensmaps.py ───────────────────────────────────────────────────────────────────────────────────────
+# each field's arrays in a capture: values, which members are complete at each lead, the values' scale to m / hPa
+SAVED = {"z500": ("z", "ok", 1.0), "msl": ("msl", "ok_msl", 0.1)}
+
+
 class Capture:
-    """Each member's 500 hPa height at the steps of telecon15.LEADS, on the patterns' grid. A failure is logged and ends
-    the capture, never the maps: put and save catch everything."""
+    """Each member's 500 hPa height and sea-level pressure at the steps of telecon15.LEADS, on the patterns' grid. A
+    failure is logged and ends that field's capture, never the maps: put and save catch everything."""
 
     def __init__(self, n: int):
-        self.z = np.full((n, len(T.LEADS), *G25N.shape), np.nan, np.float32)
+        self.x = {f: np.full((n, len(T.LEADS), *G25N.shape), np.nan, np.float32) for f in SAVED}
         self.row = {s: k for k, s in enumerate(T.LEADS)}
-        self.error = ""
+        self.error = {}
 
-    def put(self, i: int, step: int, v: np.ndarray, lat: np.ndarray, lon: np.ndarray) -> None:
+    def put(self, i: int, step: int, v: np.ndarray, lat: np.ndarray, lon: np.ndarray, field: str = "z500") -> None:
         k = self.row.get(step)
-        if k is None or self.error:
+        if k is None or field in self.error:
             return
         try:
-            self.z[i, k] = remap(v, lat, lon, G25N)
+            self.x[field][i, k] = remap(v, lat, lon, G25N)
         except Exception as e:  # noqa: BLE001
-            self.error = f"{type(e).__name__}: {e}"
-            log(f"::warning::teleconnection fields: {self.error}; none saved for this run")
+            self.error[field] = f"{type(e).__name__}: {e}"
+            log(f"::warning::teleconnection {field} fields: {self.error[field]}; none saved for this run")
 
     def save(self, path: Path, model: str, cycle: str, init: pd.Timestamp) -> bool:
+        """The fields captured without error (a failed one saved as no member complete), unless both failed."""
         try:
-            if self.error:
+            if len(self.error) == len(SAVED):
                 return False
-            ok = np.isfinite(self.z).all((2, 3))
+            out = {}
+            for f, (key, ok_key, scale) in SAVED.items():
+                x = self.x[f] / scale
+                ok = np.isfinite(x).all((2, 3)) & (f not in self.error)
+                out[key] = np.where(ok[..., None, None], np.round(np.nan_to_num(x)), 0).astype(np.int16)
+                out[ok_key] = ok
             path.parent.mkdir(parents=True, exist_ok=True)
             np.savez_compressed(
                 path,
@@ -117,10 +127,10 @@ class Capture:
                 cycle=cycle,
                 init=f"{init:%Y-%m-%dT%H}:00Z",
                 lead_h=np.array(T.LEADS, np.int16),
-                z=np.where(ok[..., None, None], np.round(np.nan_to_num(self.z)), 0).astype(np.int16),
-                ok=ok,
+                **out,
             )
-            log(f"  teleconnection fields: {path} ({path.stat().st_size / 1e6:.1f} MB, {int(ok.any(0).sum())} leads)")
+            leads = {f: int(out[ok_key].any(0).sum()) for f, (_, ok_key, _) in SAVED.items()}
+            log(f"  teleconnection fields: {path} ({path.stat().st_size / 1e6:.1f} MB, leads {leads})")
             return True
         except Exception as e:  # noqa: BLE001
             log(f"::warning::teleconnection fields not saved: {type(e).__name__}: {e}")
@@ -142,17 +152,23 @@ def load(paths: list[Path]) -> list[dict]:
 
 
 def member_indices(ref: T.Ref, r: dict) -> tuple[pd.DatetimeIndex, np.ndarray, np.ndarray]:
-    """(valid times, members' indices (member, lead, index; NaN where a member is incomplete), the ensemble mean (lead,
-    index; NaN at a lead with fewer than MIN_SHARE of the members))."""
+    """(valid times, members' indices (member, lead, index; NaN where a member's field is incomplete, or not captured:
+    the sea-level pressure of runs from before the AO), the ensemble mean (lead, index; NaN at a lead with fewer than
+    MIN_SHARE of the members))."""
     t = pd.DatetimeIndex(r["init"] + pd.to_timedelta(r["lead_h"].astype(int), unit="h"))
     n, nl = r["ok"].shape
-    z = r["z"].reshape(n * nl, *G25N.shape)
     tt = pd.DatetimeIndex(np.tile(t.values, n))
-    v = ref.index(ref.anomaly(z, tt), tt).reshape(n, nl, -1)
-    v[~r["ok"]] = np.nan
-    enough = r["ok"].sum(0) >= np.ceil(MIN_SHARE * n)
+    have = {f: (r[key], r[ok_key], scale) for f, (key, ok_key, scale) in SAVED.items() if key in r}
+    anom = {f: ref.anomaly(x.reshape(n * nl, *G25N.shape) * scale, tt, f) for f, (x, _, scale) in have.items()}
+    v = ref.index(anom, tt).reshape(n, nl, -1)
     mean = np.full(v.shape[1:], np.nan)
-    mean[enough] = np.nansum(v[:, enough], 0) / r["ok"].sum(0)[enough, None]
+    for k, f in enumerate(ref.field):
+        if f not in have:
+            continue
+        ok = have[f][1]
+        v[~ok, k] = np.nan
+        enough = ok.sum(0) >= np.ceil(MIN_SHARE * n)
+        mean[enough, k] = np.nansum(v[:, enough, k], 0) / ok.sum(0)[enough]
     mean[~np.isfinite(v).any(0)] = np.nan  # an index CPC does not define on the date
     return t, v, mean
 
@@ -788,8 +804,8 @@ def evolution(sid: str, runs: list[dict], rec: dict, cal: dict, name: str, path:
             ax.plot(tv, m, color=tint(col, white[x["init"]]), lw=3.0 if new else 1.6, zorder=3 + j)
             t_lo.append(tv[0])
             t_hi.append(tv[-1])
-        few = len(rec[key]) < SHOW
-        since = f" · recorded since {pd.Timestamp(rec[key][0]['init']):%-d %b %HZ}" if few else ""
+        few = len(have[key]) < SHOW
+        since = f" · recorded since {pd.Timestamp(have[key][0]['init']):%-d %b %HZ}" if few else ""
         ax.set_title(f"{MODELS[key]} · {len(shown)} run{'s' * (len(shown) != 1)}{since}", color=house.INK)
         ax.grid(True, color=house.GRID, lw=0.8)
     for ax in axes.ravel():
@@ -836,11 +852,17 @@ def note(name: str, text: str, path: Path):
 
 
 def undefined(k: int, ref: T.Ref, runs: list[dict]) -> str:
-    """Why an index has no forecast: the months CPC defines its pattern in, none of them the forecast's."""
+    """Why an index has no forecast: no run has its field yet, or the months CPC defines its pattern in, none of them
+    the forecast's."""
     months = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
     t0 = min(r["init"] for r in runs) + pd.Timedelta(hours=min(T.LEADS))
     t1 = max(r["init"] for r in runs) + pd.Timedelta(hours=max(T.LEADS))
     ok = ref.defined[k]
+    key = SAVED[ref.field[k]][0]
+    if ok[pd.date_range(t0, t1, freq="D").month - 1].any() and not any(key in r for r in runs):
+        what = {"z500": "500 hPa height", "msl": "sea-level pressure"}[ref.field[k]]
+        return (f"None of the newest runs kept its members' {what}, which this index is made from: it starts with the "
+                "next runs.")  # fmt: skip
     first = next((i for i in range(12) if ok[i] and not ok[i - 1]), 0)  # the season in order: Dec, Jan, Feb
     have = ", ".join(months[(first + i) % 12] for i in range(12) if ok[(first + i) % 12])
     return (f"CPC defines this pattern only in {have}: none of this forecast's valid days ({t0:%-d %b} to {t1:%-d %b}) "
@@ -915,8 +937,7 @@ def cmd_run(a) -> int:
         log("no teleconnection fields: nothing to draw")
         return 0
     ref = T.Ref(a.ref)
-    fc = pd.read_parquet(a.table / T.FC) if a.table and (a.table / T.FC).exists() else None
-    obs = pd.read_parquet(a.table / T.OBS) if a.table and (a.table / T.OBS).exists() else None
+    fc, obs = T.tables(a.table)
     if fc is None or obs is None:
         log("::notice::no hindcast table yet: every lead is drawn without demonstrated skill")
     ind = {r["key"]: member_indices(ref, r) for r in runs}
@@ -966,7 +987,7 @@ def cmd_run(a) -> int:
 def cmd_skill(a) -> int:
     """What the gate passes on a date from the hindcast table alone, every model and the blend of all four: the
     skilful leads (days) per index, and the samples. Printed for the hindcast pass's log (telecon15.yml)."""
-    fc, obs = pd.read_parquet(a.table / T.FC), pd.read_parquet(a.table / T.OBS)
+    fc, obs = T.tables(a.table)
     t0 = pd.Timestamp(a.date) if a.date else pd.Timestamp.now(tz="UTC").tz_localize(None).normalize()
     cal = {k: calibrate(fc, obs, m, t0) for k, m in MODELS.items()}
     cal["blend"], used = {}, {}
@@ -1044,7 +1065,7 @@ def cmd_qc(a) -> int:
                 mean25 = z[j].mean(0)
                 diff = mean25 - remap(e["z"][j], G15.lat, G15.lon, G25N)
                 t = pd.DatetimeIndex([valid, valid])
-                fi, oi = ref.index(ref.anomaly(np.stack([mean25, remap(era, G15.lat, G15.lon, G25N)]), t), t)
+                fi, oi = ref.index({"z500": ref.anomaly(np.stack([mean25, remap(era, G15.lat, G15.lon, G25N)]), t)}, t)
                 db = ""
                 if acc is not None:
                     row = acc[(acc["model"] == MODELS[k]) & (acc["lead_h"] == 24 * d) & (acc["region"] == "NH")]

@@ -2,12 +2,14 @@ name: Teleconnections days 1-15 (reference and hindcast)
 
 # What the teleconnection forecasts of circulation.html#telecon15 (scripts/ensmaps/ensmaps_telecon.py, drawn by the
 # `telecon` job of ensmaps.yml after each ensemble's run) are calibrated with, made by scripts/ensmaps/telecon15.py:
-#   ref       the reference, once per version (dispatch with ref): the GEFS page's eleven 500 hPa projectors cut to
-#             20-90N, each index's seasonal sd, and the ERA5 1991-2020 normal at 00 and 12 UTC on the 2.5 deg grid,
-#             from releases gefs-ref-v1 and verify-clim-z500-v1 and WeatherBench 2's ERA5 climatology by hour of day;
-#             release REF_TAG (telecon15.REF_TAG), never replaced
-#   hindcast  the table every calibration reads: each archived 00Z run of the 500 hPa database (verify-z500.yml) as its
-#             ensemble-mean index at each lead, and ERA5's index each day, kept in the Actions cache
+#   ref       the reference, once per version (dispatch with ref): the GEFS page's twelve projectors (the AO from
+#             sea-level pressure, eleven from 500 hPa height) cut to 20-90N, each index's seasonal sd, and the ERA5
+#             1991-2020 normals of both fields at 00 and 12 UTC on the 2.5 deg grid, from releases gefs-ref-v1 and
+#             verify-clim-z500-v1, WeatherBench 2's ERA5 climatology by hour of day and its 6-hourly sea-level pressure
+#             (z500_acc.py clim --field msl, kept beside the reference); release REF_TAG (telecon15.REF_TAG), never
+#             replaced
+#   hindcast  the table every calibration reads: each archived 00Z run of the database (verify-z500.yml) as its
+#             ensemble-mean indices at each lead, and ERA5's each day, kept in the Actions cache
 #             (telecon15-hindcast-<hash of telecon15.py>-<run id>, the two newest kept). A pass downloads only the runs
 #             and days the table lacks, a hundred files at a time, so the table fills as the database's backfill lands
 #             and a pass that stops part way keeps what it added. Each pass prints what the skill gate passes for
@@ -33,7 +35,7 @@ on:
 env:
   PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt
   MVERIFY: "mverify @ git+https://github.com/scorvec/nwp_verification@f81968d42a703f0e42eb75acd526fadd3ba567e9"
-  REF_TAG: telecon15-ref-v2   # telecon15.REF_TAG
+  REF_TAG: telecon15-ref-v3   # telecon15.REF_TAG
 
 permissions:
   contents: write
@@ -47,7 +49,7 @@ jobs:
   ref:
     if: ${{ inputs.ref }}
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 150   # the sea-level pressure normal reads every 6-hourly field of 1991-2020
     steps:
       - uses: actions/checkout@v7
         with:
@@ -55,12 +57,13 @@ jobs:
           sparse-checkout: |
             /scripts/ensmaps/telecon15.py
             /scripts/gefs/
+            /scripts/verify/
             /scripts/lib/
             /scripts/constraints.txt
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-      - run: pip install --quiet numpy pandas xarray zarr gcsfs
+      - run: pip install --quiet "$MVERIFY" numpy pandas xarray zarr gcsfs
       - name: The reference
         env:
           GH_TOKEN: ${{ github.token }}
@@ -69,11 +72,13 @@ jobs:
           if gh release view "$REF_TAG" >/dev/null 2>&1; then echo "::error::$REF_TAG exists: a reference is never replaced"; exit 1; fi
           gh release download gefs-ref-v1 -p gefs_patterns_ref.npz -D "$RUNNER_TEMP"
           gh release download verify-clim-z500-v1 -p clim_z500_1p5.npz -D "$RUNNER_TEMP"
+          python scripts/verify/z500_acc.py clim --field msl --out "$RUNNER_TEMP/clim_msl_1p5.npz"
           python scripts/ensmaps/telecon15.py ref --patterns "$RUNNER_TEMP/gefs_patterns_ref.npz" \
-            --clim "$RUNNER_TEMP/clim_z500_1p5.npz" --out "$RUNNER_TEMP/telecon15_ref.npz"
-          gh release create "$REF_TAG" "$RUNNER_TEMP/telecon15_ref.npz" --latest=false \
+            --clim "$RUNNER_TEMP/clim_z500_1p5.npz" --clim-msl "$RUNNER_TEMP/clim_msl_1p5.npz" \
+            --out "$RUNNER_TEMP/telecon15_ref.npz"
+          gh release create "$REF_TAG" "$RUNNER_TEMP/telecon15_ref.npz" "$RUNNER_TEMP/clim_msl_1p5.npz" --latest=false \
             --title "Teleconnections, days 1-15: reference" \
-            --notes "The eleven 500 hPa teleconnection projectors of gefs-ref-v1 (CPC's NAO, PNA, EA, WP, EP/NP, EA/WR, SCA, TNH and POL, PSL's EPO and WPO) cut to 20-90N on the 2.5 degree grid, each index's seasonal standard deviation on the 366-day calendar, and the ERA5 1991-2020 500 hPa normal at 00 UTC of verify-clim-z500-v1 and at 12 UTC (the same plus the 12 less 00 UTC difference in WeatherBench 2's ERA5 climatology by hour of day), for scripts/ensmaps/ensmaps_telecon.py (scripts/ensmaps/telecon15.py ref)."
+            --notes "The twelve teleconnection projectors of gefs-ref-v1 (the Arctic Oscillation from sea-level pressure; CPC's NAO, PNA, EA, WP, EP/NP, EA/WR, SCA, TNH and POL and PSL's EPO and WPO from 500 hPa height) cut to 20-90N on the 2.5 degree grid, each index's seasonal standard deviation on the 366-day calendar, the ERA5 1991-2020 500 hPa normal at 00 UTC of verify-clim-z500-v1 and at 12 UTC (the same plus the 12 less 00 UTC difference in WeatherBench 2's ERA5 climatology by hour of day), and the ERA5 1991-2020 sea-level pressure normal at 00 and 12 UTC, for scripts/ensmaps/ensmaps_telecon.py (scripts/ensmaps/telecon15.py ref). clim_msl_1p5.npz: that normal on the 1.5 degree grid (hPa; scripts/verify/z500_acc.py clim --field msl), from WeatherBench 2's 6-hourly ERA5, each slot of the 366-day calendar the mean of the days within 7 slots of it in all 30 years."
 
   hindcast:
     needs: ref

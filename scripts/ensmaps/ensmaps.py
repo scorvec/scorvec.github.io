@@ -61,8 +61,8 @@ Files, per field and span (assets/models/data/ensmaps/<model>/<cycle>/<field>/),
   r/<sector><regime>/<span>.webp   the members of one weather regime (ensmaps_regimes.py), as a/ on the 0.5-deg grid
 The manifest (assets/models/ensmaps_<model>.json: the KEEP_RUNS newest runs, newest first, each in the frames store)
 lists the spans, members, gates, grids, encodings and the regimes; this run's statistics for the next runs go to --save,
-its regime labels to --regimes-out, and a 00 or 12Z run's members' 500 hPa height at the run's own hour of each day
-to --telecon-out (ensmaps_telecon.py: the teleconnection forecasts of circulation.html).
+its regime labels to --regimes-out, and a 00 or 12Z run's members' 500 hPa height and sea-level pressure at the run's
+own hour of each day to --telecon-out (ensmaps_telecon.py: the teleconnection forecasts of circulation.html).
 
     python scripts/ensmaps/ensmaps.py plan --model ifs --manifests assets/models
     python scripts/ensmaps/ensmaps.py run --model ifs --cycle 2026102500 --site . --normals ref/ensmaps_t2m_normals.npz \
@@ -908,8 +908,8 @@ def run(a) -> int:
     W = Writer(outdir, a.threads)
     Z25 = np.full((n, len(days), 73, 144), np.nan, np.float32)  # the regimes' field: 500 hPa height on 2.5 deg
     M25 = np.full((n, len(days), 73, 144), np.nan, np.float32)  # and the clusters': sea-level pressure
-    # the teleconnection forecasts' fields (ensmaps_telecon.py): each member's 500 hPa height at the run's own hour of
-    # each day, of a 00 or 12Z run to day 15 (its first stage for IFS-ENS)
+    # the teleconnection forecasts' fields (ensmaps_telecon.py): each member's 500 hPa height and sea-level pressure at
+    # the run's own hour of each day, of a 00 or 12Z run to day 15 (its first stage for IFS-ENS)
     tele = None
     if a.telecon_out and "z500" in fields and hh in ("00", "12") and mod.last(hh) >= LAST_STEP:
         try:
@@ -1050,8 +1050,8 @@ def run(a) -> int:
                 seen.add((f, i))
                 fd.acc[i] += v
                 fd.cnt[i] += 1
-                if tele is not None and f == "z500":
-                    tele.put(i, s, v, fd.g.lat, fd.g.lon)
+                if tele is not None and f in ("z500", "msl"):
+                    tele.put(i, s, v, fd.g.lat, fd.g.lon, f)
             if s not in last_of:
                 continue
             k = last_of[s]
@@ -1348,7 +1348,7 @@ def main() -> int:
     r.add_argument("--lists", type=Path, help="write publish.txt, prune.txt and floor.txt here")
     r.add_argument("--fields-out", type=Path, help="write the members' 2.5-deg anomalies for the clusters here")
     r.add_argument("--cluster-drift", type=Path, help="the clusters' drift archive of this model (read, and extended)")
-    r.add_argument("--telecon-out", type=Path, help="write the members' 500 hPa heights for the teleconnections here")
+    r.add_argument("--telecon-out", type=Path, help="write the members' fields for the teleconnections here")
     r.add_argument("--threads", type=int, default=min(4, os.cpu_count() or 1))
     r.add_argument("--fields", default="", help="IFS-ENS second stage: t2m, with --merge (default every field)")
     r.add_argument("--first", action="store_true", help="IFS-ENS first stage: 2 m temperature from the 0.25-deg files")

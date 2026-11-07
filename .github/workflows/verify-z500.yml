@@ -4,8 +4,10 @@ name: 500 hPa height database and anomaly correlations
 # GFS, the IFS control, AIFS and GDPS to day 10 (z500-<m>_<init>.npz), the IFS-ENS, AIFS-ENS, GEFS and GEPS means and
 # members to day 15 (ens-z500-<m>_, ens-z500m-<m>_), ERA5 at 00Z of each day (era5-z500_<day>.npz), and each run's
 # anomaly correlations against ERA5 once ERA5 covers its day 15 (acc_<init>.parquet), the anomalies from the ERA5
-# 1991-2020 normal at 00Z of release verify-clim-z500-v1 (z500_acc.py clim, built once by verify-clim.yml). Runs
-# and days the database holds are skipped, so a range can be dispatched again after a failure.
+# 1991-2020 normal at 00Z of release verify-clim-z500-v1 (z500_acc.py clim, built once by verify-clim.yml); and the
+# ensembles' mean sea-level pressure from z500_acc.MSL_SINCE (ens-msl-<m>_) with ERA5's (era5-msl_<day>.npz), which
+# calibrate the days 1-15 Arctic Oscillation. Runs and days the database holds are skipped, so a range can be
+# dispatched again after a failure.
 #
 # Each day it catches up the runs 1 to 47 days old (HPFX keeps GDPS about 52 days and GEPS about 48) and the days ERA5
 # has added on ARCO (about a week behind). Dispatched with a range it backfills: the ECMWF runs stay on the open-data
@@ -73,8 +75,11 @@ jobs:
           have = set(open(sys.argv[5]).read().split())
           code = {"GFS": "z500-gfs", "IFS": "z500-ifs", "AIFS": "z500-aifs", "GDPS": "z500-gdps", "IFS-ENS": "ens-z500-ifs",
                   "AIFS-ENS": "ens-z500-aifs", "GEFS": "ens-z500-gefs", "GEPS": "ens-z500-geps"}  # z500_acc.file_of
+          msl = {"IFS-ENS": "ens-msl-ifs", "AIFS-ENS": "ens-msl-aifs", "GEFS": "ens-msl-gefs", "GEPS": "ens-msl-geps"}  # z500_acc.msl_file
           hpfx = {"GDPS": 52, "GEPS": 48}  # mverify_scores.HPFX_DAYS, ens_verify.HPFX_DAYS
           since = {"IFS-ENS": date(2024, 3, 1), "GEFS": date(2024, 3, 1), "AIFS-ENS": date(2025, 7, 2)}  # z500_acc.SINCE
+          msl_since = {"IFS-ENS": date(2024, 3, 1), "GEFS": date(2024, 3, 1), "AIFS-ENS": date(2026, 9, 21),
+                       "GEPS": date(2026, 9, 21)}  # z500_acc.MSL_SINCE
           start = date(2026, 5, 13)  # z500_acc.START: the deterministic models and GEPS from here
           days = [first + timedelta(d) for d in range((last - first).days + 1)]
           def season(d):  # days from today's day of year, around the year
@@ -83,7 +88,9 @@ jobs:
           hpfx_chunks, per_model = [], []
           for m in sorted(models, key=lambda m: m not in hpfx):  # GDPS and GEPS first: HPFX deletes them
               oldest = max(date.today() - timedelta(days=hpfx.get(m, 100000)), since.get(m, start))
-              todo = [d for d in days if d >= oldest and f"{code[m]}_{d:%Y%m%d}00.npz" not in have]
+              lacks = lambda d: f"{code[m]}_{d:%Y%m%d}00.npz" not in have or (
+                  m in msl and d >= msl_since[m] and f"{msl[m]}_{d:%Y%m%d}00.npz" not in have)
+              todo = [d for d in days if d >= oldest and lacks(d)]
               # the season of the teleconnection forecasts' calibration first (the runs nearest today's day of year in
               # every year, newest first), so their skill can be tested within hours rather than at the backfill's end
               todo.sort(key=lambda d: (season(d) // 15, -d.toordinal()))
@@ -125,16 +132,21 @@ jobs:
           RUNS: ${{ matrix.chunk.runs }}
         run: |
           scripts/verify/verifydb.sh list > "$RUNNER_TEMP/have.txt"
-          failed=""
+          failed=""; k=0
           for d in $RUNS; do   # a run that fails is left for the next pass; the chunk's other runs go on
-            if python scripts/verify/z500_acc.py fields --model "$MODEL" --inits "${d}00" "${d}00" \
-                --work "$RUNNER_TEMP/fc" --have "$RUNNER_TEMP/have.txt" --archive-out "$RUNNER_TEMP/db-new"; then
-              scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"
-            else
+            if ! python scripts/verify/z500_acc.py fields --model "$MODEL" --inits "${d}00" "${d}00" \
+                --work "$RUNNER_TEMP/fc/$d" --have "$RUNNER_TEMP/have.txt" --archive-out "$RUNNER_TEMP/db-new"; then
               echo "::warning::$MODEL ${d}00 failed, left for the next pass"; failed="$failed $d"
+              rm -f "$RUNNER_TEMP"/db-new/*_"${d}"00.npz   # none of a failed run's files
             fi
-            rm -rf "$RUNNER_TEMP"/db-new "$RUNNER_TEMP"/fc
+            rm -rf "$RUNNER_TEMP/fc/$d"
+            # ten runs to an upload: each upload lists the database first, which a backfill of a run at a time
+            # repeated thousands of times over the API's hourly allowance
+            if (( ++k % 10 == 0 )) && [ -d "$RUNNER_TEMP/db-new" ]; then
+              scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"; rm -rf "$RUNNER_TEMP/db-new"
+            fi
           done
+          if [ -d "$RUNNER_TEMP/db-new" ]; then scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"; fi
           if [ -n "$failed" ]; then echo "::error::$MODEL runs not archived:$failed"; exit 1; fi
 
   truth:

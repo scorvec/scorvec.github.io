@@ -29,12 +29,12 @@ name: Global ensemble maps (data)
 # download.
 #
 # And the days 1-15 teleconnections of circulation.html#telecon15 (scripts/ensmaps/ensmaps_telecon.py) the same way: a
-# 00 or 12Z run leaves each member's 500 hPa height at the run's own hour of each day in the Actions cache
-# (ensmaps-<model>-telecon-<cycle>, the two newest kept), and the `telecon` job - one at a time - reads the newest run of
-# each model, the hindcast table and the reference (telecon15.yml), adds each new run to its model's run record
-# (assets/sst/data/runs/telecon15_<model>.json, the last ten days of runs, read from main as it stands), draws the
-# figures into the frames store and commits the records and assets/sst/data/telecon15.json. Either job failing leaves
-# the maps as published.
+# 00 or 12Z run leaves each member's 500 hPa height and sea-level pressure at the run's own hour of each day in the
+# Actions cache (ensmaps-<model>-telecon-<cycle>, the two newest kept), and the `telecon` job - one at a time - reads
+# the newest run of each model, the hindcast table and the reference (telecon15.yml), adds each new run to its model's
+# run record (assets/sst/data/runs/telecon15_<model>.json, the last ten days of runs, read from main as it stands),
+# draws the figures into the frames store and commits the records and assets/sst/data/telecon15.json. Either job
+# failing leaves the maps as published.
 #
 # Sources per run (the steps of the full days, 6-hourly: 15 or 14, GEFS and GEPS to +384 h one more):
 #   ifs   ECMWF open data, Google Cloud mirror only: 2t of the 50 perturbed members from the 0.1-deg surface files,
@@ -515,7 +515,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FRAMES_BRANCH: "off"
-          TC_REF: telecon15-ref-v2   # telecon15.REF_TAG
+          TC_REF: telecon15-ref-v3   # telecon15.REF_TAG
         run: |
           set -euo pipefail
           ls -la telecon tbl 2>/dev/null || true
