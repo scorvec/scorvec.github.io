@@ -47,7 +47,7 @@ PAIRS = [
     ("--muted", "--bg", "muted text on the page"),
     ("--muted", "--panel", "muted text on a card"),
     ("--muted-tint", "#e6edf4", "muted text on the viewers' control panel"),
-    ("--muted-tint", "#f1e9dc", "muted text on the finder's warmest tint"),
+    ("--muted-tint", "#f1e9dc", "muted text on the catalogue's warmest tint"),
     ("--ink2", "--bg", "card copy on the page"),
     ("--accent", "--bg", "links on the page"),
     ("--accent", "--panel", "links on a card"),

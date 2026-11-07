@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Every plot on the site, as one index: assets/site/catalog.json.
 
-Feeds the header finder (Ctrl/Cmd-K, assets/site.js) and the catalogue page (catalog.html). Built from the pages
+Feeds the catalogue page (catalog.html) and the stage pages' related-plots strip (assets/stage.js). Built from the pages
 themselves so it never goes stale:
   stage pages (window.STAGE) and the GEPS/GEFS pages (var P / GROUPS)  ->  scripts/site/catalog_eval.js runs their
       inline scripts in node with the DOM stubbed out and calls the spec's own functions, so option lists, image
@@ -1007,7 +1007,7 @@ def build(index_path: str | None = None) -> dict:
             del THUMB_TABLE[k]
     n_t = attach_thumbs(thumb_index(index_path))
     counts = {t: sum(1 for i in uniq if i["topic"] == t) for t, _, _ in TOPICS}
-    # the menus' pages in menu order, for the finder's opening list (a site map in the palette)
+    # the menus' pages in menu order: the catalogue sorts its cards by them
     tid = {l: t for t, l, _ in TOPICS}
     pages = [
         dict(href=href, label=label, what=what, when=when, topic=tid[title])

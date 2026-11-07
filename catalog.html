@@ -14,8 +14,7 @@
 <meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
 <meta name="twitter:card" content="summary_large_image">
 <!-- The catalogue page (2026-09-27, the topic redesign). The index is assets/site/catalog.json, built from the pages
-     themselves by scripts/site/build_catalog.py (catalog.yml); the search is the header finder's own (window.SiteFind in
-     assets/site.js), so this page and Ctrl/Cmd-K always agree. -->
+     themselves by scripts/site/build_catalog.py (catalog.yml); the search is window.SiteFind in assets/site.js. -->
 <script type="application/ld+json">
 {
  "@context": "https://schema.org",
@@ -35,7 +34,7 @@
 }
 </script>
 <script src="/assets/frames_root.js?v=37e1429f1f"></script>
-<link rel="stylesheet" href="/assets/site.css?v=08996a48dc">
+<link rel="stylesheet" href="/assets/site.css?v=195e33a1fe">
 <style>
   :root {
     --muted-tint: #625e58;   /* muted text on the topic tints below: #6f6b64 falls under 4.5:1 there */
@@ -128,7 +127,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-<script src="/assets/site.js?v=6a624e5f1e" defer></script>
+<script src="/assets/site.js?v=7865c473e4" defer></script>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -137,7 +136,6 @@
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
-    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
     <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
     <nav class="sh-nav" id="sh-menu" aria-label="Site">
       <ul class="sh-list">
@@ -323,7 +321,7 @@
   <noscript><p class="none">The catalogue needs JavaScript. Every page is in the menus at the top.</p></noscript>
   <section class="page-about" id="page-about">
     <h2>About this sheet</h2>
-    <p>The cards are gathered from the pages themselves and rebuilt whenever one changes. <span id="kbhint">Filter above, or press <kbd>Ctrl K</kbd> on any page to search from anywhere.</span></p>
+    <p>The cards are gathered from the pages themselves and rebuilt whenever one changes.</p>
   </section>
 </main>
 <script>
@@ -333,10 +331,6 @@ document.addEventListener('DOMContentLoaded', function () {
   var qEl = document.getElementById('q'), qx = document.getElementById('qx'), sum = document.getElementById('sum'), reset = document.getElementById('reset');
   var sortEl = document.querySelector('.sort');
   if (!F) { sum.textContent = 'The index could not be loaded.'; return; }
-  var MAC = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent || '');
-  var TOUCH = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-  var kb = document.querySelector('#kbhint kbd'); if (kb) kb.textContent = MAC ? '⌘K' : 'Ctrl K';
-  if (TOUCH) document.getElementById('kbhint').textContent = 'Filter above, or use the search button in the header on any page.';  // no keyboard
 
   // facets: key in the URL, label, how to read an item's values
   var FACETS = [
@@ -417,7 +411,6 @@ document.addEventListener('DOMContentLoaded', function () {
       a.innerHTML = '<div class="ct-th"></div><span class="ct-l"></span>' +
         '<span class="ct-m">' + F.esc(meta) + (it._age ? ' · <span class="age' + (it._age.late ? ' late' : '') + '">' + it._age.text + '</span>' : '') + '</span>' +
         '<span class="ct-m">' + F.esc(tags) + (nvi > 1 ? ' · ' + nvi + ' views' : '') + '</span>';
-      a.addEventListener('click', function () { F.remember(it, a._variant || null); });
       a._it = it; a._fig = undefined;
       cards[it.id] = a;
     });
@@ -543,7 +536,6 @@ document.addEventListener('DOMContentLoaded', function () {
       var g = s.querySelector('.grid');
       rs.forEach(function (r) {
         var a = cards[r.item.id];
-        a._variant = r.variant || null;
         a.href = r.variant ? r.item.page + r.variant[1] : r.item.url;
         a.querySelector('.ct-l').innerHTML = F.highlight(r.item.label, state.q) +
           (r.variant ? ' <span class="v">› ' + F.highlight(r.variant[0], state.q) + '</span>' : '');

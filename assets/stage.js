@@ -452,7 +452,7 @@
   }
 
   // "Related plots": a strip under the figure of products elsewhere on the site
-  // that share its variables, regions and models, from the finder's index (assets/site/catalog.json via
+  // that share its variables, regions and models, from the site's catalogue (assets/site/catalog.json via
   // window.SiteFind). The index is fetched only once the strip scrolls into view.
   var relBox = null, relWanted = false, relCat = null;
   function pagePath() { return location.pathname.replace(/index\.html$/, ""); }
