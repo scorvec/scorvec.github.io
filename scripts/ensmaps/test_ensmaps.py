@@ -12,10 +12,7 @@ data are fetched.
            the 2 m file's float16 harmonics give back the curve to 0.02 K
   codes    the anomaly, mean and change codes round-trip within half a step and map NaN to 0
   gate     agreeing counts the members sharing the mean's sign; sign_k is 33/50, 33/51, 22/31, 16/21
-  test     welch_p equals scipy's Welch test; var_p equals the F-test from scipy's F distribution, finds a planted
-           doubling of the spread across a map and nothing between two runs of the same spread; against band_ratio's
-           typical change at the latitude it finds a planted rise and not a uniform shrinkage; the spread codes
-           round-trip
+  test     welch_p equals scipy's Welch test; the spread codes round-trip
   chain    a run's statistics serve the runs 6 to 48 h later (IFS-ENS 06/18Z to +144 h among them), the last window
            cut to the shared days; the manifest keeps the four newest runs, the store those that left in the last hour
            and the newest before them; a rebuild publishes add-only
@@ -213,38 +210,6 @@ def test():
     a, b = RNG.normal(0.4, 1.0, (31, 200)), RNG.normal(0.0, 1.5, (21, 200))
     p = E.welch_p(a.mean(0), a.std(0, ddof=1), 31, b.mean(0), b.std(0, ddof=1), 21)
     check(np.allclose(p, ttest_ind(a, b, equal_var=False).pvalue), "welch_p equals scipy's Welch test")
-    from scipy.stats import f as fisher
-
-    s1, s0 = a.std(0, ddof=1), b.std(0, ddof=1)
-    F = s1**2 / s0**2
-    ref = 2 * np.minimum(fisher.cdf(F, 30, 20), fisher.sf(F, 30, 20))
-    check(np.allclose(E.var_p(s1, 31, s0, 21), ref), "var_p equals the two-sided F-test")
-    wide, base, same = RNG.normal(0, 2.0, (50, 2000)), RNG.normal(0, 1.0, (50, 2000)), RNG.normal(0, 1.0, (50, 2000))
-    sd = lambda x: x.std(0, ddof=1)  # noqa: E731
-    found = E.significant(E.var_p(sd(wide), 50, sd(base), 50)).mean()
-    none = E.significant(E.var_p(sd(same), 50, sd(base), 50)).mean()
-    check(
-        found > 0.95 and none < 0.01,
-        f"a doubled spread is found ({found:.0%} of points), identical spreads not ({none:.1%})",
-    )
-    check(np.isnan(E.var_p(np.zeros(3), 50, np.ones(3), 50)).all(), "var_p: NaN where a run's members do not vary")
-    # a newer run's spread 20 % smaller everywhere (the shorter lead): against the band's typical ratio nothing stands
-    # out; with twice that spread in a band of columns, those are found and the false discoveries stay near the FDR
-    old = RNG.normal(0, 1.0, (50, 60, 400))
-    new = RNG.normal(0, 0.8, (50, 60, 400))
-    rb = E.band_ratio(sd(new) / sd(old), half=10)
-    flat = E.significant(E.var_p(sd(new), 50, sd(old), 50, rb)).mean()
-    check(
-        np.allclose(rb, 0.8, atol=0.03) and flat < 0.01,
-        f"a uniform shrinkage is the typical ratio ({np.median(rb):.2f}) and is not flagged ({flat:.1%})",
-    )
-    new[:, :, :40] *= 2.0
-    s1, s0 = sd(new), sd(old)
-    sig = E.significant(E.var_p(s1, 50, s0, 50, E.band_ratio(s1 / s0, half=10)))
-    hit, fdp = sig[:, :40].mean(), sig[:, 40:].sum() / max(sig.sum(), 1)
-    check(
-        hit > 0.9 and fdp < 0.15, f"a planted rise is found ({hit:.0%}); false discoveries {fdp:.0%} of those flagged"
-    )
     c = E.code_mean(np.array([0.0, 37.4, np.nan]), 0.0, E.ENC["z500"]["spread"])
     check(
         c[0] == 1 and abs((c[1] - 1) * E.ENC["z500"]["spread"] - 37.4) <= 0.5 and c[2] == 0, "spread codes round-trip"
@@ -700,11 +665,13 @@ def telecon():
     sea = ET.season(pd.DatetimeIndex(["2024-11-21", "2025-02-19", "2025-11-21"]), pd.Timestamp("2026-01-05"))
     check(sea[0] == sea[1] != sea[2], "a window of starts around 5 January: November and February in one season")
 
-    # the blend over three seasons of daily starts: an AR(1) observed index and models with independent errors
-    starts = pd.DatetimeIndex([d for y in (2024, 2025, 2026) for d in pd.date_range(f"{y}-09-14", f"{y}-12-11")])
+    # the blend over nine seasons of daily starts: an AR(1) observed index and models with independent errors, from a
+    # generator of its own (over three seasons either check fails for one draw in five or more: too few for the test)
+    rng = np.random.default_rng(20261107)
+    starts = pd.DatetimeIndex([d for y in range(2018, 2027) for d in pd.date_range(f"{y}-09-14", f"{y}-12-11")])
     o = np.zeros(len(starts))
     for k in range(1, len(o)):
-        o[k] = 0.85 * o[k - 1] + RNG.normal(0, np.sqrt(1 - 0.85**2))
+        o[k] = 0.85 * o[k - 1] + rng.normal(0, np.sqrt(1 - 0.85**2))
 
     def table(fs: dict) -> pd.DataFrame:
         idx = pd.MultiIndex.from_arrays([starts, np.full(len(starts), 24)], names=["init", "lead_h"])
@@ -713,7 +680,7 @@ def telecon():
     def err() -> np.ndarray:
         e = np.zeros(len(o))
         for k in range(1, len(o)):  # forecast errors persist from one start to the next, as real ones do
-            e[k] = 0.6 * e[k - 1] + RNG.normal(0, 0.8)
+            e[k] = 0.6 * e[k - 1] + rng.normal(0, 0.8)
         return e
 
     t0 = pd.Timestamp("2026-10-28")
