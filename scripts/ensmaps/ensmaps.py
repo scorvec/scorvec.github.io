@@ -1215,10 +1215,10 @@ def run(a) -> int:
     regimes = None
     if "z500" in F and "msl" in F:
         regimes = ER.run(mod, key_c, init, days, Z25, F, high50, W, a.regimes_out, before)
-    clusters_ok = "z500" in F and "msl" in F and full
-    if a.fields_out and clusters_ok:  # the clusters' fields: full runs only
-        # (the members' 2.5-deg anomalies for the four-ensemble clusters, ensmaps_clusters.py; an IFS-ENS 06/18Z run
-        # would cut its windows to day 5)
+    clusters_ok = "z500" in F and "msl" in F and full and hh in ("00", "12")
+    if a.fields_out and clusters_ok:  # the clusters' fields: full 00 and 12Z runs only
+        # (the members' 2.5-deg anomalies for the four-ensemble clusters, ensmaps_clusters.py, which pool the four
+        # ensembles' runs from one start: GEPS runs only 00 and 12Z, and an IFS-ENS 06/18Z run stops at day 5)
         import ensmaps_clusters as EC
 
         ok = F["z500"].done & F["msl"].done

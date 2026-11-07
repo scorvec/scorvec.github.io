@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Four-ensemble clusters of 500 hPa height and sea-level pressure for ens-anomalies.html: the members of the newest
-IFS-ENS, AIFS-ENS, GEFS and GEPS runs pooled on the same valid dates and grouped into the few scenarios the spread of the
-grand ensemble supports - or one, when it supports none. No download: each ensmaps job leaves its members' 2.5-deg
-anomalies in the Actions cache (save_fields, from ensmaps.py), and `run` clusters the newest run of each model there.
+"""Four-ensemble clusters of 500 hPa height and sea-level pressure for ens-anomalies.html: the members of the IFS-ENS,
+AIFS-ENS, GEFS and GEPS runs from one start (00 or 12Z) pooled on the same valid dates and grouped into the few scenarios
+the spread of the grand ensemble supports - or one, when it supports none. No download: each ensmaps job leaves its
+members' 2.5-deg anomalies of a 00 or 12Z run in the Actions cache (save_fields, from ensmaps.py), and `run` clusters the
+runs of the start given (--cycle: the workflow passes the newest start all four hold), or each model's newest.
 
   fields    each member's daily-mean 500 hPa height and sea-level pressure anomaly against the ensmaps 1991-2020 normals,
             on the 2.5-deg NCEP grid 20-90N (regime_core.box25); the pressure anomaly is 0 where the model's ground is
@@ -200,13 +201,18 @@ def save_fields(out: Path, mod, cycle: str, init, days: list, Z25, M25, ok, high
 
 
 # ── clustering ────────────────────────────────────────────────────────────────────────────────────────────────────────
-def load(paths: list[Path]) -> list[dict]:
+def load(paths: list[Path], cycle: str | None = None) -> list[dict]:
+    """Each model's run in the fields given: the newest, or the one from `cycle` (a file from another start is left
+    out, so the runs pooled share one start)."""
     runs = {}
     for p in paths:
         with np.load(p) as z:
             r = {k: z[k] for k in z.files}
         key = str(r["model"])
         r["key"], r["cycle"], r["init"] = key, str(r["cycle"]), str(r["init"])
+        if cycle and r["cycle"] != cycle:
+            log(f"  {LABEL[key]} {r['cycle']} left out: not from the {cycle} start")
+            continue
         r["valid"] = [str(v) for v in r["valid"]]
         if key not in runs or r["cycle"] > runs[key]["cycle"]:
             runs[key] = r
@@ -562,7 +568,9 @@ def _draw(job: tuple) -> tuple[str, int]:
     return fn, (outdir / fn).stat().st_size
 
 
-def run(paths: list[Path], site: Path, lists: Path | None, manifest_in: Path | None, workers: int) -> int:
+def run(
+    paths: list[Path], site: Path, lists: Path | None, manifest_in: Path | None, workers: int, cycle: str | None = None
+) -> int:
     from concurrent.futures import ProcessPoolExecutor
 
     import regime_core as RC
@@ -570,7 +578,7 @@ def run(paths: list[Path], site: Path, lists: Path | None, manifest_in: Path | N
     import ensmaps as E
 
     t_start = time.time()
-    models = load(paths)
+    models = load(paths, cycle)
     if not models:
         log("::notice::no ensemble's fields in the cache yet: no clusters")
         return 0
@@ -912,6 +920,7 @@ def main() -> int:
     s.add_argument("--out", type=Path, default=SD_FILE)
     r = sub.add_parser("run")
     r.add_argument("--fields", type=Path, nargs="*", default=[])
+    r.add_argument("--cycle", help="the start YYYYMMDDHH whose runs are pooled (the default: each model's newest)")
     r.add_argument("--site", type=Path, default=ROOT)
     r.add_argument("--lists", type=Path)
     r.add_argument("--manifest-in", type=Path)
@@ -920,7 +929,7 @@ def main() -> int:
     if a.cmd == "sd":
         build_sd(a.out)
         return 0
-    return run([p for p in a.fields if p.exists()], a.site, a.lists, a.manifest_in, a.workers)
+    return run([p for p in a.fields if p.exists()], a.site, a.lists, a.manifest_in, a.workers, a.cycle)
 
 
 if __name__ == "__main__":

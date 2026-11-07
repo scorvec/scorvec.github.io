@@ -22,10 +22,11 @@ name: Global ensemble maps (data)
 #
 # Then the four-ensemble clusters (scripts/ensmaps/ensmaps_clusters.py): each model job leaves its members' 2.5-deg
 # 500 hPa height and sea-level pressure anomalies in the Actions cache (ensmaps-<model>-fields-<cycle>, its clusters'
-# drift archive in ensmaps-<model>-cdrift-<cycle>; the two newest of each kept; an IFS-ENS 06/18Z run, to day 5, leaves
-# none), and the `clusters` job - one at a time across the four callers - clusters the newest run of each model there,
-# publishes the figures to the frames store and commits assets/models/ensmaps_clusters.json. So the clusters update as
-# each model lands, with no download.
+# drift archive in ensmaps-<model>-cdrift-<cycle>; the two newest of each kept; only 00 and 12Z runs leave them, the
+# starts all four share), and the `clusters` job - one at a time across the four callers - clusters the four runs of
+# the newest start all four hold there, publishes the figures to the frames store and commits
+# assets/models/ensmaps_clusters.json. So the clusters update once the last of a start's four runs lands, with no
+# download.
 #
 # And the days 1-15 teleconnections of circulation.html#telecon15 (scripts/ensmaps/ensmaps_telecon.py) the same way: a
 # 00 or 12Z run leaves each member's 500 hPa height at the run's own hour of each day in the Actions cache
@@ -352,39 +353,65 @@ jobs:
             /scripts/constraints.txt
             /assets/models/geo_polar_coarse.json
             /assets/models/ensmaps_clusters.json
+      # the four runs pooled share one start: the newest 00 or 12Z cycle whose fields all four ensembles hold (a run
+      # leaves fields at 00 and 12Z only); nothing to do while the newest start is incomplete or already published
+      - name: The newest start all four ensembles hold
+        id: start
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORCE: ${{ inputs.force && '1' || '' }}
+        run: |
+          set -euo pipefail
+          common="" first=1
+          for m in ifs aifs gefs geps; do
+            c=$(gh cache list -R "$GITHUB_REPOSITORY" --key "ensmaps-$m-fields-" --limit 20 --json key -q '.[].key' | sed -n 's/.*-\([0-9]\{10\}\)$/\1/p' | sort -u)
+            if [ "$first" = 1 ]; then common="$c" first=0; else common=$(comm -12 <(printf '%s\n' "$common") <(printf '%s\n' "$c")); fi
+          done
+          cycle=$(printf '%s\n' "$common" | grep -E '(00|12)$' | tail -n 1 || true)
+          if [ -z "$cycle" ]; then echo "::notice::no start that all four ensembles hold yet: the published clusters stay"; exit 0; fi
+          if [ -z "$FORCE" ] && timeout 60 git fetch -q --depth 1 origin main \
+             && git show FETCH_HEAD:assets/models/ensmaps_clusters.json 2>/dev/null \
+                | python3 -c 'import json, sys; r = json.load(sys.stdin)["runs"]; sys.exit(0 if len(r) == 4 and {v["cycle"] for v in r.values()} == {sys.argv[1]} else 1)' "$cycle"; then
+            echo "clusters of the $cycle runs already published"; exit 0
+          fi
+          echo "clusters of the $cycle runs"
+          echo "cycle=$cycle" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-python@v7
+        if: steps.start.outputs.cycle
         with:
           python-version: "3.11"
       - name: Install dependencies
+        if: steps.start.outputs.cycle
         run: |
           pip install --quiet numpy scipy pandas pillow 'pyproj>=3.7.2' matplotlib==3.10.9 \
             "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
-      - name: The newest IFS-ENS fields
+      - name: The IFS-ENS fields
+        if: steps.start.outputs.cycle
         uses: actions/cache/restore@v6
         with:
           path: clusterfields
-          key: ensmaps-ifs-fields-newest
-          restore-keys: ensmaps-ifs-fields-
-      - name: The newest AIFS-ENS fields
+          key: ensmaps-ifs-fields-${{ steps.start.outputs.cycle }}
+      - name: The AIFS-ENS fields
+        if: steps.start.outputs.cycle
         uses: actions/cache/restore@v6
         with:
           path: clusterfields
-          key: ensmaps-aifs-fields-newest
-          restore-keys: ensmaps-aifs-fields-
-      - name: The newest GEFS fields
+          key: ensmaps-aifs-fields-${{ steps.start.outputs.cycle }}
+      - name: The GEFS fields
+        if: steps.start.outputs.cycle
         uses: actions/cache/restore@v6
         with:
           path: clusterfields
-          key: ensmaps-gefs-fields-newest
-          restore-keys: ensmaps-gefs-fields-
-      - name: The newest GEPS fields
+          key: ensmaps-gefs-fields-${{ steps.start.outputs.cycle }}
+      - name: The GEPS fields
+        if: steps.start.outputs.cycle
         uses: actions/cache/restore@v6
         with:
           path: clusterfields
-          key: ensmaps-geps-fields-newest
-          restore-keys: ensmaps-geps-fields-
+          key: ensmaps-geps-fields-${{ steps.start.outputs.cycle }}
       - name: Cluster, draw, publish
         id: cl
+        if: steps.start.outputs.cycle
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FRAMES_BRANCH: "off"
@@ -396,8 +423,8 @@ jobs:
             cp /tmp/clusters.json assets/models/ensmaps_clusters.json
           fi
           L="$RUNNER_TEMP/lists"
-          python scripts/ensmaps/ensmaps_clusters.py run --fields clusterfields/*.npz --site . --lists "$L" \
-            --manifest-in assets/models/ensmaps_clusters.json
+          python scripts/ensmaps/ensmaps_clusters.py run --fields clusterfields/*.npz --cycle "${{ steps.start.outputs.cycle }}" \
+            --site . --lists "$L" --manifest-in assets/models/ensmaps_clusters.json
           if [ ! -s "$L/publish.txt" ]; then echo "nothing to publish"; exit 0; fi
           SRC=. PRUNE="$(tr '\n' ' ' < "$L/prune.txt")" PRUNE_OLDER="$(cat "$L/floor.txt")" scripts/models/publish_data.sh $(cat "$L/publish.txt") > /dev/null
           echo "done=1" >> "$GITHUB_OUTPUT"
