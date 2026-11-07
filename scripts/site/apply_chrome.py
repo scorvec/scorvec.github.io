@@ -1005,9 +1005,15 @@ def footer_html(dark: bool) -> str:
 
 
 def is_dark(html: str) -> bool:
-    """A page whose --bg is darker than mid-grey gets the dark header skin."""
-    m = re.search(r"--bg:\s*#([0-9a-fA-F]{6})\b", html)
-    if not m:
+    """A page whose --bg is darker than mid-grey gets the dark header skin. Only the page's default --bg counts: one
+    set inside an opt-in dark theme (a rule on data-theme or prefers-color-scheme) leaves a light page light."""
+    for m in re.finditer(r"--bg:\s*#([0-9a-fA-F]{6})\b", html):
+        before = html[: m.start()]
+        brace = before.rfind("{")
+        selector = before[max(before.rfind("}", 0, brace), before.rfind("{", 0, brace)) + 1 : brace]
+        if "data-theme" not in selector and "prefers-color-scheme" not in selector:
+            break
+    else:
         m = re.search(r"body\s*\{[^}]*background:\s*#([0-9a-fA-F]{6})", html)
     if not m:
         return False

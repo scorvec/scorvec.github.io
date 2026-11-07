@@ -579,11 +579,11 @@
       else if (m.last_hdob) parts.push(`<span>Newest observation <b>${dayhm(m.last_hdob)}</b> (${ago(m.last_hdob)})</span>`);
       else if (m.last) parts.push(`<span>Newest message <b>${dayhm(m.last)}</b> (${ago(m.last)})</span>`);
     }
-    parts.push(`<span class="mu">Mirror checked ${ago(S.man.updated)} · page refreshes ${anyAir() ? "every 90 s while a mission is airborne" : "every 10 min"}</span>`);
+    parts.push(`<span class="mu">Mirror last updated ${ago(S.man.updated)} · page refreshes ${anyAir() ? "every 90 s while a mission is airborne" : "every 10 min"}</span>`);
     setStatus(parts.join(""));
     const stale = Date.now() / 1000 - S.man.updated > 3 * 3600 && (S.man.active || []).length;
     $("warn").hidden = !stale;
-    if (stale) $("warn").textContent = `The mirror last ran ${ago(S.man.updated)}; newer reconnaissance may exist at the NHC.`;
+    if (stale) $("warn").textContent = `The mirror last updated ${ago(S.man.updated)}; newer reconnaissance may exist at the NHC.`;
   }
   const anyAir = () => S.man && Object.values(S.man.missions).some(isAir);
   setInterval(status, 20000);
