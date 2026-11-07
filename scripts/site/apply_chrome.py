@@ -86,6 +86,13 @@ PRODUCTS = [
                         "Tropopause, Pacific jet and wave trains",
                     ),
                     (
+                        "/circulation.html#jets",
+                        "Jets and angular momentum",
+                        "Speed and latitude of each hemisphere's subtropical jet core in the AIFS ensemble against the normal, the zonal-mean wind through the 15-day forecast, and global atmospheric angular momentum with the mountain and friction torques that change it.",
+                        "Daily",
+                        "Jet cores, momentum and torques",
+                    ),
+                    (
                         "/circulation.html#telecon15",
                         "Teleconnections",
                         "The NAO, PNA, EPO, WPO and seven more 500 hPa teleconnection patterns from every member of the IFS-ENS, AIFS-ENS, GEFS and GEPS runs, each ensemble calibrated against its own archived runs, with the chance of each phase only at the leads where it has shown skill and how the forecast has moved from run to run.",
@@ -110,8 +117,7 @@ PRODUCTS = [
             ),
         ],
     ),
-    # the subtropical jets and the angular-momentum products sit here with the tropics (the North Pacific jet is
-    # mid-latitude weather); the entries follow circulation.html's groups
+    # the tropical circulation: the jets and angular momentum sit with the flow aloft under Forecasts
     (
         "Tropics",
         "El Niño, the MJO, tropical waves and the tropical circulation",
@@ -140,13 +146,6 @@ PRODUCTS = [
                         "Daily",
                         "Kelvin and Rossby waves, now and ahead",
                     ),
-                    (
-                        "/circulation.html#mslp",
-                        "Pacific pressure and satellite",
-                        "Sea-level pressure and 10 m wind over the tropical and subtropical Pacific to day 15 (the AIFS and IFS ensembles, separately and blended, and the AIFS, IFS and GDPS single runs), and Environment Canada's GDPS drawn as an infrared satellite loop, 3-hourly to day 10.",
-                        "Twice daily",
-                        "Pressure, wind and simulated IR",
-                    ),
                 ],
             ),
             (
@@ -160,11 +159,11 @@ PRODUCTS = [
                         "The overturning, its outflow and descent",
                     ),
                     (
-                        "/circulation.html#jets",
-                        "Jets and angular momentum",
-                        "Speed and latitude of each hemisphere's subtropical jet core in the AIFS ensemble against the normal, the zonal-mean wind through the 15-day forecast, and global atmospheric angular momentum with the mountain and friction torques that change it.",
-                        "Daily",
-                        "Jet cores, momentum and torques",
+                        "/circulation.html#mslp",
+                        "Pacific pressure and satellite",
+                        "Sea-level pressure and 10 m wind over the tropical and subtropical Pacific to day 15 (the AIFS and IFS ensembles, separately and blended, and the AIFS, IFS and GDPS single runs), and Environment Canada's GDPS drawn as an infrared satellite loop, 3-hourly to day 10.",
+                        "Twice daily",
+                        "Pressure, wind and simulated IR",
                     ),
                     (
                         "/circulation.html#rainfc",
@@ -847,7 +846,7 @@ HOME = {
             "/mjo.html",
             "/tropical-waves.html",
             "/circulation.html#walker",
-            "/circulation.html#jets",
+            "/circulation.html#mslp",
             "/circulation.html#rainfc",
         ],
     ),

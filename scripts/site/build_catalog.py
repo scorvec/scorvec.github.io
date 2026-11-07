@@ -141,8 +141,8 @@ PAGES = {
             "shwinters": dict(models=["MERRA-2", "GEOS FP"]),  # this winter from GEOS FP analyses
         },
     ),
-    # circulation.html's groups follow the theme-first menus: its days 1-15 maps under Mid-latitude weather, the
-    # tropical-cyclone, tropical-circulation and angular-momentum items under Global circulation and tropics
+    # circulation.html's groups follow the theme menus: the days 1-15 maps, the tropical cyclones and the jets and
+    # angular momentum under Forecasts, the tropical Pacific and the tropical circulation under Tropics
     "/circulation.html": dict(
         kind="stage",
         file="circulation.html",
@@ -156,11 +156,11 @@ PAGES = {
         groups={
             "Tropical Pacific": dict(topic="drivers", region=["Pacific", "Tropics"]),
             "Mid-latitude weather": dict(topic="weather", region=["Pacific", "Northern Hemisphere"]),
-            "Tropical cyclones": dict(topic="drivers", region=["Pacific", "North America"], prio=3),
+            "Tropical cyclones": dict(topic="weather", region=["Pacific", "North America"], prio=3),
             "Tropical circulation": dict(
                 topic="drivers", models=["AIFS-ENS", "IFS-ENS", "GEFS", "IMERG", "GPCP", "ERA5"], region=["Tropics"]
             ),
-            "Jets & angular momentum": dict(topic="drivers", region=["Global"]),
+            "Jets & angular momentum": dict(topic="weather", region=["Global"]),
         },
         items={"telecon15": dict(models=["IFS-ENS", "AIFS-ENS", "GEFS", "GEPS", "ERA5"])},
     ),
