@@ -4,7 +4,8 @@ name: Brewer-Dobson upwelling (downward control)
 # streamfunction, by DOWNWARD CONTROL from the EP-flux divergence and gravity-wave drag (scripts/strat/bdc_dc.py; the
 # continuity estimate was rejected - it gives no winter maximum in either GEOS FP or MERRA-2). GEOS FP analyses and the
 # 00Z forecast from NASA NCCS OPeNDAP; the MERRA-2 climatology and the 2018-19 GEOS FP-MERRA-2 offset from release
-# bdc-ref-v1; the rolling analysis cache (one small npz a day) on the frames branch. ~6 minutes a run.
+# bdc-ref-v1; the rolling analysis cache (one small npz a day) and the newest forecast cycle (what a run renders when
+# NCCS fails the new cycle) on the frames branch. ~6 minutes a run.
 # NCCS posts the 00Z forecast late (not there by 06:35 UTC on 2026-09-27), hence the afternoon slots.
 # Same source again: the stratosphere page's live MOMENTUM BUDGET (scripts/strat/momentum_budget.py, 2026-09-27): the TEM
 # zonal-momentum terms from GEOS FP's 3-hourly analyses plus its gravity-wave-drag and analysis-increment tendencies, and
@@ -114,6 +115,7 @@ jobs:
           scripts/lib/fetch_frames_ci.sh assets/sst/anim/bdc_tail || true
           mkdir -p $D/fp_tail assets/sst/anim/bdc_tail
           cp assets/sst/anim/bdc_tail/*.npz $D/fp_tail/ 2>/dev/null || true
+          mkdir -p $D/fp_fcst; cp assets/sst/anim/bdc_tail/fcst/*.npz $D/fp_fcst/ 2>/dev/null || true
           # a cold cache (first run, or the frames copy lost) starts from the release's seed (Jun 12 - Sep 26 2026)
           if [ "$(ls $D/fp_tail | wc -l)" -lt 60 ]; then tar xzf $D/fp_tail_seed.tar.gz -C $D && echo "seeded from the release"; fi
           echo "cached analysis days: $(ls $D/fp_tail | wc -l)"
@@ -128,6 +130,11 @@ jobs:
           # the cache back to the frames branch: new days merged in, days older than 150 d pruned
           cp $D/fp_tail/*.npz assets/sst/anim/bdc_tail/
           old=$(ls assets/sst/anim/bdc_tail/*.npz | xargs -n1 basename | sed 's/.npz//' | awk -v c=$(date -u -d '150 days ago' +%Y%m%d) '$1 < c' | sed 's#^#assets/sst/anim/bdc_tail/#; s#$#.npz#' | tr '\n' ' ')
+          # the newest forecast cycle replaces the previous one
+          C=assets/sst/anim/bdc_tail/fcst; mkdir -p $C
+          new=$(ls $D/fp_fcst/*_00.npz | tail -1)
+          for f in $C/*.npz; do [ -e "$f" ] && [ "$(basename $f)" != "$(basename $new)" ] && old="$old $f"; done
+          rm -f $C/*.npz; cp "$new" $C/
           echo "prune=$old" >> "$GITHUB_OUTPUT"
       - name: Publish the cache (frames branch)
         env:

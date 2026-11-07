@@ -1416,7 +1416,10 @@ def render():
     an, PS_an, GW, recs = an[keep], PS_an[keep], GW[keep], [r for r, k in zip(recs, keep) if k]
     lat = recs[0]["lat"]
     off = overlap_offset()
-    fcf = sorted(f for f in FCST.glob("*.npz") if re.fullmatch(r"\d{8}_00\.npz", f.name))[-1]
+    cycles = sorted(f for f in FCST.glob("*.npz") if re.fullmatch(r"\d{8}_00\.npz", f.name))
+    if not cycles:
+        raise Bad(f"no GEOS FP forecast cycle in {FCST}")
+    fcf = cycles[-1]
     cyc = str(load(fcf)["cycle"])
     cyc_t = pd.Timestamp(cyc[:8])
     X_fc, n_gw = persisted_gwd(an, GW, cyc_t, GWD_PERSIST_DAYS)
