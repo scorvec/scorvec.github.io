@@ -78,6 +78,9 @@ import ensmaps_ref as R
 SD_FILE = HERE / "reference" / "ensmaps_cluster_sd.npz"
 LAT = np.arange(90.0, 19.99, -2.5)  # 29 rows, 90N..20N (the NCEP grid's)
 LON = np.arange(0.0, 360.0, 2.5)  # 144, from 0E (regime_core's order)
+# the dots' grid points thinned to about equal area (cos lat of each row's longitudes, evenly spaced; one at the pole):
+# on the full grid the rows near the pole crowd into rings
+DOTS = np.diff(np.floor(np.arange(-1, LON.size) * np.cos(np.deg2rad(LAT))[:, None]), axis=1) > 0
 NROW = LAT.size
 WINDOW_DAYS = (1, 3, 4, 5)  # the periods' lengths the SD table holds: a day, the windows
 HALF = 15  # +- days of the time of year
@@ -802,7 +805,8 @@ class Figures:
         ax.clabel(c, fontsize=6.5, fmt=(lambda v: f"{v / 10:.0f}") if field == "z500" else "%d", inline_spacing=1)
         if sig.any():
             sx, sy = self.xy(*np.meshgrid(LON, LAT))
-            ax.scatter(sx[sig], sy[sig], s=1.2, c="#1f261c", linewidths=0, zorder=4)
+            on = sig & DOTS
+            ax.scatter(sx[on], sy[on], s=1.2, c="#1f261c", linewidths=0, zorder=4)
         for pts in self.coast:
             keep = pts[:, 1] >= 18
             if keep.sum() >= 2:
