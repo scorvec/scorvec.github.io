@@ -36,8 +36,8 @@ anomalies in the Actions cache (save_fields, from ensmaps.py), and `run` cluster
             from day to day; letters that follow a scenario through the windows and through the days (chain_letters); a
             permutation chi-square test of model x cluster independence: a split that fails it at 5 % follows the
             models, not the weather, and is shown as no scenario but each model's mean (on the drift-corrected fields
-            once the drift is removed); polar stereographic Northern
-            Hemisphere maps per cluster, 500 hPa height and sea-level pressure, the anomaly (or the standardized anomaly:
+            once the drift is removed); polar stereographic Northern Hemisphere maps per cluster, turned to face the
+            domain (FACING), 500 hPa height and sea-level pressure, the anomaly (or the standardized anomaly:
             ensmaps_ref.Spread of the window's length) shaded where at least sign_k(n) of its n members agree on its
             sign, dots where its mean differs from the grand ensemble's (N_PERM random member sets of its size,
             Benjamini-Hochberg at FDR_Q)
@@ -90,6 +90,8 @@ P_MODELS = 0.05  # a split whose model x cluster test is below this follows the 
 DRIFT_MIN, DRIFT_K, DRIFT_KEEP, DRIFT_DAYS = 10, 10.0, 60, 15
 MODEL_ORDER = ("ifs", "aifs", "gefs", "geps")
 LABEL = {"ifs": "IFS-ENS", "aifs": "AIFS-ENS", "gefs": "GEFS", "geps": "GEPS"}
+# the meridian at the bottom of the maps: the hemisphere's face North America, a sector's the middle of its box
+FACING = {"nh": -100.0}
 DATA = "assets/models/data/ensmaps/clusters"
 SEED = 31
 
@@ -722,17 +724,17 @@ def figure_title(info: dict, k: int, dlabel: str, P: dict, models: dict | None, 
     span = f"{d0:%a %b %-d} – {d1:%a %b %-d}" if P["kind"] == "window" else f"{d0:%a %b %-d} (day {P['days'][0]})"
     ens = ensembles(P["ins"])
     if models:
-        head = f"{LABEL[info['model']]} mean: the ensembles differ, the split follows the models (p {models['p']})"
-        who = f"Members: {info['n']} of {LABEL[info['model']]}"
+        head = f"{LABEL[info['model']]}'s own forecast (the ensembles disagree)"
+        who = f"The mean of its {info['n']} members"
     else:
         head = (
-            f"Side {info['letter']} of the main difference: {info['p']:.0%} of {ens}"
+            f"Way {info['letter']}: {info['p']:.0%} of the members (one spread, leaning two ways)"
             if k > 1 and pattern
-            else f"Scenario {info['letter']}: {info['p']:.0%} of {ens}"
+            else f"Scenario {info['letter']}: {info['p']:.0%} of the members"
             if k > 1
             else f"One scenario: the mean of {ens}"
         )
-        who = "Members in it: " + " · ".join(f"{LABEL[m]} {s:.0%}" for m, s in info["shares"].items())
+        who = "Each ensemble's members in it: " + " · ".join(f"{LABEL[m]} {s:.0%}" for m, s in info["shares"].items())
     return [
         f"{head} · {dlabel} · {span}",
         who,
@@ -751,7 +753,7 @@ class Figures:
         import matplotlib
 
         matplotlib.use("Agg")
-        self.outdir, self.n, self.bytes = outdir, 0, 0
+        self.outdir, self.n, self.bytes, self.lon0 = outdir, 0, 0, FACING["nh"]
         geo = json.loads((ROOT / "assets" / "models" / "geo_polar_coarse.json").read_text())
         self.coast = []
         for name in ("coast", "lakes"):
@@ -764,10 +766,10 @@ class Figures:
                     pts.append((x / L["q"], y / L["q"]))
                 self.coast.append(np.array(pts))
 
-    @staticmethod
-    def xy(lon, lat):
+    def xy(self, lon, lat):
+        """Polar stereographic, the meridian self.lon0 at the bottom (facing the reader)."""
         rho = np.tan(np.pi / 4 - np.deg2rad(lat) / 2) * 2
-        lam = np.deg2rad(lon)
+        lam = np.deg2rad(np.asarray(lon) - self.lon0)
         return rho * np.sin(lam), -rho * np.cos(lam)
 
     def panel(self, ax, field, shade, agree, absf, sig, high, lim, step, ci, box):
@@ -777,7 +779,7 @@ class Figures:
         L, A = np.meshgrid(lon, LAT)
         X, Y = self.xy(L, A)
         cyc = lambda a: np.concatenate([a, a[:, :1]], axis=1)  # noqa: E731
-        r20 = self.xy(0, 20)[1] * -1
+        r20 = float(np.hypot(*self.xy(0, 20)))  # the disc's radius at 20N
         th = np.linspace(0, 2 * np.pi, 361)
         ax.fill(r20 * np.cos(th), r20 * np.sin(th), color="#e4e4df", zorder=0)
         g = np.where(agree & ~(high if field == "msl" else np.zeros_like(high)), shade, np.nan)
@@ -829,6 +831,7 @@ class Figures:
         if dk in RC.SECTORS:
             sp = RC.SECTORS[dk]
             box = (sp["lon"][0], sp["lon"][1], sp["lat"][1], sp["lat"][0])
+        self.lon0 = FACING[dk] if dk in FACING else float(np.mean(RC.SECTORS[dk]["lon"]))
         fig = plt.figure(figsize=(9.6, 5.6), dpi=100)
         fig.text(0.012, 0.975, title[0], fontsize=10.5, fontweight="bold", va="top", color="#1f261c")
         fig.text(0.012, 0.935, title[1], fontsize=9, va="top", color="#3d4540")
