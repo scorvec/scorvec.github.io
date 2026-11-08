@@ -477,7 +477,7 @@ def where(runs: dict, doc: dict, start: pd.Timestamp, out: Path) -> None:
     key = fig.axes[1]  # the eddy energy panel's lower right stays clear
     key.plot([], [], color=house.INK2, ls="--", lw=1.2, label="runs a week or more ahead")
     key.plot([], [], color=house.INK2, lw=1.6, label="latest two runs")
-    key.legend(fontsize=7.5, frameon=False, loc="lower right")
+    key.legend(fontsize=7.5, loc="lower right", frameon=True, facecolor="white", edgecolor="none", framealpha=0.9)
 
     def mean_map(key: str, which: int, sign: float = 1.0) -> np.ndarray:
         return sign * np.mean([np.mean([r[key] for r in phases(runs[m], start)[which]], 0) for m in models], 0)
