@@ -218,8 +218,14 @@ def run(inits: list[pd.Timestamp], members, out: Path, name: str, workers: int) 
             for k, x in r.items():
                 res[k][a, b] = x
             missing = int(np.isnan(r["slp_p"]).sum())
-            print(f"    {init[:10]} {member}: {sec} s{f', {missing} days missing' if missing else ''} "
-                  f"({done}/{len(pos)}, {time.time() - t0:.0f} s)", flush=True)  # fmt: skip
+            jet, slp = np.nanmax(np.nanmean(r["u"][:, U_LEV.index(250)], 0)), np.nanmean(r["slp"])
+            print(f"    {init[:10]} {member}: {sec} s, 250 hPa jet {jet:.0f} m/s, mean slp {slp:.0f} hPa"
+                  f"{f', {missing} days missing' if missing else ''} ({done}/{len(pos)}, {time.time() - t0:.0f} s)",
+                  flush=True)  # fmt: skip
+    # physical range: a wrong level, unit or grid in the decode would fail it
+    jet = np.nanmax(np.nanmean(res["u"][..., U_LEV.index(250), :], (0, 1, 2)))
+    if not (15 < jet < 70 and 990 < np.nanmean(res["slp"]) < 1035 and np.nanmax(np.abs(res["uv"])) < 600):
+        raise ValueError(f"values out of range: 250 hPa jet {jet:.1f} m/s, slp {np.nanmean(res['slp']):.1f} hPa")
     part = dest.with_suffix(".part.npz")
     np.savez_compressed(
         part, init=np.array([f"{i:%Y-%m-%d}" for i in inits]), members=np.array(members), days=DAYS,
