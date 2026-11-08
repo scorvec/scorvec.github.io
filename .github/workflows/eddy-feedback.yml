@@ -1,11 +1,11 @@
 name: Eddy feedback (ERA5, CMIP6)
 
 # Is the models' tropospheric eddy feedback too weak, and does that weaken the surface response to sudden stratospheric
-# warmings? One job per CMIP6 historical run (up to `members` per model, 1950-2014) and per span of ERA5 years
-# (WeatherBench 2, 1959-2023) reduces daily u, v and sea-level pressure to zonal means and eddy momentum flux by latitude
-# (scripts/strat/eddy_extract.py), October to May. A run streams ~10-40 GB per CMIP6 run (the plev8 day stores carry
-# all eight levels). Extracts are kept as artifacts (90 days); `probe_gefs` lists the GEFSv12 reforecast's files for one
-# date instead. Dispatch only.
+# warmings? One job per CMIP6 historical run (up to `members` per model, 1950-2014) and per span of ERA5 winters
+# (WeatherBench 2, 1958/59-2022/23) reduces daily u, v and sea-level pressure (scripts/strat/eddy_extract.py), October
+# to May: zonal means and eddy momentum flux by latitude, the NAO and the North Atlantic barotropic energy generation
+# rate. Each CMIP6 run streams ~10-40 GB (the plev8 day stores carry all eight levels). Extracts are kept as artifacts
+# (90 days); `probe_gefs` lists the GEFSv12 reforecast's files for one date instead. Dispatch only.
 on:
   workflow_dispatch:
     inputs:
@@ -14,7 +14,7 @@ on:
         default: ''
       members:
         description: 'Historical members per model'
-        default: '3'
+        default: '5'
       era5:
         description: 'Reduce ERA5 too'
         default: 'true'
@@ -100,10 +100,10 @@ jobs:
       - name: Catalogue
         if: ${{ matrix.source == 'cmip6' }}
         run: curl -sSf --retry 3 -o /tmp/pangeo-cmip6.csv https://storage.googleapis.com/cmip6/pangeo-cmip6.csv
-      - name: Reduce ${{ matrix.source }} ${{ matrix.model }}${{ matrix.years }} ${{ matrix.member }}
+      - name: Reduce ${{ matrix.source }} ${{ matrix.model }}${{ matrix.winters }} ${{ matrix.member }}
         run: |
           if [ "${{ matrix.source }}" = era5 ]; then
-            python scripts/strat/eddy_extract.py era5 --years "${{ matrix.years }}" --out out
+            python scripts/strat/eddy_extract.py era5 --winters "${{ matrix.winters }}" --out out
           else
             python scripts/strat/eddy_extract.py cmip6 --catalog /tmp/pangeo-cmip6.csv --model "${{ matrix.model }}" \
               --member "${{ matrix.member }}" --out out
@@ -112,7 +112,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: eddy_${{ matrix.source }}_${{ matrix.model }}${{ matrix.years }}_${{ matrix.member }}
+          name: eddy_${{ matrix.source }}_${{ matrix.model }}${{ matrix.winters }}_${{ matrix.member }}
           path: out/
           retention-days: 90
           if-no-files-found: ignore
