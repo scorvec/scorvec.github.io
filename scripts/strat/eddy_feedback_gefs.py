@@ -26,11 +26,15 @@ pressure anomaly (hPa, + = negative NAM); u100 is u(60N, 100 hPa).
          NAO's tails: the share of members' weekly-mean NAO below ERA5's 10th (above its 90th) percentile of the same
          weeks, 10 % for a model whose weekly NAO is distributed as ERA5's (a deficit below = too few strongly
          negative NAO weeks)
+  ssw    after each sudden warming (MERRA-2 onsets, Charlton & Polvani; eddy_feedback.merra2_onsets): the run starting
+         0-6 days after the onset; its ensemble-mean cap and u100 over lead days 1-15 and 16-30 against ERA5's on the
+         same days, as means over events, their difference and ratio (bootstrap over events)
 ERA5 "matched": the same measure from ERA5 on exactly the forecast days, so both sample the same weather.
 Uncertainty: 1000 bootstrap draws of whole winters (an init's winter is that of its October); one-sided p for the
 difference (GEFS weaker), and for the ratio above and below 1.
 
-    python eddy_feedback_gefs.py --gefs gefs/ --era5 era5/ --out reference/eddy_feedback_gefs.json
+    python eddy_feedback_gefs.py --gefs gefs/ --era5 era5/ --strat reference/strat_history.nc \
+        --out reference/eddy_feedback_gefs.json
 """
 
 from __future__ import annotations
@@ -216,6 +220,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--gefs", required=True, help="directory of gefs_eddy_extract.py's npz files")
     ap.add_argument("--era5", required=True, help="directory of eddy_extract.py's ERA5 npz files")
+    ap.add_argument("--strat", help="strat_history.nc (MERRA-2 u(60N, 10 hPa)) for the sudden warmings")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
     g = load_gefs(Path(a.gefs))
@@ -332,6 +337,28 @@ def main() -> int:
         row["nao_week_above_era5_p90"] = {"share": EF.rnd(hi0, 3), "ci90": ci(tb[:, 1]),
                                           "p_too_few": EF.rnd((1 + (tb[:, 1] >= 0.1).sum()) / (BOOT + 1))}  # fmt: skip
         doc["drift"][f"days{d0}_{d1}"] = row
+    # after sudden warmings: the run starting 0-6 days after each onset against ERA5 on the same days
+    if a.strat:
+        events = []
+        for k in EF.merra2_onsets(Path(a.strat), era5):
+            lag = (g["init"] - edates[k]).days.values
+            hit = np.flatnonzero((lag >= 0) & (lag <= 6))
+            if len(hit):
+                events.append((str(edates[k].date()), int(hit[0])))
+        doc["ssw"] = {"events": [{"onset": d, "init": str(g["init"][i].date())} for d, i in events]}
+        if len(events) >= 5:
+            ii = np.array([i for _, i in events])
+            for var in ("cap", "u100"):
+                for d0, d1 in ((1, 15), (16, 30)):
+                    f = np.nanmean(G[var][ii][:, :, d0 - 1 : d1], (1, 2))
+                    o = np.nanmean(M[var][ii][:, 0, d0 - 1 : d1], 1)
+                    rb = RNG.integers(0, len(ii), (BOOT, len(ii)))
+                    fb, ob = f[rb].mean(1), o[rb].mean(1)
+                    doc["ssw"][f"{var}_days{d0}_{d1}"] = {
+                        "gefs": EF.rnd(f.mean(), 3), "era5": EF.rnd(o.mean(), 3), "gefs_ci90": ci(fb),
+                        "era5_ci90": ci(ob), "difference_ci90": ci(fb - ob), "ratio": EF.rnd(f.mean() / o.mean(), 3),
+                        "ratio_ci90": ci(fb / ob), "by_event": [[EF.rnd(x, 2), EF.rnd(y, 2)] for x, y in zip(f, o)],
+                    }  # fmt: skip
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(doc, indent=1))

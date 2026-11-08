@@ -122,12 +122,13 @@ jobs:
             scripts/strat/cmip6_coupling.py
             scripts/strat/cmip6_coupling_extract.py
             scripts/strat/ssw_imprint.py
+            scripts/strat/reference/strat_history.nc
             scripts/strat/reference/eddy_feedback_gefs.json
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
-      - run: pip install --quiet numpy pandas scipy xarray pyproj
+      - run: pip install --quiet numpy pandas scipy xarray netCDF4 pyproj
       - name: Collect the extracts
         env:
           GH_TOKEN: ${{ github.token }}
@@ -146,6 +147,7 @@ jobs:
         run: |
           set -o pipefail
           python scripts/strat/eddy_feedback_gefs.py --gefs gefs --era5 era5 \
+            --strat scripts/strat/reference/strat_history.nc \
             --out scripts/strat/reference/eddy_feedback_gefs.json | tee /tmp/eddy.log
       # Never rebase: snapshot, reset to a fresh origin/main each attempt, lay the snapshot back on, commit, push.
       - name: Commit & push
