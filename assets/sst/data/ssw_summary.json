@@ -1,5 +1,5 @@
 {
- "built": "2026-11-08 20:48Z",
+ "built": "2026-11-08 21:08Z",
  "newest_init": "2026-11-08 12Z",
  "window": [
   "2026-11-09",
@@ -1741,7 +1741,7 @@
     "kind": "top-down"
    }
   },
-  "kind": "bottom-up"
+  "kind": "top-down"
  },
  "reflect": {
   "verdict": "quiet",
