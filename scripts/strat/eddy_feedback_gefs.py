@@ -20,6 +20,12 @@ pressure anomaly (hPa, + = negative NAM); u100 is u(60N, 100 hPa).
          ratio = r_era5 / r_member (1 if ERA5 behaves as one more member; > 1 = the model's signal too weak for its
          noise, < 1 = overconfident); every init, and those starting with a weak (strong) lower stratosphere: ERA5's
          u100 anomaly on the init day below -1 (above +1) standard deviation
+  drift  by lead week (days 1-7, 8-14, 15-21, 22-28; days valid in December-February): the members' mean poleward
+         eddy momentum flux [u*v*] at 250 hPa over 25-50N (raw, so any drift in the eddies shows), and the variance of
+         their daily jet index z and NAO anomalies (eddy_extract's sea-level pressure NAO), each over ERA5's; and the
+         NAO's tails: the share of members' weekly-mean NAO below ERA5's 10th (above its 90th) percentile of the same
+         weeks, 10 % for a model whose weekly NAO is distributed as ERA5's (a deficit below = too few strongly
+         negative NAO weeks)
 ERA5 "matched": the same measure from ERA5 on exactly the forecast days, so both sample the same weather.
 Uncertainty: 1000 bootstrap draws of whole winters (an init's winter is that of its October); one-sided p for the
 difference (GEFS weaker), and for the ratio above and below 1.
@@ -46,6 +52,8 @@ TROP = (250, 500)
 B_T, B_LAGS = (5, 20), np.arange(7, 15)
 DOWN_T, DOWN_NEXT = (1, 19), 15
 WEEKS34 = (15, 28)
+LEAD_WEEKS = ((1, 7), (8, 14), (15, 21), (22, 28))
+FLUX_LAT = (25.0, 50.0)
 ERA5_CLIM = (1999, 2020)
 EOF_YEARS = (1979, 2022)
 BOOT = 1000
@@ -72,7 +80,7 @@ def fit_remove(y: np.ndarray, X: np.ndarray, rows: np.ndarray) -> np.ndarray:
 # --------------------------------------------------------------------------------------------------------- loading ---
 def load_gefs(d: Path) -> dict:
     zs = [np.load(p) for p in sorted(d.glob("GEFSv12_*.npz")) if "test" not in p.name and ".part" not in p.name]
-    g = {k: np.concatenate([z[k] for z in zs]) for k in ("init", "u", "uv", "slp")}
+    g = {k: np.concatenate([z[k] for z in zs]) for k in ("init", "u", "uv", "slp", "nao")}
     g["init"] = pd.DatetimeIndex(g["init"])
     o = np.argsort(g["init"].values)
     g = {k: v[o] for k, v in g.items()}
@@ -82,7 +90,7 @@ def load_gefs(d: Path) -> dict:
     return g
 
 
-def derived(u, uv, slp, ulev, uvlev, lat) -> dict:
+def derived(u, uv, slp, nao, ulev, uvlev, lat) -> dict:
     """The daily series every measure uses, from either source (trailing axes level, lat)."""
     ku = [ulev.index(L) for L in TROP]
     kv = [uvlev.index(L) for L in TROP]
@@ -92,7 +100,35 @@ def derived(u, uv, slp, ulev, uvlev, lat) -> dict:
         "f": EF.accel(uv[..., kv, :].mean(-2).astype(float), lat),
         "cap": EF.area_mean(slp.astype(float), lat, EF.CAP),
         "u100": u[..., ulev.index(100), j60].astype(float),
+        "nao": nao.astype(float),
     }
+
+
+def moments(x: np.ndarray, ok: np.ndarray, winter_of: np.ndarray, ws: list) -> np.ndarray:
+    """Per winter [n, sum x, sum x^2] of x (inits, ens, days) over the (init, day) pairs where ok (inits, days)."""
+    out = np.zeros((len(ws), 3))
+    for k, w in enumerate(ws):
+        ii = winter_of == w
+        v = x[ii][np.broadcast_to(ok[ii][:, None], x[ii].shape)]
+        v = v[np.isfinite(v)]
+        out[k] = len(v), v.sum(), (v * v).sum()
+    return out
+
+
+def tails(wg: np.ndarray, we: np.ndarray, idx: list, rows) -> tuple[float, float]:
+    """Shares of the members' weekly values wg (weeks, ens) below ERA5's 10th and above its 90th percentile of the
+    same weeks we (weeks,), over the winters `rows` (idx: each winter's weeks)."""
+    ii = np.concatenate([idx[k] for k in rows])
+    lo, hi = np.nanpercentile(we[ii], (10, 90))
+    f = wg[ii]
+    f = f[np.isfinite(f)]
+    return float((f < lo).mean()), float((f > hi).mean())
+
+
+def mean_var(parts: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """(mean, variance) from summed moments (..., winters, 3)."""
+    n, s1, s2 = (parts.sum(-2)[..., k] for k in range(3))
+    return s1 / n, s2 / n - (s1 / n) ** 2
 
 
 # --------------------------------------------------------------------------------------------------------- measures ---
@@ -192,7 +228,7 @@ def main() -> int:
     winter_of = EF.EX.winter(g["init"].year.values, g["init"].month.values)
 
     # GEFS anomalies against its own lead-dependent climate
-    G = derived(g["u"], g["uv"], g["slp"], g["u_levels"], g["uv_levels"], lat)
+    G = derived(g["u"], g["uv"], g["slp"], g["nao"], g["u_levels"], g["uv_levels"], lat)
     for k, x in G.items():
         y = np.full(x.shape, np.nan)
         for d in range(nd):
@@ -203,7 +239,7 @@ def main() -> int:
     # ERA5 anomalies (1999-2020 climate) on its own days, then picked out on the forecast days
     edates = pd.to_datetime(pd.DataFrame({"year": era5["year"], "month": era5["month"], "day": era5["day"]}))
     edates = pd.DatetimeIndex(edates)
-    E = derived(era5["u"], era5["uv"], era5["slp"], era5["levels"], era5["levels"], lat)
+    E = derived(era5["u"], era5["uv"], era5["slp"], era5["nao"], era5["levels"], era5["levels"], lat)
     clim_rows = (edates.year >= ERA5_CLIM[0]) & (edates.year <= ERA5_CLIM[1])
     Xe = harmonics(edates)
     E = {k: fit_remove(x, Xe, np.asarray(clim_rows)) for k, x in E.items()}
@@ -216,7 +252,7 @@ def main() -> int:
     vi = pos.reindex(valid).values.reshape(ni, nd)  # ERA5 position of each forecast day (NaN beyond ERA5)
     have = np.isfinite(vi)
     vi = np.where(have, vi, 0).astype(int)
-    M = {k: np.where(have, E[k][vi], np.nan)[:, None] for k in ("z", "m", "cap", "u100")}  # (inits, 1, days)
+    M = {k: np.where(have, E[k][vi], np.nan)[:, None] for k in ("z", "m", "cap", "u100", "nao")}  # (inits, 1, days)
     init_pos = pos.reindex(g["init"]).values
     u100_0 = np.where(np.isfinite(init_pos), E["u100"][np.nan_to_num(init_pos).astype(int)], np.nan)
     djfm = np.isin(edates.month, EF.DJFM) & clim_rows
@@ -266,6 +302,36 @@ def main() -> int:
                 "p_ratio_above_1": EF.rnd((1 + (sb["ratio"] <= 1).sum()) / (BOOT + 1)),
                 "p_ratio_below_1": EF.rnd((1 + (sb["ratio"] >= 1).sum()) / (BOOT + 1)),
             }  # fmt: skip
+    # drift with lead: the members' eddy momentum flux, jet and NAO variability, and the NAO's tails, against ERA5
+    jf = (lat >= FLUX_LAT[0]) & (lat <= FLUX_LAT[1])
+    G["uv250"] = g["uv"][..., g["uv_levels"].index(250), :][..., jf].mean(-1).astype(float)
+    uv_e = era5["uv"][:, era5["levels"].index(250), :][:, jf].mean(-1).astype(float)
+    M["uv250"] = np.where(have, uv_e[vi], np.nan)[:, None]
+    djf = np.isin(vmonth, EF.DJF)
+    doc["drift"] = {}
+    for d0, d1 in LEAD_WEEKS:
+        days = slice(d0 - 1, d1)
+        row = {}
+        for k, stat in (("uv250", "mean"), ("z", "var"), ("nao", "var")):
+            pg = moments(G[k][:, :, days], djf[:, days], winter_of, ws)
+            pe = moments(M[k][:, :, days], djf[:, days], winter_of, ws)
+            pick = 0 if stat == "mean" else 1
+            r0 = mean_var(pg)[pick] / mean_var(pe)[pick]
+            rb = mean_var(pg[boot])[pick] / mean_var(pe[boot])[pick]
+            row[f"{k}_{stat}_ratio"] = {"value": EF.rnd(r0, 3), "ci90": ci(rb),
+                                        "p_below_1": EF.rnd((1 + (rb >= 1).sum()) / (BOOT + 1))}  # fmt: skip
+        keep = np.isin(vmonth[:, d0 + 2], EF.DJF)  # weeks centred on December-February
+        wg = np.nanmean(G["nao"][keep][:, :, days], -1)
+        we = np.nanmean(M["nao"][keep][:, 0, days], -1)
+        wk = winter_of[keep]
+        idx = [np.flatnonzero(wk == w) for w in ws]
+        lo0, hi0 = tails(wg, we, idx, range(len(ws)))
+        tb = np.array([tails(wg, we, idx, rr) for rr in boot])
+        row["nao_week_below_era5_p10"] = {"share": EF.rnd(lo0, 3), "ci90": ci(tb[:, 0]),
+                                          "p_too_few": EF.rnd((1 + (tb[:, 0] >= 0.1).sum()) / (BOOT + 1))}  # fmt: skip
+        row["nao_week_above_era5_p90"] = {"share": EF.rnd(hi0, 3), "ci90": ci(tb[:, 1]),
+                                          "p_too_few": EF.rnd((1 + (tb[:, 1] >= 0.1).sum()) / (BOOT + 1))}  # fmt: skip
+        doc["drift"][f"days{d0}_{d1}"] = row
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(doc, indent=1))
