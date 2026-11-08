@@ -1,5 +1,5 @@
 {
- "built": "2026-11-08 18:41Z",
+ "built": "2026-11-08 18:52Z",
  "newest_init": "2026-11-08 12Z",
  "window": [
   "2026-11-09",
@@ -948,12 +948,12 @@
     ]
    },
    "gefs": {
-    "init": "2026-11-08 06Z",
+    "init": "2026-11-08 12Z",
     "members": 31,
     "share": 1.0,
     "wmo": 1.0,
-    "u10_min_mean": -2.4,
-    "u10_min_p10": -3.0,
+    "u10_min_mean": -3.4,
+    "u10_min_p10": -3.8,
     "runs": [
      [
       "2026-10-09T12",
@@ -1354,6 +1354,11 @@
       "2026-11-08T06",
       1.0,
       1.0
+     ],
+     [
+      "2026-11-08T12",
+      1.0,
+      1.0
      ]
     ]
    },
@@ -1638,15 +1643,15 @@
     "z_sib_max": 0.1
    },
    "gefs": {
-    "init": "2026-11-08 06Z",
+    "init": "2026-11-08 12Z",
     "members": 31,
-    "wave2_share": 0.15,
-    "z_peak": -0.0,
+    "wave2_share": 0.16,
+    "z_peak": -0.1,
     "z_peak_day": 12,
-    "flux_min": 7.4,
+    "flux_min": 7.0,
     "ri_event_share": 0.0,
-    "z_can_min": -0.4,
-    "z_sib_max": -0.2
+    "z_can_min": -0.5,
+    "z_sib_max": 0.0
    },
    "geps": {
     "init": "2026-11-08 12Z",
@@ -1716,11 +1721,11 @@
     "kind": "top-down"
    },
    "gefs": {
-    "init": "2026-11-08 06Z",
+    "init": "2026-11-08 12Z",
     "members": 31,
-    "cap100_day15": 0.7,
-    "cap10_day15": 0.5,
-    "frac100_day15": 0.32,
+    "cap100_day15": 0.4,
+    "cap10_day15": 0.4,
+    "frac100_day15": 0.1,
     "cross100": "2026-10-27",
     "cross10": "2026-10-29",
     "kind": "bottom-up"
@@ -1774,15 +1779,15 @@
     "frac100_day15": 0.56
    },
    "gefs": {
-    "init": "2026-11-08 00Z",
-    "p_positive": 0.62,
+    "init": "2026-11-08 12Z",
+    "p_positive": 0.65,
     "base_rate": 0.5,
     "window": [
      "2026-11-24",
      "2026-12-23"
     ],
-    "cap100_day15": 0.5,
-    "frac100_day15": 0.32
+    "cap100_day15": 0.4,
+    "frac100_day15": 0.1
    },
    "geps": {
     "init": "2026-11-08 12Z",
@@ -1845,7 +1850,7 @@
     "random_p": 0.0005
    }
   },
-  "p_positive_mean": 0.68,
+  "p_positive_mean": 0.69,
   "cap100_day15_mean": 0.9,
   "regime": "all_days"
  },
@@ -1896,17 +1901,17 @@
     "sea_drift_removed": true
    },
    "gefs": {
-    "init": "2026-11-08 06Z",
+    "init": "2026-11-08 12Z",
     "onset": "2026-11-10",
     "wind_days": 11,
-    "wind": -0.74,
+    "wind": -0.7,
     "third": 1,
     "start_dates": [
      "2026-11-11",
      "2026-11-14",
      "2026-11-18"
     ],
-    "sea": -0.91,
+    "sea": -0.93,
     "sea_days": [
      6,
      13
@@ -2878,13 +2883,13 @@
      },
      "flux": {
       "days": 15,
-      "value": 1.67,
+      "value": 1.7,
       "met": true,
       "tested": true
      },
      "upward": {
       "days": 15,
-      "value": 8.2,
+      "value": 8.4,
       "met": true,
       "tested": true
      },
