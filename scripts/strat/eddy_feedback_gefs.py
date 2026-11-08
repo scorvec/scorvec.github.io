@@ -13,14 +13,16 @@ pressure anomaly (hPa, + = negative NAM); u100 is u(60N, 100 hPa).
          December-February (also t = 5-12 and 13-20 apart), per day
   down   the mean cap over days t+1..t+15 regressed on u100(t), with cap(t) as a second predictor (persistence),
          t = lead days 1-19 valid in December-March, hPa per m/s; down_sd in standard deviations
-  snr    weeks 3-4 (lead days 15-28) mean cap and z, inits whose window centres on December-February: the ensemble
-         mean's correlation r with ERA5, the ratio of predictable components RPC = r / (sd of the ensemble mean / sd of
-         single members) (Eade et al. 2014; RPC > 1 = the model's signal too weak for its noise), and the slope of ERA5
-         on the ensemble mean (> 1 likewise); every init, and those starting with a weak (strong) lower stratosphere:
-         ERA5's u100 anomaly on the init day below -1 (above +1) standard deviation
+  snr    weeks 3-4 (lead days 15-28) mean cap and z, inits whose window centres on December-February: r, the
+         ensemble mean's correlation with ERA5; and a ratio of predictable components free of the small ensemble's
+         bias (the plain one, Eade et al. 2014, falls below 1 for a perfect 11-member ensemble): the mean of the other
+         ten members correlated with ERA5 (r_era5) and with the member left out (r_member), averaged over members,
+         ratio = r_era5 / r_member (1 if ERA5 behaves as one more member; > 1 = the model's signal too weak for its
+         noise, < 1 = overconfident); every init, and those starting with a weak (strong) lower stratosphere: ERA5's
+         u100 anomaly on the init day below -1 (above +1) standard deviation
 ERA5 "matched": the same measure from ERA5 on exactly the forecast days, so both sample the same weather.
 Uncertainty: 1000 bootstrap draws of whole winters (an init's winter is that of its October); one-sided p for the
-difference (GEFS weaker), and for RPC > 1.
+difference (GEFS weaker), and for the ratio above and below 1.
 
     python eddy_feedback_gefs.py --gefs gefs/ --era5 era5/ --out reference/eddy_feedback_gefs.json
 """
@@ -142,21 +144,29 @@ def down_parts(cap, u100, valid, winter_of) -> np.ndarray:
     return out
 
 
+def corr(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Column-wise correlation of a and b (n, k) over the rows where both are finite."""
+    ok = np.isfinite(a) & np.isfinite(b)
+    a, b = np.where(ok, a, np.nan), np.where(ok, b, np.nan)
+    a, b = a - np.nanmean(a, 0), b - np.nanmean(b, 0)
+    return np.nansum(a * b, 0) / np.sqrt(np.nansum(a * a, 0) * np.nansum(b * b, 0))
+
+
 def snr(f: np.ndarray, o: np.ndarray, winter_of: np.ndarray, rows=None) -> dict:
-    """f (inits, ens) forecasts and o (inits,) ERA5 for one target; rows (draws, winters) resamples winters."""
+    """f (inits, ens) forecasts and o (inits,) ERA5 of one target; rows (draws, winters) resamples winters."""
     ws = np.array(sorted(set(winter_of)))
     if rows is None:
         rows = np.arange(len(ws))[None]
-    out = {"r": [], "rpc": [], "slope": []}
+    others = (np.nansum(f, 1, keepdims=True) - f) / (np.isfinite(f).sum(1, keepdims=True) - 1)
+    out = {"r": [], "r_era5": [], "r_member": [], "ratio": []}
     for rr in rows:
         ii = np.concatenate([np.flatnonzero(winter_of == ws[k]) for k in rr])
-        fm, ff, oo = np.nanmean(f[ii], 1), f[ii], o[ii]
-        ok = np.isfinite(fm) & np.isfinite(oo)
-        fm, ff, oo = fm[ok], ff[ok], oo[ok]
-        r = np.corrcoef(fm, oo)[0, 1]
-        out["r"].append(r)
-        out["rpc"].append(r / (fm.std() / np.sqrt(np.nanmean((ff - fm.mean()) ** 2))))
-        out["slope"].append(np.cov(fm, oo)[0, 1] / fm.var(ddof=1))
+        oo = np.repeat(o[ii, None], f.shape[1], 1)
+        re, rm = np.nanmean(corr(others[ii], oo)), np.nanmean(corr(others[ii], f[ii]))
+        out["r"].append(corr(np.nanmean(f[ii], 1)[:, None], oo[:, :1])[0])
+        out["r_era5"].append(re)
+        out["r_member"].append(rm)
+        out["ratio"].append(re / rm)
     return {k: np.array(v) for k, v in out.items()}
 
 
@@ -253,7 +263,8 @@ def main() -> int:
             doc["snr"][f"{var}_{subset}"] = {
                 "inits": len(ii), **{k: EF.rnd(v[0], 3) for k, v in s0.items()},
                 **{f"{k}_ci90": ci(v) for k, v in sb.items()},
-                "p_rpc_above_1": EF.rnd((1 + (sb["rpc"] <= 1).sum()) / (BOOT + 1)),
+                "p_ratio_above_1": EF.rnd((1 + (sb["ratio"] <= 1).sum()) / (BOOT + 1)),
+                "p_ratio_below_1": EF.rnd((1 + (sb["ratio"] >= 1).sum()) / (BOOT + 1)),
             }  # fmt: skip
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
