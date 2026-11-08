@@ -4,9 +4,9 @@ name: Eddy feedback case (one week, run by run)
 # IFS-ENS, AIFS-ENS and GEFS member by member (scripts/strat/eddy_case.py): eddy strength, cyclonic and anticyclonic
 # tilt about the jet, the eddy-driven jet shift, the NAO, AO and Greenland blocking. One job per model and run (ECMWF:
 # the northern rows of each message from the Google Cloud mirror; GEFS: NOAA's AWS bucket by byte range); `analysis`
-# adds the IFS analysis once the week has passed. A final job tests the run-to-run change and the chain inside each
-# ensemble and commits scripts/strat/reference/eddy_case/<week>/. `from_run` adds finished runs' reductions (so the
-# analysis can be added later without refetching). Dispatch only.
+# adds the IFS analysis once the week has passed. A final job tests the run-to-run change, where it sits by latitude
+# and the chain inside each ensemble, and commits scripts/strat/reference/eddy_case/<week>/. `from_run` adds finished
+# runs' reductions (so the analysis can be added later without refetching). Dispatch only.
 on:
   workflow_dispatch:
     inputs:
