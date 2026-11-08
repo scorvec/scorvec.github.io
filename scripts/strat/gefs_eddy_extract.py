@@ -53,7 +53,7 @@ def url(init: pd.Timestamp, member: str, days: str, stem: str) -> str:
 def get(u: str, rng: tuple[int, int] | None = None) -> bytes:
     for attempt in range(6):
         try:
-            h = {"Range": f"bytes={rng[0]}-{rng[1]}"} if rng else {}
+            h = {"Range": f"bytes={rng[0]}-{'' if rng[1] is None else rng[1]}"} if rng else {}
             r = SESSION.get(u, headers=h, timeout=60)
             r.raise_for_status()
             return r.content
@@ -64,7 +64,8 @@ def get(u: str, rng: tuple[int, int] | None = None) -> bytes:
 
 
 def index(u: str) -> dict:
-    """{(field, level hPa or 0 for sea level, lead hours): (first byte, last byte)} from the file's .idx."""
+    """{(field u, v or z (height), level hPa or 0 for sea level, lead hours): (first byte, last byte or None for the
+    file's last message)} from the file's .idx."""
     lines = get(u + ".idx").decode().strip().splitlines()
     out = {}
     for k, line in enumerate(lines):
@@ -74,8 +75,8 @@ def index(u: str) -> dict:
         lead = int(m.group(1)) if m else (0 if fc == "anl" else None)
         if lead is None:
             continue
-        if var in ("UGRD", "VGRD") and lev.endswith(" mb"):
-            key = (var[0].lower(), int(float(lev[:-3])), lead)
+        if var in ("UGRD", "VGRD", "HGT") and lev.endswith(" mb"):
+            key = ({"UGRD": "u", "VGRD": "v", "HGT": "z"}[var], int(float(lev[:-3])), lead)
         elif var in ("PRES", "PRMSL") and lev == "mean sea level":
             key = ("msl", 0, lead)
         else:

@@ -158,6 +158,7 @@ scripts/strat/*
 !scripts/strat/ssw_summary.py
 !scripts/strat/cmip6_coupling.py
 !scripts/strat/cmip6_coupling_extract.py
+!scripts/strat/eddy_case.py
 !scripts/strat/eddy_extract.py
 !scripts/strat/eddy_feedback.py
 !scripts/strat/eddy_feedback_gefs.py

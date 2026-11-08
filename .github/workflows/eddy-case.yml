@@ -1,0 +1,190 @@
+name: Eddy feedback case (one week, run by run)
+
+# A forecast case for the eddy-feedback study: one target week over North America and the Atlantic, 00Z runs of
+# IFS-ENS, AIFS-ENS and GEFS member by member (scripts/strat/eddy_case.py): eddy strength, cyclonic and anticyclonic
+# tilt about the jet, the eddy-driven jet shift, the NAO, AO and Greenland blocking. One job per model and run (ECMWF:
+# the northern rows of each message from the Google Cloud mirror; GEFS: NOAA's AWS bucket by byte range); `analysis`
+# adds the IFS analysis once the week has passed. A final job tests the run-to-run change and the chain inside each
+# ensemble and commits scripts/strat/reference/eddy_case/<week>/. `from_run` adds finished runs' reductions (so the
+# analysis can be added later without refetching). Dispatch only.
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "The week's first day (YYYY-MM-DD)"
+        default: '2026-11-09'
+      days:
+        description: 'Days in the week'
+        default: '7'
+      inits:
+        description: 'First-last 00Z run (YYYYMMDD-YYYYMMDD, daily) or a comma list of YYYYMMDDHH; blank = none'
+        default: '20261101-20261108'
+      models:
+        description: 'Ensembles (comma-separated: ifs, aifs, gefs)'
+        default: 'ifs,aifs,gefs'
+      analysis:
+        description: 'Add the IFS analysis (the week must have passed)'
+        default: 'false'
+      from_run:
+        description: 'Finished run ids (comma-separated) whose reductions to add'
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: eddy-case
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt
+  MPLBACKEND: Agg
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+      any: ${{ steps.m.outputs.any }}
+    steps:
+      - id: m
+        env:
+          INITS: ${{ inputs.inits }}
+          MODELS: ${{ inputs.models }}
+          ANALYSIS: ${{ inputs.analysis }}
+        run: |
+          python3 - <<'EOF'
+          import datetime as dt, json, os
+          s = os.environ["INITS"].strip()
+          if "-" in s and "," not in s:
+              a, b = (dt.datetime.strptime(x, "%Y%m%d") for x in s.split("-"))
+              inits = [f"{a + dt.timedelta(days=k):%Y%m%d}00" for k in range((b - a).days + 1)]
+          else:
+              inits = [x.strip() for x in s.split(",") if x.strip()]
+          jobs = [{"model": m.strip(), "init": i} for m in os.environ["MODELS"].split(",") if m.strip() for i in inits]
+          if os.environ["ANALYSIS"] == "true":
+              jobs.append({"model": "analysis", "init": ""})
+          print(len(jobs), "jobs")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write("matrix=" + json.dumps({"include": jobs or [{"model": "none", "init": ""}]}) + "\n")
+              f.write(f"any={'true' if jobs else 'false'}\n")
+          EOF
+
+  member:
+    needs: plan
+    if: ${{ needs.plan.outputs.any == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      ECMWF_SOURCES: google
+      ECMWF_MULTISOURCE: "0"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/strat
+            scripts/lib
+            scripts/ecmwf
+            scripts/gefs
+            scripts/constraints.txt
+            scripts/mjo/requirements-mjo.txt
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - run: pip install -r scripts/mjo/requirements-mjo.txt
+      - name: Reduce ${{ matrix.model }} ${{ matrix.init }}
+        env:
+          START: ${{ inputs.start }}
+          DAYS: ${{ inputs.days }}
+          ECMWF_CACHE: ${{ runner.temp }}/ecmwf
+        run: |
+          python scripts/strat/eddy_case.py member --model "${{ matrix.model }}" --init "${{ matrix.init }}" \
+            --start "$START" --days "$DAYS" --out out
+      - uses: actions/upload-artifact@v7
+        with:
+          name: eddy_case_${{ matrix.model }}_${{ matrix.init }}
+          path: out/
+          retention-days: 90
+          if-no-files-found: ignore
+
+  combine:
+    needs: member
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/strat
+            scripts/lib
+            scripts/ecmwf
+            scripts/gefs
+            scripts/constraints.txt
+            scripts/mjo/requirements-mjo.txt
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - run: pip install -r scripts/mjo/requirements-mjo.txt
+      # every listed run's reductions, this run's last (a later file replaces an earlier one)
+      - name: Collect the reductions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IDS: ${{ inputs.from_run }}
+        run: |
+          mkdir -p runs
+          for id in ${IDS//,/ } ${{ github.run_id }}; do
+            gh run download "$id" -R "$GITHUB_REPOSITORY" -p 'eddy_case_*' -D "dl/$id" || echo "::warning::run $id: no reductions"
+            find "dl/$id" -type f -name '*.npz' -exec cp {} runs/ \;
+          done
+          ls runs
+      - name: Tests and figures
+        env:
+          START: ${{ inputs.start }}
+          DAYS: ${{ inputs.days }}
+        run: |
+          set -o pipefail
+          python scripts/strat/eddy_case.py combine --runs runs --start "$START" --days "$DAYS" \
+            --out "scripts/strat/reference/eddy_case/$START" | tee /tmp/case.log
+      # Never rebase: snapshot, reset to a fresh origin/main each attempt, lay the snapshot back on, commit, push.
+      - name: Commit & push
+        env:
+          START: ${{ inputs.start }}
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "26825570+scorvec@users.noreply.github.com"
+          OUTS="scripts/strat/reference/eddy_case/$START"
+          git add $OUTS
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          SNAP=$(mktemp -d)
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T -
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add $OUTS
+            if git diff --staged --quiet; then echo "no changes after resync"; exit 0; fi
+            git commit -q -m "strat: eddy feedback case, the week of $START $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
+            echo "push $i rejected; resyncing"; sleep 5
+          done
+          echo "push failed after retries"; exit 1
