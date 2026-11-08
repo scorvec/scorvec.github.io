@@ -465,7 +465,7 @@ def where(runs: dict, doc: dict, start: pd.Timestamp, out: Path) -> None:
             c = colours.get(m, house.INK)
             late = np.array(W[m][f"{k}_late"], float)
             ax.plot(W[m][f"{k}_early"], lat, color=c, lw=1.2, ls="--")
-            ax.plot(late, lat, color=c, lw=1.6, label=NAMES.get(m, m))
+            ax.plot(late, lat, color=c, lw=1.6, label=NAMES.get(m, m) if k == "k24" else None)
             if f"{k}_fdr10" in W[m]:
                 s = np.array(W[m][f"{k}_fdr10"])
                 ax.scatter(late[s], lat[s], s=9, color=c, lw=0, zorder=3)
@@ -474,10 +474,10 @@ def where(runs: dict, doc: dict, start: pd.Timestamp, out: Path) -> None:
         ax.set_ylim(lat[0], 80)
         ax.set_ylabel("°N")
         ax.set_title(title, loc="left", fontsize=10)
-    fig.axes[0].legend(fontsize=8, frameon=False, loc="upper right")
-    fig.axes[0].plot([], [], color=house.INK2, ls="--", lw=1.2, label="runs a week or more ahead")
-    fig.axes[0].plot([], [], color=house.INK2, lw=1.6, label="latest two runs")
-    fig.axes[0].legend(fontsize=7.5, frameon=False, loc="upper right")
+    key = fig.axes[1]  # the eddy energy panel's lower right stays clear
+    key.plot([], [], color=house.INK2, ls="--", lw=1.2, label="runs a week or more ahead")
+    key.plot([], [], color=house.INK2, lw=1.6, label="latest two runs")
+    key.legend(fontsize=7.5, frameon=False, loc="lower right")
 
     def mean_map(key: str, which: int, sign: float = 1.0) -> np.ndarray:
         return sign * np.mean([np.mean([r[key] for r in phases(runs[m], start)[which]], 0) for m in models], 0)
@@ -488,7 +488,7 @@ def where(runs: dict, doc: dict, start: pd.Timestamp, out: Path) -> None:
     pc = ccrs.PlateCarree()
     maps = (
         ("map_k24", 1.0, np.arange(-90, 91, 15), "change in synoptic eddy kinetic energy (m² s⁻²)",
-         "map_u", (40.0, 55.0), "250 hPa wind 40 and 55 m s⁻¹: latest runs solid, early dashed"),
+         "map_u", (30.0, 45.0), "250 hPa wind 30 and 45 m s⁻¹: latest runs solid, early dashed"),
         ("map_uv", -1.0, np.arange(-60, 61, 10), "change in −u′v′ (m² s⁻²): red = more NW–SE (cyclonic) tilt",
          "map_z500", (-150.0, -90.0, -30.0, 30.0, 90.0, 150.0), "latest runs' 500 hPa height anomaly (m)"),
     )  # fmt: skip
