@@ -255,7 +255,9 @@ def main() -> int:
                 **{f"{k}_ci90": ci(v) for k, v in sb.items()},
                 "p_rpc_above_1": EF.rnd((1 + (sb["rpc"] <= 1).sum()) / (BOOT + 1)),
             }  # fmt: skip
-    Path(a.out).write_text(json.dumps(doc, indent=1))
+    out = Path(a.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(doc, indent=1))
     print(json.dumps(doc, indent=1))
     return 0
 
