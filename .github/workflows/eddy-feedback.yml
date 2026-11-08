@@ -1,0 +1,118 @@
+name: Eddy feedback (ERA5, CMIP6)
+
+# Is the models' tropospheric eddy feedback too weak, and does that weaken the surface response to sudden stratospheric
+# warmings? One job per CMIP6 historical run (up to `members` per model, 1950-2014) and per span of ERA5 years
+# (WeatherBench 2, 1959-2023) reduces daily u, v and sea-level pressure to zonal means and eddy momentum flux by latitude
+# (scripts/strat/eddy_extract.py), October to May. A run streams ~10-40 GB per CMIP6 run (the plev8 day stores carry
+# all eight levels). Extracts are kept as artifacts (90 days); `probe_gefs` lists the GEFSv12 reforecast's files for one
+# date instead. Dispatch only.
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: 'Comma-separated source_ids (blank = every model with day ua, va and psl)'
+        default: ''
+      members:
+        description: 'Historical members per model'
+        default: '3'
+      era5:
+        description: 'Reduce ERA5 too'
+        default: 'true'
+      probe_gefs:
+        description: 'Only list the GEFSv12 reforecast files for this init (YYYYMMDDHH; blank = extract)'
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eddy-feedback
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    if: ${{ inputs.probe_gefs }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: GEFSv12 reforecast layout
+        env:
+          INIT: ${{ inputs.probe_gefs }}
+        run: |
+          b=s3://noaa-gefs-retrospective/GEFSv12/reforecast/${INIT:0:4}/$INIT
+          aws s3 ls --no-sign-request "$b/"
+          for m in c00 p01; do
+            aws s3 ls --no-sign-request --recursive "$b/$m/" | grep -E 'ugrd|vgrd|hgt|pres_msl|prmsl|tmp_pres' || true
+          done
+
+  plan:
+    if: ${{ !inputs.probe_gefs }}
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/strat/eddy_extract.py
+            scripts/strat/cmip6_coupling_extract.py
+            scripts/strat/ssw_imprint.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet numpy pandas xarray pyproj
+      - name: Catalogue
+        run: curl -sSf --retry 3 -o /tmp/pangeo-cmip6.csv https://storage.googleapis.com/cmip6/pangeo-cmip6.csv
+      - id: m
+        env:
+          MODELS: ${{ inputs.models }}
+          MEMBERS: ${{ inputs.members }}
+          ERA5: ${{ inputs.era5 }}
+        run: |
+          jobs=$(python scripts/strat/eddy_extract.py plan --catalog /tmp/pangeo-cmip6.csv --models "$MODELS" --members "$MEMBERS")
+          echo "$jobs" | ERA5="$ERA5" python3 -c "
+          import json, os, sys
+          j = [x for x in json.load(sys.stdin) if x['source'] == 'cmip6' or os.environ['ERA5'] == 'true']
+          print(len(j), 'jobs'); [print(' ', x) for x in j]
+          open(os.environ['GITHUB_OUTPUT'], 'a').write('matrix=' + json.dumps({'include': j[:256]}) + '\n')"
+
+  extract:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/strat/eddy_extract.py
+            scripts/strat/cmip6_coupling_extract.py
+            scripts/strat/ssw_imprint.py
+            scripts/strat/reference/ssw_imprint.nc
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet numpy pandas xarray "zarr>=3" gcsfs cftime scipy netCDF4 pyproj dask
+      - name: Catalogue
+        if: ${{ matrix.source == 'cmip6' }}
+        run: curl -sSf --retry 3 -o /tmp/pangeo-cmip6.csv https://storage.googleapis.com/cmip6/pangeo-cmip6.csv
+      - name: Reduce ${{ matrix.source }} ${{ matrix.model }}${{ matrix.years }} ${{ matrix.member }}
+        run: |
+          if [ "${{ matrix.source }}" = era5 ]; then
+            python scripts/strat/eddy_extract.py era5 --years "${{ matrix.years }}" --out out
+          else
+            python scripts/strat/eddy_extract.py cmip6 --catalog /tmp/pangeo-cmip6.csv --model "${{ matrix.model }}" \
+              --member "${{ matrix.member }}" --out out
+          fi
+          ls -la out
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: eddy_${{ matrix.source }}_${{ matrix.model }}${{ matrix.years }}_${{ matrix.member }}
+          path: out/
+          retention-days: 90
+          if-no-files-found: ignore

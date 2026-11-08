@@ -158,6 +158,7 @@ scripts/strat/*
 !scripts/strat/ssw_summary.py
 !scripts/strat/cmip6_coupling.py
 !scripts/strat/cmip6_coupling_extract.py
+!scripts/strat/eddy_extract.py
 # GEPS subseasonal vortex products (subseasonal.html, built with scripts/geps)
 !scripts/strat/strat_maps.py
 !scripts/strat/strat_series.py
