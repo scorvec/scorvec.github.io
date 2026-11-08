@@ -17,7 +17,7 @@ on:
         description: 'Days in the week'
         default: '7'
       inits:
-        description: 'First-last 00Z run (YYYYMMDD-YYYYMMDD, daily) or a comma list of YYYYMMDDHH; blank = none'
+        description: 'First-last 00Z run (YYYYMMDD-YYYYMMDD, daily), a comma list of YYYYMMDDHH, or none'
         default: '20261101-20261108'
       models:
         description: 'Ensembles (comma-separated: ifs, aifs, gefs)'
@@ -56,7 +56,9 @@ jobs:
           python3 - <<'EOF'
           import datetime as dt, json, os
           s = os.environ["INITS"].strip()
-          if "-" in s and "," not in s:
+          if s.lower() in ("", "none"):
+              inits = []
+          elif "-" in s and "," not in s:
               a, b = (dt.datetime.strptime(x, "%Y%m%d") for x in s.split("-"))
               inits = [f"{a + dt.timedelta(days=k):%Y%m%d}00" for k in range((b - a).days + 1)]
           else:
