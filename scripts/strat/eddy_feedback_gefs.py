@@ -28,7 +28,8 @@ pressure anomaly (hPa, + = negative NAM); u100 is u(60N, 100 hPa).
          negative NAO weeks)
   ssw    after each sudden warming (MERRA-2 onsets, Charlton & Polvani; eddy_feedback.merra2_onsets): the run starting
          0-6 days after the onset; its ensemble-mean cap and u100 over lead days 1-15 and 16-30 against ERA5's on the
-         same days, as means over events, their difference and ratio (bootstrap over events)
+         same days, as means over events, their difference (two-sided paired bootstrap p, Benjamini-Hochberg 10 %
+         over the four) and ratio (bootstrap over events)
 ERA5 "matched": the same measure from ERA5 on exactly the forecast days, so both sample the same weather.
 Uncertainty: 1000 bootstrap draws of whole winters (an init's winter is that of its October); one-sided p for the
 difference (GEFS weaker), and for the ratio above and below 1.
@@ -354,11 +355,16 @@ def main() -> int:
                     o = np.nanmean(M[var][ii][:, 0, d0 - 1 : d1], 1)
                     rb = RNG.integers(0, len(ii), (BOOT, len(ii)))
                     fb, ob = f[rb].mean(1), o[rb].mean(1)
+                    p_diff = min(1.0, 2 * min((1 + (fb - ob <= 0).sum()), (1 + (fb - ob >= 0).sum())) / (BOOT + 1))
                     doc["ssw"][f"{var}_days{d0}_{d1}"] = {
                         "gefs": EF.rnd(f.mean(), 3), "era5": EF.rnd(o.mean(), 3), "gefs_ci90": ci(fb),
                         "era5_ci90": ci(ob), "difference_ci90": ci(fb - ob), "ratio": EF.rnd(f.mean() / o.mean(), 3),
-                        "ratio_ci90": ci(fb / ob), "by_event": [[EF.rnd(x, 2), EF.rnd(y, 2)] for x, y in zip(f, o)],
+                        "ratio_ci90": ci(fb / ob), "p_difference": EF.rnd(p_diff),
+                        "by_event": [[EF.rnd(x, 2), EF.rnd(y, 2)] for x, y in zip(f, o)],
                     }  # fmt: skip
+            tests = [k for k in doc["ssw"] if k != "events"]
+            for k, sig in zip(tests, CC.fdr(np.array([doc["ssw"][k]["p_difference"] for k in tests], float))):
+                doc["ssw"][k]["fdr10"] = bool(sig)
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(doc, indent=1))
