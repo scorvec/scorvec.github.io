@@ -3,7 +3,9 @@ name: Eddy feedback (GEFSv12 reforecast)
 # The forecast-model side of the eddy-feedback test: the GEFSv12 reforecast's 35-day runs (11 members, 00Z Wednesdays,
 # 2000-2019; NOAA's public AWS bucket) reduced as ERA5 and CMIP6 are (scripts/strat/gefs_eddy_extract.py), one winter
 # (October-April) per job; each streams ~50 GB a message at a time by byte range. Extracts are kept as artifacts
-# (90 days). `inits` runs only those inits (a test). Dispatch only.
+# (90 days). `inits` runs only those inits (a test). A final job tests the reforecast against ERA5 on the same days
+# (scripts/strat/eddy_feedback_gefs.py; ERA5 extracts from an eddy-feedback.yml run) and commits
+# scripts/strat/reference/eddy_feedback_gefs.json; `from_run` re-tests finished runs' extracts instead. Dispatch only.
 on:
   workflow_dispatch:
     inputs:
@@ -16,9 +18,18 @@ on:
       members:
         description: 'Members (comma-separated)'
         default: 'c00,p01,p02,p03,p04,p05,p06,p07,p08,p09,p10'
+      analyse:
+        description: 'Run the tests and commit them (false = extracts only)'
+        default: 'true'
+      from_run:
+        description: 'Finished run ids (comma-separated) whose extracts to test, together (blank = extract now)'
+        default: ''
+      era5_run:
+        description: 'The eddy-feedback.yml run holding the ERA5 extracts'
+        default: '42499778250'
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: eddy-feedback-gefs
@@ -26,6 +37,7 @@ concurrency:
 
 jobs:
   plan:
+    if: ${{ !inputs.from_run }}
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.m.outputs.matrix }}
@@ -55,6 +67,7 @@ jobs:
 
   extract:
     needs: plan
+    if: ${{ !inputs.from_run }}
     runs-on: ubuntu-latest
     timeout-minutes: 350
     strategy:
@@ -93,3 +106,66 @@ jobs:
           path: out/
           retention-days: 90
           if-no-files-found: ignore
+
+  analyse:
+    needs: extract
+    if: ${{ !cancelled() && inputs.analyse == 'true' && !inputs.inits }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/strat/eddy_feedback_gefs.py
+            scripts/strat/eddy_feedback.py
+            scripts/strat/eddy_extract.py
+            scripts/strat/cmip6_coupling.py
+            scripts/strat/cmip6_coupling_extract.py
+            scripts/strat/ssw_imprint.py
+            scripts/strat/reference/eddy_feedback_gefs.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet numpy pandas scipy xarray pyproj
+      - name: Collect the extracts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IDS: ${{ inputs.from_run || github.run_id }}
+          ERA5_RUN: ${{ inputs.era5_run }}
+        run: |
+          mkdir -p gefs era5
+          for id in ${IDS//,/ }; do
+            gh run download "$id" -R "$GITHUB_REPOSITORY" -p 'gefs_eddy_*' -D "dl/$id"
+            find "dl/$id" -type f -name 'GEFSv12_*.npz' -exec cp {} gefs/ \;
+          done
+          gh run download "$ERA5_RUN" -R "$GITHUB_REPOSITORY" -p 'eddy_era5_*' -D dl/era5
+          find dl/era5 -type f -name 'ERA5_*.npz' -exec cp {} era5/ \;
+          echo "GEFS: $(ls gefs | wc -l) winters, ERA5: $(ls era5 | wc -l) spans"
+      - name: Tests
+        run: |
+          set -o pipefail
+          python scripts/strat/eddy_feedback_gefs.py --gefs gefs --era5 era5 \
+            --out scripts/strat/reference/eddy_feedback_gefs.json | tee /tmp/eddy.log
+      # Never rebase: snapshot, reset to a fresh origin/main each attempt, lay the snapshot back on, commit, push.
+      - name: Commit & push
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "26825570+scorvec@users.noreply.github.com"
+          OUTS="scripts/strat/reference/eddy_feedback_gefs.json"
+          git add $OUTS
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          SNAP=$(mktemp -d)
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T -
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add $OUTS
+            if git diff --staged --quiet; then echo "no changes after resync"; exit 0; fi
+            git commit -q -m "strat: eddy feedback tests, GEFSv12 reforecast against ERA5 $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
+            echo "push $i rejected; resyncing"; sleep 5
+          done
+          echo "push failed after retries"; exit 1

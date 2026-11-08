@@ -126,16 +126,22 @@ def efp(u: np.ndarray, f: np.ndarray, lat: np.ndarray, levels: list, use, rows=N
     return (rr**2).mean((-2, -1))
 
 
-def jet(ua: np.ndarray, fa: np.ndarray, lat: np.ndarray, r: dict) -> tuple[np.ndarray, np.ndarray]:
-    """The jet index z (m/s) and its eddy forcing m (m/s per day) on the leading EOF of DJF daily u anomalies."""
+def jet_eof(ua: np.ndarray, lat: np.ndarray, sel: np.ndarray):
+    """The projection (..., lat) -> (...) onto the leading EOF of daily u anomalies ua (days, lat) on days `sel`,
+    signed so that + is a poleward jet."""
     w = np.cos(np.deg2rad(lat))
-    sel = np.isin(r["month"], DJF) & np.isfinite(ua).all(1)
-    X = ua[sel] * np.sqrt(w)
+    X = ua[sel & np.isfinite(ua).all(1)] * np.sqrt(w)
     e = np.linalg.svd(X - X.mean(0), full_matrices=False)[2][0] / np.sqrt(w)
     if e[np.argmin(abs(lat - 60))] < e[np.argmin(abs(lat - 35))]:
         e = -e
     norm = (w * e * e).sum()
-    return (ua * w * e).sum(1) / norm, (fa * w * e).sum(1) / norm
+    return lambda x: (x * w * e).sum(-1) / norm
+
+
+def jet(ua: np.ndarray, fa: np.ndarray, lat: np.ndarray, r: dict) -> tuple[np.ndarray, np.ndarray]:
+    """The jet index z (m/s) and its eddy forcing m (m/s per day) on the leading EOF of DJF daily u anomalies."""
+    proj = jet_eof(ua, lat, np.isin(r["month"], DJF))
+    return proj(ua), proj(fa)
 
 
 def lh_parts(z: np.ndarray, m: np.ndarray, r: dict) -> np.ndarray:

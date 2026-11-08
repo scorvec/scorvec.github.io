@@ -160,6 +160,7 @@ scripts/strat/*
 !scripts/strat/cmip6_coupling_extract.py
 !scripts/strat/eddy_extract.py
 !scripts/strat/eddy_feedback.py
+!scripts/strat/eddy_feedback_gefs.py
 !scripts/strat/gefs_eddy_extract.py
 # GEPS subseasonal vortex products (subseasonal.html, built with scripts/geps)
 !scripts/strat/strat_maps.py
@@ -197,6 +198,7 @@ scripts/strat/*
 !scripts/strat/reference/cmip6_coupling_tests.json
 !scripts/strat/reference/cmip6_coupling_log.json
 !scripts/strat/reference/eddy_feedback.json
+!scripts/strat/reference/eddy_feedback_gefs.json
 
 # local archives, caches and runtime state
 local_archive/
