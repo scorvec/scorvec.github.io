@@ -31,6 +31,8 @@ TESTS.
      side (higher efp and b, lower g_na, more negative gain and down); Benjamini-Hochberg 10 % across models.
   2. Across models (member means, models with >= 2 members of 64 winters weighted equally): r of each feedback measure
      with gain and down, permutation p (10000), Benjamini-Hochberg 10 % over those pairs; ERA5's place on each line.
+     Sensitivity (chosen after test 2): every model, with down_sd as a third coupling measure, BH over those pairs;
+     and whether one run's sampling noise links a pair: r of member deviations from their model's mean.
   3. Saffin et al.'s confound: r(efp, nao_var) across models, and across ERA5's bootstrap samples.
 
     python eddy_feedback.py --runs extracts/ --strat reference/strat_history.nc --out reference/eddy_feedback.json
@@ -321,6 +323,28 @@ def permutation_r(x: np.ndarray, y: np.ndarray) -> tuple[float, float]:
     return r0, float((1 + (np.abs(rp) >= abs(r0)).sum()) / (PERM + 1))
 
 
+def across(models: dict, names: list, coupling: dict, em: dict) -> list[dict]:
+    """r across `names` (member means) of each feedback measure with each coupling measure, permutation p,
+    Benjamini-Hochberg 10 % over the pairs (counted only with the expected sign); ERA5's place on each line."""
+    out, ps = [], []
+    for fk in FEEDBACK:
+        for ck in coupling:
+            x = np.array([models[n]["mean"][fk] for n in names], float)  # None (no value) -> nan
+            y = np.array([models[n]["mean"][ck] for n in names], float)
+            r0, p = permutation_r(x, y)
+            ok = np.isfinite(x) & np.isfinite(y)
+            fit = np.polyfit(x[ok], y[ok], 1)
+            out.append(
+                {"feedback": fk, "coupling": ck, "models": int(ok.sum()), "r": rnd(r0, 3), "p": rnd(p),
+                 "expected_sign": FEEDBACK[fk] * coupling[ck], "era5_predicted": rnd(np.polyval(fit, em[fk])),
+                 "era5_actual": rnd(em[ck])}
+            )  # fmt: skip
+            ps.append(p)
+    for t, sig in zip(out, CC.fdr(np.array(ps))):
+        t["fdr10"] = bool(sig and np.sign(t["r"]) == t["expected_sign"])
+    return out
+
+
 def rnd(v, k=4):
     return None if v is None or not np.isfinite(v) else float(round(float(v), k))
 
@@ -399,24 +423,23 @@ def main() -> int:
             "models": len(names), "era5_stronger_fdr10": [n for n, s in zip(names, sig) if s],
             "median_percentile": rnd(np.median([models[n]["percentile_of_era5"][k] for n in names]), 1),
         }  # fmt: skip
-    # 2. across models (those with >= 2 members), feedback vs coupling
+    # 2. across models (those with >= 2 members), feedback vs coupling; then every model, and the member noise
     keep = [n for n in models if models[n]["members"] >= 2]
-    test2, ps = [], []
+    test2 = across(models, keep, COUPLING, em)
+    test2_all = across(models, list(models), {**COUPLING, "down_sd": -1}, em)
+    noise = []
     for fk in FEEDBACK:
-        for ck in COUPLING:
-            x = np.array([models[n]["mean"][fk] for n in keep], float)  # None (no value) -> nan
-            y = np.array([models[n]["mean"][ck] for n in keep], float)
-            r0, p = permutation_r(x, y)
-            ok = np.isfinite(x) & np.isfinite(y)
-            fit = np.polyfit(x[ok], y[ok], 1)
-            test2.append(
-                {"feedback": fk, "coupling": ck, "models": int(ok.sum()), "r": rnd(r0, 3), "p": rnd(p),
-                 "expected_sign": FEEDBACK[fk] * COUPLING[ck], "era5_predicted": rnd(np.polyval(fit, em[fk])),
-                 "era5_actual": rnd(em[ck])}
-            )  # fmt: skip
-            ps.append(p)
-    for t, s in zip(test2, CC.fdr(np.array(ps))):
-        t["fdr10"] = bool(s and np.sign(t["r"]) == t["expected_sign"])
+        for ck in (*COUPLING, "down_sd"):
+            dx, dy = [], []
+            for n in keep:
+                x = np.array(models[n]["members_values"][fk], float)
+                y = np.array(models[n]["members_values"][ck], float)
+                ok = np.isfinite(x) & np.isfinite(y)
+                if ok.sum() >= 2:
+                    dx += list(x[ok] - x[ok].mean())
+                    dy += list(y[ok] - y[ok].mean())
+            r0, p = permutation_r(np.array(dx), np.array(dy))
+            noise.append({"feedback": fk, "coupling": ck, "members": len(dx), "r": rnd(r0, 3), "p": rnd(p)})
     # 3. Saffin's confound
     x = np.array([models[n]["mean"]["efp"] for n in keep], float)
     y = np.array([models[n]["mean"]["nao_var"] for n in keep], float)
@@ -428,14 +451,17 @@ def main() -> int:
     }
 
     doc = {"era5": era5_doc, "models": models, "test_era5_vs_models": test1, "test_across_models": test2,
-           "test_efp_nao": test3, "boot": BOOT, "perm": PERM}  # fmt: skip
+           "test_across_all_models": test2_all, "test_member_noise": noise, "test_efp_nao": test3, "boot": BOOT,
+           "perm": PERM}  # fmt: skip
     Path(a.out).write_text(json.dumps(doc, indent=1))
     print("\nERA5 against the models (median percentile of ERA5; models where ERA5 is stronger, FDR 10 %):")
     for k, v in test1.items():
         print(f"  {k:8s} {v['median_percentile']}  {len(v['era5_stronger_fdr10'])}/{v['models']}")
-    print("Across models:")
-    for t in test2:
-        print(f"  {t['feedback']:5s} vs {t['coupling']:5s} r {t['r']} p {t['p']} {'FDR' if t['fdr10'] else ''}")
+    for title, tests in (("Across models (>= 2 members)", test2), ("Across every model", test2_all)):
+        print(f"{title}:")
+        for t in tests:
+            print(f"  {t['feedback']:5s} vs {t['coupling']:7s} r {t['r']} p {t['p']} {'FDR' if t['fdr10'] else ''}")
+    print("Member noise:", ", ".join(f"{t['feedback']}/{t['coupling']} {t['r']}" for t in noise))
     print(f"EFP vs NAO variance: {test3}")
     return 0
 
