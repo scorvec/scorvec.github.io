@@ -100,7 +100,8 @@
     "down": 0.01,
     "nao_var": 0.005,
     "down_sd": 0.1069
-   }
+   },
+   "resolution_km": 250.0
   },
   "ACCESS-ESM1-5": {
    "members": 5,
@@ -185,7 +186,8 @@
     "down": 0.001,
     "nao_var": 0.001,
     "down_sd": 0.001
-   }
+   },
+   "resolution_km": 250.0
   },
   "AWI-ESM-1-1-LR": {
    "members": 1,
@@ -242,7 +244,8 @@
     "down": 1.0,
     "nao_var": 0.7762,
     "down_sd": 0.994
-   }
+   },
+   "resolution_km": 250.0
   },
   "BCC-CSM2-MR": {
    "members": 2,
@@ -304,7 +307,8 @@
     "down": 0.3826,
     "nao_var": 0.2058,
     "down_sd": 0.034
-   }
+   },
+   "resolution_km": 100.0
   },
   "BCC-ESM1": {
    "members": 3,
@@ -375,7 +379,8 @@
     "down": 0.7463,
     "nao_var": 0.0659,
     "down_sd": 0.0779
-   }
+   },
+   "resolution_km": 250.0
   },
   "CESM2": {
    "members": 5,
@@ -460,7 +465,8 @@
     "down": 0.9201,
     "nao_var": 0.3467,
     "down_sd": 0.6803
-   }
+   },
+   "resolution_km": 100.0
   },
   "CESM2-FV2": {
    "members": 3,
@@ -531,7 +537,8 @@
     "down": 0.995,
     "nao_var": 0.3157,
     "down_sd": 0.972
-   }
+   },
+   "resolution_km": 250.0
   },
   "CESM2-WACCM": {
    "members": 3,
@@ -602,7 +609,8 @@
     "down": 0.1149,
     "nao_var": 0.1129,
     "down_sd": 0.002
-   }
+   },
+   "resolution_km": 100.0
   },
   "CMCC-CM2-HR4": {
    "members": 1,
@@ -657,7 +665,8 @@
     "down": 0.2637,
     "nao_var": 0.047,
     "down_sd": 0.005
-   }
+   },
+   "resolution_km": 100.0
   },
   "CMCC-CM2-SR5": {
    "members": 1,
@@ -712,7 +721,8 @@
     "down": 0.8641,
     "nao_var": 0.017,
     "down_sd": 0.8392
-   }
+   },
+   "resolution_km": 100.0
   },
   "CMCC-ESM2": {
    "members": 1,
@@ -767,7 +777,8 @@
     "down": 0.8901,
     "nao_var": 0.001,
     "down_sd": 0.5245
-   }
+   },
+   "resolution_km": 100.0
   },
   "CNRM-CM6-1": {
    "members": 5,
@@ -852,7 +863,8 @@
     "down": 0.9051,
     "nao_var": 0.017,
     "down_sd": 0.6044
-   }
+   },
+   "resolution_km": 250.0
   },
   "CNRM-CM6-1-HR": {
    "members": 1,
@@ -909,7 +921,8 @@
     "down": 0.0759,
     "nao_var": 0.001,
     "down_sd": 0.004
-   }
+   },
+   "resolution_km": 50.0
   },
   "CNRM-ESM2-1": {
    "members": 5,
@@ -994,7 +1007,8 @@
     "down": 0.6683,
     "nao_var": 0.0679,
     "down_sd": 0.2368
-   }
+   },
+   "resolution_km": 250.0
   },
   "CanESM5": {
    "members": 5,
@@ -1079,7 +1093,8 @@
     "down": 0.1199,
     "nao_var": 0.013,
     "down_sd": 0.1329
-   }
+   },
+   "resolution_km": 500.0
   },
   "EC-Earth3": {
    "members": 5,
@@ -1164,7 +1179,8 @@
     "down": 0.028,
     "nao_var": 0.029,
     "down_sd": 0.001
-   }
+   },
+   "resolution_km": 100.0
   },
   "EC-Earth3-AerChem": {
    "members": 2,
@@ -1228,7 +1244,8 @@
     "down": 0.0679,
     "nao_var": 0.012,
     "down_sd": 0.005
-   }
+   },
+   "resolution_km": 100.0
   },
   "EC-Earth3-CC": {
    "members": 1,
@@ -1285,7 +1302,8 @@
     "down": 0.001,
     "nao_var": 0.0549,
     "down_sd": 0.001
-   }
+   },
+   "resolution_km": 100.0
   },
   "EC-Earth3-Veg": {
    "members": 3,
@@ -1356,7 +1374,8 @@
     "down": 0.0999,
     "nao_var": 0.034,
     "down_sd": 0.026
-   }
+   },
+   "resolution_km": 100.0
   },
   "EC-Earth3-Veg-LR": {
    "members": 3,
@@ -1427,7 +1446,8 @@
     "down": 0.1009,
     "nao_var": 0.5405,
     "down_sd": 0.008
-   }
+   },
+   "resolution_km": 250.0
   },
   "GFDL-CM4": {
    "members": 1,
@@ -1482,7 +1502,8 @@
     "down": 0.001,
     "nao_var": 0.002,
     "down_sd": 0.001
-   }
+   },
+   "resolution_km": 250.0
   },
   "HadGEM3-GC31-LL": {
    "members": 4,
@@ -1560,7 +1581,8 @@
     "down": 0.0609,
     "nao_var": 0.001,
     "down_sd": 0.1409
-   }
+   },
+   "resolution_km": 250.0
   },
   "HadGEM3-GC31-MM": {
    "members": 4,
@@ -1638,7 +1660,8 @@
     "down": 0.1379,
     "nao_var": 0.039,
     "down_sd": 0.2248
-   }
+   },
+   "resolution_km": 100.0
   },
   "IITM-ESM": {
    "members": 1,
@@ -1695,7 +1718,8 @@
     "down": 0.005,
     "nao_var": 0.001,
     "down_sd": 0.001
-   }
+   },
+   "resolution_km": 250.0
   },
   "INM-CM4-8": {
    "members": 1,
@@ -1752,7 +1776,8 @@
     "down": 0.001,
     "nao_var": 0.001,
     "down_sd": 0.002
-   }
+   },
+   "resolution_km": 100.0
   },
   "INM-CM5-0": {
    "members": 5,
@@ -1837,7 +1862,8 @@
     "down": 0.002,
     "nao_var": 0.001,
     "down_sd": 0.021
-   }
+   },
+   "resolution_km": 100.0
   },
   "IPSL-CM5A2-INCA": {
    "members": 1,
@@ -1894,7 +1920,8 @@
     "down": 0.8571,
     "nao_var": 0.6983,
     "down_sd": 0.4296
-   }
+   },
+   "resolution_km": 500.0
   },
   "IPSL-CM6A-LR": {
    "members": 5,
@@ -1979,7 +2006,8 @@
     "down": 0.1369,
     "nao_var": 0.5145,
     "down_sd": 0.016
-   }
+   },
+   "resolution_km": 250.0
   },
   "KACE-1-0-G": {
    "members": 3,
@@ -2050,7 +2078,8 @@
     "down": 0.1818,
     "nao_var": 0.007,
     "down_sd": 0.2907
-   }
+   },
+   "resolution_km": 250.0
   },
   "MIROC-ES2L": {
    "members": 1,
@@ -2105,7 +2134,8 @@
     "down": 0.001,
     "nao_var": 0.001,
     "down_sd": 0.001
-   }
+   },
+   "resolution_km": 500.0
   },
   "MIROC6": {
    "members": 5,
@@ -2190,7 +2220,8 @@
     "down": 0.0599,
     "nao_var": 0.001,
     "down_sd": 0.006
-   }
+   },
+   "resolution_km": 250.0
   },
   "MPI-ESM-1-2-HAM": {
    "members": 2,
@@ -2254,7 +2285,8 @@
     "down": 0.6394,
     "nao_var": 0.003,
     "down_sd": 0.4346
-   }
+   },
+   "resolution_km": 250.0
   },
   "MPI-ESM1-2-HR": {
    "members": 5,
@@ -2339,7 +2371,8 @@
     "down": 0.3566,
     "nao_var": 0.1009,
     "down_sd": 0.1608
-   }
+   },
+   "resolution_km": 100.0
   },
   "MPI-ESM1-2-LR": {
    "members": 5,
@@ -2424,7 +2457,8 @@
     "down": 0.2148,
     "nao_var": 0.0779,
     "down_sd": 0.0609
-   }
+   },
+   "resolution_km": 250.0
   },
   "MRI-ESM2-0": {
    "members": 5,
@@ -2509,7 +2543,8 @@
     "down": 0.6563,
     "nao_var": 0.016,
     "down_sd": 0.3447
-   }
+   },
+   "resolution_km": 100.0
   },
   "NorESM2-LM": {
    "members": 3,
@@ -2580,7 +2615,8 @@
     "down": 0.8621,
     "nao_var": 0.3966,
     "down_sd": 0.2238
-   }
+   },
+   "resolution_km": 250.0
   },
   "NorESM2-MM": {
    "members": 2,
@@ -2644,7 +2680,8 @@
     "down": 0.8452,
     "nao_var": 0.2408,
     "down_sd": 0.3027
-   }
+   },
+   "resolution_km": 100.0
   },
   "SAM0-UNICON": {
    "members": 1,
@@ -2699,7 +2736,8 @@
     "down": 0.9451,
     "nao_var": 0.003,
     "down_sd": 0.5385
-   }
+   },
+   "resolution_km": 100.0
   },
   "TaiESM1": {
    "members": 1,
@@ -2754,7 +2792,8 @@
     "down": 0.1838,
     "nao_var": 0.047,
     "down_sd": 0.0939
-   }
+   },
+   "resolution_km": 100.0
   },
   "UKESM1-0-LL": {
    "members": 5,
@@ -2839,7 +2878,8 @@
     "down": 0.043,
     "nao_var": 0.001,
     "down_sd": 0.1379
-   }
+   },
+   "resolution_km": 250.0
   }
  },
  "test_era5_vs_models": {
@@ -3208,6 +3248,57 @@
   "p_models": 0.2517,
   "r_era5_bootstrap": 0.587
  },
+ "test_resolution": [
+  {
+   "measure": "efp",
+   "models": 40,
+   "r_log_resolution": 0.203,
+   "p": 0.2031,
+   "fdr10": false
+  },
+  {
+   "measure": "g_na",
+   "models": 40,
+   "r_log_resolution": 0.011,
+   "p": 0.9418,
+   "fdr10": false
+  },
+  {
+   "measure": "b",
+   "models": 40,
+   "r_log_resolution": -0.054,
+   "p": 0.7473,
+   "fdr10": false
+  },
+  {
+   "measure": "gain",
+   "models": 40,
+   "r_log_resolution": 0.022,
+   "p": 0.8939,
+   "fdr10": false
+  },
+  {
+   "measure": "down",
+   "models": 40,
+   "r_log_resolution": -0.045,
+   "p": 0.7852,
+   "fdr10": false
+  },
+  {
+   "measure": "nao_var",
+   "models": 40,
+   "r_log_resolution": 0.043,
+   "p": 0.7897,
+   "fdr10": false
+  },
+  {
+   "measure": "down_sd",
+   "models": 40,
+   "r_log_resolution": -0.11,
+   "p": 0.5036,
+   "fdr10": false
+  }
+ ],
  "boot": 1000,
  "perm": 10000
 }
