@@ -1,0 +1,95 @@
+name: Eddy feedback (GEFSv12 reforecast)
+
+# The forecast-model side of the eddy-feedback test: the GEFSv12 reforecast's 35-day runs (11 members, 00Z Wednesdays,
+# 2000-2019; NOAA's public AWS bucket) reduced as ERA5 and CMIP6 are (scripts/strat/gefs_eddy_extract.py), one winter
+# (October-April) per job; each streams ~50 GB a message at a time by byte range. Extracts are kept as artifacts
+# (90 days). `inits` runs only those inits (a test). Dispatch only.
+on:
+  workflow_dispatch:
+    inputs:
+      winters:
+        description: 'First-last winter, by the year of its October (1999 = January-April 2000)'
+        default: '1999-2019'
+      inits:
+        description: 'Only these inits, comma-separated YYYYMMDDHH (a test; blank = the winters)'
+        default: ''
+      members:
+        description: 'Members (comma-separated)'
+        default: 'c00,p01,p02,p03,p04,p05,p06,p07,p08,p09,p10'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eddy-feedback-gefs
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/strat/gefs_eddy_extract.py
+            scripts/strat/eddy_extract.py
+            scripts/strat/cmip6_coupling_extract.py
+            scripts/strat/ssw_imprint.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet numpy pandas xarray requests
+      - id: m
+        env:
+          WINTERS: ${{ inputs.winters }}
+          INITS: ${{ inputs.inits }}
+        run: |
+          if [ -n "$INITS" ]; then
+            echo 'matrix={"include":[{"winter":"test"}]}' >> "$GITHUB_OUTPUT"
+          else
+            echo "matrix=$(python scripts/strat/gefs_eddy_extract.py plan --winters "$WINTERS" | python3 -c "import json, sys; print(json.dumps({'include': json.load(sys.stdin)}))")" >> "$GITHUB_OUTPUT"
+          fi
+
+  extract:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 21
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/strat/gefs_eddy_extract.py
+            scripts/strat/eddy_extract.py
+            scripts/strat/cmip6_coupling_extract.py
+            scripts/strat/ssw_imprint.py
+            scripts/strat/reference/ssw_imprint.nc
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet numpy pandas xarray netCDF4 requests eccodes
+      - name: Reduce winter ${{ matrix.winter }}
+        env:
+          INITS: ${{ inputs.inits }}
+          MEMBERS: ${{ inputs.members }}
+        run: |
+          if [ -n "$INITS" ]; then
+            python scripts/strat/gefs_eddy_extract.py run --inits "$INITS" --members "$MEMBERS" --out out
+          else
+            python scripts/strat/gefs_eddy_extract.py run --winter ${{ matrix.winter }} --members "$MEMBERS" --out out
+          fi
+          ls -la out
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: gefs_eddy_${{ matrix.winter }}
+          path: out/
+          retention-days: 90
+          if-no-files-found: ignore
