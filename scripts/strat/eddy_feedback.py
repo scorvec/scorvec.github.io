@@ -34,8 +34,11 @@ TESTS.
      Sensitivity (chosen after test 2): every model, with down_sd as a third coupling measure, BH over those pairs;
      and whether one run's sampling noise links a pair: r of member deviations from their model's mean.
   3. Saffin et al.'s confound: r(efp, nao_var) across models, and across ERA5's bootstrap samples.
+  4. Resolution: r of each measure with log10 of each model's nominal resolution (its day ua store's attribute),
+     permutation p, BH over the measures (ERA5 is on 1.5 deg, ~165 km).
 
-    python eddy_feedback.py --runs extracts/ --strat reference/strat_history.nc --out reference/eddy_feedback.json
+    python eddy_feedback.py --runs extracts/ --strat reference/strat_history.nc --catalog pangeo-cmip6.csv \
+        --out reference/eddy_feedback.json
 """
 
 from __future__ import annotations
@@ -345,6 +348,30 @@ def across(models: dict, names: list, coupling: dict, em: dict) -> list[dict]:
     return out
 
 
+def resolution(catalog: str, names: list) -> dict:
+    """{model: nominal resolution, km} from the attributes of each model's newest historical day ua store."""
+    import re
+
+    import requests
+
+    cat = EX.catalog(catalog)
+    out = {}
+    for n in names:
+        g = cat[(cat.source_id == n) & (cat.variable_id == "ua")]
+        if not len(g):
+            continue
+        url = g.sort_values("version").zstore.iloc[-1].replace("gs://", "https://storage.googleapis.com/")
+        try:
+            attrs = requests.get(url.rstrip("/") + "/.zattrs", timeout=30).json()
+        except (requests.RequestException, ValueError) as err:
+            print(f"  {n}: no resolution ({type(err).__name__})")
+            continue
+        m = re.match(r"([\d.]+)\s*km", str(attrs.get("nominal_resolution", "")))
+        if m:
+            out[n] = float(m.group(1))
+    return out
+
+
 def rnd(v, k=4):
     return None if v is None or not np.isfinite(v) else float(round(float(v), k))
 
@@ -353,6 +380,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", required=True, help="directory of eddy_extract.py's npz files")
     ap.add_argument("--strat", required=True, help="strat_history.nc (MERRA-2 u(60N, 10 hPa) for ERA5's SSW dates)")
+    ap.add_argument("--catalog", help="the Pangeo CMIP6 catalogue, for each model's nominal resolution")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
     files = sorted(p for p in Path(a.runs).glob("*.npz") if ".part" not in p.name)
@@ -450,9 +478,24 @@ def main() -> int:
         "r_era5_bootstrap": rnd(np.corrcoef(eb["efp"], eb["nao_var"])[0, 1], 3),
     }
 
+    # 4. resolution
+    test4 = []
+    if a.catalog:
+        res = resolution(a.catalog, list(models))
+        for n, km in res.items():
+            models[n]["resolution_km"] = km
+        names = [n for n in models if n in res]
+        x = np.log10([res[n] for n in names])
+        for k in (*FEEDBACK, *COUPLING, "nao_var", "down_sd"):
+            r0, p = permutation_r(x, np.array([models[n]["mean"][k] for n in names], float))
+            test4.append({"measure": k, "models": len(names), "r_log_resolution": rnd(r0, 3), "p": rnd(p)})
+        for t, sig in zip(test4, CC.fdr(np.array([t["p"] for t in test4]))):
+            t["fdr10"] = bool(sig)
+        print("Resolution:", ", ".join(f"{t['measure']} r {t['r_log_resolution']} p {t['p']}" for t in test4))
+
     doc = {"era5": era5_doc, "models": models, "test_era5_vs_models": test1, "test_across_models": test2,
-           "test_across_all_models": test2_all, "test_member_noise": noise, "test_efp_nao": test3, "boot": BOOT,
-           "perm": PERM}  # fmt: skip
+           "test_across_all_models": test2_all, "test_member_noise": noise, "test_efp_nao": test3,
+           "test_resolution": test4, "boot": BOOT, "perm": PERM}  # fmt: skip
     Path(a.out).write_text(json.dumps(doc, indent=1))
     print("\nERA5 against the models (median percentile of ERA5; models where ERA5 is stronger, FDR 10 %):")
     for k, v in test1.items():
