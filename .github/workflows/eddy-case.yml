@@ -154,6 +154,7 @@ jobs:
         run: |
           mkdir -p runs
           for id in ${IDS//,/ } ${{ github.run_id }}; do
+            mkdir -p "dl/$id"  # a run with no reductions (this one, with inits=none) leaves no folder
             gh run download "$id" -R "$GITHUB_REPOSITORY" -p 'eddy_case_*' -D "dl/$id" || echo "::warning::run $id: no reductions"
             find "dl/$id" -type f -name '*.npz' -exec cp {} runs/ \;
           done
