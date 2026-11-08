@@ -5,7 +5,8 @@ name: Eddy feedback (ERA5, CMIP6)
 # (WeatherBench 2, 1958/59-2022/23) reduces daily u, v and sea-level pressure (scripts/strat/eddy_extract.py), October
 # to May: zonal means and eddy momentum flux by latitude, the NAO and the North Atlantic barotropic energy generation
 # rate. Each CMIP6 run streams ~10-40 GB (the plev8 day stores carry all eight levels). Extracts are kept as artifacts
-# (90 days); `probe_gefs` lists the GEFSv12 reforecast's files for one date instead. Dispatch only.
+# (90 days). A final job tests ERA5 against the models (scripts/strat/eddy_feedback.py) and commits
+# scripts/strat/reference/eddy_feedback.json; `from_run` re-tests finished runs' extracts instead. Dispatch only.
 on:
   workflow_dispatch:
     inputs:
@@ -18,34 +19,23 @@ on:
       era5:
         description: 'Reduce ERA5 too'
         default: 'true'
-      probe_gefs:
-        description: 'Only list the GEFSv12 reforecast files for this init (YYYYMMDDHH; blank = extract)'
+      analyse:
+        description: 'Run the tests and commit them (false = extracts only)'
+        default: 'true'
+      from_run:
+        description: 'Finished run ids (comma-separated) whose extracts to test, together (blank = extract now)'
         default: ''
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: eddy-feedback
   cancel-in-progress: false
 
 jobs:
-  probe:
-    if: ${{ inputs.probe_gefs }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: GEFSv12 reforecast layout
-        env:
-          INIT: ${{ inputs.probe_gefs }}
-        run: |
-          b=s3://noaa-gefs-retrospective/GEFSv12/reforecast/${INIT:0:4}/$INIT
-          aws s3 ls --no-sign-request "$b/"
-          for m in c00 p01; do
-            aws s3 ls --no-sign-request --recursive "$b/$m/" | grep -E 'ugrd|vgrd|hgt|pres_msl|prmsl|tmp_pres' || true
-          done
-
   plan:
-    if: ${{ !inputs.probe_gefs }}
+    if: ${{ !inputs.from_run }}
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.m.outputs.matrix }}
@@ -78,6 +68,7 @@ jobs:
 
   extract:
     needs: plan
+    if: ${{ !inputs.from_run }}
     runs-on: ubuntu-latest
     timeout-minutes: 350
     strategy:
@@ -116,3 +107,65 @@ jobs:
           path: out/
           retention-days: 90
           if-no-files-found: ignore
+
+  analyse:
+    needs: extract
+    if: ${{ !cancelled() && inputs.analyse == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/strat/eddy_feedback.py
+            scripts/strat/eddy_extract.py
+            scripts/strat/cmip6_coupling.py
+            scripts/strat/cmip6_coupling_extract.py
+            scripts/strat/ssw_imprint.py
+            scripts/strat/reference/strat_history.nc
+            scripts/strat/reference/eddy_feedback.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet numpy pandas scipy xarray netCDF4
+      # every listed run's extracts (a later run's file replaces an earlier one's)
+      - name: Collect the extracts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IDS: ${{ inputs.from_run || github.run_id }}
+        run: |
+          mkdir -p runs
+          for id in ${IDS//,/ }; do
+            gh run download "$id" -R "$GITHUB_REPOSITORY" -p 'eddy_*' -D "dl/$id"
+            find "dl/$id" -type f \( -name '*.npz' -o -name '*_log.json' \) -exec cp {} runs/ \;
+          done
+          ls runs/*.npz | wc -l
+          grep -h -o '"status": "[^"]*"' runs/*_log.json | sort | uniq -c
+      - name: Tests
+        run: |
+          set -o pipefail
+          python scripts/strat/eddy_feedback.py --runs runs --strat scripts/strat/reference/strat_history.nc \
+            --out scripts/strat/reference/eddy_feedback.json | tee /tmp/eddy.log
+      # Never rebase: snapshot, reset to a fresh origin/main each attempt, lay the snapshot back on, commit, push.
+      - name: Commit & push
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "26825570+scorvec@users.noreply.github.com"
+          OUTS="scripts/strat/reference/eddy_feedback.json"
+          git add $OUTS
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          SNAP=$(mktemp -d)
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T -
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add $OUTS
+            if git diff --staged --quiet; then echo "no changes after resync"; exit 0; fi
+            git commit -q -m "strat: eddy feedback tests, ERA5 against CMIP6 $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
+            echo "push $i rejected; resyncing"; sleep 5
+          done
+          echo "push failed after retries"; exit 1
