@@ -405,9 +405,9 @@ def latest(system, t_end=None):
                 return d, hh
             if back > 0 or time.time() > t_end:
                 break
-            print(f"  {system} {d} {hh}Z not complete yet; waiting", flush=True)
+            print(f"  {system} {d} {hh}Z not complete yet; waiting", file=sys.stderr, flush=True)
             time.sleep(120)
-        print(f"  {system} {d} {hh}Z not complete", flush=True)
+        print(f"  {system} {d} {hh}Z not complete", file=sys.stderr, flush=True)
     return None
 
 

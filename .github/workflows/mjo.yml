@@ -1,7 +1,8 @@
 name: MJO RMM (AIFS-ENS)
 
 # The scheduled RMM builder. The "check" job skips a cycle whose RMM figure
-# already exists, so a repeated trigger cannot double-publish. `force=true` rebuilds regardless.
+# already exists, so a repeated trigger cannot double-publish; a cycle plotted before its IFS-ENS landed is
+# rebuilt once that is complete. `force=true` rebuilds regardless.
 on:
   # backstop crons: the dispatcher (scripts/lib/dispatch_workflows.sh) fires this on time; these only matter when
   # it is off
@@ -122,8 +123,17 @@ jobs:
             echo "force=true — rebuilding ${COMPACT} regardless."
             echo "should_run=true" >> "$GITHUB_OUTPUT"
           elif [ -f "assets/mjo/rmm_${COMPACT}.webp" ] || [ -f "assets/mjo/rmm_${COMPACT}.png" ]; then
-            echo "Already plotted (assets/mjo/rmm_${COMPACT}) — skipping."
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            # A trigger between the two ensembles' landings plots the cycle from AIFS-ENS alone. That cycle is
+            # rebuilt once, by the first trigger that finds its IFS-ENS complete on the mirror.
+            INIT="${DATE:0:4}-${DATE:4:2}-${DATE:6:2} ${TIME}Z"
+            if jq -e --arg i "$INIT" '.init == $i and (.models | has("ifs") | not)' assets/mjo/rmm_models.json > /dev/null 2>&1 \
+               && python scripts/ecmwf/cycles.py --profile ifs-ens --date "$DATE" --time "$TIME" --check; then
+              echo "Plotted without IFS-ENS, which has landed since — rebuilding ${COMPACT}."
+              echo "should_run=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "Already plotted (assets/mjo/rmm_${COMPACT}) — skipping."
+              echo "should_run=false" >> "$GITHUB_OUTPUT"
+            fi
           else
             echo "Not yet plotted — will run."
             echo "should_run=true" >> "$GITHUB_OUTPUT"

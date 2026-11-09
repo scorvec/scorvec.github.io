@@ -310,7 +310,7 @@
       mounted = null; mountedShown = false;
     }
   }
-  var PAGE_NAME = ((document.querySelector(".page-header h1") || {}).textContent || "").trim() || document.title;
+  var PAGE_NAME = ((document.querySelector("main h1") || {}).textContent || "").trim() || document.title.replace(/ · Shawn Corvec$/, "");
   var titled = !!location.hash.replace(/^#/, "");
   // gated products: a page whose cards hide themselves when their data is missing
   // (seasonal.html) marks them gated; a hidden one drops out of the rail and is never put on the stage

@@ -373,6 +373,7 @@ table.tele-sfs td.flagged { background-image: repeating-linear-gradient(135deg, 
    (0.5 weak, 1.0 moderate, 1.5 strong, 2.0 very strong), deepening red for El
    Nino and blue for La Nina. Text stays on a light tint at the weak end and
    flips to white once the tint is dark enough to need it. */
+.chip--strength .v { color: inherit; }
 .chip--s1e { background: #fbe9df; border-color: #f0c3a6; }
 .chip--s2e { background: #f6cdb2; border-color: #e39d6f; }
 .chip--s3e { background: #e58f5a; border-color: #c9702f; }
@@ -385,4 +386,3 @@ table.tele-sfs td.flagged { background-image: repeating-linear-gradient(135deg, 
 .chip--s3l .l, .chip--s3l .s { color: #13293d; }
 .chip--s4l { background: #2f6ea5; border-color: #24557e; }
 .chip--s4l .v, .chip--s4l .l, .chip--s4l .s { color: #fff; }
-.chip--strength .v { color: inherit; }

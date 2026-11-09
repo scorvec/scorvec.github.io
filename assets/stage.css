@@ -52,8 +52,8 @@
 .stage > .card > .chart-card-footer, .stage > .chart-card > .chart-card-footer { order: 6; }
 .stage > .card h2, .stage > .chart-card h2 { font-size: 1.15rem; margin-bottom: 0.4rem; }
 .ss-main .cap { font-size: 0.9rem; color: var(--ink2); margin: 0.6rem 1.2rem 0; max-width: 110ch; }
-.ss-main .about { margin: 0.7rem 1.2rem 0.4rem; border-top: 1px solid var(--rule); padding-top: 0.5rem; }
-.ss-main .about summary { cursor: pointer; font-size: 0.9rem; color: var(--accent); font-weight: 600; }
+.ss-main .about { margin: 0.7rem 1.2rem 0.4rem; border-top: 1px solid var(--rule); padding-top: 0.25rem; }
+.ss-main .about summary { cursor: pointer; font-size: 0.9rem; color: var(--accent); font-weight: 600; padding: 0.25rem 0; }
 .ss-main .about p { font-size: 0.95rem; color: var(--ink2); line-height: 1.65; max-width: 125ch; margin: 0.6rem 0; }
 .ss-main .about .chart-sources, .ss-main .about .chart-card-footer { font-size: 0.85rem; color: var(--muted); display: block; margin-top: 0.4rem; }
 .ss-main .about h2, .ss-main .about h3 { font-size: 1.05rem; margin: 0.6rem 0 0.2rem; }
@@ -103,7 +103,7 @@
   .ss-pick-btn { flex: 1; min-width: 0; min-height: 48px; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto;
                  align-items: center; column-gap: 0.5rem; text-align: left; padding: 0.3rem 0.75rem; cursor: pointer;
                  font-family: var(--sans, sans-serif); color: var(--ink); background: var(--surface, #fff); border: 1.5px solid var(--edge, #c9c5bb); border-radius: 8px; }
-  .ss-pick-k { grid-column: 1; font-size: 0.72rem; font-weight: 600; color: var(--muted); }
+  .ss-pick-k { grid-column: 1; font-size: 0.75rem; font-weight: 600; color: var(--muted); }
   .ss-pick-t { grid-column: 1; font-size: 0.95rem; font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ss-pick-n { grid-column: 2; grid-row: 1 / span 2; font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
   .ss-pick-n::after { content: " \25BE"; color: var(--accent); }
