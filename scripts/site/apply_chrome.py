@@ -80,17 +80,17 @@ PRODUCTS = [
                     ),
                     (
                         "/circulation.html#dt",
-                        "Jet stream and tropopause",
-                        "The flow aloft: the 2-PVU dynamic tropopause and PV on the 330 and 350 K isentropes from the IFS control (ECMWF's unperturbed 9 km run), the North Pacific jet from every member with its extension and shift phases and what they usually bring downstream, and the Takaya–Nakamura wave activity flux at 250 hPa, the ensemble's quasi-stationary wave trains.",
+                        "Jet streams and tropopause",
+                        "The flow aloft: the 2-PVU dynamic tropopause and PV on the 330 and 350 K isentropes from the IFS control (ECMWF's unperturbed 9 km run), the North Pacific jet from every member with its extension and shift phases and what they usually bring downstream, the speed and latitude of each hemisphere's subtropical jet core in the AIFS ensemble against the normal with the zonal-mean wind through the 15-day forecast, and the Takaya–Nakamura wave activity flux at 250 hPa, the ensemble's quasi-stationary wave trains.",
                         "Twice daily",
-                        "Tropopause, Pacific jet and wave trains",
+                        "Tropopause, Pacific and subtropical jets, wave trains",
                     ),
                     (
-                        "/circulation.html#jets",
-                        "Jets and angular momentum",
-                        "Speed and latitude of each hemisphere's subtropical jet core in the AIFS ensemble against the normal, the zonal-mean wind through the 15-day forecast, and global atmospheric angular momentum with the mountain and friction torques that change it.",
+                        "/circulation.html#aam",
+                        "Angular momentum and torques",
+                        "Global atmospheric angular momentum through the 15-day forecast, its run-to-run trend, phase and distribution by latitude, with the mountain and friction torques that change it.",
                         "Daily",
-                        "Jet cores, momentum and torques",
+                        "Global momentum, mountain and friction torques",
                     ),
                     (
                         "/circulation.html#telecon15",
@@ -117,7 +117,7 @@ PRODUCTS = [
             ),
         ],
     ),
-    # the tropical circulation: the jets and angular momentum sit with the flow aloft under Forecasts
+    # the tropical circulation: the jets (one entry) and angular momentum sit with the flow aloft under Forecasts
     (
         "Tropics",
         "El Niño, the MJO, tropical waves and the tropical circulation",
