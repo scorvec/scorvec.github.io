@@ -31,16 +31,18 @@ jobs:
           python-version: '3.11'
       - name: Install mverify
         # the nightly's pin (verification.yml)
-        run: pip install --quiet "mverify[grib,zarr] @ git+https://github.com/scorvec/nwp_verification@0e4133f1afe402d3aaed5abde548d254f0382d70"
+        run: pip install --quiet "mverify[grib,zarr] @ git+https://github.com/scorvec/nwp_verification@216746d479a83e61cce1a9d256ec73f9a3aa0d47"
       - name: The database's files
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           D="$RUNNER_TEMP/derived"
           scripts/verify/verifydb.sh list > "$RUNNER_TEMP/have.txt"
-          for k in stats ens-stats ens-rel acc; do scripts/verify/verifydb.sh fetch "$k" all "$D"; done
+          for k in stats gauge ens-stats ens-rel ens-gauge acc; do scripts/verify/verifydb.sh fetch "$k" all "$D"; done
           scripts/verify/verifydb.sh fetch stn 90 "$D"
           scripts/verify/verifydb.sh fetch rain 365 "$D"
+          # the gauge totals that have failed quality control (scripts/verify/gauge_qc.py)
+          gh release download verify-gauge-qc -D "$D" -p 'failed_totals_*.parquet'
           names=$(python scripts/verify/z500_acc.py recent --have "$RUNNER_TEMP/have.txt")
           # shellcheck disable=SC2086  # the file names are meant to split
           [ -z "$names" ] || scripts/verify/verifydb.sh get "$D" $names

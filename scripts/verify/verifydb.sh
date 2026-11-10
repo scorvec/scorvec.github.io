@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # The verification database: every 00Z run's matched pairs, every model, kept for good in the monthly releases
 # verify-db-YYYY-MM of this repository: against the surface stations (sfc_<init>.parquet), the radiosondes (raob_)
-# and Stage IV (rain_), and the pairs' sums that windows of runs are scored from (stats_, stn_), all written by
-# scripts/verify/mverify_scores.py; the ensembles' cases and sums (ens-sfc-<m>_, ens-raob-<m>_, ens-rain-<m>_,
-# ens-stats_, ens-rel_) by scripts/verify/ens_verify.py; every model's 500 hPa height (z500-<m>_, ens-z500-<m>_,
+# and Stage IV (rain_), the pairs' sums that windows of runs are scored from (stats_, stn_) and their gauge pairs
+# (gauge_), all by scripts/verify/mverify_scores.py; the ensembles' (ens-sfc-<m>_, ens-raob-<m>_, ens-rain-<m>_,
+# ens-stats_, ens-rel_, ens-gauge_) by ens_verify.py; every model's 500 hPa height (z500-<m>_, ens-z500-<m>_,
 # ens-z500m-<m>_<init>.npz), ERA5's (era5-z500_<day>.npz, filed under the month of the day), each run's anomaly
 # correlations (acc_<init>.parquet) and the ensembles' and ERA5's sea-level pressure (ens-msl-<m>_, era5-msl_) by
 # scripts/verify/z500_acc.py, in releases of their own, verify-z500-YYYY-MM (a month of every kind would pass GitHub's
@@ -119,7 +119,7 @@ case "${1:-}" in
         notes="Every model's 500 hPa height (scripts/verify/z500_acc.py) on the WMO 1.5 degree grid: z500-<m>_<init>.npz (deterministic, to day 10), ens-z500-<m>_ (ensemble mean) and ens-z500m-<m>_ (every member, 2.5 degree, 20-90N) to day 15, era5-z500_<day>.npz (ERA5 at 00Z), and acc_<init>.parquet, each run's anomaly correlations against ERA5; the ensembles' mean sea-level pressure ens-msl-<m>_<init>.npz and ERA5's era5-msl_<day>.npz (hPa, 2.5 degree, 20-90N), for the days 1-15 Arctic Oscillation."
       else
         title="Verification database $month"
-        notes="Every 00Z run of the month matched with the observations, every model (scripts/verify/mverify_scores.py, mverify), one row per pair (mverify.match.PAIR_COLUMNS, and kept: whether mverify's default cuts keep it): sfc_<init>.parquet against surface stations (GHCNh), raob_<init>.parquet against radiosondes (IGRA2), rain_<init>.parquet 24 h totals against Stage IV on the 0.5 degree grid. stats_ and stn_ hold the pairs' sums that windows of runs are scored from. The ensembles (scripts/verify/ens_verify.py: IFS-ENS, AIFS-ENS, GEFS, GEPS to day 15) keep one row per case with its members summarised (mverify.ensemble.summarise): ens-sfc-<m>_, ens-raob-<m>_ and ens-rain-<m>_<init>.parquet, and their sums ens-stats_ and ens-rel_."
+        notes="Every 00Z run of the month matched with the observations, every model (scripts/verify/mverify_scores.py, mverify), one row per pair (mverify.match.PAIR_COLUMNS, and kept: whether mverify's default cuts keep it): sfc_<init>.parquet against surface stations (GHCNh), raob_<init>.parquet against radiosondes (IGRA2), rain_<init>.parquet 24 h totals against Stage IV on the 0.5 degree grid. stats_ and stn_ hold the pairs' sums that windows of runs are scored from, gauge_ the 24 h gauge pairs in those sums (the sums are made again without a total that fails quality control later, scripts/verify/gauge_qc.py). The ensembles (scripts/verify/ens_verify.py: IFS-ENS, AIFS-ENS, GEFS, GEPS to day 15) keep one row per case with its members summarised (mverify.ensemble.summarise): ens-sfc-<m>_, ens-raob-<m>_ and ens-rain-<m>_<init>.parquet, their sums ens-stats_ and ens-rel_, and the gauge cases in them ens-gauge_."
       fi
       if ! grep -q "^$tag/" <<< "$held" && ! gh release view "$tag" -R "$R" >/dev/null 2>&1; then
         # another job may make the same month's release at the same moment: a failed create is fine if it now exists

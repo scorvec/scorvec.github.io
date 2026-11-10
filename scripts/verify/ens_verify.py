@@ -20,7 +20,9 @@ ens-raob-<m>_ (radiosondes) and ens-rain-<m>_ (Stage IV cells), m = ifs, aifs, g
 the monthly releases verify-db-YYYY-MM (scripts/verify/verifydb.sh). One run of one model at a time, so a runner's disk
 holds any backfill. ``stats`` then sums each run's cases, on the sample every ensemble of the run has, into
 ens-stats_<init>.parquet (``run_stats``), once every ensemble that can still be fetched is in: GEPS only while HPFX
-keeps it (about 50 days).
+keeps it (about 50 days). The run's gauge cases of that sample are kept beside them (ens-gauge_<init>.parquet,
+``gauge_cases``): a 24 h gauge total can fail quality control after its run was archived (gauge_qc.py), and
+``windows`` first makes the gauge sums again without the totals that have (``regauge``).
 
     python scripts/verify/ens_verify.py match --db obs.duckdb --model GEPS --inits 2026091600 2026092000 --work /tmp/e \\
         --have have.txt --archive-out db-new
@@ -35,6 +37,7 @@ import shutil
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+import gauge_qc
 import mverify_scores as D
 import numpy as np
 import pandas as pd
@@ -230,6 +233,7 @@ def _sums(c: pd.DataFrame, rng: np.random.Generator) -> pd.DataFrame:
     )
     t = d.groupby(D.STAT_BY, sort=False, observed=True)[STAT_SUMS].sum(min_count=1)
     h = d.groupby([*D.STAT_BY, "rank"], sort=False, observed=True).size().unstack("rank", fill_value=0)
+    h = h.reindex(columns=range(RANK_BINS), fill_value=0)  # also the tenths no case of ``c`` fell in
     return t.join(h.rename(columns=lambda k: f"rank_{k}")).reset_index()
 
 
@@ -273,6 +277,41 @@ def run_stats(paths: dict[str, list[Path]], init: str) -> tuple[pd.DataFrame, pd
     return D._cat(stats).assign(init=when), D._cat(rel).assign(init=when)
 
 
+def gauge_cases(sfc: list[Path]) -> pd.DataFrame:
+    """The gauge cases ``run_stats`` sums of a run's surface cases, one file per ensemble in ``sfc``: the kept ones
+    every ensemble has, and none when an ensemble has no gauge case (its other cases then stand alone in the sample)."""
+    from mverify.verify import common_sample
+
+    kept = ("kept", "==", True)
+    models = pd.concat([pd.read_parquet(f, columns=["model"], filters=[kept]) for f in sfc])["model"].nunique()
+    c = pd.concat(
+        [pd.read_parquet(f, filters=[("variable", "==", D.V.GAUGE.name), kept]) for f in sfc], ignore_index=True
+    )
+    return common_sample(c) if c["model"].nunique() == models else c.iloc[:0]
+
+
+def regauge(derived: Path) -> None:
+    """The ensembles' gauge sums without the totals that have failed quality control, as mverify_scores.regauge:
+    the ens-stats_ and ens-rel_<init>.parquet in ``derived`` of a run with a failed total among its gauge cases
+    (ens-gauge_<init>.parquet) take their gauge rows from the cases that are left, and those of a run whose gauge
+    cases the database does not hold have none."""
+    from mverify import scores
+
+    failed = gauge_qc.Failed(derived)
+    for f in sorted(derived.glob("ens-stats_*.parquet")):
+        init = f.stem.split("_")[1]
+        if (cases := failed.left(derived / f"ens-gauge_{init}.parquet")) is None:
+            continue
+        rng = np.random.default_rng(int(init))
+        regions = [] if cases.empty else [scores.assign_regions(cases, [r]) for r in scores.REGIONS]
+        regions = [rc for rc in regions if not rc.empty]
+        new = {"stats": [_sums(rc, rng) for rc in regions], "rel": [_reliability(rc) for rc in regions]}
+        for kind, frames in new.items():
+            path = derived / f"ens-{kind}_{init}.parquet"
+            D.write_sums(D.with_gauges(pd.read_parquet(path), D._cat(frames)), path)
+    print(f"ensemble gauges: {failed}", flush=True)
+
+
 def expected(init: str, today: pd.Timestamp) -> list[str]:
     """The ensembles a run's sums wait for: all four while HPFX still has the run's GEPS, else the three others."""
     gone = pd.to_datetime(init, format="%Y%m%d%H") < today - pd.Timedelta(days=HPFX_DAYS)
@@ -305,9 +344,9 @@ def stats(a) -> None:
             for k in ("sfc", "raob", "rain")
         }
         s, r = run_stats({k: v for k, v in paths.items() if v}, init)
-        cats = dict.fromkeys(D.STAT_BY[:4], "category")
-        s.astype(cats).to_parquet(a.archive_out / f"ens-stats_{init}.parquet", compression="zstd")
-        r.astype(cats).to_parquet(a.archive_out / f"ens-rel_{init}.parquet", compression="zstd")
+        D.write_sums(s, a.archive_out / f"ens-stats_{init}.parquet")
+        D.write_sums(r, a.archive_out / f"ens-rel_{init}.parquet")
+        D.write_gauges(gauge_cases(paths["sfc"]), a.archive_out, init, "ens-gauge")
         print(f"{init}: sums of {', '.join(models)}", flush=True)
 
 
@@ -424,9 +463,11 @@ def ens_card(stats: pd.DataFrame, rel: pd.DataFrame) -> dict | None:
 
 def windows(a) -> None:
     """The ensembles' scorecards of the newest 30, 90 and 365 runs and of the whole database once it is longer
-    (ens_scores_<runs>.json, ens_scores_all.json), each once the database holds that many runs' sums."""
+    (ens_scores_<runs>.json, ens_scores_all.json), each once the database holds that many runs' sums, their gauge
+    sums made again first (``regauge``)."""
     from mverify import report
 
+    regauge(a.derived)
     inits = sorted(f.stem.split("_")[1] for f in a.derived.glob("ens-stats_*.parquet"))
     for runs in WINDOWS:
         if len(inits) < (runs or 366):
@@ -454,7 +495,7 @@ def main() -> None:
     s.add_argument("--init", help="only this run (YYYYMMDDHH)")
     s.add_argument("--list", action="store_true", help="print each due run and the files its sums are made from")
     w = sub.add_parser("windows", help="the scorecards of windows of runs, from the runs' sums")
-    w.add_argument("--derived", type=Path, required=True, help="the database's ens-stats and ens-rel files, downloaded")
+    w.add_argument("--derived", type=Path, required=True, help="the ens-stats, ens-rel, ens-gauge and list files")
     for p in (m, s):
         p.add_argument("--have", type=Path, help="names of the files the database holds, one per line")
         p.add_argument("--archive-out", type=Path, required=True, help="where the files to add are written")

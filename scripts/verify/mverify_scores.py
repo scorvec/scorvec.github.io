@@ -28,7 +28,11 @@ kept for good: every model's pairs against the surface stations (sfc_<init>.parq
 Stage IV (rain_), and their sums (stats_, stn_; ``run_stats``), from which any window of runs is scored without its
 pairs. The newest 30, 90 and 365 runs and the whole database are scored from those (scores_30.json ...
 scores_all.json, stations_30.json, stations_90.json; ``windows``), and its newest year of rain against Stage IV is
-mapped cell by cell, the ratio of totals and the frequency of wet days tested in each (precip_maps.json, ``rain_map``). --archive-only adds runs without scoring
+mapped cell by cell, the ratio of totals and the frequency of wet days tested in each (precip_maps.json,
+``rain_map``). The gauge sums are the exception: a 24 h gauge total can fail quality control after its run was
+archived (gauge_qc.py), so each run's scored gauge pairs are kept on their own (gauge_<init>.parquet,
+``gauge_pairs``) and its gauge sums are made again from them, without the totals that have failed, every time the
+windows are built (``regauge``). --archive-only adds runs without scoring
 (.github/workflows/verify-backfill.yml): a model a source no longer holds for a run (GDPS after ~50 days) is left out
 of that run. --windows-only rebuilds the windows from the database's sums (--derived) and scores nothing.
 
@@ -47,6 +51,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+import gauge_qc
 import numpy as np
 import pandas as pd
 from mverify import variables as V
@@ -68,6 +73,7 @@ WINDOW_SHARE = 0.95  # a model is scored in a window that it has at least this s
 PAIR_KEY = ["model", "init", "lead_h", "valid_time", "station_id", "variable"]
 STAT_BY = ["model", "network", "variable", "region", "lead_h"]
 SUMS = ["n", "se", "sse", "sae", "sf", "so", "sff", "soo", "sfo", "sov"]
+GAUGE_COLS = [*PAIR_KEY, "network", "lat", "lon", "fcst", "obs", "sigma_o"]  # what a run's gauge sums are made from
 LEADS = range(0, 241, 12)
 GRID = 0.5  # degrees: the common grid, coarser than every model's own resolution (AIFS, the coarsest, is ~31 km)
 GOOGLE = "https://storage.googleapis.com/ecmwf-open-data"
@@ -439,6 +445,52 @@ def run_stats(paths: list[Path], init: str) -> tuple[pd.DataFrame, pd.DataFrame]
     return _cat(stats).assign(init=when), _cat(stations).assign(init=when)
 
 
+def gauge_pairs(sfc: Path) -> pd.DataFrame:
+    """The gauge pairs ``run_stats`` sums of a run's surface pairs ``sfc``: the kept ones every model has."""
+    from mverify.verify import common_sample
+
+    return common_sample(
+        pd.read_parquet(sfc, columns=GAUGE_COLS, filters=[("variable", "==", V.GAUGE.name), ("kept", "==", True)])
+    )
+
+
+def write_gauges(pairs: pd.DataFrame, dest: Path, init: str, kind: str = "gauge") -> None:
+    """A run's gauge pairs (or the ensembles' gauge cases, ``kind`` ens-gauge) as a database file."""
+    pairs.to_parquet(dest / f"{kind}_{init}.parquet", compression="zstd", index=False)
+
+
+def region_sums(pairs: pd.DataFrame) -> pd.DataFrame:
+    """``_sums`` of ``pairs`` in every region."""
+    from mverify import scores
+
+    return _cat([_sums(rp) for r in scores.REGIONS if not (rp := scores.assign_regions(pairs, [r])).empty])
+
+
+def write_sums(frame: pd.DataFrame, path: Path) -> None:
+    """A run's sums as a database file: its keys as categories, so that a year of runs fits in memory."""
+    keys = [c for c in (*STAT_BY[:4], "station_id") if c in frame]
+    frame.astype(dict.fromkeys(keys, "category")).to_parquet(path, compression="zstd")
+
+
+def with_gauges(sums: pd.DataFrame, remade: pd.DataFrame) -> pd.DataFrame:
+    """A run's ``sums`` with ``remade`` in the place of its gauge rows."""
+    rest = sums[sums["variable"] != V.GAUGE.name].astype(dict.fromkeys(STAT_BY[:4], str))
+    return _cat([rest, remade]).assign(init=sums["init"].iloc[0])
+
+
+def regauge(derived: Path) -> None:
+    """The gauge sums of the runs in ``derived`` without the totals that have failed quality control (gauge_qc):
+    a stats_<init>.parquet there with a failed total among the run's gauge pairs (gauge_<init>.parquet,
+    ``gauge_pairs``) takes its gauge rows from the pairs that are left, and one of a run whose gauge pairs the
+    database does not hold has none. Only these working copies change; the database's own files stay as they were
+    archived."""
+    failed = gauge_qc.Failed(derived)
+    for f in sorted(derived.glob("stats_*.parquet")):
+        if (pairs := failed.left(derived / f"gauge_{f.stem[6:]}.parquet")) is not None:
+            write_sums(with_gauges(pd.read_parquet(f), pairs if pairs.empty else region_sums(pairs)), f)
+    print(f"gauges: {failed}", flush=True)
+
+
 def runs(first: str, last: str) -> list[str]:
     """The 00Z runs from ``first`` to ``last`` (YYYYMMDDHH)."""
     a, b = (pd.to_datetime(x, format="%Y%m%d%H") for x in (first, last))
@@ -451,9 +503,9 @@ def held(init: str, have: set[str]) -> bool:
 
 
 def archive(inits: list[str], work: Path, sfc: dict, rain: dict, dest: Path, have: set[str]) -> list[str]:
-    """Each run's files of the database, sfc_, raob_ and rain_<init>.parquet (the pairs) and stats_ and stn_ (their
-    sums, ``run_stats``), into ``dest`` unless the database ``have``s them; the workflow uploads them to the monthly
-    release verify-db-YYYY-MM."""
+    """Each run's files of the database, sfc_, raob_ and rain_<init>.parquet (the pairs), stats_ and stn_ (their
+    sums, ``run_stats``) and gauge_ (``gauge_pairs``), into ``dest`` unless the database ``have``s them; the workflow
+    uploads them to the monthly release verify-db-YYYY-MM."""
     dest.mkdir(parents=True, exist_ok=True)
     done = []
     for init in inits:
@@ -469,10 +521,8 @@ def archive(inits: list[str], work: Path, sfc: dict, rain: dict, dest: Path, hav
             if f:
                 shutil.copyfile(f, dest / f"{kind}_{init}.parquet")
         for kind, frame in zip(("stats", "stn"), run_stats(list(pairs.values()), init), strict=True):
-            keys = [c for c in (*STAT_BY[:4], "station_id") if c in frame]  # categories: a year of runs fits in memory
-            frame.astype(dict.fromkeys(keys, "category")).to_parquet(
-                dest / f"{kind}_{init}.parquet", compression="zstd"
-            )
+            write_sums(frame, dest / f"{kind}_{init}.parquet")
+        write_gauges(gauge_pairs(pairs["sfc"]), dest, init)
         done.append(init)
     return done
 
@@ -664,11 +714,12 @@ def rain_map(paths: list[Path]) -> tuple[dict, dict] | None:
 def windows(derived: Path) -> None:
     """The scorecards of the newest 30, 90 and 365 runs of the database and of all of it once it is longer
     (scores_<runs>.json, scores_all.json), and station maps for the shorter ones (stations_<runs>.json), each
-    once the database holds that many runs, from the runs' sums (``run_stats``) in ``derived``; and the rain maps
-    of its newest year (precip_maps.json, and the maps themselves in ``derived``/precip_maps.npz, ``rain_map``) once
-    it holds RAIN_MIN_RUNS runs."""
+    once the database holds that many runs, from the runs' sums (``run_stats``) in ``derived``, their gauge sums
+    made again first (``regauge``); and the rain maps of its newest year (precip_maps.json, and the maps themselves
+    in ``derived``/precip_maps.npz, ``rain_map``) once it holds RAIN_MIN_RUNS runs."""
     from mverify import report
 
+    regauge(derived)
     inits = sorted(f.stem[6:] for f in derived.glob("stats_*.parquet"))
     for runs, with_map in WINDOWS.items():
         if len(inits) < (runs or 366):
@@ -699,7 +750,9 @@ def main() -> None:
     ap.add_argument("--inits", nargs=2, metavar=("FIRST", "LAST"), help="00Z runs, YYYYMMDDHH")
     ap.add_argument("--work", type=Path, help="download directory")
     ap.add_argument("--clean", action="store_true", help="delete the surface files once scored (small disks)")
-    ap.add_argument("--derived", type=Path, help="the database's stats_, stn_ and rain_ files, downloaded")
+    ap.add_argument(
+        "--derived", type=Path, help="the database's stats_, stn_, rain_ and gauge_ files and the failed gauge totals"
+    )
     ap.add_argument("--have", type=Path, help="names of the files the database holds, one per line")
     ap.add_argument("--archive-out", type=Path, help="where the runs to add to the database are written")
     ap.add_argument(
@@ -768,7 +821,7 @@ def main() -> None:
         print(f"database: {len(added)} runs added ({', '.join(added) or 'none'})", flush=True)
         if a.derived:
             for f in a.archive_out.glob("*.parquet"):
-                if f.name.startswith(("stats_", "stn_", "rain_")):
+                if f.name.startswith(("stats_", "stn_", "rain_", "gauge_")):
                     shutil.copyfile(f, a.derived / f.name)
     if a.derived:
         windows(a.derived)

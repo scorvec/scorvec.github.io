@@ -16,6 +16,9 @@ name: Model verification scores
 # drawn here and the numbers of its line charts written, each score with its uncertainty (scripts/verify/verify_figs.py),
 # into the frames store, with their list, figs.json, and so are each station's series for the station map
 # (station_series.py).
+# A 24 h gauge total can fail quality control after its run joined the database: the ingest lists the failed totals
+# of the station-years it reads (release verify-gauge-qc, scripts/verify/gauge_qc.py), and the windows' gauge scores
+# are made from each run's gauge pairs (gauge_, ens-gauge_) without them.
 # verify-backfill.yml fills the database for earlier runs and catches up any it missed. Every
 # file is copied to the site's object store as well (verifydb.sh mirror), so the database is kept in two places.
 # A dispatch with figures set scores nothing: it rebuilds the windows from the database's sums and the figures and
@@ -67,7 +70,7 @@ jobs:
           key: pip-verification-${{ runner.os }}-v1
       - name: Install mverify
         # pinned to a commit so a change upstream cannot alter the scores without a commit here
-        run: pip install --quiet "mverify[grib,zarr] @ git+https://github.com/scorvec/nwp_verification@0e4133f1afe402d3aaed5abde548d254f0382d70"
+        run: pip install --quiet "mverify[grib,zarr] @ git+https://github.com/scorvec/nwp_verification@216746d479a83e61cce1a9d256ec73f9a3aa0d47"
       - name: Window
         id: w
         env:
@@ -86,7 +89,8 @@ jobs:
         run: |
           F=${{ steps.w.outputs.first }}
           mverify db init
-          mverify db ghcnh --year ${{ steps.w.outputs.years }} --since "${F:0:4}-${F:4:2}-${F:6:2}" --until "${{ steps.w.outputs.end }}"
+          mverify db ghcnh --year ${{ steps.w.outputs.years }} --since "${F:0:4}-${F:4:2}-${F:6:2}" --until "${{ steps.w.outputs.end }}" \
+            --failed-totals "$RUNNER_TEMP/failed"
           mverify db igra --since "${F:0:4}-${F:4:2}-${F:6:2}"
           mverify db precip --product stageiv --start "${F:0:4}-${F:4:2}-${F:6:2}" --end "${{ steps.w.outputs.end }}"
           mverify db status
@@ -105,10 +109,15 @@ jobs:
         run: |
           scripts/verify/verifydb.sh list > "$RUNNER_TEMP/have.txt"
           scripts/verify/verifydb.sh fetch stats all "$RUNNER_TEMP/derived"
+          scripts/verify/verifydb.sh fetch gauge all "$RUNNER_TEMP/derived"
           scripts/verify/verifydb.sh fetch stn 90 "$RUNNER_TEMP/derived"
           scripts/verify/verifydb.sh fetch rain 365 "$RUNNER_TEMP/derived"
           scripts/verify/verifydb.sh fetch ens-stats all "$RUNNER_TEMP/derived"
           scripts/verify/verifydb.sh fetch ens-rel all "$RUNNER_TEMP/derived"
+          scripts/verify/verifydb.sh fetch ens-gauge all "$RUNNER_TEMP/derived"
+          # the gauge totals that have failed quality control, and tonight's with them (scripts/verify/gauge_qc.py)
+          gh release download verify-gauge-qc -D "$RUNNER_TEMP/derived" -p 'failed_totals_*.parquet'
+          [ ! -d "$RUNNER_TEMP/failed" ] || python scripts/verify/gauge_qc.py "$RUNNER_TEMP/failed" "$RUNNER_TEMP/derived"
           scripts/verify/verifydb.sh fetch acc all "$RUNNER_TEMP/derived"
           # the newest runs without their scores yet: their 500 hPa fields and the ERA5 days there are
           names=$(python scripts/verify/z500_acc.py recent --have "$RUNNER_TEMP/have.txt")
@@ -141,6 +150,10 @@ jobs:
           FRAMES_S3_SECRET_ACCESS_KEY: ${{ secrets.FRAMES_S3_SECRET_ACCESS_KEY }}
         run: |
           scripts/verify/verifydb.sh upload "$RUNNER_TEMP/db-new"
+          # the lists of failed gauge totals that took in tonight's
+          for f in "$RUNNER_TEMP"/failed/failed_totals_*.parquet; do
+            gh release upload verify-gauge-qc "$RUNNER_TEMP/derived/$(basename "$f")" --clobber
+          done
           # the second copy; verify-backfill.yml makes it too, so a failure here waits a day, not for good
           scripts/verify/verifydb.sh mirror || echo "::warning::the database's second copy waits for the next pass"
       - name: Keep the radiosonde pairs for the next night

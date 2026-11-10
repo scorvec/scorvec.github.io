@@ -766,7 +766,13 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       are most of the sample there; they enter with the runs of November 2026. A built total needs all 24 hours, and an
       hour without an amount counts as dry only where the gauge is known to work: the station reported an amount in the
       30 days before, its report does not say the gauge is out, and no rain or snow is falling in it. A reported total
-      that differs from the built one by more than 1&nbsp;mm and 10% is left out. The totals are scored like the other
+      that differs from the built one by more than 1&nbsp;mm and 10% is left out. So is a total above 400&nbsp;mm, and
+      one of 25&nbsp;mm or more that stands above the station's totals 12 hours before and 12 hours after added together
+      (its rain must show in one of them) or that fell through hours the station's weather reports show as dry. A
+      station with one such false total loses all its totals of that year: nothing in the values tells a faulty gauge's
+      true totals from its false ones. No check looks at a forecast. A total that fails after its run was scored
+      leaves that run's scores too: each night the gauge scores of every run in the database are made again without the
+      totals that have failed since. The totals are scored like the other
       station variables, each model's total for those 24 hours interpolated to the gauge from the common grid, every
       model on the same readings. In the US they check the gridded scores at points rather than independently:
       Stage IV's analyses take in ASOS gauges.</p>
