@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Descent watch: is the stratosphere's weak-vortex anomaly reaching the troposphere in the days 1-15 ensembles? Three
+"""Descent watch: is the stratosphere's weak-vortex anomaly reaching the troposphere in the days 1-15 ensembles? Four
 measures, each from fields another product already holds (nothing is fetched):
 
   reach  per member and day, how far down the 65-90N cap height stands at THRESHOLD standard deviations or more above
@@ -22,12 +22,20 @@ measures, each from fields another product already holds (nothing is fetched):
          discovery rate of ALPHA; a panel that fails says so and shows no line and no number. ring() files each
          member's five numbers, combined() tests and draws every ensemble's newest run and the ensembles pooled (each
          one's own means removed).
+  absorb where the planetary waves are absorbed, and what the westerlies there do: the wave driving of the zonal wind
+         over BOX in each of LAYERS, from the E-P flux through the layer's walls (box_budget: in from below, out
+         through the top, through the sides), member by member, beside the layer's own zonal wind. Across the members,
+         the partial correlation of the wind's change from day 10 to day 15 with the driving summed over those days,
+         the member's day-10 wind regressed out; the same permutation test, the two layers held to a false discovery
+         rate of ALPHA, and a layer that fails shows no number. qbo_duct.py calls absorb() with each GEFS member's
+         flux of zonal waves 1-3. November to April, FEWEST whole members or more.
 
 Outputs, model m:
   assets/sst/dwatch_reach_{m}.webp              the share of members by day and level against the base rate
   assets/sst/dwatch_ring_{m}.webp               the sectors and the westerlies' shift
   assets/sst/data/dwatch_{m}.json               the days 11-15 sectors and the members' link values
-  assets/sst/data/runs/{reach,ring}_{m}.json    the run records (run_record.py draws the run-to-run figures)
+  assets/sst/dwatch_absorb_{m}.webp             the wave driving and the zonal wind of each layer (GEFS)
+  assets/sst/data/runs/{reach,ring,absorb}_{m}.json  the run records (run_record.py draws the run-to-run figures)
   --combined: assets/sst/dwatch_link.webp, assets/sst/data/dwatch.json (strat-combine.yml)
 
     python descent_watch.py --combined
@@ -78,6 +86,10 @@ WIND_PANELS = (
 )
 LINK_TARGETS = (("y500", "500 hPa height", "m"), ("ymsl", "sea-level pressure", "hPa"))
 LINK_CONTROLS = ("c500", "cmsl")
+BOX = (45.0, 75.0)  # deg N: the latitudes of the wave driving
+LAYERS = ((100.0, 50.0, "100", "lower stratosphere"), (50.0, 10.0, "50", "middle stratosphere"))  # hPa: bottom, top
+SEASON = (11, 12, 1, 2, 3, 4)  # the months of the wave driving, as the reach's base rate
+FEWEST = 10  # whole members for the wave driving to be read
 
 
 def _minus(s: str) -> str:
@@ -482,12 +494,149 @@ def combined(out: Path, max_age_days: float = 2.0) -> Path | None:
     return out
 
 
+# ── absorb: where the waves are absorbed, and what the westerlies there do ──────────────────────────────────────
+def box_budget(levels, lat, flux: dict, bottom: float, top: float) -> dict:
+    """The waves' driving of the zonal wind in the box BOX x bottom-top (hPa), from their E-P flux through its walls
+    (the divergence theorem on the angular-momentum mean of div F / (a cos phi)), and the box's zonal wind. flux
+    {"Fphi", "Fp", "U": (..., level, lat)} at `levels` (hPa). {"below", "above", "sides", "net": m/s per day; "u": m/s},
+    each (...): what comes in through the bottom, what leaves through the top, what crosses the two latitude walls. A
+    part below zero slows the westerlies; the three add up to net."""
+    levels, lat = np.asarray(levels, float), np.asarray(lat, float)
+    rows = np.flatnonzero((lat >= BOX[0]) & (lat <= BOX[1]))
+    rows = rows[np.argsort(lat[rows])]  # south to north
+    lays = np.flatnonzero((levels >= top) & (levels <= bottom))
+    lays = lays[np.argsort(levels[lays])]  # top first
+    phi, p = np.deg2rad(lat[rows]), 100.0 * levels[lays]
+    cos = np.cos(phi)
+    weight = (p[-1] - p[0]) * np.trapezoid(cos**2, phi)
+    Fphi, Fp, U = (flux[k][..., lays, :][..., rows] for k in ("Fphi", "Fp", "U"))
+
+    def through(k):  # the upward flux is below zero
+        return np.trapezoid(Fp[..., k, :] * cos, phi) / RE
+
+    def wall(j):
+        return np.trapezoid(Fphi[..., j] * cos[j], p) / RE**2
+
+    out = {"below": through(-1), "above": -through(0), "sides": wall(-1) - wall(0)}
+    out = {k: 86400.0 * v / weight for k, v in out.items()}
+    out["net"] = out["below"] + out["above"] + out["sides"]
+    out["u"] = np.trapezoid(np.trapezoid(U * cos**2, phi), p) / weight
+    return out
+
+
+def absorb(model: str, init: pd.Timestamp, valid, levels, flux: dict, lat, credit: str) -> None:
+    """Record and draw where the run's waves are absorbed: each member's box_budget in LAYERS and, across the members,
+    whether more driving goes with more wind lost from the day before LATE to its end. levels (hPa) and flux
+    {"Fphi", "Fp", "U": (member, day, level, lat)} as qbo_duct.member_fluxes gives them."""
+    lab = RR.MODEL_LABEL[model]
+    valid = pd.DatetimeIndex(valid)
+    span = _days(valid, init, (LATE[0] - 1, LATE[1]))
+    budgets = {key: box_budget(levels, lat, flux, bottom, top) for bottom, top, key, _ in LAYERS}
+    whole = np.all([np.isfinite(b[k]).all(1) for b in budgets.values() for k in ("net", "u")], axis=0)
+    n = int(whole.sum())
+    if span.sum() < 2 or not valid[span].month.isin(SEASON).all() or n < FEWEST:
+        print(f"  {lab}: no wave driving (outside November to April, or fewer than {FEWEST} whole members)", flush=True)
+        return
+    budgets = {key: {k: v[whole] for k, v in b.items()} for key, b in budgets.items()}
+    day = ((valid - init) / pd.Timedelta(days=1)).to_numpy()[span]
+    tests = {}
+    for key, b in budgets.items():
+        u = b["u"][:, span]
+        push = np.trapezoid(b["net"][:, span], day, axis=1)  # m/s: the driving summed over the days
+        tests[key] = {"push": push, "lost": u[:, -1] - u[:, 0], **_link(push, u[:, -1] - u[:, 0], [u[:, 0]])}
+    passed = benjamini_hochberg(np.array([t["p"] for t in tests.values()]), ALPHA)
+    for t, ok in zip(tests.values(), passed):
+        t["pass"] = bool(ok)
+    part = {"w": "net", "u": "u"}  # a record key is the part's letter and the layer
+    frames = {k: pd.DataFrame(budgets[k[1:]][part[k[0]]].T, index=valid) for k in RR.PRODUCTS["absorb"].keys}
+    RR.record("absorb", model, init, RR.entry("absorb", frames))
+    RR.render("absorb", model)
+    print(f"  {lab} wave driving, {n} members, day {LATE[0] - 1} to day {LATE[1]}: " + "; ".join(
+        f"{bottom:.0f}-{top:.0f} hPa {t['push'].mean():+.1f} m/s, wind {t['lost'].mean():+.1f} m/s, "
+        + (f"r {t['r']:+.2f}" if t["pass"] else "no link")
+        for (bottom, top, _, _), t in zip(LAYERS, tests.values())), flush=True)  # fmt: skip
+    _absorb_figure(model, init, valid, budgets, tests, n, credit, OUT / f"dwatch_absorb_{model}.webp")
+
+
+def _absorb_figure(model, init, valid, budgets, tests, n, credit, out: Path) -> None:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.dates as mdates
+    import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
+
+    col, lab = RR.MODEL_COLOUR[model], RR.MODEL_LABEL[model]
+    late, span = _days(valid, init, LATE), _days(valid, init, (LATE[0] - 1, LATE[1]))
+    parts = (("below", "in from below", house.WARM, "-"), ("above", "out through the top", house.COOL, "-"),
+             ("sides", "through the sides", MUTED, (0, (4, 3))))  # fmt: skip
+    fig = plt.figure(figsize=(12.6, 8.2))
+    gs = fig.add_gridspec(2, 2, hspace=0.66, wspace=0.2)
+    for j, (bottom, top, key, name) in enumerate(LAYERS):
+        b, t = budgets[key], tests[key]
+        ax = fig.add_subplot(gs[0, j])
+        ax.fill_between(valid, *np.percentile(b["net"], (10, 90), axis=0), color=NEUTRAL, lw=0, zorder=2,
+                        label="net, members' 10–90 %")  # fmt: skip
+        for k, what, colour, ls in parts:
+            ax.plot(valid, b[k].mean(0), color=colour, lw=1.5, ls=ls, zorder=4, label=what)
+        ax.plot(valid, b["net"].mean(0), color=house.INK, lw=2.8, zorder=5, label=f"net, {lab} mean of {n} members")
+        net = b["net"][:, late].mean(1)
+        ax.set_title(f"Wave driving, {bottom:.0f}–{top:.0f} hPa: the {name}", fontsize=11, fontweight="bold",
+                     loc="left", pad=16)  # fmt: skip
+        ax.text(0, 1.02, _minus(f"days {LATE[0]}–{LATE[1]}: net {net.mean():+.2f} m s⁻¹ per day in the mean, "
+                                f"{100 * (net < 0).mean():.0f} % of the members below zero"), transform=ax.transAxes,
+                fontsize=9, color="0.25")  # fmt: skip
+        ax.set_ylabel("m s⁻¹ per day" if j == 0 else "", fontsize=9.5)
+        ax.axhline(0, color="#8a8680", lw=1.0, zorder=2)
+        ax.legend(fontsize=8.5, loc="upper left", bbox_to_anchor=(-0.01, -0.1), ncol=3, frameon=False)
+        ax2 = fig.add_subplot(gs[1, j])
+        for row in b["u"]:
+            ax2.plot(valid, row, color=col, lw=0.8, alpha=0.35, zorder=3)
+        ax2.plot(valid, b["u"].mean(0), color=col, lw=2.8, zorder=5, label=f"{lab} mean, {n} members")
+        ax2.axvspan(valid[span][0], valid[span][-1], color=NEUTRAL, alpha=0.35, lw=0, zorder=1)
+        ax2.set_title(f"Zonal wind, {bottom:.0f}–{top:.0f} hPa", fontsize=11, fontweight="bold", loc="left", pad=28)
+        ax2.text(0, 1.02, _minus(
+            f"day {LATE[0] - 1} to day {LATE[1]} (shaded): wind {t['lost'].mean():+.1f} m s⁻¹ in the mean, the waves' "
+            f"driving summed {t['push'].mean():+.1f} m s⁻¹\n"
+            + (f"across the members r = {t['r']:+.2f} ({t['ci'][0]:+.2f} to {t['ci'][1]:+.2f})" if t["pass"] else
+               f"across the {n} members: no significant link between the two")),
+            transform=ax2.transAxes, fontsize=9, color="0.25", va="bottom", linespacing=1.35)  # fmt: skip
+        ax2.set_ylabel(f"m s⁻¹, {BOX[0]:.0f}–{BOX[1]:.0f}°N" if j == 0 else "", fontsize=9.5)
+        ax2.legend(fontsize=8.5, loc="best", framealpha=0.9)
+        for a in (ax, ax2):
+            a.grid(alpha=0.22)
+            a.tick_params(labelsize=9)
+            a.xaxis.set_major_locator(mdates.DayLocator(interval=2))
+            a.xaxis.set_major_formatter(mdates.DateFormatter("%-d %b"))
+    fig.suptitle(f"{lab} · descent watch: where the waves are absorbed · run {init:%Y-%m-%d %HZ}", fontsize=13.5,
+                 fontweight="bold", x=0.07, ha="left", y=0.985)  # fmt: skip
+    fig.text(0.07, 0.945, f"below zero, the planetary waves are slowing the layer's westerlies over {BOX[0]:.0f}–"
+             f"{BOX[1]:.0f}°N: what comes in from below and does not leave through the top or the sides is absorbed",
+             fontsize=9.5, color="0.25")  # fmt: skip
+    fig.text(0.07, 0.008, textwrap.fill(
+        "Quasi-geostrophic Eliassen–Palm flux of zonal waves 1–3 through the walls of each box, every member's own, "
+        "one field a day, as the westerly wind it adds per day (the box's angular-momentum mean); the three parts add "
+        "up to the net. The wind changes by less than the driving, because the overturning the waves force offsets "
+        "much of it. r: the partial correlation across members of the wind's change with the summed driving, the "
+        f"member's day-{LATE[0] - 1} wind regressed out, with its 95 % bootstrap range; Freedman–Lane permutation "
+        f"test, the two layers held to a {100 * ALPHA:.0f} % false discovery rate. Above zero: the members whose "
+        f"waves slow the wind more lose more of it. {credit}.", 185), fontsize=8, color=MUTED, linespacing=1.4)  # fmt: skip
+    fig.subplots_adjust(left=0.07, right=0.97, top=0.875, bottom=0.115)
+    fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
+    plt.close(fig)
+    print(f"  wrote {out}", flush=True)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--combined", action="store_true", help="the link figure from every ensemble's newest run")
     a = ap.parse_args()
     if not a.combined:
-        ap.error("only --combined runs on its own (forecast_drip.py and polarcap.py feed each model's run)")
+        ap.error(
+            "only --combined runs on its own (forecast_drip.py, polarcap.py and qbo_duct.py feed each model's run)"
+        )
     combined(OUT / "dwatch_link.webp")
     return 0
 

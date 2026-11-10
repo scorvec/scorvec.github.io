@@ -14,6 +14,9 @@ name: Stratosphere (vortex, waves 1 and 2, E-P flux from GEFS)
 #                        vortex-wind loops, {z100,t10}_aifsc/, its run records (light job; its vortex record in heavy)
 #   qbo_duct.py --model gefs -> assets/sst/anim/epflux_gefs/   E-P flux loop from the NOAA GEFS ensemble (epflux job)
 #                               + assets/sst/refractive_gefs.webp, data/refractive_gefs.json   wave-1/2 refractive index
+#                               + assets/sst/dwatch_absorb_gefs.webp, data/runs/absorb_gefs.json   the descent watch's
+#                                 wave driving of the westerlies at 100-50 and 50-10 hPa, each member's own (November
+#                                 to April; descent_watch.absorb, from the quadratics the loop holds)
 #   qbo_duct.py --model aifs -> scripts/strat/data/zmu_members_aifs.npz (zero line) + v250 for pacjet (heavy job)
 #   qbo_zeroline.py   -> assets/sst/qbo_zeroline_{70,50,30,10}.webp + data/qbo_zeroline{,_aifs}.json   (heavy job)
 #   pacjet.py         -> assets/sst/pacjet_aifs_*.webp, pacjet_torque.webp, anim/pacjet_aifs/  (heavy job; circulation.html)
@@ -502,6 +505,10 @@ jobs:
       - name: Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
 
+      # the run records accumulate, so they are main's as it is now (a queued run checks out an older commit)
+      - name: The run records as main has them now
+        run: git fetch -q --depth 1 origin main && git checkout FETCH_HEAD -- assets/sst/data/runs || echo "::warning::no run records on main yet"
+
       - name: E-P flux loop (GEFS)
         run: |
           start=$(date +%s)
@@ -524,7 +531,8 @@ jobs:
           set -euo pipefail
           : > /tmp/ep.list
           for p in assets/sst/anim/epflux_gefs assets/sst/anim/epflux_gefs_manifest.json \
-                   assets/sst/refractive_gefs.webp assets/sst/data/refractive_gefs.json; do
+                   assets/sst/refractive_gefs.webp assets/sst/data/refractive_gefs.json \
+                   assets/sst/dwatch_absorb_gefs.webp assets/sst/data/runs/absorb_gefs.json assets/sst/runs/absorb_gefs.webp; do
             [ -e "$p" ] && echo "$p" >> /tmp/ep.list
           done
           if [ ! -s /tmp/ep.list ]; then : > /tmp/strat-epflux.tgz; exit 0; fi
@@ -617,6 +625,7 @@ jobs:
                    assets/sst/pacjet_aifs_*.webp assets/sst/pacjet_torque.webp assets/sst/pacjet_impacts_*.webp assets/sst/jets.webp \
                    assets/sst/data/pacjet_aifs.json assets/sst/data/pacjet_analysis.json \
                    assets/sst/refractive_gefs.webp assets/sst/data/refractive_gefs.json \
+                   assets/sst/dwatch_absorb_gefs.webp assets/sst/data/runs/absorb_gefs.json assets/sst/runs/absorb_gefs.webp \
                    assets/sst/data/runs/*_aifs.json assets/sst/runs/*_aifs.webp \
                    assets/sst/aifsc_drip.webp assets/sst/aifsc_drip_change.webp assets/sst/data/aifsc_drip.json \
                    assets/sst/data/runs/*_aifsc.json assets/sst/runs/*_aifsc.webp; do

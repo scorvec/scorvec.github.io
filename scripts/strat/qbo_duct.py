@@ -57,6 +57,10 @@ assets/sst/refractive_gefs.webp (+ data/refractive_gefs.json)
     regional reflection onsets (Messori et al. 2022, ERA5 list) from the absorbing Novembers of 2009 and 2016, while
     u(60N) at 1 minus 10 hPa was lower at all three onsets (upper_shear, days -5..+5: -2, -1 and +17 m/s against +28
     and +35), so each wave-1 panel carries that shear and the JSON keeps it per day.
+assets/sst/dwatch_absorb_gefs.webp (+ data/runs/absorb_gefs.json, runs/absorb_gefs.webp)
+    The descent watch's readout of where the waves are absorbed (descent_watch.absorb), November to April: each
+    member's own flux and zonal wind from MEMBER_BOTTOM up (member_fluxes), from the quadratics the loop already
+    holds, so nothing more is fetched.
 
 --model aifs / --model ifs  (zonal-mean u only, since 2026-09-30)
     The AIFS-ENS and IFS-ENS E-P flux loops were retired on 2026-09-30. What survives is what other
@@ -108,6 +112,7 @@ KMAX = 3  # planetary wavenumbers 1..KMAX (0 = every wavenumber)
 SMOOTH_DEG = 2.5  # latitude smoothing of the divergence (Gaussian sigma, degrees)
 POLE_MASK = 82.0
 ZMU_LEVELS = (10, 50, 100)
+MEMBER_BOTTOM = 150.0  # hPa: each member's own quadratics are kept from here up (member_fluxes)
 
 
 # ------------------------------------------------------------------------------------------------------ eddies ---
@@ -194,6 +199,20 @@ def _finish(acc, levs_seen, lat, steps):
         force = _nan_smooth_lat(force, SMOOTH_DEG / dlat)
         out[sh] = (levs, p[:, None], U, force, Fphi, Fp, th_prof, below)
     return out, nmem
+
+
+def member_fluxes(own, lat, steps):
+    """Each member's own flux and zonal wind from MEMBER_BOTTOM up, from its quadratics {member: {(step, level): q}}:
+    levels (hPa, top first) and {"Fphi", "Fp", "U": (member, step, level, lat)}, NaN at a step a member does not hold
+    whole. The stability is the member's own, centred at 100 hPa as in the whole column."""
+    levs = sorted({lev for acc in own.values() for _, lev in acc})
+    out = {k: np.full((len(own), len(steps), len(levs), len(lat)), np.nan) for k in ("Fphi", "Fp", "U")}
+    for i, acc in enumerate(own.values()):
+        whole = [s for s in steps if all((s, lev) in acc for lev in levs)]
+        for s, (_, _, U, _, Fphi, Fp, _, _) in _finish(acc, levs, lat, whole)[0].items():
+            j = steps.index(s)
+            out["Fphi"][i, j], out["Fp"][i, j], out["U"][i, j] = Fphi, Fp, U
+    return np.array(levs), out
 
 
 def cd_ceiling_excess(U, lat, levs, th_prof, k=1, Hs=7000.0):
@@ -458,11 +477,12 @@ def gefs_resolve(date, hh, last_h, back=4):
 
 
 def compute_epflux_gefs(date, hh, steps, procs=None, members=None):
-    """Ensemble QG E-P flux from GEFS: per-member quadratics, member-averaged per (step, level)."""
+    """Ensemble QG E-P flux from GEFS: per-member quadratics, member-averaged per (step, level); and each member's
+    own flux from MEMBER_BOTTOM up (member_fluxes)."""
     procs = procs or int(os.environ.get("EPFLUX_GEFS_PROCS", str(min(8, os.cpu_count() or 2))))
     mems = members or GEFS_MEMBERS
     jobs = [(date, hh, m, h, KMAX) for h in steps for m in mems]
-    sums, levs_seen, lat, nbytes, t0 = {}, set(), None, 0, time.time()
+    sums, own, levs_seen, lat, nbytes, t0 = {}, {}, set(), None, 0, time.time()
     done_by_step = {}
     import multiprocessing as mp
 
@@ -473,7 +493,7 @@ def compute_epflux_gefs(date, hh, steps, procs=None, members=None):
         for fu in as_completed(futs):
             j = futs[fu]
             try:
-                h, _mem, la, per, nb = fu.result()
+                h, mem, la, per, nb = fu.result()
             except Exception as e:  # noqa: BLE001
                 print(f"  GEFS {j[2]} f{j[3]:03d}: skipped ({str(e)[:80]})", flush=True)
                 continue
@@ -486,6 +506,8 @@ def compute_epflux_gefs(date, hh, steps, procs=None, members=None):
                 for i in range(1, 6):
                     s[i] = s[i] + q[i]
                 levs_seen.add(lev)
+                if lev <= MEMBER_BOTTOM:
+                    own.setdefault(mem, {})[(h, lev)] = q
             done_by_step[h] = done_by_step.get(h, 0) + 1
             if done_by_step[h] == len(mems):
                 print(
@@ -502,7 +524,7 @@ def compute_epflux_gefs(date, hh, steps, procs=None, members=None):
             acc[(h, lev)] = [s[0]] + [x / s[0] for x in s[1:]]
     by_step, nmem = _finish(acc, levs_seen, lat, steps)
     stats = dict(bytes=nbytes, seconds=time.time() - t0, jobs=len(jobs))
-    return by_step, nmem, lat, stats
+    return by_step, nmem, lat, stats, member_fluxes(own, lat, list(steps))
 
 
 # ------------------------------------------------------------------------------------------------------ render ---
@@ -910,7 +932,9 @@ def main():
     date, hh = gefs_resolve(args.date, hh, last_h)
     S = tuple(range(0, last_h + 1, 24))
     base = pd.Timestamp(f"{date[:4]}-{date[4:6]}-{date[6:8]} {hh}:00")
-    by_step, nmem, lat, st = compute_epflux_gefs(date, hh, S, procs=args.procs, members=GEFS_MEMBERS[: args.members])
+    by_step, nmem, lat, st, own = compute_epflux_gefs(
+        date, hh, S, procs=args.procs, members=GEFS_MEMBERS[: args.members]
+    )
     print(
         f"  GEFS epflux {date} {hh}Z: {len(by_step)} steps, {nmem} members, {st['bytes'] / 1e9:.2f} GB "
         f"in {st['seconds']:.0f} s ({st['bytes'] / 1e6 / max(st['seconds'], 1):.0f} MB/s)",
@@ -918,6 +942,14 @@ def main():
     )
     render_epflux(by_step, nmem, lat, S, base, "gefs", args.waves)
     render_refractive(by_step, nmem, lat, base)
+    if args.waves == "1-3":  # the readout is of the planetary waves
+        import descent_watch as DW
+
+        valid = base + pd.to_timedelta(S, unit="h")
+        try:  # the loop above stands whatever becomes of the watch
+            DW.absorb("gefs", base, valid, *own, lat, "NOAA GEFS 0.5° (AWS Open Data)")
+        except Exception as e:  # noqa: BLE001
+            print(f"::warning::GEFS: the descent watch's absorbed waves failed ({e!r})", flush=True)
 
 
 if __name__ == "__main__":

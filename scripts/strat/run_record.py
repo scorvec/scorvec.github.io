@@ -11,8 +11,8 @@ vortex_shape.py --combined) read the newest run of each.
 render() draws one model's record: the last SHOW runs over one another (the oldest faint, the newest bold with its band),
 each key's change over days 6-15 against the run 24 h earlier, and the scalar run by run
 (assets/sst/runs/<product>_<model>.webp). The heat flux and the dripping paint are taken from the JSON their scripts
-publish (capture); the vortex, waves, polar-cap (with the vortex shape and the descent watch) and upper-stratosphere
-scripts record their own members.
+publish (capture); the vortex, waves, polar-cap (with the vortex shape and the descent watch), E-P flux and
+upper-stratosphere scripts record their own members.
 
     python run_record.py capture heatflux --model ifs      # this run, from assets/sst/data/ifs_heatflux100.json
     python run_record.py render vortex --model ifs
@@ -209,6 +209,20 @@ PRODUCTS = {
         "raw model output (descent_watch.py); below zero = the westerlies shifted towards the equator, the negative "
         "Arctic Oscillation.",
         models=("aifs", "ifs", "gefs", "geps"),
+    ),
+    "absorb": Product(
+        "Descent watch: the planetary waves' driving of the westerlies, 45–75°N",
+        {
+            "w100": Key(
+                "wave driving, 100–50 hPa", "m s⁻¹ per day", 2, unit="m s⁻¹ per day", short="driving 100–50 hPa"
+            ),
+            "w50": Key("wave driving, 50–10 hPa", "m s⁻¹ per day", 2, unit="m s⁻¹ per day", short="driving 50–10 hPa"),
+            "u100": Key("zonal wind, 100–50 hPa", "m s⁻¹", 1, unit="m s⁻¹", short="wind 100–50 hPa"),
+        },
+        note="Each member's E-P flux of zonal waves 1–3 through the walls of the box, as the westerly wind it adds per "
+        "day, and the box's own zonal wind (descent_watch.py); below zero = the waves slow the westerlies. Raw model "
+        "output, no normal. November to April.",
+        models=("gefs",),
     ),
 }
 
