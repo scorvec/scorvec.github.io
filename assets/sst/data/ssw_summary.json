@@ -1,5 +1,5 @@
 {
- "built": "2026-11-10 01:27Z",
+ "built": "2026-11-10 01:49Z",
  "newest_init": "2026-11-09 18Z",
  "window": [
   "2026-11-10",
@@ -948,18 +948,13 @@
     ]
    },
    "gefs": {
-    "init": "2026-11-09 12Z",
+    "init": "2026-11-09 18Z",
     "members": 31,
     "share": 1.0,
     "wmo": 1.0,
-    "u10_min_mean": -3.8,
-    "u10_min_p10": -4.0,
+    "u10_min_mean": -2.9,
+    "u10_min_p10": -3.2,
     "runs": [
-     [
-      "2026-10-10T12",
-      0.0,
-      null
-     ],
      [
       "2026-10-11T00",
       0.0,
@@ -1369,6 +1364,11 @@
       "2026-11-09T12",
       1.0,
       1.0
+     ],
+     [
+      "2026-11-09T18",
+      1.0,
+      1.0
      ]
     ]
    },
@@ -1663,14 +1663,14 @@
     "z_sib_max": 0.2
    },
    "gefs": {
-    "init": "2026-11-09 12Z",
+    "init": "2026-11-09 18Z",
     "members": 31,
-    "wave2_share": 0.17,
-    "z_peak": -0.1,
-    "z_peak_day": 10,
+    "wave2_share": 0.16,
+    "z_peak": -0.0,
+    "z_peak_day": 11,
     "flux_min": 6.4,
     "ri_event_share": 0.0,
-    "z_can_min": -0.4,
+    "z_can_min": -0.3,
     "z_sib_max": -0.2
    },
    "geps": {
@@ -1685,7 +1685,7 @@
     "z_sib_max": 0.4
    }
   },
-  "wave2_share_mean": 0.28,
+  "wave2_share_mean": 0.27,
   "kind": "wave-1"
  },
  "descent": {
@@ -1741,11 +1741,11 @@
     "kind": "top-down"
    },
    "gefs": {
-    "init": "2026-11-09 12Z",
+    "init": "2026-11-09 18Z",
     "members": 31,
-    "cap100_day15": 0.7,
-    "cap10_day15": 0.3,
-    "frac100_day15": 0.16,
+    "cap100_day15": 0.6,
+    "cap10_day15": 0.1,
+    "frac100_day15": 0.26,
     "cross100": "2026-10-27",
     "cross10": "2026-10-29",
     "kind": "bottom-up"
@@ -1807,7 +1807,7 @@
      "2026-12-24"
     ],
     "cap100_day15": 0.7,
-    "frac100_day15": 0.16
+    "frac100_day15": 0.26
    },
    "geps": {
     "init": "2026-11-09 12Z",
@@ -1921,17 +1921,17 @@
     "sea_drift_removed": true
    },
    "gefs": {
-    "init": "2026-11-09 12Z",
+    "init": "2026-11-09 18Z",
     "onset": "2026-11-10",
     "wind_days": 11,
-    "wind": -0.95,
+    "wind": -0.97,
     "third": 1,
     "start_dates": [
      "2026-11-11",
      "2026-11-14",
      "2026-11-18"
     ],
-    "sea": -1.02,
+    "sea": -0.88,
     "sea_days": [
      6,
      14
@@ -2903,13 +2903,13 @@
      },
      "flux": {
       "days": 15,
-      "value": 1.7,
+      "value": 1.68,
       "met": true,
       "tested": true
      },
      "upward": {
       "days": 15,
-      "value": 8.9,
+      "value": 8.7,
       "met": true,
       "tested": true
      },
