@@ -7,6 +7,9 @@ name: Stratosphere (vortex, waves 1 and 2, E-P flux from GEFS)
 #   vortex_winds.py   -> assets/sst/anim/vortex_{10,100}_{nh,sh}/  31-step 12-hourly loops, one hemisphere each
 #   polarcap.py       -> assets/sst/{polarcap,telecon,vshape}_aifs.webp + anim/{polarcap,z100,t10}_aifs/  polar cap,
 #                        AO/NAO, 100 hPa height, 10 hPa temperature and the vortex's shape member by member (light job)
+#   descent_watch.py  -> assets/sst/dwatch_{reach,ring}_aifs.webp + data/dwatch_aifs.json + data/runs/{reach,ring}_aifs.json:
+#                        how far down each member's weak-vortex anomaly reaches (called by forecast_drip.py) and whether
+#                        the Arctic's response is the whole ring (called by polarcap.py); nothing fetched (light job)
 #   aifsc             -> the AIFS-ENS control (member 0) on its own, as the IFS control: aifsc_drip.webp, wave and
 #                        vortex-wind loops, {z100,t10}_aifsc/, its run records (light job; its vortex record in heavy)
 #   qbo_duct.py --model gefs -> assets/sst/anim/epflux_gefs/   E-P flux loop from the NOAA GEFS ensemble (epflux job)
@@ -308,8 +311,9 @@ jobs:
                    assets/sst/polarcap_aifs.webp assets/sst/anim/polarcap_aifs assets/sst/anim/polarcap_aifs_manifest.json \
                    assets/sst/telecon_aifs.webp assets/sst/anim/z100_aifs assets/sst/anim/z100_aifs_manifest.json \
                    assets/sst/vshape_aifs.webp assets/sst/anim/t10_aifs assets/sst/anim/t10_aifs_manifest.json \
-                   assets/sst/data/runs/{heatflux,drip,waves,polarcap,telecon,vshape}_aifs.json \
-                   assets/sst/runs/{heatflux,drip,waves,polarcap,telecon,vshape}_aifs.webp \
+                   assets/sst/dwatch_reach_aifs.webp assets/sst/dwatch_ring_aifs.webp assets/sst/data/dwatch_aifs.json \
+                   assets/sst/data/runs/{heatflux,drip,waves,polarcap,telecon,vshape,reach,ring}_aifs.json \
+                   assets/sst/runs/{heatflux,drip,waves,polarcap,telecon,vshape,reach,ring}_aifs.webp \
                    assets/sst/aifsc_drip.webp assets/sst/aifsc_drip_change.webp assets/sst/data/aifsc_drip.json \
                    assets/sst/anim/wave1_aifsc_nh assets/sst/anim/wave1_aifsc_sh assets/sst/anim/wave2_aifsc_nh assets/sst/anim/wave2_aifsc_sh \
                    assets/sst/anim/wave1_maps_aifsc_manifest.json assets/sst/anim/wave2_maps_aifsc_manifest.json \
@@ -607,6 +611,7 @@ jobs:
                    assets/sst/aifs_drip.webp assets/sst/aifs_drip_change.webp assets/sst/data/aifs_drip.json assets/sst/anim/*_manifest.json \
                    assets/sst/data/wave_compass_aifs.json assets/sst/polarcap_aifs.webp assets/sst/telecon_aifs.webp assets/sst/vshape_aifs.webp \
                    assets/sst/vortex_members_aifs.webp \
+                   assets/sst/dwatch_reach_aifs.webp assets/sst/dwatch_ring_aifs.webp assets/sst/data/dwatch_aifs.json \
                    assets/regimes/data/regimes_members_aifs.json assets/regimes/data/regimes_drift_aifs.json \
                    assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_aifs.json \
                    assets/sst/pacjet_aifs_*.webp assets/sst/pacjet_torque.webp assets/sst/pacjet_impacts_*.webp assets/sst/jets.webp \

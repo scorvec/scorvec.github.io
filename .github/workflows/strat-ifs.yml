@@ -17,6 +17,10 @@ name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, wave
 #   polarcap.py           -> assets/sst/{polarcap,telecon,vshape}_ifs.webp + anim/{polarcap,t10}_ifs/, anim/z100_{ifs,hres}/
 #                            + data/runs/{polarcap,telecon,vshape}_{ifs,hres}.json: polar cap, AO/NAO, 100 hPa height,
 #                            10 hPa temperature and the vortex's shape (the shared gh, msl and t10 files)
+#   descent_watch.py      -> assets/sst/dwatch_{reach,ring}_<model>.webp + data/dwatch_<model>.json + data/runs/{reach,ring}_<model>.json
+#                            (IFS-ENS, GEFS, GEPS): how far down each member's weak-vortex anomaly reaches (called by
+#                            forecast_drip.py, only at levels where the model's drift is measured) and whether the Arctic's
+#                            response is the whole ring (called by polarcap.py); nothing fetched
 #   polar_descent.py      -> assets/sst/descent{,_sectors}_ifs.webp, descent_gefs.webp + anim/descent_{ifs,hres}/: descent over
 #                            the polar cap (the shared w files; GEFS from strat_ens.py part "omega")
 #   (hres = the IFS control in file names, as in the code; the pages say "IFS control")
@@ -541,6 +545,8 @@ jobs:
                    assets/sst/data/runs/{drip,waves}_{ifs,hres}.json assets/sst/runs/{drip,waves}_{ifs,hres}.webp \
                    assets/sst/data/wave_compass_ifs.json assets/sst/polarcap_ifs.webp assets/sst/telecon_ifs.webp assets/sst/anim/polarcap_ifs_manifest.json \
                    assets/sst/anim/z100_{ifs,hres}_manifest.json assets/sst/vshape_ifs.webp assets/sst/anim/t10_ifs_manifest.json \
+                   assets/sst/dwatch_reach_ifs.webp assets/sst/dwatch_ring_ifs.webp assets/sst/data/dwatch_ifs.json \
+                   assets/sst/data/runs/{reach,ring}_ifs.json assets/sst/runs/{reach,ring}_ifs.webp \
                    assets/sst/data/runs/{polarcap,telecon,vshape}_{ifs,hres}.json \
                    assets/sst/runs/{polarcap,telecon,vshape}_{ifs,hres}.webp; do
             [ -e "$p" ] && [ "$p" -nt /tmp/t0 ] && echo "$p" >> /tmp/heights.list
@@ -746,8 +752,9 @@ jobs:
                      assets/sst/telecon_${m}.webp assets/sst/anim/z100_${m} assets/sst/anim/z100_${m}_manifest.json \
                      assets/sst/vshape_${m}.webp assets/sst/anim/t10_${m} assets/sst/anim/t10_${m}_manifest.json \
                      assets/sst/descent_${m}.webp assets/sst/vortex_members_${m}.webp \
-                     assets/sst/data/runs/{vortex,heatflux,drip,waves,polarcap,telecon,vshape,descent}_${m}.json \
-                     assets/sst/runs/{heatflux,drip,waves,polarcap,telecon,vshape,descent}_${m}.webp; do
+                     assets/sst/dwatch_reach_${m}.webp assets/sst/dwatch_ring_${m}.webp assets/sst/data/dwatch_${m}.json \
+                     assets/sst/data/runs/{vortex,heatflux,drip,waves,polarcap,telecon,vshape,descent,reach,ring}_${m}.json \
+                     assets/sst/runs/{heatflux,drip,waves,polarcap,telecon,vshape,descent,reach,ring}_${m}.webp; do
               [ -e "$p" ] && [ "$p" -nt /tmp/t0 ] && echo "$p" >> /tmp/naens.list
             done
           done
@@ -1044,6 +1051,7 @@ jobs:
                    assets/sst/anim/z100_ifs_manifest.json assets/sst/anim/z100_hres_manifest.json \
                    assets/sst/anim/z100_gefs_manifest.json assets/sst/anim/z100_geps_manifest.json \
                    assets/sst/vshape_ifs.webp assets/sst/vshape_gefs.webp assets/sst/vshape_geps.webp \
+                   assets/sst/dwatch_reach_{ifs,gefs,geps}.webp assets/sst/dwatch_ring_{ifs,gefs,geps}.webp assets/sst/data/dwatch_{ifs,gefs,geps}.json \
                    assets/sst/anim/t10_ifs_manifest.json assets/sst/anim/t10_gefs_manifest.json \
                    assets/sst/anim/t10_geps_manifest.json \
                    assets/sst/descent_ifs.webp assets/sst/descent_sectors_ifs.webp assets/sst/descent_gefs.webp \

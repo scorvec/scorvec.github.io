@@ -11,8 +11,8 @@ vortex_shape.py --combined) read the newest run of each.
 render() draws one model's record: the last SHOW runs over one another (the oldest faint, the newest bold with its band),
 each key's change over days 6-15 against the run 24 h earlier, and the scalar run by run
 (assets/sst/runs/<product>_<model>.webp). The heat flux and the dripping paint are taken from the JSON their scripts
-publish (capture); the vortex, waves, polar-cap (with the vortex shape) and upper-stratosphere scripts record their own
-members.
+publish (capture); the vortex, waves, polar-cap (with the vortex shape and the descent watch) and upper-stratosphere
+scripts record their own members.
 
     python run_record.py capture heatflux --model ifs      # this run, from assets/sst/data/ifs_heatflux100.json
     python run_record.py render vortex --model ifs
@@ -65,7 +65,7 @@ class Product:
     keys: dict  # key -> Key, recorded and drawn
     scalar: tuple | None = None  # (name, panel title, axis label): one number per run, x 100 when a share
     share: bool = True  # the scalar is a share (drawn as a percentage)
-    band: str = "members' 10–90 %"  # what the newest run's band is
+    band: str = "members' 10–90 %"  # what the newest run's band is (empty: no key has one)
     note: str = ""  # the footer's source and method line
     extra: tuple = field(default_factory=tuple)  # keys recorded but not drawn here (nh_vortex's figures read them)
     models: tuple = ()  # the models that feed it (empty: any); merge() takes no record of another
@@ -184,6 +184,31 @@ PRODUCTS = {
         },
         note="Raw model output, nothing drift-corrected (as on the upper-stratosphere charts). GEFS 30 members + control "
         "(NOAA); GFS, GDPS and GEOS FP single runs.",
+    ),
+    "reach": Product(
+        "Descent watch: the weak-vortex anomaly unbroken from 100 hPa down",
+        {
+            "r300": Key("members connected down to 300 hPa", "% of members", 0, None, "pts", "to 300 hPa", share=True),
+            "r500": Key("members connected down to 500 hPa", "% of members", 0, None, "pts", "to 500 hPa", share=True),
+            "r850": Key("members connected down to 850 hPa", "% of members", 0, None, "pts", "to 850 hPa", share=True),
+        },
+        ("late", "Members connected down to 500 hPa on any day 11–15", "% of members"),
+        band="",
+        note="A member counts on a day when its 65–90°N cap height is +0.5 sd or more above normal at every level from "
+        "100 hPa down to that one (descent_watch.py); drift-corrected, standardised heights, a level only where the "
+        "model's drift is measured at it and at every level above. November to April.",
+        models=("aifs", "ifs", "gefs", "geps"),
+    ),
+    "ring": Product(
+        "Descent watch: the westerlies' shift, 55–65°N minus 35–45°N",
+        {
+            "u500": Key("500 hPa, from the zonal-mean height", "m s⁻¹", 2, unit="m s⁻¹", short="500 hPa"),
+            "usfc": Key("sea level, from the pressure over low ground", "m s⁻¹", 2, unit="m s⁻¹", short="sea level"),
+        },
+        note="Geostrophic zonal wind anomaly from each member's height and pressure anomalies against ERA5 1991–2020, "
+        "raw model output (descent_watch.py); below zero = the westerlies shifted towards the equator, the negative "
+        "Arctic Oscillation.",
+        models=("aifs", "ifs", "gefs", "geps"),
     ),
 }
 
@@ -436,7 +461,8 @@ def render(product: str, model: str, out: Path | None = None) -> Path | None:
     fig.text(
         0.07,
         0.962 if nk > 2 else 0.952,
-        f"the last {len(mine)} runs: older runs grey and fainter, the newest bold with its {P.band}",
+        f"the last {len(mine)} runs: older runs grey and fainter, the newest bold"
+        + (f" with its {P.band}" if P.band else ""),
         fontsize=9,
         color="0.25",
     )
@@ -541,7 +567,7 @@ def render_combined(product: str, models: tuple, out: Path) -> Path | None:
         0.06,
         0.952,
         f"the last {SHOW} runs of each model, its newest run in each panel's title: older runs grey and fainter, the "
-        f"newest bold in the model's colour (an ensemble's with its {P.band} band)",
+        "newest bold in the model's colour" + (f" (an ensemble's with its {P.band} band)" if P.band else ""),
         fontsize=9,
         color="0.25",
     )

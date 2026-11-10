@@ -39,7 +39,9 @@ Model drift - never shown as signal:
   and MERRA-2 leave those points out (in summer whole rows near the pole are underground and the observed 1000 hPa cap
   is undefined), so a model's 1000 hPa cap reads ~30-40 m (about 1 sd) low at analysis time.
 Ensemble mean of the members' standardised anomalies; the lower panels are the 1000 hPa cap (an AO proxy: high cap =
-negative AO) and the share of members with the 100 hPa cap >= +1 sd.
+negative AO) and the share of members with the 100 hPa cap >= +1 sd. A days 1-15 ensemble's members also go to the
+descent watch (descent_watch.reach: how far down each member's anomaly runs unbroken from 100 hPa, at the levels whose
+drift is measured -> dwatch_reach_{model}.webp and the reach record).
 
     python forecast_drip.py --model geps --date 20260924 --out-dir assets/geps
     python forecast_drip.py --model gefs --date 20260926 --out-dir assets/gefs
@@ -84,6 +86,16 @@ NAME = {
     "aifs1": "AIFS single",
     "ifs": "IFS-ENS",
     "hres": "IFS control",
+}
+SOURCES = {
+    "geps": "ECCC GEPS (MSC Datamart); drift: ECMWF S2S GEPS reforecasts (non-commercial research licence)",
+    "gefs": "NOAA GEFS (AWS Open Data); drift: GEFSv12 reforecast climatology",
+    "aifs": "ECMWF AIFS-ENS open data (CC BY 4.0)",
+    "aifsc": "ECMWF AIFS-ENS open data (CC BY 4.0), the control (member 0)",
+    "aifs1": "ECMWF AIFS single open data (CC BY 4.0), 0.25°, Google Cloud mirror",
+    "ifs": "ECMWF IFS-ENS open data (CC BY 4.0), 50 perturbed members, 0.25°, Google Cloud mirror",
+    "hres": "ECMWF open data (CC BY 4.0), the IFS control (ECMWF's unperturbed 9 km run, called HRES until May "
+    "2026), 0.25°, Google Cloud mirror",
 }
 G = 9.80665
 CAP_ROWS = tuple(range(101))  # 90-65N on the 0.25 deg grid: the rows an ECMWF cap mean needs
@@ -611,18 +623,7 @@ def render(
     fig.text(
         0.07,
         0.012,
-        "Sources: "
-        + {
-            "geps": "ECCC GEPS (MSC Datamart); drift: ECMWF S2S GEPS reforecasts (non-commercial research licence)",
-            "gefs": "NOAA GEFS (AWS Open Data); drift: GEFSv12 reforecast climatology",
-            "aifs": "ECMWF AIFS-ENS open data (CC BY 4.0)",
-            "aifsc": "ECMWF AIFS-ENS open data (CC BY 4.0), the control (member 0)",
-            "aifs1": "ECMWF AIFS single open data (CC BY 4.0), 0.25°, Google Cloud mirror",
-            "ifs": "ECMWF IFS-ENS open data (CC BY 4.0), 50 perturbed members, 0.25°, Google Cloud mirror",
-            "hres": "ECMWF open data (CC BY 4.0), the IFS control (ECMWF's unperturbed 9 km run, called HRES until May "
-            "2026), 0.25°, Google Cloud mirror",
-        }[model]
-        + " · GEOS FP (NASA GMAO) · MERRA-2 scale (NASA GMAO)",
+        f"Sources: {SOURCES[model]} · GEOS FP (NASA GMAO) · MERRA-2 scale (NASA GMAO)",
         fontsize=8.2,
         color=MUTED,
     )
@@ -852,7 +853,16 @@ def main() -> int:
     (out / "data").mkdir(parents=True, exist_ok=True)
     (out / "data" / f"{a.model}_drip.json").write_text(json.dumps(doc, separators=(",", ":")))
     if a.days == 15 or a.model not in ("geps", "gefs"):  # the days 1-15 drips: the ones the drip record holds
-        change(a.model, init + pd.Timedelta(hours=int(a.time)), lv, days_f, mean, C.shape[0], out)
+        run = init + pd.Timedelta(hours=int(a.time))
+        change(a.model, run, lv, days_f, mean, C.shape[0], out)
+        if C.shape[0] > 1:  # an ensemble: how far down each member's anomaly reaches (the descent watch)
+            import descent_watch as DW
+
+            valid = [run + pd.Timedelta(hours=h) for h in leads_f]
+            try:  # the drip above stands whatever becomes of the watch
+                DW.reach(a.model, run, lv, Zf, valid, corrected, SOURCES[a.model], out / f"dwatch_reach_{a.model}.webp")
+            except Exception as e:  # noqa: BLE001
+                print(f"::warning::{name}: the descent watch's reach failed ({e!r})", flush=True)
     k10, k100, k1000 = lv.index(10.0), lv.index(100.0), lv.index(1000.0)
     for d0, d1 in ((1, 7), (8, 14), (15, 21), (22, 35)):
         m = (np.array(leads_f) / 24 >= d0) & (np.array(leads_f) / 24 <= d1)

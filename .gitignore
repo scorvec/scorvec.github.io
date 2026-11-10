@@ -155,6 +155,8 @@ scripts/strat/*
 !scripts/strat/build_ssw_checklist.py
 !scripts/strat/build_reflection_index.py
 !scripts/strat/reflection_index.py
+!scripts/strat/descent_watch.py
+!scripts/strat/build_descent_base.py
 !scripts/strat/ssw_summary.py
 !scripts/strat/cmip6_coupling.py
 !scripts/strat/cmip6_coupling_extract.py

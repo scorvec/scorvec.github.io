@@ -44,6 +44,9 @@ Outputs, model m:
   assets/sst/vshape_{m}.webp                       every member's vortex shape each day, the shares beneath
   assets/sst/data/runs/{polarcap,telecon,vshape}_{m}.json (+ hres)   the run records (run_record.py draws the
                                                    run-to-run figures)
+  assets/sst/dwatch_ring_{m}.webp, data/dwatch_{m}.json, data/runs/ring_{m}.json   an ensemble's descent watch
+                                                   (descent_watch.ring): the cap by sector, the westerlies' shift,
+                                                   the members' values for its link test
   aifs1, a single run: its records and its z100_aifs1 and t10_aifs1 loops only (no plumes, sea-level maps or shape
   barcode of its own)
   --combined: assets/sst/polarcap_models.webp, telecon_models.webp, every model's newest run (strat-combine.yml)
@@ -729,6 +732,7 @@ def run(model: str, date: str, hh: str, figures: bool = True) -> int:
     if not got:
         print(f"::warning::{model} {date} {hh}Z: nothing on the mirror to draw", flush=True)
         return 1
+    import descent_watch as DW
     import vortex_shape as VS
 
     done, ctrls, shapes = {}, {}, {}
@@ -758,6 +762,10 @@ def run(model: str, date: str, hh: str, figures: bool = True) -> int:
             ctrls[m] = {**{k: v[0] for k, v in cp.items()}, **{k: v[0] for k, v in tc.items()}}
         else:
             done[m] = (fields, A, cp, tc, valid)
+            try:  # the polar-cap figures stand whatever becomes of the watch
+                DW.ring(m, init, valid, A, CLAT, CLON, N.orog < HIGH, cap, agreed, CREDIT[m], figures)
+            except Exception as e:  # noqa: BLE001
+                print(f"::warning::{m}: the descent watch's ring failed ({e!r})", flush=True)
     if not figures:
         return 0
     for m, (fields, A, cp, tc, valid) in done.items():
