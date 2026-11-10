@@ -1080,7 +1080,7 @@ def wquant(v: np.ndarray, w: np.ndarray, qs) -> np.ndarray:
     return out.reshape((len(qs), *v.shape[1:]))
 
 
-def forecast_members(issue: str, A: dict, H: dict) -> dict:
+def forecast_members(issue: str, A: dict) -> dict:
     """The issue's members per system: raw, anomaly against the all-years normal, and the multi-model weights."""
     fc = {}
     for c, ks in A["centres"].items():
@@ -1125,7 +1125,7 @@ def build(issue: str) -> int:
     R, A, H = test()
     report(R)
     complete_hc = set(R["centres"]) >= set(expected) and not R["qc_excluded"]
-    fc = forecast_members(issue, A, H)
+    fc = forecast_members(issue, A)
     present = [c for c in expected if c in fc]
     dates = winter_dates(y)
     out = dict(
@@ -1179,14 +1179,14 @@ def build(issue: str) -> int:
             pc[c]["first"] = [f for v in vals for f in v["first"]]
         mm = {k2: float(np.mean([pc[c][k2] for c in present])) for k2 in ("t1", "t3", "t4", "dec_anom")}
         out["forecast"] = dict(mmm=mm, centres=pc, members=len(U))
-        out["figures"] = render(issue, A, R, U, AN, W, CEN, corr, pc, mm, present, dates)
+        out["figures"] = render(A, R, U, AN, W, CEN, corr, pc, mm, present, dates)
     OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
     OUT_JSON.write_text(json.dumps(_clean(out), ensure_ascii=False, separators=(",", ":")))
     print(f"wrote {OUT_JSON} ({out['state']}; centres {present}) in {time.time() - t0:.0f} s", flush=True)
     return 0
 
 
-def render(issue, A, R, U, AN, W, CEN, corr, pc, mm, present, dates) -> dict:
+def render(A, R, U, AN, W, CEN, corr, pc, mm, present, dates) -> dict:
     import matplotlib
     import matplotlib.ticker
     import pandas as pd

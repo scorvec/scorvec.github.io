@@ -37,7 +37,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from c3s_nino34 import MODELS
 from c3s_terciles import fc_pop_members, hc_pop_means
-from c3s_popt_daily import observed_months  # one definition of the observed series
+from c3s_popt_daily import MIN_SYSTEMS, observed_months  # one definition of the observed series
 from seas5_popT import REGIONS
 
 SITE = Path(os.environ.get("SST_SITE_ROOT", HERE.parents[1]))
@@ -121,26 +121,27 @@ def main() -> int:
         if not per_model:
             continue
         # multi-model: every system's members pooled with equal system weight
-        wts = np.concatenate([np.full(a_.shape[0], w) for a_, _, w in pooled])
-        A = np.concatenate([a_ for a_, _, _ in pooled], axis=0)
-        F = np.concatenate([f_ for _, f_, _ in pooled], axis=0)
+        if len(pooled) >= MIN_SYSTEMS:
+            wts = np.concatenate([np.full(a_.shape[0], w) for a_, _, w in pooled])
+            A = np.concatenate([a_ for a_, _, _ in pooled], axis=0)
+            F = np.concatenate([f_ for _, f_, _ in pooled], axis=0)
 
-        def wq(x, q, wts=wts):
-            o = np.argsort(x, axis=0)
-            xs = np.take_along_axis(x, o, axis=0)
-            ws = wts[o]
-            c = np.cumsum(ws, axis=0) / ws.sum(axis=0)
-            return np.array([np.interp(q / 100.0, c[:, j], xs[:, j]) for j in range(x.shape[1])])
+            def wq(x, q, wts=wts):
+                o = np.argsort(x, axis=0)
+                xs = np.take_along_axis(x, o, axis=0)
+                ws = wts[o]
+                c = np.cumsum(ws, axis=0) / ws.sum(axis=0)
+                return np.array([np.interp(q / 100.0, c[:, j], xs[:, j]) for j in range(x.shape[1])])
 
-        per_model["mmm"] = {
-            "raw": {f"p{q}": [round(float(x), 2) for x in to_unit(wq(F, q), unit)] for q in QS},
-            "anom": {f"p{q}": [round(float(x * (9 / 5 if unit == "F" else 1.0)), 2) for x in wq(A, q)] for q in QS},
-            "mean_raw": [round(float(x), 2) for x in to_unit((F * wts[:, None]).sum(0) / wts.sum(), unit)],
-            "mean_anom": [
-                round(float(v * (9 / 5 if unit == "F" else 1.0)), 2) for v in (A * wts[:, None]).sum(0) / wts.sum()
-            ],
-            "members": int(A.shape[0]),
-        }
+            per_model["mmm"] = {
+                "raw": {f"p{q}": [round(float(x), 2) for x in to_unit(wq(F, q), unit)] for q in QS},
+                "anom": {f"p{q}": [round(float(x * (9 / 5 if unit == "F" else 1.0)), 2) for x in wq(A, q)] for q in QS},
+                "mean_raw": [round(float(x), 2) for x in to_unit((F * wts[:, None]).sum(0) / wts.sum(), unit)],
+                "mean_anom": [
+                    round(float(v * (9 / 5 if unit == "F" else 1.0)), 2) for v in (A * wts[:, None]).sum(0) / wts.sum()
+                ],
+                "members": int(A.shape[0]),
+            }
         doc["regions"][region] = {
             "label": label,
             "unit": "°F" if unit == "F" else "°C",
@@ -162,12 +163,13 @@ def main() -> int:
                 "anom_mean": obs["anom_mean"],
             }
             print(f"  {region} observed: {obs['months'][0]} → {obs['months'][-1]}", flush=True)
-    doc["models"] = [{"id": "mmm", "label": "Multi-model", "color": "#111111"}, *seen]
+    pool = any("mmm" in r["values"] for r in doc["regions"].values())
+    doc["models"] = [*([{"id": "mmm", "label": "Multi-model", "color": "#111111"}] if pool else []), *seen]
     if not doc["regions"]:
         raise SystemExit("no member tables — run c3s_terciles.py first")
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(doc, separators=(",", ":")))
-    print(f"wrote {OUT.name}: {len(doc['regions'])} region(s), {len(doc['models'])} model(s) incl. the pool")
+    print(f"wrote {OUT.name}: {len(doc['regions'])} region(s), {len(doc['models'])} model(s)")
     return 0
 
 
