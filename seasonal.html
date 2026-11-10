@@ -378,7 +378,7 @@ window.afterPlotly = function (fn) {
     system&rsquo;s own 1993&ndash;2016 hindcast mean at the same lead, so the systems are comparable; raw levels carry each
     model&rsquo;s bias and are there for the read within one system. The band is P10&ndash;P90 across that system&rsquo;s
     members, with P25&ndash;P75 darker; <b>Multi-model</b> pools every system&rsquo;s members with equal weight per system, so
-    NCEP&rsquo;s 120-odd members and a 20-member system count the same.</p>
+    NCEP&rsquo;s 120-odd members and a 20-member system count the same; it is shown once four systems of the issue are in.</p>
     </details>
     <p class="note">The black line is <b>observed</b> &mdash; CPC daily Tmax/Tmin on the same cells, averaged to a monthly
     mean, with anomalies against the observed 1993&ndash;2016 mean so history and forecast share one base. It carries no band:
@@ -402,7 +402,8 @@ window.afterPlotly = function (fn) {
     1,500 member-days in a 30-day month for a 50-member system, about 3,600 for NCEP&rsquo;s 120-odd. This is the distribution a cold snap lives in
     &mdash; the monthly card above shows the spread of monthly MEANS, which is a different and much narrower thing.
     Bands are P1&ndash;P99, P5&ndash;P95 and P25&ndash;P75 of the pooled member-days, with the median in sienna; the
-    multi-model view averages each system&rsquo;s own percentiles with equal weight per system. These are the
+    multi-model view averages each system&rsquo;s own percentiles with equal weight per system, once four systems
+    of the issue are in. These are the
     models&rsquo; <b>raw</b> spread, not calibrated probabilities: days within a member are strongly correlated, so a
     month&rsquo;s 1,500 member-days carry far fewer independent cases than their count, and the
     tails also carry the month&rsquo;s own seasonal cycle, because the anomalies subtract one monthly mean.</p>
@@ -1764,7 +1765,10 @@ afterPlotly(function () {
                name: name, type: "scatter" };
     }
     function draw() {
-      var R = J.regions[sel.r], V = R.values[sel.m] || R.values.mmm, unit = R.unit;
+      var R = J.regions[sel.r], unit = R.unit;
+      // the multi-model row waits for four systems: until then the first system in is shown
+      if (!R.values[sel.m]) sel.m = R.values.mmm ? "mmm" : Object.keys(R.values)[0];
+      var V = R.values[sel.m];
       var kind = sel.k, x = R.months;
       var q = V[kind], mean = V[kind === "anom" ? "mean_anom" : "mean_raw"];
       var traces = [band(x, q.p10, q.p90, "rgba(176,110,60,0.16)", "P10–P90"),
@@ -1873,7 +1877,10 @@ afterPlotly(function () {
       });
     }
     function draw() {
-      var R = J.regions[sel.r], V = R.values[sel.m] || R.values.mmm, unit = R.unit;
+      var R = J.regions[sel.r], unit = R.unit;
+      // the multi-model row waits for four systems: until then the first system in is shown
+      if (!R.values[sel.m]) sel.m = R.values.mmm ? "mmm" : Object.keys(R.values)[0];
+      var V = R.values[sel.m];
       var q = V[sel.k], x = R.months;
       if (!q || !q.p50 || q.p50.every(function (v) { return v === null; })) { sel.k = "raw"; q = V.raw; }
       var traces = [band(x, q.p1, q.p99, "rgba(176,110,60,0.10)"),

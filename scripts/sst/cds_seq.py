@@ -9,11 +9,12 @@ it. Actions jobs serialise through the `seas5` concurrency group (seas5.yml, sea
      every client of the key, so it also catches a job started by hand);
   2. outside Actions only: no workflow of the `seas5` concurrency group may be queued, waiting or in progress (gh CLI).
 
-The checks run before a request is submitted and every POLL seconds while it is in flight; if either trips while our
-request is still queued or running, the request is deleted on the CDS and resubmitted once the key is idle again, so an
-overlap lasts at most one poll interval. Retrieval is submit → poll → download, never a blocking retrieve(). Before
-submitting, a job of the key that already holds the request (finished, running or queued; e.g. one a run left behind
-when it hit its time limit while the job waited in the CDS queue) is adopted instead: adopt().
+Both checks run before a request is submitted; the second repeats every POLL seconds while the request is in flight,
+and if it trips the request is deleted on the CDS and resubmitted once the key is idle again, so an overlap lasts at
+most one poll interval. Retrieval is submit → poll → download, never a blocking retrieve(). Before submitting, a job
+of the key that already holds the request (finished, running or queued; e.g. one a run left behind when it hit its
+time limit while the job waited in the CDS queue) is adopted instead: adopt(). A job that was lost, failed or would
+not download is not adopted again.
 
     from cds_seq import retrieve
     ok = retrieve("seasonal-original-pressure-levels", request, Path("out.grib"), "label")
@@ -122,15 +123,15 @@ def group_busy(strict: bool = True) -> list[str]:
     return busy
 
 
-def key_busy(client, mine: str | None = None) -> list[str]:
-    """Other jobs of this key that are queued or running."""
+def key_busy(client) -> list[str]:
+    """Jobs of this key that are queued or running."""
     out = []
     try:
         for st in ("accepted", "running"):
             jobs = client.get_jobs(status=st, limit=20)
             for j in jobs.json.get("jobs", []):
                 jid = j.get("jobID") or j.get("job_id") or j.get("id")
-                if jid and jid != mine:
+                if jid:
                     out.append(f"CDS job {jid} {st} ({j.get('processID', '?')})")
     except Exception as e:  # noqa: BLE001
         out.append(f"CDS jobs list failed ({str(e)[:80]})")
@@ -206,9 +207,10 @@ def _covers(have: dict, want: dict) -> bool:
     return True
 
 
-def adopt(client, dataset: str, req: dict):
+def adopt(client, dataset: str, req: dict, skip: set | frozenset = frozenset()):
     """A job of this key that already holds the request - finished, running or queued, e.g. left by a run that hit its
-    time limit while the job waited in the CDS queue: its Remote, so it is downloaded or awaited instead of resubmitted."""
+    time limit while the job waited in the CDS queue: its Remote, so it is downloaded or awaited instead of resubmitted.
+    skip: job ids already tried."""
     for st in ("successful", "running", "accepted"):
         try:
             jobs = client.get_jobs(status=st, limit=50).json.get("jobs", [])
@@ -216,10 +218,10 @@ def adopt(client, dataset: str, req: dict):
             print(f"  CDS jobs list failed ({str(e)[:80]})", flush=True)
             return None
         for j in jobs:
-            if j.get("processID") != dataset:
+            if j.get("processID") != dataset or j.get("jobID") in skip:
                 continue
-            remote = client.get_remote(j["jobID"])
             with contextlib.suppress(Exception):  # noqa: BLE001
+                remote = client.get_remote(j["jobID"])
                 if _covers(remote.request, req):
                     return remote
     return None
@@ -233,9 +235,10 @@ def retrieve(dataset: str, req: dict, dest: Path, label: str, tries: int = 4, ma
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_suffix(dest.suffix + f".part{os.getpid()}")
     attempt = 0
+    tried = set()  # jobs that failed here: a retry submits anew instead of adopting one of them
     while attempt < tries:
         t0 = time.time()
-        remote = adopt(client, dataset, req)
+        remote = adopt(client, dataset, req, tried)
         if remote is not None:
             print(
                 f"  {label}: adopting the key's job {remote.request_id} ({remote.status}), which holds this request",
@@ -257,6 +260,7 @@ def retrieve(dataset: str, req: dict, dest: Path, label: str, tries: int = 4, ma
                 continue
             print(f"  {label}: submitted {remote.request_id}", flush=True)
         rid = remote.request_id
+        tried.add(rid)
         yielded = False
         failures = 0  # consecutive status checks that raised
         while True:

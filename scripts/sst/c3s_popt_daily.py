@@ -51,6 +51,7 @@ OUT = SITE / "assets" / "sst" / "data" / "c3s_popt_daily.json"
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 QS = [1, 5, 10, 25, 50, 75, 90, 95, 99]
 NMONTH = 6
+MIN_SYSTEMS = 4  # below this a multi-model row is effectively one or two models (as the tercile maps)
 
 
 def to_unit(v, unit):
@@ -226,7 +227,8 @@ def main() -> int:
         "models": [],
         "note": (
             "member-DAYS pooled per month: every member, every day, population-weighted; the multi-model "
-            "percentiles are the equal-weight mean of each system's. Raw spread, not calibrated probabilities: "
+            f"percentiles are the equal-weight mean of each system's, shown once {MIN_SYSTEMS} systems are in. "
+            "Raw spread, not calibrated probabilities: "
             "days within a member are correlated, so the effective sample is far smaller than the member-day "
             "count. Anomalies use each system's monthly hindcast mean at that lead; the daily hindcast that would "
             "calibrate the tails has not been pulled."
@@ -242,25 +244,27 @@ def main() -> int:
             hc = hindcast_monthly(centre, system, region, issue, NMONTH)
             cols, labels = [], []
             for k in range(1, NMONTH + 1):
+                # a system's columns are its months 1..n with no gap, so column j is the same calendar month in
+                # every system: the first month that is missing or short ends its run
                 vals, days = daily_for(centre, system, region, issue, k)
                 if vals is None or not len(days):
-                    continue
+                    break
                 mm = (mo - 1 + k - 1) % 12 + 1
                 yy = y + (mo - 1 + k - 1) // 12
                 want = np.array([str(d)[:7] == f"{yy}-{mm:02d}" for d in days])
                 if want.sum() < 20:  # not a month's worth
-                    continue
+                    break
                 x = vals[:, want]
                 x = x[np.isfinite(x).all(axis=1)]
                 if not x.size:
-                    continue
+                    break
                 ref = (hc or {}).get(f"m{k}")
                 cols.append((x, ref))
                 labels.append(f"{MONTHS[mm - 1]} {yy}")
             if not cols:
                 continue
             mid = f"{centre}_{system}"
-            if months is None:
+            if months is None or len(labels) > len(months):
                 months = labels
             per_model[mid] = {
                 "raw": {f"p{q}": [round(float(to_unit(np.percentile(x, q), unit)), 2) for x, _ in cols] for q in QS},
@@ -287,41 +291,42 @@ def main() -> int:
             )
         if not per_model:
             continue
-        # multi-model: every system weighted equally, whatever its member count
-        nmon = min(len(c) for _, c in pool)
-        mmm = {"raw": {}, "anom": {}, "mean_raw": [], "member_days": [], "members": 0}
-        for q in QS:
-            mmm["raw"][f"p{q}"] = [
-                round(float(np.mean([to_unit(np.percentile(c[j][0], q), unit) for _, c in pool])), 2)
-                for j in range(nmon)
+        # multi-model: every system weighted equally, whatever its member count; over the months they all have
+        if len(pool) >= MIN_SYSTEMS:
+            nmon = min(len(c) for _, c in pool)
+            mmm = {"raw": {}, "anom": {}, "mean_raw": [], "member_days": [], "members": 0}
+            for q in QS:
+                mmm["raw"][f"p{q}"] = [
+                    round(float(np.mean([to_unit(np.percentile(c[j][0], q), unit) for _, c in pool])), 2)
+                    for j in range(nmon)
+                ]
+                mmm["anom"][f"p{q}"] = [
+                    round(
+                        float(
+                            np.mean(
+                                [
+                                    (np.percentile(c[j][0], q) - c[j][1]) * (9 / 5 if unit == "F" else 1.0)
+                                    for _, c in pool
+                                    if c[j][1] is not None
+                                ]
+                            )
+                        ),
+                        2,
+                    )
+                    if any(c[j][1] is not None for _, c in pool)
+                    else None
+                    for j in range(nmon)
+                ]
+            mmm["mean_raw"] = [
+                round(float(np.mean([to_unit(c[j][0].mean(), unit) for _, c in pool])), 2) for j in range(nmon)
             ]
-            mmm["anom"][f"p{q}"] = [
-                round(
-                    float(
-                        np.mean(
-                            [
-                                (np.percentile(c[j][0], q) - c[j][1]) * (9 / 5 if unit == "F" else 1.0)
-                                for _, c in pool
-                                if c[j][1] is not None
-                            ]
-                        )
-                    ),
-                    2,
-                )
-                if any(c[j][1] is not None for _, c in pool)
-                else None
-                for j in range(nmon)
-            ]
-        mmm["mean_raw"] = [
-            round(float(np.mean([to_unit(c[j][0].mean(), unit) for _, c in pool])), 2) for j in range(nmon)
-        ]
-        mmm["member_days"] = [int(sum(c[j][0].size for _, c in pool)) for j in range(nmon)]
-        mmm["members"] = int(sum(c[0][0].shape[0] for _, c in pool))
-        per_model["mmm"] = mmm
+            mmm["member_days"] = [int(sum(c[j][0].size for _, c in pool)) for j in range(nmon)]
+            mmm["members"] = int(sum(c[0][0].shape[0] for _, c in pool))
+            per_model["mmm"] = mmm
         doc["regions"][region] = {
             "label": label,
             "unit": "°F" if unit == "F" else "°C",
-            "months": months[:nmon],
+            "months": months,
             "values": per_model,
         }
         try:
@@ -334,7 +339,8 @@ def main() -> int:
             print(f"  {region} observed: {obs['months'][0]} → {obs['months'][-1]}", flush=True)
     if not doc["regions"]:
         raise SystemExit("no 6-hourly chunks on disk yet — run c3s_sixh.py")
-    doc["models"] = [{"id": "mmm", "label": "Multi-model", "color": "#111111"}, *seen]
+    pooled = any("mmm" in r["values"] for r in doc["regions"].values())
+    doc["models"] = [*([{"id": "mmm", "label": "Multi-model", "color": "#111111"}] if pooled else []), *seen]
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(doc, separators=(",", ":")))
     print(f"wrote {OUT.name}: {len(doc['regions'])} region(s), {len(doc['models'])} model(s)")

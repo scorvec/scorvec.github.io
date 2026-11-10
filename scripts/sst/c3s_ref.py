@@ -276,8 +276,8 @@ def derive_cpc_clim() -> None:
 
 
 # ── OISST monthly box means (the plume figure's observed relative index) ─────
-def _box_means(sst, months_sel=None):
-    """{'n34': [...], 'trop': [...]} cos-weighted box means, as c3s_nino34.observed_relative."""
+def _box_means(sst):
+    """(Nino-3.4, 20S-20N) cos-weighted box means, as c3s_nino34.observed_relative."""
 
     def box(la0, la1, lo0, lo1):
         sub = sst.sel(lat=slice(la0, la1), lon=slice(lo0, lo1))
