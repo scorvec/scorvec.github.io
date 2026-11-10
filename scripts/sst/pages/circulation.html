@@ -8,7 +8,7 @@
 <main>
   <div class="page-header">
     <h1>Global circulation and jets</h1>
-    <p class="sub">The jets, Rossby waves, tropical overturning, cyclones and angular momentum, from today&rsquo;s analysis to two weeks ahead.</p>
+    <p class="sub">The jets, Rossby waves, tropical overturning<!-- season:tc -->, cyclones<!-- /season:tc --> and angular momentum, from today&rsquo;s analysis to two weeks ahead.</p>
   </div>
   <div class="ss-layout">
     <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
@@ -25,7 +25,7 @@
   </div>
   <section class="page-about" id="page-about">
     <h2>About this page</h2>
-    <p>How the atmosphere moves air, heat and momentum around the globe, from today&rsquo;s analysis to two weeks ahead: the mid-latitude jets and Rossby waves, the tropical overturning (Walker and Hadley cells, velocity potential, rain-forced circulation), tropical cyclones, and angular momentum with the torques that change it. The forecasts are ECMWF&rsquo;s two ensembles (AIFS-ENS and IFS-ENS), the AIFS single run, the IFS control (ECMWF&rsquo;s unperturbed 9&nbsp;km run, called HRES until May 2026) and Canada&rsquo;s GDPS, most of them refreshed with each 00 and 12&nbsp;UTC cycle (the rain forecast also uses NOAA&rsquo;s GEFS and Canada&rsquo;s GEPS ensembles); most anomalies are against ERA5 1991&ndash;2020. The ocean side of El Ni&ntilde;o is on the <a href="/enso.html">El Ni&ntilde;o monitor</a>, the polar vortex on the <a href="/stratosphere.html">stratosphere page</a>. One figure at a time, picked from the menu.</p>
+    <p>How the atmosphere moves air, heat and momentum around the globe, from today&rsquo;s analysis to two weeks ahead: the mid-latitude jets and Rossby waves, the tropical overturning (Walker and Hadley cells, velocity potential, rain-forced circulation),<!-- season:tc --> tropical cyclones,<!-- /season:tc --> and angular momentum with the torques that change it. The forecasts are ECMWF&rsquo;s two ensembles (AIFS-ENS and IFS-ENS), the AIFS single run, the IFS control (ECMWF&rsquo;s unperturbed 9&nbsp;km run, called HRES until May 2026) and Canada&rsquo;s GDPS, most of them refreshed with each 00 and 12&nbsp;UTC cycle (the rain forecast also uses NOAA&rsquo;s GEFS and Canada&rsquo;s GEPS ensembles); most anomalies are against ERA5 1991&ndash;2020. The ocean side of El Ni&ntilde;o is on the <a href="/enso.html">El Ni&ntilde;o monitor</a>, the polar vortex on the <a href="/stratosphere.html">stratosphere page</a>. One figure at a time, picked from the menu.</p>
   </section>
   <div class="lightbox" id="lightbox"><img alt=""></div>
   <div class="dom-holder" id="dom-holder">
@@ -94,6 +94,7 @@
 <p>The upper-level flow as PV thinkers read it. Ertel potential vorticity is computed from the temperature and wind of the <b>IFS control</b> (ECMWF&rsquo;s unperturbed 9&nbsp;km run, called HRES until May 2026) on nine levels from 700 to 100&nbsp;hPa &mdash; a single run, because PV does not survive ensemble averaging: a mean of fifty folds is a smear. The <b>dynamic tropopause</b> is the 2-PVU surface, found by searching upward from 700&nbsp;hPa; its potential temperature is shaded (low &theta;, blue, is stratospheric or polar air reaching down; high &theta;, red, is a tropical tropopause), its pressure contoured, and the wind on it drawn. Troughs, cut-off lows and ridges are the &theta; pattern itself; a tight gradient is the jet; a tongue of low &theta; wrapping up is a Rossby wave breaking. The other two loops give PV on the 330 and 350&nbsp;K isentropes with the 2-PVU line &mdash; 330&nbsp;K sits near the winter jet, 350&nbsp;K near the summer and subtropical one. 6-hourly to day 10, on a hemispheric view and five regional ones (North Pacific, North America, North Atlantic &amp; Europe, East Asia and South America; in the Southern Hemisphere the dynamic tropopause is the &minus;2-PVU surface and the isentropic maps show &minus;PV). &theta; runs purple and blue (cold, low tropopause) through green and yellow to red (warm, high tropopause) in 5&nbsp;K steps; PV is yellow to orange below 2&nbsp;PVU (tropospheric air) and blue to purple above it (stratospheric air), with the 2-PVU line in black. Where PV is still below 2&nbsp;PVU at 100&nbsp;hPa (the deep tropics) the 2-PVU surface lies above the model levels, and the maps show the 100&nbsp;hPa values there.</p>
 <p class="chart-sources">ECMWF IFS control t/u/v on 700&ndash;100 hPa (open data, CC&nbsp;BY&nbsp;4.0, Google Cloud mirror), 0.25&deg; &middot; Ertel PV on pressure levels, 2-PVU surface by linear interpolation in PV, isentropic PV by interpolation in &theta; &middot; updated each 00/12Z cycle</p>
 </template>
+<!-- season:tc -->
 <template id="about-tcboard">
 <p><b>What it shows.</b> Every tropical storm in the Northern Hemisphere that ECMWF's two ensembles carry, from ECMWF's own tropical-cyclone tracker in the open data: the 50 perturbed members of the AI ensemble (AIFS-ENS) and the 50 of the physics ensemble (IFS-ENS), from each run started at 00 or 12&nbsp;UTC. A storm is listed when it was observed at the start, or when at least 40&nbsp;% of the members of either ensemble take a developing system to tropical-storm strength (17&nbsp;m/s). The board describes the storms: where they go, when they turn, when they lose their tropical character and how deep they get afterwards. It says nothing about what a storm does to the weather downstream.</p>
 <p><b>Recurvature.</b> A storm recurves when its eastward motion over 24 hours turns from westward or northward (0&nbsp;m/s or less) to at least 2&nbsp;m/s eastward and stays there for a day. Each member's track gets the storm's observed positions of the previous 48 hours in front, so a turn already under way at the start counts. Every member then has one of four outcomes: <i>recurving now</i> (its turn within 12 hours of the start, or already moving east north of 20&deg;N), <i>recurves later</i>, by day&nbsp;10 (dated), <i>no recurvature</i> by day&nbsp;10 (its track lasts to day&nbsp;10, or ends while still moving west), or <i>unresolved</i> (the track ends first, neither moving west nor turned). The chance of recurving is the share of all 100 members, with a 90&nbsp;% interval for a share of that many members (Wilson). <b>Watch:</b> a North Pacific or North Atlantic storm whose chance has a lower 90&nbsp;% bound of at least 50&nbsp;%, with the median member turning by day&nbsp;10. When one ensemble's tracker file is missing, the other is used alone and the board says so.</p>
@@ -166,6 +167,7 @@
 <p class="chart-sources">Data: ECMWF AIFS-ENS, AIFS single and IFS control open data (CC BY 4.0, Google Cloud mirror) &middot; NOAA GFS and HRRR (AWS open data) &middot; NOAA OISST v2.1 (NCEI) &middot; NOAA AOML/HRD real-time TDR centres &middot; NHC ATCF best track, vortex messages and SHIPS (provided as-is) &middot; updated every 6 hours while a storm is active.<br>
 References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, Knaff &amp; Marks 2006, <i>MWR</i> 134, 3190&ndash;3208 &middot; Corbosiero &amp; Molinari 2002, <i>MWR</i> 130, 2110&ndash;2123; 2003, <i>JAS</i> 60, 366&ndash;376 &middot; Davis, Snyder &amp; Didlake 2008, <i>MWR</i> 136, 2461&ndash;2477 &middot; Finocchio, Majumdar, Nolan &amp; Iskandarani 2016, <i>MWR</i> 144, 2155&ndash;2175 &middot; Finocchio &amp; Majumdar 2017, <i>MWR</i> 145, 361&ndash;378 &middot; Fischer, Reasor, Rogers &amp; Gamache 2022, <i>MWR</i> 150, 2255&ndash;2278 &middot; Fischer, Rogers, Reasor &amp; Dunion 2024, <i>MWR</i> 152, 203&ndash;225 &middot; Galarneau &amp; Davis 2013, <i>MWR</i> 141, 405&ndash;430 &middot; Gilford 2021, <i>GMD</i> 14, 2351&ndash;2369 &middot; Jones 1995, <i>QJRMS</i> 121, 821&ndash;851 &middot; Knaff, Sampson &amp; DeMaria 2005, <i>WAF</i> 20, 688&ndash;699 &middot; Reasor, Montgomery &amp; Grasso 2004, <i>JAS</i> 61, 3&ndash;22 &middot; Rios-Berrios &amp; Torn 2017, <i>MWR</i> 145, 1717&ndash;1738 &middot; Rios-Berrios, Davis &amp; Torn 2018, <i>JAS</i> 75, 4149&ndash;4173 &middot; Rios-Berrios et al. 2024, <i>JAS</i> 81, 713&ndash;741 &middot; Tang &amp; Emanuel 2012, <i>BAMS</i> 93, 1901&ndash;1912 &middot; Ueno 2007, <i>JMSJ</i> 85, 115&ndash;136 &middot; Velden &amp; Sears 2014, <i>WAF</i> 29, 1169&ndash;1180.</p>
 </template>
+<!-- /season:tc -->
 <template id="about-aam">
 <p><a href="/topics/atmospheric-angular-momentum.html">The explainer</a>: what atmospheric angular momentum measures, the equations and how to read the chart.</p>
 <p>Relative AAM is the angular momentum carried by the winds: $M_r=(a^3/g)\iiint u\cos^2\!\phi\,d\lambda\,d\phi\,dp$, the atmosphere's total westerly momentum about the rotation axis. It is dominated by the upper-tropospheric subtropical jets: the $\cos^2\phi$ weight peaks at the equator, but the deep tropics carry weak or easterly mass-weighted flow, so they contribute little to the total. The <i>variability</i> is carried mostly by zonal-wind changes aloft in the tropics and subtropics, where the weight is large; the shallow trade-wind layer holds little mass, so the trades act through the friction torque rather than as a store of momentum. It is shown here for the globe and each hemisphere from the winds of the 50 IFS-ENS members on 14 pressure levels (10&ndash;1000&nbsp;hPa &mdash; effectively the full column; the same integral on ERA5's 37 levels is the reference check). IFS-ENS is ECMWF's physics ensemble: its change of angular momentum closes against its own torques, which AIFS-ENS&rsquo;s does not (the torque budget below). The top panel is this year's observed AAM (black: ERA5 at 12&nbsp;UTC every third day; ERA5 is published several days behind real time, so the line ends one to two weeks before the forecast starts) and the 15-day forecast (red; the shaded band is the members&rsquo; 10&ndash;90% range, the raw ensemble spread, not a calibrated interval) on the climatological annual cycle; the hemispheres are strongly out of phase (each peaks in its own winter). The bottom panel is the anomaly (departure from the 1991&ndash;2020 normal), which removes the seasonal cycle; its right-hand axis restates the anomaly as a percentage of the normal averaged over the forecast days, so it reads the forecast, not the months before it. El&nbsp;Ni&ntilde;o strengthens the subtropical jets and weakens the trades, so the atmosphere holds more westerly momentum; conservation then requires the solid Earth to slow, so AAM ties directly to the measured length of day. The <span style="color:#2e7d32"><b>green trace</b></span> is GFZ's ESMGFZ wind-term series (computed from ECMWF's operational analyses for the Earth-rotation community, its published anomaly rescaled onto absolute momentum) &mdash; an external check on the pipeline's day-to-day variability.</p>
@@ -293,6 +295,7 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
       ]
     }
     </script>
+<!-- season:tc -->
 <!-- TC shear and environment (scripts/tcshear/, tcshear.yml). Mounted by the tc product's shear part; state in the hash
      #tc/shear/<SID>/<fc|val>/<hour>/<measure>. Data: assets/sst/anim/tcshear_manifest.json -> per-storm JSON and 330 K PV maps on
      the frames branch (sha-pinned), assets/sst/data/tcshear_validation.json. -->
@@ -429,6 +432,7 @@ References: Bister &amp; Emanuel 2002, <i>JGR</i> 107(D24), 4801 &middot; Chen, 
 </div>
 </div>
 <script src="/assets/tc/board.js?v=__CACHE__" defer></script>
+<!-- /season:tc -->
 <!-- Drop a particle (assets/hbranch/drop.js, data from hadley_branch_maps.drop in hbranch.yml). Mounted by the hadley
      product's turnover/drop view. Data: assets/sst/anim/hbranch_drop_manifest.json -> int16 paths on the frames branch. -->
 <div id="hbd-view" class="hbd" hidden>
@@ -471,12 +475,17 @@ var JETBR_SHOW = true;  // the jet-branch view of the North Pacific jet card; it
 window.STAGE = {
   aliases: {hbranch: "hadley/branches",     // the outflow and descent views joined the Hadley cells product
             natemp: "/ens-anomalies.html#ifs/t2m/anom/P1",   // the ensemble anomaly maps are the world ensemble viewer
+            /* season:tc */
             // the tropical-cyclone products became parts of one (a deep link's own state, #tcshear/<storm>/..., follows)
-            tcshear: "tc/shear", tcjet: "tc/jet", tcens: "tc/storms", tcphase: "tc/phase"},
+            tcshear: "tc/shear", tcjet: "tc/jet", tcens: "tc/storms", tcphase: "tc/phase",
+            /* /season:tc */
+  },
   groups: [
   {label: "Tropical Pacific", ico: "\u{1F30A}", items: [["mslp","MSLP and 10 m wind","ensembles and single runs, to day 15"],["gdps_ir","GDPS simulated IR","forecast satellite loop"]]},
   {label: "Mid-latitude weather", ico: "\u{1F5FA}", items: [["dt","Dynamic tropopause","θ on 2 PVU, hemisphere and five regions"],["pacjet","North Pacific jet","250 hPa maps, jet axis, phases"],["waf","Wave activity flux","Rossby packets, 250 hPa"],["telecon15","Teleconnections, days 1–15","AO, NAO, PNA, EPO and more, four ensembles"]]},
+  /* season:tc */
   {label: "Tropical cyclones", ico: "\u{1F300}", items: [["tc","Tropical cyclones","storms and odds, maps, phase space, shear, track record"]]},
+  /* /season:tc */
   {label: "Tropical circulation", ico: "\u{1F327}", items: [["walker","Walker circulation","analysis, forecasts, by basin"],["hadley","Hadley cells","the cells, outflow and descent, turnover, sea-level pressure"],["vpot","Velocity potential","200 hPa, irrotational wind"],["gdps150","GDPS 150 hPa","outflow layer, wind and height"],["gillrain","Rain-forced circulation","Gill model vs the observed χ200"],["rainfc","Rain forecast, weeks 1–2","bias-adjusted, four ensembles and their blend"]]},
   {label: "Jets & angular momentum", ico: "\u2696", items: [["jets","Subtropical jets","strength and position"],["aam","Atmospheric angular momentum","series, trend, phase, by latitude"],["torque","Surface torques","friction and mountain"]]}
 ],
@@ -513,6 +522,7 @@ window.STAGE = {
           b: {label: "Region", items: [["nh","Northern Hemisphere"],["npac","North Pacific"],["na","North America"],["atl","North Atlantic & Europe"],["asia","East Asia"],["sam","South America"]]},
           frame: function (a, b) { return (function (r) { return "sst_anim.html?embed=1&manifest=dt_manifest.json&region=" + r + "&regions=" + r; })(a + (b && b !== "nh" ? "_" + b : "")); }, about: "about-dt",
           cap: function (a) { return a === "dt" ? "Potential temperature on the 2-PVU surface, IFS control, 6-hourly to day 10: low θ is polar or stratospheric air reaching down." : "Ertel PV on the " + (a === "dt_pv330" ? "330" : "350") + " K isentrope, IFS control."; }},
+  /* season:tc */
   // One product for every tropical-cyclone view. storms / jet / phase mount the storm board (assets/tc/board.js; state
   // after #tc/<part>/: storm and view), shear mounts the shear dashboard (assets/tcshear/tcshear.js; state after
   // #tc/shear/), record is the track-record figure. The parts that mount a block keep their own state in the hash.
@@ -526,6 +536,7 @@ window.STAGE = {
                                       phase: "Each storm's path through Hart's cyclone phase space in the IFS control: warm or cold core, symmetric or frontal, and when it completes extratropical transition.",
                                       shear: "Pick a storm: the vortex-removed wind profile and its shears, the vortex tilt against the shear and the radar, the ventilation index and the 330 K trough behind the shear, along every AIFS-ENS member and four deterministic models, to day 5.",
                                       record: "How ECMWF's tracker has done against best tracks since August 2024: track errors by lead, and how reliable the board's chances of recurving and of becoming post-tropical have been."}[a] || ""; }},
+  /* /season:tc */
   aam: {label: "Atmospheric angular momentum", a: {label: "View", items: [["series","Series and forecast"],["trend","Run-to-run trend"],["phase","Phase"],["zonal","By latitude (loop)"]]},
           frame: function (a) { return a === "zonal" ? "sst_anim.html?embed=1&manifest=aam_zonal_manifest.json&region=aam_zonal" : null; },
           img: function (a) { return "assets/sst/aam" + (a === "trend" ? "_trend" : a === "phase" ? "_phase" : "") + ".webp?v=__CACHE__"; },

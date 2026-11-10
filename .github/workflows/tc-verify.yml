@@ -8,8 +8,8 @@ name: TC track record (ECMWF tracker vs best tracks)
 # last two (the newest cycles); scripts/mjo/data/reference/tc_verify.json and assets/sst/tc_verify.webp go to main and
 # the board quotes the JSON's summaries. Weekly: the dispatcher's slot and the cron below as its backstop.
 on:
-  schedule:
-    - cron: '40 5 * * 1'
+  # Off season: no schedule until the next hurricane season (dispatch only). The schedule was
+  # '40 5 * * 1'.
   workflow_dispatch:
     inputs:
       refresh:

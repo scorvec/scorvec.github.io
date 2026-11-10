@@ -22,10 +22,8 @@ name: TC shear and environment
 #               model vortex tilt vs the NOAA TDR tilt for every flight with HRD centres (Melissa 2025, this season).
 # mode=hindcast a full product run for one past cycle (date/time/storm) into assets/sst/anim/tcshear_hc.
 on:
-  schedule:
-    - cron: '50 1,7,13,19 * * *'
-    - cron: '40 2,14 * * *'
-    - cron: '50 9,21 * * *'
+  # Off season: no schedule until the next hurricane season (dispatch only). The schedule was
+  # '50 1,7,13,19 * * *', '40 2,14 * * *' and '50 9,21 * * *'.
   workflow_dispatch:
     inputs:
       mode:

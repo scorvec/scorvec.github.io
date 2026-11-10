@@ -405,6 +405,13 @@ PRODUCTS = [
     ),
 ]
 
+# Seasonal products left out of the menus, the homepage and the catalogue for now; their pages stay up.
+OFF_SEASON = {"/circulation.html#tc", "/recon.html"}  # tropical cyclones, until the next hurricane season
+PRODUCTS = [
+    (title, blurb, [(sub, [item for item in items if item[0] not in OFF_SEASON]) for sub, items in columns])
+    for title, blurb, columns in PRODUCTS
+]
+
 # The person, kept apart from the products: one "About" item at the far right of the header,
 # behind a divider, and its own footer group. External profiles open in the same tab like every other link.
 PROFILES = [
