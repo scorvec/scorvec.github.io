@@ -172,9 +172,10 @@ PV_UP = (250, 275, 300)
 PV_LO = (700, 750, 800, 850)
 
 
-def ertel_pv_rot(T, U, V, levs_hpa, rlat_deg, lat_deg, dlam_deg, dphi_deg):
+def ertel_pv_rot(T, U, V, levs_hpa, rlat_deg, lat_deg, dlam_deg, dphi_deg, absv=False):
     """Ertel PV (PVU) on pressure levels of a (rotated) regular lat-lon grid: winds relative to the grid, rlat the grid's own
-    latitude (rows), lat the true latitude (for f). dlam/dphi: grid spacing in degrees."""
+    latitude (rows), lat the true latitude (for f). dlam/dphi: grid spacing in degrees.
+    -> PV (PVU), theta (K), and with absv the absolute vorticity (s-1) as ertel_pv returns it."""
     a = 6.371e6
     p = np.asarray(levs_hpa, np.float64) * 100.0
     th = T * (1e5 / p[:, None, None]) ** KAPPA
@@ -194,7 +195,7 @@ def ertel_pv_rot(T, U, V, levs_hpa, rlat_deg, lat_deg, dlam_deg, dphi_deg):
         * ((zeta + f) * theta_p(th, p) - np.gradient(V, p, axis=0) * ddx(th) + np.gradient(U, p, axis=0) * ddy(th))
         * 1e6
     )
-    return _121(pv), th
+    return (_121(pv), th, zeta + f) if absv else (_121(pv), th)
 
 
 def layer_mean(pv, levs, layer):

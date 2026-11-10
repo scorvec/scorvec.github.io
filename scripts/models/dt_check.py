@@ -173,6 +173,7 @@ def main():
     F = M.SUB["hrrr"]
     M._CTX.update(
         sub=F,
+        half=2,
         grid_rel=grel,
         alpha=M.alpha_of(lat, lon) if grel else None,
         lat_sub=lat[::F, ::F].astype(np.float64),
@@ -182,7 +183,7 @@ def main():
     )
     blobs = M.fetch_idx_fields("hrrr", M.prs_url("hrrr", date, cyc, lead), M.ua_want())
     blobs["psfc"] = z["psfc"]
-    o = M.ua_lcc(blobs)
+    o = M.ua_ncep(blobs, M._CTX)
     thh = o["dt"][1]
     plat, plon = lat[::F, ::F], lon[::F, ::F]
     gref = gfs_interp(th_upp, glat, glon, plat, plon)
