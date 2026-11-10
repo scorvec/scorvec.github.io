@@ -6,9 +6,9 @@ Fields: simulated IR satellite, cloud ceiling, visibility, temperature, dewpoint
 convective, upper-air and snow-band fields listed in FIELDS.
 
 No figures are rendered here. Each field and forecast hour becomes ONE 8-bit lossless WebP on the model's NATIVE grid
-(HRRR/RRFS 3 km Lambert 1799 x 1059, RDPS 10 km rotated lat-lon, cropped to North America), and the page draws them
-with WebGL: the colour table, zoom, pan, hover values and the vector boundaries are all client-side, so switching
-field or hour costs one small file and zooming costs nothing.
+(HRRR/RRFS 3 km Lambert 1799 x 1059, RDPS 10 km rotated lat-lon, cropped to North America; RRFS also on its 13 km
+North American grid, see Sources), and the page draws them with WebGL: the colour table, zoom, pan, hover values and
+the vector boundaries are all client-side, so switching field or hour costs one small file and zooming costs nothing.
 
 Encoding (codes 0-254 data, 255 = missing / "none"); the page holds the same table (models.html, FIELDS):
   ir      K,  linear, 170 K + 0.625 K * code
@@ -25,7 +25,8 @@ Encoding (codes 0-254 data, 255 = missing / "none"); the page holds the same tab
   sw      W m-2, linear 5 W m-2 steps
   refl    HRRR/RRFS: R = dBZ / 0.5 at 1 km AGL (0 = below 5 dBZ), G = precipitation type (see ptype_flags);
           RDPS: R = precipitation rate, log 0.1-100 mm/h, G = type (RDPS_PTYPE); manifest enc refl2 / rate2
-  apcp, asnow, afzra, aip   accumulation since the run started, 16-bit (R high byte, G low byte) in 0.01 in (snow 0.1 in)
+  apcp, asnow, afzra, aip   accumulation since the run started, 16-bit (R high byte, G low byte) in 0.01 in (snow 0.1 in);
+          65535 = missing (outside the model)
   mslp    hPa, 940 + 0.5 * code in R, G = 1 where the surface pressure is below 850 hPa (terrain above ~1,500 m, where
           the sea-level reduction makes fake highs and lows - the page places no H/L there), on every SUB-th grid point
 Every file is written with its image row 0 at the NORTH (grid row j = ny - 1 - image row).
@@ -36,7 +37,13 @@ Sources (NOAA from the AWS open-data buckets byte-ranged via the .idx; ECCC from
          the limb darkening: SBT124 - SBT114 is +11 K at 70W and -1.4 K at 120W). Ceiling = HGT at "cloud ceiling"
          (geopotential metres ABOVE SEA LEVEL - it never falls below the terrain) minus HGT at the surface.
          Smoke = COLMD (column mass density of smoke). DSWRF is instantaneous.
-  rrfs   noaa-rrfs-ops-pds  rrfs.YYYYMMDD/HH/rrfs.tHHz.2dfld.3km.fFFF.conus.grib2 (the HRRR grid, identically).
+  rrfs   noaa-rrfs-ops-pds  rrfs.YYYYMMDD/HH/rrfs.tHHz.2dfld.3km.fFFF.conus.grib2 (the HRRR grid, identically) AND
+         rrfs.tHHz.{2dfld,prslev}.13km.fFFF.na.grib2. RRFS is one 3 km North American run, but NCEP writes its whole
+         domain only at 13 km (rotated lat-lon, 1127 x 683, grid centre 55N 113W, out to the pole; a bitmap marks
+         the corners outside the model). So every surface field is stored twice: <fff>.webp on the 3 km CONUS grid
+         and <fff>_lo.webp on the 13 km North American grid (manifest "lo": "na"; the page draws the 3 km file
+         once the view is inside it), and the fields on coarser grids (MSLP, boundary-layer height, upper air, PV,
+         snow bands) are computed from the 13 km files alone, so they cover the whole domain.
          00/06/12/18Z to f84, published hourly to f36 then 3-hourly (storage); the other hours only write
          sub-hourly 2-D files to f15-18 (not used).
          IR = SBTA1613 (GOES-16 ABI band 13, 10.3 um). Ceiling as HRRR. Smoke = COLMD of "particulate organic matter
@@ -100,11 +107,11 @@ FIELDS = {
     "sw": dict(enc="lin", off=0.0, step=5.0),
     "refl": dict(enc="refl2"),  # HRRR/RRFS: dBZ in R, precipitation type in G; RDPS: precipitation rate ("rate2")
     # mean-sea-level pressure, overlay only (isobars on the reflectivity map): 0.5 hPa from 940 hPa, stored
-    # on every SUB-th grid point (12 km HRRR/RRFS, 20 km RDPS) - smooth, and the isobars are smoothed further anyway
+    # on every SUB-th grid point (12 km HRRR, 26 km RRFS, 20 km RDPS) - smooth, and the isobars are smoothed further anyway
     "mslp": dict(enc="lin", off=940.0, step=0.5),
     # precipitation accumulated SINCE THE RUN STARTED (the page differences two hours for any window): 16-bit, R = high
-    # byte, G = low byte, in `unit` inches (liquid 0.01 in, to 655 in; snow 0.1 in). 0.001 in cost twice the bytes (the
-    # low byte wraps every 0.26 in and turns to noise) for a precision no QPF product quotes
+    # byte, G = low byte, in `unit` inches (liquid 0.01 in, to 655 in; snow 0.1 in), 65535 = missing. 0.001 in cost
+    # twice the bytes (the low byte wraps every 0.26 in and turns to noise) for a precision no QPF product quotes
     "apcp": dict(enc="acc16", unit=0.01),  # total precipitation, liquid equivalent
     "asnow": dict(enc="acc16", unit=0.1),  # snowfall (HRRR/RRFS: the model's ASNOW; RDPS: 10:1 from its snow water)
     "afzra": dict(enc="acc16", unit=0.01),  # freezing rain, liquid equivalent (model's own FRZR / FreezingRain-Accum)
@@ -144,7 +151,7 @@ FIELDS = {
     # 500 hPa wind for the barbs on the z500 map: a companion 2-channel frame (u, v earth-relative, as 250 hPa) on the
     # z500 grid - a 4th channel in z500 would be WebP alpha, which the canvas decode premultiplies (not bit-exact)
     "w500": dict(enc="lin2", off=-101.6, step=0.8),
-    # potential vorticity (upper.py), 12 km (RDPS 20 km), every 3 h.
+    # potential vorticity (upper.py), 12 km (RDPS 20 km, RRFS 26 km), every 3 h.
     # PV code = (PVU + 2) / 0.0625 (-2 .. +13.9 PVU; 255 = masked). pvu: 300-250 hPa layer mean (1 channel; barbs and heights
     # come from the ua250 frame); pvl: 850-700 hPa layer mean, G, B = 850 hPa wind (as 925), masked where the ground is above
     # 850 hPa; pv315..pv340: PV on the isentrope, G = its pressure, 100 + 2.5 hPa * code, masked outside 100-700 hPa;
@@ -155,8 +162,8 @@ FIELDS = {
     **{f"w{int(t)}": dict(enc="lin2", off=-101.6, step=0.8) for t in UPR.THETAS},
     # snow-band diagnostics: the SAME computation as the retired snowbands.html (scripts/snowband/snowband.py
     # smooth_diagnose / ingredients: Gaussian sigma 18 km on the native grid, evaluated on 12 km - the HRRR's "sub"
-    # grid - or the RDPS's own 10 km grid), every 3 h from +3 h, in season (SB_SEASON). 255 = missing / masked in every
-    # channel unless said otherwise.
+    # grid - or the RDPS's own 10 km grid, or the RRFS's 13 km North American grid), every 3 h from +3 h, in season
+    # (SB_SEASON). 255 = missing / masked in every channel unless said otherwise.
     #   sbfg   R = 700 hPa Petterssen frontogenesis, K per 100 km per 3 h, -20.125 + 0.25 * code (255: 700 hPa within 25 hPa
     #          of the ground); G = 700 hPa theta, 240.2 + 0.4 K * code; B = 700 hPa height, 2402.5 + 5 m * code (offsets half a
     #          step off round numbers: no code equals a contour level)
@@ -276,14 +283,22 @@ def ua_on(model):
     return UA_ON and model in UA_MODELS
 
 
-# the grid each upper-air field is stored on: HRRR/RRFS 925/250 hPa on the 6 km half-resolution grid, the dynamic tropopause
-# and 500 hPa (computed from fields smoothed to ~12 km) on the MSLP files' 12 km grid; RDPS native 10 km and 20 km
+# RRFS has two domains: "" = the 3 km CONUS files (grid "main") and "na" = the 13 km North American files (grid "na").
+# The LAST domain of a model carries what is not stored on the main grid: MSLP, boundary-layer height, upper air, PV
+# and the snow bands.
+DOMS = {"hrrr": ("",), "rrfs": ("", "na"), "rdps": ("",)}
+NA_INPUTS = ("mslp", "psfc", "hpbl")  # 2-D messages a two-domain model reads from its last domain only
+# MSLP, the dynamic tropopause, 500 hPa and PV are stored on every SUB-th point of that domain's grid, grid SUB_GRID
+SUB = {"hrrr": 4, "rrfs": 2, "rdps": 2}
+SUB_GRID = {"hrrr": "sub", "rrfs": "nasub", "rdps": "sub"}
+# the grid each upper-air field is stored on: HRRR 925/250 hPa on the 6 km half-resolution grid, the dynamic tropopause
+# and 500 hPa (computed from fields smoothed to ~12 km) on the MSLP files' 12 km grid; RDPS native 10 km and 20 km;
+# RRFS the 13 km North American grid and every 2nd point of it (26 km)
 UA_GRID = {
-    "hrrr": dict(ua925="lo", ua250="lo", dt="sub", z500="sub", w500="sub"),
-    "rrfs": dict(ua925="lo", ua250="lo", dt="sub", z500="sub", w500="sub"),
-    "rdps": dict(ua925="main", ua250="main", dt="sub", z500="sub", w500="sub"),
+    "hrrr": dict(ua925="lo", ua250="lo"),
+    "rrfs": dict(ua925="na", ua250="na"),
+    "rdps": dict(ua925="main", ua250="main"),
 }
-SUB = {"hrrr": 4, "rrfs": 4, "rdps": 2}
 # Smoke is seasonal (off from 1 October to 31 March): a run whose UTC date falls outside (start month, start day,
 # end month, end day) inclusive fetches, encodes and publishes no smoke for any model -
 # HRRR/RRFS COLMD, RDPS via RAQDPS-FireWork (and its separate grid fetch) - and points.json carries no smoke series. The
@@ -295,9 +310,10 @@ SMOKE_SEASON = (4, 1, 9, 30)
 # 30 April. MV_SB_SEASON="MM-DD:MM-DD" overrides; MV_SB=force computes them out of season (testing,
 # models.yml input "snowband"), MV_SB=off never.
 SB_MODELS = ("hrrr", "rrfs", "rdps")
-# the 12 km "sub" grid = snowband.py's evaluation grid; RDPS 10 km as is
-SB_GRID = {"hrrr": "sub", "rrfs": "sub", "rdps": "main"}
-SB_SRC = {"hrrr": "hrrr", "rrfs": "rrfs3", "rdps": "rdps"}  # snowband.py's name for each viewer grid (RRFS: 3 km CONUS)
+# the 12 km "sub" grid = snowband.py's evaluation grid; RDPS 10 km and the RRFS 13 km North American grid as they are
+SB_GRID = {"hrrr": "sub", "rrfs": "na", "rdps": "main"}
+# snowband.py's name for the grid the diagnostics start from
+SB_SRC = {"hrrr": "hrrr", "rrfs": "rrfs13", "rdps": "rdps"}
 
 
 def sb_season():
@@ -349,11 +365,12 @@ def smoke_on(cyc_dt):
 # 2nd point of the native grid (plain decimation, so every encoding - 16-bit accumulations, precipitation-type flags,
 # the 255 mask - keeps its meaning; grid j = 0, the southern row, is kept), listed as fields[f]["lo"] = "lo" with
 # grids["lo"]. The page uses them while a half-resolution cell is <= 1.5 device pixels.
-# 3 km models only: on the 10 km RDPS grid the page would never pick them. Measured on 2026100118 HRRR: lo/full bytes
-# 0.28-0.36 per field, +33 % on the cycle.
-LO = {"hrrr": 2, "rrfs": 2}
+# HRRR only: on the 10 km RDPS grid the page would never pick them, and the RRFS's <fff>_lo.webp is its 13 km North
+# American frame instead (fields[f]["lo"] = "na"; every main-grid field has one, LO_SKIP does not apply).
+# Measured on 2026100118 HRRR: lo/full bytes 0.28-0.36 per field, +33 % on the cycle.
+LO = {"hrrr": 2}
 CONV_MAX = ("uh25", "uh03", "uvv")  # hourly-max fields: no f00, and a run swath each
-HPBL_GRID = {"hrrr": "lo", "rrfs": "lo", "rdps": "sub"}
+HPBL_GRID = {"hrrr": "lo", "rrfs": "na", "rdps": "sub"}
 LO_SKIP = {
     *PV_FIELDS,
     *SB_FIELDS,
@@ -376,6 +393,50 @@ LO_SKIP = {
 def decimate(arr, f):
     """stored image (row 0 north) -> every f-th grid point, keeping grid row 0 (the last stored row)"""
     return np.ascontiguousarray(arr[::-1][::f, ::f][::-1])
+
+
+def grid_of(model, name):
+    """the manifest grid a field's <fff>.webp is stored on"""
+    if model == "rdps" and name == "smoke":
+        return "raq"
+    if name == "mslp":
+        return SUB_GRID[model]
+    if name in UA_FIELDS:
+        return UA_GRID[model].get(name, SUB_GRID[model])
+    if name == "hpbl":
+        return HPBL_GRID[model]
+    if name in SB_FIELDS:
+        return SB_GRID[model]
+    return "main"
+
+
+def as_lo(model, dom, name):
+    """Is this field, computed on the model's second domain, the <fff>_lo.webp companion of a main-grid field?"""
+    return bool(dom) and grid_of(model, name) == "main"
+
+
+def coarser(g, f):
+    """the grid description of every f-th point of grid g"""
+    g = dict(g)
+    if g["type"] == "lcc":
+        g.update(dx=g["dx"] * f, dy=g["dy"] * f)
+    else:
+        g.update(di=g["di"] * f, dj=g["dj"] * f, i0=g.get("i0", 0) / f, j0=g.get("j0", 0) / f)
+    g.update(nx=-(-g["nx"] // f), ny=-(-g["ny"] // f))
+    return g
+
+
+def grow(mask, n):
+    """a boolean mask widened by n cells"""
+    out = mask.copy()
+    for _ in range(n):
+        m = out.copy()
+        m[1:] |= out[:-1]
+        m[:-1] |= out[1:]
+        m[:, 1:] |= out[:, :-1]
+        m[:, :-1] |= out[:, 1:]
+        out = m
+    return out
 
 
 def q_lin(x, off, step):
@@ -439,7 +500,7 @@ def encode(name, x):
         c = np.where(np.isfinite(x), np.clip(np.rint(x), 0, 254), 255)
         return c.astype(np.uint8)[::-1], None
     if f["enc"] == "acc16":
-        v = np.clip(np.rint(np.nan_to_num(x, nan=0.0) / f["unit"]), 0, 65535).astype(np.uint16)
+        v = np.where(np.isfinite(x), np.clip(np.rint(x / f["unit"]), 0, 65534), 65535).astype(np.uint16)
         c = np.dstack([(v >> 8).astype(np.uint8), (v & 255).astype(np.uint8), np.zeros(v.shape, np.uint8)])
         return c[::-1], None
     if f["enc"] in ("pv1", "pv3", "pvth"):
@@ -672,19 +733,20 @@ RDPS_VARS = {
 RDPS_BOX = (-172.0, -45.0, 17.0, 80.0)  # crop of the RDPS grid (lon0, lon1, lat0, lat1): North America
 
 
-def file_url(model, date, cyc, lead):
+def file_url(model, date, cyc, lead, dom=""):
+    """The 2-D file of a domain (DOMS): HRRR wrfsfc, RRFS 2dfld on the 3 km CONUS or the 13 km North American grid."""
     if model == "hrrr":
         return f"{sb.hrrr_base(date, cyc)}.wrfsfcf{lead:02d}.grib2"
     if model == "rrfs":
-        return f"{sb.rrfs_base(date, cyc)}.2dfld.3km.f{lead:03d}.conus.grib2"
+        return f"{sb.rrfs_base(date, cyc)}.{sb.rrfs_file('rrfs13' if dom else 'rrfs3', '2dfld', lead)}"
     raise ValueError(model)
 
 
 def prs_url(model, date, cyc, lead):
-    """The isobaric-level file (upper air): HRRR wrfprs, RRFS prslev."""
+    """The isobaric-level file (upper air): HRRR wrfprs, RRFS prslev on the 13 km North American grid."""
     if model == "hrrr":
         return f"{sb.hrrr_base(date, cyc)}.wrfprsf{lead:02d}.grib2"
-    return f"{sb.rrfs_base(date, cyc)}.prslev.3km.f{lead:03d}.conus.grib2"
+    return f"{sb.rrfs_base(date, cyc)}.{sb.rrfs_file('rrfs13', 'prslev', lead)}"
 
 
 def ua_want():
@@ -877,7 +939,7 @@ def grid_latlon(buf):
 
 def alpha_of(lat, lon):
     """Angle of the grid's +i axis counter-clockwise from east, per point (grid-relative -> earth-relative winds)."""
-    dlon = (np.gradient(lon, axis=1) + 180) % 360 - 180
+    dlon = np.gradient(np.unwrap(lon, axis=1, period=360.0), axis=1)  # a row may cross the date line
     return np.arctan2(np.gradient(lat, axis=1), dlon * np.cos(np.deg2rad(lat))).astype("float32")
 
 
@@ -961,11 +1023,12 @@ def pv_products(pv, th, U, V, LV, earth, ps_sub):
     return out
 
 
-def ua_lcc(blobs):
-    """HRRR / RRFS upper air (upper.py) -> {field: tuple for encode()}"""
+def ua_ncep(blobs, cx):
+    """HRRR / RRFS upper air (upper.py) -> {field: tuple for encode()}. cx: the context of the grid the messages are on
+    (the HRRR's Lambert grid, or the rotated lat-lon grid of the RRFS North American files: "rd_grid")."""
     out = {}
-    F = _CTX["sub"]
-    al, rel = _CTX.get("alpha"), _CTX.get("grid_rel")
+    F, H = cx["sub"], cx["half"]
+    al, rel = cx.get("alpha"), cx.get("grid_rel")
 
     def earth(u, v, a):
         return to_earth(u, v, a) if rel and a is not None else (u, v)
@@ -975,13 +1038,13 @@ def ua_lcc(blobs):
         ks = [f"ua:UGRD:{lev}", f"ua:VGRD:{lev}", f"ua:HGT:{lev}"]
         if not all(k in blobs for k in ks):
             continue
-        u, v, z = (dec(blobs[k])[::2, ::2] for k in ks)  # the 6 km "lo" grid (every 2nd point)
+        u, v, z = (dec(blobs[k])[::H, ::H] for k in ks)  # HRRR: the 6 km "lo" grid (every 2nd point)
         if lev == 925 and ps is not None:  # below ground: the model extrapolated
-            bad = ps[::2, ::2] < 92500.0
+            bad = ps[::H, ::H] < 92500.0
             u, v, z = (np.where(bad, np.nan, a) for a in (u, v, z))
-        ue, ve = earth(u, v, al[::2, ::2] if al is not None else None)
+        ue, ve = earth(u, v, al[::H, ::H] if al is not None else None)
         out[name] = ("uvz", ue, ve, z)
-    LV = _CTX.get("ua_levs", UPR.UA_LEVS)
+    LV = cx.get("ua_levs", UPR.UA_LEVS)
     if all(f"ua:{v}:{p}" in blobs for v in ("TMP", "UGRD", "VGRD") for p in LV):
 
         def st(v):
@@ -991,9 +1054,14 @@ def ua_lcc(blobs):
         asub = al[::F, ::F] if al is not None else None
         if not rel and asub is not None:  # the PV formula wants grid-relative winds
             U, V = to_grid(U, V, asub[None])
-        lat = _CTX["lat_sub"]
-        m = UPR.lcc_mapfac(lat, _CTX["lat1"], _CTX["lat2"])
-        pv, th, absv = UPR.ertel_pv(T, U, V, LV, lat, m, _CTX["dx"] * F)
+        lat = cx["lat_sub"]
+        if "rd_grid" in cx:
+            g = cx["rd_grid"]
+            rlat = cx["rd_rlat"][:, None] * np.ones((1, T.shape[2]))
+            pv, th, absv = UPR.ertel_pv_rot(T, U, V, LV, rlat, lat, g["di"] * F, g["dj"] * F, absv=True)
+        else:
+            m = UPR.lcc_mapfac(lat, cx["lat1"], cx["lat2"])
+            pv, th, absv = UPR.ertel_pv(T, U, V, LV, lat, m, cx["dx"] * F)
         n7 = sum(p <= 700 for p in LV)  # the DT search stays on 100-700 hPa
         d = UPR.dt_downward(pv[:n7], th[:n7], U[:n7], V[:n7], LV[:n7])
         try:
@@ -1112,21 +1180,22 @@ def ua_rdps(blobs, crop):
     return out
 
 
-def sb_grid(model):
+def sb_grid(model, cx):
     """snowband.Grid over the whole viewer grid (no crop), built once per worker"""
-    if "_sbgrid" not in _CTX:
-        _CTX["_sbgrid"] = sb.Grid(
-            dict(lat=_CTX["sb_lat"], lon=_CTX["sb_lon"], grid_rel=bool(_CTX.get("grid_rel"))),
+    if "_sbgrid" not in cx:
+        cx["_sbgrid"] = sb.Grid(
+            dict(lat=cx["sb_lat"], lon=cx["sb_lon"], grid_rel=bool(cx.get("grid_rel"))),
             sb.SRC_DX[SB_SRC[model]],
             box=None,
         )
-    return _CTX["_sbgrid"]
+    return cx["_sbgrid"]
 
 
-def sb_fields(model, blobs, crop):
+def sb_fields(model, blobs, crop, cx):
     """The snow-band diagnostics of one hour -> {field: tuple for encode()}, computed by snowband.py itself
-    (smooth_diagnose, ingredients); this only feeds it the fields and re-expresses the dilatation axis earth-relative."""
-    gr = sb_grid(model)
+    (smooth_diagnose, ingredients); this only feeds it the fields and re-expresses the dilatation axis earth-relative.
+    cx: the context of the grid the messages are on."""
+    gr = sb_grid(model, cx)
     if model == "rdps":
         levs = list(sb.LEVS_RDPS)
         need = (
@@ -1175,9 +1244,15 @@ def sb_fields(model, blobs, crop):
         z7 = height_m(blobs["ua:HGT:700"], None, 700)
         ps = dec(blobs["psfc"])
     d = sb.smooth_diagnose(gr, levs, level, z7, ps)
+    # outside the model's domain (the bitmap of the RRFS North American files) the smoothing ran on filler values: blank
+    # those cells and the smoothing's reach into the domain
+    out = cx["sb_out"][:: gr.step, :: gr.step] if cx.get("sb_out") is not None else None
 
     def f32(a):
-        return np.asarray(a, np.float32)
+        return np.asarray(a, np.float32) if out is None else np.where(out, np.nan, a).astype(np.float32)
+
+    def flag(a):
+        return np.asarray(a) if out is None else np.where(out, 0, a)
 
     # the axis of dilatation: snowband.py gives its angle from the grid's +i axis; + the angle of that axis from east
     ang = np.degrees(d["alpha"] + gr.alpha[:: gr.step, :: gr.step])
@@ -1204,13 +1279,13 @@ def sb_fields(model, blobs, crop):
     return {
         "sbfg": ("sbfg", f32(d["fg"]), f32(d["th7"]), f32(d["z7"])),
         "sbdef": ("sbdef", f32(ang), f32(D)),
-        "sbepv": ("sbepv", f32(epv), f32(d["rh_l"]), np.asarray(d["ci"], bool), f32(d["fg_layer"])),
+        "sbepv": ("sbepv", f32(epv), f32(d["rh_l"]), flag(d["ci"]).astype(bool), f32(d["fg_layer"])),
         "sbdgz": ("sbdgz", f32(d["dgz_lift"]), f32(d["dgz_depth"])),
-        "sbing": ("sbing", n.astype(np.uint8), (fl + 2 * el + 4 * ll).astype(np.uint8), f32(snow)),
+        "sbing": ("sbing", flag(n).astype(np.uint8), flag(fl + 2 * el + 4 * ll).astype(np.uint8), f32(snow)),
     }
 
 
-def winter_hour(blobs, crop, pt, apcp, phys):
+def winter_hour(blobs, crop, pt, apcp, phys, fz_derived=False):
     """This hour's inputs to the winter accumulations (winter.py), for the sequential pass: freezing-rain liquid so far
     (mm), 2 m wet-bulb (C) and 10 m wind (kt) where freezing rain has fallen or is falling, snow depth (in), and on the
     HRRR the Cobb and Kuchera snow ratios where the surface type is snow or mix. Mostly-empty fields: compressed npz."""
@@ -1222,7 +1297,7 @@ def winter_hour(blobs, crop, pt, apcp, phys):
         else (np.zeros(shape, np.float32) if shape else None)
     )
     if fz is not None:
-        if not _CTX.get("fzra_derived"):  # derived freezing rain reaches FRAM through the sequential pass instead
+        if not fz_derived:  # derived freezing rain reaches FRAM through the sequential pass instead
             out["frzr"] = fz
         where = (fz > 0) | ((pt == 3) if pt is not None else False)
         if where.any() and "t2m" in phys and "td2m" in phys and "wind10" in phys:
@@ -1254,18 +1329,20 @@ def winter_hour(blobs, crop, pt, apcp, phys):
     return out
 
 
-def process_hour(model, lead, blobs, outdir):
-    """Decode, convert, quantise and write every field of one forecast hour. -> {field: params-or-None}, bytes"""
+def process_hour(model, lead, blobs, outdir, dom=""):
+    """Decode, convert, quantise and write every field of one forecast hour of one domain (DOMS).
+    -> lead, dom, {field: params-or-None}, bytes, seconds, point samples"""
     t0 = time.time()
-    crop = _CTX.get("crop")
-    alpha = _CTX.get("alpha")
+    cx = _CTX[dom] if dom else _CTX
+    crop = cx.get("crop")
+    alpha = cx.get("alpha")
     phys = {}
     mfull = None
     if model in ("hrrr", "rrfs"):
         if "ir" in blobs:
             phys["ir"] = dec(blobs["ir"])
         if "ceilh" in blobs:
-            z = _CTX["zsfc"]
+            z = cx["zsfc"]
             c = dec(blobs["ceilh"])
             phys["ceil"] = np.maximum(c - z, 0.0) * 3.28084  # m ASL -> ft above ground; NaN = none
         if "vis" in blobs:
@@ -1277,10 +1354,10 @@ def process_hour(model, lead, blobs, outdir):
             phys["smoke"] = dec(blobs["smoke"]) * 1e6  # kg m-2 -> mg m-2
         if "u80" in blobs and "v80" in blobs:
             u, v = dec(blobs["u80"]), dec(blobs["v80"])
-            phys["wind80"] = to_earth(u, v, alpha) if _CTX.get("grid_rel") else (u, v)
+            phys["wind80"] = to_earth(u, v, alpha) if cx.get("grid_rel") else (u, v)
         if "u10" in blobs and "v10" in blobs:
             u, v = dec(blobs["u10"]), dec(blobs["v10"])
-            phys["wind10"] = to_earth(u, v, alpha) if _CTX.get("grid_rel") else (u, v)
+            phys["wind10"] = to_earth(u, v, alpha) if cx.get("grid_rel") else (u, v)
         if "gust" in blobs:
             phys["gust"] = dec(blobs["gust"])
         if "sw" in blobs:
@@ -1299,12 +1376,12 @@ def process_hour(model, lead, blobs, outdir):
                     flush=True,
                 )
             phys["etop"] = np.where(np.isfinite(et) & (et > 0), et * 3.28084 / 1000.0, np.nan)
-        if "hpbl" in blobs:  # 6 km (smoothed, every 2nd point): at 3 km in 25 m steps it was
+        if "hpbl" in blobs:  # HRRR: 6 km (smoothed, every 2nd point): at 3 km in 25 m steps it was
             phys["hpbl"] = UPR.smooth_dec(
-                dec(blobs["hpbl"]), 2
+                dec(blobs["hpbl"]), cx["half"]
             )  # 0.64 MB/h, the largest field of the run (measured 2026-10-07)
         if "mslp" in blobs and "psfc" in blobs:
-            F = _CTX["sub"]
+            F = cx["sub"]
             ps = dec(blobs["psfc"])[::F, ::F]
             mfull = dec(blobs["mslp"]) / 100.0
             phys["mslp"] = ("mslp", mfull[::F, ::F], (ps < 85000.0).astype(np.uint8))
@@ -1313,31 +1390,31 @@ def process_hour(model, lead, blobs, outdir):
             pt = ptype_flags(*(dec(blobs[k]) for k in ("crain", "csnow", "cfrzr", "cicep")))
             phys["refl"] = ("refl", dec(blobs["refd"]), pt)
         mm = 1 / 25.4
-        apcp = dec(blobs["apcp"]) if "apcp" in blobs else np.zeros(_CTX["zsfc"].shape, np.float32)
+        apcp = dec(blobs["apcp"]) if "apcp" in blobs else np.zeros(cx["zsfc"].shape, np.float32)
         phys["apcp"] = apcp * mm
         phys["asnow"] = dec(blobs["asnow"]) * 39.3701 if "asnow" in blobs else np.zeros_like(apcp)  # m of snow -> in
-        fz_derived = _CTX.get("fzra_derived", False)
+        fz_derived = cx.get("fzra_derived", False)
         if not fz_derived:
             phys["afzra"] = dec(blobs["frzr"]) * mm if "frzr" in blobs else np.zeros_like(apcp)
         # sleet (and freezing rain without FRZR): needs the previous processed hour, so the cumulative APCP and the type
-        # flags go to a side file for the sequential pass in cmd_run
+        # flags go to a side file for the sequential pass in cmd_run (missing = outside the model's domain: nothing falls)
         seq = dict(
-            apcp=apcp.astype(np.float32),
+            apcp=np.nan_to_num(apcp).astype(np.float32),
             ip=(pt == 4).astype(np.uint8) if pt is not None else np.zeros(apcp.shape, np.uint8),
         )
         if fz_derived:
             seq["fz"] = (pt == 3).astype(np.uint8) if pt is not None else np.zeros(apcp.shape, np.uint8)
         try:
-            seq.update(winter_hour(blobs, None, pt, apcp, phys))
+            seq.update(winter_hour(blobs, None, pt, apcp, phys, fz_derived))
         except Exception as e:  # noqa: BLE001
             import traceback
 
             traceback.print_exc()
             print(f"::warning::{model} f{lead:03d}: winter inputs failed ({e!r})", flush=True)
-        np.savez_compressed(Path(outdir) / f"_seq_{lead:03d}.npz", **seq)
+        np.savez_compressed(Path(outdir) / f"_seq{dom}_{lead:03d}.npz", **seq)
         if any(k.startswith("ua:") for k in blobs):
             try:
-                phys.update(ua_lcc(blobs))
+                phys.update(ua_ncep(blobs, cx))
             except Exception as e:  # noqa: BLE001
                 import traceback
 
@@ -1345,7 +1422,7 @@ def process_hour(model, lead, blobs, outdir):
                 print(f"::warning::{model} f{lead:03d}: upper air failed ({e!r})", flush=True)
         if any(k.startswith("sb:") for k in blobs):
             try:
-                phys.update(sb_fields(model, blobs, None))
+                phys.update(sb_fields(model, blobs, None, cx))
             except Exception as e:  # noqa: BLE001
                 import traceback
 
@@ -1361,21 +1438,21 @@ def process_hour(model, lead, blobs, outdir):
                 phys[k] = f_of_k(dec(blobs[k], crop))
         if "u80" in blobs and "v80" in blobs:
             u, v = dec(blobs["u80"], crop), dec(blobs["v80"], crop)
-            phys["wind80"] = to_earth(u, v, alpha) if _CTX.get("grid_rel") else (u, v)
+            phys["wind80"] = to_earth(u, v, alpha) if cx.get("grid_rel") else (u, v)
         if "u10" in blobs and "v10" in blobs:
             u, v = dec(blobs["u10"], crop), dec(blobs["v10"], crop)
-            phys["wind10"] = to_earth(u, v, alpha) if _CTX.get("grid_rel") else (u, v)
+            phys["wind10"] = to_earth(u, v, alpha) if cx.get("grid_rel") else (u, v)
         if "gust" in blobs:
             phys["gust"] = dec(blobs["gust"], crop)
         if "swacc" in blobs and "swacc_prev" in blobs:
             a1, a0 = dec(blobs["swacc"], crop), dec(blobs["swacc_prev"], crop)
             phys["sw"] = np.maximum(a1 - a0, 0.0) / 3600.0
         if "hpbl" in blobs:  # 20 km, the MSLP files' grid (native: 0.3 MB/h x 85 h)
-            phys["hpbl"] = UPR.smooth_dec(dec(blobs["hpbl"], crop), _CTX["sub"])
+            phys["hpbl"] = UPR.smooth_dec(dec(blobs["hpbl"], crop), cx["sub"])
         if "smoke" in blobs:
             phys["smoke"] = dec(blobs["smoke"]) * 1e6
         if "mslp" in blobs and "psfc" in blobs:
-            F = _CTX["sub"]
+            F = cx["sub"]
             v = dec(blobs["mslp"], crop)
             ps = dec(blobs["psfc"], crop)
             ps = ps if np.nanmean(ps) > 5000 else ps * 100.0
@@ -1418,7 +1495,7 @@ def process_hour(model, lead, blobs, outdir):
                 print(f"::warning::{model} f{lead:03d}: upper air failed ({e!r})", flush=True)
         if any(k.startswith("sb:") for k in blobs):
             try:
-                phys.update(sb_fields(model, blobs, crop))
+                phys.update(sb_fields(model, blobs, crop, cx))
             except Exception as e:  # noqa: BLE001
                 import traceback
 
@@ -1426,8 +1503,8 @@ def process_hour(model, lead, blobs, outdir):
                 print(f"::warning::{model} f{lead:03d}: snow-band diagnostics failed ({e!r})", flush=True)
     pts = {}
     try:  # meteogram points + county temperatures: never fail the maps for them
-        if _CTX.get("ps") is not None:
-            pts = sample_points(model, phys, mfull, _CTX["ps"], _CTX.get("rs"))
+        if cx.get("ps") is not None:
+            pts = sample_points(model, phys, mfull, cx["ps"], cx.get("rs"))
     except Exception as e:  # noqa: BLE001
         print(f"  f{lead:03d}: point sampling failed: {e!r}", flush=True)
         pts = {}
@@ -1438,7 +1515,7 @@ def process_hour(model, lead, blobs, outdir):
         b = webp(arr)
         d = Path(outdir) / name
         d.mkdir(parents=True, exist_ok=True)
-        (d / f"{lead:03d}.webp").write_bytes(b)
+        (d / f"{lead:03d}{'_lo' if as_lo(model, dom, name) else ''}.webp").write_bytes(b)
         nbytes += len(b)
         if lo and name not in LO_SKIP:
             bl = webp(decimate(arr, lo))
@@ -1448,8 +1525,8 @@ def process_hour(model, lead, blobs, outdir):
         if name in CONV_MAX:  # codes for the run-swath pass (monotonic encodings: max of
             maxc[name] = arr  # codes = code of the max)
     if maxc:
-        np.savez_compressed(Path(outdir) / f"_max_{lead:03d}.npz", **maxc)
-    return lead, meta, nbytes, time.time() - t0, pts
+        np.savez_compressed(Path(outdir) / f"_max{dom}_{lead:03d}.npz", **maxc)
+    return lead, dom, meta, nbytes, time.time() - t0, pts
 
 
 def sample_points(model, phys, mfull, ps, rs=None):
@@ -1499,10 +1576,11 @@ def sample_points(model, phys, mfull, ps, rs=None):
 
 
 # ── fetch plans ─────────────────────────────────────────────────────────────────────────────────────────────────────
-def fetch_hour(model, date, cyc, lead, cyc_dt, skip=()):
-    """-> {key: bytes} for one forecast hour (keys as in IDX_WANT / RDPS_VARS, less `skip`)."""
+def fetch_hour(model, date, cyc, lead, cyc_dt, skip=(), dom=""):
+    """-> {key: bytes} for one forecast hour of one domain (keys as in IDX_WANT / RDPS_VARS, less `skip`)."""
     smoke = smoke_on(cyc_dt)
     if model in ("hrrr", "rrfs"):
+        last = dom == DOMS[model][-1]  # the domain that carries MSLP, the boundary layer, upper air and snow bands
         want = {
             k: v
             for k, v in IDX_WANT[model].items()
@@ -1510,8 +1588,11 @@ def fetch_hour(model, date, cyc, lead, cyc_dt, skip=()):
             and k not in skip
             and not (lead == 0 and (k in ACC or k in CONV_MAX))  # f00: no accumulations or hourly maxima
             and (smoke or k != "smoke")
+            and (last or k not in NA_INPUTS)
         }
-        out = fetch_idx_fields(model, file_url(model, date, cyc, lead), want)
+        out = fetch_idx_fields(model, file_url(model, date, cyc, lead, dom), want)
+        if not last:
+            return out
         pw = ua_want() if (UPR.ua_hour(lead) and ua_on(model)) else {}
         # the Cobb snow ratio (HRRR): T, RH and omega every 25 hPa 925-300 hPa, fetched only for hours with snow somewhere
         if model == "hrrr" and UA_ON and "csnow" in out and np.nanmax(sb.decode(out["csnow"])) > 0.5:
@@ -1523,7 +1604,9 @@ def fetch_hour(model, date, cyc, lead, cyc_dt, skip=()):
             pw.update(sb_want_lcc(model))
             try:  # composite reflectivity for the model-snow outline
                 out.update(
-                    fetch_idx_fields(model, file_url(model, date, cyc, lead), {"sb:REFC": r"^REFC:entire atmosphere"})
+                    fetch_idx_fields(
+                        model, file_url(model, date, cyc, lead, dom), {"sb:REFC": r"^REFC:entire atmosphere"}
+                    )
                 )
             except Exception as e:  # noqa: BLE001
                 print(f"::warning::{model} f{lead:03d}: no REFC for the snow-band outline ({e!r})", flush=True)
@@ -1576,7 +1659,7 @@ def complete(model, cyc_dt):
     date, cyc = cyc_dt.strftime("%Y%m%d"), cyc_dt.hour
     n = MODELS[model]["length"](cyc)
     if model in ("hrrr", "rrfs"):
-        return head_ok(file_url(model, date, cyc, n) + ".idx")
+        return all(head_ok(file_url(model, date, cyc, n, d) + ".idx") for d in DOMS[model])
     ok = head_ok(rdps_url(date, cyc, n, RDPS_VARS["swacc"]))
     if not ok:
         return False
@@ -1663,26 +1746,41 @@ def cmd_run(a):
 
     # static context: grid description, terrain (ceiling AGL), wind rotation, the RDPS crop
     ctx, grids = {}, {}
+    doms = DOMS[model]
+    F = SUB[model]
     if model in ("hrrr", "rrfs"):
-        z = fetch_idx_fields(model, file_url(model, date, cyc, 0), {"zsfc": IDX_WANT[model]["zsfc"]})["zsfc"]
-        lat, lon, grel = grid_latlon(z)
-        ctx.update(zsfc=sb.decode(z), grid_rel=grel, alpha=alpha_of(lat, lon) if grel else None)
-        grids["main"] = grid_desc(z)
-        ctx.update(
-            ua_levs=UPR.UA_LEVS_LCC,
-            lat_sub=lat[:: SUB[model], :: SUB[model]].astype(np.float64),
-            lat1=grids["main"]["lat1"],
-            lat2=grids["main"]["lat2"],
-            dx=grids["main"]["dx"],
-        )
-        if sb_on(model, cyc_dt):
-            ctx.update(sb_lat=np.asarray(lat, np.float64), sb_lon=np.asarray(lon, np.float64))
+        for dom in doms:
+            z = fetch_idx_fields(model, file_url(model, date, cyc, 0, dom), {"zsfc": IDX_WANT[model]["zsfc"]})["zsfc"]
+            lat, lon, grel = grid_latlon(z)
+            cx = ctx.setdefault(dom, {}) if dom else ctx
+            cx.update(zsfc=sb.decode(z), grid_rel=grel, alpha=alpha_of(lat, lon) if grel else None)
+            if np.isnan(cx["zsfc"]).any():  # the file's bitmap: grid points outside the model
+                cx["out"] = np.isnan(cx["zsfc"])
+            g = grids[dom or "main"] = grid_desc(z)
+            if dom != doms[-1]:
+                continue
+            cx.update(sub=F, ua_levs=UPR.UA_LEVS_LCC, lat_sub=lat[::F, ::F].astype(np.float64))
+            if g["type"] == "lcc":
+                cx.update(half=2, lat1=g["lat1"], lat2=g["lat2"], dx=g["dx"])
+            else:  # PV on the rotated grid: its own latitude of each sub row; 925/250 hPa on the grid as it is
+                cx.update(half=1, rd_grid=g, rd_rlat=g["la1"] + F * np.arange(-(-g["ny"] // F)) * g["dj"])
+            if sb_on(model, cyc_dt):
+                cx.update(sb_lat=np.asarray(lat, np.float64), sb_lon=np.asarray(lon, np.float64))
+                if "out" in cx:  # widened by the reach of snowband.py's smoothing
+                    cx["sb_out"] = grow(cx["out"], int(np.ceil(3 * sb.SIGMA_KM / sb.SRC_DX[SB_SRC[model]])))
         del lat, lon
         h1 = next((h for h in leads if h > 0), None)
         if model in FZRA_DERIVED and h1 is not None:
-            lines = idx_lines(fetcher(model), file_url(model, date, cyc, h1))
-            ctx["fzra_derived"] = not any(re.search(ACC["frzr"], desc) for _, _, desc in lines)
-            if ctx["fzra_derived"]:
+            derived = not all(
+                any(
+                    re.search(ACC["frzr"], desc)
+                    for _, _, desc in idx_lines(fetcher(model), file_url(model, date, cyc, h1, d))
+                )
+                for d in doms
+            )
+            for dom in doms:
+                (ctx[dom] if dom else ctx)["fzra_derived"] = derived
+            if derived:
                 print(
                     f"  {model} {key}: no FRZR in the files; freezing rain derived from APCP and the type", flush=True
                 )
@@ -1696,12 +1794,13 @@ def cmd_run(a):
         sl = (slice(*crop[0]), slice(*crop[1]))
         ctx.update(crop=crop, grid_rel=grel, alpha=alpha_of(lat, lon)[sl] if grel else None)
         grids["main"] = grid_desc(b, crop)
-        gm, F0 = grids["main"], SUB[model]  # PV on the rotated grid: its own latitude of each sub row
-        ny0 = -(-gm["ny"] // F0)
+        gm = grids["main"]  # PV on the rotated grid: its own latitude of each sub row
+        ny0 = -(-gm["ny"] // F)
         ctx.update(
+            sub=F,
             rd_grid=gm,
-            rd_rlat=gm["la1"] + (gm.get("j0", 0) + F0 * np.arange(ny0)) * gm["dj"],
-            lat_sub=UPR.smooth_dec(lat[sl], F0).astype(np.float64),
+            rd_rlat=gm["la1"] + (gm.get("j0", 0) + F * np.arange(ny0)) * gm["dj"],
+            lat_sub=UPR.smooth_dec(lat[sl], F).astype(np.float64),
         )
         if sb_on(model, cyc_dt):
             ctx.update(sb_lat=np.asarray(lat[sl], np.float64), sb_lon=np.asarray(lon[sl], np.float64))
@@ -1714,34 +1813,26 @@ def cmd_run(a):
         except Exception as e:  # noqa: BLE001
             print(f"  RAQDPS {r_dt:%Y%m%d%H}: {e} - no smoke layer for this cycle")
         del lat, lon
-    ctx["sub"] = F = SUB[model]
-    g = dict(grids["main"])
-    if g["type"] == "lcc":
-        g.update(dx=g["dx"] * F, dy=g["dy"] * F)
-    else:
-        g.update(di=g["di"] * F, dj=g["dj"] * F, i0=g.get("i0", 0) / F, j0=g.get("j0", 0) / F)
-    g.update(nx=-(-g["nx"] // F), ny=-(-g["ny"] // F))
-    grids["sub"] = g
+    grids[SUB_GRID[model]] = coarser(grids[doms[-1] or "main"], F)
     if LO.get(model):  # the half-resolution copies' grid
-        F2, g2 = LO[model], dict(grids["main"])
-        if g2["type"] == "lcc":
-            g2.update(dx=g2["dx"] * F2, dy=g2["dy"] * F2)
-        else:
-            g2.update(di=g2["di"] * F2, dj=g2["dj"] * F2, i0=g2.get("i0", 0) / F2, j0=g2.get("j0", 0) / F2)
-        g2.update(nx=-(-g2["nx"] // F2), ny=-(-g2["ny"] // F2))
-        grids["lo"] = g2
+        grids["lo"] = coarser(grids["main"], LO[model])
     # meteogram points (airports + extra cities), located on the grid
     # once; the workers sample them while each hour's fields are in memory (points.py)
     pt_ids = []
     try:
         pt_ids, plat, plon = PTS.load_points()
-        ctx["ps"] = PTS.Sampler(grids["main"], plat, plon)
+        on = np.zeros(len(pt_ids), bool)
+        for dom in doms:
+            smp = (ctx[dom] if dom else ctx)["ps"] = PTS.Sampler(grids[dom or "main"], plat, plon)
+            on |= smp.inside
         if "raq" in grids:
             ctx["rs"] = PTS.Sampler(grids["raq"], plat, plon)
-        print(f"  points: {int(ctx['ps'].inside.sum())} of {len(pt_ids)} on the grid", flush=True)
+        print(f"  points: {int(on.sum())} of {len(pt_ids)} on the grid", flush=True)
     except Exception as e:  # noqa: BLE001
         print(f"::warning::{model} {key}: no point series this run ({e!r})", flush=True)
-        ctx.pop("ps", None), ctx.pop("rs", None), ctx.pop("cs", None)
+        for dom in doms:
+            (ctx[dom] if dom else ctx).pop("ps", None)
+        ctx.pop("rs", None), ctx.pop("cs", None)
     print(
         f"{model} {key}: {len(leads)} hours, grid {grids['main']['nx']} x {grids['main']['ny']}, "
         f"setup {time.time() - t_start:.1f}s",
@@ -1750,7 +1841,8 @@ def cmd_run(a):
 
     # fetch (threads) -> decode/quantise/encode (processes)
     per_field = {k: {} for k in ORDER}
-    samples = {}  # lead -> {point field: values}
+    per_lo = {k: {} for k in ORDER}  # the <fff>_lo.webp frames a second domain wrote (as_lo)
+    samples = {d: {} for d in doms}  # domain -> lead -> {point field: values}
     total_bytes, failed = 0, []
     t_fetch = 0.0
     hour_workers = 4 if model in ("hrrr", "rrfs") else 3
@@ -1764,7 +1856,11 @@ def cmd_run(a):
             t = time.time()
             for k in range(3):
                 try:
-                    return lead, fetch_hour(model, date, cyc, lead, cyc_dt, skip), time.time() - t
+                    return (
+                        lead,
+                        {d: fetch_hour(model, date, cyc, lead, cyc_dt, skip, d) for d in doms},
+                        time.time() - t,
+                    )
                 except (sb.Missing, sb.ShortRead) as e:
                     if k == 2:
                         print(f"  f{lead:03d}: {e}", flush=True)
@@ -1774,40 +1870,42 @@ def cmd_run(a):
         futs = []
         for lead, blobs, secs in fx.map(fetch_one, leads):
             t_fetch += secs
-            if not blobs:
+            if not blobs or not all(blobs.values()):
                 failed.append(lead)
                 continue
-            futs.append(pool.submit(process_hour, model, lead, blobs, str(outdir)))
+            futs += [pool.submit(process_hour, model, lead, b, str(outdir), d) for d, b in blobs.items()]
         for fu in as_completed(futs):
-            lead, meta, nb, secs, pts = fu.result()
-            samples[lead] = pts
+            lead, dom, meta, nb, secs, pts = fu.result()
+            samples[dom][lead] = pts
             total_bytes += nb
             for name, p in meta.items():
-                per_field[name][lead] = p
+                (per_lo if as_lo(model, dom, name) else per_field)[name][lead] = p
+
     # sequential pass over the published hours in order: sleet = APCP fallen between consecutive hours while the sleet type
     # is on (HRRR/RRFS), freezing rain the same way where the files carry no FRZR (FZRA_DERIVED), and the winter
     # accumulations (winter.py): FRAM radial ice, snowfall with the Cobb ratio (HRRR) and at 10:1 (HRRR/RRFS), the
-    # snow-depth increase. Each is a running total written like the other accumulations.
-    seq = sorted(outdir.glob("_seq_*.npz"))
-    if seq:
+    # snow-depth increase. Each is a running total written like the other accumulations, once per domain.
+    def winter_pass(dom):
+        cx = ctx[dom] if dom else ctx
         prev, cums, plead = {}, {}, None
         st = dict(slr=[], slrk=[], none=0, nsnow=0)
 
         def emit(name, arr_in, lead):
             nonlocal total_bytes
-            arr, _ = encode(name, arr_in)
+            arr, _ = encode(name, np.where(cx["out"], np.nan, arr_in) if "out" in cx else arr_in)
             b = webp(arr)
+            lo = as_lo(model, dom, name)
             (outdir / name).mkdir(exist_ok=True)
-            (outdir / name / f"{lead:03d}.webp").write_bytes(b)
+            (outdir / name / f"{lead:03d}{'_lo' if lo else ''}.webp").write_bytes(b)
             total_bytes += len(b)
             if LO.get(model):
                 bl = webp(decimate(arr, LO[model]))
                 (outdir / name / f"{lead:03d}_lo.webp").write_bytes(bl)
                 total_bytes += len(bl)
-            per_field[name][lead] = None
+            (per_lo if lo else per_field)[name][lead] = None
 
-        for fpath in seq:
-            lead = int(fpath.stem[5:])
+        for fpath in sorted(outdir.glob(f"_seq{dom}_*.npz")):
+            lead = int(fpath.stem.rsplit("_", 1)[1])
             z = np.load(fpath)
             hrs = float(lead - plead) if plead is not None else 1.0
             plead = lead
@@ -1827,14 +1925,14 @@ def cmd_run(a):
                 dap = inc("apcp") / 25.4  # in
                 cum = add("aip", dap * z["ip"])
                 emit("aip", cum, lead)
-                if ctx.get("ps") is not None:
-                    samples.setdefault(lead, {})["aip"] = ctx["ps"].bilinear(cum)
+                if cx.get("ps") is not None:
+                    samples[dom].setdefault(lead, {})["aip"] = cx["ps"].bilinear(cum)
                 if "fz" in z:
                     liq = dap * z["fz"]
                     cum = add("afzra", liq)
                     emit("afzra", cum, lead)
-                    if ctx.get("ps") is not None:
-                        samples.setdefault(lead, {})["afzra"] = ctx["ps"].bilinear(cum)
+                    if cx.get("ps") is not None:
+                        samples[dom].setdefault(lead, {})["afzra"] = cx["ps"].bilinear(cum)
                 if "sf" in z:
                     sl = dap * z["sf"] / 2.0  # snow-phase liquid, in
                     emit("as10", add("as10", 10.0 * sl), lead)
@@ -1885,22 +1983,34 @@ def cmd_run(a):
                         f"ASNOW {an[m].mean():.2f}, r(Cobb, ASNOW) {np.corrcoef(c[m], an[m])[0, 1]:.2f}"
                     )
             print(msg, flush=True)
-    # run swaths: the running maximum of each hourly-max field since the start of the run (255 = missing is skipped)
-    run_max = {}
-    for fpath in sorted(outdir.glob("_max_*.npz")):
-        lead = int(fpath.stem[5:])
-        z = np.load(fpath)
-        for name in z.files:
-            c = z[name]
-            cur = run_max.get(name)
-            cur = c.copy() if cur is None else np.where(c == 255, cur, np.where(cur == 255, c, np.maximum(cur, c)))
-            run_max[name] = cur
-            b = webp(cur)
-            (outdir / (name + "s")).mkdir(exist_ok=True)
-            (outdir / (name + "s") / f"{lead:03d}.webp").write_bytes(b)
-            total_bytes += len(b)
-            per_field[name + "s"][lead] = None
-        fpath.unlink()
+
+    for dom in doms:
+        winter_pass(dom)
+        # run swaths: the running maximum of each hourly-max field since the start of the run (255 = missing is skipped)
+        run_max = {}
+        for fpath in sorted(outdir.glob(f"_max{dom}_*.npz")):
+            lead = int(fpath.stem.rsplit("_", 1)[1])
+            z = np.load(fpath)
+            for name in z.files:
+                c = z[name]
+                cur = run_max.get(name)
+                cur = c.copy() if cur is None else np.where(c == 255, cur, np.where(cur == 255, c, np.maximum(cur, c)))
+                run_max[name] = cur
+                b = webp(cur)
+                lo = as_lo(model, dom, name + "s")
+                (outdir / (name + "s")).mkdir(exist_ok=True)
+                (outdir / (name + "s") / f"{lead:03d}{'_lo' if lo else ''}.webp").write_bytes(b)
+                total_bytes += len(b)
+                (per_lo if lo else per_field)[name + "s"][lead] = None
+            fpath.unlink()
+    # a point outside the first domain's grid takes the next domain's value (RRFS: 3 km over the CONUS grid, the 13 km
+    # North American grid beyond it); a series only the last domain has (MSLP) comes from it everywhere
+    pts = samples[doms[0]]
+    for dom in doms[1:]:
+        for lead, s in samples[dom].items():
+            m = pts.setdefault(lead, {})
+            for name, v in s.items():
+                m[name] = np.where(ctx["ps"].inside, m[name], v) if name in m else v
     fetch_stats = dict(
         requests=sum(f.nreq for f in _FETCH.values()), mb=round(sum(f.nbytes for f in _FETCH.values()) / 1e6, 1)
     )
@@ -1909,20 +2019,7 @@ def cmd_run(a):
         hrs = sorted(per_field[name])
         if not hrs:
             continue
-        e = dict(
-            hours=hrs,
-            grid="raq"
-            if (model == "rdps" and name == "smoke")
-            else "sub"
-            if name == "mslp"
-            else UA_GRID[model].get(name, "sub")
-            if name in UA_FIELDS
-            else HPBL_GRID[model]
-            if name == "hpbl"
-            else SB_GRID[model]
-            if name in SB_FIELDS
-            else "main",
-        )
+        e = dict(hours=hrs, grid=grid_of(model, name))
         if name in SB_FIELDS:
             e["enc"] = name
         fd = FIELDS[name]
@@ -1945,14 +2042,20 @@ def cmd_run(a):
             e.update(enc="acc16", unit=FIELDS[name]["unit"], method=method or ACC_METHOD[model][name])
         if LO.get(model) and name not in LO_SKIP and e["grid"] == "main":
             e["lo"] = "lo"
+        elif sorted(per_lo[name]) == hrs:  # the second domain's frame of every hour (its own per-frame scale: "qlo")
+            e["lo"] = doms[-1]
+            if "q" in e:
+                e["qlo"] = [per_lo[name][h] for h in hrs]
+        elif per_lo[name]:
+            print(
+                f"::warning::{model} {key}: {name} has {len(per_lo[name])} wide frames for {len(hrs)} hours", flush=True
+            )
         fields[name] = e
     if model == "rdps" and "smoke" in fields:
         r_dt, off = raq_for(cyc_dt)
         fields["smoke"]["from"] = f"RAQDPS-FireWork {r_dt:%Y-%m-%d %H}Z"
     hours_all = sorted({h for e in fields.values() for h in e["hours"]})
-    extra_files = (
-        write_points(model, key, cyc_dt, hours_all, pt_ids, samples, outdir) if ctx.get("ps") is not None else {}
-    )
+    extra_files = write_points(model, key, cyc_dt, hours_all, pt_ids, pts, outdir) if ctx.get("ps") is not None else {}
     total_bytes += sum(v["bytes"] for v in extra_files.values())
     wall = time.time() - t_start
     entry = dict(

@@ -556,7 +556,7 @@
     <label class="chk" id="contL" hidden title="Labelled contours drawn from the same data (isotherms, flight-category thresholds, isobars, CAPE)"><input type="checkbox" id="cont" checked> Contours</label>
     <label class="chk" title="Airports with scheduled service in the US and Canada (OurAirports) and a few city centres; hover for the model's value there, click or tap for the forecast meteogram"><input type="checkbox" id="sta" checked> Airports</label>
     <label class="chk" id="tdnL" title="The model's 2 m temperature (red) and dewpoint (green), °F, at the hour shown, above each labelled airport (temperature and dewpoint maps only)"><input type="checkbox" id="tdn" checked> Temp / dew</label>
-    <label class="chk" id="diffL" hidden title="The other 3 km model's value subtracted at the same valid time, on the shared grid (HRRR and RRFS use the identical grid)"><input type="checkbox" id="diff"> <span id="diffT">Difference</span></label>
+    <label class="chk" id="diffL" hidden title="The other 3 km model's value subtracted at the same valid time, on their shared 3 km grid (the HRRR's area)"><input type="checkbox" id="diff"> <span id="diffT">Difference</span></label>
     <label class="chk" id="farmsL" hidden title="US wind projects (USGS Wind Turbine Database) or large-scale solar plants (USGS Solar PV Database), sized by capacity"><input type="checkbox" id="farms" checked> <span id="farmsT">Wind farms</span></label>
     <span class="mv-keys" id="sndL" hidden><b>Sounding:</b> double-click the map (on a phone, double-tap or press and hold) for that spot's HRRR forecast sounding</span>
     <span class="mv-keys" id="mapKeys">Click the map, then: arrows pan &middot; <kbd>+</kbd> <kbd>&minus;</kbd> zoom &middot; <kbd>0</kbd> reset &middot; <kbd>,</kbd> <kbd>.</kbd> hour &middot; <kbd>Space</kbd> play &middot; <kbd>Ctrl</kbd> + scroll zooms</span>
@@ -595,7 +595,7 @@
     <p class="mv-runs" id="runs"></p>
     <h2>What each map is, model by model</h2>
     <div class="tbl"><table>
-      <tr><th>Field</th><th>HRRR v4 (NOAA, 3 km)</th><th>RRFS v1 (NOAA, 3 km)</th><th>RDPS (ECCC, 10 km)</th></tr>
+      <tr><th>Field</th><th>HRRR v4 (NOAA, 3 km)</th><th>RRFS v1 (NOAA, 3 km and 13 km)</th><th>RDPS (ECCC, 10 km)</th></tr>
       <tr><td>Simulated IR</td><td>Brightness temperature a GOES-East 10.3&nbsp;&micro;m imager would see (UPP field SBT124)</td><td>GOES-16 ABI band 13, 10.3&nbsp;&micro;m (SBTA1613)</td><td>No simulated band exists in the RDPS output. Shown instead: the <b>OLR-derived brightness temperature</b>, T<sub>b</sub>&nbsp;=&nbsp;(OLR/&sigma;)<sup>&frac14;</sup>, from the instantaneous outgoing longwave radiation at the top of the atmosphere. It is a proxy for IR, not a satellite band: it integrates the whole longwave spectrum, so clear skies read 20&ndash;30&nbsp;K colder than a window channel, while cloud tops come out close.</td></tr>
       <tr><td>Radar + precipitation type</td><td>Simulated reflectivity 1&nbsp;km above ground, coloured by the categorical precipitation type at the surface (freezing rain &gt; sleet &gt; snow &gt; rain; rain and snow together shown as mix); isobars from MSLP (MAPS reduction) every 2&nbsp;hPa</td><td>As HRRR; isobars from MSLP (MSLET reduction)</td><td>No simulated reflectivity exists. Shown instead: the <b>precipitation rate</b> (mm/h) coloured by the model's precipitation type, on the radar colour scale; isobars from MSLP</td></tr>
       <tr><td>Precipitation accumulation</td><td>Total (APCP); snow = the HRRR's own snowfall (ASNOW, variable density); freezing rain = the model's accumulated freezing rain (FRZR, liquid equivalent, not ice accretion); sleet = APCP accumulated in hours whose precipitation type is sleet (liquid equivalent)</td><td>As HRRR, except freezing rain: the operational RRFS writes no FRZR, so it is APCP accumulated in periods whose precipitation type is freezing rain, like sleet (both 3-hourly past 36&nbsp;h)</td><td>Total; snow = <b>10:1</b> from the accumulated snow water equivalent (not a model snowfall); freezing rain and sleet = the model's own liquid-equivalent accumulations</td></tr>
@@ -607,33 +607,34 @@
       <tr><td>80&nbsp;m wind</td><td colspan="3">Speed shaded in m/s (the wind-energy convention; the other wind maps are in knots), wind barbs in knots (half barb 5, full 10, pennant 50), from the model's u and v at 80&nbsp;m above ground</td></tr>
       <tr><td>10&nbsp;m wind</td><td colspan="3">As the 80&nbsp;m wind, from the model's u and v at 10&nbsp;m above ground, shown in knots (stored to 0.4&nbsp;m/s, about 0.8&nbsp;kt)</td></tr>
       <tr><td>Wind gust</td><td>The model's instantaneous surface gust (GUST, a diagnosis of the wind that boundary-layer mixing can bring down), not an hourly maximum; barbs show the 10&nbsp;m wind</td><td>As HRRR</td><td>The model's instantaneous 10&nbsp;m gust (WindGust); barbs show the 10&nbsp;m wind</td></tr>
-      <tr><td>Sea-level pressure</td><td>MSLP (MAPS reduction, MSLMA) in 4&nbsp;hPa colour classes, isobars every 2&nbsp;hPa, highs and lows; stored on every 4th grid point (12&nbsp;km) and interpolated. Faded where the ground is above ~1,500&nbsp;m (surface pressure below 850&nbsp;hPa): the reduction to sea level is unreliable there and no H or L is placed</td><td>As HRRR, MSLET reduction</td><td>As HRRR, every 2nd grid point (20&nbsp;km)</td></tr>
+      <tr><td>Sea-level pressure</td><td>MSLP (MAPS reduction, MSLMA) in 4&nbsp;hPa colour classes, isobars every 2&nbsp;hPa, highs and lows; stored on every 4th grid point (12&nbsp;km) and interpolated. Faded where the ground is above ~1,500&nbsp;m (surface pressure below 850&nbsp;hPa): the reduction to sea level is unreliable there and no H or L is placed</td><td>MSLET reduction, from the 13&nbsp;km North American grid, every 2nd grid point (26&nbsp;km); faded over high ground as for the HRRR</td><td>As HRRR, every 2nd grid point (20&nbsp;km)</td></tr>
       <tr><td>ECAPE and CAPE</td><td>Entraining CAPE (Peters et al. 2023) and the undiluted CAPE for the most-unstable and mixed-layer parcels, computed with SHARPlib on every column of the HRRR's native levels, hourly to 18&nbsp;h and every 3 hours to 48&nbsp;h; the ECAPE/CAPE ratio is shown where CAPE exceeds 100&nbsp;J/kg</td><td class="na" colspan="2">Computed for the HRRR only</td></tr>
       <tr><td>Updraft helicity</td><td>MXUPHL 2&ndash;5&nbsp;km and 0&ndash;3&nbsp;km above ground, the maximum over each hour, and the run swath (the running maximum since the run started); classes from 25&nbsp;m&sup2;/s&sup2;, black outline at 75</td><td>As HRRR (past 36&nbsp;h the files are 3-hourly and each covers its last hour only)</td><td class="na">Not in the RDPS output</td></tr>
       <tr><td>Max updraft</td><td>MAXUVV: the hourly maximum upward vertical velocity between 100 and 1000&nbsp;hPa, and its run swath</td><td>As HRRR</td><td class="na">Not in the RDPS output</td></tr>
       <tr><td>Echo tops</td><td>RETOP: the 18.3&nbsp;dBZ echo top, thousands of feet above sea level, in 5,000&nbsp;ft classes (under Radar)</td><td>As HRRR</td><td class="na">Not in the RDPS output</td></tr>
-      <tr><td>PBL height</td><td>HPBL, metres above ground, every hour, smoothed to 6&nbsp;km</td><td>As HRRR</td><td>PlanetaryBoundaryLayerHeight, smoothed to 20&nbsp;km</td></tr>
-      <tr><td>Potential vorticity</td><td>Ertel PV computed here on 22 pressure levels (fields smoothed to 12&nbsp;km): the 300&ndash;250&nbsp;hPa mean with 250&nbsp;hPa barbs and heights and the 2-PVU line, PV on 315/320/330/340&nbsp;K with the wind and the pressure of the surface, and the 850&ndash;700&nbsp;hPa mean with 850&nbsp;hPa barbs; every 3 hours</td><td>As HRRR</td><td>As HRRR, on 19 levels of its rotated grid, 20&nbsp;km</td></tr>
-      <tr><td>925 and 250&nbsp;hPa wind</td><td>Wind speed (knots) with barbs and the height of the pressure level (contours every 30&nbsp;m at 925&nbsp;hPa, 120&nbsp;m at 250&nbsp;hPa), from the pressure-level file (wrfprs), every 3 hours, on every 2nd grid point (6&nbsp;km); 925&nbsp;hPa left blank where the ground is above that level</td><td>As HRRR (prslev)</td><td>As HRRR, on the 10&nbsp;km grid</td></tr>
-      <tr><td>500&nbsp;hPa vorticity</td><td>Absolute vorticity computed from the 500&nbsp;hPa wind smoothed to 12&nbsp;km (with the grid's map factor), heights every 30&nbsp;m (60&nbsp;m bold), 500&nbsp;hPa wind barbs</td><td>As HRRR</td><td>The model's own absolute vorticity, smoothed to 20&nbsp;km</td></tr>
-      <tr><td>Dynamic tropopause</td><td>Potential temperature and wind on the 2-PVU surface, computed here: Ertel PV on 19 pressure levels (100&ndash;700&nbsp;hPa, fields smoothed to 12&nbsp;km), the 2-PVU crossing searched downward from 100&nbsp;hPa; 100&nbsp;hPa values where PV is below 2 PVU even there; colours as the site's dynamic-tropopause maps</td><td>As HRRR</td><td>The model's own 2-PVU pressure (Pressure_PVU-2), with potential temperature and wind interpolated to it from the pressure levels; 20&nbsp;km</td></tr>
-      <tr><td>Snow bands<br><small>1 October&ndash;30 April</small></td><td>From the pressure-level file every 3 hours from +3&nbsp;h, smoothed (Gaussian, &sigma;&nbsp;=&nbsp;18&nbsp;km) on the 3&nbsp;km grid and evaluated on 12&nbsp;km: 700&nbsp;hPa Petterssen frontogenesis with &theta;, height and the axes of dilatation; EPV* (750&ndash;500&nbsp;hPa, where saturated over ice) with upright CI hatched; the strongest lift in the saturated &minus;12 to &minus;18&nbsp;&deg;C layer; and where those three overlap, with the model&rsquo;s own snow (&ge;&nbsp;25&nbsp;dBZ composite reflectivity, snow type) outlined. Pressure levels 950&ndash;450&nbsp;hPa every 25&nbsp;hPa</td><td>As HRRR; vertical motion from the model's geometric vertical velocity (DZDT), converted to &omega; hydrostatically</td><td>As HRRR, on its own 10&nbsp;km grid, levels 950&ndash;450&nbsp;hPa (25&ndash;50&nbsp;hPa apart); vertical velocity exists only at 850, 700 and 500&nbsp;hPa, so the dendritic-zone lift is interpolated between them; the model&rsquo;s snow outline is 1&nbsp;mm or more in the hour where its type is snow</td></tr>
+      <tr><td>PBL height</td><td>HPBL, metres above ground, every hour, smoothed to 6&nbsp;km</td><td>HPBL on the 13&nbsp;km North American grid</td><td>PlanetaryBoundaryLayerHeight, smoothed to 20&nbsp;km</td></tr>
+      <tr><td>Potential vorticity</td><td>Ertel PV computed here on 22 pressure levels (fields smoothed to 12&nbsp;km): the 300&ndash;250&nbsp;hPa mean with 250&nbsp;hPa barbs and heights and the 2-PVU line, PV on 315/320/330/340&nbsp;K with the wind and the pressure of the surface, and the 850&ndash;700&nbsp;hPa mean with 850&nbsp;hPa barbs; every 3 hours</td><td>As HRRR, from the 13&nbsp;km North American files on their rotated grid, smoothed to 26&nbsp;km</td><td>As HRRR, on 19 levels of its rotated grid, 20&nbsp;km</td></tr>
+      <tr><td>925 and 250&nbsp;hPa wind</td><td>Wind speed (knots) with barbs and the height of the pressure level (contours every 30&nbsp;m at 925&nbsp;hPa, 120&nbsp;m at 250&nbsp;hPa), from the pressure-level file (wrfprs), every 3 hours, on every 2nd grid point (6&nbsp;km); 925&nbsp;hPa left blank where the ground is above that level</td><td>As HRRR (prslev), on the 13&nbsp;km North American grid</td><td>As HRRR, on the 10&nbsp;km grid</td></tr>
+      <tr><td>500&nbsp;hPa vorticity</td><td>Absolute vorticity computed from the 500&nbsp;hPa wind smoothed to 12&nbsp;km (with the grid's map factor), heights every 30&nbsp;m (60&nbsp;m bold), 500&nbsp;hPa wind barbs</td><td>As HRRR, from the 13&nbsp;km North American files, smoothed to 26&nbsp;km</td><td>The model's own absolute vorticity, smoothed to 20&nbsp;km</td></tr>
+      <tr><td>Dynamic tropopause</td><td>Potential temperature and wind on the 2-PVU surface, computed here: Ertel PV on 19 pressure levels (100&ndash;700&nbsp;hPa, fields smoothed to 12&nbsp;km), the 2-PVU crossing searched downward from 100&nbsp;hPa; 100&nbsp;hPa values where PV is below 2 PVU even there; colours as the site's dynamic-tropopause maps</td><td>As HRRR, from the 13&nbsp;km North American files, smoothed to 26&nbsp;km</td><td>The model's own 2-PVU pressure (Pressure_PVU-2), with potential temperature and wind interpolated to it from the pressure levels; 20&nbsp;km</td></tr>
+      <tr><td>Snow bands<br><small>1 October&ndash;30 April</small></td><td>From the pressure-level file every 3 hours from +3&nbsp;h, smoothed (Gaussian, &sigma;&nbsp;=&nbsp;18&nbsp;km) on the 3&nbsp;km grid and evaluated on 12&nbsp;km: 700&nbsp;hPa Petterssen frontogenesis with &theta;, height and the axes of dilatation; EPV* (750&ndash;500&nbsp;hPa, where saturated over ice) with upright CI hatched; the strongest lift in the saturated &minus;12 to &minus;18&nbsp;&deg;C layer; and where those three overlap, with the model&rsquo;s own snow (&ge;&nbsp;25&nbsp;dBZ composite reflectivity, snow type) outlined. Pressure levels 950&ndash;450&nbsp;hPa every 25&nbsp;hPa</td><td>As HRRR, from the 13&nbsp;km North American files, smoothed and evaluated on that grid; vertical motion from the model's geometric vertical velocity (DZDT), converted to &omega; hydrostatically</td><td>As HRRR, on its own 10&nbsp;km grid, levels 950&ndash;450&nbsp;hPa (25&ndash;50&nbsp;hPa apart); vertical velocity exists only at 850, 700 and 500&nbsp;hPa, so the dendritic-zone lift is interpolated between them; the model&rsquo;s snow outline is 1&nbsp;mm or more in the hour where its type is snow</td></tr>
       <tr><td>Incoming shortwave</td><td>Downward shortwave at the surface, instantaneous at the valid time</td><td>As HRRR (instantaneous)</td><td>Mean over the hour ending at the valid time (the difference of the model's accumulated flux)</td></tr>
     </table></div>
     <h2>Runs and timing</h2>
     <p>Airports: large and medium airports with scheduled service in the US and Canada from <a href="https://ourairports.com/data/">OurAirports</a> (public domain); the large hubs show at national scale and the rest as you zoom in. Hover or tap one for the model's value there.</p>
     <p>Wind and solar plants (shown on the 80&nbsp;m wind and shortwave maps; at national scale only the larger ones): the <a href="https://energy.usgs.gov/uswtdb/">U.S. Wind Turbine Database</a> v8.3 (USGS, LBNL and ACP; turbines grouped into projects) and the <a href="https://energy.usgs.gov/uspvdb/">U.S. Large-Scale Solar PV Database</a> v4.0 (USGS and LBNL), both public domain. Circles and squares scale with capacity; hover for name, capacity and year.</p>
     <p>HRRR: the 00, 06, 12 and 18&nbsp;UTC runs, every hour to 48&nbsp;h (the hourly runs that stop at 18&nbsp;h are not shown). RRFS&nbsp;v1: the 00, 06, 12 and 18&nbsp;UTC runs to 84&nbsp;h, every hour to 36&nbsp;h and every 3&nbsp;hours after (its other hourly runs write only 15-minute surface files to 18&nbsp;h and are not shown). RDPS: 00, 06, 12 and 18&nbsp;UTC, every hour to 84&nbsp;h. Only the newest run of each model is kept. A run appears once its last forecast hour is published; GitHub runs the jobs, so expect it about 2&ndash;3 hours after its start time for the HRRR and 4&ndash;5 hours for the RRFS and RDPS.</p>
+    <p>RRFS grids: NOAA publishes the RRFS&rsquo;s whole North American domain only on a 13&nbsp;km rotated latitude-longitude grid; its 3&nbsp;km files cover the HRRR&rsquo;s area (the lower 48 states with southern Canada and northern Mexico). The RRFS opens on North America from the 13&nbsp;km files and changes to the 3&nbsp;km grid once the whole view lies inside it; the hover value is read from the grid on screen. Sea-level pressure, boundary-layer height and the upper-air, potential-vorticity and snow-band maps come from the 13&nbsp;km files at every zoom. The 13&nbsp;km grid&rsquo;s corners lie outside the model and are left blank. Airports outside the 3&nbsp;km grid take their meteogram values from the 13&nbsp;km one.</p>
     <h2>Meteograms and model differences</h2>
     <p>Click or tap any airport (or one of a few city centres such as New York Central Park) for a meteogram from every model's newest run, every forecast hour: temperature and dewpoint, 10&nbsp;m wind and gusts and 80&nbsp;m wind with barbs, ceiling and visibility against the flight-category bands, simulated radar and precipitation type, hourly and accumulated precipitation by type, ECAPE and CAPE (HRRR), smoke, sunshine and sea-level pressure, with a line at the current time. The values are read from the model grids when the run is processed: bilinear between the four nearest grid points for smooth fields, the nearest point for ceiling, visibility, reflectivity, precipitation type and CAPE.</p>
-    <p>&ldquo;Minus RRFS&rdquo; / &ldquo;Minus HRRR&rdquo; subtracts the other 3&nbsp;km model at the same valid time; the HRRR and RRFS share an identical grid, so the difference is cell by cell (temperature, dewpoint, 10&nbsp;m and 80&nbsp;m wind speed, gusts, IR and shortwave).</p>
+    <p>&ldquo;Minus RRFS&rdquo; / &ldquo;Minus HRRR&rdquo; subtracts the other 3&nbsp;km model at the same valid time; the HRRR and RRFS share an identical 3&nbsp;km grid, so the difference is cell by cell (temperature, dewpoint, 10&nbsp;m and 80&nbsp;m wind speed, gusts, IR and shortwave). It covers that grid only, not the rest of the RRFS&rsquo;s North American domain.</p>
     <h2>How the page works</h2>
     <p><b>Data use.</b> <b>Heavy on data, especially on mobile.</b> Opening a map loads only the hour on screen (0.05&ndash;0.6&nbsp;MB). Once you play, step or drag the time slider, the viewer downloads every hour of that map so the loop never stalls: typically 5&ndash;30&nbsp;MB a map, twice that with <b>Minus</b>, and 100&nbsp;MB or more after a dozen maps. It holds back to the next few hours only on a slow connection, not on a good 4G or 5G signal. On a capped data plan, look at single hours or wait for Wi&#8209;Fi.</p>
     <p>Zoomable maps of the newest HRRR, RRFS and RDPS forecasts, out to two to three and a half days, for aviation, severe and winter weather (including snow-band diagnostics), and wind and solar power. Pick a map, scrub through the hours, and hover or tap anywhere for the model's value. <b>Click or tap an airport</b> for its forecast from all three models, <b>double-click</b> the HRRR map (on a phone, double-tap or press and hold) for a forecast sounding there, and compare the HRRR and RRFS with <b>Minus</b>.</p>
-    <p>Nothing on this page is a picture. Each field and hour is shipped as the model's own numbers, rounded to 256 levels (0.625&nbsp;K for infrared, 0.5&nbsp;&deg;F for temperature and dewpoint, 0.4&nbsp;m/s for wind, 0.25&nbsp;m/s for gusts, 0.5&nbsp;hPa for sea-level pressure, 0.5&nbsp;m/s for the 925&nbsp;hPa and 0.8&nbsp;m/s for the 250&nbsp;hPa wind, a few metres for heights, 0.6&nbsp;K for the dynamic tropopause, 5&nbsp;W&nbsp;m<sup>&minus;2</sup> for shortwave, 2&ndash;3&nbsp;% steps on logarithmic scales for ceiling, visibility and smoke, and a square-root scale for ECAPE and CAPE: within &plusmn;4&nbsp;J/kg at 100, &plusmn;11 at 1,000 and &plusmn;20 at 3,000) on the native model grid, and your browser colours, projects, contours and reads it: zooming shows the model's grid cells, and the hover value is the stored one, within those steps. Maps are drawn on the HRRR's Lambert conformal projection for all three models, so switching model keeps the view. Contours (every 10&nbsp;&deg;F with the freezing line in blue; dewpoint every 10&nbsp;&deg;F with 60 and 70 emphasised; 80&nbsp;m wind 10/15/20&nbsp;m/s; 10&nbsp;m wind 20/30/40&nbsp;kt; gusts 30/40/50&nbsp;kt; isobars every 2&nbsp;hPa, 4&nbsp;hPa zoomed out, on the radar, pressure, 10&nbsp;m wind and gust maps) are drawn by your graphics card in the same pass as the colours, from the same numbers after a light smoothing (to about 6&nbsp;km on the 3&nbsp;km grids), so they show the pattern, not every 3&nbsp;km wiggle, and move with the map; their labels and the highs and lows are placed once the map is at rest. Boundaries: Natural Earth; US states and counties: US Census via us-atlas.</p>
+    <p>Nothing on this page is a picture. Each field and hour is shipped as the model's own numbers, rounded to 256 levels (0.625&nbsp;K for infrared, 0.5&nbsp;&deg;F for temperature and dewpoint, 0.4&nbsp;m/s for wind, 0.25&nbsp;m/s for gusts, 0.5&nbsp;hPa for sea-level pressure, 0.5&nbsp;m/s for the 925&nbsp;hPa and 0.8&nbsp;m/s for the 250&nbsp;hPa wind, a few metres for heights, 0.6&nbsp;K for the dynamic tropopause, 5&nbsp;W&nbsp;m<sup>&minus;2</sup> for shortwave, 2&ndash;3&nbsp;% steps on logarithmic scales for ceiling, visibility and smoke, and a square-root scale for ECAPE and CAPE: within &plusmn;4&nbsp;J/kg at 100, &plusmn;11 at 1,000 and &plusmn;20 at 3,000) on the native model grid, and your browser colours, projects, contours and reads it: zooming shows the model's grid cells, and the hover value is the stored one, within those steps. Maps are drawn on the HRRR's Lambert conformal projection for all three models, so switching model keeps the view (from a model&rsquo;s opening view the map goes to the next model&rsquo;s: the lower 48 for the HRRR, North America for the RRFS and RDPS). Contours (every 10&nbsp;&deg;F with the freezing line in blue; dewpoint every 10&nbsp;&deg;F with 60 and 70 emphasised; 80&nbsp;m wind 10/15/20&nbsp;m/s; 10&nbsp;m wind 20/30/40&nbsp;kt; gusts 30/40/50&nbsp;kt; isobars every 2&nbsp;hPa, 4&nbsp;hPa zoomed out, on the radar, pressure, 10&nbsp;m wind and gust maps) are drawn by your graphics card in the same pass as the colours, from the same numbers after a light smoothing (to about 6&nbsp;km on the 3&nbsp;km grids), so they show the pattern, not every 3&nbsp;km wiggle, and move with the map; their labels and the highs and lows are placed once the map is at rest. Boundaries: Natural Earth; US states and counties: US Census via us-atlas.</p>
     <h2 id="snowbands">Snow bands: what the four maps are</h2>
     <p>A <b>mesoscale snow band</b> is a stripe of heavy snow, typically 20&ndash;100&nbsp;km wide and hundreds of kilometres long, that can drop 2&ndash;4&nbsp;inches an hour for several hours while places 50&nbsp;km away get a fraction of that. Most cold-season bands form on the poleward side of a cyclone where the middle troposphere is <b>frontogenetic</b> (the flow packs the temperature gradient together), the air above is <b>weakly stable to slantwise motion</b>, and the column is saturated through the <b>dendritic growth zone</b> (Nicosia and Grumm 1999; Waldstreicher 2001; Novak et al. 2004). The four maps under <b>Winter: snow bands</b> show those ingredients and their overlap; the model&rsquo;s own bands are on the <b>Radar + type</b> map (snow in blue).</p>
-    <p><b>How they are computed.</b> Every field is smoothed with a Gaussian filter (&sigma;&nbsp;=&nbsp;18&nbsp;km) on the model&rsquo;s own grid before any derivative, and the diagnostics are evaluated on a 12&nbsp;km grid (10&nbsp;km for the RDPS): frontogenesis and EPV are second order in the wind and temperature, and on a raw 3&nbsp;km grid they are dominated by convective-scale noise. Derivatives use grid-relative winds and the true grid spacing; levels within 25&nbsp;hPa of the ground are masked. Frontogenesis: the rate of change of |&nabla;&theta;| following the flow, from the 2-D kinematic (Petterssen 1936) form, K per 100&nbsp;km per 3&nbsp;h. EPV*: saturated equivalent potential vorticity in pressure coordinates with the full wind and &theta;<sub>es</sub> from Bolton (1980), averaged over 750&ndash;500&nbsp;hPa where that layer&rsquo;s relative humidity (over ice below 0&nbsp;&deg;C) is 80&nbsp;% or more; hatched where &theta;<sub>es</sub> at 500&nbsp;hPa is lower than at 750&nbsp;hPa. DGZ lift: the column sampled every 5&nbsp;hPa, the strongest &minus;&omega; (10&nbsp;&micro;b/s &asymp; 10&nbsp;cm/s) where it is &minus;12 to &minus;18&nbsp;&deg;C and saturated over ice. Ingredients: frontogenesis &ge;&nbsp;4, EPV* &le;&nbsp;0.25&nbsp;PVU in saturated air, DGZ lift &ge;&nbsp;10&nbsp;&micro;b/s &mdash; round numbers in the range reported for northeast US banded storms, loose enough to keep the weakly stable cases a strict EPV*&nbsp;&lt;&nbsp;0 rule would miss (Schultz and Schumacher 1999). The axes of dilatation are drawn where the total deformation is in the top 15&nbsp;% of the map in view and at least 6&nbsp;&times;&nbsp;10<sup>&minus;5</sup>&nbsp;s<sup>&minus;1</sup>. The code is the same as the site&rsquo;s former snow-band page&rsquo;s (scripts/snowband/snowband.py), now run on the whole model domain. Checked against the former page&rsquo;s own output on the same HRRR hours (the Binghamton storm, 16 December 2020 18Z +3&nbsp;h, and the 27 September 2026 nor&rsquo;easter): every field agrees to r&nbsp;&ge;&nbsp;0.99 on the snowstorm (0.95&ndash;1.00 on the rain case, where frontogenesis was weak), the peaks within about 5&nbsp;%, and the ingredient count matches in 99&nbsp;% of cells; the small differences come from the 12&nbsp;km grid being offset by one 3&nbsp;km cell and from the stored precision.</p>
+    <p><b>How they are computed.</b> Every field is smoothed with a Gaussian filter (&sigma;&nbsp;=&nbsp;18&nbsp;km) on the model&rsquo;s own grid before any derivative, and the diagnostics are evaluated on a 12&nbsp;km grid (10&nbsp;km for the RDPS, 13&nbsp;km for the RRFS): frontogenesis and EPV are second order in the wind and temperature, and on a raw 3&nbsp;km grid they are dominated by convective-scale noise. Derivatives use grid-relative winds and the true grid spacing; levels within 25&nbsp;hPa of the ground are masked. Frontogenesis: the rate of change of |&nabla;&theta;| following the flow, from the 2-D kinematic (Petterssen 1936) form, K per 100&nbsp;km per 3&nbsp;h. EPV*: saturated equivalent potential vorticity in pressure coordinates with the full wind and &theta;<sub>es</sub> from Bolton (1980), averaged over 750&ndash;500&nbsp;hPa where that layer&rsquo;s relative humidity (over ice below 0&nbsp;&deg;C) is 80&nbsp;% or more; hatched where &theta;<sub>es</sub> at 500&nbsp;hPa is lower than at 750&nbsp;hPa. DGZ lift: the column sampled every 5&nbsp;hPa, the strongest &minus;&omega; (10&nbsp;&micro;b/s &asymp; 10&nbsp;cm/s) where it is &minus;12 to &minus;18&nbsp;&deg;C and saturated over ice. Ingredients: frontogenesis &ge;&nbsp;4, EPV* &le;&nbsp;0.25&nbsp;PVU in saturated air, DGZ lift &ge;&nbsp;10&nbsp;&micro;b/s &mdash; round numbers in the range reported for northeast US banded storms, loose enough to keep the weakly stable cases a strict EPV*&nbsp;&lt;&nbsp;0 rule would miss (Schultz and Schumacher 1999). The axes of dilatation are drawn where the total deformation is in the top 15&nbsp;% of the map in view and at least 6&nbsp;&times;&nbsp;10<sup>&minus;5</sup>&nbsp;s<sup>&minus;1</sup>. The code is the same as the site&rsquo;s former snow-band page&rsquo;s (scripts/snowband/snowband.py), now run on the whole model domain. Checked against the former page&rsquo;s own output on the same HRRR hours (the Binghamton storm, 16 December 2020 18Z +3&nbsp;h, and the 27 September 2026 nor&rsquo;easter): every field agrees to r&nbsp;&ge;&nbsp;0.99 on the snowstorm (0.95&ndash;1.00 on the rain case, where frontogenesis was weak), the peaks within about 5&nbsp;%, and the ingredient count matches in 99&nbsp;% of cells; the small differences come from the 12&nbsp;km grid being offset by one 3&nbsp;km cell and from the stored precision.</p>
     <p><b>Known limits.</b> These are only as good as the model&rsquo;s placement of the system, and band placement errors of 50&ndash;100&nbsp;km are normal: on the Binghamton case below the HRRR&rsquo;s one-hour frontogenesis and lift axis sat 35&ndash;75&nbsp;km south of the observed band, and its 12Z run&rsquo;s band was 80&ndash;150&nbsp;km south 14&ndash;16 hours out. Negative EPV* is necessary, not sufficient (it also flags upright and inertial instability and means nothing in unsaturated air): read it as &ldquo;the atmosphere would not resist a band here&rdquo;, never &ldquo;a band is here&rdquo;. The ingredient overlap is not a probability and has not been calibrated against observed bands. The HRRR&rsquo;s analysis hour has no usable vertical motion, so the maps start at +3&nbsp;h. Computed 1&nbsp;October to 30&nbsp;April; outside that the maps say so.</p>
     <p class="mv-runs">Petterssen, S., 1936: Contribution to the theory of frontogenesis. Geofys. Publ. 11(6), 1&ndash;27 &middot; Bolton, D., 1980, Mon. Wea. Rev. 108, 1046&ndash;1053 &middot; Nicosia, D. J., and R. H. Grumm, 1999, Wea. Forecasting 14, 346&ndash;368 &middot; Schultz, D. M., and P. N. Schumacher, 1999, Mon. Wea. Rev. 127, 2709&ndash;2732 &middot; Waldstreicher, J. S., 2001: The importance of snow microphysics for large snowfalls. Third Northeast Operational Workshop &middot; Novak, D. R., L. F. Bosart, D. Keyser and J. S. Waldstreicher, 2004, Wea. Forecasting 19, 993&ndash;1010 &middot; Peters, J. M., D. R. Chavas, C.-Y. Su, H. Morrison and B. E. Coffer, 2023, J. Atmos. Sci. 80, 2165&ndash;2186 &middot; Cobb, D. K., and J. S. Waldstreicher, 2005: A simple physically based snowfall algorithm. 21st Conf. on Weather Analysis and Forecasting / 17th Conf. on NWP, Amer. Meteor. Soc., 2A.2 &middot; Sanders, K. J., and B. Barjenbruch, 2016, Wea. Forecasting 31, 1041&ndash;1060</p>
     <h2 id="snowband-cases">Snow-band case studies, against the radar</h2>
@@ -714,7 +715,7 @@
   // simulated reflectivity (1 km AGL) coloured by precipitation type; RDPS: precipitation rate (manifest enc "rate2")
   FIELDS.refl = { label: "Radar + type", enc: "refl2", unit: "dBZ" };
   // MSLP: the isobars on the radar map, and a map of its own. The file is the existing
-  // 4x/2x-subsampled grid (12 km HRRR/RRFS, 20 km RDPS; R = 940 + 0.5 hPa, G = 1 where the surface pressure is below 850 hPa):
+  // 4x/2x-subsampled grid (12 km HRRR, 26 km RRFS, 20 km RDPS; R = 940 + 0.5 hPa, G = 1 where the surface pressure is below 850 hPa):
   // the shader interpolates it bilinearly, so the 4 hPa colour classes have smooth edges; high terrain (G) is drawn faded.
   FIELDS.mslp = { label: "Sea-level pressure", enc: "lin", off: 940, step: 0.5, unit: "hPa",
                   fmt: function (v) { return v.toFixed(1) + " hPa  (" + (v * 0.02953).toFixed(2) + " inHg)"; } };
@@ -799,7 +800,7 @@
   // hour (the slider walks those hours on these maps). Files: 3 channels.
   // ua925 / ua250: R, G = earth-relative u, v (off + step * code), B = height (per-frame q, like t2m), on the 6 km grid
   // (RDPS 10 km); dt: R = theta on 2 PVU (250 K + 0.6 K), G, B = the wind on it; z500: R = absolute vorticity, G = height;
-  // dt and z500 on the 12 km grid (RDPS 20 km). All drawn with bilinear interpolation (shader modes 4 and 5).
+  // dt and z500 on the 12 km grid (RRFS 26 km, RDPS 20 km). All drawn with bilinear interpolation (shader modes 4 and 5).
   function kts(list) { return list.map(function (a) { return S(a[0] / KT, a[1], a[2]); }); }
   FIELDS.ua925 = { label: "925 hPa wind", enc: "lin2", off: -63.5, step: 0.5, unit: "kt", kt: true, smax: 48, bil: true, ch: 3, ua: true, barbs: true, zc: 2,
                    stops: kts([[0, "#f6f6f4"], [10, "#d3e4f1"], [20, "#9cc5e3"], [30, "#5c9fcd"], [40, "#3f9b6a"], [50, "#8cc24a"], [60, "#e6d93a"], [70, "#f8a93a"], [80, "#e4552f"], [90, "#a8124f"]]),
@@ -846,7 +847,7 @@
                   stops: [S(0, "#f4efe6"), S(250, "#e9dcc0"), S(500, "#d9c08d"), S(1000, "#a9c97a"), S(1500, "#5fb07a"), S(2000, "#3c8fb8"), S(2500, "#4a64b8"), S(3000, "#6a45a8"), S(4000, "#8a2a8a"), S(5000, "#5a0d4a")],
                   ticks: [0, 500, 1000, 1500, 2000, 2500, 3000, 4000, 5000], fmt: function (v) { return Math.round(v).toLocaleString("en-US") + " m (" + Math.round(v * 3.28084).toLocaleString("en-US") + " ft) above ground"; } };
   // ── potential vorticity: scripts/models/upper.py, 12 km
-  // (RDPS 20 km), every 3 h. PV code = (PVU + 2) / 0.0625 (255 = masked). pvu 1 channel (barbs and heights from the ua250
+  // (RRFS 26 km, RDPS 20 km), every 3 h. PV code = (PVU + 2) / 0.0625 (255 = masked). pvu 1 channel (barbs and heights from the ua250
   // frame); pvl R = PV, G, B = 850 hPa wind; pv315..pv340 R = PV, G = the isentrope's pressure 100 + 2.5 hPa (wind: w315..)
   function pvOf(c) { return -2 + 0.0625 * c; }
   // the site's PV colours (scripts/mjo/src/dt_charts.py PV_LEV / PV_COLS): warm below 2 PVU, blue to purple above
@@ -860,7 +861,7 @@
     FIELDS["w" + t] = { label: "Wind on " + t + " K", enc: "lin2", off: -101.6, step: 0.8, unit: "kt", kt: true, smax: 100, ch: 2, barbs: true, companion: true }; });
   // ── snow-band diagnostics (they replace snowbands.html). Computed in models.py by scripts/snowband/snowband.py itself (smooth_diagnose, ingredients):
   // every field Gaussian-smoothed (sigma 18 km) on the model's grid before any derivative, evaluated on 12 km (HRRR, the
-  // "sub" grid) or 10 km (RDPS), every 3 h from +3 h, 1 October - 30 April. Colours = snowband.py's matplotlib classes.
+  // "sub" grid), 13 km (RRFS) or 10 km (RDPS), every 3 h from +3 h, 1 October - 30 April. Colours = snowband.py's matplotlib classes.
   // sbfg R FG (-20.125 + 0.25), G theta700 (240.2 + 0.4 K), B z700 (2402.5 + 5 m; offsets half a step so no code equals a contour level); sbdef R axis (2 deg, from east), G deformation
   // (2e-6 s-1); sbepv R EPV* where saturated (-2.5 + 0.025 PVU), G RH % (+128 = upright CI), B 800-600 hPa FG; sbdgz R lift
   // (-20 + 0.5 ub/s), G DGZ depth (5 hPa); sbing R 60 x count, G flags (1 FG, 2 EPV*, 4 lift), B 250 x model-snow fraction
@@ -921,7 +922,7 @@
             smoke: "RRFS-SD smoke: the column mass density of the smoke (organic particulate) tracer." }
   };
   NOTES.rrfs.gust = NOTES.hrrr.gust.replace("HRRR", "RRFS");
-  NOTES.rrfs.mslp = "RRFS sea-level pressure (NCEP's MSLET reduction; the 2-D file has no PRMSL), stored every 4th grid point (12 km) and interpolated. Faded where the ground is above ~1,500 m, where no highs or lows are marked.";
+  NOTES.rrfs.mslp = "RRFS sea-level pressure (NCEP's MSLET reduction; the 2-D file has no PRMSL), from its 13 km North American grid, stored every 2nd grid point (26 km) and interpolated. Faded where the ground is above ~1,500 m, where no highs or lows are marked.";
   NOTES.rdps.gust = "RDPS 10 m wind gust (WindGust), instantaneous at the valid time (not the hourly maximum). Barbs: the 10 m wind (knots).";
   NOTES.rdps.mslp = "RDPS sea-level pressure, stored every 2nd grid point (20 km) and interpolated. Faded where the ground is above ~1,500 m, where no highs or lows are marked.";
   // upper air
@@ -929,7 +930,11 @@
   NOTES.hrrr.ua250 = "HRRR 250 hPa wind and height (wrfprs, AWS), every 3 hours, on every 2nd grid point (6 km).";
   NOTES.hrrr.z500 = "HRRR 500 hPa height and absolute vorticity, every 3 hours, on a 12 km grid. The vorticity is computed here from the 500 hPa wind smoothed to 12 km (with the Lambert grid's map factor), plus the Coriolis parameter. Barbs: the 500 hPa wind (knots), from the same smoothed field.";
   NOTES.hrrr.dt = "Computed here every 3 hours from the HRRR's temperature and wind on 19 pressure levels (100–700 hPa), smoothed to 12 km: Ertel potential vorticity on the pressure levels, then the 2-PVU surface found by searching <b>downward from 100 hPa</b> (so the low-level PV made by storms and fronts cannot fake a low tropopause), with potential temperature and wind interpolated to it. Where PV is still below 2 PVU at 100 hPa (tropical air) the 100 hPa values are shown. The HRRR's top is at 50 hPa, its domain small: the larger-scale view is on the site's <a href=\"/circulation.html#dt\">dynamic tropopause maps</a>.";
-  ["ua925", "ua250", "z500", "dt"].forEach(function (f) { NOTES.rrfs[f] = NOTES.hrrr[f].replace(/HRRR/g, "RRFS").replace("wrfprs, AWS", "prslev, AWS").replace("RRFS's top is at 50 hPa", "RRFS's top is high"); });
+  ["ua925", "ua250", "z500", "dt"].forEach(function (f) {             // RRFS: its 13 km North American files
+    NOTES.rrfs[f] = NOTES.hrrr[f].replace(/HRRR/g, "RRFS").replace("wrfprs, AWS", "prslev, AWS").replace("on every 2nd grid point (6 km)", "on its 13 km North American grid")
+      .replace("on a 12 km grid", "on a 26 km grid").replace("smoothed to 12 km (with the Lambert grid's map factor)", "smoothed to 26 km (every 2nd point of its 13 km North American grid, a rotated latitude-longitude one)")
+      .replace("smoothed to 12 km", "smoothed to 26 km").replace("The RRFS's top is at 50 hPa, its domain small: the larger-scale view", "The hemispheric view");
+  });
   NOTES.rdps.ua925 = "RDPS 925 hPa wind and height, every 3 hours, on its 10 km grid. Left blank where the ground rises above the 925 hPa level.";
   NOTES.rdps.ua250 = "RDPS 250 hPa wind and height, every 3 hours, on its 10 km grid.";
   NOTES.rdps.z500 = "RDPS 500 hPa height and the model's own absolute vorticity, every 3 hours, smoothed to 20 km. Barbs: the 500 hPa wind (knots).";
@@ -943,14 +948,14 @@
   NOTES.hrrr.uvvs = NOTES.hrrr.uvv.replace("in the hour ending at the time shown", "since the run started (run swath of the hourly maxima)");
   NOTES.hrrr.etop = "HRRR echo top (RETOP): the highest level where the simulated reflectivity reaches 18.3 dBZ, in thousands of feet above sea level, instantaneous at the valid time. Tops above ~40,000 ft mark strong, deep convection.";
   NOTES.hrrr.hpbl = "HRRR boundary-layer height (HPBL, from the MYNN scheme), metres above ground, instantaneous, smoothed to 6 km: how deep the air mixed from the surface is. Deep afternoon mixing brings momentum (gusts) down and dilutes smoke; shallow layers at night trap it.";
-  ["uh25", "uh25s", "uh03", "uh03s", "uvv", "uvvs", "etop", "hpbl"].forEach(function (f) { NOTES.rrfs[f] = NOTES.hrrr[f].replace(/HRRR/g, "RRFS"); });
+  ["uh25", "uh25s", "uh03", "uh03s", "uvv", "uvvs", "etop", "hpbl"].forEach(function (f) { NOTES.rrfs[f] = NOTES.hrrr[f].replace(/HRRR/g, "RRFS").replace("smoothed to 6 km", "on its 13 km North American grid"); });
   ["uh25", "uh25s", "uh03", "uh03s", "uvv", "uvvs"].forEach(function (f) { NOTES.rrfs[f] += " Past +36 h the RRFS is published every 3 hours and each file's maximum covers only its last hour, so swaths there miss two hours in three."; });
   // PV charts
   var PVN = "Ertel potential vorticity computed here every 3 hours from the {M}'s temperature and wind on {L} pressure levels smoothed to {K} km (the same PV as the dynamic-tropopause map). ";
   NOTES.hrrr.pvu = PVN.replace("{M}", "HRRR").replace("{L}", "22").replace("{K}", "12") + "Mean of 250, 275 and 300 hPa (the layer mean is less noisy than one level and spans where the jet-level tropopause usually sits). Air with more than 2 PVU (blue) is stratospheric: tropopause folds, troughs and the jet's cold side.";
   NOTES.hrrr.pvl = PVN.replace("{M}", "HRRR").replace("{L}", "22").replace("{K}", "12") + "Mean of 700, 750, 800 and 850 hPa: low-level PV is made by latent heating, so it marks convective systems, mesoscale vortices, fronts and tropical cyclones. Blank where the surface pressure is below 850 hPa.";
   [315, 320, 330, 340].forEach(function (t) { NOTES.hrrr["pv" + t] = PVN.replace("{M}", "HRRR").replace("{L}", "22").replace("{K}", "12") + "Interpolated to the " + t + " K isentrope (linear in θ, the first crossing above 700 hPa); blank where " + t + " K lies outside 100–700 hPa. Lower isentropes (315–320 K) suit the cold season, 330–340 K the warm season and the subtropical jet."; });
-  ["pvu", "pvl", "pv315", "pv320", "pv330", "pv340"].forEach(function (f) { NOTES.rrfs[f] = NOTES.hrrr[f].replace(/HRRR/g, "RRFS"); });
+  ["pvu", "pvl", "pv315", "pv320", "pv330", "pv340"].forEach(function (f) { NOTES.rrfs[f] = NOTES.hrrr[f].replace(/HRRR/g, "RRFS").replace("smoothed to 12 km", "(its 13 km North American files) smoothed to 26 km"); });
   ["pvu", "pvl", "pv315", "pv320", "pv330", "pv340"].forEach(function (f) { NOTES.rdps[f] = NOTES.hrrr[f].replace(/HRRR/g, "RDPS").replace("on 22 pressure levels smoothed to 12 km", "on 19 pressure levels (100–850 hPa, on its rotated latitude-longitude grid) smoothed to 20 km"); });
   NOTES.rdps.hpbl = "RDPS boundary-layer height (PlanetaryBoundaryLayerHeight), metres above ground, instantaneous, smoothed to 20 km.";
   NOTES.rrfs.ceil = NOTES.hrrr.ceil; NOTES.rrfs.vis = NOTES.hrrr.vis; NOTES.rrfs.sw = NOTES.hrrr.sw;
@@ -964,7 +969,7 @@
   NOTES.hrrr.sbing = "<b>Band ingredients</b>: where 700 hPa frontogenesis ≥ 4 K/100 km/3 h, EPV* ≤ 0.25 PVU in saturated air (750–500 hPa) and DGZ lift ≥ 10 µb/s overlap - pale orange two of the three, dark orange all three. Navy outline: the model's own snow at 25 dBZ or more (composite reflectivity where its precipitation type is snow); grey lines: 700 hPa height. <b>An overlap of ingredients, not a probability</b>: not calibrated against observed bands, says nothing about rain or snow, and placement errors of 50–100 km are normal. " + SBN;
   SB_FIELDS.forEach(function (f) {
     NOTES.hrrr[f] = NOTES.hrrr[f].replace("{M}", "HRRR").replace("{K}", "12");
-    NOTES.rrfs[f] = NOTES.hrrr[f].replace(/HRRR/g, "RRFS") + (f === "sbdgz" || f === "sbing" ? " The RRFS writes geometric vertical velocity (DZDT); it is converted to ω here hydrostatically." : "");
+    NOTES.rrfs[f] = NOTES.hrrr[f].replace(/HRRR/g, "RRFS").replace("evaluated on 12 km", "evaluated on its 13 km North American grid") + (f === "sbdgz" || f === "sbing" ? " The RRFS writes geometric vertical velocity (DZDT); it is converted to ω here hydrostatically." : "");
     NOTES.rdps[f] = NOTES.hrrr[f].replace(/HRRR/g, "RDPS").replace("evaluated on 12 km", "evaluated on its 10 km grid")
       .replace("from the model's 25 hPa levels", "from the RDPS's 25–50 hPa levels; it publishes vertical velocity only at 850, 700 and 500 hPa, so the lift is interpolated linearly in pressure between them and cannot show a narrow maximum between levels")
       .replace("the model's own snow at 25 dBZ or more (composite reflectivity where its precipitation type is snow)", "the model's own snow at 1 mm or more in the hour (the RDPS has no reflectivity)");
@@ -991,6 +996,7 @@
   // grid index (fractional) of a display point, identical to the shader
   function gridIJ(g, x, y) {
     if (g.type === "lcc") return [(x - g._x1) / g.dx, (y - g._y1) / g.dy];
+    if (Math.abs(Math.atan2(x, P.rho0 - y)) > P.n * Math.PI) return [-9, -9];
     var ll = P.inv(x, y), lon = ll[0] * D2R, lat = ll[1] * D2R;
     var lo = lon - g.splon * D2R, cx = Math.cos(lat) * Math.cos(lo), cy = Math.cos(lat) * Math.sin(lo), cz = Math.sin(lat);
     var th = (90 + g.splat) * D2R, xr = Math.cos(th) * cx + Math.sin(th) * cz, zr = -Math.sin(th) * cx + Math.cos(th) * cz;
@@ -1149,7 +1155,8 @@
     hs.forEach(function (x) { if (Math.abs(x - h) < Math.abs(best - h)) best = x; });
     return best;
   }
-  // lo = the half-resolution copy (every 2nd point of the native grid, <fff>_lo.webp, manifest field "lo" names its grid)
+  // lo = the field's second file (<fff>_lo.webp; the manifest field's "lo" names its grid): the HRRR's every 2nd grid
+  // point, the RRFS's 13 km North American grid
   function relPath(model, c, field, h, lo) { return "assets/models/data/" + model + "/" + c.cycle + "/" + field + "/" + ("00" + h).slice(-3) + (lo ? "_lo" : "") + ".webp"; }
 
   // ── data transport: the frames store -> Bunny CDN (frames.scorvec.com) -> raw.githubusercontent -> jsDelivr ──
@@ -1603,13 +1610,19 @@
       if (e.lo === false && drawn && drawn.e && drawn.e.lo && tip.style.display === "block" && lastHover) hover(lastHover[0], lastHover[1]);   // the native value has arrived
     }, function () { e.decP = null; e.fail = true; render(); });
   }
-  // resolution: the half-resolution file while a half-resolution cell is at most 1.5 device pixels on screen (a
-  // national view on a 1x-1.25x screen), the native one closer in. Native frames already decoded are always used.
+  // resolution. HRRR: the half-resolution file while a half-resolution cell is at most 1.5 device pixels on screen (a
+  // national view on a 1x-1.25x screen), the native one closer in. RRFS: the second file is another grid, the 13 km
+  // North American one (wideLo), drawn by the same rule and whenever the view reaches past the 3 km grid by more than
+  // a twentieth of the view. A frame of the other kind that is already decoded is drawn while the wanted one loads.
+  function wideLo(c, fm) { return !!(fm && fm.lo && c.grids[fm.lo].type !== c.grids[fm.grid].type); }
   function loOK(c, field) {
     var fm = c && c.fields[field], g = fm && fm.lo && c.grids[fm.lo];
     if (!g || !view) return false;
     var cell = g.type === "lcc" ? g.dx : g.di * 111200;
-    return cell / (view.s / DPR) <= 1.5;
+    if (cell / (view.s / DPR) <= 1.5) return true;
+    if (!wideLo(c, fm)) return false;
+    var bb = prepGrid(c.grids[fm.grid])._bb, hw = 0.45 * W * view.s, hh = 0.45 * H * view.s;
+    return view.cx - hw < bb[0] || view.cx + hw > bb[1] || view.cy - hh < bb[2] || view.cy + hh > bb[3];
   }
   function updLoad() {
     var n = 0; frames.forEach(function (e) { if (e.bytesP) n++; });
@@ -1659,6 +1672,7 @@
     "vec2 gIdx(vec2 xy,int ty,vec4 L,vec4 R1,vec4 R2){",
     " if(ty==0)return vec2((xy.x-L.x)/L.z,(xy.y-L.y)/L.w);",
     " float dy=uP.z-xy.y;float rho=sign(uP.x)*sqrt(xy.x*xy.x+dy*dy);float th=atan(xy.x,dy);",
+    " if(abs(th)>uP.x*3.141592653589793)return vec2(-9.);",       // past the cone's cut (beyond the pole): no grid there
     " float lon=uP.w+th/uP.x;float lat=2.*atan(pow(uP.y/rho,1./uP.x))-1.5707963267948966;",
     " float lo=lon-radians(R1.y);float cx=cos(lat)*cos(lo),cy=cos(lat)*sin(lo),cz=sin(lat);float t=radians(90.+R1.x);",
     " float xr=cos(t)*cx+sin(t)*cz,zr=-sin(t)*cx+cos(t)*cz;float lr=degrees(atan(cy,xr)),pr=degrees(asin(clamp(zr,-1.,1.)));",
@@ -1987,29 +2001,34 @@
     drawLegend();
     render();
   }
-  // the map box takes the domain's shape when that is shorter than the CSS height, so the map fits the window on open
-  // (a portrait phone would show the wide HRRR domain in a band across a tall box). Applied on open, on "fit" and when
-  // the window's width changes; never taller than CSS. Phones keep a 280 px floor: the floating badge and buttons sit
-  // in the margins above and below the domain instead of over it.
-  function fitBox(g) {
+  // a model's opening view: its grid's own box (HRRR), or North America where the model reaches well past it (the
+  // RDPS's rotated grid, the RRFS's 13 km one)
+  var NAM = { cx: -300000, cy: 1300000, w: 7600000, h: 5200000 };
+  function homeBox(c) {
+    if (c.grids.main.type !== "lcc" || c.grids.na) return NAM;
+    var bb = prepGrid(c.grids.main)._bb, pad = 1.02;
+    return { cx: (bb[0] + bb[1]) / 2, cy: (bb[2] + bb[3]) / 2, w: (bb[1] - bb[0]) * pad, h: (bb[3] - bb[2]) * pad };
+  }
+  // the map box takes the opening view's shape when that is shorter than the CSS height, so the map fits the window on
+  // open (a portrait phone would show the wide HRRR domain in a band across a tall box). Applied on open, on "fit",
+  // when a model is picked from another's opening view and when the window's width changes; never taller than CSS.
+  // Phones keep a 280 px floor: the floating badge and buttons sit in the margins above and below the domain instead
+  // of over it.
+  function fitBox(c) {
     mapEl.style.height = "";
-    var r = mapEl.getBoundingClientRect(), bw, bh;
-    if (st.model === "rdps") { bw = 7600000; bh = 5200000; } else { var bb = g._bb; bw = bb[1] - bb[0]; bh = bb[3] - bb[2]; }
-    var need = Math.ceil(r.width * bh / bw * 1.03);
+    var r = mapEl.getBoundingClientRect(), b = homeBox(c);
+    var need = Math.ceil(r.width * b.h / b.w * 1.03);
     if (need < r.height) mapEl.style.height = Math.max(window.innerWidth <= 640 ? 280 : 220, need) + "px";
   }
   var fitBoxW = 0;
   window.addEventListener("resize", function () {
     var c = cycleObj(st.model, st.ci), w = window.innerWidth; if (!c || !view || w === fitBoxW) return; fitBoxW = w;
-    fitBox(prepGrid(c.grids.main));
+    fitBox(c);
   });
-  function fit(g) {
-    var bb = g._bb, pad = 0.02;
-    view = { cx: (bb[0] + bb[1]) / 2, cy: (bb[2] + bb[3]) / 2, s: Math.max((bb[1] - bb[0]) / W, (bb[3] - bb[2]) / H) * (1 + pad) };
-    if (st.model === "rdps") view = { cx: -300000, cy: 1300000, s: Math.max(7600000 / W, 5200000 / H) };   // North America, not the whole rotated grid
-  }
-  // a view still at the grid's fit (as opened, or after "fit"): a new box size fits it again; any other view keeps its zoom
-  function isFit(g) { var v = view; fit(g); var f = view; view = v; return Math.abs(v.s - f.s) <= 1e-9 * f.s && v.cx === f.cx && v.cy === f.cy; }
+  function fit(c) { var b = homeBox(c); view = { cx: b.cx, cy: b.cy, s: Math.max(b.w / W, b.h / H) }; }
+  // a view still at the opening one (as opened, or after "fit"): a new box size fits it again, and another model opens
+  // at its own; any other view keeps its place and zoom
+  function isFit(c) { var v = view; fit(c); var f = view; view = v; return Math.abs(v.s - f.s) <= 1e-9 * f.s && v.cx === f.cx && v.cy === f.cy; }
   function toXY(px, py) { return [view.cx + (px - W / 2) * view.s, view.cy - (py - H / 2) * view.s]; }
   function toPx(x, y) { return [W / 2 + (x - view.cx) / view.s, H / 2 - (y - view.cy) / view.s]; }
   function clampView() { view.s = Math.max(40, Math.min(view.s, 30000)); }
@@ -2042,7 +2061,9 @@
     var a1 = e1.dec.data, a0 = e0 ? e0.dec.data : null, n = e1.dec.w * e1.dec.h, out = new Uint8Array(n), u = fm.unit, vm = ACC_TYPES[type].vmax;
     var exact = new Float32Array(n);
     for (var k = 0; k < n; k++) {
-      var v = (a1[2 * k] * 256 + a1[2 * k + 1]) - (a0 ? a0[2 * k] * 256 + a0[2 * k + 1] : 0);
+      var w1 = a1[2 * k] * 256 + a1[2 * k + 1];
+      if (w1 === 65535) { exact[k] = NaN; continue; }             // missing: a grid point outside the model
+      var v = w1 - (a0 ? a0[2 * k] * 256 + a0[2 * k + 1] : 0);
       if (v <= 0) continue;
       var vi = v * u; exact[k] = vi;
       var cd = Math.round(254 * Math.sqrt(vi / vm)); out[k] = cd < 1 ? 1 : cd > 254 ? 254 : cd;
@@ -2137,7 +2158,7 @@
     else if (!e) { drawn = null; if (gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); } drawOverlay(); schedule(); return; }
     if (!e.dec) { drawOverlay(); schedule(); return; }
     var hidx = fm.hours.indexOf(cc.hour);
-    var q = fm.q && !acc && !df ? fm.q[hidx] : ec ? (fm.k || 2.8) : null;
+    var q = fm.q && !acc && !df ? (e.lo && fm.qlo ? fm.qlo : fm.q)[hidx] : ec ? (fm.k || 2.8) : null;
     if (drawn && drawn.e === e) q = drawn.q;
     var gfm = acc ? c.fields[st.acc.type] : fm;
     var g = hold ? drawn.g : prepGrid(c.grids[e.lo && gfm.lo ? gfm.lo : gfm.grid]);
@@ -2480,7 +2501,7 @@
   function specQ(d, spec, S) {                                    // the per-frame decode parameter of the frame a spec reads
     if (S.own && d.field === "ecape") return d.fm.k || 2.8;
     if (S.own && d.field === "acc") return null;
-    return S.fm.q ? S.fm.q[S.fm.hours.indexOf(d.hour)] : null;
+    return S.fm.q ? (S.own && S.e.lo && S.fm.qlo ? S.fm.qlo : S.fm.q)[S.fm.hours.indexOf(d.hour)] : null;
   }
   function contKey(d, suffix) { return (d.ckey || d.model + "/" + d.c.cycle + "/" + d.field + "/" + d.hour) + (suffix || ""); }
   // worker trace of one spec (labels, H/L; and the lines themselves where the GPU path is unavailable)
@@ -3133,10 +3154,12 @@
     tip.style.display = "none";
     if (!man[m] || !man[m].cycles || !man[m].cycles.length) return;
     var oldValid = cycleObj(st.model, st.ci) ? Date.parse(cycleObj(st.model, st.ci).init) + st.hour * 3600e3 : Date.now();
+    var cOld = cycleObj(st.model, st.ci), home = !!(view && cOld && isFit(cOld));
     st.model = m; st.ci = 0;
     if (NA[m] && NA[m][st.field] && !FIELDS[st.field].conv) st.field = "ir";   // convection maps stay and say "HRRR and RRFS only" (as ECAPE)
     var c = cycleObj(m, 0);
     st.hour = nearestHour(c, Math.round((oldValid - Date.parse(c.init)) / 3600e3));
+    if (home) { zA = null; fitBox(c); resize(); fit(c); }           // from one model's opening view to the next one's
     setButtons(); onChange();
   }
   function onChange() {
@@ -3159,6 +3182,7 @@
     }
     var cN = cycleObj(st.model, st.ci);
     if (FIELDS[st.field] && FIELDS[st.field].sb && cN && cN.snowband && cN.snowband.forced && fm) n = "<b>Test run outside the season (" + escH(cN.snowband.window) + ").</b> " + n;
+    if (cN && fm && wideLo(cN, fm)) n += (n ? " " : "") + "Beyond the lower 48 states, southern Canada and northern Mexico the RRFS is published on a 13 km grid: the map shows that grid until the whole view lies inside the 3 km one.";
     $("note").innerHTML = n;
     drawLegend();
     prefetch();
@@ -3179,7 +3203,7 @@
     var pfs = fileFields(), pf = pfs[0];
     if (st.field === "ecape" && st.model !== "hrrr") return;
     var fm = c.fields[pf]; if (!fm) return;
-    var slow = netSlow(), lo = loOK(c, pf);
+    var slow = netSlow(), lo = !diffOn() && loOK(c, pf);
     var list = [], hs = fm.hours, i0 = hs.indexOf(cc.hour), nU = 1;
     if (i0 < 0) i0 = 0;
     list.push([st.model, c, pf, hs[i0], lo]);
@@ -3216,7 +3240,7 @@
     if (pfs.length > 1) { var out2 = []; list.forEach(function (a) { pfs.forEach(function (f) { if (c.fields[f]) out2.push([a[0], a[1], f, a[3], false]); }); }); list = out2; nU *= pfs.length; }
     if (diffOn()) {                                                // the other model's frame at the same valid time rides along
       var o2 = diffOther(st.model), c2 = cycleObj(o2, 0), fm2 = c2.fields[pf], out3 = [], n3 = nU;
-      list.forEach(function (a, i) { out3.push(a); var h2 = diffHour(c, c2, a[3]); if (fm2 && a[2] === pf && fm2.hours.indexOf(h2) >= 0) { out3.push([o2, c2, pf, h2, a[4] && !!fm2.lo]); if (i < n3) nU++; } });
+      list.forEach(function (a, i) { out3.push(a); var h2 = diffHour(c, c2, a[3]); if (fm2 && a[2] === pf && fm2.hours.indexOf(h2) >= 0) { out3.push([o2, c2, pf, h2, false]); if (i < n3) nU++; } });
       list = out3;
     }
     if (!engaged()) { want(list.slice(0, nU), nU); return; }   // the map on screen only
@@ -3341,7 +3365,7 @@
   mapEl.addEventListener("gestureend", function (e) { e.preventDefault(); settleSoon(120); });
   $("zin").onclick = function () { zoomBy(W / 2, H / 2, 0.6, 45); };
   $("zout").onclick = function () { zoomBy(W / 2, H / 2, 1 / 0.6, 45); };
-  $("zfit").onclick = function () { var c = cycleObj(st.model, st.ci); if (c) { zA = null; fitBox(prepGrid(c.grids.main)); resize(); fit(prepGrid(c.grids.main)); render(); } };
+  $("zfit").onclick = function () { var c = cycleObj(st.model, st.ci); if (c) { zA = null; fitBox(c); resize(); fit(c); render(); } };
   // full screen - or the whole window, where a page may not go full screen (iPhone): the button again or Esc leaves,
   // and the map box is fitted again to its new size
   (function () {
@@ -3467,10 +3491,11 @@
     SND.press = setTimeout(function () { if (!moved && !gest.pinched && ptrs.size === 1) { SND.pressFired = true; clearTimeout(SND.tapT); SND.lastTap = null; sndAt(px, py, true); } }, 550);
   });
   // hover reads the NATIVE grid even when the half-resolution one is on screen: the first hover asks for the native file
-  // (the half-resolution value is shown until it has arrived)
+  // (the half-resolution value is shown until it has arrived). The RRFS's 13 km grid is read as drawn.
   function hoverSrc() {
     var d = drawn; if (!d || !d.e || !d.e.lo || d.diff) return d;
     var c = d.c, full = null, g = null;
+    if (wideLo(c, d.fm)) return d;
     if (d.field === "acc") { var r = accFrame(d.model, c, d.hour, false); if (r.e && !r.e.lo) full = r.e; g = c.grids[c.fields[d.accType].grid]; }
     else if (d.field !== "ecape") { full = peek(d.model, c, d.field, d.hour, false); if (!full) decoded(d.model, c, d.field, d.hour, false); g = c.grids[d.fm.grid]; }
     return full ? Object.assign({}, d, { e: full, g: prepGrid(g) }) : d;
@@ -3494,7 +3519,7 @@
     } else if (d.field === "acc") {
       var idx = (d.g.ny - 1 - Math.floor(MV_ij(d, px, py)[1] + 0.5)) * d.g.nx + Math.floor(MV_ij(d, px, py)[0] + 0.5);
       var av = d.e.exact ? d.e.exact[idx] : 0;
-      txt = (ACC_TYPES[d.accType].snow ? av.toFixed(1) + " in of snow" + (d.accType === "asnod" ? " depth gained" : "") : d.accType === "afram" ? av.toFixed(2) + " in of radial ice" : av.toFixed(2) + " in" + (d.accType === "apcp" ? "" : " (liquid)")) +
+      txt = av !== av ? "no data (outside the model)" : (ACC_TYPES[d.accType].snow ? av.toFixed(1) + " in of snow" + (d.accType === "asnod" ? " depth gained" : "") : d.accType === "afram" ? av.toFixed(2) + " in of radial ice" : av.toFixed(2) + " in" + (d.accType === "apcp" ? "" : " (liquid)")) +
             "<br><span class=\"ll\">" + d.accLabel + "</span>";
     } else if (d.field === "ecape") {
       var sub = EC_SUBS[d.ecSub], Kc = d.fm.k || 2.8, ij2 = MV_ij(d, px, py);
@@ -3625,8 +3650,8 @@
     return "The snow-band diagnostics are missing from this " + M + " run (" + when + "): its pressure-level files could not be read. The next run tries again.";
   }
   // ── model difference: HRRR minus RRFS (or the reverse) at the same valid
-  // time, worked out here from the two frames the page already decodes - the two models share the identical 3 km grid
-  // (same grid description in both manifests), so it is a cell-by-cell subtraction. 1-byte code 127 + d / step (0 = none).
+  // time, worked out here from the two models' native frames - they share the identical 3 km grid (same grid
+  // description in both manifests), so it is a cell-by-cell subtraction. 1-byte code 127 + d / step (0 = none).
   var DIFF_FIELDS = { t2m: { step: 0.25, range: 12, unit: "°F" }, td2m: { step: 0.25, range: 12, unit: "°F" },
                       wind80: { step: 0.2, range: 8, unit: "m/s" }, wind10: { step: 0.5, range: 16, unit: "kt" }, gust: { step: 0.5, range: 20, unit: "kt" },
                       // no MSLP: the HRRR's MAPS reduction (MSLMA) and the RRFS's MSLET differ by method, mostly over terrain
@@ -3659,16 +3684,16 @@
     var h2 = diffHour(c, c2, hour);
     if (fm.hours.indexOf(hour) < 0 || fm2.hours.indexOf(h2) < 0)
       return { msg: "The " + MODELS[o] + " run (" + c2.init.slice(5, 10).replace("-", "/") + " " + c2.init.slice(11, 13) + "Z) has no " + FIELDS[field].label.toLowerCase() + " at this valid time (its +" + h2 + " h)." };
-    var lo = loOK(c, field) && !!fm2.lo, key = model + "/" + c.cycle + "-" + o + "/" + c2.cycle + "/" + field + "/" + hour + (lo ? "~lo" : "");
+    var key = model + "/" + c.cycle + "-" + o + "/" + c2.cycle + "/" + field + "/" + hour;
     var have = DIFF.get(key); if (have) { have.used = ++useClock; return { e: have, fm: fm, key: key, h2: h2, o: o }; }
-    var e1 = decoded(model, c, field, hour, lo), e2 = decoded(o, c2, field, h2, lo);
+    var e1 = decoded(model, c, field, hour, false), e2 = decoded(o, c2, field, h2, false);
     if (!e1 || !e1.dec || !e2 || !e2.dec) return { wait: true, fm: fm, h2: h2, o: o };
     if (e1.dec.w !== e2.dec.w || e1.dec.h !== e2.dec.h) return { msg: "The two runs are not on the same grid." };
     var fd = FIELDS[field], v1 = fieldVals(fd, field, e1, fm.q && fm.q[fm.hours.indexOf(hour)]), v2 = fieldVals(fd, field, e2, fm2.q && fm2.q[fm2.hours.indexOf(h2)]);
     var n = v1.length, out = new Uint8Array(n), ex = new Float32Array(n);
     for (var k = 0; k < n; k++) { var d = v1[k] - v2[k]; ex[k] = d; if (d !== d) continue;
       var cd = 127 + Math.round(d / spec.step); out[k] = cd < 1 ? 1 : cd > 253 ? 253 : cd; }
-    var ent = { dec: { w: e1.dec.w, h: e1.dec.h, data: out }, exact: ex, v1: v1, v2: v2, used: ++useClock, lo: lo };
+    var ent = { dec: { w: e1.dec.w, h: e1.dec.h, data: out }, exact: ex, v1: v1, v2: v2, used: ++useClock };
     DIFF.set(key, ent); trimDerived();
     return { e: ent, fm: fm, key: key, h2: h2, o: o };
   }
@@ -4474,9 +4499,9 @@
     if (!hadHour) st.hour = Math.round((Date.now() - Date.parse(c.init)) / 3600e3);
     st.hour = nearestHour(c, st.hour);
     setButtons();
-    fitBox(prepGrid(c.grids.main)); fitBoxW = window.innerWidth;
+    fitBox(c); fitBoxW = window.innerWidth;
     resize();
-    fit(prepGrid(c.grids.main));
+    fit(c);
     if (hashView) { var hv = P.fwd(hashView[0], hashView[1]); view.cx = hv[0]; view.cy = hv[1]; view.s = hashView[2] * 1000; clampView(); }   // a view in the hash (v=lon,lat,km per px)
     onChange();
     var runs = MODEL_ORDER.filter(function (m) { return man[m]; }).map(function (m) {
@@ -4490,8 +4515,8 @@
   });
   if (typeof ResizeObserver === "function") new ResizeObserver(function () {
     if (!view) return;
-    var c = cycleObj(st.model, st.ci), g = c && prepGrid(c.grids.main), fitted = g && isFit(g), s = view.s;
-    resize(); if (fitted) fit(g); else view.s = s; render();
+    var c = cycleObj(st.model, st.ci), fitted = c && isFit(c), s = view.s;
+    resize(); if (fitted) fit(c); else view.s = s; render();
   }).observe(mapEl);
   else window.addEventListener("resize", resize);
 })();

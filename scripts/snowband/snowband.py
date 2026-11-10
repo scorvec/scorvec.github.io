@@ -458,7 +458,8 @@ class Grid:
 
     def __init__(self, g, dx_km, box=MASTER):
         """box: [lon0, lon1, lat0, lat1] to crop to (default MASTER), or None for the whole grid (models.html: the
-        diagnostics on the viewer's own 12 km "sub" grid of the HRRR, the RDPS's cropped 10 km grid)."""
+        diagnostics on the viewer's own 12 km "sub" grid of the HRRR, the RDPS's cropped 10 km grid, the RRFS's 13 km
+        North American grid)."""
         lat, lon = g["lat"], g["lon"]
         self.flip_j = lat[-1].mean() < lat[0].mean()
         self.flip_i = np.nanmedian(np.diff(lon, axis=1)) < 0
@@ -476,7 +477,7 @@ class Grid:
         self.lat12, self.lon12 = self.lat[:: self.step, :: self.step], self.lon[:: self.step, :: self.step]
         self.grid_rel = g["grid_rel"]
         # angle of the grid's +i axis, counter-clockwise from east (earth-relative -> grid-relative winds)
-        dlon = np.gradient(self.lon, axis=1) * np.cos(np.deg2rad(self.lat))
+        dlon = np.gradient(np.unwrap(self.lon, axis=1, period=360.0), axis=1) * np.cos(np.deg2rad(self.lat))
         self.alpha = np.arctan2(np.gradient(self.lat, axis=1), dlon)
 
     def _orient(self, a):
