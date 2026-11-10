@@ -29,6 +29,11 @@ checklist and the coupling clock:
   SURFACE  the members with the 100 hPa cap at +1 sd or more on day 15 (forecast_drip), and the SSW imprint outlook
            (ssw_imprint.py): the chance the surface pattern that follows sudden warmings is positive over the 30 days
            after day 15, against its 50 % base rate, with the skill of the regime it is in (|cap| >= 1 sd or not).
+  WATCH    the descent watch (descent_watch.py) over days 11-15 of each ensemble's newest run: the mean share of members
+           whose polar-cap anomaly runs unbroken from 100 hPa down to 500 hPa, the share MERRA-2 shows on those dates,
+           on how many of the days the run holds more than that (descent_watch's test), and the member-to-member links
+           with the days 6-10 cap at 100 hPa that passed (dwatch.json). November-April, and only for the ensembles whose
+           drift is measured through the column.
   CLOCK    the coupling clock (reference/coupling_clock.json, build_coupling_clock.py): each ensemble's onset, the first
            day its ensemble-mean u(60N, 10 hPa) turns easterly (its recorded runs' first days, then its newest run),
            its mean u(60N, 100 hPa) over days 0-10 after it on the MERRA-2 scale (reference/u100_std.json), the third
@@ -86,6 +91,9 @@ WAVE_SHARE = 0.6  # a wavenumber carrying this share of the wave-1 + wave-2 flux
 ACTIVE_Z = 1.0  # upward flux this many sd above normal on some day is an active wave event
 CLOCK_LOOKBACK = 30  # days of analyses before the newest run searched for the onset
 CLOCK_MIN_DAYS = 6  # days of the clock's wind window a placement needs
+WATCH_DEPTH = 500  # hPa: the level the descent watch's headline column must reach
+WATCH_DAYS = (11, 15)
+WATCH_AGE = 2  # days behind the newest run at which a recorded descent watch is no longer shown
 WEST_GAP = 20  # westerly days after which a reversal is a new event (Charlton and Polvani 2007)
 # ERA5 100 hPa wave-2 share of the wave-1 + wave-2 flux over days -10..-1 before the MERRA-2 sudden warmings since
 # 1990, splits against displacements (one-sided Mann-Whitney): why WAVES does not forecast the vortex's geometry
@@ -276,6 +284,44 @@ def surface_part(descent: dict) -> dict:
     out["p_positive_mean"] = _r(np.mean(ps)) if ps else None
     out["cap100_day15_mean"] = _r(np.mean(caps), 1) if caps else None
     out["regime"] = "cap_1sd" if caps and abs(np.mean(caps)) >= ONE_SD else "all_days"
+    return out
+
+
+def watch_part(newest: pd.Timestamp) -> dict:
+    """The descent watch over days 11-15 (module docstring, WATCH): per ensemble with a recorded reach, and the links
+    of the combined figure that passed its test. Runs within WATCH_AGE days of the newest run of any ensemble only."""
+    fresh = newest - pd.Timedelta(days=WATCH_AGE)
+    out = {"depth": WATCH_DEPTH, "days": list(WATCH_DAYS), "models": {}, "link": {}}
+    key = f"r{WATCH_DEPTH}"
+    for m in ENSEMBLES:
+        rs = RR.runs("reach", m)
+        if not rs or key not in rs[-1] or pd.Timestamp(rs[-1]["init"]) < fresh:
+            continue
+        r = rs[-1]
+        lead = (pd.DatetimeIndex(r["valid"]) - pd.Timestamp(r["init"])).days
+        late = (lead >= WATCH_DAYS[0]) & (lead <= WATCH_DAYS[1])
+        share = np.array(r[key]["mean"], dtype=float)[late]
+        if not late.any() or not np.isfinite(share).all():
+            continue
+        out["models"][m] = {
+            "init": r["init"].replace("T", " ") + "Z",
+            "share": _r(share.mean() / 100),
+            "usual": _r(np.array(r["base"][key], dtype=float)[late].mean() / 100),
+            "days_more": int(np.array(r["more"][key])[late].sum()),
+            "days": int(late.sum()),
+            "any_day": _r(r.get("late")),
+        }
+    link = _read("dwatch.json") or {}
+    runs = {m: i for m, i in link.get("runs", {}).items() if pd.Timestamp(i) >= fresh}
+    for y, tests in link.get("link", {}).items():
+        passed = {
+            m: {"r": t["r"], "ci": t["ci"], "n": t["n"]}
+            for m, t in tests.items()
+            if t["pass"] and (m in runs or (m == "all" and runs))
+        }
+        if passed:
+            out["link"][y] = passed
+    out["link_runs"] = {m: i.replace("T", " ") + "Z" for m, i in runs.items()}
     return out
 
 
@@ -485,6 +531,7 @@ def main() -> int:
         "reflect": reflect,
         "surface": surface,
         "clock": clock,
+        "watch": watch_part(newest),
         "checklist": checklist_part(clock, clim),
         "reference": references(),
         "thresholds": {"one_sd": ONE_SD, "lag_days": list(LAG), "wave_share": WAVE_SHARE, "active_z": ACTIVE_Z},

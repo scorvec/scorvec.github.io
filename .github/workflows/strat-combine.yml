@@ -62,11 +62,11 @@ jobs:
             python scripts/strat/nh_vortex.py --from-records || echo "::warning::the vortex figure did not draw; keeping the previous one"
             python scripts/strat/run_record.py combined vortex --out assets/sst/nh_vortex_runs.webp \
               || echo "::warning::the vortex run-to-run figure did not draw; keeping the previous one"
-            python scripts/strat/ssw_summary.py || echo "::warning::the SSW summary did not build; keeping the previous one"
             python scripts/strat/polarcap.py --combined || echo "::warning::the polar-cap / AO-NAO figures did not draw; keeping the previous ones"
             python scripts/strat/vortex_shape.py --combined || echo "::warning::the vortex-shape figure did not draw; keeping the previous one"
             python scripts/strat/strat_verify.py || echo "::warning::the verification figure did not draw; keeping the previous one"
             python scripts/strat/descent_watch.py --combined || echo "::warning::the descent-watch link figure did not draw; keeping the previous one"
+            python scripts/strat/ssw_summary.py || echo "::warning::the SSW summary did not build; keeping the previous one"
             for p in polarcap telecon vshape descent reach ring; do
               python scripts/strat/run_record.py combined "$p" \
                 || echo "::warning::the $p run-to-run figure did not draw; keeping the previous one"

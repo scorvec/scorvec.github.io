@@ -310,7 +310,8 @@
 
     <section class="chart-card" id="surface">
       <div class="chart-card-header"><h2>Will it reach the troposphere?</h2>
-        <p data-k="sfc_line">&ndash;</p></div>
+        <p data-k="sfc_line">&ndash;</p>
+        <p id="dw" hidden><span data-k="dw_line"></span> <a href="/stratosphere.html#dwatch">Descent watch</a></p></div>
       <div class="tblwrap"><table class="rec" id="t_sfc"></table></div>
       <div class="img-wrap"><a href="/stratosphere.html#descent"><img src="/assets/sst/ssw_imprint.webp" alt="The 10 and 100 hPa polar cap and the SSW surface imprint index, every ensemble" loading="lazy"></a></div>
     </section>
@@ -395,6 +396,15 @@
         the index itself, fitted on ERA5 November&ndash;April days since 1959. Skill (Brier skill score, cross-validated
         by winter): <span data-r="bss">&ndash;</span>. After the MERRA-2 sudden warmings the index averaged
         <span data-r="era5_imp">&ndash;</span>; in CMIP6 <span data-r="cm_ssw">&ndash;</span>.</p>
+        <p><b>Descent watch.</b> Over days 11&ndash;15, the share of an ensemble&rsquo;s members whose polar-cap
+        height stands +0.5&nbsp;sd or more above normal at every level from 100&nbsp;hPa down to 500&nbsp;hPa on the
+        same day (drift removed, so AIFS-ENS and IFS-ENS only; November&ndash;April), against how often MERRA-2 shows
+        such a column within 15 days of the date. A day counts as more than usual where a one-sided binomial test of
+        the member count passes a 5&nbsp;% false discovery rate over the run. The member-by-member link is the partial
+        correlation, across the members of one run, of the days 11&ndash;15 sea-level polar cap with the days
+        6&ndash;10 cap height at 100&nbsp;hPa, the member&rsquo;s own days 6&ndash;10 troposphere regressed out
+        (Freedman&ndash;Lane permutation test, 5&nbsp;% false discovery rate); only links that pass are named. It shows
+        that the model couples its stratosphere to its surface in this run, not that the atmosphere will.</p>
         <p id="m_clock"><b>Coupling clock.</b> In the <span data-r="ck_n">&ndash;</span> MERRA-2 sudden warmings since 1980, the
         weaker the wind at 60&deg;N, 100&nbsp;hPa over days 0&ndash;10 after the first easterly day at 10&nbsp;hPa (in
         standard deviations of its day-of-year normal, fitted as the dripping paint&rsquo;s polar cap is), the sooner a
@@ -660,6 +670,28 @@
       ens.filter(function (m) { return F.models[m]; }).map(function (m) {
         var v = F.models[m]; return [who(N[m], v.init), pct(v.p_positive), sg(v.cap100_day15), pct(v.frac100_day15)];
       }));
+
+    // the descent watch over days 11-15: members with the anomaly unbroken down from 100 hPa, and the links that passed
+    var DW = j.watch || {models: {}, link: {}, link_runs: {}}, dwm = ens.filter(function (m) { return DW.models[m]; });
+    function listed(a) { return a.length < 2 ? a.join("") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1]; }
+    if (dwm.length) {
+      var up = dwm.filter(function (m) { return DW.models[m].days_more > 0; }), flat = dwm.filter(function (m) { return !DW.models[m].days_more; });
+      var t = "Days " + DW.days[0] + "–" + DW.days[1] + ": ";
+      if (up.length) t += listed(up.map(function (m) { var v = DW.models[m];
+        return pct(v.share) + " of " + N[m] + " members (more than usual on " + v.days_more + " of " + v.days + " days)"; }))
+        + " carry the anomaly unbroken from 100\u00A0hPa down to " + DW.depth + "\u00A0hPa on the same day, against the " + pct(DW.models[up[0]].usual) + " of days MERRA-2 shows such a column at this time of year.";
+      if (flat.length) t += (up.length ? " " : "") + listed(flat.map(function (m) { return N[m]; })) + (flat.length > 1 ? " hold" : " holds")
+        + " no more members than usual with the anomaly unbroken from 100\u00A0hPa down to " + DW.depth + "\u00A0hPa.";
+      var lk = DW.link.ymsl || {}, lm = ens.filter(function (m) { return lk[m]; });
+      var pos = lm.filter(function (m) { return lk[m].r > 0; }), neg = lm.filter(function (m) { return lk[m].r < 0; });
+      function rs(a) { return listed(a.map(function (m) { return N[m] + " (r\u00A0" + sg(lk[m].r, 2) + ")"; })); }
+      if (pos.length) t += " Member by member, the weaker the 100\u00A0hPa vortex on days 6–10, the higher the Arctic sea-level pressure on days " + DW.days[0] + "–" + DW.days[1] + " in " + rs(pos)
+        + (neg.length ? "; the reverse in " + rs(neg) : "") + ".";
+      else if (neg.length) t += " Member by member, the weaker the 100\u00A0hPa vortex on days 6–10, the lower the Arctic sea-level pressure on days " + DW.days[0] + "–" + DW.days[1] + " in " + rs(neg) + ".";
+      else if (Object.keys(DW.link_runs).length) t += " No ensemble shows a significant member-to-member link between its 100\u00A0hPa vortex on days 6–10 and its Arctic sea-level pressure on days " + DW.days[0] + "–" + DW.days[1] + ".";
+      set("dw_line", t);
+      document.getElementById("dw").hidden = false;
+    }
 
     // the coupling clock, shown only while its start-day test passes
     var C = j.clock;
