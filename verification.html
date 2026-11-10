@@ -760,10 +760,16 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       0.05 m/s and the runs resampled whole, model and observation together, for a 95% interval on every difference; the
       chart draws each model's quantiles less the observed ones with those intervals, so zero is the observed
       distribution, and beside it the fitted distributions themselves.</p>
-    <p><b>Rain gauges.</b> The 24 hour totals that stations report (GHCNh; at 12Z from US ASOS stations, the same window
-      as Stage IV) are scored like the other station variables, each model's total for those 24 hours interpolated to
-      the gauge from the common grid, every model on the same readings. In the US they check the gridded scores at
-      points rather than independently: Stage IV's analyses take in ASOS gauges.</p>
+    <p><b>Rain gauges.</b> 24 hour totals at stations (GHCNh), ending at 00Z and 12Z: the totals stations report and,
+      where a station gives the amount of every hour (most US and Canadian stations), totals added up from those
+      amounts, dry days included. A US station reports a 24 hour total only at 12Z after a wet day, so the built totals
+      are most of the sample there; they enter with the runs of November 2026. A built total needs all 24 hours, and an
+      hour without an amount counts as dry only where the gauge is known to work: the station reported an amount in the
+      30 days before, its report does not say the gauge is out, and no rain or snow is falling in it. A reported total
+      that differs from the built one by more than 1&nbsp;mm and 10% is left out. The totals are scored like the other
+      station variables, each model's total for those 24 hours interpolated to the gauge from the common grid, every
+      model on the same readings. In the US they check the gridded scores at points rather than independently:
+      Stage IV's analyses take in ASOS gauges.</p>
     <p>NOAA's GFS, ECMWF's physics model (IFS), ECMWF's AI model (AIFS) and Environment Canada's global model (GDPS)
     are scored here against the same observations:
     hourly surface stations, about 650 radiosondes a day through the whole troposphere and, for rain over the US, the Stage IV

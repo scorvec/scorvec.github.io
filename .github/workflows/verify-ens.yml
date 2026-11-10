@@ -35,7 +35,7 @@ on:
 env:
   PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt
   MVERIFY_DB: ${{ github.workspace }}/.obs/obs.duckdb
-  MVERIFY: "mverify[grib,zarr] @ git+https://github.com/scorvec/nwp_verification@f81968d42a703f0e42eb75acd526fadd3ba567e9"
+  MVERIFY: "mverify[grib,zarr] @ git+https://github.com/scorvec/nwp_verification@f3b8f56f4ef9071a704ee89bf131b3de4255d207"
 
 permissions:
   contents: write

@@ -703,7 +703,7 @@ MIN_PAIRS = 100  # pairs of forecast and observation a model needs over the wind
 
 def sampled(g: pd.DataFrame, by: str) -> pd.DataFrame:
     """``g`` at the values of the column ``by`` (leads, levels) where every model has MIN_PAIRS pairs over the window:
-    a region with a handful of reports (24 h gauge totals over the US) would otherwise chart one station's errors."""
+    a region with a handful of reports would otherwise chart one station's errors."""
     n = g.groupby([by, "model"], observed=True)["n"].sum().unstack("model")
     return g[g[by].isin(n.index[n.min(axis=1) >= MIN_PAIRS])]
 
