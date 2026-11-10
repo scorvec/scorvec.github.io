@@ -45,7 +45,8 @@
   .card { background: var(--panel); border: 1px solid var(--edge); border-radius: 8px; padding: 1.1rem 1.3rem 1rem; margin: 1.3rem 0; }
   .note { color: var(--ink2); font-size: 0.95rem; max-width: 72rem; margin: 0.1rem 0 0.8rem; }
   /* the pictures drawn each night (scripts/verify/verify_figs.py: the scorecards and the rain maps): the card's
-     width, never taller than the window */
+     width, never taller than the window. A phone draws its scorecards in the page and takes the rain maps one model a
+     picture */
   img.fig { display: block; width: 100%; height: auto; max-height: calc(100vh - 6rem); object-fit: contain; margin: 0.5rem 0 0.7rem; background: #fff; border-radius: 4px; }
   /* the charts drawn in the page (assets/verification/vcharts.js): a row of panels at the card's width */
   .vfig { position: relative; margin: 0.5rem 0 0.8rem; }
@@ -154,8 +155,12 @@
   .scg path, .scg circle, .scg text { pointer-events: none; }
   #s-region-l, #e-region-l { display: none; }
   #s-region-l.figs, #e-region-l.figs { display: inline-flex; }
+  #r-model-l { display: none; }   /* the rain maps' model: a phone only, where one map is shown at a time */
   img.fig[hidden], .ctl[hidden], .scg[hidden], #scorecard[hidden] { display: none; }   /* a figure stands in for the drawn scorecard */
-  @media (max-width: 700px) { .scg .blk:not(.on) { display: none; } #s-region-l, #e-region-l { display: inline-flex; } }
+  @media (max-width: 700px) {
+    .scg .blk:not(.on) { display: none; }
+    #s-region-l, #e-region-l, #r-model-l:not([hidden]) { display: inline-flex; }
+  }
   .sc-detail { font-size: 0.86rem; color: var(--ink2); margin: 0.5rem 0 0; min-height: 2.6em; font-variant-numeric: tabular-nums; }
   .lgd svg.kg { width: 1.25rem; height: 1.08rem; vertical-align: -0.25rem; margin-right: 0.3rem; }
   table.pg { border-collapse: collapse; font-size: 0.9rem; font-variant-numeric: tabular-nums; margin-top: 0.3rem; }
@@ -170,6 +175,9 @@
   table.wk td.ns, table.wk td.few { color: var(--muted); }
   table.wk tr.first td { border-top: 1px solid var(--edge); }
   table.wk i { display: inline-block; width: 0.8rem; height: 0.8rem; border-radius: 2px; vertical-align: -0.08rem; margin-right: 0.4rem; }
+  /* a phone's table: the weeks down the side, a heading row for the models and one for their differences */
+  table.wk tbody th { font-size: 0.78rem; font-weight: 600; color: var(--muted); vertical-align: bottom; }
+  table.wk tr.first th { padding-top: 1rem; }
   .lgd { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; font-size: 0.82rem; color: var(--ink2); margin-top: 0.5rem; }
   .lgd i { display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: 3px; vertical-align: -0.15rem; margin-right: 0.3rem; }
   details.method { margin-top: 1.4rem; }
@@ -183,12 +191,31 @@
   .src { font-size: 0.82rem; color: var(--muted); margin-top: 0.6rem; }
   @media (max-width: 1100px) { .gl-grid { grid-template-columns: minmax(0, 1fr); } }
   @media (max-width: 640px) {
-    .vnav a { padding: 0.45rem 0.7rem; }
+    main { max-width: 100%; padding: 1rem 0.75rem 2.5rem; }
+    .card { padding: 0.95rem 0.9rem 0.9rem; margin: 1rem 0; }
+    /* the section bar on one line, swiped sideways; the script keeps the section in view on screen */
+    .vnav { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -0.75rem; padding-inline: 0.75rem; }
+    .vnav::-webkit-scrollbar { display: none; }
+    .vnav a { flex: none; white-space: nowrap; padding: 0.45rem 0.7rem; }
+    .vanchor, main section.card { scroll-margin-top: 7rem; }
     .chip .v small { display: block; margin: 0; }
-    table.gl { border-spacing: 2px; } table.gl td { min-width: 2.5rem; font-size: 0.75rem; }
-    table.gl th.r { position: sticky; left: 0; z-index: 1; background: var(--panel); font-size: 0.8rem; white-space: normal; min-width: 6.2rem; }
+    /* at a glance: a variable's name on its own line, every day across the card under it */
+    table.gl, table.gl tbody { display: block; }
+    table.gl tr { display: grid; grid-template-columns: repeat(var(--days, 10), minmax(0, 1fr)); gap: 2px; margin-bottom: 2px; }
+    table.gl tr:first-child th:first-child { display: none; }
+    table.gl th { padding: 0; }
+    table.gl th.r { grid-column: 1 / -1; padding: 0.4rem 0 0.05rem; }
+    table.gl td { min-width: 0; font-size: 0.64rem; letter-spacing: 0; line-height: 2rem; overflow: hidden; }
+    table.h2h { width: 100%; font-size: 0.84rem; }
+    table.h2h td { min-width: 0; }
+    table.h2h th { padding: 0.2rem 0.15rem; }
+    table.pg { width: 100%; font-size: 0.82rem; }
+    table.pg th, table.pg td { padding: 0.3rem 0.35rem; }
+    #db-table td:not(:first-child) { white-space: nowrap; }
+    #w-table { font-size: 0.78rem; }
+    #w-table th, #w-table td { padding-inline: 0.2rem; }
+    .chart { height: 460px; }
   }
-  @media (max-width: 640px) { .chart { height: 460px; } }
 </style>
 <script>
 // Plotly (the cartesian bundle) loads on a station's first click, for its series: every other chart is drawn by
@@ -516,6 +543,7 @@ window.plotly = function () {
     <div class="controls">
       <label>Show<select id="r-stat"></select></label>
       <label>Lead<select id="r-group"></select></label>
+      <label id="r-model-l" hidden>Model<select id="r-model"></select></label>
     </div>
     <img class="fig" id="r-fig" alt="">
     <p class="note" id="r-note"></p>
@@ -597,7 +625,8 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       colour and one marker shape throughout (an ensemble takes its centre's); a whisker is a 95% interval, and pointing
       at a chart, or stepping through it with the arrow keys, lists every model's value and interval at that lead. A lead
       or a pressure level is charted once every model has 100 pairs of forecast and observation there over the window.
-      The scorecards and the rain maps are pictures made each night.</p>
+      The scorecards and the rain maps are pictures made each night; a phone draws the scorecards in the page instead,
+      one region at a time, and shows the rain maps one model at a time.</p>
     <p><b>At a glance.</b> The headline variables, 500&nbsp;hPa height, 850&nbsp;hPa temperature, 250&nbsp;hPa vector wind
       and 700&nbsp;hPa specific humidity against radiosondes and 2&nbsp;m temperature, dew point, sea-level pressure and
       10&nbsp;m vector wind at surface stations, in one region. For each variable and day every pair of models goes through
@@ -960,6 +989,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
         }).join("") + "</tr>";
       }
       $("gl-best").innerHTML = html;
+      $("gl-best").style.setProperty("--days", days.length);
       $("gl-key").innerHTML = `<span>Day of the forecast across the top. A model's colour: its error is significantly the smallest. Faint stripes: the models tied for the smallest (no significant difference).</span>`;
       // head to head: the row model against the column model
       $("gl-h2h").innerHTML = `<tr><th></th>${models.map(m => `<th>${esc(m)}</th>`).join("")}</tr>` + models.map(a => `<tr><th>${esc(a)}</th>` + models.map(b => {
@@ -1065,6 +1095,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
   }
 
   // the pictures drawn each night from the verification database (scripts/verify/verify_figs.py), from the frames hosts
+  const phone = matchMedia("(max-width: 700px)");   // too narrow for them: scorecards drawn in the page, one rain map a picture
   function figure(im, name, ver, alt) {
     im.alt = alt;
     window.frameLoad(im, "assets/verification/fig/" + name, "?v=" + ver, null, null);
@@ -1121,7 +1152,8 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
         .map(m => ({ ...who(m), pts: points(rows.us, rows.models[m], dense ? [what] : STAT[what], what !== "rmse") })) };
   }
   // the window's charts (the page's ten runs: the database's newest ten): error by lead, the headline variables at a
-  // glance and the upper-air profiles, with the scorecard as the night's picture (a pair without one keeps the drawn one)
+  // glance and the upper-air profiles, with the scorecard as the night's picture (a pair without one, and a phone,
+  // keep the drawn one)
   function detFigs(figs, scores) {
     const sc = (figs.scores || {})[W];
     if (!sc) return;
@@ -1208,7 +1240,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
       render();
     }
     const card = () => {
-      const f = (sc.card[sg.value] || {})[`${sm.value}|${sr.value}`];
+      const f = !phone.matches && (sc.card[sg.value] || {})[`${sm.value}|${sr.value}`];
       $("s-fig").hidden = !f;
       ["scorecard", "s-key", "sc-detail"].forEach(id => { if ($(id)) $(id).hidden = !!f; });
       ctl("s-rows").hidden = !!f;
@@ -1216,7 +1248,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
       if (f) figure($("s-fig"), f, ver, `Scorecard, ${sm.value} against ${sr.value}, ${sg.value}: RMSE difference in percent where significant`);
     };
     [lv, lr, ll].forEach(el => el.addEventListener("change", lead));
-    [sm, sr, sg].forEach(el => el.addEventListener("change", card));
+    [sm, sr, sg, phone].forEach(el => el.addEventListener("change", card));
     if (lvars.length) lead();
     card();
   }
@@ -1288,7 +1320,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     $("db-card").hidden = false;
   }
   // the ensembles' charts for the window (the nightly ten runs show its newest 30), with the scorecard as the night's
-  // picture (a pair without one keeps the drawn one)
+  // picture (a pair without one, and a phone, keep the drawn one)
   function ensFigs(figs, card) {
     const en = (figs.ensembles || {})[W === "10" ? "30" : W];
     if (!en) return;
@@ -1297,7 +1329,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     const em = $("e-model"), er = $("e-ref"), eg = $("e-region"), ev = $("e-var"), evr = $("e-vregion"), ee = $("e-event"), et = $("e-thr");
     const title = g => g[0].toUpperCase() + g.slice(1).replace("-", "–");
     const cardF = () => {
-      const f = (en.card[eg.value] || {})[`${em.value}|${er.value}`];
+      const f = !phone.matches && (en.card[eg.value] || {})[`${em.value}|${er.value}`];
       $("e-card-fig").hidden = !f;
       ["e-scorecard", "e-detail", "e-key"].forEach(id => { $(id).hidden = !!f; });
       if (f) figure($("e-card-fig"), f, ver, `Ensemble scorecard, ${em.value} against ${er.value}, ${eg.value}: CRPS difference in percent where significant`);
@@ -1348,7 +1380,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
         return { panels, height: 330, legend: ms.map(who), keys: ["how often the event came, against the diagonal of a reliable forecast", CI] };
       });
     };
-    [em, er, eg].forEach(el => el.addEventListener("change", cardF));
+    [em, er, eg, phone].forEach(el => el.addEventListener("change", cardF));
     [ev, evr].forEach(el => el.addEventListener("change", leadF));
     [ee, et].forEach(el => el.addEventListener("change", relF));
     cardF(); leadF(); relF();
@@ -1407,20 +1439,24 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     }
     const maps = rain.maps || {};
     if (Object.keys(maps).length) {
-      const rs = $("r-stat"), rg = $("r-group");
+      const rs = $("r-stat"), rg = $("r-group"), rm = $("r-model");
       const NAMES = { ratio: "Total rain", fb1: "Days with 1 mm", fb10: "Days with 10 mm", fb25: "Days with 25 mm" };
       fill(rs, Object.keys(NAMES).filter(k => maps[`${k}_0`]), k => NAMES[k]);
       rs.value = maps.fb1_0 ? "fb1" : rs.options[0].value;
       fill(rg, rain.groups.map((_, k) => String(k)), k => rain.groups[+k].replace("days", "Days"));
+      fill(rm, rain.models || []);
       const render = () => {
         const what = rs.value === "ratio" ? "total rain" : `days with ${rs.value.slice(2)} mm or more`, w = rain.window;
-        figure($("r-fig"), maps[`${rs.value}_${rg.value}`], ver, `Maps of each model's ${what} against Stage IV, ${rain.groups[+rg.value]}, significant cells coloured`);
-        figure($("r-obs"), maps[`${rs.value}_obs`], ver, `Stage IV over the same days: ${rs.value === "ratio" ? "mean 24 hour rain" : "share of " + what}`);
+        // the four models side by side, or on a phone the picked model's own map (a night that drew one)
+        const all = `${rs.value}_${rg.value}`, own1 = maps[`${all}_${rm.value}`], one = phone.matches && own1;
+        $("r-model-l").hidden = !own1;
+        figure($("r-fig"), one || maps[all], ver, `${one ? `Map of ${rm.value}'s` : "Maps of each model's"} ${what} against Stage IV, ${rain.groups[+rg.value]}, significant cells coloured`);
+        figure($("r-obs"), (phone.matches && maps[`${rs.value}_obs_narrow`]) || maps[`${rs.value}_obs`], ver, `Stage IV over the same days: ${rs.value === "ratio" ? "mean 24 hour rain" : "share of " + what}`);
         const own = Object.entries(w.own || {}).map(([m, r]) => `${esc(m)} on its own ${r.runs} runs from ${ymd(r.first)}`);
         $("r-note").innerHTML = `The ${w.runs} 00Z runs from ${ymd(w.first)} to ${ymd(w.last)}` + (own.length ? `, ${own.join(", ")}` : "") +
           ". Coloured cells pass the test; grey ones are within the noise. Below: what Stage IV gave over the same days.";
       };
-      [rs, rg].forEach(el => el.addEventListener("change", render));
+      [rs, rg, rm, phone].forEach(el => el.addEventListener("change", render));
       $("rainmap-card").hidden = false;
       render();
     }
@@ -1624,7 +1660,8 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
   }
 
   // weeks 1-5 of the GEFS and GEPS pages (weeks.json, scripts/verify/weeks_acc.py): a mean only where its test passed,
-  // "n.s." where it was tested and did not, and a row with no tested week says how many runs it has so far
+  // "n.s." where it was tested and did not, and a row with no tested week says how many runs it has so far. A phone
+  // turns the table: the weeks down the side, the models across and their differences under a second heading
   function drawWeeks(wk) {
     const wf = $("wk-field"), wr = $("wk-region"), names = Object.fromEntries([...wk.fields, ...wk.regions]);
     fill(wf, wk.fields.map(f => f[0]), v => names[v]);
@@ -1641,20 +1678,26 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     }
     function render() {
       const c = wk.cells[`${wf.value}/${wr.value}`] || {};
-      const head = "<thead><tr><th></th>" + wk.weeks.map((d, i) => `<th>Week ${i + 1}<small>days ${d}</small></th>`).join("") + "</tr></thead>";
-      const body = ROWS.filter(([k]) => c[k]).map(([k, label, col]) => {
-        const res = c[k], signed = !col, name = (col ? `<i style="background:${col}"></i>` : "") + esc(label);
-        const cls = k === "GEFS-persistence" ? ' class="first"' : "";
-        if (res.every(r => r.few)) {
-          const n = Math.max(...res.map(r => r.n)), w = Math.max(...res.map(r => r.w));
-          const have = n ? `${n} runs over ${w} weeks of starts` : "none scored so far";
-          return `<tr${cls}><td>${name}</td><td class="few" colspan="${res.length}">not enough runs yet: ${have} (a test needs ${wk.test.min_weeks} weeks)</td></tr>`;
-        }
-        return `<tr${cls}><td>${name}</td>${res.map(r => cell(r, signed)).join("")}</tr>`;
-      }).join("");
+      const week = (d, i) => `Week ${i + 1}<small>days ${d}</small>`;
+      const rows = ROWS.filter(([k]) => c[k]).map(([k, label, col]) => {
+        const res = c[k], n = Math.max(...res.map(r => r.n)), w = Math.max(...res.map(r => r.w));
+        const have = n ? `${n} runs over ${w} weeks of starts` : "none scored so far";
+        return { k, res, signed: !col, name: (col ? `<i style="background:${col}"></i>` : "") + esc(label),
+                 few: res.every(r => r.few) ? `not enough runs yet: ${have} (a test needs ${wk.test.min_weeks} weeks)` : "" };
+      });
+      if (phone.matches) {
+        $("wk-table").innerHTML = [rows.filter(r => !r.signed), rows.filter(r => r.signed)].filter(g => g.length).map((g, j) =>
+          `<tbody><tr${j ? ' class="first"' : ""}><th></th>${g.map(r => `<th>${r.name}</th>`).join("")}</tr>` + wk.weeks.map((d, i) =>
+            `<tr><td>${week(d, i)}</td>` + g.map(r => !r.few ? cell(r.res[i], r.signed) : i ? "" :
+              `<td class="few" rowspan="${wk.weeks.length}">${r.few}</td>`).join("") + "</tr>").join("") + "</tbody>").join("");
+        return;
+      }
+      const head = "<thead><tr><th></th>" + wk.weeks.map((d, i) => `<th>${week(d, i)}</th>`).join("") + "</tr></thead>";
+      const body = rows.map(r => `<tr${r.k === "GEFS-persistence" ? ' class="first"' : ""}><td>${r.name}</td>` +
+        (r.few ? `<td class="few" colspan="${r.res.length}">${r.few}</td>` : r.res.map(x => cell(x, r.signed)).join("")) + "</tr>").join("");
       $("wk-table").innerHTML = head + "<tbody>" + body + "</tbody>";
     }
-    [wf, wr].forEach(el => el.addEventListener("change", render));
+    [wf, wr, phone].forEach(el => el.addEventListener("change", render));
     render();
     const g = wk.runs.GEFS, e = wk.runs.GEPS;
     $("wk-note").textContent = `Mean anomaly correlation with ERA5 and its 90% interval; 0 is the normal. GEFS ${g.n} runs` +
@@ -1735,13 +1778,18 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
   // a script that sets a value without an event (the scorecard's and the profiles' shared reference) is caught here
   document.addEventListener("change", () => setTimeout(() => repaint.forEach(f => f()), 0));
 
-  // the section bar marks the section in view, and leaves out a section with nothing to show
-  const links = [...document.querySelectorAll("#vnav a")];
+  // the section bar marks the section in view, and leaves out a section with nothing to show; on a phone, where the
+  // bar is one line swiped sideways, the marked link is brought to its middle
+  const nav = $("vnav"), links = [...nav.querySelectorAll("a")];
+  let marked = -1;
   const cards = links.map(a => { const t = document.getElementById(a.hash.slice(1)); return t && t.classList.contains("vanchor") ? t.nextElementSibling : t; });
   function mark() {
     let on = 0;
     cards.forEach((el, i) => { const h = !el || el.hidden; if (links[i].hidden !== h) links[i].hidden = h; if (!h && el.getBoundingClientRect().top <= 140) on = i; });
     links.forEach((a, i) => { if (a.classList.contains("on") !== (i === on)) a.classList.toggle("on", i === on); });
+    if (on === marked) return;
+    marked = on;
+    if (nav.scrollWidth > nav.clientWidth) nav.scrollTo({ left: links[on].offsetLeft - (nav.clientWidth - links[on].offsetWidth) / 2 });
   }
   addEventListener("scroll", mark, { passive: true }); mark();
   const seen = new MutationObserver(mark);   // the cards a script shows once their data has loaded
