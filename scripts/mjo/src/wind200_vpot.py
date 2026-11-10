@@ -291,7 +291,8 @@ def main() -> int:
     frames = []
     for i, sh in enumerate(steps_h):
         valid = init + pd.Timedelta(hours=int(sh))
-        lead = int(np.rint(sh / 24))
+        # calendar days ahead: a 12Z run's 00Z frames sit at 12, 36, ... h
+        lead = (valid.normalize() - init.normalize()).days
         u2d, v2d = ds["u"].isel(step=i), ds["v"].isel(step=i)
         chi, dlat, dlon = velocity_potential(u2d, v2d)
         anom = chi - eval_vp_clim(coef, float(noleap_doy(valid)))

@@ -20,7 +20,8 @@ checklist and the coupling clock:
   DESCENT  the CMIP6 coupling test's rule (cmip6_coupling.py wk100_td / wk100_bu) on the polar-cap height of the
            dripping paint (forecast_drip.py, ensemble mean, sd of the day-of-year normal): the first day the 100 hPa
            cap reaches +1 sd, in the analysis tail or the forecast, is top-down when 10 hPa was at +1 sd 3-20 days
-           before, bottom-up when not.
+           before, bottom-up when not. The headline is the kind most ensembles show; a tie goes to no weakening,
+           then to bottom-up.
   REFLECT  a reflecting configuration is u(60N) weaker at 1 hPa than at 10 hPa (Perlwitz and Harnik 2003; GEFS, the
            one ensemble here with winds to 1 hPa, refractive_gefs.json) with waves coming back down: the zonal-mean
            100 hPa flux below zero, or the Canadian box of the regional reflection index (Messori et al. 2022) below
@@ -80,6 +81,7 @@ HEATFLUX = {"aifs": "heatflux100.json", "ifs": "ifs_heatflux100.json", "gefs": "
 WINDOW = 15
 ONE_SD = 1.0
 LAG = (3, 20)  # days before the 100 hPa crossing that a 10 hPa crossing makes the event top-down (cmip6_coupling.py)
+DESCENT_KINDS = ("none", "bottom-up", "top-down")  # the headline is the commonest; a tie goes to the earlier one
 WAVE_SHARE = 0.6  # a wavenumber carrying this share of the wave-1 + wave-2 flux names the forcing
 ACTIVE_Z = 1.0  # upward flux this many sd above normal on some day is an active wave event
 CLOCK_LOOKBACK = 30  # days of analyses before the newest run searched for the onset
@@ -479,7 +481,7 @@ def main() -> int:
             if w2m <= 1 - WAVE_SHARE
             else "mixed",
         },
-        "descent": {"models": descent, "kind": max(set(kinds), key=kinds.count) if kinds else None},
+        "descent": {"models": descent, "kind": max(DESCENT_KINDS, key=kinds.count) if kinds else None},
         "reflect": reflect,
         "surface": surface,
         "clock": clock,

@@ -393,8 +393,8 @@ def main() -> int:
         um = U.isel(step=i).mean("number")
         vm = Vv.isel(step=i).mean("number")
         spd_fc = (np.hypot(um.values, vm.values), um.latitude.values, um.longitude.values)
-        fields.append((valid, sh, psi_s[:, i].mean(0), wx, wy, divw, Uc, Vc, spd_fc, agree))
-    vlim = float(np.nanpercentile(np.abs(np.stack([f[5] for f in fields])) * 1e6, 99.0)) or 5.0
+        fields.append((valid, psi_s[:, i].mean(0), wx, wy, divw, Uc, Vc, spd_fc, agree))
+    vlim = float(np.nanpercentile(np.abs(np.stack([f[4] for f in fields])) * 1e6, 99.0)) or 5.0
 
     anim = Path(args.anim_dir)
     anim.mkdir(parents=True, exist_ok=True)
@@ -413,9 +413,10 @@ def main() -> int:
         "masked equatorward of 20° / basic-state wind < 3 m/s · each row is one hemisphere's 20–80° belt"
     )
     frames = []
-    for i, (valid, sh, pa, wx, wy, divw, Uc, Vc, spd_fc, agree) in enumerate(fields):
+    for i, (valid, pa, wx, wy, divw, Uc, Vc, spd_fc, agree) in enumerate(fields):
         fp = anim / f"F{i:02d}.webp"
-        lead = int(np.rint(sh / 24))
+        # calendar days ahead: a 12Z run's 00Z frames sit at 12, 36, ... h
+        lead = (valid.normalize() - init.normalize()).days
         render(
             pa,
             wx,
@@ -444,7 +445,7 @@ def main() -> int:
     Path(args.manifest).parent.mkdir(parents=True, exist_ok=True)
     Path(args.manifest).write_text(json.dumps(mani))
     # static latest = the analysis frame
-    valid, sh, pa, wx, wy, divw, Uc, Vc, spd_fc, agree = fields[0]
+    valid, pa, wx, wy, divw, Uc, Vc, spd_fc, agree = fields[0]
     render(
         pa,
         wx,

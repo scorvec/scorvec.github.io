@@ -231,14 +231,14 @@ def fetch_var(date: str, tag: str, workers: int, keep: bool = False):
         for d in DAYS:
             if accum:
                 end, start = g.get(24 * d), g.get(24 * (d - 1))
-                if end is None:
-                    continue
-                daily = end - start if start is not None else end
+                if end is None or (d > 1 and start is None):
+                    continue  # without the day's start the difference would be the total since init
+                daily = end - start if d > 1 else end
                 fields.append(daily / 86400.0)  # pr: mm/day -> kg m-2 s-1; olr: J m-2 -> W m-2
             else:
                 have = [g[24 * d + s] for s in SUBSTEPS if (24 * d + s) in g]
-                if not have:
-                    continue
+                if len(have) < len(SUBSTEPS):
+                    continue  # a daily mean needs its four 6-hourly fields
                 fields.append(xr.concat(have, dim="__t").mean("__t"))
             leads.append(d)
         if not fields:
@@ -255,12 +255,12 @@ def fetch_var(date: str, tag: str, workers: int, keep: bool = False):
         for d in DAYS:
             if accum:
                 end, start = g.get(24 * d), g.get(24 * (d - 1))
-                if end is None:
+                if end is None or (d > 1 and start is None):
                     continue
-                rows.append(((end - start) if start is not None else end) / 86400.0)
+                rows.append(((end - start) if d > 1 else end) / 86400.0)
             else:
                 have = [g[24 * d + s] for s in SUBSTEPS if (24 * d + s) in g]
-                if not have:
+                if len(have) < len(SUBSTEPS):
                     continue
                 rows.append(np.mean(have, axis=0))
             leads.append(d)

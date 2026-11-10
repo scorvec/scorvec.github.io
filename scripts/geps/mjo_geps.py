@@ -298,22 +298,23 @@ def member_bands(cycle, base, lon, workers=8):
         for L, (v, ref) in got.items():
             if v is not None:
                 cur[L] = _band_members(v, ref, lon)
-        rows = []
+        rows = {}
         for d in days:
             if accum:
                 end = cur.get(24 * d)
                 start = cur.get(24 * (d - 1))
-                if end is None:
-                    rows.append(None)
-                    continue
-                rows.append(((end - start) if start is not None else end) / 86400.0)
+                if end is None or (d > 1 and start is None):
+                    continue  # without the day's start the difference would be the total since init
+                rows[d] = ((end - start) if d > 1 else end) / 86400.0
             else:
                 have = [cur[24 * d + s] for s in SUBSTEPS if (24 * d + s) in cur]
-                rows.append(np.mean(have, axis=0) if have else None)
-        keep = [i for i, r in enumerate(rows) if r is not None]
-        out[tag] = np.stack([rows[i] for i in keep])  # (lead, member, nlon)
-        print(f"    members {tag}: {out[tag].shape[0]} leads x {out[tag].shape[1]}", flush=True)
-    L = np.array([days[i] for i in keep])
+                if len(have) == len(SUBSTEPS):  # a daily mean needs its four 6-hourly fields
+                    rows[d] = np.mean(have, axis=0)
+        out[tag] = rows
+        print(f"    members {tag}: {len(rows)} leads", flush=True)
+    common = [d for d in days if all(d in out[t] for t in MVARS)]  # the days every channel has
+    out = {t: np.stack([out[t][d] for d in common]) for t in MVARS}  # (lead, member, nlon)
+    L = np.array(common)
     np.savez_compressed(cache, L=L, **out)
     return out, L
 
