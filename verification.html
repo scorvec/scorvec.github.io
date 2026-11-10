@@ -596,8 +596,9 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
     Anthropic's AI model, with guidance from Shawn Corvec. The scores are a first sample and will grow as new runs are added.</p>
     <p><b>The charts.</b> Every line chart is drawn in the page from the numbers linked beneath it. Each model keeps one
       colour and one marker shape throughout (an ensemble takes its centre's); a whisker is a 95% interval, and pointing
-      at a chart, or stepping through it with the arrow keys, lists every model's value and interval at that lead. The
-      scorecards and the rain maps are pictures made each night.</p>
+      at a chart, or stepping through it with the arrow keys, lists every model's value and interval at that lead. A lead
+      or a pressure level is charted once every model has 100 pairs of forecast and observation there over the window.
+      The scorecards and the rain maps are pictures made each night.</p>
     <p><b>At a glance.</b> The headline variables, 500&nbsp;hPa height, 850&nbsp;hPa temperature, 250&nbsp;hPa vector wind
       and 700&nbsp;hPa specific humidity against radiosondes and 2&nbsp;m temperature, dew point, sea-level pressure and
       10&nbsp;m vector wind at surface stations, in one region. For each variable and day every pair of models goes through
@@ -693,7 +694,8 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       the RMSE of the ensemble mean: 1 for a calibrated ensemble, below 1 for an overconfident one. A rank histogram counts
       where each observation falls among the members, flat when the ensemble is calibrated, U-shaped when it is too narrow;
       reliability compares the share of members forecasting an event with how often it happened, with the Brier skill score
-      against the sample's own frequency. A wind is scored as its two components, each level's CRPS their mean. These
+      against the sample's own frequency; a curve is drawn once the sample holds 30 events and 30 non-events, each of
+      its points 30 cases, and a point where the event never came, or always did, has no interval. A wind is scored as its two components, each level's CRPS their mean. These
       panels describe the ensembles; only the scorecard tests a difference between them.</p>
     <p><b>Weeks 1–5.</b> The weekly anomaly maps of the two days 1–35 pages, <a href="/gefs.html">GEFS</a> and
       <a href="/subseasonal.html">GEPS</a>, against ERA5: the ensemble mean's anomaly from the 1991–2020 normal of 2&nbsp;m
@@ -1085,7 +1087,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
     Promise.all(names.map(figJson)).then(files => {
       if (host.dataset.want !== want) return;
       const spec = files.every(Boolean) ? build(...files) : null;
-      if (!spec) { window.vcharts.clear(host, "Nothing scored for this choice yet."); return; }
+      if (!spec) { window.vcharts.clear(host, "Too few forecasts and observations to score this choice yet."); return; }
       if (spec.data === undefined) spec.data = { href: window.frameUrls("assets/verification/fig/" + names[0])[0] };
       window.vcharts.draw(host, spec);
     });
@@ -1323,7 +1325,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
         const rank = (d.regions[evr.value] || {}).rank, none = !rank || !Object.keys(rank).length;
         $("e-rank-h").hidden = $("e-rank-fig").hidden = none;   // a vector wind has no ranks
         if (none) return null;
-        const ms = ordered(Object.keys(Object.values(rank)[0] || {}));
+        const ms = ordered([...new Set(Object.values(rank).flatMap(Object.keys))]);
         const top = Math.max(0.1, ...Object.values(rank).flatMap(by => Object.values(by).flatMap(r => r.hi)));   // one scale across the panels
         const panels = Object.entries(rank).map(([g, by]) => ({ title: title(g), dodge: 4, v: { domain: [0, Math.ceil(top * 20) / 20] }, refs: [{ v: 0.1, label: "flat" }],
           u: { ticks: days(10), domain: [1, 10], label: "Tenth of the members' ranks, lowest to highest" }, tipHead: x => `Tenth ${x}`,
@@ -1339,7 +1341,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
       chart("e-rel-fig", [name], d => {
         const groups = d.regions[named[code]];
         if (!groups) return null;
-        const ms = ordered(Object.keys(Object.values(groups)[0] || {})), share = p => `${Math.round(100 * p)}%`;
+        const ms = ordered([...new Set(Object.values(groups).flatMap(Object.keys))]), share = p => `${Math.round(100 * p)}%`;
         const panels = Object.entries(groups).map(([g, by]) => ({ dodge: 3, v: { domain: [0, 1], fmt: share }, refs: [{ diag: true }],
           title: `${title(g)}<small>Brier skill score: ${ms.filter(m => by[m] && by[m].bss != null).map(m => `${esc(m)} ${by[m].bss.toFixed(2)}`).join(", ")}</small>`,
           u: { domain: [0, 1], ticks: [0, 0.2, 0.4, 0.6, 0.8, 1], fmt: share, label: "Forecast probability" }, tipHead: p => `Forecast ${share(p)}`,

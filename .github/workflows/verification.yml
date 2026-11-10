@@ -12,13 +12,14 @@ name: Model verification scores
 # (scores_30.json ... scores_all.json, stations_30.json, stations_90.json), and its newest year of rain is mapped
 # (precip_maps.json). The ensembles' runs (verify-ens.yml) are scored the same way from their sums
 # (ens_scores_30.json ... ens_scores_all.json, scripts/verify/ens_verify.py windows), and every model's 500 hPa
-# anomaly correlation against ERA5 (verify-z500.yml) from its runs' scores. The figures of the page are drawn here
-# (scripts/verify/verify_figs.py: every chart of the page but a station's series, each with its uncertainty) into the
-# frames store, with their list, figs.json, and so are each station's series for the station map (station_series.py).
+# anomaly correlation against ERA5 (verify-z500.yml) from its runs' scores. The page's scorecards and rain maps are
+# drawn here and the numbers of its line charts written, each score with its uncertainty (scripts/verify/verify_figs.py),
+# into the frames store, with their list, figs.json, and so are each station's series for the station map
+# (station_series.py).
 # verify-backfill.yml fills the database for earlier runs and catches up any it missed. Every
 # file is copied to the site's object store as well (verifydb.sh mirror), so the database is kept in two places.
-# A dispatch with figures set scores nothing: it rebuilds the windows from the database's sums and redraws the figures
-# (about 25 min), for a change to how they are drawn.
+# A dispatch with figures set scores nothing: it rebuilds the windows from the database's sums and the figures and
+# chart numbers from them, for a change to how they are made.
 #
 # Time: about 25 min for the surface and 13 min per run for every pressure level, plus the database. The
 # radiosonde pairs of each run are kept between nights (Actions cache), so a night downloads the pressure
@@ -36,7 +37,7 @@ on:
         description: 'Last 00Z run, YYYYMMDD (blank = 11 days ago, the latest whose day 10 is observed)'
         default: ''
       figures:
-        description: 'Only redraw the figures from the database (no scoring)'
+        description: 'Only rebuild the figures and chart numbers from the database (no scoring)'
         type: boolean
         default: false
 
