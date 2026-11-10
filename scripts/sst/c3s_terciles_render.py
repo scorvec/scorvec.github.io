@@ -109,7 +109,7 @@ def period_means(path: Path, short: str, fac: float, periods: dict):
 
 
 def bounds(h: np.ndarray, years: np.ndarray | None, detrend: bool) -> dict:
-    """The hindcast half of `probs`, kept as a table (c3s_ref hc_terc): per grid point the 1/3 and 2/3
+    """The hindcast half of the count, kept as a table (c3s_ref hc_terc): per grid point the 1/3 and 2/3
     bounds of the hindcast season means and, with `detrend`, the per-point linear-trend slope b."""
     out = {}
     if detrend and years is not None:
@@ -124,7 +124,10 @@ def bounds(h: np.ndarray, years: np.ndarray | None, detrend: bool) -> dict:
 
 def probs_from_bounds(f: np.ndarray, tb: dict, target_year: int | None, min_spread: float = 0.0) -> dict:
     """The forecast half: members counted against stored bounds, moved by the trend extrapolated to
-    `target_year` when the bounds are detrended."""
+    `target_year` when the bounds are detrended.
+
+    Cells whose two boundaries sit within `min_spread` are dropped: in a desert, or in a dry season, a third of the
+    hindcast can be the same near-zero number, and "below the lower tercile" then means nothing."""
     if "b" in tb and target_year is not None:
         f = f - tb["b"][None] * (target_year - tb["ymean"])
     lo, hi = tb["lo"], tb["hi"]
@@ -134,20 +137,6 @@ def probs_from_bounds(f: np.ndarray, tb: dict, target_year: int | None, min_spre
     below = np.where(dead, np.nan, below)
     above = np.where(dead, np.nan, above)
     return {"above": above, "below": below, "normal": 1.0 - above - below}
-
-
-def probs(
-    f: np.ndarray, h: np.ndarray, years: np.ndarray | None, target_year: int | None, min_spread: float = 0.0
-) -> dict:
-    """Tercile probabilities for one lead group, from the season means of the members (f)
-    and of the hindcast (h); `target_year` set = counted against the hindcast trend.
-
-    Cells whose two boundaries sit within `min_spread` are dropped: in a desert, or in a
-    dry season, a third of the hindcast can be the same near-zero number, and "below the
-    lower tercile" then means nothing. Masking them is honest; drawing them is not.
-    Split in two halves (bounds / probs_from_bounds) so the hindcast half can be stored as a table."""
-    tb = bounds(h, years, target_year is not None)
-    return probs_from_bounds(f, tb, target_year, min_spread)
 
 
 def draw(pr: dict, lat, lon, var: str, title: str, sub: str, out: Path, n_eff) -> None:
@@ -193,7 +182,7 @@ def main() -> int:
     for entry in MODELS:
         centre, system, label = entry[0], str(entry[1]), entry[2]
         mid = f"{centre}_{system}"
-        have = []
+        have, drawn = [], {}
         for var in want:
             # the issue table (c3s_ref is_terc): built from the raw files when they are on disk,
             # otherwise read from the release -- the raw files are deleted once reduced
@@ -227,6 +216,7 @@ def main() -> int:
                     OUT / f"c3s_terc_{mid}_{var}_{pid}.webp",
                     meta["nmem"][pid],
                 )
+                drawn.setdefault(var, {})[pid] = meta["nmem"][pid]
                 pool.setdefault((var, pid), []).append(
                     {**{k: to_ref(pr[k], lat, lon) for k in ("above", "below", "normal")}, "n": meta["nmem"][pid]}
                 )
@@ -235,22 +225,21 @@ def main() -> int:
         # every listed system must carry every field: the picker offers one field list for
         # all of them, so a system with half the set would 404 on the other half
         if have == want:
-            models.append({"id": mid, "label": label, "fields": have})
+            models.append({"id": mid, "label": label, "fields": have, "n": drawn})
             print(f"  {label}: {', '.join(have)}", flush=True)
         elif have:
             print(f"  {label}: only {', '.join(have)}; left off the picker", flush=True)
 
-    made = 0
+    pooled = {}
     for (var, pid), items in sorted(pool.items()):
         if len(items) < MIN_SYSTEMS:
             print(f"  pooled {var} {pid}: only {len(items)} system(s); skipped", flush=True)
             continue
-        keep = items
-        pr = {k: np.nanmean(np.stack([p[k] for p in keep]), axis=0) for k in ("above", "below", "normal")}
+        pr = {k: np.nanmean(np.stack([p[k] for p in items]), axis=0) for k in ("above", "below", "normal")}
         idx = PERIODS[pid]
         pname, lead = period_label(idx, y, mo), lead_note(idx)
         sub = (
-            f"{len(keep)} C3S systems, each weighted equally · {pname} ({lead}) · {MONTHS[mo - 1]} {y} issue · "
+            f"{len(items)} C3S systems, each weighted equally · {pname} ({lead}) · {MONTHS[mo - 1]} {y} issue · "
             "every system counted against its own 1993–2016 hindcast first. "
             f"Coloured where a category reaches 40 % {TERC_TEST_NOTE}; near-normal is not drawn."
             + ("  Counted against the hindcast's linear trend extrapolated to this start." if var in DETREND else "")
@@ -263,11 +252,11 @@ def main() -> int:
             f"{TITLES[var]}: most likely tercile — multi-model",
             sub,
             OUT / f"c3s_terc_mmm_{var}_{pid}.webp",
-            1.0 / sum(1.0 / (len(keep) ** 2 * p["n"]) for p in keep),  # the equal-weight mean's effective members
+            1.0 / sum(1.0 / (len(items) ** 2 * p["n"]) for p in items),  # the equal-weight mean's effective members
         )
-        made += 1
-    if made:
-        models.insert(0, {"id": "mmm", "label": "Multi-model", "fields": sorted({v for v, _ in pool})})
+        pooled.setdefault(var, {})[pid] = len(items)
+    if pooled:
+        models.insert(0, {"id": "mmm", "label": "Multi-model", "fields": sorted(pooled), "n": pooled})
 
     doc_path = SITE / "assets" / "sst" / "data" / "c3s_maps.json"
     doc = json.loads(doc_path.read_text()) if doc_path.exists() else {}
@@ -277,6 +266,7 @@ def main() -> int:
         "models": models,
         "fields": {v: TITLES[v] for v in want},
         "detrended": list(DETREND),
+        "n": "per model, field and period drawn: the members counted (multi-model: the systems averaged)",
         "periods": {p: period_label(PERIODS[p], y, mo) for p in PERIODS},
     }
     doc_path.write_text(json.dumps(doc, separators=(",", ":")))

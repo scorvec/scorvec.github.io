@@ -61,7 +61,6 @@ def start_dates(centre: str, system: str, issue: str):
     """
     import xarray as xr
     from c3s_terciles import path_for as terc_path
-    import c3s_ref as CR
 
     t = CR.load(CR.is_terc(centre, system, "t2m", issue))  # the tercile build keeps them (raw deleted)
     if t is not None and "starts" in t:

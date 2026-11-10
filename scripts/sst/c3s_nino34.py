@@ -364,7 +364,7 @@ def resolve_issue(explicit):
         ym = (now - pd.DateOffset(months=back)).strftime("%Y%m")
         print(f"probing issue {ym} …", flush=True)
         res = collect(ym)
-        print(f"  → {len(res)}/{len(MODELS)} models available for {ym}", flush=True)
+        print(f"  → {len(res)} model(s) available for {ym} (quorum {QUORUM})", flush=True)
         if len(res) >= QUORUM:
             return ym, res
         if best is None or len(res) > len(best[1]):

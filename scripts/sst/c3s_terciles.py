@@ -199,7 +199,7 @@ def hc_table(centre: str, system: str, var: str, issue: str) -> dict | None:
 
 
 def derive_issue_table(centre: str, system: str, var: str, issue: str, fp: Path, tb: dict) -> dict | None:
-    """is_terc table: tercile probabilities per period (exactly c3s_terciles_render.probs), and for t2m
+    """is_terc table: tercile probabilities per period (c3s_terciles_render.probs_from_bounds), and for t2m
     every member's population-weighted monthly mean per region and the members' start dates."""
     from c3s_maps_render import PERIODS
     from c3s_terciles_render import DETREND, MIN_SPREAD, period_means, probs_from_bounds

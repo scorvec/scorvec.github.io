@@ -1623,8 +1623,9 @@ afterPlotly(function () {
     // k: "" = the anomaly, "chg" = its change since the previous issue (the anomaly maps card only)
     var sel = { m: block.models[0].id, f: fieldItems[0][0], p: periodItems[0][0], k: "" };
     function any(o) { return !!o && Object.keys(o).length > 0; }
-    // field -> periods a model has of the kind shown; null for a block that lists fields only (the terciles)
-    function has(mod, k) { return k ? mod.chg || {} : mod.sig || null; }
+    // field -> periods a model has of the kind shown (sig: the anomaly maps, n: the terciles); null for a block
+    // that lists fields only
+    function has(mod, k) { return k ? mod.chg || {} : mod.sig || mod.n || null; }
     var kinds = [];
     if (state.kind) {
       if (block.models.some(function (m) { return any(m.sig); })) kinds.push(["", "Anomaly"]);
