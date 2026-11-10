@@ -8,8 +8,9 @@ name: C3S multi-system seasonal (monthly)
 #   * every large input is reduced to a compact table the moment it lands (c3s_ref.py):
 #     per hindcast START MONTH (hc_terc_*: tercile bounds, population-weighted hindcast means; hc_anom_*: the
 #     hindcast spread the anomaly maps are tested against -- ~17 GB of raw hindcast paid once per calendar month,
-#     ever) and per ISSUE (is_terc_*: tercile probabilities + member series; is_anom_*: ensemble-mean anomaly and
-#     member spread; is_sixh_*: each member's population-weighted daily mean), kept as assets of the release
+#     ever; hc_chg_*: the paired hindcast means the change maps are tested with) and per ISSUE (is_terc_*: tercile
+#     probabilities + member series; is_anom_*: ensemble-mean anomaly and member spread; is_sixh_*: each member's
+#     population-weighted daily mean), kept as assets of the release
 #     `c3s-ref-v1`; every raw 2 m temperature and precipitation file (hindcast and members) also gives the long-range
 #     forecast its ensemble-mean table (scripts/monthly/c3s_em.py, release `c3s-em-v1`), which never fetches them;
 #   * every raw GRIB a run downloads is kept as a 90-day artifact (c3s-raw-issue, c3s-raw-hindcast; the store's own
@@ -175,9 +176,11 @@ jobs:
           if ! gh release view "$REF_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "::error::release $REF_TAG not found - bootstrap it offline (c3s_ref.py obs / hc)"; exit 1
           fi
-          I=${{ steps.gate.outputs.issue }}; M=${{ steps.gate.outputs.month }}
+          I=${{ steps.gate.outputs.issue }}; M=${{ steps.gate.outputs.month }}; P1=${{ steps.gate.outputs.p1 }}
+          # the previous issue's anomaly tables and the paired hindcast means are what the change maps compare with
           gh release download "$REF_TAG" --repo "$GITHUB_REPOSITORY" -D "$C3S_REF_DIR" --clobber \
-            -p 'obs_*' -p "hc_terc_*_${M}.npz" -p "hc_anom_*_${M}.npz" -p "is_*_${I}*.npz" \
+            -p 'obs_*' -p "hc_terc_*_${M}.npz" -p "hc_anom_*_${M}.npz" -p "hc_chg_*_${M}.npz" -p "is_*_${I}*.npz" \
+            -p "is_anom_*_${P1}.npz" \
             || echo "::warning::not every $REF_TAG pattern downloaded (none published yet for this issue, or a fetch error)"
           touch "$RUNNER_TEMP/ref_marker"
           ls "$C3S_REF_DIR" | sed 's/_[0-9]*\.npz$//' | sort | uniq -c | head -40
@@ -262,7 +265,8 @@ jobs:
         if: steps.gate.outputs.run == '1' && steps.enso.outputs.ready == '1' && steps.parts.outputs.do_maps == '1'
         run: |
           I=${{ steps.gate.outputs.issue }}
-          # members first (one small request per system and field), then the hindcast spread each map is tested with
+          # members first (one small request per system and field), then what the change from the previous issue is
+          # tested with (small: the two start months' hindcast means), then the hindcast spread each map is tested with
           # (once per start month: t2m and precipitation shared with the tercile tables, sea-level pressure and SST for
           # the test alone) under the same budget rule as the tercile step; a field without it is left off the maps
           LEFT=$(( 340 - ( $(date +%s) - JOB_T0 ) / 60 - 90 ))

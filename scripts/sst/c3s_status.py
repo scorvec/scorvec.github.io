@@ -6,7 +6,8 @@ checkout and this script, nothing else).
 Parts and what "done" means:
   plume   enso_forecast.json holds this issue with every system the page keeps (5)
   maps    c3s_maps.json holds this issue with every system x field (7 x 4); a field is listed once it is
-          tested, i.e. once its start month's hindcast spread (c3s_ref hc_anom) is in
+          tested, i.e. once its start month's hindcast spread (c3s_ref hc_anom) is in; and its change since the
+          previous issue (chg) for the same 7 x 4, once the paired hindcast means (c3s_ref hc_chg) are in
   terc    every system x variable has its issue table (c3s_ref is_terc, 7 x 2)
   sixh    every system x region x forecast month has its daily table (c3s_ref is_sixh, 7 x 2 x 6)
 
@@ -59,11 +60,8 @@ def status(issue: str) -> dict:
     plume = len(F.get("models", {})) if F.get("issue") == key else 0
     flav = _json("enso_flavour.json").get("issue") == key
     M = _json("c3s_maps.json")
-    maps = (
-        sum(len(m.get("fields", [])) for m in M.get("models", []) if m.get("id") != "mmm")
-        if M.get("issue") == key
-        else 0
-    )
+    systems_in = [m for m in M.get("models", []) if m.get("id") != "mmm"] if M.get("issue") == key else []
+    maps, chg = (sum(len(m.get(k, [])) for m in systems_in) for k in ("fields", "chg"))
     systems = [(m[0], str(m[1])) for m in MODELS]
     terc = sum(CR.is_terc(c, s, v, issue).exists() for c, s in systems for v in ("t2m", "tp"))
     sixh = sum(
@@ -72,12 +70,14 @@ def status(issue: str) -> dict:
     want = {
         "plume": expected_plume(),
         "maps": len(systems) * 4,
+        "chg": len(systems) * 4,
         "terc": len(systems) * 2,
         "sixh": len(systems) * len(REGIONS) * NMONTH,
     }
-    have = {"plume": plume, "maps": maps, "terc": terc, "sixh": sixh}
+    have = {"plume": plume, "maps": maps, "chg": chg, "terc": terc, "sixh": sixh}
     done = {k: have[k] >= want[k] for k in want}
     done["plume"] = done["plume"] and flav
+    done["maps"] = done.pop("chg") and done["maps"]  # one part of c3s.yml builds both
     return {"issue": key, "have": have, "want": want, "done": done, "complete": all(done.values())}
 
 

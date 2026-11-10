@@ -311,15 +311,25 @@ window.afterPlotly = function (fn) {
     no significant anomaly. A system or field appears once its start month&rsquo;s hindcast spread is in. The
     <b>multi-model mean</b> weights every system equally rather than by member count, so NCEP&rsquo;s 120-odd members and a
     20-member system count the same; ECCC runs two systems (GEM5-NEMO and CanESM5), so Canada carries two shares wherever
-    both supply the field. It is tested the same way, with every system&rsquo;s member and hindcast spread. Where the
-    systems disagree, step through them: the mean alone will not tell you.</p>
+    both supply the field. It is tested the same way, with every system&rsquo;s member and hindcast spread, and drawn once
+    three quarters of the issue&rsquo;s systems are in it. Where the systems disagree, step through them: the mean alone
+    will not tell you.</p>
+    <p class="note"><b>Change since the previous issue</b> is this issue&rsquo;s ensemble-mean anomaly minus last
+    month&rsquo;s for the same calendar months, which sat one lead further out then; the first month and the first season
+    have one, the second season reaches past last month&rsquo;s six leads. Its colour scale is half the anomaly&rsquo;s.
+    A cell is shaded only where the change is larger than the noise in three things: this issue&rsquo;s members, last
+    month&rsquo;s members, and the hindcast, because the two issues are anomalies against two different hindcast means
+    (this start month&rsquo;s and the one before), whose difference is known only from the 24 hindcast years. The same
+    false-discovery rate applies. A blank map means the systems did not move by more than chance, not that the forecast
+    is unchanged to the decimal.</p>
     </details>
-    <div class="controls" id="c3sMapModel" style="margin-top:0.8rem"></div>
+    <div class="controls" id="c3sMapKind" style="margin-top:0.8rem"></div>
+    <div class="controls" id="c3sMapModel" style="margin-top:0.4rem"></div>
     <div class="controls" id="c3sMapField" style="margin-top:0.4rem"></div>
     <div class="controls" id="c3sMapPeriod" style="margin-top:0.4rem"></div>
     <div class="map-grid" id="c3sMapImg"></div>
     <div class="chart-card-footer">
-      <span class="chart-sources">C3S <code>seasonal-postprocessed-single-levels</code>, members&rsquo; anomalies vs each model&rsquo;s own 1993&ndash;2016 hindcast &middot; hindcast spread: <code>seasonal-monthly-single-levels</code> &middot; shaded where significant (FDR 0.10)</span>
+      <span class="chart-sources">C3S <code>seasonal-postprocessed-single-levels</code>, members&rsquo; anomalies vs each model&rsquo;s own 1993&ndash;2016 hindcast &middot; hindcast spread and paired hindcast means: <code>seasonal-monthly-single-levels</code> &middot; shaded where significant (FDR 0.10)</span>
       <span class="chart-updated" id="c3sMapUpdated">&mdash;</span>
     </div>
   </div>
@@ -1612,16 +1622,36 @@ afterPlotly(function () {
       periodItems = periodItems.filter(function (it) { return it[0] !== "m1"; });  // its first lead month has passed
       flagStale(cardId, own, CJ.issue_label);
     }
-    var sel = { m: block.models[0].id, f: fieldItems[0][0], p: periodItems[0][0] };
+    // k: "" = the anomaly, "chg" = its change since the previous issue (the anomaly maps card only)
+    var sel = { m: block.models[0].id, f: fieldItems[0][0], p: periodItems[0][0], k: "" };
+    function any(o) { return !!o && Object.keys(o).length > 0; }
+    // field -> periods a model has of the kind shown; null for a block that lists fields only (the terciles)
+    function has(mod, k) { return k ? mod.chg || {} : mod.sig || null; }
+    var kinds = [];
+    if (state.kind) {
+      if (block.models.some(function (m) { return any(m.sig); })) kinds.push(["", "Anomaly"]);
+      if (block.models.some(function (m) { return any(m.chg); })) kinds.push(["chg", "Change since the " + CJ.previous_label + " issue"]);
+      if (kinds.length) sel.k = kinds[0][0];
+    }
     function draw() {
-      var mod = block.models.filter(function (x) { return x.id === sel.m; })[0] || block.models[0];
-      if (mod.fields && mod.fields.indexOf(sel.f) === -1) sel.f = mod.fields[0];
-      pills(document.getElementById(state.model), block.models.map(function (m) { return [m.id, m.label]; }), sel.m, function (v) { sel.m = v; draw(); });
-      pills(document.getElementById(state.field), fieldItems.filter(function (it) { return !mod.fields || mod.fields.indexOf(it[0]) >= 0; }), sel.f, function (v) { sel.f = v; draw(); });
-      pills(document.getElementById(state.period), periodItems, sel.p, function (v) { sel.p = v; draw(); });
+      var models = block.models.filter(function (m) { var h = has(m, sel.k); return !h || any(h); });
+      var mod = models.filter(function (x) { return x.id === sel.m; })[0] || models[0];
       var img = document.getElementById(state.img);
-      img.innerHTML = '<img loading="lazy" src="/assets/sst/c3s/' + prefix + sel.m + "_" + sel.f + "_" + sel.p +
-        '.webp?v=' + (CJ.issue || "") + '" alt="' + mod.label + '" loading="lazy">';
+      if (!mod) { img.innerHTML = ""; return; }
+      sel.m = mod.id;
+      var h = has(mod, sel.k);
+      var fs = fieldItems.filter(function (it) { return h ? any(h[it[0]]) : !mod.fields || mod.fields.indexOf(it[0]) >= 0; });
+      if (!fs.some(function (it) { return it[0] === sel.f; })) sel.f = fs[0][0];
+      var ps = periodItems.filter(function (it) { return !h || it[0] in h[sel.f]; });
+      if (ps.length && !ps.some(function (it) { return it[0] === sel.p; })) sel.p = ps[0][0];
+      // the kind row only where there is a change to show: without one the card is the anomaly, as its heading says
+      if (kinds.some(function (it) { return it[0] === "chg"; })) pills(document.getElementById(state.kind), kinds, sel.k, function (v) { sel.k = v; draw(); });
+      pills(document.getElementById(state.model), models.map(function (m) { return [m.id, m.label]; }), sel.m, function (v) { sel.m = v; draw(); });
+      pills(document.getElementById(state.field), fs, sel.f, function (v) { sel.f = v; draw(); });
+      pills(document.getElementById(state.period), ps, sel.p, function (v) { sel.p = v; draw(); });
+      img.innerHTML = !ps.length ? "" : '<img loading="lazy" src="/assets/sst/c3s/' + prefix + sel.m + "_" + sel.f + "_" +
+        (sel.k ? sel.k + "_" : "") + sel.p + '.webp?v=' + (CJ.issue || "") + '" alt="' + mod.label +
+        (sel.k ? ", change since the previous issue" : "") + '">';
       var u = document.getElementById(state.updated);
       if (u) u.textContent = own + " issue" + (stale ? " (previous)" : "");
     }
@@ -1645,7 +1675,7 @@ afterPlotly(function () {
   ready.then(function (j) {
     CJ = j;
     wire("c3sMapCard", { models: j.models, fields: j.fields, periods: j.periods }, "c3s_",
-         { model: "c3sMapModel", field: "c3sMapField", period: "c3sMapPeriod", img: "c3sMapImg", updated: "c3sMapUpdated" });
+         { kind: "c3sMapKind", model: "c3sMapModel", field: "c3sMapField", period: "c3sMapPeriod", img: "c3sMapImg", updated: "c3sMapUpdated" });
     wire("c3sTercCard", j.terciles, "c3s_terc_",
          { model: "c3sTercModel", field: "c3sTercField", period: "c3sTercPeriod", img: "c3sTercImg", updated: "c3sTercUpdated" });
     var pu = document.getElementById("c3sPlumeUpdated");
