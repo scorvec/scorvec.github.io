@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Final 2026 Midterm Forecast</title>
-<meta name="description" content="The final forecast of the 2026 U.S. House, Senate and governor elections, frozen at noon Eastern on Election Day: 20,000 simulated elections built from every poll, each race's fundamentals and a shared national polling miss.">
+<meta name="description" content="The final forecast of the 2026 U.S. House, Senate and governor elections, frozen on Election Day: 20,000 simulated elections built from every poll.">
 <link rel="canonical" href="https://scorvec.com/midterms/forecast.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Final 2026 Midterm Forecast">
-<meta property="og:description" content="The final forecast of the 2026 U.S. House, Senate and governor elections, frozen at noon Eastern on Election Day: 20,000 simulated elections built from every poll, each race's fundamentals and a shared national polling miss.">
+<meta property="og:description" content="The final forecast of the 2026 U.S. House, Senate and governor elections, frozen on Election Day: 20,000 simulated elections built from every poll.">
 <meta property="og:url" content="https://scorvec.com/midterms/forecast.html">
 <meta name="twitter:card" content="summary">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -140,6 +140,7 @@ th,td{padding:5px 6px;border-bottom:1px solid var(--rule);text-align:left}
 th{font-weight:600;color:var(--muted);font-size:14.5px}
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
+.rowb{border:0;background:none;padding:0;font:inherit;font-weight:700;color:inherit;text-align:left;cursor:pointer}
 .pd{font-weight:700}
 .mt-more{border:0;background:none;color:var(--d);font:inherit;font-size:16px;padding:6px 0;cursor:pointer}
 .mt-tw{overflow-x:auto}
@@ -387,7 +388,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
    <div class="mt-leg"><span>Republican</span><i style="background:linear-gradient(90deg,#a32215,#e6e6e6,#0b3d91)"></i><span>Democratic</span>&nbsp;·&nbsp;outlined: open seat &nbsp;·&nbsp;scroll or pinch to zoom, click a district for details</div></div>
   <div>
    <div class="mt-card mt-race" id="race-house"><p class="empty">Click a district on the map, or search above.</p></div>
-   <div class="mt-card" style="margin-top:14px"><h2>House seats</h2><p class="mt-sum" id="hsum"></p><svg class="mt-hist" id="hhist" viewBox="0 0 360 140"></svg></div>
+   <div class="mt-card" style="margin-top:14px"><h2>House seats</h2><p class="mt-sum" id="hsum"></p><svg class="mt-hist" id="hhist" viewBox="0 0 360 140" role="img" aria-label="How often each number of Democratic House seats came up in the simulations"></svg></div>
   </div>
   <div class="mt-card"><h2>Closest House races</h2><div class="mt-tw"><table id="close"></table></div><button class="mt-more" id="closeMore" type="button">Show 30 more</button></div>
  </div>
@@ -399,7 +400,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
    <div class="mt-leg"><span>Republican</span><i style="background:linear-gradient(90deg,#a32215,#e6e6e6,#0b3d91)"></i><span>Democratic or independent</span>&nbsp;·&nbsp;grey: no race</div></div>
   <div>
    <div class="mt-card mt-race" id="race-senate"><p class="empty">Click a state on the map, or a race below.</p></div>
-   <div class="mt-card" style="margin-top:14px"><h2>Senate seats</h2><p class="mt-sum" id="ssum"></p><svg class="mt-hist" id="shist" viewBox="0 0 360 170"></svg></div>
+   <div class="mt-card" style="margin-top:14px"><h2>Senate seats</h2><p class="mt-sum" id="ssum"></p><svg class="mt-hist" id="shist" viewBox="0 0 360 170" role="img" aria-label="How often each number of Democratic Senate seats came up in the simulations"></svg></div>
   </div>
   <div class="mt-card"><h2>Senate races</h2><div class="mt-tw"><table id="sen"></table></div><button class="mt-more" id="senMore" type="button"></button></div>
  </div>
@@ -775,17 +776,17 @@ function render(){const H=D.house;E=+$('#E').value;gi=H.grid.reduce((b,x,i)=>Mat
  $('#ssum').innerHTML=`Democrats hold <b>${sd.mean.toFixed(1)}</b> seats on average (${esc(sd.p10)}–${esc(sd.p90)})${sd.ind_mean?`; independents win ${sd.ind_mean.toFixed(1)} more on average, stacked on each bar (x-axis: Democratic seats)`:''}.${Object.entries(sd.decides||{}).filter(([,v])=>v>=0.005).map(([st,v])=>` ${esc(NAMES[st]||st)} decides control in ${pct(v)} of the simulations: ${esc((D.senate.late_count||{})[st]||'')}.`).join('')}`;(sd.hist2?shist('#shist',sd.hist2,170):hist('#shist',sd.hist,51,130));
  // closest House races
  const close=H.seats.map(s=>({...s,pp:s.p[gi]})).sort((a,b)=>Math.abs(a.pp-.5)-Math.abs(b.pp-.5)).slice(0,SHOW.close);
- $('#close').innerHTML=`<thead><tr><th>District</th><th>Member</th><th class="n">Lean</th><th class="n">Polls</th><th class="n">Chance ${close.some(hInd)?'D/I':'D'}</th></tr></thead><tbody>`+close.map(s=>`<tr data-k="${esc(s.seat)}"><td><b>${esc(s.seat)}</b></td><td>${who(s)}${hInd(s)?` v ${esc(s.challenger)} (I)`:''}</td><td class="n">${lean(s.lean)}</td><td class="n">${s.n_polls?mg(s.poll_margin,s.challenger_party):'–'}</td>${pc(s.pp)}</tr>`).join('')+'</tbody>';
+ $('#close').innerHTML=`<thead><tr><th>District</th><th>Member</th><th class="n">Lean</th><th class="n">Polls</th><th class="n">Chance ${close.some(hInd)?'D/I':'D'}</th></tr></thead><tbody>`+close.map(s=>`<tr data-k="${esc(s.seat)}"><td><button type="button" class="rowb" aria-label="Show ${esc(s.seat)}">${esc(s.seat)}</button></td><td>${who(s)}${hInd(s)?` v ${esc(s.challenger)} (I)`:''}</td><td class="n">${lean(s.lean)}</td><td class="n">${s.n_polls?mg(s.poll_margin,s.challenger_party):'–'}</td>${pc(s.pp)}</tr>`).join('')+'</tbody>';
  $$('#close tbody tr').forEach(tr=>tr.addEventListener('click',()=>{pick('house',tr.dataset.k);$('#race-house').scrollIntoView({block:'nearest',behavior:'smooth'})}));
  // Senate
  const S=D.senate,sr=S.races.map(r=>({...r,pp:r.p[gi]})).sort((a,b)=>Math.abs(a.pp-.5)-Math.abs(b.pp-.5)),scomp=sr.filter(r=>r.pp>0.03&&r.pp<0.97),sshow=SHOW.sen?sr:scomp;
- $('#sen').innerHTML='<thead><tr><th>State</th><th>Race</th><th class="n">Polls</th><th class="n">Expected</th><th class="n">Chance D/I</th></tr></thead><tbody>'+sshow.map(r=>`<tr data-k="${esc(r.state)}${r.special?'|sp':''}"><td><b>${esc(NAMES[r.state]||r.state)}</b>${r.special?' (special)':''}</td><td>${esc(r.dem||'?')}${sInd(r)?' (I)':''} v ${esc(r.rep||'?')}</td><td class="n">${r.n_polls?mg(r.poll_margin,r.dem_party):'–'}</td><td class="n">${mg(expM('senate',r),r.dem_party)}</td>${pc(r.pp)}</tr>`).join('')+'</tbody>';
+ $('#sen').innerHTML='<thead><tr><th>State</th><th>Race</th><th class="n">Polls</th><th class="n">Expected</th><th class="n">Chance D/I</th></tr></thead><tbody>'+sshow.map(r=>`<tr data-k="${esc(r.state)}${r.special?'|sp':''}"><td><button type="button" class="rowb" aria-label="Show the ${esc(NAMES[r.state]||r.state)}${r.special?' special':''} Senate race">${esc(NAMES[r.state]||r.state)}</button>${r.special?' (special)':''}</td><td>${esc(r.dem||'?')}${sInd(r)?' (I)':''} v ${esc(r.rep||'?')}</td><td class="n">${r.n_polls?mg(r.poll_margin,r.dem_party):'–'}</td><td class="n">${mg(expM('senate',r),r.dem_party)}</td>${pc(r.pp)}</tr>`).join('')+'</tbody>';
  $('#senMore').textContent=SHOW.sen?`Show competitive races only`:`Show all ${sr.length} races (${sr.length-scomp.length} safe)`;
  $$('#sen tbody tr').forEach(tr=>tr.addEventListener('click',()=>{pick('senate',tr.dataset.k);$('#race-senate').scrollIntoView({block:'nearest',behavior:'smooth'})}));
  // governors
  if(D.governor){const G=D.governor,gr=G.races.map(r=>({...r,pp:r.p[gi]})).sort((a,b)=>Math.abs(a.pp-.5)-Math.abs(b.pp-.5)),gc=gr.filter(r=>r.pp>0.03&&r.pp<0.97),gs=SHOW.gov?gr:gc;
   $('#gsum').innerHTML=`Democrats hold <b>${gd.mean.toFixed(1)}</b> governorships on average (${esc(gd.p10)}–${esc(gd.p90)}); a majority of 26 or more: ${pct(gd.p_d_majority)}. Today ${esc(G.now.now_d)} Democratic, ${esc(G.now.now_r)} Republican.`;
-  $('#gov').innerHTML='<thead><tr><th>State</th><th>Race</th><th class="n">Polls</th><th class="n">Expected</th><th class="n">Chance D</th></tr></thead><tbody>'+gs.map(r=>`<tr data-k="${esc(r.state)}"><td><b>${esc(NAMES[r.state]||r.state)}</b></td><td>${esc(r.dem||'?')} v ${esc(r.rep||'?')}${r.inc?'':' · open'}</td><td class="n">${r.n_polls?mg(r.poll_margin):'–'}</td><td class="n">${mg(expM('gov',r))}</td>${pc(r.pp)}</tr>`).join('')+'</tbody>';
+  $('#gov').innerHTML='<thead><tr><th>State</th><th>Race</th><th class="n">Polls</th><th class="n">Expected</th><th class="n">Chance D</th></tr></thead><tbody>'+gs.map(r=>`<tr data-k="${esc(r.state)}"><td><button type="button" class="rowb" aria-label="Show the ${esc(NAMES[r.state]||r.state)} governor race">${esc(NAMES[r.state]||r.state)}</button></td><td>${esc(r.dem||'?')} v ${esc(r.rep||'?')}${r.inc?'':' · open'}</td><td class="n">${r.n_polls?mg(r.poll_margin):'–'}</td><td class="n">${mg(expM('gov',r))}</td>${pc(r.pp)}</tr>`).join('')+'</tbody>';
   $('#govMore').textContent=SHOW.gov?`Show competitive races only`:`Show all ${gr.length} races (${gr.length-gc.length} safe)`;
   $$('#gov tbody tr').forEach(tr=>tr.addEventListener('click',()=>{pick('gov',tr.dataset.k);$('#race-gov').scrollIntoView({block:'nearest',behavior:'smooth'})}))}
  watch();
