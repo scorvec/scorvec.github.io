@@ -90,6 +90,7 @@ jobs:
       - name: Statistics, JSON, figure
         if: steps.fetch.outputs.rc == '0'
         run: |
+          set -o pipefail  # a failed build fails the step before anything is uploaded
           mkdir -p "$C3SU10_OUT"
           python scripts/sst/c3s_u10_skill.py build | tee "$C3SU10_OUT/c3s_u10_skill_report.txt"
           gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber \

@@ -82,6 +82,7 @@ jobs:
       - name: GEFS extended run (the members and the drift estimate)
         id: run
         run: |
+          set -o pipefail  # a failed fetch fails the step: tee alone would report success
           python scripts/gefs/gefs_live.py --stage fetch --site . --procs 4 --ref /tmp/gefs_work/ref ${{ inputs.date && format('--date {0}', inputs.date) || '' }} | tee /tmp/gefs.log
           if ls /tmp/gefs_work/gefs2_*.npz >/dev/null 2>&1; then
             echo "new=1" >> "$GITHUB_OUTPUT"

@@ -125,11 +125,13 @@ def main() -> int:
     )  # (member, day)
     mean = np.nanmean(idx, 0)
     p10, p90 = np.nanpercentile(idx, 10, 0), np.nanpercentile(idx, 90, 0)
-    # daily tail: each cycle's 0-h ensemble mean (step 0, the starting analysis), archived
+    # daily tail: each cycle's 0-h ensemble mean (step 0, the starting analysis), archived; IFS-ENS on its own
+    # starts at 24 h and has no analysis to add
     hist = json.loads(HIST.read_text()) if HIST.exists() else {}
-    hist[valid[0].strftime("%Y-%m-%d")] = round(float(mean[0]), 3)
-    hist = dict(sorted(hist.items())[-400:])
-    HIST.write_text(json.dumps(hist, indent=0))
+    if steps_h[0] == 0:
+        hist[valid[0].strftime("%Y-%m-%d")] = round(float(mean[0]), 3)
+        hist = dict(sorted(hist.items())[-400:])
+        HIST.write_text(json.dumps(hist, indent=0))
     tail = pd.Series({pd.Timestamp(k): v for k, v in hist.items()}).sort_index()
 
     # two panels on one y-axis: 30 months of CPC's monthly index, then the 15-day daily forecast
@@ -223,7 +225,7 @@ def main() -> int:
         )
     )
     print(
-        f"  EQSOI: CPC {c.index[-1]:%Y-%m} {c.values[-1]:+.1f}; 0 h {mean[0]:+.2f}, day 15 {mean[-1]:+.2f} ({idx.shape[0]} members) → {out}",
+        f"  EQSOI: CPC {c.index[-1]:%Y-%m} {c.values[-1]:+.1f}; {steps_h[0]} h {mean[0]:+.2f}, day 15 {mean[-1]:+.2f} ({idx.shape[0]} members) → {out}",
         flush=True,
     )
     return 0

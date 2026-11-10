@@ -44,6 +44,7 @@ REPO = HERE.parents[1]
 sys.path.insert(0, str(REPO / "scripts" / "sst"))
 sys.path.insert(0, str(HERE))
 import mo_grid as G
+import mo_method as M
 
 EM_DIR = Path(os.environ.get("C3S_EM_DIR", HERE / "data" / "c3s_em"))
 TAG = "c3s-em-v1"
@@ -208,23 +209,27 @@ def _load(p: Path) -> dict | None:
 
 
 def target(issue: str, v: str, month: int, span: int, live: bool = True) -> dict | None:
-    """The multi-system mean for the outlook variable v over the `span` months from calendar month `month`, from the
-    C3S issue of month `issue` (YYYYMM): {"hind": (24, P) anomalies of the 1993-2016 starts, "live": (P,) the issue's
-    anomaly, "years": the 24 hindcast years of the TARGET's first month, "systems": the groups used}, both against
-    the systems' own 1993-2016 hindcast (blend.py moves them to 1991-2020); None when fewer than MIN_SYSTEMS groups
-    have both tables (the hindcast alone with live=False: a skill-only run) or the target runs past lead 6."""
+    """The multi-system mean for the outlook variable v over the `span` months from calendar month `month` (a season
+    weighted by the days of its months), from the C3S issue of month `issue` (YYYYMM): {"hind": (24, P) anomalies of
+    the 1993-2016 starts, "live": (P,) the issue's anomaly, "years": the 24 hindcast years of the TARGET's first
+    month, "systems": the groups used}, both against the systems' own 1993-2016 hindcast (blend.py moves them to
+    1991-2020); None when fewer than MIN_SYSTEMS groups have both tables (the hindcast alone with live=False: a
+    skill-only run) or the target runs past lead 6."""
     var = OUTLOOK_VAR[v]
     mm = int(issue[4:])
     l0 = (month - mm) % 12  # lead index (0 = the start month) of the target's first month
     if l0 + span > 6:
         return None
+    years = np.array(HC_YEARS) + int(month < mm)  # a target in the next calendar year
+    # a season is the mean of its days, as the observed target is (mo_method.MonthBlock)
+    wh, wn = M.span_days(years, month, span), M.span_days([int(issue[:4]) + int(month < mm)], month, span)[0]
     groups: dict[str, list] = {}
     for c, s in systems():
         h, f = _load(hc_path(c, s, var, mm)), _load(fc_path(c, s, var, issue)) if live else None
         if h is None or (live and (f is None or f["grid"] != h["grid"])):
             continue
-        hind = h["anom"][:, l0 : l0 + span].astype(np.float64).mean(1)
-        now = (f["em"][l0 : l0 + span] - h["clim"][l0 : l0 + span]).mean(0) if live else None
+        hind = np.einsum("yl,ylp->yp", wh, h["anom"][:, l0 : l0 + span].astype(np.float64)) / wh.sum(1)[:, None]
+        now = np.tensordot(wn, f["em"][l0 : l0 + span] - h["clim"][l0 : l0 + span], 1) / wn.sum() if live else None
         groups.setdefault(group(c, s), []).append((hind, now))
     if len(groups) < MIN_SYSTEMS:
         return None
@@ -232,7 +237,7 @@ def target(issue: str, v: str, month: int, span: int, live: bool = True) -> dict
     return {
         "hind": np.mean([a for a, _ in g.values()], 0),
         "live": np.mean([b for _, b in g.values()], 0) if live else None,
-        "years": np.array(HC_YEARS) + int(month < mm),  # a target in the next calendar year
+        "years": years,
         "systems": sorted(g),
     }
 

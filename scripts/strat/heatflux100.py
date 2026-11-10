@@ -269,17 +269,18 @@ def load_warning() -> dict | None:
 
 def member_paths(obs: pd.DataFrame, mem_tot: np.ndarray, valid) -> pd.DataFrame | None:
     """One daily series per member: the analysed tail, a linear bridge over any gap to the first forecast day, then
-    the member's forecast at its daily valid times (the 12Z cycles' half-day offsets are kept as given)."""
+    the member's forecast at its daily valid times on the days after the last analysed one (the 12Z cycles' half-day
+    offsets are kept as given; their step 0 is already in its day's analysed mean)."""
     if obs is None or len(obs) < 5:
         return None
-    fc0 = valid[valid > obs.index[-1]]
-    if not len(fc0):
+    valid = pd.DatetimeIndex(valid)
+    later = valid.normalize() > obs.index[-1]
+    if not later.any():
         return None
-    gap = pd.date_range(obs.index[-1] + pd.Timedelta(days=1), fc0[0] - pd.Timedelta(days=1))
+    gap = pd.date_range(obs.index[-1] + pd.Timedelta(days=1), valid[later][0] - pd.Timedelta(days=1))
     cols = {}
     for k in range(mem_tot.shape[0]):
-        fc = pd.Series(mem_tot[k], index=valid)
-        fc = fc[fc.index > obs.index[-1]]
+        fc = pd.Series(mem_tot[k][later], index=valid[later])
         bridge = (
             pd.Series(
                 np.interp(
@@ -534,38 +535,15 @@ def render(hemi, north, valid, mem, ctrl, lat, hov, obs, clim, init, n_mem, out,
     ax = fig.add_subplot(gs[1, 0])
     style(ax)
     z_last = None
-    if obs is not None and clim is not None and len(obs) >= 40:
+    paths = member_paths(obs, mem["tot"], valid)
+    if paths is not None and clim is not None and len(obs) >= 40:
 
         def z40(series):
             r = series.rolling(40, min_periods=40).mean().dropna()
             return (r - clim_at(clim, hemi, "tot", "m40", r.index)) / clim_at(clim, hemi, "tot", "sd40", r.index)
 
         zo = z40(obs["tot"])
-        gap = (
-            pd.date_range(obs.index[-1] + pd.Timedelta(days=1), valid[0] - pd.Timedelta(days=1))
-            if valid[0] > obs.index[-1] + pd.Timedelta(days=1)
-            else []
-        )
-        zs = []
-        for k in range(mem["tot"].shape[0]):
-            fc = pd.Series(mem["tot"][k], index=valid)
-            fc = fc[fc.index > obs.index[-1]]
-            bridge = (
-                pd.Series(
-                    np.interp(
-                        [g.value for g in gap],
-                        [obs.index[-1].value, fc.index[0].value],
-                        [obs["tot"].iloc[-1], fc.iloc[0]],
-                    ),
-                    index=gap,
-                )
-                if len(gap)
-                else pd.Series(dtype=float)
-            )
-            zs.append(
-                z40(pd.concat([x for x in (obs["tot"], bridge, fc) if len(x)])).loc[lambda s: s.index > obs.index[-1]]
-            )
-        Z = pd.concat(zs, axis=1)
+        Z = pd.concat([z40(paths[k]) for k in paths], axis=1).loc[lambda z: z.index > obs.index[-1]]
         ax.fill_between(
             Z.index,
             Z.quantile(0.1, axis=1),

@@ -7,12 +7,12 @@ MSLP, 500 hPa height, and 850/200 hPa vector wind. Anomalies are the
 (1991-2020, 11 members × 30 years, same init month, per lead) — drift
 and bias cancel per-lead, the same convention as the Niño-3.4 feed.
 
-Panels per figure: the init month itself, then the three rolling
-3-month seasons (leads 1-3, 4-6, 7-9).
+One map per calendar month, the init month (lead 0) to lead 9, as the
+frames of each field's loop.
 
 Clim cache: scripts/sfs/data/clim_map_{var}_{MM}.npy (~10 MB each,
 gitignored — the first build per init month streams ~14 GB of reforecast
-chunks; afterwards it's free). Output: assets/sfs/*_maps.webp.
+chunks; afterwards it's free). Output: assets/sfs/anim/sfs_{field}/.
 
     python scripts/sfs/sfs_maps.py [--issue 202608] [--clim-only]
 """
@@ -50,7 +50,7 @@ CLIMDIR = HERE / "data" / os.environ.get("SFS_EXP", "beta2")
 SFS_EXP = os.environ.get("SFS_EXP", "beta2")
 BASE = f"https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/{SFS_EXP}"
 CLIM_Y0, CLIM_Y1 = 1991, 2020
-LEADS = list(range(10))  # month 1 + three seasons
+LEADS = list(range(10))  # the init month and the nine after it
 
 VARS = ("tmp2m", "pratesfc", "prmsl", "z500", "u850", "v850", "u200", "v200", "vpot200")
 
@@ -132,14 +132,6 @@ def sst_clim(month: int) -> np.ndarray:
     return c
 
 
-def season_label(t0: pd.Timestamp, leads: list[int]) -> str:
-    if len(leads) == 1:
-        return (t0 + pd.DateOffset(months=leads[0])).strftime("%b %Y")
-    mons = [(t0 + pd.DateOffset(months=k)).strftime("%b")[0] for k in leads]
-    yr = (t0 + pd.DateOffset(months=leads[-1])).year
-    return "".join(mons) + f" {yr}"
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--issue", default=datetime.now(UTC).strftime("%Y%m"))
@@ -182,8 +174,8 @@ def main():
     import mapstyle as MS  # the site's one map style
     from matplotlib.colors import BoundaryNorm
 
-    def render(key, vs, cmap, scale, units, title, leads, fname, L):
-        """One map per lead in the SEAS5 style, consistent with the other outlook pages."""
+    def render(key, vs, cmap, scale, units, title, fname, L):
+        """The map of lead L in the SEAS5 style, consistent with the other outlook pages."""
         vmax = VLIM[key]
         is_sst = vs[0] == "SST"
         LONg, LATg = grids[is_sst]
@@ -191,7 +183,7 @@ def main():
         out.parent.mkdir(parents=True, exist_ok=True)
         levels = LEVELS[key]
         fig, ax, H, pc = MS.open_map(kind="sst" if is_sst else "atm")
-        a = {v: (ens[v][leads].mean(0) - clim[v][leads].mean(0)) * scale for v in vs}
+        a = {v: (ens[v][L] - clim[v][L]) * scale for v in vs}
         if is_sst:  # smooth filled contours with a cyclic column, as on the SEAS5 SST map
             from cartopy.util import add_cyclic_point
 
@@ -307,7 +299,7 @@ def main():
         frames = []
         for L in LEADS:
             fn = f"F{L:02d}.webp"
-            render(key, vs, cmap, scale, units, title, [L], f"anim/{name}/{fn}", L)
+            render(key, vs, cmap, scale, units, title, f"anim/{name}/{fn}", L)
             mon = t0 + pd.DateOffset(months=L)
             frames.append({"idx": L, "file": fn, "date": f"{mon:%Y-%m}", "label": f"{mon:%b %Y} · lead {L}"})
         (ASSETS / "anim" / f"{name}_manifest.json").write_text(
