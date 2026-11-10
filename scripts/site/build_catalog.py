@@ -137,6 +137,7 @@ PAGES = {
             "vshape": dict(models=["AIFS-ENS", "IFS-ENS", "GEFS", "GEPS", "MERRA-2"]),
             "verify": dict(models=["AIFS-ENS", "IFS-ENS", "GEFS", "GEPS", "GEOS FP"]),
             "pdescent": dict(models=["IFS-ENS", "IFS control", "GEFS", "GEOS FP"]),
+            "dwatch": dict(models=["AIFS-ENS", "IFS-ENS", "GEFS", "GEPS", "MERRA-2", "ERA5"]),
             "fluxrec": dict(models=["AIFS-ENS", "IFS-ENS", "GEFS", "GEPS", "ERA5"]),
             "shwinters": dict(models=["MERRA-2", "GEOS FP"]),  # this winter from GEOS FP analyses
         },

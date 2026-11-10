@@ -394,6 +394,7 @@ def combined(out: Path, max_age_days: float = 2.0) -> Path | None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import house
+    from matplotlib.lines import Line2D
 
     house.apply()
 
@@ -440,6 +441,10 @@ def combined(out: Path, max_age_days: float = 2.0) -> Path | None:
             if t["pass"]:
                 xs = np.array([t["rx"].min(), t["rx"].max()])
                 ax.plot(xs, np.polyval(np.polyfit(t["rx"], t["ry"], 1), xs), color=house.INK, lw=1.8, zorder=5)
+                if m == "all":
+                    ax.legend(handles=[Line2D([], [], ls="", marker="o", ms=4.5, color=RR.MODEL_COLOUR[w],
+                                              label=RR.MODEL_LABEL[w]) for w in val], loc="lower right", ncol=2,
+                              fontsize=8, framealpha=0.85, borderpad=0.3, handletextpad=0.1, columnspacing=0.6)  # fmt: skip
             ax.text(0.03, 0.96, _minus(f"r = {t['r']:+.2f} ({t['ci'][0]:+.2f} to {t['ci'][1]:+.2f})\n{t['n']} members")
                     if t["pass"] else f"no significant link\n{t['n']} members", transform=ax.transAxes, va="top",
                     fontsize=9.5, fontweight="bold" if t["pass"] else "normal", zorder=6,

@@ -492,6 +492,9 @@ def render_combined(product: str, models: tuple, out: Path) -> Path | None:
     matplotlib.use("Agg")
     import matplotlib.dates as mdates
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     P = PRODUCTS[product]
     have = {m: runs(product, m) for m in models}
@@ -548,12 +551,13 @@ def render_combined(product: str, models: tuple, out: Path) -> Path | None:
             t = pd.DatetimeIndex([r["init"] for r in got])
             ax.plot(t, [(100 if P.share else 1) * r[name] for r in got], color=MODEL_COLOUR[m], lw=1.8, marker="o",
                     ms=3.5, label=MODEL_LABEL[m])  # fmt: skip
-        ax.set_ylim(bottom=0)
+        ax.set_ylim(0, 103 if P.share else None)
         ax.set_ylabel(axis, fontsize=8.6)
         ax.set_title(title + ", run by run", fontsize=10, fontweight="bold", loc="left")
         ax.grid(alpha=0.22)
         ax.tick_params(labelsize=8)
-        ax.legend(fontsize=8, loc="upper left", ncol=4, framealpha=0.9)
+        ax.legend(fontsize=8, loc="lower right", bbox_to_anchor=(1, 0.99), ncol=4, frameon=False)
+        ax.xaxis.set_major_locator(mdates.AutoDateLocator(minticks=3, maxticks=8))
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%-d %b %HZ"))
     fig.suptitle(
         f"{P.title}: how the forecast has moved, run by run",
