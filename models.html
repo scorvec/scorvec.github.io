@@ -596,7 +596,7 @@
     <h2>What each map is, model by model</h2>
     <div class="tbl"><table>
       <tr><th>Field</th><th>HRRR v4 (NOAA, 3 km)</th><th>RRFS v1 (NOAA, 3 km and 13 km)</th><th>RDPS (ECCC, 10 km)</th></tr>
-      <tr><td>Simulated IR</td><td>Brightness temperature a GOES-East 10.3&nbsp;&micro;m imager would see (UPP field SBT124)</td><td>GOES-16 ABI band 13, 10.3&nbsp;&micro;m (SBTA1613)</td><td>No simulated band exists in the RDPS output. Shown instead: the <b>OLR-derived brightness temperature</b>, T<sub>b</sub>&nbsp;=&nbsp;(OLR/&sigma;)<sup>&frac14;</sup>, from the instantaneous outgoing longwave radiation at the top of the atmosphere. It is a proxy for IR, not a satellite band: it integrates the whole longwave spectrum, so clear skies read 20&ndash;30&nbsp;K colder than a window channel, while cloud tops come out close.</td></tr>
+      <tr><td>Simulated IR</td><td>Brightness temperature a GOES-East 10.3&nbsp;&micro;m imager would see (UPP field SBT124)</td><td>GOES-16 ABI band 13, 10.3&nbsp;&micro;m (SBTA1613). On the North American view the map is blank beyond the simulated satellite&rsquo;s view (Alaska and the far north-west).</td><td>No simulated band exists in the RDPS output. Shown instead: the <b>OLR-derived brightness temperature</b>, T<sub>b</sub>&nbsp;=&nbsp;(OLR/&sigma;)<sup>&frac14;</sup>, from the instantaneous outgoing longwave radiation at the top of the atmosphere. It is a proxy for IR, not a satellite band: it integrates the whole longwave spectrum, so clear skies read 20&ndash;30&nbsp;K colder than a window channel, while cloud tops come out close.</td></tr>
       <tr><td>Radar + precipitation type</td><td>Simulated reflectivity 1&nbsp;km above ground, coloured by the categorical precipitation type at the surface (freezing rain &gt; sleet &gt; snow &gt; rain; rain and snow together shown as mix); isobars from MSLP (MAPS reduction) every 2&nbsp;hPa</td><td>As HRRR; isobars from MSLP (MSLET reduction)</td><td>No simulated reflectivity exists. Shown instead: the <b>precipitation rate</b> (mm/h) coloured by the model's precipitation type, on the radar colour scale; isobars from MSLP</td></tr>
       <tr><td>Precipitation accumulation</td><td>Total (APCP); snow = the HRRR's own snowfall (ASNOW, variable density); freezing rain = the model's accumulated freezing rain (FRZR, liquid equivalent, not ice accretion); sleet = APCP accumulated in hours whose precipitation type is sleet (liquid equivalent)</td><td>As HRRR, except freezing rain: the operational RRFS writes no FRZR, so it is APCP accumulated in periods whose precipitation type is freezing rain, like sleet (both 3-hourly past 36&nbsp;h)</td><td>Total; snow = <b>10:1</b> from the accumulated snow water equivalent (not a model snowfall); freezing rain and sleet = the model's own liquid-equivalent accumulations</td></tr>
       <tr><td>Winter accumulations<br><small>computed here</small></td><td><b>Ice (FRAM)</b>: radial ice on power lines and branches from the Freezing Rain Accumulation Model (Sanders and Barjenbruch 2016): each hour&rsquo;s ice-to-liquid ratio from the freezing-rain rate, the 2&nbsp;m wet-bulb temperature (Stull 2011) and the 10&nbsp;m wind, times the freezing-rain liquid, &times;&nbsp;0.394 for radial ice. <b>Snow (Cobb ratio)</b>: the snow-phase liquid (APCP where the surface type is snow, half where it is a rain-snow mix) times a column snow-to-liquid ratio (Cobb and Waldstreicher 2005, in the NBM v4.1 form): layers saturated over ice (RH<sub>ice</sub>&nbsp;&ge;&nbsp;90&nbsp;%) every 25&nbsp;hPa from 925 to 300&nbsp;hPa, weighted by upward motion and humidity, limited to 3&ndash;30, 10:1 where no layer qualifies. <b>Snow 10:1</b>: ten times the same snow-phase liquid. <b>Snow-depth increase</b>: the sum of the hourly increases of the model&rsquo;s snow depth (SNOD); melting and settling are not subtracted, and over existing snow small up-and-down changes in the depth add up, so totals there run high</td><td>As HRRR, except: no Cobb ratio (HRRR only); FRAM from its freezing-rain liquid as in the row above; 3-hourly past 36&nbsp;h</td><td>FRAM from FreezingRain-Accum; snow-depth increase from SnowDepth; no Cobb ratio, and no separate 10:1 map (its Snow map is already 10:1)</td></tr>
@@ -1279,6 +1279,14 @@
       }
       return f;
     }
+    function smooth(f, gb, W, H, r1, r2) {            // box blurs r1 then r2; with a mask, a normalised convolution: masked cells carry no weight
+      if (!gb) return blur(blur(f, W, H, r1), W, H, r2);
+      var n = W * H, w = new Float32Array(n), k;
+      for (k = 0; k < n; k++) { if (gb[k]) f[k] = 0; else w[k] = 1; }
+      blur(blur(f, W, H, r1), W, H, r2); blur(blur(w, W, H, r1), W, H, r2);
+      for (k = 0; k < n; k++) f[k] = w[k] > 0.01 ? f[k] / w[k] : 0;
+      return f;
+    }
     var W2g = 0;
     function E(S, e, x, y, lv, tl, tr, bl, br) {          // push one crossing: edge key, x, y (T=0 B=1 L=2 R=3)
       if (e === 0) S.push(2 * (y * W2g + x), x + (lv - tl) / (tr - tl), y);
@@ -1312,11 +1320,7 @@
         for (k = 0; k < n2; k++) { vv2 = lut[a[k * st2 + co]]; if (vv2 !== vv2) { g[k] = 0; (gb || (gb = new Uint8Array(n2)))[k] = 1; } else g[k] = vv2; }
       }
       var tp = [performance.now() - t0];
-      if (d.nblur && gb) {                                  // normalised convolution: masked cells carry no weight
-        var wg = new Float32Array(n2); for (k = 0; k < n2; k++) wg[k] = gb[k] ? 0 : 1;
-        blur(g, W2, H2, d.rad); blur(wg, W2, H2, d.rad); if (d.rad2) { blur(g, W2, H2, d.rad2); blur(wg, W2, H2, d.rad2); }
-        for (k = 0; k < n2; k++) g[k] = wg[k] > 0.01 ? g[k] / wg[k] : 0;
-      } else { blur(g, W2, H2, d.rad); if (d.rad2) blur(g, W2, H2, d.rad2); }
+      smooth(g, d.nblur ? gb : null, W2, H2, d.rad, d.rad2 || 0);
       tp.push(performance.now() - t0);
       var ctrOff = (D - 1) / 2; W2g = W2;                            // a block's centre in native grid units
       var L = d.levels, NL = L.length, segs = [], k, q;
@@ -1379,10 +1383,11 @@
       if (d.ext) {
         // H/L centres, found once per frame in grid space on a more strongly smoothed copy (d.ext = [search radius in
         // cells ~400 km, prominence hPa, extra blur radius in cells]): a centre must be the extreme of the whole disc of
-        // that radius, stand out from the ring at that radius by the prominence, lie a radius inside the domain, and not
-        // sit on high terrain (G channel = surface pressure below 850 hPa, where the sea-level reduction invents centres);
-        // then the strongest wins and weaker ones of the same kind within the radius are dropped.
-        var Rw = d.ext[0], prom = d.ext[1], ge = blur(blur(Float32Array.from(g), W2, H2, d.ext[2]), W2, H2, d.ext[2]), cand = [];
+        // that radius, stand out from the ring at that radius by the prominence, lie a radius inside the domain (the grid
+        // and, where its corners hold no data, the model's own edge), and not sit on high terrain (G channel = surface
+        // pressure below 850 hPa, where the sea-level reduction invents centres); then the strongest wins and weaker ones
+        // of the same kind within the radius are dropped.
+        var Rw = d.ext[0], prom = d.ext[1], ge = smooth(Float32Array.from(g), gb, W2, H2, d.ext[2], d.ext[2]), cand = [];
         var ringN = 32, ring = [];
         for (k = 0; k < ringN; k++) ring.push([Math.round(Rw * Math.cos(2 * Math.PI * k / ringN)), Math.round(Rw * Math.sin(2 * Math.PI * k / ringN))]);
         for (y = Rw; y < H2 - Rw; y++) for (x = Rw; x < W2 - Rw; x++) {
@@ -1391,9 +1396,9 @@
           var up = z1 >= ge[i1 - 1] && z1 >= ge[i1 + 1] && z1 >= ge[i1 - W2] && z1 >= ge[i1 + W2] && z1 > ge[i1 - W2 - 1] && z1 > ge[i1 + W2 + 1];
           var dn = z1 <= ge[i1 - 1] && z1 <= ge[i1 + 1] && z1 <= ge[i1 - W2] && z1 <= ge[i1 + W2] && z1 < ge[i1 - W2 - 1] && z1 < ge[i1 + W2 + 1];
           if (!up && !dn) continue;
-          var rs = 0; for (k = 0; k < ringN; k++) rs += ge[(y + ring[k][1]) * W2 + x + ring[k][0]];
+          var rs = 0, cut = false; for (k = 0; k < ringN; k++) { var ir = (y + ring[k][1]) * W2 + x + ring[k][0]; rs += ge[ir]; if (gb && gb[ir]) cut = true; }
           var pr = up ? z1 - rs / ringN : rs / ringN - z1;
-          if (pr < prom) continue;
+          if (cut || pr < prom) continue;
           var ok = true, R2 = Rw * Rw;
           for (var yy3 = -Rw; yy3 <= Rw && ok; yy3++) for (var xx3 = -Rw; xx3 <= Rw; xx3++) {
             if (xx3 * xx3 + yy3 * yy3 > R2) continue;
@@ -2340,7 +2345,7 @@
     for (var c = 0; c < 256; c++) L2[c] = c === 255 ? NaN : 940 + 0.5 * c;
     // every 4 hPa while zoomed out past ~4 km per pixel (every 2 hPa crowds the national view)
     var sh = function (v) { return v % 4 === 0 || view.s < 4000; };
-    var sp = { rad: 1, rad2: 1, dec: 1, minPts: 4, lut: L2, levels: pv, values: pv, src: "mslp", stride: 2, emask: true, extKm: [400, 2.0, 60], show: sh,
+    var sp = { rad: 1, rad2: 1, dec: 1, minPts: 4, lut: L2, nblur: true, levels: pv, values: pv, src: "mslp", stride: 2, emask: true, extKm: [400, 2.0, 60], show: sh,
       fmt: function (v) { return String(v); }, style: function () { return ["rgba(20,20,20,0.85)", 1.0]; }, gl: ISO_GL };
     if (field === "mslp") {                                        // the pressure map itself: 1012 bold, 4 hPa lines a little heavier
       sp.style = function (v) { return v === 1012 ? ["rgba(15,15,15,0.95)", 1.6] : ["rgba(20,20,20,0.85)", v % 4 ? 0.8 : 1.1]; };
@@ -2357,7 +2362,8 @@
   var WIND_GL = { col: "rgba(255,255,255,0.97)", w: 1.8, halo: "rgba(25,25,35,0.75)", hw: 0.7 };
   function contourSpec(field, model, q) {
     var fine = model !== "rdps";                                   // 3 km grids: blur harder and contour every 2nd point
-    var base = { rad: 1, rad2: 1, dec: fine ? 2 : 1, minPts: 8 };
+    // nblur: cells with no data (outside the model's domain) carry no weight in the smoothing, so no line runs along that edge
+    var base = { rad: 1, rad2: 1, dec: fine ? 2 : 1, minPts: 8, nblur: true };
     function linLut() { var L = new Float32Array(256); for (var c = 0; c < 256; c++) L[c] = c === 255 ? NaN : q[0] + c * q[1]; return L; }
     if (field === "t2m") { var lv = range(-60, 130, 10).concat([32]).sort(function (a, b) { return a - b; });
       return Object.assign(base, { lut: linLut(), levels: lv, values: lv, fmt: function (v) { return v + "°"; },
@@ -2384,12 +2390,12 @@
       if (EC_SUBS[st.ec].kind === "ratio") {
         // masked cells (CAPE <= 100) are left out of the smoothing (normalised blur), so no line runs along the mask edge
         for (var cr = 0; cr < 256; cr++) Le[cr] = cr === 0 ? NaN : (cr - 1) / 100;
-        return Object.assign(base, { lut: Le, nblur: true, levels: [0.5, 1.0], values: [0.5, 1.0], fmt: function (v) { return v.toFixed(1); },
+        return Object.assign(base, { lut: Le, levels: [0.5, 1.0], values: [0.5, 1.0], fmt: function (v) { return v.toFixed(1); },
           style: function (v) { return v === 1 ? ["rgba(15,15,15,0.95)", 1.8] : ["rgba(15,15,15,0.85)", 1.1]; },
           gl: { list: [0.5], col: "rgba(15,15,15,0.85)", w: 1.1, special: [[1.0, 1.8, "rgba(15,15,15,0.95)"]] } });
       }
       for (var ce = 0; ce < 256; ce++) Le[ce] = ce === 255 ? NaN : (ce / K) * (ce / K);
-      return Object.assign(base, { lut: Le, levels: [1000, 2000, 3000], values: [1000, 2000, 3000], fmt: function (v) { return v.toLocaleString("en-US"); },
+      return Object.assign(base, { lut: Le, nblur: false, levels: [1000, 2000, 3000], values: [1000, 2000, 3000], fmt: function (v) { return v.toLocaleString("en-US"); },
         style: function (v) { return v === 2000 ? ["rgba(15,15,15,0.9)", 1.6] : ["rgba(15,15,15,0.85)", 1.0]; },
         gl: { list: [1000, 3000], col: "rgba(15,15,15,0.85)", w: 1.0, special: [[2000, 1.6, "rgba(15,15,15,0.9)"]] } });
     }
@@ -2432,7 +2438,7 @@
     if (FIELDS[field] && FIELDS[field].sb) return sbSpec(field, false);
     if (field === "dt") { var Lt = new Float32Array(256); for (var ct = 0; ct < 256; ct++) Lt[ct] = ct === 255 ? NaN : 250 + 0.6 * ct;
       var lvt = range(260, 400, 10);
-      return { rad: 1, rad2: 0, dec: 1, minPts: 6, lut: Lt, ch: 0, stride: 3, levels: lvt, values: lvt, fmt: function (v) { return String(v); },
+      return { rad: 1, rad2: 0, dec: 1, minPts: 6, lut: Lt, nblur: true, ch: 0, stride: 3, levels: lvt, values: lvt, fmt: function (v) { return String(v); },
         style: function () { return ["rgba(20,20,20,0.7)", 0.8]; }, gl: { reg: [260, 10, 260, 400], col: "rgba(20,20,20,0.7)", w: 0.8, hw: 0.6 } }; }
     return null;
   }
