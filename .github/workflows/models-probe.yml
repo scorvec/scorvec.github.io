@@ -3,11 +3,12 @@ name: Short-range models (probe)
 # Dispatch-only checks for models.html work that must run in Actions (2026-10-06). Nothing is published.
 #   bytes    run scripts/models/models.py on a few forecast hours of one model and print the file sizes per field
 #   dtcheck  scripts/models/dt_check.py: the dynamic tropopause (upper.py) vs the GFS's own 2-PVU fields
+#   rrfsna   scripts/models/rrfs_probe.py: the RRFS bucket's file kinds, grids and sizes for one cycle (leads: one lead)
 on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "bytes or dtcheck"
+        description: "bytes, dtcheck or rrfsna"
         default: bytes
       model:
         description: "hrrr, rrfs or rdps (bytes)"
@@ -65,6 +66,9 @@ jobs:
                   a = np.asarray(Image.open(p).convert("RGB"))
                   print(f, p.name, a.shape, "R", np.percentile(a[..., 0], [1, 50, 99]), "G", np.percentile(a[..., 1], [1, 50, 99]), "B", np.percentile(a[..., 2], [1, 50, 99]), "255s", int((a[..., 0] == 255).sum()))
           PY
+      - name: RRFS bucket and North American grid
+        if: inputs.mode == 'rrfsna'
+        run: python scripts/models/rrfs_probe.py --cycle "${{ inputs.cycle }}" --lead "${{ inputs.leads }}"
       - name: Dynamic tropopause check
         if: inputs.mode == 'dtcheck'
         run: python scripts/models/dt_check.py --cycle "${{ inputs.cycle }}" --lead "${{ inputs.leads }}"
