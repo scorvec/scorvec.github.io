@@ -217,7 +217,7 @@ PRODUCTS = {
                 "wave driving, 100–50 hPa", "m s⁻¹ per day", 2, unit="m s⁻¹ per day", short="driving 100–50 hPa"
             ),
             "w50": Key("wave driving, 50–10 hPa", "m s⁻¹ per day", 2, unit="m s⁻¹ per day", short="driving 50–10 hPa"),
-            "u100": Key("zonal wind, 100–50 hPa", "m s⁻¹", 1, unit="m s⁻¹", short="wind 100–50 hPa"),
+            "u100": Key("zonal wind, 100–50 hPa", "m s⁻¹", 1, zero=None, unit="m s⁻¹", short="wind 100–50 hPa"),
         },
         note="Each member's E-P flux of zonal waves 1–3 through the walls of the box, as the westerly wind it adds per "
         "day, and the box's own zonal wind (descent_watch.py); below zero = the waves slow the westerlies. Raw model "
