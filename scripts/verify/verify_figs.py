@@ -20,6 +20,12 @@ controls pick one), every score with its uncertainty.
   ensembles  The ensembles' scorecards, CRPS and spread by lead, rank histograms and reliability (ecard_ ... erel_).
 figs.json lists what was drawn, for the page, and what the database holds (database: each model's runs).
 
+Beside the figures, the numbers of every line chart as JSON, for the page to draw at the reader's own width: the
+anomaly correlations (acc_<region>_<window>.json), the error by lead of each variable (lead_<window>_<variable>.json),
+the profiles (profile_<window>_<quantity>.json), the rain skill (rainskill_<window>.json), the ensembles' scores by
+lead and rank histograms (ens_<window>_<variable>.json) and their reliability (rel_<window>_<variable>_<threshold>
+.json); figs.json names each under ``data``.
+
 Uncertainty. A window's runs are a sample: the same models over other weeks would score differently, and runs a day
 apart share their weather, so they are not independent. Every interval is a 95 % Student t interval on the runs' own
 scores, its variance inflated for lag-1 autocorrelation (the n runs count as n (1 - rho) / (1 + rho), t_crit), the
@@ -196,6 +202,30 @@ def run_rho(s: pd.DataFrame, num: str, den: str, by: list[str]) -> dict:
     }
 
 
+def num(x, digits: int = 4) -> float | None:
+    """A value as the page's JSON holds it: ``digits`` significant figures, None where there is none."""
+    return float(f"{x:.{digits}g}") if np.isfinite(x) else None
+
+
+def nums(xs, digits: int = 4) -> list:
+    return [num(x, digits) for x in xs]
+
+
+def dump(data: dict, path: Path) -> str:
+    path.write_text(json.dumps(data, separators=(",", ":"), allow_nan=False) + "\n")
+    return path.name
+
+
+def against(w: pd.DataFrame, m: str, ref: str, rho: float, root: bool) -> tuple[float, float, float]:
+    """``m``'s score against ``ref``'s in % with its interval, on the runs both have (``w``: runs x models, each run's
+    summed score, in run order): the ratio of the two pooled scores with each run a cluster (``ratio_ci`` on its
+    logarithm), its square root for squared errors (``root``: an RMSE from the sums of squares)."""
+    if m not in w or ref not in w or len(w := w[[m, ref]].dropna()) < 3:
+        return float("nan"), float("nan"), float("nan")
+    ratio = np.clip(ratio_ci(w[m].to_numpy(float), w[ref].to_numpy(float), rho, log=True), 0, None)
+    return tuple(100 * ((np.sqrt(ratio) if root else ratio) - 1))
+
+
 # --------------------------------------------------------------------------- anomaly correlation
 def acc_window(t: pd.DataFrame, region: str, runs: int | None) -> tuple[pd.DataFrame, list, dict]:
     """The window's runs (the newest ``runs`` with every lead scored), the models with WINDOW_SHARE of them, and the
@@ -342,6 +372,66 @@ def draw_lead(wide: pd.DataFrame, models: list[str], region: str, span: dict, pa
     return save(fig, path), table
 
 
+def series_data(t: pd.DataFrame, region: str, day: int, start: pd.Timestamp) -> dict | None:
+    """The anomaly correlation at one lead by the date it verifies, as a running mean of the runs (each run's own score
+    swings with the day's weather far more than the models differ), and each model's mean over the period (through
+    Fisher's z): over the days every model with WINDOW_SHARE of them has, so those compare on one sample; a model
+    with fewer (GDPS and GEPS, kept by HPFX for their last weeks only) over its own days, which it counts."""
+    r = t[(t["region"] == region) & (t["valid_time"] >= start) & (t["lead_h"] == 24 * day)]
+    if r.empty:
+        return None
+    days = pd.date_range(r["valid_time"].min().normalize(), r["valid_time"].max().normalize(), freq="D")
+    daily = {}
+    for m in [*Z.DET, *Z.E.ENSEMBLES]:
+        x = r[r["model"] == m].set_index("valid_time")["acc"].sort_index()
+        if not x.empty:
+            daily[m] = x.groupby(x.index.normalize()).mean().reindex(days)  # a missing run leaves a gap
+    most = max(x.notna().sum() for x in daily.values())
+    full = [m for m, x in daily.items() if x.notna().sum() >= D.WINDOW_SHARE * most]
+    common = pd.concat([daily[m] for m in full], axis=1).notna().all(axis=1)
+    models = {}
+    for m, x in daily.items():
+        on = x[common] if m in full else x.dropna()
+        smooth = x.rolling(SMOOTH_DAYS, center=True, min_periods=SMOOTH_DAYS // 2 + 1).mean()
+        models[m] = {
+            "acc": nums(smooth.to_numpy()),
+            "mean": num(np.tanh(np.arctanh(np.clip(on.dropna().to_numpy(), -0.9999, 0.9999)).mean())),
+            "days": None if m in full else int(on.notna().sum()),
+        }
+    return {"first": f"{days[0]:%Y-%m-%d}", "shared": int(common.sum()), "models": models}
+
+
+def lead_data(wide: pd.DataFrame, models: list[str]) -> dict:
+    """The window's mean anomaly correlation by lead with its interval (through Fisher's z), and each model's paired
+    difference from the IFS control (the single runs) or the IFS-ENS mean (the ensemble means), with its interval and
+    whether its paired test passes Benjamini-Hochberg at FDR_Q over every model and lead of the two."""
+    from mverify.significance import fdr, paired_test
+
+    z = np.arctanh(wide.clip(-0.9999, 0.9999))
+    rho = {lead: pooled_rho(z[c].to_numpy() for c in z.columns if c[1] == lead) for lead in {c[1] for c in z.columns}}
+    leads = {m: sorted(lead for mm, lead in wide.columns if mm == m) for m in models}
+    mean = {}
+    for m in models:
+        c, lo, hi = np.tanh([ci(z[(m, lead)].to_numpy(), rho[lead]) for lead in leads[m]]).T
+        mean[m] = {"days": [int(lead) // 24 for lead in leads[m]], "acc": nums(c), "lo": nums(lo), "hi": nums(hi)}
+    kinds = {"single": (REF, [m for m in models if m in Z.DET and m != REF]),
+             "means": ("IFS-ENS", [m for m in models if m in CENTRE and m != "IFS-ENS"])}  # fmt: skip
+    rows = []
+    for kind, (ref, ms) in kinds.items():
+        for m in ms if ref in models else []:
+            for lead in leads[m]:
+                if (ref, lead) in wide.columns:
+                    d = (wide[(m, lead)] - wide[(ref, lead)]).to_numpy()
+                    rows.append((kind, m, lead, *ci(d, rho[lead]), paired_test(d[np.isfinite(d)])))
+    sig = fdr(np.array([row[-1] for row in rows]), FDR_Q) if rows else []
+    diff = {kind: {"ref": ref, "models": {}} for kind, (ref, _) in kinds.items()}
+    for (kind, m, lead, c, lo, hi, _p), s in zip(rows, sig, strict=True):
+        one = diff[kind]["models"].setdefault(m, {"days": [], "d": [], "lo": [], "hi": [], "sig": []})
+        for k, v in (("days", int(lead) // 24), ("d", num(c)), ("lo", num(lo)), ("hi", num(hi)), ("sig", int(s))):
+            one[k].append(v)
+    return {"mean": mean, "diff": diff}
+
+
 def acc_figs(derived: Path, clim: Path, out: Path) -> dict:
     t = Z.table(derived, np.load(clim)["z500"])
     t["init"], t["valid_time"] = pd.to_datetime(t["init"]), pd.to_datetime(t["valid_time"])
@@ -360,7 +450,15 @@ def acc_figs(derived: Path, clim: Path, out: Path) -> dict:
                 if (name := draw_series(t, region, day, start, out / f"acc_series_{key}_d{day}.webp"))
             }
             lead, table = draw_lead(wide, models, region, span, out / f"acc_lead_{key}.webp")
-            manifest[key] = {"series": series, "lead": lead, "window": span, "mean": table}
+            data = {
+                "window": span,
+                "useful": USEFUL,
+                "smooth_days": SMOOTH_DAYS,
+                "series": {str(day): d for day in SERIES_DAYS if (d := series_data(t, region, day, start))},
+                "lead": lead_data(wide, models),
+            }
+            manifest[key] = {"series": series, "lead": lead, "window": span, "mean": table,
+                             "data": dump(data, out / f"acc_{key}.json")}  # fmt: skip
             print(f"acc {key}: {span['runs']} runs, {', '.join(models)}", flush=True)
     return manifest
 
@@ -524,7 +622,7 @@ def rain_skill_figs(derived: Path, out: Path) -> dict:
         models, used, left_out = D.window_runs(sums[sums["init"].isin(inits[-runs:])])
         s = sums[sums["model"].isin(models) & sums["init"].isin(used)]
         span = D.run_span(used) | {"left_out": left_out}
-        figs = {}
+        figs, data = {}, {}
         for lead, g in s.groupby("lead_h"):
             # one autocorrelation for the lead's intervals: of the runs' hit rates, over every model and threshold
             rho = pooled_rho(ratio_resid(d["hits"].to_numpy(float), (d["hits"] + d["misses"]).to_numpy(float))
@@ -536,6 +634,17 @@ def rain_skill_figs(derived: Path, out: Path) -> dict:
                 fss = [1 - np.array(ratio_ci(d[f"fss_num_{km}"].to_numpy(float), d[f"fss_den_{km}"].to_numpy(float),
                                              rho))[[0, 2, 1]] for km in FSS_KM]  # fmt: skip
                 score[m, t] = (jack_ci(d[["hits", "misses", "false_alarms", "w"]].to_numpy(float), ets, rho), fss)
+            data[str(int(lead))] = {
+                m: {
+                    f"{t:g}": {
+                        "ets": nums(np.clip(score[m, t][0], -1 / 3, 1)),
+                        "fss": [nums(f) for f in score[m, t][1]],
+                    }
+                    for t in RAIN_SKILL_THRESHOLDS
+                    if (m, t) in score
+                }
+                for m in models
+            }
             for thr in RAIN_SKILL_THRESHOLDS:
                 fig, (a1, a2) = plt.subplots(1, 2, figsize=house.size(15, 0.4), constrained_layout=True)
                 width = 0.8 / len(models)
@@ -577,7 +686,8 @@ def rain_skill_figs(derived: Path, out: Path) -> dict:
                              f"{span['runs']} runs", x=0.01, ha="left")  # fmt: skip
                 figs[f"{lead}|{thr:g}"] = save(fig, out / f"rainskill_{runs}_{lead}_{thr:g}.webp")
         manifest[str(runs)] = {"window": span, "models": models, "leads": sorted(int(x) for x in s["lead_h"].unique()),
-                               "thresholds": [f"{t:g}" for t in RAIN_SKILL_THRESHOLDS], "fig": figs}  # fmt: skip
+                               "thresholds": [f"{t:g}" for t in RAIN_SKILL_THRESHOLDS], "fig": figs,
+                               "data": dump({"km": list(FSS_KM), "leads": data}, out / f"rainskill_{runs}.json")}  # fmt: skip
         print(f"rain skill {runs}: {span['runs']} runs, {len(figs)} figures", flush=True)
     return manifest
 
@@ -923,6 +1033,58 @@ def draw_profile(s: pd.DataFrame, models: list[str], qty: str, region: str, day:
     return save(fig, path)
 
 
+SCORE_KEYS = ("rmse", "rlo", "rhi", "bias", "blo", "bhi")
+
+
+def along(g: pd.DataFrame, by: str, at: list, models: list[str], rho) -> dict:
+    """Each model's RMSE and bias with their 95 % intervals (``pooled``) at each value ``at`` of the column ``by`` (a
+    variable's leads, a profile's levels), from one variable or quantity and region's per-run sums ``g``; and for
+    every model but the IFS control its RMSE against the control's in % (``against``). ``rho(x)`` gives the pair of
+    autocorrelations at x (det_rho)."""
+    sse = {x: d.pivot_table(index="init", columns="model", values="sse") for x, d in g.groupby(by)}
+    blank = (float("nan"),) * len(SCORE_KEYS)
+    out = {}
+    for m in models:
+        rows = {x: pooled(d, rho(x)) for x, d in g[g["model"] == m].groupby(by)}
+        if not rows:
+            continue
+        out[m] = dict(zip(SCORE_KEYS, map(nums, zip(*(rows.get(x, blank) for x in at), strict=True)), strict=True))
+        if REF in models and m != REF:
+            pct = [against(sse[x], m, REF, rho(x)[0], root=True) if x in sse else blank[:3] for x in at]
+            out[m] |= dict(zip(("pct", "plo", "phi"), map(nums, zip(*pct, strict=True)), strict=True))
+    return out
+
+
+def det_data(s: pd.DataFrame, models: list[str], meta: dict, rho: dict, name: str, out: Path) -> dict:
+    """The window's numbers for the page's charts: per variable the error by lead in each region (the charts of the
+    error by lead and of the headline variables), per quantity the error by pressure at each of PROFILE_DAYS."""
+    lead, profile = {}, {}
+    for v in LEAD_VARS:
+        label, unit = meta.get(v, (short(v), ""))
+        regions = {}
+        for region, g in s[s["variable"] == v].groupby("region"):
+            hours = sorted(int(h) for h in g["lead_h"].unique())
+            regions[region] = {"leads": hours, "models": along(g, "lead_h", hours, models, rho.get)}
+        if regions:
+            lead[v] = dump({"label": label, "unit": UNITS.get(unit, unit), "regions": regions},
+                           out / f"lead_{name}_{v}.json")  # fmt: skip
+    upper = s[s["network"] == "RAOB"]
+    for qty in QTY:
+        unit = next((u for v, (_, u) in meta.items() if v.removeprefix(qty).isdigit()), "")
+        g = upper[upper["variable"].str.fullmatch(rf"{qty}\d+") & upper["lead_h"].isin([24 * d for d in PROFILE_DAYS])]
+        g = g.assign(p=g["variable"].str[len(qty) :].astype(int))
+        regions = {}
+        for (region, hour), d in g.groupby(["region", "lead_h"]):
+            levels = sorted((int(p) for p in d["p"].unique()), reverse=True)
+            regions.setdefault(region, {})[str(int(hour) // 24)] = {
+                "levels": levels,
+                "models": along(d, "p", levels, models, lambda _p, pair=rho[hour]: pair),
+            }
+        if regions:
+            profile[qty] = dump({"unit": UNITS.get(unit, unit), "regions": regions}, out / f"profile_{name}_{qty}.json")
+    return {"lead": lead, "profile": profile}
+
+
 def det_figs(derived: Path, out: Path) -> dict:
     """The scorecards, the error by lead, the headline variables at a glance and the upper-air profiles of each window
     of runs of the database."""
@@ -966,7 +1128,7 @@ def det_figs(derived: Path, out: Path) -> dict:
                                          out / f"profile_{name}_{qty}_{slug(region)}_d{day}.webp"):  # fmt: skip
                         profile.setdefault(qty, {}).setdefault(region, {})[str(day)] = f
         manifest[name] = {"window": span, "models": models, "card": cards, "lead": leads, "glance": glance,
-                          "profile": profile}  # fmt: skip
+                          "profile": profile, "data": det_data(s, models, meta, rho, name, out)}  # fmt: skip
         print(f"scores {name}: {span['runs']} runs, {len(cards)} scorecard regions, {len(leads)} variables, "
               f"{sum(len(r) for q in profile.values() for r in q.values())} profiles; autocorrelation of the squared "
               f"errors by day: {' '.join(f'{rho[h][0]:.2f}' for h in sorted(rho) if h % 24 == 0)}", flush=True)  # fmt: skip
@@ -1124,6 +1286,93 @@ def ens_rel(r: pd.DataFrame, models: list, v: str, thr: float, region: str, span
     return save(fig, path)
 
 
+def ens_lead_data(g: pd.DataFrame, models: list, rho: dict) -> dict:
+    """One variable and region: each ensemble's CRPS and the spread of its members over the error of its mean by lead,
+    with their 95 % intervals, and for every ensemble but the IFS-ENS its CRPS against the IFS-ENS's in %
+    (``against``)."""
+    hours = sorted(int(h) for h in g["lead_h"].unique())
+    crps = {h: d.pivot_table(index="init", columns="model", values="crps") for h, d in g.groupby("lead_h")}
+    out = {"leads": hours, "models": {}}
+    for m in models:
+        rows = {}
+        for lead, d in g[g["model"] == m].groupby("lead_h"):
+            var = ratio_ci((d["svar"] + d["sov"]).to_numpy(float), d["sse"].to_numpy(float), rho[lead], log=True)
+            rows[lead] = (*ratio_ci(d["crps"].to_numpy(float), d["n"].to_numpy(float), rho[lead], log=True),
+                          *np.sqrt(np.clip(var, 0, None)))  # fmt: skip
+        if not rows:
+            continue
+        cols = zip(*(rows.get(h, (float("nan"),) * 6) for h in hours), strict=True)
+        out["models"][m] = dict(zip(("crps", "clo", "chi", "ratio", "rlo", "rhi"), map(nums, cols), strict=True))
+        if "IFS-ENS" in models and m != "IFS-ENS":
+            pct = [against(crps[h], m, "IFS-ENS", rho[h], root=False) for h in hours]
+            out["models"][m] |= dict(zip(("pct", "plo", "phi"), map(nums, zip(*pct, strict=True)), strict=True))
+    return out
+
+
+def ens_rank_data(g: pd.DataFrame, models: list, rho: dict) -> dict:
+    """One variable and region's rank histograms for each lead group: the share of the observations in each tenth of
+    the ensemble's ranks, with its 95 % interval; a tenth each is calibrated."""
+    ranks = [c for c in g.columns if c.startswith("rank_")]
+    g = g.dropna(subset=ranks, how="all")
+    out = {}
+    for label, a, b in Z.E.LEAD_GROUPS:
+        gg = g[g["lead_h"].between(a, b)]
+        for m in models:
+            per = gg[gg["model"] == m].groupby("init")[ranks].sum()
+            if per.empty:
+                continue
+            tot = per.sum(axis=1).to_numpy(float)
+            f = np.array([ratio_ci(per[c].to_numpy(float), tot, group_rho(rho, a, b)) for c in ranks])
+            out.setdefault(label, {})[m] = {"f": nums(f[:, 0]), "lo": nums(f[:, 1]), "hi": nums(f[:, 2])}
+    return out
+
+
+def ens_rel_data(g: pd.DataFrame, models: list, rho: dict) -> dict:
+    """One variable, threshold and region's reliability for each lead group: the observed frequency of the event in
+    each forecast probability bin of MIN_BIN cases or more, with its 95 % interval, against the bin's mean forecast
+    probability, and the Brier skill score against the sample's base rate."""
+    out = {}
+    for label, a, b in Z.E.LEAD_GROUPS:
+        gg = g[g["lead_h"].between(a, b)]
+        for m in models:
+            gm = gg[gg["model"] == m]
+            if gm.empty:
+                continue
+            n, o = gm["n"].sum(), gm["o"].sum()
+            bss = 1 - gm["bs"].sum() / n / (o / n * (1 - o / n)) if 0 < o < n else float("nan")
+            pts = []
+            for _, d in gm.groupby("bin"):
+                if d["n"].sum() >= MIN_BIN:
+                    per = d.groupby("init")[["n", "p", "o"]].sum()
+                    pts.append((per["p"].sum() / per["n"].sum(),
+                                *ratio_ci(per["o"].to_numpy(float), per["n"].to_numpy(float), group_rho(rho, a, b))))  # fmt: skip
+            if pts:
+                p, f, lo, hi = zip(*pts, strict=True)
+                out.setdefault(label, {})[m] = {"bss": num(bss, 3), "p": nums(p), "o": nums(f), "lo": nums(lo),
+                                                "hi": nums(hi)}  # fmt: skip
+    return out
+
+
+def ens_data(s: pd.DataFrame, r: pd.DataFrame, models: list, rho: dict, name: str, out: Path) -> dict:
+    """The window's numbers for the page's charts: per variable the scores by lead and the rank histograms of each
+    region, per variable and threshold the reliability."""
+    lead, rel = {}, {}
+    for v in ENS_ROWS:
+        regions = {}
+        for region, g in s[s["variable"] == v].groupby("region"):
+            if region in ENS_REGIONS:
+                regions[region] = ens_lead_data(g, models, rho) | {"rank": ens_rank_data(g, models, rho)}
+        if regions:
+            lead[v] = dump({"regions": regions}, out / f"ens_{name}_{v}.json")
+    for (v, thr), g in r[r["variable"].isin([*ENS_ROWS, "tp"]) & r["region"].isin(ENS_REGIONS)].groupby(
+        ["variable", "threshold"]
+    ):
+        regions = {region: d for region, gr in g.groupby("region") if (d := ens_rel_data(gr, models, rho))}
+        if regions:
+            rel[f"{v}|{thr:g}"] = dump({"regions": regions}, out / f"rel_{name}_{v}_{thr:g}.json")
+    return {"lead": lead, "rel": rel}
+
+
 def ens_figs(derived: Path, out: Path) -> dict:
     """The ensembles' scorecards, CRPS and spread by lead, rank histograms and reliability for each window of runs."""
     manifest = {}
@@ -1149,7 +1398,7 @@ def ens_figs(derived: Path, out: Path) -> dict:
                     f := ens_rel(r, models, v, thr, region, span, rho, out / f"erel_{name}_{v}_{thr:g}_{key}.webp")
                 ):
                     m["rel"].setdefault(f"{v}|{thr:g}", {})[region] = f
-        manifest[name] = m
+        manifest[name] = m | {"data": ens_data(s, r, models, rho, name, out)}
         print(f"ensembles {name}: {span['runs']} runs, {len(m['card'])} scorecard regions", flush=True)
     return manifest
 

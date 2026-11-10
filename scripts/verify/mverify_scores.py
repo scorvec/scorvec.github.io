@@ -30,7 +30,7 @@ pairs. The newest 30, 90 and 365 runs and the whole database are scored from tho
 scores_all.json, stations_30.json, stations_90.json; ``windows``), and its newest year of rain against Stage IV is
 mapped cell by cell, the ratio of totals and the frequency of wet days tested in each (precip_maps.json, ``rain_map``). --archive-only adds runs without scoring
 (.github/workflows/verify-backfill.yml): a model a source no longer holds for a run (GDPS after ~50 days) is left out
-of that run.
+of that run. --windows-only rebuilds the windows from the database's sums (--derived) and scores nothing.
 
     python scripts/verify/mverify_scores.py --db obs.duckdb --inits 2026092600 2026100500 --work /tmp/fc
 """
@@ -695,9 +695,9 @@ def windows(derived: Path) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--db", required=True, help="mverify observation database")
-    ap.add_argument("--inits", nargs=2, required=True, metavar=("FIRST", "LAST"), help="00Z runs, YYYYMMDDHH")
-    ap.add_argument("--work", type=Path, required=True, help="download directory")
+    ap.add_argument("--db", help="mverify observation database")
+    ap.add_argument("--inits", nargs=2, metavar=("FIRST", "LAST"), help="00Z runs, YYYYMMDDHH")
+    ap.add_argument("--work", type=Path, help="download directory")
     ap.add_argument("--clean", action="store_true", help="delete the surface files once scored (small disks)")
     ap.add_argument("--derived", type=Path, help="the database's stats_, stn_ and rain_ files, downloaded")
     ap.add_argument("--have", type=Path, help="names of the files the database holds, one per line")
@@ -706,7 +706,15 @@ def main() -> None:
         "--mature-days", type=int, default=14, help="a run joins the database this many days after it starts"
     )
     ap.add_argument("--archive-only", action="store_true", help="only add the runs to the database (the backfill)")
+    ap.add_argument("--windows-only", action="store_true", help="only rebuild the windows from --derived (no scoring)")
     a = ap.parse_args()
+    if a.windows_only:
+        if not a.derived:
+            ap.error("--windows-only needs --derived")
+        windows(a.derived)
+        return
+    if not (a.db and a.inits and a.work):
+        ap.error("--db, --inits and --work are required")
     inits = runs(*a.inits)
     have = set(a.have.read_text().split()) if a.have and a.have.exists() else set()
 
