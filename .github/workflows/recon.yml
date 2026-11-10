@@ -18,8 +18,8 @@ name: Recon mirror
 # NOAA P-3/G-IV missions in the manifest to the `tdr-data` branch (images as lossless WebP).
 
 on:
-  schedule:
-    - cron: '20 */3 * 6-11 *'
+  # Off season: no schedule until the next hurricane season (dispatch only). The schedule was
+  # '20 */3 * 6-11 *'.
   workflow_dispatch:
     inputs:
       backfill:

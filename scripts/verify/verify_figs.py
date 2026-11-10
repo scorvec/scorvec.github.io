@@ -9,8 +9,9 @@ page, and what the database holds (database: each model's runs).
         runs, and the window's mean by lead with its 95 % interval and each single run's paired difference from the
         IFS control and each ensemble mean's from the IFS-ENS mean.
   rain  Rain against Stage IV cell by cell (mverify_scores.rain_map): the ratio of the totals and the frequency
-        biases at 1, 10 and 25 mm for each lead group, significant cells only (rain_<map>_<group>.webp), and what the
-        analysis gave over the same days (rain_<map>_obs.webp); and for each window of runs and 24 h window, the
+        biases at 1, 10 and 25 mm for each lead group, significant cells only (rain_<map>_<group>.webp: the four
+        models side by side; rain_<map>_<group>_<model>.webp: one model, for a phone), and what the analysis gave over
+        the same days (rain_<map>_obs.webp, rain_<map>_obs_narrow.webp); and for each window of runs and 24 h window, the
         equitable threat score by threshold and the fractions skill score by neighbourhood on the common grid
         (rainskill_<window>.json).
   scores  For each window of runs of the database: the scorecards (card_<window>_<region>_<model>_<reference>.webp),
@@ -83,6 +84,7 @@ RAIN_OBS = {
     "fb25": "share of days with 25 mm or more",
 }
 NOT_SIG = "#dcd9d1"  # tested, not significant
+NARROW = 6.0  # inches across a map drawn for a phone: at the wide figures' type it reads at a third of their width
 
 
 def style() -> None:
@@ -353,45 +355,69 @@ def rain_figs(derived: Path, out: Path) -> dict:
         ax.add_feature(cfeature.BORDERS.with_scale("50m"), edgecolor="#5d5a54", lw=0.6)
         ax.set_frame_on(False)
 
+    def panel(ax, m: str, metric: str, g: int) -> str:
+        """One model's map of a metric and lead group; its runs and the share of its tested cells that pass."""
+        v, s = z[f"{m}/{metric}"][g], z[f"{m}/{metric}_sig"][g]
+        base(ax)
+        tested = np.isfinite(v)
+        ax.pcolormesh(xe, ye, np.where(tested & ~s, 1.0, np.nan), cmap=grey, transform=pc, rasterized=True)
+        ax.pcolormesh(xe, ye, np.where(s, v, np.nan), cmap=cmap, norm=norm, transform=pc, rasterized=True)
+        k = summary["models"][m]["maps"][metric][g]
+        share = k["significant"] / k["tested"] if k["tested"] else 0
+        return f"{summary['models'][m]['runs']} runs, {share:.0%} of {k['tested']:,} cells significant"
+
+    def ratio_bar(fig, cax, label: str) -> None:
+        cb = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cax, orientation="horizontal",
+                          extend="both", ticks=RAIN_EDGES)  # fmt: skip
+        cb.ax.set_xticklabels([f"{e:.2g}" for e in RAIN_EDGES])
+        cb.set_label(label)
+
+    def narrow():
+        """A single map at a phone's width (NARROW inches against the wide figures' 15 and 10), the type as large."""
+        fig = plt.figure(figsize=house.size(NARROW, 0.9))
+        return fig, fig.add_axes((0.01, 0.215, 0.98, 0.61), projection=proj), fig.add_axes((0.07, 0.15, 0.86, 0.03))
+
+    first, last = (pd.to_datetime(w[k], format="%Y%m%d%H") for k in ("first", "last"))
     manifest = {}
     for metric, title in RAIN_TITLES.items():
+        what = title.split(",")[0]
         for g, (glabel, _, _) in enumerate(LEAD_GROUPS):
             fig, axes = plt.subplots(2, 2, figsize=house.size(15, 0.7), subplot_kw={"projection": proj})
             fig.subplots_adjust(left=0.01, right=0.99, top=0.865, bottom=0.13, wspace=0.02, hspace=0.12)
             for ax, m in zip(axes.flat, models, strict=False):
-                v, s = z[f"{m}/{metric}"][g], z[f"{m}/{metric}_sig"][g]
-                base(ax)
-                tested = np.isfinite(v)
-                ax.pcolormesh(xe, ye, np.where(tested & ~s, 1.0, np.nan), cmap=grey, transform=pc, rasterized=True)
-                ax.pcolormesh(xe, ye, np.where(s, v, np.nan), cmap=cmap, norm=norm, transform=pc, rasterized=True)
-                k = summary["models"][m]["maps"][metric][g]
-                share = k["significant"] / k["tested"] if k["tested"] else 0
-                ax.set_title(f"{m}: {summary['models'][m]['runs']} runs, {share:.0%} of {k['tested']:,} cells significant",
-                             loc="left", fontsize=14)  # fmt: skip
+                ax.set_title(f"{m}: {panel(ax, m, metric, g)}", loc="left", fontsize=14)
             for ax in axes.flat[len(models) :]:
                 ax.set_visible(False)
-            cax = fig.add_axes((0.2, 0.065, 0.6, 0.024))
-            cb = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cax, orientation="horizontal",
-                              extend="both", ticks=RAIN_EDGES)  # fmt: skip
-            cb.ax.set_xticklabels([f"{e:.2g}" for e in RAIN_EDGES])
-            cb.set_label("forecast ÷ Stage IV  (brown: too little, green: too much; grey: tested, within the noise)")
+            ratio_bar(fig, fig.add_axes((0.2, 0.065, 0.6, 0.024)),
+                      "forecast ÷ Stage IV  (brown: too little, green: too much; grey: tested, within the noise)")  # fmt: skip
             fig.suptitle(f"{title}, {glabel}", x=0.01, y=0.985, ha="left")
-            first, last = (pd.to_datetime(w[k], format="%Y%m%d%H") for k in ("first", "last"))
             fig.text(0.01, 0.93, f"00Z runs {first:%-d %b} to {last:%-d %b %Y} on the 0.5° common grid · cells "
                      "significant at a 10 % false-discovery rate", color=house.INK2, fontsize=15)  # fmt: skip
             manifest[f"{metric}_{g}"] = save(fig, out / f"rain_{metric}_{g}.webp")
+            for m in models:  # the same maps one model a picture, for a screen too narrow for four side by side
+                fig, ax, cax = narrow()
+                fig.text(0.02, 0.875, panel(ax, m, metric, g), color=house.INK2, fontsize=14)
+                ratio_bar(fig, cax, "forecast ÷ Stage IV\nbrown: too little · green: too much · grey: within the noise")
+                fig.suptitle(f"{m}: {what[0].lower()}{what[1:]}, {glabel}", x=0.02, y=0.975, ha="left")
+                manifest[f"{metric}_{g}_{m}"] = save(fig, out / f"rain_{metric}_{g}_{m}.webp")
         # what the analysis gave over the days of the maps (the reference model's days, every lead group alike)
         ref = REF if REF in models else models[0]
         obs = z[f"{ref}/{metric}_obs"][0]
+        unit = "mm a day" if metric == "ratio" else "share of days"
         fig, ax = plt.subplots(figsize=house.size(10, 0.62), subplot_kw={"projection": proj})
         fig.subplots_adjust(left=0.01, right=0.99, top=0.9, bottom=0.14)
-        base(ax)
-        im = ax.pcolormesh(xe, ye, obs, cmap="YlGnBu", vmin=0, vmax=np.nanpercentile(obs, 98), transform=pc,
-                           rasterized=True)  # fmt: skip
-        cb = fig.colorbar(im, ax=ax, orientation="horizontal", fraction=0.05, pad=0.03, aspect=40)
-        cb.set_label("mm a day" if metric == "ratio" else "share of days")
-        fig.suptitle(f"Stage IV over the same days: {RAIN_OBS[metric]}", x=0.01, ha="left")
-        manifest[f"{metric}_obs"] = save(fig, out / f"rain_{metric}_obs.webp")
+        figs = [(fig, ax, None, "", f"Stage IV over the same days: {RAIN_OBS[metric]}", 0.01)]
+        figs.append((*narrow(), "_narrow", f"Stage IV: {RAIN_OBS[metric]}", 0.02))
+        figs[1][0].text(0.02, 0.875, f"the forecasts' days, {first:%-d %b} to {last:%-d %b %Y}", color=house.INK2,
+                        fontsize=14)  # fmt: skip
+        for fig, ax, cax, tag, heading, x in figs:
+            base(ax)
+            im = ax.pcolormesh(xe, ye, obs, cmap="YlGnBu", vmin=0, vmax=np.nanpercentile(obs, 98), transform=pc,
+                               rasterized=True)  # fmt: skip
+            bar = {"cax": cax} if cax else {"ax": ax, "fraction": 0.05, "pad": 0.03, "aspect": 40}
+            fig.colorbar(im, orientation="horizontal", **bar).set_label(unit)
+            fig.suptitle(heading, x=x, ha="left")
+            manifest[f"{metric}_obs{tag}"] = save(fig, out / f"rain_{metric}_obs{tag}.webp")
         print(f"rain {metric}: maps drawn", flush=True)
     return {"maps": manifest, "groups": [g[0] for g in LEAD_GROUPS], "window": w, "models": models}
 

@@ -34,6 +34,13 @@ PAGES_DIR = HERE / "pages"
 # sub-nav active-class placeholders, one per page (see partials/nav.html)
 _SUBNAV_KEYS = ["A_OVERVIEW", "A_SUBSURFACE", "A_FORECASTS", "A_ATMOSPHERE"]
 
+# Seasonal products a page leaves out for now. A page fragment marks what belongs to one with
+# <!-- season:name --> ... <!-- /season:name --> (/* season:name */ ... /* /season:name */ inside a script).
+OFF_SEASON = {"tc"}  # tropical cyclones, until the next hurricane season
+_SEASON = re.compile(
+    r"(?:^[ \t]*)?(?:<!--|/\*) season:(\w+) (?:-->|\*/).*?(?:<!--|/\*) /season:\1 (?:-->|\*/)\n?", re.S | re.M
+)
+
 PAGES = [
     dict(
         slug="enso",
@@ -263,7 +270,7 @@ def assemble(page: dict) -> str:
     nav = "" if stage else _read(PARTIALS_DIR / "nav.html")
     for key in _SUBNAV_KEYS:
         nav = nav.replace("{{" + key + "}}", "active" if key == page["active"] else "")
-    body = _read(PAGES_DIR / f"{page['slug']}.html")
+    body = _SEASON.sub(lambda m: "" if m[1] in OFF_SEASON else m[0], _read(PAGES_DIR / f"{page['slug']}.html"))
     if page.get("index"):
         body = with_plot_index(body)
     foot = _read(PARTIALS_DIR / ("footer_stage.html" if stage else "footer.html"))

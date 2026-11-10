@@ -20,7 +20,12 @@ artifact, c3s-raw-*):
         the anomaly maps are tested against (c3s_maps.hindcast_spread). Built once per start month,
         for t2m and tp from the same raw hindcast as hc_terc.
   is_anom_{centre}_{system}_{var}_{YYYYMM}.npz   per issue: every system's ensemble-mean anomaly per
-        lead and its members' spread of each period mean (c3s_maps.issue_anom).
+        lead and its members' spread of each period mean, and of the same periods one lead further
+        out, which the next issue's change maps compare with (c3s_maps.issue_anom).
+  hc_chg_{centre}_{system}_{var}_{MM}.npz   per system, map field and START MONTH: the year-to-year
+        spread of the difference between this start month's and the previous one's hindcast ensemble
+        means of the same valid months, the hindcast term of the change maps' test
+        (c3s_maps.change_spread). Built once per start month.
   is_sixh_{centre}_{system}_{region}_{YYYYMM}_m{k}.npz   per issue and forecast month: every
         member's population-weighted DAILY mean (c3s_popt_daily.daily_members), the only thing
         the daily card needs from a 6-hourly chunk.
@@ -98,6 +103,10 @@ def hc_anom(centre: str, system: str, var: str, month: str) -> Path:
 
 def is_anom(centre: str, system: str, var: str, issue: str) -> Path:
     return REF / f"is_anom_{centre}_{system}_{var}_{issue}.npz"
+
+
+def hc_chg(centre: str, system: str, var: str, month: str) -> Path:
+    return REF / f"hc_chg_{centre}_{system}_{var}_{int(month):02d}.npz"
 
 
 def is_sixh(centre: str, system: str, region: str, issue: str, k: int) -> Path:

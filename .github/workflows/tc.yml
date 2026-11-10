@@ -16,10 +16,8 @@ name: TC board (AIFS-ENS + IFS-ENS tracks, IFS control maps)
 # finds the 0.1-degree run already out draws its maps from it directly (cycles.py --profile ifs-0p1), and a 0.25-degree
 # run never replaces a cycle's 0.1-degree maps (tc_maps.py).
 on:
-  # Backstop crons at the dispatcher's later slots, for when it is off.
-  schedule:
-    - cron: '10 10 * * *'
-    - cron: '10 22 * * *'
+  # Off season: no schedule until the next hurricane season (dispatch only). The schedule was
+  # '10 10 * * *' and '10 22 * * *', backstops at the dispatcher's later slots.
   workflow_dispatch:
     inputs:
       date:

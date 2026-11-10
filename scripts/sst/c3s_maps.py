@@ -13,9 +13,18 @@ hindcast (`seasonal-monthly-single-levels`, 1993-2016, the start month, 1 deg) h
 hindcast for 2 m temperature and precipitation anyway (c3s_terciles.py, the same file reduced for both);
 for sea-level pressure and SST it is fetched for this test alone, once per start month.
 
+The change maps set an issue's mean beside the previous issue's for the same valid months, one lead further out.
+Their test adds the previous issue's member spread at those leads and the hindcast's own share: the two issues are
+anomalies against two different hindcast means (this start month's and the one before), whose difference is known
+only year by year. That is the spread, over the 1993-2016 years, of one start month's hindcast ensemble mean minus the
+other's (`seasonal-monthly-single-levels`, product ensemble_mean, both start months in one small request).
+
 Everything is reduced to a table the moment it lands (c3s_ref); the raw GRIBs go to the local store (c3s.yml):
-  is_anom_{centre}_{system}_{field}_{YYYYMM}   ensemble-mean anomaly per lead, the members' spread per period
+  is_anom_{centre}_{system}_{field}_{YYYYMM}   ensemble-mean anomaly per lead, the members' spread per period and
+                                               per period one lead further out (what the next issue compares with)
   hc_anom_{centre}_{system}_{field}_{MM}       the hindcast's single-member spread per period
+  hc_chg_{centre}_{system}_{field}_{MM}        the yearly spread of this start month's hindcast mean minus the previous
+                                               start month's, per period
 Periods are c3s_maps_render.PERIODS, day-weighted means of the lead months (a leap February counts 29 days; a
 hindcast member is weighted by the calendar of its own nominal start year).
 
@@ -57,6 +66,15 @@ def path_for(key: str, centre: str, system: str, issue: str) -> Path:
     return CACHE / issue / f"{centre}_{system}_{key}.grib"
 
 
+def pair_path(key: str, centre: str, system: str, month: str) -> Path:
+    return CACHE / "pairs" / f"{centre}_{system}_{key}_{month}.grib"
+
+
+def prev_issue(issue: str) -> str:
+    y, m = int(issue[:4]), int(issue[4:6])
+    return f"{y - (m == 1)}{(m - 2) % 12 + 1:02d}"
+
+
 def fetch(key: str, centre: str, system: str, issue: str, force: bool = False) -> Path | None:
     """This issue's member anomalies of one field (product_type monthly_mean: every member, leads 1-6)."""
     dest = path_for(key, centre, system, issue)
@@ -82,6 +100,43 @@ def fetch(key: str, centre: str, system: str, issue: str, force: bool = False) -
     except Exception as e:  # noqa: BLE001
         msg = str(e).replace("\n", " ")
         print(f"  {centre}/{system} {key}: unavailable ({msg[:110]})", file=sys.stderr, flush=True)
+        tmp.unlink(missing_ok=True)
+        return None
+
+
+def fetch_pair(key: str, centre: str, system: str, issue: str) -> Path | None:
+    """The hindcast ensemble mean of every 1993-2016 year for this issue's start month and the one before, 1 deg
+    (product_type ensemble_mean: no members, so tens of MB): what change_spread is made of."""
+    from cds_seq import available
+
+    dest = pair_path(key, centre, system, issue[4:6])
+    if dest.exists() and dest.stat().st_size > 0:
+        return dest
+    req = {
+        "originating_centre": centre,
+        "system": str(system),
+        "variable": [CT.RAW_VARS[key][0]],
+        "product_type": ["ensemble_mean"],
+        "year": CT.HC_YEARS,
+        "month": sorted({issue[4:6], prev_issue(issue)[4:6]}),
+        "leadtime_month": LEADS,
+        "data_format": "grib",
+        "grid": CT.GRID,
+    }
+    # a system without the hindcast of either start month (a new system publishes them month by month) has no pair
+    if available(CT.DATASET, req) is False:
+        print(f"  {centre}/{system} {key} pair: not in the CDS catalogue", flush=True)
+        return None
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    tmp = dest.with_suffix(".part")
+    try:
+        _client().retrieve(CT.DATASET, req, str(tmp))
+        tmp.replace(dest)
+        print(f"  {centre}/{system} {key} pair: {dest.stat().st_size / 1e6:.1f} MB", flush=True)
+        return dest
+    except Exception as e:  # noqa: BLE001
+        msg = str(e).replace("\n", " ")
+        print(f"  {centre}/{system} {key} pair: unavailable ({msg[:110]})", file=sys.stderr, flush=True)
         tmp.unlink(missing_ok=True)
         return None
 
@@ -163,24 +218,28 @@ def member_stats(path: Path, short: str | None, fac: float, month: int, periods:
 
 
 # ── the tables ───────────────────────────────────────────────────────────────
+def has_next(t: dict) -> bool:
+    """Does an is_anom table carry the spreads one lead further out (tables built before the change maps do not)?"""
+    return any(k.endswith("_next") for k in t)
+
+
 def issue_anom(centre: str, system: str, key: str, issue: str) -> dict | None:
-    """is_anom table of one system and field (derived from this issue's member GRIB when only that is on disk)."""
-    from c3s_maps_render import PERIODS
+    """is_anom table of one system and field: derived from the issue's member GRIB when only that is on disk, and
+    rebuilt from it when the table lacks the spreads one lead further out."""
+    from c3s_maps_render import NEXT, PERIODS
 
     t = CR.load(CR.is_anom(centre, system, key, issue))
-    if t is not None:
-        return t
     p = path_for(key, centre, system, issue)
-    if not p.exists():
-        return None
+    if not p.exists() or (t is not None and has_next(t)):
+        return t
     try:
-        s = member_stats(p, None, FIELDS[key][1], int(issue[4:6]), PERIODS, ensemble_mean=True)
+        s = member_stats(p, None, FIELDS[key][1], int(issue[4:6]), PERIODS | NEXT, ensemble_mean=True)
     except Exception as e:  # noqa: BLE001
         print(f"  {centre}/{system} {key}: unreadable ({str(e)[:90]})", file=sys.stderr, flush=True)
-        return None
+        return t
     if s["n"] < 2:
         print(f"  {centre}/{system} {key}: {s['n']} member(s), no spread; not kept", file=sys.stderr, flush=True)
-        return None
+        return t
     arrs = {k: v for k, v in s.items() if k.startswith("sd_")}
     CR.save(
         CR.is_anom(centre, system, key, issue),
@@ -227,6 +286,60 @@ def hindcast_spread(centre: str, system: str, key: str, issue: str) -> dict | No
     return CR.load(CR.hc_anom(centre, system, key, month))
 
 
+def change_spread(centre: str, system: str, key: str, issue: str) -> dict | None:
+    """hc_chg table of one system, field and start month (derived from fetch_pair's file when only that is on disk):
+    per period, the standard deviation over the hindcast years of this start month's ensemble mean minus the previous
+    start month's for the same valid months, one lead further out. A January start pairs with the December before."""
+    import c3s_grib
+    from c3s_maps_render import PERIODS
+
+    month = issue[4:6]
+    t = CR.load(CR.hc_chg(centre, system, key, month))
+    if t is not None:
+        return t
+    p = pair_path(key, centre, system, month)
+    if not p.exists():
+        return None
+    mo, pm = int(month), int(prev_issue(issue)[4:6])
+    ens, grid = {}, None
+    try:
+        for m, field, g in c3s_grib.messages(p, ("dataDate", "forecastMonth", "indexingDate")):
+            if not np.isfinite(field).any():
+                continue
+            grid, d = g, m["indexingDate"] or m["dataDate"]
+            ens.setdefault((d // 10000, d // 100 % 100), {})[m["forecastMonth"] - 1] = field.astype(np.float32)
+    except Exception as e:  # noqa: BLE001
+        print(f"  {centre}/{system} {key} pair: unreadable ({str(e)[:90]})", file=sys.stderr, flush=True)
+        return None
+
+    def yearly(ix: list[int]):
+        for (y, m), new in ens.items():
+            old = ens.get((y - (mo == 1), pm), {})
+            if m == mo and all(i in new and i + 1 in old for i in ix):
+                yield sum(np.float32(lead_weight(y, mo, ix, i)) * (new[i] - old[i + 1]) for i in ix)
+
+    arrs, years = {}, []
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)  # all-NaN cells (land in SST) stay NaN
+        for pid, ix in PERIODS.items():
+            diffs = list(yearly(ix))
+            if len(diffs) >= 20:
+                sd = np.nanstd(np.stack(diffs), axis=0, ddof=1) * CT.RAW_VARS[key][2]
+                arrs[f"sdd_{pid}"] = sd[np.argsort(grid.lat)][:, np.argsort(grid.lon)].astype(np.float32)
+                years.append(len(diffs))
+    if not arrs:
+        print(f"  {centre}/{system} {key} pair: under 20 paired hindcast years; not kept", file=sys.stderr, flush=True)
+        return None
+    CR.save(
+        CR.hc_chg(centre, system, key, month),
+        meta={"years": min(years), "periods": [k[4:] for k in arrs]},
+        lat=np.sort(grid.lat),
+        lon=np.sort(grid.lon),
+        **arrs,
+    )
+    return CR.load(CR.hc_chg(centre, system, key, month))
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--issue", default=time.strftime("%Y%m", time.gmtime()), help="YYYYMM, default this month")
@@ -254,9 +367,22 @@ def main() -> int:
             got += CR.is_anom(centre, system, key, a.issue).exists()
     want_n = len(want) * len(systems)
     print(f"{got}/{want_n} member table(s) for {a.issue} under {CR.REF}", flush=True)
-    # 2. the hindcast spread each map is tested against: once per system, field and start month, ever. A hard stop
+    # 2. what the change from the previous issue is tested with, small requests: that issue's members again where its
+    # table predates the spreads one lead further out, and the two start months' yearly hindcast means, once per
+    # system, field and start month. A system or field the previous issue did not have gets no change map. A hard stop
     # (SIGINT from the workflow's timeout) ends the fetching, not the run: the members above are what gates the render
+    prev = prev_issue(a.issue)
     try:
+        for centre, system in systems:
+            for key in want:
+                t = CR.load(CR.is_anom(centre, system, key, prev))
+                if t is None:
+                    continue
+                if not has_next(t) and fetch(key, centre, system, prev):
+                    issue_anom(centre, system, key, prev)
+                if change_spread(centre, system, key, a.issue) is None and fetch_pair(key, centre, system, a.issue):
+                    change_spread(centre, system, key, a.issue)
+        # 3. the hindcast spread each map is tested against: once per system, field and start month, ever
         for centre, system in systems:
             for key in want:
                 if hindcast_spread(centre, system, key, a.issue) is not None:
@@ -271,7 +397,9 @@ def main() -> int:
     except KeyboardInterrupt:
         print("  hindcast fetching stopped (time limit); the next run continues", flush=True)
     tested = sum(CR.hc_anom(c, s, k, a.issue[4:6]).exists() for c, s in systems for k in want)
+    paired = sum(CR.hc_chg(c, s, k, a.issue[4:6]).exists() for c, s in systems for k in want)
     print(f"{tested}/{want_n} hindcast spread table(s) for start month {a.issue[4:6]}", flush=True)
+    print(f"{paired}/{want_n} change table(s) against start month {prev[4:6]}", flush=True)
     # a half-published issue must not reach the renderer: last month's complete set is better than this month's two
     # systems
     return 0 if got >= 0.75 * want_n else 1
