@@ -1,5 +1,5 @@
 {
- "built": "2026-11-10 12:54Z",
+ "built": "2026-11-10 14:17Z",
  "newest_init": "2026-11-10 06Z",
  "window": [
   "2026-11-11",
@@ -1673,15 +1673,15 @@
     "z_sib_max": 0.1
    },
    "gefs": {
-    "init": "2026-11-10 06Z",
+    "init": "2026-11-10 00Z",
     "members": 31,
-    "wave2_share": 0.25,
-    "z_peak": -0.0,
-    "z_peak_day": 10,
-    "flux_min": 6.5,
+    "wave2_share": 0.24,
+    "z_peak": -0.1,
+    "z_peak_day": 11,
+    "flux_min": 7.3,
     "ri_event_share": 0.0,
-    "z_can_min": -0.4,
-    "z_sib_max": 0.1
+    "z_can_min": -0.3,
+    "z_sib_max": -0.1
    },
    "geps": {
     "init": "2026-11-10 00Z",
@@ -1751,14 +1751,14 @@
     "kind": "top-down"
    },
    "gefs": {
-    "init": "2026-11-10 06Z",
+    "init": "2026-11-10 00Z",
     "members": 31,
     "cap100_day15": 0.8,
     "cap10_day15": 0.1,
     "frac100_day15": 0.29,
-    "cross100": "2026-11-20",
+    "cross100": "2026-10-27",
     "cross10": "2026-10-29",
-    "kind": "top-down"
+    "kind": "bottom-up"
    },
    "geps": {
     "init": "2026-11-10 00Z",
@@ -1778,7 +1778,7 @@
   "shear_init": "2026-11-10 00Z",
   "shear_min": 4.0,
   "shear_max": 42.6,
-  "shear_normal": 23.7,
+  "shear_normal": 22.0,
   "zonal_mean_downward": [],
   "canada_downward": [],
   "active": [],
@@ -1941,7 +1941,7 @@
      "2026-11-14",
      "2026-11-18"
     ],
-    "sea": -0.62,
+    "sea": -0.69,
     "sea_days": [
      6,
      15
@@ -2810,6 +2810,56 @@
      ]
     }
    ]
+  }
+ },
+ "watch": {
+  "depth": 500,
+  "days": [
+   11,
+   15
+  ],
+  "models": {
+   "ifs": {
+    "init": "2026-11-10 00Z",
+    "share": 0.72,
+    "usual": 0.21,
+    "days_more": 5,
+    "days": 5,
+    "any_day": 0.86
+   }
+  },
+  "link": {
+   "ymsl": {
+    "gefs": {
+     "r": 0.5,
+     "ci": [
+      0.18,
+      0.72
+     ],
+     "n": 31
+    },
+    "geps": {
+     "r": 0.62,
+     "ci": [
+      0.37,
+      0.82
+     ],
+     "n": 21
+    },
+    "all": {
+     "r": 0.41,
+     "ci": [
+      0.25,
+      0.55
+     ],
+     "n": 102
+    }
+   }
+  },
+  "link_runs": {
+   "ifs": "2026-11-10 00Z",
+   "gefs": "2026-11-10 00Z",
+   "geps": "2026-11-10 00Z"
   }
  },
  "checklist": {
