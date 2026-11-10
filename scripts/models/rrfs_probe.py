@@ -41,6 +41,9 @@ GRID_KEYS = (
     "iDirectionIncrementInDegrees",
     "jDirectionIncrementInDegrees",
     "DxInMetres",
+    "LaDInDegrees",
+    "orientationOfTheGridInDegrees",
+    "projectionCentreFlag",
     "DyInMetres",
     "Latin1InDegrees",
     "Latin2InDegrees",
@@ -107,18 +110,20 @@ def look(f, base, name, want):
 
 def cost(base, name):
     """Fetch, decode and lossless-WebP cost of a few surface fields at every 1st, 2nd and 3rd grid point."""
+    lines = M.idx_lines(M.fetcher("rrfs"), f"{base}.{name}")
     want = {k: M.IDX_WANT["rrfs"][k] for k in ("zsfc", "t2m", "refd", "u10", "v10", "ir")}
+    want = {k: rx for k, rx in want.items() if any(re.search(rx, d) for _, _, d in lines)}
     t0 = time.time()
     blobs = M.fetch_idx_fields("rrfs", f"{base}.{name}", want)
     t1 = time.time()
-    z, g = M.sb.decode(blobs["zsfc"], want_grid=True)
+    z, g = M.sb.decode(next(iter(blobs.values())), want_grid=True)
     t2 = time.time()
     a = {k: M.sb.decode(b) for k, b in blobs.items()}
     t3 = time.time()
     lat, lon = g["lat"], g["lon"]
     mb = sum(map(len, blobs.values())) / 1e6
     print(
-        f"\n{name}: grid {z.shape}, fetch {t1 - t0:.1f}s ({mb:.1f} MB), lat/lon {t2 - t1:.1f}s, 6 decodes {t3 - t2:.1f}s"
+        f"\n{name}: grid {z.shape}, fetch {t1 - t0:.1f}s ({mb:.1f} MB), lat/lon {t2 - t1:.1f}s, {len(a)} decodes {t3 - t2:.1f}s"
     )
     print(f"  grid-relative winds {g['grid_rel']}, lat {float(lat.min()):.3f} to {float(lat.max()):.3f}")
     print("  corners", [(round(float(lat[j, i]), 3), round(float(lon[j, i]), 3)) for j in (0, -1) for i in (0, -1)])
@@ -133,6 +138,8 @@ def cost(base, name):
         "wind10": lambda s: np.dstack([M.q_lin(a[c][::s, ::s] * 1.94384, -127.0, 1.0) for c in ("u10", "v10", "u10")]),
     }
     for k, fn in enc.items():
+        if not all(c in a for c in (("u10", "v10") if k == "wind10" else (k,))):
+            continue
         row = []
         for s in (1, 2, 3):
             t0 = time.time()
@@ -161,10 +168,16 @@ def main():
     have = {k.split("/", 2)[2].split("z.", 1)[-1] for k, _ in keys if k.count("/") == 2}
     upper = {**M.ua_want(), **M.sb_want_lcc("rrfs"), "sb:REFC": r"^REFC:entire atmosphere"}
     gribs = sorted(n for n in have if tag in n and n.endswith(".grib2"))
+    for k, v in sorted(kinds.items()):
+        if k.endswith(".grib2") and len(v) != 85:
+            rx = re.compile(re.escape(k).replace("fFFF", r"f(\d{3})"))
+            print(f"  leads of {k}:", sorted(int(m.group(1)) for key, _ in keys if (m := rx.search(key))))
     for name in gribs:
-        if ".3km." in name and name.split(".")[0] in ("2dfld", "prslev", "natlev"):
+        if name.endswith(".na.grib2"):
             try:
                 look(f, base, name, M.IDX_WANT["rrfs"] if name.startswith("2dfld") else upper)
+                if "awipsubset" in name:
+                    print("  every message:", [d for _, _, d in M.idx_lines(f, f"{base}.{name}")])
             except Exception as ex:  # noqa: BLE001
                 print(name, "idx failed:", repr(ex)[:200])
     print()
@@ -174,9 +187,8 @@ def main():
             print(name, "|", d, "|", grid_keys(f.get(f"{base}.{name}", (s, e))))
         except Exception as ex:  # noqa: BLE001
             print(name, "idx/grid failed:", repr(ex)[:200])
-    for dom in ("conus", "na"):
-        name = f"2dfld.3km{tag}{dom}.grib2"
-        if name in have:
+    for name in gribs:
+        if name.startswith("2dfld") and name.endswith(".na.grib2"):
             cost(base, name)
     return 0
 
