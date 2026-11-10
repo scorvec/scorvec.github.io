@@ -326,7 +326,7 @@ def main():
         write_manifest(items)
         # Animator only (with the slider) — no separate static hero image. The iframe auto-sizes
         # to fit the plot + slider via the sstAnimHeight postMessage listener below.
-        body = f'  <p class="sub" style="margin-bottom:1rem">Latest ECMWF init: <strong>{label(d, h)}</strong>.</p>\n'
+        body = f'  <p class="sub">Latest ECMWF init: <strong>{label(d, h)}</strong>.</p>\n'
     else:
         body = '<p class="empty">No forecasts yet — the first scheduled run will populate this page.</p>'
 

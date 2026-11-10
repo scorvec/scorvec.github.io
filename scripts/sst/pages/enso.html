@@ -4,12 +4,14 @@
     <h1>El Ni&ntilde;o monitor</h1>
     <p class="sub">Daily estimates of the ONI and RONI ahead of the official monthly numbers, with every Ni&ntilde;o region, the winds, the SOI and the ocean beneath.</p>
     <div class="chips" id="chips"><div class="chip"><div class="l">Loading daily indices&hellip;</div><div class="v neut">&mdash;</div></div></div>
-    <p class="chipnote"><b>*</b> Graded on RONI, CPC&rsquo;s official index since February 2026; estimates from OISST, not final (<a href="#page-about">details</a>).</p>
   </div>
   <style>
   /* a state in words ("very strong El Niño") is set smaller than a number, so it fits a cell of the band */
   .ss-host .page-header .chip .v.txt { font-size: 1.2rem; line-height: 1.25; }
   .ss-host .page-header .chip .wk { font-size: 0.95rem; font-weight: 600; margin-top: 2px; }
+  /* the basis for the asterisked numbers closes the band, in its last cell */
+  .ss-host .page-header .chip--note { display: flex; align-items: center; font-size: 0.82rem; line-height: 1.45; color: var(--ink2); }
+  .ss-host .page-header .chip--note b { color: var(--ink); font-weight: 700; }
   </style>
   <div class="ss-layout">
     <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
@@ -886,7 +888,7 @@ window.loadPlotly = function () {
         cls: tone(O.roni[mk]), strength: strengthClass(O.roni[mk]) });
     }
     chips = chips.concat([
-      // The asterisk is explained under the strip: CPC made RONI its official
+      // The asterisk is explained in the band's last cell: CPC made RONI its official
       // ENSO index in Feb 2026, so the grading follows CPC -- what is unofficial
       // here is the DATASET (OISST, not CPC's ERSST) and the unclosed month.
       { l: "ENSO state · " + season(L.oni_month), v: st.name, s: st.sub + " (estimates)",
@@ -927,7 +929,9 @@ window.loadPlotly = function () {
              '<div class="l">' + c.l + (c.prelim ? '<span class="pflag">prelim</span>' : '') + '</div>' +
              '<div class="v ' + c.cls + (c.txt ? ' txt' : '') + '">' + c.v + '</div>' + (c.wk || "") +
              '<div class="s">' + c.s + "</div></div>";
-    }).join("");
+    }).join("") +
+      '<div class="chip chip--note"><div><b>*</b> Graded on RONI, CPC&rsquo;s official index since February 2026; ' +
+      'estimates from OISST, not final (<a href="#page-about">details</a>).</div></div>';
   }
 
   var CONFIG = { displayModeBar: false, responsive: true };

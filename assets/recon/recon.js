@@ -48,6 +48,8 @@
     return h < 48 ? `${h.toFixed(h < 10 ? 1 : 0)} h ago` : `${Math.round(h / 24)} days ago`;
   };
   const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  // a marker's button takes a spoken name once it is on the map (Leaflet names image icons only)
+  const named = (mk, label) => mk.on("add", () => mk.getElement().setAttribute("aria-label", label));
   const dirTxt = (d, s) => s == null ? "—" : `${p2(Math.round(d)).padStart(3, "0")}° ${s} kt`;
   const AIR_MIN = 45;                                         // newest ob younger than this = airborne
   const isAir = m => m && m.last_hdob && (Date.now() / 1000 - m.last_hdob) < AIR_MIN * 60;
@@ -395,9 +397,9 @@
   function drawVDMs() {
     lyr.vdm.clearLayers();
     for (const v of S.mis.vdms) {
-      const mk = L.marker([v.la, v.lo], { icon: L.divIcon({ className: "", iconSize: [22, 22], iconAnchor: [11, 11],
+      const mk = named(L.marker([v.la, v.lo], { icon: L.divIcon({ className: "", iconSize: [22, 22], iconAnchor: [11, 11],
         html: `<svg width="22" height="22" viewBox="0 0 22 22"><circle cx="11" cy="11" r="8" fill="#fff" stroke="#b3261e" stroke-width="2.5"/>` +
-          `<path d="M11 3v16M3 11h16" stroke="#b3261e" stroke-width="2"/></svg>` }), zIndexOffset: 500 }).addTo(lyr.vdm);
+          `<path d="M11 3v16M3 11h16" stroke="#b3261e" stroke-width="2"/></svg>` }), zIndexOffset: 500 }), `Vortex fix ${hm(v.t)}Z${v.mslp ? ", " + v.mslp + " hPa" : ""}`).addTo(lyr.vdm);
       mk.bindTooltip(`${v.mslp ? v.mslp + " hPa · " : ""}${hm(v.t)}Z`, { permanent: true, direction: "right", className: "fixlab", offset: [8, 0] });
       mk.bindPopup(`<b>Vortex fix</b> · ${esc(v.aircraft || "")} OB ${v.obnum ?? ""}<table>${vdmRows(v).map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join("")}</table>` +
         `<details><summary>Raw message</summary><pre>${esc(v.raw)}</pre></details>`, { maxWidth: 380 });
@@ -455,9 +457,9 @@
     }
     const a = (S.man.active || []).find(x => x.id === S.sid);
     if (a && a.la != null) {
-      L.marker([a.la, a.lo], { interactive: true, icon: L.divIcon({ className: "", iconSize: [26, 26], iconAnchor: [13, 13],
+      named(L.marker([a.la, a.lo], { interactive: true, icon: L.divIcon({ className: "", iconSize: [26, 26], iconAnchor: [13, 13],
         html: `<svg width="26" height="26" viewBox="-13 -13 26 26"><g fill="none" stroke="${lineCol}" stroke-width="2.2"><circle r="4.5"/>` +
-          `<path d="M0 -4.5 C -2 -10, -7 -11, -11 -9 M0 4.5 C 2 10, 7 11, 11 9"/></g></svg>` }) })
+          `<path d="M0 -4.5 C -2 -10, -7 -11, -11 -9 M0 4.5 C 2 10, 7 11, 11 9"/></g></svg>` }) }), `NHC advisory ${a.adv || ""}, ${a.name}, ${a.vmax} kt, ${a.mslp} hPa`)
         .bindTooltip(`NHC advisory ${esc(a.adv || "")} · ${esc(a.name)} · ${a.vmax} kt · ${a.mslp} hPa`).addTo(lyr.btk);
     }
   }
@@ -892,8 +894,8 @@
       if (p6) L.circleMarker(p6, { renderer: rend, radius: 2.5, color: TDRC, weight: 1.5, fillColor: TDRC, fillOpacity: 1, interactive: false }).addTo(lyr.tdr);
       const sz = on ? 18 : 13;
       const lv = [["05", "0.5"], ["2", "2"], ["3", "3"], ["6", "6"]].filter(([k]) => c.c[k]).map(([k, l]) => `${l} km ${ll(c.c[k][0], c.c[k][1])}`).join("<br>");
-      L.marker(p, { zIndexOffset: 400, icon: L.divIcon({ className: "", iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2],
-        html: `<svg width="${sz}" height="${sz}" viewBox="0 0 20 20"><path d="M10 1 L19 10 L10 19 L1 10 Z" fill="${on ? TDRC : "#fff"}" stroke="${TDRC}" stroke-width="2.5"/></svg>` }) })
+      named(L.marker(p, { zIndexOffset: 400, icon: L.divIcon({ className: "", iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2],
+        html: `<svg width="${sz}" height="${sz}" viewBox="0 0 20 20"><path d="M10 1 L19 10 L10 19 L1 10 Z" fill="${on ? TDRC : "#fff"}" stroke="${TDRC}" stroke-width="2.5"/></svg>` }) }), `TDR centre ${hm(c.t)}Z: show this analysis`)
         .bindTooltip(`<b>TDR centre ${hm(c.t)}Z</b><br>${lv}${c.tilt ? `<br>2–6 km tilt ${c.tilt[0]} km toward ${c.tilt[1]}°` : ""}` +
           `${c.ref ? `<br><span style="color:#5d5a54">${c.ref[1]} km from the ${esc(c.ref[0])}</span>` : ""}<br><i>click: show this analysis</i>`)
         .on("click", () => { const i = PRODS.sw.times(d).findIndex(x => Math.abs(x.k - c.t) < 60); if (i >= 0) { T.prod = "sw"; T.ti = i; tdrUI(); $("tdr").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }); } })

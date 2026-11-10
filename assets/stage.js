@@ -119,7 +119,7 @@
     // the layout's container reorders on narrow screens (stage.css .ss-host): title, then the picker and the
     // figure, then the introduction, the headline chips and the rest
     lay.parentElement.classList.add("ss-host");
-    var sel2 = ".page-header > .sub, .page-header > .chipnote, main > header > .sub, main > .lede, main > p.lede, .wrap > .page-header .lede";
+    var sel2 = ".page-header > .sub, main > header > .sub, main > .lede, main > p.lede, .wrap > .page-header .lede";
     Array.prototype.forEach.call(document.querySelectorAll(sel2), function (el, i) {
       if (!(el.compareDocumentPosition(lay) & Node.DOCUMENT_POSITION_FOLLOWING) || el.classList.contains("ss-clamp")) return;
       el.classList.add("ss-clamp"); if (!el.id) el.id = "ss-intro-" + i;

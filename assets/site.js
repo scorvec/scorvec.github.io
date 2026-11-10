@@ -382,6 +382,30 @@ document.addEventListener('click', function (e) {
   bands.forEach(function (band) { ro.observe(band); mo.observe(band, { childList: true }); balance(band); });
 })();
 
+// Plotly charts reach a screen reader as loose tick labels. A chart with no name of its own is announced as one image,
+// named by its title, else by the nearest heading above it; the name follows the title through redraws.
+(function () {
+  if (!window.MutationObserver) return;
+  function name(gd) {
+    var t = gd.layout && gd.layout.title, text = (t && t.text) || (typeof t === 'string' ? t : '');
+    if (!text) {
+      var hs = document.querySelectorAll('h2, h3, h4');
+      for (var i = 0; i < hs.length && hs[i].compareDocumentPosition(gd) & 4; i++) text = hs[i].textContent;
+    }
+    gd.setAttribute('role', 'img');
+    gd.setAttribute('aria-label', String(text || 'Chart').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim());
+  }
+  function adopt(gd) {
+    if (!gd.classList.contains('js-plotly-plot') || gd.dataset.named || gd.hasAttribute('aria-label') || gd.hasAttribute('aria-labelledby')) return;
+    gd.dataset.named = '1';
+    name(gd);
+    if (gd.on) gd.on('plotly_afterplot', function () { name(gd); });
+  }
+  document.querySelectorAll('.js-plotly-plot').forEach(adopt);
+  new MutationObserver(function (recs) { recs.forEach(function (r) { adopt(r.target); }); })
+    .observe(document.documentElement, { attributes: true, attributeFilter: ['class'], subtree: true });
+})();
+
 // Maps that fill the window (the viewers' .mv-map, or any element marked data-fit): --fit-top is the element's top on
 // the page and --fit-below the height of what must stay on screen under it (data-fit-below, a selector: the viewers'
 // Show row), so a height of calc(100vh - var(--fit-top) - var(--fit-below)) puts the whole map and its controls on
