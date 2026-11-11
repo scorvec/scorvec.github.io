@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
-import os
 import sys
 import time
 from pathlib import Path
@@ -31,7 +30,7 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from c3s_nino34 import MODELS, _client
+from c3s_nino34 import MODELS, cds_fetch, queue_budget
 from seas5_popT import REGIONS, month_hours
 import c3s_ref as CR
 from seas5_popT import chunk_path as seas5_chunk_path
@@ -83,7 +82,6 @@ def fetch_chunk(centre: str, system: str, region: str, issue: str, k: int) -> bo
     dest = path_for(centre, system, region, issue, k)
     if dest.exists() and dest.stat().st_size > 0:
         return True
-    STORE.mkdir(parents=True, exist_ok=True)
     hours = month_hours(issue, k)
     starts = start_dates(centre, system, issue)
     if not starts:
@@ -114,23 +112,7 @@ def fetch_chunk(centre: str, system: str, region: str, issue: str, k: int) -> bo
         "grid": [1.0, 1.0],
         "data_format": "grib",
     }
-    tmp = dest.with_suffix(".part")
-    t0 = time.time()
-    try:
-        _client().retrieve(DATASET, req, str(tmp))
-    except Exception as e:  # noqa: BLE001
-        msg = str(e).replace("\n", " ")
-        print(f"  {centre}/{system} {region} m{k}: FAILED {msg[:100]}", flush=True)
-        tmp.unlink(missing_ok=True)
-        return False
-    if not (tmp.exists() and tmp.stat().st_size > 0):
-        return False
-    os.replace(tmp, dest)
-    print(
-        f"  {centre}/{system} {region} m{k}: {dest.stat().st_size / 1e6:.0f} MB in {(time.time() - t0) / 60:.1f} min",
-        flush=True,
-    )
-    return True
+    return cds_fetch(DATASET, req, dest, f"{centre}/{system} {region} m{k}")
 
 
 def main() -> int:
@@ -148,6 +130,8 @@ def main() -> int:
     regions = [r for r in a.regions.split(",") if r in REGIONS]
     got = need = 0
     t0 = time.time()
+    if a.budget_min > 0:
+        queue_budget(a.budget_min)
     order = [x.strip() for x in a.order.split(",") if x.strip()]
     entries = list(MODELS)
     if order:  # cheapest systems first, so value accrues early

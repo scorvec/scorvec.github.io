@@ -29,7 +29,8 @@ name: C3S multi-system seasonal (monthly)
 # issue) is fetched in the window. `hindcast=YYYYMM` runs that job alone for one start month.
 #
 # CDS: one key, so this shares the `seas5` concurrency group with seas5.yml and seas5-lead7.yml (never two jobs
-# requesting at once) and every request inside the job is sequential. The heavy fetches (tercile members/hindcasts,
+# requesting at once) and every request inside the job is sequential (cds_seq.py): one a stopped run left queued is
+# taken over, not sent again, and one the CDS rejects while its queue is full is sent again later. The heavy fetches (tercile members/hindcasts,
 # 6-hourly members, ~7 h of CDS time for a new start month) run under a time budget and resume on the next run.
 #
 # ECMWF: its tercile forecast and 6-hourly members come from seas5.yml's own cache of the issue when that is still

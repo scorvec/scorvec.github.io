@@ -45,7 +45,7 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from c3s_nino34 import MODELS, _client
+from c3s_nino34 import MODELS, cds_fetch, queue_budget
 import c3s_ref as CR
 
 STORE = HERE / "data" / "c3s" / "terc"
@@ -98,7 +98,6 @@ def fetch(kind: str, centre: str, system: str, var: str, issue: str, force: bool
     if p.exists() and not force and p.stat().st_size > 1_000_000:
         print(f"  {centre}/{system} {var} {kind}: cached ({p.stat().st_size / 1e6:.0f} MB)", flush=True)
         return True
-    STORE.mkdir(parents=True, exist_ok=True)
     req = {
         "originating_centre": centre,
         "system": str(system),
@@ -116,17 +115,8 @@ def fetch(kind: str, centre: str, system: str, var: str, issue: str, force: bool
     if available(DATASET, req) is False:
         print(f"  {centre}/{system} {var} {kind}: not in the CDS catalogue yet", flush=True)
         return False
-    tmp = p.with_suffix(".part")
-    t0 = time.time()
-    try:
-        _client().retrieve(DATASET, req, str(tmp))
-    except Exception as e:  # noqa: BLE001
-        print(f"  {centre}/{system} {var} {kind}: FAILED {str(e)[:120]}", flush=True)
-        tmp.unlink(missing_ok=True)
-        return False
-    tmp.replace(p)
-    print(f"  {centre}/{system} {var} {kind}: {p.stat().st_size / 1e6:.0f} MB in {time.time() - t0:.0f}s", flush=True)
-    return True
+    # a file still here is forced or too small to be whole: fetched over
+    return cds_fetch(DATASET, req, p, f"{centre}/{system} {var} {kind}", force=p.exists())
 
 
 # ── tables (c3s_ref) ─────────────────────────────────────────────────────────
@@ -318,6 +308,8 @@ def main() -> int:
     want = [v for v in a.vars.split(",") if v in VARS]
     got = need = 0
     t_start = time.time()
+    if a.budget_min > 0:
+        queue_budget(a.budget_min)
 
     def budget_left() -> bool:
         return a.budget_min <= 0 or (time.time() - t_start) / 60 < a.budget_min

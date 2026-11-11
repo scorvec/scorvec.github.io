@@ -46,7 +46,7 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from c3s_nino34 import MODELS, _client  # one model registry, one CDS client
+from c3s_nino34 import MODELS, cds_fetch, queue_budget  # one model registry, one way to the CDS
 import c3s_ref as CR
 import c3s_terciles as CT
 
@@ -78,9 +78,6 @@ def prev_issue(issue: str) -> str:
 def fetch(key: str, centre: str, system: str, issue: str, force: bool = False) -> Path | None:
     """This issue's member anomalies of one field (product_type monthly_mean: every member, leads 1-6)."""
     dest = path_for(key, centre, system, issue)
-    if dest.exists() and dest.stat().st_size > 0 and not force:
-        return dest
-    dest.parent.mkdir(parents=True, exist_ok=True)
     req = {
         "originating_centre": centre,
         "system": str(system),
@@ -91,17 +88,7 @@ def fetch(key: str, centre: str, system: str, issue: str, force: bool = False) -
         "leadtime_month": LEADS,
         "data_format": "grib",
     }
-    tmp = dest.with_suffix(".part")
-    try:
-        _client().retrieve(DATASET, req, str(tmp))
-        tmp.replace(dest)
-        print(f"  {centre}/{system} {key}: {dest.stat().st_size / 1e6:.1f} MB", flush=True)
-        return dest
-    except Exception as e:  # noqa: BLE001
-        msg = str(e).replace("\n", " ")
-        print(f"  {centre}/{system} {key}: unavailable ({msg[:110]})", file=sys.stderr, flush=True)
-        tmp.unlink(missing_ok=True)
-        return None
+    return dest if cds_fetch(DATASET, req, dest, f"{centre}/{system} {key}", force) else None
 
 
 def fetch_pair(key: str, centre: str, system: str, issue: str) -> Path | None:
@@ -127,18 +114,7 @@ def fetch_pair(key: str, centre: str, system: str, issue: str) -> Path | None:
     if available(CT.DATASET, req) is False:
         print(f"  {centre}/{system} {key} pair: not in the CDS catalogue", flush=True)
         return None
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    tmp = dest.with_suffix(".part")
-    try:
-        _client().retrieve(CT.DATASET, req, str(tmp))
-        tmp.replace(dest)
-        print(f"  {centre}/{system} {key} pair: {dest.stat().st_size / 1e6:.1f} MB", flush=True)
-        return dest
-    except Exception as e:  # noqa: BLE001
-        msg = str(e).replace("\n", " ")
-        print(f"  {centre}/{system} {key} pair: unavailable ({msg[:110]})", file=sys.stderr, flush=True)
-        tmp.unlink(missing_ok=True)
-        return None
+    return dest if cds_fetch(CT.DATASET, req, dest, f"{centre}/{system} {key} pair") else None
 
 
 # ── reading members: message by message (c3s_grib), never cfgrib's hypercube ────
@@ -350,9 +326,12 @@ def main() -> int:
         "--budget-min",
         type=float,
         default=0.0,
-        help="stop STARTING hindcast downloads after this many minutes (0 = no limit)",
+        help="stop STARTING hindcast downloads, and waiting for a place in the CDS queue, after this many minutes "
+        "(0 = no limit on the hindcasts, 30 minutes for the queue)",
     )
     a = ap.parse_args()
+    if a.budget_min > 0:
+        queue_budget(a.budget_min)
     want = [k for k in a.fields.split(",") if k in FIELDS]
     systems = [(e[0], str(e[1])) for e in MODELS if not a.only or f"{e[0]}_{e[1]}" == a.only]
     t_start = time.time()

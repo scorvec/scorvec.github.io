@@ -47,7 +47,6 @@ import calendar
 import json
 import os
 import sys
-import time
 from pathlib import Path
 
 import numpy as np
@@ -57,7 +56,7 @@ import xarray as xr
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import c3s_grib
-from c3s_nino34 import MODELS as _ALL_MODELS, MERGE, _client  # one model registry, one CDS client
+from c3s_nino34 import MODELS as _ALL_MODELS, MERGE, cds_fetch, queue_budget  # one registry, one way to the CDS
 from enso_models import EXCLUDE_SYSTEMS, EXCLUDE_NOTE
 
 # the systems the page leaves out are neither fetched nor tested (a merged system by its merged label)
@@ -112,9 +111,6 @@ def strip_path(centre: str, system: str, issue: str) -> Path:
 
 def fetch_strip(centre: str, system: str, issue: str) -> Path | None:
     dest = strip_path(centre, system, issue)
-    if dest.exists() and dest.stat().st_size > 0:
-        return dest
-    dest.parent.mkdir(parents=True, exist_ok=True)
     req = {
         "originating_centre": centre,
         "system": system,
@@ -127,24 +123,7 @@ def fetch_strip(centre: str, system: str, issue: str) -> Path | None:
         "grid": GRID,
         "data_format": "grib",
     }
-    tmp = dest.with_suffix(".part")
-    for attempt in range(2):
-        try:
-            _client().retrieve(DATASET, req, str(tmp))
-            os.replace(tmp, dest)
-            print(f"  {centre}/{system} {issue}: {dest.stat().st_size / 1e6:.1f} MB", flush=True)
-            return dest
-        except Exception as e:  # noqa: BLE001
-            msg = str(e).replace("\n", " ")
-            tmp.unlink(missing_ok=True)
-            if "no data" in msg.lower():
-                print(f"  {centre}/{system} {issue}: no data on the CDS", file=sys.stderr, flush=True)
-                return None
-            print(
-                f"  {centre}/{system} {issue}: attempt {attempt + 1} failed ({msg[:100]})", file=sys.stderr, flush=True
-            )
-            time.sleep(8)
-    return None
+    return dest if cds_fetch(DATASET, req, dest, f"{centre}/{system} {issue}") else None
 
 
 # ── hindcasts (raw SST, 1993–2016, one start month) for the calibration ───────────
@@ -156,18 +135,15 @@ def hindcast_path(centre: str, system: str, month: int) -> Path:
     return HC_CACHE / f"{centre}_{system}_{month:02d}.grib"
 
 
-def fetch_hindcast(centre: str, system: str, month: int, patience: int = 90) -> Path | None:
+def fetch_hindcast(centre: str, system: str, month: int) -> Path | None:
     """Raw monthly-mean SST, every hindcast member, 1993–2016, the same strip and grid.
 
     The postprocessed anomaly product carries no hindcast years, so these come from
     `seasonal-monthly-single-levels` and are anomalised here against their own mean. The CDS
-    rejects a request outright while too many are queued for a dataset from one key; that is
-    waited out (up to `patience` tries, 2 minutes apart), never run in parallel. Resumable:
-    a file on disk is never re-fetched."""
+    rejects a request outright while its queue for a dataset is full; that is waited out within
+    the queue budget (cds_fetch), never run in parallel. Resumable: a file on disk is never
+    re-fetched."""
     dest = hindcast_path(centre, system, month)
-    if dest.exists() and dest.stat().st_size > 0:
-        return dest
-    dest.parent.mkdir(parents=True, exist_ok=True)
     req = {
         "originating_centre": centre,
         "system": system,
@@ -180,26 +156,8 @@ def fetch_hindcast(centre: str, system: str, month: int, patience: int = 90) -> 
         "grid": GRID,
         "data_format": "grib",
     }
-    tmp = dest.with_suffix(".part")
-    for attempt in range(patience):
-        try:
-            _client().retrieve("seasonal-monthly-single-levels", req, str(tmp))
-            os.replace(tmp, dest)
-            print(f"  hindcast {centre}/{system} {month:02d}: {dest.stat().st_size / 1e6:.1f} MB", flush=True)
-            return dest
-        except Exception as e:  # noqa: BLE001
-            msg = str(e).replace("\n", " ")
-            tmp.unlink(missing_ok=True)
-            if "no data" in msg.lower():
-                print(f"  hindcast {centre}/{system} {month:02d}: no data on the CDS", file=sys.stderr, flush=True)
-                return None
-            print(
-                f"  hindcast {centre}/{system} {month:02d}: attempt {attempt + 1} failed ({msg[:90]})",
-                file=sys.stderr,
-                flush=True,
-            )
-            time.sleep(120)
-    return None
+    label = f"hindcast {centre}/{system} {month:02d}"
+    return dest if cds_fetch("seasonal-monthly-single-levels", req, dest, label) else None
 
 
 def fetch_all(issue: str) -> dict:
@@ -1429,6 +1387,7 @@ def main() -> int:
         print(blk["text"])
         return 0
     if a.fetch_hindcast:
+        queue_budget(180)  # large requests on a dataset whose queue is often full: the step's time limit is the bound
         got = [fetch_hindcast(c, s, int(issue[4:6])) for c, s, _l, _c in MODELS]
         print(f"{sum(g is not None for g in got)}/{len(MODELS)} hindcast strips cached for start month {issue[4:6]}")
         return 0 if all(got) else 1

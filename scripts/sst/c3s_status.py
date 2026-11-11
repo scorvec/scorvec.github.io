@@ -29,7 +29,7 @@ SITE = Path(os.environ.get("SST_SITE_ROOT", HERE.parents[1]))
 DATA = SITE / "assets" / "sst" / "data"
 OUT = DATA / "c3s_status.json"
 
-# the registry, read without importing the modules (they pull cdsapi/xarray)
+# the registry, read without importing the modules (they pull xarray and the CDS client)
 from c3s_nino34 import MERGE, MODELS  # (light: numpy/pandas/xarray only)
 from enso_models import EXCLUDE_SYSTEMS
 

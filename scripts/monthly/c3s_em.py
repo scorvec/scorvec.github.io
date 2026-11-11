@@ -85,11 +85,8 @@ def fc_path(centre: str, system: str, var: str, issue: str) -> Path:
 # ------------------------------------------------------------------------------------------------------- fetching
 def retrieve(centre: str, system: str, var: str, years, month: int, dest: Path) -> bool:
     """One CDS request of a REQUEST variable for 0-90N on whole degrees (the grid its tables have always had)."""
-    from c3s_ref import guard_fetch
+    from c3s_nino34 import cds_fetch
     from cds_seq import available
-
-    guard_fetch("Copernicus CDS")
-    import cdsapi
 
     ds, cvar, level = REQUEST[var]
     req = {
@@ -110,19 +107,7 @@ def retrieve(centre: str, system: str, var: str, years, month: int, dest: Path) 
     if available(ds, req) is False:
         print(f"  {centre}_{system} {var} {month:02d}: not in the CDS catalogue yet", flush=True)
         return False
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    for attempt in range(2):
-        try:
-            cl = cdsapi.Client(timeout=900, quiet=True, progress=False, wait_until_complete=True, retry_max=1)
-            cl.retrieve(ds, req, str(dest))
-            return dest.exists() and dest.stat().st_size > 0
-        except Exception as e:  # noqa: BLE001  a system or issue the CDS does not hold (yet)
-            msg = str(e).replace("\n", " ")
-            print(f"  {centre}_{system} {var} {month:02d}: attempt {attempt + 1} failed ({msg[:120]})", flush=True)
-            if "no data" in msg.lower():
-                return False
-            time.sleep(10)
-    return False
+    return cds_fetch(ds, req, dest, f"{centre}_{system} {var} {month:02d}")
 
 
 def reduce(path: Path, var: str, hindcast: bool) -> tuple[np.ndarray, np.ndarray, np.ndarray, str]:
@@ -281,6 +266,10 @@ def main() -> int:
         print(f"pulled {pull(want)} of {len(want)} tables from {TAG}", flush=True)
     t0 = time.time()
     left = lambda: (time.time() - t0) / 60 < a.budget_min  # noqa: E731
+    if a.issue or a.hindcast:
+        from c3s_nino34 import queue_budget
+
+        queue_budget(a.budget_min)  # the same limit on waiting for a place in the CDS queue
     if a.issue:
         for c, s in systems():
             for var in REQUEST:

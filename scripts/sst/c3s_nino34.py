@@ -113,20 +113,34 @@ MODELS = [
 ]
 
 
-def _client():
+_QUEUE = {"by": time.time() + 30 * 60}  # epoch s: when this process stops waiting for a place in the CDS queue
+
+
+def queue_budget(minutes: float) -> None:
+    """This process's requests wait for a place in the CDS queue until `minutes` from now (30 unless set)."""
+    _QUEUE["by"] = time.time() + 60 * minutes
+
+
+def cds_fetch(dataset: str, req: dict, dest: Path, label: str, force: bool = False) -> bool:
+    """One CDS request → dest, the one way every C3S script fetches (cds_seq.retrieve): a request an earlier run left
+    in the CDS queue is taken over, one the CDS holds in its cache comes at once, and any other waits its turn on the
+    key, then for a place in the CDS queue, until the queue budget ends. False when the CDS has no such data, the
+    request failed or it found no place in time (left for a later run). force: fetch over a file already held."""
+    if dest.exists() and dest.stat().st_size > 0 and not force:
+        return True
     from c3s_ref import guard_fetch  # CDS downloads run in GitHub Actions only (c3s.yml)
+    from cds_seq import retrieve
 
     guard_fetch("Copernicus CDS")
-    import cdsapi
-
-    return cdsapi.Client(timeout=600, quiet=True, progress=False, wait_until_complete=True, retry_max=1)
+    new = dest.with_name(dest.name + ".new") if force else dest
+    ok = retrieve(dataset, req, new, label, start_by=_QUEUE["by"], probe=True)
+    if ok and force:
+        new.replace(dest)
+    return ok
 
 
 def _retrieve(centre, system, years, month, dest: Path, area, grid) -> bool:
-    """Area-subset SST retrieval → dest. False on MarsNoData / failure (skip)."""
-    if dest.exists() and dest.stat().st_size > 0:
-        return True
-    dest.parent.mkdir(parents=True, exist_ok=True)
+    """Area-subset SST retrieval → dest. False when the CDS has no such data or the request did not come (skip)."""
     req = {
         "originating_centre": centre,
         "system": system,
@@ -139,18 +153,7 @@ def _retrieve(centre, system, years, month, dest: Path, area, grid) -> bool:
         "grid": grid,
         "data_format": "grib",
     }
-    for attempt in range(2):
-        try:
-            _client().retrieve(DATASET, req, str(dest))
-            return dest.exists() and dest.stat().st_size > 0
-        except Exception as e:
-            msg = str(e).replace("\n", " ")
-            if "no data" in msg.lower():
-                print(f"    {centre}/{system} {month}: no data on CDS — skipping", file=sys.stderr)
-                return False
-            print(f"    {centre}/{system} {month}: attempt {attempt + 1} failed ({msg[:90]})", file=sys.stderr)
-            time.sleep(8)
-    return False
+    return cds_fetch(DATASET, req, dest, f"{centre}/{system} {month}")
 
 
 def _box_series(path: Path, lat_rng, lon_rng, keys=("number", "dataDate", "dataTime", "forecastMonth")) -> dict:
