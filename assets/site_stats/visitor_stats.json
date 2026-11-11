@@ -1,13 +1,13 @@
 {
  "updated": "2026-11-11",
- "total_30d": 2367,
+ "total_30d": 2437,
  "countries_30d": 52,
- "total_all": 3458,
+ "total_all": 3528,
  "countries_all": 56,
  "top_pages_30d": [
   {
    "path": "/stratosphere.html",
-   "count": 286
+   "count": 301
   },
   {
    "path": "/midterms",
@@ -15,35 +15,35 @@
   },
   {
    "path": "/",
-   "count": 233
+   "count": 239
   },
   {
    "path": "/circulation.html",
-   "count": 164
+   "count": 170
   },
   {
    "path": "/enso.html",
-   "count": 131
+   "count": 135
   },
   {
    "path": "/ssw.html",
-   "count": 121
+   "count": 124
   },
   {
    "path": "/mjo.html",
-   "count": 104
+   "count": 106
   },
   {
    "path": "/models.html",
-   "count": 82
+   "count": 84
   },
   {
    "path": "/seasonal.html",
-   "count": 70
+   "count": 71
   },
   {
-   "path": "/subseasonal.html",
-   "count": 61
+   "path": "/catalog.html",
+   "count": 66
   }
  ]
 }
