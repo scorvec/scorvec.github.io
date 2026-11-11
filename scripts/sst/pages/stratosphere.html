@@ -974,10 +974,9 @@ $$\frac{\partial\bar u}{\partial t} \;=\; \hat f\,\bar v^{*} \;-\; \bar w^{*}\fr
     }
     </script>
 <script>
-// old deep links to views that moved when the drips and the heat flux were split by range
-(function () { var h = location.hash, m = h.match(/^#fdrip\/(aifs|ifs)(\/|$)/), n = h.match(/^#heatflux\/(nh|sh)\/(geps|gefs)(\/|$)/);
-  var to = m ? "#fdrip15/" + m[1] : n ? "#heatflux35/" + n[1] + "/" + n[2] : null;
-  if (to) history.replaceState(null, "", location.pathname + location.search + to); })();
+// old deep links to the drips' days 1-15 models, which moved when the drips were split by range
+(function () { var m = location.hash.match(/^#fdrip\/(aifs|ifs)(\/|$)/);
+  if (m) history.replaceState(null, "", location.pathname + location.search + "#fdrip15/" + m[1]); })();
 window.STAGE = {
   aliases: {wave1: "waves/1"},  // the wave-1 maps became one product with wave-2
   groups: [
@@ -1229,7 +1228,7 @@ window.STAGE = {
   heatflux: {label: "100 hPa eddy heat flux, days 1–15", a: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
           b: {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"],["gefs","GEFS"],["geps","GEPS"]]},
           c: {label: "View", items: [["now","This run"],["map","Maps every 12 h (north)"],["runs","Run to run (north)"]]},
-          frame: function (a, b, c) { var r = "heatflux_map_" + b; return c === "map" ? "sst_anim.html?embed=1&manifest=" + r + "_manifest.json&region=" + r + "&regions=" + r : null; },
+          frame: function (a, b, c) { var r = "heatflux_map_" + b; return c === "map" ? "sst_anim.html?embed=1&manifest=" + r + "_manifest.json&region=" + r + "&regions=" + r + "&start=0" : null; },
           ratio: function () { return "880/935"; },
           img: function (a, b, c) { var h = a === "sh" ? "sh" : "nh";
                                     return c === "runs" ? "assets/sst/runs/heatflux_" + b + ".webp" : "assets/sst/" + (b === "aifs" ? "" : b + "_") + "heatflux100_" + h + ".webp"; }, bust: "hourly", about: "about-heatflux", fit: false,
