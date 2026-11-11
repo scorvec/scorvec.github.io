@@ -259,7 +259,8 @@ jobs:
           # members first (one small request per system and field), then what the change from the previous issue is
           # tested with (small: the two start months' hindcast means), then the hindcast spread each map is tested with
           # (once per start month: t2m and precipitation shared with the tercile tables, sea-level pressure and SST for
-          # the test alone) under the same budget rule as the tercile step; a field without it is left off the maps
+          # the test alone) under the same budget rule as the tercile step; a field without it is left off the maps, and
+          # the maps stay the previous issue's until one field has it for most systems
           LEFT=$(( 340 - ( $(date +%s) - JOB_T0 ) / 60 - 90 ))
           B="${{ inputs.budget_min || '150' }}"; [ "$LEFT" -lt "$B" ] && B=$LEFT
           [ "$B" -ge 1 ] || B=0.01
@@ -269,7 +270,7 @@ jobs:
             python scripts/sst/c3s_maps_render.py --issue "$I" || echo "::warning::c3s map render failed; keeping the previous issue"
             python scripts/sst/c3s_indices.py --issue "$I" || echo "::warning::c3s indices failed; keeping the previous issue"
           else
-            echo "::warning::under 75% of the map fields are on the CDS yet; keeping the previous issue"
+            echo "::warning::under 75% of the map fields are fetched, or no field has its hindcast spread for 75% of the systems yet; keeping the previous issue"
           fi
 
       # The rest of the plume part, after the maps: its requests are small, but each can wait an hour or more in the CDS

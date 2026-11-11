@@ -401,8 +401,18 @@ def main() -> int:
     print(f"{tested}/{want_n} hindcast spread table(s) for start month {a.issue[4:6]}", flush=True)
     print(f"{paired}/{want_n} change table(s) against start month {prev[4:6]}", flush=True)
     # a half-published issue must not reach the renderer: last month's complete set is better than this month's two
-    # systems
-    return 0 if got >= 0.75 * want_n else 1
+    # systems. Nor one it cannot draw: a map needs its members and their hindcast spread, so some field must hold both
+    # for most systems
+    drawable = max(
+        (
+            sum(
+                CR.is_anom(c, s, k, a.issue).exists() and CR.hc_anom(c, s, k, a.issue[4:6]).exists() for c, s in systems
+            )
+            for k in want
+        ),
+        default=0,
+    )
+    return 0 if got >= 0.75 * want_n and drawable >= 0.75 * len(systems) else 1
 
 
 if __name__ == "__main__":
