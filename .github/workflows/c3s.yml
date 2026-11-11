@@ -229,11 +229,11 @@ jobs:
           restore-keys: |
             seas5-fc-${{ steps.gate.outputs.issue }}-
 
-      - name: ENSO plume, evolution and east/central flavour
+      - name: ENSO plume and its evolution
         id: enso
         if: steps.gate.outputs.run == '1'
         run: |
-          I=${{ steps.gate.outputs.issue }}; M=${{ steps.gate.outputs.month }}
+          I=${{ steps.gate.outputs.issue }}
           if [ "${{ steps.parts.outputs.do_enso }}" != "1" ]; then
             # already built: the other parts may proceed if the published plume is this issue
             if [ "${{ steps.parts.outputs.plume_done }}" = "1" ] || python3 -c "import json,sys; sys.exit(0 if json.load(open('assets/sst/data/enso_forecast.json'))['issue']=='${I:0:4}-${I:4:2}' else 1)"; then
@@ -250,15 +250,6 @@ jobs:
           [ $rc -eq 0 ] || { echo "::error::C3S plume failed"; exit 1; }
           echo "ready=1" >> "$GITHUB_OUTPUT"
           python scripts/sst/c3s_evolution.py || echo "::warning::evolution store update failed"
-          # the flavour's hindcast test runs once per start month; its result is committed
-          if [ ! -f "scripts/sst/reference/enso_flavour_hindcast_${M}.json" ]; then
-            python scripts/sst/c3s_enso_flavour.py --issue "$I" --fetch-hindcast || echo "::warning::hindcast strips incomplete; the test waits for them"
-          fi
-          python scripts/sst/c3s_enso_flavour.py --issue "$I" || echo "::warning::east/central build failed; keeping the previous issue"
-          # the peak-odds calibration test runs once per start month on the plume's own hindcast files (any the
-          # climatology step did not just fetch are fetched one at a time); its result is committed, then the verdict
-          # for this issue is written
-          python scripts/sst/enso_peak_calib.py --fetch || echo "::warning::peak-odds calibration step failed; the page keeps the previous verdict"
 
       - name: Anomaly maps and ocean indices (postprocessed members, tested against each system's hindcast spread)
         id: maps
@@ -280,6 +271,26 @@ jobs:
           else
             echo "::warning::under 75% of the map fields are on the CDS yet; keeping the previous issue"
           fi
+
+      # The rest of the plume part, after the maps: its requests are small, but each can wait an hour or more in the CDS
+      # queue, and the maps must not wait behind them. The part counts as done once the flavour is this issue's.
+      - name: East/central flavour and peak-odds calibration
+        if: steps.gate.outputs.run == '1' && steps.enso.outputs.ready == '1' && steps.parts.outputs.do_enso == '1'
+        run: |
+          I=${{ steps.gate.outputs.issue }}; M=${{ steps.gate.outputs.month }}
+          # each command under a hard stop that leaves the job 30 min to save, upload and commit what it has
+          bounded() {
+            local tl=$(( 340 - ( $(date +%s) - JOB_T0 ) / 60 - 30 ))
+            [ "$tl" -gt 5 ] && timeout --signal=INT "${tl}m" "$@"
+          }
+          # the flavour's hindcast test runs once per start month; its result is committed
+          if [ ! -f "scripts/sst/reference/enso_flavour_hindcast_${M}.json" ]; then
+            bounded python scripts/sst/c3s_enso_flavour.py --issue "$I" --fetch-hindcast || echo "::warning::hindcast strips incomplete; the test waits for them"
+          fi
+          bounded python scripts/sst/c3s_enso_flavour.py --issue "$I" || echo "::warning::east/central build incomplete; keeping the previous issue (the next run continues)"
+          # the peak-odds calibration test runs once per start month on the plume's own hindcast files (any not on
+          # disk are fetched one at a time); its result is committed, then the verdict for this issue is written
+          bounded python scripts/sst/enso_peak_calib.py --fetch || echo "::warning::peak-odds calibration step incomplete; the page keeps the previous verdict"
 
       # also after a cancelled or failed step, so whatever was fetched is kept (e.g. by a run cancelled mid-plume)
       - name: Save this issue's small C3S files now
