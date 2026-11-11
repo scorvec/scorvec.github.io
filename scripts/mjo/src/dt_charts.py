@@ -8,8 +8,8 @@ mirror (tclib.oper_fields) once every step is there (cycles.IFS_HRES_D10):
   the dynamic tropopause           first crossing of 2 PVU searching upward from 700 hPa; θ, p and the wind
                                    interpolated linearly in PV between the bracketing levels
   isentropic PV                    PV and wind interpolated in θ onto 330 K and 350 K
-Rendered on the hemispheric polar view (loops dt, dt_pv330, dt_pv350) and five regional views (suffix _npac, _na, _atl,
-_asia: Lambert; _sam: plate carree): 18 loops in dt_manifest.json.
+Rendered on the hemispheric polar view (loops dt, dt_pv330, dt_pv350) and six regional views (suffix _npac, _na, _atl,
+_asia: Lambert; _sam, _tatl: plate carree): 21 loops in dt_manifest.json.
     python src/dt_charts.py --date 20260906 --time 00 --anim-dir ../../assets/sst/anim \
         --manifest ../../assets/sst/anim/dt_manifest.json
 """
@@ -41,9 +41,16 @@ A_EARTH, OMEGA, G0, KAPPA = 6.371e6, 7.2921e-5, 9.80665, 0.2857
 LAT0 = -80.0  # southern edge of the computation (South America;
 # the NH regional Lambert maps reach ~10N at their
 # corners; tropics: no 2-PVU crossing below 100 hPa = 100 hPa values)
+# What a map shows by the hemisphere(s) it covers, a region's "hemi": the PV threshold of the dynamic tropopause, the
+# name of the isentropic field and the note on its sign.
+HEMI = {
+    "n": ("2 PVU", "PV", ""),
+    "s": ("−2 PVU", "−PV", "; Southern Hemisphere, sign flipped"),
+    "b": ("±2 PVU", "PV", "; sign flipped south of the equator"),
+}
 THETAS = (330.0, 350.0)
 CENTRAL_LON = -140.0
-# the hemispheric polar view plus five regional views, every field in each. lon in 0..360, a range may wrap.
+# the hemispheric polar view plus six regional views, every field in each. lon in 0..360, a range may wrap.
 REGIONS = {
     "nh": dict(label="Northern Hemisphere"),
     "npac": dict(label="North Pacific", lon=(115, 250), lat=(17, 72), clon=-178, clat=45),
@@ -54,7 +61,11 @@ REGIONS = {
     # (same colours and thresholds as the NH). Plate carree: a southern Lambert cone in a frame this wide tilts the
     # continent and spends half the map on the tropics. Wide enough to show troughs coming in from the SE Pacific and
     # leaving into the South Atlantic, and the whole continent north to 12N.
-    "sam": dict(label="South America", lon=(230, 5), lat=(-68, 12), clon=-65, clat=-28, sh=True, proj="pc"),
+    "sam": dict(label="South America", lon=(230, 5), lat=(-68, 12), clon=-65, clat=-28, hemi="s", proj="pc"),
+    # The Atlantic across the equator: PV streamers and cut-off lows that leave either hemisphere's jet for the
+    # tropics, from the wave breaking that sheds them to northern South America and West Africa. Each hemisphere is
+    # drawn in its own sign (2 PVU north of the equator, -2 PVU south of it), so stratospheric air has one colour.
+    "tatl": dict(label="Tropical Atlantic", lon=(260, 30), lat=(-38, 52), clon=-35, clat=7, hemi="b", proj="pc"),
 }
 DT_LEV = np.arange(260, 401, 5)
 # θ on the dynamic tropopause: purple/blue = low θ (troughs, cut-offs, stratospheric air folded down), greens through
@@ -170,7 +181,7 @@ RG_TOP, RG_BOT = 0.40, 0.80  # inches: title band; colour-bar band under the map
 
 
 def _frame_region(rg):
-    """A wide figure with one regional map (Lambert, or plate carree for South America) and the colour-bar axes under it.
+    """A wide figure with one regional map (Lambert, or plate carree where "proj" says so) and the colour-bar axes under it.
     The figure height follows the map's own aspect, so there is no white band above the title or under the map. The
     size depends only on the region, so every frame of one loop is the same."""
     import cartopy.crs as ccrs
@@ -178,7 +189,7 @@ def _frame_region(rg):
 
     R = REGIONS[rg]
     fig = plt.figure(figsize=(RG_W, RG_H))
-    sh = R.get("sh", False)
+    sh = R.get("hemi") == "s"
     if R.get("proj") == "pc":  # cut at clon+180, the same as _subset's
         proj = ccrs.PlateCarree(central_longitude=R["clon"])
     else:
@@ -210,15 +221,21 @@ def _subset(rg, lat, lon, *fields):
     # The whole hemisphere around the map's centre longitude: a Lambert map's top corners reach across the pole to the
     # far side, and a box-shaped subset left white wedges there. The cone's cut sits at clon+180, so longitudes run
     # clon-179 .. clon+179 and no cell straddles it.
-    clon = REGIONS[rg]["clon"]
-    jl = (
-        np.where((lat > -89.9) & (lat <= 30))[0] if REGIONS[rg].get("sh") else np.where((lat >= -10) & (lat < 90))[0]
-    )  # pole row off
+    R = REGIONS[rg]
+    clon = R["clon"]
+    lat0, lat1 = {"n": (-10, 89.9), "s": (-89.9, 30), "b": (R["lat"][0] - 2, R["lat"][1] + 2)}[R.get("hemi", "n")]
+    jl = np.where((lat >= lat0) & (lat <= lat1))[0]  # pole row off
     off = (lon - clon + 180) % 360
     il = np.where((off >= 1) & (off <= 359))[0]
     il = il[np.argsort(off[il])]
     lon_u = clon - 180 + off[il]
     return lat[jl], lon_u, [f[np.ix_(jl, il)] for f in fields]
+
+
+def _by_hemisphere(lat, north, south):
+    """One surface's fields (lat, lon) from `north` at and north of the equator and from `south` south of it."""
+    n = (lat >= 0)[:, None]
+    return {k: np.where(n, north[k], south[k]) for k in north}
 
 
 def _bar(fig, cf, cax, label):
@@ -356,17 +373,22 @@ def main() -> int:
         j = lat >= LAT0
         T, U, V, lat = T[:, j], U[:, j], V[:, j], lat[j]
         pv, th = pv_step(T, U, V, p_pa, lat, lon)
-        dt = dynamic_tropopause(pv, th, U, V, p_pa)
-        isos = {th_: on_isentrope(pv, th, U, V, th_) for th_ in THETAS}
-        if any(R.get("sh") for R in REGIONS.values()):  # Southern Hemisphere: on -PV
-            dt_s = dynamic_tropopause(-pv, th, U, V, p_pa)
-            isos_s = {th_: on_isentrope(-pv, th, U, V, th_) for th_ in THETAS}
+        # the dynamic tropopause and the isentropes on PV ("n"), on -PV ("s") and on each hemisphere's own ("b")
+        surf = {
+            "n": (dynamic_tropopause(pv, th, U, V, p_pa), {th_: on_isentrope(pv, th, U, V, th_) for th_ in THETAS}),
+            "s": (dynamic_tropopause(-pv, th, U, V, p_pa), {th_: on_isentrope(-pv, th, U, V, th_) for th_ in THETAS}),
+        }
+        surf["b"] = (
+            _by_hemisphere(lat, surf["n"][0], surf["s"][0]),
+            {th_: _by_hemisphere(lat, surf["n"][1][th_], surf["s"][1][th_]) for th_ in THETAS},
+        )
         valid = init + pd.Timedelta(hours=int(h))
         lab = ("analysis" if h == 0 else f"+{h} h") + f" · {valid:%a %d %b %HZ}"
         for rg, R in REGIONS.items():
             polar = rg == "nh"
-            sh = R.get("sh", False)
-            dtr, isr, pvt, sg = (dt_s, isos_s, "−2 PVU", "−PV") if sh else (dt, isos, "2 PVU", "PV")
+            hemi = R.get("hemi", "n")
+            dtr, isr = surf[hemi]
+            pvt, sg, sign = HEMI[hemi]
             for f, _flab in FIELDS:
                 if f == "dt":
                     fld, pc, uu, vv, kind = dtr["theta"], dtr["p"], dtr["u"], dtr["v"], "dt"
@@ -377,9 +399,8 @@ def main() -> int:
                     th_ = 330 if f == "dt_pv330" else 350
                     fld, pc, uu, vv, kind = iso["pv"], None, iso["u"], iso["v"], "pv"
                     blab = (
-                        f"{sg} on {th_} K (PVU"
-                        + ("; Southern Hemisphere, sign flipped" if sh else "")
-                        + f") · black line: {pvt} (the dynamic tropopause on this surface) · arrows: wind on {th_} K"
+                        f"{sg} on {th_} K (PVU{sign}) · black line: {pvt} (the dynamic tropopause on this surface)"
+                        f" · arrows: wind on {th_} K"
                     )
                     ttl = f"{sg} on {th_} K · {R['label']} — {MODEL_LAB}, init {init:%d %b %HZ} · {lab}"
                 if polar:

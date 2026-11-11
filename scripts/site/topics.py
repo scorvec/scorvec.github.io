@@ -628,8 +628,9 @@ $\zeta_\theta$, from the temperature and wind of the IFS control (ECMWF's unpert
 May 2026) on nine levels from 700 to 100 hPa, every 6 hours to day 10. A single run is used on purpose: potential vorticity does not survive ensemble averaging,
 because the mean of fifty differently placed folds is a smear. The 2-PVU surface is found by searching upward from
 700 hPa, and isentropic PV by interpolation in θ. Where PV is still below 2 PVU at 100 hPa (the deep tropics) the
-maps show the 100 hPa values. Besides the hemispheric map there are five regional views; the South America one is
-on the −2-PVU surface, because PV is negative in the Southern Hemisphere.</p>
+maps show the 100 hPa values. Besides the hemispheric map there are six regional views; the South America one is
+on the −2-PVU surface, because PV is negative in the Southern Hemisphere, and the tropical Atlantic one, which spans
+the equator, draws each hemisphere in its own sign.</p>
 """,
         figures=[
             loop(
