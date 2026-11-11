@@ -26,7 +26,7 @@ import polarcap as PC
 import run_record as RR
 
 STEPS = tuple(range(0, 361, 12))  # h
-LEVELS = np.arange(-200, 201, 20)  # K m s-1
+LEVELS = np.arange(-150, 151, 15)  # K m s-1
 
 
 def flux(v: np.ndarray, t: np.ndarray) -> np.ndarray:
