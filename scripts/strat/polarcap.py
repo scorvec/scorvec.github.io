@@ -433,30 +433,30 @@ def _panel(fig, pos, mean, anom, gate, levels, contour_step, label, title, high=
     import cartopy.feature as cfeature
     import matplotlib.pyplot as plt
     import vortex_winds as VW
+    from matplotlib.axes import Axes
 
-    pc = ccrs.PlateCarree()
-    ax = fig.add_axes(pos, projection=ccrs.NorthPolarStereo(central_longitude=0))
+    pc, proj = ccrs.PlateCarree(), ccrs.NorthPolarStereo(central_longitude=0)
+    ax = fig.add_axes(pos, projection=proj)
     ax.set_extent([-180, 180, CLAT[0] + 0.5, 90], crs=pc)
     VW.circular_boundary(ax)
-    lon = np.append(CLON, 360.0)
+    # the cells in the map's own coordinates, contoured by matplotlib's Axes: GeoAxes.contourf projects the filled
+    # polygons one by one, and one that comes out inside-out fills the whole map (the grey lost, a colour everywhere)
+    x, y = proj.transform_points(pc, *np.meshgrid(np.append(CLON, 360.0), CLAT))[..., :2].transpose(2, 0, 1)
     cyc = lambda a: np.concatenate([a, a[:, :1]], axis=1)  # noqa: E731
     anom, gate = _pole(anom), _pole(gate)
-    ax.contourf(
-        lon, CLAT, cyc(np.where(gate, np.nan, 1.0)), levels=[0.5, 1.5], colors=[NEUTRAL], transform=pc, zorder=1
-    )
+    Axes.contourf(ax, x, y, cyc(np.where(gate, np.nan, 1.0)), levels=[0.5, 1.5], colors=[NEUTRAL], zorder=1)
     shown = np.where(gate, anom, np.nan)
-    cf = ax.contourf(lon, CLAT, cyc(shown), levels=levels, cmap="RdBu_r", extend="both", transform=pc, zorder=2)
+    cf = Axes.contourf(ax, x, y, cyc(shown), levels=levels, cmap="RdBu_r", extend="both", zorder=2)
     if high is not None:
-        ax.contourf(lon, CLAT, cyc(np.where(high, 1.0, np.nan)), levels=[0.5, 1.5], colors=["white"], transform=pc,
-                    zorder=2.5)  # fmt: skip
+        Axes.contourf(ax, x, y, cyc(np.where(high, 1.0, np.nan)), levels=[0.5, 1.5], colors=["white"], zorder=2.5)
     if mean is not None:
         mean = _pole(mean)
         lo, hi = (
             np.floor(np.nanmin(mean) / contour_step) * contour_step,
             np.ceil(np.nanmax(mean) / contour_step) * contour_step,
         )
-        cs = ax.contour(lon, CLAT, cyc(mean), levels=np.arange(lo, hi + 1, contour_step), colors="#111",
-                        linewidths=0.8, transform=pc, zorder=3)  # fmt: skip
+        cs = Axes.contour(ax, x, y, cyc(mean), levels=np.arange(lo, hi + 1, contour_step), colors="#111",
+                        linewidths=0.8, zorder=3)  # fmt: skip
         ax.clabel(cs, fmt="%d", fontsize=6.5, inline_spacing=2)
     ax.add_feature(cfeature.COASTLINE.with_scale("110m"), edgecolor="#2b2b2b", linewidth=0.55, zorder=4)
     gl = ax.gridlines(linewidth=0.3, color="#8a8a8a", alpha=0.5, zorder=5)
