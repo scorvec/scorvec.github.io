@@ -445,6 +445,7 @@ def shown(model: str, ref: str = "origin/main") -> str:
     for rel, key, fmt in (
         (f"assets/sst/data/{model}_drip.json", "init", "%Y-%m-%d %HZ"),
         (f"assets/sst/data/{model}_heatflux100.json", "init", "%Y-%m-%dT%H:%M:%S"),
+        (f"assets/sst/anim/heatflux_map_{model}_manifest.json", "ver", "%Y%m%d%H"),
         (f"assets/sst/anim/wave1_maps_{model}_manifest.json", "ver", "%Y%m%d%H"),
         (f"assets/sst/anim/wave2_maps_{model}_manifest.json", "ver", "%Y%m%d%H"),
         (f"assets/sst/anim/vortex_winds_{model}_manifest.json", "ver", "%Y%m%d%H"),
