@@ -409,10 +409,13 @@ document.addEventListener('click', function (e) {
 // Maps that fill the window (the viewers' .mv-map, or any element marked data-fit): --fit-top is the element's top on
 // the page and --fit-below the height of what must stay on screen under it (data-fit-below, a selector: the viewers'
 // Show row), so a height of calc(100vh - var(--fit-top) - var(--fit-below)) puts the whole map and its controls on
-// the first screen, at any window size, with nothing to scroll. Re-measured when anything above it changes height.
+// the first screen, at any window size, with nothing to scroll. --fit-lead (data-fit-with, a selector: a viewer's time
+// bar) is what a taller map shares the screen with once the page is scrolled to that element: the sticky header and
+// the distance from the element's top to the map's. Re-measured when anything above it changes height.
 (function () {
   var els = document.querySelectorAll('.mv-map, [data-fit]');
   if (!els.length) return;
+  var header = document.querySelector('.sh');
   function measure() {
     els.forEach(function (el) {
       var top = el.getBoundingClientRect().top + window.scrollY, below = 0;
@@ -420,6 +423,8 @@ document.addEventListener('click', function (e) {
       if (sel) document.querySelectorAll(sel).forEach(function (b) { if (b.offsetParent) below += b.getBoundingClientRect().height; });
       el.style.setProperty('--fit-top', Math.round(top) + 'px');
       el.style.setProperty('--fit-below', Math.round(below) + 'px');
+      var lead = el.getAttribute('data-fit-with'), first = lead && document.querySelector(lead);
+      if (first) el.style.setProperty('--fit-lead', Math.round((header ? header.offsetHeight : 0) + top - first.getBoundingClientRect().top - window.scrollY) + 'px');
     });
   }
   measure();

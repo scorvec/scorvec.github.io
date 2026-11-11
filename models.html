@@ -37,7 +37,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-<script src="/assets/site.js?v=a5451a6564" defer></script>
+<script src="/assets/site.js?v=d9be2cb04d" defer></script>
 <script src="/assets/frames_root.js?v=37e1429f1f"></script>
 <link rel="stylesheet" href="/assets/site.css?v=195e33a1fe">
 <style>
@@ -100,8 +100,10 @@
   /* touch: one finger scrolls the page, two move and zoom the map (the map is most of a phone's screen; a one-finger
      pan there left no way to scroll past it) */
   /* the map fills the window under its controls with its Show row still on screen (site.js sets --fit-top and
-     --fit-below), never shorter than 420 px */
-  .mv-map { position: relative; width: 100%; height: max(420px, calc(100vh - var(--fit-top, 260px) - var(--fit-below, 0px) - 14px)); background: var(--map); border: 1px solid var(--rule);
+     --fit-below), never shorter than 420 px, and never flatter than about 5:3 (its width is the window's less the
+     margins and the legend) where the window is tall enough for that: the page then scrolls, and scrolled to the
+     time bar, the bar and the whole map share the screen (--fit-lead: the header and the time bar) */
+  .mv-map { position: relative; width: 100%; height: max(420px, calc(100vh - var(--fit-top, 260px) - var(--fit-below, 0px) - 14px), min(calc(100vh - var(--fit-lead, 150px) - 14px), calc((100vw - 200px) * 0.6))); background: var(--map); border: 1px solid var(--rule);
             border-radius: 8px; overflow: hidden; touch-action: pan-x pan-y; cursor: grab;
             -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   .mv-map.drag { cursor: grabbing; }
@@ -302,17 +304,16 @@
   /* the controls scale with the window (--ui, set at the end of the head): full size on a large screen, smaller on a
      laptop, so the buttons leave the map most of the window; phones (<= 640 px) have their own compact layout */
   @media (min-width: 641px) { .mv-bar, .mv-time, .mv-show, .mv-find, .mv-zoom { zoom: var(--ui, 1); } }
-  /* above 640 px the viewer opens the page: the introduction and the data note go under the map, its legend caption
-     and Show row; a short window gets a compact title, and the map picker is a menu */
+  /* above 640 px the viewer opens the page: a compact title, and the introduction and the data note go under the
+     map, its legend caption and Show row; in a short window the map picker is a menu */
   @media (min-width: 641px) {
-    main.mv { display: flex; flex-direction: column; }
+    main.mv { display: flex; flex-direction: column; padding-top: 0.5rem; }
+    main.mv > h1 { font-size: var(--t-h1-compact); margin: 0 0 0.45rem; }
     main.mv > .mv-mapwrap ~ * { order: 3; }
     main.mv > .mv-mapwrap ~ :is(.mv-legT, .mv-show, .mv-find) { order: 1; }
     main.mv > :is(.lede, .mv-data) { order: 2; margin-top: 0.9rem; }
   }
   @media (min-width: 641px) and (max-height: 900px) {
-    main.mv { padding-top: 0.5rem; }
-    main.mv > h1 { font-size: var(--t-h1-compact); margin: 0 0 0.45rem; }
     .mv-fields { display: none; }
     .runsel.mv-fsel { display: inline-flex; flex: 0 1 26rem; }
     .mv-fsel select { flex: 1 1 auto; min-width: 0; }
@@ -537,7 +538,7 @@
   </div>
   </div>
   <div class="mv-mapwrap">
-  <div class="mv-map" id="map" data-fit-below=".mv-legT, .mv-show" tabindex="0" role="application" aria-roledescription="map" aria-label="Model map" aria-describedby="badge mapKeys">
+  <div class="mv-map" id="map" data-fit-below=".mv-legT, .mv-show" data-fit-with=".mv-time" tabindex="0" role="application" aria-roledescription="map" aria-label="Model map" aria-describedby="badge mapKeys">
     <canvas id="gl" aria-hidden="true"></canvas>
     <canvas id="ov" aria-hidden="true"></canvas>
     <canvas id="lab" aria-hidden="true"></canvas>
