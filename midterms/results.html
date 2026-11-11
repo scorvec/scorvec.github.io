@@ -304,7 +304,7 @@ td small{display:block;color:var(--muted);font-size:14px}
  <div class="sec-head"><div><h2 id="h-nat">The national House vote</h2><p class="sec-sub">The Democratic lead in the two-party vote for the House, against every House election since 1946</p></div></div>
  <div class="tiles" id="natTiles"></div>
  <div class="mt-card" style="margin-top:16px"><h3>House vote margin by election, 1946–2026</h3>
-  <svg class="fig" id="natFig" role="img" aria-label="The national House vote margin in every election since 1946, with the 2026 projection and the forecast"></svg>
+  <svg class="fig" id="natFig" role="img" aria-label="The national House vote margin in every election since 1946, with the 2026 count and the forecast"></svg>
   <ul class="leg" id="natLeg"></ul></div>
 </section>
 
@@ -342,7 +342,7 @@ td small{display:block;color:var(--muted);font-size:14px}
  <p>Calls and vote counts come from Wikipedia's 2026 election pages (text available under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>), read every hour. A race counts as called once its winner is marked there. Counts are added as editors fill in each race's results table, or from <a href="https://civicapi.org">civicAPI</a>'s House and Senate tallies when those have more votes counted. Until a state certifies, every margin on this page is the latest count and is marked provisional. Certified official returns replace these numbers as states certify, and from then on the official figures are used. A close race whose results table is still empty can take its count from news reports of the unofficial returns instead, with the share of the expected vote counted: Mississippi's Senate race took the AP count as reported in the press, with the share of the expected vote counted reported alongside it; a newer count keeps that share, scaled by the votes added since. A race a news organisation has called before Wikipedia marks it is entered by hand as called, with the organisation named.</p>
  <p>The projections under each chamber come from the <a href="./">races still out</a>: the forecast's own simulations, updated with every call and count so far.</p>
  <h3>The national House vote</h3>
- <p>The margin is the Democratic lead as a share of the two parties' House votes, (D − R) / (D + R), the measure the forecast uses. Leads quoted as shares of every vote run a few tenths of a point smaller. Past elections are the House totals on Wikipedia's election pages. The projection is the median national vote in the forecast's simulations, reweighted by every call and count so far (the <a href="./">races still out</a>). The counted tally is Wikipedia's national results table once editors fill it in, and civicAPI's national House tally until then. Until every state has counted it runs behind the final vote, and late ballots have run Democratic in recent elections, so the shifts use the median outcome until the count is final. Seats with only one party on the ballot add no votes for the other, which pulls the national vote a little away from the generic ballot.</p>
+ <p>The margin is the Democratic lead as a share of the two parties' House votes, (D − R) / (D + R), the measure the forecast uses. Leads quoted as shares of every vote run a few tenths of a point smaller. Past elections are the House totals on Wikipedia's election pages. The 2026 figure is the count: Wikipedia's national results table once it is official or holds more votes than civicAPI's national House tally, and that tally until then. Until every state has counted it runs behind the final vote (late ballots have run Democratic in recent elections), and the shifts are measured from the count so far. Seats with only one of the two parties on the ballot add no votes for the other. Most of this year's were Democratic seats, so the national margin is about two points wider than the margin in the seats both parties contested.</p>
  <p>The popular vote at the top is every House vote counted so far, by party, from the national House tally of <a href="https://civicapi.org">civicAPI</a>, a free election-results service, read with every update. Parties with less than a twentieth of a percent of the vote are summed as everyone else. It is a count, not a projection: states that count ballots for days or weeks after Election Day (California above all) are not fully in yet, so it runs behind the final vote. Seats with only one party on the ballot add no votes for the other.</p>
  <h3>What is scored</h3>
  <p>The forecast gave each race a chance that the Republican's opponent (a Democrat, or an independent where one led the challenge) wins, and a range for the margin. The chances are scored on every called race: how often the favourite won, the Brier score (the mean squared gap between the chance and what happened; 0 is perfect, and always saying 50 % scores 0.25) and, for House seats, the same score for the race raters' average on the same seats. Margins are scored only once a count is final or certified. The figures above show provisional margins as hollow dots and final ones as solid dots. In the calibration chart, each group's bar is a 95 % interval for its share won, given how few races it holds.</p>
@@ -419,29 +419,27 @@ function chamber(sel,c){
  <p class="ch-sum">Median outcome with the calls and counts so far: ${c.P.p50}–${c.P.r50??c.total-c.P.p50} (Democrats' 80 % range ${c.P.p10}–${c.P.p90})${c.ctl?`, ${pct(c.P.p_control)} ${c.ctl}`:''}. <a href="./">The races still out</a></p>`:''}`);
 }
 
-// the national House vote: the projection, the count so far, and both against past elections and the forecast
+// the national House vote: the count so far, against past elections and the forecast
 const fmtE=v=>Math.abs(v)<0.05?'Even':(v>0?'D+':'R+')+Math.abs(v).toFixed(1);
 const lean=v=>`${v>=0?'D':'R'} +${Math.abs(v).toFixed(1)}`;
 function national(){
  const N=J.national;if(!N)return;
  $('#national').hidden=false;
- const c=N.count,P=LIVE&&LIVE.national,h=Object.fromEntries(N.history),out=[];
- const best=c&&c.final?{v:c.margin,what:'the final count'}:P?{v:P.p50,what:'the median outcome'}:null;   // what the shifts use
- out.push(P?[fmtE(P.p50),'national House vote, median outcome',`80 % range ${fmtE(P.p10)} to ${fmtE(P.p90)}, from the calls and counts so far`]:['–','national House vote, median outcome','the projection could not be loaded']);
- out.push(c?[fmtE(c.margin),c.final?'final national House vote':'counted so far',`Democrats ${c.dem_pct.toFixed(1)} %, Republicans ${c.rep_pct.toFixed(1)} % of ${(c.total/1e6).toFixed(1)} million votes${c.source&&c.source!=='Wikipedia'?' ('+esc(c.source)+')':''}`]:['–','counted national House vote','no national tally yet']);
- if(best){
-  out.push([lean(best.v-h[2024]),'shift since 2024',`2024 ${fmtE(h[2024])}, 2022 ${fmtE(h[2022])}, 2018 ${fmtE(h[2018])}; 2026 from ${best.what}`]);
-  out.push([lean(best.v-N.forecast.center),'against the forecast',`forecast ${fmtE(N.forecast.center)}, 80 % range ${fmtE(N.forecast.p10)} to ${fmtE(N.forecast.p90)}`]);
+ const c=N.count,h=Object.fromEntries(N.history),out=[];
+ out.push(c?[fmtE(c.margin),c.final?'final national House vote':'national House vote, counted so far',`Democrats ${c.dem_pct.toFixed(1)} %, Republicans ${c.rep_pct.toFixed(1)} % of ${(c.total/1e6).toFixed(1)} million votes${c.source&&c.source!=='Wikipedia'?' ('+esc(c.source)+')':''}`]:['–','national House vote','no national tally yet']);
+ if(c){
+  out.push([lean(c.margin-h[2024]),'shift since 2024',`2024 ${fmtE(h[2024])}, 2022 ${fmtE(h[2022])}, 2018 ${fmtE(h[2018])}; 2026 from the ${c.final?'final count':'count so far'}`]);
+  out.push([lean(c.margin-N.forecast.center),'against the forecast',`forecast ${fmtE(N.forecast.center)}, 80 % range ${fmtE(N.forecast.p10)} to ${fmtE(N.forecast.p90)}`]);
  }
  $('#natTiles').innerHTML=out.map(([b,s,m])=>`<div class="tile"><b>${b}</b><span>${s}</span><small>${m}</small></div>`).join('');
  natFig();let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(natFig,150)});
 }
 function natFig(){
- const svg=$('#natFig'),N=J.national,c=N.count,P=LIVE&&LIVE.national,fc=N.forecast;
+ const svg=$('#natFig'),N=J.national,c=N.count,fc=N.forecast;
  const W=Math.max(300,Math.round(svg.getBoundingClientRect().width)||700),H=W<600?250:290,L=48,T=16,Rr=10,B=26;
  const rows=N.history.map(([y,m])=>({y,m}));
- rows.push({y:2026,m:P?P.p50:null,P,c,fc});
- const n=rows.length,bw=(W-L-Rr)/n,vals=[...rows.map(r=>r.m).filter(v=>v!=null),fc.p10,fc.p90,...(P?[P.p10,P.p90]:[]),...(c?[c.margin]:[])];
+ rows.push({y:2026,m:c?c.margin:null,c,fc});
+ const n=rows.length,bw=(W-L-Rr)/n,vals=[...rows.map(r=>r.m).filter(v=>v!=null),fc.p10,fc.p90];
  const lo=Math.min(-10,Math.floor(Math.min(...vals)/10)*10),hi=Math.max(20,Math.ceil(Math.max(...vals)/10)*10);
  const x=k=>L+(k+.5)*bw,y=v=>T+(hi-v)/(hi-lo)*(H-T-B),y0=y(0),step=W<600?20:10;
  let g='<g class="grid">',ax='<g class="ax">',marks='',hits='';
@@ -449,22 +447,21 @@ function natFig(){
  g+='</g>';
  rows.forEach((r,k)=>{
   if((r.y%step===0&&r.y<=2026-step/2)||r.y===2026)ax+=`<text x="${x(k)}" y="${H-8}" text-anchor="middle">${r.y}</text>`;
-  if(r.m!=null){const y1=y(r.m),proj=r.y===2026;   // 2026 is the projection, hatched
+  if(r.m!=null){const y1=y(r.m),proj=r.y===2026&&!r.c.final;   // a count still under way is hatched
    marks+=`<rect class="${r.m>=0?'bd':'br'}${r.y%4?'':' pres'}" x="${x(k)-bw*.36}" y="${Math.min(y0,y1)}" width="${bw*.72}" height="${Math.max(1,Math.abs(y1-y0))}" rx="1.5"${proj?` style="fill:url(#h${r.m>=0?'d':'r'});stroke:var(--${r.m>=0?'d':'r'});stroke-width:1.5"`:''}/>`}
   hits+=`<rect class="hit" data-k="${k}" x="${x(k)-bw/2}" y="${T}" width="${bw}" height="${H-T-B}"/>`;
  });
  ax+='</g>';
  const k6=n-1,x6=x(k6);
- if(P)marks+=`<line class="ci" x1="${x6}" x2="${x6}" y1="${y(P.p10)}" y2="${y(P.p90)}"/><text class="lab" x="${x6+bw*.5}" y="${y(P.p90)-7}" text-anchor="end">${fmtE(P.p50)} median</text>`;
- marks+=`<line class="fc" x1="${x6-bw*.6}" x2="${x6+bw*.6}" y1="${y(fc.center)}" y2="${y(fc.center)}"/>`;
- if(c)marks+=`<circle class="pt prov" cx="${x6}" cy="${y(c.margin)}" r="4.5" style="stroke:var(--ink)"/>`;
+ if(c)marks+=`<text class="lab" x="${x6+bw*.5}" y="${y(Math.max(c.margin,fc.p90))-7}" text-anchor="end">${fmtE(c.margin)}${c.final?'':' so far'}</text>`;
+ marks+=`<line class="ci" x1="${x6}" x2="${x6}" y1="${y(fc.p10)}" y2="${y(fc.p90)}"/><line class="fc" x1="${x6-bw*.6}" x2="${x6+bw*.6}" y1="${y(fc.center)}" y2="${y(fc.center)}"/>`;
  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
  const hatch=c=>`<pattern id="h${c}" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="#fff"/><line x1="1" x2="1" y1="0" y2="5" style="stroke:var(--${c});stroke-width:2.5"/></pattern>`;
  svg.innerHTML=`<defs>${hatch('d')}${hatch('r')}</defs>`+g+ax+`<line class="zero" x1="${L}" x2="${W-Rr}" y1="${y0}" y2="${y0}"/>`+marks+hits;
  bindTips(svg,rows,r=>r.y<2026?`<b>${r.y}</b>, ${r.y%4?'midterm':'presidential year'}<br>${fmtE(r.m)}: Democrats ${(50+r.m/2).toFixed(1)} % of the two-party vote`
-  :`<b>2026</b>, midterm${r.P?`<br>Median outcome ${fmtE(r.P.p50)} (80 %: ${fmtE(r.P.p10)} to ${fmtE(r.P.p90)})`:''}<br>Forecast ${fmtE(r.fc.center)}${r.c?`<br>${r.c.final?'Final':'Counted so far'} ${fmtE(r.c.margin)}`:''}`);
+  :`<b>2026</b>, midterm${r.c?`<br>${r.c.final?'Final':'Counted so far'} ${fmtE(r.c.margin)}: Democrats ${(50+r.c.margin/2).toFixed(1)} % of the two-party vote`:''}<br>Forecast ${fmtE(r.fc.center)} (80 %: ${fmtE(r.fc.p10)} to ${fmtE(r.fc.p90)})`);
  $('#natLeg').innerHTML='<li><i class="sq" style="background:var(--d)"></i>Democratic lead</li><li><i class="sq" style="background:var(--r)"></i>Republican lead</li><li><i class="sq" style="background:var(--muted);opacity:.4"></i>Presidential years, lighter</li>'
-  +(P?'<li><i class="sq" style="background:repeating-linear-gradient(45deg,var(--d) 0 2px,#fff 2px 4px);border:1px solid var(--d)"></i>2026 median outcome</li><li><i class="wh"></i>its 80 % range</li>':'')+'<li><i class="ln"></i>The forecast</li>'+(c?'<li><i class="o"></i>Counted so far</li>':'');
+  +(c&&!c.final?`<li><i class="sq" style="background:repeating-linear-gradient(45deg,var(--${c.margin>=0?'d':'r'}) 0 2px,#fff 2px 4px);border:1px solid var(--${c.margin>=0?'d':'r'})"></i>2026, counted so far</li>`:'')+'<li><i class="ln"></i>The forecast</li><li><i class="wh"></i>its 80 % range</li>';
 }
 
 function counted(){return J.races.filter(r=>r.margin!=null)}

@@ -353,8 +353,8 @@ function init(){
  chamber('#chH',{d:F.house.fixed_d+H.D,r:F.house.fixed_r+H.R,i:H.I,open:H.open,total:435,maj:218,P:hp,F:F.house,what:'seats',ctl:'chance of a Democratic majority'});
  chamber('#chS',{d:F.senate.holdover_d+S.D,r:F.senate.holdover_r+S.R,i:S.I,open:S.open,total:100,maj:51,P:sp,F:F.senate,what:'seats',ctl:'chance of Democratic control'});
  chamber('#chG',{d:F.governor.holdover_d+G.D,r:F.governor.holdover_r+G.R,i:G.I,open:G.open,total:50,maj:null,P:L.governor,F:F.governor,what:'governors'});
- const fmtE=v=>Math.abs(v)<0.05?'Even':(v>0?'D+':'R+')+Math.abs(v).toFixed(1),N=L.national;
- $('#nat').innerHTML=`National House vote, median outcome: ${fmtE(N.p50)} (80 % range ${fmtE(N.p10)} to ${fmtE(N.p90)}). <a href="results.html#national">Against every election since 1946</a>`;
+ const fmtE=v=>Math.abs(v)<0.05?'Even':(v>0?'D+':'R+')+Math.abs(v).toFixed(1),N=R.national&&R.national.count;
+ if(N)$('#nat').innerHTML=`National House vote, ${N.final?'final count':'counted so far'}: ${fmtE(N.margin)} in the two-party vote. <a href="results.html#national">Against every election since 1946</a>`;
  history();dist();
  $$('.mt-tabs button').forEach(b=>b.onclick=()=>{TAB=b.dataset.o;SHOWN=40;ALL=false;$$('.mt-tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));table()});
  $('#more').onclick=()=>{if(LEFT>0)SHOWN+=100;else ALL=true;table()};
