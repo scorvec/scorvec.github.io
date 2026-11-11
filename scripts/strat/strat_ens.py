@@ -25,6 +25,8 @@ THE PARTS (fetch only what the caller needs; the job that runs every product fet
                                                        (heatflux100.fluxes: per member, waves 1-72)   heatflux100_ext
                                                        flux_sib/_can (member, lead) v*T* over Siberia / Canada
                                                        (heatflux100.regional: the regional reflection index)
+  fluxmap 12-hourly 0-360 h  VGRD 100, TMP 100        flux_map (member, lead, lat, lon) v*T* on polarcap.py's
+                                                       cells (heatflux_map.cells)                     heatflux100_ext
   waves   daily 0-360 h      HGT 500/100/10           zwave (member, lead, level, lat, lon) on 1 deg       wave_maps
   winds   12-hourly 0-360 h  UGRD, VGRD, HGT 10/100   wind (lead, level, u|v|gh, lat, lon) ensemble mean, 0.5 deg,
                                                        step 0 the CONTROL (the analysis)                 vortex_winds
@@ -77,14 +79,15 @@ LEV_WAVE = (500, 100, 10)  # wave_maps.LEVELS
 LEV_WIND = (10, 100)  # vortex_winds.LEVELS
 LEADS_DAILY = tuple(range(0, 361, 24))  # the days 1-15 products: analysis + 15 days
 LEADS_VORTEX = tuple(range(0, 385, 24))  # nh_vortex shows every ensemble to its end (day 16)
-LEADS_12H = tuple(range(0, 361, 12))  # the vortex-wind loop
-PARTS = ("vortex", "drip", "flux", "waves", "winds", "polarcap", "omega")
+LEADS_12H = tuple(range(0, 361, 12))  # the vortex-wind and heat-flux map loops
+PARTS = ("vortex", "drip", "flux", "fluxmap", "waves", "winds", "polarcap", "omega")
 MODEL_PARTS = {"gefs": PARTS, "geps": tuple(p for p in PARTS if p != "omega")}  # GEPS: v and T at 11 levels only
 # the arrays each part keeps (the last one decides which members are complete) and the members a part needs
 PART_KEYS = {
     "vortex": ("u60", "t10", "zcap"),
     "drip": ("caps",),
     "flux": ("flux_sib", "flux_can", "flux_tot", "flux_k1", "flux_k2"),
+    "fluxmap": ("flux_map",),
     "waves": ("zwave",),
     "winds": ("wind_n", "wind"),
     "polarcap": ("pc_msl", "pc_z100", "pc_z10", "pc_t10", "pc_z500"),
@@ -106,6 +109,8 @@ def need(parts, L: int, model: str) -> set[tuple[str, int]]:
     if "drip" in parts and L in LEADS_DAILY:
         out |= {("HGT", lev) for lev in LEV_DRIP[model]}
     if "flux" in parts and L in LEADS_DAILY:
+        out |= {("VGRD", 100), ("TMP", 100)}
+    if "fluxmap" in parts and L in LEADS_12H:
         out |= {("VGRD", 100), ("TMP", 100)}
     if "waves" in parts and L in LEADS_DAILY:
         out |= {("HGT", lev) for lev in LEV_WAVE}
@@ -248,7 +253,7 @@ def _empty(key: str, nmem: int, model: str) -> np.ndarray:
         return np.zeros(len(LEADS_DAILY), "int16")
     if key in ("flux_sib", "flux_can"):
         return np.full((nmem, len(LEADS_DAILY)), np.nan, "float32")
-    if key.startswith("flux_"):
+    if key in ("flux_tot", "flux_k1", "flux_k2"):
         return np.full((nmem, len(LEADS_DAILY), LAT.size), np.nan, "float32")
     shape = {
         "u60": (nmem, len(LEADS_VORTEX), 2),
@@ -257,6 +262,7 @@ def _empty(key: str, nmem: int, model: str) -> np.ndarray:
         "caps": (nmem, len(LEADS_DAILY), len(LEV_DRIP[model])),
         "zwave": (nmem, len(LEADS_DAILY), len(LEV_WAVE), LAT.size // 2 + 1, LON.size // 2),
         "wind": (len(LEADS_12H), len(LEV_WIND), 3, LAT.size, LON.size),
+        "flux_map": (nmem, len(LEADS_12H), PC.CLAT.size, PC.CLON.size),
         "pc_msl": (nmem, len(LEADS_DAILY), PC.CLAT.size, PC.CLON.size),
         "pc_z500": (nmem, len(LEADS_DAILY), PC.CLAT.size, PC.CLON.size),
         "pc_z100": (nmem, len(LEADS_DAILY), PC.CLAT.size, PC.CLON.size),
@@ -274,6 +280,7 @@ def fetch(model: str, date: str, hh: str, parts=PARTS, workers: int = 32) -> Pat
     import xarray as xr
 
     import heatflux100 as HF
+    import heatflux_map as HM
     from nh_vortex import polar_t
 
     dest = path(model, date, hh)
@@ -338,6 +345,9 @@ def fetch(model: str, date: str, hh: str, parts=PARTS, workers: int = 32) -> Pat
                 reg = HF.regional(LAT, LON, vt[0].values[:, 0], vt[1].values[:, 0])  # Siberia and Canada v*T*
                 for k in HF.REGIONS:
                     acc[f"flux_{k}"][ms, i] = reg[k]
+        if "fluxmap" in todo and L in LEADS_12H:
+            v, t = (np.stack([got[m][(x, 100)] for m in ms]) for x in ("VGRD", "TMP"))
+            acc["flux_map"][ms, LEADS_12H.index(L)] = HM.cells(LAT, LON, v, t)
         if "winds" in todo and L in LEADS_12H:
             i = LEADS_12H.index(L)
             if L == 0 and 0 not in got:

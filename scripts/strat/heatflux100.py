@@ -38,6 +38,7 @@ This product computes the flux itself from the AIFS-ENS forecast.
     existed; --backfill N rebuilds it). ERA5 itself arrives about five days late.
 
 Outputs  assets/sst/heatflux100_{nh,sh}.webp  +  assets/sst/data/heatflux100.json
+         --map: assets/sst/anim/heatflux_map_aifs/ + its manifest (heatflux_map.py: the flux every 12 hours)
 
     python scripts/strat/heatflux100.py --date 20260918 --time 00 --out-dir assets/sst
 """
@@ -49,6 +50,7 @@ import json
 import sys
 from pathlib import Path
 
+import pyproj  # noqa: F401  (load pyproj's libproj before xarray/eccodes)
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -103,12 +105,13 @@ def open_field(path, short: str):
     return da.transpose("number", "step", "latitude", "longitude")
 
 
+def spec(typ: str, short: str):
+    """The file of v or T at 100 hPa on the daily steps."""
+    return ecmwf.Spec("aifs-ens", typ, short, "pl", (100,), tuple(ecmwf.STEPS))
+
+
 def fetch(cyc, typ: str):
-    out = {}
-    for short in ("v", "t"):
-        spec = ecmwf.Spec("aifs-ens", typ, short, "pl", (100,), tuple(ecmwf.STEPS))
-        out[short] = open_field(ecmwf.ensure(cyc, spec), short)
-    return out["v"], out["t"]
+    return tuple(open_field(ecmwf.ensure(cyc, spec(typ, short)), short) for short in ("v", "t"))
 
 
 def fluxes(v, t):
@@ -652,6 +655,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True)
     ap.add_argument("--time", default="00")
+    ap.add_argument("--map", action="store_true", help="also the maps every 12 hours (heatflux_map.py)")
     ap.add_argument("--out-dir", default="assets/sst")
     ap.add_argument("--history", default="assets/sst/data/heatflux100_history.json")
     ap.add_argument(
@@ -794,6 +798,10 @@ def main() -> int:
             flush=True,
         )
     (out_dir / "data" / "heatflux100.json").write_text(json.dumps(doc, separators=(",", ":")))
+    if a.map:
+        import heatflux_map as HM
+
+        HM.loop("aifs", init, HM.ecmwf(cyc, "aifs-ens", local=(spec("pf", "v"), spec("pf", "t"))))
     return 0
 
 

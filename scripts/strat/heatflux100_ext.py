@@ -20,6 +20,7 @@ Datamart keeps too few runs for that test, so GEPS is uncorrected.
   --days 15 (GEFS, GEPS): the days 1-15 product beside AIFS-ENS and IFS-ENS - the cycle strat-ifs.yml is on (00 or
         12Z; GEFS also 06 and 18Z), analysis to day 15, the members' fluxes from the shared fetch (strat_ens.py, part
         "flux"), the control first. GEFS keeps its measured error correction; GEPS stays uncorrected.
+  --map (the days 1-15 runs): the loop of maps of the flux every 12 hours as well (heatflux_map.py).
 
     python heatflux100_ext.py --model geps --date 20260924 --out-dir assets/geps
     python heatflux100_ext.py --model gefs --date 20260926 --out-dir assets/gefs
@@ -206,12 +207,15 @@ def main() -> int:
     ap.add_argument(
         "--days", type=int, choices=(15, 35), help="GEPS/GEFS: 35 (default, the 00Z extended run) or 15 (any cycle)"
     )
+    ap.add_argument("--map", action="store_true", help="days 1-15: also the maps every 12 hours (heatflux_map.py)")
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--history", default=str(REPO / "assets" / "sst" / "data" / "heatflux100_history.json"))
     a = ap.parse_args()
     medium = a.model == "ifs" or a.days == 15  # the days 1-15 product
     if a.model == "ifs" and a.days == 35:
         ap.error("IFS-ENS open data stops at day 15")
+    if a.map and not medium:
+        ap.error("the maps are a days 1-15 product")
     hour = int(a.time) if medium else 0
     init = pd.Timestamp(f"{a.date[:4]}-{a.date[4:6]}-{a.date[6:8]} {hour:02d}:00")
     leads = IFS_LEADS if medium else LEADS
@@ -324,6 +328,10 @@ def main() -> int:
             flush=True,
         )
     (out / "data" / f"{a.model}_heatflux100.json").write_text(json.dumps(doc, separators=(",", ":")))
+    if a.map:
+        import heatflux_map as HM
+
+        HM.loop(a.model, init, HM.ifs(a.date, a.time) if a.model == "ifs" else HM.shared(a.model, a.date, a.time))
     return 0
 
 
