@@ -5,7 +5,7 @@
 
 It downloads nothing: every number comes from what the other stratosphere products publish (assets/sst/data) or from
 the committed references (reference/). Five questions, each answered per model and then across the ensembles, the
-checklist and the coupling clock:
+checklist, the coupling clock and the warming under way:
 
   SSW      the share of members with u(60N, 10 hPa) easterly on some day 1-15 (each ensemble's newest recorded run,
            run_record.py vortex_<model>.json from nh_vortex.py, and the kept runs before it), raw
@@ -39,6 +39,11 @@ checklist and the coupling clock:
            its mean u(60N, 100 hPa) over days 0-10 after it on the MERRA-2 scale (reference/u100_std.json), the third
            of the past warmings that puts it in and when a lasting surface signal began after those, and its own
            1000 hPa cap over days 6-15 (its dripping paint).
+  EVENT    a sudden warming under way: the first day the mean of the ensembles' analysed u(60N, 10 hPa) (their recorded
+           runs' first days; a day counts with EVENT_MIN of them) turned easterly, for as long as that day is in the
+           analyses the clock searches. With it the analysed wind now and at its lowest, the day from which the mean
+           of the analyses and then of the newest runs stays westerly, when a lasting surface signal began after the
+           past warmings of the third most ensembles' clocks put this one in, and each ensemble's daily wind.
   CHECKLIST what the MERRA-2 sudden warmings had over the 15 days before their onset that quiet winter windows mostly
            did not (reference/ssw_checklist.json, build_ssw_checklist.py: the ingredients, thresholds and tests), each
            ensemble over the same days before its own reversal (the clock's onset) or over its days 1-15 when it has
@@ -95,6 +100,7 @@ WATCH_DEPTH = 500  # hPa: the level the descent watch's headline column must rea
 WATCH_DAYS = (11, 15)
 WATCH_AGE = 2  # days behind the newest run at which a recorded descent watch is no longer shown
 WEST_GAP = 20  # westerly days after which a reversal is a new event (Charlton and Polvani 2007)
+EVENT_MIN = 2  # ensembles a day needs for the mean wind the warming under way is dated from
 # ERA5 100 hPa wave-2 share of the wave-1 + wave-2 flux over days -10..-1 before the MERRA-2 sudden warmings since
 # 1990, splits against displacements (one-sided Mann-Whitney): why WAVES does not forecast the vortex's geometry
 SPLIT_TEST = {
@@ -327,11 +333,11 @@ def watch_part(newest: pd.Timestamp) -> dict:
 
 def onset_of(u10: pd.Series) -> pd.Timestamp | None:
     """The first easterly day of the newest event in a daily u(60N, 10 hPa) series: a reversal after WEST_GAP or more
-    westerly days starts a new event."""
+    westerly days starts a new event. A series that opens easterly opens inside an event whose onset it does not hold."""
     onset, west = None, WEST_GAP
-    for day, u in u10.items():
+    for i, (day, u) in enumerate(u10.items()):
         if u < 0:
-            if west >= WEST_GAP:
+            if west >= WEST_GAP and i:
                 onset = day
             west = 0
         else:
@@ -388,6 +394,57 @@ def clock_part() -> dict:
             row.update(sea=_r(sea.mean()), sea_days=[lags[0], lags[-1]], sea_past=[_r(min(past)), _r(max(past))],
                        sea_drift_removed=1000.0 in d.get("corrected_levels", []))  # fmt: skip
     return {"models": out, "reference": ref}
+
+
+def event_part(clock: dict) -> dict | None:
+    """The sudden warming under way (module docstring, EVENT); None when the analyses hold no onset."""
+    daily = {}
+    for m in ENSEMBLES:
+        rs = [r for r in RR.runs("vortex", m) if "u100" in r]
+        if rs:
+            daily[m] = (vortex_daily(rs)["u10"], pd.Timestamp(rs[-1]["valid"][0][:10]))
+    if not daily:
+        return None
+
+    def mean(parts: list) -> pd.Series:
+        both = pd.concat(parts, axis=1)
+        return both[both.notna().sum(axis=1) >= EVENT_MIN].mean(axis=1)
+
+    obs = mean([u.loc[:t0] for u, t0 in daily.values()])
+    onset = onset_of(obs)
+    if onset is None:
+        return None
+    last = obs.index[-1]
+    # the analyses, then the newest runs beyond them
+    since = pd.concat([obs, mean([u.loc[last + pd.Timedelta(days=1) :] for u, _ in daily.values()])]).loc[onset:]
+    west = since.index[since.index > since.index[since < 0][-1]]
+    low = obs.loc[onset:]
+    ref = clock["reference"]
+    thirds = [v["third"] for v in clock["models"].values() if v.get("third") is not None]
+    third = min(set(thirds), key=lambda k: (-thirds.count(k), k)) if thirds else None
+    return {
+        "onset": f"{onset:%Y-%m-%d}",
+        "analysed_to": f"{last:%Y-%m-%d}",
+        "wind": _r(obs.iloc[-1], 1),
+        "lowest": _r(low.min(), 1),
+        "lowest_date": f"{low.idxmin():%Y-%m-%d}",
+        "westerly_from": f"{west[0]:%Y-%m-%d}" if len(west) else None,
+        "third": third,
+        "surface_start": None
+        if third is None
+        else [
+            None if q > ref["definitions"]["start_max"] else f"{onset + pd.Timedelta(days=q):%Y-%m-%d}"
+            for q in ref["thirds"][third]["start_quartiles"]
+        ],
+        "models": {
+            m: {
+                "days": [f"{t:%Y-%m-%d}" for t in u.index],
+                "u10": [_r(v, 1) for v in u],
+                "analysed": int((u.index <= t0).sum()),
+            }
+            for m, (u, t0) in daily.items()
+        },
+    }
 
 
 def compass_daily(m: str, norm: dict) -> pd.DataFrame:
@@ -531,10 +588,17 @@ def main() -> int:
         "reflect": reflect,
         "surface": surface,
         "clock": clock,
+        "event": event_part(clock),
         "watch": watch_part(newest),
         "checklist": checklist_part(clock, clim),
         "reference": references(),
-        "thresholds": {"one_sd": ONE_SD, "lag_days": list(LAG), "wave_share": WAVE_SHARE, "active_z": ACTIVE_Z},
+        "thresholds": {
+            "one_sd": ONE_SD,
+            "lag_days": list(LAG),
+            "wave_share": WAVE_SHARE,
+            "active_z": ACTIVE_Z,
+            "event_min": EVENT_MIN,
+        },
     }
     OUT.write_text(json.dumps(doc, indent=1, default=str))
     print(
