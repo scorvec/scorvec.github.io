@@ -348,21 +348,19 @@ def main() -> int:
                     hindcast_spread(centre, system, key, a.issue)
                     if key in CT.VARS:  # the same raw hindcast makes the tercile table too: never fetched twice
                         CT.hc_table(centre, system, key, a.issue)
-        # 3. what the change from the previous issue is tested with: that issue's members again where its table
-        # predates the spreads one lead further out (a small request each), and the two start months' yearly hindcast
-        # means, paired. A system or field without the previous issue, or without either month's yearly means, gets no
-        # change map
+        # 3. what the change from the previous issue is tested with: the two start months' yearly hindcast means,
+        # paired, and that issue's members again where its table predates the spreads one lead further out (a small
+        # request each). A system or field without the previous issue, or without either month's yearly means, gets no
+        # change map, so nothing is fetched for it
         for key in want:
             for centre, system in systems:
                 t = CR.load(CR.is_anom(centre, system, key, prev))
-                if t is None:
+                if t is None or change_spread(centre, system, key, a.issue) is None or has_next(t):
                     continue
-                if not has_next(t):
-                    if not budget_left():
-                        print(f"  {centre}/{system} {key} {prev}: budget spent; next run", flush=True)
-                    elif fetch(key, centre, system, prev):
-                        issue_anom(centre, system, key, prev)
-                change_spread(centre, system, key, a.issue)
+                if not budget_left():
+                    print(f"  {centre}/{system} {key} {prev}: budget spent; next run", flush=True)
+                elif fetch(key, centre, system, prev):
+                    issue_anom(centre, system, key, prev)
     except KeyboardInterrupt:
         print("  fetching stopped (time limit); the next run continues", flush=True)
     tested = sum(CR.hc_anom(c, s, k, month).exists() for c, s in systems for k in want)
