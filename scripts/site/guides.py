@@ -76,6 +76,14 @@ GUIDES = [
         "spectral matching of member 0, the radiosonde and ERA5 truths, the scorecard's significance tests, the "
         "scores by lead and the power spectra.",
     ),
+    dict(
+        slug="seasonal",
+        page="/seasonal.html",
+        name="seasonal forecasts page",
+        desc="What each figure of the seasonal forecasts page shows and how it is made: the seven C3S systems' maps, "
+        "terciles and indices, SEAS5's ENSO and ocean indices, maps, teleconnections, regimes and impact products, "
+        "NOAA's SFS beta and CanSIPS, and the significance tests behind the shading.",
+    ),
 ]
 
 STYLE = """<style>

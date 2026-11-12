@@ -60,10 +60,6 @@
   .xd-city .nm { position: absolute; top: 50%; transform: translateY(-50%); font: 600 0.8rem var(--sans); color: var(--accent); white-space: nowrap; pointer-events: none;
                  background: rgba(255,255,255,0.92); padding: 0.05rem 0.3rem; border-radius: 3px; display: none; }
   /* NOAA SFS group (moved from sfs.html 2026-10-06) */
-  .method-head { font-family: var(--serif); font-weight: 500; font-size: 1rem; margin: 0.9rem 0 0.3rem; }
-  .method-list { max-width: 90ch; font-size: 0.84rem; line-height: 1.6; color: var(--ink2); padding-left: 1.2rem; margin: 0 0 0.9rem; }
-  .method-list li + li { margin-top: 0.35rem; }
-  .method-list b { color: var(--ink); font-weight: 500; }
   .sfs-block .plot { margin-bottom: 0.4rem; }
   .sfs-block .chips { margin: 0 0 0.8rem; }
   .xd-city.r .nm { left: 100%; } .xd-city.l .nm { right: 100%; }
@@ -275,7 +271,7 @@ window.afterPlotly = function (fn) {
   <header>
     <div class="eyebrow">Monthly, from the Copernicus C3S multi-system seasonal ensemble, the NOAA SFS beta and ECCC CanSIPS, <span id="issueLabel">latest issue</span></div>
     <h1>Seasonal model forecasts</h1>
-    <p class="sub">Seven C3S systems, NOAA&rsquo;s SFS beta and Canada&rsquo;s CanSIPS, each read against its own hindcast (<a href="#aboutCard">about this page</a>).</p>
+    <p class="sub">Seven C3S systems, NOAA&rsquo;s SFS beta and Canada&rsquo;s CanSIPS, each read against its own hindcast (<a href="/guides/seasonal.html">guide to this page</a>).</p>
     <div class="chips" id="chips">
       <div class="chip"><div class="l">Loading forecast feed&hellip;</div><div class="v neut">&mdash;</div></div>
     </div>
@@ -300,27 +296,6 @@ window.afterPlotly = function (fn) {
   <div class="dom-holder">
   <div class="card" id="c3sMapCard" data-label="Anomaly maps" data-group="Every model">
     <h2>Anomaly maps &mdash; one system at a time, or their mean</h2>
-    <details class="about"><summary>Method and sources</summary>
-    <p class="note">Each system&rsquo;s <b>ensemble-mean anomaly</b>: the mean of its members&rsquo; anomalies, which C3S
-    takes against that system&rsquo;s own 1993&ndash;2016 hindcast. That is the comparison you want &mdash; a seasonal
-    model&rsquo;s raw field is dominated by its own drift. A cell is <b>shaded only where the anomaly is significant</b>: a
-    Welch t-test of the members against the hindcast, whose mean counts as 24 independent years with one member&rsquo;s
-    spread (the convention of the CanSIPS maps on this page), and a false-discovery rate of 0.10 over the map; blank means
-    no significant anomaly. A system or field appears once its start month&rsquo;s hindcast spread is in. The
-    <b>multi-model mean</b> weights every system equally rather than by member count, so NCEP&rsquo;s 120-odd members and a
-    20-member system count the same; ECCC runs two systems (GEM5-NEMO and CanESM5), so Canada carries two shares wherever
-    both supply the field. It is tested the same way, with every system&rsquo;s member and hindcast spread, and drawn once
-    three quarters of the issue&rsquo;s systems are in it. Where the systems disagree, step through them: the mean alone
-    will not tell you.</p>
-    <p class="note"><b>Change since the previous issue</b> is this issue&rsquo;s ensemble-mean anomaly minus last
-    month&rsquo;s for the same calendar months, which sat one lead further out then; the first month and the first season
-    have one, the second season reaches past last month&rsquo;s six leads. Its colour scale is half the anomaly&rsquo;s.
-    A cell is shaded only where the change is larger than the noise in three things: this issue&rsquo;s members, last
-    month&rsquo;s members, and the hindcast, because the two issues are anomalies against two different hindcast means
-    (this start month&rsquo;s and the one before), whose difference is known only from the 24 hindcast years. The same
-    false-discovery rate applies. A blank map means the systems did not move by more than chance, not that the forecast
-    is unchanged to the decimal.</p>
-    </details>
     <div class="controls" id="c3sMapKind" style="margin-top:0.8rem"></div>
     <div class="controls" id="c3sMapModel" style="margin-top:0.4rem"></div>
     <div class="controls" id="c3sMapField" style="margin-top:0.4rem"></div>
@@ -333,17 +308,6 @@ window.afterPlotly = function (fn) {
   </div>
   <div class="card" id="c3sTercCard" data-label="Tercile probabilities" data-group="Every model">
     <h2>Tercile probabilities &mdash; how firmly, not just which way</h2>
-    <details class="about"><summary>Method and sources</summary>
-    <p class="note">Each system&rsquo;s live members counted against <b>its own 1993&ndash;2016 hindcast distribution at
-    every grid point</b> &mdash; the 33rd and 67th percentiles of that model&rsquo;s own climate. Colour is the probability
-    of whichever category is most likely, only where it reaches 40&nbsp;% <b>and</b> the members&rsquo; split differs
-    significantly from one third each (chi-square, p&nbsp;&lt;&nbsp;0.05 and a false-discovery rate of 0.10 over the map:
-    from 51 members a 40&nbsp;% category is well within chance); near-normal is never drawn, because it is
-    the category a model lands on when it has nothing to say. <b>Temperature is counted against the hindcast&rsquo;s
-    linear trend extrapolated to this start</b> (the trend runs over the hindcast&rsquo;s start years) &mdash; against a flat 1993&ndash;2016 base the warming alone puts most
-    of the tropics in the upper tercile every month. The multi-model map averages the per-system probabilities with equal
-    weight per system.</p>
-    </details>
     <div class="controls" id="c3sTercModel" style="margin-top:0.8rem"></div>
     <div class="controls" id="c3sTercField" style="margin-top:0.4rem"></div>
     <div class="controls" id="c3sTercPeriod" style="margin-top:0.4rem"></div>
@@ -355,13 +319,6 @@ window.afterPlotly = function (fn) {
   </div>
   <div class="card" id="c3sIdxCard" data-label="Ocean indices" data-group="Every model">
     <h2>Ocean indices &mdash; every system on one axis</h2>
-    <details class="about"><summary>Method and sources</summary>
-    <p class="note">The same boxes and the same PDO projection the SEAS5 card below uses, applied to each
-    system&rsquo;s <b>ensemble-mean anomaly</b> against its own 1993&ndash;2016 hindcast. That is what the
-    postprocessed collection carries for every system, so every system gets a curve &mdash; but only a curve: there is
-    <b>no member spread on this basis</b>, and the fan for SEAS5 lives in the member-level card. The black line
-    is the multi-model mean, equal weight per system, drawn only where at least half of them have the index.</p>
-    </details>
     <div class="controls" id="c3sIdxPick" style="margin-top:0.8rem"></div>
     <p class="idx-note" id="c3sIdxNote"></p>
     <div id="c3sIdxPlot" style="width:100%;min-height:380px"></div>
@@ -372,20 +329,6 @@ window.afterPlotly = function (fn) {
   </div>
   <div class="card" id="c3sPopCard" data-label="Population-weighted, monthly" data-group="Every model">
     <h2>Population-weighted temperature &mdash; monthly means, every system</h2>
-    <details class="about"><summary>Method and sources</summary>
-    <p class="note">How warm the month is <b>for the people who feel it</b>: every member weighted by population on the
-    same geonames cells the SEAS5 card uses, for the United States and Brazil. Anomalies are each member minus that
-    system&rsquo;s own 1993&ndash;2016 hindcast mean at the same lead, so the systems are comparable; raw levels carry each
-    model&rsquo;s bias and are there for the read within one system. The band is P10&ndash;P90 across that system&rsquo;s
-    members, with P25&ndash;P75 darker; <b>Multi-model</b> pools every system&rsquo;s members with equal weight per system, so
-    NCEP&rsquo;s 120-odd members and a 20-member system count the same; it is shown once four systems of the issue are in.</p>
-    </details>
-    <p class="note">The black line is <b>observed</b> &mdash; CPC daily Tmax/Tmin on the same cells, averaged to a monthly
-    mean, with anomalies against the observed 1993&ndash;2016 mean so history and forecast share one base. It carries no band:
-    the width here is the spread across members, and an observed month has one realisation.</p>
-    <p class="note"><b>This is a monthly distribution, not a daily one.</b> The width is the spread of monthly MEANS,
-    which is narrower than the day-to-day spread and says nothing about a cold snap &mdash; that question needs 6-hourly
-    members, which is why the daily version below exists for ECMWF alone.</p>
     <div class="controls" id="c3sPopRegion" style="margin-top:0.8rem"></div>
     <div class="controls" id="c3sPopModel" style="margin-top:0.4rem"></div>
     <div class="controls" id="c3sPopKind" style="margin-top:0.4rem"></div>
@@ -397,26 +340,6 @@ window.afterPlotly = function (fn) {
   </div>
   <div class="card" id="c3sDayCard" data-label="Population-weighted, daily" data-group="Every model">
     <h2>Population-weighted temperature &mdash; the daily distribution, every system</h2>
-    <details class="about"><summary>Method and sources</summary>
-    <p class="note">Every member, <b>every day</b>, population-weighted into one national number and pooled by month:
-    1,500 member-days in a 30-day month for a 50-member system, about 3,600 for NCEP&rsquo;s 120-odd. This is the distribution a cold snap lives in
-    &mdash; the monthly card above shows the spread of monthly MEANS, which is a different and much narrower thing.
-    Bands are P1&ndash;P99, P5&ndash;P95 and P25&ndash;P75 of the pooled member-days, with the median in sienna; the
-    multi-model view averages each system&rsquo;s own percentiles with equal weight per system, once four systems
-    of the issue are in. These are the
-    models&rsquo; <b>raw</b> spread, not calibrated probabilities: days within a member are strongly correlated, so a
-    month&rsquo;s 1,500 member-days carry far fewer independent cases than their count, and the
-    tails also carry the month&rsquo;s own seasonal cycle, because the anomalies subtract one monthly mean.</p>
-    </details>
-    <p class="note">The black line is <b>observed</b>: CPC Global Unified daily Tmax/Tmin, population-weighted on the
-    same cells and pooled the same way, with anomalies against the observed <b>1993&ndash;2016</b> mean &mdash; the models&rsquo;
-    hindcast period, not CPC&rsquo;s 1991&ndash;2020 normal &mdash; so history and forecast share one base. Its P10&ndash;P90 band is
-    drawn on the raw basis only.</p>
-    <p class="note">Days are matched on <b>valid time, not lead</b>: UKMO and NCEP are lagged ensembles whose
-    members start on different days, so the same lead hour is a different calendar day for each of them. A day missing
-    more than one of its four 6-hourly samples is dropped rather than averaged into a false daily mean, which is why a
-    system shows slightly fewer members here than in its monthly ensemble. Anomalies use each system&rsquo;s monthly
-    hindcast mean at that lead; calibrating the tails themselves needs a daily hindcast, which has not been pulled.</p>
     <div class="controls" id="c3sDayRegion" style="margin-top:0.8rem"></div>
     <div class="controls" id="c3sDayModel" style="margin-top:0.4rem"></div>
     <div class="controls" id="c3sDayKind" style="margin-top:0.4rem"></div>
@@ -428,12 +351,6 @@ window.afterPlotly = function (fn) {
   </div>
   <div class="card" id="ni-o-3-4-every-member" data-label="Ni&ntilde;o-3.4, every member" data-group="Every model">
     <h2>Ni&ntilde;o-3.4 &mdash; every member, system by system</h2>
-    <p class="note">The same feed and the same systems the <a href="enso-forecasts.html">ENSO forecasts page</a> draws
-    (DWD is left out there for poor ENSO skill and drift), kept here so the maps and the index sit together: the Ni&ntilde;o-3.4 box is small enough that the full ensemble is cheap to hold, which is
-    why this plume has hundreds of members while the maps above are ensemble means. Anomalies are against each
-    model&rsquo;s own 1993&ndash;2016 hindcast; the observed lead-in is the NOAA ERSSTv6 Ni&ntilde;o-3.4 box mean computed
-    here and CPC&rsquo;s ONI, both re-based to the observed 1993&ndash;2016 mean, the models&rsquo; base, and CPC&rsquo;s RONI as
-    published. Months those records do not have yet are the site&rsquo;s own OISST v2.1 estimate, drawn dashed.</p>
     <div class="map-grid"><img src="/assets/sst/c3s_nino34.webp" alt="Nino-3.4 plume, every member of every C3S system" loading="lazy"></div>
     <div class="chart-card-footer">
       <span class="chart-sources">C3S seasonal multi-system, <code>seasonal-monthly-single-levels</code>, every member &middot; observed: Ni&ntilde;o-3.4 the NOAA ERSSTv6 box mean computed here, RONI NOAA CPC (ERSSTv6), then the site&rsquo;s OISST v2.1 estimate</span>
@@ -442,15 +359,6 @@ window.afterPlotly = function (fn) {
   </div>
   <div class="card" id="enso-indices" data-label="ENSO indices" data-group="SEAS5 &middot; ENSO &amp; oceans">
     <h2>ENSO indices &mdash; this issue against the last three</h2>
-    <p class="note">The shaded fan is <b>this issue</b> (P10&ndash;P90 and P25&ndash;P75 of the 51 members) with its
-    mean in sienna; the coloured lines are the ensemble means of the <b>previous issues</b>, oldest
-    darkest and dotted, newest solid, each drawn over its own valid months, so the run-to-run shift is read directly.
-    The grey band is the hindcast&rsquo;s year-to-year spread (&plusmn;1&sigma;), the model&rsquo;s own
-    &ldquo;normal range&rdquo;. Black is observed where a series exists: the Ni&ntilde;o boxes from the NOAA ERSSTv6 grid
-    (1991&ndash;2020 base; CPC&rsquo;s own monthly table froze in August 2026) and CPC&rsquo;s RONI, solid; months
-    not yet in those records are the site&rsquo;s OISST v2.1 estimate, dashed. East-based indices matter this year: a warm Ni&ntilde;o-1+2 with a
-    cooler Ni&ntilde;o-4 is a different event from the reverse, and the Trans-Ni&ntilde;o index
-    puts that gradient on one axis.</p>
     <div class="controls" id="ensoPills"></div>
     <div class="idx-note" id="ensoNote"></div>
     <div class="controls">
@@ -466,13 +374,6 @@ window.afterPlotly = function (fn) {
   </div>
   <div class="card" id="pdo-amo-iod-atlantic-ni-o" data-label="PDO, AMO, IOD, Atlantic Niño" data-group="SEAS5 &middot; ENSO &amp; oceans">
     <h2>PDO, AMO, Indian Ocean Dipole, Atlantic Ni&ntilde;o</h2>
-    <p class="note">Same fields, same treatment. The <b>PDO</b> is the projection of each member&rsquo;s
-    North Pacific anomaly onto the ERSST EOF pattern the daily monitor uses, with the global
-    mean removed and NCEI&rsquo;s scale applied; the <b>AMO</b> is the relative form (North Atlantic
-    minus the 60&deg;S&ndash;60&deg;N mean), so the warming trend does not masquerade as a basin
-    mode. Because the anomaly base here is the model&rsquo;s 1993&ndash;2016 hindcast rather than
-    1991&ndash;2020 observations, absolute levels can sit a tenth or two from the published
-    indices; the shape and the run-to-run change are what to read.</p>
     <div class="controls" id="otherPills"></div>
     <div class="idx-note" id="otherNote"></div>
     <div id="otherChart" class="plot" style="height:460px"></div>
@@ -483,17 +384,6 @@ window.afterPlotly = function (fn) {
   </div>
   <div class="card" id="changeCard" data-label="Maps and changes" data-group="SEAS5 &middot; Maps">
     <h2>Maps: anomaly, and what changed since the <span class="prevName">previous</span> issue</h2>
-    <p class="note">One map at a time, most of the world on a plate carr&eacute;e grid. <b>Anomaly</b> is this
-    issue&rsquo;s ensemble mean against its own 1993&ndash;2016 start-month hindcast. <b>Change</b> is the
-    same anomaly minus the previous issue&rsquo;s, each anomalised against its own hindcast, so a
-    difference is a real shift in the forecast rather than drift; periods the earlier issue does not
-    cover have no change map. Both are <b>shaded only where significant</b> (Welch t-test, false-discovery rate 0.10
-    over the map; blank = no significant shift): the anomaly against the 51 members&rsquo; spread and the hindcast
-    mean&rsquo;s, one member&rsquo;s spread over 24 years (heights: the error of the hindcast trend extrapolated to this start); the
-    change against both issues&rsquo; member spreads and the year-to-year spread of the difference between the two start
-    months&rsquo; hindcasts, which share their 24 years and are compared year by year.
-    SST is drawn at 0.2&nbsp;&deg;C steps with labelled isolines.
-    The table averages the index ensemble means over the months both issues cover.</p>
     <div class="idx-note" id="changeMonths"></div>
     <div style="overflow-x:auto">
       <table class="chg" id="changeTable"></table>
@@ -524,25 +414,6 @@ window.afterPlotly = function (fn) {
   </div>
   <div class="card" id="calibrated-terciles" data-label="Bias-corrected terciles" data-group="SEAS5 &middot; Maps">
     <h2>Bias-corrected terciles</h2>
-    <p class="note">For each grid point, season and lead, the tercile boundaries come from SEAS5&rsquo;s
-    <b>own hindcast</b> &mdash; 24 years &times; 25 members, 600 seasonal means &mdash; and the 51
-    forecast members are counted against them. That removes the model&rsquo;s mean bias and its
-    spread bias point by point, which is the correction that matters most for a
-    single-system tercile map. It is not a full calibration: the probabilities are raw member shares, and their
-    reliability has not been checked against observations. Shading is the most likely category and its probability; white
-    means no category reaches 40&nbsp;%, or the 51 members&rsquo; split is not significantly different from one third each
-    (chi-square, p&nbsp;&lt;&nbsp;0.05 and a false-discovery rate of 0.10 over the map). Near-normal is not drawn: with a realistic spread it is
-    almost never the most likely tercile, and where it is, the signal is weak anyway. Four
-    overlapping seasons follow the start month (three before the October 2026 issue; the fourth ends at lead month 7,
-    FMA for an October start); pick the variable and the season. Temperature and
-    500&nbsp;hPa height are counted against the hindcast&rsquo;s <b>linear trend</b> extrapolated to
-    this issue&rsquo;s start year rather than its flat 1993&ndash;2016 mean (a straight line fitted point by point to the 24 hindcast
-    years and carried about ten years past their end; its error is not estimated here): two decades of warming (and the
-    thickness rise that goes with it) would otherwise sit inside &ldquo;above normal&rdquo; before
-    any El&nbsp;Ni&ntilde;o signal is added, and the whole tropical belt read 90&ndash;100&nbsp;% warm by
-    construction. What remains is the departure from the trend, which is where the winter picture
-    becomes discriminating; the <a href="#normCard">normals card</a> below puts the same members
-    against the 1991&ndash;2020 normal, the last decade and today&rsquo;s trend.</p>
     <div class="controls" id="tercVar"></div>
     <div class="controls" id="tercSeason"></div>
     <div class="map-grid" id="mapGrid"></div>
@@ -553,21 +424,6 @@ window.afterPlotly = function (fn) {
   </div>
   <div class="card" id="teleCard" data-label="Teleconnection indices" data-group="SEAS5 &middot; Teleconnections &amp; regimes">
     <h2>Teleconnection indices, member by member</h2>
-    <p class="note">The CPC patterns &mdash; NAO, PNA, AO, the East Atlantic, West Pacific and the rest &mdash;
-    read from each member&rsquo;s monthly 500&nbsp;hPa height (sea-level pressure for the AO) with the same
-    projectors the <a href="subseasonal.html">GEPS subseasonal page</a> uses, so the scale is CPC&rsquo;s own.
-    The Southern Oscillation index is Tahiti minus Darwin pressure. Two things keep this honest. First, the
-    observed record: the black line is ERA5 passed through the same projection, and the red crosses are
-    CPC&rsquo;s published monthly index, an independent check on sign and size. Second, skill: for every index
-    and month the 24 hindcast years&rsquo; ensemble mean is correlated with ERA5, and the observed index is
-    regressed on the forecast to give a calibrated probability of each phase. Where the correlation is not
-    significantly above zero (one-sided 5&nbsp;% test over the 24 years, r below 0.34, and a false discovery rate of
-    10&nbsp;% over every index and lead, so the roughly seven cells a bare 5&nbsp;% test passes by chance among
-    140 do not count as skill) the cell is hatched &mdash;
-    the members still say something, but the hindcast says not to trust it, and the calibrated bar is set to
-    climatology, at lead month 7 exactly as at the other leads. The
-    board reads the seven months at a glance;
-    the chart below it lets you look at one index at a time.</p>
     <div class="map-grid" id="teleFigs" style="margin-bottom:1rem"></div>
     <div class="controls" id="telePills"></div>
     <div class="idx-note" id="teleNote"></div>
@@ -580,16 +436,6 @@ window.afterPlotly = function (fn) {
   </div>
   <div class="card" id="popCard" data-label="Population-weighted, daily" data-group="SEAS5 &middot; Impacts">
     <h2>Population-weighted temperature: the forecast for each month, against normal and record</h2>
-    <p class="note">For the United States and Brazil, each member&rsquo;s 6-hourly 2 m temperature is weighted by where
-    people live (geonames places of 15,000 or more, on the 1&deg; grid) into one national series, and the
-    monthly mean of every member is bias-corrected into observed space. Each curve is therefore the
-    forecast probability distribution for that month&rsquo;s population-weighted temperature: gold is
-    this issue, blue is last month&rsquo;s, the ticks under the curve are the 51 members themselves. The
-    black lines are what a normal month is, 1991&ndash;2020 and 2016&ndash;2025, from ERA5;
-    the dotted lines are the warmest and coldest month on record. The text under each panel gives
-    the forecast mean, its distance from normal, the change since last month, and the share of
-    members warmer than each normal and than the record. Degrees Fahrenheit for the United States,
-    Celsius for Brazil.</p>
     <div style="overflow-x:auto"><table class="chg" id="popTable"></table></div>
     <div class="map-grid" id="popGrid" style="margin-top:1rem"></div>
     <div class="chart-card-footer">
@@ -599,14 +445,6 @@ window.afterPlotly = function (fn) {
   </div>
   <div class="card" id="xdaysCard" hidden data-label="Threshold days" data-group="SEAS5 &middot; Impacts">
     <h2>Threshold days: cold and hot days over the United States and Brazil</h2>
-    <p class="note">From every member&rsquo;s daily extremes (6-hourly SEAS5 output, the &ldquo;in the last 24 hours&rdquo;
-    maximum and minimum): days a month with the minimum at or below 5, 0, &minus;5, &minus;10, &minus;15 and &minus;20&nbsp;&deg;C
-    and the maximum at or above 30, 35, 38 and 40&nbsp;&deg;C over the United States; the maximum at or above 30, 32, 35, 37 and
-    40&nbsp;&deg;C and the minimum at or below 15, 10 and 5&nbsp;&deg;C over Brazil. Members are quantile-mapped per cell from
-    SEAS5&rsquo;s own hindcast extremes onto the observed record, so the model&rsquo;s too-small diurnal range does not read as
-    fewer freezes. <b>Normal</b> is the NOAA CPC 1991&ndash;2020 daily record counted the same way. The table is population-weighted
-    (expected days per month for the average resident); the maps show each cell as a percentage of its normal frequency, hatched
-    where the normal is under half a day a month.</p>
     <div class="controls" id="xdRegion"></div>
     <div class="controls" id="xdSet"></div>
     <div style="overflow-x:auto"><table class="chg" id="xdTable"></table></div>
@@ -621,14 +459,6 @@ window.afterPlotly = function (fn) {
   </div>
   <div class="card" id="runsCard" hidden data-label="Cold-snap risk" data-group="SEAS5 &middot; Impacts">
     <h2>Cold-snap risk: runs of extreme days across the whole winter</h2>
-    <p class="note">The convex risk in one number: for every member and 1&deg; cell, the daily-mean temperature (the mean of
-    the day&rsquo;s maximum and minimum, quantile-mapped from SEAS5&rsquo;s hindcast onto the CPC record) is standardised
-    against the CPC 1991&ndash;2020 day-of-year climatology, and the whole season is scanned for <b>runs of three or more
-    consecutive days</b> beyond the threshold &mdash; November to February for United States cold, December to February for
-    Brazil heat &mdash; so a snap that straddles a month boundary counts once. Shown as the chance of at least one such run, as
-    that chance relative to the CPC record&rsquo;s own seasons, and as the expected number of days inside such runs relative to
-    normal. In the tropics a persistent 1.5&nbsp;&sigma; warmth is the El&nbsp;Ni&ntilde;o and trend background rather than a
-    heat wave; read Brazil at 2.5&nbsp;&sigma;. Click a city for its members.</p>
     <div class="controls" id="rnRegion"></div>
     <div class="controls" id="rnSig"></div>
     <div class="controls" id="rnProd"></div>
@@ -641,11 +471,6 @@ window.afterPlotly = function (fn) {
   </div>
   <div class="card" id="windCard" hidden data-label="Wind events" data-group="SEAS5 &middot; Impacts">
     <h2>Wind events: southerly surges and windy days over the United States</h2>
-    <p class="note">From every member&rsquo;s 6-hourly 10 m wind on 1&deg; cells: days whose <b>daily-mean southerly component</b> reaches
-    4, 6 or 8 m/s (the warm-advection surges ahead of East Coast lows), and days whose <b>daily-maximum wind speed</b> reaches 8, 10 or
-    12 m/s. Shown as the ensemble-mean count as a percentage of the same count in SEAS5&rsquo;s own 1993&ndash;2016 hindcast (the
-    bias-free read), as the raw share of members with at least one such day, and as the monthly-mean meridional-wind anomaly.
-    Click a city for its members by month.</p>
     <div class="controls" id="wdProd"></div>
     <div class="controls" id="wdThr"></div>
     <div class="controls" id="wdMonth"></div>
@@ -658,11 +483,6 @@ window.afterPlotly = function (fn) {
   </div>
   <div class="card" id="snowCard" hidden data-label="Snowfall" data-group="SEAS5 &middot; Impacts">
     <h2>Snowfall: big days and monthly totals over North America</h2>
-    <p class="note">Every member&rsquo;s daily snowfall from SEAS5&rsquo;s accumulated snowfall field (daily steps, 51 members,
-    1&deg; cells, a 10:1 snow-to-liquid ratio). <b>Chance of a big day</b> is the share of members with at least one day at or
-    above the threshold in the month; <b>monthly total</b> is the ensemble mean, with the share of members reaching a total, and
-    the <a href="#changeCard">maps viewer</a> shows the total as a percentage of SEAS5&rsquo;s own 1993&ndash;2016 hindcast mean &mdash;
-    the calibrated read, since the raw members carry the model&rsquo;s snowfall bias. Click a city for its members by month.</p>
     <div class="controls" id="snProd"></div>
     <div class="controls" id="snThr"></div>
     <div class="controls" id="snMonth"></div>
@@ -675,18 +495,6 @@ window.afterPlotly = function (fn) {
   </div>
   <div class="card" id="normCard" data-label="Against observed normals" data-group="SEAS5 &middot; Maps">
     <h2>Anomalies and terciles against observed normals, monthly and seasonal</h2>
-    <p class="note">The default terciles above are relative to the model&rsquo;s own 1993&ndash;2016 hindcast,
-    which removes bias but answers a low-bar question in a warming climate. Here the same
-    members are moved into observed space (member minus hindcast mean plus the ERA5
-    1993&ndash;2016 mean at each grid point, multiplicatively for rain and sunshine) and
-    compared with four references: the hindcast itself, the ERA5 <b>1991&ndash;2020</b> normal,
-    the <b>last decade</b> (2016&ndash;2025), and the ERA5 1991&ndash;2025 <b>trend extrapolated</b> to the
-    forecast month &mdash; what normal is expected to be now. Tercile bounds are &plusmn;0.43&sigma; of the
-    observed 1991&ndash;2020 spread around each reference (detrended for the trend reference;
-    empirical percentiles for rain and sunshine). Seven months and four seasons per figure (six and three before the
-    October 2026 issue). The tercile maps colour a category only where the members&rsquo; split differs significantly from
-    one third each (the chi-square test above); the anomaly and standardised maps are ensemble means with no
-    significance test.</p>
     <div class="controls" id="normVar"></div>
     <div class="controls" id="normRef"></div>
     <div class="controls" id="normKind"></div>
@@ -699,27 +507,9 @@ window.afterPlotly = function (fn) {
   </div>
   <div class="card" id="regimeCard" hidden data-label="Weather regimes" data-group="SEAS5 &middot; Teleconnections &amp; regimes">
     <h2>Weather regimes: how often each circulation pattern occurs, against SEAS5&rsquo;s own climate</h2>
-    <p class="note">The four winter weather regimes of the <a href="subseasonal.html">subseasonal pages</a> &mdash; the same
-    k-means clusters of 5-day-mean 500&nbsp;hPa anomalies (NCEP/NCAR R1 1991&ndash;2020), for North America and the
-    Pacific and for the Euro-Atlantic sector &mdash; counted day by day in every SEAS5 member. Each member-day is read
-    against SEAS5&rsquo;s <b>own</b> climate at the same start and lead (its whole 1981&ndash;2016 hindcast, 25 members, 36 years), so
-    the model&rsquo;s own bias in how often it produces each regime cancels, and the height trend is taken out first so
-    warming does not masquerade as ridging. A dot is the forecast&rsquo;s departure from that climate in percentage
-    points of days, with the 90&nbsp;% range from resampling the members. <b>A shift is coloured only where it is
-    meaningful</b>: the hindcast, one year held out at a time, must show that SEAS5&rsquo;s predicted regime shifts
-    correlate with what ERA5 then observed (significant after a false-discovery correction across every cell, green
-    columns), and the member range must clear zero. Everything else is grey, and a hatched column is one where the
-    hindcast has shown no skill. Black diamonds are what strong El Ni&ntilde;o winters actually did (ERA5 1959&ndash;2025,
-    1982 and 1991 left out for El Chich&oacute;n and Pinatubo; hollow where that composite is not significant); open circles
-    are SEAS5&rsquo;s own hindcasts of the same winters.</p>
     <div class="controls" id="rgSector"></div>
     <div class="map-grid" id="rgFig"></div>
     <div class="idx-note" id="rgSummary"></div>
-    <p class="note" style="margin-top:0.8rem"><b>Hindcast skill</b>: correlation, over the 36 hindcast years, of SEAS5&rsquo;s
-    predicted frequency anomaly (each year held out of the model climate) with the observed one, with its 90&nbsp;% bootstrap
-    interval; printed only where it passes the false-discovery test (q&nbsp;=&nbsp;0.10), &ldquo;n.s.&rdquo; elsewhere.
-    RPC is the ratio of predictable components: above 1 the forecast is more skilful than its own spread implies, i.e. its
-    shifts are too small &mdash; the seasonal &ldquo;signal-to-noise paradox&rdquo;.</p>
     <div style="overflow-x:auto"><table class="chg" id="rgTable" style="max-width:none"></table></div>
     <p class="note" style="margin-top:0.8rem"><b>El Ni&ntilde;o winters in the hindcast</b> (<span id="rgNinoYears"></span>):
     the frequency shift SEAS5 predicted in those winters and the shift ERA5 observed, in percentage points, each against
@@ -795,121 +585,51 @@ window.afterPlotly = function (fn) {
       <span class="chart-updated" id="csPlumeUpdated">&mdash;</span>
     </div>
   </div>
-  <div class="card" id="aboutCard" data-label="About this page" data-group="About">
-    <h2>What this page reads, and how</h2>
-    <p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">Seven C3S seasonal systems from six centres, each read against <b>its own 1993&ndash;2016 hindcast</b> so the models compare even though their biases do not. Every system carries the global maps and the tercile probabilities; ECMWF SEAS5 carries the member-level work as well &mdash; ENSO and ocean indices, teleconnections and the impact products, with its stratosphere on the <a href="/stratosphere.html#s5vortex">stratosphere page</a> &mdash; because its full ensemble is the one the site stores. NOAA&rsquo;s SFS beta, the successor to CFSv2, has its own group: 31 members against its own 1991&ndash;2020 reforecast. Canada&rsquo;s CanSIPS has a group read straight from Environment and Climate Change Canada that runs for <b>twelve months</b>; its months 7&ndash;12 are CanSIPS alone.</p>
-    <p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">ECMWF&rsquo;s seasonal system, read in full and checked against observations: the ENSO
-    indices from the coastal Ni&ntilde;o-1+2 to the central-Pacific Ni&ntilde;o-4, each against the
-    previous three issues; the Pacific, Atlantic and Indian Ocean indices from the same fields;
-    what changed since last month; the CPC teleconnection patterns, with the model&rsquo;s own hindcast skill (the stratosphere,
-    tested the same way, is on the <a href="/stratosphere.html#s5vortex">stratosphere page</a>); anomaly and tercile maps against the hindcast and
-    against observed normals; and the forecast for population-weighted temperature in the United
-    States and Brazil set against normals and records. Model drift is removed everywhere by
-    anomalising each member against SEAS5&rsquo;s own 1993&ndash;2016 hindcast for the same start
-    month and lead. The other six systems are on this page too, in the maps and tercile cards above; what stays
-    ECMWF-only here is the member-level work, because SEAS5 is the ensemble the site stores in full. NOAA&rsquo;s SFS beta is
-    read separately, member by member, against its own reforecast (the NOAA SFS group).</p>
-    <div class="chart-card-footer"><span class="chart-sources">ECMWF SEAS5 via the Copernicus Climate Data Store</span><span class="chart-updated">built by scripts/sst/seas5_outlook.py</span></div>
   </div>
-  </div>
-<template id="about-cansips"><p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65"><b>CanSIPS</b> is Environment and Climate Change Canada&rsquo;s seasonal system: 40 members from two coupled models, GEM5.2-NEMO (members 1&ndash;20) and CanESM5 (21&ndash;40), half of each started on the last day of the month and half four days earlier. C3S carries it for six months; this group reads ECCC&rsquo;s own copy on its MSC Datamart, which runs for <b>twelve</b>, posted on the last day of the previous month. <b>Months 7&ndash;12 are CanSIPS alone</b>: no other system on this page reaches them, so read them as one model&rsquo;s forecast, not a consensus.</p>
-<p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65"><b>Our anomaly maps</b> are the 40-member mean minus CanSIPS&rsquo;s own 1993&ndash;2016 hindcast for the same start month and lead (40 members &times; 24 years from the Datamart), each model against its own, the same base as the C3S systems. A cell is coloured only where the shift is statistically significant: a Welch t-test of the 40 forecast anomalies against the hindcast&rsquo;s spread (counted as 24 independent years), with the false-discovery rate held at 10% across the map (Benjamini&ndash;Hochberg). Blank means no significant shift, not &ldquo;normal&rdquo;. <b>The probability maps are ECCC&rsquo;s own</b>, shown as published and not recomputed here: tercile and decile probabilities against ECCC&rsquo;s 1991&ndash;2020 hindcast climatology.</p>
-<div class="chart-card-footer"><span class="chart-sources">ECCC MSC Datamart (dd.weather.gc.ca), ECCC Data Servers End-use Licence &middot; Data Source: Environment and Climate Change Canada</span><span class="chart-updated">built by scripts/sst/cansips_dd.py, cansips_maps.py (cansips.yml)</span></div></template>
-<template id="about-sfs"><p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">NOAA's next-generation Seasonal Forecast System &mdash; the UFS-based successor to CFSv2, running in near-real-time beta since March 2026 with open zarr output. Every month: 31 members, 12 monthly leads. Anomalies are computed against the <b>model's own 1991&ndash;2020 reforecast</b> for the same init month and lead (11 members &times; 30 years), so drift and bias are removed the same way the C3S models are handled in the other groups on this page and on the <a href="enso-forecasts.html">ENSO forecasts page</a>.</p>
-    <h3 class="method-head">Method</h3>
-    <ul class="method-list">
-      <li><b>Ni&ntilde;o-3.4.</b> Monthly index from all 31 members; fan = member 10&ndash;90% and 25&ndash;75%, sienna line = ensemble mean, the observed Ni&ntilde;o-3.4 (NOAA ERSSTv6 box mean) or CPC&rsquo;s RONI leads in (the site&rsquo;s OISST v2.1 estimate, dashed, for months not yet in those records), <b style="color:var(--cool)">blue dashes</b> = the C3S multi-model mean from the same issue month. The 3-month toggle gives the ONI convention.</li>
-      <li><b>Derived indices.</b> IOD (Saji DMI), the South Atlantic Subtropical Dipole (SW&nbsp;&minus;&nbsp;NE), the Ni&ntilde;o flavours, and a PDO from North Pacific SST anomalies (global mean removed) projected onto the model's own reforecast EOF1, in reforecast-&sigma; units; same fan and mean.</li>
-      <li><b>Monthly anomaly maps.</b> One frame per forecast month against the reforecast for the same init month and lead; fixed colour scale across leads.</li>
-    </ul>
-    <p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65"><b>About the system.</b> SFS beta is a NOAA research prototype (published by the 6th of each month), not yet an operational product &mdash; ensemble size, physics and post-processing are still evolving, and months may occasionally be late or revised. NOAA publishes the raw ensemble openly but few graphical products; everything in this group is computed directly from the full 31-member zarr output and refreshed with each monthly issue.</p>
-    <div class="chart-card-footer"><span class="chart-sources">NOAA SFS beta (NOAA NWS/EMC and OAR/PSL; NODD open data on AWS, bucket noaa-oar-sfsdev-pds) &middot; own 1991&ndash;2020 reforecast &middot; observed: CPC, then OISST v2.1 estimate &middot; C3S &middot; <a href="/sfs-subseasonal.html#credits">where the SFS data come from</a></span><span class="chart-updated">built by scripts/sfs/*.py</span></div></template>
-<template id="about-sfs-skill"><p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">A hindcast study of SFS beta2 against
-    CFSv2, the NOAA system it is meant to replace (October 2026). SFS: its 11-member reforecast, started on the 1st of September
-    and October 1991&ndash;2025, the only start months NOAA has published. CFSv2: the NMME archive at IRI (hindcast 1991&ndash;2010,
-    real-time 2011&ndash;2025), 24 members from lagged starts before the 1st, scored as random 11-member draws so both ensembles are the
-    same size. Each system and the observations are anomalies against their own leave-one-year-out climatology; intervals are 95%
-    year-block bootstrap, and a difference is marked only where its own interval excludes zero and it passes a false
-    discovery rate of 10&nbsp;% over the figure&rsquo;s comparisons; the captions are written from the same study tables
-    (<code>scripts/sfs/sfs_verdicts.py</code>). The weekly comparison is on the <a href="sfs-subseasonal.html#skill">SFS
-    extended page</a>.</p>
-    <div class="chart-card-footer"><span class="chart-sources">SFS beta2 reforecast (NOAA/OAR, NODD) &middot; CFSv2 via the NMME archive
-      (IRI Data Library) &middot; ERA5 (Copernicus C3S) &middot; OISST v2.1 (NOAA NCEI)</span><span class="chart-updated">built by
-      scripts/sfs/sfs_cfsfig.py from scripts/sfs/skill/cfs/</span></div></template>
-<template id="about-sfs-maps"><p>One frame per forecast month against the model&rsquo;s own reforecast, fixed colour scale, in the loop player.</p><div class="chart-card-footer">
-      <span class="chart-sources">SFS beta ocn_monthly / atm_monthly zarr (1&deg;), 31-member mean
-      &middot; anomalies vs own reforecast 1991&ndash;2020 per init month &amp; lead &middot; fixed colour scale across leads</span>
-      <span class="chart-updated" id="sfsMonthlyUpdated">&mdash;</span>
-    </div><p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">NOAA's next-generation Seasonal Forecast System &mdash; the UFS-based successor to CFSv2, running in near-real-time beta since March 2026 with open zarr output. Every month: 31 members, 12 monthly leads. Anomalies are computed against the <b>model's own 1991&ndash;2020 reforecast</b> for the same init month and lead (11 members &times; 30 years), so drift and bias are removed the same way the C3S models are handled in the other groups on this page and on the <a href="enso-forecasts.html">ENSO forecasts page</a>.</p>
-    <h3 class="method-head">Method</h3>
-    <ul class="method-list">
-      <li><b>Ni&ntilde;o-3.4.</b> Monthly index from all 31 members; fan = member 10&ndash;90% and 25&ndash;75%, sienna line = ensemble mean, the observed Ni&ntilde;o-3.4 (NOAA ERSSTv6 box mean) or CPC&rsquo;s RONI leads in (the site&rsquo;s OISST v2.1 estimate, dashed, for months not yet in those records), <b style="color:var(--cool)">blue dashes</b> = the C3S multi-model mean from the same issue month. The 3-month toggle gives the ONI convention.</li>
-      <li><b>Derived indices.</b> IOD (Saji DMI), the South Atlantic Subtropical Dipole (SW&nbsp;&minus;&nbsp;NE), the Ni&ntilde;o flavours, and a PDO from North Pacific SST anomalies (global mean removed) projected onto the model's own reforecast EOF1, in reforecast-&sigma; units; same fan and mean.</li>
-      <li><b>Monthly anomaly maps.</b> One frame per forecast month against the reforecast for the same init month and lead; fixed colour scale across leads.</li>
-    </ul>
-    <div class="chart-card-footer"><span class="chart-sources">NOAA SFS beta (NOAA NWS/EMC and OAR/PSL; NODD open data on AWS, bucket noaa-oar-sfsdev-pds) &middot; own 1991&ndash;2020 reforecast &middot; observed: CPC, then OISST v2.1 estimate &middot; C3S &middot; <a href="/sfs-subseasonal.html#credits">where the SFS data come from</a></span><span class="chart-updated">built by scripts/sfs/*.py</span></div></template>
+<template id="about-cansips"><p class="chart-sources">ECCC MSC Datamart (dd.weather.gc.ca), ECCC Data Servers End-use Licence &middot; Data Source: Environment and Climate Change Canada &middot; built by scripts/sst/cansips_dd.py, cansips_maps.py (cansips.yml)</p></template>
+<template id="about-sfs"><p class="chart-sources">NOAA SFS beta (NOAA NWS/EMC and OAR/PSL; NODD open data on AWS, bucket noaa-oar-sfsdev-pds) &middot; own 1991&ndash;2020 reforecast &middot; observed: CPC, then OISST v2.1 estimate &middot; C3S &middot; <a href="/sfs-subseasonal.html#credits">where the SFS data come from</a> &middot; built by scripts/sfs/*.py</p></template>
+<template id="about-sfs-skill"><p class="chart-sources">SFS beta2 reforecast (NOAA/OAR, NODD) &middot; CFSv2 via the NMME archive (IRI Data Library) &middot; ERA5 (Copernicus C3S) &middot; OISST v2.1 (NOAA NCEI) &middot; built by scripts/sfs/sfs_cfsfig.py from scripts/sfs/skill/cfs/</p></template>
+<template id="about-sfs-maps"><p class="chart-sources">SFS beta ocn_monthly / atm_monthly zarr (1&deg;), 31-member mean &middot; anomalies vs own reforecast 1991&ndash;2020 per init month &amp; lead &middot; fixed colour scale across leads &middot; <span class="chart-updated" id="sfsMonthlyUpdated">&mdash;</span></p>
+<p class="chart-sources">NOAA SFS beta (NOAA NWS/EMC and OAR/PSL; NODD open data on AWS, bucket noaa-oar-sfsdev-pds) &middot; own 1991&ndash;2020 reforecast &middot; observed: CPC, then OISST v2.1 estimate &middot; C3S &middot; <a href="/sfs-subseasonal.html#credits">where the SFS data come from</a> &middot; built by scripts/sfs/*.py</p></template>
 
   <div class="colophon">
-    <h3>Data and method</h3>
-    <p><b>The multi-model cards</b> read three collections. Anomaly maps and the ocean indices come from
-    <code>seasonal-postprocessed-single-levels</code>, which publishes every member&rsquo;s anomaly against its own
-    system&rsquo;s 1993&ndash;2016 hindcast; the maps&rsquo; test also needs the hindcast&rsquo;s own spread, which only the
-    raw hindcast has &mdash; for 2&nbsp;m temperature and precipitation the one the tercile maps read, for sea-level pressure
-    and SST one fetched for the test alone, once per start month. The ocean indices are ensemble means and carry no
-    spread. The tercile maps read <code>seasonal-monthly-single-levels</code>: this
-    issue&rsquo;s members and the matching 1993&ndash;2016 hindcast on the 1&deg; grid, per system, with the hindcast cached per
-    start month and reused every year; ECMWF is read from the copy already held for the member-level products. The
-    Ni&ntilde;o-3.4 plume is the full ensemble of every system the ENSO forecasts page uses (DWD left out), which is
-    affordable because the box is small. Multi-model means weight every SYSTEM equally, never every member, so a
-    120-member ensemble does not speak for the group; ECCC&rsquo;s two systems count as two in the maps (the plume merges them into one
-    40-member CanSIPS). The Bureau of Meteorology&rsquo;s ACCESS-S2, also on the CDS, is not used (poor ENSO skill
-    and drift).</p>
-    <p>Forecast: ECMWF SEAS5 (C3S <code>originating_centre=ecmwf</code>, <code>system=51</code>), 51 members, monthly means for lead months 1&ndash;6 and the 6-hourly 2 m temperature, from the Copernicus Climate Data Store, and from the October 2026 issue a <b>seventh lead month</b> (April for an October start) rebuilt from the same run&rsquo;s sub-daily fields (see <i>Lead month 7</i> below); hindcast: the same system&rsquo;s 1993&ndash;2016 re-forecasts, 25 members, for the same start month, and likewise for the previous issue. Sea-surface temperature, 500 and 1000 hPa height, sea-level pressure and stratospheric winds on a 2&deg; grid; 2 m temperature, precipitation, evaporation, 10 m wind, solar radiation and 500 hPa height on a 1&deg; grid over the Americas; geopotential at 10, 50 and 100 hPa poleward of 60&deg; in each hemisphere.</p>
-    <p><b>Lead month 7</b> (from the October 2026 issue). The CDS monthly product stops at lead month 6, but SEAS5 runs 215 days, so the seventh month (April for an October start) is rebuilt from the same run&rsquo;s sub-daily fields: instantaneous fields averaged over every step from 06&nbsp;UTC on the 1st (12&nbsp;UTC for pressure levels) to 00&nbsp;UTC on the 1st of the next month, accumulations as the month&rsquo;s total over its seconds. Applied to month 6 of the same issue, that rule reproduces the monthly product to its packing precision (largest difference 0.002&nbsp;K in 2&nbsp;m temperature, 0.3&nbsp;m&sup2;/s&sup2; in 500&nbsp;hPa geopotential, 1e-11&nbsp;m/s in precipitation). The 1993&ndash;2016 hindcast reference for month 7 comes from the daily copy of the C3S SEAS5 archive on AWS (Planette, Copernicus licence) for the instantaneous fields and from the CDS sub-daily hindcast for the accumulations and the 50/100/1000&nbsp;hPa heights and 30/50&nbsp;hPa winds. Checked at months 5 and 6 against the CDS monthly hindcast, the AWS copy is identical for smooth fields (polar-cap and Ni&ntilde;o-box means, 500&nbsp;hPa height, 60&deg;N wind) but differs on the grid for 2&nbsp;m temperature (rms 0.2&nbsp;K, up to 3&nbsp;K on coasts and mountains), coastal SST box means (up to 0.18&nbsp;K) and snow depth; those offsets do not change between months 5 and 6, so each such field is moved onto the CDS hindcast mean using its month-6 offset. Not extended, so shown to month 6: 10&nbsp;m wind speed and solar radiation (the monthly wind speed is not reproducible from the sub-daily winds), and the 100&nbsp;hPa vortex wind. The seventh month has less skill; it goes through the same calibration and trend handling as the others and the same tests where a product has one (the teleconnection skill test, the tercile maps&rsquo; signal test, the anomaly and change maps&rsquo; Welch test); the change maps have nothing to compare it with in the previous issue.</p>
-    <p>Observations: ERA5 (daily 1.5&deg; fields, 1959 or 1991 to the present depending on the field), monthly-meaned for normals, trends, records and skill; the Ni&ntilde;o box means of the NOAA ERSSTv6 grid and CPC&rsquo;s RONI (ERSSTv6) for the observed Ni&ntilde;o lead-in, continued past the last month of each by the site&rsquo;s OISST v2.1 estimate, drawn dashed; NOAA CPC Global Unified daily maximum and minimum temperature (0.5&deg;, 1991&ndash;2020, via NOAA PSL) for the threshold-day normals. Teleconnection projectors are the CPC-style regression patterns built for the GEPS page on NCEP/NCAR R1 (1991&ndash;2020). Population weights: GeoNames (CC BY 4.0) places of 15,000 or more people. The hindcast and observed references are reduced once to compact tables, so each monthly run in GitHub Actions downloads only the new forecast.</p>
-    <p>Method: indices are cosine-weighted box means; anomalies are member minus hindcast mean at the same lead (member minus the hindcast&rsquo;s linear trend for geopotential heights, which carry the warming signal). Relative Ni&ntilde;o-3.4 follows the CPC/ECMWF construction used elsewhere on this site; the Trans-Ni&ntilde;o index is Trenberth &amp; Stepaniak (2001), standardised by the hindcast spread. Terciles against the hindcast use the 33.3rd and 66.7th percentiles of the 600 hindcast samples per grid point; against observed references the members are first bias-corrected (member &minus; hindcast mean + ERA5 1993&ndash;2016 mean, multiplicatively for rain and sunshine) and the bounds are &plusmn;0.43&sigma; of the observed 1991&ndash;2020 spread around the reference (detrended for the trend reference; empirical percentiles for rain and sunshine). Standardised anomalies divide the ensemble-mean anomaly by the reference&rsquo;s year-to-year standard deviation. The anomaly and change maps (this group and every C3S system) are shaded only where the ensemble-mean shift passes a Welch t-test (Welch&ndash;Satterthwaite degrees of freedom) against the sum of the sampling variances of the means it is made of &mdash; the members&rsquo;, the hindcast mean&rsquo;s (one member&rsquo;s spread over 24 independent years, conservative; for heights the fitted trend&rsquo;s own error at the issue&rsquo;s start year, s&sup2;(1/24&nbsp;+&nbsp;x&#8320;&sup2;/&Sigma;(x&nbsp;&minus;&nbsp;x&#772;)&sup2;) from its 24 yearly means), and for a change the previous issue&rsquo;s members and the year-to-year spread of the difference between the two start months&rsquo; yearly hindcast means &mdash; with a Benjamini&ndash;Hochberg false-discovery rate of 0.10 over the cells each map shows (land for temperature, precipitation and snow, ocean for SST). Counted as independent, a change&rsquo;s two hindcast means would weigh 4&ndash;11 times its forecast terms and almost nothing could pass; year by year they weigh 0.1&ndash;1.2 times. Skill is the correlation of the 24 hindcast years&rsquo; ensemble mean with ERA5 at the valid month. Teleconnection phase probabilities are calibrated by regressing the observed monthly index (ERA5, same projection; CPC&rsquo;s published index for the SOI and equatorial SOI) on the hindcast ensemble mean over those 24 years for each calendar month and lead, and reading the ±0.5&sigma; tail areas of the regression&rsquo;s predictive distribution &mdash; Student&nbsp;t on 22 degrees of freedom, its spread widened by &radic;(1&nbsp;+&nbsp;1/n&nbsp;+&nbsp;(x&nbsp;&minus;&nbsp;x&#772;)&sup2;/S<sub>xx</sub>) because the fit is in-sample on the same 24 years. Skill is tested with a one-sided t-test of r&nbsp;&gt;&nbsp;0 on n&nbsp;&minus;&nbsp;2 degrees of freedom (one start a year, so the years are independent): at n&nbsp;=&nbsp;24 a cell needs r&nbsp;&ge;&nbsp;0.344 for p&nbsp;&le;&nbsp;0.05, and it must also pass a Benjamini&ndash;Hochberg false-discovery rate of 0.10 over all the index &times; lead cells of the issue; otherwise the probabilities are climatology (the observed mean and spread of the 24 years). The fit&rsquo;s predictor is the 25-member hindcast mean while the forecast is a 51-member mean, which is less noisy, so the fitted slope is slightly too small and the calibrated forecast leans to climatology (conservative). The raw member odds count members beyond &plusmn;0.5 of the observed index after moving that threshold to the same climatological frequency in the model&rsquo;s own hindcast spread (SEAS5&rsquo;s members spread more widely than the observed index for some patterns, and a fixed threshold would read that as odds). The AO, EPO, WPO, SOI and equatorial SOI, which have no built-in standardisation, are expressed in ERA5&rsquo;s 1991&ndash;2020 standard deviation for the calendar month, applied identically to model and observations. Built by <code>scripts/sst/seas5_outlook.py</code> and its companions; the JSON behind the charts: <a href="assets/sst/data/seas5_outlook.json">seas5_outlook.json</a>, <a href="assets/sst/data/seas5_tele.json">seas5_tele.json</a>, <a href="assets/sst/data/seas5_popT.json">seas5_popT.json</a>, <a href="assets/sst/data/seas5_normals.json">seas5_normals.json</a>, <a href="assets/sst/data/seas5_regimes.json">seas5_regimes.json</a>.</p>
-    <p><b>NOAA SFS beta</b> (the NOAA SFS group): NOAA&rsquo;s next-generation
-    Seasonal Forecast System, the UFS-based replacement for CFSv2, running in near-real-time beta since March 2026. NOAA
-    publishes the raw ensemble output openly but few graphical products; the Ni&ntilde;o-3.4/RONI plumes, the
-    IOD/SASD/PDO indices and the monthly anomaly-map loops are computed directly from the full 31-member zarr output and
-    refreshed with each monthly issue (published by the 6th of each month). It is a research prototype, not yet an
-    operational product &mdash; ensemble size, physics and post-processing are still evolving, and months may occasionally
-    be late or revised. The reforecast climatology uses 11 members per year over 1991&ndash;2020, init-month specific, so
-    lead-dependent drift cancels by construction. Data: NOAA Open Data Dissemination, <code>noaa-oar-sfsdev-pds</code> on
-    AWS. Built by <code>scripts/sfs/*.py</code>; the JSON behind the charts:
-    <a href="assets/sfs/data/sfs_nino34.json">sfs_nino34.json</a>, <a href="assets/sfs/data/sfs_indices.json">sfs_indices.json</a>.</p>
-    <p><b>CanSIPS</b> (the CanSIPS group, October 2026): Environment and Climate Change Canada&rsquo;s 40-member system read
-    from its MSC Datamart to twelve months, with its own 1990&ndash;2020 hindcast. The site&rsquo;s anomalies use its 1993&ndash;2016 years, as for C3S; ECCC&rsquo;s
-    own probability maps use its 1991&ndash;2020 climatology. Our
-    anomaly maps colour only significant cells; the probability maps are ECCC&rsquo;s own. Built by
-    <code>scripts/sst/cansips_dd.py</code> and <code>cansips_maps.py</code> in <code>cansips.yml</code>. Data Source:
-    Environment and Climate Change Canada (ECCC Data Servers End-use Licence).</p>
+    <h3>Data and licences</h3>
+    <p>Seasonal forecasts and hindcasts: ECMWF SEAS5 and the other C3S seasonal systems, from the Copernicus Climate
+    Data Store; the daily copy of the SEAS5 hindcast on AWS (Planette, Copernicus licence). Observations: ERA5
+    (Copernicus C3S); NOAA ERSSTv6, OISST v2.1 and CPC&rsquo;s RONI; NOAA CPC Global Unified temperature and NCEP/NCAR
+    Reanalysis 1 (via NOAA PSL). Population weights: GeoNames (CC BY 4.0).</p>
     <p>SFS beta data: NOAA/OAR via NODD (public domain) &middot; C3S overlay on the SFS plume: Copernicus Climate Change
     Service &middot; observed indices: NOAA ERSSTv6 box means, NOAA CPC RONI (ERSSTv6) and, for the months not yet in those, NOAA OISST v2.1.</p>
+    <p>CanSIPS: Data Source: Environment and Climate Change Canada (ECCC Data Servers End-use Licence), from the MSC
+    Datamart.</p>
     <p>Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission nor ECMWF is responsible for any use of this information.</p>
   </div>
+<section class="page-about"><p><a href="/guides/seasonal.html">Guide to this page</a>: what each figure shows, how the
+  seven C3S systems, SEAS5, NOAA&rsquo;s SFS beta and CanSIPS are read against their own hindcasts, and the significance
+  tests behind the shading.</p></section>
 <script>
 window.STAGE = {
-  groups: [{"label": "Every model", "items": [["c3sMapCard", "Anomaly maps", ""], ["c3sTercCard", "Tercile probabilities", ""], ["c3sIdxCard", "Ocean indices", ""], ["c3sPopCard", "Population-weighted, monthly", ""], ["c3sDayCard", "Population-weighted, daily", ""], ["ni-o-3-4-every-member", "Niño-3.4, every member", ""]]}, {"label": "SEAS5 · ENSO & oceans", "items": [["enso-indices", "ENSO indices", ""], ["pdo-amo-iod-atlantic-ni-o", "PDO, AMO, IOD, Atlantic Niño", ""]]}, {"label": "SEAS5 · Maps", "items": [["changeCard", "Maps and changes", ""], ["calibrated-terciles", "Bias-corrected terciles", ""], ["normCard", "Against observed normals", ""]]}, {"label": "SEAS5 · Teleconnections & regimes", "items": [["teleCard", "Teleconnection indices", ""], ["regimeCard", "Weather regimes", ""]]}, {"label": "SEAS5 · Impacts", "items": [["popCard", "Population-weighted, daily", ""], ["xdaysCard", "Threshold days", ""], ["runsCard", "Cold-snap risk", ""], ["windCard", "Wind events", ""], ["snowCard", "Snowfall", ""]]}, {"label": "NOAA SFS (beta)", "items": [["sfs-plume", "Niño-3.4 plume", "all 31 members"], ["sfs-indices", "Climate indices", "IOD, SASD, Niño flavours, PDO"], ["sfs-maps", "Monthly anomaly maps", "eight fields, every lead"], ["sfs-skill", "Hindcast skill", "against CFSv2"]]}, {"label": "CanSIPS (Environment Canada, 12 months)", "items": [["cs-plume", "Niño-3.4 plume", "40 members, 12 months"], ["cs-maps", "Anomaly maps", "nine fields, monthly and 3-month"], ["cs-terc", "Tercile probabilities", "ECCC's own: temperature, rain, snow"], ["cs-tails", "Decile tails", "ECCC's own: warmest, coldest, wettest, driest 10%"]]}, {"label": "About", "items": [["aboutCard", "About this page", ""]]}],
+  guide: "/guides/seasonal.html",
+  groups: [{"label": "Every model", "items": [["c3sMapCard", "Anomaly maps", ""], ["c3sTercCard", "Tercile probabilities", ""], ["c3sIdxCard", "Ocean indices", ""], ["c3sPopCard", "Population-weighted, monthly", ""], ["c3sDayCard", "Population-weighted, daily", ""], ["ni-o-3-4-every-member", "Niño-3.4, every member", ""]]}, {"label": "SEAS5 · ENSO & oceans", "items": [["enso-indices", "ENSO indices", ""], ["pdo-amo-iod-atlantic-ni-o", "PDO, AMO, IOD, Atlantic Niño", ""]]}, {"label": "SEAS5 · Maps", "items": [["changeCard", "Maps and changes", ""], ["calibrated-terciles", "Bias-corrected terciles", ""], ["normCard", "Against observed normals", ""]]}, {"label": "SEAS5 · Teleconnections & regimes", "items": [["teleCard", "Teleconnection indices", ""], ["regimeCard", "Weather regimes", ""]]}, {"label": "SEAS5 · Impacts", "items": [["popCard", "Population-weighted, daily", ""], ["xdaysCard", "Threshold days", ""], ["runsCard", "Cold-snap risk", ""], ["windCard", "Wind events", ""], ["snowCard", "Snowfall", ""]]}, {"label": "NOAA SFS (beta)", "items": [["sfs-plume", "Niño-3.4 plume", "all 31 members"], ["sfs-indices", "Climate indices", "IOD, SASD, Niño flavours, PDO"], ["sfs-maps", "Monthly anomaly maps", "eight fields, every lead"], ["sfs-skill", "Hindcast skill", "against CFSv2"]]}, {"label": "CanSIPS (Environment Canada, 12 months)", "items": [["cs-plume", "Niño-3.4 plume", "40 members, 12 months"], ["cs-maps", "Anomaly maps", "nine fields, monthly and 3-month"], ["cs-terc", "Tercile probabilities", "ECCC's own: temperature, rain, snow"], ["cs-tails", "Decile tails", "ECCC's own: warmest, coldest, wettest, driest 10%"]]}],
   products: {
-    "c3sMapCard": { label: "Anomaly maps", gated: true, dom: function () { return "c3sMapCard"; } },
-    "c3sTercCard": { label: "Tercile probabilities", gated: true, dom: function () { return "c3sTercCard"; } },
-    "c3sIdxCard": { label: "Ocean indices", gated: true, dom: function () { return "c3sIdxCard"; } },
-    "c3sPopCard": { label: "Population-weighted, monthly", gated: true, dom: function () { return "c3sPopCard"; } },
-    "c3sDayCard": { label: "Population-weighted, daily", gated: true, dom: function () { return "c3sDayCard"; } },
-    "ni-o-3-4-every-member": { label: "Niño-3.4, every member", gated: true, dom: function () { return "ni-o-3-4-every-member"; } },
-    "enso-indices": { label: "ENSO indices", gated: true, dom: function () { return "enso-indices"; } },
-    "pdo-amo-iod-atlantic-ni-o": { label: "PDO, AMO, IOD, Atlantic Niño", gated: true, dom: function () { return "pdo-amo-iod-atlantic-ni-o"; } },
-    "changeCard": { label: "Maps and changes", gated: true, dom: function () { return "changeCard"; } },
-    "calibrated-terciles": { label: "Bias-corrected terciles", gated: true, dom: function () { return "calibrated-terciles"; } },
-    "teleCard": { label: "Teleconnection indices", gated: true, dom: function () { return "teleCard"; } },
-    "popCard": { label: "Population-weighted, daily", gated: true, dom: function () { return "popCard"; } },
-    "xdaysCard": { label: "Threshold days", gated: true, dom: function () { return "xdaysCard"; } },
-    "runsCard": { label: "Cold-snap risk", gated: true, dom: function () { return "runsCard"; } },
-    "windCard": { label: "Wind events", gated: true, dom: function () { return "windCard"; } },
-    "snowCard": { label: "Snowfall", gated: true, dom: function () { return "snowCard"; } },
-    "normCard": { label: "Against observed normals", gated: true, dom: function () { return "normCard"; } },
-    "regimeCard": { label: "Weather regimes", gated: true, dom: function () { return "regimeCard"; } },
+    "c3sMapCard": { about: "about-c3sMapCard", label: "Anomaly maps", gated: true, dom: function () { return "c3sMapCard"; } },
+    "c3sTercCard": { about: "about-c3sTercCard", label: "Tercile probabilities", gated: true, dom: function () { return "c3sTercCard"; } },
+    "c3sIdxCard": { about: "about-c3sIdxCard", label: "Ocean indices", gated: true, dom: function () { return "c3sIdxCard"; } },
+    "c3sPopCard": { about: "about-c3sPopCard", label: "Population-weighted, monthly", gated: true, dom: function () { return "c3sPopCard"; } },
+    "c3sDayCard": { about: "about-c3sDayCard", label: "Population-weighted, daily", gated: true, dom: function () { return "c3sDayCard"; } },
+    "ni-o-3-4-every-member": { about: "about-ni-o-3-4-every-member", label: "Niño-3.4, every member", gated: true, dom: function () { return "ni-o-3-4-every-member"; } },
+    "enso-indices": { about: "about-enso-indices", label: "ENSO indices", gated: true, dom: function () { return "enso-indices"; } },
+    "pdo-amo-iod-atlantic-ni-o": { about: "about-pdo-amo-iod-atlantic-ni-o", label: "PDO, AMO, IOD, Atlantic Niño", gated: true, dom: function () { return "pdo-amo-iod-atlantic-ni-o"; } },
+    "changeCard": { about: "about-changeCard", label: "Maps and changes", gated: true, dom: function () { return "changeCard"; } },
+    "calibrated-terciles": { about: "about-calibrated-terciles", label: "Bias-corrected terciles", gated: true, dom: function () { return "calibrated-terciles"; } },
+    "teleCard": { about: "about-teleCard", label: "Teleconnection indices", gated: true, dom: function () { return "teleCard"; } },
+    "popCard": { about: "about-popCard", label: "Population-weighted, daily", gated: true, dom: function () { return "popCard"; } },
+    "xdaysCard": { about: "about-xdaysCard", label: "Threshold days", gated: true, dom: function () { return "xdaysCard"; } },
+    "runsCard": { about: "about-runsCard", label: "Cold-snap risk", gated: true, dom: function () { return "runsCard"; } },
+    "windCard": { about: "about-windCard", label: "Wind events", gated: true, dom: function () { return "windCard"; } },
+    "snowCard": { about: "about-snowCard", label: "Snowfall", gated: true, dom: function () { return "snowCard"; } },
+    "normCard": { about: "about-normCard", label: "Against observed normals", gated: true, dom: function () { return "normCard"; } },
+    "regimeCard": { about: "about-regimeCard", label: "Weather regimes", gated: true, dom: function () { return "regimeCard"; } },
     "sfs-plume": { label: "SFS Niño-3.4 — all 31 members", dom: function () { return "dom-sfs-plume"; }, about: "about-sfs",
                    cap: function () { return ""; } },
     "sfs-indices": { label: "SFS derived climate indices — member spread", dom: function () { return "dom-sfs-indices"; }, about: "about-sfs",
@@ -949,12 +669,11 @@ window.STAGE = {
                   frame: function (a, b) { return "loop.html?base=assets/cansips/anim&manifest=cs_tail_" + a + "_" + b + "_manifest.json&region=cs_tail_" + a + "_" + b + "&autoplay=0"; },
                   ratio: function () { return "1440/860"; },
                   cap: function () { return "ECCC\u2019s own probability that the month or season lands in the top or bottom 10% of its 1991\u20132020 hindcast climatology (from the ProbGT90Pct / ProbGT10Pct products, as published). The climatological chance is 10%; white is under 20%. Months 7\u201312 are CanSIPS alone. Data Source: Environment and Climate Change Canada."; },
-                  about: "about-cansips" },
-    "aboutCard": { label: "About this page", gated: true, dom: function () { return "aboutCard"; } }
+                  about: "about-cansips" }
   }
 };
 // the SFS group's data loads on its first visit (window.SFS.start, defined further down), not with the page
-window.STAGE.aliases = { "sfs": "sfs-plume" };
+window.STAGE.aliases = { "sfs": "sfs-plume", "aboutCard": "/guides/seasonal.html" };
 window.STAGE.onRender = function (sel) {
   if (sel.p.indexOf("sfs-") === 0 && window.SFS) window.SFS.start(sel.p);
   if (sel.p === "cs-plume" && window.CSP) window.CSP.start();
