@@ -1,5 +1,5 @@
 {
- "init": "2026-11-11",
+ "init": "2026-11-12",
  "members": {
   "ifs": 50,
   "aifs-ens": 50,
@@ -9,84 +9,84 @@
  "missing": [],
  "weeks": {
   "wk1": [
-   "2026-11-11",
-   "2026-11-17"
+   "2026-11-12",
+   "2026-11-18"
   ],
   "wk2": [
-   "2026-11-18",
-   "2026-11-24"
+   "2026-11-19",
+   "2026-11-25"
   ]
  },
  "stats": {
   "blend_wk1": {
-   "tested_cells": 36369,
-   "sig_frac_tropics": 0.601,
-   "above_frac_tropics": 0.366,
+   "tested_cells": 36333,
+   "sig_frac_tropics": 0.598,
+   "above_frac_tropics": 0.364,
    "below_frac_tropics": 0.234,
-   "dod_sig_frac": 0.373
+   "dod_sig_frac": 0.384
   },
   "blend_wk2": {
-   "tested_cells": 36291,
-   "sig_frac_tropics": 0.575,
-   "above_frac_tropics": 0.362,
-   "below_frac_tropics": 0.213,
-   "dod_sig_frac": 0.064
+   "tested_cells": 36288,
+   "sig_frac_tropics": 0.56,
+   "above_frac_tropics": 0.33,
+   "below_frac_tropics": 0.23,
+   "dod_sig_frac": 0.117
   },
   "ifs_wk1": {
-   "tested_cells": 36369,
-   "sig_frac_tropics": 0.58,
-   "above_frac_tropics": 0.397,
-   "below_frac_tropics": 0.183,
-   "dod_sig_frac": 0.386
+   "tested_cells": 36333,
+   "sig_frac_tropics": 0.585,
+   "above_frac_tropics": 0.399,
+   "below_frac_tropics": 0.186,
+   "dod_sig_frac": 0.371
   },
   "ifs_wk2": {
-   "tested_cells": 36291,
-   "sig_frac_tropics": 0.548,
-   "above_frac_tropics": 0.394,
-   "below_frac_tropics": 0.154,
-   "dod_sig_frac": 0.005
+   "tested_cells": 36288,
+   "sig_frac_tropics": 0.529,
+   "above_frac_tropics": 0.37,
+   "below_frac_tropics": 0.158,
+   "dod_sig_frac": 0.111
   },
   "aifs_wk1": {
-   "tested_cells": 36369,
-   "sig_frac_tropics": 0.578,
-   "above_frac_tropics": 0.344,
-   "below_frac_tropics": 0.234,
-   "dod_sig_frac": 0.297
+   "tested_cells": 36333,
+   "sig_frac_tropics": 0.576,
+   "above_frac_tropics": 0.343,
+   "below_frac_tropics": 0.233,
+   "dod_sig_frac": 0.346
   },
   "aifs_wk2": {
-   "tested_cells": 36291,
-   "sig_frac_tropics": 0.526,
-   "above_frac_tropics": 0.31,
-   "below_frac_tropics": 0.216,
-   "dod_sig_frac": 0.047
+   "tested_cells": 36288,
+   "sig_frac_tropics": 0.527,
+   "above_frac_tropics": 0.288,
+   "below_frac_tropics": 0.239,
+   "dod_sig_frac": 0.103
   },
   "gefs_wk1": {
-   "tested_cells": 36369,
-   "sig_frac_tropics": 0.545,
-   "above_frac_tropics": 0.353,
+   "tested_cells": 36333,
+   "sig_frac_tropics": 0.54,
+   "above_frac_tropics": 0.348,
    "below_frac_tropics": 0.192,
-   "dod_sig_frac": 0.226
+   "dod_sig_frac": 0.173
   },
   "gefs_wk2": {
-   "tested_cells": 36291,
-   "sig_frac_tropics": 0.411,
-   "above_frac_tropics": 0.274,
-   "below_frac_tropics": 0.137,
-   "dod_sig_frac": 0.017
+   "tested_cells": 36288,
+   "sig_frac_tropics": 0.383,
+   "above_frac_tropics": 0.252,
+   "below_frac_tropics": 0.131,
+   "dod_sig_frac": 0.0
   },
   "geps_wk1": {
-   "tested_cells": 36369,
-   "sig_frac_tropics": 0.549,
-   "above_frac_tropics": 0.416,
-   "below_frac_tropics": 0.133,
-   "dod_sig_frac": 0.043
+   "tested_cells": 36333,
+   "sig_frac_tropics": 0.561,
+   "above_frac_tropics": 0.425,
+   "below_frac_tropics": 0.136,
+   "dod_sig_frac": 0.051
   },
   "geps_wk2": {
-   "tested_cells": 36291,
+   "tested_cells": 36288,
    "sig_frac_tropics": 0.472,
-   "above_frac_tropics": 0.344,
-   "below_frac_tropics": 0.128,
-   "dod_sig_frac": 0.0
+   "above_frac_tropics": 0.34,
+   "below_frac_tropics": 0.132,
+   "dod_sig_frac": 0.001
   }
  },
  "bias": {
@@ -426,7 +426,7 @@
   }
  },
  "dod": {
-  "previous": "2026-11-10",
+  "previous": "2026-11-11",
   "models": [
    "aifs-ens",
    "gefs",
@@ -435,5 +435,5 @@
   ]
  },
  "normal": "GPCP V3.2 daily 2001-2020, 7-day totals",
- "made": "2026-11-11T08:33Z"
+ "made": "2026-11-12T08:32Z"
 }
