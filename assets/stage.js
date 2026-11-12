@@ -18,9 +18,8 @@
        (a,b,c) does so for the views it is true for, after "#id/a/" (a product whose parts mount different blocks).
    STAGE.aliases maps old ids to products, or to a product and its options ("product/a"); an old link's own state after
    the id (#oldid/x/y) follows it (#product/a/x/y). An alias to a URL ("/page.html#view") sends the old link to the
-   page the product moved to. STAGE.related = false
-   drops the related-plots strip; STAGE.onRender(sel) runs after each render. An optional #stage-stamp element
-   shows the stamp the figure on stage reports for itself.
+   page the product moved to. STAGE.onRender(sel) runs after each render. An optional #stage-stamp element shows the
+   stamp the figure on stage reports for itself.
    Selection lives in the hash (#product/a/b/c); with the focus in the viewer ← → step the deepest option row and,
    in the list of plots, ↑ ↓ the product. */
 (function () {
@@ -426,7 +425,6 @@
       else history.replaceState(null, "", h);
     }
     pushNext = false;
-    related();
     refocus(spot);
     window.dispatchEvent(new Event("resize"));
   }
@@ -461,75 +459,6 @@
     lbReturn = null;
   }
 
-  // "Related plots": a strip under the figure of products elsewhere on the site
-  // that share its variables, regions and models, from the site's catalogue (assets/site/catalog.json via
-  // window.SiteFind). The index is fetched only once the strip scrolls into view.
-  var relBox = null, relWanted = false, relCat = null;
-  function pagePath() { return location.pathname.replace(/index\.html$/, ""); }
-  function related() {
-    if (!window.SiteFind || S.related === false) return;
-    if (!relBox) {
-      relBox = document.createElement("div"); relBox.className = "ss-related"; relBox.hidden = true;
-      var anchor = $("about"); anchor.parentNode.insertBefore(relBox, anchor.nextSibling);
-      if ("IntersectionObserver" in window) {
-        // In view, not 300 px early: its six thumbnails are frames-host requests, never fetched in the background.
-        // And still in view a moment later: on page open the strip sits on screen for a few hundred ms, until the
-        // figure above it (an embed that posts its height) has grown, which must not count as "seen".
-        new IntersectionObserver(function (es, obs) {
-          if (!es.some(function (e) { return e.isIntersecting; })) return;
-          var tries = 0, check = function () {
-            if (relWanted) return;
-            var fr = document.querySelector("#stage iframe"), im = document.querySelector("#stage > .ss-zoom img");
-            // an embed not sized yet, or a figure still downloading: the box above the strip will still grow
-            if (((fr && fr.style.aspectRatio !== "auto") || (im && !im.complete)) && ++tries < 20) { setTimeout(check, 800); return; }
-            var r = relBox.getBoundingClientRect();
-            if (r.top >= window.innerHeight || r.bottom <= 0) return;  // pushed off screen: wait for the next scroll in
-            obs.disconnect(); relWanted = true; fillRelated();
-          };
-          setTimeout(check, 800);
-        }, { rootMargin: "0px" }).observe(relBox);
-        relBox.hidden = false; relBox.style.minHeight = "1px";
-      } else { relWanted = true; }
-    }
-    fillRelated();
-  }
-  function fillRelated() {
-    if (!relWanted) return;
-    if (!relCat) { window.SiteFind.load().then(function (c) { relCat = c; fillRelated(); }, function () {}); return; }
-    // the catalogue entry for this figure: its own id, an old id that aliases to it, or failing both the page itself
-    var here = pagePath(), me = null, ids = {};
-    ids[here + "#" + sel.p] = 1;
-    Object.keys(AL).forEach(function (k) { if (AL[k].charAt(0) !== "/" && AL[k].split("/")[0] === sel.p) ids[here + "#" + k] = 1; });
-    relCat.items.forEach(function (it) { if (it.page === here && ids[it.id]) me = it; });
-    if (!me) relCat.items.forEach(function (it) { if (!me && it.id === here) me = it; });
-    if (!me) { relBox.hidden = true; return; }
-    var set = function (a) { var o = {}; (a || []).forEach(function (x) { o[x] = 1; }); return o; };
-    var V = set(me.variables), R = set(me.regions), M = set(me.models);
-    // plots with a thumbnail that share a variable or a region with this one, the closest first
-    var scored = relCat.items.filter(function (it) { return it.thumb && it.page !== here && it.page !== "/catalog.html"; }).map(function (it) {
-      var sc = 0, shared = false;
-      (it.variables || []).forEach(function (x) { if (V[x]) { sc += 3; shared = true; } });
-      (it.regions || []).forEach(function (x) { if (R[x]) { sc += 1.5; shared = true; } });
-      (it.models || []).forEach(function (x) { if (M[x]) sc += 1; });
-      if (it.topic === me.topic) sc += 1.5;
-      if (it.horizon && me.horizon) sc += it.horizon === me.horizon ? 2 : -1.5;   // a forecast next to a forecast
-      return { it: it, sc: shared ? sc : 0 };
-    }).filter(function (x) { return x.sc >= 5; }).sort(function (a, b) { return b.sc - a.sc; });
-    var seenPage = {}, pick = [];                     // at most two from any one page, six in all
-    scored.forEach(function (x) { if (pick.length < 6 && (seenPage[x.it.page] || 0) < 2) { seenPage[x.it.page] = (seenPage[x.it.page] || 0) + 1; pick.push(x.it); } });
-    if (!pick.length) { relBox.hidden = true; return; }
-    var esc = window.SiteFind.esc;
-    relBox.hidden = false;
-    relBox.innerHTML = '<div class="ss-related-h">Related plots elsewhere on the site</div><div class="ss-related-row">' + pick.map(function (it, i) {
-      return '<a class="ss-rel" href="' + esc(it.url) + '"><span class="ss-rel-th" data-i="' + i + '"></span><b>' + esc(it.label) + '</b><small>' + esc(it.page_title) + '</small></a>';
-    }).join("") + "</div>";
-    pick.forEach(function (it, i) {
-      var box = relBox.querySelector('.ss-rel-th[data-i="' + i + '"]');
-      var im = new Image(); im.alt = "";
-      im.onload = function () { box.appendChild(im); };
-      window.SiteFind.thumbInto(im, it.thumb, function () { box.parentNode.hidden = true; });   // no picture, no tile
-    });
-  }
   function lastRow() { var rows = ["c", "b", "a"]; for (var i = 0; i < rows.length; i++) { var bs = document.querySelectorAll("#opts-" + rows[i] + " button"); if (bs.length > 1) return bs; } return null; }
   function step(dir) { var bs = lastRow(); if (!bs) return stepProduct(dir); var i = -1; for (var k = 0; k < bs.length; k++) if (bs[k].classList.contains("on")) i = k; bs[(i + dir + bs.length) % bs.length].click(); }
   function stepProduct(dir) {

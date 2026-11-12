@@ -132,7 +132,6 @@
   .stage { padding: 0.6rem 0.7rem 0.4rem; min-height: 0; }
   .ss-main .cap { margin: 0.5rem 0.8rem 0; }
   .ss-main .about { margin: 0.6rem 0.8rem 0.4rem; }
-  .ss-related { margin: 0.4rem 0.8rem 0.8rem; }
   /* option rows wrap on phones: a sideways-scrolling single line hides most options behind a faint edge fade
      (TC downstream: 3 of 5 views and the Atlantic basin off-screen). The label takes its own line so the pills get
      the full width. */
@@ -195,16 +194,3 @@
 .opts .opt-menu { font: 600 0.9rem var(--sans); color: var(--accent); background: var(--surface); border: 1.5px solid var(--accent);
   border-radius: 8px; min-height: 44px; padding: 0 0.6rem; max-width: 100%; flex: 1 1 auto; }
 .opts .opt-menu:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-/* "Related plots" strip under the figure (stage.js related(), from the site's catalogue): only plots with a thumbnail */
-.ss-related { margin: 0.4rem 1.2rem 0.9rem; padding-top: 0.6rem; border-top: 1px solid var(--rule); }
-.ss-related:empty { border-top: 0; padding-top: 0; }   /* laid out for its observer, with nothing to rule off yet */
-.ss-related-h { font: 600 0.9rem var(--sans); color: var(--muted); margin-bottom: 0.5rem; }
-.ss-related-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(150px, calc((100% - 4rem) / 6));   /* at most a sixth: one related plot no longer stretches across the card */ gap: 0.8rem; overflow-x: auto; padding-bottom: 0.3rem; scrollbar-width: thin; }
-.ss-rel { display: block; min-width: 0; color: var(--ink); text-decoration: none; }
-.ss-rel-th { display: block; aspect-ratio: 4 / 3; border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; background: var(--surface); }
-.ss-rel-th img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.ss-rel b { display: block; font: 600 0.92rem/1.3 var(--sans); margin-top: 0.35rem; }
-.ss-rel small { display: block; font-size: 0.9rem; color: var(--muted); }
-.ss-rel:hover b { color: var(--accent); }
-.ss-rel:hover .ss-rel-th { border-color: var(--accent); }
-@media (max-width: 700px) { .ss-related-row { grid-auto-columns: 42%; } }

@@ -1,7 +1,6 @@
 name: Plot catalogue (index)
 
-# assets/site/catalog.json: every plot on the site, for catalog.html and the stage pages' related-plots strip
-# (2026-09-27, the topic redesign). scripts/site/build_catalog.py reads the pages themselves - the stage
+# assets/site/catalog.json: every plot on the site, for catalog.html (2026-09-27, the topic redesign). scripts/site/build_catalog.py reads the pages themselves - the stage
 # specs run in node with the DOM stubbed (scripts/site/catalog_eval.js) - so the index follows every page change.
 # Manual pushes do not carry assets/**, so the index is built and committed here.
 #

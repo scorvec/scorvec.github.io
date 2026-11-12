@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Every plot on the site, as one index: assets/site/catalog.json.
 
-Feeds the catalogue page (catalog.html) and the stage pages' related-plots strip (assets/stage.js). Built from the pages
-themselves so it never goes stale:
+Feeds the catalogue page (catalog.html). Built from the pages themselves so it never goes stale:
   stage pages (window.STAGE) and the GEPS/GEFS pages (var P / GROUPS)  ->  scripts/site/catalog_eval.js runs their
       inline scripts in node with the DOM stubbed out and calls the spec's own functions, so option lists, image
       URLs, loop manifests and captions are the real ones, not regex guesses;

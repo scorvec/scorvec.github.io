@@ -168,7 +168,7 @@
 
 // The catalogue's index: every plot on the site, assets/site/catalog.json (scripts/site/build_catalog.py, rebuilt by
 // catalog.yml whenever a page changes), fetched on first use. window.SiteFind gives the loader, the search and the
-// thumbnail loader to the catalogue page (catalog.html) and to the stage pages' related-plots strip (assets/stage.js).
+// thumbnail loader to the catalogue page (catalog.html).
 (function () {
   var CAT_URL = '/assets/site/catalog.json';
   // frame hosts, as in assets/frames_root.js: the frames store first (its Bunny pull zone, 60 s TTL), then the Bunny CDN
