@@ -136,18 +136,26 @@
   .ss-main .controls.more-r, .ss-main .controls.more-l { -webkit-mask-image: none; mask-image: none; }
   .opts .seg-label { min-width: 0; margin-right: 0.1rem; flex: 0 0 100% !important; font-size: 0.82rem; }
   .opts .pill { min-height: 40px; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-  /* the headline chips follow the figure on phones (below), so they take a grid: every number in view, none cut by a
-     sideways strip */
+  /* the headline chips stay a grid: every number in view, none cut by a sideways strip */
   .page-header .chips > *, main > header .chips > * { max-width: none; min-width: 0; }
   .page-header .chip .l, main > header .chip .l { white-space: normal; overflow-wrap: anywhere; }
-  /* figure first: the title, then the picker and the figure, then everything else that used to sit above them
-     (introduction, headline chips, notes). The page-header / header box is flattened so its parts can be ordered. */
+  /* numbers and figure first: the title, the headline chips, then the picker and the figure, then everything else
+     that used to sit above them (introduction, notes). The page-header / header box is flattened so its parts can
+     be ordered. */
   .ss-host { display: flex; flex-direction: column; }
   .ss-host > *, .ss-host > .page-header > *, .ss-host > header > * { order: 3; }
   .ss-host > .page-header, .ss-host > header { display: contents; }
   .ss-host > h1, .ss-host > .kicker, .ss-host > .eyebrow,
   .ss-host > .page-header > h1, .ss-host > .page-header > .eyebrow,
-  .ss-host > header > h1, .ss-host > header > .eyebrow, .ss-host > header > .kicker { order: 1; }
+  .ss-host > header > h1, .ss-host > header > .eyebrow, .ss-host > header > .kicker,
+  .ss-host > .chips, .ss-host > .page-header > .chips, .ss-host > header > .chips { order: 1; }
+  /* the band above the figure is slim: three cells a row on a phone, each a label, the value and a change line
+     where the page has one; the line of context under each value shows on wide screens */
+  .ss-host > .chips, .ss-host > :is(.page-header, header) > .chips { --chip-min: 7rem; margin-bottom: 0.7rem; }
+  .ss-host .chips .chip { padding: 0.4rem 0.5rem 0.45rem; }
+  .ss-host .chips .chip .l { font-size: 0.7rem; letter-spacing: 0.03em; }
+  .ss-host .chips .chip .v { font-size: 1.15rem; }
+  .ss-host .chips .chip .s { display: none; }
   .ss-host > .ss-layout { order: 2; margin: 0.2rem 0 1.2rem; }
   /* the stage's credits, moved after everything else (stage.js placeCredits) */
   .ss-host > .ss-credits-out { order: 4; margin: 1.4rem 0 0; padding-top: 0.8rem; border-top: 1px solid var(--rule, #e3e1db); color: var(--muted); }

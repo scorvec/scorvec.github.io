@@ -362,17 +362,18 @@ document.addEventListener('click', function (e) {
   main.focus();
 });
 
-// Headline-number bands (.chips): as many equal cells a row as fit at 8.5rem or more, the rows balanced, so nine
-// numbers are one row of nine on a wide screen and five and four on a narrower one, never eight and a lone one; the
-// last cell spans what its row leaves empty. Pages fill their bands after loading, so the count is re-read when the
-// cells change.
+// Headline-number bands (.chips): as many equal cells a row as fit at 8.5rem or more (or the band's --chip-min, where
+// a stylesheet sets one), the rows balanced, so nine numbers are one row of nine on a wide screen and five and four
+// on a narrower one, never eight and a lone one; the last cell spans what its row leaves empty. Pages fill their
+// bands after loading, so the count is re-read when the cells change.
 (function () {
   var bands = document.querySelectorAll('.chips');
   if (!bands.length || !window.ResizeObserver) return;
   function balance(band) {
     var n = band.children.length, w = band.clientWidth;
     if (!n || !w) return;
-    var cell = 8.5 * parseFloat(getComputedStyle(document.documentElement).fontSize);
+    var min = parseFloat(getComputedStyle(band).getPropertyValue('--chip-min')) || 8.5;   // rem
+    var cell = min * parseFloat(getComputedStyle(document.documentElement).fontSize);
     var rows = Math.ceil(n / Math.max(1, Math.floor(w / cell))), cols = Math.ceil(n / rows), gap = rows * cols - n;
     band.style.setProperty('--cols', String(cols));
     for (var i = 0; i < n; i++) band.children[i].style.gridColumn = i === n - 1 && gap ? 'span ' + (gap + 1) : '';

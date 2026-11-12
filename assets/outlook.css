@@ -290,8 +290,8 @@
   .page-header .sub, main > header .sub { margin-bottom: 0.8rem; }
 
   /* The headline numbers: one band under the title, the numbers in equal cells divided by hairlines: a label, the
-     value, a line of context. site.js sets --cols so the rows come out even. */
-  .chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); margin: 0 0 1rem;
+     value, a line of context. site.js sets --cols so the rows come out even; --chip-min is the narrowest cell. */
+  .chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(var(--chip-min, 8.5rem), 1fr)); margin: 0 0 1rem;
            background: var(--surface); border: 1px solid var(--edge); border-radius: 8px; overflow: hidden; }
   .chips[style*="--cols"] { grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); }
   .chip { min-width: 0; padding: 0.6rem 0.95rem 0.7rem; text-align: left; box-shadow: 1px 0 0 var(--rule), 0 1px 0 var(--rule); }

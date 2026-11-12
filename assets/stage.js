@@ -116,8 +116,8 @@
   // is cut to a few lines with a "More" button, so the plot is on the first screen. Wide screens are unchanged.
   function clampIntro() {
     var lay = document.querySelector(".ss-layout"); if (!lay) return;
-    // the layout's container reorders on narrow screens (stage.css .ss-host): title, then the picker and the
-    // figure, then the introduction, the headline chips and the rest
+    // the layout's container reorders on narrow screens (stage.css .ss-host): title, the headline chips, then the
+    // picker and the figure, then the introduction and the rest
     lay.parentElement.classList.add("ss-host");
     var sel2 = ".page-header > .sub, main > header > .sub, main > .lede, main > p.lede, .wrap > .page-header .lede";
     Array.prototype.forEach.call(document.querySelectorAll(sel2), function (el, i) {
@@ -133,9 +133,9 @@
       new MutationObserver(fit).observe(el, { childList: true, characterData: true, subtree: true });
     });
   }
-  // the stage's credits (sources and the figure's date) close its card; on narrow screens, where the introduction and the
-  // headline cards follow the figure (stage.css .ss-host), they would sit above those numbers, so there they move to the
-  // end of the page, and back under the stage on wide screens
+  // the stage's credits (sources and the figure's date) close its card; on narrow screens, where the introduction
+  // follows the figure (stage.css .ss-host), they would sit above it, so there they move to the end of the page, and
+  // back under the stage on wide screens
   var credits = null, creditsHome = null, NARROW = matchMedia("(max-width: 1000px)");
   function placeCredits() {
     var lay = document.querySelector(".ss-layout");

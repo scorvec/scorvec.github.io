@@ -12,6 +12,11 @@
   /* the basis for the asterisked numbers closes the band, in its last cell */
   .ss-host .page-header .chip--note { display: flex; align-items: center; font-size: 0.82rem; line-height: 1.45; color: var(--ink2); }
   .ss-host .page-header .chip--note b { color: var(--ink); font-weight: 700; }
+  @media (max-width: 1000px) {
+    .ss-host .page-header .chip .v.txt { font-size: 1rem; }
+    .ss-host .page-header .chip .wk { font-size: 0.76rem; line-height: 1.3; }
+    .ss-host .page-header .chip--note { font-size: 0.78rem; }
+  }
   </style>
   <div class="ss-layout">
     <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
@@ -882,8 +887,8 @@ window.loadPlotly = function () {
     var O = window.CPCOFF, EO = estOffset(state.data && state.data.monthly, O);
     if (O && O.roni) {
       var mk = Object.keys(O.roni).sort().pop();
-      if (mk) chips.push({ l: "CPC official · " + season(mk), v: fmt(O.roni[mk]) + " °C",
-        s: "RONI, CPC's official index" + (O.oni && O.oni[mk] != null
+      if (mk) chips.push({ l: "CPC RONI · " + season(mk), v: fmt(O.roni[mk]) + " °C",
+        s: "CPC's official index" + (O.oni && O.oni[mk] != null
             ? " · ONI " + fmt(O.oni[mk]) : "") + " · " + strengthName(O.roni[mk]),
         cls: tone(O.roni[mk]), strength: strengthClass(O.roni[mk]) });
     }
