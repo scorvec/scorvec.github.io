@@ -20,9 +20,9 @@ In c3s.yml (Actions) every raw file is reduced to a table the moment it lands
 (c3s_ref: hc_terc_* per start month, is_terc_* per issue), so a start month's ~9 GB of hindcast
 is downloaded once, ever, an interrupted issue resumes without fetching again, and the raw files
 go to the local store at the end of the run (artifact c3s-raw-*).
-The same raw hindcast also gives the anomaly maps' test its spread (c3s_maps.hindcast_spread,
-hc_anom_*); the maps' sea-level pressure and SST hindcasts come through fetch()
-here as well (RAW_VARS), for that test alone. Every raw t2m and precipitation file, hindcast and
+The same raw hindcast also gives the anomaly maps' test its spread and the change maps' test its
+yearly means (c3s_maps.hindcast_spread, hc_anom_* and hc_yem_*); the maps' sea-level pressure and
+SST hindcasts come through fetch() here as well (RAW_VARS), for that test alone. Every raw t2m and precipitation file, hindcast and
 forecast, also gives the long-range forecast its ensemble-mean table (scripts/monthly/c3s_em.py,
 release c3s-em-v1), so that product never fetches them itself. c3s.yml's `hindcast` job fetches next
 month's start (--kind hc) on the 21st-28th, before the issue window.
@@ -273,7 +273,8 @@ def fc_pop_members(centre: str, system: str, region: str, issue: str):
 
 
 def derive_hc_tables(month: str) -> None:
-    """One-off bootstrap: hc_terc and hc_anom tables from whatever raw hindcasts are on disk for this start month."""
+    """One-off bootstrap: hc_terc, hc_anom and hc_yem tables from whatever raw hindcasts are on disk for this start
+    month."""
     from c3s_maps import hindcast_spread
 
     for entry in MODELS:
@@ -325,7 +326,13 @@ def main() -> int:
                 got += 1
                 print(f"  {centre}/{system} {var}: issue table exists", flush=True)
                 continue
-            if "hc" in kinds and hc_table(centre, system, var, a.issue) is None:
+            # a start month's raw hindcast is reduced to all its tables at once; one whose tables predate the yearly
+            # means comes again
+            reduced = (
+                hc_table(centre, system, var, a.issue) is not None
+                and CR.hc_yem(centre, system, var, a.issue[4:6]).exists()
+            )
+            if "hc" in kinds and not reduced:
                 if not budget_left():
                     print(f"  {centre}/{system} {var} hc: budget spent; next run", flush=True)
                     continue

@@ -7,7 +7,8 @@ Parts and what "done" means:
   plume   enso_forecast.json holds this issue with every system the page keeps (5)
   maps    c3s_maps.json holds this issue with every system x field (7 x 4); a field is listed once it is
           tested, i.e. once its start month's hindcast spread (c3s_ref hc_anom) is in; and its change since the
-          previous issue (chg) for the same 7 x 4, once the paired hindcast means (c3s_ref hc_chg) are in
+          previous issue (chg) for the same 7 x 4, once the two start months' yearly hindcast means are paired
+          (c3s_ref hc_chg)
   terc    every system x variable has its issue table (c3s_ref is_terc, 7 x 2)
   sixh    every system x region x forecast month has its daily table (c3s_ref is_sixh, 7 x 2 x 6)
 

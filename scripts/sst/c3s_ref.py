@@ -22,10 +22,14 @@ artifact, c3s-raw-*):
   is_anom_{centre}_{system}_{var}_{YYYYMM}.npz   per issue: every system's ensemble-mean anomaly per
         lead and its members' spread of each period mean, and of the same periods one lead further
         out, which the next issue's change maps compare with (c3s_maps.issue_anom).
+  hc_yem_{centre}_{system}_{var}_{MM}.npz   per system, map field and START MONTH: each hindcast
+        year's ensemble mean of the periods a change map exists for, and of the same periods one lead
+        further out, as departures from their 1993-2016 mean (c3s_maps.hindcast_spread, from the same
+        raw hindcast as hc_anom).
   hc_chg_{centre}_{system}_{var}_{MM}.npz   per system, map field and START MONTH: the year-to-year
         spread of the difference between this start month's and the previous one's hindcast ensemble
         means of the same valid months, the hindcast term of the change maps' test
-        (c3s_maps.change_spread). Built once per start month.
+        (c3s_maps.change_spread, from the two start months' hc_yem). Built once per start month.
   is_sixh_{centre}_{system}_{region}_{YYYYMM}_m{k}.npz   per issue and forecast month: every
         member's population-weighted DAILY mean (c3s_popt_daily.daily_members), the only thing
         the daily card needs from a 6-hourly chunk.
@@ -43,7 +47,7 @@ The `obs` tables were built once, outside Actions, from files already held (geon
 the OISST file) -- the seas5-ref-v1 precedent -- and are never rebuilt in Actions.
 
     python c3s_ref.py obs               # one-off bootstrap: places + CPC clim + OISST box series
-    python c3s_ref.py hc --month 09     # one-off bootstrap: hc_terc / hc_anom tables from raw hindcasts on disk
+    python c3s_ref.py hc --month 09     # one-off bootstrap: hc_terc / hc_anom / hc_yem tables from raw hindcasts on disk
     python c3s_ref.py ls
     python c3s_ref.py oisst             # Actions: extend the OISST box series (PSL OPeNDAP)
     python c3s_ref.py cpc --issue 202610   # Actions: CPC daily for the six months before the issue
@@ -103,6 +107,10 @@ def hc_anom(centre: str, system: str, var: str, month: str) -> Path:
 
 def is_anom(centre: str, system: str, var: str, issue: str) -> Path:
     return REF / f"is_anom_{centre}_{system}_{var}_{issue}.npz"
+
+
+def hc_yem(centre: str, system: str, var: str, month: str) -> Path:
+    return REF / f"hc_yem_{centre}_{system}_{var}_{int(month):02d}.npz"
 
 
 def hc_chg(centre: str, system: str, var: str, month: str) -> Path:
