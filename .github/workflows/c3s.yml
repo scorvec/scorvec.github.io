@@ -23,10 +23,11 @@ name: C3S multi-system seasonal (monthly)
 # WHEN. The C3S centres publish around the 10th-13th. Cron 9th-16th twice a day + the dispatcher (window=true);
 # each part is gated on assets/sst/data/c3s_status.json, so a run after the issue is complete exits in ~30 s, and an
 # incomplete issue keeps being continued to the 20th. Until QUORUM (4) systems have published the issue, the plume
-# step answers "not yet" and nothing else runs. On the 21st-28th the `hindcast` job fetches NEXT month's 2 m
-# temperature and precipitation hindcast (hc_terc, hc_anom and the long-range forecast's hc_em), so the issue window
-# starts with a start month's heaviest download done; a system not on the CDS yet (UKMO's hindcast appears with its
-# issue) is fetched in the window. `hindcast=YYYYMM` runs that job alone for one start month.
+# step answers "not yet" and nothing else runs. On the 21st-28th the `hindcast` job fetches NEXT month's hindcast
+# of the four map fields (hc_anom, hc_yem; hc_terc and the long-range forecast's hc_em for 2 m temperature and
+# precipitation), so the issue window starts with a start month's heaviest download done; a system not on the CDS yet
+# (UKMO's hindcast appears with its issue) is fetched in the window. `hindcast=YYYYMM` runs that job alone for one
+# start month.
 #
 # CDS: one key, so this shares the `seas5` concurrency group with seas5.yml and seas5-lead7.yml (never two jobs
 # requesting at once) and every request inside the job is sequential (cds_seq.py): one a stopped run left queued is
@@ -79,7 +80,7 @@ on:
         required: false
         default: 'true'
       hindcast:
-        description: 'YYYYMM: only fetch that start month''s t2m + precipitation hindcast tables (the hindcast job)'
+        description: 'YYYYMM: only fetch that start month''s hindcast tables, the four map fields (the hindcast job)'
         required: false
         default: ''
 
@@ -477,9 +478,10 @@ jobs:
             echo "- Pages: [/enso-forecasts.html](https://scorvec.com/enso-forecasts.html), [/seasonal.html](https://scorvec.com/seasonal.html)"
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # Next month's 2 m temperature and precipitation hindcast (1993-2016) on the 21st-28th: one raw file per system gives
-  # the tercile and map tables (hc_terc, hc_anom, hc_yem) and the long-range forecast's (hc_em), and goes to the local
-  # data store (artifact c3s-raw-hindcast). After `build`, so the two never request at once.
+  # Next month's hindcast (1993-2016) of the four map fields on the 21st-28th, 2 m temperature and precipitation first:
+  # one raw file per system and field gives the map tables (hc_anom, hc_yem) and, for those two, the tercile table
+  # (hc_terc) and the long-range forecast's (hc_em), and goes to the local data store (artifact c3s-raw-hindcast).
+  # The issue's own runs then find the tables built. After `build`, so the two never request at once.
   hindcast:
     needs: build
     if: always()
@@ -540,18 +542,18 @@ jobs:
           M=${{ steps.gate.outputs.month }}; U="https://github.com/$GITHUB_REPOSITORY/releases/download/$REF_TAG"
           curl -sSfL --retry 4 --retry-delay 20 -o "$C3S_REF_DIR/obs_c3s_places.npz" "$U/obs_c3s_places.npz"
           SYS=$(python -c 'import sys; sys.path.insert(0, "scripts/sst"); from c3s_nino34 import MODELS; print(*(f"{m[0]}_{m[1]}" for m in MODELS))')
-          for cs in $SYS; do for v in t2m tp; do for k in hc_terc hc_anom hc_yem; do
+          for cs in $SYS; do for v in t2m tp mslp sst; do for k in hc_terc hc_anom hc_yem; do
             f="${k}_${cs}_${v}_${M}.npz"
-            curl -sfL --retry 3 -o "$C3S_REF_DIR/$f" "$U/$f" || rm -f "$C3S_REF_DIR/$f"   # 404: not built yet
+            curl -sfL --retry 3 -o "$C3S_REF_DIR/$f" "$U/$f" || rm -f "$C3S_REF_DIR/$f"   # 404: not built (yet)
           done; done; done
           ls "$C3S_REF_DIR"
           touch "$RUNNER_TEMP/ref_marker"
 
-      - name: The hindcast (t2m, precipitation)
+      - name: The hindcast (t2m, precipitation, sea-level pressure, SST)
         if: steps.gate.outputs.run == '1'
         run: |
-          timeout --signal=INT 270m python scripts/sst/c3s_terciles.py --issue "${{ steps.gate.outputs.issue }}" \
-            --kind hc --budget-min 220 || echo "::warning::hindcast tables incomplete (the next run continues)"
+          timeout --signal=INT 270m python scripts/sst/c3s_maps.py --issue "${{ steps.gate.outputs.issue }}" \
+            --hindcast-only --budget-min 220 || echo "::warning::hindcast tables incomplete (the next run continues)"
 
       - name: Upload new tables
         if: always() && steps.gate.outputs.run == '1'

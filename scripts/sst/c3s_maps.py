@@ -11,7 +11,8 @@ Whether that mean is more than noise is a test (c3s_maps_render, seas5_build.shi
 around it, and the hindcast's own spread -- one member's period mean over the 24 hindcast years, which only the raw
 hindcast (`seasonal-monthly-single-levels`, 1993-2016, the start month, 1 deg) has. The tercile maps fetch that raw
 hindcast for 2 m temperature and precipitation anyway (c3s_terciles.py, the same file reduced for both);
-for sea-level pressure and SST it is fetched for this test alone, once per start month.
+for sea-level pressure and SST it is fetched for this test alone, once per start month. c3s.yml's `hindcast` job
+fetches the next start month's on the 21st-28th (--hindcast-only), so an issue's own runs find the tables built.
 
 The change maps set an issue's mean beside the previous issue's for the same valid months, one lead further out.
 Their test adds the previous issue's member spread at those leads and the hindcast's own share: the two issues are
@@ -33,6 +34,7 @@ hindcast member is weighted by the calendar of its own nominal start year).
 
     python scripts/sst/c3s_maps.py --issue 202610 --budget-min 120   # Actions: members, then the hindcasts
     python scripts/sst/c3s_maps.py --issue 202610 --only ecmwf_51
+    python scripts/sst/c3s_maps.py --issue 202612 --hindcast-only    # c3s.yml's `hindcast` job, the 21st-28th
 """
 
 from __future__ import annotations
@@ -43,6 +45,7 @@ import calendar
 import sys
 import time
 import warnings
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
@@ -296,12 +299,68 @@ def change_spread(centre: str, system: str, key: str, issue: str) -> dict | None
     return CR.load(CR.hc_chg(centre, system, key, month))
 
 
+def members(systems: list, want: list, issue: str, force: bool) -> int:
+    """This issue's member tables, every system and field (small: one request each): how many are in."""
+    got = 0
+    for centre, system in systems:
+        for key in want:
+            if force:
+                CR.is_anom(centre, system, key, issue).unlink(missing_ok=True)
+            if issue_anom(centre, system, key, issue) is None and fetch(key, centre, system, issue, force):
+                issue_anom(centre, system, key, issue)
+            got += CR.is_anom(centre, system, key, issue).exists()
+    return got
+
+
+def hindcasts(systems: list, want: list, issue: str, budget_left: Callable[[], bool]) -> None:
+    """The start month's hindcast, once per system and field, ever: the spread each map is tested against and the
+    yearly means the change maps' test pairs (a hindcast whose tables predate the yearly means comes again). One field
+    across the systems at a time, so that a field can be drawn as soon as most systems have it."""
+    month = issue[4:6]
+    for key in want:
+        for centre, system in systems:
+            if (
+                hindcast_spread(centre, system, key, issue) is not None
+                and CR.hc_yem(centre, system, key, month).exists()
+            ):
+                continue
+            if not budget_left():
+                print(f"  {centre}/{system} {key} hc: budget spent; next run", flush=True)
+                continue
+            if CT.fetch("hc", centre, system, key, issue):
+                hindcast_spread(centre, system, key, issue)
+                if key in CT.VARS:  # the same raw hindcast makes the tercile table too: never fetched twice
+                    CT.hc_table(centre, system, key, issue)
+
+
+def change_extras(systems: list, want: list, issue: str, budget_left: Callable[[], bool]) -> None:
+    """What the change from the previous issue is tested with: the two start months' yearly hindcast means, paired,
+    and that issue's members again where its table predates the spreads one lead further out (a small request each).
+    A system or field without the previous issue, or without either month's yearly means, gets no change map, so
+    nothing is fetched for it."""
+    prev = prev_issue(issue)
+    for key in want:
+        for centre, system in systems:
+            t = CR.load(CR.is_anom(centre, system, key, prev))
+            if t is None or change_spread(centre, system, key, issue) is None or has_next(t):
+                continue
+            if not budget_left():
+                print(f"  {centre}/{system} {key} {prev}: budget spent; next run", flush=True)
+            elif fetch(key, centre, system, prev):
+                issue_anom(centre, system, key, prev)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--issue", default=time.strftime("%Y%m", time.gmtime()), help="YYYYMM, default this month")
     ap.add_argument("--only", default="", help="centre_system, e.g. ecmwf_51")
     ap.add_argument("--fields", default="t2m,tp,mslp,sst")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument(
+        "--hindcast-only",
+        action="store_true",
+        help="fetch and reduce the start month's hindcasts and stop: for a start month whose issue is not out yet",
+    )
     ap.add_argument(
         "--budget-min",
         type=float,
@@ -315,58 +374,29 @@ def main() -> int:
     want = [k for k in a.fields.split(",") if k in FIELDS]
     systems = [(e[0], str(e[1])) for e in MODELS if not a.only or f"{e[0]}_{e[1]}" == a.only]
     t_start = time.time()
-    got = 0
-    # 1. this issue's members, every system and field (small: one request each)
-    for centre, system in systems:
-        for key in want:
-            if a.force:
-                CR.is_anom(centre, system, key, a.issue).unlink(missing_ok=True)
-            if issue_anom(centre, system, key, a.issue) is None and fetch(key, centre, system, a.issue, a.force):
-                issue_anom(centre, system, key, a.issue)
-            got += CR.is_anom(centre, system, key, a.issue).exists()
-    want_n = len(want) * len(systems)
-    print(f"{got}/{want_n} member table(s) for {a.issue} under {CR.REF}", flush=True)
-    month, prev = a.issue[4:6], prev_issue(a.issue)
 
     def budget_left() -> bool:
         return a.budget_min <= 0 or (time.time() - t_start) / 60 < a.budget_min
 
+    month, want_n = a.issue[4:6], len(want) * len(systems)
+    got = 0
+    if not a.hindcast_only:
+        got = members(systems, want, a.issue, a.force)
+        print(f"{got}/{want_n} member table(s) for {a.issue} under {CR.REF}", flush=True)
     # A hard stop (SIGINT from the workflow's timeout) ends the fetching, not the run: the tables in hand decide the
     # render
     try:
-        # 2. this start month's hindcast, once per system and field, ever: the spread each map is tested against and
-        # the yearly means the change maps' test pairs. One field across the systems at a time, so that a field can be
-        # drawn as soon as most systems have it
-        for key in want:
-            for centre, system in systems:
-                if hindcast_spread(centre, system, key, a.issue) is not None:
-                    continue
-                if not budget_left():
-                    print(f"  {centre}/{system} {key} hc: budget spent; next run", flush=True)
-                    continue
-                if CT.fetch("hc", centre, system, key, a.issue):
-                    hindcast_spread(centre, system, key, a.issue)
-                    if key in CT.VARS:  # the same raw hindcast makes the tercile table too: never fetched twice
-                        CT.hc_table(centre, system, key, a.issue)
-        # 3. what the change from the previous issue is tested with: the two start months' yearly hindcast means,
-        # paired, and that issue's members again where its table predates the spreads one lead further out (a small
-        # request each). A system or field without the previous issue, or without either month's yearly means, gets no
-        # change map, so nothing is fetched for it
-        for key in want:
-            for centre, system in systems:
-                t = CR.load(CR.is_anom(centre, system, key, prev))
-                if t is None or change_spread(centre, system, key, a.issue) is None or has_next(t):
-                    continue
-                if not budget_left():
-                    print(f"  {centre}/{system} {key} {prev}: budget spent; next run", flush=True)
-                elif fetch(key, centre, system, prev):
-                    issue_anom(centre, system, key, prev)
+        hindcasts(systems, want, a.issue, budget_left)
+        if not a.hindcast_only:
+            change_extras(systems, want, a.issue, budget_left)
     except KeyboardInterrupt:
         print("  fetching stopped (time limit); the next run continues", flush=True)
     tested = sum(CR.hc_anom(c, s, k, month).exists() for c, s in systems for k in want)
-    paired = sum(CR.hc_chg(c, s, k, month).exists() for c, s in systems for k in want)
     print(f"{tested}/{want_n} hindcast spread table(s) for start month {month}", flush=True)
-    print(f"{paired}/{want_n} change table(s) against start month {prev[4:6]}", flush=True)
+    if a.hindcast_only:
+        return 0
+    paired = sum(CR.hc_chg(c, s, k, month).exists() for c, s in systems for k in want)
+    print(f"{paired}/{want_n} change table(s) against start month {prev_issue(a.issue)[4:6]}", flush=True)
     # a half-published issue must not reach the renderer: last month's complete set is better than this month's two
     # systems. Nor one it cannot draw: a map needs its members and their hindcast spread, so some field must hold both
     # for most systems

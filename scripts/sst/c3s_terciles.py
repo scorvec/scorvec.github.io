@@ -25,12 +25,12 @@ yearly means (c3s_maps.hindcast_spread, hc_anom_* and hc_yem_*); the maps' sea-l
 SST hindcasts come through fetch() here as well (RAW_VARS), for that test alone. Every raw t2m and precipitation file, hindcast and
 forecast, also gives the long-range forecast its ensemble-mean table (scripts/monthly/c3s_em.py,
 release c3s-em-v1), so that product never fetches them itself. c3s.yml's `hindcast` job fetches next
-month's start (--kind hc) on the 21st-28th, before the issue window.
+month's start on the 21st-28th, before the issue window (c3s_maps.py --hindcast-only, through fetch() and
+hc_table() here).
 The renderers (c3s_terciles_render, c3s_popt_monthly, c3s_popt_daily) read the tables.
 
     python scripts/sst/c3s_terciles.py --issue 202610 --budget-min 120   # Actions
-    python scripts/sst/c3s_terciles.py --only dwd_22 --kind hc
-    python scripts/sst/c3s_terciles.py --issue 202612 --kind hc   # a start month's hindcast tables only
+    python scripts/sst/c3s_terciles.py --only dwd_22
 """
 
 from __future__ import annotations
@@ -295,7 +295,6 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--issue", default=time.strftime("%Y%m", time.gmtime()))
     ap.add_argument("--only", default="", help="centre_system")
-    ap.add_argument("--kind", default="hc,fc")
     ap.add_argument("--vars", default="t2m,tp")
     ap.add_argument("--force", action="store_true")
     ap.add_argument(
@@ -305,7 +304,6 @@ def main() -> int:
         help="stop STARTING new downloads after this many minutes (0 = no limit)",
     )
     a = ap.parse_args()
-    kinds = [k for k in a.kind.split(",") if k in ("hc", "fc")]
     want = [v for v in a.vars.split(",") if v in VARS]
     got = need = 0
     t_start = time.time()
@@ -332,7 +330,7 @@ def main() -> int:
                 hc_table(centre, system, var, a.issue) is not None
                 and CR.hc_yem(centre, system, var, a.issue[4:6]).exists()
             )
-            if "hc" in kinds and not reduced:
+            if not reduced:
                 if not budget_left():
                     print(f"  {centre}/{system} {var} hc: budget spent; next run", flush=True)
                     continue
@@ -345,20 +343,14 @@ def main() -> int:
                 from c3s_maps import hindcast_spread  # the anomaly maps' test reads the same raw hindcast
 
                 hindcast_spread(centre, system, var, a.issue)
-            if "fc" in kinds:
-                if not path_for("fc", centre, system, var, a.issue).exists():
-                    if not budget_left():
-                        print(f"  {centre}/{system} {var} fc: budget spent; next run", flush=True)
-                        continue
-                    if not fetch("fc", centre, system, var, a.issue, a.force):
-                        continue
-                if issue_table(centre, system, var, a.issue, rederive=a.force) is not None:
-                    got += 1
-    if "fc" not in kinds:  # a hindcast-only run (c3s.yml's `hindcast` job): systems not published yet come later
-        sel = [(e[0], str(e[1])) for e in MODELS if not a.only or f"{e[0]}_{e[1]}" == a.only]
-        n = sum(CR.hc_terc(c, s, v, a.issue[4:6]).exists() for c, s in sel for v in want)
-        print(f"{n}/{len(sel) * len(want)} hindcast table(s) for start month {a.issue[4:6]} under {CR.REF}")
-        return 0
+            if not path_for("fc", centre, system, var, a.issue).exists():
+                if not budget_left():
+                    print(f"  {centre}/{system} {var} fc: budget spent; next run", flush=True)
+                    continue
+                if not fetch("fc", centre, system, var, a.issue, a.force):
+                    continue
+            if issue_table(centre, system, var, a.issue, rederive=a.force) is not None:
+                got += 1
     print(f"{got}/{need} issue table(s) ready under {CR.REF}")
     # the multi-model tercile is only honest if most systems are in it
     return 0 if got >= 0.75 * need else 1
