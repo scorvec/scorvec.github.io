@@ -57,6 +57,9 @@
 /* a page with a guide: a link to the figure's section of it, and the sources, which open on a line of their own */
 .ss-main .about--guide { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 1.5rem; }
 .ss-main .about--guide > details[open] { flex-basis: 100%; }
+/* the guide link is the one accented line under a figure: its sources and the page's plot list read as small print */
+.ss-main .about--guide summary, .ss-main #every-plot > summary { color: var(--muted); font-weight: 400; font-size: 0.85rem; }
+.ss-main #every-plot { border-top: 0; padding-top: 0; margin-top: 0; }
 .ss-main .about p { font-size: 0.95rem; color: var(--ink2); line-height: 1.65; max-width: 125ch; margin: 0.6rem 0; }
 .ss-main .about .chart-sources, .ss-main .about .chart-card-footer { font-size: 0.85rem; color: var(--muted); display: block; margin-top: 0.4rem; }
 .ss-main .about h2, .ss-main .about h3 { font-size: 1.05rem; margin: 0.6rem 0 0.2rem; }

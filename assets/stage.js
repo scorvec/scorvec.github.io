@@ -388,12 +388,13 @@
     if (S.onRender) { try { S.onRender({ p: sel.p, a: sel.a, b: sel.b, c: sel.c }); } catch (e) {} }
     var ab = $("about"); ab.innerHTML = "";
     var aboutId = typeof p.about === "function" ? p.about(sel.a, sel.b, sel.c) : p.about;
-    if (aboutId && S.guide) {
-      // the page has a guide (STAGE.guide): the explanation is the guide's section for this figure, and the
-      // template holds the figure's sources
+    if (S.guide) {
+      // the page has a guide (STAGE.guide), and this is the page's one link to it: the guide's section for this
+      // figure, or the guide itself for a figure without one. The template holds the figure's sources
       var gl = document.createElement("div"); gl.className = "about about--guide";
-      gl.innerHTML = '<a href="' + S.guide + "#" + aboutId.replace(/^about-/, "") + '">About this figure</a>' +
-        ($(aboutId) ? "<details><summary>Sources</summary>" + $(aboutId).innerHTML + "</details>" : "");
+      gl.innerHTML = (aboutId ? '<a href="' + S.guide + "#" + aboutId.replace(/^about-/, "") + '">About this figure</a>'
+        : '<a href="' + S.guide + '">Guide to this page</a>') +
+        (aboutId && $(aboutId) ? "<details><summary>Sources</summary>" + $(aboutId).innerHTML + "</details>" : "");
       ab.appendChild(gl);
     } else if (aboutId && $(aboutId)) {
       var d = document.createElement("details"); d.className = "about";
