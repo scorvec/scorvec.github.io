@@ -53,6 +53,21 @@ GUIDES = [
         "sudden warming, the waves that drive it, the descent to the surface, weeks 3 to 5, the season ahead, the "
         "QBO and the record of past winters.",
     ),
+    dict(
+        slug="tropical-waves",
+        page="/tropical-waves.html",
+        name="tropical waves page",
+        desc="What each figure of the tropical waves page shows and how it is made: the filtered Kelvin, equatorial "
+        "Rossby and MJO signals along the equator, the wave trackers, the Kelvin-wave forecast and the ocean's "
+        "Kelvin waves.",
+    ),
+    dict(
+        slug="ar",
+        page="/ar.html",
+        name="atmospheric rivers page",
+        desc="What each figure of the atmospheric rivers page shows and how it is made: integrated vapour transport "
+        "in four models, the West Coast landfall views, the ensembles' AR odds, weeks 3 to 5 and precipitable water.",
+    ),
 ]
 
 STYLE = """<style>
