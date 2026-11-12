@@ -336,7 +336,7 @@
 // A menu rail picks the product; the option rows pick that product's settings. Only one
 // figure is ever in the DOM. The selection lives in the URL hash (#product/a/b/c) so any
 // view can be linked; arrow keys step through options and products.
-var FIELDS = [["t2m","2 m temp"],["pr","Precip"],["mslp","MSLP"],["zg500","500 hPa Z"],
+var FIELDS = [["t2m","2 m temp"],["t850","850 hPa temp"],["pr","Precip"],["mslp","MSLP"],["zg500","500 hPa Z"],
               ["olr","OLR"],["u850","850 u"],["u200","200 u"],["v850","850 v"],
               ["v200","200 v"]];
 var DOMAINS = {label:"Domain", items:[["na","North America"],["sa","South America"],["glb","Global (Mercator)"]]};
@@ -361,7 +361,9 @@ var P = {
           ? "Most likely tercile by week: colour is the category (blue below, grey near, red above normal), intensity its probability, from the fraction of the 31 members in each tercile of the 2016–2025 weekly anomaly — a recent-decade normal, not the maps’ 1991–2020, so the warming since then is not counted as a forecast."
           : "Most likely tercile by week, calibrated: the ensemble-mean departure scaled by the gridpoint regression fitted on 2000–2019 GEFS reforecasts for this month and week (each start verified against a climatology that leaves its own season out), the residual spread giving the three tercile probabilities — one third each where the model has no skill, amplitude restored where it has some. Out of sample (every 2000–2019 reforecast start scored with its own season left out, 4-member means), the calibrated probabilities beat one third each by an RPSS of 0.45 in week 1 and 0.07 in week 5 for temperature, and 0.18 in week 1 and about zero from week 3 for precipitation. The 2016–2025 categories were checked on the four reforecast years inside that decade, every 2016–2019 start scored exactly as a live map: for temperature the calibrated probabilities match the observed tercile frequencies to within 0.005 in every week (no significant bias); for precipitation those years were drier than the decade, falling in the lower tercile 35 % of the time and the upper 32 % (both significantly off a third, false-discovery rate 10 %), so from week 2 the maps give “below” 0.016–0.019 too little and “above” 0.011–0.014 too much — small, and significant.")
           + " Dots: reforecast skill significantly above zero (one-sided 5 % test, false-discovery rate 10 %); the probabilities are shown everywhere." + (b==="pr" ? " Cross-hatched: no gauge truth over the ocean, or a dry climatological week where terciles are undefined." : ""); }},
-  change: {label: "Change vs previous run, weeks 1–5", fit: false, a: DOMAINS, b: {label:"Field", items: FIELDS},
+  change: {label: "Change vs previous run, weeks 1–5", fit: false, a: DOMAINS,
+        // a field's first run has no previous run to compare with
+        b: function (a) { return {label:"Field", items: FIELDS.filter(function (f) { return !FIGURES || FIGURES.indexOf("gefs_" + a + "_" + f[0] + "_change.webp") >= 0; })}; },
         img: function (a,b) { return "assets/gefs/gefs_" + a + "_" + b + "_change.webp"; },
         cap: function () { return "This run minus the previous daily run, weekly means over the valid days both forecast. Week 5 is a partial week and says so."; }},
   telecon: {label: "Teleconnections — AO, NAO, PNA, EPO, WPO, NAM …", fit: false,
@@ -391,7 +393,7 @@ var P = {
   daily: {label: "Daily animation", a: DOMAINS,
         frame: function (a) { return "sst_anim.html?base=assets/gefs/anim&manifest=gefs_" + a + "_manifest.json&embed=1"; },
         ratio: function (a) { return a==="na" ? "760/640" : (a==="sa" ? "760/1041" : "760/557"); },
-        cap: function () { return "One frame per forecast day, nine fields: the ensemble mean of the day (the 12Z and following 00Z fields), anomaly vs 1991–2020 through the lead-matched reforecast."; }},
+        cap: function () { return "One frame per forecast day, ten fields: the ensemble mean of the day (the 12Z and following 00Z fields), anomaly vs 1991–2020 through the lead-matched reforecast."; }},
   drift: {label: "Drift correction — operational GEFS vs its reforecast",
         a: {label:"", items:[["zm","Zonal mean by lead"]]},
         img: function () { return "assets/gefs/gefs_drift.webp"; },
@@ -404,7 +406,7 @@ var TELE_IDS = [["board","All indices (board)"],["ao","AO — Arctic Oscillation
   ["ea","EA — East Atlantic"],["wp","WP — West Pacific"],["epnp","EP/NP — East Pacific / North Pacific"],
   ["eawr","EA/WR — East Atlantic / West Russia"],["sca","SCA — Scandinavia"],["tnh","TNH — Tropical / N. Hemisphere (Dec–Feb)"],
   ["pol","POL — Polar / Eurasia"],["nam100","NAM 100 hPa — Northern Annular Mode"],["aao","AAO — Antarctic Oscillation (SAM)"]];
-var GROUPS = [["Maps", "\u{1F5FA}", [["weekly","Weekly means","weeks 1–5, nine fields"],["probs","Weekly terciles","temperature and precipitation"],["change","Change vs previous run","this run minus the last"],["daily","Daily animation","nine fields, day by day"],["drift","Drift correction","operational vs reforecast"]]],
+var GROUPS = [["Maps", "\u{1F5FA}", [["weekly","Weekly means","weeks 1–5, ten fields"],["probs","Weekly terciles","temperature and precipitation"],["change","Change vs previous run","this run minus the last"],["daily","Daily animation","ten fields, day by day"],["drift","Drift correction","operational vs reforecast"]]],
               ["Patterns", "⚙", [["telecon","Teleconnections","AO, NAO, PNA, EPO …"],["regimes","Weather regimes","Euro-Atlantic, N. America"],["clusters","500 hPa scenarios","ensemble clusters by week"]]],
               ["Tropics", "\u{1F30A}", [["mjo","MJO","RMM plume, propagation, skill"]]]];
 // One viewer for the site (assets/stage.js): the selection lives in the #product/a/b/c hash, also followed on
@@ -412,11 +414,11 @@ var GROUPS = [["Maps", "\u{1F5FA}", [["weekly","Weekly means","weeks 1–5, nine
 var sel = { p: null, a: null, b: null, c: null };
 var $ = function (id) { return document.getElementById(id); };
 // header chips and the footer date from the run's own metadata; its cycle is the cache key of every still
-var CYCLE = null;
+var CYCLE = null, FIGURES = null;   // FIGURES: the run's figure files
 fetch("assets/gefs/data/gefs.json", {cache: "no-cache"}).then(function (r) { return r.json(); }).then(function (m) {
   var set = function (id, t) { var e = document.getElementById(id); if (e && t != null) e.textContent = t; };
   set("g-cycle", m.init); set("g-valid", m.valid); set("g-members", m.members); set("g-updated", "init " + m.init);
-  if (m.cycle && m.cycle !== CYCLE) { CYCLE = m.cycle; if (window.STAGE.refresh) window.STAGE.refresh(); }
+  if (m.cycle && m.cycle !== CYCLE) { CYCLE = m.cycle; FIGURES = m.figures; if (window.STAGE.refresh) window.STAGE.refresh(); }
 }).catch(function () {});
 window.STAGE = {
   version: function () { return CYCLE; },
