@@ -9,9 +9,9 @@ file read by overturn.reduce_file and then by hadley_branch_ref.states, which fi
 and deletes them all (~1 GB a day, never kept); GEFS member-steps from NOAA's S3 bucket in threads, both products'
 messages in one byte-ranged pass per member-step, decoded here (eccodes in the fetch threads crashed the interpreter).
 
-The low-level convergence maps (tropconv.py, IFS-ENS alone) read the members' u and v at 850 and 925 hPa at 00 and
-12 UTC of lead days 0..14: the 00 UTC state from the file above when the day fetches it, the rest (12 UTC, or both
-states) as a two-level file of its own.
+The low-level convergence maps (tropconv.py, IFS-ENS alone) read the members' u and v at 850 hPa at 00 and 12 UTC of
+lead days 0..14: the 00 UTC state from the file above when the day fetches it, the rest (12 UTC, or both states) as a
+one-level file of its own.
 
     python src/hadley_members.py --model ifs --date 20261023 --out runs [--products overturn hbranch conv]
         -> runs/overturn_ifs.npz (vbar, ud: member x lead day x level), runs/hbranch_ifs.npz (hadley_branch_fc's
@@ -61,12 +61,12 @@ def _arrays(n_ov: int, n_hb: int):
 
 def _conv_day(cfg: dict, cyc, L: int, uv: Path | None):
     """tropconv's reduction of one lead day. uv: the members' 00 UTC u and v already on disk, or None; what it lacks
-    is fetched on tropconv's two levels and deleted."""
+    is fetched on tropconv's level and deleted."""
     import store as ecmwf
 
     steps = (24 * L, 24 * L + 12)
     need = steps if uv is None else steps[1:]
-    own = ecmwf.ensure(cyc, ecmwf.Spec(cfg["store"], "pf", ("u", "v"), "pl", TC.LEVELS, need))
+    own = ecmwf.ensure(cyc, ecmwf.Spec(cfg["store"], "pf", ("u", "v"), "pl", (TC.LEVEL,), need))
     d = TC.day([own] + ([uv] if uv is not None else []), steps, range(1, ecmwf.PF_MEMBERS + 1))
     for q in (own, own.with_suffix(own.suffix + ".json")):
         q.unlink(missing_ok=True)

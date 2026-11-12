@@ -3,7 +3,7 @@ name: Hadley and Walker loops, Hadley outflow and descent forecasts (AIFS-ENS, I
 # The products that read every member of the 00Z AIFS-ENS, IFS-ENS and GEFS runs to day 15. The members job fetches
 # each ensemble ONCE for all of them (scripts/mjo/src/hadley_members.py: the u/v the overturning forecasts read, with
 # the t, omega, z500 and sea-level pressure the outflow and descent forecasts add, and the IFS-ENS members' 12 UTC
-# winds at 850 and 925 hPa for the convergence maps); then:
+# wind at 850 hPa for the convergence maps); then:
 # * loops: the analysed Hadley and Walker loops, every day's 7-day mean since July 2025, the analysis less its offset
 #   from ERA5 (overturn_hist.py; the daily-mean archive rides on the frames branch in assets/sst/anim/overturn_hist,
 #   topped up from the cycle histories mjo.yml keeps, frames drawn once and published additively), and the forecast

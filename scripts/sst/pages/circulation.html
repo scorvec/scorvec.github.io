@@ -27,7 +27,7 @@
   <div class="dom-holder" id="dom-holder">
   </div>
 <template id="about-troughs">
-<p class="chart-sources">ECMWF IFS-ENS, 50 members: 925 and 850&nbsp;hPa wind at 00 and 12&nbsp;UTC, surface pressure (open data, CC BY 4.0; Google Cloud mirror) &middot; daily means on 1&deg; boxes &middot; updated daily</p>
+<p class="chart-sources">ECMWF IFS-ENS, 50 members: 850&nbsp;hPa wind at 00 and 12&nbsp;UTC, surface pressure (open data, CC BY 4.0; Google Cloud mirror) &middot; daily means on 1&deg; boxes &middot; updated daily</p>
 </template>
 <template id="about-gillrain">
 <p class="chart-sources">NASA GPM IMERG V07 Late daily (GES DISC) &middot; ECMWF AIFS-ENS open data (CC&nbsp;BY&nbsp;4.0): 0-h analyses, 50&nbsp;+&nbsp;1 member rain and 200&nbsp;hPa wind &middot; calibration: ERA5 (Copernicus C3S) 2001&ndash;2020 weekly and 1991&ndash;2020 monthly, GPCP v2.3 monthly (NOAA PSL) &middot; Gill, A.&nbsp;E. (1980), <i>Q.&nbsp;J.&nbsp;R. Meteorol. Soc.</i> 106, 447&ndash;462 &middot; updated each 00/12Z cycle</p>
@@ -314,7 +314,7 @@ window.STAGE = {
   /* season:tc */
   {label: "Tropical cyclones", ico: "\u{1F300}", items: [["tc","Tropical cyclones","storms and odds, maps, phase space, shear, track record"]]},
   /* /season:tc */
-  {label: "Tropical circulation", ico: "\u{1F327}", items: [["walker","Walker circulation","analysis, forecasts, by basin"],["hadley","Hadley cells","the cells, outflow and descent, turnover, sea-level pressure"],["vpot","Velocity potential","200 hPa, irrotational wind"],["gdps150","GDPS 150 hPa","outflow layer, wind and height"],["gillrain","Rain-forced circulation","Gill model vs the observed χ200"],["rainfc","Rain forecast, weeks 1–2","bias-adjusted, four ensembles and their blend"],["troughs","Convergence and monsoon troughs","925 hPa convergence, 850 hPa trough axes, days 1–15"]]},
+  {label: "Tropical circulation", ico: "\u{1F327}", items: [["walker","Walker circulation","analysis, forecasts, by basin"],["hadley","Hadley cells","the cells, outflow and descent, turnover, sea-level pressure"],["vpot","Velocity potential","200 hPa, irrotational wind"],["gdps150","GDPS 150 hPa","outflow layer, wind and height"],["gillrain","Rain-forced circulation","Gill model vs the observed χ200"],["rainfc","Rain forecast, weeks 1–2","bias-adjusted, four ensembles and their blend"],["troughs","Convergence and monsoon troughs","850 hPa convergence and trough axes, days 1–15"]]},
   {label: "Jets & angular momentum", ico: "\u2696", items: [["jets","Subtropical jets","strength and position"],["aam","Atmospheric angular momentum","series, trend, phase, by latitude"],["torque","Surface torques","friction and mountain"]]}
 ],
   products: {
@@ -341,7 +341,7 @@ window.STAGE = {
   troughs: {label: "Low-level convergence and monsoon troughs",
           a: {label: "Sector", items: [["atl","Atlantic, South America"],["afr","Africa, Indian Ocean"],["wpac","West Pacific, Australia"],["epac","East Pacific, Americas"]]},
           frame: function (a) { return "sst_anim.html?embed=1&manifest=tropconv_manifest.json&region=tropconv_" + a + "&regions=tropconv_" + a + "&start=0"; },
-          about: "about-troughs", cap: function () { return "The latest 00Z IFS-ENS a day at a time: 925 hPa convergence where the members agree on its sign, the members' mean 925 hPa wind and the 850 hPa trough axes."; }},
+          about: "about-troughs", cap: function () { return "The latest 00Z IFS-ENS a day at a time: 850 hPa convergence where the members agree on its sign, the members' mean 850 hPa wind and the trough axes."; }},
   gillrain: {label: "Rain-forced circulation (Gill model)", img: function () { return "assets/sst/gill_rain.webp?v=__CACHE__"; }, fit: false,
           about: "about-gillrain", cap: function () { return "How much of the tropical upper-level circulation the rain itself explains: the Gill (1980) model forced by the observed rain of the last four weeks (IMERG Late) and by the AIFS-ENS forecast rain of weeks 1 and 2, against the observed and forecast 200 hPa velocity potential."; }},
   mslp: {label: "MSLP and 10 m wind", a: {label: "Model", items: [["mslp_wind","Blend (AIFS-ENS + IFS-ENS)"],["mslp_wind_aifs","AIFS-ENS mean"],["mslp_wind_ifs","IFS-ENS mean"],["mslp_wind_aifs0","AIFS-ENS member 0"],["mslp_wind_aifs1","AIFS single"],["mslp_wind_hres","IFS control"],["mslp_wind_gdps","GDPS"]]},

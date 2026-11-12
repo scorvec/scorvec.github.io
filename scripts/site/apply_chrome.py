@@ -175,7 +175,7 @@ PRODUCTS = [
                     (
                         "/circulation.html#troughs",
                         "Convergence and monsoon troughs",
-                        "Low-level convergence and monsoon troughs across the tropics for each day of the latest IFS-ENS run to day 14: 925 hPa convergence where the 50 members agree on its sign, the 925 hPa wind and the 850 hPa trough axes, by sector.",
+                        "Low-level convergence and monsoon troughs across the tropics for each day of the latest IFS-ENS run to day 14: 850 hPa convergence where the 50 members agree on its sign, the 850 hPa wind and the trough axes, by sector.",
                         "Daily",
                         "Where the low-level wind converges, days 1–15",
                     ),
