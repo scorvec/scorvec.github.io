@@ -6,7 +6,8 @@ A guide's text is the fragment scripts/site/guides/<slug>.html: an optional <sec
 whole, then <h2> group headings and one <section id="KEY"><h3>name</h3>...</section> per figure. KEY is the figure's
 about id on its stage page without the "about-" (STAGE.products[...].about), which is where the figure's "About this
 figure" link lands; a section's data-fig gives the fragment that opens the figure where that is not the KEY. The
-contents list and each section's link back to its figure are built here.
+contents list and each section's link back to its figure are built here. Text that belongs to a seasonal product sits
+between <!-- season:name --> markers and is left out while the product is (enso_site.OFF_SEASON).
 
     python scripts/site/guides.py            # writes guides/*.html, stamps the site chrome, updates sitemap.xml
 """
@@ -20,6 +21,9 @@ import sys
 
 import topics as T
 
+sys.path.insert(0, str(T.REPO / "scripts" / "sst"))
+import enso_site
+
 SRC = T.REPO / "scripts" / "site" / "guides"
 OUT = T.REPO / "guides"
 
@@ -32,6 +36,22 @@ GUIDES = [
         desc="What each figure of the El Niño monitor shows and how it is made: the daily ONI and RONI estimates and "
         "their grading, the satellite views, the winds and the Southern Oscillation, the subsurface ocean and the "
         "impacts on the Americas.",
+    ),
+    dict(
+        slug="circulation",
+        page="/circulation.html",
+        name="circulation page",
+        desc="What each figure of the circulation page shows and how it is made: the dynamic tropopause, the North "
+        "Pacific jet and its branches, wave activity flux and teleconnections, the Walker and Hadley circulations, "
+        "tropical rain, the subtropical jets, atmospheric angular momentum and the surface torques.",
+    ),
+    dict(
+        slug="stratosphere",
+        page="/stratosphere.html",
+        name="stratosphere page",
+        desc="What each figure of the stratosphere page shows and how it is made: the polar vortex and the chance of a "
+        "sudden warming, the waves that drive it, the descent to the surface, weeks 3 to 5, the season ahead, the "
+        "QBO and the record of past winters.",
     ),
 ]
 
@@ -58,6 +78,11 @@ BYLINE = (
 )
 
 
+def cap(name: str) -> str:
+    """A page's name as it opens a line."""
+    return name[0].upper() + name[1:]
+
+
 def contents(body: str) -> str:
     """The contents list: each <h2> group of the fragment with links to its figures' sections."""
     rows = []
@@ -73,8 +98,11 @@ def contents(body: str) -> str:
 def guide_page(g: dict) -> str:
     url = f"{T.SITE}/guides/{g['slug']}.html"
     title = f"Guide to the {g['name']}"
-    body = (SRC / f"{g['slug']}.html").read_text().strip()
+    body = enso_site.in_season((SRC / f"{g['slug']}.html").read_text()).strip()
     toc = contents(body)
+    # a link to "#figure" was the page switching figures: here it opens that figure, unless the guide has the section
+    here = {"about"} | {key for key, _, _ in SECTION.findall(body)}
+    body = re.sub(r'href="#([^"]+)"', lambda m: m[0] if m[1] in here else f'href="{g["page"]}#{m[1]}"', body)
     body = SECTION.sub(
         lambda m: (
             f'{m.group(0)}\n<p class="open"><a href="{g["page"]}#{m.group(2) or m.group(1)}">Open this figure</a></p>'
@@ -97,7 +125,7 @@ def guide_page(g: dict) -> str:
         T.head(title, g["desc"], url, ld, math="$" in body, image=T.share_image(None), extra=STYLE)
         + f"""<main>
 <article class="topic guide">
-  <p class="crumbs"><a href="/">Home</a> › <a href="/guides/">Page guides</a> › {e(g["name"])}</p>
+  <p class="crumbs"><a href="/">Home</a> › <a href="/guides/">Page guides</a> › {e(cap(g["name"]))}</p>
   <h1>{e(title)}</h1>
   <p class="lede">What each figure shows, how it is made and what it is built from. <a href="{g["page"]}">Open the {e(g["name"])}</a></p>
 {toc}
@@ -136,7 +164,7 @@ def hub_page() -> str:
         },
     }
     items = "".join(
-        f'<li><a href="/guides/{g["slug"]}.html">{html.escape(g["name"])}</a><p>{html.escape(g["desc"])}</p></li>'
+        f'<li><a href="/guides/{g["slug"]}.html">{html.escape(cap(g["name"]))}</a><p>{html.escape(g["desc"])}</p></li>'
         for g in GUIDES
     )
     return (

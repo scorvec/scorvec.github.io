@@ -30,6 +30,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 PARTIALS_DIR = HERE / "partials"
 PAGES_DIR = HERE / "pages"
+GUIDES_DIR = HERE.parent / "site" / "guides"  # the page guides' text (scripts/site/guides.py)
 
 # sub-nav active-class placeholders, one per page (see partials/nav.html)
 _SUBNAV_KEYS = ["A_OVERVIEW", "A_SUBSURFACE", "A_FORECASTS", "A_ATMOSPHERE"]
@@ -105,15 +106,21 @@ PAGES = [
 ]
 
 
+def in_season(text: str) -> str:
+    """The text without the blocks of the products that are out of season."""
+    return _SEASON.sub(lambda m: "" if m[1] in OFF_SEASON else m[0], text)
+
+
 def _read(p: Path) -> str:
     return p.read_text(encoding="utf-8")
 
 
 # ── "Every plot on this page" ───────────────────────────────────────────────────────────────────────────────────────
-# A stage page keeps each product's explanation in an inert <template> and addresses its products by #fragment, so a
-# search engine or a reader without JavaScript sees almost none of the page's text. plot_index() writes the stage's
-# own product list into the page: a heading per rail group, each product linked to its fragment with the first
-# paragraph of its About text (or its caption when it has none), in a collapsed <details> under the stage.
+# A stage page keeps each product's explanation off the page, in its guide (/guides/) or an inert <template>, and
+# addresses its products by #fragment, so a search engine or a reader without JavaScript sees almost none of the
+# page's text. plot_index() writes the stage's own product list into the page: a heading per rail group, each product
+# linked to its fragment with the first paragraph of its explanation (or its caption when it has none), in a
+# collapsed <details> under the stage.
 INDEX_START, INDEX_END = "<!-- plots:start -->", "<!-- plots:end -->"
 _EXPLAINER = re.compile(r'\s*<a href="(/topics/[^"]+)">The explainer</a>')
 _JS_U = re.compile(r"\\u\{([0-9a-fA-F]+)\}")  # ES2015 code-point escapes, which JSON does not have
@@ -197,9 +204,18 @@ def _first_paragraph(tpl: str) -> tuple[str, str]:
 
 
 def plot_index(html_text: str) -> str:
-    """The "Every plot on this page" block for a stage page (its STAGE spec and About templates)."""
+    """The "Every plot on this page" block for a stage page: its STAGE spec, and each plot's opening paragraph from
+    the page's guide (STAGE.guide) or, on a page without one, from its About templates."""
     groups, products = _stage_spec(html_text)
     tpls = dict(re.findall(r'<template id="([^"]+)">(.*?)</template>', html_text, re.S))
+    guide = re.search(r'\bguide:\s*"/guides/([\w-]+)\.html"', html_text)
+    if guide:
+        sections = re.findall(
+            r'<section id="([^"]+)"[^>]*>\s*<h3>.*?</h3>(.*?)</section>',
+            in_season(_read(GUIDES_DIR / f"{guide[1]}.html")),
+            re.S,
+        )
+        tpls |= {f"about-{key}": body for key, body in sections}
 
     def esc(t: str) -> str:
         return htmllib.escape(htmllib.unescape(t), quote=False)
@@ -270,7 +286,7 @@ def assemble(page: dict) -> str:
     nav = "" if stage else _read(PARTIALS_DIR / "nav.html")
     for key in _SUBNAV_KEYS:
         nav = nav.replace("{{" + key + "}}", "active" if key == page["active"] else "")
-    body = _SEASON.sub(lambda m: "" if m[1] in OFF_SEASON else m[0], _read(PAGES_DIR / f"{page['slug']}.html"))
+    body = in_season(_read(PAGES_DIR / f"{page['slug']}.html"))
     if page.get("index"):
         body = with_plot_index(body)
     foot = _read(PARTIALS_DIR / ("footer_stage.html" if stage else "footer.html"))
