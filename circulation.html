@@ -84,6 +84,7 @@
                   <li><a href="/circulation.html#walker"><span class="sh-t">Walker and Hadley cells</span><span class="sh-d">The overturning, its outflow and descent</span></a></li>
                   <li><a href="/circulation.html#mslp"><span class="sh-t">Pacific pressure and satellite</span><span class="sh-d">Pressure, wind and simulated IR</span></a></li>
                   <li><a href="/circulation.html#rainfc"><span class="sh-t">Rain forecast, weeks 1–2</span><span class="sh-d">Four ensembles, bias-adjusted, blended</span></a></li>
+                  <li><a href="/circulation.html#troughs"><span class="sh-t">Convergence and monsoon troughs</span><span class="sh-d">Where the low-level wind converges, days 1–15</span></a></li>
                 </ul>
               </div>
             </div>
@@ -218,7 +219,7 @@
       <p class="hint">With the list of plots focused: <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure, <span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; click a still to enlarge</p>
 <!-- plots:start -->
 <details class="about" id="every-plot">
-<summary>Every plot on this page (15)</summary>
+<summary>Every plot on this page (16)</summary>
 <h2>Tropical Pacific</h2>
 <p><a href="#mslp"><b>MSLP and 10 m wind</b></a> &middot; ensembles and single runs, to day 15<br>
 The full-field Pacific surface forecast behind the equatorial diagnostics: mean-sea-level pressure (contours, with H/L centres) and 10&nbsp;m wind (speed shaded in knots, plus barbs), animated over the tropical and subtropical Pacific. An equatorial westerly push between the Maritime Continent and the dateline is a wind-burst signature. Choose the <b>blend</b> (AIFS-ENS&nbsp;+&nbsp;IFS-ENS, member-weighted, days&nbsp;1&ndash;15) or <b>either ensemble alone</b>: where the AI ensemble and the physics ensemble agree at days 11&ndash;15, confidence is higher, although agreement alone does not show what forces the pattern; where they part, treat it with care. AIFS-ENS has no ocean model of its own; IFS-ENS runs a coupled ocean. Each map's title lists exactly which members went in (when IFS-ENS has not reached the mirror in time the blend says it is AIFS-ENS only).</p>
@@ -249,6 +250,8 @@ GDPS 150&nbsp;hPa wind as isotach fill and contours with wind barbs and geopoten
 <b>The question.</b> Rain is the tropical atmosphere's main heat source: every millimetre per day releases about 29&nbsp;W&nbsp;m<sup>&minus;2</sup> of latent heat into the air column. Where it rains more than usual the air rises, spreads out near the tropopause and sinks somewhere else. That overturning is what the 200&nbsp;hPa velocity potential &chi;200 maps (<b style="color:#2e7d32">green</b> = air diverging aloft over rising motion, <b style="color:#b8520f">orange</b> = converging aloft over sinking). This figure asks, week by week, how much of the observed &chi;200 anomaly the rain anomaly alone accounts for &mdash; and, for the next two weeks, whether the AIFS ensemble's forecast rain and its forecast circulation tell the same story.</p>
 <p><a href="#rainfc"><b>Rain forecast, weeks 1–2</b></a> &middot; bias-adjusted, four ensembles and their blend<br>
 <b>What it shows.</b> Rain for the next two weeks from four ensembles, the latest 00Z run of each: ECMWF's physics-based IFS-ENS and machine-learned AIFS-ENS (50 members each), NOAA's GEFS (31) and Canada's GEPS (21), every member corrected for its model's measured rain bias. The headline is the blend of the models whose rain has been verified against IMERG (GEPS joins once its archive is long enough); each model can be picked alone. The anomaly and tercile views compare the forecast with a normal week, the change view with the previous day's runs; the strip view is the tropics, the second view the 60°S–60°N band.</p>
+<p><a href="#troughs"><b>Convergence and monsoon troughs</b></a> &middot; 925 hPa convergence, 850 hPa trough axes, days 1–15<br>
+<b>What it shows.</b> Where the low-level wind of the tropics flows together and where the monsoon troughs lie, for each day of the latest 00Z IFS-ENS run (ECMWF's physics-based ensemble, 50 members) out to day&nbsp;14, in four sectors between 35&deg;S and 35&deg;N. <b style="color:#01665e">Green</b> is convergence at 925&nbsp;hPa, about 750&nbsp;m above the sea: the inflow under the ITCZ, the South Pacific and South Atlantic convergence zones and the monsoon lows. <b style="color:#8c510a">Brown</b> is divergence, air spreading out under the subtropical highs. The thin arrowed lines follow the members' mean 925&nbsp;hPa wind, heavier where it blows harder. The heavy black lines are monsoon trough axes at 850&nbsp;hPa.</p>
 <h2>Jets &amp; angular momentum</h2>
 <p><a href="#jets"><b>Subtropical jets</b></a> &middot; strength and position<br>
 A robust extratropical El&nbsp;Ni&ntilde;o signature is a stronger, equatorward-shifted subtropical jet in each winter hemisphere. <b>Top</b>: the zonal-mean zonal wind $[u](\phi,p)$ at the analysis &mdash; colour is the anomaly against the ERA5 1991&ndash;2020 day-of-year normal, contours the absolute jets, &#9660; the 200&nbsp;hPa subtropical cores. <b>Below</b>: the forecast evolution of each core's <b>speed</b> and <b>latitude</b> (max $[u]$ at 200&nbsp;hPa within 15&ndash;45&deg;), ensemble members and mean against the climatological normal &plusmn;1&sigma; band, with the analysis departure quoted in &sigma; &mdash; the "how anomalous are the jets right now" number. The animation steps the ensemble-mean cross-section through the 15-day forecast (&#9660; forecast cores, &#9661; their climatological positions).</p>
@@ -270,6 +273,9 @@ Atmospheric angular momentum changes only through torques the Earth exerts on th
   <div class="lightbox" id="lightbox"><img alt=""></div>
   <div class="dom-holder" id="dom-holder">
   </div>
+<template id="about-troughs">
+<p class="chart-sources">ECMWF IFS-ENS, 50 members: 925 and 850&nbsp;hPa wind at 00 and 12&nbsp;UTC, surface pressure (open data, CC BY 4.0; Google Cloud mirror) &middot; daily means on 1&deg; boxes &middot; updated daily</p>
+</template>
 <template id="about-gillrain">
 <p class="chart-sources">NASA GPM IMERG V07 Late daily (GES DISC) &middot; ECMWF AIFS-ENS open data (CC&nbsp;BY&nbsp;4.0): 0-h analyses, 50&nbsp;+&nbsp;1 member rain and 200&nbsp;hPa wind &middot; calibration: ERA5 (Copernicus C3S) 2001&ndash;2020 weekly and 1991&ndash;2020 monthly, GPCP v2.3 monthly (NOAA PSL) &middot; Gill, A.&nbsp;E. (1980), <i>Q.&nbsp;J.&nbsp;R. Meteorol. Soc.</i> 106, 447&ndash;462 &middot; updated each 00/12Z cycle</p>
 </template>
@@ -393,7 +399,7 @@ window.STAGE = {
   groups: [
   {label: "Tropical Pacific", ico: "\u{1F30A}", items: [["mslp","MSLP and 10 m wind","ensembles and single runs, to day 15"],["gdps_ir","GDPS simulated IR","forecast satellite loop"]]},
   {label: "Mid-latitude weather", ico: "\u{1F5FA}", items: [["dt","Dynamic tropopause","θ on 2 PVU, hemisphere and five regions"],["pacjet","North Pacific jet","250 hPa maps, jet axis, phases"],["waf","Wave activity flux","Rossby packets, 250 hPa"],["telecon15","Teleconnections, days 1–15","AO, NAO, PNA, EPO and more, four ensembles"]]},
-  {label: "Tropical circulation", ico: "\u{1F327}", items: [["walker","Walker circulation","analysis, forecasts, by basin"],["hadley","Hadley cells","the cells, outflow and descent, turnover, sea-level pressure"],["vpot","Velocity potential","200 hPa, irrotational wind"],["gdps150","GDPS 150 hPa","outflow layer, wind and height"],["gillrain","Rain-forced circulation","Gill model vs the observed χ200"],["rainfc","Rain forecast, weeks 1–2","bias-adjusted, four ensembles and their blend"]]},
+  {label: "Tropical circulation", ico: "\u{1F327}", items: [["walker","Walker circulation","analysis, forecasts, by basin"],["hadley","Hadley cells","the cells, outflow and descent, turnover, sea-level pressure"],["vpot","Velocity potential","200 hPa, irrotational wind"],["gdps150","GDPS 150 hPa","outflow layer, wind and height"],["gillrain","Rain-forced circulation","Gill model vs the observed χ200"],["rainfc","Rain forecast, weeks 1–2","bias-adjusted, four ensembles and their blend"],["troughs","Convergence and monsoon troughs","925 hPa convergence, 850 hPa trough axes, days 1–15"]]},
   {label: "Jets & angular momentum", ico: "\u2696", items: [["jets","Subtropical jets","strength and position"],["aam","Atmospheric angular momentum","series, trend, phase, by latitude"],["torque","Surface torques","friction and mountain"]]}
 ],
   products: {
@@ -417,6 +423,10 @@ window.STAGE = {
                                                           rain: "The bias-corrected ensemble-mean rain rate for weeks 1 and 2.",
                                                           dod: "How today's 00Z runs changed the rain for the same two calendar weeks since yesterday's runs; colour only where the change is significant against the members' spread.",
                                                           bias: "The correction itself: this model cycle's week-1 and week-2 rain against IMERG, where significant. Green: the model rains too much there, brown: too little."}[a]; }},
+  troughs: {label: "Low-level convergence and monsoon troughs",
+          a: {label: "Sector", items: [["atl","Atlantic, South America"],["afr","Africa, Indian Ocean"],["wpac","West Pacific, Australia"],["epac","East Pacific, Americas"]]},
+          frame: function (a) { return "sst_anim.html?embed=1&manifest=tropconv_manifest.json&region=tropconv_" + a + "&regions=tropconv_" + a + "&start=0"; },
+          about: "about-troughs", cap: function () { return "The latest 00Z IFS-ENS a day at a time: 925 hPa convergence where the members agree on its sign, the members' mean 925 hPa wind and the 850 hPa trough axes."; }},
   gillrain: {label: "Rain-forced circulation (Gill model)", img: function () { return "assets/sst/gill_rain.webp?v=4d8078dd5bad"; }, fit: false,
           about: "about-gillrain", cap: function () { return "How much of the tropical upper-level circulation the rain itself explains: the Gill (1980) model forced by the observed rain of the last four weeks (IMERG Late) and by the AIFS-ENS forecast rain of weeks 1 and 2, against the observed and forecast 200 hPa velocity potential."; }},
   mslp: {label: "MSLP and 10 m wind", a: {label: "Model", items: [["mslp_wind","Blend (AIFS-ENS + IFS-ENS)"],["mslp_wind_aifs","AIFS-ENS mean"],["mslp_wind_ifs","IFS-ENS mean"],["mslp_wind_aifs0","AIFS-ENS member 0"],["mslp_wind_aifs1","AIFS single"],["mslp_wind_hres","IFS control"],["mslp_wind_gdps","GDPS"]]},

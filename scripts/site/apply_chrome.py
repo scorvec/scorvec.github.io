@@ -172,6 +172,13 @@ PRODUCTS = [
                         "Daily",
                         "Four ensembles, bias-adjusted, blended",
                     ),
+                    (
+                        "/circulation.html#troughs",
+                        "Convergence and monsoon troughs",
+                        "Low-level convergence and monsoon troughs across the tropics for each day of the latest IFS-ENS run to day 14: 925 hPa convergence where the 50 members agree on its sign, the 925 hPa wind and the 850 hPa trough axes, by sector.",
+                        "Daily",
+                        "Where the low-level wind converges, days 1–15",
+                    ),
                 ],
             ),
         ],
@@ -859,6 +866,7 @@ HOME = {
             "/circulation.html#walker",
             "/circulation.html#mslp",
             "/circulation.html#rainfc",
+            "/circulation.html#troughs",
         ],
     ),
     "Stratosphere": (
