@@ -1,8 +1,9 @@
 name: Hadley and Walker loops, Hadley outflow and descent forecasts (AIFS-ENS, IFS-ENS, GEFS)
 
-# The two products that read every member of the 00Z AIFS-ENS, IFS-ENS and GEFS runs to day 15. The members job fetches
-# each ensemble ONCE for both (scripts/mjo/src/hadley_members.py: the u/v the overturning forecasts read, with the t,
-# omega, z500 and sea-level pressure the outflow and descent forecasts add); then:
+# The products that read every member of the 00Z AIFS-ENS, IFS-ENS and GEFS runs to day 15. The members job fetches
+# each ensemble ONCE for all of them (scripts/mjo/src/hadley_members.py: the u/v the overturning forecasts read, with
+# the t, omega, z500 and sea-level pressure the outflow and descent forecasts add, and the IFS-ENS members' 12 UTC
+# winds at 850 and 925 hPa for the convergence maps); then:
 # * loops: the analysed Hadley and Walker loops, every day's 7-day mean since July 2025, the analysis less its offset
 #   from ERA5 (overturn_hist.py; the daily-mean archive rides on the frames branch in assets/sst/anim/overturn_hist,
 #   topped up from the cycle histories mjo.yml keeps, frames drawn once and published additively), and the forecast
@@ -11,7 +12,8 @@ name: Hadley and Walker loops, Hadley outflow and descent forecasts (AIFS-ENS, I
 #   there (overturn_rf_drift.npz, same release, overturn-rf.yml);
 # * outflow: the Hadley outflow and descent loops and trackers (hadley_branch_fc.py), the members less their drift
 #   (hbranch_drift.npz in release hbranch-ref-v1, from hbranch-ref.yml) in trailing 7-day windows led in by the analysed
-#   days (release hbranch-hres, hbranch.yml), cut to the windows whose skill passed.
+#   days (release hbranch-hres, hbranch.yml), cut to the windows whose skill passed;
+# * convergence: the IFS-ENS maps of low-level convergence and monsoon troughs, a day at a time (tropconv.py).
 # A product whose page already shows the run is left out of the fetch and not redrawn. IFS-ENS day 15 reaches the Google
 # mirror around 08:50 UTC: the dispatcher fires this at 09:40 (backstop 11:40).
 on:
@@ -66,6 +68,8 @@ jobs:
       date: ${{ steps.run.outputs.date }}
       fc_overturn: ${{ steps.run.outputs.fc_overturn }}
       fc_hbranch: ${{ steps.run.outputs.fc_hbranch }}
+      fc_conv: ${{ steps.run.outputs.fc_conv }}
+      models: ${{ steps.run.outputs.models }}
       loops: ${{ steps.run.outputs.loops }}
     steps:
       - uses: actions/checkout@v7
@@ -82,7 +86,7 @@ jobs:
           # main's manifests as they are now: a queued run checks out the commit it was triggered at
           timeout 60 git fetch -q --depth 1 origin main || true
           ver() { git show "FETCH_HEAD:assets/sst/anim/$1_manifest.json" 2>/dev/null | python3 -c "import json, sys; print(json.load(sys.stdin)['ver'])" 2>/dev/null || echo none; }
-          for p in overturn:mmsf_fc hbranch:hbranch_fc; do
+          for p in overturn:mmsf_fc hbranch:hbranch_fc conv:tropconv; do
             fresh=true
             if [ "$(ver "${p#*:}")" = "${d}00" ] && [ "$FORCE" != "true" ]; then fresh=false; fi
             echo "fc_${p%%:*}=$fresh" >> "$GITHUB_OUTPUT"; echo "${p%%:*}: run $d 00Z still to draw: $fresh"
@@ -91,18 +95,22 @@ jobs:
           loops=false
           if grep -q '^fc_overturn=true' "$GITHUB_OUTPUT" || [ -n "$BACKFILL" ] || [ "$REBUILD" = "true" ]; then loops=true; fi
           echo "loops=$loops" >> "$GITHUB_OUTPUT"
+          # the convergence maps read IFS-ENS alone
+          models='["ifs"]'
+          if grep -qE '^fc_(overturn|hbranch)=true' "$GITHUB_OUTPUT"; then models='["aifs", "ifs", "gefs"]'; fi
+          echo "models=$models" >> "$GITHUB_OUTPUT"
 
   # ------------------------------------------------------------ members ---
-  # One ensemble a job, every member's lead days fetched once for both products (~1 GB a lead day for ECMWF).
+  # One ensemble a job, every member's lead days fetched once for every product (~1 GB a lead day for ECMWF).
   members:
     needs: which
-    if: needs.which.outputs.fc_overturn == 'true' || needs.which.outputs.fc_hbranch == 'true'
+    if: needs.which.outputs.fc_overturn == 'true' || needs.which.outputs.fc_hbranch == 'true' || needs.which.outputs.fc_conv == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 150
     strategy:
       fail-fast: false
       matrix:
-        model: [aifs, ifs, gefs]
+        model: ${{ fromJSON(needs.which.outputs.models) }}
     env:
       ARCH: scripts/mjo/data/hbranch
     steps:
@@ -125,14 +133,18 @@ jobs:
         env:
           OV: ${{ needs.which.outputs.fc_overturn }}
           HB: ${{ needs.which.outputs.fc_hbranch }}
+          CV: ${{ needs.which.outputs.fc_conv }}
           # the ECMWF lead days run four processes at once (hadley_members.DAY_PROCS): one thread each
           OMP_NUM_THREADS: "1"
           OPENBLAS_NUM_THREADS: "1"
           MKL_NUM_THREADS: "1"
         run: |
-          only=; [ "$OV" != "true" ] && only="--only hbranch"; [ "$HB" != "true" ] && only="--only overturn"
+          products=
+          if [ "$OV" = "true" ]; then products="$products overturn"; fi
+          if [ "$HB" = "true" ]; then products="$products hbranch"; fi
+          if [ "$CV" = "true" ]; then products="$products conv"; fi
           python scripts/mjo/src/hadley_members.py --model ${{ matrix.model }} --date "${{ needs.which.outputs.date }}" \
-            --out runs $only
+            --out runs --products $products
       - uses: actions/upload-artifact@v7
         with:
           name: hadley-members-${{ matrix.model }}
@@ -278,6 +290,53 @@ jobs:
             git add circulation.html $OUT
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -m "Hadley outflow and descent forecasts: ${{ needs.which.outputs.date }}"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+
+  # -------------------------------------------------------- convergence ---
+  convergence:
+    needs: [which, members]
+    if: ${{ !cancelled() && needs.which.outputs.fc_conv == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          pip install -r scripts/mjo/requirements-mjo.txt
+      - uses: actions/download-artifact@v7
+        with:
+          name: hadley-members-ifs
+          path: runs
+      - name: Maps
+        run: python scripts/mjo/src/tropconv.py runs/tropconv_ifs.npz
+      - name: Publish the frames (frames branch)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # each sector's loop is replaced whole
+          scripts/lib/publish_frames_ci.sh $(ls -d assets/sst/anim/tropconv_*/ | sed 's#/$##')
+      - name: Commit & push (manifest)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/sst/anim/tropconv_manifest.json"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" $OUT
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add $OUT
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "Convergence and monsoon troughs: ${{ needs.which.outputs.date }}"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
             echo "Push $i rejected; resyncing and retrying…"
             sleep 5

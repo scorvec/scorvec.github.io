@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The members of one 00Z ensemble run for both Hadley forecast products, fetched once.
+"""The members of one 00Z ensemble run for the Hadley forecast products and the convergence maps, fetched once.
 
 The overturning and Walker loops (overturn_fc.py) read u and v on 13 levels of every member at the 00 UTC state of lead
 days 0..15; the outflow and descent loops (hadley_branch_fc.py) read u and v on ten of those levels with t, omega, z500
@@ -9,9 +9,13 @@ file read by overturn.reduce_file and then by hadley_branch_ref.states, which fi
 and deletes them all (~1 GB a day, never kept); GEFS member-steps from NOAA's S3 bucket in threads, both products'
 messages in one byte-ranged pass per member-step, decoded here (eccodes in the fetch threads crashed the interpreter).
 
-    python src/hadley_members.py --model ifs --date 20261023 --out runs [--only overturn|hbranch]
-        -> runs/overturn_ifs.npz (vbar, ud: member x lead day x level) and runs/hbranch_ifs.npz (hadley_branch_fc's
-           reduction; none when the ensemble is not drawn there)
+The low-level convergence maps (tropconv.py, IFS-ENS alone) read the members' u and v at 850 and 925 hPa at 00 and
+12 UTC of lead days 0..14: the 00 UTC state from the file above when the day fetches it, the rest (12 UTC, or both
+states) as a two-level file of its own.
+
+    python src/hadley_members.py --model ifs --date 20261023 --out runs [--products overturn hbranch conv]
+        -> runs/overturn_ifs.npz (vbar, ud: member x lead day x level), runs/hbranch_ifs.npz (hadley_branch_fc's
+           reduction; none when the ensemble is not drawn there) and runs/tropconv_ifs.npz (tropconv's reduction)
 """
 
 from __future__ import annotations
@@ -33,6 +37,7 @@ import hadley_branch_fc as HF
 import hadley_branch_ref as H
 import hadley_branches as HB
 import overturn as O
+import tropconv as TC
 from mmsf import LEVELS
 
 LEADS = H.LEADS  # lead days 0..15, the 00 UTC state of each (overturn_fc.LEADS too)
@@ -42,6 +47,7 @@ WORKERS = 16
 # many keep the cores and the network busy together. Run with the numerical libraries single-threaded (OMP_NUM_THREADS=1
 # etc.) so the processes do not fight over the cores.
 DAY_PROCS = int(os.environ.get("HADLEY_DAY_PROCS", "4"))
+PRODUCTS = ("overturn", "hbranch", "conv")  # overturn_fc, hadley_branch_fc, tropconv
 
 
 def _arrays(n_ov: int, n_hb: int):
@@ -53,11 +59,26 @@ def _arrays(n_ov: int, n_hb: int):
     return vb, ud, x
 
 
-def _ecmwf_day(job):
-    """One lead day of an ECMWF ensemble: (j, vbar, ud, fields), each with the members first; None where not wanted."""
+def _conv_day(cfg: dict, cyc, L: int, uv: Path | None):
+    """tropconv's reduction of one lead day. uv: the members' 00 UTC u and v already on disk, or None; what it lacks
+    is fetched on tropconv's two levels and deleted."""
     import store as ecmwf
 
-    model, init, j, overturn, hbranch = job
+    steps = (24 * L, 24 * L + 12)
+    need = steps if uv is None else steps[1:]
+    own = ecmwf.ensure(cyc, ecmwf.Spec(cfg["store"], "pf", ("u", "v"), "pl", TC.LEVELS, need))
+    d = TC.day([own] + ([uv] if uv is not None else []), steps, range(1, ecmwf.PF_MEMBERS + 1))
+    for q in (own, own.with_suffix(own.suffix + ".json")):
+        q.unlink(missing_ok=True)
+    return d
+
+
+def _ecmwf_day(job):
+    """One lead day of an ECMWF ensemble: (j, vbar, ud, fields, convergence), the first three with the members first;
+    None where not wanted."""
+    import store as ecmwf
+
+    model, init, j, overturn, hbranch, conv = job
     cfg, L = O.MODELS[model], LEADS[j]
     cyc, s = ecmwf.Cycle(f"{init:%Y%m%d}", "00"), (24 * L,)
     types = (["cf"] if cfg["cf"] else []) + ["pf"]
@@ -65,6 +86,8 @@ def _ecmwf_day(job):
     want = list(range(1, H.MODELS[model]["members"] + 1))
     vb, ud, x = _arrays(len(members) if overturn else 0, len(want) if hbranch else 0)
     vb, ud, x = vb[:, :1], ud[:, :1], x[:, :1]  # this day alone
+    conv = conv and L in TC.LEADS
+    uv = c = None  # the members' u/v file on overturn's levels, which are hbranch's and hold tropconv's
     if overturn:
         for typ in types:
             p = ecmwf.ensure(cyc, ecmwf.Spec(cfg["store"], typ, ("u", "v"), "pl", tuple(LEVELS), s))
@@ -72,8 +95,16 @@ def _ecmwf_day(job):
             v, u = O.reduce_file(p, mem, s)
             rows = [members.index(m) for m in mem]
             vb[rows, 0], ud[rows, 0] = v[:, 0], u[:, 0]
-            if typ == "cf" or not hbranch:  # the members' file is hbranch's too: states() deletes it
+            if typ == "cf":
                 p.unlink(missing_ok=True)
+            else:
+                uv = p
+    if conv:
+        if uv is None and hbranch and len(want) == ecmwf.PF_MEMBERS:  # the file states() reads next
+            uv = ecmwf.ensure(cyc, ecmwf.Spec(cfg["store"], "pf", ("u", "v"), "pl", H.UV_LEVELS, s))
+        c = _conv_day(cfg, cyc, L, uv)
+    if uv is not None and not hbranch:  # states() deletes it otherwise
+        uv.unlink(missing_ok=True)
     if hbranch:
         got = H.states(model, init, s, want)
         for i, m in enumerate(want):
@@ -82,14 +113,19 @@ def _ecmwf_day(job):
                 x[i, 0] = f
     n_o = int(np.isfinite(vb[:, 0, 0, 0]).sum()) if overturn else "-"
     n_h = int(np.isfinite(x[:, 0, 0, 0, 0]).sum()) if hbranch else "-"
-    print(f"  {cfg['label']} day {L}: {n_o} members (overturning), {n_h} (outflow and descent)", flush=True)
-    return j, vb[:, 0], ud[:, 0], x[:, 0]
+    n_c = "-" if c is None else int(c["n"])
+    print(
+        f"  {cfg['label']} day {L}: {n_o} members (overturning), {n_h} (outflow and descent), {n_c} (convergence)",
+        flush=True,
+    )
+    return j, vb[:, 0], ud[:, 0], x[:, 0], c
 
 
-def ecmwf_members(model: str, init: pd.Timestamp, overturn: bool, hbranch: bool):
-    """(vbar, ud) for overturn (None when not wanted) and the hbranch members' fields (None when not wanted). The lead
-    days run DAY_PROCS at a time in forked processes, each fetching its own day (one request budget, the store's
-    per-file locks) while the others reduce theirs."""
+def ecmwf_members(model: str, init: pd.Timestamp, overturn: bool, hbranch: bool, conv: bool = False):
+    """(vbar, ud) for overturn (None when not wanted), the hbranch members' fields (None when not wanted) and
+    tropconv's reduction of each lead day (None for a day not read). The lead days run DAY_PROCS at a time in forked
+    processes, each fetching its own day (one request budget, the store's per-file locks) while the others reduce
+    theirs."""
     import multiprocessing as mp
 
     import store as ecmwf
@@ -97,11 +133,28 @@ def ecmwf_members(model: str, init: pd.Timestamp, overturn: bool, hbranch: bool)
     cfg = O.MODELS[model]
     members = ([0] if cfg["cf"] else []) + list(range(1, ecmwf.PF_MEMBERS + 1))
     vb, ud, x = _arrays(len(members) if overturn else 0, H.MODELS[model]["members"] if hbranch else 0)
-    jobs = [(model, init, j, overturn, hbranch) for j in range(len(LEADS))]
+    days = [None] * len(TC.LEADS)
+    jobs = [
+        (model, init, j, overturn, hbranch, conv) for j, L in enumerate(LEADS) if overturn or hbranch or L in TC.LEADS
+    ]
     with mp.get_context("fork").Pool(DAY_PROCS) as pool:
-        for j, v, u, f in pool.imap_unordered(_ecmwf_day, jobs):
+        for j, v, u, f, c in pool.imap_unordered(_ecmwf_day, jobs):
             vb[:, j], ud[:, j], x[:, j] = v, u, f
-    return ((vb, ud) if overturn else None), (x if hbranch else None)
+            if c is not None:
+                days[TC.LEADS.index(LEADS[j])] = c
+    return ((vb, ud) if overturn else None), (x if hbranch else None), days
+
+
+def conv_ground(init: pd.Timestamp) -> np.ndarray:
+    """tropconv.below_ground from the surface pressure of the run's first state (member 1), fetched and deleted."""
+    import store as ecmwf
+
+    spec = ecmwf.Spec(O.MODELS[TC.MODEL]["store"], "pf", "sp", "sfc", (), (0,), 1)
+    p = ecmwf.ensure(ecmwf.Cycle(f"{init:%Y%m%d}", "00"), spec)
+    ground = TC.below_ground(p)
+    for q in (p, p.with_suffix(p.suffix + ".json")):
+        q.unlink(missing_ok=True)
+    return ground
 
 
 def gefs_members(init: pd.Timestamp, overturn: bool, hbranch: bool):
@@ -151,19 +204,29 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True, choices=sorted(O.MODELS))
     ap.add_argument("--date", required=True, help="00Z run, YYYYMMDD")
-    ap.add_argument("--out", required=True, type=Path, help="directory for overturn_<model>.npz, hbranch_<model>.npz")
-    ap.add_argument("--only", choices=("overturn", "hbranch"), help="one product (the other already shows this run)")
+    ap.add_argument("--out", required=True, type=Path, help="directory for the products' <product>_<model>.npz")
+    ap.add_argument(
+        "--products",
+        nargs="+",
+        choices=PRODUCTS,
+        default=PRODUCTS,
+        help="the products to read the run for (the others already show it)",
+    )
     a = ap.parse_args()
     init = pd.Timestamp(a.date)
-    overturn = a.only != "hbranch"
-    hbranch = a.only != "overturn" and HF.drawn(a.model, init)
-    if not (overturn or hbranch):
+    overturn = "overturn" in a.products
+    hbranch = "hbranch" in a.products and HF.drawn(a.model, init)
+    conv = "conv" in a.products and a.model == TC.MODEL
+    if not (overturn or hbranch or conv):
         return 0
+    days = []
     if a.model == "gefs":
         ov, x = gefs_members(init, overturn, hbranch)
     else:
-        ov, x = ecmwf_members(a.model, init, overturn, hbranch)
+        ov, x, days = ecmwf_members(a.model, init, overturn, hbranch, conv)
     a.out.mkdir(parents=True, exist_ok=True)
+    if conv and TC.save_run(init, days, conv_ground(init), a.out / f"tropconv_{a.model}.npz"):
+        print(f"wrote {a.out / f'tropconv_{a.model}.npz'}", flush=True)
     if ov is not None:
         np.savez_compressed(a.out / f"overturn_{a.model}.npz", vb=ov[0], ud=ov[1])
         print(f"wrote {a.out / f'overturn_{a.model}.npz'}", flush=True)
