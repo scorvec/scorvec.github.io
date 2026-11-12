@@ -68,6 +68,14 @@ GUIDES = [
         desc="What each figure of the atmospheric rivers page shows and how it is made: integrated vapour transport "
         "in four models, the West Coast landfall views, the ensembles' AR odds, weeks 3 to 5 and precipitable water.",
     ),
+    dict(
+        slug="aifs-verify",
+        page="/aifs-verify.html",
+        name="AIFS verification page",
+        desc="What each figure of the AIFS verification page shows and how it is made: the question the page asks, the "
+        "spectral matching of member 0, the radiosonde and ERA5 truths, the scorecard's significance tests, the "
+        "scores by lead and the power spectra.",
+    ),
 ]
 
 STYLE = """<style>

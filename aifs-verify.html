@@ -92,8 +92,6 @@
   .anim-embed { width: 100%; aspect-ratio: 1460 / 680; border: 0; display: block; }
   .colophon { margin-top: 2.4rem; padding-top: 1.6rem; border-top: 1px solid var(--rule); font-size: 0.82rem;
               color: var(--muted); line-height: 1.7; max-width: 64rem; }
-  .colophon h3 { font-family: var(--serif); font-weight: 400; font-size: 1rem; color: var(--ink); margin-bottom: 0.5rem; }
-  .colophon p + p { margin-top: 0.7rem; }
   .colophon b { color: var(--ink); font-weight: 500; }
   @media (max-width: 768px) { nav { padding: 1rem 1.5rem; } main { padding: 1.5rem 1rem 3rem; max-width: 100%; } }
   .ss-layout { margin-top: 1rem; }
@@ -316,21 +314,7 @@
       <p class="hint">With the list of plots focused: <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; each card keeps its own controls</p>
     </section>
   </div>
-  <template id="about-lead"><p>Each point is the mean over the <b>same</b> verified runs for all four models (a run enters a
-  lead only when all four have it), so the lines are comparable point by point. The set of runs differs from lead to
-  lead and between the two truths: the newest runs cannot yet be verified at long leads, and ERA5 arrives later than the
-  radiosondes. Station anomalies are against
-  each radiosonde station's own day-of-year median; ERA5 anomalies against the ERA5 1991&ndash;2020 climatology. The
-  <b>activity ratio</b> is std(forecast anomaly) / std(observed anomaly): a model can buy RMSE by damping variance, and
-  this ratio shows the purchase. Whether two lines differ significantly is in the scorecard.</p>
-  <p>Data: ECMWF AIFS and AIFS-ENS open data (CC BY 4.0); radiosondes from the <a href="skewt/">sounding explorer</a>
-  mirror; ERA5 truth from the ARCO-ERA5 store on Google Cloud, ERA5 1991&ndash;2020 climatology from WeatherBench2.
-  Full credits at the foot of the page.</p></template>
-  <template id="about-spec"><p>Spherical-harmonic power of each model's global field against total wavenumber, averaged
-  over the archived runs and shown as a ratio to the AIFS single at the same lead. Member&nbsp;0 as published sits
-  above 1 wherever the single has smoothed small scales away; the matched member&nbsp;0 should lie on 1 &mdash; that
-  is what the filter is for. The dotted line is the T120 truncation applied before scoring; nothing to its right
-  enters any score.</p></template>
+  <template id="about-lead"><p class="chart-sources">ECMWF AIFS and AIFS-ENS open data (CC BY 4.0); radiosondes from the <a href="/skewt/">sounding explorer</a> mirror; ERA5 truth from the ARCO-ERA5 store on Google Cloud, ERA5 1991&ndash;2020 climatology from WeatherBench2. Full credits at the foot of the page.</p></template>
   <div class="lightbox" id="lightbox"><img alt=""></div>
   <div class="dom-holder">
     <div class="card" id="scorecard">
@@ -372,10 +356,10 @@
   </div>
   </div>
 <script>
-window.STAGE = { groups: [{"label": "Scores", "items": [["scorecard", "Scorecard", "every variable and lead, one table"], ["scores", "Scores by lead", "RMSE, ACC, bias, activity"], ["spectra", "Power spectra", "the blurring and the matching"]]}, {"label": "Loops", "items": [["loop", "Side-by-side forecast loop", "MSLP, thickness, 6-h precipitation"], ["z500", "500 hPa height anomaly", "Northern Hemisphere loop"], ["t2m", "2 m temperature anomaly", "North America loop"]]}],
+window.STAGE = { guide: "/guides/aifs-verify.html", groups: [{"label": "Scores", "items": [["scorecard", "Scorecard", "every variable and lead, one table"], ["scores", "Scores by lead", "RMSE, ACC, bias, activity"], ["spectra", "Power spectra", "the blurring and the matching"]]}, {"label": "Loops", "items": [["loop", "Side-by-side forecast loop", "MSLP, thickness, 6-h precipitation"], ["z500", "500 hPa height anomaly", "Northern Hemisphere loop"], ["t2m", "2 m temperature anomaly", "North America loop"]]}],
   aliases: { diff: "scorecard" },
   products: {
-    scorecard: { label: "Scorecard", fit: false,
+    scorecard: { label: "Scorecard", fit: false, about: "about-scorecard",
       a: { label: "compared with the single", items: [["matched", "member 0, matched"], ["control", "member 0, as published"], ["ensmean", "ensemble mean"]] },
       b: { label: "score", items: [["rmse", "RMSE"], ["acc", "anomaly correlation"]] },
       dom: function () { return "scorecard"; } },
@@ -395,59 +379,10 @@ window.STAGE = { groups: [{"label": "Scores", "items": [["scorecard", "Scorecard
   onRender: function (sel) { if (window.AIFS_SC) window.AIFS_SC(sel); } };
 </script>
   <div class="colophon">
-    <h3>Method</h3>
-    <p><b>Why the matching.</b> The AIFS single minimises squared error, so as its forecast loses predictability it
-    damps the features it cannot place; that lowers RMSE whether or not the forecast is better. Member&nbsp;0 of
-    AIFS-ENS is trained to stay sharp. To compare them as deterministic forecasts on equal terms, member&nbsp;0's
-    spherical-harmonic coefficients are multiplied, degree by degree, by
-    f(l)&nbsp;=&nbsp;min(1,&nbsp;&radic;(P<sub>single</sub>(l)&nbsp;/&nbsp;P<sub>member&nbsp;0</sub>(l))), where P
-    are the two models' mean power spectra at the same lead over the <b>previous 40 runs</b> (a 5-degree running
-    mean of the ratio; the global mean, l&nbsp;=&nbsp;0, is left alone). The filter uses only past forecasts, never
-    the verifying data, so it is a transformation the forecaster could apply in real time. It only removes power
-    (f&nbsp;&le;&nbsp;1). The spectra panel shows how closely the filtered member&nbsp;0 reproduces the single. The
-    filter matches the <i>average</i> spectrum; it cannot copy the single's flow-dependent damping (smoothing more
-    where the flow is less predictable), so part of what remains may still be hedging done well rather than a
-    better-placed forecast.</p>
-    <p><b>Same scale.</b> Every 0.25&deg; global field is expanded in spherical harmonics (pyshtools) and all series
-    are truncated at T120 (about 1.5&deg;) before scoring, so no model is judged at scales it does not share with
-    the others. A 1.5&deg; block mean would still pass much of the
-    300&ndash;600 km power.</p>
-    <p><b>Independent truth.</b> ERA5 is an IFS analysis that both models were trained on. The primary truth is the
-    radiosonde network the <a href="skewt/">sounding explorer</a> mirrors every hour: 500 hPa height and 850 hPa
-    temperature are interpolated in log-pressure from each station's sounding, and the forecasts are sampled at the
-    stations by bilinear interpolation. ERA5 scores (NH 20&ndash;80&deg;N, cosine-weighted, 1.5&deg;) come from the
-    same truncated fields and are the only truth for MSLP and 2 m temperature. Radiosonde scores arrive within
-    hours; ERA5 lags about 6 days, and its latest 2&ndash;3 months are the preliminary ERA5T release.</p>
-    <p><b>Scores and tests.</b> RMSE, bias, anomaly correlation and activity ratio at leads 24&ndash;240 h, per run.
-    Station anomalies use each station's own day-of-year median from its full IGRA record; ERA5 anomalies use the
-    ERA5 1991&ndash;2020 &plusmn;7-day climatology (WeatherBench2), including 850 hPa temperature since
-    September&nbsp;2026. Differences from the single are paired by start time and tested with a t-test whose
-    standard error allows for serial correlation: it is the larger of a circular-block bootstrap's (2,000 resamples,
-    block length chosen from each cell's own autocorrelation, never under four runs or two days) and the one implied
-    by the series' lag-1 autocorrelation (its effective number of independent runs). Differences in anomaly
-    correlation drift with the season and stay correlated for a week or more, so they count as far fewer independent
-    runs than RMSE differences. The scorecard is one family of 480 tests (eight rows, ten leads, three comparisons,
-    RMSE and anomaly correlation): a cell is called significant only when its p is below 0.05 <i>and</i> it passes the
-    Benjamini&ndash;Hochberg false-discovery control at 10&nbsp;% across all 480, so at most about one in ten solid
-    cells is expected to be a false alarm. The 95&nbsp;% interval in a cell's tooltip is for that cell alone. A
-    difference that wanders over the whole archive (a seasonal drift as long as the record) cannot be tested from one
-    summer and autumn, and these tests do not claim to.</p>
-    <p><b>The ensemble mean.</b> The mean of the control and 25 perturbed AIFS-ENS members is shown for reference.
-    Averaging removes the unpredictable part of the forecast, so it usually wins on RMSE at longer leads while
-    having much less variance than the atmosphere; it is not a single model run and is not the page's question.</p>
     <p><b>Data and licences.</b> ECMWF AIFS and AIFS-ENS open data: &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use. ERA5: Copernicus Climate Change Service (C3S) / ECMWF, CC&nbsp;BY&nbsp;4.0; contains modified Copernicus Climate Change Service information 2026; neither the European Commission nor ECMWF is responsible for any use of this information; ERA5 truth from the ARCO-ERA5 store on Google Cloud, the 1991&ndash;2020 climatology from WeatherBench2. Radiosondes from the sounding explorer's mirror: NOAA/NWS SPC and the Iowa Environmental Mesonet (United States); ECCC soundings, Data Source: Environment and Climate Change Canada (MSC Datamart), under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a>; the WMO WIS&nbsp;2.0 Global Cache (core data under the WMO Unified Data Policy); station climatologies from NOAA NCEI's Integrated Global Radiosonde Archive v2.</p>
   </div>
-<section class="page-about" id="page-about">
-  <h2>About this page</h2>
-  <p><b>The question.</b> <b>The question:</b> as deterministic forecasts, how does ECMWF's AIFS single compare with
-  member&nbsp;0 of AIFS-ENS? The two are trained differently. The single is trained to minimise squared error, which
-  rewards hedging: it blurs what it is unsure about as lead time grows. The ensemble members are trained on a
-  CRPS-type objective that keeps each run sharp. <b>RMSE and anomaly correlation reward smoothing</b>, so a raw
-  comparison would partly measure blur rather than forecast quality. Here member&nbsp;0 is first passed through a
-  <b>spectral filter that gives it the single's power spectrum</b> at each lead, then both are truncated at T120 and
-  scored against <b>independent radiosondes</b> from the <a href="skewt/">sounding explorer</a>, with ERA5 alongside.
-  Member&nbsp;0 as published and the <b>ensemble mean</b> are shown as references; the ensemble mean averages 26 of the 51 members (the control and 25 perturbed),
-  so it is not a single model run.</p>
+<section class="page-about">
+  <p><a href="/guides/aifs-verify.html">Guide to this page</a>: the question it asks, why member&nbsp;0 is spectrally matched before scoring, the two truths and the significance tests.</p>
 </section>
 </main>
 <div class="sc-tip" id="scTip"></div>
