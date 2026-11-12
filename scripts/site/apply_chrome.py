@@ -615,9 +615,12 @@ PAGES = [
         ],
     ),
 ]
-# topic explainers (written by scripts/site/topics.py): every page in topics/ gets the header and footer
+# topic explainers and page guides (written by scripts/site/topics.py and guides.py): every page in topics/ and
+# guides/ gets the header and footer
 PAGES += [
-    dict(path=f"topics/{p.name}", mode="after-body", footer=True) for p in sorted((REPO / "topics").glob("*.html"))
+    dict(path=f"{d}/{p.name}", mode="after-body", footer=True)
+    for d in ("topics", "guides")
+    for p in sorted((REPO / d).glob("*.html"))
 ]
 
 HEAD_SNIPPET = '<link rel="stylesheet" href="/assets/site.css">\n<script src="/assets/site.js" defer></script>\n'

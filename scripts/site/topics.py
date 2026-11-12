@@ -2,7 +2,7 @@
 """Topic explainers: one crawlable page per diagnostic under /topics/, so that searches for specialist terms such as
 "E-P flux divergence" or "mountain torque" find the site.
 
-Why these pages exist: the live products sit on stage pages (circulation.html, enso.html) whose explanations live in
+Why these pages exist: the live products sit on stage pages (circulation.html, stratosphere.html) whose explanations live in
 <template> blocks and whose products are addressed by URL fragments (#epflux). Search engines index neither, so to
 Google the site never mentions an E-P flux. Each topic page here carries the definition, the equations, how the live
 product computes it and its current figure or loop, under its own URL, title and description.
@@ -716,7 +716,8 @@ def share_image(t: dict | None) -> str:
     return SITE + (figs[0] if figs else (t or {}).get("still", "/hero-supercell-1280.webp"))
 
 
-def head(title: str, desc: str, url: str, ld: dict, math: bool, image: str) -> str:
+def head(title: str, desc: str, url: str, ld: dict, math: bool, image: str, extra: str = "") -> str:
+    """The page's head and opening <body>; `extra` is a style block of the page's own, after the shared one."""
     e = html.escape
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -740,7 +741,7 @@ def head(title: str, desc: str, url: str, ld: dict, math: bool, image: str) -> s
 </script>
 <link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
-{KATEX if math else ""}{STYLE}
+{KATEX if math else ""}{STYLE}{extra}
 </head>
 <body>
 """
@@ -889,6 +890,7 @@ def hub_page(today: str) -> str:
   <p>The diagnostics behind this site's circulation and stratosphere products, each explained with its equations and
   shown with its current forecast. They are written for meteorologists and students who want to know what a chart is
   measuring before trusting it.</p>
+  <p>What each figure of a product page shows and how it is made is in the <a href="/guides/">page guides</a>.</p>
   <ul class="hub-list">{items}</ul>
   <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/">Shawn Corvec</a>, meteorologist. Last revised {today}.</p>
 </article>

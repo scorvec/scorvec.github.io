@@ -36,7 +36,7 @@ from xml.sax.saxutils import escape
 REPO = Path(__file__).resolve().parents[2]
 SITE = "https://scorvec.com"
 
-DIRS = ("assets", "board", "data", "midterms", "qbo", "skewt", "studies", "topics")
+DIRS = ("assets", "board", "data", "guides", "midterms", "qbo", "skewt", "studies", "topics")
 ROOT_EXT = (".html", ".webp", ".jpg", ".png", ".svg", ".ico")
 ROOT_FILES = ("CNAME", "robots.txt", "sitemap.xml")
 EXCLUDE = {

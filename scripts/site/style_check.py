@@ -26,6 +26,7 @@ PAGES = (
     sorted(REPO.glob("*.html"))
     + sorted((REPO / "scripts/sst/pages").glob("*.html"))
     + sorted((REPO / "topics").glob("*.html"))
+    + sorted((REPO / "guides").glob("*.html"))
     + sorted((REPO / "skewt").glob("*.html"))
 )
 SITE_CSS = REPO / "assets/site.css"

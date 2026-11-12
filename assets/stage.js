@@ -6,7 +6,9 @@
        img(a,b,c)   -> image url            frame(a,b,c) -> iframe url (sst_anim embed), ratio(a,b,c)
        dom(a,b,c)   -> id of a hidden element to mount (interactive blocks, widgets)
      cap(a,b,c) -> caption text; about -> id of a <template> whose HTML goes under the caption
-     (the vetted explanatory text and sources, collapsed); bust:"hourly" appends an hour cache key; frames:true -> img
+     (the vetted explanatory text and sources, collapsed); with STAGE.guide (the url of the page's guide) the template
+     holds the sources only and a link opens the guide at #<about id without "about-">;
+     bust:"hourly" appends an hour cache key; frames:true -> img
      returns a path in the frames store (assets/...), loaded through the hosts of frames_root.js (which the page loads).
      STAGE.version() -> the run's key (or null), appended to every other still as ?v= so a new run's figures, which keep
        their file names, never come from a browser cache; the page calls STAGE.refresh() when its key arrives.
@@ -386,7 +388,14 @@
     if (S.onRender) { try { S.onRender({ p: sel.p, a: sel.a, b: sel.b, c: sel.c }); } catch (e) {} }
     var ab = $("about"); ab.innerHTML = "";
     var aboutId = typeof p.about === "function" ? p.about(sel.a, sel.b, sel.c) : p.about;
-    if (aboutId && $(aboutId)) {
+    if (aboutId && S.guide) {
+      // the page has a guide (STAGE.guide): the explanation is the guide's section for this figure, and the
+      // template holds the figure's sources
+      var gl = document.createElement("div"); gl.className = "about about--guide";
+      gl.innerHTML = '<a href="' + S.guide + "#" + aboutId.replace(/^about-/, "") + '">About this figure</a>' +
+        ($(aboutId) ? "<details><summary>Sources</summary>" + $(aboutId).innerHTML + "</details>" : "");
+      ab.appendChild(gl);
+    } else if (aboutId && $(aboutId)) {
       var d = document.createElement("details"); d.className = "about";
       d.innerHTML = "<summary>About this figure and its sources</summary>" + $(aboutId).innerHTML; ab.appendChild(d);
       if (window.renderMathInElement) { try { window.renderMathInElement(d, { delimiters: [{ left: "$$", right: "$$", display: true }, { left: "$", right: "$", display: false }] }); } catch (e) {} }
