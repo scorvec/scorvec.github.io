@@ -100,7 +100,7 @@ def _index(url: str):
 def member(date: str, mem: str):
     """One member through gefs_daily.Acc - the reforecast v2's own reduction - or None if incomplete.
 
-    -> dict: w_<tag> weekly (5, lat, lon) for the nine map fields, e_<tag> daily (35, lat, lon) for every field (summed
+    -> dict: w_<tag> weekly (5, lat, lon) for gefs_daily.MAPS, e_<tag> daily (35, lat, lon) for every field (summed
     into the ensemble mean by fetch), m_<tag> daily 2.5 deg, s vortex scalars (16, 35), band (3, 35, lon)."""
     hours = range(6, 841, 6)
     urls = [step_url(date, mem, h) for h in hours]
@@ -210,6 +210,14 @@ def clim_at(init: dt.date, cache: Path):
     return out
 
 
+def _clim2_file(c: int, cache: Path) -> Path:
+    """A daily centre file through the cache; a copy cached before a field joined the release is fetched again."""
+    p = R.clim_file(f"gefs_clim2_{c:03d}.npz", cache)
+    if any(f"d_{t}" not in np.load(p).files for t in G.D2):
+        p = R.clim_file(p.name, cache, fresh=True)
+    return p
+
+
 def clim2_at(init: dt.date, cache: Path):
     """DAILY reforecast climatology (gefs_daily.py) at the init day of year: d_<tag> (35, 121, 240) for every
     reforecast field, c25_<tag> on the 2.5 deg grid, s (16, 35) vortex scalars. None when the release is not there."""
@@ -217,7 +225,7 @@ def clim2_at(init: dt.date, cache: Path):
     out = {}
     try:
         for c, wt in ((lo, 1 - w), (hi, w)):
-            z = np.load(R.clim_file(f"gefs_clim2_{c:03d}.npz", cache))
+            z = np.load(_clim2_file(c, cache))
             for k in z.files:
                 if k.startswith("d_"):
                     v = G.unpack(k[2:], z[k])
@@ -265,6 +273,7 @@ def valid_days(base: dt.date):
 # ── figures (same geometry, projections, colour maps and wording as the GEPS page's render_maps.py) ──────────
 FIELDS = {
     "t2m": ("2 m temperature", "°C", "RdBu_r", False, 1.0),
+    "t850": ("850 hPa temperature", "°C", "RdBu_r", False, 1.0),
     "pr": ("Precipitation", "mm/day", "BrBG", False, 1.0),
     "zg500": ("500 hPa height", "m", "RdBu_r", True, 1.0),
     "olr": ("Outgoing longwave", "W m⁻²", "BrBG_r", False, 1.0),
@@ -274,15 +283,16 @@ FIELDS = {
     "v200": ("200 hPa meridional wind", "m/s", "PuOr_r", False, 1.0),
     "mslp": ("Mean sea-level pressure", "hPa", "RdBu_r", False, 0.01),
 }
-# the GEPS page's order (render_maps.ANIM_ORDER); the loops and the page's field list follow it
-ANIM_ORDER = ["t2m", "pr", "mslp", "zg500", "olr", "u850", "u200", "v850", "v200"]
+# the GEPS page's order (render_maps.ANIM_ORDER) with 850 hPa temperature, which that page's hindcast lacks; the
+# loops and the page's field list follow it
+ANIM_ORDER = ["t2m", "t850", "pr", "mslp", "zg500", "olr", "u850", "u200", "v850", "v200"]
 MASKABLE = ("t2m", "pr", "zg500", "mslp")  # fields with a hindcast skill table
 DOMAINS = {
     "na": dict(label="North America", extent=(-168, -52, 12, 72), central=-110, proj="lambert"),
     "sa": dict(label="South America", extent=(-95, -30, -58, 15), central=-62, proj="plate"),
     "glb": dict(label="Global", extent=(-180, 180, -60, 70), central=180, proj="merc", stack=True),
 }
-SCALE_PCT = {"t2m": 99.3, "zg500": 98.0, "mslp": 99.0}
+SCALE_PCT = {"t2m": 99.3, "t850": 99.0, "zg500": 98.0, "mslp": 99.0}
 CONTOUR = {"mslp": (np.arange(880.0, 1084.0, 4.0), 0.6), "zg500": (np.arange(4680.0, 6121.0, 60.0), 0.5)}
 MUTED = "#6f6b64"
 # The model named in titles and file names. GEFS by default; the SFS subseasonal page (scripts/sfs/sfs_sub.py)
@@ -486,7 +496,7 @@ def global_mean(w):
 
 
 def anomalies(z, C2, sh, base, Dr=None):
-    """Daily ENSEMBLE-MEAN anomalies vs 1991-2020 for the nine map fields: [F - M(init doy, lead)] - shift(valid day),
+    """Daily ENSEMBLE-MEAN anomalies vs 1991-2020 for the map fields: [F - M(init doy, lead)] - shift(valid day),
     M = the GEFS 2000-2019 reforecast climatology, shift = ERA5 1991-2020 minus 2001-2020 (render_maps.reref's
     re-basing; the GEPS page's rule that the model's own drift and bias are removed and only the period moves).
     500 hPa height has its daily global mean removed (two decades of warming would sit on every map as a ridge)."""
@@ -576,6 +586,7 @@ def fetch_features() -> None:
 
 
 def daily_loops(A, z, base, anim: Path, procs: int, model: str | None = None, prefix: str | None = None, days=None):
+    """The daily loops of the fields in A, every domain, and each domain's manifest (fields in ANIM_ORDER)."""
     from concurrent.futures import ProcessPoolExecutor
 
     model, prefix = model or MODEL, prefix or PREFIX
@@ -593,6 +604,7 @@ def daily_loops(A, z, base, anim: Path, procs: int, model: str | None = None, pr
         )
         for k, dom in DOMAINS.items()
         for t in ANIM_ORDER
+        if t in A
     ]
     regions = {k: {} for k in DOMAINS}
     with ProcessPoolExecutor(procs) as ex:
@@ -1211,7 +1223,7 @@ def main() -> int:
         npz = fetch(date, a.members, work, a.procs)
         Dr = drift(base, work / "clim", runs)
         for c in _bracket(base)[:2]:  # the daily climatology every product of the run reads, downloaded once here
-            R.clim_file(f"gefs_clim2_{c:03d}.npz", work / "clim")
+            _clim2_file(c, work / "clim")
     if a.stage != "fetch":
         render(npz, date, Path(a.site), work / "clim", a.procs, runs, Path(a.ref) if a.ref else None, Dr)
     return 0

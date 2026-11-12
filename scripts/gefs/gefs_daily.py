@@ -26,6 +26,12 @@ construction:
     python gefs_daily.py month 2019 1 --out out/            # the starts of one month -> out/rf2_ and rf_YYYYMMDD.npz
     python gefs_daily.py combine 1 --inp out/ --out clim/   # the 5-day centres in month 1 -> clim/gefs_clim2_DDD.npz
     python gefs_daily.py compare --old old/ --new clim/     # every climatology file in both: largest differences
+
+A field added to D2 after the climatology was built gets its own pass, which fetches that field alone and writes it
+into the centres' existing files (D2 is appended to, never reordered: the drift archive's rows follow its order):
+
+    python gefs_daily.py month 2019 0 --out out/ --add t850               # every start of the year -> out/rfa_YYYYMMDD.npz
+    python gefs_daily.py combine 0 --inp out/ --out clim/ --add t850 --base rel/   # rel/gefs_clim2_DDD.npz + d_t850
 """
 
 from __future__ import annotations
@@ -61,6 +67,7 @@ D2 = {
     "t10": ("tmp_pres_abv700mb", "tmp_pres", "10 mb", "inst", "TMP"),
     "u100": ("ugrd_pres_abv700mb", "ugrd_pres", "100 mb", "inst", "UGRD"),
     "u10": ("ugrd_pres_abv700mb", "ugrd_pres", "10 mb", "inst", "UGRD"),
+    "t850": ("tmp_pres", "tmp_pres", "850 mb", "inst", "TMP"),
 }
 # Live-only fields: the vortex loop's total wind needs v at 10/100 hPa, an absolute quantity with no climatology, so
 # the reforecast never fetches them (and D2, which the reforecast and combine iterate, must not list them).
@@ -71,7 +78,7 @@ LIVE_EXTRA = {
 TABLE = {**D2, **LIVE_EXTRA}
 # the weekly climatology (gefs_reforecast.Weekly) reads the same messages as D2 in the one fetch of rf_member
 assert all(D2[t][:4] == R.FIELDS[t] for t in R.FIELDS), "gefs_reforecast.FIELDS must be messages of D2"
-MAPS = ("t2m", "pr", "mslp", "zg500", "olr", "u850", "u200", "v850", "v200")  # the GEPS page's nine map fields
+MAPS = ("t2m", "pr", "mslp", "zg500", "olr", "u850", "u200", "v850", "v200")  # the fields with per-member weeks
 VORTEX = ("zg10", "zg100", "t10", "t100", "u10", "u100")  # the vortex loop's fields
 MEMBER25 = ("zg500", "mslp", "zg100")  # per-member, 2.5 deg
 BANDF = ("olr", "u200", "u850")  # MJO band, as v1
@@ -92,6 +99,7 @@ SCALE = {
     "t10": (220.0, 100.0),
     "u100": (0.0, 100.0),
     "u10": (0.0, 100.0),
+    "t850": (273.15, 100.0),
 }
 # vortex scalars: (name, source tag, reduction, hemisphere)
 SCALARS = [
@@ -217,12 +225,13 @@ def wanted(tag):
     return out
 
 
-def rf_member(start: str, mem: str):
+def rf_member(start: str, mem: str, tags=tuple(D2)):
     """(Acc.finish(), gefs_reforecast.Weekly.finish()) of one member of one start from one fetch, or None if its
-    files are incomplete."""
+    files are incomplete. `tags` narrows the fetch to an added field's pass (the weekly reduction then has nothing)."""
     base = f"{R.S3}/{start[:4]}/{start}00/{mem}"
     idx_cache, jobs = {}, []
-    for tag, (f1, f2, lev, _kind, _) in D2.items():
+    for tag in tags:
+        f1, f2, lev = D2[tag][:3]
         for d, which, stext in wanted(tag):
             f = f"{base}/Days:{'1-10' if which == 1 else '10-35'}/{f1 if which == 1 else f2}_{start}00_{mem}.grib2"
             if f not in idx_cache:
@@ -234,7 +243,7 @@ def rf_member(start: str, mem: str):
             if not hit:
                 return None
             jobs.append((tag, d, f, hit[0][0], hit[0][1]))
-    acc, wk = Acc(), R.Weekly()
+    acc, wk = Acc(tags), R.Weekly()
     with ThreadPoolExecutor(24) as ex:
         for (tag, d, *_), b in zip(jobs, ex.map(lambda j: R.get(j[2], (j[3], j[4])), jobs)):
             v = R.decode(b)
@@ -245,16 +254,21 @@ def rf_member(start: str, mem: str):
     return None if daily is None else (daily, wk.finish())
 
 
+def start_files(out, start: str, add) -> list[Path]:
+    """The per-start files of a pass: the daily and weekly reductions, or an added field's rfa_ file."""
+    return [Path(out) / f"{p}_{start}.npz" for p in (("rfa",) if add else ("rf2", "rf"))]
+
+
 def run_start(args):
-    start, out = args
-    dest, wdest = Path(out) / f"rf2_{start}.npz", Path(out) / f"rf_{start}.npz"
-    if dest.exists() and wdest.exists():
+    start, out, add = args
+    files = start_files(out, start, add)
+    if all(f.exists() for f in files):
         return f"{start}: exists"
     t0 = time.time()
     res = {}
     for m in R.MEMBERS:
         try:
-            r = rf_member(start, m)
+            r = rf_member(start, m, add or tuple(D2))
         except Exception as e:  # noqa: BLE001
             r = None
             print(f"  {start} {m}: {str(e)[:120]}", flush=True)
@@ -263,6 +277,14 @@ def run_start(args):
     if not res:
         return f"{start}: no complete member"
     ms = list(res)
+    if add:
+        np.savez_compressed(
+            files[0],
+            members=np.array(ms),
+            **{f"d_{t}": pack(t, np.mean([res[m][0][f"d_{t}"] for m in ms], axis=0)) for t in add},
+        )
+        return f"{start}: {', '.join(add)} of {len(ms)} members in {time.time() - t0:.0f} s"
+    dest, wdest = files
     save = {
         "members": np.array(ms),
         "scalars": np.array([s[0] for s in SCALARS]),
@@ -277,23 +299,67 @@ def run_start(args):
     return f"{start}: {len(ms)} members in {time.time() - t0:.0f} s"
 
 
+def added(a) -> tuple:
+    """--add's fields (each one of D2), or () for the whole table."""
+    tags = tuple(t for t in (a.add or "").split(",") if t)
+    if unknown := [t for t in tags if t not in D2]:
+        raise SystemExit(f"--add: not in D2: {', '.join(unknown)}")
+    return tags
+
+
 def cmd_month(a) -> int:
-    """Every start of one month; fails when a start has no complete member (a climatology pool must not shrink)."""
+    """Every start of one month (month 0: of the year); fails when a start has no complete member (a climatology pool
+    must not shrink)."""
     Path(a.out).mkdir(parents=True, exist_ok=True)
-    starts = [s for s in R.wednesdays(a.year) if int(s[4:6]) == a.month][: a.limit or None]
+    add = added(a)
+    starts = [s for s in R.wednesdays(a.year) if a.month in (0, int(s[4:6]))][: a.limit or None]
     with ProcessPoolExecutor(a.procs) as ex:
-        for msg in ex.map(run_start, [(s, a.out) for s in starts]):
+        for msg in ex.map(run_start, [(s, a.out, add) for s in starts]):
             print(msg, flush=True)
-    missing = [s for s in starts if not all((Path(a.out) / f"{p}_{s}.npz").exists() for p in ("rf2", "rf"))]
+    missing = [s for s in starts if not all(f.exists() for f in start_files(a.out, s, add))]
     if missing:
         print(f"no complete member: {', '.join(missing)}", flush=True)
         return 1
     return 0
 
 
+def combine_added(a, add) -> int:
+    """The added fields' daily climatology per 5-day centre (month 0: every centre), pooled as cmd_combine pools,
+    written with the rest of the centre's file from --base. A centre whose member-runs differ from its file's is
+    named: the field's mean is over its own."""
+    files = sorted(Path(a.inp).rglob("rfa_*.npz"))
+    doy = R.noleap_doy([dt.datetime.strptime(f.stem[4:], "%Y%m%d").date() for f in files])
+    Path(a.out).mkdir(parents=True, exist_ok=True)
+    for c in range(1, 366, 5) if a.month == 0 else R.centres_in(a.month):
+        with np.load(Path(a.base) / f"gefs_clim2_{c:03d}.npz") as z:
+            keep = {k: z[k] for k in z.files}
+        sel = [f for f, x in zip(files, R.pool(doy, c)) if x]
+        acc = {t: np.zeros((DAYS, len(R.LAT), len(R.LON))) for t in add}
+        n = 0
+        for f in sel:
+            z = np.load(f)
+            k = len(z["members"])
+            for t in add:
+                acc[t] += k * unpack(t, z[f"d_{t}"])
+            n += k
+        if n == 0:
+            raise SystemExit(f"doy {c}: no start of {', '.join(add)} in its pool")
+        keep.update({f"d_{t}": pack(t, acc[t] / n) for t in add})
+        np.savez_compressed(Path(a.out) / f"gefs_clim2_{c:03d}.npz", **keep)
+        same = n == int(keep["n"]) and len(sel) == int(keep["n_starts"])
+        print(
+            f"doy {c:3d}: {len(sel)} starts, {n} member-runs"
+            + ("" if same else f"  (the file's fields: {int(keep['n_starts'])} starts, {int(keep['n'])} member-runs)"),
+            flush=True,
+        )
+    return 0
+
+
 def cmd_combine(a) -> int:
     """Daily climatology per 5-day centre from every start within +-15 days (any year): the member-mean fields
     weighted by their member count, the scalars over every member."""
+    if add := added(a):
+        return combine_added(a, add)
     files = sorted(Path(a.inp).rglob("rf2_*.npz"))
     doy = R.noleap_doy([dt.datetime.strptime(f.stem[4:], "%Y%m%d").date() for f in files])  # common-year day key
     Path(a.out).mkdir(parents=True, exist_ok=True)
@@ -395,6 +461,9 @@ def main() -> int:
     c.add_argument("month", type=int)
     c.add_argument("--inp", default="out")
     c.add_argument("--out", default="clim")
+    c.add_argument("--base", help="with --add: the release's gefs_clim2_DDD.npz files the fields are written into")
+    for q in (m, c):
+        q.add_argument("--add", help="fields added to D2 since the climatology was built (comma-separated)")
     k = sp.add_parser("compare")
     k.add_argument("--old", required=True, help="the previous release's files")
     k.add_argument("--new", required=True)

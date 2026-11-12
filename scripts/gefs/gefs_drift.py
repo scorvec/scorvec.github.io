@@ -46,7 +46,7 @@ sys.path.insert(0, str(HERE))
 import gefs_daily as G
 import gefs_reforecast as R
 
-TAGS = tuple(G.D2)  # the 15 reforecast fields
+TAGS = tuple(G.D2)  # the reforecast fields; the run archive's arrays keep one row per field in this order
 ACC = ("pr", "olr")
 INST = tuple(t for t in TAGS if t not in ACC)
 LAG = 36  # an init is verifiable once its day 35 (init + 34) has an analysis: init <= today - 36
@@ -64,22 +64,30 @@ def _fetch(jobs):
         return list(ex.map(lambda j: R.get(j[0], (j[1], j[2])), jobs))
 
 
+def _rows(p: Path, key: str):
+    """A run-archive array's rows by field. D2 is only ever appended to, so a file written before a field joined it
+    holds the fields ahead of that one."""
+    return dict(zip(TAGS, np.load(p)[key]))
+
+
 def analysis_zm(day: dt.date, hh: str, cache: Path):
-    """Zonal means (121,) of the control's f000 analysis of one cycle, instantaneous fields only (cached)."""
+    """Zonal means (121,) of the control's f000 analysis of one cycle, instantaneous fields only (cached; a field the
+    cached file lacks is fetched into it)."""
     p = cache / "an" / f"an_{day:%Y%m%d}{hh}.npz"
-    if p.exists():
-        return dict(np.load(p))
+    out = dict(np.load(p)) if p.exists() else {}
+    need = [t for t in INST if t not in out]
+    if not need:
+        return out
     url = _url(day, hh, "gec00", 0)
     idx = R.index(url)
-    jobs, tags = [], []
-    for t in INST:
+    jobs = []
+    for t in need:
         name, lev = G.D2[t][4], G.D2[t][2]
         hit = [e for e in idx if e[4] == name and e[2] == lev and e[3] == "anl"]
         if not hit:
             raise KeyError(f"{t} not in {url}")
         jobs.append((url, hit[0][0], hit[0][1]))
-        tags.append(t)
-    out = {t: G.box(G.to_half(R.decode(b)), 3).mean(1).astype("float32") for t, b in zip(tags, _fetch(jobs))}
+    out.update({t: G.box(G.to_half(R.decode(b)), 3).mean(1).astype("float32") for t, b in zip(need, _fetch(jobs))})
     p.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(p, **out)
     return out
@@ -121,34 +129,37 @@ def day_truth(v: dt.date, cache: Path):
     return out
 
 
-def forecast_zm(init: dt.date, cache: Path, runs: Path):
-    """(15, 35, 121) zonal means of the run's daily fields: the ensemble mean archived by the live job
-    (gefs_fzm_<date>.npz) when there is one, else the control fetched now."""
-    p = runs / f"gefs_fzm_{init:%Y%m%d}.npz"
-    if p.exists():
-        return np.load(p)["zm"]
-    q = cache / "fc" / f"fzm_{init:%Y%m%d}.npz"
-    if q.exists():
-        return np.load(q)["zm"]
-    jobs, meta = [], []
-    for h in range(6, 841, 6):
-        url = _url(init, "00", "gec00", h)
-        idx = R.index(url)
-        want = [(t, f"{h} hour fcst") for t in INST] if h % 12 == 0 else []
-        want += [(t, f"{h - 6}-{h} hour {G.D2[t][3]} fcst") for t in ACC]
-        for t, stext in want:
-            name, lev = G.D2[t][4], G.D2[t][2]
-            hit = [e for e in idx if e[4] == name and e[2] == lev and e[3] == stext]
-            jobs.append((url, hit[0][0], hit[0][1]))
-            meta.append((t, (h + 23) // 24))
-    acc = G.Acc(TAGS)
-    for (t, d), b in zip(meta, _fetch(jobs)):
-        acc.add(t, d, R.decode(b))
-    r = acc.finish()
-    zm = np.stack([r[f"d_{t}"].mean(2) for t in TAGS]).astype("float32")
-    q.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(q, zm=zm)
-    return zm
+def forecast_zm(init: dt.date, cache: Path, runs: Path, tags=TAGS):
+    """{field: (35, 121)} zonal means of the run's daily fields: the ensemble mean archived by the live job
+    (gefs_fzm_<date>.npz) for the fields it holds, else the control fetched now (cached by field)."""
+    p, q = runs / f"gefs_fzm_{init:%Y%m%d}.npz", cache / "fc" / f"fzc_{init:%Y%m%d}.npz"
+    ctl = dict(np.load(q)) if q.exists() else {}
+    have = ctl | (_rows(p, "zm") if p.exists() else {})
+    need = [t for t in tags if t not in have]
+    if need:
+        hours = [h for h in range(6, 841, 6) if h % 12 == 0 or any(t in ACC for t in need)]
+        urls = [_url(init, "00", "gec00", h) for h in hours]
+        with ThreadPoolExecutor(24) as ex:
+            idxs = list(ex.map(R.index, urls))
+        jobs, meta = [], []
+        for h, url, idx in zip(hours, urls, idxs):
+            for t in need:
+                kind = G.D2[t][3]
+                if t in INST and h % 12:
+                    continue
+                stext = f"{h} hour fcst" if t in INST else f"{h - 6}-{h} hour {kind} fcst"
+                hit = [e for e in idx if e[4] == G.D2[t][4] and e[2] == G.D2[t][2] and e[3] == stext]
+                jobs.append((url, hit[0][0], hit[0][1]))
+                meta.append((t, (h + 23) // 24))
+        acc = G.Acc(need)
+        for (t, d), b in zip(meta, _fetch(jobs)):
+            acc.add(t, d, R.decode(b))
+        r = acc.finish()
+        ctl.update({t: r[f"d_{t}"].mean(2).astype("float32") for t in need})
+        q.parent.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(q, **ctl)
+        have.update(ctl)
+    return {t: have[t] for t in tags}
 
 
 def _normals():
@@ -167,25 +178,28 @@ def _at_doy(doy, f, d: dt.date):
 
 
 def verify(init: dt.date, cache: Path, runs: Path):
-    """D_i(L) for one init -> runs/gefs_verify_<init>.npz (15, 35, 121) float32."""
+    """D_i(L) for one init -> runs/gefs_verify_<init>.npz (fields, 35, 121) float32. A file written before a field
+    joined D2 gets that field's rows."""
     import gefs_live as L
 
     p = runs / f"gefs_verify_{init:%Y%m%d}.npz"
-    if p.exists():
-        return np.load(p)["D"]
-    F = forecast_zm(init, cache, runs)
+    done = _rows(p, "D") if p.exists() else {}
+    new = [t for t in TAGS if t not in done]
+    if not new:
+        return np.stack([done[t] for t in TAGS])
+    F = forecast_zm(init, cache, runs, new)
     days = [init + dt.timedelta(days=k) for k in range(35)]
     with ThreadPoolExecutor(6) as ex:
         T = list(ex.map(lambda v: day_truth(v, cache), days))
     C2 = L.clim2_at(init, cache)
     doy, O = _normals()
-    D = np.zeros((len(TAGS), 35, len(R.LAT)), "float32")
-    for k, t in enumerate(TAGS):
-        E = F[k] - np.stack([T[i][t] for i in range(35)])
+    for t in new:
+        E = F[t] - np.stack([T[i][t] for i in range(35)])
         M = C2[f"d_{t}"].mean(2)
         Ov = np.stack([_at_doy(doy, O[t], d) for d in days])
         Rf = (M - M[0]) - (Ov - Ov[0])
-        D[k] = (E - E[0]) - Rf
+        done[t] = ((E - E[0]) - Rf).astype("float32")
+    D = np.stack([done[t] for t in TAGS])
     runs.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(p, D=D, init=np.array(f"{init:%Y%m%d}"))
     return D
@@ -218,15 +232,15 @@ def combine(D):
     return (sm * shrink).astype("float32"), m, se, neff
 
 
-def estimate(today: dt.date, cache: Path, runs: Path, window=WINDOW, fetch=True):
-    """Delta (15, 35, 121) from the trailing `window` verifiable inits; writes runs/gefs_drift_<today>.npz and returns
-    it with its diagnostics. Inits whose verification cannot be built (missing analyses) are skipped."""
+def estimate(today: dt.date, cache: Path, runs: Path, window=WINDOW):
+    """Delta (fields, 35, 121) from the trailing `window` verifiable inits; writes runs/gefs_drift_<today>.npz and
+    returns it with its diagnostics. Inits whose verification cannot be built (missing analyses) are skipped."""
     last = today - dt.timedelta(days=LAG)
     inits = [last - dt.timedelta(days=k) for k in range(window)]
     Ds, got = [], []
     for i in inits:
         try:
-            Ds.append(verify(i, cache, runs) if fetch else np.load(runs / f"gefs_verify_{i:%Y%m%d}.npz")["D"])
+            Ds.append(verify(i, cache, runs))
             got.append(i)
         except Exception as e:  # noqa: BLE001
             print(f"  verify {i}: {str(e)[:80]}", flush=True)

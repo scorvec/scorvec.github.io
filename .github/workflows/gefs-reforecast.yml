@@ -8,12 +8,20 @@ name: GEFS reforecast climatology (release gefs-clim-v3)
 # starts, compares every centre with the copy the release holds (none on a first build) and uploads to release
 # gefs-clim-v3. The combine runs only when every month succeeded (a pool
 # must not lose starts silently): re-run the failed month jobs and the combine follows.
+#
+# Input `add` names fields that joined gefs_daily.D2 after the release was built. Only their messages are read (a year
+# a job) and their daily climatology is written into the release's daily centre files, every other array kept
+# (gefs_daily.py --add); their ERA5 reference (build_era5_normal.py) goes into era5_shift.npz of release gefs-ref-v1
+# and into scripts/gefs/data/era5_zonal_normals.npz, which comes back as the artifact era5-normal to be committed.
 on:
   workflow_dispatch:
     inputs:
       years:
         description: "first,last reforecast year"
         default: "2000,2019"
+      add:
+        description: "fields to add to the release's daily climatology (comma-separated tags; empty = the full rebuild)"
+        default: ""
 
 permissions:
   contents: write
@@ -26,20 +34,24 @@ concurrency:
 env:
   PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
   RELEASE: gefs-clim-v3   # gefs_reforecast.CLIM_TAG
+  ADD: ${{ inputs.add }}
 
 jobs:
   plan:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.m.outputs.matrix }}
+      years: ${{ steps.m.outputs.years }}
     steps:
       - id: m
         run: |
           IFS=, read y0 y1 <<< "${{ inputs.years }}"
           python3 -c "import json; print('matrix=' + json.dumps({'include': [{'y': y, 'm': m} for y in range($y0, $y1 + 1) for m in range(1, 13)]}))" >> "$GITHUB_OUTPUT"
+          python3 -c "import json; print('years=' + json.dumps({'y': list(range($y0, $y1 + 1))}))" >> "$GITHUB_OUTPUT"
 
   month:
     needs: plan
+    if: inputs.add == ''
     runs-on: ubuntu-latest
     timeout-minutes: 150
     strategy:
@@ -129,3 +141,109 @@ jobs:
                  --notes "GEFSv12 reforecast 2000-2019 (Wednesday 35-day starts, 4 members), pooled on the common-year day-of-year calendar (29 Feb = day 59.5, 1 March = 60 in every year), +-15 d around each 5-day centre: gefs_clim_DDD weekly and gefs_clim2_DDD daily lead-dependent climatologies; per start month the per-member hindcast fields for the calibrations, gefs_hind2_MM (daily 2.5 deg z500/mslp/z100 and vortex scalars) and gefs_hindw_MM (weekly 1.5 deg t2m/pr/z500/mslp). Built by .github/workflows/gefs-reforecast.yml from scripts/gefs/gefs_daily.py and gefs_reforecast.py. Not a site page." \
             || echo "::warning::release create raced with another month (it exists now)"
           gh release upload "$RELEASE" clim/*.npz -R "$GITHUB_REPOSITORY" --clobber
+
+  add-year:
+    needs: plan
+    if: inputs.add != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix: ${{ fromJSON(needs.plan.outputs.years) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/gefs
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy scipy eccodes
+      - name: The added fields of every start of ${{ matrix.y }}
+        run: python scripts/gefs/gefs_daily.py month ${{ matrix.y }} 0 --out out --procs 4 --add "$ADD"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rfa-${{ matrix.y }}
+          path: out/
+          retention-days: 30
+          compression-level: 0
+
+  # every year or none, as the full rebuild's combine: a pool must not lose starts silently
+  add-combine:
+    needs: add-year
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/gefs
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy scipy
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: rfa-*
+          path: in
+          merge-multiple: true
+      # the 73 centre files are downloaded and replaced (about 230 API requests): wait for the hourly allowance's
+      # reset rather than leave the site's other workflows fewer than 400
+      - name: The release's daily centre files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          read -r left reset <<< "$(gh api rate_limit -q '.resources.core | "\(.remaining) \(.reset)"')"
+          if (( left < 630 )); then
+            echo "::warning::GitHub's API allowance is down to $left requests: waiting for its reset"
+            sleep $(( reset - $(date +%s) + 30 ))
+          fi
+          gh release download "$RELEASE" -R "$GITHUB_REPOSITORY" -p 'gefs_clim2_*.npz' -D rel
+          echo "$(find in -name 'rfa_*.npz' | wc -l) start files, $(ls rel | wc -l) centre files"
+      - name: The added fields' climatology in every centre file
+        run: |
+          set -o pipefail
+          mkdir -p log
+          python scripts/gefs/gefs_daily.py combine 0 --inp in --out clim --add "$ADD" --base rel | tee log/combine.log
+          python scripts/gefs/gefs_daily.py compare --old rel --new clim --json log/compare_add.json | tee log/compare_add.log
+          { echo '```'; tail -40 log/compare_add.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: log-add
+          path: log/
+          retention-days: 30
+      - name: Publish (release gefs-clim-v3)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$RELEASE" clim/*.npz -R "$GITHUB_REPOSITORY" --clobber
+
+  add-era5:
+    if: inputs.add != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/gefs
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy xarray zarr gcsfs dask
+      - name: ERA5 shift and zonal normals of the added fields
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download gefs-ref-v1 -R "$GITHUB_REPOSITORY" -p era5_shift.npz -D ref
+          for t in ${ADD//,/ }; do
+            python scripts/gefs/build_era5_normal.py "$t" --shift ref/era5_shift.npz
+          done
+      - uses: actions/upload-artifact@v7
+        with:
+          name: era5-normal
+          path: |
+            ref/era5_shift.npz
+            scripts/gefs/data/era5_zonal_normals.npz
+          retention-days: 30
+      - name: Publish the shift (release gefs-ref-v1)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload gefs-ref-v1 ref/era5_shift.npz -R "$GITHUB_REPOSITORY" --clobber

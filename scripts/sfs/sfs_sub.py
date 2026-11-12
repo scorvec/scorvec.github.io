@@ -61,7 +61,8 @@ MIN_TRUTH_YEARS = 20  # a gridpoint r needs this many years with truth
 DRY_MM = 0.5
 WEEKS_ALL = [(1, 7), (8, 14), (15, 21), (22, 28), (29, 35), (36, 42)]
 WEEKS = list(WEEKS_ALL)  # the complete weeks the issue holds (main() trims it for a recovered issue)
-# page tag -> (SFS daily variable, factor to the GEFS page's units: K, mm/day, Pa, m, W m-2, m/s)
+# page tag -> (SFS daily variable, factor to the GEFS page's units: K, mm/day, Pa, m, W m-2, m/s), in the page's
+# field order
 VARS = {
     "t2m": ("TMP_2maboveground", 1.0),
     "pr": ("PRATE_surface", 86400.0),
@@ -433,7 +434,7 @@ def render(issue, base, F, nm, ref, site: Path, procs: int):
     days = [base + dt.timedelta(days=d) for d in range(47)]
     titles = [f"Week {k + 1}   {days[a - 1]:%b %d} – {days[b - 1]:%b %d}" for k, (a, b) in enumerate(WEEKS)]
     names = []
-    for tag in GL.ANIM_ORDER:
+    for tag in VARS:
         wk = weekly(A[tag])
         fc = weekly(E[tag])
         note = "global mean removed per day" if GL.FIELDS[tag][3] else ""
@@ -498,8 +499,8 @@ def render(issue, base, F, nm, ref, site: Path, procs: int):
             )
         names += GP.draw(tag, base, weeks, "raw", nm, out)
     nd = GL.daily_loops(
-        {t: A[t] for t in GL.ANIM_ORDER},
-        {f"e_{t}": E[t] for t in GL.ANIM_ORDER},
+        A,
+        {f"e_{t}": E[t] for t in VARS},
         base,
         anim,
         procs,

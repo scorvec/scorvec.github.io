@@ -140,8 +140,9 @@ def get(url: str, rng: tuple[int, int] | None = None, tries: int = 4) -> bytes:
 _PRUNED: set[Path] = set()
 
 
-def clim_file(name: str, cache: Path) -> Path:
-    """A file of the climatology release CLIM_TAG through the cache (cache/CLIM_TAG/name), downloaded when missing.
+def clim_file(name: str, cache: Path, fresh: bool = False) -> Path:
+    """A file of the climatology release CLIM_TAG through the cache (cache/CLIM_TAG/name), downloaded when missing
+    (`fresh`: downloaded again, replacing the cached copy in one step).
     The first call per cache deletes the climatology files of every other release there - the flat gefs_clim_DDD.npz
     and gefs_clim2_DDD.npz of v1/v2 and other gefs-clim-* directories - so a release bump can never read a stale file
     of the same name, and the run cache does not carry the old ones."""
@@ -154,7 +155,7 @@ def clim_file(name: str, cache: Path) -> Path:
             if d.is_dir() and d.name != CLIM_TAG:
                 shutil.rmtree(d, ignore_errors=True)
     p = cache / CLIM_TAG / name
-    if not p.exists():
+    if fresh or not p.exists():
         p.parent.mkdir(parents=True, exist_ok=True)
         tmp = p.with_name(f"{p.name}.{os.getpid()}.part")  # several products share the cache at once (gefs.yml)
         tmp.write_bytes(get(CLIM_URL.format(name=name)))
