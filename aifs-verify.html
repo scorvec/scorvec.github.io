@@ -101,9 +101,6 @@
   .kpi .sub { font-size: 0.7rem; color: var(--muted); margin-top: 0.2rem; line-height: 1.4; }
   #scorecard { min-width: 0; max-width: 100%; }
   .sc-wrap { overflow-x: auto; padding: 0.3rem 1.4rem 0.4rem; max-width: 100%; }
-  @media (max-width: 700px) { .sc-wrap { padding: 0.3rem 0.5rem; } table.sc { min-width: 620px; border-spacing: 2px; }
-    table.sc td.c { min-width: 2.9rem; height: 2.2rem; font-size: 0.76rem; } table.sc td.rl { font-size: 0.78rem; padding-right: 0.4rem; }
-    table.sc td.rl small { display: block; margin-left: 0; } .sc-bar span.g { width: 120px; } }
   table.sc { border-collapse: separate; border-spacing: 3px; width: 100%; min-width: 760px; font-variant-numeric: tabular-nums; }
   table.sc th { font: 500 0.74rem var(--sans); color: var(--muted); padding: 0.3rem 0.2rem; text-align: center; white-space: nowrap; }
   table.sc th.rl { text-align: left; padding-left: 0; }
@@ -118,6 +115,18 @@
   table.sc td.c.sig::after { content: ""; position: absolute; top: 4px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.55; }
   table.sc td.c.na { background: #f3f2ee; color: var(--muted); }
   table.sc td.c:hover { outline: 2px solid var(--ink); outline-offset: -1px; }
+  /* phones: the whole scorecard in the screen's width, each row's name on its own line above its cells */
+  @media (max-width: 700px) { .sc-wrap { padding: 0.3rem 0.5rem; }
+    table.sc, table.sc tbody { display: block; min-width: 0; }
+    table.sc tr { display: flex; flex-wrap: wrap; gap: 2px; }
+    table.sc tr.grp th, table.sc td.rl { flex: 0 0 100%; }
+    table.sc th.rl { display: none; }
+    table.sc th, table.sc td.c { flex: 1 1 0; min-width: 0; }
+    table.sc th { font-size: 0.62rem; padding: 0.3rem 0 0.1rem; }
+    table.sc td.rl { position: static; font-size: 0.8rem; padding: 0.45rem 0 0.1rem; }
+    table.sc td.c { display: flex; align-items: center; justify-content: center; height: 2rem; font-size: 0.64rem; border-radius: 3px; }
+    table.sc td.c.sig::after { top: 2px; right: 2px; width: 4px; height: 4px; }
+    .sc-bar span.g { width: 120px; } }
   .sc-key { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1.4rem; padding: 0.6rem 1.4rem 1rem; font-size: 0.76rem; color: var(--muted); }
   .sc-bar { display: inline-flex; align-items: center; gap: 0.45rem; }
   .sc-bar span.g { display: inline-block; width: 210px; height: 12px; border-radius: 3px; }

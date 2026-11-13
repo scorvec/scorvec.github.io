@@ -31,12 +31,6 @@
     position: relative;
   }
   .frame-wrap img { display: block; width: 100%; height: auto; }
-  /* MOBILE + very wide products (global TC, ASCAT strips...): shrink-to-fit
-     makes raster text unreadable. Render at a legible height with horizontal
-     pan instead, and let a tap open the frame for native pinch-zoom. */
-  .frame-wrap.panwide { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .frame-wrap.panwide img { width: auto; max-width: none; height: 60vw;
-                            max-height: 380px; }
   .frame-loading {
     position: absolute; inset: 0; display: flex; align-items: center;
     justify-content: center; color: var(--muted); font-size: 0.85rem;
@@ -116,7 +110,7 @@
      viewport width. The frame renders at most at native resolution and at most
      88% of the top window's height (capHeight()) so the whole animation always
      fits the monitor, like the site's still images. */
-  body.embed .frame-wrap:not(.panwide) img {
+  body.embed .frame-wrap img {
     width: auto; max-width: 100%; height: auto; margin: 0 auto;
   }
   body.embed {
@@ -271,11 +265,9 @@ const loadingEl = $("loading");
 // size the iframe to the image + controls (no letterboxing). Fires on every frame
 // load and on resize (width change → image height changes since it scales to width).
 function capHeight() {
-  // keep image + controls within the top window's viewport (same-origin embed);
-  // panwide mode has its own CSS height cap — an inline max-height would override it
+  // keep image + controls within the top window's viewport (same-origin embed)
   try {
     const wrap = imgEl.closest(".frame-wrap");
-    if (wrap && wrap.classList.contains("panwide")) { imgEl.style.maxHeight = ""; return; }
     // Everything that is not the picture: the controls bar AND the region-button
     // bar when a loop has one (the bar wraps to two rows once the iframe is pinned
     // narrow, so measure it rather than assuming one row of controls).
@@ -306,8 +298,7 @@ function postHeight() {
   capHeight();
   const h = Math.ceil(document.body.getBoundingClientRect().height);
   let w = 0;
-  const wrap = imgEl.closest(".frame-wrap");
-  if (imgEl.naturalWidth && imgEl.naturalHeight && !(wrap && wrap.classList.contains("panwide"))) {
+  if (imgEl.naturalWidth && imgEl.naturalHeight) {
     const capH = parseFloat(imgEl.style.maxHeight) || 0;
     w = imgEl.naturalWidth;
     if (capH > 0) w = Math.min(w, Math.floor(capH * imgEl.naturalWidth / imgEl.naturalHeight));
@@ -326,24 +317,10 @@ function postHeightSoon() {
   setTimeout(postHeight, 250);
   setTimeout(postHeight, 1200);
 }
-if (imgEl.complete && imgEl.naturalWidth) { fitWide(); postHeightSoon(); }
+if (imgEl.complete && imgEl.naturalWidth) postHeightSoon();
 addEventListener("load", postHeightSoon);
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(postHeight);
 
-// wide-image mobile handling: aspect > 2.4 on a narrow screen → pan mode
-function fitWide() {
-  const wrap = imgEl.closest(".frame-wrap");
-  if (!wrap || !imgEl.naturalWidth) return;
-  // "narrow screen" means the DEVICE, not this iframe: an embed pinned to ~670 px on a wide screen (mjo.html's
-  // all-eight-phases grid) went into pan mode and showed three of its four columns with no visible way to pan
-  let vw = window.innerWidth;
-  try { vw = Math.min(vw, window.top.innerWidth); } catch (e) {}
-  if (window !== window.top) { try { vw = window.top.innerWidth; } catch (e) {} }
-  const wide = imgEl.naturalWidth / imgEl.naturalHeight > 2.4 && vw < 700;
-  wrap.classList.toggle("panwide", wide);
-}
-imgEl.addEventListener("load", () => { fitWide(); postHeight(); });
-addEventListener("resize", () => { fitWide(); postHeight(); });
 imgEl.addEventListener("click", () => {          // click → larger version
   // Embedded: ask the parent page to open its lightbox on the current frame
   // (lightbox.js listens for same-origin lb-show messages). Standalone or no

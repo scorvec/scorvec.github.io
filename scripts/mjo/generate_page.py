@@ -439,7 +439,7 @@ def main():
           border-top: 1px solid var(--rule); padding-top: 1rem; }}
   .empty {{ color: var(--muted); padding: 3rem 0; text-align: center; }}
   .mi-ctl {{ display: flex; flex-wrap: wrap; gap: 0.6rem 1.2rem; margin: 0.4rem 0 1rem; font-size: 0.9rem; }}
-  .mi-ctl label {{ display: flex; flex-direction: column; gap: 0.2rem; color: var(--muted); }}
+  .mi-ctl label {{ display: flex; flex-direction: column; gap: 0.2rem; color: var(--muted); max-width: 100%; }}
   .mi-ctl select {{ font: inherit; color: var(--ink); padding: 0.3rem 0.4rem; border: 1px solid var(--rule);
                    border-radius: 4px; background: #fff; max-width: 100%; }}
   .mi-embed {{ aspect-ratio: 1056 / 900; max-width: 100%; }}   /* not the RMM wheel's height-derived cap */
