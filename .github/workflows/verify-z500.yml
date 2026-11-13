@@ -216,7 +216,7 @@ jobs:
           echo "$(wc -l < "$RUNNER_TEMP/due.txt") runs due"
           split -l 50 "$RUNNER_TEMP/due.txt" "$RUNNER_TEMP/batch-"
           for b in "$RUNNER_TEMP"/batch-*; do
-            [ -e "$b" ] || continue   # nothing due: the glob stays as written
+            [ -s "$b" ] || continue   # nothing due: the glob stays as written, or split leaves one empty file
             # shellcheck disable=SC2046  # the file names are meant to split
             scripts/verify/verifydb.sh get "$RUNNER_TEMP/fields" $(cut -d' ' -f2- "$b" | tr ' ' '\n' | sort -u)
             # shellcheck disable=SC2046  # the runs are meant to split

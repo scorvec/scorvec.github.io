@@ -121,7 +121,7 @@ jobs:
           echo "$(grep -c . "$RUNNER_TEMP/want.txt" || true) database files to add"
           split -l 100 "$RUNNER_TEMP/want.txt" "$RUNNER_TEMP/chunk-"
           for c in "$RUNNER_TEMP"/chunk-*; do
-            [ -e "$c" ] || continue
+            [ -s "$c" ] || continue   # nothing to add: no file, or an empty one
             # shellcheck disable=SC2046  # the file names are meant to split
             scripts/verify/verifydb.sh get "$RUNNER_TEMP/dl" $(cat "$c")
             python scripts/ensmaps/telecon15.py hindcast --table tbl --derived "$RUNNER_TEMP/dl" --ref "$RUNNER_TEMP/telecon15_ref.npz"

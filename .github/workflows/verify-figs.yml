@@ -31,7 +31,7 @@ jobs:
           python-version: '3.11'
       - name: Install mverify
         # the nightly's pin (verification.yml)
-        run: pip install --quiet "mverify[grib,zarr] @ git+https://github.com/scorvec/nwp_verification@216746d479a83e61cce1a9d256ec73f9a3aa0d47"
+        run: pip install --quiet "mverify[grib,zarr] @ git+https://github.com/scorvec/nwp_verification@5c33200a2af1787ce71b30b28aa4e984194bc564"
       - name: The database's files
         env:
           GH_TOKEN: ${{ github.token }}
