@@ -71,7 +71,7 @@ jobs:
       - run: |
           pip install --quiet numpy scipy
           pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"   # BH-FDR, pinned to the tag
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: era5days-*
           path: days
