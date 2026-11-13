@@ -2,7 +2,7 @@
 
    window.vcharts.draw(host, spec) with spec = {
      panels: [{ title, u, v, flip, series, refs, dodge, ends, markers, whiskers, height, tipHead, tipFmt }],
-     cols, minWidth, height, legend: [{ name, color, shape }], keys: ["a line of key text"], label, data: { href, text }
+     cols, minWidth, height, legend: [{ name, color, shape, note }], keys: ["a line of key text"], label, data: { href, text }
    }
    u (the independent axis): { type: "linear" | "log" | "logit" | "time", domain, ticks: [number | { u, label }], fmt, label }
    v (the value axis): { domain, floor, ceil, fmt, label }
@@ -267,7 +267,7 @@
     const H = Math.round(Math.max(220, Math.min(spec.height || 320, window.innerHeight * 0.72, pw * 1.05)));
     host.textContent = "";
     if (spec.legend || spec.keys) {
-      const items = (spec.legend || []).map(s => `<span>${swatch(s, true)}${esc(s.name)}</span>`);
+      const items = (spec.legend || []).map(s => `<span>${swatch(s, true)}${esc(s.name)}${s.note ? ` <b>${esc(s.note)}</b>` : ""}</span>`);
       const keys = (spec.keys || []).map(k => `<span class="vkey">${k}</span>`);
       host.append(el("div", "vlegend", items.join("") + keys.join("")));
     }

@@ -70,6 +70,7 @@
   .vlegend { display: flex; flex-wrap: wrap; gap: 0.3rem 1.1rem; align-items: center; font-size: 0.88rem; color: var(--ink2); margin: 0 0 0.3rem; }
   .vlegend span { white-space: nowrap; }
   .vlegend .vkey { color: var(--muted); white-space: normal; }
+  .vlegend b { color: var(--ink); font-variant-numeric: tabular-nums; }
   .vsw { width: 1.15rem; height: 1.15rem; vertical-align: -0.28rem; margin-right: 0.3rem; }
   .vkey .vsw { margin-right: 0.1rem; }
   .vtip { position: absolute; z-index: 5; pointer-events: none; background: var(--panel); border: 1px solid var(--edge); border-radius: 6px;
@@ -230,7 +231,7 @@ window.plotly = function () {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-<script src="/assets/verification/vcharts.js?v=75ada516c6"></script>
+<script src="/assets/verification/vcharts.js?v=df182ae28b"></script>
 <script src="/assets/frames_root.js?v=37e1429f1f"></script>
 <script src="/assets/site.js?v=9edc20e53d" defer></script>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
@@ -1252,10 +1253,12 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
           if (days.join() !== [...ad.options].map(o => o.value).join()) fill(ad, days, x => `Day ${x}`);
           ad.value = days.includes(was) ? was : days[days.length - 1];
           const day = ad.value, s = d.series[day], ms = mine(Object.keys(s.models)), t0 = Date.parse(s.first + "T00:00Z");
-          return { cols: 1, height: 380, legend: ms.map(who), keys: [`after each name: its mean over the window; dashed: ${d.useful}, the usual mark of a useful forecast`],
+          const mean = m => (s.models[m].mean == null ? "" : s.models[m].mean.toFixed(3));
+          return { cols: 1, height: 380, legend: ms.map(m => ({ ...who(m), note: mean(m) })),
+            keys: [`after each name: its mean over the dates shown; dashed: ${d.useful}, the usual mark of a useful forecast`],
             panels: [{ title: `Day ${day} forecasts by the date they verify, a ${d.smooth_days}-day running mean`, u: { type: "time" }, v: { ceil: 1 },
               markers: false, ends: true, refs: [{ v: d.useful, label: "useful", soft: true }], tipHead: date,
-              series: ms.map(m => ({ ...who(m), note: s.models[m].mean == null ? "" : s.models[m].mean.toFixed(3),
+              series: ms.map(m => ({ ...who(m), note: mean(m),
                 pts: s.models[m].acc.map((v, i) => ({ u: t0 + i * 864e5, v })) })) }] };
         });
         // every lead over the window's runs: the mean, and each model's paired difference from the reference
