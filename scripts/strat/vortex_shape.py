@@ -194,6 +194,7 @@ def members(model: str, init: pd.Timestamp, s: dict, ctrl: dict | None, credit: 
              f"larger (the site's warming catalogue's test). Raw model output. {credit}.", 190), fontsize=8,
              color="#6f6b64", linespacing=1.4)  # fmt: skip
     fig.subplots_adjust(left=0.13, right=0.98, top=0.9, bottom=0.085)
+    house.clear(fig, 105)
     fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
     plt.close(fig)
     print(f"  wrote {out}", flush=True)
@@ -207,6 +208,9 @@ def combined(out: Path, max_age_days: float = 2.0) -> Path | None:
     matplotlib.use("Agg")
     import matplotlib.dates as mdates
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     models = ("aifs", "ifs", "gefs", "geps", "aifsc", "aifs1", "hres")
     newest = {m: rs[-1] for m in models if (rs := RR.runs("vshape", m))}
@@ -232,14 +236,16 @@ def combined(out: Path, max_age_days: float = 2.0) -> Path | None:
         ax.tick_params(labelsize=9)
         ax.xaxis.set_major_locator(mdates.DayLocator(interval=2))
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%-d %b"))
-        ax.legend(fontsize=8.5, loc="upper left", ncol=2, framealpha=0.9)
     fig.suptitle("Every model's newest run · the polar vortex at 10 hPa: split or displaced",
                  fontsize=13.5, fontweight="bold", x=0.07, ha="left", y=0.985)  # fmt: skip
     fig.text(0.07, 0.945, "the share of each model's members whose vortex is split or displaced that day; a single run "
              "(dashed) is 0 or 100", fontsize=9.5, color="0.25")  # fmt: skip
     fig.text(0.07, 0.008, textwrap.fill(RR.PRODUCTS["vshape"].note + " Each model is labelled with its run.", 180),
              fontsize=8, color="#6f6b64", linespacing=1.4)  # fmt: skip
-    fig.subplots_adjust(left=0.08, right=0.98, top=0.88, bottom=0.085, hspace=0.25)
+    fig.legend(*axes[0].get_legend_handles_labels(), fontsize=8.5, loc="lower center", bbox_to_anchor=(0.53, 0.052),
+               ncol=4, frameon=False)  # fmt: skip
+    fig.subplots_adjust(left=0.08, right=0.98, top=0.88, bottom=0.15, hspace=0.25)
+    house.clear(fig, 105)
     fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
     plt.close(fig)
     print(f"wrote {out}", flush=True)

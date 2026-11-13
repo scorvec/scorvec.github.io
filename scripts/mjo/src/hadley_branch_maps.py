@@ -698,7 +698,7 @@ def draw_transit(off: Offsets, latest: pd.Timestamp, out: Path):
         0.12 / H,
         f"each {POOL_LON * T.RES:.0f}° × {T.RES:.0f}° cell: the median of its {POOL_LON * WIN} parcels of the week "
         f"({POOL_LON} release points, {WIN} days) traced back {T.DAYS_BACK} days, grey where fewer than four were traced "
-        "to the outflow layer (equatorward of {T.OUTFLOW_LAT:.0f}°, within "
+        f"to the outflow layer (equatorward of {T.OUTFLOW_LAT:.0f}°, within "
         f"{HB.OUT_DEPTH:.0f} hPa below the dynamic tropopause)\nlines: one in twelve of the latest release's traced parcels, back "
         "to where it left the layer (dot)",
         fontsize=8.2,

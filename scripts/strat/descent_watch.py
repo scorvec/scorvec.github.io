@@ -242,6 +242,7 @@ def _reach_figure(model, init, valid, share, more, base, n, depths, credit, out:
         f"{credit}; "
         "MERRA-2 (NASA GMAO).", 190), fontsize=8, color=MUTED, linespacing=1.4)  # fmt: skip
     fig.subplots_adjust(left=0.15, right=0.93, top=0.89, bottom=0.085)
+    house.clear(fig, 105)
     fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
     plt.close(fig)
     print(f"  wrote {out}", flush=True)
@@ -385,6 +386,7 @@ def _ring_figure(model, init, valid, sec, wind, summary, agreed, credit, out: Pa
         "geostrophic, from the anomalies' gradients, not the models' own winds: the zonal-mean westerly anomaly over "
         f"55–65°N minus 35–45°N. {credit}.", 185), fontsize=8, color=MUTED, linespacing=1.4)  # fmt: skip
     fig.subplots_adjust(left=0.17, right=0.97, top=0.875, bottom=0.1)
+    house.clear(fig, 105)
     fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
     plt.close(fig)
     print(f"  wrote {out}", flush=True)
@@ -487,6 +489,7 @@ def combined(out: Path, max_age_days: float = 2.0) -> Path | None:
         "members with the weaker lower-stratospheric vortex go on to the higher Arctic heights or pressure.", 205),
         fontsize=8, color=MUTED, linespacing=1.4)  # fmt: skip
     fig.subplots_adjust(left=0.07, right=0.985, top=0.875, bottom=0.135, hspace=0.2, wspace=0.24)
+    house.clear(fig, 105)
     fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
     plt.close(fig)
     print(f"wrote {out}: " + "; ".join(f"{target} {m} " + (f"r {t['r']:+.2f}" if t["pass"] else "no link")
@@ -624,6 +627,7 @@ def _absorb_figure(model, init, valid, budgets, tests, n, credit, out: Path) -> 
         f"test, the two layers held to a {100 * ALPHA:.0f} % false discovery rate. Above zero: the members whose "
         f"waves slow the wind more lose more of it. {credit}.", 185), fontsize=8, color=MUTED, linespacing=1.4)  # fmt: skip
     fig.subplots_adjust(left=0.07, right=0.97, top=0.875, bottom=0.115)
+    house.clear(fig, 105)
     fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
     plt.close(fig)
     print(f"  wrote {out}", flush=True)

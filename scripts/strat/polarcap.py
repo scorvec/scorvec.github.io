@@ -399,6 +399,7 @@ def plumes(model: str, init: pd.Timestamp, valid, series: dict, panels, title: s
     fig.text(0.07, 0.008, textwrap.fill(f"{NOTE[panels]} {CREDIT[model]}.", 190), fontsize=8, color="#6f6b64",
              linespacing=1.4)  # fmt: skip
     fig.subplots_adjust(left=0.08, right=0.98, top=0.88, bottom=0.085, hspace=0.32)
+    house.clear(fig, 105)
     fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
     plt.close(fig)
     print(f"  wrote {out}", flush=True)
@@ -688,6 +689,9 @@ def combined(product: str, panels, title: str, out: Path, max_age_days: float = 
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
 
     newest = {m: rs[-1] for m in (*ENSEMBLES, *SINGLE) if (rs := RR.runs(product, m))}
     if not newest:
@@ -709,13 +713,15 @@ def combined(product: str, panels, title: str, out: Path, max_age_days: float = 
         ax.set_title(f"{name}: anomaly from ERA5 1991–2020" if unit != "sd" else name, fontsize=11, fontweight="bold",
                      loc="left")  # fmt: skip
         _style(ax, unit if unit != "sd" else "sd of the daily index")
-        ax.legend(fontsize=8.5, loc="upper left", ncol=2, framealpha=0.9)
     fig.suptitle(f"Every model's newest run · {title}", fontsize=13.5, fontweight="bold",
                  x=0.07, ha="left", y=0.985)  # fmt: skip
     fig.text(0.07, 0.945, SUBTITLE[panels].split(" · ", 1)[1], fontsize=9.5, color="0.25")
     fig.text(0.07, 0.008, textwrap.fill(f"Each model's members' mean and 10–90 % range, the single runs dashed, each "
              f"labelled with its run. {NOTE[panels]}", 190), fontsize=8, color="#6f6b64", linespacing=1.4)  # fmt: skip
-    fig.subplots_adjust(left=0.08, right=0.98, top=0.88, bottom=0.085, hspace=0.32)
+    fig.legend(*axes[0].get_legend_handles_labels(), fontsize=8.5, loc="lower center", bbox_to_anchor=(0.53, 0.052),
+               ncol=4, frameon=False)  # fmt: skip
+    fig.subplots_adjust(left=0.08, right=0.98, top=0.88, bottom=0.15, hspace=0.32)
+    house.clear(fig, 105)
     fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
     plt.close(fig)
     print(f"wrote {out}", flush=True)

@@ -561,8 +561,9 @@ def render(
     ax.plot(np.full(len(unc), 1.003), unc, ls="none", marker="<", ms=6, color=MUTED, clip_on=False,
             transform=ax.get_yaxis_transform())  # fmt: skip
     ax.axvline(0, color=INK, lw=1.4)
-    ax.text(-0.5, 1.2 * min(levels), "observed", ha="right", va="top", fontsize=9, color=INK)
-    ax.text(0.5, 1.2 * min(levels), "forecast", ha="left", va="top", fontsize=9, color=INK)
+    box = dict(boxstyle="round,pad=0.15", fc="white", ec="none")  # (readable over the darkest shading)
+    ax.text(-0.5, 1.2 * min(levels), "observed", ha="right", va="top", fontsize=9, color=INK, bbox=box)
+    ax.text(0.5, 1.2 * min(levels), "forecast", ha="left", va="top", fontsize=9, color=INK, bbox=box)
     _paxis(ax, levels)
     ax.set_xlim(X[0], X[-1])
     ticks = list(range(int(np.ceil(X[0] / 7)) * 7, int(X[-1]) + 1, 7))  # inside the data: no blank margin

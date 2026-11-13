@@ -591,6 +591,8 @@ def season_label(ref):
 
 def render_phase(model, init, valid, pcs, ref, month, dlabel, out, other=None):
     """Phase diagram + phase odds by day + measured skill; a season note when the basis month is out of season."""
+    import matplotlib.patheffects as pe
+
     plt = _mpl()
     in_season = bool(ref.in_season.sel(month=month))
     nmem = pcs.shape[0]
@@ -694,7 +696,7 @@ def render_phase(model, init, valid, pcs, ref, month, dlabel, out, other=None):
         fontsize=9.5,
         color=MUTED,
         zorder=8,
-        bbox=dict(facecolor="#f2f2f2", edgecolor="none", alpha=0.75, pad=1.0),
+        bbox=dict(facecolor="#f2f2f2", edgecolor="none", pad=1.0),
     )
     for i in range(nmem):
         ax.plot(pcs[i, :, 0], pcs[i, :, 1], color=MCOL[model], lw=0.5, alpha=0.12, zorder=2)
@@ -736,15 +738,20 @@ def render_phase(model, init, valid, pcs, ref, month, dlabel, out, other=None):
         label=f"{LABEL[model]} ensemble mean",
     )
     for d in (0, 5, 10, 15):
+        along = mean[min(d + 1, len(mean) - 1)] - mean[max(d - 1, 0)]
+        side = np.array([-along[1], along[0]]) / max(float(np.hypot(*along)), 1e-9)  # beside the track, not along it
         ax.annotate(
             f"d{d}",
             (mean[d, 0], mean[d, 1]),
-            xytext=(5, 5),
+            xytext=tuple(11 * side),
             textcoords="offset points",
+            ha="center",
+            va="center",
             fontsize=10,
             fontweight="bold",
             color=MCOL[model],
-            zorder=7,
+            zorder=9,
+            path_effects=[pe.withStroke(linewidth=2.6, foreground="white")],
         )
     ax.set_xlim(-lim, lim)
     ax.set_ylim(-lim, lim)
@@ -862,6 +869,7 @@ def render_torque(init, pcs_mean, valid, out, torque_json):
     """ERA5 signed lagged regression of the jet indices on the Himalayan mountain torque (season window of the forecast's
     basis month), and the forecast implication only where the regression is significant after FDR."""
     plt = _mpl()
+    import house
     import matplotlib.dates as mdates
 
     tr = json.loads(F_TORQ.read_text())
@@ -1002,6 +1010,7 @@ def render_torque(init, pcs_mean, valid, out, torque_json):
         color=MUTED,
         linespacing=1.3,
     )
+    house.legend_room(axf)
     fig.savefig(out, dpi=100, facecolor="white", pil_kwargs={"quality": 88, "method": 6})
     plt.close(fig)
     return summ

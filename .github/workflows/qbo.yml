@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install plotting dependencies
-        run: pip install -q numpy pandas matplotlib pillow
+        run: pip install -q numpy pandas matplotlib==3.10.9 pillow
 
       - name: Update recent months from IGRA year-to-date
         run: python scripts/qbo/qbo_tracker.py update

@@ -156,7 +156,7 @@ def main() -> int:
                 color="0.4",
                 va="bottom" if y > 0 else "top",
                 zorder=6,
-                bbox=dict(boxstyle="round,pad=0.12", fc="white", ec="none", alpha=0.8),
+                bbox=dict(boxstyle="round,pad=0.12", fc="white", ec="none"),
             )
 
     # ── monthly record ──

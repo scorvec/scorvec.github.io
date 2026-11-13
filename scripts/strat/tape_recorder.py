@@ -668,15 +668,25 @@ def _head(fig, title, sub, x=0.055):
     return y - (0.36 + 0.19 * len(lines)) / Hh
 
 
-def _save(fig, path):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path, format="webp", pil_kwargs={"quality": 90})
+def _plt():
+    """pyplot on the Agg backend, in the house style."""
+    import matplotlib
+
+    matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import house
 
     house.apply()
+    return plt
 
-    plt.close(fig)
+
+def _save(fig, path):
+    import house
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    house.clear(fig)
+    fig.savefig(path, format="webp", pil_kwargs={"quality": 90})
+    _plt().close(fig)
 
 
 def _edges_time(cen):
@@ -692,10 +702,7 @@ def _pedges(levs):
 
 
 def fig_section(cen, V, S, levs, last_mls, fp_end, kind, clim_mean, clim_at, traj, path, subtitle_extra=""):
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    plt = _plt()
     import matplotlib.dates as mdates
     from matplotlib.colors import BoundaryNorm, ListedColormap
 
@@ -785,10 +792,7 @@ def fig_section(cen, V, S, levs, last_mls, fp_end, kind, clim_mean, clim_at, tra
 
 
 def fig_record(cen, V, S, levs, clim_at, path, last_mls):
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    plt = _plt()
     import matplotlib.dates as mdates
     from matplotlib.colors import BoundaryNorm, ListedColormap
 
@@ -835,10 +839,7 @@ def fig_record(cen, V, S, levs, clim_at, path, last_mls):
 
 
 def fig_ascent(levs, clim_w, clim_se, clim_sd, n_years, cur, cur_se, cur_end, fpw, fp_years, yr, wref, stats, path):
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    plt = _plt()
 
     fig = plt.figure(figsize=(12.6, 7.4), dpi=130)
     top = _head(
@@ -943,6 +944,7 @@ def fig_ascent(levs, clim_w, clim_se, clim_sd, n_years, cur, cur_se, cur_end, fp
                 label="12 months to the last MLS day" if key == "low" else None,
             )
     ax2.set_ylabel("ascent speed, mm/s", fontsize=9.2, color=INK)
+    import house
     from matplotlib.ticker import MaxNLocator
 
     ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
@@ -952,6 +954,7 @@ def fig_ascent(levs, clim_w, clim_se, clim_sd, n_years, cur, cur_se, cur_end, fp
     ax2.legend(
         fontsize=8.2, frameon=True, framealpha=0.9, edgecolor="none", loc="upper left", ncol=1
     )  # readable over the lines
+    house.legend_room(ax2)
     s, h = stats["low"], stats["high"]
     hi_txt = (
         f"46–26 hPa: {h['clim_mean']:.2f} (±{h['clim_sd']:.2f}); last 12 months {h['current']:.2f} ± "
@@ -990,10 +993,7 @@ def fig_ascent(levs, clim_w, clim_se, clim_sd, n_years, cur, cur_se, cur_end, fp
 
 
 def fig_entry(mls, fpq_adj, fpt, clim_at, t0, last_mls, fp_end, stats, tstats, path, sd_doy):
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    plt = _plt()
     import matplotlib.dates as mdates
 
     fig = plt.figure(figsize=(12.6, 7.4), dpi=130)

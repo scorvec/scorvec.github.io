@@ -646,6 +646,7 @@ def render(hemi, north, valid, mem, ctrl, lat, hov, obs, clim, init, n_mem, out,
         fontweight="bold",
         color=INK,
     )
+    house.clear(fig)
     fig.savefig(out, format="webp", pil_kwargs={"quality": 88})
     plt.close(fig)
     return z_last

@@ -407,6 +407,7 @@ def figure(Dr: Drift, today: dt.date, out: Path):
         wrap=True,
     )
     p = out / "gefs_drift.webp"
+    house.clear(fig, 105)
     fig.savefig(p, dpi=105, facecolor="white", pil_kwargs={"quality": 88, "method": 6})
     plt.close(fig)
     return p.name

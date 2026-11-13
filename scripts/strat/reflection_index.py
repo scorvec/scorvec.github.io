@@ -194,6 +194,7 @@ def render(out: Path = OUT) -> None:
              "day-of-year mean and sd. Lines: ensemble means; shading: members 10–90 %, where the run carries them.\n"
              "Messori's events are December–March. Sources: ECMWF open data (CC BY 4.0, Google Cloud mirror) · NOAA GEFS "
              "(AWS Open Data) · ECCC GEPS (MSC Datamart) · ERA5 (C3S).", fontsize=7.8, color=MUTED, linespacing=1.45)  # fmt: skip
+    house.legend_room(ax)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=112, facecolor="white", pil_kwargs={"quality": 88, "method": 6})
     plt.close(fig)

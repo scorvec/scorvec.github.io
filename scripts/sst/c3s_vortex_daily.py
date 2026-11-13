@@ -1288,6 +1288,7 @@ def render(A, R, U, AN, W, CEN, corr, pc, mm, present, dates) -> dict:
         color="#6f6b64",
     )
     fig.tight_layout(rect=(0, 0.015, 1, 1))
+    house.legend_room(bx)
     figs["u10"] = _save(fig, "c3s_vortex_daily_u10.webp")
     # ── B: latitude–time section of the multi-model anomaly ──
     cen_an = []
@@ -1455,7 +1456,7 @@ def render(A, R, U, AN, W, CEN, corr, pc, mm, present, dates) -> dict:
     bx.set_ylabel("multi-model P(weak spell)")
     bx.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0, decimals=0))
     bx.set_title(
-        f"December weak-spell probability (T1), winters sorted; orange = a spell happened\nROC area {t1['auc']:.2f}, Holm p {t1['p_holm']:.3f}"
+        f"December weak-spell probability (T1), winters sorted\norange = a spell happened · ROC area {t1['auc']:.2f}, Holm p {t1['p_holm']:.3f}"
         + ("" if t1["significant"] else " n.s."),
         loc="left",
         fontsize=10,

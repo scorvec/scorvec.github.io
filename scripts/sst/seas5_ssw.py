@@ -773,7 +773,7 @@ def render(ym, dates, f60, cm, q10, q90, z, fsec, hsec, lats, tail, doc) -> dict
             ax.plot([i - 0.25, i + 0.25], [e["mean"]] * 2, color=MEAN, lw=2.4, zorder=4)
             ax.text(
                 i,
-                ax.get_ylim()[0] if False else max(e["p90"], e["normal_p90"]) + 0.6,
+                max(*e["members"], e["normal_p90"]) + 0.6,  # (above the highest member)
                 f"{e['z']:+.1f}σ",
                 ha="center",
                 fontsize=8.5,
@@ -785,6 +785,7 @@ def render(ym, dates, f60, cm, q10, q90, z, fsec, hsec, lats, tail, doc) -> dict
                 if d.strftime("%Y-%m") in [e["month"] for e in U]:
                     j = [e["month"] for e in U].index(d.strftime("%Y-%m"))
                     ax.scatter([j], [v], marker="D", color=OBS, s=30, zorder=5)
+        ax.margins(y=0.1)  # (room for the labels above the highest members)
         ax.set_xticks(xs)
         ax.set_xticklabels([f"{calendar.month_abbr[int(e['month'][5:])]}\n{e['month'][:4]}" for e in U])
         ax.set_ylabel("u at 60°N, 100 hPa (m/s)")
@@ -912,6 +913,7 @@ def render(ym, dates, f60, cm, q10, q90, z, fsec, hsec, lats, tail, doc) -> dict
         "90 % block-bootstrap intervals over winters. Reliability: the hindcast's yearly member fraction against MERRA-2 occurrence, 1981/82–2016/17.",
     )
     fig.subplots_adjust(wspace=0.32)
+    house.legend_room(bx)
     out = ASSETS / "seas5_ssw_risk.webp"
     fig.savefig(out, dpi=105, bbox_inches="tight", pil_kwargs={"quality": 86, "method": 6})
     plt.close(fig)

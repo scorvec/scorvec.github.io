@@ -423,6 +423,7 @@ def render(df, res) -> str:
 
     house.apply()
     from matplotlib.colors import TwoSlopeNorm
+    from matplotlib.transforms import Bbox
 
     fig, ax = plt.subplots(figsize=(10.5, 4.8))
     jit = np.random.default_rng(3).uniform(-0.06, 0.06, len(df))
@@ -438,22 +439,53 @@ def render(df, res) -> str:
         linewidths=0.8,
         zorder=3,
     )
-    # winter labels placed clear of each other (strong-ENSO winters at the same share would print on top of one another
-    # at the no-SSW row)
     ax.set_xlim(-0.02, 1.02)
     ax.set_ylim(-0.12, 1.12)
+    t1 = res["tests"]["T1"]
+    xs = np.linspace(0, 1, 100)
+    X = np.column_stack([np.ones(len(df)), df.frac.values])
+    b, _, _ = logit_fit(X, df.obs.values)
+    ax.plot(
+        xs,
+        1 / (1 + np.exp(-(b[0] + b[1] * xs))),
+        color="#8a4b2a",
+        lw=1.6,
+        label=f"logistic fit (slope p {t1['p']:.2f}, Holm {t1['p_holm']:.2f})",
+    )
+    ax.axhline(df.obs.mean(), color="#8a8680", lw=0.8, ls=":", label=f"observed rate {df.obs.mean():.0%}")
+    ax.axvline(res["model_base"], color="#8a8680", lw=0.8, ls="--", label=f"model base rate {res['model_base']:.0%}")
+    if res.get("current"):
+        ax.scatter(
+            [res["current"]["frac"]],
+            [0.5],
+            marker="*",
+            s=260,
+            color="#c8451c",
+            edgecolors="#222",
+            zorder=5,
+            label=f"this winter: {res['current']['frac']:.0%} of members (outcome unknown)",
+        )
+    ax.set_yticks([0, 0.5, 1])
+    ax.set_yticklabels(["no SSW", "", "SSW"])
+    ax.set_xlabel("share of 25 SEAS5 members with a major SSW, Nov–Mar (October start)")
+    cb = fig.colorbar(sc, ax=ax, pad=0.01)
+    cb.set_label("DJF ONI (CPC)")
+    # (the legend clear of the rate line)
+    leg = ax.legend(fontsize=7.8, frameon=True, framealpha=0.9, edgecolor="none", loc="center left")
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.set_title(
+        f"SEAS5 SSW fraction against what happened, {res['years']} ({res['n']} winters)", loc="left", fontsize=12
+    )
+    # winter labels placed clear of each other, of the dots and of the legend, on the finished layout (strong-ENSO
+    # winters at the same share would print on top of one another at the no-SSW row)
+    fig.canvas.draw()
     ren = fig.canvas.get_renderer()
-    placed = []
-    spots = [
-        (5, 4, "left"),
-        (5, -10, "left"),
-        (-5, 4, "right"),
-        (-5, -10, "right"),
-        (5, 14, "left"),
-        (5, -20, "left"),
-        (-5, 14, "right"),
-        (-5, -20, "right"),
+    rad = 4.5 * fig.dpi / 72
+    placed = [leg.get_window_extent(ren)] + [
+        Bbox.from_extents(x - rad, y - rad, x + rad, y + rad)
+        for x, y in ax.transData.transform(np.column_stack([df.frac, df.obs + jit]))
     ]
+    spots = [(sx * 5, dy, ha) for dy in (4, -10, 14, -20, 24, -30) for sx, ha in ((1, "left"), (-1, "right"))]
     for r, j in sorted(zip(df.itertuples(), jit), key=lambda t: t[0].frac):
         if abs(r.oni) >= 1.5:
             for dx, dy, ha in spots:
@@ -483,41 +515,6 @@ def render(df, res) -> str:
                         color="#444",
                     ).get_window_extent(ren)
                 )
-    t1 = res["tests"]["T1"]
-    xs = np.linspace(0, 1, 100)
-    X = np.column_stack([np.ones(len(df)), df.frac.values])
-    b, _, _ = logit_fit(X, df.obs.values)
-    ax.plot(
-        xs,
-        1 / (1 + np.exp(-(b[0] + b[1] * xs))),
-        color="#8a4b2a",
-        lw=1.6,
-        label=f"logistic fit (slope p {t1['p']:.2f}, Holm {t1['p_holm']:.2f})",
-    )
-    ax.axhline(df.obs.mean(), color="#8a8680", lw=0.8, ls=":", label=f"observed rate {df.obs.mean():.0%}")
-    ax.axvline(res["model_base"], color="#8a8680", lw=0.8, ls="--", label=f"model base rate {res['model_base']:.0%}")
-    if res.get("current"):
-        ax.scatter(
-            [res["current"]["frac"]],
-            [0.5],
-            marker="*",
-            s=260,
-            color="#c8451c",
-            edgecolors="#222",
-            zorder=5,
-            label=f"this winter: {res['current']['frac']:.0%} of members (outcome unknown)",
-        )
-    ax.set_xlim(-0.02, 1.02)
-    ax.set_yticks([0, 0.5, 1])
-    ax.set_yticklabels(["no SSW", "", "SSW"])
-    ax.set_xlabel("share of 25 SEAS5 members with a major SSW, Nov–Mar (October start)")
-    cb = fig.colorbar(sc, ax=ax, pad=0.01)
-    cb.set_label("DJF ONI (CPC)")
-    ax.legend(fontsize=7.8, frameon=True, framealpha=0.9, edgecolor="none", loc="center left")  # clear of the rate line
-    ax.spines[["top", "right"]].set_visible(False)
-    ax.set_title(
-        f"SEAS5 SSW fraction against what happened, {res['years']} ({res['n']} winters)", loc="left", fontsize=12
-    )
     import textwrap  # wrapped: one line widened the saved picture past the chart
 
     fig.text(

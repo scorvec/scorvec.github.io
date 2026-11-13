@@ -112,7 +112,7 @@ def render(out: Path = OUT) -> Path | None:
             ax.xaxis.set_major_locator(mdates.AutoDateLocator(minticks=3, maxticks=6))
             ax.xaxis.set_major_formatter(mdates.DateFormatter("%-d %b"))
             if runs or (j == 0 and not tr.empty):
-                ax.legend(fontsize=7, loc="best", framealpha=0.85, handlelength=1.4)
+                ax.legend(fontsize=7, loc="upper left", framealpha=0.85, handlelength=1.4)
             else:
                 ax.text(0.5, 0.5, "no runs recorded yet", transform=ax.transAxes, ha="center", fontsize=8.5,
                         color="#6f6b64")  # fmt: skip
@@ -130,6 +130,8 @@ def render(out: Path = OUT) -> Path | None:
         "Single runs: descriptive, not a ranking of the models.", 210)), fontsize=8, color="#6f6b64",
         linespacing=1.4)  # fmt: skip
     fig.subplots_adjust(left=0.07, right=0.99, top=0.9, bottom=0.09, hspace=0.28, wspace=0.22)
+    for ax in axes.flat:
+        house.legend_room(ax)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=100, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
     plt.close(fig)

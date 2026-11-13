@@ -763,7 +763,7 @@ def mark_prelim(ax, label=True):
             fontsize=7.2,
             color="#7a6210",
             zorder=6,
-            bbox=dict(boxstyle="round,pad=0.2", facecolor="white", edgecolor="none", alpha=0.75),
+            bbox=dict(boxstyle="round,pad=0.2", facecolor="white", edgecolor="none"),
         )
     ax.set_xlim(x0, x1)
 

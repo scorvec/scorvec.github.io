@@ -1094,6 +1094,7 @@ def plot_series(doc: dict, group: str, out: Path) -> None:
         hspace=0.78,
         wspace=0.22,
     )
+    house.clear(fig, 105)
     fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
     plt.close(fig)
     print(f"  wrote {out.name}", flush=True)
@@ -1275,6 +1276,7 @@ def plot_probs(doc: dict, out: Path) -> None:
         f"and a false discovery rate of {SKILL_FDR_Q:.0%} over every index and lead), no usable skill: the calibrated bar is then climatology"
     )
     fig.text(0.5, 0.006, note, ha="center", va="bottom", fontsize=7.8, color=MUTED)
+    house.clear(fig, 105)
     fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 88, "method": 6})
     plt.close(fig)
     print(f"  wrote {out.name}", flush=True)

@@ -1092,7 +1092,7 @@ def fig_upwelling(C, an, fc, cyc, stats, notes, off, nm, path):
     days = pd.date_range(t0 - pd.Timedelta(days=1), t1, freq="D")
     doy = cday(days)
     fig = plt.figure(figsize=(12.4, 7.9), dpi=130)
-    gs = fig.add_gridspec(2, 1, height_ratios=[1.55, 1], hspace=0.28, left=0.058, right=0.985, top=0.88, bottom=0.135)
+    gs = fig.add_gridspec(2, 1, height_ratios=[1.55, 1], hspace=0.28, left=0.058, right=0.978, top=0.88, bottom=0.135)
     for i, (key, lev) in enumerate((("F70", 70), ("F100", 100))):
         ax = fig.add_subplot(gs[i])
         _style(ax)
@@ -1171,6 +1171,7 @@ def fig_upwelling(C, an, fc, cyc, stats, notes, off, nm, path):
         va="top",
     )
     fig.text(0.058, 0.018, notes, fontsize=8.8, color=MUTED, va="bottom", linespacing=1.45)
+    house.clear(fig)
     fig.savefig(path.with_suffix(".webp"), format="webp", pil_kwargs={"quality": 90})
     fig.savefig(path.with_suffix(".png"))
     plt.close(fig)
@@ -1265,6 +1266,9 @@ def fig_section(C, sec, lat, cyc, off, path):
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import house
+
+    house.apply()
     from matplotlib.colors import BoundaryNorm, ListedColormap
     from scipy.ndimage import gaussian_filter1d
 
@@ -1361,6 +1365,7 @@ def fig_section(C, sec, lat, cyc, off, path):
         + (f"{nsig} points pass." if nsig else "No point passes: no significant anomaly in this window.")
     )
     fig.text(0.065, 0.02, foot, fontsize=8.8, color=MUTED, va="bottom", linespacing=1.45)
+    house.clear(fig)
     fig.savefig(path.with_suffix(".webp"), format="webp", pil_kwargs={"quality": 90})
     fig.savefig(path.with_suffix(".png"))
     plt.close(fig)

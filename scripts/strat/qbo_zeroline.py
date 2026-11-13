@@ -277,7 +277,7 @@ def render(out_dir=REPO / "assets" / "sst", data_dir=None, tail_dir=None, days_b
         cax = fig.add_axes([0.885, 0.105, 0.014, 0.755])
         fig.text(
             0.062,
-            0.405,
+            0.42,
             "Past winters by QBO phase (Singapore 50 hPa, Oct–Nov): MERRA-2 mean [u] by calendar day, "
             "with this year's analysed zero line",
             fontsize=9.6,
@@ -468,6 +468,7 @@ def render(out_dir=REPO / "assets" / "sst", data_dir=None, tail_dir=None, days_b
             linespacing=1.3,
         )
         out = out_dir / f"qbo_zeroline_{L}.webp"
+        house.clear(fig, 110)
         fig.savefig(out, format="webp", dpi=110, pil_kwargs={"quality": 88})
         plt.close(fig)
         print(

@@ -118,6 +118,7 @@ def cbar(fig, cf, rect, ticks, label, extend=None):
 
 def save(fig, path: Path):
     path.parent.mkdir(parents=True, exist_ok=True)
+    house.clear(fig)
     fig.savefig(path, format="webp", pil_kwargs={"quality": 90})
     plt.close(fig)
 

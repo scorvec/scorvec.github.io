@@ -146,6 +146,7 @@ def anom_bar(fig, rect, var, label):
     cb.ax.tick_params(labelsize=7.5, length=2)
     cb.outline.set_edgecolor(house.EDGE)
     cb.set_label(label, fontsize=8.5, color=house.INK2)
+    house.spaced(cb.ax.xaxis)
 
 
 def prob_legend(fig, rect, var):
@@ -230,6 +231,7 @@ def outlook_map(o: dict, s: dict, var: str, region: str, kind: str, path: Path) 
         what += f" · {REGIONS[region][0]}"
     head(fig, s, var, what, skill_line(s, var, kind), y0=b.y1 + 0.075, x0=b.x0)
     fig.text(b.x0 + b.width / 2, b.y0 - 0.112, CREDIT, ha="center", fontsize=7.5, color=MUTED)
+    house.clear(fig, 105 if nh else 100)
     fig.savefig(path, dpi=105 if nh else 100, bbox_inches="tight", pad_inches=0.12,
                 pil_kwargs={"quality": 86, "method": 6})  # fmt: skip
     plt.close(fig)
@@ -276,6 +278,7 @@ def ingredients_fig(o: dict, s: dict, var: str, path: Path) -> None:
     fig.text(0.01, 0.95, f"{s['target_label']} · {NAME[var]}: what the forecast is made of", fontsize=12.5,
              fontweight="semibold")  # fmt: skip
     fig.text(0.5, 0.012, CREDIT + " · ACC: cross-validated hindcast, 20–90N", ha="center", fontsize=7.5, color=MUTED)
+    house.clear(fig, 88)
     fig.savefig(path, dpi=88, pil_kwargs={"quality": 85, "method": 6})
     plt.close(fig)
 
@@ -303,6 +306,7 @@ def components_fig(o: dict, s: dict, var: str, path: Path) -> None:
     fig.text(0.01, 0.965, f"{s['target_label']} · {NAME[var]}: the statistical forecast's components", fontsize=12.5,
              fontweight="semibold")  # fmt: skip
     fig.text(0.5, 0.012, CREDIT, ha="center", fontsize=7.5, color=MUTED)
+    house.clear(fig, 85)
     fig.savefig(path, dpi=85, pil_kwargs={"quality": 82, "method": 6})
     plt.close(fig)
 
@@ -343,6 +347,7 @@ def skill_fig(o: dict, s: dict, var: str, path: Path) -> None:
     fig.text(0.01, 0.95, f"{s['target_label']} · {NAME[var]}: cross-validated hindcast skill", fontsize=12.5,
              fontweight="semibold")  # fmt: skip
     fig.text(0.5, 0.008, CREDIT, ha="center", fontsize=7.5, color=MUTED)
+    house.clear(fig, 90)
     fig.savefig(path, dpi=90, pil_kwargs={"quality": 85, "method": 6})
     plt.close(fig)
 
@@ -365,6 +370,7 @@ def update_fig(o: dict, s: dict, var: str, path: Path) -> None:
     fig.text(0.01, 0.95, f"{s['target_label']} · {NAME[var]}: the update's two parts", fontsize=12.5,
              fontweight="semibold")  # fmt: skip
     fig.text(0.5, 0.012, CREDIT, ha="center", fontsize=7.5, color=MUTED)
+    house.clear(fig, 90)
     fig.savefig(path, dpi=90, pil_kwargs={"quality": 85, "method": 6})
     plt.close(fig)
 

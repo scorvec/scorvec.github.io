@@ -487,16 +487,6 @@ def events_still(pr, out):
         ax.bar(days[on], 100 * pr["events"][r][on], width=0.4, color="#cc2f2f", label=f"{LABEL} chance of an event")
         for d in days[~on]:
             ax.axvspan(d - 0.25, d + 0.25, color="#ececec", lw=0, zorder=0)
-        if not on.all():
-            ax.text(
-                0.99,
-                0.6,
-                "grey: leads where the odds did not\nbeat the ERA5 rate on the archived runs",
-                transform=ax.transAxes,
-                ha="right",
-                fontsize=9,
-                color=MUTED,
-            )
         ax.plot(days, 100 * pr["event_normal"][r], color=INK, lw=1.6, ls=(0, (5, 3)), label="ERA5 1991–2020, same date")
         box = JB.REGIONS[r]
         ax.set_title(
@@ -505,15 +495,16 @@ def events_still(pr, out):
             loc="left",
             fontweight="bold",
             color=INK,
+            pad=20,  # (the event's definition sits under it, above the bars)
         )
         ax.text(
-            0.01,
-            0.97,
+            0,
+            1.02,
             f"event: ≥ {pr['thresholds'][r]} superposed columns linked within {JB.LINK_KM:g} km",
             transform=ax.transAxes,
             fontsize=9,
             color=MUTED,
-            va="top",
+            va="bottom",
         )
         ax.set_xlabel("lead (days)")
         ax.set_xlim(-0.4, days.max() + 0.4)
@@ -521,8 +512,11 @@ def events_still(pr, out):
         ax.spines[["top", "right"]].set_visible(False)
     axs[0].set_ylabel("chance of an event (%)")
     axs[0].set_ylim(0, 100)
-    fig.legend(*axs[0].get_legend_handles_labels(), loc="lower left", bbox_to_anchor=(0.06, 0.1), ncol=2, fontsize=9.5,
-               frameon=False)  # fmt: skip
+    handles, labels = axs[0].get_legend_handles_labels()
+    if not pr["event_shown"].all():
+        handles.append(plt.Rectangle((0, 0), 1, 1, color="#ececec", lw=0))
+        labels.append("lead where the odds did not beat the ERA5 rate on the archived runs")
+    fig.legend(handles, labels, loc="lower left", bbox_to_anchor=(0.06, 0.1), ncol=3, fontsize=9.5, frameon=False)
     fig.suptitle(
         f"Superposition events by region — {LABEL} {max(pr['members'])} members, init {pr['init']:%Y-%m-%d %HZ}",
         x=0.06,
@@ -532,7 +526,7 @@ def events_still(pr, out):
         color=INK,
     )
     fig.text(0.06, 0.012, textwrap.fill(CREDIT, int(W * 15.5)), fontsize=8.2, color=MUTED)
-    fig.subplots_adjust(left=0.06, right=0.99, top=0.84, bottom=0.3, wspace=0.06)
+    fig.subplots_adjust(left=0.06, right=0.99, top=0.8, bottom=0.3, wspace=0.06)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=100, facecolor="white", pil_kwargs={"quality": 88, "method": 6})
     plt.close(fig)

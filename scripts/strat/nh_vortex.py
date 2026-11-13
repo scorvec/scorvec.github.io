@@ -912,6 +912,7 @@ def draw_members(m: str, fc: dict, clim: dict, obs: dict, out: Path) -> bool:
              "Raw model output.", ha="center", va="bottom", fontsize=8, color="#6f6b64")  # fmt: skip
     fig.autofmt_xdate()
     fig.tight_layout(rect=(0, 0.02, 1, 0.985))
+    house.legend_room(axes[0])
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=112, facecolor="white", bbox_inches="tight", pil_kwargs={"quality": 88, "method": 6})
     plt.close(fig)
@@ -1008,6 +1009,8 @@ def _figure(keys: tuple, title: str, footer: str, out: Path, height: float, ctx:
     fig.autofmt_xdate()
     foot = 0.17 * (footer.count("\n") + 1) + 0.05  # inches: the footer's lines under the rotated dates
     fig.tight_layout(rect=(0, foot / height, 1, 1 - 0.17 / height))
+    for ax in axes:
+        house.legend_room(ax)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=112, facecolor="white", bbox_inches="tight", pil_kwargs={"quality": 88, "method": 6})
     plt.close(fig)

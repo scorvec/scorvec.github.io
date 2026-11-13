@@ -843,14 +843,24 @@ def _fc_shade(ax, t_last, t1):
     ax.axvline(t_last + pd.Timedelta(hours=12), color=MUTED, lw=0.8, ls=":")
 
 
-def _save(fig, path):
-    fig.savefig(path.with_suffix(".webp"), format="webp", pil_kwargs={"quality": 90})
+def _plt():
+    """pyplot on the Agg backend, in the house style."""
+    import matplotlib
+
+    matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import house
 
     house.apply()
+    return plt
 
-    plt.close(fig)
+
+def _save(fig, path):
+    import house
+
+    house.clear(fig)
+    fig.savefig(path.with_suffix(".webp"), format="webp", pil_kwargs={"quality": 90})
+    _plt().close(fig)
 
 
 def seam_at(R, key, doys):
@@ -867,10 +877,7 @@ def seam_note(R, key, lo, hi, L):
 
 
 def fig_vortex(days, Z, lat, fc, R, h, L, mode, cl, path):
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    plt = _plt()
 
     lo, hi = HEMI[h]
     hs = "N" if h == "nh" else "S"
@@ -1167,10 +1174,7 @@ def z_test(x_mean, x_daily, times, nrm):
 
 
 def fig_upwelling(up, fup, days, fc, R, stats, path):
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    plt = _plt()
 
     t_last = days.max()
     fcd = fc["days"][fc["days"] > t_last] if fc is not None else pd.DatetimeIndex([])
@@ -1342,10 +1346,7 @@ SEC_MIN = 0.25  # m/s/day: smaller significant differences are not shaded
 
 
 def fig_sections(sec, lat, path):
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    plt = _plt()
     from matplotlib.colors import BoundaryNorm, ListedColormap
     from scipy.ndimage import gaussian_filter1d
 

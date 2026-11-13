@@ -186,6 +186,7 @@ def section(lv, mo, U, out_path):
         color=MUTED,
         ha="left",
     )
+    house.clear(fig)
     fig.savefig(out_path, pil_kwargs={"quality": 90, "method": 6})
     plt.close(fig)
     return out_path
@@ -283,6 +284,7 @@ def phase(lv, mo, U, out_path):
     cb.set_ticklabels([str(mo_ok[seg][0]), str(mo_ok[-1])])
     cb.ax.tick_params(labelsize=8.5, colors=INK)
     cb.outline.set_edgecolor(SPINE)
+    house.clear(fig)
     fig.savefig(out_path, pil_kwargs={"quality": 90, "method": 6})
     plt.close(fig)
     return out_path
@@ -411,6 +413,7 @@ def descent(lv, mo, U, out_path):
         color=MUTED,
         ha="left",
     )
+    house.clear(fig)
     fig.savefig(out_path, pil_kwargs={"quality": 90, "method": 6})
     plt.close(fig)
     return out_path
@@ -473,6 +476,7 @@ def cycles(lv, mo, U, out_path):
     ax.grid(color=GRID, lw=0.6)
     ax.set_axisbelow(True)
     style(ax)
+    house.clear(fig)
     fig.savefig(out_path, pil_kwargs={"quality": 90, "method": 6})
     plt.close(fig)
     return out_path

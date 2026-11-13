@@ -97,6 +97,7 @@ def style(ax):
 
 def save(fig, out: Path):
     out.parent.mkdir(parents=True, exist_ok=True)
+    house.clear(fig)
     fig.savefig(out, format="webp", pil_kwargs={"quality": 88})
     plt.close(fig)
     print(f"  {out.name}  {out.stat().st_size / 1e3:.0f} KB")
