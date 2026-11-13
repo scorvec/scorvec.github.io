@@ -1,5 +1,5 @@
 {
- "built": "2026-11-13 12:56Z",
+ "built": "2026-11-13 14:47Z",
  "newest_init": "2026-11-13 06Z",
  "window": [
   "2026-11-14",
@@ -18,18 +18,13 @@
  "ssw": {
   "models": {
    "aifs": {
-    "init": "2026-11-13 00Z",
+    "init": "2026-11-13 06Z",
     "members": 51,
-    "share": 1.0,
-    "wmo": 1.0,
-    "u10_min_mean": 3.6,
-    "u10_min_p10": 3.2,
+    "share": 0.0,
+    "wmo": 0.0,
+    "u10_min_mean": 3.3,
+    "u10_min_p10": 2.7,
     "runs": [
-     [
-      "2026-10-14T00",
-      0.0,
-      null
-     ],
      [
       "2026-10-14T06",
       0.0,
@@ -629,6 +624,11 @@
       "2026-11-13T00",
       1.0,
       1.0
+     ],
+     [
+      "2026-11-13T06",
+      0.0,
+      0.0
      ]
     ]
    },
@@ -1698,8 +1698,8 @@
     ]
    }
   },
-  "share_mean": 0.71,
-  "wmo_mean": 0.71,
+  "share_mean": 0.46,
+  "wmo_mean": 0.46,
   "wmo_models": 4,
   "base_rate": {
    "winters": 46,
@@ -1711,15 +1711,15 @@
  "waves": {
   "models": {
    "aifs": {
-    "init": "2026-11-13 00Z",
+    "init": "2026-11-13 06Z",
     "members": 50,
-    "wave2_share": 0.29,
-    "z_peak": 0.8,
-    "z_peak_day": 9,
-    "flux_min": 6.9,
+    "wave2_share": 0.26,
+    "z_peak": 0.7,
+    "z_peak_day": 8,
+    "flux_min": 6.8,
     "ri_event_share": 0.0,
     "z_can_min": -0.4,
-    "z_sib_max": 0.7
+    "z_sib_max": 0.6
    },
    "ifs": {
     "init": "2026-11-13 00Z",
@@ -1755,28 +1755,28 @@
     "z_sib_max": 1.0
    }
   },
-  "wave2_share_mean": 0.34,
+  "wave2_share_mean": 0.33,
   "kind": "wave-1"
  },
  "descent": {
   "models": {
    "aifs": {
-    "init": "2026-11-13 00Z",
+    "init": "2026-11-13 06Z",
     "members": 51,
-    "cap100_day15": 1.4,
-    "cap10_day15": 0.7,
-    "frac100_day15": 0.74,
+    "cap100_day15": 1.2,
+    "cap10_day15": 0.6,
+    "frac100_day15": 0.65,
     "cross100": "2026-11-20",
     "cross10": "2026-10-29",
     "kind": "top-down"
    },
    "aifsc": {
-    "init": "2026-11-13 00Z",
+    "init": "2026-11-13 06Z",
     "members": 1,
-    "cap100_day15": 0.9,
-    "cap10_day15": 0.1,
+    "cap100_day15": 1.1,
+    "cap10_day15": 0.8,
     "frac100_day15": null,
-    "cross100": "2026-11-20",
+    "cross100": "2026-11-21",
     "cross10": "2026-10-29",
     "kind": "top-down"
    },
@@ -1835,10 +1835,10 @@
  },
  "reflect": {
   "verdict": "absorbing",
-  "shear_init": "2026-11-13 00Z",
-  "shear_min": 10.5,
-  "shear_max": 38.4,
-  "shear_normal": 23.9,
+  "shear_init": "2026-11-13 06Z",
+  "shear_min": 8.8,
+  "shear_max": 36.9,
+  "shear_normal": 20.9,
   "zonal_mean_downward": [],
   "canada_downward": [],
   "active": [
@@ -1857,7 +1857,7 @@
      "2026-12-28"
     ],
     "cap100_day15": 1.4,
-    "frac100_day15": 0.74
+    "frac100_day15": 0.65
    },
    "ifs": {
     "init": "2026-11-13 00Z",
@@ -1949,17 +1949,17 @@
  "clock": {
   "models": {
    "aifs": {
-    "init": "2026-11-13 00Z",
+    "init": "2026-11-13 06Z",
     "onset": "2026-11-10",
     "wind_days": 11,
-    "wind": -0.9,
+    "wind": -0.95,
     "third": 1,
     "start_dates": [
      "2026-11-11",
      "2026-11-14",
      "2026-11-18"
     ],
-    "sea": -0.95,
+    "sea": -1.28,
     "sea_days": [
      6,
      15
@@ -2877,10 +2877,10 @@
  "event": {
   "onset": "2026-11-10",
   "analysed_to": "2026-11-13",
-  "wind": -0.3,
+  "wind": 0.0,
   "lowest": -2.9,
   "lowest_date": "2026-11-11",
-  "westerly_from": "2026-11-14",
+  "westerly_from": "2026-11-13",
   "third": 1,
   "surface_start": [
    "2026-11-11",
@@ -2968,22 +2968,22 @@
      -0.3,
      -2.6,
      -0.4,
-     -0.6,
-     3.6,
-     4.4,
-     5.8,
-     7.8,
-     10.8,
-     13.9,
+     0.6,
+     3.3,
+     5.2,
+     6.4,
+     8.7,
+     11.8,
+     14.3,
      15.2,
-     15.0,
-     17.1,
-     20.7,
-     23.5,
-     25.4,
+     15.5,
+     18.5,
+     22.4,
+     25.0,
      26.6,
-     27.5,
-     28.6
+     27.8,
+     28.9,
+     29.9
     ],
     "analysed": 31
    },
@@ -3280,12 +3280,12 @@
   ],
   "models": {
    "aifs": {
-    "init": "2026-11-13 00Z",
-    "share": 0.8,
+    "init": "2026-11-13 06Z",
+    "share": 0.57,
     "usual": 0.21,
     "days_more": 5,
     "days": 5,
-    "any_day": 0.96
+    "any_day": 0.78
    },
    "ifs": {
     "init": "2026-11-13 00Z",
@@ -3298,7 +3298,7 @@
   },
   "link": {},
   "link_runs": {
-   "aifs": "2026-11-13 00Z",
+   "aifs": "2026-11-13 06Z",
    "ifs": "2026-11-13 00Z",
    "gefs": "2026-11-13 06Z",
    "geps": "2026-11-13 00Z"
