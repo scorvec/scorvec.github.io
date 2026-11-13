@@ -58,9 +58,6 @@
   .clock-fig .grid { stroke: #e4e0d7; stroke-width: 1; }
   .clock-fig .tick { stroke: var(--muted); stroke-width: 1; }
   .clock-fig .ax, .clock-fig .cap { fill: var(--muted); }
-  .clock-fig .cap { paint-order: stroke; stroke-width: 5px; stroke-linejoin: round; }
-  .clock-fig .cap.on-band { stroke: #f4f2ec; }
-  .clock-fig .cap.on-band2 { stroke: #fbfaf7; }
   .clock-fig .lab { fill: var(--ink); font-weight: 600; }
   .clock-fig .fc { stroke-width: 2.2; }
   .clock-fig .hit { stroke: transparent; stroke-width: 14; }
@@ -478,6 +475,14 @@
     var x0 = Math.floor(Math.min.apply(null, xs) * 2) / 2 - 0.2, x1 = Math.ceil(Math.max.apply(null, xs) * 2) / 2 + 0.2;
     var L = { l: 46, r: 10, t: 12 + 17 * placed.length, b: W < 560 ? 40 : 46 };
     function X(v) { return L.l + (v - x0) / (x1 - x0) * (W - L.l - L.r); }
+    // each third's caption sits under its band, below the axis numbers, clear of the dots and the ensembles' lines; when
+    // a band is too narrow for its words (phones), the captions move to one line under the chart
+    var bands = R.thirds.map(function (g, k) {
+      return { a: X(g.wind[0] == null ? x0 : g.wind[0]), b: X(g.wind[1] == null ? x1 : g.wind[1]), cls: k % 2 ? "band2" : "band",
+               t1: THIRD[k] + " third", t2: g.soon + " of " + g.n + " by day " + D.soon, word: THIRD[k] + " " + g.soon + " of " + g.n };
+    });
+    var fits = bands.every(function (q) { return q.b - q.a >= 0.56 * fs * Math.max(q.t1.length, q.t2.length) + 8; });
+    if (fits) { L.b += 2 * (fs + 3); H += 2 * (fs + 3); }
     function Y(d) { return H - L.b - d / TOP * (H - L.t - L.b); }
     function tx(x, y, t, cls, anchor, extra) {
       return '<text class="' + cls + '" x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" text-anchor="' + (anchor || "start") + '"' + (extra || "") + ">" + t + "</text>";
@@ -487,21 +492,15 @@
     }
     var s = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Days from the 10 hPa reversal to a lasting surface signal against the wind at 100 hPa in '
       + ev.length + ' past sudden warmings, with each ensemble’s wind" style="font-size:' + fs + 'px">';
-    // each third's caption sits in its band over the ensembles' lines, haloed in the band's colour; when a band is too
-    // narrow for its words (phones), the captions move to one line under the chart
-    var caps = "", fits = true, words = [];
-    R.thirds.forEach(function (g, k) {
-      var a = X(g.wind[0] == null ? x0 : g.wind[0]), b = X(g.wind[1] == null ? x1 : g.wind[1]), cls = k % 2 ? "band2" : "band";
-      var t1 = THIRD[k] + " third", t2 = g.soon + " of " + g.n + " by day " + D.soon;
-      s += '<rect x="' + a.toFixed(1) + '" y="' + L.t + '" width="' + (b - a).toFixed(1) + '" height="' + (Y(0) - L.t).toFixed(1) + '" class="' + cls + '"/>';
-      caps += tx((a + b) / 2, Y(40), t1, "cap on-" + cls, "middle") + tx((a + b) / 2, Y(40) + fs + 4, t2, "cap on-" + cls, "middle");
-      fits = fits && b - a >= 0.56 * fs * Math.max(t1.length, t2.length) + 8;
-      words.push(THIRD[k] + " " + g.soon + " of " + g.n);
+    bands.forEach(function (q) {
+      var mid = (q.a + q.b) / 2;
+      s += '<rect x="' + q.a.toFixed(1) + '" y="' + L.t + '" width="' + (q.b - q.a).toFixed(1) + '" height="' + (Y(0) - L.t).toFixed(1) + '" class="' + q.cls + '"/>';
+      if (fits) s += tx(mid, Y(0) + 2 * fs + 12, q.t1, "cap", "middle") + tx(mid, Y(0) + 3 * fs + 15, q.t2, "cap", "middle");
     });
     var note = document.getElementById("clock_note");
     note.hidden = fits;
-    note.textContent = fits ? "" : "Shaded: the past warmings in thirds by the wind; a lasting surface signal by day " + D.soon + " in the " + words.join(", the ") + ".";
-    if (!fits) caps = "";
+    note.textContent = fits ? "" : "Shaded: the past warmings in thirds by the wind; a lasting surface signal by day " + D.soon + " in the "
+      + bands.map(function (q) { return q.word; }).join(", the ") + ".";
     for (var d = 0; d <= D.start_max; d += 10) s += ln(L.l, Y(d), W - L.r, Y(d), "grid") + tx(L.l - 6, Y(d) + 4, d, "ax", "end");
     s += ln(L.l, Y(D.start_max + 4.5), W - L.r, Y(D.start_max + 4.5), "grid", ' stroke-dasharray="4 3"') + tx(L.l - 6, Y(NONE) + 4, "none", "ax", "end");
     for (var v = Math.ceil(x0 * 2) / 2; v <= x1 + 1e-9; v += 0.5) s += ln(X(v), Y(0), X(v), Y(0) + 5, "tick") + tx(X(v), Y(0) + fs + 7, sg(v), "ax", "middle");
@@ -513,7 +512,6 @@
       s += ln(x, Y(0), x, y + 4, "fc", ' style="stroke:' + COL[m] + '"') + tx(right ? x - 6 : x + 6, y + 8, N[m] + " " + sg(c.wind, 2), "lab", right ? "end" : "start");
       s += ln(x, Y(0), x, y, "hit", ' data-m="' + m + '"');
     });
-    s += caps;
     ev.forEach(function (e, i) {
       s += '<circle data-i="' + i + '" tabindex="0" cx="' + X(e.wind).toFixed(1) + '" cy="' + Y(e.start == null ? NONE : e.start).toFixed(1) + '" r="5" class="dot"/>';
     });
