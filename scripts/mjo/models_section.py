@@ -89,9 +89,10 @@ SCRIPT = r"""
   ];
   var D = { obs: null, dn34: null, c: null, ddmi: null, d: null, models: {} };
   var S = { on: { aifs: true, ifs: true, gefs: true, geps: true }, members: false, clean: box.dataset.clean === '1', horizon: 15, obsDays: 40 };
-  var REGION = [['West. Hem. and Africa', -3.75, 0, -Math.PI / 2], ['Indian Ocean', 0, -3.75, 0], ['Maritime Continent', 3.75, 0, Math.PI / 2], ['Western Pacific', 0, 3.75, 0]];
+  var REGION = [['West. Hem. and Africa', -0.89, 0, -Math.PI / 2], ['Indian Ocean', 0, -0.89, 0], ['Maritime Continent', 0.89, 0, Math.PI / 2], ['Western Pacific', 0, 0.89, 0]];   // name, place (share of the wheel's reach), turn
   var PHASE = { 1: 202.5, 2: 247.5, 3: 292.5, 4: 337.5, 5: 22.5, 6: 67.5, 7: 112.5, 8: 157.5 };
   var pts = [];   // hover targets
+  var labs = [], dots = [];   // the labels to place, and the markers they keep clear of
 
   function fmtDate(s) { var d = new Date(s + ':00Z'); return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }); }
   // cleaned = raw - dN34 * c - dDMI * d (the DMI term only where the run applied it: June-December, with the DMI series)
@@ -105,9 +106,11 @@ SCRIPT = r"""
     cv.style.width = size + 'px'; cv.style.height = size + 'px';
     cv.width = Math.round(size * dpr); cv.height = Math.round(size * dpr);
     var x = cv.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0);
-    var fs = Math.max(0.85, size / 700), pad = Math.round(38 * fs), R = (size - 2 * pad) / 2, cx = pad + R, cy = pad + R, lim = 4.2, k = R / lim;
+    // narrow screens: the wheel ends just past the first ring beyond the furthest point on show, so the tracks keep their room
+    var lim = size < 520 ? Math.min(4.2, Math.max(2.2, Math.ceil(reach()) + 0.2)) : 4.2;
+    var fs = Math.max(0.85, size / 700), pad = Math.round(38 * fs), R = (size - 2 * pad) / 2, cx = pad + R, cy = pad + R, k = R / lim;
     var X = function (v) { return cx + v * k; }, Y = function (v) { return cy - v * k; };
-    pts = []; window.__mmfs = fs;
+    pts = []; labs = []; dots = [];
     x.clearRect(0, 0, size, size);
     x.fillStyle = '#fff'; x.fillRect(0, 0, size, size);
     x.save(); x.beginPath(); x.rect(pad, pad, 2 * R, 2 * R); x.clip();
@@ -119,15 +122,15 @@ SCRIPT = r"""
       x.beginPath(); x.moveTo(X(ux), Y(uy)); x.lineTo(X(ux * lim * 1.5), Y(uy * lim * 1.5)); x.moveTo(X(-ux), Y(-uy)); x.lineTo(X(-ux * lim * 1.5), Y(-uy * lim * 1.5)); x.stroke();
     });
     x.setLineDash([4, 4]); x.strokeStyle = '#cfcbc2';
-    [2, 3, 4].forEach(function (r) { x.beginPath(); x.arc(cx, cy, r * k, 0, 2 * Math.PI); x.stroke(); });
+    [2, 3, 4].forEach(function (r) { if (r > lim) return; x.beginPath(); x.arc(cx, cy, r * k, 0, 2 * Math.PI); x.stroke(); });
     x.setLineDash([]);
     x.strokeStyle = '#8a857c'; x.lineWidth = 1.2; x.beginPath(); x.arc(cx, cy, k, 0, 2 * Math.PI); x.stroke();
     x.font = '600 ' + Math.round(17 * fs) + 'px "Source Sans 3", sans-serif'; x.fillStyle = '#8a857c'; x.textAlign = 'center'; x.textBaseline = 'middle';
-    Object.keys(PHASE).forEach(function (p) { var a = PHASE[p] * Math.PI / 180; x.fillText(p, X(3.1 * Math.cos(a)), Y(3.1 * Math.sin(a))); });
+    Object.keys(PHASE).forEach(function (p) { var a = PHASE[p] * Math.PI / 180; x.fillText(p, X(0.74 * lim * Math.cos(a)), Y(0.74 * lim * Math.sin(a))); });
     x.font = '400 ' + Math.round(13 * fs) + 'px "Source Sans 3", sans-serif'; x.fillStyle = '#6f6b64';
-    [1, 2, 3, 4].forEach(function (r) { var a = -Math.PI / 4; x.lineWidth = 3; x.strokeStyle = 'rgba(255,255,255,0.9)'; x.strokeText(r, X(r * Math.cos(a)) + 10, Y(r * Math.sin(a)) + 10); x.fillText(r, X(r * Math.cos(a)) + 10, Y(r * Math.sin(a)) + 10); });
+    [1, 2, 3, 4].forEach(function (r) { if (r > lim) return; var a = -Math.PI / 4; x.lineWidth = 3; x.strokeStyle = 'rgba(255,255,255,0.9)'; x.strokeText(r, X(r * Math.cos(a)) + 10, Y(r * Math.sin(a)) + 10); x.fillText(r, X(r * Math.cos(a)) + 10, Y(r * Math.sin(a)) + 10); });
     x.font = 'italic ' + Math.round(14 * fs) + 'px "Source Sans 3", sans-serif'; x.fillStyle = '#7a756c';
-    REGION.forEach(function (r) { x.save(); x.translate(X(r[1]), Y(r[2])); x.rotate(r[3]); x.fillText(r[0], 0, 0); x.restore(); });
+    REGION.forEach(function (r) { x.save(); x.translate(X(r[1] * lim), Y(r[2] * lim)); x.rotate(r[3]); x.fillText(r[0], 0, 0); x.restore(); });
     x.restore();
     x.font = '500 ' + Math.round(14 * fs) + 'px "Source Sans 3", sans-serif'; x.fillStyle = '#4a4744'; x.textAlign = 'center'; x.textBaseline = 'middle';
     x.fillText('RMM1', cx, size - 12); x.save(); x.translate(12, cy); x.rotate(-Math.PI / 2); x.fillText('RMM2', 0, 0); x.restore();
@@ -149,7 +152,8 @@ SCRIPT = r"""
         var q2 = idx[j], px = ox(q2), py = oy(q2), mo = o.t[q2].slice(0, 7);
         pts.push({ x: px, y: py, s: 'Observed ' + fmtDate(o.t[q2]), r1: clean1(o.r1[q2], odn(q2), odd(q2)), r2: clean2(o.r2[q2], odn(q2), odd(q2)) });
         x.fillStyle = 'rgba(40,40,40,' + (0.35 + 0.65 * j / n).toFixed(2) + ')'; x.beginPath(); x.arc(px, py, 2.4, 0, 2 * Math.PI); x.fill();
-        if (j && mo !== lastMonth) label(x, px, py, new Date(o.t[q2] + ':00Z').toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' }), '#444', -11);
+        dots.push([px, py, 2.4]);
+        if (j && mo !== lastMonth) labs.push({ x: px, y: py, s: new Date(o.t[q2] + ':00Z').toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' }), col: '#444', dy: -11 });
         lastMonth = mo;
       }
       if (n) {
@@ -182,15 +186,47 @@ SCRIPT = r"""
           x.fillStyle = col; x.strokeStyle = '#fff'; x.lineWidth = 1.4; x.beginPath();
           if (li3 === last) x.rect(px2 - 4.5, py2 - 4.5, 9, 9); else x.arc(px2, py2, 3.6, 0, 2 * Math.PI);
           x.fill(); x.stroke();
-          if (five) label(x, px2, py2, String(Math.round(ld)), col, 10);
+          dots.push([px2, py2, 4.5]);
+          if (five) labs.push({ x: px2, y: py2, s: String(Math.round(ld)), col: col, dy: 10 });
         }
       }
     });
+    place(x, fs);
+  }
+  // the largest amplitude on show: the observed days and each model's mean out to the horizon
+  function reach() {
+    var a = 0, o = D.obs;
+    if (o) for (var q = Math.max(0, o.t.length - 2 * S.obsDays); q < o.t.length; q++) a = Math.max(a, Math.hypot(clean1(o.r1[q], o.dn && o.dn[q], o.dd && o.dd[q]), clean2(o.r2[q], o.dn && o.dn[q], o.dd && o.dd[q])));
+    MODELS.forEach(function (M) {
+      var m = D.models[M[0]]; if (!m || !S.on[M[0]]) return;
+      for (var i = 0; i < m.lead.length && m.lead[i] <= S.horizon + 0.01; i++) a = Math.max(a, Math.hypot(clean1(m.r1[i], D.dn34, D.ddmi), clean2(m.r2[i], D.dn34, D.ddmi)));
+    });
+    return a;
   }
   function hexa(h, a) { var n = parseInt(h.slice(1), 16); return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'; }
-  function label(x, px, py, s, col, dy) {
-    x.font = '600 ' + Math.round(13 * (window.__mmfs || 1)) + 'px "Source Sans 3", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.lineWidth = 3; x.strokeStyle = 'rgba(255,255,255,0.9)'; x.strokeText(s, px, py + dy); x.fillStyle = col; x.fillText(s, px, py + dy);
+  // the labels, drawn last so no line crosses them: each takes the first spot around its point (its own side, the
+  // opposite one, beside, the corners, then a step further out) that is clear of the markers and of the labels placed
+  // before it, or the spot that overlaps them least
+  function place(x, fs) {
+    var h = Math.round(13 * fs), boxes = dots.map(function (d) { return [d[0] - d[2], d[1] - d[2], 2 * d[2], 2 * d[2]]; });
+    x.font = '600 ' + h + 'px "Source Sans 3", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.lineWidth = 3; x.strokeStyle = 'rgba(255,255,255,0.9)';
+    labs.forEach(function (l) {
+      var w = x.measureText(l.s).width + 2, best = null, cost = Infinity;
+      [1, 1.9].forEach(function (far) {
+        var dy = l.dy * far, dx = w / 2 + 6 * far;
+        [[0, dy], [0, -dy], [dx, 0], [-dx, 0], [dx, 0.8 * dy], [-dx, 0.8 * dy], [dx, -0.8 * dy], [-dx, -0.8 * dy]].forEach(function (o) {
+          if (!cost) return;
+          var b = [l.x + o[0] - w / 2, l.y + o[1] - h / 2, w, h], c = 0;
+          boxes.forEach(function (q) {
+            c += Math.max(0, Math.min(b[0] + b[2], q[0] + q[2]) - Math.max(b[0], q[0])) * Math.max(0, Math.min(b[1] + b[3], q[1] + q[3]) - Math.max(b[1], q[1]));
+          });
+          if (c < cost) { cost = c; best = b; }
+        });
+      });
+      boxes.push(best);
+      x.strokeText(l.s, best[0] + w / 2, best[1] + h / 2); x.fillStyle = l.col; x.fillText(l.s, best[0] + w / 2, best[1] + h / 2);
+    });
   }
 
   // the controls

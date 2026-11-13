@@ -156,7 +156,7 @@
   .mv-runs { font-size: 0.95rem; color: var(--muted); margin: 0.2rem 0 0; }
   /* the sounding prompt, under the title badge (placeSndHint sets the exact top as the badge wraps); dismissible */
   .mv-sndhint { position: absolute; left: 8px; top: 52px; z-index: 3; display: flex; align-items: center; gap: 0.5rem;
-    max-width: calc(100% - 16px); background: #1f3b5c; color: #fff; border-radius: 8px; padding: 0.42rem 0.45rem 0.42rem 0.75rem;
+    max-width: calc(100% - 72px); background: #1f3b5c; color: #fff; border-radius: 8px; padding: 0.42rem 0.45rem 0.42rem 0.75rem;
     font: 500 0.98rem/1.3 var(--sans); box-shadow: 0 2px 10px rgba(0,0,0,0.25); }
   .mv-sndhint[hidden] { display: none; }
   .mv-sndhint b { font-weight: 700; }
@@ -2692,7 +2692,8 @@
     if (getComputedStyle(el).position !== "absolute") { el.style.top = el.style.left = el.style.maxWidth = ""; return; }
     var pr = el.offsetParent.getBoundingClientRect(), mr = mapEl.getBoundingClientRect();
     el.style.top = Math.round(b.getBoundingClientRect().bottom - pr.top + 6) + "px";
-    el.style.left = Math.round(mr.left - pr.left + 8) + "px"; el.style.maxWidth = Math.round(mr.width - 16) + "px";
+    el.style.left = Math.round(mr.left - pr.left + 8) + "px";
+    el.style.maxWidth = Math.round(document.querySelector(".mv-zoom").getBoundingClientRect().left - mr.left - 16) + "px";   // short of the zoom buttons
   }
   if (window.ResizeObserver) new ResizeObserver(placeSndHint).observe($("badge"));
   $("sndHX").addEventListener("click", function (e) { e.stopPropagation(); try { localStorage.setItem(SND_HINT_KEY, "1"); } catch (_) {} $("sndH").hidden = true; drawLabels(); });

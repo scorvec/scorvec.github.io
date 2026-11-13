@@ -817,10 +817,13 @@ window.plotlyP = new Promise(function (ok, no) {
                    ["mortgage", "Mortgage credit intermediaries", "#1f5fa8"], ["consumer", "Consumer credit intermediaries", "#d97a0b"],
                    ["other", "Other nonbank financial institutions", "#6f6b64"], ["not_broken_out", "Not broken out (smaller banks)", "#c9c4ba"]];
         var qx = cr.map(function (q) { return q.quarter; });
-        Plotly.react("c-cr", CAT.map(function (c) { return { type: "bar", x: qx, y: cr.map(function (q) { return q[c[0]]; }), name: c[1], marker: { color: c[2] },
+        // quarters as two-line ticks, and the long legend name broken on narrow screens: neither runs off the figure
+        var qt = qx.map(function (d) { return "Q" + Math.ceil(+d.slice(5, 7) / 3) + "<br>" + d.slice(0, 4); });
+        var brk = document.getElementById("c-cr").clientWidth < 480 ? "<br>(" : " (";
+        Plotly.react("c-cr", CAT.map(function (c) { return { type: "bar", x: qx, y: cr.map(function (q) { return q[c[0]]; }), name: c[1].replace(" (", brk), marker: { color: c[2] },
           hovertemplate: "$%{y:,.0f}B<extra>" + c[1] + "</extra>" }; }),
           L({ barmode: "stack", bargap: 0.35, legend: { orientation: "h", y: -0.18, x: 0 }, margin: { l: 52, r: 18, t: 10, b: 90 }, hovermode: "x unified",
-              xaxis: { gridcolor: "#eee", type: "category" }, yaxis: { gridcolor: "#eee", title: { text: "$ billion" } } }), CFG);
+              xaxis: { gridcolor: "#eee", type: "category", tickvals: qx, ticktext: qt, tickangle: 0 }, yaxis: { gridcolor: "#eee", title: { text: "$ billion" } } }), CFG);
         var q = cr[cr.length - 1], q0 = cr[0];
         document.getElementById("cr-note").insertAdjacentHTML("beforeend", " Latest, " + q.quarter + ": $" + Math.round(q.all) + " billion in all (" +
           (100 * q.all / q.loans).toFixed(1) + "% of bank loans), of which business credit intermediaries $" + Math.round(q.business) + " billion and private equity funds $" +

@@ -1011,7 +1011,7 @@
       // the names beside the line ends, pushed apart where the ensembles end together
       ends.sort((a, b) => a.y - b.y);
       let prev = -Infinity;
-      for (const e of ends) prev = e.ly = Math.max(e.y + 4, prev + 13);
+      for (const e of ends) prev = e.ly = Math.max(e.y + 4, prev + 14);
       const over = prev - (bot + 4);
       ends.forEach(e => { g += `<text x="${f1(Wd - R0 + 8)}" y="${f1(e.ly - Math.max(0, over))}">${N[e.m]}</text>`; });
       svg.innerHTML = g;

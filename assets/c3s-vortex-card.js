@@ -44,12 +44,20 @@
     s.onload = s.onerror = function () { var q = plotlyQ; plotlyQ = null; q.forEach(function (f) { f(); }); };
     document.head.appendChild(s);
   }
-  function layout(el, o) {
-    var narrow = el.offsetWidth < 620;
+  // Narrow screens: the legend sits at the foot of the figure, one entry a row, in a bottom margin sized for its rows
+  // (a legend that does not fit its margin is pushed up onto the axis title), and the figure grows to keep the plot area.
+  function layout(el, tr, o) {
+    var narrow = el.offsetWidth < 620, rows = tr.filter(function (t) { return t.showlegend !== false; }).length;
+    var t = narrow ? 64 : 48, b = narrow ? 58 + 19 * rows : 96;
+    if (narrow) {
+      el.style.height = t + 250 + b + "px";
+      [o.xaxis, o.yaxis].forEach(function (a) { a.title.font = { size: 12 }; });
+    }
     return Object.assign({
-      margin: { l: 56, r: 14, t: narrow ? 64 : 48, b: narrow ? 120 : 96 }, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+      margin: { l: 56, r: 14, t: t, b: b }, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
       font: { family: '"Source Sans 3", system-ui, sans-serif', size: 13, color: COL.ink },
-      legend: { orientation: "h", x: 0, y: narrow ? -0.3 : -0.24, yanchor: "top", font: { size: 12 } },
+      legend: narrow ? { orientation: "h", entrywidth: 1, entrywidthmode: "fraction", x: 0, xref: "container", y: 0, yref: "container", yanchor: "bottom", font: { size: 12 } }
+                     : { orientation: "h", x: 0, y: -0.24, yanchor: "top", font: { size: 12 } },
       hovermode: "closest", hoverlabel: { bgcolor: "#fff", font: { size: 12 } }
     }, o, { title: { text: "<b>" + o.title + "</b>", x: 0.01, xanchor: "left", y: 0.98, yanchor: "top", font: { size: narrow ? 13 : 15 } } });
   }
@@ -62,7 +70,7 @@
     for (var x = lo; x <= hi; x += (hi - lo) / 300) xs.push(x);
     var tr = [];
     var clim = xs.map(function (v) { return npdf((v - T.mean) / T.sd) / T.sd; });
-    tr.push({ x: xs, y: clim, mode: "lines", line: { color: COL.clim, width: 2, dash: "dash" }, name: "December climate 1993–2016 (MERRA-2, normal fit)", hoverinfo: "skip" });
+    tr.push({ x: xs, y: clim, mode: "lines", line: { color: COL.clim, width: 2, dash: "dash" }, name: "December climate 1993–2016 (MERRA-2" + (el.offsetWidth < 620 ? ")" : ", normal fit)"), hoverinfo: "skip" });
     var ymax = Math.max.apply(null, clim);
     if (F) {
       var dens = xs.map(function (v) { return tpdf((v - F.mean) / F.scale, F.df) / F.scale; });
@@ -80,14 +88,15 @@
     tr.push({ x: T.values.map(function (r) { return r.u; }), y: T.values.map(function () { return 0; }), mode: "markers", name: "observed Decembers 1993–2016",
               marker: { symbol: "line-ns-open", size: 14, color: COL.ink, line: { width: 1.6 } },
               text: T.values.map(function (r) { return "Dec " + r.year + ": " + r.u.toFixed(1) + " m/s"; }), hovertemplate: "%{text}<extra></extra>" });
-    var shapes = [t1, t2].map(function (v) { return { type: "line", x0: v, x1: v, y0: 0, y1: 1, yref: "paper", line: { color: "#555", width: 1.2, dash: "dot" } }; });
+    // the tercile lines stop under the two-line labels, which a narrow middle band would otherwise put across them
+    var shapes = [t1, t2].map(function (v) { return { type: "line", x0: v, x1: v, y0: 0, y1: 0.86, yref: "paper", line: { color: "#555", width: 1.2, dash: "dot" } }; });
     var ann = [
       { x: (lo + t1) / 2, y: 1, yref: "paper", text: "weak vortex<br>(lower third)", showarrow: false, font: { size: 12, color: COL.weak }, yanchor: "top" },
       { x: (t1 + t2) / 2, y: 1, yref: "paper", text: "near normal", showarrow: false, font: { size: 12, color: "#5f5b55" }, yanchor: "top" },
       { x: (t2 + hi) / 2, y: 1, yref: "paper", text: "strong vortex<br>(upper third)", showarrow: false, font: { size: 12, color: COL.strong }, yanchor: "top" }
     ];
     if (!F) ann.push({ x: T.mean, y: 0.45, yref: "paper", text: "forecast pending:<br>waiting for the " + issueName(J.issue) + " issue", showarrow: false, font: { size: 13, color: COL.fc }, bgcolor: "rgba(255,255,255,0.85)" });
-    Plotly.react(el, tr, layout(el, { title: "December-mean wind, 60°N 10 hPa" + (F ? ": calibrated forecast" : ""),
+    Plotly.react(el, tr, layout(el, tr, { title: "December-mean wind, 60°N 10 hPa" + (F ? ": calibrated forecast" : ""),
       xaxis: { title: { text: "m/s (westerly positive)" }, range: [lo, hi], gridcolor: COL.grid, zeroline: true, zerolinecolor: "#c2185b", zerolinewidth: 1.4 },
       yaxis: { title: { text: "probability density" }, range: [-0.04 * ymax, 1.32 * ymax], gridcolor: COL.grid, zeroline: false, showticklabels: false },
       shapes: shapes, annotations: ann }), { displayModeBar: false, responsive: true });
@@ -126,8 +135,8 @@
                 error_y: { type: "data", symmetric: false, array: [hi80 - F.mean], arrayminus: [F.mean - lo80], color: COL.fc, thickness: 2, width: 6 },
                 hovertemplate: "this issue: multi-model anomaly " + sg(F.mmm_anom, 2) + " m/s<br>calibrated December mean " + F.mean.toFixed(1) + " m/s (80 %: " + lo80.toFixed(0) + " to " + hi80.toFixed(0) + ")<extra></extra>" });
     }
-    Plotly.react(el, tr, layout(el, { title: (el.offsetWidth < 620 ? "Hindcast: model vs observed Dec" : "Hindcast 1993–2016: model anomaly vs observed December"),
-      xaxis: { title: { text: "multi-model December anomaly, " + MON[J.start_month - 1] + " start, m/s" }, range: [xmin, xmax], gridcolor: COL.grid, zeroline: true, zerolinecolor: "#999" },
+    Plotly.react(el, tr, layout(el, tr, { title: (el.offsetWidth < 620 ? "Hindcast: model vs observed Dec" : "Hindcast 1993–2016: model anomaly vs observed December"),
+      xaxis: { title: { text: (el.offsetWidth < 620 ? "model" : "multi-model") + " December anomaly, " + MON[J.start_month - 1] + " start, m/s" }, range: [xmin, xmax], gridcolor: COL.grid, zeroline: true, zerolinecolor: "#999" },
       yaxis: { title: { text: "observed December mean, m/s" }, gridcolor: COL.grid, zeroline: true, zerolinecolor: "#c2185b" },
       shapes: shapes }), { displayModeBar: false, responsive: true });
   }
