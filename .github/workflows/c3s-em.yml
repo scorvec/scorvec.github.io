@@ -68,6 +68,7 @@ jobs:
           sparse-checkout: |
             scripts/monthly/c3s_em.py
             scripts/monthly/mo_grid.py
+            scripts/monthly/mo_method.py
             scripts/sst/c3s_nino34.py
             scripts/sst/c3s_grib.py
             scripts/sst/c3s_ref.py
