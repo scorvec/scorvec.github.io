@@ -853,7 +853,8 @@ jobs:
           : > /tmp/ep.list
           for p in assets/sst/anim/pacjet_ifs assets/sst/anim/pacjet_ifs_manifest.json \
                    assets/sst/pacjet_ifs_wk1.webp assets/sst/pacjet_ifs_wk2.webp assets/sst/pacjet_ifs_axis.webp \
-                   assets/sst/pacjet_ifs_phase.webp assets/sst/data/pacjet_ifs.json \
+                   assets/sst/pacjet_ifs_phase.webp assets/sst/pacjet_ifs_event.webp assets/sst/pacjet_ifs_implied.webp \
+                   assets/sst/data/pacjet_ifs.json \
                    assets/sst/qbo_zeroline_70.webp assets/sst/qbo_zeroline_50.webp assets/sst/qbo_zeroline_30.webp \
                    assets/sst/qbo_zeroline_10.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_ifs.json; do
             [ -e "$p" ] && echo "$p" >> /tmp/ep.list

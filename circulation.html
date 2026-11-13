@@ -327,6 +327,9 @@ Atmospheric angular momentum changes only through torques the Earth exerts on th
 <template id="about-pacjet">
 <p class="chart-sources">ECMWF AIFS-ENS (control + 50 members) and IFS-ENS (50 members) 250&nbsp;hPa u and v, open data (CC BY 4.0), Google Cloud mirror &middot; normals, phases and impacts: ERA5 1991&ndash;2020 daily 250&nbsp;hPa wind, 500&nbsp;hPa height, 2&nbsp;m temperature and precipitation via WeatherBench&nbsp;2 (Copernicus C3S) &middot; drift and skill: 220 archived runs per model, July 2025&ndash;September 2026 &middot; torque: ERA5 1991&ndash;2020 0.25&deg; surface pressure (ARCO-ERA5, Google Cloud public data) and the IFS-ENS forecast over 70&ndash;105&deg;E 25&ndash;45&deg;N &middot; phases after Winters, Keyser &amp; Bosart (2019, <i>Wea. Forecasting</i> 34, 199&ndash;219) and Jaffe, Martin, Vimont &amp; Lorenz (2011, <i>J. Climate</i> 24, 2846&ndash;2860) &middot; FDR: Wilks (2016, <i>Bull. Amer. Meteor. Soc.</i> 97, 2263&ndash;2273) &middot; updated twice daily</p>
 </template>
+<template id="about-jetext">
+<p class="chart-sources">ECMWF AIFS-ENS (control + 50 members) and IFS-ENS (50 members) 250&nbsp;hPa u and v, open data (CC BY 4.0), Google Cloud mirror &middot; onsets, composites and odds: ERA5 1991&ndash;2020 daily 250&nbsp;hPa wind, 500&nbsp;hPa height, sea-level pressure and 200&nbsp;hPa wind (for the velocity potential) via WeatherBench&nbsp;2 (Copernicus C3S) &middot; now and ahead: the MJO page&rsquo;s wind-only RMM, the Siberian High and East Asian trough of each ensemble&rsquo;s newest run, the IFS-ENS Himalayan torque forecast and NOAA CPC&rsquo;s ONI &middot; phases after Winters, Keyser &amp; Bosart (2019, <i>Wea. Forecasting</i> 34, 199&ndash;219) &middot; FDR: Wilks (2016, <i>Bull. Amer. Meteor. Soc.</i> 97, 2263&ndash;2273) &middot; updated twice daily</p>
+</template>
 <template id="about-jetbr">
 <p class="chart-sources">ECMWF IFS-ENS open data (CC BY 4.0), 50 perturbed members, t, u and v on nine levels 700&ndash;100&nbsp;hPa, Google Cloud mirror &middot; normals: ERA5 1991&ndash;2020 via WeatherBench&nbsp;2 (Copernicus C3S) &middot; method: Winters &amp; Martin (2014, <i>Wea. Forecasting</i> 29, 954&ndash;974), Christenson, Martin &amp; Handlos (2017, <i>J. Climate</i> 30, 7231&ndash;7246), Winters, Keyser, Bosart &amp; Martin (2020, <i>Mon. Wea. Rev.</i> 148, 1987&ndash;2008) &middot; updated daily</p>
 </template>
@@ -352,6 +355,42 @@ Atmospheric angular momentum changes only through torques the Earth exerts on th
       ]
     }
     </script>
+<!-- The jet extension watch's ingredient list (pacjet ext/drivers): drawn after each render from the event, drivers
+     and driver_leads of assets/sst/data/pacjet_<model>.json (scripts/mjo/src/pacjet_watch.py). -->
+<div id="pjd-view" class="pjd" hidden>
+<style>
+.pjd-head{font-size:1.05rem;line-height:1.5;color:var(--ink);margin:2px 0 4px;max-width:none}
+.pjd-sum{font-size:.98rem;line-height:1.5;color:var(--ink2);margin:0 0 10px;max-width:none}
+.pjd-table{width:100%;border-collapse:collapse;font-size:.96rem;line-height:1.4}
+.pjd-table th,.pjd-table td{padding:8px 10px;border-bottom:1px solid var(--rule);text-align:left;vertical-align:top}
+.pjd-table thead th{font-weight:600;color:var(--ink2);font-size:var(--t-small);vertical-align:bottom;border-bottom:1px solid var(--edge)}
+.pjd-table thead tr:first-child th{border-bottom:0;padding-bottom:0}
+.pjd-table .pjd-lead{text-align:center;white-space:nowrap;width:6em}
+.pjd-table tbody th{font-weight:600;color:var(--ink);width:14em}
+.pjd-sub{display:block;font-weight:400;color:var(--muted);font-size:var(--t-small)}
+.pjd-fc{display:block;color:var(--ink2);font-size:var(--t-small);margin-top:2px}
+.pjd-up{background:var(--accent-light)}
+.pjd-down{background:color-mix(in srgb,var(--warm) 14%,transparent)}
+.pjd-nil{color:var(--muted)}
+@media (max-width:640px){
+  .pjd-table,.pjd-table tbody{display:block}
+  .pjd-table thead{display:none}
+  .pjd-table tr{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:9px 0;border-bottom:1px solid var(--rule)}
+  .pjd-table tbody th,.pjd-table td{border:0;padding:1px 2px;width:auto;min-width:0}
+  .pjd-table tbody th,.pjd-table .pjd-now,.pjd-table .pjd-wide{grid-column:1/-1}
+  .pjd-table .pjd-wide{padding:5px 6px}
+  .pjd-table td.pjd-lead{padding:4px 2px;border-radius:3px;width:auto}
+  .pjd-table td.pjd-nil{display:none}
+  .pjd-table td.pjd-lead::before{content:attr(data-lead);display:block;color:var(--ink2);font-size:var(--t-small)}
+}
+</style>
+<p class="pjd-head" id="pjd-head" aria-live="polite"></p>
+<p class="pjd-sum" id="pjd-sum" hidden></p>
+<table class="pjd-table" id="pjd-table" hidden>
+<thead><tr><th scope="col" rowspan="2">Ingredient</th><th scope="col" rowspan="2">Now</th><th scope="colgroup" colspan="4" id="pjd-span" class="pjd-lead">Chance of an onset against normal, by days ahead</th></tr><tr id="pjd-leads"></tr></thead>
+<tbody id="pjd-rows"></tbody>
+</table>
+</div>
 <!-- Drop a particle (assets/hbranch/drop.js, data from hadley_branch_maps.drop in hbranch.yml). Mounted by the hadley
      product's turnover/drop view. Data: assets/sst/anim/hbranch_drop_manifest.json -> int16 paths on the frames branch. -->
 <div id="hbd-view" class="hbd" hidden>
@@ -468,24 +507,101 @@ window.STAGE = {
   jets: {label: "Subtropical jets", a: {label: "View", items: [["loop","Cross-section loop"],["series","Strength and position"]]},
           frame: function (a) { return a === "loop" ? "sst_anim.html?embed=1&manifest=jets_manifest.json&region=jets" : null; }, img: function () { return "assets/sst/jets.webp?v=558b09442eba"; },
           about: "about-jets", cap: function (a) { return a === "loop" ? "Zonal-mean zonal wind anomaly cross-section through the 15-day forecast, cores marked." : "Speed and latitude of each hemisphere's subtropical jet core, members and mean against the normal band."; }},
-  pacjet: {label: "North Pacific jet", a: {label: "View", items: [["maps","Jet maps"],["axis","Jet axis"],["phase","Phase & impacts"],["torque","Torque (research)"]].concat(JETBR_SHOW ? [["branches","Jet branches"]] : [])},
+  pacjet: {label: "North Pacific jet", a: {label: "View", items: [["maps","Jet maps"],["axis","Jet axis"],["ext","Extension watch"],["phase","Phase & impacts"],["torque","Torque (research)"]].concat(JETBR_SHOW ? [["branches","Jet branches"]] : [])},
           b: function (a) { return a === "maps" ? {label: "Period", items: [["wk1","Week 1"],["wk2","Week 2"],["loop","Day by day (loop)"]]}
-                                  : a === "phase" ? {label: "Show", items: [["diagram","Phase diagram"],["lag0","What each phase brings"],["lag3_7","… 3–7 days later"]]}
+                                  : a === "ext" ? {label: "Show", items: [["tracker","Tracker"],["drivers","What favours it"],["before","Before an onset (ERA5)"]]}
+                                  : a === "phase" ? {label: "Show", items: [["diagram","Phase diagram"],["implied","What the forecast implies"],["lag0","What each phase brings"],["lag3_7","… 3–7 days later"]]}
                                   : a === "branches" ? {label: "Show", items: [["loop","Maps by lead (loop)"],["events","Superposition events by region"]]} : null; },
-          c: function (a, b) { return (a === "maps" || a === "axis" || (a === "phase" && b === "diagram")) ? {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"]]} : null; },
+          c: function (a, b) { return (a === "maps" || a === "axis" || (a === "phase" && (b === "diagram" || b === "implied")) || (a === "ext" && b !== "before")) ? {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"]]} : null; },
           frame: function (a, b, c) { return a === "maps" && b === "loop" ? "sst_anim.html?embed=1&manifest=pacjet_" + c + "_manifest.json&region=pacjet_" + c
                                        : a === "branches" && b === "loop" ? "sst_anim.html?embed=1&manifest=jetbr_ifs_manifest.json&region=jetbr_ifs" : null; },
           ratio: function () { return "1170/870"; },
+          dom: function (a, b) { return a === "ext" && b === "drivers" ? "pjd-view" : null; },
           img: function (a, b, c) { return a === "maps" ? "assets/sst/pacjet_" + c + "_" + b + ".webp" : a === "axis" ? "assets/sst/pacjet_" + c + "_axis.webp"
-                                         : a === "phase" ? (b === "diagram" ? "assets/sst/pacjet_" + c + "_phase.webp" : "assets/sst/pacjet_impacts_" + b + ".webp")
+                                         : a === "ext" ? (b === "tracker" ? "assets/sst/pacjet_" + c + "_event.webp" : "assets/sst/pacjet_drivers.webp")
+                                         : a === "phase" ? (b === "diagram" || b === "implied" ? "assets/sst/pacjet_" + c + "_" + (b === "diagram" ? "phase" : "implied") + ".webp" : "assets/sst/pacjet_impacts_" + b + ".webp")
                                          : a === "branches" ? "assets/sst/jetbr_ifs_events.webp" : "assets/sst/pacjet_torque.webp"; }, bust: "hourly", fit: false,
-          about: function (a) { return a === "branches" ? "about-jetbr" : "about-pacjet"; }, cap: function (a, b) { return {maps: b === "loop" ? "Ensemble-mean 250 hPa wind speed and the chance of a ≥ 50 m/s core, day by day to day 15." : "The week's ensemble-mean 250 hPa wind speed and jet axis against the normal, and the share of member-days with a ≥ 50 m/s core.",
+          about: function (a) { return a === "branches" ? "about-jetbr" : a === "ext" ? "about-jetext" : "about-pacjet"; }, cap: function (a, b) { return {maps: b === "loop" ? "Ensemble-mean 250 hPa wind speed and the chance of a ≥ 50 m/s core, day by day to day 15." : "The week's ensemble-mean 250 hPa wind speed and jet axis against the normal, and the share of member-days with a ≥ 50 m/s core.",
                                                           axis: "Every member's jet axis on days 3, 7, 10 and 14 against the ERA5 normal axis and its usual range.",
-                                                          phase: b === "diagram" ? "Where the jet sits among its four cold-season phases, member by member, with the phase odds by day and the measured skill." : "ERA5 1991–2020: the 500 hPa height, temperature and precipitation that go with each phase; colour only where significant.",
+                                                          ext: {tracker: "Every member's extension index and the share of members in the extension phase by day, with how long and how strong their episodes run against ERA5's.",
+                                                                drivers: "What changed the odds of an extension in ERA5 and where each stands now; × is the chance of an onset in those days against its usual chance, given only where significant.",
+                                                                before: "ERA5 1991–2020: what changed over the tropics and Asia in the twelve days before the jet extended; colour only where significant."}[b],
+                                                          phase: b === "diagram" ? "Where the jet sits among its four cold-season phases, member by member, with the phase odds by day and the measured skill."
+                                                               : b === "implied" ? "The temperature, precipitation and 500 hPa height that went with a jet like the forecast one in ERA5, for the weeks ahead; colour only where that link held out of sample."
+                                                               : "ERA5 1991–2020: the 500 hPa height, temperature and precipitation that go with each phase; colour only where significant.",
                                                           torque: "Research view: the ERA5 lagged regression of the jet phases on the Himalayan mountain torque, and what it implies for this cycle only where significant.",
                                                           branches: b === "loop" ? "IFS-ENS: the chance of a polar jet, a subtropical jet and a superposition within 300 km, lead by lead, against the ERA5 normal for the date; drawn only at the leads where it beats the normal." : "IFS-ENS: the chance of a superposition event over the western North Pacific and North America by lead, against the ERA5 rate for the date; drawn only at the leads where it beats it."}[a]; }}
 }
 };
+
+// The extension watch's ingredient list (#pjd-view): redrawn on each render, since the stage changes views without a hashchange.
+(function () {
+  var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  var LABEL = {aifs: "AIFS-ENS", ifs: "IFS-ENS"}, seq = 0;
+  function el(id) { return document.getElementById(id); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]; }); }
+  function day(s, add) { var d = new Date(s.slice(0, 10) + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + (add || 0)); return d; }
+  function dm(d) { return d.getUTCDate() + " " + MON[d.getUTCMonth()]; }
+  function span(a, b) { return (a.getUTCMonth() === b.getUTCMonth() ? a.getUTCDate() : dm(a)) + "–" + dm(b); }
+  function asof(r) {
+    var when = r.asof.length === 7 ? "three months centred on " + MON[+r.asof.slice(5) - 1] + " " + r.asof.slice(0, 4) : dm(day(r.asof));
+    return when + (r.source ? ", " + r.source : "");
+  }
+  function headline(doc, label) {
+    var e = doc.event, run = label + " run of " + dm(day(doc.init)) + " " + doc.init.slice(11);
+    if (!e) return "The extension watch has not been published for this model yet; it arrives with its next run.";
+    if (!e.in_season) return "The extension watch runs for forecasts centred in November to March (" + run + ").";
+    var era = "in ERA5 one begins within " + e.horizon + " days of " + Math.round(e.base) + " % of November–March days outside the phase";
+    if (e.state === "under_way")
+      return "The jet has been in the extension phase since " + dm(day(e.since)) + "; " +
+        (e.end ? "the median member leaves it after " + dm(day(e.end)) : "more than half the members are still in it when the run ends") +
+        " (" + e.going + " of " + e.members + " still in it on the last day; " + run + ").";
+    var o = e.onset, by = dm(day(doc.init, e.horizon));
+    return (o.members ? o.members + " of " + e.members + " members begin an extension by " + by + (o.median ? " (median onset " + dm(day(o.median)) + ")" : "")
+                      : "No member begins an extension by " + by) + "; " + era + " (" + run + ").";
+  }
+  function cell(r, lead) {
+    var e = r.effects.filter(function (x) { return x.lead[0] === lead[0] && x.lead[1] === lead[1]; })[0], tag = "days " + lead[0] + "–" + lead[1];
+    if (!e) return '<td class="pjd-lead pjd-nil" data-lead="' + tag + '">–</td>';
+    return '<td class="pjd-lead ' + (e.ratio > 1 ? "pjd-up" : "pjd-down") + '" data-lead="' + tag + '" title="' + e.ratio.toFixed(1) +
+      ' times the usual chance">' + (e.ratio > 1 ? "▲" : "▼") + " ×" + e.ratio.toFixed(1) + "</td>";
+  }
+  function ahead(r) {
+    if (!r.ahead) return "";
+    var t = day(r.ahead.valid);
+    return '<span class="pjd-fc">Forecast: ' + esc(r.ahead.value) + " on " + dm(t) + ", a state that made an onset " + r.ahead.effects.map(function (x) {
+      return x.ratio.toFixed(1) + " times as likely on " + span(day(r.ahead.valid, x.lead[0]), day(r.ahead.valid, x.lead[1]));
+    }).join(" and ") + "</span>";
+  }
+  function row(r, leads) {
+    var d = r.days, tint = r.verdict === "favours" ? " pjd-up" : r.verdict === "against" ? " pjd-down" : "";
+    return '<tr><th scope="row">' + esc(r.name) + '</th><td class="pjd-now">' + esc(r.now) + '<span class="pjd-sub">' + esc(asof(r)) + "</span>" + ahead(r) + "</td>" +
+      (d ? '<td class="pjd-wide' + tint + '" colspan="' + leads.length + '">The background: the jet is extended on ' + d.el_nino + " % of El Niño winters’ days, " +
+           d.neutral + " % of neutral winters’ and " + d.la_nina + " % of La Niña winters’</td>"
+         : leads.map(function (lead) { return cell(r, lead); }).join("")) + "</tr>";
+  }
+  function names(rows, verdict) { return rows.filter(function (r) { return r.verdict === verdict; }).map(function (r) { return r.name; }).join(", "); }
+  function draw(doc, model) {
+    var rows = doc.drivers || [], leads = doc.driver_leads || [], up = names(rows, "favours"), down = names(rows, "against"), mixed = names(rows, "mixed");
+    el("pjd-head").textContent = headline(doc, LABEL[model]);
+    el("pjd-sum").textContent = [up && "Favours an onset: " + up + ".", down && "Against: " + down + ".", mixed && "Either way by lead: " + mixed + "."].filter(Boolean).join(" ");
+    el("pjd-sum").hidden = !(rows.length && (up || down || mixed));
+    el("pjd-leads").innerHTML = leads.map(function (lead) { return '<th scope="col" class="pjd-lead">' + lead[0] + "–" + lead[1] + "</th>"; }).join("");
+    el("pjd-span").colSpan = Math.max(leads.length, 1);
+    el("pjd-rows").innerHTML = rows.map(function (r) { return row(r, leads); }).join("");
+    el("pjd-table").hidden = !(rows.length && leads.length);
+  }
+  window.STAGE.onRender = function (sel) {
+    if (!(sel.p === "pacjet" && sel.a === "ext" && sel.b === "drivers")) return;
+    var mine = ++seq;
+    el("pjd-head").textContent = "Loading the checklist…";
+    el("pjd-sum").hidden = el("pjd-table").hidden = true;
+    fetch("assets/sst/data/pacjet_" + sel.c + ".json?v=" + new Date().toISOString().slice(0, 13))
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (doc) { if (mine === seq) draw(doc, sel.c); })
+      .catch(function () { if (mine === seq) el("pjd-head").textContent = "The checklist could not be loaded just now; try reloading in a minute."; });
+  };
+})();
 </script>
 
 

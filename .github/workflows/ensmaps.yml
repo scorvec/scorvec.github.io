@@ -33,8 +33,10 @@ name: Global ensemble maps (data)
 # Actions cache (ensmaps-<model>-telecon-<cycle>, the two newest kept), and the `telecon` job - one at a time - reads
 # the newest run of each model, the hindcast table and the reference (telecon15.yml), adds each new run to its model's
 # run record (assets/sst/data/runs/telecon15_<model>.json, the last ten days of runs, read from main as it stands),
-# draws the figures into the frames store and commits the records and assets/sst/data/telecon15.json. Either job
-# failing leaves the maps as published.
+# draws the figures into the frames store and commits the records and assets/sst/data/telecon15.json. From the same
+# fields it writes the Siberian High and East Asian trough indices of the North Pacific jet's extension watch
+# (scripts/ensmaps/jet_upstream.py -> assets/sst/data/pacjet_upstream.json). Either job failing leaves the maps as
+# published.
 #
 # Sources per run (the steps of the full days, 6-hourly: 15 or 14, GEFS and GEPS to +384 h one more):
 #   ifs   ECMWF open data, Google Cloud mirror only: 2t of the 50 perturbed members from the 0.1-deg surface files,
@@ -470,8 +472,10 @@ jobs:
             /scripts/lib/
             /scripts/verify/
             /scripts/constraints.txt
+            /scripts/mjo/data/reference/pacjet_drivers.json
             /assets/sst/data/telecon15.json
             /assets/sst/data/runs/telecon15_*.json
+            /assets/sst/data/pacjet_upstream.json
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
@@ -532,6 +536,10 @@ jobs:
             "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$TC_REF/telecon15_ref.npz")
           if [ "$code" = 404 ]; then echo "::notice::no teleconnection reference $TC_REF yet (telecon15.yml): nothing drawn"; exit 0; fi
           if [ "$code" != 200 ]; then echo "::error::$TC_REF: HTTP $code"; exit 1; fi
+          # the Siberian High and East Asian trough of the same fields, for the jet's extension watch (pacjet_watch.py)
+          python scripts/ensmaps/jet_upstream.py --fields telecon/*.npz \
+            --boxes scripts/mjo/data/reference/pacjet_drivers.json --out assets/sst/data/pacjet_upstream.json \
+            || echo "::warning::the jet's upstream indices were not written"
           python scripts/ensmaps/ensmaps_telecon.py run --fields telecon/*.npz --ref "$RUNNER_TEMP/telecon15_ref.npz" \
             --table tbl --site .
           scripts/lib/publish_frames_ci.sh assets/telecon15/fig
@@ -541,7 +549,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          outs() { ls assets/sst/data/telecon15.json assets/sst/data/runs/telecon15_*.json 2>/dev/null; }
+          outs() { ls assets/sst/data/telecon15.json assets/sst/data/runs/telecon15_*.json assets/sst/data/pacjet_upstream.json 2>/dev/null; }
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" $(outs)
           for i in 1 2 3 4 5; do

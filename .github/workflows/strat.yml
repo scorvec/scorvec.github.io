@@ -19,7 +19,8 @@ name: Stratosphere (vortex, waves 1 and 2, E-P flux from GEFS)
 #                                 to April; descent_watch.absorb, from the quadratics the loop holds)
 #   qbo_duct.py --model aifs -> scripts/strat/data/zmu_members_aifs.npz (zero line) + v250 for pacjet (heavy job)
 #   qbo_zeroline.py   -> assets/sst/qbo_zeroline_{70,50,30,10}.webp + data/qbo_zeroline{,_aifs}.json   (heavy job)
-#   pacjet.py         -> assets/sst/pacjet_aifs_*.webp, pacjet_torque.webp, anim/pacjet_aifs/  (heavy job; circulation.html)
+#   pacjet.py         -> assets/sst/pacjet_aifs_*.webp, pacjet_torque.webp, pacjet_drivers.webp, anim/pacjet_aifs/  (heavy
+#                        job; circulation.html)
 #   jets.py           -> assets/sst/jets.webp + anim/jets/  per-member zonal-mean jets from the same u files (heavy job;
 #                        circulation.html), 00/12Z
 #   nh_vortex.py --record-only --members -> data/runs/vortex_{aifs,aifsc}.json + assets/sst/vortex_members_aifs.webp
@@ -418,7 +419,9 @@ jobs:
       #                 owns it) and the committed MERRA-2 reference; strat-ifs.yml adds the IFS-ENS half and re-renders
       #   pacjet        (00/12Z) the North Pacific jet: 250 hPa u from the 12-level pull and v from qbo_duct's fetch; maps,
       #                 loop, jet axis, phase diagram, the torque research view (the committed torque_ranges.json from
-      #                 aam-ifs.yml) and the phase-impact figures (scripts/mjo/data/reference/pacjet_impacts.npz)
+      #                 aam-ifs.yml), the phase-impact figures (scripts/mjo/data/reference/pacjet_impacts.npz), the
+      #                 extension watch (pacjet_watch.py: committed MJO, torque, ONI and pacjet_upstream.json, nothing
+      #                 fetched) and what the jet implies (pacjet_implied.npz)
       - name: QBO zero-wind line and North Pacific jet
         env:
           D: ${{ needs.cycle.outputs.date }}
@@ -458,6 +461,7 @@ jobs:
                    assets/sst/jets.webp assets/sst/anim/jets assets/sst/anim/jets_manifest.json \
                    assets/sst/pacjet_aifs_wk1.webp assets/sst/pacjet_aifs_wk2.webp assets/sst/pacjet_aifs_axis.webp \
                    assets/sst/pacjet_aifs_phase.webp assets/sst/pacjet_torque.webp \
+                   assets/sst/pacjet_aifs_event.webp assets/sst/pacjet_aifs_implied.webp assets/sst/pacjet_drivers.webp \
                    assets/sst/pacjet_impacts_lag0.webp assets/sst/pacjet_impacts_lag3_7.webp \
                    assets/sst/data/pacjet_aifs.json assets/sst/data/pacjet_analysis.json \
                    assets/sst/qbo_zeroline_70.webp assets/sst/qbo_zeroline_50.webp assets/sst/qbo_zeroline_30.webp \
@@ -625,6 +629,7 @@ jobs:
                    assets/regimes/data/regimes_members_aifs.json assets/regimes/data/regimes_drift_aifs.json \
                    assets/sst/qbo_zeroline_*.webp assets/sst/data/qbo_zeroline.json assets/sst/data/qbo_zeroline_aifs.json \
                    assets/sst/pacjet_aifs_*.webp assets/sst/pacjet_torque.webp assets/sst/pacjet_impacts_*.webp assets/sst/jets.webp \
+                   assets/sst/pacjet_drivers.webp \
                    assets/sst/data/pacjet_aifs.json assets/sst/data/pacjet_analysis.json \
                    assets/sst/refractive_gefs.webp assets/sst/data/refractive_gefs.json \
                    assets/sst/dwatch_absorb_gefs.webp assets/sst/data/runs/absorb_gefs.json assets/sst/runs/absorb_gefs.webp \

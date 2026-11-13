@@ -1,0 +1,53 @@
+{
+ "period": [
+  1991,
+  2020
+ ],
+ "months": [
+  11,
+  12,
+  1,
+  2,
+  3
+ ],
+ "alpha_fdr": 0.1,
+ "r_min": 0.15,
+ "skill": {
+  "t2m_wk2": {
+   "days": 4532,
+   "r_cv_median": 0.21,
+   "r_cv_max": 0.58,
+   "share_kept": 0.618
+  },
+  "t2m_wk3": {
+   "days": 4315,
+   "r_cv_median": 0.15,
+   "r_cv_max": 0.37,
+   "share_kept": 0.495
+  },
+  "prcp_wk2": {
+   "days": 4532,
+   "r_cv_median": 0.09,
+   "r_cv_max": 0.51,
+   "share_kept": 0.384
+  },
+  "prcp_wk3": {
+   "days": 4315,
+   "r_cv_median": 0.03,
+   "r_cv_max": 0.33,
+   "share_kept": 0.128
+  },
+  "z500_wk2": {
+   "days": 4532,
+   "r_cv_median": 0.26,
+   "r_cv_max": 0.89,
+   "share_kept": 0.72
+  },
+  "z500_wk3": {
+   "days": 4315,
+   "r_cv_median": 0.16,
+   "r_cv_max": 0.45,
+   "share_kept": 0.525
+  }
+ }
+}

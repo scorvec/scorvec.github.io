@@ -38,6 +38,8 @@ data are fetched.
            recorded once; the CRPS of a Student t is the integral of its squared CDF error; the seasons of a window around
            5 January join November and February; the blend of two equally skilful models takes equal weights and beats
            either significantly, and that of a skilful model and a noise one takes skill weights
+  jet      the jet watch's box indices: a planted departure of c sigma in a box reads c against the valid day's normal,
+           the trough's box is read less the mean north of 20N, and a lead short of members gives no ensemble mean
 """
 
 from __future__ import annotations
@@ -758,6 +760,46 @@ def telecon():
     check(got == [], f"no blend without a sample at the last lead: {got}")
 
 
+def jet_boxes():
+    import jet_upstream as JU
+    from latlon import G25N, slot366
+
+    print("jet")
+    init, lead_h = pd.Timestamp("2028-02-27"), np.array([24, 48, 72])  # valid days span 29 February
+    slots = slot366(pd.DatetimeIndex(init + pd.to_timedelta(lead_h, unit="h")))
+    boxes = {
+        "sib": {"field": "msl", "lat": [45.0, 60.0], "lon": [60.0, 100.0], "less": None, "sd": 8.0},
+        "eat": {"field": "z500", "lat": [35.0, 50.0], "lon": [115.0, 145.0], "less": [20.0, 90.0], "sd": 70.0},
+    }
+    boxes["sib"]["normal"] = (1020.0 + np.arange(366) / 100).tolist()
+    boxes["eat"]["normal"] = (-60.0 - np.arange(366) / 10).tolist()
+    in_box = {k: ((G25N.lat >= b["lat"][0]) & (G25N.lat <= b["lat"][1]))[:, None]
+              & ((G25N.lon >= b["lon"][0]) & (G25N.lon <= b["lon"][1]))[None] for k, b in boxes.items()}  # fmt: skip
+    msl = np.full((5, 3, *G25N.shape), 1000.0)
+    z = np.full((5, 3, *G25N.shape), 5500.0)
+    w = np.cos(np.deg2rad(G25N.lat))[:, None] * np.ones(G25N.shape)
+    for i, slot in enumerate(slots):
+        msl[:, i][:, in_box["sib"]] = boxes["sib"]["normal"][slot] + 1.5 * 8.0
+        # the box stands d below the rest; the hemisphere's mean then sits d x (the box's share of the area) lower
+        d = (boxes["eat"]["normal"][slot] - 2.0 * 70.0) / (1 - w[in_box["eat"]].sum() / w.sum())
+        z[:, i][:, in_box["eat"]] = 5500.0 + d
+    ok = np.ones((5, 3), bool)
+    ok[:2, 2] = False  # three of five members at the last lead: below the share an ensemble mean needs
+    run = {
+        "key": "gefs",
+        "init": init,
+        "lead_h": lead_h,
+        "msl": msl * 10,
+        "ok_msl": ok,
+        "z": z,
+        "ok": np.ones((5, 3), bool),
+    }
+    got = JU.indices(run, boxes)
+    check(got["sib"] == [1.5, 1.5, None] and got["valid"] == ["2028-02-28", "2028-02-29", "2028-03-01"],
+          f"Siberian High: 1.5 sigma above each valid day's normal, no mean where members are short: {got['sib']}")  # fmt: skip
+    check(got["eat"] == [-2.0, -2.0, -2.0], f"East Asian trough, less the mean north of 20N: {got['eat']}")
+
+
 def main() -> int:
     grids()
     grib_checks()
@@ -770,6 +812,7 @@ def main() -> int:
     clusters()
     super_ens()
     telecon()
+    jet_boxes()
     print("all checks passed")
     return 0
 

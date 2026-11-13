@@ -15,6 +15,14 @@ stratosphere jobs already pull from the Google Cloud mirror):
   assets/sst/pacjet_torque.webp                   (--torque, AIFS only) the research view: ERA5 lagged regression of
                                                    the jet indices on the Himalayan mountain torque, and what it implies
                                                    for this cycle only where it is significant
+  assets/sst/pacjet_{model}_event.webp            the extension watch (pacjet_watch.py, basis months Nov-Mar): the
+                                                   members' extension episodes against ERA5's; with it in the JSON the
+                                                   state of what changed the odds of an onset in ERA5 ("drivers")
+  assets/sst/pacjet_{model}_implied.webp          what the days 10-14 jet indices imply over North America for the two
+                                                   weeks that follow (build_pacjet_implied.py), where that held out of
+                                                   sample
+  assets/sst/pacjet_drivers.webp                  (AIFS only, static) ERA5 before an extension onset
+                                                   (build_pacjet_drivers.py)
 
 Members: AIFS-ENS control + perturbed 1-50 (u from the 12-level AAM pull, v at 250 hPa from qbo_duct.py's pull);
 IFS-ENS perturbed 1-50 (qbo_duct.py --model ifs streams u/v at every level and leaves the 250 hPa sector here via
@@ -1085,6 +1093,31 @@ def main() -> int:
                 BI.render(out_dir)
         except Exception as e:  # noqa: BLE001
             print(f"  impact figures failed: {e}", flush=True)
+        try:
+            import build_pacjet_drivers as BD
+
+            if BD.NPZ.exists():
+                BD.render(out_dir)
+        except Exception as e:  # noqa: BLE001
+            print(f"  onset composites failed: {e}", flush=True)
+    try:
+        import pacjet_watch as PW
+
+        tail = tail_pcs(month, init.normalize())
+        doc["event"] = PW.render(
+            a.model, LABEL[a.model], MCOL[a.model], init, pcs, month, tail, out_dir / f"pacjet_{a.model}_event.webp"
+        )
+        doc["drivers"] = PW.checklist(a.model, init, pcs, month, a.torque)
+        doc["driver_leads"] = PW.reference()["leads"]
+    except Exception as e:  # noqa: BLE001
+        print(f"  extension watch failed: {e}", flush=True)
+    try:
+        import build_pacjet_implied as BM
+
+        if BM.NPZ.exists():
+            doc["implied"] = BM.render(LABEL[a.model], init, pcs, month, out_dir / f"pacjet_{a.model}_implied.webp")
+    except Exception as e:  # noqa: BLE001
+        print(f"  implied impacts failed: {e}", flush=True)
     if a.model == "aifs" and F_TORQ.exists():
         try:
             doc["torque"] = render_torque(init, pcs.mean(0), valid, out_dir / "pacjet_torque.webp", a.torque)

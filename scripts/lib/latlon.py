@@ -1,6 +1,7 @@
-"""Regular latitude-longitude grids: first-order conservative remapping between them, and the 366-day calendar of
-their daily normals. Shared by the 500 hPa verification (scripts/verify/z500_acc.py) and the days 1-15 teleconnection
-forecasts (scripts/ensmaps/telecon15.py, ensmaps_telecon.py), so a field is put on a grid one way everywhere.
+"""Regular latitude-longitude grids: first-order conservative remapping between them, box means, and the 366-day
+calendar of their daily normals. Shared by the 500 hPa verification (scripts/verify/z500_acc.py), the days 1-15
+teleconnection forecasts (scripts/ensmaps/telecon15.py, ensmaps_telecon.py) and the jet extension watch's box indices
+(scripts/ensmaps/jet_upstream.py), so a field is put on a grid one way everywhere.
 
     from latlon import G15, remap
     z15 = remap(z, lat, lon, G15)    # any regular global grid, either way up, longitudes from anywhere
@@ -70,6 +71,15 @@ def remap(v: np.ndarray, lat: np.ndarray, lon: np.ndarray, g: Grid) -> np.ndarra
     v = np.asarray(v, np.float64)
     v = (v if up else v[::-1])[:, order]  # south to north, as the weights
     return (wy @ v @ wx.T).astype(np.float32)
+
+
+def box_mean(x: np.ndarray, g: Grid, lat, lon=(0.0, 360.0)) -> np.ndarray:
+    """Cos-latitude mean of fields (..., row, col) on ``g`` over the cells whose centres are in a latitude-longitude
+    box (bounds included)."""
+    r = (g.lat >= lat[0]) & (g.lat <= lat[1])
+    c = (g.lon >= lon[0]) & (g.lon <= lon[1])
+    w = np.cos(np.deg2rad(g.lat[r]))
+    return (x[..., r, :][..., c] * w[:, None]).sum((-2, -1)) / (w.sum() * c.sum())
 
 
 def slot366(t: pd.DatetimeIndex) -> np.ndarray:
