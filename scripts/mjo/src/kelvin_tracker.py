@@ -89,21 +89,25 @@ def kelvin_mask(nt: int, nlon: int) -> np.ndarray:
     return band & (af >= fk(HMIN)) & (af <= fk(HMAX)) & (F != 0)
 
 
-def kelvin_filter(x: np.ndarray, pad: int = 60, ramp: int = 10) -> np.ndarray:
-    """x (time, lat, lon) -> Kelvin-filtered, same shape. Time mean removed per point; the end is padded
-    with a `ramp`-day slide to zero, then zeros, and the padding is dropped after filtering."""
-    nt, nl, nx = x.shape
+def wave_filter(x: np.ndarray, mask, pad: int = 60, ramp: int = 10) -> np.ndarray:
+    """x (time, ..., lon) -> the part inside `mask` (a function of the padded length and the number of longitudes,
+    numpy's fft2 layout), same shape. Time mean removed per point; the end is padded with a `ramp`-day slide to zero,
+    then zeros, and the padding is dropped after filtering."""
+    nt, nx = x.shape[0], x.shape[-1]
     x = x - x.mean(0, keepdims=True)
-    r = x[-1][None] * (1 - np.arange(1, ramp + 1) / (ramp + 1))[:, None, None]
-    xp = np.concatenate([x, r, np.zeros((pad - ramp, nl, nx))], 0)
+    mid = (1,) * (x.ndim - 1)
+    r = x[-1][None] * (1 - np.arange(1, ramp + 1) / (ramp + 1)).reshape(-1, *mid)
+    xp = np.concatenate([x, r, np.zeros((pad - ramp, *x.shape[1:]))], 0)
     # soft start too: a 10% cosine taper on the first days only
     n0 = max(2, int(0.1 * nt))
-    xp[:n0] *= (0.5 - 0.5 * np.cos(np.pi * np.arange(n0) / n0))[:, None, None]
-    m = kelvin_mask(xp.shape[0], nx)
-    out = np.empty_like(xp)
-    for j in range(nl):
-        out[:, j] = np.real(np.fft.ifft2(np.fft.fft2(xp[:, j]) * m))
-    return out[:nt]
+    xp[:n0] *= (0.5 - 0.5 * np.cos(np.pi * np.arange(n0) / n0)).reshape(-1, *mid)
+    m = mask(xp.shape[0], nx).reshape(xp.shape[0], *mid[1:], nx)
+    return np.real(np.fft.ifft2(np.fft.fft2(xp, axes=(0, -1)) * m, axes=(0, -1)))[:nt]
+
+
+def kelvin_filter(x: np.ndarray, pad: int = 60, ramp: int = 10) -> np.ndarray:
+    """x (time, lat, lon) -> Kelvin-filtered, same shape (wave_filter over the Kelvin wedge)."""
+    return wave_filter(x, kelvin_mask, pad, ramp)
 
 
 def selftest() -> int:
@@ -129,8 +133,8 @@ def selftest() -> int:
 
 
 # ---- the record ------------------------------------------------------------------------------ #
-def chi_anomaly(chi: np.ndarray, times: pd.DatetimeIndex, clim: xr.Dataset, lat, lon) -> np.ndarray:
-    """chi (t, lat, lon) at 200 hPa minus the harmonic climatology and the 1991-2020 trend."""
+def chi_normal(times: pd.DatetimeIndex, clim: xr.Dataset, lat, lon) -> np.ndarray:
+    """The 200 hPa normal (t, lat, lon) on those times: the harmonic climatology plus the 1991-2020 trend."""
     c = clim.sel(level=200)
     if not np.allclose(c.latitude.values, lat):
         raise SystemExit("walker_chi_clim.nc is not on the chi history's grid")
@@ -142,7 +146,12 @@ def chi_anomaly(chi: np.ndarray, times: pd.DatetimeIndex, clim: xr.Dataset, lat,
     B = np.stack([np.ones_like(ang), np.cos(ang), np.sin(ang), np.cos(2 * ang), np.sin(2 * ang)], -1)
     cl = np.einsum("th,hij->tij", B, coef)
     yr = times.year.values + (doy - 1) / 365.25  # trend coordinate in average years (365.25 d)
-    return chi - cl - slope[times.month.values - 1] * (yr - 2005.5)[:, None, None]
+    return cl + slope[times.month.values - 1] * (yr - 2005.5)[:, None, None]
+
+
+def chi_anomaly(chi: np.ndarray, times: pd.DatetimeIndex, clim: xr.Dataset, lat, lon) -> np.ndarray:
+    """chi (t, lat, lon) at 200 hPa minus the harmonic climatology and the 1991-2020 trend."""
+    return chi - chi_normal(times, clim, lat, lon)
 
 
 def analysis_days(hist: xr.DataArray) -> xr.DataArray:

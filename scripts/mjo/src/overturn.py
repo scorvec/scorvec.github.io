@@ -82,7 +82,7 @@ def zonal_v(v: np.ndarray, lat: np.ndarray) -> np.ndarray:
 def eq_ud(u: np.ndarray, v: np.ndarray, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
     """(lat, lon) u, v -> the 5S-5N divergent zonal wind on the chi solver's longitudes (walker.band_ud)."""
     c = {"latitude": lat, "longitude": lon}
-    ud, *_ = band_ud(xr.DataArray(u, dims=c, coords=c), xr.DataArray(v, dims=c, coords=c))
+    ud, _ = band_ud(xr.DataArray(u, dims=c, coords=c), xr.DataArray(v, dims=c, coords=c))
     return ud
 
 

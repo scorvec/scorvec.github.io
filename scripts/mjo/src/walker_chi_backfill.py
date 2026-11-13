@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""One-off: seed the χ history from the AIFS-ENS 0-h analyses on the Google mirror (the last
-~45 days). Writes scripts/mjo/data/reference/walker_chi_history_seed.nc (committed), which
-walker_chi merges with the frames-branch history on every runner. Run by hand; no workflow runs it.
+"""Build the χ history's seed from the AIFS-ENS 0-h analyses (00 and 12Z) on the Google mirror: every
+analysis of the given days, through walker_chi.chi_strip. Writes scripts/mjo/data/reference/
+walker_chi_history_seed.nc (committed), whose records walker_chi puts ahead of the frames-branch history's
+on every runner, so a rebuild after a solver change brings the whole record onto one solver. Run by hand;
+no workflow runs it.
 
-    python src/walker_chi_backfill.py --days 44
+    python src/walker_chi_backfill.py 2026-07-25 2026-11-13
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ import time
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
 
+import pandas as pd
 import xarray as xr
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
@@ -24,14 +27,14 @@ import walker_chi as wc
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--days", type=int, default=44)
+    ap.add_argument("first", help="first day, YYYY-MM-DD")
+    ap.add_argument("last", help="last day, YYYY-MM-DD")
     a = ap.parse_args()
     t0 = time.time()
     now = datetime.now(UTC).replace(tzinfo=None)
     ku = dict(engine="cfgrib", backend_kwargs={"indexpath": ""})
-    done = 0
-    for d in range(a.days, -1, -1):
-        day = now - timedelta(days=d)
+    recs = []
+    for day in pd.date_range(a.first, a.last, freq="D"):
         for hh in ("00", "12"):
             valid = datetime(day.year, day.month, day.day, int(hh))
             if valid > now - timedelta(hours=8):
@@ -49,10 +52,13 @@ def main() -> int:
             for lev in wc.LEVELS:
                 chi, lat, lon = wc.chi_strip(u.sel(isobaricInhPa=lev), v.sel(isobaricInhPa=lev))
                 chis[lev] = chi
-            wc.update_history(wc.SEED, wc.record(chis, lat, lon, valid))
-            done += 1
-            print(f"  {cyc.tag} ok ({done}, {time.time() - t0:.0f}s)", flush=True)
-    h = wc.load_history(wc.SEED)
+            recs.append(wc.record(chis, lat, lon, valid))
+            print(f"  {cyc.tag} ok ({len(recs)}, {time.time() - t0:.0f}s)", flush=True)
+    if not recs:
+        print("no analysis found: the seed stays")
+        return 1
+    h = xr.concat(recs, dim="time")
+    wc.write_history(wc.SEED, h)
     print(
         f"seed: {h.time.size} analyses {str(h.time.values[0])[:13]} … {str(h.time.values[-1])[:13]}, {wc.SEED.stat().st_size / 1e6:.1f} MB",
         flush=True,

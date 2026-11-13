@@ -337,14 +337,17 @@ jobs:
 
       # From the chi history walker.py just appended and the u/v@200 wind200_vpot already fetched (store cache), at once:
       #   kelvin_tracker  Kelvin wave tracker (200 hPa velocity potential), no new download
+      #   mjo_chi         MJO time-longitude chart: the history's 200 hPa velocity potential without the El Niño pattern,
+      #                   then every member's forecast (the members' u/v@200 are in the store cache; the control's v@200
+      #                   is fetched). Its drift archive rides the frames branch beside the chi history
       #   gill_rain       the Gill (1980) model forced by the observed (IMERG Late) and forecast (AIFS-ENS) tropical rain,
       #                   against the observed chi200, with a 1-degree IMERG Late cache on the frames branch (seeded above;
       #                   a cold cache costs ~2 min of GES DISC OPeNDAP); judged by the product itself: a new
       #                   gill_rain.json whose last analysis is this cycle's. Best-effort: without Earthdata, or on any
       #                   failure, the previous figure stays
-      - name: Kelvin wave tracker and rain-forced circulation (Gill model)
+      - name: Kelvin wave tracker, MJO chart and rain-forced circulation (Gill model)
         if: ${{ inputs.rmm_only != 'true' }}
-        timeout-minutes: 15
+        timeout-minutes: 25
         env:
           SST_SITE_ROOT: ${{ github.workspace }}
           ECMWF_SOURCES: google
@@ -359,6 +362,9 @@ jobs:
           par "Kelvin wave tracker" "the previous figures stay" bash -c "cd scripts/mjo && python src/kelvin_tracker.py --date $D --time $T \
             --history ../../assets/sst/anim/walker/walker_chi_history.nc --anim-dir ../../assets/sst/anim/kelvin \
             --manifest ../../assets/sst/anim/kelvin_manifest.json --hov ../../assets/sst/kelvin_hov.webp --json ../../assets/sst/data/kelvin_tracker.json"
+          par "MJO time-longitude chart" "the previous figure stays" bash -c "cd scripts/mjo && python src/mjo_chi.py --date $D --time $T \
+            --history ../../assets/sst/anim/walker/walker_chi_history.nc --drift ../../assets/sst/anim/walker/mjo_chi_drift.nc \
+            --out ../../assets/mjo/chi_hov.webp"
           gill() {
             J=assets/sst/data/gill_rain.json
             stamp() { python -c "import json, sys; d = json.load(open(sys.argv[1])); print(d['generated'].replace(' ', '_'), d['last_analysis'])" "$J" 2>/dev/null || echo "none none"; }

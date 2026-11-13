@@ -15,7 +15,7 @@ pattern removed) converted to an upper-level velocity potential. Each departure 
 the Indian+Atlantic SST part matches it (15°S–15°N), and how much of its variance that part explains,
 so a "but the IOD is negative" claim can be sized on the spot.
 Tests: a regression part is kept only where its predictors are significant at that grid point
-(r2_pvalues, BH over the strip) and is 0 (hatched) elsewhere; a pattern match is quoted only when it
+(walker_chi.r2_pvalues, BH over the strip) and is 0 (hatched) elsewhere; a pattern match is quoted only when it
 beats every circular longitude shift (shift_p, one-sided, BH over the figure's seven comparisons).
 
 Outputs: assets/sst/walker_chi_weekly.webp, assets/sst/data/walker_chi_weekly.json.
@@ -35,7 +35,6 @@ import pandas as pd
 import xarray as xr
 from quantmet.degdays import doy366
 from quantmet.stats import benjamini_hochberg
-from scipy import stats
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -63,8 +62,6 @@ NWEEKS = 4
 STAT_LAT = 15.0
 INK, MUTED, NAVY, RED, GREEN, ORANGE = "#1a1a1a", "#6f6b64", "#1b365d", "#b4453c", "#2b7a3d", "#d0801a"
 GROUPS = {"enso": ["n34", "n34_lag3"], "indian": ["dmi", "iob"], "atlantic": ["atl3", "tna"]}
-FDR_Q = 0.10  # Benjamini-Hochberg false discovery rate: over the strip's grid points, and over the panel matches
-N_EFF = 62  # independent samples among the 90 training months, for the R²-based F-test (r2_pvalues)
 
 
 def harmonic_day(t) -> np.ndarray:
@@ -217,24 +214,6 @@ def shift_p(dep: np.ndarray, part: np.ndarray, lat: np.ndarray) -> float:
     r0 = strip_stats(dep, part, lat)["r"]
     rn = np.array([strip_stats(np.roll(dep, k, axis=1), part, lat)["r"] for k in range(1, dep.shape[1])])
     return float((1 + (rn >= r0).sum()) / (1 + rn.size))
-
-
-def r2_pvalues(clim: xr.Dataset, month: int):
-    """Masks (ENSO part, Indian+Atlantic part) of the grid points where those predictors are significant in the
-    month's regression: nested F-tests from the reference's in-sample R² (ENSO only, full), Benjamini-Hochberg over
-    both maps. The 90 training months (±1 month x 30 years) are not independent - the months of a year share their
-    anomalies - so the residual degrees of freedom are N_EFF - 7: N_EFF = 62 is the smallest effective sample, over
-    months and predictor groups, for which this test reproduces the whole-year permutation test of the band-mean W
-    (walker_basins.perm_pvalues), with which it then agrees at 89-99 % of longitudes. The χ reference keeps no
-    training anomalies that could be permuted directly."""
-    r2e = clim.r2.sel(month=month, stage="enso").values.astype(float)
-    r2f = clim.r2.sel(month=month, stage="full").values.astype(float)
-    df2 = N_EFF - len(clim.pred) - 1
-    with np.errstate(invalid="ignore", divide="ignore"):
-        den = (1 - r2f) / df2
-        p = np.stack([stats.f.sf(r2e / 2 / den, 2, df2), stats.f.sf((r2f - r2e) / 4 / den, 4, df2)])
-    sig = benjamini_hochberg(p, FDR_Q)
-    return sig[0], sig[1]
 
 
 # ── figure ────────────────────────────────────────────────────────────────────
@@ -521,7 +500,7 @@ def main() -> int:
             for k in clim.pred.values
         }
         if month not in masks:
-            masks[month] = r2_pvalues(clim, month)
+            masks[month] = wc.r2_pvalues(clim, month)
         sig_e, sig_b = masks[month]  # a part is 0 where its predictors are not significant
         pac = np.where(sig_e, part["n34"] + part["n34_lag3"], 0.0)
         ind_atl = np.where(sig_b, part["dmi"] + part["iob"] + part["atl3"] + part["tna"], 0.0)
@@ -598,7 +577,7 @@ def main() -> int:
         shift_p(dep_g, gia, LAT2),
         shift_p(obs_g, gpac, LAT2),
     ]
-    sig = benjamini_hochberg(np.array(pv), FDR_Q) & (np.array(pv) < 0.05)
+    sig = benjamini_hochberg(np.array(pv), wc.FDR_Q) & (np.array(pv) < 0.05)
     for s, p, ok in zip([w["stats_reg"] for w in weeks] + [gill["stats"], gill["pac_stats"]], pv, sig):
         s["p"], s["sig"] = p, bool(ok)
     print(
@@ -649,8 +628,8 @@ def main() -> int:
         },
         "significant_share_strip": {"enso": round(sig_share[0], 3), "indian_atlantic": round(sig_share[1], 3)},
         "tests": {
-            "regression": f"nested F-test from the reference R², {N_EFF} effective samples, BH q {FDR_Q} over the strip",
-            "match": f"one-sided circular longitude-shift test of the pattern r, BH q {FDR_Q} and p < 0.05 over the "
+            "regression": f"nested F-test from the reference R², {wc.N_EFF} effective samples, BH q {wc.FDR_Q} over the strip",
+            "match": f"one-sided circular longitude-shift test of the pattern r, BH q {wc.FDR_Q} and p < 0.05 over the "
             f"{len(pv)} comparisons",
         },
         "gill_chi_scale": scale,
