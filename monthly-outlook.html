@@ -322,11 +322,13 @@
         climate change).</li>
         <li><b>RONI, QBO and vortex regression</b>: the detrended anomaly regressed on relative Ni&ntilde;o-3.4 (El Ni&ntilde;o and La
         Ni&ntilde;a apart: their teleconnections are not mirror images), the equatorial 50&nbsp;hPa wind and the 57&ndash;63N
-        50&nbsp;hPa wind of the predictor window.</li>
+        50&nbsp;hPa wind of the predictor window. An index beyond every value of the training years is held at the
+        largest one there (from the December 2026 outlook), so a record El Ni&ntilde;o is forecast as the strongest on record.</li>
         <li><b>Forecast ENSO teleconnection</b> (new in this version): the same regression on relative Ni&ntilde;o-3.4 over the
         target&rsquo;s own months, trained on the observed values and applied to Claude&rsquo;s Ni&ntilde;o-3.4 forecast (in the hindcast,
         that model&rsquo;s cross-validated forecasts). It matters when ENSO changes between the issue and the target, as in the
-        spring after an El Ni&ntilde;o; through winter, when ENSO persists, the window&rsquo;s state already carries it.</li>
+        spring after an El Ni&ntilde;o; through winter, when ENSO persists, the window&rsquo;s state already carries it. The
+        forecast value is held within the observed range in the same way.</li>
         <li><b>Tropical constructed analogue</b> (Van den Dool 1994): the window&rsquo;s SST and rainfall anomalies over 20S&ndash;20N
         written as a ridge-regularised combination of every past year&rsquo;s, and the same weights applied to those years&rsquo;
         target anomalies. Rainfall is the heating that drives the teleconnections; extratropical SST is left out, being mostly

@@ -40,6 +40,8 @@ builds from the ensembles' members.
 
 IX, EN and PE train on the target pooled with the targets one calendar month either side at the same lead (each
 with its own window), about 200 cases instead of 65; CA and AN use the target alone, which scored better for them.
+The value IX and EN are applied to is held within the range of their training cases (in_range): an index beyond
+every case in the library is forecast as the largest one there.
 
 Consolidation: per grid point a non-negative least-squares regression of the observed anomaly on the six
 components' cross-validated hindcasts, with the normal equations smoothed over ~2500 km so the weights vary only on
@@ -194,6 +196,13 @@ def regress(Xtr: np.ndarray, ytr: np.ndarray, Xnew: np.ndarray, ridge: float = 0
     A = A + ridge * np.trace(A) / len(A) * np.eye(len(A))
     B = np.linalg.solve(A, Xtr.T @ ytr)  # (k, P)
     return Xnew @ B
+
+
+def in_range(x: np.ndarray, Xtr: np.ndarray) -> np.ndarray:
+    """Predictor values x (k,) held within the range of the training sample Xtr (n, k), column by column: a
+    regression is not carried past the largest value it was fitted on (an El Niño stronger than any in the library
+    is forecast as the strongest one there)."""
+    return np.clip(x, Xtr.min(0), Xtr.max(0))
 
 
 def local_regress(xtr: np.ndarray, ytr: np.ndarray, xnew: np.ndarray) -> np.ndarray:
@@ -417,7 +426,7 @@ class Problem:
         X = L["idx"][m]
         sd = np.maximum(np.sqrt((X**2).mean(0)), 1e-9)
         for v in TARGETS:
-            out["IX"][v] = regress(X / sd, L[f"det_{v}"][m], c.idx[i] / sd, ridge=0.05)
+            out["IX"][v] = regress(X / sd, L[f"det_{v}"][m], in_range(c.idx[i], X) / sd, ridge=0.05)
         # EN: the target's own relative Niño-3.4, El Niño and La Niña apart, regressed on the observed values over the
         # pooled library (the teleconnection) and applied to the forecast value: without a forecast (before the
         # ENSO hindcast begins) the component is zero
@@ -428,7 +437,7 @@ class Problem:
         sd = np.maximum(np.sqrt((X**2).mean(0)), 1e-9)
         for v in TARGETS:
             out["EN"][v] = (
-                regress(X / sd, L[f"det_{v}"][m], split(x_fc) / sd, ridge=0.05)
+                regress(X / sd, L[f"det_{v}"][m], in_range(split(x_fc), X) / sd, ridge=0.05)
                 if np.isfinite(x_fc)
                 else np.zeros(L[f"det_{v}"].shape[1], np.float32)
             )
