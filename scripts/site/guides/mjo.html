@@ -1,0 +1,88 @@
+<section id="about">
+<h2>The page</h2>
+<p>The Madden&ndash;Julian Oscillation in the global ensembles: every model's forecast on one phase diagram (AIFS-ENS,
+IFS-ENS, GEFS and GEPS, standard or ENSO-removed index), a time&ndash;longitude chart of the MJO with the El&nbsp;Ni&ntilde;o
+pattern taken out, the ECMWF runs one after another, and what each phase has meant for temperature, rain and the flow.
+The phase diagram and the impacts explain themselves on the page, under their own figures. The waves around the MJO
+are on the <a href="/tropical-waves.html">tropical waves page</a>.</p>
+</section>
+
+<h2>Forecast</h2>
+
+<section id="chi">
+<h3>Time&ndash;longitude chart</h3>
+<p>Time runs down the chart and longitude across it, so anything that moves east slopes down to the right: an MJO at
+about 5&nbsp;m&nbsp;s<sup>&minus;1</sup>, a Kelvin wave three times as fast. The field is the 200&nbsp;hPa velocity
+potential averaged 15&deg;S&ndash;15&deg;N. <span style="color:#2e7d32">Green is upper-level divergence</span>, the air
+spreading out above deep convection; <span style="color:#b4541f">brown is convergence</span>, above sinking and dry air.
+The last 110 days are analyses (the AIFS-ENS control at 0&nbsp;h, the 00 and 12&nbsp;UTC runs averaged); below the
+line is the AIFS-ENS forecast to day 15, the mean of the control and the 50 members.</p>
+
+<p><b>What was taken out.</b> A strong El&nbsp;Ni&ntilde;o holds rising air over the central and eastern Pacific and
+sinking air over the Maritime Continent for months. Indices that remove only a running mean, as the RMM does with the
+previous 120 days, leave part of a growing El&nbsp;Ni&ntilde;o in and read it as an MJO stalled in phases 6 to 8; a
+shorter running mean would take the slow MJO out with it. Here the standing pattern is removed by regression instead.
+From each day's field come out, in turn: the ERA5 1991&ndash;2020 normal for the day and its trend; the pattern that
+goes with Ni&ntilde;o-3.4 and with Ni&ntilde;o-3.4 three months earlier in ERA5, scaled by today's values (NOAA OISST,
+detrended, 31-day mean); and the mean of what is left over the record at each longitude, the standing part the
+regression misses. The strip above the chart shows what was removed: the black line is the whole standing pattern,
+the blue line its El&nbsp;Ni&ntilde;o part, drawn where that regression is significant. The regression is taken out at
+every longitude all the same, because a field cut at the edge of the significant region would carry that edge into the
+filtered contours. At +3.4&nbsp;&deg;C the regression is stretched beyond most of the El&nbsp;Ni&ntilde;os it was fitted on, which
+is one reason the record's own mean is removed after it.</p>
+
+<p><b>The contours.</b> What remains is filtered in wavenumber and frequency. The black contours are the MJO's band,
+eastward wavenumbers 1 to 5 and periods of 30 to 96 days, every 1.5 &times; 10<sup>6</sup>&nbsp;m<sup>2</sup>&nbsp;s<sup>&minus;1</sup>:
+solid where the upper air diverges (active), dashed where it converges (suppressed). The purple contours are the
+active phase of Kelvin waves (eastward wavenumbers 1 to 14, periods of 2.5 to 20 days). A band-pass filter needs the
+future as well as the past, so each member's own forecast stands in for it: the filter is run once per member on the
+analyses joined to that member, and the contours are the mean.</p>
+
+<p><b>The forecast.</b> Each member has the model's drift removed first: the mean error of the last 60 days of runs
+against the analyses, by longitude and lead time. It is not small, about 3 &times; 10<sup>6</sup>&nbsp;m<sup>2</sup>&nbsp;s<sup>&minus;1</sup>
+by day 15, as large as the signal itself. Below the line, shading and contours are drawn only where the members agree on
+the sign (a two-sided sign test with the false discovery rate held at 5&nbsp;%); blank areas are where they do not. The
+filtered contours of the last 30 analysis days are tested the same way, because the forecast still shapes them.</p>
+
+<p><b>The phase.</b> The numerals 1 to 8 above the chart mark the longitude where each RMM phase has its active
+centre, from the 1991&ndash;2020 record: 25&deg;E, 61&deg;E, 86&deg;E, 107&deg;E, 136&deg;E, 170&deg;E, 107&deg;W and
+23&deg;W. A solid black contour under a numeral is an active MJO in that phase's position. The column on the right
+does the same reading with numbers. The MJO band is fitted, by longitude, with the two patterns that go with the
+observed RMM1 and RMM2 in ERA5, each scaled as the RMM is, so an amplitude of 1 means what it means there. The bar is
+the amplitude, with the dashed line at 1, and a phase is printed only where the amplitude is 1 or more and at least
+three members in four point within 45&deg; of the mean. Below 1 there is no MJO and no phase is given.</p>
+
+<p><b>How good the phase is.</b> Tested on ERA5 1991&ndash;2020 with the patterns fitted on other years: on days when
+both this index and the observed RMM are active, the phase is the same on half of them and within one phase on
+94&nbsp;%. Run as the chart runs, on 130 days of record and a 15-day future, the agreement holds on the latest
+analysis day (51&nbsp;% and 94&nbsp;%) and at day 15 (51&nbsp;% and 93&nbsp;%), but the filter has less to work with
+at the end of a record: the amplitude reads about 10&nbsp;% low on the latest analysis day and about 30&nbsp;% low at
+day 15.</p>
+
+<p><b>Why it can differ from the phase diagram.</b> The RMM is mostly wind and is not filtered in time, so a fast
+Kelvin pulse, a burst of westerlies or a pattern only a few days old can push it past 1. This index answers only to a
+planetary-scale signal that has moved east for weeks: it is active on about two-thirds of the days the RMM is. When
+the diagram shows an MJO and this chart says there is none, look at the shading: a single fast streak is a Kelvin
+wave, and two or three green bands around the equator at once are too short a wave for the RMM's patterns.</p>
+
+<p><b>Reading it with care.</b> Velocity potential is a smooth field made mostly of the largest scales, so it shows a
+weak MJO's circulation more readily than its rain: a contour here is not a promise of rain under it.</p>
+</section>
+
+<section id="rmm">
+<h3>ECMWF successive runs</h3>
+<p>The Real-time Multivariate MJO (RMM) phase diagram of Wheeler and Hendon (2004) for the ECMWF <b>AIFS-ENS</b>
+ensemble, 51 members to day 15, one run after another. The projection uses three fields: the 850 and 200&nbsp;hPa zonal
+winds and a stand-in for outgoing longwave radiation built from the standardised tropical precipitation with its sign
+reversed (rain and OLR are closely anticorrelated); a run whose precipitation has not arrived is projected on the
+winds alone. The physics-based <b>IFS-ENS</b> (50 members) from the same start is drawn in blue by the same method
+once its data has landed, an hour or two later, so the two can be compared directly.</p>
+<p>Amplitude is the distance from the centre (rings at 1, 2 and 3). The ellipses, every five days, span one standard
+deviation of the members either side of the mean in RMM1 and RMM2. At the same valid time the AIFS-ENS 12&nbsp;UTC runs
+sit off the 00&nbsp;UTC runs by an amount that grows with lead, so each 12&nbsp;UTC run has the mean difference of the
+last seven pairs removed, lead by lead. The observed track is ERA5 up to mid-July 2026 and, since then, the AIFS-ENS
+control at step 0 of each run (winds only; from 30 May to 12 October 2026 its phase sat within a median 5&deg; of the
+ERA5 RMM's on active days).</p>
+<p>This index keeps a changing El&nbsp;Ni&ntilde;o in it, so the caption under the figure opens with what the same
+forecast shows once ENSO is removed.</p>
+</section>

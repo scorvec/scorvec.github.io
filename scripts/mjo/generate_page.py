@@ -23,6 +23,7 @@ from models_section import (
 ASSETS = Path("assets/mjo")
 OUT = Path("mjo.html")
 MANIFEST = ASSETS / "rmm_manifest.json"
+CHI = ASSETS / "chi_hov.webp"  # the time-longitude chart (src/mjo_chi.py)
 RE = re.compile(r"rmm_(\d{8})_(\d{2})z\.(webp|png)$")
 
 NAV = """<nav>
@@ -307,8 +308,10 @@ def main():
     updated = datetime.now(UTC).strftime("%Y-%m-%d %H:%MZ")
 
     # One figure at a time on the shared stage viewer (assets/stage.js): the successive-runs animator is a frame
-    # product; the multi-model diagram and the impacts sections mount whole, with their own controls (the impacts keep
-    # their #mi/f/d/m/l/v hash: ownHash). The old anchors #mjo-clean / #mjo-impacts are kept as aliases.
+    # product, the time-longitude chart an image; the multi-model diagram and the impacts sections mount whole, with
+    # their own controls and their own explanation (about: false; the impacts keep their #mi/f/d/m/l/v hash:
+    # ownHash). The other figures' explanations are in the page's guide (scripts/site/guides/mjo.html). The old
+    # anchors #mjo-clean / #mjo-impacts are kept as aliases.
     models, impacts = models_section(), impacts_section()
     # The standard RMM keeps a changing ENSO in it, so the successive-runs view opens with the ENSO-removed verdict.
     st = load_status() if models else None
@@ -331,6 +334,8 @@ def main():
         body = '<p class="empty">No forecasts yet — the first scheduled run will populate this page.</p>'
 
     fc_items = [["rmm", "ECMWF successive runs", "AIFS-ENS and IFS-ENS, run by run"]]
+    if CHI.exists():
+        fc_items.insert(0, ["chi", "Time–longitude chart", "the MJO without the El Niño pattern, with its phase"])
     if models:
         fc_items.insert(0, ["models", "All ensembles", "AIFS-ENS, IFS-ENS, GEFS, GEPS on one diagram"])
     groups = [{"label": "Forecast", "items": fc_items}]
@@ -340,6 +345,7 @@ def main():
         )
     stage_spec = (
         "window.STAGE = { groups: " + json.dumps(groups) + ",\n"
+        '  guide: "/guides/mjo.html",\n'
         '  aliases: { "mjo-clean": "models", "clean": "models", "mjo-models": "models", "mjo-impacts": "mi" },\n'
         "  products: {\n"
         '    rmm: { label: "AIFS-ENS and IFS-ENS RMM forecast (ENSO not removed), successive runs", about: "about-rmm",\n'
@@ -352,8 +358,11 @@ def main():
             " MJO track evolve."
         )
         + "; } },\n"
-        '    models: { label: "MJO forecasts from the global ensembles", dom: function () { return "mjo-models"; } },\n'
-        '    mi: { label: "MJO impacts by phase and season", ownHash: true, dom: function () { return "mjo-impacts"; } }\n'
+        '    chi: { label: "MJO time–longitude chart: 200 hPa velocity potential without the El Niño pattern", about: "about-chi",\n'
+        '           img: function () { return "assets/mjo/chi_hov.webp"; },\n'
+        '           ratio: function () { return "1150/1050"; }, bust: "hourly" },\n'
+        '    models: { label: "MJO forecasts from the global ensembles", about: false, dom: function () { return "mjo-models"; } },\n'
+        '    mi: { label: "MJO impacts by phase and season", about: false, ownHash: true, dom: function () { return "mjo-impacts"; } }\n'
         "  }\n};"
     )
 
@@ -475,34 +484,17 @@ def main():
 {impacts}
   </div>
   <template id="about-rmm">
-  <p>Real-time Multivariate MJO (RMM) phase-space forecast from the
-  ECMWF <strong>AIFS-ENS</strong> ensemble (51 members to day 15), following
-  Wheeler &amp; Hendon (2004). Full three-channel projection: U850/U200 plus a
-  pseudo-OLR channel built from &minus;standardized tropical precipitation (tropical
-  rain and OLR anticorrelate closely); falls back to wind-only if precip is
-  unavailable for a cycle. The physics-based <strong>IFS-ENS</strong> (50 members)
-  from the same init is overlaid in blue through the <em>identical</em> machinery
-  once its data has landed (about 1&ndash;2&nbsp;h after AIFS-ENS) — a direct
-  AI-vs-physics comparison in the same coordinates.
-  Amplitude is the radial distance (rings at 1, 2, 3); the ellipses, every 5 days,
-  span &plusmn;1 standard deviation of the members in RMM1 and RMM2.
-  At the same valid time, AIFS-ENS 12Z runs sit systematically off the 00Z runs, by
-  an amount that grows with lead, so each 12Z run has the mean 12Z-minus-00Z
-  ensemble-mean difference of the last seven 00Z/12Z pairs removed, lead by lead.
-  The observed track is ERA5 up to mid-July 2026 and, since then, the AIFS-ENS
-  control at step 0 of each 00Z and 12Z run (wind-only; from 30 May to 12 October
-  2026 its phase sat within a median 5&deg; of the observed ERA5 RMM&rsquo;s on active days).</p>
   <p class="chart-sources">Updated {updated} · Auto-generated from the AIFS-ENS and IFS-ENS open data, &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use.
   Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
   NCEP wind with the 120-day low-frequency filter removed; pseudo-OLR from
   &minus;standardized daily precip vs an ERA5 1991&ndash;2020 band climatology.</p>
   </template>
-  <section class="page-about" id="page-about">
-    <h2>About this page</h2>
-    <p>The ensembles&rsquo; MJO forecasts on one phase diagram (AIFS-ENS, IFS-ENS, GEFS and GEPS, each switchable, standard
-    or ENSO-removed index), the ECMWF runs one after another, and what each phase has meant for temperature, rain and the
-    flow.</p>
-  </section>
+  <template id="about-chi">
+  <p class="chart-sources">Updated {updated} · Auto-generated from the AIFS-ENS open data, &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use.
+  ERA5 1991&ndash;2020 (Hersbach et al. 2020; contains modified Copernicus Climate Change Service information 2026); NOAA OISST v2.1;
+  the observed RMM behind the phase patterns computed here from ERA5 after Wheeler &amp; Hendon (2004); wave bands after
+  Wheeler &amp; Kiladis (1999).</p>
+  </template>
   <p class="meta">Updated {updated} · Auto-generated from the ECMWF, NOAA and ECCC open-data feeds.</p>
 </main>
 <script>

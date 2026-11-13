@@ -387,9 +387,10 @@
     if (S.onRender) { try { S.onRender({ p: sel.p, a: sel.a, b: sel.b, c: sel.c }); } catch (e) {} }
     var ab = $("about"); ab.innerHTML = "";
     var aboutId = typeof p.about === "function" ? p.about(sel.a, sel.b, sel.c) : p.about;
-    if (S.guide) {
+    if (S.guide && p.about !== false) {
       // the page has a guide (STAGE.guide), and this is the page's one link to it: the guide's section for this
-      // figure, or the guide itself for a figure without one. The template holds the figure's sources
+      // figure, or the guide itself for a figure without one (about: false = a block that carries its own
+      // explanation, so no link). The template holds the figure's sources
       var gl = document.createElement("div"); gl.className = "about about--guide";
       gl.innerHTML = (aboutId ? '<a href="' + S.guide + "#" + aboutId.replace(/^about-/, "") + '">About this figure</a>'
         : '<a href="' + S.guide + '">Guide to this page</a>') +

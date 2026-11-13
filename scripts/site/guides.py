@@ -62,6 +62,13 @@ GUIDES = [
         "Kelvin waves.",
     ),
     dict(
+        slug="mjo",
+        page="/mjo.html",
+        name="MJO forecast page",
+        desc="What the figures of the MJO forecast page show and how they are made: the time-longitude chart of the "
+        "MJO with the El Niño pattern taken out and its phase reading, and the successive ECMWF RMM forecasts.",
+    ),
+    dict(
         slug="ar",
         page="/ar.html",
         name="atmospheric rivers page",

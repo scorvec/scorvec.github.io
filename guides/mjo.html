@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guide to the MJO forecast page · Shawn Corvec</title>
+<meta name="description" content="What the figures of the MJO forecast page show and how they are made: the time-longitude chart of the MJO with the El Niño pattern taken out and its phase reading, and the successive ECMWF RMM forecasts.">
+<link rel="canonical" href="https://scorvec.com/guides/mjo.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="author" content="Shawn Corvec">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Guide to the MJO forecast page">
+<meta property="og:description" content="What the figures of the MJO forecast page show and how they are made: the time-longitude chart of the MJO with the El Niño pattern taken out and its phase reading, and the successive ECMWF RMM forecasts.">
+<meta property="og:url" content="https://scorvec.com/guides/mjo.html">
+<meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "TechArticle",
+ "headline": "Guide to the MJO forecast page",
+ "description": "What the figures of the MJO forecast page show and how they are made: the time-longitude chart of the MJO with the El Niño pattern taken out and its phase reading, and the successive ECMWF RMM forecasts.",
+ "url": "https://scorvec.com/guides/mjo.html",
+ "inLanguage": "en",
+ "author": {
+  "@id": "https://scorvec.com/#person"
+ },
+ "publisher": {
+  "@id": "https://scorvec.com/#person"
+ },
+ "isPartOf": "https://scorvec.com/mjo.html"
+}
+</script>
+<script src="/assets/site.js?v=9edc20e53d" defer></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css?v=195e33a1fe">
+<style>
+  body { background: var(--bg); color: var(--ink); margin: 0; }
+  .topic { font-size: clamp(1rem, 0.92rem + 0.22vw, 1.14rem); max-width: clamp(46rem, 32rem + 22vw, 60rem); margin: 0 auto; padding: 2rem clamp(1rem, 4vw, 3rem) 3.5rem; }   /* the column widens with the window: ~810 px up to a 1120 px window, ~880 at 1440 px, ~985 at 1920, 60rem max; 18-20 px text, ~90-100 characters a line */
+  .ai-note { font-size: 0.9em; line-height: 1.5; margin: 2.2rem 0 0; padding: 0.65rem 0.95rem; background: var(--accent-light); border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0; }
+  .topic figcaption, .figs figcaption { font-size: clamp(0.88rem, 0.84rem + 0.15vw, 0.95rem); }   /* a step below the text (site.css pins rem) */
+  .topic .crumbs { font-size: 0.92em; color: var(--muted); margin-bottom: 1.2rem; }
+  .topic .crumbs a { color: inherit; }
+  .topic h1 { text-align: left; margin: 0 0 0.4rem; }
+  .topic .aka { color: var(--muted); font-size: 0.95em; margin: 0 0 1.6rem; }
+  .topic h2 { margin: 2.2rem 0 0.7rem; text-align: left; }
+  .topic p, .topic li { line-height: 1.6; }
+  .topic ul { padding-left: 1.2rem; }
+  .topic li { margin: 0.45rem 0; }
+  .topic a { color: var(--accent); text-underline-offset: 0.2em; }
+  .topic .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
+  .figs { max-width: clamp(62rem, 48rem + 22vw, 76rem); margin: 1.6rem auto 0; padding: 0 clamp(1rem, 4vw, 3rem); }   /* wider than the text, and widening with it: the live charts are dense */
+  .figs figure { margin: 0 0 2rem; }
+  .figs img { display: block; width: auto; max-width: 100%; height: auto; max-height: 85vh; margin: 0 auto; border: 1px solid var(--rule); background: #fff; }   /* never wider than the file, nor taller than the window */
+  .figs iframe { display: block; width: 100%; aspect-ratio: 16 / 10; border: 1px solid var(--rule); background: #fff; }
+  .figs figcaption { color: var(--muted); margin-top: 0.5rem; }
+  .live { display: inline-block; margin: 0.6rem 0 0; font-weight: 600; }
+  .related { border-top: 1px solid var(--rule); margin-top: 2.6rem; padding-top: 1.2rem; }
+  .related ul { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.6rem; }
+  .refs { font-size: 0.95em; }
+  .refs li { margin: 0.4rem 0; }
+  .byline { color: var(--muted); font-size: 0.92em; margin-top: 2.2rem; }
+  .hub-list { list-style: none; padding: 0; }
+  .hub-list li { border-top: 1px solid var(--rule); padding: 1rem 0; margin: 0; }
+  .hub-list a { font-family: var(--f-serif); font-size: 1.3em; text-decoration: none; }
+  .hub-list a:hover { text-decoration: underline; }
+  .hub-list p { margin: 0.3rem 0 0; color: var(--muted); }
+</style><style>
+  .guide .lede { margin: 0 0 1.4rem; }
+  .guide .toc { border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); padding: 0.9rem 1.1rem; margin: 0 0 1rem; font-size: 0.95em; }
+  .guide .toc dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.5rem 1.3rem; margin: 0; }
+  .guide .toc dt { font-weight: 600; }
+  .guide .toc dd { margin: 0; display: flex; flex-wrap: wrap; gap: 0.2rem 1.1rem; line-height: 1.5; }
+  @media (max-width: 640px) {
+    .guide .toc dl { grid-template-columns: 1fr; gap: 0.15rem; }
+    .guide .toc dd { margin-bottom: 0.7rem; }
+  }
+  .guide section { scroll-margin-top: 1rem; }
+  .guide section:target { border-left: 3px solid var(--accent); padding-left: 0.9rem; margin-left: calc(-0.9rem - 3px); }   /* the figure the reader came from */
+  .guide h3 { margin: 1.9rem 0 0.15rem; text-align: left; }
+  .guide .open { font-size: 0.92em; margin: 0 0 0.6rem; }
+</style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
+</head>
+<body>
+<!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div class="sh-col">
+              <div>
+                <h3>Model maps</h3>
+                <ul>
+                  <li><a href="/models.html"><span class="sh-t">North America, short range</span><span class="sh-d">HRRR, RRFS and RDPS: radar, snow, storms</span></a></li>
+                  <li><a href="/samerica-models.html"><span class="sh-t">South America, to day 10</span><span class="sh-d">IFS control and GDPS, with soundings</span></a></li>
+                  <li><a href="/ens-anomalies.html"><span class="sh-t">World ensembles, to day 15</span><span class="sh-d">Four ensembles: anomalies and regimes</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Days 1–15</h3>
+                <ul>
+                  <li><a href="/ar.html"><span class="sh-t">Atmospheric rivers</span><span class="sh-d">Moisture plumes, landfall and their odds</span></a></li>
+                  <li><a href="/circulation.html#dt"><span class="sh-t">Jet streams and tropopause</span><span class="sh-d">Tropopause, Pacific and subtropical jets, wave trains</span></a></li>
+                  <li><a href="/circulation.html#aam"><span class="sh-t">Angular momentum and torques</span><span class="sh-d">Global momentum, mountain and friction torques</span></a></li>
+                  <li><a href="/circulation.html#telecon15"><span class="sh-t">Teleconnections</span><span class="sh-d">AO, NAO, PNA and more, calibrated</span></a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Tropics</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div class="sh-col">
+              <div>
+                <h3>ENSO and the MJO</h3>
+                <ul>
+                  <li><a href="/enso.html"><span class="sh-t">El Niño monitor</span><span class="sh-d">ONI, RONI, the subsurface and winds</span></a></li>
+                  <li><a href="/mjo.html"><span class="sh-t">MJO forecast</span><span class="sh-d">Four ensembles on one phase diagram</span></a></li>
+                  <li><a href="/tropical-waves.html"><span class="sh-t">Tropical waves</span><span class="sh-d">Kelvin and Rossby waves, now and ahead</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Circulation</h3>
+                <ul>
+                  <li><a href="/circulation.html#walker"><span class="sh-t">Walker and Hadley cells</span><span class="sh-d">The overturning, its outflow and descent</span></a></li>
+                  <li><a href="/circulation.html#mslp"><span class="sh-t">Pacific pressure and satellite</span><span class="sh-d">Pressure, wind and simulated IR</span></a></li>
+                  <li><a href="/circulation.html#rainfc"><span class="sh-t">Rain forecast, weeks 1–2</span><span class="sh-d">Four ensembles, bias-adjusted, blended</span></a></li>
+                  <li><a href="/circulation.html#troughs"><span class="sh-t">Convergence and monsoon troughs</span><span class="sh-d">Where the low-level wind converges, days 1–15</span></a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div class="sh-col">
+              <div>
+                <h3>Forecasts</h3>
+                <ul>
+                  <li><a href="/ssw.html"><span class="sh-t">SSW outlook</span><span class="sh-d">Is a sudden warming coming?</span></a></li>
+                  <li><a href="/stratosphere.html#vortex"><span class="sh-t">The next two weeks</span><span class="sh-d">The vortex, its waves and the surface</span></a></li>
+                  <li><a href="/stratosphere.html#vortex35"><span class="sh-t">Weeks 3–5 and the season</span><span class="sh-d">GEPS, GEFS, C3S and SEAS5</span></a></li>
+                  <li><a href="/strat-models.html"><span class="sh-t">Stratosphere model maps</span><span class="sh-d">Polar maps at every level, zoomable</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Analyses and history</h3>
+                <ul>
+                  <li><a href="/stratosphere.html#qbo"><span class="sh-t">The QBO and today's analyses</span><span class="sh-d">QBO, momentum and the Brewer–Dobson</span></a></li>
+                  <li><a href="/stratosphere.html#shwinters"><span class="sh-t">History and studies</span><span class="sh-d">Every winter and warming since 1980</span></a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div class="sh-col">
+              <div>
+                <h3>Extended range</h3>
+                <ul>
+                  <li><a href="/subseasonal.html"><span class="sh-t">GEPS, to day 35</span><span class="sh-d">Canada's extended ensemble</span></a></li>
+                  <li><a href="/gefs.html"><span class="sh-t">GEFS, to day 35</span><span class="sh-d">NOAA's extended ensemble</span></a></li>
+                  <li><a href="/sfs-subseasonal.html"><span class="sh-t">SFS, to six weeks</span><span class="sh-d">NOAA's experimental new system</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Months and seasons</h3>
+                <ul>
+                  <li><a href="/monthly-outlook.html"><span class="sh-t">Claude's long-range forecast</span><span class="sh-d">The month and three seasons ahead</span></a></li>
+                  <li><a href="/seasonal.html"><span class="sh-t">Seasonal model forecasts</span><span class="sh-d">Seven C3S systems and NOAA's SFS</span></a></li>
+                  <li><a href="/enso-forecasts.html"><span class="sh-t">ENSO forecasts</span><span class="sh-d">Niño-3.4 from five centres</span></a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4">Studies and tools</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div class="sh-col">
+              <div>
+                <h3>Studies</h3>
+                <ul>
+                  <li><a href="/enso.html#imp_reg"><span class="sh-t">ENSO impacts on the Americas</span><span class="sh-d">CMIP6 and the observed record</span></a></li>
+                  <li><a href="/mjo.html#mi"><span class="sh-t">MJO impacts</span><span class="sh-d">Each phase, season by season</span></a></li>
+                  <li><a href="/aifs-aam-budget.html"><span class="sh-t">AI models and conservation laws</span><span class="sh-d">Does the AIFS keep the budgets?</span></a></li>
+                  <li><a href="/torque-enso.html"><span class="sh-t">El Niño and angular momentum</span><span class="sh-d">Why the atmosphere spins up</span></a></li>
+                  <li><a href="/topics/"><span class="sh-t">Explainers</span><span class="sh-d">The physics behind the products</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Verification</h3>
+                <ul>
+                  <li><a href="/verification.html"><span class="sh-t">Global models against observations</span><span class="sh-d">Scorecards, maps and the database</span></a></li>
+                  <li><a href="/aifs-verify.html"><span class="sh-t">AIFS single versus ensemble control</span><span class="sh-d">Two AIFS configurations compared</span></a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tools</h3>
+                <ul>
+                  <li><a href="/catalog.html"><span class="sh-t">Every plot on the site</span><span class="sh-d">Search and filter every figure</span></a></li>
+                  <li><a href="/skewt/"><span class="sh-t">Sounding explorer</span><span class="sh-d">Radiosondes worldwide, live</span></a></li>
+                  <li><a href="/asos5.html"><span class="sh-t">Five-minute airport observations</span><span class="sh-d">22 major US airports, live</span></a></li>
+                  <li><a href="/climate.html"><span class="sh-t">US climate trends</span><span class="sh-d">Every county and month since 1895</span></a></li>
+                  <li><a href="/fci.html"><span class="sh-t">US credit conditions</span><span class="sh-d">Financial conditions, weekly since 1990</span></a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main id="main">
+<article class="topic guide">
+  <p class="crumbs"><a href="/">Home</a> › <a href="/guides/">Page guides</a> › MJO forecast page</p>
+  <h1>Guide to the MJO forecast page</h1>
+  <p class="lede">What each figure shows, how it is made and what it is built from. <a href="/mjo.html">Open the MJO forecast page</a></p>
+<nav class="toc" aria-label="Figures"><dl><dt>Forecast</dt><dd><a href="#chi">Time&ndash;longitude chart</a><a href="#rmm">ECMWF successive runs</a></dd></dl></nav>
+<section id="about">
+<h2>The page</h2>
+<p>The Madden&ndash;Julian Oscillation in the global ensembles: every model's forecast on one phase diagram (AIFS-ENS,
+IFS-ENS, GEFS and GEPS, standard or ENSO-removed index), a time&ndash;longitude chart of the MJO with the El&nbsp;Ni&ntilde;o
+pattern taken out, the ECMWF runs one after another, and what each phase has meant for temperature, rain and the flow.
+The phase diagram and the impacts explain themselves on the page, under their own figures. The waves around the MJO
+are on the <a href="/tropical-waves.html">tropical waves page</a>.</p>
+</section>
+
+<h2>Forecast</h2>
+
+<section id="chi">
+<h3>Time&ndash;longitude chart</h3>
+<p class="open"><a href="/mjo.html#chi">Open this figure</a></p>
+<p>Time runs down the chart and longitude across it, so anything that moves east slopes down to the right: an MJO at
+about 5&nbsp;m&nbsp;s<sup>&minus;1</sup>, a Kelvin wave three times as fast. The field is the 200&nbsp;hPa velocity
+potential averaged 15&deg;S&ndash;15&deg;N. <span style="color:#2e7d32">Green is upper-level divergence</span>, the air
+spreading out above deep convection; <span style="color:#b4541f">brown is convergence</span>, above sinking and dry air.
+The last 110 days are analyses (the AIFS-ENS control at 0&nbsp;h, the 00 and 12&nbsp;UTC runs averaged); below the
+line is the AIFS-ENS forecast to day 15, the mean of the control and the 50 members.</p>
+
+<p><b>What was taken out.</b> A strong El&nbsp;Ni&ntilde;o holds rising air over the central and eastern Pacific and
+sinking air over the Maritime Continent for months. Indices that remove only a running mean, as the RMM does with the
+previous 120 days, leave part of a growing El&nbsp;Ni&ntilde;o in and read it as an MJO stalled in phases 6 to 8; a
+shorter running mean would take the slow MJO out with it. Here the standing pattern is removed by regression instead.
+From each day's field come out, in turn: the ERA5 1991&ndash;2020 normal for the day and its trend; the pattern that
+goes with Ni&ntilde;o-3.4 and with Ni&ntilde;o-3.4 three months earlier in ERA5, scaled by today's values (NOAA OISST,
+detrended, 31-day mean); and the mean of what is left over the record at each longitude, the standing part the
+regression misses. The strip above the chart shows what was removed: the black line is the whole standing pattern,
+the blue line its El&nbsp;Ni&ntilde;o part, drawn where that regression is significant. The regression is taken out at
+every longitude all the same, because a field cut at the edge of the significant region would carry that edge into the
+filtered contours. At +3.4&nbsp;&deg;C the regression is stretched beyond most of the El&nbsp;Ni&ntilde;os it was fitted on, which
+is one reason the record's own mean is removed after it.</p>
+
+<p><b>The contours.</b> What remains is filtered in wavenumber and frequency. The black contours are the MJO's band,
+eastward wavenumbers 1 to 5 and periods of 30 to 96 days, every 1.5 &times; 10<sup>6</sup>&nbsp;m<sup>2</sup>&nbsp;s<sup>&minus;1</sup>:
+solid where the upper air diverges (active), dashed where it converges (suppressed). The purple contours are the
+active phase of Kelvin waves (eastward wavenumbers 1 to 14, periods of 2.5 to 20 days). A band-pass filter needs the
+future as well as the past, so each member's own forecast stands in for it: the filter is run once per member on the
+analyses joined to that member, and the contours are the mean.</p>
+
+<p><b>The forecast.</b> Each member has the model's drift removed first: the mean error of the last 60 days of runs
+against the analyses, by longitude and lead time. It is not small, about 3 &times; 10<sup>6</sup>&nbsp;m<sup>2</sup>&nbsp;s<sup>&minus;1</sup>
+by day 15, as large as the signal itself. Below the line, shading and contours are drawn only where the members agree on
+the sign (a two-sided sign test with the false discovery rate held at 5&nbsp;%); blank areas are where they do not. The
+filtered contours of the last 30 analysis days are tested the same way, because the forecast still shapes them.</p>
+
+<p><b>The phase.</b> The numerals 1 to 8 above the chart mark the longitude where each RMM phase has its active
+centre, from the 1991&ndash;2020 record: 25&deg;E, 61&deg;E, 86&deg;E, 107&deg;E, 136&deg;E, 170&deg;E, 107&deg;W and
+23&deg;W. A solid black contour under a numeral is an active MJO in that phase's position. The column on the right
+does the same reading with numbers. The MJO band is fitted, by longitude, with the two patterns that go with the
+observed RMM1 and RMM2 in ERA5, each scaled as the RMM is, so an amplitude of 1 means what it means there. The bar is
+the amplitude, with the dashed line at 1, and a phase is printed only where the amplitude is 1 or more and at least
+three members in four point within 45&deg; of the mean. Below 1 there is no MJO and no phase is given.</p>
+
+<p><b>How good the phase is.</b> Tested on ERA5 1991&ndash;2020 with the patterns fitted on other years: on days when
+both this index and the observed RMM are active, the phase is the same on half of them and within one phase on
+94&nbsp;%. Run as the chart runs, on 130 days of record and a 15-day future, the agreement holds on the latest
+analysis day (51&nbsp;% and 94&nbsp;%) and at day 15 (51&nbsp;% and 93&nbsp;%), but the filter has less to work with
+at the end of a record: the amplitude reads about 10&nbsp;% low on the latest analysis day and about 30&nbsp;% low at
+day 15.</p>
+
+<p><b>Why it can differ from the phase diagram.</b> The RMM is mostly wind and is not filtered in time, so a fast
+Kelvin pulse, a burst of westerlies or a pattern only a few days old can push it past 1. This index answers only to a
+planetary-scale signal that has moved east for weeks: it is active on about two-thirds of the days the RMM is. When
+the diagram shows an MJO and this chart says there is none, look at the shading: a single fast streak is a Kelvin
+wave, and two or three green bands around the equator at once are too short a wave for the RMM's patterns.</p>
+
+<p><b>Reading it with care.</b> Velocity potential is a smooth field made mostly of the largest scales, so it shows a
+weak MJO's circulation more readily than its rain: a contour here is not a promise of rain under it.</p>
+</section>
+
+<section id="rmm">
+<h3>ECMWF successive runs</h3>
+<p class="open"><a href="/mjo.html#rmm">Open this figure</a></p>
+<p>The Real-time Multivariate MJO (RMM) phase diagram of Wheeler and Hendon (2004) for the ECMWF <b>AIFS-ENS</b>
+ensemble, 51 members to day 15, one run after another. The projection uses three fields: the 850 and 200&nbsp;hPa zonal
+winds and a stand-in for outgoing longwave radiation built from the standardised tropical precipitation with its sign
+reversed (rain and OLR are closely anticorrelated); a run whose precipitation has not arrived is projected on the
+winds alone. The physics-based <b>IFS-ENS</b> (50 members) from the same start is drawn in blue by the same method
+once its data has landed, an hour or two later, so the two can be compared directly.</p>
+<p>Amplitude is the distance from the centre (rings at 1, 2 and 3). The ellipses, every five days, span one standard
+deviation of the members either side of the mean in RMM1 and RMM2. At the same valid time the AIFS-ENS 12&nbsp;UTC runs
+sit off the 00&nbsp;UTC runs by an amount that grows with lead, so each 12&nbsp;UTC run has the mean difference of the
+last seven pairs removed, lead by lead. The observed track is ERA5 up to mid-July 2026 and, since then, the AIFS-ENS
+control at step 0 of each run (winds only; from 30 May to 12 October 2026 its phase sat within a median 5&deg; of the
+ERA5 RMM's on active days).</p>
+<p>This index keeps a changing El&nbsp;Ni&ntilde;o in it, so the caption under the figure opens with what the same
+forecast shows once ENSO is removed.</p>
+</section>
+  <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/">Shawn Corvec</a>, meteorologist.</p>
+</article>
+</main>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

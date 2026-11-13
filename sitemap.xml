@@ -232,7 +232,7 @@
   </url>
   <url>
     <loc>https://scorvec.com/guides/</loc>
-    <lastmod>2026-11-11</lastmod>
+    <lastmod>2026-11-13</lastmod>
     <priority>0.6</priority>
   </url>
   <url>
@@ -263,6 +263,11 @@
   <url>
     <loc>https://scorvec.com/guides/seasonal.html</loc>
     <lastmod>2026-11-11</lastmod>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://scorvec.com/guides/mjo.html</loc>
+    <lastmod>2026-11-13</lastmod>
     <priority>0.6</priority>
   </url>
 </urlset>
