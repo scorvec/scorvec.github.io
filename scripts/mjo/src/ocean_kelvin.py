@@ -331,7 +331,7 @@ def render_hov(
     axR.text(278, mdates([today])[0] + 2, "▼ AIFS-ENS forecast", ha="right", va="top", **lab)
     for e, name in u_src_edges:
         axR.axhline(mdates([e])[0], color="#6f6b64", lw=0.8, ls=":")
-        axR.text(131, mdates([e])[0] - 0.8, name, fontsize=7.5, color="#6f6b64", va="bottom")
+        house.halo(axR.text(131, mdates([e])[0] - 0.8, name, fontsize=7.5, color=house.INK2, va="bottom", zorder=6))
     if len(wdays) and wdays[0] > days[0] + pd.Timedelta(days=10):
         # the observed-wind leg failed on this run: say so in the empty part of the panel instead of leaving it blank
         why = "" if u_src_edges else "NCEI Blended Sea Winds unavailable on this run;\n"

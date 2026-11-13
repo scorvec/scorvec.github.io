@@ -281,6 +281,7 @@ def main() -> int:
                         cb = fig.colorbar(cf, cax=cax, ticks=lev[::2] if var == "t2m" else lev)
                         cb.set_label(vlab, fontsize=10)
                         cb.ax.tick_params(labelsize=9)
+                        house.spaced(cb.ax.yaxis)
             import textwrap
 
             wrapc = int(W * 13.5)

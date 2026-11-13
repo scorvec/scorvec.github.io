@@ -77,17 +77,27 @@ SRC = "MERRA-2 zonal means 1980–2026 (NASA GMAO)"
 ANALOGS = ["1982/83", "1997/98", "2009/10", "2015/16", "2023/24"]
 
 
-def fig_header(fig, title, sub, x=0.045, y=None):
-    """Title and a subtitle wrapped to the figure width; positions in inches so every figure size agrees.
-    Returns the figure fraction just below the subtitle."""
+def fig_header(fig, title, sub, x=0.045, y=None, side=None, side_size=8.2):
+    """Title and a subtitle wrapped to the figure width; positions in inches so every figure size agrees. ``side`` is a
+    monospace table set in the header's right-hand corner, level with the subtitle, which then wraps short of it.
+    Returns the figure fraction just below the subtitle (and the table)."""
     import textwrap
 
     W, H = fig.get_figwidth(), fig.get_figheight()
     y = 1 - 0.28 / H if y is None else y
     fig.text(x, y, title, ha="left", va="top", fontsize=15, fontweight="bold", color=INK)
-    lines = textwrap.wrap(sub, width=int((1 - 2 * x) * W * 12.6))
-    fig.text(x, y - 0.36 / H, "\n".join(lines), ha="left", va="top", fontsize=9.6, color=MUTED, linespacing=1.35)
-    return y - (0.36 + 0.19 * len(lines)) / H
+    width = int((1 - 2 * x) * W * 12.6)
+    lines = textwrap.wrap(sub, width=width)
+    text = fig.text(x, y - 0.36 / H, "\n".join(lines), ha="left", va="top", fontsize=9.6, color=MUTED, linespacing=1.35)
+    if side is None:
+        return y - (0.36 + 0.19 * len(lines)) / H
+    table = fig.text(0.97, y - 0.36 / H, side, ha="right", va="top", fontsize=side_size, family="monospace", color=INK)
+    fig.canvas.draw()
+    box = table.get_window_extent().transformed(fig.transFigure.inverted())
+    drawn = text.get_window_extent().transformed(fig.transFigure.inverted()).width
+    lines = textwrap.wrap(sub, width=int(0.97 * width * (box.x0 - 0.025 - x) / drawn))  # as drawn, not as counted
+    text.set_text("\n".join(lines))
+    return min(y - (0.36 + 0.19 * len(lines)) / H, box.y0 - 0.012)
 
 
 def cell_ink(v, lim, cmap="RdBu_r"):
@@ -455,7 +465,7 @@ def drip(D, E, s, out):
     ax2.set_xlabel("days from the event", fontsize=10, color=INK)
     ax2.set_ylabel("AO, 7-day mean", fontsize=10, color=INK)
     style(ax2)
-    ax2.legend(fontsize=8.5, frameon=False, ncol=3, loc="lower left")
+    ax2.legend(fontsize=8.5, frameon=True, framealpha=1, edgecolor="none", ncol=3, loc="lower left")
     ax2.set_title(
         "Arctic Oscillation at the surface (CPC daily index); dotted = not significant day by day",
         loc="left",
@@ -639,7 +649,7 @@ def drip_u(R, src, s, out):
     ax2.set_xlabel("days from the event", fontsize=10, color=INK)
     ax2.set_ylabel(f"u′ {sp} hPa, 7-day mean", fontsize=10, color=INK)
     style(ax2)
-    ax2.legend(fontsize=8.5, frameon=False, ncol=3, loc="lower left")
+    ax2.legend(fontsize=8.5, frameon=True, framealpha=1, edgecolor="none", ncol=3, loc="lower left")
     ax2.set_title(
         f"u(60°N) at {sp} hPa, standardised: a daily annular-mode proxy (negative ≈ negative AO); dotted = not significant",
         loc="left",
@@ -736,6 +746,14 @@ def ao_figure(D, E, out, ix="ao"):
     name, short, src = IDX_NAME[ix]
     from scipy import stats
 
+    W = window_tests(D, E, ix)
+    rows = [f"{'30-day means vs other years':<30s}{'days 1–30':>16s}{'days 31–60':>16s}"]
+    for s_ in SET_LABEL:
+
+        def cell(w, s_=s_):
+            return (f"{W[(s_, w)][0]:+.2f}" + (" *" if W[(s_, w)][2] else "  n.s.")).rjust(16)
+
+        rows.append(f"{SET_SHORT[s_] + ' (n=' + str(E['sets'][s_]) + ')':<30s}{cell('d1_30')}{cell('d31_60')}")
     fig = plt.figure(figsize=(13.4, 7.8), dpi=125)
     below = fig_header(
         fig,
@@ -743,12 +761,13 @@ def ao_figure(D, E, out, ix="ao"):
         f"{src}, 7-day running mean, around {E['sets']['ssw_all']} SSWs and {E['sets']['sv']} strong-vortex events "
         f"(MERRA-2 dates, 1980–2026). Lines are solid on days where the mean differs from the same calendar days in other years "
         f"(t-test, false-discovery rate 10 % across days), dotted where it does not; shading = 95 % interval of the mean. "
-        f"30-day means are the more powerful test (box). "
+        f"30-day means are the more powerful test (table). "
         f"Thin lines: the same calendar days in other years. Lower panel: share of events with a negative {short}, solid where "
         f"a binomial test against that share in other years (thin line) is significant.",
+        side="\n".join(rows) + "\n* significant (t-test, false-discovery rate 10 % over the 12 tests)",
     )
     lag = D.lag.values
-    ax = fig.add_axes([0.07, 0.42, 0.9, below - 0.445])
+    ax = fig.add_axes([0.07, 0.385, 0.9, below - 0.41])
     ax2 = fig.add_axes([0.07, 0.08, 0.9, 0.27])
     for s, col, lab in (("ssw_all", WARM, "after SSWs"), ("sv", COOL, "after strong-vortex events")):
         A, base = ao_rows(D, E, s, ix)
@@ -767,26 +786,6 @@ def ao_figure(D, E, out, ix="ao"):
         )
         draw_sig_line(ax2, lag, 100 * neg / np.maximum(k, 1), fdr(pb), col, lab, lw=2.4)
         ax2.plot(lag, 100 * p0, color=col, lw=0.8, alpha=0.5)
-    W = window_tests(D, E, ix)
-    rows = [f"{'30-day means vs other years':<30s}{'days 1–30':>16s}{'days 31–60':>16s}"]
-    for s_ in SET_LABEL:
-
-        def cell(w, s_=s_):
-            return (f"{W[(s_, w)][0]:+.2f}" + (" *" if W[(s_, w)][2] else "  n.s.")).rjust(16)
-
-        rows.append(f"{SET_SHORT[s_] + ' (n=' + str(E['sets'][s_]) + ')':<30s}{cell('d1_30')}{cell('d31_60')}")
-    ax.text(
-        0.995,
-        0.97,
-        "\n".join(rows) + "\n* significant (t-test, false-discovery rate 10 % over the 12 tests)",
-        transform=ax.transAxes,
-        ha="right",
-        va="top",
-        fontsize=8.2,
-        family="monospace",
-        color=INK,
-        bbox=dict(facecolor="white", edgecolor="#c9ccd1", pad=4),
-    )
     ax.axhline(0, color="#555", lw=0.8)
     ax.axvline(0, color=INK, lw=1)
     ax.set_xlim(-40, 90)
@@ -989,32 +988,6 @@ def f_ix_tests(F, index, what="pneg"):
 
 def ao_cmip6(F, out):
     nm, yrs, _ = f_meta(F)
-    fig = plt.figure(figsize=(13.4, 7.8), dpi=125)
-    below = fig_header(
-        fig,
-        f"The annular mode after sudden warmings and strong-vortex events in {nm} CMIP6 models",
-        f"There is no daily surface pressure in this sample, so the daily Arctic Oscillation is stood in for by the zonal-mean "
-        f"wind at 60°N, 700 hPa, standardised (weaker westerlies ≈ negative AO), 7-day running mean; {int(F.n.sel(set='ssw_all').sum()):,} "
-        f"SSWs and {int(F.n.sel(set='sv').sum()):,} strong-vortex events, {yrs:,} model-years. Lines: mean of the models' "
-        f"composites, solid where robust ("
-        + F_TEST.format(what="the days")
-        + "); band = range across the models. Lower panel: "
-        "share of events below zero, solid where it differs robustly from each model's normal share for those calendar days "
-        "(thin line). Box: 30-day means, with the monthly sea-level-pressure annular mode as a cross-check.",
-    )
-    lag = F.lag.values
-    ax = fig.add_axes([0.07, 0.42, 0.9, below - 0.44])
-    ax2 = fig.add_axes([0.07, 0.08, 0.9, 0.27])
-    for s, col, lab in (("ssw_all", WARM, "after SSWs"), ("sv", COOL, "after strong-vortex events")):
-        X = F.u700_path.sel(set=s).values.astype(float)
-        mean, sg, _, _ = robust(X)
-        ax.fill_between(lag, np.nanmin(X, 0), np.nanmax(X, 0), color=col, alpha=0.13, lw=0)
-        draw_sig_line(ax, lag, mean, sg, col, f"mean of the models {lab} (n={int(F.n.sel(set=s).sum()):,})")
-        P = F.u700_pneg.sel(set=s).values.astype(float)
-        Bn = F.u700_base_pneg.sel(set=s).values.astype(float)
-        _, sgp, _, _ = robust(P - Bn)
-        draw_sig_line(ax2, lag, 100 * np.nanmean(P, 0), sgp, col, lab, lw=2.4)
-        ax2.plot(lag, 100 * np.nanmean(Bn, 0), color=col, lw=0.8, alpha=0.5)
     rows = [
         f"{'30-day means':<16s}{'u′ 700 hPa (daily)':>26s}{'SLP annular mode (monthly)':>30s}",
         f"{'':<16s}{'d1–30':>13s}{'d31–60':>13s}{'d1–30':>15s}{'d31–60':>15s}",
@@ -1028,19 +1001,35 @@ def ao_cmip6(F, out):
         rows.append(
             f"{SET_SHORT[s_]:<16s}{cell(Tu, 'd1_30', 13)}{cell(Tu, 'd31_60', 13)}{cell(Tn, 'd1_30', 15)}{cell(Tn, 'd31_60', 15)}"
         )
-    ax.text(
-        0.995,
-        0.97,
-        "\n".join(rows) + "\n* robust (across-model t-test, false-discovery rate 10 % over each index's 8 cells,\n"
+    fig = plt.figure(figsize=(13.4, 7.8), dpi=125)
+    below = fig_header(
+        fig,
+        f"The annular mode after sudden warmings and strong-vortex events in {nm} CMIP6 models",
+        f"There is no daily surface pressure in this sample, so the daily Arctic Oscillation is stood in for by the zonal-mean "
+        f"wind at 60°N, 700 hPa, standardised (weaker westerlies ≈ negative AO), 7-day running mean; {int(F.n.sel(set='ssw_all').sum()):,} "
+        f"SSWs and {int(F.n.sel(set='sv').sum()):,} strong-vortex events, {yrs:,} model-years. Lines: mean of the models' "
+        f"composites, solid where robust ("
+        + F_TEST.format(what="the days")
+        + "); band = range across the models. Lower panel: "
+        "share of events below zero, solid where it differs robustly from each model's normal share for those calendar days "
+        "(thin line). Table: 30-day means, with the monthly sea-level-pressure annular mode as a cross-check.",
+        side="\n".join(rows) + "\n* robust (across-model t-test, false-discovery rate 10 % over each index's 8 cells,\n"
         "  ≥ 80 % of models agree); n.s. = not robust. Units: standard deviations.",
-        transform=ax.transAxes,
-        ha="right",
-        va="top",
-        fontsize=8.0,
-        family="monospace",
-        color=INK,
-        bbox=dict(facecolor="white", edgecolor="#c9ccd1", pad=4),
+        side_size=8.0,
     )
+    lag = F.lag.values
+    ax = fig.add_axes([0.07, 0.385, 0.9, below - 0.405])
+    ax2 = fig.add_axes([0.07, 0.08, 0.9, 0.27])
+    for s, col, lab in (("ssw_all", WARM, "after SSWs"), ("sv", COOL, "after strong-vortex events")):
+        X = F.u700_path.sel(set=s).values.astype(float)
+        mean, sg, _, _ = robust(X)
+        ax.fill_between(lag, np.nanmin(X, 0), np.nanmax(X, 0), color=col, alpha=0.13, lw=0)
+        draw_sig_line(ax, lag, mean, sg, col, f"mean of the models {lab} (n={int(F.n.sel(set=s).sum()):,})")
+        P = F.u700_pneg.sel(set=s).values.astype(float)
+        Bn = F.u700_base_pneg.sel(set=s).values.astype(float)
+        _, sgp, _, _ = robust(P - Bn)
+        draw_sig_line(ax2, lag, 100 * np.nanmean(P, 0), sgp, col, lab, lw=2.4)
+        ax2.plot(lag, 100 * np.nanmean(Bn, 0), color=col, lw=0.8, alpha=0.5)
     ax.axhline(0, color="#555", lw=0.8)
     ax.axvline(0, color=INK, lw=1)
     ax.set_xlim(-40, 90)

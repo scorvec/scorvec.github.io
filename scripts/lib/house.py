@@ -7,6 +7,8 @@
     house.stipple(ax, lon, lat, skilful, transform=ccrs.PlateCarree())   # dots where a forecast map has skill
     house.legend_room(ax)              # once a panel is drawn: its lines pass clear of its legend
     house.spaced(cb.ax.xaxis)          # a colour bar's level labels thinned where they would run together
+    house.halo(label)                  # a label that lines or hatching cross: they stop short of its letters
+    house.place(ax, "day 10", xy, spots, avoid)   # a point's label at the first spot clear of markers and labels
     house.clear(fig)                   # last, before saving: the figure's own text stays off its panels
 
 Type: Source Sans 3 from scripts/lib/fonts when the files are there (the site's text face, OFL), else DejaVu Sans;
@@ -22,7 +24,7 @@ from pathlib import Path
 
 import matplotlib as mpl
 import numpy as np
-from matplotlib import font_manager
+from matplotlib import font_manager, patheffects
 from matplotlib import transforms as mtransforms
 
 FONTS = Path(__file__).resolve().parent / "fonts"
@@ -233,3 +235,55 @@ def spaced(axis, gap: float = 3.0) -> None:
             break
     for i, t in enumerate(labs):
         t.set_visible(i in keep)
+
+
+def halo(*texts, colour: str = "white", width: float = 2.4) -> None:
+    """Outline labels in ``colour`` (that of the ground they stand on), so that the lines, contours or hatching
+    behind them stop short of the letters."""
+    for t in texts:
+        t.set_path_effects([patheffects.withStroke(linewidth=width, foreground=colour)])
+
+
+def boxes(ax, x, y, radius: float = 4.0) -> list:
+    """Display boxes of ``radius`` points around data points (markers, the vertices of a track): what ``place`` keeps
+    a label off. Call it once the figure is drawn."""
+    r = radius * ax.figure.dpi / 72
+    pts = ax.transData.transform(np.column_stack([np.atleast_1d(x), np.atleast_1d(y)]))
+    return [
+        mtransforms.Bbox.from_extents(px - r, py - r, px + r, py + r) for px, py in pts if np.isfinite([px, py]).all()
+    ]
+
+
+def place(ax, text: str, xy, spots, avoid: list, **kw):
+    """Label the data point ``xy`` at the first of ``spots`` (offsets of the label's centre, in points) where it lies
+    inside the panel and clear of every box of ``avoid`` (display boxes: markers, other labels, a legend), else at the
+    spot that overlaps them least; the label's own box then joins ``avoid``. Call it once the figure is drawn."""
+    rend = ax.figure.canvas.get_renderer()
+    lab = ax.annotate(text, xy, textcoords="offset points", xytext=spots[0], ha="center", va="center", **kw)
+    best = (np.inf, spots[0])
+    for spot in spots:
+        lab.set_position(spot)
+        b = lab.get_window_extent(rend)
+        hit = sum(
+            max(0.0, min(b.x1, a.x1) - max(b.x0, a.x0)) * max(0.0, min(b.y1, a.y1) - max(b.y0, a.y0)) for a in avoid
+        )
+        if not (ax.bbox.contains(b.x0, b.y0) and ax.bbox.contains(b.x1, b.y1)):
+            hit += b.width * b.height
+        if hit < best[0]:
+            best = (hit, spot)
+        if not hit:
+            break
+    lab.set_position(best[1])
+    avoid.append(lab.get_window_extent(rend))
+    return lab
+
+
+def ring(angle: float, reach=(2, 10, 19, 30), half=(21, 11)) -> list:
+    """Spots for ``place`` around a point: offsets of a label's centre on ellipses ``reach`` points beyond the label's
+    half width and half height ``half``, nearest first, each ring starting at ``angle`` (degrees) and fanning out."""
+    turns = [0, 30, -30, 60, -60, 90, -90, 120, -120, 150, -150, 180]
+    return [
+        ((half[0] + r) * np.cos(np.deg2rad(angle + t)), (half[1] + r) * np.sin(np.deg2rad(angle + t)))
+        for r in reach
+        for t in turns
+    ]

@@ -12,6 +12,7 @@ not drawn.
 
 import sys
 import argparse
+import textwrap
 from pathlib import Path
 
 import numpy as np
@@ -104,19 +105,21 @@ def main():
     fig.text(
         0.5,
         0.005,
-        "Ensemble-mean anomaly correlation, every system as a 4-member mean against its own leave-one-year-out "
-        "hindcast climatology; bars: 95% year-block bootstrap. ▲ over GEFS or GEPS: that system beats SFS, the difference's own "
-        "interval excluding zero and passing a false discovery rate of 10% over the figure (▼: SFS ahead); no marker = "
-        "no significant difference. "
-        "GEFS: the Wednesday start within 3 days of the 1st, to day 35; no GEFS precipitation in this test. Only Sep/Oct "
-        "starts exist for SFS beta2, so winter skill can differ.",
+        textwrap.fill(
+            "Ensemble-mean anomaly correlation, every system as a 4-member mean against its own leave-one-year-out "
+            "hindcast climatology; bars: 95% year-block bootstrap. ▲ over GEFS or GEPS: that system beats SFS, the "
+            "difference's own interval excluding zero and passing a false discovery rate of 10% over the figure (▼: SFS "
+            "ahead); no marker = no significant difference. GEFS: the Wednesday start within 3 days of the 1st, to day "
+            "35; no GEFS precipitation in this test. Only Sep/Oct starts exist for SFS beta2, so winter skill can differ.",
+            240,  # (characters: the figure's width less a margin each side)
+        ),
         ha="center",
         va="bottom",
         fontsize=8.4,
         color="#5c6b73",
-        wrap=True,
+        linespacing=1.35,
     )
-    fig.tight_layout(rect=(0, 0.05, 1, 0.965))
+    fig.tight_layout(rect=(0, 0.065, 1, 0.965))
     out = Path(a.site) / "assets" / "sfs" / "sub"
     out.mkdir(parents=True, exist_ok=True)
     p = out / "sfs_hindcast_skill.webp"

@@ -652,7 +652,10 @@ def main() -> int:
         v = validation[sid]
         ref = v.get("reference", "CPC")
         rtxt = (
-            (f"r vs CPC monthly {v['r_monthly']:+.2f} (out of sample)" if "r_monthly" in v else "")
+            (
+                f"EOF1: {v['explained_pct']}% of the variance\n" if "explained_pct" in v else ""
+            )  # (too long for the title)
+            + (f"r vs CPC monthly {v['r_monthly']:+.2f} (out of sample)" if "r_monthly" in v else "")
             + (
                 f"\nr vs {ref} daily {v['r_daily']:+.2f}" + (" (out of sample)" if "r_monthly" in v else "")
                 if "r_daily" in v
@@ -663,8 +666,7 @@ def main() -> int:
         ax.set_title(
             f"{sid.upper()} — {out_attrs[sid]['name']}\n"
             f"{ {'z500': '500 hPa height', 'z100': '100 hPa height'}.get(fld, 'sea-level pressure') }, "
-            f"{'hPa' if fld == 'slp' else 'm'} per +1 sd"
-            + (f" · EOF1 {v['explained_pct']}%" if "explained_pct" in v else ""),
+            f"{'hPa' if fld == 'slp' else 'm'} per +1 sd",
             fontsize=8.4,
             fontweight="bold",
         )

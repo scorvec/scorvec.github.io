@@ -242,7 +242,7 @@ def plot_psi(psi, p_hpa, lon, out: Path, title: str, vlim, psi_abs, pidx, pclim,
     ax.set_ylabel("pressure (hPa)", fontsize=11.5)  # x ticks are self-labelling
     ax.tick_params(labelsize=11)
     for x, lab in ((120, "Maritime\nContinent"), (255, "E Pacific"), (293, "S America")):
-        ax.text(x, 118, lab, ha="center", va="top", fontsize=8.5, color="0.45", style="italic")
+        house.halo(ax.text(x, 118, lab, ha="center", va="top", fontsize=8.5, color="0.35", style="italic", zorder=6))
     ax.set_title(title, fontsize=13.5, fontweight="bold")
     cb = fig.colorbar(cf, ax=ax, pad=0.015, ticks=levs[::2])
     cb.set_label("Ψ_W anomaly  (10¹⁰ kg s⁻¹)", fontsize=10.5)

@@ -1348,9 +1348,9 @@ def render(A, R, U, AN, W, CEN, corr, pc, mm, present, dates) -> dict:
     for i, k in enumerate(tk):
         t = T[k]
         lab = (
-            "untestable (too few events)"
+            "untestable\n(too few events)"
             if t.get("untestable")
-            else (f"skill: AUC {t['auc']:.2f}, Holm p {t['p_holm']:.2f}" + ("" if t["significant"] else " (n.s.)"))
+            else (f"skill: AUC {t['auc']:.2f}\nHolm p {t['p_holm']:.2f}" + ("" if t["significant"] else " (n.s.)"))
         )
         ax.text(
             i,
@@ -1420,15 +1420,6 @@ def render(A, R, U, AN, W, CEN, corr, pc, mm, present, dates) -> dict:
         lw=0.6,
         zorder=3,
     )
-    for w in wv:
-        ax.annotate(
-            str(w["year"])[2:],
-            (w["dec_anom"], w["obs_dec_anom"]),
-            fontsize=7,
-            color="#6f6b64",
-            xytext=(3, 2),
-            textcoords="offset points",
-        )
     t2 = T["T2"]
     ax.set_title(
         f"December mean from the daily data (T2)\nr {t2['r']:.2f} (95 % CI {t2['r_ci95'][0]:.2f} to {t2['r_ci95'][1]:.2f}), "
@@ -1470,6 +1461,18 @@ def render(A, R, U, AN, W, CEN, corr, pc, mm, present, dates) -> dict:
         color="#6f6b64",
     )
     fig.tight_layout(rect=(0, 0.03, 1, 1))
+    fig.canvas.draw()  # the winters' labels, on the finished layout: clear of the dots and of one another
+    avoid = house.boxes(ax, [w["dec_anom"] for w in wv], [w["obs_dec_anom"] for w in wv], 3.5)
+    for w in wv:
+        house.place(
+            ax,
+            str(w["year"])[2:],
+            (w["dec_anom"], w["obs_dec_anom"]),
+            house.ring(35, reach=(1, 5, 10), half=(5.5, 5)),
+            avoid,
+            fontsize=7,
+            color="#6f6b64",
+        )
     figs["hindcast"] = _save(fig, "c3s_vortex_daily_hindcast.webp")
     return figs
 

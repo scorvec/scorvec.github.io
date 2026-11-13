@@ -889,7 +889,7 @@ def render(ym, dates, f60, cm, q10, q90, z, fsec, hsec, lats, tail, doc) -> dict
         else "NO skill beyond climatology"
     )
     cx.set_title(f"Hindcast reliability, Nov–Mar ({verdict})", loc="left", fontsize=10.5)
-    cx.text(
+    score = cx.text(
         0.02,
         0.98,
         f"BSS {S['bss']:+.2f} (90 % CI {S['bss_ci90'][0]:+.2f} to {S['bss_ci90'][1]:+.2f})\nROC area {S['auc']:.2f} "
@@ -898,7 +898,9 @@ def render(ym, dates, f60, cm, q10, q90, z, fsec, hsec, lats, tail, doc) -> dict
         va="top",
         fontsize=8,
         color=INK,
+        zorder=4,
     )
+    house.halo(score)  # (the diagonal ends beside it)
     fig.suptitle(
         f"SEAS5 sudden-warming risk · {issue}"
         + ("" if S["skilful"] else "  —  no hindcast skill: the model's view, not a forecast"),

@@ -335,7 +335,7 @@ def render_refractive(by_step, nmem, lat, base, days=(0, 5, 10, 15), out=None) -
             if k == 1:
                 sh = test[f"{base + pd.Timedelta(hours=s):%Y-%m-%d}"]
                 ax.text(0.02, 0.02, f"u(60°N) 1 minus 10 hPa: {sh:+.0f} m/s", transform=ax.transAxes, fontsize=7.4,
-                        color="#1f2328", bbox=dict(fc="white", ec="none", alpha=0.8, pad=1.5))  # fmt: skip
+                        color="#1f2328", zorder=6, bbox=dict(fc="white", ec="none", pad=1.5))  # fmt: skip
     cax = fig.add_axes([0.92, 0.18, 0.012, 0.64])
     cb = fig.colorbar(cf, cax=cax, label="a² n² (stationary wave)", ticks=[-0.5, *lv[1:]])
     cb.ax.set_yticklabels(["< 0", *(f"{v:g}" for v in lv[1:])])

@@ -278,6 +278,7 @@ def render(out_dir=SITE) -> list:
                     cb = fig.colorbar(cf, cax=cax, ticks=(lev[::2] if var != "prcp" else lev))
                     cb.set_label(vlab, fontsize=9.5)
                     cb.ax.tick_params(labelsize=8.5)
+                    house.spaced(cb.ax.yaxis)
         wrapc = int(W * 13.5)
         fig.text(
             0.2 / W,

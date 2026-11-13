@@ -565,7 +565,7 @@ def plot_probs(ref, base, prev_date, weeks, n_members, out: Path):
         ax.barh(y, pp * bw, left=x0 + (pn + pz) * bw, height=h, color="#b4453c", lw=0)
         if txt:
             for frac, off in ((pn, pn / 2), (pp, pn + pz + pp / 2)):
-                if frac >= 0.12:
+                if frac >= 0.15:
                     ax.text(
                         x0 + off * bw,
                         y,
@@ -588,7 +588,7 @@ def plot_probs(ref, base, prev_date, weeks, n_members, out: Path):
             if "skill_r" in row:
                 bar(y - 0.24, 0.16, row["cal_p_neg"], row["cal_p_pos"], x0, txt=False)
                 ax.text(
-                    x0 + bw + 0.02,
+                    x0 + bw + 0.03,
                     y - 0.24,
                     f"{row['cal_p_neg'] * 100:.0f}/{row['cal_p_pos'] * 100:.0f}",
                     ha="left",
@@ -600,9 +600,9 @@ def plot_probs(ref, base, prev_date, weeks, n_members, out: Path):
                 if row.get("no_skill"):
                     ax.add_patch(
                         Rectangle(
-                            (x0 - 0.02, y - 0.36),
-                            bw + 0.04,
-                            0.72,
+                            (x0 - 0.01, y - 0.335),
+                            bw + 0.02,
+                            0.685,
                             facecolor="white",
                             alpha=0.55,
                             edgecolor="#8a8680",
@@ -621,7 +621,7 @@ def plot_probs(ref, base, prev_date, weeks, n_members, out: Path):
                         fontweight="bold",
                         color=GP.INK,
                         zorder=6,
-                        bbox=dict(facecolor="white", edgecolor="none", alpha=0.85, pad=1.0),
+                        bbox=dict(facecolor="white", edgecolor="none", pad=1.0),
                     )
             else:
                 ax.text(
@@ -634,7 +634,7 @@ def plot_probs(ref, base, prev_date, weeks, n_members, out: Path):
                     color=GP.MUTED,
                     style="italic",
                 )
-            ax.text(x, y - 0.43, line, ha="center", va="center", fontsize=7.3, color=GP.INK)
+            ax.text(x, y - 0.45, line, ha="center", va="center", fontsize=7.3, color=GP.INK)
     ax.set_xlim(-0.5, W - 0.5)
     ax.set_ylim(-0.7, n - 0.4)
     ax.set_yticks(range(n))

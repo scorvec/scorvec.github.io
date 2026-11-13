@@ -247,7 +247,9 @@ def plot(hist: pd.DataFrame, out: Path):
             ax.spines[sp].set_visible(False)
         if k == 0:
             ax.tick_params(labelbottom=False)
-            ax.legend(loc="lower left", fontsize=8, frameon=False, ncol=2)
+            ax.legend(  # above the panel, level with its name: inside it the legend stood among the dots
+                loc="lower right", bbox_to_anchor=(1.0, 1.0), borderaxespad=0.2, fontsize=8, frameon=False, ncol=2
+            )
     fig.text(
         0.02,
         1 - 0.14 / H,

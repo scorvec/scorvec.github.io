@@ -14,6 +14,7 @@ rate of 10 %), and an unmarked point means no significant difference.
 
 import sys
 import argparse
+import textwrap
 from pathlib import Path
 
 import numpy as np
@@ -24,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
 HERE = Path(__file__).resolve().parent
 SFS_C, CFS_C = "#b0562a", "#5b4a9e"
-NOTE_C = "#5c6b73"
+NOTE_C, NOTE_W = "#5c6b73", 240  # footnotes: colour, characters per line (a 13.6 in figure less its margins)
 MON = ["Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun"]
 
 
@@ -105,18 +106,22 @@ def weekly(plt, site):
     fig.text(
         0.5,
         0.005,
-        "Ensemble-mean anomaly correlation, each system against its own leave-one-year-out climatology; bars: 95% "
-        "year-block bootstrap. ▲ over CFSv2: CFSv2 beats SFS, the difference's own interval excluding zero and passing a "
-        "false discovery rate of 10% over the figure (▼: SFS ahead); no marker = no significant difference. SFS: four-member means of its reforecast. CFSv2: the 00, 06, 12 and 18Z runs of the "
-        "1st, one member each (IRI SubX hindcast 1999–2016 and real-time 2018–2025, no 2017; 500 hPa height 2019–2025 from NOAA's "
-        "operational CFSv2 on AWS). ERA5 precipitation ends Jan 2023. Only Sep/Oct starts exist for SFS beta2.",
+        textwrap.fill(
+            "Ensemble-mean anomaly correlation, each system against its own leave-one-year-out climatology; bars: 95% "
+            "year-block bootstrap. ▲ over CFSv2: CFSv2 beats SFS, the difference's own interval excluding zero and passing "
+            "a false discovery rate of 10% over the figure (▼: SFS ahead); no marker = no significant difference. SFS: "
+            "four-member means of its reforecast. CFSv2: the 00, 06, 12 and 18Z runs of the 1st, one member each (IRI SubX "
+            "hindcast 1999–2016 and real-time 2018–2025, no 2017; 500 hPa height 2019–2025 from NOAA's operational CFSv2 "
+            "on AWS). ERA5 precipitation ends Jan 2023. Only Sep/Oct starts exist for SFS beta2.",
+            NOTE_W,
+        ),
         ha="center",
         va="bottom",
         fontsize=8.4,
         color=NOTE_C,
-        wrap=True,
+        linespacing=1.35,
     )
-    fig.tight_layout(rect=(0, 0.06, 1, 0.985))
+    fig.tight_layout(rect=(0, 0.065, 1, 0.985))
     _save(fig, Path(site) / "assets" / "sfs" / "sub" / "sfs_cfs_weekly_skill.webp")
     plt.close(fig)
 
@@ -193,17 +198,20 @@ def nino34(plt, site):
     fig.text(
         0.5,
         0.005,
-        "SFS: 11 reforecast members started on the 1st. CFSv2: the NMME archive (24 members from lagged starts "
-        "before the 1st, hindcast 1991–2010 and real-time 2011–2025), scored as random 11-member draws with separate "
-        "climatologies before and after 1999 as CPC uses for its hindcast. Each system against its own leave-one-year-out "
-        "climatology; shading: 95% year-block bootstrap. A square: the SFS-minus-CFSv2 difference's own interval excludes "
-        "zero and it passes a false discovery rate of 10% over the figure, in the better system's colour; no square = no "
-        "significant difference.",
+        textwrap.fill(
+            "SFS: 11 reforecast members started on the 1st. CFSv2: the NMME archive (24 members from lagged starts "
+            "before the 1st, hindcast 1991–2010 and real-time 2011–2025), scored as random 11-member draws with separate "
+            "climatologies before and after 1999 as CPC uses for its hindcast. Each system against its own "
+            "leave-one-year-out climatology; shading: 95% year-block bootstrap. A square: the SFS-minus-CFSv2 difference's "
+            "own interval excludes zero and it passes a false discovery rate of 10% over the figure, in the better "
+            "system's colour; no square = no significant difference.",
+            NOTE_W,
+        ),
         ha="center",
         va="bottom",
         fontsize=8.4,
         color=NOTE_C,
-        wrap=True,
+        linespacing=1.35,
     )
     fig.tight_layout(rect=(0, 0.1, 1, 0.985))
     _save(fig, Path(site) / "assets" / "sfs" / "sfs_cfs_nino34_skill.webp")
@@ -248,7 +256,7 @@ def seasonal(plt, site):
             _winner_marks(ax, x, [_row(sub, system="sfs-cfs", start=a, period=b) for a, b in COMBO], False)
             ax.axhline(0, color="#8a8680", lw=0.8)
             ax.set_xticks(x)
-            ax.set_xticklabels([f"{a} → {b}" for a, b in COMBO], fontsize=8.8)
+            ax.set_xticklabels([f"{a} →\n{b}" for a, b in COMBO], fontsize=8.8)
             ax.grid(axis="y", alpha=0.25)
             if ri == 0:
                 ax.set_title(clab, fontsize=11, fontweight="bold")

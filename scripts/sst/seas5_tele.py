@@ -1131,7 +1131,7 @@ def plot_probs(doc: dict, out: Path) -> None:
         ax.barh(y, pp * bw, left=x0 + (pn + pz) * bw, height=h, color="#b4453c", lw=0)
         if txt:
             for frac, off in ((pn, pn / 2), (pp, pn + pz + pp / 2)):
-                if frac >= 0.12:
+                if frac >= 0.15:
                     ax.text(
                         x0 + off * bw,
                         y,
@@ -1187,7 +1187,7 @@ def plot_probs(doc: dict, out: Path) -> None:
             if c and "p_neg" in c:
                 bar(y - 0.24, 0.16, c["p_neg"], c["p_pos"], x0, txt=False)
                 ax.text(
-                    x0 + bw + 0.02,
+                    x0 + bw + 0.03,
                     y - 0.24,
                     f"{c['p_neg'] * 100:.0f}/{c['p_pos'] * 100:.0f}",
                     ha="left",
@@ -1199,9 +1199,9 @@ def plot_probs(doc: dict, out: Path) -> None:
                 if c.get("no_skill"):
                     ax.add_patch(
                         Rectangle(
-                            (x0 - 0.02, y - 0.36),
-                            bw + 0.04,
-                            0.72,
+                            (x0 - 0.01, y - 0.335),
+                            bw + 0.02,
+                            0.685,
                             facecolor="white",
                             alpha=0.55,
                             edgecolor="#8a8680",
@@ -1220,7 +1220,7 @@ def plot_probs(doc: dict, out: Path) -> None:
                         fontweight="bold",
                         color=INK,
                         zorder=6,
-                        bbox=dict(facecolor="white", edgecolor="none", alpha=0.85, pad=1.0),
+                        bbox=dict(facecolor="white", edgecolor="none", pad=1.0),
                     )
             else:
                 ax.text(
@@ -1233,7 +1233,7 @@ def plot_probs(doc: dict, out: Path) -> None:
                     color=MUTED,
                     style="italic",
                 )
-            ax.text(L, y - 0.43, line, ha="center", va="center", fontsize=7.1, color=INK)
+            ax.text(L, y - 0.45, line, ha="center", va="center", fontsize=7.1, color=INK)
     ax.set_xlim(-0.5, W - 0.5)
     ax.set_ylim(-0.7, n - 0.4)
     ax.set_yticks(range(n))

@@ -244,8 +244,9 @@ def plot(raw, soi24, lp_soi, bias, hist, out: Path):
             ha="center",
             va="top",
             fontsize=7.5,
-            color="0.5",
+            color=house.MUTED,
             zorder=8,
+            bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="none", alpha=0.92),  # (the series pass behind it)
         )
     fig.tight_layout()
     out.parent.mkdir(parents=True, exist_ok=True)

@@ -299,7 +299,7 @@ def main() -> int:
             (0.97, 0.03, "high & falling"),
             (0.03, 0.03, "low & falling"),
         ):
-            axp.text(
+            corner = axp.text(
                 xf,
                 yf,
                 s,
@@ -309,7 +309,9 @@ def main() -> int:
                 ha="right" if xf > 0.5 else "left",
                 va="top" if yf > 0.5 else "bottom",
                 style="italic",
+                zorder=7,
             )
+            house.halo(corner)  # (the orbit can pass through a corner)
         axp.set_title(hemi, fontsize=10.5, fontweight="bold")
         axp.set_xlabel("AAM anomaly (10²⁵ kg m² s⁻¹)", fontsize=8.5)
         if j == 0:

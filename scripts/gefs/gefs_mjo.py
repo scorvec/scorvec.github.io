@@ -129,43 +129,6 @@ REGION_LABELS = [
 ]
 
 
-def _clear_offset(x, y, base, labels, unit=0.019):
-    """Offset (points) for a "day N" label at (x, y): `base` unless its box overlaps a region name (`labels` =
-    (text, x, y, rotation) in data units), else the first candidate that does not (e.g. "day 35" landing on
-    "Indian Ocean"). Boxes are approximate (axes span ~8.6 units over ~6.5 in, so 1 pt ~ 0.019 units)."""
-
-    def box(o):  # annotate's text: left/baseline at the offset
-        x0, y0 = x + o[0] * unit, y + o[1] * unit
-        return x0, x0 + 0.85, y0 - 0.05, y0 + 0.28
-
-    def regions():
-        for t, lx, ly, rot in labels:
-            w = 0.16 * max(len(s) for s in t.split("\n")) / 2 + 0.1
-            h = 0.2 * (t.count("\n") + 1) / 2 + 0.06
-            yield (lx - h, lx + h, ly - w, ly + w) if rot else (lx - w, lx + w, ly - h, ly + h)
-
-    def hits(o):
-        a = box(o)
-        return sum(
-            max(0.0, min(a[1], r[1]) - max(a[0], r[0])) * max(0.0, min(a[3], r[3]) - max(a[2], r[2])) for r in regions()
-        )
-
-    cands = [
-        base,
-        (11, 9),
-        (11, -13),
-        (-13, 11),
-        (-13, -13),
-        (11, -24),
-        (-13, -24),
-        (11, 22),
-        (-13, 22),
-        (14, -4),
-        (-58, -4),
-    ]
-    return min(cands, key=lambda o: (round(hits(o), 3), cands.index(o)))
-
-
 # ── reference ─────────────────────────────────────────────────────────────────────────────────────────────────
 def ref_path(name: str, dirs) -> Path:
     """A reference file from the first directory that has it, else downloaded from release gefs-ref-v1 into the
@@ -563,6 +526,7 @@ def plot_phase(init, odates, or1, or2, m1, m2, n_members, out: Path, enso_note: 
     under the footer (the figure grows to fit)."""
     plt = _plt()
     import textwrap
+    import house
     import matplotlib.colors as mcolors
 
     r1, r2 = m1.mean(0), m2.mean(0)
@@ -591,20 +555,6 @@ def plot_phase(init, odates, or1, or2, m1, m2, n_members, out: Path, enso_note: 
         ax.plot(x[i : i + 2], y[i : i + 2], color=cmap(norm(max(i - 1, 0))), lw=2.4, zorder=7)
     for k in range(4, len(L), 5):
         ax.scatter(r1[k], r2[k], s=42, color=cmap(norm(k)), edgecolor="0.25", linewidth=0.4, zorder=8)
-    for k, (dx0, dy0) in zip((9, 19, 34), ((11, 9), (11, -13), (-13, 11))):
-        if k < len(L):
-            dx, dy = _clear_offset(r1[k], r2[k], (dx0, dy0), REGION_LABELS)
-            ax.annotate(
-                f"day {L[k]}",
-                (r1[k], r2[k]),
-                textcoords="offset points",
-                xytext=(dx, dy),
-                fontsize=9,
-                fontweight="bold",
-                zorder=10,
-                color=cmap(norm(k)),
-                bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.82),
-            )
     ax.scatter(
         r1[-1],
         r2[-1],
@@ -617,6 +567,34 @@ def plot_phase(init, odates, or1, or2, m1, m2, n_members, out: Path, enso_note: 
         label=f"GEFS day {L[-1]}",
     )
     ax.legend(loc="upper left", fontsize=8.5, framealpha=0.9, ncol=2)
+    # the day labels, on the finished layout: clear of the region names, the legend, the analysis star, the tracks'
+    # dots and one another (a compact, damped mean track stacks them on the star and on each other otherwise)
+    fig.canvas.draw()
+    rend = fig.canvas.get_renderer()
+    fine = np.linspace(0, len(x) - 1, 8 * len(x))
+    avoid = [
+        *(t.get_window_extent(rend) for t in ax.texts),
+        ax.get_legend().get_window_extent(rend),
+        *house.boxes(ax, or1[-1], or2[-1], 9),
+        *house.boxes(ax, r1[-1], r2[-1], 6),
+        *house.boxes(ax, np.interp(fine, np.arange(len(x)), x), np.interp(fine, np.arange(len(y)), y), 2.5),
+        *house.boxes(ax, r1[4::5], r2[4::5], 4.5),
+        *house.boxes(ax, or1, or2, 3.5),
+    ]
+    for k, angle in zip((9, 19, 34), (35, -35, 145)):
+        if k < len(L):
+            house.place(
+                ax,
+                f"day {L[k]}",
+                (r1[k], r2[k]),
+                house.ring(angle),
+                avoid,
+                fontsize=9,
+                fontweight="bold",
+                zorder=10,
+                color=cmap(norm(k)),
+                bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none"),
+            )
     ax.set_title(f"GEFS Ensemble RMM  —  Init: {init:%Y-%m-%d} 00Z", fontsize=13, fontweight="bold")
     fig.text(
         0.5,
@@ -802,6 +780,8 @@ def skill(hind_path: Path, doy_now: int, out: Path, data: Path, c, n_live: int =
     """Score the reforecast pairs (ENSO removed by c, hindcast_pairs) for every subset, write data/gefs_mjo_skill.json
     and gefs_mjo_skill.webp."""
     plt = _plt()
+    import house
+
     t0 = time.time()
     starts, fm1, fm2, o1, o2, amp0, note = hindcast_pairs(hind_path, c)  # fm: (S, members, L)
     starts = [dt.date.fromisoformat(s) for s in starts]
@@ -904,7 +884,7 @@ def skill(hind_path: Path, doy_now: int, out: Path, data: Path, c, n_live: int =
             for lab, (d0, d1) in ECMWF_REF.items():
                 yv = float(lab.split()[-1])
                 ax.plot([d0, d1], [yv, yv], color="#8a1d1d", lw=4, alpha=0.6, solid_capstyle="butt")
-                ax.text(
+                mark = ax.text(
                     d1,
                     yv - 0.02,
                     f"ECMWF, published:\n{lab} at day {d0}–{d1}",
@@ -912,7 +892,9 @@ def skill(hind_path: Path, doy_now: int, out: Path, data: Path, c, n_live: int =
                     color="#8a1d1d",
                     va="top",
                     ha="right",
+                    zorder=6,
                 )
+                house.halo(mark)  # (the skill curves cross it)
             ax.set_ylim(0, 1)
             ax.legend(fontsize=7.6, loc="lower left", framealpha=0.92)
         elif key == "rmse":

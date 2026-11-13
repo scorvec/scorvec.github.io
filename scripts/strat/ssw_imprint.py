@@ -468,14 +468,16 @@ def render(doc: dict, ref: Ref, out: Path = FIGURE) -> None:
     for i, m in enumerate(ens):
         ol = doc["models"][m]["outlook"]
         side.barh(i, 100 * ol["p_positive"], color=STYLE[m], alpha=0.8, height=0.55)
-        side.text(
+        spread = side.text(
             1,
             i + 0.43,
             f"mean {ol['mean']:+.1f} (10–90 % {ol['p10']:+.1f} to {ol['p90']:+.1f})",
             fontsize=7.8,
             color=MUTED,
             va="center",
+            zorder=4,
         )
+        house.halo(spread)  # (the base-rate line runs through it)
         side.text(100 * ol["p_positive"] + 1, i, f"{100 * ol['p_positive']:.0f} %", fontsize=9, va="center", color=INK)
     side.set_yticks(range(len(ens)), [MODELS[m] for m in ens], fontsize=9)
     side.set_xlabel("% chance the index is positive", fontsize=9)

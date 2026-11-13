@@ -337,7 +337,7 @@ def plot(info, daily: pd.DataFrame, years: list[int], fname="mei_nowcast.webp", 
     ax.axhspan(0.5, 4, color="#d62728", alpha=0.05)
     ax.axhspan(-4, -0.5, color="#1f77b4", alpha=0.05)
     ax.set_ylim(min(-2.2, d[["mei30", "mei14"]].min().min() - 0.3), max(2.6, d[["mei30", "mei14"]].max().max() + 0.3))
-    ax.set_xlim(t0, d.index.max() + pd.Timedelta(days=20))
+    ax.set_xlim(t0, d.index.max() + max(pd.Timedelta(days=20), 0.08 * (d.index.max() - t0)))  # (the end label's room)
     ax.xaxis.set_major_locator(mdates.MonthLocator(interval=2))
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b\n%Y"))
     ax.set_ylabel("MEI.v2 (std units)")

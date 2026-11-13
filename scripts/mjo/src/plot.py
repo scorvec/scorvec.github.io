@@ -260,18 +260,8 @@ def plot_rmm(
                 label=f"Obs {mo.strftime('%b %Y')}",
             )
 
-        # Start-of-history indicator + date label
+        # Start-of-history indicator (its date label is placed once the layout is set)
         ax.scatter(o1[0], o2[0], s=90, facecolor="none", edgecolor="black", lw=1.5, zorder=8)
-        ax.annotate(
-            f"start {ot[0].strftime('%b %d')}",
-            (o1[0], o2[0]),
-            textcoords="offset points",
-            xytext=(7, 7),
-            fontsize=8,
-            fontweight="bold",
-            color="black",
-            zorder=8,
-        )
 
     # Mark day-0 and last day
     ax.scatter(mean_rmm1[0], mean_rmm2[0], c="green", s=60, zorder=7, label="Day 0 (analysis)")
@@ -291,6 +281,28 @@ def plot_rmm(
     )
 
     fig.tight_layout()
+
+    if has_obs:  # the start date, clear of the observed dots, the mean track and the wheel's own labels
+        fig.canvas.draw()
+        rend = fig.canvas.get_renderer()
+        avoid = [
+            *(t.get_window_extent(rend) for t in ax.texts),
+            *house.boxes(ax, o1[0], o2[0], 6),
+            *house.boxes(ax, o1[1:], o2[1:], 4),
+            *house.boxes(ax, mean_rmm1, mean_rmm2, 3.5),
+        ]
+        start = house.place(
+            ax,
+            f"start {ot[0]:%b %d}",
+            (o1[0], o2[0]),
+            house.ring(45, half=(27, 9)),
+            avoid,
+            fontsize=8,
+            fontweight="bold",
+            color="black",
+            zorder=8,
+        )
+        house.halo(start)
 
     if out_path:
         out_path.parent.mkdir(parents=True, exist_ok=True)

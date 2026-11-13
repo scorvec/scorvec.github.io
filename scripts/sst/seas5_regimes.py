@@ -979,7 +979,7 @@ def render(doc, sk, cent, out_path):
             fontsize=(10.5 if len(names[k]) < 19 else 9.0),
             fontweight="bold",
             color=COLS[k],
-            pad=3,
+            pad=5.5,  # (clear of the map's coloured frame)
         )
         ax = fig.add_axes([x0, yb + 0.02 / H, x1 - x0, hgt])
         ax.set_xlim(xs[0] - 0.5, xs[-1] + 0.5)

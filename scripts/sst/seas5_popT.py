@@ -550,8 +550,10 @@ def build(ym: str, replot: bool = False) -> None:
                     # record-year labels in a headroom band above the curves, clear of the peaks
                     ylim = ax.get_ylim()[1]
                     ax.set_ylim(top=ylim * 1.14)
-                    ax.text(rw, ylim * 1.12, yw, color="#b0352a", fontsize=7.4, ha="center", va="top")
-                    ax.text(rc, ylim * 1.12, yc, color="#2a5da8", fontsize=7.4, ha="center", va="top")
+                    house.halo(  # (each year stands on its own dotted line)
+                        ax.text(rw, ylim * 1.12, yw, color="#b0352a", fontsize=7.4, ha="center", va="top", zorder=5),
+                        ax.text(rc, ylim * 1.12, yc, color="#2a5da8", fontsize=7.4, ha="center", va="top", zorder=5),
+                    )
                     if mode == "monthly" and len(xs_all):
                         cur = xs_all[-1]
                         stat_lines = [

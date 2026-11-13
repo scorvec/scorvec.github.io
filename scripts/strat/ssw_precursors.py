@@ -232,7 +232,7 @@ def fig_qbo(R, out):
     ax.set_title(
         f"r = {rg['r']:+.2f} ({pfmt(rg['p'])}): +{rg['b']:.2f} m/s per m/s", loc="left", fontsize=10.5, color=INK
     )
-    ax.legend(frameon=False, fontsize=8, loc="lower right")
+    ax.legend(frameon=True, framealpha=1, edgecolor="#d8d4cc", fontsize=8, loc="lower right")  # (a key, not dots)
     style(ax)
     ax = fig.add_subplot(gs[2])
     ht = Q["cmip6"]
@@ -457,7 +457,17 @@ def card(R, out, out_json, repo):
         ax.barh(yb, v, color=col, height=0.5)
         if ci:
             ax.plot(ci, [yb, yb], color=INK, lw=1.3)
-        ax.text((ci[1] if ci else v) + 0.015, yb, f"{v:.0%}", va="center", fontsize=10, color=INK, fontweight="bold")
+        share = ax.text(
+            (ci[1] if ci else v) + 0.015,
+            yb,
+            f"{v:.0%}",
+            va="center",
+            fontsize=10,
+            color=INK,
+            fontweight="bold",
+            zorder=4,
+        )
+        house.halo(share)  # (the observed share's line can run through it)
         ax.text(
             0.0,
             yb + 0.48,

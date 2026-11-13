@@ -1834,6 +1834,7 @@ def flavour_place_fig(z, meta, mo, made, index):
     """Where El Niño winters fall on the site's rule: the CMIP6 winters (density) and the observed ones on E and C, and
     each model's share of east-based, basin-wide and central winters against the observed share. Descriptive."""
     plt = _plt()
+    import house
     from matplotlib.colors import ListedColormap
 
     ev, names, cnt = z["events"], meta["models"], meta["counts"]
@@ -1852,21 +1853,43 @@ def flavour_place_fig(z, meta, mo, made, index):
     ax.set_xlim(-2, 4.5)
     ax.set_ylim(-2, 5.5)
     ang = ax.transData.transform_angles(np.array([45.0]), np.array([[3.4, 3.4]]))[0]  # E = C as drawn
-    ax.text(
-        3.4, 3.4, "basin-wide", color="#5c5851", fontsize=9, rotation=ang, ha="center", va="center", fontweight="bold"
-    )
+    house.halo(
+        ax.text(
+            3.4,
+            3.4,
+            "basin-wide",
+            color="#5c5851",
+            fontsize=9,
+            rotation=ang,
+            ha="center",
+            va="center",
+            fontweight="bold",
+        )
+    )  # (written along the dotted E = C line)
     named = {"1982–83", "1997–98", "2009–10", "2015–16", "2023–24", "1972–73", "2002–03"}
     for o in obs:
-        big = o["label"] in named
         ax.scatter(
-            o["C"], o["E"], s=40 if big else 18, c=FLAV_COL[o["klass"]], edgecolors="white", linewidths=0.6, zorder=5
+            o["C"],
+            o["E"],
+            s=40 if o["label"] in named else 18,
+            c=FLAV_COL[o["klass"]],
+            edgecolors="white",
+            linewidths=0.6,
+            zorder=5,
         )
-        if big:
-            ax.annotate(
+    fig.canvas.draw()  # the named winters' labels: clear of every dot, the class names and one another
+    avoid = [
+        *(t.get_window_extent(fig.canvas.get_renderer()) for t in ax.texts),
+        *house.boxes(ax, [o["C"] for o in obs], [o["E"] for o in obs], 3.5),
+    ]
+    for o in obs:
+        if o["label"] in named:
+            house.place(
+                ax,
                 o["label"],
                 (o["C"], o["E"]),
-                xytext=(6, -3),
-                textcoords="offset points",
+                house.ring(0, reach=(4, 9, 15), half=(19, 6)),
+                avoid,
                 fontsize=8.4,
                 color=FLAV_COL[o["klass"]],
                 zorder=6,

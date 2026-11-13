@@ -345,7 +345,7 @@ def score_and_plot(a, f1, f2, o1, o2, starts, Lref, ok, t0):
             for lab, (d0, d1) in ECMWF_REF.items():
                 yv = float(lab.split()[-1])
                 ax.plot([d0, d1], [yv, yv], color="#8a1d1d", lw=4, alpha=0.6, solid_capstyle="butt")
-                ax.text(
+                mark = ax.text(
                     d1,
                     yv - 0.02,
                     f"ECMWF, published:\n{lab} at day {d0}–{d1}",
@@ -353,7 +353,9 @@ def score_and_plot(a, f1, f2, o1, o2, starts, Lref, ok, t0):
                     color="#8a1d1d",
                     va="top",
                     ha="right",
+                    zorder=6,
                 )
+                house.halo(mark)  # (the skill curves cross it)
             ax.set_ylim(0, 1)
             ax.legend(fontsize=7.6, loc="lower left", framealpha=0.92)
         elif key == "amp_ratio":

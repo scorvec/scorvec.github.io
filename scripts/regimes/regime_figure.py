@@ -43,10 +43,15 @@ def _mpl():
     return plt
 
 
+def _blend(hexcol, alpha):
+    """A colour blended over white at `alpha`, as RGB in 0-1."""
+    c = np.array([int(hexcol[i : i + 2], 16) for i in (1, 3, 5)]) / 255.0
+    return alpha * c + (1 - alpha) * 1.0
+
+
 def _ink_on(hexcol, alpha):
     """Dark or white text on a colour blended over white at `alpha`."""
-    c = np.array([int(hexcol[i : i + 2], 16) for i in (1, 3, 5)]) / 255.0
-    c = alpha * c + (1 - alpha) * 1.0
+    c = _blend(hexcol, alpha)
     lin = np.where(c <= 0.03928, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
     lum = 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
     return "white" if 1.05 / (lum + 0.05) > (lum + 0.05) / 0.075 else RC.INK  # whichever contrasts more
@@ -77,6 +82,7 @@ def render(
     agreement strip; skills: [hindcast_skill() dicts] (their sector entry is used); vs_clim: [{w0, clim, dev, sig}] per
     week (regimes_combined.weekly_vs_clim) adds the forecast minus the normal to each weekly cell."""
     plt = _mpl()
+    import house
     from matplotlib.patches import Rectangle
 
     init = RC.parse_date(init)
@@ -381,6 +387,7 @@ def render(
         )
         ok = sig.get(w["w0"])
         skilful = ok is not None and any(ok)
+        hatched = ok is not None and not skilful
         best = int(np.argmax(w["p"]))
         for r, f in enumerate(rows):
             p = w["p"][f]
@@ -388,13 +395,14 @@ def render(
             axg.add_patch(Rectangle((c + 0.03, r + 1.03), 0.94, 0.94, facecolor=cols[f], alpha=a, lw=0))
             if f == best:
                 axg.add_patch(Rectangle((c + 0.03, r + 1.03), 0.94, 0.94, facecolor="none", edgecolor="#111", lw=1.6))
-            if ok is not None and not skilful:
+            if hatched:
                 axg.add_patch(
                     Rectangle(
                         (c + 0.03, r + 1.03), 0.94, 0.94, facecolor="none", edgecolor="#8a8680", hatch="////", lw=0
                     )
                 )
             ink = _ink_on(cols[f], a)
+            n0 = len(axg.texts)
             rng = ""
             if wk_models:
                 vals = [m[c]["p"][f] for m in wk_models if c < len(m) and m[c]["w0"] == w["w0"]]
@@ -443,6 +451,8 @@ def render(
                     color=ink,
                     fontweight="bold" if vw["sig"][f] else "normal",
                 )
+            if hatched:  # the hatching stops short of the cell's figures
+                house.halo(*axg.texts[n0:], colour=tuple(_blend(cols[f], a)), width=2.0)
         foot = ("skill ✓" if skilful else "n.s.") if ok is not None else "no hindcast"
         if wk_models:
             tops = [int(np.argmax(m[c]["p"])) for m in wk_models if c < len(m) and m[c]["w0"] == w["w0"]]

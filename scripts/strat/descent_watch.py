@@ -463,7 +463,7 @@ def combined(out: Path, max_age_days: float = 2.0) -> Path | None:
                     if t["pass"] else f"no significant link\n{t['n']} members", transform=ax.transAxes, va="top",
                     fontsize=9.5, fontweight="bold" if t["pass"] else "normal", zorder=6,
                     color=house.INK if t["pass"] else MUTED,
-                    bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.8, "pad": 1.5})  # fmt: skip
+                    bbox={"facecolor": "white", "edgecolor": "none", "pad": 1.5})  # fmt: skip
             ax.axhline(0, color="#8a8680", lw=0.8, zorder=2)
             ax.axvline(0, color="#8a8680", lw=0.8, zorder=2)
             ax.grid(alpha=0.22)
