@@ -391,8 +391,11 @@ function history(){
  const x=v=>Lm+(v-t0)/(t1-t0)*(W-Lm-Rm),y=v=>T+(hi-v)/(hi-lo)*(H-T-B);
  let g='<g class="grid">',ax='<g class="ax">';
  for(let v=Math.ceil(lo/10)*10;v<=hi;v+=10){g+=`<line x1="${Lm}" x2="${W-Rm}" y1="${y(v)}" y2="${y(v)}"/>`;ax+=`<text x="${Lm-6}" y="${y(v)+4}" text-anchor="end">${v}</text>`}
- const days=[];for(let d=new Date(t0);+d<=t1;d.setHours(d.getHours()+12))days.push(+d);
- ax+=days.map(d=>`<text x="${x(d)}" y="${H-B+18}" text-anchor="middle">${new Date(d).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric'})}</text>`).join('');
+ // time ticks: every 12 hours over the first two days, then midnights thinned to six labels at most, so they never touch
+ const DAY=864e5,ticks=[],fmt={month:'short',day:'numeric'};
+ if(t1-t0<2*DAY){fmt.hour='numeric';for(let d=new Date(t0);+d<=t1;d.setHours(d.getHours()+12))ticks.push(+d)}
+ else{const step=Math.ceil((t1-t0)/DAY/6),d=new Date(t0);d.setHours(24,0,0,0);for(;+d<=t1;d.setDate(d.getDate()+step))ticks.push(+d)}
+ ax+=ticks.map(d=>`<text x="${x(d)}" y="${H-B+18}" text-anchor="${x(d)>W-Rm-24?'end':'middle'}">${new Date(d).toLocaleString('en-US',fmt)}</text>`).join('');
  g+='</g>';ax+='</g>';
  const band=`<path d="M${pts.map((p,i)=>`${x(t[i])},${y(p.p90)}`).join('L')}L${pts.map((p,i)=>[x(t[i]),y(p.p10)]).reverse().map(a=>a.join(',')).join('L')}Z" fill="var(--d)" fill-opacity=".14"/>`;
  const line=`<path d="M${pts.map((p,i)=>`${x(t[i])},${y(p.p50)}`).join('L')}" fill="none" stroke="var(--d)" stroke-width="2"/>`;
