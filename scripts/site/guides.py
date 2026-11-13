@@ -91,6 +91,14 @@ GUIDES = [
         "terciles and indices, SEAS5's ENSO and ocean indices, maps, teleconnections, regimes and impact products, "
         "NOAA's SFS beta and CanSIPS, and the significance tests behind the shading.",
     ),
+    dict(
+        slug="verification",
+        page="/verification.html",
+        name="model verification page",
+        desc="What each view of the model verification page shows and how it is made: the single runs' scorecards, "
+        "error by lead, 500 hPa anomaly correlation, station map and US rain scores, the ensembles' CRPS, spread and "
+        "reliability, weeks 1 to 5, and the tests and intervals behind them.",
+    ),
 ]
 
 STYLE = """<style>
@@ -106,6 +114,7 @@ STYLE = """<style>
   .guide section { scroll-margin-top: 1rem; }
   .guide section:target { border-left: 3px solid var(--accent); padding-left: 0.9rem; margin-left: calc(-0.9rem - 3px); }   /* the figure the reader came from */
   .guide h3 { margin: 1.9rem 0 0.15rem; text-align: left; }
+  .guide pre { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 0.7rem 0.9rem; font-size: 0.85em; white-space: pre-wrap; overflow-wrap: anywhere; }
   .guide .open { font-size: 0.92em; margin: 0 0 0.6rem; }
 </style>"""
 

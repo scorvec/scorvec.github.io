@@ -473,6 +473,7 @@
       var n = d.querySelectorAll("button[data-p]:not([hidden])").length; d.hidden = !n;
       var c = d.querySelector(".rail-title .n"); if (c) c.textContent = n;
     });
+    updatePicker(groupOf(sel.p));   // the phone picker counts the same views
   }
   $("prevBtn").onclick = function () { step(-1); }; $("nextBtn").onclick = function () { step(1); };
   // "Larger": hides the rail so the figure takes the whole content width; desktop only (phones already use it all),

@@ -1,0 +1,297 @@
+<section id="about">
+<h2>The page</h2>
+<p>NOAA's GFS, ECMWF's physics model (the IFS control, the single unperturbed run of the IFS), ECMWF's AI model (AIFS)
+and Environment Canada's global model (GDPS) are scored against the same observations: hourly surface stations, about
+650 radiosondes a day through the whole troposphere and, for rain over the US, the Stage IV radar and gauge analysis.
+Every model gets the same treatment. Each is first averaged onto one 0.5&deg; grid, then interpolated to each station
+over land only, 2&nbsp;m temperature is moved to the height of the station, and stations where the model's terrain is
+more than 100&nbsp;m off are left out. Each radiosonde level is compared with the model where and when the balloon
+actually was. Four ensembles are scored the same way to day 15, and the GEFS and GEPS weekly maps against ERA5 to
+week 5.</p>
+<p>The page shows one view at a time, picked from the list. It opens on the latest ten 00Z runs; the switch at the top
+(Runs scored) takes the scores from the newest 30 or 90 runs of the verification database instead, where more of the
+differences between the models can be told apart. The note under a figure names the runs it holds. How the scores are
+made, the last part of this guide, covers the charts, the intervals and tests, and the observations, the grid and the
+matching.</p>
+<p>The verification package behind the page, mverify, was written by Claude, Anthropic's AI model, with guidance from
+Shawn Corvec. The scores are a first sample and will grow as new runs are added. The package is open source
+(<a href="https://github.com/scorvec/nwp_verification">github.com/scorvec/nwp_verification</a>), so anyone can score
+their own model against the same observations. It reads GRIB, netCDF and Zarr:</p>
+<pre>pip install git+https://github.com/scorvec/nwp_verification
+mverify db ghcnh --year 2026 --since 2026-10-01     # every station, from that date
+mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
+</section>
+
+<h2>Days 1&ndash;10: single runs</h2>
+
+<section id="summary">
+<h3>Summary</h3>
+<p>The headline variables in one region: 500&nbsp;hPa height, 850&nbsp;hPa temperature, 250&nbsp;hPa vector wind and
+700&nbsp;hPa specific humidity against radiosondes, and 2&nbsp;m temperature, dew point, sea-level pressure and
+10&nbsp;m vector wind at surface stations. For each variable and day every pair of models goes through the scorecard's
+paired test at the 5% level: a model drawn alone in its colour has a significantly smaller error than every other
+model, and faint stripes mark the models that cannot be told apart from the smallest. The head-to-head table counts,
+for each pair, the variable-days on which each model is significantly ahead, and the band at the top adds up each
+model's wins and losses over every pair.</p>
+<p>With ten runs the test is strict: a tie says the runs so far cannot separate the models, not that they are equal.
+The longer windows of the run switch, from the verification database, separate more of them.</p>
+</section>
+
+<section id="scores">
+<h3>Scorecard</h3>
+<p>One model's RMSE against another's, for every variable, day and region. Each model pair is tested with a paired
+t-test on the per-run mean squared errors. Runs a day apart share much of their weather, so the test counts fewer
+effective runs when the run-to-run differences are correlated (Geer 2016). A cell gives the difference in percent
+where the test passes at the 5% level, and a dot where it does not. The scorecard is a picture made each night; a
+phone draws it in the page instead, one region at a time, and a tap on a square gives both errors and the test.</p>
+</section>
+
+<section id="growth">
+<h3>Headline variables</h3>
+<p>Each headline variable's RMSE by day in one region, upper air and surface apart, as a difference from the IFS
+control's in % or as the RMSE itself. A marker is filled where the 95% interval of the difference leaves out zero.</p>
+</section>
+
+<section id="lead">
+<h3>One variable</h3>
+<p>One variable in one region by lead: its RMSE, the same as a percentage above or below the IFS control's on the runs
+both have, and its bias, each pooling every observation and run at that lead. The whiskers are 95% intervals; the note
+under the chart names the observations and the runs.</p>
+</section>
+
+<section id="acc">
+<h3>500&nbsp;hPa skill</h3>
+<p>The anomaly correlation of the 500&nbsp;hPa height is the headline score of the WMO's lead centres, drawn here as
+NCEP's Environmental Modeling Center draws it, one lead at a time against the date the forecast verifies. Every
+model's 500&nbsp;hPa height at 00Z of each day of its 00Z run (each ensemble's mean over every member the open data
+carries) and ERA5's at the same hour are averaged by area onto the WMO's 1.5&deg; verification grid, and each is taken
+as an anomaly from the ERA5 1991&ndash;2020 normal of that calendar day. The correlation of the two anomaly maps over
+20&ndash;80&deg;N or 20&ndash;80&deg;S, each point weighted by the cosine of its latitude and each map's mean anomaly
+removed first (WMO-No. 485), is 1 for a perfect forecast and 0 for one no better than the normal; by convention a
+forecast stops being of synoptic use below 0.6.</p>
+<p>Every model is scored against ERA5, not against its own analysis as the lead centres do, so that four centres and
+the AI models share one truth; ERA5 arrives about a week late, so the newest days fill in as it does. The time series
+is a running mean of seven runs: a single run's score swings with the day's weather far more than the models differ.
+An ensemble mean smooths away what its members disagree on, which a correlation rewards, so past day 5 it beats its
+own centre's single run without having the same detail; the two are drawn together, and compared within their own
+kind.</p>
+</section>
+
+<section id="profiles">
+<h3>Upper air</h3>
+<p>Error against radiosondes at the standard levels from 1000 to 100&nbsp;hPa, every model on the same soundings;
+humidity stops at 300&nbsp;hPa, above which sonde humidity is unreliable. A profile's RMSE against the IFS control is
+the square root of the ratio of the two models' summed squared errors on the same soundings, its interval from the
+runs taken as clusters of observations that share their weather, and its marker filled where that interval leaves out
+no difference.</p>
+</section>
+
+<section id="stations">
+<h3>Station map</h3>
+<p>Each dot is a station, coloured by one model's error at one lead averaged over the window's runs, or by the
+difference between two models. The map's file is the page's largest, so it loads when the view is first opened.</p>
+<p><b>A station's series.</b> A click on a surface station draws what it reported against every model's forecast for
+the same hours at the map's lead, over the newest 45 days of the database (a run joins it once its day 10 is observed,
+so the newest point is about two weeks old), with each model's error beneath. One station is one place and a few dozen
+runs: the series is for seeing what happened there, not for ranking the models, which the map's colours and the
+scorecard's tests do.</p>
+</section>
+
+<section id="wind">
+<h3>Wind speed</h3>
+<p>Wind speed is skewed and cannot go below zero, so RMSE and bias, which reward a forecast that hedges towards the
+middle, are joined by the whole distribution, on the same station pairs for every model: forecast and observed
+quantiles from 1 to 99.5%; the hybrid Weibull of Takle and Brown (1978), that is the share of calms (under
+0.5&nbsp;m/s, as reports come in whole knots) and a Weibull shape k and scale c fitted by maximum likelihood to the
+rest (a smaller k is a wider spread, a smaller c weaker winds); and how often 5, 10 and 15&nbsp;m/s are reached. Each
+run's speeds are binned at 0.05&nbsp;m/s and the runs resampled whole, model and observation together, for a 95%
+interval on every difference. The chart draws each model's quantiles less the observed ones with those intervals, so
+zero is the observed distribution, and beside it the fitted distributions themselves.</p>
+</section>
+
+<section id="rain">
+<h3>US rain scores</h3>
+<p>24 hour totals ending 12Z against the Stage IV analysis, from the verification database's newest runs (the
+window's, at most a year), on the land cells of the common 0.5&deg; grid as the rain maps, every model on the same
+runs and cells, each cell weighted by its area. The equitable threat score is the share of rain areas the model gets
+right beyond chance (1 is perfect, 0 no better than chance). The fractions skill score asks the same question in
+neighbourhoods of growing size, 50 to 400&nbsp;km (Roberts and Lean 2008), so it forgives a band forecast a few tens
+of kilometres off. Both are summed over every run before they are scored, and their 95% intervals treat each run as
+one block of cells that share its weather: the threat score's from a jackknife that leaves out one run at a time, the
+skill score's from the ratio of its two sums, each with the allowance for runs that resemble the day before. A
+threshold that too few cells reach in the analysis (100 over the window) is left out. The table beneath compares the
+window's runs against Stage IV and against the rain gauges, once the gauges give every model 100 readings at the
+window chosen.</p>
+<p><b>Rain gauges.</b> 24 hour totals at stations (GHCNh), ending at 00Z and 12Z: the totals stations report and,
+where a station gives the amount of every hour (most US and Canadian stations), totals added up from those amounts,
+dry days included. A US station reports a 24 hour total only at 12Z after a wet day, so the built totals are most of
+the sample there; they enter with the runs of November 2026. A built total needs all 24 hours, and an hour without an
+amount counts as dry only where the gauge is known to work: the station reported an amount in the 30 days before, its
+report does not say the gauge is out, and no rain or snow is falling in it. A reported total that differs from the
+built one by more than 1&nbsp;mm and 10% is left out. So is a total above 400&nbsp;mm, and one of 25&nbsp;mm or more
+that stands above the station's totals 12 hours before and 12 hours after added together (its rain must show in one of
+them) or that fell through hours the station's weather reports show as dry. A station with one such false total loses
+all its totals of that year: nothing in the values tells a faulty gauge's true totals from its false ones. No check
+looks at a forecast. A total that fails after its run was scored leaves that run's scores too: each night the gauge
+scores of every run in the database are made again without the totals that have failed since. The totals are scored
+like the other station variables, each model's total for those 24 hours interpolated to the gauge from the common
+grid, every model on the same readings. In the US they check the gridded scores at points rather than independently:
+Stage IV's analyses take in ASOS gauges.</p>
+</section>
+
+<section id="rainmaps">
+<h3>US rain maps</h3>
+<p>The Stage IV totals averaged onto the common 0.5&deg; grid wherever they cover at least half a cell, against each
+model's total for the same 24 hours, cell by cell, over the newest year of runs in the verification database and the
+windows of a lead group (days 1&ndash;2, 3&ndash;5, 6&ndash;9). Four maps per lead group: the ratio of the model's
+total rain to Stage IV's, and for 1, 10 and 25&nbsp;mm the frequency bias, the number of days the model reaches the
+amount over the number of days Stage IV does (above 1, the model makes that much rain too often). How much it rained
+on a day is mostly noise for a single cell; whether it rained is not, so the frequency biases find what the totals
+cannot.</p>
+<p>Each cell is tested over the valid days: the day's difference (the model's rain less Stage IV's, or the share of
+the group's runs that reach the amount less whether Stage IV did), averaged over the runs that verify that day, goes
+through the scorecard's paired t-test with its allowance for days that resemble the day before, once a cell has 8 days
+(and for a frequency bias, 5 days on which Stage IV reaches the amount). The p values of all the cells of a map then
+go through the Benjamini&ndash;Hochberg procedure at a 10% false-discovery rate: coloured cells are ones whose bias is
+unlikely to be noise, grey ones were tested and are within it. The models with 95% of the year's runs are mapped on
+the runs they all have, and one with fewer (GDPS, whose runs reach back only to September 2026) on its own runs, which
+the note under the maps gives. The maps are pictures made each night; a phone shows them one model at a time.</p>
+</section>
+
+<h2>Days 1&ndash;15: ensembles</h2>
+
+<section id="ens">
+<h3>Scorecard</h3>
+<p>IFS-ENS, AIFS-ENS, GEFS and GEPS are verified member by member against the same stations, radiosondes and Stage IV,
+at 00Z of every day to day 15, averaged first onto the same 0.5&deg; grid. ECMWF's open data carries the IFS
+ensemble's 50 perturbed members but not its control; the others are scored with theirs (AIFS-ENS 51 members, GEFS 31,
+GEPS 21), and GEFS and GEPS dew points come from their 2&nbsp;m relative humidity. The database keeps every case of
+every run (each observation against each run), its members summarised: their mean, spread, range, the CRPS and where
+the observation falls among them.</p>
+<p>The CRPS (continuous ranked probability score) measures the whole forecast distribution against the observation, in
+the variable's unit, and reduces to the absolute error for a single forecast; the fair CRPS used here does not favour
+larger ensembles. A wind is scored as its two components, each level's CRPS their mean. The scorecard compares two
+ensembles' CRPS on the cases both have, with the same paired test across runs as the single runs' scorecard, and marks
+only significant differences. Of the three ensemble views, only the scorecard tests a difference between ensembles;
+the other two describe them.</p>
+</section>
+
+<section id="enslead">
+<h3>Error and spread</h3>
+<p>The CRPS by forecast day for one variable and region, with spread/skill beside it: the members' spread, with the
+observation's own error added where it is known, divided by the RMSE of the ensemble mean. It is 1 for a calibrated
+ensemble and below 1 for an overconfident one. A rank histogram counts where each observation falls among the members:
+flat when the ensemble is calibrated, U-shaped when it is too narrow.</p>
+</section>
+
+<section id="ensrel">
+<h3>Probabilities</h3>
+<p>Reliability compares the share of members forecasting an event with how often it happened, with the Brier skill
+score against the sample's own frequency: a reliable ensemble lies on the diagonal. A curve is drawn once the sample
+holds 30 events and 30 non-events, each of its points 30 cases, and a point where the event never came, or always did,
+has no interval.</p>
+</section>
+
+<h2>Weeks 1&ndash;5</h2>
+
+<section id="weeks">
+<h3>GEFS and GEPS</h3>
+<p>The weekly anomaly maps of the two days 1&ndash;35 pages, <a href="/gefs.html">GEFS</a> and
+<a href="/subseasonal.html">GEPS</a>, against ERA5: the ensemble mean's anomaly from the 1991&ndash;2020 normal of
+2&nbsp;m temperature, 500&nbsp;hPa height and sea-level pressure, averaged over days 1&ndash;7, 8&ndash;14,
+15&ndash;21, 22&ndash;28 and 29&ndash;35, on the WMO's 1.5&deg; grid. Each run's score is the centred anomaly
+correlation over the region (each map less its mean, every cell weighted by the cosine of its latitude, 2&nbsp;m
+temperature over land only): 1 for a perfect forecast, 0 for the normal, which is the climatology benchmark.
+Persistence, the other benchmark, forecasts every week with the observed anomaly of the 7 days before the start.</p>
+<p><b>The forecasts.</b> GEFS is scored on its Monday and Thursday 00Z runs, GEPS's start days, from 1 November 2025;
+the runs from 18 August 2025 feed only the drift correction. GEFS's ensemble mean is NCEP's own (the 0.5&deg;
+<code>geavg</code> files on NOAA's open-data bucket) rather than the mean of the members the page reads, reduced to
+days and to 1.5&deg; as the page reduces its members and taken as the page takes its anomalies: the reforecast
+climatology for the lead and start date, the ERA5 shift to 1991&ndash;2020, and the operational drift, which is
+estimated by the page's method from the runs started 36 to 80 days before but against ERA5 rather than GEFS's own
+analyses (the difference from day 1 removes a steady offset between the two) and from this series' Monday and Thursday
+runs only, about 13 rather than the page's 45. GEPS is filed by its own page's build, each run's weekly maps as the
+page draws them, from the 2 November 2026 run on; its earlier runs were not kept, so it has no backfill.</p>
+<p><b>The truth.</b> ERA5 comes from Google's ARCO copy at 00Z and 12Z, averaged onto the grid by area; a day is the
+mean of its 12Z and the next day's 00Z, as GEFS's day, while GEPS averages four six-hour steps, which the two samples
+come nearest. The newest months are ERA5's preliminary release (ERA5T), kept as they were read. The normal is ERA5
+1991&ndash;2020 from WeatherBench 2's 1.5&deg; copy, the same two samples a day, each day of a 366-day calendar the
+mean of the days within a week of it in all thirty years.</p>
+<p><b>The test.</b> A score in the table is the mean over the runs with a 90% interval from a moving-block bootstrap
+over weeks of starts, in blocks of four weeks, since runs a few days apart share their weather. It is printed only
+where its test passes the Benjamini&ndash;Hochberg procedure at a 10% false-discovery rate over every test of every
+field, region and week (each mean against zero, each model against persistence, and GEPS against GEFS on the starts
+both have), so its interval leaves out the benchmark; n.s. marks a test that did not pass, and a mean over fewer than
+16 weeks of starts is not tested. A week is scored once ERA5 covers all its days, so the later weeks hold fewer runs;
+the number is in each cell's tooltip.</p>
+</section>
+
+<h2>Data</h2>
+
+<section id="database">
+<h3>The database</h3>
+<p>Every 00Z run, once 14 days old, is kept for good: every model's pairs against every GHCNh station, the radiosondes
+and Stage IV, including the pairs the scores leave out (marked, with the terrain mismatch and sensor height that
+decide it), and each run's sums, from which a window of any length is scored without its pairs. A model is scored in a
+window when it has at least 95% of its runs, on the runs every such model has, so all are judged on the same runs;
+GDPS, whose runs reach back only to September 2026, joins the longer windows as the database grows. Each run's
+observations are those every model it has was matched to. The database begins with the 13 May 2026 run, the first of
+the current IFS (Cycle 50r1) and AIFS (version 2), and is kept in two places, the site's GitHub releases and its file
+store, every copy checked against the original.</p>
+</section>
+
+<h2>How the scores are made</h2>
+
+<h3>The charts</h3>
+<p>Every line chart is drawn in the page from the scores' own numbers. Each model keeps one colour and one marker
+shape throughout (an ensemble takes its centre's); a whisker is a 95% interval, and pointing at a chart, or stepping
+through it with the arrow keys, lists every model's value and interval at that lead. A lead or a pressure level is
+charted once every model has 100 pairs of forecast and observation there over the window.</p>
+
+<h3>Uncertainty</h3>
+<p>Every score comes from a sample of runs, and a different few weeks would give different numbers: the intervals and
+tests say how different. Runs a day apart share most of their weather, so they are not independent samples; every
+interval and test cuts the number of runs to an effective number from the lag-1 autocorrelation of the runs' scores
+(often a half to a third of them). For the intervals that autocorrelation is estimated once for each lead of a window,
+pooled over every model, variable and region, with the small-sample correction of Kendall (1954): from one series of
+ten runs the estimate swings so widely that a high draw would leave about one effective run and an interval ten times
+too wide.</p>
+<p>Intervals are 95% Student t intervals on the runs, their variance inflated for that autocorrelation; a score that
+cannot go below zero (an RMSE, a CRPS, a ratio of two) is taken on its logarithm, so its interval stays above zero and
+reaches further up than down; and the anomaly correlation is averaged through Fisher's z = artanh(r) and turned back,
+so that a run's score near 1 is not given the same room as one near 0.5. A pooled score, an RMSE or a bias summed over
+every station and run, takes its interval from the runs' own sums, each run one cluster of observations that share its
+weather.</p>
+<p>Two models are compared run by run (the paired difference): most of a model's run-to-run swing is the weather,
+which both models share, and an interval on each model alone would hide differences that are real (Geer 2016,
+Tellus A 68, 30229). A difference counts as significant when its paired test passes the Benjamini&ndash;Hochberg
+procedure at a 10% false-discovery rate over every model and lead of a figure, so that testing many leads does not
+manufacture a winner; a hollow marker or grey cell is within the noise of the runs so far, not proof that the models
+are equal.</p>
+
+<h3>Observations, grid and matching</h3>
+<ul>
+<li><b>Observations.</b> Surface stations come from NOAA's GHCNh hourly archive (METAR and synoptic reports), screened
+for range, spikes and stuck sensors. Radiosondes come from NOAA's IGRA2 archive and the scorvec.com sounding mirror
+and are reduced to the standard levels from 1000 to 100&nbsp;hPa, each level at the position the balloon reached it.
+Specific humidity is computed from the reported dew point. Precipitation is NCEP's Stage IV analysis.</li>
+<li><b>One grid.</b> Every model is averaged onto the same 0.5&deg; grid before it is compared with anything, by the
+area each of its cells shares with each 0.5&deg; cell, and its terrain and land-sea mask with it. Interpolated from
+their own grids, the 0.15&deg; GDPS and the 0.25&deg; models would be scored from cells of different size: a finer
+grid carries small-scale detail whose misplacement counts twice, and a model published on a grid finer than its own
+resolution looks sharper than it is. 0.5&deg; is coarser than every model's own resolution.</li>
+<li><b>Matching.</b> Forecasts are interpolated bilinearly to each station from land points only, so coastal stations
+are not scored against sea temperatures. 2&nbsp;m temperature is moved to station height with a standard lapse rate,
+10&nbsp;m wind is adjusted to the anemometer height, and stations where model and station heights differ by more than
+100&nbsp;m are left out of the scores (the database keeps them, marked).</li>
+<li><b>Pressure.</b> Mean sea-level pressure, at stations where every model's terrain is at most 500&nbsp;m. The
+reduction to sea level runs through the ground under the station, each model and station makes it its own way, and the
+differences grow with the height reduced.</li>
+<li><b>Scores.</b> RMSE, bias, MAE and correlation for each variable, region and lead; precipitation on the common
+grid's land cells with the equitable threat score, the frequency bias and the fractions skill score (Roberts and Lean
+2008).</li>
+<li><b>Same sample.</b> Each model is scored only on the observations every model was matched to, so a model whose
+terrain or coastline drops a station is not judged on an easier set.</li>
+<li><b>Data.</b> GFS from NOAA on AWS; the IFS control and AIFS from ECMWF open data (Google Cloud mirror), all
+published at 0.25&deg;; GDPS from ECCC's HPFX server at 0.15&deg;; all scored on the common 0.5&deg; grid.</li>
+</ul>
