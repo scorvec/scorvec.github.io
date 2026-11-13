@@ -764,6 +764,8 @@ def build(ym: str, only_vars=None, only_refs=None) -> None:
             old["figures"].update(man["figures"])
             man["figures"] = old["figures"]
             man["extent"] = {**old.get("extent", {}), **man["extent"]}
+    if not man["figures"]:
+        raise SystemExit(f"normals {ym}: no figure set built yet; {OUT_JSON.name} stays as published")
     OUT_JSON.write_text(json.dumps(man, separators=(",", ":")))
     print(f"wrote {OUT_JSON} ({len(man['figures'])} figure sets) in {(time.time() - t0) / 60:.1f} min", flush=True)
 

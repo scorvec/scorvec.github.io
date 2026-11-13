@@ -275,17 +275,23 @@ def build(ym: str) -> dict:
         "sigmas": SIG,
         "regions": {},
     }
+    waiting = []  # regions whose season this issue covers but whose fields or tables are not there yet
     for region, (kind, sign, smonths, slabel, what) in SEASON.items():
-        ks = [k for k, vm in enumerate(vms, start=1) if int(vm[5:]) in smonths and xchunk_path(region, ym, k).exists()]
+        ks = [k for k, vm in enumerate(vms, start=1) if int(vm[5:]) in smonths]
         if len(ks) < len(smonths):
             print(
                 f"  {region}: season {slabel} not fully covered by this issue ({len(ks)}/{len(smonths)} months) — skipped",
                 flush=True,
             )
             continue
+        if not all(xchunk_path(region, ym, k).exists() for k in ks):
+            print(f"  {region}: daily fields of {slabel} not on disk — skipped", flush=True)
+            waiting.append(region)
+            continue
         tab = R.load(R.obs_ref(f"runs_cpc_{region}"))
         if tab is None:
             print(f"  {region}: obs_runs_cpc_{region} missing — skipped", flush=True)
+            waiting.append(region)
             continue
         fields, lat = [], None
         dates = []
@@ -303,6 +309,7 @@ def build(ym: str) -> dict:
             dates += [np.datetime64(f"{vm}-01") + np.timedelta64(i, "D") for i in range(nd)]
         if len(fields) < len(ks):
             print(f"  {region}: quantile tables missing for this start month — skipped", flush=True)
+            waiting.append(region)
             continue
         tm = np.concatenate(fields, axis=1)
         del fields  # [member, day, lat, lon]
@@ -414,6 +421,8 @@ def build(ym: str) -> dict:
             entry["cities"][c[0]]["side"] = c[3]
         doc["regions"][region] = entry
         del tm, z
+    if waiting and not doc["regions"]:
+        raise SystemExit(f"runs {ym}: {', '.join(waiting)} not built yet; {OUT_JSON.name} stays as published")
     OUT_JSON.write_text(json.dumps(doc, separators=(",", ":")))
     print(f"wrote {OUT_JSON} in {(time.time() - t0) / 60:.1f} min", flush=True)
     return doc

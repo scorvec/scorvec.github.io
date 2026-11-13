@@ -1444,8 +1444,10 @@ def main(argv=None) -> int:
     except Exception as e:  # noqa: BLE001
         print(f"  CPC indices skipped ({str(e)[:80]})", flush=True)
     cur = compute(ym, pats, with_members=True, scale=scale)
-    if not cur:
-        raise SystemExit("no teleconnection fields (or derived tables) on disk yet")
+    if not any(e["group"] == "tele" for e in cur.values()):
+        raise SystemExit(
+            f"tele {ym}: no pattern index yet (fields or derived tables); {OUT_JSON.name} stays as published"
+        )
     save_issue_summary(ym, cur)  # next month's "previous issue" line
     pv = load_issue_summary(prev)
     fam = add_skill(cur, ym, era, cpc)

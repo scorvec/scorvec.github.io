@@ -447,6 +447,8 @@ def build(ym: str) -> dict:
         )
     for name, (fx, fy) in _CITY_PX.get(REGION, {}).items():
         doc["cities"][name]["x"], doc["cities"][name]["y"] = fx, fy
+    if not doc["months"]:
+        raise SystemExit(f"wind {ym}: no forecast month on disk yet; {OUT_JSON.name} stays as published")
     OUT_JSON.write_text(json.dumps(doc, separators=(",", ":")))
     print(f"wrote {OUT_JSON} in {(time.time() - t0) / 60:.1f} min", flush=True)
     return doc

@@ -429,6 +429,8 @@ def build(ym: str, replot: bool = False) -> None:
     # replot: this issue from its saved summary too (is_popT_issue_{ym}, release seas5-ref-v1) -- no chunks, no CDS.
     cur_all = load_issue_summary(ym) if replot else issue_summary(ym)
     prev_all = load_issue_summary(prev)
+    if not any(clim is not None for leads in cur_all.values() for _, clim in leads.values()):
+        raise SystemExit(f"popT {ym}: no lead with its hindcast mean yet; {OUT_JSON.name} stays as published")
     for region, (label, _cc, _area, unit) in REGIONS.items():
         # gather: {calendar month: {issue: (daily_values_unit, monthly_means_unit, clim_unit or None)}}
         data = {}

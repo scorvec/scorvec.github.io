@@ -1,0 +1,46 @@
+name: SEAS5 restore the published issue (one-off)
+
+# The first build of the November 2026 issue ran before its start month's derived tables existed and six products
+# wrote empty files, so their figures were pruned and their cards left seasonal.html. This puts those six files and
+# their figures back as they were before that build (the October issue); the builders now stop without writing in
+# that case. Dispatch once, then remove this workflow.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SRC: 81d5c4c7ce41a3879ea044e5c7a1c2058de03840   # the commit before the partial build
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Restore the six products and push
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          timeout 600 git fetch --depth 1 origin "$SRC"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            git checkout "$SRC" -- \
+              assets/sst/data/seas5_tele.json assets/sst/data/seas5_normals.json assets/sst/data/seas5_runs.json \
+              assets/sst/data/seas5_wind.json assets/sst/data/seas5_extremes.json assets/sst/data/seas5_popT.json \
+              'assets/sst/seas5_norm_*.webp' 'assets/sst/seas5_runs_*.webp' 'assets/sst/seas5_tele_*.webp' \
+              'assets/sst/seas5_wind_*.webp' 'assets/sst/seas5_xdays_*.webp' 'assets/sst/seas5_popT_*.webp' \
+              assets/sst/seas5_strat_series.webp
+            if git diff --staged --quiet; then echo "Nothing to restore."; exit 0; fi
+            git diff --staged --name-status | cut -c1 | sort | uniq -c
+            git commit -q -m "data update: SEAS5 products back to the 2026-10 issue"
+            if timeout 180 git push origin HEAD:main; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

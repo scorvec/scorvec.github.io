@@ -22,7 +22,9 @@ name: ECMWF SEAS5 seasonal outlook (monthly)
 # table for its start month exists (assets/sst/data/seas5_status.json), later firings exit in seconds.
 # A first-time start month can need more than one run (the CDS queues hindcast requests for hours):
 # each run spends at most `budget_min` minutes starting hindcast fetches, publishes whatever is ready,
-# and the next firing continues — also after the 12th, until the issue is complete.
+# and the next firing continues — also after the 12th (a `window=true` dispatch), until the issue is
+# complete: the status file names the issue from its first build on. A product whose fields or tables
+# are not there yet stops without writing, so the page keeps the previous issue's figures for it.
 #
 # LEAD MONTH 7 (since the October 2026 issue): the CDS
 # monthly product stops at leadtime_month 6, so the fetch step also rebuilds month 7 from the sub-daily product
@@ -91,7 +93,7 @@ jobs:
           D=$((10#$(date -u +%d)))
           prev() { local y=${1:0:4} m=$((10#${1:4:2})); m=$((m-1)); [ $m -eq 0 ] && { y=$((y-1)); m=12; }; printf '%04d%02d' $y $m; }
           P1=$(prev "$I"); P2=$(prev "$P1"); P3=$(prev "$P2")
-          read -r PUB COMPLETE < <(python3 - "$I" <<'EOF'
+          read -r PUB COMPLETE STARTED < <(python3 - "$I" <<'EOF'
           import json, sys
           try:
               pub = json.load(open("assets/sst/data/seas5_outlook.json")).get("issue", "")
@@ -99,21 +101,22 @@ jobs:
               pub = ""
           try:
               st = json.load(open("assets/sst/data/seas5_status.json"))
-              comp = "1" if st.get("issue") == sys.argv[1] and st.get("complete") else "0"
+              started = "1" if st.get("issue") == sys.argv[1] else "0"
+              comp = "1" if started == "1" and st.get("complete") else "0"
           except Exception:
-              comp = "0"
-          print(pub or "-", comp)
+              started = comp = "0"
+          print(pub or "-", comp, started)
           EOF
           )
           RUN=1; WHY="manual dispatch"
           if [ "${{ inputs.force }}" = "true" ]; then WHY="forced"
           elif [ "$PUB" = "$I" ] && [ "$COMPLETE" = "1" ]; then RUN=0; WHY="$I already published and complete"
           elif [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.window }}" = "true" ]; then
-            if [ "$PUB" = "$I" ]; then WHY="$I published but incomplete — continuing"
+            if [ "$PUB" = "$I" ] || [ "$STARTED" = "1" ]; then WHY="$I started but incomplete — continuing"
             elif [ $D -ge 5 ] && [ $D -le 12 ]; then WHY="release window, day $D"
             else RUN=0; WHY="outside the 5th–12th window (day $D)"; fi
           fi
-          echo "Issue $I (previous $P1 $P2 $P3); published=$PUB complete=$COMPLETE → run=$RUN ($WHY)"
+          echo "Issue $I (previous $P1 $P2 $P3); published=$PUB started=$STARTED complete=$COMPLETE → run=$RUN ($WHY)"
           {
             echo "issue=$I"; echo "month=${I:4:2}"; echo "p1=$P1"; echo "p2=$P2"; echo "p3=$P3"
             echo "pm=${P1:4:2}"; echo "run=$RUN"; echo "why=$WHY"

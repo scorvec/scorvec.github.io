@@ -546,6 +546,8 @@ def build(ym: str) -> dict:
         for name, (fx, fy) in _CITY_PX.get(region, {}).items():
             entry["cities"][name]["x"], entry["cities"][name]["y"] = fx, fy
         doc["regions"][region] = entry
+    if not any(s["months"] for e in doc["regions"].values() for s in e["sets"].values()):
+        raise SystemExit(f"threshold days {ym}: no month built yet; {OUT_JSON.name} stays as published")
     OUT_JSON.write_text(json.dumps(doc, separators=(",", ":")))
     print(f"wrote {OUT_JSON} in {(time.time() - t0) / 60:.1f} min", flush=True)
     return doc
