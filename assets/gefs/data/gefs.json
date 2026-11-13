@@ -1,10 +1,10 @@
 {
- "cycle": "20261111",
- "init": "2026-11-11 00Z",
- "valid": "Nov 11 \u2013 Dec 15",
+ "cycle": "20261112",
+ "init": "2026-11-12 00Z",
+ "valid": "Nov 12 \u2013 Dec 16",
  "members": 31,
- "change_vs": "20261110",
- "generated": "2026-11-12T12:06Z",
+ "change_vs": "20261111",
+ "generated": "2026-11-13T04:57Z",
  "figures": [
   "gefs_na_t2m_weekly.webp",
   "gefs_sa_t2m_weekly.webp",
@@ -18,6 +18,9 @@
   "gefs_na_t850_weekly.webp",
   "gefs_sa_t850_weekly.webp",
   "gefs_glb_t850_weekly.webp",
+  "gefs_na_t850_change.webp",
+  "gefs_sa_t850_change.webp",
+  "gefs_glb_t850_change.webp",
   "gefs_na_pr_weekly.webp",
   "gefs_sa_pr_weekly.webp",
   "gefs_glb_pr_weekly.webp",
@@ -85,7 +88,7 @@
  },
  "drift": {
   "inits": 45,
-  "first": "20260823",
-  "last": "20261006"
+  "first": "20260824",
+  "last": "20261007"
  }
 }
