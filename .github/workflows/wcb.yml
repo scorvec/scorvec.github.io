@@ -7,9 +7,10 @@ name: Warm conveyor belts (IFS-ENS)
 # thresholds and the trajectory climatology: release wcb-ref-v1 (wcb-ref.yml), checked against the archive's
 # published checksum.
 #
-# Dispatch only, artifacts only: the map frames of the members' share with a belt's inflow, ascent and outflow (days 1
-# to (last_step - 24) / 24), their manifest and the json of the numbers behind them and what the fetch cost. Waits up
-# to 45 min for the run on the mirror.
+# Dispatch only: the map frames of the members' share with a belt's inflow, ascent and outflow (days 1 to
+# (last_step - 24) / 24) under assets/sst/anim/wcb_ifs, their manifest and assets/sst/data/wcb_ifs.json, the numbers
+# behind them and what the fetch cost. With publish=true the frames are published and the rest committed, otherwise
+# all of it is an artifact. Waits up to 45 min for the run on the mirror.
 on:
   workflow_dispatch:
     inputs:
@@ -22,9 +23,13 @@ on:
       members:
         description: 'Perturbed members 1..N'
         default: '50'
+      publish:
+        description: 'Publish the frames and commit the outputs (false = artifacts only)'
+        type: boolean
+        default: false
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   ECMWF_SOURCES: google      # Google Cloud mirror only
@@ -41,17 +46,17 @@ jobs:
     concurrency:
       group: wcb
       cancel-in-progress: false
+    env:
+      # Frames store (Bunny Storage, S3 API; scripts/lib/frames_store.py). Unset secrets leave these empty and frames go
+      # to the `frames` branch alone; the repository variable FRAMES_BRANCH=off retires the branch (frames_env.sh).
+      FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}
+      FRAMES_S3_ENDPOINT: ${{ secrets.FRAMES_S3_ENDPOINT }}
+      FRAMES_S3_REGION: ${{ secrets.FRAMES_S3_REGION }}
+      FRAMES_S3_ACCESS_KEY_ID: ${{ secrets.FRAMES_S3_ACCESS_KEY_ID }}
+      FRAMES_S3_SECRET_ACCESS_KEY: ${{ secrets.FRAMES_S3_SECRET_ACCESS_KEY }}
+      FRAMES_BRANCH: ${{ vars.FRAMES_BRANCH }}
     steps:
       - uses: actions/checkout@v7
-        with:
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            /scripts/wcb/
-            /scripts/ecmwf/
-            /scripts/lib/
-            /scripts/strat/ifs_ens.py
-            /scripts/mjo/requirements-mjo.txt
-            /scripts/constraints.txt
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
@@ -93,15 +98,42 @@ jobs:
           root=$(dirname "$(find archive -name calc_wcbmetric_v2.py | head -1)")
           start=$(date +%s)
           python scripts/wcb/wcb_fc.py forecast --date "$D" --last-step "$LAST" --members "$N" --wait-min 45 \
-            --archive "$root" --out-dir out --out /tmp/wcb_fc.npz
+            --archive "$root" --out-dir assets/sst --out /tmp/wcb_fc.npz
           echo "  wall time $(( $(date +%s) - start )) s"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: wcb-forecast
           path: |
-            out/anim/wcb_ifs
-            out/anim/wcb_ifs_manifest.json
-            out/data/wcb_ifs.json
+            assets/sst/anim/wcb_ifs
+            assets/sst/anim/wcb_ifs_manifest.json
+            assets/sst/data/wcb_ifs.json
           if-no-files-found: warn
           retention-days: 14
+      - name: Publish loop frames
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/wcb_ifs
+      # Never rebase: snapshot, reset to a fresh origin/main each attempt, lay the snapshot back on, commit, push.
+      - name: Commit & push
+        if: inputs.publish
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUTS="assets/sst/anim/wcb_ifs_manifest.json assets/sst/data/wcb_ifs.json"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" $OUTS
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            git add $OUTS
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "Warm conveyor belts (IFS-ENS): $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push origin HEAD:main; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
