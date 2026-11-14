@@ -617,11 +617,19 @@ window.STAGE = {
          : leads.map(function (lead) { return cell(r, lead); }).join("")) + "</tr>";
   }
   function names(rows, verdict) { return rows.filter(function (r) { return r.verdict === verdict; }).map(function (r) { return r.name; }).join(", "); }
+  function later(rows, sign) {   // the drivers whose forecast state moves the odds one way at every lead it has
+    return rows.filter(function (r) {
+      return r.ahead && r.ahead.effects.length && r.ahead.effects.every(function (x) { return sign * (x.ratio - 1) > 0; });
+    }).map(function (r) { return r.name; }).join(", ");
+  }
   function draw(doc, model) {
-    var rows = doc.drivers || [], leads = doc.driver_leads || [], up = names(rows, "favours"), down = names(rows, "against"), mixed = names(rows, "mixed");
+    var rows = doc.drivers || [], leads = doc.driver_leads || [], up = names(rows, "favours"), down = names(rows, "against"), mixed = names(rows, "mixed"),
+        fup = later(rows, 1), fdown = later(rows, -1);
     el("pjd-head").textContent = headline(doc, LABEL[model]);
-    el("pjd-sum").textContent = [up && "Favours an onset: " + up + ".", down && "Against: " + down + ".", mixed && "Either way by lead: " + mixed + "."].filter(Boolean).join(" ");
-    el("pjd-sum").hidden = !(rows.length && (up || down || mixed));
+    el("pjd-sum").textContent = [up && "Today’s state favours an onset: " + up + ".", down && "Today’s state is against one: " + down + ".",
+      mixed && "Either way by lead: " + mixed + ".", fup && "The forecast state favours one: " + fup + ".",
+      fdown && "The forecast state is against one: " + fdown + "."].filter(Boolean).join(" ");
+    el("pjd-sum").hidden = !(rows.length && (up || down || mixed || fup || fdown));
     el("pjd-leads").innerHTML = leads.map(function (lead) { return '<th scope="col" class="pjd-lead">' + lead[0] + "–" + lead[1] + "</th>"; }).join("");
     el("pjd-span").colSpan = Math.max(leads.length, 1);
     el("pjd-rows").innerHTML = rows.map(function (r) { return row(r, leads); }).join("");
