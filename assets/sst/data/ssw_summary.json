@@ -1,5 +1,5 @@
 {
- "built": "2026-11-14 01:31Z",
+ "built": "2026-11-14 02:10Z",
  "newest_init": "2026-11-13 18Z",
  "window": [
   "2026-11-14",
@@ -18,18 +18,13 @@
  "ssw": {
   "models": {
    "aifs": {
-    "init": "2026-11-13 12Z",
+    "init": "2026-11-13 18Z",
     "members": 51,
     "share": 0.0,
     "wmo": 0.0,
-    "u10_min_mean": 4.1,
+    "u10_min_mean": 4.2,
     "u10_min_p10": 3.6,
     "runs": [
-     [
-      "2026-10-14T12",
-      0.0,
-      null
-     ],
      [
       "2026-10-14T18",
       0.0,
@@ -627,6 +622,11 @@
      ],
      [
       "2026-11-13T12",
+      0.0,
+      0.0
+     ],
+     [
+      "2026-11-13T18",
       0.0,
       0.0
      ]
@@ -1721,15 +1721,15 @@
  "waves": {
   "models": {
    "aifs": {
-    "init": "2026-11-13 12Z",
+    "init": "2026-11-13 18Z",
     "members": 50,
-    "wave2_share": 0.34,
-    "z_peak": 0.7,
+    "wave2_share": 0.3,
+    "z_peak": 0.6,
     "z_peak_day": 8,
-    "flux_min": 6.9,
-    "ri_event_share": 0.04,
-    "z_can_min": -0.7,
-    "z_sib_max": 0.9
+    "flux_min": 6.5,
+    "ri_event_share": 0.0,
+    "z_can_min": -0.4,
+    "z_sib_max": 0.7
    },
    "ifs": {
     "init": "2026-11-13 12Z",
@@ -1765,28 +1765,28 @@
     "z_sib_max": 1.0
    }
   },
-  "wave2_share_mean": 0.38,
+  "wave2_share_mean": 0.36,
   "kind": "wave-1"
  },
  "descent": {
   "models": {
    "aifs": {
-    "init": "2026-11-13 12Z",
+    "init": "2026-11-13 18Z",
     "members": 51,
-    "cap100_day15": 1.0,
-    "cap10_day15": 0.4,
-    "frac100_day15": 0.51,
-    "cross100": "2026-11-20",
+    "cap100_day15": 0.7,
+    "cap10_day15": 0.3,
+    "frac100_day15": 0.29,
+    "cross100": "2026-11-22",
     "cross10": "2026-10-29",
     "kind": "top-down"
    },
    "aifsc": {
-    "init": "2026-11-13 12Z",
+    "init": "2026-11-13 18Z",
     "members": 1,
-    "cap100_day15": 0.9,
-    "cap10_day15": 0.2,
+    "cap100_day15": 0.6,
+    "cap10_day15": 0.1,
     "frac100_day15": null,
-    "cross100": "2026-11-20",
+    "cross100": "2026-11-22",
     "cross10": "2026-10-29",
     "kind": "top-down"
    },
@@ -1845,14 +1845,14 @@
  },
  "reflect": {
   "verdict": "quiet",
-  "shear_init": "2026-11-13 12Z",
-  "shear_min": 11.6,
-  "shear_max": 37.2,
+  "shear_init": "2026-11-13 18Z",
+  "shear_min": 12.4,
+  "shear_max": 38.1,
   "shear_normal": 23.9,
   "zonal_mean_downward": [],
   "canada_downward": [],
   "active": [],
-  "ri_event_share_mean": 0.01
+  "ri_event_share_mean": 0.0
  },
  "surface": {
   "models": {
@@ -1865,7 +1865,7 @@
      "2026-12-28"
     ],
     "cap100_day15": 1.0,
-    "frac100_day15": 0.51
+    "frac100_day15": 0.29
    },
    "ifs": {
     "init": "2026-11-13 12Z",
@@ -1957,17 +1957,17 @@
  "clock": {
   "models": {
    "aifs": {
-    "init": "2026-11-13 12Z",
+    "init": "2026-11-13 18Z",
     "onset": "2026-11-10",
     "wind_days": 11,
-    "wind": -0.92,
+    "wind": -0.94,
     "third": 1,
     "start_dates": [
      "2026-11-11",
      "2026-11-14",
      "2026-11-18"
     ],
-    "sea": -1.13,
+    "sea": -1.38,
     "sea_days": [
      6,
      15
@@ -2885,7 +2885,7 @@
  "event": {
   "onset": "2026-11-10",
   "analysed_to": "2026-11-13",
-  "wind": 2.2,
+  "wind": 2.1,
   "lowest": -2.9,
   "lowest_date": "2026-11-11",
   "westerly_from": "2026-11-13",
@@ -2976,21 +2976,21 @@
      -0.3,
      -2.6,
      -0.4,
-     2.4,
-     4.1,
-     5.4,
-     6.6,
-     9.6,
-     12.8,
-     15.1,
-     16.1,
-     17.4,
-     20.6,
-     23.9,
-     26.4,
-     28.2,
-     29.4,
-     30.3,
+     1.9,
+     4.2,
+     5.5,
+     7.2,
+     10.2,
+     13.5,
+     15.2,
+     15.8,
+     17.6,
+     21.5,
+     24.9,
+     26.8,
+     27.9,
+     28.8,
+     30.1,
      30.9
     ],
     "analysed": 31
@@ -3286,12 +3286,12 @@
   ],
   "models": {
    "aifs": {
-    "init": "2026-11-13 12Z",
-    "share": 0.53,
+    "init": "2026-11-13 18Z",
+    "share": 0.37,
     "usual": 0.21,
-    "days_more": 5,
+    "days_more": 4,
     "days": 5,
-    "any_day": 0.8
+    "any_day": 0.57
    },
    "ifs": {
     "init": "2026-11-13 12Z",
@@ -3315,7 +3315,7 @@
    }
   },
   "link_runs": {
-   "aifs": "2026-11-13 12Z",
+   "aifs": "2026-11-13 18Z",
    "ifs": "2026-11-13 12Z",
    "gefs": "2026-11-13 18Z",
    "geps": "2026-11-13 12Z"
