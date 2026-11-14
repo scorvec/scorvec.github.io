@@ -199,6 +199,21 @@ def test_masks_025():
     check(rows["polar"].size and np.all(np.abs(rows["polar"] - 50) <= 1.5), f"0.25 deg: polar rows {rows['polar']}")
     weak = (JB.LON >= 200) & (JB.LON <= 250)
     check(not m[:, :, weak].any(), "0.25 deg: jets under a weak wind")
+    # the same diagnosis kept on the pressure levels, for the cross-sections
+    d = JB.diagnose_025(t, u, v)
+    check(np.array_equal(JB.masks_of(d), m), "masks_of(diagnose_025) is masks_025")
+    vol = JB.volume(d)
+    check(vol.shape == (3, len(JB.LEVS), JB.LAT.size, JB.XS_LON.size), f"volume {vol.shape}")
+    check(JB.XS_LON[0] == 0.5 and JB.XS_LON.size * JB.XS_BLOCK == JB.LON.size, f"volume columns from {JB.XS_LON[0]}")
+    sl, c = JB.output_rows(JB.BAND), int(np.flatnonzero(JB.XS_LON == 45.5)[0])
+    block = slice(c * JB.XS_BLOCK, (c + 1) * JB.XS_BLOCK)
+    same = (np.allclose(vol[i, :, :, c], d[k][:, sl, block].mean(axis=-1)) for i, k in enumerate(JB.FIELDS))
+    check(all(same), "volume: a column is the mean of its block")
+    jets, calm = vol[:, :, :, c], vol[:, :, :, int(np.flatnonzero(JB.XS_LON == 224.0)[0])]
+    check(np.all(np.diff(vol[1], axis=0) > 0), "volume: potential temperature rises with height")
+    check(jets[0].max() > JB.V_MIN and jets[0].max() > calm[0].max() + 10, "volume: the jets' wind")
+    top, low = jets[2, -1, JB.LAT == 70.0][0], jets[2, 0, JB.LAT == 20.0][0]
+    check(top > JB.TROPOPAUSE > low, f"volume: PV {low:.2f} PVU at 700 hPa 20N, {top:.2f} at 100 hPa 70N")
 
 
 def test_identification_isentropic():

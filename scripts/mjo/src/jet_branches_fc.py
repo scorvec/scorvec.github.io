@@ -8,7 +8,9 @@ the shared request budget) and decoded in memory; nothing is cached. No other jo
 keeps u on these levels at daily steps only, strat-ifs.yml u and v at 100 hPa and t at 100 hPa, in jobs of their own.
 
 IDENTIFICATION. Every member at every step on its own (PV does not survive averaging), by jet_branches.masks_025:
-the ERA5 reference's method, grid and thresholds.
+the ERA5 reference's method, grid and thresholds. The same diagnosis on the pressure levels (jet_branches.volume: wind
+speed, potential temperature and PV) is reduced over the members as each step is decoded - their mean wind speed and
+potential temperature, their median PV - so the cross-sections cost no fetch.
 
 PRODUCTS, the cold season only: an init from 1 November to 31 March, leads past 31 March dropped.
   maps     per lead, the share of members with each branch within NEAR_KM (300 km) of the column (jet_branches.near),
@@ -18,12 +20,17 @@ PRODUCTS, the cold season only: an init from 1 November to 31 March, leads past 
            each lead - a group of superposed columns, each within 1000 km of another, at least as large as the
            region's threshold (reference/jet_branches_ref.json) - against ERA5's rate of analyses with one on the
            valid day (reference/jet_branches_regions.nc, the same window) -> a still
-  json     the numbers behind both and what the fetch cost
-Outside the season the still and a one-frame loop say so, and the json has in_season false.
+  sections per lead, one data frame for the page's transect picker (assets/jet_xsec.js): that volume, the maps'
+           shares (zero for a branch whose map is not drawn at the lead) and their normals on jet_branches.XS_LON,
+           as bytes (`xs_frame`) -> frames + a manifest of their own
+  json     the numbers behind the maps and events and what the fetch cost
+Outside the season the still and a one-frame loop say so, the sections' manifest has no frame and the json has
+in_season false.
 
 EVIDENCE. With reference/jet_branches_skill.json (jet_branches_verify.py: archived runs against ERA5) the shares are
 recalibrated where that verification adopted it, and a branch's map or a region's event odds are drawn only at the
 leads where they beat the ERA5 normal; elsewhere the panel says so. Without the file every lead is drawn as it comes.
+The sections' wind, isentropes and tropopause are the ensemble's state at every lead; their shares follow the maps.
 
     python jet_branches_fc.py run --date 20260110 --out fc.npz       # fetch and identify (the costly part)
     python jet_branches_fc.py render --fc fc.npz --clim jet_branches_clim.nc --out-dir assets/sst
@@ -35,6 +42,7 @@ from __future__ import annotations
 import pyproj  # noqa: F401  before eccodes/xarray: eckit's bundled libproj otherwise clashes (double free at exit)
 
 import argparse
+import gzip
 import json
 import sys
 import textwrap
@@ -58,6 +66,8 @@ import jet_branches as JB
 REF = HERE.parent / "data" / "reference"
 SKILL = REF / "jet_branches_skill.json"
 MODEL, LABEL, NAME = "ifs", "IFS-ENS", "jetbr_ifs"
+XS = f"{NAME}_xs"  # the cross-sections' data frames
+XS_STEP = dict(speed=1.0, theta=0.5, pv=0.05, share=0.004)  # one count of a frame's bytes: m/s, K, PVU, share
 HOUR = "00"
 PARAMS = ("t", "u", "v")
 MEMBERS = 50
@@ -98,7 +108,8 @@ def _grid(gid, eccodes):
 
 def step_masks(job):
     """One step of the run: t, u, v at LEVS for perturbed members 1..n, every member identified.
-    -> {step, members (n,), masks (n, 3, packed), cost}; None when the step could not be fetched."""
+    -> {step, members (n,), masks (n, 3, packed), volume (3, lev, LAT, XS_LON): the members' mean wind speed and
+    potential temperature and their median PV, cost}; None when the step could not be fetched."""
     import eccodes
     import rangefetch as rf
 
@@ -128,7 +139,7 @@ def step_masks(job):
                 pos += e["_length"]
             if pos != len(blob):
                 raise RuntimeError(f"{len(blob)} bytes for {pos} indexed")
-            grid, members, packed = None, [], []
+            grid, members, packed, mean, pv = None, [], [], 0.0, []
             for num in sorted({k[0] for k in where}):
                 keys = [(num, p, lev) for p in PARAMS for lev in JB.LEVS]
                 if not all(k in where for k in keys):
@@ -144,8 +155,12 @@ def step_masks(job):
                     finally:
                         eccodes.codes_release(gid)
                 t, u, v = (np.stack(fields[i * len(JB.LEVS) : (i + 1) * len(JB.LEVS)]) for i in range(3))
+                d = JB.diagnose_025(t, u, v)
                 members.append(num)
-                packed.append(np.packbits(JB.masks_025(t, u, v).reshape(3, -1), axis=-1))
+                packed.append(np.packbits(JB.masks_of(d).reshape(3, -1), axis=-1))
+                vol = JB.volume(d)
+                mean = mean + vol[:2]
+                pv.append(vol[2].astype(np.float32))
             del blob
             if not members:
                 print(f"  step {step:3d}: no member complete; skipped", flush=True)
@@ -164,7 +179,13 @@ def step_masks(job):
                 f"identify {cost['identify_s']:.0f} s",
                 flush=True,
             )
-            return dict(step=step, members=np.array(members), masks=np.stack(packed), cost=cost)
+            return dict(
+                step=step,
+                members=np.array(members),
+                masks=np.stack(packed),
+                volume=np.concatenate([mean / len(members), np.median(pv, axis=0)[None]]).astype(np.float32),
+                cost=cost,
+            )
         except Exception as e:  # noqa: BLE001  one step must not end the run; the lead is dropped instead
             print(f"  step {step:3d}: attempt {attempt} failed ({type(e).__name__}: {str(e)[:120]})", flush=True)
             time.sleep(20 * attempt)
@@ -184,8 +205,8 @@ def carries_levels(date) -> bool:
 
 
 def run(date, last_step, out, workers=3, wait_min=0.0, members=MEMBERS):
-    """Fetch and identify every step for perturbed members 1..members -> npz (per-step member masks and the fetch's
-    cost). Waits up to wait_min for the run to be on the Google mirror to last_step."""
+    """Fetch and identify every step for perturbed members 1..members -> npz (per-step member masks, the sections'
+    volume and the fetch's cost). Waits up to wait_min for the run to be on the Google mirror to last_step."""
     deadline = time.time() + 60 * wait_min
     while not IE.published(date, HOUR, step=last_step):
         if time.time() >= deadline:
@@ -219,6 +240,7 @@ def run(date, last_step, out, workers=3, wait_min=0.0, members=MEMBERS):
         steps=np.array([r["step"] for r in keep]),
         members=members,
         masks=masks,
+        volume=np.stack([r["volume"] for r in keep]),
         cost=json.dumps(cost),
     )
     return Path(out)
@@ -235,6 +257,13 @@ def load_run(path):
         bits = np.unpackbits(packed[i, :n], axis=-1, count=JB.LAT.size * JB.LON.size)  # (n, 3, columns)
         masks.append(bits.reshape(n, 3, JB.LAT.size, JB.LON.size).astype(bool))
     return init, steps, masks, cost
+
+
+def load_volume(path):
+    """npz from `run` -> (step, 3, lev, LAT, XS_LON): the members' mean wind speed and potential temperature and their
+    median PV; None from a file kept without them (the hindcast's)."""
+    with np.load(path) as f:
+        return f["volume"] if "volume" in f.files else None
 
 
 # ── the products ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -583,6 +612,89 @@ def write_manifest(frames, path):
     path.write_text(json.dumps(mani))
 
 
+def xs_frame(vol, maps):
+    """One lead's cross-section data: vol (3, lev, LAT, XS_LON) and maps (n, LAT, XS_LON) of shares -> (gzip of the
+    bytes, the levels' potential-temperature floors). A plane per level of wind speed, of potential temperature above
+    its level's floor and of PV (0-10 PVU), then the maps, each in counts of XS_STEP; every plane is stored as its
+    differences along longitude, then latitude, modulo 256."""
+    speed, theta, pv = vol
+    floor = np.floor(theta.min(axis=(1, 2)))
+    counts = np.concatenate(
+        [
+            speed / XS_STEP["speed"],
+            (theta - floor[:, None, None]) / XS_STEP["theta"],
+            np.clip(pv, 0.0, 10.0) / XS_STEP["pv"],
+            maps / XS_STEP["share"],
+        ]
+    )
+    b = np.clip(np.rint(counts), 0, 255).astype(np.uint8)
+    b[:, :, 1:] -= b[:, :, :-1].copy()
+    b[:, 1:] -= b[:, :-1].copy()
+    return gzip.compress(b.tobytes(), 9, mtime=0), [int(x) for x in floor]
+
+
+def _xs_outputs(out_dir):
+    """(the sections' frames dir emptied of the last run's frames, their manifest)."""
+    xs = Path(out_dir) / "anim" / XS
+    xs.mkdir(parents=True, exist_ok=True)
+    for old in xs.glob("F*.bin"):
+        old.unlink()
+    return xs, xs.parent / f"{XS}_manifest.json"
+
+
+def write_sections(init, out_dir, pr=None, steps=None, vol=None):
+    """The cross-sections' data frames and manifest: per lead of pr the run's volume, the branches' shares as the maps
+    draw them (zero for a branch not shown at the lead) and their normals, each the mean of XS_BLOCK columns. Without
+    pr (outside the season) or vol (a run kept without it) the manifest has no frame. -> the frame count."""
+    xs, manifest = _xs_outputs(out_dir)
+    frames = []
+    if pr is not None and vol is not None:
+        at = {int(st): j for j, st in enumerate(steps)}
+        for i, v in enumerate(pr["valid"]):
+            shown = pr["map_shown"][i]
+            maps = np.concatenate([pr["share"][i], pr["normal"][i]]) * np.tile(shown, 2)[:, None, None]
+            maps = maps.reshape(len(maps), JB.LAT.size, -1, JB.XS_BLOCK).mean(axis=-1)
+            blob, floor = xs_frame(vol[at[int(pr["steps"][i])]], maps)
+            fn = f"F{i:02d}.bin"
+            (xs / fn).write_bytes(blob)
+            frames.append(
+                {
+                    "file": fn,
+                    "lead_h": int(pr["steps"][i]),
+                    "valid": f"{v:%Y-%m-%dT%H:%MZ}",
+                    "members": pr["members"][i],
+                    "theta0": floor,
+                    "shown": [bool(x) for x in shown],
+                    "cal": [bool(x) for x in pr["map_cal"][i]],
+                }
+            )
+    doc = dict(
+        ver=int(time.time()),
+        dir=XS,
+        model=LABEL,
+        init=f"{init:%Y-%m-%dT%H:%MZ}",
+        in_season=pr is not None,
+        grid=dict(
+            lat0=float(JB.LAT[0]),
+            dlat=float(JB.LAT[1] - JB.LAT[0]),
+            nlat=int(JB.LAT.size),
+            lon0=float(JB.XS_LON[0]),
+            dlon=float(JB.XS_LON[1] - JB.XS_LON[0]),
+            nlon=int(JB.XS_LON.size),
+        ),
+        levels=list(JB.LEVS),
+        planes=[*JB.FIELDS, "share", "normal"],
+        step=XS_STEP,
+        branches=list(JB.BRANCHES),
+        layers={k: [v[0], v[-1]] for k, v in JB.LAYERS.items()},
+        tropopause=JB.TROPOPAUSE,
+        near_km=JB.NEAR_KM,
+        frames=frames,
+    )
+    manifest.write_text(json.dumps(doc, separators=(",", ":")))
+    return len(frames)
+
+
 def in_season(init) -> bool:
     return bool(JB.season_slot(np.array([pd.Timestamp(init).to_datetime64()]))[0] >= 0)
 
@@ -615,13 +727,14 @@ def render_off_season(init, out_dir):
     write_manifest(
         [{"idx": 0, "file": "F00.webp", "date": f"{init:%Y-%m-%d}", "label": "outside the cold season"}], manifest
     )
+    write_sections(init, out_dir)
     doc = dict(model=LABEL, init=f"{init:%Y-%m-%dT%H:%MZ}", in_season=False)
     _write_json(doc, data)
     return doc
 
 
 def render(fc_path, clim_path, out_dir):
-    """Frames, manifest, events still and json under out_dir (assets/sst) from a run's npz."""
+    """Frames, manifests, the sections' data, events still and json under out_dir (assets/sst) from a run's npz."""
     init, steps, masks, cost = load_run(fc_path)
     if not in_season(init):
         return render_off_season(init, out_dir)
@@ -645,6 +758,7 @@ def render(fc_path, clim_path, out_dir):
             }
         )
     write_manifest(frames, manifest)
+    n_xs = write_sections(init, out_dir, pr, steps, load_volume(fc_path))
     events_still(pr, still)
     doc.update(
         in_season=True,
@@ -667,7 +781,7 @@ def render(fc_path, clim_path, out_dir):
             for r in JB.REGIONS
         },
     )
-    print(f"  {len(frames)} frames -> {anim}", flush=True)
+    print(f"  {len(frames)} map frames -> {anim}, {n_xs} section frames beside it", flush=True)
     _write_json(doc, data)
     return doc
 

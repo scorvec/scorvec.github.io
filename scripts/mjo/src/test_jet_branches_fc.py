@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Offline checks of jet_branches_fc.py, jet_branches_hindcast.py and jet_branches_verify.py: a step of the IFS-ENS
 stream decoded from real GRIB2 messages (encoded here, served by a stand-in for the range fetcher), the products, the
-renders, the season rule, the hindcast's scan events and comparison, and the skill verification's statistics.
+renders, the cross-sections' data frames, the season rule, the hindcast's scan events and comparison, and the skill verification's statistics.
 
     python scripts/mjo/src/test_jet_branches_fc.py
 
@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import pyproj  # noqa: F401  before eccodes/xarray: eckit's bundled libproj otherwise clashes (double free at exit)
 
+import gzip
 import json
 import sys
 import tempfile
@@ -37,6 +38,19 @@ LON180 = np.round(np.arange(-180.0, 180.0, 0.25), 3)  # the open-data grid start
 def check(cond, msg):
     if not cond:
         raise AssertionError(msg)
+
+
+def band(fields):
+    """Global open-data fields -> the band rows from 0E, as the decode hands them to the diagnosis."""
+    rows = JB.band_rows025(LAT025)
+    order = np.argsort(LON180 % 360)
+    return [x[:, rows][:, :, order] for x in fields]
+
+
+def unpack(blob, n):
+    """A section frame's bytes -> (n, LAT, XS_LON) counts, as the page decodes them."""
+    b = np.frombuffer(gzip.decompress(blob), np.uint8).reshape(n, JB.LAT.size, JB.XS_LON.size)
+    return np.cumsum(np.cumsum(b, axis=1, dtype=np.uint8), axis=2, dtype=np.uint8)
 
 
 def global_fields(shift):
@@ -95,13 +109,18 @@ def test_step():
     finally:
         rf.fetch_index, rf.fetch_ranges = orig
     check(r is not None and r["members"].tolist() == [1, 2], f"members {None if r is None else r['members']}")
-    rows = JB.band_rows025(LAT025)
-    order = np.argsort(LON180 % 360)
+    vols = []
     for i, m in enumerate((1, 2)):
-        want = JB.masks_025(*(x[:, rows][:, :, order] for x in global_fields(0.5 * m)))
+        d = JB.diagnose_025(*band(global_fields(0.5 * m)))
+        vols.append(JB.volume(d))
+        want = JB.masks_of(d)
         got = np.unpackbits(r["masks"][i], axis=-1, count=JB.LAT.size * JB.LON.size).reshape(want.shape).astype(bool)
         # 24-bit packing leaves the identification unchanged up to a few columns where a gradient sits on its threshold
         check(np.mean(got != want) < 1e-4 and got.sum() > 100, f"member {m}: {int((got != want).sum())} columns differ")
+    # the sections' volume: the two members' mean wind speed and potential temperature, their median PV
+    want = np.concatenate([np.mean(vols, axis=0)[:2], np.median(vols, axis=0)[2:]])
+    check(r["volume"].shape == want.shape and r["volume"].dtype == np.float32, f"volume {r['volume'].shape}")
+    check(np.abs(r["volume"] - want).max() < 0.05, f"volume off by {np.abs(r['volume'] - want).max():.3f}")
     check(r["cost"]["messages"] == 54 and r["cost"]["bytes"] == len(blob), f"cost {r['cost']}")
     # a run without one of the nine levels is skipped at once, not retried
     rf.fetch_index = lambda *a, **k: [e for e in index if e["levelist"] != "100"]
@@ -111,16 +130,14 @@ def test_step():
         rf.fetch_index = orig[0]
 
 
-def fake_run(path, init, steps, members=6):
-    """A run npz like jet_branches_fc.run writes: members' masks from the synthetic atmosphere, steps moving north."""
-    rows = JB.band_rows025(LAT025)
-    order = np.argsort(LON180 % 360)
-    masks = []
+def fake_run(path, init, steps, members=6, volume=True):
+    """A run npz like jet_branches_fc.run writes: members' masks from the synthetic atmosphere, steps moving north,
+    and (volume) the sections' volume of the first member."""
+    masks, vol = [], []
     for s in steps:
-        per = [
-            JB.masks_025(*(x[:, rows][:, :, order] for x in global_fields(0.1 * m + s / 48))) for m in range(members)
-        ]
-        masks.append([np.packbits(x.reshape(3, -1), axis=-1) for x in per])
+        per = [JB.diagnose_025(*band(global_fields(0.1 * m + s / 48))) for m in range(members)]
+        masks.append([np.packbits(JB.masks_of(d).reshape(3, -1), axis=-1) for d in per])
+        vol.append(JB.volume(per[0]).astype(np.float32))
     np.savez_compressed(
         path,
         init=np.datetime64(init, "s"),
@@ -128,6 +145,7 @@ def fake_run(path, init, steps, members=6):
         members=np.tile(np.arange(1, members + 1), (len(steps), 1)),
         masks=np.array(masks, np.uint8),
         cost=json.dumps({"bytes": 1}),
+        **({"volume": np.stack(vol)} if volume else {}),
     )
 
 
@@ -168,6 +186,23 @@ def test_products_and_render():
         check(len(frames) == 4 and all((d / "out" / "anim" / FC.NAME / f["file"]).exists() for f in frames), "frames")
         check((d / "out" / f"{FC.NAME}_events.webp").exists() and doc["in_season"], "the events still")
         check(len(doc["regions"]["wnp"]["share"]) == 4, "json leads")
+        # the sections' data: a frame per in-season lead, decoded as the page does, against the run's volume
+        xs = json.loads((d / "out" / "anim" / f"{FC.XS}_manifest.json").read_text())
+        check(xs["in_season"] and [f["lead_h"] for f in xs["frames"]] == [0, 12, 24, 36], f"section leads {xs}")
+        check(xs["dir"] == FC.XS and xs["grid"]["nlon"] == JB.XS_LON.size and xs["grid"]["lon0"] == 0.5, "its grid")
+        nlev, fr = len(JB.LEVS), xs["frames"][1]
+        got = unpack((d / "out" / "anim" / FC.XS / fr["file"]).read_bytes(), 3 * nlev + 6).astype(float)
+        vol = FC.load_volume(d / "fc.npz")[1]
+        step = xs["step"]
+        check(np.abs(got[:nlev] * step["speed"] - vol[0]).max() <= 0.5 * step["speed"] + 1e-4, "section wind")
+        theta = got[nlev : 2 * nlev] * step["theta"] + np.array(fr["theta0"])[:, None, None]
+        check(np.abs(theta - vol[1]).max() <= 0.5 * step["theta"] + 1e-3, "section potential temperature")
+        pv = np.clip(vol[2], 0.0, 10.0)
+        check(np.abs(got[2 * nlev : 3 * nlev] * step["pv"] - pv).max() <= 0.5 * step["pv"] + 1e-4, "section PV")
+        maps = np.concatenate([pr["share"][1], pr["normal"][1]])
+        maps = maps.reshape(6, JB.LAT.size, -1, JB.XS_BLOCK).mean(axis=-1)
+        check(np.abs(got[3 * nlev :] * step["share"] - maps).max() <= 0.5 * step["share"] + 1e-6, "section shares")
+        check(fr["shown"] == [True] * 3 and fr["cal"] == [False] * 3 and fr["members"] == 6, f"frame {fr}")
         # verified: only the polar maps on day 0 pass, no event odds -> two frames (0 and 12 h), the still greyed
         maps = {b: dict(calibrated=[False] * 11, table=[[0.0, 1.0]] * 11, show=[0, 0] if b == "polar" else None)
                 for b in JB.BRANCHES}  # fmt: skip
@@ -179,10 +214,23 @@ def test_products_and_render():
         files = sorted(p.name for p in (d / "out" / "anim" / FC.NAME).glob("*.webp"))
         check(files == ["F00.webp", "F01.webp"] and doc["verified"], f"gated frames {files}")
         check(doc["map_shown"]["polar"] == [True, True, False, False] and not any(doc["event_shown"]["na"]), "shown")
+        # the sections keep every lead's wind; a branch not drawn on the maps has no share or normal in them
+        xs = json.loads((d / "out" / "anim" / f"{FC.XS}_manifest.json").read_text())
+        check([f["shown"] for f in xs["frames"]] == [[True, False, False]] * 2 + [[False] * 3] * 2, "gated sections")
+        got = unpack((d / "out" / "anim" / FC.XS / "F00.bin").read_bytes(), 3 * nlev + 6)[3 * nlev :]
+        check(got[0].any() and got[3].any() and not got[[1, 2, 4, 5]].any(), "a hidden branch is zero")
         # outside the season: the note, a one-frame loop, in_season false, the old frames gone
         doc = FC.render_off_season(pd.Timestamp("2026-10-17 00:00"), d / "out")
         files = sorted(p.name for p in (d / "out" / "anim" / FC.NAME).glob("*.webp"))
         check(not doc["in_season"] and files == ["F00.webp"], f"off season {files}")
+        xs = json.loads((d / "out" / "anim" / f"{FC.XS}_manifest.json").read_text())
+        left = list((d / "out" / "anim" / FC.XS).glob("*"))
+        check(not xs["in_season"] and xs["frames"] == [] and not left, f"off-season sections {left}")
+        # a run kept without the volume: maps as before, the sections' manifest without a frame
+        fake_run(d / "old.npz", pd.Timestamp("2026-01-10 00:00"), [0, 12], members=3, volume=False)
+        doc = FC.render(d / "old.npz", d / "clim.nc", d / "out")
+        xs = json.loads((d / "out" / "anim" / f"{FC.XS}_manifest.json").read_text())
+        check(doc["in_season"] and xs["in_season"] and xs["frames"] == [], "a run without the volume")
 
 
 def test_gate():

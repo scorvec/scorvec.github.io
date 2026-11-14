@@ -334,6 +334,42 @@
 <div class="hbd-charts"><canvas id="hbd-p"></canvas><canvas id="hbd-lat"></canvas></div>
 <div id="hbd-list"></div>
 </div>
+<!-- Jet cross-sections (assets/jet_xsec.js, data from jet_branches_fc.write_sections in jet-branches.yml). Mounted by the
+     pacjet product's branches/xsec view. Data: assets/sst/anim/jetbr_ifs_xs_manifest.json -> uint8 planes on the frames branch. -->
+<div id="jxs-view" class="jxs" hidden>
+<style>
+.jxs-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin:2px 0 8px}
+.jxs-grp{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+.jxs-lead{flex:1 1 300px;min-width:0}
+.jxs-lead input{flex:1;min-width:80px}
+.jxs-when{font-weight:600;white-space:nowrap;margin-left:4px}
+.jxs canvas{display:block}
+#jxs-map,#jxs-sec{cursor:crosshair;touch-action:pan-y}
+#jxs-key{margin:6px 0 0}
+.jxs-info,.jxs-status,.jxs-read,.jxs-leg{font-size:var(--t-small);line-height:1.4;margin:4px 0}
+.jxs-info,.jxs-status,.jxs-miss{color:var(--muted)}
+.jxs-info,.jxs-status,.jxs-read{min-height:2.8em}
+.jxs-read{color:var(--ink)}
+.jxs-leg{display:flex;flex-wrap:wrap;gap:2px 16px;color:var(--ink)}
+.jxs-k{white-space:nowrap}
+.jxs-k i{display:inline-block;width:18px;border-top:3px solid;vertical-align:middle;margin-right:5px}
+.jxs-miss{flex-basis:100%}
+.jxs.off .jxs-bar,.jxs.off canvas,.jxs.off .jxs-leg,.jxs.off .jxs-read{display:none}
+@media (min-width:700px){.jxs-info,.jxs-status,.jxs-read{min-height:1.4em}}
+</style>
+<div class="jxs-bar">
+  <div class="jxs-grp jxs-lead"><button type="button" class="pill" id="jxs-prev" aria-label="Earlier lead">◀</button><input type="range" id="jxs-lead" min="0" max="0" step="1" value="0" aria-label="Lead of the forecast"><button type="button" class="pill" id="jxs-next" aria-label="Later lead">▶</button><span class="jxs-when" id="jxs-when"></span></div>
+  <div class="jxs-grp"><button type="button" class="pill" id="jxs-line" aria-pressed="false">Draw a line</button><button type="button" class="pill" id="jxs-west" hidden>← West</button><button type="button" class="pill" id="jxs-east" hidden>East →</button></div>
+</div>
+<canvas id="jxs-map" tabindex="0" aria-label="Map of the 250 hPa wind: tap to put the section along that longitude; the left and right arrow keys move it"></canvas>
+<canvas id="jxs-key" aria-hidden="true"></canvas>
+<p class="jxs-info" id="jxs-info"></p>
+<p class="jxs-status" id="jxs-status" aria-live="polite" hidden></p>
+<canvas id="jxs-sec" aria-label="Section along the transect: wind speed, potential temperature and the tropopause against pressure, then each jet branch's chance"></canvas>
+<p class="jxs-read" id="jxs-read"></p>
+<div class="jxs-leg" id="jxs-leg"></div>
+</div>
+<script src="/assets/jet_xsec.js?v=__CACHE__" defer></script>
 <script src="/assets/hbranch/drop.js?v=__CACHE__" defer></script>
 <script src="/assets/frames_root.js"></script>
 <script>
@@ -441,12 +477,12 @@ window.STAGE = {
           b: function (a) { return a === "maps" ? {label: "Period", items: [["wk1","Week 1"],["wk2","Week 2"],["loop","Day by day (loop)"]]}
                                   : a === "ext" ? {label: "Show", items: [["tracker","Tracker"],["drivers","What favours it"],["before","Before an onset (ERA5)"]]}
                                   : a === "phase" ? {label: "Show", items: [["diagram","Phase diagram"],["implied","What the forecast implies"],["lag0","What each phase brings"],["lag3_7","… 3–7 days later"]]}
-                                  : a === "branches" ? {label: "Show", items: [["loop","Maps by lead (loop)"],["events","Superposition events by region"]]} : null; },
+                                  : a === "branches" ? {label: "Show", items: [["loop","Maps by lead (loop)"],["xsec","Cross-section"],["events","Superposition events by region"]]} : null; },
           c: function (a, b) { return (a === "maps" || a === "axis" || (a === "phase" && (b === "diagram" || b === "implied")) || (a === "ext" && b !== "before")) ? {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"]]} : null; },
           frame: function (a, b, c) { return a === "maps" && b === "loop" ? "sst_anim.html?embed=1&manifest=pacjet_" + c + "_manifest.json&region=pacjet_" + c
                                        : a === "branches" && b === "loop" ? "sst_anim.html?embed=1&manifest=jetbr_ifs_manifest.json&region=jetbr_ifs" : null; },
           ratio: function () { return "1170/870"; },
-          dom: function (a, b) { return a === "ext" && b === "drivers" ? "pjd-view" : null; },
+          dom: function (a, b) { return a === "ext" && b === "drivers" ? "pjd-view" : a === "branches" && b === "xsec" ? "jxs-view" : null; },
           img: function (a, b, c) { return a === "maps" ? "assets/sst/pacjet_" + c + "_" + b + ".webp" : a === "axis" ? "assets/sst/pacjet_" + c + "_axis.webp"
                                          : a === "ext" ? (b === "tracker" ? "assets/sst/pacjet_" + c + "_event.webp" : "assets/sst/pacjet_drivers.webp")
                                          : a === "phase" ? (b === "diagram" || b === "implied" ? "assets/sst/pacjet_" + c + "_" + (b === "diagram" ? "phase" : "implied") + ".webp" : "assets/sst/pacjet_impacts_" + b + ".webp")
@@ -460,7 +496,7 @@ window.STAGE = {
                                                                : b === "implied" ? "The temperature, precipitation and 500 hPa height that went with a jet like the forecast one in ERA5, for the weeks ahead; colour only where that link held out of sample."
                                                                : "ERA5 1991–2020: the 500 hPa height, temperature and precipitation that go with each phase; colour only where significant.",
                                                           torque: "Research view: the ERA5 lagged regression of the jet phases on the Himalayan mountain torque, and what it implies for this cycle only where significant.",
-                                                          branches: b === "loop" ? "IFS-ENS: the chance of a polar jet, a subtropical jet and a superposition within 300 km, lead by lead, against the ERA5 normal for the date; drawn only at the leads where it beats the normal." : "IFS-ENS: the chance of a superposition event over the western North Pacific and North America by lead, against the ERA5 rate for the date; drawn only at the leads where it beats it."}[a]; }}
+                                                          branches: b === "loop" ? "IFS-ENS: the chance of a polar jet, a subtropical jet and a superposition within 300 km, lead by lead, against the ERA5 normal for the date; drawn only at the leads where it beats the normal." : b === "xsec" ? "IFS-ENS along a transect picked on the map: wind speed, potential temperature and the tropopause, then each jet branch's chance within 300 km against the ERA5 normal. Tap the map to move the section; Draw a line takes two taps." : "IFS-ENS: the chance of a superposition event over the western North Pacific and North America by lead, against the ERA5 rate for the date; drawn only at the leads where it beats it."}[a]; }}
 }
 };
 

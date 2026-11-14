@@ -7,10 +7,11 @@ name: Jet branches (IFS-ENS polar jet, subtropical jet and superposition)
 # reference files (jet-branches-ref.yml). Cold season only: a run started outside 1 November - 31 March renders the
 # season note, with nothing fetched.
 #
-#   forecast   the 00 UTC run of `date` (blank = today) -> frames assets/sst/anim/jetbr_ifs (frames store) + the
-#              manifest, assets/sst/jetbr_ifs_events.webp and assets/sst/data/jetbr_ifs.json; with publish=true the
-#              frames are published and the rest committed, otherwise all of it is an artifact. Waits up to 45 min
-#              for the run on the mirror.
+#   forecast   the 00 UTC run of `date` (blank = today) -> frames assets/sst/anim/jetbr_ifs and the cross-sections'
+#              data frames assets/sst/anim/jetbr_ifs_xs (frames store) + their manifests,
+#              assets/sst/jetbr_ifs_events.webp and assets/sst/data/jetbr_ifs.json; with publish=true the frames are
+#              published and the rest committed, otherwise all of it is an artifact. Waits up to 45 min for the run
+#              on the mirror.
 #   hindcast   archived runs against ERA5 (scripts/mjo/src/jet_branches_hindcast.py), artifacts only: ERA5 (ARCO) is
 #              identified at 00/12 UTC from scan_start to scan_end; the runs started leads_before days ahead of each
 #              region's largest event in it (or the `inits` given) are fetched exactly as the forecast is, which
@@ -111,6 +112,8 @@ jobs:
           path: |
             assets/sst/anim/jetbr_ifs
             assets/sst/anim/jetbr_ifs_manifest.json
+            assets/sst/anim/jetbr_ifs_xs
+            assets/sst/anim/jetbr_ifs_xs_manifest.json
             assets/sst/jetbr_ifs_events.webp
             assets/sst/data/jetbr_ifs.json
           if-no-files-found: warn
@@ -119,14 +122,14 @@ jobs:
         if: inputs.publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/jetbr_ifs
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/jetbr_ifs assets/sst/anim/jetbr_ifs_xs
       # Never rebase: snapshot, reset to a fresh origin/main each attempt, lay the snapshot back on, commit, push.
       - name: Commit & push
         if: inputs.publish
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          OUTS="assets/sst/anim/jetbr_ifs_manifest.json assets/sst/jetbr_ifs_events.webp assets/sst/data/jetbr_ifs.json"
+          OUTS="assets/sst/anim/jetbr_ifs_manifest.json assets/sst/anim/jetbr_ifs_xs_manifest.json assets/sst/jetbr_ifs_events.webp assets/sst/data/jetbr_ifs.json"
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" $OUTS
           for i in 1 2 3 4 5; do

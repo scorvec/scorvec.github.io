@@ -38,6 +38,9 @@ Maps and events. A 0.5 deg column mask is a ribbon one to three columns wide, wi
 it, so the maps are of the neighbourhood: a branch counts at a column when it is identified within NEAR_KM of it
 (near), in the forecasts and in the ERA5 reference alike. A superposition event in a region is a group of superposed
 columns, each within LINK_KM of another, at least as large as the region's threshold (groups_of; Winters et al. 2020).
+
+Cross-sections. `volume` keeps the same diagnosis on the pressure levels (wind speed, potential temperature and PV,
+on LAT by XS_LON), where the two layers and the tropopause wall they are read from can be seen along any transect.
 """
 
 from __future__ import annotations
@@ -60,6 +63,7 @@ CHANNEL = (1.0, 3.0)  # PVU
 LAYERS = {"polar": (315.0, 320.0, 325.0, 330.0), "stj": (340.0, 345.0, 350.0, 355.0)}
 THRESH = {"polar": 1.4e-5, "stj": 0.9e-5}  # PVU/m on the 0.5 deg grid (Winters et al. 2020)
 BRANCHES = ("polar", "stj", "sup")
+FIELDS = ("speed", "theta", "pvp")  # of `diagnose`, kept on the pressure levels by `volume`
 BAND_LAT = (2.5, 87.5)  # rows of the 0.5 deg working band (from 0.25 deg rows 2.25..87.75)
 BAND = np.round(np.arange(BAND_LAT[0], BAND_LAT[1] + 1e-6, 0.5), 3)
 LAT = np.round(np.arange(10.0, 80.0 + 1e-6, 0.5), 3)  # output rows
@@ -74,6 +78,9 @@ LINK_KM = 1000.0  # superposed columns within this distance of each other form o
 TRACK_KM, TRACK_H = 1500.0, 30.0  # an event continues one whose centre was this close this recently (Winters et al.)
 NEAR_KM = 300.0  # the maps' neighbourhood: a branch within this distance of the column
 SMOOTH_HALF = 15  # days: the climatology is a centred 31-day window over the season
+XS_BLOCK = 3  # the cross-sections' volume: the mean of this many LON columns (1.5 deg)
+XS_LON = np.round(LON.reshape(-1, XS_BLOCK).mean(axis=1), 3)
+TROPOPAUSE = 2.0  # PVU: the dynamic tropopause drawn on them
 
 
 # ── grid ────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -128,11 +135,19 @@ def layer_gradients(iso, lat) -> dict:
 def diagnose(t, u, v, lat, lon, levs=LEVS) -> dict:
     """One analysis time on one grid. t, u, v (lev, lat, lon) on `levs` hPa, lat south to north, lon a global ring.
 
-    Returns 'vbar' (the 400-100 hPa wind), 'theta' (lev, lat, lon), 'pv' {layer: PV on each of its isentropes
-    (4, lat, lon)} and 'grad' {layer: the in-channel gradient of the layer-mean PV}, all on the input rows."""
+    Returns 'vbar' (the 400-100 hPa wind), 'speed', 'theta' and 'pvp' (wind speed, potential temperature and PV on
+    the levels: lev, lat, lon), 'pv' {layer: PV on each of its isentropes (4, lat, lon)} and 'grad' {layer: the
+    in-channel gradient of the layer-mean PV}, all on the input rows."""
     pv, th = ertel_pv(t, u, v, np.asarray(levs, float) * 100.0, lat, lon, smooth=False)
     iso = {name: np.stack([on_isentrope(pv, th, u, v, th0)["pv"] for th0 in thetas]) for name, thetas in LAYERS.items()}
-    return {"vbar": wind_layer_mean(u, v, levs), "theta": th, "pv": iso, "grad": layer_gradients(iso, lat)}
+    return {
+        "vbar": wind_layer_mean(u, v, levs),
+        "speed": np.hypot(u, v),
+        "theta": th,
+        "pvp": pv,
+        "pv": iso,
+        "grad": layer_gradients(iso, lat),
+    }
 
 
 def identify(vbar, g_polar, g_stj, thresh=THRESH) -> dict:
@@ -144,13 +159,29 @@ def identify(vbar, g_polar, g_stj, thresh=THRESH) -> dict:
     return {"polar": polar, "stj": stj, "sup": polar & stj}
 
 
-def masks_025(t, u, v) -> np.ndarray:
-    """t, u, v (lev, rows, 1440) on the 0.25 deg rows of band_rows025 -> (3, LAT, LON) boolean masks of BRANCHES: the
-    whole identification of one analysis or one member, as the ERA5 reference makes it."""
-    d = diagnose(*(to_half(x) for x in (t, u, v)), BAND, LON)
+def diagnose_025(t, u, v) -> dict:
+    """t, u, v (lev, rows, 1440) on the 0.25 deg rows of band_rows025 -> `diagnose` on the 0.5 deg band (BAND, LON)."""
+    return diagnose(*(to_half(x) for x in (t, u, v)), BAND, LON)
+
+
+def masks_of(d) -> np.ndarray:
+    """diagnose_025's fields -> (3, LAT, LON) boolean masks of BRANCHES."""
     sl = output_rows(BAND)
     m = identify(d["vbar"][sl], d["grad"]["polar"][sl], d["grad"]["stj"][sl])
     return np.stack([m[b] for b in BRANCHES])
+
+
+def masks_025(t, u, v) -> np.ndarray:
+    """t, u, v (lev, rows, 1440) on the 0.25 deg rows of band_rows025 -> (3, LAT, LON) boolean masks of BRANCHES: the
+    whole identification of one analysis or one member, as the ERA5 reference makes it."""
+    return masks_of(diagnose_025(t, u, v))
+
+
+def volume(d) -> np.ndarray:
+    """diagnose_025's fields on the pressure levels -> (3, lev, LAT, XS_LON): wind speed (m/s), potential temperature
+    (K) and PV (PVU) over the output rows, each the mean of XS_BLOCK columns."""
+    sl = output_rows(BAND)
+    return np.stack([d[k][:, sl].reshape(len(LEVS), LAT.size, -1, XS_BLOCK).mean(axis=-1) for k in FIELDS])
 
 
 def output_rows(lat) -> slice:
