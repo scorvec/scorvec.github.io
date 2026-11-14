@@ -409,6 +409,7 @@ def verify(run_paths, scan_paths, clim_path, out_dir, json_path=None, members=10
         fdr_q=FDR_Q,
         min_bss=min_bss,
         near_km=JB.NEAR_KM,
+        scheme=JB.SCHEME,
         lead_days=list(LEAD_DAYS),
         maps={},
         events={},
@@ -580,6 +581,7 @@ def main() -> int:
     s.add_argument("--min-bss", type=float, default=0.0, help="the skill a passing product-lead must also reach")
     a = ap.parse_args()
     if a.cmd == "plan":
+        FC.thresholds()  # fails unless the ERA5 reference is this identification's: the runs are scored against it
         chunks, windows = plan(
             [int(x) for x in a.seasons.split(",")],
             a.every,

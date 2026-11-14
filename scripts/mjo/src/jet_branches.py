@@ -1,13 +1,29 @@
 #!/usr/bin/env python3
-"""Polar jet, subtropical jet and their vertical superposition, identified grid column by grid column.
+"""Polar jet, subtropical jet and their vertical superposition: grid columns that meet the published criteria,
+kept where they make a jet.
 
-The scheme of Winters & Martin (2014), Handlos & Martin (2016), Christenson et al. (2017) and Winters et al. (2020).
-A column holds a polar (subtropical) jet when both hold:
+The column criteria are the scheme of Winters & Martin (2014), Handlos & Martin (2016), Christenson et al. (2017) and
+Winters et al. (2020). A column meets the polar (subtropical) criteria when both hold:
   1. the 400-100 hPa wind speed, averaged over the layer with pressure weighting, exceeds V_MIN = 30 m/s;
   2. the horizontal PV gradient of the 315-330 K (340-355 K) layer, where the layer's PV lies in the 1-3 PVU channel,
      reaches 1.4e-5 (0.9e-5) PVU/m.
-A polar and a subtropical jet in the same column at the same time is a jet superposition: one steep tropopause wall
-from the polar to the tropical tropopause instead of two steps.
+In the papers a polar and a subtropical column at the same place and time is a jet superposition: one steep
+tropopause wall from the polar to the tropical tropopause instead of two steps.
+
+Three rules turn those columns into the jets (`identify`):
+  ribbon    a jet is long: a connected piece of a branch's columns counts only when it spans RIBBON_KM. The criteria
+            alone leave short pieces scattered off the jets, a subtropical one far poleward among them.
+  wall      the tropopause wall tilts, so the two layers' gradients need not share a 0.5 deg column: a superposition
+            is where a polar and a subtropical ribbon lie within WALL_KM of each other, at the columns of both.
+  depth     a subtropical jet is shallow: its 400-100 hPa wind exceeds the 500 hPa speed by more than SHALLOW of
+            itself (the shallow and deep jets of Koch et al. 2006). A deep column that meets the subtropical criteria
+            counts as polar - the 340-355 K gradient under a deep polar jet's tropopause fold. The superposition is
+            read before this rule: where the jets superpose, the single jet is deep.
+On ERA5 1991-2020 (build_jet_branches_ref.py) the criteria alone put 5 % of the subtropical jet's columns north of
+45N and find the western Pacific superposition a third to a half as often as the published climatology; with the
+three rules 1 % lie north of 45N and the superposition frequency falls in the published range. A SHALLOW of 0.4 or
+more labels the East Asian jet polar. SCHEME names this identification: the ERA5 reference and the skill file a
+forecast reads must have been made with it.
 
 How the papers' wording is applied here (they name the quantities, not the arithmetic):
   layer PV        the mean of the PV on the layer's isentropes at 5 K spacing (315, 320, 325, 330 K and 340-355 K):
@@ -20,9 +36,9 @@ How the papers' wording is applied here (they name the quantities, not the arith
 The thresholds are empirical and grid-dependent: Christenson et al. chose theirs from cross-sections through jets,
 above the median |grad PV| of the channel columns with wind above 30 m/s (0.64e-5 PVU/m on the 2.5 deg NCEP-NCAR
 grid); Winters et al. (2020) used the values above on the 0.5 deg CFSR grid, which this grid matches. On ERA5
-1991-2020 they give the North American superposition count threshold (the top 10 %) of Winters et al., 18 columns.
-The ERA5 reference (build_jet_branches_ref.py) measures how much the other readings of the layer and channel wording,
-and the thresholds, change the climatology.
+1991-2020 the criteria alone give the North American superposition count threshold (the top 10 %) of Winters et al.,
+18 columns. The ERA5 reference measures how much the other readings of the layer and channel wording, the thresholds
+and the three rules change the climatology.
 
 Grid. ERA5 and ECMWF open data come at 0.25 deg; both are reduced to 0.5 deg by the area-conservative [1/4, 1/2, 1/4]
 average of pacjet_core (every source gets the same operation) over the band BAND_LAT, wider than the 10-80N output
@@ -34,8 +50,8 @@ The layers are the cold-season (November-March) ones; outside it the jets live o
 does not apply. Day-of-season helpers (season_slot, smooth_season) index the climatology on a 152-slot season
 (1 November to 31 March with 29 February as its own slot) so leap and common years line up.
 
-Maps and events. A 0.5 deg column mask is a ribbon one to three columns wide, with isolated columns scattered around
-it, so the maps are of the neighbourhood: a branch counts at a column when it is identified within NEAR_KM of it
+Maps and events. A jet's mask is a ribbon one to three 0.5 deg columns wide, so the maps are of the neighbourhood:
+a branch counts at a column when it is identified within NEAR_KM of it
 (near), in the forecasts and in the ERA5 reference alike. A superposition event in a region is a group of superposed
 columns, each within LINK_KM of another, at least as large as the region's threshold (groups_of; Winters et al. 2020).
 
@@ -77,6 +93,11 @@ REGIONS = {
 LINK_KM = 1000.0  # superposed columns within this distance of each other form one group (Winters et al. 2020)
 TRACK_KM, TRACK_H = 1500.0, 30.0  # an event continues one whose centre was this close this recently (Winters et al.)
 NEAR_KM = 300.0  # the maps' neighbourhood: a branch within this distance of the column
+RIBBON_KM = 1000.0  # a connected piece of a branch's columns shorter than this is not a jet
+WALL_KM = 150.0  # ribbons of the two branches this close to each other are one wall: a superposition
+SHALLOW = 0.3  # a subtropical jet: (400-100 hPa wind - 500 hPa speed) / 400-100 hPa wind above this
+SCHEME = "ribbon-wall-depth"  # the identification, as the reference and skill files name it
+KM_DEG = np.deg2rad(1.0) * A_EARTH / 1000.0
 SMOOTH_HALF = 15  # days: the climatology is a centred 31-day window over the season
 XS_BLOCK = 3  # the cross-sections' volume: the mean of this many LON columns (1.5 deg)
 XS_LON = np.round(LON.reshape(-1, XS_BLOCK).mean(axis=1), 3)
@@ -150,8 +171,9 @@ def diagnose(t, u, v, lat, lon, levs=LEVS) -> dict:
     }
 
 
-def identify(vbar, g_polar, g_stj, thresh=THRESH) -> dict:
-    """Boolean masks 'polar', 'stj' and 'sup' from the wind and the two layers' in-channel gradients."""
+def columns(vbar, g_polar, g_stj, thresh=THRESH) -> dict:
+    """The papers' column criteria alone: boolean masks 'polar', 'stj' and 'sup' (both in one column) from the wind
+    and the two layers' in-channel gradients."""
     with np.errstate(invalid="ignore"):
         windy = vbar > V_MIN
         polar = windy & (g_polar >= thresh["polar"])
@@ -159,15 +181,75 @@ def identify(vbar, g_polar, g_stj, thresh=THRESH) -> dict:
     return {"polar": polar, "stj": stj, "sup": polar & stj}
 
 
+def ribbons(mask, km=RIBBON_KM, lat=LAT, lon=LON) -> np.ndarray:
+    """The connected pieces of `mask` (lat, lon; the eight neighbours, longitudes a global ring) at least `km` long:
+    the diagonal of a piece's latitude span and its longitude span at its mean latitude."""
+    from scipy import ndimage as ndi
+
+    lab, n = ndi.label(mask, structure=np.ones((3, 3), int))
+    if not n:
+        return np.zeros(lab.shape, bool)
+    root = list(range(n + 1))
+
+    def find(a):
+        while root[a] != a:
+            a = root[a]
+        return a
+
+    west, east = lab[:, 0], lab[:, -1]  # the pieces that touch across the seam are one
+    for k in (-1, 0, 1):
+        a, b = west[max(k, 0) : lab.shape[0] + min(k, 0)], east[max(-k, 0) : lab.shape[0] + min(-k, 0)]
+        both = (a > 0) & (b > 0)
+        for x, y in set(zip(a[both].tolist(), b[both].tolist())):
+            root[find(x)] = find(y)
+    lab = np.array([find(a) for a in range(n + 1)])[lab]
+    ii, jj = np.nonzero(lab)
+    of = lab[ii, jj]
+    idx = np.unique(of)
+    la, lo = np.asarray(lat, float)[ii], np.deg2rad(np.asarray(lon, float)[jj])
+    mid = np.arctan2(ndi.sum(np.sin(lo), of, idx), ndi.sum(np.cos(lo), of, idx))  # each piece's circular-mean longitude
+    rel = np.rad2deg(np.angle(np.exp(1j * (lo - mid[np.searchsorted(idx, of)]))))
+
+    def span(x):
+        return ndi.maximum(x, of, idx) - ndi.minimum(x, of, idx)
+
+    length = KM_DEG * np.hypot(span(la), span(rel) * np.cos(np.deg2rad(ndi.mean(la, of, idx))))
+    return np.isin(lab, idx[length >= km])
+
+
+def identify(vbar, speed500, g_polar, g_stj, thresh=THRESH, shallow=SHALLOW) -> dict:
+    """Boolean masks 'polar', 'stj' and 'sup' on the output grid (LAT, LON) from the 400-100 hPa wind, the 500 hPa
+    wind speed and the two layers' in-channel gradients: the column criteria, then the ribbon, wall and depth rules.
+    shallow None: without the depth rule."""
+    c = columns(vbar, g_polar, g_stj, thresh)
+    polar, stj = ribbons(c["polar"]), ribbons(c["stj"])
+    sup = (polar & near(stj, km=WALL_KM)) | (stj & near(polar, km=WALL_KM))
+    if shallow is not None:
+        with np.errstate(invalid="ignore", divide="ignore"):
+            deep = c["stj"] & ~((vbar - speed500) / vbar > shallow)
+        polar, stj = ribbons(c["polar"] | deep), ribbons(c["stj"] & ~deep)
+    return {"polar": polar, "stj": stj, "sup": sup}
+
+
 def diagnose_025(t, u, v) -> dict:
     """t, u, v (lev, rows, 1440) on the 0.25 deg rows of band_rows025 -> `diagnose` on the 0.5 deg band (BAND, LON)."""
     return diagnose(*(to_half(x) for x in (t, u, v)), BAND, LON)
 
 
+def same_scheme(made, what) -> None:
+    """Fail unless `what` - a reference, verification, run or scan file - was made with this identification (an
+    error, not an exit: a worker process's exit can reach its parent as a clean one)."""
+    if made != SCHEME:
+        raise RuntimeError(
+            f"{what} holds the identification {made!r}, this code's is {SCHEME!r}: make it again "
+            "(jet-branches-ref.yml, then jet-branches-verify.yml)"
+        )
+
+
 def masks_of(d) -> np.ndarray:
     """diagnose_025's fields -> (3, LAT, LON) boolean masks of BRANCHES."""
     sl = output_rows(BAND)
-    m = identify(d["vbar"][sl], d["grad"]["polar"][sl], d["grad"]["stj"][sl])
+    m = identify(d["vbar"][sl], d["speed"][LEVS.index(500)][sl], d["grad"]["polar"][sl], d["grad"]["stj"][sl])
     return np.stack([m[b] for b in BRANCHES])
 
 

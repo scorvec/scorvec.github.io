@@ -1,7 +1,7 @@
 name: Polar and subtropical jets and their superposition (ERA5 1991-2020 reference)
 
 # Dispatch-only builder of the ERA5 reference of the jet-branch product (scripts/mjo/src/jet_branches.py): the polar
-# jet, the subtropical jet and their vertical superposition, identified column by column on the 0.5 deg grid at 00 and
+# jet, the subtropical jet and their vertical superposition, identified on the 0.5 deg grid at 00 and
 # 12 UTC over the cold seasons (November-March) of 1991-2020 (scripts/mjo/src/build_jet_branches_ref.py). ERA5 comes
 # from WeatherBench 2's 0.25 deg 13-level store (anonymous GCS), ~35 GB a season. One part per season; the combine
 # job runs only when every part succeeded, and writes

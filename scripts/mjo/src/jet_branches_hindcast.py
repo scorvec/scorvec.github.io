@@ -63,7 +63,9 @@ def scan(start, end, out, workers=8):
         print(f"  {r}: {len(ev)} events")
         for e in sorted(ev, key=lambda e: -e["peak_columns"])[:5]:
             print(f"    {e['onset']} .. {e['end']}: {e['analyses']} analyses, up to {e['peak_columns']} columns")
-    np.savez_compressed(out, time=np.array(times, "datetime64[s]"), masks=masks, events=json.dumps(events))
+    np.savez_compressed(
+        out, time=np.array(times, "datetime64[s]"), masks=masks, events=json.dumps(events), scheme=JB.SCHEME
+    )
 
 
 def unpack(packed):
@@ -86,6 +88,7 @@ def scan_events(times, masks):
 
 def load_scan(path):
     with np.load(path) as f:
+        JB.same_scheme(str(f["scheme"]) if "scheme" in f else None, path)
         return pd.DatetimeIndex(f["time"]), f["masks"], json.loads(str(f["events"]))
 
 

@@ -86,7 +86,7 @@ OUTLINE = 50  # % share at which a jet is outlined
 TITLE = {
     "polar": "Polar jet (315–330 K PV wall)",
     "stj": "Subtropical jet (340–355 K PV wall)",
-    "sup": "Superposition (both in one column)",
+    "sup": f"Superposition (the two jets within {JB.WALL_KM:g} km)",
 }
 CREDIT = (
     "ECMWF IFS-ENS open data (CC BY 4.0), 50 perturbed members, 0.25° reduced to 0.5°, Google Cloud mirror · "
@@ -247,6 +247,7 @@ def run(date, last_step, out, workers=3, wait_min=0.0, members=MEMBERS):
         masks=masks,
         volume=np.stack([r["volume"] for r in keep]),
         cost=json.dumps(cost),
+        scheme=JB.SCHEME,
     )
     return Path(out)
 
@@ -254,6 +255,7 @@ def run(date, last_step, out, workers=3, wait_min=0.0, members=MEMBERS):
 def load_run(path):
     """npz from `run` -> (init, steps, [per step (n, 3, LAT, LON) masks], cost)."""
     with np.load(path) as f:
+        JB.same_scheme(str(f["scheme"]) if "scheme" in f else None, path)
         init = pd.Timestamp(f["init"][()])
         steps, members, packed, cost = f["steps"], f["members"], f["masks"], json.loads(str(f["cost"]))
     masks = []
@@ -274,13 +276,33 @@ def load_volume(path):
 # ── the products ────────────────────────────────────────────────────────────────────────────────────────────────────
 def thresholds():
     ref = json.loads((REF / "jet_branches_ref.json").read_text())
+    JB.same_scheme(ref.get("scheme"), "jet_branches_ref.json")
     return {r: int(ref["regions"][r]["threshold"]) for r in JB.REGIONS}
+
+
+def load_skill():
+    """The verification the products are shown through (jet_branches_verify.py); None before there is one."""
+    if not SKILL.exists():
+        return None
+    doc = json.loads(SKILL.read_text())
+    JB.same_scheme(doc.get("scheme"), SKILL.name)
+    return doc
+
+
+def reference(clim_path):
+    """Fail, before anything is fetched, unless the ERA5 reference and the verification were made with this
+    identification."""
+    thresholds()
+    with xr.open_dataset(clim_path) as ds:
+        JB.same_scheme(ds.attrs.get("scheme"), clim_path)
+    load_skill()
 
 
 def map_normals(clim_path, valid):
     """ERA5 1991-2020 share of analyses with each branch within NEAR_KM, for each valid time's day of the season:
     (lead, 3, LAT, LON)."""
     with xr.open_dataset(clim_path) as ds:
+        JB.same_scheme(ds.attrs.get("scheme"), clim_path)
         if "near_count" not in ds or float(ds.attrs.get("near_km", -1)) != JB.NEAR_KM:
             raise SystemExit(f"{clim_path} has no {JB.NEAR_KM:g} km near_count: rebuild jet-branches-ref-v1")
         counts = ds["near_count"].transpose("slot", "branch", "latitude", "longitude").values
@@ -774,7 +796,7 @@ def render(fc_path, clim_path, out_dir):
         return render_off_season(init, out_dir)
     anim, manifest, still, data = _outputs(out_dir)
     doc = dict(model=LABEL, init=f"{init:%Y-%m-%dT%H:%MZ}", near_km=JB.NEAR_KM, fetch=cost)
-    skill = json.loads(SKILL.read_text()) if SKILL.exists() else None
+    skill = load_skill()
     pr = gate(products(init, steps, masks, clim_path), skill)
     frames = []
     for i, v in enumerate(pr["valid"]):
@@ -846,6 +868,8 @@ def main() -> int:
     if a.cmd == "forecast" and not in_season(init):
         render_off_season(init, a.out_dir)  # nothing to fetch
         return 0
+    if a.cmd == "forecast":
+        reference(a.clim)
     run(a.date, a.last_step, a.out, a.workers, a.wait_min, a.members)
     if a.cmd == "forecast":
         render(a.out, a.clim, a.out_dir)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Offline checks of jet_branches.py (the grid reduction, the wind layer mean, the gradient, the season calendar, the
-groups, the identification on a synthetic stepped tropopause) and of the event rules and the candidate
-identifications of build_jet_branches_ref.py.
+groups, the identification - its column criteria and its ribbon, wall and depth rules - on a synthetic stepped
+tropopause) and of the event rules of build_jet_branches_ref.py.
 
     python scripts/mjo/src/test_jet_branches.py
 
@@ -12,15 +12,17 @@ Four 90-degree sectors of longitude, each with its own tropopause:
   180-270E  the two steps of 0-90E with a 20 m/s wind -> nothing (the wind criterion)
   270-360E  the two steps spread over 12 degrees of latitude, 40 m/s -> nothing (the gradient criterion)
 Two versions of it:
-  isentropic   the layers' PV given directly (0.5 PVU below the step, 5.5 PVU above): the identification itself, where
-               the one-step sector is a superposition (both layers step in the same columns)
+  isentropic   the layers' PV given directly (0.5 PVU below the step, 5.5 PVU above): the column criteria, where the
+               one-step sector is a superposition (both layers step in the same columns)
   end to end   temperature and wind on the nine pressure levels from a tropopause (pressure p_T, potential temperature
                theta_T) that changes with latitude: theta falls 0.1 K/hPa downward through the troposphere and rises
                0.6 K/hPa upward through the stratosphere, so PV is about 1 PVU below the tropopause and 4-7 PVU above
                it. Tropopauses: tropical (100 hPa, 375 K), subtropical (180 hPa, 335 K), polar (320 hPa, 305 K). A
                single-valued tropopause slopes, so the one step crosses the polar layer's channel a degree poleward
-               of the subtropical layer's (40.5N and 39.5N): both jets, two rows apart, a wall not yet vertical
-               enough to be a superposition on this grid.
+               of the subtropical layer's (40.5N and 39.5N): both jets, two rows apart - no column holds both, and
+               the wall rule makes the pair a superposition. The wind at 500 hPa and below is half the wind above
+               (a shallow jet, so the depth rule keeps the subtropical one); with the same wind at every level the
+               jet on the subtropical step is deep, and polar.
 """
 
 from __future__ import annotations
@@ -60,8 +62,9 @@ def column(theta_t, p_t, p):
     return np.where(p >= p_t, theta_t - 0.1 * (p - p_t), theta_t + 0.6 * (p_t - p))
 
 
-def synthetic(sharp=1.0, lat=JB.BAND, lon=JB.LON):
-    """Temperature and wind on the nine levels over a band (by default the 0.5 deg one)."""
+def synthetic(sharp=1.0, lat=JB.BAND, lon=JB.LON, low=0.5):
+    """Temperature and wind on the nine levels over a band (by default the 0.5 deg one); `low`: the wind at 500 hPa
+    and below as a share of the wind above."""
     sector, w, speed = sectors(sharp, lon=lon)
     p = np.asarray(JB.LEVS, float)[:, None, None]
     la = lat[:, None]
@@ -70,7 +73,7 @@ def synthetic(sharp=1.0, lat=JB.BAND, lon=JB.LON):
     p_t = np.where(sector == 1, 100 + 220 * s40, 100 + 80 * s30 + 140 * s50)
     th = column(theta_t[None], p_t[None], p)
     t = th * (p / 1000.0) ** KAPPA
-    u = np.broadcast_to(speed[None, None, :], t.shape).copy()
+    u = np.where(p >= 500.0, low, 1.0) * np.broadcast_to(speed[None, None, :], t.shape)
     return t, u, np.zeros_like(u), lat, lon
 
 
@@ -187,44 +190,64 @@ def test_near():
     check(not JB.near(np.zeros_like(m)).any(), "near of nothing")
 
 
-def test_candidates():
-    rows = {la: int(np.flatnonzero(np.isclose(JB.LAT, la))[0]) for la in (30.0, 39.5, 40.5, 50.0, 60.0)}
+def ring(lo0, lo1):
+    """The longitudes lo0..lo1 of the output grid, across the seam when lo0 > lo1."""
     lon = JB.LON
+    return (lon >= lo0) & (lon <= lo1) if lo0 <= lo1 else (lon >= lo0) | (lon <= lo1)
 
-    def ring(lo0, lo1):
-        return (lon >= lo0) & (lon <= lo1) if lo0 <= lo1 else (lon >= lo0) | (lon <= lo1)
 
-    # ribbons: 12 degrees across the seam at 30N (1,160 km, each half 580 km), 8 degrees at 60N (440 km), and two
-    # diagonals from 40N of 20 and 10 steps (70 km a step)
-    m = np.zeros((JB.LAT.size, lon.size), bool)
-    m[rows[30.0], ring(354.0, 6.0)] = True
-    m[rows[60.0], ring(100.0, 108.0)] = True
+def row(lat):
+    return int(np.flatnonzero(np.isclose(JB.LAT, lat))[0])
+
+
+def test_ribbons():
+    # 12 degrees across the seam at 30N (1,160 km, each half 580 km), 8 degrees at 60N (440 km), and two diagonals
+    # from 40.5N of 20 and 10 steps (70 km a step)
+    m = np.zeros((JB.LAT.size, JB.LON.size), bool)
+    m[row(30.0), ring(354.0, 6.0)] = True
+    m[row(60.0), ring(100.0, 108.0)] = True
     for j0, steps in ((200, 20), (400, 10)):
         k = np.arange(steps + 1)
-        m[rows[40.5] + k, j0 + k] = True
-    got = B.ribbons(m)
+        m[row(40.5) + k, j0 + k] = True
+    got = JB.ribbons(m)
     want = m.copy()
-    want[rows[60.0]] = False
-    want[rows[40.5] : rows[40.5] + 11, 400:411] = False
+    want[row(60.0)] = False
+    want[row(40.5) : row(40.5) + 11, 400:411] = False
     check(np.array_equal(got, want), f"ribbons: {int((got != want).sum())} columns differ")
-    check(not B.ribbons(np.zeros_like(m)).any(), "ribbons of nothing")
+    check(not JB.ribbons(np.zeros_like(m)).any(), "ribbons of nothing")
 
-    # the candidates: 100-160E a polar jet at 50N over a shallow subtropical jet at 30N; 200-260E the two walls a
-    # degree apart (111 km), the subtropical one under a deep jet
-    polar, stj = np.zeros_like(m), np.zeros_like(m)
-    polar[rows[50.0], ring(100.0, 160.0)] = stj[rows[30.0], ring(100.0, 160.0)] = True
-    polar[rows[40.5], ring(200.0, 260.0)] = stj[rows[39.5], ring(200.0, 260.0)] = True
-    vbar = np.full(m.shape, 40.0)
-    speed500 = np.where(ring(200.0, 260.0), 35.0, 10.0) * np.ones(m.shape)  # shear 0.125 and 0.75
-    main = {"polar": polar, "stj": stj, "sup": polar & stj}
-    out = dict(zip(B.CANDIDATES, B.candidates(main, vbar, speed500)))
+
+def test_rules():
+    # 100-160E a polar jet at 50N and a shallow subtropical jet at 30N; 200-260E the two walls a degree apart
+    # (111 km), the subtropical one under a deep jet; 300-306E both criteria in the same columns, 470 km long
+    shape = (JB.LAT.size, JB.LON.size)
+    polar, stj = np.zeros(shape, bool), np.zeros(shape, bool)
+    polar[row(50.0), ring(100.0, 160.0)] = stj[row(30.0), ring(100.0, 160.0)] = True
+    polar[row(40.5), ring(200.0, 260.0)] = stj[row(39.5), ring(200.0, 260.0)] = True
+    short = np.zeros(shape, bool)
+    short[row(45.0), ring(300.0, 306.0)] = True
+    vbar = np.full(shape, 40.0)
+    speed500 = np.where(ring(200.0, 260.0), 35.0, 10.0) * np.ones(shape)  # shear 0.125 and 0.75
+    g = {"polar": JB.THRESH["polar"] * (polar | short), "stj": JB.THRESH["stj"] * (stj | short)}
     wall = (polar | stj) & ring(200.0, 260.0)
-    check(np.array_equal(out["ribbon"]["polar"], polar) and not out["ribbon"]["sup"].any(), "ribbon")
-    check(np.array_equal(out["tol"]["sup"], wall), f"tol: {int(out['tol']['sup'].sum())} superposed columns")
-    for x in B.SHALLOW:
-        c = out[f"shallow_{x:g}"]
-        check(np.array_equal(c["stj"], stj & ring(100.0, 160.0)), f"shallow_{x:g}: the subtropical jet")
-        check(np.array_equal(c["polar"], polar | wall) and np.array_equal(c["sup"], wall), f"shallow_{x:g}: polar")
+    c = JB.columns(vbar, g["polar"], g["stj"])
+    check(np.array_equal(c["polar"], polar | short) and np.array_equal(c["sup"], short), "the column criteria")
+    m = JB.identify(vbar, speed500, g["polar"], g["stj"], shallow=None)
+    check(np.array_equal(m["polar"], polar) and np.array_equal(m["stj"], stj), "ribbons: the short piece is no jet")
+    check(np.array_equal(m["sup"], wall), f"the wall: {int(m['sup'].sum())} superposed columns")
+    for x in (JB.SHALLOW, *B.SHALLOW):
+        m = JB.identify(vbar, speed500, g["polar"], g["stj"], shallow=x)
+        check(np.array_equal(m["stj"], stj & ring(100.0, 160.0)), f"depth {x:g}: the shallow jet stays subtropical")
+        check(np.array_equal(m["polar"], polar | wall), f"depth {x:g}: the deep jet on the subtropical wall is polar")
+        check(np.array_equal(m["sup"], wall), f"depth {x:g}: the superposition is read before the depth rule")
+    check(not JB.identify(0.5 * vbar, speed500, g["polar"], g["stj"])["polar"].any(), "no jet under a weak wind")
+    try:
+        JB.same_scheme("columns", "a file")
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("another identification's file is refused")
+    JB.same_scheme(JB.SCHEME, "a file")
 
 
 def test_masks_025():
@@ -238,8 +261,18 @@ def test_masks_025():
     rows = {b: JB.LAT[m[i][:, cols].any(axis=1)] for i, b in enumerate(JB.BRANCHES)}
     check(rows["stj"].size and np.all(np.abs(rows["stj"] - 30) <= 1.5), f"0.25 deg: subtropical rows {rows['stj']}")
     check(rows["polar"].size and np.all(np.abs(rows["polar"] - 50) <= 1.5), f"0.25 deg: polar rows {rows['polar']}")
+    check(not m[2][:, cols].any(), "0.25 deg: two steps are no superposition")
+    one = (JB.LON >= 110) & (JB.LON <= 160)
+    sup = JB.LAT[m[2][:, one].any(axis=1)]
+    check(sup.size and np.all(np.abs(sup - 40) <= 1.0), f"0.25 deg: the one step's superposition rows {sup}")
     weak = (JB.LON >= 200) & (JB.LON <= 250)
     check(not m[:, :, weak].any(), "0.25 deg: jets under a weak wind")
+    # the same wind at every level: the jet on the subtropical step is deep, and polar
+    deep = JB.masks_025(*synthetic(lat=lat, lon=np.round(np.arange(0.0, 360.0, 0.25), 3), low=1.0)[:3])
+    rows = JB.LAT[deep[0][:, cols].any(axis=1)]
+    off = np.abs(rows[:, None] - np.array([30.0, 50.0]))
+    check(not deep[1][:, cols].any(), "0.25 deg: a deep jet is not subtropical")
+    check(np.all(off.min(axis=1) <= 1.5) and np.all(off.min(axis=0) <= 1.5), f"0.25 deg: a deep jet's rows {rows}")
     # the same diagnosis kept on the pressure levels, for the cross-sections
     d = JB.diagnose_025(t, u, v)
     check(np.array_equal(JB.masks_of(d), m), "masks_of(diagnose_025) is masks_025")
@@ -260,7 +293,7 @@ def test_masks_025():
 def test_identification_isentropic():
     iso, vbar, lat = synthetic_isentropic()
     g = JB.layer_gradients(iso, lat)
-    m = JB.identify(vbar, g["polar"], g["stj"])
+    m = JB.columns(vbar, g["polar"], g["stj"])
     r = {k: rows_with(m[k], lat, 20, 70) for k in JB.BRANCHES}
     check(r["stj"].size and np.all(np.abs(r["stj"] - 30) <= 1.5), f"two steps: subtropical jet rows {r['stj']}")
     check(r["polar"].size and np.all(np.abs(r["polar"] - 50) <= 1.5), f"two steps: polar jet rows {r['polar']}")
@@ -279,7 +312,7 @@ def test_identification_isentropic():
 def test_identification_end_to_end():
     t, u, v, lat, lon = synthetic()
     d = JB.diagnose(t, u, v, lat, lon)
-    m = JB.identify(d["vbar"], d["grad"]["polar"], d["grad"]["stj"])
+    m = JB.columns(d["vbar"], d["grad"]["polar"], d["grad"]["stj"])
     r = {k: rows_with(m[k], lat, 20, 70) for k in JB.BRANCHES}
     check(r["stj"].size and np.all(np.abs(r["stj"] - 30) <= 1.5), f"two steps: subtropical jet rows {r['stj']}")
     check(r["polar"].size and np.all(np.abs(r["polar"] - 50) <= 1.5), f"two steps: polar jet rows {r['polar']}")

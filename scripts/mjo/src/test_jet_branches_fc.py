@@ -145,6 +145,7 @@ def fake_run(path, init, steps, members=6, volume=True):
         members=np.tile(np.arange(1, members + 1), (len(steps), 1)),
         masks=np.array(masks, np.uint8),
         cost=json.dumps({"bytes": 1}),
+        scheme=JB.SCHEME,
         **({"volume": np.stack(vol)} if volume else {}),
     )
 
@@ -156,7 +157,7 @@ def fake_clim(path):
         {"near_count": (("slot", "branch", "latitude", "longitude"), np.full(shape, 2, np.uint8)),
          "samples": (("slot",), np.full(152, 50, np.int16))},
         coords=dict(branch=list(JB.BRANCHES), latitude=JB.LAT, longitude=JB.LON),
-        attrs=dict(near_km=JB.NEAR_KM),
+        attrs=dict(near_km=JB.NEAR_KM, scheme=JB.SCHEME),
     )  # fmt: skip
     ds.to_netcdf(path)
 
@@ -208,9 +209,8 @@ def test_products_and_render():
                 for b in JB.BRANCHES}  # fmt: skip
         ev = {r: dict(groups=["0-2", "3-5", "6-10"], calibrated=[False] * 3, table=[[0.0, 1.0]] * 3, show=None)
               for r in JB.REGIONS}  # fmt: skip
-        FC.SKILL.write_text(json.dumps(dict(maps=maps, events=ev)))
+        FC.SKILL.write_text(json.dumps(dict(maps=maps, events=ev, scheme=JB.SCHEME)))
         doc = FC.render(d / "fc.npz", d / "clim.nc", d / "out")
-        FC.SKILL = skill
         files = sorted(p.name for p in (d / "out" / "anim" / FC.NAME).glob("*.webp"))
         check(files == ["F00.webp", "F01.webp"] and doc["verified"], f"gated frames {files}")
         check(doc["map_shown"]["polar"] == [True, True, False, False] and not any(doc["event_shown"]["na"]), "shown")
@@ -231,6 +231,7 @@ def test_products_and_render():
         doc = FC.render(d / "old.npz", d / "clim.nc", d / "out")
         xs = json.loads((d / "out" / "anim" / f"{FC.XS}_manifest.json").read_text())
         check(doc["in_season"] and xs["in_season"] and xs["frames"] == [], "a run without the volume")
+        FC.SKILL = skill
 
 
 def test_gate():
@@ -257,6 +258,39 @@ def test_gate():
     check(g["event_shown"][:, 0].tolist() == [False, False, False, True], "event_shown: days 3-5 only")
 
 
+def test_scheme():
+    # files made with another identification fail the forecast before anything is fetched
+    def refused(fn, what):
+        try:
+            fn()
+        except RuntimeError:
+            return
+        raise AssertionError(f"{what} is not refused")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        fake_clim(d / "clim.nc")
+        ref = dict(scheme=JB.SCHEME, regions={r: dict(threshold=20) for r in JB.REGIONS})
+        (d / "jet_branches_ref.json").write_text(json.dumps(ref))
+        saved = FC.REF, FC.SKILL
+        FC.REF, FC.SKILL = d, d / "skill.json"
+        try:
+            FC.reference(d / "clim.nc")  # no verification yet
+            FC.SKILL.write_text(json.dumps(dict(maps={}, events={})))
+            refused(lambda: FC.reference(d / "clim.nc"), "a verification without its identification")
+            FC.SKILL.unlink()
+            (d / "jet_branches_ref.json").write_text(json.dumps(dict(ref, scheme="columns")))
+            refused(lambda: FC.reference(d / "clim.nc"), "another identification's reference")
+        finally:
+            FC.REF, FC.SKILL = saved
+        with xr.open_dataset(d / "clim.nc") as ds:
+            ds.load().assign_attrs(scheme="columns").to_netcdf(d / "old.nc")
+        refused(lambda: FC.map_normals(d / "old.nc", pd.DatetimeIndex(["2026-01-10"])), "another one's normals")
+        np.savez_compressed(d / "old.npz", steps=np.arange(2))
+        refused(lambda: FC.load_run(d / "old.npz"), "a run without its identification")
+        refused(lambda: HC.load_scan(d / "old.npz"), "a scan without its identification")
+
+
 def test_hindcast():
     with tempfile.TemporaryDirectory() as tmp:
         d = Path(tmp)
@@ -269,15 +303,14 @@ def test_hindcast():
         times = pd.DatetimeIndex([init + pd.Timedelta(hours=s) for s in steps])
         packed = np.stack([np.packbits(m[0].reshape(3, -1), axis=-1) for m in masks])
         events = HC.scan_events(times, packed)
-        np.savez_compressed(
-            d / "scan.npz", time=np.array(times, "datetime64[s]"), masks=packed, events=json.dumps(events)
-        )
+        scan = dict(time=np.array(times, "datetime64[s]"), masks=packed, scheme=JB.SCHEME)
+        np.savez_compressed(d / "scan.npz", events=json.dumps(events), **scan)
         doc = HC.compare(d / "fc.npz", d / "scan.npz", d / "clim.nc", d / "out")
         check(len(doc["leads"]) == 3 and (d / "out" / "compare_20260110.webp").exists(), "compare outputs")
         check(all(row["polar"]["bss"] > 0.5 for row in doc["leads"]), "a near-perfect ensemble beats a flat normal")
         ev = {r: [{"onset": "2026-01-12 00:00", "end": "2026-01-12 12:00", "analyses": 2, "peak_columns": 40}]
               for r in JB.REGIONS}  # fmt: skip
-        np.savez_compressed(d / "scan2.npz", time=np.array(times, "datetime64[s]"), masks=packed, events=json.dumps(ev))
+        np.savez_compressed(d / "scan2.npz", events=json.dumps(ev), **scan)
         check(HC.pick(d / "scan2.npz", [3, 6]) == ["20260106", "20260109"], "pick")
 
 
@@ -323,6 +356,7 @@ def test_verify_end_to_end():
                 time=np.array([times[i] for i in sel], "datetime64[s]"),
                 masks=np.stack([packed[i] for i in sel]),
                 events=json.dumps({}),
+                scheme=JB.SCHEME,
             )
         runs = sorted(str(p) for p in d.glob("fc_*.npz"))
         scans = sorted(str(p) for p in d.glob("scan_*.npz"))

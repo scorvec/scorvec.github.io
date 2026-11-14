@@ -28,23 +28,22 @@ with any (the region's threshold n); in those, a group of >= n superposed column
 an event at that analysis; an event at an analysis whose group centre lies within 1500 km of one at an analysis up to
 30 h earlier continues that event.
 
-Sensitivity variants (all from the same fields, so the differences are the choice alone). The papers name "the PV
-gradient within the 1-3 PVU channel" in a layer; three readings of it (METHODS):
+Sensitivity variants (all from the same fields, so the differences are the choice alone; on the 0.5 deg grid each
+is jet_branches.identify with one thing changed). The papers name "the PV gradient within the 1-3 PVU channel" in a
+layer; three readings of it (METHODS):
   mean     the gradient of the mean PV of the layer's four isentropes (jet_branches.py; the product, "main")
   iso      the gradient on each of the layer's isentropes in its own channel, the layer's largest
   mass     the gradient of the layer's bulk PV: the mass-weighted (dp-weighted) mean over its three 5 K sublayers, what
            an isentropic-layer PV, -g (zeta + f) dtheta/dp across the layer, computes
 and
   scan_x   the product's thresholds times x
-  r1, r1_iso, r1_mass   the three on the 2.5 deg grid of the NCEP-NCAR reanalysis (5 x 5 means of the 0.5 deg grid,
-           the same nine levels) with Christenson et al.'s threshold, 0.64e-5 PVU/m for both layers: the setting of
-           the published climatology (Christenson et al. 2017; Handlos & Martin 2016)
-Candidate changes to the identification (CANDIDATES), each made from the product's masks:
-  ribbon      a jet is a ribbon: a connected piece of a branch counts only when it is RIBBON_KM long
-  tol         ribbon, and the superposition is where a polar and a subtropical ribbon lie within WALL_KM of each
-              other, at the columns of both (the wall tilts, so the two layers' gradients need not share a column)
-  shallow_x   tol, and a subtropical jet is shallow: the 400-100 hPa wind exceeds the 500 hPa speed by at least x of
-              itself (the shallow and deep jets of Koch et al. 2006); a deep jet on the 340-355 K wall counts as polar
+  r1, r1_iso, r1_mass   the papers' column criteria alone (jet_branches.columns) for the three readings on the
+           2.5 deg grid of the NCEP-NCAR reanalysis (5 x 5 means of the 0.5 deg grid, the same nine levels) with
+           Christenson et al.'s threshold, 0.64e-5 PVU/m for both layers: the setting of the published climatology
+           (Christenson et al. 2017; Handlos & Martin 2016)
+  columns  the column criteria alone on the 0.5 deg grid (Winters et al. 2020)
+  tol      the product without its depth rule: ribbons, and the superposition within the wall's tolerance
+  shallow_x   the product with the depth rule's share at x (SHALLOW) instead of jet_branches.SHALLOW
 
     python build_jet_branches_ref.py fetch --winter 2010 --out parts/jb_2010.npz
     python build_jet_branches_ref.py combine parts/jb_*.npz --release-dir out --figure out/jet_branches_check.png
@@ -70,7 +69,6 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from quantmet.pv import on_isentrope
-from scipy import ndimage as ndi
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
 
@@ -91,11 +89,7 @@ R1_LON = np.round(np.arange(0.0, 360.0, 2.5), 3)
 R1_LAT = R1_BAND[JB.output_rows(R1_BAND)]
 METHODS = ("mean", "iso", "mass")
 R1_NAMES = ("r1", "r1_iso", "r1_mass")  # the METHODS on the 2.5 deg grid
-RIBBON_KM = 1000.0  # CANDIDATES: a connected piece of a branch shorter than this is not a jet
-WALL_KM = 150.0  # ribbons of the two branches this close to each other are one wall, a superposition
-SHALLOW = (0.3, 0.4, 0.5)  # a shallow jet: (400-100 hPa wind - 500 hPa speed) / 400-100 hPa wind above this
-CANDIDATES = ("ribbon", "tol", *(f"shallow_{x:g}" for x in SHALLOW))
-KM_DEG = np.deg2rad(1.0) * JB.A_EARTH / 1000.0
+SHALLOW = (0.4, 0.5)  # the depth rule's share, beside the product's
 HIST_EDGES = np.linspace(-7.0, -3.0, 401)  # log10 of the in-channel |grad PV| (PVU/m)
 # one row per event: its first and last analysis, how many analyses it held, its largest group, its first centre
 NEAR_BATCH = 64  # analyses dilated at once in the combine
@@ -149,54 +143,6 @@ def gradient_sets(d, lat, rows):
 
 def masks_of(m):
     return np.stack([m[b] for b in JB.BRANCHES])
-
-
-def ribbons(mask, km=RIBBON_KM, lat=JB.LAT, lon=JB.LON):
-    """The connected pieces of `mask` (lat, lon; the eight neighbours, longitudes a global ring) at least `km` long:
-    the diagonal of a piece's latitude span and its longitude span at its mean latitude."""
-    lab, n = ndi.label(mask, structure=np.ones((3, 3), int))
-    if not n:
-        return np.zeros(lab.shape, bool)
-    root = list(range(n + 1))
-
-    def find(a):
-        while root[a] != a:
-            a = root[a]
-        return a
-
-    west, east = lab[:, 0], lab[:, -1]  # the pieces that touch across the seam are one
-    for k in (-1, 0, 1):
-        a, b = west[max(k, 0) : lab.shape[0] + min(k, 0)], east[max(-k, 0) : lab.shape[0] + min(-k, 0)]
-        both = (a > 0) & (b > 0)
-        for x, y in set(zip(a[both].tolist(), b[both].tolist())):
-            root[find(x)] = find(y)
-    lab = np.array([find(a) for a in range(n + 1)])[lab]
-    ii, jj = np.nonzero(lab)
-    of = lab[ii, jj]
-    idx = np.unique(of)
-    la, lo = np.asarray(lat, float)[ii], np.deg2rad(np.asarray(lon, float)[jj])
-    mid = np.arctan2(ndi.sum(np.sin(lo), of, idx), ndi.sum(np.cos(lo), of, idx))  # each piece's circular-mean longitude
-    rel = np.rad2deg(np.angle(np.exp(1j * (lo - mid[np.searchsorted(idx, of)]))))
-
-    def span(x):
-        return ndi.maximum(x, of, idx) - ndi.minimum(x, of, idx)
-
-    length = KM_DEG * np.hypot(span(la), span(rel) * np.cos(np.deg2rad(ndi.mean(la, of, idx))))
-    return np.isin(lab, idx[length >= km])
-
-
-def candidates(m, vbar, speed500):
-    """The CANDIDATES' masks from the product's (`m`, jet_branches.identify), the 400-100 hPa wind and the 500 hPa wind
-    speed at the output rows."""
-    polar, stj = ribbons(m["polar"]), ribbons(m["stj"])
-    wall = (polar & JB.near(stj, km=WALL_KM)) | (stj & JB.near(polar, km=WALL_KM))
-    out = [{"polar": polar, "stj": stj, "sup": polar & stj}, {"polar": polar, "stj": stj, "sup": wall}]
-    with np.errstate(invalid="ignore", divide="ignore"):
-        shear = (vbar - speed500) / vbar
-    for x in SHALLOW:
-        deep = m["stj"] & ~(shear > x)
-        out.append({"polar": ribbons(m["polar"] | deep), "stj": ribbons(m["stj"] & ~deep), "sup": wall})
-    return out
 
 
 def analyses(winter, days=None):
@@ -253,7 +199,8 @@ def fetch(winter, out, workers=8, days=None):
     sl = JB.output_rows(JB.BAND)
     reg = {r: JB.region_mask(JB.LAT, JB.LON, r) for r in JB.REGIONS}
     reg1 = {r: JB.region_mask(R1_LAT, R1_LON, r) for r in JB.REGIONS}
-    names = ["main", *(f"scan_{x:g}" for x in SCAN), *METHODS[1:], *CANDIDATES]
+    names = ["main", *(f"scan_{x:g}" for x in SCAN), *METHODS[1:], "columns", "tol"]
+    names += [f"shallow_{x:g}" for x in SHALLOW]
     k500 = JB.LEVS.index(500)
     shape, shape1 = (3, JB.LAT.size, JB.LON.size), (3, R1_LAT.size, R1_LON.size)
     var_maps = np.zeros((len(names), *shape), np.uint16)
@@ -276,10 +223,12 @@ def fetch(winter, out, workers=8, days=None):
         vb = d["vbar"][sl]
         gs = gradient_sets(d, JB.BAND, sl)
         g = gs["mean"]
-        ms = [JB.identify(vb, g["polar"], g["stj"])]
-        ms += [JB.identify(vb, g["polar"], g["stj"], {k: x * c for k, c in JB.THRESH.items()}) for x in SCAN]
-        ms += [JB.identify(vb, gs[m]["polar"], gs[m]["stj"]) for m in METHODS[1:]]
-        ms += candidates(ms[0], vb, d["speed"][k500][sl])
+        v500 = d["speed"][k500][sl]
+        ms = [JB.identify(vb, v500, g["polar"], g["stj"])]
+        ms += [JB.identify(vb, v500, g["polar"], g["stj"], {k: x * c for k, c in JB.THRESH.items()}) for x in SCAN]
+        ms += [JB.identify(vb, v500, gs[m]["polar"], gs[m]["stj"]) for m in METHODS[1:]]
+        ms += [JB.columns(vb, g["polar"], g["stj"])]
+        ms += [JB.identify(vb, v500, g["polar"], g["stj"], shallow=x) for x in (None, *SHALLOW)]
         main = masks_of(ms[0])
         packed.append(np.packbits(main.reshape(3, -1), axis=-1))
         vsum[MONTHS.index(ts.month)] += main * vb
@@ -292,7 +241,7 @@ def fetch(winter, out, workers=8, days=None):
         s1 = JB.output_rows(R1_BAND)
         gs1 = gradient_sets(d1, R1_BAND, s1)
         vb1 = d1["vbar"][s1]
-        m1 = [JB.identify(vb1, gs1[m]["polar"], gs1[m]["stj"], R1_THRESH) for m in METHODS]
+        m1 = [JB.columns(vb1, gs1[m]["polar"], gs1[m]["stj"], R1_THRESH) for m in METHODS]
         for k, m in enumerate(m1):
             r1_maps[k] += masks_of(m)
         r1_reg.append([[int(m["sup"][reg1[r]].sum()) for r in JB.REGIONS] for m in m1])
@@ -417,10 +366,14 @@ def combine(paths, release_dir, figure=None, allow_partial=False):
     attrs = dict(
         source="ERA5 (WeatherBench 2, 0.25 deg, 13 levels) reduced to 0.5 deg, 00 and 12 UTC",
         seasons=f"November-March, winters {got[0]}-{got[-1]} (by the year of January)",
-        method="jet_branches.py: Winters & Martin 2014; Christenson et al. 2017; Winters et al. 2020",
+        method="jet_branches.py: Winters & Martin 2014; Christenson et al. 2017; Winters et al. 2020; Koch et al. 2006",
+        scheme=JB.SCHEME,
         threshold_polar=JB.THRESH["polar"],
         threshold_stj=JB.THRESH["stj"],
         wind_min=JB.V_MIN,
+        ribbon_km=JB.RIBBON_KM,
+        wall_km=JB.WALL_KM,
+        shallow=JB.SHALLOW,
     )
     coords = dict(branch=list(JB.BRANCHES), latitude=JB.LAT, longitude=JB.LON)
     clim = xr.Dataset(
@@ -523,7 +476,7 @@ def validation(parts, names, var_maps, r1_maps, n, times):
     print("Cold-season superposition frequency maxima (%, lat, lon) by area; published (2.5 deg): "
           + ", ".join(f"{b['label']} {b['published']}" for b in CHECK_BOXES.values()))  # fmt: skip
     for name, v in out.items():
-        extra = "" if name.startswith("r1") else f"  NA threshold {v['na']['threshold']} (published 18)"
+        extra = "" if name.startswith("r1") else f"  NA threshold {v['na']['threshold']} (published, columns: 18)"
         print(f"  {name:10s} " + "  ".join(f"{k} {x}" for k, x in v["sup_max"].items()) + extra)
     for name in R1_NAMES:
         got = out[name]["wnp_djf_at_least"]
