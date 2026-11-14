@@ -25,8 +25,8 @@ Episodes   each onset's length in days and its peak PC1, the composite PC1 from 
            onset, and the share of November-March days outside the extension phase that are followed by an onset
            within HORIZON days: the live event tracker's yardsticks.
 ENSO       the share of November-March days in the extension phase by ENSO state, and the correlation over seasons of
-           that share with the season's ONI: ENSO moves the number of extension days, not (significantly) the odds of
-           an onset.
+           that share with the season's ONI: ENSO moves the number of extension days more than the odds of an
+           onset.
 
     python src/build_pacjet_drivers.py            -> scripts/mjo/data/reference/pacjet_drivers.{npz,json}
     python src/build_pacjet_drivers.py --render   -> assets/sst/pacjet_drivers.webp (drawn in Actions by pacjet.py)
@@ -66,7 +66,7 @@ LEADS = ((1, 5), (4, 10), (6, 12), (8, 14))
 EVO = (-10, 15)
 HORIZON = 13  # the last day of a 16-day forecast (days 0-15) on which an onset can still be seen to last MIN_DAYS
 ALPHA_MAP = 0.20  # the composites: false-discovery rate over each map
-ALPHA = 0.10  # the odds table
+ALPHA = 0.20  # the odds table
 N_PERM = 2000
 MAP = dict(lat=(20.0, 80.0), lon=(40.0, 260.0))
 STRIP = 30.0

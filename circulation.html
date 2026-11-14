@@ -610,10 +610,12 @@ window.STAGE = {
     }).join(" and ") + "</span>";
   }
   function row(r, leads) {
-    var d = r.days, tint = r.verdict === "favours" ? " pjd-up" : r.verdict === "against" ? " pjd-down" : "";
+    var d = r.days, tint = r.verdict === "favours" ? " pjd-up" : r.verdict === "against" ? " pjd-down" : "",
+        odds = r.effects.length && r.effects.reduce(function (a, x) { return a + x.ratio; }, 0) / r.effects.length;
     return '<tr><th scope="row">' + esc(r.name) + '</th><td class="pjd-now">' + esc(r.now) + '<span class="pjd-sub">' + esc(asof(r)) + "</span>" + ahead(r) + "</td>" +
       (d ? '<td class="pjd-wide' + tint + '" colspan="' + leads.length + '">The background: the jet is extended on ' + d.el_nino + " % of El Niño winters’ days, " +
-           d.neutral + " % of neutral winters’ and " + d.la_nina + " % of La Niña winters’</td>"
+           d.neutral + " % of neutral winters’ and " + d.la_nina + " % of La Niña winters’" +
+           (odds ? "; an onset was " + odds.toFixed(1) + " times as likely" : "") + "</td>"
          : leads.map(function (lead) { return cell(r, lead); }).join("")) + "</tr>";
   }
   function names(rows, verdict) { return rows.filter(function (r) { return r.verdict === verdict; }).map(function (r) { return r.name; }).join(", "); }

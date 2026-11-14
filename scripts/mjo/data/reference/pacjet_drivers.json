@@ -40,7 +40,7 @@
  ],
  "back_days": 120,
  "alpha_fdr": 0.2,
- "alpha_odds": 0.1,
+ "alpha_odds": 0.2,
  "el_nino_differs": {
   "chi": [
    0.0,
@@ -143,7 +143,7 @@
    "sig": [
     false,
     false,
-    false,
+    true,
     true
    ]
   },
@@ -157,8 +157,8 @@
    ],
    "sig": [
     false,
-    false,
-    false,
+    true,
+    true,
     false
    ]
   },
@@ -187,8 +187,8 @@
    ],
    "sig": [
     false,
-    false,
-    false,
+    true,
+    true,
     false
    ]
   },
@@ -204,7 +204,7 @@
     true,
     true,
     false,
-    false
+    true
    ]
   },
   "eat_hi": {
@@ -246,10 +246,10 @@
     0.7
    ],
    "sig": [
+    true,
     false,
     false,
-    false,
-    false
+    true
    ]
   },
   "pc1_lo": {
@@ -307,9 +307,9 @@
    ],
    "sig": [
     false,
-    false,
-    false,
-    false
+    true,
+    true,
+    true
    ]
   },
   "la_nina": {
@@ -321,10 +321,10 @@
     0.72
    ],
    "sig": [
-    false,
-    false,
-    false,
-    false
+    true,
+    true,
+    true,
+    true
    ]
   }
  },

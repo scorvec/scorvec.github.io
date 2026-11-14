@@ -13,11 +13,11 @@ render     assets/sst/pacjet_{model}_event.webp and the numbers behind it. An on
 checklist  one row per ingredient: its value now, the state that puts it in (None between the thresholds) and the lead
            windows at which that state changed the odds of an onset significantly in ERA5. An ingredient whose input
            is missing or stale is left out. ENSO is the background, not a trigger: its row carries the share of
-           each kind of winter's days spent in the extension phase, and its verdict comes from the seasons' relation
-           (the onset odds by day are not significant for it). A forecast ingredient also gives its largest departure
-           of the next AHEAD days ("ahead"), when that is another state and one that changed the odds. Nothing is
-           multiplied together: the ingredients are not independent, and the ensemble's own share of onsets against
-           ERA5's base rate is the forecast.
+           each kind of winter's days spent in the extension phase, its verdict comes from the seasons' relation, and
+           its lead windows are shown as one mean ratio (the state does not change within them). A forecast
+           ingredient also gives its largest departure of the next AHEAD days ("ahead"), when that is another state
+           and one that changed the odds. Nothing is multiplied together: the ingredients are not independent, and
+           the ensemble's own share of onsets against ERA5's base rate is the forecast.
 
 Inputs already in the repository, none fetched: the cleaned wind-only RMM (assets/mjo/rmm_models.json), the Siberian
 High and the East Asian trough of the newest ensemble runs (assets/sst/data/pacjet_upstream.json, written by
