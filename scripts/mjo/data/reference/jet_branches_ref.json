@@ -1,10 +1,14 @@
 {
  "source": "ERA5 (WeatherBench 2, 0.25 deg, 13 levels) reduced to 0.5 deg, 00 and 12 UTC",
  "seasons": "November-March, winters 1991-2020 (by the year of January)",
- "method": "jet_branches.py: Winters & Martin 2014; Christenson et al. 2017; Winters et al. 2020",
+ "method": "jet_branches.py: Winters & Martin 2014; Christenson et al. 2017; Winters et al. 2020; Koch et al. 2006",
+ "scheme": "ribbon-wall-depth",
  "threshold_polar": 1.4e-05,
  "threshold_stj": 9e-06,
  "wind_min": 30.0,
+ "ribbon_km": 1000.0,
+ "wall_km": 150.0,
+ "shallow": 0.3,
  "layers": {
   "polar": [
    315.0,
@@ -46,10 +50,10 @@
     135.0,
     175.0
    ],
-   "share_any": 30.76,
-   "threshold": 25,
-   "events": 174,
-   "events_per_season": 5.8
+   "share_any": 21.03,
+   "threshold": 122,
+   "events": 132,
+   "events_per_season": 4.4
   },
   "na": {
    "label": "North America",
@@ -61,10 +65,10 @@
     220.0,
     310.0
    ],
-   "share_any": 54.02,
-   "threshold": 18,
-   "events": 224,
-   "events_per_season": 7.47
+   "share_any": 33.31,
+   "threshold": 113,
+   "events": 159,
+   "events_per_season": 5.3
   }
  },
  "smoothing_days": 31,
@@ -102,6 +106,249 @@
   "main": {
    "sup_max": {
     "wnp": [
+     1.65,
+     34.5,
+     147.5
+    ],
+    "na": [
+     0.76,
+     33.5,
+     273.5
+    ],
+    "naf": [
+     0.37,
+     31.5,
+     19.5
+    ]
+   },
+   "wnp": {
+    "share_any": 21.03,
+    "threshold": 122
+   },
+   "na": {
+    "share_any": 33.31,
+    "threshold": 113
+   }
+  },
+  "scan_0.6": {
+   "sup_max": {
+    "wnp": [
+     9.05,
+     33.5,
+     143.0
+    ],
+    "na": [
+     2.58,
+     32.0,
+     272.0
+    ],
+    "naf": [
+     2.43,
+     29.5,
+     30.0
+    ]
+   },
+   "wnp": {
+    "share_any": 69.46,
+    "threshold": 233
+   },
+   "na": {
+    "share_any": 75.8,
+    "threshold": 241
+   }
+  },
+  "scan_0.7": {
+   "sup_max": {
+    "wnp": [
+     6.23,
+     33.5,
+     143.0
+    ],
+    "na": [
+     1.9,
+     32.5,
+     272.5
+    ],
+    "naf": [
+     1.56,
+     30.5,
+     32.5
+    ]
+   },
+   "wnp": {
+    "share_any": 57.48,
+    "threshold": 196
+   },
+   "na": {
+    "share_any": 66.33,
+    "threshold": 194
+   }
+  },
+  "scan_0.8": {
+   "sup_max": {
+    "wnp": [
+     4.11,
+     34.5,
+     147.5
+    ],
+    "na": [
+     1.37,
+     33.5,
+     273.5
+    ],
+    "naf": [
+     0.94,
+     31.0,
+     33.0
+    ]
+   },
+   "wnp": {
+    "share_any": 44.0,
+    "threshold": 165
+   },
+   "na": {
+    "share_any": 55.51,
+    "threshold": 159
+   }
+  },
+  "scan_0.9": {
+   "sup_max": {
+    "wnp": [
+     2.61,
+     34.5,
+     147.5
+    ],
+    "na": [
+     0.97,
+     33.5,
+     273.5
+    ],
+    "naf": [
+     0.56,
+     28.0,
+     37.0
+    ]
+   },
+   "wnp": {
+    "share_any": 31.27,
+    "threshold": 141
+   },
+   "na": {
+    "share_any": 43.97,
+    "threshold": 132
+   }
+  },
+  "scan_1.1": {
+   "sup_max": {
+    "wnp": [
+     1.07,
+     34.5,
+     147.5
+    ],
+    "na": [
+     0.51,
+     33.0,
+     272.5
+    ],
+    "naf": [
+     0.21,
+     32.0,
+     22.0
+    ]
+   },
+   "wnp": {
+    "share_any": 13.49,
+    "threshold": 103
+   },
+   "na": {
+    "share_any": 24.35,
+    "threshold": 98
+   }
+  },
+  "scan_1.25": {
+   "sup_max": {
+    "wnp": [
+     0.41,
+     33.5,
+     146.5
+    ],
+    "na": [
+     0.29,
+     36.0,
+     276.5
+    ],
+    "naf": [
+     0.1,
+     31.5,
+     35.5
+    ]
+   },
+   "wnp": {
+    "share_any": 5.53,
+    "threshold": 84
+   },
+   "na": {
+    "share_any": 14.13,
+    "threshold": 81
+   }
+  },
+  "iso": {
+   "sup_max": {
+    "wnp": [
+     8.02,
+     33.5,
+     140.5
+    ],
+    "na": [
+     5.44,
+     34.0,
+     269.0
+    ],
+    "naf": [
+     3.44,
+     30.0,
+     20.0
+    ]
+   },
+   "wnp": {
+    "share_any": 69.68,
+    "threshold": 217
+   },
+   "na": {
+    "share_any": 92.99,
+    "threshold": 445
+   }
+  },
+  "mass": {
+   "sup_max": {
+    "wnp": [
+     1.6,
+     33.5,
+     142.0
+    ],
+    "na": [
+     0.73,
+     35.0,
+     277.5
+    ],
+    "naf": [
+     0.36,
+     28.0,
+     13.5
+    ]
+   },
+   "wnp": {
+    "share_any": 22.16,
+    "threshold": 116
+   },
+   "na": {
+    "share_any": 33.31,
+    "threshold": 111
+   }
+  },
+  "columns": {
+   "sup_max": {
+    "wnp": [
      0.62,
      34.5,
      151.0
@@ -126,220 +373,85 @@
     "threshold": 18
    }
   },
-  "scan_0.6": {
+  "tol": {
    "sup_max": {
     "wnp": [
-     2.72,
-     33.5,
-     141.0
-    ],
-    "na": [
-     0.57,
-     32.5,
-     270.0
-    ],
-    "naf": [
-     0.62,
-     28.5,
-     34.5
-    ]
-   },
-   "wnp": {
-    "share_any": 67.29,
-    "threshold": 70
-   },
-   "na": {
-    "share_any": 80.41,
-    "threshold": 45
-   }
-  },
-  "scan_0.7": {
-   "sup_max": {
-    "wnp": [
-     1.82,
-     33.5,
-     141.0
-    ],
-    "na": [
-     0.45,
-     33.0,
-     279.5
-    ],
-    "naf": [
-     0.36,
-     27.5,
-     34.0
-    ]
-   },
-   "wnp": {
-    "share_any": 58.1,
-    "threshold": 55
-   },
-   "na": {
-    "share_any": 74.59,
-    "threshold": 35
-   }
-  },
-  "scan_0.8": {
-   "sup_max": {
-    "wnp": [
-     1.21,
+     1.65,
      34.5,
-     150.5
-    ],
-    "na": [
-     0.32,
-     33.0,
-     279.5
-    ],
-    "naf": [
-     0.24,
-     27.5,
-     34.0
-    ]
-   },
-   "wnp": {
-    "share_any": 48.63,
-    "threshold": 42
-   },
-   "na": {
-    "share_any": 68.19,
-    "threshold": 28
-   }
-  },
-  "scan_0.9": {
-   "sup_max": {
-    "wnp": [
-     0.86,
-     34.0,
      147.5
     ],
     "na": [
-     0.26,
-     32.5,
-     276.0
-    ],
-    "naf": [
-     0.18,
-     28.5,
-     34.5
-    ]
-   },
-   "wnp": {
-    "share_any": 40.13,
-    "threshold": 32
-   },
-   "na": {
-    "share_any": 61.51,
-    "threshold": 22
-   }
-  },
-  "scan_1.1": {
-   "sup_max": {
-    "wnp": [
-     0.41,
-     34.5,
-     150.5
-    ],
-    "na": [
-     0.13,
-     31.5,
-     264.0
-    ],
-    "naf": [
-     0.1,
-     29.5,
-     357.5
-    ]
-   },
-   "wnp": {
-    "share_any": 23.02,
-    "threshold": 19
-   },
-   "na": {
-    "share_any": 47.52,
-    "threshold": 15
-   }
-  },
-  "scan_1.25": {
-   "sup_max": {
-    "wnp": [
-     0.22,
-     34.0,
-     144.0
-    ],
-    "na": [
-     0.12,
-     37.5,
-     258.5
-    ],
-    "naf": [
-     0.09,
-     27.0,
-     14.0
-    ]
-   },
-   "wnp": {
-    "share_any": 13.97,
-    "threshold": 14
-   },
-   "na": {
-    "share_any": 38.32,
-    "threshold": 11
-   }
-  },
-  "iso": {
-   "sup_max": {
-    "wnp": [
-     2.82,
+     0.76,
      33.5,
-     142.0
-    ],
-    "na": [
-     1.54,
-     32.0,
-     271.5
+     273.5
     ],
     "naf": [
-     1.04,
-     29.0,
-     27.0
+     0.37,
+     31.5,
+     19.5
     ]
    },
    "wnp": {
-    "share_any": 87.29,
-    "threshold": 59
+    "share_any": 21.03,
+    "threshold": 122
    },
    "na": {
-    "share_any": 99.67,
+    "share_any": 33.31,
     "threshold": 113
    }
   },
-  "mass": {
+  "shallow_0.4": {
    "sup_max": {
     "wnp": [
-     0.57,
+     1.65,
      34.5,
-     151.0
+     147.5
     ],
     "na": [
-     0.18,
-     32.5,
-     276.0
+     0.76,
+     33.5,
+     273.5
     ],
     "naf": [
-     0.15,
-     28.5,
-     34.5
+     0.37,
+     31.5,
+     19.5
     ]
    },
    "wnp": {
-    "share_any": 30.35,
-    "threshold": 26
+    "share_any": 21.03,
+    "threshold": 122
    },
    "na": {
-    "share_any": 49.96,
-    "threshold": 18
+    "share_any": 33.31,
+    "threshold": 113
+   }
+  },
+  "shallow_0.5": {
+   "sup_max": {
+    "wnp": [
+     1.65,
+     34.5,
+     147.5
+    ],
+    "na": [
+     0.76,
+     33.5,
+     273.5
+    ],
+    "naf": [
+     0.37,
+     31.5,
+     19.5
+    ]
+   },
+   "wnp": {
+    "share_any": 21.03,
+    "threshold": 122
+   },
+   "na": {
+    "share_any": 33.31,
+    "threshold": 113
    }
   },
   "r1": {
