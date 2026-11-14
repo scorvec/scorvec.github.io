@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Guide to the model verification page · Shawn Corvec</title>
-<meta name="description" content="What each view of the model verification page shows and how it is made: the single runs&#x27; scorecards, error by lead, 500 hPa anomaly correlation, station map and US rain scores, the ensembles&#x27; CRPS, spread and reliability, weeks 1 to 5, and the tests and intervals behind them.">
+<meta name="description" content="What each view of the model verification page shows and how it is made: the single runs&#x27; scorecards, error by lead, 500 hPa anomaly correlation, station map and US rain scores, the ensembles&#x27; CRPS, spread and reliability, weeks 1 to 5, the AIFS single against member 0 of AIFS-ENS, and the tests and intervals behind them.">
 <link rel="canonical" href="https://scorvec.com/guides/verification.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="author" content="Shawn Corvec">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Guide to the model verification page">
-<meta property="og:description" content="What each view of the model verification page shows and how it is made: the single runs&#x27; scorecards, error by lead, 500 hPa anomaly correlation, station map and US rain scores, the ensembles&#x27; CRPS, spread and reliability, weeks 1 to 5, and the tests and intervals behind them.">
+<meta property="og:description" content="What each view of the model verification page shows and how it is made: the single runs&#x27; scorecards, error by lead, 500 hPa anomaly correlation, station map and US rain scores, the ensembles&#x27; CRPS, spread and reliability, weeks 1 to 5, the AIFS single against member 0 of AIFS-ENS, and the tests and intervals behind them.">
 <meta property="og:url" content="https://scorvec.com/guides/verification.html">
 <meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
 <meta property="og:site_name" content="Shawn Corvec">
@@ -20,7 +20,7 @@
  "@context": "https://schema.org",
  "@type": "TechArticle",
  "headline": "Guide to the model verification page",
- "description": "What each view of the model verification page shows and how it is made: the single runs' scorecards, error by lead, 500 hPa anomaly correlation, station map and US rain scores, the ensembles' CRPS, spread and reliability, weeks 1 to 5, and the tests and intervals behind them.",
+ "description": "What each view of the model verification page shows and how it is made: the single runs' scorecards, error by lead, 500 hPa anomaly correlation, station map and US rain scores, the ensembles' CRPS, spread and reliability, weeks 1 to 5, the AIFS single against member 0 of AIFS-ENS, and the tests and intervals behind them.",
  "url": "https://scorvec.com/guides/verification.html",
  "inLanguage": "en",
  "author": {
@@ -217,8 +217,7 @@
               <div>
                 <h3>Verification</h3>
                 <ul>
-                  <li><a href="/verification.html"><span class="sh-t">Global models against observations</span><span class="sh-d">Scorecards, maps and the database</span></a></li>
-                  <li><a href="/aifs-verify.html"><span class="sh-t">AIFS single versus ensemble control</span><span class="sh-d">Two AIFS configurations compared</span></a></li>
+                  <li><a href="/verification.html"><span class="sh-t">Model verification</span><span class="sh-d">Scorecards, maps and the database</span></a></li>
                 </ul>
               </div>
               <div>
@@ -258,7 +257,7 @@
   <p class="crumbs"><a href="/">Home</a> › <a href="/guides/">Page guides</a> › Model verification page</p>
   <h1>Guide to the model verification page</h1>
   <p class="lede">What each figure shows, how it is made and what it is built from. <a href="/verification.html">Open the model verification page</a></p>
-<nav class="toc" aria-label="Figures"><dl><dt>Days 1&ndash;10: single runs</dt><dd><a href="#summary">Summary</a><a href="#scores">Scorecard</a><a href="#growth">Headline variables</a><a href="#lead">One variable</a><a href="#acc">500&nbsp;hPa skill</a><a href="#profiles">Upper air</a><a href="#stations">Station map</a><a href="#wind">Wind speed</a><a href="#rain">US rain scores</a><a href="#rainmaps">US rain maps</a></dd><dt>Days 1&ndash;15: ensembles</dt><dd><a href="#ens">Scorecard</a><a href="#enslead">Error and spread</a><a href="#ensrel">Probabilities</a></dd><dt>Weeks 1&ndash;5</dt><dd><a href="#weeks">GEFS and GEPS</a></dd><dt>Data</dt><dd><a href="#database">The database</a></dd></dl></nav>
+<nav class="toc" aria-label="Figures"><dl><dt>Days 1&ndash;10: single runs</dt><dd><a href="#summary">Summary</a><a href="#scores">Scorecard</a><a href="#growth">Headline variables</a><a href="#lead">One variable</a><a href="#acc">500&nbsp;hPa skill</a><a href="#profiles">Upper air</a><a href="#stations">Station map</a><a href="#wind">Wind speed</a><a href="#rain">US rain scores</a><a href="#rainmaps">US rain maps</a></dd><dt>Days 1&ndash;15: ensembles</dt><dd><a href="#ens">Scorecard</a><a href="#enslead">Error and spread</a><a href="#ensrel">Probabilities</a></dd><dt>Weeks 1&ndash;5</dt><dd><a href="#weeks">GEFS and GEPS</a></dd><dt>AIFS single against AIFS-ENS member 0</dt><dd><a href="#aifs">Scorecard</a><a href="#aifs_lead">Scores by day</a><a href="#aifs_spectra">Power spectra</a><a href="#aifs_loop">Pressure and rain loop</a><a href="#aifs_z500">500 hPa height loop</a><a href="#aifs_t2m">2 m temperature loop</a></dd><dt>Data</dt><dd><a href="#database">The database</a></dd></dl></nav>
 <section id="about">
 <h2>The page</h2>
 <p>NOAA's GFS, ECMWF's physics model (the IFS control, the single unperturbed run of the IFS), ECMWF's AI model (AIFS)
@@ -268,7 +267,7 @@ Every model gets the same treatment. Each is first averaged onto one 0.5&deg; gr
 over land only, 2&nbsp;m temperature is moved to the height of the station, and stations where the model's terrain is
 more than 100&nbsp;m off are left out. Each radiosonde level is compared with the model where and when the balloon
 actually was. Four ensembles are scored the same way to day 15, and the GEFS and GEPS weekly maps against ERA5 to
-week 5.</p>
+week 5. A last group of views sets the AIFS single against member 0 of AIFS-ENS, by a method of its own.</p>
 <p>The page shows one view at a time, picked from the list. It opens on the latest ten 00Z runs; the switch at the top
 (Runs scored) takes the scores from the newest 30 or 90 runs of the verification database instead, where more of the
 differences between the models can be told apart. The note under a figure names the runs it holds. How the scores are
@@ -499,6 +498,101 @@ field, region and week (each mean against zero, each model against persistence, 
 both have), so its interval leaves out the benchmark; n.s. marks a test that did not pass, and a mean over fewer than
 16 weeks of starts is not tested. A week is scored once ERA5 covers all its days, so the later weeks hold fewer runs;
 the number is in each cell's tooltip.</p>
+</section>
+
+<h2>AIFS single against AIFS-ENS member 0</h2>
+
+<section id="aifs">
+<h3>Scorecard</h3>
+<p class="open"><a href="/verification.html#aifs">Open this figure</a></p>
+<p><b>The question.</b> As single forecasts, how does ECMWF's AIFS single compare with member&nbsp;0 of AIFS-ENS? The
+two are trained differently. The single is trained to minimise squared error, which rewards hedging: as lead time
+grows it blurs what it cannot place. The ensemble's members are trained on a CRPS-type objective that keeps each run
+sharp. RMSE and anomaly correlation both reward smoothing, so a raw comparison would partly measure blur rather than
+forecast quality. Member&nbsp;0 is therefore first passed through a spectral filter that gives it the single's power
+spectrum at each lead, then both are truncated at T120 and scored against independent radiosondes from the <a
+href="/skewt/">sounding explorer</a>, with ERA5 alongside. Member&nbsp;0 as published and the ensemble mean are the
+two references.</p>
+<p><b>The table.</b> One row per variable and truth, one column per forecast day, for the comparison and the score
+picked above it. A square is the comparison's score less the single's: the change in RMSE as a percentage of the
+single's, or the change in anomaly correlation. Blue is where the comparison beats the single, red where the single is
+better, darker for a larger difference; a grey square with no number is a difference that is not significant. Tapping
+or hovering a square puts both scores, the interval and the test on the line under the table.</p>
+<p><b>The matching.</b> Member&nbsp;0's spherical-harmonic coefficients are multiplied, degree by degree, by
+f(l)&nbsp;=&nbsp;min(1,&nbsp;&radic;(P<sub>single</sub>(l)&nbsp;/&nbsp;P<sub>member&nbsp;0</sub>(l))), where P are the
+two models' mean power spectra at the same lead over the previous 40 runs (a 5-degree running mean of the ratio; the
+global mean, l&nbsp;=&nbsp;0, is left alone). The filter uses only past forecasts, never the verifying data, so a
+forecaster could apply it in real time, and it only removes power (f&nbsp;&le;&nbsp;1). It matches the <i>average</i>
+spectrum; it cannot copy the single's flow-dependent damping (smoothing more where the flow is less predictable), so
+part of what remains may still be hedging done well rather than a better-placed forecast.</p>
+<p><b>Same scale.</b> Every 0.25&deg; global field is expanded in spherical harmonics (pyshtools) and every series is
+truncated at T120 (about 1.5&deg;) before scoring, so no model is judged at scales it does not share with the others.
+A 1.5&deg; block mean would still pass much of the 300&ndash;600&nbsp;km power.</p>
+<p><b>The truth.</b> ERA5 is an IFS analysis that both models were trained on, so the primary truth is the radiosonde
+network the sounding explorer mirrors every hour: 500&nbsp;hPa height and 850&nbsp;hPa temperature are interpolated in
+log-pressure from each station's sounding, and the forecasts are sampled at the stations by bilinear interpolation.
+The ERA5 scores (Northern Hemisphere 20&ndash;80&deg;N, cosine-weighted, 1.5&deg;) come from the same truncated fields
+and are the only truth for sea-level pressure and 2&nbsp;m temperature. Radiosonde scores arrive within hours; ERA5
+lags about 6 days, and its latest 2&ndash;3 months are the preliminary ERA5T release.</p>
+<p><b>The ensemble mean</b> here averages 26 of the 51 members, the control and 25 perturbed. Averaging removes the
+unpredictable part of the forecast, so it usually wins on RMSE at longer leads while having much less variance than
+the atmosphere; it is not a single model run and is not the question.</p>
+<p><b>The test.</b> RMSE and anomaly correlation are computed per run at days 1 to 10. Station anomalies are from each
+station's own day-of-year median over its full IGRA record; ERA5 anomalies from the ERA5 1991&ndash;2020 &plusmn;7-day
+climatology (WeatherBench&nbsp;2), including 850&nbsp;hPa temperature since September 2026. Differences from the
+single are paired by start time and tested with a t-test whose standard error allows for serial correlation: the
+larger of a circular-block bootstrap's (2,000 resamples, block length from each square's own autocorrelation, never
+under four runs or two days) and the one implied by the series' lag-1 autocorrelation. Differences in anomaly
+correlation drift with the season and stay correlated for a week or more, so they count as far fewer independent runs
+than RMSE differences. The scorecard is one family of 480 tests (eight rows, ten days, three comparisons, two scores):
+a square is coloured only when its p is below 0.05 <i>and</i> it passes the Benjamini&ndash;Hochberg procedure at a
+10% false-discovery rate over all 480, so about one coloured square in ten at most is expected to be a false alarm.
+The 95% interval on the line under the table is for that square alone. A difference that wanders over the whole
+archive, a seasonal drift as long as the record, cannot be tested yet, and these tests do not claim to.</p>
+</section>
+
+<section id="aifs_lead">
+<h3>Scores by day</h3>
+<p class="open"><a href="/verification.html#aifs_lead">Open this figure</a></p>
+<p>RMSE, bias, anomaly correlation and activity ratio of the four forecasts by lead, for the truth and variable picked
+above the figure. Each point is the mean over the same verified runs for all four (a run enters a lead only when all
+four have it), so the lines compare point by point. The runs differ from lead to lead and between the two truths: the
+newest runs cannot yet be verified at long leads, and ERA5 arrives later than the radiosondes. The <b>activity
+ratio</b> is the standard deviation of the forecast anomaly over that of the observed anomaly: a model can buy RMSE by
+damping variance, and this ratio shows the purchase. Whether two lines differ significantly is in the scorecard.</p>
+</section>
+
+<section id="aifs_spectra">
+<h3>Power spectra</h3>
+<p class="open"><a href="/verification.html#aifs_spectra">Open this figure</a></p>
+<p>Spherical-harmonic power of each model's global field against total wavenumber, averaged over the archived runs and
+shown as a ratio to the AIFS single at the same lead. Member&nbsp;0 as published sits above 1 wherever the single has
+smoothed small scales away; after the matching it should lie on 1, which is what the filter is for. The dotted line is
+the T120 truncation applied before scoring: nothing to its right enters any score.</p>
+</section>
+
+<section id="aifs_loop">
+<h3>Pressure and rain loop</h3>
+<p class="open"><a href="/verification.html#aifs_loop">Open this figure</a></p>
+<p>The two runs side by side over North America, from the same start: sea-level pressure, 1000&ndash;500&nbsp;hPa
+thickness and 6-hour precipitation every six hours to day 15, 61 frames a run. The single's precipitation smears with
+lead while member&nbsp;0 keeps its convective texture: the blurring the scorecard's matching takes out, seen
+directly.</p>
+</section>
+
+<section id="aifs_z500">
+<h3>500 hPa height loop</h3>
+<p class="open"><a href="/verification.html#aifs_z500">Open this figure</a></p>
+<p>Northern Hemisphere 500&nbsp;hPa height of the two runs: colours are the anomaly from the 1991&ndash;2020
+day-of-year climatology, black contours the height every 6&nbsp;dam, every six hours to day 15.</p>
+</section>
+
+<section id="aifs_t2m">
+<h3>2 m temperature loop</h3>
+<p class="open"><a href="/verification.html#aifs_t2m">Open this figure</a></p>
+<p>2&nbsp;m temperature over North America in the two runs, every six hours to day 15: colours are the anomaly from
+the 1991&ndash;2020 normal, lines the temperature every 5&nbsp;&deg;C with the freezing line in blue. A radiosonde
+cannot verify 2&nbsp;m temperature, so its scores are against ERA5.</p>
 </section>
 
 <h2>Data</h2>

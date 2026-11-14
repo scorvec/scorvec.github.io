@@ -76,14 +76,6 @@ GUIDES = [
         "in four models, the West Coast landfall views, the ensembles' AR odds, weeks 3 to 5 and precipitable water.",
     ),
     dict(
-        slug="aifs-verify",
-        page="/aifs-verify.html",
-        name="AIFS verification page",
-        desc="What each figure of the AIFS verification page shows and how it is made: the question the page asks, the "
-        "spectral matching of member 0, the radiosonde and ERA5 truths, the scorecard's significance tests, the "
-        "scores by lead and the power spectra.",
-    ),
-    dict(
         slug="seasonal",
         page="/seasonal.html",
         name="seasonal forecasts page",
@@ -97,7 +89,8 @@ GUIDES = [
         name="model verification page",
         desc="What each view of the model verification page shows and how it is made: the single runs' scorecards, "
         "error by lead, 500 hPa anomaly correlation, station map and US rain scores, the ensembles' CRPS, spread and "
-        "reliability, weeks 1 to 5, and the tests and intervals behind them.",
+        "reliability, weeks 1 to 5, the AIFS single against member 0 of AIFS-ENS, and the tests and intervals behind "
+        "them.",
     ),
 ]
 

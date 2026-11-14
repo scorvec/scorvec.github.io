@@ -62,7 +62,7 @@ PRODUCTS = {
             ]
         },
     ),
-    "/aifs-verify.html": (12, {"stamp": ("assets/verify/aifs_scores_v2.json", "generated")}),
+    "/verification.html": (24, {"stamp": ("assets/verification/scores.json", "generated")}),
     # the South America viewer: the newer of its two models' manifests (scripts/models/samerica.py, twice daily each)
     "/samerica-models.html": (
         12,

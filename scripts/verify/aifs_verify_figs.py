@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static scorecard + figures for aifs-verify.html.
+"""Static scorecard + figures for verification.html's AIFS views.
 
 Reads assets/verify/aifs_scores_v2.json (scripts/verify/aifs_station_verify.py) and writes
   assets/verify/aifs_scorecard.json        the page's scorecard + headline numbers (a few kB; the page no longer loads the

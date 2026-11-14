@@ -301,16 +301,24 @@ PAGES = {
         horizon="Seasons",
         region=["Tropical Pacific"],
     ),
-    "/aifs-verify.html": dict(
+    "/verification.html": dict(
         kind="stage",
-        file="aifs-verify.html",
+        file="verification.html",
         topic="research",
-        title="AIFS single versus ensemble control",
+        title="Model verification",
         tier=1,
         prio=23,
-        models=["AIFS", "AIFS-ENS", "ERA5"],
+        models=["GFS", "IFS", "AIFS", "GDPS"],
         horizon="Days 1–15",
-        region=["Northern Hemisphere"],
+        region=["Global"],
+        groups={
+            "Days 1–15: ensembles": dict(models=["IFS", "AIFS-ENS", "GEFS", "GEPS"]),
+            "Weeks 1–5": dict(models=["GEFS", "GEPS", "ERA5"], horizon="Weeks 1–5"),
+            # the AIFS single against member 0 of AIFS-ENS, folded in (aifs-verify.html is a redirect stub)
+            "AIFS single vs AIFS-ENS member 0": dict(
+                models=["AIFS", "AIFS-ENS", "ERA5"], horizon="Days 1–15", region=["Northern Hemisphere"]
+            ),
+        },
     ),
     "/aifs-aam-budget.html": dict(
         kind="page",

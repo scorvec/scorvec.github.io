@@ -190,6 +190,14 @@
   .note code, .what code { font-size: 0.88em; background: #f1efe9; padding: 0.05rem 0.3rem; border-radius: 3px; }
   pre { background: #f1efe9; border-radius: 6px; padding: 0.7rem 0.9rem; overflow-x: auto; font-size: 0.85rem; max-width: 72rem; }
   .src { font-size: 0.82rem; color: var(--muted); margin-top: 0.6rem; }
+  /* the AIFS comparison: the summary's table with the difference written in each square, and its loops */
+  table.gl[hidden], .vhead[hidden], .lgd[hidden] { display: none; }
+  table.av td { font-variant-numeric: tabular-nums; cursor: default; }
+  table.av td.ns { color: var(--muted); font-weight: 400; }
+  table.av td.on { outline: 2px solid var(--ink); outline-offset: -2px; }
+  table.av th.g { text-align: left; font-size: 0.86rem; color: var(--ink); padding-top: 0.7rem; }
+  table.av th.r small { color: var(--muted); font-size: 0.78rem; font-weight: 400; margin-left: 0.4rem; }
+  .av-embed { display: block; width: 100%; aspect-ratio: 1460 / 680; border: 0; }
   @media (max-width: 1500px) { .gl-grid { grid-template-columns: minmax(0, 1fr); } }
   @media (max-width: 640px) {
     main { max-width: 100%; padding: 1rem 0.75rem 2.5rem; }
@@ -202,6 +210,9 @@
     table.gl th { padding: 0; }
     table.gl th.r { grid-column: 1 / -1; padding: 0.4rem 0 0.05rem; }
     table.gl td { min-width: 0; font-size: 0.64rem; letter-spacing: 0; line-height: 2rem; overflow: hidden; }
+    table.av th.g { grid-column: 1 / -1; padding: 0.6rem 0 0; }
+    table.av td { font-size: 0.7rem; }
+    table.av td .u { display: none; }
     table.h2h { width: 100%; font-size: 0.84rem; }
     table.h2h td { min-width: 0; }
     table.h2h th { padding: 0.2rem 0.15rem; }
@@ -366,8 +377,7 @@ window.plotly = function () {
               <div>
                 <h3>Verification</h3>
                 <ul>
-                  <li><a href="/verification.html" aria-current="page"><span class="sh-t">Global models against observations</span><span class="sh-d">Scorecards, maps and the database</span></a></li>
-                  <li><a href="/aifs-verify.html"><span class="sh-t">AIFS single versus ensemble control</span><span class="sh-d">Two AIFS configurations compared</span></a></li>
+                  <li><a href="/verification.html" aria-current="page"><span class="sh-t">Model verification</span><span class="sh-d">Scorecards, maps and the database</span></a></li>
                 </ul>
               </div>
               <div>
@@ -645,6 +655,29 @@ window.plotly = function () {
     <pre>gh release download verify-db-2026-10 -R scorvec/scorvec.github.io -p 'sfc_*'
 python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').head())"</pre>
   </section>
+  <section class="card" id="av-card">
+    <h2 id="av-title">AIFS-ENS member 0 against the AIFS single</h2>
+    <p class="what">Each square is the comparison's score less the AIFS single's on that forecast day, coloured where a paired test finds a difference.</p>
+    <table class="gl av" id="av-table" data-noswipe></table>
+    <p class="sc-detail" id="av-detail" aria-live="polite">Tap or hover a square for both scores and the test.</p>
+    <div class="lgd" id="av-key"></div>
+    <p class="src" id="av-note">Loading the scores…</p>
+  </section>
+  <section class="card" id="av-loop">
+    <h2>AIFS single and member 0: pressure, thickness and rain</h2>
+    <p class="what">Sea-level pressure, 1000–500&nbsp;hPa thickness and 6-hour precipitation over North America, every 6 hours through the newest run of each.</p>
+    <iframe class="av-embed" data-src="sst_anim.html?embed=1&amp;manifest=aifs_compare_manifest.json&amp;region=aifs_compare" title="AIFS single and member 0, North America loop"></iframe>
+  </section>
+  <section class="card" id="av-z500">
+    <h2>AIFS single and member 0: 500&nbsp;hPa height</h2>
+    <p class="what">The height's anomaly from the 1991–2020 normal in colour and the heights every 6&nbsp;dam in lines, every 6 hours to hour 360.</p>
+    <iframe class="av-embed" style="aspect-ratio: 1460 / 760" data-src="sst_anim.html?embed=1&amp;manifest=aifs_z500_manifest.json&amp;region=aifs_z500" title="AIFS single and member 0, 500 hPa height loop"></iframe>
+  </section>
+  <section class="card" id="av-t2m">
+    <h2>AIFS single and member 0: 2&nbsp;m temperature</h2>
+    <p class="what">The anomaly from the 1991–2020 normal in colour and the temperature every 5&nbsp;°C in lines, the freezing line in blue, every 6 hours to hour 360.</p>
+    <iframe class="av-embed" data-src="sst_anim.html?embed=1&amp;manifest=aifs_t2m_manifest.json&amp;region=aifs_t2m" title="AIFS single and member 0, 2 m temperature loop"></iframe>
+  </section>
   </div>
 
   <p class="src" id="src"></p>
@@ -854,7 +887,12 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       "<a href=\"https://creativecommons.org/licenses/by/4.0/\">CC BY 4.0</a>, modified; ECMWF does not accept any liability for " +
       "errors or omissions in the data, their availability, or any loss or damage arising from their use; ECCC GDPS: Data " +
       "Source: Environment and Climate Change Canada (MSC Datamart), under the " +
-      "<a href=\"https://eccc-msc.github.io/open-data/licence/readme_en/\">ECCC Data Servers End-use Licence</a>; map tiles © Esri.";
+      "<a href=\"https://eccc-msc.github.io/open-data/licence/readme_en/\">ECCC Data Servers End-use Licence</a>; map tiles © Esri. " +
+      "ERA5: Copernicus Climate Change Service (C3S) / ECMWF, CC BY 4.0; contains modified Copernicus Climate Change Service " +
+      "information 2026; neither the European Commission nor ECMWF is responsible for any use of this information; read from " +
+      "the ARCO-ERA5 store on Google Cloud, its 1991–2020 normals from WeatherBench 2. The sounding mirror's radiosondes: " +
+      "NOAA/NWS SPC and the Iowa Environmental Mesonet, ECCC soundings and the WMO WIS 2.0 Global Cache (core data under the " +
+      "WMO Unified Data Policy).";
   }
 
   // Station maps: sequential colours for RMSE, diverging (blue below zero, red above) for bias and differences.
@@ -1629,8 +1667,117 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
   // a script that sets a value without an event (the scorecard's and the profiles' shared reference) is caught here
   document.addEventListener("change", () => setTimeout(() => repaint.forEach(f => f()), 0));
 
+  // AIFS single against AIFS-ENS member 0 (assets/verify/aifs_scorecard.json): each square is a comparison's score less
+  // the single's at one lead, coloured only where the paired test finds a difference
+  const AV_NAME = { matched: "member 0 (matched)", control: "member 0 (as published)", ensmean: "the ensemble mean" };
+  const AV_SAT = { rmse: 20, acc: 5 };   // the difference drawn darkest: % of the RMSE, hundredths of the correlation
+  const AV_CARDS = { aifs: "av-card", aifs_loop: "av-loop", aifs_z500: "av-z500", aifs_t2m: "av-t2m" };
+  const av = { data: null, asked: false, a: "matched", b: "rmse", details: [] };
+  function avTable() {
+    const D = av.data, c = av.a, m = av.b, rmse = m === "rmse", has = !!D.rows?.length;
+    for (const id of ["av-table", "av-detail", "av-key"]) $(id).hidden = !has;
+    if (!has) { $("av-note").textContent = "Collecting: every 00Z and 12Z run is scored as its radiosondes and ERA5 arrive."; return; }
+    const name = AV_NAME[c], sign = v => (v < 0 ? "−" : "+");
+    const diff = v => sign(v) + (rmse ? Math.abs(v).toFixed(1) + "%" : Math.abs(v / 100).toFixed(3));
+    const val = (v, u) => (rmse ? `${v.toFixed(u === "m" ? 1 : 2)} ${u}` : v.toFixed(3));
+    const days = D.leads.map(h => h / 24);
+    av.details = [];
+    let html = `<tr><th>Day</th>${days.map(d => `<th>${d}</th>`).join("")}</tr>`, truth = "";
+    for (const r of D.rows) {
+      const era5 = r.truth === "ERA5";
+      if (r.truth !== truth) {
+        truth = r.truth;
+        html += `<tr><th class="g" colspan="${days.length + 1}">Against ${esc(era5 ? `ERA5, ${r.region}` : truth)}</th></tr>`;
+      }
+      html += `<tr><th class="r" scope="row">${esc(r.label)}${era5 ? "" : `<small>${esc(r.region)}</small>`}</th>` + days.map((d, i) => {
+        const x = r.cmp[c]?.[m]?.[i], s = r.single[m]?.[i];
+        if (!x || x.v == null || s == null) return '<td class="ns" aria-label="no score">–</td>';
+        const k = av.details.push(`${r.label} against ${truth}${era5 ? "" : ` (${r.region})`}, day ${d}: ` +
+          `${rmse ? "RMSE" : "anomaly correlation"} of the AIFS single ${val(s, r.unit)}, of ${name} ${val(s + x.d, r.unit)} ` +
+          `(${diff(x.v)}, 95% interval ${diff(x.lo)} to ${diff(x.hi)}), p ${x.p < 0.001 ? "< 0.001" : "= " + x.p.toFixed(3)}, ` +
+          `${x.sig ? "a significant difference" : "no significant difference"}; ${x.n} paired runs.`) - 1;
+        if (!x.sig) return `<td class="ns" data-k="${k}" aria-label="no significant difference">·</td>`;
+        const col = inkOn((rmse ? x.v < 0 : x.v > 0) ? BETTER : WORSE, 0.35 + 0.65 * Math.min(1, Math.abs(x.v) / AV_SAT[m]));
+        const txt = rmse ? sign(x.v) + Math.abs(x.v).toFixed(Math.abs(x.v) < 9.95 ? 1 : 0) + '<span class="u">%</span>' : diff(x.v).replace("0.", ".");
+        return `<td data-k="${k}" style="background:${col.bg};color:${col.ink}">${txt}</td>`;
+      }).join("") + "</tr>";
+    }
+    $("av-title").textContent = `${rmse ? "RMSE" : "Anomaly correlation"}: ${name} against the AIFS single`;
+    $("av-table").innerHTML = html;
+    $("av-table").style.setProperty("--days", days.length);
+    $("av-detail").textContent = "Tap or hover a square for both scores and the test.";
+    const sw = bg => `<i style="background:${bg}"></i>`;
+    $("av-key").innerHTML = `<span>${sw(inkOn(BETTER, 0.8).bg)}${esc(name.replace(/^the /, "").replace(/^./, ch => ch.toUpperCase()))} better</span>` +
+      `<span>${sw(inkOn(WORSE, 0.8).bg)}AIFS single better</span><span>${sw("#f1f0eb")}no significant difference</span>` +
+      `<span>${rmse ? "Numbers: % change in RMSE from the single, darkest at 20%" : "Numbers: change in correlation from the single, darkest at 0.05"}</span>`;
+    const run = s => `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)} ${s.slice(8, 10)}Z`;
+    $("av-note").textContent = `${D.runs} runs, ${run(D.first)} to ${run(D.last)} · ${D.fdr.significant} of ${D.fdr.cells} differences ` +
+      `significant over every comparison and score · updated ${D.generated}`;
+  }
+  const avDetail = e => {
+    const td = e.target.closest?.("td[data-k]");
+    if (!td) return;
+    $("av-table").querySelector("td.on")?.classList.remove("on");
+    td.classList.add("on");
+    $("av-detail").textContent = av.details[+td.dataset.k];
+  };
+  $("av-table").addEventListener("pointerover", avDetail);
+  $("av-table").addEventListener("click", avDetail);
+  // the loops size themselves: each posts its height once its first frame is drawn
+  addEventListener("message", e => {
+    if (e.data?.type !== "sstAnimHeight") return;
+    for (const f of document.querySelectorAll("iframe.av-embed")) {
+      if (f.contentWindow === e.source) { f.style.height = e.data.h + "px"; f.style.aspectRatio = "auto"; }
+    }
+  });
+  // on an AIFS view: the main scores' window and date step aside, a loop loads when first opened, the scorecard is
+  // fetched once and redrawn for the comparison and score chosen
+  function avView(sel) {
+    const aifs = sel.p.startsWith("aifs");
+    document.querySelector(".vhead").hidden = aifs;
+    if (!aifs) return;
+    const frame = sel.p !== "aifs" && AV_CARDS[sel.p] && $(AV_CARDS[sel.p]).querySelector("iframe");
+    if (frame && !frame.getAttribute("src")) frame.src = frame.dataset.src;
+    if (sel.p !== "aifs") return;
+    av.a = sel.a; av.b = sel.b;
+    if (av.data) return avTable();
+    if (av.asked) return;
+    av.asked = true;
+    fetch(`/assets/verify/aifs_scorecard.json?v=${Math.floor(Date.now() / 3.6e6)}`).then(r => (r.ok ? r.json() : {})).catch(() => ({}))
+      .then(D => { av.data = D; avTable(); });
+  }
+  const avOpt = (label, items) => ({ label, items });
+  const AV_VIEWS = ["AIFS single vs AIFS-ENS member 0", [
+    ["aifs", "Scorecard", "every variable, by day"],
+    ["aifs_lead", "Scores by day", "RMSE, bias, skill and activity"],
+    ["aifs_spectra", "Power spectra", "the blurring and its matching"],
+    ["aifs_loop", "Pressure and rain loop", "the two runs side by side"],
+    ["aifs_z500", "500 hPa height loop", "Northern Hemisphere"],
+    ["aifs_t2m", "2 m temperature loop", "North America"]]];
+  const AV_MORE = {
+    aifs: {
+      a: avOpt("Against the single", [["matched", "member 0, matched"], ["control", "member 0, as published"], ["ensmean", "ensemble mean"]]),
+      b: avOpt("Score", [["rmse", "RMSE"], ["acc", "anomaly correlation"]]),
+    },
+    aifs_lead: {
+      bust: "hourly",
+      a: avOpt("Truth", [["raob", "radiosondes"], ["era5", "ERA5"]]),
+      b: t => avOpt("Variable", [["z500", "500 hPa height"], ["t850", "850 hPa temperature"],
+        ...(t === "era5" ? [["msl", "sea-level pressure"], ["t2m", "2 m temperature"]] : [])]),
+      img: (t, v) => `/assets/verify/aifs_lead_${t}_${v}_nh.webp`,
+      cap: t => `Northern Hemisphere 20–80°N against ${t === "era5" ? "ERA5" : "radiosondes"}. Red: AIFS single; dark blue: member 0, ` +
+        "matched; light blue dashed: member 0 as published; grey dotted: ensemble mean.",
+    },
+    aifs_spectra: {
+      bust: "hourly",
+      img: () => "/assets/verify/aifs_spectra.webp",
+      cap: () => "Member 0's power divided by the single's at days 1, 5 and 10: solid as published, dashed after the matching.",
+    },
+  };
+
   // the views of the stage (assets/stage.js), in the order of the list: [id, name, the list's note, the card's id,
-  // gated: the card's own script shows it once its data is here]
+  // gated: the card's own script shows it once its data is here]; the AIFS group, with its options and image views, goes
+  // in before the database
   const VIEWS = [
     ["Days 1–10: single runs", [
       ["summary", "Summary", "who leads, at a glance", "glance"],
@@ -1652,11 +1799,14 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
   ];
   window.STAGE = {
     guide: "/guides/verification.html",
-    groups: VIEWS.map(([label, items]) => ({ label, items: items.map(v => v.slice(0, 3)) })),
+    groups: [...VIEWS.slice(0, -1), AV_VIEWS, ...VIEWS.slice(-1)].map(([label, items]) => ({ label, items: items.map(v => v.slice(0, 3)) })),
     aliases: { glance: "summary", method: "/guides/verification.html" },
-    products: Object.fromEntries(VIEWS.flatMap(([, items]) => items.map(([id, label, , card, gated]) =>
-      [id, { label, about: `about-${id}`, dom: () => card, gated: !!gated }]))),
-    onRender: sel => { if (sel.p === "stations") showStations(); },
+    products: Object.fromEntries([
+      ...VIEWS.flatMap(([, items]) => items.map(([id, label, , card, gated]) =>
+        [id, { label, about: `about-${id}`, dom: () => card, gated: !!gated }])),
+      ...AV_VIEWS[1].map(([id, label]) =>
+        [id, { label, about: `about-${id}`, ...(AV_CARDS[id] ? { dom: () => AV_CARDS[id] } : {}), ...AV_MORE[id] }])]),
+    onRender: sel => { if (sel.p === "stations") showStations(); avView(sel); },
   };
 })();
 </script>

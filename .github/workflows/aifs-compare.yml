@@ -163,7 +163,7 @@ jobs:
             MF="--merge-from /tmp/main_scores.json"
           else echo "::warning::could not read main's scores; scoring on the checkout's copy only"; fi
           python scripts/verify/aifs_station_verify.py --verify $MF || echo "::warning::verification scoring failed; continuing"
-          # the page's scorecard + static figures (aifs-verify.html reads these, not the 11 MB scores file)
+          # the page's scorecard + static figures (verification.html reads these, not the scores file)
           python scripts/verify/aifs_verify_figs.py || echo "::warning::scorecard/figures failed; continuing"
           rm -rf scripts/verify/data/uw_cache
 

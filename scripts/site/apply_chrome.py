@@ -354,17 +354,10 @@ PRODUCTS = [
                 [
                     (
                         "/verification.html",
-                        "Global models against observations",
-                        "GFS, ECMWF IFS, AIFS and Canada's GDPS to day 10 and four ensembles to day 15, scored on the same surface stations, radiosondes, Stage IV rain and ERA5, with the uncertainty of every score and a database of every run. Scored with mverify, an open-source verification package.",
+                        "Model verification",
+                        "GFS, ECMWF IFS, AIFS and Canada's GDPS to day 10 and four ensembles to day 15, scored on the same surface stations, radiosondes, Stage IV rain and ERA5, with the uncertainty of every score and a database of every run, and the AIFS single against member 0 of AIFS-ENS. Scored with mverify, an open-source verification package.",
                         "Daily",
                         "Scorecards, maps and the database",
-                    ),
-                    (
-                        "/aifs-verify.html",
-                        "AIFS single versus ensemble control",
-                        "The two ECMWF AIFS configurations compared as deterministic models against radiosondes and ERA5, with the ensemble member spectrally matched to the single model and the ensemble mean for reference.",
-                        "Every 00Z and 12Z run",
-                        "Two AIFS configurations compared",
                     ),
                 ],
             ),
@@ -513,17 +506,7 @@ PAGES = [
     ),  # methodology note split out of subseasonal.html; linked from there only, not in PRODUCTS
     dict(path="mjo.html", mode="nav"),
     # ecape.html: retired, now a redirect stub to models.html#hrrr/ecape (no chrome)
-    dict(
-        path="aifs-verify.html",
-        mode="nav",
-        fixes=[
-            ("padding: 7.2rem 2.5rem 5rem;", "padding: 2.5rem 2.5rem 5rem;"),
-            (
-                "main { padding: 6.3rem 1rem 3rem; max-width: 100%; }",
-                "main { padding: 1.5rem 1rem 3rem; max-width: 100%; }",
-            ),
-        ],
-    ),
+    # aifs-verify.html: retired, now a redirect stub to verification.html#aifs (no chrome)
     dict(path="asos5.html", mode="site-header"),  # no fixed-header padding to undo
     dict(path="verification.html", mode="after-body"),  # multi-model verification (mverify scorecard JSON)
     dict(
@@ -891,7 +874,6 @@ HOME = {
         "What the record and the models say, how forecasts score, and the data to explore",
         [  # the third stack's only tile: as long as the two beside it
             "/verification.html",
-            "/aifs-verify.html",
             "/enso.html#imp_reg",
             "/mjo.html#mi",
             "/aifs-aam-budget.html",
