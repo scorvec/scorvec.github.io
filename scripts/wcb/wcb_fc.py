@@ -6,8 +6,9 @@ DATA. ECMWF IFS-ENS open data, the 00 UTC run's 50 perturbed members (open data 
 21 fields of elias.LEVELS - u, v and q at 1000, 850, 700, 500 and 300 hPa, t at 700, 500 and 300 hPa, geopotential
 height at 850, 500 and 200 hPa - of which only the rows from 90N to 7.5S are fetched (the leading bytes of each
 message: rangefetch.fetch_rows), and the 300 hPa divergence whole (the outflow's irrotational wind is a global
-inversion). The first and last 24 h of the fetch serve the neighbouring leads' ascent alone and take the ten fields
-the ascent needs. Each 0.25 degree field is reduced to the networks' 1 degree grid by the mean over the 1 degree box
+inversion); for the potential vorticity at 300 hPa, also u, v and t at 400 and 250 hPa, the levels either side. The
+first and last 24 h of the fetch serve the neighbouring leads' ascent alone and take the ten fields the ascent needs.
+Each 0.25 degree field is reduced to the networks' 1 degree grid by the mean over the 1 degree box
 centred on each point (box_mean).
 
 IDENTIFICATION. Every member at every step on its own, by the published ELIAS 2.0 networks (elias.py; the models,
@@ -21,6 +22,14 @@ the trajectories put it there around the valid date (the archive's 30-day climat
 the members' count against that frequency (floored at P_FLOOR: the climatology has columns with none), kept at the
 false discovery rate FDR over the map -> loop frames + manifest, and a json of the numbers behind them and what the
 fetch cost.
+
+TROPOPAUSE. Per lead, what the outflow does to the potential vorticity (PV) at 300 hPa: each member's Ertel PV there
+(potential_vorticity) and the rate at which its own irrotational wind advects it - where a belt's outflow blows
+across the tropopause it replaces stratospheric air with tropospheric and builds the ridge (Archambault et al. 2013,
+Mon. Wea. Rev. 141, 2325-2346; Grams and Archambault 2016, Mon. Wea. Rev. 144, 3847-3869). Drawn: the members' mean
+rate where they agree on its sign (two-sided sign test, false discovery rate FDR over the map's rows), the median
+member's tropopause (half the members with at least TROPOPAUSE PVU) and the outflow's share -> a second loop in the
+same manifest.
 
     python wcb_fc.py run --date 20261114 --archive ARCHIVE --out wcb_fc.npz       # fetch and identify
     python wcb_fc.py render --fc wcb_fc.npz --archive ARCHIVE --out-dir assets/sst
@@ -67,6 +76,13 @@ ASCENT_FIELDS = [(k, lev) for k, lev in FIELDS if (k, lev) in {
     ("q", 500),
 }]  # fmt: skip
 DIV = ("d", 300)
+PV_LEVS = (400, 300, 250)  # potential vorticity at the middle level, its vertical derivatives over the three
+PV_FIELDS = [(k, lev) for k in ("u", "v", "t") for lev in PV_LEVS]
+FULL_FIELDS = FIELDS + [x for x in PV_FIELDS if x not in FIELDS]
+TROPOPAUSE = 2.0  # PVU
+PV_MAPS = ("strat", "adv", "neg")  # outflow_pv's maps, kept per lead
+METRE = E.R_EARTH * np.pi / 180.0  # per degree
+COS = np.cos(np.deg2rad(E.LAT))[:, None]
 STAGE = list(E.STAGES)
 CELLS = E.LAT.size * E.LON.size
 FDR = 0.05
@@ -76,6 +92,11 @@ INK, MUTED = "#1a1a1a", "#6f6b64"
 P_LEV = np.array([5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100])  # the jet cards' probability scale
 P_COL = ["#fff3c4", "#fde28a", "#fdc458", "#fca03f", "#f7792f", "#e8512a", "#cc2f2f", "#a41d3f", "#7a1450", "#4d0f52"]
 CLIM_LEV = (2, 5, 10)  # % contours of the trajectory climatology
+PV_NAME = NAME + "_pv"
+SECTORS = (("North Pacific and North America", 210.0), ("North Atlantic and Eurasia", -10.0))  # central longitudes
+ADV_LEV = np.array([-8, -6, -4, -3, -2, -1, -0.5, 0.5, 1, 2, 3, 4, 6, 8])  # PVU per day
+BELT_LEV = (20, 50, 80)  # % of members with the outflow
+BELT = "#0b6e4f"
 TITLE = {"inflow": "Inflow (below 800 hPa)", "ascent": "Ascent (800–400 hPa)", "outflow": "Outflow (above 400 hPa)"}
 CREDIT = (
     "ECMWF IFS-ENS open data (CC BY 4.0), 50 perturbed members, 0.25° reduced to 1°, Google Cloud mirror · "
@@ -117,7 +138,7 @@ def box_mean(values, lat, lon):
 
 
 def _global(buf, eccodes):
-    """A whole 0.25 degree message as irrotational_speed takes it: rows from 90N without the south pole, columns
+    """A whole 0.25 degree message as irrotational_wind takes it: rows from 90N without the south pole, columns
     from 0E."""
     gid = eccodes.codes_new_from_message(buf)
     try:
@@ -141,6 +162,48 @@ def _fields(stack, keys):
     return f
 
 
+def _ddx(a):
+    """d/dx of a field on E.LAT, periodic in longitude (elias' own differences stop at the date line, as the
+    networks were trained)."""
+    return (np.roll(a, -1, axis=-1) - np.roll(a, 1, axis=-1)) / (2.0 * METRE * COS)
+
+
+def potential_vorticity(f):
+    """Ertel potential vorticity (PVU) at the middle of PV_LEVS on E.LAT x E.LON, from u, v (m/s) and t (K) on
+    E.ROWS at those levels: -g [(f + zeta) dtheta/dp - dv/dp dtheta/dx + du/dp dtheta/dy]. The vertical derivatives
+    are centred in ln p, theta's through ln theta (it is close to a power of p)."""
+    at = PV_LEVS[1]
+    lnp = np.log(100.0 * np.array(PV_LEVS))
+    inner = (..., slice(1, -1), slice(None))  # E.ROWS -> E.LAT
+
+    def ddp(a):
+        return np.gradient(a, lnp, axis=0)[1] / (100.0 * at)
+
+    def ddy(a):
+        return (a[..., 2:, :] - a[..., :-2, :]) / (2.0 * METRE)
+
+    u, v = (np.stack([f[k][lev] for lev in PV_LEVS]) for k in ("u", "v"))
+    th = np.stack([f["t"][lev] * (1000.0 / lev) ** E.KAPPA for lev in PV_LEVS])
+    cos = np.cos(np.deg2rad(E.ROWS))[:, None]
+    vort = 2.0 * E.OMEGA * np.sin(np.deg2rad(E.LAT))[:, None] + _ddx(v[1][inner]) - ddy(u[1] * cos) / COS
+    th_p = (th[1] * ddp(np.log(th)))[inner]
+    return -1.0e6 * E.G * (vort * th_p - ddp(v)[inner] * _ddx(th[1][inner]) + ddp(u)[inner] * ddy(th[1]))
+
+
+def outflow_pv(f, chi):
+    """One step's members -> the tropopause maps (PV_MAPS) on E.LAT x E.LON: `strat`, how many members have
+    stratospheric air (at least TROPOPAUSE) at the level; `adv`, the members' mean rate (PVU per day) at which their
+    own irrotational wind `chi` (member, [eastward, northward], LAT, LON) advects the potential vorticity; `neg`, how
+    many members have that rate negative."""
+    pv = potential_vorticity(f)
+    adv = -86400.0 * (chi[:, 0] * _ddx(pv) + chi[:, 1] * np.gradient(pv, axis=-2) / METRE)
+    return dict(
+        strat=(pv >= TROPOPAUSE).sum(axis=0).astype(np.uint8),
+        adv=adv.mean(axis=0).astype(np.float32),
+        neg=(adv < 0.0).sum(axis=0).astype(np.uint8),
+    )
+
+
 def _net(root, stage):
     return E.Net(Path(root) / "models" / f"cnn_{E.STAGES[stage]}.h5")
 
@@ -155,14 +218,14 @@ def _scratch(scratch, step):
 
 def first_pass(job):
     """One step of the run for perturbed members 1..n: the fields fetched and reduced, the ascent identified; with
-    `full`, every stage's fields and the irrotational wind speed for second_pass. The members, their ascent
-    probabilities and (full) the fields and the speed go to the scratch file. -> {step, members, cost}; None when the
-    step could not be fetched."""
+    `full`, every stage's fields and the irrotational wind speed for second_pass, and the tropopause maps
+    (outflow_pv). The members, their ascent probabilities and (full) the fields, the speed and those maps go to the
+    scratch file. -> {step, members, cost}; None when the step could not be fetched."""
     import eccodes
     import rangefetch as rf
 
     date, step, n, root, scratch, full = job
-    keys = FIELDS if full else ASCENT_FIELDS
+    keys = FULL_FIELDS if full else ASCENT_FIELDS
     need = [(PARAM[k], lev) for k, lev in keys] + ([DIV] if full else [])
     for attempt in range(1, STEP_TRIES + 1):
         try:
@@ -193,17 +256,22 @@ def first_pass(job):
             if full:
                 div = sorted((at[(m, *DIV)] for m in members), key=lambda e: e["_offset"])
                 blob = rf.fetch_ranges(rel, rf.coalesce(div), sources=SOURCES, stats=wire)
-                speed, pos = {}, 0
+                wind, pos = {}, 0
                 t1 = time.time()
                 for e in div:
                     field = _global(bytes(blob[pos : pos + e["_length"]]), eccodes)
-                    speed[int(e["number"])] = E.irrotational_speed(field).astype(np.float32)
+                    wind[int(e["number"])] = E.irrotational_wind(field)
                     pos += e["_length"]
                 if pos != len(blob):
                     raise RuntimeError(f"{len(blob)} bytes for {pos} indexed")
                 del blob
                 want += div
-                kept.update(stack=stack, speed=np.stack([speed[m] for m in members]))
+                chi = np.stack([wind[m] for m in members])
+                kept.update(
+                    stack=stack[:, : len(FIELDS)],
+                    speed=np.hypot(chi[:, 0], chi[:, 1]).astype(np.float32),
+                    **outflow_pv(_fields(stack[:, [keys.index(x) for x in PV_FIELDS]], PV_FIELDS), chi),
+                )
             else:
                 t1 = time.time()
             image = E.ascent_image(_fields(stack, keys), E.climatology(root, "ascent", _valid(date, step)))
@@ -231,12 +299,14 @@ def first_pass(job):
 def second_pass(job):
     """One lead from the scratch files: the ascent's footprint, and the inflow and the outflow of the members that
     also have the ascent LAG_H later and earlier. -> {step, foot (stage, n, packed columns), have (stage, n): the
-    members identified, identify_s}; member m is row m - 1."""
+    members identified, the step's tropopause maps (PV_MAPS) and how many members they hold (pv_members),
+    identify_s}; member m is row m - 1."""
     date, step, n, root, scratch = job
     t0 = time.time()
     valid = _valid(date, step)
     with np.load(_scratch(scratch, step)) as z:
         members, ascent, speed, f = z["members"], z["ascent"], z["speed"], _fields(z["stack"], FIELDS)
+        pv = {k: z[k] for k in PV_MAPS}
     foot, have = np.zeros((len(STAGE), n, CELLS), bool), np.zeros((len(STAGE), n), bool)
 
     def put(stage, who, prob):
@@ -254,12 +324,12 @@ def second_pass(job):
         put(stage, who, _net(root, stage)(image))
     took = round(time.time() - t0, 1)
     print(f"  step {step:3d}: inflow and outflow of {have.sum(axis=1).min()} members in {took:.0f} s", flush=True)
-    return dict(step=step, foot=np.packbits(foot, axis=-1), have=have, identify_s=took)
+    return dict(step=step, foot=np.packbits(foot, axis=-1), have=have, pv_members=members.size, identify_s=took, **pv)
 
 
 def run(date, last_step, root, out, workers=3, wait_min=0.0, members=MEMBERS):
-    """Fetch and identify the run for perturbed members 1..members -> npz (per-lead member footprints and the fetch's
-    cost). Waits up to wait_min for the run to be on the Google mirror to last_step."""
+    """Fetch and identify the run for perturbed members 1..members -> npz (per-lead member footprints, tropopause
+    maps and the fetch's cost). Waits up to wait_min for the run to be on the Google mirror to last_step."""
     shown = shown_steps(last_step)
     if not shown:
         raise SystemExit(f"no lead has the ascent {E.LAG_H} h either side within {last_step} h")
@@ -298,17 +368,21 @@ def run(date, last_step, root, out, workers=3, wait_min=0.0, members=MEMBERS):
         steps=np.array([r["step"] for r in keep]),
         foot=np.stack([r["foot"] for r in keep]),
         have=np.stack([r["have"] for r in keep]),
+        pv_members=np.array([r["pv_members"] for r in keep]),
         cost=json.dumps(cost),
+        **{k: np.stack([r[k] for r in keep]) for k in PV_MAPS},
     )
     return Path(out)
 
 
 def load_run(path):
-    """npz from `run` -> (init, steps, footprints (lead, stage, n, LAT, LON), have (lead, stage, n), cost)."""
+    """npz from `run` -> its arrays: init, steps, foot (lead, stage, n, LAT, LON), have (lead, stage, n), the
+    tropopause maps (PV_MAPS: lead, LAT, LON) with pv_members (lead), cost."""
     with np.load(path) as f:
-        init, steps, have, cost = pd.Timestamp(f["init"][()]), f["steps"], f["have"], json.loads(str(f["cost"]))
+        got = {k: f[k] for k in ("steps", "have", "pv_members", *PV_MAPS)}
+        got.update(init=pd.Timestamp(f["init"][()]), cost=json.loads(str(f["cost"])))
         foot = np.unpackbits(f["foot"], axis=-1, count=CELLS).astype(bool)
-    return init, steps, foot.reshape(*foot.shape[:-1], E.LAT.size, E.LON.size), have, cost
+    return dict(got, foot=foot.reshape(*foot.shape[:-1], E.LAT.size, E.LON.size))
 
 
 # ── the product ─────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -323,8 +397,23 @@ def risk(foot, normal):
     return k / foot.shape[0], benjamini_hochberg(p, FDR)
 
 
-def products(init, steps, foot, have, root):
-    """Per lead and stage: the share of members, where it is drawn and the climatological frequency."""
+def agreed(neg, n, where):
+    """Where the members share a sign: a two-sided sign test of `neg` negative among n, kept at the false discovery
+    rate FDR over the cells of `where`."""
+    from quantmet.stats import benjamini_hochberg
+    from scipy.stats import binom
+
+    p = np.minimum(1.0, 2.0 * binom.sf(np.maximum(neg, n - neg) - 1.0, n, 0.5))
+    return benjamini_hochberg(np.where(where, p, np.nan), FDR)
+
+
+def products(run, root):
+    """Per lead and stage: the share of members, where it is drawn and the climatological frequency. Per lead: the
+    share of members with stratospheric air at the tropopause maps' level (trop), the mean advection of potential
+    vorticity by the irrotational wind (adv) and where the members agree on its sign (sure)."""
+    init, steps, foot, have, n = (run[k] for k in ("init", "steps", "foot", "have", "pv_members"))
+    lat = E.LAT[:, None]
+    band = np.broadcast_to((lat >= MAP_LAT[0]) & (lat <= MAP_LAT[1]), (E.LAT.size, E.LON.size))
     valid = pd.DatetimeIndex([init + pd.Timedelta(hours=int(s)) for s in steps])
     normal = np.array([[E.climatology(root, stage, v) for stage in STAGE] for v in valid])
     got = [[risk(foot[i, k, have[i, k]], normal[i, k]) for k in range(len(STAGE))] for i in range(len(steps))]
@@ -336,6 +425,10 @@ def products(init, steps, foot, have, root):
         share=np.array([[g[0] for g in row] for row in got], np.float32),
         shown=np.array([[g[1] for g in row] for row in got]),
         normal=normal.astype(np.float32),
+        trop=run["strat"] / n[:, None, None],
+        adv=run["adv"],
+        sure=np.array([agreed(run["neg"][i].astype(float), int(n[i]), band) for i in range(len(steps))]),
+        band=band,
     )
 
 
@@ -359,12 +452,14 @@ def cyclic(f):
     return np.concatenate([g, g[..., :1]], axis=-1), np.arange(0.0, 361.0)
 
 
-def nh_map(fig, rect, title):
+def nh_map(fig, rect, title, centre=180.0, half=179.995):
+    """A map of MAP_LAT, `half` degrees of longitude either side of `centre`."""
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
 
-    ax = fig.add_axes(rect, projection=ccrs.PlateCarree(central_longitude=180))
-    ax.set_extent((0, 359.99, *MAP_LAT), crs=ccrs.PlateCarree())
+    proj = ccrs.PlateCarree(central_longitude=centre)
+    ax = fig.add_axes(rect, projection=proj)
+    ax.set_extent((-half, half, *MAP_LAT), crs=proj)
     ax.add_feature(cfeature.COASTLINE.with_scale("110m"), lw=0.6, edgecolor="#333", zorder=4)
     gl = ax.gridlines(
         draw_labels=True, lw=0.3, color="#bbb", xlocs=range(-180, 181, 30), ylocs=range(10, 81, 10), zorder=3
@@ -427,48 +522,112 @@ def frame(pr, i, out, dpi=90):
     plt.close(fig)
 
 
-def render(fc_path, root, out_dir):
-    """Frames, their manifest and the json under out_dir (assets/sst) from a run's npz."""
-    init, steps, foot, have, cost = load_run(fc_path)
-    pr = products(init, steps, foot, have, root)
-    out_dir = Path(out_dir)
-    anim = out_dir / "anim" / NAME
+def frame_pv(pr, i, out, dpi=90):
+    """One lead: the rate at which the irrotational wind advects the potential vorticity at the middle of PV_LEVS,
+    where the members agree on its sign, with the median member's tropopause there and the outflow's share."""
+    import cartopy.crs as ccrs
+    from matplotlib.colors import from_levels_and_colors
+
+    plt = mpl()
+    map_w, left, right, top, gap, bot = 11.4, 0.55, 1.05, 1.35, 0.5, 0.62
+    mh = map_w * (MAP_LAT[1] - MAP_LAT[0]) / 180.0
+    W, H = left + map_w + right, top + 2 * mh + gap + bot
+    fig = plt.figure(figsize=(W, H))
+    shades = plt.get_cmap("PuOr")(np.linspace(0.06, 0.94, ADV_LEV.size + 1))
+    shades[ADV_LEV.size // 2] = 1.0  # between the innermost levels: white
+    cmap, norm = from_levels_and_colors(ADV_LEV, shades, extend="both")
+    k, lev, v = STAGE.index("outflow"), PV_LEVS[1], pr["valid"][i]
+    adv, lon = cyclic(np.where(pr["sure"][i], pr["adv"][i], 0.0))
+    trop, _ = cyclic(100 * pr["trop"][i])
+    belt, _ = cyclic(100 * np.where(pr["shown"][i, k], pr["share"][i, k], 0.0))
+    for j, (title, centre) in enumerate(SECTORS):
+        rect = [left / W, (bot + (1 - j) * (mh + gap)) / H, map_w / W, mh / H]
+        ax = nh_map(fig, rect, title, centre, 90.0)
+        data = dict(transform=ccrs.PlateCarree())
+        cf = ax.contourf(lon, E.LAT, adv, levels=ADV_LEV, cmap=cmap, norm=norm, extend="both", **data)
+        ax.contour(lon, E.LAT, belt, levels=BELT_LEV, colors=BELT, linewidths=(0.8, 1.3, 1.8), zorder=5, **data)
+        ax.contour(lon, E.LAT, trop, levels=[50], colors=INK, linewidths=1.8, zorder=6, **data)
+        cax = fig.add_axes([rect[0] + rect[2] + 0.12 / W, rect[1] + 0.05 * rect[3], 0.16 / W, 0.9 * rect[3]])
+        cb = fig.colorbar(cf, cax=cax, ticks=ADV_LEV)
+        cb.set_label("PVU per day", fontsize=9)
+        cb.ax.tick_params(labelsize=8.5)
+    fig.text(
+        left / W,
+        1 - 0.14 / H,
+        f"Belt outflow and the tropopause, day {int(pr['steps'][i]) / 24:g} (valid {v:%a %-d %b %HZ}) "
+        f"— {LABEL} {pr['members'][i]} members, init {pr['init']:%Y-%m-%d %HZ}",
+        fontsize=13.5,
+        fontweight="bold",
+        va="top",
+        color=INK,
+    )
+    sub = (
+        f"Shading: change of the {lev} hPa potential vorticity by the outflow (irrotational) wind, the members’ "
+        f"mean where they agree on its sign (sign test, false discovery rate {100 * FDR:g} %); orange lowers it, "
+        f"which builds the ridge. Black line: the tropopause ({TROPOPAUSE:g} PVU) at {lev} hPa in the median member. "
+        f"Green contours: {', '.join(map(str, BELT_LEV[:-1]))} and {BELT_LEV[-1]} % of members with a belt’s "
+        "outflow, where that is above the usual frequency."
+    )
+    fig.text(left / W, 1 - 0.5 / H, textwrap.fill(sub, int(W * 12.4)), fontsize=9.4, va="top", color=MUTED)
+    fig.text(left / W, 0.06 / H, textwrap.fill(CREDIT, int(W * 15.5)), fontsize=8.2, va="bottom", color=MUTED)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=dpi, facecolor="white", pil_kwargs={"quality": 85, "method": 6})
+    plt.close(fig)
+
+
+def _loop(anim, pr, draw, note):
+    """One loop's frames under `anim`, drawn by `draw` -> their manifest entries; note(i) ends lead i's label."""
     anim.mkdir(parents=True, exist_ok=True)
     for old in anim.glob("F*.webp"):
         old.unlink()
-    peak = 100 * np.where(pr["shown"], pr["share"], 0.0).max(axis=(2, 3))  # (lead, stage)
     frames = []
     for i, v in enumerate(pr["valid"]):
         fn = f"F{i:02d}.webp"
-        frame(pr, i, anim / fn)
-        frames.append(
-            {
-                "idx": i,
-                "file": fn,
-                "date": f"{v:%Y-%m-%d}",
-                "label": f"day {pr['steps'][i] / 24:g} · valid {v:%a %b %d %HZ} · outflow up to "
-                f"{peak[i, STAGE.index('outflow')]:.0f}%",
-            }
-        )
+        draw(pr, i, anim / fn)
+        label = f"day {pr['steps'][i] / 24:g} · valid {v:%a %b %d %HZ} · {note(i)}"
+        frames.append({"idx": i, "file": fn, "date": f"{v:%Y-%m-%d}", "label": label})
+    print(f"  {len(frames)} map frames -> {anim}", flush=True)
+    return {"n_frames": len(frames), "frames": frames}
+
+
+def render(fc_path, root, out_dir):
+    """Both loops' frames, their manifest and the json under out_dir (assets/sst) from a run's npz."""
+    run = load_run(fc_path)
+    pr = products(run, root)
+    out_dir = Path(out_dir)
+    peak = 100 * np.where(pr["shown"], pr["share"], 0.0).max(axis=(2, 3))  # (lead, stage)
+    agreed_adv = np.where(pr["sure"] & pr["band"], pr["adv"], 0.0)
+    low, high = agreed_adv.min(axis=(1, 2)), agreed_adv.max(axis=(1, 2))
+    belts = _loop(out_dir / "anim" / NAME, pr, frame, lambda i: f"outflow up to {peak[i, STAGE.index('outflow')]:.0f}%")
+    pv = _loop(out_dir / "anim" / PV_NAME, pr, frame_pv, lambda i: f"ridge building up to {abs(low[i]):.1f} PVU/day")
     mani = {
         "ver": int(time.time()),
-        "regions": {NAME: {"label": f"Warm conveyor belts ({LABEL})", "n_frames": len(frames), "frames": frames}},
+        "regions": {
+            NAME: {"label": f"Warm conveyor belts ({LABEL})", **belts},
+            PV_NAME: {"label": f"Outflow and the tropopause ({LABEL})", **pv},
+        },
     }
     (out_dir / "anim" / f"{NAME}_manifest.json").write_text(json.dumps(mani))
     doc = dict(
         model=LABEL,
-        init=f"{init:%Y-%m-%dT%H:%MZ}",
+        init=f"{run['init']:%Y-%m-%dT%H:%MZ}",
         fdr=FDR,
         members=pr["members"],
         lead_h=[int(s) for s in pr["steps"]],
         valid=[f"{v:%Y-%m-%dT%H:%MZ}" for v in pr["valid"]],
         max_share={stage: [round(float(x) / 100, 3) for x in peak[:, k]] for k, stage in enumerate(STAGE)},
-        fetch=cost,
+        outflow_pv=dict(
+            level_hpa=PV_LEVS[1],
+            tropopause_pvu=TROPOPAUSE,
+            members=[int(x) for x in run["pv_members"]],
+            lowest_pvu_day=[round(float(x), 2) for x in low],
+            highest_pvu_day=[round(float(x), 2) for x in high],
+        ),
+        fetch=run["cost"],
     )
     data = out_dir / "data" / f"{NAME}.json"
     data.parent.mkdir(parents=True, exist_ok=True)
     data.write_text(json.dumps(doc, indent=1) + "\n")
-    print(f"  {len(frames)} map frames -> {anim}", flush=True)
     return doc
 
 

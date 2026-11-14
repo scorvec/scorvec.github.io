@@ -67,19 +67,27 @@ def test_differences():
     check(err.max() < 1e-3, f"vorticity of a wave {err.max():.1e}")
 
 
-def test_irrotational_speed():
+def test_irrotational_wind():
     """A velocity potential A sin lat + B cos lat cos lon: its Laplacian is -2 / a2 times itself, its gradient
     (-B sin lon, A cos lat - B sin lat cos lon) / a."""
     a, b = 3.0e7, 5.0e7
     east, north = np.deg2rad(E.LON)[None, :], np.deg2rad(E.LAT)[:, None]
-    exact = np.hypot(b * np.sin(east), a * np.cos(north) - b * np.sin(north) * np.cos(east)) / E.R_EARTH
+    exact = (
+        np.stack(
+            [
+                -b * np.sin(east) * np.ones_like(north),
+                a * np.cos(north) - b * np.sin(north) * np.cos(east),
+            ]
+        )
+        / E.R_EARTH
+    )
     for n, lmax in ((180, 89), (720, 179), (720, 359)):
         lat = np.deg2rad(90.0 - 180.0 / n * np.arange(n))[:, None]
         lon = np.deg2rad(180.0 / n * np.arange(2 * n))[None, :]
         div = -2.0 / E.R_EARTH**2 * (a * np.sin(lat) + b * np.cos(lat) * np.cos(lon))
-        speed = E.irrotational_speed(div, lmax)
-        check(speed.shape == exact.shape, f"shape {speed.shape}")
-        check(np.abs(speed - exact).max() < 1e-6 * exact.max(), f"irrotational speed, {n} rows, degree {lmax}")
+        wind = E.irrotational_wind(div, lmax)
+        check(wind.shape == exact.shape, f"shape {wind.shape}")
+        check(np.abs(wind - exact).max() < 1e-6 * exact.max(), f"irrotational wind, {n} rows, degree {lmax}")
 
 
 def test_image():

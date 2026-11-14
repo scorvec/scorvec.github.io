@@ -17,7 +17,7 @@ the archive.
 
 STAGES. The ascent's fifth predictor is the trajectory climatology of the ascent around the day; the inflow's is the
 ascent probability LAG_H (24 h) later, the outflow's the ascent probability 24 h earlier. The outflow's second is the
-speed of the irrotational wind at 300 hPa, here from the divergence itself (irrotational_speed).
+speed of the irrotational wind at 300 hPa, here from the divergence itself (irrotational_wind).
 
 NETWORKS. Net reads a model's weights (Keras HDF5) and applies them as plain array arithmetic: nine blocks of a 3x3
 convolution, batch normalisation (folded into the convolution) and ReLU, 2x2 maximum pooling down four times, four
@@ -169,8 +169,8 @@ def inflow_image(f, ascent_later):
 
 
 def outflow_image(f, speed, ascent_earlier):
-    """The outflow network's input: 300 hPa relative humidity, the 300 hPa irrotational wind speed (on LAT x LON:
-    irrotational_speed), 500 hPa static stability, 300 hPa relative vorticity and the ascent probability LAG_H
+    """The outflow network's input: 300 hPa relative humidity, the 300 hPa irrotational wind speed (on LAT x LON: the
+    length of irrotational_wind), 500 hPa static stability, 300 hPa relative vorticity and the ascent probability LAG_H
     earlier."""
     return _image(
         [
@@ -183,18 +183,19 @@ def outflow_image(f, speed, ascent_earlier):
     )
 
 
-def irrotational_speed(div, lmax=LMAX):
-    """Speed (m/s) of the irrotational wind on LAT x LON from the divergence (1/s) on a Driscoll-Healy grid - rows
-    from 90N without the south pole, columns from 0E, twice as many columns as rows - truncated at degree `lmax`
-    (89, 179 or 359): the velocity potential's harmonics are -a2 / (l (l + 1)) times the divergence's, the wind is
-    its gradient."""
+def irrotational_wind(div, lmax=LMAX):
+    """The irrotational wind (eastward, northward; m/s) on LAT x LON from the divergence (1/s) on a Driscoll-Healy
+    grid - rows from 90N without the south pole, columns from 0E, twice as many columns as rows - truncated at degree
+    `lmax` (89, 179 or 359): the velocity potential's harmonics are -a2 / (l (l + 1)) times the divergence's, the
+    wind is its gradient."""
     c = pysh.expand.SHExpandDH(np.asarray(div, float), sampling=2, lmax_calc=lmax)
     deg = np.arange(1.0, lmax + 1.0)
     c[:, 0] = 0.0
     c[:, 1:] *= (-(R_EARTH**2) / (deg * (deg + 1.0)))[None, :, None]
-    speed = np.hypot(*pysh.expand.MakeGradientDH(c, lmax=lmax, sampling=2, radius=R_EARTH))
-    per_degree = speed.shape[0] // 180
-    return np.roll(speed[::per_degree, ::per_degree][(90 - LAT).astype(int)], 180, axis=-1)
+    south, east = pysh.expand.MakeGradientDH(c, lmax=lmax, sampling=2, radius=R_EARTH)
+    per_degree = east.shape[0] // 180
+    wind = np.stack([east, -south])[:, ::per_degree, ::per_degree]
+    return np.roll(wind[:, (90 - LAT).astype(int)], 180, axis=-1)
 
 
 def thresholds(root, stage, day):

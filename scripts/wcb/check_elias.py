@@ -194,7 +194,7 @@ def main(root):
     print("5  irrotational wind", flush=True)
     at89 = wind_speed(f, lev, 89)[0]
     dh = np.roll(wind.divergence(truncation=89)[:-1], 180, axis=-1)  # without the south pole, from 0E
-    g = float(np.abs(E.irrotational_speed(dh, 89) - at89).max() / at89.max())
+    g = float(np.abs(np.hypot(*E.irrotational_wind(dh, 89)) - at89).max() / at89.max())
     check(g < TOL, f"from the divergence, truncated at 89: {g:.1e} of the largest speed ({at89.max():.1f} m/s)")
     coarse = nets["outflow"](E.outflow_image(ported(f, lev), at89, ascent[DAY - LAG])[None])[0]
     ocv = E.thresholds(root, "outflow", DAY)

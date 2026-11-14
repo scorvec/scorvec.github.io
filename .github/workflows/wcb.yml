@@ -3,13 +3,14 @@ name: Warm conveyor belts (IFS-ENS)
 # Warm conveyor belts in every IFS-ENS member (scripts/wcb/wcb_fc.py; the identification is scripts/wcb/elias.py, the
 # published ELIAS 2.0 networks of Quinting and Grams 2022): the 00 UTC run's 50 perturbed members, 12-hourly to
 # last_step, byte-ranged step by step from the Google Cloud mirror of ECMWF open data only and never cached - the
-# northern rows of 21 fields per member and step and the 300 hPa divergence whole. The networks, their decision
-# thresholds and the trajectory climatology: release wcb-ref-v1 (wcb-ref.yml), checked against the archive's
-# published checksum.
+# northern rows of 27 fields per member on the steps shown (10 on the day either side) and the 300 hPa divergence
+# whole. The networks, their decision thresholds and the trajectory climatology: release wcb-ref-v1 (wcb-ref.yml),
+# checked against the archive's published checksum.
 #
 # Dispatch only: the map frames of the members' share with a belt's inflow, ascent and outflow (days 1 to
-# (last_step - 24) / 24) under assets/sst/anim/wcb_ifs, their manifest and assets/sst/data/wcb_ifs.json, the numbers
-# behind them and what the fetch cost. With publish=true the frames are published and the rest committed, otherwise
+# (last_step - 24) / 24) under assets/sst/anim/wcb_ifs, those of the outflow's advection of 300 hPa potential
+# vorticity with the tropopause under assets/sst/anim/wcb_ifs_pv, their manifest and assets/sst/data/wcb_ifs.json,
+# the numbers behind them and what the fetch cost. With publish=true the frames are published and the rest committed, otherwise
 # all of it is an artifact. Waits up to 45 min for the run on the mirror.
 on:
   workflow_dispatch:
@@ -106,6 +107,7 @@ jobs:
           name: wcb-forecast
           path: |
             assets/sst/anim/wcb_ifs
+            assets/sst/anim/wcb_ifs_pv
             assets/sst/anim/wcb_ifs_manifest.json
             assets/sst/data/wcb_ifs.json
           if-no-files-found: warn
@@ -114,7 +116,7 @@ jobs:
         if: inputs.publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/wcb_ifs
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/wcb_ifs assets/sst/anim/wcb_ifs_pv
       # Never rebase: snapshot, reset to a fresh origin/main each attempt, lay the snapshot back on, commit, push.
       - name: Commit & push
         if: inputs.publish
