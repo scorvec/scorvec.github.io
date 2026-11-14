@@ -15,7 +15,9 @@ potential temperature, their median PV - so the cross-sections cost no fetch.
 PRODUCTS, the cold season only: an init from 1 November to 31 March, leads past 31 March dropped.
   maps     per lead, the share of members with each branch within NEAR_KM (300 km) of the column (jet_branches.near),
            against how often ERA5 had it within 300 km on the valid day of the season, 1991-2020 (the centred 31-day
-           window; near_count of jet_branches_clim.nc, release jet-branches-ref-v1) -> loop frames + manifest
+           window; near_count of jet_branches_clim.nc, release jet-branches-ref-v1), with each jet outlined where
+           that share reaches OUTLINE - on its own map and, both together, on the superposition's -> loop frames +
+           manifest
   events   per region (western North Pacific, North America), the share of members with a superposition event at
            each lead - a group of superposed columns, each within 1000 km of another, at least as large as the
            region's threshold (reference/jet_branches_ref.json) - against ERA5's rate of analyses with one on the
@@ -78,6 +80,9 @@ INK, MUTED = "#1a1a1a", "#6f6b64"
 P_LEV = np.array([5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100])  # the North Pacific jet card's probability scale
 P_COL = ["#fff3c4", "#fde28a", "#fdc458", "#fca03f", "#f7792f", "#e8512a", "#cc2f2f", "#a41d3f", "#7a1450", "#4d0f52"]
 CLIM_LEV = {"polar": (25, 50, 75), "stj": (25, 50, 75), "sup": (2, 5, 10)}  # % contours of the ERA5 frequency
+LINE = {"polar": "#1f5fa8", "stj": "#c0392b"}  # the jets' outlines: their colours on the cross-sections
+LINE_NAME = {"polar": "polar jet", "stj": "subtropical jet"}
+OUTLINE = 50  # % share at which a jet is outlined
 TITLE = {
     "polar": "Polar jet (315–330 K PV wall)",
     "stj": "Subtropical jet (340–355 K PV wall)",
@@ -432,10 +437,23 @@ def draw_regions(ax):
         )
 
 
+def outline(ax, share, colour):
+    """A jet's outline: the OUTLINE % contour of its neighbourhood share, haloed to stand on the shading."""
+    import cartopy.crs as ccrs
+    from matplotlib import patheffects
+
+    f, lon = cyclic(100 * share)
+    cs = ax.contour(lon, JB.LAT, f, levels=[OUTLINE], colors=[colour], linewidths=1.9, transform=ccrs.PlateCarree())
+    cs.set_path_effects([patheffects.withStroke(linewidth=3.6, foreground="white")])
+    cs.set_zorder(5)
+
+
 def frame(pr, i, out, dpi=90):
-    """One lead: the three branches' neighbourhood shares with the ERA5 normal as contours."""
+    """One lead: the three branches' neighbourhood shares with the ERA5 normal as contours, and the jets' outlines -
+    each on its own map, both on the superposition's."""
     import cartopy.crs as ccrs
     from matplotlib.colors import BoundaryNorm, ListedColormap
+    from matplotlib.lines import Line2D
 
     plt = mpl()
     map_w, left, right, top, gap, bot = 11.4, 0.55, 1.05, 1.35, 0.5, 0.62
@@ -447,18 +465,34 @@ def frame(pr, i, out, dpi=90):
     for k, b in enumerate(JB.BRANCHES):
         rect = [left / W, (bot + (2 - k) * (mh + gap)) / H, map_w / W, mh / H]
         ax = nh_map(fig, rect, TITLE[b])
+        jets = [j for j in ((b,) if b in LINE else LINE) if pr["map_shown"][i, JB.BRANCHES.index(j)]]
+        for j in jets:
+            outline(ax, pr["share"][i, JB.BRANCHES.index(j)], LINE[j])
+        if b == "sup" and jets:
+            ax.legend(
+                handles=[Line2D([], [], color=LINE[j], lw=1.9, label=LINE_NAME[j]) for j in jets],
+                loc="upper left",
+                ncols=len(jets),
+                fontsize=8.5,
+                framealpha=0.85,
+                edgecolor="none",
+                borderpad=0.3,
+                handlelength=1.6,
+                columnspacing=1.2,
+            ).set_zorder(7)
         if not pr["map_shown"][i, k]:
             ax.text(
                 0.5,
-                0.5,
-                f"Not shown at day {int(pr['steps'][i]) / 24:g}: at this lead the forecast of this branch did not beat "
-                "the ERA5 normal on the archived runs",
+                0.1 if jets else 0.5,
+                f"{TITLE[b].split(' (')[0]} not shown at day {int(pr['steps'][i]) / 24:g}: at this lead its forecast "
+                "did not beat the ERA5 normal on the archived runs",
                 transform=ax.transAxes,
                 ha="center",
                 va="center",
                 fontsize=10.5,
                 color=MUTED,
                 bbox=dict(facecolor="white", edgecolor="none", alpha=0.9),
+                zorder=8,
             )
             continue
         f, lon = cyclic(100 * pr["share"][i, k])
@@ -494,9 +528,9 @@ def frame(pr, i, out, dpi=90):
         else f"share of members with the branch within {JB.NEAR_KM:g} km"
     )
     sub = (
-        f"Shading: {shading}. Contours: how often ERA5 had it within {JB.NEAR_KM:g} km on this date, 1991–2020. A jet "
-        f"is a 400–100 hPa wind above {JB.V_MIN:g} m/s over a strong PV gradient in the 1–3 PVU channel of its "
-        "isentropic layer; dashed boxes: the superposition regions."
+        f"Shading: {shading}. Coloured lines: the polar jet (blue) and the subtropical jet (red), where that "
+        f"{'chance' if pr['map_cal'][i].any() else 'share'} reaches {OUTLINE} %. Black contours: how often ERA5 had "
+        f"the branch within {JB.NEAR_KM:g} km on this date, 1991–2020. Dashed boxes: the superposition regions."
     )
     fig.text(left / W, 1 - 0.5 / H, textwrap.fill(sub, int(W * 12.4)), fontsize=9.4, va="top", color=MUTED)
     fig.text(left / W, 0.06 / H, textwrap.fill(CREDIT, int(W * 15.5)), fontsize=8.2, va="bottom", color=MUTED)
