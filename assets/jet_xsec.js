@@ -1,12 +1,13 @@
 // Jet cross-sections (circulation.html#pacjet/branches/xsec). Mounted by stage.js as the dom block #jxs-view: a map of
-// the ensemble's 250 hPa wind to pick a transect on - a tap puts it along that longitude, "Draw a line" takes two taps
-// (a drag, with a mouse) for any straight line - and under it the section along the transect: wind speed, potential
-// temperature, the 2 PVU tropopause, then each jet branch's chance along it against the ERA5 normal. Data:
-// assets/sst/anim/jetbr_ifs_xs_manifest.json (same origin; jet_branches_fc.write_sections) -> one file per lead on the
-// frames branch, fetched through frames_root.js pinned to the manifest's frames_sha: the gzip of uint8 planes on a
-// (latitude south to north, longitude) grid - per pressure level the wind speed, the potential temperature above the
-// frame's theta0 of the level and the PV, then each branch's chance and its normal - in counts of the manifest's
-// step, each plane stored as its differences along longitude, then latitude, modulo 256.
+// the ensemble's 250 hPa wind to pick a transect on - a tap puts it along that longitude, a finger drags that line or,
+// from anywhere else, the map, "Draw a line" takes two taps or a drag for any straight line - and under it the section
+// along the transect: wind speed, potential temperature, the 2 PVU tropopause, then each jet branch's chance along it
+// against the ERA5 normal. Data: assets/sst/anim/jetbr_ifs_xs_manifest.json (same origin;
+// jet_branches_fc.write_sections) -> one file per lead on the frames branch, fetched through frames_root.js pinned to
+// the manifest's frames_sha: the gzip of uint8 planes on a (latitude south to north, longitude) grid - per pressure
+// level the wind speed, the potential temperature above the frame's theta0 of the level and the PV, then each
+// branch's chance and its normal - in counts of the manifest's step, each plane stored as its differences along
+// longitude, then latitude, modulo 256.
 (function () {
   "use strict";
   var root = document.getElementById("jxs-view");
@@ -22,6 +23,8 @@
   var OUTLINE = 0.5;     // the chance outlined on the map
   var KEEP = 6;          // decoded leads held
   var MIN_DEG = 5;       // a drawn line shorter than this is not a transect
+  var GRAB = 22;         // px: a finger this near the section's line drags it; from farther off it drags the map
+  var ARROW = 40;        // px: the top corners of a map of part of the circle, tapped for the next half of it
   var ISENTROPES = [270, 400, 10];   // K: first, last, spacing of the thin ones
   var DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -32,7 +35,7 @@
   var INK = tok("--ink", "#1c1c1a"), MUTED = tok("--muted", "#6f6b64"), RULE = tok("--rule", "#e4e2dc"), EDGE = tok("--edge", "#c9c5bb");
   var RGB = SPD_COL.map(function (h) { return [1, 3, 5].map(function (i) { return parseInt(h.slice(i, i + 2), 16); }); });
   var man = null, coast = [], cache = {}, recent = [], lead = 0, cur = null, centre = 180, tr = null, lining = false;
-  var anchor = null, drag = null, probe = null, G = {}, L = 0, LN = [], YF = [];
+  var anchor = null, drag = null, probe = null, about = "", queued = false, G = {}, L = 0, LN = [], YF = [];
   var shade = { key: "", cv: document.createElement("canvas") };
   var sect = { key: "", cv: document.createElement("canvas"), im: document.createElement("canvas"), S: null };
 
@@ -128,9 +131,8 @@
     G.span = Math.min(360, (G.lat1 - G.lat0) * W / MAP_MIN_H);
     G.west = centre - G.span / 2; G.mh = Math.round(W * (G.lat1 - G.lat0) / G.span);
     G.ml = Math.round(2.9 * G.fs); G.pw = W - G.ml - 10; G.mt = Math.round(G.fs / 2) + 3;
-    G.ph = Math.round(Math.max(150, Math.min(0.42 * W, 0.36 * window.innerHeight)));
-    G.st = G.mt + G.ph + G.fs + 14; G.sh = 76; G.H = G.st + G.sh + G.fs + 12;   // the chances' strip: its top, height
-    $("jxs-west").hidden = $("jxs-east").hidden = G.span >= 360;
+    G.ph = Math.round(Math.max(130, Math.min(0.42 * W, 0.36 * window.innerHeight)));
+    G.st = G.mt + G.ph + G.fs + 14; G.sh = W < 500 ? 60 : 76; G.H = G.st + G.sh + G.fs + 12;   // the chances' strip: its top, height
   }
   function size(cv, w, h) {   // a canvas drawn at the device's pixel density; returns its 2-D context in CSS pixels
     var r = window.devicePixelRatio || 1;
@@ -239,6 +241,13 @@
     }
     if (drag && drag.to) { c.beginPath(); trace(c, [drag.at, drag.to]); c.setLineDash([5, 4]); c.strokeStyle = INK; c.lineWidth = 2; c.stroke(); c.setLineDash([]); }
     if (anchor) dot(anchor);
+    if (G.span < 360) [0, 1].forEach(function (e) {   // the way west and east: an arrow in each top corner
+      var s = ARROW - 10, x = e ? G.W - s - 4 : 4, m = x + s / 2, y = 4 + s / 2, d = e ? 3 : -3;
+      c.fillStyle = "rgba(255,255,255,0.92)"; c.fillRect(x, 4, s, s);
+      c.strokeStyle = EDGE; c.lineWidth = 1; c.strokeRect(x + 0.5, 4.5, s - 1, s - 1);
+      c.beginPath(); c.moveTo(m - d, y - 6); c.lineTo(m + d, y); c.lineTo(m - d, y + 6);
+      c.strokeStyle = INK; c.lineWidth = 2; c.stroke();
+    });
     c.strokeStyle = EDGE; c.lineWidth = 1; c.strokeRect(0.5, 0.5, G.W - 1, G.mh - 1);
     function dot(p) { c.beginPath(); c.arc(mx(p[0]), my(p[1]), 4, 0, 2 * Math.PI); c.fillStyle = INK; c.fill(); c.strokeStyle = "#ffffff"; c.lineWidth = 1.5; c.stroke(); }
   }
@@ -371,18 +380,21 @@
       if (probe[1] <= G.mt + G.ph) { c.moveTo(G.ml, probe[1]); c.lineTo(G.ml + G.pw, probe[1]); }
       c.strokeStyle = "rgba(0,0,0,0.55)"; c.lineWidth = 1; c.stroke();
     }
-    $("jxs-read").textContent = probe ? values(probe[0], probe[1]) : "";
   }
 
   // ── the page's text and controls ──────────────────────────────────────────────────────────────────────────────
   function say(s) {   // a message in the run line's place
     $("jxs-status").textContent = s; $("jxs-status").hidden = !s; $("jxs-info").hidden = !!s;
   }
-  function off(s) { cur = null; root.classList.add("off"); $("jxs-info").textContent = ""; say(s); }
+  function tell() {   // the line over the section: what it holds under the pointer, or else the run and the transect
+    $("jxs-info").textContent = probe ? values(probe[0], probe[1]) : about;
+    $("jxs-info").classList.toggle("jxs-on", !!probe);
+  }
+  function off(s) { cur = probe = null; about = ""; root.classList.add("off"); tell(); say(s); }
   function words() {
     var f = man.frames[lead], miss = [], h = "";
     $("jxs-when").textContent = "Day " + round(f.lead_h / 24, 1) + ", " + when(f.valid);
-    $("jxs-info").textContent = man.model + " run of " + when(man.init).slice(4) + ", " + f.members + " members. Section along " +
+    about = man.model + " run of " + when(man.init).slice(4) + ", " + f.members + " members. Section along " +
       (tr.mer ? flon(tr.a[0], 1) : flat(tr.a[1], 1) + " " + flon(tr.a[0], 1) + " to " + flat(tr.b[1], 1) + " " + flon(tr.b[0], 1)) + ".";
     man.branches.forEach(function (b, m) {
       var ly = man.layers[b];
@@ -392,6 +404,7 @@
     h += '<span class="jxs-miss">Map outlines: a ' + round(100 * OUTLINE) + " % chance." +
       (miss.length ? " No chance drawn at this lead, where the odds did not beat the ERA5 rate on archived runs: " + miss.join(", ") + "." : "") + "</span>";
     $("jxs-leg").innerHTML = h;
+    tell();
   }
   function draw() {
     if (!cur) return;
@@ -418,29 +431,43 @@
     var p = where(mapCv, e);
     return [G.west + p[0] / G.W * G.span, Math.max(G.lat0, Math.min(G.lat1, G.lat1 - p[1] / G.mh * (G.lat1 - G.lat0)))];
   }
-  function tap(p) {
+  function tap(d) {
+    var p = d.at;
+    if (G.span < 360 && d.px[1] < ARROW && (d.px[0] < ARROW || d.px[0] > G.W - ARROW)) { centre += (d.px[0] < ARROW ? -1 : 1) * G.span / 2; draw(); return; }
     if (!lining) { meridian(p[0]); draw(); return; }
     if (anchor && long(anchor, p)) { line(anchor, p); anchor = null; say(""); draw(); return; }
     anchor = p; say("Tap the other end of the line."); drawMap();
   }
-  mapCv.addEventListener("pointerdown", function (e) {
+  function soon() {   // one redraw a frame while a finger moves
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(function () { queued = false; draw(); });
+  }
+  mapCv.addEventListener("pointerdown", function (e) {   // a mouse, or Draw a line: a line dragged out; a finger: the section's line, or the map
     if (!cur) return;
-    drag = { at: place(e), x: e.clientX, y: e.clientY, mouse: e.pointerType === "mouse", to: null };
-    if (drag.mouse) mapCv.setPointerCapture(e.pointerId);
+    var px = where(mapCv, e), mouse = e.pointerType === "mouse";
+    drag = { at: place(e), px: px, x: e.clientX, y: e.clientY, to: null, moved: false, centre: centre,
+      mode: mouse || lining ? "line" : tr.mer && Math.abs(px[0] - mx(tr.a[0])) <= GRAB ? "slide" : "pan" };
+    if (!mouse && probe) { probe = null; drawSection(); tell(); }
+    mapCv.setPointerCapture(e.pointerId);
   });
   mapCv.addEventListener("pointermove", function (e) {
-    if (!drag || !drag.mouse || Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 8) return;
-    drag.to = place(e); drawMap();
+    if (!drag || (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 10)) return;
+    drag.moved = true;
+    if (drag.mode === "line") { drag.to = place(e); drawMap(); return; }
+    if (drag.mode === "slide") meridian(G.west + Math.max(0, Math.min(1, where(mapCv, e)[0] / G.W)) * G.span);
+    else centre = drag.centre - (e.clientX - drag.x) / G.W * G.span;
+    soon();
   });
-  mapCv.addEventListener("pointerup", function (e) {
+  mapCv.addEventListener("pointerup", function () {
     var d = drag;
     drag = null;
     if (!d) return;
     if (d.to && long(d.at, d.to)) { line(d.at, d.to); anchor = null; say(""); draw(); }
-    else if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 12) tap(d.at);
-    else drawMap();
+    else if (!d.moved) tap(d);
+    else draw();
   });
-  mapCv.addEventListener("pointercancel", function () { drag = null; if (cur) drawMap(); });
+  mapCv.addEventListener("pointercancel", function () { drag = null; if (cur) draw(); });
   mapCv.addEventListener("keydown", function (e) {   // the arrows walk the section a grid column west or east
     var d = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0, lon;
     if (!d || !cur) return;
@@ -453,22 +480,20 @@
     if (!cur) return;
     var p = where(secCv, e);
     probe = p[0] >= G.ml && p[0] <= G.ml + G.pw && p[1] >= G.mt && p[1] <= G.st + G.sh ? p : null;
-    drawSection();
+    drawSection(); tell();
   }
   secCv.addEventListener("pointerdown", point);
   secCv.addEventListener("pointermove", point);
-  secCv.addEventListener("pointerleave", function (e) { if (e.pointerType === "mouse" && cur) { probe = null; drawSection(); } });
+  secCv.addEventListener("pointerleave", function (e) { if (e.pointerType === "mouse" && cur) { probe = null; drawSection(); tell(); } });
   slider.addEventListener("input", function () { show(+slider.value); });
   $("jxs-prev").onclick = function () { if (cur && lead > 0) show(lead - 1); };
   $("jxs-next").onclick = function () { if (cur && lead < man.frames.length - 1) show(lead + 1); };
   $("jxs-line").onclick = function () {
     lining = !lining; anchor = null;
-    this.setAttribute("aria-pressed", String(lining));
-    say(lining ? "Tap the two ends of a line on the map." : "");
+    this.setAttribute("aria-pressed", String(lining)); root.classList.toggle("lining", lining);
+    say(lining ? "Tap the two ends of a line on the map, or drag from one to the other." : "");
     if (cur) drawMap();
   };
-  $("jxs-west").onclick = function () { centre -= G.span / 2; draw(); };
-  $("jxs-east").onclick = function () { centre += G.span / 2; draw(); };
 
   function start() {
     if (man || !root.offsetParent) return;

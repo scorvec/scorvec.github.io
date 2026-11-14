@@ -678,6 +678,7 @@ VERSIONED = (
     "seas5-cards.js",
     "c3s-vortex-card.js",
     "wave-compass.js",
+    "jet_xsec.js",
     "verification/vcharts.js",
 )
 _ASSET_REF = re.compile(r"""(["'])(/?assets/(""" + "|".join(map(re.escape, VERSIONED)) + r"""))(?:\?v=\w*)?\1""")
