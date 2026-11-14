@@ -86,7 +86,7 @@ PRODUCTS = [
                     (
                         "/circulation.html#wcb",
                         "Warm conveyor belts",
-                        "The moist airstreams that rise through cyclones and build the ridges downstream: the share of the 50 IFS-ENS members with a belt's inflow, ascent and outflow over each point, 12-hourly to day 7, drawn where it is well above the usual frequency for the date.",
+                        "The moist airstreams that rise through cyclones and build the ridges downstream: the share of the 50 IFS-ENS members with a belt's inflow, ascent and outflow over each point, 12-hourly to day 7, drawn where it is well above the usual frequency for the date, and how fast their outflow is pushing the tropopause back.",
                         "Daily",
                         "Inflow, ascent and outflow in 50 members",
                     ),
