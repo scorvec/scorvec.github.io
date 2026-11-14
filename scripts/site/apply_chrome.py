@@ -24,15 +24,13 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 
 # ── the navigation, as data ──────────────────────────────────────────────────
-# Five menus BY THEME, with a catalogue for individual plots. The product menus hold products only;
-# the person (about, resume, publications, profiles) lives in PERSONAL, apart.
+# Five menus BY THEME. The product menus hold products only; the person (about, resume, publications, profiles)
+# lives in PERSONAL, apart.
 # A page lives under its topic whatever model it comes from. A group is (title, blurb, columns), its columns
 # (subtitle, items) and its items (href, label, what, when, note): the menus show the label with its short note,
-# the homepage rows (between <!-- hp:start --> and <!-- hp:end --> in index.html) the label with `what` as its
-# tooltip. One entry per product: the sections of a stage page (circulation.html#...,
-# stratosphere.html#...) that belong together share one entry, and the page's own section bar and the catalogue reach
-# the rest. Group titles are also the catalogue's topic labels (scripts/site/build_catalog.py TOPICS) - rename both
-# together.
+# the homepage tiles (between <!-- hp:start --> and <!-- hp:end --> in index.html) the blurb, then the same
+# subtitles and labels in the same order, with `what` as a label's tooltip. One entry per product: the sections of a stage page (circulation.html#...,
+# stratosphere.html#...) that belong together share one entry, and the page's own section bar reaches the rest.
 PRODUCTS = [
     # THEME-FIRST: Forecasts (the model maps and the days 1-15 weather) / Tropics / Stratosphere / Weeks to seasons /
     # Studies and tools. The tropical-cyclone products are diagnostic only. Products only (the person lives in
@@ -365,13 +363,6 @@ PRODUCTS = [
                 "Tools",
                 [
                     (
-                        "/catalog.html",
-                        "Every plot on the site",
-                        "One searchable sheet of every figure and loop, filterable by topic, model, forecast range and region, each linked to its exact view.",
-                        "Rebuilt with the pages",
-                        "Search and filter every figure",
-                    ),
-                    (
                         "/skewt/",
                         "Sounding explorer",
                         "Real-time and archived radiosondes worldwide, drawn and analysed in the browser, with launch history and record rings.",
@@ -405,7 +396,7 @@ PRODUCTS = [
     ),
 ]
 
-# Seasonal products left out of the menus, the homepage and the catalogue for now; their pages stay up.
+# Seasonal products left out of the menus and the homepage for now; their pages stay up.
 OFF_SEASON = {"/circulation.html#tc", "/recon.html"}  # tropical cyclones, until the next hurricane season
 PRODUCTS = [
     (title, blurb, [(sub, [item for item in items if item[0] not in OFF_SEASON]) for sub, items in columns])
@@ -519,7 +510,6 @@ PAGES = [
     dict(path="strat-models.html", mode="after-body"),  # stratosphere viewer (scripts/models/strat_maps.py), WebGL
     dict(path="ens-anomalies.html", mode="after-body"),  # world ensemble viewer (scripts/ensmaps/ensmaps.py), WebGL
     # snowbands.html: retired, now a noindex redirect stub to models.html#hrrr/sbing (no chrome)
-    dict(path="catalog.html", mode="after-body"),  # every plot on the site (scripts/site/build_catalog.py)
     dict(path="aifs-aam-budget.html", mode="after-body"),  # static study, built offline
     dict(path="torque-enso.html", mode="after-body"),  # static study, scripts/mjo/src/torque_enso_page.py
     dict(path="about.html", mode="after-body"),  # the person: bio, resume, publications, profiles
@@ -822,105 +812,40 @@ def header_html(page: str, skin: str, skip: bool = False) -> str:
     return "\n".join(out).replace(" aria-current=page", ' aria-current="page"')
 
 
-# The homepage shows the menus' five themes as tiles: per theme a one-line purpose, its key pages as plain
-# links (the long descriptions live in the menus' pages and the catalogue) and a link to the theme's plots in the
-# catalogue. HOME: group title -> (catalogue topic id, short purpose, featured hrefs in order). A group missing here
-# features its first six pages.
-HOME = {
-    "Forecasts": (
-        "weather",
-        "The newest model runs, zoomable, and the next two weeks' storms and flow aloft",
-        [
-            "/models.html",
-            "/samerica-models.html",
-            "/ens-anomalies.html",
-            "/ar.html",
-            "/circulation.html#dt",
-            "/circulation.html#telecon15",
-        ],
-    ),
-    "Tropics": (
-        "drivers",
-        "El Niño, the MJO, the tropical waves and the overturning cells",
-        [
-            "/enso.html",
-            "/mjo.html",
-            "/tropical-waves.html",
-            "/circulation.html#walker",
-            "/circulation.html#mslp",
-            "/circulation.html#rainfc",
-            "/circulation.html#troughs",
-        ],
-    ),
-    "Stratosphere": (
-        "circulation",
-        "The polar vortex from the next two weeks to the season, and the QBO",
-        [
-            "/ssw.html",
-            "/stratosphere.html#vortex",
-            "/stratosphere.html#vortex35",
-            "/strat-models.html",
-            "/stratosphere.html#qbo",
-            "/stratosphere.html#shwinters",
-        ],
-    ),
-    "Weeks to seasons": (
-        "outlooks",
-        "Extended ensembles to day 35, Claude's long-range forecast and the seasonal models",
-        ["/subseasonal.html", "/gefs.html", "/monthly-outlook.html", "/seasonal.html", "/enso-forecasts.html"],
-    ),
-    "Studies and tools": (
-        "research",
-        "What the record and the models say, how forecasts score, and the data to explore",
-        [  # the third stack's only tile: as long as the two beside it
-            "/verification.html",
-            "/enso.html#imp_reg",
-            "/mjo.html#mi",
-            "/aifs-aam-budget.html",
-            "/torque-enso.html",
-            "/catalog.html",
-            "/skewt/",
-            "/climate.html",
-        ],
-    ),
+# The homepage shows the menus as tiles, one per theme (homepage_rows). HOME_ACCENT: group title -> the tile's
+# data-topic, its accent colour in index.html.
+HOME_ACCENT = {
+    "Forecasts": "weather",
+    "Tropics": "drivers",
+    "Stratosphere": "circulation",
+    "Weeks to seasons": "outlooks",
+    "Studies and tools": "research",
 }
-# The tiles in three stacks that each run straight down, so a short tile leaves no hole beside a long one: the
-# forecasts, what drives them, then the studies and tools. A group missing here joins the last stack.
+# The tiles in three stacks that each run straight down, so a short tile leaves no hole beside a long one. Read down
+# the stacks (and in the one- and two-column layouts) the themes come in the menus' order. A group missing here
+# joins the last stack.
 HOME_COLUMNS = (
-    ("Forecasts", "Weeks to seasons"),
-    ("Tropics", "Stratosphere"),
+    ("Forecasts", "Tropics"),
+    ("Stratosphere", "Weeks to seasons"),
     ("Studies and tools",),
 )
 
 
 def homepage_rows() -> str:
-    """The homepage theme tiles (index.html, between <!-- hp:start --> and <!-- hp:end -->), from PRODUCTS + HOME. Each
-    link carries its page's one-line description as a tooltip."""
+    """The homepage theme tiles (index.html, between <!-- hp:start --> and <!-- hp:end -->), from PRODUCTS: a menu's
+    columns and links as the menu lists them. Each link carries its page's one-line description as a tooltip."""
 
     def esc(t):
         return t.replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;")
 
     tiles = {}
     for title, blurb, columns in PRODUCTS:
-        allit = group_items(columns)
-        by = {h: (lab, what) for h, lab, what, *_ in allit}
-        topic, short, feat = HOME.get(title, (None, blurb, [h for h, *_ in allit if "#" not in h][:6]))
-        feat = [h for h in feat if h in by]
-        rest = [h for h, *_ in allit if h not in feat]
-
-        def li(h, by=by):
-            return f'            <li><a href="{h}" title="{esc(by[h][1])}">{by[h][0]}</a></li>'
-
-        tile = [f'        <section class="sg" data-topic="{topic or ""}">']
-        tile.append(f"          <h3>{title}</h3>\n          <p>{short}</p>\n          <ul>")
-        tile += [li(h) for h in feat]
-        tile.append("          </ul>")
-        if rest:  # the theme's other pages, one tap away instead of on show
-            tile.append(f'          <details class="sg-more"><summary>{len(rest)} more</summary>\n            <ul>')
-            tile += ["  " + li(h) for h in rest]
-            tile.append("            </ul>\n          </details>")
-        if topic:
-            tile.append(f'          <a class="sg-all" href="/catalog.html?topic={topic}">All plots in this theme</a>')
+        tile = [f'        <section class="sg" data-topic="{HOME_ACCENT.get(title, "")}">']
+        tile.append(f"          <h3>{title}</h3>\n          <p>{blurb}</p>")
+        for sub, items in columns:
+            tile.append(f"          <h4>{sub}</h4>\n          <ul>")
+            tile += [f'            <li><a href="{h}" title="{esc(what)}">{lab}</a></li>' for h, lab, what, *_ in items]
+            tile.append("          </ul>")
         tile.append("        </section>")
         tiles[title] = tile
     stacks = [[t for t in col if t in tiles] for col in HOME_COLUMNS]
@@ -974,7 +899,6 @@ def footer_html(dark: bool) -> str:
     cls = "sf" + (" sf--dark" if dark else "")
     site = [
         ("/", "Home"),
-        ("/catalog.html", "Every plot"),
         ("/topics/", "Explainers"),
         ("/stats.html", "Visitor stats"),
     ]

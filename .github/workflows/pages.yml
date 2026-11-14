@@ -60,9 +60,9 @@ jobs:
           filter: blob:none       # ... from commits and trees only; the checkout itself fetches the current files
       - name: Configure Pages
         uses: actions/configure-pages@v6
-      # Product freshness for the catalogue (scripts/site/status.py): how old each product's data is, from the
-      # stamp in its own data file (commit time only where a product has none). Written into the artifact only,
-      # never committed; a failure leaves the catalogue without "updated ... ago" lines rather than failing the deploy.
+      # Product freshness for the sitemap (scripts/site/status.py): when each product's data was built, from the
+      # stamp in its own data file (commit time only where a product has none). Never committed or served; a
+      # failure leaves the product pages dated by their last commit rather than failing the deploy.
       - name: Product freshness (status.json)
         env:
           GITHUB_TOKEN: ${{ github.token }}

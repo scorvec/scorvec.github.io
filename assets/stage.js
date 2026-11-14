@@ -552,7 +552,7 @@
   });
   // The hash is positional, #product/a/b/c. An option row a product does not have is written as an empty slot when a
   // later one follows (#pacjet/axis//ifs) and trailing empty slots are dropped. Dropping middle ones too (the writer
-  // before 2026-10-16, and the catalogue's variant links) shifted the next value into the wrong row, so #pacjet/axis/ifs
+  // before 2026-10-16) shifted the next value into the wrong row, so #pacjet/axis/ifs
   // reloaded as AIFS. The reader takes both forms: a slot is consumed only by a row the product has (an empty slot
   // where it has none is skipped), so the earlier links still land on their view.
   function hashOf(s) {

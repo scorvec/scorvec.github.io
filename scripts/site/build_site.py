@@ -9,7 +9,7 @@ Runs in pages.yml after scripts/site/status.py and writes the directory that is 
     keeps its Last-Modified and ETag from one deploy to the next and a returning browser gets a 304; a fresh checkout
     would date every file to the moment of the deploy;
   - sitemap.xml with a lastmod for every indexable page (no noindex, canonical to itself): a product page by the
-    newer of its own data stamp (status.json, the catalogue's freshness) and its last commit, any other page by its
+    newer of its own data stamp (status.json) and its last commit, any other page by its
     last commit. The pages listed in the committed sitemap.xml keep their order; an indexable page it misses is added.
 
 --check then reads every page, script and stylesheet in the artifact for the same-origin paths it names (src, href,
@@ -42,7 +42,6 @@ ROOT_FILES = ("CNAME", "robots.txt", "sitemap.xml")
 EXCLUDE = {
     "assets/verify/aifs_scores_v2.json",  # 12 MB of station scores: the input of scripts/verify, read by no page
 }
-GENERATED = ("status.json",)  # written by this deploy (scripts/site/status.py), never committed
 
 
 def deployable(path: str) -> bool:
@@ -81,7 +80,7 @@ def assemble(out: Path, times: dict[str, int]) -> tuple[int, int]:
     now = time.time()
     n = size = 0
     files = [p for p in git("ls-files", "-z").split("\0") if p and deployable(p)]
-    for rel in files + [g for g in GENERATED if (REPO / g).is_file()]:
+    for rel in files:
         src, dst = REPO / rel, out / rel
         if not src.is_file():  # a tracked file this checkout does not have (sparse) or a submodule
             continue

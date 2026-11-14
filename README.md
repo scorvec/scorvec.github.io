@@ -14,7 +14,7 @@ GitHub Pages.
 | Stratosphere | polar vortex and E–P flux (AIFS-ENS, IFS-ENS, GEFS), 100 hPa heat flux, QBO, Brewer–Dobson circulation, sudden-warming history |
 | Weeks to seasons | GEPS and GEFS days 1–35, SEAS5 and the C3S multi-system seasonal maps, NOAA SFS, regimes and teleconnections, Claude's month-ahead forecast (ERA5 statistics + GEFS) |
 | Studies and verification | AIFS verification, angular-momentum budgets of AI and physics models, El Niño and angular momentum |
-| Tools | searchable plot catalogue, sounding explorer, five-minute airport observations, US climate trends, US credit conditions |
+| Tools | sounding explorer, five-minute airport observations, US climate trends, US credit conditions |
 
 Methods, data sources and citations are documented on each page; [topics/](topics/) holds the explainers.
 
@@ -59,7 +59,7 @@ published.
 assets/              site JS/CSS, generated figures and data (written by the workflows)
 scripts/<product>/   the pipeline of each product (sst, mjo, strat, geps, gefs, sfs, models, skewt, …)
 scripts/lib/         shared helpers (frame store, locking, publishing)
-scripts/site/        site chrome, catalogue and topic-page generators
+scripts/site/        site chrome, guide and topic-page generators
 scripts/watch/       upstream-change watches (GFS v17 upgrade notices; opens an issue when something is new)
 topics/  studies/    explainers and study pages
 skewt/   qbo/        self-contained apps

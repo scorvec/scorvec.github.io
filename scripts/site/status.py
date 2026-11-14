@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Product freshness for the catalogue: when each product last published, next to how often it is meant to update.
+"""When each product last published, for the sitemap's lastmod (scripts/site/build_site.py).
 
-Runs in pages.yml on every deploy and writes status.json into the site artifact (never committed). Each product is
-dated by the stamp it carries itself, read from the deploy's checkout:
+Runs in pages.yml on every deploy and writes status.json for the build (never committed, never served). Each product
+is dated by the stamp it carries itself, read from the deploy's checkout:
   stamp   a timestamp field inside a product file on main: `generated` (build time), a manifest's `ver` (build time
           in epoch seconds), or the forecast `init` where a product records nothing else. `stamps` lists several
           producers of one page, which is dated by the newest of them.
@@ -11,11 +11,6 @@ dated by the stamp it carries itself, read from the deploy's checkout:
 Commit times on main are not used while a stamp can be read: the repository history is squashed now and then, which
 makes every file look as new as the squash. A product whose stamp cannot be read falls back to the last commit
 touching that file (GitHub API, the workflow's own token).
-
-`every_h` is the product's normal interval and `late_h` the age past which the catalogue calls it late:
-2 x every_h + 6 h up to daily products (Actions schedules slip by hours, so anything tighter would cry wolf),
-one day past the interval for the twice-weekly ones and a week past it for the monthly ones, whose issue dates
-wander by a few days.
 
     python scripts/site/status.py --out status.json          # GITHUB_TOKEN in the environment, else anonymous (60/h)
 """
@@ -36,59 +31,43 @@ API = "https://api.github.com/repos/" + REPO
 STORE = "https://scorvec-store.b-cdn.net/"  # the frames store (Bunny Storage, scripts/lib/frames_store.py)
 SITE = Path(__file__).resolve().parents[2]
 
-# homepage href -> (normal interval in hours, source); a stamp is (file on main, field)
+# homepage href -> source; a stamp is (file on main, field)
 PRODUCTS = {
-    "/enso.html": (24, {"stamp": ("assets/sst/data/enso_daily.json", "generated")}),
-    "/skewt/": (6, {"branch": "skewt-data"}),
-    "/climate.html": (744, {"json": "assets/climate/anim/data/meta.json", "field": "generated"}),
-    "/ar.html": (12, {"stamp": ("assets/ar/anim/ar_det_manifest.json", "generated")}),
-    "/mjo.html": (12, {"stamp": ("assets/mjo/rmm_manifest.json", "ver")}),
-    "/circulation.html": (24, {"stamp": ("assets/sst/anim/aam_zonal_manifest.json", "ver")}),
+    "/enso.html": {"stamp": ("assets/sst/data/enso_daily.json", "generated")},
+    "/skewt/": {"branch": "skewt-data"},
+    "/climate.html": {"json": "assets/climate/anim/data/meta.json", "field": "generated"},
+    "/ar.html": {"stamp": ("assets/ar/anim/ar_det_manifest.json", "generated")},
+    "/mjo.html": {"stamp": ("assets/mjo/rmm_manifest.json", "ver")},
+    "/circulation.html": {"stamp": ("assets/sst/anim/aam_zonal_manifest.json", "ver")},
     # AIFS-ENS (strat.yml) and IFS-ENS (strat-ifs.yml) products: neither records more than its cycle
-    "/stratosphere.html": (
-        12,
-        {"stamps": [("assets/sst/data/heatflux100.json", "init"), ("assets/sst/data/ifs_heatflux100.json", "init")]},
-    ),
-    "/subseasonal.html": (96, {"stamp": ("assets/geps/telecon.json", "generated")}),
-    "/gefs.html": (24, {"stamp": ("assets/gefs/data/gefs.json", "generated")}),
-    "/enso-forecasts.html": (744, {"stamp": ("assets/sst/data/enso_forecast.json", "generated")}),
+    "/stratosphere.html": {
+        "stamps": [("assets/sst/data/heatflux100.json", "init"), ("assets/sst/data/ifs_heatflux100.json", "init")]
+    },
+    "/subseasonal.html": {"stamp": ("assets/geps/telecon.json", "generated")},
+    "/gefs.html": {"stamp": ("assets/gefs/data/gefs.json", "generated")},
+    "/enso-forecasts.html": {"stamp": ("assets/sst/data/enso_forecast.json", "generated")},
     # seasonal.html holds the C3S/SEAS5 and NOAA SFS groups: dated by the newer of the two
-    "/seasonal.html": (
-        744,
-        {
-            "stamps": [
-                ("assets/sst/data/c3s_indices.json", "generated"),
-                ("assets/sfs/data/sfs_indices.json", "generated"),
-            ]
-        },
-    ),
-    "/verification.html": (24, {"stamp": ("assets/verification/scores.json", "generated")}),
+    "/seasonal.html": {
+        "stamps": [
+            ("assets/sst/data/c3s_indices.json", "generated"),
+            ("assets/sfs/data/sfs_indices.json", "generated"),
+        ]
+    },
+    "/verification.html": {"stamp": ("assets/verification/scores.json", "generated")},
     # the South America viewer: the newer of its two models' manifests (scripts/models/samerica.py, twice daily each)
-    "/samerica-models.html": (
-        12,
-        {"stamps": [("assets/models/sa_ifs.json", "updated"), ("assets/models/sa_gdps.json", "updated")]},
-    ),
+    "/samerica-models.html": {
+        "stamps": [("assets/models/sa_ifs.json", "updated"), ("assets/models/sa_gdps.json", "updated")]
+    },
     # the stratosphere viewer: the newest of its four models' manifests (scripts/models/strat_maps.py, twice daily each)
-    "/strat-models.html": (
-        12,
-        {
-            "stamps": [
-                ("assets/models/strat_gfs.json", "updated"),
-                ("assets/models/strat_gdps.json", "updated"),
-                ("assets/models/strat_aifs.json", "updated"),
-                ("assets/models/strat_geos.json", "updated"),
-            ]
-        },
-    ),
+    "/strat-models.html": {
+        "stamps": [
+            ("assets/models/strat_gfs.json", "updated"),
+            ("assets/models/strat_gdps.json", "updated"),
+            ("assets/models/strat_aifs.json", "updated"),
+            ("assets/models/strat_geos.json", "updated"),
+        ]
+    },
 }
-
-
-def late_after(every_h: float) -> float:
-    if every_h <= 24:
-        return 2 * every_h + 6
-    if every_h <= 168:
-        return every_h + 24
-    return every_h + 168
 
 
 def get(url: str, api: bool = True):
@@ -166,10 +145,10 @@ def main() -> int:
     out = {"generated": dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"), "products": {}}
 
     def one(item):
-        href, (every, src) = item
+        href, src = item
         try:
             when, basis = updated(src)
-            return href, {"updated": when, "every_h": every, "late_h": late_after(every), "basis": basis}
+            return href, {"updated": when, "basis": basis}
         except Exception as e:  # noqa: BLE001  one bad source must not sink the rest
             print(f"  {href}: {str(e)[:120]}", file=sys.stderr)
             return href, None

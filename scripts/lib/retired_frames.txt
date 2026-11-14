@@ -59,3 +59,6 @@ assets/sst/anim/natemp_anom
 assets/sst/anim/natemp_change
 assets/sst/anim/natemp_geps_anom
 assets/sst/anim/natemp_geps_change
+
+# Retired 2026-11-14: the plot catalogue's thumbnails (catalog.html and its index are gone).
+assets/site/thumbs
