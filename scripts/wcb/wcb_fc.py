@@ -522,6 +522,14 @@ def frame(pr, i, out, dpi=90):
     plt.close(fig)
 
 
+def belt_ridging(pr):
+    """Per lead: the fastest lowering of potential vorticity the members agree on (PVU per day, positive) where at
+    least BELT_LEV[0] % of them have a belt's outflow drawn; nan at a lead without one."""
+    k = STAGE.index("outflow")
+    inside = pr["shown"][:, k] & (100 * pr["share"][:, k] >= BELT_LEV[0]) & pr["sure"]
+    return np.array([max(-a[m].min(), 0.0) if m.any() else np.nan for a, m in zip(pr["adv"], inside)])
+
+
 def frame_pv(pr, i, out, dpi=90):
     """One lead: the rate at which the irrotational wind advects the potential vorticity at the middle of PV_LEVS,
     where the members agree on its sign, with the median member's tropopause there and the outflow's share."""
@@ -599,7 +607,15 @@ def render(fc_path, root, out_dir):
     agreed_adv = np.where(pr["sure"] & pr["band"], pr["adv"], 0.0)
     low, high = agreed_adv.min(axis=(1, 2)), agreed_adv.max(axis=(1, 2))
     belts = _loop(out_dir / "anim" / NAME, pr, frame, lambda i: f"outflow up to {peak[i, STAGE.index('outflow')]:.0f}%")
-    pv = _loop(out_dir / "anim" / PV_NAME, pr, frame_pv, lambda i: f"ridge building up to {abs(low[i]):.1f} PVU/day")
+    ridging = belt_ridging(pr)
+    pv = _loop(
+        out_dir / "anim" / PV_NAME,
+        pr,
+        frame_pv,
+        lambda i: (
+            f"ridge building up to {ridging[i]:.1f} PVU/day in the outflow" if ridging[i] > 0 else "no ridge building"
+        ),
+    )
     mani = {
         "ver": int(time.time()),
         "regions": {
@@ -622,6 +638,7 @@ def render(fc_path, root, out_dir):
             members=[int(x) for x in run["pv_members"]],
             lowest_pvu_day=[round(float(x), 2) for x in low],
             highest_pvu_day=[round(float(x), 2) for x in high],
+            outflow_ridging_pvu_day=[None if np.isnan(x) else round(float(x), 2) for x in ridging],
         ),
         fetch=run["cost"],
     )

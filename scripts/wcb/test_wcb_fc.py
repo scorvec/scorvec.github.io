@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Offline checks of wcb_fc.py: the reduction of the open data's 0.25 degree rows to the networks' 1 degree grid
 against fields with known box means, the leads a fetch serves, the risk map's test on synthetic footprints, and the
-potential vorticity, its advection and the members' sign test against atmospheres with known answers.
+potential vorticity, its advection, the members' sign test and the outflow's ridge building against known answers.
 
     python scripts/wcb/test_wcb_fc.py
 """
@@ -151,6 +151,24 @@ def test_agreed():
     sure = W.agreed(neg, n, where)
     check(sure[40:44, 100:110].all() and sure[60:64, 200:210].all(), "kept where the members share a sign")
     check(sure.sum() == 80, f"and nowhere else: {int(sure.sum())}")
+
+
+def test_belt_ridging():
+    k, shape = W.STAGE.index("outflow"), (3, len(W.STAGE), E.LAT.size, E.LON.size)
+    pr = dict(shown=np.zeros(shape, bool), share=np.zeros(shape, np.float32), sure=np.ones(shape[:1] + shape[2:], bool))
+    pr["adv"] = np.zeros(shape[:1] + shape[2:])
+    pr["adv"][:, 70, 5] = -9.0  # away from any belt
+    pr["shown"][:2, k, 40:44, 100:110] = True
+    pr["share"][0, k, 40:44, 100:110] = 0.6
+    pr["share"][1, k, 40:44, 100:110] = 0.1  # drawn, but under the lowest contour
+    pr["adv"][0, 40:44, 100:110] = -2.5
+    pr["adv"][0, 41, 105] = -4.0
+    pr["sure"][0, 41, 105] = False  # the members do not agree there
+    got = W.belt_ridging(pr)
+    check(got[0] == 2.5, f"the fastest agreed lowering inside the outflow: {got[0]}")
+    check(np.isnan(got[1]) and np.isnan(got[2]), "nan without a belt's outflow at the lowest contour")
+    pr["adv"][0, 40:44, 100:110] = 1.0
+    check(W.belt_ridging(pr)[0] == 0.0, "none where the outflow only raises it")
 
 
 def test_cyclic():
