@@ -1,0 +1,38 @@
+name: Warm conveyor belts (ELIAS 2.0 models)
+
+# Dispatch-only fetch of the published models that identify warm conveyor belts from gridded fields: ELIAS 2.0
+# (Quinting and Grams 2022, Geosci. Model Dev. 15, 715-730), convolutional networks for the inflow, the ascent and
+# the outflow of the belts trained on trajectories in ERA-Interim, with their decision thresholds and the 30-day
+# climatology. Archive: Zenodo, doi:10.5281/zenodo.5154980 (CC BY 4.0), checked against its published checksum.
+# The run lists the archive and keeps its code and text files as an artifact.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Fetch the archive
+        run: |
+          set -euo pipefail
+          UA="scorvec.com warm conveyor belts (+https://scorvec.com)"
+          curl -fsSL --retry 3 -A "$UA" -o wcbmetric_v2.zip "https://zenodo.org/records/5154980/files/wcbmetric_v2.zip?download=1"
+          echo "dbea2b2f3d836fb3190b3ca2b2e0c0bc  wcbmetric_v2.zip" | md5sum -c -
+          mkdir archive && unzip -q wcbmetric_v2.zip -d archive
+          (cd archive && find . -type f -printf '%10s  %p\n' | sort -k2)
+      - name: Keep the code and text files
+        run: |
+          set -euo pipefail
+          mkdir text
+          (cd archive && find . -type f -size -400k \( -name '*.py' -o -name '*.md' -o -name '*.txt' -o -name '*.sh' \
+            -o -name '*.json' -o -name '*.yml' -o -name '*.yaml' -o -name '*.cfg' -o -name 'README*' -o -name 'LICEN*' \) \
+            -print0 | xargs -0 -r cp --parents -t ../text)
+      - uses: actions/upload-artifact@v7
+        with:
+          name: wcb-elias-text
+          path: text
+          retention-days: 7
