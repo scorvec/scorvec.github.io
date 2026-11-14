@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Offline checks of jet_branches.py (the grid reduction, the wind layer mean, the gradient, the season calendar, the
-groups, the identification on a synthetic stepped tropopause) and of the event rules of build_jet_branches_ref.py.
+groups, the identification on a synthetic stepped tropopause) and of the event rules and the candidate
+identifications of build_jet_branches_ref.py.
 
     python scripts/mjo/src/test_jet_branches.py
 
@@ -184,6 +185,46 @@ def test_near():
     check(np.array_equal(got, d <= JB.NEAR_KM), f"near: {int((got != (d <= JB.NEAR_KM)).sum())} columns differ")
     check(np.array_equal(JB.near(np.stack([m, ~m]))[0], got), "near over a stack")
     check(not JB.near(np.zeros_like(m)).any(), "near of nothing")
+
+
+def test_candidates():
+    rows = {la: int(np.flatnonzero(np.isclose(JB.LAT, la))[0]) for la in (30.0, 39.5, 40.5, 50.0, 60.0)}
+    lon = JB.LON
+
+    def ring(lo0, lo1):
+        return (lon >= lo0) & (lon <= lo1) if lo0 <= lo1 else (lon >= lo0) | (lon <= lo1)
+
+    # ribbons: 12 degrees across the seam at 30N (1,160 km, each half 580 km), 8 degrees at 60N (440 km), and two
+    # diagonals from 40N of 20 and 10 steps (70 km a step)
+    m = np.zeros((JB.LAT.size, lon.size), bool)
+    m[rows[30.0], ring(354.0, 6.0)] = True
+    m[rows[60.0], ring(100.0, 108.0)] = True
+    for j0, steps in ((200, 20), (400, 10)):
+        k = np.arange(steps + 1)
+        m[rows[40.5] + k, j0 + k] = True
+    got = B.ribbons(m)
+    want = m.copy()
+    want[rows[60.0]] = False
+    want[rows[40.5] : rows[40.5] + 11, 400:411] = False
+    check(np.array_equal(got, want), f"ribbons: {int((got != want).sum())} columns differ")
+    check(not B.ribbons(np.zeros_like(m)).any(), "ribbons of nothing")
+
+    # the candidates: 100-160E a polar jet at 50N over a shallow subtropical jet at 30N; 200-260E the two walls a
+    # degree apart (111 km), the subtropical one under a deep jet
+    polar, stj = np.zeros_like(m), np.zeros_like(m)
+    polar[rows[50.0], ring(100.0, 160.0)] = stj[rows[30.0], ring(100.0, 160.0)] = True
+    polar[rows[40.5], ring(200.0, 260.0)] = stj[rows[39.5], ring(200.0, 260.0)] = True
+    vbar = np.full(m.shape, 40.0)
+    speed500 = np.where(ring(200.0, 260.0), 35.0, 10.0) * np.ones(m.shape)  # shear 0.125 and 0.75
+    main = {"polar": polar, "stj": stj, "sup": polar & stj}
+    out = dict(zip(B.CANDIDATES, B.candidates(main, vbar, speed500)))
+    wall = (polar | stj) & ring(200.0, 260.0)
+    check(np.array_equal(out["ribbon"]["polar"], polar) and not out["ribbon"]["sup"].any(), "ribbon")
+    check(np.array_equal(out["tol"]["sup"], wall), f"tol: {int(out['tol']['sup'].sum())} superposed columns")
+    for x in B.SHALLOW:
+        c = out[f"shallow_{x:g}"]
+        check(np.array_equal(c["stj"], stj & ring(100.0, 160.0)), f"shallow_{x:g}: the subtropical jet")
+        check(np.array_equal(c["polar"], polar | wall) and np.array_equal(c["sup"], wall), f"shallow_{x:g}: polar")
 
 
 def test_masks_025():
