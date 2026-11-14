@@ -282,8 +282,9 @@ jobs:
           B="${{ inputs.budget_min || '200' }}"; [ "$LEFT" -lt "$B" ] && B=$LEFT
           echo "hindcast budget ${B} min (job time left after margin: ${LEFT} min)"
           if [ "$B" -le 5 ]; then echo "::warning::no time left for hindcast tables this run - building with what is there"; exit 0; fi
-          # hard stop 20 min before the job timeout, whatever an in-flight CDS request is doing, so the build always runs
-          TL=$(( 340 - ( $(date +%s) - ${JOB_T0:-$(date +%s)} ) / 60 - 20 ))
+          # hard stop 45 min before the job timeout, whatever an in-flight CDS request is doing: the build takes ~17 min,
+          # then the uploads and the commit
+          TL=$(( 340 - ( $(date +%s) - ${JOB_T0:-$(date +%s)} ) / 60 - 45 ))
           TABLES_FETCH=1 BUDGET_MIN="$B" timeout --signal=INT "${TL}m" \
             scripts/sst/run_seas5.sh tables "${{ steps.gate.outputs.issue }}" || echo "::warning::some hindcast tables are still missing (or the step hit its ${TL}-min stop)"
 
