@@ -220,7 +220,7 @@ def test_ribbons():
     for lon0 in np.arange(100.0, 130.0, 4.0):
         dashed[row(50.0), ring(lon0, lon0 + 3.0)] = True
     dashed[row(20.0), ring(100.0, 103.0)] = True
-    check(not JB.ribbons(dashed).any(), "no dash is a jet")
+    check(not JB.ribbons(dashed, gap=0.0).any(), "no dash is a jet")
     want = dashed.copy()
     want[row(20.0)] = False
     check(np.array_equal(JB.ribbons(dashed, gap=200.0), want), "dashes 71 km apart are one jet, the lone dash none")

@@ -11,18 +11,21 @@ In the papers a polar and a subtropical column at the same place and time is a j
 tropopause wall from the polar to the tropical tropopause instead of two steps.
 
 Three rules turn those columns into the jets (`identify`):
-  ribbon    a jet is long: a connected piece of a branch's columns counts only when it spans RIBBON_KM. The criteria
-            alone leave short pieces scattered off the jets, a subtropical one far poleward among them.
+  ribbon    a jet is long: a piece of a branch's columns counts only when it spans RIBBON_KM, pieces within GAP_KM
+            of each other being one piece (along a jet the gradient dips under the threshold for a few columns). The
+            criteria alone leave short pieces scattered off the jets, a subtropical one far poleward among them.
   wall      the tropopause wall tilts, so the two layers' gradients need not share a 0.5 deg column: a superposition
             is where a polar and a subtropical ribbon lie within WALL_KM of each other, at the columns of both.
   depth     a subtropical jet is shallow: its 400-100 hPa wind exceeds the 500 hPa speed by more than SHALLOW of
             itself (the shallow and deep jets of Koch et al. 2006). A deep column that meets the subtropical criteria
             counts as polar - the 340-355 K gradient under a deep polar jet's tropopause fold. The superposition is
             read before this rule: where the jets superpose, the single jet is deep.
-On ERA5 1991-2020 (build_jet_branches_ref.py) the criteria alone put 5 % of the subtropical jet's columns north of
+On ERA5 1991-2020 (build_jet_branches_ref.py) the criteria alone put 7 % of the subtropical jet's columns north of
 45N and find the western Pacific superposition a third to a half as often as the published climatology; with the
-three rules 1 % lie north of 45N and the superposition frequency falls in the published range. A SHALLOW of 0.4 or
-more labels the East Asian jet polar. SCHEME names this identification: the ERA5 reference and the skill file a
+three rules 2 % lie north of 45N and the superposition is found at the top of the published range or a little above
+it (at most 2.2 % of analyses east of Japan for a published 1-2 %, 1.1 % over the southeastern United States for
+about 0.5 %). Without the gap the jets come out in pieces: a third fewer polar columns, a fifth fewer subtropical
+ones and little over half the superposed ones. A SHALLOW of 0.4 or more labels the East Asian jet polar. SCHEME names this identification: the ERA5 reference and the skill file a
 forecast reads must have been made with it.
 
 How the papers' wording is applied here (they name the quantities, not the arithmetic):
@@ -94,10 +97,10 @@ LINK_KM = 1000.0  # superposed columns within this distance of each other form o
 TRACK_KM, TRACK_H = 1500.0, 30.0  # an event continues one whose centre was this close this recently (Winters et al.)
 NEAR_KM = 300.0  # the maps' neighbourhood: a branch within this distance of the column
 RIBBON_KM = 1000.0  # a connected piece of a branch's columns shorter than this is not a jet
-GAP_KM = 0.0  # pieces of a branch this close to each other are one piece (0: only touching columns)
+GAP_KM = 200.0  # pieces of a branch this close to each other are one piece (0: only touching columns)
 WALL_KM = 150.0  # ribbons of the two branches this close to each other are one wall: a superposition
 SHALLOW = 0.3  # a subtropical jet: (400-100 hPa wind - 500 hPa speed) / 400-100 hPa wind above this
-SCHEME = "ribbon-wall-depth"  # the identification, as the reference and skill files name it
+SCHEME = "ribbon-gap-wall-depth"  # the identification, as the reference and skill files name it
 KM_DEG = np.deg2rad(1.0) * A_EARTH / 1000.0
 SMOOTH_HALF = 15  # days: the climatology is a centred 31-day window over the season
 XS_BLOCK = 3  # the cross-sections' volume: the mean of this many LON columns (1.5 deg)

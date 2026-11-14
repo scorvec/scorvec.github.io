@@ -92,7 +92,7 @@ R1_LAT = R1_BAND[JB.output_rows(R1_BAND)]
 METHODS = ("mean", "iso", "mass")
 R1_NAMES = ("r1", "r1_iso", "r1_mass")  # the METHODS on the 2.5 deg grid
 SHALLOW = (0.4, 0.5)  # the depth rule's share, beside the product's
-GAPS = (100.0, 200.0, 300.0)  # km: the ribbon rule's gap, beside the product's
+GAPS = (0.0, 100.0, 300.0)  # km: the ribbon rule's gap, beside the product's
 HIST_EDGES = np.linspace(-7.0, -3.0, 401)  # log10 of the in-channel |grad PV| (PVU/m)
 # one row per event: its first and last analysis, how many analyses it held, its largest group, its first centre
 NEAR_BATCH = 64  # analyses dilated at once in the combine
@@ -376,6 +376,7 @@ def combine(paths, release_dir, figure=None, allow_partial=False):
         threshold_stj=JB.THRESH["stj"],
         wind_min=JB.V_MIN,
         ribbon_km=JB.RIBBON_KM,
+        gap_km=JB.GAP_KM,
         wall_km=JB.WALL_KM,
         shallow=JB.SHALLOW,
     )
