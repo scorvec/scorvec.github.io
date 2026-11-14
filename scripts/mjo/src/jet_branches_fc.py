@@ -83,6 +83,7 @@ CLIM_LEV = {"polar": (25, 50, 75), "stj": (25, 50, 75), "sup": (2, 5, 10)}  # % 
 LINE = {"polar": "#1f5fa8", "stj": "#c0392b"}  # the jets' outlines: their colours on the cross-sections
 LINE_NAME = {"polar": "polar jet", "stj": "subtropical jet"}
 OUTLINE = 50  # % share at which a jet is outlined
+MAP_LON0 = 180.0  # the maps' central meridian
 TITLE = {
     "polar": "Polar jet (315–330 K PV wall)",
     "stj": "Subtropical jet (340–355 K PV wall)",
@@ -412,15 +413,17 @@ def mpl():
 
 
 def cyclic(f):
-    """Append the 0E column at 360E so the maps close."""
-    return np.concatenate([f, f[..., :1]], axis=-1), np.append(JB.LON, 360.0)
+    """Append the 0E column at 360E so the maps close -> (field, the columns' x on the maps). The maps contour in
+    their own coordinates: handed longitudes, cartopy re-projects the filled polygons and now and then turns one
+    band inside out, which floods the panel with its colour."""
+    return np.concatenate([f, f[..., :1]], axis=-1), np.append(JB.LON, 360.0) - MAP_LON0
 
 
 def nh_map(fig, rect, title):
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
 
-    ax = fig.add_axes(rect, projection=ccrs.PlateCarree(central_longitude=180))
+    ax = fig.add_axes(rect, projection=ccrs.PlateCarree(central_longitude=MAP_LON0))
     ax.set_extent((0, 359.99, JB.LAT[0], JB.LAT[-1]), crs=ccrs.PlateCarree())
     ax.add_feature(cfeature.COASTLINE.with_scale("110m"), lw=0.6, edgecolor="#333", zorder=4)
     gl = ax.gridlines(
@@ -461,11 +464,10 @@ def draw_regions(ax):
 
 def outline(ax, share, colour):
     """A jet's outline: the OUTLINE % contour of its neighbourhood share, haloed to stand on the shading."""
-    import cartopy.crs as ccrs
     from matplotlib import patheffects
 
-    f, lon = cyclic(100 * share)
-    cs = ax.contour(lon, JB.LAT, f, levels=[OUTLINE], colors=[colour], linewidths=1.9, transform=ccrs.PlateCarree())
+    f, x = cyclic(100 * share)
+    cs = ax.contour(x, JB.LAT, f, levels=[OUTLINE], colors=[colour], linewidths=1.9)
     cs.set_path_effects([patheffects.withStroke(linewidth=3.6, foreground="white")])
     cs.set_zorder(5)
 
@@ -473,7 +475,6 @@ def outline(ax, share, colour):
 def frame(pr, i, out, dpi=90):
     """One lead: the three branches' neighbourhood shares with the ERA5 normal as contours, and the jets' outlines -
     each on its own map, both on the superposition's."""
-    import cartopy.crs as ccrs
     from matplotlib.colors import BoundaryNorm, ListedColormap
     from matplotlib.lines import Line2D
 
@@ -517,14 +518,10 @@ def frame(pr, i, out, dpi=90):
                 zorder=8,
             )
             continue
-        f, lon = cyclic(100 * pr["share"][i, k])
-        cf = ax.contourf(
-            lon, JB.LAT, f, levels=P_LEV, cmap=cmap, norm=BoundaryNorm(P_LEV, cmap.N), transform=ccrs.PlateCarree()
-        )
+        f, x = cyclic(100 * pr["share"][i, k])
+        cf = ax.contourf(x, JB.LAT, f, levels=P_LEV, cmap=cmap, norm=BoundaryNorm(P_LEV, cmap.N))
         g, _ = cyclic(100 * pr["normal"][i, k])
-        cs = ax.contour(
-            lon, JB.LAT, g, levels=CLIM_LEV[b], colors=INK, linewidths=(0.7, 1.0, 1.4), transform=ccrs.PlateCarree()
-        )
+        cs = ax.contour(x, JB.LAT, g, levels=CLIM_LEV[b], colors=INK, linewidths=(0.7, 1.0, 1.4))
         ax.clabel(cs, fmt="%d%%", fontsize=7.5, inline_spacing=2)
         if b == "sup":
             draw_regions(ax)
