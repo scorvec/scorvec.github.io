@@ -44,6 +44,8 @@ and
   columns  the column criteria alone on the 0.5 deg grid (Winters et al. 2020)
   tol      the product without its depth rule: ribbons, and the superposition within the wall's tolerance
   shallow_x   the product with the depth rule's share at x (SHALLOW) instead of jet_branches.SHALLOW
+  gap_x       the product with pieces of a branch within x km of each other counted as one piece in the ribbon rule
+              (GAPS) instead of jet_branches.GAP_KM
 
     python build_jet_branches_ref.py fetch --winter 2010 --out parts/jb_2010.npz
     python build_jet_branches_ref.py combine parts/jb_*.npz --release-dir out --figure out/jet_branches_check.png
@@ -90,6 +92,7 @@ R1_LAT = R1_BAND[JB.output_rows(R1_BAND)]
 METHODS = ("mean", "iso", "mass")
 R1_NAMES = ("r1", "r1_iso", "r1_mass")  # the METHODS on the 2.5 deg grid
 SHALLOW = (0.4, 0.5)  # the depth rule's share, beside the product's
+GAPS = (100.0, 200.0, 300.0)  # km: the ribbon rule's gap, beside the product's
 HIST_EDGES = np.linspace(-7.0, -3.0, 401)  # log10 of the in-channel |grad PV| (PVU/m)
 # one row per event: its first and last analysis, how many analyses it held, its largest group, its first centre
 NEAR_BATCH = 64  # analyses dilated at once in the combine
@@ -200,7 +203,7 @@ def fetch(winter, out, workers=8, days=None):
     reg = {r: JB.region_mask(JB.LAT, JB.LON, r) for r in JB.REGIONS}
     reg1 = {r: JB.region_mask(R1_LAT, R1_LON, r) for r in JB.REGIONS}
     names = ["main", *(f"scan_{x:g}" for x in SCAN), *METHODS[1:], "columns", "tol"]
-    names += [f"shallow_{x:g}" for x in SHALLOW]
+    names += [f"shallow_{x:g}" for x in SHALLOW] + [f"gap_{x:g}" for x in GAPS]
     k500 = JB.LEVS.index(500)
     shape, shape1 = (3, JB.LAT.size, JB.LON.size), (3, R1_LAT.size, R1_LON.size)
     var_maps = np.zeros((len(names), *shape), np.uint16)
@@ -229,6 +232,7 @@ def fetch(winter, out, workers=8, days=None):
         ms += [JB.identify(vb, v500, gs[m]["polar"], gs[m]["stj"]) for m in METHODS[1:]]
         ms += [JB.columns(vb, g["polar"], g["stj"])]
         ms += [JB.identify(vb, v500, g["polar"], g["stj"], shallow=x) for x in (None, *SHALLOW)]
+        ms += [JB.identify(vb, v500, g["polar"], g["stj"], gap=x) for x in GAPS]
         main = masks_of(ms[0])
         packed.append(np.packbits(main.reshape(3, -1), axis=-1))
         vsum[MONTHS.index(ts.month)] += main * vb

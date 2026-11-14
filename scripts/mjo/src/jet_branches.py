@@ -94,6 +94,7 @@ LINK_KM = 1000.0  # superposed columns within this distance of each other form o
 TRACK_KM, TRACK_H = 1500.0, 30.0  # an event continues one whose centre was this close this recently (Winters et al.)
 NEAR_KM = 300.0  # the maps' neighbourhood: a branch within this distance of the column
 RIBBON_KM = 1000.0  # a connected piece of a branch's columns shorter than this is not a jet
+GAP_KM = 0.0  # pieces of a branch this close to each other are one piece (0: only touching columns)
 WALL_KM = 150.0  # ribbons of the two branches this close to each other are one wall: a superposition
 SHALLOW = 0.3  # a subtropical jet: (400-100 hPa wind - 500 hPa speed) / 400-100 hPa wind above this
 SCHEME = "ribbon-wall-depth"  # the identification, as the reference and skill files name it
@@ -181,11 +182,14 @@ def columns(vbar, g_polar, g_stj, thresh=THRESH) -> dict:
     return {"polar": polar, "stj": stj, "sup": polar & stj}
 
 
-def ribbons(mask, km=RIBBON_KM, lat=LAT, lon=LON) -> np.ndarray:
+def ribbons(mask, km=RIBBON_KM, gap=GAP_KM, lat=LAT, lon=LON) -> np.ndarray:
     """The connected pieces of `mask` (lat, lon; the eight neighbours, longitudes a global ring) at least `km` long:
-    the diagonal of a piece's latitude span and its longitude span at its mean latitude."""
+    the diagonal of a piece's latitude span and its longitude span at its mean latitude. With `gap`, pieces within
+    that distance of each other are one: the pieces are those of the mask grown by half the gap, each `gap` longer."""
     from scipy import ndimage as ndi
 
+    if gap:
+        return mask & ribbons(near(mask, lat, gap / 2), km + gap, 0.0, lat, lon)
     lab, n = ndi.label(mask, structure=np.ones((3, 3), int))
     if not n:
         return np.zeros(lab.shape, bool)
@@ -217,17 +221,17 @@ def ribbons(mask, km=RIBBON_KM, lat=LAT, lon=LON) -> np.ndarray:
     return np.isin(lab, idx[length >= km])
 
 
-def identify(vbar, speed500, g_polar, g_stj, thresh=THRESH, shallow=SHALLOW) -> dict:
+def identify(vbar, speed500, g_polar, g_stj, thresh=THRESH, shallow=SHALLOW, gap=GAP_KM) -> dict:
     """Boolean masks 'polar', 'stj' and 'sup' on the output grid (LAT, LON) from the 400-100 hPa wind, the 500 hPa
     wind speed and the two layers' in-channel gradients: the column criteria, then the ribbon, wall and depth rules.
-    shallow None: without the depth rule."""
+    shallow None: without the depth rule. gap: the ribbon rule's (ribbons)."""
     c = columns(vbar, g_polar, g_stj, thresh)
-    polar, stj = ribbons(c["polar"]), ribbons(c["stj"])
+    polar, stj = ribbons(c["polar"], gap=gap), ribbons(c["stj"], gap=gap)
     sup = (polar & near(stj, km=WALL_KM)) | (stj & near(polar, km=WALL_KM))
     if shallow is not None:
         with np.errstate(invalid="ignore", divide="ignore"):
             deep = c["stj"] & ~((vbar - speed500) / vbar > shallow)
-        polar, stj = ribbons(c["polar"] | deep), ribbons(c["stj"] & ~deep)
+        polar, stj = ribbons(c["polar"] | deep, gap=gap), ribbons(c["stj"] & ~deep, gap=gap)
     return {"polar": polar, "stj": stj, "sup": sup}
 
 

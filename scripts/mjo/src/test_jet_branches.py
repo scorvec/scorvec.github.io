@@ -215,6 +215,16 @@ def test_ribbons():
     want[row(40.5) : row(40.5) + 11, 400:411] = False
     check(np.array_equal(got, want), f"ribbons: {int((got != want).sum())} columns differ")
     check(not JB.ribbons(np.zeros_like(m)).any(), "ribbons of nothing")
+    # a jet at 50N in dashes: 3 degrees of columns (215 km), 1 degree empty (71 km), over 30 degrees; a dash alone
+    dashed = np.zeros_like(m)
+    for lon0 in np.arange(100.0, 130.0, 4.0):
+        dashed[row(50.0), ring(lon0, lon0 + 3.0)] = True
+    dashed[row(20.0), ring(100.0, 103.0)] = True
+    check(not JB.ribbons(dashed).any(), "no dash is a jet")
+    want = dashed.copy()
+    want[row(20.0)] = False
+    check(np.array_equal(JB.ribbons(dashed, gap=200.0), want), "dashes 71 km apart are one jet, the lone dash none")
+    check(not JB.ribbons(dashed, gap=50.0).any(), "a gap wider than allowed stays a gap")
 
 
 def test_rules():
