@@ -6,21 +6,34 @@ name: Warm conveyor belts (ELIAS 2.0 models)
 # climatology. Archive: Zenodo, doi:10.5281/zenodo.5154980 (CC BY 4.0; its code under the MIT licence), checked
 # against its published checksum and kept unmodified as
 #   release wcb-ref-v1   wcbmetric_v2.zip
-# The run also lists the archive, prints the layout of its model, threshold and climatology files and keeps its code,
-# text and notebook files as an artifact.
+# The mirror job also lists the archive, prints the layout of its model, threshold and climatology files and keeps its
+# code, text and notebook files as an artifact.
+#
+# The check job holds scripts/wcb/elias.py - the site's own arithmetic for the predictors and the networks - to the
+# archive: it runs the archive's code on the archive's example under Keras, in a conda environment (tensorflow,
+# windspharm), and fails on any difference (scripts/wcb/check_elias.py).
 on:
   workflow_dispatch:
+    inputs:
+      job:
+        description: check elias.py against the archive, or mirror the archive again
+        type: choice
+        options: [check, mirror]
+        default: check
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
 
 jobs:
   mirror:
+    if: inputs.job == 'mirror'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7
         with:
@@ -80,3 +93,35 @@ jobs:
             gh release create wcb-ref-v1 -R "$GITHUB_REPOSITORY" --title "Warm conveyor belts: ELIAS 2.0 models" \
               --notes "Unmodified copy of wcbmetric_v2.zip from Zenodo, doi:10.5281/zenodo.5154980 (CC BY 4.0; code under the MIT licence): the ELIAS 2.0 convolutional networks, decision thresholds and climatology of Quinting and Grams (2022), Geosci. Model Dev. 15, 715-730, doi:10.5194/gmd-15-715-2022."
           gh release upload wcb-ref-v1 wcbmetric_v2.zip -R "$GITHUB_REPOSITORY" --clobber
+
+  check:
+    if: inputs.job == 'check'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/wcb
+          sparse-checkout-cone-mode: false
+      - name: The archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release download wcb-ref-v1 -R "$GITHUB_REPOSITORY" -p wcbmetric_v2.zip
+          echo "dbea2b2f3d836fb3190b3ca2b2e0c0bc  wcbmetric_v2.zip" | md5sum -c -
+          mkdir archive && unzip -q wcbmetric_v2.zip -d archive
+      - name: Environment (Keras 2 and windspharm beside the module's own imports)
+        run: |
+          set -euo pipefail
+          "$CONDA/bin/conda" create --quiet --yes --prefix "$RUNNER_TEMP/env" --channel conda-forge --override-channels \
+            python=3.11 'numpy<2' 'tensorflow=2.15' windspharm pyshtools h5py netcdf4 xarray scipy matplotlib-base
+          "$RUNNER_TEMP/env/bin/python" -c "import keras, tensorflow, windspharm, pyshtools, numpy; print(keras.__version__, tensorflow.__version__, pyshtools.__version__, numpy.__version__)"
+      - name: Offline tests
+        run: |
+          "$RUNNER_TEMP/env/bin/python" scripts/wcb/test_elias.py
+      - name: elias.py against the archive
+        run: |
+          set -euo pipefail
+          root=$(dirname "$(find archive -name calc_wcbmetric_v2.py | head -1)")
+          TF_CPP_MIN_LOG_LEVEL=2 "$RUNNER_TEMP/env/bin/python" scripts/wcb/check_elias.py "$root"
