@@ -112,16 +112,21 @@ jobs:
           echo "dbea2b2f3d836fb3190b3ca2b2e0c0bc  wcbmetric_v2.zip" | md5sum -c -
           mkdir archive && unzip -q wcbmetric_v2.zip -d archive
       - name: Environment (Keras 2 and windspharm beside the module's own imports)
-        run: |
-          set -euo pipefail
-          "$CONDA/bin/conda" create --quiet --yes --prefix "$RUNNER_TEMP/env" --channel conda-forge --override-channels \
-            python=3.11 'numpy<2' 'tensorflow=2.15' windspharm pyshtools h5py netcdf4 xarray scipy matplotlib-base
-          "$RUNNER_TEMP/env/bin/python" -c "import keras, tensorflow, windspharm, pyshtools, numpy; print(keras.__version__, tensorflow.__version__, pyshtools.__version__, numpy.__version__)"
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-name: wcb
+          condarc: |
+            channels: [conda-forge]
+          create-args: >-
+            python=3.11 numpy=1.26 tensorflow=2.15 windspharm pyshtools h5py netcdf4 xarray scipy matplotlib-base
       - name: Offline tests
+        shell: micromamba-shell {0}
         run: |
-          "$RUNNER_TEMP/env/bin/python" scripts/wcb/test_elias.py
+          python -c "import keras, tensorflow, windspharm, pyshtools, numpy; print(keras.__version__, tensorflow.__version__, pyshtools.__version__, numpy.__version__)"
+          python scripts/wcb/test_elias.py
       - name: elias.py against the archive
+        shell: micromamba-shell {0}
         run: |
           set -euo pipefail
           root=$(dirname "$(find archive -name calc_wcbmetric_v2.py | head -1)")
-          TF_CPP_MIN_LOG_LEVEL=2 "$RUNNER_TEMP/env/bin/python" scripts/wcb/check_elias.py "$root"
+          TF_CPP_MIN_LOG_LEVEL=2 python scripts/wcb/check_elias.py "$root"
