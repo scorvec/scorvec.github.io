@@ -88,9 +88,9 @@ def test_image():
     x = E._image([*fields, fields[0][0]])  # the fifth the same for every member
     check(x.shape == (4, 96, 448, 5) and x.dtype == np.float32, f"image {x.shape} {x.dtype}")
     core = x[:, :, E.PAD : -E.PAD]
-    w = np.cos(np.deg2rad(E.LAT))[:, None] * np.ones(E.LON.size)
-    mean = np.average(core, axis=(1, 2), weights=w)
-    var = np.average(core**2, axis=(1, 2), weights=w)
+    w = np.cos(np.deg2rad(E.LAT))[:, None, None] / (np.cos(np.deg2rad(E.LAT)).sum() * E.LON.size)
+    mean = (core * w).sum(axis=(1, 2))
+    var = (core**2 * w).sum(axis=(1, 2))
     check(np.abs(mean).max() < 1e-5 and np.abs(var - 1.0).max() < 1e-4, "standardised over the domain")
     check(np.array_equal(x[:, :, : E.PAD], core[:, :, -E.PAD :]), "wrapped west")
     check(np.array_equal(x[:, :, -E.PAD :], core[:, :, : E.PAD]), "wrapped east")
