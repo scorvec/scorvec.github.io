@@ -1,0 +1,107 @@
+name: Warm conveyor belts (IFS-ENS)
+
+# Warm conveyor belts in every IFS-ENS member (scripts/wcb/wcb_fc.py; the identification is scripts/wcb/elias.py, the
+# published ELIAS 2.0 networks of Quinting and Grams 2022): the 00 UTC run's 50 perturbed members, 12-hourly to
+# last_step, byte-ranged step by step from the Google Cloud mirror of ECMWF open data only and never cached - the
+# northern rows of 21 fields per member and step and the 300 hPa divergence whole. The networks, their decision
+# thresholds and the trajectory climatology: release wcb-ref-v1 (wcb-ref.yml), checked against the archive's
+# published checksum.
+#
+# Dispatch only, artifacts only: the map frames of the members' share with a belt's inflow, ascent and outflow (days 1
+# to (last_step - 24) / 24), their manifest and the json of the numbers behind them and what the fetch cost. Waits up
+# to 45 min for the run on the mirror.
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'the 00 UTC run, YYYYMMDD (blank = today)'
+        default: ''
+      last_step:
+        description: 'Last step fetched, in hours (12-hourly from 0); the leads end 24 h before it'
+        default: '192'
+      members:
+        description: 'Perturbed members 1..N'
+        default: '50'
+
+permissions:
+  contents: read
+
+env:
+  ECMWF_SOURCES: google      # Google Cloud mirror only
+  ECMWF_MULTISOURCE: "0"
+  MPLBACKEND: Agg
+  OPENBLAS_NUM_THREADS: "1"  # three worker processes on four cores
+  OMP_NUM_THREADS: "1"
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  forecast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    concurrency:
+      group: wcb
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/wcb/
+            /scripts/ecmwf/
+            /scripts/lib/
+            /scripts/strat/ifs_ens.py
+            /scripts/mjo/requirements-mjo.txt
+            /scripts/constraints.txt
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt h5py
+      - name: Unit tests
+        run: |
+          python scripts/wcb/test_elias.py
+          python scripts/wcb/test_wcb_fc.py
+      - uses: actions/cache@v6
+        id: archive
+        with:
+          path: archive
+          key: wcb-ref-v1-dbea2b2f3d836fb3190b3ca2b2e0c0bc
+      - name: The networks, thresholds and climatology (release wcb-ref-v1)
+        if: steps.archive.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release download wcb-ref-v1 -R "$GITHUB_REPOSITORY" -p wcbmetric_v2.zip
+          echo "dbea2b2f3d836fb3190b3ca2b2e0c0bc  wcbmetric_v2.zip" | md5sum -c -
+          mkdir archive && unzip -q wcbmetric_v2.zip -d archive
+          rm wcbmetric_v2.zip
+      - name: Fetch, identify and render
+        env:
+          D: ${{ inputs.date }}
+          LAST: ${{ inputs.last_step }}
+          N: ${{ inputs.members }}
+        run: |
+          set -euo pipefail
+          [ -n "$D" ] || D=$(date -u +%Y%m%d)
+          root=$(dirname "$(find archive -name calc_wcbmetric_v2.py | head -1)")
+          start=$(date +%s)
+          python scripts/wcb/wcb_fc.py forecast --date "$D" --last-step "$LAST" --members "$N" --wait-min 45 \
+            --archive "$root" --out-dir out --out /tmp/wcb_fc.npz
+          echo "  wall time $(( $(date +%s) - start )) s"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: wcb-forecast
+          path: |
+            out/anim/wcb_ifs
+            out/anim/wcb_ifs_manifest.json
+            out/data/wcb_ifs.json
+          if-no-files-found: warn
+          retention-days: 14
