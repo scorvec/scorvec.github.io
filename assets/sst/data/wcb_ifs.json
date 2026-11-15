@@ -163,8 +163,8 @@
   "bytes": 10287988824,
   "wire": 6470349554,
   "steps": 17,
-  "identify_s": 710.3,
-  "wall_s": 528.9,
+  "identify_s": 638.0,
+  "wall_s": 510.3,
   "workers": 3
  }
 }
