@@ -277,6 +277,12 @@ jobs:
         with:
           path: ensmaps_stats
           key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.cycle }}${{ steps.plan.outputs.stage == 'first' && '-partial' || '' }}
+      - name: Keep them in the release too
+        if: steps.run.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CYC: ${{ steps.plan.outputs.cycle }}
+        run: if [ -f "ensmaps_stats/$CYC.npz" ]; then scripts/ensmaps/stats_store.sh put "ensmaps_stats/$CYC.npz" "$MODEL" "$CYC"; fi
       - name: Keep the members' fields for the clusters
         if: steps.run.outputs.fields == '1'
         uses: actions/cache/save@v6

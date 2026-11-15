@@ -181,6 +181,12 @@ jobs:
         with:
           path: super_stats
           key: ensmaps-super-stats-${{ steps.plan.outputs.cycle }}-${{ github.run_id }}
+      - name: Keep them in the release too
+        if: steps.run.outputs.made == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CYC: ${{ steps.plan.outputs.cycle }}
+        run: scripts/ensmaps/stats_store.sh put "super_stats/$CYC.npz" super "$CYC"
       - name: Delete superseded caches
         if: steps.run.outputs.made == '1'
         env:
