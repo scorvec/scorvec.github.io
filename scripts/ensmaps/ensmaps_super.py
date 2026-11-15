@@ -2,7 +2,7 @@
 """The super-ensemble on ens-anomalies.html: the IFS-ENS, AIFS-ENS, GEFS and GEPS runs from the same 00 or 12 UTC start
 combined with EQUAL weight per ensemble, a quarter each however many members it has (the 51 AIFS-ENS members count as
 much as the 21 of GEPS). Everything is on the 0.5-deg cells on which every ensemble's run statistics are kept
-(ensmaps.save_stats, the Actions cache): nothing is fetched, and a super run follows the last of its four runs within
+(ensmaps.save_stats, the release ensmaps-stats): nothing is fetched, and a super run follows the last of its four runs within
 minutes. It runs from 00 and 12 UTC only: GEPS has no 06/18Z run, and IFS-ENS's reach day 5.
 
 Days: those all four runs hold (15 from 00Z, 14 from 12Z; GEFS and GEPS run a day further), in the spans of one

@@ -12,9 +12,9 @@ name: Global ensemble maps (data)
 # compute + encode, publish the cycle directory to the FRAMES STORE ONLY (FRAMES_BRANCH=off: this product never touches
 # the git `frames` branch; cycles older than the four kept are pruned in the store), THEN commit the manifest to main -
 # never the other way round, or the page would point at data that is not there yet. The earlier runs' statistics (the
-# change tests) come from the Actions cache (ensmaps-<model>-stats-<YYYYMMDDHH>; those more than 48 h older than this
-# run are deleted: a run compares with the runs up to 48 h before it; a 00/12Z run's also feed the super-ensemble,
-# ensmaps-super.yml, which runs after each of these). The same run labels each member's weather regime from the 500 hPa
+# change tests) come from the release ensmaps-stats (scripts/ensmaps/stats_store.sh, <model>-<YYYYMMDDHH>.npz; those more
+# than 48 h older than this run are deleted: a run compares with the runs up to 48 h before it; a 00/12Z run's also feed
+# the super-ensemble, ensmaps-super.yml, which runs after each of these). The same run labels each member's weather regime from the 500 hPa
 # fields it holds (scripts/ensmaps/ensmaps_regimes.py, no download of its own) and commits the labels
 # (assets/regimes/data/ensmaps_members_<model>.json for the newest run and ensmaps_members_<model>_<cycle>.json for each
 # of the four, regime_core's members_record format) and, on a 00Z run, its drift archive (ensmaps_drift_<model>.json)
@@ -89,7 +89,7 @@ on:
 
 permissions:
   contents: write
-  actions: write   # delete superseded statistics from the Actions cache
+  actions: write   # delete superseded entries from the Actions cache
 
 concurrency:
   group: ensmaps-${{ inputs.model }}
@@ -170,62 +170,20 @@ jobs:
           if [ -z "$cyc" ]; then echo "nothing new for $MODEL"; echo "cycle=" >> "$GITHUB_OUTPUT"; exit 0; fi
           # the earlier runs a change map can compare with (ensmaps.py CHANGES): 6, 12, 18, 24, 36 and 48 h before
           echo "cycle=$cyc" >> "$GITHUB_OUTPUT"; echo "stage=${stage:-}" >> "$GITHUB_OUTPUT"
-          for h in 6 12 18 24 36 48; do
-            echo "prev$h=$(date -u -d "${cyc:0:8} ${cyc:8:2}:00 $h hours ago" +%Y%m%d%H)" >> "$GITHUB_OUTPUT"
-          done
+          prev=""
+          for h in 6 12 18 24 36 48; do prev="$prev $(date -u -d "${cyc:0:8} ${cyc:8:2}:00 $h hours ago" +%Y%m%d%H)"; done
+          echo "prev=$prev" >> "$GITHUB_OUTPUT"; echo "floor=${prev##* }" >> "$GITHUB_OUTPUT"
           held=$(gh release view ensmaps-ref-v1 -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null || true)
           normals=""
           if echo "$held" | grep -qx ensmaps_t2m_normals.npz; then normals=ensmaps_t2m_normals.npz; fi
           echo "normals=$normals" >> "$GITHUB_OUTPUT"
           echo "$MODEL $cyc ${stage:-every field} (2 m normals: ${normals:-none})"
-      - name: The statistics of the run 6 h earlier
-        if: steps.plan.outputs.cycle != '' && inputs.model != 'geps'
-        uses: actions/cache/restore@v6
-        with:
-          path: ensmaps_stats
-          key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev6 }}
-          restore-keys: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev6 }}-partial
-      - name: The statistics of the run 12 h earlier
+      - name: The earlier runs' statistics (and, when IFS-ENS adds 2 m temperature, this run's first stage)
         if: steps.plan.outputs.cycle != ''
-        uses: actions/cache/restore@v6
-        with:
-          path: ensmaps_stats
-          key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev12 }}
-          restore-keys: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev12 }}-partial
-      - name: The statistics of the run 18 h earlier
-        if: steps.plan.outputs.cycle != '' && inputs.model != 'geps'
-        uses: actions/cache/restore@v6
-        with:
-          path: ensmaps_stats
-          key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev18 }}
-          restore-keys: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev18 }}-partial
-      - name: The statistics of the run 24 h earlier
-        if: steps.plan.outputs.cycle != ''
-        uses: actions/cache/restore@v6
-        with:
-          path: ensmaps_stats
-          key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev24 }}
-          restore-keys: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev24 }}-partial
-      - name: The statistics of the run 36 h earlier
-        if: steps.plan.outputs.cycle != ''
-        uses: actions/cache/restore@v6
-        with:
-          path: ensmaps_stats
-          key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev36 }}
-          restore-keys: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev36 }}-partial
-      - name: The statistics of the run 48 h earlier
-        if: steps.plan.outputs.cycle != ''
-        uses: actions/cache/restore@v6
-        with:
-          path: ensmaps_stats
-          key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev48 }}
-          restore-keys: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.prev48 }}-partial
-      - name: This run's first-stage statistics (IFS-ENS, when 2 m temperature is added)
-        if: steps.plan.outputs.stage == 't2m'
-        uses: actions/cache/restore@v6
-        with:
-          path: ensmaps_stats
-          key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.cycle }}-partial
+        env:
+          PREV: ${{ steps.plan.outputs.prev }}
+          OWN: ${{ steps.plan.outputs.stage == 't2m' && steps.plan.outputs.cycle || '' }}
+        run: scripts/ensmaps/stats_store.sh get ensmaps_stats "$MODEL" $PREV $OWN
       - name: The clusters' drift archive of this model (the newest)
         if: steps.plan.outputs.cycle != ''
         uses: actions/cache/restore@v6
@@ -263,7 +221,6 @@ jobs:
             --save "ensmaps_stats/$CYC.npz" --lists "$L" \
             --manifest-in "assets/models/ensmaps_$MODEL.json" --fields-out "clusterfields/$MODEL.npz" --cluster-drift "cdrift/$MODEL.npz" \
             --telecon-out "telecon/$MODEL.npz"
-          if [ -d ensmaps_stats ]; then find ensmaps_stats -name '*.npz' ! -name "$CYC.npz" -delete; fi   # the cache entry: this run's statistics only
           if [ "$MODEL" = geps ]; then python scripts/geps/datamart.py; fi    # the run's Datamart requests and bytes
           if [ ! -s "$L/publish.txt" ]; then echo "::warning::$MODEL $CYC is older than the run on the page - not published"; exit 0; fi
           SRC=. PRUNE="$(tr '\n' ' ' < "$L/prune.txt")" PRUNE_OLDER="$(cat "$L/floor.txt")" scripts/models/publish_data.sh $(cat "$L/publish.txt") > /dev/null
@@ -271,13 +228,7 @@ jobs:
           echo "done=1" >> "$GITHUB_OUTPUT"
           if [ -s "clusterfields/$MODEL.npz" ]; then echo "fields=1" >> "$GITHUB_OUTPUT"; fi
           if [ -s "telecon/$MODEL.npz" ]; then echo "telecon=1" >> "$GITHUB_OUTPUT"; fi
-      - name: Keep this run's statistics for the next run
-        if: steps.run.outcome == 'success'
-        uses: actions/cache/save@v6
-        with:
-          path: ensmaps_stats
-          key: ensmaps-${{ inputs.model }}-stats-${{ steps.plan.outputs.cycle }}${{ steps.plan.outputs.stage == 'first' && '-partial' || '' }}
-      - name: Keep them in the release too
+      - name: Keep this run's statistics for the next runs
         if: steps.run.outcome == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -302,16 +253,17 @@ jobs:
           path: cdrift
           key: ensmaps-${{ inputs.model }}-cdrift-${{ steps.plan.outputs.cycle }}
       # the statistics of every run of the last 48 h (the runs up to 48 h later compare with them), the two newest of
-      # the other kinds
-      - name: Delete superseded caches
+      # the cached kinds
+      - name: Delete superseded statistics and caches
         if: steps.run.outcome == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PREV48: ${{ steps.plan.outputs.prev48 }}
+          FLOOR: ${{ steps.plan.outputs.floor }}
         run: |
-          for kind in stats fields cdrift telecon; do
+          scripts/ensmaps/stats_store.sh prune "$MODEL" "$FLOOR"
+          for kind in fields cdrift telecon; do
             gh cache list -R "$GITHUB_REPOSITORY" --key "ensmaps-$MODEL-$kind-" --limit 100 --json id,key -q '.[] | "\(.key) \(.id)"' \
-              | sort -r | { if [ "$kind" = stats ]; then awk -v floor="$PREV48" '{ if (match($1, /[0-9]{10}/) && substr($1, RSTART, 10) < floor) print }'; else tail -n +3; fi; } \
+              | sort -r | tail -n +3 \
               | while read -r k id; do
                 gh cache delete "$id" -R "$GITHUB_REPOSITORY" && echo "deleted $k" || echo "::warning::could not delete $k"
               done

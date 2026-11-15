@@ -39,8 +39,8 @@ a 0.5-deg grid (each member's field averaged over the cells first: the statistic
 Welch's t-test on the two runs' members, Benjamini-Hochberg over the map's points at FDR_Q; the page shades the
 change everywhere and dots the significant points. The same against the runs 6, 18, 24, 36 and 48 h earlier (c6/,
 c18/, c24/, c36/, c48/: CHANGES) wherever those runs' statistics are there, so the reader can pick the run to compare
-with. A run's statistics come from its own --save (the Actions cache, which keeps every run of the last 48 h;
---stats-dir names the folder the workflow restores them to); a 00/12Z run's also hold what the super-ensemble of the
+with. A run's statistics come from its own --save (the release ensmaps-stats, which keeps every run of the last
+48 h; --stats-dir names the folder the workflow downloads them to); a 00/12Z run's also hold what the super-ensemble of the
 four (ensmaps_super.py) combines.
 
 Files, per field and span (assets/models/data/ensmaps/<model>/<cycle>/<field>/), rows 90N first, columns from 180W:
