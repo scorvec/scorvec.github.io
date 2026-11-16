@@ -753,21 +753,30 @@ SSW_DAYS = 15
 MAX_AGE_DAYS = 2  # a model's newest recorded run older than this against the newest of all is left off the figure
 
 
+def _onset_window(u10: pd.DataFrame, init: pd.Timestamp) -> tuple[pd.DataFrame, pd.Series]:
+    """(days 1 to SSW_DAYS of the run, the members westerly at its start). A warming BEGINS in the window, as in the
+    record's base rate: a member already easterly at the start is in a warming under way, not a new one."""
+    start = u10[u10.index <= init]
+    west = ~(start.iloc[-1] < 0) if len(start) else pd.Series(True, index=u10.columns)
+    return u10[(u10.index > init) & (u10.index <= init + pd.Timedelta(days=SSW_DAYS))], west
+
+
 def ssw_chance(u10: pd.DataFrame, init: pd.Timestamp) -> float | None:
-    """Share of members easterly at 10 hPa / 60N on at least one day to day SSW_DAYS, over the members with a value in
-    that window (None when none has)."""
-    lead = u10[u10.index <= init + pd.Timedelta(days=SSW_DAYS)].dropna(axis=1, how="all")
-    return float((lead.to_numpy() < 0).any(axis=0).mean()) if lead.shape[1] else None
+    """Share of members westerly at 10 hPa / 60N at the start that turn easterly on at least one of days 1 to
+    SSW_DAYS, over the members with a value in that window (None when none has)."""
+    u, west = _onset_window(u10, init)
+    have = u.notna().any()
+    return float(((u < 0).any() & west)[have].mean()) if have.any() else None
 
 
 def wmo_chance(u10: pd.DataFrame, dt10: pd.DataFrame, init: pd.Timestamp) -> float | None:
-    """Share of members meeting the WMO major-warming definition on at least one day to day SSW_DAYS: easterly at
-    10 hPa / 60N with the 10 hPa temperature rising from 60N to the pole (dT10 above zero) on the same day, over the
-    members with both in that window (None when none has)."""
-    u = u10[u10.index <= init + pd.Timedelta(days=SSW_DAYS)]
+    """Share of members meeting the WMO major-warming definition on at least one of days 1 to SSW_DAYS, westerly at
+    the start: easterly at 10 hPa / 60N with the 10 hPa temperature rising from 60N to the pole (dT10 above zero) on
+    the same day, over the members with both in that window (None when none has)."""
+    u, west = _onset_window(u10, init)
     t = dt10.reindex(index=u.index, columns=u.columns)
     have = u.notna().any() & t.notna().any()
-    return float(((u < 0) & (t > 0)).any()[have].mean()) if have.any() else None
+    return float((((u < 0) & (t > 0)).any() & west)[have].mean()) if have.any() else None
 
 
 def record_runs(fc: dict, med: dict) -> None:

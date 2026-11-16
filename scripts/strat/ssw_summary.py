@@ -462,7 +462,9 @@ def compass_daily(m: str, norm: dict) -> pd.DataFrame:
     tilt = np.full(len(t), np.nan)
     if "members_100" in w:
         c100 = np.array([[complex(*p) for p in day] for day in w["members_100"]])
-        tilt = np.angle(c100 * np.conj(c500), deg=True).mean(1)  # wave-1: phase degrees are longitude degrees
+        # wave-1: phase degrees are longitude degrees; the members' circular mean (a mean of wrapped angles drifts
+        # toward zero as they scatter)
+        tilt = np.angle((c100 * np.conj(c500)).mean(1), deg=True)
     return pd.DataFrame({"source": size.mean(1), "tilt": tilt}, index=t)
 
 

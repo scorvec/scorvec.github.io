@@ -76,7 +76,8 @@ def band(v, t, lat) -> np.ndarray:
     """(member, step, lat, lon) v and T -> (member, step, 6): the band fluxes in build_vt100_clim.BAND_KEYS order, the
     products' flux (heatflux100.fluxes and band_mean), member by member."""
     v, t = np.asarray(v), np.asarray(t)
-    return np.stack([C.band_fluxes(v[i], t[i], lat) for i in range(len(v))])
+    lon = np.arange(v.shape[-1]) * 360.0 / v.shape[-1]  # band_fluxes also returns the regional boxes: not used here
+    return np.stack([C.band_fluxes(v[i], t[i], lat, lon)[..., : len(C.BAND_KEYS)] for i in range(len(v))])
 
 
 def ecmwf_start(model: str, d: pd.Timestamp):

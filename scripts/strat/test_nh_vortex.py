@@ -81,6 +81,11 @@ def test_shares():
     check(NV.wmo_chance(u, dt, init) == 0.25, f"WMO definition {NV.wmo_chance(u, dt, init)}")
     check(NV.wmo_chance(u, dt.iloc[:, :2], init) == 0.5, "a member without the gradient is left out")
     check(NV.wmo_chance(u, dt * np.nan, init) is None, "no member with the gradient")
+    u.iloc[0, 1] = -1.0  # easterly at the start: a warming under way, not one that begins in the window
+    check(NV.ssw_chance(u, init) == 0.25, f"a member easterly at the start {NV.ssw_chance(u, init)}")
+    u.iloc[:, :] = 20.0
+    u.iloc[0, 0] = -1.0  # easterly on day 0 only: no warming begins on days 1-15
+    check(NV.ssw_chance(u, init) == 0.0, f"day 0 is not in the window {NV.ssw_chance(u, init)}")
 
 
 if __name__ == "__main__":
