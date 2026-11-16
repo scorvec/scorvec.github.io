@@ -1,5 +1,5 @@
 {
- "built": "2026-11-16 18:46Z",
+ "built": "2026-11-16 19:00Z",
  "newest_init": "2026-11-16 12Z",
  "window": [
   "2026-11-17",
@@ -18,18 +18,13 @@
  "ssw": {
   "models": {
    "aifs": {
-    "init": "2026-11-16 06Z",
+    "init": "2026-11-16 12Z",
     "members": 51,
     "share": 0.0,
     "wmo": 0.0,
-    "u10_min_mean": 8.1,
-    "u10_min_p10": 7.6,
+    "u10_min_mean": 8.3,
+    "u10_min_p10": 7.8,
     "runs": [
-     [
-      "2026-10-17T06",
-      0.0,
-      null
-     ],
      [
       "2026-10-17T12",
       0.0,
@@ -627,6 +622,11 @@
      ],
      [
       "2026-11-16T06",
+      0.0,
+      0.0
+     ],
+     [
+      "2026-11-16T12",
       0.0,
       0.0
      ]
@@ -1766,15 +1766,15 @@
  "waves": {
   "models": {
    "aifs": {
-    "init": "2026-11-16 06Z",
+    "init": "2026-11-16 12Z",
     "members": 50,
-    "wave2_share": 0.28,
-    "z_peak": 0.8,
+    "wave2_share": 0.35,
+    "z_peak": 1.0,
     "z_peak_day": 5,
-    "flux_min": 9.5,
+    "flux_min": 9.7,
     "ri_event_share": 0.0,
-    "z_can_min": -0.6,
-    "z_sib_max": 1.0
+    "z_can_min": -0.7,
+    "z_sib_max": 1.3
    },
    "ifs": {
     "init": "2026-11-16 00Z",
@@ -1810,28 +1810,28 @@
     "z_sib_max": 1.3
    }
   },
-  "wave2_share_mean": 0.34,
+  "wave2_share_mean": 0.36,
   "kind": "wave-1"
  },
  "descent": {
   "models": {
    "aifs": {
-    "init": "2026-11-16 06Z",
+    "init": "2026-11-16 12Z",
     "members": 51,
     "cap100_day15": 0.6,
     "cap10_day15": 0.1,
     "frac100_day15": 0.28,
-    "cross100": "2026-11-20",
+    "cross100": "2026-11-19",
     "cross10": "2026-10-29",
     "kind": "top-down"
    },
    "aifsc": {
-    "init": "2026-11-16 06Z",
+    "init": "2026-11-16 12Z",
     "members": 1,
-    "cap100_day15": 0.6,
-    "cap10_day15": 0.1,
+    "cap100_day15": 0.8,
+    "cap10_day15": 0.2,
     "frac100_day15": null,
-    "cross100": "2026-11-20",
+    "cross100": "2026-11-19",
     "cross10": "2026-10-29",
     "kind": "top-down"
    },
@@ -1889,14 +1889,16 @@
   "kind": "top-down"
  },
  "reflect": {
-  "verdict": "quiet",
-  "shear_init": "2026-11-16 06Z",
-  "shear_min": 13.9,
-  "shear_max": 41.4,
+  "verdict": "absorbing",
+  "shear_init": "2026-11-16 12Z",
+  "shear_min": 8.9,
+  "shear_max": 42.1,
   "shear_normal": 19.6,
   "zonal_mean_downward": [],
   "canada_downward": [],
-  "active": [],
+  "active": [
+   "aifs"
+  ],
   "ri_event_share_mean": 0.0
  },
  "surface": {
@@ -2002,17 +2004,17 @@
  "clock": {
   "models": {
    "aifs": {
-    "init": "2026-11-16 06Z",
+    "init": "2026-11-16 12Z",
     "onset": "2026-11-10",
     "wind_days": 11,
-    "wind": -0.94,
+    "wind": -0.91,
     "third": 1,
     "start_dates": [
      "2026-11-11",
      "2026-11-14",
      "2026-11-18"
     ],
-    "sea": -1.28,
+    "sea": -1.18,
     "sea_days": [
      7,
      15
@@ -2930,7 +2932,7 @@
  "event": {
   "onset": "2026-11-10",
   "analysed_to": "2026-11-16",
-  "wind": 5.6,
+  "wind": 5.4,
   "lowest": -2.9,
   "lowest_date": "2026-11-11",
   "westerly_from": "2026-11-13",
@@ -3021,22 +3023,22 @@
      1.9,
      4.8,
      5.8,
-     6.5,
-     8.1,
-     10.5,
-     13.7,
-     16.5,
-     18.4,
-     22.0,
-     25.7,
-     28.3,
-     30.0,
-     31.6,
-     32.9,
-     34.0,
-     34.8,
-     35.2,
-     36.3
+     5.4,
+     8.3,
+     11.3,
+     14.6,
+     17.0,
+     19.0,
+     22.8,
+     26.0,
+     27.9,
+     29.4,
+     30.9,
+     32.7,
+     33.8,
+     34.5,
+     34.9,
+     35.8
     ],
     "analysed": 31
    },
@@ -3339,12 +3341,12 @@
   ],
   "models": {
    "aifs": {
-    "init": "2026-11-16 06Z",
-    "share": 0.43,
+    "init": "2026-11-16 12Z",
+    "share": 0.42,
     "usual": 0.21,
     "days_more": 5,
     "days": 5,
-    "any_day": 0.59
+    "any_day": 0.65
    },
    "ifs": {
     "init": "2026-11-16 00Z",
@@ -3355,9 +3357,20 @@
     "any_day": 0.98
    }
   },
-  "link": {},
+  "link": {
+   "ymsl": {
+    "aifs": {
+     "r": -0.41,
+     "ci": [
+      -0.6,
+      -0.21
+     ],
+     "n": 51
+    }
+   }
+  },
   "link_runs": {
-   "aifs": "2026-11-16 06Z",
+   "aifs": "2026-11-16 12Z",
    "ifs": "2026-11-16 00Z",
    "gefs": "2026-11-16 12Z",
    "geps": "2026-11-16 00Z"
