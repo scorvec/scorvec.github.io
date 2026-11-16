@@ -214,9 +214,17 @@ def main() -> int:
     for (lev, h, k), c in sorted(normals.items(), key=lambda kv: (kv[0][2], -kv[0][0], kv[0][1])):
         out[f"{h}{lev}_k{k}_re"] = ("doy", c.real.astype("float32"))
         out[f"{h}{lev}_k{k}_im"] = ("doy", c.imag.astype("float32"))
-        out[f"{h}{lev}_k{k}_amp"] = ("doy", mean_amp[(lev, h, k)].astype("float32"))
-        if not (mean_amp[(lev, h, k)] >= 0.98 * np.abs(c)).all():
-            raise SystemExit(f"{h}{lev} wave-{k}: a mean amplitude below the standing wave's")
+        # a mean of amplitudes cannot be below the amplitude of the mean; the two are smoothed separately (and at
+        # 10 hPa sampled from different days), which can leave it a little under: floored at the standing wave's
+        amp, stand = mean_amp[(lev, h, k)], np.abs(c)
+        short = float(np.max(1 - amp / np.maximum(stand, 1e-9)))
+        print(
+            f"  {lev} hPa {h.upper()} wave-{k}: mean amplitude {amp.min():.0f}..{amp.max():.0f} gpm, at most {100 * max(short, 0):.0f} % under the standing wave before the floor",
+            flush=True,
+        )
+        if short > 0.15:
+            raise SystemExit(f"{h}{lev} wave-{k}: the mean amplitude is {100 * short:.0f} % below the standing wave's")
+        out[f"{h}{lev}_k{k}_amp"] = ("doy", np.maximum(amp, stand).astype("float32"))
     d = xr.Dataset(out, coords={"doy": np.arange(1, 367)})
     d.attrs["source"] = f"WeatherBench2 ERA5 {Y0}-{Y1}, 00 UTC (100, 500 hPa)"
     d.attrs["source_10hPa"] = (

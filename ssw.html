@@ -353,8 +353,7 @@
         every day, no waves coming back down. <b>Absorbed</b>: waves breaking in the vortex slow it; the largest fall of
         the wind at 60&deg;N, 10&nbsp;hPa within 10 days, the reversal day included. The last two rows are the event
         itself, ticked when most members have it: the wind turning easterly, with the day the ensemble-mean wind does
-        (the reversal the coupling clock starts from), and the WMO definition. Each ensemble is read over the 15 days before its own
-        reversal, or over its days 1&ndash;15 when it has none; a run reaching fewer of those days is read against the
+        (the reversal the coupling clock starts from), and the WMO definition. Each ingredient is scored member by member, because its level comes from single winters and an ensemble mean is smoother than any of them: the cell gives the share of members that have it, ticked when most do, and the median member&rsquo;s value. Each ensemble is read over the 15 days before its own reversal, or over its days 1&ndash;15 when it has none; a run reaching fewer of those days is read against the
         past warmings over the same number of days, and gets no tick when that shorter test does not separate them.
         Past warmings against quiet windows (one-sided binomial): <span data-r="cl_tests">&ndash;</span>. Not on the
         list because they did not separate the two: <span data-r="cl_others">&ndash;</span>. A wind weaker at
@@ -594,8 +593,8 @@
           .concat(km.map(function (m) {
             var x = K.models[m].items[k];
             if (!x || x.value == null) return "–<small>not in this run</small>";
-            return "<span>" + (x.tested ? (x.met ? TICK : CROSS) : "") + ING[k][2](x.value) + "</span>"
-              + (x.days < KD.window ? "<small>" + x.days + " days" + (x.tested ? "" : ", too few to tell") + "</small>" : "");
+            return "<span>" + (x.tested ? (x.met ? TICK : CROSS) : "") + (x.share == null ? "" : pct(x.share) + " of members") + "</span>"
+              + "<small>median member " + ING[k][2](x.value) + (x.days < KD.window ? "; " + x.days + " days" + (x.tested ? "" : ", too few to tell") : "") + "</small>";
           }));
       });
       rows.push(["<b>" + (kk.length + 1) + ". The wind reverses</b><small>easterly at 60°N, 10\u00A0hPa: the event itself</small>", "–"].concat(km.map(function (m) {

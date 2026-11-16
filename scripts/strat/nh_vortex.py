@@ -801,6 +801,11 @@ def record_runs(fc: dict, med: dict) -> None:
             "wmo": wmo_chance(u, dt, init) if ens and dt is not None else None,
         }
         scalars = {k: None if v is None else round(v, 3) for k, v in chance.items()}
+        if ens:  # every member's 10 hPa wind on the record's days: the checklist scores each member (ssw_summary.py)
+            lead = u.dropna(axis=1, how="all").dropna(axis=0, how="all")
+            scalars["u10_members"] = [
+                [None if not np.isfinite(x) else round(float(x), 1) for x in lead[c]] for c in lead
+            ]
         RR.record("vortex", m, init, RR.entry("vortex", frames, scalars))
 
 

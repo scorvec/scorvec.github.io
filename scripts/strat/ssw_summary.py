@@ -48,9 +48,11 @@ checklist, the coupling clock and the warming under way:
            did not (reference/ssw_checklist.json, build_ssw_checklist.py: the ingredients, thresholds and tests), each
            ensemble over the same days before its own reversal (the clock's onset) or over its days 1-15 when it has
            none: its 500 hPa wave-1 size and the wave-1 tilt from 500 to 100 hPa (its newest wave compass run,
-           wave_compass_<model>.json), the 100 hPa flux (the analyses, then its forecast mean) and the largest fall of
-           its 10 hPa wind within 10 days (its recorded runs). A window the run covers only partly is read against the
-           past warmings over the same number of days.
+           wave_compass_<model>.json), the 100 hPa flux (the analyses, then its forecast) and the largest fall of
+           its 10 hPa wind within 10 days (its recorded runs). Every ingredient is scored MEMBER BY MEMBER and the
+           summary gives the share of members that have it (met: most of them) with the median member's value: the
+           levels come from single winters, and an ensemble mean is smoother than any of them. A window the run
+           covers only partly is read against the past warmings over the same number of days.
 """
 
 from __future__ import annotations
@@ -447,44 +449,63 @@ def event_part(clock: dict) -> dict | None:
     }
 
 
-def compass_daily(m: str, norm: dict) -> pd.DataFrame:
-    """An ensemble's newest wave compass run (wave_compass_<model>.json) by day, the mean over its members: the 500 hPa
-    wave-1 size against the ERA5 normal (sd) and how far west the wave-1 ridge at 100 hPa sits of the one at 500 hPa
-    (degrees longitude; none from a run written before the compass kept the 100 hPa members)."""
+def compass_daily(m: str, norm: dict) -> dict:
+    """An ensemble's newest wave compass run (wave_compass_<model>.json), {"source", "tilt"}: frames of day x member,
+    the 500 hPa wave-1 size against the ERA5 normal (sd) and how far west the wave-1 ridge at 100 hPa sits of the one
+    at 500 hPa (degrees longitude; none from a run written before the compass kept the 100 hPa members)."""
     d = _read(f"wave_compass_{m}.json")
     if not d:
-        return pd.DataFrame(columns=["source", "tilt"], dtype=float)
+        return {}
     w = d["waves"]["1"]
     t = pd.DatetimeIndex([v[:10] for v in d["valid"]])
     c500 = np.array([[complex(*p) for p in day] for day in w["members"]])  # (day, member)
     i = doy366(t)
     size = (np.abs(c500) ** 2 - np.array(norm["mean"])[i, None]) / np.array(norm["sd"])[i, None]
-    tilt = np.full(len(t), np.nan)
+    out = {"source": pd.DataFrame(size, index=t)}
     if "members_100" in w:
         c100 = np.array([[complex(*p) for p in day] for day in w["members_100"]])
-        # wave-1: phase degrees are longitude degrees; the members' circular mean (a mean of wrapped angles drifts
-        # toward zero as they scatter)
-        tilt = np.angle((c100 * np.conj(c500)).mean(1), deg=True)
-    return pd.DataFrame({"source": size.mean(1), "tilt": tilt}, index=t)
+        out["tilt"] = pd.DataFrame(np.angle(c100 * np.conj(c500), deg=True), index=t)  # wave-1: phase = longitude
+    return out
 
 
-def flux_daily(m: str, clim) -> pd.DataFrame:
-    """The 100 hPa [v'T'] (45-75N) by day, in K m/s and against its ERA5 normal (sd): the analyses (heatflux100.json's
-    record: the AIFS-ENS control at step 0), then the ensemble's forecast mean (its own heatflux JSON)."""
-    parts = []
-    obs = (_read(HEATFLUX["aifs"]) or {}).get("hemispheres", {}).get("nh", {}).get("observed")
-    if obs:
-        parts.append(pd.Series(obs["tot"], pd.DatetimeIndex(obs["dates"]), dtype=float))
+def _after(obs: pd.Series | None, fc: pd.DataFrame) -> pd.DataFrame:
+    """Day x member: the analysed days before the run (the same for every member), then each member's forecast."""
+    if obs is None or not len(obs):
+        return fc
+    before = obs[obs.index < fc.index[0]]
+    head = pd.DataFrame(
+        np.repeat(before.to_numpy(float)[:, None], fc.shape[1], 1), index=before.index, columns=fc.columns
+    )
+    return pd.concat([head, fc])
+
+
+def flux_daily(m: str, clim) -> dict:
+    """The 100 hPa [v'T'] (45-75N), {"vt", "flux"}: frames of day x member in K m/s and against its ERA5 normal (sd):
+    the analyses (heatflux100.json's record: the AIFS-ENS control at step 0), then each member's forecast (the
+    ensemble's own heatflux JSON; none from a run written before it kept the members)."""
     d = _read(HEATFLUX[m])
-    if d:
-        valid = pd.DatetimeIndex([v[:10] for v in d["valid"]])
-        parts.append(pd.Series(d["hemispheres"]["nh"]["tot"]["mean"], valid, dtype=float))
-    if not parts:
-        return pd.DataFrame(columns=["vt", "flux"], dtype=float)
-    vt = pd.concat(parts)
+    mem = ((d or {}).get("hemispheres", {}).get("nh", {}).get("tot") or {}).get("members")
+    if not mem:
+        return {}
+    fc = pd.DataFrame(np.array(mem, float).T, index=pd.DatetimeIndex([v[:10] for v in d["valid"]]))
+    obs = (_read(HEATFLUX["aifs"]) or {}).get("hemispheres", {}).get("nh", {}).get("observed")
+    vt = _after(pd.Series(obs["tot"], pd.DatetimeIndex(obs["dates"]), dtype=float) if obs else None, fc)
     vt = vt[~vt.index.duplicated(keep="last")].sort_index()
-    z = (vt - HF.clim_at(clim, "nh", "tot", "mean", vt.index)) / HF.clim_at(clim, "nh", "tot", "sd", vt.index)
-    return pd.DataFrame({"vt": vt, "flux": z})
+    mu, sd = (HF.clim_at(clim, "nh", "tot", k, vt.index) for k in ("mean", "sd"))
+    return {"vt": vt, "flux": vt.sub(np.asarray(mu), axis=0).div(np.asarray(sd), axis=0)}
+
+
+def vortex_members(rs: list) -> pd.DataFrame | None:
+    """Day x member u(60N, 10 hPa): each earlier run's analysed first day, then every member of the newest run (None
+    from a run recorded before the record kept the members)."""
+    mem = rs[-1].get("u10_members")
+    if not mem:
+        return None
+    fc = pd.DataFrame(np.array(mem, float).T, index=pd.DatetimeIndex([v[:10] for v in rs[-1]["valid"]]))
+    days = {r["valid"][0][:10]: r["u10"]["mean"][0] for r in rs[:-1]}
+    obs = pd.Series(days, dtype=float).dropna()
+    obs.index = pd.DatetimeIndex(obs.index)
+    return _after(obs.sort_index(), fc)
 
 
 def checklist_part(clock: dict, clim) -> dict:
@@ -499,23 +520,28 @@ def checklist_part(clock: dict, clim) -> dict:
         onset = clock["models"].get(m, {}).get("onset")
         init = pd.Timestamp(rs[-1]["valid"][0][:10])
         end = pd.Timestamp(onset) if onset else init + pd.Timedelta(days=dfn["window"] + 1)
-        cp, fx = compass_daily(m, norm), flux_daily(m, clim)
-        series = {"source": cp["source"], "tilt": cp["tilt"], "flux": fx["flux"], "vt": fx["vt"],
-                  "u10": vortex_daily(rs)["u10"]}  # fmt: skip
+        # every ingredient member by member: the record's levels come from single winters, and an ensemble mean is
+        # smoother than any of them (its daily flux hardly ever turns downward, its wind never falls as fast)
+        series = {**compass_daily(m, norm), **flux_daily(m, clim), "u10": vortex_members(rs)}
         items = {}
         for key, (src, f) in CK.VALUE.items():
             # the WINDOW days before the reversal (the slowing through it), or days 1-15 (the slowing from day 0)
             through = key == "slowing"
             stop = end if through and onset else end - pd.Timedelta(days=1)
-            x = series[src].loc[stop - pd.Timedelta(days=dfn["window"] - 1 + through) : stop].dropna()
-            days = len(x) - through
+            frame = series.get(src)
+            x = None if frame is None else frame.loc[stop - pd.Timedelta(days=dfn["window"] - 1 + through) : stop]
+            x = None if x is None else x.dropna(axis=1, how="any")
+            days = (len(x) if x is not None and x.shape[1] else 0) - through
             if days < dfn["min_days"]:
-                items[key] = {"days": max(days, 0), "value": None, "met": None, "tested": False}
+                items[key] = {"days": max(days, 0), "value": None, "met": None, "share": None, "tested": False}
                 continue
-            v = f(x)
+            v = np.array([f(x[c]) for c in x])
+            share = float(np.mean([CK.meets(key, y) for y in v]))
             p = ref["items"][key]["by_days"][str(days)]["p"]
-            items[key] = {"days": days, "value": _r(v, 2 if key in ("source", "flux") else 1),
-                          "met": CK.meets(key, v), "tested": p < dfn["alpha"]}  # fmt: skip
+            # value: the median member's; met: most members have it; share: how many of them
+            items[key] = {"days": days, "value": _r(np.median(v), 2 if key in ("source", "flux") else 1),
+                          "met": share >= 0.5, "share": _r(share), "members": len(v),
+                          "tested": p < dfn["alpha"]}  # fmt: skip
         first = end - pd.Timedelta(days=dfn["window"])
         out[m] = {"onset": onset, "window": [f"{first:%Y-%m-%d}", f"{end - pd.Timedelta(days=1):%Y-%m-%d}"],
                   "items": items}  # fmt: skip

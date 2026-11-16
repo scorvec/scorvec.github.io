@@ -769,6 +769,8 @@ def main() -> int:
                 "p90": np.round(np.percentile(mem[k], 90, 0), 2).tolist(),
                 "control": np.round(ctrl[k], 2).tolist(),
                 "model_error_removed": np.round(err[k], 2).tolist(),
+                # the total flux member by member: the checklist scores each member (ssw_summary.py)
+                **({"members": np.round(mem[k], 1).tolist()} if k == "tot" else {}),
             }
             for k in mem
         }
