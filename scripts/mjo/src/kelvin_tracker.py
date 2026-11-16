@@ -160,6 +160,21 @@ def analysis_days(hist: xr.DataArray) -> xr.DataArray:
     return h.groupby(h.time.dt.floor("D")).mean("time").rename({"floor": "time"})
 
 
+def hour_offset(hist: xr.DataArray) -> np.ndarray:
+    """(latitude, longitude): how far a 00 UTC field sits from the day's mean, from the days of the record holding
+    both analyses - half the mean 00 minus 12 UTC difference, the atmospheric tide in the divergent wind (about 1e6
+    m2/s over the east Pacific and the Indian Ocean). The forecast fields are 00 UTC fields and the analysed days are
+    day means: joined without it, the forecast part carries this pattern at every lead."""
+    h = hist.sel(level=200)
+    day = h.time.dt.floor("D")
+    a00, a12 = (h.isel(time=(h.time.dt.hour == k).values) for k in (0, 12))
+    a00, a12 = (a.assign_coords(time=day.sel(time=a.time).values) for a in (a00, a12))
+    both = np.intersect1d(a00.time.values, a12.time.values)
+    if not len(both):
+        return np.zeros(h.shape[1:])
+    return ((a00.sel(time=both) - a12.sel(time=both)) / 2).mean("time").values
+
+
 def forecast_chi(date: str, hh: str, lat_ref, lon_ref):
     """Daily 00 UTC ensemble-mean chi200 from the AIFS-ENS forecast, on the history's grid."""
     import walker_chi as WC
@@ -378,6 +393,7 @@ def main() -> int:
     init_day = pd.Timestamp(f"{a.date[:4]}-{a.date[4:6]}-{a.date[6:]}")
     ad = ad.sel(time=slice(None, init_day))
     fdays, fchi = forecast_chi(a.date, a.time, lat, lon)
+    fchi = fchi - hour_offset(hist)[None]  # 00 UTC fields onto the analysed days' day means
     days = pd.DatetimeIndex(list(pd.DatetimeIndex(ad.time.values)) + [d for d in fdays if d > init_day])
     chi = np.concatenate([ad.values, fchi[[i for i, d in enumerate(fdays) if d > init_day]]], 0)
     full = pd.date_range(days[0], days[-1], freq="D")  # fill any missing day by interpolation
