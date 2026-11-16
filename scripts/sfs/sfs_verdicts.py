@@ -2,8 +2,11 @@
 """Which SFS hindcast differences are significant, and the page text that reports them - both from the study tables.
 
 The study tables (scripts/sfs/skill/, offline study) give every SFS-minus-other skill difference with its 95 % year-block
-bootstrap interval. A difference's two-sided p is read from that interval (normal approximation, the standard error
-from the half of the interval on the side of zero), and it counts as significant only when p < ALPHA AND it passes
+bootstrap interval. A difference's two-sided p is read from that interval: the standard error from the half of the
+interval on the side of zero, widened by sqrt(n / (n - 1)) because a bootstrap over n years runs that much narrow, and
+Student's t on n - 1 degrees of freedom, n the years the row rests on (a normal tail read off 19 to 35 years calls
+far more differences beyond chance than there are, and Benjamini-Hochberg works in that tail). It counts as
+significant only when p < ALPHA AND it passes
 Benjamini-Hochberg at FDR_Q over the family of differences its figure shows (FAMILIES) - each figure tests dozens of
 cells, and a bare 95 % interval passes one in twenty by chance. The figures (sfs_skillfig.py, sfs_cfsfig.py) mark exactly these cells, and the captions of the two
 pages are generated here and written between /*sfs-verdict:<key>*/ and /*end*/ markers:
@@ -16,12 +19,12 @@ from __future__ import annotations
 import argparse
 import json
 import re
-from math import erfc, sqrt
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from quantmet.stats import benjamini_hochberg
+from scipy import stats
 
 HERE = Path(__file__).resolve().parent
 TABLES = {
@@ -29,6 +32,7 @@ TABLES = {
     "cfs_weekly": HERE / "skill" / "cfs" / "partA_sfs_vs_cfs_weekly.csv",
     "cfs_seasonal": HERE / "skill" / "cfs" / "partB_sfs_vs_cfs_seasonal.csv",
 }
+YEARS = {"gefs_geps": 19}  # the years of a table that has no n_years column (2001-2019)
 ALPHA, FDR_Q = 0.05, 0.10
 # family -> (table, the rows its figure tests)
 FAMILIES = {
@@ -49,10 +53,12 @@ def table(name: str) -> pd.DataFrame:
     """A study table with p and fdr_sig (the significance the figures and captions use) for its family rows; every
     other row has fdr_sig False."""
     d = pd.read_csv(TABLES[name])
-    # the half of the interval on the side of zero: correlations near 1 have skewed intervals, and this keeps
-    # p < 0.05 exactly where the interval excludes zero
-    se = np.where(d.value > 0, d.value - d.lo, d.hi - d.value) / 1.959964
-    d["p"] = [erfc(abs(v) / s / sqrt(2)) if s > 0 else np.nan for v, s in zip(d.value, se)]
+    # the half of the interval on the side of zero (correlations near 1 have skewed intervals), as a standard error
+    # over the row's n years
+    n = d["n_years"].to_numpy(float) if "n_years" in d else np.full(len(d), float(YEARS[name]))
+    se = np.where(d.value > 0, d.value - d.lo, d.hi - d.value) / 1.959964 * np.sqrt(n / (n - 1))
+    with np.errstate(invalid="ignore", divide="ignore"):
+        d["p"] = np.where(se > 0, 2 * stats.t.sf(np.abs(d.value) / se, n - 1), np.nan)
     d["fdr_sig"] = False
     for tab, rows in FAMILIES.values():
         if tab == name:
