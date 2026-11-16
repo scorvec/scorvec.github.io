@@ -1,5 +1,5 @@
 {
- "built": "2026-11-16 21:20Z",
+ "built": "2026-11-16 23:06Z",
  "newest_init": "2026-11-16 12Z",
  "window": [
   "2026-11-17",
@@ -1951,26 +1951,26 @@
   "skill": {
    "all_days": {
     "n_days": 8458,
-    "bss": 0.174,
+    "bss": 0.154,
     "ci95": [
-     0.126,
-     0.222
+     0.108,
+     0.205
     ]
    },
    "cap_1sd": {
     "n_days": 2754,
-    "bss": 0.391,
+    "bss": 0.382,
     "ci95": [
-     0.298,
-     0.48
+     0.288,
+     0.472
     ]
    },
    "cap_weak_1sd": {
     "n_days": 1394,
-    "bss": 0.409,
+    "bss": 0.421,
     "ci95": [
-     0.254,
-     0.547
+     0.265,
+     0.559
     ]
    }
   },
@@ -3389,31 +3389,36 @@
       "days": 0,
       "value": null,
       "met": null,
+      "share": null,
       "tested": false
      },
      "tilt": {
       "days": 0,
       "value": null,
       "met": null,
+      "share": null,
       "tested": false
      },
      "flux": {
-      "days": 15,
-      "value": 1.69,
-      "met": true,
-      "tested": true
+      "days": 0,
+      "value": null,
+      "met": null,
+      "share": null,
+      "tested": false
      },
      "upward": {
-      "days": 15,
-      "value": 8.9,
-      "met": true,
-      "tested": true
+      "days": 0,
+      "value": null,
+      "met": null,
+      "share": null,
+      "tested": false
      },
      "slowing": {
-      "days": 15,
-      "value": 21.1,
-      "met": true,
-      "tested": true
+      "days": 0,
+      "value": null,
+      "met": null,
+      "share": null,
+      "tested": false
      }
     }
    },
@@ -3428,31 +3433,36 @@
       "days": 0,
       "value": null,
       "met": null,
+      "share": null,
       "tested": false
      },
      "tilt": {
       "days": 0,
       "value": null,
       "met": null,
+      "share": null,
       "tested": false
      },
      "flux": {
-      "days": 15,
-      "value": 1.98,
-      "met": true,
-      "tested": true
+      "days": 0,
+      "value": null,
+      "met": null,
+      "share": null,
+      "tested": false
      },
      "upward": {
-      "days": 15,
-      "value": 10.9,
-      "met": true,
-      "tested": true
+      "days": 0,
+      "value": null,
+      "met": null,
+      "share": null,
+      "tested": false
      },
      "slowing": {
-      "days": 15,
-      "value": 21.6,
-      "met": true,
-      "tested": true
+      "days": 0,
+      "value": null,
+      "met": null,
+      "share": null,
+      "tested": false
      }
     }
    },
@@ -3467,31 +3477,36 @@
       "days": 0,
       "value": null,
       "met": null,
+      "share": null,
       "tested": false
      },
      "tilt": {
       "days": 0,
       "value": null,
       "met": null,
+      "share": null,
       "tested": false
      },
      "flux": {
-      "days": 15,
-      "value": 1.69,
-      "met": true,
-      "tested": true
+      "days": 0,
+      "value": null,
+      "met": null,
+      "share": null,
+      "tested": false
      },
      "upward": {
-      "days": 15,
-      "value": 8.9,
-      "met": true,
-      "tested": true
+      "days": 0,
+      "value": null,
+      "met": null,
+      "share": null,
+      "tested": false
      },
      "slowing": {
-      "days": 15,
-      "value": 20.7,
-      "met": true,
-      "tested": true
+      "days": 0,
+      "value": null,
+      "met": null,
+      "share": null,
+      "tested": false
      }
     }
    },
@@ -3506,31 +3521,36 @@
       "days": 0,
       "value": null,
       "met": null,
+      "share": null,
       "tested": false
      },
      "tilt": {
       "days": 0,
       "value": null,
       "met": null,
+      "share": null,
       "tested": false
      },
      "flux": {
-      "days": 15,
-      "value": 1.69,
-      "met": true,
-      "tested": true
+      "days": 0,
+      "value": null,
+      "met": null,
+      "share": null,
+      "tested": false
      },
      "upward": {
-      "days": 15,
-      "value": 8.9,
-      "met": true,
-      "tested": true
+      "days": 0,
+      "value": null,
+      "met": null,
+      "share": null,
+      "tested": false
      },
      "slowing": {
-      "days": 15,
-      "value": 21.3,
-      "met": true,
-      "tested": true
+      "days": 0,
+      "value": null,
+      "met": null,
+      "share": null,
+      "tested": false
      }
     }
    }

@@ -33,13 +33,13 @@
   "z500_nh": 0.326
  },
  "obs_sig_frac": {
-  "tas_na": 0.048,
-  "tas_sa": 0.102,
-  "pr_na": 0.044,
-  "prpct_na": 0.037,
-  "pr_sa": 0.074,
-  "prpct_sa": 0.056,
-  "z500_nh": 0.141
+  "tas_na": 0.025,
+  "tas_sa": 0.071,
+  "pr_na": 0.012,
+  "prpct_na": 0.011,
+  "pr_sa": 0.03,
+  "prpct_sa": 0.024,
+  "z500_nh": 0.108
  },
  "robust_frac_seasons": {
   "tas_na": 0.239,
@@ -627,13 +627,13 @@
   }
  },
  "obs_sig_frac_seasons": {
-  "tas_na": 0.047,
-  "tas_sa": 0.131,
-  "pr_na": 0.025,
-  "prpct_na": 0.022,
-  "pr_sa": 0.063,
-  "prpct_sa": 0.053,
-  "z500_nh": 0.189
+  "tas_na": 0.036,
+  "tas_sa": 0.116,
+  "pr_na": 0.014,
+  "prpct_na": 0.012,
+  "pr_sa": 0.042,
+  "prpct_sa": 0.036,
+  "z500_nh": 0.174
  },
  "periods": [
   [
