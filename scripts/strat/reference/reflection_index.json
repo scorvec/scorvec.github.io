@@ -1,5 +1,5 @@
 {
- "built": "2026-10-21",
+ "built": "2026-11-16",
  "builder": "scripts/strat/build_reflection_index.py",
  "period": [
   "1990-11-01",
@@ -145,7 +145,8 @@
    "mean": 0.28,
    "share_negative": 0.38,
    "null_mean": 0.0,
-   "p": 0.0335
+   "p": 0.067,
+   "sig": true
   },
   {
    "days": [
@@ -155,7 +156,8 @@
    "mean": -0.43,
    "share_negative": 0.69,
    "null_mean": -0.0,
-   "p": 0.006
+   "p": 0.012,
+   "sig": true
   },
   {
    "days": [
@@ -165,7 +167,8 @@
    "mean": -0.49,
    "share_negative": 0.69,
    "null_mean": 0.0,
-   "p": 0.0015
+   "p": 0.003,
+   "sig": true
   },
   {
    "days": [
@@ -175,7 +178,8 @@
    "mean": 0.25,
    "share_negative": 0.28,
    "null_mean": 0.01,
-   "p": 0.0185
+   "p": 0.037,
+   "sig": true
   }
  ],
  "tna_after": [
@@ -187,7 +191,8 @@
    "mean": 1.65,
    "share_negative": 0.28,
    "null_mean": 0.13,
-   "p": 0.0015
+   "p": 0.003,
+   "sig": true
   },
   {
    "days": [
@@ -197,7 +202,8 @@
    "mean": 0.12,
    "share_negative": 0.44,
    "null_mean": 0.08,
-   "p": 0.485
+   "p": 0.97,
+   "sig": false
   },
   {
    "days": [
@@ -207,7 +213,8 @@
    "mean": -1.93,
    "share_negative": 0.78,
    "null_mean": 0.07,
-   "p": 0.0005
+   "p": 0.001,
+   "sig": true
   },
   {
    "days": [
@@ -217,7 +224,8 @@
    "mean": 0.16,
    "share_negative": 0.5,
    "null_mean": 0.11,
-   "p": 0.464
+   "p": 0.928,
+   "sig": false
   }
  ],
  "definition": "RI = z(Siberia 45-75N 140-200E) - z(Canada 45-75N 230-280E), v*T* at 100 hPa, ERA5 1991-2020 day-of-year standardisation; event = RI > 1 for 10+ days, December-March, Siberia upward and Canada downward"

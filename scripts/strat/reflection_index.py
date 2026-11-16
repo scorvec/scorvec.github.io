@@ -173,15 +173,23 @@ def render(out: Path = OUT) -> None:
     if ref:
         e = {w["days"][0]: w for w in ref["epo_after"]}
         tn = {w["days"][0]: w for w in ref["tna_after"]}
-        lines += [
-            "",
-            f"After the {len(ref['events'])} ERA5 events",
-            f"({ref['period'][0][:4]}–{ref['period'][1][:4]}, December–March):",
-            f"  EPO, days 1–5: {e[1]['mean']:+.2f} sd (p {e[1]['p']:.2g})",
-            f"  EPO, days 6–12: {e[6]['mean']:+.2f} sd (p {e[6]['p']:.2g})",
-            f"  N. America 2 m T before onset: {tn[-5]['mean']:+.1f} K",
-            f"  and over days 6–12: {tn[6]['mean']:+.1f} K (p {tn[6]['p']:.2g})",
+        # only the windows that pass the reference's test (two-sided, false-discovery rate over all its windows)
+        after = [
+            f"  {name}: {w['mean']:{fmt}} {unit} (p {w['p']:.2g})"
+            for name, w, fmt, unit in (
+                ("EPO, days 1–5", e[1], "+.2f", "sd"),
+                ("EPO, days 6–12", e[6], "+.2f", "sd"),
+                ("N. America 2 m T, days 6–12", tn[6], "+.1f", "K"),
+            )
+            if w.get("sig")
         ]
+        if after:
+            lines += [
+                "",
+                f"After the {len(ref['events'])} ERA5 events",
+                f"({ref['period'][0][:4]}–{ref['period'][1][:4]}, December–March):",
+                *after,
+            ]
     side.text(0, 1, "\n".join(lines), transform=side.transAxes, va="top", fontsize=8.6, color=INK, family="DejaVu Sans",
               linespacing=1.5)  # fmt: skip
 

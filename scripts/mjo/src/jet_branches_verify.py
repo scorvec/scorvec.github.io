@@ -62,7 +62,7 @@ LEAD_DAYS = tuple(range(11))
 EVENT_GROUPS = {"0-2": (0, 1, 2), "3-5": (3, 4, 5), "6-10": (6, 7, 8, 9, 10)}  # lead days pooled for the rare events
 BOOT = 2000
 FDR_Q = 0.10
-MIN_EVENTS = 10  # an event lead group is tested only with at least this many ERA5 event analyses
+MIN_EVENTS = 10  # an event lead group is tested only with at least this many DISTINCT ERA5 analyses with an event
 MIN_BLOCKS = 10  # weeks of start dates the bootstrap needs before anything can pass
 SKILL = FC.REF / "jet_branches_skill.json"
 
@@ -363,7 +363,17 @@ def verify(run_paths, scan_paths, clim_path, out_dir, json_path=None, members=10
     fin_e = np.where(adopt_e[None], ev_cal, ev_raw)
     sk_m = skill_test(fin_m, bs_norm, block, nblock, counts)
     sk_e = skill_test(fin_e, ev_norm, block, nblock, counts)
-    n_ev = np.stack([c["ev_obs"][:, list(d)].sum((0, 1)) for d in EVENT_GROUPS.values()])  # (group, region)
+    # the ERA5 analyses with an event that a lead group verifies against, each counted once: daily runs with 12-hourly
+    # leads reach one analysis from three to five (run, lead) pairs, and counted by pair a handful of events passes
+    seen = [[set() for _ in JB.REGIONS] for _ in EVENT_GROUPS]
+    for s in stats:
+        t0 = pd.Timestamp(s["init"])
+        for j, h in enumerate(s["lead_h"]):
+            for g, days in enumerate(EVENT_GROUPS.values()):
+                if int(h) // 24 in days:
+                    for r in np.flatnonzero(s["ev_obs"][j]):
+                        seen[g][r].add(t0 + pd.Timedelta(hours=int(h)))
+    n_ev = np.array([[len(x) for x in row] for row in seen])  # (group, region)
     sk_e[3][n_ev < MIN_EVENTS] = 1.0  # too few events to judge
     raw_m = skill_test(bs_raw, bs_norm, block, nblock, counts)
     raw_e = skill_test(ev_raw, ev_norm, block, nblock, counts)

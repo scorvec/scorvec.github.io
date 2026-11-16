@@ -49,6 +49,14 @@ OBS_DAYS = 60  # observed window (3-day steps)
 DSCALE = 1e23  # heatmap units
 
 
+def _band_share(lat, lc, half=0.75):
+    """The share of each row's cell (the row ± half the spacing) inside the band lc ± half: a row on the band's edge
+    is half inside. Six whole rows from lc - 0.75 to lc + 0.5 sit an eighth of a degree south of the 1.5-degree band
+    of the climatology they are set against."""
+    h = abs(float(lat[1] - lat[0]))
+    return np.clip((half + h / 2 - np.abs(lat - lc)) / h, 0.0, 1.0)
+
+
 def _latband_day(t, latc):
     """Band-integrated AAM (kg m² s⁻¹) on the 1.5° clim latitude grid for one
     12Z ERA5 timestamp (13 levels, matching the density climatology)."""
@@ -63,10 +71,8 @@ def _latband_day(t, latc):
     )  # per 0.25° row
     # aggregate 0.25° rows into the 1.5° clim bands
     out = np.zeros(len(latc))
-    half = 0.75
     for i, lc in enumerate(latc):
-        sel = (lat >= lc - half) & (lat < lc + half)
-        out[i] = dens[sel].sum()
+        out[i] = (dens * _band_share(lat, lc)).sum()
     return out
 
 
@@ -135,8 +141,7 @@ def forecast_latbands(date, time, latc):
         dp = _vert_weights(np.asarray(LEVELS13, float) * 100.0, spm[k])
         dens = (A**3 / G) * (um[k] * dp).sum(axis=0).sum(axis=1) * cos2 * dlon * dlat
         for i, lc in enumerate(latc):
-            sel = (lat >= lc - 0.75) & (lat < lc + 0.75)
-            out[k, i] = dens[sel].sum()
+            out[k, i] = (dens * _band_share(lat, lc)).sum()
     return steps_h, out
 
 

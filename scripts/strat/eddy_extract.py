@@ -132,8 +132,17 @@ class Atlantic:
             uu, vv = u[k].astype("float64"), v[k].astype("float64")
             ue, ve = correlate1d(uu, band, axis=0), correlate1d(vv, band, axis=0)
             uu, vv = correlate1d(uu, slow, axis=0), correlate1d(vv, slow, axis=0)
-            d1 = (np.gradient(uu, lam, axis=-1) - np.gradient(vv * cos, phi, axis=-2)) / (EARTH_RADIUS * cos)
-            d2 = (np.gradient(vv, lam, axis=-1) + np.gradient(uu * cos, phi, axis=-2)) / (EARTH_RADIUS * cos)
+            # stretching and shearing deformation on the sphere: the meridional terms are (cos/a) d(x/cos)/dphi, so that
+            # solid-body rotation (u = U cos) has none; (1/(a cos)) d(x cos)/dphi is the divergence / vorticity operator
+            # and differs by 2 x tan(phi) / a
+            d1 = (
+                np.gradient(uu, lam, axis=-1) / (EARTH_RADIUS * cos)
+                - cos * np.gradient(vv / cos, phi, axis=-2) / EARTH_RADIUS
+            )
+            d2 = (
+                np.gradient(vv, lam, axis=-1) / (EARTH_RADIUS * cos)
+                + cos * np.gradient(uu / cos, phi, axis=-2) / EARTH_RADIUS
+            )
             g = (cos * (0.5 * (ve**2 - ue**2) * d1 - ue * ve * d2) * self.w).sum((-2, -1))
             m = len(slow) // 2
             g[:m] = g[-m:] = np.nan

@@ -15,7 +15,8 @@ AFTER THE EVENTS (ERA5, the local WeatherBench2 1.5 deg daily store):
         day-of-year mean and sd (366 slots, +/-15 days); negative = a ridge over Alaska and the eastern Pacific
   tna   2 m temperature over North America (30-60N, 240-290E), K from the same kind of normal
 each over days -5..0, 1..5, 6..12 and 13..24 after onset, against random onsets in the same calendar months
-(N_NULL draws, one-sided in the direction the windows lean).
+(N_NULL draws, two-sided: the direction is not fixed beforehand, so a one-sided count on the side the result fell
+would halve the p; and Benjamini-Hochberg at 10 % over the windows of the two indices together).
 """
 
 from __future__ import annotations
@@ -113,8 +114,7 @@ def after(series: pd.Series, onsets, rng) -> list[dict]:
             ]
         )
         obs = float(np.nanmean(x))
-        side = -1 if obs < null.mean() else 1
-        p = (np.sum(side * null >= side * obs) + 1) / (N_NULL + 1)
+        p = min(1.0, 2 * (min(np.sum(null >= obs), np.sum(null <= obs)) + 1) / (N_NULL + 1))
         out.append(
             {
                 "days": [a0, a1],
@@ -148,8 +148,19 @@ def main() -> int:
         "definition": "RI = z(Siberia 45-75N 140-200E) - z(Canada 45-75N 230-280E), v*T* at 100 hPa, ERA5 1991-2020 "
         "day-of-year standardisation; event = RI > 1 for 10+ days, December-March, Siberia upward and Canada downward",
     }
+    from quantmet.stats import benjamini_hochberg
+
+    tests = [w for k in ("epo_after", "tna_after") for w in doc[k]]
+    for w, ok in zip(tests, benjamini_hochberg(np.array([w["p"] for w in tests]), 0.10), strict=True):
+        w["sig"] = bool(ok)
     for k in ("epo_after", "tna_after"):
-        print(f"  {k}: " + "; ".join(f"d{w['days'][0]}..{w['days'][1]} {w['mean']:+.2f} (p {w['p']})" for w in doc[k]))
+        print(
+            f"  {k}: "
+            + "; ".join(
+                f"d{w['days'][0]}..{w['days'][1]} {w['mean']:+.2f} (p {w['p']}{'' if w['sig'] else ', not significant'})"
+                for w in doc[k]
+            )
+        )
     OUT.write_text(json.dumps(doc, indent=1))
     print(f"wrote {OUT.relative_to(REPO)}")
     return 0

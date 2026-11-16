@@ -91,7 +91,8 @@ def main() -> int:
             Yb = (Yb - Yb.mean(0)) / Yb.std(0)
             boots[b] = (xb[:, None, None] * Yb).mean(0)
         lo, hi = np.percentile(boots, 5, 0), np.percentile(boots, 95, 0)
-        p = np.minimum(1.0, 2 * np.minimum((boots <= 0).mean(0), (boots >= 0).mean(0)))
+        # never exactly zero: a count of B resamples cannot say less than 1 / (B + 1)
+        p = np.minimum(1.0, 2 * (np.minimum((boots <= 0).sum(0), (boots >= 0).sum(0)) + 1) / (len(boots) + 1))
         sig = bh(p.ravel()).reshape(p.shape)
         r1x = np.corrcoef(x[:-1], x[1:])[0, 1]
         r1y = [np.corrcoef(pc[days[:-1], k], pc[days[:-1] + 1, k])[0, 1] for k in range(2)]
