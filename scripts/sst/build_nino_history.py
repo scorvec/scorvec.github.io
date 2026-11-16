@@ -94,11 +94,28 @@ def ersst_grid():
     return xr.open_dataset(cache)
 
 
+def _inside(pts: np.ndarray, lo: float, hi: float) -> np.ndarray:
+    """The share of each grid point's cell (the point ± half the spacing) that lies inside [lo, hi]."""
+    h = abs(float(pts[1] - pts[0]))
+    return np.clip(np.minimum(pts + h / 2, hi) - np.maximum(pts - h / 2, lo), 0.0, h) / h
+
+
 def _box_series(sst, box) -> pd.Series:
-    """Cosine-weighted mean of the grid points inside a (lat, lon) box, monthly (month-start index)."""
+    """Area mean over a (lat, lon) box, monthly (month-start index): each 2° cell weighted by the cosine of its
+    latitude and by the share of it inside the box. A point on the box's edge is half inside: counted whole, the
+    Niño-3.4 box was 52° wide and the Niño-1+2 box 44 % too large and across the equator."""
+    import xarray as xr
+
     (la0, la1), (lo0, lo1) = box
-    b = sst.sel(lat=slice(la1, la0), lon=slice(lo0, lo1))  # ERSST lat runs N→S
-    ser = b.weighted(np.cos(np.deg2rad(b["lat"]))).mean(dim=("lat", "lon"), skipna=True).to_series()
+    lat, lon = sst["lat"].values, sst["lon"].values
+    wlon = np.ones(lon.size) if lo1 - lo0 >= 360 else _inside(lon, lo0, lo1)
+    w = xr.DataArray(
+        (_inside(lat, la0, la1) * np.cos(np.deg2rad(lat)))[:, None] * wlon[None, :],
+        dims=("lat", "lon"),
+        coords={"lat": sst["lat"], "lon": sst["lon"]},
+    )
+    b = sst.sel(lat=slice(la1 + 2, la0 - 2), lon=slice(lo0 - 2, lo1 + 2))  # ERSST lat runs N→S; the edge cells too
+    ser = b.weighted(w.sel(lat=b["lat"], lon=b["lon"])).mean(dim=("lat", "lon"), skipna=True).to_series()
     ser.index = pd.DatetimeIndex(ser.index).to_period("M").to_timestamp()
     return ser
 

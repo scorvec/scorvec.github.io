@@ -124,6 +124,19 @@ def roni_scale() -> np.ndarray:
     return np.array([float(tab[str(m)]) for m in range(1, 13)])
 
 
+def _box(lat, lon, lats, lons=None) -> np.ndarray:
+    """(lat, lon) weights of the area mean over a box on a point grid: the cosine of latitude times the share of each
+    point's cell (the point ± half the spacing) inside the box, so a point on an edge is half inside (counted whole,
+    the 170-120W box of a 2-degree grid is 52 degrees wide). lons None: every longitude."""
+
+    def inside(pts, a, b):
+        h = abs(float(pts[1] - pts[0]))
+        return np.clip(np.minimum(pts + h / 2, b) - np.maximum(pts - h / 2, a), 0.0, h) / h
+
+    wx = np.ones(len(lon)) if lons is None else inside(np.asarray(lon, float), *lons)
+    return (inside(np.asarray(lat, float), *lats) * np.cos(np.deg2rad(lat)))[:, None] * wx[None, :]
+
+
 def ersst(path: Path, start: str = "1959-01") -> dict:
     """Monthly ERSSTv6 anomalies against 1991-2020: the 25S-25N field (T, cells) from T0, and Niño-3.4 and relative
     Niño-3.4 (Niño-3.4 minus the 20S-20N mean) from `start`, keyed by month."""
@@ -141,13 +154,9 @@ def ersst(path: Path, start: str = "1959-01") -> dict:
         s = mo == k
         x[s] -= np.nanmean(x[s & (yr >= CLIM[0]) & (yr <= CLIM[1])], 0)
     lat, lon = d.lat.values, d.lon.values
-    la = (lat >= -5) & (lat <= 5)
-    lo = (lon >= 190) & (lon <= 240)
-    w = np.cos(np.deg2rad(lat[la]))
-    n34 = np.nansum(x[:, la][:, :, lo] * w[None, :, None], (1, 2)) / (w.sum() * lo.sum())
-    tr = (lat >= -20) & (lat <= 20)
-    wt = np.cos(np.deg2rad(lat[tr]))[:, None] * np.isfinite(x[0, tr])
-    trop = np.nansum(np.nan_to_num(x[:, tr]) * wt, (1, 2)) / wt.sum()
+    w, wt = _box(lat, lon, (-5, 5), (190, 240)), _box(lat, lon, (-20, 20)) * np.isfinite(x[0])
+    n34 = np.nansum(x * w[None], (1, 2)) / w.sum()
+    trop = np.nansum(np.nan_to_num(x) * wt[None], (1, 2)) / wt.sum()
     band = (lat >= -SST_LAT) & (lat <= SST_LAT)
     field = x[:, band].reshape(len(months), -1)
     ok = np.isfinite(field[months.index(T0) :]).all(0)
@@ -185,12 +194,9 @@ def oisst_state(folder: Path, months: list[str]) -> dict:
     lat, lon = oisst_daily.LAT, oisst_daily.LON
     have = np.isfinite(W).any((1, 2))
     ok = np.isfinite(W[have]).all(0)
-    la, lo = np.abs(lat) <= 5, (lon >= 190) & (lon <= 240)
-    w = np.cos(np.deg2rad(lat[la]))
-    n34 = np.nansum(W[:, la][:, :, lo] * w[None, :, None], (1, 2)) / (w.sum() * lo.sum())
-    tr = np.abs(lat) <= 20
-    wt = np.cos(np.deg2rad(lat[tr]))[:, None] * ok[tr]
-    trop = np.nansum(np.nan_to_num(W[:, tr]) * wt, (1, 2)) / wt.sum()
+    w, wt = _box(lat, lon, (-5, 5), (190, 240)), _box(lat, lon, (-20, 20)) * ok
+    n34 = np.nansum(W * w[None], (1, 2)) / w.sum()
+    trop = np.nansum(np.nan_to_num(W) * wt[None], (1, 2)) / wt.sum()
     cw = np.sqrt(np.cos(np.deg2rad(lat)))[:, None] * np.ones(len(lon))
     return {
         "field": W[:, ok] * cw[ok],
