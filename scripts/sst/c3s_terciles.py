@@ -210,9 +210,9 @@ def derive_issue_table(centre: str, system: str, var: str, issue: str, fp: Path,
     for pid, f in fcm.items():
         if f"lo_{pid}" not in tb:
             continue
-        b = {k: tb[f"{k}_{pid}"] for k in ("lo", "hi", "b", "ymean") if f"{k}_{pid}" in tb}
+        b = {k: tb[f"{k}_{pid}"] for k in ("lo", "hi", "b", "ymean", "share", "nyear") if f"{k}_{pid}" in tb}
         pr = probs_from_bounds(f, b, target, min_spread=MIN_SPREAD.get(var, 0.0))
-        for k in ("above", "below", "normal"):
+        for k in ("above", "below", "normal", "extra"):
             arrs[f"{k}_{pid}"] = pr[k]
         meta["nmem"][pid] = int(f.shape[0])
         meta["periods"].append(pid)

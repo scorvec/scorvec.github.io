@@ -34,7 +34,7 @@ import mapstyle as MS
 from c3s_nino34 import MODELS
 from c3s_terciles import VARS, issue_table
 from c3s_maps_render import MONTHS, PERIODS, lead_note, on_grid, period_label
-from seas5_build import TERC_BINS, TERC_PALETTES, TERC_TEST_NOTE, tercile_signal
+from seas5_build import TERC_BINS, TERC_PALETTES, TERC_TEST_NOTE, tercile_null, tercile_signal
 
 SITE = Path(os.environ.get("SST_SITE_ROOT", HERE.parents[1]))
 OUT = SITE / "assets" / "sst" / "c3s"
@@ -110,7 +110,9 @@ def period_means(path: Path, short: str, fac: float, periods: dict):
 
 def bounds(h: np.ndarray, years: np.ndarray | None, detrend: bool) -> dict:
     """The hindcast half of the count, kept as a table (c3s_ref hc_terc): per grid point the 1/3 and 2/3
-    bounds of the hindcast season means and, with `detrend`, the per-point linear-trend slope b."""
+    bounds of the hindcast season means and, with `detrend`, the per-point linear-trend slope b; with the samples'
+    years, the share of their variance that lies between the years' means and the number of years, for the signal
+    test (seas5_build.tercile_null)."""
     out = {}
     if detrend and years is not None:
         x = (years - years.mean()).astype("float32")[:, None, None]
@@ -119,7 +121,16 @@ def bounds(h: np.ndarray, years: np.ndarray | None, detrend: bool) -> dict:
         out["b"] = b
         out["ymean"] = np.float64(years.mean())
     out["lo"], out["hi"] = np.nanpercentile(h, [100 / 3, 200 / 3], axis=0)
+    if years is not None:
+        uy = np.unique(years)
+        ym = np.stack([np.nanmean(h[years == y], axis=0) for y in uy])
+        with np.errstate(invalid="ignore", divide="ignore"):
+            out["share"] = np.clip(np.nanvar(ym, axis=0) / np.nanvar(h, axis=0), 0.0, 1.0).astype("float32")
+        out["nyear"] = np.int32(uy.size)
     return out
+
+
+HINDCAST_YEARS = 24  # 1993-2016, where a table does not say
 
 
 def probs_from_bounds(f: np.ndarray, tb: dict, target_year: int | None, min_spread: float = 0.0) -> dict:
@@ -127,16 +138,22 @@ def probs_from_bounds(f: np.ndarray, tb: dict, target_year: int | None, min_spre
     `target_year` when the bounds are detrended.
 
     Cells whose two boundaries sit within `min_spread` are dropped: in a desert, or in a dry season, a third of the
-    hindcast can be the same near-zero number, and "below the lower tercile" then means nothing."""
+    hindcast can be the same near-zero number, and "below the lower tercile" then means nothing.
+
+    "extra": what the hindcast adds to the split's spread under no signal (seas5_build.tercile_null), with the
+    years' share of the variance where the bounds carry it and 1, the most it can be, where they do not."""
+    x0 = None
     if "b" in tb and target_year is not None:
-        f = f - tb["b"][None] * (target_year - tb["ymean"])
+        x0 = float(target_year - tb["ymean"])
+        f = f - tb["b"][None] * x0
     lo, hi = tb["lo"], tb["hi"]
     below = (f < lo[None]).mean(0)
     above = (f > hi[None]).mean(0)
     dead = ~np.isfinite(lo) | ~np.isfinite(hi) | ((hi - lo) <= min_spread)
     below = np.where(dead, np.nan, below)
     above = np.where(dead, np.nan, above)
-    return {"above": above, "below": below, "normal": 1.0 - above - below}
+    extra = tercile_null(int(tb.get("nyear", HINDCAST_YEARS)), x0, tb.get("share", 1.0)) + np.zeros(lo.shape)
+    return {"above": above, "below": below, "normal": 1.0 - above - below, "extra": extra.astype("float32")}
 
 
 def draw(pr: dict, lat, lon, var: str, title: str, sub: str, out: Path, n_eff) -> None:
@@ -148,7 +165,7 @@ def draw(pr: dict, lat, lon, var: str, title: str, sub: str, out: Path, n_eff) -
     above_c, below_c = (TERC_PALETTES[k] for k in PALETTES[var])
     fig, ax, H, pc = MS.open_map(kind="atm")
     normal = pr["normal"]
-    sig = tercile_signal(pr, n_eff)
+    sig = tercile_signal(pr, n_eff, pr["extra"])
     for arr, other, cols in ((pr["above"], pr["below"], above_c), (pr["below"], pr["above"], below_c)):
         show = np.where(sig & (arr >= TERC_BINS[0]) & (arr >= np.maximum(other, normal)), arr, np.nan)
         a, lo = add_cyclic_point(show, coord=lon)
@@ -195,6 +212,13 @@ def main() -> int:
                     continue
                 idx = list(PERIODS[pid])
                 pr = {k: t[f"{k}_{pid}"] for k in ("above", "below", "normal")}
+                # an issue table written before it kept the term: the most it can be (the years' share of the variance 1)
+                pr["extra"] = (
+                    t[f"extra_{pid}"]
+                    if f"extra_{pid}" in t
+                    else tercile_null(HINDCAST_YEARS, y - 2004.5 if var in DETREND else None)
+                    + np.zeros(pr["above"].shape)
+                )
                 pname, lead = period_label(idx, y, mo), lead_note(idx)
                 sub = (
                     f"{label} · {pname} ({lead}) · {MONTHS[mo - 1]} {y} issue · {meta['nmem'][pid]} members counted "
@@ -218,7 +242,10 @@ def main() -> int:
                 )
                 drawn.setdefault(var, {})[pid] = meta["nmem"][pid]
                 pool.setdefault((var, pid), []).append(
-                    {**{k: to_ref(pr[k], lat, lon) for k in ("above", "below", "normal")}, "n": meta["nmem"][pid]}
+                    {
+                        **{k: to_ref(pr[k], lat, lon) for k in ("above", "below", "normal", "extra")},
+                        "n": meta["nmem"][pid],
+                    }
                 )
             del t
             have.append(var)
@@ -236,6 +263,7 @@ def main() -> int:
             print(f"  pooled {var} {pid}: only {len(items)} system(s); skipped", flush=True)
             continue
         pr = {k: np.nanmean(np.stack([p[k] for p in items]), axis=0) for k in ("above", "below", "normal")}
+        pr["extra"] = np.nansum(np.stack([p["extra"] for p in items]), axis=0) / len(items) ** 2  # independent systems
         idx = PERIODS[pid]
         pname, lead = period_label(idx, y, mo), lead_note(idx)
         sub = (

@@ -341,6 +341,7 @@ def tercile_probs(fc: np.ndarray, hc: np.ndarray, leads, detrend_ym: str | None 
     iss = ym or detrend_ym
     f = _season_means(fc, leads, lead_weights(iss, leads) if iss else None)
     h = _season_means(hc, leads, hindcast_lead_weights(iss[4:], leads, hc.shape[0]) if iss else None)
+    target = None
     if detrend_ym is not None:
         yrs = 1993 + hindcast_years(h.shape[0])
         x = (yrs - yrs.mean())[:, None, None]
@@ -353,7 +354,8 @@ def tercile_probs(fc: np.ndarray, hc: np.ndarray, leads, detrend_ym: str | None 
     below = (f < lo[None]).mean(0)
     above = (f > hi[None]).mean(0)
     normal = 1.0 - below - above
-    return dict(below=below, normal=normal, above=above, ens_anom=f.mean(0) - h.mean(0))
+    extra = tercile_null(N_EFF_HC, target, yearly_share(h))
+    return dict(below=below, normal=normal, above=above, ens_anom=f.mean(0) - h.mean(0), extra=extra)
 
 
 def tercile_bounds(hc: np.ndarray, leads, detrend: bool, month=None) -> dict:
@@ -371,6 +373,7 @@ def tercile_bounds(hc: np.ndarray, leads, detrend: bool, month=None) -> dict:
         out["b"] = b
         out["ymean"] = np.float64(yrs.mean())
     out["lo"], out["hi"] = np.nanpercentile(h, [100 / 3, 200 / 3], axis=0)
+    out["share"] = yearly_share(h).astype("float32")  # for the signal test (tercile_null)
     return out
 
 
@@ -379,12 +382,15 @@ def tercile_probs_ref(fc: np.ndarray, tb: dict, leads, ym: str, weighted: bool =
     extrapolated to the issue's start year when the bounds are detrended. `weighted`: the bounds are day-weighted
     seasonal means (day_weighted), so the members are averaged the same way."""
     f = _season_means(fc, leads, lead_weights(ym, leads) if weighted else None)
+    target = None
     if "b" in tb:
         target = int(ym[:4]) - float(tb["ymean"])  # read at the issue's start year (the hindcast years are start years)
         f = f - tb["b"][None] * target
     below = (f < tb["lo"][None]).mean(0)
     above = (f > tb["hi"][None]).mean(0)
-    return dict(below=below, normal=1.0 - below - above, above=above)
+    # a table built before it kept the years' share of the variance: the most it can be
+    extra = tercile_null(N_EFF_HC, target, tb.get("share", 1.0))
+    return dict(below=below, normal=1.0 - below - above, above=above, extra=extra)
 
 
 def season_label(ym: str, leads) -> str:
@@ -395,21 +401,48 @@ def season_label(ym: str, leads) -> str:
 # Tercile probability bins: six steps to 100 % so a 95 % cell reads darker than an 82 % one.
 TERC_BINS = [0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.001]
 TERC_ALPHA, TERC_FDR_Q = 0.05, 0.10  # the tercile maps' signal test (tercile_signal)
-TERC_TEST_NOTE = "and only where the members' split differs significantly from one third each (chi-square, p < 0.05 and FDR q 0.10 over the map)"
+TERC_TEST_NOTE = "and only where the members' split differs significantly from one third each, allowing for the hindcast behind the bounds (chi-square, p < 0.05 and FDR q 0.10 over the map)"
 
 
-def tercile_signal(pr: dict, n_eff) -> np.ndarray:
-    """True where the members' split into the three terciles differs from one third each by more than drawing n_eff
-    members from the model's own climate would give: Pearson's chi-square on 2 degrees of freedom,
-    X² = 3 n_eff Σ_k (p_k − 1/3)², p = exp(−X²/2), with p < TERC_ALPHA and a Benjamini–Hochberg discovery at TERC_FDR_Q
-    among the finite cells of the map. n_eff: one system's member count, or for an equal-weight mean of K systems
-    with n_k members 1 / Σ_k (1/K)² / n_k, the sample size with the mean's sampling variance (the members are taken
-    as independent). At 51 members a 40/33/27 split is p 0.5 and a 53/27/20 split p 0.01: the 40 % colour floor
-    alone is not a signal."""
+TERC_SLOPE = 2 * 0.36356**2  # d(sum of squared departures from 1/3) per unit variance of a shift, in climate sd
+
+
+def yearly_share(h: np.ndarray, n_years: int = 24) -> np.ndarray:
+    """Share of the hindcast samples' variance that lies between the years' ensemble means (h: samples, member-major,
+    as hindcast_years): 1 where the members of a year all agree, 1 / members where a year says nothing. The tercile
+    bounds and a fitted trend are known only as well as the years give them, in this proportion."""
+    yi = hindcast_years(h.shape[0], n_years)
+    ym = np.stack([np.nanmean(h[yi == k], axis=0) for k in range(n_years)])
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return np.clip(np.nanvar(ym, axis=0) / np.nanvar(h, axis=0), 0.0, 1.0)
+
+
+def tercile_null(n_years: int, x0: float | None = None, share=1.0):
+    """What the hindcast adds to the spread of a tercile split under no signal, beyond drawing the members: the two
+    bounds come from n_years years (2/3 x share / n_years, as extra draws) and, for a detrended field, the members
+    are moved by a trend fitted to those years and read x0 years from their mean year, an error of
+    share x x0² / Σ(x - x̄)² in climate variance that shifts the whole split (TERC_SLOPE). share: yearly_share, 1
+    (the most it can be) where a table does not carry it."""
+    yr = np.arange(n_years) - (n_years - 1) / 2.0
+    out = (2.0 / 3.0) * np.asarray(share, float) / n_years
+    return out if x0 is None else out + TERC_SLOPE * np.asarray(share, float) * x0 * x0 / float((yr**2).sum())
+
+
+def tercile_signal(pr: dict, n_eff, extra=0.0) -> np.ndarray:
+    """True where the members' split into the three terciles differs from one third each by more than no signal would
+    give: Pearson's chi-square on 2 degrees of freedom, X² = 3 n Σ_k (p_k − 1/3)², p = exp(−X²/2), with p < TERC_ALPHA
+    and a Benjamini–Hochberg discovery at TERC_FDR_Q among the finite cells of the map. Under no signal Σ_k (p_k − 1/3)²
+    has mean (2/3) / n_eff from drawing n_eff members, plus `extra` (tercile_null) from the hindcast behind the bounds:
+    n = (2/3) / ((2/3) / n_eff + extra). Without `extra` the bounds and the trend the members are moved by would count
+    as known, and a detrended field with no signal passed in 25 to 60 % of cells. n_eff: one system's member count,
+    or for an equal-weight mean of K systems with n_k members 1 / Σ_k (1/K)² / n_k (and extra Σ_k extra_k / K²), the
+    members taken as independent. At 51 members and known bounds a 40/33/27 split is p 0.5 and a 53/27/20 split p
+    0.01: the 40 % colour floor alone is not a signal."""
     from quantmet.stats import benjamini_hochberg
 
     a, b = np.asarray(pr["above"], float), np.asarray(pr["below"], float)
-    x2 = 3.0 * np.asarray(n_eff, float) * ((a - 1 / 3) ** 2 + (b - 1 / 3) ** 2 + (1.0 - a - b - 1 / 3) ** 2)
+    n = (2.0 / 3.0) / ((2.0 / 3.0) / np.asarray(n_eff, float) + np.asarray(extra, float))
+    x2 = 3.0 * n * ((a - 1 / 3) ** 2 + (b - 1 / 3) ** 2 + (1.0 - a - b - 1 / 3) ** 2)
     p = np.where(np.isfinite(x2), np.exp(-x2 / 2.0), np.nan)
     return benjamini_hochberg(p, TERC_FDR_Q) & (p < TERC_ALPHA)
 
@@ -552,7 +585,11 @@ def render_terciles(ym: str, fields: dict, out_dir: Path) -> dict:
                     flush=True,
                 )
                 continue
-            tb = {k: tab[f"terc_{var}_{k}_{si}"] for k in ("lo", "hi", "b", "ymean") if f"terc_{var}_{k}_{si}" in tab}
+            tb = {
+                k: tab[f"terc_{var}_{k}_{si}"]
+                for k in ("lo", "hi", "b", "ymean", "share")
+                if f"terc_{var}_{k}_{si}" in tab
+            }
             pr = tercile_probs_ref(fc, tb, leads, ym, weighted=day_weighted(tab.get("meta"), leads))
             lab = season_label(ym, leads)
             y0s, y1s = vm[leads[0] - 1][:4], vm[leads[-1] - 1][:4]
@@ -575,7 +612,7 @@ def render_terciles(ym: str, fields: dict, out_dir: Path) -> dict:
                 return a, lon_s
 
             normal = 1.0 - pr["above"] - pr["below"]
-            sig = tercile_signal(pr, fc.shape[0])
+            sig = tercile_signal(pr, fc.shape[0], pr["extra"])
             for arr, other, cols in ((pr["above"], pr["below"], above_c), (pr["below"], pr["above"], below_c)):
                 show = np.where(sig & (arr >= 0.40) & (arr >= np.maximum(other, normal)), arr, np.nan)
                 a, lo = prep(show)

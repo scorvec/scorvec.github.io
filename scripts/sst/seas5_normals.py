@@ -52,7 +52,9 @@ from seas5_build import (
     TERC_BINS,
     TERC_PALETTES,
     TERC_TEST_NOTE,
+    tercile_null,
     tercile_signal,
+    TERC_SLOPE,
     _open,
     load_field,
     season_label,
@@ -469,8 +471,9 @@ def panels_for(ym: str, var: str, ref: str):
                 above = (members > hi[None]).mean(0)
                 sd = H["z500_sd"][p]
                 return dict(
-                    title=title, anom=a, below=below, above=above, std=a / np.where(sd > 0, sd, np.nan), n=len(members)
-                )
+                    title=title, anom=a, below=below, above=above, std=a / np.where(sd > 0, sd, np.nan), n=len(members),
+                    extra=tercile_null(ny, target),
+                )  # fmt: skip
             a = np.nanmean(members, 0) - hcm
             lo, hi = H[f"{var}_lo"][p], H[f"{var}_hi"][p]
             anom = (np.nanmean(members, 0) / hcm * 100.0) if mult else a
@@ -478,8 +481,9 @@ def panels_for(ym: str, var: str, ref: str):
             above = (members > hi[None]).mean(0)
             sd = H[f"{var}_sd"][p]  # interannual spread, not member noise
             return dict(
-                title=title, anom=anom, below=below, above=above, std=a / np.where(sd > 0, sd, np.nan), n=len(members)
-            )
+                title=title, anom=anom, below=below, above=above, std=a / np.where(sd > 0, sd, np.nan), n=len(members),
+                extra=tercile_null(24),
+            )  # fmt: skip
 
         # observed space: average the per-month references over the season
         def rg(a, r):
@@ -520,7 +524,13 @@ def panels_for(ym: str, var: str, ref: str):
             std = (np.nanmean(corr, 0) - rmean) / np.where(samp_sd > 0, samp_sd, np.nan)
         else:
             std = (np.nanmean(corr, 0) - rmean) / np.where(sd > 0, sd, np.nan)
-        return dict(title=title, anom=anom, below=below, above=above, std=std, n=len(members))
+        # the bounds: the observed years of the reference (one value a year), the trend reference read at the
+        # issue's year from its 1991-2025 fit; and the model is put on the observed mean through its 24-year
+        # hindcast mean, an error that shifts the whole split
+        obs = tercile_null(35, int(ym[:4]) - 2008.0) if ref == "trend" else tercile_null(10 if ref == "obs10" else 30)
+        return dict(
+            title=title, anom=anom, below=below, above=above, std=std, n=len(members), extra=obs + TERC_SLOPE / 24
+        )
 
     refs_cache = {}
     panels_for.last_span = None
@@ -655,7 +665,7 @@ def render(ym: str, var: str, ref: str, kind: str, panels, lat, lon, out_dir: Pa
             )
         else:
             normal = 1.0 - pnl["above"] - pnl["below"]
-            sig = tercile_signal(pnl, pnl["n"])
+            sig = tercile_signal(pnl, pnl["n"], pnl["extra"])
             for arr, other, cols in ((pnl["above"], pnl["below"], warm), (pnl["below"], pnl["above"], cool)):
                 show = np.where(sig & (arr >= 0.40) & (arr >= np.maximum(other, normal)), arr, np.nan)
                 a, lo = prep(show)
