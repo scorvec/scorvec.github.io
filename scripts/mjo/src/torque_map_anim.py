@@ -573,7 +573,7 @@ def main() -> int:
                     alpha=al,
                     lw=0,
                     zorder=0,
-                    label=f"±{k}σ climatology" if k == 1 else None,
+                    label=f"±{k}σ of single days" if k == 1 else None,
                 )
         ax.plot(valid, arows[hemi]["fric"], color="#2166ac", lw=1.8, label="friction")
         ax.plot(valid, arows[hemi]["mtn"], color="#b2182b", lw=1.8, label="mountain")
@@ -601,7 +601,7 @@ def main() -> int:
         0.5,
         -0.07,
         "Anomalies against the ERA5 1991–2020 climatology, everything on the same footing: the forecast tendency has its own "
-        "climatological tendency removed too. Shaded = ±1σ and ±2σ of ERA5's daily net anomaly at this time of year, 1991–2020.\n"
+        "climatological tendency removed too. Shaded = ±1σ and ±2σ of single days in ERA5 at this time of year (an ensemble mean is smoother past day 7).\n"
         "Each day is its 24 h mean: friction from the model's own surface stress, mountain torque from its surface "
         "pressure, d(AAM)/dt from its winds.\nEach hemisphere's gap between net surface torque (black) and d(AAM)/dt "
         "(dashed) is the gravity-wave-drag torque (not in ECMWF open data), cross-equatorial momentum transport (an "
@@ -676,7 +676,7 @@ def main() -> int:
                 color="#8a4b2a",
                 alpha=al,
                 lw=0,
-                label=f"±{k}σ climatology" if k == 1 else None,
+                label=f"±{k}σ of single days" if k == 1 else None,
             )
     ax.plot(valid, gtot, color="#1a1a1a", lw=2.8)
     ax.set_xlim(valid[0], valid[-1])

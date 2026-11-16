@@ -421,12 +421,17 @@ def _effects(D: dict, state: str | None) -> list[dict]:
 
 def _ahead(D: dict, valid: list, values: list, hi: str, lo: str, now: str | None) -> dict:
     """The forecast's largest departure within AHEAD of its first value, when that is a state other than the first
-    value's and one that changed the odds: {"ahead": ...} for the row, else {}."""
+    value's and one that changed the odds: {"ahead": ...} for the row, else {}. The state has to hold on the day
+    before or after as well: the odds are of a state on a day, and the largest of a week of values reaches a
+    threshold more often than any one of them."""
     later = [(t, v) for t, v in zip(valid[1:], values[1:]) if v is not None and t - valid[0] <= AHEAD]
     if not later:
         return {}
-    t, v = max(later, key=lambda x: abs(x[1]))
+    k = max(range(len(later)), key=lambda i: abs(later[i][1]))
+    t, v = later[k]
     state = _banded(v, hi, lo)
+    if not any(_banded(later[j][1], hi, lo) == state for j in (k - 1, k + 1) if 0 <= j < len(later)):
+        return {}
     effects = _effects(D, state)
     if state == now or not effects:
         return {}
