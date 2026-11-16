@@ -97,6 +97,17 @@ def main() -> None:
         float(rmm.sel(member="cf").isel(lead_day=0)["rmm1_wind"]),
         float(rmm.sel(member="cf").isel(lead_day=0)["rmm2_wind"]),
     )
+    # the rain channel's previous-120-day mean, lead by lead, out of the three-channel index (the winds' is taken out
+    # as a map in compute_rmm); the archive above keeps the RAW means it is measured on
+    if "prcp" in rmm.attrs.get("channels", ""):
+        ratio = [float(eofs["pc_wind_std"].sel(mode=m) / eofs["pc_std"].sel(mode=m)) for m in (1, 2)]
+        r1, r2 = cycle_debias.rain_channel_mean(args.date, args.time, leads, ratio)
+        if np.any(r1) or np.any(r2):
+            rmm["rmm1"] = rmm["rmm1"] - xr.DataArray(r1, dims=["lead_day"])
+            rmm["rmm2"] = rmm["rmm2"] - xr.DataArray(r2, dims=["lead_day"])
+            print(
+                f"rain channel's 120-day mean removed (day 0 ({r1[0]:+.2f}, {r2[0]:+.2f}), last day ({r1[-1]:+.2f}, {r2[-1]:+.2f}))"
+            )
     off1, off2 = cycle_debias.offset_for(args.date, args.time, leads)
     if np.any(off1) or np.any(off2):
         rmm["rmm1"] = rmm["rmm1"] - xr.DataArray(off1, dims=["lead_day"])

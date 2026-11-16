@@ -29,7 +29,7 @@ import numpy as np
 import pandas as pd
 
 ARCHIVE = Path("data/reference/ensmean_history.json")
-MAX_RUNS = 120  # cap the committed file (~2 months of 2 cycles/day)
+MAX_RUNS = 250  # cap the committed file: 2 cycles a day over the 120 days the rain channel's mean is taken on
 N_PAIRS = 7  # trailing 00Z/12Z pairs used for the offset estimate (15 until 2026-10-02: the offset has grown
 # from ~0.4 to ~1.1 RMM units at day 14 since July, and a shorter window tracks it better -
 # replayed on the archive, day-10/14 residual 0.31/0.33 -> 0.27/0.31)
@@ -116,3 +116,45 @@ def offset_for(
     off1 = np.array([np.mean([d[0] for d in diffs[g]]) for g in grid])
     off2 = np.array([np.mean([d[1] for d in diffs[g]]) for g in grid])
     return np.interp(leads, grid, off1), np.interp(leads, grid, off2)
+
+
+RAIN_DAYS = 120  # the low-frequency window of Wheeler & Hendon (2004), as the winds' map (refresh_map120.py)
+RAIN_MIN_RUNS = 20  # 00Z runs needed before the rain channel's mean is removed
+
+
+def rain_channel_mean(date: str, time: str, leads, ratio, path: Path = ARCHIVE) -> tuple[np.ndarray, np.ndarray]:
+    """(m1, m2) to SUBTRACT from the three-channel RMM at the given leads: the mean, over the 00Z runs of the last
+    RAIN_DAYS days before this run, of what the rain (pseudo-OLR) channel adds to the index at each lead,
+    rmm - ratio x rmm_wind (ratio: pc_wind_std / pc_std for the two modes, which puts the wind-only value on the
+    three-channel scale).
+
+    Wheeler & Hendon remove the previous 120-day mean from every field. The winds have it removed as a map; the
+    rain is a model accumulation against an observed normal, so its 120-day mean is not ENSO alone but the model's
+    own rain bias too, lead by lead, and left in it is a standing offset of the whole forecast (about -0.23 in RMM1
+    in autumn 2026) that the wind-only analysed track does not have. A projection is linear, so the mean of the
+    channel's part of the index is the part of the channel's mean. Zeros until RAIN_MIN_RUNS runs are archived."""
+    leads = np.asarray(leads, dtype=float)
+    zero = (np.zeros_like(leads), np.zeros_like(leads))
+    if not path.exists():
+        return zero
+    hist = json.loads(path.read_text())
+    init = _init_ts(f"{date}_{time}z")
+    rows = [
+        e
+        for k, e in hist.items()
+        if k[9:11] == "00"
+        and pd.Timedelta(0) < init - _init_ts(k) <= pd.Timedelta(days=RAIN_DAYS)
+        and e.get("v") == INDEX_V
+        and "rmm1_wind" in e
+    ]
+    if len(rows) < RAIN_MIN_RUNS:
+        return zero
+    grid = np.array(sorted({round(ld, 3) for e in rows for ld in e["leads"]}))
+    part = []
+    for a, b, r in (("rmm1", "rmm1_wind", ratio[0]), ("rmm2", "rmm2_wind", ratio[1])):
+        by = {g: [] for g in grid}
+        for e in rows:
+            for ld, x, w in zip(e["leads"], e[a], e[b], strict=True):
+                by[round(ld, 3)].append(x - r * w)
+        part.append(np.interp(leads, grid, [np.mean(by[g]) for g in grid]))
+    return part[0], part[1]
