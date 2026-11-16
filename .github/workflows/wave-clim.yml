@@ -5,8 +5,9 @@ name: Wave-1 and wave-2 climatology (stratosphere reference)
 # k=1 and k=2 coefficients of the 55-65 deg height by day of the 366-slot calendar, 1991-2020. 100 and 500 hPa from
 # WeatherBench 2's ERA5 (1.5 deg, anonymous GCS, 00 UTC; its chunks hold 8 steps of all 13 levels, so the whole
 # geopotential record of the period streams through, about 20 minutes); 10 hPa from the ERA5 10/100 hPa day-of-year
-# normal in the GEPS reference set (release geps-ref-v3), WeatherBench 2 having no level above 50 hPa. Run it when the
-# method changes; the file is committed.
+# normal in the GEPS reference set (release geps-ref-v3), WeatherBench 2 having no level above 50 hPa. Beside each
+# standing wave it stores the mean amplitude of the days, which the maps' "times normal" divides by (10 hPa: ARCO ERA5
+# at 00 UTC every 5th day, anonymous GCS). Run it when the method changes; the file is committed.
 on:
   workflow_dispatch:
 
