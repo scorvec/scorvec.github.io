@@ -377,10 +377,17 @@ def tercile_bounds(hc: np.ndarray, leads, detrend: bool, month=None) -> dict:
     return out
 
 
-def tercile_probs_ref(fc: np.ndarray, tb: dict, leads, ym: str, weighted: bool = False) -> dict:
+DRY_FLOOR = 1e-3  # mm/day: a lower tercile bound at or under it is a third of the hindcast with no rain
+
+
+def tercile_probs_ref(
+    fc: np.ndarray, tb: dict, leads, ym: str, weighted: bool = False, floor: float | None = None
+) -> dict:
     """tercile_probs against stored bounds (tercile_bounds): the forecast members are moved by the trend
     extrapolated to the issue's start year when the bounds are detrended. `weighted`: the bounds are day-weighted
-    seasonal means (day_weighted), so the members are averaged the same way."""
+    seasonal means (day_weighted), so the members are averaged the same way. `floor` (precipitation: DRY_FLOOR):
+    cells whose lower bound is at or under it are left out, because no member can fall below a bound of zero: "below"
+    is then never counted and the split reads as a signal with none there."""
     f = _season_means(fc, leads, lead_weights(ym, leads) if weighted else None)
     target = None
     if "b" in tb:
@@ -389,6 +396,9 @@ def tercile_probs_ref(fc: np.ndarray, tb: dict, leads, ym: str, weighted: bool =
     below = (f < tb["lo"][None]).mean(0)
     above = (f > tb["hi"][None]).mean(0)
     # a table built before it kept the years' share of the variance: the most it can be
+    if floor is not None:
+        dead = tb["lo"] <= floor
+        below, above = np.where(dead, np.nan, below), np.where(dead, np.nan, above)
     extra = tercile_null(N_EFF_HC, target, tb.get("share", 1.0))
     return dict(below=below, normal=1.0 - below - above, above=above, extra=extra)
 
@@ -590,7 +600,14 @@ def render_terciles(ym: str, fields: dict, out_dir: Path) -> dict:
                 for k in ("lo", "hi", "b", "ymean", "share")
                 if f"terc_{var}_{k}_{si}" in tab
             }
-            pr = tercile_probs_ref(fc, tb, leads, ym, weighted=day_weighted(tab.get("meta"), leads))
+            pr = tercile_probs_ref(
+                fc,
+                tb,
+                leads,
+                ym,
+                weighted=day_weighted(tab.get("meta"), leads),
+                floor=DRY_FLOOR if var == "tp" else None,
+            )
             lab = season_label(ym, leads)
             y0s, y1s = vm[leads[0] - 1][:4], vm[leads[-1] - 1][:4]
             yv = y0s if y0s == y1s else f"{y0s}–{y1s[2:]}"

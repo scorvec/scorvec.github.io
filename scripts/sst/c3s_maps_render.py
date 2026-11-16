@@ -40,7 +40,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import mapstyle
 from c3s_maps import change_spread, hindcast_spread, issue_anom, prev_issue
-from c3s_nino34 import MODELS
+from c3s_nino34 import MODELS, system_weights
 from seas5_build import SHIFT_TEST_NOTE, shift_signal, welch_terms
 
 SITE = Path(os.environ.get("SST_SITE_ROOT", HERE.parents[1]))
@@ -172,15 +172,21 @@ def share(sig: np.ndarray, dom: np.ndarray) -> float:
 
 
 def mmm_item(items: list[dict]) -> dict:
-    """Equal-weight mean of the systems' period fields with its sampling terms: every system's (`terms`, as
-    shift_signal takes them), each divided by K² where K systems have the cell."""
+    """Mean of the systems' period fields, a system's weight shared by its component models (it["w"]:
+    c3s_nino34.system_weights), with its sampling terms: every item's (`terms`, as shift_signal takes them) times the
+    square of its share of the weight where the cell has it."""
     f = np.stack([it["field"] for it in items])
     have = np.isfinite(f)
-    k = have.sum(0).astype(float)
+    w = np.array([it["w"] for it in items])[:, None, None] * have
+    k = w.sum(0)
     with np.errstate(invalid="ignore", divide="ignore"):
-        field = np.where(k > 0, np.nansum(f, axis=0) / k, np.nan)
-        k2 = np.where(k > 0, k * k, np.nan)
-        terms = [(np.where(h, v, 0.0) / k2, dof) for it, h in zip(items, have) for v, dof in it["terms"]]
+        field = np.where(k > 0, np.nansum(w * np.nan_to_num(f), axis=0) / k, np.nan)
+        share2 = np.where(k > 0, (w / k) ** 2, np.nan)
+        terms = [
+            (np.where(h, v, 0.0) * s2, dof)
+            for it, h, s2 in zip(items, have, share2, strict=True)
+            for v, dof in it["terms"]
+        ]
     return dict(field=field, terms=terms, lat=items[0]["lat"], lon=items[0]["lon"], idx=items[0]["idx"])
 
 
@@ -268,7 +274,7 @@ def main() -> int:
                 if hc is not None and f"sd_{pid}" in hc:
                     sdh = on_grid(hc[f"sd_{pid}"], hc["lat"], hc["lon"], lat, lon)
                     terms = welch_terms(fc[f"sd_{pid}"], n, sdh, int(hc["meta"]["years"]))
-                    it = dict(field=field, terms=terms, lat=lat, lon=lon, idx=idx)
+                    it = dict(field=field, terms=terms, lat=lat, lon=lon, idx=idx, label=label)
                     sub = (
                         f"{label} · {issue[:4]}-{issue[4:6]} issue · {pname} · ensemble mean of {n} members' "
                         "anomalies against the model's own 1993–2016 hindcast (C3S postprocessed). {}."
@@ -279,6 +285,7 @@ def main() -> int:
                     stack.setdefault((key, pid), []).append(it)
                 it = change_item(fc, old, chg, pid, idx, field, y, mo)
                 if it is not None:
+                    it["label"] = label
                     sub = (
                         f"{label} · {issue[:4]}-{issue[4:6]} issue minus {prev[:4]}-{prev[4:6]} issue · {pname} · "
                         f"change in the ensemble-mean anomaly for the same months ({n} members now, "
@@ -299,12 +306,14 @@ def main() -> int:
             items = same_grid(every)
             if len(items) < max(2, int(np.ceil(MMM_QUORUM * nsys[key]))):
                 continue
-            it = mmm_item(items)
+            sw = system_weights([i["label"] for i in items])  # CanSIPS's two component models count as one system
+            nsys_m = round(sum(sw.values()))
+            it = mmm_item([{**i, "w": sw[i["label"]]} for i in items])
             pname = f"{period_label(it['idx'], y, mo)} ({lead_note(it['idx'])})"
             if change:
                 title = f"{SPEC[key][0]} anomaly, change since the {prev_label} issue — multi-model mean"
                 sub = (
-                    f"Mean of {len(items)} C3S systems, equally weighted · {issue[:4]}-{issue[4:6]} issue minus "
+                    f"Mean of {nsys_m} C3S systems, equally weighted · {issue[:4]}-{issue[4:6]} issue minus "
                     f"{prev[:4]}-{prev[4:6]} issue · {pname} · change in each model's ensemble-mean anomaly for the "
                     "same months; tested with every system's member spread in both issues and its paired hindcast "
                     "means. {}."
@@ -312,7 +321,7 @@ def main() -> int:
             else:
                 title = f"{SPEC[key][0]} anomaly — multi-model mean"
                 sub = (
-                    f"Mean of {len(items)} C3S systems, equally weighted · {issue[:4]}-{issue[4:6]} issue · {pname} "
+                    f"Mean of {nsys_m} C3S systems, equally weighted · {issue[:4]}-{issue[4:6]} issue · {pname} "
                     "· each model's ensemble-mean anomaly against its own 1993–2016 hindcast; tested with every "
                     "system's member and hindcast spread. {}."
                 )

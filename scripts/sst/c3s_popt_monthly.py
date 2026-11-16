@@ -35,7 +35,7 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from c3s_nino34 import MODELS
+from c3s_nino34 import MODELS, system_weights
 from c3s_terciles import fc_pop_members, hc_pop_means
 from c3s_popt_daily import MIN_SYSTEMS, observed_months  # one definition of the observed series
 from seas5_popT import REGIONS
@@ -113,8 +113,9 @@ def main() -> int:
                 "mean_anom": [round(float(x * (9 / 5 if unit == "F" else 1.0)), 2) for x in anom.mean(axis=0)],
                 "members": int(fc.shape[0]),
             }
-            # equal weight per SYSTEM in the pool, whatever its ensemble size: each member weighs 1/n
-            pooled.append((anom, fc, 1.0 / fc.shape[0]))
+            # equal weight per SYSTEM in the pool, whatever its ensemble size: each member weighs 1/n (and CanSIPS's
+            # two component models share one system's weight, below)
+            pooled.append((anom, fc, 1.0 / fc.shape[0], mlabel))
             if mid not in [m["id"] for m in seen]:
                 seen.append({"id": mid, "label": mlabel, "color": colour})
             print(f"  {region} {mlabel}: {fc.shape[0]} members, anomaly {np.round(anom.mean(axis=0), 2)}", flush=True)
@@ -122,9 +123,10 @@ def main() -> int:
             continue
         # multi-model: every system's members pooled with equal system weight
         if len(pooled) >= MIN_SYSTEMS:
-            wts = np.concatenate([np.full(a_.shape[0], w) for a_, _, w in pooled])
-            A = np.concatenate([a_ for a_, _, _ in pooled], axis=0)
-            F = np.concatenate([f_ for _, f_, _ in pooled], axis=0)
+            sw = system_weights([lab for *_, lab in pooled])
+            wts = np.concatenate([np.full(a_.shape[0], w * sw[lab]) for a_, _, w, lab in pooled])
+            A = np.concatenate([a_ for a_, *_ in pooled], axis=0)
+            F = np.concatenate([f_ for _, f_, *_ in pooled], axis=0)
 
             def wq(x, q, wts=wts):
                 o = np.argsort(x, axis=0)

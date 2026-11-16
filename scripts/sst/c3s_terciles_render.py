@@ -31,10 +31,10 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import c3s_grib
 import mapstyle as MS
-from c3s_nino34 import MODELS
+from c3s_nino34 import MODELS, system_weights
 from c3s_terciles import VARS, issue_table
 from c3s_maps_render import MONTHS, PERIODS, lead_note, on_grid, period_label
-from seas5_build import TERC_BINS, TERC_PALETTES, TERC_TEST_NOTE, tercile_null, tercile_signal
+from seas5_build import DRY_FLOOR, TERC_BINS, TERC_PALETTES, TERC_TEST_NOTE, tercile_null, tercile_signal
 
 SITE = Path(os.environ.get("SST_SITE_ROOT", HERE.parents[1]))
 OUT = SITE / "assets" / "sst" / "c3s"
@@ -137,8 +137,10 @@ def probs_from_bounds(f: np.ndarray, tb: dict, target_year: int | None, min_spre
     """The forecast half: members counted against stored bounds, moved by the trend extrapolated to
     `target_year` when the bounds are detrended.
 
-    Cells whose two boundaries sit within `min_spread` are dropped: in a desert, or in a dry season, a third of the
-    hindcast can be the same near-zero number, and "below the lower tercile" then means nothing.
+    Cells whose two boundaries sit within `min_spread` are dropped, and with a `min_spread` (precipitation) so are
+    the cells whose lower bound is at or under DRY_FLOOR: in a desert, or in a dry season, a third of the hindcast
+    can be the same near-zero number, and "below the lower tercile" then means nothing - no member can fall below a
+    bound of zero, so "below" is never counted and the split reads as a signal with none there.
 
     "extra": what the hindcast adds to the split's spread under no signal (seas5_build.tercile_null), with the
     years' share of the variance where the bounds carry it and 1, the most it can be, where they do not."""
@@ -149,7 +151,7 @@ def probs_from_bounds(f: np.ndarray, tb: dict, target_year: int | None, min_spre
     lo, hi = tb["lo"], tb["hi"]
     below = (f < lo[None]).mean(0)
     above = (f > hi[None]).mean(0)
-    dead = ~np.isfinite(lo) | ~np.isfinite(hi) | ((hi - lo) <= min_spread)
+    dead = ~np.isfinite(lo) | ~np.isfinite(hi) | ((hi - lo) <= min_spread) | ((min_spread > 0) & (lo <= DRY_FLOOR))
     below = np.where(dead, np.nan, below)
     above = np.where(dead, np.nan, above)
     extra = tercile_null(int(tb.get("nyear", HINDCAST_YEARS)), x0, tb.get("share", 1.0)) + np.zeros(lo.shape)
@@ -245,6 +247,7 @@ def main() -> int:
                     {
                         **{k: to_ref(pr[k], lat, lon) for k in ("above", "below", "normal", "extra")},
                         "n": meta["nmem"][pid],
+                        "label": label,
                     }
                 )
             del t
@@ -262,12 +265,27 @@ def main() -> int:
         if len(items) < MIN_SYSTEMS:
             print(f"  pooled {var} {pid}: only {len(items)} system(s); skipped", flush=True)
             continue
-        pr = {k: np.nanmean(np.stack([p[k] for p in items]), axis=0) for k in ("above", "below", "normal")}
-        pr["extra"] = np.nansum(np.stack([p["extra"] for p in items]), axis=0) / len(items) ** 2  # independent systems
+        # equal weight per system: the two component models of CanSIPS share one system's weight
+        sw = system_weights([p["label"] for p in items])
+        w = np.array([sw[p["label"]] for p in items])
+        nsys = round(float(w.sum()))
+        w = w / w.sum()
+        wsum = np.tensordot(w, np.stack([np.isfinite(p["above"]) for p in items]).astype(float), axes=(0, 0))
+        with np.errstate(invalid="ignore", divide="ignore"):
+            pr = {
+                k: np.where(
+                    wsum > 0,
+                    np.tensordot(w, np.nan_to_num(np.stack([p[k] for p in items])), axes=(0, 0)) / wsum,
+                    np.nan,
+                )
+                for k in ("above", "below", "normal")
+            }
+        # the systems are independent: each one's term times the square of its weight
+        pr["extra"] = np.tensordot(w**2, np.nan_to_num(np.stack([p["extra"] for p in items])), axes=(0, 0))
         idx = PERIODS[pid]
         pname, lead = period_label(idx, y, mo), lead_note(idx)
         sub = (
-            f"{len(items)} C3S systems, each weighted equally · {pname} ({lead}) · {MONTHS[mo - 1]} {y} issue · "
+            f"{nsys} C3S systems, each weighted equally · {pname} ({lead}) · {MONTHS[mo - 1]} {y} issue · "
             "every system counted against its own 1993–2016 hindcast first. "
             f"Coloured where a category reaches 40 % {TERC_TEST_NOTE}; near-normal is not drawn."
             + ("  Counted against the hindcast's linear trend extrapolated to this start." if var in DETREND else "")
@@ -280,7 +298,7 @@ def main() -> int:
             f"{TITLES[var]}: most likely tercile — multi-model",
             sub,
             OUT / f"c3s_terc_mmm_{var}_{pid}.webp",
-            1.0 / sum(1.0 / (len(items) ** 2 * p["n"]) for p in items),  # the equal-weight mean's effective members
+            1.0 / sum(wi**2 / p["n"] for wi, p in zip(w, items, strict=True)),  # the weighted mean's effective members
         )
         pooled.setdefault(var, {})[pid] = len(items)
     if pooled:

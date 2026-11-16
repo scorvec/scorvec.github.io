@@ -309,6 +309,13 @@ def model_members(centre, system, ym):
 MERGE = {"ECCC CanSIPSv3": ("ECCC GEM5-NEMO", "ECCC CanESM5")}
 
 
+def system_weights(labels) -> dict:
+    """{label: weight} for an equal-weight mean over SYSTEMS: the components of one system (MERGE) share its weight,
+    so CanSIPS counts once, as in the plume, and not once per component model."""
+    part = {c: parts for parts in MERGE.values() for c in parts}
+    return {m: 1.0 / sum(c in labels for c in part[m]) if m in part else 1.0 for m in labels}
+
+
 def collect(ym):
     """{label → (member_dict, colour)} for every model with data at this issue, less the systems in
     enso_models.EXCLUDE_SYSTEMS (not even fetched)."""
