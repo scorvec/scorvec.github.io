@@ -22,7 +22,8 @@ What remains is filtered in wavenumber-frequency space member by member, the mem
 future the filter needs: the MJO's band (eastward wavenumbers 1-5, periods 30-96 days) and the Kelvin wedge
 (kelvin_tracker). Past the last analysis the member mean is drawn only where the members agree on its sign
 (two-sided sign test, false discovery rate FDR over the cells tested); the filtered fields are tested over the last
-TEST_BACK analysis days as well, which the forecast still shapes.
+TEST_BACK analysis days as well, which the forecast still shapes. Those days are a family of their own: the members
+nearly agree there, and pooled with the forecast days their many easy passes would loosen the forecast days' test.
 
 The column beside the chart reads the MJO's band as an RMM phase: each member's field fitted by the two patterns that
 go with the observed RMM1 and RMM2 in ERA5 (build_mjo_chi_phase.py; within one phase of the RMM on 94 % of the days
@@ -634,7 +635,10 @@ def main() -> int:
     ok_s = np.ones(x.shape[::2], bool)
     ok_s[n_an:] = agreed(x[n_an:])
     ok_m, ok_k = ok_s.copy(), ok_s.copy()
-    ok_m[t0:], ok_k[t0:] = agreed(mjo[t0:]), agreed(kel[t0:])
+    for ok, f in ((ok_m, mjo), (ok_k, kel)):
+        ok[n_an:] = agreed(f[n_an:])
+        if n_an > t0:
+            ok[t0:n_an] = agreed(f[t0:n_an])
     amp, phase, centre = rmm_like(mjo, lon)
     first = max(n_an - SHOW, 2, int(0.1 * len(alld)))  # past the filter's soft start
     print(

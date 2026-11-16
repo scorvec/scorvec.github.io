@@ -906,9 +906,13 @@ def reference(models):
                 Nm = O[f"{fld}_normal"]
                 M = 100.0 * M / np.where(Nm[None, None] >= 0.5, Nm[None, None], np.nan)
                 SE = 100.0 * SE / np.where(Nm[None, None] >= 0.5, Nm[None, None], np.nan)
-            zz = M / SE
-            pp = 2 * st.norm.sf(np.abs(zz))
+            # the event bootstrap's standard error over n events is low by sqrt((n - 1) / n) and the ratio follows
+            # Student's t with n - 1 degrees of freedom, not a normal: with 8 events a normal test passes 13 % of
+            # null cells at a nominal 5 %
             NE = O[f"{fld}_events"]
+            ne = np.maximum(NE, 2)[None, :, :, None].astype(float)
+            zz = M / (SE * np.sqrt(ne / (ne - 1)))
+            pp = 2 * st.t.sf(np.abs(zz), ne - 1)
             pp = np.where((NE >= MIN_EVENTS)[None, :, :, None], pp, np.nan)
             sig = np.zeros(pp.shape, bool)
             for a in range(pp.shape[0]):
