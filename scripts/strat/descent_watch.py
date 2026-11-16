@@ -5,8 +5,11 @@ measures, each from fields another product already holds (nothing is fetched):
   reach  per member and day, how far down the 65-90N cap height stands at THRESHOLD standard deviations or more above
          its normal at every level of CHAIN from 100 hPa, on that day: one unbroken column. The share of members whose
          column reaches each level is set against how often MERRA-2 shows such a column on that calendar day
-         (reference/descent_base.json, build_descent_base.py): a one-sided binomial test of the member count, the days
-         and levels of a run held to a false discovery rate of ALPHA. forecast_drip.py calls reach() with its
+         (reference/descent_base.json, build_descent_base.py): a one-sided binomial test of the member count against
+         the upper end of that rate (the 95th percentile over resampled winters: the record is about 46 winters), the
+         days and levels of a run held to a false discovery rate of ALPHA. The members are draws from the run's own
+         forecast distribution, so the test says the FORECAST chance of a column is above the usual one; in the first
+         days, when the analysed state already holds a column, that is true of nearly every member. forecast_drip.py calls reach() with its
          drift-corrected, standardised heights; a level counts only when the model's drift is measured at it and at
          every level above it, so a model that drifts in the troposphere is not read as a descent. November to April.
   ring   whether the cap's anomaly at 500 hPa and at sea level is the whole ring or one sector: the cap split into
@@ -107,13 +110,13 @@ def connected(z: np.ndarray, threshold: float = THRESHOLD) -> np.ndarray:
     return np.logical_and.accumulate(z >= threshold, axis=-1)
 
 
-def base_rate(valid: pd.DatetimeIndex) -> np.ndarray:
+def base_rate(valid: pd.DatetimeIndex, key: str = "rate") -> np.ndarray:
     """MERRA-2's rate of a column down to each level of CHAIN on each valid day, (day, level); NaN outside November to
-    April."""
+    April. key "upper": the 95th percentile of that rate over resampled winters."""
     d = json.loads(BASE.read_text())
     if tuple(d["chain_hpa"]) != CHAIN or d["threshold_sd"] != THRESHOLD:
         raise SystemExit(f"{BASE.name} was built for another chain or threshold: rebuild it (build_descent_base.py)")
-    return np.array([d["rate"].get(f"{t:%m-%d}", [np.nan] * len(CHAIN)) for t in valid], float)
+    return np.array([d[key].get(f"{t:%m-%d}", [np.nan] * len(CHAIN)) for t in valid], float)
 
 
 def reach(model: str, init: pd.Timestamp, levels, Z: np.ndarray, valid, corrected, credit: str, out: Path) -> None:
@@ -129,17 +132,18 @@ def reach(model: str, init: pd.Timestamp, levels, Z: np.ndarray, valid, correcte
         print(f"  {lab}: no measured drift at every level from 100 to {DEPTHS[0]:.0f} hPa: no reach", flush=True)
         return
     valid = pd.DatetimeIndex(valid)
-    base = base_rate(valid)[:, :deep]
+    base, upper = base_rate(valid)[:, :deep], base_rate(valid, "upper")[:, :deep]
     season = np.isfinite(base[:, 0])
     z = Z[:, season][:, :, [levels.index(L) for L in CHAIN[:deep]]]
     z = z[np.isfinite(z).all((1, 2))]
     if not season.any() or z.shape[0] < 2:
         print(f"  {lab}: no reach (outside November to April, or fewer than two whole members)", flush=True)
         return
-    valid, base, n = valid[season], base[season], z.shape[0]
+    valid, base, upper, n = valid[season], base[season], upper[season], z.shape[0]
     hit = connected(z)  # (member, day, level)
     count = hit.sum(0)
-    more = benjamini_hochberg(binom.sf(count - 1, n, base), ALPHA)  # P(this many members or more | the base rate)
+    # P(this many members or more | the upper end of the base rate)
+    more = benjamini_hochberg(binom.sf(count - 1, n, upper), ALPHA)
     share = 100.0 * count / n
     key = {L: f"r{L:.0f}" for L in depths}
     col = {L: CHAIN.index(L) for L in depths}

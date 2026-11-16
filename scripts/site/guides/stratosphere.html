@@ -70,8 +70,7 @@ within 8 days of the forecast's day of year). 10 and 100&nbsp;hPa are corrected;
 their reforecasts arrive from the archive.</li>
 <li><b>GEFS</b>: from the GEFSv12 reforecast daily climatology (2000&ndash;2019), which holds 10, 100 and 500&nbsp;hPa; its five levels above 10&nbsp;hPa (7, 5, 3, 2 and 1&nbsp;hPa, from its pgrb2b files) are marked. Their MERRA-2 scale includes the step at August 2004, when MERRA-2 starts assimilating Aura MLS, as the history drips&rsquo; does at 5&nbsp;hPa and above.</li>
 <li><b>AIFS-ENS</b>: no reforecast exists, so its control's cap forecasts from 25 recent cycles are verified against
-the GEOS FP analyses and the mean error at each level and lead is removed where it is significant (more than
-twice its standard error). It is small for the first week and rises to +15 to +45&nbsp;m by days 10&ndash;15.</li>
+the GEOS FP analyses and the mean error at each level and lead is removed where it is significant: beyond 2.58 standard errors at some lead (5&nbsp;% shared over the five leads measured), the standard error widened for the correlation between cycles three days apart. It is small for the first week and rises to +15 to +45&nbsp;m by days 10&ndash;15.</li>
 <li><b>IFS-ENS</b> (all 50 perturbed members): no open reforecast either, and no control at these levels on open data,
 so the mean of the 50 members on the same 25 cycles is verified the same way and removed where significant (at
 every level). In the stratosphere it drifts the other way from AIFS-ENS: the 10&nbsp;hPa cap falls from 23&nbsp;m
@@ -337,11 +336,7 @@ p&nbsp;=&nbsp;0.0006) and <b>+0.95</b> over days 31&ndash;60 (p&nbsp;=&nbsp;0.00
 A single day is noisy (its winter standard deviation is 3.3), so the analysis is drawn as a 7-day mean.</p>
 <p><b>After the forecast.</b> Over every November&ndash;April day since 1980, the next 30 days&rsquo; index rises by
 <b>0.84</b> (95&nbsp;% interval 0.68&ndash;1.02, winters resampled) for each standard deviation of the 100&nbsp;hPa
-cap, over and above the surface&rsquo;s own persistence. That regression, applied to each ensemble&rsquo;s day-15
-state (its mean 100&nbsp;hPa cap with the members&rsquo; spread, and its index over days 10&ndash;15), gives the
-chance the index is positive over days 16&ndash;45 against the 50&nbsp;% base rate. Predicting each winter from the
-others, its Brier skill is 0.39 (0.30&ndash;0.48) when the cap is at least one standard deviation from normal and
-0.17 on every day. It cannot know what the forecast gets wrong by day 15, so read it with the forecast, not
+cap, over and above the surface&rsquo;s own persistence. The outlook uses the cap alone: the same regression without the surface term, applied to each ensemble&rsquo;s day-15 100&nbsp;hPa cap (its mean, drift removed, with the members&rsquo; spread), gives the chance the index is positive over days 16&ndash;45 against the 50&nbsp;% base rate. The models&rsquo; own index is left out because it drifts towards a post-warming value by day 15 and that drift has not been measured. Predicting each winter from the others with the cap known, the Brier skill is 0.38 (0.29&ndash;0.47) when the cap is at least one standard deviation from normal and 0.15 on every day; a forecast cap has less. It cannot know what the forecast gets wrong by day 15, so read it with the forecast, not
 instead of it.</p>
 <p><b>Upward or downward.</b> The anomaly need not start at the top. When the 100&nbsp;hPa cap reaches +1&nbsp;sd before
 the 10&nbsp;hPa cap does &mdash; tropospheric waves forcing it from below &mdash; the surface imprint has still
@@ -480,8 +475,7 @@ within 8 days of the forecast's day of year). 10 and 100&nbsp;hPa are corrected;
 their reforecasts arrive from the archive.</li>
 <li><b>GEFS</b>: from the GEFSv12 reforecast daily climatology (2000&ndash;2019), which holds 10, 100 and 500&nbsp;hPa; its five levels above 10&nbsp;hPa (7, 5, 3, 2 and 1&nbsp;hPa, from its pgrb2b files) are marked. Their MERRA-2 scale includes the step at August 2004, when MERRA-2 starts assimilating Aura MLS, as the history drips&rsquo; does at 5&nbsp;hPa and above.</li>
 <li><b>AIFS-ENS</b>: no reforecast exists, so its control's cap forecasts from 25 recent cycles are verified against
-the GEOS FP analyses and the mean error at each level and lead is removed where it is significant (more than
-twice its standard error). It is small for the first week and rises to +15 to +45&nbsp;m by days 10&ndash;15.</li>
+the GEOS FP analyses and the mean error at each level and lead is removed where it is significant: beyond 2.58 standard errors at some lead (5&nbsp;% shared over the five leads measured), the standard error widened for the correlation between cycles three days apart. It is small for the first week and rises to +15 to +45&nbsp;m by days 10&ndash;15.</li>
 <li><b>IFS-ENS</b> (all 50 perturbed members): no open reforecast either, and no control at these levels on open data,
 so the mean of the 50 members on the same 25 cycles is verified the same way and removed where significant (at
 every level). In the stratosphere it drifts the other way from AIFS-ENS: the 10&nbsp;hPa cap falls from 23&nbsp;m
