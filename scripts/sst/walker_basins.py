@@ -149,11 +149,16 @@ def n34_lag3(ref: xr.Dataset, end) -> float:
 def training_design(ref: xr.Dataset, month: int):
     """The builder's regression for `month`, rebuilt from the reference's training series (idx_train, w_train): the
     design [Niño-3.4, Niño-3.4 three months ago, then the four basin indices as residuals after those two], centred,
-    the centred W anomalies (rows x longitudes), and each row's calendar year. Rows = the ±1-month window, 1991-2020."""
+    the centred W anomalies (rows x longitudes), and each row's block: the year of the window's middle month, so a
+    window across the new year (November-January, December-February) stays one season - by calendar year its December
+    would be permuted apart from the January it runs into. Rows = the ±1-month window, 1991-2020, whole windows only."""
     t = pd.DatetimeIndex(ref.time.values)
     preds = list(ref.pred.values)
     X = ref.idx_train.values.astype(float)
     win = np.isin(t.month, [(month - 2) % 12 + 1, month, month % 12 + 1]) & np.isfinite(X).all(1)
+    rel = (t.month - month + 6) % 12 - 6  # -1, 0, +1 inside the window
+    block = (t.year + (t.month - rel - 1) // 12).values  # the year of the row's middle month
+    win &= np.isin(block, [b for b, n in zip(*np.unique(block[win], return_counts=True), strict=True) if n == 3])
     X = X[win]
     E = X[:, [preds.index("n34"), preds.index("n34_lag3")]]
     Ec = E - E.mean(0)
@@ -163,7 +168,7 @@ def training_design(ref: xr.Dataset, month: int):
         g, *_ = np.linalg.lstsq(Ec, xk, rcond=None)
         cols.append((xk - Ec @ g)[:, None])
     Y = ref.w_train.values.astype(float)[win]
-    return np.hstack(cols), Y - Y.mean(0), t.year.values[win]
+    return np.hstack(cols), Y - Y.mean(0), block[win]
 
 
 def _extra_ss(X, Y, cols):

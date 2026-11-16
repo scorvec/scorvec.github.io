@@ -1313,7 +1313,16 @@ window.STAGE = {
     var P = D.pc, I = P && P.issue === D.fc.issue && P.indices && P.indices[key === "n34" ? "oni" : "roni"];
     return I && I.applied ? I.calibration : null;
   }
-  // member peaks over the four 3-month seasons fully inside the forecast (SON..DJF)
+  // A peak quoted "on the ONI" is on CPC's 1991–2020 base; the models' Niño-3.4 anomalies are on their 1993–2016
+  // hindcasts, so each valid month comes down by the difference of the two climatologies (baseShift). The relative
+  // index needs none (the shift of the tropical mean it subtracts nearly cancels it).
+  function oniShift(key, L) {
+    var sh = key === "n34" ? baseShift(+D.fc.valid_months[L].slice(5, 7)) : 0;
+    return fin(sh) ? sh : 0;
+  }
+  function season3(key, a, L) { return (a(L - 1) - oniShift(key, L - 1) + a(L) - oniShift(key, L) + a(L + 1) - oniShift(key, L + 1)) / 3; }
+  // member peaks over the four 3-month seasons fully inside the forecast (SON..DJF); a hindcast calibration maps the
+  // models' own anomalies onto the observed index, so the base shift is applied only where there is none
   function peakOdds(key, thresholds) {
     var out = thresholds.map(function () { return 0; }), nm = labels().length, cal = peakCal(key);
     var peaks = labels().map(function (m) {
@@ -1321,7 +1330,7 @@ window.STAGE = {
       for (var i = 0; i < byLead[0].length; i++) {
         var best = -99;
         for (var L = 1; L + 1 < byLead.length; L++) {
-          var v = (byLead[L - 1][i] + byLead[L][i] + byLead[L + 1][i]) / 3;
+          var v = cal ? (byLead[L - 1][i] + byLead[L][i] + byLead[L + 1][i]) / 3 : season3(key, function (j) { return byLead[j][i]; }, L);
           if (v > best) best = v;
         }
         pk.push(best);
@@ -1340,7 +1349,7 @@ window.STAGE = {
   function mmmPeak(key) {   // highest 3-month mean of the multi-model mean, fully in the forecast
     var mm = mmmOf(key), best = { v: -99, ym: null };
     for (var L = 1; L + 1 < mm.length; L++) {
-      var v = (mm[L - 1] + mm[L] + mm[L + 1]) / 3;
+      var v = season3(key, function (j) { return mm[j]; }, L);
       if (v > best.v) best = { v: v, ym: D.fc.valid_months[L] };
     }
     return best;
