@@ -415,7 +415,7 @@ window.STAGE = {
                                       return "sst_anim.html?embed=1&manifest=wave" + a + "_maps" + m + "_manifest.json&region=" + r + "&regions=" + r; }, about: "about-waves",
           img: function (a, b, c) { return "assets/sst/runs/waves_" + c + ".webp"; }, bust: "hourly", fit: false,
           ratio: function () { return "1716/759"; },
-          cap: function (a) { if (a === "runs") return "How the last runs have moved the amplitude of waves 1 and 2 at 100 and 10 hPa over 55–65°N, as a multiple of the day’s normal standing wave (1 = normal).";
+          cap: function (a) { if (a === "runs") return "How the last runs have moved the amplitude of waves 1 and 2 at 100 and 10 hPa over 55–65°N, as a multiple of the day’s normal amplitude (1 = normal).";
                               return "Wave-" + a + " of geopotential at 500, 100 and 10 hPa, with its " + (a === "2" ? "two ridges" : "ridge") + " against the normal and whether it leans west with height, i.e. is propagating up into the vortex."; }},
   bdc: {label: "Brewer–Dobson circulation", a: {label: "View", items: [["up","Tropical upwelling"],["sec","Residual streamfunction"]]},
           img: function (a) { return "assets/sst/bdc_dc_" + (a === "sec" ? "section" : "upwelling") + ".webp"; }, bust: "hourly", about: "about-bdc", fit: false,

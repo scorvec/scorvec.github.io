@@ -119,8 +119,8 @@ PRODUCTS = {
             "w1_10": Key("wave 1, 10 hPa", "× normal", 2, unit="× normal", ref=1.0),
             "w2_10": Key("wave 2, 10 hPa", "× normal", 2, unit="× normal", ref=1.0),
         },
-        note="Each member's wave amplitude over the 55–65°N band as a multiple of the day's normal standing wave (ERA5 "
-        "1991–2020, wave_clim.nc); 1 = normal. A day the normal has no standing wave at that level is left blank.",
+        note="Each member's wave amplitude over the 55–65°N band as a multiple of the day's normal amplitude (the mean "
+        "amplitude of the days in ERA5 1991–2020, wave_clim.nc); 1 = normal.",
     ),
     "polarcap": Product(
         "Polar cap, 65–90°N: sea level and 500 hPa",

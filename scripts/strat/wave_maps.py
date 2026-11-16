@@ -288,25 +288,28 @@ _CLIM_CACHE = {}
 
 
 def clim_coeff(lev: int, hemi: str, valid: pd.Timestamp, k: int):
-    """Climatological complex wave-k coefficient for this level/hemisphere/day.
+    """(the normal standing wave-k: the mean complex coefficient, its annual maximum, the normal AMPLITUDE: the mean
+    amplitude of the days) for this level/hemisphere/day. The ridges are compared with the standing wave; an
+    amplitude is "times normal" against the mean amplitude, because a day's wave is the standing wave plus that
+    day's travelling part and is on average 1.2 to 2 times the standing wave alone.
 
     None when the climatology file is absent, so the maps still render, without
     the comparison with the normal, rather than the product failing.
     """
     if not CLIM.exists():
-        return None, None
+        return None, None, None
     if not _CLIM_CACHE:
         _CLIM_CACHE["ds"] = xr.open_dataset(CLIM)
     d = _CLIM_CACHE["ds"]
     key = f"{hemi.lower()}{lev}_k{k}"
     if f"{key}_re" not in d:
-        return None, None
+        return None, None, None
     i = int(doy366([valid])[0])  # 366-slot calendar of wave_clim.nc: 29 Feb = 59, 1 March = 60 in every year
     c = complex(float(d[f"{key}_re"][i]), float(d[f"{key}_im"][i]))
     # Annual maximum for this level/hemisphere, used to decide whether a
     # standing wave exists at all on this date.
     amax = float(np.max(np.hypot(d[f"{key}_re"].values, d[f"{key}_im"].values)))
-    return c, amax
+    return c, amax, float(d[f"{key}_amp"][i])
 
 
 def band_coeff(Z, la, north: bool, lon0: float = 0.0, k: int = 1) -> complex:
@@ -419,18 +422,14 @@ def panel(ax, z, lev, hemi, k, valid=None):
     info.update(amp=amp, ridge=ridge_lon(c, k))
     for r in ridges(info["ridge"], k):
         ax.plot(r, lat60, marker="^", ms=11, mfc="#b3122b", mec="white", mew=1.0, transform=PC, zorder=7)
-    cc, amax = clim_coeff(lev, hemi, valid, k) if valid is not None else (None, None)
+    cc, amax, anorm = clim_coeff(lev, hemi, valid, k) if valid is not None else (None, None, None)
     head = f"{lev} hPa · {ROLE[lev]}"
     line2 = f"wave-{k} {amp:.0f} gpm at 55–65°"
     word = None
-    if cc is not None and amax is not None and abs(cc) >= 0.25 * amax:
-        ratio = amp / abs(cc)
-        info.update(ratio=ratio, clim_ridge=ridge_lon(cc, k))
-        for r in ridges(info["clim_ridge"], k):
-            ax.plot(r, lat60, marker="^", ms=11, mfc="none", mec="#333", mew=1.4, transform=PC, zorder=6)
-        half = 180.0 / k
-        d = (info["ridge"] - info["clim_ridge"] + half) % (2 * half) - half
-        line2 += f" = {ratio:.1f}× normal · ridge{'s' if k > 1 else ''} {abs(d):.0f}° {'west' if d < 0 else 'east'} of normal"
+    if anorm:
+        ratio = amp / anorm
+        info.update(ratio=ratio)
+        line2 += f" = {ratio:.1f}× normal"
         word = (
             ("amplified", "#b3122b")
             if ratio >= 1.25
@@ -438,6 +437,13 @@ def panel(ax, z, lev, hemi, k, valid=None):
             if ratio <= 0.75
             else ("near normal", "#555555")
         )
+    if cc is not None and amax is not None and abs(cc) >= 0.25 * amax:
+        info.update(clim_ridge=ridge_lon(cc, k))
+        for r in ridges(info["clim_ridge"], k):
+            ax.plot(r, lat60, marker="^", ms=11, mfc="none", mec="#333", mew=1.4, transform=PC, zorder=6)
+        half = 180.0 / k
+        d = (info["ridge"] - info["clim_ridge"] + half) % (2 * half) - half
+        line2 += f" · ridge{'s' if k > 1 else ''} {abs(d):.0f}° {'west' if d < 0 else 'east'} of normal"
     else:
         line2 += " · no standing wave in the normal"
     if info["coherence"] is not None:
@@ -657,8 +663,8 @@ def build_loop(full, ana, date, time, anim_root: Path, k: int, source="ensemble 
 
 def record_run(full, date: str, time: str, model: str) -> None:
     """The run into its record (run_record.py, waves_<model>.json): every member's wave-1 and wave-2 amplitude over the
-    55-65N band at 100 and 10 hPa, daily, as a multiple of the day's normal standing wave (blank on a day the normal
-    has none there, as the maps' "no standing wave in the normal")."""
+    55-65N band at 100 and 10 hPa, daily, as a multiple of the day's normal amplitude (the mean amplitude of the
+    days in ERA5 1991-2020, wave_clim.nc ..._amp)."""
     import run_record as RR
 
     init = pd.Timestamp(f"{date}T{time}:00")
@@ -672,10 +678,9 @@ def record_run(full, date: str, time: str, model: str) -> None:
                 Zall, M = split(z)
                 lat, lon = z.latitude.values, z.longitude.values
                 valid = init + pd.Timedelta(hours=h)
-                cc, amax = clim_coeff(lev, "NH", valid, k)
+                anorm = clim_coeff(lev, "NH", valid, k)[2]
                 cm = band_coeff(Zall[None] if M is None else M, lat, True, lon[0], k)
-                ok = cc is not None and amax is not None and abs(cc) >= 0.25 * amax
-                rows[valid] = np.abs(np.atleast_1d(cm)) / abs(cc) if ok else np.full(np.size(cm), np.nan)
+                rows[valid] = np.abs(np.atleast_1d(cm)) / anorm if anorm else np.full(np.size(cm), np.nan)
             frames[f"w{k}_{lev}"] = pd.DataFrame.from_dict(rows, orient="index").sort_index()
     RR.record("waves", model, init, RR.entry("waves", frames))
     RR.render("waves", model)
