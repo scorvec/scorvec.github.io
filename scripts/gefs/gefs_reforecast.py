@@ -190,12 +190,14 @@ def decode(buf: bytes):
 
 
 def coarsen(v):
-    """Box mean onto the 1.5 deg grid (both native grids include the poles and 0E, and nest exactly)."""
+    """Centred box mean onto the 1.5 deg grid. Both native grids include the poles and 0E; the 0.25 deg one (days
+    1-10) is subsampled to its 0.5 deg points first, as gefs_daily does, so the box is 3 x 3 for both: a 6 x 6 box
+    of the 0.25 deg field is even and sits 0.125 deg off the point it is stored at."""
     from scipy.ndimage import uniform_filter1d
 
-    nj = v.shape[0]
-    res = 180.0 / (nj - 1)
-    n = round(RES / res)
+    if v.shape[0] == 721:
+        v = v[::2, ::2]
+    n = round(RES * (v.shape[0] - 1) / 180.0)
     a = uniform_filter1d(v, n, axis=0, mode="nearest")
     a = uniform_filter1d(a, n, axis=1, mode="wrap")
     return a[::n][: len(LAT), ::n][:, : len(LON)]
