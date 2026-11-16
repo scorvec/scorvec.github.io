@@ -142,8 +142,8 @@ def run(
         r = corr(cv, Y)
         msss = 1 - ((cv - Y) ** 2).sum(0) / ((Y**2).sum(0) + 1e-30)
         n = len(hind)
-        tstat = r * np.sqrt((n - 2) / np.maximum(1 - r * r, 1e-9))
-        sig = bh_mask(stats.t.sf(tstat, n - 2), 0.10)  # one-sided: skill > 0
+        p_skill = skill_p(cv, Y)  # one-sided: skill > 0
+        sig = bh_mask(p_skill, 0.10)
         comp_r = {c: corr(F[v][:, i], Y) for i, c in enumerate(M.COMPONENTS)}
         acc_y = [acc(cv[j], Y[j], w) for j in range(n)]
         rmse = np.sqrt(((cv - Y) ** 2).mean(0))
@@ -163,9 +163,7 @@ def run(
         pb, pa = np.zeros_like(cv), np.zeros_like(cv)
         for j, yj in enumerate(hi):
             keep = np.arange(n) != j
-            rj = corr(cv[keep], Y[keep])
-            tj = rj * np.sqrt((n - 3) / np.maximum(1 - rj * rj, 1e-9))
-            skj = bh_mask(stats.t.sf(tj, n - 3), 0.10)
+            skj = bh_mask(skill_p(cv[keep], Y[keep]), 0.10)
             b_, a_ = terciles(cv[j], err[keep], lo, hi_t, P.obs[v][cy[cy != yj]])
             pb[j], pa[j] = np.where(skj, b_, 1 / 3), np.where(skj, a_, 1 / 3)
         cat = np.greater_equal(Y, lo).astype(int) + np.greater(Y, hi_t)  # 0 below, 1 near, 2 above normal
@@ -177,6 +175,7 @@ def run(
             "r": r,
             "msss": msss,
             "sig": sig,
+            "sig_p": [p_skill],  # the tests behind the mask, for a blend that widens it (blend.stage)
             "rmse": rmse,
             "comp_r": comp_r,
             "acc_by_year": acc_y,
@@ -211,6 +210,36 @@ def corr(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     a = a - a.mean(0)
     b = b - b.mean(0)
     return (a * b).sum(0) / np.sqrt((a * a).sum(0) * (b * b).sum(0) + 1e-30)
+
+
+def skill_p(cv: np.ndarray, Y: np.ndarray) -> np.ndarray:
+    """One-sided p of a positive correlation between a hindcast cv (years, P) and the observed Y, per point, the
+    years counted as n (1 - a b) / (1 + a b) with a and b the two series' lag-1 autocorrelations (Bretherton et al.
+    1999): a forecast and an observation that share a trend are not n separate years, and a t test on n - 2 passes
+    them on the trend alone."""
+    n = len(cv)
+
+    def lag1(x):
+        x = x - x.mean(0)
+        return (x[1:] * x[:-1]).sum(0) / ((x * x).sum(0) + 1e-30)
+
+    ab = np.clip(lag1(cv) * lag1(Y), 0.0, 0.95)
+    ne = np.clip(n * (1 - ab) / (1 + ab), 4.0, n)
+    r = corr(cv, Y)
+    return stats.t.sf(r * np.sqrt((ne - 2) / np.maximum(1 - r * r, 1e-9)), ne - 2)
+
+
+def bh_union(ps: list, q: float) -> np.ndarray:
+    """A point passes when any of its tests (one p map per forecast it may be issued from) is a Benjamini-Hochberg
+    discovery over ALL the maps' tests together: a union of masks each held to q on its own is not held to q."""
+    w = hemi_weights() > 0
+    flat = np.concatenate([p[w] for p in ps])
+    order = np.sort(flat)
+    passed = order <= q * np.arange(1, flat.size + 1) / flat.size
+    cut = order[np.where(passed)[0].max()] if passed.any() else -1.0
+    out = np.zeros_like(ps[0], bool)
+    out[w] = np.any([p[w] <= cut for p in ps], axis=0)
+    return out
 
 
 def terciles(

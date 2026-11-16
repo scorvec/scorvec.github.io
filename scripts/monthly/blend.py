@@ -44,7 +44,6 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from scipy import stats
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -88,9 +87,7 @@ def scores(cv: np.ndarray, Y: np.ndarray, clim: np.ndarray, lo, hi, w) -> dict:
     pb, pa = np.zeros_like(cv), np.zeros_like(cv)
     for j in range(n):
         keep = np.arange(n) != j
-        rj = F.corr(cv[keep], Y[keep])
-        tj = rj * np.sqrt((n - 3) / np.maximum(1 - rj * rj, 1e-9))
-        sk = F.bh_mask(stats.t.sf(tj, n - 3), 0.10)
+        sk = F.bh_mask(F.skill_p(cv[keep], Y[keep]), 0.10)
         b_, a_ = F.terciles(cv[j], err[keep], lo, hi, clim)
         pb[j], pa[j] = np.where(sk, b_, 1 / 3), np.where(sk, a_, 1 / 3)
     cat = np.greater_equal(Y, lo).astype(int) + np.greater(Y, hi)
@@ -147,13 +144,18 @@ def stage(o: dict, years: np.ndarray, Xh: np.ndarray, Y: np.ndarray, live: list 
     if win:
         # the issued forecast becomes the blend: the statistical forecast's long-hindcast error spread, scaled by
         # the stage's mean-square-error ratio on the shared years, and its skill mask widened by the points where
-        # the stage's own hindcast is significant
+        # the stage's own hindcast is significant. The stage was chosen because its ratio is under 1, on 15 to 24
+        # years, so the ratio flatters it: the spread is narrowed by the ratio's 90th percentile over resampled years
+        # (never widened), and the masks' tests are held to one false-discovery rate together (F.bh_union).
         ratio = sc["blend"]["mse"] / sc[names[0]]["mse"]
-        scale = scale0 * np.sqrt(ratio)
+        eb, e0 = ((w * (Y - x) ** 2).sum(1) for x in (cv, Xh[:, 0]))
+        pick = np.random.default_rng(20261116).integers(0, n, (2000, n))
+        used = min(1.0, float(np.percentile(eb[pick].sum(1) / e0[pick].sum(1), 90)))
+        scale = scale0 * np.sqrt(used)
         err = (o["hind_obs"] - o["hind_cv"]) * scale
         r = sc["blend"]["r_map"]
-        t = r * np.sqrt((n - 2) / np.maximum(1 - r * r, 1e-9))
-        sig = o["sig"] | F.bh_mask(stats.t.sf(t, n - 2), 0.10)
+        o["sig_p"] = [*o["sig_p"], F.skill_p(cv, Y)]
+        sig = F.bh_union(o["sig_p"], 0.10)
         b_, a_ = F.terciles(fc_b, err, lo, hi, clim)
         if "stat_fc" not in o:  # the statistical forecast, kept for the page and the record
             for key in ("fc", "p_below", "p_above", "p_below_raw", "p_above_raw", "sig"):
@@ -166,6 +168,7 @@ def stage(o: dict, years: np.ndarray, Xh: np.ndarray, Y: np.ndarray, live: list 
         o["base_years"], o["base_cv"], o["base_obs"], o["err_scale"] = years, cv, Y, scale
         rec["issued"] = True
         rec["mse_ratio"] = round(float(ratio), 3)
+        rec["mse_ratio_used"] = round(used, 3)
     return rec
 
 
