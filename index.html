@@ -94,7 +94,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="/assets/site.css?v=195e33a1fe">
+<link rel="stylesheet" href="/assets/site.css?v=52fec7b83b">
 <style>
   /* Palette sampled from the photograph: sky, cloud, storm base, hills, prairie. */
   :root {
@@ -186,9 +186,9 @@
      box and the About menu instead of a 74rem column with ~430 px empty on each side at 2160 px */
   @media (min-width: 1100px) { .wrap { max-width: min(94vw, 2000px); padding: 0 clamp(1rem, 3vw, 2.5rem); } }
 
-  /* ── Right now: compact live readings, few and uncluttered. Every number is read live (midterms results_summary.json, the
-     ENSO feeds); on any failure the dashes stay and the card still links. ── */
-  .now { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: clamp(1.75rem, 4vw, 2.75rem); }
+  /* ── Right now: compact live readings, few and uncluttered. Every number is read live (the ENSO and
+     stratosphere feeds); on any failure the dashes stay and the card still links. ── */
+  .now { display: grid; gap: 1rem; margin-top: clamp(1.75rem, 4vw, 2.75rem); }
   .nc {
     position: relative; display: flex; flex-direction: column; min-width: 0;
     padding: 1.05rem 1.2rem 1rem; background: #fff; text-decoration: none;
@@ -225,34 +225,6 @@
   .en-stats > span:first-child { padding-left: 0; border-left: 0; }
   .en-stats small { font-size: 0.86rem; color: var(--prairie); line-height: 1.3; }
   .en-stats em { margin-top: 0.15rem; font-style: normal; font-size: 0.78rem; line-height: 1.35; color: var(--storm); }
-  /* midterm card: the forecast page's navy band and seat arcs (its colours: night #0e2140, ratings Solid D .. Solid R),
-     every seat filled in on load, the odds counting up under each arc */
-  .nc--mt { --acc: #9cc0ff; background: #0e2140; border-color: #0e2140; color: #fff; }
-  .nc--mt:hover { box-shadow: 0 4px 22px rgba(14, 33, 64, 0.35); }
-  .nc--mt .k { color: #fff; }
-  .nc--mt .s { color: #b9c5da; }
-  .mt-top { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
-  .mt-arcs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4rem 1.2rem; margin-top: 0.6rem; }
-  .mt-ch { display: flex; flex-direction: column; align-items: center; min-width: 0; text-align: center; }
-  .mt-arc { display: block; width: 100%; height: auto; }
-  .mt-arc[hidden] { display: none; }
-  .mt-arc circle { opacity: 0; transition: opacity 0.2s var(--d, 0s); }
-  .mt-arc.on circle { opacity: 1; }
-  .mt-arc line { stroke: rgba(255, 255, 255, 0.55); stroke-width: 1.2; stroke-dasharray: 3 2; }
-  /* the arcs scale with the card (~0.8 on a desktop card, ~0.5 on a phone), so the majority label goes on phones; the
-     line under the arcs gives both thresholds */
-  .mt-arc text { font-family: var(--sans); font-size: 14px; fill: #b9c5da; }
-  .nc--mt .mt-ch b { margin-top: 0.2rem; font-size: clamp(2.1rem, 3.4vw, 2.8rem); }
-  .mt-ch small { margin-top: 0.15rem; font-size: 0.86rem; line-height: 1.3; color: #b9c5da; }
-  .mt-key { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.9rem; margin-top: 0.75rem;
-            font-size: 0.78rem; color: #b9c5da; }
-  .mt-key span { display: inline-flex; align-items: center; gap: 0.35rem; }
-  .mt-key i { display: inline-block; width: 0.62rem; height: 0.62rem; border-radius: 50%; }
-  .mt-key .sw { display: inline-flex; gap: 2px; }
-  .mt-key .ring { background: transparent; border: 1.6px solid #4a8af0; }
-  .nc--mt .go { color: #9cc0ff; }
-  @media (prefers-reduced-motion: reduce) { .mt-arc circle { opacity: 1; transition: none; } }
-  @media (max-width: 640px) { .mt-arc text { display: none; } }
   /* drawn at its real pixel width (viewBox = the element's width, height fixed): a fixed 320-wide viewBox stretched to
      a 560 px card would blow the labels up to ~17 px and the chart to 160 px */
   .spark { display: block; width: 100%; flex: 1 1 170px; min-height: 170px; margin-top: 0.8rem; }   /* fills the card's height */
@@ -261,7 +233,7 @@
   .spark .lab.cool { fill: #2c5f8a; }
   /* SSW card: the whole row; the outlook page's three readings beside each ensemble's chance run by run, in the
      stratosphere figures' model colours, named at the line ends and in the key */
-  .nc--ssw { --acc: #3b3f8c; grid-column: 1 / -1; background: linear-gradient(180deg, #f3f3fb 0%, #fff 48%); }
+  .nc--ssw { --acc: #3b3f8c; background: linear-gradient(180deg, #f3f3fb 0%, #fff 48%); }
   .nc--ssw:hover { box-shadow: 0 4px 22px rgba(59, 63, 140, 0.16); }
   .nc--ssw .en-stats > span { border-left-color: #d8daef; }
   .ss-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.6rem; align-items: start; }
@@ -325,7 +297,7 @@
     .sg-col { display: contents; }        /* two columns: the tiles in one grid, stacks in reading order */
   }
   @media (max-width: 640px) {
-    .sgs, .now { grid-template-columns: 1fr; }
+    .sgs { grid-template-columns: 1fr; }
     .sg li a { padding: 0.62rem 0; }        /* 44 px touch rows */
   }
 
@@ -495,7 +467,6 @@
             </div>
           </div>
         </li>
-        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
         <li class="sh-item sh-has-menu sh-item--me">
           <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
           <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
@@ -529,21 +500,6 @@
 
 <main id="main" class="wrap">
   <section class="now" aria-label="Right now">
-    <a class="nc nc--mt" href="/midterms/">
-      <span class="mt-top"><span class="k">2026 midterm results</span></span>
-      <span class="mt-arcs" aria-live="polite">
-        <span class="mt-ch"><svg class="mt-arc" id="mt-ah" viewBox="0 -18 300 170" role="img" aria-label="House seats as called" hidden></svg><b id="mt-h">–</b><small id="mt-hl">House, Democratic–Republican</small></span>
-        <span class="mt-ch"><svg class="mt-arc" id="mt-as" viewBox="0 -18 300 170" role="img" aria-label="Senate seats as called" hidden></svg><b id="mt-s">–</b><small id="mt-sl">Senate, Democratic–Republican</small></span>
-      </span>
-      <span class="mt-key" id="mt-key" hidden>
-        <span><i style="background:#4a8af0"></i>Democratic</span>
-        <span><i style="background:#e6dcc5"></i>Not called</span>
-        <span><i style="background:#de4f3e"></i>Republican</span>
-        <span><i class="ring"></i>Senate seat not up</span>
-      </span>
-      <span class="s" id="mt-sub">Every race as called, next to the forecast frozen before the polls closed.</span>
-      <span class="go">The races still out, every result and how the forecast did</span>
-    </a>
     <a class="nc nc--en" href="/enso.html">
       <span class="en-top"><span class="k">El Niño and La Niña</span><span class="en-pill" id="en-pill" hidden></span></span>
       <span class="en-stats" aria-live="polite">
@@ -703,60 +659,6 @@
   const getJSON = u => fetch(u, { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).catch(() => null);
   const day = iso => new Date(iso.slice(0, 10) + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 
-  // midterm card: each chamber's seats as called, on the forecast page's seat arcs (results_summary.json carries one
-  // character per seat, most Democratic first), and how the frozen forecast did; on any failure the dashes stay and the
-  // card still links
-  const FILL = ['#4a8af0', '#8db4f2', '#c6d8f6', '#e6dcc5', '#f5c3b9', '#ec8a7b', '#de4f3e'], FILLI = ['#a57bdc', '#c2a6e8', '#ddd0f2'];
-  // seats in concentric rows filled left to right in the given order, laid out as on the forecast page: 0 a Democratic
-  // win, 3 not called, 6 a Republican win, an independent's seat ('a') purple, a Senate seat not up ('D'/'R') a ring
-  function arc(svg, seats, maj, what) {
-    const n = seats.length, R = 138, cx = 150, cy = 146, R0 = 0.38;
-    let k = 2;
-    while (Math.PI * k * (1 + R0) / (2 * n) < (1 - R0) / (k - 1)) k++;
-    const radii = [...Array(k)].map((_, i) => R0 + (1 - R0) * i / (k - 1)), tot = radii.reduce((a, b) => a + b);
-    const cnt = radii.map(r => Math.floor(n * r / tot));
-    radii.map((r, i) => [n * r / tot - cnt[i], i]).sort((a, b) => b[0] - a[0])
-      .slice(0, n - cnt.reduce((a, b) => a + b)).forEach(([, i]) => cnt[i]++);
-    const pts = [];
-    radii.forEach((r, i) => { for (let j = 0; j < cnt[i]; j++) pts.push({ a: Math.PI * (1 - j / (cnt[i] - 1)), r }); });
-    pts.sort((p, q) => q.a - p.a || p.r - q.r);
-    const dot = (Math.min(Math.PI * k * (1 + R0) / (2 * n), (1 - R0) / (k - 1)) * R * 0.43).toFixed(2);
-    const X = (r, a) => (cx + R * r * Math.cos(a)).toFixed(1), Y = (r, a) => (cy - R * r * Math.sin(a)).toFixed(1);
-    const am = (pts[maj - 1].a + pts[maj].a) / 2;
-    svg.innerHTML = pts.map((p, i) => {
-      const c = seats[i], held = c === 'D' || c === 'R';
-      const f = held ? FILL[c === 'D' ? 0 : 6] : 'abc'.includes(c) ? FILLI['abc'.indexOf(c)] : FILL[+c];
-      return `<circle cx="${X(p.r, p.a)}" cy="${Y(p.r, p.a)}" r="${dot}" style="--d:${Math.round(i * 650 / n)}ms" ` +
-             (held ? `fill="#0e2140" stroke="${f}" stroke-width="1.8"/>` : `fill="${f}"/>`);
-    }).join('') +
-      `<line x1="${X(R0 - 0.07, am)}" y1="${Y(R0 - 0.07, am)}" x2="${X(1.04, am)}" y2="${Y(1.04, am)}"/>` +
-      `<text x="${X(1.08, am)}" y="${Y(1.08, am)}" text-anchor="middle">${maj} ${what}</text>`;
-    svg.removeAttribute('hidden');  // SVG elements have no .hidden property
-  }
-  getJSON('/midterms/data/results_summary.json').then(s => {
-    if (!s || !s.house) return;
-    const H = s.house, S = s.senate, other = c => (c.i ? `, ${c.i} other` : '');
-    const arcs = [['mt-ah', 'mt-h', H, 218, 'for a majority', 'House'], ['mt-as', 'mt-s', S, 51, 'for control', 'Senate']];
-    for (const [id, num, c, maj, what, name] of arcs) {
-      $set(num, `${c.d}–${c.r}`);
-      $set(num + 'l', `${name}, Democratic–Republican${other(c)}${c.open ? `; ${c.open} not called` : ''}`);
-      const svg = document.getElementById(id);
-      arc(svg, c.seats, maj, what);
-      svg.setAttribute('aria-label', `${name} seats as called: ${c.d} Democratic, ${c.r} Republican${other(c)}, ${c.open} not called`);
-    }
-    const ck = s.check;
-    const v = s.house_vote;
-    const vote = v ? `National House vote${v.final ? '' : ', counted so far'}: ${Math.abs(v.margin) < 0.05 ? 'even' : (v.margin > 0 ? 'D+' : 'R+') + Math.abs(v.margin).toFixed(1)}. ` : '';
-    const med = H.median && S.median ? `Median outcome with the races still out: House ${H.median.join('–')}, Senate ${S.median.join('–')}. ` : '';
-    $set('mt-sub', med + vote + (ck ? `The forecast's favourite won ${ck.won} of the ${ck.called} races called so far. ` : '') +
-                   `Forecast: ${H.forecast_d} Democratic House seats, ${S.forecast_d} Senate seats. Updated ${day(s.generated)}.`);
-    if (H.i || S.i)
-      document.querySelector('#mt-key .ring').parentElement.insertAdjacentHTML('beforebegin', `<span><i style="background:${FILLI[0]}"></i>Independent</span>`);
-    document.getElementById('mt-key').hidden = false;
-    // the seats fill in from the left once painted
-    requestAnimationFrame(() => requestAnimationFrame(() => arcs.forEach(([id]) => document.getElementById(id).classList.add('on'))));
-  });
-
   // El Niño card: Niño-3.4 today; our RONI estimate for the season so far beside CPC's latest official season, whose
   // strength in CPC's terms is the pill; the model-mean Niño-3.4 peak with the range of the model means (DWD left out,
   // as on the ENSO forecasts page) and its value on the RONI scale; the past year and the models' forecast, warm above
@@ -875,7 +777,7 @@
         svg.innerHTML = g;
       };
       draw();
-      // drawn again whenever the card's size changes: the window, or the midterm card beside it filling in
+      // drawn again whenever the card's size changes
       let rt; new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(draw, 100); }).observe(svg);
     }
   });

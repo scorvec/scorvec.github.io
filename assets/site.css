@@ -219,8 +219,6 @@
 .sh--compact .sh-menu .sh-d { display: none; }
 .sh--compact .sh-has-menu > .sh-menubtn { pointer-events: none; color: var(--c-muted); font-size: 0.95rem; padding-top: 1rem; padding-bottom: 0.3rem; border-bottom: 0; }
 .sh--compact .sh-has-menu > .sh-menubtn::after, .sh--compact .sh-has-menu > .sh-menubtn::before { display: none; }
-.sh--compact .sh-item--special { margin: 0.4rem 0 0.2rem; }
-.sh--compact .sh-special { justify-content: center; }
 
 /* Overlay skin: the homepage hero. Transparent, white type, sits on the photograph. */
 .sh--overlay {
@@ -438,22 +436,6 @@ html .img-wrap, html .table-wrap { max-width: 100%; overflow-x: auto; }
 /* a file name or an expression in running text breaks rather than pushing a phone page sideways */
 html :is(p, li, dd, figcaption) code { overflow-wrap: anywhere; }
 
-/* 2026 Midterms: the highlighted header button (apply_chrome.SPECIAL) */
-.sh-item--special { margin-left: 0.35rem; }
-.sh-special {
-  display: inline-flex; align-items: center; padding: 0.45rem 0.9rem; border-radius: 999px;
-  font: inherit; font-size: 0.98rem; font-weight: 600; white-space: nowrap; text-decoration: none;
-  color: #fff; background: #274b7a; border: 1px solid #274b7a; transition: background 0.15s, transform 0.15s;
-}
-.sh-special:hover { background: #1d3a60; transform: translateY(-1px); }
-.sh-special[aria-current="page"] { background: #fff; color: #274b7a; }
-.sh-special:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
-.sh--dark .sh-special { color: #11111c; background: #64d2ff; border-color: #64d2ff; }
-.sh--dark .sh-special:hover { background: #8fdfff; }
-.sh--overlay .sh-special { color: #1d2a1a; background: #fff; border-color: #fff; text-shadow: none; }
-.sh--overlay .sh-special:hover { background: #eef2f7; }
-@media (max-width: 900px) { .sh-item--special { margin: 0.4rem 0 0.2rem; } .sh-special { justify-content: center; } }
-
 /* the first step down when the menus do not fit (site.js fitMenu): the tagline goes */
 .sh--tight .sh-brand::after { display: none; }
 @media (max-width: 860px) {
@@ -494,16 +476,13 @@ html :is(p, li, dd, figcaption) code { overflow-wrap: anywhere; }
   .sh:not(.sh--compact) .sh-brand { font-size: 23px; }
   .sh:not(.sh--compact) .sh-list { gap: 2px; }
   .sh:not(.sh--compact) .sh-link { font-size: 17px; padding: 10px 12px; }
-  /* the product menus sit centred in the space after the name; the special button and the person's menu stay at
-     the right */
+  /* the product menus sit centred in the space after the name; the person's menu stays at the right */
   .sh:not(.sh--compact) nav.sh-nav { flex: 1 1 auto; min-width: 0; }
   .sh:not(.sh--compact) .sh-list > li:first-child { margin-left: auto; }
   .sh:not(.sh--compact) .sh-link::before { left: 11px; right: 11px; bottom: 6px; }
   .sh:not(.sh--compact) .sh-has-menu > .sh-menubtn::before { right: 26px; }
   .sh:not(.sh--compact) .sh-me { font-size: 15.5px; }
-  .sh:not(.sh--compact) .sh-special { font-size: 15.5px; padding: 7px 14px; }
-  .sh:not(.sh--compact) .sh-item--special { margin-left: auto; }
-  .sh:not(.sh--compact) .sh-item--me { margin-left: 6px; padding-left: 8px; }
+  .sh:not(.sh--compact) .sh-item--me { margin-left: auto; padding-left: 8px; }
   .sh.sh--tighter .sh-in { padding: 0 20px; gap: 12px; }
   .sh.sh--tighter .sh-link { padding: 10px 6px; }
   .sh.sh--tighter .sh-link::before { left: 6px; right: 6px; }

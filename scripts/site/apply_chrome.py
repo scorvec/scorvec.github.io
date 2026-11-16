@@ -435,10 +435,8 @@ def group_items(columns):
     return [it for _, sub in columns for it in sub]
 
 
-# Plain header links between the product menus and the special button (none since the About menu took Resume).
+# Plain header links between the product menus and the person's menu (none since the About menu took Resume).
 PRIMARY: list = []
-# A highlighted button, apart from the menus, on every page.
-SPECIAL = ("/midterms/", "2026 Midterms")
 
 # Tab rows for page families. Keys are referenced from PAGES.
 TABS = {
@@ -455,12 +453,6 @@ TABS = {
     ],
 }
 
-# The link the synced midterms pages' navigation gains: Claude's call, the site's own page (call.html)
-MT_CALL = (
-    "State legislatures</a></nav>",
-    'State legislatures</a><a href="call.html">Claude&rsquo;s call</a></nav>',
-)
-
 # ── pages ────────────────────────────────────────────────────────────────────
 # mode:
 #   nav          replace the first <nav>…</nav>
@@ -468,8 +460,6 @@ MT_CALL = (
 #   after-body   no nav on the page: insert right after <body…>
 #   before       insert before the literal `anchor`; optionally delete `drop` (a regex) first
 # fixes: literal (old, new) substrings — the top padding that used to clear a fixed nav.
-# synced: the page's <head> belongs to the repository it is synced from (the midterms pages): header and footer
-#   only, no analytics tag, integrity attributes, font links or asset versions stamped (see head_tags).
 PAGES = [
     dict(path="index.html", mode="nav", skin="overlay", footer=False),
     dict(
@@ -565,26 +555,6 @@ PAGES = [
     dict(path="skewt/methodology.html", mode="nav", tabs="skewt"),
     dict(path="skewt/gaps.html", mode="nav", tabs="skewt"),
     # qbo/index.html: folded into stratosphere.html ("QBO from radiosondes"), now a redirect stub (no chrome)
-    # the synced midterms pages: their page navigation (upstream) gains the site's own midterms page, Claude's call
-    dict(
-        path="midterms/index.html", mode="after-body", footer=True, synced=True, fixes=[MT_CALL]
-    ),  # the races still out, the midterms front page: the frozen forecast's simulations reweighted by every call and
-    # count (synced from github.com/scorvec/midterms-2026 by midterms-sync.yml); live.html is its redirect stub
-    dict(
-        path="midterms/results.html", mode="after-body", footer=True, synced=True, fixes=[MT_CALL]
-    ),  # 2026 midterm results, the national House vote and the scorecard
-    dict(
-        path="midterms/forecast.html", mode="after-body", footer=True, synced=True, fixes=[MT_CALL]
-    ),  # the final midterm forecast, frozen before the polls closed
-    dict(
-        path="midterms/about.html", mode="after-body", footer=True, synced=True, fixes=[MT_CALL]
-    ),  # how the midterm forecast works + sources
-    dict(
-        path="midterms/legislatures.html", mode="after-body", footer=True, synced=True, fixes=[MT_CALL]
-    ),  # state legislative chambers (experimental)
-    dict(
-        path="midterms/call.html", mode="after-body", footer=True
-    ),  # Claude's call: one deterministic election night (the site's own page; data/claudes_call.json, written once)
     # the 404 body is a centring flexbox: stack it so the header spans the top and the message centres below
     dict(
         path="404.html",
@@ -798,12 +768,6 @@ def header_html(page: str, skin: str, skip: bool = False) -> str:
         out.append(
             f'        <li class="sh-item"><a class="sh-link" href="{href}"{_current(href, page)}>{label}</a></li>'
         )
-    if SPECIAL:
-        href, label = SPECIAL
-        cur = ' aria-current="page"' if href.strip("/") + "/" in "/" + page.lstrip("/") else ""
-        out.append(
-            f'        <li class="sh-item sh-item--special"><a class="sh-special" href="{href}"{cur}>{label}</a></li>'
-        )
     # the person, after a divider: a small quiet menu that does not read as one of the products
     mine = any(h == page for h, _ in PERSONAL)
     out.append('        <li class="sh-item sh-has-menu sh-item--me">')
@@ -968,10 +932,8 @@ def stamp(cfg: dict) -> tuple[str, str]:
     dark = cfg.get("skin") == "dark" or (is_dark(html) and cfg.get("skin") != "overlay")
     skin = cfg.get("skin") or ("dark" if dark else "")
 
-    # the skip link's target is the page's <main>; a synced page brings its own markup, so it only gets the
-    # link once its <main> carries id="main" upstream
-    if not cfg.get("synced"):
-        html = re.sub(r"<main\b(?![^>]*\sid=)", '<main id="main"', html, count=1)
+    # the skip link's target is the page's <main>
+    html = re.sub(r"<main\b(?![^>]*\sid=)", '<main id="main"', html, count=1)
     block = header_html(page, skin, skip=re.search(r'<main\b[^>]*\sid="main"', html) is not None)
     # Section tab strips (a second banner under the header) are off: two top menus confuse, and the
     # dropdown menu already reaches every page.
@@ -1013,11 +975,10 @@ def stamp(cfg: dict) -> tuple[str, str]:
             html = html.replace("<!-- sh:start -->", HEAD_SNIPPET + "<!-- sh:start -->", 1)
     html = css_first(html)
 
-    if not cfg.get("synced"):
-        html = head_tags(html)
-        html = version_assets(with_fonts(html, cfg["path"]))
-        if cfg.get("local_assets"):
-            html = version_local(html, cfg["path"], cfg["local_assets"])
+    html = head_tags(html)
+    html = version_assets(with_fonts(html, cfg["path"]))
+    if cfg.get("local_assets"):
+        html = version_local(html, cfg["path"], cfg["local_assets"])
 
     if cfg.get("footer", True):
         foot = footer_html(dark)
