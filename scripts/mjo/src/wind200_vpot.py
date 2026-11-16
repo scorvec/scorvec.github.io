@@ -295,10 +295,8 @@ def main() -> int:
         lead = (valid.normalize() - init.normalize()).days
         u2d, v2d = ds["u"].isel(step=i), ds["v"].isel(step=i)
         chi, dlat, dlon = velocity_potential(u2d, v2d)
-        # the normal of the frame's own hour (the divergent wind carries the tide); a file built before the normal
-        # was split by hour has one for all
-        at = coef.sel(hour=valid.hour).values if "hour" in coef.dims else coef.values
-        anom = chi - eval_vp_clim(at, float(noleap_doy(valid)))
+        # the normal of the frame's own hour: the divergent wind carries the tide
+        anom = chi - eval_vp_clim(coef.sel(hour=valid.hour).values, float(noleap_doy(valid)))
         uchi, vchi = irrotational_wind(anom, dlat, dlon)
         uf = _to_0360(u2d).interp(latitude=dlat, longitude=dlon).transpose("latitude", "longitude").values
         vf = _to_0360(v2d).interp(latitude=dlat, longitude=dlon).transpose("latitude", "longitude").values
