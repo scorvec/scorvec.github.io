@@ -217,9 +217,11 @@ def main() -> int:
         # a mean of amplitudes cannot be below the amplitude of the mean; the two are smoothed separately (and at
         # 10 hPa sampled from different days), which can leave it a little under: floored at the standing wave's
         amp, stand = mean_amp[(lev, h, k)], np.abs(c)
-        short = float(np.max(1 - amp / np.maximum(stand, 1e-9)))
+        big = stand >= 0.25 * stand.max()  # where a standing wave exists: a few gpm of summer wave says nothing
+        short = float(np.max(1 - amp[big] / stand[big]))
         print(
-            f"  {lev} hPa {h.upper()} wave-{k}: mean amplitude {amp.min():.0f}..{amp.max():.0f} gpm, at most {100 * max(short, 0):.0f} % under the standing wave before the floor",
+            f"  {lev} hPa {h.upper()} wave-{k}: mean amplitude {amp.min():.0f}..{amp.max():.0f} gpm, at most "
+            f"{100 * max(short, 0):.0f} % under the standing wave (where one exists) before the floor",
             flush=True,
         )
         if short > 0.15:
