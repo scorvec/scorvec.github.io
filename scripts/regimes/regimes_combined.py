@@ -71,9 +71,14 @@ def boot_combined(fls, F1, n_boot: int = 1000, seed: int = 17):
         return S / n[:, None, :]
 
 
-def weekly_vs_clim(P, C, CB, PB):
+def weekly_vs_clim(P, C, CB, PB, members):
     """Per forecast week: the normal (R1 share over the week's valid days), the forecast minus normal, and its 95%
-    interval from the two bootstraps (members within models; R1 years). sig = the interval excludes zero."""
+    interval from the two bootstraps (members within models; R1 years). sig = the interval excludes zero AND the
+    departure exceeds 1.96 standard errors under the normal itself: each model's share with the normal's binomial
+    variance over its members (a week's days counted as one draw per member), the models weighing the same, plus the
+    normal's own variance. The second condition is there because resampled members have no spread when none of them
+    is in a regime, which alone would mark every such week."""
+    null = sum(1 / m for m in members) / len(members) ** 2
     out = []
     for w in RC.weekly(P):
         sl = np.arange(P.shape[1])[w["w0"] - 1 : w["w1"]]
@@ -81,14 +86,16 @@ def weekly_vs_clim(P, C, CB, PB):
         c = C[:, days].mean(1)
         d = np.nanmean(PB[:, :, days], 2) - CB[:, :, days].mean(2)
         lo, hi = np.nanpercentile(d, 2.5, 0), np.nanpercentile(d, 97.5, 0)
+        dev = np.array(w["p"]) - c
+        far = np.abs(dev) > 1.96 * np.sqrt(c * (1 - c) * null + CB[:, :, days].mean(2).var(0))
         out.append(
             dict(
                 w0=w["w0"],
                 clim=np.round(c, 3).tolist(),
-                dev=np.round(np.array(w["p"]) - c, 3).tolist(),
+                dev=np.round(dev, 3).tolist(),
                 lo=np.round(lo, 3).tolist(),
                 hi=np.round(hi, 3).tolist(),
-                sig=[bool(x) for x in (lo > 0) | (hi < 0)],
+                sig=[bool(x) for x in ((lo > 0) | (hi < 0)) & far],
             )
         )
     return out
@@ -215,7 +222,7 @@ def main() -> int:
         hist[issue.isoformat()][sk] = {"start": d0.isoformat(), "p": np.round(np.nan_to_num(P, nan=0.0), 3).tolist()}
         models = [(f"{j['label']} · {RC.parse_date(j['init']):%b %-d}", A) for _, j, A in per]
         C, CB = RC.climatology(ref, sk, dates)
-        vs = weekly_vs_clim(P, C, CB, boot_combined(fls, F + 1))
+        vs = weekly_vs_clim(P, C, CB, boot_combined(fls, F + 1), [fl.shape[1] for fl in fls])
         mlabel = " + ".join(f"{j['label']} {j['n_members']}" for _, j, _ in per)
         sk_note = (
             (

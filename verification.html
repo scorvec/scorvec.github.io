@@ -458,7 +458,7 @@ window.plotly = function () {
 
   <section class="card" id="scores">
     <h2>One model against another, variable by variable</h2>
-    <p class="what">One model's RMSE against another's, every variable by day in each region, coloured where a paired test (5% level) finds a difference.</p>
+    <p class="what">One model's RMSE against another's, every variable by day in each region, coloured where a paired test finds a difference (false-discovery rate 10% over the card).</p>
     <div class="controls">
       <label>Model<select id="s-model"></select></label>
       <label>against<select id="s-ref"></select></label>
@@ -579,7 +579,7 @@ window.plotly = function () {
 
   <section class="card" id="ens-card" hidden>
     <h2>One ensemble against another</h2>
-    <p class="what">One ensemble's CRPS against another's, every variable by day, coloured where a paired test (5% level) finds a difference.</p>
+    <p class="what">One ensemble's CRPS against another's, every variable by day, coloured where a paired test finds a difference (false-discovery rate 10% over the card).</p>
     <div class="controls">
       <label>Ensemble<select id="e-model"></select></label>
       <label>against<select id="e-ref"></select></label>
@@ -708,6 +708,8 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
   const ordered = ms => [...ms].sort((a, b) => (ORDER.indexOf(a) + 1 || 99) - (ORDER.indexOf(b) + 1 || 99));
   const who = m => ({ name: m, color: color(m, 4), shape: SHAPES[m] || "circle" });
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  // Benjamini-Hochberg over the tests shown together: the largest p that passes at false-discovery rate q (-1: none)
+  const bhCut = (ps, q = 0.10) => { const s = ps.filter(p => p != null).sort((x, y) => x - y); let c = -1; s.forEach((p, i) => { if (p <= q * (i + 1) / s.length) c = p; }); return c; };
   const unit = u => UNITS[u] ?? u;
   const FONT = { family: "'Source Sans 3', 'Helvetica Neue', Arial, sans-serif", size: 13, color: "#3d3b37" };
 
@@ -781,6 +783,7 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
         return sw.value === "main" ? MAIN.includes(v) : up ? !["u", "v"].includes(up[0]) : v in SHORT;
       });
       details = [];
+      const cut = bhCut(SC_REGIONS.flatMap(g => rows.flatMap(v => { const r = row(v, g); return r && a !== b && r.scores[a]?.rmse && r.scores[b]?.rmse ? days.map(h => r.p?.[`${a}|${b}`]?.[leads.indexOf(h)]) : []; })));
       const blocks = SC_REGIONS.map(g => {
         let y = 38, last = null, body = "";
         for (const v of rows) {
@@ -797,7 +800,7 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
             const p = r.p?.[`${a}|${b}`]?.[i], c = cases(r, a, b, i);
             const k = details.push(`${g}, ${r.label}, day ${h / 24}: RMSE ${a} ${ra.toFixed(2)}, ${b} ${rb.toFixed(2)} ${unit(r.unit)} ` +
               `(${pct > 0 ? "+" : ""}${pct.toFixed(1)}%)` + (p == null ? ", not tested" : `, p = ${p.toFixed(3)}`) + (c ? `; ${c.text}` : "")) - 1;
-            if (p == null || p >= 0.05) {
+            if (p == null || p > cut) {
               body += `<rect data-k="${k}" x="${x}" y="${y}" width="22" height="19" rx="3" class="n"/><circle cx="${cx}" cy="${cy}" r="1.6"/>`;
               return;
             }
@@ -827,7 +830,7 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
     scorecard();
 
     // ── the summary: the headline variables in one region. For each variable and day the models whose error is not
-    // significantly larger than the smallest (the scorecard's paired test, 5 %): one model alone is drawn in its colour,
+    // significantly larger than the smallest (the scorecard's paired test, false-discovery rate 10 % over the variables, days and pairs of models shown): one model alone is drawn in its colour,
     // several in faint stripes; the head-to-head counts each pair's significant wins over the same variables and days;
     // the band gives each model's record over every pair, and a figure the error by lead (detFigs).
     function summary() {
@@ -836,8 +839,9 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       fill(gr, [...new Set(surface.filter(r => heads.includes(r.var)).map(r => r.region))], null, true);
       if (!gr.dataset.set) { gr.value = wide; gr.dataset.set = "1"; }
       const region = gr.value, dayIx = days.map(h => leads.indexOf(h));
+      const cut = bhCut(heads.flatMap(v => { const r = row(v, region); return r ? models.flatMap((a, x) => models.slice(x + 1).flatMap(b => dayIx.map(i => r.p?.[`${a}|${b}`]?.[i] ?? r.p?.[`${b}|${a}`]?.[i]))) : []; }));
       const better = (r, a, b, i) => { const pa = r.scores[a]?.rmse?.[i], pb = r.scores[b]?.rmse?.[i], p = r.p?.[`${a}|${b}`]?.[i];
-                                        return pa != null && pb != null && p != null && p < 0.05 && pa < pb; };
+                                        return pa != null && pb != null && p != null && p <= cut && pa < pb; };
       const rec = Object.fromEntries(models.map(m => [m, { w: 0, l: 0, best: 0 }]));
       const h2h = {};
       let cells = 0, html = `<tr><th></th>${days.map(h => `<th>${h / 24}</th>`).join("")}</tr>`;
@@ -1483,6 +1487,7 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
     function scorecard() {
       const a = em.value, b = er.value;
       details = [];
+      const cut = bhCut(blocks.flatMap(g => vars.flatMap(v => { const r = row(v, g); return r && a !== b && r.scores[a]?.crps && r.scores[b]?.crps ? days.map(h => r.p?.[`${a}|${b}`]?.[leads.indexOf(h)]) : []; })));
       $("e-scorecard").innerHTML = blocks.map(g => {
         let y = 38, body = "";
         for (const v of vars) {
@@ -1497,7 +1502,7 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
             const k = details.push(`${g}, ${r.label}, day ${h / 24}: CRPS ${a} ${ca.toFixed(3)}, ${b} ${cb.toFixed(3)} ${unit(r.unit)} ` +
               `(${pct > 0 ? "+" : ""}${pct.toFixed(1)}%)` + (p == null ? ", not tested" : `, p = ${p.toFixed(3)}`) +
               (runs ? `; ${runs} paired runs, counted as ${eff >= runs - 0.05 ? runs : eff.toFixed(1)} by the test` : "")) - 1;
-            if (p == null || p >= 0.05) {
+            if (p == null || p > cut) {
               body += `<rect data-k="${k}" x="${x}" y="${y}" width="18" height="18" rx="3" class="n"/><circle cx="${cx}" cy="${cy}" r="1.5"/>`;
               return;
             }

@@ -22,9 +22,11 @@ runs).
 What the page shows, and the tests that gate it:
   timeline   per sector and valid day, how many members are in each regime (and in none). A share is marked
              significant where it differs from that regime's 1991-2020 frequency within +-15 days of the date
-             (regime_core.climatology): the 95 % interval of [share - normal], members resampled with replacement and
-             the R1 years resampled (both 1000 times), excludes 0 - the multi-model view's test, per day; the normal's
-             standard error over the resampled years (clim_sd) lets the page test its equal-weight four-ensemble mean
+             (regime_core.climatology): the exact two-sided binomial test of the member count against the normal,
+             averaged over the normal's 1000 resampled sets of R1 years, with Benjamini-Hochberg at FDR_Q over the
+             sector's table (resampling the members instead has no spread when no member is in a regime, so it
+             flagged every such cell); the normal's standard error over the resampled years (clim_sd) lets the page
+             test its equal-weight four-ensemble mean
   change     per sector, regime and day both runs hold: the share less that of the run 12 h earlier (or of the
              newest run before it); significant by Fisher's exact test on the two runs' member counts with
              Benjamini-Hochberg at FDR_Q over the sector's table
@@ -50,7 +52,6 @@ MIN_MEMBERS = 10  # members complete on every day the labels need (as regimes_ec
 SCEN_MIN = 6  # the fewest members a two-sided 5 % sign test can be passed with (6 of 6: p = 0.031)
 BOOT = 1000
 FDR_Q = 0.10
-SEED = 23
 
 
 def drift_archive(out_dir: Path, model: str) -> tuple[Path, dict]:
@@ -140,15 +141,17 @@ def labels(mod, cycle: str, init, dates: list, Z25: np.ndarray, ok: np.ndarray, 
 
 def vs_normal(ref, sk: str, fl: np.ndarray, dates: list):
     """Family slots fl (days, members) -> (the R1 normal (F+1, days), its standard error over the resampled years,
-    significant (F+1, days)): the 95 % interval of share - normal, members and R1 years resampled, excludes 0."""
+    significant (F+1, days)): the exact two-sided binomial p of the member count against the normal, averaged over
+    the normal's resampled years, then Benjamini-Hochberg at FDR_Q over the table."""
+    from quantmet.stats import benjamini_hochberg
+    from scipy.stats import binom
+
     C, B = RC.climatology(ref, sk, dates, n_boot=BOOT)
-    F1 = C.shape[0]
-    idx = np.random.default_rng(SEED).integers(0, fl.shape[1], (BOOT, fl.shape[1]))
-    xs = fl[:, idx]  # (days, boot, members)
-    PB = np.stack([(xs == f).mean(2) for f in range(F1)], axis=1).transpose(2, 1, 0)  # (boot, F+1, days)
-    d = PB - B
-    lo, hi = np.percentile(d, 2.5, 0), np.percentile(d, 97.5, 0)
-    return C, B.std(0), (lo > 0) | (hi < 0)
+    k = np.stack([(fl == f).sum(1) for f in range(C.shape[0])])  # (F+1, days)
+    n = (fl >= 0).sum(1)  # the members classified on each day
+    p0 = np.clip(B, 1e-4, 1 - 1e-4)
+    p = np.minimum(1.0, 2 * np.minimum(binom.cdf(k, n, p0), binom.sf(k - 1, n, p0))).mean(0)
+    return C, B.std(0), benjamini_hochberg(p, alpha=FDR_Q)
 
 
 def vs_previous(counts: np.ndarray, n: int, dates: list, prev: dict | None):

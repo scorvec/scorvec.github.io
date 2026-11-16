@@ -1479,15 +1479,16 @@
   }
   // the four-ensemble shares: each regime's share averaged over the ensembles holding the date, EQUAL weight per
   // ensemble (a 51-member ensemble counts as much as GEPS's 21); significant when |mean - normal| exceeds 1.96 standard
-  // errors (the mean's binomial variance over the members of each ensemble plus the normal's over the resampled years:
-  // the normal approximation of the per-ensemble test). The ensembles disagree when their most frequent class differs.
+  // errors under the normal itself (each ensemble's share with the normal's binomial variance over its members, plus the
+  // normal's over the resampled years; the variance of the share seen would be zero when no member is in the regime,
+  // marking every such day). The ensembles disagree when their most frequent class differs.
   function pooled(ms, d, F1) {
     var cov = ms.filter(function (m) { return secOf(m).valid.indexOf(d) >= 0; });
     if (!cov.length) return null;
     var p = [], sig = [], lead = {}, M = cov.length;
     for (var f = 0; f < F1; f++) {
       var s = 0, v = 0, c0 = null;
-      cov.forEach(function (m) { var x = shareOf(m, d, f); s += x.p; v += x.p * (1 - x.p) / x.n; if (!c0) c0 = x; });
+      cov.forEach(function (m) { var x = shareOf(m, d, f); s += x.p; v += x.clim * (1 - x.clim) / x.n; if (!c0) c0 = x; });
       p.push(s / M); sig.push(Math.abs(s / M - c0.clim) > 1.96 * Math.sqrt(v / (M * M) + c0.sd * c0.sd));
     }
     cov.forEach(function (m) { var S = secOf(m), j = S.valid.indexOf(d), best = 0; for (var f2 = 1; f2 < F1; f2++) if (S.count[f2][j] > S.count[best][j]) best = f2; lead[best] = 1; });

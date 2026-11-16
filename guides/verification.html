@@ -289,7 +289,7 @@ mverify score MYMODEL=forecasts/ GFS=gfs/ --out scores.json</pre>
 <p>The headline variables in one region: 500&nbsp;hPa height, 850&nbsp;hPa temperature, 250&nbsp;hPa vector wind and
 700&nbsp;hPa specific humidity against radiosondes, and 2&nbsp;m temperature, dew point, sea-level pressure and
 10&nbsp;m vector wind at surface stations. For each variable and day every pair of models goes through the scorecard's
-paired test at the 5% level: a model drawn alone in its colour has a significantly smaller error than every other
+paired test, held to a 10% false-discovery rate over everything the table shows: a model drawn alone in its colour has a significantly smaller error than every other
 model, and faint stripes mark the models that cannot be told apart from the smallest. The head-to-head table counts,
 for each pair, the variable-days on which each model is significantly ahead, and the band at the top adds up each
 model's wins and losses over every pair.</p>
@@ -303,7 +303,7 @@ The longer windows of the run switch, from the verification database, separate m
 <p>One model's RMSE against another's, for every variable, day and region. Each model pair is tested with a paired
 t-test on the per-run mean squared errors. Runs a day apart share much of their weather, so the test counts fewer
 effective runs when the run-to-run differences are correlated (Geer 2016). A cell gives the difference in percent
-where the test passes at the 5% level, and a dot where it does not. The scorecard is a picture made each night; a
+where the test passes a 10% false-discovery rate over the card (Benjamini&ndash;Hochberg), and a dot where it does not. The scorecard is a picture made each night; a
 phone draws it in the page instead, one region at a time, and a tap on a square gives both errors and the test.</p>
 </section>
 

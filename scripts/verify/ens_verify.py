@@ -373,11 +373,13 @@ def with_wind(s: pd.DataFrame) -> pd.DataFrame:
 
 def ens_table(t: pd.DataFrame) -> pd.DataFrame:
     """Scores from summed sums: CRPS (and with observation error), the RMSE of the ensemble mean, the spread (and with
-    observation error) and the spread/skill ratios (mverify.scores.ensemble's)."""
+    observation error) and the spread/skill ratios, the members' variance times FINITE so that 1 is a reliable
+    ensemble whatever its size."""
     n = t["n"]
+    svar = t["svar"] * t.index.get_level_values("model").map(D.FINITE).to_numpy(float)
     with np.errstate(invalid="ignore", divide="ignore"):
-        rmse, spread = np.sqrt(t["sse"] / n), np.sqrt(t["svar"] / n)
-        spread_oe = np.sqrt((t["svar"] + t["sov"]) / n)
+        rmse, spread = np.sqrt(t["sse"] / n), np.sqrt(svar / n)
+        spread_oe = np.sqrt((svar + t["sov"]) / n)
         return pd.DataFrame(
             {
                 "n": n,

@@ -130,11 +130,17 @@ RMM_LAT = (-15.0, 15.0)
 
 
 def coarsen_to(a, step):
+    """Box mean of the 0.5 deg field, `step` degrees wide and centred on each point of the coarse grid: an even
+    number of half-degree cells takes half weights at the two ends (1 deg: [1, 2, 1] / 4), so the box does not sit
+    a quarter of a degree off the point. Longitude wraps; latitude repeats the pole rows."""
     n = int(np.rint(step / 0.5))
+    w = np.ones(n) if n % 2 else np.r_[0.5, np.ones(n - 1), 0.5]
+    k = len(w) // 2
     lat = np.arange(90.0, -90.0 - 1e-6, -step)
     lon = np.arange(0.0, 360.0, step)
-    a = a.rolling(latitude=n, center=True, min_periods=1).mean()
-    a = a.rolling(longitude=n, center=True, min_periods=1).mean()
+    for dim, mode in (("latitude", "edge"), ("longitude", "wrap")):
+        p = a.pad({dim: (k, k)}, mode=mode).rolling({dim: len(w)}, center=True).construct("_box")
+        a = p.dot(xr.DataArray(w / w.sum(), dims="_box")).isel({dim: slice(k, -k)}).assign_coords({dim: a[dim]})
     a = a.sel(latitude=lat, longitude=lon, method="nearest")
     return a.assign_coords(latitude=lat, longitude=lon)
 

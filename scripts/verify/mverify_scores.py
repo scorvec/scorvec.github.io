@@ -72,6 +72,11 @@ RAIN_LAND = 50  # % land a cell needs to be mapped (reference/land_0p5.npz, buil
 WINDOW_SHARE = 0.95  # a model is scored in a window that it has at least this share of the runs of
 PAIR_KEY = ["model", "init", "lead_h", "valid_time", "station_id", "variable"]
 STAT_BY = ["model", "network", "variable", "region", "lead_h"]
+# The ensembles' members scored. The mean of m members misses the truth by (1 + 1/m) of the members' variance when the ensemble is
+# reliable, so the spread set against its error is the variance times FINITE (Fortin et al. 2014); without it a
+# reliable 21-member ensemble reads 2.4 % under-dispersive and a 51-member one 1.0 %.
+MEMBERS = {"IFS-ENS": 50, "AIFS-ENS": 51, "GEFS": 31, "GEPS": 21}
+FINITE = {m: (n + 1) / n for m, n in MEMBERS.items()}
 SUMS = ["n", "se", "sse", "sae", "sf", "so", "sff", "soo", "sfo", "sov"]
 GAUGE_COLS = [*PAIR_KEY, "network", "lat", "lon", "fcst", "obs", "sigma_o"]  # what a run's gauge sums are made from
 LEADS = range(0, 241, 12)

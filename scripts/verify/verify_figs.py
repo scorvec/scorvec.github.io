@@ -564,7 +564,6 @@ CARD_REGIONS = ("NH 20-90N", "SH 20-90S", "Tropics 20S-20N", "Europe", "North Am
 DET_WINDOWS = (10, 30, 90, 365, None)  # the page's run switch (its nightly ten are the database's newest ten here)
 SURFACE = {"t2m", "td2m", "msl", "wind10", "pr24"}  # scored at the GHCNh stations, the rest against radiosondes
 BETTER, WORSE = (44, 110, 158), (180, 50, 31)  # verification.html's scorecard colours
-SIG_P = 0.05  # the scorecard's level, as on the page
 QTY = {"z": "Geopotential height", "t": "Temperature", "wind": "Vector wind", "q": "Specific humidity"}
 PROFILE_DAYS = (1, 3, 5, 7, 10)
 UNITS = {"degC": "°C", "m s-1": "m/s", "g kg-1": "g/kg"}  # the scores' units as the page writes them
@@ -637,7 +636,7 @@ def det_rho(s: pd.DataFrame) -> dict:
 
 def draw_card(s: pd.DataFrame, region: str, a: str, b: str, span: dict, path: Path) -> str | None:
     """``a`` against ``b`` in one region: the RMSE difference in %, in the cells where the paired test on the runs'
-    mean squared errors passes at SIG_P; a dot where it does not."""
+    mean squared errors passes Benjamini-Hochberg at FDR_Q over the card's cells; a dot where it does not."""
     g = s[(s["region"] == region) & s["variable"].isin(CARD_ROWS) & (s["lead_h"] % 24 == 0) & (s["lead_h"] > 0)]
     if g.empty:
         return None
@@ -651,11 +650,20 @@ def draw_card(s: pd.DataFrame, region: str, a: str, b: str, span: dict, path: Pa
 def card_figure(score: pd.DataFrame, per: pd.DataFrame, order: list[str], a: str, b: str, title: str, span: dict,
                 path: Path) -> str:  # fmt: skip
     """A scorecard: rows of variables, columns of days, the difference of ``a``'s score from ``b``'s in % where the
-    paired test on the runs' own scores (``per``) passes at SIG_P, a dot where it does not."""
-    from mverify.significance import paired_test
+    paired test on the runs' own scores (``per``) passes Benjamini-Hochberg at FDR_Q over the card's cells, a dot
+    where it does not."""
+    from mverify.significance import fdr, paired_test
 
     rows = [v for v in order if v in score.index.get_level_values(0)]
     days = sorted({int(h) // 24 for h in score.index.get_level_values(1)})
+    cells = [
+        (v, 24 * d)
+        for v in rows
+        for d in days
+        if (v, 24 * d) in score.index and np.isfinite(score.loc[(v, 24 * d), [a, b]]).all()
+    ]
+    pv = np.array([paired_test((per.loc[key, a] - per.loc[key, b]).dropna().to_numpy()) for key in cells])
+    passes = dict(zip(cells, fdr(pv, FDR_Q), strict=True)) if cells else {}
     groups = [
         "sfc" if v in SURFACE | ENS_SURFACE else next(q for q in ("wind", "z", "t", "q") if v.startswith(q))
         for v in rows
@@ -674,12 +682,10 @@ def card_figure(score: pd.DataFrame, per: pd.DataFrame, order: list[str], a: str
         ax.text(-0.15, y + 0.5, short(v), ha="right", va="center", fontsize=14.5, color=house.INK)
         for j, d in enumerate(days):
             key = (v, 24 * d)
-            if key not in score.index or not np.isfinite(score.loc[key, [a, b]]).all():
+            if key not in passes:
                 continue
             pct = 100 * (score.loc[key, a] - score.loc[key, b]) / score.loc[key, b]
-            diff = (per.loc[key, a] - per.loc[key, b]).dropna().to_numpy()
-            sig = paired_test(diff) < SIG_P
-            if sig:
+            if passes[key]:
                 k = 0.35 + 0.65 * min(1.0, abs(pct) / 20)
                 rgb = [(k * c + (1 - k) * 255) / 255 for c in (BETTER if pct < 0 else WORSE)]
                 ink = "white" if k > 0.55 else house.INK
@@ -844,7 +850,9 @@ def ens_lead_data(g: pd.DataFrame, models: list, rho: dict) -> dict:
     for m in models:
         rows = {}
         for lead, d in g[g["model"] == m].groupby("lead_h"):
-            var = ratio_ci((d["svar"] + d["sov"]).to_numpy(float), d["sse"].to_numpy(float), rho[lead], log=True)
+            var = ratio_ci(
+                (d["svar"] * D.FINITE[m] + d["sov"]).to_numpy(float), d["sse"].to_numpy(float), rho[lead], log=True
+            )
             rows[lead] = (*ratio_ci(d["crps"].to_numpy(float), d["n"].to_numpy(float), rho[lead], log=True),
                           *np.sqrt(np.clip(var, 0, None)))  # fmt: skip
         if not rows:
