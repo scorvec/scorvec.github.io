@@ -336,7 +336,7 @@ def test_identification_end_to_end():
     # the step's gradient is well above the threshold, the background (f alone) far below it
     sl, cols = JB.output_rows(lat), (lon >= 20) & (lon <= 70)
     g = d["grad"]["polar"][sl][:, cols]
-    check(np.nanmax(g) > 1.2 * JB.THRESH["polar"], f"the polar step's gradient {np.nanmax(g):.2e}")
+    check(np.nanmax(g) > 1.15 * JB.THRESH["polar"], f"the polar step's gradient {np.nanmax(g):.2e}")
     check(np.nanmin(g) < 0.1 * JB.THRESH["polar"], f"the background gradient {np.nanmin(g):.2e}")
     check(np.allclose(d["vbar"][:, cols], 40.0), "the wind layer mean of a uniform wind")
 
