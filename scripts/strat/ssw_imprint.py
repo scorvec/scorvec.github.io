@@ -292,9 +292,11 @@ def model_entry(ref: Ref, model: str, date: str, hh: str) -> dict:
 
 
 def outlook(ref: Ref, entry: dict, drip: dict | None) -> dict | None:
-    """P(the index over days 16-45 > 0) from the ERA5/MERRA-2 coupling regression on this run's day-15 state: the 100 hPa
-    cap (the drip's drift-corrected ensemble mean and spread) and the index over days 10-15. Ensembles only; None
-    outside November-April, where the coupling was not measured, or when the drip is not on this run's cycle."""
+    """P(the index over days 16-45 > 0) from the ERA5/MERRA-2 regression of the next 30 days' index on the 100 hPa cap,
+    at this run's day-15 cap (the drip's drift-corrected ensemble mean and spread). The run's own index is not a
+    predictor: it is raw model output that drifts towards an SSW-like value by day 15 (shown as index_d10_15).
+    Ensembles only; None outside November-April, where the coupling was not measured, or when the drip is not on this
+    run's cycle."""
     import json
 
     from scipy import stats
@@ -313,9 +315,9 @@ def outlook(ref: Ref, entry: dict, drip: dict | None) -> dict | None:
     late = [i for i, L in enumerate(entry["lead_h"]) if 240 <= L <= 360]
     i0 = idx[:, late].mean(1)
     cp = json.loads(ref.ds.attrs["coupling"])
-    a, b, c = cp["coef"]
-    mu = a + b * z + c * float(i0.mean())
-    sd = float(np.sqrt(cp["resid_sd"] ** 2 + (b * sz) ** 2 + (c * i0.std()) ** 2))
+    a, b = cp["cap_only"]["coef"]
+    mu = a + b * z
+    sd = float(np.sqrt(cp["cap_only"]["resid_sd"] ** 2 + (b * sz) ** 2))
     start = pd.Timestamp(entry["init"][:10]) + pd.Timedelta(days=OUTLOOK_DAYS[0])
     return {
         "window": [f"{start:%Y-%m-%d}", f"{start + pd.Timedelta(days=OUTLOOK_DAYS[1] - OUTLOOK_DAYS[0]):%Y-%m-%d}"],
@@ -491,10 +493,11 @@ def render(doc: dict, ref: Ref, out: Path = FIGURE) -> None:
         color=INK,
     )
     note = (
-        f"From each run's day 15: the 100 hPa cap and the\nindex over days 10–15, through the ERA5/MERRA-2\nregression "
-        f"(Nov–Apr 1980–, {cp['n_winters']} winters).\nDotted: the base rate, {100 * cp['base_rate']:.0f} %.\n"
-        f"Brier skill, each winter predicted from the\nothers: {sk['cap_1sd']['bss']:.2f} ({sk['cap_1sd']['ci95'][0]:.2f}–"
-        f"{sk['cap_1sd']['ci95'][1]:.2f}) with the cap ≥ 1 sd from\nnormal, {sk['all_days']['bss']:.2f} on every day."
+        f"From each run's day-15 100 hPa cap, through the\nERA5/MERRA-2 regression (Nov–Apr 1980–,\n{cp['n_winters']} winters). "
+        f"Dotted: the base rate, {100 * cp['base_rate']:.0f} %.\n"
+        f"Brier skill with the cap known, each winter\npredicted from the others: {sk['cap_1sd']['bss']:.2f} "
+        f"({sk['cap_1sd']['ci95'][0]:.2f}–{sk['cap_1sd']['ci95'][1]:.2f})\nwith the cap ≥ 1 sd from normal, "
+        f"{sk['all_days']['bss']:.2f} on every day;\na forecast cap has less."
         if ens
         else "No ensemble outlook: the coupling is\nmeasured for November–April."
     )

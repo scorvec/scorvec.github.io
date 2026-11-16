@@ -340,6 +340,7 @@ def warning_meter(obs, mem_tot, valid, ref: dict | None, init) -> dict | None:
                 "precision",
                 "precision_ci90",
                 "base_rate",
+                "in_sample",
                 "lead_days_first_warning",
                 "winter_metric_quantiles",
                 "record",
@@ -402,13 +403,13 @@ def draw_meter(ax, warn: dict | None, north: bool, n_mem: int):
         + (f", median first crossing day {when}" if when is not None else "")
     )
     line2 = (
-        f"Record 1991–2026: {round(rec['hit_rate'] * rec['n_events'])} of {rec['n_events']} SSWs had the {W}-day mean at this level in the 30 days before "
-        f"(median {lead['median']:.0f} days ahead); {100 * rec['false_alarm_rate']:.0f} % of quiet Nov–Mar windows reach it too."
+        f"Record 1991–2026: {round(rec['in_sample']['hit_rate'] * rec['n_events'])} of {rec['n_events']} SSWs had the {W}-day mean at this level in the 30 days before "
+        f"(median {lead['median']:.0f} days ahead); {100 * rec['in_sample']['false_alarm_rate']:.0f} % of quiet Nov–Mar windows reach it too."
     )
     line3 = (
-        f"On a warning day the chance of an SSW within 30 days is {100 * rec['precision']:.0f} % "
+        f"With the level chosen on other winters, a warning day was followed by an SSW within 30 days {100 * rec['precision']:.0f} % of the time "
         f"[{100 * rec['precision_ci90'][0]:.0f}–{100 * rec['precision_ci90'][1]:.0f}] against {100 * rec['base_rate']:.0f} % on any Nov–Mar day: "
-        "three times the odds, not a forecast of a warming."
+        f"{rec['precision'] / rec['base_rate']:.1f} times as likely, not a forecast of a warming."
     )
     return line1, line2, line3
 

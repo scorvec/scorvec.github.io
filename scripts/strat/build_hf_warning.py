@@ -19,11 +19,15 @@ Threshold: T maximises the Peirce skill score, hit rate minus false-alarm rate, 
   * the quiet record: every November-March day of the record that is not within 30 days before or 60 days after a
     central date, scored on the metric's maximum over the following 30 days (so the two sides describe the same
     quantity: the highest W-day mean a 30-day window reaches).
-A block bootstrap over winters (each winter's events and quiet days drawn together, 2000 draws) gives the 90 %
-intervals of the skill score and of the odds the meter quotes:
-  * precision  P(SSW within 30 days | warning day)   and the base rate P(SSW within 30 days | any winter day),
-  * the lead: days from a winter's first warning day to its SSW.
-Nothing is published where the bootstrap interval of the skill score includes zero.
+The threshold and the window are chosen on the record, so the record's own scores at that choice flatter it. The
+scores published are therefore OUT OF SAMPLE: each winter is scored with the window (of WINDOWS) and threshold chosen
+on the other winters (leave one winter out), pooled over the winters:
+  * hit rate, false-alarm rate and their difference (the Peirce skill score),
+  * precision  P(SSW within 30 days | warning day)   and the base rate P(SSW within 30 days | any winter day).
+Their 90 % intervals come from a bootstrap over winters (2000 draws) that repeats the choice in every draw and scores
+it on the winters the draw left out. The in-sample scores are kept beside them (in_sample) to show the difference.
+The lead is the days from a winter's first warning day to its SSW at the published threshold.
+Nothing is published where the interval of the out-of-sample skill score includes zero.
 
     python scripts/strat/build_hf_warning.py            # writes reference/heatflux100_warning.json
     python scripts/strat/build_hf_warning.py --window 20 --dry-run
@@ -48,6 +52,8 @@ LEAD = 30  # days ahead an SSW counts as the outcome of a warning
 PRE = 30  # days before a central date in which the precursor pulse is looked for
 QUIET_AFTER = 60  # days after a central date left out of the quiet record (the vortex is recovering)
 WINTER_MONTHS = (11, 12, 1, 2, 3)
+WINDOWS = (10, 20, 40)  # the windows the choice is made among
+GRID = np.round(np.arange(10.0, 40.0, 0.5), 1)  # the thresholds tried, K m/s
 N_BOOT = 2000
 SEED = 20261017
 
@@ -94,6 +100,57 @@ def skill(pre: pd.Series, quiet: pd.Series, T: float) -> tuple[float, float, flo
     return hit - fa, hit, fa
 
 
+class Record:
+    """One window's tables split by winter, so a set of winters can choose a threshold and another be scored."""
+
+    def __init__(self, s: pd.Series, ev: list, W: int):
+        self.m, self.pre, self.quiet, self.days, self.out30 = tables(s, ev, W)
+        self.winters = sorted({winter_of(d) for d in self.days.index})
+        wq = np.array([winter_of(d) for d in self.quiet.index])
+        wd = np.array([winter_of(d) for d in self.days.index])
+        self.ev = {w: [d for d in ev if winter_of(d) == w] for w in self.winters}
+        self.q = {w: self.quiet.values[wq == w] for w in self.winters}
+        self.d = {w: (self.days.values[wd == w], self.out30.values[wd == w]) for w in self.winters}
+
+    def parts(self, ws):
+        """(events' precursor maxima, quiet maxima, winter days' metric, their outcomes) of the winters ws, repeats kept."""
+        pre = self.pre.loc[[d for w in ws for d in self.ev[w]]].values
+        q = np.concatenate([self.q[w] for w in ws]) if len(ws) else np.zeros(0)
+        d = np.concatenate([self.d[w][0] for w in ws]) if len(ws) else np.zeros(0)
+        o = np.concatenate([self.d[w][1] for w in ws]) if len(ws) else np.zeros(0, bool)
+        return pre, q, d, o
+
+
+def choose(recs: dict, ws) -> tuple[int, float]:
+    """The window and threshold with the best Peirce skill on the winters ws (the first of ties)."""
+    best = (-np.inf, WINDOWS[0], float(GRID[0]))
+    for W, r in recs.items():
+        pre, q, _, _ = r.parts(ws)
+        if not len(pre) or not len(q):
+            continue
+        for T in GRID:
+            pss = float((pre >= T).mean() - (q >= T).mean())
+            if pss > best[0]:
+                best = (pss, W, float(T))
+    return best[1], best[2]
+
+
+def counts(recs: dict, fit, test) -> np.ndarray:
+    """The winters `test` scored with the choice made on `fit`: (events, events warned, quiet windows, quiet windows
+    warned, warning days, warning days followed by an SSW, days, days followed by an SSW)."""
+    W, T = choose(recs, fit)
+    pre, q, d, o = recs[W].parts(test)
+    on = d >= T
+    return np.array([len(pre), (pre >= T).sum(), len(q), (q >= T).sum(), on.sum(), o[on].sum(), len(d), o.sum()], float)
+
+
+def rates(c: np.ndarray) -> dict:
+    with np.errstate(invalid="ignore", divide="ignore"):
+        hit, fa = c[1] / c[0], c[3] / c[2]
+        return {"hit_rate": hit, "false_alarm_rate": fa, "peirce_skill": hit - fa, "precision": c[5] / c[4],
+                "base_rate": c[7] / c[6]}  # fmt: skip
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--window", type=int, default=10)
@@ -101,11 +158,12 @@ def main() -> int:
     a = ap.parse_args()
     W = a.window
     s, ev, gaps = load()
-    m, pre, quiet, days, out30 = tables(s, ev, W)
-    grid = np.round(np.arange(10.0, 40.0, 0.5), 1)
-    scores = [skill(pre, quiet, T) for T in grid]
+    recs = {w: Record(s, ev, w) for w in dict.fromkeys((*WINDOWS, W))}
+    r = recs[W]
+    m, pre, quiet, days, out30, winters = r.m, r.pre, r.quiet, r.days, r.out30, r.winters
+    scores = [skill(pre, quiet, T) for T in GRID]
     i = int(np.argmax([x[0] for x in scores]))
-    T, (pss, hit, fa) = float(grid[i]), scores[i]
+    T, (pss, hit, fa) = float(GRID[i]), scores[i]
     on = days >= T
     precision = float(out30[on].mean())
     base = float(out30.mean())
@@ -117,27 +175,23 @@ def main() -> int:
         if len(c):
             lead_of[d] = int((d - c.index[0]).days)
     leads = list(lead_of.values())
-    # block bootstrap over winters
+    # out of sample: every winter scored with the choice made on the others
+    fam = {w: recs[w] for w in WINDOWS}
+    oos = rates(sum(counts(fam, [x for x in winters if x != w], [w]) for w in winters))
+    # its intervals: winters drawn with replacement choose, the winters left out are scored
     rng = np.random.default_rng(SEED)
-    winters = sorted({winter_of(d) for d in days.index})
-    ev_by = {w: [d for d in ev if winter_of(d) == w] for w in winters}
-    q_by = {w: quiet[[winter_of(d) == w for d in quiet.index]] for w in winters}
-    d_by = {w: days.index[[winter_of(d) == w for d in days.index]] for w in winters}
-    b_pss, b_prec, b_base = [], [], []
+    boot = []
     for _ in range(N_BOOT):
         draw = rng.choice(winters, size=len(winters), replace=True)
-        e_d = [d for w in draw for d in ev_by[w]]
-        if not e_d:
-            continue
-        p_d = pre.loc[e_d]
-        q_d = pd.concat([q_by[w] for w in draw])
-        b_pss.append(skill(p_d, q_d, T)[0])
-        idx = np.concatenate([d_by[w].values for w in draw])
-        dd, oo = days.loc[idx], out30.loc[idx]
-        o_on = oo[dd.values >= T]
-        b_prec.append(float(o_on.mean()) if len(o_on) else np.nan)
-        b_base.append(float(oo.mean()))
-    ci = lambda x: [round(float(np.nanpercentile(x, 5)), 3), round(float(np.nanpercentile(x, 95)), 3)]  # noqa: E731
+        left = sorted(set(winters) - set(draw.tolist()))
+        c = counts(fam, list(draw), left)
+        if c[0] and c[2]:
+            boot.append(rates(c))
+
+    def ci(key):
+        x = [b[key] for b in boot]
+        return [round(float(np.nanpercentile(x, 5)), 3), round(float(np.nanpercentile(x, 95)), 3)]
+
     doc = {
         "built": datetime.now(UTC).strftime("%Y-%m-%d"),
         "metric": f"trailing {W}-day mean of the daily (00/12 UTC) 100 hPa [v'T'], 45-75N, K m s-1",
@@ -154,14 +208,22 @@ def main() -> int:
             }
             for d in ev
         ],
-        "hit_rate": round(hit, 3),
-        "false_alarm_rate": round(fa, 3),
-        "peirce_skill": round(pss, 3),
-        "peirce_skill_ci90": ci(b_pss),
-        "precision": round(precision, 3),
-        "precision_ci90": ci(b_prec),
-        "base_rate": round(base, 3),
-        "base_rate_ci90": ci(b_base),
+        "scores": "out of sample: each winter scored with the window and threshold chosen on the other winters",
+        "hit_rate": round(oos["hit_rate"], 3),
+        "false_alarm_rate": round(oos["false_alarm_rate"], 3),
+        "peirce_skill": round(oos["peirce_skill"], 3),
+        "peirce_skill_ci90": ci("peirce_skill"),
+        "precision": round(oos["precision"], 3),
+        "precision_ci90": ci("precision"),
+        "base_rate": round(oos["base_rate"], 3),
+        "base_rate_ci90": ci("base_rate"),
+        "in_sample": {
+            "hit_rate": round(hit, 3),
+            "false_alarm_rate": round(fa, 3),
+            "peirce_skill": round(pss, 3),
+            "precision": round(precision, 3),
+            "base_rate": round(base, 3),
+        },
         "n_warning_days": int(on.sum()),
         "n_winter_days": len(days),
         "lead_days_first_warning": {
@@ -177,14 +239,16 @@ def main() -> int:
             k: round(float(days.quantile(q)), 1) for k, q in (("p50", 0.5), ("p90", 0.9), ("p99", 0.99))
         },
         "skill_by_threshold": [
-            [float(t), round(x[0], 3), round(x[1], 3), round(x[2], 3)] for t, x in zip(grid, scores)
+            [float(t), round(x[0], 3), round(x[1], 3), round(x[2], 3)] for t, x in zip(GRID, scores)
         ],
-        "significant": bool(ci(b_pss)[0] > 0),
+        "significant": bool(ci("peirce_skill")[0] > 0),
     }
     print(
-        f"W={W} d: T={T} K m/s, hit {hit:.2f}, false alarm {fa:.2f}, PSS {pss:.2f} {ci(b_pss)}; "
-        f"P(SSW<=30 d | warning) {precision:.2f} {ci(b_prec)} vs base {base:.2f} {ci(b_base)}; "
-        f"lead median {doc['lead_days_first_warning']['median']} d (n {len(leads)}); {len(ev)} events, {on.sum()} warning days of {len(days)}"
+        f"W={W} d: T={T} K m/s; in sample hit {hit:.2f}, false alarm {fa:.2f}, PSS {pss:.2f}, "
+        f"P(SSW<=30 d | warning) {precision:.2f} vs base {base:.2f}; out of sample hit {oos['hit_rate']:.2f}, false "
+        f"alarm {oos['false_alarm_rate']:.2f}, PSS {oos['peirce_skill']:.2f} {ci('peirce_skill')}, P(SSW<=30 d | warning) "
+        f"{oos['precision']:.2f} {ci('precision')} vs base {oos['base_rate']:.2f}; lead median "
+        f"{doc['lead_days_first_warning']['median']} d (n {len(leads)}); {len(ev)} events, {on.sum()} warning days of {len(days)}"
     )
     if not doc["significant"]:
         print("::warning::skill interval includes zero: nothing written")

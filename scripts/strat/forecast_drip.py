@@ -456,12 +456,22 @@ def measure_drift(model: str, history: Path, cycles: int = 25, every: int = 3, s
         "levels": {},
     }
     for lev in LEVELS_10:
-        m, se = [], []
+        m, se, rho = [], [], []
         for s_ in steps:
             v = np.array([x for L, x in rows[s_] if L == lev])  # noqa: SIM300  variable L (maths notation), not a constant
             m.append(round(float(v.mean()), 1) if len(v) else None)
-            se.append(round(float(v.std(ddof=1) / np.sqrt(len(v))), 1) if len(v) > 2 else None)
-        out["levels"][str(lev)] = {"drift": m, "se": se, "n": len([x for L, x in rows[steps[-1]] if L == lev])}  # noqa: SIM300  variable L (maths notation), not a constant
+            # starts `every` days apart verify in overlapping weather, so their errors are not independent: the
+            # cycles count as n (1 - r) / (1 + r), r the errors' lag-1 autocorrelation in start order (0 to 0.9)
+            a = v - v.mean() if len(v) else v
+            r = (
+                float(np.clip((a[1:] * a[:-1]).sum() / (a * a).sum(), 0.0, 0.9))
+                if len(v) > 3 and (a * a).sum() > 0
+                else 0.0
+            )
+            rho.append(round(r, 2) if len(v) > 2 else None)
+            se.append(round(float(v.std(ddof=1) / np.sqrt(len(v) * (1 - r) / (1 + r))), 1) if len(v) > 2 else None)
+        n = len([x for L, x in rows[steps[-1]] if L == lev])  # noqa: SIM300  variable L (maths notation), not a constant
+        out["levels"][str(lev)] = {"drift": m, "se": se, "rho": rho, "n": n}
         print(
             f"  {lev:6.0f} hPa: "
             + "  ".join(
@@ -474,10 +484,14 @@ def measure_drift(model: str, history: Path, cycles: int = 25, every: int = 3, s
     return 0
 
 
+DRIFT_Z = 2.58  # two-sided 5 % over the five measured leads: 1 % each
+
+
 def drift_aifs(init, leads, ref, tail_z_raw, model: str = "aifs"):
-    """Measured drift (measure_drift): applied at a level only where it is significant at some lead (|mean| >
-    2 se); interpolated linearly in lead between the measured steps. Levels where it is not significant are left
-    uncorrected and marked."""
+    """Measured drift (measure_drift): applied at a level only where it is significant at some lead: |mean| >
+    DRIFT_Z se, the two-sided 5 % level shared over the measured leads (Bonferroni), the standard error allowing for
+    the cycles' serial correlation. Interpolated linearly in lead between the measured steps. Levels where it is not
+    significant are left uncorrected and marked."""
     f = DRIFT_FILE[model]
     name = {"aifs": "AIFS", "ifs": "IFS-ENS", "aifs1": "AIFS single"}[model]
     if not f.exists():
@@ -490,7 +504,7 @@ def drift_aifs(init, leads, ref, tail_z_raw, model: str = "aifs"):
         if not e or any(v is None for v in e["drift"]):
             continue
         m, se = np.array(e["drift"], float), np.array([v or np.inf for v in e["se"]], float)
-        if not (np.abs(m) > 2 * se).any():
+        if not (np.abs(m) > DRIFT_Z * se).any():
             continue
         out[lev] = np.interp(np.array(leads, float), st, m)
     who = {"aifs": "AIFS control", "ifs": "IFS-ENS 50-member mean", "aifs1": "AIFS single"}[model]

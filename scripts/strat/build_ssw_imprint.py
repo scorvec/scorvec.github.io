@@ -16,9 +16,13 @@ TESTS (stored as attributes and printed):
             100 hPa cap that day and the index's own mean over the five days before (the surface's persistence),
             winters resampled N_BOOT times for the intervals. The 100 hPa coefficient is the stratosphere's share, over
             and above persistence.
-  outlook   that regression as a forecast of P(next 30 days' index > 0), each winter predicted from the others
-            (leave-one-winter-out), Brier skill against each training set's base rate, on every day and on the days
-            with the 100 hPa cap at least 1 sd from normal; winters resampled for the intervals.
+  outlook   the next 30 days' mean index regressed on the 100 hPa cap ALONE, as a forecast of P(index > 0): the
+            product's outlook reads a model's day-15 state, where the cap has its drift removed but the models' own
+            index drifts towards an SSW-like value (about +2 by day 15) with no measurement to remove it, so the
+            index is not a predictor there. Each winter predicted from the others (leave-one-winter-out), Brier
+            skill against each training set's base rate, on every day and on the days with the 100 hPa cap at least
+            1 sd from normal; winters resampled for the intervals. This is the skill with the cap KNOWN (analysed):
+            a forecast of the day-15 cap adds its own error, which the outlook carries as spread.
 """
 
 from __future__ import annotations
@@ -156,15 +160,18 @@ def main() -> int:
     D = pd.DataFrame(rows, columns=["d", "z100", "i0", "i30"]).dropna()
     D["winter"] = D.d.dt.year - (D.d.dt.month < 7)
 
-    def fit(frame):
-        A = np.column_stack([np.ones(len(frame)), frame.z100, frame.i0])
-        return np.linalg.lstsq(A, frame.i30, rcond=None)[0]
+    def design(frame, cap_only=False):
+        return np.column_stack([np.ones(len(frame)), frame.z100] + ([] if cap_only else [frame.i0]))
+
+    def fit(frame, cap_only=False):
+        return np.linalg.lstsq(design(frame, cap_only), frame.i30, rcond=None)[0]
 
     b = fit(D)
     ws = D.winter.unique()
     by = {w: D[D.winter == w] for w in ws}
     boot = np.array([fit(pd.concat([by[w] for w in rng.choice(ws, len(ws))])) for _ in range(N_BOOT)])
-    resid = D.i30 - np.column_stack([np.ones(len(D)), D.z100, D.i0]) @ b
+    resid = D.i30 - design(D) @ b
+    b_cap = fit(D, cap_only=True)
     coupling = {
         "n_days": len(D),
         "n_winters": len(ws),
@@ -173,6 +180,10 @@ def main() -> int:
         "resid_sd": round(float(resid.std()), 3),
         "base_rate": round(float((D.i30 > 0).mean()), 3),
         "terms": ["intercept", "100 hPa cap (sd)", "index over days -5..0"],
+        "cap_only": {
+            "coef": [round(float(v), 3) for v in b_cap],
+            "resid_sd": round(float((D.i30 - design(D, cap_only=True) @ b_cap).std()), 3),
+        },
     }
     print(f"  coupling: {coupling}", flush=True)
 
@@ -181,9 +192,9 @@ def main() -> int:
     for w in ws:
         out = (D.winter == w).values
         tr = D[~out]
-        bw = fit(tr)
-        sd = (tr.i30 - np.column_stack([np.ones(len(tr)), tr.z100, tr.i0]) @ bw).std()
-        mu = np.column_stack([np.ones(out.sum()), D.z100[out], D.i0[out]]) @ bw
+        bw = fit(tr, cap_only=True)
+        sd = (tr.i30 - design(tr, cap_only=True) @ bw).std()
+        mu = design(D[out], cap_only=True) @ bw
         prob[out] = stats.norm.sf(0.0, mu, sd)
         clim[out] = (tr.i30 > 0).mean()
     D["hit"], D["prob"], D["clim"] = (D.i30 > 0).astype(float), prob, clim
