@@ -318,7 +318,7 @@ def skill_test(fc, ref, block, nblock, counts):
     with np.errstate(invalid="ignore", divide="ignore"):
         s = 1 - fc.sum(0) / ref.sum(0)
         bs = 1 - (counts @ bf) / (counts @ br)
-    p = np.where(np.isfinite(s), np.mean(~(bs > 0), axis=0), 1.0)
+    p = np.where(np.isfinite(s), ((~(bs > 0)).sum(0) + 1) / (bs.shape[0] + 1), 1.0)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
         return s, np.nanpercentile(bs, 5, axis=0), np.nanpercentile(bs, 95, axis=0), p

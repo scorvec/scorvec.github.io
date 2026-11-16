@@ -526,7 +526,8 @@ def summary(s: pd.Series, rng: np.random.Generator) -> dict:
     c = C[pick].sum((1, 2))
     boot = S[pick].sum((1, 2))[c > 0] / c[c > 0]
     lo, hi = np.percentile(boot, [50 * (1 - LEVEL), 50 * (1 + LEVEL)])
-    p = min(1.0, 2 * min((boot <= 0).mean(), (boot >= 0).mean()))
+    # never exactly zero: with B resamples the smallest p a one-sided count can give is 1 / (B + 1)
+    p = min(1.0, 2 * (min((boot <= 0).sum(), (boot >= 0).sum()) + 1) / (len(boot) + 1))
     return {**out, "mean": float(s.mean()), "lo": float(lo), "hi": float(hi), "p": p}
 
 

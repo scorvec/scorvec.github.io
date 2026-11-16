@@ -289,7 +289,9 @@ def skill_test(fc, ref, block, nblock, counts):
     with np.errstate(invalid="ignore", divide="ignore"):
         s = 1 - fc.sum(0) / ref.sum(0)
         bs = 1 - np.tensordot(counts, bf, axes=(1, 0)) / np.tensordot(counts, br, axes=(1, 0))
-    p = np.where(np.isfinite(s), np.mean(~(bs > 0), axis=0), 1.0)  # a resample without a reference counts as no skill
+    p = np.where(
+        np.isfinite(s), ((~(bs > 0)).sum(0) + 1) / (bs.shape[0] + 1), 1.0
+    )  # a resample without a reference counts as no skill
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)  # leads without data: all-NaN resamples
         return s, np.nanpercentile(bs, 5, axis=0), np.nanpercentile(bs, 95, axis=0), p
