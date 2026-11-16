@@ -244,12 +244,26 @@ def diagnose(
     clean: xr.Dataset, clean_tail: xr.Dataset | None, dn: float, romi: dict | None, dd: float | None = None
 ) -> dict:
     """The cleaned forecast's verdict for the page and the homepage: its amplitude and phase speed, the cleaned observed
-    tail's, ROMI and the corrections applied (ddmi None when the IOD term was not, 0 outside the IOD's season)."""
+    tail's, ROMI and the corrections applied (ddmi None when the IOD term was not, 0 outside the IOD's season).
+
+    An MJO is forecast when most MEMBERS hold one: a member's own mean amplitude of 1 or more and its own track moving
+    east at 3 degrees a day or more. The amplitude-1 rule is a rule for one realisation; the ensemble mean's amplitude
+    shrinks with lead as the members spread, so read against 1 it says "no MJO" of a forecast whose members each
+    carry one in a different place."""
     m1 = clean["rmm1"].mean("member").values
     m2 = clean["rmm2"].mean("member").values
     lead = clean["lead_day"].values.astype(float)
     amp, spd = _speed_amp(m1, m2, lead)
+    each = [
+        _speed_amp(a, b, lead)
+        for a, b in zip(
+            clean["rmm1"].transpose("member", ...).values, clean["rmm2"].transpose("member", ...).values, strict=True
+        )
+    ]
+    share = float(np.mean([a.mean() >= 1.0 and np.median(v) >= 3.0 for a, v in each]))
     fc = {
+        "members_mjo": round(share, 2),
+        "amp_members": round(float(np.median([a.mean() for a, _ in each])), 2),
         "amp_mean": round(float(amp.mean()), 2),
         "amp_max": round(float(amp.max()), 2),
         "speed": round(float(np.median(spd)), 1),
@@ -259,7 +273,7 @@ def diagnose(
         "amp_end": round(float(amp[-1]), 2),
         "days": int(np.rint(lead[-1])),
     }
-    coherent = fc["amp_mean"] >= 1.0 and fc["speed"] >= 3.0
+    coherent = share >= 0.5
     out = {
         "dn34": round(dn, 2),
         "ddmi": None if dd is None else round(dd, 2),
@@ -318,13 +332,14 @@ def raw_caption(st: dict) -> str:
     head = f"<b>{'ENSO and IOD' if st.get('ddmi') else 'ENSO'} not removed.</b> "
     if st["coherent_mjo_forecast"]:
         return head + (
-            f"With {what} taken out ({terms}) the forecast still shows an MJO: ensemble-mean amplitude "
-            f"{fc['amp_mean']:.1f}, moving east at about {fc['speed']:+.0f}&deg;/day (see the {name} index)."
+            f"With {what} taken out ({terms}) the forecast still shows an MJO in {100 * fc['members_mjo']:.0f}&nbsp;% of "
+            f"members: ensemble-mean amplitude {fc['amp_mean']:.1f}, moving east at about {fc['speed']:+.0f}&deg;/day "
+            f"(see the {name} index)."
         )
     s = head + (
-        f"With {what} taken out ({terms}) there is no coherent MJO in this forecast: ensemble-mean amplitude "
-        f"{fc['amp_mean']:.1f} and a phase speed of {fc['speed']:+.1f}&deg;/day, where a real MJO moves at about "
-        "+7&deg;/day."
+        f"With {what} taken out ({terms}) there is no coherent MJO in this forecast: {100 * fc['members_mjo']:.0f}&nbsp;% "
+        f"of members hold one (the median member's amplitude {fc['amp_members']:.1f}), and the ensemble mean moves at "
+        f"{fc['speed']:+.1f}&deg;/day, where a real MJO moves at about +7&deg;/day."
     )
     if abs(dn) >= ENSO_STRONG_DN34:
         s += " A large or slow track in this diagram is most likely the ENSO change projecting onto the index, not an MJO."
@@ -337,11 +352,16 @@ def status_sentence(st: dict) -> tuple[str, str]:
     fc = st["forecast"]
     _, name, terms = _removed(st)
     if st["coherent_mjo_forecast"]:
-        head = f"<b>The {name} forecast shows an MJO:</b> ensemble-mean amplitude {fc['amp_mean']:.1f}{_phases(fc)}."
+        head = (
+            f"<b>The {name} forecast shows an MJO:</b> {100 * fc['members_mjo']:.0f}&nbsp;% of members hold one, "
+            f"ensemble-mean amplitude {fc['amp_mean']:.1f}{_phases(fc)}."
+        )
         s = f"It moves east at about {fc['speed']:+.0f}&deg;/day."
     else:
-        why = ", but the track does not move east as an MJO does" if fc["amp_mean"] >= 1.0 else ""
-        head = f"<b>No coherent MJO in the {name} forecast:</b> ensemble-mean amplitude {fc['amp_mean']:.1f}{why}."
+        head = (
+            f"<b>No coherent MJO in the {name} forecast:</b> {100 * fc['members_mjo']:.0f}&nbsp;% of members hold one "
+            f"(amplitude 1 or more and moving east); the median member's amplitude is {fc['amp_members']:.1f}."
+        )
         s = (
             f"Its maximum is {fc['amp_max']:.1f} and its phase speed {fc['speed']:+.1f}&deg;/day, where a real MJO moves at "
             "about +7&deg;/day."
