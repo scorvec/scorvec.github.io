@@ -1,0 +1,53 @@
+name: 200 hPa velocity-potential climatology
+
+# Dispatch-only builder of scripts/mjo/data/reference/vp200_clim_coeffs.nc (scripts/mjo/src/build_vp200_clim.py), the
+# normal the 200 hPa velocity-potential maps (wind200_vpot.py, mjo.yml) take their anomaly from: ERA5 1991-2020 from
+# WeatherBench 2 (1.5 deg, anonymous GCS), a 10-day stride, one harmonic fit at 00 UTC and one at 12 UTC, because the
+# divergent wind carries the atmospheric tide and a frame is compared with the normal of its own hour. Run it when the
+# method changes; the file is committed.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vp200-clim
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: pip install --quiet -r scripts/mjo/requirements-mjo.txt
+      - name: Build
+        working-directory: scripts/mjo
+        run: python src/build_vp200_clim.py
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          F=scripts/mjo/data/reference/vp200_clim_coeffs.nc
+          cp "$F" "$RUNNER_TEMP/vp200_clim_coeffs.nc"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            cp "$RUNNER_TEMP/vp200_clim_coeffs.nc" "$F"
+            git add "$F"
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "200 hPa velocity-potential climatology: one normal an hour (00 and 12 UTC)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

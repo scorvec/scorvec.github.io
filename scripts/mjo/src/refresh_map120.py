@@ -10,8 +10,11 @@ R1 stopped updating in March 2026, so the source here is ARCO-ERA5 on Google Clo
 ARCO's realtime store is chunked one-hour × all-37-levels × globe (≈154 MB/timestep), so we
 keep a small persistent cache of the daily band-mean U850/U200 on the EOF grid and pull only
 the *new* days each run — the ~125-day bootstrap is the one heavy read, updates are a handful
-of days. A daily 12 Z snapshot is used (not a 24-hour mean) to keep each read to one chunk;
-over a 120-day average the diurnal/sub-daily signal is negligible. Refresh is gated to every
+of days. A daily 00 Z snapshot is used (not a 24-hour mean) to keep each read to one chunk, and
+00 Z because that is the hour the map is applied at: the forecast points and the observed track
+are the 00 Z family (cycle_debias.py puts the 12 Z runs on it). A mean of 120 snapshots of one
+hour keeps that hour's whole atmospheric tide, so a map of 12 Z snapshots subtracted from 00 Z
+fields left the difference of the two tides in every point (RMM1 about -0.15). Refresh is gated to every
 REFRESH_EVERY_DAYS (the map is a 120-day mean — it drifts <1%/day), and is fail-soft: any
 fetch error or an incomplete (NaN) window leaves the existing map untouched.
 
@@ -40,7 +43,7 @@ CLIM_PATH = ROOT / "data" / "reference" / "climatology.nc"
 CACHE = ra.REF_DIR / "arco_uwind_cache.nc"  # persistent daily band-mean (time, lon), CDS-free
 ARCO = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"
 
-SNAP_HOUR = 12  # daily 12 Z snapshot (one ARCO chunk/day)
+SNAP_HOUR = 0  # daily 00 Z snapshot (one ARCO chunk/day): the hour of the fields the map is subtracted from
 SAMPLE_STRIDE_DAYS = 1  # 1 = faithful daily sampling; bump to 2 to halve the ARCO read
 WINDOW_DAYS = 120  # the low-frequency mean window (Wheeler & Hendon 2004)
 CACHE_DAYS = 128  # rolling cache span (window + a few days margin)
@@ -53,7 +56,7 @@ def _open_arco() -> xr.Dataset:
 
 
 def _pull_day(ds: xr.Dataset, day: pd.Timestamp):
-    """One 12 Z snapshot → (u850, u200) band-mean on the 2.5° EOF grid (each shape (lon,)), or None."""
+    """One SNAP_HOUR snapshot → (u850, u200) band-mean on the 2.5° EOF grid (each shape (lon,)), or None."""
     t = pd.Timestamp(day.date()) + pd.Timedelta(hours=SNAP_HOUR)
     try:
         snap = ds["u_component_of_wind"].sel(time=t, level=[850, 200]).compute()  # reads one chunk
@@ -72,7 +75,10 @@ def update_cache() -> xr.Dataset | None:
     last = pd.Timestamp(datetime.now(UTC).date()) - pd.Timedelta(days=ARCO_LAG_DAYS)
     start = last - pd.Timedelta(days=CACHE_DAYS)
 
-    cache = xr.open_dataset(CACHE) if CACHE.exists() else None
+    cache = xr.open_dataset(CACHE).load() if CACHE.exists() else None
+    if cache is not None and cache.attrs.get("snap_hour") != SNAP_HOUR:
+        print("the cache holds another hour's snapshots: read again from the start", flush=True)
+        cache = None
     have = set(pd.to_datetime(cache.time.values).normalize()) if cache is not None else set()
     targets = pd.date_range(start, last, freq=f"{SAMPLE_STRIDE_DAYS}D")
     need = [d for d in targets if d.normalize() not in have]
@@ -106,6 +112,7 @@ def update_cache() -> xr.Dataset | None:
     merged = merged.sortby("time")
     merged = merged.isel(time=~pd.Index(merged.time.values).duplicated(keep="last"))
     merged = merged.sel(time=merged.time >= np.datetime64((last - pd.Timedelta(days=CACHE_DAYS)).date()))
+    merged.attrs["snap_hour"] = SNAP_HOUR
     CACHE.parent.mkdir(parents=True, exist_ok=True)
     tmp = CACHE.with_suffix(".nc.tmp")
     merged.to_netcdf(tmp)
@@ -147,9 +154,9 @@ def main(argv=None) -> int:
     if not args.force and p.exists() and CACHE.exists():
         try:
             with xr.open_dataset(CACHE) as c:
-                last_have = pd.Timestamp(c.time.values[-1])
+                last_have, same_hour = pd.Timestamp(c.time.values[-1]), c.attrs.get("snap_hour") == SNAP_HOUR
             target = pd.Timestamp(datetime.now(UTC).date()) - pd.Timedelta(days=ARCO_LAG_DAYS)
-            if last_have >= target:
+            if same_hour and last_have >= target:
                 print(f"cache already reaches {last_have.date()} (target {target.date()}); nothing to do.")
                 return 0
         except Exception:  # noqa: BLE001 — unreadable cache: rebuild

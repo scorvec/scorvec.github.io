@@ -11,7 +11,7 @@ members of u, v @ 200 hPa. Velocity potential is LINEAR in the wind (divergence 
 the Poisson inversion is linear), so χ(mean wind) = mean(χ) exactly — averaging the wind first
 is both correct and cheap. χ is obtained by inverting ∇²χ = δ on the sphere with spherical
 harmonics (pyshtools), on a pole-free Gauss-Legendre grid so the 1/cosφ metric never blows up.
-Anomaly = χ − the ERA5 1991-2020 day-of-year harmonic climatology (build_vp200_clim.py).
+Anomaly = χ − the ERA5 1991-2020 day-of-year harmonic climatology of the frame's hour (build_vp200_clim.py).
 
     python src/wind200_vpot.py --date 20260624 --time 12 \
         --anim-dir assets/sst/anim/wind200 --manifest assets/sst/anim/wind200_manifest.json \
@@ -273,7 +273,7 @@ def main() -> int:
     if not CLIM.exists():
         print(f"  clim {CLIM} missing — run build_vp200_clim.py first; skipping.", file=sys.stderr)
         return 0
-    coef = xr.open_dataset(CLIM)["coef"].values
+    coef = xr.open_dataset(CLIM)["coef"].load()
 
     import download_aifs
 
@@ -295,7 +295,10 @@ def main() -> int:
         lead = (valid.normalize() - init.normalize()).days
         u2d, v2d = ds["u"].isel(step=i), ds["v"].isel(step=i)
         chi, dlat, dlon = velocity_potential(u2d, v2d)
-        anom = chi - eval_vp_clim(coef, float(noleap_doy(valid)))
+        # the normal of the frame's own hour (the divergent wind carries the tide); a file built before the normal
+        # was split by hour has one for all
+        at = coef.sel(hour=valid.hour).values if "hour" in coef.dims else coef.values
+        anom = chi - eval_vp_clim(at, float(noleap_doy(valid)))
         uchi, vchi = irrotational_wind(anom, dlat, dlon)
         uf = _to_0360(u2d).interp(latitude=dlat, longitude=dlon).transpose("latitude", "longitude").values
         vf = _to_0360(v2d).interp(latitude=dlat, longitude=dlon).transpose("latitude", "longitude").values
