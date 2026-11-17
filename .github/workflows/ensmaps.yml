@@ -142,7 +142,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --quiet numpy scipy pandas requests eccodes pillow 'pyproj>=3.7.2' \
-            "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+            "quantmet-tools @ git+https://github.com/scorvec/quantmet-tools@v0.4.5"
       - name: Plan
         id: plan
         env:
@@ -344,7 +344,7 @@ jobs:
         if: steps.start.outputs.cycle
         run: |
           pip install --quiet numpy scipy pandas pillow 'pyproj>=3.7.2' matplotlib==3.10.9 \
-            "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+            "quantmet-tools @ git+https://github.com/scorvec/quantmet-tools@v0.4.5"
       - name: The IFS-ENS fields
         if: steps.start.outputs.cycle
         uses: actions/cache/restore@v6
@@ -441,7 +441,7 @@ jobs:
         # mverify for the verification figures' style (scripts/verify/verify_figs.py), verify-z500.yml's pin
         run: |
           pip install --quiet numpy scipy pandas pyarrow pillow matplotlib==3.10.9 "$MVERIFY" \
-            "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+            "quantmet-tools @ git+https://github.com/scorvec/quantmet-tools@v0.4.5"
       - name: The newest IFS-ENS fields
         uses: actions/cache/restore@v6
         with:

@@ -54,7 +54,7 @@ jobs:
           python-version: "3.11"
       - run: |
           pip install --quiet numpy scipy pandas xarray netCDF4 matplotlib cartopy==0.25.0
-          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+          pip install --quiet "quantmet-tools @ git+https://github.com/scorvec/quantmet-tools@v0.4.5"
       - name: The cached days (frames branch)
         run: |
           D=scripts/strat/data/mbudget; C=assets/sst/anim/mbudget_tail

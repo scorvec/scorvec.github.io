@@ -53,7 +53,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-      - run: pip install --quiet numpy pandas xarray netCDF4 dask zarr gcsfs "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+      - run: pip install --quiet numpy pandas xarray netCDF4 dask zarr gcsfs "quantmet-tools @ git+https://github.com/scorvec/quantmet-tools@v0.4.5"
       - name: Band means (winds from ${{ matrix.part.source }}, OLR from ARCO-ERA5)
         run: |
           mkdir -p out
@@ -79,7 +79,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-      - run: pip install --quiet numpy pandas xarray netCDF4 "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+      - run: pip install --quiet numpy pandas xarray netCDF4 "quantmet-tools @ git+https://github.com/scorvec/quantmet-tools@v0.4.5"
       - uses: actions/download-artifact@v7
         with:
           pattern: rmmpart-*

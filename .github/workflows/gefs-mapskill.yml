@@ -70,7 +70,7 @@ jobs:
           python-version: "3.11"
       - run: |
           pip install --quiet numpy scipy
-          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"   # BH-FDR, pinned to the tag
+          pip install --quiet "quantmet-tools @ git+https://github.com/scorvec/quantmet-tools@v0.4.5"   # BH-FDR, pinned to the tag
       - uses: actions/download-artifact@v7
         with:
           pattern: era5days-*

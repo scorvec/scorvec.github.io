@@ -151,7 +151,7 @@ jobs:
           # dask: the tercile reader opens GRIBs chunked; netCDF4/h5netcdf are xarray backend plugins (OPeNDAP, CPC files).
           pip install --quiet numpy pandas scipy xarray dask cfgrib eccodes cdsapi requests \
             matplotlib==3.10.9 cartopy==0.25.0 'shapely>=2.1.2' 'pyproj>=3.7.2' Pillow netCDF4 h5netcdf
-          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag
+          pip install --quiet "quantmet-tools @ git+https://github.com/scorvec/quantmet-tools@v0.4.5"   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag
 
       - name: Free runner disk (the raw files stay for the artifact, ~10-15 GB in a start month's first run)
         if: steps.gate.outputs.run == '1'
@@ -517,7 +517,7 @@ jobs:
         run: |
           pip install --quiet numpy pandas scipy xarray dask cfgrib eccodes cdsapi requests \
             matplotlib==3.10.9 cartopy==0.25.0 'shapely>=2.1.2' 'pyproj>=3.7.2' Pillow netCDF4 h5netcdf
-          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+          pip install --quiet "quantmet-tools @ git+https://github.com/scorvec/quantmet-tools@v0.4.5"
 
       - name: Free runner disk
         if: steps.gate.outputs.run == '1'

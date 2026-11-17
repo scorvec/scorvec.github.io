@@ -211,7 +211,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install   # zarr + gcsfs + dask: the u250-for-u200 check reads WeatherBench2
-        run: pip install numpy pandas scipy xarray netCDF4 dask zarr gcsfs "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+        run: pip install numpy pandas scipy xarray netCDF4 dask zarr gcsfs "quantmet-tools @ git+https://github.com/scorvec/quantmet-tools@v0.4.5"
       - name: The observed fields, the ERA5 band means and the previous ENSO check
         env:
           DATA_ARCHIVE: ${{ runner.temp }}/archive

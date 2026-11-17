@@ -65,7 +65,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --quiet numpy scipy pandas pillow 'pyproj>=3.7.2' \
-            "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"
+            "quantmet-tools @ git+https://github.com/scorvec/quantmet-tools@v0.4.5"
       - name: Plan
         id: plan
         env:

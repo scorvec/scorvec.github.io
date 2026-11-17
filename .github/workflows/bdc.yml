@@ -81,7 +81,7 @@ jobs:
           python-version: "3.11"
       - run: |
           pip install --quiet numpy scipy pandas xarray netCDF4 matplotlib cartopy==0.25.0
-          pip install --quiet "quantmet @ git+https://github.com/scorvec/quantmet-tools@v0.4.2"   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag
+          pip install --quiet "quantmet-tools @ git+https://github.com/scorvec/quantmet-tools@v0.4.5"   # shared diagnostics (BH-FDR, QBO zero line, PV, ...), pinned to the tag
       # the observed tail of the forecast dripping paint (forecast_drip.py, read by gefs.yml, strat.yml and the
       # GEPS run): GEOS FP polar-cap height at 16 levels to 1 hPa, daily mean of 00/06/12/18Z, the last 10 days refreshed
       - name: GEOS FP polar-cap height tail
