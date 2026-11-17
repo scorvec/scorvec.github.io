@@ -124,14 +124,19 @@ _LAND_LOCK = threading.Lock()  # the prepared Natural Earth geometry is shared b
 
 
 # ─────────────────────────────────────────────────────────────────────────── shared helpers
+def _inside(c: np.ndarray, lo: float, hi: float) -> np.ndarray:
+    """The share of each cell (centres c, even spacing) that lies between lo and hi."""
+    half = abs(float(c[1] - c[0])) / 2
+    return np.clip(np.minimum(c + half, hi) - np.maximum(c - half, lo), 0.0, None) / (2 * half)
+
+
 def box_mean(f: np.ndarray, lat: np.ndarray, lon: np.ndarray, b) -> np.ndarray:
-    """(..., lat, lon) -> (...) cos-weighted mean of the finite cells whose centres lie in the box."""
-    j, i = (lat >= b[0]) & (lat <= b[1]), (lon >= b[2]) & (lon <= b[3])
-    x = f[..., j, :][..., i]
-    w = np.broadcast_to(np.cos(np.deg2rad(lat[j]))[:, None], x.shape[-2:])
-    ok = np.isfinite(x)
+    """(..., lat, lon) -> (...) mean of the finite cells over the box, each weighted by cos(lat) and by the share of
+    the cell inside the box (a 2.5-degree cell centred on a box edge counts half, not whole)."""
+    w = (np.cos(np.deg2rad(lat)) * _inside(lat, b[0], b[1]))[:, None] * _inside(lon, b[2], b[3])[None, :]
+    ok = np.isfinite(f)
     with np.errstate(invalid="ignore", divide="ignore"):
-        return (np.where(ok, x, 0.0) * w).sum((-2, -1)) / (ok * w).sum((-2, -1))
+        return (np.where(ok, f, 0.0) * w).sum((-2, -1)) / (ok * w).sum((-2, -1))
 
 
 def by_month(x: np.ndarray, labels, months=MONTHS, years=CAL_YEARS) -> np.ndarray:
