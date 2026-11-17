@@ -495,7 +495,7 @@ def main():
   the observed RMM behind the phase patterns computed here from ERA5 after Wheeler &amp; Hendon (2004); wave bands after
   Wheeler &amp; Kiladis (1999).</p>
   </template>
-  <p class="meta">Updated {updated} · Auto-generated from the ECMWF, NOAA and ECCC open-data feeds.</p>
+  <p class="meta">Updated {updated}</p>
 </main>
 <script>
 {stage_spec}
