@@ -227,6 +227,8 @@ def _retrieve(kind: str, years: list[str], month: str, dest: Path) -> bool:
         return True
     from seas5_ref import guard_fetch  # raise here, outside the retry loop below
 
+    import cds_seq
+
     guard_fetch(f"CDS {kind} {month}")
     dest.parent.mkdir(parents=True, exist_ok=True)
     k = KINDS[kind]
@@ -251,7 +253,13 @@ def _retrieve(kind: str, years: list[str], month: str, dest: Path) -> bool:
         t0 = time.time()
         try:
             print(f"  CDS {kind} {month} years={years[0]}..{years[-1]} → {dest.name} …", flush=True)
-            _client().retrieve(k["dataset"], req, str(tmp))
+            # a job an earlier run left in the CDS queue (its time limit ended the wait) is awaited, not sent again
+            held = cds_seq.adopt(cds_seq._client(), k["dataset"], req)
+            if held is not None:
+                print(f"    adopting the key's job {held.request_id} ({held.status})", flush=True)
+                held.download(str(tmp))
+            else:
+                _client().retrieve(k["dataset"], req, str(tmp))
             if tmp.exists() and tmp.stat().st_size > 0:
                 os.replace(tmp, dest)
                 print(f"    done {dest.stat().st_size / 1e6:.0f} MB in {(time.time() - t0) / 60:.1f} min", flush=True)
