@@ -30,7 +30,8 @@ Meteograms and soundings come out of the same pass, while each step is in memory
                             MODELS[...]["snd_d"]-th grid point, in scripts/ecape/to_soundings.py's tiles (its
                             pressure-level mode), for the sounding explorer; the manifest's "snd" is their index
 
-Column heights are hypsometric (virtual temperature, trapezoidal in ln p) up from the model's own terrain height and
+Column heights are hypsometric (virtual temperature, trapezoidal in ln p) up from the model's own terrain height (for
+the GDPS the height its 500 hPa height and surface pressure imply at the analysis time, terrain_under) and
 surface pressure: the geopotential of every level would add ~15 % to the download, and each run checks the result
 against the model's own 500 and 850 hPa heights on a few steps (manifest "checks", with the ECAPE kernel's MU CAPE
 against the model's own and, for the IFS, the column precipitable water against its tcwv).
@@ -479,6 +480,17 @@ def column(sfc, levs, plevs_hpa):
     return out
 
 
+def terrain_under(sfc, levs, plevs_hpa, gh500):
+    """The terrain height that the model's own 500 hPa height and surface pressure imply (its 500 hPa height less the
+    hypsometric thickness up from the surface), the file's terrain where 500 hPa is not above the ground. The GDPS's
+    published terrain field and its surface pressure do not describe the same surface over steep ground: the columns'
+    heights sat hundreds of metres from the model's own there, the same on every step."""
+    thick = column(dict(sfc, z=np.zeros_like(sfc["z"])), levs, plevs_hpa)[
+        1, 1 + sorted(plevs_hpa, reverse=True).index(500)
+    ]
+    return np.where(np.isfinite(thick) & np.isfinite(gh500), gh500 - thick, sfc["z"]).astype(sfc["z"].dtype)
+
+
 def run_kernel(kernel, scratch, workdir):
     """ecape_grid on the scratch (compact pressure-level columns, with the kinematics) -> ({name: (ny, nx)}, meta)."""
     _, nl, ny, nx = scratch.shape
@@ -698,6 +710,10 @@ def step_gdps(date, hh, hour, outdir):
         phys["the850"] = np.where(ps >= 86000.0, theta_e(levs[850]["t"], levs[850]["q"], 85000.0), np.nan)
         phys.update(winds_aloft(ps, levs))
         sfc_col = dict(p=ps, z=zsfc, t=t2, q=q_from_td(td2, ps), u=dec["u10"], v=dec["v10"])
+        if hour == 0 and ("gh", 500) in dec:
+            zsfc = sfc_col["z"] = terrain_under(
+                sfc_col, levs, levels, metres(dec[("gh", 500)], units.get(("gh", 500), ""), ("median", 5700.0))
+            )
         k_out, kmeta = convective(sfc_col, levs, levels, lat, outdir)
         phys.update(k_out)
         phys["pwat"] = k_out["_pwat"]
