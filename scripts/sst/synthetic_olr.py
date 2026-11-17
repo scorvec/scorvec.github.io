@@ -45,6 +45,7 @@ STORE = HERE / "metar" / "olr_hov.nc"
 S3 = "https://noaa-gmgsi-pds.s3.amazonaws.com"
 LON0, LON1 = 40, 300  # Indo-Pacific Hovmöller window (°E)
 KEEP_DAYS = 45
+METHOD = "pixel"  # stamped on the store: each pixel's flux, then the band mean
 HOURS = (0, 6, 12, 18)  # representative hours averaged into each daily mean
 RECENT = 1  # recompute today + yesterday each run (catch late data)
 SIGMA = 5.67e-8
@@ -69,9 +70,8 @@ def _olr_lon(dt: datetime) -> pd.Series | None:
         lat = d["lat"]
         lon = d["lon"]
         Tb = xr.where(b > 176, 418.0 - b, (660.0 - b) / 2.0)  # McIDAS IR byte → K
-        band = Tb.where((lat >= -5) & (lat <= 5)).mean("yc")  # (xc,) 5S-5N mean
-        Tf = band * (1.228 - 1.106e-3 * band)
-        olr = (SIGMA * Tf**4).values
+        Tf = Tb * (1.228 - 1.106e-3 * Tb)  # each pixel's flux, then the 5S-5N mean (the flux is convex in Tb)
+        olr = (SIGMA * Tf**4).where((lat >= -5) & (lat <= 5)).mean("yc").values  # (xc,)
         lon1d = lon.isel(yc=lon.sizes["yc"] // 2).values % 360
     s = pd.Series(olr, index=lon1d).groupby(np.round(pd.Index(lon1d)).astype(int)).mean()
     s = s[(s.index >= LON0) & (s.index <= LON1)]
@@ -80,8 +80,11 @@ def _olr_lon(dt: datetime) -> pd.Series | None:
 
 
 def load_store() -> xr.DataArray | None:
+    """The rolling store, or None when there is none or it was built from band-mean temperatures (rebuilt whole)."""
     if STORE.exists():
-        return xr.open_dataarray(STORE)
+        da = xr.open_dataarray(STORE).load()
+        if da.attrs.get("method") == METHOD:
+            return da
     return None
 
 
@@ -157,8 +160,10 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     da = load_store()
     today = datetime.utcnow().date()
-    days = [today - timedelta(days=k) for k in range(max(args.bootstrap, RECENT), -1, -1)]
+    back = max(args.bootstrap, RECENT) if da is not None else KEEP_DAYS
+    days = [today - timedelta(days=k) for k in range(back, -1, -1)]
     da = build_days(da, days)
+    da.attrs["method"] = METHOD
     STORE.parent.mkdir(parents=True, exist_ok=True)
     da.to_netcdf(STORE)
     render(da, Path(args.out))

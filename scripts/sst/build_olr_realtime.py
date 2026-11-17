@@ -4,7 +4,7 @@
 The Wheeler-Kiladis filter (olr_waves.py) needs a continuous equatorial OLR record up to
 yesterday on the FULL global longitude circle, and no true-OLR product is current (NOAA's
 interpolated OLR stops in 2022, ERA5 runs about a week behind). So this maintains it from the
-GMGSI longwave-IR mosaic: per image it converts the McIDAS brightness temperature to OLR
+GMGSI longwave-IR mosaic: per image it converts each pixel's McIDAS brightness temperature to OLR
 (Ohring-Gruber), meridional-means the 15°S-15°N and 5°S-5°N bands and bins them to 2.5°
 longitude cells; a day is the mean of its 00, 06, 12 and 18 UTC images.
 
@@ -43,6 +43,7 @@ S3 = "https://noaa-gmgsi-pds.s3.amazonaws.com"
 SIGMA = 5.67e-8
 HOURS = (0, 6, 12, 18)  # images averaged into each daily mean: four phases of the diurnal cycle at every longitude
 SAMPLING = ",".join(f"{h:02d}" for h in HOURS)  # stamped on the store; a store sampled otherwise is rebuilt
+METHOD = "pixel"  # the flux of each pixel, then the band mean (stamped too; a store built otherwise is rebuilt)
 KEEP_DAYS = 550  # ~1.5 yr — margin for the 120-day low-pass + longer display
 BANDS = {"15": 15.0, "05": 5.0}
 GRID = np.arange(0, 360, 2.5)  # interp_OLR longitude centres (144 @ 2.5°)
@@ -70,13 +71,15 @@ def _bands(raw: bytes) -> dict[str, np.ndarray]:
             lat = d["lat"].load()
             lon = d["lon"].load()
     Tb = xr.where(b > 176, 418.0 - b, (660.0 - b) / 2.0)  # McIDAS IR byte → K
+    Tf = Tb * (1.228 - 1.106e-3 * Tb)
+    flux = SIGMA * Tf**4
     lon1d = lon.isel(yc=lon.sizes["yc"] // 2).values % 360
     idx = (np.round(lon1d / 2.5).astype(int)) % len(GRID)
     out = {}
     for bd, half in BANDS.items():
-        band = Tb.where((lat >= -half) & (lat <= half)).mean("yc")
-        Tf = band * (1.228 - 1.106e-3 * band)
-        olr = (SIGMA * Tf**4).values
+        # the flux of each pixel, then the mean: the flux is convex in the brightness temperature, so the flux of the
+        # band-mean temperature reads 5-7 W m-2 low where cold cloud covers a fifth to a half of the band
+        olr = flux.where((lat >= -half) & (lat <= half)).mean("yc").values
         good = np.isfinite(olr)
         sums = np.bincount(idx[good], weights=olr[good], minlength=len(GRID))
         cnts = np.bincount(idx[good], minlength=len(GRID))
@@ -115,6 +118,7 @@ def _write(rows: dict, today: date) -> xr.Dataset:
         attrs={
             "source": "NOAA GMGSI longwave-IR mosaic, McIDAS brightness temperature to OLR (Ohring-Gruber)",
             "sampling": SAMPLING,
+            "method": METHOD,
             "note": "daily mean of the images at these UTC hours; bands = |lat| <= 5 and 15 deg; W m-2",
         },
     )
@@ -130,12 +134,15 @@ def main() -> int:
     rows = {b: {} for b in BANDS}
     ds = load()
     if ds is not None:
-        if ds.attrs.get("sampling") == SAMPLING:  # carry the stored days
+        if ds.attrs.get("sampling") == SAMPLING and ds.attrs.get("method") == METHOD:  # carry the stored days
             for b in BANDS:
                 for t, v in zip(pd.to_datetime(ds["time"].values).date, ds[f"olr_{b}"].values):
                     rows[b][t] = v
         else:
-            print(f"store sampled at {ds.attrs.get('sampling', 'unrecorded')} UTC, not {SAMPLING}: rebuilding")
+            print(
+                f"store sampled at {ds.attrs.get('sampling', 'unrecorded')} UTC by method "
+                f"{ds.attrs.get('method', 'unrecorded')}, not {SAMPLING} / {METHOD}: rebuilding"
+            )
         ds.close()
     want = [today - timedelta(days=k) for k in range(KEEP_DAYS - 1, 0, -1)]
     want = [d for d in want if d not in rows["15"]]

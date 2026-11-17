@@ -27,7 +27,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20   # room for the bounded git-retry loop in Commit & push
+    timeout-minutes: 45   # room for a whole-store rebuild (45 days of images) and the bounded git-retry loop in Commit & push
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
