@@ -1,6 +1,6 @@
 {
- "built": "2026-11-16 23:25Z",
- "newest_init": "2026-11-16 12Z",
+ "built": "2026-11-17 00:38Z",
+ "newest_init": "2026-11-16 18Z",
  "window": [
   "2026-11-17",
   "2026-12-01"
@@ -1836,10 +1836,10 @@
     "kind": "top-down"
    },
    "aifs1": {
-    "init": "2026-11-16 12Z",
+    "init": "2026-11-16 18Z",
     "members": 1,
-    "cap100_day15": 1.7,
-    "cap10_day15": 0.9,
+    "cap100_day15": 1.0,
+    "cap10_day15": 0.8,
     "frac100_day15": null,
     "cross100": "2026-11-19",
     "cross10": "2026-10-29",
@@ -4284,7 +4284,8 @@
      "mean": 0.28,
      "share_negative": 0.38,
      "null_mean": 0.0,
-     "p": 0.0335
+     "p": 0.067,
+     "sig": true
     },
     {
      "days": [
@@ -4294,7 +4295,8 @@
      "mean": -0.43,
      "share_negative": 0.69,
      "null_mean": -0.0,
-     "p": 0.006
+     "p": 0.012,
+     "sig": true
     },
     {
      "days": [
@@ -4304,7 +4306,8 @@
      "mean": -0.49,
      "share_negative": 0.69,
      "null_mean": 0.0,
-     "p": 0.0015
+     "p": 0.003,
+     "sig": true
     },
     {
      "days": [
@@ -4314,7 +4317,8 @@
      "mean": 0.25,
      "share_negative": 0.28,
      "null_mean": 0.01,
-     "p": 0.0185
+     "p": 0.037,
+     "sig": true
     }
    ],
    "tna_after": [
@@ -4326,7 +4330,8 @@
      "mean": 1.65,
      "share_negative": 0.28,
      "null_mean": 0.13,
-     "p": 0.0015
+     "p": 0.003,
+     "sig": true
     },
     {
      "days": [
@@ -4336,7 +4341,8 @@
      "mean": 0.12,
      "share_negative": 0.44,
      "null_mean": 0.08,
-     "p": 0.485
+     "p": 0.97,
+     "sig": false
     },
     {
      "days": [
@@ -4346,7 +4352,8 @@
      "mean": -1.93,
      "share_negative": 0.78,
      "null_mean": 0.07,
-     "p": 0.0005
+     "p": 0.001,
+     "sig": true
     },
     {
      "days": [
@@ -4356,7 +4363,8 @@
      "mean": 0.16,
      "share_negative": 0.5,
      "null_mean": 0.11,
-     "p": 0.464
+     "p": 0.928,
+     "sig": false
     }
    ]
   },
