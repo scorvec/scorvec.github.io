@@ -106,6 +106,7 @@ CACHE = Path(os.environ.get("CLIMO_CACHE", "/tmp/climo_cache"))
 CAPE_BIN = os.environ.get("CLIMO_CAPE_BIN", "/tmp/climo_cape")
 WORKERS = int(os.environ.get("CLIMO_WORKERS", "6"))
 G = 9.80665
+RD = 287.05
 HERE = Path(__file__).resolve().parent
 STATIONS = HERE.parents[1] / "skewt" / "stations.json"
 
@@ -174,8 +175,8 @@ def sounding_indices(block: list[str], elev: float = 0.0) -> dict | None:
 
     def at(field, plevel):
         pv = plevel * 100.0
-        if pv >= P[0]:
-            return field[0]
+        if pv >= P[0]:  # under the ground: the surface value within 20 hPa, as the page does
+            return field[0] if pv - P[0] < 2000 else np.nan
         for i in range(1, len(P)):
             if P[i] <= pv:
                 if not (np.isfinite(field[i]) and np.isfinite(field[i - 1])):
@@ -206,6 +207,9 @@ def sounding_indices(block: list[str], elev: float = 0.0) -> dict | None:
     t850, t700, t500 = at(T, 850), at(T, 700), at(T, 500)
     d850, d700 = at(D, 850), at(D, 700)
     h500, h1000 = at(H, 500), at(H, 1000)
+    if P[0] < 100000:  # 1000 hPa under a surface within 20 hPa: hypsometric, from the surface virtual temperature
+        e0 = 611.2 * np.exp(17.67 * (D[0] - 273.15) / (D[0] - 29.65)) if np.isfinite(D[0]) else 0.0
+        h1000 = H[0] - RD * (T[0] / (1 - 0.378 * e0 / P[0])) / G * np.log(100000 / P[0]) if P[0] > 98000 else np.nan
     fzl = np.nan
     for i in range(1, len(P)):
         if np.isfinite(T[i]) and np.isfinite(T[i - 1]) and T[i - 1] >= 273.15 > T[i]:
@@ -224,9 +228,8 @@ def sounding_indices(block: list[str], elev: float = 0.0) -> dict | None:
         "850td": c(d850),
         "700td": c(d700),
         "h500": h500,
-        # real 1000 hPa surface required — elevated stations otherwise yield
-        # h500 minus station elevation, poisoning the thickness climatology
-        "thick": (h500 - h1000) if (np.isfinite(h500) and np.isfinite(h1000) and P[0] >= 99000) else np.nan,
+        # a 1000 hPa level at or within 20 hPa under the surface: higher stations give no thickness
+        "thick": (h500 - h1000) if (np.isfinite(h500) and np.isfinite(h1000)) else np.nan,
         "fzl": fzl,
         "kidx": ((c(t850) - c(t500)) + c(d850) - (c(t700) - c(d700))) if moist_ok else np.nan,
         "tott": (c(t850) + c(d850) - 2 * c(t500)) if moist_ok else np.nan,

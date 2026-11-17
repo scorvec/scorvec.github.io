@@ -319,8 +319,11 @@ static int compute_sounding_impl(const float* pres, const float* hght,
                 const float tp_hi = (i == kmin) ? twb
                     : wetlift(pres[kmin], twb, pres[i]);
                 const float tp_lo = wetlift(pres[kmin], twb, pres[i - 1]);
-                const float b_hi = (tp_hi - vtmp[i]) / vtmp[i];
-                const float b_lo = (tp_lo - vtmp[i - 1]) / vtmp[i - 1];
+                // the saturated parcel's virtual temperature against the environment's
+                const float tv_hi = virtual_temperature(tp_hi, mixratio(pres[i], tp_hi));
+                const float tv_lo = virtual_temperature(tp_lo, mixratio(pres[i - 1], tp_lo));
+                const float b_hi = (tv_hi - vtmp[i]) / vtmp[i];
+                const float b_lo = (tv_lo - vtmp[i - 1]) / vtmp[i - 1];
                 acc += 9.80665 * 0.5 * (b_hi + b_lo) * (hght[i] - hght[i - 1]);
             }
             dcape = acc < 0.0 ? (float)(-acc) : 0.0f;

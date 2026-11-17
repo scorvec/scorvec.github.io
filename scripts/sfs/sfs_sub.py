@@ -58,6 +58,7 @@ PREFIX = "sfs"
 REF_RELEASE = "sfs-ref-v1"
 CLIM_Y0, CLIM_Y1 = 1991, 2020
 MIN_TRUTH_YEARS = 20  # a gridpoint r needs this many years with truth
+REF_VERSION = 2  # of the cached reference: 2 = r over the years that have truth (1 let a year without any blank it)
 DRY_MM = 0.5
 WEEKS_ALL = [(1, 7), (8, 14), (15, 21), (22, 28), (29, 35), (36, 42)]
 WEEKS = list(WEEKS_ALL)  # the complete weeks the issue holds (main() trims it for a recovered issue)
@@ -286,7 +287,7 @@ def build_ref(month: int, years=(CLIM_Y0, CLIM_Y1), members=None, threads=8, tru
     f = CLIMDIR / f"sub_ref_{month:02d}_{years[0]}_{years[1]}{'' if members is None else f'_m{members}'}.npz"
     if f.exists():
         z = dict(np.load(f))
-        if all(f"d_{t}" in z for t in tag_list):
+        if int(z.get("version", 1)) == REF_VERSION and all(f"d_{t}" in z for t in tag_list):
             return z
     ds = _open(f"{BASE}/reforecast/{month:02d}/atm_daily.zarr")
     yrs = [int(str(v)[:4]) for v in ds["init"].values]
@@ -337,18 +338,21 @@ def build_ref(month: int, years=(CLIM_Y0, CLIM_Y1), members=None, threads=8, tru
                     if y not in ty:
                         continue
                     o = truth[tag][ty.index(y)]
+                    if not np.isfinite(o).any():  # the store has no such year for this field
+                        continue
                     base_c = (tot - em[i]) / (len(clim_i) - 1) if i in clim_i else tot / len(clim_i)
                     F.append(em[i] - base_c)
                     O.append(o)
                 F, O = np.array(F), np.array(O)
-                ok = np.isfinite(O).all(0) & np.isfinite(F).all(0) & (np.isfinite(O).sum(0) >= MIN_TRUTH_YEARS)
+                ok = np.isfinite(O).all(0) & np.isfinite(F).all(0) & (len(F) >= MIN_TRUTH_YEARS)
                 Fa = F - F.mean(0)
-                Oa = O - np.nanmean(O, 0)
+                Oa = O - O.mean(0)
                 with np.errstate(invalid="ignore", divide="ignore"):
                     r = (Fa * Oa).sum(0) / np.sqrt((Fa**2).sum(0) * (Oa**2).sum(0))
                 out[f"r_{tag}"] = np.where(ok, r, np.nan).astype(np.float32)
                 out[f"n_{tag}"] = np.array(len(F))
         print(f"  ref {tag} {month:02d}: {len(jobs)} reforecast runs, {time.time() - t0:.0f} s", flush=True)
+    out["version"] = np.array(REF_VERSION)
     CLIMDIR.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(f, **out)
     return out

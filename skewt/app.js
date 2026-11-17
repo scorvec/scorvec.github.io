@@ -369,7 +369,7 @@ function fogRows(prof) {
     ["Bulk Richardson", riTxt],
     ["Sfc inversion", invTop ? `yes — top ${Math.round(invTop)} m, +${invDT.toFixed(1)} °C` : "none detected"],
     ["Mean RH lowest 60 hPa", isFinite(rh500) ? rh500.toFixed(0) + " %" : "—"],
-    ["Wet-bulb (sfc)", `${wetbulbC(T0, D0).toFixed(1)} °C`],
+    ["Wet-bulb (sfc)", `${wetbulbC(T0, D0, prof.P[0]).toFixed(1)} °C`],
   ];
 }
 // Bulk Richardson number over the lowest resolved layer: buoyant suppression
@@ -3016,6 +3016,14 @@ function interpHagl(prof, pPa) {          // height AGL (m) at pressure, log-p l
   }
   return null;
 }
+function h1000Msl(prof) {                  // 1000 hPa height (m MSL); under a surface within 20 hPa, hypsometric
+  const p0 = prof.P[0];
+  if (p0 >= 100000) return interpP(prof, "H", 100000);
+  if (100000 - p0 >= 2000 || !isFinite(prof.T[0])) return NaN;
+  const e = isFinite(prof.D[0]) ? 611.2 * Math.exp(17.67 * (prof.D[0] - 273.15) / (prof.D[0] - 29.65)) : 0;
+  const tv = prof.T[0] / (1 - 0.378 * e / p0);
+  return prof.H[0] - 287.05 * tv / 9.80665 * Math.log(100000 / p0);
+}
 function interpP(prof, key, pPa) {         // interp any field at pressure (log-p)
   const P = prof.P, A = prof[key];
   if (!isFinite(pPa)) return NaN;
@@ -3182,31 +3190,22 @@ function precipType(prof) {
   return { type, PA, NA, sfcC };
 }
 
-// Kuchera snow-to-liquid ratio: keyed on the column's warmest temperature,
-// because a near-0 °C column gives dense wet snow and a cold one gives fluff.
-function kucheraRatio(prof) {
-  let tmax = -Infinity;
-  for (let i = 0; i < prof.P.length; i++) {
-    if (prof.P[i] < 50000) break;                    // surface -> 500 hPa
-    if (isFinite(prof.T[i])) tmax = Math.max(tmax, prof.T[i]);
-  }
-  if (!isFinite(tmax)) return NaN;
-  return tmax <= 271.16 ? 12 + 2 * (271.16 - tmax) : 12;
-}
-
-function wetbulbC(Tc, Tdc) {               // Stull 2011 approximation (°C)
+function wetbulbC(Tc, Tdc, pPa) {          // psychrometric equation at the level's pressure (°C)
   const es = tc => 6.112 * Math.exp(17.67 * tc / (tc + 243.5));
-  const RH = Math.max(1, Math.min(100, 100 * es(Tdc) / es(Tc)));
-  return Tc * Math.atan(0.151977 * Math.sqrt(RH + 8.313659)) + Math.atan(Tc + RH)
-    - Math.atan(RH - 1.676331) + 0.00391838 * Math.pow(RH, 1.5) * Math.atan(0.023101 * RH)
-    - 4.686035;
+  const e = es(Math.min(Tdc, Tc)), p = pPa / 100;
+  let lo = Math.min(Tdc, Tc), hi = Tc;     // e = es(Tw) - 6.6e-4 (1 + 0.00115 Tw) p (T - Tw), bisected
+  for (let k = 0; k < 40; k++) {
+    const tw = 0.5 * (lo + hi);
+    if (es(tw) - 6.6e-4 * (1 + 0.00115 * tw) * p * (Tc - tw) > e) hi = tw; else lo = tw;
+  }
+  return 0.5 * (lo + hi);
 }
 function wbzAgl(prof) {                    // wet-bulb 0 °C height, m AGL
   const P = prof.P, T = prof.T, D = prof.D, H = prof.H;
   let prevW = null, prevH = null;
   for (let i = 0; i < P.length; i++) {
     if (!isFinite(T[i]) || !isFinite(D[i])) continue;
-    const w = wetbulbC(T[i] - 273.15, D[i] - 273.15);
+    const w = wetbulbC(T[i] - 273.15, D[i] - 273.15, P[i]);
     if (prevW !== null && prevW >= 0 && w < 0) {
       const f = prevW / (prevW - w);
       return prevH + f * (H[i] - prevH) - H[0];
@@ -3226,15 +3225,31 @@ function freezingLvlAgl(prof) {            // lowest 0 °C crossing, m AGL
   }
   return NaN;
 }
-function meanWindAgl(prof, z0, z1) {        // mean wind through a height layer (m/s)
-  let su = 0, sv = 0, n = 0;
-  const sfc = prof.H[0];
+function meanWindAgl(prof, z0, z1) {        // height-weighted mean wind through an AGL layer (m/s)
+  const sfc = prof.H[0], Z = [], U = [], V = [];
   for (let i = 0; i < prof.P.length; i++) {
-    const z = prof.H[i] - sfc;
-    if (z < z0 || z > z1 || !isFinite(prof.U[i]) || !isFinite(prof.V[i])) continue;
-    su += prof.U[i]; sv += prof.V[i]; n++;
+    if (!isFinite(prof.H[i]) || !isFinite(prof.U[i]) || !isFinite(prof.V[i])) continue;
+    Z.push(prof.H[i] - sfc); U.push(prof.U[i]); V.push(prof.V[i]);
   }
-  return n ? [su / n, sv / n] : null;
+  if (Z.length < 2) return null;
+  const a = Math.max(z0, Z[0]), b = Math.min(z1, Z.at(-1));
+  if (b - a < 0.8 * (z1 - z0)) return null;  // the winds must span most of the layer
+  const at = z => {
+    let i = 1;
+    while (i < Z.length - 1 && Z[i] < z) i++;
+    const f = (z - Z[i - 1]) / (Z[i] - Z[i - 1]);
+    return [U[i - 1] + f * (U[i] - U[i - 1]), V[i - 1] + f * (V[i] - V[i - 1])];
+  };
+  const pts = [[a, at(a)]];
+  for (let i = 0; i < Z.length; i++) if (Z[i] > a && Z[i] < b) pts.push([Z[i], [U[i], V[i]]]);
+  pts.push([b, at(b)]);
+  let su = 0, sv = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const dz = pts[i][0] - pts[i - 1][0];
+    su += 0.5 * (pts[i][1][0] + pts[i - 1][1][0]) * dz;
+    sv += 0.5 * (pts[i][1][1] + pts[i - 1][1][1]) * dz;
+  }
+  return [su / (b - a), sv / (b - a)];
 }
 function windAt(prof, hAgl) {             // interp u,v at height AGL
   const H = prof.H, sfc = H[0];
@@ -3847,9 +3862,8 @@ function drawHodo(prof, res) {
   mark(o[22], o[23], "RM", "#ff453a", false);
   mark(o[24], o[25], "LM", "#64d2ff", true);
   // 0-6 km mean wind
-  let mu6 = 0, mv6 = 0, c6 = 0;
-  for (let i = 0; i < n && agl[i] <= 6000; i++) { mu6 += prof.U[i]; mv6 += prof.V[i]; c6++; }
-  if (c6) mark(mu6 / c6, mv6 / c6, "MW", "#a8a8c2", true);
+  const mw6 = meanWindAgl(prof, 0, 6000);
+  if (mw6) mark(mw6[0], mw6[1], "MW", "#a8a8c2", true);
 
 
   // Effective-layer Bunkers — only when it differs from the fixed-layer vector.
@@ -4126,7 +4140,7 @@ function fillTables(prof, res) {
   const t850 = C(850), t700 = C(700), t500 = C(500);
   const d850 = Cd(850), d700 = Cd(700);
   const h500 = interpP(prof, "H", 50000);          // MSL geopotential height (m)
-  const h1000 = interpP(prof, "H", 100000);
+  const h1000 = h1000Msl(prof);
   const Cw = k => { const u = interpP(prof, "U", k * 100), v = interpP(prof, "V", k * 100);
     return (isFinite(u) && isFinite(v)) ? Math.hypot(u, v) : NaN; };
   const s850 = Cw(850), s250 = Cw(250);
