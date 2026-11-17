@@ -42,6 +42,7 @@ from __future__ import annotations
 import pyproj  # noqa: F401  first, before eccodes/xarray/cartopy load another libproj: "double free or corruption" abort at exit
 import argparse
 import calendar
+import contextlib
 import json
 import os
 import sys
@@ -115,6 +116,54 @@ def in_month(hours, ym: str, k: int) -> np.ndarray:
     h0, h1 = month_span(ym, k)
     hours = np.asarray(hours, dtype=int)
     return (hours > h0) & (hours <= h1)
+
+
+def fetch_hc_months(base: dict, hours: dict[int, list], dests: dict[int, Path], label: str) -> bool:
+    """The hindcast chunks of several forecast months in ONE request, split into dests[k] by lead hour. A daily request
+    waits hours in the CDS queue and then runs in minutes, so one request for six months costs one wait, not six.
+    base: the request without its lead hours; hours[k]: the lead hours of month k's own request. Each chunk holds
+    exactly the messages that request would have returned (a lead hour two months ask for goes to both). False when
+    the request did not come or a month came back short: the caller then asks month by month."""
+    import eccodes
+    from cds_seq import retrieve
+
+    need = {k: d for k, d in dests.items() if not (d.exists() and d.stat().st_size > 0)}
+    if not need:
+        return True
+    R.guard_fetch("Copernicus CDS")
+    want = {k: {int(h) for h in hours[k]} for k in need}
+    first = next(iter(need.values()))
+    src = first.with_name(f"{first.stem}_months.grib")
+    src.unlink(missing_ok=True)  # one a stopped run left may hold other months
+    req = dict(base, leadtime_hour=[str(h) for h in sorted(set().union(*want.values()))])
+    span = f"months {min(need)}-{max(need)}"
+    if not retrieve("seasonal-original-single-levels", req, src, f"{label} {span}"):
+        return False
+    parts = {k: d.with_name(d.name + ".part") for k, d in need.items()}
+    seen = {k: set() for k in need}
+    with contextlib.ExitStack() as stack:
+        out = {k: stack.enter_context(open(q, "wb")) for k, q in parts.items()}
+        f = stack.enter_context(open(src, "rb"))
+        while (h := eccodes.codes_grib_new_from_file(f)) is not None:
+            try:
+                end = int(eccodes.codes_get(h, "endStep"))
+                for k in need:
+                    if end in want[k]:
+                        out[k].write(eccodes.codes_get_message(h))
+                        seen[k].add(end)
+            finally:
+                eccodes.codes_release(h)
+    src.unlink()
+    if any(seen[k] != want[k] for k in need):
+        short = {k: len(want[k] - seen[k]) for k in need if seen[k] != want[k]}
+        print(f"    {label} {span}: lead hours missing per month {short} - asking month by month", flush=True)
+        for q in parts.values():
+            q.unlink(missing_ok=True)
+        return False
+    for k, q in parts.items():
+        q.replace(need[k])
+    print(f"    {label} {span}: {len(need)} month chunks written", flush=True)
+    return True
 
 
 def chunk_path(region: str, ym: str, k: int) -> Path:

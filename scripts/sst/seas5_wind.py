@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from seas5_outlook import ASSETS, CENTRE, DATA, L7_STATE, SYSTEM, CLIM_YEARS, _client, nleads
-from seas5_popT import REGIONS, in_month, years_hours
+from seas5_popT import REGIONS, fetch_hc_months, in_month, years_hours
 import seas5_ref as SR
 from seas5_extremes_build import CITIES, map_geometry, _CITY_PX
 from seas5_build import valid_months
@@ -108,22 +108,38 @@ def _hc_issue(month: str) -> str:
     return f"{now.year if m <= now.month else now.year - 1}{m:02d}"
 
 
-def _retrieve(dest: Path, years, ym, k, label):
-    if dest.exists() and dest.stat().st_size > 0:
-        return True
-    hours = years_hours(ym[4:], k, years)  # month k in every requested start year's own calendar
-    req = {
+def _base(years, month: str) -> dict:
+    """The 10 m wind request of a start month, without its lead hours."""
+    return {
         "originating_centre": CENTRE,
         "system": SYSTEM,
         "variable": ["10m_u_component_of_wind", "10m_v_component_of_wind"],
         "year": [str(y) for y in years],
-        "month": [ym[4:]],
+        "month": [month],
         "day": ["01"],
-        "leadtime_hour": hours,
         "area": AREA,
         "grid": [1.0, 1.0],
         "data_format": "grib",
     }
+
+
+def fetch_hindcast_all(month: str) -> bool:
+    """Every hindcast month of a start month: one request for the months not held, else month by month."""
+    ym, ks = _hc_issue(month), range(1, 7)
+    merged = fetch_hc_months(
+        _base(CLIM_YEARS, ym[4:]),
+        {k: years_hours(ym[4:], k, CLIM_YEARS) for k in ks},
+        {k: hc_path(ym, k) for k in ks},
+        f"hindcast 10 m wind start {ym[4:]}",
+    )
+    return merged or all([_retrieve(hc_path(ym, k), CLIM_YEARS, ym, k, "hindcast") for k in ks])  # noqa: C419  retrieve every lead even after one fails
+
+
+def _retrieve(dest: Path, years, ym, k, label):
+    if dest.exists() and dest.stat().st_size > 0:
+        return True
+    hours = years_hours(ym[4:], k, years)  # month k in every requested start year's own calendar
+    req = dict(_base(years, ym[4:]), leadtime_hour=hours)
     tmp = dest.with_suffix(f".part{os.getpid()}")
     for attempt in range(3):
         t0 = time.time()
@@ -309,18 +325,13 @@ REF_UNITS = {UNIT: dict(raw=["w:us"], fn=derive_hc)}
 RAW_HC = {
     "w:us": (
         (lambda month: [hc_path(_hc_issue(month), k) for k in range(1, 7)]),
-        (
-            lambda month: all(
-                [  # noqa: C419  retrieve every lead even after one fails
-                    _retrieve(hc_path(_hc_issue(month), k), CLIM_YEARS, _hc_issue(month), k, "hindcast")
-                    for k in range(1, 7)
-                ]
-            )
-        ),
+        fetch_hindcast_all,
+        True,  # waits in the CDS queue
     ),
     "w7:us": (
         (lambda month: [hc_path(_hc_issue(month), 7)]),
         (lambda month: _retrieve(hc_path(_hc_issue(month), 7), CLIM_YEARS, _hc_issue(month), 7, "hindcast")),
+        True,
     ),
 }
 

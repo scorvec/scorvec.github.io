@@ -41,7 +41,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from seas5_outlook import ASSETS, DATA, CENTRE, SYSTEM, CLIM_YEARS, L7_STATE, _client, hc_path, nleads
 from seas5_build import load_field, valid_months
-from seas5_popT import month_hours, month_span, years_hours
+from seas5_popT import fetch_hc_months, month_hours, month_span, years_hours
 import seas5_ref as SR
 from seas5_extremes_build import CITIES
 
@@ -107,6 +107,37 @@ def hc_sf_path(ym: str, k: int) -> Path:
     return SIXH / f"hc_na_{ym[4:]}_m{k}_sf.grib"
 
 
+def _hc_hours(month: str, k: int) -> list[str]:
+    return years_hours(month, k, CLIM_YEARS, step=24, before=True)
+
+
+def _hc_base(month: str) -> dict:
+    """The hindcast snowfall request of a start month, without its lead hours."""
+    return {
+        "originating_centre": CENTRE,
+        "system": SYSTEM,
+        "variable": ["snowfall"],
+        "year": [str(y) for y in CLIM_YEARS],
+        "month": [month],
+        "day": ["01"],
+        "area": AREA,
+        "grid": [1.0, 1.0],
+        "data_format": "grib",
+    }
+
+
+def fetch_hindcast_all(month: str) -> bool:
+    """Every hindcast month of a start month: one request for the months not held, else month by month."""
+    ym, ks = _hc_issue(month), range(1, 7)
+    merged = fetch_hc_months(
+        _hc_base(ym[4:]),
+        {k: _hc_hours(ym[4:], k) for k in ks},
+        {k: hc_sf_path(ym, k) for k in ks},
+        f"hindcast snowfall start {ym[4:]}",
+    )
+    return merged or all([fetch_hindcast(ym, k) for k in ks])  # noqa: C419  fetch every lead even after one fails
+
+
 def fetch_hindcast(ym: str, k: int) -> bool:
     """Hindcast accumulated snowfall for forecast month k (25 members × 1993–2016, daily steps, plus the
     step before the month so the first day can be differenced) — the normal frequency for the ratio maps."""
@@ -114,19 +145,8 @@ def fetch_hindcast(ym: str, k: int) -> bool:
     if dest.exists() and dest.stat().st_size > 0:
         return True
     # every start year's own month k (a leap February moves the later months by a day), plus the step before it
-    hours = [int(h) for h in years_hours(ym[4:], k, CLIM_YEARS, step=24, before=True)]
-    req = {
-        "originating_centre": CENTRE,
-        "system": SYSTEM,
-        "variable": ["snowfall"],
-        "year": [str(y) for y in CLIM_YEARS],
-        "month": [ym[4:]],
-        "day": ["01"],
-        "leadtime_hour": [str(h) for h in hours],
-        "area": AREA,
-        "grid": [1.0, 1.0],
-        "data_format": "grib",
-    }
+    hours = _hc_hours(ym[4:], k)
+    req = dict(_hc_base(ym[4:]), leadtime_hour=hours)
     tmp = dest.with_suffix(f".part{os.getpid()}")
     for attempt in range(3):
         t0 = time.time()
@@ -230,9 +250,14 @@ REF_UNITS = {UNIT: dict(raw=["sf:na"], fn=derive_hc), UNIT_NORMAL: dict(raw=["m:
 RAW_HC = {
     "sf:na": (
         (lambda month: [hc_sf_path(_hc_issue(month), k) for k in range(1, 7)]),
-        (lambda month: all([fetch_hindcast(_hc_issue(month), k) for k in range(1, 7)])),  # noqa: C419  fetch every lead even after one fails
+        fetch_hindcast_all,
+        True,  # waits in the CDS queue
     ),
-    "sf7:na": ((lambda month: [hc_sf_path(_hc_issue(month), 7)]), (lambda month: fetch_hindcast(_hc_issue(month), 7))),
+    "sf7:na": (
+        (lambda month: [hc_sf_path(_hc_issue(month), 7)]),
+        (lambda month: fetch_hindcast(_hc_issue(month), 7)),
+        True,
+    ),
 }
 
 

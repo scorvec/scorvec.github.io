@@ -29,7 +29,8 @@ Each product module declares what it derives:
     REF_UNITS   = {unit: dict(raw=[raw keys], fn=derive(month))}     → hc_{unit}_{MM}.npz
     ISSUE_UNITS = {unit: derive(ym)}                                 → is_{unit}_{ym}.npz
     OBS_UNITS   = {name: derive()}                                   → obs_{name}.npz
-    RAW_HC      = {raw key: (paths(month) -> [Path], fetch(month) -> bool)}   (non-monthly raw kinds)
+    RAW_HC      = {raw key: (paths(month) -> [Path], fetch(month) -> bool[, True])}   (non-monthly raw kinds; the
+                  third entry marks a kind whose request waits in the CDS queue: its units are built last)
 
 Raw keys "m:{kind}" are the monthly-mean hindcast kinds of seas5_outlook.KINDS.
 
@@ -346,6 +347,14 @@ def derive_hindcast(
         for u, (m, spec) in units("REF_UNITS").items()
         if (not only or u in only) and (force or not hc_ref(u, month).exists())
     ]
+    # base units before lead 7, and within each the units that need no queued request first: a raw kind marked as
+    # waiting in the CDS queue (a third, true entry in its RAW_HC tuple) takes hours, the others minutes
+    todo.sort(
+        key=lambda t: (
+            bool(t[2].get("l7")),
+            any(len(reg[r]) > 2 and reg[r][2] and not raw_present(r, month, reg) for r in t[2]["raw"]),
+        )
+    )
     left = []
     for u, m, spec in todo:
         raws = spec["raw"]

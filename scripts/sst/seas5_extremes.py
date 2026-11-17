@@ -35,7 +35,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from seas5_outlook import DATA, CENTRE, SYSTEM, CLIM_YEARS, _client, nleads
-from seas5_popT import REGIONS, SIXH, MONTHS, month_hours, years_hours
+from seas5_popT import REGIONS, SIXH, MONTHS, fetch_hc_months, month_hours, years_hours
 
 ERA5D = DATA / "era5" / "daily"
 YEARS = list(range(1991, 2021))
@@ -100,6 +100,37 @@ def hchunk_path(region: str, month: str, k: int) -> Path:
     return SIXH / f"hc_{region}_{month}_m{k}_x.grib"
 
 
+def _hc_hours(month: str, k: int) -> list[str]:
+    return years_hours(month, k, CLIM_YEARS, step=24)  # every start year's own month k (leap Februaries differ)
+
+
+def _hc_base(region: str, month: str) -> dict:
+    """The hindcast extremes request of a start month, without its lead hours."""
+    return {
+        "originating_centre": CENTRE,
+        "system": SYSTEM,
+        "variable": ["maximum_2m_temperature_in_the_last_24_hours", "minimum_2m_temperature_in_the_last_24_hours"],
+        "year": list(CLIM_YEARS),
+        "month": [month],
+        "day": ["01"],
+        "area": REGIONS[region][2],
+        "grid": [1.0, 1.0],
+        "data_format": "grib",
+    }
+
+
+def fetch_hindcast_all(region: str, month: str) -> bool:
+    """Every hindcast month of a start month: one request for the months not held, else month by month."""
+    ks = range(1, MONTHS + 1)
+    merged = fetch_hc_months(
+        _hc_base(region, month),
+        {k: _hc_hours(month, k) for k in ks},
+        {k: hchunk_path(region, month, k) for k in ks},
+        f"hindcast extremes {region} start {month}",
+    )
+    return merged or all([fetch_hindcast(region, _hc_issue(month), k) for k in ks])  # noqa: C419  fetch every lead even after one fails
+
+
 def fetch_hindcast(region: str, ym: str, k: int) -> bool:
     """SEAS5 hindcast (1993–2016, 25 members) daily max/min for forecast month k of this start
     month — the model's own Tmin/Tmax climatology, so thresholds can be quantile-mapped per cell
@@ -107,19 +138,8 @@ def fetch_hindcast(region: str, ym: str, k: int) -> bool:
     dest = hchunk_path(region, ym[4:], k)
     if dest.exists() and dest.stat().st_size > 0:
         return True
-    hours = years_hours(ym[4:], k, CLIM_YEARS, step=24)  # every start year's own month k (leap Februaries differ)
-    req = {
-        "originating_centre": CENTRE,
-        "system": SYSTEM,
-        "variable": ["maximum_2m_temperature_in_the_last_24_hours", "minimum_2m_temperature_in_the_last_24_hours"],
-        "year": list(CLIM_YEARS),
-        "month": [ym[4:]],
-        "day": ["01"],
-        "leadtime_hour": hours,
-        "area": REGIONS[region][2],
-        "grid": [1.0, 1.0],
-        "data_format": "grib",
-    }
+    hours = _hc_hours(ym[4:], k)
+    req = dict(_hc_base(region, ym[4:]), leadtime_hour=hours)
     tmp = dest.with_suffix(f".part{os.getpid()}")
     for attempt in range(3):
         t0 = time.time()
@@ -166,7 +186,8 @@ def _hc_issue(month: str) -> str:
 def _raw_hc(region):
     return (
         (lambda month: [hchunk_path(region, f"{int(month):02d}", k) for k in range(1, MONTHS + 1)]),
-        (lambda month: all([fetch_hindcast(region, _hc_issue(f"{int(month):02d}"), k) for k in range(1, MONTHS + 1)])),  # noqa: C419  fetch every lead even after one fails
+        (lambda month: fetch_hindcast_all(region, f"{int(month):02d}")),
+        True,  # waits in the CDS queue
     )
 
 
@@ -175,6 +196,7 @@ def _raw_hc7(region):
     return (
         (lambda month: [hchunk_path(region, f"{int(month):02d}", 7)]),
         (lambda month: fetch_hindcast(region, _hc_issue(f"{int(month):02d}"), 7)),
+        True,
     )
 
 
