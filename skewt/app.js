@@ -1371,7 +1371,7 @@ const needFflate = () => fflateP || (fflateP = new Promise((ok, no) => {
 // this a cached WASM could pair with fresh JS — mismatched out[] indices and
 // silently wrong numbers, which is far worse than a crash. WASM_V is stamped by
 // scripts/skewt/stamp_assets.py.
-const WASM_V = "66a5af64";
+const WASM_V = "fbc32b90";
 const wasmReady = createSharp({
   locateFile: (f) => f.endsWith(".wasm") ? `${f}?v=${WASM_V}` : f,
   // SHARPlib's messages come after a failure compute() already handles (rc 2): a warning, not an error
