@@ -122,8 +122,8 @@ def main() -> int:
         if not per_model:
             continue
         # multi-model: every system's members pooled with equal system weight
-        if len(pooled) >= MIN_SYSTEMS:
-            sw = system_weights([lab for *_, lab in pooled])
+        sw = system_weights([lab for *_, lab in pooled])
+        if sum(sw.values()) >= MIN_SYSTEMS:
             wts = np.concatenate([np.full(a_.shape[0], w * sw[lab]) for a_, _, w, lab in pooled])
             A = np.concatenate([a_ for a_, *_ in pooled], axis=0)
             F = np.concatenate([f_ for _, f_, *_ in pooled], axis=0)

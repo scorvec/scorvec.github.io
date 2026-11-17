@@ -36,7 +36,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from seas5_outlook import ASSETS
 from seas5_extremes import xchunk_path, cpc_path, YEARS
-from seas5_extremes_build import daily_extremes, mapped, CITIES, map_geometry, _CITY_PX, draw_cities
+from seas5_extremes_build import box_1deg, daily_extremes, mapped, CITIES, map_geometry, _CITY_PX, draw_cities
 from seas5_build import valid_months
 from seas5_popT import REGIONS, region_grid
 import seas5_ref as R
@@ -88,12 +88,7 @@ def cpc_tmean(region, lat, lon):
         a = xr.open_dataset(px)
         b = xr.open_dataset(pn)
         da = (a[next(iter(a.data_vars))] + b[next(iter(b.data_vars))]) / 2.0
-        c = (
-            da.coarsen(lat=2, lon=2, boundary="trim")
-            .mean()
-            .sel(lat=xr.DataArray(lat, dims="y"), lon=xr.DataArray(lon, dims="x"), method="nearest")
-        )
-        parts.append(c)
+        parts.append(box_1deg(da, lat, lon))
     allv = xr.concat(parts, "time")
     return allv.values.astype(np.float32), allv.time.values
 

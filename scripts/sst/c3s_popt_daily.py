@@ -33,7 +33,7 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import c3s_grib
-from c3s_nino34 import MODELS
+from c3s_nino34 import MODELS, system_weights
 from c3s_sixh import path_for as sixh_path
 from c3s_terciles import hc_pop_means
 import c3s_ref as CR
@@ -281,7 +281,7 @@ def main() -> int:
                 "member_days": [int(x.size) for x, _ in cols],
                 "members": int(cols[0][0].shape[0]),
             }
-            pool.append((mid, cols))
+            pool.append((mlabel, cols))
             if mid not in [m["id"] for m in seen]:
                 seen.append({"id": mid, "label": mlabel, "color": colour})
             print(
@@ -292,34 +292,28 @@ def main() -> int:
         if not per_model:
             continue
         # multi-model: every system weighted equally, whatever its member count; over the months they all have
-        if len(pool) >= MIN_SYSTEMS:
+        sw = system_weights([lab for lab, _ in pool])  # CanSIPS's two models share one system's weight
+        if sum(sw.values()) >= MIN_SYSTEMS:
             nmon = min(len(c) for _, c in pool)
+
+            wts = [sw[lab] for lab, _ in pool]
+
+            def smean(xs, wts=wts):
+                """System-weighted mean of one value per pool entry, over the entries that have it (rounded)."""
+                got = [(w, x) for w, x in zip(wts, xs, strict=True) if x is not None]
+                return round(float(sum(w * x for w, x in got) / sum(w for w, _ in got)), 2) if got else None
+
+            k = 9 / 5 if unit == "F" else 1.0
             mmm = {"raw": {}, "anom": {}, "mean_raw": [], "member_days": [], "members": 0}
             for q in QS:
                 mmm["raw"][f"p{q}"] = [
-                    round(float(np.mean([to_unit(np.percentile(c[j][0], q), unit) for _, c in pool])), 2)
-                    for j in range(nmon)
+                    smean([to_unit(np.percentile(c[j][0], q), unit) for _, c in pool]) for j in range(nmon)
                 ]
                 mmm["anom"][f"p{q}"] = [
-                    round(
-                        float(
-                            np.mean(
-                                [
-                                    (np.percentile(c[j][0], q) - c[j][1]) * (9 / 5 if unit == "F" else 1.0)
-                                    for _, c in pool
-                                    if c[j][1] is not None
-                                ]
-                            )
-                        ),
-                        2,
-                    )
-                    if any(c[j][1] is not None for _, c in pool)
-                    else None
+                    smean([None if c[j][1] is None else (np.percentile(c[j][0], q) - c[j][1]) * k for _, c in pool])
                     for j in range(nmon)
                 ]
-            mmm["mean_raw"] = [
-                round(float(np.mean([to_unit(c[j][0].mean(), unit) for _, c in pool])), 2) for j in range(nmon)
-            ]
+            mmm["mean_raw"] = [smean([to_unit(c[j][0].mean(), unit) for _, c in pool]) for j in range(nmon)]
             mmm["member_days"] = [int(sum(c[j][0].size for _, c in pool)) for j in range(nmon)]
             mmm["members"] = int(sum(c[0][0].shape[0] for _, c in pool))
             per_model["mmm"] = mmm

@@ -62,17 +62,42 @@ def daily_extremes(region: str, ym: str, k: int):
     return (tx - 273.15).astype(np.float32), (tn - 273.15).astype(np.float32), lat, lon
 
 
+def box_1deg(da: xr.DataArray, lat, lon) -> xr.DataArray:
+    """The 0.5° cells of `da` (time, lat, lon) averaged into the 1° cells centred on (lat, lon): the two rows and two
+    columns whose centres lie within half a degree, over the cells with data (NaN where none has, or off the grid)."""
+
+    def pairs(src, tgt):
+        idx = [np.flatnonzero(np.abs(src - t) < 0.5) for t in tgt]
+        return [(i[0], i[-1]) if i.size == 2 else None for i in idx]
+
+    py, px = pairs(da.lat.values, lat), pairs(da.lon.values, lon)
+    v = da.transpose("time", "lat", "lon").values
+    tot = np.zeros((v.shape[0], len(py), len(px)), np.float64)
+    cnt = np.zeros_like(tot)
+    for a in (0, 1):
+        for b in (0, 1):
+            iy = [p[a] if p else 0 for p in py]
+            ix = [p[b] if p else 0 for p in px]
+            x = v[:, iy][:, :, ix]
+            ok = np.isfinite(x)
+            tot += np.where(ok, x, 0.0)
+            cnt += ok
+    out = np.where(cnt > 0, tot / np.maximum(cnt, 1), np.nan)
+    out[:, [p is None for p in py]] = np.nan
+    out[:, :, [p is None for p in px]] = np.nan
+    return xr.DataArray(out, dims=("time", "y", "x"), coords={"time": da.time})
+
+
 def cpc_daily(stat: str, region: str, years, lat, lon):
-    """CPC daily field on the 1° SEAS5 cells (2×2 box mean of the 0.5° grid) → (vals[time, lat, lon] °C, months[time]), years used."""
+    """CPC daily field on the 1° SEAS5 cells (the mean of the four 0.5° cells inside each: centres at ±0.25° of the
+    SEAS5 point, over the ones with data) → (vals[time, lat, lon] °C, months[time]), years used."""
     parts, used = [], []
     for y in years:
         p = cpc_path(stat, region, y)
         if not p.exists():
             continue
         da = xr.open_dataset(p)[next(iter(xr.open_dataset(p).data_vars))]
-        c = da.coarsen(lat=2, lon=2, boundary="trim").mean()
-        c = c.sel(lat=xr.DataArray(lat, dims="y"), lon=xr.DataArray(lon, dims="x"), method="nearest")
-        parts.append(c)
+        parts.append(box_1deg(da, lat, lon))
         used.append(y)
     if not parts:
         return None, None, []
@@ -162,6 +187,9 @@ def cpc_normal(region: str, stat: str, lat, lon) -> tuple[dict, list[int]]:
     return acc, used
 
 
+NORMAL_COVER = 0.9  # share of a calendar month's CPC days a cell needs for its normal
+
+
 def _cpc_normal_from_store(region: str, stat: str, lat, lon) -> tuple[dict, list[int]]:
     """The original count over the local CPC files (derivation only)."""
     _, _, _, thrs, op = next(t for t in THRESH[region] if t[1] == stat)
@@ -173,7 +201,10 @@ def _cpc_normal_from_store(region: str, stat: str, lat, lon) -> tuple[dict, list
             nyr = len(used)
             for t in thrs:
                 hit = (vals[sel] <= t) if op == "le" else (vals[sel] >= t)
-                acc[t][m - 1] = np.where(np.isfinite(vals[sel]).all(0), hit.sum(0) / nyr, np.nan)
+                # the rate over the days CPC has, times the month's days per year (a missing day does not void a cell)
+                have = np.isfinite(vals[sel]).sum(0)
+                rate = hit.sum(0) / np.maximum(have, 1) * (sel.sum() / nyr)
+                acc[t][m - 1] = np.where(have >= NORMAL_COVER * sel.sum(), rate, np.nan)
     return acc, used
 
 
@@ -497,15 +528,12 @@ def build(ym: str) -> dict:
                             "m": [int(v) for v in cnt[:, i, j]],
                             "n": (round(nv, 2) if np.isfinite(nv) else None),
                         }
-                    pop_days = np.tensordot(cnt, wn, axes=([1, 2], [0, 1]))  # [member]
                     nrm = normal[t][mo - 1] if used else np.full(cnt.shape[1:], np.nan)
-                    pop_norm = (
-                        float(
-                            np.nansum(np.where(np.isfinite(nrm), nrm, 0) * wn) / max(np.sum(wn[np.isfinite(nrm)]), 1e-9)
-                        )
-                        if used
-                        else None
-                    )
+                    # forecast days and normal over the SAME people: the cells that have a normal
+                    wp = np.where(np.isfinite(nrm), wn, 0.0) if used else wn
+                    wp = wp / max(wp.sum(), 1e-9)
+                    pop_days = np.tensordot(cnt, wp, axes=([1, 2], [0, 1]))  # [member]
+                    pop_norm = float(np.sum(np.where(np.isfinite(nrm), nrm, 0.0) * wp)) if used else None
                     mean_cnt = cnt.mean(0)
                     out = (
                         ASSETS

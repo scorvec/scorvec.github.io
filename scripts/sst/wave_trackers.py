@@ -147,7 +147,10 @@ def phase_speed(f: np.ndarray, dlon: float, cexp: tuple[float, float]) -> float:
         if a.std() < 1e-6 or b.std() < 1e-6:
             continue
         corr = np.fft.ifft(np.fft.fft(b) * np.conj(np.fft.fft(a))).real
-        s = int(np.argmax(corr))
+        k = int(np.argmax(corr))
+        lo, mid, hi = corr[k - 1], corr[k], corr[(k + 1) % nlon]
+        curve = lo - 2 * mid + hi
+        s = k + (0.5 * (lo - hi) / curve if curve < 0 else 0.0)  # the peak between cells (parabola through three lags)
         if s > nlon // 2:
             s -= nlon  # signed cyclic shift (cells/day)
         # limit to physically sane daily displacement (< a third of the circle)

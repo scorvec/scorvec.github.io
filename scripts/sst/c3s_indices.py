@@ -29,7 +29,7 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from c3s_maps import issue_anom
-from c3s_nino34 import MODELS
+from c3s_nino34 import MODELS, system_weights
 from seas5_build import BOXES, box_mean, _pdo_index
 
 SITE = Path(os.environ.get("SST_SITE_ROOT", HERE.parents[1]))
@@ -120,17 +120,20 @@ def main() -> int:
     if not values:
         raise SystemExit("no cached SST anomaly fields — run c3s_maps.py first")
 
-    # Multi-model mean: equal weight per SYSTEM, the same convention as the maps, and
-    # only where at least half the systems have the index at that lead.
+    # Multi-model mean: equal weight per SYSTEM (the components of one system share its weight), the same convention
+    # as the maps, and only where at least half the systems have the index at that lead.
     mm = {}
     for key, _, _, _ in INDICES:
-        series = [values[m["id"]].get(key) for m in models if values[m["id"]].get(key)]
+        series = {m["label"]: values[m["id"]].get(key) for m in models if values[m["id"]].get(key)}
         if not series:
             continue
+        n_all = sum(system_weights(list(series)).values())
         row = []
         for i in range(nlead):
-            xs = [s[i] for s in series if i < len(s) and s[i] is not None]
-            row.append(round(float(np.mean(xs)), 3) if len(xs) >= max(2, len(series) // 2) else None)
+            xs = {lab: s[i] for lab, s in series.items() if i < len(s) and s[i] is not None}
+            w = system_weights(list(xs))
+            enough = sum(w.values()) >= max(2, n_all // 2)
+            row.append(round(float(sum(w[k] * xs[k] for k in xs) / sum(w.values())), 3) if enough else None)
         mm[key] = row
     values["mmm"] = mm
     models.insert(0, {"id": "mmm", "label": "Multi-model mean", "color": "#111111"})
