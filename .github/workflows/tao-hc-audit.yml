@@ -84,7 +84,7 @@ jobs:
             pip-sst-${{ runner.os }}-
       - name: Install
         run: pip install -r scripts/sst/requirements-sst.txt
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: gl-*
           merge-multiple: true

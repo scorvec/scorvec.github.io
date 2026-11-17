@@ -216,7 +216,7 @@ jobs:
 
       - run: pip install --quiet numpy pillow
 
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: ecape-shard-*
           path: ${{ runner.temp }}/shards
