@@ -237,7 +237,10 @@ def update_rain(need_from: date, need_to: date) -> xr.DataArray:
 
 
 # ── forecast (AIFS-ENS, from the store cache the MJO job already filled) ──────
-def forecast_fields(dt: str, hh: str, clim_chi: xr.Dataset, ref: xr.Dataset):
+def forecast_fields(dt: str, hh: str, clim_chi: xr.Dataset, ref: xr.Dataset, tide: np.ndarray):
+    """Weeks 1 and 2 of the AIFS-ENS run: rain and χ200 anomalies. `tide` is how far a 00 UTC χ200 sits from the mean
+    of the day's two analyses (kelvin_tracker.hour_offset): the forecast χ is 00 UTC fields, the observed rows are
+    day means, and the drift table (same-hour differences) carries none of it."""
     import store as ecmwf
     import download_aifs
     import wind200_vpot as w2
@@ -295,7 +298,7 @@ def forecast_fields(dt: str, hh: str, clim_chi: xr.Dataset, ref: xr.Dataset):
             continue
         chi_w = sum(trap[j] * chis[h] for j, h in enumerate(hs))
         times = pd.DatetimeIndex([a + pd.Timedelta(days=3.5)])
-        ca = chi_anom(chi_w[None], times, clim_chi)[0] - ref["chi_drift"].sel(lead=lead).values
+        ca = chi_anom(chi_w[None], times, clim_chi)[0] - ref["chi_drift"].sel(lead=lead).values - tide
         out.append({"lead": lead, "start": a, "end": b, "rain": ra, "chi": ca})
         print(f"  forecast week {lead} {a:%m-%d}–{b:%m-%d}: rain anomaly sd {np.nanstd(ra):.2f} mm/day", flush=True)
     return init, out
@@ -593,8 +596,10 @@ def main() -> int:
         raise SystemExit("no complete observed windows")
     fc_rows, init = [], None
     if not a.no_forecast and a.date and a.time:
+        from kelvin_tracker import hour_offset
+
         try:
-            init, fcs = forecast_fields(a.date, a.time, clim, ref)
+            init, fcs = forecast_fields(a.date, a.time, clim, ref, hour_offset(h))
             for f in fcs:
                 chi_g, u, v = gill_fields(to_gill(f["rain"]), solve, taper)
                 g = alpha * chi_g
