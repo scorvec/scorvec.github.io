@@ -39,7 +39,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css?v=52fec7b83b">
 <link rel="stylesheet" href="/assets/outlook.css?v=5cbd19a331">
-<link rel="stylesheet" href="/assets/stage.css?v=faa6312caf">
+<link rel="stylesheet" href="/assets/stage.css?v=aae34ef23e">
 <style>
   /* gefs.html — page-specific rules on top of /assets/outlook.css (shared with seas5 and sfs). */
   table.tele { width: 100%; border-collapse: collapse; margin: 0.9rem 0 0.3rem; font-size: 0.78rem; }
@@ -299,7 +299,7 @@
   }).catch(() => {});
   </script>
   <section class="method-note" id="method">
-    <h2>How it is built</h2>
+    <details class="built"><summary>How it is built</summary>
     <p>Anomalies against the <b>1991&ndash;2020 normal</b>, with the model's own drift removed first using
     <b>GEFS's 2000&ndash;2019 reforecast</b> at the same lead and time of year, so drift is not read as a forecast. Weekly
     maps and terciles, the change since the previous run, the daily animation, teleconnections, regimes and the MJO
@@ -325,6 +325,7 @@
     reforecast's anomaly correlation is significantly above zero (one-sided 5&nbsp;% test on the 20 reforecast years, false-discovery rate 10&nbsp;% across the map). The <a href="/subseasonal-method.html">GEPS page's method</a>
     gives the rest in full; where the two differ (reforecast years and members, start days, the day convention, the
     season left out, the drift correction), this note describes GEFS.</p>
+    </details>
   </section>
 </main>
 
@@ -531,6 +532,6 @@ function mjoTable(show) {
   </div>
 </footer>
 <!-- sf:end -->
-<script src="/assets/stage.js?v=e1108433ad" defer></script>
+<script src="/assets/stage.js?v=6c9d99954e" defer></script>
 </body>
 </html>

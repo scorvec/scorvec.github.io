@@ -143,6 +143,11 @@
     if (!credits) {
       credits = lay && lay.querySelector(".ss-main > .chart-card-footer");
       if (!credits) return;
+      // sources and licences fold under one line
+      var fold = document.createElement("details"), sum = document.createElement("summary");
+      fold.className = "ss-credits"; sum.textContent = "Data sources and licences"; fold.appendChild(sum);
+      while (credits.firstChild) fold.appendChild(credits.firstChild);
+      credits.appendChild(fold);
       creditsHome = { parent: credits.parentNode, next: credits.nextSibling };
     }
     var out = credits.classList.contains("ss-credits-out");
@@ -600,6 +605,13 @@
   buildRail();
   wireSwipe();
   clampIntro();
+  // a link to a folded section (the method note) opens it
+  function unfold() {
+    var t = location.hash.length > 1 && document.getElementById(location.hash.slice(1));
+    var d = t && t.querySelector(":scope > details.built");
+    if (d) d.open = true;
+  }
+  addEventListener("hashchange", unfold); unfold();
   placeCredits(); NARROW.addEventListener("change", function () { placeCredits(); render(); });   // pills <-> menus
   // watch the gated blocks: a card that shows or hides itself updates the rail, and leaves the stage if it hid
   var gatedEls = ORDER.filter(function (id) { return P[id].gated && P[id].dom; }).map(function (id) { return $(P[id].dom()); }).filter(Boolean);

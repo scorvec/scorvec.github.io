@@ -105,6 +105,9 @@
     .frame-date { font-size: 0.8rem; }
     .controls { gap: 0.45rem; }
   }
+  /* nothing of the standalone page shows in an embed while its manifest loads */
+  body.embed .back, body.embed .regbar:has(.regbtns:empty) { display: none; }
+  #frame:not([src]) { visibility: hidden; }
   /* embedded in a card iframe: the parent sizes the iframe to image + controls
      via postMessage (postHeight()), so there is never letterboxing at any
      viewport width. The frame renders at most at native resolution and at most
@@ -130,11 +133,12 @@
 <meta name="robots" content="noindex">
 </head>
 <body>
+<script>if (new URLSearchParams(location.search).has("embed")) document.body.classList.add("embed");</script>
 
 <a class="back" id="back-link" href="enso.html">&larr; Back to the El Niño monitor</a>
 
 <div class="frame-wrap">
-  <img id="frame" alt="SST anomaly animation frame">
+  <img id="frame" alt="Animation frame">
   <div class="frame-loading" id="loading">Loading frames&hellip;</div>
   <div class="buffering hidden" id="buffering"></div>
 </div>

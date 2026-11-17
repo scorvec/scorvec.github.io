@@ -39,7 +39,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css?v=52fec7b83b">
 <link rel="stylesheet" href="/assets/outlook.css?v=5cbd19a331">
-<link rel="stylesheet" href="/assets/stage.css?v=faa6312caf">
+<link rel="stylesheet" href="/assets/stage.css?v=aae34ef23e">
 <style>
   /* subseasonal.html — page-specific rules on top of /assets/outlook.css (shared with seas5 and sfs). */
   table.tele { width: 100%; border-collapse: collapse; margin: 0.9rem 0 0.3rem; font-size: 0.78rem; }
@@ -316,7 +316,7 @@
   }).catch(() => {});
   </script>
   <section class="method-note" id="method">
-    <h2>How it is built</h2>
+    <details class="built"><summary>How it is built</summary>
     <p>Anomalies against the <b>1991&ndash;2020 normal</b>, with the model's own drift removed first using
     ECCC's GEPS8 hindcast (2001&ndash;2020), reduced here to a climatology for each lead and time of year. Weekly maps, tercile odds, the change since the last run, teleconnection
     plumes, weather regimes and the MJO &mdash; one figure at a time, picked from the menu; its polar vortex is on the
@@ -331,6 +331,7 @@
     score are calibrated on the same hindcast &mdash; all but the MJO score out of sample, each hindcast start de-drifted
     and re-based without its own year, as a live forecast is &mdash; and the maps are dotted wherever its anomaly
     correlation is significantly above zero (one-sided 5&nbsp;% test on the 20 hindcast years, false-discovery rate 10&nbsp;% across the map). <a href="/subseasonal-method.html">Read the full method &rarr;</a></p>
+    </details>
   </section>
 </main>
 
@@ -564,6 +565,6 @@ function mjoTable(show) {
   </div>
 </footer>
 <!-- sf:end -->
-<script src="/assets/stage.js?v=e1108433ad" defer></script>
+<script src="/assets/stage.js?v=6c9d99954e" defer></script>
 </body>
 </html>
