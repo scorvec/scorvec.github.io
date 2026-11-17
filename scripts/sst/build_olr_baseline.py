@@ -122,6 +122,9 @@ def day_bands(flux: xr.DataArray, day: pd.Timestamp) -> dict[str, np.ndarray] | 
     return out
 
 
+MAX_TAIL = 21  # days ERA5 may lag the proxy store before the fit is refused
+
+
 def fetch(start: str | None, end: str | None, out: Path, workers: int) -> None:
     """ERA5 daily band means from start to end (default: the proxy store's first day to ERA5's last) -> npz."""
     flux = open_flux()
@@ -139,8 +142,10 @@ def fetch(start: str | None, end: str | None, out: Path, workers: int) -> None:
             if i % 250 == 0:
                 print(f"  {i}/{len(days)} days, {(time.time() - t0) / 60:.1f} min", flush=True)
     have = np.array([r is not None for r in got])
-    n = int(np.flatnonzero(have)[-1]) + 1 if have.any() else 0
-    if n == 0 or not have[:n].all() or (end and n < len(days)):
+    # an explicit range must be whole; the default one stops at ERA5's first missing day (the store's newest days
+    # arrive out of order), which has to lie within its usual delay
+    n = len(days) if have.all() else int(np.flatnonzero(~have)[0])
+    if n == 0 or (end and n < len(days)) or len(days) - n > MAX_TAIL:
         gaps = [f"{d:%Y-%m-%d}" for d, h in zip(days, have) if not h]
         raise SystemExit(f"ERA5 missing on {len(gaps)} day(s): {', '.join(gaps[:10])}")
     np.savez_compressed(
