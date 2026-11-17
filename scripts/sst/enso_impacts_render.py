@@ -779,8 +779,14 @@ def causal_panels(z, meta, clim, made, index):
         (y0 + ph) / H,
         "\n".join(
             textwrap.wrap(
-                "Verdict: no significant forced response in the lagged or AMIP analyses; the pacemaker runs bound it at about 20 gpm per "
-                "sd or less. The familiar PDO maps (top row) are mostly the atmosphere driving the ocean.",
+                "Verdict: "
+                + "; ".join(
+                    f"{nm} {R[k]['AL_box']:+.1f} gpm per sd in the Aleutian box "
+                    f"({'significant' if R[k]['p'] < 0.05 else 'not significant'}, p = {R[k]['p']:.2f})"
+                    for nm, k in (("lagged", "lag"), ("AMIP", "amip"))
+                )
+                + f", against {R['covar_cmip6']['AL_box']:+.1f} in the same-winter map; the pacemaker runs bound it at "
+                "about 25 gpm per sd or less. The familiar PDO maps (top row) are mostly the atmosphere driving the ocean.",
                 70,
             )
         ),
