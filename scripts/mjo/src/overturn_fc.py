@@ -118,7 +118,7 @@ def windows(vb, ud, hist_v, hist_u, init, cm, cw, lon):
         full_v, full_u = np.concatenate([hist_v, vb[i]]), np.concatenate([hist_u, ud[i]])
         S.n += 1
         for j in LEADS:
-            wv, wu = full_v[j + 1 : j + 1 + WIN].mean(0), full_u[j + 1 : j + 1 + WIN].mean(0)
+            wv, wu = full_v[j : j + WIN].mean(0), full_u[j : j + WIN].mean(0)  # days j-(WIN-1) .. j
             psi = mmsf.streamfunction(B.band_v(wv, O.LAT), P_PA, B.LAT15)  # the climatology's bands
             met = B.sample_metrics(psi, P_HPA, B.LAT15)
             for k in KEYS:

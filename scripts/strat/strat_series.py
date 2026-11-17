@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Key stratospheric diagnostics as time series — GEPS ensemble, day 0 to 35.
 
-Five panels, the numbers a vortex monitor actually turns on:
+Four panels, the numbers a vortex monitor actually turns on:
 
   u(60) 10 hPa   the WMO sudden-stratospheric-warming diagnostic. Drawn ABSOLUTE,
                  not as an anomaly, with the zero line heavy — an SSW is defined
                  as this crossing zero, and an anomaly plot hides exactly that.
   u(60) 100 hPa  the coupling level. A 10 hPa reversal that never reaches here
                  rarely reaches the surface either.
-  cap T 10/100   polar-cap (65-90) temperature anomaly. The warming IS the event,
+  cap T 100 hPa  polar-cap (65-90) temperature anomaly. The warming IS the event,
                  and it leads the wind reversal, so this turns first.
   cap z 100 hPa  the field that leads the AO/NAO response. Epoch-referenced,
                  because its secular trend (+18.9 m/decade) is large enough to

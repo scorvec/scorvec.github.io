@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """West-coast landfall transect for the AR monitor — built once, committed.
 
-For each 0.25° latitude from 24°N to 61°N, the first land longitude scanning east from
+For each 0.25° latitude from 24°N to 58°N, the first land longitude scanning east from
 165°W across the North American mainland (Vancouver Island and Haida Gwaii count as coast;
-small islands and the Alaska Peninsula's Aleutian tail do not), and one grid point offshore
+small islands and the Alaska Peninsula's Aleutian tail do not), and the point 0.5° west
 of it — the point where landfalling IVT is read. Plus a set of named locations used for the
 AR-scale table. Land from Natural Earth 50 m polygons (through cartopy, which fetches them once).
 

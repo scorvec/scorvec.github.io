@@ -17,7 +17,7 @@ SOURCES
   assimilate stratospheric water vapour: its stratospheric qv is the model's own, freeze-dried by the ANALYSED temperatures
   (so the entry value is constrained, the air above is advected by analysed winds, and anything injected from outside -
   the January 2022 Hunga eruption put ~150 Tg of water into the stratosphere - is absent). `build` measures this against MLS
-  and the page uses GEOS FP only after the last MLS day, adjusted to MLS by the per-level offset of the last 365 days.
+  and the page uses GEOS FP only after the last MLS day, adjusted to MLS by the per-level offset of the last 60 days.
 
     python scripts/strat/tape_recorder.py fetch-fp 2017-12-01 2026-09-27 [step]  # one-off seed, ~5-8 s a day, resumable
     python scripts/strat/tape_recorder.py build                          # offline: reference files + validation numbers
@@ -408,10 +408,12 @@ def pfmt(p):
     return "p < 0.001" if p < 0.001 else (f"p = {p:.3f}" if p < 0.01 else f"p = {p:.2f}")
 
 
-def norm_p(z):
+def year_p(z, n_years):
+    """Two-sided p of a departure from a normal estimated from n_years yearly values: Student's t on n_years - 1 (the
+    caller's z carries the normal's own sampling error, sd^2 (1 + 1/n_years))."""
     from scipy import stats
 
-    return float(2 * stats.norm.sf(abs(z)))
+    return float(2 * stats.t.sf(abs(z), n_years - 1))
 
 
 SEC_LEVS = [100.0, 82.54, 68.13, 56.23, 46.42, 38.31, 31.62, 26.1, 21.54, 17.78, 14.68, 12.12, 10.0]
@@ -839,6 +841,8 @@ def fig_record(cen, V, S, levs, clim_at, path, last_mls):
 
 
 def fig_ascent(levs, clim_w, clim_se, clim_sd, n_years, cur, cur_se, cur_end, fpw, fp_years, yr, wref, stats, path):
+    from scipy import stats as SS
+
     plt = _plt()
 
     fig = plt.figure(figsize=(12.6, 7.4), dpi=130)
@@ -852,11 +856,12 @@ def fig_ascent(levs, clim_w, clim_se, clim_sd, n_years, cur, cur_se, cur_end, fp
     ax = fig.add_axes([0.065, 0.32, 0.36, top - 0.36])
     _style(ax)
     p = np.array(levs)
+    t95 = SS.t.ppf(0.975, n_years - 1)  # the mean of n_years yearly values
     ax.fill_betweenx(p, clim_w - clim_sd, clim_w + clim_sd, color=BAND, lw=0, label="MLS single years, ±1 sd")
     ax.errorbar(
         clim_w,
         p,
-        xerr=1.96 * clim_se,
+        xerr=t95 * clim_se,
         color=NAVY,
         lw=2.2,
         capsize=2,
@@ -1009,24 +1014,24 @@ def fig_entry(mls, fpq_adj, fpt, clim_at, t0, last_mls, fp_end, stats, tstats, p
         3, 1, height_ratios=[1, 1, 0.75], hspace=0.5, left=0.065, right=0.975, top=top - 0.075, bottom=0.14
     )
     days = pd.date_range(t0, fp_end)
+    lead = pd.date_range(t0 - pd.Timedelta(days=29), fp_end)  # the normal as the same trailing 30-day mean
     for i, L in enumerate((100.0, 70.0)):
         ax = fig.add_subplot(gs[i])
         _style(ax)
         m = mls[L]
         m = m[m.index >= t0]
-        c = clim_at(days)[L]
+        c = pd.Series(np.asarray(clim_at(lead)[L]), index=lead).rolling(30).mean().reindex(days).values
         st = stats[f"{L:g}"]
         sdd = harm_design(doy366(days).astype(float), 2, W366) @ sd_doy[L]
-        if c is not None:
-            ax.fill_between(
-                days,
-                c - 1.2816 * sdd,
-                c + 1.2816 * sdd,
-                color=BAND,
-                lw=0,
-                label="MLS normal, 10–90 % range of 30-day means",
-            )
-            ax.plot(days, c, color=NORMAL, lw=1.3, ls=(0, (5, 3)), label="MLS 2005–2021 normal")
+        ax.fill_between(
+            days,
+            c - 1.2816 * sdd,
+            c + 1.2816 * sdd,
+            color=BAND,
+            lw=0,
+            label="MLS normal, 10–90 % range of 30-day means",
+        )
+        ax.plot(days, c, color=NORMAL, lw=1.3, ls=(0, (5, 3)), label="MLS 2005–2021 normal, 30-day mean")
         ax.plot(m.index, m.values, ".", color=NAVY, ms=2.2, alpha=0.6)
         r = m.rolling("30D", min_periods=3).mean()
         ax.plot(r.index, r.values, color=NAVY, lw=2.0, label="Aura MLS, 30-day mean")
@@ -1083,8 +1088,8 @@ def fig_entry(mls, fpq_adj, fpt, clim_at, t0, last_mls, fp_end, stats, tstats, p
     )
     _wrap(
         fig,
-        tstats["text"] + " Significance: z-test of the 30-day mean against the MLS year-to-year spread of 30-day means "
-        "for the same dates (2005–2021) plus, for the GEOS FP days, its hindcast error on the MLS scale "
+        tstats["text"] + " Significance: t test of the 30-day mean against the MLS year-to-year spread of 30-day means "
+        "for the same dates (2005–2021, the normal's own sampling error included) plus, for the GEOS FP days, its hindcast error on the MLS scale "
         f"({tstats['rmse100']:.2f} ppmv at 100 hPa, {tstats['rmse70']:.2f} at 70 hPa, rms of monthly means).",
         0.012,
     )
@@ -1206,13 +1211,13 @@ def render(mls, fpq, fpt, out):
             "n_years": len(base),
         }
         if cur is not None and np.isfinite(cur[k]):
-            z = (cur[k] - s_["clim_mean"]) / np.sqrt(s_["clim_sd"] ** 2 + cur_se[k] ** 2)
+            z = (cur[k] - s_["clim_mean"]) / np.sqrt(s_["clim_sd"] ** 2 * (1 + 1 / len(base)) + cur_se[k] ** 2)
             s_.update(
                 {
                     "current": float(cur[k]),
                     "current_se": float(cur_se[k]),
                     "z": float(z),
-                    "p": norm_p(z),
+                    "p": year_p(z, len(base)),
                     "n_days": ncur,
                 }
             )
@@ -1298,7 +1303,7 @@ def render(mls, fpq, fpt, out):
             if len(s_) >= 10:
                 yy.append(float((s_ - clim2(s_.index)[L]).mean()))
         sd_iav = float(np.std(yy, ddof=1))
-        z = (val_ - normal) / np.sqrt(sd_iav**2 + extra**2)
+        z = (val_ - normal) / np.sqrt(sd_iav**2 * (1 + 1 / len(yy)) + extra**2)
         estats[f"{L:g}"] = {
             "window": [f"{w0:%b %-d}", f"{w1:%b %-d}"],
             "source": src,
@@ -1309,7 +1314,7 @@ def render(mls, fpq, fpt, out):
             "sd_iav_30d": sd_iav,
             "sd_offset": extra,
             "z": float(z),
-            "p": norm_p(z),
+            "p": year_p(z, len(yy)),
             "sd30": sd_iav,
             "n_years": len(yy),
         }

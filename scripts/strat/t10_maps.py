@@ -2,7 +2,7 @@
 """Polar temperature at 10 hPa from the IFS control: the warming of a sudden warming, where it sits and how strong.
 
 One polar map per 12 h step to day 15 and per hemisphere: the temperature's departure from its ERA5 1991-2020 normal
-of that day and hour shaded (reference/t10_clim.nc, build_t10_clim.py), and the 10 hPa geopotential height contoured,
+of that day shaded (reference/t10_clim.nc, build_t10_clim.py), and the 10 hPa geopotential height contoured,
 which outlines the vortex (the flow runs along the height lines). Fields: t at 10 hPa and the height from the IFS
 control's shared files (ifs_ens.py ctrl_t10, ctrl_wind; ECMWF open data, Google Cloud mirror), 0.25 deg.
 
@@ -126,7 +126,7 @@ def render(anom: xr.DataArray, gh: xr.DataArray, hemi: str, init: pd.Timestamp, 
         0.03,
         0.935,
         f"ECMWF IFS control{' analysis' if not step_h else ''} · {init:%Y-%m-%d %HZ} {tag} · valid {valid:%a %d %b %HZ}\n"
-        f"shaded: temperature anomaly from ERA5 1991–2020 at that day and hour · black: height, dam, every "
+        f"shaded: temperature anomaly from the ERA5 1991–2020 normal of that day · black: height, dam, every "
         f"{HEIGHT_STEP} dam",
         fontsize=9,
         color="#555",

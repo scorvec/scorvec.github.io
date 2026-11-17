@@ -64,6 +64,7 @@ M_PER_DEG, DAY = 111320.0, 86400.0
 C_MIN, C_MAX, P_MIN, P_MAX = 1.5, 3.5, 15.0, 150.0
 FILT_LON = (130.0, 280.0)  # Pacific interior used by the filter
 AMP = 0.015  # crest threshold, metres: ~1 sd of the Kelvin band (1.3-1.8 cm in 2026)
+EDGE = 40  # newest days whose amplitude the filter's end damps (to ~0.6 on the last day): divided out (edge_gain)
 DAYS_BACK, DAYS_AHEAD, MAP_DAYS = 205, 60, 200  # the map loop covers the last 200 days, a frame every 2nd day
 TARGETS = ((240.0, "Niño-3 (120°W)"), (270.0, "the coast (90°W)"))
 U_LAT = 5.0
@@ -101,6 +102,28 @@ def ocean_kelvin_filter(x: np.ndarray, dlon: float, pad_t: int = 120, ramp: int 
     return y[:nt, :nx]
 
 
+def _synthetic(nt: int, lon: np.ndarray, c: float, wavelength: float, phase: float = 0.0) -> np.ndarray:
+    """A unit eastward wave of speed c (m/s) and the given wavelength (degrees) on (nt days, lon)."""
+    k = 2 * np.pi / wavelength
+    return np.cos(k * (lon[None, :] - c * DAY / M_PER_DEG * np.arange(nt)[:, None]) + phase)
+
+
+def edge_gain(nt: int, lon: np.ndarray) -> np.ndarray:
+    """The amplitude the filter keeps on each of the newest EDGE days of a record of this shape, against mid-record:
+    the median over nine synthetic waves of the band (2-3 m/s, 40-80 degrees), from the envelope of each wave and its
+    quadrature, so no phase enters. About 0.6 on the last day, 0.8 ten days back, 0.95 twenty days back."""
+    dlon = float(lon[1] - lon[0])
+    inner = (lon >= lon[0] + 20) & (lon <= lon[-1] - 20)
+    gains = []
+    for c in (2.0, 2.5, 3.0):
+        for wl in (40.0, 60.0, 80.0):
+            a = ocean_kelvin_filter(_synthetic(nt, lon, c, wl), dlon)
+            b = ocean_kelvin_filter(_synthetic(nt, lon, c, wl, np.pi / 2), dlon)
+            e = np.sqrt(a * a + b * b)[:, inner].mean(1)
+            gains.append(e[-EDGE:] / e[60:-60].mean())
+    return np.clip(np.median(gains, 0), 0.4, None)
+
+
 def selftest() -> int:
     dlon = 0.5
     lon = np.arange(0, 150, dlon)
@@ -122,6 +145,15 @@ def selftest() -> int:
         print(f"  {name}: kept {r:.2f} of the amplitude -> {'ok' if ok else 'FAIL'}")
         if not ok:
             return 1
+    # the newest day, which is the one published: the amplitude after the edge gain is divided out
+    lon = np.arange(130.0, 280.01, dlon)
+    y = ocean_kelvin_filter(_synthetic(206, lon, 2.5, 60.0), dlon)
+    y[-EDGE:] /= edge_gain(206, lon)[:, None]
+    r = np.abs(y[-1, (lon >= 150) & (lon <= 260)]).max()
+    ok = 0.8 < r < 1.25
+    print(f"  newest day, eastward 2.5 m/s: amplitude {r:.2f} -> {'ok' if ok else 'FAIL'}")
+    if not ok:
+        return 1
     print("selftest passed")
     return 0
 
@@ -528,6 +560,7 @@ def main() -> int:
     good = np.isfinite(sub).mean(0) > 0.8
     subf = np.where(np.isfinite(sub), sub, np.nanmean(sub, 0, keepdims=True))
     filt_sub = ocean_kelvin_filter(subf, float(np.diff(lon[:2])[0]))
+    filt_sub[-EDGE:] /= edge_gain(sub.shape[0], lon[m])[:, None]  # the filter's end damps the newest days
     filt_sub[:, ~good] = np.nan
     filt[:, m] = filt_sub
     # ---- waves in the basin now

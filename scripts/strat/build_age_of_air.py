@@ -156,6 +156,11 @@ def main():
         return np.tensordot(dim[k] / dim[k].sum(), clim_m[k], axes=1)
 
     clim_s = np.stack([wmean(ms) for ms in seasons.values()] + [wmean(range(1, 13))])
+    # year-to-year sd of each month's departure from ITS OWN year's mean (the seasonal-cycle test's error: what the
+    # year shares - trend, QBO, steps - cancels in the departure)
+    years = np.unique(t.year)
+    by_year = np.stack([A[t.year == y] for y in years])  # (year, 12, lev, lat): the record is whole calendar years
+    dev_m = (by_year - np.tensordot(dim / dim.sum(), by_year, axes=(0, 1))[:, None]).std(0, ddof=1)
 
     # ---------------------------------------------------------------- validation numbers
     def box(Aann, p, lo, hi):
@@ -304,6 +309,7 @@ def main():
         {
             "clim_month": (("month", "lev", "lat"), clim_m.astype(np.float32)),
             "iav_month": (("month", "lev", "lat"), iav_m.astype(np.float32)),
+            "dev_month": (("month", "lev", "lat"), dev_m.astype(np.float32)),
             "clim_season": (("season", "lev", "lat"), clim_s.astype(np.float32)),
             **{f"{nm}_coef": (("levm", "lat"), res[nm][0].astype(np.float32)) for nm in res},
             **{f"{nm}_se": (("levm", "lat"), res[nm][1].astype(np.float32)) for nm in res},

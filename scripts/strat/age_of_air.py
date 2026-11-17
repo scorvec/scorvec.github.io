@@ -249,11 +249,12 @@ def fig_cycle(ds, out):
         handlelength=1.6,
     )
     ax.set_title("50 hPa, by latitude band", loc="left", fontsize=11, fontweight="bold", color=INK)
-    # right: anomaly from the annual mean, significance by t over years (months are one per year: n = ny)
+    # right: anomaly from the annual mean, significance by t over years (months are one per year: n = ny) on each
+    # year's own departure from its annual mean
     from scipy import stats
 
     anom = C - C.mean(0, keepdims=True)
-    se = S / np.sqrt(ny)
+    se = ds.dev_month.values[:, k50] / np.sqrt(ny)
     t = anom / np.where(se > 0, se, np.nan)
     p = 2 * stats.t.sf(np.abs(t), ny - 1)
     sig = _bh(p)

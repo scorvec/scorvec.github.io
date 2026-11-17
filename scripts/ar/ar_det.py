@@ -113,7 +113,7 @@ def coast_figure(out, m, init, valid, cser, tl, levels, grid):
     fig.text(
         0.02,
         0.925,
-        f"IVT 1000–300 hPa ({len(levels)} levels, {grid} grid) at the first ocean point west of the coast on each 0.25° "
+        f"IVT 1000–300 hPa ({len(levels)} levels, {grid} grid) 0.5° west of the coast on each 0.25° "
         "latitude, Baja California to southeast Alaska · contours 250 / 500 / 750 / 1000",
         fontsize=8.5,
         color="#444",

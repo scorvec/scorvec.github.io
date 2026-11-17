@@ -739,7 +739,7 @@ onto the MLS scale by the mean difference over the 60 days before it. That offse
 MLS months since 2019; a monthly mean predicted that way is off by 0.17&nbsp;ppmv (rms) at 100&nbsp;hPa and
 0.40 at 70&nbsp;hPa, and that error is added to every test that uses GEOS FP.</p>
 <p><b>Entry value.</b> The last 30 days are tested against the MLS 2005&ndash;2021 normal for the same dates (years
-before Hunga), with the year-to-year spread of 30-day means plus the GEOS FP error. At 100&nbsp;hPa the water
+before Hunga), by a t test on those 17 years: the year-to-year spread of 30-day means, the normal's own sampling error and the GEOS FP error. The dashed normal on the figure is the same trailing 30-day mean as the lines. At 100&nbsp;hPa the water
 tracks GEOS FP's analysed 100&nbsp;hPa temperature: monthly anomalies correlate at r&nbsp;=&nbsp;0.85,
 +0.36&nbsp;ppmv per kelvin (p&nbsp;&lt;&nbsp;0.001, autocorrelation-adjusted; the temperature anomaly is against
 GEOS FP's own 2018&ndash;2025 years).</p>
@@ -751,7 +751,7 @@ smears the entry level. Over 2005&ndash;2021 the band rises at 0.27&nbsp;mm/s at
 averages 0.26&nbsp;&plusmn;&nbsp;0.05&nbsp;mm/s (single years), 46&ndash;26&nbsp;hPa 0.27&nbsp;&plusmn;&nbsp;0.03,
 about 45 days per kilometre. Those match the published MLS and SWOOSH estimates (Brehon et al. 2026:
 0.21&ndash;0.33&nbsp;mm/s, slowest near 50&nbsp;hPa). The latest 12 months are compared with the single years by
-a z-test with a bootstrap over calendar months (the duty-cycled data come in monthly bursts).</p>
+a t test on the 17 single years (the normal's own sampling error included) with a bootstrap over calendar months (the duty-cycled data come in monthly bursts).</p>
 <p><b>Against w*.</b> The tape moves with the residual vertical velocity plus vertical mixing into the tropical pipe,
 so it runs a little faster than w*. The site's Brewer&ndash;Dobson product gives, by downward control, a
 MERRA-2 w* of 0.22&nbsp;mm/s at 70&nbsp;hPa and 0.23 at 50&nbsp;hPa (annual means over the 15 reference years between 1991 and 2009, averaged between
