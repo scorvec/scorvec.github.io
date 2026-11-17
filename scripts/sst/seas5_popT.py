@@ -118,51 +118,66 @@ def in_month(hours, ym: str, k: int) -> np.ndarray:
     return (hours > h0) & (hours <= h1)
 
 
-def fetch_hc_months(base: dict, hours: dict[int, list], dests: dict[int, Path], label: str) -> bool:
-    """The hindcast chunks of several forecast months in ONE request, split into dests[k] by lead hour. A daily request
-    waits hours in the CDS queue and then runs in minutes, so one request for six months costs one wait, not six.
-    base: the request without its lead hours; hours[k]: the lead hours of month k's own request. Each chunk holds
-    exactly the messages that request would have returned (a lead hour two months ask for goes to both). False when
-    the request did not come or a month came back short: the caller then asks month by month."""
-    import eccodes
-    from cds_seq import retrieve
+CDS_FIELDS = 10000  # the CDS limit on one request: lead hours x start days x years x variables
 
+
+def fetch_hc_months(base: dict, hours: dict[int, list], dests: dict[int, Path], label: str) -> bool:
+    """The hindcast chunks of several forecast months in as few requests as the CDS field limit allows, split into
+    dests[k] by lead hour. A daily request waits hours in the CDS queue and then runs in minutes, so six months in one
+    request cost one wait, not six. base: the request without its lead hours; hours[k]: the lead hours of month k's
+    own request. Each chunk holds exactly the messages that request would have returned (a lead hour two months ask
+    for goes to both). False when a request did not come or a month came back short: the caller then asks month by
+    month."""
     need = {k: d for k, d in dests.items() if not (d.exists() and d.stat().st_size > 0)}
     if not need:
         return True
     R.guard_fetch("Copernicus CDS")
     want = {k: {int(h) for h in hours[k]} for k in need}
-    first = next(iter(need.values()))
+    per_hour = len(base["year"]) * len(base["day"]) * len(base["variable"])
+    groups: list[list[int]] = []  # consecutive months, each group within the limit
+    for k in sorted(need):
+        if groups and len(set().union(*(want[q] for q in [*groups[-1], k]))) * per_hour <= CDS_FIELDS:
+            groups[-1].append(k)
+        else:
+            groups.append([k])
+    return all([_fetch_hc_group(base, {k: want[k] for k in g}, need, label) for g in groups])  # noqa: C419  ask for every group even after one fails
+
+
+def _fetch_hc_group(base: dict, want: dict[int, set], dests: dict[int, Path], label: str) -> bool:
+    import eccodes
+    from cds_seq import retrieve
+
+    first = dests[min(want)]
     src = first.with_name(f"{first.stem}_months.grib")
     src.unlink(missing_ok=True)  # one a stopped run left may hold other months
     req = dict(base, leadtime_hour=[str(h) for h in sorted(set().union(*want.values()))])
-    span = f"months {min(need)}-{max(need)}"
+    span = f"month {min(want)}" if len(want) == 1 else f"months {min(want)}-{max(want)}"
     if not retrieve("seasonal-original-single-levels", req, src, f"{label} {span}"):
         return False
-    parts = {k: d.with_name(d.name + ".part") for k, d in need.items()}
-    seen = {k: set() for k in need}
+    parts = {k: dests[k].with_name(dests[k].name + ".part") for k in want}
+    seen = {k: set() for k in want}
     with contextlib.ExitStack() as stack:
         out = {k: stack.enter_context(open(q, "wb")) for k, q in parts.items()}
         f = stack.enter_context(open(src, "rb"))
         while (h := eccodes.codes_grib_new_from_file(f)) is not None:
             try:
                 end = int(eccodes.codes_get(h, "endStep"))
-                for k in need:
+                for k in want:
                     if end in want[k]:
                         out[k].write(eccodes.codes_get_message(h))
                         seen[k].add(end)
             finally:
                 eccodes.codes_release(h)
     src.unlink()
-    if any(seen[k] != want[k] for k in need):
-        short = {k: len(want[k] - seen[k]) for k in need if seen[k] != want[k]}
+    if any(seen[k] != want[k] for k in want):
+        short = {k: len(want[k] - seen[k]) for k in want if seen[k] != want[k]}
         print(f"    {label} {span}: lead hours missing per month {short} - asking month by month", flush=True)
         for q in parts.values():
             q.unlink(missing_ok=True)
         return False
     for k, q in parts.items():
-        q.replace(need[k])
-    print(f"    {label} {span}: {len(need)} month chunks written", flush=True)
+        q.replace(dests[k])
+    print(f"    {label} {span}: {len(want)} month chunk(s) written", flush=True)
     return True
 
 
