@@ -57,6 +57,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 from localdirs import env_dir
+import cds_seq
 from seas5_outlook import ASSETS, DATA, CENTRE, SYSTEM, _client, hc_path, nleads, previous_issues
 from seas5_build import valid_months
 import seas5_ref as R
@@ -210,7 +211,8 @@ def fetch_chunk(region: str, ym: str, k: int) -> bool:
         t0 = time.time()
         try:
             print(f"  CDS 6-hourly {region} {ym} month {k} ({len(hours)} steps) …", flush=True)
-            _client().retrieve("seasonal-original-single-levels", req, str(tmp))
+            if not cds_seq.held("seasonal-original-single-levels", req, tmp):
+                _client().retrieve("seasonal-original-single-levels", req, str(tmp))
             if tmp.exists() and tmp.stat().st_size > 0:
                 os.replace(tmp, dest)
                 print(f"    done {dest.stat().st_size / 1e6:.0f} MB in {(time.time() - t0) / 60:.1f} min", flush=True)

@@ -31,6 +31,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import cds_seq
 from seas5_outlook import DATA, CENTRE, SYSTEM, _client
 
 DIR = DATA / "regimes"
@@ -68,7 +69,8 @@ def _retrieve(req: dict, dest: Path, what: str) -> bool:
         t0 = time.time()
         try:
             print(f"  CDS z500 {what} …", flush=True)
-            _client().retrieve("seasonal-original-pressure-levels", req, str(tmp))
+            if not cds_seq.held("seasonal-original-pressure-levels", req, tmp):
+                _client().retrieve("seasonal-original-pressure-levels", req, str(tmp))
             if tmp.exists() and tmp.stat().st_size > 0:
                 os.replace(tmp, dest)
                 print(f"    done {dest.stat().st_size / 1e6:.0f} MB in {(time.time() - t0) / 60:.1f} min", flush=True)

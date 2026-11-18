@@ -34,6 +34,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cds_seq
 from seas5_outlook import DATA, CENTRE, SYSTEM, CLIM_YEARS, _client, nleads
 from seas5_popT import REGIONS, SIXH, MONTHS, fetch_hc_months, month_hours, years_hours
 
@@ -79,7 +80,8 @@ def fetch_chunk(region: str, ym: str, k: int) -> bool:
         t0 = time.time()
         try:
             print(f"  CDS extremes {region} {ym} month {k} ({len(hours)} steps) …", flush=True)
-            _client().retrieve("seasonal-original-single-levels", req, str(tmp))
+            if not cds_seq.held("seasonal-original-single-levels", req, tmp):
+                _client().retrieve("seasonal-original-single-levels", req, str(tmp))
             if tmp.exists() and tmp.stat().st_size > 0:
                 os.replace(tmp, dest)
                 print(f"    done {dest.stat().st_size / 1e6:.0f} MB in {(time.time() - t0) / 60:.1f} min", flush=True)
@@ -148,7 +150,8 @@ def fetch_hindcast(region: str, ym: str, k: int) -> bool:
                 f"  CDS hindcast extremes {region} start {ym[4:]} month {k} ({len(hours)} days × {len(CLIM_YEARS)} yr) …",
                 flush=True,
             )
-            _client().retrieve("seasonal-original-single-levels", req, str(tmp))
+            if not cds_seq.held("seasonal-original-single-levels", req, tmp):
+                _client().retrieve("seasonal-original-single-levels", req, str(tmp))
             if tmp.exists() and tmp.stat().st_size > 0:
                 os.replace(tmp, dest)
                 print(f"    done {dest.stat().st_size / 1e6:.0f} MB in {(time.time() - t0) / 60:.1f} min", flush=True)

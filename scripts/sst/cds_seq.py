@@ -256,6 +256,22 @@ def adopt(client, dataset: str, req: dict, skip: set | frozenset = frozenset()):
     return None
 
 
+def held(dataset: str, req: dict, tmp) -> bool:
+    """tmp written from a job of this key that already holds the request (adopt), awaited if it is still queued;
+    False when there is none or its results are gone, and the caller sends the request itself. Raw hindcast files
+    are not kept between runs, so this is what lets a later run pick up where an earlier one ran out of time."""
+    remote = adopt(_client(), dataset, req)
+    if remote is None:
+        return False
+    print(f"    adopting the key's job {remote.request_id} ({remote.status})", flush=True)
+    try:
+        remote.download(str(tmp))
+    except Exception as e:  # noqa: BLE001
+        print(f"    adopted job failed ({str(e)[:120]}) - sending the request anew", flush=True)
+        return False
+    return Path(tmp).exists() and Path(tmp).stat().st_size > 0
+
+
 def _reason(remote, status: str) -> str:
     """Why a job ended without a result. A rejection's text is only in the answer of the results endpoint."""
     with contextlib.suppress(Exception):  # noqa: BLE001

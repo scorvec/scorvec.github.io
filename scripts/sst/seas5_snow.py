@@ -39,6 +39,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cds_seq
 from seas5_outlook import ASSETS, DATA, CENTRE, SYSTEM, CLIM_YEARS, L7_STATE, _client, hc_path, nleads
 from seas5_build import load_field, valid_months
 from seas5_popT import fetch_hc_months, month_hours, month_span, years_hours
@@ -92,7 +93,8 @@ def _fetch(ym: str, m7: bool) -> bool:
         t0 = time.time()
         try:
             print(f"  CDS snowfall NA {ym} ({len(hours)} daily steps) …", flush=True)
-            _client().retrieve("seasonal-original-single-levels", req, str(tmp))
+            if not cds_seq.held("seasonal-original-single-levels", req, tmp):
+                _client().retrieve("seasonal-original-single-levels", req, str(tmp))
             if tmp.exists() and tmp.stat().st_size > 0:
                 os.replace(tmp, dest)
                 print(f"    done {dest.stat().st_size / 1e6:.0f} MB in {(time.time() - t0) / 60:.1f} min", flush=True)
@@ -155,7 +157,8 @@ def fetch_hindcast(ym: str, k: int) -> bool:
                 f"  CDS snowfall hindcast NA start {ym[4:]} month {k} ({len(hours)} steps × {len(CLIM_YEARS)} yr) …",
                 flush=True,
             )
-            _client().retrieve("seasonal-original-single-levels", req, str(tmp))
+            if not cds_seq.held("seasonal-original-single-levels", req, tmp):
+                _client().retrieve("seasonal-original-single-levels", req, str(tmp))
             if tmp.exists() and tmp.stat().st_size > 0:
                 os.replace(tmp, dest)
                 print(f"    done {dest.stat().st_size / 1e6:.0f} MB in {(time.time() - t0) / 60:.1f} min", flush=True)

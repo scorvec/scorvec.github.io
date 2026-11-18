@@ -32,6 +32,7 @@ import xarray as xr
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cds_seq
 from seas5_outlook import ASSETS, CENTRE, DATA, L7_STATE, SYSTEM, CLIM_YEARS, _client, nleads
 from seas5_popT import REGIONS, fetch_hc_months, in_month, years_hours
 import seas5_ref as SR
@@ -145,7 +146,8 @@ def _retrieve(dest: Path, years, ym, k, label):
         t0 = time.time()
         try:
             print(f"  CDS 10 m wind {label} {ym} month {k} ({len(hours)} steps × {len(years)} yr) …", flush=True)
-            _client().retrieve("seasonal-original-single-levels", req, str(tmp))
+            if not cds_seq.held("seasonal-original-single-levels", req, tmp):
+                _client().retrieve("seasonal-original-single-levels", req, str(tmp))
             if tmp.exists() and tmp.stat().st_size > 0:
                 os.replace(tmp, dest)
                 print(f"    done {dest.stat().st_size / 1e6:.0f} MB in {(time.time() - t0) / 60:.1f} min", flush=True)

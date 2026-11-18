@@ -43,6 +43,7 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import cds_seq
 from seas5_outlook import CENTRE, DATA, KINDS, SYSTEM, fc_path
 
 LEAD = 7
@@ -247,7 +248,8 @@ def _cds(dataset: str, req: dict, dest: Path, label: str) -> bool:
                 f"  CDS {label}: {len(req.get('leadtime_hour', req.get('leadtime_month', [])))} steps × {len(req['year'])} yr → {dest.name} …",
                 flush=True,
             )
-            _client().retrieve(dataset, req, str(tmp))
+            if not cds_seq.held(dataset, req, tmp):
+                _client().retrieve(dataset, req, str(tmp))
             if tmp.exists() and tmp.stat().st_size > 0:
                 os.replace(tmp, dest)
                 dt = (time.time() - t0) / 60
