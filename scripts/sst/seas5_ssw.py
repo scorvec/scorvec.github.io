@@ -452,8 +452,10 @@ def build(ym: str) -> dict:
     m2 = merra2_u60()
     obs = {}
     for y in range(1980, 2026):
-        s = m2[f"{y}-{int(month):02d}-01" : f"{y + 1}-05-03"]
-        if len(s) < 200 or s.index[-1] < pd.Timestamp(f"{y + 1}-04-30"):
+        lo, hi = pd.Timestamp(f"{y}-{int(month):02d}-01"), pd.Timestamp(f"{y + 1}-05-03")
+        s = m2[lo:hi]
+        # the winter must be (nearly) whole; its length depends on the start month (215 days from October, 184 from November)
+        if len(s) < 0.93 * ((hi - lo).days + 1) or s.index[-1] < pd.Timestamp(f"{y + 1}-04-30"):
             continue
         r = detect(s.values, s.index)
         obs[y] = {"ssw": [str(d.date()) for d in r["ssw"]], "fw": str(r["fw"].date()) if r["fw"] is not None else None}
