@@ -520,11 +520,13 @@ def render_combined(product: str, models: tuple, out: Path) -> Path | None:
     ns = 1 if P.scalar else 0
     fig = plt.figure(figsize=(13.6, 3.4 * nk + 3.6 * ns + 1.0))
     gs = fig.add_gridspec(nk + ns, len(have), height_ratios=(*(1,) * nk, *(0.8,) * ns), hspace=0.5, wspace=0.16)
+    row = {}  # a row's panels share one y scale, so the models compare by eye
     for j, (m, rs) in enumerate(have.items()):
         col, lab = MODEL_COLOUR[m], MODEL_LABEL[m]
         mine = rs[-SHOW:]
         for i, (key, K) in enumerate(keys.items()):
-            ax = fig.add_subplot(gs[i, j])
+            ax = fig.add_subplot(gs[i, j], sharey=row.get(i))
+            row.setdefault(i, ax)
             shown = [r for r in mine if key in r]
             for k, r in enumerate(shown):
                 new = k == len(shown) - 1
