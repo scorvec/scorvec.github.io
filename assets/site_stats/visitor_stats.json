@@ -1,8 +1,8 @@
 {
  "updated": "2026-11-20",
- "total_30d": 3790,
+ "total_30d": 3792,
  "countries_30d": 66,
- "total_all": 5163,
+ "total_all": 5165,
  "countries_all": 70,
  "top_pages_30d": [
   {
@@ -39,7 +39,7 @@
   },
   {
    "path": "/ens-anomalies.html",
-   "count": 128
+   "count": 129
   },
   {
    "path": "/models.html",
