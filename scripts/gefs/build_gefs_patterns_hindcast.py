@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Calibration file of the GEFS pattern products: gefs_patterns_calib.npz for release gefs-ref-v1, built in Actions
+"""Calibration file of the GEFS pattern products: gefs_patterns_calib.npz for release gefs-ref-v2, built in Actions
 (gefs-calib.yml). The GEPS page's teleconnection and regime hindcasts (telecon_hindcast.py,
 scripts/regimes/build_regime_hindcast.py) ported to the GEFSv12 reforecast.
 
@@ -51,6 +51,7 @@ Outputs (gefs_patterns_calib.npz)
                  (--cluster-power M, kept in work/cluster_power.json and merged into every build)
 
     python build_gefs_patterns_hindcast.py --make-truth      # offline, from the NCEP/ERA5 stores -> TRUTH
+    python build_gefs_patterns_hindcast.py --make-truth --extend   # only the indices TRUTH lacks
     python build_gefs_patterns_hindcast.py --hind DIR [--check 266] [--cluster-power 31]
     python build_gefs_patterns_hindcast.py --rf2 DIR ...        # rf2_<start>.npz files instead (testing)
 """
@@ -229,10 +230,11 @@ def z100_leave_out(TH, dates):
     return out
 
 
-def make_truth(ref, out: Path):
+def make_truth(ref, out: Path, extend: bool = False):
     """The observed side of the hindcast, every day T0..T1, from the stores the patterns and the ERA5 shifts were built
     on (offline): NCEP/NCAR R1 daily indices and regimes, and the index of the ERA5 normal's leave-out (season_left_out
-    projected with each index's projector of that date) -> out."""
+    projected with each index's projector of that date) -> out. extend: only the indices `out` lacks are computed and
+    added; everything already in it (regimes included) is kept verbatim."""
     sys.path[:0] = [str(HERE.parent / "geps" / "build"), str(HERE.parent / "geps")]
     import build_telecon_patterns as b
     import telecon_hindcast as TH
@@ -240,8 +242,18 @@ def make_truth(ref, out: Path):
     days = truth_days()
     mo = np.array([d.month for d in days])
     dy = np.array([GP.doy(d) for d in days])
+    old = {}
+    if extend:
+        with np.load(out) as z:
+            old = {k: z[k] for k in z.files}
+    want = [sid for sid in ref.ids if f"obs_{sid}" not in old]
+    if not want:
+        print(f"{out} already holds every index of the reference", flush=True)
+        return
     save = {}
     for var, level, fld in (("hgt", 500, "z500"), ("slp", None, "slp"), ("hgt", 100, "z100")):
+        if extend and not any(ref.pat[sid]["field"] == fld for sid in want):
+            continue
         a = b.daily(var, list(range(T0.year, T1.year + 1)), level)
         assert np.allclose(a.lat.values, GP.LAT25) and np.allclose(a.lon.values, GP.LON25)
         t = [dt.date.fromisoformat(str(x)[:10]) for x in a.time.values]
@@ -249,10 +261,10 @@ def make_truth(ref, out: Path):
             raise SystemExit(f"NCEP {fld}: days {t[0]} .. {t[-1]} do not cover {T0} .. {T1} without gaps")
         t, a = days, a.isel(time=slice(0, len(days)))
         an = a.values.astype("float64") - R.at_key(TH.ncep_normal(fld), dy)
-        for sid in ref.ids:
+        for sid in want:
             if ref.pat[sid]["field"] == fld:
                 save[f"obs_{sid}"] = ref.index(sid, an, mo, dy).astype("float32")
-        if fld == "z500":
+        if fld == "z500" and not extend:
             for sk in GP.SECTORS:
                 sec, _, _ = GP.sector_cut(an, GP.SECTORS[sk])
                 v = GP.running_partial(sec, GP.SMOOTH, axis=0)
@@ -265,10 +277,12 @@ def make_truth(ref, out: Path):
                     save[f"reg_{sk}_{season}_trail"] = ref.classify(tr, sk, season)[0].astype("int8")
         print(f"  observed {fld}: {len(t)} days {t[0]} .. {t[-1]}", flush=True)
     for tag in GP.TAGS:
+        sids = [sid for sid in want if ref.pat[sid]["field"] == GP.FIELD[tag]]
+        if not sids:
+            continue
         dE = z100_leave_out(TH, days) if tag == "zg100" else TH.era5_leave_out(tag, days)
-        for sid in ref.ids:
-            if ref.pat[sid]["field"] == GP.FIELD[tag]:
-                save[f"era5_{sid}"] = ref.index(sid, dE * GP.UNITS[tag], mo, dy).astype("float32")
+        for sid in sids:
+            save[f"era5_{sid}"] = ref.index(sid, dE * GP.UNITS[tag], mo, dy).astype("float32")
         print(f"  ERA5 leave-out {tag}: rms {np.sqrt(np.mean(dE.astype('float64') ** 2)):.3g} (m or Pa)", flush=True)
     meta = {
         "first": T0.isoformat(),
@@ -278,6 +292,10 @@ def make_truth(ref, out: Path):
         "era5": "index of (ERA5 2001-2020 normal without the date's own season - that normal), seasonal sd: add to a "
         "hindcast index re-based with the full normal (telecon_hindcast.season_left_out)",
     }
+    if extend:
+        meta = json.loads(str(old.pop("meta_json")))
+        meta["extended"] = [*meta.get("extended", []), f"{', '.join(want)}: the rest verbatim"]
+        save = old | save
     out.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(out, meta_json=np.array(json.dumps(meta)), **save)
     print(f"{out}  {out.stat().st_size / 1e6:.2f} MB", flush=True)
@@ -430,6 +448,7 @@ def main() -> int:
     ap.add_argument("--out", default=OUT and str(OUT / GP.CALIB_NAME), required=OUT is None)
     ap.add_argument("--truth", default=str(TRUTH), help="the observed side (built by --make-truth)")
     ap.add_argument("--make-truth", action="store_true", help="build --truth from the NCEP/ERA5 stores and stop")
+    ap.add_argument("--extend", action="store_true", help="with --make-truth: add only the indices --truth lacks")
     work = env_dir_if_set("DATA_ARCHIVE", "gefs_port_test", "patterns", "work")
     ap.add_argument("--work", default=work and str(work), required=work is None)
     ap.add_argument("--workers", type=int, default=2)
@@ -449,7 +468,7 @@ def main() -> int:
     a = ap.parse_args()
     ref = GP.Ref(Path(a.ref))
     if a.make_truth:
-        make_truth(ref, Path(a.truth))
+        make_truth(ref, Path(a.truth), a.extend)
         return 0
     work = Path(a.work)
     work.mkdir(parents=True, exist_ok=True)
