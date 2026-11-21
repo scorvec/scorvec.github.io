@@ -76,7 +76,7 @@ PRODUCTS = {
         "Northern polar vortex",
         {
             "u10": Key("u 10 hPa, 60°N", "m s⁻¹", 1, "#a33", "m s⁻¹", "u 10 hPa"),
-            "zcap": Key("100 hPa 65–90°N cap height anomaly", "m", 0, unit="m", short="cap height"),
+            "zcap": Key("100 hPa 65–90°N cap height anomaly", "m", 0, unit="m", short="cap height 100 hPa"),
         },
         ("ssw", "Chance of a sudden warming by day 15: members easterly at 10 hPa, 60°N on any day", "% of members"),
         note="Height anomaly against the MERRA-2 1980– median detrended to the current year, as on the main vortex figure. "
