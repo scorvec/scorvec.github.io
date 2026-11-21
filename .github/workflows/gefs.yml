@@ -75,10 +75,15 @@ jobs:
           path: /tmp/gefs_work/clim
           key: gefs-cache-
           restore-keys: gefs-cache-
-      - name: Reference files (release gefs-ref-v1)
+      - name: Reference files (releases gefs-ref-v1, gefs-ref-v2)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release download gefs-ref-v1 --repo "$GITHUB_REPOSITORY" -D /tmp/gefs_work/ref --clobber && ls -la /tmp/gefs_work/ref
+        # gefs-ref-v2 holds the pattern reference and its calibration with the NAO flavours and the GBI; it replaces
+        # v1's copies of those two files
+        run: |
+          gh release download gefs-ref-v1 --repo "$GITHUB_REPOSITORY" -D /tmp/gefs_work/ref --clobber
+          gh release download gefs-ref-v2 --repo "$GITHUB_REPOSITORY" -p gefs_patterns_ref.npz -p gefs_patterns_calib.npz -D /tmp/gefs_work/ref --clobber
+          ls -la /tmp/gefs_work/ref
       - name: GEFS extended run (the members and the drift estimate)
         id: run
         run: |

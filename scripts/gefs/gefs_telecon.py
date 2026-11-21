@@ -4,7 +4,10 @@ and an observed tail. The GEPS page's telecon_geps.py ported to the GEFS extende
 
 The projectors are the GEPS page's (CPC-style patterns on NCEP/NCAR R1 1991-2020 - regression on CPC's monthly NH
 indices, SLP EOF1 for the AO/AAO, PSL's EPO/WPO boxes, CPC's SOI/EQSOI boxes, NAM at 100 hPa as the demeaned EOF1),
-shipped in gefs_patterns_ref.npz. They are applied on the same 2.5 deg grid and in the same units to:
+and the NAO's other definitions with the Greenland Blocking Index (Hurrell's and Jones's station pairs and Hurrell's
+principal component in sea-level pressure, Hanna's 500 hPa box; GP.NAO_FLAVOURS, drawn behind the NAO's picker and in
+their own probability figure), shipped in gefs_patterns_ref.npz. They are applied on the same 2.5 deg grid and in the
+same units to:
 
   members    every GEFS member's de-drifted daily anomaly (gefs_patterns.member_anoms: forecast minus the lead-matched
              GEFSv12 reforecast climatology at the init day of year, re-based to 1991-2020 with the ERA5 period shift),
@@ -36,7 +39,8 @@ Units: seasonal standard deviations of the DAILY index over 1991-2020 (std withi
 
     python gefs_telecon.py --npz /tmp/gefs_work/gefs2_20260925.npz --date 20260925 --site . --cache /tmp/gefs_work
     -> assets/gefs/gefs_telecon_series.webp, gefs_telecon_plume_<id>.webp, gefs_telecon_probs.webp,
-       assets/gefs/data/gefs_telecon.json; run archive gefs_telecon_<date>.npz (+ the analysis tail files)
+       gefs_telecon_probs_nao.webp, assets/gefs/data/gefs_telecon.json; run archive gefs_telecon_<date>.npz (+ the
+       analysis tail files)
 """
 
 from __future__ import annotations
@@ -411,12 +415,12 @@ def _plume_panel(ax, ref, sid, base, prev_date, fc, pfc, obs, cpc, n_members, bi
     rt = (
         f"r vs {ref_} daily {m['r_daily']:+.2f}"
         if "r_daily" in m
-        else f"r vs CPC monthly {m['r_monthly']:+.2f}"
+        else f"r vs {ref_} monthly {m['r_monthly']:+.2f}"
         + (f" · vs {m['daily_reference']} daily {m['r_daily_ref']:+.2f}" if "r_daily_ref" in m else "")
         if "r_monthly" in m
         else "no external reference"
     )
-    ax.set_title(f"{sid.upper()} — {m['name']}", fontsize=9.6 * fs, fontweight="bold", loc="left", pad=4)
+    ax.set_title(GP.title(ref, sid), fontsize=9.6 * fs, fontweight="bold", loc="left", pad=4)
     ax.text(
         0.985,
         0.955,
@@ -471,7 +475,7 @@ def plot_plumes(ref, base, prev_date, fc, pfc, obs, cpc, n_members, out: Path):
         fig = plt.figure(figsize=(12.4, 5.6))
         ax = fig.add_axes([0.06, 0.13, 0.925, 0.77])
         ax.axis("off")
-        ax.set_title(f"{sid.upper()} — {ref.pat[sid]['name']}", fontsize=12, fontweight="bold", loc="left", pad=4)
+        ax.set_title(GP.title(ref, sid), fontsize=12, fontweight="bold", loc="left", pad=4)
         dm = sorted(ref.defined[sid])
         ax.text(
             0.5,
@@ -503,7 +507,7 @@ def plot_plumes(ref, base, prev_date, fc, pfc, obs, cpc, n_members, out: Path):
 
 def plot_series(ref, base, prev_date, fc, pfc, obs, cpc, n_members, out: Path):
     plt = _plt()
-    ids = [i for i in ref.ids if i in fc]
+    ids = [i for i in ref.ids if i in fc and i not in GP.NAO_FLAVOURS]
     ncol = 4
     nrow = (len(ids) + ncol - 1) // ncol
     fig = plt.figure(figsize=(17.0, 3.15 * nrow + 0.9))
@@ -547,15 +551,17 @@ def plot_series(ref, base, prev_date, fc, pfc, obs, cpc, n_members, out: Path):
     print("  gefs_telecon_series.webp", flush=True)
 
 
-def plot_probs(ref, base, prev_date, weeks, n_members, out: Path):
+def plot_probs(ref, base, prev_date, weeks, n_members, out: Path, nao=False):
+    """The weekly phase probabilities of the main indices, or (nao) of the NAO's definitions and the GBI."""
     plt = _plt()
     from matplotlib.patches import Patch, Rectangle
 
-    ids = [i for i in ref.ids if i in weeks]
+    ids = [i for i in ref.ids if i in weeks and (i in GP.NAO_FLAVOURS or (nao and i == "nao")) == nao]
     n = len(ids)
     has_cal = any("skill_r" in r for sid in ids for r in weeks[sid])
-    fig = plt.figure(figsize=(13.6, 0.80 * n + 2.6))
-    ax = fig.add_axes([0.205, 0.075, 0.765, 0.79])
+    H = 0.80 * n + 2.6  # inches; the margins below are fixed in inches so a five-row figure keeps its note clear
+    fig = plt.figure(figsize=(13.6, H))
+    ax = fig.add_axes([0.205, 1.15 / H, 0.765, 1.0 - 2.75 / H])
     W, bw = len(GP.WEEKS), 0.78
 
     def bar(y, h, pn, pp, x0, txt=True):
@@ -640,7 +646,9 @@ def plot_probs(ref, base, prev_date, weeks, n_members, out: Path):
     ax.set_yticks(range(n))
     ax.set_yticklabels(
         [
-            f"{sid.upper()}  {ref.pat[sid]['name'].replace('Northern Annular Mode, 100 hPa', 'N. Annular Mode 100 hPa')}"
+            "NAO, CPC 500 hPa pattern"
+            if nao and sid == "nao"
+            else GP.title(ref, sid, "  ").replace("Northern Annular Mode, 100 hPa", "N. Annular Mode 100 hPa")
             for sid in ids
         ][::-1],
         fontsize=8.8,
@@ -664,18 +672,19 @@ def plot_probs(ref, base, prev_date, weeks, n_members, out: Path):
             Patch(color="#b4453c", label=f"P(weekly mean ≥ +{THR} sd)"),
         ],
         loc="upper center",
-        bbox_to_anchor=(0.59, 0.945),
+        bbox_to_anchor=(0.59, 1.0 - 0.85 / H),
         ncol=3,
         fontsize=8.4,
         frameon=False,
     )
     fig.suptitle(
-        f"Teleconnection phase probabilities by week — GEFS {n_members} members · init {base:%Y-%m-%d}"
+        ("NAO definitions and Greenland blocking" if nao else "Teleconnection phase probabilities")
+        + f" by week — GEFS {n_members} members · init {base:%Y-%m-%d}"
         + (f"  ·  Δ = change in weekly mean vs the {GP.parse_date(prev_date):%b %d} run" if prev_date else "")
         + GP.TEST_NOTE,
         fontsize=12.5,
         fontweight="bold",
-        y=0.985,
+        y=1.0 - 0.23 / H,
         va="top",
     )
     step = 100.0 / n_members
@@ -693,10 +702,11 @@ def plot_probs(ref, base, prev_date, weeks, n_members, out: Path):
             else ""
         )
     )
-    fig.text(0.5, 0.006, note, ha="center", va="bottom", fontsize=7.8, color=GP.MUTED)
-    GP.save_webp(fig, out / "gefs_telecon_probs.webp")
+    fig.text(0.5, 0.09 / H, note, ha="center", va="bottom", fontsize=7.8, color=GP.MUTED)
+    name = "gefs_telecon_probs_nao.webp" if nao else "gefs_telecon_probs.webp"
+    GP.save_webp(fig, out / name)
     plt.close(fig)
-    print("  gefs_telecon_probs.webp", flush=True)
+    print(f"  {name}", flush=True)
 
 
 def _finite(v):
@@ -752,6 +762,7 @@ def main() -> int:
     plot_series(ref, base, prev_date, fc, pfc, obs, cpc, n_members, out)
     plot_plumes(ref, base, prev_date, fc, pfc, obs, cpc, n_members, out)
     plot_probs(ref, base, prev_date, weeks, n_members, out)
+    plot_probs(ref, base, prev_date, weeks, n_members, out, nao=True)
     js = {
         "cycle": a.date,
         "prev_cycle": prev_date,
@@ -775,6 +786,7 @@ def main() -> int:
         m = ref.pat[sid]
         rec = {
             "name": m["name"],
+            "set": "nao" if sid in GP.NAO_FLAVOURS else "main",
             "cpc": m.get("cpc"),
             "field": m["field"],
             "reference": m.get("reference", "CPC" if m.get("cpc") else None),

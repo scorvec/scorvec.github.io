@@ -367,12 +367,17 @@ var P = {
         cap: function () { return "This run minus the previous daily run, weekly means over the valid days both forecast. Week 5 is a partial week and says so."; }},
   telecon: {label: "Teleconnections — AO, NAO, PNA, EPO, WPO, NAM …", fit: false,
         a: {label:"View", items:[["series","Index plumes"],["probs","Weekly probabilities"],["patterns","Loading patterns"]]},
-        b: function (a) { return a === "series" ? {label:"Index", items: TELE_IDS} : null; },
-        img: function (a,b) { return a === "patterns" ? "assets/geps/geps_telecon_patterns.webp"
-          : (a === "series" && b && b !== "board" ? "assets/gefs/gefs_telecon_plume_" + b + ".webp" : "assets/gefs/gefs_telecon_" + a + ".webp"); },
-        cap: function (a) { return a==="series"
+        b: function (a) { return a === "series" ? {label:"Index", items: TELE_IDS}
+          : (a === "probs" ? {label:"Indices", items:[["main","All indices"],["nao","NAO flavours"]]} : null); },
+        c: function (a,b) { return a === "series" && b === "nao" ? {label:"Flavour", items: NAO_FLAVOURS} : null; },
+        img: function (a,b,c) { return a === "patterns" ? "assets/geps/geps_telecon_patterns.webp"
+          : (a === "probs" ? "assets/gefs/gefs_telecon_probs" + (b === "nao" ? "_nao" : "") + ".webp"
+          : (b && b !== "board" ? "assets/gefs/gefs_telecon_plume_" + (b === "nao" && c ? c : b) + ".webp" : "assets/gefs/gefs_telecon_series.webp")); },
+        cap: function (a,b,c) { return a==="series" && b==="nao" && c && c!=="nao"
+          ? NAO_FLAVOUR_CAP[c] + " Every member projected the same way; the tail is GEFS’s own control analyses, previous run dashed. Units: seasonal standard deviations of the daily index."
+          : a==="series"
           ? "Every member projected on CPC-style loading patterns (EPO/WPO on PSL’s box definitions, NAM at 100 hPa as the annular EOF); the tail is GEFS’s own control analyses on the same projection, the published daily index as crosses (for EPO/WPO, ERA5 on PSL’s boxes: PSL’s series ended with NCEP/NCAR R1 in March 2026), previous run dashed. Pick one index for a full-size plume. Units: seasonal standard deviations of the daily index, i.e. relative to this time of year."
-          : (a==="probs" ? "Upper bar: member fractions of the weekly-mean index at or beyond ±0.5 seasonal sd. Thin lower bar: the same probabilities calibrated on 20 years of GEFSv12 reforecasts, with the reforecast skill (anomaly correlation) for that index and week, scored out of sample: each reforecast start is de-drifted and re-based without its own season. Hatched cells: skill not significantly above zero (one-sided 5 % test on the reforecast's effective sample) — the members’ opinion is shown but should not be trusted."
+          : (a==="probs" ? (b==="nao" ? "The NAO by four definitions, and Greenland blocking (high Greenland heights go with a negative NAO). " : "") + "Upper bar: member fractions of the weekly-mean index at or beyond ±0.5 seasonal sd. Thin lower bar: the same probabilities calibrated on 20 years of GEFSv12 reforecasts, with the reforecast skill (anomaly correlation) for that index and week, scored out of sample: each reforecast start is de-drifted and re-based without its own season. Hatched cells: skill not significantly above zero (one-sided 5 % test on the reforecast's effective sample) — the members’ opinion is shown but should not be trusted."
                          : "Regression of the monthly field on each index (m or hPa per +1 sd), NCEP/NCAR R1 1991–2020, with the correlation of this reproduction against CPC’s own index. The same patterns as the GEPS page."); }},
   regimes: {label: "Weather regimes — Euro-Atlantic & North America", fit: false,
         a: {label:"Sector", items:[["ea","Euro-Atlantic"],["na","North America / Pacific"]]},
@@ -405,6 +410,13 @@ var TELE_IDS = [["board","All indices (board)"],["ao","AO — Arctic Oscillation
   ["ea","EA — East Atlantic"],["wp","WP — West Pacific"],["epnp","EP/NP — East Pacific / North Pacific"],
   ["eawr","EA/WR — East Atlantic / West Russia"],["sca","SCA — Scandinavia"],["tnh","TNH — Tropical / N. Hemisphere (Dec–Feb)"],
   ["pol","POL — Polar / Eurasia"],["nam100","NAM 100 hPa — Northern Annular Mode"],["aao","AAO — Antarctic Oscillation (SAM)"]];
+var NAO_FLAVOURS = [["nao","CPC"],["nao_hurrell","Hurrell stations"],["nao_pc","Hurrell PC"],["nao_jones","Jones"],["gbi","Greenland blocking"]];
+var NAO_FLAVOUR_CAP = {
+  nao_hurrell: "Hurrell’s station NAO: sea-level pressure at Lisbon minus Stykkishólmur/Reykjavík, each standardised.",
+  nao_pc: "Hurrell’s principal-component NAO: the leading pattern of Atlantic-sector sea-level pressure (20–80°N, 90°W–40°E), month by month.",
+  nao_jones: "Jones’s station NAO: sea-level pressure at Gibraltar minus south-west Iceland, each standardised.",
+  gbi: "Greenland Blocking Index: mean 500 hPa height over 60–80°N, 80–20°W (Hanna et al.); high values are blocked, and go with a negative NAO."};
+var TELE_SHORT = {nao_hurrell: "NAO-H", nao_pc: "NAO-PC", nao_jones: "NAO-J"};
 var GROUPS = [["Maps", "\u{1F5FA}", [["weekly","Weekly means","weeks 1–5, ten fields"],["probs","Weekly terciles","temperature and precipitation"],["change","Change vs previous run","this run minus the last"],["daily","Daily animation","ten fields, day by day"],["drift","Drift correction","operational vs reforecast"]]],
               ["Patterns", "⚙", [["telecon","Teleconnections","AO, NAO, PNA, EPO …"],["regimes","Weather regimes","Euro-Atlantic, N. America"],["clusters","500 hPa scenarios","ensemble clusters by week"]]],
               ["Tropics", "\u{1F30A}", [["mjo","MJO","RMM plume, propagation, skill"]]]];
@@ -446,16 +458,20 @@ function teleTable(show) {
     return;
   }
   if (!TELE) return;
-  var ids = Object.keys(TELE.indices);
+  // the NAO's flavours replace the other indices while the NAO's picker is open
+  var nao = sel.b === "nao";
+  var ids = Object.keys(TELE.indices).filter(function (id) {
+    return nao ? id === "nao" || TELE.indices[id].set === "nao" : TELE.indices[id].set !== "nao";
+  });
   var wk = TELE.indices[ids[0]].weeks;
   var h = '<table class="tele"><thead><tr><th>index</th>';
   wk.forEach(function (w) {
     h += "<th>week " + w.week + "<span>" + w.d0.slice(5).replace("-", "/") + " \u2013 " + w.d1.slice(5).replace("-", "/") + (w.ndays < 7 ? " (" + w.ndays + " d)" : "") + "</span></th>";
   });
-  h += "<th>vs CPC<span>out of sample</span></th></tr></thead><tbody>";
+  h += (nao ? "<th>vs published<span>index</span></th>" : "<th>vs CPC<span>out of sample</span></th>") + "</tr></thead><tbody>";
   ids.forEach(function (id) {
     var x = TELE.indices[id];
-    h += "<tr><th>" + id.toUpperCase() + "<span>" + x.name + "</span></th>";
+    h += "<tr><th>" + (TELE_SHORT[id] || id.toUpperCase()) + "<span>" + x.name + "</span></th>";
     x.weeks.forEach(function (w) {
       var tilt = w.p_pos - w.p_neg;
       var bg = tilt > 0 ? "rgba(180,69,60," + (0.08 + 0.55 * tilt) + ")"
@@ -466,10 +482,11 @@ function teleTable(show) {
       var cls = w.no_skill ? ' class="wk noskill"' : ' class="wk"';
       h += '<td' + cls + ' style="background:' + bg + '"><b>' + Math.round(w.p_neg * 100) + "% / " + Math.round(w.p_pos * 100) + "%</b><span>mean " + (w.mean >= 0 ? "+" : "") + w.mean.toFixed(1) + d + "</span>" + cal + "</td>";
     });
-    var r = x.r_daily != null ? "r " + x.r_daily.toFixed(2) + " daily" : (x.r_monthly != null ? "r " + x.r_monthly.toFixed(2) + " monthly" : "\u2014");
+    var src = x.reference && x.reference !== "CPC" ? ", " + x.reference : "";
+    var r = x.r_daily != null ? "r " + x.r_daily.toFixed(2) + " daily" + src : (x.r_monthly != null ? "r " + x.r_monthly.toFixed(2) + " monthly" + src : "\u2014");
     h += "<td class=\"r\">" + r + "</td></tr>";
   });
-  h += "</tbody></table><p class=\"cap\">P(weekly mean \u2264 \u2212" + TELE.threshold + " seasonal sd) / P(\u2265 +" + TELE.threshold + " seasonal sd) over " + TELE.n_members + " members; cells tilt red toward the positive phase, blue toward the negative. " + (TELE.prev_cycle ? "\u0394 is the change in the weekly mean since the " + TELE.prev_cycle.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3") + " run. " : "") + "\u201Ccal\u201D is the calibrated probability: the observed weekly index regressed on the hindcast ensemble-mean index over 2000\u20132019 GEFS reforecast Wednesday starts (4 members) within \u00B145 days of this date, applied to today\u2019s ensemble mean, with the regression\u2019s residual spread widened for the uncertainty of its own fit; skill r is the anomaly correlation of the hindcast ensemble mean, out of sample (each reforecast start is de-drifted against a climatology, and re-based with an ERA5 normal, that leave out its own season), so a cal near 31% / 31% with r near 0 is climatology. Hatched cells have skill r below " + TELE.skill_min + " or not significant at 5% (one-sided t-test on an effective sample size corrected for the overlap of weekly starts, and a false discovery rate of 10% over every index and week); NAM 100 hPa is calibrated like the rest, on the reforecast\u2019s 100 hPa height. r is the correlation of this index reproduction with CPC\u2019s published index, scored out of sample (patterns fitted 1991\u20132005, scored 2006\u20132020; AO/AAO are EOFs with no fit to CPC).</p>";
+  h += "</tbody></table><p class=\"cap\">P(weekly mean \u2264 \u2212" + TELE.threshold + " seasonal sd) / P(\u2265 +" + TELE.threshold + " seasonal sd) over " + TELE.n_members + " members; cells tilt red toward the positive phase, blue toward the negative. " + (TELE.prev_cycle ? "\u0394 is the change in the weekly mean since the " + TELE.prev_cycle.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3") + " run. " : "") + "\u201Ccal\u201D is the calibrated probability: the observed weekly index regressed on the hindcast ensemble-mean index over 2000\u20132019 GEFS reforecast Wednesday starts (4 members) within \u00B145 days of this date, applied to today\u2019s ensemble mean, with the regression\u2019s residual spread widened for the uncertainty of its own fit; skill r is the anomaly correlation of the hindcast ensemble mean, out of sample (each reforecast start is de-drifted against a climatology, and re-based with an ERA5 normal, that leave out its own season), so a cal near 31% / 31% with r near 0 is climatology. Hatched cells have skill r below " + TELE.skill_min + " or not significant at 5% (one-sided t-test on an effective sample size corrected for the overlap of weekly starts, and a false discovery rate of 10% over every index and week); NAM 100 hPa is calibrated like the rest, on the reforecast\u2019s 100 hPa height. r is the correlation of this index reproduction with CPC\u2019s published index, scored out of sample (patterns fitted 1991\u20132005, scored 2006\u20132020; AO/AAO are EOFs with no fit to CPC)." + (nao ? " The NAO\u2019s other definitions are checked against the series they reproduce over 1991\u20132020, nothing fitted: Hurrell\u2019s at NCAR, Jones\u2019s at CRU, the Greenland Blocking Index at PSL." : "") + "</p>";
   host.innerHTML = h;
 }
 

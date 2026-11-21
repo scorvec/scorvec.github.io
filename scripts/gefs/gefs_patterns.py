@@ -57,6 +57,9 @@ S3 = "https://noaa-gefs-pds.s3.amazonaws.com"
 REF_URL = "https://github.com/scorvec/scorvec.github.io/releases/download/gefs-ref-v1/{name}"
 REF_NAME = "gefs_patterns_ref.npz"  # projectors, sigmas, regime centroids, ERA5 shifts (climatology-independent)
 CALIB_NAME = "gefs_patterns_calib.npz"  # hindcast fits, regime hindcast labels, day-1 climatology (gefs_hind2)
+# the two files above come from gefs-ref-v2: v1's, extended with the NAO flavours and the GBI (build_gefs_patterns_ref
+# --extend; build_gefs_patterns_hindcast --make-truth --extend), every other index verbatim
+PATTERNS_URL = "https://github.com/scorvec/scorvec.github.io/releases/download/gefs-ref-v2/{name}"
 CENTRES = list(range(1, 366, 5))
 TAGS = ("zg500", "mslp", "zg100")
 FIELD = {"zg500": "z500", "mslp": "slp", "zg100": "z100"}  # the pattern file's field names
@@ -84,7 +87,13 @@ ORDER = [
     "pol",
     "nam100",
     "aao",
+    "nao_hurrell",
+    "nao_pc",
+    "nao_jones",
+    "gbi",
 ]
+# the NAO's other definitions and the Greenland Blocking Index: drawn behind the NAO's own picker, not on the boards
+NAO_FLAVOURS = ("nao_hurrell", "nao_pc", "nao_jones", "gbi")
 # weather regimes (build_regimes.py on the GEPS side: k-means, k = 4, NCEP/NCAR R1 1991-2020, 5-day means)
 SECTORS = {
     "ea": dict(label="Euro-Atlantic", lat=(80, 20), lon=(-90, 30)),
@@ -141,10 +150,18 @@ def cached(url: str, p: Path) -> Path:
 
 
 def ref_path(name: str, cache: Path, local: Path | None = None) -> Path:
-    """A reference file: the local directory if it has it (--ref), else release gefs-ref-v1 into the cache."""
+    """A reference file: the local directory if it has it (--ref), else its release (gefs-ref-v2 for the pattern
+    reference and calibration, gefs-ref-v1 for the rest) into the cache."""
     if local is not None and (Path(local) / name).exists():
         return Path(local) / name
-    return cached(REF_URL.format(name=name), Path(cache) / "ref" / name)
+    url = PATTERNS_URL if name in (REF_NAME, CALIB_NAME) else REF_URL
+    return cached(url.format(name=name), Path(cache) / "ref" / name)
+
+
+def title(ref, sid: str, sep: str = " — ") -> str:
+    """An index's display name; the NAO's other definitions carry "NAO" in their own name."""
+    name = ref.pat[sid]["name"]
+    return name if sid.startswith("nao_") else f"{sid.upper()}{sep}{name}"
 
 
 def refresh(url: str, dest: Path, max_age_h: float = 12.0) -> Path:
@@ -467,7 +484,7 @@ def common_args(ap):
     ap.add_argument("--date", required=True)
     ap.add_argument("--site", required=True)
     ap.add_argument("--cache", required=True, help="download cache (climatology, reference, CPC files)")
-    ap.add_argument("--ref", help="local directory holding the reference files (else release gefs-ref-v1)")
+    ap.add_argument("--ref", help="local directory holding the reference files (else releases gefs-ref-v1/v2)")
     ap.add_argument("--runs", help="run archive (default SITE/assets/gefs/anim/runs, the frames-branch archive)")
     ap.add_argument("--test-clim", help="TEST ONLY: a stand-in c25 climatology npz; stamps every figure")
     return ap
