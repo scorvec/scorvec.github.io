@@ -15,6 +15,8 @@ Outputs (assets/sst/):
   strat_hist_ao.webp                 the Arctic Oscillation after SSWs and strong-vortex events
   strat_hist_regions.webp            how often each region ran cold after each kind of event
   strat_hist_nao.webp                the NAO after SSWs and strong-vortex events (CPC daily NAO)
+  strat_hist_{nao_hurrell,nao_pc,nao_jones,gbi}.webp   the same for the NAO's other definitions and the Greenland
+                                     Blocking Index (ERA5 daily, build_strat_history --add-flavours)
   strat_hist_{follows_cmip6_<set>_<win>,ao_cmip6,nao_cmip6,regions_cmip6}.webp  the same questions in 9 CMIP6 models
                                      (reference/cmip6_follow.nc from build_cmip6_follow.py)
   strat_hist_rates.webp              SSW odds by ENSO, QBO and the solar cycle (sunspot number)
@@ -318,11 +320,19 @@ def gallery(D, E, out):
 IDX_NAME = {
     "ao": ("Arctic Oscillation", "AO", "CPC daily AO"),
     "nao": ("North Atlantic Oscillation", "NAO", "CPC daily NAO"),
+    "nao_hurrell": (
+        "NAO by Hurrell's stations",
+        "NAO",
+        "ERA5 daily NAO, Hurrell's stations (Lisbon minus Stykkisholmur/Reykjavik)",
+    ),
+    "nao_pc": ("NAO by Hurrell's principal component", "NAO", "ERA5 daily NAO, Hurrell's Atlantic pressure pattern"),
+    "nao_jones": ("NAO by Jones's stations", "NAO", "ERA5 daily NAO, Jones's stations (Gibraltar minus Reykjavik)"),
+    "gbi": ("Greenland Blocking Index", "GBI", "ERA5 daily 500 hPa height over 60–80°N, 80–20°W"),
 }
 
 
 def ao_rows(D, E, s, ix="ao"):
-    """Event paths and the calendar-matched baseline of a daily index (ix = "ao" or "nao") for one event set."""
+    """Event paths and the calendar-matched baseline of a daily index (ix, a key of IDX_NAME) for one event set."""
     dates = list(D.ssw_used.values) if s != "sv" else None
     if s == "sv":
         return D[f"{ix}_sv"].values, D[f"{ix}_base_sv"].values
@@ -365,7 +375,7 @@ _WT = {}
 
 
 def window_tests(D, E, ix="ao"):
-    """Index (AO or NAO) mean over days 1-30 and 31-60 minus the same calendar days in other years, per event set:
+    """A daily index's (IDX_NAME) mean over days 1-30 and 31-60 minus the same calendar days in other years, per event set:
     one-sample t-test, Benjamini-Hochberg at 10 % over the index's 12 (set, window) tests. Cached per index;
     {(set, win): (mean, p, significant)}."""
     if ix in _WT:
@@ -1297,6 +1307,11 @@ def main():
         ao_figure(D, E, A / "strat_hist_nao.webp", ix="nao")
         summary["windows_nao"] = {
             f"{k[0]}|{k[1]}": [round(v[0], 2), round(v[1], 4), v[2]] for k, v in window_tests(D, E, "nao").items()
+        }
+    for ix in [k for k in IDX_NAME if k not in ("ao", "nao") and f"{k}_ssw" in D]:  # build_strat_history --add-flavours
+        ao_figure(D, E, A / f"strat_hist_{ix}.webp", ix=ix)
+        summary[f"windows_{ix}"] = {
+            f"{k[0]}|{k[1]}": [round(v[0], 2), round(v[1], 4), v[2]] for k, v in window_tests(D, E, ix).items()
         }
     print(json.dumps(summary, indent=1))
 

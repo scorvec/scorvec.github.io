@@ -594,20 +594,22 @@ window.STAGE = {
             return a === "sv" ? "Polar-cap height from the ground to 1 hPa around strong-vortex events, with the surface Arctic Oscillation below." : "Polar-cap height from the ground to 1 hPa around the warmings, with the surface Arctic Oscillation below: red dripping down to the ground is a weak vortex reaching the surface."; }},
   shfollow: {label: "What usually follows", a: {label: "View", items: [["map","Map, days 1–30"],["map2","Map, days 31–60"],["ao","Arctic Oscillation"],["nao","NAO"],["regions","By region"]]},
           b: {label: "Data", items: [["obs","ERA5 / MERRA-2, since 1980"],["cmip6","CMIP6, 9 models"]]},
-          c: function (a, b) { return (a === "map" || a === "map2") ? {label: "Events", items: b === "cmip6"
+          c: function (a, b) { if (a === "nao" && b !== "cmip6") return {label: "Definition", items: [["nao","CPC"],["nao_hurrell","Hurrell stations"],["nao_pc","Hurrell PC"],["nao_jones","Jones"],["gbi","Greenland blocking"]]};
+                               return (a === "map" || a === "map2") ? {label: "Events", items: b === "cmip6"
                                     ? [["ssw_all","All SSWs"],["ssw_deep","Deep"],["ssw_shallow","Shallow"],["sv","Strong vortex"]]
                                     : [["ssw_all","All SSWs"],["ssw_deep","Deep"],["ssw_shallow","Shallow"],["ssw_split","Splits"],["ssw_disp","Displacements"],["sv","Strong vortex"]]} : null; },
           img: function (a, b, c) { var m = b === "cmip6" ? "cmip6_" : "", w = a === "map2" ? "d31_60" : "d1_30";
+                                    if (a === "nao" && b !== "cmip6") return "assets/sst/strat_hist_" + (c || "nao") + ".webp?v=__CACHE__";
                                     return "assets/sst/strat_hist_" + ((a === "map" || a === "map2") ? "follows_" + m + c + "_" + w : a + (b === "cmip6" ? "_cmip6" : "")) + ".webp?v=__CACHE__"; },
           fit: false, about: "about-shfollow",
-          cap: function (a, b) {
+          cap: function (a, b, c) {
             var cm = b === "cmip6";
             if (a === "map" || a === "map2") return cm ? "2 m temperature and sea-level pressure after each kind of event in 9 CMIP6 models (monthly anomalies), shown only where the models robustly agree."
                                                        : "ERA5 2 m temperature and 500 hPa height after each kind of event: the mean over every event since 1980, shown only where significant.";
             if (a === "ao") return cm ? "The annular mode after sudden warmings and strong-vortex events in 9 CMIP6 models: daily 700 hPa wind at 60°N as the AO proxy, with the monthly pressure-based index as a check."
                                       : "The Arctic Oscillation after sudden warmings and after strong-vortex events, and how often it went negative against the same days in other years.";
             if (a === "nao") return cm ? "The North Atlantic Oscillation after each kind of event in 9 CMIP6 models: a monthly index, the models' pressure projected on ERA5's NAO pattern."
-                                       : "The North Atlantic Oscillation (CPC daily index) after sudden warmings and after strong-vortex events, and how often it went negative against the same days in other years.";
+                                       : (c === "gbi" ? "The Greenland Blocking Index (ERA5 daily)" : "The North Atlantic Oscillation (" + ({nao_hurrell: "Hurrell's stations, ERA5 daily", nao_pc: "Hurrell's principal component, ERA5 daily", nao_jones: "Jones's stations, ERA5 daily"}[c] || "CPC daily index") + ")") + " after sudden warmings and after strong-vortex events, and how often it went negative against the same days in other years.";
             return cm ? "Six land regions in 9 CMIP6 models: how often each kind of event was followed by a cold window, printed only where that differs robustly from the model's normal."
                       : "Six land regions: how often each kind of event was followed by a cold month, printed only where that differs significantly from normal."; }},
   shtiming: {label: "Who moves first around a sudden warming", img: function () { return "assets/sst/ssw_timing.webp?v=__CACHE__"; }, fit: false, about: "about-shtiming",

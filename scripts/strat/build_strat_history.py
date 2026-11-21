@@ -39,6 +39,7 @@ surrounding 30 days; everything else is interpolated in time. The filled days ar
 
     python scripts/strat/build_strat_history.py
     python scripts/strat/build_strat_history.py --add-nao     # append the daily NAO to the existing reference only
+    python scripts/strat/build_strat_history.py --add-flavours   # append the NAO's other definitions and the GBI
 """
 
 from __future__ import annotations
@@ -365,6 +366,90 @@ def add_nao():
     print(
         f"  added the daily NAO to {OUT_NC.name}: {len(sets['ssw_all'])} SSWs, {len(sets['sv'])} strong-vortex events"
     )
+
+
+FLAVOURS = ("nao_hurrell", "nao_pc", "nao_jones", "gbi")
+
+
+def era5_daily_indices(y0: int = 1979, y1: int = 2026) -> dict:
+    """{index: daily Series} of the site's daily teleconnection indices (polarcap.teleconnections: the GEPS/GEFS pages'
+    projectors, release gefs-ref-v2) from the ERA5 daily store's 0-90N sea-level pressure and 500 hPa height (1.5 deg,
+    daily means): anomalies against the store's own 1991-2020 calendar (366 slots, its first three harmonics), in
+    standard deviations of the daily index at that time of year."""
+    from quantmet.degdays import doy366
+
+    import polarcap as PC
+
+    store = env_dir("ERA5_STORE", "wb2_1p5_daily")
+
+    def year(var, y):
+        da = xr.open_dataset(store / var / f"{var}_{y}.nc")[var].transpose("time", "latitude", "longitude")
+        # 19.5-90N, the cells the projection averages (the store's coordinates carry float noise)
+        da = da.sel(latitude=PC.CLAT, longitude=PC.CLON, method="nearest", tolerance=0.01)
+        return pd.DatetimeIndex(da.time.values), da.values.astype(
+            np.float64
+        )  # hPa and metres, whatever the attributes say
+
+    clim = {}
+    for var in ("slp", "z500"):
+        tot = np.zeros((366, PC.CLAT.size, PC.CLON.size))
+        cnt = np.zeros(366)
+        for y in range(1991, 2021):
+            t, v = year(var, y)
+            k = doy366(t.values) - 1
+            np.add.at(tot, k, v)
+            np.add.at(cnt, k, 1)
+        f = np.fft.rfft(tot / cnt[:, None, None], axis=0)
+        f[4:] = 0  # the mean and three harmonics
+        clim[var] = np.fft.irfft(f, 366, axis=0)
+    out = {}
+    for y in range(y0, y1 + 1):
+        (t, msl), (t2, z) = year("slp", y), year("z500", y)
+        assert t.equals(t2), y
+        k = doy366(t.values) - 1
+        tc = PC.teleconnections({"msl": (msl - clim["slp"][k])[None], "z500": (z - clim["z500"][k])[None]}, t)
+        for sid, v in tc.items():
+            out.setdefault(sid, []).append(pd.Series(v[0], index=t))
+    return {sid: pd.concat(v) for sid, v in out.items()}
+
+
+def add_flavours():
+    """Append the NAO's other definitions (Hurrell's and Jones's station pairs, Hurrell's principal component) and the
+    Greenland Blocking Index around the reference's own events to strat_history.nc, as add_nao does for CPC's daily
+    NAO: {ix}_ssw, {ix}_sv, {ix}_base_ssw / _sv, {ix}_base_pneg_ssw / _sv. No published daily series exists for the
+    station or PC NAOs, so all four are ERA5's (era5_daily_indices); the same computation's CPC-pattern NAO and AO
+    are checked against CPC's daily indices first."""
+    D = xr.open_dataset(OUT_NC).load()
+    D.close()
+    sets = {
+        "ssw_all": [pd.Timestamp(str(x)) for x in D.ssw_used.values],
+        "sv": [pd.Timestamp(str(x)) for x in D.sv.values],
+    }
+    ser = era5_daily_indices()
+    # the patterns' own validation against CPC's daily indices on R1: r 0.80 (NAO, out of sample) and 0.97 (AO)
+    for sid, cpc, floor in (("nao", load_nao(), 0.75), ("ao", load_ao(), 0.92)):
+        j = ser[sid].index.intersection(cpc.index)
+        r = float(np.corrcoef(ser[sid][j], cpc[j])[0, 1])
+        print(f"  ERA5 {sid.upper()} vs CPC's daily index, {j[0]:%Y-%m-%d}..{j[-1]:%Y-%m-%d}: r = {r:.3f}")
+        assert r > floor, sid
+    for ix in FLAVOURS:
+        ev, base, bneg = index_rows(ser[ix], sets)
+        D[f"{ix}_ssw"] = (("ssw_used", "lag"), ev["ssw_all"].astype("float32"))
+        D[f"{ix}_sv"] = (("sv", "lag"), ev["sv"].astype("float32"))
+        D[f"{ix}_base_ssw"] = ("lag", base["ssw_all"].astype("float32"))
+        D[f"{ix}_base_sv"] = ("lag", base["sv"].astype("float32"))
+        D[f"{ix}_base_pneg_ssw"] = ("lag", bneg["ssw_all"].astype("float32"))
+        D[f"{ix}_base_pneg_sv"] = ("lag", bneg["sv"].astype("float32"))
+        k = (LAGS >= 1) & (LAGS <= 30)
+        print(
+            f"  {ix}: days 1-30 after SSWs {np.nanmean(ev['ssw_all'][:, k]):+.2f} (other years "
+            f"{np.nanmean(base['ssw_all'][k]):+.2f}), after strong-vortex events {np.nanmean(ev['sv'][:, k]):+.2f}"
+        )
+    D.attrs["source"] = D.attrs.get("source", "") + "; ERA5 daily NAO definitions and Greenland Blocking Index"
+    tmp = OUT_NC.with_suffix(".tmp.nc")
+    D.to_netcdf(tmp, encoding={v: {"zlib": True, "complevel": 5} for v in D.data_vars})
+    tmp.replace(OUT_NC)
+    print(f"  added {', '.join(FLAVOURS)} to {OUT_NC.name}")
 
 
 # ------------------------------------------------------------------ main
@@ -755,4 +840,4 @@ def main():
 if __name__ == "__main__":
     import sys
 
-    add_nao() if "--add-nao" in sys.argv else main()
+    add_nao() if "--add-nao" in sys.argv else add_flavours() if "--add-flavours" in sys.argv else main()
