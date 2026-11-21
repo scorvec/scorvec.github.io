@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
 """The teleconnection indices of the days 1-15 forecasts (ensmaps_telecon.py), defined once: twelve patterns of the GEFS
 and GEPS pages (IDS: the Arctic Oscillation from sea-level pressure; CPC's NAO, PNA, EA, WP, EP/NP, EA/WR, SCA, TNH and
-POL and PSL's EPO and WPO from 500 hPa height), their projectors applied to the field at one synoptic hour, and the
-table of every archived run's indices against ERA5's that calibrates them.
+POL and PSL's EPO and WPO from 500 hPa height), the NAO's other published flavours beside CPC's (Hurrell's station-based
+and PC-based and Jones's, from sea-level pressure) and the Greenland Blocking Index (500 hPa height), their projectors
+applied to the field at one synoptic hour, and the table of every archived run's indices against ERA5's that calibrates
+them.
 
   ref       The reference, built once in Actions (telecon15.yml; release REF_TAG, telecon15_ref.npz):
-            - the projectors of release gefs-ref-v1 (gefs_patterns_ref.npz; method and validation in
+            - the projectors of release PATTERNS_TAG (gefs_patterns_ref.npz; method and validation in
               scripts/geps/build/build_telecon_patterns.py): CPC's patterns the month-specific least-squares projector
               of the regression on CPC's monthly indices (the nine together), applied to 500 hPa height anomalies over
               std_month (the sd of the calendar month's monthly anomalies) weighted by sqrt(cos lat); EPO and WPO PSL's
               box differences in metres; the AO the leading EOF of sea-level pressure anomalies (hPa) north of 20N
-              over 1991-2020, weighted by sqrt(cos lat).
+              over 1991-2020, weighted by sqrt(cos lat). The NAO flavours: Hurrell's and Jones's station pairs
+              (Lisbon or Gibraltar minus Iceland) as 5 x 5 deg boxes of sea-level pressure, each over its sd for the
+              calendar month; Hurrell's PC-based NAO the month-specific leading EOF of Atlantic sea-level pressure
+              (20-80N, 90W-40E); the Greenland Blocking Index the 500 hPa height over 60-80N, 80-20W in metres.
               The weight is folded into the projector, which is cut to the 2.5 deg rows 20-90N (latlon.G25N), with
               std_month on the same rows: the build stops if any weight south of 20N would be lost.
             - sigma, the seasonal sd of each daily index (1991-2020, within 15 days of the day of year), and the months
@@ -22,7 +27,7 @@ table of every archived run's indices against ERA5's that calibrates them.
               climatology by hour of day (1990-2019, 1.5 deg) fitted with a mean and three annual harmonics, so a 12Z
               run's field is compared with a normal of its own hour.
             - the sea-level pressure normal: ERA5 1991-2020 at 00Z and at 12Z (z500_acc.py clim --field msl, the same
-              construction at each hour, built with the reference and kept in its release), remapped the same way.
+              construction at each hour, built with v3 and kept in release MSL_TAG), remapped the same way.
             The build checks the cut projectors against gefs_patterns.Ref.index on random global fields and prints the
             tide's part of each 500 hPa index.
   index     (field - normal of its hour and day) [/ std_month] . projector / sigma, in seasonal sd of the daily index;
@@ -57,7 +62,9 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[0] / "lib"))
 from latlon import G15, G25N, remap, slot366
 
-REF_TAG = "telecon15-ref-v3"  # v1: the PNA, EPO and WPO only; v2: the eleven 500 hPa patterns
+REF_TAG = "telecon15-ref-v4"  # v1: the PNA, EPO and WPO only; v2: the eleven 500 hPa patterns; v3: + the AO
+PATTERNS_TAG = "gefs-ref-v2"  # the projectors: v1's, with the NAO flavours and the Greenland Blocking Index
+MSL_TAG = "telecon15-ref-v3"  # the release that keeps the sea-level pressure normal (clim_msl_1p5.npz)
 REF_NAME = "telecon15_ref.npz"
 IDS = (
     "nao",
@@ -72,9 +79,13 @@ IDS = (
     "sca",
     "tnh",
     "pol",
-)  # gefs_patterns.ORDER's 500 hPa ones and the AO
+    "nao_hurrell",
+    "nao_jones",
+    "nao_pc",
+    "gbi",
+)  # gefs_patterns.ORDER's 500 hPa ones and the AO, then the NAO flavours and the Greenland Blocking Index
 # what each index projects: 500 hPa height (m) or sea-level pressure (hPa)
-FIELD = dict.fromkeys(IDS, "z500") | {"ao": "msl"}
+FIELD = dict.fromkeys(IDS, "z500") | dict.fromkeys(("ao", "nao_hurrell", "nao_jones", "nao_pc"), "msl")
 PATTERN_FIELD = {"z500": "z500", "msl": "slp"}  # gefs_patterns' names of the fields
 HOURS = (0, 12)  # the synoptic hours a forecast is read at: a 00Z run's 00Z, a 12Z run's 12Z
 CLIM_HOUR = 0  # the hour of verify-clim-z500-v1's normal
@@ -205,10 +216,10 @@ def build_ref(a) -> None:
         "patterns": {s: gp.pat[s] for s in IDS},
         "hours": list(HOURS),
         "sources": {
-            "patterns": f"gefs-ref-v1/{a.patterns.name} sha256 {sha[a.patterns.name]}",
+            "patterns": f"{PATTERNS_TAG}/{a.patterns.name} sha256 {sha[a.patterns.name]}",
             "normal": f"verify-clim-z500-v1/{a.clim.name} sha256 {sha[a.clim.name]}",
             "tide": f"{WB2_CLIM}, each hour less {CLIM_HOUR:02d} UTC, mean + {TIDE_HARMONICS} annual harmonics",
-            "normal_msl": f"{REF_TAG}/{a.clim_msl.name} sha256 {sha[a.clim_msl.name]} (z500_acc.py clim --field msl)",
+            "normal_msl": f"{MSL_TAG}/{a.clim_msl.name} sha256 {sha[a.clim_msl.name]} (z500_acc.py clim --field msl)",
         },
     }
     ref["meta"] = np.array(json.dumps(meta))
@@ -370,9 +381,9 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     b = sub.add_parser("ref", help="build the reference (once)")
-    b.add_argument("--patterns", type=Path, required=True, help="gefs_patterns_ref.npz (release gefs-ref-v1)")
+    b.add_argument("--patterns", type=Path, required=True, help=f"gefs_patterns_ref.npz (release {PATTERNS_TAG})")
     b.add_argument("--clim", type=Path, required=True, help="clim_z500_1p5.npz (release verify-clim-z500-v1)")
-    b.add_argument("--clim-msl", type=Path, required=True, help="clim_msl_1p5.npz (z500_acc.py clim --field msl)")
+    b.add_argument("--clim-msl", type=Path, required=True, help=f"clim_msl_1p5.npz (release {MSL_TAG})")
     b.add_argument("--out", type=Path, required=True)
     h = sub.add_parser("hindcast", help="add the database's new runs and ERA5 days to the table")
     h.add_argument("--table", type=Path, required=True, help="the table's directory (FC, OBS)")

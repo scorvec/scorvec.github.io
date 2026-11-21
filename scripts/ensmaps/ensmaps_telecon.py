@@ -59,7 +59,8 @@ from latlon import G25N, remap, slot366
 
 MODELS = {"ifs": "IFS-ENS", "aifs": "AIFS-ENS", "gefs": "GEFS", "geps": "GEPS"}  # ensmaps keys, the database's names
 SHORT = {"nao": "NAO", "ao": "AO", "pna": "PNA", "epo": "EPO", "wpo": "WPO", "ea": "EA", "wp": "WP", "epnp": "EP/NP", "eawr": "EA/WR",
-         "sca": "SCA", "tnh": "TNH", "pol": "POL"}  # fmt: skip
+         "sca": "SCA", "tnh": "TNH", "pol": "POL", "nao_hurrell": "NAO-H", "nao_jones": "NAO-J", "nao_pc": "NAO-PC",
+         "gbi": "GBI"}  # fmt: skip
 COLORS = {"ifs": "#b3372f", "aifs": "#7b4fb0", "gefs": "#2c5f8a", "geps": "#2e7d4f"}  # verification.html's centres
 WINDOW = 45  # days of the year either side of the run's: the hindcast starts its calibration pools
 MIN_RUNS = 30
@@ -962,7 +963,8 @@ def cmd_run(a) -> int:
     t0 = max(r["init"] for r in runs)
     figs = []
     for k, s in enumerate(ref.ids):
-        name = f"{SHORT[s]} ({ref.meta['patterns'][s]['name']})"
+        long = ref.meta["patterns"][s]["name"]
+        name = long if s.startswith("nao_") else f"{SHORT[s]} ({long})"  # a flavour's own name says NAO
         if not any(np.isfinite(ind[r["key"]][1][..., k]).any() for r in runs):
             figs += [
                 note(name, undefined(k, ref, runs), out / f"{s}_{v}.webp") for v in ("plume", "prob", "runs", "skill")

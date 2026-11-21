@@ -477,7 +477,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FRAMES_BRANCH: "off"
-          TC_REF: telecon15-ref-v3   # telecon15.REF_TAG
+          TC_REF: telecon15-ref-v4   # telecon15.REF_TAG
         run: |
           set -euo pipefail
           ls -la telecon tbl 2>/dev/null || true

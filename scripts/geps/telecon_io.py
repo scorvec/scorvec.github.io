@@ -80,7 +80,7 @@ def cpc_daily(name):
 
 
 def psl_daily(name):
-    """PSL daily EPO/WPO: 'yyyy mm dd value' in metres."""
+    """PSL daily EPO/WPO/GBI: 'yyyy mm dd value' in metres (the GBI is the raw 500 hPa height, 60-80N 80-20W)."""
     p = _find(f"psl/{name}.daily.txt")
     if not p.exists():
         return None
@@ -119,6 +119,30 @@ def cpc_eqsoi_monthly():
                 idx.append(pd.Timestamp(int(parts[0]), mo, 1))
                 val.append(np.nan if x > 999 else x)
     return pd.Series(val, index=idx).sort_index().dropna()
+
+
+def _year_rows(rel, missing):
+    """A 'year v1 .. v12 [annual]' table -> monthly Series; values at or below `missing` are gaps."""
+    idx, val = [], []
+    for ln in _find(rel).read_text().splitlines():
+        parts = ln.split()
+        if len(parts) >= 13 and re.fullmatch(r"\d{4}", parts[0]):
+            for mo, raw in enumerate(parts[1:13], 1):
+                x = float(raw)
+                idx.append(pd.Timestamp(int(parts[0]), mo, 1))
+                val.append(np.nan if x <= missing else x)
+    return pd.Series(val, index=idx).sort_index().dropna()
+
+
+def hurrell_nao_monthly(kind):
+    """NCAR Climate Data Guide, Hurrell's monthly NAO: kind "station" (Lisbon minus Stykkisholmur/Reykjavik) or "pc"
+    (EOF1 of Atlantic-sector sea-level pressure); -999 = missing."""
+    return _year_rows(f"ncar/nao_{kind}_monthly.txt", -999)
+
+
+def cru_nao_monthly():
+    """CRU's NAO (Jones et al. 1997: Gibraltar minus SW Iceland), 'year Jan .. Dec annual'; -99.99 = missing."""
+    return _year_rows("cru/nao.dat", -99.99)
 
 
 def longpaddock_daily_soi():

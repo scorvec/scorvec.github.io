@@ -20,7 +20,8 @@ Everything the daily job needs that does not depend on the GEFS reforecast:
         era5_shift's s25_zg500 to r 0.99999998 / 0.002 m rms). The store is 0-90N only, which is all NAM100 needs.
   Height shifts are stored for rows 90N -> 0 only (every z500/z100 product is northern) and all shifts as float16.
 
-    python build_gefs_patterns_ref.py [--out DIR]
+    python build_gefs_patterns_ref.py [--out DIR] [--extend OLD_REF]
+Release gefs-ref-v2 is v1's file extended with the NAO flavours and the Greenland Blocking Index (--extend).
 """
 
 from __future__ import annotations
@@ -106,6 +107,12 @@ def shift_z100():
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(env_dir("DATA_ARCHIVE", "gefs_ref", "patterns")))
+    ap.add_argument(
+        "--extend",
+        type=Path,
+        help="an earlier gefs_patterns_ref.npz kept verbatim (its arrays and pattern metadata): only the indices it "
+        "lacks are added, so the indices it already serves, and the calibration built on them, do not move",
+    )
     a = ap.parse_args()
     ds = xr.open_dataset(TC / "patterns.nc")
     assert np.allclose(ds.lat.values, GP.LAT25) and np.allclose(ds.lon.values, GP.LON25), "pattern grid differs"
@@ -151,6 +158,17 @@ def main() -> int:
             "units": "s25 in GEFS units (m, Pa); projectors in pattern units (z m, slp hPa)",
         },
     }
+    if a.extend:
+        old = dict(np.load(a.extend))
+        meta_old = json.loads(str(old.pop("meta_json")))
+        added = [s for s in meta["patterns"] if s not in meta_old["patterns"]]
+        for sid in added:
+            old[f"proj_{sid}"], old[f"sigma_doy_{sid}"] = save[f"proj_{sid}"], save[f"sigma_doy_{sid}"]
+            meta_old["patterns"][sid] = meta["patterns"][sid]
+            meta_old["defined_months"][sid] = meta["defined_months"][sid]
+        meta_old["sources"]["patterns"] += f"; extended with {', '.join(added)}, everything else verbatim"
+        save, meta = old, meta_old
+        print(f"extends {a.extend.name}: adds {added}")
     save["meta_json"] = np.array(json.dumps(meta))
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)

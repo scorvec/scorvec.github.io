@@ -57,6 +57,18 @@ Method, and why each choice
               not a fit, so every month is out of sample — and the SOI also
               daily against the Long Paddock (Queensland) daily SOI, the
               only daily SOI published anywhere (BoM's is monthly).
+  NAO flavours  Beside CPC's NAO (the 500 hPa pattern above), the published definitions people quote, each
+              validated against its own series as a definition (no fit):
+              Hurrell station-based: Lisbon minus Stykkisholmur/Reykjavik sea-level pressure, each station a 5 x 5
+                deg box on its nearest 2.5 deg point (as the SOI's), its daily anomaly over its own sd for the
+                calendar month, then the difference - against NCAR's monthly series (Climate Data Guide).
+              Jones: Gibraltar minus SW Iceland (Reykjavik), the same construction - against CRU's monthly series.
+              Hurrell PC-based: EOF1 of sea-level-pressure anomalies over 20-80N, 90W-40E (sqrt(cos lat)), one for
+                each calendar month from the monthly anomalies within +-1 month of it (the centres move with the
+                season), positive with low pressure in the north - against NCAR's monthly PC-based series.
+              Greenland Blocking Index (Hanna et al. 2016): the area-mean 500 hPa height anomaly over 60-80N, 80-20W
+                in metres, not an NAO but its blocking companion - against PSL's daily series as an anomaly.
+              The monthly checks use the monthly means of the daily index, 1991-2020.
   NAM 100     Northern annular mode at 100 hPa: EOF1 of monthly 100 hPa height
               anomalies poleward of 20N with the hemispheric mean removed first
               (Baldwin & Dunkerton 2001 use the cap-versus-midlatitude
@@ -198,6 +210,8 @@ from telecon_io import (
     psl_daily,
     cpc_soi_monthly,
     cpc_eqsoi_monthly,
+    cru_nao_monthly,
+    hurrell_nao_monthly,
     longpaddock_daily_soi,
 )
 
@@ -212,6 +226,21 @@ SLP_BOXES = {  # CPC definitions on the slp anomaly (hPa): (first box) minus (se
     "soi": ("Southern Oscillation Index", (-20, -15, 207.5, 212.5), (-15, -10, 127.5, 132.5)),
     "eqsoi": ("Equatorial SOI", (-5, 5, 230, 280), (-5, 5, 90, 140)),
 }
+
+
+# The NAO's station pairs, (southern) minus (northern), each read as a station_box and normalized by month
+NAO_STATIONS = {
+    "nao_hurrell": ("NAO, Hurrell station-based", (38.7, -9.1), (65.1, -22.7)),  # Lisbon, Stykkisholmur/Reykjavik
+    "nao_jones": ("NAO, Jones station-based", (36.1, -5.3), (64.1, -21.9)),  # Gibraltar, Reykjavik (SW Iceland)
+}
+NAO_PC_SECTOR = (20, 80, 270, 40)  # Hurrell's PC-based NAO: 20-80N, 90W-40E (across the Greenwich meridian)
+GBI_BOX = (60, 80, 280, 340)  # Greenland Blocking Index (Hanna et al. 2016; PSL): 60-80N, 80-20W
+
+
+def station_box(lat, lon):
+    """The 5 x 5 deg box (3 x 3 points of the 2.5 deg grid) centred on the grid point nearest a station, as the SOI's."""
+    la, lo = round(lat / 2.5) * 2.5, round((lon % 360) / 2.5) * 2.5
+    return (la - 2.5, la + 2.5, lo - 2.5, lo + 2.5)
 
 
 def box_weights(lat, lon, box):
@@ -246,6 +275,15 @@ def sigma_by_doy(raw, times, half=15):
         dist = np.abs(((doy - d + 182.5) % 365) - 182.5)
         out[d - 1] = raw[dist <= half].std()
     out[365] = out[0]  # slot 366 = 1 January (the wrap)
+    return out
+
+
+def project_by_month(anom, months, P):
+    """Each day's anomaly (time, lat, lon) dotted with its calendar month's projector P (12, lat, lon) -> (time,)."""
+    out = np.empty(anom.shape[0])
+    for m in range(1, 13):
+        k = months == m
+        out[k] = np.tensordot(anom[k], P[m - 1], axes=([1, 2], [0, 1]))
     return out
 
 
@@ -527,6 +565,135 @@ def main() -> int:
             + (f"  r_daily {val['r_daily_ref']:+.2f} vs Long Paddock" if "r_daily_ref" in val else "")
         )
 
+    # ---- NAO flavours beside CPC's 500 hPa one -----------------------------
+    # Station pairs (Hurrell; Jones): each station a 5 x 5 deg box on its nearest 2.5 deg point (as the SOI's), its
+    # daily anomaly over its own sd for the calendar month, then the difference - the projector holds those weights
+    # per month. Validated as a definition (no fit) on the monthly means of the daily index.
+    months_slp = tm_slp.month.values
+    for sid, (long_name, pos, neg) in NAO_STATIONS.items():
+        bp, bn = station_box(*pos), station_box(*neg)
+        Wp, Wn = box_weights(latg, long_, bp), box_weights(latg, long_, bn)
+        sp, sn = (
+            pd.Series(np.tensordot(ad_slp.values, W, axes=([1, 2], [0, 1]))).groupby(months_slp).std().values
+            for W in (Wp, Wn)
+        )
+        P = np.stack([Wp / sp[m] - Wn / sn[m] for m in range(12)])  # (month, lat, lon)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            Pw = np.where(wg[None] > 0, P / wg[None], 0.0).astype("float32")
+        raw = project_by_month(ad_slp.values, months_slp, P)
+        sig = float(raw.std())
+        out_sigdoy[sid] = sigma_by_doy(raw, tm_slp.values)
+        mi = pd.Series(raw / sig, index=tm_slp).resample("MS").mean()
+        refm = hurrell_nao_monthly("station") if sid == "nao_hurrell" else cru_nao_monthly()
+        j = mi.index.intersection(refm.index)
+        j = j[(j.year >= Y0) & (j.year <= Y1)]
+        r_m = float(np.corrcoef(mi.loc[j], refm.loc[j])[0, 1])
+        assert r_m > 0, f"{sid}: sign disagrees with the published series (r {r_m:+.2f})"
+        ref_name = "NCAR (Hurrell)" if sid == "nao_hurrell" else "CRU (Jones)"
+        validation[sid] = {
+            "cpc": None,
+            "reference": ref_name,
+            "r_monthly": round(r_m, 3),
+            "validation": f"{Y0}-{Y1} vs {ref_name} monthly (definition, no fit; {j.size} months)",
+            "boxes": {"positive": list(bp), "negative": list(bn)},
+        }
+        out_proj[sid] = Pw
+        mi_a = mi.reindex(pd.DatetimeIndex(sm.time.values).to_period("M").to_timestamp())
+        ok = np.isfinite(mi_a.values)
+        cc = (mi_a.values[ok] - mi_a.values[ok].mean()) / mi_a.values[ok].std()
+        reg = slp_m.values.reshape(sm.sizes["time"], -1)[ok].T @ cc / (cc @ cc)
+        regmaps[sid] = (reg.reshape(latg.size, long_.size)[latg >= 20], "slp", latg[latg >= 20], long_)
+        out_attrs[sid] = dict(name=long_name, field="slp", standardize=0, demean=0, sigma_daily=sig, hemisphere="nh")
+        print(f"  {sid:11s} {long_name:35s} r_month {r_m:+.2f} vs {ref_name} ({j.size} months)")
+
+    # Hurrell's PC-based NAO: EOF1 of the monthly sea-level-pressure anomalies over the Atlantic sector (20-80N,
+    # 90W-40E), month by month on the months within +-HALF of it (the centres move with the season), weighted by
+    # sqrt(cos lat), signed so the positive phase has low pressure in the north; the daily anomaly is projected on
+    # its month's EOF.
+    la0, la1, lo0, lo1 = NAO_PC_SECTOR
+    sec = ((latg >= la0) & (latg <= la1))[:, None] & ((long_ >= lo0) | (long_ <= lo1))[None, :]
+    mons_s = sm.time.dt.month.values
+    an_s = slp_m.values  # (month-time, lat, lon) monthly anomaly
+    P = np.zeros((12, latg.size, long_.size))
+    expl = []
+    for m in range(1, 13):
+        near = np.isin(mons_s, [((m - 1 + d) % 12) + 1 for d in range(-HALF, HALF + 1)])
+        Z = (an_s[near] * wg)[:, sec]
+        _u, s, vt = svd_safe(Z - Z.mean(0))
+        e = np.zeros((latg.size, long_.size))
+        e[sec] = vt[0]
+        if e[sec & (latg >= 55)[:, None]].mean() > 0:
+            e = -e
+        P[m - 1] = e
+        expl.append(float(s[0] ** 2 / (s**2).sum() * 100))
+    raw = project_by_month(ad_slp.values, months_slp, P * wg[None])
+    sig = float(raw.std())
+    out_sigdoy["nao_pc"] = sigma_by_doy(raw, tm_slp.values)
+    mi = pd.Series(raw / sig, index=tm_slp).resample("MS").mean()
+    refm = hurrell_nao_monthly("pc")
+    j = mi.index.intersection(refm.index)
+    j = j[(j.year >= Y0) & (j.year <= Y1)]
+    r_m = float(np.corrcoef(mi.loc[j], refm.loc[j])[0, 1])
+    assert r_m > 0, f"nao_pc: sign disagrees with Hurrell's PC index (r {r_m:+.2f})"
+    out_proj["nao_pc"] = P.astype("float32")
+    mi_a = mi.reindex(pd.DatetimeIndex(sm.time.values).to_period("M").to_timestamp())
+    ok = np.isfinite(mi_a.values)
+    cc = (mi_a.values[ok] - mi_a.values[ok].mean()) / mi_a.values[ok].std()
+    reg = slp_m.values.reshape(sm.sizes["time"], -1)[ok].T @ cc / (cc @ cc)
+    regmaps["nao_pc"] = (reg.reshape(latg.size, long_.size)[latg >= 20], "slp", latg[latg >= 20], long_)
+    validation["nao_pc"] = {
+        "cpc": None,
+        "reference": "NCAR (Hurrell)",
+        "explained_pct": round(float(np.mean(expl)), 1),
+        "r_monthly": round(r_m, 3),
+        "validation": f"{Y0}-{Y1} vs NCAR (Hurrell) PC-based monthly (EOF, no fit to it; {j.size} months)",
+    }
+    out_attrs["nao_pc"] = dict(
+        name="NAO, Hurrell PC-based",
+        field="slp",
+        standardize=0,
+        demean=0,
+        sigma_daily=sig,
+        hemisphere="nh",
+    )
+    print(f"  nao_pc      NAO, Hurrell PC-based               EOF1 {np.mean(expl):.1f}%  r_month {r_m:+.2f}")
+
+    # Greenland Blocking Index (Hanna et al. 2016; PSL's daily series): the area-mean 500 hPa height anomaly over
+    # 60-80N, 80-20W, in metres - not an NAO definition, its closest blocking companion.
+    P = box_weights(latg, long_, GBI_BOX)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        Pw = np.where(wg > 0, P / wg, 0.0).astype("float32")
+    raw = np.tensordot(ad_full.values, P, axes=([1, 2], [0, 1]))
+    sig = float(raw.std())
+    out_sigdoy["gbi"] = sigma_by_doy(raw, zd_full.time.values)
+    dv = pd.Series(raw / sig, index=zd_full.time.values)
+    # PSL's series is the raw height: compared as its anomaly from the same kind of normal
+    ps = psl_daily("gbi").loc[str(Y0) : str(Y1)]
+    ps = xr.DataArray(ps.values, dims="time", coords={"time": ps.index.values})
+    psa = doy_anom(ps, doy_clim(ps)).to_series()
+    j = dv.index.intersection(psa.index)
+    r_d = float(np.corrcoef(dv.loc[j], psa.loc[j])[0, 1])
+    assert r_d > 0, f"gbi: sign disagrees with PSL (r {r_d:+.2f})"
+    out_proj["gbi"] = np.broadcast_to(Pw, (12, *Pw.shape)).astype("float32")
+    mi = dv.resample("MS").mean().reindex(pd.DatetimeIndex(zm.time.values).to_period("M").to_timestamp())
+    zfull_m = monthly("hgt", 500)
+    an_full_m = zfull_m.groupby(zfull_m.time.dt.month) - zfull_m.groupby(zfull_m.time.dt.month).mean("time")
+    ok = np.isfinite(mi.values)
+    cc = (mi.values[ok] - mi.values[ok].mean()) / mi.values[ok].std()
+    reg = an_full_m.values.reshape(zfull_m.sizes["time"], -1)[ok].T @ cc / (cc @ cc)
+    regmaps["gbi"] = (reg.reshape(latg.size, long_.size)[latg >= 20], "z500", latg[latg >= 20], long_)
+    validation["gbi"] = {
+        "cpc": None,
+        "reference": "PSL",
+        "r_daily": round(r_d, 3),
+        "validation": f"{Y0}-{Y1} vs PSL daily (definition, no fit)",
+        "boxes": {"box": list(GBI_BOX)},
+    }
+    out_attrs["gbi"] = dict(
+        name="Greenland Blocking Index", field="z500", standardize=0, demean=0, sigma_daily=sig, hemisphere="nh"
+    )
+    print(f"  gbi         Greenland Blocking Index            box index  r_daily {r_d:+.3f} vs PSL")
+
     # ---- NAM at 100 hPa: EOF1 of demeaned height anomalies 20-90N ----------
     z1 = monthly("hgt", 100).sel(lat=slice(90, 20))
     lat1, lon1 = z1.lat.values, z1.lon.values
@@ -644,7 +811,7 @@ def main() -> int:
         )
         ax.add_feature(cfeature.COASTLINE.with_scale("110m"), lw=0.5, edgecolor="#444")
         ax.gridlines(lw=0.3, color="#999", alpha=0.6)
-        for bx in (SLP_BOXES.get(sid) or BOXES.get(sid) or (None,))[1:]:  # box outlines
+        for bx in validation[sid].get("boxes", {}).values() or (BOXES.get(sid) or (None,))[1:]:  # box outlines
             la0, la1, lo0, lo1 = bx
             ax.plot(
                 [lo0, lo1, lo1, lo0, lo0], [la0, la0, la1, la1, la0], color="#111", lw=1.0, transform=ccrs.PlateCarree()
@@ -655,7 +822,7 @@ def main() -> int:
             (
                 f"EOF1: {v['explained_pct']}% of the variance\n" if "explained_pct" in v else ""
             )  # (too long for the title)
-            + (f"r vs CPC monthly {v['r_monthly']:+.2f} (out of sample)" if "r_monthly" in v else "")
+            + (f"r vs {ref} monthly {v['r_monthly']:+.2f} (out of sample)" if "r_monthly" in v else "")
             + (
                 f"\nr vs {ref} daily {v['r_daily']:+.2f}" + (" (out of sample)" if "r_monthly" in v else "")
                 if "r_daily" in v
@@ -675,7 +842,8 @@ def main() -> int:
         cb.ax.tick_params(labelsize=6.5)
     fig.suptitle(
         f"Teleconnection loading patterns\nregression of the monthly field on each index, "
-        f"NCEP/NCAR R1 {Y0}–{Y1} · CPC indices at 500 hPa, SLP EOF1 for AO/AAO, SLP boxes for SOI/EQSOI",
+        f"NCEP/NCAR R1 {Y0}–{Y1} · CPC indices at 500 hPa, SLP EOF1 for AO/AAO, SLP boxes for SOI/EQSOI and the NAO's "
+        f"station flavours",
         fontsize=11.5,
         fontweight="bold",
         y=0.995,
