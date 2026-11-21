@@ -28,8 +28,10 @@ drift-corrected and standardised).
              extrapolation each model makes its own way; the maps leave it unshaded above MAP_HIGH.
   AO, NAO    each member's anomalies projected on the site's teleconnection patterns (the GEPS and GEFS pages' CPC-style
              projectors on NCEP/NCAR R1 1991-2020: the AO the leading sea-level pressure EOF, the NAO the rotated 500
-             hPa mode; gefs_patterns.Ref, release gefs-ref-v1), the cells' anomalies averaged onto the patterns' 2.5 deg
-             grid first; in standard deviations of the daily index at that time of year.
+             hPa mode; gefs_patterns.Ref, release gefs-ref-v2), the cells' anomalies averaged onto the patterns' 2.5 deg
+             grid first; in standard deviations of the daily index at that time of year. The NAO also by its other
+             definitions (Hurrell's and Jones's station pairs, Hurrell's principal component) with the Greenland
+             Blocking Index, a set of its own (NAO_PANELS).
   100 hPa    the height anomaly and its 24 h change: where a lobe of the lower-stratospheric vortex fills or deepens.
   10 hPa     the temperature anomaly (the normal: t10_maps.py's ERA5 1991-2020 monthly means, averaged onto the cells)
              under the height, and every member's vortex outline coloured by its shape that day.
@@ -37,19 +39,21 @@ Maps show the ensemble mean, an anomaly or change coloured only where enough mem
 sign test at 5 % (agreeing()); a control run, one run, is drawn as it is.
 
 Outputs, model m:
-  assets/sst/polarcap_{m}.webp, telecon_{m}.webp   plumes: every member, the members' mean (IFS-ENS: the control)
+  assets/sst/polarcap_{m}.webp, telecon_{m}.webp, nao_{m}.webp   plumes: every member, the members' mean (IFS-ENS:
+                                                   the control)
   assets/sst/anim/polarcap_{m}/ + manifest         sea level and 500 hPa: days 1-5, 6-10, 11-15, then each day
   assets/sst/anim/z100_{m}/ + manifest (+ hres)    100 hPa anomaly and 24 h change, each day
   assets/sst/anim/t10_{m}/ + manifest (+ aifsc)    10 hPa temperature and every member's vortex, days 0-15
   assets/sst/vshape_{m}.webp                       every member's vortex shape each day, the shares beneath
-  assets/sst/data/runs/{polarcap,telecon,vshape}_{m}.json (+ hres)   the run records (run_record.py draws the
+  assets/sst/data/runs/{polarcap,telecon,nao,vshape}_{m}.json (+ hres)   the run records (run_record.py draws the
                                                    run-to-run figures)
   assets/sst/dwatch_ring_{m}.webp, data/dwatch_{m}.json, data/runs/ring_{m}.json   an ensemble's descent watch
                                                    (descent_watch.ring): the cap by sector, the westerlies' shift,
                                                    the members' values for its link test
   aifs1, a single run: its records and its z100_aifs1 and t10_aifs1 loops only (no plumes, sea-level maps or shape
   barcode of its own)
-  --combined: assets/sst/polarcap_models.webp, telecon_models.webp, every model's newest run (strat-combine.yml)
+  --combined: assets/sst/polarcap_models.webp, telecon_models.webp, nao_models.webp, every model's newest run
+  (strat-combine.yml)
 
     python polarcap.py --model ifs --date 20261024 --time 00
     python polarcap.py --combined
@@ -115,7 +119,15 @@ CAP_PANELS = (
     ("z500", "500 hPa height, 65–90°N", "m"),
 )
 TELE_PANELS = (("ao", "Arctic Oscillation", "sd"), ("nao", "North Atlantic Oscillation", "sd"))
-TELE_REF = HERE / "data" / "telecon_ref"  # gefs_patterns_ref.npz, fetched from release gefs-ref-v1 once per job
+NAO_PANELS = (
+    ("nao", "NAO, CPC 500 hPa pattern", "sd"),
+    ("nao_hurrell", "NAO, Hurrell station-based", "sd"),
+    ("nao_pc", "NAO, Hurrell PC-based", "sd"),
+    ("nao_jones", "NAO, Jones station-based", "sd"),
+    ("gbi", "Greenland Blocking Index", "sd"),
+)
+TELE_FIELD = {"ao": "msl", "nao": "z500", "nao_hurrell": "msl", "nao_pc": "msl", "nao_jones": "msl", "gbi": "z500"}
+TELE_REF = HERE / "data" / "telecon_ref"  # gefs_patterns_ref.npz, fetched from release gefs-ref-v2 once per job
 
 
 # ── the grid, the normals, the cap ───────────────────────────────────────────────────────────────────────────────
@@ -301,7 +313,8 @@ def caps(A: dict, N: Normals) -> dict:
 
 
 def teleconnections(A: dict, valid: pd.DatetimeIndex) -> dict:
-    """{ao, nao: (member, lead)} in seasonal standard deviations of the daily index (gefs_patterns.Ref.index)."""
+    """{index: (member, lead)} of TELE_FIELD's indices in seasonal standard deviations of the daily index
+    (gefs_patterns.Ref.index)."""
     sys.path.insert(0, str(REPO / "scripts" / "gefs"))
     import gefs_patterns as GP
 
@@ -311,13 +324,14 @@ def teleconnections(A: dict, valid: pd.DatetimeIndex) -> dict:
     months = np.array([t.month for t in valid])
     doys = np.array([GP.doy(t.date()) for t in valid])
     out = {}
-    for sid, f in (("ao", "msl"), ("nao", "z500")):
+    for f in ("msl", "z500"):
         a = A[f]
         on25 = np.full((*a.shape[:2], GP.LAT25.size, GP.LON25.size), np.nan)
         on25[..., rows, :] = CM.coarsen(a, CLAT, CLON, CELL, lat25[rows], GP.LON25, 2.5, 360.0)
         n, L = a.shape[:2]
-        flat = ref.index(sid, on25.reshape(n * L, *on25.shape[2:]), np.tile(months, n), np.tile(doys, n))
-        out[sid] = flat.reshape(n, L)
+        for sid in [k for k, v in TELE_FIELD.items() if v == f]:
+            flat = ref.index(sid, on25.reshape(n * L, *on25.shape[2:]), np.tile(months, n), np.tile(doys, n))
+            out[sid] = flat.reshape(n, L)
     return out
 
 
@@ -369,7 +383,8 @@ def plumes(model: str, init: pd.Timestamp, valid, series: dict, panels, title: s
     house.apply()
 
     col, lab = RR.MODEL_COLOUR[model], RR.MODEL_LABEL[model]
-    fig, axes = plt.subplots(len(panels), 1, figsize=(11.5, 8.2), sharex=True)
+    H = _height(panels)
+    fig, axes = plt.subplots(len(panels), 1, figsize=(11.5, H), sharex=True)
     for ax, (key, name, unit) in zip(axes, panels):
         x = series[key]
         for row in x:
@@ -394,11 +409,11 @@ def plumes(model: str, init: pd.Timestamp, valid, series: dict, panels, title: s
         _style(ax, unit if unit != "sd" else "sd of the daily index")
         ax.legend(fontsize=8.5, loc="upper left", framealpha=0.9)
     fig.suptitle(f"{lab} · {title} · run {init:%Y-%m-%d %HZ}", fontsize=13.5, fontweight="bold", x=0.07, ha="left",
-                 y=0.985)  # fmt: skip
-    fig.text(0.07, 0.945, SUBTITLE[panels], fontsize=9.5, color="0.25")
-    fig.text(0.07, 0.008, textwrap.fill(f"{NOTE[panels]} {CREDIT[model]}.", 190), fontsize=8, color="#6f6b64",
+                 y=1 - 0.123 / H)  # fmt: skip
+    fig.text(0.07, 1 - 0.451 / H, SUBTITLE[panels], fontsize=9.5, color="0.25")
+    fig.text(0.07, 0.066 / H, textwrap.fill(f"{NOTE[panels]} {CREDIT[model]}.", 190), fontsize=8, color="#6f6b64",
              linespacing=1.4)  # fmt: skip
-    fig.subplots_adjust(left=0.08, right=0.98, top=0.88, bottom=0.085, hspace=0.32)
+    fig.subplots_adjust(left=0.08, right=0.98, top=1 - 0.984 / H, bottom=0.697 / H, hspace=0.32)
     house.clear(fig, 105)
     fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
     plt.close(fig)
@@ -411,12 +426,23 @@ SUBTITLE = {
     "(the negative Arctic Oscillation)",
     TELE_PANELS: "every member thin, the members' mean bold · negative AO and NAO: high pressure over the Arctic and "
     "Greenland, the westerlies pushed south",
+    NAO_PANELS: "every member thin, the members' mean bold · negative NAO and positive Greenland Blocking Index: high "
+    "pressure over Greenland, the westerlies pushed south",
 }
 NOTE = {
     CAP_PANELS: "Raw model output against the ERA5 normal of each day and hour.",
     TELE_PANELS: "Raw model output: anomalies against ERA5 1991–2020 on the site's CPC-style patterns (NCEP/NCAR R1); "
     "in standard deviations of the daily index at this time of year.",
+    NAO_PANELS: "Raw model output: anomalies against ERA5 1991–2020; CPC's 500 hPa pattern, Hurrell's (Lisbon minus "
+    "Iceland) and Jones's (Gibraltar minus Iceland) sea-level pressure station pairs, Hurrell's leading Atlantic "
+    "sea-level pressure pattern and the 500 hPa height over Greenland (60–80°N, 80–20°W), each built on NCEP/NCAR R1; "
+    "in standard deviations of the daily index at this time of year.",
 }
+
+
+def _height(panels) -> float:
+    """Figure height for a column of panels, inches: 8.2 for two, as the figures were drawn first."""
+    return 1.0 + 3.6 * len(panels)
 
 
 def _pole(a: np.ndarray) -> np.ndarray:
@@ -698,7 +724,11 @@ def combined(product: str, panels, title: str, out: Path, max_age_days: float = 
         return None
     t1 = max(pd.Timestamp(r["init"]) for r in newest.values())
     newest = {m: r for m, r in newest.items() if t1 - pd.Timestamp(r["init"]) <= pd.Timedelta(days=max_age_days)}
-    fig, axes = plt.subplots(len(panels), 1, figsize=(11.5, 8.2), sharex=True)
+    note = textwrap.fill(f"Each model's members' mean and 10–90 % range, the single runs dashed, each labelled with "
+                         f"its run. {NOTE[panels]}", 190)  # fmt: skip
+    extra = 0.16 * max(note.count("\n") - 1, 0)  # inches: the note's lines past two
+    H = _height(panels) + extra
+    fig, axes = plt.subplots(len(panels), 1, figsize=(11.5, H), sharex=True)
     for ax, (key, name, unit) in zip(axes, panels):
         for m, r in newest.items():
             mean = RR.series(r, key)
@@ -714,13 +744,12 @@ def combined(product: str, panels, title: str, out: Path, max_age_days: float = 
                      loc="left")  # fmt: skip
         _style(ax, unit if unit != "sd" else "sd of the daily index")
     fig.suptitle(f"Every model's newest run · {title}", fontsize=13.5, fontweight="bold",
-                 x=0.07, ha="left", y=0.985)  # fmt: skip
-    fig.text(0.07, 0.945, SUBTITLE[panels].split(" · ", 1)[1], fontsize=9.5, color="0.25")
-    fig.text(0.07, 0.008, textwrap.fill(f"Each model's members' mean and 10–90 % range, the single runs dashed, each "
-             f"labelled with its run. {NOTE[panels]}", 190), fontsize=8, color="#6f6b64", linespacing=1.4)  # fmt: skip
-    fig.legend(*axes[0].get_legend_handles_labels(), fontsize=8.5, loc="lower center", bbox_to_anchor=(0.53, 0.052),
-               ncol=4, frameon=False)  # fmt: skip
-    fig.subplots_adjust(left=0.08, right=0.98, top=0.88, bottom=0.15, hspace=0.32)
+                 x=0.07, ha="left", y=1 - 0.123 / H)  # fmt: skip
+    fig.text(0.07, 1 - 0.451 / H, SUBTITLE[panels].split(" · ", 1)[1], fontsize=9.5, color="0.25")
+    fig.text(0.07, 0.066 / H, note, fontsize=8, color="#6f6b64", linespacing=1.4)
+    fig.legend(*axes[0].get_legend_handles_labels(), fontsize=8.5, loc="lower center",
+               bbox_to_anchor=(0.53, (0.426 + extra) / H), ncol=4, frameon=False)  # fmt: skip
+    fig.subplots_adjust(left=0.08, right=0.98, top=1 - 0.984 / H, bottom=(1.23 + extra) / H, hspace=0.32)
     house.clear(fig, 105)
     fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6})
     plt.close(fig)
@@ -730,6 +759,7 @@ def combined(product: str, panels, title: str, out: Path, max_age_days: float = 
 
 CAP_TITLE = "the troposphere under the polar vortex"
 TELE_TITLE = "the Arctic and North Atlantic Oscillations"
+NAO_TITLE = "the NAO by its definitions and Greenland blocking"
 
 
 def run(model: str, date: str, hh: str, figures: bool = True) -> int:
@@ -758,6 +788,7 @@ def run(model: str, date: str, hh: str, figures: bool = True) -> int:
               flush=True)  # fmt: skip
         record("polarcap", m, init, cp, valid)
         record("telecon", m, init, tc, valid)
+        record("nao", m, init, {k: tc[k] for k, _, _ in NAO_PANELS}, valid)
         if "z100" in fields and figures:
             z100_maps(m, init, fields["z100"], A["z100"])
         if "z10" in fields:
@@ -782,6 +813,7 @@ def run(model: str, date: str, hh: str, figures: bool = True) -> int:
         c = ctrls.get(CONTROL.get(m))
         plumes(m, init, valid, cp, CAP_PANELS, CAP_TITLE, c, OUT / f"polarcap_{m}.webp")
         plumes(m, init, valid, tc, TELE_PANELS, TELE_TITLE, c, OUT / f"telecon_{m}.webp")
+        plumes(m, init, valid, tc, NAO_PANELS, NAO_TITLE, c, OUT / f"nao_{m}.webp")
         maps(m, init, fields["msl"], fields["z500"], A["msl"], A["z500"], N)
         if m in shapes:
             cm = CONTROL.get(m)
@@ -801,6 +833,7 @@ def main() -> int:
     if a.combined:
         combined("polarcap", CAP_PANELS, CAP_TITLE, OUT / "polarcap_models.webp")
         combined("telecon", TELE_PANELS, TELE_TITLE, OUT / "telecon_models.webp")
+        combined("nao", NAO_PANELS, NAO_TITLE, OUT / "nao_models.webp")
         return 0
     if not (a.model and a.date and a.time):
         ap.error("--model, --date and --time are required (or --combined)")

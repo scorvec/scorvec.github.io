@@ -142,6 +142,20 @@ PRODUCTS = {
         note="Each member's daily index on the site's CPC-style patterns, raw model output against ERA5 1991–2020 "
         "(polarcap.py); negative = high pressure over the Arctic and Greenland.",
     ),
+    "nao": Product(
+        "The NAO by its definitions and Greenland blocking",
+        {
+            "nao": Key("NAO, CPC 500 hPa pattern", "sd of the daily index", 2, unit="sd", short="NAO (CPC)"),
+            "nao_hurrell": Key("NAO, Hurrell station-based", "sd of the daily index", 2, unit="sd", short="Hurrell"),
+            "nao_pc": Key("NAO, Hurrell PC-based", "sd of the daily index", 2, unit="sd", short="Hurrell PC"),
+            "nao_jones": Key("NAO, Jones station-based", "sd of the daily index", 2, unit="sd", short="Jones"),
+            "gbi": Key("Greenland Blocking Index", "sd of the daily index", 2, unit="sd", short="GBI"),
+        },
+        note="Each member's daily index, raw model output against ERA5 1991–2020 (polarcap.py): CPC's 500 hPa pattern, "
+        "Hurrell's and Jones's sea-level pressure station pairs, Hurrell's leading Atlantic sea-level pressure pattern "
+        "and the 500 hPa height over Greenland, each built on NCEP/NCAR R1; negative NAO and positive GBI = high "
+        "pressure over Greenland.",
+    ),
     "vshape": Product(
         "Polar vortex shape, 10 hPa",
         {

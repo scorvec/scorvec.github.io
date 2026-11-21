@@ -16,8 +16,8 @@ name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, wave
 #   wave_maps.py          -> assets/sst/anim/wave{1,2}_{ifs,hres}_{nh,sh}/ + wave{1,2}_maps_{ifs,hres}_manifest.json,
 #                            data/wave_compass_{ifs,gefs,geps}.json (wave_compass.py; GEFS and GEPS in the naens job)
 #   vortex_winds.py       -> assets/sst/anim/vortex_{ifs,hres}_{10,100}_{nh,sh}/ + vortex_winds_{ifs,hres}_manifest.json
-#   polarcap.py           -> assets/sst/{polarcap,telecon,vshape}_ifs.webp + anim/{polarcap,t10}_ifs/, anim/z100_{ifs,hres}/
-#                            + data/runs/{polarcap,telecon,vshape}_{ifs,hres}.json: polar cap, AO/NAO, 100 hPa height,
+#   polarcap.py           -> assets/sst/{polarcap,telecon,nao,vshape}_ifs.webp + anim/{polarcap,t10}_ifs/, anim/z100_{ifs,hres}/
+#                            + data/runs/{polarcap,telecon,nao,vshape}_{ifs,hres}.json: polar cap, AO/NAO, 100 hPa height,
 #                            10 hPa temperature and the vortex's shape (the shared gh, msl and t10 files)
 #   descent_watch.py      -> assets/sst/dwatch_{reach,ring}_<model>.webp + data/dwatch_<model>.json + data/runs/{reach,ring}_<model>.json
 #                            (IFS-ENS, GEFS, GEPS): how far down each member's weak-vortex anomaly reaches (called by
@@ -34,7 +34,7 @@ name: Stratosphere, IFS-ENS, IFS control, GEFS and GEPS (vortex, heat flux, wave
 #   qbo_zeroline.py       -> assets/sst/qbo_zeroline_*.webp re-rendered with IFS-ENS + data/qbo_zeroline_ifs.json
 #   naens (GEFS, GEPS)    -> assets/sst/{gefs,geps}_heatflux100_{nh,sh}.webp, {gefs,geps}_drip.webp (+ data/*.json),
 #                            anim/wave{1,2}_{gefs,geps}_{nh,sh}/, anim/vortex_{gefs,geps}_{10,100}_{nh,sh}/ + manifests,
-#                            {polarcap,telecon,vshape}_{gefs,geps}.webp + anim/{polarcap,z100,t10,heatflux_map}_{gefs,geps}/
+#                            {polarcap,telecon,nao,vshape}_{gefs,geps}.webp + anim/{polarcap,z100,t10,heatflux_map}_{gefs,geps}/
 # The upper-stratosphere item cannot have IFS: its open data stops at 10 hPa (GEPS's too).
 #
 # WHY A SEPARATE WORKFLOW. IFS-ENS lands on the Google mirror after AIFS-ENS is complete (12Z on 2026-10-25: AIFS-ENS
@@ -548,12 +548,12 @@ jobs:
           for p in assets/sst/ifs_drip.webp assets/sst/ifs_drip_change.webp assets/sst/data/ifs_drip.json assets/sst/hres_drip.webp assets/sst/hres_drip_change.webp assets/sst/data/hres_drip.json \
                    assets/regimes/data/regimes_members_ifs.json assets/regimes/data/regimes_drift_ifs.json \
                    assets/sst/data/runs/{drip,waves}_{ifs,hres}.json assets/sst/runs/{drip,waves}_{ifs,hres}.webp \
-                   assets/sst/data/wave_compass_ifs.json assets/sst/polarcap_ifs.webp assets/sst/telecon_ifs.webp assets/sst/anim/polarcap_ifs_manifest.json \
+                   assets/sst/data/wave_compass_ifs.json assets/sst/polarcap_ifs.webp assets/sst/telecon_ifs.webp assets/sst/nao_ifs.webp assets/sst/anim/polarcap_ifs_manifest.json \
                    assets/sst/anim/z100_{ifs,hres}_manifest.json assets/sst/vshape_ifs.webp assets/sst/anim/t10_ifs_manifest.json \
                    assets/sst/dwatch_reach_ifs.webp assets/sst/dwatch_ring_ifs.webp assets/sst/data/dwatch_ifs.json \
                    assets/sst/data/runs/{reach,ring}_ifs.json assets/sst/runs/{reach,ring}_ifs.webp \
-                   assets/sst/data/runs/{polarcap,telecon,vshape}_{ifs,hres}.json \
-                   assets/sst/runs/{polarcap,telecon,vshape}_{ifs,hres}.webp; do
+                   assets/sst/data/runs/{polarcap,telecon,nao,vshape}_{ifs,hres}.json \
+                   assets/sst/runs/{polarcap,telecon,nao,vshape}_{ifs,hres}.webp; do
             [ -e "$p" ] && [ "$p" -nt /tmp/t0 ] && echo "$p" >> /tmp/heights.list
           done
           for d in assets/sst/anim/polarcap_ifs assets/sst/anim/z100_ifs assets/sst/anim/z100_hres assets/sst/anim/t10_ifs; do
@@ -754,13 +754,13 @@ jobs:
                      assets/sst/anim/vortex_${m}_10_nh assets/sst/anim/vortex_${m}_10_sh assets/sst/anim/vortex_${m}_100_nh \
                      assets/sst/anim/vortex_${m}_100_sh assets/sst/anim/vortex_winds_${m}_manifest.json \
                      assets/sst/polarcap_${m}.webp assets/sst/anim/polarcap_${m} assets/sst/anim/polarcap_${m}_manifest.json \
-                     assets/sst/telecon_${m}.webp assets/sst/anim/z100_${m} assets/sst/anim/z100_${m}_manifest.json \
+                     assets/sst/telecon_${m}.webp assets/sst/nao_${m}.webp assets/sst/anim/z100_${m} assets/sst/anim/z100_${m}_manifest.json \
                      assets/sst/vshape_${m}.webp assets/sst/anim/t10_${m} assets/sst/anim/t10_${m}_manifest.json \
                      assets/sst/anim/heatflux_map_${m} assets/sst/anim/heatflux_map_${m}_manifest.json \
                      assets/sst/descent_${m}.webp assets/sst/vortex_members_${m}.webp \
                      assets/sst/dwatch_reach_${m}.webp assets/sst/dwatch_ring_${m}.webp assets/sst/data/dwatch_${m}.json \
-                     assets/sst/data/runs/{vortex,heatflux,drip,waves,polarcap,telecon,vshape,descent,reach,ring}_${m}.json \
-                     assets/sst/runs/{heatflux,drip,waves,polarcap,telecon,vshape,descent,reach,ring}_${m}.webp; do
+                     assets/sst/data/runs/{vortex,heatflux,drip,waves,polarcap,telecon,nao,vshape,descent,reach,ring}_${m}.json \
+                     assets/sst/runs/{heatflux,drip,waves,polarcap,telecon,nao,vshape,descent,reach,ring}_${m}.webp; do
               [ -e "$p" ] && [ "$p" -nt /tmp/t0 ] && echo "$p" >> /tmp/naens.list
             done
           done
@@ -1055,6 +1055,7 @@ jobs:
                    assets/sst/anim/polarcap_ifs_manifest.json assets/sst/anim/polarcap_gefs_manifest.json \
                    assets/sst/anim/polarcap_geps_manifest.json \
                    assets/sst/telecon_ifs.webp assets/sst/telecon_gefs.webp assets/sst/telecon_geps.webp \
+                   assets/sst/nao_ifs.webp assets/sst/nao_gefs.webp assets/sst/nao_geps.webp \
                    assets/sst/anim/z100_ifs_manifest.json assets/sst/anim/z100_hres_manifest.json \
                    assets/sst/anim/z100_gefs_manifest.json assets/sst/anim/z100_geps_manifest.json \
                    assets/sst/vshape_ifs.webp assets/sst/vshape_gefs.webp assets/sst/vshape_geps.webp \

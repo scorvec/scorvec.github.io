@@ -2,8 +2,8 @@ name: Stratosphere, every model's newest run (polar vortex figures, SSW summary)
 
 # The products that hold every model: the polar-vortex figures, wind and height and the 10 hPa temperature
 # (scripts/strat/nh_vortex.py --from-records), its run-to-run figure (run_record.py combined vortex), the days 1-15
-# sudden-warming summary that ssw.html reads (ssw_summary.py), the polar cap at sea level and 500 hPa and the AO and NAO (polarcap.py --combined, run_record.py
-# combined polarcap / telecon), the vortex's shape at 10 hPa (vortex_shape.py --combined, run_record.py combined
+# sudden-warming summary that ssw.html reads (ssw_summary.py), the polar cap at sea level and 500 hPa, the AO and NAO and the NAO's definitions (polarcap.py --combined,
+# run_record.py combined polarcap / telecon / nao), the vortex's shape at 10 hPa (vortex_shape.py --combined, run_record.py combined
 # vshape), the descent watch (descent_watch.py --combined: does a member's stratosphere explain its Arctic surface;
 # run_record.py combined reach / ring), and how the recent runs verified (strat_verify.py). Each model's job records its own run as it lands (strat.yml AIFS-ENS; strat-ifs.yml the IFS-ENS, IFS
 # control, GDPS, GEOS FP, and GEFS and GEPS - the fast lane too; strat-aifs1.yml AIFS single); after every such run this draws them from each
@@ -54,7 +54,7 @@ jobs:
         run: |
           OUT="assets/sst/nh_vortex.webp assets/sst/nh_vortex_temp.webp assets/sst/nh_vortex_runs.webp assets/sst/data/ssw_summary.json
                assets/sst/polarcap_models.webp assets/sst/runs/polarcap_all.webp
-               assets/sst/telecon_models.webp assets/sst/runs/telecon_all.webp
+               assets/sst/telecon_models.webp assets/sst/runs/telecon_all.webp assets/sst/nao_models.webp assets/sst/runs/nao_all.webp
                assets/sst/vshape_models.webp assets/sst/runs/vshape_all.webp assets/sst/runs/verify_strat.webp
                assets/sst/runs/descent_all.webp
                assets/sst/dwatch_link.webp assets/sst/data/dwatch.json assets/sst/runs/reach_all.webp assets/sst/runs/ring_all.webp"
@@ -67,7 +67,7 @@ jobs:
             python scripts/strat/strat_verify.py || echo "::warning::the verification figure did not draw; keeping the previous one"
             python scripts/strat/descent_watch.py --combined || echo "::warning::the descent-watch link figure did not draw; keeping the previous one"
             python scripts/strat/ssw_summary.py || echo "::warning::the SSW summary did not build; keeping the previous one"
-            for p in polarcap telecon vshape descent reach ring; do
+            for p in polarcap telecon nao vshape descent reach ring; do
               python scripts/strat/run_record.py combined "$p" \
                 || echo "::warning::the $p run-to-run figure did not draw; keeping the previous one"
             done

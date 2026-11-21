@@ -9,8 +9,8 @@ name: Stratosphere, AIFS single (vortex winds, waves 1 and 2, drip, polar cap, v
 #   forecast_drip.py --model aifs1 -> assets/sst/aifs1_drip{,_change}.webp + data/aifs1_drip.json, with AIFS single's
 #                                     own drift (reference/aifs1_capdrift.json; never AIFS-ENS's)
 #   polarcap.py --model aifs1      -> assets/sst/anim/{z100,t10}_aifs1/ + manifests, data/runs/{polarcap,telecon,
-#                                     vshape}_aifs1.json: the polar cap, the AO/NAO, the 100 hPa height, the 10 hPa
-#                                     temperature and the vortex's shape
+#                                     nao,vshape}_aifs1.json: the polar cap, the AO/NAO and the NAO's definitions, the
+#                                     100 hPa height, the 10 hPa temperature and the vortex's shape
 #   nh_vortex.py --record-only     -> data/runs/vortex_aifs1.json
 #   run_record.py capture drip     -> data/runs/drip_aifs1.json, and every record's figure assets/sst/runs/*_aifs1.webp
 # strat-combine.yml (which runs after this workflow) draws the every-model figures and the SSW summary from the records.
@@ -204,8 +204,8 @@ jobs:
           # one path at a time: `git add a b c` adds NOTHING when any one of them is missing (a product that failed)
           for f in assets/sst/aifs1_drip.webp assets/sst/aifs1_drip_change.webp assets/sst/data/aifs1_drip.json \
                    assets/sst/anim/{vortex_winds,wave1_maps,wave2_maps,z100,t10}_aifs1_manifest.json \
-                   assets/sst/data/runs/{vortex,drip,waves,polarcap,telecon,vshape}_aifs1.json \
-                   assets/sst/runs/{drip,waves,polarcap,telecon,vshape}_aifs1.webp; do
+                   assets/sst/data/runs/{vortex,drip,waves,polarcap,telecon,nao,vshape}_aifs1.json \
+                   assets/sst/runs/{drip,waves,polarcap,telecon,nao,vshape}_aifs1.webp; do
             if [ -e "$f" ]; then git add "$f"; fi
           done
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
