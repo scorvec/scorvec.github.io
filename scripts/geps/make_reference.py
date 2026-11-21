@@ -26,7 +26,14 @@ TAG (.github/workflows/geps.yml downloads it); bump the tag when anything here i
 teleconnection hindcast de-drifted leave-one-year-out (build/telecon_hindcast.py). v3 (2026-10): the GEPS8
 climatology and the ERA5 normals on the common-year day of year, each hindcast start once (154 sat in two monthly
 files), and the gridpoint skill maps, the regime hit rates (scripts/regimes/data/regime_hindcast_geps.npz, in the repo)
-and the MJO hindcast rebuilt on them, the first two leave-one-year-out like the indices.
+and the MJO hindcast rebuilt on them, the first two leave-one-year-out like the indices. geps-ref-v4 (2026-11) is an
+overlay of the three OVERLAY files with the NAO's other definitions and the Greenland Blocking Index added, every other
+index verbatim (a new full set would also have replaced mjo_hindcast.nc, which mjo-hindcast-truth.yml updates in the
+published v3 archive):
+
+    python scripts/geps/make_reference.py --out REF4 --only telecon --extend-from REF3   # REF4: era5_shift.nc from REF3
+    GEPS_REF=REF4: build/telecon_hindcast.py --ids nao_hurrell,nao_pc,nao_jones,gbi --merge
+    python scripts/geps/make_reference.py --out REF4 --only skill --overlay
 
 A full rebuild, in order (the hindcast scoring reads the new shift and patterns from the set being built):
 
@@ -64,6 +71,9 @@ import build_clim  # the pool rules the climatology files must state
 
 SRC = paths.local_store()
 TAG = "geps-ref-v3"  # the release the archive is published as
+# geps-ref-v4 is an overlay on it (geps_ref_v4_telecon.tar, laid over v3 by geps.yml): v3's telecon/patterns.nc,
+# validation.json and hindcast_indices.nc with the NAO's other definitions and the GBI added (--extend-from)
+OVERLAY = ("telecon/patterns.nc", "telecon/validation.json", "telecon/hindcast_indices.nc")
 
 # scripts/strat/data is gitignored: its copy lives outside this tree (STRAT_LOCAL_DATA)
 STRAT_SRC = Path(os.environ.get("STRAT_LOCAL_DATA", paths.REPO / "scripts" / "strat" / "data"))
@@ -85,6 +95,13 @@ RECENT_STEP = {
     "t2m": {"mean_recent": 0.002, "q33_recent": 0.002, "q67_recent": 0.002, "clim_weekly": 0.005},  # K
     "pr": {"mean_recent": 0.002, "q33_recent": 0.002, "q67_recent": 0.002, "clim_weekly": 0.002},
 }  # mm/day
+
+
+def anonymous(ti: tarfile.TarInfo) -> tarfile.TarInfo:
+    """A tar member without the building machine's user and group."""
+    ti.uid = ti.gid = 0
+    ti.uname = ti.gname = ""
+    return ti
 
 
 def packed(da: xr.DataArray, step: float | None = None) -> dict:
@@ -179,19 +196,43 @@ def era5_shift(out: Path):
     x.to_netcdf(out / "era5_shift.nc", encoding=enc)
 
 
-def telecon(out: Path):
+def telecon(out: Path, base: Path | None = None):
+    """The teleconnection reference. base: a published set's telecon/ directory whose indices (and everything else in
+    it) are kept verbatim; only the indices it lacks are taken from the store, so adding an index never moves the
+    others (a rebuilt store's sigmas and monthly sds differ slightly from the published ones)."""
     T = SRC / "telecon"
     o = out / "telecon"
     (o / "cpc").mkdir(parents=True, exist_ok=True)
     p = xr.open_dataset(T / "patterns.nc")
     p = p.drop_vars([v for v in ("clim_doy_z500", "clim_doy_slp") if v in p])
+    meta = json.loads((T / "validation.json").read_text())
+    src = T
+    if base is not None:
+        old = xr.open_dataset(base / "patterns.nc").load()
+        meta_old = json.loads((base / "validation.json").read_text())
+        new = [i for i in meta if i not in meta_old]
+        per = [v for v in old.data_vars if "index" in old[v].dims]
+        # object labels: concat would keep the first file's fixed-width string dtype and cut the new names
+        parts = [
+            x.assign_coords(index=x.index.values.astype(str).astype(object)) for x in (old[per], p[per].sel(index=new))
+        ]
+        p = xr.merge(
+            [xr.concat(parts, dim="index", join="exact"), old.drop_vars([*per, "index"])],
+            join="exact",
+            combine_attrs="override",
+        )
+        p.attrs["extended"] = f"{', '.join(new)} added from the store; every other index verbatim from {TAG}"
+        meta = meta_old | {i: meta[i] for i in new}
+        src = base
+        print(f"  telecon: kept {len(meta_old)} indices verbatim, added {new}", flush=True)
     p.to_netcdf(
         o / "patterns.nc",
         encoding={v: {"zlib": True, "complevel": 6, "shuffle": True} for v in p.data_vars if p[v].dtype.kind == "f"},
     )
-    for f in ("validation.json", "regimes.nc", "regime_names.json"):
-        shutil.copy2(T / f, o / f)
-    shutil.copy2(T / "cpc" / "tele_index.nh", o / "cpc" / "tele_index.nh")
+    (o / "validation.json").write_text(json.dumps(meta, indent=1))
+    for f in ("regimes.nc", "regime_names.json"):
+        shutil.copy2(src / f, o / f)
+    shutil.copy2(src / "cpc" / "tele_index.nh", o / "cpc" / "tele_index.nh")
 
 
 def skill(out: Path):
@@ -289,6 +330,13 @@ def main() -> int:
     ap.add_argument("--procs", type=int, default=4)
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--tar", action="store_true")
+    ap.add_argument("--overlay", action="store_true", help="+ geps_ref_v4_telecon.tar (the OVERLAY files) beside it")
+    ap.add_argument(
+        "--extend-from",
+        metavar="DIR",
+        help=f"with --only telecon: keep the indices of DIR/telecon (the unpacked {TAG}) verbatim and add only the "
+        "ones the store has and it lacks",
+    )
     a = ap.parse_args()
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -303,7 +351,7 @@ def main() -> int:
         era5_shift(out)
         print("  era5_shift.nc", flush=True)
     if "telecon" in only and not a.check:
-        telecon(out)
+        telecon(out, Path(a.extend_from) / "telecon" if a.extend_from else None)
         print("  telecon/", flush=True)
     if "skill" in only and not a.check:
         skill(out)
@@ -323,13 +371,19 @@ def main() -> int:
         tp = out.parent / "geps_state_seed.tar"
         with tarfile.open(tp, "w") as tf:
             for p in sorted(q for q in sd.rglob("*") if q.is_file()):
-                tf.add(p, arcname=str(p.relative_to(sd)))
+                tf.add(p, arcname=str(p.relative_to(sd)), filter=anonymous)
         print(f"  {tp}  {tp.stat().st_size / 1e6:.1f} MB")
     if a.tar:
         tp = out.parent / f"{TAG.replace('-', '_')}.tar"
         with tarfile.open(tp, "w") as tf:
             for p in [*files, out / "MANIFEST.json"]:
-                tf.add(p, arcname=str(p.relative_to(out)))
+                tf.add(p, arcname=str(p.relative_to(out)), filter=anonymous)
+        print(f"  {tp}  {tp.stat().st_size / 1e6:.1f} MB")
+    if a.overlay:
+        tp = out.parent / "geps_ref_v4_telecon.tar"
+        with tarfile.open(tp, "w") as tf:
+            for f in OVERLAY:
+                tf.add(out / f, arcname=f, filter=anonymous)
         print(f"  {tp}  {tp.stat().st_size / 1e6:.1f} MB")
     return 0
 

@@ -81,6 +81,11 @@ Outputs (figs/ and the site's assets/geps/)
   geps_telecon_probs.webp    weeks 1-5 x indices: P(<= -0.5), neutral,
                              P(>= +0.5) as stacked bars, weekly mean and its
                              change vs the previous run
+  geps_telecon_probs_nao.webp  the same for the NAO by its four definitions
+                             (CPC; Hurrell's and Jones's station pairs and
+                             Hurrell's principal component in sea-level
+                             pressure) and the Greenland Blocking Index, which
+                             also get plumes but stay off the series board
   geps_telecon_reliability.webp  the cross-validated test of the calibration:
                              reliability diagrams and PIT histograms by week,
                              and the cells flagged miscalibrated
@@ -158,7 +163,13 @@ ORDER = [
     "pol",
     "nam100",
     "aao",
+    "nao_hurrell",
+    "nao_pc",
+    "nao_jones",
+    "gbi",
 ]
+# the NAO's other definitions and the Greenland Blocking Index: drawn behind the NAO's own picker, not on the boards
+NAO_FLAVOURS = ("nao_hurrell", "nao_pc", "nao_jones", "gbi")
 SKILL_MIN = 0.25  # hindcast anomaly correlation below this = "no skill", shaded
 P_MAX = 0.05  # ... and so is a correlation not significant at this level (one-sided, on n_eff)
 FDR_Q = 0.10  # ... or one that fails Benjamini-Hochberg at this rate over every index x week cell of the init
@@ -265,6 +276,11 @@ class Patterns:
         undefined = ~np.isin(np.asarray(months), sorted(self.defined[sid]))
         out[undefined] = np.nan
         return out
+
+    def title(self, sid, sep=" — "):
+        """An index's display name; the NAO's other definitions carry "NAO" in their own name."""
+        name = self.meta[sid]["name"]
+        return name if sid.startswith("nao_") else f"{sid.upper()}{sep}{name}"
 
     def to_seasonal(self, sid, doys):
         """Factor that converts an ANNUALLY standardized value (CPC/PSL
@@ -816,12 +832,12 @@ def _plume_panel(ax, pat, sid, base, prev_cycle, fc, pfc, obs, cpc, big=False):
     rt = (
         f"r vs {ref} daily {m['r_daily']:+.2f}"
         if "r_daily" in m
-        else f"r vs CPC monthly {m['r_monthly']:+.2f}"
+        else f"r vs {ref} monthly {m['r_monthly']:+.2f}"
         + (f" · vs {m['daily_reference']} daily {m['r_daily_ref']:+.2f}" if "r_daily_ref" in m else "")
         if "r_monthly" in m
         else "no external reference"
     )
-    ax.set_title(f"{sid.upper()} — {m['name']}", fontsize=9.6 * fs, fontweight="bold", loc="left", pad=4)
+    ax.set_title(pat.title(sid), fontsize=9.6 * fs, fontweight="bold", loc="left", pad=4)
     ax.text(
         0.985,
         0.955,
@@ -884,7 +900,7 @@ def plot_plumes(pat, cycle, prev_cycle, fc, pfc, obs, cpc):
 
 def plot_series(pat, cycle, prev_cycle, fc, pfc, obs, cpc):
     base = pd.Timestamp(cycle)
-    ids = [i for i in pat.ids if i in fc]
+    ids = [i for i in pat.ids if i in fc and i not in NAO_FLAVOURS]
     ncol = 4
     nrow = (len(ids) + ncol - 1) // ncol
     fig = plt.figure(figsize=(17.0, 3.15 * nrow + 0.9))
@@ -947,15 +963,17 @@ def has_hindcast(row):
     return "skill_r" in row
 
 
-def plot_probs(pat, cycle, prev_cycle, weeks):
+def plot_probs(pat, cycle, prev_cycle, weeks, nao=False):
+    """The weekly phase probabilities of the main indices, or (nao) of the NAO's definitions and the GBI."""
     from matplotlib.patches import Rectangle
 
     base = pd.Timestamp(cycle)
-    ids = [i for i in pat.ids if i in weeks]
+    ids = [i for i in pat.ids if i in weeks and (i in NAO_FLAVOURS or (nao and i == "nao")) == nao]
     n = len(ids)
     has_cal = any("skill_r" in r for sid in ids for r in weeks[sid])
-    fig = plt.figure(figsize=(13.6, 0.80 * n + 2.6))
-    ax = fig.add_axes([0.205, 0.075, 0.765, 0.79])
+    H = 0.80 * n + 2.6  # inches; the margins below are fixed in inches so a five-row figure keeps its note clear
+    fig = plt.figure(figsize=(13.6, H))
+    ax = fig.add_axes([0.205, 1.15 / H, 0.765, 1.0 - 2.75 / H])
     W = len(WEEKS)
     bw = 0.78
 
@@ -1057,7 +1075,9 @@ def plot_probs(pat, cycle, prev_cycle, weeks):
     ax.set_yticks(range(n))
     ax.set_yticklabels(
         [
-            f"{sid.upper()}  {pat.meta[sid]['name'].replace('Northern Annular Mode, 100 hPa', 'N. Annular Mode 100 hPa')}"
+            "NAO, CPC 500 hPa pattern"
+            if nao and sid == "nao"
+            else pat.title(sid, "  ").replace("Northern Annular Mode, 100 hPa", "N. Annular Mode 100 hPa")
             for sid in ids
         ][::-1],
         fontsize=8.8,
@@ -1081,13 +1101,16 @@ def plot_probs(pat, cycle, prev_cycle, weeks):
         Patch(color="#d9d6d0", label="neutral"),
         Patch(color="#b4453c", label=f"P(weekly mean ≥ +{THR} sd)"),
     ]
-    fig.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.59, 0.945), ncol=3, fontsize=8.4, frameon=False)
+    fig.legend(
+        handles=handles, loc="upper center", bbox_to_anchor=(0.59, 1.0 - 0.85 / H), ncol=3, fontsize=8.4, frameon=False
+    )
     fig.suptitle(
-        f"Teleconnection phase probabilities by week — GEPS 21 members · init {base:%Y-%m-%d}"
+        ("NAO definitions and Greenland blocking" if nao else "Teleconnection phase probabilities")
+        + f" by week — GEPS 21 members · init {base:%Y-%m-%d}"
         + (f"  ·  Δ = change in weekly mean vs the {pd.Timestamp(prev_cycle):%b %d} run" if prev_cycle else ""),
         fontsize=12.5,
         fontweight="bold",
-        y=0.985,
+        y=1.0 - 0.23 / H,
         va="top",
     )
     note = "upper bar: raw member fractions (21 members → 5% steps; 0% = no member, not certainty)" + (
@@ -1099,11 +1122,12 @@ def plot_probs(pat, cycle, prev_cycle, weeks):
         if has_cal
         else ""
     )
-    fig.text(0.5, 0.006, note, ha="center", va="bottom", fontsize=7.8, color=MUTED)
+    fig.text(0.5, 0.09 / H, note, ha="center", va="bottom", fontsize=7.8, color=MUTED)
+    name = "geps_telecon_probs_nao.webp" if nao else "geps_telecon_probs.webp"
     for d in (FIGS, SITE):
-        fig.savefig(d / "geps_telecon_probs.webp", dpi=105, facecolor="white", pil_kwargs={"quality": 88, "method": 6})
+        fig.savefig(d / name, dpi=105, facecolor="white", pil_kwargs={"quality": 88, "method": 6})
     plt.close(fig)
-    print("  geps_telecon_probs.webp")
+    print(f"  {name}")
 
 
 def miscalibrated(cv):
@@ -1293,6 +1317,7 @@ def main() -> int:
     plot_series(pat, a.cycle, prev_cycle, fc, pfc, obs, cpc)
     plot_plumes(pat, a.cycle, prev_cycle, fc, pfc, obs, cpc)
     plot_probs(pat, a.cycle, prev_cycle, weeks)
+    plot_probs(pat, a.cycle, prev_cycle, weeks, nao=True)
     plot_reliability(pat, a.cycle, weeks)
     # numbers for the page
     js = {
@@ -1322,6 +1347,7 @@ def main() -> int:
         m = pat.meta[sid]
         rec = {
             "name": m["name"],
+            "set": "nao" if sid in NAO_FLAVOURS else "main",
             "cpc": m.get("cpc"),
             "field": m["field"],
             "reference": m.get("reference", "CPC" if m.get("cpc") else None),

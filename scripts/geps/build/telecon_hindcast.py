@@ -44,6 +44,7 @@ the others refitted (its cross-validated reliability).
     python telecon_hindcast.py --workers 4
     -> telecon/hindcast_indices.nc   fcst[index, S, L], obs[index, S, L]
     python telecon_hindcast.py --tags mslp --merge    # only the slp indices, keep the rest
+    python telecon_hindcast.py --ids nao_hurrell,gbi --merge    # only these indices, keep the rest
 
 Memory: each worker holds a monthly file (18 x 39 x 181 x 360) and its 2.5 deg copy, ~0.6 GB as float32; the scoring
 process holds the 2.5 deg climatology (0.25 GB), the ERA5 leave-out fields (0.3 GB) and three months of starts.
@@ -270,10 +271,12 @@ def anomalies(tag, workers, rebase=True, limit=0):
         raise SystemExit(f"{tag}: pool sizes {mc.seen} differ from the climatology's n_starts {mc.N}")
 
 
-def score_tag(tag, workers):
-    """{index: {start: (L,) leave-one-year-out index}}, the same in sample, leads."""
+def score_tag(tag, workers, only=None):
+    """{index: {start: (L,) leave-one-year-out index}}, the same in sample, leads; only: these indices, else all."""
     pat = patterns()
-    ids = [i for i in pat.ids if pat.meta[i]["field"] == ("z500" if tag == "zg500" else "slp")]
+    ids = [
+        i for i in pat.ids if pat.meta[i]["field"] == ("z500" if tag == "zg500" else "slp") and (not only or i in only)
+    ]
     cv, ins, L_ref = {i: {} for i in ids}, {i: {} for i in ids}, None
     for s0, L, valid, a_in, a_out in anomalies(tag, workers):
         L_ref = L
@@ -320,14 +323,16 @@ def main() -> int:
         help="keep the indices already in telecon/hindcast_indices.nc that this run does "
         "not recompute (e.g. --tags mslp after adding an slp index)",
     )
+    ap.add_argument("--ids", help="comma-separated indices to score (default: every index of the tags' fields)")
     a = ap.parse_args()
+    only = set(a.ids.split(",")) if a.ids else None
     pat = patterns()
     t0 = time.time()
     obs = observed_series(pat, list(range(Y0, Y1 + 2)))
     print(f"observed indices: {len(obs)} series, {time.time() - t0:.0f} s", flush=True)
     fc, fc_in, L_ref = {}, {}, None
     for tag in a.tags.split(","):
-        cv, ins, L_ref = score_tag(tag, a.workers)
+        cv, ins, L_ref = score_tag(tag, a.workers, only)
         fc.update(cv)
         fc_in.update(ins)
     ids = list(fc)
