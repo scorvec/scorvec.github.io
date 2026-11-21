@@ -6,7 +6,9 @@ Teleconnections use the same projectors as the GEPS subseasonal page
 CPC-style loading patterns for NAO, EA, WP, EP/NP, PNA, EA/WR, SCA, TNH and POL as
 per-calendar-month regression maps of 500 hPa height on CPC's own indices; AO as
 the first EOF of sea-level pressure poleward of 20°N; EPO and WPO as PSL's box
-definitions. Applied to each member's monthly 500 hPa height (or msl) anomaly
+definitions. The NAO also by its other definitions (NAO_FLAVOURS: Hurrell's and
+Jones's station pairs, Hurrell's principal component) with the Greenland Blocking
+Index, a group of their own ("nao") that the page shows behind the NAO. Applied to each member's monthly 500 hPa height (or msl) anomaly
 against SEAS5's own 1993–2016 hindcast, interpolated to the 2.5° NCEP grid the
 patterns live on. The result is on CPC's monthly scale (annual standard
 deviations), so it reads like the published index.
@@ -71,7 +73,8 @@ CPC_DIR = DATA / "cpc_tele"  # CPC's published index files, re-read every run in
 OUT_JSON = ASSETS / "data" / "seas5_tele.json"
 UA = "scorvec.com SEAS5 outlook (https://github.com/scorvec/scorvec.github.io)"
 
-TELE_ORDER = ["nao", "pna", "ao", "ea", "wp", "epnp", "eawr", "sca", "tnh", "pol", "epo", "wpo"]
+NAO_FLAVOURS = ("nao_hurrell", "nao_pc", "nao_jones", "gbi")
+TELE_ORDER = ["nao", "pna", "ao", "ea", "wp", "epnp", "eawr", "sca", "tnh", "pol", "epo", "wpo", *NAO_FLAVOURS]
 DEFINED_MONTHS = {"tnh": {12, 1, 2}, "epnp": set(range(1, 13)) - {8, 9}}
 TELE_LABEL = {
     "eqsoi": "Equatorial SOI",
@@ -87,6 +90,19 @@ TELE_LABEL = {
     "pol": "Polar / Eurasia",
     "epo": "EPO",
     "wpo": "WPO",
+    "nao_hurrell": "NAO, Hurrell stations",
+    "nao_pc": "NAO, Hurrell PC",
+    "nao_jones": "NAO, Jones stations",
+    "gbi": "Greenland Blocking Index",
+}
+TELE_NOTE = {
+    "nao_hurrell": "North Atlantic Oscillation, Hurrell's station index: sea-level pressure at Lisbon minus Stykkisholmur/"
+    "Reykjavik, each normalised for the calendar month",
+    "nao_pc": "North Atlantic Oscillation, Hurrell's principal component: the leading pattern of Atlantic-sector "
+    "sea-level pressure (20–80°N, 90°W–40°E) for the calendar month",
+    "nao_jones": "North Atlantic Oscillation, Jones's station index: sea-level pressure at Gibraltar minus Reykjavik, "
+    "each normalised for the calendar month",
+    "gbi": "Greenland Blocking Index: the 500 hPa height over 60–80°N, 80–20°W; positive under a block",
 }
 
 
@@ -251,6 +267,43 @@ def derive_hc_nh(month: str) -> None:
     R.save(R.hc_ref("tele_nh", month), meta=dict(month=month, ids=pats.ids), **out)
 
 
+def extend_tables(months: list[str]) -> None:
+    """--extend: obs_tele_patterns, obs_tele_era5 and the start months' hc_tele_nh gain the indices of TELE_ORDER they
+    lack, every value they hold kept verbatim (offline, once; each start month needs its raw hindcast on disk). A
+    whole rebuild would move the held values in their last bits (another machine's arithmetic), and the published
+    issues stand on them. The new values come from derive_obs_patterns, derive_obs_era5 and derive_hc_nh as ever."""
+    refs = [R.obs_ref("tele_patterns"), R.obs_ref("tele_era5"), *(R.hc_ref("tele_nh", m) for m in months)]
+    held = {ref: R._load_one(ref) for ref in refs}  # the table itself, never merged with a lead-7 sibling
+    derive_obs_patterns()
+    derive_obs_era5()
+    for m in months:
+        derive_hc_nh(m)
+    for ref, old in held.items():
+        if old is None:
+            continue
+        new, meta = R._load_one(ref), old["meta"]
+        if ref == refs[0]:
+            add = [i for i in new["meta"]["ids"] if i not in meta["ids"]]
+            rows = [new["meta"]["ids"].index(i) for i in add]
+            arrays = {k: v for k, v in old.items() if k != "meta"}
+            arrays["projector"] = np.concatenate([old["projector"], new["projector"][rows]])
+            meta = {**meta, "ids": meta["ids"] + add, "validation": new["meta"]["validation"] | meta["validation"]}
+        elif ref == refs[1]:
+            add = [k for k in new["meta"]["series"] if k not in meta["series"]]
+            arrays = {k: v for k, v in old.items() if k != "meta"}
+            meta = {
+                **meta,
+                "series": meta["series"] | {k: new["meta"]["series"][k] for k in add},
+                "scale": meta["scale"] | {k: v for k, v in new["meta"]["scale"].items() if k in add},
+            }
+        else:
+            add = [i for i in new["meta"]["ids"] if i not in meta["ids"]]
+            arrays = {k: v for k, v in old.items() if k != "meta"} | {f"pat_{i}": new[f"pat_{i}"] for i in add}
+            meta = {**meta, "ids": meta["ids"] + add}
+        R.save(ref, meta=meta, **arrays)
+        print(f"  {ref.name}: added {', '.join(add) or 'nothing'}; the rest as held", flush=True)
+
+
 def derive_hc_strat(month: str) -> None:
     """hc_tele_strat_{MM}: 60°N/60°S 10 hPa zonal-mean wind and the 10/30/50 hPa equatorial QBO band, 600 × 6."""
     month = f"{int(month):02d}"
@@ -364,12 +417,14 @@ def compute(ym: str, pats: Patterns, with_members: bool, scale: dict | None = No
                 TELE_LABEL.get(sid, sid),
                 "σ",
                 (
-                    m.get("name", sid)
+                    f"{TELE_NOTE[sid]}; {unit_note}."
+                    if sid in TELE_NOTE
+                    else m.get("name", sid)
                     + f". CPC-style pattern applied to the member's 500 hPa height anomaly; {unit_note}."
                     if m.get("field") != "slp"
                     else f"First EOF of sea-level pressure poleward of 20°N; positive = low pressure over the pole; {unit_note}."
                 ),
-                "tele",
+                "nao" if sid in NAO_FLAVOURS else "tele",
             )
             out[sid]["_hc"] = hi  # kept for skill, dropped before writing
         # SOI from msl points
@@ -1406,7 +1461,17 @@ def main(argv=None) -> int:
         help="with --replot: re-attach CPC's published indices to the published JSON first (SOI/EqSOI tail, skill "
         "and calibration against CPC); needs network + the hc_tele_nh table",
     )
+    ap.add_argument(
+        "--extend",
+        nargs="+",
+        metavar="MM",
+        help="add the indices the derived tables lack: the observed references and these start months' hindcast "
+        "tables, the values they hold kept (offline, once; raw hindcast on disk)",
+    )
     a = ap.parse_args(argv)
+    if a.extend:
+        extend_tables([f"{int(m):02d}" for m in a.extend])
+        return 0
     if a.fetch_cpc:
         got = cpc_published()
         print(
@@ -1459,6 +1524,7 @@ def main(argv=None) -> int:
         "previous": prev,
         "groups": {
             "tele": [k for k in cur if cur[k]["group"] == "tele"],
+            "nao": [k for k in cur if cur[k]["group"] == "nao"],
             "strat": [k for k in cur if cur[k]["group"] == "strat"],
         },
         "indices": cur,

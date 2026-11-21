@@ -89,11 +89,24 @@
     }).join("");
     return head + rows;
   }
+  // the NAO's other definitions and the Greenland Blocking Index (group "nao"): a row under the NAO pill
+  var FLAV_SHORT = { nao: "CPC", nao_hurrell: "Hurrell stations", nao_pc: "Hurrell PC", nao_jones: "Jones", gbi: "Greenland blocking" };
   function indexCard(T, group, pillsId, noteId, chartId, tableId, updId, first) {
     var keys = T.groups[group]; if (!keys || !keys.length) { $(chartId).closest(".card").hidden = true; return; }
     var cur = first && keys.indexOf(first) >= 0 ? first : keys[0];
     var modeId = pillsId + "Mode", modeEl = $(modeId);
     if (!modeEl) { modeEl = document.createElement("div"); modeEl.className = "controls"; modeEl.id = modeId; $(pillsId).insertAdjacentElement("afterend", modeEl); }
+    var flav = keys.indexOf("nao") >= 0 && T.groups.nao && T.groups.nao.length ? ["nao"].concat(T.groups.nao) : null, nao = "nao";
+    var flavEl = flav ? $(pillsId + "Flav") : null;
+    if (flav && !flavEl) { flavEl = document.createElement("div"); flavEl.className = "controls"; flavEl.id = pillsId + "Flav"; $(pillsId).insertAdjacentElement("afterend", flavEl); }
+    function pick(k) {
+      if (flavEl) {
+        flavEl.hidden = k !== "nao";
+        flavEl.innerHTML = flavEl.hidden ? "" : '<span class="ctlsep">Definition</span>' + flav.map(function (f) { return '<button class="pill' + (f === nao ? " on" : "") + '" data-k="' + f + '">' + (FLAV_SHORT[f] || T.indices[f].label) + "</button>"; }).join("");
+        flavEl.onclick = function (ev) { var b = ev.target.closest("button"); if (!b) return; nao = b.dataset.k; pick("nao"); };
+      }
+      draw(k === "nao" && flav ? nao : k);
+    }
     function draw(k) {
       var e = T.indices[k];
       $(noteId).textContent = e.note + (T.skill_note ? "  Skill r: " + T.skill_note + "." : "") + (hasCal(e) && IDX_MODE.cal ? "  Calibrated view: the observed index regressed on the hindcast ensemble mean for this month and lead (24 years); mean and spread from that fit" + (e.obs_source === "CPC" ? ", against CPC's published index." : ".") : "");
@@ -103,8 +116,8 @@
       modeEl.innerHTML = modeEl.hidden ? "" : '<span class="ctlsep">View</span><button class="pill' + (IDX_MODE.cal ? " on" : "") + '" data-mode="cal">Calibrated to observations</button><button class="pill' + (!IDX_MODE.cal ? " on" : "") + '" data-mode="raw">Raw model members</button>';
       modeEl.onclick = function (ev) { var b = ev.target.closest("button"); if (!b) return; IDX_MODE.cal = b.dataset.mode === "cal"; draw(k); };
     }
-    pills(pillsId, keys.map(function (k) { return {key: k, label: T.indices[k].label}; }), cur, draw);
-    draw(cur);
+    pills(pillsId, keys.map(function (k) { return {key: k, label: T.indices[k].label}; }), cur, pick);
+    pick(cur);
     $(updId).textContent = "built " + T.generated;
   }
   function fig(file, v, alt, cap) { return '<figure><a href="assets/sst/' + file + v + '" target="_blank" rel="noopener"><img src="assets/sst/' + file + v + '" alt="' + alt + '" loading="lazy"></a><figcaption>' + cap + '</figcaption></figure>'; }
