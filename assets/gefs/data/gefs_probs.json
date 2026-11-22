@@ -1,6 +1,6 @@
 {
- "cycle": "20261120",
- "init": "2026-11-20 00Z",
+ "cycle": "20261121",
+ "init": "2026-11-21 00Z",
  "members": 31,
  "skill_test": {
   "alpha": 0.05,
@@ -14,114 +14,114 @@
   "t2m": [
    {
     "week": 1,
-    "valid": "2026-11-20/2026-11-26",
+    "valid": "2026-11-21/2026-11-27",
     "skill_r_median": 0.829,
     "share_skilful": 0.984,
     "most_likely_cal": {
-     "below": 0.17,
-     "near": 0.376,
-     "above": 0.454
+     "below": 0.155,
+     "near": 0.379,
+     "above": 0.466
     }
    },
    {
     "week": 2,
-    "valid": "2026-11-27/2026-12-03",
+    "valid": "2026-11-28/2026-12-04",
     "skill_r_median": 0.561,
     "share_skilful": 0.859,
     "most_likely_cal": {
-     "below": 0.171,
-     "near": 0.236,
-     "above": 0.593
+     "below": 0.187,
+     "near": 0.215,
+     "above": 0.598
     }
    },
    {
     "week": 3,
-    "valid": "2026-12-04/2026-12-10",
+    "valid": "2026-12-05/2026-12-11",
     "skill_r_median": 0.304,
     "share_skilful": 0.259,
     "most_likely_cal": {
-     "below": 0.236,
-     "near": 0.167,
-     "above": 0.597
+     "below": 0.289,
+     "near": 0.156,
+     "above": 0.555
     }
    },
    {
     "week": 4,
-    "valid": "2026-12-11/2026-12-17",
+    "valid": "2026-12-12/2026-12-18",
     "skill_r_median": 0.188,
     "share_skilful": 0.101,
     "most_likely_cal": {
-     "below": 0.27,
-     "near": 0.179,
-     "above": 0.552
+     "below": 0.297,
+     "near": 0.182,
+     "above": 0.521
     }
    },
    {
     "week": 5,
-    "valid": "2026-12-18/2026-12-24",
+    "valid": "2026-12-19/2026-12-25",
     "skill_r_median": 0.165,
     "share_skilful": 0.053,
     "most_likely_cal": {
-     "below": 0.238,
-     "near": 0.249,
-     "above": 0.512
+     "below": 0.249,
+     "near": 0.256,
+     "above": 0.495
     }
    }
   ],
   "pr": [
    {
     "week": 1,
-    "valid": "2026-11-20/2026-11-26",
+    "valid": "2026-11-21/2026-11-27",
     "skill_r_median": 0.463,
     "share_skilful": 0.573,
     "most_likely_cal": {
-     "below": 0.364,
-     "near": 0.353,
-     "above": 0.283
+     "below": 0.374,
+     "near": 0.319,
+     "above": 0.307
     }
    },
    {
     "week": 2,
-    "valid": "2026-11-27/2026-12-03",
+    "valid": "2026-11-28/2026-12-04",
     "skill_r_median": 0.172,
     "share_skilful": 0.0,
     "most_likely_cal": {
-     "below": 0.48,
-     "near": 0.181,
-     "above": 0.339
+     "below": 0.463,
+     "near": 0.18,
+     "above": 0.357
     }
    },
    {
     "week": 3,
-    "valid": "2026-12-04/2026-12-10",
+    "valid": "2026-12-05/2026-12-11",
     "skill_r_median": 0.056,
     "share_skilful": 0.0,
     "most_likely_cal": {
-     "below": 0.365,
+     "below": 0.361,
      "near": 0.275,
-     "above": 0.36
+     "above": 0.364
     }
    },
    {
     "week": 4,
-    "valid": "2026-12-11/2026-12-17",
+    "valid": "2026-12-12/2026-12-18",
     "skill_r_median": 0.011,
     "share_skilful": 0.0,
     "most_likely_cal": {
-     "below": 0.264,
-     "near": 0.435,
-     "above": 0.302
+     "below": 0.276,
+     "near": 0.439,
+     "above": 0.285
     }
    },
    {
     "week": 5,
-    "valid": "2026-12-18/2026-12-24",
+    "valid": "2026-12-19/2026-12-25",
     "skill_r_median": -0.001,
     "share_skilful": 0.0,
     "most_likely_cal": {
-     "below": 0.213,
-     "near": 0.485,
-     "above": 0.302
+     "below": 0.219,
+     "near": 0.486,
+     "above": 0.295
     }
    }
   ]
