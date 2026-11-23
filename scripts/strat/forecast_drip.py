@@ -39,6 +39,8 @@ Model drift - never shown as signal:
   the level is MARKED (a grey triangle on the chart's right edge). The 1000 hPa cap needs that offset most: models extrapolate heights below ground where GEOS FP
   and MERRA-2 leave those points out (in summer whole rows near the pole are underground and the observed 1000 hPa cap
   is undefined), so a model's 1000 hPa cap reads ~30-40 m (about 1 sd) low at analysis time.
+  <model>_drip_raw.webp is the same run with no drift removed at any level, only that offset (the page's "Model drift:
+  Left in" switch): what the correction does to a forecast is the difference between the two charts.
 Ensemble mean of the members' standardised anomalies; the lower panels are the 1000 hPa cap (an AO proxy: high cap =
 negative AO) and the share of members with the 100 hPa cap >= +1 sd. A days 1-15 ensemble's members also go to the
 descent watch (descent_watch.reach: how far down each member's anomaly runs unbroken from 100 hPa, at the levels whose
@@ -521,7 +523,20 @@ def _paxis(ax, levels) -> None:
 
 
 def render(
-    model, init, leads, Zf, corrected, tail_days, Zt, frac100, out: Path, note: str, nmem: int, levels, hour: str = "00"
+    model,
+    init,
+    leads,
+    Zf,
+    corrected,
+    tail_days,
+    Zt,
+    frac100,
+    out: Path,
+    note: str,
+    nmem: int,
+    levels,
+    hour: str = "00",
+    raw: bool = False,
 ):
     import matplotlib
 
@@ -540,7 +555,8 @@ def render(
     fig.text(
         0.07,
         0.975,
-        f"{name} · dripping paint: polar-cap height, observed and forecast, init {init:%d %b %Y} {hour}Z",
+        f"{name} · dripping paint{', raw' if raw else ''}: polar-cap height, observed and forecast, init "
+        f"{init:%d %b %Y} {hour}Z",
         ha="left",
         va="top",
         fontsize=15,
@@ -553,8 +569,13 @@ def render(
         "Standardised 65–90°N geopotential height (MERRA-2 1980–2026 scale, as the history drips). Left of "
         "the line: GEOS FP analyses (offset to MERRA-2 removed). Right: "
         + (f"{name}, one run" if single else f"ensemble mean of {nmem} members")
-        + f", model drift removed where measured ({note}); a grey triangle on the right edge = drift not measured at that "
-        f"level (only the analysis-time offset from GEOS FP removed), read with caution.",
+        + (
+            ", RAW: the model's drift is NOT removed (only each level's offset from GEOS FP at the analysis and day 1), "
+            "so a change with lead can be the model sliding towards its own climate."
+            if raw
+            else f", model drift removed where measured ({note}); a grey triangle on the right edge = drift not measured "
+            f"at that level (only the analysis-time offset from GEOS FP removed), read with caution."
+        ),
         ha="left",
         va="top",
         fontsize=9.4,
@@ -565,7 +586,7 @@ def render(
     lv = np.arange(-2.4, 2.41, 0.3)
     cf = ax.contourf(X, p, Z.T, levels=lv, cmap="RdBu_r", extend="both")
     ax.contour(X, p, Z.T, levels=[x for x in lv if abs(x) > 1e-6], colors="#333", linewidths=0.3)
-    unc = [L for L in levels if L not in corrected]  # marked beside the chart, not drawn over it
+    unc = [] if raw else [L for L in levels if L not in corrected]  # marked beside the chart, not drawn over it
     ax.plot(np.full(len(unc), 1.003), unc, ls="none", marker="<", ms=6, color=MUTED, clip_on=False,
             transform=ax.get_yaxis_transform())  # fmt: skip
     ax.axvline(0, color=INK, lw=1.4)
@@ -596,7 +617,7 @@ def render(
         color="#b3122b",
         lw=1.6,
         label=(name if single else "ensemble mean")
-        + ("" if 1000.0 in corrected else " (analysis offset removed; drift not measured)"),
+        + ("" if 1000.0 in corrected else " (analysis offset removed; drift not measured)" if not raw else " (raw)"),
     )
     ax2.axhline(0, color="#555", lw=0.8)
     ax2.axvline(0, color=INK, lw=1.0)
@@ -794,10 +815,8 @@ def main() -> int:
     # a model's 1000 hPa cap reads ~40 m (about 1 sd) low at analysis time - a definition, not a forecast.
     H = FP.load_history(Path(a.history))
     Hraw = H.copy()
-    offsets = {}
+    offsets, every_off = {}, {}  # the levels without a measured drift; every level (the raw figure's)
     for L in lv:
-        if L in dr:
-            continue
         diffs = []
         for li, h in enumerate(leads[:2]):  # the analysis and day 1
             v = init + pd.Timedelta(hours=h)
@@ -805,18 +824,22 @@ def main() -> int:
                 o = FP.offset_at(pd.DatetimeIndex([v]))[0, LEVELS.index(L)]
                 diffs.append(np.nanmean(C[:, li, lv.index(L)]) - (Hraw.loc[v, L] - o))
         if diffs:
-            offsets[L] = float(np.mean(diffs))
-            dr[L] = np.full(len(leads), offsets[L])
+            every_off[L] = float(np.mean(diffs))
+            if L not in dr:
+                offsets[L] = every_off[L]
+                dr[L] = np.full(len(leads), offsets[L])
     days_f = pd.DatetimeIndex([init + pd.Timedelta(hours=h) for h in leads]).normalize()
     # forecast: drop lead 0 (the analysis is the observed tail), standardise per member after removing drift
     keep = np.array(leads) > 0
     leads_f = [h for h, k in zip(leads, keep) if k]
     days_f = days_f[keep]
     Zf = np.full((C.shape[0], len(leads_f), len(lv)), np.nan)
+    Zraw = Zf.copy()  # the same with no drift removed, only each level's analysis offset (the page's drift switch)
     for k, L in enumerate(lv):
         d = dr.get(L)
         dd = d[keep] if d is not None else 0.0
         Zf[:, :, k] = (C[:, keep, k] - dd - ref.mean(days_f, L)) / ref.sd(days_f, L)
+        Zraw[:, :, k] = (C[:, keep, k] - every_off.get(L, 0.0) - ref.mean(days_f, L)) / ref.sd(days_f, L)
     # observed tail
     H = H[(H.index < init) & (H.index >= init - pd.Timedelta(days=TAIL))]
     if len(H) < 20:
@@ -829,21 +852,23 @@ def main() -> int:
     name = NAME[a.model]
     out = Path(a.out_dir)
     out = out if out.is_absolute() else REPO / out
-    render(
-        a.model,
-        init,
-        leads_f,
-        Zf,
-        corrected,
-        H.index,
-        Zt,
-        frac100,
-        out / f"{a.model}_drip.webp",
-        note,
-        C.shape[0],
-        lv,
-        hour=f"{int(a.time):02d}",
-    )
+    for Z, tag in ((Zf, ""), (Zraw, "_raw")):
+        render(
+            a.model,
+            init,
+            leads_f,
+            Z,
+            corrected,
+            H.index,
+            Zt,
+            np.nanmean(Z[:, :, lv.index(100.0)] >= 1.0, 0),
+            out / f"{a.model}_drip{tag}.webp",
+            note,
+            C.shape[0],
+            lv,
+            hour=f"{int(a.time):02d}",
+            raw=bool(tag),
+        )
     mean = np.nanmean(Zf, 0)
     doc = {
         "model": name,

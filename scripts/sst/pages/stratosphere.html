@@ -454,10 +454,13 @@ window.STAGE = {
   // split by range, so the medium-range models do not sit under weeks 3-5: fdrip keeps
   // the GEPS/GEFS days 1-35 drips (its old deep links fdrip/geps and fdrip/gefs still land), fdrip15 the AIFS-ENS/IFS-ENS ones
   fdrip: {label: "Forecast dripping paint, days 1–35", a: {label: "Model", items: [["geps","GEPS"],["gefs","GEFS"]]},
-          img: function (a) { return a === "gefs" ? "assets/gefs/gefs_drip.webp" : "assets/geps/geps_drip.webp"; },
+          b: {label: "Model drift", items: [["removed","Removed"],["raw","Left in"]]},
+          img: function (a, b) { var m = a === "gefs" ? "gefs" : "geps"; return "assets/" + m + "/" + m + (b === "raw" ? "_drip_raw.webp" : "_drip.webp"); },
           bust: "hourly", about: "about-fdrip", fit: false,
-          cap: function (a) { return "Standardised polar-cap height from 1000 to " + (a === "gefs" ? "1" : "10") + " hPa: the last 60 days observed (GEOS FP), then the "
-                                     + (a === "gefs" ? "GEFS" : "GEPS") + " ensemble mean to day 35 with the model's drift removed where it has been measured; levels marked by a grey triangle on the right are not drift-corrected. Same scale as the history drips."; }},
+          cap: function (a, b) { return "Standardised polar-cap height from 1000 to " + (a === "gefs" ? "1" : "10") + " hPa: the last 60 days observed (GEOS FP), then the "
+                                     + (a === "gefs" ? "GEFS" : "GEPS") + " ensemble mean to day 35 "
+                                     + (b === "raw" ? "with the model's drift left in: only each level's offset from GEOS FP at the start is removed, so a change with lead can be the model sliding towards its own climate. Same scale as the history drips."
+                                                    : "with the model's drift removed where it has been measured; levels marked by a grey triangle on the right are not drift-corrected. Same scale as the history drips."); }},
   descent: {label: "Downward propagation monitor", img: function () { return "assets/sst/ssw_imprint.webp"; }, bust: "hourly", about: "about-descent", fit: false,
           cap: function () { return "Is the stratosphere's anomaly coming down? The 10 and 100 hPa polar cap and the surface's SSW imprint index (sea-level pressure on the CMIP6 post-SSW pattern) for every ensemble, and the chance the imprint is positive over the month after day 15. November to April."; }},
   dwatch: {label: "Descent watch", a: {label: "View", items: [["reach","How far down"],["ring","Ring or sector"],["link","Link to the stratosphere"],["absorb","Where the waves are absorbed"],["reachruns","How far down, run to run"],["ringruns","Westerlies, run to run"],["absorbruns","Wave driving, run to run"]]},
@@ -535,10 +538,14 @@ window.STAGE = {
                                  return m + ": every member's polar-cap (65–90°N) sea-level pressure and 500 hPa height anomaly from ERA5 1991–2020 to day 15, the members' mean bold. Above zero = high pressure over the Arctic (negative Arctic Oscillation)."; }},
   fdrip15: {label: "Forecast dripping paint, days 1–15", a: {label: "Model", items: [["aifs","AIFS-ENS"],["aifsc","AIFS-ENS control"],["aifs1","AIFS single"],["ifs","IFS-ENS"],["hres","IFS control"],["gefs","GEFS"],["geps","GEPS"]]},
           b: {label: "View", items: [["now","This run"],["change","Change since a day earlier"],["runs","Run to run"]]},
-          img: function (a, b) { return b === "runs" ? "assets/sst/runs/drip_" + a + ".webp" : "assets/sst/" + a + (b === "change" ? "_drip_change.webp" : "_drip.webp"); },
+          c: function (a, b) { return b === "now" ? {label: "Model drift", items: [["removed","Removed"],["raw","Left in"]]} : null; },
+          img: function (a, b, c) { return b === "runs" ? "assets/sst/runs/drip_" + a + ".webp" : "assets/sst/" + a + (b === "change" ? "_drip_change.webp" : c === "raw" ? "_drip_raw.webp" : "_drip.webp"); },
           bust: "hourly", about: "about-fdrip", fit: false,
-          cap: function (a, b) { if (b === "change") return "The newest run's dripping paint minus the same model's run a day earlier, at the valid dates both cover, in standard deviations; red = the polar cap now forecast higher, the vortex weaker. The newest run is contoured.";
+          cap: function (a, b, c) { if (b === "change") return "The newest run's dripping paint minus the same model's run a day earlier, at the valid dates both cover, in standard deviations; red = the polar cap now forecast higher, the vortex weaker. The newest run is contoured.";
                                  if (b === "runs") return "How the last runs have moved the 10 and 100 hPa polar-cap height (ensemble mean, sd of the day’s normal), and each run’s share of members with the 100 hPa cap at +1 sd or more on its last day.";
+                                 if (c === "raw") return "Standardised polar-cap height from 1000 to " + (a === "gefs" ? "1" : "10") + " hPa: the last 60 days observed (GEOS FP), then the "
+                                     + {aifs: "AIFS-ENS ensemble mean", aifsc: "AIFS-ENS control", aifs1: "AIFS single", ifs: "IFS-ENS ensemble mean", hres: "IFS control", gefs: "GEFS ensemble mean", geps: "GEPS ensemble mean"}[a]
+                                     + " to day 15 with the model's drift left in: only each level's offset from GEOS FP at the start is removed, so a change with lead can be the model sliding towards its own climate. Same scale as the history drips.";
                                  return "Standardised polar-cap height from 1000 to " + (a === "gefs" ? "1" : "10") + " hPa: the last 60 days observed (GEOS FP), then the "
                                      + (a === "hres" ? "IFS control, one run, to day 15 with the IFS-ENS drift removed where it has been measured" : a === "aifsc" ? "AIFS-ENS control, one run, to day 15 with the AIFS-ENS drift removed where it has been measured"
                                                      : a === "aifs1" ? "AIFS single, one run, to day 15 with its own drift removed where it has been measured"
