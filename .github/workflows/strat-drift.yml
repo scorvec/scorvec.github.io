@@ -1,0 +1,96 @@
+name: Stratosphere, model cap drift (re-measure)
+
+# A model's drift in the 65-90N cap height by level and lead, which the dripping paint removes before anything is drawn
+# (scripts/strat/forecast_drip.py measure_drift): its cap forecasts from recent 00Z cycles against the GEOS FP analyses,
+# from the 90-65N rows of each message (~150 MB an IFS-ENS cycle, ECMWF open data from the Google Cloud mirror only).
+# The drift changes with the season, so this re-measures it on the most recent cycles whose day 15 has verified and
+# commits reference/<model>_capdrift.json; the next run of the model's stratosphere workflow uses it.
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: the model (ifs = IFS-ENS 50-member mean, aifs = AIFS-ENS control, aifs1 = AIFS single)
+        default: ifs
+      cycles:
+        description: how many 00Z cycles
+        default: '20'
+      every:
+        description: days between them
+        default: '2'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: strat-drift
+  cancel-in-progress: false
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/scripts/constraints.txt   # bounds every pip install (see the file)
+  ECMWF_SOURCES: google
+  ECMWF_MULTISOURCE: "0"
+  MPLBACKEND: Agg
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      M: ${{ inputs.model }}
+      N: ${{ inputs.cycles }}
+      EVERY: ${{ inputs.every }}
+    steps:
+      - name: Check inputs
+        run: |
+          set -euo pipefail
+          echo "$M" | grep -qE '^(ifs|aifs|aifs1)$' || { echo "::error::model must be ifs, aifs or aifs1"; exit 1; }
+          echo "$N$EVERY" | grep -qE '^[0-9]+$' || { echo "::error::cycles and every must be whole numbers"; exit 1; }
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+
+      - name: Measure
+        run: |
+          set -euo pipefail
+          python scripts/strat/forecast_drip.py --measure-drift "$M" --cycles "$N" --every "$EVERY"
+          python - <<'PY'
+          import json, os
+          j = json.load(open(f"scripts/strat/reference/{os.environ['M']}_capdrift.json"))
+          n = len(j["cycles"])
+          print(f"{n} cycles {j['cycles'][0]}..{j['cycles'][-1]}")
+          if n < int(os.environ["N"]) * 0.8:
+              raise SystemExit(f"::error::only {n} of {os.environ['N']} cycles measured: not committed")
+          PY
+
+      - name: Commit & push
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "26825570+scorvec@users.noreply.github.com"
+          F="scripts/strat/reference/${M}_capdrift.json"
+          git add "$F"
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          SNAP=$(mktemp -d)
+          cp "$F" "$SNAP/drift.json"
+          git reset -q
+          MSG="strat drift: $M cap drift re-measured on recent cycles"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            cp "$SNAP/drift.json" "$F"
+            git add "$F"
+            if git diff --staged --quiet; then echo "no changes after resync"; exit 0; fi
+            git commit -q -m "$MSG"
+            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
+            echo "push $i rejected; resyncing"; sleep 5
+          done
+          echo "push failed after retries"; exit 1

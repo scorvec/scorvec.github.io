@@ -23,8 +23,9 @@ Model drift - never shown as signal:
            (--measure-aifs-drift -> reference/aifs_capdrift.json).
   IFS-ENS  no open reforecast either (ECMWF's are not open data), and no control in the ensemble files at pressure
            levels, so the same verification is made with the mean of all 50 perturbed members over the same cycles
-           (--measure-drift ifs -> reference/ifs_capdrift.json). 50 members, 0.25 deg, day 15, from the shared
-           IFS-ENS gh files (ifs_ens.py, Google Cloud mirror only).
+           (--measure-drift ifs -> reference/ifs_capdrift.json, in Actions: strat-drift.yml, on the most recent
+           cycles, as the drift changes with the season). 50 members, 0.25 deg, day 15, from the shared IFS-ENS gh
+           files (ifs_ens.py, Google Cloud mirror only).
   AIFS-ENS control (--model aifsc) member 0 alone, from the same file as the AIFS-ENS drip's control, day 15, with the
            AIFS-ENS drift (which was measured on the control). One run.
   IFS control (--model hres) the unperturbed run from its own open-data stream (ifs_ens.py ctrl_gh), day 15, with the
@@ -51,7 +52,7 @@ drift is measured -> dwatch_reach_{model}.webp and the reach record).
     python forecast_drip.py --model aifsc --date 20261024 --time 06 --out-dir assets/sst
     python forecast_drip.py --model aifs1 --date 20261025 --time 06 --out-dir assets/sst
     python forecast_drip.py --model gefs --days 15 --date 20261020 --time 12 --out-dir assets/sst
-    python forecast_drip.py --measure-drift ifs          # outside Actions, once: -> reference/ifs_capdrift.json
+    python forecast_drip.py --measure-drift ifs --cycles 20 --every 2   # strat-drift.yml: -> reference/ifs_capdrift.json
     python forecast_drip.py --measure-drift aifs1        # once: -> reference/aifs1_capdrift.json
 """
 
@@ -400,8 +401,10 @@ def measure_drift(model: str, history: Path, cycles: int = 25, every: int = 3, s
       aifs   the CONTROL                                  -> reference/aifs_capdrift.json
       ifs    the mean of all 50 perturbed members (open data has no IFS control at pressure levels; the member mean's
              error has the same expectation as any member's)  -> reference/ifs_capdrift.json
-      aifs1  AIFS single, its own runs (the 90-65N rows of gh, a few MB a cycle)  -> reference/aifs1_capdrift.json
-    The IFS cycle files (~1.1 GB each) are deleted as soon as they are reduced."""
+      aifs1  AIFS single, its own runs  -> reference/aifs1_capdrift.json
+    Every model from the 90-65N rows of each message (caps_rows: ~12 % of its bytes; ~150 MB an IFS-ENS cycle).
+    cycles x every days ending at the newest start whose day 15 has verified: a drift measured in summer is not the
+    winter one, so re-measure on recent cycles as the season turns (strat-drift.yml)."""
     sys.path.insert(0, str(REPO / "scripts" / "ecmwf"))
     import store as E
 
@@ -413,18 +416,9 @@ def measure_drift(model: str, history: Path, cycles: int = 25, every: int = 3, s
     for d in inits:
         cyc = E.Cycle(f"{d:%Y%m%d}", "00")
         try:
-            if model == "ifs":
-                import ifs_ens as IE
-
-                spec = E.Spec("ifs", "pf", "gh", "pl", levs, tuple(steps))
-                path = IE.ensure(cyc, spec)
-                C, _ = _caps_members(path, "gh", levs)
-                cap_ls = np.nanmean(C, axis=0).T  # (level, step): member mean
-                path.unlink(missing_ok=True)
-                path.with_suffix(path.suffix + ".json").unlink(missing_ok=True)
-            else:
-                run = ("aifs-single", "fc", "gh") if model == "aifs1" else ("aifs-ens", "cf", "z")
-                cap_ls = caps_rows(cyc, E.Spec(*run, "pl", levs, tuple(steps)))[0].T
+            run = {"ifs": ("ifs", "pf", "gh"), "aifs1": ("aifs-single", "fc", "gh"), "aifs": ("aifs-ens", "cf", "z")}
+            # (level, step): the mean of IFS-ENS's 50 members, or the one run
+            cap_ls = np.nanmean(caps_rows(cyc, E.Spec(*run[model], "pl", levs, tuple(steps))), axis=0).T
         except Exception as e:  # noqa: BLE001
             print(f"  {d:%Y-%m-%d}: {str(e)[:60]}")
             continue
@@ -748,9 +742,11 @@ def main() -> int:
     ap.add_argument("--fetch-only", action="store_true")
     ap.add_argument("--measure-aifs-drift", action="store_true")
     ap.add_argument("--measure-drift", choices=tuple(DRIFT_FILE))
+    ap.add_argument("--cycles", type=int, default=25, help="--measure-drift: how many 00Z cycles")
+    ap.add_argument("--every", type=int, default=3, help="--measure-drift: days between them")
     a = ap.parse_args()
     if a.measure_aifs_drift or a.measure_drift:
-        return measure_drift(a.measure_drift or "aifs", Path(a.history))
+        return measure_drift(a.measure_drift or "aifs", Path(a.history), a.cycles, a.every)
     if not a.model or not a.date or not a.out_dir:
         ap.error("--model, --date and --out-dir are required")
     init = pd.Timestamp(f"{a.date[:4]}-{a.date[4:6]}-{a.date[6:8]}")
