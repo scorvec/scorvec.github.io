@@ -17,7 +17,11 @@ probability - both only where the members' tercile counts differ from the climat
 tercile, the two directions Bonferroni-combined, BH-FDR q 0.10 over the map); the correction applied per ensemble; and the
 change since the previous day's runs over the same calendar weeks (that run's days 2-8 and 9-15), both runs with this week's
 correction: shown only where Welch's t-test on the two runs' members is significant (BH-FDR q 0.10 over the map).
-Cells whose normal week has an upper tercile under 2 mm (dry season / desert) get no tercile or anomaly test.
+Cells whose normal week has an upper tercile under 2 mm (dry season / desert) have no testable tercile; they are tested
+for a wet week instead - the members' chance of a week over 7 mm (build_bias.WET_MM) against the normal weeks' share
+(build_bias.wet_p0), one-sided, in the same BH-FDR - and coloured green only where that is significant and at least
+1/3, the chance an above-normal week carries elsewhere. The test is used only for a lead week whose past forecasts
+passed blend.py's check of it against IMERG (blend_weights_global.json: dry_wet_check); otherwise those cells stay grey.
 
 Every run's member windows are kept in --state (ens_tp.py live files, carried between runs in release rainfc-state-v1):
 read from there when present, fetched and written there otherwise (STATE/new.txt lists what this run wrote). The
@@ -103,23 +107,34 @@ def blend_weights(W: dict | None, wk: str, have: list[str]) -> dict:
     return {m: v / s for m, v in w.items()} if s > 0 else dict.fromkeys(have, 1.0 / len(have))
 
 
-def tercile_test(X: np.ndarray, cl: dict, weights: np.ndarray):
+def tercile_test(X: np.ndarray, cl: dict, weights: np.ndarray, wet: bool = False):
     """X (member, NY, NX) week totals; weights per member (sum 1). -> P(below), P(above), favoured sign (+1/-1/0 where not
-    significant), the testable mask. One-sided binomial tests against 1/3 on the effective member count, the two
-    directions combined (x2), BH-FDR q 0.10 over the testable cells."""
+    significant), the tercile-tested mask, the wet-week-tested mask. One-sided binomial tests against 1/3 on the effective
+    member count, the two directions combined (x2). With `wet` (and pwet in cl), a dry-climate cell's P(above) is the
+    chance of a week over BB.WET_MM, tested one-sided against BB.wet_p0 and favoured only where also >= 1/3. One BH-FDR
+    q 0.10 over every tested cell of the map."""
     from scipy.stats import binom
 
     n_eff = 1.0 / (weights**2).sum()
     pb = np.tensordot(weights, (X < cl["q33"][None]).astype("float32"), axes=1)  # noqa: SIM300  variable X (maths notation), not a constant
     pa = np.tensordot(weights, (X > cl["q67"][None]).astype("float32"), axes=1)  # noqa: SIM300  variable X (maths notation), not a constant
-    test = np.isfinite(cl["q67"]) & (cl["q67"] >= BB.DRY_Q67) & np.isfinite(X).all(0)
+    fin = np.isfinite(cl["q67"]) & np.isfinite(X).all(0)
+    test = fin & (cl["q67"] >= BB.DRY_Q67)
     n = int(np.rint(n_eff))
     p_up = binom.sf(np.round(pa * n) - 1, n, 1 / 3)
     p_dn = binom.sf(np.round(pb * n) - 1, n, 1 / 3)
     p = np.where(test, np.minimum(1.0, 2 * np.minimum(p_up, p_dn)), np.nan)
-    sig = BB.bh_fdr(p, q=0.10) & test
-    fav = np.where(sig, np.where(pa >= pb, 1, -1), 0)
-    return pb, pa, fav, test
+    dry = np.zeros_like(test)
+    if wet and "pwet" in cl:
+        dry = fin & ~test & np.isfinite(cl["pwet"])
+        pw = np.tensordot(weights, (X > BB.WET_MM).astype("float32"), axes=1)
+        p_w = binom.sf(np.round(pw * n) - 1, n, BB.wet_p0(np.where(dry, cl["pwet"], 0.0)))
+        p = np.where(dry, p_w, p)
+        pa, pb = np.where(dry, pw, pa), np.where(dry, 0.0, pb)
+    sig = BB.bh_fdr(p, q=0.10)
+    fav = np.where(sig & test, np.where(pa >= pb, 1, -1), 0)
+    fav = np.where(sig & dry & (pa >= 1 / 3), 1, fav)
+    return pb, pa, fav, test, dry
 
 
 def welch(today: dict, prev: dict, weights: dict):
@@ -209,7 +224,8 @@ def palettes():
 
 
 def draw(panels, kind: str, dom: str, title: str, sub: str, cbar: str, out: Path, lat=None, lon=None, grey=None):
-    """panels: [(label, field (NY, NX))] stacked; grey: optional [(NY, NX) bool] per panel = no test possible (dry season)."""
+    """panels: [(label, field (NY, NX))] stacked; grey: optional [(NY, NX) bool] per panel = dry climate with no signal to
+    show (or no test possible)."""
     import matplotlib
 
     matplotlib.use("Agg")
@@ -284,38 +300,19 @@ def draw(panels, kind: str, dom: str, title: str, sub: str, cbar: str, out: Path
     MS.save(fig, out)
 
 
-def pct(x: float) -> str:
-    return f"{100 * x:+.1f} %".replace("-", "\u2212")
-
-
 def blend_note(W: dict | None, wts: dict) -> str:
-    """The blend's weights and how they were chosen (blend.py), for the blend maps' subtitle."""
+    """The blend's weights and whether they are fitted or equal (blend.py; the test behind it is in the page's guide and
+    rainfc.json), for the blend maps' subtitle."""
     inb = [m for m in wts["wk1"] if any(w[m] > 0 for w in wts.values())]
     names = " · ".join(f"{MODELS[m]} {'/'.join(str(round(100 * w[m])) for w in wts.values())} %" for m in inb)
     if not W:
-        return f"Weights (week 1/2): {names}, equal: the out-of-sample weight test has not run yet."
+        return f"Weights (week 1/2): {names}, equal (not tested yet)."
     opt = [wk[-1] for wk, w in W["weeks"].items() if w.get("optimised")]
-    how = (
-        "fitted"
-        if len(opt) == len(W["weeks"])
-        else f"fitted for week {opt[0]}, equal for the other"
-        if opt
-        else "equal"
-    )
-    tests = []
-    for wk, w in W["weeks"].items():
-        if "cv_skill" in w:
-            s, lo, hi = (pct(v) for v in w["cv_skill"])
-            tests.append(f"week {wk[-1]} {s} (90 % interval {lo} to {hi})")
-        else:
-            tests.append(f"week {wk[-1]} not fitted: {w.get('note', 'too little shared archive')}")
+    how = "fitted" if len(opt) == len(W["weeks"]) else f"fitted in week {opt[0]}" if opt else "equal"
     fits = [w for w in W["weeks"].values() if "cv_skill" in w]
     unfit = [MODELS[m] for m in MODELS if fits and any(m not in w["fitted"] for w in fits)]
-    tail = f" Not in the blend until its archive is long enough to verify: {', '.join(unfit)}." if unfit else ""
-    return (
-        f"Weights (week 1/2): {names}, {how}. RPS skill of fitted over equal weights in cross-validation: "
-        f"{'; '.join(tests)}; fitted weights are used only where the whole interval is above zero.{tail}"
-    )
+    tail = f" {', '.join(unfit)} not in the blend yet." if unfit else ""
+    return f"Weights (week 1/2): {names}, {how}.{tail}"
 
 
 def uncorrected(ms: list[str], notes: dict, name: str | None = None) -> str:
@@ -382,6 +379,15 @@ def main() -> int:
     missing = [m for m in MODELS if m not in X]
     cl = {wk: BB.clim_at(C, d) for wk, d in weeks.items()}
     wts = {wk: blend_weights(W, wk, list(X)) for wk in weeks}
+    # the dry-climate wet-week test, per lead week only once its past forecasts passed blend.py's check against IMERG
+    wet = {wk: bool((((W or {}).get("weeks", {}).get(wk) or {}).get("dry_wet_check") or {}).get("ok")) for wk in weeks}
+    on = [wk[-1] for wk in weeks if wet[wk] and "pwet" in cl[wk]]
+    if not on:
+        dry_anom = dry_terc = " Grey: too dry in a normal week to test."
+    else:
+        when = "" if len(on) == len(weeks) else f" (week {on[0]}; grey in the other)"
+        dry_anom = f" Grey: dry climate, no wet signal{when}."
+        dry_terc = f" Dry climate: green is the chance of a week over {BB.WET_MM:g} mm, grey no wet signal{when}."
 
     def fmt(d):
         return f"{d:%-d %b}"
@@ -416,10 +422,10 @@ def main() -> int:
             Xs = np.concatenate([X[m][wk] for m in ms])
             mw = np.concatenate([np.full(X[m][wk].shape[0], w[m] / X[m][wk].shape[0]) for m in ms])
             mean = np.tensordot(mw, Xs, axes=1)
-            pb, pa, fav, test = tercile_test(Xs, cl[wk], mw)
+            pb, pa, fav, test, dry = tercile_test(Xs, cl[wk], mw, wet=wet[wk])
             anom = np.where(fav != 0, (mean - cl[wk]["mean"]) / 7.0, np.nan)
             terc = np.where(fav > 0, 100 * pa, np.where(fav < 0, -100 * pb, np.nan))
-            res[wk] = {"rain": mean / 7.0, "anom": anom, "terc": terc, "dry": ~test}
+            res[wk] = {"rain": mean / 7.0, "anom": anom, "terc": terc, "dry": ~test & (fav == 0)}
             both = [m for m in ms if m in P]
             if both:
                 wb = {m: w[m] for m in both}
@@ -427,12 +433,15 @@ def main() -> int:
                 dlt, sig, tested = change_test({m: X[m][wk] for m in both}, {m: P[m][wk] for m in both}, wb)
                 res[wk]["dod"] = np.where(sig, dlt / 7.0, np.nan)
                 res[wk]["dod_models"] = both
-            band = (np.abs(G.LAT) <= 30)[:, None] & test
+            trop = (np.abs(G.LAT) <= 30)[:, None]
+            band = trop & test
             stats[f"{sk}_{wk}"] = {
                 "tested_cells": int(test.sum()),
                 "sig_frac_tropics": round(float((fav != 0)[band].mean()), 3),
                 "above_frac_tropics": round(float((fav > 0)[band].mean()), 3),
                 "below_frac_tropics": round(float((fav < 0)[band].mean()), 3),
+                "wet_test_cells": int(dry.sum()),
+                "wet_frac_dry_tropics": round(float((fav > 0)[trop & dry].mean()), 3) if (trop & dry).any() else None,
             }
             if "dod" in res[wk]:
                 stats[f"{sk}_{wk}"]["dod_sig_frac"] = round(float(sig[tested].mean()), 3) if tested.any() else 0.0
@@ -449,7 +458,7 @@ def main() -> int:
                 "rain",
                 dom,
                 f"{head} · bias-adjusted rain",
-                "Week mean rain rate after each ensemble's significant rain bias against IMERG (adjusted to Final) is removed, member by member."
+                "Week mean rain rate after each ensemble's significant rain bias against IMERG is removed, member by member."
                 + unc
                 + extra,
                 "mm per day",
@@ -460,7 +469,8 @@ def main() -> int:
                 "anom",
                 dom,
                 f"{head} · rain anomaly",
-                "Bias-adjusted ensemble mean minus the GPCP 2001–2020 normal for the same week; shown only where the members' tercile split differs significantly from a normal week (FDR 10 %). Grey: too dry in a normal week to test."
+                "Bias-adjusted ensemble mean minus the GPCP 2001–2020 normal week, where the members differ significantly from a normal week (FDR 10 %)."
+                + dry_anom
                 + unc
                 + extra,
                 "mm per day vs normal",
@@ -472,7 +482,8 @@ def main() -> int:
                 "terc",
                 dom,
                 f"{head} · favoured tercile",
-                "Chance (%) of the favoured tercile against the GPCP 2001–2020 normal week: green = above normal, brown = below normal; shown only where significant (FDR 10 %). Grey: too dry to test."
+                "Chance (%) of the favoured tercile against the GPCP 2001–2020 normal week, where significant (FDR 10 %)."
+                + dry_terc
                 + unc
                 + extra,
                 "probability of the below-normal (brown) or above-normal (green) tercile, %",

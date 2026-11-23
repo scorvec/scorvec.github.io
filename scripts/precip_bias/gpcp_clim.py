@@ -4,10 +4,12 @@
 GPCP V3.2 daily (GES DISC GPCPDAY.3.2, 0.5°, 2000-06 to 2021-09; IMERG Final-based inside 60°N-60°S, which is why it is
 the climatology for a forecast bias-adjusted to IMERG Final), 2001-2020, as 2 x 2 means on the global 1° grid of grid.py.
 For 73 pentads (start day of year 1, 6, ..., 361) the 7-day totals STARTING within +-10 days of the pentad's start, in
-every year (21 x 20 = 420 overlapping samples per cell): mean, terciles and median, mm per week. Feb 29 is dropped.
+every year (21 x 20 = 420 overlapping samples per cell): mean, terciles and median, mm per week, and the share of those
+weeks wetter than build_bias.WET_MM (pwet: the yardstick of the dry-climate wet-week test). Feb 29 is dropped.
 
     python scripts/precip_bias/gpcp_clim.py --out DIR [--threads 6]
--> DIR/gpcp_clim_week_global.npz: start_doy (73), mean / q33 / q50 / q67 (73, NY, NX) float32 mm/week, lat, lon, years, missing
+-> DIR/gpcp_clim_week_global.npz: start_doy (73), mean / q33 / q50 / q67 (73, NY, NX) float32 mm/week, pwet (73, NY, NX)
+   share, lat, lon, years, missing
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import build_bias as BB
 import grid as G
 import imerg as IM  # (Earthdata session, IPv4-only login)
 
@@ -112,7 +115,7 @@ def main() -> int:
     )  # 1..365
     yr = np.array([d.year for d in days[:n]])
     starts = np.arange(1, 366, 5)  # 73 pentads
-    out = {k: np.full((len(starts), G.NY, G.NX), np.nan, "float32") for k in ("mean", "q33", "q50", "q67")}
+    out = {k: np.full((len(starts), G.NY, G.NX), np.nan, "float32") for k in ("mean", "q33", "q50", "q67", "pwet")}
     for p, s in enumerate(starts):
         dist = np.abs(((doy - s + 182) % 365) - 182)
         sel = (dist <= HALF) & (yr >= Y0) & (yr <= Y1)
@@ -120,6 +123,7 @@ def main() -> int:
         with np.errstate(invalid="ignore"):
             out["mean"][p] = np.nanmean(x, axis=0)
             q = np.nanpercentile(x, [100 / 3, 50, 200 / 3], axis=0)
+            out["pwet"][p] = (x > BB.WET_MM).sum(0) / np.isfinite(x).sum(0)
         out["q33"][p], out["q50"][p], out["q67"][p] = q
     Path(a.out).mkdir(parents=True, exist_ok=True)
     f = Path(a.out) / "gpcp_clim_week_global.npz"

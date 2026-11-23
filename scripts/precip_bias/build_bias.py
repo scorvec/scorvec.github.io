@@ -3,7 +3,7 @@ tropical_rain.py).
 
 Model cycles (VERSIONS, cycle_of: runs are never pooled across model upgrades), the IMERG archive readers (load_obs,
 obs_rate), the scaling of IMERG Late to the gauge-adjusted Final by season (truth_terms, adjust_late), the GPCP normal
-week (clim_at), and the significance tools: BLOCK_DAYS-long blocks of start dates for the block bootstraps (consecutive
+week (clim_at) and its dry-climate wet-week share (wet_p0), and the significance tools: BLOCK_DAYS-long blocks of start dates for the block bootstraps (consecutive
 runs share weather), two-sided normal p-values and Benjamini-Hochberg FDR control (Wilks 2016).
 """
 
@@ -169,11 +169,25 @@ def adjust_late(L, mids, D):
 # A cell whose normal week's upper tercile is under 2 mm (dry season, desert) has no testable tercile: most normal weeks
 # there are (nearly) dry, so "below normal" cannot happen and one wet member makes "above normal".
 DRY_Q67 = 2.0  # mm per week
+# Such a cell is tested for a wet week instead: a total over WET_MM (1 mm a day, above the models' corrected subtropical
+# drizzle) against the share of normal weeks that had one (gpcp_clim.py: pwet). That share rests on 20 years of
+# overlapping weeks in a 27-day window, about CLIM_NEFF independent ones, so the test takes its one-sided 95 % upper bound
+# (wet_p0): a cell whose normal weeks were never wet is not treated as if a wet week were impossible there.
+WET_MM = 7.0  # mm per week
+CLIM_NEFF = 20 * 27 / 7  # 20 years x (21 start days + 6) / 7
+
+
+def wet_p0(pwet: np.ndarray) -> np.ndarray:
+    """The one-sided 95 % upper bound (Clopper-Pearson) of the normal weeks' wet share pwet on CLIM_NEFF weeks."""
+    from scipy.stats import beta
+
+    k = np.clip(pwet, 0.0, 1.0) * CLIM_NEFF
+    return beta.ppf(0.95, k + 1, np.maximum(CLIM_NEFF - k, 1e-6))
 
 
 def clim_at(C, start: date) -> dict:
-    """The GPCP normal 7-day totals (gpcp_clim.py: mean, q33, q50, q67) for the week starting on `start`, linear between
-    the pentads."""
+    """The GPCP normal 7-day totals (gpcp_clim.py: mean, q33, q50, q67, and the wet-week share pwet where the file has it)
+    for the week starting on `start`, linear between the pentads."""
     doy = start.timetuple().tm_yday
     if calendar.isleap(start.year) and doy >= 60:  # gpcp_clim.py's 365-day calendar (1 March = 60, 29 Feb dropped):
         doy = 59.5 if doy == 60 else doy - 1  # 29 Feb sits halfway between 28 Feb and 1 March
@@ -183,4 +197,4 @@ def clim_at(C, start: date) -> dict:
     p1 = (p0 + 1) % len(s)
     span = (s[p1] - s[p0]) % 365 or 5
     fr = ((doy - s[p0]) % 365) / span
-    return {k: (1 - fr) * C[k][p0] + fr * C[k][p1] for k in ("mean", "q33", "q50", "q67")}
+    return {k: (1 - fr) * C[k][p0] + fr * C[k][p1] for k in ("mean", "q33", "q50", "q67", "pwet") if k in C}

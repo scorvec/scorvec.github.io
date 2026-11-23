@@ -12,6 +12,9 @@ on synthetic ensembles with known answers (no data are fetched and no figure is 
   change   tropical_rain.welch on skewed (gamma) members of four ensembles of 50/50/31/21: with no change about 5 % of
            cells fall below p = 0.05 and at most about q of the maps get any shaded cell after BH-FDR; a planted change is
            found, with a false-discovery share near or under q
+  wet      the dry-climate wet-week test (tropical_rain.tercile_test, build_bias.wet_p0): members as wet as the normal
+           weeks fire it in at most about q of maps, a planted wet week is found; blend.dry_wet_check passes forecasts
+           whose wet chances verify and fails forecasts with no skill
   grid     GEFS-like (90°N, 0°E first) and GEPS-like (90°S, 0°E first) 0.5° GRIB2 messages written with eccodes decode
            (ens_tp.decode) to the field they were written from, and to the same 1° boxes
 """
@@ -28,6 +31,7 @@ from scipy.stats import norm
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import blend as BL
+import build_bias as BB
 import tropical_rain as TR  # (imports pyproj before eccodes)
 import ens_tp as ET
 import grid as G
@@ -177,6 +181,53 @@ check(np.mean(power) > 0.5, f"planted change found in {100 * np.mean(power):.0f}
 check(np.mean(fdp) <= 0.10, f"false-discovery share {100 * np.mean(fdp):.1f} % (q 0.10)")
 d, p = TR.welch({"x": np.zeros((5, 3))}, {"x": np.zeros((5, 3))}, {"x": 1.0})
 check(np.isnan(p).all(), "cells where no member varies are not tested")
+
+print("wet: the dry-climate wet-week test")
+p0 = BB.wet_p0(np.array([0.0, 0.05, 0.2]))
+check(0.03 < p0[0] < 0.05 and p0[0] < p0[1] < p0[2] and p0[2] > 0.2, f"normal-share upper bounds {np.round(p0, 3)}")
+cells = 1500
+cl = {
+    "q33": np.zeros(cells),
+    "q67": np.full(cells, 1.0),  # every cell dry-climate (upper tercile under 2 mm)
+    "mean": np.full(cells, 1.0),
+    "pwet": RNG.uniform(0.0, 0.25, cells),
+}
+mw = np.concatenate([np.full(n, 0.25 / n) for n in sizes.values()])  # four ensembles, 152 members
+
+
+def members(pwet):
+    return np.where(RNG.random((len(mw), cells)) < pwet, 20.0, 0.5)  # wet weeks 20 mm, dry ones 0.5 mm
+
+
+fires = 0
+for _ in range(200):
+    fav = TR.tercile_test(members(cl["pwet"]), cl, mw, wet=True)[2]
+    fires += (fav != 0).any()
+check(fires / 200 <= 0.10, f"members as wet as normal: {100 * fires / 200:.1f} % of maps with any green cell")
+pt = np.where(np.arange(cells) < 300, 0.6, cl["pwet"])
+pb, pa, fav, test, dry = TR.tercile_test(members(pt), cl, mw, wet=True)
+check(dry.all() and not test.any(), "dry-climate cells go to the wet-week test, none to the tercile test")
+check((fav[:300] == 1).mean() > 0.95 and (fav[300:] != 0).mean() < 0.02, "a planted 60 % wet chance is found")
+check(abs(pa[:300].mean() - 0.6) < 0.03, f"its chance shown {pa[:300].mean():.2f}")
+check((TR.tercile_test(members(pt), cl, mw, wet=False)[2] == 0).all(), "with the test off nothing is coloured")
+
+nruns, ny, nx = 150, 10, 30
+runs_ = [date(2026, 5, 13) + timedelta(days=i) for i in range(nruns)]
+C = {k: np.ones((73, ny, nx)) for k in ("mean", "q33", "q50", "q67")}
+C["start_doy"] = np.arange(1, 366, 5)
+C["pwet"] = np.full((73, ny, nx), 0.05)
+chance = np.where(RNG.random((nruns, ny, nx)) < 0.15, 0.7, 0.03)  # wet spells forecast in 15 % of cell-weeks
+wts3 = {"ifs": 0.1, "aifs-ens": 0.6, "gefs": 0.3}
+Xs = {m: np.where(RNG.random((nruns, 6, ny, nx)) < chance[:, None], 20.0, 0.5) for m in wts3}
+area = np.ones((ny, nx))
+cut = (slice(None), slice(None))
+for name, truth_p, want in (("skilful", chance, True), ("no skill", np.full_like(chance, 0.05), False)):
+    T = np.where(RNG.random(chance.shape) < truth_p, 20.0, 0.5)
+    r = BL.dry_wet_check(Xs, T, runs_, 0, C, cut, area, wts3, RNG)
+    check(
+        r["ok"] is want,
+        f"check, {name} forecasts: ok {r['ok']} (IMERG wet {r.get('imerg_wet')}, normal {r.get('normal_wet')})",
+    )
 
 print("grid: 0.5° GRIB2 messages")
 lat = np.linspace(90, -90, 361)

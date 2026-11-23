@@ -9,7 +9,8 @@
 #            (two annual cycles), GEPS from as far back as the Datamart reaches (~30 days; this archive keeps its runs from
 #            then on), IMERG from 2024-10 (the Late/Final overlap that scales Late to Final; Final ended 2025-09 as of
 #            2026-10-14).
-#   gpcp     the GPCP V3.2 daily 2001-2020 weekly climatology (gpcp_clim.py), built once into release precip-global-ref-v1.
+#   gpcp     the GPCP V3.2 daily 2001-2020 weekly climatology (gpcp_clim.py), built once into release precip-global-ref-v1
+#            (again only when the release copy lacks a field the forecast reads).
 #   bias     the season-weighted bias ratios (global_bias.py) and the blend weights with their cross-validated test
 #            (blend.py) into precip-global-ref-v1, for the coming week's forecasts.
 # Weekly (Monday) and on dispatch.
@@ -89,7 +90,14 @@ jobs:
         if: steps.gate.outputs.run == '1' && matrix.src == 'gpcp'
         timeout-minutes: 330
         run: |
-          if grep -qx gpcp_clim_week_global.npz have_ref.txt; then echo "climatology already in $REF"; exit 0; fi
+          if grep -qx gpcp_clim_week_global.npz have_ref.txt; then
+            # rebuilt once when the release copy predates a field the forecast now reads (pwet: the wet-week share)
+            gh release download "$REF" -p gpcp_clim_week_global.npz -D old --clobber
+            if python -c "import sys, numpy as np; sys.exit(0 if 'pwet' in np.load('old/gpcp_clim_week_global.npz').files else 1)"; then
+              echo "climatology already in $REF"; exit 0
+            fi
+            echo "the climatology in $REF has no wet-week share (pwet): rebuilding it"
+          fi
           python scripts/precip_bias/gpcp_clim.py --out out --threads 6
           gh release upload "$REF" out/gpcp_clim_week_global.npz --clobber
       - name: Build and upload month by month

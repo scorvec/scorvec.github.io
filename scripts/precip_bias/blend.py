@@ -28,11 +28,14 @@ Test   leave-one-block-out cross-validation: weights fitted without block k and 
        The fitted weights (refitted on all runs) are used only when that interval lies above zero, a one-sided 5 % test
        per lead week (10 % for the two together); otherwise the blend keeps equal weights and the page says the
        optimisation did not beat them.
+Check  dry_wet_check: on the same corrected runs, whether the page's dry-climate wet-week test (tropical_rain.py) fires
+       where IMERG then shows wet weeks more often than normal; the page uses that test only for a lead week that passes.
 
     python scripts/precip_bias/blend.py --data DIR --ref DIR --out DIR
 -> DIR/blend_weights_global.json: per week the weights used, the fitted ones, the cross-validated skill with its interval,
    the equal-weight blend's skill against the climatological tercile forecast and against each fitted model alone,
-   runs, blocks and period, and a descriptive bias summary (bias_summary) of each model and the blend, raw and corrected.
+   runs, blocks and period, a descriptive bias summary (bias_summary) of each model and the blend, raw and corrected,
+   and the dry-climate wet-week check (dry_wet_check, with "ok").
 """
 
 from __future__ import annotations
@@ -54,7 +57,8 @@ import global_bias as GB
 STEP, NBOOT, BUFFER_DAYS, SUB = 0.025, 2000, 14, 2
 FIT_BLOCKS = GB.MIN_BLOCKS + 1
 CLIM_CUM = (1 / 3, 2 / 3)  # the climatological forecast's cumulative chances
-BAND, WET_MM = 30.0, 7.0  # the bias summary: 30°S-30N; local bias only where the verifying weeks average >= 1 mm/day
+BAND = 30.0  # the bias summary: 30°S-30N; local bias only where the verifying weeks average >= BB.WET_MM (1 mm/day)
+DRY_MIN_CASES, DRY_MIN_BLOCKS = 200, 5  # the dry-climate check: fired cell-weeks and 21-day blocks they must span
 
 
 # ── the score ────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -134,7 +138,7 @@ def bias_summary(F: dict, T: np.ndarray, lat: np.ndarray) -> dict:
     """Descriptive bias of each model's weekly rain and of their equal-weight blend over the verified runs. F: model ->
     members (run, member, NY, NX) mm; T: the verifying weeks (run, NY, NX) mm; lat: the rows' latitudes. Per entry: the
     30°S-30°N area-weighted forecast/observed ratio, and the area-weighted mean of |forecast/observed - 1| over the cells
-    whose verifying weeks average >= WET_MM (local biases of opposite sign cancel in the ratio, not here); null without
+    whose verifying weeks average >= BB.WET_MM (local biases of opposite sign cancel in the ratio, not here); null without
     any such cell."""
     ok = np.isfinite(T).all(0)
     for x in F.values():
@@ -142,7 +146,7 @@ def bias_summary(F: dict, T: np.ndarray, lat: np.ndarray) -> dict:
     tbar = np.where(ok, np.nanmean(T, 0), np.nan)
     w = np.cos(np.deg2rad(lat))[:, None] * np.ones_like(tbar)
     band = ok & (np.abs(lat)[:, None] <= BAND)
-    wet = band & (tbar >= WET_MM)
+    wet = band & (tbar >= BB.WET_MM)
     means = {m: np.nanmean(x, (0, 1)) for m, x in F.items()}
     means["blend"] = np.mean(list(means.values()), 0)
 
@@ -187,6 +191,66 @@ def fit_set(ver: dict) -> tuple[list[str], list[date]]:
             models.append(m)
             shared = s
     return models, sorted(shared or [])
+
+
+def dry_wet_check(X: dict, T: np.ndarray, runs: list, start: int, C, cells, area: np.ndarray, w: dict, rng) -> dict:
+    """The archive's check of tropical_rain's dry-climate wet-week test, which the page uses only for a lead week that
+    passes it. Per run, every dry-climate cell (normal upper tercile under BB.DRY_Q67) of the blend with weights w: the
+    members' chance of a week over BB.WET_MM, tested one-sided against BB.wet_p0 with BH-FDR q 0.10 over that run's dry
+    cells, fires where significant and at least 1/3 - the page's rule, here on six members a model (the page's 100-plus
+    members fire more readily where the normal share is larger). Where it fired: IMERG's wet-week frequency against the
+    normal share there and against the forecast chance, area-weighted, with 90 % intervals from resampling 21-day blocks.
+    ok: fired in >= DRY_MIN_CASES cell-weeks over >= DRY_MIN_BLOCKS blocks, IMERG wet more often than normal (the whole
+    interval of the difference above zero) and not less often than one in three (the interval's top at or above 1/3,
+    the chance the green there stands for)."""
+    from scipy.stats import binom
+
+    ms = [m for m, v in w.items() if v > 0]
+    n = int(np.rint(1.0 / sum(w[m] ** 2 / X[m].shape[1] for m in ms)))
+    days = np.array(runs, dtype="datetime64[D]")
+    blk = (days - days[0]).astype(int) // BB.BLOCK_DAYS
+    R = np.zeros((len(runs), 5))  # per run: fired area, of it wet in IMERG, normal wet share, forecast chance; cells
+    for i, d in enumerate(runs):
+        cl = BB.clim_at(C, d + timedelta(days=start))
+        if "pwet" not in cl:
+            return {"ok": False, "note": "the normal week has no wet-week share yet (gpcp_clim.py before pwet)"}
+        q67, pwet, t = cl["q67"][cells], cl["pwet"][cells], T[i]
+        ok = np.isfinite(t) & np.isfinite(q67) & (q67 < BB.DRY_Q67) & np.isfinite(pwet)
+        for m in ms:
+            ok &= np.isfinite(X[m][i]).all(0)
+        if not ok.any():
+            continue
+        pw = sum(w[m] * (X[m][i][:, ok] > BB.WET_MM).mean(0) for m in ms)
+        p = binom.sf(np.round(pw * n) - 1, n, BB.wet_p0(pwet[ok]))
+        fire = BB.bh_fdr(p, q=0.10) & (pw >= 1 / 3)
+        af = area[ok][fire]
+        R[i] = (
+            af.sum(),
+            (af * (t[ok][fire] > BB.WET_MM)).sum(),
+            (af * pwet[ok][fire]).sum(),
+            (af * pw[fire]).sum(),
+            fire.sum(),
+        )
+    ub = np.unique(blk)
+    Rb = np.array([R[blk == k, :4].sum(0) for k in ub])
+    out = {"runs": len(runs), "members": n, "cases": int(R[:, 4].sum()), "blocks_fired": int((Rb[:, 0] > 0).sum())}
+    if out["blocks_fired"] < DRY_MIN_BLOCKS:
+        return {**out, "ok": False, "note": f"fired in fewer than {DRY_MIN_BLOCKS} blocks"}
+    tot = Rb.sum(0)
+    S = rng.multinomial(len(ub), np.full(len(ub), 1.0 / len(ub)), size=NBOOT).astype("float64") @ Rb
+    S = S[S[:, 0] > 0]
+    ob, nb = S[:, 1] / S[:, 0], S[:, 2] / S[:, 0]
+    obs, norm = tot[1] / tot[0], tot[2] / tot[0]
+    d_lo, d_hi = np.percentile(ob - nb, [5, 95])
+    o_lo, o_hi = np.percentile(ob, [5, 95])
+    out.update(
+        imerg_wet=[round(float(v), 3) for v in (obs, o_lo, o_hi)],
+        normal_wet=round(float(norm), 3),
+        forecast_chance=round(float(tot[3] / tot[0]), 3),
+        imerg_minus_normal=[round(float(v), 3) for v in (obs - norm, d_lo, d_hi)],
+    )
+    out["ok"] = bool(out["cases"] >= DRY_MIN_CASES and d_lo > 0 and o_hi >= 1 / 3)
+    return out
 
 
 def week(wk, data, arch, obs1, obs2, C, rng) -> dict:
@@ -264,6 +328,7 @@ def week(wk, data, arch, obs1, obs2, C, rng) -> dict:
     out["optimised"] = cv["skill"][1] > 0
     use = out["fitted_weights"] if out["optimised"] else {m: 1 / len(fitted) for m in fitted}
     out["weights"] = {m: round(use.get(m, 0.0), 4) for m in GB.MODELS}  # a model not yet fitted stays out
+    out["dry_wet_check"] = dry_wet_check(X, T, runs, a, C, cells, area, {m: use.get(m, 0.0) for m in fitted}, rng)
     s, lo_, hi_ = (100 * v for v in cv["skill"])
     print(
         f"{wk}: fitted {fitted} on {len(runs)} runs {runs[0]}..{runs[-1]} ({cv['blocks']} blocks); fitted weights "
@@ -282,6 +347,7 @@ def week(wk, data, arch, obs1, obs2, C, rng) -> dict:
             flush=True,
         )
     print(f"{wk} equal blend over each model alone (fair RPS): {out['blend_vs_single']}", flush=True)
+    print(f"{wk} dry-climate wet-week check: {out['dry_wet_check']}", flush=True)
     return out
 
 
