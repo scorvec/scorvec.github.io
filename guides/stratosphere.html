@@ -337,15 +337,17 @@ that lead:</p>
 within 8 days of the forecast's day of year). 10 and 100&nbsp;hPa are corrected; the other levels are added as
 their reforecasts arrive from the archive.</li>
 <li><b>GEFS</b>: from the GEFSv12 reforecast daily climatology (2000&ndash;2019), which holds 10, 100 and 500&nbsp;hPa; its five levels above 10&nbsp;hPa (7, 5, 3, 2 and 1&nbsp;hPa, from its pgrb2b files) are marked. Their MERRA-2 scale includes the step at August 2004, when MERRA-2 starts assimilating Aura MLS, as the history drips&rsquo; does at 5&nbsp;hPa and above.</li>
-<li><b>AIFS-ENS</b>: no reforecast exists, so its control's cap forecasts from 25 recent cycles are verified against
-the GEOS FP analyses and the mean error at each level and lead is removed where it is significant: beyond 2.58 standard errors at some lead (5&nbsp;% shared over the five leads measured), the standard error widened for the correlation between cycles three days apart. It is small for the first week and rises to +15 to +45&nbsp;m by days 10&ndash;15.</li>
+<li><b>AIFS-ENS</b>: no reforecast exists, so its control's cap forecasts from 25 00Z cycles (20 August to 31 October 2026) are verified against
+the GEOS FP analyses and the mean error at each level and lead is removed where it is significant: beyond 2.58 standard errors at some lead (5&nbsp;% shared over the five leads measured), the standard error widened for the correlation between cycles three days apart. It is small for the first week; by day&nbsp;10 the cap stands about 20&nbsp;m high through the troposphere and 25&ndash;32&nbsp;m high at 100 and 50&nbsp;hPa; at 10&nbsp;hPa it is 20&nbsp;m high from the start and 28&nbsp;&plusmn;&nbsp;6&nbsp;m by day&nbsp;7; at 1000&nbsp;hPa it reads 20&ndash;30&nbsp;m low throughout.</li>
 <li><b>IFS-ENS</b> (all 50 perturbed members): no open reforecast either, and no control at these levels on open data,
-so the mean of the 50 members on the same 25 cycles is verified the same way and removed where significant (at
-every level). In the stratosphere it drifts the other way from AIFS-ENS: the 10&nbsp;hPa cap falls from 23&nbsp;m
-above the analysis at the start to 53&nbsp;&plusmn;&nbsp;2&nbsp;m below by day&nbsp;7 and 104&nbsp;&plusmn;&nbsp;4&nbsp;m
-below by day&nbsp;15 (50&nbsp;hPa &minus;33&nbsp;m, 100&nbsp;hPa &minus;14&nbsp;m), a vortex that grows too cold and
-too strong; from 250 to 925&nbsp;hPa it rises by 13&ndash;23&nbsp;m by day&nbsp;15, as AIFS-ENS does. Both drifts come
-from 00Z cycles between 30 June and 10 September 2026; a winter drift may differ.</li>
+so the mean of the 50 members is verified the same way, on 20 recent 00Z cycles (every second day from 30 September to
+7 November 2026), and removed where significant. From 925 to 500&nbsp;hPa the cap rises by 14&ndash;22&nbsp;m by
+day&nbsp;15, towards a weaker vortex, as AIFS-ENS does. At 10&nbsp;hPa it drifts the other way: from 12&nbsp;m above the
+analysis at the start to 28&nbsp;&plusmn;&nbsp;7&nbsp;m below by day&nbsp;7 and 58&nbsp;&plusmn;&nbsp;25&nbsp;m below by
+day&nbsp;10, a vortex that grows too cold and too strong. At 1000&nbsp;hPa it reads 45&nbsp;m low at the start and
+22&nbsp;m low by day&nbsp;15. From 300 to 50&nbsp;hPa the errors of these cycles, which include the late-October
+warming, scatter too widely for a drift to be told from noise, so those levels are marked. The drift changes with the
+season and is re-measured on recent cycles.</li>
 <li><b>IFS control</b> (one run, from its own open-data files, day&nbsp;15): the IFS-ENS drift above is removed
 &mdash; the same model at the same resolution, whose mean error over many cycles is the ensemble&rsquo;s.
 Its lower panel has no spread and no member share.</li>
@@ -845,15 +847,17 @@ that lead:</p>
 within 8 days of the forecast's day of year). 10 and 100&nbsp;hPa are corrected; the other levels are added as
 their reforecasts arrive from the archive.</li>
 <li><b>GEFS</b>: from the GEFSv12 reforecast daily climatology (2000&ndash;2019), which holds 10, 100 and 500&nbsp;hPa; its five levels above 10&nbsp;hPa (7, 5, 3, 2 and 1&nbsp;hPa, from its pgrb2b files) are marked. Their MERRA-2 scale includes the step at August 2004, when MERRA-2 starts assimilating Aura MLS, as the history drips&rsquo; does at 5&nbsp;hPa and above.</li>
-<li><b>AIFS-ENS</b>: no reforecast exists, so its control's cap forecasts from 25 recent cycles are verified against
-the GEOS FP analyses and the mean error at each level and lead is removed where it is significant: beyond 2.58 standard errors at some lead (5&nbsp;% shared over the five leads measured), the standard error widened for the correlation between cycles three days apart. It is small for the first week and rises to +15 to +45&nbsp;m by days 10&ndash;15.</li>
+<li><b>AIFS-ENS</b>: no reforecast exists, so its control's cap forecasts from 25 00Z cycles (20 August to 31 October 2026) are verified against
+the GEOS FP analyses and the mean error at each level and lead is removed where it is significant: beyond 2.58 standard errors at some lead (5&nbsp;% shared over the five leads measured), the standard error widened for the correlation between cycles three days apart. It is small for the first week; by day&nbsp;10 the cap stands about 20&nbsp;m high through the troposphere and 25&ndash;32&nbsp;m high at 100 and 50&nbsp;hPa; at 10&nbsp;hPa it is 20&nbsp;m high from the start and 28&nbsp;&plusmn;&nbsp;6&nbsp;m by day&nbsp;7; at 1000&nbsp;hPa it reads 20&ndash;30&nbsp;m low throughout.</li>
 <li><b>IFS-ENS</b> (all 50 perturbed members): no open reforecast either, and no control at these levels on open data,
-so the mean of the 50 members on the same 25 cycles is verified the same way and removed where significant (at
-every level). In the stratosphere it drifts the other way from AIFS-ENS: the 10&nbsp;hPa cap falls from 23&nbsp;m
-above the analysis at the start to 53&nbsp;&plusmn;&nbsp;2&nbsp;m below by day&nbsp;7 and 104&nbsp;&plusmn;&nbsp;4&nbsp;m
-below by day&nbsp;15 (50&nbsp;hPa &minus;33&nbsp;m, 100&nbsp;hPa &minus;14&nbsp;m), a vortex that grows too cold and
-too strong; from 250 to 925&nbsp;hPa it rises by 13&ndash;23&nbsp;m by day&nbsp;15, as AIFS-ENS does. Both drifts come
-from 00Z cycles between 30 June and 10 September 2026; a winter drift may differ.</li>
+so the mean of the 50 members is verified the same way, on 20 recent 00Z cycles (every second day from 30 September to
+7 November 2026), and removed where significant. From 925 to 500&nbsp;hPa the cap rises by 14&ndash;22&nbsp;m by
+day&nbsp;15, towards a weaker vortex, as AIFS-ENS does. At 10&nbsp;hPa it drifts the other way: from 12&nbsp;m above the
+analysis at the start to 28&nbsp;&plusmn;&nbsp;7&nbsp;m below by day&nbsp;7 and 58&nbsp;&plusmn;&nbsp;25&nbsp;m below by
+day&nbsp;10, a vortex that grows too cold and too strong. At 1000&nbsp;hPa it reads 45&nbsp;m low at the start and
+22&nbsp;m low by day&nbsp;15. From 300 to 50&nbsp;hPa the errors of these cycles, which include the late-October
+warming, scatter too widely for a drift to be told from noise, so those levels are marked. The drift changes with the
+season and is re-measured on recent cycles.</li>
 <li><b>IFS control</b> (one run, from its own open-data files, day&nbsp;15): the IFS-ENS drift above is removed
 &mdash; the same model at the same resolution, whose mean error over many cycles is the ensemble&rsquo;s.
 Its lower panel has no spread and no member share.</li>
