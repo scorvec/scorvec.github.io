@@ -1,5 +1,5 @@
 {
- "made": "2026-11-25T12:44Z",
+ "made": "2026-11-25T18:58Z",
  "last_mls_day": "2026-09-17",
  "last_geosfp_day": "2026-11-24",
  "band": "10S-10N",
@@ -520,30 +520,30 @@
    "years": "1991-2019 (29 years)"
   },
   "bdc_dc_100": {
-   "geosfp_30d": 0.224,
-   "merra2_normal_same_days": 0.284,
-   "p": 0.204,
+   "geosfp_30d": 0.229,
+   "merra2_normal_same_days": 0.286,
+   "p": 0.222,
    "window": [
-    "2026-10-26",
-    "2026-11-24"
+    "2026-10-27",
+    "2026-11-25"
    ]
   },
   "bdc_dc_70": {
-   "geosfp_30d": 0.26,
-   "merra2_normal_same_days": 0.247,
-   "p": 0.765,
+   "geosfp_30d": 0.255,
+   "merra2_normal_same_days": 0.248,
+   "p": 0.872,
    "window": [
-    "2026-10-26",
-    "2026-11-24"
+    "2026-10-27",
+    "2026-11-25"
    ]
   },
-  "geosfp_direct_70": 0.28,
-  "geosfp_dc_70": 0.289,
-  "geosfp_direct_100": 0.351,
-  "geosfp_dc_100": 0.399,
+  "geosfp_direct_70": 0.278,
+  "geosfp_dc_70": 0.287,
+  "geosfp_direct_100": 0.346,
+  "geosfp_dc_100": 0.392,
   "geosfp_window": [
-   "2026-08-16",
-   "2026-11-23"
+   "2026-08-17",
+   "2026-11-24"
   ]
  },
  "entry": {
