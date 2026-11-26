@@ -156,7 +156,7 @@ def soi_of(diff_hpa, months, normals):
 def estimate(hist: pd.DataFrame, lp_soi: pd.Series, normals: dict):
     pdiff = (hist["tahiti"] - hist["darwin"]).dropna()
     raw = pd.Series(soi_of(pdiff.values, pdiff.index.month, normals), index=pdiff.index)
-    pdiff_24 = pdiff.rolling(24, min_periods=18).mean()  # tide-removed
+    pdiff_24 = pdiff.rolling("24h", min_periods=18).mean()  # tide-removed: the last 24 hours, not the last 24 rows
     soi24 = pd.Series(soi_of(pdiff_24.values, pdiff_24.index.month, normals), index=pdiff_24.index).dropna()
     # bias-correct the 24-h mean to the published LongPaddock daily SOI over the overlap
     lp = lp_soi.reindex(soi24.resample("1D").mean().index).dropna()
