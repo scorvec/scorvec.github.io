@@ -297,7 +297,7 @@
              b: { label: "Region", items: [["pac", "North Pacific and West Coast"], ["na", "North America and the Gulf"]] },
              frame: function (a, b) { return anim("ar_det_manifest.json", "det_" + a + "_" + b); },
              ratio: function (a, b) { return b === "na" ? "1200/820" : "1200/690"; },
-             cap: function (a, b) { return "IVT 1000–300 hPa from the " + {aifs: "ECMWF AIFS single", ifs: "ECMWF IFS control", gfs: "NCEP GFS", gdps: "ECCC GDPS"}[a] + " run, with IVT vectors where at least 250 and sea-level pressure every 4 hPa. Shaded from 100; AR conditions from 250."; },
+             cap: function (a, b) { return {aifs: "ECMWF AIFS single", ifs: "ECMWF IFS control", gfs: "NCEP GFS", gdps: "ECCC GDPS"}[a] + "; arrows from 250, sea-level pressure every 4 hPa."; },
              about: "about-det" },
       detcoast: { label: "Coastline IVT, Baja California to southeast Alaska", bust: "hourly",
                   a: { label: "Model", items: MODELS },
@@ -343,7 +343,7 @@
               b: { label: "Ensemble", items: [["aifs", "AIFS-ENS"], ["ifs", "IFS-ENS"]] },
               frame: function (a, b) { return anim("ar_ens_manifest.json", a + "_" + b); },
               ratio: function () { return "1200/580"; },
-              cap: function (a, b) { return (a === "pwat" ? "Ensemble-mean total column water with the +10 and +20 mm anomaly contours, " : "Ensemble-mean precipitable-water anomaly against ERA5 1991–2020 for the date (00 or 12 UTC climatology), ") + (b === "ifs" ? "IFS-ENS (50 perturbed members)." : "AIFS-ENS (51 members)."); },
+              cap: function (a, b) { return (b === "ifs" ? "IFS-ENS" : "AIFS-ENS") + " ensemble mean" + (a === "pwat" ? "; +10 and +20 mm anomaly contoured." : ", against ERA5 1991–2020."); },
               about: "about-pwat" }
     },
     onRender: function (s) {
