@@ -114,7 +114,7 @@ int main(int argc, char** argv) {
         {
             int first = -1, last = -1;
             for (int i = 0; i < N; ++i) if (!std::isnan(U[i])) { if (first < 0) first = i; last = i; }
-            if (first < 0) { for (int i = 0; i < N; ++i) { U[i] = 0; V[i] = 0; } }
+            if (first < 0) return;  // no winds at all: ECAPE (inflow) and SHIP (shear) are undefined, not calm
             else {
                 for (int i = 0; i < N; ++i) {
                     if (!std::isnan(U[i])) continue;
