@@ -254,7 +254,9 @@ def compute_rmm(
                 # from the accumulation between consecutive steps (tp is
                 # accumulated from init, in m; step 0 = 0 by definition).
                 # The 00Z→00Z window STARTING at step k covers that valid
-                # calendar day; the last day reuses the previous rate.
+                # calendar day; the last day reuses the previous rate, and so
+                # does a 12Z run's first point (its 0→12 h window is half a
+                # diurnal cycle, which a daily normal does not fit).
                 tp_m = tp_d.isel(number=m) if mem_dim and "number" in tp_d.dims else tp_d
                 tp_lm = lat_mean_da(tp_m).values  # (ntp, nlon)
                 tp_hours = (tp_m.step / np.timedelta64(1, "h")).values.round().astype(int)
@@ -267,6 +269,8 @@ def compute_rmm(
                     v0 = tp_lm[hmap[h0]] if h0 in hmap else 0.0
                     rates[k] = (v1 - v0) * 24.0 / (h1 - h0)  # mm/day (tp already mm)
                 rates[-1] = rates[-2]
+                if nday > 1 and hours[1] - hours[0] < 24:
+                    rates[0] = rates[1]
                 mu_d = 0.5 * (prcp_mu[d_lo] + prcp_mu[d_hi])
                 sig_d = 0.5 * (prcp_sig[d_lo] + prcp_sig[d_hi])
                 phat = (rates - mu_d) / sig_d[:, None]
