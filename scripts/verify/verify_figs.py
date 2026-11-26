@@ -613,19 +613,13 @@ def lag1_rows(x: np.ndarray) -> np.ndarray:
     return np.where(den > 0, num / np.where(den > 0, den, 1.0), np.nan)
 
 
-def bias_field(W, se: np.ndarray, n: np.ndarray) -> tuple[np.ndarray, np.ndarray, int, int]:
-    """One map from its stations' run sums (``se``: summed errors, ``n``: pairs; stations x runs, 0 where none): the
-    cells' mean error where the stations reach, the significant cells, cells mapped and significant (module
-    docstring, bias)."""
-    from mverify.significance import fdr
-
-    have = (n > 0).sum(1) >= BIAS_MIN_N
-    se, n = np.where(have[:, None], se, 0.0), np.where(have[:, None], n, 0.0)
-    shown = (W @ have.astype(float)) >= BIAS_MIN_WEIGHT
-    S, N = W[shown] @ se, W[shown] @ n
-    e = np.where(N > 0, S / np.where(N > 0, N, 1.0), np.nan)  # cells x runs
+def mean_test(e: np.ndarray, min_n: int) -> tuple[np.ndarray, np.ndarray]:
+    """Each row's mean of a run series (rows x runs in run order, NaN = no run) and the two-sided p value of its t
+    test, NaN where a row has fewer than ``min_n`` runs. The variance is inflated for the lag-1 autocorrelation pooled
+    over the rows (Kendall's small-sample correction, clipped to [0, 0.9]); the degrees of freedom stay the runs' less
+    one (t_crit). The bias maps here and the upper-air maps (upper_maps.py)."""
     k = np.isfinite(e).sum(1)
-    ok = k >= BIAS_MIN_N
+    ok = k >= min_n
     mean = np.where(ok, np.nanmean(np.where(ok[:, None], e, 0.0), axis=1), np.nan)
     sd = np.where(ok, np.nanstd(np.where(ok[:, None], e, 0.0), axis=1, ddof=1), np.nan)
     r, runs = lag1_rows(e[ok]), float(np.mean(k[ok])) if ok.any() else 0.0
@@ -638,7 +632,21 @@ def bias_field(W, se: np.ndarray, n: np.ndarray) -> tuple[np.ndarray, np.ndarray
     p = np.full(len(mean), np.nan)
     good = ok & (se_mean > 0)
     p[good] = 2 * stats.t.sf(np.abs(mean[good]) / se_mean[good], k[good] - 1)
-    sig = fdr(p, FDR_Q)
+    return mean, p
+
+
+def bias_field(W, se: np.ndarray, n: np.ndarray) -> tuple[np.ndarray, np.ndarray, int, int]:
+    """One map from its stations' run sums (``se``: summed errors, ``n``: pairs; stations x runs, 0 where none): the
+    cells' mean error where the stations reach, the significant cells, cells mapped and significant (module
+    docstring, bias)."""
+    from mverify.significance import fdr
+
+    have = (n > 0).sum(1) >= BIAS_MIN_N
+    se, n = np.where(have[:, None], se, 0.0), np.where(have[:, None], n, 0.0)
+    shown = (W @ have.astype(float)) >= BIAS_MIN_WEIGHT
+    S, N = W[shown] @ se, W[shown] @ n
+    mean, p = mean_test(np.where(N > 0, S / np.where(N > 0, N, 1.0), np.nan), BIAS_MIN_N)  # cells x runs
+    ok, sig = np.isfinite(mean), fdr(p, FDR_Q)
     grid = len(BIAS_LAT) * len(BIAS_LON)
     full_v, full_s = np.full(grid, np.nan), np.zeros(grid, bool)
     full_v[shown], full_s[shown] = mean, sig

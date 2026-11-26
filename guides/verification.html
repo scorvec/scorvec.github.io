@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Guide to the model verification page · Shawn Corvec</title>
-<meta name="description" content="What each view of the model verification page shows and how it is made: every model in one table, the single runs&#x27; scorecards, error by lead, 500 hPa anomaly correlation, station and bias maps and US rain scores, the ensembles&#x27; CRPS, spread and reliability, weeks 1 to 5, the AIFS single against member 0 of AIFS-ENS, and the tests and intervals behind them.">
+<meta name="description" content="What each view of the model verification page shows and how it is made: every model in one table, the single runs&#x27; scorecards, error by lead, 500 hPa anomaly correlation, upper-air error maps against ERA5 and each model&#x27;s analysis, station and bias maps and US rain scores, the ensembles&#x27; CRPS, spread and reliability, weeks 1 to 5, the AIFS single against member 0 of AIFS-ENS, and the tests and intervals behind them.">
 <link rel="canonical" href="https://scorvec.com/guides/verification.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="author" content="Shawn Corvec">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Guide to the model verification page">
-<meta property="og:description" content="What each view of the model verification page shows and how it is made: every model in one table, the single runs&#x27; scorecards, error by lead, 500 hPa anomaly correlation, station and bias maps and US rain scores, the ensembles&#x27; CRPS, spread and reliability, weeks 1 to 5, the AIFS single against member 0 of AIFS-ENS, and the tests and intervals behind them.">
+<meta property="og:description" content="What each view of the model verification page shows and how it is made: every model in one table, the single runs&#x27; scorecards, error by lead, 500 hPa anomaly correlation, upper-air error maps against ERA5 and each model&#x27;s analysis, station and bias maps and US rain scores, the ensembles&#x27; CRPS, spread and reliability, weeks 1 to 5, the AIFS single against member 0 of AIFS-ENS, and the tests and intervals behind them.">
 <meta property="og:url" content="https://scorvec.com/guides/verification.html">
 <meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
 <meta property="og:site_name" content="Shawn Corvec">
@@ -20,7 +20,7 @@
  "@context": "https://schema.org",
  "@type": "TechArticle",
  "headline": "Guide to the model verification page",
- "description": "What each view of the model verification page shows and how it is made: every model in one table, the single runs' scorecards, error by lead, 500 hPa anomaly correlation, station and bias maps and US rain scores, the ensembles' CRPS, spread and reliability, weeks 1 to 5, the AIFS single against member 0 of AIFS-ENS, and the tests and intervals behind them.",
+ "description": "What each view of the model verification page shows and how it is made: every model in one table, the single runs' scorecards, error by lead, 500 hPa anomaly correlation, upper-air error maps against ERA5 and each model's analysis, station and bias maps and US rain scores, the ensembles' CRPS, spread and reliability, weeks 1 to 5, the AIFS single against member 0 of AIFS-ENS, and the tests and intervals behind them.",
  "url": "https://scorvec.com/guides/verification.html",
  "inLanguage": "en",
  "author": {
@@ -256,7 +256,7 @@
   <p class="crumbs"><a href="/">Home</a> › <a href="/guides/">Page guides</a> › Model verification page</p>
   <h1>Guide to the model verification page</h1>
   <p class="lede">What each figure shows, how it is made and what it is built from. <a href="/verification.html">Open the model verification page</a></p>
-<nav class="toc" aria-label="Figures"><dl><dt>Days 1&ndash;10: single runs</dt><dd><a href="#summary">Summary</a><a href="#overview">Every model</a><a href="#scores">Scorecard</a><a href="#growth">Headline variables</a><a href="#lead">One variable</a><a href="#acc">500&nbsp;hPa skill</a><a href="#profiles">Upper air</a><a href="#stations">Station map</a><a href="#biasmaps">Bias maps</a><a href="#wind">Wind speed</a><a href="#rain">US rain scores</a><a href="#rainmaps">US rain maps</a></dd><dt>Days 1&ndash;15: ensembles</dt><dd><a href="#ens">Scorecard</a><a href="#enslead">Error and spread</a><a href="#ensrel">Probabilities</a></dd><dt>Weeks 1&ndash;5</dt><dd><a href="#weeks">GEFS and GEPS</a></dd><dt>AIFS single against AIFS-ENS member 0</dt><dd><a href="#aifs">Scorecard</a><a href="#aifs_lead">Scores by day</a><a href="#aifs_spectra">Power spectra</a><a href="#aifs_loop">Pressure and rain loop</a><a href="#aifs_z500">500 hPa height loop</a><a href="#aifs_t2m">2 m temperature loop</a></dd><dt>Data</dt><dd><a href="#database">The database</a></dd></dl></nav>
+<nav class="toc" aria-label="Figures"><dl><dt>Days 1&ndash;10: single runs</dt><dd><a href="#summary">Summary</a><a href="#overview">Every model</a><a href="#scores">Scorecard</a><a href="#growth">Headline variables</a><a href="#lead">One variable</a><a href="#acc">500&nbsp;hPa skill</a><a href="#profiles">Upper air</a><a href="#uppermaps">Upper-air maps</a><a href="#stations">Station map</a><a href="#biasmaps">Bias maps</a><a href="#wind">Wind speed</a><a href="#rain">US rain scores</a><a href="#rainmaps">US rain maps</a></dd><dt>Days 1&ndash;15: ensembles</dt><dd><a href="#ens">Scorecard</a><a href="#enslead">Error and spread</a><a href="#ensrel">Probabilities</a></dd><dt>Weeks 1&ndash;5</dt><dd><a href="#weeks">GEFS and GEPS</a></dd><dt>AIFS single against AIFS-ENS member 0</dt><dd><a href="#aifs">Scorecard</a><a href="#aifs_lead">Scores by day</a><a href="#aifs_spectra">Power spectra</a><a href="#aifs_loop">Pressure and rain loop</a><a href="#aifs_z500">500 hPa height loop</a><a href="#aifs_t2m">2 m temperature loop</a></dd><dt>Data</dt><dd><a href="#database">The database</a></dd></dl></nav>
 <section id="about">
 <h2>The page</h2>
 <p>NOAA's GFS, ECMWF's physics model (the IFS control, the single unperturbed run of the IFS), ECMWF's AI model (AIFS)
@@ -362,6 +362,29 @@ humidity stops at 300&nbsp;hPa, above which sonde humidity is unreliable. A prof
 the square root of the ratio of the two models' summed squared errors on the same soundings, its interval from the
 runs taken as clusters of observations that share their weather, and its marker filled where that interval leaves out
 no difference.</p>
+</section>
+
+<section id="uppermaps">
+<h3>Upper-air maps</h3>
+<p class="open"><a href="/verification.html#uppermaps">Open this figure</a></p>
+<p>Each single run's error on the WMO 1.5&deg; grid (WeatherBench&nbsp;2's 240&nbsp;&times;&nbsp;121): height,
+temperature, the west&ndash;east and south&ndash;north winds and wind speed at 925, 850, 700, 500, 300, 250, 200, 100
+and 50&nbsp;hPa, and specific humidity up to 300&nbsp;hPa, at days 1, 3, 5, 7 and 10 of the 00Z runs. Every model's
+fields are put on the grid the same way (first-order conservative remapping) from GFS's 0.25&deg;, the ECMWF open
+data's 0.25&deg; and GDPS's 0.15&deg; files, and kept in the verification database.</p>
+<p>Two truths. <b>ERA5</b> at 00Z of the valid day is independent of every model, but runs about a week behind, so its
+window ends some 17 days ago. Against its <b>own analysis</b> (step 0 of its own 00Z run on the valid day) each
+model's window reaches to ten days ago; that truth shares the model's own assimilation and biases, so it flatters the
+model, most at short leads. AIFS starts from the IFS analysis, so its own analysis is IFS's. Each truth's window is the
+newest 30 runs whose five valid days it covers; a model with fewer than 20 such runs is left off that truth's maps.</p>
+<p>A cell's mean error is the mean of its run errors, tested with the scorecards' t-test and its allowance for runs
+that resemble the run before (the lag-1 autocorrelation pooled over the map), and the cells of each map go through the
+Benjamini&ndash;Hochberg procedure at a 10% false-discovery rate: coloured where the error is unlikely to be noise,
+grey where it was tested and is within it. The wind speed map is the error of the speed; its RMSE is the vector
+wind's, which counts errors of direction too. RMSE is drawn without a test, as the size of the error rather than a
+claim of a difference. The colour steps are scaled to each picture, the four models on one scale.</p>
+<p><b>By latitude</b> shows the zonal mean: each run's error averaged around each latitude circle, at each level, with
+the same test over the latitude&ndash;level cells of each picture. Hover or tap a map for every model's value there.</p>
 </section>
 
 <section id="stations">

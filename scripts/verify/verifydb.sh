@@ -7,10 +7,11 @@
 # ens-z500m-<m>_<init>.npz), ERA5's (era5-z500_<day>.npz, filed under the month of the day), each run's anomaly
 # correlations (acc_<init>.parquet) and the ensembles' and ERA5's sea-level pressure (ens-msl-<m>_, era5-msl_) by
 # scripts/verify/z500_acc.py, in releases of their own, verify-z500-YYYY-MM (a month of every kind would pass GitHub's
-# 1000 files a release); the days 1-35 runs' weekly anomalies (wk-gefs_, wk-geps_<init>.npz) and ERA5's samples
-# (wk-era5_<YYYYMM>.npz) by scripts/verify/weeks_acc.py, in yearly releases verify-weeks-YYYY. A second copy is kept in
-# the site's object store, under verify-db/YYYY-MM/ (the month in the file's name). A file is never replaced or deleted
-# in either place.
+# 1000 files a release); every single run's upper air on nine levels (upa-<m>_<init>.npz) and ERA5's
+# (era5-upa_<day>.npz) by scripts/verify/upper_fields.py, in releases verify-upper-YYYY-MM; the days 1-35 runs' weekly
+# anomalies (wk-gefs_, wk-geps_<init>.npz) and ERA5's samples (wk-era5_<YYYYMM>.npz) by scripts/verify/weeks_acc.py,
+# in yearly releases verify-weeks-YYYY. A second copy is kept in the site's object store, under verify-db/YYYY-MM/ (the
+# month in the file's name). A file is never replaced or deleted in either place.
 #
 #   verifydb.sh list                 every file the database holds, one name per line
 #   verifydb.sh fetch KIND N DIR     the newest N runs' KIND_<init> files (N 'all': every run) into DIR
@@ -30,8 +31,9 @@ R=${GITHUB_REPOSITORY:?}
 # (16 MB) and GitHub's answer timed out (HTTP 504).
 assets() {
   gh_wait gh api --paginate "repos/$R/releases?per_page=10" \
-    -q '.[] | select(.tag_name | test("^verify-(db|z500|weeks)-")) | .tag_name as $t | .assets[] | "\($t) \(.name) \(.size) \(.digest)"' |
+    -q '.[] | select(.tag_name | test("^verify-(db|z500|upper|weeks)-")) | .tag_name as $t | .assets[] | "\($t) \(.name) \(.size) \(.digest)"' |
     awk '{ d = substr($2, index($2, "_") + 1); f = ($2 ~ /^(z500-|ens-z500|era5-z500_|acc_|ens-msl-|era5-msl_)/) ? "verify-z500" : "verify-db"
+           f = ($2 ~ /^(upa-|era5-upa_)/) ? "verify-upper" : f
            f = ($2 ~ /^wk-/) ? "verify-weeks-" substr(d, 1, 4) : f "-" substr(d, 1, 4) "-" substr(d, 5, 2)
            if ($1 == f) print }'
 }
@@ -67,13 +69,14 @@ gh_wait() {
   done
   return 1
 }
-# the release a file belongs in: the 500 hPa and sea-level pressure kinds in verify-z500-, the rest in verify-db-, by the
-# month in its name;
+# the release a file belongs in: the 500 hPa and sea-level pressure kinds in verify-z500-, the upper-air fields in
+# verify-upper-, the rest in verify-db-, by the month in its name;
 # the weekly kinds in verify-weeks-, by its year
 tag_of() {
   local d=${1#*_} p=verify-db
   [[ $1 == wk-* ]] && { echo "verify-weeks-${d:0:4}"; return; }
   [[ $1 =~ ^(z500-|ens-z500|era5-z500_|acc_|ens-msl-|era5-msl_) ]] && p=verify-z500
+  [[ $1 =~ ^(upa-|era5-upa_) ]] && p=verify-upper
   echo "$p-${d:0:4}-${d:4:2}"
 }
 # NAME... as "TAG -p NAME -p NAME ...", one line per release
@@ -114,6 +117,9 @@ case "${1:-}" in
       if [[ $tag == verify-weeks-* ]]; then
         title="Weekly verification database ${tag: -4}"
         notes="The days 1-35 ensembles' weekly-mean anomalies against 1991-2020 and their truth (scripts/verify/weeks_acc.py), on the WMO 1.5 degree grid: wk-gefs_<init>.npz (GEFS, Monday and Thursday 00Z: the weeks' anomalies before the drift correction and the daily zonal means it is estimated from), wk-geps_<init>.npz (GEPS, the page's weekly maps) and wk-era5_<YYYYMM>.npz (ERA5 at 00Z and 12Z of each day of the month, int16 as gefs_daily.pack). 2 m temperature, 500 hPa height and sea-level pressure; verification.html scores them."
+      elif [[ $tag == verify-upper-* ]]; then
+        title="Upper-air fields database $month"
+        notes="Every single run's upper air (scripts/verify/upper_fields.py) on the WMO 1.5 degree grid: upa-<m>_<init>.npz (GFS, IFS control, AIFS, GDPS at 00Z; height, temperature and wind at 925-50 hPa, specific humidity at 925-300 hPa; the analysis and days 1, 3, 5, 7 and 10) and era5-upa_<day>.npz (ERA5 at 00Z), 16-bit integers at fixed steps (upper_fields.PACK). verification.html maps their errors."
       elif [[ $tag == verify-z500-* ]]; then
         title="500 hPa height database $month"
         notes="Every model's 500 hPa height (scripts/verify/z500_acc.py) on the WMO 1.5 degree grid: z500-<m>_<init>.npz (deterministic, to day 10), ens-z500-<m>_ (ensemble mean) and ens-z500m-<m>_ (every member, 2.5 degree, 20-90N) to day 15, era5-z500_<day>.npz (ERA5 at 00Z), and acc_<init>.parquet, each run's anomaly correlations against ERA5; the ensembles' mean sea-level pressure ens-msl-<m>_<init>.npz and ERA5's era5-msl_<day>.npz (hPa, 2.5 degree, 20-90N), for the days 1-15 Arctic Oscillation."

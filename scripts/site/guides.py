@@ -88,7 +88,8 @@ GUIDES = [
         page="/verification.html",
         name="model verification page",
         desc="What each view of the model verification page shows and how it is made: every model in one table, the "
-        "single runs' scorecards, error by lead, 500 hPa anomaly correlation, station and bias maps and US rain scores, "
+        "single runs' scorecards, error by lead, 500 hPa anomaly correlation, upper-air error maps against ERA5 and "
+        "each model's analysis, station and bias maps and US rain scores, "
         "the ensembles' CRPS, spread and reliability, weeks 1 to 5, the AIFS single against member 0 of AIFS-ENS, and "
         "the tests and intervals behind them.",
     ),

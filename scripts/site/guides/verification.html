@@ -98,6 +98,28 @@ runs taken as clusters of observations that share their weather, and its marker 
 no difference.</p>
 </section>
 
+<section id="uppermaps">
+<h3>Upper-air maps</h3>
+<p>Each single run's error on the WMO 1.5&deg; grid (WeatherBench&nbsp;2's 240&nbsp;&times;&nbsp;121): height,
+temperature, the west&ndash;east and south&ndash;north winds and wind speed at 925, 850, 700, 500, 300, 250, 200, 100
+and 50&nbsp;hPa, and specific humidity up to 300&nbsp;hPa, at days 1, 3, 5, 7 and 10 of the 00Z runs. Every model's
+fields are put on the grid the same way (first-order conservative remapping) from GFS's 0.25&deg;, the ECMWF open
+data's 0.25&deg; and GDPS's 0.15&deg; files, and kept in the verification database.</p>
+<p>Two truths. <b>ERA5</b> at 00Z of the valid day is independent of every model, but runs about a week behind, so its
+window ends some 17 days ago. Against its <b>own analysis</b> (step 0 of its own 00Z run on the valid day) each
+model's window reaches to ten days ago; that truth shares the model's own assimilation and biases, so it flatters the
+model, most at short leads. AIFS starts from the IFS analysis, so its own analysis is IFS's. Each truth's window is the
+newest 30 runs whose five valid days it covers; a model with fewer than 20 such runs is left off that truth's maps.</p>
+<p>A cell's mean error is the mean of its run errors, tested with the scorecards' t-test and its allowance for runs
+that resemble the run before (the lag-1 autocorrelation pooled over the map), and the cells of each map go through the
+Benjamini&ndash;Hochberg procedure at a 10% false-discovery rate: coloured where the error is unlikely to be noise,
+grey where it was tested and is within it. The wind speed map is the error of the speed; its RMSE is the vector
+wind's, which counts errors of direction too. RMSE is drawn without a test, as the size of the error rather than a
+claim of a difference. The colour steps are scaled to each picture, the four models on one scale.</p>
+<p><b>By latitude</b> shows the zonal mean: each run's error averaged around each latitude circle, at each level, with
+the same test over the latitude&ndash;level cells of each picture. Hover or tap a map for every model's value there.</p>
+</section>
+
 <section id="stations">
 <h3>Station map</h3>
 <p>Each dot is a station, coloured by one model's error at one lead averaged over the window's runs, or by the
