@@ -1,5 +1,5 @@
 {
- "built": "2026-11-26 18:02Z",
+ "built": "2026-11-26 18:36Z",
  "newest_init": "2026-11-26 12Z",
  "window": [
   "2026-11-27",
@@ -1858,7 +1858,34 @@
     35
    ]
   ],
-  "models": {},
+  "models": {
+   "geps": {
+    "init": "2026-11-26 00Z",
+    "members": 21,
+    "first": [
+     0,
+     0,
+     1
+    ],
+    "base_rate": {
+     "winters": 46,
+     "with_onset": 2,
+     "share": 0.043,
+     "period": "1980-01-01..2026-06-26"
+    },
+    "window": [
+     "2026-12-11",
+     "2026-12-31"
+    ],
+    "heat": [
+     3,
+     13,
+     7
+    ],
+    "heat_init": "2026-11-26 00Z",
+    "heat_members": 21
+   }
+  },
   "flux_rule": {
    "threshold": 0.5,
    "days": 7,
