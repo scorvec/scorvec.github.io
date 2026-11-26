@@ -442,101 +442,96 @@ window.STAGE = {
   products: {
   sstmaps: {label: "SST anomaly maps", a: {label: "Field", items: [["anomaly","Anomaly"],["absolute","Absolute SST"],["relative","Global mean removed"],["tropical_rel","Tropics, tropical mean removed"]]},
           frame: function (a) { return "sst_anim.html?embed=1&region=" + a + "&regions=" + a; }, about: "about-sstmaps",
-          cap: function (a) { return {anomaly: "NOAA OISST v2.1 daily anomaly against 1991–2020, global and tropical Pacific, animated over the last 90 days with each day's Niño-3.4, tropical-mean and relative Niño-3.4 readout (single days, not the 3-month ONI or RONI).", absolute: "The raw sea-surface temperature over the last 90 days.", relative: "The anomaly with the global mean removed: the ENSO pattern without the background warming.", tropical_rel: "30°S–30°N with the 20°S–20°N mean subtracted — RONI's arithmetic drawn as a map."}[a]; }},
+          cap: function (a) { return {anomaly: "NOAA OISST v2.1, last 90 days, against 1991–2020.", absolute: "NOAA OISST v2.1, last 90 days.", relative: "Anomaly less the global mean.", tropical_rel: "Anomaly less the 20°S–20°N mean."}[a]; }},
   indices: {label: "Daily ENSO indices", dom: function () { return "dom-indices"; }, about: "about-indices",
-          cap: function () { return "Daily area-weighted SST indices: Niño-3.4, the daily relative Niño-3.4 (the quantity RONI is built from — there is no official daily RONI) and the 90-day running ONI estimate. Switch to absolute SST, or to the monthly record over ten years or since 1970; click legend entries for the other regions."; }},
+          cap: function () { return "Daily NOAA OISST v2.1 box means; click the legend for other regions."; }},
   onironi: {label: "ONI vs RONI", img: function () { return "assets/sst/roni.webp?v=226f64105eea"; }, about: "about-onironi", fit: false,
-          cap: function () { return "RONI and ONI by season: CPC\u2019s published values (ERSSTv6) solid, and our OISST estimate, hatched, only for the seasons CPC has not reached yet \u2014 an estimate, not CPC\u2019s number. The newest season is preliminary: the convention is a centred 3-month mean, so it leans on a month that has not closed. " + '<span class="estoff">' + (window.ENSO_EST_OFF || "") + "</span>"; }},
+          cap: function () { return "CPC solid; our OISST estimate hatched, for seasons CPC has not reached. " + '<span class="estoff">' + (window.ENSO_EST_OFF || "") + "</span>"; }},
   beyond: {label: "Beyond ENSO", a: {label: "Index", items: [["pdo","PDO"],["iod","Indian Ocean Dipole"],["satl","Atlantic indices"]]},
           img: function (a) { return "assets/sst/" + a + "_daily.webp?v=226f64105eea"; }, about: "about-beyond",
-          cap: function (a) { return {pdo: "Daily PDO from the ERSST North Pacific EOF pattern projected on OISST, calibrated to NCEI over 1950–present.", iod: "Daily Dipole Mode Index, Saji boxes.", satl: "Daily Atlantic indices: the Atlantic Niño (ATL3), the tropical South and North Atlantic (TSA, TNA) and the South Atlantic subtropical dipole (Morioka poles)."}[a]; }},
+          cap: function (a) { return {pdo: "Daily, OISST on the ERSST pattern.", iod: "Daily, Saji boxes.", satl: "Daily ATL3, TSA, TNA and the South Atlantic dipole."}[a]; }},
   mur: {label: "1 km satellite SST: cold tongue", frame: function () { return "sst_anim.html?embed=1&manifest=mur_manifest.json&region=mur_ct"; }, about: "about-mur",
-          cap: function () { return "Ultra-high-resolution (1 km) satellite SST from NASA JPL's MUR analysis, 160°E–79°W and 10°S–10°N, one frame a day since the event's onset, fixed colour range; the Niño boxes are drawn on each frame."; }},
+          cap: function () { return "NASA JPL MUR, 1 km, one frame a day since the onset."; }},
   mur34: {label: "1 km satellite Niño-3.4 against OISST", img: function () { return "assets/sst/mur_nino34.webp?v=226f64105eea"; }, about: "about-mur34", fit: false,
-          cap: function () { return "Absolute Niño-3.4 from the 1 km analysis against OISST, and the offset between the two."; }},
+          cap: function () { return "MUR against OISST."; }},
   ir: {label: "Infrared satellite loop", a: {label: "Region", items: [["pacsat","Tropical Pacific"],["samsat","South & Central America"]]},
           frame: function (a) { return "sst_anim.html?embed=1&manifest=" + a + "_manifest.json&region=" + a; },
           ratio: function (a) { return a === "samsat" ? "1454/1587" : "1259/700"; }, about: "about-ir",
-          cap: function (a) { return a === "samsat" ? "Hourly infrared composite over South and Central America: the Amazon convection, the SACZ and the Andes." : "Hourly infrared composite over the tropical Pacific: where the convection is."; }},
+          cap: function (a) { return "Hourly infrared composite."; }},
   soirec: {label: "SOI against the record", img: function () { return "assets/sst/soi_history.webp?v=226f64105eea"; }, about: "about-soirec", fit: false,
-          cap: function () { return "The Southern Oscillation Index of the current event against the record: LongPaddock's (Queensland Government) monthly SOI and, since June 1991, its daily SOI, both on the 1887–1989 base."; }},
+          cap: function () { return "LongPaddock monthly and daily SOI, 1887–1989 base."; }},
   mei: {label: "MEI.v2 daily nowcast", a: {label: "View", items: [["nowcast","Nowcast"],["analogs","Analogs"],["history","History"],["validation","Validation"]]},
           img: function (a) { return "assets/sst/mei/mei_" + a + ".webp?v=226f64105eea"; }, about: "about-mei", fit: false,
-          cap: function (a) { return {nowcast: "A daily estimate of NOAA's bi-monthly MEI.v2 by regression on three daily ENSO components (Niño-3.4, SOI, equatorial 850 hPa wind): in-sample R 0.94, cross-validated RMSE 0.30.", analogs: "Past events with the closest MEI trajectory.", history: "The nowcast against the full MEI record.", validation: "How the nowcast has verified against each published value."}[a]; }},
+          cap: function (a) { return {nowcast: "Daily estimate of NOAA's MEI.v2.", analogs: "Past events with the closest MEI path.", history: "Against the full MEI record.", validation: "Against each published value."}[a]; }},
   olr: {label: "OLR Hovmöller (satellite proxy)", img: function () { return "assets/sst/olr_hovmoller.webp"; }, bust: "hourly", about: "about-olr", fit: false,
-          cap: function () { return "Equatorial convection against time from the infrared composite: low OLR (yellow to red) is deep convection, blue is suppressed or clear; slow eastward bands (about 5 m/s) are the MJO, faster ones Kelvin waves."; }},
+          cap: function () { return "Low OLR (yellow to red) deep convection; blue suppressed."; }},
   waves: {label: "Tropical wave decomposition", img: function () { return "assets/sst/olr_waves.webp"; }, bust: "hourly", about: "about-waves", fit: false,
-          cap: function () { return "The OLR anomaly filtered into the Wheeler–Kiladis bands: MJO, Kelvin, equatorial Rossby and the rest."; }},
+          cap: function () { return "OLR anomaly in the Wheeler–Kiladis bands."; }},
   okelvin: {label: "Ocean Kelvin waves", a: {label: "View", items: [["hov","Along the equator, with arrivals"],["map","Map, since March"]]},
           frame: function (a) { return a === "map" ? "sst_anim.html?embed=1&manifest=okelvin_manifest.json&region=okelvin" : null; },
           img: function () { return "assets/sst/ocean_kelvin.webp?v=226f64105eea"; }, ratio: function () { return "1652/560"; },
           about: "about-okelvin", fit: false,
-          cap: function (a) { return a === "map" ? "Equatorial Pacific sea level anomaly from satellite altimetry, every second day for the last 200 days; K marks each Kelvin wave crest (red warm, blue cold)."
-                                                : "Sea level along the equator with its Kelvin-wave part, the winds that launch the waves, and each current wave projected to Niño-3 and the coast at its measured speed."; }},
+          cap: function (a) { return a === "map" ? "Satellite altimetry, last 200 days; K marks a crest, red warm, blue cold." : "Satellite altimetry along the equator."; }},
   kelvin: {label: "Kelvin wave tracker (AIFS-ENS)", a: {label: "View", items: [["map","Map, day by day"],["hov","Along the equator"]]},
           frame: function (a) { return a === "hov" ? null : "sst_anim.html?embed=1&manifest=kelvin_manifest.json&region=kelvin&start=manifest"; },
           img: function () { return "assets/sst/kelvin_hov.webp?v=226f64105eea"; }, ratio: function () { return "1652/560"; },
           about: "about-kelvin", fit: false,
-          cap: function (a) { return a === "hov" ? "Kelvin-filtered 200 hPa velocity potential along the equator: the last 45 days of analyses, then the AIFS-ENS forecast to day 15."
-                                               : "Where the convectively coupled Kelvin waves are: Kelvin-filtered 200 hPa velocity potential, ten days of analyses then the AIFS-ENS forecast to day 15. K marks an active crest on the equator."; }},
+          cap: function (a) { return a === "hov" ? "Last 45 days of analyses, then AIFS-ENS to day 15." : "Ten days of analyses, then AIFS-ENS to day 15; K marks a crest."; }},
   trackers: {label: "Kelvin and Rossby wave trackers", img: function () { return "assets/sst/wave_tracker.webp"; }, bust: "hourly", about: "about-trackers", fit: false,
-          cap: function () { return "Where the active Kelvin and equatorial Rossby wave packets are along the equator, and where they are heading."; }},
+          cap: function () { return "Active Kelvin and equatorial Rossby packets."; }},
   ascat: {label: "ASCAT equatorial Pacific wind", frame: function () { return "sst_anim.html?embed=1&manifest=ascat_manifest.json&region=ascat"; }, about: "about-ascat",
-          cap: function () { return "Copernicus Marine L4 scatterometer wind over 10°S–10°N, one frame a day, gap-filled; drag the slider for recent days."; }},
+          cap: function () { return "Copernicus Marine L4 scatterometer wind, one frame a day."; }},
   eqwind: {label: "Equatorial zonal wind, Hovmöller", img: function () { return "assets/sst/eq_uwind_hov.webp"; }, bust: "hourly", about: "about-eqwind",
-          cap: function () { return "Surface zonal wind along the equator against time: westerly bursts as red streaks, the trade winds in blue."; }},
+          cap: function () { return "Westerly bursts red, trade winds blue."; }},
   soi: {label: "Southern Oscillation Index", a: {label: "View", items: [["hourly","SOI, hourly estimate"],["forecast","SOI, ensemble forecast"],["eqsoi","Equatorial SOI, observed and forecast"]]},
           img: function (a) { return a === "hourly" ? "assets/sst/soi_hourly.webp" : a === "forecast" ? "assets/sst/soi_forecast.webp?v=226f64105eea" : "assets/sst/eqsoi_forecast.webp?v=226f64105eea"; }, bust: "hourly",
           about: function (a) { return a === "eqsoi" ? "about-eqsoi" : a === "forecast" ? "about-soi_f" : "about-soi_h"; },
-          cap: function (a) { return a === "hourly" ? "Tahiti minus Darwin pressure from hourly METARs, standardised on the LongPaddock (Queensland Government) 1887–1989 base, so the index exists today rather than at month end." : a === "forecast" ? "The same index carried through the AIFS-ENS and IFS-ENS 15-day forecasts, member by member." : "CPC's Equatorial SOI — the east-minus-west equatorial Pacific box pressure difference, standardised — monthly to the last complete month, with the ensembles' daily 15-day forecast on the same scale; negative favours El Niño."; }},
+          cap: function (a) { return a === "hourly" ? "Hourly METARs, LongPaddock 1887–1989 base." : a === "forecast" ? "AIFS-ENS and IFS-ENS, member by member." : "CPC monthly, then the ensembles' daily forecast; negative favours El Niño."; }},
   soi_seas: {label: "Seasonal SOI outlook", dom: function () { return "dom-soi-seas"; }, about: "about-soi_seas",
-          cap: function () { return "ECMWF SEAS5's monthly Southern Oscillation and Equatorial SOI for the coming six months, calibrated against CPC's published series on the 1993–2016 hindcast; the raw ensemble mean is dotted, the previous issue's mean is the thin line, and the last observed months are in black when the issue file carries them."; }},
+          cap: function () { return "SEAS5, calibrated; raw mean dotted, previous issue thin, observed black."; }},
   wwb: {label: "Westerly wind bursts", a: {label: "View", items: [["tarawa","Tarawa monitor"],["onsets","Against past onsets"]]},
           dom: function (a) { return a === "tarawa" ? "dom-wwb" : null; }, img: function () { return "assets/sst/kiribati_history.webp"; }, bust: "hourly",
-          about: function (a) { return a === "tarawa" ? "about-wwb_t" : "about-wwb_o"; }, cap: function (a) { return a === "tarawa" ? "Hourly surface wind at Tarawa and Kiritimati: westerlies at the dateline are the trigger for oceanic Kelvin waves. Live arrows below the chart." : "This year's westerly-burst activity against the onset years of past El Niños."; }},
+          about: function (a) { return a === "tarawa" ? "about-wwb_t" : "about-wwb_o"; }, cap: function (a) { return a === "tarawa" ? "Hourly wind at Tarawa and Kiritimati." : "This year against past El Niño onset years."; }},
   wind10: {label: "Equatorial 10 m wind forecast", a: {label: "Runs", items: [["ens","Ensemble means"],["det","Single runs"]]},
           img: function (a) { return a === "det" ? "assets/sst/eq_wind_hovmoller_det.webp?v=226f64105eea" : "assets/sst/eq_wind_hovmoller.webp?v=226f64105eea"; }, about: "about-wind10",
-          cap: function (a) { return a === "det" ? "The same anomaly from single runs: AIFS-ENS member 0, AIFS single, the IFS control (to day 15) and GDPS (to day 10)." : "Forecast zonal wind along the equator, AIFS-ENS and IFS-ENS ensemble means, anomaly and full wind, out to day 15."; }},
+          cap: function (a) { return a === "det" ? "Single runs: AIFS-ENS member 0, AIFS single, IFS control, GDPS." : "AIFS-ENS and IFS-ENS ensemble means to day 15."; }},
   subtemp: {label: "Subsurface temperature section", a: {label: "Field", items: [["equatorial","Temperature and anomaly"],["equatorial_dt","Anomaly, trend removed"]]},
           frame: function (a) { return "sst_anim.html?embed=1&region=" + a + "&regions=" + a; }, about: "about-subtemp",
-          cap: function (a) { return a === "equatorial" ? "TAO/TRITON depth–longitude section along the equator, 5-day average: temperature on top, the anomaly against 1991–2020 below; the 20 °C isotherm is the thermocline proxy." : "The same anomaly with the 1991–2020 linear trend removed at each depth and longitude, so the warming ocean is not read as an event."; }},
+          cap: function (a) { return a === "equatorial" ? "TAO/TRITON, 5-day mean; 20 °C isotherm marked." : "Anomaly less each depth's 1991–2020 trend."; }},
   hc: {label: "Heat content against analogs", img: function () { return "assets/sst/subsurface_events_hc.webp?v=226f64105eea"; }, about: "about-hc", fit: false,
-          cap: function () { return "Equatorial 0–300 m temperature anomaly from the eight TAO moorings, this event against 1997, 2015 and 2023 on a common calendar, and 1982 from two monthly ocean reanalyses (ORAS5, GODAS; shading = their spread). Dashed where fewer than six moorings report and the GLORYS12 fill carries the day; the strip shows coverage. Tracks NOAA CPC's GODAS index at r = 0.99."; }},
+          cap: function () { return "Eight TAO moorings; dashed where fewer than six report."; }},
   xsec: {label: "Cross-section against analogs", img: function () { return "assets/sst/subsurface_events_xsec.webp?v=226f64105eea"; }, about: "about-xsec", fit: false,
-          cap: function () { return "The depth–longitude anomaly this week beside the same week of the 1997, 2015 and 2023 events."; }},
+          cap: function () { return "This week beside the same week of 1997, 2015 and 2023."; }},
   cur_map: {label: "Surface currents", frame: function () { return "sst_anim.html?embed=1&manifest=eq_cur_map_manifest.json&region=eq_cur_map"; }, about: "about-cur_map",
-          cap: function () { return "Tropical Pacific surface current from the Copernicus Marine analysis, speed shaded and streamlines for the flow: the westward South Equatorial Current and the eastward counter-current."; }},
+          cap: function () { return "Copernicus Marine analysis."; }},
   cur_sec: {label: "Undercurrent section", frame: function () { return "sst_anim.html?embed=1&manifest=eq_cur_section_manifest.json&region=eq_cur_section"; }, about: "about-cur_sec",
-          cap: function () { return "Zonal current along the equator with depth: the eastward Equatorial Undercurrent beneath the westward surface flow."; }},
+          cap: function () { return "Copernicus Marine analysis, along the equator."; }},
   cur_hov: {label: "Surface current Hovmöller", img: function () { return "assets/sst/eq_current_hov.webp"; }, bust: "hourly", about: "about-cur_hov", fit: false,
-          cap: function () { return "Equatorial surface zonal current against time: eastward pulses follow westerly wind bursts."; }},
+          cap: function () { return "Copernicus Marine analysis, along the equator."; }},
   imp_reg: {label: "ENSO regression maps", a: IMP_V, b: IMP_S, c: {label: "Source", items: [["cmip6","CMIP6, 16 models"],["obs","Observed"]]},
           img: function (a, b, c) { return "assets/sst/enso_imp_reg_" + a + "_" + b + "_" + c + ".webp?v=226f64105eea"; }, about: "about-imp_reg", fit: false,
-          cap: function (a, b, c) { return b + " " + IMP_VN[a] + " change per 1 K of Niño-3.4, " + (c === "obs" ? (a === "pr" ? "GPCP 1980–2026" : "ERA5 1960–2026") + " on CPC’s ONI" : "CMIP6 multi-model, 429 historical members") + ", shaded only where significant."; }},
+          cap: function (a, b, c) { return (c === "obs" ? (a === "pr" ? "GPCP" : "ERA5") : "CMIP6, 429 members") + "; significant only."; }},
   imp_comp: {label: "ENSO composites by event class (CMIP6)", a: IMP_V, b: IMP_S,
           c: {label: "Class", items: [["en","El Niño"],["sen","Strong"],["super","Super"],["ln","La Niña"],["sln","Strong La Niña"]]},
           img: function (a, b, c) { return "assets/sst/enso_imp_comp_" + a + "_" + b + "_" + c + ".webp?v=226f64105eea"; }, about: "about-imp_comp", fit: false,
-          cap: function (a, b) { return b + " " + IMP_VN[a] + " in each event class minus neutral seasons, thousands of CMIP6 events, shaded only where the models robustly agree."; }},
+          cap: function (a, b) { return "CMIP6; shaded where the models robustly agree."; }},
   imp_obs: {label: "Observed ENSO composites", a: IMP_V, b: IMP_S, c: {label: "Class", items: [["en","El Niño"],["ln","La Niña"]]},
           img: function (a, b, c) { return "assets/sst/enso_imp_obs_" + a + "_" + b + "_" + c + ".webp?v=226f64105eea"; }, about: "about-imp_obs", fit: false,
-          cap: function (a, b) { return b + " " + IMP_VN[a] + " in observed El Niño and La Niña seasons minus neutral ones (" + (a === "pr" ? "GPCP" : "ERA5") + "), shaded only where significant."; }},
+          cap: function (a, b) { return (a === "pr" ? "GPCP" : "ERA5") + "; significant only."; }},
   imp_super: {label: "Super El Niño over the Americas", a: {label: "View", items: [["life","Lifecycle"],["nonlin","Beyond linear"],["namon","North America by month"]]},
           b: function (a) { return a === "namon" ? {label: "Month", items: [["Nov","Nov"],["Dec","Dec"],["Jan","Jan"],["Feb","Feb"],["Mar","Mar"]]} : IMP_V; },
           c: function (a) { return a === "namon" ? null : IMP_PH; },
           img: function (a, b, c) { return (a === "namon" ? "assets/sst/enso_imp_namon_" + b : "assets/sst/enso_imp_life_" + b + "_" + c + "_" + (a === "nonlin" ? "nonlin" : "super")) + ".webp?v=226f64105eea"; },
           about: "about-imp_super", fit: false,
-          cap: function (a) { return a === "namon" ? "North American temperature month by month in CMIP6 super El Niño winters (DJF Niño-3.4 ≥ +2 K)."
-                                  : a === "nonlin" ? "What super El Niños add beyond a scaled-up ordinary El Niño, followed from the summer before to the spring after."
-                                  : "Super El Niño winters in CMIP6, followed from the summer before the peak to the spring after."; }},
+          cap: function (a) { return "CMIP6 super El Niño winters (DJF Niño-3.4 ≥ +2 K)."; }},
   imp_asym: {label: "ENSO asymmetry", a: IMP_V, b: IMP_S, c: {label: "Events", items: [["asym","|index| ≥ 0.5 K"],["asym_strong","|index| ≥ 1.5 K"]]},
           img: function (a, b, c) { return "assets/sst/enso_imp_asym_" + a + "_" + b + "_" + c + ".webp?v=226f64105eea"; }, about: "about-imp_asym", fit: false,
-          cap: function (a, b) { return b + " " + IMP_VN[a] + ": El Niño plus La Niña at equal strength. Zero for a mirror-image response; shaded only where robust."; }},
+          cap: function (a, b) { return "El Niño plus La Niña; zero is a mirror image. Robust only."; }},
   imp_ovm: {label: "Observed ENSO impacts against the models", a: {label: "View", items: [["map","Super El Niño, mapped"],["table","Every class, by region"]]},
           b: function (a) { return a === "map" ? IMP_VT : null; }, c: function (a) { return a === "map" ? IMP_PH : null; },
           img: function (a, b, c) { return (a === "map" ? "assets/sst/enso_imp_ovm_" + b + "_" + c : "assets/sst/enso_imp_ovmtab_tas") + ".webp?v=226f64105eea"; },
           about: "about-imp_ovm", fit: false,
-          cap: function (a) { return a === "map" ? "The three observed super El Niños, shown only where they fall outside the spread of the CMIP6 models."
-                                                  : "Every season, class and region where the observed temperature response falls outside the models' spread."; }},
+          cap: function (a) { return "Shown only outside the CMIP6 spread."; }},
   imp_ec: {label: "East-based, basin-wide and central El Niño", a: {label: "View", items: [["comp","Composites by class"],["diff","East minus central"],["models","Model by model"],["reg","E and C regressions"],["place","Where events fall"]]},
           b: function (a) { return a === "place" ? null : IMP_V; },
           c: function (a) { return a === "comp" ? IMP_EC : a === "models" ? IMP_ECM : a === "reg" ? IMP_ECR : null; },
@@ -547,19 +542,11 @@ window.STAGE = {
                                     if (a === "reg") return f + c.charAt(0) + "_" + (c.length > 1 ? "obs" : "cmip6") + ".webp?v=226f64105eea";
                                     return f + c + ".webp?v=226f64105eea"; },
           about: "about-imp_ec", fit: false,
-          cap: function (a, b, c) { var cls = {east: "east-based", basin: "basin-wide", central: "central"};
-                                    return a === "place" ? "Where CMIP6 and observed El Niño winters fall on E and C, and each model's share of east-based, basin-wide and central winters against the observed share."
-                                  : a === "diff" ? "December–February " + IMP_VN[b] + ": east-based minus central El Niño winters at the same Niño-3.4 strength, CMIP6, shaded only where robust."
-                                  : a === "models" ? "Every CMIP6 model's own December–February " + IMP_VN[b] + " map, " + (c === "diff" ? "east-based minus central" : cls[c] + " El Niño minus neutral winters") + ", each tested across its own events; a model with fewer than 8 events has no map."
-                                  : a === "reg" ? "December–February " + IMP_VN[b] + " per standard deviation of " + c.charAt(0) + ", the other index held fixed, " + (c.length > 1 ? "observed" : "CMIP6") + ", shaded only where significant."
-                                  : "December–February " + IMP_VN[b] + " in " + cls[c] + " El Niño winters minus neutral winters, CMIP6, on the site's east/central rule, shaded only where robust."; }},
+          cap: function (a, b, c) { return a === "place" ? "CMIP6 and observed El Niño winters." : a === "models" ? "Each CMIP6 model; fewer than 8 events, no map." : a === "reg" ? (c.length > 1 ? "Observed" : "CMIP6") + "; significant only." : "CMIP6; robust only."; }},
   imp_pdocause: {label: "The PDO: mostly driven by the atmosphere, not driving it",
           a: {label: "View", items: [["all","Side by side"],["table","Numbers"],["covar_cmip6","Co-variability, CMIP6"],["covar_era5","Co-variability, ERA5"],["lag","Lagged"],["frank2","Frankignoul"],["amip","AMIP"],["dcpp_ipsl","IPSL pacemaker"],["dcpp_hadgem","HadGEM3 pacemaker"]]},
           img: function (a) { return "assets/sst/enso_imp_pdocause_" + a + ".webp?v=226f64105eea"; }, about: "about-imp_pdocause", fit: false,
-          cap: function (a) { return a.indexOf("covar") === 0 ? "Same-winter co-variability between 500 hPa height and the ENSO-free PDO: shown as the contrast, it is mostly the atmosphere driving the ocean, not the PDO's effect."
-                                  : a === "table" ? "The Aleutian-low box under each estimate, with the Granger tests of which way the influence runs."
-                                  : a === "all" ? "Same-winter co-variability (top) against four estimates of the forced response. Shaded only where significant."
-                                  : "An estimate of the forced response of winter 500 hPa height to the ENSO-free PDO, per standard deviation, shaded only where significant."; }},
+          cap: function (a) { return a.indexOf("covar") === 0 ? "Co-variability, mostly the atmosphere driving the ocean." : a === "table" ? "With the Granger tests." : "Significant only."; }},
   imp_pdomonth: {label: "PDO: its small forced effects by month (North America)",
           a: {label: "Method", items: [["summary","Summary"],["cpl_coast","Coastal SST, coupled"],["amip_coast","Coastal SST, AMIP"],["cpl_pdo","PDO, coupled"],["amip_pdo","PDO, AMIP"],["ipsl","IPSL pacemaker"],["hadgem","HadGEM3 pacemaker"],["obs","Observed"],["covar","Co-variability (NOT the effect)"]]},
           b: function (a) { return a === "summary" ? null : (a.indexOf("coast") >= 0 ? IMP_VT : IMP_V); },
@@ -568,15 +555,13 @@ window.STAGE = {
           img: function (a, b, c) { return a === "summary" ? "assets/sst/enso_imp_pdomon_summary.webp?v=226f64105eea"
                                   : "assets/sst/enso_imp_pdomon_" + a + "_" + b + "_" + c + ".webp?v=226f64105eea"; },
           about: "about-imp_pdomonth", fit: false,
-          cap: function (a, b, c) { return a === "summary" ? "The North Pacific's forced effect on North American temperature by month and region, coloured only where significant: warmer coastal air is the one agreed signal."
-                                  : a === "covar" ? "NOT the PDO's effect: the same month's co-variability, mostly the atmosphere driving the ocean, shown as the contrast."
-                                  : "Forced response of " + IMP_VN[b] + " to the " + (a.indexOf("coast") >= 0 ? "coastal North Pacific SST" : "ENSO-free PDO") + ", shaded only where significant; blank = no significant forced response."; }},
+          cap: function (a, b, c) { return a === "covar" ? "Not the PDO's effect: co-variability." : "Significant only; blank, no forced response."; }},
   imp_wave: {label: "Where the ENSO wave train sits", img: function () { return "assets/sst/enso_imp_wave_position.webp?v=226f64105eea"; },
           about: "about-imp_wave", fit: false,
-          cap: function () { return "The Aleutian low and Canadian ridge of the ENSO wave train at 500 hPa in ERA5 and the CMIP6 models, season by season, and where each model's super El Niño Aleutian low sits against where it rains along the equator (descriptive)."; }},
+          cap: function () { return "ERA5 and CMIP6, season by season."; }},
   imp_regions: {label: "ENSO impacts by region", a: IMP_VT, b: IMP_S,
           img: function (a, b) { return "assets/sst/enso_imp_regions_" + a + "_" + b + ".webp?v=226f64105eea"; }, about: "about-imp_regions", fit: false,
-          cap: function (a, b) { return b + " " + IMP_VN[a] + " for 20 regions of the Americas, CMIP6 and observed; values printed only where significant."; }}
+          cap: function (a, b) { return "CMIP6 and observed; significant only."; }}
 }
 };
 </script>
@@ -651,10 +636,10 @@ window.loadPlotly = function () {
     if (o) parts.push("our ONI estimate ran " + offRange(o) + " °C against CPC's ONI");
     if (r) parts.push("our RONI estimate " + offRange(r) + " °C against CPC's RONI");
     var wide = o && Math.max(Math.abs(o.lo), Math.abs(o.hi)) > 0.26;
-    return "Over the last three seasons CPC has published (" +
-      season(span.m0).slice(0, 3) + "–" + season(span.m1) + "), " + parts.join(" and ") + ". " +
-      (wide ? "The ONI gap is more than twice the ±0.13 °C (1σ) scatter of OISST against CPC's ERSSTv6 on a matched base, so read the ONI estimate as running " + (o.hi > 0 ? "high" : "low") + " and quote CPC's values. "
-            : "The estimate's stated uncertainty is ±0.13 °C (1σ), the scatter of OISST against CPC's ERSSTv6 on a matched base. ");
+    // one line: the gap over the last three seasons CPC has published (its size against the ±0.13 °C scatter is in the guide)
+    var when = season(span.m0).slice(0, 3) + "–" + season(span.m1);
+    return wide ? "Our ONI estimate ran " + offRange(o) + " °C against CPC's over " + when + ": it runs " + (o.hi > 0 ? "high" : "low") + "; quote CPC's."
+                : "Over " + when + ", " + parts.join(" and ") + ".";
   }
 
   function buildChips(L) {

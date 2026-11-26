@@ -253,23 +253,21 @@ window.STAGE = {
 ],
   products: {
   olr: {label: "OLR Hovmöller (satellite proxy)", img: function () { return "assets/sst/olr_hovmoller.webp"; }, bust: "hourly", about: "about-olr", fit: false,
-          cap: function () { return "Equatorial convection against time from the infrared composite: low OLR (yellow to red) is deep convection, blue is suppressed or clear; slow eastward bands (about 5 m/s) are the MJO, faster ones Kelvin waves."; }},
+          cap: function () { return "Low OLR (yellow to red) deep convection; blue suppressed."; }},
   waves: {label: "Tropical wave decomposition", img: function () { return "assets/sst/olr_waves.webp"; }, bust: "hourly", about: "about-waves", fit: false,
-          cap: function () { return "The OLR anomaly filtered into the Wheeler–Kiladis bands: MJO, Kelvin, equatorial Rossby and the rest."; }},
+          cap: function () { return "OLR anomaly in the Wheeler–Kiladis bands."; }},
   trackers: {label: "Kelvin and Rossby wave trackers", img: function () { return "assets/sst/wave_tracker.webp"; }, bust: "hourly", about: "about-trackers", fit: false,
-          cap: function () { return "Where the active Kelvin and equatorial Rossby wave packets are along the equator, and where they are heading."; }},
+          cap: function () { return "Active Kelvin and equatorial Rossby packets."; }},
   kelvin: {label: "Kelvin wave tracker (AIFS-ENS)", a: {label: "View", items: [["map","Map, day by day"],["hov","Along the equator"]]},
           frame: function (a) { return a === "hov" ? null : "sst_anim.html?embed=1&manifest=kelvin_manifest.json&region=kelvin&start=manifest"; },
           img: function () { return "assets/sst/kelvin_hov.webp?v=226f64105eea"; }, ratio: function () { return "1652/560"; },
           about: "about-kelvin", fit: false,
-          cap: function (a) { return a === "hov" ? "Kelvin-filtered 200 hPa velocity potential along the equator: the last 45 days of analyses, then the AIFS-ENS forecast to day 15."
-                                               : "Where the convectively coupled Kelvin waves are: Kelvin-filtered 200 hPa velocity potential, ten days of analyses then the AIFS-ENS forecast to day 15. K marks an active crest on the equator."; }},
+          cap: function (a) { return a === "hov" ? "Last 45 days of analyses, then AIFS-ENS to day 15." : "Ten days of analyses, then AIFS-ENS to day 15; K marks a crest."; }},
   okelvin: {label: "Ocean Kelvin waves", a: {label: "View", items: [["hov","Along the equator, with arrivals"],["map","Map, since March"]]},
           frame: function (a) { return a === "map" ? "sst_anim.html?embed=1&manifest=okelvin_manifest.json&region=okelvin" : null; },
           img: function () { return "assets/sst/ocean_kelvin.webp?v=226f64105eea"; }, ratio: function () { return "1652/560"; },
           about: "about-okelvin", fit: false,
-          cap: function (a) { return a === "map" ? "Equatorial Pacific sea level anomaly from satellite altimetry, every second day for the last 200 days; K marks each Kelvin wave crest (red warm, blue cold)."
-                                                : "Sea level along the equator with its Kelvin-wave part, the winds that launch the waves, and each current wave projected to Niño-3 and the coast at its measured speed."; }}
+          cap: function (a) { return a === "map" ? "Satellite altimetry, last 200 days; K marks a crest, red warm, blue cold." : "Satellite altimetry along the equator."; }}
 }
 };
 </script>
