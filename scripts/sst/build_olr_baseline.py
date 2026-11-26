@@ -46,6 +46,7 @@ The offset's uncertainty is a moving-block bootstrap of the fit (blocks of BLOCK
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -411,32 +412,52 @@ def frame(clim_paths: list[Path]) -> None:
     print(f"wrote {FRAME_OUT.name} ({FRAME_OUT.stat().st_size / 1e3:.0f} kB)", flush=True)
 
 
-CDR = "https://www.ncei.noaa.gov/data/outgoing-longwave-radiation-daily/access/"  # NOAA HIRS OLR CDR, daily, 1°
+CDR = (
+    "https://www.ncei.noaa.gov/thredds/"  # NOAA HIRS OLR climate data record, daily, 1° (THREDDS catalog cdr/olr-daily)
+)
+CDR_FILE = re.compile(r"olr-daily_(v\d+r\d+)(-preliminary)?_(\d{8})_(\d{8})\.nc$")
+
+
+def cdr_files(get) -> list[str]:
+    """Every file path of the record under the catalog and its sub-catalogs (one level)."""
+    paths, cats = [], ["catalog/cdr/olr-daily/catalog.xml"]
+    for depth in range(2):
+        nxt = []
+        for c in cats:
+            x = get(CDR + c, timeout=60).decode()
+            paths += [u for u in re.findall(r'urlPath="([^"]+)"', x) if CDR_FILE.search(u)]
+            if depth == 0:
+                base = c.rsplit("/", 1)[0] + "/"
+                nxt += [base + h for h in re.findall(r'xlink:href="([^"]+catalog\.xml)"', x) if "://" not in h]
+        cats = nxt
+    return sorted(set(paths))
 
 
 def cdr_bands(days: pd.DatetimeIndex) -> tuple[pd.DatetimeIndex, dict[str, np.ndarray]]:
-    """NOAA's daily OLR climate data record (HIRS, broadband) as the proxy's band means on the 2.5° cells."""
-    import re
+    """NOAA's daily OLR climate data record (HIRS, broadband) as the proxy's band means on the 2.5° cells: the newest
+    version that covers the days, its final files over its preliminary ones."""
     import tempfile
 
     sys.path.insert(0, str(HERE.parent / "lib"))
     from webget import get
 
-    names = sorted(set(re.findall(r'href="(olr-daily_v[^"]+\.nc)"', get(CDR, timeout=60).decode())))
-    want = []
-    for n in names:  # olr-daily_v01r02[-preliminary]_YYYYMMDD_YYYYMMDD.nc
-        t0, t1 = (pd.Timestamp(x) for x in re.findall(r"_(\d{8})", n)[-2:])
-        if t0 <= days[-1] and t1 >= days[0]:
-            want.append(n)
+    files = [(CDR_FILE.search(u), u) for u in cdr_files(get)]
+    files = [(m, u) for m, u in files if pd.Timestamp(m[3]) <= days[-1] and pd.Timestamp(m[4]) >= days[0]]
+    if not files:
+        raise SystemExit("no OLR CDR file covers the proxy's days")
+    ver = max(m[1] for m, _ in files)
+    want = sorted((m[2] is None, u) for m, u in files if m[1] == ver)  # preliminary first, so the final wins below
+    print(f"OLR CDR {ver}: {len(want)} files", flush=True)
     t_all, out = [], {b: [] for b in BANDS}
-    for n in want:
+    for _, n in want:
         with tempfile.NamedTemporaryFile(suffix=".nc") as tf:
-            tf.write(get(CDR + n, timeout=300))
+            tf.write(get(CDR + "fileServer/" + n, timeout=600))
             tf.flush()
             with xr.open_dataset(tf.name) as ds:
                 d = ds.sel(time=slice(days[0], days[-1]))
                 lat, lon = d["lat"].values, d["lon"].values % 360
-                olr = d["olr"].values.astype(float)  # time, lat, lon
+                var = "olr" if "olr" in d else next(k for k, a in d.data_vars.items() if a.dims[-2:] == ("lat", "lon"))
+                olr = d[var].transpose("time", "lat", "lon").values.astype(float)
                 tt = pd.DatetimeIndex(d["time"].values).normalize()
         # each 1° box's overlap with each centred 2.5° cell
         bl, br, cl, cr = lon - 0.5, lon + 0.5, GRID - 1.25, GRID + 1.25
@@ -447,7 +468,7 @@ def cdr_bands(days: pd.DatetimeIndex) -> tuple[pd.DatetimeIndex, dict[str, np.nd
         for b, half in BANDS.items():
             out[b].append(olr[:, np.abs(lat) <= half, :].mean(1) @ W.T)
         t_all.append(tt)
-        print(f"  {n}: {len(tt)} days", flush=True)
+        print(f"  {n.rsplit('/', 1)[-1]}: {len(tt)} days", flush=True)
     t = pd.DatetimeIndex(np.concatenate(t_all))
     keep = ~t.duplicated(keep="last")  # a day in a preliminary file and in its final version: the final one
     return t[keep], {b: np.concatenate(v)[keep] for b, v in out.items()}
