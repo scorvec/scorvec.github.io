@@ -315,39 +315,30 @@ window.STAGE = {
   qbo: {label: "QBO from radiosondes", a: {label: "View", items: [["section","Time–height section"],["phase","Where the cycle is now"],["descent","How fast it descends"],["cycles","This cycle against the record"],["stations","Latest month by station"]]},
           dom: function (a) { return a === "stations" ? "dom-qbostations" : null; },
           img: function (a) { return "/assets/qbo/qbo_" + (a || "section") + ".webp"; }, bust: "hourly", about: "about-qbo",
-          cap: function (a) {
-            if (a === "phase") return "The two leading EOFs of the wind profile, which between them carry most of the variance. One full QBO cycle is one loop around the origin and the radius is the strength of the oscillation — so a loop that shrinks toward the centre without closing is a <em>disruption</em>, the QBO stalling mid-descent. That is visible here and almost nowhere else.";
-            if (a === "descent") return "Every regime onset, followed level by level as it arrives lower and lower. Tracking a single u&nbsp;=&nbsp;0 height per month does <em>not</em> work — the QBO carries two or three crossings at once — but when each level changes regime is unambiguous, and chaining those gives one line per onset whose slope is a real descent rate. A line that stops before reaching 50–70&nbsp;hPa is an onset that never made it down.";
-            if (a === "cycles") return "Every cycle since the record begins, aligned on the month the 30&nbsp;hPa wind turned westerly, with the current one drawn over the top. \"Unusually long\" or \"stalled\" becomes something you can see rather than something a caption asserts.";
-            if (a === "stations") return "Monthly mean zonal wind at each station for its latest reported month; red westerly, blue easterly.";
-            return "The QBO is a <em>descending</em> pattern, so this is the only honest primary view: height against time, with the u&nbsp;=&nbsp;0 contour drawn heavy. Its downward slope <em>is</em> the descent — read the rate straight off it. A flat stretch is a shear zone that has stalled, which is how both the 2016 and 2020 disruptions announce themselves."; }},
+          cap: function (a) { return {phase: "The two leading EOFs of the wind profile; one loop is one cycle.", descent: "Each regime onset followed down level by level.", cycles: "Every cycle aligned on its 30 hPa westerly onset; the current one on top.", stations: "Each station's latest month; red westerly, blue easterly."}[a] || "Height against time; u = 0 heavy."; }},
   vortex35: {label: "Polar vortex, days 1–35 (GEFS and GEPS)", a: {label: "Model", items: [["gefs","GEFS, daily"],["geps","GEPS, Mon/Thu"]]},
           b: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
           img: function (a, b) { var h = b === "sh" ? "sh" : "nh"; return a === "geps" ? "assets/geps/strat_" + h + "_series.webp" : "assets/gefs/gefs_strat_" + h + "_series.webp"; },
           bust: "hourly", about: "about-vortex35",
-          cap: function (a) { return a === "geps" ? "GEPS: u(60°) at 10 and 100 hPa, polar-cap T and height. Ensemble spread, 14-day analysis tail, previous run’s mean dashed on the common days."
-                                                  : "GEFS: u(60°) at 10 and 100 hPa, polar-cap T and height. Every member corrected for GEFS’s drift with lead against its own 2000–2019 reforecast — which reaches 10 hPa, unlike GEPS’s — then referenced to ERA5 1991–2020; ensemble spread, 14-day GEFS analysis tail, previous run’s mean dashed on the common days."; }},
+          cap: function (a) { return a === "geps" ? "GEPS, 21 members; previous run's mean dashed." : "GEFS, 31 members, drift-corrected; previous run's mean dashed."; }},
   vloop35: {label: "Polar vortex loop, days 1–35 (GEFS and GEPS)", a: {label: "Model", items: [["gefs","GEFS"],["geps","GEPS"]]},
           frame: function (a) { var m = a === "geps" ? "geps" : "gefs"; return "sst_anim.html?base=assets/" + m + "/anim&manifest=" + m + "_strat_manifest.json&embed=1"; },
           ratio: function (a) { return a === "geps" ? "1189/555" : "1189/615"; }, about: "about-vloop35",
-          cap: function (a) { return a === "geps" ? "GEPS: temperature anomaly, total wind and height anomaly at 10 and 100 hPa, analysis to day 35, both hemispheres. Anomalies against ERA5 1991–2020 with the model’s drift removed using GEPS reforecasts."
-                                                  : "GEFS: days 1–35, both hemispheres and levels: temperature and height anomaly against the lead-matched reforecast (height relative to the hemisphere poleward of 20°), total wind with heights. At 10 hPa the model’s own drift reaches about 4 K in the tropics by week 3, so long-lead 10 hPa temperature anomalies equatorward of the vortex carry that much uncertainty."; }},
+          cap: function (a) { return (a === "geps" ? "GEPS" : "GEFS") + ", days 1–35, drift removed; anomalies against ERA5 1991–2020."; }},
   c3svortex: {label: "December polar vortex, C3S multi-model", dom: function () { return "dom-c3svortex"; }, about: "about-c3svortex",
-          cap: function () { return "The seven C3S centres' December-mean wind at 60°N, 10 hPa, as a multi-model anomaly calibrated on the 1993–2016 hindcast against MERRA-2: tercile probabilities, the forecast distribution and the hindcast it rests on."; }},
+          cap: function () { return "Seven C3S centres, calibrated on the 1993–2016 hindcast."; }},
   c3svdaily: {label: "December vortex day by day, C3S multi-model", dom: function () { return "dom-c3svdaily"; }, about: "about-c3svdaily",
-          cap: function () { return "Daily 10 hPa wind of every C3S member from the October start against its own model's normal, the 30–90°N section, weak-spell and sudden-warming shares, and the hindcast that tests them."; }},
+          cap: function () { return "Every C3S member from the October start, against its own model's normal."; }},
   s5vortex: {label: "SEAS5: vortex, QBO and annular mode", dom: function () { return "dom-s5vortex"; }, about: "about-s5vortex",
-          cap: function () { return "SEAS5 member plumes for the 60°N and 60°S vortex winds, the equatorial QBO winds, the annular mode level by level and the 100 hPa planetary waves, against the 1993–2016 hindcast, with each month's hindcast skill."; }},
+          cap: function () { return "SEAS5, 51 members, against the 1993–2016 hindcast."; }},
   s5ssw: {label: "SEAS5: polar vortex and sudden-warming risk", dom: function () { return "dom-s5ssw"; }, about: "about-s5ssw",
-          cap: function () { return "The share of the 51 members with a major sudden warming this winter, against SEAS5's own base rate and the observed rate, with the hindcast's verdict on whether the index has skill."; }},
+          cap: function () { return "SEAS5, 51 members, against its own and the observed base rate."; }},
   s5cap: {label: "SEAS5: polar-cap heights", dom: function () { return "dom-s5cap"; }, about: "about-s5cap",
-          cap: function () { return "60–90° polar-cap height anomaly at 100, 50 and 10 hPa, every member against the hindcast's linear trend; a high cap is a weak, warm vortex."; }},
+          cap: function () { return "SEAS5, every member, against the hindcast's trend."; }},
   vortex: {label: "Northern polar vortex", a: {label: "View", items: [["now","This run"],["temp","Temperature"],["members","Members"],["runs","Run to run"]]},
           b: function (a) { return a === "members" ? {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"],["gefs","GEFS"],["geps","GEPS"]]} : null; },
           img: function (a, b) { var f = a === "members" ? "vortex_members_" + (b || "aifs") : a === "runs" ? "nh_vortex_runs" : a === "temp" ? "nh_vortex_temp" : "nh_vortex"; return "assets/sst/" + f + ".webp?v=__CACHE__"; }, about: "about-vortex", fit: false,
-          cap: function (a, b) { if (a === "members") return {aifs: "AIFS-ENS", ifs: "IFS-ENS", gefs: "GEFS", geps: "GEPS"}[b || "aifs"] + ": every member's zonal-mean wind at 60°N at 10 and 100 hPa, the members that turn easterly at 10 hPa by day 15 in red in both panels.";
-                                 if (a === "temp") return "The 10 hPa polar-cap (60–90°N) temperature anomaly and the pole-minus-60°N gradient: the newest run of every model against the MERRA-2 percentile bands, with the share of members easterly at 60°N and reversed the same day, the full WMO major warming.";
-                                 return a === "runs" ? "How the last runs of each ensemble have moved the 10 hPa wind and the 100 hPa cap height, and each run's chance of a sudden warming by day 15." : "Zonal-mean wind at 60°N at 10 and 100 hPa and the 100 hPa polar-cap height: the newest run of every model (each labelled with its start, so the figure moves model by model as runs land), members against the MERRA-2 percentile bands."; }},
+          cap: function (a, b) { if (a === "members") return {aifs: "AIFS-ENS", ifs: "IFS-ENS", gefs: "GEFS", geps: "GEPS"}[b || "aifs"] + ": every member; red, easterly at 10 hPa by day 15."; return a === "runs" ? "The last runs of each ensemble." : a === "temp" ? "Every model's newest run against the MERRA-2 percentile bands." : "Every model's newest run, labelled with its start, against the MERRA-2 percentile bands."; }},
   upperstrat: {label: "Upper stratosphere (GEFS, GFS, GEOS FP, GDPS)",
           a: {label: "Model", items: [["gefs","GEFS, 16–35 days"],["gfs","GFS, 16 days"],["geos","GEOS FP, 10 days"],["gdps","GDPS, 10 days"],["all","Compare all"]]},
           b: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
@@ -356,31 +347,22 @@ window.STAGE = {
           ratio: function (a) { return a === "all" ? "1440/830" : "1040/590"; },
           img: function (a, b, c) { return c === "runs" ? "assets/sst/runs/upperstrat_" + a + ".webp" : "assets/sst/upperstrat_" + (c === "sec" ? "sec" : "ts") + "_" + a + "_" + b + ".webp"; },
           bust: "hourly", about: "about-upperstrat", fit: false,
-          cap: function (a, b, c) {
-            var h = b === "sh" ? "S" : "N", m = {gefs: "GEFS", gfs: "GFS", geos: "GEOS FP", gdps: "GDPS", all: "all four models"}[a];
-            if (c === "runs") return "How the last runs of " + m + " have moved the wind at 60°N at 1 and 10 hPa and the 1 hPa polar-cap temperature (raw output; an ensemble's mean and, for its newest run, its members' 10–90 %).";
-            if (c === "map") return "Height and temperature at 5 and 1 hPa, " + (a === "all" ? "the four models side by side at the same valid time, from their 00Z runs (GEFS = its control)" : m + (a === "gefs" ? " control" : "")) + ", analysis to day 10. Raw output.";
-            if (c === "sec") return "Zonal-mean wind at 60°" + h + " and the polar-cap temperature anomaly from 100 up to 1 hPa: GEOS FP analyses, then " + (a === "all" ? "each model to its own range, on one colour scale" : m + (a === "gefs" ? " ensemble mean" : "")) + ". A warming that starts at the top shows as red coming down.";
-            return "Zonal-mean wind at 60°" + h + " and polar-cap temperature at 1, 5 and 10 hPa: GEOS FP analyses, then " + (a === "all" ? "every model overlaid" : m) + ", against the MERRA-2 range. Raw output; after the 00Z update each panel prints the day-0 offset from the GEOS FP analysis."; }},
+          cap: function (a, b, c) { var m = {gefs: "GEFS", gfs: "GFS", geos: "GEOS FP", gdps: "GDPS", all: "All four models"}[a]; return c === "runs" ? m + ": the last runs, raw output." : c === "map" ? m + (a === "gefs" ? " control" : "") + ", 00Z, analysis to day 10, raw output." : "GEOS FP analyses, then " + (a === "all" ? "every model" : m) + "; raw output."; }},
   vwinds: {label: "Vortex winds", a: {label: "Level", items: [["vortex_10","10 hPa"],["vortex_100","100 hPa"]]},
           b: {label: "Model", items: [["aifs","AIFS-ENS"],["aifsc","AIFS-ENS control"],["aifs1","AIFS single"],["ifs","IFS-ENS"],["hres","IFS control"],["gefs","GEFS"],["geps","GEPS"]]},
           c: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
           frame: function (a, b, c) { var lev = a === "vortex_100" ? "100" : "10", m = b === "aifs" ? "" : "_" + b;
                                       var r = "vortex" + m + "_" + lev + "_" + (c === "sh" ? "sh" : "nh");  // &regions=: the stage's own rows pick the loop (no second picker)
                                       return "sst_anim.html?embed=1&manifest=vortex_winds" + m + "_manifest.json&region=" + r + "&regions=" + r; }, about: "about-vwinds",
-          cap: function (a, b, c) { return (b === "hres" || b === "aifsc" || b === "aifs1" ? {hres: "IFS control", aifsc: "AIFS-ENS control", aifs1: "AIFS single"}[b] + " (one run) wind speed" : {aifs: "AIFS-ENS (50 members)", ifs: "IFS-ENS (50 members)", gefs: "GEFS (31 members)", geps: "GEPS (21 members)"}[b] + " ensemble-mean wind speed") + " and barbs at " + (a === "vortex_100" ? "100" : "10") + " hPa, " + (c === "sh" ? "southern" : "northern") + " hemisphere; the red contour is u = 0, drawn to 80&deg; (nearer the pole the east&ndash;west component has no fixed direction)."; }},
+          cap: function (a, b, c) { return (b === "hres" || b === "aifsc" || b === "aifs1" ? {hres: "IFS control", aifsc: "AIFS-ENS control", aifs1: "AIFS single"}[b] + ", one run" : {aifs: "AIFS-ENS", ifs: "IFS-ENS", gefs: "GEFS", geps: "GEPS"}[b] + " ensemble mean") + "; red contour u = 0."; }},
   t10: {label: "Polar temperature and the vortex, 10 hPa", a: {label: "Model", items: [["aifs","AIFS-ENS"],["aifsc","AIFS-ENS control"],["aifs1","AIFS single"],["ifs","IFS-ENS"],["hres","IFS control"],["gefs","GEFS"],["geps","GEPS"]]},
           b: function (a) { return a === "hres" ? {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]} : null; },
           frame: function (a, b) { var r = a === "hres" ? "t10_hres_" + (b === "sh" ? "sh" : "nh") : "t10_" + (a || "aifs");
                                    return "sst_anim.html?embed=1&manifest=" + (a === "hres" ? "t10_hres" : r) + "_manifest.json&region=" + r + "&regions=" + r; },
           ratio: function (a) { return a === "hres" ? "1259/700" : "1430/814"; }, about: "about-t10",
-          cap: function (a) { if (a === "hres") return "IFS control (one run) temperature at 10 hPa against its ERA5 1991–2020 normal for that day, with the 10 hPa height outlining the vortex, every 12 hours to day 15.";
-                              var one = {aifsc: "AIFS-ENS control", aifs1: "AIFS single"}[a];
-                              return (one ? one + " (one run, drawn as it is)" : {aifs: "AIFS-ENS", ifs: "IFS-ENS", gefs: "GEFS", geps: "GEPS"}[a || "aifs"] + " ensemble mean")
-                                     + ": 10 hPa temperature against the ERA5 1991–2020 normal under the height (black), each day to day 15" + (one ? "" : ", shaded where enough members agree on the sign for a sign test at 5 %")
-                                     + "; right, " + (one ? "the run's" : "every member's") + " vortex coloured by its shape that day."; }},
+          cap: function (a) { var one = {hres: "IFS control", aifsc: "AIFS-ENS control", aifs1: "AIFS single"}[a]; return (one ? one + ", one run" : {aifs: "AIFS-ENS", ifs: "IFS-ENS", gefs: "GEFS", geps: "GEPS"}[a || "aifs"] + " ensemble mean, shaded where the members agree") + "; height in black."; }},
   verify: {label: "How the recent runs verified", img: function () { return "assets/sst/runs/verify_strat.webp"; }, bust: "hourly", about: "about-verify", fit: false,
-          cap: function () { return "Each model's 00Z runs from 3 to 15 days ago against what happened: the wind at 60°N, 10 hPa, the 100 hPa heat flux and the Arctic Oscillation; the analysis black."; }},
+          cap: function () { return "00Z runs from 3 to 15 days ago; the analysis black."; }},
   vshape: {label: "Vortex shape: split or displaced", a: {label: "View", items: [["members","Members"],["all","All models"],["runs","Run to run"]]},
           b: function (a) { if (a === "all") return null;
                             var ms = [["aifs","AIFS-ENS"],["ifs","IFS-ENS"],["gefs","GEFS"],["geps","GEPS"]];
@@ -388,20 +370,15 @@ window.STAGE = {
           img: function (a, b) { if (a === "all") return "assets/sst/vshape_models.webp";
                                  return (a === "runs" ? "assets/sst/runs/vshape_" : "assets/sst/vshape_") + (b || "aifs") + ".webp"; },
           bust: "hourly", about: "about-vshape", fit: false,
-          cap: function (a, b) { var m = {aifs: "AIFS-ENS (control + 50 members, its control also on its own row)", ifs: "IFS-ENS (50 members, the IFS control on its own row)", gefs: "GEFS (control + 30 members)", geps: "GEPS (control + 20 members)", hres: "the IFS control", aifsc: "the AIFS-ENS control", aifs1: "AIFS single", all: "every ensemble"}[b || "aifs"];
-                                 if (a === "all") return "Every model's newest run:the share of its members whose 10 hPa vortex is split (two centres) or displaced (its centre south of 66°N), each day to day 15; the single runs (the controls, AIFS single) dashed.";
-                                 if (a === "runs") return "How the last runs of " + m + " have moved the share of members split or displaced and the vortex's centre latitude (the newest run with its members' 10–90 %).";
-                                 return m + ": each member's vortex at 10 hPa, each day to day 15 (split, displaced, centred, or no vortex below the winter edge), and the day's shares."; }},
+          cap: function (a, b) { var m = {aifs: "AIFS-ENS", ifs: "IFS-ENS", gefs: "GEFS", geps: "GEPS", hres: "IFS control", aifsc: "AIFS-ENS control", aifs1: "AIFS single"}[b || "aifs"]; return a === "all" ? "Every model's newest run; single runs dashed." : a === "runs" ? m + ": the last runs." : m + ": every member, each day to day 15."; }},
   epflux: {label: "E–P flux and wave driving", a: {label: "Model", items: [["gefs","GEFS"]]},
           frame: function () { return "sst_anim.html?embed=1&manifest=epflux_gefs_manifest.json&region=epflux_gefs"; }, about: "about-epflux",
-          cap: function () { return "Eliassen–Palm flux for wavenumbers 1–3 and its divergence from the NOAA GEFS ensemble, 31 levels up to 1 hPa, per-member fluxes averaged over the control and 30 perturbed members."; }},
+          cap: function () { return "GEFS, control and 30 members, waves 1–3."; }},
   refract: {label: "Refractive index for planetary waves", img: function () { return "assets/sst/refractive_gefs.webp"; }, bust: "hourly", about: "about-refract", fit: false,
-          cap: function () { return "Refractive index for stationary waves 1 and 2 from the GEFS ensemble-mean wind, days 0–15: blue is where the waves can travel, grey where they cannot. Each wave-1 panel gives the wind at 60°N at 1 minus 10 hPa (negative = the reflecting configuration)."; }},
+          cap: function () { return "GEFS ensemble mean; blue, waves can travel; grey, they cannot."; }},
   qbozl: {label: "QBO zero-wind line", a: {label: "Level", items: [["50","50 hPa"],["70","70 hPa"],["30","30 hPa"],["10","10 hPa"]]},
           img: function (a) { return "assets/sst/qbo_zeroline_" + a + ".webp"; }, bust: "hourly", about: "about-qbozl", fit: false,
-          cap: function (a) { return "Latitude of the northern zero-wind line at " + a + " hPa: the last five months of MERRA-2 and GEOS FP analyses"
-                                     + (a === "50" || a === "10" ? " and the AIFS-ENS and IFS-ENS forecasts to day 15" : " (no forecast: ECMWF open data stops at 50 and 10 hPa here)")
-                                     + ", against the MERRA-2 climatology and the easterly- and westerly-QBO winters. A diagnostic, not a forecast of the vortex."; }},
+          cap: function (a) { return "MERRA-2 and GEOS FP, last five months" + (a === "50" || a === "10" ? ", then AIFS-ENS and IFS-ENS to day 15." : "; no forecast at this level."); }},
   waves: {label: "Planetary waves 1 and 2", a: {label: "Wave", items: [["1","Wave-1"],["2","Wave-2"],["runs","Run to run (north)"]]},
           b: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
           c: {label: "Model", items: [["aifs","AIFS-ENS"],["aifsc","AIFS-ENS control"],["aifs1","AIFS single"],["ifs","IFS-ENS"],["hres","IFS control"],["gefs","GEFS"],["geps","GEPS"]]},
@@ -410,54 +387,36 @@ window.STAGE = {
                                       return "sst_anim.html?embed=1&manifest=wave" + a + "_maps" + m + "_manifest.json&region=" + r + "&regions=" + r; }, about: "about-waves",
           img: function (a, b, c) { return "assets/sst/runs/waves_" + c + ".webp"; }, bust: "hourly", fit: false,
           ratio: function () { return "1716/759"; },
-          cap: function (a) { if (a === "runs") return "How the last runs have moved the amplitude of waves 1 and 2 at 100 and 10 hPa over 55–65°N, as a multiple of the day’s normal amplitude (1 = normal).";
-                              return "Wave-" + a + " of geopotential at 500, 100 and 10 hPa, with its " + (a === "2" ? "two ridges" : "ridge") + " against the normal and whether it leans west with height, i.e. is propagating up into the vortex."; }},
+          cap: function (a) { return a === "runs" ? "The last runs; 1 = the day's normal amplitude." : "Wave " + a + " against the normal."; }},
   bdc: {label: "Brewer–Dobson circulation", a: {label: "View", items: [["up","Tropical upwelling"],["sec","Residual streamfunction"]]},
           img: function (a) { return "assets/sst/bdc_dc_" + (a === "sec" ? "section" : "upwelling") + ".webp"; }, bust: "hourly", about: "about-bdc", fit: false,
-          cap: function (a) { return a === "sec" ? "The residual (Brewer–Dobson) streamfunction by downward control, 30-day mean; shading only where the anomaly from MERRA-2 is significant (FDR 10 %)."
-                                                 : "Upward mass flux through 70 and 100 hPa between the turnaround latitudes, trailing 30-day mean: GEOS FP analyses and 10-day forecast against the MERRA-2 range."; }},
+          cap: function (a) { return a === "sec" ? "30-day mean; shaded only where significant." : "GEOS FP analyses and forecast against the MERRA-2 range."; }},
   aoa: {label: "Age of stratospheric air (MERRA-2 GMI)", a: {label: "View", items: [["clim","Climatology"],["cycle","Seasonal cycle"],["trend","Trend"],["enso","ENSO"],["qbo","QBO"]]},
           b: function (a) { return a === "clim" ? {label: "Season", items: [["ann","Annual"],["djf","DJF"],["mam","MAM"],["jja","JJA"],["son","SON"]]}
                                  : a === "trend" ? {label: "Period", items: [["all","1980–2019"],["p04","2004–2019"]]} : null; },
           img: function (a, b) { return "assets/sst/aoa_" + (a === "clim" ? "clim_" + (b || "ann") : a === "trend" ? (b === "p04" ? "trend04" : "trend") : a) + ".webp?v=__CACHE__"; },
           fit: false, about: "about-aoa",
-          cap: function (a) {
-            if (a === "clim") return "Mean age of air – the average time since the air was last at the ground – zonal mean from the MERRA-2 GMI replay, 1980–2019.";
-            if (a === "cycle") return "The seasonal cycle of mean age at 50 hPa: five latitude bands, and each month's departure from the annual mean where it is significant.";
-            if (a === "trend") return "Linear trend in mean age, shaded only where significant (false-discovery rate 10 %), beside the 30–50°N box of the balloon record. Most of the 40-year decline is one drop in the 1990s.";
-            if (a === "enso") return "Mean age per +1 °C of the relative Niño-3.4 index: El Niño makes the tropical lower-stratosphere air younger. Significant cells only.";
-            return "Mean age per standard deviation of westerly equatorial wind at 50 and at 30 hPa. Significant cells only."; }},
+          cap: function (a) { return a === "clim" ? "MERRA-2 GMI replay, 1980–2019." : a === "cycle" ? "50 hPa; departures shaded where significant." : "MERRA-2 GMI; significant cells only."; }},
   tape: {label: "Water-vapour tape recorder (Aura MLS + GEOS FP)", a: {label: "View", items: [["sec","Tape recorder"],["anom","Anomaly"],["entry","Entry value"],["ascent","Ascent speed vs w*"],["record","MLS record since 2004"]]},
           img: function (a) { return "assets/sst/tape_" + ({sec: "section", anom: "anom", entry: "entry", ascent: "ascent", record: "record"})[a] + ".webp"; },
           bust: "hourly", about: "about-tape", fit: false,
-          cap: function (a) {
-            if (a === "sec") return "Tropical (10°S–10°N) water vapour minus its mean over the three years shown, 100 to 10 hPa: the yearly bands rising from the tropopause. Aura MLS, then GEOS FP after the last MLS day.";
-            if (a === "anom") return "The same section with the seasonal cycle removed: what differs from a normal year, including the water the 2022 Hunga eruption put in the stratosphere.";
-            if (a === "entry") return "Water vapour entering the stratosphere at 100 and 70 hPa against the MLS 2005–2021 normal, with a significance test on the last 30 days, and GEOS FP's 100 hPa temperature.";
-            if (a === "ascent") return "How fast the bands rise, from MLS, against the Brewer–Dobson w* of MERRA-2 and of GEOS FP.";
-            return "The whole Aura MLS record, 2004 to now, as monthly anomalies from 100 to 3 hPa."; }},
+          cap: function (a) { return a === "entry" ? "Aura MLS against its 2005–2021 normal; GEOS FP 100 hPa temperature." : a === "ascent" ? "MLS against MERRA-2 and GEOS FP." : "Aura MLS, then GEOS FP after the last MLS day."; }},
   mbudget: {label: "Momentum budget (GEOS FP)", a: {label: "View", items: [["vnh","Northern vortex"],["vsh","Southern vortex"],["up","Tropical upwelling"],["sec","Where the forces act"]]},
           b: function (a) { return (a === "vnh" || a === "vsh") ? {label: "Level", items: [["10","10 hPa"],["1","1 hPa"],["50","50 hPa"]]} : null; },
           c: function (a) { return (a === "vnh" || a === "vsh") ? {label: "Smoothing", items: [["s7","7-day mean"],["d1","Daily"]]} : null; },
           img: function (a, b, c) { if (a === "up") return "assets/sst/mbudget_upwelling.webp"; if (a === "sec") return "assets/sst/mbudget_sections.webp";
                                     return "assets/sst/mbudget_vortex_" + (a === "vsh" ? "sh" : "nh") + "_" + (b || "10") + "_" + (c || "s7") + ".webp"; },
           bust: "hourly", about: "about-mbudget", fit: false,
-          cap: function (a, b) {
-            if (a === "up") return "Tropical upwelling at 70 and 100 hPa split by downward control into the parts driven by resolved waves, gravity-wave drag and the analysis increment, with the non-steady part and the directly analysed w̄*; the bars compare the last 30 days with MERRA-2. GEOS FP analyses; the forecast carries the resolved part only.";
-            if (a === "sec") return "Where each force acts: 30-day mean resolved-wave driving, gravity-wave drag and analysis increment from GEOS FP, with the MERRA-2 normal as contours; the anomaly is shaded only where significant (false-discovery rate 10 %).";
-            return "What is speeding up or slowing the " + (a === "vsh" ? "southern" : "northern") + " vortex at " + (b || "10") + " hPa (55–65°" + (a === "vsh" ? "S" : "N") + "): the observed change in the wind and every term of the transformed-Eulerian-mean budget, GEOS FP analyses to yesterday, then the 10-day forecast with the resolved terms only."; }},
+          cap: function (a, b) { return a === "sec" ? "GEOS FP, 30-day mean; MERRA-2 normal in contours, shaded where significant." : "GEOS FP analyses to yesterday, then the 10-day forecast."; }},
   // split by range, so the medium-range models do not sit under weeks 3-5: fdrip keeps
   // the GEPS/GEFS days 1-35 drips (its old deep links fdrip/geps and fdrip/gefs still land), fdrip15 the AIFS-ENS/IFS-ENS ones
   fdrip: {label: "Forecast dripping paint, days 1–35", a: {label: "Model", items: [["geps","GEPS"],["gefs","GEFS"]]},
           b: {label: "Model drift", items: [["removed","Removed"],["raw","Left in"]]},
           img: function (a, b) { var m = a === "gefs" ? "gefs" : "geps"; return "assets/" + m + "/" + m + (b === "raw" ? "_drip_raw.webp" : "_drip.webp"); },
           bust: "hourly", about: "about-fdrip", fit: false,
-          cap: function (a, b) { return "Standardised polar-cap height from 1000 to " + (a === "gefs" ? "1" : "10") + " hPa: the last 60 days observed (GEOS FP), then the "
-                                     + (a === "gefs" ? "GEFS" : "GEPS") + " ensemble mean to day 35 "
-                                     + (b === "raw" ? "with the model's drift left in: only each level's offset from GEOS FP at the start is removed, so a change with lead can be the model sliding towards its own climate. Same scale as the history drips."
-                                                    : "with the model's drift removed where it has been measured; levels marked by a grey triangle on the right are not drift-corrected. Same scale as the history drips."); }},
+          cap: function (a, b) { return (a === "gefs" ? "GEFS" : "GEPS") + " ensemble mean after 60 days of GEOS FP" + (b === "raw" ? "; drift left in." : "; drift removed where measured."); }},
   descent: {label: "Downward propagation monitor", img: function () { return "assets/sst/ssw_imprint.webp"; }, bust: "hourly", about: "about-descent", fit: false,
-          cap: function () { return "Is the stratosphere's anomaly coming down? The 10 and 100 hPa polar cap and the surface's SSW imprint index (sea-level pressure on the CMIP6 post-SSW pattern) for every ensemble, and the chance the imprint is positive over the month after day 15. November to April."; }},
+          cap: function () { return "Every ensemble, November to April."; }},
   dwatch: {label: "Descent watch", a: {label: "View", items: [["reach","How far down"],["ring","Ring or sector"],["link","Link to the stratosphere"],["absorb","Where the waves are absorbed"],["reachruns","How far down, run to run"],["ringruns","Westerlies, run to run"],["absorbruns","Wave driving, run to run"]]},
           b: function (a) { if (a === "link" || a === "absorb" || a === "absorbruns") return null;
                             var ms = [["aifs","AIFS-ENS"],["ifs","IFS-ENS"]];
@@ -471,14 +430,7 @@ window.STAGE = {
                                  if (a === "reachruns" || a === "ringruns") return "assets/sst/runs/" + (a === "ringruns" ? "ring_" : "reach_") + m + ".webp";
                                  return "assets/sst/dwatch_" + (a === "ring" ? "ring_" : "reach_") + m + ".webp"; },
           bust: "hourly", about: "about-dwatch", fit: false,
-          cap: function (a, b) { var m = {aifs: "AIFS-ENS (control + 50 members)", ifs: "IFS-ENS (50 members)", gefs: "GEFS (control + 30 members)", geps: "GEPS (control + 20 members)", all: "every ensemble"}[b || "aifs"];
-                                 if (a === "link") return "Every ensemble's newest run, one dot per member: its days 11–15 Arctic height and pressure against its days 6–10 polar-cap height at 100 hPa, after what its own days 6–10 troposphere explains is taken out of both. A line and a correlation only where the link passes a 5 % false discovery rate; a grey panel has no significant link.";
-                                 if (a === "absorb") return "GEFS (control + 30 members): the planetary waves' driving of the westerlies over 45–75°N in the lower (100–50 hPa) and middle (50–10 hPa) stratosphere, with what comes in from below, leaves through the top and crosses the sides; beneath, each layer's zonal wind, every member. Below zero = the waves are slowing the layer. A correlation only where the members whose waves push harder lose more wind (5 % false discovery rate). November to April.";
-                                 if (a === "absorbruns") return "How the last runs of GEFS have moved the waves' driving of the westerlies at 100–50 and 50–10 hPa and the 100–50 hPa zonal wind, 45–75°N (the members' mean; the newest run with its members' 10–90 %). November to April.";
-                                 if (a === "reachruns") return "How the last runs of " + m + " have moved the share of members whose anomaly runs unbroken from 100 hPa down to 300, 500 and 850 hPa. November to April.";
-                                 if (a === "ringruns") return "How the last runs of " + m + " have moved the westerlies' shift at 500 hPa and at sea level (the members' mean; the newest run with its members' 10–90 %). Below zero = shifted towards the equator, the negative Arctic Oscillation.";
-                                 if (a === "ring") return m + ": the polar-cap (65–90°N) anomaly at 500 hPa and at sea level, the whole cap and six sectors, coloured where enough members agree on its sign; beneath, every member's shift of the westerlies (55–65°N minus 35–45°N; below zero = towards the equator).";
-                                 return m + ": the share of members whose polar-cap (65–90°N) height stands +0.5 sd or more above normal at every level from 100 hPa down, day by day, against how often MERRA-2 shows such a column at this time of year (dashed). Bold numbers and filled markers: more members than usual. November to April."; }},
+          cap: function (a, b) { var m = {aifs: "AIFS-ENS", ifs: "IFS-ENS", gefs: "GEFS", geps: "GEPS", all: "Every ensemble"}[b || "aifs"]; return a === "link" ? "Every ensemble's newest run, one dot per member; grey, no significant link." : a === "absorb" || a === "absorbruns" ? "GEFS, control and 30 members; November to April." : /runs$/.test(a) ? m + ": the last runs." : m + ": every member; November to April."; }},
   telecon: {label: "Arctic Oscillation and NAO", a: {label: "View", items: [["plumes","Members"],["all","All models"],["runs","Run to run"]]},
           b: function (a) { if (a === "all") return null;
                             var ms = [["aifs","AIFS-ENS"],["ifs","IFS-ENS"],["gefs","GEFS"],["geps","GEPS"]];
@@ -488,17 +440,11 @@ window.STAGE = {
                                     if (a === "all") return "assets/sst/" + f + "_models.webp";
                                     return "assets/sst/" + (a === "runs" ? "runs/" : "") + f + "_" + (b || "aifs") + ".webp"; },
           bust: "hourly", about: "about-telecon", fit: false,
-          cap: function (a, b, c) { var m = {aifs: "AIFS-ENS (control + 50 members, the control dashed)", ifs: "IFS-ENS (50 members, the IFS control dashed)", gefs: "GEFS (control + 30 members)", geps: "GEPS (control + 20 members)", hres: "the IFS control", aifsc: "the AIFS-ENS control", aifs1: "AIFS single", all: "every ensemble"}[b || "aifs"];
-                                    var w = c === "nao" ? "NAO by four definitions (CPC, Hurrell's stations, Hurrell's PC, Jones) and the Greenland Blocking Index" : "Arctic Oscillation and NAO";
-                                    if (a === "all") return "Every model's newest run: the members' mean " + w + " with its 10–90 % range, the single runs (the controls, AIFS single) dashed. Negative AO and NAO, positive blocking index = high pressure over the Arctic and Greenland.";
-                                    if (a === "runs") return "How the last runs of " + m + " have moved the " + w + " (the members' mean; the newest run with its members' 10–90 %).";
-                                    return m + ": every member's " + w + " to day 15, in standard deviations of the daily index; the members' mean bold."; }},
+          cap: function (a, b) { var m = {aifs: "AIFS-ENS", ifs: "IFS-ENS", gefs: "GEFS", geps: "GEPS", hres: "IFS control", aifsc: "AIFS-ENS control", aifs1: "AIFS single"}[b || "aifs"]; return a === "all" ? "Every model's newest run; single runs dashed." : a === "runs" ? m + ": the last runs." : m + ": every member; the mean bold."; }},
   z100: {label: "100 hPa height: anomaly and 24 h change", a: {label: "Model", items: [["aifs","AIFS-ENS"],["aifsc","AIFS-ENS control"],["aifs1","AIFS single"],["ifs","IFS-ENS"],["hres","IFS control"],["gefs","GEFS"],["geps","GEPS"]]},
           frame: function (a) { var r = "z100_" + (a || "aifs"); return "sst_anim.html?embed=1&manifest=" + r + "_manifest.json&region=" + r + "&regions=" + r; },
           ratio: function () { return "1430/814"; }, about: "about-z100",
-          cap: function (a) { var one = {hres: "IFS control", aifsc: "AIFS-ENS control", aifs1: "AIFS single"}[a];
-                              return (one ? one + " (one run, drawn as it is)" : {aifs: "AIFS-ENS", ifs: "IFS-ENS", gefs: "GEFS", geps: "GEPS"}[a || "aifs"] + " ensemble mean")
-                                     + ": 100 hPa height (black), its anomaly from ERA5 1991–2020 and its change over 24 h, each day to day 15" + (one ? "." : "; shaded where enough members agree on the sign for a sign test at 5 %."); }},
+          cap: function (a) { var one = {hres: "IFS control", aifsc: "AIFS-ENS control", aifs1: "AIFS single"}[a]; return one ? one + ", one run." : {aifs: "AIFS-ENS", ifs: "IFS-ENS", gefs: "GEFS", geps: "GEPS"}[a || "aifs"] + " ensemble mean, shaded where the members agree."; }},
   pdescent: {label: "Descent over the polar cap", a: {label: "View", items: [["column","Column"],["sectors","Sectors"],["maps","Maps"],["runs","Run to run"]]},
           b: function (a) { var ms = [["ifs","IFS-ENS"]];
                             if (a === "column" || a === "runs" || !a) ms = ms.concat([["gefs","GEFS"]]);
@@ -511,11 +457,7 @@ window.STAGE = {
           img: function (a, b) { var m = b || "ifs"; if (a === "runs") return "assets/sst/runs/descent_" + m + ".webp";
                                  return "assets/sst/descent_" + (a === "sectors" ? "sectors_" : "") + m + ".webp"; },
           bust: "hourly", about: "about-pdescent", fit: false,
-          cap: function (a, b) { var m = {ifs: "IFS-ENS", gefs: "GEFS", hres: "the IFS control", all: "every model"}[b || "ifs"];
-                                 if (a === "maps") return m + ": descent (red) and ascent (blue) north of 50°N at 10, 50 and 100 hPa, each day to day 15, smoothed to planetary scales; an ensemble's mean shaded where enough members agree for a sign test at 5 %.";
-                                 if (a === "sectors") return m + ": descent over six sectors of the polar cap, 10–100 hPa (solid) and 100–300 hPa (dashed), after the last 21 days of GEOS FP analyses.";
-                                 if (a === "runs") return "How the last runs of " + m + " have moved the polar cap's 10–100 and 100–300 hPa descent.";
-                                 return m + ": descent over the polar cap (65–90°N) from 1000 hPa to the model's top, the last 21 days observed (GEOS FP), then the members' mean; beneath, the 10–100 and 100–300 hPa layers."; }},
+          cap: function (a, b) { var m = {ifs: "IFS-ENS", gefs: "GEFS", hres: "IFS control", all: "Every model"}[b || "ifs"]; return a === "runs" ? m + ": the last runs." : a === "maps" ? m + "; red descent, blue ascent." : m + ", after 21 days of GEOS FP analyses."; }},
   polarcap: {label: "Polar cap, sea level and 500 hPa", a: {label: "View", items: [["plumes","Members"],["maps","Maps"],["all","All models"],["runs","Run to run"]]},
           b: function (a) { if (a === "all") return null;
                             var ms = [["aifs","AIFS-ENS"],["ifs","IFS-ENS"],["gefs","GEFS"],["geps","GEPS"]];
@@ -526,38 +468,24 @@ window.STAGE = {
           img: function (a, b) { if (a === "all") return "assets/sst/polarcap_models.webp";
                                  return (a === "runs" ? "assets/sst/runs/polarcap_" : "assets/sst/polarcap_") + (b || "aifs") + ".webp"; },
           bust: "hourly", about: "about-polarcap", fit: false,
-          cap: function (a, b) { var m = {aifs: "AIFS-ENS (control + 50 members, the control dashed)", ifs: "IFS-ENS (50 members, the IFS control dashed)", gefs: "GEFS (control + 30 members)", geps: "GEPS (control + 20 members)", hres: "the IFS control", aifsc: "the AIFS-ENS control", aifs1: "AIFS single", all: "every ensemble"}[b || "aifs"];
-                                 if (a === "all") return "Every model's newest run:the members' mean polar-cap (65–90°N) sea-level pressure and 500 hPa height anomaly with its 10–90 % range, the single runs (the controls, AIFS single) dashed. Above zero = high pressure over the Arctic (negative Arctic Oscillation).";
-                                 if (a === "runs") return "How the last runs of " + m + " have moved the polar-cap sea-level pressure and 500 hPa height anomaly (the members' mean; the newest run with its members' 10–90 %).";
-                                 if (a === "maps") return m + ": ensemble-mean sea-level pressure and 500 hPa height, the anomaly from ERA5 1991–2020 shaded where enough members agree on its sign for a sign test at 5 %; days 1–5, 6–10, 11–15, then each day.";
-                                 return m + ": every member's polar-cap (65–90°N) sea-level pressure and 500 hPa height anomaly from ERA5 1991–2020 to day 15, the members' mean bold. Above zero = high pressure over the Arctic (negative Arctic Oscillation)."; }},
+          cap: function (a, b) { var m = {aifs: "AIFS-ENS", ifs: "IFS-ENS", gefs: "GEFS", geps: "GEPS", hres: "IFS control", aifsc: "AIFS-ENS control", aifs1: "AIFS single"}[b || "aifs"]; return a === "all" ? "Every model's newest run; single runs dashed." : a === "runs" ? m + ": the last runs." : a === "maps" ? m + " ensemble mean, shaded where the members agree." : m + ": every member; the mean bold."; }},
   fdrip15: {label: "Forecast dripping paint, days 1–15", a: {label: "Model", items: [["aifs","AIFS-ENS"],["aifsc","AIFS-ENS control"],["aifs1","AIFS single"],["ifs","IFS-ENS"],["hres","IFS control"],["gefs","GEFS"],["geps","GEPS"]]},
           b: {label: "View", items: [["now","This run"],["change","Change since a day earlier"],["runs","Run to run"]]},
           c: function (a, b) { return b === "now" ? {label: "Model drift", items: [["removed","Removed"],["raw","Left in"]]} : null; },
           img: function (a, b, c) { return b === "runs" ? "assets/sst/runs/drip_" + a + ".webp" : "assets/sst/" + a + (b === "change" ? "_drip_change.webp" : c === "raw" ? "_drip_raw.webp" : "_drip.webp"); },
           bust: "hourly", about: "about-fdrip", fit: false,
-          cap: function (a, b, c) { if (b === "change") return "The newest run's dripping paint minus the same model's run a day earlier, at the valid dates both cover, in standard deviations; red = the polar cap now forecast higher, the vortex weaker. The newest run is contoured.";
-                                 if (b === "runs") return "How the last runs have moved the 10 and 100 hPa polar-cap height (ensemble mean, sd of the day’s normal), and each run’s share of members with the 100 hPa cap at +1 sd or more on its last day.";
-                                 if (c === "raw") return "Standardised polar-cap height from 1000 to " + (a === "gefs" ? "1" : "10") + " hPa: the last 60 days observed (GEOS FP), then the "
-                                     + {aifs: "AIFS-ENS ensemble mean", aifsc: "AIFS-ENS control", aifs1: "AIFS single", ifs: "IFS-ENS ensemble mean", hres: "IFS control", gefs: "GEFS ensemble mean", geps: "GEPS ensemble mean"}[a]
-                                     + " to day 15 with the model's drift left in: only each level's offset from GEOS FP at the start is removed, so a change with lead can be the model sliding towards its own climate. Same scale as the history drips.";
-                                 return "Standardised polar-cap height from 1000 to " + (a === "gefs" ? "1" : "10") + " hPa: the last 60 days observed (GEOS FP), then the "
-                                     + (a === "hres" ? "IFS control, one run, to day 15 with the IFS-ENS drift removed where it has been measured" : a === "aifsc" ? "AIFS-ENS control, one run, to day 15 with the AIFS-ENS drift removed where it has been measured"
-                                                     : a === "aifs1" ? "AIFS single, one run, to day 15 with its own drift removed where it has been measured"
-                                                     : {aifs: "AIFS-ENS", ifs: "IFS-ENS (50 members)", gefs: "GEFS (31 members)", geps: "GEPS (21 members)"}[a] + " ensemble mean to day 15 with the model's drift removed where it has been measured")
-                                     + "; levels marked by a grey triangle on the right are not drift-corrected. Same scale as the history drips."; }},
+          cap: function (a, b, c) { if (b === "change") return "Newest run minus the run a day earlier; red, the cap now higher."; if (b === "runs") return "The last runs."; return {aifs: "AIFS-ENS ensemble mean", aifsc: "AIFS-ENS control", aifs1: "AIFS single", ifs: "IFS-ENS ensemble mean", hres: "IFS control", gefs: "GEFS ensemble mean", geps: "GEPS ensemble mean"}[a] + " after 60 days of GEOS FP" + (c === "raw" ? "; drift left in." : "; drift removed where measured."); }},
   // split by range (as the drips): heatflux = days 1-15 (AIFS-ENS, IFS-ENS, GEFS, GEPS), heatflux35 = GEPS/GEFS to day 35
   reflect: {label: "Regional reflection index", img: function () { return "assets/sst/reflection_index.webp"; }, bust: "hourly", about: "about-reflect", fit: false,
-          cap: function () { return "Upward wave flux over Siberia against downward flux over Canada at 100 hPa, standardised: Messori et al.'s regional reflection index for every ensemble, the two boxes, and the share of members with an event. In ERA5 an event has been followed by a ridge over Alaska (EPO negative) and North American cold."; }},
+          cap: function () { return "Every ensemble, 100 hPa."; }},
   fluxrec: {label: "How unusual is the wave driving", a: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
           b: {label: "Measure", items: [["tot","All waves"],["k1","Wave 1"],["k2","Wave 2"],["ten","10-day mean"]]},
           dom: function () { return "dom-fluxrec"; }, about: "about-fluxrec",
-          cap: function (a, b) { return "Each ensemble's peak 100 hPa heat flux in days 1–15 (" + {tot: "all waves", k1: "wave 1", k2: "wave 2", ten: "10-day mean of all waves"}[b || "tot"] + "), 45–75°" + (a === "sh" ? "S" : "N") + ", ranked among every ERA5 value within 15 days of the same date, 1990–2026, and set against the record for that time of year."; }},
+          cap: function (a, b) { return "Each ensemble's peak in days 1–15, ranked against ERA5 1990–2026."; }},
   compass: {label: "Wave compass", a: {label: "Wave", items: [["1","Wave-1"],["2","Wave-2"]]},
           b: {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"],["gefs","GEFS"],["geps","GEPS"]]},
           dom: function () { return "dom-compass"; }, about: "about-compass",
-          cap: function (a, b) { return "Why some wave patterns feed the vortex: the 500 hPa wave-" + (a === "2" ? 2 : 1) + " round the pole in " + {aifs: "AIFS-ENS", ifs: "IFS-ENS", gefs: "GEFS", geps: "GEPS"}[b || "aifs"]
-                                        + "'s newest run, the normal standing wave plus the anomaly the weather adds, and the ERA5 100 hPa heat flux when an anomaly sits where this one does. Move the anomaly to see the flux change."; }},
+          cap: function (a, b) { return {aifs: "AIFS-ENS", ifs: "IFS-ENS", gefs: "GEFS", geps: "GEPS"}[b || "aifs"] + "'s newest run; move the anomaly to see the flux change."; }},
   heatflux: {label: "100 hPa eddy heat flux, days 1–15", a: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
           b: {label: "Model", items: [["aifs","AIFS-ENS"],["ifs","IFS-ENS"],["gefs","GEFS"],["geps","GEPS"]]},
           c: {label: "View", items: [["now","This run"],["map","Maps every 12 h (north)"],["runs","Run to run (north)"]]},
@@ -565,35 +493,23 @@ window.STAGE = {
           ratio: function () { return "880/935"; },
           img: function (a, b, c) { var h = a === "sh" ? "sh" : "nh";
                                     return c === "runs" ? "assets/sst/runs/heatflux_" + b + ".webp" : "assets/sst/" + (b === "aifs" ? "" : b + "_") + "heatflux100_" + h + ".webp"; }, bust: "hourly", about: "about-heatflux", fit: false,
-          cap: function (a, b, c) { if (c === "runs") return "How the last runs have moved the northern 100 hPa heat flux, 45–75°N (total, wave 1, wave 2; ensemble mean), and each run’s share of members whose 10-day mean flux crosses the sudden-warming warning level.";
-                                    if (c === "map") return "Where round the hemisphere the waves carry heat poleward at 100 hPa, every 12 hours of the newest " + {aifs: "AIFS-ENS", ifs: "IFS-ENS", gefs: "GEFS", geps: "GEPS"}[b]
-                                        + " run to day 15: v*T*, the product of the meridional wind’s and the temperature’s departures from their zonal means, as the mean of the members’ own products, coloured where they agree on its sign and grey where they are split. Red is poleward; the line chart averages the band between the 45° and 75°N circles.";
-                                    return "Poleward eddy heat flux at 100 hPa, 45–75°" + (a === "sh" ? "S" : "N") + ", total and its wave-1 and wave-2 parts: the upward wave-activity flux into the stratosphere, "
-                                        + {aifs: "AIFS-ENS (50 members + control)", ifs: "IFS-ENS (50 members, the IFS control dashed)", gefs: "GEFS (30 members + control)", geps: "GEPS (20 members + control)"}[b] + " to day 15"
-                                        + (b === "geps" ? ", uncorrected (too few archived runs to test)" : ", members less the model’s significant mean error")
-                                        + ", against the ERA5 1991–2020 climatology."; }},
+          cap: function (a, b, c) { var m = {aifs: "AIFS-ENS", ifs: "IFS-ENS", gefs: "GEFS", geps: "GEPS"}[b]; return c === "runs" ? "The last runs, ensemble mean." : c === "map" ? m + "'s newest run; red poleward, grey where the members split." : m + (b === "geps" ? ", uncorrected" : ", members less the model's mean error") + "; against ERA5 1991–2020."; }},
   heatflux35: {label: "100 hPa eddy heat flux, days 1–35", a: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
           b: {label: "Model", items: [["geps","GEPS"],["gefs","GEFS"]]},
           img: function (a, b) { var h = a === "sh" ? "sh" : "nh";
                                  return b === "gefs" ? "assets/gefs/gefs_heatflux100_" + h + ".webp" : "assets/geps/geps_heatflux100_" + h + ".webp"; }, bust: "hourly", about: "about-heatflux", fit: false,
-          cap: function (a, b) { return "Poleward eddy heat flux at 100 hPa, 45–75°" + (a === "sh" ? "S" : "N") + ", total and its wave-1 and wave-2 parts: the upward wave-activity flux into the stratosphere, "
-                                        + (b === "gefs" ? "GEFS (31 members) to day 35, members less the model’s significant mean error"
-                                                        : "GEPS extended run (Mon/Thu, 21 members) to day 35, uncorrected (too few archived runs to test)")
-                                        + ", against the ERA5 1991–2020 climatology."; }},
+          cap: function (a, b) { return (b === "gefs" ? "GEFS, 31 members, less the model's mean error" : "GEPS, 21 members, uncorrected") + "; against ERA5 1991–2020."; }},
   shwinters: {label: "Every winter since 1980", dom: function () { return "dom-shwinters"; }, about: "about-shwinters",
-          cap: function () { return "Every northern winter in MERRA-2, October to May, against the 1980–2026 range, and this winter so far from GEOS FP analyses (the bold line, updated daily). Hover a line to name the winter; pick one to draw it in black."; }},
+          cap: function () { return "MERRA-2 winters; this winter from GEOS FP in bold. Pick one to draw it in black."; }},
   shssw: {label: "Sudden warmings since 1980", a: {label: "View", items: [["timeline","Timeline"],["table","Catalogue"],["gallery","Vortex at each warming"]]},
           dom: function (a) { return a === "table" ? "dom-shssw" : null; }, fit: false,
           img: function (a) { return "assets/sst/strat_hist_" + (a === "gallery" ? "gallery" : "timeline") + ".webp?v=__CACHE__"; }, about: "about-shssw",
-          cap: function (a) { return a === "timeline" ? "Every major sudden warming (Charlton–Polvani, MERRA-2) and strong-vortex event, winter by winter, with ENSO and the QBO." : a === "table" ? "The catalogue: when, how deep, what shape, and what the Arctic Oscillation did before and after." : "What the 10 hPa vortex looked like at each warming: two pieces for a split, one pushed off the pole for a displacement."; }},
+          cap: function (a) { return a === "gallery" ? "10 hPa height at each warming." : "MERRA-2, 1980–2026."; }},
   shdrip: {label: "Dripping paint", a: {label: "Events", items: [["ssw_all","All SSWs"],["ssw_deep","Deep"],["ssw_shallow","Shallow"],["ssw_split","Splits"],["ssw_disp","Displacements"],["sv","Strong vortex"]]},
           b: function (a) { return {label: "Data", items: (a === "ssw_split" || a === "ssw_disp") ? [["m2z","MERRA-2 polar-cap height"]]
                                     : [["m2z","MERRA-2 polar-cap height"],["m2u","MERRA-2 u(60°N)"],["cmip6","CMIP6 u(60°N), 9 models"]]}; },
           img: function (a, b) { return "assets/sst/strat_hist_drip_" + (b === "m2u" || b === "cmip6" ? b + "_" : "") + a + ".webp?v=__CACHE__"; }, fit: false, about: "about-shdrip",
-          cap: function (a, b) {
-            if (b === "cmip6") return "Zonal-mean wind at 60°N from the ground to 1 hPa around " + (a === "sv" ? "strong-vortex events" : "sudden warmings") + " in 9 CMIP6 models (25,444 model-years), sign flipped so a weak vortex is red, with 700 hPa u(60°N) below. Shaded only where the models robustly agree.";
-            if (b === "m2u") return "MERRA-2 drawn the way the CMIP6 chart is, events defined in wind terms as for the models: u(60°N) from the ground to 1 hPa, sign flipped, with 700 hPa u(60°N) below.";
-            return a === "sv" ? "Polar-cap height from the ground to 1 hPa around strong-vortex events, with the surface Arctic Oscillation below." : "Polar-cap height from the ground to 1 hPa around the warmings, with the surface Arctic Oscillation below: red dripping down to the ground is a weak vortex reaching the surface."; }},
+          cap: function (a, b) { return b === "cmip6" ? "9 CMIP6 models; shaded where they robustly agree." : b === "m2u" ? "MERRA-2, drawn as the CMIP6 chart is." : "MERRA-2; red, a weak vortex."; }},
   shfollow: {label: "What usually follows", a: {label: "View", items: [["map","Map, days 1–30"],["map2","Map, days 31–60"],["ao","Arctic Oscillation"],["nao","NAO"],["regions","By region"]]},
           b: {label: "Data", items: [["obs","ERA5 / MERRA-2, since 1980"],["cmip6","CMIP6, 9 models"]]},
           c: function (a, b) { if (a === "nao" && b !== "cmip6") return {label: "Definition", items: [["nao","CPC"],["nao_hurrell","Hurrell stations"],["nao_pc","Hurrell PC"],["nao_jones","Jones"],["gbi","Greenland blocking"]]};
@@ -604,28 +520,19 @@ window.STAGE = {
                                     if (a === "nao" && b !== "cmip6") return "assets/sst/strat_hist_" + (c || "nao") + ".webp?v=__CACHE__";
                                     return "assets/sst/strat_hist_" + ((a === "map" || a === "map2") ? "follows_" + m + c + "_" + w : a + (b === "cmip6" ? "_cmip6" : "")) + ".webp?v=__CACHE__"; },
           fit: false, about: "about-shfollow",
-          cap: function (a, b, c) {
-            var cm = b === "cmip6";
-            if (a === "map" || a === "map2") return cm ? "2 m temperature and sea-level pressure after each kind of event in 9 CMIP6 models (monthly anomalies), shown only where the models robustly agree."
-                                                       : "ERA5 2 m temperature and 500 hPa height after each kind of event: the mean over every event since 1980, shown only where significant.";
-            if (a === "ao") return cm ? "The annular mode after sudden warmings and strong-vortex events in 9 CMIP6 models: daily 700 hPa wind at 60°N as the AO proxy, with the monthly pressure-based index as a check."
-                                      : "The Arctic Oscillation after sudden warmings and after strong-vortex events, and how often it went negative against the same days in other years.";
-            if (a === "nao") return cm ? "The North Atlantic Oscillation after each kind of event in 9 CMIP6 models: a monthly index, the models' pressure projected on ERA5's NAO pattern."
-                                       : (c === "gbi" ? "The Greenland Blocking Index (ERA5 daily)" : "The North Atlantic Oscillation (" + ({nao_hurrell: "Hurrell's stations, ERA5 daily", nao_pc: "Hurrell's principal component, ERA5 daily", nao_jones: "Jones's stations, ERA5 daily"}[c] || "CPC daily index") + ")") + " after sudden warmings and after strong-vortex events, and how often it went negative against the same days in other years.";
-            return cm ? "Six land regions in 9 CMIP6 models: how often each kind of event was followed by a cold window, printed only where that differs robustly from the model's normal."
-                      : "Six land regions: how often each kind of event was followed by a cold month, printed only where that differs significantly from normal."; }},
+          cap: function (a, b) { return b === "cmip6" ? "9 CMIP6 models; shown where they robustly agree." : "ERA5, every event since 1980; significant only."; }},
   shtiming: {label: "Who moves first around a sudden warming", img: function () { return "assets/sst/ssw_timing.webp?v=__CACHE__"; }, fit: false, about: "about-shtiming",
-          cap: function () { return "Heat flux, vortex, polar cap and the tropical lower stratosphere around the 28 MERRA-2 warmings: colour only where the composite differs significantly from dates with the same westerly history (FDR 10 %)."; }},
+          cap: function () { return "28 MERRA-2 warmings; colour only where significant."; }},
   shqbo: {label: "The QBO and the polar vortex", img: function () { return "assets/sst/ssw_qbo.webp?v=__CACHE__"; }, fit: false, about: "about-shqbo",
-          cap: function () { return "The October–November QBO and the winter vortex, observed since 1958 (significant levels in colour), and the share of winters with a warming by QBO phase in five CMIP6 models."; }},
+          cap: function () { return "Observed since 1958, significant levels in colour; five CMIP6 models."; }},
   shenso: {label: "El Niño and sudden warmings (CMIP6)", img: function () { return "assets/sst/ssw_enso.webp?v=__CACHE__"; }, fit: false, about: "about-shenso",
-          cap: function () { return "The share of winters with a sudden warming by December–February Niño-3.4 in nine CMIP6 models, and the month of the warming by ENSO class."; }},
+          cap: function () { return "Nine CMIP6 models."; }},
   shseason: {label: "This winter's odds (model-based)", img: function () { return "assets/sst/ssw_odds.webp"; }, bust: "hourly", fit: false, about: "about-shseason",
-          cap: function () { return "This winter's QBO and ENSO on the tested relations: the share of CMIP6 winters with a warming in that state and the vortex the observed QBO relation expects."; }},
+          cap: function () { return "CMIP6 and the observed QBO relation."; }},
   shmbudget: {label: "Momentum budget of past warmings (MERRA-2)", a: {label: "Level", items: [["10","10 hPa"],["50","50 hPa"],["1","1 hPa"]]},
           b: {label: "Events", items: [["all","All 24 warmings"],["strong","Deepest third"]]},
           img: function (a, b) { return "assets/sst/ssw_mbudget_" + (a || "10") + "_" + (b || "all") + ".webp?v=__CACHE__"; }, fit: false, about: "about-shmbudget",
-          cap: function (a, b) { return "Every term of the live momentum budget, composited over " + (b === "strong" ? "the deepest third of the" : "all") + " sudden warmings of 1980–2019 at 55–65°N, " + (a || "10") + " hPa: departures from the same days in other winters, coloured where significant."; }}
+          cap: function (a, b) { return "MERRA-2, 1980–2019, coloured where significant."; }}
 }
 };
 </script>

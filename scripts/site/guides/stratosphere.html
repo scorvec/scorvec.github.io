@@ -100,6 +100,9 @@ AO) and the share of members with the 100&nbsp;hPa cap at least one standard dev
 to the troposphere.</p>
 <p><b>Change since a day earlier</b> (View: Change). The newest run&rsquo;s drip minus the same model&rsquo;s run 24&nbsp;hours earlier (12&nbsp;hours when that one is missing), at the valid dates and levels both cover, in the same standard deviations: red is a cap now forecast higher, a vortex weaker than the earlier run said. The newest run is contoured over it, and the lower panel follows the change at 1000, 100, 10 and (GEFS) 1&nbsp;hPa. Both runs have the same drift removed, so the change is the forecast&rsquo;s own movement. Ensemble means move less from run to run than single runs do.</p>
 <p><b>Run to run</b> (View: Run to run). The 10 and 100&nbsp;hPa rows of the drip, the ensemble mean of each of the model&rsquo;s last eight runs over one another (the newest with &plusmn; one member standard deviation), the change of the newest run against the run a day earlier over its days 6&ndash;15, and every run of the last 30 days with its share of members whose 100&nbsp;hPa cap is at +1&nbsp;sd or more on the last day.</p>
+<p><b>Raw.</b> The Raw choice leaves the drift in: only each level's offset from GEOS FP at the start is removed, so a
+change with lead can be the model sliding towards its own climate. Levels marked by a grey triangle on the right are
+not drift-corrected. Both use the history drips' colour scale.</p>
 </section>
 
 <section id="upperstrat">
@@ -170,7 +173,7 @@ probability. The 40-day mean at the end of a 35-day forecast is almost all forec
 GEFS (wavenumbers 1&ndash;72 need nothing finer). Its ensemble files carry no control at 100&nbsp;hPa; the dashed
 control line is the IFS control, from its own open-data files. The days 1&ndash;15 <b>GEFS</b> and <b>GEPS</b> versions are the same calculation on the cycle the
 IFS-ENS version is on (00 or 12&nbsp;UTC), every member and the control to day 15: GEFS less the same measured
-error as its 35-day version, GEPS uncorrected.</p>
+error as its 35-day version, GEPS uncorrected (too few of its runs are archived to measure its error).</p>
 <p><b>Run to run</b> (View: Run to run, northern only). How the forecast has moved: each of the model&rsquo;s last eight runs drawn over one another (four days of 00 and 12&nbsp;UTC runs, two days for AIFS-ENS, which runs at 00, 06, 12 and 18&nbsp;UTC; older runs fainter, the newest with its members&rsquo; 10&ndash;90&nbsp;% band) for the total flux and its wave-1 and wave-2 parts, the change of the newest run against the run a day earlier over its days 6&ndash;15, and below every run of the last 30 days with its share of members crossing the warning level. A swing from run to run is how the model&rsquo;s view is changing, not a forecast of its own.</p>
 <p><b>Maps every 12 h</b> (View: Maps every 12 h, northern only). [v&prime;T&prime;] is the mean round a latitude circle of <b>v*T*</b>, the product at each point of the departures of the meridional wind and the temperature from their zonal means, and that product is far from even round the circle: a pulse is usually one or two regions of strong poleward flux. Each map is one forecast hour, with nothing averaged in time: every member&rsquo;s v and T are averaged onto 1.5&deg; cells and multiplied there, and the mean of the members&rsquo; products is coloured where enough of them agree on its sign (a two-sided sign test at 5&nbsp;%; each map&rsquo;s subtitle gives the count) and <b>grey where they are split</b>. Red is poleward, wave activity entering the stratosphere there; blue is equatorward, and [v&prime;T&prime;] is what is left of the red once the blue round the same circle is taken from it. The maps show the flux itself, not its departure from a climatology. AIFS-ENS and IFS-ENS: the 50 perturbed members, the steps between the daily ones from the rows north of 18&deg;N; GEFS and GEPS: every member.</p>
 </section>
@@ -538,7 +541,7 @@ probability. The 40-day mean at the end of a 35-day forecast is almost all forec
 GEFS (wavenumbers 1&ndash;72 need nothing finer). Its ensemble files carry no control at 100&nbsp;hPa; the dashed
 control line is the IFS control, from its own open-data files. The days 1&ndash;15 <b>GEFS</b> and <b>GEPS</b> versions are the same calculation on the cycle the
 IFS-ENS version is on (00 or 12&nbsp;UTC), every member and the control to day 15: GEFS less the same measured
-error as its 35-day version, GEPS uncorrected.</p>
+error as its 35-day version, GEPS uncorrected (too few of its runs are archived to measure its error).</p>
 <p><b>Run to run</b> (View: Run to run, northern only). How the forecast has moved: each of the model&rsquo;s last eight runs drawn over one another (four days of 00 and 12&nbsp;UTC runs, two days for AIFS-ENS, which runs at 00, 06, 12 and 18&nbsp;UTC; older runs fainter, the newest with its members&rsquo; 10&ndash;90&nbsp;% band) for the total flux and its wave-1 and wave-2 parts, the change of the newest run against the run a day earlier over its days 6&ndash;15, and below every run of the last 30 days with its share of members crossing the warning level. A swing from run to run is how the model&rsquo;s view is changing, not a forecast of its own.</p>
 <p><b>Maps every 12 h</b> (View: Maps every 12 h, northern only). [v&prime;T&prime;] is the mean round a latitude circle of <b>v*T*</b>, the product at each point of the departures of the meridional wind and the temperature from their zonal means, and that product is far from even round the circle: a pulse is usually one or two regions of strong poleward flux. Each map is one forecast hour, with nothing averaged in time: every member&rsquo;s v and T are averaged onto 1.5&deg; cells and multiplied there, and the mean of the members&rsquo; products is coloured where enough of them agree on its sign (a two-sided sign test at 5&nbsp;%; each map&rsquo;s subtitle gives the count) and <b>grey where they are split</b>. Red is poleward, wave activity entering the stratosphere there; blue is equatorward, and [v&prime;T&prime;] is what is left of the red once the blue round the same circle is taken from it. The maps show the flux itself, not its departure from a climatology. AIFS-ENS and IFS-ENS: the 50 perturbed members, the steps between the daily ones from the rows north of 18&deg;N; GEFS and GEPS: every member.</p>
 </section>
@@ -592,6 +595,8 @@ AO) and the share of members with the 100&nbsp;hPa cap at least one standard dev
 to the troposphere.</p>
 <p><b>Change since a day earlier</b> (View: Change). The newest run&rsquo;s drip minus the same model&rsquo;s run 24&nbsp;hours earlier (12&nbsp;hours when that one is missing), at the valid dates and levels both cover, in the same standard deviations: red is a cap now forecast higher, a vortex weaker than the earlier run said. The newest run is contoured over it, and the lower panel follows the change at 1000, 100, 10 and (GEFS) 1&nbsp;hPa. Both runs have the same drift removed, so the change is the forecast&rsquo;s own movement. Ensemble means move less from run to run than single runs do.</p>
 <p><b>Run to run</b> (View: Run to run). The 10 and 100&nbsp;hPa rows of the drip, the ensemble mean of each of the model&rsquo;s last eight runs over one another (the newest with &plusmn; one member standard deviation), the change of the newest run against the run a day earlier over its days 6&ndash;15, and every run of the last 30 days with its share of members whose 100&nbsp;hPa cap is at +1&nbsp;sd or more on the last day.</p>
+<p><b>Raw.</b> As in the days 1&ndash;15 view, the Raw choice leaves the drift in, removing only each level's offset
+from GEOS FP at the start; levels marked by a grey triangle are not drift-corrected.</p>
 </section>
 
 <h2>The season ahead</h2>
@@ -647,6 +652,14 @@ CPS4).</p>
 <p>The westerly shear zone descends faster and more regularly than the easterly one; the 30&nbsp;hPa wind is the
 conventional single-number index. A station's monthly mean uses every sounding in the month, with at least three
 required, and the table under the chart gives each station's newest month.</p>
+<p><b>The views.</b> <i>Phase</i>: the two leading EOFs of the wind profile, which carry most of its variance; one
+full cycle is one loop round the origin and the radius is the oscillation's strength, so a loop that shrinks towards
+the centre without closing is a disruption, the QBO stalling mid-descent. <i>Descent</i>: tracking one u&nbsp;=&nbsp;0
+height a month fails, since the QBO carries two or three crossings at once, but when each level changes regime is
+unambiguous, and chaining those gives one line per onset whose slope is a descent rate; a line that stops above
+50&ndash;70&nbsp;hPa is an onset that never made it down. <i>Cycles</i>: every cycle aligned on the month the 30&nbsp;hPa
+wind turned westerly, the current one on top. The default view is height against time with the u&nbsp;=&nbsp;0
+contour heavy.</p>
 </section>
 
 <section id="qbozl">
