@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-26 19:25 UTC",
+ "generated": "2026-11-26 21:46 UTC",
  "acc": {
   "NH_30": {
    "window": {
@@ -280,8 +280,526 @@
   }
  },
  "bias": {
-  "maps": {},
-  "variables": {},
+  "maps": {
+   "msl_24": {
+    "file": "bias_msl_24.webp",
+    "models": {
+     "GFS": {
+      "file": "bias_msl_24_GFS.webp",
+      "mapped": 7253,
+      "significant": 3353
+     },
+     "IFS": {
+      "file": "bias_msl_24_IFS.webp",
+      "mapped": 7253,
+      "significant": 4826
+     },
+     "AIFS": {
+      "file": "bias_msl_24_AIFS.webp",
+      "mapped": 7253,
+      "significant": 4344
+     },
+     "GDPS": {
+      "file": "bias_msl_24_GDPS.webp",
+      "mapped": 7253,
+      "significant": 3843
+     }
+    }
+   },
+   "msl_72": {
+    "file": "bias_msl_72.webp",
+    "models": {
+     "GFS": {
+      "file": "bias_msl_72_GFS.webp",
+      "mapped": 7262,
+      "significant": 2212
+     },
+     "IFS": {
+      "file": "bias_msl_72_IFS.webp",
+      "mapped": 7262,
+      "significant": 2021
+     },
+     "AIFS": {
+      "file": "bias_msl_72_AIFS.webp",
+      "mapped": 7262,
+      "significant": 2973
+     },
+     "GDPS": {
+      "file": "bias_msl_72_GDPS.webp",
+      "mapped": 7262,
+      "significant": 2470
+     }
+    }
+   },
+   "msl_120": {
+    "file": "bias_msl_120.webp",
+    "models": {
+     "GFS": {
+      "file": "bias_msl_120_GFS.webp",
+      "mapped": 7242,
+      "significant": 1156
+     },
+     "IFS": {
+      "file": "bias_msl_120_IFS.webp",
+      "mapped": 7242,
+      "significant": 1411
+     },
+     "AIFS": {
+      "file": "bias_msl_120_AIFS.webp",
+      "mapped": 7242,
+      "significant": 2151
+     },
+     "GDPS": {
+      "file": "bias_msl_120_GDPS.webp",
+      "mapped": 7242,
+      "significant": 1526
+     }
+    }
+   },
+   "msl_168": {
+    "file": "bias_msl_168.webp",
+    "models": {
+     "GFS": {
+      "file": "bias_msl_168_GFS.webp",
+      "mapped": 7208,
+      "significant": 1520
+     },
+     "IFS": {
+      "file": "bias_msl_168_IFS.webp",
+      "mapped": 7208,
+      "significant": 627
+     },
+     "AIFS": {
+      "file": "bias_msl_168_AIFS.webp",
+      "mapped": 7208,
+      "significant": 1617
+     },
+     "GDPS": {
+      "file": "bias_msl_168_GDPS.webp",
+      "mapped": 7208,
+      "significant": 694
+     }
+    }
+   },
+   "msl_240": {
+    "file": "bias_msl_240.webp",
+    "models": {
+     "GFS": {
+      "file": "bias_msl_240_GFS.webp",
+      "mapped": 7216,
+      "significant": 660
+     },
+     "IFS": {
+      "file": "bias_msl_240_IFS.webp",
+      "mapped": 7216,
+      "significant": 368
+     },
+     "AIFS": {
+      "file": "bias_msl_240_AIFS.webp",
+      "mapped": 7216,
+      "significant": 562
+     },
+     "GDPS": {
+      "file": "bias_msl_240_GDPS.webp",
+      "mapped": 7216,
+      "significant": 98
+     }
+    }
+   },
+   "t2m_24": {
+    "file": "bias_t2m_24.webp",
+    "models": {
+     "GFS": {
+      "file": "bias_t2m_24_GFS.webp",
+      "mapped": 12472,
+      "significant": 9016
+     },
+     "IFS": {
+      "file": "bias_t2m_24_IFS.webp",
+      "mapped": 12472,
+      "significant": 5908
+     },
+     "AIFS": {
+      "file": "bias_t2m_24_AIFS.webp",
+      "mapped": 12472,
+      "significant": 6596
+     },
+     "GDPS": {
+      "file": "bias_t2m_24_GDPS.webp",
+      "mapped": 12472,
+      "significant": 9190
+     }
+    }
+   },
+   "t2m_72": {
+    "file": "bias_t2m_72.webp",
+    "models": {
+     "GFS": {
+      "file": "bias_t2m_72_GFS.webp",
+      "mapped": 12456,
+      "significant": 8321
+     },
+     "IFS": {
+      "file": "bias_t2m_72_IFS.webp",
+      "mapped": 12456,
+      "significant": 5434
+     },
+     "AIFS": {
+      "file": "bias_t2m_72_AIFS.webp",
+      "mapped": 12456,
+      "significant": 5232
+     },
+     "GDPS": {
+      "file": "bias_t2m_72_GDPS.webp",
+      "mapped": 12456,
+      "significant": 9032
+     }
+    }
+   },
+   "t2m_120": {
+    "file": "bias_t2m_120.webp",
+    "models": {
+     "GFS": {
+      "file": "bias_t2m_120_GFS.webp",
+      "mapped": 12433,
+      "significant": 7599
+     },
+     "IFS": {
+      "file": "bias_t2m_120_IFS.webp",
+      "mapped": 12433,
+      "significant": 5174
+     },
+     "AIFS": {
+      "file": "bias_t2m_120_AIFS.webp",
+      "mapped": 12433,
+      "significant": 4210
+     },
+     "GDPS": {
+      "file": "bias_t2m_120_GDPS.webp",
+      "mapped": 12433,
+      "significant": 7941
+     }
+    }
+   },
+   "t2m_168": {
+    "file": "bias_t2m_168.webp",
+    "models": {
+     "GFS": {
+      "file": "bias_t2m_168_GFS.webp",
+      "mapped": 12386,
+      "significant": 6194
+     },
+     "IFS": {
+      "file": "bias_t2m_168_IFS.webp",
+      "mapped": 12386,
+      "significant": 3777
+     },
+     "AIFS": {
+      "file": "bias_t2m_168_AIFS.webp",
+      "mapped": 12386,
+      "significant": 2931
+     },
+     "GDPS": {
+      "file": "bias_t2m_168_GDPS.webp",
+      "mapped": 12386,
+      "significant": 6331
+     }
+    }
+   },
+   "t2m_240": {
+    "file": "bias_t2m_240.webp",
+    "models": {
+     "GFS": {
+      "file": "bias_t2m_240_GFS.webp",
+      "mapped": 12373,
+      "significant": 5712
+     },
+     "IFS": {
+      "file": "bias_t2m_240_IFS.webp",
+      "mapped": 12373,
+      "significant": 2405
+     },
+     "AIFS": {
+      "file": "bias_t2m_240_AIFS.webp",
+      "mapped": 12373,
+      "significant": 1761
+     },
+     "GDPS": {
+      "file": "bias_t2m_240_GDPS.webp",
+      "mapped": 12373,
+      "significant": 4762
+     }
+    }
+   },
+   "td2m_24": {
+    "file": "bias_td2m_24.webp",
+    "models": {
+     "GFS": {
+      "file": "bias_td2m_24_GFS.webp",
+      "mapped": 12436,
+      "significant": 10793
+     },
+     "IFS": {
+      "file": "bias_td2m_24_IFS.webp",
+      "mapped": 12436,
+      "significant": 6281
+     },
+     "AIFS": {
+      "file": "bias_td2m_24_AIFS.webp",
+      "mapped": 12436,
+      "significant": 6220
+     },
+     "GDPS": {
+      "file": "bias_td2m_24_GDPS.webp",
+      "mapped": 12436,
+      "significant": 9456
+     }
+    }
+   },
+   "td2m_72": {
+    "file": "bias_td2m_72.webp",
+    "models": {
+     "GFS": {
+      "file": "bias_td2m_72_GFS.webp",
+      "mapped": 12447,
+      "significant": 10566
+     },
+     "IFS": {
+      "file": "bias_td2m_72_IFS.webp",
+      "mapped": 12447,
+      "significant": 5342
+     },
+     "AIFS": {
+      "file": "bias_td2m_72_AIFS.webp",
+      "mapped": 12447,
+      "significant": 4759
+     },
+     "GDPS": {
+      "file": "bias_td2m_72_GDPS.webp",
+      "mapped": 12447,
+      "significant": 9113
+     }
+    }
+   },
+   "td2m_120": {
+    "file": "bias_td2m_120.webp",
+    "models": {
+     "GFS": {
+      "file": "bias_td2m_120_GFS.webp",
+      "mapped": 12432,
+      "significant": 8988
+     },
+     "IFS": {
+      "file": "bias_td2m_120_IFS.webp",
+      "mapped": 12432,
+      "significant": 4083
+     },
+     "AIFS": {
+      "file": "bias_td2m_120_AIFS.webp",
+      "mapped": 12432,
+      "significant": 3413
+     },
+     "GDPS": {
+      "file": "bias_td2m_120_GDPS.webp",
+      "mapped": 12432,
+      "significant": 7492
+     }
+    }
+   },
+   "td2m_168": {
+    "file": "bias_td2m_168.webp",
+    "models": {
+     "GFS": {
+      "file": "bias_td2m_168_GFS.webp",
+      "mapped": 12395,
+      "significant": 6897
+     },
+     "IFS": {
+      "file": "bias_td2m_168_IFS.webp",
+      "mapped": 12395,
+      "significant": 2890
+     },
+     "AIFS": {
+      "file": "bias_td2m_168_AIFS.webp",
+      "mapped": 12395,
+      "significant": 2445
+     },
+     "GDPS": {
+      "file": "bias_td2m_168_GDPS.webp",
+      "mapped": 12395,
+      "significant": 5501
+     }
+    }
+   },
+   "td2m_240": {
+    "file": "bias_td2m_240.webp",
+    "models": {
+     "GFS": {
+      "file": "bias_td2m_240_GFS.webp",
+      "mapped": 12387,
+      "significant": 5802
+     },
+     "IFS": {
+      "file": "bias_td2m_240_IFS.webp",
+      "mapped": 12387,
+      "significant": 1979
+     },
+     "AIFS": {
+      "file": "bias_td2m_240_AIFS.webp",
+      "mapped": 12387,
+      "significant": 1727
+     },
+     "GDPS": {
+      "file": "bias_td2m_240_GDPS.webp",
+      "mapped": 12387,
+      "significant": 4205
+     }
+    }
+   },
+   "wind10_24": {
+    "file": "bias_wind10_24.webp",
+    "models": {
+     "GFS": {
+      "file": "bias_wind10_24_GFS.webp",
+      "mapped": 9761,
+      "significant": 7176
+     },
+     "IFS": {
+      "file": "bias_wind10_24_IFS.webp",
+      "mapped": 9761,
+      "significant": 7012
+     },
+     "AIFS": {
+      "file": "bias_wind10_24_AIFS.webp",
+      "mapped": 9761,
+      "significant": 7095
+     },
+     "GDPS": {
+      "file": "bias_wind10_24_GDPS.webp",
+      "mapped": 9761,
+      "significant": 7512
+     }
+    }
+   },
+   "wind10_72": {
+    "file": "bias_wind10_72.webp",
+    "models": {
+     "GFS": {
+      "file": "bias_wind10_72_GFS.webp",
+      "mapped": 9702,
+      "significant": 6719
+     },
+     "IFS": {
+      "file": "bias_wind10_72_IFS.webp",
+      "mapped": 9702,
+      "significant": 6292
+     },
+     "AIFS": {
+      "file": "bias_wind10_72_AIFS.webp",
+      "mapped": 9702,
+      "significant": 6490
+     },
+     "GDPS": {
+      "file": "bias_wind10_72_GDPS.webp",
+      "mapped": 9702,
+      "significant": 7002
+     }
+    }
+   },
+   "wind10_120": {
+    "file": "bias_wind10_120.webp",
+    "models": {
+     "GFS": {
+      "file": "bias_wind10_120_GFS.webp",
+      "mapped": 9663,
+      "significant": 5693
+     },
+     "IFS": {
+      "file": "bias_wind10_120_IFS.webp",
+      "mapped": 9663,
+      "significant": 5098
+     },
+     "AIFS": {
+      "file": "bias_wind10_120_AIFS.webp",
+      "mapped": 9663,
+      "significant": 5753
+     },
+     "GDPS": {
+      "file": "bias_wind10_120_GDPS.webp",
+      "mapped": 9663,
+      "significant": 5908
+     }
+    }
+   },
+   "wind10_168": {
+    "file": "bias_wind10_168.webp",
+    "models": {
+     "GFS": {
+      "file": "bias_wind10_168_GFS.webp",
+      "mapped": 9647,
+      "significant": 4978
+     },
+     "IFS": {
+      "file": "bias_wind10_168_IFS.webp",
+      "mapped": 9647,
+      "significant": 4354
+     },
+     "AIFS": {
+      "file": "bias_wind10_168_AIFS.webp",
+      "mapped": 9647,
+      "significant": 4930
+     },
+     "GDPS": {
+      "file": "bias_wind10_168_GDPS.webp",
+      "mapped": 9647,
+      "significant": 5114
+     }
+    }
+   },
+   "wind10_240": {
+    "file": "bias_wind10_240.webp",
+    "models": {
+     "GFS": {
+      "file": "bias_wind10_240_GFS.webp",
+      "mapped": 9602,
+      "significant": 4479
+     },
+     "IFS": {
+      "file": "bias_wind10_240_IFS.webp",
+      "mapped": 9602,
+      "significant": 3474
+     },
+     "AIFS": {
+      "file": "bias_wind10_240_AIFS.webp",
+      "mapped": 9602,
+      "significant": 4291
+     },
+     "GDPS": {
+      "file": "bias_wind10_240_GDPS.webp",
+      "mapped": 9602,
+      "significant": 4048
+     }
+    }
+   }
+  },
+  "variables": {
+   "msl": {
+    "label": "Mean sea-level pressure",
+    "unit": "hPa"
+   },
+   "t2m": {
+    "label": "2 m temperature",
+    "unit": "K"
+   },
+   "td2m": {
+    "label": "2 m dew point",
+    "unit": "K"
+   },
+   "wind10": {
+    "label": "10 m wind speed",
+    "unit": "m/s"
+   }
+  },
   "leads": [
    24,
    72,
@@ -651,8 +1169,8 @@
   "30": {
    "window": {
     "runs": 30,
-    "first": "2026101100",
-    "last": "2026110900",
+    "first": "2026101200",
+    "last": "2026111000",
     "left_out": {}
    },
    "models": [
@@ -792,10 +1310,10 @@
   "90": {
    "window": {
     "runs": 90,
-    "first": "2026081200",
-    "last": "2026110900",
+    "first": "2026081300",
+    "last": "2026111000",
     "left_out": {
-     "GEPS": 61
+     "GEPS": 62
     }
    },
    "models": [
@@ -915,24 +1433,24 @@
   },
   "ensembles": {
    "IFS-ENS": {
-    "runs": 181,
+    "runs": 182,
     "first": "2026051300",
-    "last": "2026110900"
+    "last": "2026111000"
    },
    "AIFS-ENS": {
-    "runs": 181,
+    "runs": 182,
     "first": "2026051300",
-    "last": "2026110900"
+    "last": "2026111000"
    },
    "GEFS": {
-    "runs": 181,
+    "runs": 182,
     "first": "2026051300",
-    "last": "2026110900"
+    "last": "2026111000"
    },
    "GEPS": {
-    "runs": 61,
+    "runs": 62,
     "first": "2026091000",
-    "last": "2026110900"
+    "last": "2026111000"
    }
   },
   "z500": {
