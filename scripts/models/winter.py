@@ -16,7 +16,7 @@ afram  ice accretion, FRAM (Sanders and Barjenbruch 2016, Wea. Forecasting 31, 1
        Req = 0.394 Ti (their Eq. 1, after Ryerson and Ramsay 2007) - the number for power lines and branches.
        The liquid is the model's freezing-rain accumulation (HRRR/RRFS FRZR, RDPS FreezingRain-Accum) differenced between
        consecutive published hours (1 h; RRFS 3 h past 36 h, where P is the 3-h mean rate).
-       Tw from 2 m T and RH by Stull (2011, J. Appl. Meteor. Climatol. 50, 2267-2269).
+       Tw from 2 m T and dew point at the surface pressure, by the psychrometric equation (winter.wetbulb).
 acobb  snowfall with a column snow-to-liquid ratio (HRRR only: it needs hourly T, RH and vertical-velocity profiles, which
        only the HRRR's S3 files give cheaply): the Cobb and Waldstreicher (2005) method in the form the NBM v4.1 uses
        (WPC HMT seminar 2024-03-14): every 25 hPa from 925 to 300 hPa (above ground), the layer ratio SR(T) from the 2011
@@ -40,23 +40,20 @@ COBB_LEVS = list(range(925, 299, -25))
 SLR_MIN, SLR_MAX, SLR_NONE = 3.0, 30.0, 10.0
 
 
-def wetbulb_stull(t_c, rh):
-    """Stull (2011): Tw (C) from T (C) and RH (%), for RH 5-99 % and T -20..50 C near sea-level pressure"""
-    rh = np.clip(rh, 5.0, 100.0)
-    return (
-        t_c * np.arctan(0.151977 * np.sqrt(rh + 8.313659))
-        + np.arctan(t_c + rh)
-        - np.arctan(rh - 1.676331)
-        + 0.00391838 * rh**1.5 * np.arctan(0.023101 * rh)
-        - 4.686035
-    )
+def wetbulb(t_c, td_c, p_hpa):
+    """Tw (C) from T and Td (C) at pressure p (hPa): the psychrometric equation e = es(Tw) - 6.6e-4 (1 + 0.00115 Tw)
+    p (T - Tw), bisected (as the sounding app's wetbulbC). Stull's (2011) fit holds near sea-level pressure only."""
 
-
-def rh_from_td(t_c, td_c):
     def es(x):
         return 6.112 * np.exp(17.67 * x / (x + 243.5))
 
-    return 100.0 * es(td_c) / es(t_c)
+    t_c, td_c = np.asarray(t_c, float), np.minimum(np.asarray(td_c, float), t_c)
+    e, lo, hi = es(td_c), td_c.copy(), t_c.copy()
+    for _ in range(40):
+        tw = 0.5 * (lo + hi)
+        high = es(tw) - 6.6e-4 * (1 + 0.00115 * tw) * p_hpa * (t_c - tw) > e
+        hi, lo = np.where(high, tw, hi), np.where(high, lo, tw)
+    return 0.5 * (lo + hi)
 
 
 def fram_ilr(p_in_h, tw_c, v_kt):

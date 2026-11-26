@@ -1302,7 +1302,11 @@ def winter_hour(blobs, crop, pt, apcp, phys, fz_derived=False):
         where = (fz > 0) | ((pt == 3) if pt is not None else False)
         if where.any() and "t2m" in phys and "td2m" in phys and "wind10" in phys:
             tc, tdc = (phys["t2m"] - 32) / 1.8, (phys["td2m"] - 32) / 1.8
-            tw = WIN.wetbulb_stull(tc, WIN.rh_from_td(tc, tdc))
+            ps = 1013.25
+            if "psfc" in blobs:
+                ps = dec(blobs["psfc"], crop)
+                ps = ps / 100.0 if np.nanmean(ps) > 5000 else ps  # hPa (some feeds already are)
+            tw = WIN.wetbulb(tc, tdc, ps)
             u, v = phys["wind10"]
             out["tw"] = np.where(where, tw, np.nan).astype(np.float16)
             out["ws"] = np.where(where, np.hypot(u, v) * 1.943844, np.nan).astype(np.float16)
