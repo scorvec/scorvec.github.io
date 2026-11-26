@@ -1,0 +1,75 @@
+name: GEPS reference file replace
+
+# Replaces one file inside geps_ref_v3.tar (release geps-ref-v3) with a file staged on the same release, then removes
+# the staged asset. For a reference file rebuilt offline (e.g. strat/strat_trend.nc from build_strat_trend.py, encoded
+# as make_reference.py's strat() writes it) without re-running make_reference.py over the whole set. The manifest is
+# rewritten as make_reference.py writes it; geps.yml keys its cache on the tar's upload time, so its next run takes the
+# new archive. `publish` = false checks the swap and uploads nothing.
+on:
+  workflow_dispatch:
+    inputs:
+      path:
+        description: 'The file inside the archive, e.g. strat/strat_trend.nc'
+        required: true
+      staged:
+        description: 'The asset on release geps-ref-v3 that replaces it, e.g. staged_strat_trend.nc'
+        required: true
+      publish:
+        description: 'Upload the new geps_ref_v3.tar and delete the staged asset'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # the release upload
+
+concurrency:
+  group: geps-ref
+  cancel-in-progress: false
+
+jobs:
+  replace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: The archive and the staged file
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STAGED: ${{ inputs.staged }}
+        run: |
+          gh release download geps-ref-v3 --repo "$GITHUB_REPOSITORY" -p geps_ref_v3.tar -D /tmp
+          gh release download geps-ref-v3 --repo "$GITHUB_REPOSITORY" -p "$STAGED" -O /tmp/staged
+          mkdir -p ref && tar xf /tmp/geps_ref_v3.tar -C ref && rm /tmp/geps_ref_v3.tar
+      - name: Replace and rebuild the archive (manifest and member order as make_reference.py writes them)
+        env:
+          TARGET: ${{ inputs.path }}
+        run: |
+          python3 - <<'EOF'
+          import json, os, shutil, tarfile
+          from pathlib import Path
+          ref = Path("ref")
+          def anonymous(ti):  # no runner user or group in the members (make_reference.anonymous)
+              ti.uid = ti.gid = 0
+              ti.uname = ti.gname = ""
+              return ti
+          target = ref / os.environ["TARGET"]
+          if not target.resolve().is_relative_to(ref.resolve()) or not target.is_file():
+              raise SystemExit(f"{target} is not a file in the archive")
+          old = target.stat().st_size
+          shutil.copyfile("/tmp/staged", target)
+          print(f"{target}: {old} -> {target.stat().st_size} bytes")
+          files = sorted(p for p in ref.rglob("*") if p.is_file() and p.name != "MANIFEST.json")
+          man = {str(p.relative_to(ref)): p.stat().st_size for p in files}
+          (ref / "MANIFEST.json").write_text(json.dumps({"total_bytes": sum(man.values()), "files": man}, indent=1))
+          with tarfile.open("geps_ref_v3.tar", "w") as tf:
+              for p in [*files, ref / "MANIFEST.json"]:
+                  tf.add(p, arcname=str(p.relative_to(ref)), filter=anonymous)
+          print(f"geps_ref_v3.tar: {len(files)} files, {Path('geps_ref_v3.tar').stat().st_size / 1e6:.1f} MB")
+          EOF
+      - name: Publish (release geps-ref-v3)
+        if: ${{ inputs.publish }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STAGED: ${{ inputs.staged }}
+        run: |
+          gh release upload geps-ref-v3 geps_ref_v3.tar --repo "$GITHUB_REPOSITORY" --clobber
+          gh release delete-asset geps-ref-v3 "$STAGED" --repo "$GITHUB_REPOSITORY" --yes
