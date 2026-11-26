@@ -8,9 +8,12 @@ maximum, the record for that time of year:
   daily   the single fields (the forecast's daily steps against ERA5's 00 and 12 UTC values)
   ten     the trailing TEN-day mean of the total flux, the SSW warning meter's measure (the members' paths through the
           analysed days, heatflux100.member_paths, against the ten-day means of ERA5's daily series)
-For each, over days 1-15: the ensemble mean's peak, each member's own peak (each ranked at its own date), the share of
-members whose peak is at or above the 99th percentile and above the record, and the control run. Descriptive ranks of
-a forecast against a 36-year record, not a test. The heat-flux scripts (heatflux100.py, heatflux100_ext.py) add the
+For each, over days 1-15: the ensemble mean's peak (ranked among the single values at its date), each member's own peak
+and the control's, the share of members whose peak is at or above the 99th percentile and above the record. A member's
+peak is the highest of its values over the forecast days, so it is ranked among ERA5's peaks over windows of the same
+length and sampling hours ending within WINDOW days of the forecast's last day (Era5.peaks): ranked among single values,
+a climatological member's peak would pass the 99th percentile 8-19 % of the time. The record stays the single highest
+value near the date. Descriptive ranks of a forecast against a 36-year record, not a test. The heat-flux scripts (heatflux100.py, heatflux100_ext.py) add the
 block to their JSON ("records"); the stratosphere page draws the table from the four.
 """
 
@@ -53,6 +56,19 @@ class Era5:
         w = s[np.minimum(d, 366 - d) <= WINDOW]
         return 100.0 * float((w.values < value).mean()), float(w.max()), w.idxmax()
 
+    @staticmethod
+    def peaks(s: pd.Series, days: pd.DatetimeIndex) -> np.ndarray:
+        """ERA5's peaks over windows like the forecast's: the maximum of s over every complete window as long as
+        days[0]..days[-1], on the forecast's hours of the day, ending within WINDOW days of days[-1]'s calendar date."""
+        sub = s[s.index.hour.isin(set(days.hour))]
+        span = days[-1] - days[0]
+        roll = sub.rolling(span, closed="both")
+        top, n = roll.max(), roll.count()
+        ok = (n >= len(days)) & (sub.index - span >= sub.index[0])
+        top = top[ok]
+        d = np.abs(doy366(top.index) - doy366(pd.DatetimeIndex([days[-1]]))[0])
+        return top[np.minimum(d, 366 - d) <= WINDOW].to_numpy()
+
 
 def _peaks(x: np.ndarray, days: pd.DatetimeIndex) -> tuple[np.ndarray, pd.DatetimeIndex]:
     """Each row's maximum over its columns and the date of it."""
@@ -66,8 +82,9 @@ def _summary(ref: Era5, s: pd.Series, x: np.ndarray, days, ctrl: np.ndarray | No
     k = int(np.nanargmax(ens))
     pct, rec, rec_day = ref.rank(s, ens[k], days[k])
     pv, pdays = _peaks(x, days)
-    ranks = [ref.rank(s, v, d) for v, d in zip(pv, pdays)]
-    mp = np.array([r[0] for r in ranks])
+    ranks = [ref.rank(s, v, d) for v, d in zip(pv, pdays)]  # for the record near each member's peak
+    top = ref.peaks(s, days)
+    mp = 100.0 * (top[None, :] < pv[:, None]).mean(1)
     out = {
         "ens_peak": round(float(ens[k]), nd),
         "ens_date": f"{days[k]:%Y-%m-%d}",
@@ -83,7 +100,7 @@ def _summary(ref: Era5, s: pd.Series, x: np.ndarray, days, ctrl: np.ndarray | No
     }
     if ctrl is not None:
         c = int(np.nanargmax(ctrl))
-        cp, crec, _ = ref.rank(s, ctrl[c], days[c])
+        cp, crec = 100.0 * float((top < ctrl[c]).mean()), ref.rank(s, ctrl[c], days[c])[1]
         out["control"] = {"peak": round(float(ctrl[c]), nd), "date": f"{days[c]:%Y-%m-%d}", "pct": round(cp, 1),
                           "above_record": bool(ctrl[c] > crec)}  # fmt: skip
     return out
