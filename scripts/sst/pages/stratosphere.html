@@ -57,20 +57,14 @@
       <div class="idx-note" id="stratNote">Loading the SEAS5 indices&hellip;</div>
       <div id="stratChart" class="plot" style="height:460px"></div>
       <div style="overflow-x:auto"><table class="chg" id="stratTable"></table></div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">ECMWF SEAS5 u and z at 10&ndash;1000 hPa, 2&deg; &middot; anomalies and spreads vs the 1993&ndash;2016 hindcast &middot; skill: hindcast ensemble mean vs ERA5</span>
-        <span class="chart-updated" id="stratUpdated">&mdash;</span>
-      </div>
+      <div class="chart-card-footer"><span class="chart-updated" id="stratUpdated">&mdash;</span></div>
     </div>
     <div id="dom-s5ssw" class="card s5card" hidden>
       <div class="idx-note" id="sswVerdict">Loading&hellip;</div>
       <div style="overflow-x:auto"><table class="chg" id="sswTable"></table></div>
       <div class="map-grid" id="sswFigs"></div>
       <div id="sswSkill"></div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">ECMWF SEAS5: daily u 10 hPa (CDS sub-daily, 51 members; hindcast from the AWS SEAS5 daily copy, 1981&ndash;2016), monthly u 100 hPa (CDS, 1993&ndash;2016 hindcast) &middot; observed: MERRA-2 (NASA GMAO) 1980&ndash;2026, GEOS FP analyses this season</span>
-        <span class="chart-updated" id="sswUpdated">&mdash;</span>
-      </div>
+      <div class="chart-card-footer"><span class="chart-updated" id="sswUpdated">&mdash;</span></div>
     </div>
     <!-- the C3S multi-model December vortex outlook: drawn by /assets/c3s-vortex-card.js from
          assets/sst/data/c3s_vortex.json (scripts/sst/c3s_vortex.py in c3s-vortex.yml) on first visit -->
@@ -79,29 +73,19 @@
       <div class="vx-charts"><div id="vxDist" class="plot vx-plot"></div><div id="vxHind" class="plot vx-plot"></div></div>
       <h2 class="method-head">Each centre this issue</h2>
       <div style="overflow-x:auto"><table class="chg vx-table" id="vxTable"></table></div>
-      <p class="note vx-note">Anomalies are each model&rsquo;s December mean against its own 1993&ndash;2016 hindcast for the same start and lead (models disagree by up to 12&nbsp;m/s on the vortex&rsquo;s strength, so raw winds are not comparable). &ldquo;Tested skill&rdquo; is the pre-registered correlation with MERRA-2; a value is printed only where it passed the correction, &ldquo;n.s.&rdquo; elsewhere. CMCC and JMA changed system after the tested hindcast versions (CMCC 35 &rarr; SPS4, JMA 3 &rarr; CPS4).</p>
       <h2 class="method-head">Reliability of the calibration, 24 winters left out one at a time</h2>
       <div style="overflow-x:auto"><table class="chg vx-table" id="vxRel"></table></div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">Copernicus Climate Change Service (C3S) seasonal multi-system, monthly u at 10&nbsp;hPa on the 60&deg;N ring (2&deg;): ECMWF, Met Office, M&eacute;t&eacute;o-France, DWD, CMCC, ECCC, JMA &mdash; contains modified Copernicus Climate Change Service information 2026; neither the European Commission nor ECMWF is responsible for any use of it &middot; truth: MERRA-2 (NASA GMAO) &middot; skill test: <a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/sst/c3s_u10_skill.py">code</a></span>
-        <span class="chart-updated" id="vxUpdated">&mdash;</span>
-      </div>
+      <div class="chart-card-footer"><span class="chart-updated" id="vxUpdated">&mdash;</span></div>
     </div>
     <div id="dom-c3svdaily" class="card s5card vx-card" hidden>
       <div id="vdVerdict">Loading the daily follow-up&hellip;</div>
       <div class="map-grid" id="vdFigs"></div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">Copernicus Climate Change Service (C3S) seasonal multi-system, daily (00&nbsp;UTC) u at 10&nbsp;hPa, 30&ndash;90&deg;N on 2&deg; rows (CDS seasonal-original-pressure-levels; ECMWF SEAS5 hindcast from the AWS daily copy): ECMWF, Met Office, M&eacute;t&eacute;o-France, DWD, CMCC, ECCC, JMA &mdash; contains modified Copernicus Climate Change Service information 2026 &middot; truth: MERRA-2 (NASA GMAO) &middot; tests: <a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/sst/c3s_vortex_daily.py">code</a></span>
-        <span class="chart-updated" id="vdUpdated">&mdash;</span>
-      </div>
+      <div class="chart-card-footer"><span class="chart-updated" id="vdUpdated">&mdash;</span></div>
     </div>
     <div id="dom-s5cap" class="card s5card" hidden>
       <div class="controls" id="polarPills"></div>
       <div id="polarChart" class="plot" style="height:460px"></div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">ECMWF SEAS5 geopotential, 2&deg; grid, cosine-weighted 60&ndash;90&deg; cap mean &middot; anomalies vs the 1993&ndash;2016 hindcast&rsquo;s linear trend at the valid year</span>
-        <span class="chart-updated" id="polarUpdated">&mdash;</span>
-      </div>
+      <div class="chart-card-footer"><span class="chart-updated" id="polarUpdated">&mdash;</span></div>
     </div>
     <!-- the wave driving against the ERA5 record: the heat-flux JSONs' "records" blocks (flux_records.py) -->
     <div id="dom-fluxrec" class="card" hidden>
@@ -158,6 +142,18 @@
       <p class="note" id="qboMethod"></p>
     </div>
   </div>
+<template id="about-s5cap">
+<p class="chart-sources">ECMWF SEAS5 geopotential, 2&deg; grid, cosine-weighted 60&ndash;90&deg; cap mean &middot; anomalies vs the 1993&ndash;2016 hindcast&rsquo;s linear trend at the valid year</p>
+</template>
+<template id="about-c3svdaily">
+<p class="chart-sources">Copernicus Climate Change Service (C3S) seasonal multi-system, daily (00&nbsp;UTC) u at 10&nbsp;hPa, 30&ndash;90&deg;N on 2&deg; rows (CDS seasonal-original-pressure-levels; ECMWF SEAS5 hindcast from the AWS daily copy): ECMWF, Met Office, M&eacute;t&eacute;o-France, DWD, CMCC, ECCC, JMA &mdash; contains modified Copernicus Climate Change Service information 2026 &middot; truth: MERRA-2 (NASA GMAO) &middot; tests: <a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/sst/c3s_vortex_daily.py">code</a></p>
+</template>
+<template id="about-s5ssw">
+<p class="chart-sources">ECMWF SEAS5: daily u 10 hPa (CDS sub-daily, 51 members; hindcast from the AWS SEAS5 daily copy, 1981&ndash;2016), monthly u 100 hPa (CDS, 1993&ndash;2016 hindcast) &middot; observed: MERRA-2 (NASA GMAO) 1980&ndash;2026, GEOS FP analyses this season</p>
+</template>
+<template id="about-s5vortex">
+<p class="chart-sources">ECMWF SEAS5 u and z at 10&ndash;1000 hPa, 2&deg; &middot; anomalies and spreads vs the 1993&ndash;2016 hindcast &middot; skill: hindcast ensemble mean vs ERA5</p>
+</template>
 <template id="about-vortex">
 <p class="chart-sources">ECMWF AIFS-ENS zonal wind and geopotential at 10/100&nbsp;hPa and temperature at 10&nbsp;hPa (open data, CC BY 4.0) &middot; ECMWF AIFS single, zonal wind and geopotential height at 10/100&nbsp;hPa and temperature at 10&nbsp;hPa (open data, CC&nbsp;BY&nbsp;4.0, Google Cloud mirror) &middot; ECMWF IFS-ENS, all 50 perturbed members, 0.25&deg; (open data, CC&nbsp;BY&nbsp;4.0, from the Google Cloud mirror), zonal wind and geopotential height at 10/100&nbsp;hPa and temperature at 10&nbsp;hPa, and the IFS control&rsquo;s &middot; NOAA GEFS (30 members + control, 0.5&deg;, AWS Open Data) &middot; NASA GMAO GEOS FP forecasts and analyses (NCCS OPeNDAP) &middot; ECCC GEPS (20 members + control) and GDPS (Data Source: Environment and Climate Change Canada (MSC Datamart), under the <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a>) &middot; reference: MERRA-2 1980&ndash;2026 day-of-year 10th&ndash;90th percentiles (NASA GMAO) &middot; updated daily &middot; MERRA-2: Gelaro et al. 2017, <i>J. Climate</i> 30, 5419&ndash;5454</p>
 </template>
@@ -281,7 +277,7 @@
 <p class="chart-sources">NOAA GEFS extended ensemble and GEFSv12 reforecast (AWS open data) &middot; Environment and Climate Change Canada, GEPS extended ensemble (MSC Datamart; Data Source: Environment and Climate Change Canada, <a href="https://eccc-msc.github.io/open-data/licence/readme_en/">ECCC Data Servers End-use Licence</a>) and the ECMWF S2S GEPS reforecasts &middot; ERA5 (Copernicus C3S) &middot; ERA5: Hersbach et al. 2020, <i>Q. J. R. Meteorol. Soc.</i> 146, 1999&ndash;2049 (C3S, CC&nbsp;BY&nbsp;4.0; contains modified Copernicus Climate Change Service information 2026)</p>
 </template>
 <template id="about-c3svortex">
-<p class="chart-sources">C3S seasonal multi-system (CDS seasonal-monthly-pressure-levels): ECMWF SEAS5, Met Office GloSea (610), M&eacute;t&eacute;o-France 9, DWD GCFS 2.2, CMCC SPS4, ECCC CanSIPS (GEM5-NEMO + CanESM5 as one centre), JMA CPS4 (BoM ACCESS-S2 left out since 16 October 2026); NCEP CFSv2 publishes no 10&nbsp;hPa wind there &middot; Copernicus licence &middot; MERRA-2 (NASA GMAO) &middot; built in GitHub Actions with each C3S issue &middot; Benjamini &amp; Hochberg 1995, <i>J. R. Stat. Soc. B</i> 57, 289&ndash;300 &middot; MERRA-2: Gelaro et al. 2017, <i>J. Climate</i> 30, 5419&ndash;5454</p>
+<p class="chart-sources">C3S seasonal multi-system (CDS seasonal-monthly-pressure-levels): ECMWF SEAS5, Met Office GloSea (610), M&eacute;t&eacute;o-France 9, DWD GCFS 2.2, CMCC SPS4, ECCC CanSIPS (GEM5-NEMO + CanESM5 as one centre), JMA CPS4 (BoM ACCESS-S2 left out since 16 October 2026); NCEP CFSv2 publishes no 10&nbsp;hPa wind there &middot; Copernicus licence &middot; MERRA-2 (NASA GMAO) &middot; built in GitHub Actions with each C3S issue &middot; Benjamini &amp; Hochberg 1995, <i>J. R. Stat. Soc. B</i> 57, 289&ndash;300 &middot; MERRA-2: Gelaro et al. 2017, <i>J. Climate</i> 30, 5419&ndash;5454 &middot; Copernicus Climate Change Service (C3S) seasonal multi-system, monthly u at 10&nbsp;hPa on the 60&deg;N ring (2&deg;): ECMWF, Met Office, M&eacute;t&eacute;o-France, DWD, CMCC, ECCC, JMA &mdash; contains modified Copernicus Climate Change Service information 2026; neither the European Commission nor ECMWF is responsible for any use of it &middot; truth: MERRA-2 (NASA GMAO) &middot; skill test: <a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/sst/c3s_u10_skill.py">code</a></p>
 </template>
 <script type="application/ld+json">
     {
@@ -690,10 +686,7 @@ window.STAGE = {
         Object.keys(latest).map(function (w) { var o = latest[w];
           return '<tr><td>' + (names[w] || w) + ' <small>' + w + '</small></td><td>' + o.month + "</td>" + levels.map(function (l) {
             var v = o.u[l]; return v === undefined ? "<td>—</td>" : '<td class="' + (v > 0 ? "w" : "e") + '">' + sg(v) + "</td>"; }).join("") + "</tr>"; }).join("") + "</tbody>";
-      $("qboMethod").textContent = "Red = westerly, blue = easterly. Regimes form near 10 hPa and descend at roughly 1 km/month; " +
-        "the westerly shear zone descends faster and more regularly than the easterly one. The 30 hPa wind is the conventional single-number index. " +
-        "Station means use every available sounding in the month (≥3 required); the cross-station mean currently draws on up to " + Object.keys(latest).length +
-        " stations spanning Africa, the Maritime Continent, the western Pacific and the Amazon.";
+      $("qboMethod").textContent = "Red = westerly, blue = easterly; up to " + Object.keys(latest).length + " stations.";
     }).catch(function () { $("qboMethod").textContent = "The station table could not be loaded just now; try reloading in a minute."; });
   }
   var frData = null;
@@ -720,7 +713,7 @@ window.STAGE = {
         (rows.length ? rows.join("") : '<tr><td colspan="8">No run carries the table yet: it appears with each model\'s next run.</td></tr>') + "</tbody>";
       $("frChips").innerHTML = an ? '<div class="chip"><div class="l">Analysis · ' + an.date + '</div><div class="v">' + an.tot.toFixed(1) + ' K m/s</div><div class="s">percentile ' + pc(an.tot_pct) + "</div></div>" +
         '<div class="chip"><div class="l">10-day mean to ' + an.date + '</div><div class="v">' + an.ten.toFixed(1) + ' K m/s</div><div class="s">percentile ' + pc(an.ten_pct) + "</div></div>" : "";
-      $("frNote").textContent = "Percentile among ERA5 values within 15 days of the same date, 1990–2026; bold: at or above the 99th. Each model from its newest run.";
+      $("frNote").textContent = "Percentile against ERA5 1990–2026, same dates ±15 days; bold: 99th or above. Newest runs.";
     };
     if (frData) return go();
     var files = {aifs: "heatflux100.json", ifs: "ifs_heatflux100.json", gefs: "gefs_heatflux100.json", geps: "geps_heatflux100.json"}, keys = Object.keys(files);
@@ -984,7 +977,7 @@ window.STAGE = {
     $("shs-sv").tBodies[0].innerHTML = J.strong_vortex.map(function (s) {
       return "<tr><td>" + fmt(s.date) + "</td><td>" + sgn(s.nam10_peak, 1) + "</td><td>" + s.u_max.toFixed(0) + '</td><td><span class="' + cls(s.ao_pre) + '">' + sgn(s.ao_pre, 1) + '</span> → <span class="' + cls(s.ao_post) + '">' + sgn(s.ao_post, 1) + "</span></td></tr>";
     }).join("");
-    $("shs-note").textContent = "Descriptive list; the tests are under What usually follows. Over days 1–30 the AO averaged 0.60 below the same dates in other years after these warmings, 1.42 below after the deep ones (both significant, t-test with false-discovery rate 10 %), with no significant change after the shallow ones. Click a column heading to sort. ENSO = CPC RONI (DJF); QBO = CPC 50 hPa index, Oct–Nov mean, m/s.";
+    $("shs-note").textContent = "ENSO = CPC RONI (DJF); QBO = CPC 50 hPa index, Oct–Nov mean, m/s.";
   }
   var KEYS = [function (r) { return r.e.date; }, function (r) { return r.e.type; }, function (r) { return r.e.depth; }, function (r) { return r.e.u_min; },
               function (r) { return r.e.spell; }, function (r) { return r.e.T10_peak; }, function (r) { return r.e.ao_post; },

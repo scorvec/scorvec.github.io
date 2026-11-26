@@ -299,10 +299,7 @@ window.afterPlotly = function (fn) {
     <div class="controls" id="c3sMapField" style="margin-top:0.4rem"></div>
     <div class="controls" id="c3sMapPeriod" style="margin-top:0.4rem"></div>
     <div class="map-grid" id="c3sMapImg"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">C3S <code>seasonal-postprocessed-single-levels</code>, members&rsquo; anomalies vs each model&rsquo;s own 1993&ndash;2016 hindcast &middot; hindcast spread and paired hindcast means: <code>seasonal-monthly-single-levels</code> &middot; shaded where significant (FDR 0.10)</span>
-      <span class="chart-updated" id="c3sMapUpdated">&mdash;</span>
-    </div>
+    <div class="chart-card-footer"><span class="chart-updated" id="c3sMapUpdated">&mdash;</span></div>
   </div>
   <div class="card" id="c3sTercCard" data-label="Tercile probabilities" data-group="Every model">
     <h2>Tercile probabilities &mdash; how firmly, not just which way</h2>
@@ -310,20 +307,14 @@ window.afterPlotly = function (fn) {
     <div class="controls" id="c3sTercField" style="margin-top:0.4rem"></div>
     <div class="controls" id="c3sTercPeriod" style="margin-top:0.4rem"></div>
     <div class="map-grid" id="c3sTercImg"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">C3S <code>seasonal-monthly-single-levels</code>: members and the 1993&ndash;2016 hindcast on the 1&deg; grid &middot; ECMWF from the copy held for the member-level products</span>
-      <span class="chart-updated" id="c3sTercUpdated">&mdash;</span>
-    </div>
+    <div class="chart-card-footer"><span class="chart-updated" id="c3sTercUpdated">&mdash;</span></div>
   </div>
   <div class="card" id="c3sIdxCard" data-label="Ocean indices" data-group="Every model">
     <h2>Ocean indices &mdash; every system on one axis</h2>
     <div class="controls" id="c3sIdxPick" style="margin-top:0.8rem"></div>
     <p class="idx-note" id="c3sIdxNote"></p>
     <div id="c3sIdxPlot" style="width:100%;min-height:380px"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">C3S <code>seasonal-postprocessed-single-levels</code>, sea-surface temperature anomaly &middot; boxes and PDO calibration shared with the SEAS5 card</span>
-      <span class="chart-updated" id="c3sIdxUpdated">&mdash;</span>
-    </div>
+    <div class="chart-card-footer"><span class="chart-updated" id="c3sIdxUpdated">&mdash;</span></div>
   </div>
   <div class="card" id="c3sPopCard" data-label="Population-weighted, monthly" data-group="Every model">
     <h2>Population-weighted temperature &mdash; monthly means, every system</h2>
@@ -331,10 +322,7 @@ window.afterPlotly = function (fn) {
     <div class="controls" id="c3sPopModel" style="margin-top:0.4rem"></div>
     <div class="controls" id="c3sPopKind" style="margin-top:0.4rem"></div>
     <div id="c3sPopPlot" style="width:100%;min-height:380px"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">C3S <code>seasonal-monthly-single-levels</code>, 2 m temperature members and the 1993&ndash;2016 hindcast &middot; population: geonames cities15000 on the 1&deg; grid</span>
-      <span class="chart-updated" id="c3sPopUpdated">&mdash;</span>
-    </div>
+    <div class="chart-card-footer"><span class="chart-updated" id="c3sPopUpdated">&mdash;</span></div>
   </div>
   <div class="card" id="c3sDayCard" data-label="Population-weighted, daily" data-group="Every model">
     <h2>Population-weighted temperature &mdash; the daily distribution, every system</h2>
@@ -342,18 +330,12 @@ window.afterPlotly = function (fn) {
     <div class="controls" id="c3sDayModel" style="margin-top:0.4rem"></div>
     <div class="controls" id="c3sDayKind" style="margin-top:0.4rem"></div>
     <div id="c3sDayPlot" style="width:100%;min-height:380px"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">C3S <code>seasonal-original-single-levels</code>, 6-hourly 2 m temperature members over the country box &middot; population: geonames cities15000 on the 1&deg; grid</span>
-      <span class="chart-updated" id="c3sDayUpdated">&mdash;</span>
-    </div>
+    <div class="chart-card-footer"><span class="chart-updated" id="c3sDayUpdated">&mdash;</span></div>
   </div>
   <div class="card" id="ni-o-3-4-every-member" data-label="Ni&ntilde;o-3.4, every member" data-group="Every model">
     <h2>Ni&ntilde;o-3.4 &mdash; every member, system by system</h2>
     <div class="map-grid"><img src="/assets/sst/c3s_nino34.webp" alt="Nino-3.4 plume, every member of every C3S system" loading="lazy"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">C3S seasonal multi-system, <code>seasonal-monthly-single-levels</code>, every member &middot; observed: Ni&ntilde;o-3.4 the NOAA ERSSTv6 box mean computed here, RONI NOAA CPC (ERSSTv6), then the site&rsquo;s OISST v2.1 estimate</span>
-      <span class="chart-updated" id="c3sPlumeUpdated">&mdash;</span>
-    </div>
+    <div class="chart-card-footer"><span class="chart-updated" id="c3sPlumeUpdated">&mdash;</span></div>
   </div>
   <div class="card" id="enso-indices" data-label="ENSO indices" data-group="SEAS5 &middot; ENSO &amp; oceans">
     <h2>ENSO indices &mdash; this issue against the last three</h2>
@@ -365,20 +347,14 @@ window.afterPlotly = function (fn) {
       <button class="pill" data-sm="1" id="sm3">3-month running mean</button>
     </div>
     <div id="ensoChart" class="plot" style="height:480px"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">ECMWF SEAS5 via the Copernicus CDS &middot; anomalies vs the 1993&ndash;2016 hindcast (25 members) at the same lead &middot; relative Ni&ntilde;o-3.4 scaled by the site&rsquo;s &sigma;(ONI)/&sigma;(relative) per calendar month &middot; observed: NOAA ERSSTv6 box means</span>
-      <span class="chart-updated" id="ensoUpdated">&mdash;</span>
-    </div>
+    <div class="chart-card-footer"><span class="chart-updated" id="ensoUpdated">&mdash;</span></div>
   </div>
   <div class="card" id="pdo-amo-iod-atlantic-ni-o" data-label="PDO, AMO, IOD, Atlantic Niño" data-group="SEAS5 &middot; ENSO &amp; oceans">
     <h2>PDO, AMO, Indian Ocean Dipole, Atlantic Ni&ntilde;o</h2>
     <div class="controls" id="otherPills"></div>
     <div class="idx-note" id="otherNote"></div>
     <div id="otherChart" class="plot" style="height:460px"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">ECMWF SEAS5 SST, 2&deg; grid &middot; PDO pattern: EOF1 of ERSSTv5 North Pacific SSTA (reference/pdo_pattern.nc) &middot; hindcast &plusmn;1&sigma; band from the 24 hindcast years</span>
-      <span class="chart-updated" id="otherUpdated">&mdash;</span>
-    </div>
+    <div class="chart-card-footer"><span class="chart-updated" id="otherUpdated">&mdash;</span></div>
   </div>
   <div class="card" id="changeCard" data-label="Maps and changes" data-group="SEAS5 &middot; Maps">
     <h2>Maps: anomaly, and what changed since the <span class="prevName">previous</span> issue</h2>
@@ -405,20 +381,14 @@ window.afterPlotly = function (fn) {
     <div class="controls" id="mapSeasons"></div>
     <p class="idx-note" id="mapChgNote" hidden></p>
     <div class="map-grid" id="mapSingle"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">ECMWF SEAS5, consecutive monthly issues &middot; anomalies vs each issue&rsquo;s own 1993&ndash;2016 start-month hindcast &middot; 1&deg; grid</span>
-      <span class="chart-updated" id="changeUpdated">&mdash;</span>
-    </div>
+    <div class="chart-card-footer"><span class="chart-updated" id="changeUpdated">&mdash;</span></div>
   </div>
   <div class="card" id="calibrated-terciles" data-label="Bias-corrected terciles" data-group="SEAS5 &middot; Maps">
     <h2>Bias-corrected terciles</h2>
     <div class="controls" id="tercVar"></div>
     <div class="controls" id="tercSeason"></div>
     <div class="map-grid" id="mapGrid"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">ECMWF SEAS5 monthly means, 1&deg; grid &middot; temperature and precipitation over land, 500 hPa height and 850 hPa wind everywhere &middot; thresholds: 1993&ndash;2016 hindcast terciles</span>
-      <span class="chart-updated" id="mapUpdated">&mdash;</span>
-    </div>
+    <div class="chart-card-footer"><span class="chart-updated" id="mapUpdated">&mdash;</span></div>
   </div>
   <div class="card" id="teleCard" data-label="Teleconnection indices" data-group="SEAS5 &middot; Teleconnections &amp; regimes">
     <h2>Teleconnection indices, member by member</h2>
@@ -427,19 +397,13 @@ window.afterPlotly = function (fn) {
     <div class="idx-note" id="teleNote"></div>
     <div id="teleChart" class="plot" style="height:460px"></div>
     <div style="overflow-x:auto"><table class="chg" id="teleTable"></table></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">ECMWF SEAS5 500 hPa height and msl, 2&deg;, anomalies vs the 1993&ndash;2016 hindcast, interpolated to the 2.5&deg; NCEP grid of the patterns &middot; patterns: CPC-style regression maps (NCEP/NCAR R1, 1991&ndash;2020) &middot; skill: hindcast ensemble mean vs ERA5</span>
-      <span class="chart-updated" id="teleUpdated">&mdash;</span>
-    </div>
+    <div class="chart-card-footer"><span class="chart-updated" id="teleUpdated">&mdash;</span></div>
   </div>
   <div class="card" id="popCard" data-label="Population-weighted, daily" data-group="SEAS5 &middot; Impacts">
     <h2>Population-weighted temperature: the forecast for each month, against normal and record</h2>
     <div style="overflow-x:auto"><table class="chg" id="popTable"></table></div>
     <div class="map-grid" id="popGrid" style="margin-top:1rem"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">ECMWF SEAS5 6-hourly 2 m temperature (seasonal-original-single-levels), 51 members, 1&deg; &middot; population: geonames cities15000, sections of cities excluded &middot; anomalies vs the 1993&ndash;2016 hindcast monthly mean</span>
-      <span class="chart-updated" id="popUpdated">&mdash;</span>
-    </div>
+    <div class="chart-card-footer"><span class="chart-updated" id="popUpdated">&mdash;</span></div>
   </div>
   <div class="card" id="xdaysCard" hidden data-label="Threshold days" data-group="SEAS5 &middot; Impacts">
     <h2>Threshold days: cold and hot days over the United States and Brazil</h2>
@@ -450,10 +414,7 @@ window.afterPlotly = function (fn) {
     <div class="controls" id="xdMonth"></div>
     <div class="map-grid" id="xdMap"></div>
     <div id="xdCityWrap" hidden><p class="lead" id="xdCityLead"></p><div id="xdCity"></div></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">ECMWF SEAS5 6-hourly members &middot; SEAS5 1993&ndash;2016 hindcast (bias) &middot; NOAA CPC Global Unified daily Tmax/Tmin 1991&ndash;2020 (normal) &middot; geonames population</span>
-      <span class="chart-updated" id="xdUpdated">&mdash;</span>
-    </div>
+    <div class="chart-card-footer"><span class="chart-updated" id="xdUpdated">&mdash;</span></div>
   </div>
   <div class="card" id="runsCard" hidden data-label="Cold-snap risk" data-group="SEAS5 &middot; Impacts">
     <h2>Cold-snap risk: runs of extreme days across the whole winter</h2>
@@ -462,10 +423,7 @@ window.afterPlotly = function (fn) {
     <div class="controls" id="rnProd"></div>
     <div class="map-grid" id="rnMap"></div>
     <div id="rnCityWrap" hidden><p class="lead" id="rnCityLead"></p><div id="rnCity"></div></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">ECMWF SEAS5 6-hourly members &middot; SEAS5 1993&ndash;2016 hindcast (bias) &middot; NOAA CPC Global Unified daily Tmax/Tmin 1991&ndash;2020 (climatology and normal)</span>
-      <span class="chart-updated" id="rnUpdated">&mdash;</span>
-    </div>
+    <div class="chart-card-footer"><span class="chart-updated" id="rnUpdated">&mdash;</span></div>
   </div>
   <div class="card" id="windCard" hidden data-label="Wind events" data-group="SEAS5 &middot; Impacts">
     <h2>Wind events: southerly surges and windy days over the United States</h2>
@@ -474,10 +432,7 @@ window.afterPlotly = function (fn) {
     <div class="controls" id="wdMonth"></div>
     <div class="map-grid" id="wdMap"></div>
     <div id="wdCityWrap" hidden><p class="lead" id="wdCityLead"></p><div id="wdCity"></div></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">ECMWF SEAS5 6-hourly 10 m wind, 51 members &middot; SEAS5 1993&ndash;2016 hindcast (normal)</span>
-      <span class="chart-updated" id="wdUpdated">&mdash;</span>
-    </div>
+    <div class="chart-card-footer"><span class="chart-updated" id="wdUpdated">&mdash;</span></div>
   </div>
   <div class="card" id="snowCard" hidden data-label="Snowfall" data-group="SEAS5 &middot; Impacts">
     <h2>Snowfall: big days and monthly totals over North America</h2>
@@ -486,10 +441,7 @@ window.afterPlotly = function (fn) {
     <div class="controls" id="snMonth"></div>
     <div class="map-grid" id="snMap"></div>
     <div id="snCityWrap" hidden><p class="lead" id="snCityLead"></p><div id="snCity"></div></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">ECMWF SEAS5 daily accumulated snowfall, 51 members &middot; SEAS5 1993&ndash;2016 monthly hindcast (normal)</span>
-      <span class="chart-updated" id="snUpdated">&mdash;</span>
-    </div>
+    <div class="chart-card-footer"><span class="chart-updated" id="snUpdated">&mdash;</span></div>
   </div>
   <div class="card" id="normCard" data-label="Against observed normals" data-group="SEAS5 &middot; Maps">
     <h2>Anomalies and terciles against observed normals, monthly and seasonal</h2>
@@ -498,10 +450,7 @@ window.afterPlotly = function (fn) {
     <div class="controls" id="normKind"></div>
     <div class="controls" id="normPeriod"></div>
     <div class="map-grid" id="normGrid"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">ECMWF SEAS5 monthly means, 1&deg; &middot; ERA5 monthly means 1991&ndash;2025, 1&deg; &middot; bias correction per grid point and calendar month</span>
-      <span class="chart-updated" id="normUpdated">&mdash;</span>
-    </div>
+    <div class="chart-card-footer"><span class="chart-updated" id="normUpdated">&mdash;</span></div>
   </div>
   <div class="card" id="regimeCard" hidden data-label="Weather regimes" data-group="SEAS5 &middot; Teleconnections &amp; regimes">
     <h2>Weather regimes: how often each circulation pattern occurs, against SEAS5&rsquo;s own climate</h2>
@@ -514,10 +463,7 @@ window.afterPlotly = function (fn) {
     random sets of the same number of hindcast years; a number is printed only where it passes the false-discovery test.</p>
     <div style="overflow-x:auto"><table class="chg" id="rgNino" style="max-width:none"></table></div>
     <p class="note" id="rgTests"></p>
-    <div class="chart-card-footer">
-      <span class="chart-sources">ECMWF SEAS5 500 hPa height, 12-hourly, 51 members, 2.5&deg; &middot; model climate: the 1981&ndash;2016 hindcast (25 members) &middot; regimes: NCEP/NCAR R1 1991&ndash;2020 &middot; observed: ERA5</span>
-      <span class="chart-updated" id="rgUpdated">&mdash;</span>
-    </div>
+    <div class="chart-card-footer"><span class="chart-updated" id="rgUpdated">&mdash;</span></div>
   </div>
   <!-- NOAA SFS beta (moved from sfs.html 2026-10-06): mounted blocks for the sfs-plume / sfs-indices products. The maps
        product is a loop.html frame (assets/sfs/anim), created only when it is on stage. The data loads on the first
@@ -537,26 +483,13 @@ window.afterPlotly = function (fn) {
       <button class="pill" data-mem="1" id="sfsMemPill">Show all members</button>
     </div>
     <div id="sfsPlumeChart" class="plot" style="height:480px"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">NOAA SFS beta2, experimental (NODD zarr, ocn_monthly)
-      &middot; Ni&ntilde;o-3.4 (5&deg;S&ndash;5&deg;N, 170&ndash;120&deg;W), cos-weighted
-      &middot; anomalies vs own reforecast 1991&ndash;2020 per init month &amp; lead
-      &middot; C3S overlay: anomalies vs each model's own 1993&ndash;2016 hindcast
-      &middot; observed: NOAA ERSSTv6 Ni&ntilde;o-3.4 box mean on 1991&ndash;2020 and CPC&rsquo;s ERSSTv6 RONI, then the site&rsquo;s OISST v2.1 estimate</span>
-      <span class="chart-updated" id="sfsPlumeUpdated">&mdash;</span>
-    </div>
+    <div class="chart-card-footer"><span class="chart-updated" id="sfsPlumeUpdated">&mdash;</span></div>
   </div>
   <div id="dom-sfs-indices" class="sfs-block" hidden>
     <p class="note">IOD, South Atlantic dipole, the Ni&ntilde;o flavours and a reforecast-EOF PDO, per member, in &sigma;. Fan and mean as on the plume.</p>
     <div class="controls" id="sfsIdxPills"></div>
     <div id="sfsIdxChart" class="plot" style="height:460px"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">SFS beta ocn_monthly zarr, 31 members &middot;
-      anomalies vs own reforecast 1991&ndash;2020 per init month &amp; lead &middot;
-      PDO pattern: EOF1 of reforecast North Pacific SSTA (20&ndash;70&deg;N,
-      110&deg;E&ndash;100&deg;W, 30 yrs &times; 11 members &times; 10 leads pooled)</span>
-      <span class="chart-updated" id="sfsIdxUpdated">&mdash;</span>
-    </div>
+    <div class="chart-card-footer"><span class="chart-updated" id="sfsIdxUpdated">&mdash;</span></div>
   </div>
   <!-- CanSIPS straight from ECCC's MSC Datamart, 12 months (2026-10-07): one fetcher, scripts/sst/cansips_dd.py, for this
        group and the ENSO forecasts page. The maps are loop.html frames (assets/cansips/anim) created only on stage; the plume
@@ -576,16 +509,74 @@ window.afterPlotly = function (fn) {
       <button class="pill" data-mem="1">Show all members</button>
     </div>
     <div id="csPlumeChart" class="plot" style="height:480px"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">CanSIPS from the ECCC MSC Datamart (WaterTemp, 1&deg;, ocean cells only)
+    <div class="chart-card-footer"><span class="chart-updated" id="csPlumeUpdated">&mdash;</span></div>
+  </div>
+  </div>
+<template id="about-regimeCard">
+<p class="chart-sources">ECMWF SEAS5 500 hPa height, 12-hourly, 51 members, 2.5&deg; &middot; model climate: the 1981&ndash;2016 hindcast (25 members) &middot; regimes: NCEP/NCAR R1 1991&ndash;2020 &middot; observed: ERA5</p>
+</template>
+<template id="about-normCard">
+<p class="chart-sources">ECMWF SEAS5 monthly means, 1&deg; &middot; ERA5 monthly means 1991&ndash;2025, 1&deg; &middot; bias correction per grid point and calendar month</p>
+</template>
+<template id="about-snowCard">
+<p class="chart-sources">ECMWF SEAS5 daily accumulated snowfall, 51 members &middot; SEAS5 1993&ndash;2016 monthly hindcast (normal)</p>
+</template>
+<template id="about-windCard">
+<p class="chart-sources">ECMWF SEAS5 6-hourly 10 m wind, 51 members &middot; SEAS5 1993&ndash;2016 hindcast (normal)</p>
+</template>
+<template id="about-runsCard">
+<p class="chart-sources">ECMWF SEAS5 6-hourly members &middot; SEAS5 1993&ndash;2016 hindcast (bias) &middot; NOAA CPC Global Unified daily Tmax/Tmin 1991&ndash;2020 (climatology and normal)</p>
+</template>
+<template id="about-xdaysCard">
+<p class="chart-sources">ECMWF SEAS5 6-hourly members &middot; SEAS5 1993&ndash;2016 hindcast (bias) &middot; NOAA CPC Global Unified daily Tmax/Tmin 1991&ndash;2020 (normal) &middot; geonames population</p>
+</template>
+<template id="about-popCard">
+<p class="chart-sources">ECMWF SEAS5 6-hourly 2 m temperature (seasonal-original-single-levels), 51 members, 1&deg; &middot; population: geonames cities15000, sections of cities excluded &middot; anomalies vs the 1993&ndash;2016 hindcast monthly mean</p>
+</template>
+<template id="about-teleCard">
+<p class="chart-sources">ECMWF SEAS5 500 hPa height and msl, 2&deg;, anomalies vs the 1993&ndash;2016 hindcast, interpolated to the 2.5&deg; NCEP grid of the patterns &middot; patterns: CPC-style regression maps (NCEP/NCAR R1, 1991&ndash;2020) &middot; skill: hindcast ensemble mean vs ERA5</p>
+</template>
+<template id="about-calibrated-terciles">
+<p class="chart-sources">ECMWF SEAS5 monthly means, 1&deg; grid &middot; temperature and precipitation over land, 500 hPa height and 850 hPa wind everywhere &middot; thresholds: 1993&ndash;2016 hindcast terciles</p>
+</template>
+<template id="about-changeCard">
+<p class="chart-sources">ECMWF SEAS5, consecutive monthly issues &middot; anomalies vs each issue&rsquo;s own 1993&ndash;2016 start-month hindcast &middot; 1&deg; grid</p>
+</template>
+<template id="about-pdo-amo-iod-atlantic-ni-o">
+<p class="chart-sources">ECMWF SEAS5 SST, 2&deg; grid &middot; PDO pattern: EOF1 of ERSSTv5 North Pacific SSTA (reference/pdo_pattern.nc) &middot; hindcast &plusmn;1&sigma; band from the 24 hindcast years</p>
+</template>
+<template id="about-enso-indices">
+<p class="chart-sources">ECMWF SEAS5 via the Copernicus CDS &middot; anomalies vs the 1993&ndash;2016 hindcast (25 members) at the same lead &middot; relative Ni&ntilde;o-3.4 scaled by the site&rsquo;s &sigma;(ONI)/&sigma;(relative) per calendar month &middot; observed: NOAA ERSSTv6 box means</p>
+</template>
+<template id="about-ni-o-3-4-every-member">
+<p class="chart-sources">C3S seasonal multi-system, <code>seasonal-monthly-single-levels</code>, every member &middot; observed: Ni&ntilde;o-3.4 the NOAA ERSSTv6 box mean computed here, RONI NOAA CPC (ERSSTv6), then the site&rsquo;s OISST v2.1 estimate</p>
+</template>
+<template id="about-c3sDayCard">
+<p class="chart-sources">C3S <code>seasonal-original-single-levels</code>, 6-hourly 2 m temperature members over the country box &middot; population: geonames cities15000 on the 1&deg; grid</p>
+</template>
+<template id="about-c3sPopCard">
+<p class="chart-sources">C3S <code>seasonal-monthly-single-levels</code>, 2 m temperature members and the 1993&ndash;2016 hindcast &middot; population: geonames cities15000 on the 1&deg; grid</p>
+</template>
+<template id="about-c3sIdxCard">
+<p class="chart-sources">C3S <code>seasonal-postprocessed-single-levels</code>, sea-surface temperature anomaly &middot; boxes and PDO calibration shared with the SEAS5 card</p>
+</template>
+<template id="about-c3sTercCard">
+<p class="chart-sources">C3S <code>seasonal-monthly-single-levels</code>: members and the 1993&ndash;2016 hindcast on the 1&deg; grid &middot; ECMWF from the copy held for the member-level products</p>
+</template>
+<template id="about-c3sMapCard">
+<p class="chart-sources">C3S <code>seasonal-postprocessed-single-levels</code>, members&rsquo; anomalies vs each model&rsquo;s own 1993&ndash;2016 hindcast &middot; hindcast spread and paired hindcast means: <code>seasonal-monthly-single-levels</code> &middot; shaded where significant (FDR 0.10)</p>
+</template>
+<template id="about-cansips"><p class="chart-sources">ECCC MSC Datamart (dd.weather.gc.ca), ECCC Data Servers End-use Licence &middot; Data Source: Environment and Climate Change Canada &middot; built by scripts/sst/cansips_dd.py, cansips_maps.py (cansips.yml) &middot; CanSIPS from the ECCC MSC Datamart (WaterTemp, 1&deg;, ocean cells only)
       &middot; Ni&ntilde;o-3.4 (5&deg;S&ndash;5&deg;N, 170&ndash;120&deg;W) &middot; anomalies vs its own 1993&ndash;2016 hindcast per start month &amp; lead
-      &middot; Data Source: Environment and Climate Change Canada</span>
-      <span class="chart-updated" id="csPlumeUpdated">&mdash;</span>
-    </div>
-  </div>
-  </div>
-<template id="about-cansips"><p class="chart-sources">ECCC MSC Datamart (dd.weather.gc.ca), ECCC Data Servers End-use Licence &middot; Data Source: Environment and Climate Change Canada &middot; built by scripts/sst/cansips_dd.py, cansips_maps.py (cansips.yml)</p></template>
-<template id="about-sfs"><p class="chart-sources">NOAA SFS beta (NOAA NWS/EMC and OAR/PSL; NODD open data on AWS, bucket noaa-oar-sfsdev-pds) &middot; own 1991&ndash;2020 reforecast &middot; observed: CPC, then OISST v2.1 estimate &middot; C3S &middot; <a href="/sfs-subseasonal.html#credits">where the SFS data come from</a> &middot; built by scripts/sfs/*.py</p></template>
+      &middot; Data Source: Environment and Climate Change Canada</p></template>
+<template id="about-sfs"><p class="chart-sources">NOAA SFS beta (NOAA NWS/EMC and OAR/PSL; NODD open data on AWS, bucket noaa-oar-sfsdev-pds) &middot; own 1991&ndash;2020 reforecast &middot; observed: CPC, then OISST v2.1 estimate &middot; C3S &middot; <a href="/sfs-subseasonal.html#credits">where the SFS data come from</a> &middot; built by scripts/sfs/*.py &middot; NOAA SFS beta2, experimental (NODD zarr, ocn_monthly)
+      &middot; Ni&ntilde;o-3.4 (5&deg;S&ndash;5&deg;N, 170&ndash;120&deg;W), cos-weighted
+      &middot; anomalies vs own reforecast 1991&ndash;2020 per init month &amp; lead
+      &middot; C3S overlay: anomalies vs each model's own 1993&ndash;2016 hindcast
+      &middot; observed: NOAA ERSSTv6 Ni&ntilde;o-3.4 box mean on 1991&ndash;2020 and CPC&rsquo;s ERSSTv6 RONI, then the site&rsquo;s OISST v2.1 estimate &middot; SFS beta ocn_monthly zarr, 31 members &middot;
+      anomalies vs own reforecast 1991&ndash;2020 per init month &amp; lead &middot;
+      PDO pattern: EOF1 of reforecast North Pacific SSTA (20&ndash;70&deg;N,
+      110&deg;E&ndash;100&deg;W, 30 yrs &times; 11 members &times; 10 leads pooled)</p></template>
 <template id="about-sfs-skill"><p class="chart-sources">SFS beta2 reforecast (NOAA/OAR, NODD) &middot; CFSv2 via the NMME archive (IRI Data Library) &middot; ERA5 (Copernicus C3S) &middot; OISST v2.1 (NOAA NCEI) &middot; built by scripts/sfs/sfs_cfsfig.py from scripts/sfs/skill/cfs/</p></template>
 <template id="about-sfs-maps"><p class="chart-sources">SFS beta ocn_monthly / atm_monthly zarr (1&deg;), 31-member mean &middot; anomalies vs own reforecast 1991&ndash;2020 per init month &amp; lead &middot; fixed colour scale across leads &middot; <span class="chart-updated" id="sfsMonthlyUpdated">&mdash;</span></p>
 <p class="chart-sources">NOAA SFS beta (NOAA NWS/EMC and OAR/PSL; NODD open data on AWS, bucket noaa-oar-sfsdev-pds) &middot; own 1991&ndash;2020 reforecast &middot; observed: CPC, then OISST v2.1 estimate &middot; C3S &middot; <a href="/sfs-subseasonal.html#credits">where the SFS data come from</a> &middot; built by scripts/sfs/*.py</p></template>
