@@ -54,7 +54,10 @@ ALPHA = 0.05  # and each cell's own two-sided p
 
 
 def paired_means(R, truth, var, region):
-    """{model: DataFrame(lead -> mean rmse/acc/bias/act, n)} over the runs every model has at that lead."""
+    """{model: DataFrame(lead -> rmse/acc/bias/act, n)} over the runs every model has at that lead. The RMSE is the
+    root-mean-square over the runs (each run's value is itself an rms over the same area, so this is the rms over every
+    run's points); ACC, bias and the activity ratio are means. rmse_mean, the plain mean of the runs' RMSEs, is the scale of
+    the scorecard's per-run RMSE differences."""
     S = R[(R.truth == truth) & (R["var"] == var) & (R.region == region)]
     out = {}
     for lead, g in S.groupby("lead"):
@@ -67,7 +70,15 @@ def paired_means(R, truth, var, region):
         for m in MODELS:
             x = g[(g.model == m) & g.init.isin(common)]
             out.setdefault(m, []).append(
-                dict(lead=int(lead), n=len(common), **{k: float(x[k].mean()) for k in ("rmse", "acc", "bias", "act")})
+                dict(
+                    lead=int(lead),
+                    n=len(common),
+                    rmse=float(np.sqrt((x["rmse"] ** 2).mean())),
+                    act=float(x["act"].mean()),
+                    acc=float(x["acc"].mean()),
+                    bias=float(x["bias"].mean()),
+                    rmse_mean=float(x["rmse"].mean()),
+                )
             )
     return {m: pd.DataFrame(v).set_index("lead") for m, v in out.items()}
 
@@ -107,7 +118,7 @@ def scorecard(D, R):
                         cells.append(None)
                         continue
                     if metric == "rmse":  # % change in RMSE (negative = better)
-                        scale, nd = 100 / sgl.at[l, "rmse"], 3
+                        scale, nd = 100 / sgl.at[l, "rmse_mean"], 3
                     else:  # change in ACC, hundredths (positive = better)
                         scale, nd = 100, 4
                     cells.append(

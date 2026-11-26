@@ -4,7 +4,8 @@
 One reader per system; each returns rain accumulated from the 00Z start (mm) at the requested steps, member by member:
 
   ifs, aifs-ens  ECMWF open data from the Google Cloud mirror only (scripts/ecmwf/rangefetch.py), tp accumulated from
-                 the start (ecmwf_tp.decode reads the GRIB units: IFS in m, AIFS in kg m-2). Perturbed members 1-50.
+                 the start (ecmwf_tp.decode reads the GRIB units: IFS in m, AIFS in kg m-2). Perturbed members 1-50;
+                 AIFS-ENS also its control (member 0, the cf file), which the IFS-ENS open data do not carry.
   gefs           NOAA GEFS v12 0.5° (pgrb2a) from the AWS Open Data bucket noaa-gefs-pds, one byte range per record
                  through each file's .idx (never NOMADS). APCP comes in 6-hour buckets ("{h-6}-{h} hour acc fcst" in
                  every 6-hourly file), so the total from the start is the sum of its buckets. Control + 30 members.
@@ -57,7 +58,7 @@ import webget
 MODELS = ("ifs", "aifs-ens", "gefs", "geps")
 LIVE_MEMBERS = {
     "ifs": tuple(range(1, 51)),  # the open data carry no IFS-ENS control
-    "aifs-ens": tuple(range(1, 51)),
+    "aifs-ens": tuple(range(51)),  # 0 = the control (its own cf file), with all 50 perturbed members
     "gefs": tuple(range(31)),  # 0 = the control gec00
     "geps": tuple(range(21)),  # 0 = the control
 }
@@ -165,7 +166,10 @@ def ecmwf_run(model: str, d: date, steps, members) -> np.ndarray:
     for si, step in enumerate(steps):
         for k in range(4):
             try:
-                f = E.decode(R.fetch(f"{d:%Y%m%d}", "00", model, step, param="tp", numbers=list(members), kind="pf"))
+                pf = [m for m in members if m]
+                f = E.decode(R.fetch(f"{d:%Y%m%d}", "00", model, step, param="tp", numbers=pf, kind="pf")) if pf else {}
+                if 0 in members:  # the control: its own file, number 0
+                    f.update(E.decode(R.fetch(f"{d:%Y%m%d}", "00", model, step, param="tp", kind="cf")))
                 miss = [m for m in members if m not in f]
                 if len(miss) > 5:
                     raise ValueError(f"{len(miss)} members missing")

@@ -3,8 +3,8 @@
 Stratospheric vortex winds: 10 and 100 hPa, each hemisphere on its own.
 
 One polar map per frame - a level and a hemisphere - showing wind SPEED (shaded, with thin speed contours) with
-WIND BARBS over it and the GEOPOTENTIAL HEIGHT contoured in black, from the AIFS-ENS ENSEMBLE MEAN (50 perturbed
-members; the analysis frame is the control). Barbs, not streamlines: a streamline through the pole is integrated
+WIND BARBS over it and the GEOPOTENTIAL HEIGHT contoured in black, from the AIFS-ENS ENSEMBLE MEAN (all 50 perturbed
+members and the control; the analysis frame is the control). Barbs, not streamlines: a streamline through the pole is integrated
 across a point where the grid's u and v have no fixed direction, and it tangled there; a barb is one vector, regridded
 onto the map with its direction rotated into the projection. The height lines are the flow's own contours (the wind
 runs along them), so a displaced or stretched vortex reads from them at a glance; the shading says how fast.
@@ -46,8 +46,8 @@ stronger than 100 hPa, so a shared scale would flatten the lower level into a
 single colour, while a per-panel scale would make NH and SH incomparable at a
 glance - which is exactly the comparison the figure exists to support.
 
-Data: u, v and z at 10 and 100 hPa for all 50 perturbed members every 12 h (~5.6 GB a
-cycle through the shared ECMWF store, Google mirror), plus the control at step 0.
+Data: u, v and z at 10 and 100 hPa for all 50 perturbed members and the control every 12 h (~5.7 GB a
+cycle through the shared ECMWF store, Google mirror); the control's step 0 is the analysis.
 Opened with dask one step at a time so the member mean never holds more than
 one step's members in memory.
 
@@ -197,7 +197,7 @@ def _with_step(da, step_h: int):
 
 def fetch(date: str, time: str):
     """u and v at both levels, every 12 h step: the analysis from the CONTROL, every
-    forecast step as the mean of the 50 perturbed members.
+    forecast step as the mean of all 51 members (the 50 perturbed and the control).
 
     Step 0 is the control because the perturbed members differ from the analysis
     only by their perturbations - averaging them smooths the very state the
@@ -206,24 +206,28 @@ def fetch(date: str, time: str):
     """
     cyc = ecmwf.Cycle(date, time)
     fc_steps = tuple(s for s in STEPS_12H if s)
-    ana = {sh: ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", sh, "pl", LEVELS, (0,))) for sh in FIELDS}
+    cf = {sh: ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", sh, "pl", LEVELS, STEPS_12H)) for sh in FIELDS}
     try:
         with ThreadPoolExecutor(len(FIELDS)) as ex:  # the three files at once (one request budget)
             got = ex.map(lambda sh: ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", sh, "pl", LEVELS, fc_steps)), FIELDS)
             pf = dict(zip(FIELDS, got))
-        source = f"ensemble mean of {ecmwf.PF_MEMBERS} members"
+        source = f"ensemble mean of {ecmwf.PF_MEMBERS + 1} members"
     except Exception as e:  # noqa: BLE001
         print(f"  perturbed pull failed ({type(e).__name__}: {e}); falling back to the control", flush=True)
-        pf = {sh: ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", sh, "pl", LEVELS, fc_steps)) for sh in FIELDS}
-        source = "control (member 0) - the perturbed pull failed"
+        pf, source = None, "control (member 0) - the perturbed pull failed"
+    keep = ("step", "latitude", "longitude")
     out = {}
     for lev in LEVELS:
         trio = []
         for sh in FIELDS:
-            a = _with_step(_mean_field(ana[sh], sh, lev), 0)
-            f = _mean_field(pf[sh], sh, lev)
-            f = f.drop_vars([c for c in f.coords if c not in ("step", "latitude", "longitude")])
-            trio.append(xr.concat([a, f], dim="step"))
+            c = _mean_field(cf[sh], sh, lev)
+            c = c.drop_vars([k for k in c.coords if k not in keep])
+            a, fc = at_step(c, 0), c.sel(step=c.step > np.timedelta64(0, "h"))
+            if pf is not None:  # the 50 perturbed members' mean and the control, each member weighted alike
+                f = _mean_field(pf[sh], sh, lev)
+                f = f.drop_vars([k for k in f.coords if k not in keep])
+                fc = (ecmwf.PF_MEMBERS * f + fc.reindex_like(f)) / (ecmwf.PF_MEMBERS + 1)
+            trio.append(xr.concat([_with_step(a, 0), fc], dim="step"))
         trio[2] = trio[2] / (G0 * 10.0)  # geopotential (m2 s-2) -> height in dam
         out[lev] = tuple(trio)
     return out, source

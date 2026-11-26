@@ -2,7 +2,7 @@
 """Bias-adjusted ensemble rainfall forecast, weeks 1 and 2, global band and a flat tropics strip (circulation.html#rainfc).
 
 The latest 00Z run of four ensembles, every member, as 1° box means (grid.py, global band 60°S-60°N), read by ens_tp.py:
-ECMWF IFS-ENS and AIFS-ENS (50 members each, Google Cloud mirror only), NOAA GEFS (31, AWS Open Data) and ECCC GEPS (21,
+ECMWF IFS-ENS (50 members) and AIFS-ENS (51, with its control; Google Cloud mirror only), NOAA GEFS (31, AWS Open Data) and ECCC GEPS (21,
 MSC Datamart). The run is the newest with both ECMWF ensembles complete to day 15 (they land last); GEFS or GEPS missing
 for that day are left out, the figures say so, and the next run of this script completes the day.
   correction  every member's week total times its model's significant rain-bias ratio for that week (global_bias.py: the
