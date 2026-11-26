@@ -97,15 +97,16 @@ class Fields:
     """The database files of one model (or ERA5), packed as stored, unpacked a field at a time."""
 
     def __init__(self, paths: dict[str, Path]):
-        self.packed = {}
+        self.packed, self.off = {}, {}
         for key, p in paths.items():
             with np.load(p) as z:
                 self.packed[key] = {v: z[v] for v in U.VARS}
+                self.off[key] = U.offsets(z)
 
     def get(self, key: str, var: str, lead: int | None) -> np.ndarray:
         """(level, lat, lon) of ``var`` of file ``key``, at lead index ``lead`` (None: a truth file)."""
         a = self.packed[key][var]
-        return U.unpack(a if lead is None else a[lead], var)
+        return U.unpack(a if lead is None else a[lead], var, self.off[key][var])
 
 
 def errors(fc: Fields, truth: Fields, runs: list[str], day: int, own: bool) -> dict[str, np.ndarray]:

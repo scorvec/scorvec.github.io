@@ -41,14 +41,17 @@ LEADS = (0, 24, 72, 120, 168, 240)  # hours: the analysis, then days 1, 3, 5, 7 
 VARS = ("z", "t", "u", "v", "q")
 # the standard atmosphere's height of each level (m): a field's unit is read against it
 Z_STD = {925: 762, 850: 1457, 700: 3012, 500: 5574, 300: 9164, 250: 10363, 200: 11784, 100: 16180, 50: 20576}
-# variable: (step, offset, type) of its 16-bit integers; the type's extreme marks a missing value
+# variable: (step, offset, type) of its 16-bit integers; the type's extreme marks a missing value. Each file stores the
+# offsets it was packed with (off_<var>); files without them were packed with LEGACY_OFF (z from 0 m, which could not
+# hold a 925 hPa height below sea level under a deep low: 2026-11-11 00Z IFS)
 PACK = {
-    "z": (0.5, 0.0, np.uint16),
+    "z": (0.5, -1000.0, np.uint16),
     "t": (0.01, 200.0, np.int16),
     "u": (0.01, 0.0, np.int16),
     "v": (0.01, 0.0, np.int16),
     "q": (1e-6, 0.0, np.uint16),
 }
+LEGACY_OFF = {"z": 0.0, "t": 200.0, "u": 0.0, "v": 0.0, "q": 0.0}
 ARCO = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"
 ARCO_VARS = {
     "z": "geopotential",
@@ -80,8 +83,13 @@ def pack(x: np.ndarray, var: str) -> np.ndarray:
     return np.where(ok, q, miss).astype(typ)
 
 
-def unpack(a: np.ndarray, var: str) -> np.ndarray:
-    step, off, typ = PACK[var]
+def offsets(z) -> dict[str, float]:
+    """The offsets an opened npz file was packed with."""
+    return {v: float(z[f"off_{v}"]) if f"off_{v}" in z.files else LEGACY_OFF[v] for v in VARS}
+
+
+def unpack(a: np.ndarray, var: str, off: float) -> np.ndarray:
+    step, _, typ = PACK[var]
     info = np.iinfo(typ)
     miss = info.min if info.min < 0 else info.max
     return np.where(a == miss, np.nan, a.astype(np.float32) * step + off)
@@ -99,7 +107,9 @@ def to_units(var: str, level: int, v: np.ndarray, what: str) -> np.ndarray:
         ok = 170 < np.nanmedian(v) < 320
     elif var == "q":
         v = v / 1000.0 if med > 0.1 else v
-        ok = np.nanmin(v) >= 0 and np.nanmax(v) < 0.05
+        # the models' numerics leave specks of slightly negative humidity (ERA5 500 hPa, 2026-10-08): set to zero
+        ok = np.nanmin(v) > -1e-4 and np.nanmax(v) < 0.05
+        v = np.clip(v, 0, None)
     else:
         ok = abs(med) < 60 and np.nanmax(np.abs(v)) < 200
     if not ok:
@@ -186,6 +196,7 @@ def run_fields(model: str, init: str, out: Path) -> Path:
         levels=np.array(LEVELS),
         q_levels=np.array(Q_LEVELS),
         **{v: pack(arr[v], v) for v in VARS},
+        **{f"off_{v}": np.float64(PACK[v][1]) for v in VARS},
     )
     return path
 
@@ -193,7 +204,8 @@ def run_fields(model: str, init: str, out: Path) -> Path:
 def load(path: Path) -> dict[str, np.ndarray]:
     """A upa- or era5-upa file's fields in their units (float32, NaN where missing)."""
     with np.load(path) as z:
-        return {v: unpack(z[v], v) for v in VARS}
+        off = offsets(z)
+        return {v: unpack(z[v], v, off[v]) for v in VARS}
 
 
 def fields(a) -> None:
@@ -236,7 +248,11 @@ def truth(a) -> None:
             )
         if ok:
             np.savez_compressed(
-                a.archive_out / truth_file(day), levels=np.array(LEVELS), q_levels=np.array(Q_LEVELS), **out
+                a.archive_out / truth_file(day),
+                levels=np.array(LEVELS),
+                q_levels=np.array(Q_LEVELS),
+                **out,
+                **{f"off_{v}": np.float64(PACK[v][1]) for v in VARS},
             )
             print(f"ERA5 {day:%Y-%m-%d} 00Z: archived", flush=True)
 
