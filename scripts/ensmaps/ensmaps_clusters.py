@@ -26,7 +26,7 @@ runs of the start given (--cycle: the workflow passes the newest start all four 
             k the smallest whose gap (null less observed log within-variance) is at least the next k's less one null
             standard deviation (the gap statistic's rule). Otherwise no scenarios (pattern, below).
   pattern   where no k > 1 passes, the members' main difference instead: their leading EOF and its share of the spread,
-            tested against the second (a Monte Carlo test: N_NULL Gaussian ensembles with the members' weights and the
+            tested against the second (a Monte Carlo test: N_NULL_EOF Gaussian ensembles with the members' weights and the
             EOFs' variances, the first two set equal; p, the share whose second-to-first variance ratio is at most the
             members' own). Where p < P_EOF and each side of the grand-ensemble mean along it holds >= MIN_W of the
             weight, the two sides are the groups (with letters, maps and moves as scenarios have) and the model x group
@@ -87,7 +87,8 @@ HALF = 15  # +- days of the time of year
 WINDOWS = (("d3_5", 3, 5), ("d6_10", 6, 10), ("d11_15", 11, 15))
 DAYS_MAX = 16  # the days clustered one by one (GEFS and GEPS hold the 16th)
 K_MAX, N_START, N_NULL, N_BOOT, STABLE, MIN_W, VAR_KEEP = 5, 100, 100, 50, 0.6, 0.05, 0.80
-P_EOF = 0.05  # the main difference's test of its leading EOF against the second (see the module docstring)
+P_EOF = 0.10  # the main difference's test of its leading EOF against the second (see the module docstring)
+N_NULL_EOF = 1000  # its Gaussian ensembles: cheap (an SVD each), and enough that a p near P_EOF holds from run to run
 N_START_FAST = 10  # starts for the null and bootstrap ensembles
 N_PERM, FDR_Q = 500, 0.10
 P_MODELS = 0.05  # a split whose model x cluster test is below this follows the models: no scenarios
@@ -375,12 +376,12 @@ def main_pattern(Y, w, var, share, rng) -> tuple[dict, np.ndarray]:
         s = np.linalg.svd(np.sqrt(W)[:, None] * D, compute_uv=False)
         return s[1] ** 2 / s[0] ** 2
 
-    p = 1 / (1 + N_NULL)
+    p = 1 / (1 + N_NULL_EOF)
     if var.size > 1:
         v0 = var.copy()
         v0[:2] = var[:2].mean()
-        null = np.array([ratio(rng.standard_normal(Y.shape) * np.sqrt(v0)) for _ in range(N_NULL)])
-        p = (1 + (null <= var[1] / var[0]).sum()) / (1 + N_NULL)
+        null = np.array([ratio(rng.standard_normal(Y.shape) * np.sqrt(v0)) for _ in range(N_NULL_EOF)])
+        p = (1 + (null <= var[1] / var[0]).sum()) / (1 + N_NULL_EOF)
     p = round(float(p), 4)  # plain floats and bools for the manifest
     info = {"explained": round(float(var[0] / var.sum() * share), 3), "p": p, "robust": p < P_EOF}
     return info, (Y[:, 0] > 0).astype(int)
