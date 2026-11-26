@@ -5,11 +5,12 @@ name: skewt-gust-verify
 # gust method in gustport.py.
 # stage=build   full rebuild, dataset -> release skewt-gust-data-v1
 # stage=score   score the dataset already on the release (no IGRA/ISD traffic)
+# stage=export  the app's model (skewt/gust_model.json) + a parity fixture for its JS port, from the release
 on:
   workflow_dispatch:
     inputs:
       stage:
-        description: "build | score"
+        description: "build | score | export"
         default: "build"
 
 permissions:
@@ -84,13 +85,14 @@ jobs:
             --notes "IGRA v2 00/12Z soundings x NOAA ISD airport observations (METAR/SPECI, 2010-2025) at co-located raob/airport sites, built by .github/workflows/skewt-gust-verify.yml. pairs.parquet = one row per launch (every gust method in scripts/skewt/gustport.py, the profile features, the truth over two windows); profiles_npz.tar = processed profiles <= 4 km AGL (float32; P Pa, H m, T K, Td K, U/V m/s; offsets index rows of pairs per station in date order)."
           gh release upload "$REL" --clobber pairs.parquet stations.json stations.md qc.json dataset.md profiles_npz.tar
       - name: Fetch dataset from the release
-        if: inputs.stage == 'score'
+        if: inputs.stage == 'score' || inputs.stage == 'export'
         run: |
           mkdir -p out
           gh release download "$REL" -p pairs.parquet -p stations.json -p qc.json -D out
-      - name: Score
-        if: inputs.stage == 'score'
-        run: python scripts/skewt/verify_gust.py score out
+          if [ "${{ inputs.stage }}" = export ]; then gh release download "$REL" -p profiles_npz.tar -D out; fi
+      - name: Score or export
+        if: inputs.stage == 'score' || inputs.stage == 'export'
+        run: python scripts/skewt/verify_gust.py ${{ inputs.stage }} out
       - uses: actions/upload-artifact@v7
         if: always()
         with:

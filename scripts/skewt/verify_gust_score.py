@@ -10,6 +10,7 @@ Methods (m/s internally, knots in the report):
   Brasseur*      ours: the constants chosen on the fit years from the dataset's grid, then a + b gust + c sfc
   GBM            gradient-boosted quantile regression (p10, p50, p90) on the profile features and the physics
                  estimates: the ceiling on what the profile alone can tell
+export() builds the model the Skew-T app ships (skewt/gust_model.json) and a parity fixture for its JS port.
 A method with no value for a launch (no PBL top, a profile too short) falls back to the surface wind, so every method
 is scored on every launch. Fits minimise the mean absolute error.
 """
@@ -23,6 +24,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 
+import gustport as GP
 from gustport import ALPHAS, LAMS, RICS
 from verify_gust import KT, Y0, Y1
 
@@ -198,4 +200,154 @@ def score(out: Path) -> None:
     (out / "summary.json").write_text(json.dumps({"reference": ref_name, "brasseur_star": {"constants": key,
                                                   "beta": [float(x) for x in beta]},
                                                   "rows": rows}, indent=1, default=float))  # fmt: skip
+    print("\n".join(lines), flush=True)
+
+
+# ---- the shipped model (skewt/gust_model.json): profile-only quantile GBMs, the range conformally widened ----
+# No hour, month or elevation: the stations are almost all in the US, so those would stand for US local time, season
+# and terrain and mislead anywhere else; the sounding's own stability says day or night.
+SHIP_FEATURES = ["sfc", "pbl_m", "pbl_mean", "pbl_max", "dcape", "sbcape", "top_m",
+                 *[f"w{h}" for h in (250, 500, 1000, 1500, 2000, 3000)],
+                 *[f"dthv{h}" for h in (250, 500, 1000, 1500, 2000, 3000)],
+                 f"bw_{BRASSEUR}", f"bu_{BRASSEUR}", f"bz_{BRASSEUR}"]  # fmt: skip
+TRAIN_LAST, CAL_LAST = 2017, 2019  # train 2010-2017, widen the range on 2018-2019, score 2020-2025
+COVER = 0.8
+CONFIGS = [(400, 31, 0.05), (300, 15, 0.07), (200, 15, 0.1), (150, 7, 0.1)]  # (iterations, leaves, learning rate)
+
+
+def _gbm(p, cfg):
+    from sklearn.ensemble import HistGradientBoostingRegressor
+
+    it, leaves, lr = cfg
+    return HistGradientBoostingRegressor(loss="quantile", quantile=p, max_iter=it, learning_rate=lr,
+                                         max_leaf_nodes=leaves, min_samples_leaf=200, random_state=0)  # fmt: skip
+
+
+def _trees(m):
+    """A fitted HistGradientBoostingRegressor -> {base, root, f, t, l, r, m}: every tree's nodes in flat arrays (f = feature
+    index, -1 on a leaf; t = threshold, or the leaf's value; l/r = child node indices; m = 1 when a missing value goes
+    left). A sample goes left when x <= t."""
+    f, t, lft, rgt, miss, root = [], [], [], [], [], []
+    for (pred,) in m._predictors:
+        off = len(f)
+        root.append(off)
+        for n in pred.nodes:
+            leaf = bool(n["is_leaf"])
+            f.append(-1 if leaf else int(n["feature_idx"]))
+            t.append(float(n["value"] if leaf else n["num_threshold"]))  # exact: thresholds sit ON data values (knots)
+            lft.append(0 if leaf else off + int(n["left"]))
+            rgt.append(0 if leaf else off + int(n["right"]))
+            miss.append(int(bool(n["missing_go_to_left"])))
+    base = float(np.ravel(m._baseline_prediction)[0])
+    return {"base": base, "root": root, "f": f, "t": t, "l": lft, "r": rgt, "m": miss}
+
+
+def _walk(tr, X):
+    """Predict from _trees() output (the JS app does exactly this)."""
+    out = np.empty(len(X))
+    f, t, lft, rgt, miss = (np.asarray(tr[k]) for k in "ftlrm")
+    for i, x in enumerate(X):
+        s = tr["base"]
+        for root in tr["root"]:
+            k = root
+            while f[k] >= 0:
+                v = x[f[k]]
+                k = lft[k] if (miss[k] if np.isnan(v) else v <= t[k]) else rgt[k]
+            s += t[k]
+        out[i] = s
+    return out
+
+
+def _cut(prof, z_agl):
+    """Pressure (Pa) at a height AGL on the profile, linear in log p; None above it."""
+    z = np.asarray(prof["H"], float) - prof["H"][0]
+    if z_agl is None or not np.isfinite(z_agl) or z_agl > z[-1]:
+        return None
+    return float(np.exp(np.interp(z_agl, z, np.log(np.asarray(prof["P"], float)))))
+
+
+def export(out: Path) -> None:
+    import tarfile
+
+    df = pd.read_parquet(out / "pairs.parquet")
+    df = df[(df.year >= Y0) & (df.year <= Y1) & df.a_peak.notna() & df.sfc.notna()].reset_index(drop=True)
+    tr, cal, te = df[df.year <= TRAIN_LAST], df[(df.year > TRAIN_LAST) & (df.year <= CAL_LAST)], df[df.year > CAL_LAST]
+    X = {k: d[SHIP_FEATURES].astype(float).to_numpy() for k, d in (("tr", tr), ("cal", cal), ("te", te))}
+    y = {k: d.a_peak.to_numpy(float) for k, d in (("tr", tr), ("cal", cal), ("te", te))}
+    lines = [f"# Shipped gust model: trained {Y0}-{TRAIN_LAST} ({len(tr)} launches), range widened on "
+             f"{TRAIN_LAST + 1}-{CAL_LAST} ({len(cal)}), scored on {CAL_LAST + 1}-{Y1} ({len(te)}, {te.wmo.nunique()} "
+             "stations)", "", "## Model size, chosen on the calibration years (median MAE, kt)", ""]  # fmt: skip
+    # the smallest model within 0.03 kt of the best on the calibration years (never the test years)
+    maes = {}
+    for cfg in CONFIGS:
+        maes[cfg] = float(np.abs(_gbm(0.5, cfg).fit(X["tr"], y["tr"]).predict(X["cal"]) - y["cal"]).mean() * KT)
+        lines.append(f"- {cfg[0]} trees x {cfg[1]} leaves (lr {cfg[2]}): {maes[cfg]:.3f}")
+    best = min(maes.values())
+    cfg = min((c for c in CONFIGS if maes[c] <= best + 0.03), key=lambda c: c[0] * c[1])
+    models = {p: _gbm(p, cfg).fit(X["tr"], y["tr"]) for p in (0.1, 0.5, 0.9)}
+    q = {k: {p: m.predict(X[k]) for p, m in models.items()} for k in ("cal", "te")}
+    # conformalised quantile regression (Romano et al. 2019): widen p10-p90 by the 80th percentile of the misses
+    sc = np.maximum(q["cal"][0.1] - y["cal"], y["cal"] - q["cal"][0.9])
+    n = len(sc)
+    widen = float(np.quantile(sc, min(1.0, np.ceil((n + 1) * COVER) / n)))
+    lo = np.maximum(0, np.minimum(q["te"][0.1] - widen, q["te"][0.5]))
+    hi = np.maximum(q["te"][0.9] + widen, q["te"][0.5])
+    yt, med = y["te"], q["te"][0.5]
+    bt = Boot(te.wmo.to_numpy())
+    app = fill(te, "pbl_mean")
+    inside = (yt >= lo) & (yt <= hi)
+    lines += ["", f"Chosen: {cfg[0]} trees x {cfg[1]} leaves. Range widened by {widen * KT:+.2f} kt each side.", "",
+              "## Test years", "", "| | value |", "|---|---|",
+              f"| median MAE kt | {fmt(bt.mean(np.abs(med - yt) * KT))} |",
+              f"| app PBL mean wind MAE kt | {fmt(bt.mean(np.abs(app - yt) * KT))} |",
+              f"| median minus PBL mean, MAE kt | {fmt(bt.mean((np.abs(med - yt) - np.abs(app - yt)) * KT), 2)} |",
+              f"| median bias kt | {fmt(bt.mean((med - yt) * KT))} |",
+              f"| range covers % (nominal {COVER:.0%}) | {fmt(bt.mean(inside * 100.0), 0)} |",
+              f"| range mean width kt | {np.mean(hi - lo) * KT:.1f} |"]  # fmt: skip
+    for thr in THRESH_KT:
+        obs = yt * KT >= thr
+        for name, pr in (("median", med), ("top of range", hi), ("PBL mean (app)", app)):
+            c = bt.contingency(pr * KT >= thr, obs)
+            lines.append(f"| >= {thr} kt by {name}: POD / FAR / CSI | {fmt(c['POD'], 2)} / {fmt(c['FAR'], 2)} / "
+                         f"{fmt(c['CSI'], 2)} |")  # fmt: skip
+    ts = te.a_ts.to_numpy(bool)
+    for name, m in (("thunder", ts), ("no thunder", ~ts)):
+        sb = Boot(te.wmo.to_numpy()[m])
+        lines.append(f"| {name} ({int(m.sum())}): median MAE / covers % | {fmt(sb.mean(np.abs(med[m] - yt[m]) * KT))} / "
+                     f"{fmt(sb.mean(inside[m] * 100.0), 0)} |")  # fmt: skip
+    trees = {f"p{int(p * 100)}": _trees(m) for p, m in models.items()}
+    for p, m in models.items():  # the flat trees reproduce sklearn
+        assert np.allclose(_walk(trees[f"p{int(p * 100)}"], X["te"][:2000]), m.predict(X["te"][:2000]), atol=1e-9)
+    stations = sorted(df.icao.unique().tolist())
+    model = {"features": SHIP_FEATURES, "units": "m/s, m AGL, J/kg, K", "widen": float(f"{widen:.5g}"),
+             "trained": f"{Y0}-{TRAIN_LAST}", "stations": stations, **trees}  # fmt: skip
+    (out / "gust_model.json").write_text(json.dumps(model, separators=(",", ":")))
+    lines.append(f"\nModel file {(out / 'gust_model.json').stat().st_size / 1e6:.2f} MB.")
+    # parity fixture for the app's port: test launches' stored profiles (<= 4 km AGL), the features gustport computes
+    # from them and the model's output
+    with tarfile.open(out / "profiles_npz.tar") as tf:
+        tf.extractall(out, filter="data")
+    rng = np.random.default_rng(7)
+    cases = []
+    for w in rng.choice(te.wmo.unique(), 12, replace=False):
+        z = np.load(out / "profiles" / f"{w}.npz")
+        keys = {k: i for i, k in enumerate(z["key"])}
+        sub = te[te.wmo == w]
+        for _, r in sub.iloc[rng.choice(len(sub), min(25, len(sub)), replace=False)].iterrows():
+            i = keys.get(f"{r.date}_{int(r.hour):02d}")
+            if i is None:
+                continue
+            a = z["data"][:, z["offsets"][i] : z["offsets"][i + 1]].astype(float)
+            prof = {k: a[j].tolist() for j, k in enumerate("PHTDUV")}
+            pa = _cut(prof, r.pbl_m)
+            num = lambda v: None if v is None or not np.isfinite(v) else float(v)  # noqa: E731
+            dc, sb = num(r.dcape), num(r.sbcape)
+            feats = GP.features(prof, pa, dc, sb)
+            xv = np.array([[np.nan if feats[k] is None else feats[k] for k in SHIP_FEATURES]], float)
+            pr = [float(models[p].predict(xv)[0]) for p in (0.1, 0.5, 0.9)]
+            cases.append({"prof": prof, "pbl_pa": pa, "dcape": dc, "sbcape": sb,
+                          "feats": {k: feats[k] for k in SHIP_FEATURES}, "pred": pr})  # fmt: skip
+    (out / "gust_fixture.json").write_text(json.dumps(cases, separators=(",", ":")))
+    lines.append(f"Parity fixture: {len(cases)} test launches.")
+    (out / "export.md").write_text("\n".join(lines) + "\n")
     print("\n".join(lines), flush=True)

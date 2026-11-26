@@ -351,6 +351,10 @@ def main() -> int:
         import verify_gust_score
 
         verify_gust_score.score(out)
+    elif cmd == "export":
+        import verify_gust_score
+
+        verify_gust_score.export(out)
     else:
         raise SystemExit(f"unknown command {cmd}")
     return 0
