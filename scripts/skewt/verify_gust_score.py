@@ -226,7 +226,7 @@ def _gbm(p, cfg):
 def _trees(m):
     """A fitted HistGradientBoostingRegressor -> {base, root, f, t, l, r, m}: every tree's nodes in flat arrays (f = feature
     index, -1 on a leaf; t = threshold, or the leaf's value; l/r = child node indices; m = 1 when a missing value goes
-    left). A sample goes left when x <= t."""
+    left). A sample goes left when x <= t (the threshold nudged up a part in 1e9)."""
     f, t, lft, rgt, miss, root = [], [], [], [], [], []
     for (pred,) in m._predictors:
         off = len(f)
@@ -234,7 +234,10 @@ def _trees(m):
         for n in pred.nodes:
             leaf = bool(n["is_leaf"])
             f.append(-1 if leaf else int(n["feature_idx"]))
-            t.append(float(n["value"] if leaf else n["num_threshold"]))  # exact: thresholds sit ON data values (knots)
+            # thresholds sit ON data values (winds in whole knots): nudged up a part in 1e9 so a tie goes left in Python
+            # and in the browser alike, whatever the last bit of their arithmetic
+            th = float(n["num_threshold"])
+            t.append(float(n["value"]) if leaf else th + 1e-9 * max(1.0, abs(th)))
             lft.append(0 if leaf else off + int(n["left"]))
             rgt.append(0 if leaf else off + int(n["right"]))
             miss.append(int(bool(n["missing_go_to_left"])))
