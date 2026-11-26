@@ -1959,13 +1959,13 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
     $("weeks-card").hidden = false;
   }
 
-  // the run window (?runs=10, 30, 90 = the default, 365, all): the nightly 10 or the newest runs of the verification database;
+  // the run window (?runs=10, 30 = the default, 90, 365, all): the nightly 10 or the newest runs of the verification database;
   // its scorecard and station maps come from the database (the windows past 90 runs map the newest 90), the wind card
   // stays on the nightly runs and the rain maps cover the database's newest year in every window, as do the rain
   // scores of the whole database
-  // the page opens on the newest 90 runs (90 days of 00Z runs); ?runs=10 gives the nightly ten
+  // the page opens on the newest 30 runs (30 days of 00Z runs, every model); ?runs=10 gives the nightly ten
   const WINDOWS = ["30", "90", "365", "all"], asked = new URLSearchParams(location.search).get("runs");
-  const W = WINDOWS.includes(asked) || asked === "10" ? asked : "90";
+  const W = WINDOWS.includes(asked) || asked === "10" ? asked : "30";
   const suffix = W === "10" ? "" : `_${W}`, mapRuns = W === "10" || W === "30" ? W : "90";
   const probes = WINDOWS.map(w => fetch(`/assets/verification/scores_${w}.json`, { method: "HEAD" })
     .then(r => { if (r.ok) $("vwin").querySelector(`[data-w="${w}"]`).hidden = false; return r.ok; }).catch(() => false));
