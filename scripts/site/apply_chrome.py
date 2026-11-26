@@ -495,7 +495,6 @@ PAGES = [
     dict(
         path="recon.html", mode="after-body"
     ),  # Atlantic recon plotter (scripts/recon, recon.yml -> recon-data branch)
-    # sfs.html, sfs-subseasonal.html: NOAA SFS retired 2026-11-26 (model not ready), redirect stubs (no chrome)
     dict(path="ar.html", mode="after-body"),
     dict(path="models.html", mode="after-body"),  # short-range model viewer (scripts/models), WebGL
     dict(path="samerica-models.html", mode="after-body"),  # South America viewer (scripts/models/samerica.py), WebGL

@@ -62,3 +62,40 @@ assets/sst/anim/natemp_geps_change
 
 # Retired 2026-11-14: the plot catalogue's thumbnails (catalog.html and its index are gone).
 assets/site/thumbs
+
+# Retired 2026-11-26: NOAA SFS (the model is not ready; its pages and code are gone).
+assets/sfs/anim/sfs_chi200
+assets/sfs/anim/sfs_mslp
+assets/sfs/anim/sfs_precip
+assets/sfs/anim/sfs_sst
+assets/sfs/anim/sfs_t2m
+assets/sfs/anim/sfs_wind200
+assets/sfs/anim/sfs_wind850
+assets/sfs/anim/sfs_z500
+assets/sfs/anim/sub/glb_mslp
+assets/sfs/anim/sub/glb_olr
+assets/sfs/anim/sub/glb_pr
+assets/sfs/anim/sub/glb_t2m
+assets/sfs/anim/sub/glb_u200
+assets/sfs/anim/sub/glb_u850
+assets/sfs/anim/sub/glb_v200
+assets/sfs/anim/sub/glb_v850
+assets/sfs/anim/sub/glb_zg500
+assets/sfs/anim/sub/na_mslp
+assets/sfs/anim/sub/na_olr
+assets/sfs/anim/sub/na_pr
+assets/sfs/anim/sub/na_t2m
+assets/sfs/anim/sub/na_u200
+assets/sfs/anim/sub/na_u850
+assets/sfs/anim/sub/na_v200
+assets/sfs/anim/sub/na_v850
+assets/sfs/anim/sub/na_zg500
+assets/sfs/anim/sub/sa_mslp
+assets/sfs/anim/sub/sa_olr
+assets/sfs/anim/sub/sa_pr
+assets/sfs/anim/sub/sa_t2m
+assets/sfs/anim/sub/sa_u200
+assets/sfs/anim/sub/sa_u850
+assets/sfs/anim/sub/sa_v200
+assets/sfs/anim/sub/sa_v850
+assets/sfs/anim/sub/sa_zg500

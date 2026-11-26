@@ -48,7 +48,7 @@ BRANCH = os.environ.get("FRAMES_BRANCH") or "frames"  # a workflow passes an uns
 # tracked on main, i.e. the set a reference-only rule would delete. Frames of
 # retired products are removed from the branch outright rather than protected
 # here - a retired page's frames otherwise stay publicly fetchable.
-PROTECT_PREFIXES = ("assets/sfs/anim",)
+PROTECT_PREFIXES: tuple[str, ...] = ()
 # Published to the frames store alone, never to the branch (their workflows set FRAMES_BRANCH=off for the publish):
 # their absence from the branch is not drift.
 STORE_ONLY_PREFIXES = ("assets/models/data/sa/",)
