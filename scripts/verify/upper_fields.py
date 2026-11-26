@@ -212,6 +212,7 @@ def truth(a) -> None:
     a.archive_out.mkdir(parents=True, exist_ok=True)
     ds = xr.open_zarr(ARCO, chunks=None, storage_options={"token": "anon"})
     stop = pd.Timestamp(ds.attrs["valid_time_stop_era5t"])
+    print(f"ARCO holds ERA5 to {stop:%Y-%m-%d %H}Z", flush=True)
     for day in pd.date_range(pd.Timestamp(a.first), min(pd.Timestamp(a.last), stop), freq="D"):
         if truth_file(day) in have:
             continue
