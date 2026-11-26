@@ -417,7 +417,14 @@ PROFILES = [
     ("https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en", "Google Scholar"),
     ("https://www.linkedin.com/in/shawn-corvec-35895b231/", "LinkedIn"),
 ]
-PERSONAL = [("/about.html", "About me"), ("/resume.html", "Resume"), ("/research.html", "Publications"), *PROFILES]
+# the site's methods index (every product's Methods page) sits here too, with the pages about the site
+PERSONAL = [
+    ("/about.html", "About me"),
+    ("/resume.html", "Resume"),
+    ("/research.html", "Publications"),
+    ("/guides/", "Methods"),
+    *PROFILES,
+]
 
 
 def _split_columns(items):
@@ -888,6 +895,7 @@ def footer_html(dark: bool) -> str:
     site = [
         ("/", "Home"),
         ("/topics/", "Explainers"),
+        ("/guides/", "Methods"),
         ("/stats.html", "Visitor stats"),
     ]
     me = [
