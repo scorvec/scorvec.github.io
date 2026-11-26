@@ -28,8 +28,8 @@ REPO = Path(__file__).resolve().parents[2]
 # lives in PERSONAL, apart.
 # A page lives under its topic whatever model it comes from. A group is (title, blurb, columns), its columns
 # (subtitle, items) and its items (href, label, what, when, note): the menus show the label with its short note,
-# the homepage tiles (between <!-- hp:start --> and <!-- hp:end --> in index.html) the blurb, then the same
-# subtitles and labels in the same order, with `what` as a label's tooltip. One entry per product: the sections of a stage page (circulation.html#...,
+# the homepage (between <!-- hp:start --> and <!-- hp:end --> in index.html) the blurb, then a card per item with
+# its label, note and `when`. One entry per product: the sections of a stage page (circulation.html#...,
 # stratosphere.html#...) that belong together share one entry, and the page's own section bar reaches the rest.
 PRODUCTS = [
     # THEME-FIRST: Forecasts (the model maps and the days 1-15 weather) / Tropics / Stratosphere / Weeks to seasons /
@@ -784,7 +784,7 @@ def header_html(page: str, skin: str, skip: bool = False) -> str:
     return "\n".join(out).replace(" aria-current=page", ' aria-current="page"')
 
 
-# The homepage shows the menus as tiles, one per theme (homepage_rows). HOME_ACCENT: group title -> the tile's
+# The homepage shows each menu as a section of cards (homepage_rows). HOME_ACCENT: group title -> the section's
 # data-topic, its accent colour in index.html.
 HOME_ACCENT = {
     "Forecasts": "weather",
@@ -793,42 +793,51 @@ HOME_ACCENT = {
     "Weeks to seasons": "outlooks",
     "Studies and tools": "research",
 }
-# The tiles in three stacks that each run straight down, so a short tile leaves no hole beside a long one. Read down
-# the stacks (and in the one- and two-column layouts) the themes come in the menus' order. A group missing here
-# joins the last stack.
-HOME_COLUMNS = (
-    ("Forecasts", "Tropics"),
-    ("Stratosphere", "Weeks to seasons"),
-    ("Studies and tools",),
-)
+# One large card per theme, shown first in its section.
+HOME_LEAD = {"/ens-anomalies.html", "/enso.html", "/ssw.html", "/monthly-outlook.html", "/verification.html"}
+# Behind each card a faded still of its page's figure: assets/site/cards/<home_card(href)>.webp, a static picture
+# refreshed by hand (a card without one shows the text alone).
+HOME_CARDS = REPO / "assets/site/cards"
+
+
+def home_card(href: str) -> str:
+    """The card picture's file stem for a menu href: "/circulation.html#dt" -> "circulation_dt"."""
+    return re.sub(r"[-/#.]+", "_", href.replace(".html", "")).strip("_")
 
 
 def homepage_rows() -> str:
-    """The homepage theme tiles (index.html, between <!-- hp:start --> and <!-- hp:end -->), from PRODUCTS: a menu's
-    columns and links as the menu lists them. Each link carries its page's one-line description as a tooltip."""
+    """The homepage theme sections (index.html, between <!-- hp:start --> and <!-- hp:end -->), from PRODUCTS: per
+    menu its title and blurb, then a card per item, the theme's lead card first. The grid has 4, 3 or 2 columns by
+    width and the lead card takes two columns and two rows, so the small cards fill row by row after it; the cards of a
+    short last row share out the columns it leaves (--s4/--s3/--s2), so each section ends flush at every width."""
 
-    def esc(t):
-        return t.replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;")
-
-    tiles = {}
+    out = ["<!-- hp:start -->"]
     for title, blurb, columns in PRODUCTS:
-        tile = [f'        <section class="sg" data-topic="{HOME_ACCENT.get(title, "")}">']
-        tile.append(f"          <h3>{title}</h3>\n          <p>{blurb}</p>")
-        for sub, items in columns:
-            tile.append(f"          <h4>{sub}</h4>\n          <ul>")
-            tile += [f'            <li><a href="{h}" title="{esc(what)}">{lab}</a></li>' for h, lab, what, *_ in items]
-            tile.append("          </ul>")
-        tile.append("        </section>")
-        tiles[title] = tile
-    stacks = [[t for t in col if t in tiles] for col in HOME_COLUMNS]
-    stacks[-1] += [t for t in tiles if not any(t in col for col in HOME_COLUMNS)]
-    out = ["<!-- hp:start -->", '    <div class="sgs">']
-    for col in stacks:
-        out.append('      <div class="sg-col">')
-        for title in col:
-            out += tiles[title]
-        out.append("      </div>")
-    out.append("    </div>")
+        items = sorted((it for _sub, col in columns for it in col), key=lambda it: it[0] not in HOME_LEAD)
+        cells = sum(4 if it[0] in HOME_LEAD else 1 for it in items)
+        spans = [""] * len(items)
+        for c in (4, 3, 2):
+            if f := cells % c:  # the last row holds the last f cards: widen them to fill it, the extra to the right
+                for k in range(f):
+                    if (s := 1 + (c - f) // f + (k >= f - (c - f) % f)) > 1:
+                        spans[len(items) - f + k] += f"--s{c}:{s};"
+        out.append(f'    <section class="th" data-topic="{HOME_ACCENT.get(title, "")}">')
+        out.append(f'      <header class="th-head"><h3>{title}</h3><p>{blurb}</p></header>')
+        out.append('      <div class="cards">')
+        for i, (href, label, _what, when, note) in enumerate(items):
+            cls = "card lead" if href in HOME_LEAD else "card"
+            style = f' style="{spans[i]}"' if spans[i] else ""
+            stem = home_card(href)
+            img = (
+                f'<img src="/assets/site/cards/{stem}.webp" alt="" loading="lazy" decoding="async">'
+                if (HOME_CARDS / f"{stem}.webp").exists()
+                else ""
+            )
+            out.append(
+                f'        <a class="{cls}" href="{href}"{style}>{img}<span class="c-name">{label}</span>'
+                f'<span class="c-note">{note}</span><span class="c-when">{when}</span></a>'
+            )
+        out.append("      </div>\n    </section>")
     out.append("    <!-- hp:end -->")
     return "\n".join(out)
 
