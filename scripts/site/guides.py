@@ -84,6 +84,28 @@ GUIDES = [
         "NOAA's SFS beta and CanSIPS, and the significance tests behind the shading.",
     ),
     dict(
+        slug="subseasonal",
+        page="/subseasonal.html",
+        name="GEPS subseasonal outlook",
+        desc="How the GEPS days 1 to 35 outlook is built and what each figure shows: the 1991-2020 reference, the "
+        "hindcast climatology and its corrections, the MJO, weekly maps and terciles, the change since the last run, "
+        "teleconnections, regimes and scenarios, and how each is scored on the 2001-2020 hindcast.",
+    ),
+    dict(
+        slug="gefs",
+        page="/gefs.html",
+        name="GEFS subseasonal outlook",
+        desc="How the GEFS days 1 to 35 outlook is built and where it differs from the GEPS one: the GEFSv12 "
+        "reforecast, the drift correction, the MJO, tercile calibration, teleconnections, regimes and scenarios.",
+    ),
+    dict(
+        slug="sfs-subseasonal",
+        page="/sfs-subseasonal.html",
+        name="SFS subseasonal outlook",
+        desc="How the SFS beta2 six-week outlook is built: its own 1991-2020 reforecast, the weekly maps and terciles, "
+        "the daily data check, and how its hindcasts score against GEFS, GEPS and CFSv2.",
+    ),
+    dict(
         slug="verification",
         page="/verification.html",
         name="model verification page",

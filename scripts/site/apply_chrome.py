@@ -489,9 +489,7 @@ PAGES = [
     dict(path="gefs.html", mode="site-header"),  # GEFS extended page (scripts/gefs, gefs.yml), GEPS layout
     dict(path="sfs-subseasonal.html", mode="site-header"),  # SFS beta2 page (scripts/sfs/sfs_sub.py), GEFS layout
     dict(path="monthly-outlook.html", mode="site-header"),  # Claude's long-range forecast (scripts/monthly)
-    dict(
-        path="subseasonal-method.html", mode="site-header"
-    ),  # methodology note split out of subseasonal.html; linked from there only, not in PRODUCTS
+    # subseasonal-method.html: retired, now a redirect stub to guides/subseasonal.html (no chrome)
     dict(path="mjo.html", mode="nav"),
     # ecape.html: retired, now a redirect stub to models.html#hrrr/ecape (no chrome)
     # aifs-verify.html: retired, now a redirect stub to verification.html#aifs (no chrome)

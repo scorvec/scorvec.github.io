@@ -1,0 +1,138 @@
+<section id="about">
+<h2>The page</h2>
+<p>Anomalies against the <b>1991&ndash;2020 normal</b>, with the model's own drift removed first using
+<b>GEFS's 2000&ndash;2019 reforecast</b> at the same lead and time of year, so drift is not read as a forecast. Weekly
+maps and terciles, the change since the previous run, the daily animation, teleconnections, regimes and the MJO
+&mdash; its polar vortex is on the <a href="/stratosphere.html#vortex35/gefs">stratosphere page</a>. The same products as the
+<a href="/subseasonal.html">GEPS subseasonal outlook</a> and, once a month, the experimental
+<a href="/sfs-subseasonal.html">SFS outlook</a>, so the models can be compared.</p>
+<p>Each day's 00Z GEFS run is read member by member from NOAA's open-data bucket once it reaches day 35. A forecast
+day is the mean of the 12Z and following 00Z fields (precipitation summed and outgoing longwave averaged over the four
+six-hour windows), so day 1 is the start date itself; fields are box-averaged to 1.5&deg;. Exactly the same arithmetic
+is applied to the <b>GEFSv12 reforecast</b> &mdash; the 35-day Wednesday runs of 2000&ndash;2019, four members each,
+pooled within &plusmn;15 days of the start date in any year, counted on a 365-day calendar so that leap years line
+up &mdash; and every day of the forecast is differenced from the reforecast
+mean at the same lead, which removes the model's drift and its mean bias together. Today's GEFS does not drift
+quite as its reforecast did &mdash; checked against its own analyses it runs cooler at long lead in the northern
+mid-latitudes and in the stratosphere &mdash; so the difference, measured daily from the 45 most recent runs whose 35
+days have been observed (zonal mean, by lead and latitude), is removed as well (each run's archived ensemble mean, its control where none was archived; those runs started 36 to 80 days earlier, so the estimate reflects the
+season of one to two months before); the <i>Drift correction</i> figure shows it. The reference is then moved to
+<b>1991&ndash;2020</b> by the observed ERA5 shift between the periods (ERA5 2001&ndash;2020 standing in for
+2000&ndash;2019), with no model in that step. 500 hPa height has its global mean removed so the circulation shows.
+Because GEFS's reforecast reaches 10 hPa, the polar vortex is corrected the same way at every lead, against ERA5.
+Tercile probabilities are calibrated on the same reforecasts, each start verified against a
+climatology and an ERA5 normal that both leave its own season out, and the MJO is scored the same way, with the part of the RMM that follows the change of Ni&ntilde;o-3.4 over its 120-day filter removed from forecasts and observations alike (as on the GEPS page); the teleconnection calibration is fitted on every reforecast start within &plusmn;45 days, each de-drifted against a climatology and re-based with an ERA5 normal that leave its own season out, so its skill is out of sample (left in, the shared normal had lifted the week-3 to week-5 correlations by 0.04&ndash;0.05). The maps are dotted wherever the
+reforecast's anomaly correlation is significantly above zero (one-sided 5&nbsp;% test on the 20 reforecast years, false-discovery rate 10&nbsp;% across the map). The <a href="/guides/subseasonal.html">GEPS methods page</a>
+gives the rest in full; where the two differ (reforecast years and members, start days, the day convention, the
+season left out, the drift correction), this note describes GEFS.</p>
+</section>
+
+<h2>The figures</h2>
+
+<section id="mjo">
+<h3>MJO</h3>
+<p><i>Phase</i>: the three-field RMM (OLR, 850 and 200&nbsp;hPa zonal wind), member plume and ensemble mean, days 1&ndash;35; the
+observed track is GEFS&rsquo;s own control analysis, each day filtered by the 120 days before it. ENSO is removed from every track as
+on the GEPS page: the part that follows the change of Ni&ntilde;o-3.4 over the 120-day filter window, which a growing El Ni&ntilde;o
+otherwise leaves in the index (the forecast holds the latest Ni&ntilde;o-3.4; the footer gives the shift). In the 2000&ndash;2019
+reforecasts the ensemble-mean amplitude stays within about 1.1 times the observed, so a mean track that keeps growing past that
+without moving eastward is a standing pattern in the model, such as drift, not a propagating MJO. <i>Hovm&ouml;ller</i>: OLR and
+850&nbsp;hPa zonal wind anomaly, 15&deg;S&ndash;15&deg;N, lead against longitude. <i>Hindcast skill</i>: the bivariate RMM correlation,
+RMSE and amplitude ratio of the 2000&ndash;2019 GEFSv12 reforecasts (weekly starts, four-member mean) against the observed RMM
+(computed here from ERA5 the same way), by lead, with ENSO removed from both: all starts, by season, a strong initial MJO and the
+starts within &plusmn;45 days of today, with 90&nbsp;% intervals from resampling whole years. Dotted: the estimate for the full
+31-member mean. Red marks: ECMWF&rsquo;s published extended-range values, for reference.</p>
+</section>
+
+<section id="weekly">
+<h3>Weekly means, weeks 1&ndash;5</h3>
+<p>Five seven-day means, anomaly against 1991&ndash;2020 through the lead-matched GEFSv12 reforecast. With the skill layer on, cells
+are dotted where the 2000&ndash;2019 reforecast&rsquo;s anomaly correlation for this week and season is significantly above zero
+(one-sided 5&nbsp;% test, 20 years, false-discovery rate 10&nbsp;% across the map), and cross-hatched where there is no verification
+data.</p>
+</section>
+
+<section id="probs">
+<h3>Weekly terciles</h3>
+<p><i>Raw</i>: colour is the most likely category (blue below, grey near, red above normal) and intensity its probability, from the
+fraction of the 31 members in each tercile of the 2016&ndash;2025 weekly anomaly &mdash; a recent-decade normal, not the maps&rsquo;
+1991&ndash;2020, so the warming since then is not counted as a forecast.</p>
+<p><i>Calibrated</i>: the ensemble-mean departure scaled by the gridpoint regression fitted on the 2000&ndash;2019 reforecasts for this
+month and week (each start verified against a climatology that leaves its own season out), the residual spread giving the three
+tercile probabilities &mdash; one third each where the model has no skill, amplitude restored where it has some. Out of sample
+(every reforecast start scored with its own season left out, four-member means), the calibrated probabilities beat one third each by
+an RPSS of 0.45 in week 1 and 0.07 in week 5 for temperature, and 0.18 in week 1 and about zero from week 3 for precipitation.</p>
+<p><b>The recent-decade categories, checked.</b> On the four reforecast years inside 2016&ndash;2025, every 2016&ndash;2019 start
+scored exactly as a live map: for temperature the calibrated probabilities match the observed tercile frequencies to within 0.005 in
+every week (no significant bias). For precipitation those years were drier than the decade, falling in the lower tercile 35&nbsp;% of
+the time and the upper 32&nbsp;% (both significantly off a third, false-discovery rate 10&nbsp;%), so from week 2 the maps give
+&ldquo;below&rdquo; 0.016&ndash;0.019 too little and &ldquo;above&rdquo; 0.011&ndash;0.014 too much: small, and significant.</p>
+<p>Dots mark reforecast skill significantly above zero (one-sided 5&nbsp;% test, false-discovery rate 10&nbsp;%); the probabilities
+are shown everywhere. For precipitation, cross-hatching marks the ocean, where there is no gauge truth, and dry climatological weeks,
+where terciles are undefined.</p>
+</section>
+
+<section id="change">
+<h3>Change against the previous run</h3>
+<p>This run minus the previous daily run, weekly means over the valid days both forecast; week 5 is a partial week and says so. The
+rule is the GEPS page&rsquo;s, with a run a day apart instead of three or four.</p>
+</section>
+
+<section id="telecon">
+<h3>Teleconnections</h3>
+<p><i>Plumes</i>: every member projected on CPC-style loading patterns (EPO and WPO on PSL&rsquo;s box definitions, the NAM at
+100&nbsp;hPa as the annular EOF); the tail is GEFS&rsquo;s own control analyses on the same projection, the published daily index as
+crosses (for EPO and WPO, ERA5 on PSL&rsquo;s boxes: PSL&rsquo;s series ended with NCEP/NCAR R1 in March 2026), the previous run
+dashed. Pick one index for a full-size plume. Units are seasonal standard deviations of the daily index, so relative to this time of
+year. <i>Probabilities</i>: the upper bar is the member fraction of the weekly-mean index at or beyond &plusmn;0.5 seasonal standard
+deviations; the thin lower bar the same probability calibrated on 20 years of GEFSv12 reforecasts, with the reforecast skill
+(anomaly correlation) for that index and week, scored out of sample: each reforecast start is de-drifted and re-based without its
+own season. Hatched cells: skill not significantly above zero (one-sided 5&nbsp;% test on the reforecast&rsquo;s effective sample),
+where the members&rsquo; opinion is shown but should not be trusted. The NAO comes in four definitions, with Greenland blocking beside
+it (high Greenland heights go with a negative NAO). <i>Patterns</i>: the regression of the monthly field on each index (m or hPa per
++1 standard deviation), NCEP/NCAR R1 1991&ndash;2020, with the correlation of the reproduction against CPC&rsquo;s own index; the same
+patterns as the GEPS page, whose methods page gives the construction.</p>
+<p><b>The NAO&rsquo;s four definitions.</b> CPC&rsquo;s rotated-EOF NAO (the default); Hurrell&rsquo;s station NAO, sea-level
+pressure at Lisbon minus Stykkish&oacute;lmur/Reykjav&iacute;k, each standardised; Hurrell&rsquo;s principal-component NAO, the leading
+pattern of Atlantic-sector sea-level pressure (20&ndash;80&deg;N, 90&deg;W&ndash;40&deg;E), month by month; and Jones&rsquo;s station NAO,
+Gibraltar minus south-west Iceland. Beside them the Greenland Blocking Index: mean 500&nbsp;hPa height over 60&ndash;80&deg;N,
+80&ndash;20&deg;W (Hanna et al.); high values are blocked and go with a negative NAO. Every member is projected the same way for each.</p>
+</section>
+
+<section id="regimes">
+<h3>Weather regimes</h3>
+<p><i>Forecast</i>: the share of the GEFS members in each regime by day (each day classified with its own season&rsquo;s regime set;
+&ldquo;no regime&rdquo; grey at the bottom), the last 14 observed days (GEFS analyses) running into the forecast, the previous run as a
+thin outline, the weekly probabilities as a heat-grid (outlined: the most likely regime; hatched: weeks where the 2000&ndash;2019
+GEFSv12 reforecast hit rate is not significantly above persistence or climatology), and that hit rate by lead with its 95&nbsp;%
+interval. The four-model view is on the <a href="/subseasonal.html#regimes/na/multi">GEPS page</a>. <i>Impacts</i>: ERA5
+1991&ndash;2020 composites of 2&nbsp;m temperature and precipitation over the days NCEP/NCAR R1 was in each regime (anomalies against
+the day-of-year normal, each season&rsquo;s linear trend removed), with the regime&rsquo;s 500&nbsp;hPa pattern as contours, coloured only
+where significant (a t-test on regime-episode means, false discovery rate 10&nbsp;% over the map). <i>The regimes</i>: four cold-season
+(October&ndash;March) and four warm-season (April&ndash;September) regimes from k-means on 5-day-mean 500&nbsp;hPa anomalies, NCEP/NCAR R1
+1991&ndash;2020, with the share of days in each by calendar month; frame colours pair cold and warm regimes whose patterns correlate
+at 0.6 or more, and the forecasts keep those colours across the October and April switch. The same regimes as the GEPS page.</p>
+</section>
+
+<section id="clusters">
+<h3>500&nbsp;hPa scenarios</h3>
+<p>For each week the 31 members&rsquo; weekly 500&nbsp;hPa patterns are clustered with k = 2, 3 and 4, each tested against random
+rotations of the same members; the k that beats its null by most is shown as scenario means with member counts and nearest regime.
+If none does, the ensemble is one scenario with spread and the two-way split is drawn faded. The test is the GEPS page&rsquo;s.</p>
+</section>
+
+<section id="daily">
+<h3>Daily animation</h3>
+<p>One frame per forecast day, ten fields: the ensemble mean of the day (the 12Z and following 00Z fields), anomaly against
+1991&ndash;2020 through the lead-matched reforecast.</p>
+</section>
+
+<section id="drift">
+<h3>Drift correction</h3>
+<p>Today&rsquo;s GEFS does not drift the way its 2000&ndash;2019 reforecast did: verified against its own analyses it runs cooler at
+long lead in the northern mid-latitudes and at 10&nbsp;hPa. The figure is the difference, from the 45 most recent runs whose 35 days
+have been observed (ensemble mean, the control where none was archived; runs started 36 to 80 days earlier, so it reflects the season
+of one to two months before), and every product on the page has it removed. The largest terms can be polar: 500&nbsp;hPa height and
+sea-level pressure near the poles (about +100&nbsp;m and +10&nbsp;hPa at days 20&ndash;35 in the mid-October 2026 estimate); the figure
+gives the current values. Updated daily.</p>
+</section>

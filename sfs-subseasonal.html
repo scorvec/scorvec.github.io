@@ -283,29 +283,7 @@
       uses the reforecast, which is sound too.</p>
     </div>
   </div>
-  <section class="method-note">
-    <details class="built"><summary>How it is built</summary>
-    <p>NOAA's <b>Seasonal Forecast System</b> &mdash; the coupled UFS successor to CFSv2, still experimental (beta2) &mdash;
-    runs 31 members from the first of each month. Anomalies are against <b>its own 1991&ndash;2020 reforecast</b> for the same
-    start month and lead, so the model's drift is not read as a forecast. Weekly maps and terciles for weeks 1&ndash;6 and the daily
-    animation, in the same layout as the <a href="/gefs.html">GEFS</a> and <a href="/subseasonal.html">GEPS</a> pages, and how its
-    hindcasts score against those two. An issue appears about five days after the 1st, so by mid-month its first one or two weeks
-    are already past. Its monthly and seasonal forecast is on the <a href="/seasonal.html#sfs">seasonal page</a>.</p>
-    <p id="recovered" hidden></p>
-    <p>On the first of each month NOAA's SFS beta2 runs 31 members to day 46; NOAA publishes them about five days later. Each field is
-    regridded to the GEFS page's 1.5&deg; grid and every forecast day is differenced from the mean of SFS's own reforecast at the same lead
-    &mdash; 11 members from the same start date of every year 1991&ndash;2020, which removes the model's drift and its mean bias together;
-    because the reforecast spans the normal period itself, no further re-basing is needed. 500 hPa height has its global mean removed so
-    the circulation shows. The tercile maps count the 31 members against the terciles of the reforecast's own weekly anomalies
-    (330 per gridpoint and week), so their normal is 1991&ndash;2020, not the 2016&ndash;2025 terciles of the GEFS and GEPS pages:
-    part of any &ldquo;above normal&rdquo; here is the warming since then. The maps are dotted wherever the reforecast ensemble mean's anomaly correlation with ERA5, over the
-    starts of the same month with a leave-one-year-out climatology, is significantly above zero (one-sided 5&nbsp;% test, false-discovery
-    rate 10&nbsp;% across the map): temperature worldwide on the 1991&ndash;2025 starts, precipitation over the Northern Hemisphere on
-    1991&ndash;2023, the extent of the site's ERA5 precipitation store. NOAA's own published climatology files are not used: the October one
-    was found to be a copy of September's. The hindcast comparison scores SFS, GEFSv12 and GEPS on 38 starts (1 September and 1 October,
-    2001&ndash;2019; for GEFSv12 the Wednesday start within 3 days of the 1st) as four-member means against ERA5.</p>
-    </details>
-  </section>
+  <p id="recovered" class="note" hidden></p>
   <style>#credits a, #credits code { white-space: normal; overflow-wrap: anywhere; }</style>
   <section class="method-note" id="credits">
     <h2>Where the data come from</h2>
@@ -355,19 +333,17 @@ var P = {
         c: function (a,b) { return MASKABLE.indexOf(b) >= 0 ? {label:"Skill dots", items:[["off","Off"],["on","On"]]} : null; },
         dom: gated,
         img: function (a,b,c) { return "assets/sfs/sub/sfs_" + a + "_" + b + "_weekly" + (c==="on" ? "_masked" : "") + ".webp"; },
-        cap: function (a,b,c) { if (gated()) return ""; return "Seven-day means of the 31-member ensemble mean, anomaly against SFS's own 1991–2020 reforecast at the same lead."
-          + (c==="on" ? " Dotted where the reforecast's anomaly correlation with ERA5 for this week and start month is significantly above zero (one-sided 5 % test on 35 years for temperature, 33 for precipitation; false-discovery rate 10 % across the map); cross-hatched where there is no ERA5 truth." : ""); }},
+        cap: function (a,b,c) { if (gated()) return ""; return "Ensemble mean against SFS's own 1991–2020 reforecast" + (c==="on" ? "; dots where it has skill." : "."); }},
   probs: {label: "Weekly terciles — temperature & precipitation", fit: false, a: DOMAINS,
         b: {label:"Field", items:[["t2m","2 m temp"],["pr","Precip"]]},
         dom: gated,
         img: function (a,b) { return "assets/sfs/sub/sfs_" + a + "_" + b + "_prob_raw.webp"; },
-        cap: function (a,b) { if (gated()) return ""; return "Most likely tercile by week: colour is the category (blue below, grey near, red above normal), intensity its probability, from the fraction of the 31 members in each tercile of the reforecast's own 1991–2020 weekly anomalies (the GEFS and GEPS pages use 2016–2025 terciles, so part of any ‘above’ here is the warming since then). Dots: reforecast skill significantly above zero (one-sided 5 % test on 35 years for temperature, 33 for precipitation; false-discovery rate 10 %); the probabilities are shown everywhere."
-          + (b==="pr" ? " Cross-hatched: no precipitation truth (the site's ERA5 store holds Northern Hemisphere precipitation only, to 2023) or a dry climatological week." : ""); }},
+        cap: function (a,b) { if (gated()) return ""; return "Share of the 31 members in each 1991–2020 reforecast tercile; dots where it has skill." + (b==="pr" ? " Hatched: no truth." : ""); }},
   daily: {label: "Daily animation", a: DOMAINS,
         dom: gated,
         frame: function (a) { return "sst_anim.html?base=assets/sfs/anim/sub&manifest=sfs_sub_" + a + "_manifest.json&embed=1"; },
         ratio: function (a) { return a==="na" ? "760/640" : (a==="sa" ? "760/1041" : "760/557"); },
-        cap: function () { if (gated()) return ""; return "One frame per forecast day, nine fields: the ensemble mean of the day, anomaly against the lead-matched SFS reforecast."; }},
+        cap: function () { if (gated()) return ""; return "Ensemble mean of each day, against the reforecast."; }},
   skill: {label: "Hindcast skill", fit: false,
         a: {label:"Against", items:[["acc","GEFS and GEPS"],["cfs","CFSv2"]]},
         img: function (a) { return a === "cfs" ? "assets/sfs/sub/sfs_cfs_weekly_skill.webp" : "assets/sfs/sub/sfs_hindcast_skill.webp"; },
@@ -417,7 +393,7 @@ fetch("assets/sfs/data/sfs_sub.json", {cache: "no-cache"}).then(function (r) { i
   var ul = $("gate-why"); if (ul) ul.innerHTML = "";
   if (window.STAGE && window.STAGE.refresh) window.STAGE.refresh();
 });
-window.STAGE = { groups: GROUPS.map(function (g) { return { label: g[0], ico: g[1], items: g[2] }; }), products: P };
+window.STAGE = { groups: GROUPS.map(function (g) { return { label: g[0], ico: g[1], items: g[2] }; }), guide: "/guides/sfs-subseasonal.html", products: P };
 </script>
 <!-- sf:start -->
 <footer class="sf">
@@ -445,6 +421,6 @@ window.STAGE = { groups: GROUPS.map(function (g) { return { label: g[0], ico: g[
   </div>
 </footer>
 <!-- sf:end -->
-<script src="/assets/stage.js?v=fe454b37f8" defer></script>
+<script src="/assets/stage.js?v=850ccbf7b6" defer></script>
 </body>
 </html>

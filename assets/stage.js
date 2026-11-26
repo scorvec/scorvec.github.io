@@ -8,7 +8,7 @@
      cap(a,b,c) -> caption text; about -> id of a <template> whose HTML goes under the caption
      (the vetted explanatory text and sources, collapsed); with STAGE.guide (the url of the page's guide) the template
      holds the sources only, which scripts/site/guides.py prints in the guide, and the one link under the figure,
-     "Methods", opens the guide at #<about id without "about-">;
+     "Methods", opens the guide at #<about id without "about-">, or #<product id> for a product without one;
      bust:"hourly" appends an hour cache key; frames:true -> img
      returns a path in the frames store (assets/...), loaded through the hosts of frames_root.js (which the page loads).
      STAGE.version() -> the run's key (or null), appended to every other still as ?v= so a new run's figures, which keep
@@ -395,10 +395,10 @@
     var aboutId = typeof p.about === "function" ? p.about(sel.a, sel.b, sel.c) : p.about;
     if (S.guide && p.about !== false) {
       // the page has a guide (STAGE.guide), and this is the page's one link to it: the guide's section for this
-      // figure, or the guide itself for a figure without one (about: false = a block that carries its own
-      // explanation, so no link). The figure's sources (its template) are printed in the guide, not here
+      // figure, keyed by its about id without "about-" or else by the product id (about: false = a block that
+      // carries its own explanation, so no link). The figure's sources (its template) are printed in the guide
       var gl = document.createElement("div"); gl.className = "about about--guide";
-      gl.innerHTML = '<a href="' + S.guide + (aboutId ? "#" + aboutId.replace(/^about-/, "") : "") + '">Methods</a>';
+      gl.innerHTML = '<a href="' + S.guide + "#" + (aboutId ? aboutId.replace(/^about-/, "") : sel.p) + '">Methods</a>';
       ab.appendChild(gl);
     } else if (aboutId && $(aboutId)) {
       var d = document.createElement("details"); d.className = "about";

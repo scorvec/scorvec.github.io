@@ -1,0 +1,67 @@
+<section id="about">
+<h2>The page</h2>
+<p>NOAA's <b>Seasonal Forecast System</b> &mdash; the coupled UFS successor to CFSv2, still experimental (beta2) &mdash;
+runs 31 members from the first of each month. Anomalies are against <b>its own 1991&ndash;2020 reforecast</b> for the same
+start month and lead, so the model's drift is not read as a forecast. Weekly maps and terciles for weeks 1&ndash;6 and the daily
+animation, in the same layout as the <a href="/gefs.html">GEFS</a> and <a href="/subseasonal.html">GEPS</a> pages, and how its
+hindcasts score against those two. An issue appears about five days after the 1st, so by mid-month its first one or two weeks
+are already past. Its monthly and seasonal forecast is on the <a href="/seasonal.html#sfs">seasonal page</a>.</p>
+<p>On the first of each month NOAA's SFS beta2 runs 31 members to day 46; NOAA publishes them about five days later. Each field is
+regridded to the GEFS page's 1.5&deg; grid and every forecast day is differenced from the mean of SFS's own reforecast at the same lead
+&mdash; 11 members from the same start date of every year 1991&ndash;2020, which removes the model's drift and its mean bias together;
+because the reforecast spans the normal period itself, no further re-basing is needed. 500 hPa height has its global mean removed so
+the circulation shows. The tercile maps count the 31 members against the terciles of the reforecast's own weekly anomalies
+(330 per gridpoint and week), so their normal is 1991&ndash;2020, not the 2016&ndash;2025 terciles of the GEFS and GEPS pages:
+part of any &ldquo;above normal&rdquo; here is the warming since then. The maps are dotted wherever the reforecast ensemble mean's anomaly correlation with ERA5, over the
+starts of the same month with a leave-one-year-out climatology, is significantly above zero (one-sided 5&nbsp;% test, false-discovery
+rate 10&nbsp;% across the map): temperature worldwide on the 1991&ndash;2025 starts, precipitation over the Northern Hemisphere on
+1991&ndash;2023, the extent of the site's ERA5 precipitation store. NOAA's own published climatology files are not used: the October one
+was found to be a copy of September's. The hindcast comparison scores SFS, GEFSv12 and GEPS on 38 starts (1 September and 1 October,
+2001&ndash;2019; for GEFSv12 the Wednesday start within 3 days of the 1st) as four-member means against ERA5.</p>
+</section>
+
+<h2>The figures</h2>
+
+<section id="weekly">
+<h3>Weekly means</h3>
+<p>Seven-day means of the 31-member ensemble mean, anomaly against SFS&rsquo;s own 1991&ndash;2020 reforecast at the same lead. With
+the skill layer on, cells are dotted where the reforecast&rsquo;s anomaly correlation with ERA5 for this week and start month is
+significantly above zero (one-sided 5&nbsp;% test on 35 years for temperature, 33 for precipitation; false-discovery rate 10&nbsp;%
+across the map), and cross-hatched where there is no ERA5 truth.</p>
+</section>
+
+<section id="probs">
+<h3>Weekly terciles</h3>
+<p>The most likely tercile by week: colour is the category (blue below, grey near, red above normal), intensity its probability, from
+the fraction of the 31 members in each tercile of the reforecast&rsquo;s own 1991&ndash;2020 weekly anomalies. The GEFS and GEPS pages use
+2016&ndash;2025 terciles, so part of any &ldquo;above&rdquo; here is the warming since then. Dots mark reforecast skill significantly
+above zero (one-sided 5&nbsp;% test on 35 years for temperature, 33 for precipitation; false-discovery rate 10&nbsp;%); the
+probabilities are shown everywhere. For precipitation, cross-hatching marks cells with no truth (the site&rsquo;s ERA5 store holds
+Northern Hemisphere precipitation only, to 2023) and dry climatological weeks.</p>
+</section>
+
+<section id="daily">
+<h3>Daily animation</h3>
+<p>One frame per forecast day, nine fields: the ensemble mean of the day, anomaly against the lead-matched SFS reforecast.</p>
+</section>
+
+<section id="skill">
+<h3>Hindcast skill</h3>
+<p>Two comparisons, each read in the caption under the figure, which is rewritten from the scores whenever they are rebuilt.
+<i>Against GEFS and GEPS</i>: SFS beta2, GEFSv12 and GEPS hindcasts on 38 starts (1 September and 1 October, 2001&ndash;2019; for
+GEFSv12 the Wednesday start within 3 days of the 1st), each a four-member mean against its own hindcast climatology, verified
+against ERA5, for three fields in two regions. <i>Against CFSv2</i>, the system SFS is meant to replace: 1 September and 1 October
+starts 1999&ndash;2025 (no 2017), each against its own hindcast climatology, verified against ERA5. &ldquo;Significant&rdquo; means
+p&nbsp;&lt;&nbsp;0.05 with a false discovery rate of 10&nbsp;% over the figure&rsquo;s comparisons; &#9650; marks the other system
+ahead, &#9660; SFS ahead. The seasonal comparison (Ni&ntilde;o-3.4, three-month temperature and precipitation) is on the
+<a href="/seasonal.html#sfs">seasonal page</a>.</p>
+</section>
+
+<section id="status">
+<h3>Daily data check</h3>
+<p>Every issue is checked before anything is drawn: all forecast days filled, the 35&ndash;65&deg;N temperature trend across the
+forecast close to the reforecast&rsquo;s for the same start month, and the daily fields averaged over the first month matching the
+issue&rsquo;s own monthly mean. An issue that fails is held back and this view says which test it failed; the weekly maps, terciles and
+animation appear by themselves once NOAA&rsquo;s daily store passes. An issue whose daily file was mislabelled but whose first days could be recovered is drawn for those days
+only, with the check described on the page.</p>
+</section>
