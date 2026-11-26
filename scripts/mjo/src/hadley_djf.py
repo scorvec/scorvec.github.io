@@ -210,12 +210,15 @@ def plot(cell: str):
     ds = xr.open_dataset(cfg["out"])
     year = ds.winter.values.astype(float)
     tests = {(k, xk): partial(ds[xk].values, ds[k].values, year) for k, *_ in panels for xk, _ in INDICES}
-    for (k, xk), t, p in zip(tests, tests.values(), holm([t["p"] for t in tests.values()])):
+    raw = [t["p"] for t in tests.values()]
+    for j, ((k, xk), t, p) in enumerate(zip(tests, tests.values(), holm(raw))):
         t["p_holm"] = p
-        # robustness: the test with each winter left out in turn; the winter whose removal weakens it most
+        # robustness: the test with each winter left out in turn; the winter whose removal weakens it most, its p
+        # adjusted in the same family as the flagged one (the others' p unchanged), so the flag reads on one scale
         x, y = ds[xk].values, ds[k].values
         loo = [partial(np.delete(x, i), np.delete(y, i), np.delete(year, i))["p"] for i in range(len(year))]
-        t["loo_p"], t["loo_winter"] = max(loo), int(ds.winter.values[int(np.argmax(loo))])
+        t["loo_p"] = holm([*raw[:j], max(loo), *raw[j + 1 :]])[j]
+        t["loo_winter"] = int(ds.winter.values[int(np.argmax(loo))])
     fig, axes = plt.subplots(len(panels), len(INDICES), figsize=(11.6, 8.4))
     for row, (k, title, ylab) in zip(axes, panels):
         X = np.column_stack([np.ones_like(year), year])
@@ -263,7 +266,7 @@ def plot(cell: str):
             stat = f"r = {t['r']:+.2f}, {pv} (Holm), n = {t['n']} winters, effective {t['n_eff']:.0f}"
             if sig and t["loo_p"] >= ALPHA:  # carried by one winter
                 w = t["loo_winter"]
-                stat += f"\nbut it rests on {w}/{str(w + 1)[2:]}: p = {t['loo_p']:.2f} without it"
+                stat += f"\nbut it rests on {w}/{str(w + 1)[2:]}: p = {t['loo_p']:.2f} (Holm) without it"
             ax.text(
                 0.02,
                 0.97,
