@@ -1,0 +1,168 @@
+{
+ "source": "GEFSv12 reforecast 00Z Wednesdays, 11 members; MERRA-2 u(60N, 10 hPa)",
+ "weeks": {
+  "1-7": {
+   "corrected": {
+    "bss": 0.886,
+    "ci95": [
+     0.781,
+     0.964
+    ],
+    "p": 0.0,
+    "events": 50,
+    "starts": 518,
+    "mean_share_event": 0.907,
+    "mean_share_none": 0.002
+   },
+   "raw": {
+    "bss": 0.938,
+    "ci95": [
+     0.863,
+     0.992
+    ],
+    "p": 0.0,
+    "events": 50,
+    "starts": 518,
+    "mean_share_event": 0.922,
+    "mean_share_none": 0.001
+   },
+   "passes": true
+  },
+  "8-14": {
+   "corrected": {
+    "bss": 0.318,
+    "ci95": [
+     -0.039,
+     0.546
+    ],
+    "p": 0.037,
+    "events": 21,
+    "starts": 518,
+    "mean_share_event": 0.433,
+    "mean_share_none": 0.018
+   },
+   "raw": {
+    "bss": 0.304,
+    "ci95": [
+     -0.094,
+     0.548
+    ],
+    "p": 0.0522,
+    "events": 21,
+    "starts": 518,
+    "mean_share_event": 0.455,
+    "mean_share_none": 0.019
+   },
+   "passes": true
+  },
+  "15-21": {
+   "corrected": {
+    "bss": -0.007,
+    "ci95": [
+     -0.245,
+     0.178
+    ],
+    "p": 0.5096,
+    "events": 20,
+    "starts": 518,
+    "mean_share_event": 0.2,
+    "mean_share_none": 0.034
+   },
+   "raw": {
+    "bss": -0.025,
+    "ci95": [
+     -0.292,
+     0.18
+    ],
+    "p": 0.5626,
+    "events": 20,
+    "starts": 518,
+    "mean_share_event": 0.186,
+    "mean_share_none": 0.032
+   },
+   "passes": false
+  },
+  "22-28": {
+   "corrected": {
+    "bss": 0.049,
+    "ci95": [
+     -0.083,
+     0.158
+    ],
+    "p": 0.205,
+    "events": 19,
+    "starts": 518,
+    "mean_share_event": 0.153,
+    "mean_share_none": 0.033
+   },
+   "raw": {
+    "bss": 0.028,
+    "ci95": [
+     -0.088,
+     0.125
+    ],
+    "p": 0.3052,
+    "events": 19,
+    "starts": 518,
+    "mean_share_event": 0.124,
+    "mean_share_none": 0.028
+   },
+   "passes": false
+  },
+  "29-34": {
+   "corrected": {
+    "bss": 0.02,
+    "ci95": [
+     -0.066,
+     0.1
+    ],
+    "p": 0.323,
+    "events": 17,
+    "starts": 518,
+    "mean_share_event": 0.08,
+    "mean_share_none": 0.02
+   },
+   "raw": {
+    "bss": 0.024,
+    "ci95": [
+     -0.058,
+     0.103
+    ],
+    "p": 0.282,
+    "events": 17,
+    "starts": 518,
+    "mean_share_event": 0.08,
+    "mean_share_none": 0.02
+   },
+   "passes": false
+  },
+  "15-34": {
+   "corrected": {
+    "bss": 0.1,
+    "ci95": [
+     -0.085,
+     0.254
+    ],
+    "p": 0.1284,
+    "events": 56,
+    "starts": 518,
+    "mean_share_event": 0.318,
+    "mean_share_none": 0.074
+   },
+   "raw": {
+    "bss": 0.123,
+    "ci95": [
+     -0.063,
+     0.294
+    ],
+    "p": 0.0922,
+    "events": 56,
+    "starts": 518,
+    "mean_share_event": 0.305,
+    "mean_share_none": 0.066
+   },
+   "passes": false
+  }
+ },
+ "winters": "1999-2020"
+}
