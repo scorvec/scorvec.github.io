@@ -64,7 +64,7 @@ def get(u: str, rng: tuple[int, int] | None = None) -> bytes:
 
 
 def index(u: str) -> dict:
-    """{(field u, v or z (height), level hPa or 0 for sea level, lead hours): (first byte, last byte or None for the
+    """{(field u, v, t or z (height), level hPa or 0 for sea level, lead hours): (first byte, last byte or None for the
     file's last message)} from the file's .idx."""
     lines = get(u + ".idx").decode().strip().splitlines()
     out = {}
@@ -75,8 +75,8 @@ def index(u: str) -> dict:
         lead = int(m.group(1)) if m else (0 if fc == "anl" else None)
         if lead is None:
             continue
-        if var in ("UGRD", "VGRD", "HGT") and lev.endswith(" mb"):
-            key = ({"UGRD": "u", "VGRD": "v", "HGT": "z"}[var], int(float(lev[:-3])), lead)
+        if var in ("UGRD", "VGRD", "HGT", "TMP") and lev.endswith(" mb"):
+            key = ({"UGRD": "u", "VGRD": "v", "HGT": "z", "TMP": "t"}[var], int(float(lev[:-3])), lead)
         elif var in ("PRES", "PRMSL") and lev == "mean sea level":
             key = ("msl", 0, lead)
         else:

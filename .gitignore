@@ -166,6 +166,7 @@ scripts/strat/*
 !scripts/strat/eddy_feedback.py
 !scripts/strat/eddy_feedback_gefs.py
 !scripts/strat/ssw35_skill.py
+!scripts/strat/gefs_vt100_extract.py
 !scripts/strat/gefs_eddy_extract.py
 # GEPS subseasonal vortex products (subseasonal.html, built with scripts/geps)
 !scripts/strat/strat_maps.py

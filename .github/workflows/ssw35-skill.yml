@@ -1,26 +1,125 @@
 name: Weeks 3-5 SSW index skill (GEFSv12 reforecast)
 
-# Scores the weeks 3-5 sudden-warming index of ssw.html in the GEFSv12 reforecast (scripts/strat/ssw35_skill.py): the
-# drift-corrected members' first easterly day of u(60N, 10 hPa), week by week, against MERRA-2. The reforecast's daily
-# u by latitude comes from the extracts an eddy-feedback-gefs.yml run keeps as artifacts (90 days); nothing is fetched
-# from NOAA here. Commits scripts/strat/reference/ssw35_skill.json. Dispatch only.
+# Scores the weeks 3-5 counts of ssw.html in the GEFSv12 reforecast (scripts/strat/ssw35_skill.py):
+#   reversal   the drift-corrected members' first easterly day of u(60N, 10 hPa), week by week, against MERRA-2; the
+#              reforecast's daily u by latitude comes from the extracts an eddy-feedback-gefs.yml run keeps as
+#              artifacts (90 days), so nothing is fetched for it
+#   heat flux  the members with a heat-flux week and the ensemble mean's weekly strength against ERA5; the 100 hPa
+#              [v'T'] of the same runs is reduced here, one winter per job (scripts/strat/gefs_vt100_extract.py,
+#              v and T at 100 hPa byte-ranged from NOAA's public bucket), or taken from an earlier run's artifacts
+# Commits scripts/strat/reference/ssw35_skill.json. Dispatch only; `inits` runs the reduction on those inits alone (a
+# test) and scores nothing.
 on:
   workflow_dispatch:
     inputs:
       from_run:
-        description: 'The eddy-feedback-gefs.yml run holding the gefs_eddy_* extracts'
+        description: 'The eddy-feedback-gefs.yml run holding the gefs_eddy_* extracts (u)'
         default: '42501023337'
+      vt_run:
+        description: 'A finished run of this workflow whose gefs_vt_* extracts to reuse (blank = reduce them now)'
+        default: ''
+      winters:
+        description: 'First-last winter of the heat-flux reduction, by the year of its October'
+        default: '1999-2019'
+      inits:
+        description: 'Test: reduce only these inits (comma-separated YYYYMMDDHH), control member, and stop'
+        default: ''
 
 permissions:
   contents: write
-  actions: read   # the other run's artifacts
+  actions: read   # the other runs' artifacts
+
+concurrency:
+  group: ssw35-skill
+  cancel-in-progress: false
 
 jobs:
+  plan:
+    if: ${{ !inputs.vt_run }}
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/strat/gefs_vt100_extract.py
+            scripts/strat/gefs_eddy_extract.py
+            scripts/strat/eddy_extract.py
+            scripts/strat/cmip6_coupling_extract.py
+            scripts/strat/ssw_imprint.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet numpy pandas xarray pyproj requests
+      - id: m
+        env:
+          WINTERS: ${{ inputs.winters }}
+          INITS: ${{ inputs.inits }}
+        run: |
+          if [ -n "$INITS" ]; then
+            echo 'matrix={"include":[{"winter":"test"}]}' >> "$GITHUB_OUTPUT"
+          else
+            echo "matrix=$(python scripts/strat/gefs_vt100_extract.py plan --winters "$WINTERS" | python3 -c "import json, sys; print(json.dumps({'include': json.load(sys.stdin)}))")" >> "$GITHUB_OUTPUT"
+          fi
+
+  extract:
+    needs: plan
+    if: ${{ !inputs.vt_run }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/strat/gefs_vt100_extract.py
+            scripts/strat/gefs_eddy_extract.py
+            scripts/strat/eddy_extract.py
+            scripts/strat/cmip6_coupling_extract.py
+            scripts/strat/ssw_imprint.py
+            scripts/strat/reference/ssw_imprint.nc
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet numpy pandas xarray netCDF4 pyproj requests eccodes
+      - name: Reduce winter ${{ matrix.winter }}
+        env:
+          INITS: ${{ inputs.inits }}
+        run: |
+          if [ -n "$INITS" ]; then
+            python scripts/strat/gefs_vt100_extract.py run --inits "$INITS" --members c00 --out out
+          else
+            python scripts/strat/gefs_vt100_extract.py run --winter ${{ matrix.winter }} --out out
+          fi
+          ls -la out
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: gefs_vt_${{ matrix.winter }}
+          path: out/
+          retention-days: 90
+          if-no-files-found: ignore
+
   score:
+    needs: extract
+    if: ${{ !cancelled() && !inputs.inits && (needs.extract.result == 'success' || needs.extract.result == 'failure' || needs.extract.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/strat/ssw35_skill.py
+            scripts/strat/reference
+            scripts/lib/vortex_members.py
+            scripts/mjo/src/doycal.py
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
@@ -28,15 +127,21 @@ jobs:
       - name: The reforecast extracts
         env:
           GH_TOKEN: ${{ github.token }}
-          RUN: ${{ inputs.from_run }}
+          U_RUN: ${{ inputs.from_run }}
+          VT_RUN: ${{ inputs.vt_run || github.run_id }}
         run: |
-          gh run download "$RUN" -R "$GITHUB_REPOSITORY" -p 'gefs_eddy_*' -D dl
-          mkdir -p gefs && find dl -type f -name 'GEFSv12_*.npz' -exec cp {} gefs/ \;
-          echo "$(ls gefs | wc -l) winters"
+          gh run download "$U_RUN" -R "$GITHUB_REPOSITORY" -p 'gefs_eddy_*' -D dl/u
+          gh run download "$VT_RUN" -R "$GITHUB_REPOSITORY" -p 'gefs_vt_*' -D dl/vt || echo "::warning::no heat-flux extracts"
+          mkdir -p gefs vt
+          find dl/u -type f -name 'GEFSv12_*.npz' -exec cp {} gefs/ \;
+          find dl/vt -type f -name 'GEFSv12vt_*.npz' -exec cp {} vt/ \; 2>/dev/null || true
+          echo "u: $(ls gefs | wc -l) winters, heat flux: $(ls vt | wc -l) winters"
       - name: Score
         run: |
           set -o pipefail
-          python scripts/strat/ssw35_skill.py --gefs gefs --strat scripts/strat/reference/strat_history.nc \
+          vt=""
+          if [ -n "$(ls vt)" ]; then vt="--vt vt"; fi
+          python scripts/strat/ssw35_skill.py --gefs gefs --strat scripts/strat/reference/strat_history.nc $vt \
             --out scripts/strat/reference/ssw35_skill.json | tee skill.log
           { echo '```'; cat skill.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - name: Commit & push
