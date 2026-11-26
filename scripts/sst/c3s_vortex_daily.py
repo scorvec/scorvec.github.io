@@ -42,7 +42,8 @@ TESTS (one family, Holm α = 0.05 over the tests actually run; p one-sided, 20,0
   T2  December mean from the daily data: Pearson r of the MMM December-mean daily anomaly with MERRA-2's December-mean
       anomaly, H1 r > 0. (The consistency check with the monthly result; it uses the current systems.)
   T3  December major SSW: a Charlton-Polvani (2007) major warming with its central date in 1-31 December (detection as
-      seas5_ssw.detect, on 1 Oct - 30 Mar for both the members and MERRA-2, so the final-warming rule sees the same days).
+      seas5_ssw.detect, on 1 Oct - 30 Mar for both the members and MERRA-2, so the final-warming rule sees the same days;
+      since 2026-11-26 a reversal before 1 March whose westerly-return test the record cuts off counts, see detect).
       Forecast = MMM member share; statistic ROC area. RUN ONLY IF MERRA-2 has at least 5 such winters and 5 without among
       the 24; otherwise T3 is reported as untestable (observed count and model base rate only) and leaves the family.
   T4  Major SSW between 1 December and 28/29 February, same statistic and the same at-least-5/5 rule.
@@ -376,15 +377,21 @@ def fetch(only: str | None, years=None) -> int:
     return 0 if not missing else 2
 
 
-# CP07 detection, copied verbatim from seas5_ssw.detect (importing seas5_ssw pulls the SEAS5 outlook stack)
+# CP07 detection as seas5_ssw.detect (importing seas5_ssw pulls the SEAS5 outlook stack), plus the rule for a record
+# that ends before the westerly-return test can finish (members that stop in March)
 def detect(u: np.ndarray, dates) -> dict:
     import pandas as pd
 
     """CP07 on one daily u60N10 series → {"ssw": [dates], "fw": date or None}. NaN days count as missing:
-    a westerly or easterly run is broken by them, so a series with gaps is judged on what it has."""
+    a westerly or easterly run is broken by them, so a series with gaps is judged on what it has. A record that ends
+    (last finite day) before 30 April cannot complete the 10-day westerly-return test: a reversal dated before
+    1 March whose test is cut off that way counts (a late-February reversal in a member that stops in March would
+    otherwise be dropped), a later one does not; the same rule for every system and for MERRA-2."""
     u = np.asarray(u, float)
     west = u >= 0
     n = len(u)
+    fin = np.flatnonzero(np.isfinite(u))
+    end = int(fin[-1]) + 1 if fin.size else 0  # the record's end: trailing missing days are not days of record
     events = []
     last = None
     for i in range(1, n):
@@ -403,14 +410,17 @@ def detect(u: np.ndarray, dates) -> dict:
                 continue
         # final-warming exclusion: 10 consecutive westerly days before 30 April
         apr30 = pd.Timestamp(year=d.year if d.month <= 4 else d.year + 1, month=4, day=30)
-        run, ok = 0, False
-        for j in range(i + 1, n):
+        run, ok, judged = 0, False, False
+        for j in range(i + 1, end):
             if dates[j] > apr30:
+                judged = True
                 break
             run = run + 1 if (np.isfinite(u[j]) and west[j]) else 0
             if run >= 10:
                 ok = True
                 break
+        if not (ok or judged) and d < pd.Timestamp(year=apr30.year, month=3, day=1):
+            ok = True  # the record ended before the return test could finish
         if ok:
             events.append(d)
             last = i

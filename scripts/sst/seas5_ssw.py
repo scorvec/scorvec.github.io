@@ -68,6 +68,9 @@ BLOCK = 3
 
 
 # ── SSW detection ────────────────────────────────────────────────────────────
+BUILD_STARTS = (10, 11, 12)  # start months the outlook is built for (see build)
+
+
 def detect(u: np.ndarray, dates: pd.DatetimeIndex) -> dict:
     """CP07 on one daily u60N10 series → {"ssw": [dates], "fw": date or None}. NaN days count as missing:
     a westerly or easterly run is broken by them, so a series with gaps is judged on what it has."""
@@ -426,9 +429,13 @@ def member_flags(events: list, months) -> bool:
 
 
 def build(ym: str) -> dict:
+    month = ym[4:]
+    if int(month) not in BUILD_STARTS:
+        # the Nov-Mar windows and the ENSO winter are those of the start's own winter only for Oct-Dec starts
+        print(f"  {ym}: no vortex outlook for a {month} start; {OUT_JSON.name} keeps the last Oct-Dec issue")
+        return {}
     t0 = time.time()
     rng = np.random.default_rng(20261007)
-    month = ym[4:]
     H = R.need(R.hc_ref("ssw", month), "SEAS5 daily u10 hindcast (seas5_ssw hindcast)")
     hsec, lats, hyears = H["sec"], H["lats"], H["years"]
     i60 = int(np.argmin(np.abs(lats - 60)))
