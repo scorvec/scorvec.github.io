@@ -642,7 +642,8 @@ def draw_map(F: dict, cl: xr.Dataset, mid: float, idx: dict, end: pd.Timestamp, 
 
 def draw_transit(off: Offsets, latest: pd.Timestamp, out: Path):
     """The week's releases ending `latest`: in cells of POOL_LON release points, the median transit time of the cell's
-    parcels over the seven days (where at least four were traced to the outflow layer, else grey), and a sample of the
+    parcels over the seven days, every parcel counted (one not traced to the outflow layer within DAYS_BACK is older
+    than that), so a cell is grey where under half were traced (its median is beyond DAYS_BACK), and a sample of the
     latest release's parcels traced back to where they left it."""
     days = pd.date_range(latest - pd.Timedelta(days=WIN - 1), latest)
     W = winds(pd.date_range(days[0] - pd.Timedelta(days=T.DAYS_BACK), latest), off)
@@ -655,8 +656,8 @@ def draw_transit(off: Offsets, latest: pd.Timestamp, out: Path):
     nla, nlo, k = 2 * T.RELEASE_LAT.size, T.RELEASE_LON.size, POOL_LON
     pool = taus.reshape(len(days), nla, nlo // k, k).transpose(1, 2, 0, 3).reshape(nla, nlo // k, -1)
     med = np.full(pool.shape[:2], np.nan)
-    enough = np.isfinite(pool).sum(-1) >= 4
-    med[enough] = np.nanmedian(pool[enough], axis=-1)
+    enough = 2 * np.isfinite(pool).sum(-1) > pool.shape[-1]  # more than half traced: the median is a traced time
+    med[enough] = np.median(np.where(np.isfinite(pool[enough]), pool[enough], np.inf), axis=-1)
     xc = _xn(T.RELEASE_LON[::k] + T.RES * (k - 1) / 2)
     order = np.argsort(xc)
     xe = np.r_[xc[order] - k * T.RES / 2, xc[order][-1] + k * T.RES / 2]
@@ -697,9 +698,9 @@ def draw_transit(off: Offsets, latest: pd.Timestamp, out: Path):
         left / Wi,
         0.12 / H,
         f"each {POOL_LON * T.RES:.0f}° × {T.RES:.0f}° cell: the median of its {POOL_LON * WIN} parcels of the week "
-        f"({POOL_LON} release points, {WIN} days) traced back {T.DAYS_BACK} days, grey where fewer than four were traced "
-        f"to the outflow layer (equatorward of {T.OUTFLOW_LAT:.0f}°, within "
-        f"{HB.OUT_DEPTH:.0f} hPa below the dynamic tropopause)\nlines: one in twelve of the latest release's traced parcels, back "
+        f"({POOL_LON} release points, {WIN} days) traced back {T.DAYS_BACK} days, grey where under half reached "
+        f"the outflow layer (equatorward of {T.OUTFLOW_LAT:.0f}°, within {HB.OUT_DEPTH:.0f} hPa below the dynamic "
+        f"tropopause), so the median is older than {T.DAYS_BACK} days\nlines: one in twelve of the latest release's traced parcels, back "
         "to where it left the layer (dot)",
         fontsize=8.2,
         color="#555",
