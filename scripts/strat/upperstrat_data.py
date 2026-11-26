@@ -395,7 +395,7 @@ def geos_forecast(date: str):
         t0 = time.time()
         z = g.zonal(it)
         for i, h in enumerate(HEMIS):
-            U[i, 0, k], T[i, 0, k] = z[h]
+            U[i, 0, k], T[i, 0, k] = z[h][:2]  # u60 and capT; dT is the analysis tail's alone
         if k < MAP_DAYS:
             maps.append(g.maps(it))
         log(f"  geos day {k}: NH u60 1 hPa {U[0, 0, k, -1]:+.1f}  SH {U[1, 0, k, -1]:+.1f}  ({time.time() - t0:.0f}s)")
