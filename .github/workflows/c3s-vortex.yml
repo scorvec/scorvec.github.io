@@ -188,7 +188,11 @@ jobs:
           else
             echo "hindcast incomplete: the issue is not fetched yet"
           fi
-          ls scripts/sst/data/seas5/ssw 2>/dev/null || echo "no cached SEAS5 daily u10 for $I"
+          # ECMWF's members are SEAS5's own daily u10 (seas5.yml's cache); once that cache is evicted, one CDS request
+          if [ ! -f "scripts/sst/data/seas5/ssw/fc_u10_${I}.grib" ]; then
+            echo "no cached SEAS5 daily u10 for $I: fetching it"
+            python scripts/sst/seas5_ssw.py fetch --issue "$I" --only u10 || echo "::warning::SEAS5 daily u10 fetch failed; ECMWF waits"
+          fi
           if python scripts/sst/c3s_vortex_daily.py build --issue "$I"; then echo "built=1" >> "$GITHUB_OUTPUT"
           else echo "::warning::daily build failed; keeping the previous product"; fi
           cat "$RUNNER_TEMP/cds_seq_daily.jsonl" 2>/dev/null || true
