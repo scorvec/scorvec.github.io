@@ -1,0 +1,59 @@
+name: Polar-cap tropopause calibration (one-off)
+
+# One-off check before the polar-cap tropopause series goes live: the IFS control analyses' cap heights (dt_cap.py's
+# calculation) over a period the ERA5 normals also cover, uploaded as an artifact for comparison. Removed afterwards.
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: 'First day YYYY-MM-DD'
+        default: '2026-01-01'
+      end:
+        description: 'Last day YYYY-MM-DD'
+        default: '2026-06-28'
+
+permissions:
+  contents: read
+
+jobs:
+  calibrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/mjo
+            scripts/ecmwf
+            scripts/lib
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+      - name: Analyses' cap heights (every second day, 00 and 12Z)
+        working-directory: scripts/mjo
+        env:
+          START: ${{ inputs.start }}
+          END: ${{ inputs.end }}
+        run: |
+          python - <<'EOF'
+          import os, sys
+          import pandas as pd
+          sys.path.insert(0, "src")
+          import dt_cap as D
+          rows = []
+          for day in pd.date_range(os.environ["START"], os.environ["END"], freq="2D"):
+              for hh in ("00", "12"):
+                  try:
+                      rows.append({"time": f"{day:%Y-%m-%d}T{hh}", **D.step_caps(f"{day:%Y%m%d}", hh, 0)})
+                  except RuntimeError as e:
+                      print(f"{day:%Y-%m-%d} {hh}Z: {e}", flush=True)
+          pd.DataFrame(rows).to_csv("dt_cap_calibration.csv", index=False)
+          print(f"{len(rows)} analyses", flush=True)
+          EOF
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dt-cap-calibration
+          path: scripts/mjo/dt_cap_calibration.csv
+          retention-days: 7
