@@ -63,8 +63,9 @@ def daily_members(path: Path, region: str):
 
     `sample` folds member × start date: a lagged system's starts are separate ensembles of
     the same forecast, and for a distribution of days they pool. Days are VALID days; one
-    counts only where every sample has at least three of its 6-hourly steps in it (a partial
-    day is not a daily mean), and stays a NaN column otherwise. Read message by message
+    counts only where every sample has all four of its 6-hourly steps in it (a partial day is
+    not a daily mean: the start day's 06/12/18 UTC without 00 UTC carries part of the diurnal
+    cycle), and stays a NaN column otherwise. Read message by message
     (c3s_grib): a lagged chunk opened through cfgrib is a mostly empty member × start × step cube.
     """
     import pandas as pd
@@ -84,7 +85,7 @@ def daily_members(path: Path, region: str):
     uniq = sorted(set().union(*steps.values()))
     out = np.full((len(samples), len(uniq)), np.nan, dtype="float32")
     for j, d in enumerate(uniq):
-        if min(len(steps[k].get(d, ())) for k in samples) < 3:
+        if min(len(steps[k].get(d, ())) for k in samples) < 4:
             continue
         out[:, j] = [np.mean(steps[k][d]) for k in samples]
     keep = np.isfinite(out).any(axis=1)
@@ -251,7 +252,8 @@ def main() -> int:
                     break
                 mm = (mo - 1 + k - 1) % 12 + 1
                 yy = y + (mo - 1 + k - 1) // 12
-                want = np.array([str(d)[:7] == f"{yy}-{mm:02d}" for d in days])
+                # the month's days that are daily means (a partial day is an all-NaN column)
+                want = np.array([str(d)[:7] == f"{yy}-{mm:02d}" for d in days]) & np.isfinite(vals).any(axis=0)
                 if want.sum() < 20:  # not a month's worth
                     break
                 x = vals[:, want]
