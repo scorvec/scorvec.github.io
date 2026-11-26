@@ -130,8 +130,12 @@
   /* ── Hero: the photograph, full viewport, nothing on top of the storm ── */
   .hero {
     position: relative;
-    height: clamp(24rem, 58vh, 38rem);     /* fallback for browsers without svh (Safari < 15.4) */
-    height: clamp(24rem, 58svh, 38rem);
+    /* the text sets the height: the menu's row (84 px) plus a set gap above it, so a big screen no longer leaves a
+       band of empty sky under the menu, and the photo still fills a short window */
+    min-height: clamp(20rem, 42vh, 26rem);
+    min-height: clamp(20rem, 42svh, 26rem);
+    display: flex; flex-direction: column; justify-content: flex-end;
+    padding-top: calc(84px + clamp(1.25rem, 4vh, 2.75rem));
     overflow: hidden;
     background: var(--sky);
   }
@@ -156,10 +160,15 @@
     background: linear-gradient(to bottom, rgba(10, 16, 24, 0.62) 0%, rgba(10, 16, 24, 0.28) 55%, rgba(10, 16, 24, 0) 100%);
     pointer-events: none;
   }
+  /* the menu row grows with the screen like the homepage text (site.css keeps it in px on every other page); the
+     header still measures itself and steps down to the tighter or compact row when it does not fit */
+  @media (min-width: 1400px) {
+    .sh:not(.sh--compact) .sh-link { font-size: clamp(17px, 0.42vw + 11px, 21px); }
+    .sh:not(.sh--compact) .sh-me { font-size: clamp(15.5px, 0.38vw + 10px, 19px); }
+  }
   .hero-text {
-    position: absolute; z-index: 2;
-    left: 50%; transform: translateX(-50%);
-    bottom: clamp(2rem, 6vh, 4.5rem);
+    position: relative; z-index: 2;
+    margin: 0 auto clamp(2rem, 6vh, 4.5rem);
     width: min(44rem, calc(100% - 2.5rem));
     text-align: center;
     color: #fff;
@@ -334,13 +343,6 @@
 
   @media (max-width: 520px) {
     .hero img { object-position: 40% 55%; }
-    /* narrow phones: the text sets the hero's height (never below the usual one), so the title cannot rise under
-       the menu; 84 px = the overlay header's row */
-    .hero {
-      height: auto; min-height: clamp(24rem, 58vh, 38rem); min-height: clamp(24rem, 58svh, 38rem);
-      display: flex; flex-direction: column; justify-content: flex-end; padding-top: 84px;
-    }
-    .hero-text { position: relative; left: auto; bottom: auto; transform: none; margin: 0 auto clamp(2rem, 6vh, 4.5rem); }
     .hero::after { height: 88%; }          /* the wrapped title climbs into the bright cloud: the shade follows it */
   }
 </style>
