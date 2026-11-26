@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Page guides: what every figure of a product page shows, how it is made and what it is built from, on a page of its
-own under /guides/, so that the product pages carry numbers and figures and a link.
+"""Methods pages: what every figure of a product page shows, how it is made and what it is built from, on a page of
+its own under /guides/ (the "page guides"), so that the product pages carry numbers and figures and one Methods link.
 
 A guide's text is the fragment scripts/site/guides/<slug>.html: an optional <section id="about"> on the page as a
 whole, then <h2> group headings and one <section id="KEY"><h3>name</h3>...</section> per figure. KEY is the figure's
-about id on its stage page without the "about-" (STAGE.products[...].about), which is where the figure's "About this
-figure" link lands; a section's data-fig gives the fragment that opens the figure where that is not the KEY. The
+about id on its stage page without the "about-" (STAGE.products[...].about), which is where the figure's "Methods"
+link lands, and the page's <template id="about-KEY"> (the figure's sources) is printed at the end of its section; a section's data-fig gives the fragment that opens the figure where that is not the KEY. The
 contents list and each section's link back to its figure are built here. Text that belongs to a seasonal product sits
 between <!-- season:name --> markers and is left out while the product is (enso_site.OFF_SEASON).
 
@@ -110,6 +110,7 @@ STYLE = """<style>
   .guide h3 { margin: 1.9rem 0 0.15rem; text-align: left; }
   .guide pre { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 0.7rem 0.9rem; font-size: 0.85em; white-space: pre-wrap; overflow-wrap: anywhere; }
   .guide .open { font-size: 0.92em; margin: 0 0 0.6rem; }
+  .guide .src { font-size: 0.92em; color: var(--muted); }
 </style>"""
 
 SECTION = re.compile(r'<section id="([^"]+)"(?: data-fig="([^"]+)")?>\s*<h3>(.*?)</h3>', re.S)
@@ -136,10 +137,30 @@ def contents(body: str) -> str:
     return f'<nav class="toc" aria-label="Figures"><dl>{"".join(rows)}</dl></nav>'
 
 
+TEMPLATE = re.compile(r'<template id="about-([^"]+)">(.*?)</template>', re.S)
+
+
+def with_sources(body: str, page: str) -> str:
+    """Each figure's sources, which its page keeps in a <template id="about-KEY"> (the page shows only the Methods
+    link), printed at the end of the figure's section."""
+    src = {k: v.strip() for k, v in TEMPLATE.findall((T.REPO / page.lstrip("/")).read_text())}
+
+    def add(m: re.Match) -> str:
+        inner = src.get(m.group(1), "")
+        inner = re.sub(r"^<p[^>]*>|</p>$", "", inner).strip()
+        return (
+            m.group(0)
+            if not inner
+            else m.group(0).replace("</section>", f'<p class="src"><b>Sources.</b> {inner}</p>\n</section>')
+        )
+
+    return re.sub(r'<section id="([^"]+)"[^>]*>.*?</section>', add, body, flags=re.S)
+
+
 def guide_page(g: dict) -> str:
     url = f"{T.SITE}/guides/{g['slug']}.html"
-    title = f"Guide to the {g['name']}"
-    body = enso_site.in_season((SRC / f"{g['slug']}.html").read_text()).strip()
+    title = f"Methods: the {g['name']}"
+    body = with_sources(enso_site.in_season((SRC / f"{g['slug']}.html").read_text()).strip(), g["page"])
     toc = contents(body)
     # a link to "#figure" was the page switching figures: here it opens that figure, unless the guide has the section
     here = {"about"} | {key for key, _, _ in SECTION.findall(body)}
@@ -166,9 +187,9 @@ def guide_page(g: dict) -> str:
         T.head(title, g["desc"], url, ld, math="$" in body, image=T.share_image(None), extra=STYLE)
         + f"""<main>
 <article class="topic guide">
-  <p class="crumbs"><a href="/">Home</a> › <a href="/guides/">Page guides</a> › {e(cap(g["name"]))}</p>
+  <p class="crumbs"><a href="/">Home</a> › <a href="/guides/">Methods</a> › {e(cap(g["name"]))}</p>
   <h1>{e(title)}</h1>
-  <p class="lede">What each figure shows, how it is made and what it is built from. <a href="{g["page"]}">Open the {e(g["name"])}</a></p>
+  <p class="lede">What each figure shows, how it is made, how it is tested and what it is built from. <a href="{g["page"]}">Open the {e(g["name"])}</a></p>
 {toc}
 {body}
   {BYLINE}
@@ -182,8 +203,8 @@ def guide_page(g: dict) -> str:
 
 def hub_page() -> str:
     url = f"{T.SITE}/guides/"
-    title = "Page guides: what each figure shows"
-    desc = "A guide to each product page: what every figure shows, how it is made and what it is built from."
+    title = "Methods: how each figure is made"
+    desc = "The methods behind each product page: what every figure shows, how it is made, how it is tested and what it is built from."
     ld = {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
@@ -198,7 +219,7 @@ def hub_page() -> str:
                     "@type": "ListItem",
                     "position": i + 1,
                     "url": f"{T.SITE}/guides/{g['slug']}.html",
-                    "name": f"Guide to the {g['name']}",
+                    "name": f"Methods: the {g['name']}",
                 }
                 for i, g in enumerate(GUIDES)
             ],
@@ -212,10 +233,10 @@ def hub_page() -> str:
         T.head(title, desc, url, ld, math=False, image=T.share_image(None), extra=STYLE)
         + f"""<main>
 <article class="topic guide">
-  <p class="crumbs"><a href="/">Home</a> › Page guides</p>
-  <h1>Page guides</h1>
-  <p class="lede">The product pages show numbers and figures; what each figure shows, how it is made and what it is
-  built from is written up here, one guide a page. The physics behind the diagnostics is in the
+  <p class="crumbs"><a href="/">Home</a> › Methods</p>
+  <h1>Methods</h1>
+  <p class="lede">The product pages show numbers and figures; what each figure shows, how it is made, how it is tested
+  and what it is built from is written up here, one page per product. The physics behind the diagnostics is in the
   <a href="/topics/">explainers</a>.</p>
   <ul class="hub-list">{items}</ul>
   {BYLINE}

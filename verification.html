@@ -452,14 +452,12 @@ window.plotly = function () {
       <div class="stage" id="stage"></div>
       <p class="cap" id="cap"></p>
       <div id="about"></div>
-      <p class="hint">With the list of views focused: <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change view &middot; each view keeps its own controls</p>
     </section>
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>
   <div class="dom-holder">
   <section class="card" id="glance">
     <h2>Which model has the smallest error</h2>
-    <p class="what">The eight headline variables in one region: the leader each day, and every pair of models head to head in paired tests.</p>
     <div class="controls"><label>Region<select id="g-region"></select></label></div>
     <div class="chips vband" id="vband" aria-label="Each model's record in the pairwise tests"></div>
     <div class="gl-grid">
@@ -478,7 +476,6 @@ window.plotly = function () {
 
   <section class="card" id="overview-card" hidden>
     <h2>Every model, day by day</h2>
-    <p class="what">The headline variables for every model scored in the window: RMSE for the single runs, CRPS for the ensembles, shaded against the best of each kind.</p>
     <div class="controls"><label>Region<select id="o-region"></select></label></div>
     <div class="ovgrid" id="ov" data-noswipe></div>
     <div class="lgd" id="ov-key"></div>
@@ -486,7 +483,6 @@ window.plotly = function () {
 
   <section class="card" id="scores">
     <h2>One model against another, variable by variable</h2>
-    <p class="what">One model's RMSE against another's, every variable by day in each region, coloured where a paired test finds a difference (false-discovery rate 10% over the card).</p>
     <div class="controls">
       <label>Model<select id="s-model"></select></label>
       <label>against<select id="s-ref"></select></label>
@@ -501,7 +497,6 @@ window.plotly = function () {
 
   <section class="card" id="growth-card" hidden>
     <h2>How the error grows with lead time</h2>
-    <p class="what">RMSE of the eight headline variables by forecast day, as a percentage above or below the IFS control's or in the variable's own units.</p>
     <div class="controls">
       <label>Show<select id="g-kind"></select></label>
       <label>As<select id="g-view"></select></label>
@@ -512,7 +507,6 @@ window.plotly = function () {
 
   <section class="card" id="lead-card" hidden>
     <h2>One variable, day by day</h2>
-    <p class="what">One variable's RMSE and bias by forecast day, every model against the same observations.</p>
     <div class="controls">
       <label>Variable<select id="l-var"></select></label>
       <label>Region<select id="l-region"></select></label>
@@ -524,7 +518,6 @@ window.plotly = function () {
 
   <section class="card" id="acc-card" hidden>
     <h2>500 hPa anomaly correlation</h2>
-    <p class="what">Anomaly correlation of the 500&nbsp;hPa height against ERA5, 20–80° of each hemisphere: 1 is a perfect pattern, 0.6 the usual limit of a useful forecast.</p>
     <div class="controls">
       <label>Hemisphere<select id="a-region"></select></label>
       <label>Models<select id="a-kind"></select></label>
@@ -538,7 +531,6 @@ window.plotly = function () {
 
   <section class="card" id="profile-card" hidden>
     <h2>Error by height, against radiosondes</h2>
-    <p class="what">Error against radiosondes at the standard levels from 1000 to 100&nbsp;hPa, every model on the same soundings.</p>
     <div class="controls">
       <label>Quantity<select id="p-qty"></select></label>
       <label>Region<select id="p-region"></select></label>
@@ -549,7 +541,6 @@ window.plotly = function () {
 
   <section class="card" id="uppermap-card" hidden>
     <h2>Error through the atmosphere</h2>
-    <p class="what">Each model's error on the 1.5° grid, against ERA5 or against its own analysis.</p>
     <div class="controls">
       <label>Against<select id="x-truth"></select></label>
       <label>View<select id="x-view"></select></label>
@@ -568,7 +559,6 @@ window.plotly = function () {
 
   <section class="card" id="map-card">
     <h2>Error at each station</h2>
-    <p class="what">Each dot is a station, coloured by one model's error at one lead.</p>
     <div class="controls">
       <label>Variable<select id="m-var"></select></label>
       <label>Show<select id="m-stat"></select></label>
@@ -585,7 +575,6 @@ window.plotly = function () {
 
   <section class="card" id="biasmap-card" hidden>
     <h2>Where each model runs high or low</h2>
-    <p class="what">Each model's mean error at the surface stations, smoothed into a map and coloured where it is beyond the noise.</p>
     <div class="controls">
       <label>Variable<select id="b-var"></select></label>
       <label>Lead<select id="b-lead"></select></label>
@@ -597,7 +586,6 @@ window.plotly = function () {
 
   <section class="card" id="wind-card" hidden>
     <h2>Wind speed as a distribution</h2>
-    <p class="what">Does each model produce the observed spread of 10&nbsp;m wind speeds, from calms to gales?</p>
     <div class="controls">
       <label>Region<select id="w-region"></select></label>
       <label>Lead<select id="w-group"></select></label>
@@ -609,7 +597,6 @@ window.plotly = function () {
 
   <section class="card" id="precip-card" hidden>
     <h2>Rain over the US against Stage IV</h2>
-    <p class="what">24-hour rain totals against the Stage IV radar and gauge analysis over the US: threat score by threshold, by neighbourhood width and by lead.</p>
     <div class="controls">
       <label>Window ending<select id="p-lead"></select></label>
       <label>Threshold<select id="p-thr"></select></label>
@@ -625,7 +612,6 @@ window.plotly = function () {
 
   <section class="card" id="rainmap-card" hidden>
     <h2>Where each model is too wet or too dry</h2>
-    <p class="what">Forecast rain divided by Stage IV&rsquo;s across the US, as a total or as a count of wet days, over a year of runs.</p>
     <div class="controls">
       <label>Show<select id="r-stat"></select></label>
       <label>Lead<select id="r-group"></select></label>
@@ -638,7 +624,6 @@ window.plotly = function () {
 
   <section class="card" id="ens-card" hidden>
     <h2>One ensemble against another</h2>
-    <p class="what">One ensemble's CRPS against another's, every variable by day, coloured where a paired test finds a difference (false-discovery rate 10% over the card).</p>
     <div class="controls">
       <label>Ensemble<select id="e-model"></select></label>
       <label>against<select id="e-ref"></select></label>
@@ -653,7 +638,6 @@ window.plotly = function () {
 
   <section class="card" id="enslead-card" hidden>
     <h2>Ensemble error and spread, day by day</h2>
-    <p class="what">CRPS by forecast day, and whether the members' spread matches the error of their mean.</p>
     <div class="controls">
       <label>Variable<select id="e-var"></select></label>
       <label>Region<select id="e-vregion"></select></label>
@@ -666,7 +650,6 @@ window.plotly = function () {
 
   <section class="card" id="ensrel-card" hidden>
     <h2>Do the probabilities come true?</h2>
-    <p class="what">When an ensemble gives an event a probability, how often does it happen? On the diagonal when reliable.</p>
     <div class="controls">
       <label>Event<select id="e-event"></select></label>
       <label>Threshold<select id="e-thr"></select></label>
@@ -677,7 +660,6 @@ window.plotly = function () {
 
   <section class="card" id="weeks-card" hidden>
     <h2>Weeks 1–5: GEFS and GEPS</h2>
-    <p class="what">How closely each weekly-mean anomaly map matched ERA5: anomaly correlation, 1 for a perfect map, with persistence as the bar to beat.</p>
     <div class="controls">
       <label>Field<select id="wk-field"></select></label>
       <label>Region<select id="wk-region"></select></label>
@@ -688,8 +670,6 @@ window.plotly = function () {
 
   <section class="card" id="db-card" hidden>
     <h2>The verification database</h2>
-    <p class="what">Every run this page scores is kept for good, every pair and sum, free to download and score again
-      with any method.</p>
     <div class="tblwrap"><table class="pg" id="db-table"></table></div>
     <ul class="db">
       <li><a href="https://github.com/scorvec/scorvec.github.io/releases?q=verify-db&amp;expanded=true">verify-db-YYYY-MM</a>,
@@ -715,7 +695,6 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
   </section>
   <section class="card" id="av-card">
     <h2 id="av-title">AIFS-ENS member 0 against the AIFS single</h2>
-    <p class="what">Each square is the comparison's score less the AIFS single's on that forecast day, coloured where a paired test finds a difference.</p>
     <table class="gl av" id="av-table" data-noswipe></table>
     <p class="sc-detail" id="av-detail" aria-live="polite">Tap or hover a square for both scores and the test.</p>
     <div class="lgd" id="av-key"></div>
@@ -723,17 +702,14 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
   </section>
   <section class="card" id="av-loop">
     <h2>AIFS single and member 0: pressure, thickness and rain</h2>
-    <p class="what">Sea-level pressure, 1000–500&nbsp;hPa thickness and 6-hour precipitation over North America, every 6 hours through the newest run of each.</p>
     <iframe class="av-embed" data-src="sst_anim.html?embed=1&amp;manifest=aifs_compare_manifest.json&amp;region=aifs_compare" title="AIFS single and member 0, North America loop"></iframe>
   </section>
   <section class="card" id="av-z500">
     <h2>AIFS single and member 0: 500&nbsp;hPa height</h2>
-    <p class="what">The height's anomaly from the 1991–2020 normal in colour and the heights every 6&nbsp;dam in lines, every 6 hours to hour 360.</p>
     <iframe class="av-embed" style="aspect-ratio: 1460 / 760" data-src="sst_anim.html?embed=1&amp;manifest=aifs_z500_manifest.json&amp;region=aifs_z500" title="AIFS single and member 0, 500 hPa height loop"></iframe>
   </section>
   <section class="card" id="av-t2m">
     <h2>AIFS single and member 0: 2&nbsp;m temperature</h2>
-    <p class="what">The anomaly from the 1991–2020 normal in colour and the temperature every 5&nbsp;°C in lines, the freezing line in blue, every 6 hours to hour 360.</p>
     <iframe class="av-embed" data-src="sst_anim.html?embed=1&amp;manifest=aifs_t2m_manifest.json&amp;region=aifs_t2m" title="AIFS single and member 0, 2 m temperature loop"></iframe>
   </section>
   </div>
@@ -925,7 +901,7 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       }
       $("gl-best").innerHTML = html;
       $("gl-best").style.setProperty("--days", days.length);
-      $("gl-key").innerHTML = `<span>Day of the forecast across the top. A model's colour: its error is significantly the smallest. Faint stripes: the models tied for the smallest (no significant difference).</span>`;
+      $("gl-key").innerHTML = `<span>Colour: significantly the smallest error. Stripes: tied for the smallest.</span>`;
       // head to head: the row model against the column model
       $("gl-h2h").innerHTML = `<tr><th></th>${models.map(m => `<th>${esc(m)}</th>`).join("")}</tr>` + models.map(a => `<tr><th>${esc(a)}</th>` + models.map(b => {
         if (a === b) return `<td class="self">·</td>`;
@@ -934,7 +910,7 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
         const net = (w - l) / n, cell = net ? inkOn(net > 0 ? [44, 110, 158] : [180, 50, 31], 0.25 + 0.75 * Math.min(1, Math.abs(net) / 0.6)) : null;
         return `<td${cell ? ` style="background:${cell.bg};color:${cell.ink}"` : ""} title="${esc(`${a} against ${b}: significantly smaller error in ${w}, larger in ${l}, no significant difference in ${n - w - l} of ${n} variable-days`)}">${w}–${l}<small>of ${n}</small></td>`;
       }).join("") + "</tr>").join("");
-      $("h2h-note").textContent = `Each cell: the row model's significantly smaller errors against the column model's, then its larger ones, over the ${heads.length} variables above and days ${days[0] / 24}–${days[days.length - 1] / 24} in this region. Blue: the row model is ahead.`;
+      $("h2h-note").textContent = `Row model's significant wins–losses against the column model, days ${days[0] / 24}–${days[days.length - 1] / 24}.`;
       // the band: each model's record over every pair
       const order = models.slice().sort((a, b) => (rec[b].w - rec[b].l) - (rec[a].w - rec[a].l));
       $("vband").innerHTML = order.map(m => `<div class="chip"><div class="l"><i style="background:${color(m, models.indexOf(m))}"></i>${esc(m)}</div>` +
@@ -1231,8 +1207,7 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
             `<td>${star(r.c.toFixed(2), out(r.c_lo, r.c_hi, 0))}</td>` +
             r.exceed.map((e, i) => `<td>${star(pct(e), out(r.ratio_lo[i], r.ratio_hi[i], 1))}</td>`).join("") + "</tr>"; }).join("") + "</tbody>";
       const weak = models.filter(m => out(row.models[m].ratio_lo[t10], row.models[m].ratio_hi[t10], 1) && row.models[m].exceed[t10] < o.exceed[t10]);
-      $("w-note").innerHTML = `10 m wind speed against the station reports, ${row.n.toLocaleString()} pairs from ${row.runs} runs, every model on the same ones. ` +
-        `Filled points and starred numbers differ from the observed beyond chance (bootstrap over runs, ${Math.round(100 * wd.level)}%).` +
+      $("w-note").innerHTML = `${row.n.toLocaleString()} pairs from ${row.runs} runs. Filled points and starred numbers: beyond chance.` +
         (weak.length ? ` Too few winds of 10 m/s or more: ${weak.map(esc).join(", ")}.` : "");
     }
     [wr, wg].forEach(el => el.addEventListener("change", render));
@@ -1327,8 +1302,7 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
         if (!rows.us.length) return null;
         const u = unit(d.unit), panels = [leadPanel(rows, "rmse", `RMSE (${u})`), leadPanel(rows, "pct", "RMSE against the IFS control (%)")];
         if (scored(rows, "bias")) panels.push(leadPanel(rows, "bias", `Bias, forecast less observed (${u})`));
-        $("lead-note").textContent = `${what} against ${named[lv.value]?.truth || "the observations"}, ${lr.value}: RMSE (lower is better), the same as a ` +
-          "percentage above or below the IFS control's on the runs both have, and bias, each pooling every observation and run at that lead.";
+        $("lead-note").textContent = `${what} against ${named[lv.value]?.truth || "the observations"}, ${lr.value}.`;
         return { panels, height: 340, legend: ordered(Object.keys(rows.models)).map(who), keys: rows.us.length > 16 ? [] : [CI, zeroKey()] };
       });
     };
@@ -1434,8 +1408,7 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
           series: series(m => hours.map(h => pt3(h / 24, d.leads[h]?.[m]?.[thr]?.ets))) };
         return { panels: [byThr, byKm, byLead], height: 330, legend: ms.map(who), keys: [CI, "equitable threat score and fractions skill score: higher is better"] };
       });
-      $("pr-note").textContent = `24 hour totals ending 12Z against Stage IV on the land cells of the 0.5° grid, the database's ${w.runs} runs ` +
-        `from ${ymd(w.first)} to ${ymd(w.last)}, every model on the same runs and cells.`;
+      $("pr-note").textContent = `The database's ${w.runs} runs from ${ymd(w.first)} to ${ymd(w.last)}.`;
       // the page's window against the gauges: do the two truths rank the models alike?
       const i = leads.indexOf(+pl.value), models = scores.models, num = (r, m, st) => r?.scores[m]?.[st]?.[i];
       const shown = grid && gauge && i >= 0 && models.every(m => num(gauge, m, "n") >= GAUGE_MIN);
@@ -1450,8 +1423,7 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       const og = order(grid), ob = order(gauge), n = gauge.scores[models[0]]?.n?.[i];
       $("p-gauge-note").innerHTML = `mm per 24 h over CONUS, window ending ${pl.value} h, the newest ${Math.max(...Object.values(scores.inits).map(a => a.length))} runs. Smallest to largest RMSE: ${og.map(esc).join(", ")} against Stage IV, ` +
         `${ob.map(esc).join(", ")} against the gauges (${og.join() === ob.join() ? "the same order" : "a different order"})` +
-        (n ? `; ${n.toLocaleString()} gauge readings, every model on the same ones.` : ".") +
-        " A gauge measures a point and a model cell averages half a degree, so RMSE against gauges runs higher.";
+        (n ? `; ${n.toLocaleString()} gauge readings.` : ".");
     };
     [pl, pt].forEach(el => el.addEventListener("change", render));
     $("precip-card").hidden = false;
@@ -1683,7 +1655,7 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
         figure($("r-obs"), (phone.matches && maps[`${rs.value}_obs_narrow`]) || maps[`${rs.value}_obs`], ver, `Stage IV over the same days: ${rs.value === "ratio" ? "mean 24 hour rain" : "share of " + what}`);
         const own = Object.entries(w.own || {}).map(([m, r]) => `${esc(m)} on its own ${r.runs} runs from ${ymd(r.first)}`);
         $("r-note").innerHTML = `The ${w.runs} 00Z runs from ${ymd(w.first)} to ${ymd(w.last)}` + (own.length ? `, ${own.join(", ")}` : "") +
-          ". Coloured cells pass the test; grey ones are within the noise. Below: what Stage IV gave over the same days.";
+          ". Below: Stage IV over the same days.";
       };
       [rs, rg, rm, phone].forEach(el => el.addEventListener("change", render));
       $("rainmap-card").hidden = false;
@@ -1768,9 +1740,8 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       $("m-ticks").innerHTML = ticks.map((t, j) => `<span>${j === 4 && s === "rmse" ? "≥ " : ""}${+t.toFixed(Math.abs(hi) < 2 ? 2 : 1)}</span>`).join("");
       $("m-cap").textContent = s === "rmse" ? `${a} RMSE (${u})` : s === "bias" ? `${a} ${isWind ? "speed bias" : "bias"}, forecast − observed (${u})`
         : `${a} RMSE minus ${b} RMSE (${u}); blue where ${a} is better`;
-      $("map-note").innerHTML = `${esc(l.label)} against ${esc(l.truth)}, day ${+ml.value / 24}, averaged over ${runs}. ` +
-        `${idx.length.toLocaleString()} stations that every model was scored at. Hover a dot for every model's numbers; ` +
-        (l.truth === "radiosondes" ? "the surface layers' dots open a station's own series." : "click one for its own series.");
+      $("map-note").innerHTML = `${esc(l.label)} against ${esc(l.truth)}, day ${+ml.value / 24}, ${runs}; ` +
+        `${idx.length.toLocaleString()} stations.`;
     }
     [mv, ms, mm, mr, ml].forEach(el => el.addEventListener("change", render));
     render();
@@ -1815,8 +1786,7 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       yaxis2: { domain: [0, 0.3], title: { text: `Forecast − observed` }, gridcolor: "#ece9e2", zerolinecolor: "#4a4744", zerolinewidth: 1.5 },
       xaxis: { anchor: "y2", gridcolor: "#ece9e2" },
     }), Object.assign({}, CONFIG, { displayModeBar: false }));
-    $("stn-note").textContent = `Each point is one 00Z run's forecast for the time it verifies, against the station's report then; ` +
-      `${st.t.length} times over the newest ${Math.round((st.t[st.t.length - 1] - st.t[0]) / 24) + 1} days of the database.`;
+    $("stn-note").textContent = `${st.t.length} times over the newest ${Math.round((st.t[st.t.length - 1] - st.t[0]) / 24) + 1} days of the database.`;
     box.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
 
@@ -1953,7 +1923,7 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
     [wf, wr, phone].forEach(el => el.addEventListener("change", render));
     render();
     const g = wk.runs.GEFS, e = wk.runs.GEPS;
-    $("wk-note").textContent = `Mean anomaly correlation with ERA5 and its 90% interval; 0 is the normal. GEFS ${g.n} runs` +
+    $("wk-note").textContent = `GEFS ${g.n} runs` +
       (g.n ? ` (${day(g.first)} to ${day(g.last)})` : "") + (e.n ? `, GEPS ${e.n} (from ${day(e.first)})` : ", GEPS none scored yet") +
       (wk.era5_through ? `; ERA5 through ${day(wk.era5_through)}.` : ".");
     $("weeks-card").hidden = false;
@@ -2186,7 +2156,7 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
   };
 })();
 </script>
-<script src="/assets/stage.js?v=ef9aba4287" defer></script>
+<script src="/assets/stage.js?v=fe454b37f8" defer></script>
 <!-- sf:start -->
 <footer class="sf">
   <div class="sf-in">

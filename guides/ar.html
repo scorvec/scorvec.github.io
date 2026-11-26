@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Guide to the atmospheric rivers page · Shawn Corvec</title>
+<title>Methods: the atmospheric rivers page · Shawn Corvec</title>
 <meta name="description" content="What each figure of the atmospheric rivers page shows and how it is made: integrated vapour transport in four models, the West Coast landfall views, the ensembles&#x27; AR odds, weeks 3 to 5 and precipitable water.">
 <link rel="canonical" href="https://scorvec.com/guides/ar.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="author" content="Shawn Corvec">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Guide to the atmospheric rivers page">
+<meta property="og:title" content="Methods: the atmospheric rivers page">
 <meta property="og:description" content="What each figure of the atmospheric rivers page shows and how it is made: integrated vapour transport in four models, the West Coast landfall views, the ensembles&#x27; AR odds, weeks 3 to 5 and precipitable water.">
 <meta property="og:url" content="https://scorvec.com/guides/ar.html">
 <meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
@@ -19,7 +19,7 @@
 {
  "@context": "https://schema.org",
  "@type": "TechArticle",
- "headline": "Guide to the atmospheric rivers page",
+ "headline": "Methods: the atmospheric rivers page",
  "description": "What each figure of the atmospheric rivers page shows and how it is made: integrated vapour transport in four models, the West Coast landfall views, the ensembles' AR odds, weeks 3 to 5 and precipitable water.",
  "url": "https://scorvec.com/guides/ar.html",
  "inLanguage": "en",
@@ -84,6 +84,7 @@
   .guide h3 { margin: 1.9rem 0 0.15rem; text-align: left; }
   .guide pre { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 0.7rem 0.9rem; font-size: 0.85em; white-space: pre-wrap; overflow-wrap: anywhere; }
   .guide .open { font-size: 0.92em; margin: 0 0 0.6rem; }
+  .guide .src { font-size: 0.92em; color: var(--muted); }
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>
@@ -253,9 +254,9 @@
 <!-- sh:end -->
 <main id="main">
 <article class="topic guide">
-  <p class="crumbs"><a href="/">Home</a> › <a href="/guides/">Page guides</a> › Atmospheric rivers page</p>
-  <h1>Guide to the atmospheric rivers page</h1>
-  <p class="lede">What each figure shows, how it is made and what it is built from. <a href="/ar.html">Open the atmospheric rivers page</a></p>
+  <p class="crumbs"><a href="/">Home</a> › <a href="/guides/">Methods</a> › Atmospheric rivers page</p>
+  <h1>Methods: the atmospheric rivers page</h1>
+  <p class="lede">What each figure shows, how it is made, how it is tested and what it is built from. <a href="/ar.html">Open the atmospheric rivers page</a></p>
 <nav class="toc" aria-label="Figures"><dl><dt>IVT maps, days 1–7</dt><dd><a href="#det">Integrated vapour transport</a></dd><dt>West Coast landfall, days 1–7</dt><dd><a href="#detcoast">Coastline IVT</a><a href="#detscale">AR scale at the coast</a></dd><dt>AR probabilities, days 1–15</dt><dd><a href="#ens">Chance of AR conditions</a><a href="#enscoast">Landfall odds along the coast</a><a href="#plume">Member plumes at the coast</a><a href="#ensscale">AR-scale odds by day</a></dd><dt>Weeks 3–5</dt><dd><a href="#ext">AR frequency against the model's climate</a></dd><dt>Moisture</dt><dd><a href="#pwat">Precipitable water</a></dd></dl></nav>
 <section id="about">
 <h2>The page</h2>
@@ -269,6 +270,7 @@
 <p class="open"><a href="/ar.html#det">Open this figure</a></p>
 <p>Each map is the model&rsquo;s own IVT, (1/g)&thinsp;|&int;&thinsp;q&thinsp;<b>V</b>&thinsp;dp| from 1000 to 300&nbsp;hPa, integrated with the trapezoid rule over the pressure levels the model publishes. Where the ground is higher than a level, that level is left out and the lowest layer starts at the surface pressure. Without this step, the extrapolated values that pressure-level files carry below the Sierra Nevada, the Cascades and the Rockies would add transport that is not there. The 1000&nbsp;hPa cap is the same for every model, so over the ocean the thin layer below 1000&nbsp;hPa is left out by all four alike.</p>
 <p><b>Levels used.</b> AIFS and IFS: 1000, 925, 850, 700, 600, 500, 400 and 300&nbsp;hPa (the open data has no others in that range); AIFS 0.25&deg;; the IFS control 0.25&deg; when its run first comes out, then on the 0.1&deg; grid (interpolated from the model&rsquo;s ~9&nbsp;km grid), redrawn from that run about two hours later, once ECMWF publishes it (each frame's subtitle gives the grid; the North Pacific view shades it in 0.2&deg; blocks, since a 0.1&deg; cell is smaller than a pixel there). GFS: all 17 levels from 1000 to 300 (every 25&ndash;50&nbsp;hPa), 0.25&deg;. GDPS: 19 levels (1000, 985, 970, 950, 925, 900, 875, 850, 800 &hellip; 300), 15&nbsp;km latitude&ndash;longitude grid. The level-set bias is measured every run: <span id="lvlBias">&hellip;</span> Shading starts at 100 in two greys for transport below the AR threshold. From 250, the colours split each step of the Ralph AR scale in two. Arrows show the IVT vector where it is 250 or more; contours are sea-level pressure every 4&nbsp;hPa. The North Pacific view covers the West Coast landfalls; the North America view covers Gulf and Atlantic moisture plumes into the South and East.</p>
+<p class="src"><b>Sources.</b> ECMWF AIFS single and IFS control (ECMWF&rsquo;s unperturbed 9&nbsp;km run, called HRES until May 2026) open data from the Google Cloud mirror only; NCEP GFS 0.25&deg; byte-ranged from the AWS S3 open-data bucket; ECCC GDPS from the MSC Datamart. 00 and 12&nbsp;UTC runs, 6-hourly to +168&nbsp;h. The GDPS reaches +168&nbsp;h about 4&frac12;&nbsp;hours after its start, hours before the others, so its run goes up on its own as soon as it is out; until the other models&rsquo; runs of that cycle arrive, they show their previous run, marked. A model whose run is late keeps its previous run on the page, marked, for up to 30&nbsp;hours.</p>
 </section>
 
 <h2>West Coast landfall, days 1–7</h2>

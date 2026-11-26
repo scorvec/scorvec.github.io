@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Guide to the seasonal forecasts page · Shawn Corvec</title>
+<title>Methods: the seasonal forecasts page · Shawn Corvec</title>
 <meta name="description" content="What each figure of the seasonal forecasts page shows and how it is made: the seven C3S systems&#x27; maps, terciles and indices, SEAS5&#x27;s ENSO and ocean indices, maps, teleconnections, regimes and impact products, NOAA&#x27;s SFS beta and CanSIPS, and the significance tests behind the shading.">
 <link rel="canonical" href="https://scorvec.com/guides/seasonal.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="author" content="Shawn Corvec">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Guide to the seasonal forecasts page">
+<meta property="og:title" content="Methods: the seasonal forecasts page">
 <meta property="og:description" content="What each figure of the seasonal forecasts page shows and how it is made: the seven C3S systems&#x27; maps, terciles and indices, SEAS5&#x27;s ENSO and ocean indices, maps, teleconnections, regimes and impact products, NOAA&#x27;s SFS beta and CanSIPS, and the significance tests behind the shading.">
 <meta property="og:url" content="https://scorvec.com/guides/seasonal.html">
 <meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
@@ -19,7 +19,7 @@
 {
  "@context": "https://schema.org",
  "@type": "TechArticle",
- "headline": "Guide to the seasonal forecasts page",
+ "headline": "Methods: the seasonal forecasts page",
  "description": "What each figure of the seasonal forecasts page shows and how it is made: the seven C3S systems' maps, terciles and indices, SEAS5's ENSO and ocean indices, maps, teleconnections, regimes and impact products, NOAA's SFS beta and CanSIPS, and the significance tests behind the shading.",
  "url": "https://scorvec.com/guides/seasonal.html",
  "inLanguage": "en",
@@ -84,6 +84,7 @@
   .guide h3 { margin: 1.9rem 0 0.15rem; text-align: left; }
   .guide pre { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 0.7rem 0.9rem; font-size: 0.85em; white-space: pre-wrap; overflow-wrap: anywhere; }
   .guide .open { font-size: 0.92em; margin: 0 0 0.6rem; }
+  .guide .src { font-size: 0.92em; color: var(--muted); }
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>
@@ -253,9 +254,9 @@
 <!-- sh:end -->
 <main id="main">
 <article class="topic guide">
-  <p class="crumbs"><a href="/">Home</a> › <a href="/guides/">Page guides</a> › Seasonal forecasts page</p>
-  <h1>Guide to the seasonal forecasts page</h1>
-  <p class="lede">What each figure shows, how it is made and what it is built from. <a href="/seasonal.html">Open the seasonal forecasts page</a></p>
+  <p class="crumbs"><a href="/">Home</a> › <a href="/guides/">Methods</a> › Seasonal forecasts page</p>
+  <h1>Methods: the seasonal forecasts page</h1>
+  <p class="lede">What each figure shows, how it is made, how it is tested and what it is built from. <a href="/seasonal.html">Open the seasonal forecasts page</a></p>
 <nav class="toc" aria-label="Figures"><dl><dt>Every model</dt><dd><a href="#c3sMapCard">Anomaly maps</a><a href="#c3sTercCard">Tercile probabilities</a><a href="#c3sIdxCard">Ocean indices</a><a href="#c3sPopCard">Population-weighted, monthly</a><a href="#c3sDayCard">Population-weighted, daily</a><a href="#ni-o-3-4-every-member">Ni&ntilde;o-3.4, every member</a></dd><dt>SEAS5 &middot; ENSO and oceans</dt><dd><a href="#enso-indices">ENSO indices</a><a href="#pdo-amo-iod-atlantic-ni-o">PDO, AMO, IOD, Atlantic Niño</a></dd><dt>SEAS5 &middot; Maps</dt><dd><a href="#changeCard">Maps and changes</a><a href="#calibrated-terciles">Bias-corrected terciles</a><a href="#normCard">Against observed normals</a></dd><dt>SEAS5 &middot; Teleconnections and regimes</dt><dd><a href="#teleCard">Teleconnection indices</a><a href="#regimeCard">Weather regimes</a></dd><dt>SEAS5 &middot; Impacts</dt><dd><a href="#popCard">Population-weighted, daily</a><a href="#xdaysCard">Threshold days</a><a href="#runsCard">Cold-snap risk</a><a href="#windCard">Wind events</a><a href="#snowCard">Snowfall</a></dd><dt>NOAA SFS beta</dt><dd><a href="#sfs">Ni&ntilde;o-3.4 plume and climate indices</a><a href="#sfs-maps">Monthly anomaly maps</a><a href="#sfs-skill">Hindcast skill against CFSv2</a></dd><dt>CanSIPS</dt><dd><a href="#cansips">Plume, anomaly maps and ECCC&rsquo;s probabilities</a></dd></dl></nav>
 <section id="about">
 <h2>The page</h2>
@@ -402,18 +403,22 @@
 <p><b>Ni&ntilde;o-3.4.</b> Monthly index from all 31 members; the fan is the members&rsquo; 10&ndash;90&nbsp;% and 25&ndash;75&nbsp;% ranges and the sienna line the ensemble mean. The observed Ni&ntilde;o-3.4 (NOAA ERSSTv6 box mean) or CPC&rsquo;s RONI leads in, with the site&rsquo;s OISST v2.1 estimate, dashed, for months not yet in those records. The blue dashes are the C3S multi-model mean from the same issue month. The 3-month toggle gives the ONI convention.</p>
 <p><b>Derived indices.</b> The IOD (Saji&rsquo;s dipole mode index), the South Atlantic Subtropical Dipole (south-west minus north-east), the Ni&ntilde;o flavours, and a PDO from North Pacific SST anomalies (global mean removed) projected onto the model&rsquo;s own reforecast EOF1, in units of the reforecast&rsquo;s standard deviation; same fan and mean.</p>
 <p><b>About the system.</b> SFS beta is a NOAA research prototype (published by the 6th of each month), not yet an operational product: ensemble size, physics and post-processing are still evolving, and months may occasionally be late or revised. NOAA publishes the raw ensemble openly but few graphical products; every SFS figure here is computed directly from the full 31-member zarr output (NOAA Open Data Dissemination, <code>noaa-oar-sfsdev-pds</code> on AWS) and refreshed with each monthly issue. Built by <code>scripts/sfs/*.py</code>; the JSON behind the charts: <a href="/assets/sfs/data/sfs_nino34.json">sfs_nino34.json</a>, <a href="/assets/sfs/data/sfs_indices.json">sfs_indices.json</a>.</p>
+<p class="src"><b>Sources.</b> NOAA SFS beta (NOAA NWS/EMC and OAR/PSL; NODD open data on AWS, bucket noaa-oar-sfsdev-pds) &middot; own 1991&ndash;2020 reforecast &middot; observed: CPC, then OISST v2.1 estimate &middot; C3S &middot; <a href="/sfs-subseasonal.html#credits">where the SFS data come from</a> &middot; built by scripts/sfs/*.py</p>
 </section>
 
 <section id="sfs-maps">
 <h3>Monthly anomaly maps</h3>
 <p class="open"><a href="/seasonal.html#sfs-maps">Open this figure</a></p>
 <p>One frame per forecast month: the 31-member mean on the 1&deg; grid against the model&rsquo;s own 1991&ndash;2020 reforecast for the same init month and lead, with one fixed colour scale across the leads, in the loop player.</p>
+<p class="src"><b>Sources.</b> SFS beta ocn_monthly / atm_monthly zarr (1&deg;), 31-member mean &middot; anomalies vs own reforecast 1991&ndash;2020 per init month &amp; lead &middot; fixed colour scale across leads &middot; <span class="chart-updated" id="sfsMonthlyUpdated">&mdash;</span></p>
+<p class="chart-sources">NOAA SFS beta (NOAA NWS/EMC and OAR/PSL; NODD open data on AWS, bucket noaa-oar-sfsdev-pds) &middot; own 1991&ndash;2020 reforecast &middot; observed: CPC, then OISST v2.1 estimate &middot; C3S &middot; <a href="/sfs-subseasonal.html#credits">where the SFS data come from</a> &middot; built by scripts/sfs/*.py</p>
 </section>
 
 <section id="sfs-skill">
 <h3>Hindcast skill against CFSv2</h3>
 <p class="open"><a href="/seasonal.html#sfs-skill">Open this figure</a></p>
 <p>A hindcast study of SFS beta2 against CFSv2, the NOAA system it is meant to replace (October 2026). SFS: its 11-member reforecast, started on the 1st of September and October 1991&ndash;2025, the only start months NOAA has published. CFSv2: the NMME archive at IRI (hindcast 1991&ndash;2010, real-time 2011&ndash;2025), 24 members from lagged starts before the 1st, scored as random 11-member draws so both ensembles are the same size. Each system and the observations are anomalies against their own leave-one-year-out climatology; intervals are 95&nbsp;% year-block bootstrap, and a difference is marked only where its own interval excludes zero and it passes a false discovery rate of 10&nbsp;% over the figure&rsquo;s comparisons; the captions are written from the same study tables (<code>scripts/sfs/sfs_verdicts.py</code>). The weekly comparison is on the <a href="/sfs-subseasonal.html#skill">SFS extended page</a>.</p>
+<p class="src"><b>Sources.</b> SFS beta2 reforecast (NOAA/OAR, NODD) &middot; CFSv2 via the NMME archive (IRI Data Library) &middot; ERA5 (Copernicus C3S) &middot; OISST v2.1 (NOAA NCEI) &middot; built by scripts/sfs/sfs_cfsfig.py from scripts/sfs/skill/cfs/</p>
 </section>
 
 <h2>CanSIPS</h2>
@@ -424,6 +429,7 @@
 <p><b>CanSIPS</b> is Environment and Climate Change Canada&rsquo;s seasonal system: 40 members from two coupled models, GEM5.2-NEMO (members 1&ndash;20) and CanESM5 (21&ndash;40), half of each started on the last day of the month and half four days earlier. C3S carries it for six months; the CanSIPS figures read ECCC&rsquo;s own copy on its MSC Datamart, which runs for <b>twelve</b>, posted on the last day of the previous month. <b>Months 7&ndash;12 are CanSIPS alone</b>: no other system on the page reaches them, so read them as one model&rsquo;s forecast, not a consensus.</p>
 <p><b>The anomaly maps</b> are the 40-member mean minus CanSIPS&rsquo;s own 1993&ndash;2016 hindcast for the same start month and lead (40 members &times; 24 years from the Datamart, whose hindcast covers 1990&ndash;2020), each model against its own, the same base as the C3S systems. A cell is coloured only where the shift is statistically significant: a Welch t-test of the 40 forecast anomalies against the hindcast&rsquo;s spread (counted as 24 independent years), with the false-discovery rate held at 10&nbsp;% across the map (Benjamini&ndash;Hochberg). Blank means no significant shift, not &ldquo;normal&rdquo;.</p>
 <p><b>The probability maps are ECCC&rsquo;s own</b>, shown as published and not recomputed here: tercile and decile probabilities against ECCC&rsquo;s 1991&ndash;2020 hindcast climatology. Built by <code>scripts/sst/cansips_dd.py</code> and <code>cansips_maps.py</code> in <code>cansips.yml</code>.</p>
+<p class="src"><b>Sources.</b> ECCC MSC Datamart (dd.weather.gc.ca), ECCC Data Servers End-use Licence &middot; Data Source: Environment and Climate Change Canada &middot; built by scripts/sst/cansips_dd.py, cansips_maps.py (cansips.yml)</p>
 </section>
   <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/">Shawn Corvec</a>, meteorologist.</p>
 </article>

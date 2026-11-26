@@ -1,5 +1,5 @@
 /* stage.js — the GEPS-page viewer, shared between pages. A page defines window.STAGE = {groups, products}
-   and includes the .ss-layout markup (rail, crumb, opts-a/b/c, stage, cap, about, hint); this script
+   and includes the .ss-layout markup (rail, crumb, opts-a/b/c, stage, cap, about); this script
    builds the rail, the option rows and the one figure on stage. Products:
      label, fit (false = natural height), a/b/c option groups {label, items:[[v,label],…]} or a
      function of the earlier choices, and ONE of
@@ -7,7 +7,8 @@
        dom(a,b,c)   -> id of a hidden element to mount (interactive blocks, widgets)
      cap(a,b,c) -> caption text; about -> id of a <template> whose HTML goes under the caption
      (the vetted explanatory text and sources, collapsed); with STAGE.guide (the url of the page's guide) the template
-     holds the sources only and a link opens the guide at #<about id without "about-">;
+     holds the sources only, which scripts/site/guides.py prints in the guide, and the one link under the figure,
+     "Methods", opens the guide at #<about id without "about-">;
      bust:"hourly" appends an hour cache key; frames:true -> img
      returns a path in the frames store (assets/...), loaded through the hosts of frames_root.js (which the page loads).
      STAGE.version() -> the run's key (or null), appended to every other still as ?v= so a new run's figures, which keep
@@ -395,11 +396,9 @@
     if (S.guide && p.about !== false) {
       // the page has a guide (STAGE.guide), and this is the page's one link to it: the guide's section for this
       // figure, or the guide itself for a figure without one (about: false = a block that carries its own
-      // explanation, so no link). The template holds the figure's sources
+      // explanation, so no link). The figure's sources (its template) are printed in the guide, not here
       var gl = document.createElement("div"); gl.className = "about about--guide";
-      gl.innerHTML = (aboutId ? '<a href="' + S.guide + "#" + aboutId.replace(/^about-/, "") + '">About this figure</a>'
-        : '<a href="' + S.guide + '">Guide to this page</a>') +
-        (aboutId && $(aboutId) ? "<details><summary>Sources</summary>" + $(aboutId).innerHTML + "</details>" : "");
+      gl.innerHTML = '<a href="' + S.guide + (aboutId ? "#" + aboutId.replace(/^about-/, "") : "") + '">Methods</a>';
       ab.appendChild(gl);
     } else if (aboutId && $(aboutId)) {
       var d = document.createElement("details"); d.className = "about";

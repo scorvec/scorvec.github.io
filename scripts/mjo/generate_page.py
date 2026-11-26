@@ -475,7 +475,6 @@ def main():
       <div class="stage" id="stage"></div>
       <p class="cap" id="cap"></p>
       <div id="about"></div>
-      <p class="hint">With the list of plots focused: <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; the diagram and the impacts keep their own controls</p>
     </section>
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>

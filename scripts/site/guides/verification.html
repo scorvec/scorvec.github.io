@@ -8,9 +8,11 @@ over land only, 2&nbsp;m temperature is moved to the height of the station, and 
 more than 100&nbsp;m off are left out. Each radiosonde level is compared with the model where and when the balloon
 actually was. Four ensembles are scored the same way to day 15, and the GEFS and GEPS weekly maps against ERA5 to
 week 5. A last group of views sets the AIFS single against member 0 of AIFS-ENS, by a method of its own.</p>
-<p>The page shows one view at a time, picked from the list. It opens on the latest ten 00Z runs; the switch at the top
-(Runs scored) takes the scores from the newest 30 or 90 runs of the verification database instead, where more of the
-differences between the models can be told apart. The note under a figure names the runs it holds. How the scores are
+<p>The page shows one view at a time, picked from the list, and opens on the every-model table. Its scores come from
+the newest 30 00Z runs of the verification database; the switch at the top (Runs scored) gives the latest ten runs
+instead, or the newest 90, 365 or all of them, where more of the differences between the models can be told apart. A
+model is scored in a window only once the database holds enough of its runs, so GDPS and GEPS join the longer windows
+later. The line under a figure names the runs it holds. How the scores are
 made, the last part of this guide, covers the charts, the intervals and tests, and the observations, the grid and the
 matching.</p>
 <p>The verification package behind the page, mverify, was written by Claude, Anthropic's AI model, with guidance from
@@ -33,14 +35,15 @@ paired test, held to a 10% false-discovery rate over everything the table shows:
 model, and faint stripes mark the models that cannot be told apart from the smallest. The head-to-head table counts,
 for each pair, the variable-days on which each model is significantly ahead, and the band at the top adds up each
 model's wins and losses over every pair.</p>
-<p>With ten runs the test is strict: a tie says the runs so far cannot separate the models, not that they are equal.
-The longer windows of the run switch, from the verification database, separate more of them.</p>
+<p>A tie says the runs so far cannot separate the models, not that they are equal; the longer windows of the run
+switch separate more of them. The line under the head-to-head table gives the days it counts.</p>
 </section>
 
 <section id="overview">
 <h3>Every model</h3>
-<p>All eight models in one table, region by region: the headline variables of the summary at days 1, 3, 5, 7, 10 and
-(the ensembles only) 15, with the single runs' RMSE and the ensembles' CRPS of the page's run window. Each kind is
+<p>Every model the run window holds, region by region: one small table per headline variable of the summary, the
+models down the side (the single runs, then the ensembles) and days 1, 3, 5, 7, 10 and (the ensembles only) 15 across,
+with the single runs' RMSE and the ensembles' CRPS. Each kind is
 shaded against its own best at that variable and day, never against the other: the single runs and the ensembles are
 scored on different runs and with different scores. The smallest error of its kind is outlined; a model whose error
 is significantly larger than the best's is shaded in one hue, in four steps by how much larger (up to 5%, 5&ndash;15%,
@@ -82,11 +85,15 @@ as an anomaly from the ERA5 1991&ndash;2020 normal of that calendar day. The cor
 removed first (WMO-No. 485), is 1 for a perfect forecast and 0 for one no better than the normal; by convention a
 forecast stops being of synoptic use below 0.6.</p>
 <p>Every model is scored against ERA5, not against its own analysis as the lead centres do, so that four centres and
-the AI models share one truth; ERA5 arrives about a week late, so the newest days fill in as it does. The time series
-is a running mean of seven runs: a single run's score swings with the day's weather far more than the models differ.
-An ensemble mean smooths away what its members disagree on, which a correlation rewards, so past day 5 it beats its
-own centre's single run without having the same detail; the two are drawn together, and compared within their own
-kind.</p>
+the AI models share one truth; ERA5 arrives about a week late, so the newest days fill in as it does. The view has two
+parts. The top chart follows one lead (day 1, 3, 5, 7 or 10) through time, as a running mean of seven runs: a single
+run's score swings with the day's weather far more than the models differ. Below it, over the runs every model shown
+has, the correlation by lead and each model's difference from the IFS control on the same runs, a marker filled where
+the paired test passes a 10% false-discovery rate. A model with too few runs so far appears in the time series only,
+as the line under the charts says.</p>
+<p>The switch gives the single runs or the ensemble means, never the two on one chart: an ensemble mean smooths away
+what its members disagree on, which a correlation rewards, so past day 5 it beats its own centre's single run without
+having the same detail. Each kind is compared within itself.</p>
 </section>
 
 <section id="profiles">
@@ -123,8 +130,10 @@ the same test over the latitude&ndash;level cells of each picture. Hover or tap 
 <section id="stations">
 <h3>Station map</h3>
 <p>Each dot is a station, coloured by one model's error at one lead averaged over the window's runs, or by the
-difference between two models. The map's file is the page's largest, so it loads when the view is first opened.</p>
-<p><b>A station's series.</b> A click on a surface station draws what it reported against every model's forecast for
+difference between two models, at the stations every model was scored at. Pointing at a dot gives every model's
+numbers there. The map's file is the page's largest, so it loads when the view is first opened.</p>
+<p><b>A station's series.</b> A click on a surface station (or, on a radiosonde map, a surface layer's dot) draws
+what it reported against every model's forecast for
 the same hours at the map's lead, over the newest 45 days of the database (a run joins it once its day 10 is observed,
 so the newest point is about two weeks old), with each model's error beneath. One station is one place and a few dozen
 runs: the series is for seeing what happened there, not for ranking the models, which the map's colours and the
@@ -156,7 +165,9 @@ quantiles from 1 to 99.5%; the hybrid Weibull of Takle and Brown (1978), that is
 rest (a smaller k is a wider spread, a smaller c weaker winds); and how often 5, 10 and 15&nbsp;m/s are reached. Each
 run's speeds are binned at 0.05&nbsp;m/s and the runs resampled whole, model and observation together, for a 95%
 interval on every difference. The chart draws each model's quantiles less the observed ones with those intervals, so
-zero is the observed distribution, and beside it the fitted distributions themselves.</p>
+zero is the observed distribution, and beside it the fitted distributions themselves, for one region and lead group
+(days 1&ndash;2, 3&ndash;5 or 6&ndash;10). In the table under them a starred number, like a filled point, differs from
+the observed beyond chance; a model with too few winds of 10&nbsp;m/s or more is named beneath it.</p>
 </section>
 
 <section id="rain">
@@ -169,9 +180,11 @@ neighbourhoods of growing size, 50 to 400&nbsp;km (Roberts and Lean 2008), so it
 of kilometres off. Both are summed over every run before they are scored, and their 95% intervals treat each run as
 one block of cells that share its weather: the threat score's from a jackknife that leaves out one run at a time, the
 skill score's from the ratio of its two sums, each with the allowance for runs that resemble the day before. A
-threshold that too few cells reach in the analysis (100 over the window) is left out. The table beneath compares the
-window's runs against Stage IV and against the rain gauges, once the gauges give every model 100 readings at the
-window chosen.</p>
+threshold that too few cells reach in the analysis (100 over the window) is left out. Three charts: the threat score
+by threshold for the 24 hours ending at the lead picked, the fractions skill score by neighbourhood width at the
+threshold picked, and the threat score by lead at that threshold. The table beneath compares the window's runs against
+Stage IV and against the rain gauges, once the gauges give every model 100 readings at the window chosen; a gauge
+measures a point while a model cell averages half a degree, so RMSE against gauges runs higher.</p>
 <p><b>Rain gauges.</b> 24 hour totals at stations (GHCNh), ending at 00Z and 12Z: the totals stations report and,
 where a station gives the amount of every hour (most US and Canadian stations), totals added up from those amounts,
 dry days included. A US station reports a 24 hour total only at 12Z after a wet day, so the built totals are most of
@@ -228,16 +241,19 @@ the other two describe them.</p>
 
 <section id="enslead">
 <h3>Error and spread</h3>
-<p>The CRPS by forecast day for one variable and region, with spread/skill beside it: the members' spread, with the
-observation's own error added where it is known, divided by the RMSE of the ensemble mean. It is 1 for a calibrated
-ensemble and below 1 for an overconfident one. A rank histogram counts where each observation falls among the members:
-flat when the ensemble is calibrated, U-shaped when it is too narrow.</p>
+<p>Three charts by forecast day for one variable and region: the CRPS; each ensemble's CRPS as a percentage above or
+below IFS-ENS's on the cases both have; and spread over error, the members' spread, with the observation's own error
+added where it is known, divided by the RMSE of the ensemble mean. Spread over error is 1 for a calibrated ensemble and
+below 1 for an overconfident one. Beneath them, rank histograms for days 1&ndash;3, 4&ndash;7 and 8&ndash;15 count where
+each observation falls among the members: flat when the ensemble is calibrated, U-shaped when it is too narrow.</p>
 </section>
 
 <section id="ensrel">
 <h3>Probabilities</h3>
-<p>Reliability compares the share of members forecasting an event with how often it happened, with the Brier skill
-score against the sample's own frequency: a reliable ensemble lies on the diagonal. A curve is drawn once the sample
+<p>Reliability compares the share of members forecasting an event with how often it happened, for one event (rain
+at gauges or 10&nbsp;m wind, by region) and threshold, in three panels for days 1&ndash;3, 4&ndash;7 and 8&ndash;15. Each
+panel heads its curves with every ensemble's Brier skill score against the sample's own frequency; a reliable ensemble
+lies on the diagonal. A curve is drawn once the sample
 holds 30 events and 30 non-events, each of its points 30 cases, and a point where the event never came, or always did,
 has no interval.</p>
 </section>

@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Guide to the MJO forecast page · Shawn Corvec</title>
+<title>Methods: the MJO forecast page · Shawn Corvec</title>
 <meta name="description" content="What the figures of the MJO forecast page show and how they are made: the time-longitude chart of the MJO with the El Niño pattern taken out and its phase reading, and the successive ECMWF RMM forecasts.">
 <link rel="canonical" href="https://scorvec.com/guides/mjo.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="author" content="Shawn Corvec">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Guide to the MJO forecast page">
+<meta property="og:title" content="Methods: the MJO forecast page">
 <meta property="og:description" content="What the figures of the MJO forecast page show and how they are made: the time-longitude chart of the MJO with the El Niño pattern taken out and its phase reading, and the successive ECMWF RMM forecasts.">
 <meta property="og:url" content="https://scorvec.com/guides/mjo.html">
 <meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
@@ -19,7 +19,7 @@
 {
  "@context": "https://schema.org",
  "@type": "TechArticle",
- "headline": "Guide to the MJO forecast page",
+ "headline": "Methods: the MJO forecast page",
  "description": "What the figures of the MJO forecast page show and how they are made: the time-longitude chart of the MJO with the El Niño pattern taken out and its phase reading, and the successive ECMWF RMM forecasts.",
  "url": "https://scorvec.com/guides/mjo.html",
  "inLanguage": "en",
@@ -84,6 +84,7 @@
   .guide h3 { margin: 1.9rem 0 0.15rem; text-align: left; }
   .guide pre { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 0.7rem 0.9rem; font-size: 0.85em; white-space: pre-wrap; overflow-wrap: anywhere; }
   .guide .open { font-size: 0.92em; margin: 0 0 0.6rem; }
+  .guide .src { font-size: 0.92em; color: var(--muted); }
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
 </head>
@@ -253,9 +254,9 @@
 <!-- sh:end -->
 <main id="main">
 <article class="topic guide">
-  <p class="crumbs"><a href="/">Home</a> › <a href="/guides/">Page guides</a> › MJO forecast page</p>
-  <h1>Guide to the MJO forecast page</h1>
-  <p class="lede">What each figure shows, how it is made and what it is built from. <a href="/mjo.html">Open the MJO forecast page</a></p>
+  <p class="crumbs"><a href="/">Home</a> › <a href="/guides/">Methods</a> › MJO forecast page</p>
+  <h1>Methods: the MJO forecast page</h1>
+  <p class="lede">What each figure shows, how it is made, how it is tested and what it is built from. <a href="/mjo.html">Open the MJO forecast page</a></p>
 <nav class="toc" aria-label="Figures"><dl><dt>Forecast</dt><dd><a href="#chi">Time&ndash;longitude chart</a><a href="#rmm">ECMWF successive runs</a></dd></dl></nav>
 <section id="about">
 <h2>The page</h2>
@@ -327,6 +328,10 @@ wave, and two or three green bands around the equator at once are too short a wa
 
 <p><b>Reading it with care.</b> Velocity potential is a smooth field made mostly of the largest scales, so it shows a
 weak MJO's circulation more readily than its rain: a contour here is not a promise of rain under it.</p>
+<p class="src"><b>Sources.</b> Updated 2026-11-26 08:49Z · Auto-generated from the AIFS-ENS open data, &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use.
+  ERA5 1991&ndash;2020 (Hersbach et al. 2020; contains modified Copernicus Climate Change Service information 2026); NOAA OISST v2.1;
+  the observed RMM behind the phase patterns computed here from ERA5 after Wheeler &amp; Hendon (2004); wave bands after
+  Wheeler &amp; Kiladis (1999).</p>
 </section>
 
 <section id="rmm">
@@ -346,6 +351,10 @@ control at step 0 of each run (winds only; from 30 May to 12 October 2026 its ph
 ERA5 RMM's on active days).</p>
 <p>This index keeps a changing El&nbsp;Ni&ntilde;o in it, so the caption under the figure opens with what the same
 forecast shows once ENSO is removed.</p>
+<p class="src"><b>Sources.</b> Updated 2026-11-26 08:49Z · Auto-generated from the AIFS-ENS and IFS-ENS open data, &copy;&nbsp;2026 European Centre for Medium-Range Weather Forecasts (ECMWF), source <a href="https://www.ecmwf.int">www.ecmwf.int</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC&nbsp;BY&nbsp;4.0</a>, modified; ECMWF does not accept any liability for errors or omissions in the data, their availability, or any loss or damage arising from their use.
+  Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
+  NCEP wind with the 120-day low-frequency filter removed; pseudo-OLR from
+  &minus;standardized daily precip vs an ERA5 1991&ndash;2020 band climatology.</p>
 </section>
   <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/">Shawn Corvec</a>, meteorologist.</p>
 </article>

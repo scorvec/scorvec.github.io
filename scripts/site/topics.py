@@ -890,7 +890,7 @@ def hub_page(today: str) -> str:
   <p>The diagnostics behind this site's circulation and stratosphere products, each explained with its equations and
   shown with its current forecast. They are written for meteorologists and students who want to know what a chart is
   measuring before trusting it.</p>
-  <p>What each figure of a product page shows and how it is made is in the <a href="/guides/">page guides</a>.</p>
+  <p>What each figure of a product page shows and how it is made is in the <a href="/guides/">methods pages</a>.</p>
   <ul class="hub-list">{items}</ul>
   <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/">Shawn Corvec</a>, meteorologist. Last revised {today}.</p>
 </article>
