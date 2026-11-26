@@ -92,15 +92,19 @@ def forecast(model, npz=None, out_dir=REPO / "assets" / "sst" / "data"):
             "mean_u": np.round(to_grid(u.mean(axis=1), lat), 2).tolist(),
         }
         for tag, zz, ff in (("nh", z, fl), ("sh", zs, fls)):
-            q = np.where(ff == 0, zz, np.nan)  # a crossing found (undefined and censored members have none)
+            far = -BOUND if tag == "nh" else BOUND  # the bound in the other hemisphere
+            # a crossing found, or censored: no crossing before the far bound, so it lies beyond it (undefined: none)
+            q = np.where(ff == 0, zz, np.where(ff == 2, far, np.nan))
             home = q > 0 if tag == "nh" else q < 0
             rec[tag] = {"defined": (ff != 1).sum(axis=1).tolist(), "censored": (ff == 2).sum(axis=1).tolist()}
-            # members whose first easterlies lie on the scan's own side of the equator, and those whose lie across it:
-            # each group summarised on its own, since percentiles over both would draw a line through the westerlies
+            # members whose first easterlies lie on the scan's own side of the equator, and those whose lie across it
+            # (the censored ones among them, at the bound): each group summarised on its own, since percentiles over
+            # both would draw a line through the westerlies; a percentile at the bound is censored (None)
             for side, m in (("home", home), ("across", np.isfinite(q) & ~home)):
                 with warnings.catch_warnings():  # a side with no members on a day is all-NaN there
                     warnings.simplefilter("ignore", RuntimeWarning)
                     pct = np.nanpercentile(np.where(m, q, np.nan), [10, 50, 90], axis=1)
+                pct[np.abs(pct) >= BOUND - 0.5] = np.nan
                 rec[tag][side] = {"p10": _r(pct[0]), "p50": _r(pct[1]), "p90": _r(pct[2]), "n": m.sum(axis=1).tolist()}
         out["levels"][str(L)] = rec
     out_dir = Path(out_dir)
