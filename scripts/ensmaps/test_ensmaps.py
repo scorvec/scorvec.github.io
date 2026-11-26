@@ -609,10 +609,12 @@ def telecon():
         msl = np.stack([1010 + 5 * pat[ao] + 8 * pat[pna], 1012 + 5 * pat[ao] + 8 * pat[pna]])
         v = ref.index({"z500": ref.anomaly(z500, t), "msl": ref.anomaly(msl, t, "msl")}, t)
         only = ref.index({"z500": ref.anomaly(z500, t)}, t)
+        slp = [k for k, s in enumerate(ids) if T15.FIELD[s] == "msl"]  # the AO and the NAO flavours
+        z5 = [k for k in range(len(ids)) if k not in slp]
         check(np.allclose(v[:, nao], 3 / 2 / 4) and np.allclose(v[:, pna], 8 / 4) and np.allclose(v[:, ao], 5 / 4)
-              and np.isnan(only[:, ao]).all() and np.allclose(np.delete(only, ao, 1), np.delete(v, ao, 1)),
+              and np.isnan(only[:, slp]).all() and np.allclose(only[:, z5], v[:, z5]),
               "index: the planted amplitude (over std_month where standardized, over sigma), each hour's own normal, "
-              "each index from its own field (the AO from sea-level pressure, NaN without it)")  # fmt: skip
+              "each index from its own field (the AO and the NAO flavours from sea-level pressure, NaN without it)")  # fmt: skip
         run = {"key": "gefs", "init": pd.Timestamp("2026-10-28"), "lead_h": np.array(T15.LEADS),
                "ok": np.ones((5, 15), bool), "ok_msl": np.ones((5, 15), bool),
                "z": (5500 + RNG.normal(0, 40, (5, 15, *rows))).astype(np.int16),
@@ -628,9 +630,9 @@ def telecon():
               "the ensemble mean's index is the index of the members' mean field, of the members complete in its field")  # fmt: skip
         old = {k: x for k, x in run.items() if k not in ("msl", "ok_msl")}  # a capture from before the AO
         _, mem_old, mean_old = ET.member_indices(ref, old)
-        check(np.isnan(mean_old[:, ao]).all() and np.isnan(mem_old[..., ao]).all()
-              and np.allclose(np.delete(mean_old, ao, 1), np.delete(mean, ao, 1)),
-              "a run captured without its sea-level pressure: no AO, the other indices as before")  # fmt: skip
+        check(np.isnan(mean_old[:, slp]).all() and np.isnan(mem_old[..., slp]).all()
+              and np.allclose(mean_old[:, z5], mean[:, z5]),
+              "a run captured without its sea-level pressure: no AO or NAO flavours, the other indices as before")  # fmt: skip
         note = ET.undefined(ao, ref, [old])
         check("sea-level pressure" in note, f"the AO's figure says why it is missing: {note}")
         site = Path(tmp) / "site"
@@ -644,24 +646,25 @@ def telecon():
               and np.allclose(rec[-1]["epo"]["mean"], np.round(mean[:, ids.index("epo")], 2)) and "ao" in rec[-1],
               "run record: a run is added once, runs over KEEP_DAYS older than the newest dropped, every member kept")  # fmt: skip
 
-        # the hindcast table's fields side by side: the AO where its run and day have sea-level pressure
+        # the hindcast table's fields side by side: the pressure indices where their run and day have sea-level pressure
         tbl = Path(tmp) / "tbl"
         tbl.mkdir()
         inits = pd.to_datetime(["2025-11-01", "2025-11-02"])
         fz = pd.DataFrame(
-            {"model": "GEFS", "init": inits, "lead_h": np.int16(24)} | {s: np.float32(1.0) for s in ids if s != "ao"}
+            {"model": "GEFS", "init": inits, "lead_h": np.int16(24)} | {ids[k]: np.float32(1.0) for k in z5}
         )
         fz.to_parquet(tbl / T15.FC["z500"])
-        pd.DataFrame(
-            {"valid": inits + pd.Timedelta(days=1)} | {s: np.float32(0.5) for s in ids if s != "ao"}
-        ).to_parquet(tbl / T15.OBS["z500"])
-        pd.DataFrame({"model": "GEFS", "init": inits[1:], "lead_h": np.int16(24), "ao": np.float32(2.0)}).to_parquet(
-            tbl / T15.FC["msl"]
+        pd.DataFrame({"valid": inits + pd.Timedelta(days=1)} | {ids[k]: np.float32(0.5) for k in z5}).to_parquet(
+            tbl / T15.OBS["z500"]
         )
+        pd.DataFrame(
+            {"model": "GEFS", "init": inits[1:], "lead_h": np.int16(24)} | {ids[k]: np.float32(2.0) for k in slp}
+        ).to_parquet(tbl / T15.FC["msl"])
         fc, ob = T15.tables(tbl)
-        check(list(fc["ao"].isna()) == [True, False] and fc["ao"].iloc[1] == 2.0 and ob["ao"].isna().all()
+        check(all(list(fc[ids[k]].isna()) == [True, False] and fc[ids[k]].iloc[1] == 2.0 and ob[ids[k]].isna().all()
+                  for k in slp)
               and set(ids) <= set(fc) and set(ids) <= set(ob) and len(fc) == 2,
-              "hindcast table: the AO beside the 500 hPa indices where its run has it, NaN elsewhere")  # fmt: skip
+              "hindcast table: the pressure indices beside the 500 hPa ones where their run has them, NaN elsewhere")  # fmt: skip
         check(T15.tables(Path(tmp) / "none") == (None, None), "no hindcast table: nothing to calibrate with")
 
     # the hindcast fit on daily starts: an AR(1) observed index, forecasts that lose skill with lead
