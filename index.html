@@ -188,10 +188,12 @@
 
   /* ── Right now: compact live readings, few and uncluttered. Every number is read live (the ENSO and
      stratosphere feeds); on any failure the dashes stay and the card still links. ── */
-  .now { display: grid; gap: 1rem; margin-top: clamp(1.75rem, 4vw, 2.75rem); }
+  /* two squares (USER 2026-11-26), side by side wherever two of 24rem fit, at most 38rem each, centred */
+  .now { display: grid; gap: 1rem; margin: clamp(1.75rem, 4vw, 2.75rem) auto 0; max-width: 77rem;
+         grid-template-columns: repeat(auto-fit, minmax(min(24rem, 100%), 1fr)); }
   .nc {
-    position: relative; display: flex; flex-direction: column; min-width: 0;
-    padding: 1.05rem 1.2rem 1rem; background: #fff; text-decoration: none;
+    position: relative; display: flex; flex-direction: column; min-width: 0; aspect-ratio: 1;
+    width: 100%; max-width: 38rem; justify-self: center; padding: 1.05rem 1.2rem 1rem; background: #fff; text-decoration: none;
     border: 1px solid var(--cloud-2); border-top: 4px solid var(--acc, var(--sky-deep)); border-radius: 10px;
     transition: box-shadow .15s;
   }
@@ -226,25 +228,31 @@
   .en-stats em { margin-top: 0.15rem; font-style: normal; font-size: 0.78rem; line-height: 1.35; color: var(--storm); }
   /* drawn at its real pixel width (viewBox = the element's width, height fixed): a fixed 320-wide viewBox stretched to
      a 560 px card would blow the labels up to ~17 px and the chart to 160 px */
-  .spark { display: block; width: 100%; flex: 1 1 170px; min-height: 170px; margin-top: 0.8rem; }   /* fills the card's height */
+  .spark { display: block; width: 100%; flex: 1 1 120px; min-height: 120px; margin-top: 0.8rem; }   /* fills the card's height */
   .spark text { font-family: var(--sans); font-size: 11.5px; fill: var(--storm); }
   .spark .lab { font-weight: 600; fill: #9a3f14; }
   .spark .lab.cool { fill: #2c5f8a; }
-  /* SSW card: the whole row; the outlook page's three readings beside each ensemble's chance run by run, in the
-     stratosphere figures' model colours, named at the line ends and in the key */
+  /* SSW card: the outlook page's three readings over each ensemble's chance run by run, in the stratosphere figures'
+     model colours, named at the line ends and in the key */
   .nc--ssw { --acc: #3b3f8c; background: linear-gradient(180deg, #f3f3fb 0%, #fff 48%); }
   .nc--ssw:hover { box-shadow: 0 4px 22px rgba(59, 63, 140, 0.16); }
   .nc--ssw .en-stats > span { border-left-color: #d8daef; }
-  .ss-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.6rem; align-items: start; }
+  .ss-body { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
   .ss-text, .ss-chart { display: flex; flex-direction: column; min-width: 0; }
   .ss-chart[hidden] { display: none; }
-  .ss-chart .spark { flex: none; height: 190px; margin-top: 0.65rem; }
+  .ss-chart { flex: 1 1 auto; }
+  .ss-chart .spark { flex: 1 1 120px; min-height: 120px; margin-top: 0.65rem; }
   .ss-key { display: flex; flex-wrap: wrap; gap: 0.25rem 0.9rem; margin-top: 0.35rem; font-size: 0.78rem; color: var(--storm); }
   .ss-key span { display: inline-flex; align-items: center; gap: 0.35rem; }
   .ss-key i { display: inline-block; width: 0.9rem; height: 2px; border-radius: 1px; }
-  @media (max-width: 820px) { .ss-body { grid-template-columns: 1fr; } }
   .nc--ssw.ev .en-stats b { white-space: nowrap; }   /* a warming under way: the numbers are dates */
   @media (max-width: 520px) { .nc--ssw.ev .en-stats b { font-size: 1.6rem; } }
+  /* phones: the description and detail lines go and the charts shrink, so the squares hold */
+  @media (max-width: 640px) {
+    .nc { padding: 0.85rem 0.95rem 0.8rem; }
+    .nc .s, .nc .en-stats em, .ss-key { display: none; }  /* the key repeats the line-end names */
+    .spark, .ss-chart .spark { flex-basis: 100px; min-height: 100px; }
+  }
 
   /* ── The themes: each menu as a section of cards, a faded still of the page's figure behind each
      (apply_chrome.homepage_rows). ── */
@@ -270,14 +278,13 @@
   .th-head h3 { font-family: var(--serif); font-weight: 500; font-size: 1.55rem; line-height: 1.15;
                 font-variation-settings: 'opsz' 36; color: var(--acc); }
   .th-head p { font-size: 0.95rem; line-height: 1.4; color: var(--muted); max-width: 46rem; }
-  /* every card square: as many columns of at least 14rem as fit, two to four (more left holes beside the 2 x 2
-     lead card on wide screens), a section's last row may be short */
-  .cards { --gap: 0.85rem; display: grid; gap: var(--gap);
-           grid-template-columns: repeat(auto-fill, minmax(max(min(14rem, 46%), (100% - 3 * var(--gap)) / 4), 1fr)); }
+  /* every card the same square, as many columns of at least 14rem as fit (two on phones); a section's last row may
+     be short */
+  .cards { --gap: 0.8rem; display: grid; gap: var(--gap);
+           grid-template-columns: repeat(auto-fill, minmax(min(14rem, 46%), 1fr)); }
   .card { position: relative; display: flex; flex-direction: column; overflow: hidden; isolation: isolate; min-width: 0;
-          aspect-ratio: 1; container-type: inline-size; padding: 0.95rem 1.05rem 0.85rem; background: #fff;
+          aspect-ratio: 1; container-type: inline-size; padding: 0.85rem 0.95rem 0.75rem; background: #fff;
           text-decoration: none; color: var(--ink); border: 1px solid var(--cloud-2); border-radius: 10px; }
-  .card.lead { grid-column: span 2; grid-row: span 2; padding: 1.2rem 1.35rem 1.05rem; }
   /* the page's figure (a square crop, assets/site/cards) fills the card, faded in from the upper left under the
      text; full colour under the pointer or focus */
   .card img { position: absolute; z-index: -1; inset: 0; width: 100%; height: 100%; object-fit: cover;
@@ -289,32 +296,25 @@
   .card:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
   .c-name { max-width: 15ch; font-family: var(--serif); font-weight: 500; font-size: 1.2rem; line-height: 1.18;
             font-variation-settings: 'opsz' 24; color: var(--acc); }
-  .lead .c-name { max-width: 14ch; font-size: clamp(1.6rem, 2.4vw, 2.05rem); line-height: 1.08; font-weight: 400;
-                  font-variation-settings: 'opsz' 60; }
   .c-note { max-width: 19ch; margin-top: 0.35rem; font-size: 0.92rem; line-height: 1.35; color: var(--ink2); }
-  .lead .c-note { max-width: 22ch; font-size: 1.02rem; }
   .c-when { margin-top: auto; font-size: 0.82rem; color: var(--muted); }
   .c-name, .c-note, .c-when, .c-list { text-shadow: 0 0 6px #fff, 0 0 2px #fff; }
-  /* a menu group as one card: a link per page with its note */
-  .c-list { list-style: none; margin: 0.9rem 0 0; padding: 0; display: grid; gap: 0.7rem; }
-  .c-list a { font-family: var(--serif); font-size: 1.12rem; line-height: 1.2; color: var(--acc); text-decoration: none; }
-  .c-list a:hover, .c-list a:focus-visible { text-decoration: underline; text-underline-offset: 0.18em; }
-  .c-list span { display: block; margin-top: 0.1rem; font-size: 0.88rem; line-height: 1.3; color: var(--ink2); }
-  .group img { opacity: 0.32; }
-  @container (max-width: 22rem) {  /* narrow phones: the page names only */
-    .c-list { gap: 0.45rem; margin-top: 0.6rem; }
-    .c-list a { font-size: 1rem; }
-    .c-list span { display: none; }
-  }
-  @container (max-width: 19rem) { .c-list { gap: 0.3rem; } .c-list a { font-size: 0.92rem; } .group.card { padding: 0.75rem 0.8rem; } }
-  /* small squares (phones, narrow windows): the name only */
-  @container (max-width: 13rem) {
+  /* a menu group as one card: a link per page */
+  .c-list { list-style: none; margin: 0.45rem 0 0; padding: 0; display: grid; gap: 0.2rem; }
+  .c-list a { font-size: 0.82rem; line-height: 1.2; color: var(--ink2); text-decoration: none; }
+  .c-list a:hover, .c-list a:focus-visible { color: var(--acc); text-decoration: underline; text-underline-offset: 0.18em; }
+  .group img { opacity: 0.3; }
+  .group.card { padding-top: 0.75rem; padding-bottom: 0.7rem; }
+  /* small squares (phones): the name only */
+  @container (max-width: 11.5rem) {
     .c-name { max-width: none; font-size: 1.02rem; }
     .c-note, .c-when { display: none; }
   }
   @media (max-width: 640px) {
     .cards { --gap: 0.6rem; }
     .card { padding: 0.75rem 0.8rem 0.7rem; }
+    .group.card { grid-column: span 2; grid-row: span 2; }  /* phones: the group one full-width square */
+    .group .c-list a { font-size: 0.95rem; }
   }
   @media (prefers-reduced-motion: reduce) { .card img { transition: none; } }
   details.src { margin-top: 1.5rem; font-size: 0.85rem; line-height: 1.5; color: var(--muted); }
@@ -560,7 +560,7 @@
     <section class="th" data-topic="weather">
       <header class="th-head"><h3>Forecasts</h3><p>The newest model runs and the next two weeks' weather</p></header>
       <div class="cards">
-        <a class="card lead" href="/ens-anomalies.html"><img src="/assets/site/cards/ens_anomalies.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Global ensembles</span><span class="c-note">Four ensembles: anomalies and regimes</span><span class="c-when">Twice daily</span></a>
+        <a class="card" href="/ens-anomalies.html"><img src="/assets/site/cards/ens_anomalies.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Global ensembles</span><span class="c-note">Four ensembles: anomalies and regimes</span><span class="c-when">Twice daily</span></a>
         <a class="card" href="/models.html"><img src="/assets/site/cards/models.webp" alt="" loading="lazy" decoding="async"><span class="c-name">North America, short range</span><span class="c-note">HRRR, RRFS and RDPS: radar, snow, storms</span><span class="c-when">Four times daily</span></a>
         <a class="card" href="/samerica-models.html"><img src="/assets/site/cards/samerica_models.webp" alt="" loading="lazy" decoding="async"><span class="c-name">South America, to day 10</span><span class="c-note">IFS control and GDPS, with soundings</span><span class="c-when">Twice daily</span></a>
         <a class="card" href="/ar.html"><img src="/assets/site/cards/ar.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Atmospheric rivers</span><span class="c-note">Moisture plumes, landfall and their odds</span><span class="c-when">Twice daily</span></a>
@@ -573,7 +573,7 @@
     <section class="th" data-topic="drivers">
       <header class="th-head"><h3>Tropics</h3><p>El Niño, the MJO, tropical waves and the tropical circulation</p></header>
       <div class="cards">
-        <a class="card lead" href="/enso.html"><img src="/assets/site/cards/enso.webp" alt="" loading="lazy" decoding="async"><span class="c-name">El Niño monitor</span><span class="c-note">ONI, RONI, the subsurface and winds</span><span class="c-when">Daily</span></a>
+        <a class="card" href="/enso.html"><img src="/assets/site/cards/enso.webp" alt="" loading="lazy" decoding="async"><span class="c-name">El Niño monitor</span><span class="c-note">ONI, RONI, the subsurface and winds</span><span class="c-when">Daily</span></a>
         <a class="card" href="/mjo.html"><img src="/assets/site/cards/mjo.webp" alt="" loading="lazy" decoding="async"><span class="c-name">MJO forecast</span><span class="c-note">Four ensembles on one phase diagram</span><span class="c-when">Twice daily</span></a>
         <a class="card" href="/tropical-waves.html"><img src="/assets/site/cards/tropical_waves.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Tropical waves</span><span class="c-note">Kelvin and Rossby waves, now and ahead</span><span class="c-when">Daily</span></a>
         <a class="card" href="/circulation.html#walker"><img src="/assets/site/cards/circulation_walker.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Walker and Hadley cells</span><span class="c-note">The overturning, its outflow and descent</span><span class="c-when">Daily</span></a>
@@ -585,7 +585,7 @@
     <section class="th" data-topic="circulation">
       <header class="th-head"><h3>Stratosphere</h3><p>The polar vortex and the waves going up into it, from today's analysis to the season, and the QBO</p></header>
       <div class="cards">
-        <a class="card lead" href="/ssw.html"><img src="/assets/site/cards/ssw.webp" alt="" loading="lazy" decoding="async"><span class="c-name">SSW outlook</span><span class="c-note">Is a sudden warming coming?</span><span class="c-when">Twice daily</span></a>
+        <a class="card" href="/ssw.html"><img src="/assets/site/cards/ssw.webp" alt="" loading="lazy" decoding="async"><span class="c-name">SSW outlook</span><span class="c-note">Is a sudden warming coming?</span><span class="c-when">Twice daily</span></a>
         <a class="card" href="/stratosphere.html#vortex"><img src="/assets/site/cards/stratosphere_vortex.webp" alt="" loading="lazy" decoding="async"><span class="c-name">The next two weeks</span><span class="c-note">The vortex, its waves and the surface</span><span class="c-when">Twice daily</span></a>
         <a class="card" href="/stratosphere.html#vortex35"><img src="/assets/site/cards/stratosphere_vortex35.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Weeks 3–5 and the season</span><span class="c-note">GEPS, GEFS, C3S and SEAS5</span><span class="c-when">Daily</span></a>
         <a class="card" href="/strat-models.html"><img src="/assets/site/cards/strat_models.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Stratosphere model maps</span><span class="c-note">Polar maps at every level, zoomable</span><span class="c-when">Four times daily</span></a>
@@ -596,7 +596,7 @@
     <section class="th" data-topic="outlooks">
       <header class="th-head"><h3>Weeks to seasons</h3><p>From weeks two to five out to the coming seasons</p></header>
       <div class="cards">
-        <a class="card lead" href="/monthly-outlook.html"><img src="/assets/site/cards/monthly_outlook.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Claude's long-range forecast</span><span class="c-note">The month and three seasons ahead</span><span class="c-when">Monthly, on the 15th</span></a>
+        <a class="card" href="/monthly-outlook.html"><img src="/assets/site/cards/monthly_outlook.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Claude's long-range forecast</span><span class="c-note">The month and three seasons ahead</span><span class="c-when">Monthly, on the 15th</span></a>
         <a class="card" href="/subseasonal.html"><img src="/assets/site/cards/subseasonal.webp" alt="" loading="lazy" decoding="async"><span class="c-name">GEPS, to day 35</span><span class="c-note">Canada's extended ensemble</span><span class="c-when">Mondays and Thursdays</span></a>
         <a class="card" href="/gefs.html"><img src="/assets/site/cards/gefs.webp" alt="" loading="lazy" decoding="async"><span class="c-name">GEFS, to day 35</span><span class="c-note">NOAA's extended ensemble</span><span class="c-when">Daily</span></a>
         <a class="card" href="/sfs-subseasonal.html"><img src="/assets/site/cards/sfs_subseasonal.webp" alt="" loading="lazy" decoding="async"><span class="c-name">SFS, to six weeks</span><span class="c-note">NOAA's experimental new system</span><span class="c-when">Monthly</span></a>
@@ -607,8 +607,8 @@
     <section class="th" data-topic="research">
       <header class="th-head"><h3>Studies and tools</h3><p>What the record and the models say, how the forecasts score, and the data to explore</p></header>
       <div class="cards">
-        <a class="card lead" href="/verification.html"><img src="/assets/site/cards/verification.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Model verification</span><span class="c-note">Scorecards, maps and the database</span><span class="c-when">Daily</span></a>
-        <div class="card lead group"><img src="/assets/site/cards/enso_imp_reg.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Studies</span><ul class="c-list"><li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a><span>CMIP6 and the observed record</span></li><li><a href="/mjo.html#mi">MJO impacts</a><span>Each phase, season by season</span></li><li><a href="/aifs-aam-budget.html">AI models and conservation laws</a><span>Does the AIFS keep the budgets?</span></li><li><a href="/torque-enso.html">El Niño and angular momentum</a><span>Why the atmosphere spins up</span></li><li><a href="/topics/">Explainers</a><span>The physics behind the products</span></li></ul></div>
+        <a class="card" href="/verification.html"><img src="/assets/site/cards/verification.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Model verification</span><span class="c-note">Scorecards, maps and the database</span><span class="c-when">Daily</span></a>
+        <div class="card group"><img src="/assets/site/cards/enso_imp_reg.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Studies</span><ul class="c-list"><li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li><li><a href="/mjo.html#mi">MJO impacts</a></li><li><a href="/aifs-aam-budget.html">AI models and conservation laws</a></li><li><a href="/torque-enso.html">El Niño and angular momentum</a></li><li><a href="/topics/">Explainers</a></li></ul></div>
         <a class="card" href="/skewt/"><img src="/assets/site/cards/skewt.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Sounding explorer</span><span class="c-note">Radiosondes worldwide, live</span><span class="c-when">Hourly mirror</span></a>
         <a class="card" href="/asos5.html"><img src="/assets/site/cards/asos5.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Five-minute airport observations</span><span class="c-note">22 major US airports, live</span><span class="c-when">Live</span></a>
         <a class="card" href="/climate.html"><img src="/assets/site/cards/climate.webp" alt="" loading="lazy" decoding="async"><span class="c-name">US climate trends</span><span class="c-note">Every county and month since 1895</span><span class="c-when">Monthly</span></a>
@@ -710,7 +710,7 @@
       const top = 8;
       const draw = () => {
         const r = svg.getBoundingClientRect(), W = Math.max(220, Math.round(r.width) || 320), L0 = 26, R0 = 8;
-        const H = Math.max(170, Math.round(r.height) || 170), bot = H - 22;
+        const H = Math.max(100, Math.round(r.height) || 170), bot = H - 22;
         svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
         const X = x => L0 + (W - L0 - R0) * (x - x0) / (x1 - x0), Y = y => top + (bot - top) * (y1 - y) / (y1 - y0);
         const f1 = z => z.toFixed(1), z0 = f1(Y(0));
@@ -843,7 +843,7 @@
     document.getElementById('ss-key').innerHTML = C.lines.map(l => `<span><i style="background:${COL[l.m]}"></i>${N[l.m]} ${l.now}</span>`).join('');
     document.getElementById('ss-chart').hidden = false;
     const draw = () => {
-      const r = svg.getBoundingClientRect(), Wd = Math.max(220, Math.round(r.width) || 320), H = Math.max(170, Math.round(r.height) || 190);
+      const r = svg.getBoundingClientRect(), Wd = Math.max(220, Math.round(r.width) || 320), H = Math.max(100, Math.round(r.height) || 190);
       const L0 = 34, R0 = 62, top = 20, bot = H - 22, { x0, x1, y0, y1 } = C;
       svg.setAttribute('viewBox', `0 0 ${Wd} ${H}`);
       const X = x => L0 + (Wd - L0 - R0) * (x - x0) / (x1 - x0 || 1), Y = v => top + (bot - top) * (y1 - v) / (y1 - y0);
