@@ -24,7 +24,7 @@ import pandas as pd
 import xarray as xr
 
 sys.path.insert(0, str(Path(__file__).parent))
-from build_walker_basins_clim import monthly_uv, detrend_by_month, PREDICTORS, Y0, Y1
+from build_walker_basins_clim import monthly_uv, detrend_by_month, MONTH_GAIN, PREDICTORS, Y0, Y1
 import walker_chi as wc
 from doycal import noleap_doy
 
@@ -56,7 +56,7 @@ def main() -> int:
     anom = {}
     for i, lev in enumerate((200, 850)):
         c, *_ = np.linalg.lstsq(B, chis[lev].reshape(len(times), -1), rcond=None)
-        coef_clim[:, i] = c.reshape(5, lat.size, lon.size)
+        coef_clim[:, i] = (c / MONTH_GAIN[:, None]).reshape(5, lat.size, lon.size)  # the daily curve's
         a, _, s = detrend_by_month(chis[lev], times)
         slope[:, i] = s
         anom[lev] = a

@@ -65,6 +65,12 @@ BASIN_LON = {"indian": (30, 110), "pacific": (110, 285), "atlantic": (285, 380)}
 CONV_SST = 27.0
 
 
+# A harmonic fitted to monthly means comes out damped by the month-mean's gain, sin(k pi / 12) / (k pi / 12) for the
+# k-th harmonic of the year (-1.1 % annual, -4.5 % semiannual): dividing the fitted [1, cos, sin, cos 2, sin 2]
+# coefficients by it gives the daily curve's.
+MONTH_GAIN = np.array([1.0, *[np.sin(k * np.pi / 12) / (k * np.pi / 12) for k in (1, 1, 2, 2)]])
+
+
 # ── leg A inputs ──────────────────────────────────────────────────────────────
 def monthly_uv(var: str):
     files = [
@@ -179,8 +185,8 @@ def main() -> int:
     doy = noleap_doy(times) + 14  # monthly means sit mid-month (common-year day)
     w_ = 2 * np.pi * doy / 365.25
     B = np.stack([np.ones_like(w_), np.cos(w_), np.sin(w_), np.cos(2 * w_), np.sin(2 * w_)], -1)
-    coef200, *_ = np.linalg.lstsq(B, ud200, rcond=None)
-    coef850, *_ = np.linalg.lstsq(B, ud850, rcond=None)
+    coef200 = np.linalg.lstsq(B, ud200, rcond=None)[0] / MONTH_GAIN[:, None]  # the daily curve's (MONTH_GAIN)
+    coef850 = np.linalg.lstsq(B, ud850, rcond=None)[0] / MONTH_GAIN[:, None]
     W_anom, W_clim, W_slope = detrend_by_month(W, times)
 
     # ── SST: ERSST anomalies, detrended, indices, ENSO pattern ──
