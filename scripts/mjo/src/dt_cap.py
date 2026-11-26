@@ -36,7 +36,8 @@ import pandas as pd
 from quantmet.degdays import doy366
 
 SCRIPTS = Path(__file__).resolve().parents[2]
-for sub in ("lib", "ecmwf", "models", "snowband", "geps", "strat"):
+# scripts/strat goes in first, so last in the search order: its own strat_maps.py would hide scripts/models' one
+for sub in ("strat", "geps", "snowband", "models", "ecmwf", "lib"):
     sys.path.insert(0, str(SCRIPTS / sub))
 
 ROOT = SCRIPTS.parent
@@ -201,7 +202,7 @@ def run_model(model: str, init: pd.Timestamp) -> list | None:
     date, hh = f"{init:%Y%m%d}", f"{init:%H}"
     try:
         return [{"valid": _key(init + pd.Timedelta(hours=h)), **step_caps(model, date, hh, h)} for h in STEPS]
-    except (RuntimeError, OSError, ValueError, KeyError) as e:
+    except Exception as e:  # noqa: BLE001  one model's failure leaves the others
         print(f"  {MODELS[model]}: left out ({e})", flush=True)
         return None
 
