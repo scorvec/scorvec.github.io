@@ -8,8 +8,9 @@ dying" when they are merely uncertain; (2) 250 hPa instead of 200 —
 the mid-latitude jet core and the stationary-wave ψ maximum sit at 250–300 hPa, and 200 hPa
 is lowermost stratosphere poleward of ~50°N in winter; (3) ψ′ is low-passed with a 5-day
 running mean along the lead before the flux (TN01 is a quasi-stationary theory; fast synoptic
-packets enter the phase-independent form with error); (4) the shading is hatched where
-members disagree on the sign; (5) the basic state is the ERA5 day-of-year climatology PLUS the
+packets enter the phase-independent form with error); (4) the shading is hatched where the
+members' signs do not agree significantly (two-sided sign test per cell over the 50 members and the
+control, BH-FDR at FDR_Q over the map); (5) the basic state is the ERA5 day-of-year climatology PLUS the
 30-day mean anomaly of the AIFS 0-h member-0 analyses (waf_basic.py), and ψ′ is taken against the
 same low-passed flow, so perturbation and basic state are consistent — in a year with a displaced
 jet the packets are steered by the waveguide that is actually there.
@@ -57,6 +58,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
+from scipy import stats
 import matplotlib
 
 matplotlib.use("Agg")
@@ -79,6 +81,7 @@ from doycal import noleap_doy  # common-year day of year (29 Feb = 59.5)
 # The flux and its T15 divergence come from quantmet 0.4.1. div_method="zero" (sets the masked cells' divergence to
 # zero before the truncation) has a smaller error than "as_computed" in quantmet's synthetic tests
 # (tests/test_waf_divergence.py, CHANGELOG 0.4.1, scorvec/quantmet-tools#1).
+from quantmet.stats import benjamini_hochberg
 from quantmet.waf import tn01_flux
 
 A = 6.371e6
@@ -87,6 +90,7 @@ LFILT = 15  # ∇·W shown at planetary scale (T15, ≳2500 km)
 LEVEL = int(os.environ.get("WAF_LEVEL", "250"))
 UMIN, LATMIN = 3.0, 20.0  # basic-state westerly / tropics mask
 TSMOOTH = 5  # days: running mean of ψ′ along the lead (quasi-stationary)
+FDR_Q = 0.10  # the sign test's false discovery rate over each map
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
 CLIM = REF / (
     "waf_clim_coeffs.nc" if LEVEL == 200 else f"waf_clim_coeffs_{LEVEL}.nc"
@@ -182,12 +186,12 @@ def render(
         # cartopy 0.26 collapses the PlateCarree(-180, 180) form to a 0.2-degree strip
         ax.set_extent([-180, 180, la0, la1], crs=proj)
         cf = ax.contourf(lon, lat, -divw * 1e6, levels=levels, cmap="RdBu_r", extend="both", transform=pc)
-        if agree is not None:  # hatch where members DISAGREE on the sign of ∇·W
+        if agree is not None:  # hatch where the members' sign of ∇·W is not significant (agree = 1 where it is)
             ax.contourf(
                 lon,
                 lat,
                 np.where(np.isfinite(agree), agree, 1.0),
-                levels=[-0.01, 0.6],
+                levels=[-0.5, 0.5],
                 colors="none",
                 hatches=["//"],
                 transform=pc,
@@ -303,9 +307,23 @@ def main() -> int:
         Vv = Vv.sel(isobaricInhPa=LEVEL)
     U = U.squeeze(drop=True)
     Vv = Vv.squeeze(drop=True)
+    # the control: its own file, the 51st member
+    ucf = xr.open_dataset(ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "u", "pl", (LEVEL,), frame_steps)), **ku)["u"]
+    vcf = xr.open_dataset(ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "v", "pl", (LEVEL,), frame_steps)), **ku)["v"]
+    if "isobaricInhPa" in ucf.dims:
+        ucf, vcf = ucf.sel(isobaricInhPa=LEVEL), vcf.sel(isobaricInhPa=LEVEL)
+    ucf, vcf = ucf.squeeze(drop=True), vcf.squeeze(drop=True)
     init = pd.Timestamp(f"{args.date}T{args.time}:00")
     steps_h = (U.step / np.timedelta64(1, "h")).round().astype(int).values
-    members = list(U.number.values)
+    assert np.array_equal((ucf.step / np.timedelta64(1, "h")).round().astype(int).values, steps_h)
+    members = [*U.number.values.tolist(), 0]  # 0 = the control
+
+    def member(num: int, i: int):
+        """(u, v) of member num at step index i (0: the control's file)."""
+        if num == 0:
+            return ucf.isel(step=i), vcf.isel(step=i)
+        return U.sel(number=num).isel(step=i), Vv.sel(number=num).isel(step=i)
+
     nstep = len(steps_h)
 
     # low-passed analysis basic state: archive this cycle's 0-h control, then the 30-day mean anomaly
@@ -350,7 +368,7 @@ def main() -> int:
     for m, num in enumerate(members):
         for i in range(nstep):
             valid = init + pd.Timedelta(hours=int(steps_h[i]))
-            psi, plat, plon = streamfunction_psi(U.sel(number=num).isel(step=i), Vv.sel(number=num).isel(step=i))
+            psi, plat, plon = streamfunction_psi(*member(num, i))
             if m == 0 and i == 0:
                 assert np.allclose(plat, clat) and np.allclose(plon, clon), (
                     "clim grid != live DH2 grid — rebuild waf_clim with the same LMAX"
@@ -387,11 +405,14 @@ def main() -> int:
         with np.errstate(all="ignore"), warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)  # all-NaN masked cells
             wx, wy, divw = np.nanmean(WX, 0), np.nanmean(WY, 0), np.nanmean(DV, 0)
-        sign = np.sign(DV)
-        agree = np.nanmax(np.stack([(sign > 0).mean(0), (sign < 0).mean(0)]), 0)
-        agree = np.where(np.isfinite(divw), agree, np.nan)
-        um = U.isel(step=i).mean("number")
-        vm = Vv.isel(step=i).mean("number")
+        # two-sided sign test per cell on the members' ∇·W, BH-FDR over the map's cells
+        npos, nneg = (DV > 0).sum(0), (DV < 0).sum(0)
+        pv = np.minimum(1.0, 2.0 * stats.binom.sf(np.maximum(npos, nneg) - 1, npos + nneg, 0.5))
+        pv = np.where(np.isfinite(divw) & (npos + nneg > 0), pv, np.nan)
+        agree = np.where(np.isfinite(divw), benjamini_hochberg(pv, FDR_Q).astype(float), np.nan)
+        npf = len(members) - 1  # the perturbed members' mean and the control, each member weighted alike
+        um = (npf * U.isel(step=i).mean("number") + ucf.isel(step=i)) / len(members)
+        vm = (npf * Vv.isel(step=i).mean("number") + vcf.isel(step=i)) / len(members)
         spd_fc = (np.hypot(um.values, vm.values), um.latitude.values, um.longitude.values)
         fields.append((valid, psi_s[:, i].mean(0), wx, wy, divw, Uc, Vc, spd_fc, agree))
     vlim = float(np.nanpercentile(np.abs(np.stack([f[4] for f in fields])) * 1e6, 99.0)) or 5.0
@@ -408,7 +429,7 @@ def main() -> int:
     sub = (
         f"arrows = Takaya–Nakamura (2001) wave-activity flux, mean of {len(members)} members' fluxes · basic state and ψ′ reference = {basic} "
         f"({TSMOOTH}-day running mean of ψ′ along the lead) · shading = −∇·W at planetary scale (T15; red ⇒ downstream amplification), "
-        "hatched where fewer than 60% of members agree on the sign · "  # (no "\n" here: the wrap folds it and the text would read "the sign green = …")
+        f"hatched where the members' sign is not significant (sign test, FDR {FDR_Q:.0%}) · "  # (no "\n" here: the wrap folds it and the text would read "the sign green = …")
         f"green = the ensemble-mean {LEVEL} hPa jet at this lead (25/35/45 m/s) — the waveguide the packets follow · "
         "masked equatorward of 20° / basic-state wind < 3 m/s · each row is one hemisphere's 20–80° belt"
     )
