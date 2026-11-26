@@ -371,7 +371,7 @@ def main(argv=None) -> int:
         end,
         min(args.days, 360),
         Path(args.out),
-        prelim_days=7,
+        prelim_days=30,  # the filter edge reaches about half a period back: 30-96 d MJO, up to 48 d ER
         subtitle="GMGSI longwave-IR proxy, offset to ERA5 · anomaly vs ERA5 1991–2020",
     )
     return 0
