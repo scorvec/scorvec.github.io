@@ -206,6 +206,17 @@ def fit() -> dict:
         cv_err.append((np.column_stack([np.ones(te.sum()), X[te]]) @ bt) - Y[te])
     cv_rmse = float(np.sqrt(np.concatenate(cv_err).__pow__(2).mean()))
     yrs = sorted({y for y, _ in seasons})
+    # the daily curve applies the fit to 30-day means, which carry more weather than the two-month means it was fitted
+    # on: its error adds the spread of (30-day minus 61-day mean) of the fast predictors through the fitted weights
+    # (SOI and the u850 box, daily since FIT_Y0; Nino-3.4 is slow enough to leave out)
+    fast = {"soi": load_soi_daily(), "u850": load_u850_box(False)}
+    d = sum(
+        beta[1 + PREDICTORS.index(k)] * (s.rolling("30D").mean() - s.rolling("61D").mean())
+        for k, s in fast.items()
+        if k in PREDICTORS
+    )
+    d = d[d.index.year >= FIT_Y0].dropna()
+    cv_rmse_30 = float(np.sqrt(cv_rmse**2 + d.var()))
     info = {
         "predictors": PREDICTORS,
         "intercept": float(beta[0]),
@@ -215,12 +226,17 @@ def fit() -> dict:
         "R2": r * r,
         "RMSE": rmse,
         "cv_rmse": cv_rmse,
+        "cv_rmse_30": cv_rmse_30,
         "fit_years": [yrs[0], yrs[-1]],
         "clim": list(CLIM),
     }
     REF.mkdir(parents=True, exist_ok=True)
     FIT_JSON.write_text(json.dumps(info, indent=2))
-    print(f"  fit: n={info['n']} ({yrs[0]}-{yrs[-1]})  R={r:.3f}  RMSE={rmse:.3f}  CV-RMSE={cv_rmse:.3f}", flush=True)
+    print(
+        f"  fit: n={info['n']} ({yrs[0]}-{yrs[-1]})  R={r:.3f}  RMSE={rmse:.3f}  CV-RMSE={cv_rmse:.3f}, "
+        f"30-day {cv_rmse_30:.3f}",
+        flush=True,
+    )
     print("  coef:", " ".join(f"{k}={v:+.3f}" for k, v in info["coef"].items()), flush=True)
     return info
 
@@ -308,7 +324,7 @@ def plot(info, daily: pd.DataFrame, years: list[int], fname="mei_nowcast.webp", 
             "no valid daily nowcast rows — check predictor availability for "
             f"{years} (need OISST anom + DailySOI + u850 tail)"
         )
-    band = info.get("cv_rmse", info["RMSE"])
+    band = info.get("cv_rmse_30", info.get("cv_rmse", info["RMSE"]))
     ax.fill_between(
         d.index,
         d["mei30"] - band,
@@ -317,7 +333,7 @@ def plot(info, daily: pd.DataFrame, years: list[int], fname="mei_nowcast.webp", 
         alpha=0.12,
         lw=0,
         zorder=1,
-        label=f"±CV-RMSE ({band:.2f})",
+        label=f"±CV-RMSE of a 30-day nowcast ({band:.2f})",
     )
     ax.plot(d.index, d["mei30"], color="#d62728", lw=2.0, label="nowcast · 30-day", zorder=4)
     ax.plot(d.index, d["mei14"], color="#ff7f0e", lw=1.2, alpha=0.85, label="nowcast · 14-day (fast)", zorder=4)
@@ -392,7 +408,7 @@ def render_analogs(info, daily, cur_year):
     d = daily.dropna(subset=["mei30"])
     d = d[d.index.year == cur_year]
     xn = [t.month + (t.day - 1) / 30.4 for t in d.index]
-    band = info.get("cv_rmse", info["RMSE"])
+    band = info.get("cv_rmse_30", info.get("cv_rmse", info["RMSE"]))
     ax.fill_between(xn, d["mei30"] - band, d["mei30"] + band, color="k", alpha=0.10, lw=0, zorder=4)
     ax.plot(xn, d["mei30"].values, color="k", lw=2.8, zorder=5, label=f"{cur_year} nowcast")
     ax.axvline(12.5, color="0.6", lw=0.8, ls="--")
