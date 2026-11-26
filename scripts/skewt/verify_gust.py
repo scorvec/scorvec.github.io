@@ -194,7 +194,7 @@ def load_isd(out: Path, icao: str):
             rows.append(
                 (int(a[0]), *(float(x) if x else None for x in a[1:4]), int(a[4]) if a[4] else None, a[5] == "1")
             )
-    rows.sort()
+    rows.sort(key=lambda r: r[0])  # by time alone: two reports in one minute may carry None
     return rows
 
 
