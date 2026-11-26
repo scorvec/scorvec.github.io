@@ -280,8 +280,10 @@ def chain_r(x: np.ndarray, y: np.ndarray, groups: np.ndarray) -> tuple[float, fl
 
 
 def phases(rs: list, start: pd.Timestamp) -> tuple[list, list]:
-    """A model's runs made a week or more before the week, and its latest two."""
-    return [r for r in rs if (start - pd.Timestamp(str(r["init"]))) >= pd.Timedelta(days=7)], rs[-2:]
+    """A model's runs made a week or more before the week, and its latest two of the others (never one of the early
+    runs, so the two groups share no run)."""
+    early = [r for r in rs if (start - pd.Timestamp(str(r["init"]))) >= pd.Timedelta(days=7)]
+    return early, [r for r in rs if all(r is not e for e in early)][-2:]
 
 
 def sector(x: np.ndarray) -> np.ndarray:
