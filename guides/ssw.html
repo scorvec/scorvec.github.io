@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Methods: the SSW outlook · Shawn Corvec</title>
+<meta name="description" content="How each answer of the SSW outlook is made: the sudden warming and WMO definitions, weeks 3 to 5, the checklist of what a warming takes and its tests on past warmings, wave driving and direction, reflection or absorption, the surface imprint outlook, the descent watch and the coupling clock.">
+<link rel="canonical" href="https://scorvec.com/guides/ssw.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="author" content="Shawn Corvec">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Methods: the SSW outlook">
+<meta property="og:description" content="How each answer of the SSW outlook is made: the sudden warming and WMO definitions, weeks 3 to 5, the checklist of what a warming takes and its tests on past warmings, wave driving and direction, reflection or absorption, the surface imprint outlook, the descent watch and the coupling clock.">
+<meta property="og:url" content="https://scorvec.com/guides/ssw.html">
+<meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "TechArticle",
+ "headline": "Methods: the SSW outlook",
+ "description": "How each answer of the SSW outlook is made: the sudden warming and WMO definitions, weeks 3 to 5, the checklist of what a warming takes and its tests on past warmings, wave driving and direction, reflection or absorption, the surface imprint outlook, the descent watch and the coupling clock.",
+ "url": "https://scorvec.com/guides/ssw.html",
+ "inLanguage": "en",
+ "author": {
+  "@id": "https://scorvec.com/#person"
+ },
+ "publisher": {
+  "@id": "https://scorvec.com/#person"
+ },
+ "isPartOf": "https://scorvec.com/ssw.html"
+}
+</script>
+<script src="/assets/site.js?v=de9fd94074" defer></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css?v=52fec7b83b">
+<style>
+  body { background: var(--bg); color: var(--ink); margin: 0; }
+  .topic { font-size: clamp(1rem, 0.92rem + 0.22vw, 1.14rem); max-width: clamp(46rem, 32rem + 22vw, 60rem); margin: 0 auto; padding: 2rem clamp(1rem, 4vw, 3rem) 3.5rem; }   /* the column widens with the window: ~810 px up to a 1120 px window, ~880 at 1440 px, ~985 at 1920, 60rem max; 18-20 px text, ~90-100 characters a line */
+  .ai-note { font-size: 0.9em; line-height: 1.5; margin: 2.2rem 0 0; padding: 0.65rem 0.95rem; background: var(--accent-light); border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0; }
+  .topic figcaption, .figs figcaption { font-size: clamp(0.88rem, 0.84rem + 0.15vw, 0.95rem); }   /* a step below the text (site.css pins rem) */
+  .topic .crumbs { font-size: 0.92em; color: var(--muted); margin-bottom: 1.2rem; }
+  .topic .crumbs a { color: inherit; }
+  .topic h1 { text-align: left; margin: 0 0 0.4rem; }
+  .topic .aka { color: var(--muted); font-size: 0.95em; margin: 0 0 1.6rem; }
+  .topic h2 { margin: 2.2rem 0 0.7rem; text-align: left; }
+  .topic p, .topic li { line-height: 1.6; }
+  .topic ul { padding-left: 1.2rem; }
+  .topic li { margin: 0.45rem 0; }
+  .topic a { color: var(--accent); text-underline-offset: 0.2em; }
+  .topic .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
+  .figs { max-width: clamp(62rem, 48rem + 22vw, 76rem); margin: 1.6rem auto 0; padding: 0 clamp(1rem, 4vw, 3rem); }   /* wider than the text, and widening with it: the live charts are dense */
+  .figs figure { margin: 0 0 2rem; }
+  .figs img { display: block; width: auto; max-width: 100%; height: auto; max-height: 85vh; margin: 0 auto; border: 1px solid var(--rule); background: #fff; }   /* never wider than the file, nor taller than the window */
+  .figs iframe { display: block; width: 100%; aspect-ratio: 16 / 10; border: 1px solid var(--rule); background: #fff; }
+  .figs figcaption { color: var(--muted); margin-top: 0.5rem; }
+  .live { display: inline-block; margin: 0.6rem 0 0; font-weight: 600; }
+  .related { border-top: 1px solid var(--rule); margin-top: 2.6rem; padding-top: 1.2rem; }
+  .related ul { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.6rem; }
+  .refs { font-size: 0.95em; }
+  .refs li { margin: 0.4rem 0; }
+  .byline { color: var(--muted); font-size: 0.92em; margin-top: 2.2rem; }
+  .hub-list { list-style: none; padding: 0; }
+  .hub-list li { border-top: 1px solid var(--rule); padding: 1rem 0; margin: 0; }
+  .hub-list a { font-family: var(--f-serif); font-size: 1.3em; text-decoration: none; }
+  .hub-list a:hover { text-decoration: underline; }
+  .hub-list p { margin: 0.3rem 0 0; color: var(--muted); }
+</style><style>
+  .guide .lede { margin: 0 0 1.4rem; }
+  .guide .toc { border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); padding: 0.9rem 1.1rem; margin: 0 0 1rem; font-size: 0.95em; }
+  .guide .toc dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.5rem 1.3rem; margin: 0; }
+  .guide .toc dt { font-weight: 600; }
+  .guide .toc dd { margin: 0; display: flex; flex-wrap: wrap; gap: 0.2rem 1.1rem; line-height: 1.5; }
+  @media (max-width: 640px) {
+    .guide .toc dl { grid-template-columns: 1fr; gap: 0.15rem; }
+    .guide .toc dd { margin-bottom: 0.7rem; }
+  }
+  .guide section { scroll-margin-top: 1rem; }
+  .guide section:target { border-left: 3px solid var(--accent); padding-left: 0.9rem; margin-left: calc(-0.9rem - 3px); }   /* the figure the reader came from */
+  .guide h3 { margin: 1.9rem 0 0.15rem; text-align: left; }
+  .guide pre { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 0.7rem 0.9rem; font-size: 0.85em; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .guide .open { font-size: 0.92em; margin: 0 0 0.6rem; }
+  .guide .src { font-size: 0.92em; color: var(--muted); }
+</style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
+</head>
+<body>
+<!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div class="sh-col">
+              <div>
+                <h3>Model maps</h3>
+                <ul>
+                  <li><a href="/models.html"><span class="sh-t">North America, short range</span><span class="sh-d">HRRR, RRFS and RDPS: radar, snow, storms</span></a></li>
+                  <li><a href="/samerica-models.html"><span class="sh-t">South America, to day 10</span><span class="sh-d">IFS control and GDPS, with soundings</span></a></li>
+                  <li><a href="/ens-anomalies.html"><span class="sh-t">Global ensembles</span><span class="sh-d">Four ensembles: anomalies and regimes</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Days 1–15</h3>
+                <ul>
+                  <li><a href="/ar.html"><span class="sh-t">Atmospheric rivers</span><span class="sh-d">Moisture plumes, landfall and their odds</span></a></li>
+                  <li><a href="/circulation.html#dt"><span class="sh-t">Jet streams and tropopause</span><span class="sh-d">Tropopause, Pacific and subtropical jets, wave trains</span></a></li>
+                  <li><a href="/circulation.html#wcb"><span class="sh-t">Warm conveyor belts</span><span class="sh-d">Inflow, ascent and outflow in 50 members</span></a></li>
+                  <li><a href="/circulation.html#aam"><span class="sh-t">Angular momentum and torques</span><span class="sh-d">Global momentum, mountain and friction torques</span></a></li>
+                  <li><a href="/circulation.html#telecon15"><span class="sh-t">Teleconnections</span><span class="sh-d">AO, NAO, PNA and more, calibrated</span></a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Tropics</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div class="sh-col">
+              <div>
+                <h3>ENSO and the MJO</h3>
+                <ul>
+                  <li><a href="/enso.html"><span class="sh-t">El Niño monitor</span><span class="sh-d">ONI, RONI, the subsurface and winds</span></a></li>
+                  <li><a href="/mjo.html"><span class="sh-t">MJO forecast</span><span class="sh-d">Four ensembles on one phase diagram</span></a></li>
+                  <li><a href="/tropical-waves.html"><span class="sh-t">Tropical waves</span><span class="sh-d">Kelvin and Rossby waves, now and ahead</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Circulation</h3>
+                <ul>
+                  <li><a href="/circulation.html#walker"><span class="sh-t">Walker and Hadley cells</span><span class="sh-d">The overturning, its outflow and descent</span></a></li>
+                  <li><a href="/circulation.html#mslp"><span class="sh-t">Pacific pressure and satellite</span><span class="sh-d">Pressure, wind and simulated IR</span></a></li>
+                  <li><a href="/circulation.html#rainfc"><span class="sh-t">Rain forecast, weeks 1–2</span><span class="sh-d">Four ensembles, bias-adjusted, blended</span></a></li>
+                  <li><a href="/circulation.html#troughs"><span class="sh-t">Convergence and monsoon troughs</span><span class="sh-d">Where the low-level wind converges, days 1–15</span></a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div class="sh-col">
+              <div>
+                <h3>Forecasts</h3>
+                <ul>
+                  <li><a href="/ssw.html"><span class="sh-t">SSW outlook</span><span class="sh-d">Is a sudden warming coming?</span></a></li>
+                  <li><a href="/stratosphere.html#vortex"><span class="sh-t">The next two weeks</span><span class="sh-d">The vortex, its waves and the surface</span></a></li>
+                  <li><a href="/stratosphere.html#vortex35"><span class="sh-t">Weeks 3–5 and the season</span><span class="sh-d">GEPS, GEFS, C3S and SEAS5</span></a></li>
+                  <li><a href="/strat-models.html"><span class="sh-t">Stratosphere model maps</span><span class="sh-d">Polar maps at every level, zoomable</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Analyses and history</h3>
+                <ul>
+                  <li><a href="/stratosphere.html#qbo"><span class="sh-t">The QBO and today's analyses</span><span class="sh-d">QBO, momentum and the Brewer–Dobson</span></a></li>
+                  <li><a href="/stratosphere.html#shwinters"><span class="sh-t">History and studies</span><span class="sh-d">Every winter and warming since 1980</span></a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div class="sh-col">
+              <div>
+                <h3>Extended range</h3>
+                <ul>
+                  <li><a href="/subseasonal.html"><span class="sh-t">GEPS, to day 35</span><span class="sh-d">Canada's extended ensemble</span></a></li>
+                  <li><a href="/gefs.html"><span class="sh-t">GEFS, to day 35</span><span class="sh-d">NOAA's extended ensemble</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Months and seasons</h3>
+                <ul>
+                  <li><a href="/monthly-outlook.html"><span class="sh-t">Claude's long-range forecast</span><span class="sh-d">The month and three seasons ahead</span></a></li>
+                  <li><a href="/seasonal.html"><span class="sh-t">Seasonal model forecasts</span><span class="sh-d">Seven C3S systems and CanSIPS</span></a></li>
+                  <li><a href="/enso-forecasts.html"><span class="sh-t">ENSO forecasts</span><span class="sh-d">Niño-3.4 from five centres</span></a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4">Studies and tools</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div class="sh-col">
+              <div>
+                <h3>Studies</h3>
+                <ul>
+                  <li><a href="/enso.html#imp_reg"><span class="sh-t">ENSO impacts on the Americas</span><span class="sh-d">CMIP6 and the observed record</span></a></li>
+                  <li><a href="/mjo.html#mi"><span class="sh-t">MJO impacts</span><span class="sh-d">Each phase, season by season</span></a></li>
+                  <li><a href="/aifs-aam-budget.html"><span class="sh-t">AI models and conservation laws</span><span class="sh-d">Does the AIFS keep the budgets?</span></a></li>
+                  <li><a href="/torque-enso.html"><span class="sh-t">El Niño and angular momentum</span><span class="sh-d">Why the atmosphere spins up</span></a></li>
+                  <li><a href="/topics/"><span class="sh-t">Explainers</span><span class="sh-d">The physics behind the products</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Verification</h3>
+                <ul>
+                  <li><a href="/verification.html"><span class="sh-t">Model verification</span><span class="sh-d">Scorecards, maps and the database</span></a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tools</h3>
+                <ul>
+                  <li><a href="/skewt/"><span class="sh-t">Sounding explorer</span><span class="sh-d">Radiosondes worldwide, live</span></a></li>
+                  <li><a href="/asos5.html"><span class="sh-t">Five-minute airport observations</span><span class="sh-d">22 major US airports, live</span></a></li>
+                  <li><a href="/climate.html"><span class="sh-t">US climate trends</span><span class="sh-d">Every county and month since 1895</span></a></li>
+                  <li><a href="/fci.html"><span class="sh-t">US credit conditions</span><span class="sh-d">Financial conditions, weekly since 1990</span></a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li><a href="/guides/">Methods</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main id="main">
+<article class="topic guide">
+  <p class="crumbs"><a href="/">Home</a> › <a href="/guides/">Methods</a> › SSW outlook</p>
+  <h1>Methods: the SSW outlook</h1>
+  <p class="lede">What each figure shows, how it is made, how it is tested and what it is built from. <a href="/ssw.html">Open the SSW outlook</a></p>
+<nav class="toc" aria-label="Figures"><dl><dt>The answers</dt><dd><a href="#ssw">Is a sudden warming forecast?</a><a href="#weeks35">Weeks 3&ndash;5</a><a href="#kind">What kind of event</a><a href="#reflect">Reflection or absorption</a><a href="#surface">Will it reach the troposphere?</a></dd></dl></nav>
+<section id="about">
+<h2>The page</h2>
+<p>Every number on this page is read from the stratosphere products&rsquo; own output; the figures open the full
+products. Member shares are raw counts from each ensemble, not calibrated probabilities. The <b>IFS control</b>
+is ECMWF&rsquo;s unperturbed 9&nbsp;km run, called HRES until May 2026; it is one run, so it enters only the
+direction table.</p>
+<p>Messori, G. et al. (2022), <i>Weather Clim. Dynam.</i> 3, 1215&ndash;1236 &middot; Perlwitz, J. and Harnik, N.
+(2003), <i>J. Climate</i> 16, 3011&ndash;3026 &middot; Charlton, A.&nbsp;J. and Polvani, L.&nbsp;M. (2007),
+<i>J. Climate</i> 20, 449&ndash;469 &middot; Kodera, K. et al. (2016), <i>J. Geophys. Res.</i> 121,
+80&ndash;94.</p>
+</section>
+
+<h2>The answers</h2>
+
+<section id="ssw">
+<h3>Is a sudden warming forecast?</h3>
+<p class="open"><a href="/ssw.html#ssw">Open this figure</a></p>
+<p>The zonal-mean wind at 60&deg;N and 10&nbsp;hPa turning easterly on some day in days
+1&ndash;15 (Charlton and Polvani 2007, who count November&ndash;March onsets only). The WMO column also asks, as
+the original definition does (McInturff 1978), for the 10&nbsp;hPa zonal-mean temperature to rise from 60&deg;N
+to the pole on the same day: the cos-weighted 85&ndash;90&deg;N mean above the value at 60&deg;N (&ndash; for a
+run recorded without the temperature). The normal rate is the share of MERRA-2 winters since 1980 with an onset
+in the same 15 calendar days. Each ensemble is its newest run, taken as soon as that run is in, so for a few hours
+of a cycle the models stand on different starts. <b>Run by run</b> lists each ensemble&rsquo;s share in its last
+six runs (and its WMO share): a swing between runs is the models&rsquo; view changing, not a forecast of its
+own.</p>
+</section>
+
+<section id="weeks35">
+<h3>Weeks 3&ndash;5</h3>
+<p class="open"><a href="/ssw.html#weeks35">Open this figure</a></p>
+<p>GEPS and GEFS, the two ensembles that run to day 35, each member corrected for the
+model&rsquo;s drift with lead (as on the days 1&ndash;35 vortex figures): for each week of days 15&ndash;35, the
+members whose 10&nbsp;hPa wind at 60&deg;N first turns easterly that week (November&ndash;March), and the members
+with a heat-flux week, the 100&nbsp;hPa eddy heat flux (45&ndash;75&deg;N) averaged over the week at least the
+checklist&rsquo;s threshold above its ERA5 normal. That 7-day rule is tested like the checklist: most MERRA-2
+sudden warmings had it over the week before their onset, far more than quiet winter weeks did; it is shown only
+while that test passes. Raw member counts, not chances: whether these models can call a reversal three to five
+weeks out has not yet been scored on their reforecasts. The normal rate is the share of MERRA-2 winters since 1980
+with an onset in the same calendar days.</p>
+</section>
+
+<section id="checklist" data-r-block="m_check">
+<h3>What a sudden warming takes</h3>
+<p>Each ingredient is what most MERRA-2 sudden warmings since 1980 had over the 15
+days before their onset and quiet winter windows mostly did not: windows ending on a November&ndash;March day at
+least 60 days before and 30 days after any onset, weighted to the onsets&rsquo; months. <b>Waves pumped up from
+below</b>: the size (squared amplitude) of wave-1 in the 500&nbsp;hPa height over 55&ndash;65&deg;N against its
+ERA5 1991&ndash;2020 normal for the date, averaged over the days. <b>Tilting west with height</b>: a wave carrying
+activity upward leans west with height; how far west the wave-1 ridge at 100&nbsp;hPa sits of the one at
+500&nbsp;hPa, averaged over the days (ERA5; each ensemble member by member, from its wave compass run).
+<b>Heat flux</b>: the 100&nbsp;hPa eddy heat flux (45&ndash;75&deg;N) against its ERA5 normal, averaged over the
+days (the analyses, then each ensemble&rsquo;s forecast mean). <b>Not reflected</b>: that flux above zero on
+every day, no waves coming back down. <b>Absorbed</b>: waves breaking in the vortex slow it; the largest fall of
+the wind at 60&deg;N, 10&nbsp;hPa within 10 days, the reversal day included. The last two rows are the event
+itself, ticked when most members have it: the wind turning easterly, with the day the ensemble-mean wind does
+(the reversal the coupling clock starts from), and the WMO definition. Each ingredient is scored member by member, because its level comes from single winters and an ensemble mean is smoother than any of them: the cell gives the share of members that have it, ticked when most do, and the median member&rsquo;s value. Each ensemble is read over the 15 days before its own reversal, or over its days 1&ndash;15 when it has none; a run reaching fewer of those days is read against the
+past warmings over the same number of days, and gets no tick when that shorter test does not separate them.
+Past warmings against quiet windows (one-sided binomial): <span data-r="cl_tests">&ndash;</span>. Not on the
+list because they did not separate the two: <span data-r="cl_others">&ndash;</span>. A wind weaker at
+1&nbsp;hPa than at 10&nbsp;hPa, the reflecting layer of the section below, came on more of those days before
+warmings than in quiet windows (<span data-r="cl_aloft">&ndash;</span>): a warming reaches the upper
+stratosphere first, so it is no sign against one.</p>
+</section>
+
+<section id="kind">
+<h3>What kind of event</h3>
+<p class="open"><a href="/ssw.html#kind">Open this figure</a></p>
+<p><b>Wave driving.</b> The share of wave-1 and wave-2 in the ensemble-mean 100&nbsp;hPa eddy heat flux
+(45&ndash;75&deg;N) over days 1&ndash;15; a wavenumber carrying <span data-r="wshare">&ndash;</span> or more
+names the forcing, otherwise it is mixed. The peak is the total flux against its ERA5 1991&ndash;2020
+day-of-year mean and standard deviation. This describes the forcing; it is not a forecast of whether the vortex
+would split or be displaced. In ERA5 the wave-2 share over the 10 days before an onset does not separate
+MERRA-2&rsquo;s splits from its displacements (<span data-r="split">&ndash;</span>).</p>
+<p><b>Direction.</b> The rule of the CMIP6 coupling test, on the polar-cap (65&ndash;90&deg;N) height of each
+model&rsquo;s dripping paint in standard deviations of its day-of-year normal, analyses then forecast: the day
+the 100&nbsp;hPa cap first reaches +1&nbsp;sd is <b>top-down</b> when the 10&nbsp;hPa cap was at +1&nbsp;sd
+3&ndash;20 days before, <b>bottom-up</b> when it was not. The headline is the kind most of the four ensembles
+show; a tie goes to no weakening, then to bottom-up. In <span data-r="cm_n">&ndash;</span> both kinds
+were followed by the surface pattern of a sudden warming: <span data-r="cm_dir">&ndash;</span>.</p>
+</section>
+
+<section id="reflect">
+<h3>Reflection or absorption</h3>
+<p class="open"><a href="/ssw.html#reflect">Open this figure</a></p>
+<p>Waves are turned back down where the westerlies weaken with height in the
+upper stratosphere (Perlwitz and Harnik 2003): the wind at 60&deg;N at 1&nbsp;hPa minus 10&nbsp;hPa below zero,
+read from GEFS, the one ensemble here with winds to 1&nbsp;hPa. The answer is <b>reflecting</b> when that
+happens with waves coming down (the zonal-mean 100&nbsp;hPa flux below zero, or the Canadian box of the
+regional reflection index below &minus;1&nbsp;sd), <b>absorbing</b> when the upward flux runs at least
+<span data-r="active">&ndash;</span> above normal into a vortex without that layer, and quiet otherwise. A
+large regional reflection index can come from the Siberian upward burst alone, so it is shown but does not
+decide. In CMIP6, a reflective upper stratosphere was followed by the opposite of the warming pattern over days
+1&ndash;30 (<span data-r="cm_shear">&ndash;</span>), and sudden warmings followed by strong upward flux
+(absorbing) and weak flux (reflecting) both reached the surface (<span data-r="cm_abs">&ndash;</span>). After
+<span data-r="mx_n">&ndash;</span> regional reflection events in ERA5 (December&ndash;March), the East Pacific
+Oscillation turned negative (<span data-r="mx_epo">&ndash;</span>) and North America cooled
+(<span data-r="mx_tna">&ndash;</span>).</p>
+</section>
+
+<section id="surface">
+<h3>Will it reach the troposphere?</h3>
+<p class="open"><a href="/ssw.html#surface">Open this figure</a></p>
+<p><b>Surface.</b> The SSW surface imprint index projects daily sea-level pressure on the pattern that follows
+sudden warmings in nine CMIP6 models (positive = the negative-Arctic-Oscillation side). Its outlook is the
+chance the index is positive over the 30 days after day 15, from each model&rsquo;s day-15 100&nbsp;hPa cap and
+the index itself, fitted on ERA5 November&ndash;April days since 1959. Skill (Brier skill score, cross-validated
+by winter): <span data-r="bss">&ndash;</span>. After the MERRA-2 sudden warmings the index averaged
+<span data-r="era5_imp">&ndash;</span>; in CMIP6 <span data-r="cm_ssw">&ndash;</span>.</p>
+<p><b>Descent watch.</b> Over days 11&ndash;15, the share of an ensemble&rsquo;s members whose polar-cap
+height stands +0.5&nbsp;sd or more above normal at every level from 100&nbsp;hPa down to 500&nbsp;hPa on the
+same day (drift removed, so AIFS-ENS and IFS-ENS only; November&ndash;April), against how often MERRA-2 shows
+such a column within 15 days of the date. A day counts as more than usual where a one-sided binomial test of
+the member count passes a 5&nbsp;% false discovery rate over the run. The member-by-member link is the partial
+correlation, across the members of one run, of the days 11&ndash;15 sea-level polar cap with the days
+6&ndash;10 cap height at 100&nbsp;hPa, the member&rsquo;s own days 6&ndash;10 troposphere regressed out
+(Freedman&ndash;Lane permutation test, 5&nbsp;% false discovery rate); only links that pass are named. It shows
+that the model couples its stratosphere to its surface in this run, not that the atmosphere will.</p>
+</section>
+
+<section id="clock" data-r-block="m_clock">
+<h3>When could it reach the surface?</h3>
+<p>In the <span data-r="ck_n">&ndash;</span> MERRA-2 sudden warmings since 1980, the
+weaker the wind at 60&deg;N, 100&nbsp;hPa over days 0&ndash;10 after the first easterly day at 10&nbsp;hPa (in
+standard deviations of its day-of-year normal, fitted as the dripping paint&rsquo;s polar cap is), the sooner a
+lasting surface signal began (Spearman <span data-r="ck_start">&ndash;</span>) and the stronger the imprint
+index ran over days 11&ndash;40 (<span data-r="ck_str">&ndash;</span>; both against shuffles of the wind). A
+lasting signal begins on the first day whose next 14 days average <span data-r="ck_thr">&ndash;</span> or more
+on the imprint index; the thirds split the warmings by the wind. Each ensemble&rsquo;s reversal is the first day
+its ensemble-mean 10&nbsp;hPa wind turns easterly (the analyses of its recorded runs, then its newest run), and
+its wind is the mean over the days of that window its forecast reaches, six at least. Its sea-level cap is the
+1000&nbsp;hPa polar-cap height of its dripping paint (high = negative Arctic Oscillation; drift removed for
+IFS-ENS and AIFS-ENS, only the analysis offset for GEFS and GEPS), set against the same days after the
+warmings of its third. The two layers move together once a warming reaches down, so the wind reads the next two
+weeks rather than the season, and none of the warmings began before December.</p>
+</section>
+
+<script src="/assets/ssw_method.js" defer></script>
+  <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/">Shawn Corvec</a>, meteorologist.</p>
+</article>
+</main>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/guides/">Methods</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

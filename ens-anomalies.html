@@ -73,8 +73,7 @@
   .mv-show { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1.3rem; margin: 0.45rem 0 0; font-size: 1.12rem; }
   .mv-show > b { font-weight: 600; }
   .mv-show .seg button { font-size: 1rem; padding: 0.35rem 0.8rem; min-height: 40px; }
-  .mv-keys { margin-left: auto; font-size: 0.92rem; color: var(--muted); }
-  .mv-keys kbd { font: inherit; font-size: 0.78rem; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0 0.3em; background: var(--panel); }
+  .mv-keys { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }   /* read out with the map (aria-describedby), not shown */
 
   /* touch: one finger scrolls the page, two move and zoom the map. Never taller than the window. */
   /* the map fills the window under its controls with its Show row still on screen (site.js sets --fit-top and
@@ -229,7 +228,6 @@
     .mv-valid { min-width: 0; flex: 1 1 100%; font-size: 0.95rem; order: -1; }
     .mv-valid .vt { font-size: 1.08rem; }
     .mv-time input[type=range] { flex: 1 1 5rem; min-width: 5rem; }
-    .mv-keys { display: none; }
     .mv-badge { font-size: 0.86rem; padding: 0.22rem 0.5rem; }
     .cl-strip { flex-direction: column; align-items: stretch; }
     main.mv.cl > .lede { order: 3; }

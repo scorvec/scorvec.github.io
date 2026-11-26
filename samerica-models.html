@@ -79,8 +79,7 @@
   .chk input { width: 1.25rem; height: 1.25rem; accent-color: var(--accent); margin: 0; }
   .mv-show { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1.3rem; margin: 0.45rem 0 0; font-size: 1.12rem; }
   .mv-show > b { font-weight: 600; }
-  .mv-keys { margin-left: auto; font-size: 0.92rem; color: var(--muted); }
-  .mv-keys kbd { font: inherit; font-size: 0.78rem; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0 0.3em; background: var(--panel); }
+  .mv-keys { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }   /* read out with the map (aria-describedby), not shown */
 
   /* touch: one finger scrolls the page, two move and zoom the map. Never taller than the window. */
   /* the map fills the window under its controls with its Show row still on screen (site.js sets --fit-top and
@@ -255,7 +254,6 @@
     .mv-valid { min-width: 0; flex: 1 1 100%; font-size: 0.95rem; order: -1; }
     .mv-valid .vt { font-size: 1.08rem; }
     .mv-time input[type=range] { flex: 1 1 5rem; min-width: 5rem; }
-    .mv-keys { display: none; }
     .mv-badge { font-size: 0.86rem; padding: 0.22rem 0.5rem; }
   }
   /* the controls scale with the window (--ui, set at the end of the head): full size on a large screen, smaller on a
@@ -518,7 +516,6 @@
     <button type="submit">Open the meteogram</button>
     <output id="mgFindMsg" aria-live="polite"></output>
   </form>
-  <p class="mv-note" id="note"></p>
 
   <section class="mv-mg" id="mg" hidden role="dialog" aria-label="Forecast meteogram" tabindex="-1">
     <div class="mv-mgtop">
@@ -542,6 +539,7 @@
 
   <section class="mv-about" id="about" aria-labelledby="aboutH">
     <h2 id="aboutH">About these maps</h2>
+    <p class="mv-note" id="note"></p>
     <p class="mv-runs" id="runs"></p>
     <h3>The two models</h3>
     <p><b>IFS control</b>: the European Centre for Medium-Range Weather Forecasts' Integrated Forecasting System run without perturbations, at about 9&nbsp;km (the unperturbed member that anchors its ensemble), read here on the 0.1&deg; grid of ECMWF's open data, interpolated from the model's own octahedral grid. 00 and 12&nbsp;UTC runs, every 3&nbsp;hours to +144&nbsp;h and every 6&nbsp;hours to +240&nbsp;h; a run appears here about 10&nbsp;hours after its start time, when its last files are published. <b>GDPS</b>: Environment and Climate Change Canada's Global Deterministic Prediction System (the GEM model, about 15&nbsp;km), on its 0.15&deg; latitude-longitude grid, 00 and 12&nbsp;UTC to +240&nbsp;h; surface fields every 3&nbsp;hours (the precipitation rate and type 6-hourly after +168&nbsp;h), the convective fields and the 925 and 850&nbsp;hPa winds on the IFS's steps (every 3&nbsp;hours to +144&nbsp;h, then 6-hourly), so the two models can be compared at the same times. It appears about 6&nbsp;hours after its start. Both are cropped to 60&deg;&nbsp;S&ndash;15&deg;&nbsp;N, 95&ndash;30&deg;&nbsp;W; only the newest run of each is kept.</p>

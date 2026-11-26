@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Methods: the ENSO forecasts page · Shawn Corvec</title>
+<meta name="description" content="What each figure of the ENSO forecasts page shows and how it is made: the five C3S systems and CanSIPS to twelve months, ONI and RONI, the peak-strength odds and their calibration test, the east and central indices and the verdict&#x27;s tests, the first-month check, and the static figure.">
+<link rel="canonical" href="https://scorvec.com/guides/enso-forecasts.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="author" content="Shawn Corvec">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Methods: the ENSO forecasts page">
+<meta property="og:description" content="What each figure of the ENSO forecasts page shows and how it is made: the five C3S systems and CanSIPS to twelve months, ONI and RONI, the peak-strength odds and their calibration test, the east and central indices and the verdict&#x27;s tests, the first-month check, and the static figure.">
+<meta property="og:url" content="https://scorvec.com/guides/enso-forecasts.html">
+<meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "TechArticle",
+ "headline": "Methods: the ENSO forecasts page",
+ "description": "What each figure of the ENSO forecasts page shows and how it is made: the five C3S systems and CanSIPS to twelve months, ONI and RONI, the peak-strength odds and their calibration test, the east and central indices and the verdict's tests, the first-month check, and the static figure.",
+ "url": "https://scorvec.com/guides/enso-forecasts.html",
+ "inLanguage": "en",
+ "author": {
+  "@id": "https://scorvec.com/#person"
+ },
+ "publisher": {
+  "@id": "https://scorvec.com/#person"
+ },
+ "isPartOf": "https://scorvec.com/enso-forecasts.html"
+}
+</script>
+<script src="/assets/site.js?v=de9fd94074" defer></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css?v=52fec7b83b">
+<style>
+  body { background: var(--bg); color: var(--ink); margin: 0; }
+  .topic { font-size: clamp(1rem, 0.92rem + 0.22vw, 1.14rem); max-width: clamp(46rem, 32rem + 22vw, 60rem); margin: 0 auto; padding: 2rem clamp(1rem, 4vw, 3rem) 3.5rem; }   /* the column widens with the window: ~810 px up to a 1120 px window, ~880 at 1440 px, ~985 at 1920, 60rem max; 18-20 px text, ~90-100 characters a line */
+  .ai-note { font-size: 0.9em; line-height: 1.5; margin: 2.2rem 0 0; padding: 0.65rem 0.95rem; background: var(--accent-light); border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0; }
+  .topic figcaption, .figs figcaption { font-size: clamp(0.88rem, 0.84rem + 0.15vw, 0.95rem); }   /* a step below the text (site.css pins rem) */
+  .topic .crumbs { font-size: 0.92em; color: var(--muted); margin-bottom: 1.2rem; }
+  .topic .crumbs a { color: inherit; }
+  .topic h1 { text-align: left; margin: 0 0 0.4rem; }
+  .topic .aka { color: var(--muted); font-size: 0.95em; margin: 0 0 1.6rem; }
+  .topic h2 { margin: 2.2rem 0 0.7rem; text-align: left; }
+  .topic p, .topic li { line-height: 1.6; }
+  .topic ul { padding-left: 1.2rem; }
+  .topic li { margin: 0.45rem 0; }
+  .topic a { color: var(--accent); text-underline-offset: 0.2em; }
+  .topic .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
+  .figs { max-width: clamp(62rem, 48rem + 22vw, 76rem); margin: 1.6rem auto 0; padding: 0 clamp(1rem, 4vw, 3rem); }   /* wider than the text, and widening with it: the live charts are dense */
+  .figs figure { margin: 0 0 2rem; }
+  .figs img { display: block; width: auto; max-width: 100%; height: auto; max-height: 85vh; margin: 0 auto; border: 1px solid var(--rule); background: #fff; }   /* never wider than the file, nor taller than the window */
+  .figs iframe { display: block; width: 100%; aspect-ratio: 16 / 10; border: 1px solid var(--rule); background: #fff; }
+  .figs figcaption { color: var(--muted); margin-top: 0.5rem; }
+  .live { display: inline-block; margin: 0.6rem 0 0; font-weight: 600; }
+  .related { border-top: 1px solid var(--rule); margin-top: 2.6rem; padding-top: 1.2rem; }
+  .related ul { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.6rem; }
+  .refs { font-size: 0.95em; }
+  .refs li { margin: 0.4rem 0; }
+  .byline { color: var(--muted); font-size: 0.92em; margin-top: 2.2rem; }
+  .hub-list { list-style: none; padding: 0; }
+  .hub-list li { border-top: 1px solid var(--rule); padding: 1rem 0; margin: 0; }
+  .hub-list a { font-family: var(--f-serif); font-size: 1.3em; text-decoration: none; }
+  .hub-list a:hover { text-decoration: underline; }
+  .hub-list p { margin: 0.3rem 0 0; color: var(--muted); }
+</style><style>
+  .guide .lede { margin: 0 0 1.4rem; }
+  .guide .toc { border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); padding: 0.9rem 1.1rem; margin: 0 0 1rem; font-size: 0.95em; }
+  .guide .toc dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.5rem 1.3rem; margin: 0; }
+  .guide .toc dt { font-weight: 600; }
+  .guide .toc dd { margin: 0; display: flex; flex-wrap: wrap; gap: 0.2rem 1.1rem; line-height: 1.5; }
+  @media (max-width: 640px) {
+    .guide .toc dl { grid-template-columns: 1fr; gap: 0.15rem; }
+    .guide .toc dd { margin-bottom: 0.7rem; }
+  }
+  .guide section { scroll-margin-top: 1rem; }
+  .guide section:target { border-left: 3px solid var(--accent); padding-left: 0.9rem; margin-left: calc(-0.9rem - 3px); }   /* the figure the reader came from */
+  .guide h3 { margin: 1.9rem 0 0.15rem; text-align: left; }
+  .guide pre { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 0.7rem 0.9rem; font-size: 0.85em; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .guide .open { font-size: 0.92em; margin: 0 0 0.6rem; }
+  .guide .src { font-size: 0.92em; color: var(--muted); }
+</style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="https://gc.zgo.at/count.v4.js" integrity="sha384-nRw6qfbWyJha9LhsOtSb2YJDyZdKvvCFh0fJYlkquSFjUxp9FVNugbfy8q1jdxI+" crossorigin="anonymous"></script>
+</head>
+<body>
+<!-- sh:start -->
+<a class="skip-link" href="#main">Skip to main content</a>
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g0">
+            <div class="sh-col">
+              <div>
+                <h3>Model maps</h3>
+                <ul>
+                  <li><a href="/models.html"><span class="sh-t">North America, short range</span><span class="sh-d">HRRR, RRFS and RDPS: radar, snow, storms</span></a></li>
+                  <li><a href="/samerica-models.html"><span class="sh-t">South America, to day 10</span><span class="sh-d">IFS control and GDPS, with soundings</span></a></li>
+                  <li><a href="/ens-anomalies.html"><span class="sh-t">Global ensembles</span><span class="sh-d">Four ensembles: anomalies and regimes</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Days 1–15</h3>
+                <ul>
+                  <li><a href="/ar.html"><span class="sh-t">Atmospheric rivers</span><span class="sh-d">Moisture plumes, landfall and their odds</span></a></li>
+                  <li><a href="/circulation.html#dt"><span class="sh-t">Jet streams and tropopause</span><span class="sh-d">Tropopause, Pacific and subtropical jets, wave trains</span></a></li>
+                  <li><a href="/circulation.html#wcb"><span class="sh-t">Warm conveyor belts</span><span class="sh-d">Inflow, ascent and outflow in 50 members</span></a></li>
+                  <li><a href="/circulation.html#aam"><span class="sh-t">Angular momentum and torques</span><span class="sh-d">Global momentum, mountain and friction torques</span></a></li>
+                  <li><a href="/circulation.html#telecon15"><span class="sh-t">Teleconnections</span><span class="sh-d">AO, NAO, PNA and more, calibrated</span></a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Tropics</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div class="sh-col">
+              <div>
+                <h3>ENSO and the MJO</h3>
+                <ul>
+                  <li><a href="/enso.html"><span class="sh-t">El Niño monitor</span><span class="sh-d">ONI, RONI, the subsurface and winds</span></a></li>
+                  <li><a href="/mjo.html"><span class="sh-t">MJO forecast</span><span class="sh-d">Four ensembles on one phase diagram</span></a></li>
+                  <li><a href="/tropical-waves.html"><span class="sh-t">Tropical waves</span><span class="sh-d">Kelvin and Rossby waves, now and ahead</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Circulation</h3>
+                <ul>
+                  <li><a href="/circulation.html#walker"><span class="sh-t">Walker and Hadley cells</span><span class="sh-d">The overturning, its outflow and descent</span></a></li>
+                  <li><a href="/circulation.html#mslp"><span class="sh-t">Pacific pressure and satellite</span><span class="sh-d">Pressure, wind and simulated IR</span></a></li>
+                  <li><a href="/circulation.html#rainfc"><span class="sh-t">Rain forecast, weeks 1–2</span><span class="sh-d">Four ensembles, bias-adjusted, blended</span></a></li>
+                  <li><a href="/circulation.html#troughs"><span class="sh-t">Convergence and monsoon troughs</span><span class="sh-d">Where the low-level wind converges, days 1–15</span></a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Stratosphere</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div class="sh-col">
+              <div>
+                <h3>Forecasts</h3>
+                <ul>
+                  <li><a href="/ssw.html"><span class="sh-t">SSW outlook</span><span class="sh-d">Is a sudden warming coming?</span></a></li>
+                  <li><a href="/stratosphere.html#vortex"><span class="sh-t">The next two weeks</span><span class="sh-d">The vortex, its waves and the surface</span></a></li>
+                  <li><a href="/stratosphere.html#vortex35"><span class="sh-t">Weeks 3–5 and the season</span><span class="sh-d">GEPS, GEFS, C3S and SEAS5</span></a></li>
+                  <li><a href="/strat-models.html"><span class="sh-t">Stratosphere model maps</span><span class="sh-d">Polar maps at every level, zoomable</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Analyses and history</h3>
+                <ul>
+                  <li><a href="/stratosphere.html#qbo"><span class="sh-t">The QBO and today's analyses</span><span class="sh-d">QBO, momentum and the Brewer–Dobson</span></a></li>
+                  <li><a href="/stratosphere.html#shwinters"><span class="sh-t">History and studies</span><span class="sh-d">Every winter and warming since 1980</span></a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Weeks to seasons</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div class="sh-col">
+              <div>
+                <h3>Extended range</h3>
+                <ul>
+                  <li><a href="/subseasonal.html"><span class="sh-t">GEPS, to day 35</span><span class="sh-d">Canada's extended ensemble</span></a></li>
+                  <li><a href="/gefs.html"><span class="sh-t">GEFS, to day 35</span><span class="sh-d">NOAA's extended ensemble</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Months and seasons</h3>
+                <ul>
+                  <li><a href="/monthly-outlook.html"><span class="sh-t">Claude's long-range forecast</span><span class="sh-d">The month and three seasons ahead</span></a></li>
+                  <li><a href="/seasonal.html"><span class="sh-t">Seasonal model forecasts</span><span class="sh-d">Seven C3S systems and CanSIPS</span></a></li>
+                  <li><a href="/enso-forecasts.html"><span class="sh-t">ENSO forecasts</span><span class="sh-d">Niño-3.4 from five centres</span></a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4">Studies and tools</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
+            <div class="sh-col">
+              <div>
+                <h3>Studies</h3>
+                <ul>
+                  <li><a href="/enso.html#imp_reg"><span class="sh-t">ENSO impacts on the Americas</span><span class="sh-d">CMIP6 and the observed record</span></a></li>
+                  <li><a href="/mjo.html#mi"><span class="sh-t">MJO impacts</span><span class="sh-d">Each phase, season by season</span></a></li>
+                  <li><a href="/aifs-aam-budget.html"><span class="sh-t">AI models and conservation laws</span><span class="sh-d">Does the AIFS keep the budgets?</span></a></li>
+                  <li><a href="/torque-enso.html"><span class="sh-t">El Niño and angular momentum</span><span class="sh-d">Why the atmosphere spins up</span></a></li>
+                  <li><a href="/topics/"><span class="sh-t">Explainers</span><span class="sh-d">The physics behind the products</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="sh-col">
+              <div>
+                <h3>Verification</h3>
+                <ul>
+                  <li><a href="/verification.html"><span class="sh-t">Model verification</span><span class="sh-d">Scorecards, maps and the database</span></a></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Tools</h3>
+                <ul>
+                  <li><a href="/skewt/"><span class="sh-t">Sounding explorer</span><span class="sh-d">Radiosondes worldwide, live</span></a></li>
+                  <li><a href="/asos5.html"><span class="sh-t">Five-minute airport observations</span><span class="sh-d">22 major US airports, live</span></a></li>
+                  <li><a href="/climate.html"><span class="sh-t">US climate trends</span><span class="sh-d">Every county and month since 1895</span></a></li>
+                  <li><a href="/fci.html"><span class="sh-t">US credit conditions</span><span class="sh-d">Financial conditions, weekly since 1990</span></a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li><a href="/guides/">Methods</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main id="main">
+<article class="topic guide">
+  <p class="crumbs"><a href="/">Home</a> › <a href="/guides/">Methods</a> › ENSO forecasts page</p>
+  <h1>Methods: the ENSO forecasts page</h1>
+  <p class="lede">What each figure shows, how it is made, how it is tested and what it is built from. <a href="/enso-forecasts.html">Open the ENSO forecasts page</a></p>
+<nav class="toc" aria-label="Figures"><dl><dt>The figures</dt><dd><a href="#brief">The outlook in brief</a><a href="#plume">How strong will it get?</a><a href="#year">The next twelve months</a><a href="#flavour">How east-based will it be?</a><a href="#changes">How has the forecast changed?</a><a href="#history">How does it compare with past El Ni&ntilde;os?</a><a href="#static">The static figure</a></dd></dl></nav>
+<section id="about">
+<h2>The page</h2>
+<p>The page uses five of the seasonal forecast systems that the Copernicus Climate Change Service (C3S) collects:
+ECMWF (SEAS5), the UK Met Office (GloSea6), M&eacute;t&eacute;o-France (System 9), NCEP (CFSv2) and ECCC (CanSIPS,
+whose two component models are pooled into one). DWD (GCFS2) is left out of everything on this page (excluded for poor
+ENSO skill and drift). The Australian Bureau of Meteorology&rsquo;s ACCESS-S2 is not used anywhere on the
+site, for the same reason. Each model&rsquo;s anomaly is its
+forecast minus its own 1993&ndash;2016 hindcast average for the same start month and lead, which removes each
+model&rsquo;s drift and bias before anything is compared. The issue shown is the newest month for which at least four of the
+systems shown have published.</p>
+<p>The multi-model average weights each model equally, and so do the shaded spreads and every probability on this
+page: NCEP&rsquo;s CFSv2, with about 120 members, counts the same as CanSIPS with 40.</p>
+</section>
+
+<h2>The figures</h2>
+
+<section id="brief">
+<h3>The outlook in brief</h3>
+<p class="open"><a href="/enso-forecasts.html#brief">Open this figure</a></p>
+<p>The odds in the brief are the share of members whose own peak (the highest of the four three-month averages
+lying wholly inside the six months) reaches each level, each model weighted equally. Raw ensemble shares are often
+overconfident or biased, so they were tested on the same models&rsquo; hindcasts for each start month,
+1993&ndash;2016, built exactly as the forecast is (each member against its model&rsquo;s own hindcast average,
+leaving out the year being verified) and verified against CPC&rsquo;s official ONI and RONI over the same four
+seasons. The calibration tried is a shift and scale of the members&rsquo; peaks (a new centre, a rescaled signal and
+a rescaled spread: three numbers per index), fitted with each year left out in turn and scored with the ranked
+probability skill score over +0.5, +1.0, +1.5, +2.0 and +2.5&nbsp;&deg;C, with a 95% block-bootstrap interval and
+a permutation test. Calibrated odds replace the raw shares only if they score better with the interval above zero
+and p below 0.05/24, allowing for the 24 tests (twelve start months, two indices).</p>
+<p class="src"><b>Sources.</b> Copernicus C3S seasonal forecasts (contains modified Copernicus Climate Change Service information 2026); observed ONI and RONI from NOAA CPC.</p>
+</section>
+
+<section id="plume">
+<h3>How strong will it get?</h3>
+<p class="open"><a href="/enso-forecasts.html#plume">Open this figure</a></p>
+<p>Every model&rsquo;s average forecast, their combined average in bold, and the spread of all
+members as a shaded fan, with the observed index leading in from the left.</p>
+<p>ONI is the three-month running mean of the Ni&ntilde;o-3.4 anomaly (5&deg;N&ndash;5&deg;S, 170&ndash;120&deg;W).
+RONI is the Ni&ntilde;o-3.4 anomaly minus the 20&deg;S&ndash;20&deg;N average anomaly, rescaled month by month so
+it keeps ONI&rsquo;s thresholds. NOAA CPC made RONI its official ENSO index in February 2026. The observed values
+are CPC&rsquo;s published tables; CPC revises them for up to two months, and months after its latest value are
+estimated from NOAA OISST daily data, which is itself preliminary for about two weeks. Those months are drawn with
+open markers. The models&rsquo; anomalies are on a 1993&ndash;2016 base; CPC&rsquo;s RONI is on 1991&ndash;2020 and its ONI on
+shifting 30-year bases. On Ni&ntilde;o-3.4 the 1991&ndash;2020 and 1993&ndash;2016 climatologies differ by under
+0.1&nbsp;&deg;C in every calendar month (most in late winter and spring); the observed month that starts each smoothed
+model line is moved onto the models&rsquo; base by that difference. A fixed-base ONI can run well above CPC&rsquo;s: from April&ndash;June to July&ndash;September
+2026, this site&rsquo;s fixed-base OISST estimate ran 0.06&ndash;0.39&nbsp;&deg;C above CPC&rsquo;s ONI, while the two
+RONIs agreed to within 0.08&nbsp;&deg;C. RONI is the fairer comparison with what CPC publishes.</p>
+<p class="src"><b>Sources.</b> Copernicus C3S seasonal forecasts; each model&rsquo;s anomaly is taken against its own 1993&ndash;2016 hindcast. Months 7&ndash;12: CanSIPS from ECCC&rsquo;s Datamart, Data Source: Environment and Climate Change Canada. Observed: ONI and RONI from NOAA CPC; monthly Ni&ntilde;o-3.4 is the NOAA ERSSTv6 box mean computed here (CPC&rsquo;s monthly regional table froze in August 2026); open circles are this site&rsquo;s OISST v2.1 estimate for months not yet in those records.</p>
+</section>
+
+<section id="year">
+<h3>The next twelve months</h3>
+<p class="open"><a href="/enso-forecasts.html#year">Open this figure</a></p>
+<p>C3S carries ECCC&rsquo;s CanSIPS for six months; ECCC
+publishes the same 40-member forecast for twelve on its MSC Datamart, posted on the last day of the previous month,
+with its full 1990&ndash;2020 hindcast. That copy is read directly, each of its two models (GEM5.2-NEMO, members
+1&ndash;20, and CanESM5, 21&ndash;40) is taken against its own 1993&ndash;2016 hindcast for the same start month and
+lead, exactly as for the C3S systems, and the Ni&ntilde;o-3.4 box and the 20&deg;S&ndash;20&deg;N average for RONI
+use ocean cells only (the Datamart&rsquo;s sea temperature is filled over land). On the plume, CanSIPS alone
+continues past month six, drawn dashed over a shaded band, and the multi-model average and fan stop where the other
+systems stop.</p>
+<p>Canada&rsquo;s CanSIPS is the one system here that runs for a full year: 40 members from two
+models, read straight from Environment and Climate Change Canada. The other systems stop at six months, so
+<b>everything after month six is one model&rsquo;s view, not a multi-model forecast</b>, and is shaded to say so.</p>
+<p class="src"><b>Sources.</b> CanSIPS (GEM5.2-NEMO + CanESM5) from ECCC&rsquo;s MSC Datamart, each model against its own 1993&ndash;2016 hindcast. Data Source: Environment and Climate Change Canada. Observed: ONI and RONI from NOAA CPC; monthly Ni&ntilde;o-3.4 is the NOAA ERSSTv6 box mean computed here.</p>
+</section>
+
+<section id="flavour">
+<h3>How east-based will it be?</h3>
+<p class="open"><a href="/enso-forecasts.html#flavour">Open this figure</a></p>
+<p>El Ni&ntilde;os differ in where the warmth sits. <b>East-based</b> events, like 1982&ndash;83 and
+1997&ndash;98, warm the eastern Pacific all the way to the coast of South America. <b>Central-Pacific</b> events, like
+2009&ndash;10, keep the warmth near the date line. The two index numbers below, <b>E</b> for the eastern Pacific and
+<b>C</b> for the central Pacific (Takahashi and others, 2011), measure each in standard deviations of their normal
+variability, so the same scale places this forecast among every El Ni&ntilde;o since 1950.</p>
+<p>Following Takahashi, Montecinos, Goubanova and Dewitte (2011, <i>Geophysical Research Letters</i> 38, L10704):
+the two leading patterns (EOFs) of monthly sea-surface temperature anomalies over 10&deg;S&ndash;10&deg;N,
+140&deg;E&ndash;80&deg;W (Takahashi et al. used HadISST between the coasts), from NOAA ERSSTv6 on a fixed 1991&ndash;2020 base, trained on 1979&ndash;2020.
+The first is a basin-wide warming (66% of the variance), the second an east&ndash;west seesaw
+(14%). Rotating them by 45&deg; gives E = (PC1 &minus; PC2)/&radic;2 and C = (PC1 + PC2)/&radic;2,
+each in standard deviations. Every month since 1950 is projected on the same two patterns.</p>
+<p>Each model member&rsquo;s forecast anomaly field (C3S&rsquo;s own anomaly product, same hindcast base as above)
+is moved onto the 1991&ndash;2020 base using the observed difference between the two climatologies (a few
+hundredths of a degree) and projected on the observed patterns. On this page an event or a member is
+<b>east-based</b> when E exceeds C by at least 1, <b>central</b> when C exceeds E by at least 1, and <b>basin-wide</b>
+in between. With that rule 1982&ndash;83 and 1997&ndash;98 are east-based; 1972&ndash;73, 1991&ndash;92,
+2015&ndash;16 and 2023&ndash;24 basin-wide; 2002&ndash;03, 2004&ndash;05 and 2009&ndash;10 central. The impacts study on the
+<a href="/enso.html#imp_ec">El Ni&ntilde;o monitor</a> classes thousands of CMIP6 winters by the same rule on the same
+observed patterns; for those 65-year model runs it takes each winter&rsquo;s anomalies from the other winters within
+&plusmn;10 years, so that the models&rsquo; forced warming does not move winters between classes.</p>
+<p>The <b>centre of the warming</b> is the anomaly-weighted mean longitude of the stretch of the equator
+(2&deg;S&ndash;2&deg;N, smoothed over 10&deg; of longitude) that is within 30% of the warmest point. A bare
+maximum jumps between two near-equal humps: December&ndash;February 2023&ndash;24 reads 102&deg;W by its
+maximum but 131&deg;W this way.</p>
+<p><b>How the verdict is decided.</b> A class is named only when three things hold: the models, counted once each,
+agree on the direction of E minus C (one-sample t-test against zero, p &lt; 0.05); at least two-thirds of the
+members fall in the class; and all models but at most one have their average in it. A significant lean that
+misses the other two tests is reported as a lean, and anything else as a split. How well the models forecast the
+east&ndash;central balance has not been verified here.</p>
+<p>Every C3S forecast starts from the ocean on the first of its issue month, so its first month can be checked
+against the ocean while the month is still running. Each day, NOAA OISST daily anomalies (1991&ndash;2020 base)
+are averaged into the same 2&deg; cells, projected on the same two patterns, and compared with each model&rsquo;s
+forecast for that month. The observed track on the charts switches from ERSSTv6 to OISST after ERSST&rsquo;s last
+settled month, because ERSST&rsquo;s newest month is provisional; over 1982&ndash;2025 the two agree closely in
+E and C (correlation 0.985 and 0.982, mean difference under 0.01), although in mid-2026 OISST reads the coastal
+warming about 0.4&ndash;0.5 higher in E than ERSST&rsquo;s provisional months.</p>
+<p><b>First-month-corrected</b> shifts each model&rsquo;s members in E and C by that model&rsquo;s first-month
+error. Whether that error persists was tested on each model&rsquo;s own hindcasts for the same start month
+(1993&ndash;2016, raw sea-surface temperature, anomalies against the hindcast mean exactly as C3S takes them for the
+forecast), verified against ERSSTv6: the correction is weighted by how much of the first-month error carried
+forward, pooled over the models and fitted with each verified year left out.</p>
+<p>The page leads with the ocean as observed; the forecast as issued and the first-month-corrected forecast are
+shown side by side, neither ahead of the other. A linear regression of the observed E and C on each model&rsquo;s
+E and C, lead by lead and cross-validated the same way, was also tested.</p>
+<p><b>Caveat.</b> On the fixed base, the western Pacific&rsquo;s faster warming puts a slow upward drift into C
+(+0.16 standard deviations per decade since 1950) and very little into E
+(+0.03), so events from the 1950s to 1970s sit a little lower on C than they would
+against their own era&rsquo;s climate.</p>
+<p class="src"><b>Sources.</b> E and C from NOAA ERSSTv6 (1979&ndash;2020 patterns, fixed 1991&ndash;2020 base); forecast: C3S member anomalies projected on the same patterns.</p>
+</section>
+
+<section id="changes">
+<h3>How has the forecast changed?</h3>
+<p class="open"><a href="/enso-forecasts.html#changes">Open this figure</a></p>
+<p>One line for each monthly issue: the average of all models, with the middle 80% of members
+shaded around the newest issues. Older issues are paler. Click an issue in the legend to hide or show it.</p>
+<p class="src"><b>Sources.</b> Copernicus C3S seasonal forecasts, successive monthly issues. Observed: NOAA CPC.</p>
+</section>
+
+<section id="history">
+<h3>How does it compare with past El Ni&ntilde;os?</h3>
+<p class="open"><a href="/enso-forecasts.html#history">Open this figure</a></p>
+<p>Each line is one year of the observed index, January to December. The strong and very strong
+El Ni&ntilde;os are drawn in colour; weaker ones can be added from the legend. This year is in bold black, and the
+dashed line continues it with this issue&rsquo;s forecast.</p>
+<p class="src"><b>Sources.</b> NOAA CPC&rsquo;s published ONI and RONI; months after CPC&rsquo;s latest value are estimated from NOAA OISST and marked provisional.</p>
+</section>
+
+<section id="static">
+<h3>The static figure</h3>
+<p class="open"><a href="/enso-forecasts.html#static">Open this figure</a></p>
+<p>The same forecast as a four-panel image (Ni&ntilde;o-3.4 and relative Ni&ntilde;o-3.4, monthly and
+three-month), for saving or sharing:</p>
+<a href="/assets/sst/c3s_nino34.webp"><img src="/assets/sst/c3s_nino34.webp" loading="lazy" alt="Static four-panel C3S multi-model ENSO forecast figure" width="1512" height="1164"></a>
+</section>
+  <p class="byline">Written by Claude, Anthropic's AI model, at the direction of <a href="/">Shawn Corvec</a>, meteorologist.</p>
+</article>
+</main>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/guides/">Methods</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Its products are generated automatically and published without review by a person; each page describes its automated checks and significance tests. There is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

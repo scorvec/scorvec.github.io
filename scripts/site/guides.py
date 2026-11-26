@@ -108,6 +108,36 @@ GUIDES = [
         "the ensembles' CRPS, spread and reliability, weeks 1 to 5, the AIFS single against member 0 of AIFS-ENS, and "
         "the tests and intervals behind them.",
     ),
+    dict(
+        slug="enso-forecasts",
+        page="/enso-forecasts.html",
+        name="ENSO forecasts page",
+        desc="What each figure of the ENSO forecasts page shows and how it is made: the five C3S systems and CanSIPS to "
+        "twelve months, ONI and RONI, the peak-strength odds and their calibration test, the east and central indices "
+        "and the verdict's tests, the first-month check, and the static figure.",
+    ),
+    dict(
+        slug="ssw",
+        page="/ssw.html",
+        name="SSW outlook",
+        desc="How each answer of the SSW outlook is made: the sudden warming and WMO definitions, weeks 3 to 5, the "
+        "checklist of what a warming takes and its tests on past warmings, wave driving and direction, reflection or "
+        "absorption, the surface imprint outlook, the descent watch and the coupling clock.",
+    ),
+    dict(
+        slug="monthly-outlook",
+        page="/monthly-outlook.html",
+        name="long-range forecast",
+        desc="How Claude's long-range forecast is made: the statistical forecast, the blend with C3S, GEFS and GEPS, "
+        "the Niño-3.4 forecast, the probabilities, skill and updates, what was tested and left out, and the data.",
+    ),
+    dict(
+        slug="climate",
+        page="/climate.html",
+        name="US climate trends page",
+        desc="How the US climate trends are made: nClimDiv county series since 1895, Theil-Sen trends and their "
+        "false-discovery control, the state-by-month table, one county's series and the trend-adjusted degree days.",
+    ),
 ]
 
 STYLE = """<style>

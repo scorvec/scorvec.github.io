@@ -1366,7 +1366,7 @@ afterPlotly(function () {
         b.onclick = function () { cur = ix.key; draw(); };
         pick.appendChild(b);
       });
-      document.getElementById("c3sIdxNote").textContent = meta.note + " · " + J.basis;
+      document.getElementById("c3sIdxNote").textContent = meta.note;
       var k = 0;
       var traces = J.models.map(function (m) {
         var y = (J.values[m.id] || {})[cur];

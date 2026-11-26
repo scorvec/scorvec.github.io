@@ -67,8 +67,7 @@
   .chk input { width: 1.25rem; height: 1.25rem; accent-color: var(--accent); margin: 0; }
   .mv-show { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1.3rem; margin: 0.45rem 0 0; font-size: 1.12rem; }
   .mv-show > b { font-weight: 600; }
-  .mv-keys { margin-left: auto; font-size: 0.92rem; color: var(--muted); }
-  .mv-keys kbd { font: inherit; font-size: 0.78rem; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0 0.3em; background: var(--panel); }
+  .mv-keys { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }   /* read out with the map (aria-describedby), not shown */
 
   /* touch: one finger scrolls the page, two move and zoom the map. Never taller than the window. */
   /* the map fills the window under its controls with its Show row still on screen (site.js sets --fit-top and
@@ -176,7 +175,6 @@
     .mv-valid { min-width: 0; flex: 1 1 100%; font-size: 0.95rem; order: -1; }
     .mv-valid .vt { font-size: 1.08rem; }
     .mv-time input[type=range] { flex: 1 1 5rem; min-width: 5rem; }
-    .mv-keys { display: none; }
     .mv-badge { font-size: 0.86rem; padding: 0.22rem 0.5rem; }
   }
   /* the controls scale with the window (--ui, set at the end of the head): full size on a large screen, smaller on a
@@ -425,10 +423,10 @@
     <label class="chk" id="barbL" hidden title="Wind barbs in knots"><input type="checkbox" id="barb" checked> Barbs</label>
     <span class="mv-keys" id="mapKeys">Click the map, then: arrows pan &middot; <kbd>+</kbd> <kbd>&minus;</kbd> zoom &middot; <kbd>0</kbd> reset &middot; <kbd>PgUp</kbd> <kbd>PgDn</kbd> level &middot; <kbd>,</kbd> <kbd>.</kbd> step &middot; <kbd>Space</kbd> play</span>
   </div>
-  <p class="mv-note" id="note"></p>
 
   <section class="mv-about" id="about" aria-labelledby="aboutH">
     <h2 id="aboutH">About these maps</h2>
+    <p class="mv-note" id="note"></p>
     <p class="mv-runs" id="runs"></p>
     <h3>The models and their levels</h3>
     <p><b>GFS</b>: NOAA's Global Forecast System (the FV3 model, about 13&nbsp;km, 127 layers up to about 80&nbsp;km), read on the 0.5&deg; latitude&ndash;longitude grid of its published output. The 00, 06, 12 and 18&nbsp;UTC runs, every 12&nbsp;hours to +384&nbsp;h (16 days); a run appears here about 6&nbsp;hours after its start time, and its change map is from the run 12&nbsp;hours earlier, whose steps share its valid times. The maps are the output's 15 pressure levels from 100&nbsp;hPa (about 16&nbsp;km, near the tropical tropopause) to 0.4&nbsp;hPa (about 54&nbsp;km, around the stratopause): 100, 70, 50, 40, 30, 20, 15, 10, 7, 5, 3, 2, 1, 0.7 and 0.4&nbsp;hPa. The heights beside the level buttons are this run's global-mean height of each level at its start. The GFS also writes 0.2 to 0.01&nbsp;hPa, the mesosphere up to the model top; they are left out, because the model's uppermost layers are its damping (sponge) layers and the analysis has few observations to draw on there. Above about 1&nbsp;hPa the same holds more weakly: read the top levels as the model's picture, not a well-observed one.</p>

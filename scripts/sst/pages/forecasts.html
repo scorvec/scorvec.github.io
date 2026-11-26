@@ -110,15 +110,6 @@ window.plotlyP = new Promise(function (ok, no) {
   .ef-cls.central { background: rgba(90,74,138,0.13); color: #4a3c75; }
   .ef-empty { color: var(--ink2); background: var(--surface); border: 1px dashed var(--edge); border-radius: 6px; padding: 1rem 1.2rem; }
 
-  /* method */
-  .ef-method { margin: 2.8rem 0 0; border-top: 1px solid var(--rule); padding-top: 1rem; }
-  .ef-method summary { cursor: pointer; font-family: var(--f-serif, var(--serif)); font-size: 1.3rem; color: var(--ink); }
-  .ef-method summary:focus-visible { outline: 2.5px solid var(--ink); outline-offset: 3px; }
-  .ef-method .body { max-width: 110ch; color: var(--ink2); font-size: 0.97rem; padding: 0.4rem 0 0; }
-  .ef-method h3 { margin-top: 1.2rem; }
-  .ef-method p, .ef-method li { margin: 0 0 0.6rem; }
-  .ef-method ul { padding-left: 1.2rem; }
-  .ef-method img { max-width: 100%; height: auto; border: 1px solid var(--rule); border-radius: 4px; margin: 0.4rem 0; }
 
   @media (max-width: 900px) {
     .ef-brief-grid, .ef-grid2 { grid-template-columns: minmax(0, 1fr); }
@@ -156,7 +147,6 @@ window.plotlyP = new Promise(function (ok, no) {
       <div class="stage" id="stage"></div>
       <p class="cap" id="cap"></p>
       <div id="about"></div>
-      <p class="hint"><a href="#method" onclick="document.getElementById('method').open = true">Methods</a></p>
     </section>
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>
@@ -185,9 +175,6 @@ window.plotlyP = new Promise(function (ok, no) {
   <!-- ── 1. THE PLUME ──────────────────────────────────────────────────── -->
   <section class="ef-sec" id="plume" aria-labelledby="plume-h">
     <h2 id="plume-h">How strong will it get?</h2>
-    <p class="ef-intro">Every model&rsquo;s average forecast, their combined average in bold, and the spread of all
-    members as a shaded fan, with the observed index leading in from the left. Each model counts equally, so NCEP&rsquo;s CFSv2,
-    with about 120 members, does not outvote CanSIPS with 40.</p>
     <div class="ef-controls">
       <div class="ef-seg" role="group" aria-label="Index">
         <span>Index</span>
@@ -207,15 +194,12 @@ window.plotlyP = new Promise(function (ok, no) {
     </div>
     <div class="ef-panel"><div id="plumeChart" class="ef-chart" role="img" aria-label="Multi-model ENSO forecast plume"></div></div>
     <p class="ef-cap" id="plume-cap"></p>
-    <div class="ef-foot"><span>Copernicus C3S seasonal forecasts; each model&rsquo;s anomaly is taken against its own 1993&ndash;2016 hindcast. <span id="plume-cd-src" hidden>Months 7&ndash;12: CanSIPS from ECCC&rsquo;s Datamart, Data Source: Environment and Climate Change Canada.</span> Observed: ONI and RONI from NOAA CPC; monthly Ni&ntilde;o-3.4 is the NOAA ERSSTv6 box mean computed here (CPC&rsquo;s monthly regional table froze in August 2026); open circles are this site&rsquo;s OISST v2.1 estimate for months not yet in those records.</span><span id="plume-updated"></span></div>
+    <div class="ef-foot"><span id="plume-updated"></span></div>
   </section>
 
   <!-- ── 1b. TWELVE MONTHS: CanSIPS ALONE (ECCC Datamart, scripts/sst/cansips_dd.py) ── -->
   <section class="ef-sec" id="year" aria-labelledby="year-h">
     <h2 id="year-h">The next twelve months</h2>
-    <p class="ef-intro">Canada&rsquo;s CanSIPS is the one system here that runs for a full year: 40 members from two
-    models, read straight from Environment and Climate Change Canada. The other systems stop at six months, so
-    <b>everything after month six is one model&rsquo;s view, not a multi-model forecast</b>, and is shaded to say so.</p>
     <div id="year-empty" class="ef-empty" hidden>The twelve-month CanSIPS forecast has not been processed yet.</div>
     <div id="year-body">
       <p class="ef-obslead" id="year-issue"></p>
@@ -239,18 +223,13 @@ window.plotlyP = new Promise(function (ok, no) {
       <p class="ef-cap" id="year-cap"></p>
       <div class="ef-tablewrap"><table class="ef-lomo" id="year-table"></table></div>
       <p class="ef-cap" id="year-check"></p>
-      <div class="ef-foot"><span>CanSIPS (GEM5.2-NEMO + CanESM5) from ECCC&rsquo;s MSC Datamart, each model against its own 1993&ndash;2016 hindcast. Data Source: Environment and Climate Change Canada. Observed: ONI and RONI from NOAA CPC; monthly Ni&ntilde;o-3.4 is the NOAA ERSSTv6 box mean computed here.</span><span id="year-updated"></span></div>
+      <div class="ef-foot"><span id="year-updated"></span></div>
     </div>
   </section>
 
   <!-- ── 2. EAST OR CENTRAL ────────────────────────────────────────────── -->
   <section class="ef-sec" id="flavour" aria-labelledby="flavour-h">
     <h2 id="flavour-h">How east-based will it be?</h2>
-    <p class="ef-intro">El Ni&ntilde;os differ in where the warmth sits. <b>East-based</b> events, like 1982&ndash;83 and
-    1997&ndash;98, warm the eastern Pacific all the way to the coast of South America. <b>Central-Pacific</b> events, like
-    2009&ndash;10, keep the warmth near the date line. The two index numbers below, <b>E</b> for the eastern Pacific and
-    <b>C</b> for the central Pacific (Takahashi and others, 2011), measure each in standard deviations of their normal
-    variability, so the same scale places this forecast among every El Ni&ntilde;o since 1950.</p>
     <div id="flavour-empty" class="ef-empty" hidden>The east&ndash;central breakdown for this issue has not been processed yet. It appears here once this month&rsquo;s model fields are in, usually by the middle of the month.</div>
     <div id="flavour-body">
       <p class="ef-obslead" id="ef-obslead"></p>
@@ -303,15 +282,13 @@ window.plotlyP = new Promise(function (ok, no) {
         <table class="ef-models" id="ef-models"></table>
       </div>
       <p class="ef-cap" id="models-cap"></p>
-      <div class="ef-foot"><span>E and C from NOAA ERSSTv6 (1979&ndash;2020 patterns, fixed 1991&ndash;2020 base); forecast: C3S member anomalies projected on the same patterns.</span><span id="flavour-updated"></span></div>
+      <div class="ef-foot"><span id="flavour-updated"></span></div>
     </div>
   </section>
 
   <!-- ── 3. ISSUE BY ISSUE ─────────────────────────────────────────────── -->
   <section class="ef-sec" id="changes" aria-labelledby="changes-h">
     <h2 id="changes-h">How has the forecast changed?</h2>
-    <p class="ef-intro">One line for each monthly issue: the average of all models, with the middle 80% of members
-    shaded around the newest issues. Older issues are paler. Click an issue in the legend to hide or show it.</p>
     <div class="ef-controls">
       <div class="ef-seg" role="group" aria-label="Index">
         <span>Index</span>
@@ -330,15 +307,12 @@ window.plotlyP = new Promise(function (ok, no) {
       <button type="button" class="ef-tog" data-toggle="evoSpread" aria-pressed="true">Show member spread</button>
     </div>
     <div class="ef-panel"><div id="evoChart" class="ef-chart" role="img" aria-label="Forecast issue by issue"></div></div>
-    <div class="ef-foot"><span>Copernicus C3S seasonal forecasts, successive monthly issues. Observed: NOAA CPC.</span><span id="evo-updated"></span></div>
+    <div class="ef-foot"><span id="evo-updated"></span></div>
   </section>
 
   <!-- ── 4. PAST EVENTS ────────────────────────────────────────────────── -->
   <section class="ef-sec" id="history" aria-labelledby="history-h">
     <h2 id="history-h">How does it compare with past El Ni&ntilde;os?</h2>
-    <p class="ef-intro">Each line is one year of the observed index, January to December. The strong and very strong
-    El Ni&ntilde;os are drawn in colour; weaker ones can be added from the legend. This year is in bold black, and the
-    dashed line continues it with this issue&rsquo;s forecast.</p>
     <div class="ef-controls">
       <div class="ef-seg" role="group" aria-label="Index">
         <span>Index</span>
@@ -350,12 +324,19 @@ window.plotlyP = new Promise(function (ok, no) {
     </div>
     <div class="ef-panel"><div id="histChart" class="ef-chart" role="img" aria-label="This year against every year since 1970"></div></div>
     <p class="ef-cap" id="hist-cap"></p>
-    <div class="ef-foot"><span>NOAA CPC&rsquo;s published ONI and RONI; months after CPC&rsquo;s latest value are estimated from NOAA OISST and marked provisional.</span><span id="hist-updated"></span></div>
+    <div class="ef-foot"><span id="hist-updated"></span></div>
   </section>
 
   </div>
+<template id="about-brief">Copernicus C3S seasonal forecasts (contains modified Copernicus Climate Change Service information 2026); observed ONI and RONI from NOAA CPC.</template>
+<template id="about-plume">Copernicus C3S seasonal forecasts; each model&rsquo;s anomaly is taken against its own 1993&ndash;2016 hindcast. Months 7&ndash;12: CanSIPS from ECCC&rsquo;s Datamart, Data Source: Environment and Climate Change Canada. Observed: ONI and RONI from NOAA CPC; monthly Ni&ntilde;o-3.4 is the NOAA ERSSTv6 box mean computed here (CPC&rsquo;s monthly regional table froze in August 2026); open circles are this site&rsquo;s OISST v2.1 estimate for months not yet in those records.</template>
+<template id="about-year">CanSIPS (GEM5.2-NEMO + CanESM5) from ECCC&rsquo;s MSC Datamart, each model against its own 1993&ndash;2016 hindcast. Data Source: Environment and Climate Change Canada. Observed: ONI and RONI from NOAA CPC; monthly Ni&ntilde;o-3.4 is the NOAA ERSSTv6 box mean computed here.</template>
+<template id="about-flavour">E and C from NOAA ERSSTv6 (1979&ndash;2020 patterns, fixed 1991&ndash;2020 base); forecast: C3S member anomalies projected on the same patterns.</template>
+<template id="about-changes">Copernicus C3S seasonal forecasts, successive monthly issues. Observed: NOAA CPC.</template>
+<template id="about-history">NOAA CPC&rsquo;s published ONI and RONI; months after CPC&rsquo;s latest value are estimated from NOAA OISST and marked provisional.</template>
 <script>
 window.STAGE = {
+  guide: "/guides/enso-forecasts.html",
   groups: [{ label: "The forecast", items: [["brief", "The outlook in brief", "the odds, the facts, the equator"],
                                             ["plume", "How strong will it get?", "every model and the member fan"],
                                             ["year", "The next twelve months", "CanSIPS alone after month six"],
@@ -363,127 +344,16 @@ window.STAGE = {
                                             ["changes", "How has the forecast changed?", "issue by issue"],
                                             ["history", "Compared with past El Niños", "every year since 1970"]] }],
   products: {
-    brief:   { label: "The outlook in brief", dom: function () { return "brief"; } },
-    plume:   { label: "How strong will it get?", dom: function () { return "plume"; } },
-    year:    { label: "The next twelve months: CanSIPS", dom: function () { return "year"; } },
-    flavour: { label: "How east-based will it be?", dom: function () { return "flavour"; } },
-    changes: { label: "How has the forecast changed?", dom: function () { return "changes"; } },
-    history: { label: "How does it compare with past El Niños?", dom: function () { return "history"; } }
+    brief:   { label: "The outlook in brief", about: "about-brief", dom: function () { return "brief"; } },
+    plume:   { label: "How strong will it get?", about: "about-plume", dom: function () { return "plume"; } },
+    year:    { label: "The next twelve months: CanSIPS", about: "about-year", dom: function () { return "year"; } },
+    flavour: { label: "How east-based will it be?", about: "about-flavour", dom: function () { return "flavour"; } },
+    changes: { label: "How has the forecast changed?", about: "about-changes", dom: function () { return "changes"; } },
+    history: { label: "How does it compare with past El Niños?", about: "about-history", dom: function () { return "history"; } }
   }
 };
 </script>
 
-  <!-- ── 5. METHOD ─────────────────────────────────────────────────────── -->
-  <details class="ef-method" id="method">
-    <summary>Method and sources</summary>
-    <div class="body">
-      <h3>The forecasts</h3>
-      <p>The page uses five of the seasonal forecast systems that the Copernicus Climate Change Service (C3S) collects:
-      ECMWF (SEAS5), the UK Met Office (GloSea6), M&eacute;t&eacute;o-France (System 9), NCEP (CFSv2) and ECCC (CanSIPS,
-      whose two component models are pooled into one). <span id="m-excluded">DWD (GCFS2) is left out of everything on this page (excluded for poor
-      ENSO skill and drift).</span> The Australian Bureau of Meteorology&rsquo;s ACCESS-S2 is not used anywhere on the
-      site, for the same reason. Each model&rsquo;s anomaly is its
-      forecast minus its own 1993&ndash;2016 hindcast average for the same start month and lead, which removes each
-      model&rsquo;s drift and bias before anything is compared. The issue shown is the newest month for which at least four of the
-      systems shown have published.</p>
-      <p><b>Twelve months: CanSIPS from the source.</b> C3S carries ECCC&rsquo;s CanSIPS for six months; ECCC
-      publishes the same 40-member forecast for twelve on its MSC Datamart, posted on the last day of the previous month,
-      with its full 1990&ndash;2020 hindcast. That copy is read directly, each of its two models (GEM5.2-NEMO, members
-      1&ndash;20, and CanESM5, 21&ndash;40) is taken against its own 1993&ndash;2016 hindcast for the same start month and
-      lead, exactly as for the C3S systems, and the Ni&ntilde;o-3.4 box and the 20&deg;S&ndash;20&deg;N average for RONI
-      use ocean cells only (the Datamart&rsquo;s sea temperature is filled over land). On the plume, CanSIPS alone
-      continues past month six, drawn dashed over a shaded band, and the multi-model average and fan stop where the other
-      systems stop. <span id="m-cdcheck"></span></p>
-      <p>The multi-model average weights each model equally, and so do the shaded spreads and every probability on this
-      page: NCEP&rsquo;s CFSv2, with about 120 members, counts the same as CanSIPS with 40.</p>
-      <h3>ONI and RONI</h3>
-      <p>ONI is the three-month running mean of the Ni&ntilde;o-3.4 anomaly (5&deg;N&ndash;5&deg;S, 170&ndash;120&deg;W).
-      RONI is the Ni&ntilde;o-3.4 anomaly minus the 20&deg;S&ndash;20&deg;N average anomaly, rescaled month by month so
-      it keeps ONI&rsquo;s thresholds. NOAA CPC made RONI its official ENSO index in February 2026. The observed values
-      are CPC&rsquo;s published tables; CPC revises them for up to two months, and months after its latest value are
-      estimated from NOAA OISST daily data, which is itself preliminary for about two weeks. Those months are drawn with
-      open markers. The models&rsquo; anomalies are on a 1993&ndash;2016 base; CPC&rsquo;s RONI is on 1991&ndash;2020 and its ONI on
-      shifting 30-year bases. On Ni&ntilde;o-3.4 the 1991&ndash;2020 and 1993&ndash;2016 climatologies differ by under
-      0.1&nbsp;&deg;C in every calendar month (most in late winter and spring); the observed month that starts each smoothed
-      model line is moved onto the models&rsquo; base by that difference. A fixed-base ONI can run well above CPC&rsquo;s: from April&ndash;June to July&ndash;September
-      2026, this site&rsquo;s fixed-base OISST estimate ran 0.06&ndash;0.39&nbsp;&deg;C above CPC&rsquo;s ONI, while the two
-      RONIs agreed to within 0.08&nbsp;&deg;C. RONI is the fairer comparison with what CPC publishes.</p>
-      <h3>The peak-strength odds, and their calibration test</h3>
-      <p>The odds in the brief are the share of members whose own peak (the highest of the four three-month averages
-      lying wholly inside the six months) reaches each level, each model weighted equally. Raw ensemble shares are often
-      overconfident or biased, so they were tested on the same models&rsquo; hindcasts for each start month,
-      1993&ndash;2016, built exactly as the forecast is (each member against its model&rsquo;s own hindcast average,
-      leaving out the year being verified) and verified against CPC&rsquo;s official ONI and RONI over the same four
-      seasons. The calibration tried is a shift and scale of the members&rsquo; peaks (a new centre, a rescaled signal and
-      a rescaled spread: three numbers per index), fitted with each year left out in turn and scored with the ranked
-      probability skill score over +0.5, +1.0, +1.5, +2.0 and +2.5&nbsp;&deg;C, with a 95% block-bootstrap interval and
-      a permutation test. Calibrated odds replace the raw shares only if they score better with the interval above zero
-      and p below 0.05/24, allowing for the 24 tests (twelve start months, two indices).
-      <span id="m-peakcal">The calibration test has not been run for this start month yet.</span></p>
-      <h3>East or central: the E and C indices</h3>
-      <p>Following Takahashi, Montecinos, Goubanova and Dewitte (2011, <i>Geophysical Research Letters</i> 38, L10704):
-      the two leading patterns (EOFs) of monthly sea-surface temperature anomalies over 10&deg;S&ndash;10&deg;N,
-      140&deg;E&ndash;80&deg;W (Takahashi et al. used HadISST between the coasts), from NOAA ERSSTv6 on a fixed 1991&ndash;2020 base, trained on <span id="m-train">1979&ndash;2020</span>.
-      The first is a basin-wide warming (<span id="m-var1">66%</span> of the variance), the second an east&ndash;west seesaw
-      (<span id="m-var2">14%</span>). Rotating them by 45&deg; gives E = (PC1 &minus; PC2)/&radic;2 and C = (PC1 + PC2)/&radic;2,
-      each in standard deviations. Every month since 1950 is projected on the same two patterns.</p>
-      <p>Each model member&rsquo;s forecast anomaly field (C3S&rsquo;s own anomaly product, same hindcast base as above)
-      is moved onto the 1991&ndash;2020 base using the observed difference between the two climatologies (a few
-      hundredths of a degree) and projected on the observed patterns. On this page an event or a member is
-      <b>east-based</b> when E exceeds C by at least 1, <b>central</b> when C exceeds E by at least 1, and <b>basin-wide</b>
-      in between. With that rule 1982&ndash;83 and 1997&ndash;98 are east-based; 1972&ndash;73, 1991&ndash;92,
-      2015&ndash;16 and 2023&ndash;24 basin-wide; 2002&ndash;03, 2004&ndash;05 and 2009&ndash;10 central. The impacts study on the
-      <a href="/enso.html#imp_ec">El Ni&ntilde;o monitor</a> classes thousands of CMIP6 winters by the same rule on the same
-      observed patterns; for those 65-year model runs it takes each winter&rsquo;s anomalies from the other winters within
-      &plusmn;10 years, so that the models&rsquo; forced warming does not move winters between classes.</p>
-      <p>The <b>centre of the warming</b> is the anomaly-weighted mean longitude of the stretch of the equator
-      (2&deg;S&ndash;2&deg;N, smoothed over 10&deg; of longitude) that is within 30% of the warmest point. A bare
-      maximum jumps between two near-equal humps: December&ndash;February 2023&ndash;24 reads 102&deg;W by its
-      maximum but 131&deg;W this way.</p>
-      <p><b>How the verdict is decided.</b> A class is named only when three things hold: the models, counted once each,
-      agree on the direction of E minus C (one-sample t-test against zero, p &lt; 0.05); at least two-thirds of the
-      members fall in the class; and all models but at most one have their average in it. A significant lean that
-      misses the other two tests is reported as a lean, and anything else as a split. How well the models forecast the
-      east&ndash;central balance has not been verified here.</p>
-      <h3>The first month, and the hindcast test</h3>
-      <p>Every C3S forecast starts from the ocean on the first of its issue month, so its first month can be checked
-      against the ocean while the month is still running. Each day, NOAA OISST daily anomalies (1991&ndash;2020 base)
-      are averaged into the same 2&deg; cells, projected on the same two patterns, and compared with each model&rsquo;s
-      forecast for that month. The observed track on the charts switches from ERSSTv6 to OISST after ERSST&rsquo;s last
-      settled month, because ERSST&rsquo;s newest month is provisional; over 1982&ndash;2025 the two agree closely in
-      E and C (correlation 0.985 and 0.982, mean difference under 0.01), although in mid-2026 OISST reads the coastal
-      warming about 0.4&ndash;0.5 higher in E than ERSST&rsquo;s provisional months.</p>
-      <p><b>First-month-corrected</b> shifts each model&rsquo;s members in E and C by that model&rsquo;s first-month
-      error. Whether that error persists was tested on each model&rsquo;s own hindcasts for the same start month
-      (1993&ndash;2016, raw sea-surface temperature, anomalies against the hindcast mean exactly as C3S takes them for the
-      forecast), verified against ERSSTv6: the correction is weighted by how much of the first-month error carried
-      forward, pooled over the models and fitted with each verified year left out. <span id="m-hindcast">The hindcast
-      test has not been run for this start month yet.</span></p>
-      <p>The page leads with the ocean as observed; the forecast as issued and the first-month-corrected forecast are
-      shown side by side, neither ahead of the other. A linear regression of the observed E and C on each model&rsquo;s
-      E and C, lead by lead and cross-validated the same way, was also tested.</p>
-      <p><b>Leaving one model out.</b> Each verdict recomputed with one model dropped, for <span id="m-lomo-season">the
-      season shown</span>:</p>
-      <div class="ef-tablewrap"><table class="ef-lomo" id="m-lomo"></table></div>
-      <p><b>Caveat.</b> On the fixed base, the western Pacific&rsquo;s faster warming puts a slow upward drift into C
-      (<span id="m-trendC">+0.16</span> standard deviations per decade since 1950) and very little into E
-      (<span id="m-trendE">+0.03</span>), so events from the 1950s to 1970s sit a little lower on C than they would
-      against their own era&rsquo;s climate.</p>
-      <h3>The static figure</h3>
-      <p>The same forecast as a four-panel image (Ni&ntilde;o-3.4 and relative Ni&ntilde;o-3.4, monthly and
-      three-month), for saving or sharing:</p>
-      <a href="assets/sst/c3s_nino34.webp?v=__CACHE__"><img src="assets/sst/c3s_nino34.webp?v=__CACHE__" loading="lazy" alt="Static four-panel C3S multi-model ENSO forecast figure" width="1512" height="1164"></a>
-      <h3>Sources</h3>
-      <ul>
-        <li>Copernicus Climate Change Service (C3S) seasonal forecast single-level data, monthly means and anomalies. Contains modified Copernicus Climate Change Service information 2026.</li>
-        <li>CanSIPS twelve-month forecasts and hindcasts from the ECCC MSC Datamart (dd.weather.gc.ca), under the ECCC Data Servers End-use Licence. Data Source: Environment and Climate Change Canada.</li>
-        <li>NOAA NCEI ERSSTv6 monthly sea-surface temperature, via NOAA PSL.</li>
-        <li>NOAA CPC official ONI and RONI tables.</li>
-        <li>NOAA OISST v2.1 daily, for the latest observations.</li>
-      </ul>
-      <p>See also <a href="seasonal.html">anomaly maps from the same C3S systems</a>.</p>
-    </div>
-  </details>
 </main>
 <script type="application/ld+json">
     {
@@ -1105,7 +975,6 @@ window.STAGE = {
       (key === "rnino" && !roniSeries() ? "No observed RONI series is available this run, so none is drawn. " : "") +
       (ext.length ? "After " + monLabel(valid[nL - 1]) + " only Canada&rsquo;s CanSIPS runs on (dashed, with its own 80% band, on the pink background): <b>one model, not a multi-model forecast</b>. The multi-model average and fan stop at month " + nL + ". " : "") +
       "Dotted lines mark ±0.5, 1.0, 1.5 … °C.";
-    el("plume-cd-src").hidden = !ext.length;
   }
 
   // ── 1b. twelve months, CanSIPS alone ──────────────────────────────────────
@@ -1287,7 +1156,6 @@ window.STAGE = {
     if (!S) return;
     el("ef-obslead").innerHTML = obsLead(s);
     drawVerdict(S, s);
-    drawLomo(s);
     drawEC(s, S);
     drawLead("E"); drawLead("lon");
     drawFirstMonth();
@@ -1630,21 +1498,6 @@ window.STAGE = {
         (state.view === "raw" ? "" : ", and it is not corrected") + ".";
     }
   }
-  function drawLomo(s) {       // each verdict with one model dropped (method block)
-    var R = D.flo && D.flo.raw && D.flo.raw.leave_one_out, C = D.flo && D.flo.corrected && D.flo.corrected.leave_one_out;
-    var H = HC(), hm = H && H.multi_model && H.multi_model[s] && H.multi_model[s].leave_one_model_out;
-    if (!R) { el("m-lomo").innerHTML = ""; return; }
-    el("m-lomo-season").textContent = SEASON_NAME[s];
-    function v(x) { return x ? (x.verdict === x.klass ? CLS_WORD[x.klass] : x.verdict.indexOf("lean-") === 0 ? "leaning " + CLS_WORD[x.verdict.slice(5)] : "divided") +
-                              ", " + Math.round(100 * x.east) + "% east, p " + (x.p < 0.001 ? "< 0.001" : "= " + x.p) : "—"; }
-    var rows = Object.keys(R).filter(kept).map(function (k) {
-      var h = hm ? hm.filter(function (r) { return r.without === k; })[0] : null;
-      return "<tr><td>" + k + "</td><td>" + v(R[k][s]) + "</td><td>" + v(C && C[k] ? C[k][s] : null) + "</td><td>" +
-        (h ? h.rmse_B_raw.toFixed(2) + " → " + h.rmse_B_damped.toFixed(2) + ", p " + (h.p < 0.001 ? "< 0.001" : "= " + h.p) : "—") + "</td></tr>";
-    });
-    el("m-lomo").innerHTML = "<thead><tr><th scope=\"col\">Left out</th><th scope=\"col\">As issued</th><th scope=\"col\">First-month-corrected</th>" +
-      "<th scope=\"col\">Hindcast E − C error, as issued → corrected</th></tr></thead><tbody>" + rows.join("") + "</tbody>";
-  }
   function drawFirstMonth() {
     var blk = el("fm-block");
     if (!fmOK()) { blk.hidden = true; return; }
@@ -1901,19 +1754,10 @@ window.STAGE = {
   ]).then(function (res) {
     D.fc = res[0]; D.hist = res[1]; D.daily = res[2]; D.evo = res[3]; D.fl = res[4]; D.cpc = res[5]; D.flo = res[6]; D.cd = res[7];
     D.pc = res[8];
-    if (cdCheckText()) el("m-cdcheck").innerHTML = cdCheckText();
-    if (D.pc && D.pc.issue === D.fc.issue && D.pc.method) el("m-peakcal").textContent = D.pc.method;
     if (!roniSeries()) {
       // no RONI anywhere: hide the history chart's RONI choice rather than relabel ONI
       document.querySelectorAll('button[data-set="histIdx"][data-v="roni"]').forEach(function (b) { b.hidden = true; });
       state.histIdx = "oni";
-    }
-    if (HC() && HC().text) el("m-hindcast").innerHTML = HC().text;
-    if (D.fl && D.fl.method) {
-      var M = D.fl.method;
-      el("m-train").textContent = M.eof_training.replace(" to ", "–").replace(/-(\d\d)/g, "").replace(/(\d{4})–(\d{4})/, "$1–$2");
-      if (M.variance_explained) { el("m-var1").textContent = Math.round(100 * M.variance_explained[0]) + "%"; el("m-var2").textContent = Math.round(100 * M.variance_explained[1]) + "%"; }
-      if (M.trend_per_decade) { el("m-trendC").textContent = sgn(M.trend_per_decade.C, 2); el("m-trendE").textContent = sgn(M.trend_per_decade.E, 2); }
     }
     // the east-central section opens on the season of the forecast peak
     if (D.fl && D.fl.summary && D.fl.issue === D.fc.issue) {
@@ -1923,15 +1767,12 @@ window.STAGE = {
         document.querySelectorAll("#seasonGrp button").forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.v === ps ? "true" : "false"); });
       }
     }
-    var ex = excluded();
-    if (ex.length) el("m-excluded").textContent = ex.join(" and ") + (ex.length > 1 ? " are" : " is") +
-      " left out of everything on this page (" + ((D.flo && D.flo.excluded_note) || "excluded for poor ENSO skill and drift") + ").";
     if (!D.evo) el("changes").hidden = true;
     if (!D.hist) el("history").hidden = true;
     redraw();
   }).catch(function (e) {
     console.error("forecast feed failed:", e);
-    el("ef-lead").textContent = "The forecast data could not be loaded. Reload the page to try again; the static figure under Method and sources is always available.";
+    el("ef-lead").textContent = "The forecast data could not be loaded. Reload the page to try again; the static figure on the Methods page is always available.";
     ["plume", "year", "flavour", "changes", "history"].forEach(function (id) { el(id).hidden = true; });
   });
 })();

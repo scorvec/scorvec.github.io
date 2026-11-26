@@ -1,0 +1,133 @@
+<section id="about">
+<h2>The page</h2>
+<p>Every number on this page is read from the stratosphere products&rsquo; own output; the figures open the full
+products. Member shares are raw counts from each ensemble, not calibrated probabilities. The <b>IFS control</b>
+is ECMWF&rsquo;s unperturbed 9&nbsp;km run, called HRES until May 2026; it is one run, so it enters only the
+direction table.</p>
+<p>Messori, G. et al. (2022), <i>Weather Clim. Dynam.</i> 3, 1215&ndash;1236 &middot; Perlwitz, J. and Harnik, N.
+(2003), <i>J. Climate</i> 16, 3011&ndash;3026 &middot; Charlton, A.&nbsp;J. and Polvani, L.&nbsp;M. (2007),
+<i>J. Climate</i> 20, 449&ndash;469 &middot; Kodera, K. et al. (2016), <i>J. Geophys. Res.</i> 121,
+80&ndash;94.</p>
+</section>
+
+<h2>The answers</h2>
+
+<section id="ssw">
+<h3>Is a sudden warming forecast?</h3>
+<p>The zonal-mean wind at 60&deg;N and 10&nbsp;hPa turning easterly on some day in days
+1&ndash;15 (Charlton and Polvani 2007, who count November&ndash;March onsets only). The WMO column also asks, as
+the original definition does (McInturff 1978), for the 10&nbsp;hPa zonal-mean temperature to rise from 60&deg;N
+to the pole on the same day: the cos-weighted 85&ndash;90&deg;N mean above the value at 60&deg;N (&ndash; for a
+run recorded without the temperature). The normal rate is the share of MERRA-2 winters since 1980 with an onset
+in the same 15 calendar days. Each ensemble is its newest run, taken as soon as that run is in, so for a few hours
+of a cycle the models stand on different starts. <b>Run by run</b> lists each ensemble&rsquo;s share in its last
+six runs (and its WMO share): a swing between runs is the models&rsquo; view changing, not a forecast of its
+own.</p>
+</section>
+
+<section id="weeks35">
+<h3>Weeks 3&ndash;5</h3>
+<p>GEPS and GEFS, the two ensembles that run to day 35, each member corrected for the
+model&rsquo;s drift with lead (as on the days 1&ndash;35 vortex figures): for each week of days 15&ndash;35, the
+members whose 10&nbsp;hPa wind at 60&deg;N first turns easterly that week (November&ndash;March), and the members
+with a heat-flux week, the 100&nbsp;hPa eddy heat flux (45&ndash;75&deg;N) averaged over the week at least the
+checklist&rsquo;s threshold above its ERA5 normal. That 7-day rule is tested like the checklist: most MERRA-2
+sudden warmings had it over the week before their onset, far more than quiet winter weeks did; it is shown only
+while that test passes. Raw member counts, not chances: whether these models can call a reversal three to five
+weeks out has not yet been scored on their reforecasts. The normal rate is the share of MERRA-2 winters since 1980
+with an onset in the same calendar days.</p>
+</section>
+
+<section id="checklist" data-r-block="m_check">
+<h3>What a sudden warming takes</h3>
+<p>Each ingredient is what most MERRA-2 sudden warmings since 1980 had over the 15
+days before their onset and quiet winter windows mostly did not: windows ending on a November&ndash;March day at
+least 60 days before and 30 days after any onset, weighted to the onsets&rsquo; months. <b>Waves pumped up from
+below</b>: the size (squared amplitude) of wave-1 in the 500&nbsp;hPa height over 55&ndash;65&deg;N against its
+ERA5 1991&ndash;2020 normal for the date, averaged over the days. <b>Tilting west with height</b>: a wave carrying
+activity upward leans west with height; how far west the wave-1 ridge at 100&nbsp;hPa sits of the one at
+500&nbsp;hPa, averaged over the days (ERA5; each ensemble member by member, from its wave compass run).
+<b>Heat flux</b>: the 100&nbsp;hPa eddy heat flux (45&ndash;75&deg;N) against its ERA5 normal, averaged over the
+days (the analyses, then each ensemble&rsquo;s forecast mean). <b>Not reflected</b>: that flux above zero on
+every day, no waves coming back down. <b>Absorbed</b>: waves breaking in the vortex slow it; the largest fall of
+the wind at 60&deg;N, 10&nbsp;hPa within 10 days, the reversal day included. The last two rows are the event
+itself, ticked when most members have it: the wind turning easterly, with the day the ensemble-mean wind does
+(the reversal the coupling clock starts from), and the WMO definition. Each ingredient is scored member by member, because its level comes from single winters and an ensemble mean is smoother than any of them: the cell gives the share of members that have it, ticked when most do, and the median member&rsquo;s value. Each ensemble is read over the 15 days before its own reversal, or over its days 1&ndash;15 when it has none; a run reaching fewer of those days is read against the
+past warmings over the same number of days, and gets no tick when that shorter test does not separate them.
+Past warmings against quiet windows (one-sided binomial): <span data-r="cl_tests">&ndash;</span>. Not on the
+list because they did not separate the two: <span data-r="cl_others">&ndash;</span>. A wind weaker at
+1&nbsp;hPa than at 10&nbsp;hPa, the reflecting layer of the section below, came on more of those days before
+warmings than in quiet windows (<span data-r="cl_aloft">&ndash;</span>): a warming reaches the upper
+stratosphere first, so it is no sign against one.</p>
+</section>
+
+<section id="kind">
+<h3>What kind of event</h3>
+<p><b>Wave driving.</b> The share of wave-1 and wave-2 in the ensemble-mean 100&nbsp;hPa eddy heat flux
+(45&ndash;75&deg;N) over days 1&ndash;15; a wavenumber carrying <span data-r="wshare">&ndash;</span> or more
+names the forcing, otherwise it is mixed. The peak is the total flux against its ERA5 1991&ndash;2020
+day-of-year mean and standard deviation. This describes the forcing; it is not a forecast of whether the vortex
+would split or be displaced. In ERA5 the wave-2 share over the 10 days before an onset does not separate
+MERRA-2&rsquo;s splits from its displacements (<span data-r="split">&ndash;</span>).</p>
+<p><b>Direction.</b> The rule of the CMIP6 coupling test, on the polar-cap (65&ndash;90&deg;N) height of each
+model&rsquo;s dripping paint in standard deviations of its day-of-year normal, analyses then forecast: the day
+the 100&nbsp;hPa cap first reaches +1&nbsp;sd is <b>top-down</b> when the 10&nbsp;hPa cap was at +1&nbsp;sd
+3&ndash;20 days before, <b>bottom-up</b> when it was not. The headline is the kind most of the four ensembles
+show; a tie goes to no weakening, then to bottom-up. In <span data-r="cm_n">&ndash;</span> both kinds
+were followed by the surface pattern of a sudden warming: <span data-r="cm_dir">&ndash;</span>.</p>
+</section>
+
+<section id="reflect">
+<h3>Reflection or absorption</h3>
+<p>Waves are turned back down where the westerlies weaken with height in the
+upper stratosphere (Perlwitz and Harnik 2003): the wind at 60&deg;N at 1&nbsp;hPa minus 10&nbsp;hPa below zero,
+read from GEFS, the one ensemble here with winds to 1&nbsp;hPa. The answer is <b>reflecting</b> when that
+happens with waves coming down (the zonal-mean 100&nbsp;hPa flux below zero, or the Canadian box of the
+regional reflection index below &minus;1&nbsp;sd), <b>absorbing</b> when the upward flux runs at least
+<span data-r="active">&ndash;</span> above normal into a vortex without that layer, and quiet otherwise. A
+large regional reflection index can come from the Siberian upward burst alone, so it is shown but does not
+decide. In CMIP6, a reflective upper stratosphere was followed by the opposite of the warming pattern over days
+1&ndash;30 (<span data-r="cm_shear">&ndash;</span>), and sudden warmings followed by strong upward flux
+(absorbing) and weak flux (reflecting) both reached the surface (<span data-r="cm_abs">&ndash;</span>). After
+<span data-r="mx_n">&ndash;</span> regional reflection events in ERA5 (December&ndash;March), the East Pacific
+Oscillation turned negative (<span data-r="mx_epo">&ndash;</span>) and North America cooled
+(<span data-r="mx_tna">&ndash;</span>).</p>
+</section>
+
+<section id="surface">
+<h3>Will it reach the troposphere?</h3>
+<p><b>Surface.</b> The SSW surface imprint index projects daily sea-level pressure on the pattern that follows
+sudden warmings in nine CMIP6 models (positive = the negative-Arctic-Oscillation side). Its outlook is the
+chance the index is positive over the 30 days after day 15, from each model&rsquo;s day-15 100&nbsp;hPa cap and
+the index itself, fitted on ERA5 November&ndash;April days since 1959. Skill (Brier skill score, cross-validated
+by winter): <span data-r="bss">&ndash;</span>. After the MERRA-2 sudden warmings the index averaged
+<span data-r="era5_imp">&ndash;</span>; in CMIP6 <span data-r="cm_ssw">&ndash;</span>.</p>
+<p><b>Descent watch.</b> Over days 11&ndash;15, the share of an ensemble&rsquo;s members whose polar-cap
+height stands +0.5&nbsp;sd or more above normal at every level from 100&nbsp;hPa down to 500&nbsp;hPa on the
+same day (drift removed, so AIFS-ENS and IFS-ENS only; November&ndash;April), against how often MERRA-2 shows
+such a column within 15 days of the date. A day counts as more than usual where a one-sided binomial test of
+the member count passes a 5&nbsp;% false discovery rate over the run. The member-by-member link is the partial
+correlation, across the members of one run, of the days 11&ndash;15 sea-level polar cap with the days
+6&ndash;10 cap height at 100&nbsp;hPa, the member&rsquo;s own days 6&ndash;10 troposphere regressed out
+(Freedman&ndash;Lane permutation test, 5&nbsp;% false discovery rate); only links that pass are named. It shows
+that the model couples its stratosphere to its surface in this run, not that the atmosphere will.</p>
+</section>
+
+<section id="clock" data-r-block="m_clock">
+<h3>When could it reach the surface?</h3>
+<p>In the <span data-r="ck_n">&ndash;</span> MERRA-2 sudden warmings since 1980, the
+weaker the wind at 60&deg;N, 100&nbsp;hPa over days 0&ndash;10 after the first easterly day at 10&nbsp;hPa (in
+standard deviations of its day-of-year normal, fitted as the dripping paint&rsquo;s polar cap is), the sooner a
+lasting surface signal began (Spearman <span data-r="ck_start">&ndash;</span>) and the stronger the imprint
+index ran over days 11&ndash;40 (<span data-r="ck_str">&ndash;</span>; both against shuffles of the wind). A
+lasting signal begins on the first day whose next 14 days average <span data-r="ck_thr">&ndash;</span> or more
+on the imprint index; the thirds split the warmings by the wind. Each ensemble&rsquo;s reversal is the first day
+its ensemble-mean 10&nbsp;hPa wind turns easterly (the analyses of its recorded runs, then its newest run), and
+its wind is the mean over the days of that window its forecast reaches, six at least. Its sea-level cap is the
+1000&nbsp;hPa polar-cap height of its dripping paint (high = negative Arctic Oscillation; drift removed for
+IFS-ENS and AIFS-ENS, only the analysis offset for GEFS and GEPS), set against the same days after the
+warmings of its third. The two layers move together once a warming reaches down, so the wind reads the next two
+weeks rather than the season, and none of the warmings began before December.</p>
+</section>
+
+<script src="/assets/ssw_method.js" defer></script>
