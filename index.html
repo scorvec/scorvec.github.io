@@ -294,7 +294,19 @@
   .c-note { max-width: 19ch; margin-top: 0.35rem; font-size: 0.92rem; line-height: 1.35; color: var(--ink2); }
   .lead .c-note { max-width: 22ch; font-size: 1.02rem; }
   .c-when { margin-top: auto; font-size: 0.82rem; color: var(--muted); }
-  .c-name, .c-note, .c-when { text-shadow: 0 0 6px #fff, 0 0 2px #fff; }
+  .c-name, .c-note, .c-when, .c-list { text-shadow: 0 0 6px #fff, 0 0 2px #fff; }
+  /* a menu group as one card: a link per page with its note */
+  .c-list { list-style: none; margin: 0.9rem 0 0; padding: 0; display: grid; gap: 0.7rem; }
+  .c-list a { font-family: var(--serif); font-size: 1.12rem; line-height: 1.2; color: var(--acc); text-decoration: none; }
+  .c-list a:hover, .c-list a:focus-visible { text-decoration: underline; text-underline-offset: 0.18em; }
+  .c-list span { display: block; margin-top: 0.1rem; font-size: 0.88rem; line-height: 1.3; color: var(--ink2); }
+  .group img { opacity: 0.32; }
+  @container (max-width: 22rem) {  /* narrow phones: the page names only */
+    .c-list { gap: 0.45rem; margin-top: 0.6rem; }
+    .c-list a { font-size: 1rem; }
+    .c-list span { display: none; }
+  }
+  @container (max-width: 19rem) { .c-list { gap: 0.3rem; } .c-list a { font-size: 0.92rem; } .group.card { padding: 0.75rem 0.8rem; } }
   /* small squares (phones, narrow windows): the name only */
   @container (max-width: 13rem) {
     .c-name { max-width: none; font-size: 1.02rem; }
@@ -596,11 +608,7 @@
       <header class="th-head"><h3>Studies and tools</h3><p>What the record and the models say, how the forecasts score, and the data to explore</p></header>
       <div class="cards">
         <a class="card lead" href="/verification.html"><img src="/assets/site/cards/verification.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Model verification</span><span class="c-note">Scorecards, maps and the database</span><span class="c-when">Daily</span></a>
-        <a class="card" href="/enso.html#imp_reg"><img src="/assets/site/cards/enso_imp_reg.webp" alt="" loading="lazy" decoding="async"><span class="c-name">ENSO impacts on the Americas</span><span class="c-note">CMIP6 and the observed record</span><span class="c-when">Static</span></a>
-        <a class="card" href="/mjo.html#mi"><img src="/assets/site/cards/mjo_mi.webp" alt="" loading="lazy" decoding="async"><span class="c-name">MJO impacts</span><span class="c-note">Each phase, season by season</span><span class="c-when">Static</span></a>
-        <a class="card" href="/aifs-aam-budget.html"><img src="/assets/site/cards/aifs_aam_budget.webp" alt="" loading="lazy" decoding="async"><span class="c-name">AI models and conservation laws</span><span class="c-note">Does the AIFS keep the budgets?</span><span class="c-when">Static</span></a>
-        <a class="card" href="/torque-enso.html"><img src="/assets/site/cards/torque_enso.webp" alt="" loading="lazy" decoding="async"><span class="c-name">El Niño and angular momentum</span><span class="c-note">Why the atmosphere spins up</span><span class="c-when">Static</span></a>
-        <a class="card" href="/topics/"><img src="/assets/site/cards/topics.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Explainers</span><span class="c-note">The physics behind the products</span><span class="c-when">As written</span></a>
+        <div class="card lead group"><img src="/assets/site/cards/enso_imp_reg.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Studies</span><ul class="c-list"><li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a><span>CMIP6 and the observed record</span></li><li><a href="/mjo.html#mi">MJO impacts</a><span>Each phase, season by season</span></li><li><a href="/aifs-aam-budget.html">AI models and conservation laws</a><span>Does the AIFS keep the budgets?</span></li><li><a href="/torque-enso.html">El Niño and angular momentum</a><span>Why the atmosphere spins up</span></li><li><a href="/topics/">Explainers</a><span>The physics behind the products</span></li></ul></div>
         <a class="card" href="/skewt/"><img src="/assets/site/cards/skewt.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Sounding explorer</span><span class="c-note">Radiosondes worldwide, live</span><span class="c-when">Hourly mirror</span></a>
         <a class="card" href="/asos5.html"><img src="/assets/site/cards/asos5.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Five-minute airport observations</span><span class="c-note">22 major US airports, live</span><span class="c-when">Live</span></a>
         <a class="card" href="/climate.html"><img src="/assets/site/cards/climate.webp" alt="" loading="lazy" decoding="async"><span class="c-name">US climate trends</span><span class="c-note">Every county and month since 1895</span><span class="c-when">Monthly</span></a>

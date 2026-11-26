@@ -795,6 +795,9 @@ HOME_ACCENT = {
 }
 # One large card per theme, shown first in its section.
 HOME_LEAD = {"/ens-anomalies.html", "/enso.html", "/ssw.html", "/monthly-outlook.html", "/verification.html"}
+# menu groups shown on the homepage as ONE 2 x 2 card listing their pages (USER 2026-11-26: "studies don't need
+# individual cards"), with the first page's picture
+HOME_GROUPS = {"Studies"}
 # Behind each card a faded still of its page's figure: assets/site/cards/<home_card(href)>.webp, a static picture
 # refreshed by hand (a card without one shows the text alone).
 HOME_CARDS = REPO / "assets/site/cards"
@@ -805,28 +808,44 @@ def home_card(href: str) -> str:
     return re.sub(r"[-/#.]+", "_", href.replace(".html", "")).strip("_")
 
 
+def _card_img(href: str) -> str:
+    stem = home_card(href)
+    if not (HOME_CARDS / f"{stem}.webp").exists():
+        return ""
+    return f'<img src="/assets/site/cards/{stem}.webp" alt="" loading="lazy" decoding="async">'
+
+
+def _group_card(sub: str, col: list) -> str:
+    """One 2 x 2 card for a whole menu group: its name over a link per page with the page's short note."""
+    links = "".join(f'<li><a href="{href}">{label}</a><span>{note}</span></li>' for href, label, _w, _when, note in col)
+    return (
+        f'        <div class="card lead group">{_card_img(col[0][0])}<span class="c-name">{sub}</span>'
+        f'<ul class="c-list">{links}</ul></div>'
+    )
+
+
 def homepage_rows() -> str:
     """The homepage theme sections (index.html, between <!-- hp:start --> and <!-- hp:end -->), from PRODUCTS: per
-    menu its title and blurb, then a card per item, the theme's lead card first. Every card is square (USER 2026-11-26):
+    menu its title and blurb, then a card per item, the theme's lead card first and a HOME_GROUPS group as one card
+    after it. Every card is square (USER 2026-11-26):
     the grid has 4, 3 or 2 columns by width, the lead card takes two columns and two rows, and a section's last row
     may be short."""
 
     out = ["<!-- hp:start -->"]
     for title, blurb, columns in PRODUCTS:
-        items = sorted((it for _sub, col in columns for it in col), key=lambda it: it[0] not in HOME_LEAD)
+        items = sorted(
+            (it for sub, col in columns if sub not in HOME_GROUPS for it in col), key=lambda it: it[0] not in HOME_LEAD
+        )
+        groups = [(sub, col) for sub, col in columns if sub in HOME_GROUPS]
         out.append(f'    <section class="th" data-topic="{HOME_ACCENT.get(title, "")}">')
         out.append(f'      <header class="th-head"><h3>{title}</h3><p>{blurb}</p></header>')
         out.append('      <div class="cards">')
-        for href, label, _what, when, note in items:
+        for k, (href, label, _what, when, note) in enumerate(items):
+            if k == sum(it[0] in HOME_LEAD for it in items):  # the group cards after the lead card
+                out.extend(_group_card(sub, col) for sub, col in groups)
             cls = "card lead" if href in HOME_LEAD else "card"
-            stem = home_card(href)
-            img = (
-                f'<img src="/assets/site/cards/{stem}.webp" alt="" loading="lazy" decoding="async">'
-                if (HOME_CARDS / f"{stem}.webp").exists()
-                else ""
-            )
             out.append(
-                f'        <a class="{cls}" href="{href}">{img}<span class="c-name">{label}</span>'
+                f'        <a class="{cls}" href="{href}">{_card_img(href)}<span class="c-name">{label}</span>'
                 f'<span class="c-note">{note}</span><span class="c-when">{when}</span></a>'
             )
         out.append("      </div>\n    </section>")
