@@ -683,6 +683,15 @@ def lon_median(lons) -> float:
     return float((c + np.median((lo - c + 180) % 360 - 180) + 180) % 360 - 180)
 
 
+def lon_mean(lons) -> float:
+    """Mean longitude (-180..180) that is safe across the dateline and 0 deg: the circular mean plus the mean offset from
+    it, i.e. the arithmetic mean of the longitudes unwrapped around their centre (what a mean position needs)."""
+    lo = np.asarray(lons, float)
+    a = np.deg2rad(lo)
+    c = float(np.rad2deg(np.arctan2(np.sin(a).mean(), np.cos(a).mean())))
+    return float((c + np.mean((lo - c + 180) % 360 - 180) + 180) % 360 - 180)
+
+
 def track_sector(lats, lons):
     """Sector bounds (lon0, lon1 in a continuous 0..360+ frame, lat0, lat1) around a cloud of track positions: the 1st to
     99th percentiles with a margin (one stray member does not set the frame), at least 40 by 25 degrees."""

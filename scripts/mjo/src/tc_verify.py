@@ -336,7 +336,7 @@ def ens_mean(tr: dict, h: int, need: int):
     ps = [q for q in (TC.at(t, h) for k, t in tr.items() if k > 0) if q is not None]
     if len(ps) < need:
         return None
-    return float(np.mean([q[0] for q in ps])), TC.lon_median([q[1] for q in ps])
+    return float(np.mean([q[0] for q in ps])), TC.lon_mean([q[1] for q in ps])  # the members' mean position
 
 
 def persistence(bt: dict, h: int):
