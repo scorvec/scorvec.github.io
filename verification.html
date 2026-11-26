@@ -125,12 +125,15 @@
                 font-size: 0.74rem; letter-spacing: 0.02em; color: #fff; }
   table.gl td .st { display: flex; height: 100%; border-radius: 4px; overflow: hidden; }
   table.gl td .st i { flex: 1; opacity: 0.38; }
-  table.ov { border-collapse: separate; border-spacing: 2px; font-size: 0.84rem; font-variant-numeric: tabular-nums; }
-  table.ov th { font-size: 0.78rem; font-weight: 600; color: var(--ink2); padding: 0.15rem 0.4rem; white-space: nowrap; }
-  table.ov th.v { text-align: left; color: var(--ink); font-size: 0.86rem; padding-top: 0.6rem; }
-  table.ov th.d { text-align: right; color: var(--muted); font-weight: 500; }
-  table.ov th.gap, table.ov td.gap { width: 0.6rem; min-width: 0.6rem; padding: 0; background: transparent; }
-  table.ov td { min-width: 3.6rem; height: 1.7rem; text-align: center; border-radius: 3px; background: #f1f0eb; }
+  .ovgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(17.5rem, 1fr)); gap: 1.1rem 1.6rem; margin-top: 0.6rem; }
+  .ovb h3 { font-size: 0.92rem; margin: 0 0 0.3rem; }
+  .ovb h3 small { color: var(--muted); font-weight: 400; }
+  table.ov { width: 100%; border-collapse: separate; border-spacing: 2px; font-size: 0.84rem; font-variant-numeric: tabular-nums; table-layout: fixed; }
+  table.ov th { font-size: 0.78rem; font-weight: 600; color: var(--ink2); padding: 0.1rem 0.3rem; white-space: nowrap; }
+  table.ov th.m { text-align: left; width: 5.2rem; }
+  table.ov th.d { text-align: center; color: var(--muted); font-weight: 500; }
+  table.ov tr.sep td { height: 0.35rem; padding: 0; background: transparent; }
+  table.ov td { height: 1.6rem; text-align: center; border-radius: 3px; background: #f1f0eb; }
   table.ov td.na { background: transparent; color: var(--muted); }
   table.ov td.top { font-weight: 700; box-shadow: inset 0 0 0 2px var(--ink); }
   .ovk { display: inline-block; width: 1.6rem; height: 0.95rem; border-radius: 3px; vertical-align: -0.15rem; margin: 0 0.25rem 0 0.6rem; background: #f1f0eb; }
@@ -181,7 +184,6 @@
     .xgrid { grid-template-columns: 1fr; }
     .xgrid figure:not(.on) { display: none; }
     table.ov { font-size: 0.76rem; }
-    table.ov td { min-width: 2.7rem; }
   }
   .sc-detail { font-size: 0.86rem; color: var(--ink2); margin: 0.5rem 0 0; min-height: 2.6em; font-variant-numeric: tabular-nums; }
   .lgd svg.kg { width: 1.25rem; height: 1.08rem; vertical-align: -0.25rem; margin-right: 0.3rem; }
@@ -478,7 +480,7 @@ window.plotly = function () {
     <h2>Every model, day by day</h2>
     <p class="what">The headline variables for all eight models: RMSE for the single runs, CRPS for the ensembles, shaded against the best of each kind.</p>
     <div class="controls"><label>Region<select id="o-region"></select></label></div>
-    <div class="tblwrap" data-noswipe><table class="ov" id="ov"></table></div>
+    <div class="ovgrid" id="ov" data-noswipe></div>
     <div class="lgd" id="ov-key"></div>
   </section>
 
@@ -1568,32 +1570,35 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
         cells.push({ k, v, d, r, val, best, p });
       }
       const cut = bhCut(ps), at = (k, v, d) => cells.find(c => c.k === k && c.v === v && c.d === d);
-      const cols = kinds.flatMap((k, x) => [...(x ? [null] : []), ...k.models.map(m => [k, m])]);
-      let html = `<tr><th></th>${cols.map(c => c ? `<th>${esc(c[1])}</th>` : `<th class="gap"></th>`).join("")}</tr>`;
+      // one block per variable, laid side by side: the models down the side (single runs, then ensembles), days across
+      const days = DAYS.filter(d => cells.some(c => c.d === d));
+      const cell = (k, m, v, d) => {
+        const c = at(k, v, d), x = c?.val[m];
+        if (x == null) return `<td class="na">–</td>`;
+        const sig = q => q != null && cut >= 0 && q <= cut, behind = x / c.val[c.best] - 1;
+        const scoreName = k.score === "rmse" ? "RMSE" : "CRPS", txt = x < 10 ? x.toFixed(2) : x.toFixed(1);
+        let fillc = null, tip;
+        if (m === c.best) {
+          const alone = Object.values(c.p).length > 0 && Object.values(c.p).every(sig);
+          tip = alone ? "significantly the smallest of its kind" : "the smallest of its kind, not significantly";
+        } else if (sig(c.p[m])) {
+          fillc = shade(behind);
+          tip = `${Math.round(100 * behind)}% larger than ${c.best}'s, significant`;
+        } else tip = `${Math.round(100 * behind)}% larger than ${c.best}'s, not significant`;
+        const title = `${m}, ${c.r.label}, day ${d}: ${scoreName} ${txt} ${unit(c.r.unit)}; ${tip}`;
+        return `<td class="${m === c.best ? "top" : ""}"${fillc ? ` style="background:${fillc.bg};color:${fillc.ink}"` : ""} title="${esc(title)}">${txt}</td>`;
+      };
+      let html = "";
       for (const v of HEAD) {
         const lab = cells.find(c => c.v === v);
         if (!lab) continue;
-        html += `<tr><th class="v" colspan="${cols.length + 1}">${esc(lab.r.label.replace(/^./, c => c.toUpperCase()))} <small>(${esc(unit(lab.r.unit))})</small></th></tr>`;
-        for (const d of DAYS) {
-          if (!kinds.some(k => at(k, v, d))) continue;
-          html += `<tr><th class="d">day ${d}</th>` + cols.map(col => {
-            if (!col) return `<td class="gap"></td>`;
-            const [k, m] = col, c = at(k, v, d), x = c?.val[m];
-            if (x == null) return `<td class="na">–</td>`;
-            const sig = q => q != null && cut >= 0 && q <= cut, behind = x / c.val[c.best] - 1;
-            const scoreName = k.score === "rmse" ? "RMSE" : "CRPS", txt = x < 10 ? x.toFixed(2) : x.toFixed(1);
-            let fillc = null, tip;
-            if (m === c.best) {
-              const alone = Object.values(c.p).length > 0 && Object.values(c.p).every(sig);
-              tip = alone ? "significantly the smallest of its kind" : "the smallest of its kind, not significantly";
-            } else if (sig(c.p[m])) {
-              fillc = shade(behind);
-              tip = `${Math.round(100 * behind)}% larger than ${c.best}'s, significant`;
-            } else tip = `${Math.round(100 * behind)}% larger than ${c.best}'s, not significant`;
-            const title = `${m}, ${c.r.label}, day ${d}: ${scoreName} ${txt} ${unit(c.r.unit)}; ${tip}`;
-            return `<td class="${m === c.best ? "top" : ""}"${fillc ? ` style="background:${fillc.bg};color:${fillc.ink}"` : ""} title="${esc(title)}">${txt}</td>`;
-          }).join("") + "</tr>";
-        }
+        let tb = `<tr><th class="m">day</th>${days.map(d => `<th class="d">${d}</th>`).join("")}</tr>`;
+        kinds.forEach((k, x) => {
+          if (x) tb += `<tr class="sep"><td colspan="${days.length + 1}"></td></tr>`;
+          for (const m of k.models) tb += `<tr><th class="m">${esc(m)}</th>${days.map(d => cell(k, m, v, d)).join("")}</tr>`;
+        });
+        html += `<div class="ovb"><h3>${esc(lab.r.label.replace(/^./, c => c.toUpperCase()))} <small>(${esc(unit(lab.r.unit))})</small></h3>` +
+          `<table class="ov">${tb}</table></div>`;
       }
       $("ov").innerHTML = html;
       const span = c => { const ins = Object.values(c.inits).flat().sort(); return `${ymd(ins[0].replace(/\D/g, ""))} to ${ymd(ins[ins.length - 1].replace(/\D/g, ""))}`; };
@@ -2147,8 +2152,8 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
   // in before the database
   const VIEWS = [
     ["Days 1–10: single runs", [
-      ["summary", "Summary", "who leads, at a glance", "glance"],
       ["overview", "Every model", "single runs and ensembles, one table", "overview-card", true],
+      ["summary", "Summary", "who leads, at a glance", "glance"],
       ["scores", "Scorecard", "one model against another", "scores"],
       ["growth", "Headline variables", "error by day, eight variables", "growth-card", true],
       ["lead", "One variable", "RMSE and bias by day", "lead-card", true],
@@ -2180,7 +2185,7 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
   };
 })();
 </script>
-<script src="/assets/stage.js?v=6c9d99954e" defer></script>
+<script src="/assets/stage.js?v=ef9aba4287" defer></script>
 <!-- sf:start -->
 <footer class="sf">
   <div class="sf-in">

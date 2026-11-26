@@ -58,7 +58,7 @@
   // Pick a product. A new figure is a new history entry (back returns to the previous one); option
   // changes within a figure only replace the entry.
   var pushNext = false;
-  function choose(id) { if (!P[id]) return; sel = { p: id, a: null, b: null, c: null }; pushNext = true; render(); }
+  function choose(id) { if (!P[id]) return; wanted = null; sel = { p: id, a: null, b: null, c: null }; pushNext = true; render(); }   // a click outranks a view still loading
 
   // ── Phones and narrow windows. Below 1000 px the rail's wall of pills gives way to one compact bar: previous /
   // "Choose a plot: <current>" / next, which opens a grouped list in a sheet. The figure sits right under it,
@@ -629,6 +629,7 @@
   if (h[0] && P[h[0]]) {
     sel = fromHash(h);
     if (!available(h[0])) wanted = { p: h[0], a: sel.a, b: sel.b, c: sel.c, until: Date.now() + 12000 };
-  }
+  } else if (!available(ORDER[0])) wanted = { p: ORDER[0], a: null, b: null, c: null, until: Date.now() + 12000 };
+  // (no link: a first view that is a gated card still loading its data is opened once it shows, as a deep link is)
   render();
 })();
