@@ -283,6 +283,13 @@
       <div class="img-wrap"><a href="/stratosphere.html#vortex/temp"><img src="/assets/sst/nh_vortex_temp.webp" alt="10 hPa polar-cap temperature anomaly and the pole-minus-60N temperature gradient, every model, days 1-15" loading="lazy"></a></div>
     </section>
 
+    <section class="chart-card" id="weeks35" hidden>
+      <div class="chart-card-header"><h2>Weeks 3&ndash;5</h2>
+        <p data-k="ext_line">&ndash;</p></div>
+      <div class="tblwrap"><table class="rec" id="t_ext"></table></div>
+      <div class="img-wrap"><a href="/stratosphere.html#vortex35/geps"><img src="/assets/geps/strat_nh_series.webp" alt="GEPS u at 60N at 10 hPa, every member, and at 100 hPa with the polar-cap temperature and height, days 1-35" loading="lazy"></a></div>
+    </section>
+
     <section class="chart-card" id="checklist" hidden>
       <div class="chart-card-header"><h2>What a sudden warming takes</h2>
         <p data-k="check_line">&ndash;</p></div>
@@ -341,6 +348,15 @@
         of a cycle the models stand on different starts. <b>Run by run</b> lists each ensemble&rsquo;s share in its last
         six runs (and its WMO share): a swing between runs is the models&rsquo; view changing, not a forecast of its
         own.</p>
+        <p><b>Weeks 3&ndash;5.</b> GEPS and GEFS, the two ensembles that run to day 35, each member corrected for the
+        model&rsquo;s drift with lead (as on the days 1&ndash;35 vortex figures): for each week of days 15&ndash;35, the
+        members whose 10&nbsp;hPa wind at 60&deg;N first turns easterly that week (November&ndash;March), and the members
+        with a heat-flux week, the 100&nbsp;hPa eddy heat flux (45&ndash;75&deg;N) averaged over the week at least the
+        checklist&rsquo;s threshold above its ERA5 normal. That 7-day rule is tested like the checklist: most MERRA-2
+        sudden warmings had it over the week before their onset, far more than quiet winter weeks did; it is shown only
+        while that test passes. Raw member counts, not chances: whether these models can call a reversal three to five
+        weeks out has not yet been scored on their reforecasts. The normal rate is the share of MERRA-2 winters since 1980
+        with an onset in the same calendar days.</p>
         <p id="m_check"><b>Checklist.</b> Each ingredient is what most MERRA-2 sudden warmings since 1980 had over the 15
         days before their onset and quiet winter windows mostly did not: windows ending on a November&ndash;March day at
         least 60 days before and 30 days after any onset, weighted to the onsets&rsquo; months. <b>Waves pumped up from
@@ -568,6 +584,26 @@
     }
     table("t_runs", ["run"].concat(have.map(function (m) { return N[m]; })),
       last.map(function (t) { return [md(t) + " " + t.slice(11) + "Z"].concat(have.map(function (m) { return runCell(m, t); })); }));
+
+    // weeks 3-5 (GEPS, GEFS to day 35): members whose 10 hPa wind first turns easterly each week, members with a
+    // heat-flux week (the checklist's flux rule over 7 days), and the MERRA-2 base rate for the same calendar days
+    var E = j.extended, em = E ? ["geps", "gefs"].filter(function (m) { return E.models[m]; }) : [];
+    if (em.length && j.ssw_season) {
+      document.getElementById("weeks35").hidden = false;
+      var e0 = E.models[em[0]], tot = function (m) { return E.models[m].first.reduce(function (a, b) { return a + (b || 0); }, 0); };
+      var heatOn = E.flux_rule.passes && em.some(function (m) { return E.models[m].heat; });
+      set("ext_line", "Days " + E.weeks[0][0] + "–" + E.weeks[E.weeks.length - 1][1] + " (" + md(e0.window[0]) + "–" + md(e0.window[1])
+        + "): the wind at 60°N, 10\u00A0hPa first turns easterly in " + em.map(function (m) { return tot(m) + " of " + E.models[m].members + " " + N[m] + " members"; }).join(" and ")
+        + ". Since 1980, " + e0.base_rate.with_onset + " of " + e0.base_rate.winters + " winters had a sudden warming begin in these days.");
+      table("t_ext", ["model", "members"].concat(E.weeks.map(function (w) { return "days " + w[0] + "–" + w[1]; })),
+        em.map(function (m) {
+          var v = E.models[m];
+          return [who(N[m], v.init), v.members].concat(v.first.map(function (n, i) {
+            var h = heatOn && v.heat && v.heat[i] != null ? "<small>" + v.heat[i] + " with a heat-flux week</small>" : "";
+            return { h: (n == null ? "–" : n + " easterly") + h, v: n == null ? null : n / v.members };
+          }));
+        }));
+    }
 
     // the checklist: what most past warmings had over the 15 days before their onset, each ensemble over the same days
     // before its own reversal (or its days 1-15); an ingredient is listed only while its test on the past warmings passes

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sudden-warming outlook, days 1-15: one summary of every ensemble on the stratosphere page, for ssw.html.
+"""Sudden-warming outlook, days 1-15 and weeks 3-5: one summary of every ensemble on the stratosphere page, for ssw.html.
 
     python ssw_summary.py      # reads the published JSON and the committed references -> assets/sst/data/ssw_summary.json
 
@@ -53,6 +53,12 @@ checklist, the coupling clock and the warming under way:
            summary gives the share of members that have it (met: most of them) with the median member's value: the
            levels come from single winters, and an ensemble mean is smoother than any of them. A window the run
            covers only partly is read against the past warmings over the same number of days.
+  WEEKS 3-5 GEPS and GEFS, the two ensembles that run to day 35, over days 15-35: per week the members whose drift-
+           corrected u(60N, 10 hPa) first turns easterly then (ssw35_<model>.json, written with their vortex figures,
+           scripts/lib/vortex_members.py), and the members with a heat-flux week, the 100 hPa [v'T'] (45-75N) averaged
+           over the week at the checklist's flux threshold or more against the ERA5 day-of-year normal, the rule the
+           checklist tests on 7-day windows before the past warmings (shown only while that test passes). Raw member
+           counts, not calibrated chances; with them how often a MERRA-2 sudden warming began in the same calendar days.
 """
 
 from __future__ import annotations
@@ -69,7 +75,9 @@ from quantmet.degdays import doy366
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE.parent / "lib"))
 import build_ssw_checklist as CK
+import vortex_members as VM
 import heatflux100 as HF
 import reflection_index as RX
 import run_record as RR
@@ -103,6 +111,10 @@ WATCH_DAYS = (11, 15)
 WATCH_AGE = 2  # days behind the newest run at which a recorded descent watch is no longer shown
 WEST_GAP = 20  # westerly days after which a reversal is a new event (Charlton and Polvani 2007)
 EVENT_MIN = 2  # ensembles a day needs for the mean wind the warming under way is dated from
+EXTENDED = ("geps", "gefs")  # the ensembles that run to day 35
+EXT_FIRST = 15  # weeks 3-5 = forecast days 15-35
+EXT_WEEK = 7  # the checklist window length a heat-flux week is tested on
+EXT_AGE = 8  # days after its start a day-35 run is no longer shown (GEPS runs Mondays and Thursdays)
 # ERA5 100 hPa wave-2 share of the wave-1 + wave-2 flux over days -10..-1 before the MERRA-2 sudden warmings since
 # 1990, splits against displacements (one-sided Mann-Whitney): why WAVES does not forecast the vortex's geometry
 SPLIT_TEST = {
@@ -147,8 +159,8 @@ def ssw_part() -> dict:
     return out
 
 
-def base_rate(init: pd.Timestamp) -> dict:
-    """The share of MERRA-2 winters with a sudden warming beginning in the 15 calendar days after `init`."""
+def base_rate(init: pd.Timestamp, first: int = 1, last: int = WINDOW) -> dict:
+    """The share of MERRA-2 winters with a sudden warming beginning on calendar days first..last after `init`."""
     ev = json.loads((REF / "strat_history_events.json").read_text())
     hits = 0
     for w in ev["winters"]:
@@ -156,9 +168,56 @@ def base_rate(init: pd.Timestamp) -> dict:
         day = min(init.day, 28) if (init.month, init.day) == (2, 29) and y % 4 else init.day
         d0 = pd.Timestamp(year=y, month=init.month, day=day)
         on = pd.DatetimeIndex(w["ssw"])
-        hits += bool(((on > d0) & (on <= d0 + pd.Timedelta(days=WINDOW))).any())
+        hits += bool(((on >= d0 + pd.Timedelta(days=first)) & (on <= d0 + pd.Timedelta(days=last))).any())
     n = len(ev["winters"])
     return {"winters": n, "with_onset": hits, "share": _r(hits / n, 3), "period": ev["period"]}
+
+
+def extended_part(clim, now: pd.Timestamp) -> dict:
+    """Weeks 3-5 of GEPS and GEFS: first reversals and heat-flux weeks per week, member counts (see WEEKS 3-5)."""
+    weeks = [w for w in VM.WEEKS if w[0] >= EXT_FIRST]
+    fl = json.loads(CK.OUT.read_text())["items"]["flux"]
+    test = fl["by_days"].get(str(EXT_WEEK))
+    rule = {"threshold": fl["threshold"], "days": EXT_WEEK, **(test or {}),
+            "passes": bool(test and test["p"] < CK.ALPHA)}  # fmt: skip
+    out = {}
+    for m in EXTENDED:
+        try:
+            rv = json.loads((REPO / "assets" / m / f"ssw35_{m}.json").read_text())
+        except (OSError, ValueError):
+            continue
+        init = pd.Timestamp(rv["init"].rstrip("Z"))
+        if now - init > pd.Timedelta(days=EXT_AGE):
+            continue
+        by = {tuple(w["days"]): w for w in rv["weeks"]}
+        row = {
+            "init": f"{init:%Y-%m-%d %HZ}",
+            "members": rv["members"],
+            "first": [by[w]["first"] if w in by else None for w in weeks],
+            "base_rate": base_rate(init, EXT_FIRST, weeks[-1][1]),
+            "window": [
+                f"{init + pd.Timedelta(days=EXT_FIRST):%Y-%m-%d}",
+                f"{init + pd.Timedelta(days=weeks[-1][1]):%Y-%m-%d}",
+            ],
+        }
+        hf = _read_asset(m, f"data/{m}_heatflux100.json")
+        if rule["passes"] and hf:
+            v = pd.DatetimeIndex([x[:10] for x in hf["valid"]])
+            mem = np.array(hf["hemispheres"]["nh"]["tot"]["members"], float)  # member x day 1..35
+            z = (mem - HF.clim_at(clim, "nh", "tot", "mean", v)) / HF.clim_at(clim, "nh", "tot", "sd", v)
+            h0 = pd.Timestamp(hf["init"])
+            row["heat"] = [int((np.nanmean(z[:, a - 1 : b], 1) >= rule["threshold"]).sum()) if z.shape[1] >= b else None
+                           for a, b in weeks]  # fmt: skip
+            row["heat_init"], row["heat_members"] = f"{h0:%Y-%m-%d %HZ}", int(mem.shape[0])
+        out[m] = row
+    return {"weeks": [list(w) for w in weeks], "models": out, "flux_rule": rule}
+
+
+def _read_asset(model: str, name: str):
+    try:
+        return json.loads((REPO / "assets" / model / name).read_text())
+    except (OSError, ValueError):
+        return None
 
 
 def waves_part(hf: dict, clim) -> dict:
@@ -601,6 +660,7 @@ def main() -> int:
             "wmo_models": len(wmo),
             "base_rate": base_rate(newest),
         },
+        "extended": extended_part(clim, newest),
         "waves": {
             "models": waves,
             "wave2_share_mean": _r(w2m),

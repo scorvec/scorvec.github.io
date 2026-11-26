@@ -15,8 +15,9 @@ Four panels, the numbers a vortex monitor actually turns on:
                  fake a weak vortex on a 1991-2020 base — see build_strat_trend.py.
 
 Spread is drawn as bands (p10-p90, p25-p75) with the ensemble mean over them,
-not as 21 spaghetti traces: with this many members the envelope is the readable
-object and individual members are noise on the eye.
+except at 10 hPa: there every member is drawn, and in the northern winter (Nov-Mar)
+the members that turn easterly are picked out, because a sudden warming in a few
+members is the signal a band hides.
 
 An analysis tail is prepended from earlier cycles' lead-0 fields, so the forecast
 starts from somewhere rather than from nothing. Datamart keeps about 30 days.
@@ -47,6 +48,7 @@ import matplotlib.pyplot as plt
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 import house
+import vortex_members as VM
 
 house.apply()
 import matplotlib.dates as mdates
@@ -275,6 +277,8 @@ def save_series(hemi, date, cyc, panels):
             "p75": np.round(np.percentile(M, 75, 1), 3).tolist(),
             "p90": np.round(np.percentile(M, 90, 1), 3).tolist(),
         }
+        if key == "u6010":  # every member at 10 hPa, [lead][member]: the extended SSW index counts reversals
+            out["panels"][key]["members"] = np.round(M, 2).tolist()
     series_path(hemi, date, cyc).write_text(json.dumps(out))
 
 
@@ -343,12 +347,15 @@ def main() -> int:
         panels_out[pkey] = (ft, M)
         col, row = pi % NCOL, pi // NCOL
         ax = fig.add_axes([L0 + col * PW + 0.042, T0 - (row + 1) * PH + 0.070, PW * 0.895, PH * 0.735])
-        ax.fill_between(
-            ft, np.percentile(M, 10, 1), np.percentile(M, 90, 1), color="#2c4a72", alpha=0.16, lw=0, label="p10–p90"
-        )
-        ax.fill_between(
-            ft, np.percentile(M, 25, 1), np.percentile(M, 75, 1), color="#2c4a72", alpha=0.28, lw=0, label="p25–p75"
-        )
+        if (kind, lev) == ("u60", 10):
+            VM.draw_members(ax, ft, M, north)
+        else:
+            ax.fill_between(
+                ft, np.percentile(M, 10, 1), np.percentile(M, 90, 1), color="#2c4a72", alpha=0.16, lw=0, label="p10–p90"
+            )
+            ax.fill_between(
+                ft, np.percentile(M, 25, 1), np.percentile(M, 75, 1), color="#2c4a72", alpha=0.28, lw=0, label="p25–p75"
+            )
         ax.plot(
             ft, M.mean(1), "#16335c", lw=2.2, label="ensemble mean, bias-corrected" if corrected else "ensemble mean"
         )
@@ -420,7 +427,7 @@ def main() -> int:
             textwrap.fill(
                 "Bias-corrected for the model's drift with lead time: GEPS reforecasts 2001–2020 (ECCC, via the "
                 "ECMWF S2S archive) minus MERRA-2 on the same dates, by start date and lead. Polar-cap height is not "
-                "corrected. Bands and mean are after correction; the dotted line is the raw model.",
+                "corrected. Members, bands and mean are after correction; the dotted line is the raw model.",
                 190,
             ),
             ha="center",
@@ -439,6 +446,13 @@ def main() -> int:
     if panels_out:
         save_series(a.hemi, date, a.cyc, panels_out)
     OUT.mkdir(parents=True, exist_ok=True)
+    if north and "u6010" in panels_out:  # the extended SSW index (ssw_summary.py reads it)
+        import json
+
+        ft, M = panels_out["u6010"]
+        idx = {"model": "GEPS", "init": f"{base:%Y-%m-%dT%H}Z", **VM.weekly_index(ft, M, north, base)}
+        (OUT / "ssw35_geps.json").write_text(json.dumps(idx))
+        print(f"  ssw35_geps.json: {idx['weeks'][-1]['by_end'] if idx['weeks'] else 0} of {idx['members']} reverse")
     p = OUT / f"strat_{a.hemi}_series.webp"
     fig.savefig(p, dpi=110, facecolor="white", pil_kwargs={"quality": 90, "method": 6})
     plt.close(fig)

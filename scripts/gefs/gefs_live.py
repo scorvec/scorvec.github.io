@@ -44,6 +44,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import gefs_reforecast as R  # (decode, grid, weeks, v1 packing)
 import gefs_daily as G  # (the shared daily reduction)
+import vortex_members as VM
 
 S3 = "https://noaa-gefs-pds.s3.amazonaws.com"
 
@@ -678,24 +679,27 @@ def vortex_series(z, C2, base, hemi, prev, tail, out: Path, Dr=None):
         means[name] = corr.mean(0)
         col, row = pi % 2, pi // 2
         ax = fig.add_axes([L0 + col * PW + 0.042, T0 - (row + 1) * PH + 0.070, PW * 0.895, PH * 0.735])
-        ax.fill_between(
-            t,
-            np.percentile(corr, 10, 0),
-            np.percentile(corr, 90, 0),
-            color="#2c4a72",
-            alpha=0.16,
-            lw=0,
-            label="p10–p90",
-        )
-        ax.fill_between(
-            t,
-            np.percentile(corr, 25, 0),
-            np.percentile(corr, 75, 0),
-            color="#2c4a72",
-            alpha=0.28,
-            lw=0,
-            label="p25–p75",
-        )
+        if (kind, lev) == ("u60", 10):  # every member, the ones turning easterly picked out
+            VM.draw_members(ax, t, corr.T, north)
+        else:
+            ax.fill_between(
+                t,
+                np.percentile(corr, 10, 0),
+                np.percentile(corr, 90, 0),
+                color="#2c4a72",
+                alpha=0.16,
+                lw=0,
+                label="p10–p90",
+            )
+            ax.fill_between(
+                t,
+                np.percentile(corr, 25, 0),
+                np.percentile(corr, 75, 0),
+                color="#2c4a72",
+                alpha=0.28,
+                lw=0,
+                label="p25–p75",
+            )
         ax.plot(t, corr.mean(0), "#16335c", lw=2.2, label="ensemble mean, bias-corrected")
         ax.plot(
             t, rawm, color="#16335c", lw=1.1, ls=(0, (1, 1.6)), alpha=0.75, label="raw GEFS mean (model drift left in)"
@@ -744,11 +748,13 @@ def vortex_series(z, C2, base, hemi, prev, tail, out: Path, Dr=None):
                 label="1991–2020 normal (ERA5)",
             )
             ax.axhline(0, color="k", lw=1.6)
-        if kind == "u60" and lev == 10:
+        if kind == "u60" and lev == 10 and north:
+            idx = {"model": "GEFS", "init": f"{base:%Y-%m-%d}T00Z", **VM.weekly_index(t, corr.T, north, base)}
+            (out / "ssw35_gefs.json").write_text(json.dumps(idx))  # the extended SSW index (ssw_summary.py)
+            n_rev = idx["weeks"][-1]["by_end"] if idx["weeks"] else 0
             # beside the panel title, where the legend cannot cover it (inside the axes the legend hid it)
-            frac = float((corr.min(1) < 0).mean())
             ax.set_title(
-                f"{frac:.0%} of members reverse to easterlies within 35 days",
+                f"{n_rev} of {idx['members']} members turn easterly within 35 days",
                 loc="right",
                 pad=4,
                 fontsize=8.5,
