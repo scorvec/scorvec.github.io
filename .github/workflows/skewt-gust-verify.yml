@@ -1,0 +1,102 @@
+name: skewt-gust-verify
+# Dispatch-only: verify surface wind gust estimates from soundings (scripts/skewt/verify_gust.py, gustport.py).
+# Builds a matched IGRA-sounding x airport-observation dataset (NOAA ISD from AWS S3, METAR and SPECI rows) at
+# co-located raob/airport sites, runs the browser's compute_sounding() natively for the PBL top and DCAPE, and every
+# gust method in gustport.py.
+# stage=build   full rebuild, dataset -> release skewt-gust-data-v1
+# stage=score   score the dataset already on the release (no IGRA/ISD traffic)
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "build | score"
+        default: "build"
+
+permissions:
+  contents: write          # release asset for the dataset
+
+concurrency:
+  group: skewt-gust-verify
+  cancel-in-progress: false
+
+env:
+  REL: skewt-gust-data-v1
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/skewt
+            scripts/constraints.txt
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install --quiet numpy pandas pyarrow scikit-learn
+      - name: Build compute_sounding() as a shared library (the same SHARPlib code as the browser's WASM)
+        if: inputs.stage == 'build'
+        run: |
+          set -euo pipefail
+          W=$(mktemp -d)
+          git clone --depth 1 -q https://github.com/keltonhalbert/SHARPlib.git "$W/SHARPlib"
+          git clone --depth 1 -q https://github.com/fmtlib/fmt.git "$W/fmt"
+          cp scripts/skewt/skewt_wasm.cpp "$W/SHARPlib/"
+          (cd "$W/SHARPlib" && c++ -O2 -std=c++17 -shared -fPIC -DFMT_HEADER_ONLY -Iinclude -I"$W/fmt/include" \
+            skewt_wasm.cpp src/SHARPlib/*.cpp src/SHARPlib/params/*.cpp -o "$RUNNER_TEMP/libsharp.so")
+          echo "SHARP_LIB=$RUNNER_TEMP/libsharp.so" >> "$GITHUB_ENV"
+      - name: Restore source cache (ISD station-years + IGRA files)
+        if: inputs.stage == 'build'
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            out/isd
+            out/igra
+          key: skewt-gust-src-v1-${{ github.run_id }}
+          restore-keys: skewt-gust-src-v1-
+      - name: Stations (co-location check)
+        if: inputs.stage == 'build'
+        run: python scripts/skewt/verify_gust.py stations out
+      - name: Airport observations (NOAA ISD, AWS S3)
+        if: inputs.stage == 'build'
+        run: python scripts/skewt/verify_gust.py isd out
+      - name: Save source cache
+        if: always() && inputs.stage == 'build'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            out/isd
+            out/igra
+          key: skewt-gust-src-v1-${{ github.run_id }}
+      - name: Build matched pairs (IGRA v2)
+        if: inputs.stage == 'build'
+        run: python scripts/skewt/verify_gust.py build out
+      - name: Publish dataset (release asset, not main)
+        if: inputs.stage == 'build'
+        run: |
+          cd out
+          tar cf profiles_npz.tar profiles
+          gh release view "$REL" >/dev/null 2>&1 || gh release create "$REL" --title "Skew-T gust verification dataset" \
+            --notes "IGRA v2 00/12Z soundings x NOAA ISD airport observations (METAR/SPECI, 2010-2025) at co-located raob/airport sites, built by .github/workflows/skewt-gust-verify.yml. pairs.parquet = one row per launch (every gust method in scripts/skewt/gustport.py, the profile features, the truth over two windows); profiles_npz.tar = processed profiles <= 4 km AGL (float32; P Pa, H m, T K, Td K, U/V m/s; offsets index rows of pairs per station in date order)."
+          gh release upload "$REL" --clobber pairs.parquet stations.json stations.md qc.json dataset.md profiles_npz.tar
+      - name: Fetch dataset from the release
+        if: inputs.stage == 'score'
+        run: |
+          mkdir -p out
+          gh release download "$REL" -p pairs.parquet -p stations.json -p qc.json -D out
+      - name: Score
+        if: inputs.stage == 'score'
+        run: python scripts/skewt/verify_gust.py score out
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: skewt-gust-summary-${{ inputs.stage }}
+          path: |
+            out/*.md
+            out/*.json
+            out/*.png
+          if-no-files-found: ignore
