@@ -14,7 +14,8 @@ as proxy − offset − climatology, both looked up on the 366-slot calendar (qu
                an El Niño's.
 
   gaincheck    (report only, olr-baseline.yml gaincheck=true) whether the proxy or ERA5 sets the proxy-on-ERA5 slope
-               below 1: triple collocation with NOAA's daily HIRS OLR record (see gaincheck).
+               below 1: triple collocation with NOAA's daily HIRS OLR record (see gaincheck), from NCEI or, when
+               NCEI fails, the Climate Data Store (interim record, to about a year ago).
 
 The RMM's OLR channel (scripts/mjo/src/olr_channel.py) is ERA5 OLR put into the frame of the Wheeler & Hendon
 reference climatology, NOAA interpolated OLR over 1979-2001 (scripts/mjo/data/reference/climatology.nc), and that
@@ -434,11 +435,20 @@ def cdr_files(get) -> list[str]:
     return sorted(set(paths))
 
 
-def cdr_bands(days: pd.DatetimeIndex) -> tuple[pd.DatetimeIndex, dict[str, np.ndarray]]:
-    """NOAA's daily OLR climate data record (HIRS, broadband) as the proxy's band means on the 2.5° cells: the newest
-    version that covers the days, its final files over its preliminary ones."""
-    import tempfile
+CDS_SET = "satellite-earth-radiation-budget"  # the same HIRS record on the Climate Data Store (interim to ~a year ago)
+CDS_CONSTRAINTS = f"https://cds.climate.copernicus.eu/api/catalogue/v1/collections/{CDS_SET}/constraints.json"
+CDS_HIRS = {
+    "product_family": "hirs",
+    "origin": "noaa_ncei",
+    "variable": "outgoing_longwave_radiation",
+    "time_aggregation": "daily_mean",
+    "version": "1_2_reprocessed",
+}
 
+
+def ncei_files(days: pd.DatetimeIndex, tmp: Path) -> list[Path]:
+    """The record's files from NCEI's THREDDS server that cover the days: the newest version, its final files after its
+    preliminary ones (so the final wins where both hold a day)."""
     sys.path.insert(0, str(HERE.parent / "lib"))
     from webget import get
 
@@ -447,35 +457,104 @@ def cdr_bands(days: pd.DatetimeIndex) -> tuple[pd.DatetimeIndex, dict[str, np.nd
     if not files:
         raise SystemExit("no OLR CDR file covers the proxy's days")
     ver = max(m[1] for m, _ in files)
-    want = sorted((m[2] is None, u) for m, u in files if m[1] == ver)  # preliminary first, so the final wins below
-    print(f"OLR CDR {ver}: {len(want)} files", flush=True)
-    t_all, out = [], {b: [] for b in BANDS}
-    for _, n in want:
-        with tempfile.NamedTemporaryFile(suffix=".nc") as tf:
-            tf.write(get(CDR + "fileServer/" + n, timeout=600))
-            tf.flush()
-            with xr.open_dataset(tf.name) as ds:
-                d = ds.sel(time=slice(days[0], days[-1]))
+    want = sorted((m[2] is None, u) for m, u in files if m[1] == ver)
+    print(f"OLR CDR {ver} (NCEI): {len(want)} files", flush=True)
+    out = []
+    for i, (_, n) in enumerate(want):
+        out.append(tmp / f"{i:03d}.nc")
+        out[-1].write_bytes(get(CDR + "fileServer/" + n, timeout=600))
+    return out
+
+
+def cds_files(days: pd.DatetimeIndex, tmp: Path) -> list[Path]:
+    """The same record from the Climate Data Store: the months its constraints list for the days (thematic record, else
+    interim), one request at a time with the site's CDS key (CDSAPI_URL / CDSAPI_KEY)."""
+    import json
+    import tarfile
+    import zipfile
+
+    import cdsapi
+
+    sys.path.insert(0, str(HERE.parent / "lib"))
+    from webget import get
+
+    have: dict[tuple[str, str], str] = {}
+    for c in json.loads(get(CDS_CONSTRAINTS, timeout=120)):
+        if all(v in c.get(k, []) for k, v in CDS_HIRS.items()):
+            for kind in c.get("climate_data_record_type", []):
+                for y in c.get("year", []):
+                    for m in c.get("month", []):
+                        if have.get((y, m)) != "thematic_climate_data_record":
+                            have[(y, m)] = kind
+    months = sorted({(f"{d.year}", f"{d.month:02d}") for d in days} & set(have))
+    if not months:
+        raise SystemExit("the Climate Data Store holds none of the proxy's months of the OLR record")
+    print(f"OLR CDR (CDS): {len(months)} months, {months[0]}..{months[-1]}", flush=True)
+    client, out = cdsapi.Client(quiet=True), []
+    for y, m in months:
+        target = tmp / f"cds_{y}{m}"
+        req = {**CDS_HIRS, "climate_data_record_type": have[(y, m)], "year": [y], "month": [m]}
+        client.retrieve(CDS_SET, {**req, "day": [f"{d:02d}" for d in range(1, 32)]}, str(target))
+        unpack = tmp / f"x_{y}{m}"
+        if zipfile.is_zipfile(target):
+            with zipfile.ZipFile(target) as z:
+                z.extractall(unpack)
+        elif tarfile.is_tarfile(target):
+            with tarfile.open(target) as tf:
+                tf.extractall(unpack, filter="data")
+        else:
+            unpack.mkdir()
+            target.rename(unpack / "file.nc")
+        out += sorted(unpack.rglob("*.nc"))
+        print(f"  {y}-{m}: {have[(y, m)].split('_')[0]}", flush=True)
+    return out
+
+
+def cdr_bands(days: pd.DatetimeIndex, source: str = "auto") -> tuple[pd.DatetimeIndex, dict[str, np.ndarray]]:
+    """NOAA's daily OLR climate data record (HIRS, broadband) as the proxy's band means on the 2.5° cells, from NCEI
+    (source "ncei"), the Climate Data Store ("cds"), or NCEI falling back to the CDS when NCEI fails ("auto")."""
+    import tempfile
+    from urllib.error import URLError
+
+    with tempfile.TemporaryDirectory() as tmpd:
+        tmp = Path(tmpd)
+        if source == "cds":
+            paths = cds_files(days, tmp)
+        else:
+            try:
+                paths = ncei_files(days, tmp)
+            except (URLError, TimeoutError, OSError) as e:
+                if source == "ncei":
+                    raise
+                print(f"NCEI failed ({repr(e)[:80]}); the Climate Data Store instead", flush=True)
+                paths = cds_files(days, tmp)
+        t_all, out = [], {b: [] for b in BANDS}
+        for path in paths:
+            with xr.open_dataset(path) as raw:
+                d = raw.rename({k: v for k, v in (("latitude", "lat"), ("longitude", "lon")) if k in raw.dims})
+                d = d.sel(time=slice(days[0], days[-1]))
+                if not d.sizes["time"]:
+                    continue
                 lat, lon = d["lat"].values, d["lon"].values % 360
                 var = "olr" if "olr" in d else next(k for k, a in d.data_vars.items() if a.dims[-2:] == ("lat", "lon"))
                 olr = d[var].transpose("time", "lat", "lon").values.astype(float)
                 tt = pd.DatetimeIndex(d["time"].values).normalize()
-        # each 1° box's overlap with each centred 2.5° cell
-        bl, br, cl, cr = lon - 0.5, lon + 0.5, GRID - 1.25, GRID + 1.25
-        W = np.zeros((len(GRID), len(lon)))
-        for s in (-360, 0, 360):
-            W += np.clip(np.minimum(cr[:, None], br[None] + s) - np.maximum(cl[:, None], bl[None] + s), 0, None)
-        W /= W.sum(1, keepdims=True)
-        for b, half in BANDS.items():
-            out[b].append(olr[:, np.abs(lat) <= half, :].mean(1) @ W.T)
-        t_all.append(tt)
-        print(f"  {n.rsplit('/', 1)[-1]}: {len(tt)} days", flush=True)
+            # each 1° box's overlap with each centred 2.5° cell
+            bl, br, cl, cr = lon - 0.5, lon + 0.5, GRID - 1.25, GRID + 1.25
+            W = np.zeros((len(GRID), len(lon)))
+            for s in (-360, 0, 360):
+                W += np.clip(np.minimum(cr[:, None], br[None] + s) - np.maximum(cl[:, None], bl[None] + s), 0, None)
+            W /= W.sum(1, keepdims=True)
+            for b, half in BANDS.items():
+                out[b].append(olr[:, np.abs(lat) <= half, :].mean(1) @ W.T)
+            t_all.append(tt)
+        print(f"  {sum(len(x) for x in t_all)} days from {len(paths)} files", flush=True)
     t = pd.DatetimeIndex(np.concatenate(t_all))
     keep = ~t.duplicated(keep="last")  # a day in a preliminary file and in its final version: the final one
     return t[keep], {b: np.concatenate(v)[keep] for b, v in out.items()}
 
 
-def gaincheck(recent_path: Path) -> None:
+def gaincheck(recent_path: Path, source: str = "auto") -> None:
     """Which source damps: triple collocation of the GMGSI proxy, ERA5 and NOAA's HIRS OLR record. Each is taken as
     gain x truth + its own error, errors independent; then gain ratios follow from covariances with the third source
     (cov(P,C)/cov(E,C) = proxy gain / ERA5 gain), free of the regression dilution a two-source slope carries. Each
@@ -486,7 +565,7 @@ def gaincheck(recent_path: Path) -> None:
         rt = ds.load()
     tg = pd.DatetimeIndex(rt["time"].values)
     te, era = load_parts([recent_path])
-    tc, cdr = cdr_bands(tg.intersection(te))
+    tc, cdr = cdr_bands(tg.intersection(te), source)
     both = tg.intersection(te).intersection(tc)
     print(f"common days {both[0]:%Y-%m-%d}..{both[-1]:%Y-%m-%d}: {len(both)}", flush=True)
     rng = np.random.default_rng(1)
@@ -507,6 +586,9 @@ def gaincheck(recent_path: Path) -> None:
         an = {k: v[ok] - X[ok] @ np.linalg.lstsq(X[ok], v[ok], rcond=None)[0] for k, v in src.items()}
         n30 = ok.sum() // 30 * 30
         for scale in ("daily", "30d"):
+            if scale == "30d" and n30 < 8 * 30:  # too few 30-day means to resample
+                print(f"{b}: 30-day means skipped ({n30 // 30} of them)", flush=True)
+                continue
             A = an if scale == "daily" else {k: v[:n30].reshape(-1, 30, v.shape[1]).mean(1) for k, v in an.items()}
             n = len(A["proxy"])
             blk = 30 if scale == "daily" else 1
@@ -559,9 +641,10 @@ def main(argv=None) -> int:
     )
     g = sub.add_parser("gaincheck", help="triple collocation of the proxy, ERA5 and NOAA's HIRS OLR record (report)")
     g.add_argument("--recent", type=Path, required=True, help="fetch output covering the proxy store's days")
+    g.add_argument("--cdr", choices=("auto", "ncei", "cds"), default="auto", help="where the HIRS record comes from")
     args = ap.parse_args(argv)
     if args.cmd == "gaincheck":
-        gaincheck(args.recent)
+        gaincheck(args.recent, args.cdr)
     elif args.cmd == "fetch":
         fetch(args.start, args.end, args.out, args.workers)
     elif args.cmd == "frame":
