@@ -132,7 +132,8 @@
   table.ov th.gap, table.ov td.gap { width: 0.6rem; min-width: 0.6rem; padding: 0; background: transparent; }
   table.ov td { min-width: 3.6rem; height: 1.7rem; text-align: center; border-radius: 3px; background: #f1f0eb; }
   table.ov td.na { background: transparent; color: var(--muted); }
-  table.ov td.top { font-weight: 700; }
+  table.ov td.top { font-weight: 700; box-shadow: inset 0 0 0 2px var(--ink); }
+  .ovk { display: inline-block; width: 1.6rem; height: 0.95rem; border-radius: 3px; vertical-align: -0.15rem; margin: 0 0.25rem 0 0.6rem; background: #f1f0eb; }
   table.h2h { border-collapse: separate; border-spacing: 3px; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
   table.h2h th { font-size: 0.8rem; font-weight: 600; color: var(--ink2); padding: 0.2rem 0.5rem; white-space: nowrap; }
   table.h2h td { min-width: 4.6rem; height: 2.4rem; text-align: center; border-radius: 4px; background: #f1f0eb; font-weight: 600; }
@@ -1301,10 +1302,10 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
     cardF(); leadF(); relF();
   }
   // ── every model in one table: the headline variables by day, the single runs' RMSE and the ensembles' CRPS. Each kind
-  // is shaded against its own best at that variable and day (the two are scored on different runs and different
-  // scores, so never against each other): blue the best, deep where its error is significantly smaller than every
-  // other model's of its kind; red where a model's is significantly larger than the best's, deeper as the gap grows
-  // (the scorecards' paired tests, false-discovery rate 10 % over every test the table shows); unshaded, no difference.
+  // is compared with its own best at that variable and day (the two are scored on different runs and different
+  // scores, so never against each other): the best outlined; one hue in four steps where a model's error is
+  // significantly larger than the best's, darker as the gap grows (the scorecards' paired tests, false-discovery rate
+  // 10 % over every test the table shows); unshaded, no significant difference.
   function overview(single, ens) {
     const HEAD = ["z500", "t850", "wind250", "q700", "t2m", "td2m", "msl", "wind10"], DAYS = [1, 3, 5, 7, 10, 15];
     const kinds = [[single, "rmse"], [ens, "crps"]].filter(([c]) => c).map(([c, score]) => {
@@ -1316,6 +1317,9 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
     fill(orr, regions);
     orr.value = regions.includes("Global") ? "Global" : regions[0];
     const pOf = (r, a, b, i) => r.p?.[`${a}|${b}`]?.[i] ?? r.p?.[`${b}|${a}`]?.[i];
+    // how far behind the best, in steps: the share above which each shade starts, and its strength
+    const HUE = [180, 84, 31], STEPS = [[0.3, 0.85], [0.15, 0.6], [0.05, 0.38], [0, 0.18]];
+    const shade = behind => inkOn(HUE, STEPS.find(([lo]) => behind >= lo)[1]);
     const render = () => {
       const g = orr.value;
       // each kind, variable and day: the values, the best model and each other model's test against it
@@ -1349,10 +1353,9 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
             let fillc = null, tip;
             if (m === c.best) {
               const alone = Object.values(c.p).length > 0 && Object.values(c.p).every(sig);
-              fillc = inkOn(BETTER, alone ? 0.9 : 0.3);
               tip = alone ? "significantly the smallest of its kind" : "the smallest of its kind, not significantly";
             } else if (sig(c.p[m])) {
-              fillc = inkOn(WORSE, 0.25 + 0.65 * Math.min(1, behind / 0.3));
+              fillc = shade(behind);
               tip = `${Math.round(100 * behind)}% larger than ${c.best}'s, significant`;
             } else tip = `${Math.round(100 * behind)}% larger than ${c.best}'s, not significant`;
             const title = `${m}, ${c.r.label}, day ${d}: ${scoreName} ${txt} ${unit(c.r.unit)}; ${tip}`;
@@ -1363,7 +1366,9 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       $("ov").innerHTML = html;
       const span = c => { const ins = Object.values(c.inits).flat().sort(); return `${ymd(ins[0].replace(/\D/g, ""))} to ${ymd(ins[ins.length - 1].replace(/\D/g, ""))}`; };
       $("ov-key").innerHTML = `<span>${kinds.map(k => k.score === "rmse" ? `Single runs: RMSE over the runs from ${span(single)}` : `ensembles: CRPS over the runs from ${span(ens)}`).join("; ")}. ` +
-        `Blue: the smallest error of its kind (deep: significantly). Red: significantly larger than the best, deeper up to 30% larger. Unshaded: no significant difference.</span>`;
+        `Outlined: the smallest error of its kind. Shaded: significantly larger than the best, by</span>` +
+        STEPS.slice().reverse().map(([lo], k, a) => `<span><i class="ovk" style="background:${shade(lo).bg}"></i>${k < a.length - 1 ? `${Math.round(100 * lo)}–${Math.round(100 * a[k + 1][0])}%` : `${Math.round(100 * lo)}% or more`}</span>`).join("") +
+        `<span>; unshaded: no significant difference.</span>`;
     };
     orr.addEventListener("change", render);
     $("overview-card").hidden = false;
