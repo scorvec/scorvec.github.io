@@ -110,6 +110,11 @@
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
+  /* the homepage's text, menus included, grows with the window (USER 2026-11-26): 16 px to ~1000 px, 17 px at 1512,
+     19 px at 1920, 20.5 px from ~2300; the other pages keep the browser's size (site.css) */
+  html { font-size: clamp(100%, 0.4vw + 0.7rem, 128%); }
+  html body { font-size: 1rem; }
+  main#main { container: home / inline-size; }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   body {
     background: var(--cloud);
@@ -188,12 +193,18 @@
 
   /* ── Right now: compact live readings, few and uncluttered. Every number is read live (the ENSO and
      stratosphere feeds); on any failure the dashes stay and the card still links. ── */
-  /* two squares (USER 2026-11-26), side by side wherever two of 24rem fit, at most 38rem each, centred */
-  .now { display: grid; gap: 1rem; margin: clamp(1.75rem, 4vw, 2.75rem) auto 0; max-width: 77rem;
-         grid-template-columns: repeat(auto-fit, minmax(min(24rem, 100%), 1fr)); }
+  /* the cards' grid: 2, 3, 4 or 6 columns by width (the text grows with the window, so six stays enough); the two
+     panels above are each half of it (their edges on the cards' columns at 4 and 6), stacked on phones */
+  .now, .cards { --gap: 0.8rem; display: grid; gap: var(--gap); grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); }
+  .cards { --cols: 2; }
+  @container home (min-width: 520px) { .cards { --cols: 3; } }
+  @container home (min-width: 860px) { .cards { --cols: 4; } }
+  @container home (min-width: 1250px) { .cards { --cols: 6; } }
+  .now { --cols: 1; margin-top: clamp(1.75rem, 4vw, 2.75rem); }
+  @container home (min-width: 600px) { .now { --cols: 2; } }
   .nc {
-    position: relative; display: flex; flex-direction: column; min-width: 0; aspect-ratio: 1;
-    width: 100%; max-width: 38rem; justify-self: center; padding: 1.05rem 1.2rem 1rem; background: #fff; text-decoration: none;
+    position: relative; display: flex; flex-direction: column; min-width: 0; aspect-ratio: 1; container-type: inline-size;
+    padding: 1.05rem 1.2rem 1rem; background: #fff; text-decoration: none;
     border: 1px solid var(--cloud-2); border-top: 4px solid var(--acc, var(--sky-deep)); border-radius: 10px;
     transition: box-shadow .15s;
   }
@@ -229,7 +240,7 @@
   /* drawn at its real pixel width (viewBox = the element's width, height fixed): a fixed 320-wide viewBox stretched to
      a 560 px card would blow the labels up to ~17 px and the chart to 160 px */
   .spark { display: block; width: 100%; flex: 1 1 120px; min-height: 120px; margin-top: 0.8rem; }   /* fills the card's height */
-  .spark text { font-family: var(--sans); font-size: 11.5px; fill: var(--storm); }
+  .spark text { font-family: var(--sans); font-size: 0.72rem; fill: var(--storm); }
   .spark .lab { font-weight: 600; fill: #9a3f14; }
   .spark .lab.cool { fill: #2c5f8a; }
   /* SSW card: the outlook page's three readings over each ensemble's chance run by run, in the stratosphere figures'
@@ -247,12 +258,12 @@
   .ss-key i { display: inline-block; width: 0.9rem; height: 2px; border-radius: 1px; }
   .nc--ssw.ev .en-stats b { white-space: nowrap; }   /* a warming under way: the numbers are dates */
   @media (max-width: 520px) { .nc--ssw.ev .en-stats b { font-size: 1.6rem; } }
-  /* phones: the description and detail lines go and the charts shrink, so the squares hold */
-  @media (max-width: 640px) {
-    .nc { padding: 0.85rem 0.95rem 0.8rem; }
+  /* narrow panels (phones, tablets): the description and detail lines go and the charts shrink, so the squares hold */
+  @container (max-width: 25rem) {
     .nc .s, .nc .en-stats em, .ss-key { display: none; }  /* the key repeats the line-end names */
     .spark, .ss-chart .spark { flex-basis: 100px; min-height: 100px; }
   }
+  @media (max-width: 640px) { .nc { padding: 0.85rem 0.95rem 0.8rem; } }
 
   /* ── The themes: each menu as a section of cards, a faded still of the page's figure behind each
      (apply_chrome.homepage_rows). ── */
@@ -278,10 +289,7 @@
   .th-head h3 { font-family: var(--serif); font-weight: 500; font-size: 1.55rem; line-height: 1.15;
                 font-variation-settings: 'opsz' 36; color: var(--acc); }
   .th-head p { font-size: 0.95rem; line-height: 1.4; color: var(--muted); max-width: 46rem; }
-  /* every card the same square, as many columns of at least 14rem as fit (two on phones); a section's last row may
-     be short */
-  .cards { --gap: 0.8rem; display: grid; gap: var(--gap);
-           grid-template-columns: repeat(auto-fill, minmax(min(14rem, 46%), 1fr)); }
+  /* every card the same square, on the grid above; a section's last row may be short */
   .card { position: relative; display: flex; flex-direction: column; overflow: hidden; isolation: isolate; min-width: 0;
           aspect-ratio: 1; container-type: inline-size; padding: 0.85rem 0.95rem 0.75rem; background: #fff;
           text-decoration: none; color: var(--ink); border: 1px solid var(--cloud-2); border-radius: 10px; }
@@ -300,8 +308,8 @@
   .c-when { margin-top: auto; font-size: 0.82rem; color: var(--muted); }
   .c-name, .c-note, .c-when, .c-list { text-shadow: 0 0 6px #fff, 0 0 2px #fff; }
   /* a menu group as one card: a link per page */
-  .c-list { list-style: none; margin: 0.45rem 0 0; padding: 0; display: grid; gap: 0.2rem; }
-  .c-list a { font-size: 0.82rem; line-height: 1.2; color: var(--ink2); text-decoration: none; }
+  .c-list { list-style: none; margin: 0.4rem 0 0; padding: 0; display: grid; gap: 0.15rem; }
+  .c-list a { font-size: clamp(0.72rem, 6.4cqi, 1rem); line-height: 1.2; color: var(--ink2); text-decoration: none; }  /* by the card's width */
   .c-list a:hover, .c-list a:focus-visible { color: var(--acc); text-decoration: underline; text-underline-offset: 0.18em; }
   .group img { opacity: 0.3; }
   .group.card { padding-top: 0.75rem; padding-bottom: 0.7rem; }
@@ -311,10 +319,9 @@
     .c-note, .c-when { display: none; }
   }
   @media (max-width: 640px) {
-    .cards { --gap: 0.6rem; }
+    .now, .cards { --gap: 0.6rem; }
     .card { padding: 0.75rem 0.8rem 0.7rem; }
     .group.card { grid-column: span 2; grid-row: span 2; }  /* phones: the group one full-width square */
-    .group .c-list a { font-size: 0.95rem; }
   }
   @media (prefers-reduced-motion: reduce) { .card img { transition: none; } }
   details.src { margin-top: 1.5rem; font-size: 0.85rem; line-height: 1.5; color: var(--muted); }
