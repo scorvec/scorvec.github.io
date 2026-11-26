@@ -3,7 +3,8 @@ name: Dynamic tropopause (IFS control)
 # The dynamic-tropopause maps and loops of circulation.html, drawn from the IFS control (HRES until May 2026; t/u/v on
 # nine levels, byte-ranged, ~1 GB), whose 00/12Z run reaches day 10 on the Google mirror ~T+7.5 h, before the
 # dispatcher's slots (T+9.3 h; scripts/lib/dispatch_workflows.sh); its step still waits up to 40 min for it. Then the
-# polar-cap tropopause height series (dt_cap.py: gh on ten levels, 12-hourly, against ERA5 normals). The jets
+# polar-cap tropopause height series (dt_cap.py: IFS control, AIFS single, GFS, GDPS gh on ten levels, 12-hourly,
+# against ERA5 normals). The jets
 # moved to strat.yml's heavy job (2026-10-25), which already holds the AIFS-ENS u files they read; angular momentum and
 # its torque budget to IFS-ENS (aam-ifs.yml); the tropical-cyclone products to tc.yml.
 on:
@@ -135,7 +136,7 @@ jobs:
             --anim-dir ../../assets/sst/anim --manifest ../../assets/sst/anim/dt_manifest.json --wait-min 40 \
             || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Dynamic tropopause"
 
-      - name: Polar-cap tropopause height (IFS control)
+      - name: Polar-cap tropopause height (four models)
         working-directory: scripts/mjo
         run: |
           python src/dt_cap.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \

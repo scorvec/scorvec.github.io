@@ -46,7 +46,7 @@ jobs:
           for day in pd.date_range(os.environ["START"], os.environ["END"], freq="2D"):
               for hh in ("00", "12"):
                   try:
-                      rows.append({"time": f"{day:%Y-%m-%d}T{hh}", **D.step_caps(f"{day:%Y%m%d}", hh, 0)})
+                      rows.append({"time": f"{day:%Y-%m-%d}T{hh}", **D.step_caps("ifs", f"{day:%Y%m%d}", hh, 0)})
                   except RuntimeError as e:
                       print(f"{day:%Y-%m-%d} {hh}Z: {e}", flush=True)
           pd.DataFrame(rows).to_csv("dt_cap_calibration.csv", index=False)
