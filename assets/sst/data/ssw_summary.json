@@ -1,5 +1,5 @@
 {
- "built": "2026-11-26 13:05Z",
+ "built": "2026-11-26 14:08Z",
  "newest_init": "2026-11-26 06Z",
  "window": [
   "2026-11-27",
@@ -1973,7 +1973,7 @@
   "shear_init": "2026-11-26 00Z",
   "shear_min": 16.8,
   "shear_max": 49.8,
-  "shear_normal": 22.9,
+  "shear_normal": 14.2,
   "zonal_mean_downward": [],
   "canada_downward": [],
   "active": [],
