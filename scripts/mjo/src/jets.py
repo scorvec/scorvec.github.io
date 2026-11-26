@@ -168,7 +168,7 @@ def build_anim(ub, steps_h, p_hpa, lat, init, c, met_cl, sig_cl, anim_dir: Path,
             f"Zonal-mean zonal wind — AIFS-ENS mean · init {init:%Y-%m-%d %HZ} · "
             f"day {lead} (valid {valid[k]:%a %b %d})\n▼ = subtropical cores "
             f"(▽ = climatological position):  NH {_core_lab(nh_s, zn)} · "
-            f"SH {_core_lab(sh_s, zs)}",
+            f"SH {_core_lab(sh_s, zs)}\nσ: the spread of single days, which a mean of members understates",
             (nh_l, sh_l),
             (met_cl[k, 1], met_cl[k, 3]),
             fp,
