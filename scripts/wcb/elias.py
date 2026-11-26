@@ -208,8 +208,12 @@ def thresholds(root, stage, day):
 
 def climatology(root, stage, day):
     """How often the trajectories put a belt's `stage` over each column around the date `day` (the archive's 30-day
-    running mean, LAT x LON): its files are global from 90S and 180W, with 180E repeated."""
-    with Dataset(Path(root) / "data" / f"hit_{day:%m%d}") as nc:
+    running mean, LAT x LON): its files are global from 90S and 180W, with 180E repeated. 29 February, if the archive
+    has no file of its own, is the mean of the 28th and 1 March (the running mean's midpoint)."""
+    path = Path(root) / "data" / f"hit_{day:%m%d}"
+    if not path.exists() and (day.month, day.day) == (2, 29):
+        return 0.5 * sum(climatology(root, stage, day.replace(day=d, month=m)) for m, d in ((2, 28), (3, 1)))
+    with Dataset(path) as nc:
         return np.ma.filled(nc.variables[STAGES[stage]][0, 0, 84:180, :-1].astype(float), np.nan)
 
 
