@@ -13,15 +13,11 @@ Run order matters: sst-roni renders all pages first; sst_subsurface fills the
 TAO date afterwards (it isn't known at stamp time). Both leave the other data
 tokens already resolved.
 
-Stage pages flagged `index` also get an "Every plot on this page" block (plot_index).
-A stage page edited by hand rather than built here refreshes its own block with
-
-    python scripts/sst/enso_site.py --index ar.html
+Each figure's explanation lives in the page's methods page (/guides/, scripts/site/guides.py), not on the page.
 """
 
 from __future__ import annotations
 
-import html as htmllib
 import json
 import re
 import sys
@@ -30,7 +26,6 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 PARTIALS_DIR = HERE / "partials"
 PAGES_DIR = HERE / "pages"
-GUIDES_DIR = HERE.parent / "site" / "guides"  # the page guides' text (scripts/site/guides.py)
 
 # sub-nav active-class placeholders, one per page (see partials/nav.html)
 _SUBNAV_KEYS = ["A_OVERVIEW", "A_SUBSURFACE", "A_FORECASTS", "A_ATMOSPHERE"]
@@ -48,7 +43,6 @@ PAGES = [
         out="enso.html",
         active="A_OVERVIEW",
         layout="stage",
-        index=True,
         title="El Ni&ntilde;o Monitor &mdash; Daily ONI, RONI &amp; Ni&ntilde;o Indices &middot; Shawn Corvec",
         desc="Daily ONI and RONI estimates, interactive Niño-index charts, OISST and 1 km satellite SST maps, the SOI, "
         "the MEI, and equatorial convection and waves.",
@@ -70,7 +64,6 @@ PAGES = [
         out="circulation.html",
         active="A_ATMOSPHERE",
         layout="stage",
-        index=True,
         title="Global Circulation and Jets &mdash; AAM, Torque, Walker &middot; Shawn Corvec",
         desc="Daily global circulation from ECMWF AIFS-ENS: wave activity flux, dynamic tropopause, angular momentum "
         "and torques, Hadley and Walker cells, and the jets.",
@@ -83,7 +76,6 @@ PAGES = [
         out="stratosphere.html",
         active="A_ATMOSPHERE",
         layout="stage",
-        index=True,
         title="Stratosphere and the Polar Vortex &mdash; SSW Forecasts &middot; Shawn Corvec",
         desc="Every stratosphere product by timescale: analyses and the radiosonde QBO, vortex, heat flux and E–P flux "
         "forecasts to day 35, SEAS5, and every SSW since 1980.",
@@ -96,7 +88,6 @@ PAGES = [
         out="tropical-waves.html",
         active="A_ATMOSPHERE",
         layout="stage",
-        index=True,
         title="Tropical Waves &mdash; Kelvin and Rossby Wave Trackers &middot; Shawn Corvec",
         desc="Convectively coupled equatorial waves: Kelvin, Rossby and MJO filtered OLR Hovmöllers, wave trackers "
         "with the AIFS-ENS forecast, and ocean Kelvin waves.",
@@ -113,160 +104,6 @@ def in_season(text: str) -> str:
 
 def _read(p: Path) -> str:
     return p.read_text(encoding="utf-8")
-
-
-# ── "Every plot on this page" ───────────────────────────────────────────────────────────────────────────────────────
-# A stage page keeps each product's explanation off the page, in its guide (/guides/) or an inert <template>, and
-# addresses its products by #fragment, so a search engine or a reader without JavaScript sees almost none of the
-# page's text. plot_index() writes the stage's own product list into the page: a heading per rail group, each product
-# linked to its fragment with the first paragraph of its explanation (or its caption when it has none), in a
-# collapsed <details> under the stage.
-INDEX_START, INDEX_END = "<!-- plots:start -->", "<!-- plots:end -->"
-_EXPLAINER = re.compile(r'\s*<a href="(/topics/[^"]+)">The explainer</a>')
-_JS_U = re.compile(r"\\u\{([0-9a-fA-F]+)\}")  # ES2015 code-point escapes, which JSON does not have
-
-
-def _from_js(src: str):
-    """A JavaScript string or array-of-strings literal, read as JSON."""
-    return json.loads(_JS_U.sub(lambda m: chr(int(m.group(1), 16)), src))
-
-
-def _close(text: str, i: int) -> int:
-    """Index just past the bracket that closes the one at text[i], skipping string literals and comments."""
-    pairs, stack, q = {"[": "]", "{": "}"}, [], None
-    while i < len(text):
-        c = text[i]
-        if not q and text.startswith("//", i):
-            i = text.find("\n", i)
-            if i < 0:
-                break
-        elif not q and text.startswith("/*", i):
-            i = text.index("*/", i) + 1
-        elif q:
-            if c == "\\":
-                i += 1
-            elif c == q:
-                q = None
-        elif c in "\"'`":
-            q = c
-        elif c in pairs:
-            stack.append(pairs[c])
-        elif stack and c == stack[-1]:
-            stack.pop()
-            if not stack:
-                return i + 1
-        i += 1
-    raise ValueError("unbalanced brackets in the stage spec")
-
-
-def _stage_spec(html_text: str) -> tuple[list, dict]:
-    """(groups, products) from a page's window.STAGE: groups = [(label, [[id, name, sub], ...]), ...] and
-    products = {id: (about template ids, caption)} as far as they are literals."""
-    s = html_text.index("window.STAGE = {")
-    spec = html_text[s : _close(html_text, html_text.index("{", s))]
-    g0 = spec.index("[", spec.index("groups:"))
-    groups_src = spec[g0 : _close(spec, g0)]
-    groups = []
-    for m in re.finditer(r'label:\s*"((?:[^"\\]|\\.)*)"', groups_src):
-        it = groups_src.index("[", groups_src.index("items:", m.end()))
-        groups.append((_from_js(f'"{m.group(1)}"'), _from_js(groups_src[it : _close(groups_src, it)])))
-    p0 = spec.index("products:")
-    ids = [p[0] for _, items in groups for p in items]
-    starts = sorted(
-        (m.start(), pid) for pid in ids if (m := re.compile(rf"\b{re.escape(pid)}\s*:\s*\{{").search(spec, p0))
-    )
-    products = {}
-    for k, (pos, pid) in enumerate(starts):
-        chunk = spec[pos : starts[k + 1][0] if k + 1 < len(starts) else len(spec)]
-        abouts = list(dict.fromkeys(re.findall(r'"(about-[\w-]+)"', chunk)))
-        cap = re.search(r'cap:\s*function\s*\([^)]*\)\s*\{\s*return\s+"((?:[^"\\]|\\.)*)"\s*;?\s*\}', chunk)
-        products[pid] = (abouts, _from_js(f'"{cap.group(1)}"') if cap else "")
-    return groups, products
-
-
-def _first_paragraph(tpl: str) -> tuple[str, str]:
-    """(first explanatory paragraph's inner HTML, explainer href) of an About template."""
-    explainer = ""
-    for m in re.finditer(r"<p\b([^>]*)>(.*?)</p>", tpl, re.S):
-        attrs, inner = m.group(1), m.group(2).strip()
-        if "chart-sources" in attrs:
-            continue
-        x = _EXPLAINER.match(inner)
-        if x:
-            explainer = x.group(1)
-            continue
-        inner = re.sub(r'\s+id="[^"]*"', "", re.sub(r"\s+", " ", inner))
-        if inner.endswith(":"):  # the sentence leads into an equation or a list that is not carried over
-            k = inner.rfind(". ")
-            inner = inner[: k + 1] if k > 0 else inner[:-1] + "."
-        return inner, explainer
-    return "", explainer
-
-
-def plot_index(html_text: str) -> str:
-    """The "Every plot on this page" block for a stage page: its STAGE spec, and each plot's opening paragraph from
-    the page's guide (STAGE.guide) or, on a page without one, from its About templates."""
-    groups, products = _stage_spec(html_text)
-    tpls = dict(re.findall(r'<template id="([^"]+)">(.*?)</template>', html_text, re.S))
-    guide = re.search(r'\bguide:\s*"/guides/([\w-]+)\.html"', html_text)
-    if guide:
-        sections = re.findall(
-            r'<section id="([^"]+)"[^>]*>\s*<h3>.*?</h3>(.*?)</section>',
-            in_season(_read(GUIDES_DIR / f"{guide[1]}.html")),
-            re.S,
-        )
-        tpls |= {f"about-{key}": body for key, body in sections}
-
-    def esc(t: str) -> str:
-        return htmllib.escape(htmllib.unescape(t), quote=False)
-
-    seen, out, n = set(), [], 0
-    for label, items in groups:
-        out.append(f"<h2>{esc(label)}</h2>")
-        for item in items:
-            pid, name, sub = [*item, "", ""][:3]
-            abouts, cap = products.get(pid, ([], ""))
-            paras, explainer = [], ""
-            for a in abouts:
-                if a in seen or a not in tpls:
-                    continue
-                seen.add(a)
-                text, ex = _first_paragraph(tpls[a])
-                explainer = explainer or ex
-                if text:
-                    paras.append(text)
-            if not paras and cap:
-                paras.append(esc(cap))
-            head = f'<a href="#{pid}"><b>{esc(name)}</b></a>' + (f" &middot; {esc(sub)}" if sub else "")
-            if explainer:
-                head += f' &middot; <a href="{explainer}">explainer</a>'
-            out.append(f"<p>{head}" + (f"<br>\n{paras[0]}" if paras else "") + "</p>")
-            out += [f"<p>{p}</p>" for p in paras[1:]]
-            n += 1
-    return (
-        f"{INDEX_START}\n"
-        f'<details class="about" id="every-plot">\n<summary>Every plot on this page ({n})</summary>\n'
-        + "\n".join(out)
-        + "\n</details>\n"
-        # a link in the list picks that plot on the stage: bring the stage into view
-        + '<script>document.getElementById("every-plot").addEventListener("click", function (e) {\n'
-        + '  var a = e.target.closest(\'a[href^="#"]\'), st = document.querySelector(".ss-layout");\n'
-        + "  if (a && st) setTimeout(function () {\n"
-        + '    st.style.scrollMarginTop = "5rem"; st.scrollIntoView({ block: "start" });\n'
-        + "  }, 0);\n"
-        + "});</script>\n"
-        f"{INDEX_END}"
-    )
-
-
-def with_plot_index(html_text: str) -> str:
-    """The page with its "Every plot" block (re)written under the stage's hint line."""
-    html_text = re.sub(rf"\n?{re.escape(INDEX_START)}.*?{re.escape(INDEX_END)}", "", html_text, flags=re.S)
-    block = plot_index(html_text)
-    m = re.search(r'<p class="hint">.*?</p>', html_text, re.S)
-    if not m:
-        raise ValueError("no stage hint line to put the plot index under")
-    return html_text[: m.end()] + "\n" + block + html_text[m.end() :]
 
 
 def assemble(page: dict) -> str:
@@ -287,8 +124,6 @@ def assemble(page: dict) -> str:
     for key in _SUBNAV_KEYS:
         nav = nav.replace("{{" + key + "}}", "active" if key == page["active"] else "")
     body = in_season(_read(PAGES_DIR / f"{page['slug']}.html"))
-    if page.get("index"):
-        body = with_plot_index(body)
     foot = _read(PARTIALS_DIR / ("footer_stage.html" if stage else "footer.html"))
     return head + nav + body + foot
 
@@ -350,22 +185,3 @@ def stamp_tao(site_root, tao_text: str) -> None:
             txt = out.read_text(encoding="utf-8")
             if "__TAO_DAY__" in txt:
                 out.write_text(txt.replace("__TAO_DAY__", tao_text), encoding="utf-8")
-
-
-def main(argv: list[str]) -> int:
-    """`--index PAGE...`: rewrite the "Every plot" block of stage pages that are not built from these partials."""
-    if len(argv) < 2 or argv[0] != "--index":
-        print("usage: enso_site.py --index PAGE.html [...]", file=sys.stderr)
-        return 2
-    for name in argv[1:]:
-        p = Path(name)
-        txt = p.read_text(encoding="utf-8")
-        new = with_plot_index(txt)
-        if new != txt:
-            p.write_text(new, encoding="utf-8")
-            print(f"  plot index written: {p}")
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
