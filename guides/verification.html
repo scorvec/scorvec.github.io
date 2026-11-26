@@ -502,7 +502,12 @@ the note under the maps gives. The maps are pictures made each night; a phone sh
 <p>IFS-ENS, AIFS-ENS, GEFS and GEPS are verified member by member against the same stations, radiosondes and Stage IV,
 at 00Z of every day to day 15, averaged first onto the same 0.5&deg; grid. ECMWF's open data carries the IFS
 ensemble's 50 perturbed members but not its control; the others are scored with theirs (AIFS-ENS 51 members, GEFS 31,
-GEPS 21), and GEFS and GEPS dew points come from their 2&nbsp;m relative humidity. The database keeps every case of
+GEPS 21), and GEFS and GEPS dew points come from their 2&nbsp;m relative humidity. Google DeepMind's WeatherNext&nbsp;2
+(WN2, 64 members, from Earth Engine, runs from 15 October 2026) is scored the same way against the stations and
+radiosondes, for 2&nbsp;m temperature, sea-level pressure, 10&nbsp;m wind, 500&nbsp;hPa height, 850&nbsp;hPa
+temperature and the wind at 850 and 250&nbsp;hPa; it has no dew point and its rain is not scored. Its terrain and land
+fraction, for the station height correction, are ERA5's, which it was trained with. A run's scores wait up to 45 days
+for WN2; the other ensembles share every case WN2 lacks among themselves. The database keeps every case of
 every run (each observation against each run), its members summarised: their mean, spread, range, the CRPS and where
 the observation falls among them.</p>
 <p>The CRPS (continuous ranked probability score) measures the whole forecast distribution against the observation, in

@@ -2,8 +2,10 @@ name: Ensemble verification database
 
 # Adds the ensembles' 00Z runs to the verification database (scripts/verify/ens_verify.py, scripts/verify/verifydb.sh):
 # IFS-ENS, AIFS-ENS, GEFS and GEPS, every member, against every GHCNh station, the radiosondes and Stage IV to day 15,
-# one row per case (ens-sfc-<m>_, ens-raob-<m>_, ens-rain-<m>_<init>.parquet), then each run's sums once every ensemble
-# that can still come is in (ens-stats_, ens-rel_). Runs the database holds are skipped, so a range can be dispatched
+# and WeatherNext 2 (WN2, from Earth Engine with the service account key in secret EE_SA_KEY_JSON; stations and
+# radiosondes, runs from 15 Oct 2026; skipped while the secret is unset), one row per case (ens-sfc-<m>_, ens-raob-<m>_,
+# ens-rain-<m>_<init>.parquet), then each run's sums once every ensemble that can still come is in (ens-stats_,
+# ens-rel_; from WN2's first run ens-stats2_, ens-rel2_). Runs the database holds are skipped, so a range can be dispatched
 # again after a failure.
 #
 # Each day it catches up the runs 16 to 47 days old: a run's day 15 is observed once it is 16 days old, and HPFX keeps
@@ -26,8 +28,8 @@ on:
         description: 'Last 00Z run, YYYYMMDD (blank = 16 days ago)'
         default: ''
       models:
-        description: 'Ensembles (space-separated: IFS-ENS AIFS-ENS GEFS GEPS)'
-        default: 'IFS-ENS AIFS-ENS GEFS GEPS'
+        description: 'Ensembles (space-separated: IFS-ENS AIFS-ENS GEFS GEPS WN2)'
+        default: 'IFS-ENS AIFS-ENS GEFS GEPS WN2'
       chunk:
         description: 'Runs per job (a run takes about an hour, more when the mirror is busy; a job at most 6 h)'
         default: '2'
@@ -61,24 +63,30 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           FIRST: ${{ inputs.first || (github.event.schedule == '20 4 * * 0' && '20260513' || '') }}
           LAST: ${{ inputs.last }}
-          MODELS: ${{ inputs.models || 'IFS-ENS AIFS-ENS GEFS GEPS' }}
+          MODELS: ${{ inputs.models || 'IFS-ENS AIFS-ENS GEFS GEPS WN2' }}
           CHUNK: ${{ inputs.chunk || '2' }}
+          HAS_EE: ${{ secrets.EE_SA_KEY_JSON != '' }}
+          SCHEDULED: ${{ github.event_name == 'schedule' }}
         run: |
           FIRST=${FIRST:-$(date -u -d '47 days ago' +%Y%m%d)}
           LAST=${LAST:-$(date -u -d '16 days ago' +%Y%m%d)}
           scripts/verify/verifydb.sh list > have.txt
+          [ "$HAS_EE" = true ] || MODELS=${MODELS//WN2/}   # no Earth Engine key yet
+          # scheduled runs take WN2 from 1 December 2026 (its Earth Engine time is budgeted from then); before, dispatch only
+          [ "$SCHEDULED" = true ] && [ "$(date -u +%Y%m%d)" -lt 20261201 ] && MODELS=${MODELS//WN2/}
           python3 - "$FIRST" "$LAST" "$CHUNK" "$MODELS" have.txt >> "$GITHUB_OUTPUT" <<'EOF'
           import json, sys
           from datetime import date, datetime, timedelta
           first, last = (datetime.strptime(x, "%Y%m%d").date() for x in sys.argv[1:3])
           n, models = max(1, int(sys.argv[3])), sys.argv[4].split()
           have = set(open(sys.argv[5]).read().split())
-          code = {"IFS-ENS": "ifs", "AIFS-ENS": "aifs", "GEFS": "gefs", "GEPS": "geps"}  # ens_verify.ENSEMBLES
+          code = {"IFS-ENS": "ifs", "AIFS-ENS": "aifs", "GEFS": "gefs", "GEPS": "geps", "WN2": "wn2"}  # ens_verify.SCORED
           hpfx = date.today() - timedelta(days=48)  # ens_verify.HPFX_DAYS
+          wn2 = date(2026, 10, 15)  # ens_verify.WN2_START
           days = [first + timedelta(d) for d in range((last - first).days + 1)]
           chunks = []
           for m in sorted(models, key=lambda m: m != "GEPS"):  # GEPS first: HPFX deletes it
-              todo = [d for d in days if (m != "GEPS" or d >= hpfx)
+              todo = [d for d in days if (m != "GEPS" or d >= hpfx) and (m != "WN2" or d >= wn2)
                       and not all(f"ens-{k}-{code[m]}_{d:%Y%m%d}00.parquet" in have for k in ("sfc", "raob"))]
               chunks += [{"model": m, "runs": " ".join(f"{d:%Y%m%d}" for d in todo[i:i + n])}
                          for i in range(0, len(todo), n)]
@@ -144,6 +152,14 @@ jobs:
         with:
           name: ens-obs-db
           path: .obs
+      - name: Earth Engine (WN2)
+        if: matrix.chunk.model == 'WN2'
+        env:
+          KEY: ${{ secrets.EE_SA_KEY_JSON }}
+        run: |
+          pip install --quiet earthengine-api gcsfs
+          umask 077; printf '%s' "$KEY" > "$RUNNER_TEMP/ee.json"
+          echo "EE_SA_KEY=$RUNNER_TEMP/ee.json" >> "$GITHUB_ENV"
       - name: Match and archive, one run at a time
         env:
           GH_TOKEN: ${{ github.token }}
@@ -162,6 +178,9 @@ jobs:
             rm -rf "$RUNNER_TEMP"/db-new "$RUNNER_TEMP"/fc
           done
           if [ -n "$failed" ]; then echo "::error::$MODEL runs not archived:$failed"; exit 1; fi
+      - name: Remove the Earth Engine key
+        if: always() && matrix.chunk.model == 'WN2'
+        run: rm -f "$RUNNER_TEMP/ee.json"
 
   stats:
     needs: match

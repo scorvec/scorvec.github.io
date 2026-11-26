@@ -38,7 +38,7 @@ jobs:
         run: |
           D="$RUNNER_TEMP/derived"
           scripts/verify/verifydb.sh list > "$RUNNER_TEMP/have.txt"
-          for k in stats gauge ens-stats ens-rel ens-gauge acc; do scripts/verify/verifydb.sh fetch "$k" all "$D"; done
+          for k in stats gauge ens-stats ens-rel ens-gauge ens-stats2 ens-rel2 ens-gauge2 acc; do scripts/verify/verifydb.sh fetch "$k" all "$D"; done
           scripts/verify/verifydb.sh fetch stn 90 "$D"
           scripts/verify/verifydb.sh fetch rain 365 "$D"
           # the gauge totals that have failed quality control (scripts/verify/gauge_qc.py)

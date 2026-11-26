@@ -556,7 +556,7 @@ def database(derived: Path, have: Path | None) -> dict:
         t = pd.concat([pd.read_parquet(f, columns=["model", "init"]).drop_duplicates() for f in files])
         out["models"] = {str(m): D.run_span(sorted(g["init"].unique())) for m, g in t.groupby("model", observed=True)}
     ens = {}
-    for name, code in Z.E.ENSEMBLES.items():
+    for name, code in Z.E.SCORED.items():
         if inits := sorted(n[len(f"ens-sfc-{code}_") : -8] for n in names if n.startswith(f"ens-sfc-{code}_")):
             ens[name] = D.run_span([pd.to_datetime(i, format="%Y%m%d%H") for i in inits])
     if ens:
@@ -1017,12 +1017,13 @@ MIN_BIN = 30  # cases a reliability bin needs before it is published; and the ev
 def ens_window(derived: Path, runs: int | None) -> tuple[pd.DataFrame, pd.DataFrame, list, dict] | None:
     """The window's per-run sums and reliability counts on the runs that every ensemble it scores has (``ens_verify
     .ens_card``'s), with the wind at each level from its components."""
-    inits = sorted(f.stem.split("_")[1] for f in derived.glob("ens-stats_*.parquet"))
+    sums = Z.E.run_sums(derived)
+    inits = list(sums)
     use = inits[-runs:] if runs else inits
     if not use or len(use) < (runs or 366):  # a window once the database holds it (ens_verify.windows)
         return None
-    stats = pd.read_parquet([derived / f"ens-stats_{i}.parquet" for i in use])
-    rel = pd.read_parquet([derived / f"ens-rel_{i}.parquet" for i in use])
+    stats = pd.read_parquet([derived / f"ens-stats{sums[i]}_{i}.parquet" for i in use])
+    rel = pd.read_parquet([derived / f"ens-rel{sums[i]}_{i}.parquet" for i in use])
     models, used, left_out = D.window_runs(stats)
     if not used:
         return None

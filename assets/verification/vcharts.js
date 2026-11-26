@@ -55,6 +55,10 @@
       const s = r * 1.2;
       return `M${r1(x)},${r1(y - s)}L${r1(x + s * 0.95)},${r1(y + s * 0.7)}L${r1(x - s * 0.95)},${r1(y + s * 0.7)}z`;
     }
+    if (shape === "down") {
+      const s = r * 1.2;
+      return `M${r1(x)},${r1(y + s)}L${r1(x + s * 0.95)},${r1(y - s * 0.7)}L${r1(x - s * 0.95)},${r1(y - s * 0.7)}z`;
+    }
     if (shape === "diamond") { const s = r * 1.25; return `M${r1(x)},${r1(y - s)}L${r1(x + s)},${r1(y)}L${r1(x)},${r1(y + s)}L${r1(x - s)},${r1(y)}z`; }
     return `M${r1(x - r)},${r1(y)}a${r},${r} 0 1,0 ${2 * r},0a${r},${r} 0 1,0 ${-2 * r},0z`;
   }
