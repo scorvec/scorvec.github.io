@@ -9,7 +9,8 @@ For each ensemble and lead week, a multiplicative correction per 2° box:  R = s
             days Late and Final share) - so the corrected forecast speaks the same language as the GPCP climatology;
   w         a season kernel: Gaussian in day-of-year distance between each run's verifying week and the target week
             (sd 30 days), so a correction for late October leans on August-October and not on May;
-  uncertainty  block bootstrap over runs (21-day blocks, as build_bias), plus the Late-to-Final ratio's own uncertainty.
+  uncertainty  block bootstrap over runs (21-day blocks, as build_bias; its se scaled by sqrt(n / (n - 1)) for n blocks),
+               plus the Late-to-Final ratio's own uncertainty; the test is t on n - 1 degrees of freedom.
 A ratio is applied only where it is significantly different from 1 (BH-FDR q 0.10 over the map), so the published
 "correction applied" map is exactly the significant bias; and there only as far as it is distinguishable from 1: log R is
 shrunk by max(0, 1 - (se / |log R|)^2) (at 2 se applied at 3/4 strength, at 4 se at 15/16), clipped to [1/3, 3]. Boxes
@@ -32,6 +33,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 import numpy as np
+from scipy import stats
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import grid as G
@@ -122,8 +124,10 @@ def estimate(ini, F, T, se_adj, wk, target: date, lat, lon, rng, cyc: str) -> di
     np.add.at(ST, inv, Tw.reshape(len(ini), cells))
     np.add.at(SF, inv, Fw.reshape(len(ini), cells))
     W = rng.multinomial(len(ub), np.full(len(ub), 1.0 / len(ub)), size=NB).astype("float64")
+    nb = len(ub)
     with np.errstate(invalid="ignore", divide="ignore"):
-        se_boot = np.nanstd(np.log((W @ ST) / (W @ SF)), axis=0).reshape(shape)
+        # a bootstrap over nb blocks gives the plug-in se, low by sqrt((nb - 1) / nb): six blocks would read 9 % tight
+        se_boot = np.nanstd(np.log((W @ ST) / (W @ SF)), axis=0).reshape(shape) * np.sqrt(nb / (nb - 1))
         rel_truth = np.where(mT > 0, np.nan_to_num(se_adj) / mT, 0.0)  # the Late-to-Final ratio's uncertainty, relative
         lr = np.log(raw)
     se = np.sqrt(se_boot**2 + rel_truth**2)
@@ -131,7 +135,7 @@ def estimate(ini, F, T, se_adj, wk, target: date, lat, lon, rng, cyc: str) -> di
     with np.errstate(invalid="ignore", divide="ignore"):
         shrink = np.where(usable, np.clip(1 - (se / np.abs(lr)) ** 2, 0, 1), 0.0)
     z = np.where(usable, lr / se, np.nan)
-    sig = BB.bh_fdr(BB.pvals(z), q=0.10)
+    sig = BB.bh_fdr(2 * stats.t.sf(np.abs(z), nb - 1), q=0.10)  # t on the blocks' degrees of freedom, not normal
     applied = np.exp(np.clip(np.where(usable & sig, lr * shrink, 0.0), np.log(CLIP[0]), np.log(CLIP[1])))
     # tropical band, all boxes 30°S-30°N: weighted ratio of sums with a 90 % block-bootstrap interval
     band = (np.abs(lat) <= 30)[:, None] & np.ones((1, len(lon)), bool)
