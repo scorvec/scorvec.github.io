@@ -14,6 +14,16 @@ page, and what the database holds (database: each model's runs).
         the same days (rain_<map>_obs.webp, rain_<map>_obs_narrow.webp); and for each window of runs and 24 h window, the
         equitable threat score by threshold and the fractions skill score by neighbourhood on the common grid
         (rainskill_<window>.json).
+  bias  Each model's mean error at the surface stations over the newest 30 runs, smoothed onto a 1 deg world map for
+        each variable and lead, filled contours (bias_<var>_<lead>.webp: the four models side by side;
+        bias_<var>_<lead>_<model>.webp: one model, for a phone). The stations are the station map's
+        (stations_30.json); each run's errors come from its station sums (stn_<init>.parquet). A cell's error in a
+        run is its stations' summed errors over their pairs, each station weighted by exp(-(d/BIAS_KM)^2) (within
+        3 BIAS_KM); a cell is drawn where the weights of stations with BIAS_MIN_N runs sum to BIAS_MIN_WEIGHT (about
+        three stations within BIAS_KM). Its bias is the mean of its run series, tested as the scorecards' means are
+        (t on the series, the variance inflated for the map's pooled lag-1 autocorrelation), coloured only where
+        Benjamini-Hochberg passes at FDR_Q over the map's cells: the run series carry the errors' own day-to-day
+        and neighbour-to-neighbour correlation.
   scores  For each window of runs of the database: the scorecards (card_<window>_<region>_<model>_<reference>.webp),
         the RMSE and bias by lead of each variable in each region (lead_<window>_<variable>.json) and the error against
         pressure at a lead (profile_<window>_<quantity>.json).
@@ -556,6 +566,198 @@ def database(derived: Path, have: Path | None) -> dict:
     return out
 
 
+# --------------------------------------------------------------------------- station bias maps
+BIAS_VARS = {  # variable: what it is, its unit, the colour levels' positive half
+    "t2m": ("2 m temperature", "K", (0.25, 0.5, 1.0, 1.5, 2.0, 3.0)),
+    "td2m": ("2 m dew point", "K", (0.25, 0.5, 1.0, 1.5, 2.0, 3.0)),
+    "msl": ("Mean sea-level pressure", "hPa", (0.25, 0.5, 0.75, 1.0, 1.5, 2.0)),
+    "wind10": ("10 m wind speed", "m/s", (0.25, 0.5, 0.75, 1.0, 1.5, 2.0)),
+}
+BIAS_KM = 300.0  # the smoothing kernel's e-folding distance
+BIAS_MIN_WEIGHT = 3 * np.exp(-1.0)  # weights a cell needs: about three stations within BIAS_KM
+BIAS_MIN_N = 10  # runs a station needs at a lead
+BIAS_LAT = np.arange(-60.0, 85.01, 1.0)
+BIAS_LON = np.arange(-180.0, 180.0, 1.0)
+
+
+def bias_weights(lat: np.ndarray, lon: np.ndarray):
+    """(cells, stations) kernel weights on BIAS_LAT x BIAS_LON, kept within 3 BIAS_KM (scipy sparse)."""
+    from scipy import sparse
+
+    R = 6371.0
+    la, lo = np.deg2rad(lat), np.deg2rad(lon)
+    rows, cols, vals = [], [], []
+    for i, glat in enumerate(np.deg2rad(BIAS_LAT)):
+        near = np.flatnonzero(np.abs(la - glat) * R <= 3 * BIAS_KM)
+        if not near.size:
+            continue
+        glon = np.deg2rad(BIAS_LON)[:, None]
+        c = np.sin(glat) * np.sin(la[near])[None, :] + np.cos(glat) * np.cos(la[near])[None, :] * np.cos(
+            glon - lo[near]
+        )
+        d = R * np.arccos(np.clip(c, -1, 1))
+        j, k = np.nonzero(d <= 3 * BIAS_KM)
+        rows.append(i * len(BIAS_LON) + j)
+        cols.append(near[k])
+        vals.append(np.exp(-((d[j, k] / BIAS_KM) ** 2)))
+    shape = (len(BIAS_LAT) * len(BIAS_LON), len(lat))
+    return sparse.csr_matrix((np.concatenate(vals), (np.concatenate(rows), np.concatenate(cols))), shape=shape)
+
+
+def lag1_rows(x: np.ndarray) -> np.ndarray:
+    """The lag-1 autocorrelation of each row of x (rows: series in run order; NaN = missing run)."""
+    d = x - np.nanmean(x, axis=1, keepdims=True)
+    both = np.isfinite(d[:, 1:]) & np.isfinite(d[:, :-1])
+    num = np.where(both, d[:, 1:] * d[:, :-1], 0.0).sum(1)
+    den = np.where(np.isfinite(d), d**2, 0.0).sum(1)
+    return np.where(den > 0, num / np.where(den > 0, den, 1.0), np.nan)
+
+
+def bias_field(W, se: np.ndarray, n: np.ndarray) -> tuple[np.ndarray, np.ndarray, int, int]:
+    """One map from its stations' run sums (``se``: summed errors, ``n``: pairs; stations x runs, 0 where none): the
+    cells' mean error where the stations reach, the significant cells, cells mapped and significant (module
+    docstring, bias)."""
+    from mverify.significance import fdr
+
+    have = (n > 0).sum(1) >= BIAS_MIN_N
+    se, n = np.where(have[:, None], se, 0.0), np.where(have[:, None], n, 0.0)
+    shown = (W @ have.astype(float)) >= BIAS_MIN_WEIGHT
+    S, N = W[shown] @ se, W[shown] @ n
+    e = np.where(N > 0, S / np.where(N > 0, N, 1.0), np.nan)  # cells x runs
+    k = np.isfinite(e).sum(1)
+    ok = k >= BIAS_MIN_N
+    mean = np.where(ok, np.nanmean(np.where(ok[:, None], e, 0.0), axis=1), np.nan)
+    sd = np.where(ok, np.nanstd(np.where(ok[:, None], e, 0.0), axis=1, ddof=1), np.nan)
+    r, runs = lag1_rows(e[ok]), float(np.mean(k[ok])) if ok.any() else 0.0
+    rho = (
+        float(np.clip((np.nanmean(r) + 1 / runs) / (1 - 3 / runs), 0.0, 0.9))
+        if runs > 3 and np.isfinite(r).any()
+        else 0.0
+    )
+    se_mean = sd / np.sqrt(np.maximum(n_eff(k, rho), 1.0))
+    p = np.full(len(mean), np.nan)
+    good = ok & (se_mean > 0)
+    p[good] = 2 * stats.t.sf(np.abs(mean[good]) / se_mean[good], k[good] - 1)
+    sig = fdr(p, FDR_Q)
+    grid = len(BIAS_LAT) * len(BIAS_LON)
+    full_v, full_s = np.full(grid, np.nan), np.zeros(grid, bool)
+    full_v[shown], full_s[shown] = mean, sig
+    shape = (len(BIAS_LAT), len(BIAS_LON))
+    return full_v.reshape(shape), full_s.reshape(shape), int(ok.sum()), int(sig.sum())
+
+
+def bias_runs(derived: Path, inits: list[str]) -> pd.DataFrame:
+    """The surface stations' run sums at the map leads for the runs ``inits`` (YYYYMMDDHH), the bias variables only."""
+    paths = [f for i in inits if (f := derived / f"stn_{i}.parquet").exists()]
+    if not paths:
+        return pd.DataFrame()
+    cols = ["model", "network", "variable", "station_id", "lead_h", "n", "se"]
+    d = pd.concat([pd.read_parquet(f, columns=cols).assign(init=f.stem[4:]) for f in paths], ignore_index=True)
+    d = d[(d["network"].astype(str) == "GHCNH") & d["variable"].astype(str).isin(BIAS_VARS)]
+    return d.astype({"model": str, "variable": str, "station_id": str})
+
+
+def bias_panel(ax, field, cmap, norm) -> str:
+    """One model's bias map: filled contours where significant, grey where mapped and within the noise; its note."""
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+
+    v, sig, shown, nsig = field
+    pc = ccrs.PlateCarree()
+    ax.set_extent((-180, 180, -60, 85), pc)
+    ax.contourf(BIAS_LON, BIAS_LAT, np.where(np.isfinite(v) & ~sig, 1.0, np.nan), levels=[0.5, 1.5],
+                colors=[NOT_SIG], transform=pc)  # fmt: skip
+    ax.contourf(BIAS_LON, BIAS_LAT, np.where(sig, v, np.nan), levels=norm.boundaries, cmap=cmap, norm=norm,
+                extend="both", transform=pc)  # fmt: skip
+    ax.coastlines("110m", color="#5d5a54", lw=0.5)
+    ax.add_feature(cfeature.BORDERS.with_scale("110m"), edgecolor="#8c887f", lw=0.35)
+    ax.set_frame_on(False)
+    return f"{nsig / shown:.0%} of mapped cells significant" if shown else "no cells mapped"
+
+
+def bias_bar(fig, cax, cmap, norm, label: str, sparse: bool = False) -> None:
+    """The bias colour bar; ``sparse`` labels every other level from the outside in, for a phone's width."""
+    edges = norm.boundaries
+    cb = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cax, orientation="horizontal", extend="both",
+                      ticks=edges)  # fmt: skip
+    half = len(edges) // 2
+    cb.ax.set_xticklabels([f"{e:+g}" if not sparse or abs(i - half + 0.5) % 2 > 1 else "" for i, e in enumerate(edges)])
+    cb.set_label(label)
+
+
+def bias_figs(derived: Path, out: Path) -> dict:
+    """The station bias maps (module docstring, bias): every variable and lead, four models and one at a time."""
+    import cartopy.crs as ccrs
+
+    path, window_path = D.OUT_DIR / "stations_30.json", D.OUT_DIR / "scores_30.json"
+    if not path.exists() or not window_path.exists():
+        return {}
+    st = json.loads(path.read_text())
+    card = json.loads(window_path.read_text())
+    w = card["window"]
+    inits = sorted({i.replace("-", "").replace("T", "") for runs in card["inits"].values() for i in runs})
+    runs = bias_runs(derived, inits)
+    if runs.empty:
+        return {}
+    col = {i: c for c, i in enumerate(inits)}
+    first, last = (pd.to_datetime(w[k], format="%Y%m%d%H") for k in ("first", "last"))
+    models = [m for m in COLORS if m in st["models"]]
+    proj = ccrs.PlateCarree()
+    maps, summary = {}, {}
+    for layer in st["layers"]:
+        var = layer["var"]
+        if var not in BIAS_VARS:
+            continue
+        what, unit, half = BIAS_VARS[var]
+        edges = [-e for e in half[::-1]] + list(half)
+        cmap = ListedColormap(plt.get_cmap("RdBu_r")(np.linspace(0.04, 0.96, len(edges) + 1)))
+        cmap.set_extremes(under=cmap(0), over=cmap(cmap.N - 1))
+        norm = BoundaryNorm(edges, cmap.N, extend="both")
+        W = bias_weights(np.asarray(layer["lat"], float), np.asarray(layer["lon"], float))
+        row = {sid: r for r, sid in enumerate(map(str, layer["ids"]))}
+        v = runs[(runs["variable"] == var) & runs["station_id"].isin(row)]
+        for lead in st["leads"]:
+            day, key = lead // 24, f"{var}_{lead}"
+            fields = {}
+            for m, g in v[(v["lead_h"] == lead) & v["model"].isin(models)].groupby("model"):
+                se, n = np.zeros((len(row), len(inits))), np.zeros((len(row), len(inits)))
+                r, c = g["station_id"].map(row).to_numpy(), g["init"].map(col).to_numpy()
+                np.add.at(se, (r, c), g["se"].to_numpy(float))
+                np.add.at(n, (r, c), g["n"].to_numpy(float))
+                fields[m] = bias_field(W, se, n)
+            fields = {m: fields[m] for m in models if m in fields}
+            if not fields:
+                continue
+            fig, axes = plt.subplots(2, 2, figsize=house.size(15, 0.55), subplot_kw={"projection": proj})
+            fig.subplots_adjust(left=0.01, right=0.99, top=0.87, bottom=0.155, wspace=0.02, hspace=0.1)
+            for ax, m in zip(axes.flat, fields, strict=False):
+                ax.set_title(f"{m}: {bias_panel(ax, fields[m], cmap, norm)}", loc="left", fontsize=14)
+            for ax in axes.flat[len(fields) :]:
+                ax.set_visible(False)
+            bias_bar(fig, fig.add_axes((0.2, 0.095, 0.6, 0.024)), cmap, norm,
+                     f"forecast − observed ({unit}); blue: too low, red: too high; grey: within the noise")  # fmt: skip
+            fig.suptitle(f"{what}: mean error at day {day}", x=0.01, y=0.985, ha="left")
+            fig.text(0.01, 0.93, f"00Z runs {first:%-d %b} to {last:%-d %b %Y} against the surface stations (GHCNh), "
+                     f"smoothed over {BIAS_KM:.0f} km · coloured where significant at a 10 % false-discovery rate",
+                     color=house.INK2, fontsize=15)  # fmt: skip
+            entry = {"file": save(fig, out / f"bias_{key}.webp"), "models": {}}
+            for m, field in fields.items():  # one model a picture, for a phone
+                fig = plt.figure(figsize=house.size(NARROW, 0.68))
+                ax = fig.add_axes((0.01, 0.3, 0.98, 0.56), projection=proj)
+                fig.text(0.02, 0.875, bias_panel(ax, field, cmap, norm), color=house.INK2, fontsize=14)
+                bias_bar(fig, fig.add_axes((0.07, 0.235, 0.86, 0.035)), cmap, norm,
+                         f"forecast − observed ({unit})\nblue: too low · red: too high · grey: within the noise",
+                         sparse=True)  # fmt: skip
+                fig.suptitle(f"{m}: {what[0].lower()}{what[1:]}, day {day}", x=0.02, y=0.975, ha="left")
+                entry["models"][m] = {"file": save(fig, out / f"bias_{key}_{m}.webp"), "mapped": field[2],
+                                      "significant": field[3]}  # fmt: skip
+            maps[key] = entry
+        if any(k.startswith(f"{var}_") for k in maps):
+            summary[var] = {"label": what, "unit": unit}
+            print(f"bias {var}: maps drawn", flush=True)
+    return {"maps": maps, "variables": summary, "leads": st["leads"], "models": models, "window": w}
+
+
 # --------------------------------------------------------------------------- the deterministic models
 CARD_ROWS = ["t2m", "td2m", "msl", "wind10", "z850", "z500", "z250", "t850", "t500", "t250", "wind850", "wind500",
              "wind250", "q850", "q700"]  # fmt: skip  # the page's main rows (verification.html MAIN)
@@ -974,6 +1176,7 @@ def main() -> None:
         manifest["acc"] = acc_figs(a.derived, a.clim, a.out)
     manifest["rain"] = rain_figs(a.derived, a.out)
     manifest["rain_skill"] = rain_skill_figs(a.derived, a.out)
+    manifest["bias"] = bias_figs(a.derived, a.out)
     manifest["scores"] = det_figs(a.derived, a.out)
     manifest["ensembles"] = ens_figs(a.derived, a.out)
     manifest["database"] = database(a.derived, a.have)
