@@ -13,8 +13,9 @@ happened to be more common late in the period does not inherit the warming.
 
 SIGNIFICANCE (only composites that pass the test are shown). Regime days come in episodes (mean length ~7-8
 days) and neighbouring days are not independent, so the test is on EPISODES: every run of consecutive days in one
-regime is averaged into one value, and a two-sided one-sample t-test across episodes asks whether the composite
-differs from zero at each grid point. The field of p-values is then controlled for multiplicity with the false
+regime is averaged into one value, and a two-sided t-test across episodes asks whether the composite differs from
+zero at each grid point: the composite is the episodes' mean weighted by their days (exactly the mean over the days),
+its standard error the cluster-robust one across episodes, on episodes - 1 degrees of freedom. The field of p-values is then controlled for multiplicity with the false
 discovery rate (Benjamini-Hochberg, alpha_FDR = 0.10, Wilks 2016) over the grid points of the map. Colour is shown
 only where the FDR test passes; elsewhere the map is left white.
 
@@ -149,9 +150,13 @@ def composite(t, a, lab, k, months):
     m = (lab == k) & np.isin(t.month, months)
     eps = episodes(m)
     E = np.stack([a[e].mean(0) for e in eps])  # (episodes, lat, lon)
-    _tt, p = stats.ttest_1samp(E, 0.0, axis=0)
-    mean = a[m].mean(0)
-    return mean, p, len(eps), int(m.sum())
+    w = np.array([len(e) for e in eps], float)[:, None, None]  # days: the episode-weighted mean IS the day composite
+    mean = (w * E).sum(0) / w.sum()
+    # its standard error across episodes (cluster-robust, n / (n - 1)), and t on n - 1 degrees of freedom
+    n = len(eps)
+    se = np.sqrt((w**2 * (E - mean) ** 2).sum(0) / w.sum() ** 2 * n / (n - 1))
+    p = 2 * stats.t.sf(np.abs(mean / se), n - 1)
+    return mean, p, n, int(m.sum())
 
 
 def main() -> int:
@@ -312,8 +317,8 @@ def main() -> int:
                 0.2 / W,
                 0.08 / H,
                 textwrap.fill(
-                    "Colour only where significant: two-sided t-test on regime-episode means (one value per run of "
-                    "consecutive regime days), false discovery rate held at 10% over the map (Benjamini–Hochberg; "
+                    "Colour only where significant: two-sided t-test across regime episodes (runs of consecutive "
+                    "regime days, each weighted by its days), false discovery rate held at 10% over the map (Benjamini–Hochberg; "
                     "Wilks 2016). White = no significant difference from normal.",
                     wrapc,
                 ),
@@ -330,7 +335,7 @@ def main() -> int:
     (RC.DATA / "regime_impacts.json").write_text(
         json.dumps(
             dict(
-                test="t-test on episode means, BH FDR 0.10 over the map",
+                test="t-test across episodes weighted by their days, BH FDR 0.10 over the map",
                 base="ERA5 1991-2020, R1 regime days",
                 regimes=stats_out,
             ),

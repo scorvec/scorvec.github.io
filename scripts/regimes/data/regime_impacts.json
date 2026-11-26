@@ -1,5 +1,5 @@
 {
- "test": "t-test on episode means, BH FDR 0.10 over the map",
+ "test": "t-test across episodes weighted by their days, BH FDR 0.10 over the map",
  "base": "ERA5 1991-2020, R1 regime days",
  "regimes": {
   "ea_cold": {
@@ -7,13 +7,13 @@
     "t2m": {
      "episodes": 187,
      "days": 1553,
-     "frac_significant": 0.746,
+     "frac_significant": 0.785,
      "max_abs_significant": 2.73
     },
     "prcp": {
      "episodes": 187,
      "days": 1553,
-     "frac_significant": 0.646,
+     "frac_significant": 0.748,
      "max_abs_significant": 6.84
     }
    },
@@ -21,13 +21,13 @@
     "t2m": {
      "episodes": 174,
      "days": 1253,
-     "frac_significant": 0.641,
+     "frac_significant": 0.717,
      "max_abs_significant": 3.45
     },
     "prcp": {
      "episodes": 174,
      "days": 1253,
-     "frac_significant": 0.572,
+     "frac_significant": 0.73,
      "max_abs_significant": 4.53
     }
    },
@@ -35,13 +35,13 @@
     "t2m": {
      "episodes": 174,
      "days": 1162,
-     "frac_significant": 0.577,
+     "frac_significant": 0.643,
      "max_abs_significant": 2.04
     },
     "prcp": {
      "episodes": 174,
      "days": 1162,
-     "frac_significant": 0.428,
+     "frac_significant": 0.696,
      "max_abs_significant": 3.66
     }
    },
@@ -49,13 +49,13 @@
     "t2m": {
      "episodes": 118,
      "days": 924,
-     "frac_significant": 0.761,
+     "frac_significant": 0.845,
      "max_abs_significant": 4.19
     },
     "prcp": {
      "episodes": 118,
      "days": 924,
-     "frac_significant": 0.557,
+     "frac_significant": 0.686,
      "max_abs_significant": 4.77
     }
    }
@@ -65,13 +65,13 @@
     "t2m": {
      "episodes": 178,
      "days": 1342,
-     "frac_significant": 0.357,
+     "frac_significant": 0.539,
      "max_abs_significant": 1.74
     },
     "prcp": {
      "episodes": 178,
      "days": 1342,
-     "frac_significant": 0.401,
+     "frac_significant": 0.54,
      "max_abs_significant": 3.87
     }
    },
@@ -79,13 +79,13 @@
     "t2m": {
      "episodes": 179,
      "days": 1244,
-     "frac_significant": 0.743,
+     "frac_significant": 0.775,
      "max_abs_significant": 1.93
     },
     "prcp": {
      "episodes": 179,
      "days": 1244,
-     "frac_significant": 0.648,
+     "frac_significant": 0.722,
      "max_abs_significant": 2.24
     }
    },
@@ -93,13 +93,13 @@
     "t2m": {
      "episodes": 173,
      "days": 1139,
-     "frac_significant": 0.678,
+     "frac_significant": 0.777,
      "max_abs_significant": 2.31
     },
     "prcp": {
      "episodes": 173,
      "days": 1139,
-     "frac_significant": 0.567,
+     "frac_significant": 0.625,
      "max_abs_significant": 2.24
     }
    },
@@ -107,13 +107,13 @@
     "t2m": {
      "episodes": 172,
      "days": 1112,
-     "frac_significant": 0.604,
+     "frac_significant": 0.626,
      "max_abs_significant": 2.04
     },
     "prcp": {
      "episodes": 172,
      "days": 1112,
-     "frac_significant": 0.512,
+     "frac_significant": 0.609,
      "max_abs_significant": 3.07
     }
    }
@@ -123,13 +123,13 @@
     "t2m": {
      "episodes": 173,
      "days": 1503,
-     "frac_significant": 0.704,
+     "frac_significant": 0.695,
      "max_abs_significant": 5.24
     },
     "prcp": {
      "episodes": 173,
      "days": 1503,
-     "frac_significant": 0.391,
+     "frac_significant": 0.51,
      "max_abs_significant": 6.83
     }
    },
@@ -137,13 +137,13 @@
     "t2m": {
      "episodes": 166,
      "days": 1278,
-     "frac_significant": 0.793,
+     "frac_significant": 0.829,
      "max_abs_significant": 5.43
     },
     "prcp": {
      "episodes": 166,
      "days": 1278,
-     "frac_significant": 0.322,
+     "frac_significant": 0.533,
      "max_abs_significant": 5.13
     }
    },
@@ -151,13 +151,13 @@
     "t2m": {
      "episodes": 152,
      "days": 1188,
-     "frac_significant": 0.77,
+     "frac_significant": 0.805,
      "max_abs_significant": 3.37
     },
     "prcp": {
      "episodes": 152,
      "days": 1188,
-     "frac_significant": 0.362,
+     "frac_significant": 0.521,
      "max_abs_significant": 3.08
     }
    },
@@ -165,13 +165,13 @@
     "t2m": {
      "episodes": 122,
      "days": 981,
-     "frac_significant": 0.263,
+     "frac_significant": 0.466,
      "max_abs_significant": 5.51
     },
     "prcp": {
      "episodes": 122,
      "days": 981,
-     "frac_significant": 0.036,
+     "frac_significant": 0.142,
      "max_abs_significant": 2.27
     }
    }
@@ -181,13 +181,13 @@
     "t2m": {
      "episodes": 180,
      "days": 1242,
-     "frac_significant": 0.491,
+     "frac_significant": 0.524,
      "max_abs_significant": 2.84
     },
     "prcp": {
      "episodes": 180,
      "days": 1242,
-     "frac_significant": 0.313,
+     "frac_significant": 0.374,
      "max_abs_significant": 4.09
     }
    },
@@ -195,13 +195,13 @@
     "t2m": {
      "episodes": 173,
      "days": 1074,
-     "frac_significant": 0.659,
+     "frac_significant": 0.705,
      "max_abs_significant": 2.52
     },
     "prcp": {
      "episodes": 173,
      "days": 1074,
-     "frac_significant": 0.201,
+     "frac_significant": 0.324,
      "max_abs_significant": 1.61
     }
    },
@@ -209,13 +209,13 @@
     "t2m": {
      "episodes": 157,
      "days": 1130,
-     "frac_significant": 0.421,
+     "frac_significant": 0.541,
      "max_abs_significant": 2.36
     },
     "prcp": {
      "episodes": 157,
      "days": 1130,
-     "frac_significant": 0.091,
+     "frac_significant": 0.227,
      "max_abs_significant": 2.45
     }
    },
@@ -223,13 +223,13 @@
     "t2m": {
      "episodes": 147,
      "days": 1121,
-     "frac_significant": 0.588,
+     "frac_significant": 0.614,
      "max_abs_significant": 2.36
     },
     "prcp": {
      "episodes": 147,
      "days": 1121,
-     "frac_significant": 0.188,
+     "frac_significant": 0.226,
      "max_abs_significant": 2.33
     }
    }
