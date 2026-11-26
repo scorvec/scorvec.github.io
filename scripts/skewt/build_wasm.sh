@@ -1,6 +1,7 @@
 #!/bin/bash
 # Rebuild skewt/sharplib.{js,wasm} from SHARPlib + the wrapper in this directory, then cache-bust the page's assets
-# (stamp_assets.py). Needs emsdk (https://github.com/emscripten-core/emsdk) and clones SHARPlib+fmt.
+# (stamp_assets.py). Needs emsdk (https://github.com/emscripten-core/emsdk) and clones SHARPlib+fmt; runs in
+# .github/workflows/skewt-wasm.yml.
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 WORK=$(mktemp -d)

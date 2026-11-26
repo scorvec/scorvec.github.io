@@ -2,10 +2,16 @@ name: Skew-T WebAssembly rebuild
 
 # Rebuilds the Sounding Explorer's SHARPlib module (skewt/sharplib.{js,wasm}) from scripts/skewt/skewt_wasm.cpp with
 # scripts/skewt/build_wasm.sh, which also stamps the new hashes into the page (stamp_assets.py), and commits the result.
-# Dispatch only: run it after a change to skewt_wasm.cpp. SHARPlib and fmt are cloned at their newest commits, as the
+# Dispatch only: run it after a change to skewt_wasm.cpp; publish=false builds and uploads the module as an artifact
+# without committing it. SHARPlib and fmt are cloned at their newest commits, as the
 # native builds of the same code (skewt-climo.yml, skewt-gust-verify.yml) clone them.
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Commit the rebuilt module to main (false = build and upload an artifact only)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -36,7 +42,13 @@ jobs:
           source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
           bash scripts/skewt/build_wasm.sh
           git status --short
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sharplib
+          path: skewt/sharplib.*
+          retention-days: 14
       - name: Commit & push
+        if: inputs.publish
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
