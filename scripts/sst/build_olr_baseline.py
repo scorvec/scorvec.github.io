@@ -424,7 +424,8 @@ def cdr_files(get) -> list[str]:
     for depth in range(2):
         nxt = []
         for c in cats:
-            x = get(CDR + c, timeout=60).decode()
+            x = get(CDR + c, timeout=300).decode()  # NCEI's THREDDS can take minutes on a catalog
+            print(f"  catalog {c}", flush=True)
             paths += [u for u in re.findall(r'urlPath="([^"]+)"', x) if CDR_FILE.search(u)]
             if depth == 0:
                 base = c.rsplit("/", 1)[0] + "/"
