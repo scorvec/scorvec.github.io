@@ -14,12 +14,13 @@ has a 35-day start every Wednesday of 2000-2019, so for its weeks 3-5 the drift 
   TRUTH       ERA5 at 00 UTC on the same valid days (WeatherBench2, 1.5 deg: the same bands), reduced the same way.
   DRIFT       a week's error, the members' mean less ERA5, regressed per point on the start's common-year day (mean
               and annual harmonic) and shrunk by its signal-to-noise (hadley_slp_ref.fit_drift and eval_drift).
-  SKILL       the members less the drift (refitted without the start's year), as the Hadley and Walker
+  SKILL       the members less the drift (refitted without the start's July-June year), as the Hadley and Walker
               streamfunctions (mmsf.streamfunction on build_hadley_clim's bands; walker.streamfunction) and as the
               cells' metrics (the series' four Hadley ones, walker's two), against the ERA5 1991-2020 normals the live
               loops and series use; the mean-squared-error skill score of the members' mean, its error taken down by
               (1/len(MEMBERS) - 1/LIVE) times the members' sample variance (the expected error of the live 31-member
-              mean), an interval and one-sided p-value from a bootstrap over whole years of starts, Benjamini-Hochberg
+              mean), an interval and one-sided p-value from a bootstrap over whole July-June years of starts (a winter in
+              one block), Benjamini-Hochberg
               at hadley_slp_ref.FDR_Q over every target and week; a target shows a week when it survives and reaches
               hadley_slp_ref.MIN_SKILL, from week 3 up to the first week that fails.
 
@@ -160,9 +161,14 @@ def weekly_truth(tr: dict, starts: pd.DatetimeIndex) -> dict:
     return out
 
 
+def season_year(starts: pd.DatetimeIndex) -> np.ndarray:
+    """The July-June year of each start (named by its June): a northern winter's starts fall in one year."""
+    return starts.year.values + (starts.month.values >= 7)
+
+
 def _fits(err: np.ndarray, starts: pd.DatetimeIndex, low: np.ndarray):
-    """Per week: the drift fitted on every start and each start's drift refitted without its year."""
-    year = starts.year.values
+    """Per week: the drift fitted on every start and each start's drift refitted without its July-June year."""
+    year = season_year(starts)
     cv = np.full_like(err, np.nan)
     fits = []
     for w in range(len(WEEKS)):
@@ -242,8 +248,7 @@ def verify(paths, seed: int = 1) -> dict:
                 S["ref"][i, w, t] = (o[key] - E.clim_at(cl_w, key, [mid], "mean")[0]) ** 2
         if s.month == 1 and s.day <= 7:
             print(f"  scored {s.year}", flush=True)
-    years = starts.year.values
-    names, block = np.unique(years, return_inverse=True)
+    names, block = np.unique(season_year(starts), return_inverse=True)
     rng = np.random.default_rng(seed)
     counts = np.stack([np.bincount(x, minlength=names.size) for x in rng.integers(0, names.size, (R.BOOT, names.size))])
     res = {}
@@ -262,8 +267,8 @@ def verify(paths, seed: int = 1) -> dict:
         "weeks": [list(w) for w in WEEKS],
         "score": "MSSS against the ERA5 1991-2020 normal; the members' mean error made fair for the live ensemble",
         "bootstrap": R.BOOT,
-        "blocks": "years of starts",
-        "cross_validation": "drift refitted without the start's year",
+        "blocks": "July-June years of starts",
+        "cross_validation": "drift refitted without the start's July-June year",
         "fdr_q": R.FDR_Q,
         "min_skill": R.MIN_SKILL,
         "targets": {},
