@@ -880,6 +880,14 @@
     return !!(cn && cn.downlink && cn.downlink < 8);
   }
   function entry(k) { var e = frames.get(k); if (!e) { e = { k: k, used: 0 }; frames.set(k, e); } return e; }
+  // A failed frame is not fetched again in the background, but is when it is the one to show: at once when the failure
+  // was a background fetch's (a slow phone link can time one out), RETRY_MS after a failure of its own, MAX_TRIES in all.
+  var RETRY_MS = 15000, MAX_TRIES = 3;
+  function markFailed(e, urgent) {
+    e.fail = true; e.failAt = performance.now(); e.tries = (e.tries || 0) + 1; e.failUrgent = urgent;
+    if (urgent && e.tries < MAX_TRIES) setTimeout(render, RETRY_MS + 50);
+  }
+  function retryable(e) { return e.fail && (e.tries || 0) < MAX_TRIES && (!e.failUrgent || performance.now() - e.failAt > RETRY_MS); }
   function want(list, nUrgent) {                             // relative paths, highest priority first
     var keep = {}; list.forEach(function (r) { keep[r] = 1; });
     frames.forEach(function (e, k) { if (e.bytesP && e.ac && !e.urgent && !keep[k]) e.ac.abort(); });   // nothing stale in the background
@@ -907,7 +915,7 @@
         function (e, urgent, ac) { return function (err) {
           e.bytesP = null; e.ac = null; inflight--; if (urgent) urgentIn--;
           if (ac && ac.signal.aborted) { pump(); return; }       // cancelled, not failed
-          e.fail = true; pump(); render(); throw err; }; }(e, urgent, ac));
+          markFailed(e, urgent); pump(); render(); throw err; }; }(e, urgent, ac));
       e.bytesP.catch(function () {});
     }
     updLoad();
@@ -919,7 +927,8 @@
     var e = entry(rel);
     e.used = ++useClock;
     if (e.dec) return e;
-    if (e.decP || e.fail) return null;
+    if (e.decP || (e.fail && !retryable(e))) return null;
+    e.fail = false;
     if (!e.bytes) { e.wantDec = true; if (!e.bytesP && !queue.some(function (q) { return q[0] === rel; })) { queue.unshift([rel, true]); pump(); } return null; }
     startDec(e);
     return null;
@@ -931,7 +940,11 @@
       var ds = []; frames.forEach(function (x) { if (x.dec) ds.push(x); });
       lru(ds, function (x) { return x.dec.data.byteLength; }, MEM.dec, 6, function (x) { x.dec = null; dropTex(x); });
       render();
-    }, function () { e.decP = null; e.fail = true; render(); });
+    }, function () {                                         // bytes that do not decode: not kept, here or in the cache
+      e.decP = null; e.bytes = null; markFailed(e, true);
+      frameCache().then(function (cc) { if (cc) cc.delete(cacheKey(e.k)); }).catch(function () {});
+      render();
+    });
   }
   function updLoad() { var n = 0; frames.forEach(function (e) { if (e.bytesP) n++; }); $("load").textContent = n ? "Loading " + (n + queue.length) + " map" + (n + queue.length > 1 ? "s" : "") + "…" : ""; }
 
@@ -1177,7 +1190,8 @@
     var ea = peek(fr.a) || decoded(fr.a), ec = fr.c ? peek(fr.c) || decoded(fr.c) : null, es = fr.s ? peek(fr.s) || decoded(fr.s) : null;
     var main = st.view === "change" ? ec : st.view === "spread" ? es : ea, failed = frames.get(st.view === "change" ? fr.c : st.view === "spread" ? fr.s : fr.a);
     if (!main && failed && failed.fail) {
-      $("msg").textContent = "This map could not be downloaded. It may still be publishing, or the connection dropped; try another day, or reload in a minute.";
+      $("msg").textContent = (failed.tries || 0) < MAX_TRIES ? "This map did not arrive; trying again in a few seconds."
+        : "This map could not be downloaded. It may still be publishing, or the connection dropped; try another day, or reload in a minute.";
       clearGL(); drawn = null; markShown(); drawOverlay(); schedule(); return;
     }
     var hold = !main && drawn && drawn.field === f && drawn.view === st.view && drawn.c === c;   // the last map while the next decodes
