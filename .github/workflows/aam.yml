@@ -4,9 +4,8 @@ name: Dynamic tropopause (IFS control)
 # nine levels, byte-ranged, ~1 GB), whose 00/12Z run reaches day 10 on the Google mirror ~T+7.5 h, before the
 # dispatcher's slots (T+9.3 h; scripts/lib/dispatch_workflows.sh); its step still waits up to 40 min for it. Then the
 # polar-cap tropopause height series (dt_cap.py: IFS control, AIFS single, GFS, GDPS gh on ten levels, 12-hourly,
-# against ERA5 normals). The jets
-# moved to strat.yml's heavy job (2026-10-25), which already holds the AIFS-ENS u files they read; angular momentum and
-# its torque budget to IFS-ENS (aam-ifs.yml); the tropical-cyclone products to tc.yml.
+# against ERA5 normals). The jets moved to strat.yml's heavy job (2026-10-25), which already holds the AIFS-ENS u files
+# they read; angular momentum and its torque budget to IFS-ENS (aam-ifs.yml); the tropical-cyclone products to tc.yml.
 on:
   # Backstop crons at the dispatcher's slots, for when it is off. GitHub delivers them hours late when at all, so
   # they set no timing: a scheduled run whose cycle main already carries stops in the check job.
@@ -138,6 +137,9 @@ jobs:
 
       - name: Polar-cap tropopause height (four models)
         working-directory: scripts/mjo
+        # its own limit, so a slow fetch cannot run the job out of time and lose the maps above (about 40 s a field)
+        timeout-minutes: 45
+        continue-on-error: true
         run: |
           python src/dt_cap.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
             || "$GITHUB_WORKSPACE/scripts/lib/degraded.sh" "Polar-cap tropopause"

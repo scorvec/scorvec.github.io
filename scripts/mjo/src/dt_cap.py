@@ -310,7 +310,7 @@ def main() -> int:
     ap.add_argument("--time", default="00")
     ap.add_argument("--record", default=str(RECORD))
     ap.add_argument("--figure", default=str(FIG))
-    ap.add_argument("--max-fill", type=int, default=40, help="most missing analyses fetched in one run")
+    ap.add_argument("--max-fill", type=int, default=12, help="most missing analyses fetched in one run")
     a = ap.parse_args()
     init = pd.Timestamp(f"{a.date}T{int(a.time):02d}:00")
     clim = load(CLIM, None)
