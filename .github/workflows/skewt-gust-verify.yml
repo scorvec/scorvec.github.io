@@ -93,6 +93,9 @@ jobs:
       - name: Score or export
         if: inputs.stage == 'score' || inputs.stage == 'export'
         run: python scripts/skewt/verify_gust.py ${{ inputs.stage }} out
+      - name: Publish the model and its parity fixture (release; the app's copy is committed by hand)
+        if: inputs.stage == 'export'
+        run: gh release upload "$REL" --clobber out/gust_model.json out/gust_fixture.json out/export.md
       - uses: actions/upload-artifact@v7
         if: always()
         with:

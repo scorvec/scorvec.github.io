@@ -378,6 +378,29 @@
   freezing) calibrated against ~49k ceilometer-verified bases; boxes are coloured by phase and the
   dashed teal band is the DGZ. Thin or broken cloud between sounding levels can be missed.</p>
 
+  <h3 id="gust">Gust estimate</h3>
+  <p>The gust row gives the likely highest gust at the airport in the 2&nbsp;hours after launch and a range that 4 in 5
+  gusts fell in. It comes from the sounding alone: the wind and virtual temperature from the ground to 4&nbsp;km, the
+  PBL top, DCAPE and surface CAPE, and a Brasseur (2001) estimate of the strongest wind that turbulent eddies can bring
+  down (turbulence diagnosed from shear and stability, since a radiosonde does not measure it). Three quantile
+  gradient-boosted tree models (10th, 50th and 90th percentiles) were trained on 206,821 launches at 40 co-located
+  raob and airport pairs (37 in the US) over 2010–2017, against the highest gust, peak wind or sustained wind in the
+  airport's routine and special reports (NOAA ISD). Launch time, month and elevation are deliberately left out, so the
+  model reads the profile rather than the station. The range was checked on 2018–2019 (no widening was needed) and
+  everything was scored on 2020–2025 (150,231 launches), with 95&nbsp;% station-block bootstrap intervals:</p>
+  <ul>
+    <li>Typical error (mean absolute) 3.1&nbsp;kt [3.0, 3.3], against 4.0&nbsp;kt for the PBL mean wind this row
+      replaced and 3.8&nbsp;kt for a recalibrated Brasseur estimate; the median runs 0.9&nbsp;kt low.</li>
+    <li>The range held 78&nbsp;% [77, 80] of gusts (80&nbsp;% intended), about 9&nbsp;kt wide on average.</li>
+    <li>The row is shaded when the top of the range reaches 39&nbsp;kt (Wind Advisory strength): that caught 44&nbsp;%
+      of such gusts with half its flags false (CSI 0.31), against 18&nbsp;% and CSI 0.17 for the old row.</li>
+    <li>Thunderstorm gusts are not captured: with thunder in the window the error was 10.9&nbsp;kt and the range held
+      only 49&nbsp;% of gusts. A sounding cannot see a storm's outflow.</li>
+  </ul>
+  <p>It is shown for US stations only, where it was verified, and the airport must be within 5&nbsp;km and 50&nbsp;m of
+  the launch site for a pair to count. The model runs in the browser from a 0.5&nbsp;MB file; a test checks that it gives
+  the same numbers as the Python it was fitted with.</p>
+
   <h2>4. Climatology — where a value ranks</h2>
   <p>Each station's entire IGRA period of record is analysed once, offline, and reduced to
   percentile breakpoints and record extremes at 73 day-of-year anchors, each pooling a ±10-day

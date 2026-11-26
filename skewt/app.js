@@ -3251,6 +3251,112 @@ function meanWindAgl(prof, z0, z1) {        // height-weighted mean wind through
   }
   return [su / (b - a), sv / (b - a)];
 }
+// ---- Gust estimate (methodology.html#gust): quantile gradient-boosted trees on the profile alone, trained on US
+// raob/airport pairs against the highest gust in the 2 h after launch (scripts/skewt/verify_gust_score.py export).
+// The features port scripts/skewt/gustport.py line for line (numpy.interp included); gustport_jstest.js checks it.
+const GUST_V = "e5dc4369";  // gust_model.json's hash, pinned by scripts/skewt/stamp_assets.py
+let GUST_MODEL = null, gustModelAsked = false;
+const gustNum = v => typeof v === "number" && isFinite(v) && v !== MISSING;
+function npInterp(x, xp, fp) {              // numpy.interp, clamped at the ends
+  const n = xp.length;
+  if (!(x > xp[0])) return x === xp[0] || x < xp[0] ? fp[0] : NaN;
+  if (x >= xp[n - 1]) return fp[n - 1];
+  let lo = 0, hi = n - 1;                   // xp[lo] <= x < xp[hi]
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (xp[m] <= x) lo = m; else hi = m; }
+  if (x === xp[lo]) return fp[lo];
+  return (fp[lo + 1] - fp[lo]) / (xp[lo + 1] - xp[lo]) * (x - xp[lo]) + fp[lo];
+}
+function gustGrid(prof) {                   // (z, u, v, theta-v) every 25 m from the ground to 4 km AGL
+  const H = prof.H, z = H.map(h => h - H[0]), top = Math.min(4000, z[z.length - 1]), zg = [];
+  for (let k = 0; k * 25 < top + 1e-6; k++) zg.push(k * 25);
+  const thv = prof.P.map((P, i) => {
+    const D = prof.D[i], e = 611.2 * Math.exp(17.67 * (D - 273.15) / (D - 29.65)), q = 0.622 * e / (P - 0.378 * e);
+    return prof.T[i] * (1e5 / P) ** 0.2857 * (1 + 0.608 * q);
+  });
+  const at = a => zg.map(x => npInterp(x, z, a));
+  return { zg, u: at(prof.U), v: at(prof.V), thv: at(thv) };
+}
+function gustBrasseur(g, alpha = 1, lam = 150, ric = 0.25) {   // Brasseur (2001) with diagnosed TKE -> [gust, upper, z]
+  const { zg, u, v, thv } = g, n = zg.length, spd = zg.map((_, i) => Math.hypot(u[i], v[i]));
+  if (n < 3) return [spd[0], spd[0], 0];
+  const E = [];
+  for (let i = 0; i < n - 1; i++) {
+    const dz = zg[i + 1] - zg[i], du = (u[i + 1] - u[i]) / dz, dv = (v[i + 1] - v[i]) / dz, s2 = du * du + dv * dv;
+    const zm = 0.5 * (zg[i + 1] + zg[i]), n2 = 9.80665 / (0.5 * (thv[i + 1] + thv[i])) * (thv[i + 1] - thv[i]) / dz;
+    const ri = n2 / Math.max(s2, 1e-8), c = Math.max(1 - ri / ric, 0);
+    const f = ri < 0 ? Math.sqrt(Math.max(1 - 16 * ri, 0)) : c * c, l = 0.4 * zm / (1 + 0.4 * zm / lam);
+    const e = l * Math.sqrt(s2) * f / 0.5;
+    E.push(e * e);
+  }
+  E.unshift(E[0]);
+  let cumE = 0, inv = 0, k = 0, best = -Infinity, upper = spd[0], turb = true;
+  for (let i = 0; i < n; i++) {
+    if (i > 0) {
+      const dz = zg[i] - zg[i - 1];
+      cumE += 0.5 * (E[i] + E[i - 1]) * dz;
+      inv += 0.5 * (1 / thv[i] + 1 / thv[i - 1]) * dz;
+    }
+    const meanE = zg[i] > 0 ? cumE / Math.max(zg[i], 1e-9) : E[0];
+    const ok = i === 0 || alpha * meanE >= 9.80665 * (thv[i] * inv - zg[i]);
+    if ((ok ? spd[i] : -1) > best) { best = ok ? spd[i] : -1; k = i; }
+    if (i > 0) turb = turb && alpha * E[i] >= 0.01;
+    if (i === 0 || turb) upper = Math.max(upper, spd[i]);
+  }
+  return [spd[k], upper, zg[k]];
+}
+function gustFeatures(prof, pblPa, dcape, sbcape) {   // gustport.features: m/s, m AGL, J/kg, K; NaN where missing
+  const g = gustGrid(prof), { zg, thv } = g, spd = zg.map((_, i) => Math.hypot(g.u[i], g.v[i])), top = zg[zg.length - 1];
+  const f = { sfc: spd[0], dcape: gustNum(dcape) ? dcape : NaN, sbcape: gustNum(sbcape) ? sbcape : NaN };
+  const zp = gustNum(pblPa) && pblPa > 0 ? interpHagl(prof, pblPa) : null;
+  f.pbl_m = zp === null ? NaN : zp;
+  const mw = zp !== null && zp >= 50 ? meanWindAgl(prof, 0, zp) : null;
+  f.pbl_mean = mw ? Math.hypot(mw[0], mw[1]) : NaN;
+  f.pbl_max = zp !== null && zp >= 50 ? Math.max(...spd.filter((_, i) => zg[i] <= zp)) : NaN;
+  for (const h of [250, 500, 1000, 1500, 2000, 3000]) {
+    f["w" + h] = top >= h ? npInterp(h, zg, spd) : NaN;
+    f["dthv" + h] = top >= h ? npInterp(h, zg, thv) - thv[0] : NaN;
+  }
+  f.top_m = top;
+  [f["bw_1_150_0.25"], f["bu_1_150_0.25"], f["bz_1_150_0.25"]] = gustBrasseur(g);
+  return f;
+}
+function gustTrees(tr, x) {                 // one quantile model: the baseline plus every tree's leaf
+  let s = tr.base;
+  for (const r of tr.root) {
+    let k = r;
+    while (tr.f[k] >= 0) { const v = x[tr.f[k]]; k = (Number.isNaN(v) ? tr.m[k] : v <= tr.t[k]) ? tr.l[k] : tr.r[k]; }
+    s += tr.t[k];
+  }
+  return s;
+}
+function gustEstimate(f, M = GUST_MODEL) {  // -> {p10, p50, p90, lo, hi} m/s; lo-hi the conformally widened 80 % range
+  const x = M.features.map(k => f[k]), q = [M.p10, M.p50, M.p90].map(tr => gustTrees(tr, x));
+  return { p10: q[0], p50: q[1], p90: q[2], lo: Math.max(0, Math.min(q[0] - M.widen, q[1])), hi: Math.max(q[2] + M.widen, q[1]) };
+}
+function gustShown() {                     // observed soundings at US stations, where the model was verified
+  return !!(current && !current.model && MS.kind !== "drop" && current.gid && current.gid.startsWith("USM"));
+}
+function gustCell(prof, o) {
+  if (!GUST_MODEL) {
+    if (!gustModelAsked) {
+      gustModelAsked = true;
+      fetch("gust_model.json?v=" + GUST_V).then(r => r.json()).then(m => {
+        GUST_MODEL = m;
+        if (lastProf && lastRes) fillTables(lastProf, lastRes);
+      }).catch(() => { gustModelAsked = false; });
+    }
+    return "…";
+  }
+  const e = gustEstimate(gustFeatures(prof, o[46], o[39], o[0])), kt = v => Math.round(v * KT);
+  if (!isFinite(e.p50)) return "—";
+  const txt = `${kt(e.p50)} kt (${kt(e.lo)}–${kt(e.hi)})`;
+  const tipTxt = "likely highest gust in the 2 h after launch, and the range 4 in 5 gusts fell in on 2020–25 tests; " +
+    "thunderstorm gusts are not captured";
+  if (e.hi * KT < 39) return `<span title="${tipTxt}">${txt}</span>`;
+  const a = 0.25 + 0.45 * Math.min(1, (e.hi * KT - 39) / 21);   // top of the range 39 kt -> 60 kt
+  return `<span class="pctcell" style="background:rgba(224,70,55,${a.toFixed(2)})" title="${tipTxt}; ` +
+    `gusts of 39 kt or more possible">${txt}</span>`;
+}
 function windAt(prof, hAgl) {             // interp u,v at height AGL
   const H = prof.H, sfc = H[0];
   for (let i = 1; i < H.length; i++) {
@@ -4038,23 +4144,10 @@ function fillTables(prof, res) {
       return (a === null && b === null) ? "—"
         : `${a === null ? "—" : a.toFixed(0)} / ${b === null ? "—" : b.toFixed(0)} kt`;
     })()],
-    // Mean wind through the mixed layer: this is the momentum a well-mixed
-    // boundary layer can bring DOWN to the surface, so it's the flow that
-    // actually threatens to gust. Highlighted from 35 kt, ramping to deep red.
-    ["PBL mean wind", (() => {
-      const pp = o[46];
-      if (pp === MISSING || !isFinite(pp)) return "—";
-      const z = interpHagl(prof, pp);
-      if (z === null || z < 50) return "—";        // too shallow to mean anything
-      const mw = meanWindAgl(prof, 0, z);
-      if (!mw) return "—";
-      const kt = Math.hypot(mw[0], mw[1]) * KT;
-      const txt = `${Math.round(dirOf(mw[0], mw[1]))}/${kt.toFixed(0)} kt`;
-      if (kt < 35) return txt;
-      const a = 0.25 + 0.45 * Math.min(1, (kt - 35) / 25);   // 35 kt -> 60 kt
-      return `<span class="pctcell" style="background:rgba(224,70,55,${a.toFixed(2)})" ` +
-        `title="${kt.toFixed(0)} kt through the mixed layer — can be mixed to the surface">${txt}</span>`;
-    })()],
+    // Gust estimate (methodology.html#gust): the likely highest gust in the 2 h after launch and the range 4 in 5
+    // gusts fell in on the 2020-25 test years; the top of the range at 39 kt or more is highlighted (it caught 44 % of
+    // such gusts, half its flags false, against 18 % for the old PBL mean wind row). US stations only: verified there.
+    ...(gustShown() ? [["Gust estimate", gustCell(prof, o)]] : []),
     ["Bunkers RM / LM", pair(vecf(o[22], o[23]), vecf(o[24], o[25]))],
     ["Corfidi up / down", pair(vecf(o[49], o[50]), vecf(o[51], o[52]))],
   ];

@@ -236,8 +236,8 @@ def _trees(m):
             f.append(-1 if leaf else int(n["feature_idx"]))
             # thresholds sit ON data values (winds in whole knots): nudged up a part in 1e9 so a tie goes left in Python
             # and in the browser alike, whatever the last bit of their arithmetic
-            th = float(n["num_threshold"])
-            t.append(float(n["value"]) if leaf else th + 1e-9 * max(1.0, abs(th)))
+            th = float(n["num_threshold"])  # +inf on a split by missingness alone: 1e308 keeps JSON (and JS) valid
+            t.append(float(n["value"]) if leaf else min(th + 1e-9 * max(1.0, abs(th)), 1e308))
             lft.append(0 if leaf else off + int(n["left"]))
             rgt.append(0 if leaf else off + int(n["right"]))
             miss.append(int(bool(n["missing_go_to_left"])))
@@ -324,7 +324,7 @@ def export(out: Path) -> None:
     stations = sorted(df.icao.unique().tolist())
     model = {"features": SHIP_FEATURES, "units": "m/s, m AGL, J/kg, K", "widen": float(f"{widen:.5g}"),
              "trained": f"{Y0}-{TRAIN_LAST}", "stations": stations, **trees}  # fmt: skip
-    (out / "gust_model.json").write_text(json.dumps(model, separators=(",", ":")))
+    (out / "gust_model.json").write_text(json.dumps(model, separators=(",", ":"), allow_nan=False))  # JS reads it
     lines.append(f"\nModel file {(out / 'gust_model.json').stat().st_size / 1e6:.2f} MB.")
     # parity fixture for the app's port: test launches' stored profiles (<= 4 km AGL), the features gustport computes
     # from them and the model's output
