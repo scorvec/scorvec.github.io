@@ -7,8 +7,11 @@ the DTU15 mean sea surface; continuous from Feb 2017), read anonymously. Sampled
 
 At every grid point a least-squares fit over 2017-02 .. 2025-12 of
     mean + trend + 3 annual harmonics
-so the product's anomaly = SLA minus this fit: the seasonal cycle and the rise of global mean sea level
-come out, the intraseasonal Kelvin signal and the ENSO state stay in. Output:
+where the trend is ONE number, the cos-weighted mean of the points' own trends over the domain: over nine years a
+point's trend is mostly the ENSO phase at the record's ends (-4.5 to +9.6 mm/yr along the equator), and extrapolated
+past the record it would stand as a false anomaly of several centimetres. The mean and harmonics are refitted with
+that trend held. So the product's anomaly = SLA minus this fit: the seasonal cycle and the rise of mean sea level come
+out, the intraseasonal Kelvin signal and the ENSO state stay in. Output:
     scripts/mjo/data/reference/sla_clim.nc   coef (8, lat, lon), t0 (fractional year of the trend origin)
 
     python build_sla_clim.py          # ~20 requests, a few minutes; yearly files cached in data/sla_raw/
@@ -143,6 +146,17 @@ def main() -> int:
     for j in np.flatnonzero(~full & (ok.sum(0) > 365 * 3)):
         m = ok[:, j]
         coef[:, j] = np.linalg.lstsq(X[m], Y[m, j], rcond=None)[0]
+    # one trend for the domain (the docstring), then the mean and harmonics refitted with it held
+    w = np.repeat(np.cos(np.deg2rad(s.latitude.values)), s.sizes["longitude"])
+    good = np.isfinite(coef[1])
+    trend = float(np.sum(coef[1, good] * w[good]) / np.sum(w[good]))
+    Yd = Y - trend * X[:, 1:2]
+    rest = np.delete(np.arange(X.shape[1]), 1)
+    coef[np.ix_(rest, np.flatnonzero(full))] = np.linalg.lstsq(X[:, rest], Yd[:, full], rcond=None)[0]
+    for j in np.flatnonzero(~full & good):
+        m = ok[:, j]
+        coef[rest, j] = np.linalg.lstsq(X[m][:, rest], Yd[m, j], rcond=None)[0]
+    coef[1, good] = trend
     coef = coef.reshape(X.shape[1], s.sizes["latitude"], s.sizes["longitude"])
     res = xr.Dataset(
         {"coef": (("k", "latitude", "longitude"), coef)},
