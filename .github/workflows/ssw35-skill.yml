@@ -1,0 +1,60 @@
+name: Weeks 3-5 SSW index skill (GEFSv12 reforecast)
+
+# Scores the weeks 3-5 sudden-warming index of ssw.html in the GEFSv12 reforecast (scripts/strat/ssw35_skill.py): the
+# drift-corrected members' first easterly day of u(60N, 10 hPa), week by week, against MERRA-2. The reforecast's daily
+# u by latitude comes from the extracts an eddy-feedback-gefs.yml run keeps as artifacts (90 days); nothing is fetched
+# from NOAA here. Commits scripts/strat/reference/ssw35_skill.json. Dispatch only.
+on:
+  workflow_dispatch:
+    inputs:
+      from_run:
+        description: 'The eddy-feedback-gefs.yml run holding the gefs_eddy_* extracts'
+        default: '42501023337'
+
+permissions:
+  contents: write
+  actions: read   # the other run's artifacts
+
+jobs:
+  score:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet numpy pandas xarray netCDF4 "quantmet-tools @ git+https://github.com/scorvec/quantmet-tools@v0.4.5"
+      - name: The reforecast extracts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ inputs.from_run }}
+        run: |
+          gh run download "$RUN" -R "$GITHUB_REPOSITORY" -p 'gefs_eddy_*' -D dl
+          mkdir -p gefs && find dl -type f -name 'GEFSv12_*.npz' -exec cp {} gefs/ \;
+          echo "$(ls gefs | wc -l) winters"
+      - name: Score
+        run: |
+          set -o pipefail
+          python scripts/strat/ssw35_skill.py --gefs gefs --strat scripts/strat/reference/strat_history.nc \
+            --out scripts/strat/reference/ssw35_skill.json | tee skill.log
+          { echo '```'; cat skill.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT=scripts/strat/reference/ssw35_skill.json
+          SNAP=$(mktemp -d)
+          cp "$OUT" "$SNAP/"
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset -q --hard origin/main
+            cp "$SNAP/ssw35_skill.json" "$OUT"
+            git add -f "$OUT"
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "Weeks 3-5 SSW index: skill in the GEFSv12 reforecast"
+            if timeout 180 git push origin HEAD:main; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          exit 1
