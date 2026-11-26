@@ -18,7 +18,7 @@ Written to OUT (published to the frames store as assets/verification/upper/):
                                     offset by 32768, PACK steps), a flag in blue (0 no value, 1 value, 2 a significant
                                     mean error), alpha 255: mean error left, RMSE right, a model to a row (MODELS)
   <truth>_xs_<var>.json             the cross-sections
-  coast.png                         coastlines and borders over the maps (plate carree, -180 to 180)
+  coast.json                        coastlines and borders over the maps, lon/lat polylines (overlay)
 and the manifest assets/verification/upper.json.
 
     upper_maps.py --list --have have.txt            # the database files the maps are made from
@@ -40,7 +40,7 @@ from verify_figs import FDR_Q, mean_test
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 from latlon import G15
 
-WINDOW = 30  # runs
+WINDOW = 60  # runs: two months, the power to find a bias of the season
 MIN_RUNS = 20  # a model with fewer runs in the window is left off that truth's maps
 DAYS = (1, 3, 5, 7, 10)
 TRUTHS = ("era5", "own")
@@ -51,6 +51,7 @@ PACK = {"z": 0.1, "t": 0.01, "u": 0.01, "v": 0.01, "wind": 0.01, "q": 1e-6}
 UNITS = {"z": "m", "t": "K", "u": "m/s", "v": "m/s", "wind": "m/s", "q": "g/kg"}
 SHOW = {"q": 1000.0}  # factor to the page's unit
 DECIMALS = {"z": 1, "t": 2, "u": 2, "v": 2, "wind": 2, "q": 3}  # the cross-sections', in the page's units
+COAST_TOL = 0.05  # degrees: the coastlines' simplification, well inside a 1.5 degree cell
 
 
 def levels_of(var: str) -> tuple[int, ...]:
@@ -170,22 +171,23 @@ def to_png(rows: list[tuple[np.ndarray, np.ndarray, np.ndarray] | None], step: f
 
 
 def overlay(path: Path) -> None:
-    """Coastlines and borders on a transparent plate carree of the whole globe, -180 to 180, for the page's maps."""
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import cartopy.crs as ccrs
+    """Coastlines (50 m) and borders as lon/lat polylines for the page to draw at any zoom: each line its first point
+    then the steps to the next, in hundredths of a degree, simplified to COAST_TOL."""
     import cartopy.feature as cfeature
-    import matplotlib.pyplot as plt
 
-    fig = plt.figure(figsize=(14.4, 7.2), dpi=100)
-    ax = fig.add_axes((0, 0, 1, 1), projection=ccrs.PlateCarree())
-    ax.set_extent((-180, 180, -90, 90), ccrs.PlateCarree())
-    ax.add_feature(cfeature.COASTLINE.with_scale("110m"), linewidth=0.7, edgecolor="#2b2b2b")
-    ax.add_feature(cfeature.BORDERS.with_scale("110m"), linewidth=0.35, edgecolor="#555555")
-    ax.axis("off")
-    fig.savefig(path, transparent=True, dpi=100)
-    plt.close(fig)
+    def lines(feature) -> list[list[int]]:
+        out = []
+        for geom in feature.geometries():
+            g = geom.simplify(COAST_TOL)
+            for part in getattr(g, "geoms", [g]):
+                q = np.round(np.asarray(part.coords) * 100).astype(int)
+                if len(q) < 2:
+                    continue
+                out.append(np.concatenate([q[:1], np.diff(q, axis=0)]).ravel().tolist())
+        return out
+
+    body = {"coast": lines(cfeature.COASTLINE.with_scale("50m")), "borders": lines(cfeature.BORDERS.with_scale("50m"))}
+    path.write_text(json.dumps(body, separators=(",", ":")))
 
 
 def build(a) -> None:
@@ -240,7 +242,7 @@ def build(a) -> None:
         (a.out / f"{truth}_xs_{var}.json").write_text(
             json.dumps({"levels": levels_of(var), "lat": G15.lat.tolist(), "days": body}, separators=(",", ":"))
         )
-    overlay(a.out / "coast.png")
+    overlay(a.out / "coast.json")
     manifest = {
         "updated": f"{pd.Timestamp.now(tz='UTC'):%Y-%m-%dT%H:%MZ}",
         "models": list(MODELS),

@@ -171,16 +171,17 @@
   .scg path, .scg circle, .scg text { pointer-events: none; }
   #s-region-l, #e-region-l { display: none; }
   #s-region-l.figs, #e-region-l.figs { display: inline-flex; }
-  #r-model-l, #b-model-l, #x-model-l { display: none; }   /* the rain, bias and upper-air maps' model: a phone only, one map at a time */
+  #r-model-l, #b-model-l { display: none; }   /* the rain and bias maps' model: a phone only, one map at a time */
   .xgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem 1rem; margin-top: 0.5rem; }
   .xgrid figure { margin: 0; }
-  .xgrid figure[hidden] { display: none; }
+  .xgrid figure[hidden], .xgrid.solo figure:not(.on) { display: none; }
+  .xgrid.solo { grid-template-columns: 1fr; }   /* one model picked: it fills the card */
   .xgrid figcaption { font-size: 0.88rem; font-weight: 600; color: var(--ink); margin: 0 0 0.2rem; }
   .xgrid canvas { display: block; width: 100%; height: auto; border-radius: 3px; background: var(--panel); cursor: crosshair; }
   img.fig[hidden], .ctl[hidden], .scg[hidden], #scorecard[hidden] { display: none; }   /* a figure stands in for the drawn scorecard */
   @media (max-width: 700px) {
     .scg .blk:not(.on) { display: none; }
-    #s-region-l, #e-region-l, #r-model-l:not([hidden]), #b-model-l:not([hidden]), #x-model-l:not([hidden]) { display: inline-flex; }
+    #s-region-l, #e-region-l, #r-model-l:not([hidden]), #b-model-l:not([hidden]) { display: inline-flex; }
     .xgrid { grid-template-columns: 1fr; }
     .xgrid figure:not(.on) { display: none; }
     table.ov { font-size: 0.76rem; }
@@ -549,6 +550,9 @@ window.plotly = function () {
       <label id="x-level-l">Level<select id="x-level"></select></label>
       <label>Lead<select id="x-day"></select></label>
       <label id="x-model-l" hidden>Model<select id="x-model"></select></label>
+      <span class="ctl" id="x-zoom-l">Zoom<span class="pills" role="group" aria-label="Zoom"><button type="button" id="x-zin"
+        aria-label="Zoom in">+</button><button type="button" id="x-zout" aria-label="Zoom out">−</button><button type="button"
+        id="x-reset" disabled>Whole globe</button></span></span>
     </div>
     <div class="xgrid" id="x-maps" data-noswipe></div>
     <div class="cbar"><div class="col"><div class="ramp" id="x-ramp"></div><div class="ticks" id="x-ticks"></div></div>
@@ -959,7 +963,8 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
   // The upper-air error maps (scripts/verify/upper_maps.py). A pick's grids are one PNG of the frames store: a model to
   // a row, its mean error left and RMSE right, 16-bit values in red and green and a flag in blue (0 none, 1 a value,
   // 2 a significant mean error); the cross-sections are JSON. Both are drawn here, in stepped colours, with the mean
-  // error grey where it is within the noise.
+  // error grey where it is within the noise. The maps share one view, zoomed (the buttons, a double click, a pinch or
+  // ctrl and the wheel) and panned by dragging, drawn at the screen's resolution under vector coastlines (coast.json).
   function drawUpper(U) {
     const truths = ["era5", "own"].filter(t => U.truths[t] && Object.keys(U.truths[t]).length);
     if (!truths.length) return;
@@ -971,10 +976,10 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
     fill(xv, Object.keys(U.vars), v => NAME[v] || v);
     fill(xd, U.days.map(String), d => `Day ${d}`);
     xd.value = U.days.includes(5) ? "5" : String(U.days[0]);
-    fill(xm, U.models);
+    fill(xm, phone.matches ? U.models : ["all", ...U.models], m => m === "all" ? "All" : m);
     fill(xl, U.vars[xv.value].levels.map(String), p => `${p} hPa`);
     if (U.vars[xv.value].levels.includes(500)) xl.value = "500";
-    const G = U.grid, NY = G.ny, NX = G.nx, W = 720, H = 360, GREY = [207, 204, 196];
+    const G = U.grid, NY = G.ny, NX = G.nx, GREY = [220, 217, 210], MAXZ = 8;
     const memo = {};
     const once = (key, f) => memo[key] || (memo[key] = f().then(d => { if (!d) delete memo[key]; return d; }, () => { delete memo[key]; return null; }));
     async function bitmap(name) {
@@ -1010,23 +1015,41 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
         return any ? o : null;
       });
     });
-    // each canvas pixel's four grid cells and weights (plate carree, -180 to 180), for bilinear sampling
-    const S = (() => {
-      const n = W * H, c = [0, 1, 2, 3].map(() => new Int32Array(n)), fx = new Float32Array(n), fy = new Float32Array(n);
-      for (let py = 0; py < H; py++) {
-        const gy = (90 - 180 * (py + 0.5) / H - G.lat0) / G.dlat, y0 = Math.max(0, Math.min(NY - 2, Math.floor(gy)));
-        for (let p = 0; p < W; p++) {
-          const gx = ((((-180 + 360 * (p + 0.5) / W - G.lon0) % 360) + 360) % 360) / G.dlon, x0 = Math.floor(gx) % NX, x1 = (x0 + 1) % NX, k = py * W + p;
-          c[0][k] = y0 * NX + x0; c[1][k] = y0 * NX + x1; c[2][k] = (y0 + 1) * NX + x0; c[3][k] = (y0 + 1) * NX + x1;
-          fx[k] = gx - Math.floor(gx); fy[k] = gy - y0;
-        }
+    // the maps' view, a box of longitude and latitude (plate carree, -180 to 180) twice as wide as tall, on every panel
+    let vbox = { x0: -180, x1: 180, y0: -90, y1: 90 };
+    const zoomed = () => vbox.x1 - vbox.x0 < 359.99;
+    // each canvas column's two grid columns and weight, each row's grid row and weight: bilinear sampling of the view
+    function sampler(W, H) {
+      const cx0 = new Int32Array(W), cx1 = new Int32Array(W), fx = new Float32Array(W), ry = new Int32Array(H), fy = new Float32Array(H);
+      for (let p = 0; p < W; p++) {
+        const gx = ((((vbox.x0 + (vbox.x1 - vbox.x0) * (p + 0.5) / W - G.lon0) % 360) + 360) % 360) / G.dlon, x0 = Math.floor(gx);
+        cx0[p] = x0 % NX; cx1[p] = (x0 + 1) % NX; fx[p] = gx - x0;
       }
-      return { c, fx, fy };
-    })();
-    function bil(a, k) {
-      const x = S.fx[k], y = S.fy[k], v = S.c.map(c => a[c[k]]);
-      const r = (v[0] * (1 - x) + v[1] * x) * (1 - y) + (v[2] * (1 - x) + v[3] * x) * y;
-      return r === r ? r : v[(y < 0.5 ? 0 : 2) + (x < 0.5 ? 0 : 1)];   // a missing corner: the nearest cell
+      for (let q = 0; q < H; q++) {
+        const gy = (vbox.y1 - (vbox.y1 - vbox.y0) * (q + 0.5) / H - G.lat0) / G.dlat, y0 = Math.max(0, Math.min(NY - 2, Math.floor(gy)));
+        ry[q] = y0 * NX; fy[q] = gy - y0;
+      }
+      return { cx0, cx1, fx, ry, fy };
+    }
+    function bil(a, s, p, q) {
+      const x = s.fx[p], y = s.fy[q], r0 = s.ry[q], r1 = r0 + NX;
+      const v0 = a[r0 + s.cx0[p]], v1 = a[r0 + s.cx1[p]], v2 = a[r1 + s.cx0[p]], v3 = a[r1 + s.cx1[p]];
+      const r = (v0 * (1 - x) + v1 * x) * (1 - y) + (v2 * (1 - x) + v3 * x) * y;
+      return r === r ? r : y < 0.5 ? (x < 0.5 ? v0 : v1) : (x < 0.5 ? v2 : v3);   // a missing corner: the nearest cell
+    }
+    // coastlines and borders in the view: each line its first point then steps, hundredths of a degree (upper_maps.overlay)
+    function drawCoast(ctx, coast, W, H, dpr) {
+      const sx = W / (vbox.x1 - vbox.x0), sy = H / (vbox.y1 - vbox.y0);
+      ctx.lineJoin = "round";
+      [["coast", "#2b2b2b", 0.8], ["borders", "#6b6862", 0.45]].forEach(([k, col, w]) => {
+        ctx.strokeStyle = col; ctx.lineWidth = w * dpr; ctx.beginPath();
+        for (const l of coast[k]) {
+          let x = l[0], y = l[1];
+          ctx.moveTo((x / 100 - vbox.x0) * sx, (vbox.y1 - y / 100) * sy);
+          for (let n = 2; n < l.length; n += 2) { x += l[n]; y += l[n + 1]; ctx.lineTo((x / 100 - vbox.x0) * sx, (vbox.y1 - y / 100) * sy); }
+        }
+        ctx.stroke();
+      });
     }
     // stepped colours: ten for the mean error about zero, eight for RMSE from zero, scaled to the pick's values
     function bins(show, vals, step) {
@@ -1054,22 +1077,102 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       return { band: i => [XS.t + (levels.length - 1 - i) * bh, XS.t + (levels.length - i) * bh],
         at: py => { const i = levels.length - 1 - Math.floor((py - XS.t) / bh); return i >= 0 && i < levels.length ? i : -1; } };
     }
+    // the maps at the screen's resolution in the shared view: the shown models only (all four, or the one picked)
+    function paintMaps() {
+      if (!shown || shown.view !== "map") return;
+      const { per, show, b, coast } = shown, dpr = Math.min(2, window.devicePixelRatio || 1), solo = box.classList.contains("solo");
+      const samplers = {};
+      figs.forEach((o, i) => {
+        const g = per[i];
+        if (!g || (solo && o.m !== xm.value)) return;
+        const W = Math.round((o.f.clientWidth || 360) * dpr), H = Math.round(W / 2), s = samplers[W] || (samplers[W] = sampler(W, H));
+        const cv = o.cv, ctx = cv.getContext("2d");
+        if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+        const img = ctx.createImageData(W, H), d = img.data, a = g[show], mean = show === "mean";
+        for (let q = 0, k = 0; q < H; q++) for (let p = 0; p < W; p++, k += 4) {
+          const x = bil(a, s, p, q);
+          if (x !== x) continue;
+          const c = mean && !(bil(g.sig, s, p, q) >= 0.5) ? GREY : b.rgb[b.at(x)];
+          d[k] = c[0]; d[k + 1] = c[1]; d[k + 2] = c[2]; d[k + 3] = 255;
+        }
+        ctx.putImageData(img, 0, 0);
+        if (coast) drawCoast(ctx, coast, W, H, dpr);
+        cv.style.cursor = zoomed() ? "grab" : "";
+        cv.style.touchAction = zoomed() ? "none" : "pan-y";   // a finger scrolls the page until the maps are zoomed
+      });
+    }
+    let queued = false;
+    const repaint = () => { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; paintMaps(); }); } };
+    // the view whose west edge, south edge and width are these, kept on the globe and no closer than MAXZ times
+    function setView(x0, y0, w) {
+      w = Math.max(360 / MAXZ, Math.min(360, w));
+      x0 = Math.max(-180, Math.min(180 - w, x0)); y0 = Math.max(-90, Math.min(90 - w / 2, y0));
+      vbox = { x0, x1: x0 + w, y0, y1: y0 + w / 2 };
+      $("x-reset").disabled = !zoomed();
+      repaint();
+    }
+    // zoom by f, the point at fractions (fx, fy) of a map's width and height staying where it is
+    function zoomAt(f, fx, fy) {
+      const w = vbox.x1 - vbox.x0, nw = Math.max(360 / MAXZ, Math.min(360, w / f)), lon = vbox.x0 + fx * w, lat = vbox.y1 - fy * w / 2;
+      setView(lon - fx * nw, lat - (1 - fy) * nw / 2, nw);
+    }
+    $("x-zin").addEventListener("click", () => zoomAt(2, 0.5, 0.5));
+    $("x-zout").addEventListener("click", () => zoomAt(0.5, 0.5, 0.5));
+    $("x-reset").addEventListener("click", () => setView(-180, -90, 360));
+    // a drag pans, two fingers pinch: the point under the gesture's start follows the fingers' midpoint
+    const pts = new Map();
+    let gesture = null;
+    const startGesture = cv => { gesture = pts.size ? { cv, v: { ...vbox }, at: new Map(pts) } : null; };
+    const frac = (cv, x, y) => { const r = cv.getBoundingClientRect(); return [(x - r.left) / r.width, (y - r.top) / r.height]; };
+    const mid = a => a.length > 1 ? [(a[0][0] + a[1][0]) / 2, (a[0][1] + a[1][1]) / 2] : a[0];
+    figs.forEach(o => {
+      const cv = o.cv;
+      cv.addEventListener("wheel", ev => {
+        if (xw.value !== "map" || !(ev.ctrlKey || ev.metaKey)) return;   // a trackpad pinch, or ctrl and the wheel; a plain wheel scrolls
+        ev.preventDefault();
+        zoomAt(Math.exp(-ev.deltaY / 150), ...frac(cv, ev.clientX, ev.clientY));
+      }, { passive: false });
+      cv.addEventListener("dblclick", ev => { if (xw.value === "map") zoomAt(ev.shiftKey ? 0.5 : 2, ...frac(cv, ev.clientX, ev.clientY)); });
+      cv.addEventListener("pointerdown", ev => {
+        if (xw.value !== "map") return;
+        pts.set(ev.pointerId, [ev.clientX, ev.clientY]);
+        if (pts.size === 1 && !zoomed()) return;   // nothing to pan yet
+        cv.setPointerCapture(ev.pointerId);
+        startGesture(cv);
+      });
+      cv.addEventListener("pointermove", ev => {
+        if (!gesture || gesture.cv !== cv || !pts.has(ev.pointerId)) return;
+        pts.set(ev.pointerId, [ev.clientX, ev.clientY]);
+        const ids = [...pts.keys()].slice(0, 2), now = ids.map(id => pts.get(id)), was = ids.map(id => gesture.at.get(id) || pts.get(id));
+        const v = gesture.v, w = v.x1 - v.x0, dist = a => Math.max(1, Math.hypot(a[0][0] - a[1][0], a[0][1] - a[1][1]));
+        const nw = Math.max(360 / MAXZ, Math.min(360, now.length > 1 ? w * dist(was) / dist(now) : w));
+        const [fx, fy] = frac(cv, ...mid(was)), [nx, ny] = frac(cv, ...mid(now));
+        setView(v.x0 + fx * w - nx * nw, v.y1 - fy * w / 2 - (1 - ny) * nw / 2, nw);
+      });
+      const up = ev => { pts.delete(ev.pointerId); if (gesture) startGesture(cv); };
+      cv.addEventListener("pointerup", up);
+      cv.addEventListener("pointercancel", up);
+    });
+    if (window.ResizeObserver) new ResizeObserver(repaint).observe(box);   // the stage's Larger, a turned phone, the card shown
     async function render() {
       const truth = xt.value, view = xw.value, show = xs.value, v = xv.value, day = xd.value, spec = U.vars[v], step = spec.step;
-      $("x-level-l").hidden = view !== "map";
+      $("x-level-l").hidden = $("x-zoom-l").hidden = view !== "map";
       fill(xl, spec.levels.map(String), p => `${p} hPa`, true);
       if (!spec.levels.includes(+xl.value)) xl.value = String(spec.levels.includes(500) ? 500 : spec.levels[0]);
       const lev = +xl.value, ticket = (render.n = (render.n || 0) + 1);
       const data = view === "map" ? await grids(`${truth}_d${day}_${v}${lev}.png`, step)
         : await once(`${truth}_xs_${v}`, () => firstJson(window.frameUrls(`assets/verification/upper/${truth}_xs_${v}.json`)));
-      const coast = view === "map" ? await once("coast", () => bitmap("coast.png")) : null;
+      const coast = view === "map" ? await once("coast", () => firstJson(window.frameUrls("assets/verification/upper/coast.json"))) : null;
       if (ticket !== render.n) return;   // a newer pick is on its way
       $("x-hover").textContent = "";
       if (!data) { shown = null; figs.forEach(o => { o.f.hidden = true; }); $("x-note").textContent = "No maps tonight."; return; }
       const per = view === "map" ? data : U.models.map(m => (data.days[day] || {})[m] || null);
       const have = U.models.filter((m, i) => per[i]);
-      if (!have.includes(xm.value)) xm.value = have[0];
-      $("x-model-l").hidden = !phone.matches;
+      const picks = phone.matches ? have : ["all", ...have];
+      fill(xm, picks, m => m === "all" ? "All" : m, true);
+      if (!picks.includes(xm.value)) xm.value = picks[0];
+      $("x-model-l").hidden = have.length < 2;
+      box.classList.toggle("solo", xm.value !== "all");
       // the scale from the shown values: the significant mean errors (all of them when none is), or every RMSE
       const vals = [], strong = [];
       per.forEach(g => {
@@ -1084,19 +1187,8 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
         o.f.classList.toggle("on", o.m === xm.value);
         if (!g) return;
         const cv = o.cv, ctx = cv.getContext("2d");
-        if (view === "map") {
-          cv.width = W; cv.height = H;
-          const img = ctx.createImageData(W, H), d = img.data, a = g[show];
-          for (let k = 0; k < W * H; k++) {
-            const x = bil(a, k);
-            if (x !== x) continue;
-            const c = show === "mean" && !(bil(g.sig, k) >= 0.5) ? GREY : b.rgb[b.at(x)];
-            d[4 * k] = c[0]; d[4 * k + 1] = c[1]; d[4 * k + 2] = c[2]; d[4 * k + 3] = 255;
-          }
-          ctx.putImageData(img, 0, 0);
-          if (coast) ctx.drawImage(coast, 0, 0, W, H);
-        } else {
-          cv.width = XS.w; cv.height = XS.h;
+        if (view === "section") {
+          cv.width = XS.w; cv.height = XS.h; cv.style.cursor = cv.style.touchAction = "";
           ctx.clearRect(0, 0, XS.w, XS.h);
           const geo = sectionGeom(data.levels), lat = data.lat, pw = XS.w - XS.l - XS.r, cw = pw / lat.length;
           data.levels.forEach((p, li) => {
@@ -1116,7 +1208,8 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
           o.geo = geo;
         }
       });
-      shown = { view, show, per, data, step, unit: spec.unit, lev };
+      shown = { view, show, per, data, step, unit: spec.unit, lev, b, coast };
+      paintMaps();
       $("x-ramp").style.background = `linear-gradient(90deg, ${b.css.map((c, k) => `${c} ${100 * k / b.n}% ${100 * (k + 1) / b.n}%`).join(",")})`;
       $("x-ticks").innerHTML = [0, 0.25, 0.5, 0.75, 1].map(f => b.lo + f * (b.hi - b.lo))
         .map((t, j) => `<span>${j === 4 ? "≥ " : j === 0 && show === "mean" ? "≤ " : ""}${+t.toFixed(Math.max(0, Math.round(-Math.log10(step * 10))))}</span>`).join("");
@@ -1139,7 +1232,7 @@ python -c "import pandas as pd; print(pd.read_parquet('sfc_2026101500.parquet').
       const { view, show, per, data, step, unit } = shown, word = show === "mean" ? "" : "RMSE ";
       let where, vals;
       if (view === "map") {
-        const lat = 90 - 180 * py / H, lon = -180 + 360 * px / W;
+        const lat = vbox.y1 - (vbox.y1 - vbox.y0) * py / o.cv.height, lon = vbox.x0 + (vbox.x1 - vbox.x0) * px / o.cv.width;
         const y = Math.max(0, Math.min(NY - 1, Math.round((lat - G.lat0) / G.dlat))), x = ((Math.round((lon - G.lon0) / G.dlon) % NX) + NX) % NX, k = y * NX + x;
         const lo = Math.round(lon);
         where = `${latTxt(G.lat0 + y * G.dlat)} ${Math.abs(lo)}°${lo >= 0 ? "E" : "W"}, ${shown.lev} hPa`;

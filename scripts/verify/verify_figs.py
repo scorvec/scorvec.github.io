@@ -662,7 +662,8 @@ def bias_runs(derived: Path, inits: list[str]) -> pd.DataFrame:
     cols = ["model", "network", "variable", "station_id", "lead_h", "n", "se"]
     d = pd.concat([pd.read_parquet(f, columns=cols).assign(init=f.stem[4:]) for f in paths], ignore_index=True)
     d = d[(d["network"].astype(str) == "GHCNH") & d["variable"].astype(str).isin(BIAS_VARS)]
-    return d.astype({"model": str, "variable": str, "station_id": str})
+    d = d.astype({"model": str, "variable": str, "station_id": str})
+    return d.assign(station_id=d["station_id"].str.split(":", n=1).str[-1])  # as the station map keys them: no "GHCNH:"
 
 
 def bias_panel(ax, field, cmap, norm) -> str:
