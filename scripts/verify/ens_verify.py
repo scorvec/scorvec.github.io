@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
-"""The ensembles in the verification database: ECMWF's IFS and AIFS ensembles, NCEP's GEFS, ECCC's GEPS and Google
-DeepMind's WeatherNext 2 (WN2), every member, against the same observations as the deterministic models
-(scripts/verify/mverify_scores.py), to day 15. WN2 comes from Earth Engine (wn2_ee.py) from WN2_START, against the
-stations and radiosondes only (it has no 2 m dew point, and its rain is not fetched).
+"""The ensembles in the verification database: ECMWF's IFS and AIFS ensembles, NCEP's GEFS and ECCC's GEPS, every
+member, against the same observations as the deterministic models (scripts/verify/mverify_scores.py), to day 15.
 
 Downloads only the fields that are scored, for every member (byte ranges from each file's index; a GEPS file holds one
 field's members), at 00Z of each day of the forecast:
@@ -18,13 +16,11 @@ Every model is averaged onto the deterministic scores' 0.5 deg grid first (mveri
 
 Pairs are matched as mverify_scores.matched does (all of them, ``kept`` marking mverify's default cuts), and the
 members of each case kept as one row (mverify.ensemble.summarise): ens-sfc-<m>_<init>.parquet (stations and gauges),
-ens-raob-<m>_ (radiosondes) and ens-rain-<m>_ (Stage IV cells), m = ifs, aifs, gefs, geps, wn2, written to --archive-out for
+ens-raob-<m>_ (radiosondes) and ens-rain-<m>_ (Stage IV cells), m = ifs, aifs, gefs, geps, written to --archive-out for
 the monthly releases verify-db-YYYY-MM (scripts/verify/verifydb.sh). One run of one model at a time, so a runner's disk
-holds any backfill. ``stats`` then sums each run's cases, on the sample every ensemble of the run with the variable has
-(``shared``), into ens-stats_<init>.parquet (``run_stats``), once every ensemble that can still be fetched is in: GEPS
-only while HPFX keeps it (about 50 days), WN2 for WN2_WAIT_DAYS. A run from WN2_START has its sums in ens-stats2_,
-ens-rel2_ and ens-gauge2_: the database never replaces a file, and the runs summed before WN2 joined keep their first
-sums beside them (``run_sums`` takes the second where there is one). The run's gauge cases of that sample are kept beside them (ens-gauge_<init>.parquet,
+holds any backfill. ``stats`` then sums each run's cases, on the sample every ensemble of the run has, into
+ens-stats_<init>.parquet (``run_stats``), once every ensemble that can still be fetched is in: GEPS only while HPFX
+keeps it (about 50 days). The run's gauge cases of that sample are kept beside them (ens-gauge_<init>.parquet,
 ``gauge_cases``): a 24 h gauge total can fail quality control after its run was archived (gauge_qc.py), and
 ``windows`` first makes the gauge sums again without the totals that have (``regauge``).
 
@@ -46,16 +42,7 @@ import mverify_scores as D
 import numpy as np
 import pandas as pd
 
-ENSEMBLES = {
-    "IFS-ENS": "ifs",
-    "AIFS-ENS": "aifs",
-    "GEFS": "gefs",
-    "GEPS": "geps",
-}  # open data (z500_acc reads them too)
-EE_ENSEMBLES = {"WN2": "wn2"}  # from Earth Engine (wn2_ee.py): stations and radiosondes
-SCORED = {**ENSEMBLES, **EE_ENSEMBLES}
-WN2_START = "2026101500"  # WN2's first run in the database
-WN2_WAIT_DAYS = 45  # a run's sums wait this long for WN2, then go without it
+ENSEMBLES = {"IFS-ENS": "ifs", "AIFS-ENS": "aifs", "GEFS": "gefs", "GEPS": "geps"}
 LEADS = range(24, 361, 24)  # 00Z of every day to day 15
 RAIN_STEP = {"IFS-ENS": 12, "AIFS-ENS": 12, "GEFS": 6, "GEPS": 12}  # hours between the precipitation fields
 RAIN_ENDS = range(24, 361, 12)  # ends of the 24 h totals: the gauges' 00Z and 12Z days and Stage IV's 12Z days
@@ -176,35 +163,10 @@ def rain_leads(model: str) -> list[int]:
     return list(range(RAIN_STEP[model], max(LEADS) + 1, RAIN_STEP[model]))
 
 
-def ee_cases(init: str, work: Path, store) -> dict[str, pd.DataFrame]:
-    """One WN2 run's cases: sfc (stations) and raob, from one file a lead (wn2_ee)."""
-    import wn2_ee as W
-    from mverify.ensemble import summarise
-
-    t = pd.to_datetime(init, format="%Y%m%d%H")
-    if not W.public(t, max(LEADS)):
-        raise RuntimeError(f"WN2 {init}: day 15 is not 48 h past yet (only the CC BY 4.0 data is fetched)")
-    W.budget()
-    root = work / EE_ENSEMBLES["WN2"] / init
-    static = W.static(root / "static.nc", t)
-    out: dict[str, list[pd.DataFrame]] = {"sfc": [], "raob": []}
-    for lead in LEADS:
-        f = W.write_lead(root / f"fields_{lead:03d}.nc", t, lead, W.lead_fields(t, lead))
-        fc = D.opened([static, f], "WN2")
-        for kind, network in (("sfc", "GHCNH"), ("raob", "RAOB")):
-            out[kind].append(summarise(D.matched(fc, store, [network])))
-        f.unlink()
-        print(f"WN2 {init} +{lead} h matched", flush=True)
-    shutil.rmtree(root)
-    return {k: D._cat(v) for k, v in out.items()}
-
-
 def run_cases(model: str, init: str, work: Path, store) -> dict[str, pd.DataFrame]:
     """One run's cases (mverify.ensemble.summarise): sfc (stations and gauges), raob and rain (Stage IV cells)."""
     from mverify.ensemble import CELL, summarise
 
-    if model in EE_ENSEMBLES:
-        return ee_cases(init, work, store)
     root = work / ENSEMBLES[model] / init
     static = fetch(model, init, 0, "static", root / "static.grib2")
     out: dict[str, list[pd.DataFrame]] = {"sfc": [], "raob": [], "rain": []}
@@ -231,19 +193,7 @@ def run_cases(model: str, init: str, work: Path, store) -> dict[str, pd.DataFram
 
 
 def file_of(kind: str, model: str, init: str) -> str:
-    return f"ens-{kind}-{SCORED[model]}_{init}.parquet"
-
-
-def sums_suffix(init: str) -> str:
-    """The run's sums' files: ens-stats2_ (and rel2, gauge2) from WN2_START, else ens-stats_ (module docstring)."""
-    return "2" if init >= WN2_START else ""
-
-
-def run_sums(derived: Path) -> dict[str, str]:
-    """{init: suffix} of the runs' sums in ``derived``, the second sums (with WN2) where a run has them."""
-    out = {f.stem.split("_")[1]: "" for f in derived.glob("ens-stats_*.parquet")}
-    out.update({f.stem.split("_")[1]: "2" for f in derived.glob("ens-stats2_*.parquet")})
-    return dict(sorted(out.items()))
+    return f"ens-{kind}-{ENSEMBLES[model]}_{init}.parquet"
 
 
 def held(model: str, init: str, have: set[str]) -> bool:
@@ -256,10 +206,6 @@ def match(a) -> None:
 
     have = set(a.have.read_text().split()) if a.have and a.have.exists() else set()
     a.archive_out.mkdir(parents=True, exist_ok=True)
-    if a.model in EE_ENSEMBLES:
-        import wn2_ee
-
-        wn2_ee.init()
     with ObsStore.open(a.db, read_only=True) as store:
         for init in D.runs(*a.inits):
             if held(a.model, init, have):
@@ -307,20 +253,12 @@ def _reliability(c: pd.DataFrame) -> pd.DataFrame:
     return D._cat(out)
 
 
-def shared(c: pd.DataFrame) -> pd.DataFrame:
-    """mverify's common sample within each variable group (the wind's components together), among the ensembles that
-    have the variable: WN2 has no dew point or gauge totals, and the others' cases of those stay in their sample."""
-    from mverify.verify import common_sample, variable_group
-
-    groups = c["variable"].astype(str).map(variable_group)
-    return D._cat([common_sample(g) for _, g in c.groupby(groups, sort=False)])
-
-
 def run_stats(paths: dict[str, list[Path]], init: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     """One run's sums (``_sums``, ``_reliability``) per model, network, variable, region and lead, on the kept cases
-    that every ensemble of the run with the variable has (``shared``; Stage IV cells by position)."""
+    that every ensemble of the run has (mverify.verify.common_sample; Stage IV cells by position)."""
     from mverify import scores
     from mverify.ensemble import CELL
+    from mverify.verify import common_sample
 
     rng = np.random.default_rng(int(init))
     stats, rel = [], []
@@ -330,7 +268,7 @@ def run_stats(paths: dict[str, list[Path]], init: str) -> tuple[pd.DataFrame, pd
             n = c.groupby([k for k in CELL if k != "model"])["model"].transform("nunique")
             c = c[n == c["model"].nunique()].assign(network="STAGEIV", kept=True)
         else:
-            c = shared(c[c["kept"]])
+            c = common_sample(c[c["kept"]])
         for region in scores.REGIONS:
             if not (rc := scores.assign_regions(c, [region])).empty:
                 stats.append(_sums(rc, rng))
@@ -341,14 +279,15 @@ def run_stats(paths: dict[str, list[Path]], init: str) -> tuple[pd.DataFrame, pd
 
 def gauge_cases(sfc: list[Path]) -> pd.DataFrame:
     """The gauge cases ``run_stats`` sums of a run's surface cases, one file per ensemble in ``sfc``: the kept ones
-    every ensemble with gauge cases has (``shared``)."""
+    every ensemble has, and none when an ensemble has no gauge case (its other cases then stand alone in the sample)."""
     from mverify.verify import common_sample
 
     kept = ("kept", "==", True)
+    models = pd.concat([pd.read_parquet(f, columns=["model"], filters=[kept]) for f in sfc])["model"].nunique()
     c = pd.concat(
         [pd.read_parquet(f, filters=[("variable", "==", D.V.GAUGE.name), kept]) for f in sfc], ignore_index=True
     )
-    return common_sample(c)
+    return common_sample(c) if c["model"].nunique() == models else c.iloc[:0]
 
 
 def regauge(derived: Path) -> None:
@@ -359,42 +298,32 @@ def regauge(derived: Path) -> None:
     from mverify import scores
 
     failed = gauge_qc.Failed(derived)
-    for init, v in run_sums(derived).items():
-        if (cases := failed.left(derived / f"ens-gauge{v}_{init}.parquet")) is None:
+    for f in sorted(derived.glob("ens-stats_*.parquet")):
+        init = f.stem.split("_")[1]
+        if (cases := failed.left(derived / f"ens-gauge_{init}.parquet")) is None:
             continue
         rng = np.random.default_rng(int(init))
         regions = [] if cases.empty else [scores.assign_regions(cases, [r]) for r in scores.REGIONS]
         regions = [rc for rc in regions if not rc.empty]
         new = {"stats": [_sums(rc, rng) for rc in regions], "rel": [_reliability(rc) for rc in regions]}
         for kind, frames in new.items():
-            path = derived / f"ens-{kind}{v}_{init}.parquet"
+            path = derived / f"ens-{kind}_{init}.parquet"
             D.write_sums(D.with_gauges(pd.read_parquet(path), D._cat(frames)), path)
     print(f"ensemble gauges: {failed}", flush=True)
 
 
 def expected(init: str, today: pd.Timestamp) -> list[str]:
-    """The ensembles a run's sums wait for: GEPS while HPFX still has the run, WN2 from WN2_START for WN2_WAIT_DAYS."""
-    age = today - pd.to_datetime(init, format="%Y%m%d%H")
-    skip = {"GEPS"} if age > pd.Timedelta(days=HPFX_DAYS) else set()
-    if init < WN2_START or age > pd.Timedelta(days=WN2_WAIT_DAYS):
-        skip.add("WN2")
-    return [m for m in SCORED if m not in skip]
+    """The ensembles a run's sums wait for: all four while HPFX still has the run's GEPS, else the three others."""
+    gone = pd.to_datetime(init, format="%Y%m%d%H") < today - pd.Timedelta(days=HPFX_DAYS)
+    return [m for m in ENSEMBLES if not (m == "GEPS" and gone)]
 
 
 def ready(have: set[str], today: pd.Timestamp) -> dict[str, list[str]]:
-    """The runs whose sums are due, with their ensembles: every ensemble that can still come is in, no sums yet; and a
-    run summed before WN2 joined (ens-stats_ from WN2_START) again once WN2 is in, into ens-stats2_."""
+    """The runs whose sums are due, with their ensembles: every ensemble that can still come is in, no sums yet."""
     out = {}
     for init in sorted({n.split("_")[1][:10] for n in have if n.startswith("ens-sfc-")}):
-        v = sums_suffix(init)
-        if f"ens-stats{v}_{init}.parquet" in have:
-            continue
-        models = [m for m in SCORED if held(m, init, have)]
-        if v and f"ens-stats_{init}.parquet" in have:
-            due = "WN2" in models
-        else:
-            due = set(expected(init, today)) <= set(models)
-        if due:
+        models = [m for m in ENSEMBLES if held(m, init, have)]
+        if f"ens-stats_{init}.parquet" not in have and set(expected(init, today)) <= set(models):
             out[init] = models
     return out
 
@@ -415,10 +344,9 @@ def stats(a) -> None:
             for k in ("sfc", "raob", "rain")
         }
         s, r = run_stats({k: v for k, v in paths.items() if v}, init)
-        v = sums_suffix(init)
-        D.write_sums(s, a.archive_out / f"ens-stats{v}_{init}.parquet")
-        D.write_sums(r, a.archive_out / f"ens-rel{v}_{init}.parquet")
-        D.write_gauges(gauge_cases(paths["sfc"]), a.archive_out, init, f"ens-gauge{v}")
+        D.write_sums(s, a.archive_out / f"ens-stats_{init}.parquet")
+        D.write_sums(r, a.archive_out / f"ens-rel_{init}.parquet")
+        D.write_gauges(gauge_cases(paths["sfc"]), a.archive_out, init, "ens-gauge")
         print(f"{init}: sums of {', '.join(models)}", flush=True)
 
 
@@ -542,14 +470,13 @@ def windows(a) -> None:
     from mverify import report
 
     regauge(a.derived)
-    sums = run_sums(a.derived)
-    inits = list(sums)
+    inits = sorted(f.stem.split("_")[1] for f in a.derived.glob("ens-stats_*.parquet"))
     for runs in WINDOWS:
         if len(inits) < (runs or 366):
             continue
         use = inits[-runs:] if runs else inits
-        stats = pd.read_parquet([a.derived / f"ens-stats{sums[i]}_{i}.parquet" for i in use])
-        rel = pd.read_parquet([a.derived / f"ens-rel{sums[i]}_{i}.parquet" for i in use])
+        stats = pd.read_parquet([a.derived / f"ens-stats_{i}.parquet" for i in use])
+        rel = pd.read_parquet([a.derived / f"ens-rel_{i}.parquet" for i in use])
         if (card := ens_card(stats, rel)) is None:
             continue
         report.write_json(card, D.OUT_DIR / f"ens_scores_{runs or 'all'}.json")
@@ -562,7 +489,7 @@ def main() -> None:
     sub = ap.add_subparsers(dest="cmd", required=True)
     m = sub.add_parser("match", help="match runs of one ensemble and summarise their cases")
     m.add_argument("--db", required=True, help="mverify observation database")
-    m.add_argument("--model", required=True, choices=list(SCORED))
+    m.add_argument("--model", required=True, choices=list(ENSEMBLES))
     m.add_argument("--inits", nargs=2, required=True, metavar=("FIRST", "LAST"), help="00Z runs, YYYYMMDDHH")
     m.add_argument("--work", type=Path, required=True, help="download directory")
     s = sub.add_parser("stats", help="each run's sums once its ensembles are in")
@@ -570,9 +497,7 @@ def main() -> None:
     s.add_argument("--init", help="only this run (YYYYMMDDHH)")
     s.add_argument("--list", action="store_true", help="print each due run and the files its sums are made from")
     w = sub.add_parser("windows", help="the scorecards of windows of runs, from the runs' sums")
-    w.add_argument(
-        "--derived", type=Path, required=True, help="the ens-stats(2), ens-rel(2), ens-gauge(2) and list files"
-    )
+    w.add_argument("--derived", type=Path, required=True, help="the ens-stats, ens-rel, ens-gauge and list files")
     for p in (m, s):
         p.add_argument("--have", type=Path, help="names of the files the database holds, one per line")
         p.add_argument("--archive-out", type=Path, required=True, help="where the files to add are written")

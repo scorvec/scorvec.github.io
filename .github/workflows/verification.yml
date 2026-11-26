@@ -115,7 +115,6 @@ jobs:
           scripts/verify/verifydb.sh fetch ens-stats all "$RUNNER_TEMP/derived"
           scripts/verify/verifydb.sh fetch ens-rel all "$RUNNER_TEMP/derived"
           scripts/verify/verifydb.sh fetch ens-gauge all "$RUNNER_TEMP/derived"
-          for k in ens-stats2 ens-rel2 ens-gauge2; do scripts/verify/verifydb.sh fetch "$k" all "$RUNNER_TEMP/derived"; done   # with WN2
           # the gauge totals that have failed quality control, and tonight's with them (scripts/verify/gauge_qc.py)
           gh release download verify-gauge-qc -D "$RUNNER_TEMP/derived" -p 'failed_totals_*.parquet'
           [ ! -d "$RUNNER_TEMP/failed" ] || python scripts/verify/gauge_qc.py "$RUNNER_TEMP/failed" "$RUNNER_TEMP/derived"
