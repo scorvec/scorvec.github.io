@@ -57,8 +57,10 @@ checklist, the coupling clock and the warming under way:
            corrected u(60N, 10 hPa) first turns easterly then (ssw35_<model>.json, written with their vortex figures,
            scripts/lib/vortex_members.py), and the members with a heat-flux week, the 100 hPa [v'T'] (45-75N) averaged
            over the week at the checklist's flux threshold or more against the ERA5 day-of-year normal, the rule the
-           checklist tests on 7-day windows before the past warmings (shown only while that test passes). Raw member
-           counts, not calibrated chances; with them how often a MERRA-2 sudden warming began in the same calendar days.
+           checklist tests on 7-day windows before the past warmings (shown only while that test passes). Member
+           counts, with how often a MERRA-2 sudden warming began in the same calendar days; for GEFS also the chance of
+           a heat-flux week from its share of members, by the GEFSv12 reforecast's logistic fit, in the weeks where
+           that calibrated chance has significant skill there (EXT_SKILL, ssw35_skill.py). Reversals stay counts.
 """
 
 from __future__ import annotations
@@ -115,6 +117,8 @@ EXTENDED = ("geps", "gefs")  # the ensembles that run to day 35
 EXT_FIRST = 15  # weeks 3-5 = forecast days 15-35
 EXT_WEEK = 7  # the checklist window length a heat-flux week is tested on
 EXT_AGE = 8  # days after its start a day-35 run is no longer shown (GEPS runs Mondays and Thursdays)
+EXT_SKILL = HERE / "reference" / "ssw35_skill.json"  # the weeks 3-5 counts scored in the GEFSv12 reforecast
+EXT_CHANCE = ("gefs",)  # the ensembles whose heat-flux share has a reforecast calibration (the share alone elsewhere)
 # ERA5 100 hPa wave-2 share of the wave-1 + wave-2 flux over days -10..-1 before the MERRA-2 sudden warmings since
 # 1990, splits against displacements (one-sided Mann-Whitney): why WAVES does not forecast the vortex's geometry
 SPLIT_TEST = {
@@ -209,8 +213,29 @@ def extended_part(clim, now: pd.Timestamp) -> dict:
             row["heat"] = [int((np.nanmean(z[:, a - 1 : b], 1) >= rule["threshold"]).sum()) if z.shape[1] >= b else None
                            for a, b in weeks]  # fmt: skip
             row["heat_init"], row["heat_members"] = f"{h0:%Y-%m-%d %HZ}", int(mem.shape[0])
+            if m in EXT_CHANCE:
+                row["heat_chance"], row["heat_normal"] = heat_chance(row["heat"], int(mem.shape[0]), weeks)
         out[m] = row
     return {"weeks": [list(w) for w in weeks], "models": out, "flux_rule": rule}
+
+
+def heat_chance(counts: list, members: int, weeks: list) -> tuple[list, float | None]:
+    """The chance of a heat-flux week from the share of members with one, by the reforecast's logistic fit, for the weeks
+    whose calibrated chance has significant skill there (None elsewhere); and the reforecast's rate of heat-flux weeks."""
+    try:
+        sk = json.loads(EXT_SKILL.read_text())["heat_flux"]["weeks"]
+    except (OSError, ValueError, KeyError):
+        return [None] * len(weeks), None
+    out, rate = [], None
+    for (a, _b), n in zip(weeks, counts):
+        w = next((v for k, v in sk.items() if k.startswith(f"{a}-")), None)
+        fit = w and w.get("chance") and w["raw"]["recalibrated"].get("fit")
+        if not fit or n is None:
+            out.append(None)
+            continue
+        out.append(_r(1 / (1 + np.exp(-(fit[0] + fit[1] * n / members)))))
+        rate = _r(w["raw"]["events"] / w["raw"]["starts"])
+    return out, rate
 
 
 def _read_asset(model: str, name: str):

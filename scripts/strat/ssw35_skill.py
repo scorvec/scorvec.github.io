@@ -15,7 +15,9 @@ Score: Brier skill of the member share against the climatological probability (t
 winters' starts within 15 days of the start), weeks 1-5 (week 5 = days 29-34, the extract's last day) and days 15-34
 together; winter-block bootstrap (5000) for the interval and a one-sided p (share of resamples with BSS <= 0). Also the
 share's ROC area (discrimination alone) and the Brier skill of the share mapped to a chance by a logistic fit on the
-other winters (whether a calibrated chance would have skill where the raw share has none).
+other winters (whether a calibrated chance would have skill where the raw share has none). For the heat flux, the
+same fit on every winter is kept with each week, and `chance` marks the weeks where the cross-validated fit on the raw
+share (the page counts the members as they come) has significant skill: ssw.html gives GEFS's chance there.
 
     python ssw35_skill.py --gefs DIR --strat reference/strat_history.nc [--vt DIR] --out reference/ssw35_skill.json
 """
@@ -131,20 +133,29 @@ def roc_area(p: np.ndarray, o: np.ndarray, win: np.ndarray, rng) -> dict:
     }
 
 
+def logistic(p: np.ndarray, o: np.ndarray) -> np.ndarray:
+    """(a, b) of chance = 1 / (1 + exp(-(a + b p))), by Newton's method on the log-likelihood, lightly ridged for the
+    rare-event fits."""
+    X = np.c_[np.ones(len(p)), p]
+    b = np.zeros(2)
+    for _ in range(50):
+        m = 1 / (1 + np.exp(-(X @ b)))
+        H = X.T @ (X * (m * (1 - m))[:, None]) + 1e-6 * np.eye(2)
+        b = b + np.linalg.solve(H, X.T @ (o - m))
+    return b
+
+
 def recalibrated(p: np.ndarray, o: np.ndarray, c: np.ndarray, win: np.ndarray, rng) -> dict:
-    """Brier skill of the share mapped to a chance by a logistic fit on the other winters (leave one winter out)."""
+    """Brier skill of the share mapped to a chance by a logistic fit on the other winters (leave one winter out), and
+    the fit on every winter (the page's chance)."""
     q = np.empty_like(p)
     for w in np.unique(win):
         tr = win != w
-        X = np.c_[np.ones(tr.sum()), p[tr]]
-        b = np.zeros(2)
-        for _ in range(50):  # Newton's method on the log-likelihood, lightly ridged for the rare-event fits
-            m = 1 / (1 + np.exp(-(X @ b)))
-            H = X.T @ (X * (m * (1 - m))[:, None]) + 1e-6 * np.eye(2)
-            b = b + np.linalg.solve(H, X.T @ (o[tr] - m))
-        q[~tr] = 1 / (1 + np.exp(-(b[0] + b[1] * p[~tr])))
+        a, b = logistic(p[tr], o[tr])
+        q[~tr] = 1 / (1 + np.exp(-(a + b * p[~tr])))
     r = bss(q, o, c, win, rng)
-    return {k: r[k] for k in ("bss", "ci95", "p")}
+    a, b = logistic(p, o)
+    return {k: r[k] for k in ("bss", "ci95", "p")} | {"fit": [round(float(a), 4), round(float(b), 4)]}
 
 
 def scores(p: np.ndarray, o: np.ndarray, c: np.ndarray, win: np.ndarray, rng) -> dict:
@@ -243,6 +254,8 @@ def heat_skill(vt: Path, era5: Path, clim: Path, rng) -> dict:
             if kind == "raw":
                 r, a = row["corrected"], row["corrected"]["acc"]
                 row["passes"] = bool(r["bss"] > 0 and r["p"] < ALPHA)
+                rr = row["raw"]["recalibrated"]  # the page counts the members as they come: its chance is this fit's
+                row["chance"] = bool(rr["bss"] > 0 and rr["p"] < ALPHA and rr["ci95"][0] > 0)
                 print(
                     f"heat flux days {w0:2d}-{w1:2d}: {r['events']:3d} heat-flux weeks in {r['starts']} starts;"
                     f" corrected BSS {r['bss']:+.3f} [{r['ci95'][0]:+.3f}, {r['ci95'][1]:+.3f}] p {r['p']:.4f}"

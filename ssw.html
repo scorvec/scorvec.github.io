@@ -494,7 +494,9 @@
         em.map(function (m) {
           var v = E.models[m];
           return [who(N[m], v.init), v.members].concat(v.first.map(function (n, i) {
-            var h = heatOn && v.heat && v.heat[i] != null ? "<small>" + v.heat[i] + " with a heat-flux week</small>" : "";
+            var c = v.heat_chance && v.heat_chance[i];  // GEFS, where the reforecast's calibrated chance has skill
+            var h = heatOn && v.heat && v.heat[i] != null ? "<small>" + v.heat[i] + " with a heat-flux week"
+              + (c != null ? ": " + pct(c) + " chance (normal " + pct(v.heat_normal) + ")" : "") + "</small>" : "";
             return { h: (n == null ? "–" : n + " easterly") + h, v: n == null ? null : n / v.members };
           }));
         }));
