@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import functools
 import hashlib
+import itertools
 import re
 import sys
 from pathlib import Path
@@ -805,22 +806,53 @@ def home_card(href: str) -> str:
     return re.sub(r"[-/#.]+", "_", href.replace(".html", "")).strip("_")
 
 
+def _flush(lead: list[bool], wide: set[int], c: int) -> bool:
+    """Whether CSS grid's auto-placement (sparse) of these cards fills whole rows of c columns, no holes: a lead card
+    2 x 2, a widened card 2 x 1, the rest 1 x 1."""
+    taken, row, col = set(), 0, 0
+    for k, is_lead in enumerate(lead):
+        w, h = (2, 2) if is_lead else (2, 1) if k in wide else (1, 1)
+        while True:
+            if col + w > c:
+                row, col = row + 1, 0
+                continue
+            cells = {(row + i, col + j) for i in range(h) for j in range(w)}
+            if not cells & taken:
+                break
+            col += 1
+        taken |= cells
+        col += w
+    rows = max(r for r, _ in taken) + 1
+    return len(taken) == rows * c
+
+
+def _widened(lead: list[bool], c: int) -> tuple[int, ...]:
+    """The small cards to widen to two columns so a section ends flush at c columns, the latest ones by preference
+    (no card wider than two columns: a lone card across the whole row left its picture a small square in white)."""
+    missing = -sum(4 if x else 1 for x in lead) % c
+    small = [k for k in reversed(range(len(lead))) if not lead[k]]
+    for n in range(missing, len(small) + 1, c):  # each extra full row of widened cards keeps the count flush
+        for pick in itertools.combinations(small, n):
+            if _flush(lead, set(pick), c):
+                return pick
+    return ()
+
+
 def homepage_rows() -> str:
     """The homepage theme sections (index.html, between <!-- hp:start --> and <!-- hp:end -->), from PRODUCTS: per
     menu its title and blurb, then a card per item, the theme's lead card first. The grid has 4, 3 or 2 columns by
-    width and the lead card takes two columns and two rows, so the small cards fill row by row after it; the cards of a
-    short last row share out the columns it leaves (--s4/--s3/--s2), so each section ends flush at every width."""
+    width and the lead card takes two columns and two rows, so the small cards fill row by row after it; where the last
+    row would come up short, some small cards take two columns (--s4/--s3/--s2: _widened), so each section ends flush
+    at every width."""
 
     out = ["<!-- hp:start -->"]
     for title, blurb, columns in PRODUCTS:
         items = sorted((it for _sub, col in columns for it in col), key=lambda it: it[0] not in HOME_LEAD)
-        cells = sum(4 if it[0] in HOME_LEAD else 1 for it in items)
+        lead = [it[0] in HOME_LEAD for it in items]
         spans = [""] * len(items)
         for c in (4, 3, 2):
-            if f := cells % c:  # the last row holds the last f cards: widen them to fill it, the extra to the right
-                for k in range(f):
-                    if (s := 1 + (c - f) // f + (k >= f - (c - f) % f)) > 1:
-                        spans[len(items) - f + k] += f"--s{c}:{s};"
+            for k in _widened(lead, c):
+                spans[k] += f"--s{c}:2;"
         out.append(f'    <section class="th" data-topic="{HOME_ACCENT.get(title, "")}">')
         out.append(f'      <header class="th-head"><h3>{title}</h3><p>{blurb}</p></header>')
         out.append('      <div class="cards">')
