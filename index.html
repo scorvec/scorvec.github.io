@@ -270,20 +270,20 @@
   .th-head h3 { font-family: var(--serif); font-weight: 500; font-size: 1.55rem; line-height: 1.15;
                 font-variation-settings: 'opsz' 36; color: var(--acc); }
   .th-head p { font-size: 0.95rem; line-height: 1.4; color: var(--muted); max-width: 46rem; }
-  /* 4, 3 or 2 columns; the lead card spans 2 x 2 and a section's last card the rest of its row (--s4/--s3/--s2,
-     written by homepage_rows), so each section ends flush */
-  .cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: minmax(10.5rem, auto);
-           gap: 0.85rem; }
+  /* every card square: as many columns of at least 14rem as fit, two to four (more left holes beside the 2 x 2
+     lead card on wide screens), a section's last row may be short */
+  .cards { --gap: 0.85rem; display: grid; gap: var(--gap);
+           grid-template-columns: repeat(auto-fill, minmax(max(min(14rem, 46%), (100% - 3 * var(--gap)) / 4), 1fr)); }
   .card { position: relative; display: flex; flex-direction: column; overflow: hidden; isolation: isolate; min-width: 0;
-          padding: 0.95rem 1.05rem 0.85rem; background: #fff; text-decoration: none; color: var(--ink);
-          border: 1px solid var(--cloud-2); border-radius: 10px; grid-column: span var(--s4, 1); }
+          aspect-ratio: 1; container-type: inline-size; padding: 0.95rem 1.05rem 0.85rem; background: #fff;
+          text-decoration: none; color: var(--ink); border: 1px solid var(--cloud-2); border-radius: 10px; }
   .card.lead { grid-column: span 2; grid-row: span 2; padding: 1.2rem 1.35rem 1.05rem; }
-  /* the page's figure, faded into the card from the lower right; full colour under the pointer or focus */
-  /* the pictures are square crops of the figure's busiest part (assets/site/cards), drawn whole at the card's height */
-  .card img { position: absolute; z-index: -1; right: 0; bottom: 0; height: 100%; width: auto; max-width: 72%;
-              aspect-ratio: 1; object-fit: cover; opacity: 0.5; filter: saturate(0.7);
-              -webkit-mask-image: linear-gradient(100deg, transparent 0%, #000 62%);
-              mask-image: linear-gradient(100deg, transparent 0%, #000 62%);
+  /* the page's figure (a square crop, assets/site/cards) fills the card, faded in from the upper left under the
+     text; full colour under the pointer or focus */
+  .card img { position: absolute; z-index: -1; inset: 0; width: 100%; height: 100%; object-fit: cover;
+              opacity: 0.5; filter: saturate(0.7);
+              -webkit-mask-image: linear-gradient(150deg, transparent 12%, #000 62%);
+              mask-image: linear-gradient(150deg, transparent 12%, #000 62%);
               transition: opacity .25s, filter .25s; }
   .card:hover img, .card:focus-visible img { opacity: 0.92; filter: none; }
   .card:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
@@ -295,29 +295,19 @@
   .lead .c-note { max-width: 22ch; font-size: 1.02rem; }
   .c-when { margin-top: auto; font-size: 0.82rem; color: var(--muted); }
   .c-name, .c-note, .c-when { text-shadow: 0 0 6px #fff, 0 0 2px #fff; }
+  /* small squares (phones, narrow windows): the name only */
+  @container (max-width: 13rem) {
+    .c-name { max-width: none; font-size: 1.02rem; }
+    .c-note, .c-when { display: none; }
+  }
+  @media (max-width: 640px) {
+    .cards { --gap: 0.6rem; }
+    .card { padding: 0.75rem 0.8rem 0.7rem; }
+  }
   @media (prefers-reduced-motion: reduce) { .card img { transition: none; } }
   details.src { margin-top: 1.5rem; font-size: 0.85rem; line-height: 1.5; color: var(--muted); }
   details.src summary { cursor: pointer; width: fit-content; }
   details.src p { margin: 0.4rem 0 0; }
-
-  @media (max-width: 1099px) {
-    .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .card { grid-column: span var(--s3, 1); }
-  }
-  @media (max-width: 640px) {
-    /* phones: two columns, the figure under the name, the note on the lead card only */
-    .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(9.5rem, auto);
-             gap: 0.6rem; }
-    .card { padding: 0.75rem 0.8rem 0.7rem; }
-    .card { grid-column: span var(--s2, 1); }
-    .cards .card img { width: 100%; max-width: none; height: 62%; aspect-ratio: auto; opacity: 0.6;
-                       -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 70%);
-                       mask-image: linear-gradient(180deg, transparent 0%, #000 70%); }
-    .cards .card.lead img { height: 72%; }
-    .c-name { max-width: none; font-size: 1.02rem; }
-    .c-note, .c-when { display: none; }
-    .lead .c-note { display: block; max-width: none; font-size: 0.92rem; }
-  }
 
   footer { border-top: 1px solid var(--cloud-2); padding: 1.4rem 0 2rem; font-size: 0.9rem; color: var(--storm); }
   footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 2rem; }
@@ -565,7 +555,7 @@
         <a class="card" href="/circulation.html#dt"><img src="/assets/site/cards/circulation_dt.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Jet streams and tropopause</span><span class="c-note">Tropopause, Pacific and subtropical jets, wave trains</span><span class="c-when">Twice daily</span></a>
         <a class="card" href="/circulation.html#wcb"><img src="/assets/site/cards/circulation_wcb.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Warm conveyor belts</span><span class="c-note">Inflow, ascent and outflow in 50 members</span><span class="c-when">Daily</span></a>
         <a class="card" href="/circulation.html#aam"><img src="/assets/site/cards/circulation_aam.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Angular momentum and torques</span><span class="c-note">Global momentum, mountain and friction torques</span><span class="c-when">Daily</span></a>
-        <a class="card" href="/circulation.html#telecon15" style="--s4:2;--s3:2;--s2:2;"><img src="/assets/site/cards/circulation_telecon15.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Teleconnections</span><span class="c-note">AO, NAO, PNA and more, calibrated</span><span class="c-when">Twice daily</span></a>
+        <a class="card" href="/circulation.html#telecon15"><img src="/assets/site/cards/circulation_telecon15.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Teleconnections</span><span class="c-note">AO, NAO, PNA and more, calibrated</span><span class="c-when">Twice daily</span></a>
       </div>
     </section>
     <section class="th" data-topic="drivers">
@@ -575,9 +565,9 @@
         <a class="card" href="/mjo.html"><img src="/assets/site/cards/mjo.webp" alt="" loading="lazy" decoding="async"><span class="c-name">MJO forecast</span><span class="c-note">Four ensembles on one phase diagram</span><span class="c-when">Twice daily</span></a>
         <a class="card" href="/tropical-waves.html"><img src="/assets/site/cards/tropical_waves.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Tropical waves</span><span class="c-note">Kelvin and Rossby waves, now and ahead</span><span class="c-when">Daily</span></a>
         <a class="card" href="/circulation.html#walker"><img src="/assets/site/cards/circulation_walker.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Walker and Hadley cells</span><span class="c-note">The overturning, its outflow and descent</span><span class="c-when">Daily</span></a>
-        <a class="card" href="/circulation.html#mslp" style="--s3:2;"><img src="/assets/site/cards/circulation_mslp.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Pacific pressure and satellite</span><span class="c-note">Pressure, wind and simulated IR</span><span class="c-when">Twice daily</span></a>
-        <a class="card" href="/circulation.html#rainfc" style="--s4:2;"><img src="/assets/site/cards/circulation_rainfc.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Rain forecast, weeks 1–2</span><span class="c-note">Four ensembles, bias-adjusted, blended</span><span class="c-when">Daily</span></a>
-        <a class="card" href="/circulation.html#troughs" style="--s4:2;--s3:2;"><img src="/assets/site/cards/circulation_troughs.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Convergence and monsoon troughs</span><span class="c-note">Where the low-level wind converges, days 1–15</span><span class="c-when">Daily</span></a>
+        <a class="card" href="/circulation.html#mslp"><img src="/assets/site/cards/circulation_mslp.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Pacific pressure and satellite</span><span class="c-note">Pressure, wind and simulated IR</span><span class="c-when">Twice daily</span></a>
+        <a class="card" href="/circulation.html#rainfc"><img src="/assets/site/cards/circulation_rainfc.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Rain forecast, weeks 1–2</span><span class="c-note">Four ensembles, bias-adjusted, blended</span><span class="c-when">Daily</span></a>
+        <a class="card" href="/circulation.html#troughs"><img src="/assets/site/cards/circulation_troughs.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Convergence and monsoon troughs</span><span class="c-note">Where the low-level wind converges, days 1–15</span><span class="c-when">Daily</span></a>
       </div>
     </section>
     <section class="th" data-topic="circulation">
@@ -586,9 +576,9 @@
         <a class="card lead" href="/ssw.html"><img src="/assets/site/cards/ssw.webp" alt="" loading="lazy" decoding="async"><span class="c-name">SSW outlook</span><span class="c-note">Is a sudden warming coming?</span><span class="c-when">Twice daily</span></a>
         <a class="card" href="/stratosphere.html#vortex"><img src="/assets/site/cards/stratosphere_vortex.webp" alt="" loading="lazy" decoding="async"><span class="c-name">The next two weeks</span><span class="c-note">The vortex, its waves and the surface</span><span class="c-when">Twice daily</span></a>
         <a class="card" href="/stratosphere.html#vortex35"><img src="/assets/site/cards/stratosphere_vortex35.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Weeks 3–5 and the season</span><span class="c-note">GEPS, GEFS, C3S and SEAS5</span><span class="c-when">Daily</span></a>
-        <a class="card" href="/strat-models.html" style="--s4:2;"><img src="/assets/site/cards/strat_models.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Stratosphere model maps</span><span class="c-note">Polar maps at every level, zoomable</span><span class="c-when">Four times daily</span></a>
-        <a class="card" href="/stratosphere.html#qbo" style="--s4:2;"><img src="/assets/site/cards/stratosphere_qbo.webp" alt="" loading="lazy" decoding="async"><span class="c-name">The QBO and today's analyses</span><span class="c-note">QBO, momentum and the Brewer–Dobson</span><span class="c-when">Daily</span></a>
-        <a class="card" href="/stratosphere.html#shwinters" style="--s4:2;--s2:2;"><img src="/assets/site/cards/stratosphere_shwinters.webp" alt="" loading="lazy" decoding="async"><span class="c-name">History and studies</span><span class="c-note">Every winter and warming since 1980</span><span class="c-when">Static</span></a>
+        <a class="card" href="/strat-models.html"><img src="/assets/site/cards/strat_models.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Stratosphere model maps</span><span class="c-note">Polar maps at every level, zoomable</span><span class="c-when">Four times daily</span></a>
+        <a class="card" href="/stratosphere.html#qbo"><img src="/assets/site/cards/stratosphere_qbo.webp" alt="" loading="lazy" decoding="async"><span class="c-name">The QBO and today's analyses</span><span class="c-note">QBO, momentum and the Brewer–Dobson</span><span class="c-when">Daily</span></a>
+        <a class="card" href="/stratosphere.html#shwinters"><img src="/assets/site/cards/stratosphere_shwinters.webp" alt="" loading="lazy" decoding="async"><span class="c-name">History and studies</span><span class="c-note">Every winter and warming since 1980</span><span class="c-when">Static</span></a>
       </div>
     </section>
     <section class="th" data-topic="outlooks">
@@ -597,9 +587,9 @@
         <a class="card lead" href="/monthly-outlook.html"><img src="/assets/site/cards/monthly_outlook.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Claude's long-range forecast</span><span class="c-note">The month and three seasons ahead</span><span class="c-when">Monthly, on the 15th</span></a>
         <a class="card" href="/subseasonal.html"><img src="/assets/site/cards/subseasonal.webp" alt="" loading="lazy" decoding="async"><span class="c-name">GEPS, to day 35</span><span class="c-note">Canada's extended ensemble</span><span class="c-when">Mondays and Thursdays</span></a>
         <a class="card" href="/gefs.html"><img src="/assets/site/cards/gefs.webp" alt="" loading="lazy" decoding="async"><span class="c-name">GEFS, to day 35</span><span class="c-note">NOAA's extended ensemble</span><span class="c-when">Daily</span></a>
-        <a class="card" href="/sfs-subseasonal.html" style="--s4:2;"><img src="/assets/site/cards/sfs_subseasonal.webp" alt="" loading="lazy" decoding="async"><span class="c-name">SFS, to six weeks</span><span class="c-note">NOAA's experimental new system</span><span class="c-when">Monthly</span></a>
-        <a class="card" href="/seasonal.html" style="--s4:2;"><img src="/assets/site/cards/seasonal.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Seasonal model forecasts</span><span class="c-note">Seven C3S systems and NOAA's SFS</span><span class="c-when">Monthly</span></a>
-        <a class="card" href="/enso-forecasts.html" style="--s4:2;--s2:2;"><img src="/assets/site/cards/enso_forecasts.webp" alt="" loading="lazy" decoding="async"><span class="c-name">ENSO forecasts</span><span class="c-note">Niño-3.4 from five centres</span><span class="c-when">Monthly</span></a>
+        <a class="card" href="/sfs-subseasonal.html"><img src="/assets/site/cards/sfs_subseasonal.webp" alt="" loading="lazy" decoding="async"><span class="c-name">SFS, to six weeks</span><span class="c-note">NOAA's experimental new system</span><span class="c-when">Monthly</span></a>
+        <a class="card" href="/seasonal.html"><img src="/assets/site/cards/seasonal.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Seasonal model forecasts</span><span class="c-note">Seven C3S systems and NOAA's SFS</span><span class="c-when">Monthly</span></a>
+        <a class="card" href="/enso-forecasts.html"><img src="/assets/site/cards/enso_forecasts.webp" alt="" loading="lazy" decoding="async"><span class="c-name">ENSO forecasts</span><span class="c-note">Niño-3.4 from five centres</span><span class="c-when">Monthly</span></a>
       </div>
     </section>
     <section class="th" data-topic="research">
@@ -612,9 +602,9 @@
         <a class="card" href="/torque-enso.html"><img src="/assets/site/cards/torque_enso.webp" alt="" loading="lazy" decoding="async"><span class="c-name">El Niño and angular momentum</span><span class="c-note">Why the atmosphere spins up</span><span class="c-when">Static</span></a>
         <a class="card" href="/topics/"><img src="/assets/site/cards/topics.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Explainers</span><span class="c-note">The physics behind the products</span><span class="c-when">As written</span></a>
         <a class="card" href="/skewt/"><img src="/assets/site/cards/skewt.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Sounding explorer</span><span class="c-note">Radiosondes worldwide, live</span><span class="c-when">Hourly mirror</span></a>
-        <a class="card" href="/asos5.html" style="--s4:2;--s3:2;"><img src="/assets/site/cards/asos5.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Five-minute airport observations</span><span class="c-note">22 major US airports, live</span><span class="c-when">Live</span></a>
-        <a class="card" href="/climate.html" style="--s4:2;"><img src="/assets/site/cards/climate.webp" alt="" loading="lazy" decoding="async"><span class="c-name">US climate trends</span><span class="c-note">Every county and month since 1895</span><span class="c-when">Monthly</span></a>
-        <a class="card" href="/fci.html" style="--s4:2;--s3:2;--s2:2;"><img src="/assets/site/cards/fci.webp" alt="" loading="lazy" decoding="async"><span class="c-name">US credit conditions</span><span class="c-note">Financial conditions, weekly since 1990</span><span class="c-when">Daily</span></a>
+        <a class="card" href="/asos5.html"><img src="/assets/site/cards/asos5.webp" alt="" loading="lazy" decoding="async"><span class="c-name">Five-minute airport observations</span><span class="c-note">22 major US airports, live</span><span class="c-when">Live</span></a>
+        <a class="card" href="/climate.html"><img src="/assets/site/cards/climate.webp" alt="" loading="lazy" decoding="async"><span class="c-name">US climate trends</span><span class="c-note">Every county and month since 1895</span><span class="c-when">Monthly</span></a>
+        <a class="card" href="/fci.html"><img src="/assets/site/cards/fci.webp" alt="" loading="lazy" decoding="async"><span class="c-name">US credit conditions</span><span class="c-note">Financial conditions, weekly since 1990</span><span class="c-when">Daily</span></a>
       </div>
     </section>
     <!-- hp:end -->
